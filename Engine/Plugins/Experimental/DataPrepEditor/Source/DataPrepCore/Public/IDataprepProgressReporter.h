@@ -22,7 +22,7 @@ public:
 	 * @param InDescription		Text describing the work about to begin
 	 * @param InAmountOfWork	Expected total amount of work
 	 */
-	virtual void BeginWork( const FText& InDescription, float InAmountOfWork ) = 0;
+	virtual void BeginWork( const FText& InDescription, float InAmountOfWork, bool bInterruptible = true ) = 0;
 
 	/** Indicates the end of the work */
 	virtual void EndWork() = 0;
@@ -56,7 +56,7 @@ public:
 	 * @param InAmountOfWork		Total amount of work for the task
 	 * @param InIncrementOfWork		Amount of incremental work at each step within the task
 	 */
-	FDataprepWorkReporter( const TSharedPtr<IDataprepProgressReporter>& InReporter, const FText& InDescription, float InAmountOfWork, float InIncrementOfWork = 1.0f );
+	FDataprepWorkReporter( const TSharedPtr<IDataprepProgressReporter>& InReporter, const FText& InDescription, float InAmountOfWork, float InIncrementOfWork = 1.0f, bool bInterruptible = true );
 
 	~FDataprepWorkReporter();
 
