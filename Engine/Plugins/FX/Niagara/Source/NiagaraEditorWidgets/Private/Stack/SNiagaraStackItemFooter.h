@@ -5,17 +5,19 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
-class UNiagaraStackAdvancedExpander;
+class UNiagaraStackItemFooter;
 
-class SNiagaraStackItemExpander: public SCompoundWidget
+class SNiagaraStackItemFooter: public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SNiagaraStackItemExpander) { }
+	SLATE_BEGIN_ARGS(SNiagaraStackItemFooter) { }
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs, UNiagaraStackAdvancedExpander& InItemExpander);
+	void Construct(const FArguments& InArgs, UNiagaraStackItemFooter& InItemFooter);
 
 private:
+	EVisibility GetExpandButtonVisibility() const;
+
 	const struct FSlateBrush* GetButtonBrush() const;
 
 	FText GetToolTipText() const;
@@ -23,7 +25,7 @@ private:
 	FReply ExpandButtonClicked();
 
 private:
-	UNiagaraStackAdvancedExpander* ShowAdvancedExpander;
+	UNiagaraStackItemFooter* ItemFooter;
 	FText ExpandedToolTipText;
 	FText CollapsedToolTipText;
 };
