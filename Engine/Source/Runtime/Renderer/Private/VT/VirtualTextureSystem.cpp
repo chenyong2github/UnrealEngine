@@ -1469,8 +1469,9 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 			// For square textures, this could simply be (Local_vAddress % NumTilesInMip), but that doesn't work for non-square
 			// Possible there is a more clever approach to take here
 			{
-				const uint32 ProducerMipWidthInTiles = FMath::Max(Producer->GetWidthInTiles() >> Local_vLevel, 1u);
-				const uint32 ProducerMipHeightInTiles = FMath::Max(Producer->GetHeightInTiles() >> Local_vLevel, 1u);
+				const uint32 MipScaleFactor = (1u << Local_vLevel);
+				const uint32 ProducerMipWidthInTiles = FMath::DivideAndRoundUp(Producer->GetWidthInTiles(), MipScaleFactor);
+				const uint32 ProducerMipHeightInTiles = FMath::DivideAndRoundUp(Producer->GetHeightInTiles(), MipScaleFactor);
 				uint32 Local_vTileX = FMath::ReverseMortonCode2(Local_vAddress);
 				uint32 Local_vTileY = FMath::ReverseMortonCode2(Local_vAddress >> 1);
 				Local_vTileX %= ProducerMipWidthInTiles;
