@@ -194,5 +194,71 @@ namespace Chaos
 			const PMatrix<T, d, d>& InvIL0,
 			float InvM1,
 			const PMatrix<T, d, d>& InvIL1);
+
+		static CHAOS_API void ApplyJointPositionProjection(
+			const T Dt,
+			const TPBDJointSolverSettings<T, d>& SolverSettings,
+			const TPBDJointSettings<T, d>& JointSettings,
+			const int32 Index0,
+			const int32 Index1,
+			TVector<T, d>& P0,
+			TRotation<T, d>& Q0,
+			TVector<T, d>& P1,
+			TRotation<T, d>& Q1,
+			float InvM0,
+			const PMatrix<T, d, d>& InvIL0,
+			float InvM1,
+			const PMatrix<T, d, d>& InvIL1,
+			const T ProjectionFactor);
+
+		static CHAOS_API void ApplyJointTwistProjection(
+			const T Dt,
+			const TPBDJointSolverSettings<T, d>& SolverSettings,
+			const TPBDJointSettings<T, d>& JointSettings,
+			const int32 Index0,
+			const int32 Index1,
+			TVector<T, d>& P0,
+			TRotation<T, d>& Q0,
+			TVector<T, d>& P1,
+			TRotation<T, d>& Q1,
+			float InvM0,
+			const PMatrix<T, d, d>& InvIL0,
+			float InvM1,
+			const PMatrix<T, d, d>& InvIL1,
+			const T ProjectionFactor);
+
+		static CHAOS_API void ApplyJointConeProjection(
+			const T Dt,
+			const TPBDJointSolverSettings<T, d>& SolverSettings,
+			const TPBDJointSettings<T, d>& JointSettings,
+			const int32 Index0,
+			const int32 Index1,
+			TVector<T, d>& P0,
+			TRotation<T, d>& Q0,
+			TVector<T, d>& P1,
+			TRotation<T, d>& Q1,
+			float InvM0,
+			const PMatrix<T, d, d>& InvIL0,
+			float InvM1,
+			const PMatrix<T, d, d>& InvIL1,
+			const T ProjectionFactor);
+
+		static CHAOS_API void ApplyJointSwingProjection(
+			const T Dt,
+			const TPBDJointSolverSettings<T, d>& SolverSettings,
+			const TPBDJointSettings<T, d>& JointSettings,
+			const int32 Index0,
+			const int32 Index1,
+			const EJointAngularConstraintIndex SwingConstraint,
+			TVector<T, d>& P0,
+			TRotation<T, d>& Q0,
+			TVector<T, d>& P1,
+			TRotation<T, d>& Q1,
+			float InvM0,
+			const PMatrix<T, d, d>& InvIL0,
+			float InvM1,
+			const PMatrix<T, d, d>& InvIL1,
+			const T ProjectionFactor);
+
 	};
 }
