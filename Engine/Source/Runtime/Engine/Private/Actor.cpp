@@ -3313,7 +3313,6 @@ void AActor::PostNetInit()
 	{
 		UE_LOG(LogActor, Warning, TEXT("AActor::PostNetInit %s Remoterole: %d"), *GetName(), (int)RemoteRole);
 	}
-	check(RemoteRole == ROLE_Authority);
 
 	if (!HasActorBegunPlay())
 	{
