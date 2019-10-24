@@ -80,6 +80,7 @@ public:
 		, MBounds(MoveTemp(Other.MBounds))
 		, MPayloads(MoveTemp(Other.MPayloads))
 	{
+		ResizeHelper(Other.MSize);
 		Other.MSize = 0;
 
 		AddArray(&MHasBoundingBoxes);
@@ -97,6 +98,7 @@ public:
 			MHasBoundingBoxes = MoveTemp(Other.MHasBoundingBoxes);
 			MBounds = MoveTemp(Other.MBounds);
 			MPayloads = MoveTemp(Other.MPayloads);
+			ResizeHelper(Other.MSize);
 			Other.MSize = 0;
 #if PARTICLE_ITERATOR_RANGED_FOR_CHECK
 			MDirtyValidationCount = 0;
