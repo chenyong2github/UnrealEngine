@@ -133,12 +133,12 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 }
 
  void DecodeNodeData(
-	 const FNodeData	 InNode, 
-	 out float			 OutDepth, 
-	 out FVisibilityData OutVisibilityData,
-	 out float3			 OutBaseColor, 
-	 out float			 OutRoughness,
-	 out float			 OutSpecular)
+	 const FNodeData		InNode, 
+	 inout float			OutDepth, 
+	 inout FVisibilityData	OutVisibilityData,
+	 inout float3			OutBaseColor, 
+	 inout float			OutRoughness,
+	 inout float			OutSpecular)
 {
 	OutDepth = InNode.Depth;
 
@@ -178,8 +178,8 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
  };
 
  void ComputeUniqueSamples(
-	 out FSampleDesc OutSamples[HAIR_VISIBILITY_MAXSAMPLECOUNT],
-	 out FSampleSetDesc OutSet,
+	 inout FSampleDesc OutSamples[HAIR_VISIBILITY_MAXSAMPLECOUNT],
+	 inout FSampleSetDesc OutSet,
 	 const uint2 PixelCoord,
 	 const uint SampleCount,
 	 Texture2D<float4> InSceneDepthTexture,
@@ -301,7 +301,7 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 		 (uint(Roughness   * 0xFF) & 0xFF) << 24;
  }
 
- void DecodeBaseColorAndRoughness(uint Encoded, out float3 BaseColor, out float Roughness)
+ void DecodeBaseColorAndRoughness(uint Encoded, inout float3 BaseColor, out float Roughness)
  {
 	 BaseColor.x = (float((Encoded) & 0xFF) / 255.f);
 	 BaseColor.y = (float((Encoded >> 8) & 0xFF) / 255.f);
