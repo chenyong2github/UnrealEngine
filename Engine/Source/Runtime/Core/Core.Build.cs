@@ -129,10 +129,6 @@ public class Core : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
         {
-			string PlatformName = Target.IsInPlatformGroup(UnrealPlatformGroup.Linux) ?
-				"Linux" : Target.Platform.ToString();
-
-			PublicIncludePaths.Add(string.Format("Runtime/Core/Public/{0}", PlatformName));
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
 				"zlib",
 				"jemalloc"
