@@ -555,6 +555,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Enable RTTI for all modules.
 		/// </summary>
+		[CommandLine("-rtti")]
 		[RequiresUniqueBuildEnvironment]
 		public bool bForceEnableRTTI = false;
 
