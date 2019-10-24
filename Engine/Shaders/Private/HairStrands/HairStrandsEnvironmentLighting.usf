@@ -515,14 +515,14 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	const bool bIsClusterCompatible = SampleVisData.ClusterId == Voxel_ClusterId;
 	if (bIsClusterCompatible)
 	{
-		const float SampleCoverage = From8bitCoverage(SampleVisData.Coverage8bit);
+		const float SampleCoverage = saturate(From8bitCoverage(SampleVisData.Coverage8bit));
 		const float3 SkyLighting = ReflectionEnvironment(GBuffer, ScreenPosition, SvPosition);
 
 		FLightAccumulator LightAccumulator = (FLightAccumulator)0;
 		LightAccumulator_Add(LightAccumulator, SkyLighting, SkyLighting, 1.0f, false);
 		float4 OutColor = LightAccumulator_GetResult(LightAccumulator);
-		OutColor.xyz *= saturate(SampleCoverage);
-		OutColor.a = saturate(SampleCoverage);
+		OutColor.xyz *= SampleCoverage;
+		OutColor.a = SampleCoverage;
 
 		OutLightingBuffer[LocalOffset] = OutColor;
 	}

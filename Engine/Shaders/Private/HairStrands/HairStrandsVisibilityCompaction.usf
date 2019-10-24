@@ -210,7 +210,8 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 					const float SampleDepth = MSAA_DepthTexture.Load(PixelCoord, SampleIt);
 					const uint4 EncodedData = MSAA_IDTexture.Load(PixelCoord, SampleIt);
 					FVisibilityData VisibilityData = DecodeVisibilityData(EncodedData);
-					VisibilityData.Coverage8bit = To8bitCoverage(Samples[OutIndex].y / float(SampleDesc.HairSampleCount));
+					// VisibilityData.Coverage8bit is a weight normalising to 1 the contribution of all the compacted samples. Because later it is weighted by Categorization.PixelCoverage.
+					VisibilityData.Coverage8bit = To8bitCoverage(Samples[OutIndex].y / float(SampleDesc.ValidSampleCount));
 					Categorization.TotalCoverage8bit += VisibilityData.Coverage8bit;
 					Categorization.ClosestDepth = max(Categorization.ClosestDepth, SampleDepth); // Inverse-Z
 
