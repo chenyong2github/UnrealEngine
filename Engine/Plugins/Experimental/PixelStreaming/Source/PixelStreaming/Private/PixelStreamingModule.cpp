@@ -152,7 +152,7 @@ void FPixelStreamingModule::InitPlayer()
 		bool bRes = FPlayer::CreateDXManagerAndDevice();
 		if (!bRes)
 		{
-			UE_LOG(PixelPlayer, Warning, TEXT("IbmMediaPlayer failed to create DXGI Manager and Device"));
+			UE_LOG(PixelPlayer, Warning, TEXT("Failed to create DXGI Manager and Device"));
 		}
 	}
 
@@ -163,10 +163,13 @@ void FPixelStreamingModule::InitPlayer()
 /** IModuleInterface implementation */
 void FPixelStreamingModule::StartupModule()
 {
-	// only D3D11 is supported
-	if (GDynamicRHI == nullptr || GDynamicRHI->GetName() != FString(TEXT("D3D11")))
+	// only D3D11/D3D12 is supported
+	if (
+		GDynamicRHI == nullptr ||
+		!(GDynamicRHI->GetName() == FString(TEXT("D3D11")) || GDynamicRHI->GetName() == FString(TEXT("D3D12")))
+		)
 	{
-		UE_LOG(PixelStreaming, Log, TEXT("Only D3D11 Dynamic RHI is supported. Detected %s"), GDynamicRHI != nullptr ? GDynamicRHI->GetName() : TEXT("[null]"));
+		UE_LOG(PixelStreaming, Log, TEXT("Only D3D11/D3D12 Dynamic RHI is supported. Detected %s"), GDynamicRHI != nullptr ? GDynamicRHI->GetName() : TEXT("[null]"));
 		return;
 	}
 
