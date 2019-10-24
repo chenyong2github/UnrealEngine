@@ -40,9 +40,11 @@ public:
 	{
 	}
 
-	CheckedCTError AddBRep(TArray<AlDagNode*>& DagNodeSet, bool bIsSymmetricBody);
+	CT_IO_ERROR AddBRep(TArray<AlDagNode*>& DagNodeSet, bool bIsSymmetricBody);
 
 	static TSharedPtr<FAliasCoretechWrapper> GetSharedSession();
+
+	CT_IO_ERROR Tessellate(FMeshDescription& Mesh, FMeshParameters& MeshParameters);
 
 protected:
 	/**

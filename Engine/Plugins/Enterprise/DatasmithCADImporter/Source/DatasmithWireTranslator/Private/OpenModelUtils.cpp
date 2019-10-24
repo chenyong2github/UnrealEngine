@@ -1,12 +1,11 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-
 #include "OpenModelUtils.h"
-
 
 #ifdef USE_OPENMODEL
 
+#include "CADOptions.h"
+#include "DatasmithUtils.h"
 #include "Translators/DatasmithTranslator.h"
-
 
 #include "AlDagNode.h"
 #include "AlMesh.h"
@@ -19,9 +18,6 @@
 #include "StaticMeshOperations.h"
 #include "Utility/DatasmithMathUtils.h"
 using namespace OpenModelUtils;
-
-
-
 
 const TCHAR * OpenModelUtils::AlObjectTypeToString(AlObjectType type)
 {
