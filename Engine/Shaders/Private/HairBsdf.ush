@@ -89,6 +89,15 @@ float3 SigmaAFromReflectance(const float3 c, float beta_n)
 		SigmaAFromReflectance(c.z, beta_n));
 }
 
+
+float3 EvaluateHairMultipleScattering(
+	const FHairTransmittanceData TransmittanceData,
+	const float Roughness,
+	const float3 Fs)
+{
+	return TransmittanceData.GlobalScattering * (Fs + TransmittanceData.LocalScattering) * TransmittanceData.OpaqueVisibility;
+}
+
 float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Shadow, FHairTransmittanceData HairTransmittance, float Backlit, float Area, uint2 Random )
 {
 	// Strand tangent is oriented from root to tip, while the existing shading code expect tip to root orientation
@@ -236,7 +245,7 @@ float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Sha
 	}
 #endif
 
-	if ((HairTransmittance.ScatteringComponent & HAIR_COMPONENT_MULTISCATTER) && HairTransmittance.MultipleScattering > 0)
+	if (HairTransmittance.ScatteringComponent & HAIR_COMPONENT_MULTISCATTER)
 	{
 		S = EvaluateHairMultipleScattering(HairTransmittance, ClampedRoughness, S);
 	}
