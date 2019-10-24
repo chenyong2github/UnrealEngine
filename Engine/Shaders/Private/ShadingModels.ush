@@ -60,8 +60,6 @@ struct FHairTransmittanceData
 
 	float OpaqueVisibility;
 	float HairCount;
-	float MultipleScattering;
-
 
 	// TEMP: for fastning iteration times
 	float3 LocalScattering;
@@ -78,7 +76,6 @@ FHairTransmittanceData InitHairTransmittanceData()
 	o.A_back = 1;			
 	o.OpaqueVisibility = 1;
 	o.HairCount = 0;
-	o.MultipleScattering = 0;
 	
 	// TEMP: for fastning iteration times
 	o.LocalScattering = 0;
@@ -729,14 +726,6 @@ float3 KajiyaKayDiffuseAttenuation(FGBufferData GBuffer, float3 L, float3 V, hal
 	return sqrt(GBuffer.BaseColor) * DiffuseScatter * ScatterTint;
 }
 
-float3 EvaluateHairMultipleScattering(
-	const FHairTransmittanceData TransmittanceData,
-	const float Roughness,
-	const float3 Fs)
-{
-	return TransmittanceData.GlobalScattering * (Fs + TransmittanceData.LocalScattering) * TransmittanceData.OpaqueVisibility;
-}
-
 // Approximation to HairShadingRef using concepts from the following papers:
 // [Marschner et al. 2003, "Light Scattering from Human Hair Fibers"]
 // [Pekelis et al. 2015, "A Data-Driven Light Scattering Model for Hair"]
@@ -853,15 +842,9 @@ float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Sha
 	}
 #endif
 
-	const bool bComplexMultiScatter = (HairTransmittance.ScatteringComponent & HAIR_COMPONENT_MULTISCATTER);
-	if (!bComplexMultiScatter && bEvalMultiScatter)
+	if (bEvalMultiScatter)
 	{
 		S += KajiyaKayDiffuseAttenuation(GBuffer, L, V, N, Shadow);
-	}
-
-	if (bComplexMultiScatter && HairTransmittance.MultipleScattering > 0)
-	{
-		S = EvaluateHairMultipleScattering(HairTransmittance, ClampedRoughness, S);
 	}
 
 	S = -min(-S, 0.0);
