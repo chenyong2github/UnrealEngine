@@ -192,15 +192,6 @@ public:
 	static void SetConvexDecompositionCollision(const TArray<UObject*>& SelectedObjects, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision, TArray<UObject*>& ModifiedObjects);
 
 	/**
-	 * Sets the Generate Lightmap UVs flag on the static meshes found in the Assets list
-	 *
-	 * @param	Assets					List of assets to set the generate lightmap uvs flag on. Only Static Meshes will be affected.
-	 * @param	bGenerateLightmapUVs	The value to set for the generate lightmap uvs flag.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Dataprep | Operation")
-	static void SetGenerateLightmapUVs( const TArray< UObject* >& Assets, bool bGenerateLightmapUVs, TArray<UObject*>& ModifiedObjects );
-
-	/**
 	 * Replaces designated materials in all or specific content folders with specific ones
 	 * @param SelectedObjects: Objects to consider for the substitution
 	 * @param MaterialSearch: Name of the material(s) to search for. Wildcard is supported

@@ -163,34 +163,6 @@ protected:
 	//~ End UDataprepOperation Interface
 };
 
-UCLASS(Experimental, Category = MeshOperation, Meta = (DisplayName="Enable Lightmap UVs", ToolTip = "For each static mesh to process, enable or disable the generation of lightmap UVs") )
-class UDataprepSetGenerateLightmapUVsOperation : public UDataprepOperation
-{
-	GENERATED_BODY()
-
-	UDataprepSetGenerateLightmapUVsOperation()
-		: bGenerateLightmapUVs(true)
-	{
-	}
-
-public:
-	// The value to set for the generate lightmap uvs flag on each static mesh
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MeshOperation, meta = (ToolTip = "Maximum number of convex pieces that will be created"))
-	bool bGenerateLightmapUVs;
-
-protected:
-	//~ Begin UDataprepOperation Interface
-public:
-	virtual FText GetCategory_Implementation() const override
-	{
-		return FDataprepOperationCategories::MeshOperation;
-	}
-
-protected:
-	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
-	//~ End UDataprepOperation Interface
-};
-
 UCLASS(Experimental, Category = ActorOperation, Meta = (DisplayName="Set Mobility", ToolTip = "For each mesh actor to process, update its mobilty with the selected value") )
 class UDataprepSetMobilityOperation : public UDataprepOperation
 {
