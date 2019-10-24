@@ -7,7 +7,7 @@
 #include "MultiSelectionTool.h"
 #include "InteractiveToolBuilder.h"
 #include "MeshOpPreviewHelpers.h"
-#include "Drawing/ToolDataVisualizer.h"
+#include "ToolDataVisualizer.h"
 #include "ParameterizationOps/UVProjectionOp.h"
 #include "DynamicMesh3.h"
 #include "BaseTools/SingleClickTool.h"

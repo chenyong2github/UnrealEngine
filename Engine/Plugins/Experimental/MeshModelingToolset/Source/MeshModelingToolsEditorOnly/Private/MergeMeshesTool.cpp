@@ -3,7 +3,7 @@
 #include "MergeMeshesTool.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
-#include "ToolSetupUtil.h"
+#include "BaseTools/ToolSetupUtil.h"
 #include "AssetGenerationUtil.h"
 #include "Selection/ToolSelectionUtil.h"
 

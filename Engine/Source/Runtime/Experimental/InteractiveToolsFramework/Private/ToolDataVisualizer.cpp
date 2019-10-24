@@ -1,11 +1,21 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Drawing/ToolDataVisualizer.h"
+#include "ToolDataVisualizer.h"
 #include "SceneManagement.h" 
 #include "ToolContextInterfaces.h"
 #include "SceneManagement.h"   // DrawCircle
+#include "BaseGizmos/GizmoMath.h"
 
-#include "Util/IndexUtil.h"
+
+const int BoxFaces[6][4] =
+{
+	{ 0, 1, 2, 3 },     // back, -z
+	{ 5, 4, 7, 6 },     // front, +z
+	{ 4, 0, 3, 7 },     // left, -x
+	{ 1, 5, 6, 2 },     // right, +x,
+	{ 4, 5, 1, 0 },     // bottom, -y
+	{ 3, 2, 6, 7 }      // top, +y
+};
 
 FToolDataVisualizer::FToolDataVisualizer()
 {
@@ -87,8 +97,8 @@ void FToolDataVisualizer::InternalDrawTransformedPoint(const FVector& Position, 
 
 void FToolDataVisualizer::InternalDrawCircle(const FVector& Position, const FVector& Normal, float Radius, int Steps, const FLinearColor& Color, float LineThicknessIn, bool bDepthTestedIn)
 {
-	FVector3f Tan1, Tan2;
-	VectorUtil::MakePerpVectors((FVector3f)TransformN(Normal), Tan1, Tan2);
+	FVector Tan1, Tan2;
+	GizmoMath::MakeNormalPlaneBasis((FVector)TransformN(Normal), Tan1, Tan2);
 	Tan1.Normalize(); Tan2.Normalize();
 
 	// this function is from SceneManagement.h
@@ -116,7 +126,7 @@ void FToolDataVisualizer::InternalDrawWireBox(const FBox& Box, const FLinearColo
 	{
 		for (int Last = 3, Cur = 0; Cur < 4; Last = Cur++)
 		{
-			InternalDrawTransformedLine(Corners[IndexUtil::BoxFaces[FaceIdx][Last]], Corners[IndexUtil::BoxFaces[FaceIdx][Cur]], 
+			InternalDrawTransformedLine(Corners[BoxFaces[FaceIdx][Last]], Corners[BoxFaces[FaceIdx][Cur]], 
 										ColorIn, LineThicknessIn, bDepthTestedIn);
 		}
 	}
@@ -140,8 +150,8 @@ void FToolDataVisualizer::InternalDrawSquare(const FVector& Center, const FVecto
 
 void FToolDataVisualizer::InternalDrawWireCylinder(const FVector& Position, const FVector& Normal, float Radius, float Height, int Steps, const FLinearColor& Color, float LineThicknessIn, bool bDepthTestedIn)
 {
-	FVector3f Tan1, Tan2;
-	VectorUtil::MakePerpVectors((FVector3f)Normal, Tan1, Tan2);
+	FVector Tan1, Tan2;
+	GizmoMath::MakeNormalPlaneBasis(Normal, Tan1, Tan2);
 	
 	const float	AngleDelta = 2.0f * PI / Steps;
 	FVector X(Tan1), Y(Tan2);
@@ -172,8 +182,8 @@ void FToolDataVisualizer::InternalDrawViewFacingCircle(const FVector& Position, 
 	FVector WorldPosition = TransformP(Position);
 	FVector WorldNormal = (CameraState.Position - WorldPosition);
 	WorldNormal.Normalize();
-	FVector3f Tan1, Tan2;
-	VectorUtil::MakePerpVectors((FVector3f)WorldNormal, Tan1, Tan2);
+	FVector Tan1, Tan2;
+	GizmoMath::MakeNormalPlaneBasis(WorldNormal, Tan1, Tan2);
 
 	// this function is from SceneManagement.h
 	::DrawCircle(CurrentPDI, WorldPosition, (FVector)Tan1, (FVector)Tan2,

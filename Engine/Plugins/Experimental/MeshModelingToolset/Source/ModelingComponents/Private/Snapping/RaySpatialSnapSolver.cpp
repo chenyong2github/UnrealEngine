@@ -6,7 +6,7 @@
 #include "LineTypes.h"
 #include "Distance/DistLine3Ray3.h"
 #include "Distance/DistLine3Circle3.h"
-#include "Drawing/ToolDataVisualizer.h"
+#include "ToolDataVisualizer.h"
 
 
 

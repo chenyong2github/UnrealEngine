@@ -10,7 +10,7 @@ class UPrimitiveComponent;
 class UPreviewMesh;
 
 UCLASS()
-class MODELINGCOMPONENTS_API UBrushStampIndicatorBuilder : public UInteractiveGizmoBuilder
+class INTERACTIVETOOLSFRAMEWORK_API UBrushStampIndicatorBuilder : public UInteractiveGizmoBuilder
 {
 	GENERATED_BODY()
 public:
@@ -23,7 +23,7 @@ public:
  * UBrushStampIndicator is a simple 3D brush indicator. 
  */
 UCLASS(Transient)
-class MODELINGCOMPONENTS_API UBrushStampIndicator : public UInteractiveGizmo
+class INTERACTIVETOOLSFRAMEWORK_API UBrushStampIndicator : public UInteractiveGizmo
 {
 	GENERATED_BODY()
 
@@ -41,15 +41,6 @@ public:
 	 * Update the Radius, Position, and Normal of the stamp indicator
 	 */
 	virtual void Update(float Radius, const FVector& Position, const FVector& Normal);
-
-
-	/**
-	 * Generate a mesh that is intended to be set as the AttachedComponent of a UBrushStampIndicator
-	 * Material is set to a default transparent material.
-	 * @warning Calling code must manage the returned UPreviewMesh! (keep it alive, Disconnect it, etc)
-	 */
-	static UPreviewMesh* MakeDefaultSphereMesh(UObject* Parent, UWorld* World, int Resolution = 32);
-
 
 public:
 

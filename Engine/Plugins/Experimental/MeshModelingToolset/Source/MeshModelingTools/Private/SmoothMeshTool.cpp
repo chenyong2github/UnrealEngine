@@ -11,7 +11,7 @@
 #include "SimpleDynamicMeshComponent.h"
 
 #include "SceneManagement.h" // for FPrimitiveDrawInterface
-#include "ToolSetupUtil.h"
+#include "BaseTools/ToolSetupUtil.h"
 
 // Smoothing operators
 #include "SmoothingOps/IterativeSmoothingOp.h"

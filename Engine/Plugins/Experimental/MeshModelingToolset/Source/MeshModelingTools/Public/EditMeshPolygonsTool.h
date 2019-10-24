@@ -7,7 +7,7 @@
 #include "BaseTools/MeshSurfacePointTool.h"
 #include "SimpleDynamicMeshComponent.h"
 #include "DynamicMeshAABBTree3.h"
-#include "Drawing/ToolDataVisualizer.h"
+#include "ToolDataVisualizer.h"
 #include "Transforms/QuickAxisTranslater.h"
 #include "Transforms/QuickAxisRotator.h"
 #include "Changes/MeshVertexChange.h"

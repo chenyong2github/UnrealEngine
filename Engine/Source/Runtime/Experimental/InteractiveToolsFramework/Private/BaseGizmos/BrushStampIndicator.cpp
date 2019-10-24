@@ -1,13 +1,9 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Gizmos/BrushStampIndicator.h"
+#include "BaseGizmos/BrushStampIndicator.h"
 #include "InteractiveGizmoManager.h"
-#include "Drawing/ToolDataVisualizer.h"
 #include "Components/PrimitiveComponent.h"
-
-#include "PreviewMesh.h"
-#include "Generators/SphereGenerator.h"
-#include "ToolSetupUtil.h"
+#include "ToolDataVisualizer.h"
 
 
 UInteractiveGizmo* UBrushStampIndicatorBuilder::BuildGizmo(const FToolBuilderState& SceneState) const
@@ -77,19 +73,4 @@ void UBrushStampIndicator::Update(float Radius, const FVector& Position, const F
 
 		AttachedComponent->SetWorldTransform(Transform);
 	}
-}
-
-
-
-UPreviewMesh* UBrushStampIndicator::MakeDefaultSphereMesh(UObject* Parent, UWorld* World, int Resolution)
-{
-	UPreviewMesh* SphereMesh = NewObject<UPreviewMesh>(Parent);
-	SphereMesh->CreateInWorld(World, FTransform::Identity);
-	FSphereGenerator SphereGen;
-	SphereGen.NumPhi = SphereGen.NumTheta = Resolution;
-	SphereGen.Generate();
-	FDynamicMesh3 Mesh(&SphereGen);
-	SphereMesh->UpdatePreview(&Mesh);
-	SphereMesh->SetMaterial(ToolSetupUtil::GetDefaultBrushVolumeMaterial(nullptr));
-	return SphereMesh;
 }

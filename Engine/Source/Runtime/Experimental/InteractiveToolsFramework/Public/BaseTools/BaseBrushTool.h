@@ -4,17 +4,15 @@
 
 #include "CoreMinimal.h"
 #include "BaseTools/MeshSurfacePointTool.h"
-#include "BoxTypes.h"
-#include "Gizmos/BrushStampIndicator.h"
+#include "InteractiveTool.h"
 #include "BaseBrushTool.generated.h"
 
-
-
+class UBrushStampIndicator;
 /**
  * Standard properties for a Brush-type Tool
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UBrushBaseProperties : public UInteractiveToolPropertySet
+class INTERACTIVETOOLSFRAMEWORK_API UBrushBaseProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -22,18 +20,24 @@ public:
 	UBrushBaseProperties();
 
 	/** Relative size of brush */
-	UPROPERTY(EditAnywhere, Category = BrushSize, meta = (DisplayName = "Size", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "10.0"))
+	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Size", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "10.0"))
 	float BrushSize;
 
 	/** If true, ignore relative Brush Size and use explicit World Radius */
-	UPROPERTY(EditAnywhere, Category = BrushSize, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = Brush, AdvancedDisplay)
 	bool bSpecifyRadius;
 
 	/** Radius of brush */
-	UPROPERTY(EditAnywhere, Category = BrushSize, AdvancedDisplay, meta = (DisplayName = "Radius", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.1", ClampMax = "50000.0"))
+	UPROPERTY(EditAnywhere, Category = Brush, AdvancedDisplay, meta = (DisplayName = "Radius", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.1", ClampMax = "50000.0"))
 	float BrushRadius;
 
+	/** Strength of the brush (0.0 - 1.0) */
+	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Strength", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float BrushStrength;
 
+	/** Amount of falloff to apply (0.0 - 1.0) */
+	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Falloff", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float BrushFalloffAmount;
 	//
 	// save/restore support
 	//
@@ -46,7 +50,7 @@ public:
  * Generic Brush Stamp data
  */
 USTRUCT()
-struct MESHMODELINGTOOLS_API FBrushStampData
+struct INTERACTIVETOOLSFRAMEWORK_API FBrushStampData
 {
 	GENERATED_BODY();
 	/** Radius of brush stamp */
@@ -71,7 +75,7 @@ struct MESHMODELINGTOOLS_API FBrushStampData
  *   4) status of brush stroke via .bInBrushStroke UProperty
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UBaseBrushTool : public UMeshSurfacePointTool
+class INTERACTIVETOOLSFRAMEWORK_API UBaseBrushTool : public UMeshSurfacePointTool
 {
 	GENERATED_BODY()
 
@@ -126,7 +130,7 @@ protected:
 	virtual double EstimateMaximumTargetDimension() { return 100.0; }
 
 protected:
-	FInterval1d BrushRelativeSizeRange;
+	TInterval<float> BrushRelativeSizeRange;
 	double CurrentBrushRadius;
 	void RecalculateBrushRadius();
 

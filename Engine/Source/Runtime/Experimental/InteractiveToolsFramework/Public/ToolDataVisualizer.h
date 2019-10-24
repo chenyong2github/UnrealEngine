@@ -3,9 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "VectorTypes.h"
-#include "FrameTypes.h"
-#include "LineTypes.h"
 #include "ToolContextInterfaces.h"  // for FViewCameraState
 
 class FPrimitiveDrawInterface;
@@ -17,7 +14,7 @@ class IToolsContextRenderAPI;
  * 
  * Currently uses PDI drawing but may use different back-ends in the future
  */
-class MODELINGCOMPONENTS_API FToolDataVisualizer
+class INTERACTIVETOOLSFRAMEWORK_API FToolDataVisualizer
 {
 public:
 	/** Default color used for drawing lines */

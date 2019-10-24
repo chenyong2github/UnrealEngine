@@ -9,10 +9,10 @@
 #include "DynamicMeshAABBTree3.h"
 #include "DynamicMeshOctree3.h"
 #include "MeshNormals.h"
-#include "BaseBrushTool.h"
-#include "Drawing/ToolDataVisualizer.h"
+#include "BaseTools/BaseBrushTool.h"
+#include "ToolDataVisualizer.h"
 #include "Changes/ValueWatcher.h"
-#include "Gizmos/BrushStampIndicator.h"
+#include "BaseGizmos/BrushStampIndicator.h"
 #include "Properties/MeshMaterialProperties.h"
 #include "TransformTypes.h"
 #include "DynamicMeshSculptTool.generated.h"
@@ -377,6 +377,7 @@ protected:
 	TArray<EDynamicMeshSculptBrushType> BrushTypeHistory;
 	int BrushTypeHistoryIndex = 0;
 
+	UPreviewMesh* MakeDefaultSphereMesh(UObject* Parent, UWorld* World, int Resolution = 32);
 };
 
 

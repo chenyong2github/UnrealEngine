@@ -14,13 +14,16 @@
 #include "MeshIndexUtil.h"
 #include "Drawing/MeshDebugDrawing.h"
 #include "PreviewMesh.h"
-#include "ToolSetupUtil.h"
+#include "BaseTools/ToolSetupUtil.h"
 
 #include "Changes/MeshVertexChange.h"
 #include "Changes/MeshChange.h"
 #include "DynamicMeshChangeTracker.h"
 
 #include "Async/ParallelFor.h"
+#include "ToolDataVisualizer.h"
+#include "Components/PrimitiveComponent.h"
+#include "Generators/SphereGenerator.h"
 
 #define LOCTEXT_NAMESPACE "UDynamicMeshSculptTool"
 
@@ -167,7 +170,7 @@ void UDynamicMeshSculptTool::Setup()
 	// register and spawn brush indicator gizmo
 	GetToolManager()->GetPairedGizmoManager()->RegisterGizmoType(BrushIndicatorGizmoType, NewObject<UBrushStampIndicatorBuilder>());
 	BrushIndicator = GetToolManager()->GetPairedGizmoManager()->CreateGizmo<UBrushStampIndicator>(BrushIndicatorGizmoType, FString(), this);
-	BrushIndicatorMesh = UBrushStampIndicator::MakeDefaultSphereMesh(this, TargetWorld);
+	BrushIndicatorMesh = MakeDefaultSphereMesh(this, TargetWorld);
 	BrushIndicator->AttachedComponent = BrushIndicatorMesh->GetRootComponent();
 	BrushIndicator->bDrawIndicatorLines = false;
 
@@ -1533,6 +1536,19 @@ double UDynamicMeshSculptTool::EstimateIntialSafeTargetLength(const FDynamicMesh
 
 
 
+
+UPreviewMesh* UDynamicMeshSculptTool::MakeDefaultSphereMesh(UObject* Parent, UWorld* World, int Resolution /*= 32*/)
+{
+	UPreviewMesh* SphereMesh = NewObject<UPreviewMesh>(Parent);
+	SphereMesh->CreateInWorld(World, FTransform::Identity);
+	FSphereGenerator SphereGen;
+	SphereGen.NumPhi = SphereGen.NumTheta = Resolution;
+	SphereGen.Generate();
+	FDynamicMesh3 Mesh(&SphereGen);
+	SphereMesh->UpdatePreview(&Mesh);
+	SphereMesh->SetMaterial(ToolSetupUtil::GetDefaultBrushVolumeMaterial(nullptr));
+	return SphereMesh;
+}
 
 void UDynamicMeshSculptTool::IncreaseBrushRadiusAction()
 {

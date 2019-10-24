@@ -1,9 +1,12 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "BaseBrushTool.h"
+#include "BaseTools/BaseBrushTool.h"
 #include "InteractiveToolManager.h"
 #include "InteractiveGizmoManager.h"
 #include "ToolBuilderUtil.h"
+#include "InteractiveTool.h"
+#include "BaseGizmos/BrushStampIndicator.h"
+
 
 #define LOCTEXT_NAMESPACE "UBaseBrushTool"
 
@@ -13,7 +16,8 @@ UBrushBaseProperties::UBrushBaseProperties()
 {
 	BrushSize = 0.25f;
 	bSpecifyRadius = false;
-	BrushRadius = 0.0f;
+	BrushRadius = 10.0f;
+	BrushStrength = 0.5f;
 }
 
 void UBrushBaseProperties::SaveProperties(UInteractiveTool* SaveFromTool)
@@ -45,7 +49,7 @@ void UBaseBrushTool::Setup()
 	UMeshSurfacePointTool::Setup();
 
 	double MaxDimension = EstimateMaximumTargetDimension();
-	BrushRelativeSizeRange = FInterval1d(MaxDimension*0.01, MaxDimension);
+	BrushRelativeSizeRange = TInterval<float>(MaxDimension*0.01, MaxDimension);
 	BrushProperties = NewObject<UBrushBaseProperties>(this, TEXT("Brush"));
 	RecalculateBrushRadius();
 
@@ -87,14 +91,14 @@ void UBaseBrushTool::DecreaseBrushSizeAction()
 
 void UBaseBrushTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 {
-	ActionSet.RegisterAction(this, (int32)EStandardToolActions::IncreaseBrushSize,
+	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID+12,
 		TEXT("BrushIncreaseSize"), 
 		LOCTEXT("BrushIncreaseSize", "Increase Brush Size"),
 		LOCTEXT("BrushIncreaseSizeTooltip", "Increase size of brush"),
 		EModifierKey::None, EKeys::RightBracket,
 		[this]() { IncreaseBrushSizeAction(); });
 
-	ActionSet.RegisterAction(this, (int32)EStandardToolActions::DecreaseBrushSize,
+	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 37,
 		TEXT("BrushDecreaseSize"), 
 		LOCTEXT("BrushDecreaseSize", "Decrease Brush Size"),
 		LOCTEXT("BrushDecreaseSizeTooltip", "Decrease size of brush"),

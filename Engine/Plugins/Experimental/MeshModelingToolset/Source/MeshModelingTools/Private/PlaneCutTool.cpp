@@ -4,7 +4,7 @@
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 
-#include "ToolSetupUtil.h"
+#include "BaseTools/ToolSetupUtil.h"
 
 #include "DynamicMesh3.h"
 #include "BaseBehaviors/MultiClickSequenceInputBehavior.h"
