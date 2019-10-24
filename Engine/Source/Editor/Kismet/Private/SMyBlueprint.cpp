@@ -1407,6 +1407,11 @@ void SMyBlueprint::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
 						OverridableFunctionActions.Add(NewFuncAction);
 						OverridableFunctionNames.Add(FunctionName);
 					}
+
+					if(bIsAnimFunction && NewFuncAction->EdGraph)
+					{
+						GetChildGraphs(NewFuncAction->EdGraph, NewFuncAction->GetSectionID(), SortList, FunctionCategory);
+					}
 				}
 			}
 		}
