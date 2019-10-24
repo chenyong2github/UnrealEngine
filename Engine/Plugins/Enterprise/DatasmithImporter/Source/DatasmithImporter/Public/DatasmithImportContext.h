@@ -236,8 +236,8 @@ struct DATASMITHIMPORTER_API FDatasmithImportContext
 	/** List of previously parsed IES files */
 	TSet<FString> ParsedIesFiles;
 
-	/** Indicates if the user has cancelled the import process  */
-	bool bUserCancelled;
+	/** Indicates if the user has canceled the import process  */
+	TAtomic<bool> bUserCancelled;
 
 	bool bIsAReimport;
 	bool bImportedViaScript;
