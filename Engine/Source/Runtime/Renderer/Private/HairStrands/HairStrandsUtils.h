@@ -11,15 +11,6 @@
 #include "HairStrandsInterface.h"
 #include "SceneTypes.h"
 
-struct FHairStrandsLightDesc
-{
-	FMatrix WorldToLightClipTransform;
-	FVector LightDirection;
-	FVector LightPosition;
-	FMinHairRadiusAtDepth1 MinStrandRadiusAtDepth1;
-	bool bIsOrtho;
-};
-
 FIntRect ComputeProjectedScreenRect(const FBox& B, const FViewInfo& View);
 
 void ComputeWorldToLightClip(
