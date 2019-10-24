@@ -52,7 +52,7 @@ public:
 	void SetupCustomAnalyticsAttributes(TArray<FAnalyticsEventAttribute>& EventAttributes) const;
 
 	/**  Return all FMeshDescriptions that have been created for a particular imported IDatasmithMeshElement */
-	TArray<FMeshDescription> GetGeometriesForMeshElement(const TSharedRef<IDatasmithMeshElement> MeshElement);
+	void GetGeometriesForMeshElementAndRelease(const TSharedRef<IDatasmithMeshElement> MeshElement, TArray<FMeshDescription>& OutMeshDescriptions);
 
 	/** Mesh global ID used when reimport. */
 	FString GetMeshGlobalId(const TSharedRef<IDatasmithMeshElement> MeshElement);
