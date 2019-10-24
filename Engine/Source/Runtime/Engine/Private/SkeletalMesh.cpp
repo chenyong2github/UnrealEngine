@@ -492,7 +492,7 @@ bool USkeletalMesh::IsReductionActive(int32 LODIndex) const
 				{
 					//Make sure the count fit in a uint32
 					LODVertexNumber += Section.NumVertices < 0 ? 0 : Section.NumVertices;
-					LODTriNumber += Section.NumTriangles < 0 ? 0 : Section.NumTriangles;
+					LODTriNumber += Section.NumTriangles;
 				}
 			}
 		}

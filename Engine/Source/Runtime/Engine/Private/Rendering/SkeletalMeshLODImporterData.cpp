@@ -530,7 +530,7 @@ void FReductionBaseSkeletalMeshBulkData::CacheGeometryInfo(const FSkeletalMeshLO
 		{
 			//Make sure the count fit in a uint32
 			CacheLODVertexNumber += Section.NumVertices < 0 ? 0 : Section.NumVertices;
-			CacheLODTriNumber += Section.NumTriangles < 0 ? 0 : Section.NumTriangles;
+			CacheLODTriNumber += Section.NumTriangles;
 		}
 	}
 }
