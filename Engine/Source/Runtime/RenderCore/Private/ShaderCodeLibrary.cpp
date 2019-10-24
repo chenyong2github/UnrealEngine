@@ -756,6 +756,30 @@ public:
 		return Shader;
 	}
 
+	FRayTracingShaderRHIRef CreateRayTracingShader(EShaderFrequency Frequency, const FSHAHash& Hash) override final
+	{
+		FRayTracingShaderRHIRef Shader;
+
+#if RHI_RAYTRACING
+		int32 Size = 0;
+		bool bWasSync = false;
+		TArray<uint8>* Code = LookupShaderCode(Hash, Size, bWasSync);
+		if (Code)
+		{
+			TArray<uint8> UCode;
+			TArray<uint8>& UncompressedCode = FShaderLibraryHelperUncompressCode(Platform, Size, *Code, UCode);
+			Shader = RHICreateRayTracingShader(UncompressedCode, Frequency);
+			CheckShaderCreation(Shader.GetReference(), Hash);
+			if (bWasSync)
+			{
+				ReleaseShaderCode(Hash);
+			}
+		}
+#endif // RHI_RAYTRACING
+
+		return Shader;
+	}
+
 	class FShaderCodeLibraryIterator : public FRHIShaderLibrary::FShaderLibraryIterator
 	{
 	public:
@@ -1876,6 +1900,22 @@ public:
 		return Result;
 	}
 
+	FRayTracingShaderRHIRef CreateRayTracingShader(EShaderPlatform Platform, EShaderFrequency Frequency, FSHAHash Hash)
+	{
+		FRayTracingShaderRHIRef Result;
+
+#if RHI_RAYTRACING
+		checkSlow(Platform == GetRuntimeShaderPlatform());
+		FRHIShaderLibrary* ShaderCodeArchive = FindShaderLibrary(Hash);
+		if (ShaderCodeArchive)
+		{
+			Result = ((FShaderCodeArchive*)ShaderCodeArchive)->CreateRayTracingShader(Frequency, Hash);
+		}
+#endif // RHI_RAYTRACING
+
+		return Result;
+	}
+
 	TRefCountPtr<FRHIShaderLibrary::FShaderLibraryIterator> CreateIterator(void)
 	{
 		return new FShaderCodeLibraryIterator(ShaderCodeArchiveStack, LibraryMutex);
@@ -2369,6 +2409,25 @@ FComputeShaderRHIRef FShaderCodeLibrary::CreateComputeShader(EShaderPlatform Pla
 	SafeAssignHash(Shader, Hash);
 	FPipelineFileCache::CacheComputePSO(GetTypeHash(Shader.GetReference()), Shader.GetReference());
 	Shader->SetStats(FPipelineFileCache::RegisterPSOStats(GetTypeHash(Shader.GetReference())));
+	return Shader;
+}
+
+FRayTracingShaderRHIRef FShaderCodeLibrary::CreateRayTracingShader(EShaderPlatform Platform, EShaderFrequency Frequency, FSHAHash Hash, TArray<uint8> const& Code)
+{
+	FRayTracingShaderRHIRef Shader;
+
+#if RHI_RAYTRACING
+	if (FShaderCodeLibraryImpl::Impl)
+	{
+		Shader = FShaderCodeLibraryImpl::Impl->CreateRayTracingShader(Platform, Frequency, Hash);
+	}
+	if (!IsValidRef(Shader))
+	{
+		Shader = RHICreateRayTracingShader(Code, Frequency);
+	}
+	SafeAssignHash(Shader, Hash);
+#endif // RHI_RAYTRACING
+
 	return Shader;
 }
 
