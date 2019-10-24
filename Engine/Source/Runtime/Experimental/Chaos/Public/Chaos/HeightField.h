@@ -99,6 +99,7 @@ namespace Chaos
 			if(Ar.IsLoading())
 			{
 				BuildQueryData();
+				BoundingBox();	//temp hack to initialize cache
 			}
 		}
 
