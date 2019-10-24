@@ -1494,6 +1494,16 @@ bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InPr
 
 	SlowTask.EnterProgressFrame();
 
+	// create a Content folder in the destination directory
+	const FString DestContentFolder = DestFolder / TEXT("Content");
+	if (!IFileManager::Get().MakeDirectory(*DestContentFolder, true))
+	{
+		FFormatNamedArguments FailArgs;
+		FailArgs.Add(TEXT("DestContentFolder"), FText::FromString(DestContentFolder));
+		OutFailReason = FText::Format(LOCTEXT("FailedToCreateDirectory", "Failed to create directory \"{DestContentFolder}\"."), FailArgs);
+		return false;
+	}
+
 	// Add a rule to replace the build settings version with the appropriate number
 	FTemplateReplacement& DefaultBuildSettingsRepl = TemplateDefs->ReplacementsInFiles.AddZeroed_GetRef();
 	DefaultBuildSettingsRepl.Extensions.Add("cs");
