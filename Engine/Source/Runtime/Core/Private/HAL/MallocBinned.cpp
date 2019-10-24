@@ -9,8 +9,6 @@
 #include "Misc/BufferedOutputDevice.h"
 
 #include "HAL/MemoryMisc.h"
-#include "HAL/LowLevelMemStats.h"
-#include "HAL/LowLevelMemTracker.h"
 
 /** Malloc binned allocator specific stats. */
 DEFINE_STAT(STAT_Binned_OsCurrent);
