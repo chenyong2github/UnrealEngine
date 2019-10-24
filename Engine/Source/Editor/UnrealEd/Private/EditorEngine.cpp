@@ -4482,8 +4482,11 @@ FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase
 				CleanupPhysicsSceneThatWasInitializedForSave(World, bForceInitializedWorld);
 			}
 
-			// Rerunning construction scripts may have made it dirty again
-			InOuter->SetDirtyFlag(false);
+			if (Result == ESavePackageResult::Success) // Package saved successfully?
+			{
+				// Rerunning construction scripts may have made it dirty again
+				InOuter->SetDirtyFlag(false);
+			}
 		}
 	}
 
