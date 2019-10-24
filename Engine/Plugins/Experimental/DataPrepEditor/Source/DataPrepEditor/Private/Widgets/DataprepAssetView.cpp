@@ -354,6 +354,10 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 	ProducersWidget = SNew(SDataprepProducersWidget, AssetProducers, CommandList)
 		.ColumnSizeData(ColumnSizeData);
 
+	TSharedRef<SDataprepDetailsView> DetailView = SNew(SDataprepDetailsView)
+	.ColumnSizeData( ColumnSizeData )
+	.Object( DataprepAssetInterfacePtr->GetParameterizationObject() );
+
 	TSharedRef<SScrollBar> ScrollBar = SNew(SScrollBar);
 
 	// #ueent_todo: Look at changing the border brushes to add color to this stuff
@@ -373,6 +377,7 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 				+ SScrollBox::Slot()
 				[
 					SNew(SVerticalBox)
+					// Begin - Section for producers
 					+ SVerticalBox::Slot()
 					.Padding( 5.0f )
 					.AutoHeight()
@@ -380,6 +385,9 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 					[
 						ProducersWidget.ToSharedRef()
 					]
+					// End - Section for producers
+
+					// Begin - Section for consumer
 					+ SVerticalBox::Slot()
 					.AutoHeight()
 					[
@@ -405,8 +413,6 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 							.Size( FVector2D( 200, 10 ) )		
 						]
 					]
-
-					// Section for consumer
 					+ SVerticalBox::Slot()
 					.AutoHeight()
 					[
@@ -453,7 +459,66 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 							.Size( FVector2D( 200, 10 ) )		
 						]
 					]
-					// Section for consumer
+					// End - Section for consumer
+
+					// Begin - Section for parameterization
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.FillWidth(1.0f)
+						.Padding( 0, 10, 0, 0 )
+						.HAlign( EHorizontalAlignment::HAlign_Center )
+						[
+							SNew(SColorBlock)
+							.Color( FLinearColor( 0.9f, 0.9f, 0.9f ) )
+							.Size( FVector2D( 3000, 1 ) )
+						]
+					]
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						[
+							SNew(SSpacer)
+							.Size( FVector2D( 200, 10 ) )		
+						]
+					]
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.FillWidth(1.0f)
+						.HAlign(EHorizontalAlignment::HAlign_Left)
+						.VAlign(VAlign_Center)
+						.Padding( FMargin( 5.0f, 5.0f, 0, 7.0f ) )
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("DataprepAssetView_Consumer_Parameterization", "Parameterization"))
+							.MinDesiredWidth( 200 )
+							.Font( IDetailLayoutBuilder::GetDetailFontBold() )
+						]
+					]
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(10.0f, 5.0f, 0.0f, 5.0f)
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.FillWidth(1.0f)
+						.HAlign(EHorizontalAlignment::HAlign_Left)
+						.VAlign(VAlign_Center)
+						.Padding( FMargin( -5.0f, 5.0f, 20.0f, 5.0f ) )
+						[
+							SNew( SDataprepDetailsView )
+							.Object( DataprepAssetInterfacePtr->GetParameterizationObject() )
+							.ColumnSizeData( ColumnSizeData )
+						]
+					]
+					// End - Section for parameterization
 				]
 			]
 			+SHorizontalBox::Slot()
