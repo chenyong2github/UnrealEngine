@@ -2862,10 +2862,17 @@ void FAudioDevice::SetListener(UWorld* World, const int32 InViewportIndex, const
 
 	// Initialize the plugin listeners if we haven't already. This needs to be done here since this is when we're
 	// guaranteed to have a world ptr and we've already initialized the audio device.
-	if (World && !bPluginListenersInitialized)
+	if (World)
 	{
-		InitializePluginListeners(World);
-		bPluginListenersInitialized = true;
+		if (!bPluginListenersInitialized)
+		{
+			InitializePluginListeners(World);
+			bPluginListenersInitialized = true;
+		}
+		else if (Listeners[InViewportIndex].WorldID != WorldID)
+		{
+			NotifyPluginListenersWorldChanged(World);
+		}
 	}
 
 	// The copy is done because FTransform doesn't work to pass by value on Win32
@@ -2898,7 +2905,6 @@ void FAudioDevice::SetListener(UWorld* World, const int32 InViewportIndex, const
 			PluginManager->OnTick(World, InViewportIndex, ListenerTransformCopy, InDeltaSeconds);
 		}
 	}
-
 
 	FAudioThread::RunCommandOnAudioThread([this, WorldID, InViewportIndex, ListenerTransformCopy, InDeltaSeconds]()
 	{
@@ -4265,6 +4271,16 @@ void FAudioDevice::InitializePluginListeners(UWorld* World)
 	for (TAudioPluginListenerPtr PluginListener : PluginListeners)
 	{
 		PluginListener->OnListenerInitialize(this, World);
+	}
+}
+
+void FAudioDevice::NotifyPluginListenersWorldChanged(UWorld* World)
+{
+	check(IsInGameThread());
+
+	for (TAudioPluginListenerPtr PluginListener : PluginListeners)
+	{
+		PluginListener->OnWorldChanged(this, World);
 	}
 }
 
