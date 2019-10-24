@@ -15,6 +15,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Text/TextLayout.h"
+#include "Layout/WidgetPath.h"
 #include "ScopedTransaction.h"
 #include "Styling/ISlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
@@ -124,9 +125,10 @@ FReply SDataprepActionBlock::OnMouseButtonUp(const FGeometry& MyGeometry, const 
 		FMenuBuilder MenuBuilder( true, nullptr );
 		PopulateMenuBuilder( MenuBuilder );
 
-		TSharedPtr<IMenu> Menu = FSlateApplication::Get().PushMenu(
+		FWidgetPath WidgetPath = MouseEvent.GetEventPath() ? *MouseEvent.GetEventPath() : FWidgetPath();
+		FSlateApplication::Get().PushMenu(
 			AsShared(),
-			FWidgetPath(),
+			WidgetPath,
 			MenuBuilder.MakeWidget(),
 			MouseEvent.GetScreenSpacePosition(),
 			FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu)

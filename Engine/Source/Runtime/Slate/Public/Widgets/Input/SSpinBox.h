@@ -3,27 +3,28 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "InputCoreTypes.h"
-#include "Layout/Margin.h"
 #include "Fonts/SlateFontInfo.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Styling/SlateColor.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Input/CursorReply.h"
 #include "Input/Events.h"
 #include "Input/Reply.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Styling/CoreStyle.h"
-#include "Widgets/Input/NumericTypeInterface.h"
-#include "Widgets/SBoxPanel.h"
-#include "Styling/SlateTypes.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SEditableText.h"
+#include "InputCoreTypes.h"
+#include "Layout/Margin.h"
+#include "Layout/Visibility.h"
+#include "Misc/Attribute.h"
 #include "Rendering/DrawElements.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Widgets/Images/SImage.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/SlateColor.h"
+#include "Styling/SlateTypes.h"
 #include "Templates/IsIntegral.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/NumericTypeInterface.h"
+#include "Widgets/Input/SEditableText.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/Text/STextBlock.h"
 
 /*
  * This function compute a slider position by simulating two log on both side of the neutral value
@@ -139,6 +140,8 @@ public:
 		SLATE_ARGUMENT( TSharedPtr< INumericTypeInterface<NumericType> >, TypeInterface )
 		/** If refresh requests for the viewport should happen for all value changes **/
 		SLATE_ARGUMENT(bool, PreventThrottling)
+		/** Menu extender for the right-click context menu */
+		SLATE_EVENT( FMenuExtensionDelegate, ContextMenuExtender )
 
 	SLATE_END_ARGS()
 
@@ -257,6 +260,7 @@ public:
 				.VirtualKeyboardType(EKeyboardType::Keyboard_Number)
 				.Justification(InArgs._Justification)
 				.VirtualKeyboardTrigger(EVirtualKeyboardTrigger::OnAllFocusEvents)
+				.ContextMenuExtender( InArgs._ContextMenuExtender )
 			]
 
 			+SHorizontalBox::Slot()

@@ -32,8 +32,16 @@ struct FDataprepParameterizationBinding
 	FDataprepParameterizationBinding(UDataprepParameterizableObject* InObjectBinded, TArray<FDataprepPropertyLink> InPropertyChain)
 		: ObjectBinded( InObjectBinded )
 		, PropertyChain( MoveTemp( InPropertyChain ) )
-		, ValueType( PropertyChain.Last().CachedProperty.Get() ? PropertyChain.Last().CachedProperty.Get()->GetClass() : nullptr )
-	{}
+		, ValueType( nullptr )
+	{
+		if ( PropertyChain.Num() > 0 )
+		{
+			if ( UProperty* Property = PropertyChain.Last().CachedProperty.Get() )
+			{
+				ValueType = Property->GetClass();
+			}
+		}
+	}
 
 	FDataprepParameterizationBinding(FDataprepParameterizationBinding&&) = default;
 	FDataprepParameterizationBinding(const FDataprepParameterizationBinding&) = default;
@@ -204,11 +212,15 @@ public:
 
 	bool IsObjectPropertyBinded(UDataprepParameterizableObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain) const;
 
+	FName GetNameOfParameterForObjectProperty(UDataprepParameterizableObject* Object, const TArray<struct FDataprepPropertyLink>& PropertyChain) const;
+
 	void RemoveBindedObjectProperty(UDataprepParameterizableObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain);
 
 	void RemoveBindingFromObjects(TArray<UDataprepParameterizableObject*> Objects);
 
 	void OnObjectPostEdit(UDataprepParameterizableObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain, EPropertyChangeType::Type ChangeType);
+
+	void GetExistingParameterNamesForType(UClass* PropertyClass,TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const;
 
 private:
 
@@ -259,6 +271,12 @@ private:
 	 * Push the value of the parametrization to the bindings
 	 */
 	void PushParametrizationValueToBindings(FName ParameterName);
+
+	/**
+	 * Do the actual removing of a binding
+	 * @return True if binding was remove
+	 */
+	bool RemoveBinding(const TSharedRef<FDataprepParameterizationBinding>& Binding, bool& bOutClassNeedUpdate);
 
 public:
 
