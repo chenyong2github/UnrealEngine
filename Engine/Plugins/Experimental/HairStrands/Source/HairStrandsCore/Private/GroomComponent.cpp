@@ -14,6 +14,9 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/RendererSettings.h"
 #include "Animation/AnimationSettings.h"
+#include "Logging/MessageLog.h"
+#include "Misc/UObjectToken.h"
+#include "Misc/MapErrors.h"
 
 static float GHairClipLength = -1;
 static FAutoConsoleVariableRef CVarHairClipLength(TEXT("r.HairStrands.DebugClipLength"), GHairClipLength, TEXT("Clip hair strands which have a lenth larger than this value. (default is -1, no effect)"));
@@ -29,6 +32,8 @@ static FAutoConsoleVariableRef CVarHairStrandsMeshUseRelativePosition(TEXT("r.Ha
 
 static int32 GHairStrandsMeshProjectionTickDelay = 1;
 static FAutoConsoleVariableRef CVarHairStrandsMeshProjectionTickDelay(TEXT("r.HairStrands.MeshProjection.TickDelay"), GHairStrandsMeshProjectionTickDelay, TEXT("Number of simulation tick to wait before projecting a groom onto a mesh"));
+
+#define LOCTEXT_NAMESPACE "GroomComponent"
 
 /**
  * An material render proxy which overrides the debug mode parameter.
@@ -883,6 +888,7 @@ void UGroomComponent::PostLoad()
 		GroomAsset->GetOnGroomAssetChanged().AddUObject(this, &UGroomComponent::Invalidate);
 		bIsGroomAssetCallbackRegistered = true;
 	}
+	ValidateMaterials(false);
 #endif
 }
 
@@ -890,6 +896,7 @@ void UGroomComponent::PostLoad()
 void UGroomComponent::Invalidate()
 {
 	MarkRenderStateDirty();
+	ValidateMaterials(false);
 }
 #endif
 
@@ -1281,6 +1288,9 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	{	
 		UpdateHairGroupsDesc(GroomAsset, GroomGroupsDesc);
 	}
+#if WITH_EDITOR
+	ValidateMaterials(false);
+#endif
 }
 
 bool UGroomComponent::CanEditChange(const UProperty* InProperty) const
@@ -1310,6 +1320,116 @@ bool UGroomComponent::CanEditChange(const UProperty* InProperty) const
 	return Super::CanEditChange(InProperty);
 }
 #endif
+
+#if WITH_EDITOR
+void UGroomComponent::ValidateMaterials(bool bMapCheck) const
+{
+	if (!GroomAsset)
+		return;
+	
+	FString Name = "";
+	if (GetOwner())
+	{
+		Name += GetOwner()->GetName() + "/";
+	}
+	Name += GetName() + "/" + GroomAsset->GetName();
+	
+	const ERHIFeatureLevel::Type FeatureLevel = GetScene() ? GetScene()->GetFeatureLevel() : ERHIFeatureLevel::Num;
+	for (uint32 MaterialIt = 0, MaterialCount = GetNumMaterials(); MaterialIt < MaterialCount; ++MaterialIt)
+	{
+		UMaterialInterface* OverrideMaterial = Super::GetMaterial(MaterialIt);
+
+		FMaterialResource* Material = nullptr;
+
+		if (OverrideMaterial)
+		{
+			Material = OverrideMaterial->GetMaterialResource(FeatureLevel);
+		}
+		else if (MaterialIt < uint32(GroomAsset->HairGroupsInfo.Num()) && GroomAsset->HairGroupsInfo[MaterialIt].Material)
+		{
+			Material = GroomAsset->HairGroupsInfo[MaterialIt].Material->GetMaterialResource(FeatureLevel);
+		}
+
+		if (Material)
+		{
+			if (!Material->IsUsedWithHairStrands())
+			{
+				if (bMapCheck)
+				{
+					FMessageLog("MapCheck").Warning()
+						->AddToken(FUObjectToken::Create(GroomAsset))
+						->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_InvalidHairStrandsMaterial", "Groom's material needs to have UseHairStrands option enabled. Groom's material will be replaced with default hair strands shader.")))
+						->AddToken(FMapErrorToken::Create(FMapErrors::InvalidHairStrandsMaterial));
+				}
+				else
+				{
+					UE_LOG(LogHairStrands, Warning, TEXT("[Groom] %s - Groom's material needs to have UseHairStrands option enabled. Groom's material will be replaced with default hair strands shader."));
+				}
+			}
+			if (!Material->GetShadingModels().HasShadingModel(MSM_Hair))
+			{
+				if (bMapCheck)
+				{
+					FMessageLog("MapCheck").Warning()
+						->AddToken(FUObjectToken::Create(GroomAsset))
+						->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_InvalidHairStrandsMaterial", "Groom's material needs to have Hair shadering model. Groom's material will be replaced with default hair strands shader.")))
+						->AddToken(FMapErrorToken::Create(FMapErrors::InvalidHairStrandsMaterial));
+				}
+				else
+				{
+					UE_LOG(LogHairStrands, Warning, TEXT("[Groom] %s - Groom's material needs to have Hair shadering model. Groom's material will be replaced with default hair strands shader."), *Name);
+				}
+			}
+			if (Material->GetBlendMode() != BLEND_Opaque)
+			{
+				if (bMapCheck)
+				{
+					FMessageLog("MapCheck").Warning()
+						->AddToken(FUObjectToken::Create(GroomAsset))
+						->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_InvalidHairStrandsMaterial", "Groom's material needs to have opaque blend mode. Groom's material will be replaced with default hair strands shader.")))
+						->AddToken(FMapErrorToken::Create(FMapErrors::InvalidHairStrandsMaterial));
+				}
+				else
+				{
+					UE_LOG(LogHairStrands, Warning, TEXT("[Groom] %s - Groom's material needs to have Hair shadering model. Groom's material will be replaced with default hair strands shader."), *Name);
+				}
+			}
+		}
+		else
+		{
+			if (bMapCheck)
+			{
+				FMessageLog("MapCheck").Info()
+					->AddToken(FUObjectToken::Create(GroomAsset))
+					->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_InvalidHairStrandsMaterial", "Groom's material is not set and will fallback on default hair strands shader.")))
+					->AddToken(FMapErrorToken::Create(FMapErrors::InvalidHairStrandsMaterial));
+			}
+			else
+			{
+				UE_LOG(LogHairStrands, Warning, TEXT("[Groom] %s - Groom's material is not set and will fallback on default hair strands shader."), *Name);
+			}
+		}
+	}
+}
+
+void UGroomComponent::CheckForErrors()
+{
+	Super::CheckForErrors();
+
+	const FCoreTexts& CoreTexts = FCoreTexts::Get();
+
+	// Get the mesh owner's name.
+	AActor* Owner = GetOwner();
+	FString OwnerName(*(CoreTexts.None.ToString()));
+	if (Owner)
+	{
+		OwnerName = Owner->GetName();
+	}
+
+	ValidateMaterials(true);
+}
+#endif
+
 
 FGroomComponentRecreateRenderStateContext::FGroomComponentRecreateRenderStateContext(UGroomAsset* GroomAsset)
 {
@@ -1348,3 +1468,5 @@ FGroomComponentRecreateRenderStateContext::~FGroomComponentRecreateRenderStateCo
 		}
 	}
 }
+
+#undef LOCTEXT_NAMESPACE
