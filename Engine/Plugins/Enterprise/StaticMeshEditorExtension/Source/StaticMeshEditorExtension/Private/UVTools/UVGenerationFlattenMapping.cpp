@@ -411,17 +411,17 @@ void FUVGenerationFlattenMappingInternal::AlignIslandOnAxes(TArray< FaceStruct* 
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithFlattenMappingInternal::AlignIslandOnAxes)
 
-	TSet< FVector > Vertices;
+	TSet< FVector2D > Vertices;
 	Vertices.Reserve( Island.Num() * 3 );
 
 	for ( const FaceStruct* Face : Island )
 	{
-		Vertices.Add( FVector( Face->Uvs[0], 0.f ) );
-		Vertices.Add( FVector( Face->Uvs[1], 0.f ) );
-		Vertices.Add( FVector( Face->Uvs[2], 0.f ) );
+		Vertices.Add( Face->Uvs[0] );
+		Vertices.Add( Face->Uvs[1] );
+		Vertices.Add( Face->Uvs[2] );
 	}
 
-	TArray< FVector > VerticesArray = Vertices.Array();
+	TArray< FVector2D > VerticesArray = Vertices.Array();
 
 	TArray< int32 > ConvexHullIndices;
 	ConvexHull2D::ComputeConvexHull( VerticesArray, ConvexHullIndices );
@@ -431,7 +431,7 @@ void FUVGenerationFlattenMappingInternal::AlignIslandOnAxes(TArray< FaceStruct* 
 
 	for ( int32 Index : ConvexHullIndices )
 	{
-		ConvexHull.Emplace( VerticesArray[ Index ].X, VerticesArray[ Index ].Y );
+		ConvexHull.Emplace( VerticesArray[ Index ] );
 	}
 
 	FVector IslandTangent(ForceInit);
@@ -461,17 +461,7 @@ void FUVGenerationFlattenMappingInternal::AlignIslandOnAxes(TArray< FaceStruct* 
 	{
 		IslandTangent.Normalize();
 
-		float DotForward = FMath::Abs( IslandTangent | FVector::ForwardVector );
-		float DotSide = FMath::Abs( IslandTangent | FVector::RightVector );
-
-		FVector AxisDirection = DotForward > DotSide ? FVector::ForwardVector : FVector::RightVector;
-
-		if ( ( IslandTangent | AxisDirection ) < 0.f )
-		{
-			AxisDirection *= -1.f;
-		}
-
-		IslandRotation = FQuat::FindBetweenNormals( IslandTangent, AxisDirection );
+		IslandRotation = FQuat::FindBetweenNormals( IslandTangent, FVector::ForwardVector );
 	}
 
 	for ( int32 Face = 0; Face < Island.Num(); Face++ )
