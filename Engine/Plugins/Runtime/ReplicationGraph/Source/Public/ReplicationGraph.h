@@ -828,6 +828,7 @@ public:
 	virtual void NotifyActorTearOff(AActor* Actor) override;
 	virtual void NotifyActorFullyDormantForConnection(AActor* Actor, UNetConnection* Connection) override;
 	virtual void NotifyActorDormancyChange(AActor* Actor, ENetDormancy OldDormancyState) override;
+	virtual void SetRoleSwapOnReplicate(AActor* Actor, bool bSwapRoles) override;
 	virtual bool ProcessRemoteFunction(class AActor* Actor, UFunction* Function, void* Parameters, FOutParmRec* OutParms, FFrame* Stack, class UObject* SubObject) override;
 	virtual int32 ServerReplicateActors(float DeltaSeconds) override;
 	virtual void PostTickDispatch() override;
