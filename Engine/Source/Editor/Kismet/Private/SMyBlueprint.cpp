@@ -2150,6 +2150,10 @@ void SMyBlueprint::BuildAddNewMenu(FMenuBuilder& MenuBuilder)
 		{
 			MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().AddNewDelegate);
 		}
+		if (CurrentBlueprint->SupportsAnimLayers())
+		{
+			MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().AddNewAnimationLayer);
+		}
 	}
 	MenuBuilder.EndSection();
 }
