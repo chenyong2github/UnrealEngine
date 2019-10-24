@@ -104,3 +104,5 @@ bool UCoreTechBlueprintLibrary::RetessellateStaticMesh( UStaticMesh* StaticMesh,
 
 	return bTessellationOutcome;
 }
+
+#undef LOCTEXT_NAMESPACE
