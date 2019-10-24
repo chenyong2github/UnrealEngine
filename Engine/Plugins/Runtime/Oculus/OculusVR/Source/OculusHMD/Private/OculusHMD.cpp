@@ -3227,11 +3227,15 @@ namespace OculusHMD
 			FGameFramePtr XFrame = NextFrameToRender->Clone();
 			TArray<FLayerPtr> XLayers;
 
-			LayerMap.GenerateValueArray(XLayers);
+			XLayers.Empty(LayerMap.Num());
 
-			for (int32 XLayerIndex = 0; XLayerIndex < XLayers.Num(); XLayerIndex++)
+			for (auto Pair : LayerMap)
 			{
-				XLayers[XLayerIndex] = XLayers[XLayerIndex]->Clone();
+				// Skip hidden layers
+				if (!(Pair.Value->GetDesc().Flags & IStereoLayers::LAYER_FLAG_HIDDEN))
+				{
+					XLayers.Emplace(Pair.Value->Clone());
+				}
 			}
 
 			XLayers.Sort(FLayerPtr_CompareId());
