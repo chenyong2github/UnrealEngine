@@ -562,7 +562,7 @@ namespace CrossCompiler
 			int32 TextureMSNumSamples;
 
 			int32 PatchSize;
-
+			bool bPrecise = false;
 			bool bIsArray;
 			//bool bIsUnsizedArray;
 			FExpression* ArraySize;
