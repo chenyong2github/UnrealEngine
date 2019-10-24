@@ -391,11 +391,11 @@ private:
 		RecvMultiIdx = 0;
 		RecvMultiPacketCount = 0;
 
-		while (true)
+		while (Socket != nullptr)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_IpNetDriver_RecvFromSocket);
 
-			bool bRecvMultiOk = Socket != nullptr ? Socket->RecvMulti(*RMState) : false;
+			bool bRecvMultiOk = Socket->RecvMulti(*RMState);
 
 			if (!bRecvMultiOk)
 			{
