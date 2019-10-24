@@ -972,6 +972,8 @@ void FDatasmithImporter::ImportStaticMeshes( FDatasmithImportContext& ImportCont
 		{
 			ImportStaticMesh(ImportContext, MeshElement, ExistingStaticMesh, nullptr);
 		}
+
+		ImportContext.ImportedStaticMeshesByName.Add(MeshElement->GetName(), MeshElement);
 	}
 
 	//Just make sure there is no async task left running in case of a cancellation
@@ -1134,7 +1136,7 @@ void FDatasmithImporter::ImportTextures( FDatasmithImportContext& ImportContext 
 
 		for ( int32 TextureIndex = 0; TextureIndex < FilteredTextureElements.Num(); TextureIndex++ )
 		{
-			if (ImportContext.bUserCancelled |= ImportContext.Warn->ReceivedUserCancel())
+			if ((ImportContext.bUserCancelled |= ImportContext.Warn->ReceivedUserCancel()))
 			{
 				// If operation has been canceled, just wait for other threads to also cancel
 				AsyncData[TextureIndex].Result.Wait();
