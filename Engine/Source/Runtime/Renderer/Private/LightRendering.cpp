@@ -206,7 +206,6 @@ struct FRenderLightParams
 	// Precompute transmittance
 	FShaderResourceViewRHIRef DeepShadow_TransmittanceMaskBuffer = nullptr;
 	uint32 DeepShadow_TransmittanceMaskBufferMaxCount = 0;
-	bool bUseTransmittanceData = false;
 	
 	// Visibility buffer data
 	IPooledRenderTarget* HairCategorizationTexture = nullptr;
@@ -315,7 +314,6 @@ class FDeferredLightPS : public FGlobalShader
 		HairLUTTexture.Bind(Initializer.ParameterMap, TEXT("HairLUTTexture"));
 		HairLUTSampler.Bind(Initializer.ParameterMap, TEXT("HairLUTSampler"));
 		HairComponents.Bind(Initializer.ParameterMap, TEXT("HairComponents"));
-		HairTransmittanceEnable.Bind(Initializer.ParameterMap, TEXT("HairTransmittanceEnable"));
 
 		HairCategorizationTexture.Bind(Initializer.ParameterMap, TEXT("HairCategorizationTexture"));
 		HairVisibilityNodeOffsetAndCount.Bind(Initializer.ParameterMap, TEXT("HairVisibilityNodeOffsetAndCount"));
@@ -373,7 +371,6 @@ public:
 		Ar << HairLUTTexture;
 		Ar << HairLUTSampler;
 		Ar << HairComponents;
-		Ar << HairTransmittanceEnable;
 
 		return bShaderHasOutdatedParameters;
 	}
@@ -554,22 +551,12 @@ private:
 
 		if (HairComponents.IsBound())
 		{
-			FVector4 InHairComponents = GetHairComponents();
+			uint32 InHairComponents = ToBitfield(GetHairComponents());
 			SetShaderValue(
 				RHICmdList,
 				ShaderRHI,
 				HairComponents,
 				InHairComponents);
-		}
-
-		if (HairTransmittanceEnable.IsBound())
-		{
-			uint32 bIsDeepShadowEnable = (RenderLightParams && RenderLightParams->bUseTransmittanceData) ? 1 : 0;
-			SetShaderValue(
-				RHICmdList,
-				ShaderRHI,
-				HairTransmittanceEnable,
-				bIsDeepShadowEnable);
 		}
 	}
 
@@ -597,7 +584,6 @@ private:
 	FShaderResourceParameter HairLUTTexture;
 	FShaderResourceParameter HairLUTSampler;
 	FShaderParameter HairComponents;
-	FShaderParameter HairTransmittanceEnable;
 	};
 
 IMPLEMENT_GLOBAL_SHADER(FDeferredLightPS, "/Engine/Private/DeferredLightPixelShaders.usf", "DeferredLightPixelMain", SF_Pixel);
@@ -1967,7 +1953,6 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 		FRenderLightParams RenderLightParams;
 		if (bHairRenderingEnabled)
 		{
-			RenderLightParams.bUseTransmittanceData = bHairRenderingEnabled;
 			RenderLightParams.DeepShadow_TransmittanceMaskBuffer = InTransmittanceMaskData ? InTransmittanceMaskData->TransmittanceMaskSRV : nullptr;
 			RenderLightParams.DeepShadow_TransmittanceMaskBufferMaxCount = InTransmittanceMaskData && InTransmittanceMaskData->TransmittanceMask ? InTransmittanceMaskData->TransmittanceMask->Desc.NumElements : 0;
 			RenderLightParams.ScreenShadowMaskSubPixelTexture = ScreenShadowMaskSubPixelTexture;

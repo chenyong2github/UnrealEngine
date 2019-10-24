@@ -155,8 +155,8 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 			const float ScalarTransmittance = max(SampleTransmittance.x, max(SampleTransmittance.y, SampleTransmittance.z));
 			AvgR += SampleL * SampleTransmittance.xyz;
 
-			const float4 ScatteringComponent = float4(1, 0, 1, 11);
-			const FHairTransmittanceData TransmittanceData = GetHairTransmittance(V, SampleL, GBuffer, SampleTransmittance, HairScatteringLUTTexture, HairLUTSampler, true, ScatteringComponent);
+			const uint ScatteringComponent = HAIR_COMPONENT_R | HAIR_COMPONENT_TRT | HAIR_COMPONENT_LS | HAIR_COMPONENT_GS;// | HAIR_MULTISCATTER;
+			const FHairTransmittanceData TransmittanceData = GetHairTransmittance(V, SampleL, GBuffer, SampleTransmittance, HairScatteringLUTTexture, HairLUTSampler, ScatteringComponent);
 
 			const float Area = 0.2;
 			const float BackLit = 1;
@@ -283,8 +283,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 		{			
 			TransmittanceData.MultipleScattering = 1;
 			TransmittanceData.GlobalScattering = Transmittance.xyz;
-			TransmittanceData.ScatteringComponent = uint3(1, 0, 1); // Only R & TRT
-			TransmittanceData.Enable = true;
+			TransmittanceData.ScatteringComponent = HAIR_COMPONENT_R | HAIR_COMPONENT_TRT | HAIR_COMPONENT_MULTISCATTER;
 
 			const float Area = 0.2;
 			const float BackLit = 0;
@@ -326,7 +325,8 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 		// BSDF with dual-scattering
 		#if 0
 		{
-			const FHairTransmittanceData TransmittanceData = GetHairTransmittance(V, L, GBuffer, Transmittance, HairScatteringLUTTexture, HairLUTSampler, 1, float4(0, 1, 0, 11));
+			const uint HairComponent = HAIR_COMPONENT_TT | HAIR_COMPONENT_LS | HAIR_COMPONENT_GS;
+			const FHairTransmittanceData TransmittanceData = GetHairTransmittance(V, L, GBuffer, Transmittance, HairScatteringLUTTexture, HairLUTSampler, HairComponent);
 			const float Area = 0.2;
 			ColorTT.rgb *= HairShading(GBuffer, L, V, T, 1, TransmittanceData, 1, Area, uint2(0, 0));
 		}
@@ -347,8 +347,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 			TransmittanceData.MultipleScattering = 1;
 			TransmittanceData.GlobalScattering = Transmittance.xyz;
 			TransmittanceData.LocalScattering = 0;
-			TransmittanceData.ScatteringComponent = uint3(0, 1, 0);
-			TransmittanceData.Enable = true;
+			TransmittanceData.ScatteringComponent = HAIR_COMPONENT_TT | HAIR_COMPONENT_MULTISCATTER;
 
 			const float Area = 0.2;
 			ColorTT.rgb *= HairShading(GBuffer, L, V, T, 1, TransmittanceData, 0, Area, uint2(0, 0));

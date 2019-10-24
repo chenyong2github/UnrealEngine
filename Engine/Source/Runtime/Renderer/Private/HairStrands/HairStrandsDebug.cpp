@@ -1247,14 +1247,8 @@ void RenderHairStrandsDebugInfo(FRHICommandListImmediate& RHICmdList, TArray<FVi
 		FLinearColor DebugColor(1, 1, 0);
 		FString Line;
 
-		const FVector4 HairComponent = GetHairComponents();
-		const uint32 bHairR = HairComponent.X > 0 ? 1 : 0;
-		const uint32 bHairTT = HairComponent.Y > 0 ? 1 : 0;
-		const uint32 bHairTRT = HairComponent.Z > 0 ? 1 : 0;
-		const uint32 bHairGlobalScattering = FMath::FloorToInt(HairComponent.W / 10.0f) > 0 ? 1 : 0;
-		const uint32 bHairLocalScattering  = FMath::Frac(HairComponent.W / 10.0f)*10.f > 0 ? 1 : 0;
-
-		Line = FString::Printf(TEXT("Hair Components : (R=%d, TT=%d, TRT=%d, GS=%d, LS=%d)"), bHairR, bHairTT, bHairTRT, bHairGlobalScattering, bHairLocalScattering);
+		const FHairComponent HairComponent = GetHairComponents();
+		Line = FString::Printf(TEXT("Hair Components : (R=%d, TT=%d, TRT=%d, GS=%d, LS=%d)"), HairComponent.R, HairComponent.TT, HairComponent.TRT, HairComponent.GlobalScattering, HairComponent.LocalScattering);
 		Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
 		Line = FString::Printf(TEXT("----------------------------------------------------------------"));				Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
 		Line = FString::Printf(TEXT("Debug strands mode : %s"), ToString(StrandsDebugMode));							Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);

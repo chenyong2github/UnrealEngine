@@ -21,7 +21,16 @@ void ComputeWorldToLightClip(
 	const ELightComponentType LightType,
 	const FIntPoint& ShadowResolution);
 
-FVector4 GetHairComponents();
+struct FHairComponent
+{
+	bool R = true;
+	bool TT = true;
+	bool TRT = true;
+	bool GlobalScattering = true;
+	bool LocalScattering = true;
+};
+FHairComponent GetHairComponents();
+uint32 ToBitfield(const FHairComponent& Component);
 
 float SampleCountToSubPixelSize(uint32 SamplePerPixelCount);
 
