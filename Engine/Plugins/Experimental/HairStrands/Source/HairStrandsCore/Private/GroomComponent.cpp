@@ -319,7 +319,9 @@ public:
 	}
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override
-	{
+	{		
+		const bool bIsViewModeValid = View->Family->ViewMode == VMI_Lit;
+
 		const EHairStrandsDebugMode DebugMode = GetHairStrandsDebugStrandsMode();
 		if (DebugMode != EHairStrandsDebugMode::None)
 		{
@@ -332,7 +334,7 @@ public:
 		}
 
 		FPrimitiveViewRelevance Result;
-		Result.bHairStrandsRelevance = true;
+		Result.bHairStrandsRelevance = bIsViewModeValid;
 
 		// Special pass for hair strands geometry (not part of the base pass, and shadowing is handlded in a custom fashion)
 		Result.bDrawRelevance = false;		
@@ -343,7 +345,7 @@ public:
 		// Selection only
 		#if WITH_EDITOR
 		{
-			const bool bIsSelected = (IsSelected() || IsHovered());
+			const bool bIsSelected = (IsSelected() || IsHovered()) && bIsViewModeValid;
 			Result.bEditorStaticSelectionRelevance = bIsSelected;
 			Result.bDrawRelevance = bIsSelected;
 		}
