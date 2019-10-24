@@ -5178,6 +5178,7 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 	{
 #if WITH_EDITOR
 		// Editor builds cache the mesh description so that it can be preserved during map reloads etc
+		SetNumSourceModels(MeshDescriptions.Num());
 		CreateMeshDescription(LODIndex, *MeshDescriptionPtr);
 		CommitMeshDescription(LODIndex);
 #endif
