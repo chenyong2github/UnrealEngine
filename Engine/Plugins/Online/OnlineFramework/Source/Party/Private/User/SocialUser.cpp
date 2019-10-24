@@ -538,6 +538,20 @@ FDateTime USocialUser::GetFriendshipCreationDate() const
 	return FDateTime::MaxValue();
 }
 
+FDateTime USocialUser::GetLastOnlineDate() const
+{
+	if (IsFriend(ESocialSubsystem::Primary))
+	{
+		const FOnlineUserPresence* PrimaryPresence = GetFriendPresenceInfo(ESocialSubsystem::Primary);
+		if (PrimaryPresence)
+		{
+			return PrimaryPresence->LastOnline;
+		}
+	}
+
+	return FDateTime::MaxValue();
+}
+
 FText USocialUser::GetSocialName() const
 {
 	if (ensure(IsFriend(ESocialSubsystem::Primary)))
