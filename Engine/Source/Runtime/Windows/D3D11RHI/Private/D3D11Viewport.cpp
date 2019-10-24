@@ -269,7 +269,8 @@ void FD3D11Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 
 				if (FAILED(SwapChain->ResizeTarget(&BufferDesc)))
 				{
-					ConditionalResetSwapChain(true);
+					ResetSwapChainInternal(true);
+					VERIFYD3D11RESIZEVIEWPORTRESULT(SwapChain->ResizeBuffers(0, SizeX, SizeY, RenderTargetFormat, D3D11GetSwapChainFlags()), SizeX, SizeY, RenderTargetFormat, D3DRHI->GetDevice());
 				}
 			}
 		}
@@ -284,7 +285,9 @@ void FD3D11Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 		{
 			// Use ConditionalResetSwapChain to call SetFullscreenState, to handle the failure case.
 			// Ignore the viewport's focus state; since Resize is called as the result of a user action we assume authority without waiting for Focus.
-			ConditionalResetSwapChain(true);
+			ResetSwapChainInternal(true);
+			DXGI_FORMAT RenderTargetFormat = GetRenderTargetFormat(PixelFormat);
+			VERIFYD3D11RESIZEVIEWPORTRESULT(SwapChain->ResizeBuffers(0, SizeX, SizeY, RenderTargetFormat, D3D11GetSwapChainFlags()), SizeX, SizeY, RenderTargetFormat, D3DRHI->GetDevice());
 		}
 	}
 
@@ -521,6 +524,7 @@ bool FD3D11Viewport::Present(bool bLockToVsync)
 		// Can't compare BOOL with bool...
 		if ( (!!bSwapChainFullscreenState)  != bIsFullscreen )
 		{
+			bFullscreenLost = true;
 			bIsValid = false;
 		}
 	}
@@ -533,6 +537,10 @@ bool FD3D11Viewport::Present(bool bLockToVsync)
 		DXGIDevice->SetMaximumFrameLatency(MaximumFrameLatency);
 	}
 
+	if (!bIsValid)
+	{
+		return false;
+	}
 	// When desktop composition is enabled, locking to vsync via the Present
 	// call is unreliable. Instead, communicate with the desktop window manager
 	// directly to enable vsync.
