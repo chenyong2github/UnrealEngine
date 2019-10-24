@@ -414,18 +414,6 @@ void UEdModeInteractiveToolsContext::ShutdownContext()
 }
 
 
-void UEdModeInteractiveToolsContext::PostToolNotificationMessage(const FText& Message)
-{
-	OnToolNotificationMessage.Broadcast(Message);
-}
-
-void UEdModeInteractiveToolsContext::PostToolWarningMessage(const FText& Message)
-{
-	OnToolWarningMessage.Broadcast(Message);
-}
-
-
-
 void UEdModeInteractiveToolsContext::TerminateActiveToolsOnPIEStart()
 {
 	DeactivateAllActiveTools();
@@ -434,10 +422,6 @@ void UEdModeInteractiveToolsContext::TerminateActiveToolsOnSaveWorld()
 {
 	DeactivateAllActiveTools();
 }
-
-
-
-
 
 void UEdModeInteractiveToolsContext::PostInvalidation()
 {
@@ -534,7 +518,7 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 	{
 		if (ToolManager->HasAnyActiveTool())
 		{
-			if (ToolManager->HasActiveTool(EToolSide::Mouse))
+			if (ToolManager->HasActiveTool(EToolSide::Mouse) && ToolManager->CanCancelActiveTool(EToolSide::Mouse))
 			{
 				DeactivateActiveTool(EToolSide::Mouse, EToolShutdownType::Cancel);
 			}
