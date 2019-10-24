@@ -198,13 +198,16 @@ uint32 FAllocatedVirtualTexture::AddUniqueProducer(FVirtualTextureProducerHandle
 
 uint32 FAllocatedVirtualTexture::AddUniquePhysicalSpace(FVirtualTexturePhysicalSpace* InPhysicalSpace, uint32 InUniqueProducerIndex, uint32 InProducerPhysicalSpaceIndex)
 {
-	for (int32 Index = 0u; Index < UniquePageTableLayers.Num(); ++Index)
+	if (Description.bShareDuplicateLayers)
 	{
-		if (UniquePageTableLayers[Index].PhysicalSpace == InPhysicalSpace && 
-			UniquePageTableLayers[Index].UniqueProducerIndex == InUniqueProducerIndex &&
-			UniquePageTableLayers[Index].ProducerPhysicalGroupIndex == InProducerPhysicalSpaceIndex)
+		for (int32 Index = 0u; Index < UniquePageTableLayers.Num(); ++Index)
 		{
-			return Index;
+			if (UniquePageTableLayers[Index].PhysicalSpace == InPhysicalSpace &&
+				UniquePageTableLayers[Index].UniqueProducerIndex == InUniqueProducerIndex &&
+				UniquePageTableLayers[Index].ProducerPhysicalGroupIndex == InProducerPhysicalSpaceIndex)
+			{
+				return Index;
+			}
 		}
 	}
 	const uint32 Index = UniquePageTableLayers.AddDefaulted();
