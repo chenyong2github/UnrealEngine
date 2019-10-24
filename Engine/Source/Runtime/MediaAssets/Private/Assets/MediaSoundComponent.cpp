@@ -11,6 +11,7 @@
 #include "Misc/ScopeLock.h"
 #include "Sound/AudioSettings.h"
 #include "UObject/UObjectGlobals.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 #include "MediaPlayer.h"
 #include "MediaPlayerFacade.h"
@@ -27,6 +28,8 @@ FAutoConsoleVariableRef CVarSyncAudioAfterDropouts(
 DECLARE_FLOAT_COUNTER_STAT(TEXT("MediaUtils MediaSoundComponent Sync"), STAT_MediaUtils_MediaSoundComponentSync, STATGROUP_Media);
 DECLARE_FLOAT_COUNTER_STAT(TEXT("MediaUtils MediaSoundComponent SampleTime"), STAT_MediaUtils_MediaSoundComponentSampleTime, STATGROUP_Media);
 DECLARE_DWORD_COUNTER_STAT(TEXT("MediaUtils MediaSoundComponent Queued"), STAT_Media_SoundCompQueued, STATGROUP_Media);
+
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(MEDIA_API, MediaStreaming);
 
 /* Static initialization
  *****************************************************************************/
@@ -337,6 +340,8 @@ bool UMediaSoundComponent::Init(int32& SampleRate)
 
 int32 UMediaSoundComponent::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 {
+	CSV_SCOPED_TIMING_STAT(MediaStreaming, UMediaSoundComponent_OnGenerateAudio);
+
 	int32 InitialSyncOffset = 0;
 	TSharedPtr<FMediaAudioSampleQueue, ESPMode::ThreadSafe> PinnedSampleQueue;
 	{
