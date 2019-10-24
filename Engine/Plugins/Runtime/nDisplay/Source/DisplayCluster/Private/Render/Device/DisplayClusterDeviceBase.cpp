@@ -19,6 +19,7 @@
 
 #include "Render/Device/DisplayClusterRenderViewport.h"
 #include "Render/PostProcess/IDisplayClusterPostProcess.h"
+#include "Render/Presentation/DisplayClusterPresentationBase.h"
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
 #include "Render/Projection/IDisplayClusterProjectionPolicyFactory.h"
 #include "Render/Synchronization/IDisplayClusterRenderSyncPolicy.h"
@@ -28,14 +29,6 @@
 
 #include <utility>
 
-
-// Custom VSync interval control
-static TAutoConsoleVariable<int32>  CVarVSyncInterval(
-	TEXT("nDisplay.render.VSyncInterval"),
-	1,
-	TEXT("VSync interval"),
-	ECVF_RenderThreadSafe
-);
 
 // Enable/disable warp&blend
 static TAutoConsoleVariable<int32> CVarWarpBlendEnabled(
@@ -59,8 +52,7 @@ static TAutoConsoleVariable<int32> CVarCustomPPEnabled(
 
 
 FDisplayClusterDeviceBase::FDisplayClusterDeviceBase(uint32 ViewsPerViewport)
-	: FRHICustomPresent()
-	, FDisplayClusterDeviceBase_PostProcess(RenderViewports, ViewsPerViewport, EyeRegions)
+	: FDisplayClusterDeviceBase_PostProcess(RenderViewports, ViewsPerViewport, EyeRegions)
 	, ViewsAmountPerViewport(ViewsPerViewport)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
@@ -83,8 +75,6 @@ bool FDisplayClusterDeviceBase::Initialize()
 	{
 		return false;
 	}
-
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("Use swap interval: %d"), GetSwapInt());
 
 	const IPDisplayClusterConfigManager* const ConfigMgr = GDisplayCluster->GetPrivateConfigMgr();
 	if (!ConfigMgr)
@@ -296,7 +286,7 @@ bool FDisplayClusterDeviceBase::GetBufferRatio(const FString& InViewportID, floa
 	}
 
 	OutBufferRatio = DesiredViewport->GetBufferRatio();
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("Viewport '%s' has buffer ratio %f"), *InViewportID, OutBufferRatio);
+	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Viewport '%s' has buffer ratio %f"), *InViewportID, OutBufferRatio);
 	return true;
 }
 
@@ -308,7 +298,7 @@ bool FDisplayClusterDeviceBase::GetBufferRatio(int32 ViewIdx, float& OutBufferRa
 	}
 
 	OutBufferRatio = RenderViewports[ViewIdx].GetBufferRatio();
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("Viewport '%s' has buffer ratio %f"), *RenderViewports[ViewIdx].GetId(), OutBufferRatio);
+	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Viewport '%s' has buffer ratio %f"), *RenderViewports[ViewIdx].GetId(), OutBufferRatio);
 	return true;
 }
 
@@ -379,7 +369,10 @@ void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const enum EStereoscop
 		return;
 	}
 
-	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Viewport '%s' has assigned camera '%s'"), *Viewport.GetId(), *CameraId);
+	if (CameraId.Len() > 0)
+	{
+		UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Viewport '%s' has assigned camera '%s'"), *Viewport.GetId(), *CameraId);
+	}
 
 	// Get the actual camera settings
 	const float CfgEyeDist     = ViewCamera->GetInterpupillaryDistance();
@@ -438,9 +431,8 @@ void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const enum EStereoscop
 	ViewContext.ViewLocation  = ViewLocation;
 	ViewContext.ViewRotation  = ViewRotation;
 	ViewContext.WorldToMeters = WorldToMeters;
-	ViewContext.ClipPlaneNear = CfgNCP;
 
-	UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("NEW ViewLoc: %s, ViewRot: %s"), *ViewLocation.ToString(), *ViewRotation.ToString());
+	UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("ViewLoc: %s, ViewRot: %s"), *ViewLocation.ToString(), *ViewRotation.ToString());
 }
 
 FMatrix FDisplayClusterDeviceBase::GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const
@@ -546,6 +538,7 @@ uint32 FDisplayClusterDeviceBase::GetViewIndexForPass(EStereoscopicPass StereoPa
 
 	switch (StereoPassType)
 	{
+	case EStereoscopicPass::eSSP_FULL:
 	case EStereoscopicPass::eSSP_LEFT_EYE:
 		DecodedViewIndex = 0;
 		break;
@@ -562,6 +555,7 @@ uint32 FDisplayClusterDeviceBase::GetViewIndexForPass(EStereoscopicPass StereoPa
 	return DecodedViewIndex;
 }
 
+
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IStereoRenderTargetManager
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -573,8 +567,17 @@ void FDisplayClusterDeviceBase::UpdateViewport(bool bUseSeparateRenderTarget, co
 	// Store viewport
 	if (!MainViewport)
 	{
+		// UE viewport
 		MainViewport = (FViewport*)&Viewport;
-		Viewport.GetViewportRHI()->SetCustomPresent(this);
+		// Current sync policy
+		TSharedPtr<IDisplayClusterRenderSyncPolicy> SyncPolicy = GDisplayCluster->GetRenderMgr()->GetCurrentSynchronizationPolicy();
+
+		// Create present handler
+		FDisplayClusterPresentationBase* const CustomPresentHandler = CreatePresentationObject(MainViewport, SyncPolicy);
+		check(CustomPresentHandler);
+
+		// Set up our new present handler
+		Viewport.GetViewportRHI()->SetCustomPresent(CustomPresentHandler);
 	}
 }
 
@@ -625,43 +628,6 @@ bool FDisplayClusterDeviceBase::NeedReAllocateViewportRenderTarget(const class F
 	}
 
 	return Result;
-}
-
-
-//////////////////////////////////////////////////////////////////////////////////////////////
-// FRHICustomPresent
-//////////////////////////////////////////////////////////////////////////////////////////////
-void FDisplayClusterDeviceBase::OnBackBufferResize()
-{
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
-	//@todo: see comment below
-	// if we are in the middle of rendering: prevent from calling EndFrame
-	//if (RenderContext.IsValid())
-	//{
-	//	RenderContext->bFrameBegun = false;
-	//}
-}
-
-bool FDisplayClusterDeviceBase::Present(int32& InOutSyncInterval)
-{
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
-	// Update sync value with nDisplay value
-	InOutSyncInterval = GetSwapInt();
-
-	// Get sync policy instance
-	TSharedPtr<IDisplayClusterRenderSyncPolicy> SyncPolicy = GDisplayCluster->GetRenderMgr()->GetCurrentSynchronizationPolicy();
-	if (SyncPolicy.IsValid())
-	{
-		// False results means we don't need to present current frame, the sync object already presented it
-		if (!SyncPolicy->SynchronizeClusterRendering(InOutSyncInterval))
-		{
-			return false;
-		}
-	}
-
-	return true;
 }
 
 
@@ -727,6 +693,7 @@ int FDisplayClusterDeviceBase::DecodeViewportIndex(const enum EStereoscopicPass 
 
 	UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("DecodeViewportIndex: %d -> %d"), int(StereoPassType), DecodedViewportIndex);
 
+	check(DecodedViewportIndex >= 0);
 	return DecodedViewportIndex;
 }
 
@@ -765,12 +732,6 @@ uint32 FDisplayClusterDeviceBase::DecodeViewIndex(const enum EStereoscopicPass S
 	const uint32 DecodedViewIndex = DecodedPassIndex % ViewsAmountPerViewport;
 	UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("DecodeViewIndex: %d -> %d"), int(StereoPassType), DecodedViewIndex);
 	return DecodedViewIndex;
-}
-
-uint32 FDisplayClusterDeviceBase::GetSwapInt() const
-{
-	const uint32 SyncInterval = static_cast<uint32>(CVarVSyncInterval.GetValueOnAnyThread());
-	return (SyncInterval);
 }
 
 void FDisplayClusterDeviceBase::AddViewport(const FString& InViewportId, const FIntPoint& InViewportLocation, const FIntPoint& InViewportSize, TSharedPtr<IDisplayClusterProjectionPolicy> InProjPolicy, const FString& InCameraId, float InBufferRatio /* = 1.f */, bool IsRTT /*= false*/)

@@ -8,7 +8,8 @@
 #include "Config/IDisplayClusterConfigManager.h"
 #include "Game/IDisplayClusterGameManager.h"
 
-#include "DisplayClusterPawn.h"
+#include "DisplayClusterSceneComponent.h"
+#include "DisplayClusterRootComponent.h"
 
 
 FDisplayClusterProjectionPolicyBase::FDisplayClusterProjectionPolicyBase(const FString& InViewportId)
@@ -28,7 +29,7 @@ void FDisplayClusterProjectionPolicyBase::InitializeOriginComponent(const FStrin
 	IDisplayClusterGameManager* const GameMgr = IDisplayCluster::Get().GetGameMgr();
 	if (!GameMgr)
 	{
-		UE_LOG(LogDisplayClusterProjectionEasyBlend, Warning, TEXT("No DisplayCluster game manager available"));
+		UE_LOG(LogDisplayClusterProjection, Warning, TEXT("No DisplayCluster game manager available"));
 		return;
 	}
 
@@ -40,8 +41,8 @@ void FDisplayClusterProjectionPolicyBase::InitializeOriginComponent(const FStrin
 
 	if(PolicyOriginComp == nullptr)
 	{
-		UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("No custom origin set or component '%s' not found for viewport '%s'. VR root will be used."), *OriginCompId, *PolicyViewportId);
-		PolicyOriginComp = GameMgr->GetRoot()->GetRootComponent();
+		UE_LOG(LogDisplayClusterProjection, Log, TEXT("No custom origin set or component '%s' not found for viewport '%s'. VR root will be used."), *OriginCompId, *PolicyViewportId);
+		PolicyOriginComp = GameMgr->GetRoot();
 	}
 
 	if (!PolicyOriginComp)

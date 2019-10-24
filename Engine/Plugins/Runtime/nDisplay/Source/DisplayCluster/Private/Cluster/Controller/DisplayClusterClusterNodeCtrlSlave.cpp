@@ -44,29 +44,34 @@ void FDisplayClusterClusterNodeCtrlSlave::WaitForTickEnd()
 	ClusterSyncClient->WaitForTickEnd();
 }
 
-void FDisplayClusterClusterNodeCtrlSlave::GetDeltaTime(float& deltaTime)
+void FDisplayClusterClusterNodeCtrlSlave::GetDeltaTime(float& DeltaSeconds)
 {
-	ClusterSyncClient->GetDeltaTime(deltaTime);
+	ClusterSyncClient->GetDeltaTime(DeltaSeconds);
 }
 
-void FDisplayClusterClusterNodeCtrlSlave::GetTimecode(FTimecode& timecode, FFrameRate& frameRate)
+void FDisplayClusterClusterNodeCtrlSlave::GetTimecode(FTimecode& Timecode, FFrameRate& FrameRate)
 {
-	ClusterSyncClient->GetTimecode(timecode, frameRate);
+	ClusterSyncClient->GetTimecode(Timecode, FrameRate);
 }
 
-void FDisplayClusterClusterNodeCtrlSlave::GetSyncData(FDisplayClusterMessage::DataType& data)
+void FDisplayClusterClusterNodeCtrlSlave::GetSyncData(FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup)
 {
-	ClusterSyncClient->GetSyncData(data);
+	ClusterSyncClient->GetSyncData(SyncData, SyncGroup);
 }
 
-void FDisplayClusterClusterNodeCtrlSlave::GetInputData(FDisplayClusterMessage::DataType& data)
+void FDisplayClusterClusterNodeCtrlSlave::GetInputData(FDisplayClusterMessage::DataType& InputData)
 {
-	ClusterSyncClient->GetInputData(data);
+	ClusterSyncClient->GetInputData(InputData);
 }
 
-void FDisplayClusterClusterNodeCtrlSlave::GetEventsData(FDisplayClusterMessage::DataType& data)
+void FDisplayClusterClusterNodeCtrlSlave::GetEventsData(FDisplayClusterMessage::DataType& EventsData)
 {
-	ClusterSyncClient->GetEventsData(data);
+	ClusterSyncClient->GetEventsData(EventsData);
+}
+
+void FDisplayClusterClusterNodeCtrlSlave::GetNativeInputData(FDisplayClusterMessage::DataType& NativeInputData)
+{
+	ClusterSyncClient->GetNativeInputData(NativeInputData);
 }
 
 
