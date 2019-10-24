@@ -2362,7 +2362,7 @@ void USoundWave::RetainCompressedAudio(bool bForceSync /*= false*/)
 			{
 				WeakThis->FirstChunk = OutHandle;
 			}
-		}, ENamedThreads::GameThread);
+		}, false, 1, ENamedThreads::GameThread);
 	}
 }
 
