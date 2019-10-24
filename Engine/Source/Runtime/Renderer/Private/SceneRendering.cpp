@@ -58,6 +58,7 @@
 #include "IHeadMountedDisplay.h"
 #include "DiaphragmDOF.h" 
 #include "SingleLayerWaterRendering.h" 
+#include "HairStrands\HairStrandsUtils.h"
 
 /*-----------------------------------------------------------------------------
 	Globals
@@ -1664,6 +1665,15 @@ void FViewInfo::SetupUniformBufferParameters(
 		{
 			ViewUniformShaderParameters.LightmapSceneData = Scene->GPUScene.LightmapDataBuffer.SRV;
 		}
+	}
+
+	// Deep opacity maps info
+	{
+		const FMinHairRadiusAtDepth1 MinRadiusAtDepth1 = ComputeMinStrandRadiusAtDepth1(
+			FIntPoint(UnconstrainedViewRect.Width(), UnconstrainedViewRect.Height()), FOV, GetHairVisibilitySampleCount(), 0.0f);
+		ViewUniformShaderParameters.HairRenderInfo.X = MinRadiusAtDepth1.Primary;
+		ViewUniformShaderParameters.HairRenderInfo.Y = MinRadiusAtDepth1.Velocity;
+		ViewUniformShaderParameters.HairRenderInfo.Z = IsPerspectiveProjection() ? 0.0f : 1.0f;
 	}
 }
 
