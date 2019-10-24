@@ -48,7 +48,7 @@ void FDisplayClusterClusterSyncClient::WaitForTickEnd()
 	TSharedPtr<FDisplayClusterMessage> Response = SendRecvMsg(Request);
 }
 
-void FDisplayClusterClusterSyncClient::GetDeltaTime(float& DeltaTime)
+void FDisplayClusterClusterSyncClient::GetDeltaTime(float& DeltaSeconds)
 {
 	static const TSharedPtr<FDisplayClusterMessage> Request(new FDisplayClusterMessage(FDisplayClusterClusterSyncMsg::GetDeltaTime::name, FDisplayClusterClusterSyncMsg::TypeRequest, FDisplayClusterClusterSyncMsg::ProtocolName));
 	TSharedPtr<FDisplayClusterMessage> Response = SendRecvMsg(Request);
@@ -59,9 +59,9 @@ void FDisplayClusterClusterSyncClient::GetDeltaTime(float& DeltaTime)
 	}
 
 	// Extract sync data from response message
-	if (Response->GetArg(FDisplayClusterClusterSyncMsg::GetDeltaTime::argDeltaTime, DeltaTime) == false)
+	if (Response->GetArg(FDisplayClusterClusterSyncMsg::GetDeltaTime::argDeltaSeconds, DeltaSeconds) == false)
 	{
-		UE_LOG(LogDisplayClusterNetworkMsg, Error, TEXT("Couldn't extract an argument: %s"), FDisplayClusterClusterSyncMsg::GetDeltaTime::argDeltaTime);
+		UE_LOG(LogDisplayClusterNetworkMsg, Error, TEXT("Couldn't extract an argument: %s"), FDisplayClusterClusterSyncMsg::GetDeltaTime::argDeltaSeconds);
 	}
 }
 
@@ -86,9 +86,12 @@ void FDisplayClusterClusterSyncClient::GetTimecode(FTimecode& Timecode, FFrameRa
 	}
 }
 
-void FDisplayClusterClusterSyncClient::GetSyncData(FDisplayClusterMessage::DataType& Data)
+void FDisplayClusterClusterSyncClient::GetSyncData(FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup)
 {
-	static const TSharedPtr<FDisplayClusterMessage> Request(new FDisplayClusterMessage(FDisplayClusterClusterSyncMsg::GetSyncData::name, FDisplayClusterClusterSyncMsg::TypeRequest, FDisplayClusterClusterSyncMsg::ProtocolName));
+	static TSharedPtr<FDisplayClusterMessage> Request(new FDisplayClusterMessage(FDisplayClusterClusterSyncMsg::GetSyncData::name, FDisplayClusterClusterSyncMsg::TypeRequest, FDisplayClusterClusterSyncMsg::ProtocolName));
+	
+	Request->SetArg(FDisplayClusterClusterSyncMsg::GetSyncData::argSyncGroup, (int)SyncGroup);
+	
 	TSharedPtr<FDisplayClusterMessage> Response = SendRecvMsg(Request);
 
 	if (!Response.IsValid())
@@ -96,11 +99,11 @@ void FDisplayClusterClusterSyncClient::GetSyncData(FDisplayClusterMessage::DataT
 		return;
 	}
 
-	// Extract sync data from response message
-	Data = Response->GetArgs();
+	// Extract data from response message
+	SyncData = Response->GetArgs();
 }
 
-void FDisplayClusterClusterSyncClient::GetInputData(FDisplayClusterMessage::DataType& Data)
+void FDisplayClusterClusterSyncClient::GetInputData(FDisplayClusterMessage::DataType& InputData)
 {
 	static const TSharedPtr<FDisplayClusterMessage> Request(new FDisplayClusterMessage(FDisplayClusterClusterSyncMsg::GetInputData::name, FDisplayClusterClusterSyncMsg::TypeRequest, FDisplayClusterClusterSyncMsg::ProtocolName));
 	TSharedPtr<FDisplayClusterMessage> Response = SendRecvMsg(Request);
@@ -110,11 +113,11 @@ void FDisplayClusterClusterSyncClient::GetInputData(FDisplayClusterMessage::Data
 		return;
 	}
 
-	// Extract sync data from response message
-	Data = Response->GetArgs();
+	// Extract data from response message
+	InputData = Response->GetArgs();
 }
 
-void FDisplayClusterClusterSyncClient::GetEventsData(FDisplayClusterMessage::DataType& Data)
+void FDisplayClusterClusterSyncClient::GetEventsData(FDisplayClusterMessage::DataType& EventsData)
 {
 	static const TSharedPtr<FDisplayClusterMessage> Request(new FDisplayClusterMessage(FDisplayClusterClusterSyncMsg::GetEventsData::name, FDisplayClusterClusterSyncMsg::TypeRequest, FDisplayClusterClusterSyncMsg::ProtocolName));
 	TSharedPtr<FDisplayClusterMessage> Response = SendRecvMsg(Request);
@@ -124,6 +127,20 @@ void FDisplayClusterClusterSyncClient::GetEventsData(FDisplayClusterMessage::Dat
 		return;
 	}
 
-	// Extract sync data from response message
-	Data = Response->GetArgs();
+	// Extract data from response message
+	EventsData = Response->GetArgs();
+}
+
+void FDisplayClusterClusterSyncClient::GetNativeInputData(FDisplayClusterMessage::DataType& NativeInputData)
+{
+	static const TSharedPtr<FDisplayClusterMessage> Request(new FDisplayClusterMessage(FDisplayClusterClusterSyncMsg::GetNativeInputData::name, FDisplayClusterClusterSyncMsg::TypeRequest, FDisplayClusterClusterSyncMsg::ProtocolName));
+	TSharedPtr<FDisplayClusterMessage> Response = SendRecvMsg(Request);
+
+	if (!Response.IsValid())
+	{
+		return;
+	}
+
+	// Extract data from response message
+	NativeInputData = Response->GetArgs();
 }

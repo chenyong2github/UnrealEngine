@@ -6,19 +6,21 @@
 
 #include "Game/IPDisplayClusterGameManager.h"
 
-#include "DisplayClusterOperationMode.h"
-#include "DisplayClusterGameMode.h"
-#include "DisplayClusterPawn.h"
-#include "DisplayClusterSettings.h"
-#include "DisplayClusterScreenComponent.h"
-#include "DisplayClusterCameraComponent.h"
+
+class AActor;
+class USceneComponent;
+class UDisplayClusterCameraComponent;
+class UDisplayClusterRootComponent;
+class UDisplayClusterSceneComponent;
+class UDisplayClusterScreenComponent;
+
 
 
 /**
  * Game manager. Responsible for building VR object hierarchy from a config file. Implements some in-game logic.
  */
 class FDisplayClusterGameManager
-	: public    IPDisplayClusterGameManager
+	: public IPDisplayClusterGameManager
 {
 public:
 	FDisplayClusterGameManager();
@@ -39,7 +41,8 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterGameManager
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual ADisplayClusterPawn*                    GetRoot() const override;
+	virtual UDisplayClusterRootComponent*           GetRoot() const override;
+	virtual void                                    SetRoot(UDisplayClusterRootComponent* InRoot) override;
 
 	virtual TArray<UDisplayClusterScreenComponent*> GetAllScreens() const override;
 	virtual UDisplayClusterScreenComponent*         GetScreenById(const FString& id) const override;
@@ -49,76 +52,32 @@ public:
 	virtual UDisplayClusterCameraComponent*         GetCameraById(const FString& id) const override;
 	virtual int32                                   GetCamerasAmount() const override;
 	virtual UDisplayClusterCameraComponent*         GetDefaultCamera() const override;
-	virtual void                                    SetDefaultCamera(int32 idx) override;
 	virtual void                                    SetDefaultCamera(const FString& id) override;
 
 	virtual TArray<UDisplayClusterSceneComponent*>  GetAllNodes() const override;
 	virtual UDisplayClusterSceneComponent*          GetNodeById(const FString& id) const override;
 
-	virtual USceneComponent*             GetTranslationDirectionComponent() const override;
-	virtual void                         SetTranslationDirectionComponent(USceneComponent* pComp) override;
-	virtual void                         SetTranslationDirectionComponent(const FString& id) override;
-
-	virtual USceneComponent*             GetRotateAroundComponent() const override;
-	virtual void                         SetRotateAroundComponent(USceneComponent* pComp) override;
-	virtual void                         SetRotateAroundComponent(const FString& id) override;
+	virtual UWorld* GetWorld() const override
+	{ return CurrentWorld; }
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IPDisplayClusterGameManager
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual bool IsDisplayClusterActive() const override
-	{ return ((CurrentOperationMode != EDisplayClusterOperationMode::Disabled) && (CurrentGameMode ? CurrentGameMode->IsDisplayClusterActive() : false)); }
-	
-	virtual void SetDisplayClusterGameMode(ADisplayClusterGameMode* pGameMode) override
-	{ CurrentGameMode = pGameMode; }
+	{ return CurrentOperationMode != EDisplayClusterOperationMode::Disabled; }
 
-	virtual ADisplayClusterGameMode* GetDisplayClusterGameMode() const override
-	{ return CurrentGameMode; }
-
-	virtual void SetDisplayClusterSceneSettings(ADisplayClusterSettings* pSceneSettings) override
-	{ CurrentSceneSettings = pSceneSettings; }
-
-	virtual ADisplayClusterSettings* GetDisplayClusterSceneSettings() const override
-	{ return CurrentSceneSettings; }
+protected:
+	bool SpawnRootComponent(AActor* Actor);
 
 private:
-	// Creates DisplayCluster actor and fulfills with components hierarchy
-	bool InitializeDisplayClusterActor();
-
-	bool CreateScreens();
-	bool CreateNodes();
-	bool CreateCameras();
-
-	// Extracts array of values from a map
-	template <typename ObjType>
-	TArray<ObjType*> GetMapValues(const TMap<FString, ObjType*>& container) const;
-
-	// Gets item by id. Performs checks and logging.
-	template <typename DataType>
-	DataType* GetItem(const TMap<FString, DataType*>& container, const FString& id, const FString& logHeader) const;
-
-private:
-	// DisplayCluster root actor
-	ADisplayClusterPawn* VRRootActor = nullptr;
-	// Default camera (joint component)
-	UDisplayClusterCameraComponent* DefaultCameraComponent = nullptr;
-
-	// Available screens (from config file)
-	TMap<FString, UDisplayClusterScreenComponent*> ScreenComponents;
-	// Available cameras (from config file)
-	TMap<FString, UDisplayClusterCameraComponent*> CameraComponents;
-	// All available DisplayCluster nodes in hierarchy
-	TMap<FString, UDisplayClusterSceneComponent*>  SceneNodeComponents;
+	// Active DisplayCluster root
+	UDisplayClusterRootComponent* CurrentRoot = nullptr;
 
 	EDisplayClusterOperationMode CurrentOperationMode;
 	FString ConfigPath;
 	FString ClusterNodeId;
 	UWorld* CurrentWorld;
 
-	ADisplayClusterSettings* CurrentSceneSettings = nullptr;
-	ADisplayClusterGameMode* CurrentGameMode = nullptr;
-
 	mutable FCriticalSection InternalsSyncScope;
 };
-

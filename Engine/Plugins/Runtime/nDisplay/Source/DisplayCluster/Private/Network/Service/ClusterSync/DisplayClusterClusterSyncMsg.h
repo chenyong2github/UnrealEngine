@@ -36,8 +36,8 @@ namespace FDisplayClusterClusterSyncMsg
 
 	namespace GetDeltaTime
 	{
-		constexpr static auto name         = "GetDeltaTime";
-		constexpr static auto argDeltaTime = "DeltaTime";
+		constexpr static auto name            = "GetDeltaTime";
+		constexpr static auto argDeltaSeconds = "DeltaSeconds";
 	};
 
 	namespace GetTimecode
@@ -49,7 +49,8 @@ namespace FDisplayClusterClusterSyncMsg
 
 	namespace GetSyncData
 	{
-		constexpr static auto name = "GetSyncData";
+		constexpr static auto name         = "GetSyncData";
+		constexpr static auto argSyncGroup = "SyncGroup";
 	};
 
 	namespace GetInputData
@@ -60,5 +61,10 @@ namespace FDisplayClusterClusterSyncMsg
 	namespace GetEventsData
 	{
 		constexpr static auto name = "GetEventsData";
+	}
+
+	namespace GetNativeInputData
+	{
+		constexpr static auto name = "GetNativeInputData";
 	}
 };
