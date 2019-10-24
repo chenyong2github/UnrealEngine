@@ -221,9 +221,19 @@ bool UDataprepAsset::IsObjectPropertyBinded(UDataprepParameterizableObject* Obje
 	return Parameterization->IsObjectPropertyBinded( Object, InPropertyChain );
 }
 
+FName UDataprepAsset::GetNameOfParameterForObjectProperty(UDataprepParameterizableObject* Object, const TArray<struct FDataprepPropertyLink>& InPropertyChain) const
+{
+	return Parameterization->GetNameOfParameterForObjectProperty( Object, InPropertyChain );
+}
+
 void UDataprepAsset::RemoveObjectPropertyFromParameterization(UDataprepParameterizableObject* Object, const TArray<struct FDataprepPropertyLink>& InPropertyChain)
 {
 	Parameterization->RemoveBindedObjectProperty( Object, InPropertyChain );
+}
+
+void UDataprepAsset::GetExistingParameterNamesForType(UClass* PropertyClass, TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const
+{
+	Parameterization->GetExistingParameterNamesForType( PropertyClass, OutValidExistingNames, OutInvalidNames );
 }
 
 void UDataprepAsset::OnDataprepBlueprintChanged( UBlueprint* InBlueprint )
