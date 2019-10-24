@@ -424,6 +424,7 @@ public:
 		, LibraryDir(InLibraryDir)
 		, LibraryCodeOffset(0)
 		, LibraryAsyncFileHandle(nullptr)
+		, InFlightAsyncReadRequests(0)
 	{
 		FName PlatformName = LegacyShaderPlatformToShaderFormat(InPlatform);
 		FString DestFilePath = GetCodeArchiveFilename(LibraryDir, LibraryName, PlatformName);
@@ -462,6 +463,33 @@ public:
 
 	virtual ~FShaderCodeArchive()
 	{
+		if(LibraryAsyncFileHandle != nullptr)
+		{
+			UE_LOG(LogShaderLibrary, Display, TEXT("FShaderCodeArchive: Shutting down %s"), *GetName());
+
+			FScopeLock ScopeLock(&ReadRequestLock);
+
+			const int64 OutstandingReads = FPlatformAtomics::AtomicRead(&InFlightAsyncReadRequests);
+			if(OutstandingReads > 0)
+			{
+				const float MaxWaitTimePerRead = 1.f / 60.f;
+				UE_LOG(LogShaderLibrary, Warning, TEXT("FShaderCodeArchive: Library %s has %d inflight requests to LibraryAsyncFileHandle - cancelling and waiting %f seconds each for them to finish."), *GetName(), OutstandingReads, MaxWaitTimePerRead);
+
+				for(auto& Pair : Shaders)
+				{
+					FShaderCodeEntry& Entry = Pair.Value;
+					TSharedPtr<IAsyncReadRequest, ESPMode::ThreadSafe> LocalReadRequest = Entry.ReadRequest.Pin();
+					if(LocalReadRequest.IsValid())
+					{
+						LocalReadRequest->Cancel();
+						LocalReadRequest->WaitCompletion(MaxWaitTimePerRead);
+					}
+				}
+			}
+
+			delete LibraryAsyncFileHandle;
+			LibraryAsyncFileHandle = nullptr;
+		}
 	}
 
 	virtual bool IsLibraryNativeFormat() const { return false; }
@@ -561,6 +589,8 @@ public:
 
 			if (bHasReadRequest)
 			{
+				FPlatformAtomics::InterlockedAdd(&InFlightAsyncReadRequests, 1);
+			
 				FExternalReadCallback ExternalReadCallback = [this, Entry, LocalReadRequest](double ReaminingTime)
 				{
 					return this->OnExternalReadCallback(LocalReadRequest, Entry, ReaminingTime);
@@ -602,6 +632,8 @@ public:
 #if DO_CHECK
 		Entry->bReadCompleted = 1;
 #endif
+
+		FPlatformAtomics::InterlockedAdd(&InFlightAsyncReadRequests, -1);
 		
 		return true;
 	}
@@ -756,6 +788,30 @@ public:
 		return Shader;
 	}
 
+	FRayTracingShaderRHIRef CreateRayTracingShader(EShaderFrequency Frequency, const FSHAHash& Hash) override final
+	{
+		FRayTracingShaderRHIRef Shader;
+
+#if RHI_RAYTRACING
+		int32 Size = 0;
+		bool bWasSync = false;
+		TArray<uint8>* Code = LookupShaderCode(Hash, Size, bWasSync);
+		if (Code)
+		{
+			TArray<uint8> UCode;
+			TArray<uint8>& UncompressedCode = FShaderLibraryHelperUncompressCode(Platform, Size, *Code, UCode);
+			Shader = RHICreateRayTracingShader(UncompressedCode, Frequency);
+			CheckShaderCreation(Shader.GetReference(), Hash);
+			if (bWasSync)
+			{
+				ReleaseShaderCode(Hash);
+			}
+		}
+#endif // RHI_RAYTRACING
+
+		return Shader;
+	}
+
 	class FShaderCodeLibraryIterator : public FRHIShaderLibrary::FShaderLibraryIterator
 	{
 	public:
@@ -837,6 +893,9 @@ private:
 	// Library file handle for async reads
 	IAsyncReadFileHandle* LibraryAsyncFileHandle;
 	FCriticalSection ReadRequestLock;
+	
+	// A count of the number of LibraryAsync Read Requests in flight
+	volatile int64 InFlightAsyncReadRequests;
 
 	// The shader code present in the library
 	TMap<FSHAHash, FShaderCodeEntry> Shaders;
@@ -1876,6 +1935,22 @@ public:
 		return Result;
 	}
 
+	FRayTracingShaderRHIRef CreateRayTracingShader(EShaderPlatform Platform, EShaderFrequency Frequency, FSHAHash Hash)
+	{
+		FRayTracingShaderRHIRef Result;
+
+#if RHI_RAYTRACING
+		checkSlow(Platform == GetRuntimeShaderPlatform());
+		FRHIShaderLibrary* ShaderCodeArchive = FindShaderLibrary(Hash);
+		if (ShaderCodeArchive)
+		{
+			Result = ((FShaderCodeArchive*)ShaderCodeArchive)->CreateRayTracingShader(Frequency, Hash);
+		}
+#endif // RHI_RAYTRACING
+
+		return Result;
+	}
+
 	TRefCountPtr<FRHIShaderLibrary::FShaderLibraryIterator> CreateIterator(void)
 	{
 		return new FShaderCodeLibraryIterator(ShaderCodeArchiveStack, LibraryMutex);
@@ -2369,6 +2444,25 @@ FComputeShaderRHIRef FShaderCodeLibrary::CreateComputeShader(EShaderPlatform Pla
 	SafeAssignHash(Shader, Hash);
 	FPipelineFileCache::CacheComputePSO(GetTypeHash(Shader.GetReference()), Shader.GetReference());
 	Shader->SetStats(FPipelineFileCache::RegisterPSOStats(GetTypeHash(Shader.GetReference())));
+	return Shader;
+}
+
+FRayTracingShaderRHIRef FShaderCodeLibrary::CreateRayTracingShader(EShaderPlatform Platform, EShaderFrequency Frequency, FSHAHash Hash, TArray<uint8> const& Code)
+{
+	FRayTracingShaderRHIRef Shader;
+
+#if RHI_RAYTRACING
+	if (FShaderCodeLibraryImpl::Impl)
+	{
+		Shader = FShaderCodeLibraryImpl::Impl->CreateRayTracingShader(Platform, Frequency, Hash);
+	}
+	if (!IsValidRef(Shader))
+	{
+		Shader = RHICreateRayTracingShader(Code, Frequency);
+	}
+	SafeAssignHash(Shader, Hash);
+#endif // RHI_RAYTRACING
+
 	return Shader;
 }
 

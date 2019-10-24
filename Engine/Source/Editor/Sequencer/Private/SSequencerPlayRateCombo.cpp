@@ -33,7 +33,7 @@ void SSequencerPlayRateCombo::Construct(const FArguments& InArgs, TWeakPtr<FSequ
 	.VAlign(VAlign_Fill)
 	[
 		SNew(SComboButton)
-		.ContentPadding(FMargin(2.f, 0.f))
+		.ContentPadding(FMargin(2.f, 1.0f))
 		.VAlign(VAlign_Fill)
 		.ButtonStyle( InArgs._StyleSet, BlockStyle )
 		.ForegroundColor( InArgs._StyleSet->GetSlateColor( ColorStyle ) )
@@ -91,8 +91,6 @@ void SSequencerPlayRateCombo::Construct(const FArguments& InArgs, TWeakPtr<FSequ
 			]
 		]
 	];
-
-	ChildSlot.Padding(InArgs._StyleSet->GetMargin(ISlateStyle::Join( InArgs._StyleName, ".SToolBarComboButtonBlock.Padding" )));
 }
 
 EVisibility SSequencerPlayRateCombo::GetFrameLockedVisibility() const

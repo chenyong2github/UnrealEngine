@@ -250,7 +250,8 @@ TSharedPtr<IDatasmithActorElement> FDatasmithIFCImporter::ConvertNode(const IFC:
 			Containment->AddChild(ConvertNode(IFCReader->GetObjects()[PartIndex]));
 		}
 	}
-
+	
+	ImportedIFCInstances.Add(InObject.IfcInstance);
 	return ActorElement;
 }
 
@@ -321,23 +322,26 @@ bool FDatasmithIFCImporter::SendSceneToDatasmith()
 		DatasmithScene->AddActor(ConvertNode(Project));
 	}
 
+	// Import all unreferenced objects
+	TSharedPtr<IDatasmithActorElement> UnreferencedRoot = FDatasmithSceneFactory::CreateActor(TEXT("Unreferenced objects"));	
 	for (const IFC::FObject& IFCObjectRef : IFCReader->GetObjects())
 	{
-		if (IFCObjectRef.bRootObject == false)
+		if (IFCObjectRef.bRootObject && !ImportedIFCInstances.Contains(IFCObjectRef.IfcInstance))
 		{
-			continue;
+			UnreferencedRoot->AddChild(ConvertNode(IFCObjectRef));
 		}
 	}
-
+	if (UnreferencedRoot->GetChildrenCount() > 0)
+	{
+		DatasmithScene->AddActor(UnreferencedRoot);
+	}
 #endif
 
 	return true;
 }
 
-TArray<FMeshDescription> FDatasmithIFCImporter::GetGeometriesForMeshElement(const TSharedRef<IDatasmithMeshElement> MeshElement)
+void FDatasmithIFCImporter::GetGeometriesForMeshElementAndRelease(const TSharedRef<IDatasmithMeshElement> MeshElement, TArray<FMeshDescription>& OutMeshDescriptions)
 {
-	TArray<FMeshDescription> Result;
-
 	if (int64* MeshIndexPtr = MeshElementToIFCMeshIndex.Find(&MeshElement.Get()))
 	{
 #ifdef WITH_IFC_ENGINE_LIB
@@ -350,12 +354,10 @@ TArray<FMeshDescription> FDatasmithIFCImporter::GetGeometriesForMeshElement(cons
 
 			IFCStaticMeshFactory->FillMeshDescription(pIFCObject, &MeshDescription);
 
-			Result.Add(MoveTemp(MeshDescription));
+			OutMeshDescriptions.Add(MoveTemp(MeshDescription));
 		}
 #endif
 	}
-
-	return Result;
 }
 
 FString FDatasmithIFCImporter::GetMeshGlobalId(const TSharedRef<IDatasmithMeshElement> MeshElement)
@@ -391,7 +393,6 @@ void FDatasmithIFCImporter::UnloadScene()
 	ImportedMeshes.Empty();
 	ImportedActorNames.Empty();
 
-	IFCStaticMeshFactory->CleanUp();
 	IFCReader->CleanUp();
 
 	IFCReader.Reset(new IFC::FFileReader());

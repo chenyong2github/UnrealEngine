@@ -36,6 +36,7 @@ _Pragma("clang diagnostic ignored \"-Wshadow\"")
 #include <stddef.h>
 
 #include <atomic>
+#include <mutex>
 #include <functional>
 #include <vector>
 
@@ -117,6 +118,9 @@ class LocklessTaskQueue {
   // Temporary vector to hold |Task|s in order to execute them in reverse order
   // (FIFO, instead of LIFO).
   std::vector<Task> temp_tasks_;
+
+  // this mutex guarantees that temp_tasks_ is not mutated while being iterated on.
+  std::mutex temp_tasks_mutex_;
 };
 
 }  // namespace vraudio

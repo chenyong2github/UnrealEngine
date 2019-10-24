@@ -34,7 +34,7 @@ struct FHairStrandsRootResource : public FRenderResource
 
 	struct FMeshProjectionLOD
 	{
-		enum class EStatus { Invalid, Initialized, Projected };
+		enum class EStatus { Invalid, Initialized, Completed };
 		EStatus Status = EStatus::Invalid;
 		int32 LODIndex = -1;
 
@@ -43,13 +43,13 @@ struct FHairStrandsRootResource : public FRenderResource
 		FRWBuffer RootTriangleBarycentricBuffer;
 	
 		/* Strand hair roots translation and rotation in rest position relative to the bound triangle. Positions are relative to the rest root center */
-		FVector	  RestRootCenter = FVector::ZeroVector;
+		FVector	  RestRootOffset = FVector::ZeroVector;
 		FRWBuffer RestRootTrianglePosition0Buffer;
 		FRWBuffer RestRootTrianglePosition1Buffer;
 		FRWBuffer RestRootTrianglePosition2Buffer;
 
 		/* Strand hair roots translation and rotation in triangle-deformed position relative to the bound triangle. Positions are relative the deformed root center*/
-		FVector   DeformedRootCenter = FVector::ZeroVector;
+		FVector   DeformedRootOffset = FVector::ZeroVector;
 		FRWBuffer DeformedRootTrianglePosition0Buffer;
 		FRWBuffer DeformedRootTrianglePosition1Buffer;
 		FRWBuffer DeformedRootTrianglePosition2Buffer;
@@ -76,7 +76,7 @@ struct FHairStrandsRootResource : public FRenderResource
 struct FHairStrandsRestResource : public FRenderResource
 {
 	/** Build the hair strands resource */
-	FHairStrandsRestResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData);
+	FHairStrandsRestResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData, const FVector& PositionOffset);
 
 	/* Init the buffer */
 	virtual void InitRHI() override;
@@ -90,8 +90,14 @@ struct FHairStrandsRestResource : public FRenderResource
 	/* Strand hair rest position buffer */
 	FRWBuffer RestPositionBuffer;
 
-	/* Strand hair offset buffer */
+	/* Strand hair attribute buffer */
 	FRWBuffer AttributeBuffer;
+
+	/* Strand hair material buffer */
+	FRWBuffer MaterialBuffer;
+	
+	/* Position offset as the rest positions are expressed in relative coordinate (16bits) */
+	FVector PositionOffset = FVector::ZeroVector;
 
 	/* Reference to the hair strands render data */
 	const FHairStrandsDatas::FRenderData& RenderData;
@@ -116,6 +122,9 @@ struct FHairStrandsDeformedResource : public FRenderResource
 
 	/* Strand hair tangent buffer */
 	FRWBuffer TangentBuffer;
+
+	/* Position offset as the deformed positions are expressed in relative coordinate (16bits) */
+	FVector PositionOffset = FVector::ZeroVector;
 
 	/* Reference to the hair strands render data */
 	const FHairStrandsDatas::FRenderData& RenderData;
@@ -190,8 +199,9 @@ struct HAIRSTRANDSCORE_API FHairGroupInfo
 	UPROPERTY(EditAnywhere, Category="Rendering")
 	UMaterialInterface* Material = nullptr;
 
-	UPROPERTY(EditAnywhere, Category="Simulation", meta = (DisplayName = "Niagara System Asset"))
-	UNiagaraSystem* NiagaraAsset = nullptr;
+	// Currently hide the Nigara simulation slot as it is not used, and could confuse users
+	//UPROPERTY(EditAnywhere, Category="Simulation", meta = (DisplayName = "Niagara System Asset"))
+	//UNiagaraSystem* NiagaraAsset = nullptr;
 };
 
 struct HAIRSTRANDSCORE_API FHairGroupData
@@ -217,6 +227,11 @@ class HAIRSTRANDSCORE_API UGroomAsset : public UObject
 {
 	GENERATED_BODY()
 
+#if WITH_EDITOR
+	/** Notification when anything changed */
+	DECLARE_MULTICAST_DELEGATE(FOnGroomAssetChanged);
+#endif
+
 public:
 
 	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintReadWrite, Category = "HairGroups", meta = (DisplayName = "Group"))
@@ -234,6 +249,7 @@ public:
 	float HairToGuideDensity = 0.1f;
 
 #if WITH_EDITOR
+	FOnGroomAssetChanged& GetOnGroomAssetChanged() { return OnGroomAssetChanged;  }
 
 	/**  Part of Uobject interface  */
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -272,7 +288,9 @@ public:
 
 	int32 GetNumHairGroups() const;
 
-//private : 
-
+//private :
+#if WITH_EDITOR
+	FOnGroomAssetChanged OnGroomAssetChanged;
+#endif
 	TUniquePtr<FHairDescription> HairDescription;
 };

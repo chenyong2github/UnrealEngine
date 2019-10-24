@@ -5,9 +5,8 @@ using System.IO;
 
 public class UElibPNG_HTML5 : UElibPNG
 {
+	protected override string LibPNGVersion { get { return "libPNG-1.5.27"; } }
 	protected override string LibRootDirectory { get { return Target.HTML5Platform.PlatformThirdPartySourceDirectory; } }
-	protected override string LibPNGPath { get { return Path.GetDirectoryName(base.LibPNGPath); } }
-
 
 	public UElibPNG_HTML5(ReadOnlyTargetRules Target) : base(Target)
 	{

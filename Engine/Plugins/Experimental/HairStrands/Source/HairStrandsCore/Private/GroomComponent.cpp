@@ -14,6 +14,9 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/RendererSettings.h"
 #include "Animation/AnimationSettings.h"
+#include "Logging/MessageLog.h"
+#include "Misc/UObjectToken.h"
+#include "Misc/MapErrors.h"
 
 static float GHairClipLength = -1;
 static FAutoConsoleVariableRef CVarHairClipLength(TEXT("r.HairStrands.DebugClipLength"), GHairClipLength, TEXT("Clip hair strands which have a lenth larger than this value. (default is -1, no effect)"));
@@ -23,6 +26,14 @@ static int32 GHairStrandsMeshProjectionForceRefPoseEnable = 0;
 static int32 GHairStrandsMeshProjectionForceLOD = -1;
 static FAutoConsoleVariableRef CVarHairStrandsMeshProjectionForceRefPoseEnable(TEXT("r.HairStrands.MeshProjection.RefPose"), GHairStrandsMeshProjectionForceRefPoseEnable, TEXT("Enable/Disable reference pose"));
 static FAutoConsoleVariableRef CVarHairStrandsMeshProjectionForceLOD(TEXT("r.HairStrands.MeshProjection.LOD"), GHairStrandsMeshProjectionForceLOD, TEXT("Force a specific LOD"));
+
+static int32 GHairStrandsMeshUseRelativePosition = 1;
+static FAutoConsoleVariableRef CVarHairStrandsMeshUseRelativePosition(TEXT("r.HairStrands.MeshProjection.RelativePosition"), GHairStrandsMeshUseRelativePosition, TEXT("Enable/Disable relative triangle position for improving positions"));
+
+static int32 GHairStrandsMeshProjectionTickDelay = 1;
+static FAutoConsoleVariableRef CVarHairStrandsMeshProjectionTickDelay(TEXT("r.HairStrands.MeshProjection.TickDelay"), GHairStrandsMeshProjectionTickDelay, TEXT("Number of simulation tick to wait before projecting a groom onto a mesh"));
+
+#define LOCTEXT_NAMESPACE "GroomComponent"
 
 /**
  * An material render proxy which overrides the debug mode parameter.
@@ -137,6 +148,8 @@ public:
 		for (uint32 GroupIt=0;GroupIt<GroupCount; GroupIt++)
 		{		
 			const FHairGroupData& InGroupData = Component->GroomAsset->HairGroupsData[GroupIt];
+			const FHairGroupDesc& InGroupDesc = Component->GroomGroupsDesc[GroupIt];
+
 			const UGroomComponent::FHairGroupResource& GroupResources = Component->HairGroupResources[GroupIt];
 
 			UMaterialInterface* Material = Component->GetMaterial(GroupIt);
@@ -147,7 +160,7 @@ public:
 
 			FHairStrandsVertexFactory::FDataType::HairGroup& VFGroupData = VFData.HairGroups.AddDefaulted_GetRef();
 			VFGroupData.MinStrandRadius		= 0;
-			VFGroupData.MaxStrandRadius		= InGroupData.HairRenderData.StrandsCurves.MaxRadius;
+			VFGroupData.MaxStrandRadius		= InGroupDesc.HairWidth > 0 ? InGroupDesc.HairWidth * 0.5f : InGroupData.HairRenderData.StrandsCurves.MaxRadius;
 			VFGroupData.MaxStrandLength		= InGroupData.HairRenderData.StrandsCurves.MaxLength;
 			VFGroupData.HairDensity			= InGroupData.HairRenderData.HairDensity;
 			VFGroupData.HairWorldOffset		= InGroupData.HairRenderData.BoundingBox.GetCenter();
@@ -245,6 +258,9 @@ public:
 			case EHairStrandsDebugMode::RenderHairSeed				: DebugModeScalar = 3.f; break;
 			case EHairStrandsDebugMode::RenderHairDimension			: DebugModeScalar = 4.f; break;
 			case EHairStrandsDebugMode::RenderHairRadiusVariation	: DebugModeScalar = 5.f; break;
+			case EHairStrandsDebugMode::RenderHairRootUDIM			: DebugModeScalar = 6.f; break;
+			case EHairStrandsDebugMode::RenderHairBaseColor			: DebugModeScalar = 7.f; break;
+			case EHairStrandsDebugMode::RenderHairRoughness			: DebugModeScalar = 8.f; break;
 			};
 
 			float HairMinRadius = FLT_MAX;
@@ -311,7 +327,9 @@ public:
 	}
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override
-	{
+	{		
+		const bool bIsViewModeValid = View->Family->ViewMode == VMI_Lit;
+
 		const EHairStrandsDebugMode DebugMode = GetHairStrandsDebugStrandsMode();
 		if (DebugMode != EHairStrandsDebugMode::None)
 		{
@@ -324,7 +342,7 @@ public:
 		}
 
 		FPrimitiveViewRelevance Result;
-		Result.bHairStrandsRelevance = true;
+		Result.bHairStrandsRelevance = bIsViewModeValid;
 
 		// Special pass for hair strands geometry (not part of the base pass, and shadowing is handlded in a custom fashion)
 		Result.bDrawRelevance = false;		
@@ -335,7 +353,7 @@ public:
 		// Selection only
 		#if WITH_EDITOR
 		{
-			const bool bIsSelected = (IsSelected() || IsHovered());
+			const bool bIsSelected = (IsSelected() || IsHovered()) && bIsViewModeValid;
 			Result.bEditorStaticSelectionRelevance = bIsSelected;
 			Result.bDrawRelevance = bIsSelected;
 		}
@@ -362,7 +380,37 @@ private:
 	TArray<HairGroup> HairGroups;
 };
 
+static void UpdateHairGroupsDesc(UGroomAsset* GroomAsset, TArray<FHairGroupDesc>& GroomGroupsDesc)
+{
+	if (!GroomAsset)
+	{
+		GroomGroupsDesc.Empty();
+		return;
+	}
 
+	check(GroomAsset->HairGroupsInfo.Num() == GroomAsset->HairGroupsInfo.Num());
+
+	const uint32 GroupCount = GroomAsset->HairGroupsInfo.Num();
+	const bool bReinitOverride = GroupCount != GroomGroupsDesc.Num();
+	if (bReinitOverride)
+	{
+		GroomGroupsDesc.SetNum(GroupCount);
+	}
+
+	for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
+	{
+		FHairGroupInfo& GroupInfo = GroomAsset->HairGroupsInfo[GroupIt];
+		FHairGroupData& GroupData = GroomAsset->HairGroupsData[GroupIt];
+
+		FHairGroupDesc& Desc = GroomGroupsDesc[GroupIt];
+		Desc.GuideCount = GroupInfo.NumGuides;
+		Desc.HairCount  = GroupInfo.NumCurves;
+		if (bReinitOverride || Desc.HairWidth == 0)
+		{
+			Desc.HairWidth = GroupData.HairRenderData.StrandsCurves.MaxRadius * 0.5f;
+		}
+	}
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -378,6 +426,7 @@ UGroomComponent::UGroomComponent(const FObjectInitializer& ObjectInitializer)
 	bAutoActivate = true;
 	bSelectable = true;
 	RegisteredSkeletalMeshComponent = nullptr;
+	SkeletalPreviousPositionOffset = FVector::ZeroVector;
 	HairShadowDensity = 1;
 	HairRaytracingRadiusScale = 1;
 	bBindGroomToSkeletalMesh = false;
@@ -386,10 +435,7 @@ UGroomComponent::UGroomComponent(const FObjectInitializer& ObjectInitializer)
 	MeshProjectionTickDelay = 0;
 	MeshProjectionLODIndex = -1;
 	MeshProjectionState = EMeshProjectionState::Invalid;
-	if (GEngine)
-	{
-		SetMaterial(0, GEngine->HairDefaultMaterial);
-	}
+	bIsGroomAssetCallbackRegistered = false;
 
 	SetCollisionProfileName(UCollisionProfile::PhysicsActor_ProfileName);
 }
@@ -410,23 +456,19 @@ FBoxSphereBounds UGroomComponent::CalcBounds(const FTransform& InLocalToWorld) c
 	{
 		if (RegisteredSkeletalMeshComponent)
 		{
-			FBoxSphereBounds WorldBounds(EForceInit::ForceInit);
+			FBox LocalBound(EForceInit::ForceInit);
 			for (const FHairGroupData& GroupData : GroomAsset->HairGroupsData)
 			{
-				// Transform the bounding box with an extra offset coming from the skin animation
-				const FBoxSphereBounds MeshLocalBound = RegisteredSkeletalMeshComponent->CalcBounds(FTransform::Identity);
-				const FVector HairTranslation = GroupData.HairRenderData.BoundingBox.GetCenter();
-				const FVector MeshTranslation = MeshLocalBound.GetSphere().Center;
-				const FVector LocalTranslation = MeshTranslation - HairTranslation;
-
-				FTransform LocalToWorld = InLocalToWorld;
-				LocalToWorld.SetLocation(LocalTranslation + InLocalToWorld.GetLocation());
-				FBoxSphereBounds GroupWorldBound(GroupData.HairRenderData.BoundingBox.TransformBy(LocalToWorld));
-			
-				WorldBounds = Union(GroupWorldBound, WorldBounds);
+				LocalBound += GroupData.HairRenderData.BoundingBox;
 			}
-			return WorldBounds;
+			FBox WorldBound = LocalBound.TransformBy(InLocalToWorld);
 
+			const FVector MeshTranslation = RegisteredSkeletalMeshComponent->CalcBounds(InLocalToWorld).GetBox().GetCenter();
+			const FVector LocalAnimationTranslation = MeshTranslation - WorldBound.GetCenter();
+
+			WorldBound.Max += LocalAnimationTranslation;
+			WorldBound.Min += LocalAnimationTranslation;
+			return FBoxSphereBounds(WorldBound);
 		}
 		else
 		{
@@ -502,18 +544,16 @@ static FHairStrandsProjectionHairData::HairGroup ToProjectionHairData(FHairStran
 		LODData.RootTriangleIndexBuffer = &MeshLODData.RootTriangleIndexBuffer;
 		LODData.RootTriangleBarycentricBuffer = &MeshLODData.RootTriangleBarycentricBuffer;
 		
-		LODData.RestRootCenter					= MeshLODData.RestRootCenter;
+		LODData.RestPositionOffset					= MeshLODData.RestRootOffset;
 		LODData.RestRootTrianglePosition0Buffer = &MeshLODData.RestRootTrianglePosition0Buffer;
 		LODData.RestRootTrianglePosition1Buffer = &MeshLODData.RestRootTrianglePosition1Buffer;
 		LODData.RestRootTrianglePosition2Buffer = &MeshLODData.RestRootTrianglePosition2Buffer;
 
-		LODData.DeformedRootCenter					= MeshLODData.DeformedRootCenter;
+		LODData.DeformedPositionOffset					= MeshLODData.DeformedRootOffset;
 		LODData.DeformedRootTrianglePosition0Buffer = &MeshLODData.DeformedRootTrianglePosition0Buffer;
 		LODData.DeformedRootTrianglePosition1Buffer = &MeshLODData.DeformedRootTrianglePosition1Buffer;
 		LODData.DeformedRootTrianglePosition2Buffer = &MeshLODData.DeformedRootTrianglePosition2Buffer;
-		LODData.bIsValid = 
-			MeshLODData.Status == FHairStrandsRootResource::FMeshProjectionLOD::EStatus::Projected ||
-			MeshLODData.Status == FHairStrandsRootResource::FMeshProjectionLOD::EStatus::Initialized;
+		LODData.bIsValid = MeshLODData.Status == FHairStrandsRootResource::FMeshProjectionLOD::EStatus::Completed;
 	}
 
 	return Out;
@@ -547,6 +587,16 @@ FHairStrandsDeformedResource* UGroomComponent::GetGuideStrandsDeformedResource(u
 	}
 
 	return HairGroupResources[GroupIndex].SimDeformedResources;
+}
+
+FHairStrandsRootResource* UGroomComponent::GetGuideStrandsRootResource(uint32 GroupIndex)
+{
+	if (GroupIndex >= uint32(HairGroupResources.Num()))
+	{
+		return nullptr;
+	}
+
+	return HairGroupResources[GroupIndex].SimRootResources;
 }
 
 template<typename T> void SafeDelete(T*& Data) 
@@ -671,16 +721,28 @@ void UGroomComponent::InitResources()
 		
 		Res.RenderRestResources = GroupData.HairStrandsRestResource;
 		Res.SimRestResources = GroupData.HairSimulationRestResource;
+
 		Res.RenderDeformedResources = new FHairStrandsDeformedResource(GroupData.HairRenderData.RenderData, false);
 		Res.SimDeformedResources = new FHairStrandsDeformedResource(GroupData.HairSimulationData.RenderData, true);
+
 		BeginInitResource(Res.RenderDeformedResources);
 		BeginInitResource(Res.SimDeformedResources);
+
+		const FVector RestHairPositionOffset = Res.RenderRestResources->PositionOffset;
+
+		Res.RenderDeformedResources->PositionOffset = RestHairPositionOffset;
+		Res.RenderRestResources->PositionOffset = RestHairPositionOffset;
+		Res.SimDeformedResources->PositionOffset = RestHairPositionOffset;
+		Res.SimRestResources->PositionOffset = RestHairPositionOffset;
 
 		FHairStrandsInterpolationOutput::HairGroup& InterpolationOutputGroup = InterpolationOutput->HairGroups.AddDefaulted_GetRef();
 		FHairStrandsInterpolationInput::FHairGroup& InterpolationInputGroup = InterpolationInput->HairGroups.AddDefaulted_GetRef();
 		InterpolationInputGroup.HairRadius = GroupData.HairRenderData.StrandsCurves.MaxRadius;
-		InterpolationInputGroup.HairWorldOffset = GroupData.HairRenderData.BoundingBox.GetCenter();
 		InterpolationInputGroup.HairRaytracingRadiusScale = HairRaytracingRadiusScale;
+		InterpolationInputGroup.InHairPositionOffset = RestHairPositionOffset;
+		// For skinned groom, these value will be updated during TickComponent() call
+		InterpolationInputGroup.OutHairPositionOffset = RestHairPositionOffset;
+		InterpolationInputGroup.OutHairPreviousPositionOffset = RestHairPositionOffset;
 	}
 
 	FHairStrandsInterpolationData Interpolation;
@@ -737,6 +799,7 @@ void UGroomComponent::InitResources()
 			OutputGroup.RenderDeformedPositionBuffer[0] = &Res.RenderDeformedResources->DeformedPositionBuffer[0];
 			OutputGroup.RenderDeformedPositionBuffer[1] = &Res.RenderDeformedResources->DeformedPositionBuffer[1];
 			OutputGroup.RenderAttributeBuffer			= &Res.RenderRestResources->AttributeBuffer;
+			OutputGroup.RenderMaterialBuffer			= &Res.RenderRestResources->MaterialBuffer;
 			OutputGroup.RenderTangentBuffer				= &Res.RenderDeformedResources->TangentBuffer;
 			OutputGroup.SimTangentBuffer				= &Res.SimDeformedResources->TangentBuffer;
 
@@ -776,6 +839,7 @@ void UGroomComponent::ReleaseResources()
 		SafeRelease(Res.RaytracingResources);
 	#endif
 	}
+	HairGroupResources.Empty();
 
 	// Delay destruction as resources reference by the interpolation 
 	// structs are used on the rendering thread, 
@@ -795,13 +859,15 @@ void UGroomComponent::ReleaseResources()
 	MeshProjectionTickDelay = 0;
 	MeshProjectionState = EMeshProjectionState::Invalid;
 
-
 	// Insure the ticking of the Groom component always happens after the skeletalMeshComponent.
 	if (RegisteredSkeletalMeshComponent)
 	{
 		RemoveTickPrerequisiteComponent(RegisteredSkeletalMeshComponent);
-		RegisteredSkeletalMeshComponent = nullptr;
 	}
+	SkeletalPreviousPositionOffset = FVector::ZeroVector;
+	RegisteredSkeletalMeshComponent = nullptr;
+
+	MarkRenderStateDirty();
 }
 
 void UGroomComponent::PostLoad()
@@ -818,7 +884,26 @@ void UGroomComponent::PostLoad()
 	{
 		InitResources();
 	}
+
+	UpdateHairGroupsDesc(GroomAsset, GroomGroupsDesc);
+
+#if WITH_EDITOR
+	if (!bIsGroomAssetCallbackRegistered)
+	{
+		GroomAsset->GetOnGroomAssetChanged().AddUObject(this, &UGroomComponent::Invalidate);
+		bIsGroomAssetCallbackRegistered = true;
+	}
+	ValidateMaterials(false);
+#endif
 }
+
+#if WITH_EDITOR
+void UGroomComponent::Invalidate()
+{
+	MarkRenderStateDirty();
+	ValidateMaterials(false);
+}
+#endif
 
 void UGroomComponent::OnRegister()
 {
@@ -842,7 +927,25 @@ void UGroomComponent::OnUnregister()
 void UGroomComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 {
 	ReleaseResources();
+
+#if WITH_EDITOR
+	if (bIsGroomAssetCallbackRegistered)
+	{
+		GroomAsset->GetOnGroomAssetChanged().RemoveAll(this);
+		bIsGroomAssetCallbackRegistered = false;
+	}
+#endif
+
 	Super::OnComponentDestroyed(bDestroyingHierarchy);
+}
+
+void UGroomComponent::OnAttachmentChanged()
+{
+	Super::OnAttachmentChanged();
+	if (GroomAsset && !IsBeingDestroyed() && HasBeenCreated())
+	{
+		InitResources();
+	}
 }
 
 void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
@@ -853,9 +956,13 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 	const uint64 Id = ComponentId.PrimIDValue;
 	const ERHIFeatureLevel::Type FeatureLevel = GetWorld() ? ERHIFeatureLevel::Type(GetWorld()->FeatureLevel) : ERHIFeatureLevel::Num;
 
+	FVector MeshPositionOffset = FVector::ZeroVector;
 	USkeletalMeshComponent* SkeletalMeshComponent = RegisteredSkeletalMeshComponent;	
 	if (SkeletalMeshComponent)
 	{
+		// The offset is based on the center of the skeletal mesh (which is computed based on the physics capsules/boxes/...)
+		MeshPositionOffset = SkeletalMeshComponent->CalcBounds(FTransform::Identity).GetBox().GetCenter();
+
 		const uint32 SkeletalLODCount = SkeletalMeshComponent->GetNumLODs();
 		const uint32 ResourceLODCount = HairGroupResources.Num() > 0 && HairGroupResources[0].RenRootResources ? HairGroupResources[0].RenRootResources->MeshProjectionLODs.Num() : 0;
 		if (SkeletalLODCount != ResourceLODCount)
@@ -908,49 +1015,156 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 			});
 		}
 
-		if (MeshProjectionState != EMeshProjectionState::Completed && MeshProjectionTickDelay == 0)
+		// State machine for binding/projecting hair onto skinned mesh. The state machine operates as follow:
+		// * For each mesh LOD
+		//   * Force the skeletal mesh in rest pose
+		//   * Wait for the skeletal mesh to tick/update the animation
+		//   * Issue a binding/projection query to the hair strands system
+		//   * Wait for the query to be completed
+		// * Put the skeletal mesh into its original pose
+		//
+		// In editor, the animation is not ticked, so we manually issue a re-initialization of the animation 
+		// to force the animation in rest pose or original pose
+		if (MeshProjectionState != EMeshProjectionState::Completed)
 		{
+			const uint32 TickDelay = FMath::Max(0, GHairStrandsMeshProjectionTickDelay);
 
-			if (MeshProjectionState == EMeshProjectionState::Invalid)
+			if (MeshProjectionTickDelay == 0)
 			{
-				MeshProjectionLODIndex = 0;
-				MeshProjectionState = EMeshProjectionState::WaitForData;
-			}
-
-			if (MeshProjectionLODIndex == SkeletalMeshComponent->GetNumLODs())
-			{
-				SkeletalMeshComponent->SetForceRefPose(false);
-				SkeletalMeshComponent->SetForcedLOD(0);
-				MeshProjectionState = EMeshProjectionState::Completed;
-			}
-
-			if (MeshProjectionLODIndex < SkeletalMeshComponent->GetNumLODs())
-			{
-				SkeletalMeshComponent->SetForceRefPose(true);
-				SkeletalMeshComponent->SetForcedLOD(MeshProjectionLODIndex + 1);
-
-				const FVector RestRootCenter = SkeletalMeshComponent->Bounds.GetSphere().Center;
-				const uint32 LODIndex = MeshProjectionLODIndex;
-				ENQUEUE_RENDER_COMMAND(FHairStrandsTick_Projection)(
-					[Id, WorldType, FeatureLevel, LODIndex, RestRootCenter](FRHICommandListImmediate& RHICmdList)
+				if (MeshProjectionState == EMeshProjectionState::Invalid)
 				{
-					AddHairStrandsProjectionQuery(RHICmdList, Id, WorldType, LODIndex, RestRootCenter);
-				});
-				MeshProjectionTickDelay += 5;
-				++MeshProjectionLODIndex;
+					MeshProjectionLODIndex = 0;
+					MeshProjectionState = EMeshProjectionState::InProgressBinding;
+				}
+
+				if (MeshProjectionLODIndex == SkeletalMeshComponent->GetNumLODs())
+				{
+					SkeletalMeshComponent->SetForceRefPose(false);
+					SkeletalMeshComponent->SetForcedLOD(0);
+					if (WorldType == EWorldType::Editor)
+					{
+						SkeletalMeshComponent->InitAnim(true);
+					}
+					MeshProjectionState = EMeshProjectionState::Completed;
+
+					FHairGroupResources* LocalResources = &HairGroupResources;
+					ENQUEUE_RENDER_COMMAND(FHairStrandsTick_UpdateProjectionStatus)(
+						[LocalResources](FRHICommandListImmediate& RHICmdList)
+					{
+						for (FHairGroupResource& Res : *LocalResources)
+						{
+							for (FHairStrandsRootResource::FMeshProjectionLOD& MeshLODData : Res.RenRootResources->MeshProjectionLODs)
+							{
+								MeshLODData.Status = FHairStrandsRootResource::FMeshProjectionLOD::EStatus::Completed;
+							}
+
+							for (FHairStrandsRootResource::FMeshProjectionLOD& MeshLODData : Res.SimRootResources->MeshProjectionLODs)
+							{
+								MeshLODData.Status = FHairStrandsRootResource::FMeshProjectionLOD::EStatus::Completed;
+							}
+						}
+					});
+				}
+
+				if (MeshProjectionLODIndex < SkeletalMeshComponent->GetNumLODs())
+				{
+					if (MeshProjectionState == EMeshProjectionState::InProgressBinding)
+					{
+						SkeletalMeshComponent->SetForceRefPose(true);
+						SkeletalMeshComponent->SetForcedLOD(MeshProjectionLODIndex + 1);
+						if (WorldType == EWorldType::Editor)
+						{
+							SkeletalMeshComponent->InitAnim(true);
+						}
+						MeshProjectionState = EMeshProjectionState::WaitForRestPose;
+						MeshProjectionTickDelay += TickDelay;
+					}
+
+					if (MeshProjectionState == EMeshProjectionState::WaitForRestPose && MeshProjectionTickDelay == 0)
+					{
+						FHairGroupResources* LocalResources = &HairGroupResources;
+
+						const FVector RestPositionOffset = MeshPositionOffset;
+						const uint32 LODIndex = MeshProjectionLODIndex;
+						ENQUEUE_RENDER_COMMAND(FHairStrandsTick_Projection)(
+							[Id, WorldType, FeatureLevel, LODIndex, RestPositionOffset, LocalResources](FRHICommandListImmediate& RHICmdList)
+						{
+							AddHairStrandsProjectionQuery(RHICmdList, Id, WorldType, LODIndex, RestPositionOffset);
+
+							// Update rest (sim/render) position offsets. This is used by Niagara.
+							for (FHairGroupResource& Res : *LocalResources)
+							{
+								if (Res.RenRootResources)
+								{
+									for (FHairStrandsRootResource::FMeshProjectionLOD& MeshProjectionLOD : Res.RenRootResources->MeshProjectionLODs)
+									{
+										MeshProjectionLOD.RestRootOffset = RestPositionOffset;
+									}
+								}
+
+								if (Res.SimRootResources)
+								{
+									for (FHairStrandsRootResource::FMeshProjectionLOD& MeshProjectionLOD : Res.SimRootResources->MeshProjectionLODs)
+									{
+										MeshProjectionLOD.RestRootOffset = RestPositionOffset;
+									}
+								}
+							}
+						});
+
+						MeshProjectionState = EMeshProjectionState::InProgressBinding;
+						MeshProjectionTickDelay += TickDelay;
+						++MeshProjectionLODIndex;
+					}
+				}
 			}
 		}
-		else
+
+		FSkeletalMeshConfiguration CurrentState;
+		CurrentState.ForceRefPose = GHairStrandsMeshProjectionForceRefPoseEnable > 0;
+		CurrentState.ForceLOD     = GHairStrandsMeshProjectionForceLOD >= 0 ? FMath::Clamp(GHairStrandsMeshProjectionForceLOD, 0, SkeletalMeshComponent->GetNumLODs() - 1) : -1;
+		if (!FSkeletalMeshConfiguration::Equals(CurrentState, SkeletalMeshConfiguration) && MeshProjectionState == EMeshProjectionState::Completed)
 		{
-			// For debug purpose
-			const int32 ForceLOD = GHairStrandsMeshProjectionForceLOD >= 0 ? FMath::Clamp(GHairStrandsMeshProjectionForceLOD, 0, SkeletalMeshComponent->GetNumLODs() - 1) : -1;
-			SkeletalMeshComponent->SetForcedLOD(ForceLOD + 1);
-			SkeletalMeshComponent->SetForceRefPose(GHairStrandsMeshProjectionForceRefPoseEnable > 0);
+			SkeletalMeshComponent->SetForcedLOD(CurrentState.ForceLOD + 1);
+			SkeletalMeshComponent->SetForceRefPose(CurrentState.ForceRefPose);
+			SkeletalMeshConfiguration = CurrentState;
+		}
+
+		// For skinned mesh update the relative center of hair positions after deformation
+		{
+			FHairGroupResources* LocalResources = &HairGroupResources;
+
+			const FVector OutHairPositionOffset = MeshPositionOffset;
+			const FVector OutHairPreviousPositionOffset = SkeletalPreviousPositionOffset;
+			FHairStrandsInterpolationInput* LocalInterpolationInput = InterpolationInput;
+			ENQUEUE_RENDER_COMMAND(FHairStrandsTick_OutHairPositionOffsetUpdate)(
+				[OutHairPositionOffset, OutHairPreviousPositionOffset, LocalInterpolationInput, LocalResources](FRHICommandListImmediate& RHICmdList)
+			{
+				for (FHairStrandsInterpolationInput::FHairGroup& HairGroup : LocalInterpolationInput->HairGroups)
+				{
+					HairGroup.OutHairPositionOffset = OutHairPositionOffset;
+					HairGroup.OutHairPreviousPositionOffset = OutHairPreviousPositionOffset;
+				}
+
+				// Update deformed (sim/render) hair position offsets. This is used by Niagara.
+				for (FHairGroupResource& Res : *LocalResources)
+				{
+					if (Res.RenderDeformedResources)
+						Res.RenderDeformedResources->PositionOffset = OutHairPositionOffset;
+
+					if (Res.SimDeformedResources)
+						Res.SimDeformedResources->PositionOffset = OutHairPositionOffset;
+				}
+			});
+
+			// First frame will be wrong ... 
+			SkeletalPreviousPositionOffset = OutHairPositionOffset;
 		}
 
 		// When a skeletal object with projection is enabled, activate the refresh of the bounding box to 
 		// insure the component/proxy bounding box always lies onto the actual skinned mesh
 		MarkRenderTransformDirty();
+
 	}
 
 	if (MeshProjectionTickDelay > 0)
@@ -958,16 +1172,36 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 		MeshProjectionTickDelay--;
 	}
 
-	const FVector WorldsBoundsCenter  = SkeletalMeshComponent ? SkeletalMeshComponent->Bounds.GetSphere().Center : FVector::ZeroVector;
+	FHairGroupResources* LocalResources = &HairGroupResources;
+	const FVector DeformedPositionCenter = GHairStrandsMeshUseRelativePosition > 0 ? MeshPositionOffset : FVector::ZeroVector;
 	const FTransform SkinLocalToWorld = SkeletalMeshComponent ? SkeletalMeshComponent->GetComponentTransform() : FTransform();
 	const FTransform HairLocalToWorld = GetComponentTransform();
 	ENQUEUE_RENDER_COMMAND(FHairStrandsTick_TransformUpdate)(
-		[Id, WorldType, HairLocalToWorld, SkinLocalToWorld, WorldsBoundsCenter, FeatureLevel](FRHICommandListImmediate& RHICmdList)
+		[Id, WorldType, HairLocalToWorld, SkinLocalToWorld, DeformedPositionCenter, FeatureLevel, LocalResources](FRHICommandListImmediate& RHICmdList)
 	{		
 		if (ERHIFeatureLevel::Num == FeatureLevel)
 			return;
 
-		UpdateHairStrands(Id, WorldType, HairLocalToWorld, SkinLocalToWorld, WorldsBoundsCenter);
+		UpdateHairStrands(Id, WorldType, HairLocalToWorld, SkinLocalToWorld, DeformedPositionCenter);
+
+		// Update deformed (sim/render) triangles position offsets. This is used by Niagara.
+		for (FHairGroupResource& Res : *LocalResources)
+		{
+			if (Res.RenRootResources)
+			{
+				for (FHairStrandsRootResource::FMeshProjectionLOD& MeshProjectionLOD : Res.RenRootResources->MeshProjectionLODs)
+				{
+					MeshProjectionLOD.DeformedRootOffset = DeformedPositionCenter;
+				}
+			}
+			if (Res.SimRootResources)
+			{
+				for (FHairStrandsRootResource::FMeshProjectionLOD& MeshProjectionLOD : Res.SimRootResources->MeshProjectionLODs)
+				{
+					MeshProjectionLOD.DeformedRootOffset = DeformedPositionCenter;
+				}
+			}
+		}
 	});
 }
 
@@ -1003,6 +1237,7 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	const FName PropertyName = PropertyThatChanged ? PropertyThatChanged->GetFName() : NAME_None;
 
 	//  Init/release resources when setting the GroomAsset (or undoing)
+	const bool bAssetChanged = PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, GroomAsset);
 	const bool bRecreateResources =
 		(PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, GroomAsset) || PropertyThatChanged == nullptr) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, bBindGroomToSkeletalMesh);
@@ -1013,6 +1248,23 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		bBindGroomToSkeletalMesh = false;
 	}
 
+#if WITH_EDITOR
+	if (bAssetChanged)
+	{
+		if (bIsGroomAssetCallbackRegistered && GroomAsset)
+		{
+			GroomAsset->GetOnGroomAssetChanged().RemoveAll(this);
+		}
+		bIsGroomAssetCallbackRegistered = false;
+
+		if (GroomAsset)
+		{
+			GroomAsset->GetOnGroomAssetChanged().AddUObject(this, &UGroomComponent::Invalidate);
+			bIsGroomAssetCallbackRegistered = true;
+		}
+	}
+#endif
+
 	if (bRecreateResources)
 	{
 		if (GroomAsset != InitializedResources)
@@ -1020,6 +1272,7 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 			if (GroomAsset)
 			{
 				InitResources();
+				UpdateHairGroupsDesc(GroomAsset, GroomGroupsDesc);
 			}
 			else
 			{
@@ -1035,6 +1288,14 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 			Group.HairRaytracingRadiusScale = HairRaytracingRadiusScale;
 		}
 	}
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, HairWidth))
+	{	
+		UpdateHairGroupsDesc(GroomAsset, GroomGroupsDesc);
+	}
+#if WITH_EDITOR
+	ValidateMaterials(false);
+#endif
 }
 
 bool UGroomComponent::CanEditChange(const UProperty* InProperty) const
@@ -1064,6 +1325,116 @@ bool UGroomComponent::CanEditChange(const UProperty* InProperty) const
 	return Super::CanEditChange(InProperty);
 }
 #endif
+
+#if WITH_EDITOR
+void UGroomComponent::ValidateMaterials(bool bMapCheck) const
+{
+	if (!GroomAsset)
+		return;
+	
+	FString Name = "";
+	if (GetOwner())
+	{
+		Name += GetOwner()->GetName() + "/";
+	}
+	Name += GetName() + "/" + GroomAsset->GetName();
+	
+	const ERHIFeatureLevel::Type FeatureLevel = GetScene() ? GetScene()->GetFeatureLevel() : ERHIFeatureLevel::Num;
+	for (uint32 MaterialIt = 0, MaterialCount = GetNumMaterials(); MaterialIt < MaterialCount; ++MaterialIt)
+	{
+		UMaterialInterface* OverrideMaterial = Super::GetMaterial(MaterialIt);
+
+		FMaterialResource* Material = nullptr;
+
+		if (OverrideMaterial)
+		{
+			Material = OverrideMaterial->GetMaterialResource(FeatureLevel);
+		}
+		else if (MaterialIt < uint32(GroomAsset->HairGroupsInfo.Num()) && GroomAsset->HairGroupsInfo[MaterialIt].Material)
+		{
+			Material = GroomAsset->HairGroupsInfo[MaterialIt].Material->GetMaterialResource(FeatureLevel);
+		}
+
+		if (Material)
+		{
+			if (!Material->IsUsedWithHairStrands())
+			{
+				if (bMapCheck)
+				{
+					FMessageLog("MapCheck").Warning()
+						->AddToken(FUObjectToken::Create(GroomAsset))
+						->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_InvalidHairStrandsMaterial", "Groom's material needs to have UseHairStrands option enabled. Groom's material will be replaced with default hair strands shader.")))
+						->AddToken(FMapErrorToken::Create(FMapErrors::InvalidHairStrandsMaterial));
+				}
+				else
+				{
+					UE_LOG(LogHairStrands, Warning, TEXT("[Groom] %s - Groom's material needs to have UseHairStrands option enabled. Groom's material will be replaced with default hair strands shader."), *Name);
+				}
+			}
+			if (!Material->GetShadingModels().HasShadingModel(MSM_Hair))
+			{
+				if (bMapCheck)
+				{
+					FMessageLog("MapCheck").Warning()
+						->AddToken(FUObjectToken::Create(GroomAsset))
+						->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_InvalidHairStrandsMaterial", "Groom's material needs to have Hair shadering model. Groom's material will be replaced with default hair strands shader.")))
+						->AddToken(FMapErrorToken::Create(FMapErrors::InvalidHairStrandsMaterial));
+				}
+				else
+				{
+					UE_LOG(LogHairStrands, Warning, TEXT("[Groom] %s - Groom's material needs to have Hair shadering model. Groom's material will be replaced with default hair strands shader."), *Name);
+				}
+			}
+			if (Material->GetBlendMode() != BLEND_Opaque)
+			{
+				if (bMapCheck)
+				{
+					FMessageLog("MapCheck").Warning()
+						->AddToken(FUObjectToken::Create(GroomAsset))
+						->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_InvalidHairStrandsMaterial", "Groom's material needs to have opaque blend mode. Groom's material will be replaced with default hair strands shader.")))
+						->AddToken(FMapErrorToken::Create(FMapErrors::InvalidHairStrandsMaterial));
+				}
+				else
+				{
+					UE_LOG(LogHairStrands, Warning, TEXT("[Groom] %s - Groom's material needs to have Hair shadering model. Groom's material will be replaced with default hair strands shader."), *Name);
+				}
+			}
+		}
+		else
+		{
+			if (bMapCheck)
+			{
+				FMessageLog("MapCheck").Info()
+					->AddToken(FUObjectToken::Create(GroomAsset))
+					->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_InvalidHairStrandsMaterial", "Groom's material is not set and will fallback on default hair strands shader.")))
+					->AddToken(FMapErrorToken::Create(FMapErrors::InvalidHairStrandsMaterial));
+			}
+			else
+			{
+				UE_LOG(LogHairStrands, Warning, TEXT("[Groom] %s - Groom's material is not set and will fallback on default hair strands shader."), *Name);
+			}
+		}
+	}
+}
+
+void UGroomComponent::CheckForErrors()
+{
+	Super::CheckForErrors();
+
+	const FCoreTexts& CoreTexts = FCoreTexts::Get();
+
+	// Get the mesh owner's name.
+	AActor* Owner = GetOwner();
+	FString OwnerName(*(CoreTexts.None.ToString()));
+	if (Owner)
+	{
+		OwnerName = Owner->GetName();
+	}
+
+	ValidateMaterials(true);
+}
+#endif
+
 
 FGroomComponentRecreateRenderStateContext::FGroomComponentRecreateRenderStateContext(UGroomAsset* GroomAsset)
 {
@@ -1102,3 +1473,5 @@ FGroomComponentRecreateRenderStateContext::~FGroomComponentRecreateRenderStateCo
 		}
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

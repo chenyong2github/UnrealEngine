@@ -156,6 +156,11 @@ struct FDatasmithFindAssetTypeHelper< UStaticMesh >
 	{
 		return SceneAsset ? &SceneAsset->StaticMeshes : nullptr;
 	}
+
+	static const TSharedRef<IDatasmithMeshElement>* GetImportedElementByName( const FDatasmithAssetsImportContext& AssetsContext, const TCHAR* ObjectPathName )
+	{
+		return AssetsContext.ParentContext.ImportedStaticMeshesByName.Find(ObjectPathName);
+	}
 };
 
 template<>
@@ -174,6 +179,11 @@ struct FDatasmithFindAssetTypeHelper< UTexture >
 	static const TMap< FName, TSoftObjectPtr< UTexture > >* GetAssetsMap( const UDatasmithScene* SceneAsset )
 	{
 		return SceneAsset ? &SceneAsset->Textures : nullptr;
+	}
+
+	static const TSharedRef<IDatasmithTextureElement>* GetImportedElementByName( const FDatasmithAssetsImportContext& AssetsContext, const TCHAR* ObjectPathName )
+	{
+		return nullptr;
 	}
 };
 
@@ -194,6 +204,11 @@ struct FDatasmithFindAssetTypeHelper< UMaterialFunction >
 	{
 		return SceneAsset ? &SceneAsset->MaterialFunctions : nullptr;
 	}
+	
+	static const TSharedRef<IDatasmithBaseMaterialElement>* GetImportedElementByName( const FDatasmithAssetsImportContext& AssetsContext, const TCHAR* ObjectPathName )
+	{
+		return AssetsContext.ParentContext.ImportedMaterialFunctionsByName.Find(ObjectPathName);
+	}
 };
 
 template<>
@@ -212,6 +227,11 @@ struct FDatasmithFindAssetTypeHelper< UMaterialInterface >
 	static const TMap< FName, TSoftObjectPtr< UMaterialInterface > >* GetAssetsMap( const UDatasmithScene* SceneAsset )
 	{
 		return SceneAsset ? &SceneAsset->Materials : nullptr;
+	}
+
+	static const TSharedRef<IDatasmithBaseMaterialElement>* GetImportedElementByName( const FDatasmithAssetsImportContext& AssetsContext, const TCHAR* ObjectPathName )
+	{
+		return nullptr;
 	}
 };
 
@@ -263,13 +283,25 @@ inline ObjectType* FDatasmithImporterUtils::FindAsset( const FDatasmithAssetsImp
 
 	if ( FPaths::IsRelative( ObjectPathName ) )
 	{
+		const auto& ImportedElement   = FDatasmithFindAssetTypeHelper< ObjectType >::GetImportedElementByName( AssetsContext, ObjectPathName );
 		const auto& ImportedAssetsMap = FDatasmithFindAssetTypeHelper< ObjectType >::GetImportedAssetsMap( AssetsContext );
 
-		for ( const auto& ImportedAssetPair : ImportedAssetsMap )
+		if (ImportedElement)
 		{
-			if ( FCString::Stricmp( ImportedAssetPair.Key->GetName(), ObjectPathName ) == 0 )
+			auto Result = ImportedAssetsMap.Find(*ImportedElement);
+			if (Result)
 			{
-				return ImportedAssetPair.Value;
+				return *Result;
+			}
+		}
+		else
+		{
+			for ( const auto& ImportedAssetPair : ImportedAssetsMap )
+			{
+				if ( FCString::Stricmp( ImportedAssetPair.Key->GetName(), ObjectPathName ) == 0 )
+				{
+					return ImportedAssetPair.Value;
+				}
 			}
 		}
 

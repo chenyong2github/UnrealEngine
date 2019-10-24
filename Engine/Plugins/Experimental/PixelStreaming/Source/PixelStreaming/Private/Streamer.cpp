@@ -8,6 +8,7 @@
 #include "PlayerSession.h"
 #include "Codecs/VideoEncoder.h"
 #include "WebRtcLogging.h"
+#include "PixelStreamerDelegates.h"
 
 #include "Modules/ModuleManager.h"
 #include "WebSocketsModule.h"
@@ -227,6 +228,14 @@ void FStreamer::DeletePlayerSession(FPlayerId PlayerId)
 		else
 		{
 			Streams.Empty();
+		}
+
+		// Inform the application-specific blueprint that nobody is viewing or
+		// interacting with the app. This is an opportunity to reset the app.
+		UPixelStreamerDelegates* Delegates = UPixelStreamerDelegates::GetPixelStreamerDelegates();
+		if (Delegates)
+		{
+			Delegates->OnAllConnectionsClosed.Broadcast();
 		}
 	}
 	else if (bWasQualityController)

@@ -26,7 +26,8 @@ enum class EHairStrandsSize : uint8
 struct FNDIHairStrandsBuffer : public FRenderResource
 {
 	/** Set the asset that will be used to affect the buffer */
-	void SetHairAsset(const FHairStrandsDatas*  HairStrandsDatas, const FHairStrandsRestResource*  HairStrandsRestResource, const FHairStrandsDeformedResource*  HairStrandsDeformedResource);
+	void SetHairAsset(const FHairStrandsDatas*  HairStrandsDatas, const FHairStrandsRestResource*  HairStrandsRestResource, 
+		const FHairStrandsDeformedResource*  HairStrandsDeformedResource, const FHairStrandsRootResource* HairStrandsRootResource );
 
 	/** Init the buffer */
 	virtual void InitRHI() override;
@@ -41,7 +42,28 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 	FRWBuffer CurvesOffsetsBuffer;
 
 	/** Deformed position buffer in case no ressource are there */
-	FRWBuffer PointsPositionsBuffer;
+	FRWBuffer DeformedPositionBuffer;
+
+	/**Rest triangle position of vertex A*/
+	FRWBuffer RestTrianglePositionABuffer;
+
+	/**Rest triangle position of vertex B*/
+	FRWBuffer RestTrianglePositionBBuffer;
+
+	/**Rest triangle position of vertex C*/
+	FRWBuffer RestTrianglePositionCBuffer;
+
+	/**Deformed triangle position of vertex A*/
+	FRWBuffer DeformedTrianglePositionABuffer;
+
+	/**Deformed triangle position of vertex B*/
+	FRWBuffer DeformedTrianglePositionBBuffer;
+
+	/**Deformed triangle position of vertex C*/
+	FRWBuffer DeformedTrianglePositionCBuffer;
+
+	/**Root barycentric coordinates */
+	FRWBuffer RootBarycentricCoordinatesBuffer;
 
 	/** The strand asset datas from which to sample */
 	const FHairStrandsDatas* SourceDatas;
@@ -51,6 +73,9 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 
 	/** The strand deformed resource to write into */
 	const FHairStrandsDeformedResource* SourceDeformedResources;
+
+	/** The strand root resource to write into */
+	const FHairStrandsRootResource* SourceRootResources;
 };
 
 /** Data stored per strand base instance*/
@@ -65,8 +90,14 @@ struct FNDIHairStrandsData
 	/** Strand size */
 	int32 StrandSize;
 
-	/** Bounding box origin */
-	FVector4 BoxOrigin;
+	/** Bounding box center */
+	FVector BoxCenter;
+
+	/** Bounding box extent */
+	FVector BoxExtent;
+
+	/** Tick Count*/
+	int32 TickCount;
 
 	/** Strands Gpu buffer */
 	FNDIHairStrandsBuffer* HairStrandsBuffer;
@@ -94,6 +125,10 @@ public:
 
 	/** The source component from which to sample */
 	TWeakObjectPtr<class UGroomComponent> SourceComponent;
+
+	/** Group Index to be used */
+	UPROPERTY(EditAnywhere, Category = "Source")
+	int32 GroupIndex;
 
 	/** UObject Interface */
 	virtual void PostInitProperties() override;
@@ -123,7 +158,7 @@ public:
 
 	/** Extract datas and resources */
 	void ExtractDatasAndResources(FNiagaraSystemInstance* SystemInstance, FHairStrandsDatas*& OutStrandsDatas,
-		FHairStrandsRestResource*& OutStrandsRestResource, FHairStrandsDeformedResource*& OutStrandsDeformedResource);
+		FHairStrandsRestResource*& OutStrandsRestResource, FHairStrandsDeformedResource*& OutStrandsDeformedResource, FHairStrandsRootResource*& OutStrandsRootResource);
 
 	/** Get the number of strands */
 	void GetNumStrands(FVectorVMContext& Context);
@@ -245,6 +280,15 @@ public:
 	/** Compute the air drag force */
 	void ComputeAirDragForce(FVectorVMContext& Context);
 
+	/** Get the rest position and orientation relative to the transform or to the skin cache */
+	void ComputeLocalState(FVectorVMContext& Context);
+
+	/** Attach the node position and orientation to the transform or to the skin cache */
+	void AttachNodeState(FVectorVMContext& Context);
+
+	/** Check if we need or not a simulation reset*/
+	void NeedSimulationReset(FVectorVMContext& Context);
+
 	/** Name of the world transform */
 	static const FString WorldTransformName;
 
@@ -261,16 +305,58 @@ public:
 	static const FString StrandSizeName;
 
 	/** Name of the points positions buffer */
-	static const FString PointsPositionsBufferName;
+	static const FString DeformedPositionBufferName;
 
 	/** Name of the curves offsets buffer */
 	static const FString CurvesOffsetsBufferName;
 
 	/** Name of the nodes positions buffer */
-	static const FString RestPositionsBufferName;
+	static const FString RestPositionBufferName;
 
-	/** Name of the box origin  */
-	static const FString BoxOriginName;
+	/** Name of the box center  */
+	static const FString BoxCenterName;
+
+	/** Name of the box extent  */
+	static const FString BoxExtentName;
+
+	/** Param to check if the roots have been attached to the skin */
+	static const FString HasRootAttachedName;
+
+	/** boolean to check if we need to rest the simulation*/
+	static const FString ResetSimulationName;
+
+	/** Rest center of all the roots */
+	static const FString RestRootOffsetName;
+
+	/** Rest position of the triangle vertex A */
+	static const FString RestTrianglePositionAName;
+
+	/** Rest position of the triangle vertex B */
+	static const FString RestTrianglePositionBName;
+
+	/** Rest position of the triangle vertex C */
+	static const FString RestTrianglePositionCName;
+
+	/** Deformed center of all the roots */
+	static const FString DeformedRootOffsetName;
+
+	/** Deformed position of the triangle vertex A */
+	static const FString DeformedTrianglePositionAName;
+
+	/** Deformed position of the triangle vertex A */
+	static const FString DeformedTrianglePositionBName;
+
+	/** Deformed position of the triangle vertex A */
+	static const FString DeformedTrianglePositionCName;
+
+	/** Root barycentric coordinates */
+	static const FString RootBarycentricCoordinatesName;
+
+	/** Rest center of all the position */
+	static const FString RestPositionOffsetName;
+
+	/** Deformed center of all the position */
+	static const FString DeformedPositionOffsetName;
 
 protected:
 	/** Copy one niagara DI to this */
@@ -290,7 +376,7 @@ struct FNDIHairStrandsProxy : public FNiagaraDataInterfaceProxy
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override;
 
 	/** Initialize the Proxy data strands buffer */
-	void InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance, FNDIHairStrandsBuffer* StrandsBuffer, const uint32 NumStrands, const uint8 StrandSize, const FVector4& BoxOrigin, const FMatrix& WorldTransform);
+	void InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance, FNDIHairStrandsBuffer* StrandsBuffer, const uint32 NumStrands, const uint8 StrandSize, const FVector& BoxCenter, const FVector& BoxExtent, const FMatrix& WorldTransform);
 
 	/** Destroy the proxy data if necessary */
 	void DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance);

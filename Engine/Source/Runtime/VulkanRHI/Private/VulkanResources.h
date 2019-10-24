@@ -264,9 +264,8 @@ class FVulkanSurface
 {
 public:
 
-	// Seperate method for creating image, this can be used to measure image size
-	// After VkImage is no longer needed, dont forget to destroy/release it 
-	static VkImage CreateImage(
+	// Seperate method for creating VkImageCreateInfo
+	static VkImageCreateInfo GenerateImageCreateInfo(
 		FVulkanDevice& InDevice,
 		VkImageViewType ResourceType,
 		EPixelFormat InFormat,
@@ -275,10 +274,8 @@ public:
 		uint32 NumMips,
 		uint32 NumSamples,
 		uint32 UEFlags,
-		VkMemoryRequirements& OutMemoryRequirements,
 		VkFormat* OutStorageFormat = nullptr,
 		VkFormat* OutViewFormat = nullptr,
-		VkImageCreateInfo* OutInfo = nullptr,
 		bool bForceLinearTexture = false);
 
 	FVulkanSurface(FVulkanDevice& Device, VkImageViewType ResourceType, EPixelFormat Format,

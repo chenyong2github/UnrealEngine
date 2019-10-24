@@ -163,7 +163,7 @@ bool UNiagaraStackRendererItem::TestCanDeleteWithMessage(FText& OutCanDeleteMess
 	}
 }
 
-void UNiagaraStackRendererItem::Delete()
+void UNiagaraStackRendererItem::DeleteInternal()
 {
 	const FScopedTransaction Transaction(LOCTEXT("DeleteRenderer", "Delete Renderer"));
 
@@ -222,7 +222,7 @@ bool UNiagaraStackRendererItem::GetIsEnabled() const
 	return RendererProperties->GetIsEnabled();
 }
 
-void UNiagaraStackRendererItem::SetIsEnabled(bool bInIsEnabled)
+void UNiagaraStackRendererItem::SetIsEnabledInternal(bool bInIsEnabled)
 {
 	FScopedTransaction ScopedTransaction(LOCTEXT("SetRendererEnabledState", "Set renderer enabled/disabled state."));
 	RendererProperties->Modify();

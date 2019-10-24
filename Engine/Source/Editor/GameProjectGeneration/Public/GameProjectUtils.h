@@ -23,14 +23,18 @@ struct FProjectInformation
 
 	bool bShouldGenerateCode = false;
 	bool bCopyStarterContent = false;
-	
-	bool bForceExtendedLuminanceRange = false; // See "r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange"
-	bool bEnableXR = false;
+	bool bIsBlankTemplate = false;
 	bool bIsEnterpriseProject = false;
-	bool bEnableRaytracing = false;
+	bool bForceExtendedLuminanceRange; // See "r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange"
 
-	EHardwareClass::Type TargetedHardware = EHardwareClass::Desktop;
-	EGraphicsPreset::Type DefaultGraphicsPerformance = EGraphicsPreset::Maximum;
+	// These are all optional, because there is an additional state introduced by hiding the setting in the template.
+	// In this case, the template author has chosen not to give the user a choice,
+	// so we must assume that the template already controls these settings explicitly.
+	TOptional<bool> bEnableXR;
+	TOptional<bool> bEnableRaytracing;
+
+	TOptional<EHardwareClass::Type> TargetedHardware;
+	TOptional<EGraphicsPreset::Type> DefaultGraphicsPerformance;
 };
 
 DECLARE_DELEGATE_RetVal_OneParam(bool, FProjectDescriptorModifier, FProjectDescriptor&);
@@ -301,9 +305,6 @@ private:
 	 */
 	static bool AddSharedContentToProject(const FProjectInformation &InProjectInfo, TArray<FString> &CreatedFiles, FText& OutFailReason);
 
-	/** Returns list of starter content files */
-	static void GetStarterContentFiles(TArray<FString>& OutFilenames);
-
 	/** Returns the template defs ini filename */
 	static FString GetTemplateDefsFilename();
 
@@ -508,7 +509,6 @@ private:
 
 	static TWeakPtr<SNotificationItem> UpdateGameProjectNotification;
 	static TWeakPtr<SNotificationItem> WarningProjectNameNotification;
-	static FString DefaultFeaturePackExtension;
 
 	// Whether we should use AudioMixer for all platforms:
 	static bool bUseAudioMixerForAllPlatforms;

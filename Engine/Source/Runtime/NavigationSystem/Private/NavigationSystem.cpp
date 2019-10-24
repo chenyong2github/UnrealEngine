@@ -723,7 +723,7 @@ void UNavigationSystemV1::OnInitializeActors()
 
 void UNavigationSystemV1::OnBeginTearingDown()
 {
-	DestroyNavOctree();
+	CleanUp(FNavigationSystem::ECleanupMode::CleanupWithWorld);
 }
 
 void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
@@ -1975,6 +1975,11 @@ UNavigationSystemV1::ERegistrationResult UNavigationSystemV1::RegisterNavData(AN
 	// care needs to be taken to not make it implement navigation for agent who's real implementation has 
 	// not been loaded yet.
 
+	if (Result == RegistrationSuccessful && CrowdManager != nullptr)
+	{
+		CrowdManager->OnNavDataRegistered(*NavData);
+	}
+
 	return Result;
 }
 
@@ -1992,6 +1997,11 @@ void UNavigationSystemV1::UnregisterNavData(ANavigationData* NavData)
 	FScopeLock Lock(&NavDataRegistration);
 	NavDataRegistrationQueue.Remove(NavData);
 	NavData->OnUnregistered();
+
+	if (CrowdManager != nullptr)
+	{
+		CrowdManager->OnNavDataUnregistered(*NavData);
+	}
 }
 
 void UNavigationSystemV1::RegisterCustomLink(INavLinkCustomInterface& CustomLink)

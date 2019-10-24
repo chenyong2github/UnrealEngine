@@ -4,6 +4,8 @@
 
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+#include "Styling/ISlateStyle.h"
+#include "Styling/SlateStyle.h"
 
 #define HAIRSTRANDSEDITOR_MODULE_NAME TEXT("HairStrandsEditor")
 
@@ -48,4 +50,6 @@ private:
 	TArray<TSharedRef<class IAssetTypeActions>> RegisteredAssetTypeActions;
 
 	TArray<TFunction<TSharedPtr<IHairStrandsTranslator>()>> TranslatorSpawners;
+
+	TSharedPtr<FSlateStyleSet> StyleSet;
 };

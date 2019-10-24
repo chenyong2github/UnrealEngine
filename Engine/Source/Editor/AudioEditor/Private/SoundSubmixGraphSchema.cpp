@@ -1,23 +1,92 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "SoundSubmixGraph/SoundSubmixGraphSchema.h"
-#include "SoundSubmixGraph/SoundSubmixGraphNode.h"
-#include "SoundSubmixGraph/SoundSubmixGraph.h"
+
 #include "AssetData.h"
-#include "ScopedTransaction.h"
 #include "GraphEditorActions.h"
-#include "SoundSubmixEditorUtilities.h"
-#include "Sound/SoundSubmix.h"
+#include "EdGraph/EdGraphSchema.h"
+#include "EdGraphUtilities.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ScopedTransaction.h"
+#include "Sound/SoundSubmix.h"
+#include "SoundSubmixGraph/SoundSubmixGraphNode.h"
+#include "SoundSubmixGraph/SoundSubmixGraph.h"
+#include "SoundSubmixEditorUtilities.h"
 #include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "SoundSubmixSchema"
 
-UEdGraphNode* FSoundSubmixGraphSchemaAction_NewNode::PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode/* = true*/)
+
+namespace
+{
+	static const FLinearColor SubmixGraphColor = FColor(175, 255, 0);
+} // namespace <>
+
+
+FConnectionDrawingPolicy* FSoundSubmixGraphConnectionDrawingPolicyFactory::CreateConnectionPolicy(
+	const UEdGraphSchema* Schema,
+	int32 InBackLayerID,
+	int32 InFrontLayerID,
+	float ZoomFactor,
+	const FSlateRect& InClippingRect,
+	FSlateWindowElementList& InDrawElements,
+	UEdGraph* InGraphObj) const
+{
+	if (Schema->IsA(USoundSubmixGraphSchema::StaticClass()))
+	{
+		return new FSoundSubmixGraphConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, ZoomFactor, InClippingRect, InDrawElements, InGraphObj);
+	}
+	return nullptr;
+}
+
+FSoundSubmixGraphConnectionDrawingPolicy::FSoundSubmixGraphConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float ZoomFactor, const FSlateRect& InClippingRect, FSlateWindowElementList& InDrawElements, UEdGraph* InGraphObj)
+	: FConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, ZoomFactor, InClippingRect, InDrawElements)
+	, GraphObj(InGraphObj)
+{
+	ActiveWireThickness = Settings->TraceAttackWireThickness;
+	InactiveWireThickness = Settings->TraceReleaseWireThickness;
+}
+
+// Give specific editor modes a chance to highlight this connection or darken non-interesting connections
+void FSoundSubmixGraphConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* OutputPin, UEdGraphPin* InputPin, FConnectionParams& OutParams)
+{
+	OutParams.AssociatedPin1 = InputPin;
+	OutParams.AssociatedPin2 = OutputPin;
+
+	// Get the schema and grab the default color from it
+	check(OutputPin);
+	check(GraphObj);
+	const UEdGraphSchema* Schema = GraphObj->GetSchema();
+
+	OutParams.WireColor = Schema->GetPinTypeColor(OutputPin->PinType);
+
+	bool bExecuted = false;
+
+	// Run through the predecessors, and on
+	if (FExecPairingMap* PredecessorMap = PredecessorNodes.Find(OutputPin->GetOwningNode()))
+	{
+		if (FTimePair* Times = PredecessorMap->Find(InputPin->GetOwningNode()))
+		{
+			bExecuted = true;
+
+			OutParams.WireThickness = ActiveWireThickness;
+			OutParams.WireColor = SubmixGraphColor;
+			OutParams.bDrawBubbles = true;
+		}
+	}
+
+	if (!bExecuted)
+	{
+		OutParams.WireColor = SubmixGraphColor;
+		OutParams.WireThickness = InactiveWireThickness;
+	}
+}
+
+UEdGraphNode* FSoundSubmixGraphSchemaAction_NewNode::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode/* = true*/)
 {
 	FSoundSubmixEditorUtilities::CreateSoundSubmix(ParentGraph, FromPin, Location, NewSoundSubmixName);
-	return NULL;
+	return nullptr;
 }
 
 USoundSubmixGraphSchema::USoundSubmixGraphSchema(const FObjectInitializer& ObjectInitializer)
@@ -30,7 +99,7 @@ bool USoundSubmixGraphSchema::ConnectionCausesLoop(const UEdGraphPin* InputPin, 
 	USoundSubmixGraphNode* InputNode = CastChecked<USoundSubmixGraphNode>(InputPin->GetOwningNode());
 	USoundSubmixGraphNode* OutputNode = CastChecked<USoundSubmixGraphNode>(OutputPin->GetOwningNode());
 
-	return InputNode->SoundSubmix->RecurseCheckChild(OutputNode->SoundSubmix);
+	return OutputNode->SoundSubmix->RecurseCheckChild(InputNode->SoundSubmix);
 }
 
 void USoundSubmixGraphSchema::GetBreakLinkToSubMenuActions(UToolMenu* Menu, const FName SectionName, UEdGraphPin* InGraphPin)
@@ -41,20 +110,20 @@ void USoundSubmixGraphSchema::GetBreakLinkToSubMenuActions(UToolMenu* Menu, cons
 	TMap<FString, uint32> LinkTitleCount;
 
 	// Add all the links we could break from
-	for(TArray<class UEdGraphPin*>::TConstIterator Links(InGraphPin->LinkedTo); Links; ++Links)
+	for (TArray<UEdGraphPin*>::TConstIterator Links(InGraphPin->LinkedTo); Links; ++Links)
 	{
 		UEdGraphPin* Pin = *Links;
 		FString TitleString = Pin->GetOwningNode()->GetNodeTitle(ENodeTitleType::ListView).ToString();
-		FText Title = FText::FromString( TitleString );
+		FText Title = FText::FromString(TitleString);
 		if (Pin->PinName != TEXT(""))
 		{
 			TitleString = FString::Printf(TEXT("%s (%s)"), *TitleString, *Pin->PinName.ToString());
 
 			// Add name of connection if possible
 			FFormatNamedArguments Args;
-			Args.Add( TEXT("NodeTitle"), Title );
-			Args.Add( TEXT("PinName"), Pin->GetDisplayName() );
-			Title = FText::Format( LOCTEXT("BreakDescPin", "{NodeTitle} ({PinName})"), Args );
+			Args.Add(TEXT("NodeTitle"), Title);
+			Args.Add(TEXT("PinName"), Pin->GetDisplayName());
+			Title = FText::Format(LOCTEXT("BreakDescPin", "{NodeTitle} ({PinName})"), Args);
 		}
 
 		uint32 &Count = LinkTitleCount.FindOrAdd(TitleString);
@@ -66,11 +135,11 @@ void USoundSubmixGraphSchema::GetBreakLinkToSubMenuActions(UToolMenu* Menu, cons
 
 		if (Count == 0)
 		{
-			Description = FText::Format( LOCTEXT("BreakDesc", "Break link to {NodeTitle}"), Args );
+			Description = FText::Format(LOCTEXT("BreakDesc", "Break link to {NodeTitle}"), Args);
 		}
 		else
 		{
-			Description = FText::Format( LOCTEXT("BreakDescMulti", "Break link to {NodeTitle} ({NumberOfNodes})"), Args );
+			Description = FText::Format(LOCTEXT("BreakDescMulti", "Break link to {NodeTitle} ({NumberOfNodes})"), Args);
 		}
 		++Count;
 
@@ -140,8 +209,8 @@ const FPinConnectionResponse USoundSubmixGraphSchema::CanCreateConnection(const 
 	}
 
 	// Compare the directions
-	const UEdGraphPin* InputPin = NULL;
-	const UEdGraphPin* OutputPin = NULL;
+	const UEdGraphPin* InputPin = nullptr;
+	const UEdGraphPin* OutputPin = nullptr;
 
 	if (!CategorizePinsByDirection(PinA, PinB, /*out*/ InputPin, /*out*/ OutputPin))
 	{
@@ -153,19 +222,19 @@ const FPinConnectionResponse USoundSubmixGraphSchema::CanCreateConnection(const 
 		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("ConnectionLoop", "Connection would cause loop"));
 	}
 
-	// Break existing connections on inputs only - multiple output connections are acceptable
-	if (InputPin->LinkedTo.Num() > 0)
+	// Break existing connections on outputs only - multiple input connections are acceptable
+	if (OutputPin->LinkedTo.Num() > 0)
 	{
-		ECanCreateConnectionResponse ReplyBreakOutputs;
-		if (InputPin == PinA)
+		ECanCreateConnectionResponse ReplyBreakInputs;
+		if (OutputPin == PinA)
 		{
-			ReplyBreakOutputs = CONNECT_RESPONSE_BREAK_OTHERS_A;
+			ReplyBreakInputs = CONNECT_RESPONSE_BREAK_OTHERS_A;
 		}
 		else
 		{
-			ReplyBreakOutputs = CONNECT_RESPONSE_BREAK_OTHERS_B;
+			ReplyBreakInputs = CONNECT_RESPONSE_BREAK_OTHERS_B;
 		}
-		return FPinConnectionResponse(ReplyBreakOutputs, LOCTEXT("ConnectionReplace", "Replace existing connections"));
+		return FPinConnectionResponse(ReplyBreakInputs, LOCTEXT("ConnectionReplace", "Replace existing connections"));
 	}
 
 	return FPinConnectionResponse(CONNECT_RESPONSE_MAKE, FText::GetEmpty());
@@ -190,7 +259,7 @@ bool USoundSubmixGraphSchema::ShouldHidePinDefaultValue(UEdGraphPin* Pin) const
 
 FLinearColor USoundSubmixGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinType) const
 {
-	return FLinearColor::White;
+	return SubmixGraphColor;
 }
 
 void USoundSubmixGraphSchema::BreakNodeLinks(UEdGraphNode& TargetNode) const
@@ -237,10 +306,9 @@ void USoundSubmixGraphSchema::DroppedAssetsOnGraph(const TArray<struct FAssetDat
 
 	if (UndisplayedSubmixes.Num() > 0)
 	{
-		const FScopedTransaction Transaction( LOCTEXT("SoundSubmixEditorDropSubmixes", "Sound Submix Editor: Drag and Drop Sound Submix") );
+		const FScopedTransaction Transaction(LOCTEXT("SoundSubmixEditorDropSubmixes", "Sound Submix Editor: Drag and Drop Sound Submix"));
 
 		SoundSubmixGraph->AddDroppedSoundSubmixes(UndisplayedSubmixes, GraphPosition.X, GraphPosition.Y);
 	}
 }
-
 #undef LOCTEXT_NAMESPACE

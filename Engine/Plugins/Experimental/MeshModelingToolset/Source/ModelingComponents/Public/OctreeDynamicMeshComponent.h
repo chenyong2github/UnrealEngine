@@ -72,6 +72,11 @@ public:
 		Bake(MeshDescription, bHaveModifiedTopology, ConversionOptions);
 	}
 
+	/**
+	 * Apply transform to internal mesh. Updates Octree and RenderProxy if available.
+	 * @param bInvert if true, inverse tranform is applied instead of forward transform
+	 */
+	void ApplyTransform(const FTransform3d& Transform, bool bInvert);
 
 	//
 	// change tracking/etc

@@ -11,7 +11,24 @@
 
 #include "GroomComponent.generated.h"
 
-/** Component that allows you to specify custom triangle mesh geometry */
+USTRUCT(BlueprintType)
+struct FHairGroupDesc
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** Number of hairs within this hair group.  */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Groom")
+	int32 HairCount;
+
+	/** Number of simulation guides within this hair group. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Groom")
+	int32 GuideCount;
+
+	/** Override the hair width (in centimeters) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom", meta = (ClampMin = "0.0001", UIMin = "0.001", UIMax = "1.0", SliderExponent = 6))
+	float HairWidth;
+};
+
 UCLASS(HideCategories = (Object, Physics, Activation, Mobility, "Components|Activation"), editinlinenew, meta = (BlueprintSpawnableComponent), ClassGroup = Rendering)
 class HAIRSTRANDSCORE_API UGroomComponent : public UMeshComponent
 {
@@ -19,7 +36,7 @@ class HAIRSTRANDSCORE_API UGroomComponent : public UMeshComponent
 
 public:
 
-	/** Hair strand asset used for rendering. */
+	/** Groom asset . */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom")
 	UGroomAsset* GroomAsset;
 
@@ -44,6 +61,7 @@ public:
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
+	virtual void OnAttachmentChanged() override;
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	virtual void SendRenderTransform_Concurrent() override;
 	//~ End UActorComponent Interface.
@@ -71,9 +89,15 @@ public:
 	/** Return the guide hairs deformed resources*/
 	FHairStrandsDeformedResource* GetGuideStrandsDeformedResource(uint32 GroupIndex);
 
+	/** Return the guide hairs root resources*/
+	FHairStrandsRootResource* GetGuideStrandsRootResource(uint32 GroupIndex);
+
 #if WITH_EDITOR
+	virtual void CheckForErrors() override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool CanEditChange(const UProperty* InProperty) const override;
+	void ValidateMaterials(bool bMapCheck) const;
+	void Invalidate();
 #endif
 
 	struct FHairGroupResource
@@ -98,6 +122,10 @@ public:
 	};
 	typedef TArray<FHairGroupResource> FHairGroupResources;
 
+	/** Groom's groups info. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom")
+	TArray<FHairGroupDesc> GroomGroupsDesc;
+
 	FHairGroupResources HairGroupResources;
 	struct FHairStrandsInterpolationOutput* InterpolationOutput = nullptr;
 	struct FHairStrandsInterpolationInput* InterpolationInput = nullptr;
@@ -107,13 +135,27 @@ private:
 	enum class EMeshProjectionState
 	{
 		Invalid,
-		WaitForData,
+		InProgressBinding,
+		WaitForRestPose,
 		Completed
 	};
 	class USkeletalMeshComponent* RegisteredSkeletalMeshComponent;
+	FVector SkeletalPreviousPositionOffset;
 	int32 MeshProjectionLODIndex;
 	uint32 MeshProjectionTickDelay;
 	EMeshProjectionState MeshProjectionState;
+	bool bIsGroomAssetCallbackRegistered;
+	
+	struct FSkeletalMeshConfiguration
+	{
+		int32 ForceLOD = -1;
+		bool ForceRefPose = false;
+		static bool Equals(const FSkeletalMeshConfiguration& A, const FSkeletalMeshConfiguration& B)
+		{
+			return A.ForceLOD == B.ForceLOD && A.ForceRefPose == B.ForceRefPose;
+		}
+	};
+	FSkeletalMeshConfiguration SkeletalMeshConfiguration;
 
 	void InitResources();
 	void ReleaseResources();

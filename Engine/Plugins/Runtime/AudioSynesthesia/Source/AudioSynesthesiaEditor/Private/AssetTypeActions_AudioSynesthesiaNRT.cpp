@@ -24,6 +24,11 @@ FText FAssetTypeActions_AudioSynesthesiaNRT::GetName() const
 	}
 }
 
+const TArray<FText>& FAssetTypeActions_AudioSynesthesiaNRT::GetSubMenus() const
+{
+	return Synesthesia->GetAssetActionSubmenus();
+}
+
 FColor FAssetTypeActions_AudioSynesthesiaNRT::GetTypeColor() const 
 {
 	return Synesthesia->GetTypeColor(); 
@@ -46,4 +51,3 @@ uint32 FAssetTypeActions_AudioSynesthesiaNRT::GetCategories()
 {
 	return EAssetTypeCategories::Sounds; 
 }
-

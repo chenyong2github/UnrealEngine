@@ -51,9 +51,10 @@ public:
 	 *
 	 * @param Sequence The sequence to find.
 	 * @param Recursively Whether to search for the sequence in sub-sequences.
+	 * @param SectionToSkip Skip this section when searching the track (ie. the section is already set to this sequence). 
 	 * @return true if the sequence is in this track, false otherwise.
 	 */
-	bool ContainsSequence(const UMovieSceneSequence& Sequence, bool Recursively = false) const;
+	bool ContainsSequence(const UMovieSceneSequence& Sequence, bool Recursively = false, const UMovieSceneSection* SectionToSkip = nullptr) const;
 
 	/**
 	 * Add a new sequence to record

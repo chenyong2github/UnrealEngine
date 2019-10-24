@@ -31,9 +31,13 @@ public:
 
 	DECLARE_DELEGATE(FNewProjectScreenRequested)
 
-	SLATE_BEGIN_ARGS(SProjectBrowser) { }
+	SLATE_BEGIN_ARGS(SProjectBrowser) :
+		_HideOpenButton(false)
+	{}
 
-	SLATE_ARGUMENT(FProjectSelectionChanged, OnSelectionChanged);
+		SLATE_ARGUMENT(FProjectSelectionChanged, OnSelectionChanged);
+
+		SLATE_ARGUMENT(bool, HideOpenButton)
 
 	SLATE_END_ARGS()
 

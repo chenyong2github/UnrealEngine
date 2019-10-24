@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Trace/Trace.h"
+#include "Trace/Config.h"
 #include "ProfilingDebugging/FormatArgsTrace.h"
 
 #if UE_TRACE_ENABLED && !UE_BUILD_SHIPPING

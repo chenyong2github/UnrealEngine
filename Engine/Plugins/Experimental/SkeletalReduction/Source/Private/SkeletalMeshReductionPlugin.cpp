@@ -63,6 +63,11 @@ public:
 
 	virtual bool IsReductionActive(const FSkeletalMeshOptimizationSettings &ReductionSettings) const
 	{
+		return IsReductionActive(ReductionSettings, 0, 0);
+	}
+
+	virtual bool IsReductionActive(const struct FSkeletalMeshOptimizationSettings &ReductionSettings, uint32 NumVertices, uint32 NumTriangles) const
+	{
 		float Threshold_One = (1.0f - KINDA_SMALL_NUMBER);
 		float Threshold_Zero = (0.0f + KINDA_SMALL_NUMBER);
 		switch (ReductionSettings.TerminationCriterion)
@@ -84,10 +89,18 @@ public:
 			break;
 			//Absolute count is consider has being always reduced
 			case SkeletalMeshTerminationCriterion::SMTC_AbsNumOfVerts:
+			{
+				return ReductionSettings.MaxNumOfVerts < NumVertices;
+			}
+			break;
 			case SkeletalMeshTerminationCriterion::SMTC_AbsNumOfTriangles:
+			{
+				return ReductionSettings.MaxNumOfTriangles < NumTriangles;
+			}
+			break;
 			case SkeletalMeshTerminationCriterion::SMTC_AbsTriangleOrVert:
 			{
-				return true;
+				return ReductionSettings.MaxNumOfVerts < NumVertices || ReductionSettings.MaxNumOfTriangles < NumTriangles;
 			}
 			break;
 		}

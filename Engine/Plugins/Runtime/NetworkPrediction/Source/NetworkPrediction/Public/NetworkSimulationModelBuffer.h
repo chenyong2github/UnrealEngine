@@ -39,6 +39,31 @@ struct TNetworkSimBufferBase
 			*((T*)this)->WriteKeyframe( It.Keyframe() ) = *It.Element();
 		}
 	}
+protected:
+
+	// Creates a new keyframe, but
+	//	-If keyframe already exists, returns existing
+	//	-If keyframe > head, contents of head are copied into new frame
+	//	-If keyframe < head, contents are cleared to default value
+	template<typename ElementType>
+	ElementType* WriteKeyframeInitializedFromHeadImpl(int32 Keyframe)
+	{
+		if (((T*)this)->HeadKeyframe() > Keyframe)
+		{
+			ElementType* HeadElementPtr = ((T*)this)->HeadElement();
+			ElementType* NewElement = ((T*)this)->WriteKeyframe(Keyframe);
+			*NewElement = *HeadElementPtr;
+			return NewElement;
+		}
+		else if (Keyframe < ((T*)this)->TailKeyframe())
+		{
+			ElementType* NewElement = ((T*)this)->WriteKeyframe(Keyframe);
+			*NewElement = ElementType();
+			return NewElement;
+		}
+		
+		return ((T*)this)->WriteKeyframe(Keyframe);
+	}
 };
 
 template<typename T, int32 NumElements=32>
@@ -88,6 +113,11 @@ struct TNetworkSimContiguousBuffer : public TNetworkSimBufferBase<TNetworkSimCon
 		Head = Keyframe;
 		++DirtyCount;
 		return &Data[Keyframe % Data.Num()];
+	}
+	
+	T* WriteKeyframeInitializedFromHead(int32 Keyframe)
+	{
+		return this->template WriteKeyframeInitializedFromHeadImpl<ElementType>(Keyframe);
 	}
 
 	TUniqueFunction<T*()> WriteKeyframeFunc(int32 Keyframe)
@@ -211,6 +241,11 @@ struct TNetworkSimSparseBuffer : public TNetworkSimBufferBase<TNetworkSimSparseB
 		TInternal& WriteData = Data[HeadPos % Data.Num()];
 		WriteData.Keyframe = Keyframe;
 		return &WriteData.Element;
+	}
+
+	ElementType* WriteKeyframeInitializedFromHead(int32 Keyframe)
+	{
+		return this->template WriteKeyframeInitializedFromHeadImpl<ElementType>(Keyframe);
 	}
 
 	TUniqueFunction<T*()> WriteKeyframeFunc(int32 Keyframe)

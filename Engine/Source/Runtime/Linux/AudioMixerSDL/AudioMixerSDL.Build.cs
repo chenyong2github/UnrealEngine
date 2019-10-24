@@ -18,7 +18,10 @@ public class AudioMixerSDL : ModuleRules
 			PlatformName = "Linux";
 		}
 
-		PrivateIncludePaths.Add("Runtime/Linux/AudioMixerSDL/Private/" + PlatformName);
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
+		{
+			PrivateIncludePaths.Add("Runtime/Linux/AudioMixerSDL/Private/" + PlatformName);
+		}
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {

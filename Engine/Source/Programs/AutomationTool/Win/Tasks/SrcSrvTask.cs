@@ -202,8 +202,8 @@ namespace Win.Automation
 		/// <returns>Path to PDBSTR.EXE</returns>
 		public static FileReference GetPdbStrExe()
 		{
-			List<DirectoryReference> WindowsSdkDirs = WindowsExports.GetWindowsSdkDirs();
-			foreach (DirectoryReference WindowsSdkDir in WindowsSdkDirs)
+			List<KeyValuePair<string, DirectoryReference>> WindowsSdkDirs = WindowsExports.GetWindowsSdkDirs();
+			foreach (DirectoryReference WindowsSdkDir in WindowsSdkDirs.Select(x => x.Value))
 			{
 				FileReference CheckPdbStrExe64 = FileReference.Combine(WindowsSdkDir, "Debuggers", "x64", "SrcSrv", "PdbStr.exe");
 				if (FileReference.Exists(CheckPdbStrExe64))

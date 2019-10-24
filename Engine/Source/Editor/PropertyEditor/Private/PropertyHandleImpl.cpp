@@ -67,7 +67,7 @@ void PropertyToTextHelper(FString& OutString, FPropertyNode* InPropertyNode, UPr
 	}
 	else
 	{
-// FRED_TODO: once we're sure that these don't differ we should always use the call to PropertyToTextHelper
+// TODO: once we're sure that these don't differ we should always use the call to PropertyToTextHelper
 		void* BaseAddress = ObjectAddress.Object->GetClass()->GetOrCreateSparseClassData();
 		void* ValueAddress = Property->ContainerPtrToValuePtr<void>(BaseAddress);
 		Property->ExportText_Direct(OutString, ValueAddress, ValueAddress, nullptr, PortFlags);

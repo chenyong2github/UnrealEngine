@@ -1,5 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 struct FVisibilityData
 {
 	float3 Tangent;		// 24 bits
@@ -53,10 +55,11 @@ uint4 EncodeVisibilityData(FVisibilityData Data)
 
 	// Tangent and Coverage
 	// Encode into 2 x 16bits
+	// Coverage is clamped o 255 as we only have 8 bits to store its value
 	float3 T = saturate(EncodeTangent(Data.Tangent));
 	Output.xy = uint2(
 		(0xFF & uint(T.x * 255)) | ((0xFF & uint(T.y * 255)) << 8),
-		(0xFF & uint(T.z * 255)) | ((0xFF & Data.Coverage8bit) << 8));
+		(0xFF & uint(T.z * 255)) | (min(0xFFu, Data.Coverage8bit) << 8));
 
 	// PrimitiveId and ClusterId
 	// Encode into 2 x 16bits
@@ -132,12 +135,12 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 }
 
  void DecodeNodeData(
-	 const FNodeData	 InNode, 
-	 out float			 OutDepth, 
-	 out FVisibilityData OutVisibilityData,
-	 out float3			 OutBaseColor, 
-	 out float			 OutRoughness,
-	 out float			 OutSpecular)
+	 const FNodeData		InNode, 
+	 inout float			OutDepth, 
+	 inout FVisibilityData	OutVisibilityData,
+	 inout float3			OutBaseColor, 
+	 inout float			OutRoughness,
+	 inout float			OutSpecular)
 {
 	OutDepth = InNode.Depth;
 
@@ -177,8 +180,8 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
  };
 
  void ComputeUniqueSamples(
-	 out FSampleDesc OutSamples[HAIR_VISIBILITY_MAXSAMPLECOUNT],
-	 out FSampleSetDesc OutSet,
+	 inout FSampleDesc OutSamples[HAIR_VISIBILITY_MAXSAMPLECOUNT],
+	 inout FSampleSetDesc OutSet,
 	 const uint2 PixelCoord,
 	 const uint SampleCount,
 	 Texture2D<float4> InSceneDepthTexture,
@@ -255,6 +258,7 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
  {
 	 uint  TotalCoverage8bit;
 	 uint  SampleCount;
+	 float PixelCoverage;
 	 float ClosestDepth;
  };
 
@@ -263,15 +267,16 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 	 const uint ClosestDepthUint = asuint(Data.ClosestDepth);
 	 const uint ClosestDepthLow  = ClosestDepthUint & 0xFFFF;
 	 const uint ClosestDepthHigh = (ClosestDepthUint >> 16) & 0xFFFF;
-
-	 return uint4(Data.TotalCoverage8bit, Data.SampleCount, ClosestDepthLow, ClosestDepthHigh);
+	 const uint ComponentX		 = min(Data.TotalCoverage8bit, 0xFFu) | ((Data.SampleCount & 0xFF)<<8);
+	 return uint4(ComponentX, f32tof16(Data.PixelCoverage), ClosestDepthLow, ClosestDepthHigh);
  }
 
  FCategorizationData DecodeCategorizationData(uint4 Data)
  {
 	 FCategorizationData Out;
-	 Out.TotalCoverage8bit			= Data.x;
-	 Out.SampleCount				= Data.y;
+	 Out.TotalCoverage8bit			= Data.x & 0xFF;
+	 Out.SampleCount				=(Data.x>>8) & 0xFF;
+	 Out.PixelCoverage				= f16tof32(Data.y);
 	 const uint ClosestDepthLow		= Data.z & 0xFFFF;
 	 const uint ClosestDepthHigh	=(Data.w & 0xFFFF) << 16;
 	 Out.ClosestDepth				= asfloat(ClosestDepthHigh | ClosestDepthLow);
@@ -298,10 +303,50 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 		 (uint(Roughness   * 0xFF) & 0xFF) << 24;
  }
 
- void DecodeBaseColorAndRoughness(uint Encoded, out float3 BaseColor, out float Roughness)
+ void DecodeBaseColorAndRoughness(uint Encoded, inout float3 BaseColor, out float Roughness)
  {
 	 BaseColor.x = (float((Encoded) & 0xFF) / 255.f);
 	 BaseColor.y = (float((Encoded >> 8) & 0xFF) / 255.f);
 	 BaseColor.z = (float((Encoded >> 16) & 0xFF) / 255.f);
 	 Roughness   = (float((Encoded >> 24) & 0xFF) / 255.f);
+ }
+
+ struct FHairRenderInfo
+ {
+	 float RadiusAtDepth1Primary;
+	 float RadiusAtDepth1Velocity;
+	 bool  bIsOrthoView;
+	 float VelocityMagnitudeScale;
+ };
+
+ FHairRenderInfo GetHairRenderInfo(float4 ViewHairRenderInfo)
+ {
+	 FHairRenderInfo Info;
+	 Info.RadiusAtDepth1Primary = ViewHairRenderInfo.x;
+	 Info.RadiusAtDepth1Velocity = ViewHairRenderInfo.y;
+	 Info.bIsOrthoView = ViewHairRenderInfo.z > 0.0f ? true : false;
+	 Info.VelocityMagnitudeScale = ViewHairRenderInfo.w;
+	 return Info;
+ }
+
+ struct FHairAttributes
+ {
+	 float2 RootUV;
+	 float	Seed;
+	 float	UCoord;
+ };
+
+ FHairAttributes DecodeHairAttribute(uint4 Attributes)
+ {
+	 float2 RootUV, RootIndex;
+	 RootUV.x		= (Attributes.x & 0xFF) / 255.f;
+	 RootUV.y		= ((Attributes.x>>8) & 0xFF) / 255.f;
+	 RootIndex.x	= Attributes.z & 0xFF;
+	 RootIndex.y	= (Attributes.z >> 8) & 0xFF;
+
+	 FHairAttributes Out;
+	 Out.RootUV		= RootUV + RootIndex;
+	 Out.UCoord		= (Attributes.y & 0xFF) / 255.f;
+	 Out.Seed		= ((Attributes.y>>8) & 0xFF) / 255.f;
+	 return Out;
  }

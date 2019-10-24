@@ -1757,7 +1757,7 @@ void FActiveGameplayEffect::PostReplicatedAdd(const struct FActiveGameplayEffect
 {
 	if (Spec.Def == nullptr)
 	{
-		ABILITY_LOG(Error, TEXT("Received ReplicatedGameplayEffect with no UGameplayEffect def."));
+		ABILITY_LOG(Error, TEXT("FActiveGameplayEffect::PostReplicatedAdd Received ReplicatedGameplayEffect with no UGameplayEffect def. (%s)"), *Spec.GetEffectContext().ToString());
 		return;
 	}
 
@@ -1826,7 +1826,7 @@ void FActiveGameplayEffect::PostReplicatedChange(const struct FActiveGameplayEff
 {
 	if (Spec.Def == nullptr)
 	{
-		ABILITY_LOG(Error, TEXT("Received ReplicatedGameplayEffect with no UGameplayEffect def."));
+		ABILITY_LOG(Error, TEXT("FActiveGameplayEffect::PostReplicatedChange Received ReplicatedGameplayEffect with no UGameplayEffect def. (%s)"), *Spec.GetEffectContext().ToString());
 		return;
 	}
 
@@ -1906,7 +1906,7 @@ FActiveGameplayEffectsContainer::~FActiveGameplayEffectsContainer()
 
 void FActiveGameplayEffectsContainer::RegisterWithOwner(UAbilitySystemComponent* InOwner)
 {
-	if (Owner != InOwner)
+	if (Owner != InOwner && InOwner != nullptr)
 	{
 		Owner = InOwner;
 		OwnerIsNetAuthority = Owner->IsOwnerActorAuthoritative();
@@ -1923,6 +1923,11 @@ void FActiveGameplayEffectsContainer::ExecuteActiveEffectsFrom(FGameplayEffectSp
 #if WITH_SERVER_CODE
 	SCOPE_CYCLE_COUNTER(STAT_ExecuteActiveEffectsFrom);
 #endif
+
+	if (!Owner)
+	{
+		return;
+	}
 
 	FGameplayEffectSpec& SpecToUse = Spec;
 
@@ -2728,6 +2733,11 @@ FActiveGameplayEffect* FActiveGameplayEffectsContainer::ApplyGameplayEffectSpec(
 	SCOPE_CYCLE_COUNTER(STAT_ApplyGameplayEffectSpec);
 
 	GAMEPLAYEFFECT_SCOPE_LOCK();
+
+	if (!ensureMsgf(Spec.Def, TEXT("Tried to apply GE with no Def (context == %s)"), *Spec.GetEffectContext().ToString()))
+	{
+		return nullptr;
+	}
 
 	bFoundExistingStackableGE = false;
 
@@ -3687,17 +3697,22 @@ void FActiveGameplayEffectsContainer::OnOwnerTagChange(FGameplayTag TagChange, i
 	{
 		for (int32 idx = GetNumGameplayEffects() - 1; idx >= 0; --idx)
 		{
-			const FActiveGameplayEffect& Effect = *GetActiveGameplayEffect(idx);
-			if (Effect.IsPendingRemove == false && Effect.CheckRemovalTagRequirements(OwnerTags, *this))
+			const FActiveGameplayEffect* Effect = GetActiveGameplayEffect(idx);
+			if (ensureMsgf(Effect != nullptr && Effect->Spec.Def != nullptr, TEXT("GetActiveGameplayEffect(%i) returned %p. GetNumGameplayEffects is %i."), idx, Effect, GetNumGameplayEffects()))
 			{
-				InternalRemoveActiveGameplayEffect(idx, -1, true);
+				if (Effect->IsPendingRemove == false && Effect->CheckRemovalTagRequirements(OwnerTags, *this))
+				{
+					InternalRemoveActiveGameplayEffect(idx, -1, true);
+				}
 			}
+
+			ensure(Effect == GetActiveGameplayEffect(idx));
 		}
 	}
 
 	// Removing effects could change and/or remove the dependency entries, so find the set after we
 	// perform any removals.
-	auto Ptr = ActiveEffectTagDependencies.Find(TagChange);
+	TSet<FActiveGameplayEffectHandle>* Ptr = ActiveEffectTagDependencies.Find(TagChange);
 	if (Ptr)
 	{
 		TSet<FActiveGameplayEffectHandle>& Handles = *Ptr;

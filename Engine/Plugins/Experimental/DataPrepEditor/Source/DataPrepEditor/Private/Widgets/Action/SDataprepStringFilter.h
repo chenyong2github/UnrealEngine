@@ -3,15 +3,19 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Delegates/IDelegateInstance.h"
 #include "Types/SlateEnums.h"
 #include "UObject/GCObject.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
+class FMenuBuilder;
 class SComboButton;
 
 template<class t>
 class SComboBox;
+
+struct FDataprepParametrizationActionData;
 
 template <class FilterType>
 class SDataprepStringFilter : public SCompoundWidget,  public FGCObject
@@ -21,7 +25,12 @@ class SDataprepStringFilter : public SCompoundWidget,  public FGCObject
 
 	void Construct(const FArguments& InArgs, FilterType& InFilter);
 
+	virtual ~SDataprepStringFilter();
+
 private:
+
+	void UpdateVisualDisplay();
+
 	// The string matching option for the combo box ( Displayed text, Tooltip, mapping for the UEnum)
 	using FListEntry = TTuple<FText, FText, int32>;
 
@@ -31,11 +40,16 @@ private:
 	FText GetSelectedCriteriaTooltipText() const;
 	void OnSelectedCriteriaChanged(TSharedPtr<FListEntry> ListEntry, ESelectInfo::Type SelectionType);
 	void OnCriteriaComboBoxOpenning();
+	TSharedPtr<SWidget> OnGetContextMenuForMatchingCriteria();
 
 	// This function is for the string that will be compare against the fetched string
 	FText GetUserString() const;
 	void OnUserStringChanged(const FText& NewText);
 	void OnUserStringComitted(const FText& NewText, ETextCommit::Type CommitType);
+	void ExtendContextMenuForUserStringBox(FMenuBuilder& MenuBuilder);
+	TSharedPtr<SWidget> OnGetContextMenuForUserString();
+
+	void OnParameterizationStatusForObjectsChanged(const TSet<UObject*>* Objects);
 
 	//~ FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -48,4 +62,9 @@ private:
 	TArray<TSharedPtr<FListEntry>> StringMatchingOptions;
 
 	TSharedPtr<SComboBox<TSharedPtr<FListEntry>>> StringMatchingCriteriaWidget;
+
+	TSharedPtr<FDataprepParametrizationActionData> MatchingCriteriaParameterizationActionData;
+	TSharedPtr<FDataprepParametrizationActionData> UserStringParameterizationActionData;
+
+	FDelegateHandle OnParameterizationStatusForObjectsChangedHandle;
 };

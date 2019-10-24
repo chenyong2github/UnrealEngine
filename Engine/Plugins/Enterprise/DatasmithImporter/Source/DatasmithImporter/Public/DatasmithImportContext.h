@@ -236,8 +236,8 @@ struct DATASMITHIMPORTER_API FDatasmithImportContext
 	/** List of previously parsed IES files */
 	TSet<FString> ParsedIesFiles;
 
-	/** Indicates if the user has cancelled the import process  */
-	bool bUserCancelled;
+	/** Indicates if the user has canceled the import process  */
+	TAtomic<bool> bUserCancelled;
 
 	bool bIsAReimport;
 	bool bImportedViaScript;
@@ -251,6 +251,9 @@ struct DATASMITHIMPORTER_API FDatasmithImportContext
 	/** Map of imported mesh for each mesh element */
 	TMap< TSharedRef< IDatasmithMeshElement >, UStaticMesh* > ImportedStaticMeshes;
 
+	/** Register IDatasmithMeshElement by their name so they can be searched faster */
+	TMap< FString, TSharedRef < IDatasmithMeshElement > > ImportedStaticMeshesByName;
+
 	/** Map of imported texture for each texture element */
 	TMap< TSharedRef< IDatasmithTextureElement >, UTexture* > ImportedTextures;
 
@@ -259,6 +262,9 @@ struct DATASMITHIMPORTER_API FDatasmithImportContext
 
 	/** Map of imported material function for each material element, they are only imported as a per-required basis */
 	TMap< TSharedRef< IDatasmithBaseMaterialElement >, UMaterialFunction* > ImportedMaterialFunctions;
+
+	/** Register IDatasmithMeshElement by their name so they can be searched faster */
+	TMap< FString, TSharedRef < IDatasmithBaseMaterialElement > > ImportedMaterialFunctionsByName;
 
 	/** List of potential parent materials with their hash. Used to create material instances from. */
 	TMap< int32, UMaterialInterface* > ImportedParentMaterials;

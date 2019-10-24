@@ -8,7 +8,12 @@
 #include "DSP/EnvelopeFollower.h"
 #include "DSP/SpectrumAnalyzer.h"
 
+
+// Forward Declarations
+class FOnSubmixEnvelopeBP;
 class USoundEffectSubmix;
+class USoundSubmix;
+
 
 namespace Audio
 {

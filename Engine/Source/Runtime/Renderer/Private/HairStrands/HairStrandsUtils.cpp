@@ -27,7 +27,7 @@ static FAutoConsoleVariableRef CVarStrandHairShadowRasterizationScale(TEXT("r.Ha
 static float GDeepShadowAABBScale = 1.0f;
 static FAutoConsoleVariableRef CVarDeepShadowAABBScale(TEXT("r.HairStrands.DeepShadow.AABBScale"), GDeepShadowAABBScale, TEXT("Scaling value for loosing/tighting deep shadow bounding volume"));
 
-static int32 GHairVisibilityRectOptimEnable = 1;
+static int32 GHairVisibilityRectOptimEnable = 0;
 static FAutoConsoleVariableRef CVarHairVisibilityRectOptimEnable(TEXT("r.HairStrands.RectLightingOptim"), GHairVisibilityRectOptimEnable, TEXT("Hair Visibility use projected view rect to light only relevant pixels"));
 
 float SampleCountToSubPixelSize(uint32 SamplePerPixelCount)
@@ -41,15 +41,26 @@ float SampleCountToSubPixelSize(uint32 SamplePerPixelCount)
 	}
 	return Scale;
 }
-FVector4 GetHairComponents()
+FHairComponent GetHairComponents()
 {
-	return FVector4(
-		GHairR > 0 ? 1 : 0,
-		GHairTT > 0 ? 1 : 0,
-		GHairTRT > 0 ? 1 : 0,
-		(GHairGlobalScattering > 0 ? 1 : 0) + (GHairLocalScattering > 0 ? 10 : 0));
+	FHairComponent Out;
+	Out.R = GHairR > 0;
+	Out.TT = GHairTT > 0;
+	Out.TRT = GHairTRT > 0;
+	Out.LocalScattering = GHairLocalScattering > 0;
+	Out.GlobalScattering = GHairGlobalScattering > 0;
+	return Out;
 }
 
+uint32 ToBitfield(const FHairComponent& C)
+{
+	return
+		(C.R				? 1u : 0u)      |
+		(C.TT				? 1u : 0u) << 1 |
+		(C.TRT				? 1u : 0u) << 2 |
+		(C.LocalScattering  ? 1u : 0u) << 3 |
+		(C.GlobalScattering ? 1u : 0u) << 4 ;
+}
 FMinHairRadiusAtDepth1 ComputeMinStrandRadiusAtDepth1(
 	const FIntPoint& Resolution,
 	const float FOV,
@@ -195,4 +206,31 @@ bool IsHairStrandsViewRectOptimEnable()
 bool IsHairStrandsSupported(const EShaderPlatform Platform)
 {
 	return IsD3DPlatform(Platform, false) && IsPCPlatform(Platform) && GetMaxSupportedFeatureLevel(Platform) == ERHIFeatureLevel::SM5;
+}
+
+EHairVisibilityVendor GetVendor()
+{
+	return IsRHIDeviceAMD() ? HairVisibilityVendor_AMD : (IsRHIDeviceNVIDIA() ? HairVisibilityVendor_NVIDIA : HairVisibilityVendor_INTEL);
+}
+
+uint32 GetVendorOptimalGroupSize1D()
+{
+	switch (GetVendor())
+	{
+	case HairVisibilityVendor_AMD:		return 64;
+	case HairVisibilityVendor_NVIDIA:	return 32;
+	case HairVisibilityVendor_INTEL:	return 64;
+	default:							return 64;
+	}
+}
+
+FIntPoint GetVendorOptimalGroupSize2D()
+{
+	switch (GetVendor())
+	{
+	case HairVisibilityVendor_AMD:		return FIntPoint(8, 8);
+	case HairVisibilityVendor_NVIDIA:	return FIntPoint(8, 4);
+	case HairVisibilityVendor_INTEL:	return FIntPoint(8, 8);
+	default:							return FIntPoint(8, 8);
+	}
 }

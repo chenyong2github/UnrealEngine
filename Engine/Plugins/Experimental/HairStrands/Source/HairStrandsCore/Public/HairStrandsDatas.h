@@ -27,7 +27,24 @@ struct FPackedHairAttributeVertex
 	uint8 UCoord;
 	uint8 Seed;
 
+	uint8 IndexU;
+	uint8 IndexV;
+	uint8 Unused0;
+	uint8 Unused1;
+
 	friend FArchive& operator<<(FArchive& Ar, FPackedHairAttributeVertex& Vertex);
+};
+
+struct FHairMaterialVertex
+{
+	// sRGB color space
+	uint8 BaseColorR;
+	uint8 BaseColorG;
+	uint8 BaseColorB;
+
+	uint8 Roughness;
+
+	friend FArchive& operator<<(FArchive& Ar, FHairMaterialVertex& Vertex);
 };
 
 struct FHairInterpolation0Vertex
@@ -72,6 +89,15 @@ struct FHairStrandsPositionFormat
 struct FHairStrandsAttributeFormat
 {
 	typedef FPackedHairAttributeVertex Type;
+	static const uint32 ComponentCount = 1;
+	static const uint32 SizeInByte = sizeof(Type);
+	static const EVertexElementType VertexElementType = VET_UShort4;
+	static const EPixelFormat Format = PF_R16G16B16A16_UINT;
+};
+
+struct FHairStrandsMaterialFormat
+{
+	typedef FHairMaterialVertex Type;
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
 	static const EVertexElementType VertexElementType = VET_UByte4;
@@ -149,22 +175,28 @@ struct FHairStrandsWeightFormat
 	static const EPixelFormat Format = PF_R32_FLOAT;
 };
 
-struct FHairStrandsCurveTranslationFormat
+/** 
+ * Skinned mesh triangle vertex position format
+ * Two precision options are available: 4x16bits or 4x32bits
+ * Triangle vertices are relative to their bounding box in order to preserve precision, 
+ * however this is sometime not enough for large asset, this is why by default the format 
+ * use 32bits precision
+*/
+struct FHairStrandsMeshTrianglePositionFormat
 {
+#if 1
+	using Type = FVector4;
+	static const uint32 ComponentCount = 1;
+	static const uint32 SizeInByte = sizeof(Type);
+	static const EVertexElementType VertexElementType = VET_Float4;
+	static const EPixelFormat Format = PF_A32B32G32R32F;
+#else
 	using Type = FVector4_16;
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
 	static const EVertexElementType VertexElementType = VET_Float4;
 	static const EPixelFormat Format = PF_FloatRGBA;
-};
-
-struct FHairStrandsCurveRotationFormat
-{
-	using Type = FVector4_16;
-	static const uint32 ComponentCount = 1;
-	static const uint32 SizeInByte = sizeof(Type);
-	static const EVertexElementType VertexElementType = VET_Float4;
-	static const EPixelFormat Format = PF_FloatRGBA;
+#endif
 };
 
 struct FHairStrandsCurveTriangleIndexFormat
@@ -259,6 +291,12 @@ struct HAIRSTRANDSCORE_API FHairStrandsPoints
 
 	/** Normalized length */
 	TArray<float> PointsCoordU; // [0..1]
+
+	/** Material base color */
+	TArray<FLinearColor> PointsBaseColor; // [0..1]
+
+	/** Material roughness */
+	TArray<float> PointsRoughness; // [0..1]
 };
 
 /** Hair strands Curves attribute */
@@ -285,8 +323,8 @@ struct HAIRSTRANDSCORE_API FHairStrandsCurves
 	/** Normalized length relative to the max one */
 	TArray<float> CurvesLength; // [0..1]
 
-	/** Roots UV in the bounding sphere */
-	TArray<FVector2D> CurvesRootUV; // [0..1]
+	/** Roots UV. Support UDIM coordinate up to 256x256 */
+	TArray<FVector2D> CurvesRootUV; // [0..256]
 
 	/** Max strands Curves length */
 	float MaxLength = 0;
@@ -325,6 +363,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsDatas
 	{
 		TArray<FHairStrandsPositionFormat::Type> RenderingPositions;
 		TArray<FHairStrandsAttributeFormat::Type> RenderingAttributes;
+		TArray<FHairStrandsMaterialFormat::Type> RenderingMaterials;
 
 		void Serialize(FArchive& Ar);
 	} RenderData;

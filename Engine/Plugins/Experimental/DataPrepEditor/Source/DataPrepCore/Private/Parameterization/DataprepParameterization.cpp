@@ -5,12 +5,13 @@
 #include "DataPrepAsset.h"
 #include "DataprepParameterizableObject.h"
 #include "DataprepParameterizationArchive.h"
+#include "Parameterization/DataprepParameterizationUtils.h"
 
 #include "CoreGlobals.h"
+#include "DataprepCoreLogCategory.h"
 #include "Editor.h"
 #include "Engine/Engine.h"
 #include "Math/UnrealMathUtility.h"
-#include "Parameterization/DataprepParameterizationUtils.h"
 #include "Serialization/Archive.h"
 #include "Templates/UnrealTemplate.h"
 #include "UObject/Object.h"
@@ -21,6 +22,151 @@
 
 namespace DataprepParameterization
 {
+	void PopulateValueTypeValidationData(UArrayProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData);
+	void PopulateValueTypeValidationData(USetProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData);
+	void PopulateValueTypeValidationData(UMapProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData);
+	void PopulateValueTypeValidationData(USoftClassProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData);
+	void PopulateValueTypeValidationData(UClassProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData);
+	void PopulateValueTypeValidationData(UObjectPropertyBase* CurrentProperty, TArray<UObject*>& ValueTypeValidationData);
+	void PopulateValueTypeValidationData(UEnumProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData);
+	void PopulateValueTypeValidationData(UStructProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData);
+	void PopulateValueTypeValidationData(UProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData);
+
+	void PopulateValueTypeValidationData(UArrayProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData)
+	{
+		if ( CurrentProperty )
+		{
+			ValueTypeValidationData.Reserve( 2 );
+			ValueTypeValidationData.Add( CurrentProperty->GetClass() );
+			PopulateValueTypeValidationData( CurrentProperty->Inner, ValueTypeValidationData );
+		}
+	}
+
+	void PopulateValueTypeValidationData(USetProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData)
+	{
+		if ( CurrentProperty )
+		{
+			ValueTypeValidationData.Reserve( 2 );
+			ValueTypeValidationData.Add( CurrentProperty->GetClass() );
+			PopulateValueTypeValidationData( CurrentProperty->ElementProp, ValueTypeValidationData );
+		}
+	}
+
+	void PopulateValueTypeValidationData(UMapProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData)
+	{
+		if ( CurrentProperty )
+		{
+			ValueTypeValidationData.Reserve( 3 );
+			ValueTypeValidationData.Add( CurrentProperty->GetClass() );
+			PopulateValueTypeValidationData( CurrentProperty->KeyProp, ValueTypeValidationData );
+			PopulateValueTypeValidationData( CurrentProperty->ValueProp, ValueTypeValidationData );
+		}
+	}
+
+	void PopulateValueTypeValidationData(USoftClassProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData)
+	{
+		if ( CurrentProperty )
+		{
+			ValueTypeValidationData.Reserve( 2 );
+			ValueTypeValidationData.Add( CurrentProperty->GetClass() );
+			// Property class don't matter here since it's always UObject::StaticClass
+			ValueTypeValidationData.Add( CurrentProperty->MetaClass );
+		}
+	}
+
+	void PopulateValueTypeValidationData(UClassProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData)
+	{
+		if ( CurrentProperty )
+		{
+			ValueTypeValidationData.Reserve( 2 );
+			ValueTypeValidationData.Add( CurrentProperty->GetClass() );
+			ValueTypeValidationData.Add( CurrentProperty->PropertyClass );
+			ValueTypeValidationData.Add( CurrentProperty->MetaClass );
+		}
+	}
+
+	void PopulateValueTypeValidationData(UObjectPropertyBase* CurrentProperty, TArray<UObject*>& ValueTypeValidationData)
+	{
+		if ( CurrentProperty )
+		{
+			ValueTypeValidationData.Reserve( 2 );
+			ValueTypeValidationData.Add( CurrentProperty->GetClass() );
+			ValueTypeValidationData.Add( CurrentProperty->PropertyClass );
+		}
+	}
+
+	void PopulateValueTypeValidationData(UEnumProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData)
+	{
+		if ( CurrentProperty )
+		{
+			ValueTypeValidationData.Reserve( 3 );
+			ValueTypeValidationData.Add( CurrentProperty->GetClass() );
+			ValueTypeValidationData.Add( CurrentProperty->GetEnum() );
+			ValueTypeValidationData.Add( CurrentProperty->GetUnderlyingProperty() );
+		}
+	}
+
+	void PopulateValueTypeValidationData(UStructProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData)
+	{
+		if ( CurrentProperty )
+		{
+			ValueTypeValidationData.Reserve( 2 );
+			ValueTypeValidationData.Add( CurrentProperty->GetClass() );
+			ValueTypeValidationData.Add( CurrentProperty->Struct );
+		}
+	}
+
+	void PopulateValueTypeValidationData(UProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData)
+	{
+		if ( CurrentProperty )
+		{
+			int32 NumberOfObject = ValueTypeValidationData.Num();
+			UClass* CurrentClass = CurrentProperty->GetClass();
+			while ( CurrentClass && NumberOfObject == ValueTypeValidationData.Num() )
+			{
+				if ( CurrentClass == UArrayProperty::StaticClass() )
+				{
+					PopulateValueTypeValidationData( static_cast<UArrayProperty*>( CurrentProperty ), ValueTypeValidationData );
+				}
+				else if ( CurrentClass == USetProperty::StaticClass() )
+				{
+					PopulateValueTypeValidationData( static_cast<USetProperty*>( CurrentProperty ), ValueTypeValidationData );
+				}
+				else if ( CurrentClass == UMapProperty::StaticClass() )
+				{
+					PopulateValueTypeValidationData( static_cast<UMapProperty*>( CurrentProperty ), ValueTypeValidationData );
+				}
+				else if ( CurrentClass == USoftClassProperty::StaticClass() )
+				{
+					PopulateValueTypeValidationData( static_cast<USoftClassProperty*>( CurrentProperty ), ValueTypeValidationData );
+				}
+				else if ( CurrentClass == UClassProperty::StaticClass() )
+				{
+					PopulateValueTypeValidationData( static_cast<UClassProperty*>( CurrentProperty ), ValueTypeValidationData );
+				}
+				else if ( CurrentClass == UObjectPropertyBase::StaticClass() )
+				{
+					PopulateValueTypeValidationData( static_cast<UObjectPropertyBase*>( CurrentProperty ), ValueTypeValidationData );
+				}
+				else if ( CurrentClass == UEnumProperty::StaticClass() )
+				{
+					PopulateValueTypeValidationData( static_cast<UEnumProperty*>( CurrentProperty ), ValueTypeValidationData );
+				}
+				else if ( CurrentClass == UStructProperty::StaticClass() )
+				{
+					PopulateValueTypeValidationData( static_cast<UStructProperty*>( CurrentProperty ), ValueTypeValidationData );
+				}
+				else
+				{
+					ValueTypeValidationData.Add( CurrentProperty->GetClass() );
+				}
+
+				CurrentClass = CurrentClass->GetSuperClass();
+			}
+		}
+	}
+
+
 	void* GetAddressOf(const UArrayProperty& Property, void* BaseAddress, int32 ContainerIndex)
 	{
 		void* AddressOfArray = Property.ContainerPtrToValuePtr<void*>( BaseAddress, 0 );
@@ -230,7 +376,7 @@ namespace DataprepParameterization
 	 */
 	UProperty* GetPropertyFromBinding(FDataprepParameterizationBinding& Binding, void*& OutPropertyValueAddress)
 	{
-		if ( !Binding.ObjectBinded || !Binding. ValueType )
+		if ( !Binding.ObjectBinded || Binding.ValueTypeValidationData.Num() == 0 )
 		{
 			return nullptr;
 		}
@@ -279,9 +425,17 @@ namespace DataprepParameterization
 		if ( LevelIndex == PropertyChain.Num() && CurrentOuter )
 		{
 			PropetyAtCurrentLevel = PropertyChain.Last().CachedProperty.Get();
-			if ( PropetyAtCurrentLevel->GetClass() == Binding.ValueType )
+			TArray<UObject*> ValueTypeValidationData;
+			PopulateValueTypeValidationData( PropetyAtCurrentLevel, ValueTypeValidationData );
+			// Perf Note: We might be able to cache this validation and some part of this function at some point
+			if ( ValueTypeValidationData == Binding.ValueTypeValidationData )
 			{
 				return PropetyAtCurrentLevel;
+			}
+			else
+			{
+				UE_LOG( LogDataprepCore, Warning, TEXT("A binding was invalid because it's type changed") );
+				OutPropertyValueAddress = nullptr;
 			}
 		}
 
@@ -301,7 +455,7 @@ namespace DataprepParameterization
 	void CopyCompleteValue(UProperty& DestinationProperty, void* DestinationAddress, UProperty& SourceProperty, void* SourceAddress)
 	{
 		UClass* ProperyClass = DestinationProperty.GetClass();
-		// We only support copying value of properties when they are from the same class
+		// We only support copying value of properties when they are from the same class (this is not a warranty that this is safe, it's only a validation heuristic)
 		check( ProperyClass == SourceProperty.GetClass() );
 
 		// Bool properties are special because each property can have their own mask and offset from there base address (probably to support bitfields)
@@ -318,18 +472,31 @@ namespace DataprepParameterization
 };
 
 
-bool FDataprepParameterizationBinding::operator==(const FDataprepParameterizationBinding& Other) const
+FDataprepParameterizationBinding::FDataprepParameterizationBinding(UDataprepParameterizableObject* InObjectBinded, TArray<FDataprepPropertyLink> InPropertyChain)
+	: ObjectBinded( InObjectBinded )
+	, PropertyChain( MoveTemp( InPropertyChain ) )
+	, ValueTypeValidationData()
 {
-	// Not a accurate but ok for now
-	return ObjectBinded == Other.ObjectBinded && GetTypeHash(PropertyChain) == GetTypeHash(Other.PropertyChain) && ValueType == Other.ValueType;
+	if ( PropertyChain.Num() > 0 )
+	{
+		if ( UProperty* Property = PropertyChain.Last().CachedProperty.Get() )
+		{
+			DataprepParameterization::PopulateValueTypeValidationData( Property, ValueTypeValidationData );
+		}
+	}
 }
 
+bool FDataprepParameterizationBinding::operator==(const FDataprepParameterizationBinding& Other) const
+{
+	// The value type validation data shouldn't matter when comparing binding
+	return ObjectBinded == Other.ObjectBinded && PropertyChain == Other.PropertyChain;
+}
 
 uint32 GetTypeHash(const FDataprepParameterizationBinding& Binding)
 {
-	uint32 Hash = GetTypeHash( Binding.ObjectBinded );
-	Hash = HashCombine( Hash, GetTypeHash( Binding.PropertyChain ) );
-	return HashCombine( Hash, GetTypeHash( Binding.ValueType ) );
+	// The value type validation data shouldn't matter for the hash of a binding
+	return HashCombine(  GetTypeHash( Binding.ObjectBinded ), GetTypeHash( Binding.PropertyChain ) );
+	
 }
 
 uint32 GetTypeHash(const TArray<FDataprepPropertyLink>& PropertyLinks)
@@ -488,7 +655,7 @@ void UDataprepParameterizationBindings::AddReferencedObjects(UObject* InThis, FR
 		for ( TSharedRef<FDataprepParameterizationBinding>& Binding : BindingSet )
 		{
 			Collector.AddReferencedObject( Binding->ObjectBinded );
-			Collector.AddReferencedObject( Binding->ValueType );
+			Collector.AddReferencedObjects( Binding->ValueTypeValidationData );
 		}
 	}
 
@@ -679,10 +846,7 @@ void UDataprepParameterization::PostEditUndo()
 
 	OnTellInstancesToReloadTheirSerializedData.Broadcast();
 
-	if ( UDataprepAsset* DataprepAsset = Cast<UDataprepAsset>( GetOuter() ) )
-	{
-		DataprepAsset->OnParameterizationWasModified.Broadcast();
-	}
+	CastChecked<UDataprepAsset>( GetOuter() )->OnParameterizationStatusForObjectsChanged.Broadcast( nullptr );
 }
 
 void UDataprepParameterization::OnObjectModified(UObject* Object)
@@ -700,10 +864,24 @@ UObject* UDataprepParameterization::GetDefaultObject()
 
 bool UDataprepParameterization::BindObjectProperty(UDataprepParameterizableObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain, const FName& Name)
 {
-	if ( Object && PropertyChain.Num() > 0 && !Name.IsNone() )
+	if ( Object && FDataprepParameterizationUtils::IsPropertyChainValid( PropertyChain ) && !Name.IsNone() )
 	{
 		TSharedRef<FDataprepParameterizationBinding> Binding = MakeShared<FDataprepParameterizationBinding>( Object, PropertyChain );
 		void* AddressOfTheValueFromBinding;
+
+		FName OldParameterName = BindingsContainer->GetParameterNameForBinding( Binding );
+		if ( OldParameterName == Name )
+		{
+			return !Name.IsNone();
+		}
+
+		bool bClassNeedUpdate = false;
+		if ( OldParameterName != Name )
+		{
+			RemoveBinding( Binding, bClassNeedUpdate );
+		}
+
+		bool bBindingWasAdded = false;
 
 		// We expect the chain to have a valid chain of cached property before inserting the binding
 		if ( DataprepParameterization::GetDeepestLevelOfValidCache( Binding.Get(), AddressOfTheValueFromBinding) == PropertyChain.Num() - 1 )
@@ -712,12 +890,14 @@ bool UDataprepParameterization::BindObjectProperty(UDataprepParameterizableObjec
 			{
 				UProperty* Property = *PropertyPtr;
 
-				// Ensure that the properties type match
-				if ( Property->GetClass() == Binding->ValueType )
+				// Ensure that the properties are compatible 
+				TArray<UObject*> ValueTypeValidationData;
+				DataprepParameterization::PopulateValueTypeValidationData( Property, ValueTypeValidationData );
+				if ( ValueTypeValidationData == Binding->ValueTypeValidationData )
 				{
 					Modify();
 					BindingsContainer->Add( Binding, Name );
-					UpdateParameterizationFromBinding( Binding );
+					bBindingWasAdded = true;
 				}
 			}
 			else
@@ -730,10 +910,24 @@ bool UDataprepParameterization::BindObjectProperty(UDataprepParameterizableObjec
 
 				// The validation we did with GetDeepestLevelOfValidCache ensure us that the property ptr is valid
 				UProperty* NewProperty = AddPropertyToClass( Name, *SourceProperty );
-				UpdateClass();
 
-				UpdateParameterizationFromBinding( Binding );
+				bClassNeedUpdate = true;
+				bBindingWasAdded = true;
 			}
+		}
+
+		if ( bClassNeedUpdate )
+		{
+			UpdateClass();
+		}
+
+		if ( bBindingWasAdded )
+		{
+			UpdateParameterizationFromBinding( Binding );
+
+			TSet<UObject*> Objects;
+			Objects.Add( Object );
+			CastChecked<UDataprepAsset>( GetOuter() )->OnParameterizationStatusForObjectsChanged.Broadcast( &Objects );
 		}
 	}
 
@@ -746,17 +940,29 @@ bool UDataprepParameterization::IsObjectPropertyBinded(UDataprepParameterizableO
 	return BindingsContainer->ContainsBinding( Binding );
 }
 
+FName UDataprepParameterization::GetNameOfParameterForObjectProperty(UDataprepParameterizableObject* Object, const TArray<struct FDataprepPropertyLink>& PropertyChain) const
+{
+	TSharedRef<FDataprepParameterizationBinding> Binding = MakeShared<FDataprepParameterizationBinding>(Object, PropertyChain);
+	return BindingsContainer->GetParameterNameForBinding(Binding);
+}
+
 void UDataprepParameterization::RemoveBindedObjectProperty(UDataprepParameterizableObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain)
 {
 	TSharedRef<FDataprepParameterizationBinding> Binding = MakeShared<FDataprepParameterizationBinding>( Object, PropertyChain );
 
 	Modify();
 
-	FName ParameterOfRemovedBinding = BindingsContainer->RemoveBinding( Binding );
-	if ( !BindingsContainer->HasBindingsForParameter( ParameterOfRemovedBinding ) )
+	bool bClassWasModified;
+	if ( RemoveBinding( Binding, bClassWasModified ) )
 	{
-		NameToParameterizationProperty.Remove( ParameterOfRemovedBinding );
-		UpdateClass();
+		if ( bClassWasModified )
+		{
+			UpdateClass();
+		}
+
+		TSet<UObject*> Objects;
+		Objects.Add( Object );
+		CastChecked<UDataprepAsset>( GetOuter() )->OnParameterizationStatusForObjectsChanged.Broadcast( &Objects );
 	}
 }
 
@@ -764,40 +970,51 @@ void UDataprepParameterization::RemoveBindingFromObjects(TArray<UDataprepParamet
 {
 	Modify();
 	TSet<FName> ParameterPotentiallyRemoved;
+	TSet<UObject*> UniqueObjects;
+	UniqueObjects.Reserve( Objects.Num() );
+
 	for ( UDataprepParameterizableObject* Object : Objects )
 	{
 		ParameterPotentiallyRemoved.Append( BindingsContainer->RemoveAllBindingsFromObject( Object ) );
+		UniqueObjects.Add( Object );
 	}
 
+	bool bClassWasChanged = false;
 	for ( const FName& Name : ParameterPotentiallyRemoved )
 	{
 		if ( !BindingsContainer->HasBindingsForParameter( Name ) )
 		{
 			NameToParameterizationProperty.Remove( Name );
+			bClassWasChanged = true;
 		}
 	}
 
-	UpdateClass();
+	if ( bClassWasChanged )
+	{
+		UpdateClass();
+	}
+
+	CastChecked<UDataprepAsset>( GetOuter() )->OnParameterizationStatusForObjectsChanged.Broadcast( &UniqueObjects );
 }
 
 void UDataprepParameterization::UpdateParameterizationFromBinding(const TSharedRef<FDataprepParameterizationBinding>& Binding)
 {
 	FName ParameterModified = BindingsContainer->GetParameterNameForBinding(Binding);
-	UProperty* ParametrizationProperty = NameToParameterizationProperty.FindRef(ParameterModified);
-	if (ParametrizationProperty)
+	UProperty* ParameterizationProperty = NameToParameterizationProperty.FindRef(ParameterModified);
+	if (ParameterizationProperty)
 	{
 		void* AddressOfObjectValue = nullptr;
 		if (UProperty * ObjectProperty = DataprepParameterization::GetPropertyFromBinding(Binding.Get(), AddressOfObjectValue))
 		{
 			Modify();
-			void* AddressOfParameterizationValue = DataprepParameterization::GetAddressOf(*ParametrizationProperty, DefaultParameterisation, INDEX_NONE);
-			DataprepParameterization::CopyCompleteValue(*ParametrizationProperty, AddressOfParameterizationValue, *ObjectProperty, AddressOfObjectValue);
+			void* AddressOfParameterizationValue = DataprepParameterization::GetAddressOf(*ParameterizationProperty, DefaultParameterisation, INDEX_NONE);
+			DataprepParameterization::CopyCompleteValue(*ParameterizationProperty, AddressOfParameterizationValue, *ObjectProperty, AddressOfObjectValue);
 
 			// Post edit the default parameterization
 			FEditPropertyChain EditChain;
-			EditChain.AddHead(ParametrizationProperty);
-			EditChain.SetActivePropertyNode(ParametrizationProperty);
-			FPropertyChangedEvent EditPropertyChangeEvent(ParametrizationProperty, EPropertyChangeType::ValueSet);
+			EditChain.AddHead(ParameterizationProperty);
+			EditChain.SetActivePropertyNode(ParameterizationProperty);
+			FPropertyChangedEvent EditPropertyChangeEvent(ParameterizationProperty, EPropertyChangeType::ValueSet);
 			FPropertyChangedChainEvent EditChangeChainEvent(EditChain, EditPropertyChangeEvent);
 			DefaultParameterisation->PostEditChangeChainProperty(EditChangeChainEvent);
 		}
@@ -820,6 +1037,37 @@ void UDataprepParameterization::OnObjectPostEdit(UDataprepParameterizableObject*
 		else if ( const UDataprepParameterizationBindings::FSetOfBinding* Bindings = BindingsContainer->GetBindingsFromObject( Object ) )
 		{
 			// todo for container ChangeType
+		}
+	}
+}
+
+void UDataprepParameterization::GetExistingParameterNamesForType(UProperty* Property, TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const
+{
+	OutValidExistingNames.Empty( NameToParameterizationProperty.Num() );
+	OutInvalidNames.Empty( NameToParameterizationProperty.Num() );
+
+	for ( const TPair<FName, UProperty*>& Pair : NameToParameterizationProperty )
+	{
+		if ( UProperty* ParameterizationProperty = Pair.Value )
+		{
+			bool bWasAdded = false;
+			if ( ParameterizationProperty->GetClass() == Property->GetClass() )
+			{
+				TArray<UObject*> ValidationDataForParameterizationProperty;
+				DataprepParameterization::PopulateValueTypeValidationData( ParameterizationProperty, ValidationDataForParameterizationProperty );
+				TArray<UObject*> ValidationData;
+				DataprepParameterization::PopulateValueTypeValidationData( Property, ValidationData );
+				if ( ValidationDataForParameterizationProperty == ValidationData )
+				{
+					bWasAdded = true;
+					OutValidExistingNames.Add( Pair.Key.ToString() );
+				}
+			}
+			
+			if ( !bWasAdded )
+			{
+				OutInvalidNames.Add( Pair.Key.ToString() );
+			}
 		}
 	}
 }
@@ -905,9 +1153,11 @@ void UDataprepParameterization::LoadParameterization()
 		}
 
 		// Remove the invalid bindings
+		TSet<UObject*> ObjectsToNotify;
 		for ( const TSharedRef<FDataprepParameterizationBinding>& InvalidBinding : BindingToRemove )
 		{
 			BindingsContainer->RemoveBinding( InvalidBinding );
+			ObjectsToNotify.Add( InvalidBinding->ObjectBinded );
 		}
 
 		// Make the properties appear in a alphabetically order (for that we must add the properties to the class in the reverse order)
@@ -927,6 +1177,11 @@ void UDataprepParameterization::LoadParameterization()
 
 		DefaultParameterisation = CustomContainerClass->GetDefaultObject(true);
 		FDataprepParameterizationReader Reader( DefaultParameterisation, ParameterizationStorage );
+
+		if ( ObjectsToNotify.Num() > 0 )
+		{
+			CastChecked<UDataprepAsset>( GetOuter() )->OnParameterizationStatusForObjectsChanged.Broadcast( &ObjectsToNotify );
+		}
 	}
 }
 
@@ -1055,15 +1310,43 @@ void UDataprepParameterization::PushParametrizationValueToBindings(FName Paramet
 					}
 				}
 
+				TSet<UObject*> ObjectsToNotify;
+				bool bClassNeedUpdate = false;
+
 				// Remove the invalid bindings
 				for ( const TSharedRef<FDataprepParameterizationBinding>& Binding : BindingToRemove )
 				{
-					// Naive slow implementation for now
-					RemoveBindedObjectProperty( Binding->ObjectBinded, Binding->PropertyChain );
+					bool bModifiedClass;
+					if ( RemoveBinding( Binding, bModifiedClass ) )
+					{
+						bClassNeedUpdate |= bModifiedClass;
+						ObjectsToNotify.Add( Binding->ObjectBinded );
+					}
+				}
+
+				if ( bClassNeedUpdate )
+				{
+					UpdateClass();
+				}
+
+				if ( ObjectsToNotify.Num() > 0 )
+				{
+					CastChecked<UDataprepAsset>( GetOuter() )->OnParameterizationStatusForObjectsChanged.Broadcast( &ObjectsToNotify );
 				}
 			}
 		}
 	}
+}
+
+bool UDataprepParameterization::RemoveBinding(const TSharedRef<FDataprepParameterizationBinding>& Binding, bool& bOutClassNeedUpdate)
+{
+	FName ParameterOfRemovedBinding = BindingsContainer->RemoveBinding( Binding );
+	if ( !BindingsContainer->HasBindingsForParameter( ParameterOfRemovedBinding ) )
+	{
+		bOutClassNeedUpdate = true;
+		NameToParameterizationProperty.Remove(ParameterOfRemovedBinding);
+	}
+	return !ParameterOfRemovedBinding.IsNone();
 }
 
 const FName UDataprepParameterization::MetadataClassGeneratorName( TEXT("DataprepCustomParameterizationGenerator") );

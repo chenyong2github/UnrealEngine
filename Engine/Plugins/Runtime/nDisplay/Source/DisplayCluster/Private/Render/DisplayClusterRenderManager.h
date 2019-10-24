@@ -6,7 +6,6 @@
 
 #include "Render/IPDisplayClusterRenderManager.h"
 
-class FDisplayClusterDeviceNativePresentHandler;
 class IDisplayClusterPostProcess;
 class IDisplayClusterProjectionPolicy;
 class IDisplayClusterProjectionPolicyFactory;
@@ -77,12 +76,6 @@ public:
 	virtual bool  GetEyesSwap(const FString& CameraId) const override;
 	virtual void  SetEyesSwap(const FString& CameraId, bool EyeSwapped) override;
 	virtual bool  ToggleEyesSwap(const FString& CameraId) override;
-	virtual float GetNearCullingDistance(const FString& CameraId) const override;
-	virtual void  SetNearCullingDistance(const FString& CameraId, float NearDistance) override;
-	virtual float GetFarCullingDistance(const FString& CameraId) const override;
-	virtual void  SetFarCullingDistance(const FString& CameraId, float FarDistance) override;
-	virtual void  GetCullingDistance(const FString& CameraId, float& NearDistance, float& FarDistance) const override;
-	virtual void  SetCullingDistance(const FString& CameraId, float NearDistance, float FarDistance) override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -103,8 +96,7 @@ private:
 	FString ClusterNodeId;
 
 	// Interface pointer to avoid type casting
-	TSharedPtr<IDisplayClusterRenderDevice, ESPMode::ThreadSafe> RenderDevice;
-	FDisplayClusterDeviceNativePresentHandler* NativePresentHandler;
+	IDisplayClusterRenderDevice* RenderDevicePtr = nullptr;
 	bool bWindowAdjusted = false;
 
 private:

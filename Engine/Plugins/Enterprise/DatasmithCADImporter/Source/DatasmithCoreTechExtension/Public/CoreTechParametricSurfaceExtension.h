@@ -77,9 +77,7 @@ public:
 
 	static bool CanApplyOnAssets(const TArray<FAssetData>& SelectedAssets);
 	static void ApplyOnAssets(const TArray<FAssetData>& SelectedAssets);
-
-private:
-	static void ApplyOnOneAsset(UStaticMesh& StaticMesh, UCoreTechParametricSurfaceData& CoreTechData, UCoreTechRetessellateActionOptions& RetesselateOptions);
+	static bool ApplyOnOneAsset(UStaticMesh& StaticMesh, UCoreTechParametricSurfaceData& CoreTechData, const FDatasmithTessellationOptions& RetesselateOptions);
 };
 
 

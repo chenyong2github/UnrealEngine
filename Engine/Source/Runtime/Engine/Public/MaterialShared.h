@@ -2155,7 +2155,7 @@ inline bool IsTranslucentBlendMode(enum EBlendMode BlendMode)
 /**
  * Implementation of the FMaterial interface for a UMaterial or UMaterialInstance.
  */
-class FMaterialResource : public FMaterial
+class ENGINE_VTABLE FMaterialResource : public FMaterial
 {
 public:
 

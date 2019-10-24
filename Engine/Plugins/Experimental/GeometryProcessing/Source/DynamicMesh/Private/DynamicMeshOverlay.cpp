@@ -83,7 +83,7 @@ EMeshResult TDynamicMeshOverlay<RealType, ElementSize>::InsertElement(int Elemen
 
 
 template<typename RealType, int ElementSize>
-void TDynamicMeshOverlay<RealType, ElementSize>::CreateFromPredicate(TFunctionRef<bool(int ParentVertexIdx, int TriIDA, int TriIDB)> TrisCanShareVertexPredicate, RealType InitElementValue, bool bNonTransitiveShare)
+void TDynamicMeshOverlay<RealType, ElementSize>::CreateFromPredicate(TFunctionRef<bool(int ParentVertexIdx, int TriIDA, int TriIDB)> TrisCanShareVertexPredicate, RealType InitElementValue)
 {
 	ClearElements(); // deletes all elements and initializes triangles to be 1:1 w/ parentmesh IDs
 	TArray<int> TrisActiveSubGroup, AppendedElements;
@@ -109,83 +109,35 @@ void TDynamicMeshOverlay<RealType, ElementSize>::CreateFromPredicate(TFunctionRe
 			TrisActiveSubGroup.SetNumZeroed(GroupNum, false);
 			int CurrentGroupID = 0;
 			int CurrentGroupRefSubIdx = 0;
-			bool bShouldBreakGroup = false; // tracks whether a contiguous group should be broken up (in bNonTransitiveShare mode); final value after for-loop indicates whether final group was broken
-			bool bFirstGroupWasBroken = false;
 			for (int TriSubIdx = 0; TriSubIdx+1 < GroupNum; TriSubIdx++)
 			{
 				int TriIDA = TriangleIDs[GroupStart + TriSubIdx];
 				int TriIDB = TriangleIDs[GroupStart + TriSubIdx + 1];
 				bool bCanShare = TrisCanShareVertexPredicate(VertexID, TriIDA, TriIDB);
-				if (!bShouldBreakGroup && bCanShare && bNonTransitiveShare && TriSubIdx != CurrentGroupRefSubIdx) // require the triangle match the initial triangle in the group as well as the adjacent one
-				{
-					if (!TrisCanShareVertexPredicate(VertexID, TriangleIDs[GroupStart + CurrentGroupRefSubIdx], TriIDB))
-					{
-						bShouldBreakGroup = true;
-						if (CurrentGroupRefSubIdx == 0)
-						{
-							bFirstGroupWasBroken = true;
-						}
-					}
-				}
 				if (!bCanShare)
 				{
-					if (bShouldBreakGroup)
-					{
-						for (int BreakGroupIdx = CurrentGroupRefSubIdx + 1; BreakGroupIdx <= TriSubIdx; BreakGroupIdx++)
-						{
-							TrisActiveSubGroup[BreakGroupIdx] = ++CurrentGroupID;
-						}
-					}
 					CurrentGroupID++;
 					CurrentGroupRefSubIdx = TriSubIdx + 1;
-					bShouldBreakGroup = false;
 				}
 				
 				TrisActiveSubGroup[TriSubIdx + 1] = CurrentGroupID;
-			}
-
-			// break final subgroup
-			if (bShouldBreakGroup)
-			{
-				for (int BreakGroupIdx = CurrentGroupRefSubIdx + 1; BreakGroupIdx < GroupNum; BreakGroupIdx++)
-				{
-					TrisActiveSubGroup[BreakGroupIdx] = ++CurrentGroupID;
-				}
 			}
 
 			// for loops, merge first and last group if needed
 			int NumGroupID = CurrentGroupID + 1;
 			if (bIsLoop && TrisActiveSubGroup[0] != TrisActiveSubGroup.Last())
 			{
-				// if we can merge the first and last triangles AND their groups weren't already both broken, try to merge them 
-				if ((!bShouldBreakGroup || !bFirstGroupWasBroken) && TrisCanShareVertexPredicate(VertexID, TriangleIDs[GroupStart], TriangleIDs[GroupStart + GroupNum - 1]))
+				if (TrisCanShareVertexPredicate(VertexID, TriangleIDs[GroupStart], TriangleIDs[GroupStart + GroupNum - 1]))
 				{
 					int EndGroupID = TrisActiveSubGroup[GroupNum - 1];
 					int StartGroupID = TrisActiveSubGroup[0];
 					int TriID0 = TriangleIDs[GroupStart];
-					bool bStoppedMerge = bShouldBreakGroup || bFirstGroupWasBroken; // if either group was broken, stop the merge before it even starts
-					for (int Idx = GroupNum - 1; !bStoppedMerge && Idx >= 0 && TrisActiveSubGroup[Idx] == EndGroupID; Idx--)
+					
+					for (int Idx = GroupNum - 1; Idx >= 0 && TrisActiveSubGroup[Idx] == EndGroupID; Idx--)
 					{
-						if (Idx < GroupNum - 1 && bNonTransitiveShare && !TrisCanShareVertexPredicate(VertexID, TriID0, TriangleIDs[GroupStart + Idx]))
-						{
-							bStoppedMerge = true;
-							break;
-						}
 						TrisActiveSubGroup[Idx] = StartGroupID;
 					}
 					NumGroupID--;
-					if (bStoppedMerge)
-					{
-						// Merge failed, break apart both groups
-						for (int BreakGroupIdx = 1; BreakGroupIdx < GroupNum; BreakGroupIdx++)
-						{
-							int Group = TrisActiveSubGroup[BreakGroupIdx];
-							if (Group == StartGroupID || Group == EndGroupID)
-							{
-								TrisActiveSubGroup[BreakGroupIdx] = NumGroupID++;
-							}
-						}
-					}
 				}
 			}
 
@@ -208,7 +160,47 @@ void TDynamicMeshOverlay<RealType, ElementSize>::CreateFromPredicate(TFunctionRe
 }
 
 
-
+template<typename RealType, int ElementSize>
+void TDynamicMeshOverlay<RealType, ElementSize>::SplitVerticesWithPredicate(TFunctionRef<bool(int ElementID, int TriID)> ShouldSplitOutVertex, TFunctionRef<void(int ElementID, int TriID, RealType* FillVect)> GetNewElementValue)
+{
+	for (int TriID : ParentMesh->TriangleIndicesItr())
+	{
+		FIndex3i ElTri = GetTriangle(TriID);
+		if (ElTri.A < 0)
+		{
+			// skip un-set triangles
+			continue;
+		}
+		bool TriChanged = false;
+		for (int SubIdx = 0; SubIdx < 3; SubIdx++)
+		{
+			int ElementID = ElTri[SubIdx];
+			// by convention for overlays, a ref count of 2 means that only one triangle has the element -- can't split it out further
+			if (ElementsRefCounts.GetRefCount(ElementID) <= 2)
+			{
+				// still set the new value though if the function wants to change it
+				if (ShouldSplitOutVertex(ElementID, TriID))
+				{
+					RealType NewElementData[ElementSize];
+					GetNewElementValue(ElementID, TriID, NewElementData);
+					SetElement(ElementID, NewElementData);
+				}
+			}
+			if (ShouldSplitOutVertex(ElementID, TriID))
+			{
+				TriChanged = true;
+				RealType NewElementData[ElementSize];
+				GetNewElementValue(ElementID, TriID, NewElementData);
+				ElTri[SubIdx] = AppendElement(NewElementData, ParentVertices[ElementID]);
+			}
+		}
+		if (TriChanged)
+		{
+			InternalSetTriangle(TriID, ElTri, true);
+		}
+		
+	}
+}
 
 
 template<typename RealType, int ElementSize>
@@ -484,7 +476,7 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnReverseTriOrientation(int Tri
 
 
 
-//#pragma optimize( "", off )
+
 template<typename RealType, int ElementSize>
 void TDynamicMeshOverlay<RealType, ElementSize>::OnSplitEdge(const FDynamicMesh3::FEdgeSplitInfo& splitInfo)
 {
@@ -554,7 +546,7 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnSplitEdge(const FDynamicMesh3
 
 
 
-//#pragma optimize("", off)
+
 template<typename RealType, int ElementSize>
 void TDynamicMeshOverlay<RealType, ElementSize>::OnFlipEdge(const FDynamicMesh3::FEdgeFlipInfo& FlipInfo)
 {
@@ -609,7 +601,7 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnFlipEdge(const FDynamicMesh3:
 
 
 
-//#pragma optimize("", off)
+
 template<typename RealType, int ElementSize>
 void TDynamicMeshOverlay<RealType, ElementSize>::OnCollapseEdge(const FDynamicMesh3::FEdgeCollapseInfo& collapseInfo)
 {
@@ -639,21 +631,32 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnCollapseEdge(const FDynamicMe
 		check(bHasSharedUVEdge);
 	}
 
-	// need to find the elementid for the "kept" vertex. Since this isn't a seam, 
-	// there is just one, and we can grab it from "old" removed triangle
+	// need to find the elementid for the "kept" and "removed" vertices. 
+	// Since this isn't a seam, there is just one of each, *unless* either the kept
+	// or removed vertices is on a seam (ie connected to a separate edge that is a seam).
+	// In that case this code may fail. Currently this case must be caught and avoided
+	// at a higher level. 
+	// @todo: handle this case, we would then have removed_elements.Num() > 1
 	int kept_elemid = FDynamicMesh3::InvalidID;
+	int removed_elemid = FDynamicMesh3::InvalidID;
 	for (int j = 0; j < 3; ++j) 
 	{
 		if (BaseTriangle0[j] == vid_base_kept)
 		{
 			kept_elemid = Triangle0[j];
 		}
+		if (ParentVertices[Triangle0[j]] == vid_base_removed)
+		{
+			removed_elemid = Triangle0[j];
+		}
 	}
 	check(kept_elemid != FDynamicMesh3::InvalidID);
+	check(removed_elemid != FDynamicMesh3::InvalidID);
 
 	// look for still-existing triangles that have elements linked to the removed vertex.
 	// in that case, replace with the element we found
 	TArray<int> removed_elements;
+	removed_elements.AddUnique(removed_elemid);
 	for (int onering_tid : ParentMesh->VtxTrianglesItr(vid_base_kept))
 	{
 		FIndex3i elem_tri = GetTriangle(onering_tid);
@@ -663,7 +666,8 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnCollapseEdge(const FDynamicMe
 			if (ParentVertices[elem_id] == vid_base_removed) 
 			{
 				ElementsRefCounts.Decrement(elem_id);
-				removed_elements.AddUnique(elem_id);
+				//removed_elements.AddUnique(elem_id);
+				check(elem_id == removed_elemid);
 				ElementTriangles[3*onering_tid + j] = kept_elemid;
 				ElementsRefCounts.Increment(kept_elemid);
 			}
@@ -718,6 +722,7 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnPokeTriangle(const FDynamicMe
 	ElementsRefCounts.Increment(Triangle[2]);
 	ElementsRefCounts.Increment(CenterElemID, 3);
 }
+
 
 
 template<typename RealType, int ElementSize>
@@ -785,7 +790,7 @@ void TDynamicMeshOverlay<RealType, ElementSize>::SetElementFromBary(int SetEleme
 }
 
 
-//#pragma optimize("", off)
+
 template<typename RealType, int ElementSize>
 bool TDynamicMeshOverlay<RealType, ElementSize>::CheckValidity(bool bAllowNonManifoldVertices, EValidityCheckFailMode FailMode) const
 {

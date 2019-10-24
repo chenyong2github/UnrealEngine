@@ -4,12 +4,10 @@
 
 #include "CoreMinimal.h"
 
-// Undef USE_OPENMODEL if CAD_LIBRARY is not defined
 #ifndef CAD_LIBRARY
 #undef USE_OPENMODEL
 #endif
 
-#include "CADLibraryOptions.h"
 #include "DatasmithCoreTechTranslator.h"
 #include "UObject/ObjectMacros.h"
 
@@ -47,7 +45,4 @@ protected:
 
 private:
 	TSharedPtr<FWireTranslatorImpl> Translator;
-
-	const float MetricUnit = 0.001; // As CT don`t take care of unit input data, metric unit is set with default value
-	const float ScaleFactor = 1; // Wire internal unit is cm so no scale needed
 };

@@ -27,7 +27,7 @@ class UAnalyticsPrivacySettings : public UObject, public IImportantToggleSetting
 public:
 
 	// BEGIN IImportantToggleSettingInterface
-	virtual void GetToogleCategoryAndPropertyNames(FName& OutCategory, FName& OutProperty) const override;
+	virtual void GetToggleCategoryAndPropertyNames(FName& OutCategory, FName& OutProperty) const override;
 	virtual FText GetFalseStateLabel() const override;
 	virtual FText GetFalseStateTooltip() const override;
 	virtual FText GetFalseStateDescription() const override;

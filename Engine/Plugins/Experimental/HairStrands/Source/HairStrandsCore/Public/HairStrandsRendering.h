@@ -34,7 +34,9 @@ struct FHairStrandsInterpolationInput
 
 		float HairRadius = 0;
 		float HairRaytracingRadiusScale = 0;
-		FVector HairWorldOffset = FVector::ZeroVector;
+		FVector InHairPositionOffset = FVector::ZeroVector;
+		FVector OutHairPositionOffset = FVector::ZeroVector;
+		FVector OutHairPreviousPositionOffset = FVector::ZeroVector;
 
 		inline bool IsValid() const
 		{
@@ -62,6 +64,9 @@ struct FHairStrandsInterpolationOutput
 		FShaderResourceViewRHIRef HairPreviousPositionBuffer = nullptr;
 		FShaderResourceViewRHIRef HairTangentBuffer = nullptr;
 		FShaderResourceViewRHIRef HairAttributeBuffer = nullptr;
+		FShaderResourceViewRHIRef HairMaterialBuffer = nullptr;
+		FVector HairPositionOffset = FVector::ZeroVector;
+		FVector HairPreviousPositionOffset = FVector::ZeroVector;
 		uint32 VertexCount = 0;
 
 		inline void Reset()
@@ -70,6 +75,9 @@ struct FHairStrandsInterpolationOutput
 			HairPreviousPositionBuffer = nullptr;
 			HairTangentBuffer = nullptr;
 			HairAttributeBuffer = nullptr;
+			HairMaterialBuffer = nullptr;
+			HairPositionOffset = FVector::ZeroVector;
+			HairPreviousPositionOffset = FVector::ZeroVector;
 			VertexCount = 0;
 		}
 	};
@@ -82,6 +90,7 @@ struct FHairStrandsInterpolationOutput
 
 		FRWBuffer* RenderTangentBuffer = nullptr;
 		FRWBuffer* RenderAttributeBuffer = nullptr;
+		FRWBuffer* RenderMaterialBuffer = nullptr;
 
 		FRWBuffer* SimTangentBuffer = nullptr;
 
@@ -99,6 +108,7 @@ struct FHairStrandsInterpolationOutput
 				(RenderDeformedPositionBuffer[1] && RenderDeformedPositionBuffer[1]->SRV) &&
 				(RenderTangentBuffer && RenderTangentBuffer->SRV) &&
 				(RenderAttributeBuffer && RenderAttributeBuffer->SRV);
+				(RenderMaterialBuffer && RenderMaterialBuffer->SRV);
 		}
 	};
 	TArray<HairGroup> HairGroups;
@@ -108,6 +118,7 @@ void ComputeHairStrandsInterpolation(
 	FRHICommandListImmediate& RHICmdList,
 	FHairStrandsInterpolationInput* Input,
 	FHairStrandsInterpolationOutput* Output, 
-	struct FHairStrandsProjectionHairData& HairDatas,
+	struct FHairStrandsProjectionHairData& RenHairDatas,
+	struct FHairStrandsProjectionHairData& SimHairDatas,
 	int32 LODIndex);
 

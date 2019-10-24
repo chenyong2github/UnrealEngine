@@ -83,6 +83,7 @@ namespace CrossCompiler
 		// Types
 		Void,
 		Const,
+		Precise,
 
 		Bool,
 		Bool1,

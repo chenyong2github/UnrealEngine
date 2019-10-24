@@ -72,6 +72,55 @@ public:
 
 
 	/**
+	 * @return Rotation portion of Transform, as Quaternion
+	 */
+	const TQuaternion<RealType>& GetRotation() const 
+	{ 
+		return Rotation; 
+	}
+
+	/** 
+	 * Set Rotation portion of Transform 
+	 */
+	void SetRotation(const TQuaternion<RealType>& RotationIn)
+	{
+		Rotation = RotationIn;
+	}
+
+	/**
+	 * @return Translation portion of transform
+	 */
+	const FVector3<RealType>& GetTranslation() const
+	{
+		return Translation;
+	}
+
+	/**
+	 * set Translation portion of transform
+	 */
+	void SetTranslation(const FVector3<RealType>& TranslationIn)
+	{
+		Translation = TranslationIn;
+	}
+
+	/**
+	 * @return Scale portion of transform
+	 */
+	const FVector3<RealType>& GetScale() const
+	{
+		return Scale3D;
+	}
+
+	/**
+	 * set Scale portion of transform
+	 */
+	void SetScale(const FVector3<RealType>& ScaleIn)
+	{
+		Scale3D = ScaleIn;
+	}
+
+
+	/**
 	 * @return input point with QST transformation applied, ie QST(P) = Rotate(Scale*P) + Translate
 	 */
 	FVector3<RealType> TransformPosition(const FVector3<RealType>& P) const
@@ -97,6 +146,22 @@ public:
 		return Rotation * V;
 	}
 
+
+	/**
+	 * Surface Normals are special, their transform is Rotate( Normalize( (1/Scale) * Normal) ) ).
+	 * However 1/Scale requires special handling in case any component is near-zero.
+	 * @return input surface normal with transform applied.
+	 */
+	FVector3<RealType> TransformNormal(const FVector3<RealType>& Normal) const
+	{
+		// transform normal by a safe inverse scale + normalize, and a standard rotation
+		const FVector3<RealType>& S = Scale3D;
+		RealType DetSign = FMathd::SignNonZero(S.X * S.Y * S.Z); // we only need to multiply by the sign of the determinant, rather than divide by it, since we normalize later anyway
+		FVector3<RealType> SafeInvS(S.Y*S.Z*DetSign, S.X*S.Z*DetSign, S.X*S.Y*DetSign);
+		return TransformVectorNoScale( (SafeInvS*Normal).Normalized() );
+	}
+
+
 	/**
 	 * @return input vector with inverse-QST transformation applied, ie QSTinv(P) = InverseScale(InverseRotate(P - Translate))
 	 */
@@ -120,6 +185,35 @@ public:
 	FVector3<RealType> InverseTransformVectorNoScale(const FVector3<RealType> &V) const
 	{
 		return Rotation.InverseMultiply(V);
+	}
+
+
+	/**
+	 * Surface Normals are special, their inverse transform is InverseRotate( Normalize(Scale * Normal) ) )
+	 * @return input surface normal with inverse transform applied.
+	 */
+	FVector3<RealType> InverseTransformNormal(const FVector3<RealType>& Normal) const
+	{
+		return InverseTransformVectorNoScale( (Scale3D*Normal).Normalized() );
+	}
+
+
+
+	/**
+	 * Clamp all scale components to a minimum value. Sign of scale components is preserved.
+	 * This is used to remove uninvertible zero/near-zero scaling.
+	 */
+	void ClampMinimumScale(RealType MinimumScale = TMathUtil<RealType>::ZeroTolerance)
+	{
+		for (int j = 0; j < 3; ++j)
+		{
+			RealType Value = Scale3D[j];
+			if (TMathUtil<RealType>::Abs(Value) < MinimumScale)
+			{
+				Value = MinimumScale * TMathUtil<RealType>::SignNonZero(Value);
+				Scale3D[j] = Value;
+			}
+		}
 	}
 
 	

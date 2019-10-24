@@ -117,6 +117,12 @@ static TAutoConsoleVariable<int32> CVarRHICmdMinCmdlistSizeForParallelTranslate(
 	32,
 	TEXT("In kilobytes. Cmdlists are merged into one parallel translate until we have at least this much memory to process. For a given pass, we won't do more translates than we have task threads. Only relevant if r.RHICmdBalanceTranslatesAfterTasks is on."));
 
+RHI_API int32 GRHICmdTraceEvents = 0;
+static FAutoConsoleVariableRef CVarRHICmdTraceEvents(
+	TEXT("r.RHICmdTraceEvents"),
+	GRHICmdTraceEvents,
+	TEXT("Enable tracing profiler events for every RHI command. (default = 0)")
+);
 
 bool GUseRHIThread_InternalUseOnly = false;
 bool GUseRHITaskThreads_InternalUseOnly = false;

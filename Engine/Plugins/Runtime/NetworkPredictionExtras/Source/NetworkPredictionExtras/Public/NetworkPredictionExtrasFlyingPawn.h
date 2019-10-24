@@ -67,7 +67,22 @@ public:
 	void PrintDebug();
 
 	UFUNCTION(BlueprintCallable, Category="Gameplay")
+	float GetMaxMoveSpeed() const;
+
+	UFUNCTION(BlueprintCallable, Category="Gameplay")
 	void SetMaxMoveSpeed(float NewMaxMoveSpeed);
+
+	UFUNCTION(BlueprintCallable, Category="Gameplay")
+	void AddMaxMoveSpeed(float AdditiveMaxMoveSpeed);
+
+	// Only intended for debugging in test map examples. Not really intended to be useful for general game code use.
+	UFUNCTION(BlueprintCallable, Category="Gameplay")
+	int32 GetPendingKeyframe() const;
+
+protected:
+
+	const FlyingMovement::FAuxState* GetAuxStateRead() const;
+	FlyingMovement::FAuxState* GetAuxStateWrite();
 
 private:
 

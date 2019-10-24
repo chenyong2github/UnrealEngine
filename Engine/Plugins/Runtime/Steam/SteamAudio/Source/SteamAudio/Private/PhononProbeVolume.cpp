@@ -21,8 +21,6 @@
 
 #endif
 
-#include <algorithm>
-
 APhononProbeVolume::APhononProbeVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, PlacementStrategy(EPhononProbePlacementStrategy::UNIFORM_FLOOR)

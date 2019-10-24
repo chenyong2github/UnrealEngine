@@ -12,25 +12,7 @@
 #include "ScenePrivate.h"
 
 // this is temporary until we split the voxelize and DOM path
-
-
-/////////////////////////////////////////////////////////////////////////////////////////
-
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FDeepShadowPassUniformParameters, )
-	//SHADER_PARAMETER_STRUCT(FSceneTexturesUniformParameters, SceneTextures)
-	SHADER_PARAMETER(FMatrix, WorldToClipMatrix)
-	SHADER_PARAMETER(FVector, LightDirection)
-	SHADER_PARAMETER(FVector4, SliceValue)
-	SHADER_PARAMETER(uint32, bIsOrtho)
-	SHADER_PARAMETER(FIntRect, AtlasRect)
-	SHADER_PARAMETER(float, MinStrandRadius)
-	SHADER_PARAMETER(FVector, VoxelMinAABB)
-	SHADER_PARAMETER(FVector, VoxelMaxAABB)
-	SHADER_PARAMETER(uint32, VoxelResolution)
-	SHADER_PARAMETER_TEXTURE(Texture2D<float>, FrontDepthTexture)
-END_GLOBAL_SHADER_PARAMETER_STRUCT()
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FDeepShadowPassUniformParameters, "DeepShadowPass");
-
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
@@ -323,6 +305,7 @@ void FDeepShadowMeshProcessor::Process(
 	ERasterizerCullMode MeshCullMode)
 {
 	const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
+	static const FVertexFactoryType* CompatibleVF = FVertexFactoryType::GetVFByName(TEXT("FHairStrandsVertexFactory"));
 
 	TMeshProcessorShaders<
 		VertexShaderType,
@@ -332,6 +315,10 @@ void FDeepShadowMeshProcessor::Process(
 	{
 		const EMaterialTessellationMode MaterialTessellationMode = MaterialResource.GetTessellationMode();
 		FVertexFactoryType* VertexFactoryType = VertexFactory->GetType();
+		const bool bIsHairStrandsFactory = MeshBatch.VertexFactory->GetType()->GetId() == CompatibleVF->GetId();
+		if (!bIsHairStrandsFactory)
+			return;
+
 		PassShaders.DomainShader = nullptr;
 		PassShaders.HullShader = nullptr;
 		PassShaders.VertexShader = MaterialResource.GetShader<VertexShaderType>(VertexFactoryType);
@@ -377,84 +364,61 @@ void RasterHairStrands(
 	const FScene* Scene,
 	const FViewInfo* ViewInfo,
 	const FHairStrandsClusterData::TPrimitiveInfos& PrimitiveSceneInfos,
-	const FHairStrandsLightDesc& LightDesc,
 	const EHairStrandsRasterPassType ShadowPassType,
-	FRHITexture* DeepShadowDepthTexture,
 	const FIntRect& AtlasRect,
-	const FVector MinAABB,
-	const FVector MaxAABB)
+	const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformShaderParameters,
+	const TUniformBufferRef<FDeepShadowPassUniformParameters>& DeepShadowPassUniformParameters)
 {
 	check(RHICmdList.IsInsideRenderPass());
 	check(IsInRenderingThread());
 
 	SCOPE_CYCLE_COUNTER(STAT_RenderPerObjectShadowDepthsTime);
 
-	TUniformBufferRef<FDeepShadowPassUniformParameters> PassUniformBuffer;
-	{
-		if (ShadowPassType == EHairStrandsRasterPassType::DeepOpacityMap)
-		{
-			check(DeepShadowDepthTexture);
-		}
+	FMeshPassProcessorRenderState DrawRenderState(*ViewInfo, DeepShadowPassUniformParameters);
+	DrawRenderState.SetViewUniformBuffer(ViewUniformShaderParameters);
 
-		FDeepShadowPassUniformParameters PassParameters;
-		PassParameters.WorldToClipMatrix = LightDesc.WorldToLightClipTransform;
-		PassParameters.LightDirection = LightDesc.LightDirection;
-		PassParameters.SliceValue = FVector4(1, 1, 1, 1);
-		PassParameters.FrontDepthTexture = DeepShadowDepthTexture;
-		PassParameters.MinStrandRadius = LightDesc.MinStrandRadiusAtDepth1.Primary;
-		PassParameters.bIsOrtho = LightDesc.bIsOrtho ? 1u : 0u;
-		PassParameters.AtlasRect = AtlasRect;
-		PassParameters.VoxelMinAABB = MinAABB;
-		PassParameters.VoxelMaxAABB = MaxAABB;
-		PassParameters.VoxelResolution = AtlasRect.Width();
-		PassUniformBuffer = CreateUniformBufferImmediate(PassParameters, UniformBuffer_SingleDraw, EUniformBufferValidation::None);
+	RHICmdList.SetViewport(AtlasRect.Min.X, AtlasRect.Min.Y, 0.0f, AtlasRect.Max.X, AtlasRect.Max.Y, 1.0f);
+
+	if (ShadowPassType == EHairStrandsRasterPassType::DeepOpacityMap)
+	{
+		DrawRenderState.SetBlendState(TStaticBlendState<
+			CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One,
+			CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI());
+		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
+	}
+	else if (ShadowPassType == EHairStrandsRasterPassType::FrontDepth)
+	{
+		DrawRenderState.SetBlendState(TStaticBlendState<
+			CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero,
+			CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI());
+		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
+	}
+	else if (ShadowPassType == EHairStrandsRasterPassType::Voxelization || ShadowPassType == EHairStrandsRasterPassType::VoxelizationMaterial)
+	{
+		DrawRenderState.SetBlendState(TStaticBlendState<
+			CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI());
+		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
 	}
 
-	FMeshPassProcessorRenderState DrawRenderState(*ViewInfo, PassUniformBuffer);
+	FDynamicMeshDrawCommandStorage DynamicMeshDrawCommandStorage; // << Were would thid be stored?
+	FMeshCommandOneFrameArray VisibleMeshDrawCommands;
+	FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
+	FDynamicPassMeshDrawListContext ShadowContext(DynamicMeshDrawCommandStorage, VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet);
+
+
+	FDeepShadowMeshProcessor DeepShadowMeshProcessor(Scene, ViewInfo /* is a SceneView */, DrawRenderState, &ShadowContext, ShadowPassType);
+
+	for (const FMeshBatchAndRelevance& MeshBatchAndRelevance : PrimitiveSceneInfos)
 	{
-		RHICmdList.SetViewport(AtlasRect.Min.X, AtlasRect.Min.Y, 0.0f, AtlasRect.Max.X, AtlasRect.Max.Y, 1.0f);
+		const FMeshBatch& MeshBatch = *MeshBatchAndRelevance.Mesh;
+		const uint64 BatchElementMask = ~0ull;
+		DeepShadowMeshProcessor.AddMeshBatch(MeshBatch, BatchElementMask, MeshBatchAndRelevance.PrimitiveSceneProxy);
+	}
 
-		if (ShadowPassType == EHairStrandsRasterPassType::DeepOpacityMap)
-		{
-			DrawRenderState.SetBlendState(TStaticBlendState<
-				CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One,
-				CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI());
-			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
-		}
-		else if (ShadowPassType == EHairStrandsRasterPassType::FrontDepth)
-		{
-			DrawRenderState.SetBlendState(TStaticBlendState<
-				CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero,
-				CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI());
-			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
-		}
-		else if (ShadowPassType == EHairStrandsRasterPassType::Voxelization || ShadowPassType == EHairStrandsRasterPassType::VoxelizationMaterial)
-		{
-			DrawRenderState.SetBlendState(TStaticBlendState<
-				CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI());
-			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
-		}
-
-		FDynamicMeshDrawCommandStorage DynamicMeshDrawCommandStorage; // << Were would thid be stored?
-		FMeshCommandOneFrameArray VisibleMeshDrawCommands;
-		FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
-		FDynamicPassMeshDrawListContext ShadowContext(DynamicMeshDrawCommandStorage, VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet);
-
-
-		FDeepShadowMeshProcessor DeepShadowMeshProcessor(Scene, ViewInfo /* is a SceneView */, DrawRenderState, &ShadowContext, ShadowPassType);
-
-		for (const FMeshBatchAndRelevance& MeshBatchAndRelevance : PrimitiveSceneInfos)
-		{
-			const FMeshBatch& MeshBatch = *MeshBatchAndRelevance.Mesh;
-			const uint64 BatchElementMask = ~0ull;
-			DeepShadowMeshProcessor.AddMeshBatch(MeshBatch, BatchElementMask, MeshBatchAndRelevance.PrimitiveSceneProxy);
-		}
-
-		if (VisibleMeshDrawCommands.Num() > 0)
-		{
-			FRHIVertexBuffer* PrimitiveIdVertexBuffer = nullptr;
-			SortAndMergeDynamicPassMeshDrawCommands(ViewInfo->GetFeatureLevel(), VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, PrimitiveIdVertexBuffer, 1);
-			SubmitMeshDrawCommands(VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, PrimitiveIdVertexBuffer, 0, false, 1, RHICmdList);
-		}
+	if (VisibleMeshDrawCommands.Num() > 0)
+	{
+		FRHIVertexBuffer* PrimitiveIdVertexBuffer = nullptr;
+		SortAndMergeDynamicPassMeshDrawCommands(ViewInfo->GetFeatureLevel(), VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, PrimitiveIdVertexBuffer, 1);
+		SubmitMeshDrawCommands(VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, PrimitiveIdVertexBuffer, 0, false, 1, RHICmdList);
 	}
 }

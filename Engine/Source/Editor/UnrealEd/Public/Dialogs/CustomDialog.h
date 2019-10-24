@@ -9,15 +9,17 @@
  * It also supports adding a custom icon to the dialog.
  * Usage:
  * TSharedRef<SCustomDialog> HelloWorldDialog = SNew(SCustomDialog)
-		.Title(FText("Hello, World!"))
-		.DialogContent( SNew(SImage).Image(FName("Hello")) )
-		.Buttons( { SCustomDialog::FButton(LOCTEXT("OK", "OK"), []() { printf("OK pressed!" ); } ),
-				SCustomDialog::FButton(LOCTEXT("Cancel", "Cancel") } );
+		.Title(FText(LOCTEXT("HelloWorldTitleExample", "Hello, World!")))
+		.DialogContent( SNew(SImage).Image(FName(TEXT("Hello"))))
+		.Buttons({
+			SCustomDialog::FButton(LOCTEXT("OK", "OK")),
+			SCustomDialog::FButton(LOCTEXT("Cancel", "Cancel"))
+		});
 
-		// returns 0 when OK is pressed, 1 when Cancel is pressed
-		int ButtonPressed = CustomDialog->ShowModal(); 
+   // returns 0 when OK is pressed, 1 when Cancel is pressed, -1 if the window is closed
+   const int ButtonPressed = HelloWorldDialog->ShowModal();
  */
-class SCustomDialog : public SWindow
+class UNREALED_API SCustomDialog : public SWindow
 {
 public:
 	struct FButton

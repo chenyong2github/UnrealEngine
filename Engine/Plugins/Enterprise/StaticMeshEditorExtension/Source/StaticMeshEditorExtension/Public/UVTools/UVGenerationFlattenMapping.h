@@ -16,10 +16,10 @@ class STATICMESHEDITOREXTENSION_API UUVGenerationFlattenMapping : public UBluepr
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DisplayName = "Generate Flatten Mapping UVs"))
-	static void GenerateFlattenMappingUVs(UStaticMesh* InStaticMesh, int32 UVChannel, float AngleThreshold = 66.f, float AreaWeight = 0.7f);
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DisplayName = "Generate Unwrapped UVs"))
+	static void GenerateFlattenMappingUVs(UStaticMesh* InStaticMesh, int32 UVChannel, float AngleThreshold = 66.f);
 
-	static void GenerateUVs(FMeshDescription& InMesh, int32 UVChannel, bool bRemoveDegenerate, float AngleThreshold = 66.f, float AreaWeight = 0.7f);
+	static void GenerateUVs(FMeshDescription& InMesh, int32 UVChannel, bool bRemoveDegenerate, float AngleThreshold = 66.f);
 
 private:
 

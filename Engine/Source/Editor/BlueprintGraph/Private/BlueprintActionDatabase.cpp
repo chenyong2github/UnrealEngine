@@ -37,6 +37,7 @@
 #include "K2Node_VariableGet.h"
 #include "K2Node_VariableSet.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "BlueprintAssetHandler.h"
 #include "EdGraphNode_Comment.h"
 #include "Animation/AnimInstance.h"
 #include "Editor.h"
@@ -683,9 +684,9 @@ static void BlueprintActionDatabaseImpl::AddClassPropertyActions(UClass const* c
 			continue;
 		}
 
- 		bool const bIsDelegate = Property->IsA(UMulticastDelegateProperty::StaticClass());
- 		if (bIsDelegate)
- 		{
+		bool const bIsDelegate = Property->IsA(UMulticastDelegateProperty::StaticClass());
+		if (bIsDelegate)
+		{
 			UMulticastDelegateProperty* DelegateProperty = CastChecked<UMulticastDelegateProperty>(Property);
 			if (DelegateProperty->HasAnyPropertyFlags(CPF_BlueprintAssignable))
 			{
@@ -715,7 +716,7 @@ static void BlueprintActionDatabaseImpl::AddClassPropertyActions(UClass const* c
 			{
 				ActionListOut.Add(MakeActorBoundEventSpawner(DelegateProperty));
 			}
- 		}
+		}
 		else
 		{
 			UBlueprintVariableNodeSpawner* GetterSpawner = UBlueprintVariableNodeSpawner::CreateFromMemberOrParam(UK2Node_VariableGet::StaticClass(), Property);
@@ -783,9 +784,11 @@ static void BlueprintActionDatabaseImpl::AddClassCastActions(UClass* Class, FAct
 //------------------------------------------------------------------------------
 static void BlueprintActionDatabaseImpl::AddSkeletonActions(const USkeleton& Skeleton, FActionList& ActionListOut)
 {
-	for (int32 I = 0; I < Skeleton.AnimationNotifies.Num(); ++I)
+	TArray<FName> NotifyNames;
+	Skeleton.CollectAnimationNotifies(NotifyNames);
+
+	for (const FName& NotifyName : NotifyNames)
 	{
-		FName NotifyName = Skeleton.AnimationNotifies[I];
 		FString Label = NotifyName.ToString();
 
 		FString SignatureName = FString::Printf(TEXT("AnimNotify_%s"), *Label);
@@ -974,7 +977,17 @@ static void BlueprintActionDatabaseImpl::OnAssetsPendingDelete(TArray<UObject*> 
 			// in case they choose not to delete the object, we need to add 
 			// these back in to the database, so we track them here
 			PendingDelete.Add(DeletingObject);
-		}		
+		}
+
+		// If this asset contains a blueprint, ensure that it's actions are also marked for pending delete
+		else if (const IBlueprintAssetHandler* Handler = FBlueprintAssetHandler::Get().FindHandler(DeletingObject->GetClass()))
+		{
+			UBlueprint* Blueprint = Handler->RetrieveBlueprint(DeletingObject);
+			if (Blueprint && ActionDatabase.ClearAssetActions(Blueprint))
+			{
+				PendingDelete.Add(Blueprint);
+			}
+		}
 	}
 }
 
@@ -1247,12 +1260,7 @@ void FBlueprintActionDatabase::Tick(float DeltaTime)
 	// Handle deferred removals.
 	while (ActionRemoveQueue.Num() > 0)
 	{
-		TArray<UBlueprintNodeSpawner*> NodeSpawners = ActionRegistry.FindAndRemoveChecked(ActionRemoveQueue.Pop());
-		for (UBlueprintNodeSpawner* Action : NodeSpawners)
-		{
-			check(Action);
-			Action->ClearCachedTemplateNode();
-		}
+		ClearAssetActions(ActionRemoveQueue.Pop());
 	}
 }
 
@@ -1277,7 +1285,21 @@ void FBlueprintActionDatabase::RefreshAll()
 	// Remove callbacks from blueprints
 	for (TObjectIterator<UBlueprint> BlueprintIt; BlueprintIt; ++BlueprintIt)
 	{
-		ClearAssetActions(*BlueprintIt);
+		UBlueprint* Blueprint = *BlueprintIt;
+
+		// Level script BPs are registered using the associated world context. This will clear any registered LSBP actions.
+		const bool bIsLevelScript = FBlueprintEditorUtils::IsLevelScriptBlueprint(Blueprint);
+		if (bIsLevelScript)
+		{
+			const ULevelScriptBlueprint* LSBP = CastChecked<ULevelScriptBlueprint>(Blueprint);
+			if (UWorld* World = LSBP->GetWorld())
+			{
+				ClearAssetActions(World);
+			}
+		}
+		
+		// Do this for all BP assets to both clear registered actions and remove callbacks. In the case of LSBPs, this will just remove callbacks.
+		ClearAssetActions(Blueprint);
 	}
 
 	ActionRegistry.Empty();
@@ -1564,31 +1586,45 @@ void FBlueprintActionDatabase::RefreshComponentActions()
 //------------------------------------------------------------------------------
 bool FBlueprintActionDatabase::ClearAssetActions(UObject* const AssetObject)
 {
-	FActionList* ActionList = ActionRegistry.Find(AssetObject);
+	FObjectKey ObjectKey(AssetObject);
+	return ClearAssetActions(ObjectKey);
+}
+
+//------------------------------------------------------------------------------
+bool FBlueprintActionDatabase::ClearAssetActions(const FObjectKey& AssetObjectKey)
+{
+	FActionList* ActionList = ActionRegistry.Find(AssetObjectKey);
 
 	bool const bHasEntry = (ActionList != nullptr);
 	if (bHasEntry)
 	{
 		for (UBlueprintNodeSpawner* Action : *ActionList)
 		{
-			// because some asserts expect everything to be cleaned up in a 
-			// single GC pass, we can't wait for the GC'd Action to release its
-			// template node from the cache
-			Action->ClearCachedTemplateNode();
+			if (Action != nullptr)
+			{
+				// because some asserts expect everything to be cleaned up in a 
+				// single GC pass, we can't wait for the GC'd Action to release its
+				// template node from the cache
+				Action->ClearCachedTemplateNode();
+			}
 		}
-		ActionRegistry.Remove(AssetObject);
+		ActionRegistry.Remove(AssetObjectKey);
 	}
 
-	if (UBlueprint* BlueprintAsset = Cast<UBlueprint>(AssetObject))
+	if (UObject* AssetObject = AssetObjectKey.ResolveObjectPtr())
 	{
-		BlueprintAsset->OnChanged().RemoveAll(this);
-		BlueprintAsset->OnCompiled().RemoveAll(this);
-	}
+		if (UBlueprint* BlueprintAsset = Cast<UBlueprint>(AssetObject))
+		{
+			BlueprintAsset->OnChanged().RemoveAll(this);
+			BlueprintAsset->OnCompiled().RemoveAll(this);
+		}
 
-	if (bHasEntry && (ActionList->Num() > 0) && !BlueprintActionDatabaseImpl::bIsInitializing)
-	{
-		EntryRemovedDelegate.Broadcast(AssetObject);
+		if (bHasEntry && (ActionList->Num() > 0) && !BlueprintActionDatabaseImpl::bIsInitializing)
+		{
+			EntryRemovedDelegate.Broadcast(AssetObject);
+		}
 	}
+	
 	return bHasEntry;
 }
 

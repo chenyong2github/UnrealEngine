@@ -147,6 +147,9 @@ FPixelFormatInfo	GPixelFormats[PF_MAX] =
 	{ TEXT("NV12"),				1,			1,			1,			1,			1,				0,				0,				PF_NV12             },
 
 	{ TEXT("PF_R32G32_UINT"),   1,   		1,			1,			8,			2,				0,				1,				PF_R32G32_UINT      },
+
+	{ TEXT("PF_ETC2_R11_EAC"),  4,   		4,			1,			8,			1,				0,				0,				PF_ETC2_R11_EAC     },
+	{ TEXT("PF_ETC2_RG11_EAC"), 4,   		4,			1,			16,			2,				0,				0,				PF_ETC2_RG11_EAC    },
 };
 
 static struct FValidatePixelFormats
@@ -910,6 +913,23 @@ RENDERCORE_API bool MobileSupportsGPUScene(EShaderPlatform Platform)
 	// make it shader platform setting?
 	static TConsoleVariableData<int32>* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.SupportGPUScene"));
 	return (CVar && CVar->GetValueOnAnyThread() != 0) ? true : false;
+}
+
+RENDERCORE_API bool GPUSceneUseTexture2D(EShaderPlatform Platform)
+{
+	if (IsMobilePlatform(Platform))
+	{
+		static TConsoleVariableData<int32>* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.UseGPUSceneTexture"));
+		if (Platform == SP_OPENGL_ES3_1_ANDROID)
+		{
+			return true;
+		}
+		else
+		{
+			return (CVar && CVar->GetValueOnAnyThread() != 0) ? true : false;
+		}
+	}
+	return false;
 }
 
 RENDERCORE_API bool AllowPixelDepthOffset(EShaderPlatform Platform)

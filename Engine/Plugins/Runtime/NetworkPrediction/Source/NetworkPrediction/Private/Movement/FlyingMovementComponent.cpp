@@ -80,8 +80,8 @@ INetworkSimulationModel* UFlyingMovementComponent::InstantiateNetworkSimulation(
 
 	auto NewSim = new FlyingMovement::FMovementSystem<0>(this, InitialSyncState, InitialAuxState);
 	DO_NETSIM_MODEL_DEBUG(FNetworkSimulationModelDebuggerManager::Get().RegisterNetworkSimulationModel(NewSim, GetOwner()));
-	MovementSyncState = &NewSim->SyncAccessor;
-	MovementAuxState = &NewSim->AuxAccessor;
+	MovementSyncState.Init(NewSim);
+	MovementAuxState.Init(NewSim);
 	return NewSim;
 }
 

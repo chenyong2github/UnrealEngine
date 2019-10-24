@@ -124,7 +124,7 @@ public:
 	/** Creates a new IDatasmithMetaDataElement for the IDatasmithActorElement, adds it to the scene and returns it */
 	TSharedPtr<IDatasmithMetaDataElement> CreateMetadataForActor(const IDatasmithActorElement& Actor);
 
-	TArray<FMeshDescription> GetGeometriesForMeshElement(const TSharedRef<IDatasmithMeshElement> MeshElement);
+	void GetGeometriesForMeshElementAndRelease(const TSharedRef<IDatasmithMeshElement> MeshElement, TArray<FMeshDescription>& OutMeshDescriptions);
 	TSharedPtr<IDatasmithLevelSequenceElement> GetLevelSequence() { return LevelSequence; }
 
 	melange::BaseDocument* C4dDocument = nullptr;

@@ -8,6 +8,87 @@
 
 namespace ConvexHull2D
 {
+	/**
+	 * Andrew's monotone chain convex hull algorithm for 2-dimensional points. O(N log N).
+	 *
+	 * Not the fastest algorithm out there, but definitely the simplest one to understand.
+	 *
+	 * 1 - Sort O(N log N)
+	 * 2 - Scan sorted vertex from left to right to compute lower hull  O(N)
+	 * 3 - Scan sorted vertex from right to left to compute upper hull. O(N)
+	 *
+	 * If this is slow for some reason, O(N log H) also exists where H is the number of outputted
+	 * hull vertices which is normally a lot lower than N and helps reduce the overall complexity.
+	 */
+	template<typename VectorType, typename Allocator>
+	void ComputeConvexHull(const TArray<VectorType, Allocator>& Points, TArray<int32, Allocator>& OutIndices)
+	{
+		// Handle case too simple for the algorithm to handle
+		int32 PointsNum = Points.Num();
+		if (PointsNum <= 3)
+		{
+			for (int32 Index = 0; Index < PointsNum; ++Index)
+			{
+				OutIndices.Add(Index);
+			}
+
+			return;
+		}
+
+		// Simple sorted index lookup table into immutable Points array.
+		TArray<uint32, Allocator> SortedIndices;
+		SortedIndices.SetNumUninitialized(PointsNum);
+		for (int32 Index = 0; Index < PointsNum; ++Index)
+		{
+			SortedIndices[Index] = Index;
+		}
+	
+		// Get rid of costly RangeCheck during sort by using pointer directly
+		Algo::Sort(
+			SortedIndices,
+			[P = Points.GetData()](uint32 a, uint32 b)
+			{
+				// Sort in Y if X are equal
+				return P[a].X == P[b].X ? P[a].Y < P[b].Y : P[a].X < P[b].X;
+			}
+		);
+
+		auto IsClockwise =
+			[](const VectorType& O, const VectorType& A, const VectorType& B)
+			{
+				return ((A.X - O.X) * (B.Y - O.Y) - (A.Y - O.Y) * (B.X - O.X)) <= 0;
+			};
+
+		int32 HullIndex = 0;
+		OutIndices.SetNum(PointsNum*2);
+
+		// Build lower hull
+		for (int32 Index = 0; Index < PointsNum; ++Index) 
+		{
+			const VectorType& B = Points[SortedIndices[Index]];
+			while (HullIndex >= 2 && IsClockwise(Points[OutIndices[HullIndex - 2]], Points[OutIndices[HullIndex - 1]], B))
+			{
+				--HullIndex;
+			}
+
+			OutIndices[HullIndex++] = SortedIndices[Index];
+		}
+
+		// Build upper hull
+		for (int32 Index = PointsNum - 1, StartIndex = HullIndex + 1; Index > 0; --Index) 
+		{
+			const VectorType& B = Points[SortedIndices[Index - 1]];
+			while (HullIndex >= StartIndex && IsClockwise(Points[OutIndices[HullIndex - 2]], Points[OutIndices[HullIndex - 1]], B))
+			{
+				--HullIndex;
+			}
+
+			OutIndices[HullIndex++] = SortedIndices[Index - 1];
+		}
+
+		OutIndices.SetNum(HullIndex - 1, false);
+	}
+
 	/** Returns <0 if C is left of A-B */
 	inline float ComputeDeterminant(const FVector& A, const FVector& B, const FVector& C)
 	{
@@ -48,9 +129,11 @@ namespace ConvexHull2D
 	/** 
 	 * Calculates convex hull on xy-plane of points on 'Points' and stores the indices of the resulting hull in 'OutIndices'.
 	 * This code was fixed to work with duplicated vertices and precision issues.
+	 * 
+	 * Should be replaced by ComputeConvexHull and tested properly. Keep for backward compatibility until then.
 	 */
 	template<typename Allocator>
-	void ComputeConvexHull(const TArray<FVector, Allocator>& Points, TArray<int32, Allocator>& OutIndices)
+	void ComputeConvexHullLegacy(const TArray<FVector, Allocator>& Points, TArray<int32, Allocator>& OutIndices)
 	{
 		if (Points.Num() == 0)
 		{
@@ -175,9 +258,11 @@ namespace ConvexHull2D
 
 	/** 
 	 * Alternate simple implementation that was found to work correctly for points that are very close together (inside the 0-1 range).
+	 * 
+	 * Should be replaced by ComputeConvexHull and tested properly. Keep for backward compatibility until then.
 	 */
 	template<typename Allocator>
-	void ComputeConvexHull2(const TArray<FVector2D, Allocator>& Points, TArray<int32, Allocator>& OutIndices)
+	void ComputeConvexHullLegacy2(const TArray<FVector2D, Allocator>& Points, TArray<int32, Allocator>& OutIndices)
 	{
 		if (Points.Num() == 0)
 		{
@@ -222,7 +307,7 @@ namespace ConvexHull2D
 	}
 
 /*
-	static Test()
+	static void Test()
 	{
 		{
 			TArray<FVector, TInlineAllocator<8> > In;

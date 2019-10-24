@@ -609,7 +609,7 @@ FVulkanTimingQuery::FVulkanTimingQuery(FVulkanDevice* InDevice)
 	: FVulkanRenderQuery(RQT_AbsoluteTime)
 	, Pool(InDevice, 4)
 {
-	Pool.ResultsBuffer = InDevice->GetStagingManager().AcquireBuffer(Pool.BufferSize * sizeof(uint64), VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+	Pool.ResultsBuffer = InDevice->GetStagingManager().AcquireBuffer(Pool.BufferSize * sizeof(uint64), VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 }
 
 

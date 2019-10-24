@@ -26,6 +26,7 @@ void SNiagaraStackTableRow::Construct(const FArguments& InArgs, UNiagaraStackVie
 	ValueColumnWidth = InArgs._ValueColumnWidth;
 	NameColumnWidthChanged = InArgs._OnNameColumnWidthChanged;
 	ValueColumnWidthChanged = InArgs._OnValueColumnWidthChanged;
+	RowPadding = InArgs._RowPadding;
 	StackViewModel = InStackViewModel;
 	StackEntry = InStackEntry;
 	OwnerTree = InOwnerTree;
@@ -210,26 +211,25 @@ void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWid
 		SNew(SOverlay)
 		+ SOverlay::Slot()
 		[
-			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("NoBrush"))
+			SNew(SHorizontalBox)
 			.Visibility(this, &SNiagaraStackTableRow::GetRowVisibility)
-			.Padding(FMargin(0, 0, 0, 0))
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(1, 0, 6, 0)
 			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(1, 0, 6, 0)
+				SNew(SBorder)
+				.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+				.BorderBackgroundColor(AccentColor)
+				.Padding(0)
 				[
-					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
-					.BorderBackgroundColor(AccentColor)
-					.Padding(0)
-					[
-						SNew(SBox)
-						.WidthOverride(4)
-					]
+					SNew(SBox)
+					.WidthOverride(4)
 				]
-				+ SHorizontalBox::Slot()
+			]
+			+ SHorizontalBox::Slot()
+			[
+				SNew(SBox)
+				.Padding(RowPadding)
 				[
 					SNew(SBorder)
 					.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))

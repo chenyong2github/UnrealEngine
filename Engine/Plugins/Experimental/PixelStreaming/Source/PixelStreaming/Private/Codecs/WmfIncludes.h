@@ -80,6 +80,7 @@ inline const FString GetComErrorDescription(HRESULT Res)
 		}\
 	}
 
+// #AMF(Andriy) : Rename these to DX , instead of DX9 ?
 #define CHECK_HR_DX9(DX9_call)\
 	{\
 		HRESULT Res = DX9_call;\
@@ -89,3 +90,14 @@ inline const FString GetComErrorDescription(HRESULT Res)
 			return false;\
 		}\
 	}
+
+#define CHECK_HR_DX9_VOID(DX9_call)\
+	{\
+		HRESULT Res = DX9_call;\
+		if (FAILED(Res))\
+		{\
+			UE_LOG(PixelPlayer, Error, TEXT("`" #DX9_call "` failed 0x%X: %s - %s"), Res, DXGetErrorString(Res), DXGetErrorDescription(Res));\
+			return;\
+		}\
+	}
+

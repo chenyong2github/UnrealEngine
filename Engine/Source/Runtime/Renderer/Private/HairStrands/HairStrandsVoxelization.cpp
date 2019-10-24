@@ -303,24 +303,40 @@ static void RenderVoxelization(
 	}
 
 	const FIntRect ViewportRect(0, 0, ResolutionDim, ResolutionDim);
+	const FVector LightDirection = FVector(1, 0, 0);
+	const FVector LightPosition = FVector(0, 0, 0);
+	const FSphere SphereBound = Bounds.GetSphere();
+	const float SphereRadius = SphereBound.W * GHairVoxelizationAABBScale;
+	const float RadiusAtDepth1 = GStrandHairVoxelizationRasterizationScale * SphereRadius / FMath::Min(Resolution.X, Resolution.Y);
+	const float bIsOrtho = 1.0f;
 
-	FHairStrandsLightDesc LightDesc;
-	LightDesc.bIsOrtho = true;
-	LightDesc.LightDirection = FVector(1, 0, 0);
-	LightDesc.LightPosition = FVector(0, 0, 0);
+	TUniformBufferRef<FDeepShadowPassUniformParameters> DeepShadowPassUniformParameters;
 	{
-		const FSphere SphereBound = Bounds.GetSphere();
-		const float SphereRadius = SphereBound.W * GHairVoxelizationAABBScale;
-
 		FReversedZOrthoMatrix OrthoMatrix(SphereRadius, SphereRadius, 1.f / (2 * SphereRadius), 0);
-		FLookAtMatrix LookAt(SphereBound.Center - LightDesc.LightDirection * SphereRadius, SphereBound.Center, FVector(0, 0, 1));
-		LightDesc.WorldToLightClipTransform = LookAt * OrthoMatrix;
-		LightDesc.MinStrandRadiusAtDepth1.Primary = GStrandHairVoxelizationRasterizationScale * SphereRadius / FMath::Min(Resolution.X, Resolution.Y);
-		LightDesc.MinStrandRadiusAtDepth1.Velocity = LightDesc.MinStrandRadiusAtDepth1.Primary;
+		FLookAtMatrix LookAt(SphereBound.Center - LightDirection * SphereRadius, SphereBound.Center, FVector(0, 0, 1));
 
-		VoxelResources.WorldToClip = LightDesc.WorldToLightClipTransform;
+		VoxelResources.WorldToClip = LookAt * OrthoMatrix;
 		VoxelResources.MinAABB = Bounds.GetSphere().Center - SphereRadius;
 		VoxelResources.MaxAABB = Bounds.GetSphere().Center + SphereRadius;
+
+		FDeepShadowPassUniformParameters PassParameters;
+		PassParameters.WorldToClipMatrix = VoxelResources.WorldToClip;;
+		PassParameters.SliceValue = FVector4(1, 1, 1, 1);
+		PassParameters.FrontDepthTexture = nullptr;
+		PassParameters.AtlasRect = ViewportRect;
+		PassParameters.VoxelMinAABB = VoxelResources.MinAABB;
+		PassParameters.VoxelMaxAABB = VoxelResources.MaxAABB;
+		PassParameters.VoxelResolution = ViewportRect.Width();
+		DeepShadowPassUniformParameters = CreateUniformBufferImmediate(PassParameters, UniformBuffer_SingleDraw, EUniformBufferValidation::None);
+	}
+
+	TUniformBufferRef<FViewUniformShaderParameters> ViewUniformShaderParameters;
+	{
+		ViewInfo->CachedViewUniformShaderParameters->HairRenderInfo.X = RadiusAtDepth1;
+		ViewInfo->CachedViewUniformShaderParameters->HairRenderInfo.Y = RadiusAtDepth1;
+		ViewInfo->CachedViewUniformShaderParameters->HairRenderInfo.Z = bIsOrtho;
+		ViewInfo->CachedViewUniformShaderParameters->ViewForward = LightDirection;
+		ViewUniformShaderParameters = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*ViewInfo->CachedViewUniformShaderParameters, UniformBuffer_SingleDraw);
 	}
 
 	RHICmdList.BeginRenderPass(RPInfo, TEXT("HairVoxelization"));
@@ -329,12 +345,10 @@ static void RenderVoxelization(
 		Scene,
 		ViewInfo,
 		PrimitiveSceneInfo,
-		LightDesc,
 		bVoxelizeMaterial ? EHairStrandsRasterPassType::VoxelizationMaterial : EHairStrandsRasterPassType::Voxelization,
-		nullptr,
 		ViewportRect,
-		VoxelResources.MinAABB,
-		VoxelResources.MaxAABB);
+		ViewUniformShaderParameters,
+		DeepShadowPassUniformParameters);
 	RHICmdList.EndRenderPass();
 
 	if (GHairVoxelInjectOpaqueDepthEnable)
