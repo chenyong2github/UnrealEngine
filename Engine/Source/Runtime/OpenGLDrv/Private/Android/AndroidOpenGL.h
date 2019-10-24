@@ -78,6 +78,9 @@ extern PFNBLITFRAMEBUFFERNVPROC					glBlitFramebufferNV ;
 #define GL_SAMPLES_PASSED_EXT					0x8914
 #define GL_ANY_SAMPLES_PASSED_EXT				0x8C2F
 
+#ifndef GL_MAX_TEXTURE_BUFFER_SIZE
+#define GL_MAX_TEXTURE_BUFFER_SIZE				0x8C2B
+#endif
 
 typedef void (GL_APIENTRYP PFNGLGENQUERIESEXTPROC) (GLsizei n, GLuint *ids);
 typedef void (GL_APIENTRYP PFNGLDELETEQUERIESEXTPROC) (GLsizei n, const GLuint *ids);

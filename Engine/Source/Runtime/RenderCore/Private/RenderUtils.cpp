@@ -915,6 +915,23 @@ RENDERCORE_API bool MobileSupportsGPUScene(EShaderPlatform Platform)
 	return (CVar && CVar->GetValueOnAnyThread() != 0) ? true : false;
 }
 
+RENDERCORE_API bool GPUSceneUseTexture2D(EShaderPlatform Platform)
+{
+	if (IsMobilePlatform(Platform))
+	{
+		static TConsoleVariableData<int32>* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.UseGPUSceneTexture"));
+		if (Platform == SP_OPENGL_ES3_1_ANDROID)
+		{
+			return true;
+		}
+		else
+		{
+			return (CVar && CVar->GetValueOnAnyThread() != 0) ? true : false;
+		}
+	}
+	return false;
+}
+
 RENDERCORE_API bool AllowPixelDepthOffset(EShaderPlatform Platform)
 {
 	if (IsMobilePlatform(Platform))
