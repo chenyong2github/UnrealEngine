@@ -314,6 +314,7 @@ class FDeferredLightPS : public FGlobalShader
 		HairLUTTexture.Bind(Initializer.ParameterMap, TEXT("HairLUTTexture"));
 		HairLUTSampler.Bind(Initializer.ParameterMap, TEXT("HairLUTSampler"));
 		HairComponents.Bind(Initializer.ParameterMap, TEXT("HairComponents"));
+		HairShadowMaskValid.Bind(Initializer.ParameterMap, TEXT("HairShadowMaskValid"));
 
 		HairCategorizationTexture.Bind(Initializer.ParameterMap, TEXT("HairCategorizationTexture"));
 		HairVisibilityNodeOffsetAndCount.Bind(Initializer.ParameterMap, TEXT("HairVisibilityNodeOffsetAndCount"));
@@ -371,6 +372,7 @@ public:
 		Ar << HairLUTTexture;
 		Ar << HairLUTSampler;
 		Ar << HairComponents;
+		Ar << HairShadowMaskValid;
 
 		return bShaderHasOutdatedParameters;
 	}
@@ -484,7 +486,7 @@ private:
 
 		if (ScreenShadowMaskSubPixelTexture.IsBound())
 		{
-			if (RenderLightParams && RenderLightParams->ScreenShadowMaskSubPixelTexture)
+			if (RenderLightParams)
 			{
 				SetTextureParameter(
 					RHICmdList,
@@ -493,6 +495,13 @@ private:
 					LightAttenuationTextureSampler,
 					TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(),
 					(RenderLightParams && RenderLightParams->ScreenShadowMaskSubPixelTexture) ? RenderLightParams->ScreenShadowMaskSubPixelTexture->GetRenderTargetItem().ShaderResourceTexture : GWhiteTexture->TextureRHI);
+
+				uint32 InHairShadowMaskValid = RenderLightParams->ScreenShadowMaskSubPixelTexture ? 1 : 0;
+				SetShaderValue(
+					RHICmdList,
+					ShaderRHI,
+					HairShadowMaskValid,
+					InHairShadowMaskValid);
 			}
 		}
 
@@ -584,6 +593,7 @@ private:
 	FShaderResourceParameter HairLUTTexture;
 	FShaderResourceParameter HairLUTSampler;
 	FShaderParameter HairComponents;
+	FShaderParameter HairShadowMaskValid;
 	};
 
 IMPLEMENT_GLOBAL_SHADER(FDeferredLightPS, "/Engine/Private/DeferredLightPixelShaders.usf", "DeferredLightPixelMain", SF_Pixel);
@@ -1008,6 +1018,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 				SceneContext.FinishRenderingSceneColor(RHICmdList);
 			}
 
+			if (!bUseHairLighting)
 			{
 				SCOPED_DRAW_EVENT(RHICmdList, StandardDeferredLighting);
 
@@ -1025,6 +1036,30 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 				}
 
 				SceneContext.FinishRenderingSceneColor(RHICmdList);
+			}
+			else 
+			// Add a special version when hair rendering is enabled for getting lighting on hair. 
+			// This is a temporary solution as normally we should render a pre-shadow when a hair cluster is visible on screen
+			{
+				SCOPED_DRAW_EVENT(RHICmdList, StandardDeferredLighting);
+
+				// make sure we don't clear the depth
+
+				// Draw non-shadowed non-light function lights without changing render targets between them
+				for (int32 LightIndex = StandardDeferredStart; LightIndex < AttenuationLightStart; LightIndex++)
+				{
+					const FSortedLightSceneInfo& SortedLightInfo = SortedLights[LightIndex];
+					const FLightSceneInfo* const LightSceneInfo = SortedLightInfo.LightSceneInfo;
+
+					FHairStrandsTransmittanceMaskData TransmittanceMaskData;
+					TransmittanceMaskData = RenderHairStrandsTransmittanceMask(RHICmdList, Views, LightSceneInfo, HairDatas);
+
+					// Render the light to the scene color buffer, using a 1x1 white texture as input
+					SceneContext.BeginRenderingSceneColor(RHICmdList, ESimpleRenderTargetMode::EExistingColorAndDepth, FExclusiveDepthStencil::DepthRead_StencilWrite, true, true);
+					RenderLight(RHICmdList, LightSceneInfo, nullptr, nullptr, &TransmittanceMaskData, InHairVisibilityViews, false, false);
+					SceneContext.FinishRenderingSceneColor(RHICmdList);
+				}
+
 			}
 
 			if (GUseTranslucentLightingVolumes && GSupportsVolumeTextureRendering)
@@ -1912,7 +1947,7 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
-	const bool bHairRenderingEnabled = ScreenShadowMaskSubPixelTexture && InTransmittanceMaskData && InHairVisibilityViews && (LightSceneInfo->Proxy->CastsHairStrandsDeepShadow() || IsHairStrandsVoxelizationEnable());
+	const bool bHairRenderingEnabled = InTransmittanceMaskData && InHairVisibilityViews && (LightSceneInfo->Proxy->CastsHairStrandsDeepShadow() || IsHairStrandsVoxelizationEnable());
 	if (bHairRenderingEnabled)
 	{
 		GraphicsPSOInit.BlendState = TStaticBlendState<
