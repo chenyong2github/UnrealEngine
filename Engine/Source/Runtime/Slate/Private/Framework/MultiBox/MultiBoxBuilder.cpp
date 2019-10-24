@@ -17,6 +17,7 @@
 #include "Framework/MultiBox/SWidgetBlock.h"
 #include "Framework/MultiBox/SGroupMarkerBlock.h"
 #include "Framework/MultiBox/ToolMenuBase.h"
+#include "Widgets/Layout/SScrollBox.h"
 
 
 FMultiBoxBuilder::FMultiBoxBuilder( const EMultiBoxType InType, FMultiBoxCustomization InCustomization, const bool bInShouldCloseWindowAfterMenuSelection, const TSharedPtr< const FUICommandList >& InCommandList, TSharedPtr<FExtender> InExtender, FName InTutorialHighlightName, FName InMenuName )
@@ -87,7 +88,7 @@ FMultiBoxCustomization FMultiBoxBuilder::GetCustomization() const
 	return FMultiBoxCustomization( MultiBox->GetCustomizationName() ); 
 }
 
-TSharedRef< class SWidget > FMultiBoxBuilder::MakeWidget( FMultiBox::FOnMakeMultiBoxBuilderOverride* InMakeMultiBoxBuilderOverride /* = nullptr */ )
+TSharedRef< class SWidget > FMultiBoxBuilder::MakeWidget( FMultiBox::FOnMakeMultiBoxBuilderOverride* InMakeMultiBoxBuilderOverride, uint32 MaxHeight /* = nullptr */ )
 {
 	return MultiBox->MakeWidget( false, InMakeMultiBoxBuilderOverride );
 }
@@ -170,10 +171,25 @@ void FBaseMenuBuilder::AddMenuEntry( const FUIAction& UIAction, const TSharedRef
 	ApplyHook(InExtensionHook, EExtensionHook::After);
 }
 
-TSharedRef< class SWidget > FMenuBuilder::MakeWidget( FMultiBox::FOnMakeMultiBoxBuilderOverride* InMakeMultiBoxBuilderOverride /* = nullptr */ )
+TSharedRef< class SWidget > FMenuBuilder::MakeWidget( FMultiBox::FOnMakeMultiBoxBuilderOverride* InMakeMultiBoxBuilderOverride /* = nullptr */, uint32 MaxHeight)
 {
 	// Make menu builders searchable (by default)
-	return MultiBox->MakeWidget( bSearchable, InMakeMultiBoxBuilderOverride );
+	TSharedRef< class SWidget > MenuWidget = MultiBox->MakeWidget(bSearchable, InMakeMultiBoxBuilderOverride);
+	if (MaxHeight < INT_MAX)
+	{
+		TSharedRef<SWidget> ConstrainedMenu = SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.MaxHeight((float)MaxHeight)
+			[
+				SNew(SScrollBox)
+				+ SScrollBox::Slot()
+				[
+					MenuWidget
+				]
+			];
+		return ConstrainedMenu;
+	}
+	return MenuWidget;
 }
 
 void FMenuBuilder::BeginSection( FName InExtensionHook, const TAttribute< FText >& InHeadingText )
