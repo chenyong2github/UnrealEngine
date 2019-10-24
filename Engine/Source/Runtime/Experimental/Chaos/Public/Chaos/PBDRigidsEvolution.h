@@ -479,6 +479,9 @@ class TPBDRigidsEvolutionBase
 	/** Perform a blocking flush of the spatial acceleration structure for situations where we aren't simulating but must have an up to date structure */
 	CHAOS_API void FlushSpatialAcceleration();
 
+	/** Rebuilds the spatial acceleration from scratch. This should only be used for perf testing */
+	CHAOS_API void RebuildSpatialAccelerationForPerfTest();
+
 	const auto& GetRigidClustering() const { return Clustering; }
 	auto& GetRigidClustering() { return Clustering; }
 
