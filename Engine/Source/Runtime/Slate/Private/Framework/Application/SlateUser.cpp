@@ -605,6 +605,9 @@ bool FSlateUser::SynthesizeCursorMoveIfNeeded()
 
 		FSlateApplication& SlateApp = FSlateApplication::Get();
 		
+		// Need to ensure this EmptySet lifetime is as long as SyntheticCursorMoveEvent
+		TSet<FKey> EmptySet;
+
 		const bool bHasHardwareCursor = SlateApp.GetPlatformCursor() == Cursor;
 		const TSet<FKey> EmptySet;
 		FPointerEvent SyntheticCursorMoveEvent(
