@@ -696,6 +696,9 @@ static void InitRHICapabilitiesForGL()
 #define LOG_AND_GET_GL_INT_TEMP(IntEnum,Default) GLint Value_##IntEnum = Default; if (IntEnum) {glGetIntegerv(IntEnum, &Value_##IntEnum); glGetError();} else {Value_##IntEnum = Default;} UE_LOG(LogRHI, Log, TEXT("  " #IntEnum ": %d"), Value_##IntEnum)
 #endif
 	LOG_AND_GET_GL_INT_TEMP(GL_MAX_TEXTURE_SIZE, 0);
+#if defined(GL_MAX_TEXTURE_BUFFER_SIZE)
+	LOG_AND_GET_GL_INT_TEMP(GL_MAX_TEXTURE_BUFFER_SIZE, 0);
+#endif
 	LOG_AND_GET_GL_INT_TEMP(GL_MAX_CUBE_MAP_TEXTURE_SIZE, 0);
 #if defined(GL_MAX_ARRAY_TEXTURE_LAYERS) && GL_MAX_ARRAY_TEXTURE_LAYERS
 	LOG_AND_GET_GL_INT_TEMP(GL_MAX_ARRAY_TEXTURE_LAYERS, 0);
@@ -737,6 +740,9 @@ static void InitRHICapabilitiesForGL()
 	GMaxOpenGLColorSamples = Value_GL_MAX_COLOR_TEXTURE_SAMPLES;
 	GMaxOpenGLDepthSamples = Value_GL_MAX_DEPTH_TEXTURE_SAMPLES;
 	GMaxOpenGLIntegerSamples = Value_GL_MAX_INTEGER_SAMPLES;
+#if defined(GL_MAX_TEXTURE_BUFFER_SIZE)
+	GMaxTextureBufferSize = Value_GL_MAX_TEXTURE_BUFFER_SIZE;
+#endif
 
 	// Verify some assumptions.
 	// Android seems like reports one color attachment even when it supports MRT
