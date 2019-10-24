@@ -22,62 +22,62 @@ class FSocket;
 
 namespace DatasmithDispatcher
 {
-	class FDatasmithBackPingCommand;
-	class FDatasmithDispatcher;
-	class FDatasmithNotifyEndTaskCommand;
-	class FDatasmithPingCommand;
+class FDatasmithBackPingCommand;
+class FDatasmithDispatcher;
+class FDatasmithNotifyEndTaskCommand;
+class FDatasmithPingCommand;
 
-	//Handle a Worker by socket communication
-	class FDatasmithWorkerHandler
+//Handle a Worker by socket communication
+class FDatasmithWorkerHandler
+{
+
+public:
+	FDatasmithWorkerHandler(FDatasmithDispatcher& InDispatcher, const FString& InCachePath);
+
+	bool Run();
+	void NotifyKill();
+
+private:
+	const FString& GetCachePath() const
 	{
+		return CachePath;
+	}
 
-	public:
-		FDatasmithWorkerHandler(FDatasmithDispatcher& InDispatcher, const FString& InCachePath);
+	FString GetExePath();
 
-		bool Run();
-		void NotifyKill();
+	bool InitializeSocket();
+	bool StartWorker();
+	void Kill();
 
-	private:
-		const FString& GetCachePath() const
-		{
-			return CachePath;
-		}
+	void RestartProcessor();
 
-		FString GetExePath();
+	bool NeedToRun();
 
-		bool InitializeSocket();
-		bool StartWorker();
-		void Kill();
-
-		void RestartProcessor();
-
-		bool NeedToRun();
-
-		void PingProcess(FDatasmithPingCommand* PingCommand);
-		void BackPingProcess(FDatasmithBackPingCommand* PingCommand);
-		void EndTaskProcess(FDatasmithNotifyEndTaskCommand* RunTaskCommand);
+	void PingProcess(FDatasmithPingCommand* PingCommand);
+	void BackPingProcess(FDatasmithBackPingCommand* PingCommand);
+	void EndTaskProcess(FDatasmithNotifyEndTaskCommand* RunTaskCommand);
 
 
-	private:
-		FDatasmithDispatcher& Dispatcher;
-		uint32 WorkerProcessId;
+private:
+	FDatasmithDispatcher& Dispatcher;
+	uint32 WorkerProcessId;
 
-		FDatasmithDispatcherSocket ServerSocket;  
-		/**
-		 *  Template socket used to accept connections
-		 */
-		FDatasmithDispatcherSocket ClientListener; 
+	FDatasmithDispatcherSocket ServerSocket;  
+	/**
+		*  Template socket used to accept connections
+		*/
+	FDatasmithDispatcherSocket ClientListener; 
 
-		FString CachePath;
+	FString CachePath;
 
-		TOptional<FTask> CurrentTask;
+	TOptional<FTask> CurrentTask;
 
-		FProcHandle WorkerHandle;
+	FProcHandle WorkerHandle;
 
-		bool bShouldTerminate;
-		//FTimespan Stopwatch;
-		//FTimespan StartPingTime;
-		//FTimespan StartTime;
+	bool bShouldTerminate;
+	//FTimespan Stopwatch;
+	//FTimespan StartPingTime;
+	//FTimespan StartTime;
 
-	};
+};
 } // namespace DatasmithDispatcher
