@@ -627,6 +627,9 @@ void FGPUSkinCache::CommitRayTracingGeometryUpdates(FRHICommandList& RHICmdList)
 
 	if (RayTracingGeometriesToUpdate.Num())
 	{
+		// Flush any remaining pending resource barriers before performing BVH updates
+		TransitionAllToReadable(RHICmdList);
+
 		TArray<FAccelerationStructureBuildParams> Updates;
 		for (const FRayTracingGeometry* RayTracingGeometry : RayTracingGeometriesToUpdate)
 		{
@@ -1286,10 +1289,6 @@ void FGPUSkinCache::DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList,
 	uint32 PreviousRevision = ShaderData.GetRevisionNumber(true);
 
 	DispatchData.TangentBuffer = DispatchData.PositionTracker.GetTangentBuffer();
-	if (DispatchData.TangentBuffer)
-	{
-		BuffersToTransition.Add(DispatchData.TangentBuffer->UAV);
-	}
 
 	DispatchData.PreviousPositionBuffer = DispatchData.PositionTracker.Find(PrevBoneBuffer, PreviousRevision);
 	if (!DispatchData.PreviousPositionBuffer)
@@ -1302,13 +1301,19 @@ void FGPUSkinCache::DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList,
 		Shader->SetParameters(RHICmdList, PrevBoneBuffer, Entry, DispatchData, DispatchData.GetPreviousPositionRWBuffer()->UAV, DispatchData.GetTangentRWBuffer() ? DispatchData.GetTangentRWBuffer()->UAV : nullptr);
 
 		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, DispatchData.GetPreviousPositionRWBuffer()->UAV.GetReference());
+		BuffersToTransition.Add(DispatchData.GetPreviousPositionRWBuffer()->UAV);
+
+		if (DispatchData.TangentBuffer)
+		{
+			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, DispatchData.TangentBuffer->UAV.GetReference());
+			BuffersToTransition.Add(DispatchData.TangentBuffer->UAV);
+		}
 
 		uint32 VertexCountAlign64 = FMath::DivideAndRoundUp(DispatchData.NumVertices, (uint32)64);
 		INC_DWORD_STAT_BY(STAT_GPUSkinCache_TotalNumVertices, VertexCountAlign64 * 64);
 		RHICmdList.DispatchComputeShader(VertexCountAlign64, 1, 1);
 		Shader->UnsetParameters(RHICmdList);
 
-		BuffersToTransition.Add(DispatchData.GetPreviousPositionRWBuffer()->UAV);
 	}
 
 	DispatchData.PositionBuffer = DispatchData.PositionTracker.Find(BoneBuffer, CurrentRevision);
@@ -1322,13 +1327,19 @@ void FGPUSkinCache::DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList,
 		Shader->SetParameters(RHICmdList, BoneBuffer, Entry, DispatchData, DispatchData.GetPositionRWBuffer()->UAV, DispatchData.GetTangentRWBuffer() ? DispatchData.GetTangentRWBuffer()->UAV : nullptr);
 
 		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, DispatchData.GetPositionRWBuffer()->UAV.GetReference());
+		BuffersToTransition.Add(DispatchData.GetPositionRWBuffer()->UAV);
+
+		if (DispatchData.TangentBuffer)
+		{
+			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, DispatchData.TangentBuffer->UAV.GetReference());
+			BuffersToTransition.Add(DispatchData.TangentBuffer->UAV);
+		}
 
 		uint32 VertexCountAlign64 = FMath::DivideAndRoundUp(DispatchData.NumVertices, (uint32)64);
 		INC_DWORD_STAT_BY(STAT_GPUSkinCache_TotalNumVertices, VertexCountAlign64 * 64);
 		RHICmdList.DispatchComputeShader(VertexCountAlign64, 1, 1);
 		Shader->UnsetParameters(RHICmdList);
 
-		BuffersToTransition.Add(DispatchData.GetPositionRWBuffer()->UAV);
 	}
 
 	check(DispatchData.PreviousPositionBuffer != DispatchData.PositionBuffer);

@@ -250,7 +250,18 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(CmdListType& RHICmdLi
 
 		{
 			SCOPED_DRAW_OR_COMPUTE_EVENT(RHICmdList, VSinCSComputeDispatch)
-			for (auto& Cmd : *DispatchCommands)
+
+			TArray<FRHIUnorderedAccessView*> BuffersToTransition;
+			BuffersToTransition.Reserve(DispatchCommands->Num());
+
+			for (FMeshComputeDispatchCommand& Cmd : *DispatchCommands)
+			{
+				BuffersToTransition.Add(Cmd.TargetBuffer->UAV.GetReference());
+			}
+
+			RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, BuffersToTransition.GetData(), BuffersToTransition.Num());
+
+			for (FMeshComputeDispatchCommand& Cmd : *DispatchCommands)
 			{
 				{
 					FRayTracingDynamicGeometryConverterCS* Shader = Cmd.MaterialShader;
@@ -268,6 +279,8 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(CmdListType& RHICmdLi
 					Shader->RWVertexPositions.UnsetUAV(RHICmdList, Shader->GetComputeShader());
 				}
 			}
+
+			RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, BuffersToTransition.GetData(), BuffersToTransition.Num());
 		}
 
 		SCOPED_DRAW_OR_COMPUTE_EVENT(RHICmdList, Build);
