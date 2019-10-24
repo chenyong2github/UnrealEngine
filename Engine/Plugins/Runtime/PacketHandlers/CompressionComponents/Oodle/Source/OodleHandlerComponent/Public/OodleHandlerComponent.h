@@ -8,6 +8,8 @@
 #include "Stats/Stats.h"
 #include "PacketHandler.h"
 #include "UObject/CoreNet.h"
+#include "OodleAnalytics.h"
+#include "OodleArchives.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(OodleHandlerComponentLog, Log, All);
 
@@ -17,9 +19,6 @@ DECLARE_LOG_CATEGORY_EXTERN(OodleHandlerComponentLog, Log, All);
 
 // The maximum compress/decompress buffer size - overkill, as buffers are statically allocated, and can't use Oodle runtime buffer calc
 #define MAX_OODLE_BUFFER	(MAX_OODLE_PACKET_BYTES * 2)
-
-#include "OodleAnalytics.h"
-#include "OodleArchives.h"
 
 /**
  * Specifies when compression is enabled. Used to make compression optional, for some platforms/clients
