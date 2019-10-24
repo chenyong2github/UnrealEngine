@@ -611,33 +611,21 @@ void FDetailCategoryImpl::SetDisplayName(FName InCategoryName, const FText& Loca
 	{
 		DisplayName = LocalizedNameOverride;
 	}
+	else if (InCategoryName != NAME_None)
+	{
+		DisplayName = FText::AsCultureInvariant(FName::NameToDisplayString(InCategoryName.ToString(), false));
+	}
 	else
 	{
-		const UStruct* BaseStruct = GetParentLayoutImpl().GetRootNode()->GetBaseStructure();
 		// Use the base class name if there is one otherwise this is a generic category not specific to a class
-		FName BaseStructName = BaseStruct ? BaseStruct->GetFName() : FName("Generic");
-
-		FString CategoryStr = InCategoryName != NAME_None ? InCategoryName.ToString() : BaseStructName.ToString();
-		FString SourceCategoryStr = FName::NameToDisplayString(CategoryStr, false);
-
-		bool FoundText = false;
-		FText DisplayNameText;
-		if (InCategoryName != NAME_None)
+		const UStruct* BaseStruct = GetParentLayoutImpl().GetRootNode()->GetBaseStructure();
+		if (BaseStruct)
 		{
-			FoundText = FText::FindText(TEXT("DetailCategory.CategoryName"), InCategoryName.ToString(), /*OUT*/DisplayNameText);
+			DisplayName = BaseStruct->GetDisplayNameText();
 		}
 		else
 		{
-			FoundText = FText::FindText(TEXT("DetailCategory.ClassName"), BaseStructName.ToString(), /*OUT*/DisplayNameText);
-		}
-
-		if (FoundText)
-		{
-			DisplayName = DisplayNameText;
-		}
-		else
-		{
-			DisplayName = FText::FromString(SourceCategoryStr);
+			DisplayName = NSLOCTEXT("DetailCategory", "GenericCategory", "Generic");
 		}
 	}
 }
