@@ -428,10 +428,7 @@ UGroomComponent::UGroomComponent(const FObjectInitializer& ObjectInitializer)
 	MeshProjectionTickDelay = 0;
 	MeshProjectionLODIndex = -1;
 	MeshProjectionState = EMeshProjectionState::Invalid;
-	if (GEngine)
-	{
-		SetMaterial(0, GEngine->HairDefaultMaterial);
-	}
+	bIsGroomAssetCallbackRegistered = false;
 
 	SetCollisionProfileName(UCollisionProfile::PhysicsActor_ProfileName);
 }
@@ -879,6 +876,19 @@ void UGroomComponent::PostLoad()
 	}
 
 	UpdateHairGroupsDesc(GroomAsset, GroomGroupsDesc);
+
+#if WITH_EDITOR
+	if (!bIsGroomAssetCallbackRegistered)
+	{
+		GroomAsset->GetOnGroomAssetChanged().AddUObject(this, &UGroomComponent::Invalidate);
+		bIsGroomAssetCallbackRegistered = true;
+	}
+#endif
+}
+
+void UGroomComponent::Invalidate()
+{
+	MarkRenderStateDirty();
 }
 
 void UGroomComponent::OnRegister()
@@ -903,6 +913,15 @@ void UGroomComponent::OnUnregister()
 void UGroomComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 {
 	ReleaseResources();
+
+#if WITH_EDITOR
+	if (bIsGroomAssetCallbackRegistered)
+	{
+		GroomAsset->GetOnGroomAssetChanged().RemoveAll(this);
+		bIsGroomAssetCallbackRegistered = false;
+	}
+#endif
+
 	Super::OnComponentDestroyed(bDestroyingHierarchy);
 }
 
@@ -1204,6 +1223,7 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	const FName PropertyName = PropertyThatChanged ? PropertyThatChanged->GetFName() : NAME_None;
 
 	//  Init/release resources when setting the GroomAsset (or undoing)
+	const bool bAssetChanged = PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, GroomAsset);
 	const bool bRecreateResources =
 		(PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, GroomAsset) || PropertyThatChanged == nullptr) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, bBindGroomToSkeletalMesh);
@@ -1213,6 +1233,23 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	{
 		bBindGroomToSkeletalMesh = false;
 	}
+
+#if WITH_EDITOR
+	if (bAssetChanged)
+	{
+		if (bIsGroomAssetCallbackRegistered && GroomAsset)
+		{
+			GroomAsset->GetOnGroomAssetChanged().RemoveAll(this);
+		}
+		bIsGroomAssetCallbackRegistered = false;
+
+		if (GroomAsset)
+		{
+			GroomAsset->GetOnGroomAssetChanged().AddUObject(this, &UGroomComponent::Invalidate);
+			bIsGroomAssetCallbackRegistered = true;
+		}
+	}
+#endif
 
 	if (bRecreateResources)
 	{

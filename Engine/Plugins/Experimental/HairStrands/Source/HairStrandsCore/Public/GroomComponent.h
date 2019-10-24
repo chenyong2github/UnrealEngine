@@ -95,6 +95,7 @@ public:
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool CanEditChange(const UProperty* InProperty) const override;
+	void Invalidate();
 #endif
 
 	struct FHairGroupResource
@@ -141,6 +142,7 @@ private:
 	int32 MeshProjectionLODIndex;
 	uint32 MeshProjectionTickDelay;
 	EMeshProjectionState MeshProjectionState;
+	bool bIsGroomAssetCallbackRegistered;
 	
 	struct FSkeletalMeshConfiguration
 	{
