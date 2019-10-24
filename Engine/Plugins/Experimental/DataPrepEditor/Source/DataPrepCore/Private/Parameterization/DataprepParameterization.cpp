@@ -5,13 +5,13 @@
 #include "DataPrepAsset.h"
 #include "DataprepParameterizableObject.h"
 #include "DataprepParameterizationArchive.h"
+#include "Parameterization/DataprepParameterizationUtils.h"
 
 #include "CoreGlobals.h"
 #include "DataprepCoreLogCategory.h"
 #include "Editor.h"
 #include "Engine/Engine.h"
 #include "Math/UnrealMathUtility.h"
-#include "Parameterization/DataprepParameterizationUtils.h"
 #include "Serialization/Archive.h"
 #include "Templates/UnrealTemplate.h"
 #include "UObject/Object.h"
@@ -864,7 +864,7 @@ UObject* UDataprepParameterization::GetDefaultObject()
 
 bool UDataprepParameterization::BindObjectProperty(UDataprepParameterizableObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain, const FName& Name)
 {
-	if ( Object && PropertyChain.Num() > 0 && !Name.IsNone() )
+	if ( Object && FDataprepParameterizationUtils::IsPropertyChainValid( PropertyChain ) && !Name.IsNone() )
 	{
 		TSharedRef<FDataprepParameterizationBinding> Binding = MakeShared<FDataprepParameterizationBinding>( Object, PropertyChain );
 		void* AddressOfTheValueFromBinding;
