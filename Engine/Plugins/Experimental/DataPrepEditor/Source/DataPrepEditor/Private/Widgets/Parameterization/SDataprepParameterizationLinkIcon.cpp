@@ -9,6 +9,7 @@
 #include "EditorFontGlyphs.h"
 #include "EditorStyleSet.h"
 #include "Internationalization/Text.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "SDataprepParameterizationLinkIcon"
 
