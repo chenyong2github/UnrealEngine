@@ -19,6 +19,7 @@ UToolMenu::UToolMenu() :
 	, bToolBarForceSmallIcons(false)
 	, bRegistered(false)
 	, StyleSet(&FCoreStyle::Get())
+	, MaxHeight(INT_MAX)
 {
 }
 
@@ -49,7 +50,7 @@ void UToolMenu::InitGeneratedCopy(const UToolMenu* Source, const FName InMenuNam
 
 	SubMenuParent = Source->SubMenuParent;
 	SubMenuSourceEntryName = Source->SubMenuSourceEntryName;
-
+	MaxHeight = Source->MaxHeight;
 	if (InContext)
 	{
 		Context = *InContext;
