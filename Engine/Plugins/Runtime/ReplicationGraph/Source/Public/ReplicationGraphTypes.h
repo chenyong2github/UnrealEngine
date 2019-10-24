@@ -471,6 +471,9 @@ struct FGlobalActorReplicationInfo
 	/** Mirrors AActor::NetDormancy > DORM_Awake */
 	bool bWantsToBeDormant = false;
 
+	/** True if we should swap the actor role and remote role before calling ReplicateActor() */
+	bool bSwapRolesOnReplicate = false;
+
 	/** Class default mirrors: state that is initialized directly from class defaults (and can be later changed on a per-actor basis) */
 	FClassReplicationInfo Settings;
 	

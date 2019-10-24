@@ -540,6 +540,13 @@ void UReplicationGraph::AddNetworkActor(AActor* Actor)
 	RouteAddNetworkActorToNodes(FNewReplicatedActorInfo(Actor), GlobalInfo);
 }
 
+void UReplicationGraph::SetRoleSwapOnReplicate(AActor* Actor, bool bSwapRoles)
+{
+	if (FGlobalActorReplicationInfo* GlobalInfo = GlobalActorReplicationInfoMap.Find(Actor))
+	{
+		GlobalInfo->bSwapRolesOnReplicate = bSwapRoles;
+	}
+}
 
 void UReplicationGraph::RouteAddNetworkActorToNodes(const FNewReplicatedActorInfo& ActorInfo, FGlobalActorReplicationInfo& GlobalInfo)
 {
@@ -1708,6 +1715,12 @@ int64 UReplicationGraph::ReplicateSingleActor(AActor* Actor, FConnectionReplicat
 		GlobalActorInfo.LastPreReplicationFrame = FrameNum;
 
 		Actor->CallPreReplication(NetDriver);
+	}
+
+	TOptional<FScopedActorRoleSwap> SwapGuard;
+	if (GlobalActorInfo.bSwapRolesOnReplicate)
+	{
+		SwapGuard = FScopedActorRoleSwap(Actor);
 	}
 
 	const bool bWantsToGoDormant = GlobalActorInfo.bWantsToBeDormant;

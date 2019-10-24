@@ -3885,6 +3885,7 @@ void UActorChannel::AddedToChannelPool()
 	bForceCompareProperties = false;
 	bIsReplicatingActor = false;
 	bActorIsPendingKill = false;
+	bSkipRoleSwap = false;
 	bClearRecentActorRefs = true;
 	QueuedBunchStartTime = 0;
 	CreateSubObjects.Empty();
