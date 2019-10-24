@@ -68,6 +68,7 @@ namespace Chaos
 		TPBDJointMotionSettings(const TVector<EJointMotionType, d>& InLinearMotionTypes, const TVector<EJointMotionType, d>& InAngularMotionTypes);
 
 		T Stiffness;
+		T Projection;
 
 		TVector<EJointMotionType, d> LinearMotionTypes;
 		T LinearLimit;
@@ -113,16 +114,18 @@ namespace Chaos
 		T SwingTwistAngleTolerance;
 
 		// Stability control
-		T PBDMinParentMassRatio;
-		T PBDMaxInertiaRatio;
-		int32 FreezeIterations;
-		int32 FrozenIterations;
+		T MinParentMassRatio;
+		T MaxInertiaRatio;
 
 		// @todo(ccaulfield): remove these TEMP overrides for testing
+		bool bProjectPostApply;
 		bool bEnableLinearLimits;
 		bool bEnableTwistLimits;
 		bool bEnableSwingLimits;
+		bool bEnablePositionCorrection;
 		bool bEnableDrives;
-		T PBDDriveStiffness;
+		T Projection;
+		T Stiffness;
+		T DriveStiffness;
 	};
 }

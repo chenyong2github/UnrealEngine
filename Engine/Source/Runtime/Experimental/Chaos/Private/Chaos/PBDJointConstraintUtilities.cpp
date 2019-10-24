@@ -3,12 +3,13 @@
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/Utilities.h"
 
+//#pragma optimize("", off)
+
 namespace Chaos
 {
 	template<typename T, int d>
 	TVector<T, d> TPBDJointUtilities<T, d>::ConditionInertia(const TVector<T, d>& InI, const T MaxRatio)
 	{
-		// @todo(ccaulfield): simd
 		if (MaxRatio > 0)
 		{
 			T IMin = InI.Min();
@@ -29,7 +30,6 @@ namespace Chaos
 	template<typename T, int d>
 	TVector<T, d> TPBDJointUtilities<T, d>::ConditionParentInertia(const TVector<T, d>& IParent, const TVector<T, d>& IChild, const T MinRatio)
 	{
-		// @todo(ccaulfield): simd
 		if (MinRatio > 0)
 		{
 			T IParentMax = IParent.Max();
@@ -344,6 +344,78 @@ namespace Chaos
 		OutCR[(int32)EJointAngularAxisIndex::Swing2] = (T)0;
 	}
 
+	template<typename T, int d>
+	void ApplyPositionDelta(
+		const T Dt,
+		const TPBDJointSolverSettings<T, d>& SolverSettings,
+		const TPBDJointSettings<T, d>& JointSettings,
+		const int32 Index0,
+		const int32 Index1,
+		TVector<T, d>& P0,
+		TVector<T, d>& P1,
+		const TVector<T, d>& V0,
+		const TVector<T, d>& V1)
+	{
+		const float Stiffness = (SolverSettings.Stiffness > (T)0) ? SolverSettings.Stiffness : JointSettings.Motion.Stiffness;
+
+		P0 = P0 + Stiffness * V0;
+		P1 = P1 + Stiffness * V1;
+	}
+
+	template<typename T, int d>
+	void ApplyRotationDelta(
+		const T Dt,
+		const TPBDJointSolverSettings<T, d>& SolverSettings,
+		const TPBDJointSettings<T, d>& JointSettings,
+		const int32 Index0,
+		const int32 Index1,
+		TRotation<T, d>& Q0,
+		TRotation<T, d>& Q1,
+		const TVector<T, d>& W0,
+		const TVector<T, d>& W1)
+	{
+		const float Stiffness = (SolverSettings.Stiffness > (T)0) ? SolverSettings.Stiffness : JointSettings.Motion.Stiffness;
+
+		const TRotation<T, d> DQ0 = (TRotation<T, d>::FromElements(Stiffness * W0, 0) * Q0) * (T)0.5;
+		const TRotation<T, d> DQ1 = (TRotation<T, d>::FromElements(Stiffness * W1, 0) * Q1) * (T)0.5;
+		Q0 = (Q0 + DQ0).GetNormalized();
+		Q1 = (Q1 + DQ1).GetNormalized();
+		Q1.EnforceShortestArcWith(Q0);
+	}
+
+	template<typename T, int d>
+	void ApplyRotationDelta(
+	    const T Dt,
+	    const TPBDJointSolverSettings<T, d>& SolverSettings,
+	    const TPBDJointSettings<T, d>& JointSettings,
+	    const int32 Index0,
+	    const int32 Index1,
+	    TVector<T, d>& P0,
+	    TRotation<T, d>& Q0,
+	    TVector<T, d>& P1,
+	    TRotation<T, d>& Q1,
+	    float InvM0,
+	    const PMatrix<T, d, d>& InvIL0,
+	    float InvM1,
+	    const PMatrix<T, d, d>& InvIL1,
+	    const TVector<T, d>& Axis0,
+	    const float Angle0,
+	    const TVector<T, d>& Axis1,
+	    const float Angle1)
+	{
+		const PMatrix<T, d, d> InvI0 = Utilities::Multiply(Q0.ToMatrix(), Utilities::Multiply(InvIL0, Q0.ToMatrix().GetTransposed()));
+		const PMatrix<T, d, d> InvI1 = Utilities::Multiply(Q1.ToMatrix(), Utilities::Multiply(InvIL1, Q1.ToMatrix().GetTransposed()));
+
+		//const T I0 = TVector<T, d>::DotProduct(Axis0, Utilities::Multiply(InvI0, Axis0));
+		//const T I1 = TVector<T, d>::DotProduct(Axis1, Utilities::Multiply(InvI1, Axis1));
+		//const TVector<T, d> W0 = Axis0 * Angle0 * I0 / (I0 + I1);
+		//const TVector<T, d> W1 = Axis1 * Angle1 * I1 / (I0 + I1);
+		const T L = (T)1 / (TVector<T, d>::DotProduct(Axis0, Utilities::Multiply(InvI0, Axis0)) + TVector<T, d>::DotProduct(Axis1, Utilities::Multiply(InvI1, Axis1)));
+		const TVector<T, d> W0 = Utilities::Multiply(InvI0, Axis0) * L * Angle0;
+		const TVector<T, d> W1 = Utilities::Multiply(InvI1, Axis1) * L * Angle1;
+
+		ApplyRotationDelta(Dt, SolverSettings, JointSettings, Index0, Index1, Q0, Q1, W0, W1);
+	}
 
 	template<typename T, int d>
 	void TPBDJointUtilities<T, d>::ApplyJointPositionConstraint(
@@ -366,11 +438,11 @@ namespace Chaos
 		const TVector<T, d> X0 = P0 + Q0 * XL0.GetTranslation();
 		const TVector<T, d> X1 = P1 + Q1 * XL1.GetTranslation();
 		const TRotation<T, d> R0 = Q0 * XL0.GetRotation();
-		PMatrix<T, d, d> InvI0 = Utilities::Multiply(Q0.ToMatrix(), Utilities::Multiply(InvIL0, Q0.ToMatrix().GetTransposed()));
-		PMatrix<T, d, d> InvI1 = Utilities::Multiply(Q1.ToMatrix(), Utilities::Multiply(InvIL1, Q1.ToMatrix().GetTransposed()));
+		const PMatrix<T, d, d> InvI0 = Utilities::Multiply(Q0.ToMatrix(), Utilities::Multiply(InvIL0, Q0.ToMatrix().GetTransposed()));
+		const PMatrix<T, d, d> InvI1 = Utilities::Multiply(Q1.ToMatrix(), Utilities::Multiply(InvIL1, Q1.ToMatrix().GetTransposed()));
 
 		// Calculate constraint error
-		TVector<T, d> CX = GetLimitedPositionError(JointSettings, R0, X1 - X0);
+		const TVector<T, d> CX = GetLimitedPositionError(JointSettings, R0, X1 - X0);
 
 		// Calculate constraint correction
 		PMatrix<T, d, d> M0 = PMatrix<T, d, d>(0, 0, 0);
@@ -383,21 +455,74 @@ namespace Chaos
 		{
 			M1 = Utilities::ComputeJointFactorMatrix(X1 - P1, InvI1, InvM1);
 		}
-		PMatrix<T, d, d> MI = (M0 + M1).Inverse();
-		TVector<T, d> DX = Utilities::Multiply(MI, CX);
+		const PMatrix<T, d, d> MI = (M0 + M1).Inverse();
+		const TVector<T, d> DX = Utilities::Multiply(MI, CX);
 
 		// Apply constraint correction
-		TVector<T, d> DP0 = InvM0 * DX;
-		TVector<T, d> DP1 = -InvM1 * DX;
-		TVector<T, d> DR0 = Utilities::Multiply(InvI0, TVector<T, d>::CrossProduct(X0 - P0, DX));
-		TVector<T, d> DR1 = Utilities::Multiply(InvI1, TVector<T, d>::CrossProduct(X1 - P1, -DX));
-		TRotation<T, d> DQ0 = (TRotation<T, d>::FromElements(DR0, 0) * Q0) * (T)0.5;
-		TRotation<T, d> DQ1 = (TRotation<T, d>::FromElements(DR1, 0) * Q1) * (T)0.5;
-		P0 = P0 + DP0;
-		P1 = P1 + DP1;
-		Q0 = (Q0 + DQ0).GetNormalized();
-		Q1 = (Q1 + DQ1).GetNormalized();
-		Q1.EnforceShortestArcWith(Q0);
+		const TVector<T, d> V0 = InvM0 * DX;
+		const TVector<T, d> V1 = -InvM1 * DX;
+		const TVector<T, d> W0 = Utilities::Multiply(InvI0, TVector<T, d>::CrossProduct(X0 - P0, DX));
+		const TVector<T, d> W1 = Utilities::Multiply(InvI1, TVector<T, d>::CrossProduct(X1 - P1, -DX));
+		ApplyPositionDelta(Dt, SolverSettings, JointSettings, Index0, Index1, P0, P1, V0, V1);
+		ApplyRotationDelta(Dt, SolverSettings, JointSettings, Index0, Index1, Q0, Q1, W0, W1);
+	}
+
+	template<typename T, int d>
+	void ApplyPostRotationPositionCorrection(
+		const T Dt,
+		const TPBDJointSolverSettings<T, d>& SolverSettings,
+		const TPBDJointSettings<T, d>& JointSettings,
+		const int32 Index0,
+		const int32 Index1,
+		TVector<T, d>& P0,
+		TRotation<T, d>& Q0,
+		TVector<T, d>& P1,
+		TRotation<T, d>& Q1,
+		float InvM0,
+		const PMatrix<T, d, d>& InvIL0,
+		float InvM1,
+		const PMatrix<T, d, d>& InvIL1,
+		const TVector<T, d>& CX_1,
+		const TVector<T, d>& Axis0,
+		const TVector<T, d>& Axis1)
+	{
+		if (!SolverSettings.bEnablePositionCorrection)
+		{
+			return;
+		}
+
+		// Post-rotation constraint positions
+		const TRigidTransform<T, d>& XL0 = JointSettings.ConstraintFrames[Index0];
+		const TRigidTransform<T, d>& XL1 = JointSettings.ConstraintFrames[Index1];
+		const TVector<T, d> X0 = P0 + Q0 * XL0.GetTranslation();
+		const TVector<T, d> X1 = P1 + Q1 * XL1.GetTranslation();
+		const TRotation<T, d> R0 = Q0 * XL0.GetRotation();
+		TVector<T, d> CX_2 = GetLimitedPositionError(JointSettings, R0, X1 - X0);
+
+		// Increase in position error caused by the rotation correction
+		TVector<T, d> DX = CX_2 - CX_1;
+		for (int32 AxisIndex = 0; AxisIndex < d; ++AxisIndex)
+		{
+			if ((CX_1[AxisIndex] > 0) && (CX_2[AxisIndex] < CX_1[AxisIndex]))
+			{
+				DX[AxisIndex] = 0;
+			}
+			if ((CX_1[AxisIndex] < 0) && (CX_2[AxisIndex] > CX_1[AxisIndex]))
+			{
+				DX[AxisIndex] = 0;
+			}
+		}
+		const TVector<T, d> DX0 = DX - TVector<T, d>::DotProduct(DX, Axis0) * Axis0;
+		const TVector<T, d> DX1 = DX - TVector<T, d>::DotProduct(DX, Axis1) * Axis1;
+
+		// Correct the extra position error introduced by the rotation correction. We are effectively treating the
+		// bodies as if they have infinite inertia for this correction, which is only correct if
+		// the position correction exactly opposes the constraint that caused the increased position error
+		// which is only the case for uniform shapes (i.e., spherical inertia). To do this properly, we
+		// would have to solve for position and rotation correction simultaneously.
+		const TVector<T, d> V0 = InvM0 * DX0 / (InvM0 + InvM1);
+		const TVector<T, d> V1 = -InvM1 * DX1 / (InvM0 + InvM1);
+		ApplyPositionDelta(Dt, SolverSettings, JointSettings, Index0, Index1, P0, P1, V0, V1);
 	}
 
 	template<typename T, int d>
@@ -418,12 +543,14 @@ namespace Chaos
 	{
 		const TRigidTransform<T, d>& XL0 = JointSettings.ConstraintFrames[Index0];
 		const TRigidTransform<T, d>& XL1 = JointSettings.ConstraintFrames[Index1];
+		const TVector<T, d> X0 = P0 + Q0 * XL0.GetTranslation();
+		const TVector<T, d> X1 = P1 + Q1 * XL1.GetTranslation();
 		const TRotation<T, d> R0 = Q0 * XL0.GetRotation();
 		const TRotation<T, d> R1 = Q1 * XL1.GetRotation();
-		PMatrix<T, d, d> InvI0 = Utilities::Multiply(Q0.ToMatrix(), Utilities::Multiply(InvIL0, Q0.ToMatrix().GetTransposed()));
-		PMatrix<T, d, d> InvI1 = Utilities::Multiply(Q1.ToMatrix(), Utilities::Multiply(InvIL1, Q1.ToMatrix().GetTransposed()));
+		const TVector<T, d> CX = GetLimitedPositionError(JointSettings, R0, X1 - X0);
 
-		TRotation<T, d> R01 = R0.Inverse() * R1;
+		// Calculate the Twist Axis and Angle for each body
+		const TRotation<T, d> R01 = R0.Inverse() * R1;
 		TRotation<T, d> R01Twist, R01Swing;
 		R01.ToSwingTwist(TJointConstants<T, d>::TwistAxis(), R01Swing, R01Twist);
 		R01Swing = R01Swing.GetNormalized();
@@ -442,8 +569,8 @@ namespace Chaos
 			TwistAngle = -TwistAngle;
 		}
 
-		TVector<T, d> TwistAxis0 = R0 * TwistAxis01;
-		TVector<T, d> TwistAxis1 = R1 * TwistAxis01;
+		const TVector<T, d> TwistAxis0 = R0 * TwistAxis01;
+		const TVector<T, d> TwistAxis1 = R1 * TwistAxis01;
 		T TwistAngleMax = FLT_MAX;
 		if (JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] == EJointMotionType::Limited)
 		{
@@ -454,6 +581,7 @@ namespace Chaos
 			TwistAngleMax = 0;
 		}
 
+		// Calculate the twist correction to applt to each body
 		T DTwistAngle = 0;
 		if (TwistAngle > TwistAngleMax)
 		{
@@ -463,17 +591,14 @@ namespace Chaos
 		{
 			DTwistAngle = TwistAngle + TwistAngleMax;
 		}
-		T DTwistAngle0 = DTwistAngle;
-		T DTwistAngle1 = -DTwistAngle;
+		const T DTwistAngle0 = DTwistAngle;
+		const T DTwistAngle1 = -DTwistAngle;
 
-		T L = (T)1 / (TVector<T, d>::DotProduct(TwistAxis0, Utilities::Multiply(InvI0, TwistAxis0)) + TVector<T, d>::DotProduct(TwistAxis1, Utilities::Multiply(InvI1, TwistAxis1)));
-		TVector<T, d> W0 = Utilities::Multiply(InvI0, TwistAxis0) * L * DTwistAngle0;
-		TVector<T, d> W1 = Utilities::Multiply(InvI1, TwistAxis1) * L * DTwistAngle1;
-		TRotation<T, d> DQ0 = (TRotation<T, d>::FromElements(W0, (T)0.0) * Q0) * (T)0.5;
-		TRotation<T, d> DQ1 = (TRotation<T, d>::FromElements(W1, (T)0.0) * Q1) * (T)0.5;
-		Q0 = (Q0 + DQ0).GetNormalized();
-		Q1 = (Q1 + DQ1).GetNormalized();
-		Q1.EnforceShortestArcWith(Q0);
+		// Apply twist correction
+		ApplyRotationDelta(Dt, SolverSettings, JointSettings, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1, TwistAxis0, DTwistAngle0, TwistAxis1, DTwistAngle1);
+
+		// Correct any positional error we may have introduced
+		ApplyPostRotationPositionCorrection<T, d>(Dt, SolverSettings, JointSettings, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1, CX, TwistAxis0, TwistAxis1);
 	}
 
 	template<typename T, int d>
@@ -494,13 +619,14 @@ namespace Chaos
 	{
 		const TRigidTransform<T, d>& XL0 = JointSettings.ConstraintFrames[Index0];
 		const TRigidTransform<T, d>& XL1 = JointSettings.ConstraintFrames[Index1];
+		const TVector<T, d> X0 = P0 + Q0 * XL0.GetTranslation();
+		const TVector<T, d> X1 = P1 + Q1 * XL1.GetTranslation();
 		const TRotation<T, d> R0 = Q0 * XL0.GetRotation();
 		const TRotation<T, d> R1 = Q1 * XL1.GetRotation();
-		PMatrix<T, d, d> InvI0 = Utilities::Multiply(Q0.ToMatrix(), Utilities::Multiply(InvIL0, Q0.ToMatrix().GetTransposed()));
-		PMatrix<T, d, d> InvI1 = Utilities::Multiply(Q1.ToMatrix(), Utilities::Multiply(InvIL1, Q1.ToMatrix().GetTransposed()));
+		const TVector<T, d> CX = GetLimitedPositionError(JointSettings, R0, X1 - X0);
 
 		// Calculate Swing axis for each body
-		TRotation<T, d> R01 = R0.Inverse() * R1;
+		const TRotation<T, d> R01 = R0.Inverse() * R1;
 		TRotation<T, d> R01Twist, R01Swing;
 		R01.ToSwingTwist(TJointConstants<T, d>::TwistAxis(), R01Swing, R01Twist);
 		R01Swing = R01Swing.GetNormalized();
@@ -514,13 +640,13 @@ namespace Chaos
 			SwingAngle = SwingAngle - (T)2 * PI;
 		}
 
-		TVector<T, d> SwingAxis0 = R0 * SwingAxis01;
-		TVector<T, d> SwingAxis1 = SwingAxis0;
+		const TVector<T, d> SwingAxis0 = R0 * SwingAxis01;
+		const TVector<T, d> SwingAxis1 = SwingAxis0;
 
 		// Calculate swing limit for the current swing axis
 		T SwingAngleMax = FLT_MAX;
-		T Swing1Limit = JointSettings.Motion.AngularLimits[(int32)EJointAngularConstraintIndex::Swing1];
-		T Swing2Limit = JointSettings.Motion.AngularLimits[(int32)EJointAngularConstraintIndex::Swing2];
+		const T Swing1Limit = JointSettings.Motion.AngularLimits[(int32)EJointAngularConstraintIndex::Swing1];
+		const T Swing2Limit = JointSettings.Motion.AngularLimits[(int32)EJointAngularConstraintIndex::Swing2];
 
 		// Circular swing limit
 		SwingAngleMax = Swing1Limit;
@@ -529,8 +655,8 @@ namespace Chaos
 		if (!FMath::IsNearlyEqual(Swing1Limit, Swing2Limit, KINDA_SMALL_NUMBER))
 		{
 			// Map swing axis to ellipse and calculate limit for this swing axis
-			T DotSwing1 = FMath::Abs(TVector<T, d>::DotProduct(SwingAxis01, TJointConstants<T, d>::Swing1Axis()));
-			T DotSwing2 = FMath::Abs(TVector<T, d>::DotProduct(SwingAxis01, TJointConstants<T, d>::Swing2Axis()));
+			const T DotSwing1 = FMath::Abs(TVector<T, d>::DotProduct(SwingAxis01, TJointConstants<T, d>::Swing1Axis()));
+			const T DotSwing2 = FMath::Abs(TVector<T, d>::DotProduct(SwingAxis01, TJointConstants<T, d>::Swing2Axis()));
 			SwingAngleMax = FMath::Sqrt(Swing1Limit * DotSwing2 * Swing1Limit * DotSwing2 + Swing2Limit * DotSwing1 * Swing2Limit * DotSwing1);
 		}
 
@@ -548,14 +674,10 @@ namespace Chaos
 		T DSwingAngle1 = -DSwingAngle;
 
 		// Apply swing correction
-		T L = (T)1 / (TVector<T, d>::DotProduct(SwingAxis0, Utilities::Multiply(InvI0, SwingAxis0)) + TVector<T, d>::DotProduct(SwingAxis1, Utilities::Multiply(InvI1, SwingAxis1)));
-		TVector<T, d> W0 = Utilities::Multiply(InvI0, SwingAxis0) * L * DSwingAngle0;
-		TVector<T, d> W1 = Utilities::Multiply(InvI1, SwingAxis1) * L * DSwingAngle1;
-		TRotation<T, d> DQ0 = (TRotation<T, d>::FromElements(W0, (T)0.0) * Q0) * (T)0.5;
-		TRotation<T, d> DQ1 = (TRotation<T, d>::FromElements(W1, (T)0.0) * Q1) * (T)0.5;
-		Q0 = (Q0 + DQ0).GetNormalized();
-		Q1 = (Q1 + DQ1).GetNormalized();
-		Q1.EnforceShortestArcWith(Q0);
+		ApplyRotationDelta(Dt, SolverSettings, JointSettings, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1, SwingAxis0, DSwingAngle0, SwingAxis1, DSwingAngle1);
+	
+		// Correct any positional error we may have introduced
+		ApplyPostRotationPositionCorrection<T, d>(Dt, SolverSettings, JointSettings, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1, CX, SwingAxis0, SwingAxis1);
 	}
 
 	template<typename T, int d>
@@ -577,14 +699,37 @@ namespace Chaos
 	{
 		const TRigidTransform<T, d>& XL0 = JointSettings.ConstraintFrames[Index0];
 		const TRigidTransform<T, d>& XL1 = JointSettings.ConstraintFrames[Index1];
+		const TVector<T, d> X0 = P0 + Q0 * XL0.GetTranslation();
+		const TVector<T, d> X1 = P1 + Q1 * XL1.GetTranslation();
 		const TRotation<T, d> R0 = Q0 * XL0.GetRotation();
 		const TRotation<T, d> R1 = Q1 * XL1.GetRotation();
-		PMatrix<T, d, d> InvI0 = Utilities::Multiply(Q0.ToMatrix(), Utilities::Multiply(InvIL0, Q0.ToMatrix().GetTransposed()));
-		PMatrix<T, d, d> InvI1 = Utilities::Multiply(Q1.ToMatrix(), Utilities::Multiply(InvIL1, Q1.ToMatrix().GetTransposed()));
+		const TVector<T, d> CX = GetLimitedPositionError(JointSettings, R0, X1 - X0);
+
+		// Calculate the swing axis for each body
+		const TRotation<T, d> R01 = R0.Inverse() * R1;
+		TRotation<T, d> R01Twist, R01Swing;
+		R01.ToSwingTwist(TJointConstants<T, d>::TwistAxis(), R01Swing, R01Twist);
+		R01Swing = R01Swing.GetNormalized();
+		R01Twist = R01Twist.GetNormalized();
+
+		TVector<T, d> TwistAxis01;
+		T TwistAngle;
+		R01Twist.ToAxisAndAngleSafe(TwistAxis01, TwistAngle, TJointConstants<T, d>::TwistAxis(), SolverSettings.SwingTwistAngleTolerance);
+		if (TwistAngle > PI)
+		{
+			TwistAngle = TwistAngle - (T)2 * PI;
+		}
+		if (TVector<T, d>::DotProduct(TwistAxis01, TJointConstants<T, d>::TwistAxis()) < 0)
+		{
+			TwistAxis01 = -TwistAxis01;
+			TwistAngle = -TwistAngle;
+		}
+		const TVector<T, d> TwistAxis = R0 * TwistAxis01;
 
 		const PMatrix<T, d, d> Axes0 = R0.ToMatrix();
 		const PMatrix<T, d, d> Axes1 = R1.ToMatrix();
-		const TVector<T, d> SwingCross = TVector<T, d>::CrossProduct(Axes0.GetAxis((int32)SwingConstraint), Axes1.GetAxis((int32)SwingConstraint));
+		TVector<T, d> SwingCross = TVector<T, d>::CrossProduct(Axes0.GetAxis((int32)SwingConstraint), Axes1.GetAxis((int32)SwingConstraint));
+		SwingCross = SwingCross - TVector<T, d>::DotProduct(TwistAxis, SwingCross) * TwistAxis;
 		const T SwingCrossLen = SwingCross.Size();
 		if (SwingCrossLen > KINDA_SMALL_NUMBER)
 		{
@@ -624,14 +769,10 @@ namespace Chaos
 			T DSwingAngle1 = -DSwingAngle;
 
 			// Apply swing correction
-			T L = (T)1 / (TVector<T, d>::DotProduct(SwingAxis0, Utilities::Multiply(InvI0, SwingAxis0)) + TVector<T, d>::DotProduct(SwingAxis1, Utilities::Multiply(InvI1, SwingAxis1)));
-			TVector<T, d> W0 = Utilities::Multiply(InvI0, SwingAxis0) * L * DSwingAngle0;
-			TVector<T, d> W1 = Utilities::Multiply(InvI1, SwingAxis1) * L * DSwingAngle1;
-			TRotation<T, d> DQ0 = (TRotation<T, d>::FromElements(W0, (T)0.0) * Q0) * (T)0.5;
-			TRotation<T, d> DQ1 = (TRotation<T, d>::FromElements(W1, (T)0.0) * Q1) * (T)0.5;
-			Q0 = (Q0 + DQ0).GetNormalized();
-			Q1 = (Q1 + DQ1).GetNormalized();
-			Q1.EnforceShortestArcWith(Q0);
+			ApplyRotationDelta(Dt, SolverSettings, JointSettings, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1, SwingAxis0, DSwingAngle0, SwingAxis1, DSwingAngle1);
+
+			// Correct any positional error we may have introduced
+			ApplyPostRotationPositionCorrection<T, d>(Dt, SolverSettings, JointSettings, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1, CX, SwingAxis0, SwingAxis1);
 		}
 	}
 
@@ -653,12 +794,13 @@ namespace Chaos
 	{
 		const TRigidTransform<T, d>& XL0 = JointSettings.ConstraintFrames[Index0];
 		const TRigidTransform<T, d>& XL1 = JointSettings.ConstraintFrames[Index1];
+		const TVector<T, d> X0 = P0 + Q0 * XL0.GetTranslation();
+		const TVector<T, d> X1 = P1 + Q1 * XL1.GetTranslation();
 		const TRotation<T, d> R0 = Q0 * XL0.GetRotation();
 		const TRotation<T, d> R1 = Q1 * XL1.GetRotation();
-		PMatrix<T, d, d> InvI0 = Utilities::Multiply(Q0.ToMatrix(), Utilities::Multiply(InvIL0, Q0.ToMatrix().GetTransposed()));
-		PMatrix<T, d, d> InvI1 = Utilities::Multiply(Q1.ToMatrix(), Utilities::Multiply(InvIL1, Q1.ToMatrix().GetTransposed()));
+		const TVector<T, d> CX = GetLimitedPositionError(JointSettings, R0, X1 - X0);
 
-		TRotation<T, d> R01 = R0.Inverse() * R1;
+		const TRotation<T, d> R01 = R0.Inverse() * R1;
 		TRotation<T, d> R01Twist, R01Swing;
 		R01.ToSwingTwist(TJointConstants<T, d>::TwistAxis(), R01Swing, R01Twist);
 		R01Swing = R01Swing.GetNormalized();
@@ -677,23 +819,19 @@ namespace Chaos
 			TwistAngle = -TwistAngle;
 		}
 
-		TVector<T, d> TwistAxis0 = R0 * TwistAxis01;
-		TVector<T, d> TwistAxis1 = R1 * TwistAxis01;
-		T TwistAngleTarget = JointSettings.Motion.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Twist];
-		T Stiffness = (SolverSettings.PBDDriveStiffness > 0) ? SolverSettings.PBDDriveStiffness : JointSettings.Motion.AngularDriveStiffness;
-		T DriveStiffness = FMath::Clamp(Stiffness, (T)0, (T)1);
-		T DTwistAngle = TwistAngle - TwistAngleTarget;
-		T DTwistAngle0 = DriveStiffness * DTwistAngle;
-		T DTwistAngle1 = -DriveStiffness * DTwistAngle;
+		const TVector<T, d> TwistAxis0 = R0 * TwistAxis01;
+		const TVector<T, d> TwistAxis1 = R1 * TwistAxis01;
+		const T TwistAngleTarget = JointSettings.Motion.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Twist];
+		const T DriveStiffnessUnclamped = (SolverSettings.DriveStiffness > 0) ? SolverSettings.DriveStiffness : JointSettings.Motion.AngularDriveStiffness;
+		const T DriveStiffness = FMath::Clamp(DriveStiffnessUnclamped, (T)0, (T)1);
+		const T DTwistAngle = TwistAngle - TwistAngleTarget;
+		const T DTwistAngle0 = DriveStiffness * DTwistAngle;
+		const T DTwistAngle1 = -DriveStiffness * DTwistAngle;
 
-		T L = (T)1 / (TVector<T, d>::DotProduct(TwistAxis0, Utilities::Multiply(InvI0, TwistAxis0)) + TVector<T, d>::DotProduct(TwistAxis1, Utilities::Multiply(InvI1, TwistAxis1)));
-		TVector<T, d> W0 = Utilities::Multiply(InvI0, TwistAxis0) * L * DTwistAngle0;
-		TVector<T, d> W1 = Utilities::Multiply(InvI1, TwistAxis1) * L * DTwistAngle1;
-		TRotation<T, d> DQ0 = (TRotation<T, d>::FromElements(W0, (T)0.0) * Q0) * (T)0.5;
-		TRotation<T, d> DQ1 = (TRotation<T, d>::FromElements(W1, (T)0.0) * Q1) * (T)0.5;
-		Q0 = (Q0 + DQ0).GetNormalized();
-		Q1 = (Q1 + DQ1).GetNormalized();
-		Q1.EnforceShortestArcWith(Q0);
+		ApplyRotationDelta(Dt, SolverSettings, JointSettings, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1, TwistAxis0, DTwistAngle0, TwistAxis1, DTwistAngle1);
+
+		// Correct any positional error we may have introduced
+		ApplyPostRotationPositionCorrection<T, d>(Dt, SolverSettings, JointSettings, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1, CX, TwistAxis0, TwistAxis1);
 	}
 
 	template<typename T, int d>
@@ -714,13 +852,14 @@ namespace Chaos
 	{
 		const TRigidTransform<T, d>& XL0 = JointSettings.ConstraintFrames[Index0];
 		const TRigidTransform<T, d>& XL1 = JointSettings.ConstraintFrames[Index1];
+		const TVector<T, d> X0 = P0 + Q0 * XL0.GetTranslation();
+		const TVector<T, d> X1 = P1 + Q1 * XL1.GetTranslation();
 		const TRotation<T, d> R0 = Q0 * XL0.GetRotation();
 		const TRotation<T, d> R1 = Q1 * XL1.GetRotation();
-		PMatrix<T, d, d> InvI0 = Utilities::Multiply(Q0.ToMatrix(), Utilities::Multiply(InvIL0, Q0.ToMatrix().GetTransposed()));
-		PMatrix<T, d, d> InvI1 = Utilities::Multiply(Q1.ToMatrix(), Utilities::Multiply(InvIL1, Q1.ToMatrix().GetTransposed()));
+		const TVector<T, d> CX = GetLimitedPositionError(JointSettings, R0, X1 - X0);
 
 		// Calculate Swing axis for each body
-		TRotation<T, d> R01 = R0.Inverse() * R1;
+		const TRotation<T, d> R01 = R0.Inverse() * R1;
 		TRotation<T, d> R01Twist, R01Swing;
 		R01.ToSwingTwist(TJointConstants<T, d>::TwistAxis(), R01Swing, R01Twist);
 		R01Swing = R01Swing.GetNormalized();
@@ -734,29 +873,25 @@ namespace Chaos
 			SwingAngle = SwingAngle - (T)2 * PI;
 		}
 
-		TVector<T, d> SwingAxis0 = R0 * SwingAxis01;
-		TVector<T, d> SwingAxis1 = SwingAxis0;
+		const TVector<T, d> SwingAxis0 = R0 * SwingAxis01;
+		const TVector<T, d> SwingAxis1 = SwingAxis0;
 
 		// Circular swing target (max of Swing1, Swing2 targets)
 		T Swing1Target = JointSettings.Motion.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Swing1];
 		T Swing2Target = JointSettings.Motion.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Swing2];
 		T SwingAngleTarget = FMath::Max(Swing1Target, Swing2Target);
 
-		T Stiffness = (SolverSettings.PBDDriveStiffness > 0) ? SolverSettings.PBDDriveStiffness : JointSettings.Motion.AngularDriveStiffness;
-		T DriveStiffness = FMath::Clamp(Stiffness, (T)0, (T)1);
+		T DriveStiffnessUnclamped = (SolverSettings.DriveStiffness > 0) ? SolverSettings.DriveStiffness : JointSettings.Motion.AngularDriveStiffness;
+		T DriveStiffness = FMath::Clamp(DriveStiffnessUnclamped, (T)0, (T)1);
 		T DSwingAngle = SwingAngle - SwingAngleTarget;
 		T DSwingAngle0 = DriveStiffness * DSwingAngle;
 		T DSwingAngle1 = -DriveStiffness * DSwingAngle;
 
 		// Apply swing correction
-		T L = (T)1 / (TVector<T, d>::DotProduct(SwingAxis0, Utilities::Multiply(InvI0, SwingAxis0)) + TVector<T, d>::DotProduct(SwingAxis1, Utilities::Multiply(InvI1, SwingAxis1)));
-		TVector<T, d> W0 = Utilities::Multiply(InvI0, SwingAxis0) * L * DSwingAngle0;
-		TVector<T, d> W1 = Utilities::Multiply(InvI1, SwingAxis1) * L * DSwingAngle1;
-		TRotation<T, d> DQ0 = (TRotation<T, d>::FromElements(W0, (T)0.0) * Q0) * (T)0.5;
-		TRotation<T, d> DQ1 = (TRotation<T, d>::FromElements(W1, (T)0.0) * Q1) * (T)0.5;
-		Q0 = (Q0 + DQ0).GetNormalized();
-		Q1 = (Q1 + DQ1).GetNormalized();
-		Q1.EnforceShortestArcWith(Q0);
+		ApplyRotationDelta(Dt, SolverSettings, JointSettings, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1, SwingAxis0, DSwingAngle0, SwingAxis1, DSwingAngle1);
+
+		// Correct any positional error we may have introduced
+		ApplyPostRotationPositionCorrection<T, d>(Dt, SolverSettings, JointSettings, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1, CX, SwingAxis0, SwingAxis1);
 	}
 
 	template<typename T, int d>
@@ -777,28 +912,131 @@ namespace Chaos
 	{
 		const TRigidTransform<T, d>& XL0 = JointSettings.ConstraintFrames[Index0];
 		const TRigidTransform<T, d>& XL1 = JointSettings.ConstraintFrames[Index1];
+		const TVector<T, d> X0 = P0 + Q0 * XL0.GetTranslation();
+		const TVector<T, d> X1 = P1 + Q1 * XL1.GetTranslation();
 		const TRotation<T, d> R0 = Q0 * XL0.GetRotation();
 		const TRotation<T, d> R1 = Q1 * XL1.GetRotation();
-		PMatrix<T, d, d> InvI0 = Utilities::Multiply(Q0.ToMatrix(), Utilities::Multiply(InvIL0, Q0.ToMatrix().GetTransposed()));
-		PMatrix<T, d, d> InvI1 = Utilities::Multiply(Q1.ToMatrix(), Utilities::Multiply(InvIL1, Q1.ToMatrix().GetTransposed()));
+		const TVector<T, d> CX = GetLimitedPositionError(JointSettings, R0, X1 - X0);
 
+		// Calculate the rotation we need to apply to resolve the rotation delta
 		const TRotation<T, d> TargetR1 = R0 * JointSettings.Motion.AngularDriveTarget;
 		const TRotation<T, d> DR1 = TargetR1 * R1.Inverse();
 		const TRotation<T, d> TargetQ0 = DR1.Inverse() * Q0;
 		const TRotation<T, d> TargetQ1 = DR1 * Q1;
 
-		T Stiffness = (SolverSettings.PBDDriveStiffness > 0) ? SolverSettings.PBDDriveStiffness : JointSettings.Motion.AngularDriveStiffness;
-		T DriveStiffness = FMath::Clamp(Stiffness, (T)0, (T)1);
+		T DriveStiffnessUnclamped = (SolverSettings.DriveStiffness > 0) ? SolverSettings.DriveStiffness : JointSettings.Motion.AngularDriveStiffness;
+		T DriveStiffness = FMath::Clamp(DriveStiffnessUnclamped, (T)0, (T)1);
 
-		// @todo(ccaulfield): use ang mom in slerp drive
-		T L0 = InvM0;// TVector<T, d>::DotProduct(Axis0, Utilities::Multiply(InvI0, Axis0));
-		T L1 = InvM1;//TVector<T, d>::DotProduct(Axis1, Utilities::Multiply(InvI1, Axis1));
-		const T F0 = DriveStiffness * L0 / (L0 + L1);
-		const T F1 = DriveStiffness * L1 / (L0 + L1);
+		TVector<T, d> SLerpAxis;
+		T SLerpAngle;
+		if (DR1.ToAxisAndAngleSafe(SLerpAxis, SLerpAngle, TVector<T, d>(1, 0, 0)))
+		{
+			const PMatrix<T, d, d> InvI0 = Utilities::Multiply(Q0.ToMatrix(), Utilities::Multiply(InvIL0, Q0.ToMatrix().GetTransposed()));
+			const PMatrix<T, d, d> InvI1 = Utilities::Multiply(Q1.ToMatrix(), Utilities::Multiply(InvIL1, Q1.ToMatrix().GetTransposed()));
+			const T I0 = TVector<T, d>::DotProduct(SLerpAxis, Utilities::Multiply(InvI0, SLerpAxis));
+			const T I1 = TVector<T, d>::DotProduct(SLerpAxis, Utilities::Multiply(InvI1, SLerpAxis));
+			const T F0 = DriveStiffness * I0 / (I0 + I1);
+			const T F1 = DriveStiffness * I1 / (I0 + I1);
 
-		Q0 = TRotation<T, d>::Slerp(Q0, TargetQ0, F0);
-		Q1 = TRotation<T, d>::Slerp(Q1, TargetQ1, F1);
-		Q1.EnforceShortestArcWith(Q0);
+			// Apply the rotation delta
+			Q0 = TRotation<T, d>::Slerp(Q0, TargetQ0, F0);
+			Q1 = TRotation<T, d>::Slerp(Q1, TargetQ1, F1);
+			Q1.EnforceShortestArcWith(Q0);
+
+			// Correct any positional error we may have introduced
+			ApplyPostRotationPositionCorrection<T, d>(Dt, SolverSettings, JointSettings, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1, CX, SLerpAxis, SLerpAxis);;
+		}
+	}
+
+	template<typename T, int d>
+	void TPBDJointUtilities<T, d>::ApplyJointPositionProjection(
+		const T Dt,
+		const TPBDJointSolverSettings<T, d>& SolverSettings,
+		const TPBDJointSettings<T, d>& JointSettings,
+		const int32 Index0,
+		const int32 Index1,
+		TVector<T, d>& P0,
+		TRotation<T, d>& Q0,
+		TVector<T, d>& P1,
+		TRotation<T, d>& Q1,
+		float InvM0,
+		const PMatrix<T, d, d>& InvIL0,
+		float InvM1,
+		const PMatrix<T, d, d>& InvIL1,
+		const T ProjectionFactor)
+	{
+		const TRigidTransform<T, d>& XL0 = JointSettings.ConstraintFrames[Index0];
+		const TRigidTransform<T, d>& XL1 = JointSettings.ConstraintFrames[Index1];
+		const TVector<T, d> X0 = P0 + Q0 * XL0.GetTranslation();
+		const TVector<T, d> X1 = P1 + Q1 * XL1.GetTranslation();
+		const TRotation<T, d> R0 = Q0 * XL0.GetRotation();
+		const TVector<T, d> CX = GetLimitedPositionError(JointSettings, R0, X1 - X0);
+
+		const TVector<T, d> V0 = CX * (ProjectionFactor * InvM0 / (InvM0 + InvM1));
+		const TVector<T, d> V1 = -CX * (ProjectionFactor * InvM1 / (InvM0 + InvM1));
+		P0 = P0 + V0;
+		P1 = P1 + V1;
+	}
+
+	template<typename T, int d>
+	void TPBDJointUtilities<T, d>::ApplyJointTwistProjection(
+		const T Dt,
+		const TPBDJointSolverSettings<T, d>& SolverSettings,
+		const TPBDJointSettings<T, d>& JointSettings,
+		const int32 Index0,
+		const int32 Index1,
+		TVector<T, d>& P0,
+		TRotation<T, d>& Q0,
+		TVector<T, d>& P1,
+		TRotation<T, d>& Q1,
+		float InvM0,
+		const PMatrix<T, d, d>& InvIL0,
+		float InvM1,
+		const PMatrix<T, d, d>& InvIL1,
+		const T ProjectionFactor)
+	{
+
+	}
+
+	template<typename T, int d>
+	void TPBDJointUtilities<T, d>::ApplyJointConeProjection(
+		const T Dt,
+		const TPBDJointSolverSettings<T, d>& SolverSettings,
+		const TPBDJointSettings<T, d>& JointSettings,
+		const int32 Index0,
+		const int32 Index1,
+		TVector<T, d>& P0,
+		TRotation<T, d>& Q0,
+		TVector<T, d>& P1,
+		TRotation<T, d>& Q1,
+		float InvM0,
+		const PMatrix<T, d, d>& InvIL0,
+		float InvM1,
+		const PMatrix<T, d, d>& InvIL1,
+		const T ProjectionFactor)
+	{
+
+	}
+
+	template<typename T, int d>
+	void TPBDJointUtilities<T, d>::ApplyJointSwingProjection(
+		const T Dt,
+		const TPBDJointSolverSettings<T, d>& SolverSettings,
+		const TPBDJointSettings<T, d>& JointSettings,
+		const int32 Index0,
+		const int32 Index1,
+		const EJointAngularConstraintIndex SwingConstraint,
+		TVector<T, d>& P0,
+		TRotation<T, d>& Q0,
+		TVector<T, d>& P1,
+		TRotation<T, d>& Q1,
+		float InvM0,
+		const PMatrix<T, d, d>& InvIL0,
+		float InvM1,
+		const PMatrix<T, d, d>& InvIL1,
+		const T ProjectionFactor)
+	{
+
 	}
 }
 
