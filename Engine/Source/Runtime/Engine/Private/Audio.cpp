@@ -20,6 +20,7 @@
 #include "Misc/Paths.h"
 #include "Sound/SoundBase.h"
 #include "Sound/SoundCue.h"
+#include "Sound/SoundSubmix.h"
 #include "Sound/SoundNodeWavePlayer.h"
 #include "Sound/SoundWave.h"
 #include "UObject/UObjectHash.h"
@@ -1009,6 +1010,11 @@ float FWaveInstance::GetDynamicVolume() const
 				{
 					OutVolume *= DeviceManager->GetDynamicSoundVolume(ESoundType::Cue, Sound->GetFName());
 				}
+			}
+
+			if (SoundClass)
+			{
+				OutVolume *= DeviceManager->GetDynamicSoundVolume(ESoundType::Class, SoundClass->GetFName());
 			}
 		}
 	}
