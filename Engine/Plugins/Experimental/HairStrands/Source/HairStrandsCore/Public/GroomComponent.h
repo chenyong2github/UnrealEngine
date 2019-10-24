@@ -93,8 +93,10 @@ public:
 	FHairStrandsRootResource* GetGuideStrandsRootResource(uint32 GroupIndex);
 
 #if WITH_EDITOR
+	virtual void CheckForErrors() override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool CanEditChange(const UProperty* InProperty) const override;
+	void ValidateMaterials(bool bMapCheck) const;
 	void Invalidate();
 #endif
 
