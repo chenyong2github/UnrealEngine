@@ -127,6 +127,7 @@ public:
 	virtual FDomainShaderRHIRef CreateDomainShader(const FSHAHash& Hash) = 0;
 	virtual FGeometryShaderRHIRef CreateGeometryShader(const FSHAHash& Hash) = 0;
 	virtual FComputeShaderRHIRef CreateComputeShader(const FSHAHash& Hash) = 0;
+	virtual FRayTracingShaderRHIRef CreateRayTracingShader(EShaderFrequency Frequency, const FSHAHash& Hash) = 0;
 };
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FSharedShaderCodeRequest, const FSHAHash&, FArchive*);
@@ -163,6 +164,8 @@ struct RENDERCORE_API FShaderCodeLibrary
 	static FDomainShaderRHIRef CreateDomainShader(EShaderPlatform Platform, FSHAHash Hash, TArray<uint8> const& Code);
 	/** Instantiate or retrieve a compute shader from the cache for the provided code & hash. */
 	static FComputeShaderRHIRef CreateComputeShader(EShaderPlatform Platform, FSHAHash Hash, TArray<uint8> const& Code);
+	/** Instantiate or retrieve a ray tracing shader from the cache for the provided code & hash. */
+	static FRayTracingShaderRHIRef CreateRayTracingShader(EShaderPlatform Platform, EShaderFrequency Frequency, FSHAHash Hash, TArray<uint8> const& Code);
 
     static bool ContainsShaderCode(const FSHAHash& Hash);
     
