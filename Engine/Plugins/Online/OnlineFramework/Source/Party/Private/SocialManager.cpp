@@ -244,7 +244,7 @@ void USocialManager::ShutdownSocialManager()
 	MarkPendingKill();
 }
 
-USocialToolkit& USocialManager::GetSocialToolkit(ULocalPlayer& LocalPlayer) const
+USocialToolkit& USocialManager::GetSocialToolkit(const ULocalPlayer& LocalPlayer) const
 {
 	USocialToolkit* FoundToolkit = nullptr;
 	for (USocialToolkit* Toolkit : SocialToolkits)
