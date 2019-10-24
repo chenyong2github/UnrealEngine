@@ -29,6 +29,7 @@
 #include "Templates/UniquePtr.h"
 #include "UObject/Package.h"
 #include "UVTools/UVGenerationFlattenMapping.h"
+#include "UVTools/UVGenerationUtils.h"
 
 #define LOCTEXT_NAMESPACE "DatasmithStaticMeshImporter"
 
@@ -197,16 +198,17 @@ bool FDatasmithStaticMeshImporter::PreBuildStaticMesh( UStaticMesh* StaticMesh )
 		FMeshBuildSettings& BuildSettings = StaticMesh->GetSourceModel(LodIndex).BuildSettings;
 		FMeshDescription& MeshDescription = *StaticMesh->GetMeshDescription(LodIndex);
 
+		if (BuildSettings.bGenerateLightmapUVs && !DatasmithMeshHelper::HasUVData(MeshDescription, BuildSettings.SrcLightmapIndex))
+		{
+			//If no UV data exist at the source index we generate unwrapped UVs.
+			//Do this before calling DatasmithMeshHelper::CreateDefaultUVs() as the UVs may be unwrapped at channel 0.
+			UUVGenerationFlattenMapping::GenerateUVs(MeshDescription, BuildSettings.SrcLightmapIndex, BuildSettings.bRemoveDegenerates);
+		}
+
 		// We should always have some UV data in channel 0 because it is used in the mesh tangent calculation during the build.
 		if (!DatasmithMeshHelper::HasUVData(MeshDescription, 0))
 		{
 			DatasmithMeshHelper::CreateDefaultUVs(MeshDescription);
-		}
-
-		if (BuildSettings.bGenerateLightmapUVs && !DatasmithMeshHelper::HasUVData(MeshDescription, BuildSettings.SrcLightmapIndex))
-		{
-			//If no UV data exist at the source index we generate unwrapped UVs.
-			UUVGenerationFlattenMapping::GenerateUVs(MeshDescription, BuildSettings.SrcLightmapIndex, BuildSettings.bRemoveDegenerates);
 		}
 
 		if (DatasmithMeshHelper::IsMeshValid(MeshDescription, BuildSettings.BuildScale3D))
@@ -214,18 +216,7 @@ bool FDatasmithStaticMeshImporter::PreBuildStaticMesh( UStaticMesh* StaticMesh )
 			if (BuildSettings.bGenerateLightmapUVs)
 			{
 				DatasmithMeshHelper::RequireUVChannel(MeshDescription, BuildSettings.DstLightmapIndex);
-
-				// Determine the absolute minimum lightmap resolution that can be used for packing
-				float ComparisonThreshold = BuildSettings.bRemoveDegenerates ? THRESH_POINTS_ARE_SAME : 0.0f;
-				FOverlappingCorners OverlappingCorners;
-				FMeshDescriptionOperations::FindOverlappingCorners(OverlappingCorners, MeshDescription, ComparisonThreshold);
-
-				// Packing expects at least one texel per chart. This is the absolute minimum to generate valid UVs.
-				int32 ChartCount = FMeshDescriptionOperations::GetUVChartCount(MeshDescription, BuildSettings.SrcLightmapIndex, ELightmapUVVersion::Latest, OverlappingCorners);
-				const int32 AbsoluteMinResolution = 1 << FMath::CeilLogTwo(FMath::Sqrt(ChartCount));
-				const int32 LightmapResolution = FMath::Clamp(BuildSettings.MinLightmapResolution, AbsoluteMinResolution, 512);
-
-				BuildSettings.MinLightmapResolution = LightmapResolution;
+				UVGenerationUtils::SetupGeneratedLightmapUVResolution(StaticMesh, LodIndex);
 			}
 
 			UStaticMesh::FCommitMeshDescriptionParams Params;
@@ -315,7 +306,7 @@ void FDatasmithStaticMeshImporter::PreBuildStaticMeshes( FDatasmithImportContext
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithStaticMeshImporter::PreBuildStaticMeshes);
 
-	FScopedSlowTask Progress(ImportContext.ImportedStaticMeshes.Num(), LOCTEXT("PreBuildStaticMeshes", "Packing UVs and computing tangents..."), true, *ImportContext.Warn);
+	FScopedSlowTask Progress(ImportContext.ImportedStaticMeshes.Num(), LOCTEXT("PreBuildStaticMeshes", "Setting up UVs..."), true, *ImportContext.Warn);
 	Progress.MakeDialog(true);
 
 	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked< IMeshUtilities >( "MeshUtilities" );
@@ -506,24 +497,12 @@ void FDatasmithStaticMeshImporter::SetupStaticMesh( FDatasmithAssetsImportContex
 
 		FMeshDescription& MeshDescription = *StaticMesh->GetMeshDescription(LodIndex);
 
-		auto GetNextOpenUVChannel = [](FMeshDescription& Mesh, int32 FromUVChannelIndex)
-		{
-			for (int32 UVChannelIndex = FromUVChannelIndex; UVChannelIndex < MAX_MESH_TEXTURE_COORDS_MD; ++UVChannelIndex)
-			{
-				if (!DatasmithMeshHelper::HasUVData(Mesh, UVChannelIndex))
-				{
-					return UVChannelIndex;
-				}
-			}
-			return -1;
-		};
-
 		// UV Channels
 		int32 SourceIndex = 0;
 		int32 DestinationIndex = 1;
 		bool bUseImportedLightmap = false;
 		bool bGenerateLightmapUVs = StaticMeshImportOptions.bGenerateLightmapUVs;
-		const int32 FirstOpenUVChannel = GetNextOpenUVChannel(MeshDescription, 0);
+		const int32 FirstOpenUVChannel = UVGenerationUtils::GetNextOpenUVChannel(StaticMesh, LodIndex);
 
 		// if a custom lightmap coordinate index was imported, disable lightmap generation
 		if (DatasmithMeshHelper::HasUVData(MeshDescription, MeshElement->GetLightmapCoordinateIndex()))
