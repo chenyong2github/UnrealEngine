@@ -104,7 +104,7 @@ void FUnixErrorOutputDevice::HandleError()
 
 		// Dump the error and flush the log.
 		UE_LOG(LogCore, Log, TEXT("=== Critical error: ===") LINE_TERMINATOR TEXT("%s") LINE_TERMINATOR, GErrorExceptionDescription);
-		UE_LOG(LogCore, Log, GErrorHist);
+		UE_LOG(LogCore, Log, TEXT("%s"), GErrorHist);
 
 		GLog->Flush();
 
