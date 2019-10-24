@@ -37,7 +37,7 @@
 #include "kernel_io/object_io/topo_io/loop_io/loop_io.h"
 #include "kernel_io/repair_io/repair_io.h"
 #pragma warning(pop)
-#endif CAD_INTERFACE
+#endif // CAD_INTERFACE
 
 
 struct FFileStatData;
