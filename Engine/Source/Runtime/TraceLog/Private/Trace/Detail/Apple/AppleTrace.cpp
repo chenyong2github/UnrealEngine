@@ -4,6 +4,7 @@
 
 #if UE_TRACE_ENABLED
 
+#include <errno.h>
 #include <fcntl.h>
 #include <mach/mach.h>
 #include <mach/mach_time.h>
