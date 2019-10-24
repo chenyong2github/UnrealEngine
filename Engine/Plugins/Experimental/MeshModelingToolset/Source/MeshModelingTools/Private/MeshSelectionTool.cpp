@@ -10,7 +10,7 @@
 #include "Changes/MeshChange.h"
 #include "MeshIndexUtil.h"
 #include "AssetGenerationUtil.h"
-#include "BaseTools/ToolSetupUtil.h"
+#include "ToolSetupUtil.h"
 
 #define LOCTEXT_NAMESPACE "UMeshSelectionTool"
 

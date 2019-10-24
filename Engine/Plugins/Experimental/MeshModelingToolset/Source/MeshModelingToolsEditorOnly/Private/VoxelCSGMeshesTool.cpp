@@ -3,7 +3,7 @@
 #include "VoxelCSGMeshesTool.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
-#include "BaseTools/ToolSetupUtil.h"
+#include "ToolSetupUtil.h"
 #include "AssetGenerationUtil.h"
 #include "Selection/ToolSelectionUtil.h"
 

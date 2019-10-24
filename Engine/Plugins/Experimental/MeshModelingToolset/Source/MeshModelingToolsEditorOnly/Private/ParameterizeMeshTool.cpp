@@ -15,7 +15,7 @@
 #include "MeshDescriptionToDynamicMesh.h"
 
 #include "ParameterizationOps/ParameterizeMeshOp.h"
-#include "BaseTools/ToolSetupUtil.h"
+#include "ToolSetupUtil.h"
 
 #define LOCTEXT_NAMESPACE "UParameterizeMeshTool"
 

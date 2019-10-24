@@ -4,7 +4,7 @@
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 
-#include "BaseTools/ToolSetupUtil.h"
+#include "ToolSetupUtil.h"
 #include "MathUtil.h"
 
 #include "MeshDescription.h"

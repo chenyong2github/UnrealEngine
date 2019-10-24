@@ -14,7 +14,7 @@
 #include "MeshIndexUtil.h"
 #include "Drawing/MeshDebugDrawing.h"
 #include "PreviewMesh.h"
-#include "BaseTools/ToolSetupUtil.h"
+#include "ToolSetupUtil.h"
 
 #include "Changes/MeshVertexChange.h"
 #include "Changes/MeshChange.h"
