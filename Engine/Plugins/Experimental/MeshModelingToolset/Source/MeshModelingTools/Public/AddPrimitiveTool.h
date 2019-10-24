@@ -66,7 +66,8 @@ UENUM()
 enum class EMakeMeshPivotLocation : uint8
 {
 	Base,
-	Centered
+	Centered,
+	Top
 };
 
 UCLASS()
@@ -106,6 +107,10 @@ public:
 	/** Center shape at click point */
 	UPROPERTY(EditAnywhere, Category = ShapeSettings)
     EMakeMeshPivotLocation PivotLocation;
+
+	/** Align shape to placement surface */
+	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (EditCondition = "PlaceMode == EMakeMeshPlacementType::OnScene"))
+	bool bAlignShapeToPlacementSurface = true;
 
 	///** Start Angle of Shape */
 	//UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Start Angle", UIMin = "0.0", UIMax = "360.0", ClampMin = "-10000", ClampMax = "10000.0"))

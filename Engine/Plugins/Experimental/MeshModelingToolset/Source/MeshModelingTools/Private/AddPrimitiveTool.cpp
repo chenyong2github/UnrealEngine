@@ -53,6 +53,7 @@ UProceduralShapeToolProperties::UProceduralShapeToolProperties()
 	Subdivisions = 0;
 	PivotLocation = EMakeMeshPivotLocation::Base;
 	PlaceMode = EMakeMeshPlacementType::OnScene;
+	bAlignShapeToPlacementSurface = true;
 }
 
 void UProceduralShapeToolProperties::SaveProperties(UInteractiveTool* SaveFromTool)
@@ -65,6 +66,7 @@ void UProceduralShapeToolProperties::SaveProperties(UInteractiveTool* SaveFromTo
 	PropertyCache->Subdivisions = this->Subdivisions;
 	PropertyCache->PivotLocation = this->PivotLocation;
 	PropertyCache->PlaceMode = this->PlaceMode;
+	PropertyCache->bAlignShapeToPlacementSurface = this->bAlignShapeToPlacementSurface;
 }
 
 void UProceduralShapeToolProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
@@ -77,6 +79,7 @@ void UProceduralShapeToolProperties::RestoreProperties(UInteractiveTool* Restore
 	this->Subdivisions = PropertyCache->Subdivisions;
 	this->PivotLocation = PropertyCache->PivotLocation;
 	this->PlaceMode = PropertyCache->PlaceMode;
+	this->bAlignShapeToPlacementSurface = PropertyCache->bAlignShapeToPlacementSurface;
 }
 
 namespace
@@ -92,6 +95,7 @@ namespace
 	  { TEXT("Rotation"),      EMakeMeshShapeType::All },
 	  { TEXT("PlaceMode"),     EMakeMeshShapeType::All },
 	  { TEXT("PivotLocation"), EMakeMeshShapeType::All },
+	  { TEXT("bAlignShapeToPlacementSurface"), EMakeMeshShapeType::All },
 	  { TEXT("Slices"),        EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone | EMakeMeshShapeType::Arrow | EMakeMeshShapeType::RoundedRectangle | EMakeMeshShapeType::Disc | EMakeMeshShapeType::PuncturedDisc | EMakeMeshShapeType::Sphere },
 	  { TEXT("Subdivisions"),  EMakeMeshShapeType::Box | EMakeMeshShapeType::Rectangle | EMakeMeshShapeType::RoundedRectangle | EMakeMeshShapeType::Disc | EMakeMeshShapeType::PuncturedDisc | EMakeMeshShapeType::Cylinder |
 							   EMakeMeshShapeType::Cone | EMakeMeshShapeType::Arrow | EMakeMeshShapeType::SphericalBox }
@@ -232,7 +236,12 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 		bHit = TargetWorld->LineTraceSingleByObjectType(Result, RayStart, RayEnd, QueryParams);
 		if (bHit)
 		{
-			ShapeFrame = FFrame3f(Result.ImpactPoint, Result.ImpactNormal);
+			FVector3f Normal = Result.ImpactNormal;
+			if (!ShapeSettings->bAlignShapeToPlacementSurface)
+			{
+				Normal = FVector3f::UnitZ();
+			}
+			ShapeFrame = FFrame3f(Result.ImpactPoint, Normal);
 			ShapeFrame.ConstrainedAlignPerpAxes();
 		}
 	}
@@ -314,6 +323,10 @@ void UAddPrimitiveTool::UpdatePreviewMesh()
 	if (ShapeSettings->PivotLocation == EMakeMeshPivotLocation::Base)
 	{
 		TargetOrigin.Z = Bounds.Min.Z;
+	}
+	else if (ShapeSettings->PivotLocation == EMakeMeshPivotLocation::Top)
+	{
+		TargetOrigin.Z = Bounds.Max.Z;
 	}
 	for (int vid : NewMesh.VertexIndicesItr())
 	{
