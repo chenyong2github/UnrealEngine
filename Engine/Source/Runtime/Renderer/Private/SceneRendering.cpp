@@ -58,7 +58,7 @@
 #include "IHeadMountedDisplay.h"
 #include "DiaphragmDOF.h" 
 #include "SingleLayerWaterRendering.h" 
-#include "HairStrands\HairStrandsUtils.h"
+#include "HairStrands/HairStrandsUtils.h"
 
 /*-----------------------------------------------------------------------------
 	Globals
