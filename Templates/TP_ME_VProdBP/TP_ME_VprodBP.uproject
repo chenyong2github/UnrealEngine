@@ -14,11 +14,11 @@
 		},
 		{
 			"Name": "OculusVR",
-			"Enabled": false
+			"Enabled": true
 		},
 		{
 			"Name": "SteamVR",
-			"Enabled": false
+			"Enabled": true
 		},
 		{
 			"Name": "PythonScriptPlugin",
@@ -106,6 +106,14 @@
 		},
 		{
 			"Name": "PixelStreaming",
+			"Enabled": true
+		},
+			{
+			"Name": "TimecodeSynchronizer",
+			"Enabled": true
+		},
+		{
+			"Name": "VariantManager",
 			"Enabled": true
 		}
 	]
