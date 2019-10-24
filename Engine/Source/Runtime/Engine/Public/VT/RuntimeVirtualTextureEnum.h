@@ -17,10 +17,9 @@ UENUM()
 enum class ERuntimeVirtualTextureMaterialType : uint8
 {
 	BaseColor UMETA(DisplayName = "Base Color"),
-	BaseColor_Normal UMETA(DisplayName = "Base Color, Normal"),
-	BaseColor_Normal_Specular UMETA(DisplayName = "[BC1|BC3] Base Color, Normal, Roughness, Specular"),
-	BaseColor_Normal_Specular_Ex UMETA(DisplayName = "[BC3|BC3] Base Color, Normal, Roughness, Specular"),
-	BaseColor_Normal_Specular_YCoCg UMETA(DisplayName = "[BC3|BC5|BC1] Base Color, Normal, Roughness, Specular"),
+	BaseColor_Normal_DEPRECATED UMETA(Hidden),
+	BaseColor_Normal_Specular UMETA(DisplayName = "Base Color, Normal, Roughness, Specular"),
+	BaseColor_Normal_Specular_YCoCg UMETA(DisplayName = "YCoCg Base Color, Normal, Roughness, Specular", ToolTip="Base Color is stored in YCoCg space. This requires more memory but may provide better quality."),
 	WorldHeight UMETA(DisplayName = "World Height"),
 
 	Count UMETA(Hidden),
