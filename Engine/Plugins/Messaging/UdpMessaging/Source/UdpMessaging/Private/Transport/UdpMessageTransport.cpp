@@ -168,6 +168,7 @@ bool FUdpMessageTransport::StartTransport(IMessageTransportHandler& Handler)
 	{
 		MulticastReceiver = new FUdpSocketReceiver(MulticastSocket, ThreadWaitTime, TEXT("UdpMessageMulticastReceiver"));
 		MulticastReceiver->OnDataReceived().BindRaw(this, &FUdpMessageTransport::HandleSocketDataReceived);
+		MulticastReceiver->SetMaxReadBufferSize(2048);
 		MulticastReceiver->Start();
 	}
 
@@ -175,6 +176,7 @@ bool FUdpMessageTransport::StartTransport(IMessageTransportHandler& Handler)
 	UnicastReceiver = new FUdpSocketReceiver(UnicastSocket, ThreadWaitTime, TEXT("UdpMessageUnicastReceiver"));
 	{
 		UnicastReceiver->OnDataReceived().BindRaw(this, &FUdpMessageTransport::HandleSocketDataReceived);
+		UnicastReceiver->SetMaxReadBufferSize(2048);
 		UnicastReceiver->Start();
 	}
 #endif
