@@ -22,6 +22,7 @@ public:
 	void Shutdown();
 
 	void SetCurrentSessionExitCode(const int32 InCurrentSessionProcessId, const int32 InExitCode);
+	bool FindCurrentSession(FEditorAnalyticsSession& OutSession) const;
 
 private:
 	/** Send any stored Sessions. */
