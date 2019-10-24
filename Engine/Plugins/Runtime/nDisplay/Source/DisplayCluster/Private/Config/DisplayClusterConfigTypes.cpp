@@ -37,11 +37,11 @@ FString FDisplayClusterConfigClusterNode::ToString() const
 		DisplayClusterStrings::cfg::data::Id,               *Id,
 		DisplayClusterStrings::cfg::data::cluster::Window,  *WindowId,
 		DisplayClusterStrings::cfg::data::cluster::Addr,    *Addr,
-		DisplayClusterStrings::cfg::data::cluster::Master,  DisplayClusterHelpers::str::BoolToStr(IsMaster),
+		DisplayClusterStrings::cfg::data::cluster::Master,  *DisplayClusterHelpers::str::BoolToStr(IsMaster),
 		DisplayClusterStrings::cfg::data::cluster::PortCS,  Port_CS,
 		DisplayClusterStrings::cfg::data::cluster::PortSS,  Port_SS,
 		DisplayClusterStrings::cfg::data::cluster::PortCE,  Port_CE,
-		DisplayClusterStrings::cfg::data::cluster::Sound,   DisplayClusterHelpers::str::BoolToStr(SoundEnabled)
+		DisplayClusterStrings::cfg::data::cluster::Sound,   *DisplayClusterHelpers::str::BoolToStr(SoundEnabled)
 	);
 }
 
@@ -70,7 +70,7 @@ FString FDisplayClusterConfigWindow::ToString() const
 		DisplayClusterStrings::cfg::data::Id,                  *Id,
 		DisplayClusterStrings::cfg::data::window::Viewports,   *DisplayClusterHelpers::str::ArrayToStr(ViewportIds),
 		DisplayClusterStrings::cfg::data::window::Postprocess, *DisplayClusterHelpers::str::ArrayToStr(PostprocessIds),
-		DisplayClusterStrings::cfg::data::window::Fullscreen,  DisplayClusterHelpers::str::BoolToStr(IsFullscreen),
+		DisplayClusterStrings::cfg::data::window::Fullscreen,  *DisplayClusterHelpers::str::BoolToStr(IsFullscreen),
 		DisplayClusterStrings::cfg::data::window::WinX,        WinX,
 		DisplayClusterStrings::cfg::data::window::WinY,        WinY,
 		DisplayClusterStrings::cfg::data::window::ResX,        ResX,
@@ -107,7 +107,7 @@ FString FDisplayClusterConfigViewport::ToString() const
 		DisplayClusterStrings::cfg::data::viewport::PosY,        Loc.Y,
 		DisplayClusterStrings::cfg::data::viewport::Width,       Size.X,
 		DisplayClusterStrings::cfg::data::viewport::Height,      Size.Y,
-		DisplayClusterStrings::cfg::data::viewport::RTT,         DisplayClusterHelpers::str::BoolToStr(IsRTT),
+		DisplayClusterStrings::cfg::data::viewport::RTT,         *DisplayClusterHelpers::str::BoolToStr(IsRTT),
 		DisplayClusterStrings::cfg::data::viewport::BufferRatio, BufferRatio
 	);
 }
@@ -202,7 +202,7 @@ FString FDisplayClusterConfigCamera::ToString() const
 	return FString::Printf(TEXT("[%s + %s=%f, %s=%s, %s=%d]"),
 		*FDisplayClusterConfigSceneNode::ToString(),
 		DisplayClusterStrings::cfg::data::camera::EyeDist,     EyeDist,
-		DisplayClusterStrings::cfg::data::camera::EyeSwap,     DisplayClusterHelpers::str::BoolToStr(EyeSwap),
+		DisplayClusterStrings::cfg::data::camera::EyeSwap,     *DisplayClusterHelpers::str::BoolToStr(EyeSwap),
 		DisplayClusterStrings::cfg::data::camera::ForceOffset, ForceOffset);
 }
 
@@ -265,14 +265,16 @@ bool FDisplayClusterConfigInputSetup::DeserializeFromString(const FString& line)
 //////////////////////////////////////////////////////////////////////////////////////////////
 FString FDisplayClusterConfigGeneral::ToString() const
 {
-	return FString::Printf(TEXT("[%s + %s=%d]"),
+	return FString::Printf(TEXT("[%s + %s=%d, %s=%d]"),
 		*FDisplayClusterConfigBase::ToString(),
-		DisplayClusterStrings::cfg::data::general::SwapSyncPolicy, SwapSyncPolicy);
+		DisplayClusterStrings::cfg::data::general::SwapSyncPolicy, SwapSyncPolicy,
+		DisplayClusterStrings::cfg::data::general::UnrealInputSyncPolicy, NativeInputSyncPolicy);
 }
 
 bool FDisplayClusterConfigGeneral::DeserializeFromString(const FString& line)
 {
-	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::general::SwapSyncPolicy), SwapSyncPolicy);
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::general::SwapSyncPolicy),        SwapSyncPolicy);
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::general::UnrealInputSyncPolicy), NativeInputSyncPolicy);
 	return FDisplayClusterConfigBase::DeserializeFromString(line);
 }
 
@@ -339,9 +341,9 @@ FString FDisplayClusterConfigDebug::ToString() const
 {
 	return FString::Printf(TEXT("[%s + %s=%s, %s=%s, %s=%f]"),
 		*FDisplayClusterConfigBase::ToString(),
-		DisplayClusterStrings::cfg::data::debug::DrawStats, DisplayClusterHelpers::str::BoolToStr(DrawStats),
-		DisplayClusterStrings::cfg::data::debug::LagSim,  DisplayClusterHelpers::str::BoolToStr(LagSimulateEnabled),
-		DisplayClusterStrings::cfg::data::debug::LagTime, LagMaxTime);
+		DisplayClusterStrings::cfg::data::debug::DrawStats, *DisplayClusterHelpers::str::BoolToStr(DrawStats),
+		DisplayClusterStrings::cfg::data::debug::LagSim,    *DisplayClusterHelpers::str::BoolToStr(LagSimulateEnabled),
+		DisplayClusterStrings::cfg::data::debug::LagTime,   LagMaxTime);
 }
 
 bool FDisplayClusterConfigDebug::DeserializeFromString(const FString& line)

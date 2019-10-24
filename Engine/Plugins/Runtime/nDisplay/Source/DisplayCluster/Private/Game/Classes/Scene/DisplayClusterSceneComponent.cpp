@@ -76,7 +76,6 @@ bool UDisplayClusterSceneComponent::ApplySettings()
 			UE_LOG(LogDisplayClusterGame, Log, TEXT("Attaching %s to %s"), *GetId(), *GetParentId());
 			UDisplayClusterSceneComponent* const pComp = GameMgr->GetNodeById(GetParentId());
 			AttachToComponent(pComp, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
-			//this->SetRelativeTransform(FTransform::Identity);
 		}
 	}
 

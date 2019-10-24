@@ -36,11 +36,12 @@ public:
 	virtual void WaitForFrameStart() override final;
 	virtual void WaitForFrameEnd()   override final;
 	virtual void WaitForTickEnd()    override final;
-	virtual void GetDeltaTime(float& deltaTime) override final;
-	virtual void GetTimecode(FTimecode& timecode, FFrameRate& frameRate) override;
-	virtual void GetSyncData(FDisplayClusterMessage::DataType& data)  override;
-	virtual void GetInputData(FDisplayClusterMessage::DataType& data) override;
-	virtual void GetEventsData(FDisplayClusterMessage::DataType& data) override;
+	virtual void GetDeltaTime(float& DeltaSeconds) override;
+	virtual void GetTimecode(FTimecode& Timecode, FFrameRate& FrameRate) override;
+	virtual void GetSyncData(FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup) override;
+	virtual void GetInputData(FDisplayClusterMessage::DataType& InputData) override;
+	virtual void GetEventsData(FDisplayClusterMessage::DataType& EventsData) override;
+	virtual void GetNativeInputData(FDisplayClusterMessage::DataType& EventsData) override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////

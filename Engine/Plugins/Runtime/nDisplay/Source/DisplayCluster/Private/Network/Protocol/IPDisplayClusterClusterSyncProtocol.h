@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Network/DisplayClusterMessage.h"
+#include "DisplayClusterEnums.h"
 
 struct FTimecode;
 struct FFrameRate;
@@ -27,18 +28,20 @@ public:
 	virtual void WaitForTickEnd() = 0;
 
 	// Provides with time delta for current frame
-	virtual void GetDeltaTime(float& deltaTime) = 0;
+	virtual void GetDeltaTime(float& DeltaSeconds) = 0;
 
 	// Get the Timecode value for the current frame.
-	virtual void GetTimecode(FTimecode& timecode, FFrameRate& frameRate) = 0;
+	virtual void GetTimecode(FTimecode& Timecode, FFrameRate& FrameRate) = 0;
 
 	// Sync objects
-	virtual void GetSyncData(FDisplayClusterMessage::DataType& data) = 0;
+	virtual void GetSyncData(FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup) = 0;
 
 	// Sync input
-	virtual void GetInputData(FDisplayClusterMessage::DataType& data) = 0;
+	virtual void GetInputData(FDisplayClusterMessage::DataType& InputData) = 0;
 
 	// Sync events
-	virtual void GetEventsData(FDisplayClusterMessage::DataType& data) = 0;
-};
+	virtual void GetEventsData(FDisplayClusterMessage::DataType& EventsData) = 0;
 
+	// Sync native UE4 input
+	virtual void GetNativeInputData(FDisplayClusterMessage::DataType& NativeInputData) = 0;
+};

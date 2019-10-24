@@ -80,31 +80,17 @@ namespace // Helpers
 
 	FMatrix GetProjectionMatrixAssymetric(const IMPCDI::FFrustum::FAngles& ProjectionAngles, float zNear, float zFar)
 	{
-		float l = ProjectionAngles.Left;
-		float r = ProjectionAngles.Right;
-		float t = ProjectionAngles.Top;
-		float b = ProjectionAngles.Bottom;
+		const float l = ProjectionAngles.Left;
+		const float r = ProjectionAngles.Right;
+		const float t = ProjectionAngles.Top;
+		const float b = ProjectionAngles.Bottom;
 
-		static const FMatrix FlipZAxisToUE4 = FMatrix(
-			FPlane(1, 0, 0, 0),
-			FPlane(0, 1, 0, 0),
-			FPlane(0, 0, -1, 0),
-			FPlane(0, 0, 1, 1));
-
-		// Normal LHS
-		FMatrix ProjectionMatrix = DisplayClusterHelpers::math::GetSafeProjectionMatrix(l, r, t, b, zNear, zFar);
-		return ProjectionMatrix * FlipZAxisToUE4;
+		return DisplayClusterHelpers::math::GetProjectionMatrixFromOffsets(l, r, t, b, zNear, zFar);
 	}
 
 	FMatrix GetProjectionMatrixAssymetricFromFrustum(float LeftAngle, float RightAngle, float TopAngle, float BottomAngle, float ZNear, float ZFar)
 	{
-		IMPCDI::FFrustum::FAngles ProjectionAngles(
-			float(ZNear*tan(FMath::DegreesToRadians(TopAngle))),
-			float(ZNear*tan(FMath::DegreesToRadians(BottomAngle))),
-			float(ZNear*tan(FMath::DegreesToRadians(LeftAngle))),
-			float(ZNear*tan(FMath::DegreesToRadians(RightAngle))));
-
-		return GetProjectionMatrixAssymetric(ProjectionAngles, ZNear, ZFar);
+		return DisplayClusterHelpers::math::GetProjectionMatrixFromAngles(LeftAngle, RightAngle, TopAngle, BottomAngle, ZNear, ZFar);
 	}
 };
 
