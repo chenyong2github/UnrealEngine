@@ -18,8 +18,8 @@ void ComputeDualScatteringTerms(
 	const float3 L,
 	const float3 T,
 	const float4 HairComponents,
-	out float3 OutGlobalScattering,
-	out float3 OutLocalScattering)
+	inout float3 OutGlobalScattering,
+	inout float3 OutLocalScattering)
 {
 	const float SinThetaL = clamp(dot(T, L), -1, 1);
 	const float SinThetaV = clamp(dot(T, V), -1, 1);
