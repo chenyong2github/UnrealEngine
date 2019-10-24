@@ -3524,6 +3524,11 @@ void FPackageMapAckState::CountBytes(FArchive& Ar) const
 	NetFieldExportAcked.CountBytes(Ar);
 }
 
+int32 UPackageMapClient::GetNumQueuedBunchNetGUIDs() const
+{
+	return CurrentQueuedBunchNetGUIDs.Num();
+}
+
 void FNetGUIDCache::ConsumeAsyncLoadDelinquencyAnalytics(FNetAsyncLoadDelinquencyAnalytics& Out)
 {
 	Out = MoveTemp(DelinquentAsyncLoads);
