@@ -551,12 +551,9 @@ TArray<uint8> UPropertyValue::GetDataFromResolvedObject() const
 
 void UPropertyValue::RecordDataFromResolvedObject()
 {
-	if (!HasValidResolve())
+	if (!Resolve())
 	{
-		if (!Resolve())
-		{
-			return;
-		}
+		return;
 	}
 
 	TArray<uint8> NewData = GetDataFromResolvedObject();
@@ -1178,12 +1175,9 @@ void UPropertyValue::ClearDefaultValue()
 
 bool UPropertyValue::IsRecordedDataCurrent()
 {
-	if (!HasValidResolve())
+	if (!Resolve())
 	{
-		if (!Resolve())
-		{
-			return false;
-		}
+		return false;
 	}
 
 	if (!HasRecordedData())
