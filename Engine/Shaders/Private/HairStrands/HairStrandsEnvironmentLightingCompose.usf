@@ -3,9 +3,9 @@
 #include "../Common.ush"
 #include "HairStrandsVisibilityCommon.ush"
 
-StructuredBuffer<float4>	HairLightingSampleBuffer;
-Texture2D<uint4>			HairCategorizationTexture;
-Texture2D<uint>				HairVisibilityNodeOffsetAndCount;
+Buffer<float4>		HairLightingSampleBuffer;
+Texture2D<uint4>	HairCategorizationTexture;
+Texture2D<uint>		HairVisibilityNodeOffsetAndCount;
 
 void MainPS(
 	in FScreenVertexOutput Input,

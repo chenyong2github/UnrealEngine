@@ -465,9 +465,9 @@ void MainPS(
 
 #if COMPUTESHADER
 uint MaxVisibilityNodeCount;
-StructuredBuffer<uint>		HairVisibilityNodeCoord;
-Buffer<uint4>				IndirectArgsBuffer;
-RWStructuredBuffer<float4> OutLightingBuffer;
+StructuredBuffer<uint>	HairVisibilityNodeCoord;
+Buffer<uint4>			IndirectArgsBuffer;
+RWBuffer<float4>		OutLightingBuffer;
 
 #if PERMUTATION_GROUP_SIZE == 0
 #define LIGHTING_GROUP_SIZE 64
