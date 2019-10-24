@@ -8,7 +8,7 @@
 
 namespace InstallBundleUtil
 {
-	bool HasInternetConnection(ENetworkConnectionType ConnectionType);
+	INSTALLBUNDLEMANAGER_API bool HasInternetConnection(ENetworkConnectionType ConnectionType);
 
 	// It would really be nice to have these in core
 	template<class EnumType>
@@ -36,7 +36,7 @@ namespace InstallBundleUtil
 	}
 
 	// Keep the engine awake via RAII when running as an embedded app
-	class FInstallBundleManagerKeepAwake : public FEmbeddedKeepAwake
+	class INSTALLBUNDLEMANAGER_API FInstallBundleManagerKeepAwake : public FEmbeddedKeepAwake
 	{
 		static FName Tag;
 		static FName TagWithRendering;
@@ -45,7 +45,7 @@ namespace InstallBundleUtil
 			: FEmbeddedKeepAwake(bNeedsRendering ? TagWithRendering : Tag, bNeedsRendering) {}
 	};
 
-	class FInstallBundleWork : public FNonAbandonableTask
+	class INSTALLBUNDLEMANAGER_API FInstallBundleWork : public FNonAbandonableTask
 	{
 	public:
 		FInstallBundleWork() = default;
@@ -83,9 +83,9 @@ namespace InstallBundleUtil
 
 	using FInstallBundleTask = FAsyncTask<FInstallBundleWork>;
 
-	void StartInstallBundleAsyncIOTask(TArray<TUniquePtr<FInstallBundleTask>>& Tasks, TUniqueFunction<void()> WorkFunc, TUniqueFunction<void()> OnComplete);
+	INSTALLBUNDLEMANAGER_API void StartInstallBundleAsyncIOTask(TArray<TUniquePtr<FInstallBundleTask>>& Tasks, TUniqueFunction<void()> WorkFunc, TUniqueFunction<void()> OnComplete);
 
-	void FinishInstallBundleAsyncIOTasks(TArray<TUniquePtr<FInstallBundleTask>>& Tasks);
+	INSTALLBUNDLEMANAGER_API void FinishInstallBundleAsyncIOTasks(TArray<TUniquePtr<FInstallBundleTask>>& Tasks);
 
-	void CleanupInstallBundleAsyncIOTasks(TArray<TUniquePtr<FInstallBundleTask>>& Tasks);
+	INSTALLBUNDLEMANAGER_API void CleanupInstallBundleAsyncIOTasks(TArray<TUniquePtr<FInstallBundleTask>>& Tasks);
 }

@@ -9,7 +9,7 @@ class IAnalyticsProviderET;
 
 DECLARE_DELEGATE_ThreeParams(FInstallBundleSourceInitDelegate, TSharedRef<IInstallBundleSource> /*Source*/, EInstallBundleManagerInitResult /*Result*/, bool /*bShouldUseFallbackSource*/)
 
-class INSTALLBUNDLEMANAGER_API IInstallBundleSource : public TSharedFromThis<IInstallBundleSource>
+class IInstallBundleSource : public TSharedFromThis<IInstallBundleSource>
 {
 public:
 	virtual ~IInstallBundleSource() {}
