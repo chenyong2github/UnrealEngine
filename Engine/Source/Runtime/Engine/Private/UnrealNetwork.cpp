@@ -23,19 +23,13 @@ void RegisterReplicatedLifetimeProperty(
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void RegisterReplicatedLifetimeProperty(
-	const UProperty* ReplicatedProperty,
+	const NetworkingPrivate::FRepPropertyDescriptor& PropertyDescriptor,
 	TArray<FLifetimeProperty>& OutLifetimeProps,
 	const FDoRepLifetimeParams& Params)
 {
-	if (!ReplicatedProperty) 
+	for (int32 i = 0; i < PropertyDescriptor.ArrayDim; i++)
 	{
-		check(false);
-		return;
-	}
-
-	for ( int32 i = 0; i < ReplicatedProperty->ArrayDim; i++ )
-	{
-		const uint16 RepIndex = ReplicatedProperty->RepIndex + i;
+		const uint16 RepIndex = PropertyDescriptor.RepIndex + i;
 		FLifetimeProperty* RegisteredPropertyPtr = OutLifetimeProps.FindByPredicate([&RepIndex](const FLifetimeProperty& Var) { return Var.RepIndex == RepIndex; });
 
 		FLifetimeProperty LifetimeProp(RepIndex, Params.Condition, Params.RepNotifyCondition);
@@ -51,7 +45,7 @@ void RegisterReplicatedLifetimeProperty(
 			else
 			{
 				// Conditions should be identical when calling DOREPLIFETIME twice on the same variable.
-				checkf((*RegisteredPropertyPtr) == LifetimeProp, TEXT("Property %s was registered twice with different conditions (old:%d) (new:%d)"), *ReplicatedProperty->GetName(), RegisteredPropertyPtr->Condition, Params.Condition);
+				checkf((*RegisteredPropertyPtr) == LifetimeProp, TEXT("Property %s was registered twice with different conditions (old:%d) (new:%d)"), PropertyDescriptor.PropertyName, RegisteredPropertyPtr->Condition, Params.Condition);
 			}
 		}
 		else
@@ -61,13 +55,25 @@ void RegisterReplicatedLifetimeProperty(
 	}
 }
 
-void SetReplicatedPropertyToDisabled(const UProperty* ReplicatedProperty, TArray< FLifetimeProperty >& OutLifetimeProps)
+void RegisterReplicatedLifetimeProperty(
+	const UProperty* ReplicatedProperty,
+	TArray<FLifetimeProperty>& OutLifetimeProps,
+	const FDoRepLifetimeParams& Params)
 {
-	check(ReplicatedProperty);
-
-	for (int32 i = 0; i < ReplicatedProperty->ArrayDim; i++)
+	if (ReplicatedProperty == nullptr)
 	{
-		const uint16 RepIndex = ReplicatedProperty->RepIndex + i;
+		check(false);
+		return;
+	}
+
+	RegisterReplicatedLifetimeProperty(NetworkingPrivate::FRepPropertyDescriptor(ReplicatedProperty), OutLifetimeProps, Params);
+}
+
+void SetReplicatedPropertyToDisabled(const NetworkingPrivate::FRepPropertyDescriptor& PropertyDescriptor, TArray<FLifetimeProperty>& OutLifetimeProps)
+{
+	for (int32 i = 0; i < PropertyDescriptor.ArrayDim; i++)
+	{
+		const uint16 RepIndex = PropertyDescriptor.RepIndex + i;
 		FLifetimeProperty* RegisteredPropertyPtr = OutLifetimeProps.FindByPredicate([&RepIndex](const FLifetimeProperty& Var) { return Var.RepIndex == RepIndex; });
 
 		if (RegisteredPropertyPtr)
@@ -81,6 +87,16 @@ void SetReplicatedPropertyToDisabled(const UProperty* ReplicatedProperty, TArray
 	}
 }
 
+void SetReplicatedPropertyToDisabled(const UProperty* ReplicatedProperty, TArray<FLifetimeProperty>& OutLifetimeProps)
+{
+	SetReplicatedPropertyToDisabled(NetworkingPrivate::FRepPropertyDescriptor(ReplicatedProperty), OutLifetimeProps);
+}
+
+void DisableReplicatedLifetimeProperty(const NetworkingPrivate::FRepPropertyDescriptor& PropertyDescriptor, TArray<FLifetimeProperty>& OutLifetimeProps)
+{
+	SetReplicatedPropertyToDisabled(PropertyDescriptor, OutLifetimeProps);
+}
+
 void DisableReplicatedLifetimeProperty(const UClass* ThisClass, const UClass* PropertyClass, FName PropertyName, TArray< FLifetimeProperty >& OutLifetimeProps)
 {
 	const UProperty* ReplicatedProperty = GetReplicatedProperty(ThisClass, PropertyClass, PropertyName);
@@ -89,20 +105,17 @@ void DisableReplicatedLifetimeProperty(const UClass* ThisClass, const UClass* Pr
 		return;
 	}
 
-	SetReplicatedPropertyToDisabled(ReplicatedProperty, OutLifetimeProps);
+	SetReplicatedPropertyToDisabled(NetworkingPrivate::FRepPropertyDescriptor(ReplicatedProperty), OutLifetimeProps);
 }
 
-void ResetReplicatedLifetimeProperty(const UClass* ThisClass, const UClass* PropertyClass, FName PropertyName, ELifetimeCondition LifetimeCondition, TArray< FLifetimeProperty >& OutLifetimeProps)
+void ResetReplicatedLifetimeProperty(
+	const NetworkingPrivate::FRepPropertyDescriptor& PropertyDescriptor,
+	ELifetimeCondition LifetimeCondition,
+	TArray<FLifetimeProperty>& OutLifetimeProps)
 {
-	const UProperty* ReplicatedProperty = GetReplicatedProperty(ThisClass, PropertyClass, PropertyName);
-	if (!ReplicatedProperty)
+	for (int32 i = 0; i < PropertyDescriptor.ArrayDim; i++)
 	{
-		return;
-	}
-
-	for (int32 i = 0; i < ReplicatedProperty->ArrayDim; i++)
-	{
-		uint16 RepIndex = ReplicatedProperty->RepIndex + i;
+		uint16 RepIndex = PropertyDescriptor.RepIndex + i;
 		FLifetimeProperty* RegisteredPropertyPtr = OutLifetimeProps.FindByPredicate([&RepIndex](const FLifetimeProperty& Var) { return Var.RepIndex == RepIndex; });
 
 		// Set the new condition
@@ -113,6 +126,35 @@ void ResetReplicatedLifetimeProperty(const UClass* ThisClass, const UClass* Prop
 		else
 		{
 			OutLifetimeProps.Add(FLifetimeProperty(RepIndex, LifetimeCondition));
+		}
+	}
+}
+
+void ResetReplicatedLifetimeProperty(const UClass* ThisClass, const UClass* PropertyClass, FName PropertyName, ELifetimeCondition LifetimeCondition, TArray< FLifetimeProperty >& OutLifetimeProps)
+{
+	const UProperty* ReplicatedProperty = GetReplicatedProperty(ThisClass, PropertyClass, PropertyName);
+	if (!ReplicatedProperty)
+	{
+		return;
+	}
+
+	ResetReplicatedLifetimeProperty(NetworkingPrivate::FRepPropertyDescriptor(ReplicatedProperty), LifetimeCondition, OutLifetimeProps);
+}
+
+void DisableAllReplicatedPropertiesOfClass(const NetworkingPrivate::FRepClassDescriptor& ClassDescriptor, EFieldIteratorFlags::SuperClassFlags SuperClassBehavior, TArray<FLifetimeProperty>& OutLifetimeProps)
+{
+	const int32 StartIndex = (EFieldIteratorFlags::IncludeSuper == SuperClassBehavior) ? 0 : ClassDescriptor.StartRepIndex;
+	for (int32 RepIndex = StartIndex; RepIndex < ClassDescriptor.EndRepIndex; ++RepIndex)
+	{
+		FLifetimeProperty* RegisteredPropertyPtr = OutLifetimeProps.FindByPredicate([&RepIndex](const FLifetimeProperty& Var) { return Var.RepIndex == RepIndex; });
+
+		if (RegisteredPropertyPtr)
+		{
+			RegisteredPropertyPtr->Condition = COND_Never;
+		}
+		else
+		{
+			OutLifetimeProps.Add(FLifetimeProperty(RepIndex, COND_Never));
 		}
 	}
 }
@@ -134,6 +176,7 @@ void DisableAllReplicatedPropertiesOfClass(const UClass* ThisClass, const UClass
 		}
 	}
 }
+
 
 void DeprecatedChangeCondition(const  UProperty* ReplicatedProperty, TArray<FLifetimeProperty>& OutLifetimeProps, ELifetimeCondition InCondition)
 {
