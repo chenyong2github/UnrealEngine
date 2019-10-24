@@ -12,7 +12,6 @@
 
 
 FDatasmithCADTranslator::FDatasmithCADTranslator()
-	: MeshBuilder(CADFileToUE4GeomMap, MeshElementToCADBRepUuidMap)
 {
 }
 
@@ -86,6 +85,8 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 
 	FString CachePath = FPaths::ConvertRelativePathToFull(FDatasmithCADTranslatorModule::Get().GetCacheDir());
 
+	TMap<FString, FString> CADFileToUE4FileMap;
+
 	int32 NumCores = FPlatformMisc::NumberOfCores();
 	DatasmithDispatcher::FDatasmithDispatcher Dispatcher(CachePath, NumCores, CADFileToUE4FileMap, CADFileToUE4GeomMap);
 
@@ -98,24 +99,30 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 
 	FDatasmithSceneGraphBuilder SceneGraphBuilder(CADFileToUE4FileMap, MeshElementToCADBRepUuidMap,  CachePath, DatasmithScene, GetSource(), ImportParameters);
 	SceneGraphBuilder.Build();
-	SceneGraphBuilder.Clear();
 
-	MeshBuilder.Init(CachePath);
-	MeshBuilder.SetImportParameters(ImportParameters);
-	MeshBuilder.LoadRawDataGeom();
+	MeshBuilderPtr = MakeUnique<FDatasmithMeshBuilder>(CADFileToUE4GeomMap, MeshElementToCADBRepUuidMap, CachePath, ImportParameters);
 
 	return true;
 }
 
 void FDatasmithCADTranslator::UnloadScene()
 {
+	MeshBuilderPtr = nullptr;
+
+	CADFileToUE4GeomMap.Empty();
+	MeshElementToCADBRepUuidMap.Empty();
 }
 
 bool FDatasmithCADTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload& OutMeshPayload)
 {
+	if (!MeshBuilderPtr.IsValid())
+	{
+		return false;
+	}
+
 	CADLibrary::FMeshParameters MeshParameters;
 
-	if (TOptional< FMeshDescription > Mesh = MeshBuilder.GetMeshDescription(MeshElement, MeshParameters))
+	if (TOptional< FMeshDescription > Mesh = MeshBuilderPtr->GetMeshDescription(MeshElement, MeshParameters))
 	{
 		OutMeshPayload.LodMeshes.Add(MoveTemp(Mesh.GetValue()));
 
