@@ -355,6 +355,7 @@ void UGroomAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	UpdateResource();
+	OnGroomAssetChanged.Broadcast();
 }
 #endif // WITH_EDITOR
 

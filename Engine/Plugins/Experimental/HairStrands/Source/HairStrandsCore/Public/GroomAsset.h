@@ -196,8 +196,9 @@ struct HAIRSTRANDSCORE_API FHairGroupInfo
 	UPROPERTY(EditAnywhere, Category="Rendering")
 	UMaterialInterface* Material = nullptr;
 
-	UPROPERTY(EditAnywhere, Category="Simulation", meta = (DisplayName = "Niagara System Asset"))
-	UNiagaraSystem* NiagaraAsset = nullptr;
+	// Currently hide the Nigara simulation slot as it is not used, and could confuse users
+	//UPROPERTY(EditAnywhere, Category="Simulation", meta = (DisplayName = "Niagara System Asset"))
+	//UNiagaraSystem* NiagaraAsset = nullptr;
 };
 
 struct HAIRSTRANDSCORE_API FHairGroupData
@@ -223,6 +224,11 @@ class HAIRSTRANDSCORE_API UGroomAsset : public UObject
 {
 	GENERATED_BODY()
 
+#if WITH_EDITOR
+	/** Notification when anything changed */
+	DECLARE_MULTICAST_DELEGATE(FOnGroomAssetChanged);
+#endif
+
 public:
 
 	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintReadWrite, Category = "HairGroups", meta = (DisplayName = "Group"))
@@ -240,6 +246,7 @@ public:
 	float HairToGuideDensity = 0.1f;
 
 #if WITH_EDITOR
+	FOnGroomAssetChanged& GetOnGroomAssetChanged() { return OnGroomAssetChanged;  }
 
 	/**  Part of Uobject interface  */
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -278,7 +285,9 @@ public:
 
 	int32 GetNumHairGroups() const;
 
-//private : 
-
+//private :
+#if WITH_EDITOR
+	FOnGroomAssetChanged OnGroomAssetChanged;
+#endif
 	TUniquePtr<FHairDescription> HairDescription;
 };
