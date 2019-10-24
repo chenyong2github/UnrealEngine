@@ -10,6 +10,8 @@
 #include "Spatial/MeshAABBTree3.h"
 #include "Spatial/FastWinding.h"
 
+#include "Math/RandomStream.h"
+
 #include "MeshAdapter.h"
 #include "MeshNormals.h"
 #include "DynamicMeshEditor.h"
