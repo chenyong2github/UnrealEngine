@@ -19,11 +19,8 @@
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FDeepShadowPassUniformParameters, )
 	//SHADER_PARAMETER_STRUCT(FSceneTexturesUniformParameters, SceneTextures)
 	SHADER_PARAMETER(FMatrix, WorldToClipMatrix)
-	SHADER_PARAMETER(FVector, LightDirection)
 	SHADER_PARAMETER(FVector4, SliceValue)
-	SHADER_PARAMETER(uint32, bIsOrtho)
 	SHADER_PARAMETER(FIntRect, AtlasRect)
-	SHADER_PARAMETER(float, MinStrandRadius)
 	SHADER_PARAMETER(FVector, VoxelMinAABB)
 	SHADER_PARAMETER(FVector, VoxelMaxAABB)
 	SHADER_PARAMETER(uint32, VoxelResolution)
@@ -403,11 +400,8 @@ void RasterHairStrands(
 
 		FDeepShadowPassUniformParameters PassParameters;
 		PassParameters.WorldToClipMatrix = LightDesc.WorldToLightClipTransform;
-		PassParameters.LightDirection = LightDesc.LightDirection;
 		PassParameters.SliceValue = FVector4(1, 1, 1, 1);
 		PassParameters.FrontDepthTexture = DeepShadowDepthTexture;
-		PassParameters.MinStrandRadius = LightDesc.MinStrandRadiusAtDepth1.Primary;
-		PassParameters.bIsOrtho = LightDesc.bIsOrtho ? 1u : 0u;
 		PassParameters.AtlasRect = AtlasRect;
 		PassParameters.VoxelMinAABB = MinAABB;
 		PassParameters.VoxelMaxAABB = MaxAABB;
@@ -416,6 +410,24 @@ void RasterHairStrands(
 	}
 
 	FMeshPassProcessorRenderState DrawRenderState(*ViewInfo, PassUniformBuffer);
+
+	if (ShadowPassType == EHairStrandsRasterPassType::DeepOpacityMap
+		|| ShadowPassType == EHairStrandsRasterPassType::FrontDepth
+		|| ShadowPassType == EHairStrandsRasterPassType::VoxelizationMaterial 
+		|| ShadowPassType == EHairStrandsRasterPassType::Voxelization)
+	{
+		TUniformBufferRef<FViewUniformShaderParameters> ViewPassUniformBuffer;
+		// Create a ViewUniformBuffer by patching the cached one
+
+		ViewInfo->CachedViewUniformShaderParameters->HairRenderInfo.X = LightDesc.MinStrandRadiusAtDepth1.Primary;
+		ViewInfo->CachedViewUniformShaderParameters->HairRenderInfo.Y = LightDesc.MinStrandRadiusAtDepth1.Velocity;
+		ViewInfo->CachedViewUniformShaderParameters->HairRenderInfo.Z = LightDesc.bIsOrtho ? 1.0f : 0.0f;
+		ViewInfo->CachedViewUniformShaderParameters->ViewForward = LightDesc.LightDirection;
+		ViewPassUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*ViewInfo->CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
+		DrawRenderState.SetViewUniformBuffer(ViewPassUniformBuffer);
+	}
+
+
 	{
 		RHICmdList.SetViewport(AtlasRect.Min.X, AtlasRect.Min.Y, 0.0f, AtlasRect.Max.X, AtlasRect.Max.Y, 1.0f);
 
