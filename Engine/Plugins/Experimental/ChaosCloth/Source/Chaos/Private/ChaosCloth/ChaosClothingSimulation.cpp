@@ -698,8 +698,8 @@ void ClothingSimulation::ExtractPhysicsAssetCollisions(UClothingAssetCommon* Ass
 
 				// Add extracted collision data
 				ExtractedCollisions.Convexes.Add(Convex);
-#endif  // #if !PLATFORM_LUMIN && !PLATFORM_ANDROID
 			}
+#endif  // #if !PLATFORM_LUMIN && !PLATFORM_ANDROID
 		} // end for
 
 		// Add collisions particles
