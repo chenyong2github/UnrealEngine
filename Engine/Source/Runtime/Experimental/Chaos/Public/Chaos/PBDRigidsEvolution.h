@@ -637,7 +637,7 @@ protected:
 	/** Used for async acceleration rebuild */
 	TMap<TGeometryParticleHandle<T, d>*, uint32> ParticleToCacheInnerIdx;
 
-	TMap<FSpatialAccelerationIdx, TSpatialAccelerationCache<T, d>> SpatialAccelerationCache;
+	TMap<FSpatialAccelerationIdx, TUniquePtr<TSpatialAccelerationCache<T, d>>> SpatialAccelerationCache;
 
 	FORCEINLINE_DEBUGGABLE void ApplyParticlePendingData(TGeometryParticleHandle<T, d>* Particle, const FPendingSpatialData& PendingData, FAccelerationStructure& SpatialAcceleration, bool bUpdateCache);
 
@@ -645,7 +645,7 @@ protected:
 	{
 	public:
 		FChaosAccelerationStructureTask(ISpatialAccelerationCollectionFactory<T,d>& InSpatialCollectionFactory
-			, const TMap<FSpatialAccelerationIdx, TSpatialAccelerationCache<T,d>>& InSpatialAccelerationCache
+			, const TMap<FSpatialAccelerationIdx, TUniquePtr<TSpatialAccelerationCache<T,d>>>& InSpatialAccelerationCache
 			, TUniquePtr<FAccelerationStructure>& InAccelerationStructure
 			, TUniquePtr<FAccelerationStructure>& InAccelerationStructureCopy);
 		static FORCEINLINE TStatId GetStatId();
@@ -654,7 +654,7 @@ protected:
 		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
 
 		ISpatialAccelerationCollectionFactory<T, d>& SpatialCollectionFactory;
-		const TMap<FSpatialAccelerationIdx, TSpatialAccelerationCache<T, d>>& SpatialAccelerationCache;
+		const TMap<FSpatialAccelerationIdx, TUniquePtr<TSpatialAccelerationCache<T, d>>>& SpatialAccelerationCache;
 		TUniquePtr<FAccelerationStructure>& AccelerationStructure;
 		TUniquePtr<FAccelerationStructure>& AccelerationStructureCopy;
 	};
