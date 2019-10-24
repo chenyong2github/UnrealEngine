@@ -156,7 +156,7 @@ CT_OBJECT_ID FAliasCoretechWrapper::Add3DCurve(AlCurve& Curve)
 
 CT_OBJECT_ID FAliasCoretechWrapper::AddTrimCurve(AlTrimCurve& TrimCurve)
 {
-	bool bIsReversed = TrimCurve.isReversed();
+	boolean bIsReversed = TrimCurve.isReversed();
 	curveFormType Form = TrimCurve.form();
 	CT_UINT32 Order = TrimCurve.degree() + 1;
 	CT_UINT32 ControlPointSize = TrimCurve.numberOfCVs();
