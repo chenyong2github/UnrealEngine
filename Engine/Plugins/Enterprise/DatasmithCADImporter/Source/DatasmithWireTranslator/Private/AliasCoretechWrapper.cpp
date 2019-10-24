@@ -240,11 +240,6 @@ CT_OBJECT_ID FAliasCoretechWrapper::AddTrimCurve(AlTrimCurve& TrimCurve)
 		AlEdge2CTEdge.Add(&TrimCurve, CoedgeID);
 	}
 
-	if (Result != IO_OK)
-	{
-		return 0;
-	}
-
 	return CoedgeID;
 }
 
