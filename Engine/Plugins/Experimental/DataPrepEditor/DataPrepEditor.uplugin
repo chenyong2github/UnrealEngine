@@ -35,6 +35,10 @@
 		{
 			"Name": "EditorScriptingUtilities",
 			"Enabled": true
+		},
+		{
+			"Name": "VariantManagerContent",
+			"Enabled": true
 		}
 	]
 }
