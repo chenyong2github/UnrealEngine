@@ -107,7 +107,7 @@ class FFreeImageWrapper
 public:
 	static bool IsValid() { return FreeImageDllHandle != nullptr; }
 
-	static void FreeImage_Initialise(bool bLoadLocalPluginsOnly); // Loads and inits FreeImage on first call
+	static void FreeImage_Initialise(); // Loads and inits FreeImage on first call
 
 private:
 	static void* FreeImageDllHandle; // Lazy init on first use, never release for now
@@ -134,6 +134,11 @@ bool FDatasmithTextureResize::IsSupportedTextureExtension(const FString& Extensi
 			Extension == TEXT(".hdr");
 }
 
+void FDatasmithTextureResize::Initialize()
+{
+	FFreeImageWrapper::FreeImage_Initialise();
+}
+
 bool FDatasmithTextureResize::GetBestTextureExtension(const TCHAR* Source, FString& Extension)
 {
 	Extension = FPaths::GetExtension(Source, true).ToLower();
@@ -144,7 +149,7 @@ bool FDatasmithTextureResize::GetBestTextureExtension(const TCHAR* Source, FStri
 
 	Extension.Reset();
 
-	FFreeImageWrapper::FreeImage_Initialise(false);
+	Initialize();
 
 	//image format
 	FREE_IMAGE_FORMAT FileType = FIF_UNKNOWN;
@@ -212,7 +217,7 @@ EDSTextureUtilsError FDatasmithTextureResize::ResizeTexture(const TCHAR* Source,
 		return EDSTextureUtilsError::FileNotFound;
 	}
 
-	FFreeImageWrapper::FreeImage_Initialise(false);
+	Initialize();
 
 	if ( !FFreeImageWrapper::IsValid() )
 	{
@@ -656,12 +661,16 @@ void DatasmithTextureResizeInternal::GetBitmapPixelInfo(FIBITMAP* Bitmap, int32&
 
 void* FFreeImageWrapper::FreeImageDllHandle = nullptr;
 
-void FFreeImageWrapper::FreeImage_Initialise(bool bLoadLocalPluginsOnly)
+void FFreeImageWrapper::FreeImage_Initialise()
 {
 	if ( FreeImageDllHandle != nullptr )
 	{
 		return;
 	}
+
+	// Push/PopDllDirectory are soooooo not threadsafe!
+	// Must load library in main thread before doing parallel processing
+	check(IsInGameThread());
 
 	if ( FreeImageDllHandle == nullptr )
 	{
@@ -674,7 +683,7 @@ void FFreeImageWrapper::FreeImage_Initialise(bool bLoadLocalPluginsOnly)
 
 	if ( FreeImageDllHandle )
 	{
-		::FreeImage_Initialise((BOOL)bLoadLocalPluginsOnly);
+		::FreeImage_Initialise();
 	}
 }
 
