@@ -16,8 +16,8 @@ float CosTangentThreshold;
 #endif
 
 void ComputeUniqueSamplesWithoutDepthTest(
-	out uint3 OutSamples[HAIR_VISIBILITY_MAXSAMPLECOUNT],
-	out FSampleSetDesc OutSet,
+	inout uint3 OutSamples[HAIR_VISIBILITY_MAXSAMPLECOUNT],
+	inout FSampleSetDesc OutSet,
 	const uint2 PixelCoord,
 	const uint SampleCount,
 	const float OpaqueDepth,
