@@ -115,6 +115,28 @@ namespace DatasmithLevelSequenceImporterImpl
 		return ObjectBinding;
 	}
 
+	// Creates duplicates of OriginalTrack for every child (recursively) of ParentActor, adding them to the MovieScene
+	void PropagateVisibilityTrackRecursive(AActor* ParentActor, int32 AnimIndex, ULevelSequence* LevelSequence, UMovieScene* MovieScene, UMovieSceneVisibilityTrack* OriginalTrack)
+	{
+		TArray<AActor*> Children;
+		ParentActor->GetAttachedActors(Children, false);
+		for (AActor* Child : Children)
+		{
+			FGuid ChildBinding = BindActorToLevelSequence(Child, LevelSequence, AnimIndex);
+
+			// Can only have one track of a type per binding
+			if (UMovieSceneVisibilityTrack* ChildVisibilityTrack = MovieScene->FindTrack<UMovieSceneVisibilityTrack>(ChildBinding))
+			{
+				MovieScene->RemoveTrack(*ChildVisibilityTrack);
+			}
+
+			UMovieSceneVisibilityTrack* ClonedParentTrack = DuplicateObject(OriginalTrack, nullptr);
+			MovieScene->AddGivenTrack(ClonedParentTrack, ChildBinding);
+
+			PropagateVisibilityTrackRecursive(Child, ++AnimIndex, LevelSequence, MovieScene, OriginalTrack);
+		}
+	}
+
 	int32 GetTransformValues(const TSharedRef<IDatasmithTransformAnimationElement>& Animation, EDatasmithTransformType TransformType, const FFrameRate& SrcFrameRate, const FFrameRate& DestFrameRate, TArray<FFrameNumber>& FrameNumbers, TArray<float>& XValues, TArray<float>& YValues, TArray<float>& ZValues, FFrameNumber& MinFrameNumber, FFrameNumber& MaxFrameNumber)
 	{
 		int32 NumFrames = Animation->GetFramesCount(TransformType);
@@ -417,6 +439,11 @@ namespace DatasmithLevelSequenceImporterImpl
 		for (FMovieSceneBoolChannel* Channel : Channels)
 		{
 			Channel->Optimize(OptimParams);
+		}
+
+		if (VisibilityAnimation->GetPropagateToChildren())
+		{
+			PropagateVisibilityTrackRecursive(Actor, AnimIndex + 1, LevelSequence, MovieScene, VisibilityTrack);
 		}
 	}
 
