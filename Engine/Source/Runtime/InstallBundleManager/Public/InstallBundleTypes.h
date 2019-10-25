@@ -12,7 +12,7 @@ enum class EInstallBundleSourceType : int
 	Count
 };
 ENUM_RANGE_BY_COUNT(EInstallBundleSourceType, EInstallBundleSourceType::Count);
-const TCHAR* LexToString(EInstallBundleSourceType Type);
+INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleSourceType Type);
 
 enum class EInstallBundleManagerInitState : int
 {
@@ -37,7 +37,7 @@ enum class EInstallBundleManagerInitResult : int
 	ConfigurationError,
 	Count
 };
-const TCHAR* LexToString(EInstallBundleManagerInitResult Result);
+INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleManagerInitResult Result);
 
 // TODO: Needs to be renamed to EInstallBundleState
 enum class EBundleState : int
@@ -48,7 +48,7 @@ enum class EBundleState : int
 	Mounted,
 	Count,
 };
-const TCHAR* LexToString(EBundleState Val);
+INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EBundleState Val);
 
 enum class EInstallBundleContentState : int
 {
@@ -58,9 +58,9 @@ enum class EInstallBundleContentState : int
 	UpToDate,
 	Count,
 };
-const TCHAR* LexToString(EInstallBundleContentState State);
+INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleContentState State);
 
-struct FInstallBundleContentState
+struct INSTALLBUNDLEMANAGER_API FInstallBundleContentState
 {
 	EInstallBundleContentState State = EInstallBundleContentState::InitializationError;
 	TMap<FName, EInstallBundleContentState> IndividualBundleStates;
