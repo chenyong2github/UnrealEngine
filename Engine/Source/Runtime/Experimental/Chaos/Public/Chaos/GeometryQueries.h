@@ -7,6 +7,7 @@
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/HeightField.h"
 #include "Chaos/Convex.h"
+#include "Chaos/Capsule.h"
 #include "ImplicitObjectScaled.h"
 
 #include "ChaosArchive.h"
@@ -17,7 +18,7 @@
 namespace Chaos
 {
 	template <typename T, int d>
-	bool OverlapQuery(const TImplicitObject<T, d>& A, const TRigidTransform<T,d>& ATM, const TImplicitObject<T, d>& B, const TRigidTransform<T,d>& BTM, const T Thickness = 0)
+	bool OverlapQuery(const TImplicitObject<T, d>& A, const TRigidTransform<T,d>& ATM, const TImplicitObject<T, d>& B, const TRigidTransform<T,d>& BTM, const T Thickness = 0, TVector<T,d>* OutMTD=nullptr)
 	{
 		const ImplicitObjectType AType = A.GetType(true);
 		const ImplicitObjectType BType = B.GetType(true);
@@ -26,14 +27,14 @@ namespace Chaos
 		{
 			const TImplicitObjectTransformed<T, d>& TransformedA = static_cast<const TImplicitObjectTransformed<T, d>&>(A);
 			const TRigidTransform<T, d> NewATM = TransformedA.GetTransform() * ATM;
-			return OverlapQuery(*TransformedA.GetTransformedObject(), NewATM, B, BTM, Thickness);
+			return OverlapQuery(*TransformedA.GetTransformedObject(), NewATM, B, BTM, Thickness, OutMTD);
 		}
 
 		if (BType == ImplicitObjectType::Transformed)
 		{
 			const TImplicitObjectTransformed<T, d>& TransformedB = static_cast<const TImplicitObjectTransformed<T, d>&>(B);
 			const TRigidTransform<T, d> NewBTM = TransformedB.GetTransform() * BTM;
-			return OverlapQuery(A, ATM, *TransformedB.GetTransformedObject(), NewBTM, Thickness);
+			return OverlapQuery(A, ATM, *TransformedB.GetTransformedObject(), NewBTM, Thickness, OutMTD);
 		}
 
 		check(B.IsConvex());	//Query object must be convex
@@ -83,7 +84,7 @@ namespace Chaos
 	}
 
 	template <typename T, int d>
-	bool SweepQuery(const TImplicitObject<T, d>& A, const TRigidTransform<T,d>& ATM, const TImplicitObject<T, d>& B, const TRigidTransform<T, d>& BTM, const TVector<T,d>& Dir, const T Length, T& OutTime, TVector<T,d>& OutPosition, TVector<T,d>& OutNormal, int32& OutFaceIndex, const T Thickness = 0)
+	bool SweepQuery(const TImplicitObject<T, d>& A, const TRigidTransform<T,d>& ATM, const TImplicitObject<T, d>& B, const TRigidTransform<T, d>& BTM, const TVector<T,d>& Dir, const T Length, T& OutTime, TVector<T,d>& OutPosition, TVector<T,d>& OutNormal, int32& OutFaceIndex, const T Thickness, const bool bComputeMTD)
 	{
 		const ImplicitObjectType AType = A.GetType(true);
 		const ImplicitObjectType BType = B.GetType(true);
@@ -94,14 +95,14 @@ namespace Chaos
 		{
 			const TImplicitObjectTransformed<T, d>& TransformedA = static_cast<const TImplicitObjectTransformed<T, d>&>(A);
 			const TRigidTransform<T, d> NewATM = TransformedA.GetTransform() * ATM;
-			return SweepQuery(*TransformedA.GetTransformedObject(), NewATM, B, BTM, Dir, Length, OutTime, OutPosition, OutNormal, OutFaceIndex, Thickness);
+			return SweepQuery(*TransformedA.GetTransformedObject(), NewATM, B, BTM, Dir, Length, OutTime, OutPosition, OutNormal, OutFaceIndex, Thickness, bComputeMTD);
 		}
 
 		if (BType == ImplicitObjectType::Transformed)
 		{
 			const TImplicitObjectTransformed<T, d>& TransformedB = static_cast<const TImplicitObjectTransformed<T, d>&>(B);
 			const TRigidTransform<T, d> NewBTM = TransformedB.GetTransform() * BTM;
-			return SweepQuery(A, ATM, *TransformedB.GetTransformedObject(), NewBTM, Dir, Length, OutTime, OutPosition, OutNormal, OutFaceIndex, Thickness);
+			return SweepQuery(A, ATM, *TransformedB.GetTransformedObject(), NewBTM, Dir, Length, OutTime, OutPosition, OutNormal, OutFaceIndex, Thickness, bComputeMTD);
 		}
 
 		check(B.IsConvex());	//Object being swept must be convex
@@ -165,6 +166,21 @@ namespace Chaos
 			{
 				//todo: find face index if convex hull
 			}
+
+			// Compute MTD in the case of an initial overlap
+			if (bResult && bComputeMTD && OutTime == 0.f)
+			{
+				TVector<T, d> LocalPositionOnB;
+				if (BType == ImplicitObjectType::Capsule)
+				{
+					const TCapsule<T>& BCapsule = static_cast<const TCapsule<T>&>(B);
+					GJKPenetrationTemp<T>(A, BCapsule, BToATM, LocalPosition, LocalPositionOnB, LocalNormal, OutTime, Thickness, Offset);
+				}
+				else
+				{
+					GJKPenetrationTemp<T>(A, B, BToATM, LocalPosition, LocalPositionOnB, LocalNormal, OutTime, Thickness, Offset);
+				}
+			}
 		}
 		else
 		{
@@ -198,7 +214,7 @@ namespace Chaos
 		}
 
 		//put back into world space
-		if (OutTime > 0)
+		if (OutTime > 0 || bComputeMTD)
 		{
 			OutNormal = ATM.TransformVectorNoScale(LocalNormal);
 			OutPosition = ATM.TransformPositionNoScale(LocalPosition);
