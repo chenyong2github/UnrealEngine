@@ -289,11 +289,8 @@ struct FMaterialPixelParameters
 
 	// Actual primitive Id
 #if VF_STRAND_HAIR
-	uint HairPrimitiveId;
-	float2 HairUV;			// U: parametric coord along the length V: parametric coord along the width)
-	float2 HairDimensions;  // X: Length, Y: Radius
-	float  HairSeed;		// [0,1] quantized on 8bits
-	float2 HairRootUV;		// [0,256]^2 16bits (8 bits for UDIM index, 8 bits for UV coord)
+	uint	HairPrimitiveId;	// Control point ID
+	float2	HairPrimitiveUV;	// U: parametric distance between the two surrounding control point. V: parametric distance along hair width
 #endif
 
 	/** Per-particle properties. Only valid for particle vertex factories. */
@@ -999,10 +996,18 @@ float3 MaterialExpressionBlackBody( float Temp )
 	return mul( XYZtoRGB, float3( X, Y, Z ) ) * pow( 0.0004 * Temp, 4 );
 }
 
+
+#if VF_STRAND_HAIR
+float2 GetHairStrandsRootUV(uint HairPrimitiveId, float2 VertexUV);
+float2 GetHairStrandsUV(uint HairPrimitiveId, float2 VertexUV);
+float2 GetHairStrandsDimensions(uint HairPrimitiveId, float2 VertexUV);
+float  GetHairStrandsSeed(uint HairPrimitiveId, float2 VertexUV);
+#endif
+
 float2 MaterialExpressionGetHairRootUV(FMaterialPixelParameters Parameters)
 {
 #if VF_STRAND_HAIR
-	return Parameters.HairRootUV;
+	return GetHairStrandsRootUV(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
 #else
 	return float2(0, 0);
 #endif
@@ -1011,7 +1016,7 @@ float2 MaterialExpressionGetHairRootUV(FMaterialPixelParameters Parameters)
 float2 MaterialExpressionGetHairUV(FMaterialPixelParameters Parameters)
 {	
 #if VF_STRAND_HAIR
-	return Parameters.HairUV;
+	return GetHairStrandsUV(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
 #else
 	return float2(0,0);
 #endif
@@ -1020,7 +1025,7 @@ float2 MaterialExpressionGetHairUV(FMaterialPixelParameters Parameters)
 float2 MaterialExpressionGetHairDimensions(FMaterialPixelParameters Parameters)
 {
 #if VF_STRAND_HAIR
-	return Parameters.HairDimensions; // Length | Radius
+	return GetHairStrandsDimensions(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
 #else
 	return float2(0, 0);
 #endif
@@ -1029,7 +1034,7 @@ float2 MaterialExpressionGetHairDimensions(FMaterialPixelParameters Parameters)
 float MaterialExpressionGetHairSeed(FMaterialPixelParameters Parameters)
 {
 #if VF_STRAND_HAIR
-	return Parameters.HairSeed;
+	return GetHairStrandsSeed(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
 #else
 	return 0;
 #endif
