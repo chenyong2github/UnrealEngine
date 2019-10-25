@@ -46,6 +46,7 @@ public:
 	FShaderResourceParameter PositionBuffer;
 	FShaderResourceParameter PreviousPositionBuffer;
 	FShaderResourceParameter AttributeBuffer;
+	FShaderResourceParameter MaterialBuffer;
 	FShaderResourceParameter TangentBuffer;
 
 	virtual void Bind(const FShaderParameterMap& ParameterMap) override
@@ -59,6 +60,7 @@ public:
 		PositionBuffer.Bind(ParameterMap, TEXT("HairStrandsVF_PositionBuffer"));
 		PreviousPositionBuffer.Bind(ParameterMap, TEXT("HairStrandsVF_PreviousPositionBuffer"));
 		AttributeBuffer.Bind(ParameterMap, TEXT("HairStrandsVF_AttributeBuffer"));
+		MaterialBuffer.Bind(ParameterMap, TEXT("HairStrandsVF_MaterialBuffer"));
 		TangentBuffer.Bind(ParameterMap, TEXT("HairStrandsVF_TangentBuffer"));
 	}
 
@@ -75,6 +77,7 @@ public:
 		Ar << PositionBuffer;
 		Ar << PreviousPositionBuffer;
 		Ar << AttributeBuffer;
+		Ar << MaterialBuffer;
 		Ar << TangentBuffer;
 	}
 
@@ -96,6 +99,7 @@ public:
 		BindParam(ShaderBindings, PositionBuffer, VF->GetPositionSRV(GroupIndex));
 		BindParam(ShaderBindings, PreviousPositionBuffer, VF->GetPreviousPositionSRV(GroupIndex));
 		BindParam(ShaderBindings, AttributeBuffer, VF->GetAttributeSRV(GroupIndex));
+		BindParam(ShaderBindings, MaterialBuffer, VF->GetMaterialSRV(GroupIndex));
 		BindParam(ShaderBindings, TangentBuffer, VF->GetTangentSRV(GroupIndex));
 		BindParam(ShaderBindings, Radius, VF->GetMaxStrandRadius(GroupIndex));
 		BindParam(ShaderBindings, Length, VF->GetMaxStrandLength(GroupIndex));

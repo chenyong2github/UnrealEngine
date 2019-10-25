@@ -85,6 +85,7 @@ struct CORE_API FReleaseObjectVersion
 
 		// Groom asset version
 		GroomAssetVersion1,
+		GroomAssetVersion2,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

@@ -32,6 +32,7 @@ float  HairStrandsVF_Length;
 Buffer<uint4>  HairStrandsVF_PositionBuffer;
 Buffer<uint4>  HairStrandsVF_PreviousPositionBuffer;
 Buffer<uint4>  HairStrandsVF_AttributeBuffer;
+Buffer<float4> HairStrandsVF_MaterialBuffer;
 Buffer<float4> HairStrandsVF_TangentBuffer;
 
 // ## A quad is made of the following topology and indexing:
@@ -80,7 +81,6 @@ struct FHairVertexAttributes
 	float3 HairBaseColor;
 	float  HairSeed;
 	float  HairRoughness;
-	float  HairSpecular;
 };
 
 FHairVertexAttributes GetHairStrandsAttributes(uint HairPrimitiveId, float2 VertexUV)
@@ -106,6 +106,15 @@ FHairVertexAttributes GetHairStrandsAttributes(uint HairPrimitiveId, float2 Vert
 	// Varying along the strand
 	Out.HairUV.y		= VertexUV.y;
 	Out.HairUV.x		= lerp(Attributes0.UCoord, Attributes1.UCoord, VertexUV.x);
+
+	// Instead of doing the actual interpolation we could rely on dithering as an optimization
+	const float4 Material0 = HairStrandsVF_MaterialBuffer[VertexId0];
+	const float4 Material1 = HairStrandsVF_MaterialBuffer[VertexId1];
+
+	// Cheap/manual sRGB decoding as the underlying format is linear quantization
+	Out.HairBaseColor	= lerp(Material0.xyz*Material0.xyz, Material1.xyz*Material1.xyz, VertexUV.x);
+	Out.HairRoughness	= lerp(Material0.w, Material1.w, VertexUV.x);
+
 	return Out; 
 }
 
@@ -127,6 +136,16 @@ float2 GetHairStrandsRootUV(uint HairPrimitiveId, float2 HairPrimitiveUV)
 float  GetHairStrandsSeed(uint HairPrimitiveId, float2 HairPrimitiveUV)
 {
 	return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairSeed;
+}
+
+float3 GetHairStrandsBaseColor(uint HairPrimitiveId, float2 HairPrimitiveUV)
+{
+	return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairBaseColor;
+}
+
+float GetHairStrandsRoughness(uint HairPrimitiveId, float2 HairPrimitiveUV)
+{
+	return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairRoughness;
 }
 
 struct FVertexFactoryInput

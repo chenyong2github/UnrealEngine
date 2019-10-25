@@ -35,6 +35,18 @@ struct FPackedHairAttributeVertex
 	friend FArchive& operator<<(FArchive& Ar, FPackedHairAttributeVertex& Vertex);
 };
 
+struct FHairMaterialVertex
+{
+	// sRGB color space
+	uint8 BaseColorR;
+	uint8 BaseColorG;
+	uint8 BaseColorB;
+
+	uint8 Roughness;
+
+	friend FArchive& operator<<(FArchive& Ar, FHairMaterialVertex& Vertex);
+};
+
 struct FHairInterpolation0Vertex
 {
 	uint16 Index0;
@@ -81,6 +93,15 @@ struct FHairStrandsAttributeFormat
 	static const uint32 SizeInByte = sizeof(Type);
 	static const EVertexElementType VertexElementType = VET_UShort4;
 	static const EPixelFormat Format = PF_R16G16B16A16_UINT;
+};
+
+struct FHairStrandsMaterialFormat
+{
+	typedef FHairMaterialVertex Type;
+	static const uint32 ComponentCount = 1;
+	static const uint32 SizeInByte = sizeof(Type);
+	static const EVertexElementType VertexElementType = VET_UByte4;
+	static const EPixelFormat Format = PF_R8G8B8A8;
 };
 
 struct FHairStrandsTangentFormat
@@ -270,6 +291,12 @@ struct HAIRSTRANDSCORE_API FHairStrandsPoints
 
 	/** Normalized length */
 	TArray<float> PointsCoordU; // [0..1]
+
+	/** Material base color */
+	TArray<FLinearColor> PointsBaseColor; // [0..1]
+
+	/** Material roughness */
+	TArray<float> PointsRoughness; // [0..1]
 };
 
 /** Hair strands Curves attribute */
@@ -336,6 +363,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsDatas
 	{
 		TArray<FHairStrandsPositionFormat::Type> RenderingPositions;
 		TArray<FHairStrandsAttributeFormat::Type> RenderingAttributes;
+		TArray<FHairStrandsMaterialFormat::Type> RenderingMaterials;
 
 		void Serialize(FArchive& Ar);
 	} RenderData;
