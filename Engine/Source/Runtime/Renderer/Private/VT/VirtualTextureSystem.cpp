@@ -88,6 +88,13 @@ static TAutoConsoleVariable<int32> CVarVTPageUpdateFlushCount(
 );
 static const int32 MaxNumTasks = 16;
 
+static TAutoConsoleVariable<float> CVarVTPageUpdateTimeSlice(
+	TEXT("r.VT.PageUpdateTimeSlice"),
+	0.f,
+	TEXT("Assumed frame time to slice MaxUploadsPerFrame. 0 is disabled."),
+	ECVF_RenderThreadSafe
+);
+
 static FORCEINLINE uint32 EncodePage(uint32 ID, uint32 vLevel, uint32 vTileX, uint32 vTileY)
 {
 	uint32 Page;
@@ -462,17 +469,24 @@ IAllocatedVirtualTexture* FVirtualTextureSystem::AllocateVirtualTexture(const FA
 
 	// Sum the total number of physical groups from all producers
 	uint32 NumPhysicalGroups = 0;
-	TArray<FVirtualTextureProducer*> UniqueProducers;
-	for (uint32 LayerIndex = 0u; LayerIndex < Desc.NumTextureLayers; ++LayerIndex)
+	if (Desc.bShareDuplicateLayers)
 	{
-		if (ProducerForLayer[LayerIndex] != nullptr)
+		TArray<FVirtualTextureProducer*> UniqueProducers;
+		for (uint32 LayerIndex = 0u; LayerIndex < Desc.NumTextureLayers; ++LayerIndex)
 		{
-			UniqueProducers.AddUnique(ProducerForLayer[LayerIndex]);
+			if (ProducerForLayer[LayerIndex] != nullptr)
+			{
+				UniqueProducers.AddUnique(ProducerForLayer[LayerIndex]);
+			}
+		}
+		for (int32 ProducerIndex = 0u; ProducerIndex < UniqueProducers.Num(); ++ProducerIndex)
+		{
+			NumPhysicalGroups += UniqueProducers[ProducerIndex]->GetNumPhysicalGroups();
 		}
 	}
-	for (int32 ProducerIndex = 0u; ProducerIndex < UniqueProducers.Num(); ++ProducerIndex)
+	else
 	{
-		NumPhysicalGroups += UniqueProducers[ProducerIndex]->GetNumPhysicalGroups();
+		NumPhysicalGroups = Desc.NumTextureLayers;
 	}
 
 	FVTSpaceDescription SpaceDesc;
@@ -868,6 +882,35 @@ void FVirtualTextureSystem::FeedbackAnalysisTask(const FFeedbackAnalysisParamete
 	}
 }
 
+/** Helper to reduce MaxUploadsPerFrame at higher frame rates. */
+class FVirtualTextureTimeSlicer
+{
+public:
+	/** Call once per frame to update current time deltas. */
+	void Update()
+	{
+		const float Time = FApp::GetCurrentTime() - GStartTime;
+		TimeDelta = Time - LastTime;
+		LastTime = Time;
+	}
+
+	/** Slice a value for the current time slice according to the BaseTimeSlice. This clamps for time deltas greater than the BaseTimeSlice. */
+	int32 Slice(int32 InValue, float BaseTimeSlice)
+	{
+		if (BaseTimeSlice <= 0.f)
+		{
+			return InValue;
+		}
+		
+		const float ClampedRatio = FMath::Clamp(TimeDelta / BaseTimeSlice, 0.0001f, 1.f);
+		return FMath::CeilToInt(ClampedRatio * InValue);
+	}
+
+private:
+	float LastTime = 0.f;
+	float TimeDelta = 0.f;
+};
+
 void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FScene* Scene)
 {
 	check(IsInRenderingThread());
@@ -875,6 +918,9 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VirtualTextureSystem_Update);
 	SCOPE_CYCLE_COUNTER(STAT_VirtualTextureSystem_Update);
 	SCOPED_GPU_STAT(RHICmdList, VirtualTexture);
+	
+	static FVirtualTextureTimeSlicer TimeSlicer;
+	TimeSlicer.Update();
 
 	if (bFlushCaches)
 	{
@@ -1109,7 +1155,9 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 		// Limit the number of uploads (account for MappedTilesToProduce this frame)
 		// Are all pages equal? Should there be different limits on different types of pages?
 		const int32 MaxNumUploads = VirtualTextureScalability::GetMaxUploadsPerFrame();
-		const int32 MaxRequestUploads = FMath::Max(MaxNumUploads - MappedTilesToProduce.Num(), 1);
+		const float TimeSlice = CVarVTPageUpdateTimeSlice.GetValueOnRenderThread();
+		const int32 MaxNumUploadsForTimeSlice = TimeSlicer.Slice(MaxNumUploads, TimeSlice);
+		const int32 MaxRequestUploads = FMath::Max(MaxNumUploadsForTimeSlice - MappedTilesToProduce.Num(), 1);
 
 		MergedRequestList->SortRequests(Producers, MemStack, MaxRequestUploads);
 	}
@@ -1428,8 +1476,9 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 			// For square textures, this could simply be (Local_vAddress % NumTilesInMip), but that doesn't work for non-square
 			// Possible there is a more clever approach to take here
 			{
-				const uint32 ProducerMipWidthInTiles = FMath::Max(Producer->GetWidthInTiles() >> Local_vLevel, 1u);
-				const uint32 ProducerMipHeightInTiles = FMath::Max(Producer->GetHeightInTiles() >> Local_vLevel, 1u);
+				const uint32 MipScaleFactor = (1u << Local_vLevel);
+				const uint32 ProducerMipWidthInTiles = FMath::DivideAndRoundUp(Producer->GetWidthInTiles(), MipScaleFactor);
+				const uint32 ProducerMipHeightInTiles = FMath::DivideAndRoundUp(Producer->GetHeightInTiles(), MipScaleFactor);
 				uint32 Local_vTileX = FMath::ReverseMortonCode2(Local_vAddress);
 				uint32 Local_vTileY = FMath::ReverseMortonCode2(Local_vAddress >> 1);
 				Local_vTileX %= ProducerMipWidthInTiles;

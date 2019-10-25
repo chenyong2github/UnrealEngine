@@ -73,7 +73,8 @@ struct FTextureRWBuffer2D
 	}
 
 	// @param AdditionalUsage passed down to RHICreateVertexBuffer(), get combined with "BUF_UnorderedAccess | BUF_ShaderResource" e.g. BUF_Static
-	void Initialize(const uint32 BytesPerElement, const uint32 SizeX, const uint32 SizeY, const EPixelFormat Format)
+	const static uint32 DefaultTextureInitFlag = TexCreate_ShaderResource | TexCreate_UAV;
+	void Initialize(const uint32 BytesPerElement, const uint32 SizeX, const uint32 SizeY, const EPixelFormat Format, uint32 Flags = DefaultTextureInitFlag)
 	{
 		check(GMaxRHIFeatureLevel == ERHIFeatureLevel::SM5
 			|| IsVulkanPlatform(GMaxRHIShaderPlatform)
@@ -88,7 +89,7 @@ struct FTextureRWBuffer2D
 			SizeX, SizeY, Format, //PF_R32_FLOAT,
 			/*NumMips=*/ 1,
 			1,
-			/*Flags=*/ TexCreate_ShaderResource | TexCreate_UAV,
+			Flags,
 			/*BulkData=*/ CreateInfo);
 
 							

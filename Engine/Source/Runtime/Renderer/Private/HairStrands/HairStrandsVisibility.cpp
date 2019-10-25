@@ -18,16 +18,6 @@ DECLARE_GPU_STAT(HairStrandsVisibility);
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairVisibilityPassUniformParameters, )
-SHADER_PARAMETER(float, MinStrandRadius_Primary)
-SHADER_PARAMETER(float, MinStrandRadius_Velocity)
-SHADER_PARAMETER(float, HairStrandsVelocityScale)
-SHADER_PARAMETER_TEXTURE(Texture2D<float>, MainDepthTexture)
-END_GLOBAL_SHADER_PARAMETER_STRUCT()
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FHairVisibilityPassUniformParameters, "HairVisibilityPass");
-
-/////////////////////////////////////////////////////////////////////////////////////////
-
 static int32 GHairStrandsCoveragePassEnable = 0;
 static FAutoConsoleVariableRef CVarHairStrandsCoveragePassEnable(TEXT("r.HairStrands.CoveragePass"), GHairStrandsCoveragePassEnable, TEXT("Enable accurate coverage pass"));
 
@@ -48,9 +38,6 @@ static FAutoConsoleVariableRef CVarHairClearVisibilityBuffer(TEXT("r.HairStrands
 
 static int32 GHairVelocityType = 1; // default is 
 static FAutoConsoleVariableRef CVarHairVelocityType(TEXT("r.HairStrands.VelocityType"), GHairVelocityType, TEXT("Type of velocity filtering (0:avg, 1:closest, 2:max). Default is 1."));
-
-static int32 GHairVelocityMagnitudeScale = 100; // Tuned by eye, based on heavy motion (strong head shack)
-static FAutoConsoleVariableRef CVarHairVelocityMagnitudeScale(TEXT("r.HairStrands.VelocityMagnitudeScale"), GHairVelocityMagnitudeScale, TEXT("Velocity magnitude (in pixel) at which a hair will reach its pic velocity-rasterization-scale under motion to reduce aliasing. Default is 100."));
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
@@ -89,8 +76,6 @@ protected:
 	{
 		ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel((EShaderPlatform)Initializer.Target.Platform);
 		check(FSceneInterface::GetShadingPath(FeatureLevel) != EShadingPath::Mobile);
-		// deferred
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FHairVisibilityPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
 	}
 
 	FHairVisibilityVS() {}
@@ -131,7 +116,6 @@ public:
 	{
 		ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel((EShaderPlatform)Initializer.Target.Platform);
 		check(FSceneInterface::GetShadingPath(FeatureLevel) != EShadingPath::Mobile);
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FHairVisibilityPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
 		HairVisibilityPass_HairClusterIndex.Bind(Initializer.ParameterMap, TEXT("HairVisibilityPass_HairClusterIndex"));
 	}
 
@@ -766,26 +750,27 @@ static void AddHairVisibilityCommonPass(
 		check(RHICmdList.IsInsideRenderPass());
 		check(IsInRenderingThread());
 
-		const FIntPoint Resolution(ViewInfo->ViewRect.Width(), ViewInfo->ViewRect.Height());
-		TUniformBufferRef<FHairVisibilityPassUniformParameters> PassUniformBuffer;
-		{
-			FVector2D PixelVelocity(1.f / (Resolution.X * 2), 1.f / (Resolution.Y * 2));
-			const float VelocityMagnitudeScale = FMath::Clamp(GHairVelocityMagnitudeScale, 0, 512) * FMath::Min(PixelVelocity.X, PixelVelocity.Y);
+		FMeshPassProcessorRenderState DrawRenderState(*ViewInfo);
 
-			// Set the sample count to one as we want the size of the pixel
-			const uint32 HairVisibilitySampleCount = RenderMode == HairVisibilityRenderMode_MSAA ? GetHairVisibilitySampleCount() : 1;
-			const float RasterizationScaleOverride = RenderMode == HairVisibilityRenderMode_MSAA ? 0 : 1.35f;
-			FHairVisibilityPassUniformParameters PassUniformParameters;
-			FMinHairRadiusAtDepth1 MinHairRadius = ComputeMinStrandRadiusAtDepth1(FIntPoint(ViewInfo->UnconstrainedViewRect.Width(), ViewInfo->UnconstrainedViewRect.Height()), ViewInfo->FOV, HairVisibilitySampleCount, RasterizationScaleOverride);
-			PassUniformParameters.MinStrandRadius_Primary = MinHairRadius.Primary;
-			PassUniformParameters.MinStrandRadius_Velocity = MinHairRadius.Velocity;
-			PassUniformParameters.HairStrandsVelocityScale = VelocityMagnitudeScale;
-			PassUniformBuffer = CreateUniformBufferImmediate(PassUniformParameters, UniformBuffer_SingleDraw, EUniformBufferValidation::None);
+		if(RenderMode == HairVisibilityRenderMode_Coverage)
+		{
+			// In the case we render coverage, we need to override some view uniform shader parameters to account for the change in MSAA sample count.
+			const uint32 HairVisibilitySampleCount = 1;		// The coverage pass does not use MSAA
+			const float RasterizationScaleOverride = 0.0f;	// no override
+			FMinHairRadiusAtDepth1 MinHairRadius = ComputeMinStrandRadiusAtDepth1(
+				FIntPoint(ViewInfo->UnconstrainedViewRect.Width(), ViewInfo->UnconstrainedViewRect.Height()), ViewInfo->FOV, HairVisibilitySampleCount, RasterizationScaleOverride);
+
+			TUniformBufferRef<FViewUniformShaderParameters> ViewUniformShaderParameters;
+			ViewInfo->CachedViewUniformShaderParameters->HairRenderInfo.X = MinHairRadius.Primary;
+			ViewInfo->CachedViewUniformShaderParameters->HairRenderInfo.Y = MinHairRadius.Velocity;
+			ViewInfo->CachedViewUniformShaderParameters->HairRenderInfo.Z = ViewInfo->IsPerspectiveProjection() ? 0.0f : 1.0f;
+			ViewInfo->CachedViewUniformShaderParameters->ViewForward = ViewInfo->ViewMatrices.GetOverriddenTranslatedViewMatrix().GetColumn(2);
+			ViewUniformShaderParameters = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*ViewInfo->CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
+			DrawRenderState.SetViewUniformBuffer(ViewUniformShaderParameters);
 		}
 
-		FMeshPassProcessorRenderState DrawRenderState(*ViewInfo, PassUniformBuffer);
 		{
-			RHICmdList.SetViewport(0, 0, 0.0f, Resolution.X, Resolution.Y, 1.0f);
+			RHICmdList.SetViewport(0, 0, 0.0f, ViewInfo->ViewRect.Width(), ViewInfo->ViewRect.Height(), 1.0f);
 			if (RenderMode == HairVisibilityRenderMode_MSAA)
 			{
 				DrawRenderState.SetBlendState(TStaticBlendState<
@@ -971,8 +956,12 @@ class FHairVisibilityDepthPS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FHairVisibilityDepthPS);
 	SHADER_USE_PARAMETER_STRUCT(FHairVisibilityDepthPS, FGlobalShader);
 
+	class FCoverage : SHADER_PERMUTATION_INT("PERMUTATION_COVERAGE", 2);
+	using FPermutationDomain = TShaderPermutationDomain<FCoverage>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairVisibilityDepthTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CoverageTexture)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -986,12 +975,14 @@ static void AddHairVisibilityColorAndDepthPatchPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FRDGTextureRef& VisibilityDepthTexture,
+	const FRDGTextureRef& CoverageTexture,
 	FRDGTextureRef& OutGBufferBTexture,
 	FRDGTextureRef& OutColorTexture,
 	FRDGTextureRef& OutDepthTexture)
 {
 	FHairVisibilityDepthPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairVisibilityDepthPS::FParameters>();
 	Parameters->HairVisibilityDepthTexture = VisibilityDepthTexture;
+	Parameters->CoverageTexture = CoverageTexture;
 	Parameters->RenderTargets[0] = FRenderTargetBinding(OutGBufferBTexture, ERenderTargetLoadAction::ELoad);
 	Parameters->RenderTargets[1] = FRenderTargetBinding(OutColorTexture, ERenderTargetLoadAction::ELoad);
 	Parameters->RenderTargets.DepthStencil = FDepthStencilBinding(
@@ -1001,7 +992,9 @@ static void AddHairVisibilityColorAndDepthPatchPass(
 		FExclusiveDepthStencil::DepthWrite_StencilNop);
 
 	TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
-	TShaderMapRef<FHairVisibilityDepthPS> PixelShader(View.ShaderMap);
+	FHairVisibilityDepthPS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FHairVisibilityDepthPS::FCoverage>(CoverageTexture ? 1 : 0);
+	TShaderMapRef<FHairVisibilityDepthPS> PixelShader(View.ShaderMap, PermutationVector);
 	const TShaderMap<FGlobalShaderType>* GlobalShaderMap = View.ShaderMap;
 	const FIntRect Viewport = View.ViewRect;
 	const FIntPoint Resolution = OutDepthTexture->Desc.Extent;
@@ -1179,6 +1172,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 				GraphBuilder,
 				View,
 				MsaaVisibilityResources.DepthTexture,
+				CoverageTexture,
 				SceneGBufferBTexture,
 				SceneColorTexture,
 				SceneDepthTexture);

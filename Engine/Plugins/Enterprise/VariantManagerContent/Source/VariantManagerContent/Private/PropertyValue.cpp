@@ -551,12 +551,9 @@ TArray<uint8> UPropertyValue::GetDataFromResolvedObject() const
 
 void UPropertyValue::RecordDataFromResolvedObject()
 {
-	if (!HasValidResolve())
+	if (!Resolve())
 	{
-		if (!Resolve())
-		{
-			return;
-		}
+		return;
 	}
 
 	TArray<uint8> NewData = GetDataFromResolvedObject();
@@ -1178,12 +1175,9 @@ void UPropertyValue::ClearDefaultValue()
 
 bool UPropertyValue::IsRecordedDataCurrent()
 {
-	if (!HasValidResolve())
+	if (!Resolve())
 	{
-		if (!Resolve())
-		{
-			return false;
-		}
+		return false;
 	}
 
 	if (!HasRecordedData())
@@ -1228,6 +1222,13 @@ bool UPropertyValue::IsRecordedDataCurrent()
 		const FRotator* CurrentRotator = (const FRotator*)CurrentData.GetData();
 
 		return RecordedRotator->Equals(*CurrentRotator, SCENECOMPONENT_ROTATOR_TOLERANCE);
+	}
+	else if (PropCategory == EPropertyValueCategory::RelativeLocation ||  PropCategory == EPropertyValueCategory::RelativeScale3D)
+	{
+		const FVector* RecordedVec = (const FVector*)RecordedData.GetData();
+		const FVector* CurrentVec = (const FVector*)CurrentData.GetData();
+
+		return RecordedVec->Equals(*CurrentVec);
 	}
 
 	return RecordedData == CurrentData;

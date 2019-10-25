@@ -40,6 +40,7 @@ namespace
 {
 	static bool ResizeTexture(const TCHAR* Filename, const TCHAR* ResizedFilename, bool bCreateNormal, FDatasmithImportContext& ImportContext)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ResizeTexture);
 
 		EDSTextureUtilsError ErrorCode = FDatasmithTextureResize::ResizeTexture(Filename, ResizedFilename, EDSResizeTextureMode::NearestPowerOfTwo, MaxTextureSize, bCreateNormal);
 
@@ -116,7 +117,7 @@ bool FDatasmithTextureImporter::ResizeTextureElement(const TSharedPtr<IDatasmith
 		Extension = TEXT(".exr");
 	}
 
-	ResizedFilename = FPaths::Combine(TempDir, FPaths::GetBaseFilename(Filename) + Extension);
+	ResizedFilename = FPaths::Combine(TempDir, LexToString(FGuid::NewGuid()) + Extension);
 
 	const bool bGenerateNormalMap = ( TextureElement->GetTextureMode() == EDatasmithTextureMode::Bump );
 
@@ -130,7 +131,62 @@ bool FDatasmithTextureImporter::ResizeTextureElement(const TSharedPtr<IDatasmith
 	return bResult;
 }
 
-UTexture* FDatasmithTextureImporter::CreateTexture(const TSharedPtr<IDatasmithTextureElement>& TextureElement)
+bool FDatasmithTextureImporter::GetTextureData(const TSharedPtr<IDatasmithTextureElement>& TextureElement, TArray<uint8>& TextureData, FString& Extension)
+{
+	const FString Filename = TextureElement->GetFile();
+	if (!Filename.IsEmpty())
+	{
+		// load from a file path
+
+		FString ImageFileName;
+		if (!ResizeTextureElement(TextureElement, ImageFileName))
+		{
+			return false;
+		}
+
+		// try opening from absolute path
+		if (!(FFileHelper::LoadFileToArray(TextureData, *ImageFileName) && TextureData.Num() > 0))
+		{
+			ImportContext.LogWarning(FText::Format(LOCTEXT("UnableToFindTexture", "Unable to find Texture file {0}."), FText::FromString(Filename)));
+			return false;
+		}
+
+		Extension         = FPaths::GetExtension(ImageFileName).ToLower();
+	}
+	else
+	{
+		// load from memory source
+		EDatasmithTextureFormat TextureFormat;
+		uint32                  TextureSize;
+
+		const uint8* PtrTextureData = TextureElement->GetData(TextureSize, TextureFormat);
+
+		if (PtrTextureData == nullptr || !TextureSize)
+		{
+			return false;
+		}
+
+		TextureData.SetNumUninitialized(TextureSize);
+		FPlatformMemory::Memcpy(TextureData.GetData(), PtrTextureData, TextureSize);
+
+		switch (TextureFormat)
+		{
+			case EDatasmithTextureFormat::PNG:
+				Extension = TEXT("png");
+				break;
+			case EDatasmithTextureFormat::JPEG:
+				Extension = TEXT("jpeg");
+				break;
+			default:
+				check(false);
+		}
+	}
+
+	return true;
+}
+
+
+UTexture* FDatasmithTextureImporter::CreateTexture(const TSharedPtr<IDatasmithTextureElement>& TextureElement, const TArray<uint8>& TextureData, const FString& Extension)
 {
 	const FString TextureLabel = TextureElement->GetLabel();
 	const FString TextureName = TextureLabel.Len() > 0 ? ImportContext.AssetsContext.TextureNameProvider.GenerateUniqueName(TextureLabel) : TextureElement->GetName();
@@ -173,58 +229,9 @@ UTexture* FDatasmithTextureImporter::CreateTexture(const TSharedPtr<IDatasmithTe
 
 	const float RGBCurve = TextureElement->GetRGBCurve();
 
-	FString       Extension;
-	const uint8*  PtrTextureData;
-	const uint8*  PtrTextureDataEnd;
-	TArray<uint8> FileTextureData;
+	const uint8* PtrTextureData    = TextureData.GetData();
+	const uint8* PtrTextureDataEnd = PtrTextureData + TextureData.Num();
 	const FString Filename = TextureElement->GetFile();
-	if (!Filename.IsEmpty())
-	{
-		// load from a file path
-
-		FString ImageFileName;
-		if (!ResizeTextureElement(TextureElement, ImageFileName))
-		{
-			return nullptr;
-		}
-
-		// try opening from absolute path
-		if (!(FFileHelper::LoadFileToArray(FileTextureData, *ImageFileName) && FileTextureData.Num() > 0))
-		{
-			ImportContext.LogWarning(FText::Format(LOCTEXT("NoTextureFileFound", "Unable to find Texture file {0}."), FText::FromString(Filename)));
-			return nullptr;
-		}
-
-		PtrTextureData    = FileTextureData.GetData();
-		PtrTextureDataEnd = PtrTextureData + FileTextureData.Num();
-		Extension         = FPaths::GetExtension(ImageFileName).ToLower();
-	}
-	else
-	{
-		// load from memory source
-
-		EDatasmithTextureFormat TextureFormat;
-		uint32                  TextureSize;
-
-		PtrTextureData    = TextureElement->GetData(TextureSize, TextureFormat);
-		PtrTextureDataEnd = PtrTextureData + TextureSize;
-
-		if (PtrTextureData == nullptr || !TextureSize)
-			return nullptr;
-
-		switch (TextureFormat)
-		{
-			case EDatasmithTextureFormat::PNG:
-				Extension = TEXT("png");
-				break;
-			case EDatasmithTextureFormat::JPEG:
-				Extension = TEXT("jpeg");
-				break;
-			default:
-				check(false);
-		}
-	}
-
 	UPackage* TextureOuter = ImportContext.AssetsContext.TexturesImportPackage.Get();
 
 	// This has to be called explicitly each time we create a texture since the flag gets reset in FactoryCreateBinary

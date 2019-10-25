@@ -985,12 +985,7 @@ static int32 ComputeLongLatCubemapExtents(const FImage& SrcImage, const int32 Ma
 	return FMath::Clamp(1 << FMath::FloorLog2(SrcImage.SizeX / 2), 32, MaxCubemapTextureResolution);
 }
 
-/**
- * Generates the base cubemap mip from a longitude-latitude 2D image.
- * @param OutMip - The output mip.
- * @param SrcImage - The source longlat image.
- */
-static void GenerateBaseCubeMipFromLongitudeLatitude2D(FImage* OutMip, const FImage& SrcImage, const int32 MaxCubemapTextureResolution)
+void ITextureCompressorModule::GenerateBaseCubeMipFromLongitudeLatitude2D(FImage* OutMip, const FImage& SrcImage, const int32 MaxCubemapTextureResolution)
 {
 	FImage LongLatImage;
 	SrcImage.CopyTo(LongLatImage, ERawImageFormat::RGBA32F, EGammaSpace::Linear);
@@ -1289,13 +1284,7 @@ static void GenerateAngularFilteredMip(FImage* DestMip, FImage& SrcMip, float Co
 	}
 }
 
-/**
- * Generates angularly filtered mips.
- * @param InOutMipChain - The mip chain to angularly filter.
- * @param NumMips - The number of mips the chain should have.
- * @param DiffuseConvolveMipLevel - The mip level that contains the diffuse convolution.
- */
-static void GenerateAngularFilteredMips(TArray<FImage>& InOutMipChain, int32 NumMips, uint32 DiffuseConvolveMipLevel)
+void ITextureCompressorModule::GenerateAngularFilteredMips(TArray<FImage>& InOutMipChain, int32 NumMips, uint32 DiffuseConvolveMipLevel)
 {
 	TArray<FImage> SrcMipChain;
 	Exchange(SrcMipChain, InOutMipChain);

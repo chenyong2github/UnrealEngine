@@ -8,10 +8,10 @@ public class zlib_HTML5 : zlib
 {
 	public zlib_HTML5(ReadOnlyTargetRules Target) : base(Target)
 	{
-		string OldzlibPathInc = Path.Combine(Target.UEThirdPartySourceDirectory, "zlib", OldZlibVersion);
-		string OldzlibPathLib = Path.Combine(Target.HTML5Platform.PlatformThirdPartySourceDirectory, "zlib", OldZlibVersion);
+		string zlibPath = Path.Combine(Target.HTML5Platform.PlatformThirdPartySourceDirectory, "zlib", CurrentZlibVersion);
 
-		PublicIncludePaths.Add(Path.Combine(OldzlibPathInc, "Inc"));
-		PublicAdditionalLibraries.Add(Path.Combine(OldzlibPathLib, "zlib" + Target.HTML5OptimizationSuffix + ".bc"));
+		// v1.2.8
+		PublicIncludePaths.Add(zlibPath + "/include");
+		PublicAdditionalLibraries.Add(zlibPath + "/lib/zlib" + Target.HTML5OptimizationSuffix + ".bc");
 	}
 }

@@ -25,8 +25,10 @@ namespace SteamAudio
 		EIplDirectOcclusionMode DirectOcclusionMode;
 		IPLAudioBuffer InBuffer;
 		IPLAudioBuffer OutBuffer;
-		IPLVector3 Position;
+		IPLSource SourceData;
 		float Radius;
+		float DipolePower;
+		float DipoleWeight;
 		bool bDirectAttenuation;
 		bool bAirAbsorption;
 		bool bNeedsUpdate;
@@ -53,7 +55,7 @@ namespace SteamAudio
 		//~ End IAudioOcclusion
 
 		// Receives updates on listener positions from the game thread using this function call.
-		void UpdateDirectSoundSources(const FVector& ListenerPosition, const FVector& ListenerForward, const FVector& ListenerUp);
+		void UpdateDirectSoundSources(const FVector& ListenerPosition, const FVector& ListenerForward, const FVector& ListenerUp, const FVector& ListenerRight);
 
 		// Sets up handle to the environment handle owned by the FPhononPluginManager.
 		void SetEnvironment(FEnvironment* InEnvironment);

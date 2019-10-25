@@ -100,10 +100,6 @@ public:
 		// Create the tooltip showing more detailed information
 		FFormatNamedArguments TooltipArgs;
 		FString TooltipVersionStr = EngineVersionString;
-		if (IProjectManager::Get().GetCurrentProject() && IProjectManager::Get().GetCurrentProject()->bIsEnterpriseProject)
-		{
-			TooltipVersionStr += TEXT(" Unreal Studio");
-		}
 		TooltipArgs.Add(TEXT("Version"), FText::FromString(TooltipVersionStr));
 		TooltipArgs.Add(TEXT("Branch"), FText::FromString(FEngineVersion::Current().GetBranch()));
 		TooltipArgs.Add(TEXT("BuildConfiguration"), EBuildConfigurations::ToText(BuildConfig));

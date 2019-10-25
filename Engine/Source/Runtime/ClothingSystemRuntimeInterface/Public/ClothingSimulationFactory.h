@@ -11,6 +11,7 @@
 
 class UClothingAssetBase;
 class UClothingSimulationInteractor;
+class UClothConfigBase;
 
 // An interface for a class that will provide default simulation factory classes
 // Used by modules wanting to override clothing simulation to provide their own implementation
@@ -56,6 +57,13 @@ public:
 	// Creates the runtime interactor object for a clothing simulation. This object will
 	// receive events allowing it to write data to the simulation context in a safe manner
 	virtual UClothingSimulationInteractor* CreateInteractor()
+	{
+		return nullptr;
+	}
+
+	// Creates a default cloth configuration during construction of the clothing Asset
+	// TBC: This may be removed after we have a specialized ChaosClothingAsset
+	virtual UClothConfigBase* CreateDefaultClothConfig(const FObjectInitializer& ObjectInitializer, UObject* Outer)
 	{
 		return nullptr;
 	}

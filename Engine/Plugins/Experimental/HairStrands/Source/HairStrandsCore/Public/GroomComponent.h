@@ -89,9 +89,15 @@ public:
 	/** Return the guide hairs deformed resources*/
 	FHairStrandsDeformedResource* GetGuideStrandsDeformedResource(uint32 GroupIndex);
 
+	/** Return the guide hairs root resources*/
+	FHairStrandsRootResource* GetGuideStrandsRootResource(uint32 GroupIndex);
+
 #if WITH_EDITOR
+	virtual void CheckForErrors() override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool CanEditChange(const UProperty* InProperty) const override;
+	void ValidateMaterials(bool bMapCheck) const;
+	void Invalidate();
 #endif
 
 	struct FHairGroupResource
@@ -138,6 +144,7 @@ private:
 	int32 MeshProjectionLODIndex;
 	uint32 MeshProjectionTickDelay;
 	EMeshProjectionState MeshProjectionState;
+	bool bIsGroomAssetCallbackRegistered;
 	
 	struct FSkeletalMeshConfiguration
 	{

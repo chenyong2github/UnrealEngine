@@ -30,6 +30,7 @@
 #include "NiagaraCommon.h"
 #include "NiagaraConstants.h"
 #include "Widgets/SWidget.h"
+#include "NiagaraActions.h"
 
 #include "ScopedTransaction.h"
 #include "NiagaraScriptVariable.h"
@@ -114,12 +115,7 @@ UNiagaraStackModuleItem::UNiagaraStackModuleItem()
 {
 }
 
-const UNiagaraNodeFunctionCall& UNiagaraStackModuleItem::GetModuleNode() const
-{
-	return *FunctionCallNode;
-}
-
-UNiagaraNodeFunctionCall& UNiagaraStackModuleItem::GetModuleNode()
+UNiagaraNodeFunctionCall& UNiagaraStackModuleItem::GetModuleNode() const
 {
 	return *FunctionCallNode;
 }
@@ -153,6 +149,10 @@ FText UNiagaraStackModuleItem::GetDisplayName() const
 	}
 }
 
+UObject* UNiagaraStackModuleItem::GetDisplayedObject() const
+{
+	return FunctionCallNode;
+}
 
 FText UNiagaraStackModuleItem::GetTooltipText() const
 {
@@ -244,6 +244,38 @@ void UNiagaraStackModuleItem::RefreshChildrenInternal(const TArray<UNiagaraStack
 	RefreshIsEnabled();
 	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
 	RefreshIssues(NewIssues);
+}
+
+TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackModuleItem::CanDropInternal(const FDropRequest& DropRequest)
+{
+	if (DropRequest.DragDropOperation->IsOfType<FNiagaraParameterDragOperation>() && DropRequest.DropOptions != UNiagaraStackEntry::EDropOptions::Overview && FunctionCallNode->IsA<UNiagaraNodeAssignment>())
+	{
+		TSharedRef<const FNiagaraParameterDragOperation> ParameterDragDropOp = StaticCastSharedRef<const FNiagaraParameterDragOperation>(DropRequest.DragDropOperation);
+		TSharedPtr<const FNiagaraParameterAction> ParameterAction = StaticCastSharedPtr<const FNiagaraParameterAction>(ParameterDragDropOp->GetSourceAction());
+		if (ParameterAction.IsValid())
+		{
+			if (FNiagaraStackGraphUtilities::ParameterIsCompatibleWithScriptUsage(ParameterAction->GetParameter(), OutputNode->GetUsage()))
+			{
+				return FDropRequestResponse(EItemDropZone::OntoItem, LOCTEXT("DropParameterToAdd", "Add this parameter to this 'Set Variables' node."));
+			}
+			else
+			{
+				return FDropRequestResponse(TOptional<EItemDropZone>(), LOCTEXT("CantDropParameterByUsage", "Can not drop this parameter here because\nit's not valid for this usage context."));
+			}
+		}
+	}
+	return TOptional<FDropRequestResponse>();
+}
+
+TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackModuleItem::DropInternal(const FDropRequest& DropRequest)
+{
+	// If the drop was allowed from the can drop just return the drop zone here since it will be handled by the drop target in the stack control.
+	// TODO: Unify the drop target dropping with the existing drag/drop code.
+	if (DropRequest.DropOptions != UNiagaraStackEntry::EDropOptions::Overview)
+	{
+		return FDropRequestResponse(DropRequest.DropZone);
+	}
+	return TOptional<FDropRequestResponse>();
 }
 
 void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
@@ -511,7 +543,8 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 						int32 CorrectIndex = Dependency.Type == ENiagaraModuleDependencyType::PostDependency ? DisorderedNode.Index : DisorderedNode.Index + 1;
 						checkf(ModuleIndex != INDEX_NONE, TEXT("Module data wasn't found in system for current module!"));
 						UNiagaraScript& OwningScript = *FNiagaraEditorUtilities::GetScriptFromSystem(GetSystemViewModel()->GetSystem(), SystemModuleData[ModuleIndex].EmitterHandleId, SystemModuleData[ModuleIndex].Usage, SystemModuleData[ModuleIndex].UsageId);
-						FNiagaraStackGraphUtilities::MoveModule(OwningScript, *FunctionCallNode, GetSystemViewModel()->GetSystem(), DisorderedNode.EmitterHandleId, DisorderedNode.Usage, DisorderedNode.UsageId, CorrectIndex, false);
+						UNiagaraNodeFunctionCall* MovedNode;
+						FNiagaraStackGraphUtilities::MoveModule(OwningScript, *FunctionCallNode, GetSystemViewModel()->GetSystem(), DisorderedNode.EmitterHandleId, DisorderedNode.Usage, DisorderedNode.UsageId, CorrectIndex, false, MovedNode);
 						// enable if needed
 						if (bNeedsEnable)
 						{
@@ -770,7 +803,7 @@ bool UNiagaraStackModuleItem::GetIsEnabled() const
 	return bIsEnabled;
 }
 
-void UNiagaraStackModuleItem::SetIsEnabled(bool bInIsEnabled)
+void UNiagaraStackModuleItem::SetIsEnabledInternal(bool bInIsEnabled)
 {
 	FScopedTransaction ScopedTransaction(LOCTEXT("EnableDisableModule", "Enable/Disable Module"));
 	FNiagaraStackGraphUtilities::SetModuleIsEnabled(*FunctionCallNode, bInIsEnabled);
@@ -797,7 +830,7 @@ bool UNiagaraStackModuleItem::TestCanDeleteWithMessage(FText& OutCanDeleteMessag
 	}
 }
 
-void UNiagaraStackModuleItem::Delete()
+void UNiagaraStackModuleItem::DeleteInternal()
 {
 	checkf(CanMoveAndDelete(), TEXT("This module can't be deleted"));
 
@@ -827,7 +860,7 @@ void UNiagaraStackModuleItem::Delete()
 	}
 }
 
-int32 UNiagaraStackModuleItem::GetModuleIndex()
+int32 UNiagaraStackModuleItem::GetModuleIndex() const
 {
 	TArray<FNiagaraStackGraphUtilities::FStackNodeGroup> StackGroups;
 	FNiagaraStackGraphUtilities::GetStackNodeGroups(*FunctionCallNode, StackGroups);
@@ -849,11 +882,6 @@ int32 UNiagaraStackModuleItem::GetModuleIndex()
 UNiagaraNodeOutput* UNiagaraStackModuleItem::GetOutputNode() const
 {
 	return OutputNode;
-}
-
-void UNiagaraStackModuleItem::NotifyModuleMoved()
-{
-	ModifiedGroupItemsDelegate.Broadcast();
 }
 
 bool UNiagaraStackModuleItem::CanAddInput(FNiagaraVariable InputParameter) const

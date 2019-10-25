@@ -130,7 +130,6 @@ private:
 	TSharedRef<SDockTab> SpawnTabDataprep(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTabSceneViewport( const FSpawnTabArgs& Args );
 	TSharedRef<SDockTab> SpawnTabStatistics(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> SpawnTabParameterization(const FSpawnTabArgs& Args);
 
 	TSharedRef<FTabManager::FLayout> CreateDataprepLayout();
 	TSharedRef<FTabManager::FLayout> CreateDataprepInstanceLayout();
@@ -190,6 +189,7 @@ private:
 	bool bWorldBuilt;
 	bool bIsFirstRun;
 	bool bPipelineChanged;
+	bool bIsDataprepInstance;
 	TWeakObjectPtr<UDataprepAssetInterface> DataprepAssetInterfacePtr;
 
 	FOnDataprepAssetProducerChanged DataprepAssetProducerChangedDelegate;
@@ -255,7 +255,6 @@ private:
 	static const FName DataprepAssetTabId;
 	static const FName SceneViewportTabId;
 	static const FName DataprepStatisticsTabId;
-	static const FName ParameterizationDefaultTabId;
 
 //Temp Code to allow us to work on the nodes while we don't have our own graph.
 public:

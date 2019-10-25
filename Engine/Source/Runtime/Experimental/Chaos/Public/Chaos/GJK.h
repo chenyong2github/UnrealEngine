@@ -1,5 +1,9 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
+#include "Chaos/Transform.h"
+#include "Chaos/Capsule.h"
+#include "Chaos/Box.h"
+#include "Chaos/Sphere.h"
 
 namespace Chaos
 {
@@ -582,6 +586,19 @@ namespace Chaos
 		return TVector<T, 3>(0, 0, 0);
 	}
 
+	// Overloads for geometry types which don't have centroids.
+	template <typename T, typename TGeometryB>
+	TVector<T, 3> GJKDistanceInitialV(const TImplicitObject<T, 3>& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM)
+	{
+		return -BToATM.GetTranslation();
+	}
+
+	template <typename T, typename TGeometryA>
+	TVector<T, 3> GJKDistanceInitialV(TGeometryA A, const TImplicitObject<T, 3>& B, const TRigidTransform<T, 3>& BToATM)
+	{
+		return -BToATM.GetTranslation();
+	}
+
 	/**
 	 * Find the distance and nearest points on two convex geometries A and B.
 	 * All calculations are performed in the local-space of object A, and the transform from B-space to A-space must be provided.
@@ -674,6 +691,65 @@ namespace Chaos
 		}
 
 		// Our geometries overlap - we did not produce the near points (and didn't set distance, which is zero)
+		return false;
+	}
+
+	// Assumes objects are already intersecting, computes a minimum translation
+	// distance, deepest penetration positions on each body, and approximates
+	// a penetration normal and minimum translation distance.
+	//
+	// TODO: We want to re-visit how these functions work. Probably should be
+	// embedded in GJKOverlap and GJKRaycast so that secondary queries are unnecessary.
+	template <typename T, typename TGeometryA, typename TGeometryB>
+	bool GJKPenetrationTemp(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, TVector<T, 3>& OutPositionA, TVector<T, 3>& OutPositionB, TVector<T, 3>& OutNormal, T& OutDistance, const T ThicknessA = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T ThicknessB = 0, const T Epsilon = (T)1e-6, const int32 MaxIts = 16)
+	{
+		//
+		// TODO: General case for MTD determination.
+		//
+		ensure(false);
+		OutPositionA = TVector<T, 3>(0.f);
+		OutPositionB = TVector<T, 3>(0.f);
+		OutNormal = TVector<T, 3>(0.f, 0.f, 1.f);
+		OutDistance = 0.f;
+		return GJKIntersection(A, B, BToATM, ThicknessA, InitialDir, ThicknessB);
+	}
+
+	// Specialization for when getting MTD against a capsule.
+	template <typename T, typename TGeometryA>
+	bool GJKPenetrationTemp(const TGeometryA& A, const TCapsule<T>& B, const TRigidTransform<T, 3>& BToATM, TVector<T, 3>& OutPositionA, TVector<T, 3>& OutPositionB, TVector<T, 3>& OutNormal, T& OutDistance, const T ThicknessA = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T ThicknessB = 0, const T Epsilon = (T)1e-6, const int32 MaxIts = 16)
+	{
+		float SegmentDistance;
+		const TSegment<T>& Segment = B.GetSegment();
+		const float MarginB = B.GetRadius();
+		TVector<float, 3> PositionBInB;
+		if (GJKDistance(A, Segment, BToATM, SegmentDistance, OutPositionA, PositionBInB, Epsilon, MaxIts))
+		{
+			OutPositionB = BToATM.TransformPosition(PositionBInB);
+			OutNormal = (OutPositionB - OutPositionA) / SegmentDistance; // I think this is safe, if GJKDistance returned true...
+			OutPositionB -= OutNormal * MarginB;
+			OutDistance = SegmentDistance - MarginB;
+
+			if (OutDistance > 0.f)
+			{
+				// In this case, our distance calculation says we're not penetrating.
+				//
+				// TODO: check(false)! This shouldn't happen.
+				// It probably won't happen anymore if we warm-start GJKDistance
+				// with a polytope.
+				//
+				OutDistance = 0.f;
+				return false;
+			}
+
+			return true;
+		}
+		else
+		{
+			// TODO: Deep penetration - do EPA
+			ensure(false);
+			return true;
+		}
+
 		return false;
 	}
 

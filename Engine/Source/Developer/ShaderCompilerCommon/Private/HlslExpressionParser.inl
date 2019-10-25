@@ -178,7 +178,7 @@ namespace CrossCompiler
 		EEF_ALLOW_SEQUENCE		= 1 << 1,
 	};
 
-	EParseResult ParseGeneralType(const FHlslToken* Token, int32 TypeFlags, FLinearAllocator* Allocator, AST::FTypeSpecifier** OutSpecifier)
+	EParseResult ParseGeneralType(const FHlslToken* Token, int32 TypeFlags, bool bPrecise, FLinearAllocator* Allocator, AST::FTypeSpecifier** OutSpecifier)
 	{
 		if (!Token)
 		{
@@ -359,9 +359,11 @@ namespace CrossCompiler
 
 		if (bMatched)
 		{
+			//#todo-rco: Don't re-allocate types
 			auto* Type = new(Allocator) AST::FTypeSpecifier(Allocator, Token->SourceInfo);
 			Type->TypeName = Allocator->Strdup(Token->String);
 			Type->InnerType = InnerType;
+			Type->bPrecise = bPrecise;
 			*OutSpecifier = Type;
 			return EParseResult::Matched;
 		}
@@ -369,11 +371,11 @@ namespace CrossCompiler
 		return EParseResult::NotMatched;
 	}
 
-	EParseResult ParseGeneralTypeFromToken(const FHlslToken* Token, int32 TypeFlags, FSymbolScope* SymbolScope, FLinearAllocator* Allocator, AST::FTypeSpecifier** OutSpecifier)
+	EParseResult ParseGeneralTypeFromToken(const FHlslToken* Token, int32 TypeFlags, bool bPrecise, FSymbolScope* SymbolScope, FLinearAllocator* Allocator, AST::FTypeSpecifier** OutSpecifier)
 	{
 		if (Token)
 		{
-			if (ParseGeneralType(Token, TypeFlags, Allocator, OutSpecifier) == EParseResult::Matched)
+			if (ParseGeneralType(Token, TypeFlags, bPrecise, Allocator, OutSpecifier) == EParseResult::Matched)
 			{
 				return EParseResult::Matched;
 			}
@@ -466,7 +468,14 @@ namespace CrossCompiler
 			}
 		}
 
-		auto Result = ParseGeneralTypeFromToken(Token, TypeFlags, SymbolScope, Allocator, OutSpecifier);
+		bool bPrecise = false;
+		if (Scanner.MatchToken(EHlslToken::Precise))
+		{
+			Token = Scanner.GetCurrentToken();
+			bPrecise = true;
+		}
+
+		auto Result = ParseGeneralTypeFromToken(Token, TypeFlags, bPrecise, SymbolScope, Allocator, OutSpecifier);
 		if (Result == EParseResult::Matched)
 		{
 			Scanner.Advance();
@@ -538,19 +547,35 @@ namespace CrossCompiler
 				const auto* Peek2 = Scanner.PeekToken(2);
 
 				bool bFoundConst = false;
+				int32 PeekN = 0;
+				auto HandleUnaryToken = [&](EHlslToken TokenType)
+				{
+					if (Peek1->Token == TokenType)
+					{
+						++PeekN;
+						Peek1 = Scanner.PeekToken(1 + PeekN);
+						Peek2 = Scanner.PeekToken(2 + PeekN);
+						return true;
+					}
+					return false;
+				};
+
 				//#todo-rco: Workaround for weird const cast in RHS codegen from HLSLTranslator:
 				//		const uint exp2 = ((((const int) ((uRes32>>23)&0xff))-127+15) << 10);
-				if (Peek1->Token == EHlslToken::Const)
+				if (HandleUnaryToken(EHlslToken::Const))
 				{
-					bFoundConst = true;
-					Peek1 = Scanner.PeekToken(2);
-					Peek2 = Scanner.PeekToken(3);
+					HandleUnaryToken(EHlslToken::Precise);
+				}
+				else if (HandleUnaryToken(EHlslToken::Precise))
+				{
+					HandleUnaryToken(EHlslToken::Const);
 				}
 
 				AST::FTypeSpecifier* TypeSpecifier = nullptr;
-				if (Peek1 && ParseGeneralTypeFromToken(Peek1, ETF_BUILTIN_NUMERIC | ETF_USER_TYPES, SymbolScope, Allocator, &TypeSpecifier) == EParseResult::Matched && Peek2 && Peek2->Token == EHlslToken::RightParenthesis)
+				//#todo-rco: Is precise allowed on casts?
+				if (Peek1 && ParseGeneralTypeFromToken(Peek1, ETF_BUILTIN_NUMERIC | ETF_USER_TYPES, false, SymbolScope, Allocator, &TypeSpecifier) == EParseResult::Matched && Peek2 && Peek2->Token == EHlslToken::RightParenthesis)
 				{
-					if (bFoundConst)
+					for (; PeekN > 0; --PeekN) //-V::654,621
 					{
 						Scanner.Advance();
 					}

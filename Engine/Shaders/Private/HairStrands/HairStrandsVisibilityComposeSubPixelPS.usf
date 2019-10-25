@@ -23,11 +23,12 @@ void SubColorPS(
 	//	discard;
 
 	// Brute force reading of the depth value. This could be pre-computed during the categorize pass or the compaction pass
+	// This must match what is done in VisibilityDepthPS to fonction. TODO: do not write depth here as it is already in. 
 	OutDepth = 0;
 	for (uint SampleIt = 0; SampleIt < HAIR_VISIBILITY_MAXSAMPLECOUNT; ++SampleIt)
 	{
 		const float SampleDepth = HairVisibilityDepthTexture.Load(PixelCoord, SampleIt);
-		OutDepth = max(OutDepth, SampleDepth); // Inverse-Z
+		OutDepth = max(OutDepth, SampleDepth); // HAS_INVERTED_Z_BUFFER
 	}
 }
 

@@ -4,7 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "EdMode.h"
-#include "UVGenerationUtils.h"
+
+struct FUVGenerationSettings;
+enum class EGenerateUVProjectionType : uint8;
 
 class FUVGenerationTool : public FEdMode
 {

@@ -22,13 +22,12 @@ class NIAGARAEDITOR_API UNiagaraStackModuleItem : public UNiagaraStackItem
 public:
 	UNiagaraStackModuleItem();
 
-	const UNiagaraNodeFunctionCall& GetModuleNode() const;
-
-	UNiagaraNodeFunctionCall& GetModuleNode();
+	UNiagaraNodeFunctionCall& GetModuleNode() const;
 
 	void Initialize(FRequiredEntryData InRequiredEntryData, INiagaraStackItemGroupAddUtilities* GroupAddUtilities, UNiagaraNodeFunctionCall& InFunctionCallNode);
 
 	virtual FText GetDisplayName() const override;
+	virtual UObject* GetDisplayedObject() const override;
 	virtual FText GetTooltipText() const override;
 
 	INiagaraStackItemGroupAddUtilities* GetGroupAddUtilities();
@@ -39,13 +38,11 @@ public:
 
 	virtual bool SupportsChangeEnabled() const override { return true; }
 	virtual bool GetIsEnabled() const override;
-	virtual void SetIsEnabled(bool bInIsEnabled) override;
 
 	virtual bool SupportsDelete() const override { return true; }
 	virtual bool TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const override;
-	virtual void Delete() override;
 
-	int32 GetModuleIndex();
+	int32 GetModuleIndex() const;
 	
 	UObject* GetExternalAsset() const override;
 
@@ -53,8 +50,6 @@ public:
 
 	/** Gets the output node of this module. */
 	class UNiagaraNodeOutput* GetOutputNode() const;
-
-	void NotifyModuleMoved();
 
 	bool CanAddInput(FNiagaraVariable InputParameter) const;
 
@@ -71,6 +66,11 @@ public:
 
 protected:
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
+	virtual void DeleteInternal() override;
+	virtual void SetIsEnabledInternal(bool bInIsEnabled) override;
+
+	virtual TOptional<FDropRequestResponse> CanDropInternal(const FDropRequest& DropRequest) override;
+	virtual TOptional<FDropRequestResponse> DropInternal(const FDropRequest& DropRequest) override;
 
 private:
 	bool FilterOutputCollection(const UNiagaraStackEntry& Child) const;

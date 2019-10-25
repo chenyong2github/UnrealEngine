@@ -24,15 +24,66 @@ static FAutoConsoleVariableRef CVarQualityOverride(
 	TEXT("Sets quality (1-100)"),
 	ECVF_Default);
 
+
+FRemoteSessionImageChannel::FImageSender::FImageSender(TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection)
+{
+	Connection = InConnection;
+	CompressQuality = 0;
+	NumSentImages = 0;
+}
+
+void FRemoteSessionImageChannel::FImageSender::SetCompressQuality(int32 InQuality)
+{
+	CompressQuality = InQuality;
+}
+
+void FRemoteSessionImageChannel::FImageSender::SendRawImageToClients(int32 Width, int32 Height, const TArray<FColor>& ImageData)
+{
+	SendRawImageToClients(Width, Height, ImageData.GetData(), ImageData.GetAllocatedSize());
+}
+
+void FRemoteSessionImageChannel::FImageSender::SendRawImageToClients(int32 Width, int32 Height, const void* ImageData, int32 AllocatedImageDataSize)
+{
+	static bool SkipImages = FParse::Param(FCommandLine::Get(), TEXT("remote.noimage"));
+
+	// Can be released on the main thread at anytime so hold onto it
+	TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> LocalConnection = Connection.Pin();
+
+	if (LocalConnection.IsValid() && SkipImages == false)
+	{
+		const double TimeNow = FPlatformTime::Seconds();
+
+		// created on demand because there can be multiple SendImage requests in flight
+		IImageWrapperModule* ImageWrapperModule = FModuleManager::GetModulePtr<IImageWrapperModule>(FName("ImageWrapper"));
+		if (ImageWrapperModule != nullptr)
+		{
+			TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule->CreateImageWrapper(EImageFormat::JPEG);
+
+			ImageWrapper->SetRaw(ImageData, AllocatedImageDataSize, Width, Height, ERGBFormat::BGRA, 8);
+
+			const int32 CurrentQuality = QualityMasterSetting > 0 ? QualityMasterSetting : CompressQuality.Load();
+			const TArray<uint8>& JPGData = ImageWrapper->GetCompressed(CurrentQuality);
+
+			FBackChannelOSCMessage Msg(TEXT("/Screen"));
+			Msg.Write(Width);
+			Msg.Write(Height);
+			Msg.Write(JPGData);
+			Msg.Write(++NumSentImages);
+			LocalConnection->SendPacket(Msg);
+
+			UE_LOG(LogRemoteSession, Verbose, TEXT("Sent image %d in %.02f ms"),
+				NumSentImages, (FPlatformTime::Seconds() - TimeNow) * 1000.0);
+		}
+	}
+}
+
 FRemoteSessionImageChannel::FRemoteSessionImageChannel(ERemoteSessionChannelMode InRole, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection)
 	: IRemoteSessionChannel(InRole, InConnection)
 {
 	Connection = InConnection;
 	DecodedTextures[0] = nullptr;
 	DecodedTextures[1] = nullptr;
-	DecodedTextureIndex = 0;
-	NumSentImages = 0;
-	CompressQuality = 0;
+	DecodedTextureIndex = MakeShared<TAtomic<int32>, ESPMode::ThreadSafe>(0);
 	Role = InRole;
 	LastDecodedImageIndex = 0;
 	LastIncomingImageIndex = 0;
@@ -49,6 +100,10 @@ FRemoteSessionImageChannel::FRemoteSessionImageChannel(ERemoteSessionChannelMode
 		InConnection->SetMessageOptions(TEXT("/Screen"), 1);
 
 		StartBackgroundThread();
+	}
+	else
+	{
+		ImageSender = MakeShared<FRemoteSessionImageChannel::FImageSender, ESPMode::ThreadSafe>(InConnection);
 	}
 }
 
@@ -93,7 +148,7 @@ FRemoteSessionImageChannel::~FRemoteSessionImageChannel()
 
 UTexture2D* FRemoteSessionImageChannel::GetHostScreen() const
 {
-	return DecodedTextures[DecodedTextureIndex];
+	return DecodedTextures[DecodedTextureIndex->Load()];
 }
 
 void FRemoteSessionImageChannel::Tick(const float InDeltaTime)
@@ -112,7 +167,7 @@ void FRemoteSessionImageChannel::Tick(const float InDeltaTime)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_TextureUpdate);
 
-		TSharedPtr<FImageData, ESPMode::ThreadSafe> QueuedImage;
+		TUniquePtr<FImageData> QueuedImage;
 
 		{
 			// Check to see if there are any queued images. We just care about the last
@@ -120,20 +175,20 @@ void FRemoteSessionImageChannel::Tick(const float InDeltaTime)
 			if (IncomingDecodedImages.Num())
 			{
 				INC_DWORD_STAT(STAT_RSNumFrames);
-				QueuedImage = IncomingDecodedImages.Last();
+				QueuedImage = MoveTemp(IncomingDecodedImages.Last());
 				LastDecodedImageIndex = QueuedImage->ImageIndex;
 
 				UE_LOG(LogRemoteSession, Verbose, TEXT("GT: Image %d is ready, discarding %d earlier images"),
 					QueuedImage->ImageIndex, IncomingDecodedImages.Num()-1);
 
-				IncomingDecodedImages.Empty();
+				IncomingDecodedImages.Reset();
 			}
 		}
 
 		// If an image was waiting...
 		if (QueuedImage.IsValid())
 		{
-			int32 NextImage = DecodedTextureIndex == 0 ? 1 : 0;
+			int32 NextImage = DecodedTextureIndex->Load() == 0 ? 1 : 0;
 
 			// create a texture if we don't have a suitable one
 			if (DecodedTextures[NextImage] == nullptr || QueuedImage->Width != DecodedTextures[NextImage]->GetSizeX() || QueuedImage->Height != DecodedTextures[NextImage]->GetSizeY())
@@ -144,14 +199,18 @@ void FRemoteSessionImageChannel::Tick(const float InDeltaTime)
 			// Update it on the render thread. There shouldn't (...) be any harm in GT code using it from this point
 			FUpdateTextureRegion2D* Region = new FUpdateTextureRegion2D(0, 0, 0, 0, QueuedImage->Width, QueuedImage->Height);
 			TArray<uint8>* TextureData = new TArray<uint8>(MoveTemp(QueuedImage->ImageData));
+			TWeakPtr<TAtomic<int32>, ESPMode::ThreadSafe> DecodedTextureIndexWeaked = DecodedTextureIndex;
 
 			// cleanup functions, gets executed on the render thread after UpdateTextureRegions
-			TFunction<void(uint8*, const FUpdateTextureRegion2D*)> DataCleanupFunc = [this, NextImage, TextureData](uint8* InTextureData, const FUpdateTextureRegion2D* InRegions)
+			TFunction<void(uint8*, const FUpdateTextureRegion2D*)> DataCleanupFunc = [DecodedTextureIndexWeaked, NextImage, TextureData](uint8* InTextureData, const FUpdateTextureRegion2D* InRegions)
 			{
-				DecodedTextureIndex = NextImage;
+				if (TSharedPtr<TAtomic<int32>, ESPMode::ThreadSafe> DecodedTextureIndexPinned = DecodedTextureIndexWeaked.Pin())
+				{
+					DecodedTextureIndexPinned->Store(NextImage);
+				}
 
 				//this is executed later on the render thread, meanwhile TextureData might have changed
-				delete InTextureData; 
+				delete TextureData;
 				delete InRegions; 
 			};
 
@@ -175,68 +234,30 @@ void FRemoteSessionImageChannel::SetCompressQuality(int32 InQuality)
 {
 	if (Role == ERemoteSessionChannelMode::Write)
 	{
-		CompressQuality = InQuality;
-	}
-}
-
-void FRemoteSessionImageChannel::SendRawImageToClients(int32 Width, int32 Height, const TArray<FColor>& ImageData)
-{
-	SendRawImageToClients(Width, Height, ImageData.GetData(), ImageData.GetAllocatedSize());
-}
-
-void FRemoteSessionImageChannel::SendRawImageToClients(int32 Width, int32 Height, const void* ImageData, int32 AllocatedImageDataSize)
-{
-	static bool SkipImages = FParse::Param(FCommandLine::Get(), TEXT("remote.noimage"));
-
-	// Can be released on the main thread at anytime so hold onto it
-	TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> LocalConnection = Connection.Pin();
-
-	if (LocalConnection.IsValid() && SkipImages == false)
-	{
-		const double TimeNow = FPlatformTime::Seconds();
-
-		// created on demand because there can be multiple SendImage requests in flight
-		IImageWrapperModule* ImageWrapperModule = FModuleManager::GetModulePtr<IImageWrapperModule>(FName("ImageWrapper"));
-		if (ImageWrapperModule != nullptr)
-		{
-			TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule->CreateImageWrapper(EImageFormat::JPEG);
-
-			ImageWrapper->SetRaw(ImageData, AllocatedImageDataSize, Width, Height, ERGBFormat::BGRA, 8);
-
-			const int32 CurrentQuality = QualityMasterSetting > 0 ? QualityMasterSetting : CompressQuality;
-			const TArray<uint8>& JPGData = ImageWrapper->GetCompressed(CompressQuality);
-
-			FBackChannelOSCMessage Msg(TEXT("/Screen"));
-			Msg.Write(Width);
-			Msg.Write(Height);
-			Msg.Write(JPGData);
-			Msg.Write(++NumSentImages);
-			LocalConnection->SendPacket(Msg);
-
-			UE_LOG(LogRemoteSession, Verbose, TEXT("Sent image %d in %.02f ms"),
-				NumSentImages, (FPlatformTime::Seconds() - TimeNow) * 1000.0);
-		}
+		ImageSender->SetCompressQuality(InQuality);
 	}
 }
 
 void FRemoteSessionImageChannel::ReceiveHostImage(FBackChannelOSCMessage& Message, FBackChannelOSCDispatch& Dispatch)
 {
-	int32 Width(0);
-	int32 Height(0);
+	int32 ImageIndex(0);
 
-	TSharedPtr<FImageData, ESPMode::ThreadSafe> ReceivedImage = MakeShareable(new FImageData);
+	TUniquePtr<FImageData> ReceivedImage = MakeUnique<FImageData>();
 
 	Message << ReceivedImage->Width;
 	Message << ReceivedImage->Height;
 	Message << ReceivedImage->ImageData;
-	Message << ReceivedImage->ImageIndex;
+	Message << ImageIndex;
+
+	ReceivedImage->ImageIndex = ImageIndex;
 
 	FScopeLock Lock(&IncomingImageMutex);
 	if (LastIncomingImageIndex > 0 && IncomingEncodedImages.Num() > 1 && IncomingEncodedImages.Last()->ImageIndex > LastIncomingImageIndex)
 	{
 		IncomingEncodedImages.RemoveSingle(IncomingEncodedImages.Last());
 	}
-	IncomingEncodedImages.Add(ReceivedImage);
+
+	IncomingEncodedImages.Add(MoveTemp(ReceivedImage));
 
 	if (ScreenshotEvent)
 	{
@@ -244,14 +265,13 @@ void FRemoteSessionImageChannel::ReceiveHostImage(FBackChannelOSCMessage& Messag
 		ScreenshotEvent->Trigger();
 	}
 
-	UE_LOG(LogRemoteSession, Verbose, TEXT("Received Image %d, %d pending"), 
-		ReceivedImage->ImageIndex, IncomingEncodedImages.Num());
-
+	UE_LOG(LogRemoteSession, Verbose, TEXT("Received Image %d, %d pending"),
+		ImageIndex, IncomingEncodedImages.Num());
 }
 
 void FRemoteSessionImageChannel::ProcessIncomingTextures()
 {
-	TSharedPtr<FImageData, ESPMode::ThreadSafe> Image;
+	TUniquePtr<FImageData> Image;
 	const double StartTime = FPlatformTime::Seconds();
 	{
 		// check if there's anything to do, if not pause the background thread
@@ -263,13 +283,13 @@ void FRemoteSessionImageChannel::ProcessIncomingTextures()
 		}
 
 		// take the last image we don't care about the rest
-		Image = IncomingEncodedImages.Last();
+		Image = MoveTemp(IncomingEncodedImages.Last());
 		LastIncomingImageIndex = Image->ImageIndex;
 
 		UE_LOG(LogRemoteSession, Verbose, TEXT("Processing Image %d, discarding %d other pending images"), 
 			Image->ImageIndex, IncomingEncodedImages.Num() - 1);
 
-		IncomingEncodedImages.Empty();
+		IncomingEncodedImages.Reset();
 	}
 
 	IImageWrapperModule* ImageWrapperModule = FModuleManager::GetModulePtr<IImageWrapperModule>(FName("ImageWrapper"));
@@ -284,7 +304,7 @@ void FRemoteSessionImageChannel::ProcessIncomingTextures()
 
 		if (ImageWrapper->GetRaw(ERGBFormat::BGRA, 8, RawData))
 		{
-			TSharedPtr<FImageData, ESPMode::ThreadSafe> QueuedImage = MakeShareable(new FImageData);
+			TUniquePtr<FImageData> QueuedImage = MakeUnique<FImageData>();
 			QueuedImage->Width = Image->Width;
 			QueuedImage->Height = Image->Height;
 			QueuedImage->ImageData = MoveTemp(*((TArray<uint8>*)RawData));
@@ -296,7 +316,7 @@ void FRemoteSessionImageChannel::ProcessIncomingTextures()
 				{
 					IncomingDecodedImages.RemoveSingle(IncomingDecodedImages.Last());
 				}
-				IncomingDecodedImages.Add(QueuedImage);
+				IncomingDecodedImages.Add(MoveTemp(QueuedImage));
 
 				UE_LOG(LogRemoteSession, Verbose, TEXT("finished decompressing image %d in %.02f ms (%d in queue)"),
 					Image->ImageIndex,

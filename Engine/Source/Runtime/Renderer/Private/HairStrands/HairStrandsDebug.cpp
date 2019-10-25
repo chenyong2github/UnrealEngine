@@ -131,14 +131,17 @@ EHairStrandsDebugMode GetHairStrandsDebugStrandsMode()
 {
 	switch (GHairStrandsDebugStrandsMode)
 	{
-	case 0:  return EHairStrandsDebugMode::None;
-	case 1:  return EHairStrandsDebugMode::SimHairStrands;
-	case 2:  return EHairStrandsDebugMode::RenderHairStrands;
-	case 3:  return EHairStrandsDebugMode::RenderHairRootUV;
-	case 4:  return EHairStrandsDebugMode::RenderHairUV;
-	case 5:  return EHairStrandsDebugMode::RenderHairSeed;
-	case 6:  return EHairStrandsDebugMode::RenderHairDimension;
-	case 7:  return EHairStrandsDebugMode::RenderHairRadiusVariation;
+	case  0:  return EHairStrandsDebugMode::None;
+	case  1:  return EHairStrandsDebugMode::SimHairStrands;
+	case  2:  return EHairStrandsDebugMode::RenderHairStrands;
+	case  3:  return EHairStrandsDebugMode::RenderHairRootUV;
+	case  4:  return EHairStrandsDebugMode::RenderHairRootUDIM;
+	case  5:  return EHairStrandsDebugMode::RenderHairUV;
+	case  6:  return EHairStrandsDebugMode::RenderHairSeed;
+	case  7:  return EHairStrandsDebugMode::RenderHairDimension;
+	case  8:  return EHairStrandsDebugMode::RenderHairRadiusVariation;
+	case  9:  return EHairStrandsDebugMode::RenderHairBaseColor;
+	case 10:  return EHairStrandsDebugMode::RenderHairRoughness;
 	default: return EHairStrandsDebugMode::None;
 	};
 }
@@ -151,10 +154,13 @@ static const TCHAR* ToString(EHairStrandsDebugMode DebugMode)
 	case EHairStrandsDebugMode::SimHairStrands				: return TEXT("Simulation strands");
 	case EHairStrandsDebugMode::RenderHairStrands			: return TEXT("Rendering strands influences");
 	case EHairStrandsDebugMode::RenderHairRootUV			: return TEXT("Roots UV");
+	case EHairStrandsDebugMode::RenderHairRootUDIM			: return TEXT("Roots UV UDIM texture index");
 	case EHairStrandsDebugMode::RenderHairUV				: return TEXT("Hair UV");
 	case EHairStrandsDebugMode::RenderHairSeed				: return TEXT("Hair seed");
 	case EHairStrandsDebugMode::RenderHairDimension			: return TEXT("Hair dimensions");
 	case EHairStrandsDebugMode::RenderHairRadiusVariation	: return TEXT("Hair radius variation");
+	case EHairStrandsDebugMode::RenderHairBaseColor			: return TEXT("Hair vertices color");
+	case EHairStrandsDebugMode::RenderHairRoughness			: return TEXT("Hair vertices roughness");
 	default													: return TEXT("None");
 	};
 }
@@ -1247,14 +1253,8 @@ void RenderHairStrandsDebugInfo(FRHICommandListImmediate& RHICmdList, TArray<FVi
 		FLinearColor DebugColor(1, 1, 0);
 		FString Line;
 
-		const FVector4 HairComponent = GetHairComponents();
-		const uint32 bHairR = HairComponent.X > 0 ? 1 : 0;
-		const uint32 bHairTT = HairComponent.Y > 0 ? 1 : 0;
-		const uint32 bHairTRT = HairComponent.Z > 0 ? 1 : 0;
-		const uint32 bHairGlobalScattering = FMath::FloorToInt(HairComponent.W / 10.0f) > 0 ? 1 : 0;
-		const uint32 bHairLocalScattering  = FMath::Frac(HairComponent.W / 10.0f)*10.f > 0 ? 1 : 0;
-
-		Line = FString::Printf(TEXT("Hair Components : (R=%d, TT=%d, TRT=%d, GS=%d, LS=%d)"), bHairR, bHairTT, bHairTRT, bHairGlobalScattering, bHairLocalScattering);
+		const FHairComponent HairComponent = GetHairComponents();
+		Line = FString::Printf(TEXT("Hair Components : (R=%d, TT=%d, TRT=%d, GS=%d, LS=%d)"), HairComponent.R, HairComponent.TT, HairComponent.TRT, HairComponent.GlobalScattering, HairComponent.LocalScattering);
 		Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
 		Line = FString::Printf(TEXT("----------------------------------------------------------------"));				Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
 		Line = FString::Printf(TEXT("Debug strands mode : %s"), ToString(StrandsDebugMode));							Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);

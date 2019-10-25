@@ -21,6 +21,6 @@ public:
 
 	virtual void Update() = 0;
 
-	virtual void ExportInputData(FDisplayClusterMessage::DataType& data) const = 0;
-	virtual void ImportInputData(const FDisplayClusterMessage::DataType& data) = 0;
+	virtual void ExportInputData(FDisplayClusterMessage::DataType& InputData) const = 0;
+	virtual void ImportInputData(const FDisplayClusterMessage::DataType& InputData) = 0;
 };

@@ -17,6 +17,7 @@ FLazyName FMapErrors::CollisionEnabledNoCollisionGeom(TEXT("CollisionEnabledNoCo
 FLazyName FMapErrors::ShadowCasterUsingBoundsScale(TEXT("ShadowCasterUsingBoundsScale"));
 FLazyName FMapErrors::MultipleSkyLights(TEXT("MultipleSkyLights"));
 FLazyName FMapErrors::MultipleSkyAtmospheres(TEXT("MultipleSkyAtmospheres"));
+FLazyName FMapErrors::InvalidHairStrandsMaterial(TEXT("InvalidHairStrandsMaterial"));
 FLazyName FMapErrors::MultipleSkyAtmosphereTypes(TEXT("MultipleSkyAtmosphereTypes"));
 FLazyName FMapErrors::InvalidTrace(TEXT("InvalidTrace"));
 FLazyName FMapErrors::BrushZeroPolygons(TEXT("BrushZeroPolygons"));

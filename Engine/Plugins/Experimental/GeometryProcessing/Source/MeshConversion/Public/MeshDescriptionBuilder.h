@@ -88,13 +88,6 @@ public:
 	FPolygonID AppendTriangle(const FVertexInstanceID& Instance0, const FVertexInstanceID& Instance1, const FVertexInstanceID& Instance2, const FPolygonGroupID& PolygonGroup);
 
 
-	/**
-	 * Append an entire mesh to this mesh. This will create a minimal set of shared vertex instances.
-	 * @param bSetPolyGroups if true, we transfer the input mesh triangle groups to the PolyTriGroups attribute
-	 */
-	void AppendMesh(const FDynamicMesh3* Mesh, bool bSetPolyGroups);
-
-
 
 	/** Set MeshAttribute::Edge::IsHard to true for all edges */
 	void SetAllEdgesHardness(bool bHard);

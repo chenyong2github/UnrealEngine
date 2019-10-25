@@ -263,8 +263,8 @@ protected:
 			GetMutableDefault<UAnalyticsPrivacySettings>()
 			);
 
-		// Crash reports
-		SettingsModule.RegisterSettings("Editor", "Privacy", "Analytics",
+		// Bug reports
+		SettingsModule.RegisterSettings("Editor", "Privacy", "BugReports",
 			LOCTEXT("PrivacyBugReportsSettingsName", "Bug Reports"),
 			LOCTEXT("PrivacyBugReportsSettingsDescription", "Configure the way your bug reports information is handled."),
 			GetMutableDefault<UCrashReportsPrivacySettings>()

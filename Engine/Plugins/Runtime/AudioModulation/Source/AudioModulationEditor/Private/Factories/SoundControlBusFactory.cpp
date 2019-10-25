@@ -59,3 +59,17 @@ UObject* USoundHPFControlBusFactory::FactoryCreateNew(UClass* Class, UObject* In
 {
 	return NewObject<USoundHPFControlBus>(InParent, Name, Flags);
 }
+
+USoundControlBusFactory::USoundControlBusFactory(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	SupportedClass = USoundControlBus::StaticClass();
+	bCreateNew = true;
+	bEditorImport = false;
+	bEditAfterNew = true;
+}
+
+UObject* USoundControlBusFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
+{
+	return NewObject<USoundControlBus>(InParent, Name, Flags);
+}

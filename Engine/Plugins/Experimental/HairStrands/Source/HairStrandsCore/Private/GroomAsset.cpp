@@ -42,22 +42,25 @@ void CreateBuffer(uint32 InVertexCount, FRWBuffer& OutBuffer)
 /////////////////////////////////////////////////////////////////////////////////////////
 
 FHairStrandsRestResource::FHairStrandsRestResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData, const FVector& InPositionOffset) :
-	RestPositionBuffer(), AttributeBuffer(), PositionOffset(InPositionOffset), RenderData(HairStrandRenderData)
+	RestPositionBuffer(), AttributeBuffer(), MaterialBuffer(), PositionOffset(InPositionOffset), RenderData(HairStrandRenderData)
 {}
 
 void FHairStrandsRestResource::InitRHI()
 {
-	const TArray<FHairStrandsPositionFormat::Type>& RenderingPositions = RenderData.RenderingPositions;
+	const TArray<FHairStrandsPositionFormat::Type>& RenderingPositions	 = RenderData.RenderingPositions;
 	const TArray<FHairStrandsAttributeFormat::Type>& RenderingAttributes = RenderData.RenderingAttributes;
+	const TArray<FHairStrandsMaterialFormat::Type>& RenderingMaterials	 = RenderData.RenderingMaterials;
 
 	CreateBuffer<FHairStrandsPositionFormat>(RenderingPositions, RestPositionBuffer);
 	CreateBuffer<FHairStrandsAttributeFormat>(RenderingAttributes, AttributeBuffer);
+	CreateBuffer<FHairStrandsMaterialFormat>(RenderingMaterials, MaterialBuffer);
 }
 
 void FHairStrandsRestResource::ReleaseRHI()
 {
 	RestPositionBuffer.Release();
 	AttributeBuffer.Release();
+	MaterialBuffer.Release();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -144,7 +147,7 @@ FHairStrandsRootResource::FHairStrandsRootResource(const FHairStrandsDatas* Hair
 	for (FMeshProjectionLOD& MeshProjectionLOD : MeshProjectionLODs)
 	{
 		MeshProjectionLOD.Status = FMeshProjectionLOD::EStatus::Invalid;
-		MeshProjectionLOD.RestRootCenter = HairStrandsDatas->BoundingBox.GetCenter();
+		MeshProjectionLOD.RestRootOffset = HairStrandsDatas->BoundingBox.GetCenter();
 		MeshProjectionLOD.LODIndex = LODIndex++;
 	}
 }
@@ -355,6 +358,7 @@ void UGroomAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	UpdateResource();
+	OnGroomAssetChanged.Broadcast();
 }
 #endif // WITH_EDITOR
 

@@ -290,9 +290,19 @@ namespace Audio
 	{
 	public:
 		FOutputBuffer()
-			: AudioMixer(nullptr)
+			: IsReadyEvent(nullptr)
+			, AudioMixer(nullptr)
 			, DataFormat(EAudioMixerStreamDataFormat::Unknown)
 		{}
+
+		~FOutputBuffer()
+		{
+			if (IsReadyEvent != nullptr)
+			{
+				FPlatformProcess::ReturnSynchEventToPool(IsReadyEvent);
+				IsReadyEvent = nullptr;
+			}
+		}
  
 		/** Initialize the buffer with the given samples and output format. */
 		void Init(IAudioMixer* InAudioMixer, const int32 InNumSamples, const EAudioMixerStreamDataFormat::Type InDataFormat);
@@ -308,6 +318,9 @@ namespace Audio
 		const uint8* GetBufferData() const;
 		uint8* GetBufferData();
 
+		/** Event to signal that the buffer is ready */
+		FEvent* IsReadyEvent;
+
 		/** Gets the number of frames of the buffer. */
 		int32 GetNumFrames() const;
 
@@ -318,7 +331,14 @@ namespace Audio
 		bool IsReady() const { return bIsReady; }
 
 		/** Resets the buffer ready state. */
-		void ResetReadyState() { bIsReady = false; }
+		void ResetReadyState()
+		{
+			bIsReady = false;
+			if (IsReadyEvent)
+			{
+				IsReadyEvent->Reset();
+			}
+		}
 
 		/** Resets the internal buffers to the new sample count. Used when device is changed. */
 		void Reset(const int32 InNewNumSamples);
@@ -559,10 +579,10 @@ namespace Audio
 		FEvent* AudioFadeEvent;
 
 		/** The buffer which is currently submitted to the output device (and is being read from). */
-		int32 CurrentBufferReadIndex;
+		TAtomic<int32> CurrentBufferReadIndex;
 
 		/** The buffer which is currently being rendered to (or about to be rendered to). */
-		int32 CurrentBufferWriteIndex;
+		TAtomic<int32> CurrentBufferWriteIndex;
 
 		/** The number of mixer buffers to queue on the output source voice. */
 		int32 NumOutputBuffers;

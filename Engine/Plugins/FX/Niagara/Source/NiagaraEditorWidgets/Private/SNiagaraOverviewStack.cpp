@@ -14,20 +14,30 @@
 #include "NiagaraEditorWidgetsUtilities.h"
 #include "SNiagaraStack.h"
 #include "Stack/SNiagaraStackItemGroupAddButton.h"
+#include "NiagaraEditorCommon.h"
 
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Notifications/SNotificationList.h"
 #include "EditorStyleSet.h"
+#include "Styling/CoreStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Commands/GenericCommands.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "ScopedTransaction.h"
+#include "Logging/LogMacros.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewStack"
 
 class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 {
 	SLATE_BEGIN_ARGS(SNiagaraSystemOverviewEntryListRow) {}
-		SLATE_DEFAULT_SLOT(FArguments, Content)
+		SLATE_EVENT(FOnDragDetected, OnDragDetected)
+		SLATE_EVENT(FOnCanAcceptDrop, OnCanAcceptDrop)
+		SLATE_EVENT(FOnAcceptDrop, OnAcceptDrop)
+		SLATE_DEFAULT_SLOT(FArguments, Content);
 	SLATE_END_ARGS();
 
 	void Construct(const FArguments& InArgs, UNiagaraStackEntry* InStackEntry, const TSharedRef<STableViewBase>& InOwnerTableView)
@@ -72,6 +82,9 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 
 		STableRow<UNiagaraStackEntry*>::Construct(STableRow<UNiagaraStackEntry*>::FArguments()
 			.Style(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.SystemOverview.TableViewRow")
+			.OnDragDetected(InArgs._OnDragDetected)
+			.OnCanAcceptDrop(InArgs._OnCanAcceptDrop)
+			.OnAcceptDrop(InArgs._OnAcceptDrop)
 		[
 			SNew(SBorder)
 			.BorderImage(this, &SNiagaraSystemOverviewEntryListRow::GetBorder)
@@ -132,7 +145,7 @@ public:
 
 	SLATE_BEGIN_ARGS(SNiagaraSystemOverviewEnabledCheckBox) {}
 		SLATE_ATTRIBUTE(bool, IsChecked)
-		SLATE_EVENT(FOnCheckedChanged, OnCheckedChanged)
+		SLATE_EVENT(FOnCheckedChanged, OnCheckedChanged);
 	SLATE_END_ARGS();
 
 	void Construct(const FArguments& InArgs)
@@ -183,7 +196,10 @@ private:
 
 void SNiagaraOverviewStack::Construct(const FArguments& InArgs, UNiagaraStackViewModel& InStackViewModel, UNiagaraSystemSelectionViewModel& InOverviewSelectionViewModel)
 {
-	bRefreshEntryListPending = false;
+	Commands = MakeShared<FUICommandList>();
+
+	SetupCommands();
+
 	bUpdatingOverviewSelectionFromStackSelection = false;
 	bUpdatingStackSelectionFromOverviewSelection = false;
 
@@ -214,12 +230,75 @@ SNiagaraOverviewStack::~SNiagaraOverviewStack()
 	}
 }
 
+bool SNiagaraOverviewStack::SupportsKeyboardFocus() const
+{
+	return true;
+}
+
+FReply SNiagaraOverviewStack::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	if (Commands->ProcessCommandBindings(InKeyEvent))
+	{
+		return FReply::Handled();
+	}
+	return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent);
+}
+
 void SNiagaraOverviewStack::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	if (bRefreshEntryListPending)
+	RefreshEntryList();
+}
+
+void SNiagaraOverviewStack::SetupCommands()
+{
+	Commands->MapAction(FGenericCommands::Get().Delete, FUIAction(
+		FExecuteAction::CreateSP(this, &SNiagaraOverviewStack::DeleteSelectedEntries)));
+}
+
+void SNiagaraOverviewStack::DeleteSelectedEntries()
+{
+	bool bIncompleteDelete = false;
+	TArray<UNiagaraStackItem*> ItemsToDelete;
+	for (UNiagaraStackEntry* SelectedEntry : OverviewSelectionViewModel->GetSelectedEntries())
 	{
-		RefreshEntryList();
-		bRefreshEntryListPending = false;
+		UNiagaraStackItem* SelectedItem = Cast<UNiagaraStackItem>(SelectedEntry);
+		if (SelectedItem != nullptr)
+		{
+			FText DeleteMessage;
+			if (SelectedItem->SupportsDelete() && SelectedItem->TestCanDeleteWithMessage(DeleteMessage))
+			{
+				ItemsToDelete.Add(SelectedItem);
+			}
+			else
+			{
+				bIncompleteDelete = true;
+			}
+		}
+		else
+		{
+			bIncompleteDelete = true;
+		}
+	}
+
+	if (ItemsToDelete.Num() > 0)
+	{
+		const FScopedTransaction Transaction(LOCTEXT("DeleteSelected", "Delete items from the system overview"));
+		for (UNiagaraStackItem* ItemToDelete : ItemsToDelete)
+		{
+			ItemToDelete->Delete();
+		}
+	}
+
+	if (bIncompleteDelete)
+	{
+		FText IncompleteDeleteMessage = LOCTEXT("DeleteIncompleteMessage", "Not all items could be deleted because they either\ndon't support being deleted or they are inherited.");
+		FNotificationInfo Warning(IncompleteDeleteMessage);
+		Warning.ExpireDuration = 5.0f;
+		Warning.bFireAndForget = true;
+		Warning.bUseLargeFont = false;
+		Warning.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Warning"));
+		FSlateNotificationManager::Get().AddNotification(Warning);
+		UE_LOG(LogNiagaraEditor, Warning, TEXT("%s"), *IncompleteDeleteMessage.ToString());
 	}
 }
 
@@ -242,24 +321,28 @@ void SNiagaraOverviewStack::AddEntriesRecursive(UNiagaraStackEntry& EntryToAdd, 
 
 void SNiagaraOverviewStack::RefreshEntryList()
 {
-	FlattenedEntryList.Empty();
-	EntryObjectKeyToParentChain.Empty();
-	TArray<UClass*> AcceptableClasses;
-	AcceptableClasses.Add(UNiagaraStackItemGroup::StaticClass());
-	AcceptableClasses.Add(UNiagaraStackItem::StaticClass());
-	for (UNiagaraStackEntry* RootEntry : StackViewModel->GetRootEntries())
+	if (bRefreshEntryListPending)
 	{
-		checkf(RootEntry != nullptr, TEXT("Root entry was null."));
-		TArray<UNiagaraStackEntry*> RootChildren;
-		RootEntry->GetFilteredChildren(RootChildren);
-		for (UNiagaraStackEntry* RootChild : RootChildren)
+		FlattenedEntryList.Empty();
+		EntryObjectKeyToParentChain.Empty();
+		TArray<UClass*> AcceptableClasses;
+		AcceptableClasses.Add(UNiagaraStackItemGroup::StaticClass());
+		AcceptableClasses.Add(UNiagaraStackItem::StaticClass());
+		for (UNiagaraStackEntry* RootEntry : StackViewModel->GetRootEntries())
 		{
-			checkf(RootEntry != nullptr, TEXT("Root entry child was null."));
-			TArray<UNiagaraStackEntry*> ParentChain;
-			AddEntriesRecursive(*RootChild, FlattenedEntryList, AcceptableClasses, ParentChain);
+			checkf(RootEntry != nullptr, TEXT("Root entry was null."));
+			TArray<UNiagaraStackEntry*> RootChildren;
+			RootEntry->GetFilteredChildren(RootChildren);
+			for (UNiagaraStackEntry* RootChild : RootChildren)
+			{
+				checkf(RootEntry != nullptr, TEXT("Root entry child was null."));
+				TArray<UNiagaraStackEntry*> ParentChain;
+				AddEntriesRecursive(*RootChild, FlattenedEntryList, AcceptableClasses, ParentChain);
+			}
 		}
+		bRefreshEntryListPending = false;
+		EntryListView->RequestListRefresh();
 	}
-	EntryListView->RequestListRefresh();
 }
 
 void SNiagaraOverviewStack::EntryStructureChanged()
@@ -336,6 +419,9 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 
 
 	return SNew(SNiagaraSystemOverviewEntryListRow, Item, OwnerTable)
+		.OnDragDetected(this, &SNiagaraOverviewStack::OnRowDragDetected, TWeakObjectPtr<UNiagaraStackEntry>(Item))
+		.OnCanAcceptDrop(this, &SNiagaraOverviewStack::OnRowCanAcceptDrop)
+		.OnAcceptDrop(this, &SNiagaraOverviewStack::OnRowAcceptDrop)
 	[
 		Content.ToSharedRef()
 	];
@@ -381,16 +467,26 @@ void SNiagaraOverviewStack::SystemSelectionChanged(UNiagaraSystemSelectionViewMo
 	{
 		TGuardValue<bool> UpdateGuard(bUpdatingStackSelectionFromOverviewSelection, true);
 
-		TArray<UNiagaraStackEntry*> SelectedStackEntries;
-		EntryListView->GetSelectedItems(SelectedStackEntries);
+		TArray<UNiagaraStackEntry*> SelectedListViewStackEntries;
+		EntryListView->GetSelectedItems(SelectedListViewStackEntries);
 		TArray<UNiagaraStackEntry*> SelectedOverviewEntries = OverviewSelectionViewModel->GetSelectedEntries();
 
 		TArray<UNiagaraStackEntry*> EntriesToDeselect;
-		for (UNiagaraStackEntry* SelectedStackEntry : SelectedStackEntries)
+		for (UNiagaraStackEntry* SelectedListViewStackEntry : SelectedListViewStackEntries)
 		{
-			if (SelectedOverviewEntries.Contains(SelectedStackEntry) == false)
+			if (SelectedOverviewEntries.Contains(SelectedListViewStackEntry) == false)
 			{
-				EntriesToDeselect.Add(SelectedStackEntry);
+				EntriesToDeselect.Add(SelectedListViewStackEntry);
+			}
+		}
+
+		TArray<UNiagaraStackEntry*> EntriesToSelect;
+		RefreshEntryList();
+		for (UNiagaraStackEntry* SelectedOverviewEntry : SelectedOverviewEntries)
+		{
+			if (FlattenedEntryList.Contains(SelectedOverviewEntry))
+			{
+				EntriesToSelect.Add(SelectedOverviewEntry);
 			}
 		}
 
@@ -398,7 +494,33 @@ void SNiagaraOverviewStack::SystemSelectionChanged(UNiagaraSystemSelectionViewMo
 		{
 			EntryListView->SetItemSelection(EntryToDeselect, false);
 		}
+
+		for (UNiagaraStackEntry* EntryToSelect : EntriesToSelect)
+		{
+			EntryListView->SetItemSelection(EntryToSelect, true);
+		}
 	}
+}
+
+FReply SNiagaraOverviewStack::OnRowDragDetected(const FGeometry& InGeometry, const FPointerEvent& InPointerEvent, TWeakObjectPtr<UNiagaraStackEntry> InStackEntryWeak)
+{
+	UNiagaraStackEntry* StackEntry = InStackEntryWeak.Get();
+	if (StackEntry != nullptr && StackEntry->CanDrag())
+	{
+		return FReply::Handled().BeginDragDrop(FNiagaraStackEditorWidgetsUtilities::ConstructDragDropOperationForStackEntries(StackEntry->GetSystemViewModel()->GetSelectionViewModel()->GetSelectedEntries()));
+	}
+	return FReply::Unhandled();
+}
+
+TOptional<EItemDropZone> SNiagaraOverviewStack::OnRowCanAcceptDrop(const FDragDropEvent& InDragDropEvent, EItemDropZone InDropZone, UNiagaraStackEntry* InTargetEntry)
+{
+	return FNiagaraStackEditorWidgetsUtilities::RequestDropForStackEntry(InDragDropEvent, InDropZone, InTargetEntry, UNiagaraStackEntry::EDropOptions::Overview);
+}
+
+FReply SNiagaraOverviewStack::OnRowAcceptDrop(const FDragDropEvent& InDragDropEvent, EItemDropZone InDropZone, UNiagaraStackEntry* InTargetEntry)
+{
+	bool bHandled = FNiagaraStackEditorWidgetsUtilities::HandleDropForStackEntry(InDragDropEvent, InDropZone, InTargetEntry, UNiagaraStackEntry::EDropOptions::Overview);
+	return bHandled ? FReply::Handled() : FReply::Unhandled();
 }
 
 #undef LOCTEXT_NAMESPACE

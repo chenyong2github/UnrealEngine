@@ -62,10 +62,10 @@ enum class EDatasmithTextureSlot
 class DATASMITHIMPORTER_API FDatasmithMaterialExpressions
 {
 public:
-	static UMaterialInterface* CreateDatasmithMaterial(UPackage* Package, TSharedPtr< IDatasmithMaterialElement > MaterialElement, FDatasmithAssetsImportContext& AssetsContext, UMaterial* ExistingMaterial, EObjectFlags ObjectFlags);
-	static UMaterialFunction* CreateUEPbrMaterialFunction(UPackage* Package, TSharedPtr< IDatasmithUEPbrMaterialElement > MaterialElement, FDatasmithAssetsImportContext& AssetsContext, UMaterial* ExistingMaterial, EObjectFlags ObjectFlags);
-	static UMaterialInterface* CreateUEPbrMaterial(UPackage* Package, TSharedPtr< IDatasmithUEPbrMaterialElement > MaterialElement, FDatasmithAssetsImportContext& AssetsContext, UMaterial* ExistingMaterial, EObjectFlags ObjectFlags);
-	static UMaterialInterface* CreateUEPbrMaterialInstance(UPackage* Package, TSharedPtr< IDatasmithUEPbrMaterialElement > MaterialElement, FDatasmithAssetsImportContext& AssetsContext, UMaterialInterface* ParentMaterial, EObjectFlags ObjectFlags);
+	static UMaterialInterface* CreateDatasmithMaterial(UPackage* Package, const TSharedPtr< IDatasmithMaterialElement >& MaterialElement, FDatasmithAssetsImportContext& AssetsContext, UMaterial* ExistingMaterial, EObjectFlags ObjectFlags);
+	static UMaterialFunction* CreateUEPbrMaterialFunction(UPackage* Package, const TSharedPtr< IDatasmithUEPbrMaterialElement >& MaterialElement, FDatasmithAssetsImportContext& AssetsContext, UMaterial* ExistingMaterial, EObjectFlags ObjectFlags);
+	static UMaterialInterface* CreateUEPbrMaterial(UPackage* Package, const TSharedPtr< IDatasmithUEPbrMaterialElement >& MaterialElement, FDatasmithAssetsImportContext& AssetsContext, UMaterial* ExistingMaterial, EObjectFlags ObjectFlags);
+	static UMaterialInterface* CreateUEPbrMaterialInstance(UPackage* Package, const TSharedPtr< IDatasmithUEPbrMaterialElement >& MaterialElement, FDatasmithAssetsImportContext& AssetsContext, UMaterialInterface* ParentMaterial, EObjectFlags ObjectFlags);
 	static UTextureLightProfile* CreateDatasmithIES(const FString& Filename, UPackage* Package, EObjectFlags ObjectFlags);
 	static UMaterialInterface* CreateDatasmithEnvironmentMaterial(UPackage* Package, const TSharedPtr< IDatasmithShaderElement >& ShaderElement, FDatasmithAssetsImportContext& AssetsContext,
 																  UMaterial* ExistingMaterial);
@@ -110,8 +110,8 @@ private:
 
 	static UMaterialExpression* AddCroppedUVMappingExpression(UObject* UnrealMaterial, const FDatasmithTextureSampler& UV, UMaterialExpressionTextureCoordinate* ToBeConnected);
 
-	static void CreateUEPbrMaterialGraph(TSharedPtr< IDatasmithUEPbrMaterialElement > MaterialElement, FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction);
-	static EBlendMode GetUEPbrImportBlendMode(TSharedPtr< IDatasmithUEPbrMaterialElement > MaterialElement);
+	static void CreateUEPbrMaterialGraph(const TSharedPtr< IDatasmithUEPbrMaterialElement >& MaterialElement, FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction);
+	static EBlendMode GetUEPbrImportBlendMode(const TSharedPtr< IDatasmithUEPbrMaterialElement >& MaterialElement, const FDatasmithAssetsImportContext& AssetsContext);
 	static EMaterialProperty DatasmithTextureSlotToMaterialProperty(EDatasmithTextureSlot InSlot);
 	static FExpressionInput* GetMaterialOrFunctionSlot(UObject* UnrealMatOrFunc, EDatasmithTextureSlot InSlot);
 	static void ConnectToSlot(UMaterialExpression* ToBeConnected, UObject* UnrealMatOrFunc, EDatasmithTextureSlot Slot, int32 InputChannel = 0);
@@ -158,6 +158,6 @@ private:
 	static UMaterialExpression* CreateGenericExpression( class IDatasmithMaterialExpressionGeneric& DatasmithGeneric, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction);
 	static UMaterialExpression* CreateFunctionCallExpression( class IDatasmithMaterialExpressionFunctionCall& DatasmithFunctionCall, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction);
 
-	static void ConnectExpression( TSharedRef< IDatasmithUEPbrMaterialElement > MaterialElement, TArray< TStrongObjectPtr< UMaterialExpression > >& MaterialExpressions, class IDatasmithMaterialExpression* MaterialExpression, FExpressionInput* MaterialInput, int32 OutputIndex);
-	static void ConnectAnyExpression( TSharedRef< IDatasmithUEPbrMaterialElement > MaterialElement, TArray< TStrongObjectPtr< UMaterialExpression > >& MaterialExpressions, class IDatasmithMaterialExpression& DatasmithExpression, FExpressionInput* ExpressionInput, int32 OutputIndex);
+	static void ConnectExpression( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, TArray< TStrongObjectPtr< UMaterialExpression > >& MaterialExpressions, class IDatasmithMaterialExpression* MaterialExpression, FExpressionInput* MaterialInput, int32 OutputIndex);
+	static void ConnectAnyExpression( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, TArray< TStrongObjectPtr< UMaterialExpression > >& MaterialExpressions, class IDatasmithMaterialExpression& DatasmithExpression, FExpressionInput* ExpressionInput, int32 OutputIndex);
 };

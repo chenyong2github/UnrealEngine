@@ -35,7 +35,7 @@ float3 UnrotateVectorByQuat(in float3 Vector, in float4 Quat)
 	return Vector - Quat.w * T + cross(Quat.xyz,T);
 }
 
-float4 FindQuatBetweenHelper(in float3 A, in float3 B, in float NormAB)
+/*float4 FindQuatBetweenHelper(in float3 A, in float3 B, in float NormAB)
 {
 	float W = NormAB + dot(A,B);
 	float4 Quat = (W>1e-6*NormAB) ? float4(A.y*B.z-A.z*B.y,A.z*B.x-A.x*B.z,A.x*B.y-A.y*B.x,W) :
@@ -44,6 +44,47 @@ float4 FindQuatBetweenHelper(in float3 A, in float3 B, in float NormAB)
 	//float S = sqrt((NormAB + dot(A,B))*2.0);
 	//float4 Quat = float4(cross(A,B)/S,0.5*S);
 	return NormalizeQuat(Quat);
+}*/
+
+float4 FindQuatBetweenInternal(in float3 An, in float3 Bn)
+{
+	float3 Cn = normalize(An+Bn);
+	return float4(cross(An,Cn),dot(An,Cn));
+}
+
+float4 FindQuatBetweenHelper(in float3 A, in float3 B, in float NormAB)
+{
+	float3 An = normalize(A);
+	float3 Bn = normalize(B);
+
+	if( dot(An,Bn) >= 0.0)
+	{
+		return NormalizeQuat(FindQuatBetweenInternal(An,Bn));
+	}
+	else
+	{
+		float3 Cn = normalize(An+Bn);
+		if(dot(Cn,Cn) != 0.0)
+		{
+			return NormalizeQuat(MultiplyQuat(FindQuatBetweenInternal(An,Cn),FindQuatBetweenInternal(Cn,Bn)));
+		}
+		else
+		{
+			float3 A2 = An * An;
+			if(A2.x <= A2.y && A2.x <= A2.z)
+			{
+				return NormalizeQuat(float4(cross(An,float3(1,0,0)),0));
+			}
+			else if(A2.y <= A2.z)
+			{
+				return NormalizeQuat(float4(cross(An,float3(0,1,0)),0));
+			}
+			else
+			{
+				return NormalizeQuat(float4(cross(An,float3(0,0,1)),0));
+			}
+		}
+	}
 }
 
 float4 FindQuatBetweenNormals(in float3 NormalA, in float3 NormalB)
@@ -56,4 +97,64 @@ float4 FindQuatBetweenVectors(in float3 VectorA, in float3 VectorB)
 {
 	float NormAB = sqrt(dot(VectorA,VectorA) * dot(VectorB,VectorB));
 	return FindQuatBetweenHelper(VectorA,VectorB,NormAB);
+}
+
+float4 QuatFromMatrix(in float3 R[3])
+{
+	float4 Q;
+	float s;
+	float tr = R[0][0] + R[1][1] + R[2][2];
+
+	if (tr > 0.0f) 
+	{
+		float InvS = 1.0 / sqrt(tr + 1.f);
+		s = 0.5f * InvS;
+
+		Q.w = 0.5f * (1.f / InvS);
+		Q.x = (R[1][2] - R[2][1]) * s;
+		Q.y = (R[2][0] - R[0][2]) * s;
+		Q.z = (R[0][1] - R[1][0]) * s;
+	} 
+	else 
+	{
+		uint i = 0;
+
+		if (R[1][1] > R[0][0])
+			i = 1;
+
+		if (R[2][2] > R[i][i])
+			i = 2;
+
+		const uint j = (i+1)%3;
+		const uint k = (j+1)%3;
+
+		tr = R[i][i] - R[j][j] - R[k][k];
+		float InvS = 1.0 / sqrt(tr + 1.0);
+		s = 0.5 * InvS;
+
+		const float Qi = 0.5 * (1.0 / InvS);
+		const float Qj = (R[i][j] + R[j][i]) * s;
+		const float Qk = (R[i][k] + R[k][i]) * s;
+
+		Q.w = (R[j][k] - R[k][j]) * s;
+		if(i == 0)
+		{
+			Q.x = Qi;
+			Q.y = Qj;
+			Q.z = Qk;
+		}
+		else if(i == 1)
+		{
+			Q.y = Qi;
+			Q.z = Qj;
+			Q.x = Qk;
+		}
+		else if(i == 2)
+		{
+			Q.z = Qi;
+			Q.x = Qj;
+			Q.y = Qk;
+		}
+	}
+	return NormalizeQuat(Q);
 }

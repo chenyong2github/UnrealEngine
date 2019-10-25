@@ -40,7 +40,7 @@ namespace IFC
 		return Hash;
 	}
 
-	void FStaticMeshFactory::FillMeshDescription(const IFC::FObject* InObject, FMeshDescription* MeshDescription)
+	void FStaticMeshFactory::FillMeshDescription(const IFC::FObject* InObject, FMeshDescription* MeshDescription) const
 	{
 		const int32 NumUVs = 1;
 
@@ -71,7 +71,8 @@ namespace IFC
 		}
 
 		// Add the PolygonGroups.
-		MaterialIndexToPolygonGroupID.Empty(10);
+		TMap<int32, FPolygonGroupID> MaterialIndexToPolygonGroupID;
+		MaterialIndexToPolygonGroupID.Reserve(10);
 		for (int32 MaterialIndex = 0; MaterialIndex < InObject->Materials.Num() || MaterialIndex < 1; MaterialIndex++)
 		{
 			const FPolygonGroupID& PolygonGroupID = MeshDescription->CreatePolygonGroup();
@@ -132,11 +133,6 @@ namespace IFC
 	void FStaticMeshFactory::SetUniformScale(const float Scale)
 	{
 		ImportUniformScale = Scale;
-	}
-
-	void FStaticMeshFactory::CleanUp()
-	{
-		MaterialIndexToPolygonGroupID.Empty();
 	}
 
 }  //  namespace IFC

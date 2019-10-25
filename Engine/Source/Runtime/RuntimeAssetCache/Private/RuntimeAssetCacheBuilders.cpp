@@ -125,7 +125,7 @@ void UExampleTextureCacheBuilder::SerializeAsset(FArchive& Ar)
 
 		Ar << PlatformData->SizeX;
 		Ar << PlatformData->SizeY;
-		Ar << PlatformData->NumSlices;
+		Ar << PlatformData->NumSlicesCubemapMask;
 		if (Ar.IsLoading())
 		{
 			FString PixelFormatString;

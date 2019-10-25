@@ -53,6 +53,9 @@ FUploadingVirtualTexture::~FUploadingVirtualTexture()
 	DEC_MEMORY_STAT_BY(STAT_TileHeaderSize, Data->GetTileMemoryFootprint());
 	DEC_DWORD_STAT_BY(STAT_NumTileHeaders, Data->GetNumTileHeaders());
 
+	// Complete all open transcode requests before deleting IFileCacheHandle objects
+	FVirtualTextureChunkStreamingManager::Get().WaitTasksFinished();
+
 	for (TUniquePtr<FVirtualTextureCodec>& Codec : CodecPerChunk)
 	{
 		if (Codec)

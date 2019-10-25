@@ -719,7 +719,7 @@ void FOpenGLDynamicRHI::SetupTexturesForDraw( FOpenGLContextState& ContextState,
 			
 				if (ContextState.SamplerStates[TextureStageIndex] != PendingSampler)
 				{
-					FOpenGL::BindSampler(TextureStageIndex, PendingSampler->Resource);
+					FOpenGL::BindSampler(TextureStageIndex, PendingSampler ? PendingSampler->Resource : 0);
 					ContextState.SamplerStates[TextureStageIndex] = PendingSampler;
 				}
 			}
@@ -2474,6 +2474,9 @@ FORCEINLINE void SetResource(FOpenGLDynamicRHI* RESTRICT OpenGLRHI, uint32 BindI
 	{
 		OpenGLRHI->InternalSetShaderTexture(Texture, nullptr, GetFirstTextureUnit<Frequency>() + BindIndex, 0, 0, 0, -1);
 	}
+
+	// clear any previous sampler state
+	OpenGLRHI->InternalSetSamplerStates(GetFirstTextureUnit<Frequency>() + BindIndex, nullptr);
 }
 
 template <EShaderFrequency Frequency>

@@ -47,6 +47,8 @@ struct FDataprepPropertyLink
 	FDataprepPropertyLink& operator=(const FDataprepPropertyLink& Other) = default;
 	FDataprepPropertyLink& operator=(FDataprepPropertyLink&& Other) = default;
 
+	friend bool operator==(const FDataprepPropertyLink& A,const FDataprepPropertyLink& B);
+
 	UPROPERTY()
 	TWeakObjectPtr<UProperty> CachedProperty;
 
@@ -87,4 +89,10 @@ public:
 	 * @return A valid pointer if the object was valid for the parameterization
 	 */
 	static UDataprepAsset* GetDataprepAssetForParameterization(UObject* Object);
+
+	/**
+	 * Check if a property is chain supported by the dataprep parameterization systems
+	 * Note that the cached properties of the chain must not be null
+	 */
+	static bool IsPropertyChainValid(const TArray<FDataprepPropertyLink>& PropertyChain);
 };

@@ -702,7 +702,6 @@ enum ELightMapPolicyType
 	LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT_AND_SH_INDIRECT,
 	LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT_CSM_AND_SH_INDIRECT,
 	LMP_MOBILE_DIRECTIONAL_LIGHT_CSM_AND_SH_INDIRECT,
-	LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT,
 	LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT_CSM,
 	LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT_WITH_LIGHTMAP,
 	LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT_CSM_WITH_LIGHTMAP,
@@ -840,8 +839,6 @@ public:
 			return FMobileDirectionalLightCSMAndSHIndirectPolicy::ShouldCompilePermutation(Parameters);
 		case LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT_CSM_AND_SH_INDIRECT:
 			return FMobileMovableDirectionalLightCSMAndSHIndirectPolicy::ShouldCompilePermutation(Parameters);
-		case LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT:
-			return FMobileMovableDirectionalLightLightingPolicy::ShouldCompilePermutation(Parameters);
 		case LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT_CSM:
 			return FMobileMovableDirectionalLightCSMLightingPolicy::ShouldCompilePermutation(Parameters);
 		case LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT_WITH_LIGHTMAP:
@@ -925,9 +922,6 @@ public:
 			break;
 		case LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT_CSM_AND_SH_INDIRECT:
 			FMobileMovableDirectionalLightCSMAndSHIndirectPolicy::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-			break;
-		case LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT:
-			FMobileMovableDirectionalLightLightingPolicy::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 			break;
 		case LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT_CSM:
 			FMobileMovableDirectionalLightCSMLightingPolicy::ModifyCompilationEnvironment(Parameters, OutEnvironment);

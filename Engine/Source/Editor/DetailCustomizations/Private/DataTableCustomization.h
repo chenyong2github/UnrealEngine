@@ -42,7 +42,7 @@ private:
 	bool ShouldFilterAsset(const FAssetData& AssetData);
 
 	/** Init the contents the combobox sources its data off */
-	TSharedPtr<FString> InitWidgetContent();
+	TSharedPtr<FName> InitWidgetContent();
 
 	/** Returns the ListView for the ComboButton */
 	TSharedRef<SWidget> GetListContent();
@@ -51,13 +51,13 @@ private:
 	void OnDataTableChanged();
 
 	/** Return the representation of the the row names to display */
-	TSharedRef<ITableRow> HandleRowNameComboBoxGenarateWidget(TSharedPtr<FString> InItem, const TSharedRef<STableViewBase>& OwnerTable);
+	TSharedRef<ITableRow> HandleRowNameComboBoxGenarateWidget(TSharedPtr<FName> InItem, const TSharedRef<STableViewBase>& OwnerTable);
 
 	/** Display the current selection */
 	FText GetRowNameComboBoxContentText() const;
 
 	/** Update the root data on a change of selection */
-	void OnSelectionChanged(TSharedPtr<FString> SelectedItem, ESelectInfo::Type SelectInfo);
+	void OnSelectionChanged(TSharedPtr<FName> SelectedItem, ESelectInfo::Type SelectInfo);
 
 	/** Called by Slate when the filter box changes text. */
 	void OnFilterTextChanged(const FText& InFilterText);
@@ -69,14 +69,14 @@ private:
 	/** The comboButton objects */
 	TSharedPtr<SComboButton> RowNameComboButton;
 	TSharedPtr<class SSearchBox> SearchBox;
-	TSharedPtr<SListView<TSharedPtr<FString> > > RowNameComboListView;
-	TSharedPtr<FString> CurrentSelectedItem;	
+	TSharedPtr<SListView<TSharedPtr<FName>>> RowNameComboListView;
+	TSharedPtr<FName> CurrentSelectedItem;
 	/** Handle to the struct properties being customized */
 	TSharedPtr<IPropertyHandle> StructPropertyHandle;
 	TSharedPtr<IPropertyHandle> DataTablePropertyHandle;
 	TSharedPtr<IPropertyHandle> RowNamePropertyHandle;
 	/** A cached copy of strings to populate the combo box */
-	TArray<TSharedPtr<FString> > RowNames;
+	TArray<TSharedPtr<FName>> RowNames;
 	/** The MetaData derived filter for the row type */
 	FName RowTypeFilter;
 };

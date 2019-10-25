@@ -5,12 +5,15 @@
 #ifdef CAD_LIBRARY
 #include "CoreTechHelper.h"
 #include "CoreTechMeshLoader.h"
-#include "CoreTechParametricSurfaceExtension.h"
+#include "CoreTechBlueprintLibrary.h"
 #endif
 #include "DatasmithAdditionalData.h"
 #include "DatasmithAssetImportData.h"
 #include "DatasmithUtils.h"
 
+#include "IDataprepProgressReporter.h"
+
+#include "ActorEditorUtils.h"
 #include "Engine/StaticMesh.h"
 #include "StaticMeshAttributes.h"
 #include "GenericPlatform/GenericPlatformTime.h"
@@ -27,93 +30,76 @@ void UDataprepTessellationOperation::OnExecution_Implementation(const FDataprepC
 	// Collect start time to log amount of time spent to import incoming file
 	uint64 StartTime = FPlatformTime::Cycles64();
 
-	int32 StaticMeshCount = 0;
+	TSet<UStaticMesh*> SelectedMeshes;
 
-	for( UObject* Object : InContext.Objects )
+	for (UObject* Object : InContext.Objects)
 	{
-		if( UStaticMesh* StaticMesh = Cast< UStaticMesh >( Object ))
+		if ( UStaticMesh* StaticMesh = Cast<UStaticMesh>(Object) )
 		{
-			if( !StaticMesh->IsMeshDescriptionValid( 0 ) )
+			SelectedMeshes.Add( StaticMesh );
+		}
+		else if (AActor* Actor = Cast<AActor>(Object) )
+		{
+			TInlineComponentArray<UStaticMeshComponent*> StaticMeshComponents( Actor );
+			for (UStaticMeshComponent* StaticMeshComponent : StaticMeshComponents)
 			{
-				FText WarningMsg = FText::Format( LOCTEXT( "DataprepTessellationOperation_EmptyMesh", "No triangles in static mesh {0}" ), FText::FromString( StaticMesh->GetName() ) );
-				LogWarning( WarningMsg );
-				// #ueent_todo: Remove this log when Dataprep logging is operational
-				UE_LOG( LogCADLibrary, Log, TEXT("Retessellation failed : %s "), *WarningMsg.ToString() );
-				continue;
-			}
-
-			// Borrowed from UCoreTechRetessellateAction class
-			// #ueent_todo: Create CAD blueprint library to expose this feature
-			FAssetData AssetData( StaticMesh );
-			if( UCoreTechParametricSurfaceData* CoreTechData = Datasmith::GetAdditionalData<UCoreTechParametricSurfaceData>(AssetData) )
-			{
-				FString ResourceFile = CoreTechData->SourceFile.IsEmpty() ? FPaths::ProjectIntermediateDir() / "temp.ct" : CoreTechData->SourceFile;
-				FFileHelper::SaveArrayToFile(CoreTechData->RawData, *ResourceFile);
-
-				CADLibrary::CoreTechMeshLoader Loader;
-
-				CADLibrary::FImportParameters Parameters;
-				Parameters.MetricUnit = CoreTechData->SceneParameters.MetricUnit;
-				Parameters.ChordTolerance = TessellationSettings.ChordTolerance;
-				Parameters.MaxEdgeLength = TessellationSettings.MaxEdgeLength;
-				Parameters.MaxNormalAngle = TessellationSettings.NormalTolerance;
-				Parameters.StitchingTechnique = CADLibrary::EStitchingTechnique(TessellationSettings.StitchingTechnique);
-
-				CADLibrary::FMeshParameters MeshParameters;
-				MeshParameters.ModelCoordSys = FDatasmithUtils::EModelCoordSystem(CoreTechData->SceneParameters.ModelCoordSys);
-
-				// Previous MeshDescription is get to be able to create a new one with the same order of PolygonGroup (the matching of color and partition is currently based on their order)
-				FMeshDescription* DestinationMeshDescription = StaticMesh->GetMeshDescription(0);
-				if (DestinationMeshDescription == nullptr)
+				if((StaticMesh = StaticMeshComponent->GetStaticMesh()) != nullptr)
 				{
-					DestinationMeshDescription = StaticMesh->CreateMeshDescription(0);
+					SelectedMeshes.Add( StaticMesh );
 				}
-				FStaticMeshAttributes DestinationMeshAttributes(*DestinationMeshDescription);
-
-				// Create MeshDescription from tessellated mesh
-				FMeshDescription MeshDescription;
-				FStaticMeshAttributes MeshDescriptionAttributes(MeshDescription);
-				MeshDescriptionAttributes.Register();
-
-				TPolygonGroupAttributesRef<FName> PolygonGroupDestinationMeshSlotNames = DestinationMeshAttributes.GetPolygonGroupMaterialSlotNames();
-				TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = MeshDescriptionAttributes.GetPolygonGroupMaterialSlotNames();
-				for (FPolygonGroupID PolygonGroupID : DestinationMeshDescription->PolygonGroups().GetElementIDs())
-				{
-					FName ImportedSlotName = PolygonGroupDestinationMeshSlotNames[PolygonGroupID];
-					FPolygonGroupID PolyGroupID = MeshDescription.CreatePolygonGroup();
-					PolygonGroupImportedMaterialSlotNames[PolyGroupID] = ImportedSlotName;
-				}
-
-				if (!Loader.LoadFile(ResourceFile, MeshDescription, Parameters, MeshParameters))
-				{
-					UE_LOG(LogCADLibrary, Log, TEXT("Retessellation of %s failed : Cannot generate mesh from parametric surface data"), *StaticMesh->GetName());
-					continue;
-				}
-
-				// Move result of tessellation into static mesh LOD 0
-				*DestinationMeshDescription = MoveTemp(MeshDescription);
-
-				// @TODO: check: no CommitStaticMeshDescription?
-
-				// Save last tessellation settings
-				CoreTechData->LastTessellationOptions = TessellationSettings;
 			}
-			else
-			{
-				UE_LOG( LogCADLibrary, Log, TEXT("Retessellation of %s failed : No tessellation data attached to the static mesh"), *StaticMesh->GetName() );
-				continue;
-			}
-
-			++StaticMeshCount;
 		}
 	}
 
-	// Log time spent to import incoming file in minutes and seconds
-	double ElapsedSeconds = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - StartTime);
+	if(	!IsCancelled() && SelectedMeshes.Num() > 0)
+	{
+		TSharedPtr<FDataprepWorkReporter> Task = CreateTask( LOCTEXT( "LogCADLibrary_Tessellating", "Tessellating meshes ..." ), (float)SelectedMeshes.Num() );
 
-	int ElapsedMin = int(ElapsedSeconds / 60.0);
-	ElapsedSeconds -= 60.0 * (double)ElapsedMin;
-	UE_LOG( LogCADLibrary, Log, TEXT("Tessellation of %d static mesh(es) in [%d min %.3f s]"), StaticMeshCount, ElapsedMin, ElapsedSeconds );
+		TArray<UObject*> ModifiedStaticMeshes;
+		ModifiedStaticMeshes.Reserve( SelectedMeshes.Num() );
+
+		for( UStaticMesh* StaticMesh : SelectedMeshes )
+		{
+			if( IsCancelled() )
+			{
+				break;
+			}
+
+			Task->ReportNextStep( FText::Format( LOCTEXT( "LogCADLibrary_Tessellating_One_Mesh", "Tessellating {0} ..."), FText::FromString( StaticMesh->GetName() ) ) );
+
+			if( StaticMesh->IsMeshDescriptionValid( 0 ) )
+			{
+				FText OutReason;
+				if( UCoreTechBlueprintLibrary::RetessellateStaticMesh( StaticMesh, TessellationSettings, false, OutReason ) )
+				{
+					ModifiedStaticMeshes.Add( StaticMesh );
+				}
+				else
+				{
+					FText WarningMsg = FText::Format( LOCTEXT( "DataprepTessellationOperation_TessellationFailed", "{0}" ), OutReason );
+					LogWarning( WarningMsg );
+				}
+			}
+			else
+			{
+				FText WarningMsg = FText::Format( LOCTEXT( "DataprepTessellationOperation_EmptyMesh", "No triangles in static mesh {0}" ), FText::FromString( StaticMesh->GetName() ) );
+				LogWarning( WarningMsg );
+			}
+		}
+
+		// Log time spent to import incoming file in minutes and seconds
+		double ElapsedSeconds = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - StartTime);
+
+		int ElapsedMin = int(ElapsedSeconds / 60.0);
+		ElapsedSeconds -= 60.0 * (double)ElapsedMin;
+		UE_LOG( LogCADLibrary, Log, TEXT("Tessellation of %d out of %d static mesh(es) in [%d min %.3f s]"), ModifiedStaticMeshes.Num(), SelectedMeshes.Num(), ElapsedMin, ElapsedSeconds );
+
+		if(ModifiedStaticMeshes.Num() > 0)
+		{
+			AssetsModified( MoveTemp( ModifiedStaticMeshes ) );
+		}
+	}
+
 #else
 	UE_LOG( LogCADLibrary, Warning, TEXT("Tessellation not performed") );
 #endif

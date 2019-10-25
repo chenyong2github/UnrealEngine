@@ -107,13 +107,22 @@ public:
 	void RefreshComponentActions();
 
 	/**
-	 * Finds the database entry for the specified class and wipes it. The entry 
+	 * Finds the database entry for the specified object and wipes it. The entry 
 	 * won't be rebuilt, unless RefreshAssetActions() is explicitly called after.
 	 * 
 	 * @param  AssetObject	
 	 * @return True if an entry was found and removed.
 	 */
 	bool ClearAssetActions(UObject* const AssetObject);
+
+	/**
+	 * Finds the database entry for the specified object and wipes it. The entry
+	 * won't be rebuilt, unless RefreshAssetActions() is explicitly called after.
+	 *
+	 * @param  AssetObjectKey
+	 * @return True if an entry was found and removed.
+	 */
+	bool ClearAssetActions(const FObjectKey& AssetObjectKey);
 	
 	/**
 	 * Finds the database entry for the specified unloaded asset and wipes it.

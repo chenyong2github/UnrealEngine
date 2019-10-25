@@ -97,13 +97,14 @@ void FImportantToggleSettingCustomization::CustomizeDetails(IDetailLayoutBuilder
 	if (Objects.Num() == 1)
 	{
 		ToggleSettingObject = Objects[0];
-		IImportantToggleSettingInterface* ToogleSettingInterface = Cast<IImportantToggleSettingInterface>(ToggleSettingObject.Get());
+		IImportantToggleSettingInterface* ToggleSettingInterface = Cast<IImportantToggleSettingInterface>(ToggleSettingObject.Get());
 
-		if (ToogleSettingInterface != nullptr)
+		if (ToggleSettingInterface != nullptr)
 		{
 			FName CategoryName;
 			FName PropertyName;
-			ToogleSettingInterface->GetToogleCategoryAndPropertyNames(CategoryName, PropertyName);
+			ToggleSettingInterface->GetToggleCategoryAndPropertyNames(CategoryName, PropertyName);
+
 			IDetailCategoryBuilder& Category = DetailBuilder.EditCategory(CategoryName);
 			TogglePropertyHandle = DetailBuilder.GetProperty(PropertyName);
 
@@ -127,8 +128,8 @@ void FImportantToggleSettingCustomization::CustomizeDetails(IDetailLayoutBuilder
 					[
 						SNew(SImportantToggleButton)
 						.CheckBoxStyle(FEditorStyle::Get(), "Property.ToggleButton.Start")
-						.Text(ToogleSettingInterface->GetFalseStateLabel())
-						.ToolTipText(ToogleSettingInterface->GetFalseStateTooltip())
+						.Text(ToggleSettingInterface->GetFalseStateLabel())
+						.ToolTipText(ToggleSettingInterface->GetFalseStateTooltip())
 						.IsSet(this, &FImportantToggleSettingCustomization::IsToggleValue, false)
 						.OnToggled(this, &FImportantToggleSettingCustomization::OnToggledTo, false)
 					]
@@ -137,8 +138,8 @@ void FImportantToggleSettingCustomization::CustomizeDetails(IDetailLayoutBuilder
 					[
 						SNew(SImportantToggleButton)
 						.CheckBoxStyle(FEditorStyle::Get(), "Property.ToggleButton.End")
-						.Text(ToogleSettingInterface->GetTrueStateLabel())
-						.ToolTipText(ToogleSettingInterface->GetTrueStateTooltip())
+						.Text(ToggleSettingInterface->GetTrueStateLabel())
+						.ToolTipText(ToggleSettingInterface->GetTrueStateTooltip())
 						.IsSet(this, &FImportantToggleSettingCustomization::IsToggleValue, true)
 						.OnToggled(this, &FImportantToggleSettingCustomization::OnToggledTo, true)
 					]
@@ -151,8 +152,8 @@ void FImportantToggleSettingCustomization::CustomizeDetails(IDetailLayoutBuilder
 						.VAlign(VAlign_Center)
 						[
 							SNew(SHyperlink)
-							.Text(ToogleSettingInterface->GetAdditionalInfoUrlLabel())
-							.OnNavigate(this, &FImportantToggleSettingCustomization::OnNavigateHyperlink, ToogleSettingInterface->GetAdditionalInfoUrl())
+							.Text(ToggleSettingInterface->GetAdditionalInfoUrlLabel())
+							.OnNavigate(this, &FImportantToggleSettingCustomization::OnNavigateHyperlink, ToggleSettingInterface->GetAdditionalInfoUrl())
 						]
 					]
 				]

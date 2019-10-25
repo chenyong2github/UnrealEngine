@@ -515,6 +515,8 @@ FProjectedShadowInfo::FProjectedShadowInfo()
 	, bPerObjectOpaqueShadow(false)
 	, bTransmission(false)
 	, bHairStrandsDeepShadow(false)
+	, PerObjectShadowFadeStart(WORLD_MAX)
+	, InvPerObjectShadowFadeLength(0.0f)
 	, LightSceneInfo(0)
 	, ParentSceneInfo(0)
 	, NumDynamicSubjectMeshElements(0)
@@ -622,6 +624,19 @@ bool FProjectedShadowInfo::SetupPerObjectProjection(
 			SubjectAndReceiverMatrix = SubjectMatrix;
 			ReceiverMatrix = PostSubjectMatrix;
 			MaxSubjectDepth = MaxSubjectAndReceiverDepth;
+
+			if (bDirectionalLight)
+			{
+				// No room to fade out if the end of receiver range is inside the subject range, it will just clip.
+				if (MaxSubjectZ < MaxReceiverZ)
+				{
+					float ShadowSubjectRange = MaxSubjectZ - MinSubjectZ;
+					float FadeLength = FMath::Min(ShadowSubjectRange, MaxReceiverZ - MaxSubjectZ);
+					//Initializer.MaxDistanceToCastInLightW / 16.0f;
+					PerObjectShadowFadeStart = (MaxReceiverZ - MinSubjectZ - FadeLength) / ShadowSubjectRange;
+					InvPerObjectShadowFadeLength = ShadowSubjectRange / FMath::Max(0.000001f, FadeLength);
+				}
+			}
 		}
 
 		InvMaxSubjectDepth = 1.0f / MaxSubjectDepth;
@@ -1918,6 +1933,7 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 
 	const bool bRenderPreShadow = 
 		CVarAllowPreshadows.GetValueOnRenderThread() 
+		&& LightSceneInfo->Proxy->HasStaticShadowing()
 		// Preshadow only affects the subject's pixels
 		&& bSubjectIsVisible 
 		// Only objects with dynamic lighting should create a preshadow

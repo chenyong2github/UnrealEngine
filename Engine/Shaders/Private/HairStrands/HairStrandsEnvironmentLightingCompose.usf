@@ -3,9 +3,9 @@
 #include "../Common.ush"
 #include "HairStrandsVisibilityCommon.ush"
 
-Buffer<float4>	 HairLightingSampleBuffer;
-Texture2D<uint4> HairCategorizationTexture;
-Texture2D<uint>	 HairVisibilityNodeOffsetAndCount;
+Buffer<float4>		HairLightingSampleBuffer;
+Texture2D<uint4>	HairCategorizationTexture;
+Texture2D<uint>		HairVisibilityNodeOffsetAndCount;
 
 void MainPS(
 	in FScreenVertexOutput Input,
@@ -32,7 +32,7 @@ void MainPS(
 			if (PixelCoverage >= 1)
 				OutColor += LightingSample;
 			else
-				OutColorSubPixel += LightingSample;
+				OutColorSubPixel += LightingSample * PixelCoverage;
 		}		
 	}
 }

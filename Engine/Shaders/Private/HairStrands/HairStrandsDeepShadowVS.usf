@@ -4,6 +4,8 @@
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"
 
+#include "HairStrandsVisibilityCommon.ush"
+
 #define MESH_RENDER_DEPTH 0
 #define MESH_RENDER_DOM   1
 #define MESH_RENDER_VOXEL 2
@@ -36,14 +38,6 @@ void Main(
 {
 	ResolvedView = ResolveView();
 
-	// #hair_todo
-	// Override the View direction with the light direction, since the Deep Shadow pass does not setup the View data, but passes data through a dedicated constant buffer
-	// Hack: Use 1337 as a flag for the strand vertex factory to not use MinRadiusAtDepth1 for computing the minimum radius for directional light. 
-#if SM5_PROFILE && COMPILER_HLSL
-	ResolvedView.TranslatedWorldCameraOrigin = float3(1337, DeepShadowPass.bIsOrtho, DeepShadowPass.MinStrandRadius);
-	ResolvedView.ViewForward = DeepShadowPass.LightDirection;
-#endif
-
 	FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
 	float4 WorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates);		
 	WorldPosition.xyz -= ResolvedView.PreViewTranslation.xyz; // Remove the camera relative position (todo move this into matrix transform)
@@ -60,8 +54,9 @@ void Main(
 
 #if MESH_RENDER_MODE == MESH_RENDER_DOM || MESH_RENDER_MODE == MESH_RENDER_VOXEL
   #ifdef VF_STRAND_HAIR	
+	FHairRenderInfo HairRenderInfo = GetHairRenderInfo(ResolvedView.HairRenderInfo);
 	const float CurrentDepth = Output.Position.z / Output.Position.w;
-	const float PixelRadius = CurrentDepth * DeepShadowPass.MinStrandRadius;
+	const float PixelRadius = HairRenderInfo.bIsOrthoView ? HairRenderInfo.RadiusAtDepth1Primary : (CurrentDepth * HairRenderInfo.RadiusAtDepth1Primary);
 	const float StrandRealRadius = VFIntermediates.HairDimensions.y;
 	const float Coverage = StrandRealRadius / max(StrandRealRadius, PixelRadius);
 	Output.HairCoverage = Coverage * VFIntermediates.HairDensity;
