@@ -25,7 +25,7 @@ class MODELINGCOMPONENTS_API APreviewMeshActor : public AInternalToolFrameworkAc
 {
 	GENERATED_BODY()
 private:
-
+	APreviewMeshActor();
 public:
 
 };
