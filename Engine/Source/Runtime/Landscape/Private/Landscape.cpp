@@ -2366,7 +2366,8 @@ void ALandscapeProxy::PostLoad()
 		ULandscapeInfo* LandscapeInfo = CreateLandscapeInfo();
 
 		// Cache the value at this point as RegisterActor might create/destroy layers content if there was a mismatch between landscape & proxy
-		const bool bNeedOldDataMigration = !HasLayersContent() && CanHaveLayersContent();
+		// Check the actual flag here not HasLayersContent() which could return true if the LandscapeActor is valid.
+		const bool bNeedOldDataMigration = !bHasLayersContent && CanHaveLayersContent();
 				
 		LandscapeInfo->RegisterActor(this, true);
 
