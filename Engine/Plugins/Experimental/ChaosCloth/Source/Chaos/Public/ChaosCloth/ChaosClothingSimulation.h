@@ -122,30 +122,11 @@ namespace Chaos
 		float ClampDeltaTime;
 		// Parameters that should be set in the ui
 		int32 NumIterations;
-
-		EClothMassMode MassMode;
-		float UniformMass;
-		float TotalMass;
-		float Density;
-		float MinMass;
-
-		float EdgeStiffness;
-		float BendingStiffness;
-		float AreaStiffness;
-		float VolumeStiffness;
-		float StrainLimitingStiffness;
-		float ShapeTargetStiffness;
 		float SelfCollisionThickness;
 		float CollisionThickness;
 		float CoefficientOfFriction;
 		float Damping;
 		float GravityMagnitude;
-		float AnimDriveSpringStiffness;
-		bool bUseBendingElements;
-		bool bUseTetrahedralConstraints;
-		bool bUseThinShellVolumeConstraints;
-		bool bUseSelfCollisions;
-		bool bUseContinuousCollisionDetection;
 
 #if WITH_EDITOR
 		// Visualization material
