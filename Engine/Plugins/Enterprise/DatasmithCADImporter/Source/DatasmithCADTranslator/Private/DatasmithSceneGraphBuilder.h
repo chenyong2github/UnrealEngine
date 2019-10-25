@@ -16,7 +16,7 @@
 
 static const FString SPACE(" ");
 
-class FCTRawDataFile;
+class FCADSceneGraphDescriptionFile;
 class FDatasmithSceneSource;
 class IDatasmithActorElement;
 class IDatasmithMeshElement;
@@ -34,10 +34,10 @@ enum NODE_TYPE
 };
 
 
-class FCTNode
+class FSceneNodeDescription
 {
 public:
-	FCTNode(FCTRawDataFile& InRawData, int32 InLine);
+	FSceneNodeDescription(FCADSceneGraphDescriptionFile& InRawData, int32 InLine);
 
 	NODE_TYPE GetNodeType() { return Type; }
 
@@ -47,7 +47,7 @@ public:
 	void GetNodeReference(int32& OutRefId, FString& OutExternalFile, NODE_TYPE& OutType);
 	void AddTransformToActor(TSharedPtr< IDatasmithActorElement > Actor, const CADLibrary::FImportParameters& InImportParameters);
 
-	FCTNode* GetCTNode(int32 NodeId);
+	FSceneNodeDescription* GetCTNode(int32 NodeId);
 
 	uint32 GetStaticMeshUuid();
 	void GetMaterialSet(TMap<uint32, uint32>& MaterialIdToMaterialHashMap);
@@ -58,7 +58,7 @@ public:
 protected:
 	void SetNodeType();
 	FString SceneGraphFile;
-	FCTRawDataFile& RawData;
+	FCADSceneGraphDescriptionFile& SceneGraphDescription;
 	int32 Line;
 	int32 StartMeta;
 	int32 EndMeta;
@@ -99,21 +99,21 @@ public:
 
 
 
-class FCTRawDataFile //#ueent_CAD
+class FCADSceneGraphDescriptionFile
 {
 public:
-	FCTRawDataFile(const FString& InFileName);
+	FCADSceneGraphDescriptionFile(const FString& InFileName);
 
 	void ReadFile();
 
-	FCTNode* GetCTNode(int32 nodeId)
+	FSceneNodeDescription* GetCTNode(int32 nodeId)
 	{
-		return CTIdToRawEntryMap.Find(nodeId);
+		return SceneNodeIdToSceneNodeDescriptionMap.Find(nodeId);
 	}
 
 	const FString& GetString(int32 line) const
 	{
-		return RawData[line];
+		return SceneGraphDescriptionData[line];
 	}
 
 	const FString& GetFileName() const
@@ -122,7 +122,6 @@ public:
 	}
 
 	bool GetColor(uint32 ColorHId, FColor& Color) const;
-
 	bool GetMaterial(int32 MaterialId, CADLibrary::FCADMaterial& material) const;
 
 	void GetMaterialDescription(int32 LineNumber, CADLibrary::FCADMaterial& Material) const;
@@ -131,8 +130,8 @@ public:
 
 protected:
 	FString FileName;
-	TArray<FString> RawData;
-	TMap<int32, FCTNode> CTIdToRawEntryMap;
+	TArray<FString> SceneGraphDescriptionData;
+	TMap<int32, FSceneNodeDescription> SceneNodeIdToSceneNodeDescriptionMap;
 	TMap<int32, FColor> ColorIdToColor;
 	TMap<int32, CADLibrary::FCADMaterial> MaterialIdToMaterial;
 };
@@ -150,37 +149,37 @@ public:
 	void Clear();
 
 protected:
-	void LoadRawDataFile();
+	void LoadSceneGraphDescriptionFiles();
 
-	TSharedPtr< IDatasmithActorElement > BuildNode(FCTNode& Node, ActorData& ParentData);
-	TSharedPtr< IDatasmithActorElement > BuildInstance(FCTNode& Node, ActorData& ParentData);
-	TSharedPtr< IDatasmithActorElement > BuildComponent(FCTNode& Node, ActorData& ParentData);
-	TSharedPtr< IDatasmithActorElement > BuildBody(FCTNode& NodeId, ActorData& ParentData);
+	TSharedPtr< IDatasmithActorElement > BuildNode(FSceneNodeDescription& Node, ActorData& ParentData);
+	TSharedPtr< IDatasmithActorElement > BuildInstance(FSceneNodeDescription& Node, ActorData& ParentData);
+	TSharedPtr< IDatasmithActorElement > BuildComponent(FSceneNodeDescription& Node, ActorData& ParentData);
+	TSharedPtr< IDatasmithActorElement > BuildBody(FSceneNodeDescription& NodeId, ActorData& ParentData);
 
 	void AddMetaData(TSharedPtr< IDatasmithActorElement > ActorElement, TMap<FString, FString>& InstanceNodeAttributeSetMap, TMap<FString, FString>& ReferenceNodeAttributeSetMap);
-	void AddChildren(TSharedPtr< IDatasmithActorElement > Actor, FCTNode& Node, ActorData& ParentData);
+	void AddChildren(TSharedPtr< IDatasmithActorElement > Actor, FSceneNodeDescription& Node, ActorData& ParentData);
 	void LinkActor(TSharedPtr< IDatasmithActorElement > ParentActor, TSharedPtr< IDatasmithActorElement > Actor);
 
 	TSharedPtr< IDatasmithUEPbrMaterialElement > GetDefaultMaterial();
 	TSharedPtr<IDatasmithMaterialIDElement> FindOrAddMaterial(uint32 MaterialUuid);
 
 	TSharedPtr< IDatasmithActorElement > CreateActor(const TCHAR* ActorUUID, const TCHAR* ActorLabel);
-	TSharedPtr< IDatasmithMeshElement > FindOrAddMeshElement(FCTNode& Node, FString& InLabel);
+	TSharedPtr< IDatasmithMeshElement > FindOrAddMeshElement(FSceneNodeDescription& Node, FString& InLabel);
 
 	void GetNodeUUIDAndName(TMap<FString, FString>& InInstanceNodeMetaDataMap, TMap<FString, FString>& InReferenceNodeMetaDataMap, const TCHAR* InParentUEUUID, FString& OutUEUUID, FString& OutName);
 
 
 protected:
-	TMap<FString, FString>& CADFileToRawDataFile;
-	TMap< TSharedPtr< IDatasmithMeshElement >, uint32 >& MeshElementToCTBodyUuidMap;
+	TMap<FString, FString>& CADFileToSceneGraphDescriptionFile;
+	TMap< TSharedPtr< IDatasmithMeshElement >, uint32 >& MeshElementToCADBodyUuidMap;
 	const FString& CachePath;
 	TSharedRef<IDatasmithScene> DatasmithScene;
 	const FDatasmithSceneSource& Source;
 	const CADLibrary::FImportParameters& ImportParameters;
 
-	TMap<FString, FCTRawDataFile*> CADFileToRawData;
+	TMap<FString, FCADSceneGraphDescriptionFile*> CADFileToSceneGraphDescription;
 
-	TArray<FCTRawDataFile> RawDataArray; //#ueent_CAD
+	TArray<FCADSceneGraphDescriptionFile> ArrayOfSceneGraphDescription; //#ueent_CAD
 
 	TMap< uint32, TSharedPtr< IDatasmithMeshElement > > BodyUuidToMeshElementMap;
 
