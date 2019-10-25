@@ -69,7 +69,6 @@ FCTRawGeomFile::FCTRawGeomFile(FString& InFileName, TMap< uint32, FBody* >& InBo
 
 	for(FBody& Body : CTBodySet)
 	{
-		//CTIdToBodyUuidMap.Emplace(Body.GetBodyId(), Body.GetBodyUuid());
 		BodyUuidToBodyMap.Add(Body.GetBodyUuid(), &Body);
 	}
 }
@@ -109,6 +108,7 @@ void WriteTessellationInRawData(FTessellationData& Tessellation, TArray<uint8>& 
 	INFO[LineNormalType] = Tessellation.SizeOfNormalType;
 	INFO[LineIndexCount] = Tessellation.IndexCount;
 	INFO[LineIndexType] = Tessellation.SizeOfIndexType;
+	INFO[LineTexCoordCount] = Tessellation.TexCoordCount;
 	INFO[LineTexCoordType] = Tessellation.SizeOfTexCoordType;
 
 	GlobalRawData.Append((uint8*)INFO, sizeof(INFO));
@@ -170,12 +170,13 @@ bool ReadTessellationSetFromFile(TArray<uint8>& RawData, uint32& OutNbBodies, TA
 		Tessellation.SizeOfNormalType = INFO[LineNormalType];
 		Tessellation.IndexCount = INFO[LineIndexCount];
 		Tessellation.SizeOfIndexType = INFO[LineIndexType];
+		Tessellation.TexCoordCount = INFO[LineTexCoordCount];
 		Tessellation.SizeOfTexCoordType = INFO[LineTexCoordType];
 
 		uint32 VertexSize = Tessellation.VertexCount * Tessellation.SizeOfVertexType * 3;
 		uint32 NormalSize = Tessellation.NormalCount * Tessellation.SizeOfNormalType * 3;
 		uint32 IndexSize = Tessellation.IndexCount * Tessellation.SizeOfIndexType;
-		uint32 TexCoordSize = Tessellation.VertexCount * Tessellation.SizeOfTexCoordType * 2;
+		uint32 TexCoordSize = Tessellation.TexCoordCount * Tessellation.SizeOfTexCoordType * 2;
 		uint32 DataByteSize = VertexSize + NormalSize + IndexSize + TexCoordSize + InfoSize;
 
 
