@@ -219,8 +219,6 @@ public:
 	// IModuleInterface interface
 	virtual void StartupModule() override
 	{
-		IModularFeatures::Get().RegisterModularFeature(INetworkMessagingExtension::ModularFeatureName, this);
-
 		if (!IsSupportEnabled())
 		{
 			return;
@@ -264,6 +262,8 @@ public:
 		FCoreDelegates::ApplicationWillDeactivateDelegate.AddRaw(this, &FUdpMessagingModule::HandleApplicationWillDeactivate);
 
 		RestartServices();
+
+		IModularFeatures::Get().RegisterModularFeature(INetworkMessagingExtension::ModularFeatureName, this);
 	}
 
 	virtual void ShutdownModule() override
