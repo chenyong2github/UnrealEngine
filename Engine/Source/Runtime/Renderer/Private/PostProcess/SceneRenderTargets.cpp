@@ -3194,6 +3194,7 @@ void SetupMobileSceneTextureUniformParameters(
 	FSceneRenderTargets& SceneContext,
 	ERHIFeatureLevel::Type FeatureLevel,
 	bool bSceneTexturesValid,
+	bool bCustomDepthIsValid,
 	FMobileSceneTextureUniformParameters& SceneTextureParameters)
 {
 	FRHITexture* BlackDefault2D = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
@@ -3212,7 +3213,8 @@ void SetupMobileSceneTextureUniformParameters(
 	FRHITexture* CustomDepth = DepthDefault;
 
 	// if there is no custom depth it's better to have the far distance there
-	IPooledRenderTarget* CustomDepthTarget = SceneContext.bCustomDepthIsValid ? SceneContext.CustomDepth.GetReference() : 0;
+	// we should update all pass uniform buffers at the start of frame on mobile, SceneContext.bCustomDepthIsValid is invalid at InitView, so pass the parameter from View.bUsesCustomDepthStencil
+	IPooledRenderTarget* CustomDepthTarget = bCustomDepthIsValid ? SceneContext.CustomDepth.GetReference() : 0;
 	if (CustomDepthTarget)
 	{
 		CustomDepth = CustomDepthTarget->GetRenderTargetItem().ShaderResourceTexture;
@@ -3237,7 +3239,7 @@ TUniformBufferRef<FMobileSceneTextureUniformParameters> CreateMobileSceneTexture
 {
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 	FMobileSceneTextureUniformParameters SceneTextureParameters;
-	SetupMobileSceneTextureUniformParameters(SceneContext, FeatureLevel, true, SceneTextureParameters);
+	SetupMobileSceneTextureUniformParameters(SceneContext, FeatureLevel, true, true, SceneTextureParameters);
 	return TUniformBufferRef<FMobileSceneTextureUniformParameters>::CreateUniformBufferImmediate(SceneTextureParameters, UniformBuffer_SingleDraw);
 }
 

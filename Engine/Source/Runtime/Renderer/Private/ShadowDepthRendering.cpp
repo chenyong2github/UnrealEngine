@@ -98,7 +98,7 @@ void SetupShadowDepthPassUniformBuffer(
 	FMobileShadowDepthPassUniformParameters& ShadowDepthPassParameters)
 {
 	FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(RHICmdList);
-	SetupMobileSceneTextureUniformParameters(SceneRenderTargets, View.FeatureLevel, false, ShadowDepthPassParameters.SceneTextures);
+	SetupMobileSceneTextureUniformParameters(SceneRenderTargets, View.FeatureLevel, false, false, ShadowDepthPassParameters.SceneTextures);
 
 	ShadowDepthPassParameters.ProjectionMatrix = FTranslationMatrix(ShadowInfo->PreShadowTranslation - View.ViewMatrices.GetPreViewTranslation()) * ShadowInfo->SubjectAndReceiverMatrix;
 	ShadowDepthPassParameters.ViewMatrix = ShadowInfo->ShadowViewMatrix;
