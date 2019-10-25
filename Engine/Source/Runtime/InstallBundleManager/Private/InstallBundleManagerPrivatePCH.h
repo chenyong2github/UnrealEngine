@@ -3,6 +3,5 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "InstallBundleManagerInterface.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogInstallBundleManager, Log, All);
