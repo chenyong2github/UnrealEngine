@@ -189,6 +189,7 @@ private:
 	bool bWorldBuilt;
 	bool bIsFirstRun;
 	bool bPipelineChanged;
+	bool bIsDataprepInstance;
 	TWeakObjectPtr<UDataprepAssetInterface> DataprepAssetInterfacePtr;
 
 	FOnDataprepAssetProducerChanged DataprepAssetProducerChangedDelegate;

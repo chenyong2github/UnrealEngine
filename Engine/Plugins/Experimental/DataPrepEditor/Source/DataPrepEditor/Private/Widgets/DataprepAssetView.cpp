@@ -4,6 +4,7 @@
 
 #include "DataPrepAsset.h"
 #include "DataPrepEditor.h"
+#include "DataprepAssetInstance.h"
 
 #include "DataPrepContentConsumer.h"
 #include "DataprepEditorStyle.h"
@@ -360,7 +361,67 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 
 	TSharedRef<SScrollBar> ScrollBar = SNew(SScrollBar);
 
-	// #ueent_todo: Look at changing the border brushes to add color to this stuff
+	TSharedRef<SWidget> ParentWidget = SNullWidget::NullWidget;
+	TSharedRef<SWidget> ParentSpacer = SNullWidget::NullWidget;
+	if(UDataprepAssetInstance* DataprepInstance = Cast<UDataprepAssetInstance>(InDataprepAssetPtr))
+	{
+		ParentWidget = SNew(SHorizontalBox)
+		+SHorizontalBox::Slot()
+		.FillWidth(1)
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				[
+					SNew(SSpacer)
+					.Size( FVector2D( 200, 10 ) )		
+				]
+			]
+			+ SVerticalBox::Slot()
+			//.Padding( 5.0f )
+			.AutoHeight()
+			//.MaxHeight( 400.f )
+			[
+				DataprepWidgetUtils::CreateParameterRow( SNew(SDataprepInstanceParentWidget).ColumnSizeData(ColumnSizeData).DataprepInstance(DataprepInstance) )
+			]
+		];
+
+		ParentSpacer = SNew(SHorizontalBox)
+		+SHorizontalBox::Slot()
+		.FillWidth(1)
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				[
+					SNew(SSpacer)
+					.Size( FVector2D( 200, 10 ) )		
+				]
+			]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.Padding( 0, 10, 0, 0 )
+				.HAlign( EHorizontalAlignment::HAlign_Center )
+				[
+					// #ueent_todo: make color block's width vary with parent widget
+					SNew(SColorBlock)
+					.Color( FLinearColor( 0.9f, 0.9f, 0.9f ) )
+					.Size( FVector2D( 3000, 1 ) )
+				]
+			]
+		];
+	}
+
 	ChildSlot
 	[
 		SNew(SBorder)
@@ -377,6 +438,19 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 				+ SScrollBox::Slot()
 				[
 					SNew(SVerticalBox)
+					// Begin - Section for Dataprep parent
+					+ SVerticalBox::Slot()
+					.Padding( 5.0f )
+					.AutoHeight()
+					.MaxHeight( 400.f )
+					[
+						ParentWidget
+					]
+					+ SVerticalBox::Slot()
+					[
+						ParentSpacer
+					]
+					// End - Section for Dataprep parent
 					// Begin - Section for producers
 					+ SVerticalBox::Slot()
 					.Padding( 5.0f )
@@ -426,7 +500,7 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 							SNew(STextBlock)
 							.Text(LOCTEXT("DataprepAssetView_Consumer_label", "Output"))
 							.MinDesiredWidth( 200 )
-							.Font( IDetailLayoutBuilder::GetDetailFontBold() )
+							.Font( FDataprepEditorStyle::Get()->GetFontStyle("DataprepEditor.SectionFont") )
 						]
 						+ SHorizontalBox::Slot()
 						.AutoWidth()
@@ -499,23 +573,27 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 							SNew(STextBlock)
 							.Text(LOCTEXT("DataprepAssetView_Consumer_Parameterization", "Parameterization"))
 							.MinDesiredWidth( 200 )
-							.Font( IDetailLayoutBuilder::GetDetailFontBold() )
+							.Font( FDataprepEditorStyle::Get()->GetFontStyle("DataprepEditor.SectionFont") )
 						]
 					]
 					+ SVerticalBox::Slot()
 					.AutoHeight()
-					.Padding(10.0f, 5.0f, 0.0f, 5.0f)
 					[
 						SNew(SHorizontalBox)
 						+ SHorizontalBox::Slot()
 						.FillWidth(1.0f)
 						.HAlign(EHorizontalAlignment::HAlign_Left)
 						.VAlign(VAlign_Center)
-						.Padding( FMargin( -5.0f, 5.0f, 20.0f, 5.0f ) )
+						.Padding(10.0f, 5.0f, 0.0f, 5.0f)
 						[
-							SNew( SDataprepDetailsView )
-							.Object( DataprepAssetInterfacePtr->GetParameterizationObject() )
-							.ColumnSizeData( ColumnSizeData )
+							SNew( SConstrainedBox )
+							[
+								SNew( SDataprepDetailsView )
+								.Object( DataprepAssetInterfacePtr->GetParameterizationObject() )
+								.ColumnSizeData( ColumnSizeData )
+								.Spacing( 10.0f )
+								.ColumnPadding( true )
+							]
 						]
 					]
 					// End - Section for parameterization
