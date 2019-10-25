@@ -72,14 +72,14 @@ void FNiagaraEmitterHandleViewModel::Initialize(TSharedRef<FNiagaraSystemViewMod
 
 void FNiagaraEmitterHandleViewModel::Reset()
 {
-	OwningSystemViewModelWeak.Reset();
-	EmitterHandle = nullptr;
-	EmitterViewModel->Reset();
 	if (EmitterStackViewModel != nullptr)
 	{
 		EmitterStackViewModel->Finalize();
 		EmitterStackViewModel = nullptr;
 	}
+	OwningSystemViewModelWeak.Reset();
+	EmitterHandle = nullptr;
+	EmitterViewModel->Reset();
 }
 
 void FNiagaraEmitterHandleViewModel::AddReferencedObjects(FReferenceCollector& Collector)

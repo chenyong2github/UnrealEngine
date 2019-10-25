@@ -1082,6 +1082,15 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 				NewDynamicData.Add(NewData);
 			}
 		}
+
+#if WITH_EDITOR
+		if (EmitterRenderers.Num() != NewDynamicData.Num())
+		{
+			// This can happen in the editor when modifying the number or renderers while the system is running and the render thread is already processing the data.
+			// in this case we just skip drawing this frame since the system will be reinitialized.
+			return;
+		}
+#endif
 		
 		ENQUEUE_RENDER_COMMAND(NiagaraSetDynamicData)(
 			[NiagaraProxy, DynamicData = MoveTemp(NewDynamicData)](FRHICommandListImmediate& RHICmdList)
