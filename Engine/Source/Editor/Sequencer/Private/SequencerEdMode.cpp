@@ -26,6 +26,11 @@
 
 const FEditorModeID FSequencerEdMode::EM_SequencerMode(TEXT("EM_SequencerMode"));
 
+static TAutoConsoleVariable<bool> CVarDrawMeshTrails(
+	TEXT("Sequencer.DrawMeshTrails"),
+	true,
+	TEXT("Toggle to show or hide Level Sequencer VR Editor trails"));
+
 FSequencerEdMode::FSequencerEdMode()
 {
 	FSequencerEdModeTool* SequencerEdModeTool = new FSequencerEdModeTool(this);
@@ -33,12 +38,16 @@ FSequencerEdMode::FSequencerEdMode()
 	Tools.Add( SequencerEdModeTool );
 	SetCurrentTool( SequencerEdModeTool );
 
-	// todo vreditor: make this a setting
-	bDrawMeshTrails = true;
+	bDrawMeshTrails = CVarDrawMeshTrails->GetBool();
+	CVarDrawMeshTrails.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateLambda([this](IConsoleVariable* Var) 
+	{
+		bDrawMeshTrails = Var->GetBool();
+	}));
 }
 
 FSequencerEdMode::~FSequencerEdMode()
 {
+	CVarDrawMeshTrails.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate());
 }
 
 void FSequencerEdMode::Enter()
