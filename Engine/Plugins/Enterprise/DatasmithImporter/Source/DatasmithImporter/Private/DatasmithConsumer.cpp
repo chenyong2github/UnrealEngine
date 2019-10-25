@@ -13,6 +13,8 @@
 #include "DatasmithSceneFactory.h"
 #include "IDatasmithSceneElements.h"
 #include "DatasmithStaticMeshImporter.h"
+#include "DataprepAssetUserData.h"
+#include "DataprepAssetInterface.h"
 #include "LevelVariantSets.h"
 #include "ObjectTemplates/DatasmithActorTemplate.h"
 #include "ObjectTemplates/DatasmithAreaLightActorTemplate.h"
@@ -111,6 +113,26 @@ bool UDatasmithConsumer::Initialize()
 
 		DatasmithScene->AssetImportData = NewObject< UDatasmithSceneImportData >( DatasmithScene.Get(), UDatasmithSceneImportData::StaticClass() );
 		check( DatasmithScene->AssetImportData );
+
+		// Store a dataprep asset pointer into the scene asset in order to be able to later re-execute the dataprep pipeline
+		UDataprepAssetInterface* DataprepAssetInterface = Cast< UDataprepAssetInterface >( GetOuter() );
+		check( DataprepAssetInterface );
+
+		if ( DatasmithScene->GetClass()->ImplementsInterface(UInterface_AssetUserData::StaticClass()) )
+		{
+			if ( IInterface_AssetUserData* AssetUserDataInterface = Cast< IInterface_AssetUserData >( DatasmithScene.Get() ) )
+			{
+				UDataprepAssetUserData* DataprepAssetUserData = AssetUserDataInterface->GetAssetUserData< UDataprepAssetUserData >();
+
+				if ( !DataprepAssetUserData )
+				{
+					EObjectFlags Flags = RF_Public;
+					DataprepAssetUserData = NewObject< UDataprepAssetUserData >( DatasmithScene.Get(), NAME_None, Flags );
+					AssetUserDataInterface->AddAssetUserData( DataprepAssetUserData );
+				}
+				DataprepAssetUserData->DataprepAssetPtr = DataprepAssetInterface;
+			}
+		}
 	}
 
 	// #ueent_todo: Find out necessity of namespace for uniqueness of asset's and actor's names
