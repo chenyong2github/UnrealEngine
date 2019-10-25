@@ -142,6 +142,7 @@ void SAnimationModifiersTab::Construct(const FArguments& InArgs)
 							.Items(&ModifierItems)
 							.InstanceDetailsView(ModifierInstanceDetailsView)
 							.OnApplyModifier(FOnModifierArray::CreateSP(this, &SAnimationModifiersTab::OnApplyModifier))
+							.OnCanRevertModifier(FOnCanModifierArray::CreateSP(this, &SAnimationModifiersTab::OnCanRevertModifier))
 							.OnRevertModifier(FOnModifierArray::CreateSP(this, &SAnimationModifiersTab::OnRevertModifier))
 							.OnRemoveModifier(FOnModifierArray::CreateSP(this, &SAnimationModifiersTab::OnRemoveModifier))
 							.OnOpenModifier(FOnSingleModifier::CreateSP(this, &SAnimationModifiersTab::OnOpenModifier))
@@ -315,6 +316,26 @@ void SAnimationModifiersTab::OnRevertModifier(const TArray<TWeakObjectPtr<UAnima
 	
 	FScopedTransaction Transaction(LOCTEXT("RevertModifiersTransaction", "Reverting Animation Modifier(s)"));
 	RevertModifiers(ModifierInstances);
+}
+
+bool SAnimationModifiersTab::OnCanRevertModifier(const TArray<TWeakObjectPtr<UAnimationModifier>>& Instances)
+{
+	bool bCanRevert = false;
+
+	for (TWeakObjectPtr<UAnimationModifier> InstancePtr : Instances)
+	{
+		checkf(InstancePtr.IsValid(), TEXT("Invalid weak object ptr to modifier instance"));
+		UAnimationModifier* Instance = InstancePtr.Get();
+
+		// At least one instance has to be revert-able
+		if (Instance->CanRevert())
+		{
+			bCanRevert = true;
+			break;
+		}
+	}
+
+	return bCanRevert;
 }
 
 void SAnimationModifiersTab::OnRemoveModifier(const TArray<TWeakObjectPtr<UAnimationModifier>>& Instances)
