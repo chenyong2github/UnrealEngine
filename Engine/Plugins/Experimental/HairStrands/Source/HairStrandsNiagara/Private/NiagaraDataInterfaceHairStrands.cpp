@@ -15,7 +15,7 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceHairStrands"
 
-static const int32 ResetTick = 4;
+static const int32 MaxDelay = 5;
 
 //------------------------------------------------------------------------------------------------------------
 
@@ -408,7 +408,7 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 			FShaderResourceViewRHIRef RootBarycentricCoordinatesSRV = HairStrandsBuffer->RootBarycentricCoordinatesBuffer.SRV;
 
 			int32 HasRootAttachedValue = 0;
-			bool NeedSimReset = (ProxyData->TickCount <= ResetTick);
+			bool bNeedSimReset = (ProxyData->TickCount <= ProxyData->ResetTick);
 			FVector RestRootOffsetValue = FVector(0, 0, 0);
 			FVector DeformedRootOffsetValue = FVector(0, 0, 0);
 			FVector DeformedPositionOffsetValue = HairStrandsBuffer->SourceRestResources->PositionOffset;
@@ -427,7 +427,7 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 				RootBarycentricCoordinatesSRV = HairStrandsBuffer->SourceRootResources->MeshProjectionLODs[0].RootTriangleBarycentricBuffer.SRV;
 
 				HasRootAttachedValue = 1;
-				NeedSimReset = (HairStrandsBuffer->SourceRootResources->MeshProjectionLODs[0].Status != FHairStrandsRootResource::FMeshProjectionLOD::EStatus::Completed);
+				//NeedSimReset = (HairStrandsBuffer->SourceRootResources->MeshProjectionLODs[0].Status != FHairStrandsRootResource::FMeshProjectionLOD::EStatus::Completed);
 				RestRootOffsetValue = HairStrandsBuffer->SourceRootResources->MeshProjectionLODs[0].RestRootOffset;
 				DeformedRootOffsetValue = ProxyData->HairStrandsBuffer->SourceRootResources->MeshProjectionLODs[0].DeformedRootOffset;
 			}
@@ -451,7 +451,7 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 			SetShaderValue(RHICmdList, ComputeShaderRHI, BoxCenter, ProxyData->BoxCenter);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, BoxExtent, ProxyData->BoxExtent);
 
-			SetShaderValue(RHICmdList, ComputeShaderRHI, ResetSimulation, NeedSimReset);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, ResetSimulation, bNeedSimReset);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, HasRootAttached, HasRootAttachedValue);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, RestRootOffset, RestRootOffsetValue);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, DeformedRootOffset, DeformedRootOffsetValue);
@@ -567,6 +567,8 @@ void FNDIHairStrandsProxy::ConsumePerInstanceDataFromGameThread(void* PerInstanc
 		TargetData->BoxCenter = SourceData->BoxCenter;
 		TargetData->BoxExtent = SourceData->BoxExtent;
 		TargetData->TickCount = SourceData->TickCount;
+		TargetData->ResetTick = SourceData->ResetTick;
+		TargetData->ForceReset = SourceData->ForceReset;
 		TargetData->HairStrandsBuffer = SourceData->HairStrandsBuffer;
 	}
 	else
@@ -595,6 +597,8 @@ void FNDIHairStrandsProxy::InitializePerInstanceData(const FNiagaraSystemInstanc
 	TargetData->BoxCenter = BoxCenter;
 	TargetData->BoxExtent = BoxExtent;
 	TargetData->TickCount = 0;
+	TargetData->ResetTick = MaxDelay;
+	TargetData->ForceReset = false;
 	TargetData->WorldTransform = WorldTransform;
 }
 
@@ -733,6 +737,8 @@ bool UNiagaraDataInterfaceHairStrands::InitPerInstanceData(void* PerInstanceData
 			InstanceData->BoxCenter = BoxCenter;
 			InstanceData->BoxExtent = BoxExtent;
 			InstanceData->TickCount = 0;
+			InstanceData->ForceReset = false;
+			InstanceData->ResetTick = MaxDelay;
 
 			//UE_LOG(LogHairStrands, Log, TEXT("Num Strands = %d | Strand Size = %d | Num Vertices = %d | Min = %f %f %f | Max = %f %f %f | Transform = %s"), NumStrands, StrandSize,
 			//	StrandsDatas->GetNumPoints(), StrandsBox.Min[0], StrandsBox.Min[1], StrandsBox.Min[2], StrandsBox.Max[0], StrandsBox.Max[1], StrandsBox.Max[2], *InstanceData->WorldTransform.ToString());
@@ -779,10 +785,19 @@ bool UNiagaraDataInterfaceHairStrands::PerInstanceTick(void* PerInstanceData, FN
 	FHairStrandsRestResource* StrandsRestResource = nullptr;
 	FHairStrandsDeformedResource* StrandsDeformedResource = nullptr;
 	FHairStrandsRootResource* StrandsRootResource = nullptr;
-	InstanceData->TickCount = FMath::Min(ResetTick+1,InstanceData->TickCount+1);
+	InstanceData->TickCount = FMath::Min(MaxDelay+1,InstanceData->TickCount+1);
 
 	ExtractDatasAndResources(SystemInstance, StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRootResource);
 	InstanceData->HairStrandsBuffer->SetHairAsset(StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRootResource);
+
+	if (SourceComponent != nullptr)
+	{
+		if (!InstanceData->ForceReset && !SourceComponent->bResetSimulation)
+		{
+			InstanceData->ResetTick = FMath::Min(MaxDelay, InstanceData->TickCount);
+		}
+		InstanceData->ForceReset = SourceComponent->bResetSimulation;
+	}
 
 	bool RequireReset = false;
 	if (StrandsDatas)
@@ -2574,6 +2589,8 @@ void UNiagaraDataInterfaceHairStrands::ProvidePerInstanceDataForRenderThread(voi
 	RenderThreadData->BoxCenter = GameThreadData->BoxCenter;
 	RenderThreadData->BoxExtent = GameThreadData->BoxExtent;
 	RenderThreadData->TickCount = GameThreadData->TickCount;
+	RenderThreadData->ResetTick = GameThreadData->ResetTick;
+	RenderThreadData->ForceReset = GameThreadData->ForceReset;
 }
 
 FNiagaraDataInterfaceParametersCS*
