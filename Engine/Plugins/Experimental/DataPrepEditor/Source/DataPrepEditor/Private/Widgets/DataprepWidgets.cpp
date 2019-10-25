@@ -87,7 +87,7 @@ namespace DataprepWidgetUtils
 				[
 					// Trick to force the splitter widget to fill up the space of its parent
 					// Strongly inspired from SDetailSingleItemRow
-					SNew(SConstrainedBox)
+					SNew(DataprepWidgetUtils::SConstrainedBox)
 					[
 						ValueWidget.ToSharedRef()
 					]
@@ -272,7 +272,7 @@ TSharedRef<SWidget> SDataprepConsumerWidget::BuildWidget()
 					[
 						// Trick to force the splitter widget to fill up the space of its parent
 						// Strongly inspired from SDetailSingleItemRow
-						SNew(SConstrainedBox)
+						SNew(DataprepWidgetUtils::SConstrainedBox)
 						[
 							SAssignNew(ContentFolderTextBox, SEditableTextBox)
 							.Font(IDetailLayoutBuilder::GetDetailFont())
@@ -361,7 +361,7 @@ TSharedRef<SWidget> SDataprepConsumerWidget::BuildWidget()
 					[
 						// Trick to force the splitter widget to fill up the space of its parent
 						// Strongly inspired from SDetailSingleItemRow
-						SNew(SConstrainedBox)
+						SNew(DataprepWidgetUtils::SConstrainedBox)
 						[
 							SAssignNew(LevelTextBox, SEditableTextBox)
 							.Font(IDetailLayoutBuilder::GetDetailFont())
