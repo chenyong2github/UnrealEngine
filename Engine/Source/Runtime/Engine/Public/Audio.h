@@ -11,9 +11,9 @@
 #include "Stats/Stats.h"
 #include "HAL/ThreadSafeBool.h"
 #include "Sound/SoundClass.h"
-#include "Sound/SoundSubmix.h"
 #include "Sound/SoundAttenuation.h"
 #include "Sound/SoundEffectSource.h"
+#include "Sound/SoundSubmixSend.h"
 #include "Sound/SoundSourceBusSend.h"
 #include "IAudioExtensionPlugin.h"
 

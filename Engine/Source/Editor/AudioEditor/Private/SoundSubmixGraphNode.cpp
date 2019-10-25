@@ -61,8 +61,8 @@ void USoundSubmixGraphNode::AllocateDefaultPins()
 {
 	check(Pins.Num() == 0);
 
-	ChildPin = CreatePin(EGPD_Output, TEXT("SoundSubmix"), *LOCTEXT("SoundSubmixChildren", "Children").ToString());
-	ParentPin = CreatePin(EGPD_Input, TEXT("SoundSubmix"), NAME_None);
+	ChildPin = CreatePin(EGPD_Input, TEXT("SoundSubmix"), *LOCTEXT("SoundSubmixChildren", "Input").ToString());
+	ParentPin = CreatePin(EGPD_Output, TEXT("SoundSubmix"), *LOCTEXT("SoundSubmixChildren", "Output").ToString());
 }
 
 void USoundSubmixGraphNode::AutowireNewNode(UEdGraphPin* FromPin)
@@ -98,13 +98,4 @@ FText USoundSubmixGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 		return Super::GetNodeTitle(TitleType);
 	}
 }
-
-bool USoundSubmixGraphNode::CanUserDeleteNode() const
-{
-	USoundSubmixGraph* SoundSubmixGraph = CastChecked<USoundSubmixGraph>(GetGraph());
-
-	// Cannot remove the root node from the graph
-	return SoundSubmix != SoundSubmixGraph->GetRootSoundSubmix();
-}
-
 #undef LOCTEXT_NAMESPACE

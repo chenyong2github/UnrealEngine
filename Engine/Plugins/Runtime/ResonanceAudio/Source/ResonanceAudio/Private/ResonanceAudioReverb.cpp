@@ -7,6 +7,7 @@
 #include "ResonanceAudioCommon.h"
 #include "ResonanceAudioModule.h"
 #include "ResonanceAudioSettings.h"
+#include "Sound/SoundSubmix.h"
 
 namespace ResonanceAudio
 {

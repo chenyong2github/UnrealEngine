@@ -1,8 +1,74 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-
 #pragma once
-#include "EdGraph/EdGraphSchema.h"
+
+#include "AssetData.h"
+#include "ConnectionDrawingPolicy.h"
+#include "EdGraphUtilities.h"
+
 #include "SoundSubmixGraphSchema.generated.h"
+
+
+// Forward Declarations
+class UEdGraph;
+class UEdGraphSchema;
+class FMenuBuilder;
+
+struct FSoundSubmixGraphConnectionDrawingPolicyFactory : public FGraphPanelPinConnectionFactory
+{
+public:
+	virtual ~FSoundSubmixGraphConnectionDrawingPolicyFactory()
+	{
+	}
+
+	// FGraphPanelPinConnectionFactory
+	virtual class FConnectionDrawingPolicy* CreateConnectionPolicy(
+		const UEdGraphSchema* Schema,
+		int32 InBackLayerID,
+		int32 InFrontLayerID,
+		float ZoomFactor,
+		const FSlateRect& InClippingRect,
+		FSlateWindowElementList& InDrawElements,
+		UEdGraph* InGraphObj) const override;
+	// ~FGraphPanelPinConnectionFactory
+};
+
+
+// This class draws the connections for an UEdGraph using a SoundCue schema
+class FSoundSubmixGraphConnectionDrawingPolicy : public FConnectionDrawingPolicy
+{
+protected:
+	// Times for one execution pair within the current graph
+	struct FTimePair
+	{
+		double PredExecTime;
+		double ThisExecTime;
+
+		FTimePair()
+			: PredExecTime(0.0)
+			, ThisExecTime(0.0)
+		{
+		}
+	};
+
+	// Map of pairings
+	typedef TMap<UEdGraphNode*, FTimePair> FExecPairingMap;
+
+	// Map of nodes that preceded before a given node in the execution sequence (one entry for each pairing)
+	TMap<UEdGraphNode*, FExecPairingMap> PredecessorNodes;
+
+	UEdGraph* GraphObj;
+
+	float ActiveWireThickness;
+	float InactiveWireThickness;
+
+public:
+	FSoundSubmixGraphConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float ZoomFactor, const FSlateRect& InClippingRect, FSlateWindowElementList& InDrawElements, UEdGraph* InGraphObj);
+
+	// FConnectionDrawingPolicy interface
+	virtual void DetermineWiringStyle(UEdGraphPin* OutputPin, UEdGraphPin* InputPin, /*inout*/ FConnectionParams& Params) override;
+	// End of FConnectionDrawingPolicy interface
+};
+
 
 /** Action to add a node to the graph */
 USTRUCT()
@@ -25,7 +91,7 @@ struct AUDIOEDITOR_API FSoundSubmixGraphSchemaAction_NewNode : public FEdGraphSc
 
 	//~ Begin FEdGraphSchemaAction Interface
 	virtual FName GetTypeId() const override { return StaticGetTypeId(); } 
-	virtual UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
+	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
 	//~ End FEdGraphSchemaAction Interface
 
 	/** Name for the new SoundSubmix */
@@ -54,7 +120,7 @@ class USoundSubmixGraphSchema : public UEdGraphSchema
 	virtual void BreakNodeLinks(UEdGraphNode& TargetNode) const override;
 	virtual void BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNodeNotifcation) const override;
 	virtual void BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphPin* TargetPin) const override;
-	virtual void DroppedAssetsOnGraph(const TArray<struct FAssetData>& Assets, const FVector2D& GraphPosition, UEdGraph* Graph) const override;
+	virtual void DroppedAssetsOnGraph(const TArray<FAssetData>& Assets, const FVector2D& GraphPosition, UEdGraph* Graph) const override;
 	//~ End EdGraphSchema Interface
 };
 

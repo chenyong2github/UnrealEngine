@@ -9,7 +9,6 @@
 #include "Math/Interval.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "Sound/SoundSubmix.h"
 #include "UObject/ObjectMacros.h"
 
 #if !UE_BUILD_SHIPPING
@@ -19,8 +18,10 @@
 
 #include "IAudioExtensionPlugin.generated.h"
 
-
+// Forward Declarations
 class FAudioDevice;
+class USoundSubmix;
+
 
 /**
 * Enumeration of audio plugin types
@@ -773,7 +774,7 @@ public:
 	/** Called when a source is done playing and is released. */
 	virtual void OnReleaseSource(const uint32 SourceId) = 0;
 
-	virtual class FSoundEffectSubmix* GetEffectSubmix(class USoundSubmix* Submix) = 0;
+	virtual class FSoundEffectSubmix* GetEffectSubmix(USoundSubmix* Submix) = 0;
 
 	/** Processes audio with the given input and output data structs.*/
 	virtual void ProcessSourceAudio(const FAudioPluginSourceInputData& InputData, FAudioPluginSourceOutputData& OutputData)
