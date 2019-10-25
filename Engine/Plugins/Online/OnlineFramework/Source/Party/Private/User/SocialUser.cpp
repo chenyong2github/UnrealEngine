@@ -433,7 +433,7 @@ FString USocialUser::GetNickname() const
 	return TEXT("");
 }
 
-void USocialUser::SetNickname(const FString& InNickname)
+bool USocialUser::SetNickname(const FString& InNickname)
 {
 	IOnlineFriendsPtr FriendsInterface = GetOwningToolkit().GetSocialOss(ESocialSubsystem::Primary)->GetFriendsInterface();
 	check(FriendsInterface.IsValid());
@@ -441,11 +441,15 @@ void USocialUser::SetNickname(const FString& InNickname)
 	if (!InNickname.IsEmpty())
 	{
 		FriendsInterface->SetFriendAlias(GetOwningToolkit().GetLocalUserNum(), *GetUserId(ESocialSubsystem::Primary), EFriendsLists::ToString(EFriendsLists::Default), InNickname, FOnSetFriendAliasComplete::CreateUObject(const_cast<USocialUser*>(this), &USocialUser::HandleSetNicknameComplete));
+		return true;
 	}
 	else if (!GetNickname().IsEmpty())
 	{
 		FriendsInterface->DeleteFriendAlias(GetOwningToolkit().GetLocalUserNum(), *GetUserId(ESocialSubsystem::Primary), EFriendsLists::ToString(EFriendsLists::Default), FOnDeleteFriendAliasComplete::CreateUObject(const_cast<USocialUser*>(this), &USocialUser::HandleSetNicknameComplete));
+		return true;
 	}
+	OnSetNicknameCompleted().Broadcast(FText::GetEmpty());
+	return false;
 }
 
 EInviteStatus::Type USocialUser::GetFriendInviteStatus(ESocialSubsystem SubsystemType) const
