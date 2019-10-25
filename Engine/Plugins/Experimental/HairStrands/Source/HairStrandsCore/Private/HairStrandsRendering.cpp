@@ -117,7 +117,8 @@ class FHairInterpolationCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, VertexCount)
 		SHADER_PARAMETER(uint32, DispatchCountX)
-		SHADER_PARAMETER(FVector, InHairPositionOffset)
+		SHADER_PARAMETER(FVector, InRenderHairPositionOffset)
+		SHADER_PARAMETER(FVector, InSimHairPositionOffset)
 		SHADER_PARAMETER(FVector, OutHairPositionOffset)
 
 		SHADER_PARAMETER(FVector, RestPositionOffset)
@@ -173,7 +174,8 @@ static void AddHairStrandsInterpolationPass(
 	FRDGBuilder& GraphBuilder,
 	const FHairStrandsProjectionHairData::HairGroup& InRenHairData,
 	const FHairStrandsProjectionHairData::HairGroup& InSimHairData,
-	const FVector& InHairWorldOffset, 
+	const FVector& InRenderHairWorldOffset, 
+	const FVector& InSimHairWorldOffset,
 	const FVector& OutHairWorldOffset,
 	const int32 LODIndex,
 	const bool bHasSimulationEnable,
@@ -204,7 +206,8 @@ static void AddHairStrandsInterpolationPass(
 		Parameters->OutRenderAttributeBuffer = OutRenderAttributeBuffer;
 	}
 	Parameters->VertexCount = VertexCount;
-	Parameters->InHairPositionOffset = InHairWorldOffset;
+	Parameters->InRenderHairPositionOffset = InRenderHairWorldOffset;
+	Parameters->InSimHairPositionOffset = InSimHairWorldOffset;
 	Parameters->OutHairPositionOffset = OutHairWorldOffset;
 	Parameters->DispatchCountX = DispatchCount.X;
 
@@ -493,7 +496,8 @@ void ComputeHairStrandsInterpolation(
 				GraphBuilder,
 				InRenHairDatas.HairGroups[GroupIndex],
 				InSimHairDatas.HairGroups[GroupIndex],
-				Input.InHairPositionOffset,
+				Input.InRenderHairPositionOffset,
+				Input.InSimHairPositionOffset,
 				Input.OutHairPositionOffset,
 				LODIndex,
 				bHasSimulationEnabled,
