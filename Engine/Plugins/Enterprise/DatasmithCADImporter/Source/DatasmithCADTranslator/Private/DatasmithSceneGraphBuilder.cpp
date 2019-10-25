@@ -441,15 +441,14 @@ bool FDatasmithSceneGraphBuilder::Build()
 	TSharedPtr< IDatasmithActorElement > RootActor = BuildNode(*RootNode, Data);
 	DatasmithScene->AddActor(RootActor);
 
-	return true;
-}
 
-void FDatasmithSceneGraphBuilder::Clear()
-{
 	CADFileToSceneGraphDescription.Empty();
 	ArrayOfSceneGraphDescription.Empty();
 	BodyUuidToMeshElementMap.Empty();
+
+	return true;
 }
+
 
 void FDatasmithSceneGraphBuilder::LoadSceneGraphDescriptionFiles()
 {

@@ -15,33 +15,19 @@ class IDatasmithMeshElement;
 class FDatasmithMeshBuilder
 {
 public:
-	FDatasmithMeshBuilder(TMap<FString, FString>& InCADFileToUE4GeomMap, TMap< TSharedPtr< IDatasmithMeshElement >, uint32 >& InMeshElementToCTBodyUuidMap);
-	
-	void Init(const FString& InCachePath);
+	FDatasmithMeshBuilder(TMap<FString, FString>& InCADFileToMeshFileMap, TMap< TSharedPtr< IDatasmithMeshElement >, uint32 >& InMeshElementToCADBodyUuidMap, const FString& InCachePath, const CADLibrary::FImportParameters& InImportParameters);
 
 	TOptional<FMeshDescription> GetMeshDescription(TSharedRef<IDatasmithMeshElement> OutMeshElement, CADLibrary::FMeshParameters& OutMeshParameters);
-	void LoadRawDataGeom();
-	void Clear();
-
-	void SetImportParameters(const CADLibrary::FImportParameters& InImportParameters)
-	{
-		ImportParameters = InImportParameters;
-	}
 
 protected:
-	//const FDatasmithSceneSource& Source;
 	FString CachePath;
 
-	TArray<CADLibrary::FCTRawGeomFile> RawDataArray;
+	void LoadMeshFiles();
 
-	/** Map linking Cad file to RawGeom file (*.gm) */
-	TMap<FString, FString>& CADFileToUE4GeomMap;
-
-	/** Datasmith mesh elements to BodyUuid */
+	TArray<CADLibrary::FCADMeshFile> Meshes;
+	TMap<FString, FString>& CADFileToMeshFileMap;
 	TMap< TSharedPtr< IDatasmithMeshElement >, uint32 >& MeshElementToBodyUuidMap;
-
-	/** BodyUuid to CTBody */
-	TMap< uint32, CADLibrary::FBody* > BodyUuidToCADBRepMap;
+	TMap< uint32, CADLibrary::FBodyMesh* > BodyUuidToMeshMap;
 
 	CADLibrary::FImportParameters ImportParameters;
 };
