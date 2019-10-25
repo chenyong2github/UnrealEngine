@@ -3,8 +3,9 @@
 #include "AudioMixerSubmix.h"
 #include "AudioMixerDevice.h"
 #include "AudioMixerSourceVoice.h"
-#include "Sound/SoundSubmix.h"
 #include "Sound/SoundEffectSubmix.h"
+#include "Sound/SoundSubmix.h"
+#include "Sound/SoundSubmixSend.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
 // Link to "Audio" profiling category
@@ -20,7 +21,7 @@ FAutoConsoleVariableRef CVarRecoverRecordingOnShutdown(
 
 namespace Audio
 {
-	// Unique IDs for mixer submixe's
+	// Unique IDs for mixer submixes
 	static uint32 GSubmixMixerIDs = 0;
 
 	FMixerSubmix::FMixerSubmix(FMixerDevice* InMixerDevice)

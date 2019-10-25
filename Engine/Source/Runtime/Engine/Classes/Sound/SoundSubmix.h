@@ -2,12 +2,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
+
+#include "IAmbisonicsMixer.h"
 #include "SampleBufferIO.h"
 #include "SoundEffectSubmix.h"
-#include "IAmbisonicsMixer.h"
-#include "Curves/CurveFloat.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 
 #include "SoundSubmix.generated.h"
 
