@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosCloth/ChaosClothingSimulationFactory.h"
+#include "ChaosCloth/ChaosClothConfig.h"
 #include "ChaosCloth/ChaosClothingSimulation.h"
 
 IClothingSimulation* UChaosClothingSimulationFactory::CreateSimulation()
@@ -27,4 +28,9 @@ bool UChaosClothingSimulationFactory::SupportsRuntimeInteraction()
 UClothingSimulationInteractor* UChaosClothingSimulationFactory::CreateInteractor()
 {
 	return nullptr;
+}
+
+UClothConfigBase* UChaosClothingSimulationFactory::CreateDefaultClothConfig(const FObjectInitializer& ObjectInitializer, UObject* Outer)
+{
+	return ObjectInitializer.CreateDefaultSubobject<UChaosClothConfig>(Outer, UChaosClothConfig::StaticClass()->GetFName());
 }
