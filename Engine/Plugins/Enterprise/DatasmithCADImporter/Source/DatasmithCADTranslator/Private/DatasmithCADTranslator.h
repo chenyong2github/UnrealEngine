@@ -39,13 +39,12 @@ public:
 	virtual void SetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options) override;
 
 private:
-	TMap<FString, FString> CADFileToUE4FileMap;
 	TMap<FString, FString> CADFileToUE4GeomMap;
 	TMap< TSharedPtr< IDatasmithMeshElement >, uint32 > MeshElementToCADBRepUuidMap;
 
 	CADLibrary::FImportParameters ImportParameters;
 
-	FDatasmithMeshBuilder MeshBuilder;
+	TUniquePtr<FDatasmithMeshBuilder> MeshBuilderPtr;
 #endif
 };
 

@@ -49,7 +49,7 @@ int32 BuildMaterialHash(const FCADMaterial& Material)
 }
 
 
-FBody::FBody(uint32 InBodyID, int32 FaceNum)
+FBodyMesh::FBodyMesh(uint32 InBodyID, int32 FaceNum)
 	: TriangleCount(0)
 	, BodyID(InBodyID)
 {
@@ -57,17 +57,17 @@ FBody::FBody(uint32 InBodyID, int32 FaceNum)
 }
 
 
-FCTRawGeomFile::FCTRawGeomFile(FString& InFileName, TMap< uint32, FBody* >& InBodyUuidToCTBodyMap)
+FCADMeshFile::FCADMeshFile(FString& InFileName, TMap< uint32, FBodyMesh* >& InBodyUuidToCTBodyMap)
 	: BodyUuidToBodyMap(InBodyUuidToCTBodyMap)
 {
 	uint32 NbBody = 0;
 
-	TArray<uint8> RawData;
-	FFileHelper::LoadFileToArray(RawData, *InFileName);
+	TArray<uint8> MeshData;
+	FFileHelper::LoadFileToArray(MeshData, *InFileName);
 
-	ReadTessellationSetFromFile(RawData, NbBody, CTBodySet);
+	ReadTessellationSetFromFile(MeshData, NbBody, CTBodySet);
 
-	for(FBody& Body : CTBodySet)
+	for(FBodyMesh& Body : CTBodySet)
 	{
 		BodyUuidToBodyMap.Add(Body.GetBodyUuid(), &Body);
 	}
@@ -118,7 +118,7 @@ void WriteTessellationInRawData(FTessellationData& Tessellation, TArray<uint8>& 
 	GlobalRawData.Append(Tessellation.TexCoordArray);
 }
 
-bool ReadTessellationSetFromFile(TArray<uint8>& RawData, uint32& OutNbBodies, TArray<FBody>& CTBodySet)
+bool ReadTessellationSetFromFile(TArray<uint8>& RawData, uint32& OutNbBodies, TArray<FBodyMesh>& CTBodySet)
 {
 	uint32 INFO[LastLine];
 	const uint32 InfoSize = sizeof(INFO);
@@ -127,7 +127,7 @@ bool ReadTessellationSetFromFile(TArray<uint8>& RawData, uint32& OutNbBodies, TA
 
 	CTBodySet.Reserve(OutNbBodies);
 
-	FBody* CurrentBody = nullptr;
+	FBodyMesh* CurrentBody = nullptr;
 
 	int32 CurrentBodyId = -1;
 	int32 CurrentBodyIndex = -1;
