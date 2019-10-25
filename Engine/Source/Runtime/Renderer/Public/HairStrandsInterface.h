@@ -21,10 +21,12 @@ enum class EHairStrandsDebugMode : uint8
 	RenderHairStrands,
 	RenderHairUV,
 	RenderHairRootUV,
+	RenderHairRootUDIM,
 	RenderHairSeed,
 	RenderHairDimension,
 	RenderHairRadiusVariation,
-	RenderHairRootUDIM,
+	RenderHairBaseColor,
+	RenderHairRoughness,
 	Count
 };
 

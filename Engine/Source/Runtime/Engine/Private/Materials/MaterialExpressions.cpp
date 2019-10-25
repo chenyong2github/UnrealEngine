@@ -16834,6 +16834,8 @@ UMaterialExpressionHairAttributes::UMaterialExpressionHairAttributes(const FObje
 	Outputs.Add(FExpressionOutput(TEXT("Seed")));
 	Outputs.Add(FExpressionOutput(TEXT("World Tangent"), 1, 1, 1, 1, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Root UV"), 1, 1, 1, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("BaseColor"), 1, 1, 1, 1, 0));
+	Outputs.Add(FExpressionOutput(TEXT("Roughness"), 1, 1, 0, 0, 0));
 #endif
 }
 
@@ -16859,6 +16861,14 @@ int32 UMaterialExpressionHairAttributes::Compile(class FMaterialCompiler* Compil
 	else if (OutputIndex == 6)
 	{
 		return Compiler->GetHairRootUV();
+	}
+	else if (OutputIndex == 7)
+	{
+		return Compiler->GetHairBaseColor();
+	}
+	else if (OutputIndex == 8)
+	{
+		return Compiler->GetHairRoughness();
 	}
 
 	return Compiler->Errorf(TEXT("Invalid input parameter"));
