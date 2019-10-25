@@ -307,7 +307,7 @@ void SDataprepProducersWidget::Construct(const FArguments & InArgs, UDataprepAss
 					.VAlign(VAlign_Center)
 					[
 						SNew(STextBlock)
-						.Font( IDetailLayoutBuilder::GetDetailFontBold() )
+						.Font( FDataprepEditorStyle::Get()->GetFontStyle("DataprepEditor.SectionFont") )
 						.Text(LOCTEXT("DataprepProducersWidget_Producers_label", "Inputs"))
 					]
 					+ SHorizontalBox::Slot()
