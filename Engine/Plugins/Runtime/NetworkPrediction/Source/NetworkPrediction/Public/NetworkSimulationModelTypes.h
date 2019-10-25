@@ -73,6 +73,24 @@ struct TNetworkSimBufferAllocation
 	static constexpr ENetworkSimBufferAllocationType AllocationType() { return InAllocationType; }
 };
 
+template<typename T>
+struct HasNetSerialize
+{
+	template<typename U, void (U::*)(const FNetSerializeParams& P)> struct SFINAE {};
+	template<typename U> static char Test(SFINAE<U, &U::NetSerialize>*);
+	template<typename U> static int Test(...);
+	static const bool Has = sizeof(Test<T>(0)) == sizeof(char);
+};
+
+template<typename T>
+struct HasLog
+{
+	template<typename U, void (U::*)(FStandardLoggingParameters& P) const> struct SFINAE {};
+	template<typename U> static char Test(SFINAE<U, &U::Log>*);
+	template<typename U> static int Test(...);
+	static const bool Has = sizeof(Test<T>(0)) == sizeof(char);
+};
+
 // A collection of the system's buffer types. This allows us to collapse the 4 types into a single type to use a template argument elsewhere.
 template<typename InInputCmd, typename InSyncState, typename InAuxState, typename InDebugState = FNetSimProcessedFrameDebugInfo>
 struct TNetworkSimBufferTypes
@@ -89,6 +107,17 @@ struct TNetworkSimBufferTypes
 	{
 		using type = typename TSelectTypeHelper< TNetworkSimBufferTypes<TInputCmd, TSyncState, TAuxState, TDebugState>, Id >::type;
 	};
+
+	// Must implement NetSerialize and Log functions. This purposefully does not pass on inherited methods
+	static_assert(HasNetSerialize<InInputCmd>::Has == true, "InputCmd Must implement NetSerialize");
+	static_assert(HasNetSerialize<InSyncState>::Has == true, "SyncState Must implement NetSerialize");
+	static_assert(HasNetSerialize<InAuxState>::Has == true, "AuxState Must implement NetSerialize");
+	static_assert(HasNetSerialize<InDebugState>::Has == true, "DebugState Must implement NetSerialize");
+
+	static_assert(HasLog<InInputCmd>::Has == true, "InputCmd Must implement Log");
+	static_assert(HasLog<InSyncState>::Has == true, "SyncState Must implement Log");
+	static_assert(HasLog<InAuxState>::Has == true, "AuxState Must implement Log");
+	static_assert(HasLog<InDebugState>::Has == true, "DebugState Must implement Log");
 };
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -208,7 +237,7 @@ struct TLazyStateAccessor
 
 private:
 
-	T* CachedWriteNext = nullptr;
+	mutable T* CachedWriteNext = nullptr;
 	TUniqueFunction<T*()> GetWriteNextFunc;
 };
 
@@ -480,7 +509,8 @@ private:
 	TRealTimeAccumulator<TSettings>	RealtimeAccumulator;
 };
 
-// Scoped helper to be used right before entering a call to the sim's ::Update function
+// Scoped helper to be used right before entering a call to the sim's ::Update function.
+// Important to note that this advanced the PendingKeyFrame to the output Keyframe. So that any writes that occur to the buffers will go to the output frame.
 struct TScopedSimulationTick
 {
 	template<typename TSimulationTickState>
@@ -603,6 +633,8 @@ struct TFrameCmd : public BaseCmdType
 		BaseCmdType::NetSerialize(P); 
 	}
 
+	void Log(FStandardLoggingParameters& P) const { BaseCmdType::Log(P); }
+
 private:
 	FNetworkSimTime FrameDeltaTime;
 };
@@ -614,6 +646,7 @@ struct TFrameCmd<BaseCmdType, TickSettings, true> : public BaseCmdType
 	FNetworkSimTime GetFrameDeltaTime() const { return FNetworkSimTime::FromMSec(TickSettings::GetFixedStepMS()); }
 	void SetFrameDeltaTime(const FNetworkSimTime& InTime) { }
 	void NetSerialize(const FNetSerializeParams& P) { BaseCmdType::NetSerialize(P); }
+	void Log(FStandardLoggingParameters& P) const { BaseCmdType::Log(P); }
 };
 
 // Helper to turn user supplied buffer types into the "real" buffer types: the InputCmd struct is wrapped in TFrameCmd
@@ -630,16 +663,26 @@ struct TInternalBufferTypes : TNetworkSimBufferTypes<
 {
 };
 
-/** Interface base for the simulation driver. This is what is used by the Network Sim Model internally. Basically, the non simulation specific functions that need to be defined. */
+/** This is the "system driver", it has functions that the TNetworkedSimulationModel needs to call internally, that are specific to the types but not specific to the simulation itself. */
 template<typename TBufferTypes>
-class TNetworkSimDriverInterfaceBase
+class TNetworkedSimulationModelDriver
 {
 public:
-	virtual FString GetDebugName() const = 0; // Used for debugging. Recommended to emit the simulation name and the actor name/role.
-	virtual const UObject* GetVLogOwner() const = 0; // Owning object for Visual Logs
+	using TInputCmd = typename TBufferTypes::TInputCmd;
+	using TSyncState = typename TBufferTypes::TSyncState;
+	using TAuxState= typename TBufferTypes::TAuxState;
+
+	// Debug string that can be used in internal warning/error logs
+	virtual FString GetDebugName() const = 0;
+
+	// Owning object for Visual Logs so that the system can emit them internally
+	virtual const AActor* GetVLogOwner() const = 0;
+
+	// Call to visual log the given states. Note that not all 3 will always be present and you should check for nullptrs.
+	virtual void VisualLog(const TInputCmd* Input, const TSyncState* Sync, const TAuxState* Aux, const FVisualLoggingParameters& SystemParameters) const = 0;
 	
 	// Called whenever the sim is ready to process new local input.
-	virtual void ProduceInput(const FNetworkSimTime SimTime, typename TBufferTypes::TInputCmd&) = 0;
+	virtual void ProduceInput(const FNetworkSimTime SimTime, TInputCmd&) = 0;
 	
 	// Called from the Network Sim at the end of the sim frame when there is new sync data.
 	virtual void FinalizeFrame(const typename TBufferTypes::TSyncState& SyncState, const typename TBufferTypes::TAuxState& AuxState) = 0;

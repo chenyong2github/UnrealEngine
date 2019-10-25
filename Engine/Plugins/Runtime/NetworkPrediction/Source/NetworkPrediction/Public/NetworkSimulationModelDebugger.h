@@ -14,8 +14,8 @@
 #include "CanvasItem.h"
 #include "Containers/Array.h"
 #include "Templates/UniquePtr.h"
-#include "NetworkSimulationModel.h"
 #include "NetworkSimulationModelCVars.h"
+#include "VisualLogger/VisualLogger.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNetworkSimDebug, Log, All);
 
@@ -28,7 +28,7 @@ namespace NetworkSimulationModelDebugCVars
 
 struct FNetworkSimulationModelDebuggerManager;
 
-NETWORKPREDICTION_API UObject* FindReplicatedObjectOnPIEServer(UObject* ClientObject);
+NETWORKPREDICTION_API UObject* FindReplicatedObjectOnPIEServer(const UObject* ClientObject);
 
 // ------------------------------------------------------------------------------------------------------------------------
 //	Debugger support classes
@@ -71,7 +71,7 @@ struct NETWORKPREDICTION_API FNetworkSimulationModelDebuggerManager: public FTic
 	// ---------------------------------------------------------------------------------------------------------------------------------------
 
 	template <typename T>
-	void RegisterNetworkSimulationModel(T* NetworkSim, AActor* OwningActor);
+	void RegisterNetworkSimulationModel(T* NetworkSim, const AActor* OwningActor);
 
 	void SetDebuggerActive(AActor* OwningActor, bool InActive)
 	{
@@ -158,7 +158,7 @@ struct NETWORKPREDICTION_API FNetworkSimulationModelDebuggerManager: public FTic
 	{
 		for (auto It = DebuggerMap.CreateIterator(); It; ++It)
 		{
-			AActor* Owner = It.Key().Get();
+			const AActor* Owner = It.Key().Get();
 			if (!Owner)
 			{
 				It.RemoveCurrent();
@@ -258,14 +258,14 @@ struct NETWORKPREDICTION_API FNetworkSimulationModelDebuggerManager: public FTic
 
 private:
 
-	INetworkSimulationModelDebugger* Find(AActor* Actor)
+	INetworkSimulationModelDebugger* Find(const AActor* Actor)
 	{
 		if (!Actor)
 		{
 			return nullptr;
 		}
 
-		INetworkSimulationModelDebugger* Debugger = DebuggerMap.FindRef(TWeakObjectPtr<AActor>(Actor));
+		INetworkSimulationModelDebugger* Debugger = DebuggerMap.FindRef(TWeakObjectPtr<const AActor>(Actor));
 		if (!Debugger)
 		{
 			UE_LOG(LogNetworkSimDebug, Warning, TEXT("Could not find NetworkSimulationModel associated with %s"), *GetPathNameSafe(Actor));
@@ -279,7 +279,7 @@ private:
 
 		for (auto It = DebuggerMap.CreateIterator(); It; ++It)
 		{
-			AActor* Owner = It.Key().Get();
+			const AActor* Owner = It.Key().Get();
 			if (!Owner)
 			{
 				It.RemoveCurrent();
@@ -291,7 +291,7 @@ private:
 				It.Value()->GatherCurrent(*this, C);
 				if (NetworkSimulationModelDebugCVars::GatherServerSidePIE() > 0)
 				{
-					if (AActor* ServerSideActor = Cast<AActor>(FindReplicatedObjectOnPIEServer(Owner)))
+					if (const AActor* ServerSideActor = Cast<AActor>(FindReplicatedObjectOnPIEServer(Owner)))
 					{
 						if (INetworkSimulationModelDebugger* ServerSideSim = Find(ServerSideActor))
 						{
@@ -316,7 +316,7 @@ private:
 		CanvasItems[1].Reset();
 	}
 
-	TMap<TWeakObjectPtr<AActor>, INetworkSimulationModelDebugger*>	DebuggerMap;
+	TMap<TWeakObjectPtr<const AActor>, INetworkSimulationModelDebugger*>	DebuggerMap;
 	bool bContinousGather = true; // Whether you should gather new data every frame
 
 	FDelegateHandle DrawDebugServicesHandle;
@@ -339,7 +339,7 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 	using TSimTime = typename TNetSimModel::TSimTime;
 	using TDebugState = typename TNetSimModel::TDebugState;
 
-	TNetworkSimulationModelDebugger(TNetSimModel* InNetSim, AActor* OwningActor)
+	TNetworkSimulationModelDebugger(TNetSimModel* InNetSim, const AActor* OwningActor)
 	{
 		NetworkSim = InNetSim;
 		WeakOwningActor = OwningActor;
@@ -523,7 +523,7 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 
 	void GatherCurrent(FNetworkSimulationModelDebuggerManager& Out, UCanvas* Canvas) override
 	{
-		AActor* Owner = WeakOwningActor.Get();
+		const AActor* Owner = WeakOwningActor.Get();
 		if (!ensure(Owner))
 		{
 			return;
@@ -653,7 +653,7 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 
 	void Tick( float DeltaTime ) override
 	{
-		AActor* Owner = WeakOwningActor.Get();
+		const AActor* Owner = WeakOwningActor.Get();
 		if (!Owner)
 		{
 			return;
@@ -663,7 +663,9 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 
 		if (auto* LatestSync = NetworkSim->Buffers.Sync.HeadElement())
 		{
-			LatestSync->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::LastPredicted, NetworkSim->Buffers.Sync.HeadKeyframe(), EVisualLoggingLifetime::Transient), NetworkSim->Driver, NetworkSim->Driver);
+			FVisualLoggingParameters VLogParams(EVisualLoggingContext::LastPredicted, NetworkSim->Buffers.Sync.HeadKeyframe(), EVisualLoggingLifetime::Transient);
+			int32 SyncKeyframe = NetworkSim->Buffers.Sync.HeadKeyframe();
+			NetworkSim->Driver->VisualLog(NetworkSim->Buffers.Input[SyncKeyframe], LatestSync, NetworkSim->Buffers.Aux[SyncKeyframe], VLogParams);
 		}
 
 		FStuff ServerPIEStuff = GetServerPIEStuff();
@@ -671,7 +673,9 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 		{
 			if (auto* ServerLatestSync = ServerPIEStuff.NetworkSim->Buffers.Sync.HeadElement())
 			{
-				ServerLatestSync->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::CurrentServerPIE, ServerPIEStuff.NetworkSim->Buffers.Sync.HeadKeyframe(), EVisualLoggingLifetime::Transient), ServerPIEStuff.NetworkSim->Driver, NetworkSim->Driver);
+				FVisualLoggingParameters VLogParams(EVisualLoggingContext::CurrentServerPIE, ServerPIEStuff.NetworkSim->Buffers.Sync.HeadKeyframe(), EVisualLoggingLifetime::Transient);
+				int32 SyncKeyframe = ServerPIEStuff.NetworkSim->Buffers.Sync.HeadKeyframe();
+				NetworkSim->Driver->VisualLog(ServerPIEStuff.NetworkSim->Buffers.Input[SyncKeyframe], ServerLatestSync, ServerPIEStuff.NetworkSim->Buffers.Aux[SyncKeyframe], VLogParams);
 			}
 		}
 
@@ -682,13 +686,17 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 				if (auto* SyncState = NetworkSim->Buffers.Sync[Keyframe])
 				{
 					const EVisualLoggingContext Context = (Keyframe == NetworkSim->RepProxy_Autonomous.GetLastSerializedKeyframe()) ? EVisualLoggingContext::LastConfirmed : EVisualLoggingContext::OtherPredicted;
-					SyncState->VisualLog( FVisualLoggingParameters(Context, NetworkSim->Buffers.Sync.HeadKeyframe(), EVisualLoggingLifetime::Transient), NetworkSim->Driver, NetworkSim->Driver);
+					FVisualLoggingParameters VLogParams(Context, NetworkSim->Buffers.Sync.HeadKeyframe(), EVisualLoggingLifetime::Transient);
+					NetworkSim->Driver->VisualLog(NetworkSim->Buffers.Input[Keyframe], SyncState, NetworkSim->Buffers.Aux[Keyframe], VLogParams);
 				}
 			}
 		}
 		else if (Owner->GetLocalRole() == ROLE_SimulatedProxy)
 		{
-			NetworkSim->RepProxy_Simulated.GetLastSerializedSyncState().VisualLog( FVisualLoggingParameters(EVisualLoggingContext::LastConfirmed, NetworkSim->Buffers.Sync.HeadKeyframe(), EVisualLoggingLifetime::Transient), NetworkSim->Driver, NetworkSim->Driver); 
+			FVisualLoggingParameters VLogParams(EVisualLoggingContext::LastConfirmed, NetworkSim->Buffers.Sync.HeadKeyframe(), EVisualLoggingLifetime::Transient);
+			int32 HeadKeyframe = NetworkSim->Buffers.Sync.HeadKeyframe();
+			NetworkSim->Driver->VisualLog(NetworkSim->Buffers.Input[HeadKeyframe], NetworkSim->Buffers.Sync[HeadKeyframe], NetworkSim->Buffers.Aux[HeadKeyframe], VLogParams);
+			
 			if (NetworkSim->GetSimulatedUpdateMode() != ESimulatedUpdateMode::Interpolate)
 			{
 				FVector2D ServerSimulationTimeData(Owner->GetWorld()->GetTimeSeconds(), NetworkSim->RepProxy_Simulated.GetLastSerializedSimulationTime().ToRealTimeMS());
@@ -716,23 +724,23 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 
 private:
 	
-	TWeakObjectPtr<AActor>	WeakOwningActor;
+	TWeakObjectPtr<const AActor> WeakOwningActor;
 	TNetSimModel* NetworkSim = nullptr;
 };
 
 template <typename T>
-void FNetworkSimulationModelDebuggerManager::RegisterNetworkSimulationModel(T* NetworkSim, AActor* OwningActor)
+void FNetworkSimulationModelDebuggerManager::RegisterNetworkSimulationModel(T* NetworkSim, const AActor* OwningActor)
 {
 	TNetworkSimulationModelDebugger<T>* Debugger = new TNetworkSimulationModelDebugger<T>(NetworkSim, OwningActor);
-	DebuggerMap.Add( TWeakObjectPtr<AActor>(OwningActor), Debugger );
+	DebuggerMap.Add( TWeakObjectPtr<const AActor>(OwningActor), Debugger );
 
 	// Gross stuff so that the debugger can find the ServerPIE equiv
-	TWeakObjectPtr<AActor> WeakOwner(OwningActor);
+	TWeakObjectPtr<const AActor> WeakOwner(OwningActor);
 	Debugger->GetServerPIEStuff = [WeakOwner, this]()
 	{
 		if (AActor* ServerOwner = Cast<AActor>(FindReplicatedObjectOnPIEServer(WeakOwner.Get())))
 		{
-			return ((TNetworkSimulationModelDebugger<T>*)DebuggerMap.FindRef(TWeakObjectPtr<AActor>(ServerOwner)))->GetStuff();
+			return ((TNetworkSimulationModelDebugger<T>*)DebuggerMap.FindRef(TWeakObjectPtr<const AActor>(ServerOwner)))->GetStuff();
 		}
 		return typename TNetworkSimulationModelDebugger<T>::FStuff();
 	};
