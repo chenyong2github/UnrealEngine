@@ -57,11 +57,11 @@ namespace DisplayClusterHelpers
 			while (TmpR.Split(InSeparator, &TmpL, &TmpR, ESearchCase::IgnoreCase, ESearchDir::FromStart))
 			{
 				TrimStringValue(TmpL, false);
-				OutData.Add(FDisplayClusterTypesConverter::FromString<T>(TmpL));
+				OutData.Add(FDisplayClusterTypesConverter::template FromString<T>(TmpL));
 			}
 
 			TrimStringValue(TmpR, false);
-			OutData.Add(FDisplayClusterTypesConverter::FromString<T>(TmpR));
+			OutData.Add(FDisplayClusterTypesConverter::template FromString<T>(TmpR));
 
 			return OutData;
 		}
@@ -113,7 +113,7 @@ namespace DisplayClusterHelpers
 
 				if (StrPair.Split(InKeyValSeparator, &StrKey, &StrVal, ESearchCase::IgnoreCase))
 				{
-					OutData.Emplace(FDisplayClusterTypesConverter::FromString<TKey>(StrKey), FDisplayClusterTypesConverter::FromString<TVal>(StrVal));
+					OutData.Emplace(FDisplayClusterTypesConverter::template FromString<TKey>(StrKey), FDisplayClusterTypesConverter::template FromString<TVal>(StrVal));
 				}
 			}
 		}
@@ -163,7 +163,7 @@ namespace DisplayClusterHelpers
 			if (FParse::Value(*InLine, *FullParamName, TmpVal, false))
 			{
 				TrimStringValue(TmpVal, bInTrimQuotes);
-				OutValue = FDisplayClusterTypesConverter::FromString<T>(TmpVal);
+				OutValue = FDisplayClusterTypesConverter::template FromString<T>(TmpVal);
 				return true;
 			}
 
