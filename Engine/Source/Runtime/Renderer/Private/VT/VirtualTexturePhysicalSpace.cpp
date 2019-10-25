@@ -7,8 +7,6 @@
 #include "Stats/Stats.h"
 #include "VT/VirtualTexturePoolConfig.h"
 
-// Will turn this on when RHI support is reviewed and submitted
-#define VIRTUALTEXTURE_UAV_ALIASING 0
 
 FVirtualTexturePhysicalSpace::FVirtualTexturePhysicalSpace(const FVTPhysicalSpaceDescription& InDesc, uint16 InID)
 	: Description(InDesc)
@@ -34,13 +32,6 @@ FVirtualTexturePhysicalSpace::FVirtualTexturePhysicalSpace(const FVTPhysicalSpac
 	const uint32 MaxTiles = FMath::Max((uint32)(PoolSizeInBytes / TileSizeBytes), 1u);
 	TextureSizeInTiles = FMath::FloorToInt(FMath::Sqrt((float)MaxTiles));
 	
-// 	const bool bForce16BitPageTable = false;
-// 	if (bForce16BitPageTable)
-// 	{
-// 		// 16 bit page tables support max size of 64x64 (4096 tiles)
-// 		TextureSizeInTiles = FMath::Min(64u, TextureSizeInTiles);
-// 	}
-
 	if (TextureSizeInTiles * InDesc.TileSize > GetMax2DTextureDimension())
 	{
 		// A good option to support extremely large caches would be to allow additional slices in an array here for caches...
@@ -63,13 +54,9 @@ FVirtualTexturePhysicalSpace::~FVirtualTexturePhysicalSpace()
 
 EPixelFormat GetUnorderedAccessViewFormat(EPixelFormat InFormat)
 {
-#if VIRTUALTEXTURE_UAV_ALIASING
 	// Use alias formats for compressed textures on APIs where that is possible
 	// This allows us to compress runtime data directly to the physical texture
 	const bool bUAVAliasForCompressedTextures = GRHISupportsUAVFormatAliasing;
-#else
-	const bool bUAVAliasForCompressedTextures = false;
-#endif
 
 	switch (InFormat)
 	{
@@ -102,7 +89,7 @@ void FVirtualTexturePhysicalSpace::InitRHI()
 			FormatSRV,
 			FClearValueBinding::None,
 			TexCreate_None,
-			bCreateAliasedUAV ? TexCreate_UAV : TexCreate_None,
+			bCreateAliasedUAV ? TexCreate_ShaderResource | TexCreate_UAV : TexCreate_ShaderResource,
 			false);
 
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, PooledRenderTarget[Layer], TEXT("PhysicalTexture"));
@@ -116,12 +103,10 @@ void FVirtualTexturePhysicalSpace::InitRHI()
 		SRVCreateInfo.SRGBOverride = SRGBO_ForceEnable;
 		TextureSRV_SRGB[Layer] = RHICreateShaderResourceView(TextureRHI, SRVCreateInfo);
 
-#if VIRTUALTEXTURE_UAV_ALIASING
 		if (bCreateAliasedUAV)
 		{
 			TextureUAV[Layer] = RHICreateUnorderedAccessView(TextureRHI, 0, FormatUAV);
 		}
-#endif
 	}
 }
 
