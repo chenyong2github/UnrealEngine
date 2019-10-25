@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Generators/DiscMeshGenerator.h"
+#include "MathUtil.h"
 
 FDiscMeshGenerator::FDiscMeshGenerator()
 {
