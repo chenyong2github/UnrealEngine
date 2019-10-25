@@ -61,11 +61,6 @@ void FSoundSubmixGraphConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin*
 
 	OutParams.WireColor = Schema->GetPinTypeColor(OutputPin->PinType);
 
-	if (!OutputPin)
-	{
-		return;
-	}
-
 	bool bExecuted = false;
 
 	// Run through the predecessors, and on
