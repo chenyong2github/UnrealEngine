@@ -8,6 +8,7 @@
 #include "Sound/SoundEffectSource.h"
 #include "SampleBuffer.h"
 #include "Sound/SoundCue.h"
+#include "Sound/SoundSubmixSend.h"
 #include "DSP/SpectrumAnalyzer.h"
 #include "AudioMixerBlueprintLibrary.generated.h"
 
