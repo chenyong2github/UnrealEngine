@@ -60,7 +60,9 @@
 
 #include <sstream>
 
-#if !PLATFORM_HOLOLENS || (PLATFORM_HOLOLENS && _M_ARM64)
+//https://docs.microsoft.com/en-us/cpp/preprocessor/predefined-macros?view=vs-2019
+//_M_ARM64 Defined as 1 for compilations that target 64-bit ARM processors. Otherwise, undefined.
+#if !PLATFORM_HOLOLENS || (PLATFORM_HOLOLENS && defined(_M_ARM64))
 #	define HOLOLENS_BLOCKING_PRESENT 0
 #else
 #	define HOLOLENS_BLOCKING_PRESENT 1
@@ -194,7 +196,7 @@ namespace WindowsMixedReality
 	bool eyeTrackingAllowed = false;
 
 	// Spatial Anchors
-	std::shared_ptr<WindowsMixedReality::SpatialAnchorHelper> m_spatialAnchorHelper;
+	std::shared_ptr<WindowsMixedReality::SpatialAnchorHelper> m_spatialAnchorHelper = nullptr;
 	
 	// Remoting
 	void(*m_logCallback)(const wchar_t*) = nullptr;
@@ -290,6 +292,11 @@ namespace WindowsMixedReality
 	Windows::Foundation::EventRegistrationToken DisconnectedToken;
 	Microsoft::Holographic::ConnectedEvent^ RemotingConnectedEvent = nullptr;
 	Microsoft::Holographic::DisconnectedEvent^ RemotingDisconnectedEvent = nullptr;
+
+	std::map<uint32, MixedRealityInterop::ConnectionCallback > ConnectionHandlerMap;
+	std::recursive_mutex ConnectionHandlerLock;
+	uint32 ConnectionHandlerMaxId = 1;
+
 #endif // HOLO_STREAMING_RENDERING
 #endif // !PLATFORM_HOLOLENS
 
@@ -583,7 +590,7 @@ namespace WindowsMixedReality
 			{
 				RenderingParameters = frame->Frame.GetRenderingParameters(Pose);
 			}
-			catch (...)
+			catch (winrt::hresult_error const&)
 			{
 				RenderingParameters = nullptr;
 				succeeded = false;
@@ -712,7 +719,7 @@ namespace WindowsMixedReality
 				{
 					RenderingParameters.CommitDirect3D11DepthBuffer(depth_winrt);
 				}
-				catch (...)
+				catch (winrt::hresult_error const&)
 				{
 					return false;
 				}
@@ -939,7 +946,7 @@ namespace WindowsMixedReality
 
 	void OnCameraRemoved(
 		const HolographicSpace& sender,
-		const HolographicSpaceCameraRemovedEventArgs& args)
+		const HolographicCamera& Camera)
 	{
 		std::lock_guard<std::recursive_mutex> lock(CameraResourcesLock);
 		if (CameraResources == nullptr)
@@ -947,7 +954,6 @@ namespace WindowsMixedReality
 			return;
 		}
 
-		HolographicCamera Camera = args.Camera();
 		if (Camera == CameraResources->GetCamera())
 		{
 			CameraResources.reset();
@@ -1045,7 +1051,7 @@ namespace WindowsMixedReality
 			{
 				holographicSpace.SetDirect3D11Device(InteropD3DDevice);
 			}
-			catch (...)
+			catch (winrt::hresult_error const&)
 			{
 				return false;
 			}
@@ -1211,11 +1217,7 @@ namespace WindowsMixedReality
 			OnCameraAdded(sender, args);
 		});
 
-		CameraRemovedToken = holographicSpace.CameraRemoved(
-			[=](const HolographicSpace & sender, const HolographicSpaceCameraRemovedEventArgs & args)
-		{
-			OnCameraRemoved(sender, args);
-		});
+		//no CameraRemoved event here because it deadlocks computer, we manually detect removed cameras in InitFrame
 
 		// Check for an updated stage:
 		StageChangedEventToken = winrt::Windows::Perception::Spatial::SpatialStageFrameOfReference::CurrentChanged(
@@ -1322,6 +1324,8 @@ namespace WindowsMixedReality
 		StageReferenceFrame = nullptr;
 
 		isRemoteHolographicSpace = false;
+		
+		StopMeshObserver();
 
 		for (auto speechRecognizer : speechRecognizerMap)
 		{
@@ -1401,7 +1405,7 @@ namespace WindowsMixedReality
 		}
 	}
 
-	bool MixedRealityInterop::IsInitialized()
+	bool MixedRealityInterop::IsInitialized() const
 	{
 		if (!isRemoteHolographicSpace && (holographicSpace == nullptr || !holographicSpace.IsAvailable()))
 		{
@@ -1687,7 +1691,8 @@ namespace WindowsMixedReality
 
 	bool MixedRealityInterop::UpdateRenderThreadFrame()
 	{
-		if (!IsActiveAndValid())
+		if (currentFrame != nullptr 
+			|| holographicSpace == nullptr)
 		{
 			return false;
 		}
@@ -1695,8 +1700,18 @@ namespace WindowsMixedReality
 		HolographicFrame frame = holographicSpace.CreateNextFrame();
 		if (frame == nullptr) { return false; }
 
+		for (const auto& cam : frame.RemovedCameras())
+		{
+			OnCameraRemoved(holographicSpace, cam);
+		}
+
 		{
 			std::lock_guard<std::mutex> pLock(poseLock);
+
+			if (!IsActiveAndValid())
+			{
+				return false;
+			}
 
 			currentFrame = std::make_unique<TrackingFrame>(frame);
 			HMDTrackingOrigin trackingOrigin;
@@ -1953,6 +1968,8 @@ namespace WindowsMixedReality
 	bool MixedRealityInterop::CreateRenderingParameters()
 	{
 		std::lock_guard<std::mutex> lock(poseLock);
+		std::lock_guard<std::recursive_mutex> lock2(CameraResourcesLock);
+
 		bool succeeded = true;
 
 		if (currentFrame == nullptr
@@ -1976,6 +1993,8 @@ namespace WindowsMixedReality
 	bool MixedRealityInterop::CommitDepthBuffer(ID3D11Texture2D* depthTexture)
 	{
 		std::lock_guard<std::mutex> lock(poseLock);
+		std::lock_guard<std::recursive_mutex> lock2(CameraResourcesLock);
+
 		bool succeeded = true;
 
 		if (currentFrame == nullptr
@@ -2113,12 +2132,12 @@ namespace WindowsMixedReality
 	{
 		std::lock_guard<std::mutex> pLock(poseLock);
 		std::lock_guard<std::mutex> lock(disposeLock_Present);
-
 		if (currentFrame == nullptr)
 		{
 			return true;
 		}
 
+		std::lock_guard<std::recursive_mutex> lock2(CameraResourcesLock);
 		if (m_isHL1Remoting || ((CameraResources.get() != nullptr) && (CameraResources->GetCamera() != nullptr)))
 		{
 #if HOLOLENS_BLOCKING_PRESENT
@@ -3092,6 +3111,17 @@ namespace WindowsMixedReality
 
 	bool MixedRealityInterop::IsSpatialAnchorStoreLoaded() const
 	{
+		// SpatialAnchorManager::RequestStoreAsync() can fail if called before a valid spatial locator is created.
+		// This can also fail if called outside of a stereo context while remoting, since the remoting stack may think there is a valid locator.
+		// Calls to this function should make a stereo check.
+		if (!IsInitialized() ||
+			Locator == nullptr ||
+			StationaryReferenceFrame == nullptr)
+		{
+			Log(L"IsSpatialAnchorStoreLoaded: HoloLens application is not yet initialized!  Doing nothing.");
+			return false;
+		}
+		
 		if (m_spatialAnchorHelper)
 		{
 			return m_spatialAnchorHelper->IsSpatialAnchorStoreLoaded();
@@ -3136,13 +3166,13 @@ namespace WindowsMixedReality
 		}
 		else
 		{
-			Log(L"GetAnchorPose: m_spatialAnchorHelper is null!  Returning false.");
+			Log(L"DoesAnchorExist: m_spatialAnchorHelper is null!  Returning false.");
 			return false;
 		}
 	}
 
 	bool MixedRealityInterop::GetAnchorPose(const wchar_t* anchorId, DirectX::XMFLOAT3& outScale, DirectX::XMFLOAT4& outRot, DirectX::XMFLOAT3& outTrans, HMDTrackingOrigin trackingOrigin) const
-	{
+	{	
 		if (m_spatialAnchorHelper)
 		{
 			return m_spatialAnchorHelper->GetAnchorPose(anchorId, outScale, outRot, outTrans, GetReferenceCoordinateSystem(trackingOrigin));
@@ -3156,6 +3186,12 @@ namespace WindowsMixedReality
 
 	bool MixedRealityInterop::SaveAnchor(const wchar_t* anchorId)
 	{
+		if (!IsSpatialAnchorStoreLoaded())
+		{
+			Log(L"SaveAnchor: Anchor Store is not laoded!  Doing nothing.");
+			return false;
+		}
+		
 		if (m_spatialAnchorHelper)
 		{
 			return m_spatialAnchorHelper->SaveAnchor(anchorId);
@@ -3169,6 +3205,12 @@ namespace WindowsMixedReality
 
 	void MixedRealityInterop::RemoveSavedAnchor(const wchar_t* anchorId)
 	{
+		if (!IsSpatialAnchorStoreLoaded())
+		{
+			Log(L"RemoveSavedAnchor: Anchor Store is not laoded!  Doing nothing.");
+			return;
+		}
+		
 		if (m_spatialAnchorHelper)
 		{
 			m_spatialAnchorHelper->RemoveSavedAnchor(anchorId);
@@ -3181,6 +3223,12 @@ namespace WindowsMixedReality
 
 	bool MixedRealityInterop::SaveAnchors()
 	{
+		if (!IsSpatialAnchorStoreLoaded())
+		{
+			Log(L"SaveAnchors: Anchor Store is not laoded!  Doing nothing.");
+			return false;
+		}
+		
 		if (m_spatialAnchorHelper)
 		{
 			return m_spatialAnchorHelper->SaveAnchors();
@@ -3194,6 +3242,12 @@ namespace WindowsMixedReality
 
 	bool MixedRealityInterop::LoadAnchors(std::function<void(const wchar_t* text)> anchorIdWritingFunctionPointer)
 	{
+		if (!IsSpatialAnchorStoreLoaded())
+		{
+			Log(L"LoadAnchors: Anchor Store is not laoded!  Doing nothing.");
+			return false;
+		}
+		
 		if (m_spatialAnchorHelper)
 		{
 			return m_spatialAnchorHelper->LoadAnchors(anchorIdWritingFunctionPointer);
@@ -3207,6 +3261,12 @@ namespace WindowsMixedReality
 
 	void MixedRealityInterop::ClearSavedAnchors()
 	{
+		if (!IsSpatialAnchorStoreLoaded())
+		{
+			Log(L"ClearSavedAnchors: Anchor Store is not laoded!  Doing nothing.");
+			return;
+		}
+		
 		if (m_spatialAnchorHelper)
 		{
 			m_spatialAnchorHelper->ClearSavedAnchors();
@@ -3237,11 +3297,7 @@ namespace WindowsMixedReality
 
 		id = gestureRecognizerIndex;
 
-#if PLATFORM_HOLOLENS
 		gestureRecognizerMap[id] = std::make_shared<GestureRecognizer>(StationaryReferenceFrame);
-#else
-		gestureRecognizerMap[id] = nullptr; // Defer creation until after connect so that this will work correctly when remoting.
-#endif
 		gestureRecognizerIndex++;
 	}
 
@@ -3252,9 +3308,6 @@ namespace WindowsMixedReality
 			std::lock_guard<std::mutex> lock(gestureRecognizerLock);
 			for (auto&& p : gestureRecognizerMap)
 			{
-#if !PLATFORM_HOLOLENS
-				p.second = std::make_shared<GestureRecognizer>(StationaryReferenceFrame);
-#endif
 				p.second->Init();
 			}
 		}
@@ -3266,7 +3319,7 @@ namespace WindowsMixedReality
 			std::lock_guard<std::mutex> lock(gestureRecognizerLock);
 			for (auto&& p : gestureRecognizerMap)
 			{
-				p.second = nullptr;
+				p.second->Clean();
 			}
 		}
 		interactionManager = nullptr;
@@ -3274,6 +3327,7 @@ namespace WindowsMixedReality
 
 	GestureRecognizerInterop::~GestureRecognizerInterop()
 	{
+		std::lock_guard<std::mutex> lock(gestureRecognizerLock);
 		if (gestureRecognizerMap[id] == nullptr)
 		{
 			return;
@@ -3288,6 +3342,7 @@ namespace WindowsMixedReality
 
 	bool GestureRecognizerInterop::SubscribeInteration(std::function<void()> callback)
 	{
+		std::lock_guard<std::mutex> lock(gestureRecognizerLock);
 		if (gestureRecognizerMap[id] == nullptr)
 		{
 			return false;
@@ -3298,6 +3353,7 @@ namespace WindowsMixedReality
 
 	bool GestureRecognizerInterop::SubscribeSourceStateChanges(SourceStateCallback callback)
 	{
+		std::lock_guard<std::mutex> lock(gestureRecognizerLock);
 		if (gestureRecognizerMap[id] == nullptr)
 		{
 			return false;
@@ -3308,6 +3364,7 @@ namespace WindowsMixedReality
 
 	void GestureRecognizerInterop::Reset()
 	{
+		std::lock_guard<std::mutex> lock(gestureRecognizerLock);
 		if (gestureRecognizerMap[id] == nullptr)
 		{
 			return;
@@ -3318,6 +3375,7 @@ namespace WindowsMixedReality
 
 	bool GestureRecognizerInterop::SubscribeTap(TapCallback callback)
 	{
+		std::lock_guard<std::mutex> lock(gestureRecognizerLock);
 		if (gestureRecognizerMap[id] == nullptr)
 		{
 			return false;
@@ -3328,6 +3386,7 @@ namespace WindowsMixedReality
 
 	bool GestureRecognizerInterop::SubscribeHold(HoldCallback callback)
 	{
+		std::lock_guard<std::mutex> lock(gestureRecognizerLock);
 		if (gestureRecognizerMap[id] == nullptr)
 		{
 			return false;
@@ -3338,6 +3397,7 @@ namespace WindowsMixedReality
 
 	bool GestureRecognizerInterop::SubscribeManipulation(ManipulationCallback callback)
 	{
+		std::lock_guard<std::mutex> lock(gestureRecognizerLock);
 		if (gestureRecognizerMap[id] == nullptr)
 		{
 			return false;
@@ -3348,6 +3408,7 @@ namespace WindowsMixedReality
 
 	bool GestureRecognizerInterop::SubscribeNavigation(NavigationCallback callback, unsigned int settings)
 	{
+		std::lock_guard<std::mutex> lock(gestureRecognizerLock);
 		if (gestureRecognizerMap[id] == nullptr)
 		{
 			return false;
@@ -3425,6 +3486,18 @@ namespace WindowsMixedReality
 					[this](_In_ Microsoft::Holographic::HolographicStreamerConnectionFailureReason failureReason)
 				{
 					DisconnectFromDevice();
+				{
+					std::map<uint32, ConnectionCallback > copyOfMap;
+					{
+						std::lock_guard<std::recursive_mutex> lock(ConnectionHandlerLock);
+						copyOfMap = ConnectionHandlerMap;
+					}
+
+					for (auto p : copyOfMap)
+					{
+						p.second(MixedRealityInterop::ConnectionEvent::DisconnectedFromPeer);
+					}
+				}
 				});
 				DisconnectedToken = m_streamerHelpers->OnDisconnected += RemotingDisconnectedEvent;
 
@@ -3458,6 +3531,7 @@ namespace WindowsMixedReality
 
 				CreateSpatialRecognizers();
 
+				assert(Locator != nullptr); // bug in Hololens platform cannot initialize the spatial anchor store before the Locator is created.
 				CreateSpatialAnchorHelper(*this);
 			});
 
@@ -3467,6 +3541,18 @@ namespace WindowsMixedReality
 				{ std::wstringstream string; string << L"RemotingDisconnectedEvent: Reason: " << static_cast<int>(failureReason); Log(string); }
 
 				DisconnectFromDevice();
+				{
+					std::map<uint32, ConnectionCallback > copyOfMap;
+					{
+						std::lock_guard<std::recursive_mutex> lock(ConnectionHandlerLock);
+						copyOfMap = ConnectionHandlerMap;
+					}
+
+					for (auto p : copyOfMap)
+					{
+						p.second(MixedRealityInterop::ConnectionEvent::DisconnectedFromPeer);
+					}
+				}
 			});
 
 			remoteSpeech = m_remoteContext.GetRemoteSpeech();
@@ -3523,6 +3609,13 @@ namespace WindowsMixedReality
 
 			{
 				std::lock_guard<std::mutex> lock(gestureRecognizerLock);
+				for (auto p : gestureRecognizerMap)
+				{
+					if (p.second)
+					{
+						p.second->Clean();
+					}
+				}
 
 				GestureRecognizer::SetInteractionManager(interactionManager);
 				for (auto p : gestureRecognizerMap)
@@ -3646,6 +3739,31 @@ namespace WindowsMixedReality
 #endif
 		return false;
 	}
+
+	uint32 MixedRealityInterop::SubscribeConnectionEvent(ConnectionCallback callback)
+	{
+#if HOLO_STREAMING_RENDERING
+		std::lock_guard<std::recursive_mutex> lock(ConnectionHandlerLock);
+		ConnectionHandlerMap[ConnectionHandlerMaxId] = callback;
+		return ConnectionHandlerMaxId++;
+
+#else
+		return 0;
+#endif
+	}
+
+	void MixedRealityInterop::UnsubscribeConnectionEvent(uint32 id)
+	{
+#if HOLO_STREAMING_RENDERING
+		if (id == 0)
+		{
+			return;
+		}
+		std::lock_guard<std::recursive_mutex> lock(ConnectionHandlerLock);
+		ConnectionHandlerMap.erase(id);
+#endif
+	}
+
 
 	void MixedRealityInterop::StartSpatialMapping(
 		float InTriangleDensity,

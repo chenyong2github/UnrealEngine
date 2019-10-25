@@ -104,7 +104,6 @@ namespace WindowsMixedReality
 {
 	class FWindowsMixedRealityHMDPlugin : public IWindowsMixedRealityHMDPlugin
 	{
-		/** IHeadMountedDisplayModule implementation */
 		virtual TSharedPtr< class IXRTrackingSystem, ESPMode::ThreadSafe > CreateTrackingSystem() override;
 
 		bool IsHMDConnected()
@@ -695,6 +694,8 @@ namespace WindowsMixedReality
 		bool GotPose = false;
 		if (IsInRenderingThread())
 		{
+			// This should be false if we fail to get a pose
+			Frame_RenderThread.bPositionalTrackingUsed = false;
 			GotPose = HMD->GetCurrentPoseRenderThread(leftPose, rightPose, trackingOrigin);
 
 			if (GotPose)
@@ -725,10 +726,7 @@ namespace WindowsMixedReality
 				PositionL = RotationL.RotateVector(PositionL);
 				PositionR = RotationR.RotateVector(PositionR);
 
-				if (ipd == 0)
-				{
-					ipd = FVector::Dist(PositionL, PositionR) / GetWorldToMetersScale();
-				}
+				ipd = FVector::Dist(PositionL, PositionR) / GetWorldToMetersScale();
 
 				FVector HeadPosition = FMath::Lerp(PositionL, PositionR, 0.5f);
 
@@ -1799,6 +1797,14 @@ namespace WindowsMixedReality
 #if WITH_WINDOWS_MIXED_REALITY
 		HMD->DisconnectFromDevice();
 		HMD->SetLogCallback(nullptr);
+		
+		// Close PIE if it's running:
+		UEditorEngine* EditorEngine = CastChecked<UEditorEngine>(GEngine);
+		FSceneViewport* PIEViewport = (FSceneViewport*)EditorEngine->GetPIEViewport();
+		if (PIEViewport != NULL && PIEViewport->FindWindow() != NULL)
+		{
+			PIEViewport->FindWindow()->RequestDestroyWindow();
+		}
 #endif
 #endif
 	}
