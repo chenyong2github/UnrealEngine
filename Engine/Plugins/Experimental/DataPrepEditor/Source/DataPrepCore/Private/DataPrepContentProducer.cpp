@@ -44,8 +44,6 @@ bool UDataprepContentProducer::Produce(const FDataprepProducerContext& InContext
 	// Cache number of assets to go through new assets after call to Execute
 	int32 LastAssetCount = OutAssets.Num();
 
-	// Prefix all newly created actors with the namespace of the producer
-	// #ueent_todo: find a better way to identify newly created actors
 	if(!Execute( OutAssets ))
 	{
 		Terminate();
@@ -72,7 +70,7 @@ bool UDataprepContentProducer::Produce(const FDataprepProducerContext& InContext
 	// Map between old path and new path of newly created actors
 	TMap< FSoftObjectPath, FSoftObjectPath > ActorRedirectorMap;
 
-	// Rename actors
+	// Prefix all newly created actors with the namespace of the producer
 	const FString Namespace = GetNamespace();
 
 	for (TActorIterator<AActor> It(Context.WorldPtr.Get(), AActor::StaticClass(), Flags); It; ++It)

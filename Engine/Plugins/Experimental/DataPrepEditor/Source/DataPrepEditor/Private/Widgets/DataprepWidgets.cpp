@@ -103,7 +103,7 @@ void SDataprepConsumerWidget::OnLevelNameChanged( const FText &NewLevelName, ETe
 	FText OutReason;
 	if( !DataprepConsumerPtr->SetLevelName( NewLevelName.ToString(), OutReason ) )
 	{
-		// #ueent_todo: Warn user name is wrong
+		UE_LOG( LogDataprepEditor, Error, TEXT("%s"), *OutReason.ToString() );
 		LevelTextBox->SetText( FText::FromString( DataprepConsumerPtr->GetLevelName() ) );
 	}
 }
