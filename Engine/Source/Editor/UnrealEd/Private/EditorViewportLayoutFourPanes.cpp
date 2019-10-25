@@ -20,12 +20,44 @@ namespace ViewportLayoutFourPanesDefs
 
 TSharedRef<SWidget> FEditorViewportLayoutFourPanes::MakeViewportLayout(TFunction<TSharedRef<SEditorViewport>(void)> &Func, const FString& LayoutString)
 {
+	FString SpecificLayoutString = GetTypeSpecificLayoutString(LayoutString);
+
 	FString ViewportKey0, ViewportKey1, ViewportKey2, ViewportKey3;
 	FString ViewportType0 = TEXT("Default"), ViewportType1 = TEXT("Default"), ViewportType2 = TEXT("Default"), ViewportType3 = TEXT("Default");
 
 	float PrimarySplitterPercentage = ViewportLayoutFourPanesDefs::DefaultPrimarySplitterPercentage;
 	float SecondarySplitterPercentage0 = ViewportLayoutFourPanesDefs::DefaultSecondarySplitterPercentage;
 	float SecondarySplitterPercentage1 = ViewportLayoutFourPanesDefs::DefaultSecondarySplitterPercentage;
+
+	if (!SpecificLayoutString.IsEmpty())
+	{
+		// The Layout String only holds the unique ID of the Additional Layout Configs to use
+		const FString& IniSection = FLayoutSaveRestore::GetAdditionalLayoutConfigIni();
+
+		ViewportKey0 = SpecificLayoutString + TEXT(".Viewport0");
+		ViewportKey1 = SpecificLayoutString + TEXT(".Viewport1");
+		ViewportKey2 = SpecificLayoutString + TEXT(".Viewport2");
+		ViewportKey3 = SpecificLayoutString + TEXT(".Viewport3");
+
+		GConfig->GetString(*IniSection, *(ViewportKey0 + TEXT(".TypeWithinLayout")), ViewportType0, GEditorPerProjectIni);
+		GConfig->GetString(*IniSection, *(ViewportKey1 + TEXT(".TypeWithinLayout")), ViewportType1, GEditorPerProjectIni);
+		GConfig->GetString(*IniSection, *(ViewportKey2 + TEXT(".TypeWithinLayout")), ViewportType2, GEditorPerProjectIni);
+		GConfig->GetString(*IniSection, *(ViewportKey3 + TEXT(".TypeWithinLayout")), ViewportType3, GEditorPerProjectIni);
+
+		FString PercentageString;
+		if (GConfig->GetString(*IniSection, *(SpecificLayoutString + TEXT(".Percentage0")), PercentageString, GEditorPerProjectIni))
+		{
+			TTypeFromString<float>::FromString(PrimarySplitterPercentage, *PercentageString);
+		}
+		if (GConfig->GetString(*IniSection, *(SpecificLayoutString + TEXT(".Percentage1")), PercentageString, GEditorPerProjectIni))
+		{
+			TTypeFromString<float>::FromString(SecondarySplitterPercentage0, *PercentageString);
+		}
+		if (GConfig->GetString(*IniSection, *(SpecificLayoutString + TEXT(".Percentage2")), PercentageString, GEditorPerProjectIni))
+		{
+			TTypeFromString<float>::FromString(SecondarySplitterPercentage1, *PercentageString);
+		}
+	}
 
 	// Set up the viewports
 	FAssetEditorViewportConstructionArgs Args;

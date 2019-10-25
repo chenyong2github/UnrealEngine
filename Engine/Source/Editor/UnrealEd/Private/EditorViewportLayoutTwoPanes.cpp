@@ -18,10 +18,29 @@ namespace ViewportLayoutTwoPanesDefs
 template <EOrientation TOrientation>
 TSharedRef<SWidget> TEditorViewportLayoutTwoPanes<TOrientation>::MakeViewportLayout(TFunction<TSharedRef<SEditorViewport>(void)> &Func, const FString& LayoutString)
 {
+	FString SpecificLayoutString = GetTypeSpecificLayoutString(LayoutString);
+
 	FString ViewportKey0, ViewportKey1;
 	FString ViewportType0, ViewportType1;
-	float PrimarySplitterPercentage = ViewportLayoutTwoPanesDefs::DefaultSplitterPercentage;
+	float SplitterPercentage = ViewportLayoutTwoPanesDefs::DefaultSplitterPercentage;
 
+	if (!SpecificLayoutString.IsEmpty())
+	{
+		// The Layout String only holds the unique ID of the Additional Layout Configs to use
+		const FString& IniSection = FLayoutSaveRestore::GetAdditionalLayoutConfigIni();
+
+		ViewportKey0 = SpecificLayoutString + TEXT(".Viewport0");
+		ViewportKey1 = SpecificLayoutString + TEXT(".Viewport1");
+
+		GConfig->GetString(*IniSection, *(ViewportKey0 + TEXT(".TypeWithinLayout")), ViewportType0, GEditorPerProjectIni);
+		GConfig->GetString(*IniSection, *(ViewportKey1 + TEXT(".TypeWithinLayout")), ViewportType1, GEditorPerProjectIni);
+
+		FString PercentageString;
+		if (GConfig->GetString(*IniSection, *(SpecificLayoutString + TEXT(".Percentage")), PercentageString, GEditorPerProjectIni))
+		{
+			TTypeFromString<float>::FromString(SplitterPercentage, *PercentageString);
+		}
+	}
 	// Set up the viewports
 	FAssetEditorViewportConstructionArgs Args;
 	Args.ParentLayout = AsShared();
@@ -44,12 +63,12 @@ TSharedRef<SWidget> TEditorViewportLayoutTwoPanes<TOrientation>::MakeViewportLay
 		SNew(SSplitter)
 		.Orientation(TOrientation)
 		+ SSplitter::Slot()
-		.Value(PrimarySplitterPercentage)
+		.Value(SplitterPercentage)
 		[
 			Viewport0->AsWidget()
 		]
 	+ SSplitter::Slot()
-		.Value(1.0f - PrimarySplitterPercentage)
+		.Value(1.0f - SplitterPercentage)
 		[
 			Viewport1->AsWidget()
 		];

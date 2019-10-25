@@ -13,7 +13,24 @@
 
 TSharedRef<SWidget> FEditorViewportLayoutOnePane::MakeViewportLayout(TFunction<TSharedRef<SEditorViewport>(void)> &Func, const FString& LayoutString)
 {
+	FString SpecificLayoutString = GetTypeSpecificLayoutString(LayoutString);
+
+
+	FEngineShowFlags OrthoShowFlags(ESFIM_Editor);
+	ApplyViewMode(VMI_BrushWireframe, false, OrthoShowFlags);
+
+	FEngineShowFlags PerspectiveShowFlags(ESFIM_Editor);
+	ApplyViewMode(VMI_Lit, true, PerspectiveShowFlags);
+
 	FString ViewportKey, ViewportType;
+
+	if (!SpecificLayoutString.IsEmpty())
+	{
+		const FString& IniSection = FLayoutSaveRestore::GetAdditionalLayoutConfigIni();
+
+		ViewportKey = SpecificLayoutString + TEXT(".Viewport0");
+		GConfig->GetString(*IniSection, *(ViewportKey + TEXT(".TypeWithinLayout")), ViewportType, GEditorPerProjectIni);
+	}
 
 	// Set up the viewport
 	FAssetEditorViewportConstructionArgs Args;

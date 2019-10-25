@@ -19,6 +19,8 @@ namespace ViewportLayoutThreePanesDefs
 
 TSharedRef<SWidget> FEditorViewportLayoutThreePanes::MakeViewportLayout(TFunction<TSharedRef<SEditorViewport>(void)> &Func, const FString& LayoutString)
 {
+	FString SpecificLayoutString = GetTypeSpecificLayoutString(LayoutString);
+
 	FEngineShowFlags OrthoShowFlags(ESFIM_Editor);	
 	ApplyViewMode(VMI_BrushWireframe, false, OrthoShowFlags);
 
@@ -29,6 +31,30 @@ TSharedRef<SWidget> FEditorViewportLayoutThreePanes::MakeViewportLayout(TFunctio
 	FString ViewportType0, ViewportType1, ViewportType2;
 	float PrimarySplitterPercentage = ViewportLayoutThreePanesDefs::DefaultSplitterPercentage;
 	float SecondarySplitterPercentage = ViewportLayoutThreePanesDefs::DefaultSplitterPercentage;
+
+	if (!SpecificLayoutString.IsEmpty())
+	{
+		// The Layout String only holds the unique ID of the Additional Layout Configs to use
+		const FString& IniSection = FLayoutSaveRestore::GetAdditionalLayoutConfigIni();
+
+		ViewportKey0 = SpecificLayoutString + TEXT(".Viewport0");
+		ViewportKey1 = SpecificLayoutString + TEXT(".Viewport1");
+		ViewportKey2 = SpecificLayoutString + TEXT(".Viewport2");
+
+		GConfig->GetString(*IniSection, *(ViewportKey0 + TEXT(".TypeWithinLayout")), ViewportType0, GEditorPerProjectIni);
+		GConfig->GetString(*IniSection, *(ViewportKey1 + TEXT(".TypeWithinLayout")), ViewportType1, GEditorPerProjectIni);
+		GConfig->GetString(*IniSection, *(ViewportKey2 + TEXT(".TypeWithinLayout")), ViewportType2, GEditorPerProjectIni);
+
+		FString PercentageString;
+		if (GConfig->GetString(*IniSection, *(SpecificLayoutString + TEXT(".Percentage0")), PercentageString, GEditorPerProjectIni))
+		{
+			TTypeFromString<float>::FromString(PrimarySplitterPercentage, *PercentageString);
+		}
+		if (GConfig->GetString(*IniSection, *(SpecificLayoutString + TEXT(".Percentage1")), PercentageString, GEditorPerProjectIni))
+		{
+			TTypeFromString<float>::FromString(SecondarySplitterPercentage, *PercentageString);
+		}
+	}
 
 	// Set up the viewports
 	FAssetEditorViewportConstructionArgs Args;

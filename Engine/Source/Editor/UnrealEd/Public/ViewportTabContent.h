@@ -33,6 +33,8 @@ public:
 
 	virtual void SetViewportConfiguration(const FName& ConfigurationName) {}
 
+	void PerformActionOnViewports(TFunction<void(FName Name, TSharedPtr<IEditorViewportLayoutEntity>)> &TFuncPtr);
+
 protected:
 	TWeakPtr<class SDockTab> ParentTab;
 

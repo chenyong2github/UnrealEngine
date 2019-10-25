@@ -37,7 +37,8 @@ TSharedPtr< class FEditorViewportLayout > FEditorViewportTabContent::ConstructVi
 
 void FEditorViewportTabContent::Initialize(TFunction<TSharedRef<SEditorViewport>(void)> Func, TSharedPtr<SDockTab> InParentTab, const FString& InLayoutString)
 {
-	ViewportCreationFunc = Func;
+	check(!InLayoutString.IsEmpty());
+
 	ParentTab = InParentTab;
 	LayoutString = InLayoutString;
 
@@ -47,41 +48,70 @@ void FEditorViewportTabContent::Initialize(TFunction<TSharedRef<SEditorViewport>
 
 void FEditorViewportTabContent::SetViewportConfiguration(TFunction<TSharedRef<SEditorViewport>(void)> &Func, const FName& ConfigurationName)
 {
-	bool bSwitchingLayouts = ActiveViewportLayout.IsValid();
-
-	if (bSwitchingLayouts)
-	{
-		ActiveViewportLayout.Reset();
-	}
-
-	ActiveViewportLayout = ConstructViewportLayoutByTypeName(ConfigurationName, bSwitchingLayouts);
-	check(ActiveViewportLayout.IsValid());
-
-	UpdateViewportTabWidget(Func);
+	ViewportCreationFunc = Func;
+	SetViewportConfiguration(ConfigurationName);
 }
 
 void FEditorViewportTabContent::SetViewportConfiguration(const FName& ConfigurationName)
 {
+	check(ViewportCreationFunc != nullptr);
+
 	bool bSwitchingLayouts = ActiveViewportLayout.IsValid();
 
 	if (bSwitchingLayouts)
 	{
+		SaveConfig();
 		ActiveViewportLayout.Reset();
 	}
 
 	ActiveViewportLayout = ConstructViewportLayoutByTypeName(ConfigurationName, bSwitchingLayouts);
 	check(ActiveViewportLayout.IsValid());
 
-  	UpdateViewportTabWidget(ViewportCreationFunc);
+	UpdateViewportTabWidget(ViewportCreationFunc);
 
 }
+
+void FEditorViewportTabContent::SaveConfig() const
+{
+	if (ActiveViewportLayout.IsValid())
+	{
+		if (!LayoutString.IsEmpty())
+		{
+			FString LayoutTypeString = ActiveViewportLayout->GetLayoutTypeName().ToString();
+
+			const FString& IniSection = FLayoutSaveRestore::GetAdditionalLayoutConfigIni();
+			GConfig->SetString(*IniSection, *(LayoutString + TEXT(".LayoutType")), *LayoutTypeString, GEditorPerProjectIni);
+		}
+
+		ActiveViewportLayout->SaveLayoutString(LayoutString);
+	}
+}
+
+TSharedPtr<SEditorViewport> FEditorViewportTabContent::GetFirstViewport()
+{
+ 	const TMap< FName, TSharedPtr< IEditorViewportLayoutEntity > >& EditorViewports = ActiveViewportLayout->GetViewports();
+ 
+	for (auto& Pair : EditorViewports)
+	{
+		TSharedPtr<SWidget> ViewportWidget = StaticCastSharedPtr<IEditorViewportLayoutEntity>(Pair.Value)->AsWidget();
+		TSharedPtr<SEditorViewport> Viewport = StaticCastSharedPtr<SEditorViewport>(ViewportWidget);
+		if (Viewport.IsValid())
+		{
+			return Viewport;
+			break;
+		}
+	}
+
+	return nullptr;
+}
+
 
 void FEditorViewportTabContent::UpdateViewportTabWidget(TFunction<TSharedRef<SEditorViewport>(void)> &Func)
 {
 	TSharedPtr<SDockTab> ParentTabPinned = ParentTab.Pin();
 	if (ParentTabPinned.IsValid() && ActiveViewportLayout.IsValid())
 	{
- 		TSharedRef<SWidget> LayoutWidget = StaticCastSharedPtr<FAssetEditorViewportLayout>(ActiveViewportLayout)->BuildViewportLayout(Func, ParentTabPinned, SharedThis(this), LayoutString);
+		TSharedRef<SWidget> LayoutWidget = StaticCastSharedPtr<FAssetEditorViewportLayout>(ActiveViewportLayout)->BuildViewportLayout(Func, ParentTabPinned, SharedThis(this), LayoutString);
  		ParentTabPinned->SetContent(LayoutWidget);
 
 		if (PreviouslyFocusedViewport.IsSet())

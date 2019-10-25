@@ -18,7 +18,7 @@ namespace ViewportLayout2x2Defs
 
 TSharedRef<SWidget> FEditorViewportLayout2x2::MakeViewportLayout(TFunction<TSharedRef<SEditorViewport>(void)> &Func, const FString& LayoutString)
 {
-// 	FString SpecificLayoutString = GetTypeSpecificLayoutString(LayoutString);
+ 	FString SpecificLayoutString = GetTypeSpecificLayoutString(LayoutString);
 
 	FString TopLeftKey, BottomLeftKey, TopRightKey, BottomRightKey;
 
@@ -26,6 +26,34 @@ TSharedRef<SWidget> FEditorViewportLayout2x2::MakeViewportLayout(TFunction<TShar
 
 	TArray<FVector2D> SplitterPercentages;
 	
+ 	if (!SpecificLayoutString.IsEmpty())
+	{
+		// The Layout String only holds the unique ID of the Additional Layout Configs to use
+		const FString& IniSection = FLayoutSaveRestore::GetAdditionalLayoutConfigIni();
+
+		TopLeftKey = SpecificLayoutString + TEXT(".Viewport0");
+		BottomLeftKey = SpecificLayoutString + TEXT(".Viewport1");
+		TopRightKey = SpecificLayoutString + TEXT(".Viewport2");
+		BottomRightKey = SpecificLayoutString + TEXT(".Viewport3");
+
+		GConfig->GetString(*IniSection, *(TopLeftKey + TEXT(".TypeWithinLayout")), TopLeftType, GEditorPerProjectIni);
+		GConfig->GetString(*IniSection, *(TopRightKey + TEXT(".TypeWithinLayout")), TopRightType, GEditorPerProjectIni);
+		GConfig->GetString(*IniSection, *(BottomLeftKey + TEXT(".TypeWithinLayout")), BottomLeftType, GEditorPerProjectIni);
+		GConfig->GetString(*IniSection, *(BottomRightKey + TEXT(".TypeWithinLayout")), BottomRightType, GEditorPerProjectIni);
+
+		for (int32 i = 0; i < 4; ++i)
+		{
+			FString PercentageString;
+			FVector2D NewPercentage = ViewportLayout2x2Defs::DefaultSplitterPercentages;
+			if (GConfig->GetString(*IniSection, *(SpecificLayoutString + FString::Printf(TEXT(".Percentages%i"), i)), PercentageString, GEditorPerProjectIni))
+			{
+				NewPercentage.InitFromString(PercentageString);
+			}
+			SplitterPercentages.Add(NewPercentage);
+		}
+	}
+
+
 	// Set up the viewports
 	FAssetEditorViewportConstructionArgs Args;
  	Args.ParentLayout = AsShared();

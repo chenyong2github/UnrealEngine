@@ -45,19 +45,19 @@ namespace ViewportLayoutDefs
 }
 
 
-// SViewportsOverlay ////////////////////////////////////////////////
+// AssetEditorViewport ////////////////////////////////////////////////
 
 /**
 * Overlay wrapper class so that we can cache the size of the widget
 * It will also store the ViewportLayout data because that data can't be stored
 * per app; it must be stored per viewport overlay in case the app that made it closes.
 */
-class SViewportsOverlay : public SCompoundWidget
+class SAssetEditorViewportsOverlay : public SCompoundWidget
 {
 
 public:
 
-	SLATE_BEGIN_ARGS( SViewportsOverlay ){}
+	SLATE_BEGIN_ARGS( SAssetEditorViewportsOverlay ){}
 	SLATE_DEFAULT_SLOT( FArguments, Content )
 		SLATE_ARGUMENT( TSharedPtr<FViewportTabContent>, ViewportTab )
 		SLATE_END_ARGS()
@@ -65,7 +65,7 @@ public:
 		void Construct( const FArguments& InArgs );
 
 	/** Default constructor */
-	SViewportsOverlay()
+	SAssetEditorViewportsOverlay()
 		: CachedSize( FVector2D::ZeroVector )
 	{}
 
@@ -101,7 +101,7 @@ private:
 };
 
 
-void SViewportsOverlay::Construct( const FArguments& InArgs )
+void SAssetEditorViewportsOverlay::Construct( const FArguments& InArgs )
 {
 	const TSharedRef<SWidget>& ContentWidget = InArgs._Content.Widget;
 	ViewportTab = InArgs._ViewportTab;
@@ -116,27 +116,27 @@ void SViewportsOverlay::Construct( const FArguments& InArgs )
 		];
 }
 
-void SViewportsOverlay::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
+void SAssetEditorViewportsOverlay::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
 {
 	CachedSize = AllottedGeometry.Size;
 }
 
-SOverlay::FOverlaySlot& SViewportsOverlay::AddSlot()
+SOverlay::FOverlaySlot& SAssetEditorViewportsOverlay::AddSlot()
 {
 	return OverlayWidget->AddSlot();
 }
 
-void SViewportsOverlay::RemoveSlot()
+void SAssetEditorViewportsOverlay::RemoveSlot()
 {
 	return OverlayWidget->RemoveSlot();
 }
 
-const FVector2D& SViewportsOverlay::GetCachedSize() const
+const FVector2D& SAssetEditorViewportsOverlay::GetCachedSize() const
 {
 	return CachedSize;
 }
 
-TSharedPtr<FViewportTabContent> SViewportsOverlay::GetViewportTab() const
+TSharedPtr<FViewportTabContent> SAssetEditorViewportsOverlay::GetViewportTab() const
 {
 	return ViewportTab;
 }
@@ -173,8 +173,8 @@ TSharedRef<SWidget> FAssetEditorViewportLayout::BuildViewportLayout(TFunction<TS
 
 	// We use an overlay so that we can draw a maximized viewport on top of the other viewports
 	TSharedPtr<SBorder> ViewportsBorder;
-	TSharedRef<SViewportsOverlay> ViewportsOverlay =
-		SNew(SViewportsOverlay)
+	TSharedRef<SAssetEditorViewportsOverlay> ViewportsOverlay =
+		SNew(SAssetEditorViewportsOverlay)
 		.ViewportTab(InParentTab)
 		[
 			SAssignNew(ViewportsBorder, SBorder)
@@ -190,6 +190,16 @@ TSharedRef<SWidget> FAssetEditorViewportLayout::BuildViewportLayout(TFunction<TS
 	return ViewportsOverlay;
 
 }
+
+FString FAssetEditorViewportLayout::GetTypeSpecificLayoutString(const FString& LayoutString) const
+{
+	if (LayoutString.IsEmpty())
+	{
+		return LayoutString;
+	}
+	return FString::Printf(TEXT("%s.%s"), *GetLayoutTypeName().ToString(), *LayoutString);
+}
+
 
 
 #undef LOCTEXT_NAMESPACE

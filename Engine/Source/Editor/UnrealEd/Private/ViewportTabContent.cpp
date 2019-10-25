@@ -23,3 +23,12 @@ bool FViewportTabContent::IsViewportConfigurationSet(const FName& ConfigurationN
 	}
 	return false;
 }
+
+void FViewportTabContent::PerformActionOnViewports(TFunction<void(FName Name, TSharedPtr<IEditorViewportLayoutEntity>)> &TFuncPtr)
+{
+	const TMap< FName, TSharedPtr<IEditorViewportLayoutEntity> >& Entities = ActiveViewportLayout->GetViewports();
+	for (auto& Entity : Entities)
+	{
+		TFuncPtr(Entity.Key, Entity.Value);
+	}
+}

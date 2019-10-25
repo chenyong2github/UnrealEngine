@@ -25,32 +25,31 @@ public:
 	{
 		return LayoutString;
 	}
-
-
+	
+	const TSharedPtr< class FEditorViewportLayout > GetActiveViewportLayout() const
+	{
+		return ActiveViewportLayout;
+	}
+	   
 	TSharedPtr< class FEditorViewportLayout > ConstructViewportLayoutByTypeName(const FName& TypeName, bool bSwitchingLayouts);
 
 	void Initialize(TFunction<TSharedRef<SEditorViewport>(void)> Func, TSharedPtr<SDockTab> InParentTab, const FString& InLayoutString);
-
-	void SetViewportConfiguration(TFunction<TSharedRef<SEditorViewport>(void)> &Func, const FName& ConfigurationName);
-
-	void UpdateViewportTabWidget(TFunction<TSharedRef<SEditorViewport>(void)> &Func);
 
 	/**
 	* Sets the current layout by changing the contained layout object
 	* 
 	* @param ConfigurationName		The name of the layout (for the names in namespace EditorViewportConfigurationNames)
 	*/
+	void SetViewportConfiguration(TFunction<TSharedRef<SEditorViewport>(void)> &Func, const FName& ConfigurationName);
+
 	void SetViewportConfiguration(const FName& ConfigurationName) override;
+	TSharedPtr<SEditorViewport> GetFirstViewport();
 
+	void UpdateViewportTabWidget(TFunction<TSharedRef<SEditorViewport>(void)> &Func);
 
+	/** Save any configuration required to persist state for this viewport layout */
+	void SaveConfig() const;
 
-protected:
-	TWeakPtr<class SDockTab> ParentTab;
-
-	/** Current layout */
-	TSharedPtr< class FEditorViewportLayout > ActiveViewportLayout;
-
-	TOptional<FName> PreviouslyFocusedViewport;
 
 private:
 	TFunction<TSharedRef<SEditorViewport>(void)> ViewportCreationFunc;

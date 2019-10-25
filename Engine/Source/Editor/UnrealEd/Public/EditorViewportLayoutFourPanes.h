@@ -10,11 +10,6 @@
 
 class FEditorViewportLayoutFourPanes : public FAssetEditorViewportLayout
 {
-public:
-	/**
-	 * Saves viewport layout information between editor sessions
-	 */
-// 	virtual void SaveLayoutString(const FString& LayoutString) const override;
 protected:
 	/**
 	 * Creates the viewports and splitter for the four-pane layout              

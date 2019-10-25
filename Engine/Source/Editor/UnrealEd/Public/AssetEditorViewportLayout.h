@@ -16,7 +16,7 @@
 #include "SEditorViewport.h"
 
 class FAssetEditorViewportLayout;
-class SViewportsOverlay;
+class SAssetEditorViewportsOverlay;
 class SWindow;
 class SAssetEditorViewport;
 
@@ -94,6 +94,9 @@ public:
 	/** Returns the parent tab content object */
 	TWeakPtr< class FViewportTabContent > GetParentTabContent() const { return ParentTabContent; }
 
+	/** Generates a layout string for persisting settings for this layout based on the runtime type of layout */
+	FString GetTypeSpecificLayoutString(const FString& LayoutString) const;
+
 	/**
 	 * Overridden in derived classes to set up custom layouts  
 	 *
@@ -103,7 +106,7 @@ public:
   	virtual TSharedRef<SWidget> MakeViewportLayout(TFunction<TSharedRef<SEditorViewport>(void)> &Func, const FString& LayoutString) = 0;
 
 	/** The overlay widget that handles what viewports should be on top (non-maximized or maximized) */
-	TWeakPtr< class SViewportsOverlay > ViewportsOverlayPtr;
+	TWeakPtr< class SAssetEditorViewportsOverlay > ViewportsOverlayPtr;
 
 	/** The parent tab content object where this layout resides */
 	TWeakPtr< class FViewportTabContent > ParentTabContent;
