@@ -25,7 +25,7 @@
 FNiagaraEmitterHandleViewModel::FNiagaraEmitterHandleViewModel()
 	: EmitterHandle(nullptr)
 	, EmitterViewModel(MakeShared<FNiagaraEmitterViewModel>())
-	, EmitterStackViewModel(nullptr)
+	, EmitterStackViewModel(NewObject<UNiagaraStackViewModel>(GetTransientPackage()))
 	, bIsRenamePending(false)
 {
 }
@@ -64,19 +64,12 @@ void FNiagaraEmitterHandleViewModel::Initialize(TSharedRef<FNiagaraSystemViewMod
 	EmitterHandle = InEmitterHandle;
 	UNiagaraEmitter* Emitter = EmitterHandle != nullptr ? EmitterHandle->GetInstance() : nullptr;
 	EmitterViewModel->Initialize(Emitter, InSimulation);
-	if (EmitterStackViewModel != nullptr)
-	{
-		EmitterStackViewModel->InitializeWithViewModels(InOwningSystemViewModel, this->AsShared(), FNiagaraStackViewModelOptions(false, true));
-	}
+	EmitterStackViewModel->InitializeWithViewModels(InOwningSystemViewModel, this->AsShared(), FNiagaraStackViewModelOptions(false, true));
 }
 
 void FNiagaraEmitterHandleViewModel::Reset()
 {
-	if (EmitterStackViewModel != nullptr)
-	{
-		EmitterStackViewModel->Finalize();
-		EmitterStackViewModel = nullptr;
-	}
+	EmitterStackViewModel->Reset();
 	OwningSystemViewModelWeak.Reset();
 	EmitterHandle = nullptr;
 	EmitterViewModel->Reset();
@@ -253,11 +246,6 @@ TSharedRef<FNiagaraEmitterViewModel> FNiagaraEmitterHandleViewModel::GetEmitterV
 
 UNiagaraStackViewModel* FNiagaraEmitterHandleViewModel::GetEmitterStackViewModel()
 {
-	if (EmitterStackViewModel == nullptr)
-	{
-		EmitterStackViewModel = NewObject<UNiagaraStackViewModel>(GetTransientPackage());
-		EmitterStackViewModel->InitializeWithViewModels(GetOwningSystemViewModel(), this->AsShared(), FNiagaraStackViewModelOptions(false, true));
-	}
 	return EmitterStackViewModel;
 }
 
