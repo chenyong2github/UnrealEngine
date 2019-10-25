@@ -146,8 +146,6 @@ public:
 
 	bool Build();
 
-	void Clear();
-
 protected:
 	void LoadSceneGraphDescriptionFiles();
 

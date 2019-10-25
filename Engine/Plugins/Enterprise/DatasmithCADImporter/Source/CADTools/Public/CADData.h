@@ -80,10 +80,10 @@ struct CADTOOLS_API FTessellationData
 	TArray<int32> SymVertexIdSet; // StaticMesh FVertexID for sym part
 };
 
-class CADTOOLS_API FBody
+class CADTOOLS_API FBodyMesh
 {
 public:
-	FBody(uint32 BodyID, int32 FaceNum);
+	FBodyMesh(uint32 BodyID, int32 FaceNum);
 
 	TArray<FTessellationData>& GetTessellationSet()
 	{
@@ -118,7 +118,6 @@ public:
 protected:
 
 	/**
-	 * Array of FCTTessellation
 	 * FCTTessellation is an elementary structure of Mesh
 	 */
 	TArray<FTessellationData> FaceTessellationSet;
@@ -132,10 +131,10 @@ protected:
 	uint32 BodyUuid;
 };
 
-class CADTOOLS_API FCTRawGeomFile
+class CADTOOLS_API FCADMeshFile
 {
 public:
-	FCTRawGeomFile(FString& InFileName, TMap< uint32, FBody* >& InBodyUuidToCTBodyMap);
+	FCADMeshFile(FString& InFileName, TMap< uint32, FBodyMesh* >& InBodyUuidToCTBodyMap);
 
 	FString& GetFileName()
 	{
@@ -144,8 +143,8 @@ public:
 
 protected:
 	FString FileName;
-	TArray<FBody> CTBodySet;
-	TMap<uint32, FBody* >& BodyUuidToBodyMap;
+	TArray<FBodyMesh> CTBodySet;
+	TMap<uint32, FBodyMesh* >& BodyUuidToBodyMap;
 };
 
 CADTOOLS_API uint32 BuildFastColorHash(uint32 ColorId, uint8 Alpha);
@@ -155,7 +154,7 @@ CADTOOLS_API int32 BuildColorHash(const FColor& Color);
 CADTOOLS_API int32 BuildMaterialHash(const FCADMaterial& Material);
 
 CADTOOLS_API void WriteTessellationInRawData(FTessellationData& Tessellation, TArray<uint8>& GlobalRawData);
-CADTOOLS_API bool ReadTessellationSetFromFile(TArray<uint8>& RawData, uint32& OutNbBody, TArray<FBody>& FaceTessellations);
+CADTOOLS_API bool ReadTessellationSetFromFile(TArray<uint8>& RawData, uint32& OutNbBody, TArray<FBodyMesh>& FaceTessellations);
 
 inline void CopyValue(const uint8* Source, int Offset, uint8 Size, bool bIs3D, FVector& Dest, const FMatrix* Matrix = nullptr)
 {
