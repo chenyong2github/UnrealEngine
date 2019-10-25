@@ -8,6 +8,7 @@
 #include "EditorViewportLayout2x2.h"
 #include "Framework/Docking/LayoutService.h"
 #include "CoreGlobals.h"
+#include "Misc/ConfigCacheIni.h"
 
 
 
