@@ -1,0 +1,58 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "InstallBundleUtils.h"
+#include "InstallBundleManagerPrivatePCH.h"
+
+namespace InstallBundleUtil
+{
+	bool HasInternetConnection(ENetworkConnectionType ConnectionType)
+	{
+		return ConnectionType != ENetworkConnectionType::AirplaneMode
+			&& ConnectionType != ENetworkConnectionType::None;
+	}
+
+	FName FInstallBundleManagerKeepAwake::Tag(TEXT("InstallBundleManagerKeepAwake"));
+	FName FInstallBundleManagerKeepAwake::TagWithRendering(TEXT("InstallBundleManagerKeepAwakeWithRendering"));
+
+	void StartInstallBundleAsyncIOTask(TArray<TUniquePtr<FInstallBundleTask>>& Tasks, TUniqueFunction<void()> WorkFunc, TUniqueFunction<void()> OnComplete)
+	{
+		TUniquePtr<FInstallBundleTask> Task = MakeUnique<FInstallBundleTask>(MoveTemp(WorkFunc), MoveTemp(OnComplete));
+		Task->StartBackgroundTask(GIOThreadPool);
+		Tasks.Add(MoveTemp(Task));
+	}
+
+	void FinishInstallBundleAsyncIOTasks(TArray<TUniquePtr<FInstallBundleTask>>& Tasks)
+	{
+		TArray<TUniquePtr<FInstallBundleTask>> FinishedTasks;
+		for (int32 i = 0; i < Tasks.Num();)
+		{
+			TUniquePtr<FInstallBundleTask>& Task = Tasks[i];
+			check(Task);
+			if (Task->IsDone())
+			{
+				FinishedTasks.Add(MoveTemp(Task));
+				Tasks.RemoveAtSwap(i, 1, false);
+			}
+			else
+			{
+				++i;
+			}
+		}
+		for (TUniquePtr<FInstallBundleTask>& Task : FinishedTasks)
+		{
+			Task->GetTask().CallOnComplete();
+		}
+	}
+
+	void CleanupInstallBundleAsyncIOTasks(TArray<TUniquePtr<FInstallBundleTask>>& Tasks)
+	{
+		for (TUniquePtr<FInstallBundleTask>& Task : Tasks)
+		{
+			check(Task);
+			if (!Task->Cancel())
+			{
+				Task->EnsureCompletion(false);
+			}
+		}
+	}
+}
