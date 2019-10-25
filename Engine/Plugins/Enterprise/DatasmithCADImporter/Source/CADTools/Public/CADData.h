@@ -25,6 +25,7 @@ enum ECTTessellationLine
 	LineIndexCount,
 	LineIndexType,
 	LineTexCoordType,
+	LineTexCoordCount,
 	LastLine
 };
 
@@ -59,6 +60,7 @@ struct CADTOOLS_API FTessellationData
 	uint32        VertexCount = 0;
 	uint32        NormalCount = 0;
 	uint32        IndexCount = 0;
+	uint32        TexCoordCount = 0;
 
 	uint32    StartVertexIndex = 0;
 
