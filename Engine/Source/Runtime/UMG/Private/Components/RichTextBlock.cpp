@@ -169,8 +169,15 @@ const FTextBlockStyle& URichTextBlock::GetDefaultTextStyle() const
 
 const FTextBlockStyle& URichTextBlock::GetCurrentDefaultTextStyle() const
 {
-	ensure(StyleInstance.IsValid());
-	return bOverrideDefaultStyle ? DefaultTextStyleOverride : DefaultTextStyle;
+	if (bOverrideDefaultStyle)
+	{
+		return DefaultTextStyleOverride;
+	}
+	else
+	{
+		ensure(StyleInstance.IsValid());
+		return DefaultTextStyle;
+	}
 }
 
 URichTextBlockDecorator* URichTextBlock::GetDecoratorByClass(TSubclassOf<URichTextBlockDecorator> DecoratorClass)
