@@ -15,35 +15,27 @@
 
 using namespace CADLibrary;
 
-FDatasmithMeshBuilder::FDatasmithMeshBuilder(TMap<FString, FString>& InCADFileToUE4GeomMap, TMap< TSharedPtr< IDatasmithMeshElement >, uint32 >& InMeshElementToCTBodyUuidMap)
-	: CADFileToUE4GeomMap(InCADFileToUE4GeomMap)
+FDatasmithMeshBuilder::FDatasmithMeshBuilder(TMap<FString, FString>& InCADFileToUE4GeomMap, TMap< TSharedPtr< IDatasmithMeshElement >, uint32 >& InMeshElementToCTBodyUuidMap, const FString& InCachePath, const CADLibrary::FImportParameters& InImportParameters)
+	: CADFileToMeshFileMap(InCADFileToUE4GeomMap)
 	, MeshElementToBodyUuidMap(InMeshElementToCTBodyUuidMap)
+	, CachePath(InCachePath)
+	, ImportParameters(InImportParameters)
 {
+	LoadMeshFiles();
 }
 
-void FDatasmithMeshBuilder::Init(const FString& InCachePath)
+void FDatasmithMeshBuilder::LoadMeshFiles()
 {
-	CachePath = InCachePath;
-}
-
-void FDatasmithMeshBuilder::Clear()
-{
-	RawDataArray.Empty();
-	BodyUuidToCADBRepMap.Empty();
-}
-
-void FDatasmithMeshBuilder::LoadRawDataGeom()
-{
-	RawDataArray.Reserve(CADFileToUE4GeomMap.Num());
-	for (const auto& FilePair : CADFileToUE4GeomMap)
+	Meshes.Reserve(CADFileToMeshFileMap.Num());
+	for (const auto& FilePair : CADFileToMeshFileMap)
 	{
-		FString RawDataFile = FPaths::Combine(CachePath, TEXT("mesh"), FilePair.Value + TEXT(".gm"));
-		if (!IFileManager::Get().FileExists(*RawDataFile))
+		FString MeshFile = FPaths::Combine(CachePath, TEXT("mesh"), FilePair.Value + TEXT(".gm"));
+		if (!IFileManager::Get().FileExists(*MeshFile))
 		{
 			continue;
 		}
 
-		int32 index = RawDataArray.Emplace(RawDataFile, BodyUuidToCADBRepMap);
+		Meshes.Emplace(MeshFile, BodyUuidToMeshMap);
 	}
 }
 
@@ -56,13 +48,13 @@ TOptional<FMeshDescription> FDatasmithMeshBuilder::GetMeshDescription(TSharedRef
 		return TOptional<FMeshDescription>();
 	}
 
-	FBody*const* PPBody = BodyUuidToCADBRepMap.Find(*BodyUuid);
+	FBodyMesh*const* PPBody = BodyUuidToMeshMap.Find(*BodyUuid);
 	if(PPBody == nullptr || *PPBody == nullptr)
 	{
 		return TOptional<FMeshDescription>();
 	}
 
-	FBody& Body = **PPBody;
+	FBodyMesh& Body = **PPBody;
 
 	TMap<uint32, uint32> MaterialIdToMaterialHash;
 
