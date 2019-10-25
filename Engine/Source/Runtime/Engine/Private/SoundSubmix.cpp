@@ -5,8 +5,8 @@
 #include "AudioDeviceManager.h"
 #include "Engine/Engine.h"
 #include "EngineGlobals.h"
-#include "UObject/UObjectIterator.h"
 #include "Sound/SoundSubmixSend.h"
+#include "UObject/UObjectIterator.h"
 
 #if WITH_EDITOR
 #include "Framework/Notifications/NotificationManager.h"
