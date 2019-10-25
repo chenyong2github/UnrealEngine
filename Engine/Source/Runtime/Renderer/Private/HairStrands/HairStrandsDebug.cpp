@@ -131,15 +131,17 @@ EHairStrandsDebugMode GetHairStrandsDebugStrandsMode()
 {
 	switch (GHairStrandsDebugStrandsMode)
 	{
-	case 0:  return EHairStrandsDebugMode::None;
-	case 1:  return EHairStrandsDebugMode::SimHairStrands;
-	case 2:  return EHairStrandsDebugMode::RenderHairStrands;
-	case 3:  return EHairStrandsDebugMode::RenderHairRootUV;
-	case 4:  return EHairStrandsDebugMode::RenderHairUV;
-	case 5:  return EHairStrandsDebugMode::RenderHairSeed;
-	case 6:  return EHairStrandsDebugMode::RenderHairDimension;
-	case 7:  return EHairStrandsDebugMode::RenderHairRadiusVariation;
-	case 8:  return EHairStrandsDebugMode::RenderHairRootUDIM;
+	case  0:  return EHairStrandsDebugMode::None;
+	case  1:  return EHairStrandsDebugMode::SimHairStrands;
+	case  2:  return EHairStrandsDebugMode::RenderHairStrands;
+	case  3:  return EHairStrandsDebugMode::RenderHairRootUV;
+	case  4:  return EHairStrandsDebugMode::RenderHairRootUDIM;
+	case  5:  return EHairStrandsDebugMode::RenderHairUV;
+	case  6:  return EHairStrandsDebugMode::RenderHairSeed;
+	case  7:  return EHairStrandsDebugMode::RenderHairDimension;
+	case  8:  return EHairStrandsDebugMode::RenderHairRadiusVariation;
+	case  9:  return EHairStrandsDebugMode::RenderHairBaseColor;
+	case 10:  return EHairStrandsDebugMode::RenderHairRoughness;
 	default: return EHairStrandsDebugMode::None;
 	};
 }
@@ -152,11 +154,13 @@ static const TCHAR* ToString(EHairStrandsDebugMode DebugMode)
 	case EHairStrandsDebugMode::SimHairStrands				: return TEXT("Simulation strands");
 	case EHairStrandsDebugMode::RenderHairStrands			: return TEXT("Rendering strands influences");
 	case EHairStrandsDebugMode::RenderHairRootUV			: return TEXT("Roots UV");
+	case EHairStrandsDebugMode::RenderHairRootUDIM			: return TEXT("Roots UV UDIM texture index");
 	case EHairStrandsDebugMode::RenderHairUV				: return TEXT("Hair UV");
 	case EHairStrandsDebugMode::RenderHairSeed				: return TEXT("Hair seed");
 	case EHairStrandsDebugMode::RenderHairDimension			: return TEXT("Hair dimensions");
 	case EHairStrandsDebugMode::RenderHairRadiusVariation	: return TEXT("Hair radius variation");
-	case EHairStrandsDebugMode::RenderHairRootUDIM			: return TEXT("Root UV UDIM texture index");		
+	case EHairStrandsDebugMode::RenderHairBaseColor			: return TEXT("Hair vertices color");
+	case EHairStrandsDebugMode::RenderHairRoughness			: return TEXT("Hair vertices roughness");
 	default													: return TEXT("None");
 	};
 }

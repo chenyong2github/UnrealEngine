@@ -6644,6 +6644,16 @@ protected:
 		return AddCodeChunk(MCT_Float2, TEXT("MaterialExpressionGetHairRootUV(Parameters)"));
 	}
 
+	virtual int32 GetHairBaseColor() override
+	{
+		return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionGetHairBaseColor(Parameters)"));
+	}
+
+	virtual int32 GetHairRoughness() override
+	{
+		return AddCodeChunk(MCT_Float1, TEXT("MaterialExpressionGetHairRoughness(Parameters)"));
+	}
+
 	virtual int32 DistanceToNearestSurface(int32 PositionArg) override
 	{
 		if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)

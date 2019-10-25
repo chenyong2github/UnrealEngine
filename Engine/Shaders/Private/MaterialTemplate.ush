@@ -1002,6 +1002,8 @@ float2 GetHairStrandsRootUV(uint HairPrimitiveId, float2 VertexUV);
 float2 GetHairStrandsUV(uint HairPrimitiveId, float2 VertexUV);
 float2 GetHairStrandsDimensions(uint HairPrimitiveId, float2 VertexUV);
 float  GetHairStrandsSeed(uint HairPrimitiveId, float2 VertexUV);
+float  GetHairStrandsRoughness(uint HairPrimitiveId, float2 HairPrimitiveUV);
+float3 GetHairStrandsBaseColor(uint HairPrimitiveId, float2 HairPrimitiveUV);
 #endif
 
 float2 MaterialExpressionGetHairRootUV(FMaterialPixelParameters Parameters)
@@ -1040,6 +1042,23 @@ float MaterialExpressionGetHairSeed(FMaterialPixelParameters Parameters)
 #endif
 }
 
+float3 MaterialExpressionGetHairBaseColor(FMaterialPixelParameters Parameters)
+{
+#if VF_STRAND_HAIR
+	return GetHairStrandsBaseColor(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
+#else
+	return float3(0,0,0);
+#endif
+}
+
+float MaterialExpressionGetHairRoughness(FMaterialPixelParameters Parameters)
+{
+#if VF_STRAND_HAIR
+	return GetHairStrandsRoughness(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
+#else
+	return 0;
+#endif
+}
 float3 MaterialExpressionGetHairTangent(FMaterialPixelParameters Parameters)
 {
 	return Parameters.TangentToWorld[2];

@@ -207,9 +207,11 @@ namespace HairStrandsBuilder
 
 		TArray<FHairStrandsPositionFormat::Type>& OutPackedPositions = HairStrands.RenderData.RenderingPositions;
 		TArray<FHairStrandsAttributeFormat::Type>& OutPackedAttributes = HairStrands.RenderData.RenderingAttributes;
+		TArray<FHairStrandsMaterialFormat::Type>& OutPackedMaterials = HairStrands.RenderData.RenderingMaterials;
 
 		OutPackedPositions.SetNum(NumPoints * FHairStrandsPositionFormat::ComponentCount);
 		OutPackedAttributes.SetNum(NumPoints * FHairStrandsAttributeFormat::ComponentCount);
+		OutPackedMaterials.SetNum(NumPoints * FHairStrandsMaterialFormat::ComponentCount);
 
 		const FVector HairBoxCenter = HairStrands.BoundingBox.GetCenter();
 
@@ -253,6 +255,14 @@ namespace HairStrandsBuilder
 				PackedAttributes.RootV  = uint32(FMath::Clamp(TextureRootUV.Y*255.f, 0.f, 255.f));
 				PackedAttributes.IndexU = uint32(FMath::Clamp(TextureIndexUV.X, 0.f, 255.f));
 				PackedAttributes.IndexV = uint32(FMath::Clamp(TextureIndexUV.Y, 0.f, 255.f));
+
+				FHairStrandsMaterialFormat::Type& Material = OutPackedMaterials[PointIndex + IndexOffset];
+				// Cheap sRGB encoding instead of PointsBaseColor.ToFColor(true), as this makes the decompression 
+				// cheaper on GPU (since R8G8B8A8 sRGB format used/exposed not exposed)
+				Material.BaseColorR = FMath::Clamp(uint32(FMath::Sqrt(Points.PointsBaseColor[PointIndex + IndexOffset].R) * 0xFF), 0u, 0xFFu);
+				Material.BaseColorG = FMath::Clamp(uint32(FMath::Sqrt(Points.PointsBaseColor[PointIndex + IndexOffset].G) * 0xFF), 0u, 0xFFu);
+				Material.BaseColorB = FMath::Clamp(uint32(FMath::Sqrt(Points.PointsBaseColor[PointIndex + IndexOffset].B) * 0xFF), 0u, 0xFFu);
+				Material.Roughness  = FMath::Clamp(uint32(Points.PointsRoughness[PointIndex + IndexOffset] * 0xFF), 0u, 0xFFu);
 			}
 		}
 	}
@@ -711,8 +721,9 @@ bool FGroomBuilder::BuildGroom(const FHairDescription& HairDescription, const FG
 		GroomHairColor = GroomHairColorAttribute[GroomID];
 	}
 
-	TVertexAttributesConstRef<FVector> VertexPositions = HairDescription.VertexAttributes().GetAttributesRef<FVector>(HairAttribute::Vertex::Position);
-	TStrandAttributesConstRef<int> StrandNumVertices = HairDescription.StrandAttributes().GetAttributesRef<int>(HairAttribute::Strand::VertexCount);
+	TVertexAttributesConstRef<FVector> VertexPositions	= HairDescription.VertexAttributes().GetAttributesRef<FVector>(HairAttribute::Vertex::Position);
+	TVertexAttributesConstRef<FVector> VertexBaseColor	= HairDescription.VertexAttributes().GetAttributesRef<FVector>(HairAttribute::Vertex::Color);
+	TStrandAttributesConstRef<int> StrandNumVertices	= HairDescription.StrandAttributes().GetAttributesRef<int>(HairAttribute::Strand::VertexCount);
 
 	if (!VertexPositions.IsValid() || !StrandNumVertices.IsValid())
 	{
@@ -804,6 +815,8 @@ bool FGroomBuilder::BuildGroom(const FHairDescription& HairDescription, const FG
 			FVertexID VertexID(GlobalVertexIndex);
 
 			CurrentHairStrandsDatas->StrandsPoints.PointsPosition.Add(VertexPositions[VertexID]);
+			CurrentHairStrandsDatas->StrandsPoints.PointsBaseColor.Add(VertexBaseColor[VertexID]);
+			CurrentHairStrandsDatas->StrandsPoints.PointsRoughness.Add(0); // @hair_todo: add attribute read on the alembic for reading roughness per groom/strands/vertex
 
 			float VertexWidth = 0.f;
 			if (VertexWidths.IsValid())
@@ -964,6 +977,8 @@ void FGroomBuilder::GenerateGuides(const FHairStrandsDatas& InData, float Decima
 			OutData.StrandsPoints.PointsPosition[OutPointOffset] = InData.StrandsPoints.PointsPosition[OutPointIndex + InPointOffset];
 			OutData.StrandsPoints.PointsCoordU[OutPointOffset] = InData.StrandsPoints.PointsCoordU[OutPointIndex + InPointOffset];
 			OutData.StrandsPoints.PointsRadius[OutPointOffset] = InData.StrandsPoints.PointsRadius[OutPointIndex + InPointOffset] * InData.StrandsCurves.MaxRadius;
+			OutData.StrandsPoints.PointsBaseColor[OutPointOffset] = FLinearColor::Black;
+			OutData.StrandsPoints.PointsRoughness[OutPointOffset] = 0;
 		}
 	}
 
