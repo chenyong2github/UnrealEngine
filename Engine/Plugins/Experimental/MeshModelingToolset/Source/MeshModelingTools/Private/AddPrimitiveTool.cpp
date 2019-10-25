@@ -95,14 +95,14 @@ namespace
 	  { TEXT("Shape"),         EMakeMeshShapeType::All },
 	  { TEXT("Width"),         EMakeMeshShapeType::All },
 	  { TEXT("Height"),        EMakeMeshShapeType::Box | EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone | EMakeMeshShapeType::Arrow | EMakeMeshShapeType::Rectangle | EMakeMeshShapeType::RoundedRectangle },
-	  { TEXT("FeatureRadius"),		   EMakeMeshShapeType::Arrow | EMakeMeshShapeType::RoundedRectangle | EMakeMeshShapeType::PuncturedDisc },
+	  { TEXT("FeatureRadius"),		   EMakeMeshShapeType::Arrow | EMakeMeshShapeType::RoundedRectangle | EMakeMeshShapeType::PuncturedDisc | EMakeMeshShapeType::Torus },
 	  { TEXT("Rotation"),      EMakeMeshShapeType::All },
 	  { TEXT("PlaceMode"),     EMakeMeshShapeType::All },
 	  { TEXT("PivotLocation"), EMakeMeshShapeType::All },
 	  { TEXT("bAlignShapeToPlacementSurface"), EMakeMeshShapeType::All },
-	  { TEXT("Slices"),        EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone | EMakeMeshShapeType::Arrow | EMakeMeshShapeType::RoundedRectangle | EMakeMeshShapeType::Disc | EMakeMeshShapeType::PuncturedDisc | EMakeMeshShapeType::Sphere },
+	  { TEXT("Slices"),        EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone | EMakeMeshShapeType::Arrow | EMakeMeshShapeType::RoundedRectangle | EMakeMeshShapeType::Disc | EMakeMeshShapeType::PuncturedDisc | EMakeMeshShapeType::Sphere | EMakeMeshShapeType::Torus },
 	  { TEXT("Subdivisions"),  EMakeMeshShapeType::Box | EMakeMeshShapeType::Rectangle | EMakeMeshShapeType::RoundedRectangle | EMakeMeshShapeType::Disc | EMakeMeshShapeType::PuncturedDisc | EMakeMeshShapeType::Cylinder |
-							   EMakeMeshShapeType::Cone | EMakeMeshShapeType::Arrow | EMakeMeshShapeType::SphericalBox }
+							   EMakeMeshShapeType::Cone | EMakeMeshShapeType::Arrow | EMakeMeshShapeType::SphericalBox | EMakeMeshShapeType::Torus }
 	};
 };
 
@@ -300,6 +300,10 @@ void UAddPrimitiveTool::UpdatePreviewMesh()
 		GenerateArrow(&NewMesh);
 		break;
 
+	case EMakeMeshShapeType::Torus:
+		GenerateTorus(&NewMesh);
+		break;
+
 	case EMakeMeshShapeType::Sphere:
 		GenerateSphere(&NewMesh);
 		break;
@@ -352,7 +356,7 @@ void UAddPrimitiveTool::OnClicked(const FInputDeviceRay& DeviceClickPos)
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("AddPrimitiveToolTransactionName", "Add Primitive Mesh"));
 
 	const UEnum* const MakeMeshShapeTypeEnum = StaticEnum<EMakeMeshShapeType>();		
-	FString ShapeTypeName = MakeMeshShapeTypeEnum->GetNameStringByValue((uint8)ShapeSettings->Shape);
+	FString ShapeTypeName = MakeMeshShapeTypeEnum->GetNameStringByValue((uint32)ShapeSettings->Shape);
 
 	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
 		AssetAPI, TargetWorld,
@@ -424,6 +428,23 @@ void UAddPrimitiveTool::GeneratePuncturedDisc(FDynamicMesh3* OutMesh)
 	Gen.HoleRadius = FMath::Min(ShapeSettings->FeatureRadius, Gen.Radius * .999f); // hole cannot be bigger than outer radius
 	Gen.AngleSamples = ShapeSettings->Slices;
 	Gen.RadialSamples = ShapeSettings->Subdivisions;
+	Gen.Generate();
+	OutMesh->Copy(&Gen);
+}
+
+
+void UAddPrimitiveTool::GenerateTorus(FDynamicMesh3* OutMesh)
+{
+	FGeneralizedCylinderGenerator Gen;
+	Gen.CrossSection = FPolygon2d::MakeCircle(ShapeSettings->FeatureRadius, ShapeSettings->Slices);
+	FPolygon2d PathCircle = FPolygon2d::MakeCircle(ShapeSettings->Width*.5, ShapeSettings->Subdivisions+4);
+	for (int Idx = 0; Idx < PathCircle.VertexCount(); Idx++)
+	{
+		Gen.Path.Add(PathCircle[Idx]);
+	}
+	Gen.bLoop = true;
+	Gen.bCapped = false;
+	Gen.InitialFrame = FFrame3d(Gen.Path[0]);
 	Gen.Generate();
 	OutMesh->Copy(&Gen);
 }

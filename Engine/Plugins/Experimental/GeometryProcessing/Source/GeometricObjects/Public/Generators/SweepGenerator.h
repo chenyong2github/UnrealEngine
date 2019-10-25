@@ -43,6 +43,7 @@ protected:
 							   const TArrayView<const int32>& NormalSections,
 							   const TArrayView<const int32>& SharpNormalsAlongLength,
 							   int32 NumCrossSections,
+							   bool bLoop,
 							   const ECapType Caps[2],
 							   FVector2d UVScale, FVector2d UVOffset)
 	{
@@ -51,8 +52,8 @@ protected:
 		int32 XNormals = XVerts + NormalSections.Num();
 		int32 XUVs = XVerts + UVSections.Num() + 1;
 
-		int32 NumVerts = XVerts * NumCrossSections;
-		int32 NumNormals = NumCrossSections > 1 ? XNormals * NumCrossSections : 0;
+		int32 NumVerts = XVerts * NumCrossSections - (bLoop ? XVerts : 0);
+		int32 NumNormals = NumCrossSections > 1 ? (XNormals * NumCrossSections - (bLoop ? XNormals : 0)) : 0;
 		NumNormals += XNormals * SharpNormalsAlongLength.Num();
 		int32 NumUVs = NumCrossSections > 1 ? XUVs * NumCrossSections : 0;
 		int32 NumPolygons = (NumCrossSections - 1) * XVerts;
@@ -60,87 +61,104 @@ protected:
 
 		TArray<FIndex3i> OutTriangles;
 
-		for (int32 CapIdx = 0; CapIdx < 2; CapIdx++)
+		// doesn't make sense to have cap types if the sweep is a loop
+		ensure(!bLoop || (Caps[0] == ECapType::None && Caps[1] == ECapType::None));
+		
+		if (!bLoop)
 		{
-			CapVertStart[CapIdx] = NumVerts;
-			CapNormalStart[CapIdx] = NumNormals;
-			CapUVStart[CapIdx] = NumUVs;
-			CapTriangleStart[CapIdx] = NumTriangles;
-			CapPolygonStart[CapIdx] = NumPolygons;
-
-			if (Caps[CapIdx] == ECapType::FlatTriangulation)
+			for (int32 CapIdx = 0; !bLoop && CapIdx < 2; CapIdx++)
 			{
-				NumTriangles += XVerts - 2;
-				NumPolygons++;
-				NumUVs += XVerts;
-				NumNormals += XVerts;
-			}
+				CapVertStart[CapIdx] = NumVerts;
+				CapNormalStart[CapIdx] = NumNormals;
+				CapUVStart[CapIdx] = NumUVs;
+				CapTriangleStart[CapIdx] = NumTriangles;
+				CapPolygonStart[CapIdx] = NumPolygons;
 
-			// TODO: support more cap type; e.g.:
-			//else if (Caps[CapIdx] == ECapType::FlatMidpointFan)
-			//{
-			//	NumTriangles += XVerts;
-			//	NumPolygons += XVerts;
-			//	NumUVs += XVerts + 1;
-			//	NumNormals += XVerts + 1;
-			//	NumVerts += 1;
-			//}
-			//else if (Caps[CapIdx] == ECapType::Cone)
-			//{
-			//	NumTriangles += XVerts;
-			//	NumPolygons += XVerts;
-			//	NumUVs += XVerts + 1;
-			//	NumNormals += XVerts * 2;
-			//	NumVerts += 1;
-			//}
+				if (Caps[CapIdx] == ECapType::FlatTriangulation)
+				{
+					NumTriangles += XVerts - 2;
+					NumPolygons++;
+					NumUVs += XVerts;
+					NumNormals += XVerts;
+				}
+
+				// TODO: support more cap type; e.g.:
+				//else if (Caps[CapIdx] == ECapType::FlatMidpointFan)
+				//{
+				//	NumTriangles += XVerts;
+				//	NumPolygons += XVerts;
+				//	NumUVs += XVerts + 1;
+				//	NumNormals += XVerts + 1;
+				//	NumVerts += 1;
+				//}
+				//else if (Caps[CapIdx] == ECapType::Cone)
+				//{
+				//	NumTriangles += XVerts;
+				//	NumPolygons += XVerts;
+				//	NumUVs += XVerts + 1;
+				//	NumNormals += XVerts * 2;
+				//	NumVerts += 1;
+				//}
+			}
 		}
 
 		SetBufferSizes(NumVerts, NumTriangles, NumUVs, NumNormals);
 
-		for (int32 CapIdx = 0; CapIdx < 2; CapIdx++)
+		if (!bLoop)
 		{
-
-			if (Caps[CapIdx] == ECapType::FlatTriangulation)
+			for (int32 CapIdx = 0; CapIdx < 2; CapIdx++)
 			{
-				int32 VertOffset = CapIdx * (XVerts * (NumCrossSections - 1));
 
-				PolygonTriangulation::TriangulateSimplePolygon(CrossSection.GetVertices(), OutTriangles);
-				int32 TriIdx = CapTriangleStart[CapIdx];
-				int32 PolyIdx = CapPolygonStart[CapIdx];
-				for (const FIndex3i& Triangle : OutTriangles)
+				if (Caps[CapIdx] == ECapType::FlatTriangulation)
 				{
-					bool Flipped = CapIdx == 0;
-					Flipped = !Flipped;
-					SetTriangle(TriIdx,
-								Triangle.A + VertOffset, Triangle.B + VertOffset, Triangle.C + VertOffset,
-								Flipped);
-					SetTriangleUVs(TriIdx,
-								   Triangle.A + CapUVStart[CapIdx],
-								   Triangle.B + CapUVStart[CapIdx],
-								   Triangle.C + CapUVStart[CapIdx],
-								   Flipped);
-					SetTriangleNormals(TriIdx,
-									   Triangle.A + CapNormalStart[CapIdx],
-									   Triangle.B + CapNormalStart[CapIdx],
-									   Triangle.C + CapNormalStart[CapIdx],
-									   Flipped);
-					SetTrianglePolygon(TriIdx, PolyIdx);
-					TriIdx++;
-				}
-				float SideScale = 2 * CapIdx - 1;
-				for (int32 Idx = 0; Idx < XVerts; Idx++)
-				{
-					FVector2d CenteredVert = CrossSection.GetVertices()[Idx] * UVScale + UVOffset;
-					SetUV(CapUVStart[CapIdx] + Idx, FVector2f(CenteredVert.X * SideScale, CenteredVert.Y), VertOffset + Idx);
-					SetNormal(CapNormalStart[CapIdx] + Idx, FVector3f::Zero(), VertOffset + Idx);
+					int32 VertOffset = CapIdx * (XVerts * (NumCrossSections - 1));
+
+					PolygonTriangulation::TriangulateSimplePolygon(CrossSection.GetVertices(), OutTriangles);
+					int32 TriIdx = CapTriangleStart[CapIdx];
+					int32 PolyIdx = CapPolygonStart[CapIdx];
+					for (const FIndex3i& Triangle : OutTriangles)
+					{
+						bool Flipped = CapIdx == 0;
+						Flipped = !Flipped;
+						SetTriangle(TriIdx,
+							Triangle.A + VertOffset, Triangle.B + VertOffset, Triangle.C + VertOffset,
+							Flipped);
+						SetTriangleUVs(TriIdx,
+							Triangle.A + CapUVStart[CapIdx],
+							Triangle.B + CapUVStart[CapIdx],
+							Triangle.C + CapUVStart[CapIdx],
+							Flipped);
+						SetTriangleNormals(TriIdx,
+							Triangle.A + CapNormalStart[CapIdx],
+							Triangle.B + CapNormalStart[CapIdx],
+							Triangle.C + CapNormalStart[CapIdx],
+							Flipped);
+						SetTrianglePolygon(TriIdx, PolyIdx);
+						TriIdx++;
+					}
+					float SideScale = 2 * CapIdx - 1;
+					for (int32 Idx = 0; Idx < XVerts; Idx++)
+					{
+						FVector2d CenteredVert = CrossSection.GetVertices()[Idx] * UVScale + UVOffset;
+						SetUV(CapUVStart[CapIdx] + Idx, FVector2f(CenteredVert.X * SideScale, CenteredVert.Y), VertOffset + Idx);
+						SetNormal(CapNormalStart[CapIdx] + Idx, FVector3f::Zero(), VertOffset + Idx);
+					}
 				}
 			}
 		}
 
 		// fill in UVs and triangles along length
-		if (NumCrossSections > 1)
+		int MinValidCrossSections = bLoop ? 3 : 2;
+		if (NumCrossSections >= MinValidCrossSections)
 		{
 			int32 UVSection = 0, UVSubIdx = 0;
+
+			int CrossSectionsMod = NumCrossSections;
+			if (bLoop)
+			{
+				CrossSectionsMod--; // last cross section becomes the first
+			}
+			int NormalCrossSectionsMod = CrossSectionsMod + SharpNormalsAlongLength.Num();
 
 			int32 NumSections = UVSections.Num();
 			int32 NextDupVertIdx = UVSection < NumSections ? UVSections[UVSection] : -1;
@@ -150,7 +168,7 @@ protected:
 				for (int32 XIdx = 0; XIdx < NumCrossSections; XIdx++)
 				{
 					float UVY = XIdx / float(NumCrossSections - 1);
-					SetUV(XIdx * XUVs + UVSubIdx, FVector2f(1-UVX, 1-UVY), XIdx * XVerts + VertSubIdx);
+					SetUV(XIdx * XUVs + UVSubIdx, FVector2f(1-UVX, 1-UVY), (XIdx % CrossSectionsMod) * XVerts + VertSubIdx);
 				}
 
 				if (VertSubIdx == NextDupVertIdx)
@@ -182,7 +200,7 @@ protected:
 				for (int32 XIdx = 0; XIdx < NumCrossSections; XIdx++)
 				{
 					float UVY = XIdx / float(NumCrossSections - 1);
-					SetUV(XIdx * XUVs + UVSubIdx, FVector2f(1-UVX, 1-UVY), XIdx * XVerts + VertSubIdx);
+					SetUV(XIdx * XUVs + UVSubIdx, FVector2f(1-UVX, 1-UVY), (XIdx % CrossSectionsMod) * XVerts + VertSubIdx);
 				}
 			}
 			NumSections = NormalSections.Num();
@@ -195,12 +213,12 @@ protected:
 				for (int32 XIdx = 0, NormalXIdx = 0; XIdx < NumCrossSections; XIdx++, NormalXIdx++)
 				{
 					// just set the normal parent; don't compute normal yet
-					SetNormal(NormalXIdx * XNormals + NormalSubIdx, FVector3f(0, 0, 0), XIdx * XVerts + VertSubIdx);
+					SetNormal((NormalXIdx % NormalCrossSectionsMod) * XNormals + NormalSubIdx, FVector3f(0, 0, 0), (XIdx % CrossSectionsMod) * XVerts + VertSubIdx);
 					// duplicate normals for cross sections that are 'sharp'
 					if (SharpNormalIdx < SharpNormalsAlongLength.Num() && XIdx == SharpNormalsAlongLength[SharpNormalIdx])
 					{
 						NormalXIdx++;
-						SetNormal(NormalXIdx * XNormals + NormalSubIdx, FVector3f(0, 0, 0), XIdx * XVerts + VertSubIdx);
+						SetNormal((NormalXIdx % NormalCrossSectionsMod) * XNormals + NormalSubIdx, FVector3f(0, 0, 0), (XIdx % CrossSectionsMod) * XVerts + VertSubIdx);
 						SharpNormalIdx++;
 					}
 				}
@@ -220,25 +238,27 @@ protected:
 						int32 T0Idx = XVerts * 2 * XIdx + 2 * VertSubIdx;
 						int32 T1Idx = T0Idx + 1;
 						int32 PIdx = XVerts * XIdx + VertSubIdx;
+						int32 NextXIdx = (XIdx + 1) % CrossSectionsMod;
+						int32 NextNXIdx = (NXIdx + 1) % NormalCrossSectionsMod;
 						SetTrianglePolygon(T0Idx, PIdx);
 						SetTrianglePolygon(T1Idx, PIdx);
 						SetTriangle(T0Idx,
 									XIdx * XVerts + VertSubIdx,
 									XIdx * XVerts + WrappedNextVertexSubIdx,
-									(XIdx + 1) * XVerts + VertSubIdx, true);
+									NextXIdx * XVerts + VertSubIdx, true);
 						SetTriangle(T1Idx,
-									(XIdx + 1) * XVerts + WrappedNextVertexSubIdx,
-									(XIdx + 1) * XVerts + VertSubIdx,
+									NextXIdx * XVerts + WrappedNextVertexSubIdx,
+									NextXIdx * XVerts + VertSubIdx,
 									XIdx * XVerts + WrappedNextVertexSubIdx, true);
 						SetTriangleNormals(
 							T0Idx,
 							NXIdx * XNormals + NormalSubIdx,
 							NXIdx * XNormals + WrappedNextNormalSubIdx,
-							(NXIdx + 1) * XNormals + NormalSubIdx, true);
+							NextNXIdx * XNormals + NormalSubIdx, true);
 						SetTriangleNormals(
 							T1Idx,
-							(NXIdx + 1) * XNormals + WrappedNextNormalSubIdx,
-							(NXIdx + 1) * XNormals + NormalSubIdx,
+							NextNXIdx * XNormals + WrappedNextNormalSubIdx,
+							NextNXIdx * XNormals + NormalSubIdx,
 							NXIdx * XNormals + WrappedNextNormalSubIdx, true);
 						if (SharpNormalIdx < SharpNormalsAlongLength.Num() && XIdx+1 == SharpNormalsAlongLength[SharpNormalIdx])
 						{
@@ -308,7 +328,7 @@ public:
 		TArray<float> AlongPercents;
 		float LenAlong = ComputeSegLengths(Radii, Heights, AlongPercents);
 
-		ConstructMeshTopology(X, {}, {}, SharpNormalsAlongLength, NumX, Caps, FVector2d(.5, .5), FVector2d(.5, .5));
+		ConstructMeshTopology(X, {}, {}, SharpNormalsAlongLength, NumX, false, Caps, FVector2d(.5, .5), FVector2d(.5, .5));
 
 		TArray<FVector2d> NormalSides; NormalSides.SetNum(NumX - 1);
 		for (int XIdx = 0; XIdx+1 < NumX; XIdx++)
@@ -494,12 +514,11 @@ public:
 };
 
 
-
 /**
  * Sweep a 2D Profile Polygon along a 3D Path.
  * 
  * TODO: 
- *  - Loop path support
+ *  - a custom variant for toruses specifically (would be faster)
  *  - Mitering cross sections support?
  */
 class /*DYNAMICMESH_API*/ FGeneralizedCylinderGenerator : public FSweepGeneratorBase
@@ -511,23 +530,22 @@ public:
 	FFrame3d InitialFrame;
 
 	bool bCapped = false;
+	bool bLoop = false;
 
 public:
 	/** Generate the mesh */
 	virtual FMeshShapeGenerator& Generate() override
 	{
-		const bool bLoop = false; // TODO: support loops -- note this requires updating FSweepGeneratorBase to set up the mesh topology correctly!
-		
 		const TArray<FVector2d>& XVerts = CrossSection.GetVertices();
 		ECapType Caps[2] = {ECapType::None, ECapType::None};
 
-		if (bCapped)
+		if (bCapped && !bLoop)
 		{
 			Caps[0] = ECapType::FlatTriangulation;
 			Caps[1] = ECapType::FlatTriangulation;
 		}
 		int PathNum = Path.Num();
-		ConstructMeshTopology(CrossSection, {}, {}, {}, PathNum, Caps, FVector2d(.5, .5), FVector2d(.5, .5));
+		ConstructMeshTopology(CrossSection, {}, {}, {}, PathNum + (bLoop ? 1 : 0), bLoop, Caps, FVector2d(.5, .5), FVector2d(.5, .5));
 
 		int XNum = CrossSection.VertexCount();
 		TArray<FVector2d> XNormals; XNormals.SetNum(XNum);

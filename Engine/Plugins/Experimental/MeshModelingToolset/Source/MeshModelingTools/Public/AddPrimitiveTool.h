@@ -47,8 +47,9 @@ enum class EMakeMeshShapeType : uint32
 	RoundedRectangle = 0x020 UMETA(DisplayName = "Rounded Rectangle"),
 	Disc			 = 0x040 UMETA(DisplayName = "Disc"),
 	PuncturedDisc	 = 0x080 UMETA(DisplayName = "Punctured Disc"),
-	Sphere			 = 0x100 UMETA(DisplayName = "Sphere"),
-	SphericalBox	 = 0x200 UMETA(DisplayName = "Spherical Box")
+	Torus			 = 0x100 UMETA(DisplayName = "Torus"),
+	Sphere			 = 0x200 UMETA(DisplayName = "Sphere"),
+	SphericalBox	 = 0x400 UMETA(DisplayName = "Spherical Box")
 	
 };
 ENUM_CLASS_FLAGS(EMakeMeshShapeType);
@@ -205,6 +206,7 @@ protected:
 	void GenerateRoundedRectangle(FDynamicMesh3* OutMesh);
 	void GenerateDisc(FDynamicMesh3* OutMesh);
 	void GeneratePuncturedDisc(FDynamicMesh3* OutMesh);
+	void GenerateTorus(FDynamicMesh3* OutMesh);
 	void GenerateSphere(FDynamicMesh3* OutMesh);
 	void GenerateSphericalBox(FDynamicMesh3* OutMesh);
 	void GenerateArrow(FDynamicMesh3* OutMesh);
