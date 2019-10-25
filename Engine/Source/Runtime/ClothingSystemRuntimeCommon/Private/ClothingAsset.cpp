@@ -173,6 +173,7 @@ UClothingAssetCommon::UClothingAssetCommon(const FObjectInitializer& ObjectIniti
 	: Super(ObjectInitializer)
 	, PhysicsAsset(nullptr)
 	, ClothSimConfig(nullptr)
+	, ChaosClothSimConfig(nullptr)
 	, ReferenceBoneIndex(0)
 	, CustomData(nullptr)
 {}

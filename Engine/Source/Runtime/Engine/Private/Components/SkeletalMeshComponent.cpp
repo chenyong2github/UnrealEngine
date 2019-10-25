@@ -199,22 +199,22 @@ USkeletalMeshComponent::USkeletalMeshComponent(const FObjectInitializer& ObjectI
 
 #endif//#if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 
-	MassMode = EClothMassMode::Density;
-	UniformMass = 1.f;
-	TotalMass = 100.0f;
-	Density = 0.1f;
-	MinPerParticleMass = 0.0001f;
-	EdgeStiffness = 1.f;
-	BendingStiffness = 1.f;
-	AreaStiffness = 1.f;
-	VolumeStiffness = 0.f;
-	StrainLimitingStiffness = 1.f;
-	ShapeTargetStiffness = 0.f;
-	bUseBendingElements = false;
-	bUseTetrahedralConstraints = false;
-	bUseThinShellVolumeConstraints = false;
-	bUseSelfCollisions = false;
-	bUseContinuousCollisionDetection = false;
+	MassMode_DEPRECATED = EClothMassMode::Density;
+	UniformMass_DEPRECATED = 1.f;
+	TotalMass_DEPRECATED = 100.0f;
+	Density_DEPRECATED = 0.1f;
+	MinPerParticleMass_DEPRECATED = 0.0001f;
+	EdgeStiffness_DEPRECATED = 1.f;
+	BendingStiffness_DEPRECATED = 1.f;
+	AreaStiffness_DEPRECATED = 1.f;
+	VolumeStiffness_DEPRECATED = 0.f;
+	StrainLimitingStiffness_DEPRECATED = 1.f;
+	ShapeTargetStiffness_DEPRECATED = 0.f;
+	bUseBendingElements_DEPRECATED = false;
+	bUseTetrahedralConstraints_DEPRECATED = false;
+	bUseThinShellVolumeConstraints_DEPRECATED = false;
+	bUseSelfCollisions_DEPRECATED = false;
+	bUseContinuousCollisionDetection_DEPRECATED = false;
 
 #if WITH_EDITORONLY_DATA
 	DefaultPlayRate_DEPRECATED = 1.0f;
