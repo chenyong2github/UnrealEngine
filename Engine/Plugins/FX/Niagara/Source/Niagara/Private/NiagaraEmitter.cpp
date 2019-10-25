@@ -583,6 +583,11 @@ UNiagaraEmitter::FOnPropertiesChanged& UNiagaraEmitter::OnPropertiesChanged()
 {
 	return OnPropertiesChangedDelegate;
 }
+
+UNiagaraEmitter::FOnPropertiesChanged& UNiagaraEmitter::OnRenderersChanged()
+{
+	return OnRenderersChangedDelegate;
+}
 #endif
 
 
@@ -1080,6 +1085,7 @@ void UNiagaraEmitter::AddRenderer(UNiagaraRendererProperties* Renderer)
 #if WITH_EDITOR
 	Renderer->OnChanged().AddUObject(this, &UNiagaraEmitter::RendererChanged);
 	UpdateChangeId(TEXT("Renderer added"));
+	OnRenderersChangedDelegate.Broadcast();
 #endif
 }
 
@@ -1090,6 +1096,7 @@ void UNiagaraEmitter::RemoveRenderer(UNiagaraRendererProperties* Renderer)
 #if WITH_EDITOR
 	Renderer->OnChanged().RemoveAll(this);
 	UpdateChangeId(TEXT("Renderer removed"));
+	OnRenderersChangedDelegate.Broadcast();
 #endif
 }
 

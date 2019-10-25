@@ -14,13 +14,20 @@
 #include "NiagaraEditorWidgetsUtilities.h"
 #include "SNiagaraStack.h"
 #include "Stack/SNiagaraStackItemGroupAddButton.h"
+#include "NiagaraEditorCommon.h"
 
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Notifications/SNotificationList.h"
 #include "EditorStyleSet.h"
+#include "Styling/CoreStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Commands/GenericCommands.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "ScopedTransaction.h"
+#include "Logging/LogMacros.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewStack"
 
@@ -30,7 +37,7 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 		SLATE_EVENT(FOnDragDetected, OnDragDetected)
 		SLATE_EVENT(FOnCanAcceptDrop, OnCanAcceptDrop)
 		SLATE_EVENT(FOnAcceptDrop, OnAcceptDrop)
-		SLATE_DEFAULT_SLOT(FArguments, Content)
+		SLATE_DEFAULT_SLOT(FArguments, Content);
 	SLATE_END_ARGS();
 
 	void Construct(const FArguments& InArgs, UNiagaraStackEntry* InStackEntry, const TSharedRef<STableViewBase>& InOwnerTableView)
@@ -138,7 +145,7 @@ public:
 
 	SLATE_BEGIN_ARGS(SNiagaraSystemOverviewEnabledCheckBox) {}
 		SLATE_ATTRIBUTE(bool, IsChecked)
-		SLATE_EVENT(FOnCheckedChanged, OnCheckedChanged)
+		SLATE_EVENT(FOnCheckedChanged, OnCheckedChanged);
 	SLATE_END_ARGS();
 
 	void Construct(const FArguments& InArgs)
@@ -189,6 +196,10 @@ private:
 
 void SNiagaraOverviewStack::Construct(const FArguments& InArgs, UNiagaraStackViewModel& InStackViewModel, UNiagaraSystemSelectionViewModel& InOverviewSelectionViewModel)
 {
+	Commands = MakeShared<FUICommandList>();
+
+	SetupCommands();
+
 	bUpdatingOverviewSelectionFromStackSelection = false;
 	bUpdatingStackSelectionFromOverviewSelection = false;
 
@@ -219,9 +230,76 @@ SNiagaraOverviewStack::~SNiagaraOverviewStack()
 	}
 }
 
+bool SNiagaraOverviewStack::SupportsKeyboardFocus() const
+{
+	return true;
+}
+
+FReply SNiagaraOverviewStack::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	if (Commands->ProcessCommandBindings(InKeyEvent))
+	{
+		return FReply::Handled();
+	}
+	return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent);
+}
+
 void SNiagaraOverviewStack::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	RefreshEntryList();
+}
+
+void SNiagaraOverviewStack::SetupCommands()
+{
+	Commands->MapAction(FGenericCommands::Get().Delete, FUIAction(
+		FExecuteAction::CreateSP(this, &SNiagaraOverviewStack::DeleteSelectedEntries)));
+}
+
+void SNiagaraOverviewStack::DeleteSelectedEntries()
+{
+	bool bIncompleteDelete = false;
+	TArray<UNiagaraStackItem*> ItemsToDelete;
+	for (UNiagaraStackEntry* SelectedEntry : OverviewSelectionViewModel->GetSelectedEntries())
+	{
+		UNiagaraStackItem* SelectedItem = Cast<UNiagaraStackItem>(SelectedEntry);
+		if (SelectedItem != nullptr)
+		{
+			FText DeleteMessage;
+			if (SelectedItem->SupportsDelete() && SelectedItem->TestCanDeleteWithMessage(DeleteMessage))
+			{
+				ItemsToDelete.Add(SelectedItem);
+			}
+			else
+			{
+				bIncompleteDelete = true;
+			}
+		}
+		else
+		{
+			bIncompleteDelete = true;
+		}
+	}
+
+	if (ItemsToDelete.Num() > 0)
+	{
+		const FScopedTransaction Transaction(LOCTEXT("DeleteSelected", "Delete items from the system overview"));
+		for (UNiagaraStackItem* ItemToDelete : ItemsToDelete)
+		{
+			ItemToDelete->Delete();
+		}
+	}
+
+	if (bIncompleteDelete)
+	{
+		FText IncompleteDeleteMessage = LOCTEXT("DeleteIncompleteMessage", "Not all items could be deleted because they either\ndon't support being deleted or they are inherited.");
+		FNotificationInfo Warning(IncompleteDeleteMessage);
+		Warning.ExpireDuration = 5.0f;
+		Warning.bFireAndForget = true;
+		Warning.bUseLargeFont = false;
+		Warning.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Warning"));
+		FSlateNotificationManager::Get().AddNotification(Warning);
+		UE_LOG(LogNiagaraEditor, Warning, TEXT("%s"), *IncompleteDeleteMessage.ToString());
+	}
 }
 
 void SNiagaraOverviewStack::AddEntriesRecursive(UNiagaraStackEntry& EntryToAdd, TArray<UNiagaraStackEntry*>& EntryList, const TArray<UClass*>& AcceptableClasses, TArray<UNiagaraStackEntry*> ParentChain)
