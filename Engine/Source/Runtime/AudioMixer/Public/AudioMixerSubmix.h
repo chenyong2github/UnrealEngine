@@ -9,6 +9,7 @@
 #include "DSP/SpectrumAnalyzer.h"
 
 class USoundEffectSubmix;
+class USoundSubmix;
 
 namespace Audio
 {
