@@ -117,6 +117,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (EditCondition = "PlaceMode == EMakeMeshPlacementType::OnScene"))
 	bool bAlignShapeToPlacementSurface = true;
 
+	/** If the shape settings haven't changed, create instances of the last created asset rather than creating a whole new asset.  If false, all created actors will have separate underlying mesh assets. */
+	UPROPERTY(EditAnywhere, Category = ShapeSettings)
+	bool bInstanceLastCreatedAssetIfPossible = true;
+
 	///** Start Angle of Shape */
 	//UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Start Angle", UIMin = "0.0", UIMax = "360.0", ClampMin = "-10000", ClampMax = "10000.0"))
 	//float StartAngle;
@@ -134,14 +138,37 @@ public:
 	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Subdivisions", UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "4000"))
 	int Subdivisions;
 
-
 	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
 	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 };
 
 
 
+UCLASS(Transient)
+class MESHMODELINGTOOLS_API ULastActorInfo : public UObject
+{
+	GENERATED_BODY()
 
+public:
+	FString Label = "";
+
+	UPROPERTY()
+	AActor* Actor = nullptr;
+	
+	UPROPERTY()
+	UStaticMesh* StaticMesh = nullptr;
+
+	UPROPERTY()
+	UProceduralShapeToolProperties* ShapeSettings;
+
+	UPROPERTY()
+	UNewMeshMaterialProperties* MaterialProperties;
+
+	bool IsInvalid()
+	{
+		return Actor == nullptr || StaticMesh == nullptr || ShapeSettings == nullptr || MaterialProperties == nullptr;
+	}
+};
 
 
 
@@ -186,9 +213,37 @@ protected:
 	UNewMeshMaterialProperties* MaterialProperties;
 
 
+	/**
+	 * Checks if the passed-in settings would create the same asset as the current settings
+	 */
+	bool IsEquivalentLastGeneratedAsset()
+	{
+		if (LastGenerated == nullptr || LastGenerated->IsInvalid())
+		{
+			return false;
+		}
+		// manual diff because not all shape setting changes result in a different asset (e.g. some just affect the transform)
+		return
+			LastGenerated->ShapeSettings->Subdivisions == ShapeSettings->Subdivisions &&
+			LastGenerated->ShapeSettings->Slices == ShapeSettings->Slices &&
+			LastGenerated->ShapeSettings->PivotLocation == ShapeSettings->PivotLocation &&
+			LastGenerated->ShapeSettings->FeatureRadius == ShapeSettings->FeatureRadius &&
+			LastGenerated->ShapeSettings->Height == ShapeSettings->Height &&
+			LastGenerated->ShapeSettings->Width == ShapeSettings->Width &&
+			LastGenerated->ShapeSettings->Shape == ShapeSettings->Shape &&
+			LastGenerated->MaterialProperties->UVScale == MaterialProperties->UVScale &&
+			LastGenerated->MaterialProperties->bWorldSpaceUVScale == MaterialProperties->bWorldSpaceUVScale
+			;
+	}
+
 
 	UPROPERTY()
 	UPreviewMesh* PreviewMesh;
+
+	UPROPERTY()
+	ULastActorInfo* LastGenerated;
+
+
 
 protected:
 	UWorld* TargetWorld;
