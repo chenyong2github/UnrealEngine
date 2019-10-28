@@ -2353,8 +2353,7 @@ void USoundWave::RetainCompressedAudio(bool bForceSync /*= false*/)
 	}
 	else
 	{
-		TWeakObjectPtr<USoundWave> WeakThis = TWeakObjectPtr<USoundWave>(this);
-		GetHandleForChunkOfAudio([WeakThis](FAudioChunkHandle OutHandle)
+		GetHandleForChunkOfAudio([WeakThis = MakeWeakObjectPtr(this)](FAudioChunkHandle OutHandle)
 		{
 			check(IsInGameThread());
 			
