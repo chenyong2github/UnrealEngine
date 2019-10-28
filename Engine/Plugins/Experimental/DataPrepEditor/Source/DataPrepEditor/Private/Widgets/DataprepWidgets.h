@@ -23,32 +23,32 @@ struct FAssetData;
 namespace DataprepWidgetUtils
 {
 	TSharedRef<SWidget> CreateParameterRow( TSharedPtr<SWidget> ParameterWidget );
-}
 
-/** Helper class to force a widget to fill in a space. Copied from SDetailSingleItemRow.cpp */
-class SConstrainedBox : public SCompoundWidget
-{
-public:
-	SLATE_BEGIN_ARGS(SConstrainedBox) {}
+	/** Helper class to force a widget to fill in a space. Copied from SDetailSingleItemRow.cpp */
+	class SConstrainedBox : public SCompoundWidget
+	{
+	public:
+		SLATE_BEGIN_ARGS(SConstrainedBox) {}
 		SLATE_DEFAULT_SLOT(FArguments, Content)
-	SLATE_END_ARGS()
+			SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs)
-	{
-		ChildSlot
-		[
-			InArgs._Content.Widget
-		];
-	}
+			void Construct(const FArguments& InArgs)
+		{
+			ChildSlot
+				[
+					InArgs._Content.Widget
+				];
+		}
 
-	virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const override
-	{
-		// Voluntarily ridiculously large value to force the child widget to fill up the available space
-		const float MinWidthVal = 2000;
-		const FVector2D ChildSize = ChildSlot.GetWidget()->GetDesiredSize();
-		return FVector2D(FMath::Max(MinWidthVal, ChildSize.X), ChildSize.Y);
-	}
-};
+		virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const override
+		{
+			// Voluntarily ridiculously large value to force the child widget to fill up the available space
+			const float MinWidthVal = 2000;
+			const FVector2D ChildSize = ChildSlot.GetWidget()->GetDesiredSize();
+			return FVector2D(FMath::Max(MinWidthVal, ChildSize.X), ChildSize.Y);
+		}
+	};
+}
 
 struct FDataprepDetailsViewColumnSizeData
 {
