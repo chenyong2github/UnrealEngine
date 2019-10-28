@@ -34,6 +34,7 @@ public:
 		SLATE_ARGUMENT(bool, ShowExecutionCategoryIcon)
 		SLATE_ATTRIBUTE(float, NameColumnWidth)
 		SLATE_ATTRIBUTE(float, ValueColumnWidth)
+		SLATE_ATTRIBUTE(EVisibility, IssueIconVisibility)
 		SLATE_ATTRIBUTE(FMargin, RowPadding)
 		SLATE_EVENT(FOnColumnWidthChanged, OnNameColumnWidthChanged)
 		SLATE_EVENT(FOnColumnWidthChanged, OnValueColumnWidthChanged)
@@ -103,6 +104,7 @@ private:
 	FOnColumnWidthChanged NameColumnWidthChanged;
 	FOnColumnWidthChanged ValueColumnWidthChanged;
 
+	TAttribute<EVisibility> IssueIconVisibility;
 	TAttribute<FMargin> RowPadding;
 
 	const FSlateBrush* ExpandedImage;

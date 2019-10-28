@@ -7,9 +7,11 @@
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
+#include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "Sequencer/NiagaraSequence/NiagaraSequence.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "NiagaraEditorStyle.h"
+#include "NiagaraEditorModule.h"
 
 #include "EditorStyleSet.h"
 #include "Styling/SlateIconFinder.h"
@@ -17,6 +19,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraEmitterTrackEditor"
 
@@ -30,6 +33,7 @@ public:
 	{
 		EmitterTrack = &InEmitterTrack;
 
+		FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
 		TSharedRef<SHorizontalBox> TrackBox = SNew(SHorizontalBox)
 			// Track initialization error icon.
 			+ SHorizontalBox::Slot()
@@ -41,6 +45,16 @@ public:
 				.Visibility(this, &SEmitterTrackWidget::GetTrackErrorIconVisibility)
 				.Image(FEditorStyle::GetBrush("Icons.Info"))
 				.ToolTipText(this, &SEmitterTrackWidget::GetTrackErrorIconToolTip)
+			]
+			// Stack issues icon
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(3, 0, 0, 0)
+			[
+				NiagaraEditorModule.GetWidgetProvider()->CreateStackIssueIcon( 
+					*EmitterTrack->GetEmitterHandleViewModel()->GetEmitterStackViewModel(),
+					*EmitterTrack->GetEmitterHandleViewModel()->GetEmitterStackViewModel()->GetRootEntry())
 			]
 			// Isolate toggle
 			+ SHorizontalBox::Slot()
