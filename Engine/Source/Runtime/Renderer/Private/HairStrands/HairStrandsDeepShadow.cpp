@@ -253,11 +253,17 @@ FHairStrandsDeepShadowViews RenderHairStrandsDeepShadows(
 					{
 						const float bIsOrtho = LightType == ELightComponentType::LightType_Directional;
 
+						// Save some status we need to restore
+						const FVector SavedViewForward = ViewInfo.CachedViewUniformShaderParameters->ViewForward;
+						// Update our view parameters
 						ViewInfo.CachedViewUniformShaderParameters->HairRenderInfo.X = MinStrandRadiusAtDepth1.Primary;
 						ViewInfo.CachedViewUniformShaderParameters->HairRenderInfo.Y = MinStrandRadiusAtDepth1.Primary;
 						ViewInfo.CachedViewUniformShaderParameters->HairRenderInfo.Z = bIsOrtho;
 						ViewInfo.CachedViewUniformShaderParameters->ViewForward = DomData.LightDirection;
+						// Create the uniform buffer
 						ViewUniformShaderParameters = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*ViewInfo.CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
+						// Restore the view cached parameters
+						ViewInfo.CachedViewUniformShaderParameters->ViewForward = SavedViewForward;
 					}
 
 					RenderDeepShadowFrontDepth(
