@@ -60,7 +60,6 @@ void FContentProducerEntry::ToggleProducer()
 		const FScopedTransaction Transaction( LOCTEXT("Producers_ToggleProducer", "Toggle Producer") );
 		AssetProducers->EnableProducer(ProducerIndex, !bIsEnabled);
 
-		// #ueent_todo: Cache previous value to report failed enabling/disabling
 		bIsEnabled = AssetProducers->IsProducerEnabled(ProducerIndex);
 	}
 }
