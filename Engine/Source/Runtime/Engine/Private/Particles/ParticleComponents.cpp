@@ -6132,7 +6132,20 @@ void UParticleSystemComponent::DeactivateSystem()
 	ForceAsyncWorkCompletion(STALL);
 
 	check(World);
-	UE_LOG(LogParticles,Verbose,
+
+	//We have seen some edge case where the world can be null here so avoid the crash and try to leave the component in a decent state until we can fix the underlying issue.
+	if (World == nullptr)
+	{
+		UE_LOG(LogParticles, Error, TEXT("DeactivateSystem called on PSC with null World ptr! %s"), Template != NULL ? *Template->GetName() : TEXT("NULL"));
+
+		ResetParticles(true);
+		bDeactivateTriggered = false;
+		bSuppressSpawning = true;
+		bWasDeactivated = true;
+		return;
+	}
+
+	UE_LOG(LogParticles, Verbose,
 		TEXT("DeactivateSystem @ %fs %s"), World->TimeSeconds,
 		Template != NULL ? *Template->GetName() : TEXT("NULL"));
 
