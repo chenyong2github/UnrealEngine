@@ -2226,9 +2226,17 @@ void AActor::TearOff()
 	{
 		bTearOff = true;
 		// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bTearOff, this);
-		if (UNetDriver* NetDriver = GetNetDriver())
+		
+		FWorldContext* const Context = GEngine->GetWorldContextFromWorld(GetWorld());
+		if (Context != nullptr)
 		{
-			NetDriver->NotifyActorTearOff(this);
+			for (FNamedNetDriver& Driver : Context->ActiveNetDrivers)
+			{
+				if (Driver.NetDriver != nullptr && Driver.NetDriver->ShouldReplicateActor(this))
+				{
+					Driver.NetDriver->NotifyActorTearOff(this);
+				}
+			}
 		}
 	}
 }
