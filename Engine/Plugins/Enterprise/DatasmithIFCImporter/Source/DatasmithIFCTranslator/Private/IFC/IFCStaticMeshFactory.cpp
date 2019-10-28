@@ -104,6 +104,9 @@ namespace IFC
 
 				VertexInstanceIDs.Add(VertexInstanceID);
 				VertexIDs.Add(VertexID);
+
+				const float* Vertex = &(InObject->facesVertices[(VertexIndex * (InObject->vertexElementSize / sizeof(float)))]);
+				VertexInstanceNormals.Set(VertexInstanceID, FVector(Vertex[3], Vertex[4], Vertex[5]));
 			}
 
 			bool bIsWrong = false;
