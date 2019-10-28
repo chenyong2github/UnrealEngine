@@ -48,6 +48,7 @@ protected:
 	/** Callbacks for available modifier actions */
 	void OnApplyModifier(const TArray<TWeakObjectPtr<UAnimationModifier>>& Instances);	
 	void OnRevertModifier(const TArray<TWeakObjectPtr<UAnimationModifier>>& Instances);
+	bool OnCanRevertModifier(const TArray<TWeakObjectPtr<UAnimationModifier>>& Instances);	
 	void OnRemoveModifier(const TArray<TWeakObjectPtr<UAnimationModifier>>& Instances);
 	void OnOpenModifier(const TWeakObjectPtr<UAnimationModifier>& Instance);
 
