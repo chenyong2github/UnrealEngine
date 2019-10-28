@@ -52,8 +52,16 @@ public:
 	bool bIsHelperSystemEnabled = true;
 	
 	/** ScoutingSubsystem class to use for Blueprint helpers */
+	UPROPERTY(config, meta = (MetaClass = "VPScoutingSubsystemHelpersBase"))
+	FSoftClassPath ScoutingSubsystemEditorUtilityClassPath;
+
+	/** GestureManager class to use by the ScoutingSubsystem */
+	UPROPERTY(config, meta = (MetaClass = "VPScoutingSubsystemGestureManagerBase"))
+	FSoftClassPath GestureManagerEditorUtilityClassPath;
+
+	/** GestureManager class to use by the ScoutingSubsystem */
 	UPROPERTY(config)
-	FSoftClassPath ScoutingSubsystemEdititorUtilityActorClassPath;
+	TArray<FSoftClassPath> AdditionnalClassToLoad;
 
 public:
 
