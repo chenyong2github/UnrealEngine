@@ -295,14 +295,7 @@ namespace Audio
 			, DataFormat(EAudioMixerStreamDataFormat::Unknown)
 		{}
 
-		~FOutputBuffer()
-		{
-			if (IsReadyEvent != nullptr)
-			{
-				FPlatformProcess::ReturnSynchEventToPool(IsReadyEvent);
-				IsReadyEvent = nullptr;
-			}
-		}
+		~FOutputBuffer();
  
 		/** Initialize the buffer with the given samples and output format. */
 		void Init(IAudioMixer* InAudioMixer, const int32 InNumSamples, const EAudioMixerStreamDataFormat::Type InDataFormat);
@@ -331,14 +324,7 @@ namespace Audio
 		bool IsReady() const { return bIsReady; }
 
 		/** Resets the buffer ready state. */
-		void ResetReadyState()
-		{
-			bIsReady = false;
-			if (IsReadyEvent)
-			{
-				IsReadyEvent->Reset();
-			}
-		}
+		void ResetReadyState();
 
 		/** Resets the internal buffers to the new sample count. Used when device is changed. */
 		void Reset(const int32 InNewNumSamples);
