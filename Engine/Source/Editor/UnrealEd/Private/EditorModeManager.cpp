@@ -2048,3 +2048,25 @@ bool FEditorModeTools::CanCycleWidgetMode() const
 	}
 	return false;
 }
+
+
+bool FEditorModeTools::CanAutoSave() const
+{
+	for (auto& Mode : ActiveModes)
+	{
+		if (Mode->CanAutoSave() == false)
+		{
+			return false;
+		}
+	}
+
+	for (UEdMode* Mode : ActiveScriptableModes)
+	{
+		if (Mode->CanAutoSave() == false)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
