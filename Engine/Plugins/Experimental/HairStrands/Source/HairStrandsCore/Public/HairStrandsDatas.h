@@ -219,11 +219,11 @@ struct FHairStrandsCurveTriangleBarycentricFormat
 
 struct FHairStrandsRootPositionFormat
 {
-	typedef FVector4_16 Type;
+	typedef FVector4 Type;
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
-	static const EVertexElementType VertexElementType = VET_UShort4;
-	static const EPixelFormat Format = PF_FloatRGBA;
+	static const EVertexElementType VertexElementType = VET_Float4;
+	static const EPixelFormat Format = PF_A32B32G32R32F;
 };
 
 struct FHairStrandsRootNormalFormat
