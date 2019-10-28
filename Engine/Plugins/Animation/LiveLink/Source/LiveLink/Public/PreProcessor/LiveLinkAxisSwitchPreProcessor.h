@@ -31,9 +31,12 @@ public:
 	class FLiveLinkTransformAxisSwitchPreProcessorWorker : public ILiveLinkFramePreProcessorWorker
 	{
 	public:
-		ELiveLinkAxis AxisX = ELiveLinkAxis::X;
-		ELiveLinkAxis AxisY = ELiveLinkAxis::Y;
-		ELiveLinkAxis AxisZ = ELiveLinkAxis::Z;
+		ELiveLinkAxis OrientationAxisX = ELiveLinkAxis::X;
+		ELiveLinkAxis OrientationAxisY = ELiveLinkAxis::Y;
+		ELiveLinkAxis OrientationAxisZ = ELiveLinkAxis::Z;
+		ELiveLinkAxis TranslationAxisX = ELiveLinkAxis::X;
+		ELiveLinkAxis TranslationAxisY = ELiveLinkAxis::Y;
+		ELiveLinkAxis TranslationAxisZ = ELiveLinkAxis::Z;
 
 		virtual TSubclassOf<ULiveLinkRole> GetRole() const override;
 		virtual bool PreProcessFrame(FLiveLinkFrameDataStruct& InOutFrame) const override;
@@ -41,11 +44,17 @@ public:
 
 protected:
 	UPROPERTY(EditAnywhere, Category = "LiveLink")
-	ELiveLinkAxis AxisX = ELiveLinkAxis::X;
+	ELiveLinkAxis OrientationAxisX = ELiveLinkAxis::X;
 	UPROPERTY(EditAnywhere, Category = "LiveLink")
-	ELiveLinkAxis AxisY = ELiveLinkAxis::Y;
+	ELiveLinkAxis OrientationAxisY = ELiveLinkAxis::Y;
 	UPROPERTY(EditAnywhere, Category = "LiveLink")
-	ELiveLinkAxis AxisZ = ELiveLinkAxis::Z;
+	ELiveLinkAxis OrientationAxisZ = ELiveLinkAxis::Z;
+	UPROPERTY(EditAnywhere, Category = "LiveLink")
+	ELiveLinkAxis TranslationAxisX = ELiveLinkAxis::X;
+	UPROPERTY(EditAnywhere, Category = "LiveLink")
+	ELiveLinkAxis TranslationAxisY = ELiveLinkAxis::Y;
+	UPROPERTY(EditAnywhere, Category = "LiveLink")
+	ELiveLinkAxis TranslationAxisZ = ELiveLinkAxis::Z;
 
 public:
 	virtual TSubclassOf<ULiveLinkRole> GetRole() const override;
