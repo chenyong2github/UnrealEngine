@@ -108,6 +108,11 @@ void FHttpManager::OnAfterFork()
 
 }
 
+void FHttpManager::UpdateConfigs()
+{
+	// empty
+}
+
 FHttpThread* FHttpManager::CreateHttpThread()
 {
 	return new FHttpThread();
