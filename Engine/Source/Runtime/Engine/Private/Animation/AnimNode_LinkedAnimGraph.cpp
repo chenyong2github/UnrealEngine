@@ -112,12 +112,19 @@ void FAnimNode_LinkedAnimGraph::Update_AnyThread(const FAnimationUpdateContext& 
 	}
 
 	// Consume pending inertial blend request
-	if (PendingBlendDuration >= 0.0f)
+	if(PendingBlendDuration >= 0.0f)
 	{
-		FAnimNode_Inertialization* InertializationNode = InContext.GetAncestor<FAnimNode_Inertialization>();
-		if (InertializationNode)
+		if(InputPoses.Num() > 0)
 		{
-			InertializationNode->Request(PendingBlendDuration);
+			FAnimNode_Inertialization* InertializationNode = InContext.GetAncestor<FAnimNode_Inertialization>();
+			if(InertializationNode)
+			{
+				InertializationNode->RequestInertialization(PendingBlendDuration);
+			}
+			else if (PendingBlendDuration != 0.0f)
+			{
+				FAnimNode_Inertialization::LogRequestError(InContext, InputPoses[0]);
+			}
 		}
 
 		PendingBlendDuration = -1.0f;

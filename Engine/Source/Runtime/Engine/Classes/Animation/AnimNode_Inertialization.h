@@ -184,10 +184,13 @@ public: // FAnimNode_Inertialization
 	// Request to activate inertialization for a duration.
 	// If multiple requests are made on the same inertialization node, the minimum requested time will be used.
 	//
-	virtual void Request(float Duration);
+	virtual void RequestInertialization(float Duration);
 
 	virtual float GetRequestedDuration() const { return RequestedDuration; }
 
+	// Log an error when a node wants to inertialize but no inertialization ancestor node exists
+	//
+	static void LogRequestError(const FAnimationUpdateContext& Context, const FPoseLinkBase& RequesterPoseLink);
 
 public: // FAnimNode_Base
 
