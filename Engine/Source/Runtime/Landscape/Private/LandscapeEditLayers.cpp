@@ -5172,7 +5172,7 @@ bool ALandscapeProxy::CanHaveLayersContent() const
 
 bool ALandscapeProxy::HasLayersContent() const
 {
-	return bHasLayersContent;
+	return bHasLayersContent || (GetLandscapeActor() != nullptr && GetLandscapeActor()->HasLayersContent());
 }
 
 void ALandscapeProxy::UpdateCachedHasLayersContent(bool InCheckComponentDataIntegrity)
