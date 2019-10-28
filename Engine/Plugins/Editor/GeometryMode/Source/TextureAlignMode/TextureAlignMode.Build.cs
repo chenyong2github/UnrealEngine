@@ -15,14 +15,10 @@ public class TextureAlignMode : ModuleRules
 				"Slate",
 				"UnrealEd",
 				"RenderCore",
-				"LevelEditor"
-			}
-			);
-
-        DynamicallyLoadedModuleNames.AddRange(
-            new string[] {
-                "BspMode"
-			}
-        );
+				"LevelEditor",
+				"GeometryMode",
+                "BspMode",
+            }
+		);
 	}
 }

@@ -110,8 +110,6 @@
 #include "PackageTools.h"
 #include "LevelEditor.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "Editor/GeometryMode/Public/GeometryEdMode.h"
-#include "Editor/GeometryMode/Public/EditorGeometry.h"
 #include "LandscapeProxy.h"
 #include "Lightmass/PrecomputedVisibilityOverrideVolume.h"
 #include "Animation/AnimSet.h"
@@ -159,6 +157,8 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "AssetExportTask.h"
 #include "EditorBuildUtils.h"
+#include "Subsystems/BrushEditingSubsystem.h"
+#include "EdMode.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditorServer, Log, All);
 
@@ -1939,11 +1939,11 @@ void UEditorEngine::RebuildAlteredBSP()
 
 void UEditorEngine::BSPIntersectionHelper(UWorld* InWorld, ECsgOper Operation)
 {
-	FEdModeGeometry* Mode = GLevelEditorModeTools().GetActiveModeTyped<FEdModeGeometry>(FBuiltinEditorModes::EM_Geometry);
-	if (Mode)
+	if (UBrushEditingSubsystem* BrushSubsystem = GetEditorSubsystem<UBrushEditingSubsystem>())
 	{
-		Mode->GeometrySelectNone(true, true);
+		BrushSubsystem->DeselectAllEditingGeometry();
 	}
+
 	ABrush* DefaultBrush = InWorld->GetDefaultBrush();
 	if (DefaultBrush != NULL)
 	{
@@ -6120,8 +6120,14 @@ bool UEditorEngine::HandleSelectCommand( const TCHAR* Str, FOutputDevice& Ar, UW
 
 bool UEditorEngine::HandleDeleteCommand( const TCHAR* Str, FOutputDevice& Ar, UWorld* InWorld )
 {
-	// If geometry mode is active, give it a chance to handle this command.  If it does not, use the default handler
-	if( !GLevelEditorModeTools().IsModeActive( FBuiltinEditorModes::EM_Geometry ) || !( (FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode(FBuiltinEditorModes::EM_Geometry) )->ExecDelete() )
+	bool bHandled = false;
+	UBrushEditingSubsystem* BrushSubsystem = GetEditorSubsystem<UBrushEditingSubsystem>();
+	if (BrushSubsystem)
+	{
+		bHandled = BrushSubsystem->HandleActorDelete();
+	}
+
+	if(!bHandled)
 	{
 		return Exec( InWorld, TEXT("ACTOR DELETE") );
 	}
