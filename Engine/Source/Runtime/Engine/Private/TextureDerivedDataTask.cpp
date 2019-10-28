@@ -261,8 +261,8 @@ void FTextureCacheDerivedDataWorker::BuildTexture()
 			((bool)Texture.CompositeTexture && CompositeTextureData.Blocks.Num() && CompositeTextureData.Blocks[0].MipsPerLayer.Num()) ? CompositeTextureData.Blocks[0].MipsPerLayer[0] : TArray<FImage>(),
 			BuildSettingsPerLayer[0],
 			CompressedMips,
-			DerivedData->NumMipsInTail,
-			DerivedData->ExtData))
+			DerivedData->OptData.NumMipsInTail,
+			DerivedData->OptData.ExtData))
 		{
 			check(CompressedMips.Num());
 

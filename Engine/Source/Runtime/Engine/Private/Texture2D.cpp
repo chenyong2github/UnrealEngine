@@ -959,7 +959,7 @@ int32 UTexture2D::CalcTextureMemorySize( int32 MipCount ) const
 		FIntPoint MipExtents = CalcMipMapExtent(SizeX, SizeY, Format, FirstMip);
 
 		uint32 TextureAlign = 0;
-		uint64 TextureSize = RHICalcTexture2DPlatformSize(MipExtents.X, MipExtents.Y, Format, MipCount, 1, 0, FRHIResourceCreateInfo(PlatformData->ExtData), TextureAlign);
+		uint64 TextureSize = RHICalcTexture2DPlatformSize(MipExtents.X, MipExtents.Y, Format, MipCount, 1, 0, FRHIResourceCreateInfo(PlatformData->GetExtData()), TextureAlign);
 		Size = (int32)TextureSize;
 	}
 	return Size;
@@ -1512,7 +1512,7 @@ FTexture2DResource::FTexture2DResource( UTexture2D* InOwner, int32 InitialMipCou
 	check(InitialMipCount>0);
 
 	// Keep track of first miplevel to use.
-	CurrentFirstMip = InOwner->GetNumMips() - FMath::Max(InitialMipCount, Owner->PlatformData ? (int32)Owner->PlatformData->NumMipsInTail : 0);
+	CurrentFirstMip = InOwner->GetNumMips() - FMath::Max(InitialMipCount, Owner->PlatformData ? (int32)Owner->PlatformData->GetNumMipsInTail() : 0);
 	InOwner->SetCachedNumResidentLODs(static_cast<uint8>(InitialMipCount));
 
 	check(CurrentFirstMip>=0);
@@ -1614,7 +1614,7 @@ void FTexture2DResource::InitRHI()
 				TexCreateFlags |= TexCreate_Virtual;
 
 				FRHIResourceCreateInfo CreateInfo(ResourceMem);
-				CreateInfo.ExtData = Owner->PlatformData->ExtData;
+				CreateInfo.ExtData = Owner->PlatformData->GetExtData();
 				Texture2DRHI = RHICreateTexture2D( OwnerMips[0].SizeX, OwnerMips[0].SizeY, EffectiveFormat, OwnerMips.Num(), 1, TexCreateFlags, CreateInfo);
 				RHIVirtualTextureSetFirstMipInMemory(Texture2DRHI, CurrentFirstMip);
 				RHIVirtualTextureSetFirstMipVisible(Texture2DRHI, CurrentFirstMip);
@@ -1650,7 +1650,7 @@ void FTexture2DResource::InitRHI()
 
 			// create texture with ResourceMem data when available
 			FRHIResourceCreateInfo CreateInfo(ResourceMem);
-			CreateInfo.ExtData = Owner->PlatformData->ExtData;
+			CreateInfo.ExtData = Owner->PlatformData->GetExtData();
 			Texture2DRHI	= RHICreateTexture2D( SizeX, SizeY, EffectiveFormat, RequestedMips, 1, TexCreateFlags, CreateInfo);
 			TextureRHI		= Texture2DRHI;
 			TextureRHI->SetName(Owner->GetFName());
@@ -1701,7 +1701,7 @@ void FTexture2DResource::InitRHI()
 		if (GIsEditor || (!bSkipRHITextureCreation)) //-V560
 		{
 			FRHIResourceCreateInfo CreateInfo;
-			CreateInfo.ExtData = Owner->PlatformData->ExtData;
+			CreateInfo.ExtData = Owner->PlatformData->GetExtData();
 			Texture2DRHI	= RHICreateTexture2D( SizeX, SizeY, EffectiveFormat, RequestedMips, 1, TexCreateFlags, CreateInfo );
 			TextureRHI		= Texture2DRHI;
 			TextureRHI->SetName(Owner->GetFName());
@@ -2272,7 +2272,7 @@ void FTexture2DResource::UpdateTexture(FTexture2DRHIRef& InTextureRHI, int32 InN
 
 		TextureRHI		= InTextureRHI;
 		Texture2DRHI	= InTextureRHI;
-		CurrentFirstMip = FMath::Min(InNewFirstMip, NumMips - (Owner->PlatformData ? (int32)Owner->PlatformData->NumMipsInTail : 0));
+		CurrentFirstMip = FMath::Min(InNewFirstMip, NumMips - (Owner->PlatformData ? (int32)Owner->PlatformData->GetNumMipsInTail() : 0));
 		Owner->SetCachedNumResidentLODs(static_cast<uint8>(NumMips - InNewFirstMip));
 		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, TextureRHI);
 	}
