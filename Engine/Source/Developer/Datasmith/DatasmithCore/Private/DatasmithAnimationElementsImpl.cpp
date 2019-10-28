@@ -22,6 +22,7 @@ FDatasmithTransformAnimationElementImpl::FDatasmithTransformAnimationElementImpl
 
 FDatasmithVisibilityAnimationElementImpl::FDatasmithVisibilityAnimationElementImpl(const TCHAR* InName)
 	: FDatasmithBaseAnimationElementImpl(InName, EDatasmithElementType::Animation, EDatasmithElementAnimationSubType::VisibilityAnimation)
+	, bPropagate(false)
 {
 	CurveInterpMode = EDatasmithCurveInterpMode::Linear;
 }
