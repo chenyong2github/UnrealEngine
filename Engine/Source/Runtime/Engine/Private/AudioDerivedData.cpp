@@ -1262,7 +1262,7 @@ static void CookSurroundWave( USoundWave* SoundWave, FName FormatName, const IAu
 				}
 
 				WaveSampleRate = SampleRateOverride;
-				SampleDataSize = SizeOfZerothChannel * ChannelCount;
+				SampleDataSize = SizeOfZerothChannel;
 			}
 
 			UE_LOG(LogAudioDerivedData, Display, TEXT("Cooking %d channels for: %s"), ChannelCount, *SoundWave->GetFullName());
