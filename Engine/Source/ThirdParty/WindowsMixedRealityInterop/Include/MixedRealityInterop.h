@@ -342,7 +342,7 @@ namespace WindowsMixedReality
 		bool IsTrackingAvailable();
 		void ResetOrientationAndPosition();
 
-		bool IsInitialized();
+		bool IsInitialized() const;
 		bool IsImmersiveWindowValid();
 		bool IsAvailable();
 		bool IsCurrentlyImmersive();
@@ -456,6 +456,13 @@ namespace WindowsMixedReality
 		bool DidAnchorCoordinateSystemChange();
 
 		// Remoting
+		enum class ConnectionEvent
+		{
+			DisconnectedFromPeer
+		};
+
+		typedef std::function<void(ConnectionEvent)> ConnectionCallback;
+
 		void SetLogCallback(void (*functionPointer)(const wchar_t* text));
 		void ConnectToRemoteHoloLens(ID3D11Device* device, const wchar_t* ip, int bitrate, bool IsHoloLens1 = false);
 		void ConnectToLocalWMRHeadset();
@@ -463,6 +470,8 @@ namespace WindowsMixedReality
 		void DisconnectFromDevice();
 		bool IsRemoting();
 		bool IsRemotingConnected();
+		uint32 SubscribeConnectionEvent(ConnectionCallback callback);
+		void UnsubscribeConnectionEvent(uint32 id);
 
 		// Spatial Mapping
 		void StartSpatialMapping(float InTriangleDensity, float InVolumeSize, void(*StartFunctionPointer)(),
