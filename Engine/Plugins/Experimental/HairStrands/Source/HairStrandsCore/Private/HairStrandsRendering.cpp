@@ -14,8 +14,8 @@ static FAutoConsoleVariableRef CVarHairDeformationType(TEXT("r.HairStrands.Defor
 static float GHairRaytracingRadiusScale = 0;
 static FAutoConsoleVariableRef CVarHairRaytracingRadiusScale(TEXT("r.HairStrands.RaytracingRadiusScale"), GHairRaytracingRadiusScale, TEXT("Override the per instance scale factor for raytracing hair strands geometry (0: disabled, >0:enabled)"));
 
-static int32 GHairLocalInterpolation = 0;
-static FAutoConsoleVariableRef CVarHairLocalInterpolation(TEXT("r.HairStrands.LocalInterpolation"), GHairLocalInterpolation, TEXT("Disable the default skinning onto the skel mesh"));
+static int32 GHairStrandsInterpolateSimulation = 1;
+static FAutoConsoleVariableRef CVarHairInterpolateSimulation(TEXT("r.HairStrands.InterpolateSimulation"), GHairStrandsInterpolateSimulation, TEXT("Enable/disable simulation output during the hair interpolation"));
 
 static FIntVector ComputeDispatchCount(uint32 ItemCount, uint32 GroupSize)
 {
@@ -111,8 +111,8 @@ class FHairInterpolationCS : public FGlobalShader
 	class FGroupSize : SHADER_PERMUTATION_INT("PERMUTATION_GROUP_SIZE", 2);
 	class FDebug : SHADER_PERMUTATION_INT("PERMUTATION_DEBUG", 2);
 	class FDynamicGeometry : SHADER_PERMUTATION_INT("PERMUTATION_DYNAMIC_GEOMETRY", 2);
-	class FLocalInterpolation : SHADER_PERMUTATION_INT("PERMUTATION_LOCAL_INTERPOLATION", 2);
-	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FDebug, FDynamicGeometry,FLocalInterpolation>;
+	class FSimulation : SHADER_PERMUTATION_INT("PERMUTATION_SIMULATION", 2);
+	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FDebug, FDynamicGeometry, FSimulation>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, VertexCount)
@@ -176,6 +176,7 @@ static void AddHairStrandsInterpolationPass(
 	const FVector& InHairWorldOffset, 
 	const FVector& OutHairWorldOffset,
 	const int32 LODIndex,
+	const bool bHasSimulationEnable,
 	const uint32 VertexCount,
 	const FShaderResourceViewRHIRef& RenderRestPosePositionBuffer,
 	const FShaderResourceViewRHIRef& Interpolation0Buffer,
@@ -243,7 +244,7 @@ static void AddHairStrandsInterpolationPass(
 	PermutationVector.Set<FHairInterpolationCS::FGroupSize>(GetGroupSizePermutation(GroupSize));
 	PermutationVector.Set<FHairInterpolationCS::FDebug>(bCopySimAttributesToRenderAttributes ? 1 : 0);
 	PermutationVector.Set<FHairInterpolationCS::FDynamicGeometry>(bSupportDynamicMesh ? 1 : 0);
-	PermutationVector.Set<FHairInterpolationCS::FLocalInterpolation>((GHairLocalInterpolation == 1) ? 1 : 0);
+	PermutationVector.Set<FHairInterpolationCS::FSimulation>(bHasSimulationEnable ? 1 : 0);
 
 	TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 
@@ -485,6 +486,7 @@ void ComputeHairStrandsInterpolation(
 				Output.RenderPatchedAttributeBuffer.Initialize(FHairStrandsAttributeFormat::SizeInByte, Input.RenderVertexCount, FHairStrandsAttributeFormat::Format, BUF_Static);
 			}
 
+			const bool bHasSimulationEnabled = Input.bIsSimulationEnable && GHairStrandsInterpolateSimulation;
 			check(GroupIndex < uint32(InRenHairDatas.HairGroups.Num()));
 			check(GroupIndex < uint32(InSimHairDatas.HairGroups.Num()));
 			AddHairStrandsInterpolationPass(
@@ -494,6 +496,7 @@ void ComputeHairStrandsInterpolation(
 				Input.InHairPositionOffset,
 				Input.OutHairPositionOffset,
 				LODIndex,
+				bHasSimulationEnabled,
 				Input.RenderVertexCount,
 				Input.RenderRestPosePositionBuffer->SRV,
 				Input.Interpolation0Buffer->SRV,
