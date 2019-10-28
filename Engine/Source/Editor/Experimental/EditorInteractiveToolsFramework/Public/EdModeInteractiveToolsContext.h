@@ -32,6 +32,9 @@ public:
 	// default behavior is to accept active tool
 	virtual void TerminateActiveToolsOnSaveWorld();
 
+	// default behavior is to accept active tool
+	virtual void TerminateActiveToolsOnWorldTearDown();
+
 	IToolsContextQueriesAPI* GetQueriesAPI() const { return QueriesAPI; }
 	IToolsContextTransactionsAPI* GetTransactionAPI() const { return TransactionAPI; }
 	IToolsContextAssetAPI* GetAssetAPI() const { return AssetAPI; }
@@ -99,6 +102,8 @@ protected:
 	FDelegateHandle BeginPIEDelegateHandle;
 	// called before a Save starts. This currently shuts down active tools.
 	FDelegateHandle PreSaveWorldDelegateHandle;
+	// called when a map is changed
+	FDelegateHandle WorldTearDownDelegateHandle;
 
 	// EdMode implementation of InteractiveToolFramework APIs - see ToolContextInterfaces.h
 	IToolsContextQueriesAPI* QueriesAPI;
