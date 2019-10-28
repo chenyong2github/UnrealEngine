@@ -102,6 +102,9 @@ public:
 	// Map from animation node to their property index
 	TMap<TWeakObjectPtr<const UAnimGraphNode_Base>, int32> NodePropertyToIndexMap;
 
+	// Map from node property index to source editor node
+	TMap<int32, TWeakObjectPtr<const UEdGraphNode> > NodePropertyIndexToNodeMap;
+
 	// Map from animation node GUID to property index
 	TMap<FGuid, int32> NodeGuidToIndexMap;
 
@@ -348,6 +351,8 @@ public:
 	}
 
 	const int32* GetNodePropertyIndexFromGuid(FGuid Guid, EPropertySearchMode::Type SearchMode = EPropertySearchMode::OnlyThis);
+
+	const UEdGraphNode* GetVisualNodeFromNodePropertyIndex(int32 PropertyIndex) const;
 #endif
 
 	// Called after Link to patch up references to the nodes in the CDO
