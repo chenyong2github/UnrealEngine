@@ -99,6 +99,7 @@ void FSocialUserList::SetAllowAutoUpdate(bool bIsEnabled)
 	if (!bIsEnabled && UpdateTickerHandle.IsValid())
 	{
 		FTicker::GetCoreTicker().RemoveTicker(UpdateTickerHandle);
+		UpdateTickerHandle.Reset();
 	}
 	else if (bIsEnabled && !UpdateTickerHandle.IsValid())
 	{
