@@ -56,10 +56,12 @@ public:
 	static UNiagaraParameterCollectionInstance* GetNiagaraParameterCollection(UObject* WorldContextObject, UNiagaraParameterCollection* Collection);
 
 	static const TArray<FNiagaraFunctionSignature>& GetVectorVMFastPathOps();
+	static bool DefineFunctionHLSL(const FNiagaraFunctionSignature& FunctionSignature, FString& HlslOutput);
 
 	static bool GetVectorVMFastPathExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, FVMExternalFunction &OutFunc);
 
 private:
 	static void InitVectorVMFastPathOps();
 	static TArray<FNiagaraFunctionSignature> VectorVMOps;
+	static TArray<FString> VectorVMOpsHLSL;
 };
