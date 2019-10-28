@@ -2174,7 +2174,7 @@ void ConvolveDirectionalRect(
 				float2(KernelConfig.MajorAxis) * KernelConfig.MajorPixelRadius * (E.x * 2.0 - 1.0) +
 				float2(-KernelConfig.MajorAxis.y, KernelConfig.MajorAxis.x) * KernelConfig.MinorPixelRadius * (E.y * 2.0 - 1.0);
 			
-			SampleBufferUV[SampleBatchId] = KernelConfig.BufferUV + (SampleOffset * KernelConfig.KernelSpreadFactor) * KernelConfig.BufferSizeAndInvSize.zw;
+			SampleBufferUV[SampleBatchId] = KernelConfig.BufferUV + SampleOffset * KernelConfig.BufferSizeAndInvSize.zw;
 		}
 
 		SampleAndAccumulateMultiplexedSignalsPair(

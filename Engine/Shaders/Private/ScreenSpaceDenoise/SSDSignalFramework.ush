@@ -362,7 +362,7 @@ float ComputeBluringOutOfFocusOfNormalizedSample(FSSDSignalSample Sample, FSSDSa
 {
 	float DistanceCameraToPixel = length(View.TranslatedWorldCameraOrigin - GetTranslatedWorldPosition(SceneMetadata));
 
-	return (1 - DistanceCameraToPixel / (DistanceCameraToPixel + Sample.ClosestHitDistance));
+	return Sample.ClosestHitDistance / (DistanceCameraToPixel + Sample.ClosestHitDistance);
 }
 
 
@@ -415,7 +415,7 @@ void ProjectSpecularLobeToScreenSpace(
 
 	{
 		// Measure the angle that only truncate 10% of D_GGX's tale.
-		const float E = (1.0 - GGX_IMPORTANT_SAMPLE_BIAS);
+		const float E = (1.0 - 0.5);
 		const float SqrtE = sqrt(E);
 
 		const float2 ArrayE[4] = {
