@@ -35,181 +35,22 @@ const IConsoleVariable* SelectedSizeBias = IConsoleManager::Get().FindConsoleVar
 namespace MeshEditingContext
 {
 	static FAutoConsoleVariable OverlayHoverDistance(TEXT("MeshEditing.OverlayHoverDistance"), 0.01f, TEXT("Distance of overlay triangle to hover above element"));
-}
 
-
-FEditableMeshCache& FEditableMeshCache::Get()
-{
-	if (EditableMeshCacheSingleton == nullptr)
+	void SetEditableMeshDescription(UEditableMesh* EditableMesh, UStaticMeshComponent* StaticMeshComponent, int32 LODIndex)
 	{
-		EditableMeshCacheSingleton = new FEditableMeshCache();
-		check(EditableMeshCacheSingleton);
-
-		GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetReimport.AddRaw(EditableMeshCacheSingleton, &FEditableMeshCache::OnObjectReimported);
-	}
-
-	return *EditableMeshCacheSingleton;
-}
-
-UEditableMesh* FEditableMeshCache::FindOrCreateEditableMesh(const UPrimitiveComponent& Component, const FEditableMeshSubMeshAddress& SubMeshAddress)
-{
-	if (Cast<UStaticMeshComponent>(&Component) == nullptr || SubMeshAddress.EditableMeshFormat == nullptr)
-	{
-		return nullptr;
-	}
-
-	// Grab the existing editable mesh from our cache if we have one, otherwise create one now
-	TStrongObjectPtr<UEditableMesh>* EditableMeshPtr = CachedEditableMeshes.Find( SubMeshAddress );
-	if( EditableMeshPtr )
-	{
-		return EditableMeshPtr->Get();
-	}
-
-	// @todo mesheditor perf: This is going to HITCH as you hover over meshes.  Ideally we do this on a thread, or worst case give the user a progress dialog.  Maybe save out the editable mesh in editor builds?
-	UEditableMesh* EditableMesh = UEditableMeshFactory::MakeEditableMesh( const_cast<UPrimitiveComponent*>(&Component), SubMeshAddress );
-
-	// We don't want to regenerate the collision when entering Edit Mode or editing the mesh in any way, so turn off the simple collision regeneration on the associated EditableStaticMeshAdapter
-	// as normally UEditableStaticMeshAdapter::UpdateCollision would generate a box simple collision whenever the mesh is modified (including modifications that didn't change the geometry like
-	// flipping normals or setting material) whether the mesh initially had no simple collision or a custom collision.
-	for (UEditableMeshAdapter* Adapter : EditableMesh->Adapters)
-	{
-		if (UEditableStaticMeshAdapter* StaticMeshAdapter = Cast<UEditableStaticMeshAdapter>(Adapter))
+		if (EditableMesh == nullptr || StaticMeshComponent == nullptr || LODIndex < 0)
 		{
-			StaticMeshAdapter->SetRecreateSimpleCollision(false);
+			return;
 		}
-	}
 
-	// Enable undo tracking on this mesh
-	EditableMesh->SetAllowUndo( true );
-
-	// Disable octree, it will be enabled and updated when editable mesh is attached to context
-	EditableMesh->SetAllowSpatialDatabase( false );
-
-	// Enable compaction on this mesh
-	EditableMesh->SetAllowCompact( true );
-
-	CachedEditableMeshes.Add( SubMeshAddress ).Reset(EditableMesh);
-
-	const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(&Component);
-
-	StaticMeshesToComponents.Add(StaticMeshComponent->GetStaticMesh(), StaticMeshComponent);
-
-	return EditableMesh;
-}
-
-const UEditableMesh* FEditableMeshCache::FindEditableMesh(const UPrimitiveComponent& Component, const FEditableMeshSubMeshAddress& SubMeshAddress) const
-{
-	if (Cast<UStaticMeshComponent>(&Component) == nullptr || SubMeshAddress.EditableMeshFormat == nullptr)
-	{
-		return nullptr;
-	}
-
-	const TStrongObjectPtr<UEditableMesh>* EditableMeshPtr = CachedEditableMeshes.Find( SubMeshAddress );
-
-	return EditableMeshPtr ? EditableMeshPtr->Get() : nullptr;
-}
-
-void FEditableMeshCache::OnObjectReimported(UObject* InObject)
-{
-	// If a static mesh has been re-imported, it might have been edited
-	if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(InObject))
-	{
-		RemoveObject(StaticMesh);
-	}
-}
-
-void FEditableMeshCache::RemoveObject(UStaticMesh * StaticMesh)
-{
-	const UStaticMeshComponent* StaticMeshComponent = nullptr;
-	if (StaticMeshesToComponents.RemoveAndCopyValue(StaticMesh, StaticMeshComponent))
-	{
-		// If one of the LODs has been edited, remove it
-		for (int32 LODIndex = 0; LODIndex < StaticMesh->GetNumSourceModels(); ++LODIndex)
+		// Point EditableMesh's MeshDescription to StaticMesh's
+		FMeshDescription* EditableMeshDescription = EditableMesh->GetMeshDescription();
+		FMeshDescription* MeshDescription = StaticMeshComponent->GetStaticMesh()->GetMeshDescription(LODIndex);
+		if (MeshDescription == EditableMeshDescription)
 		{
-			const FEditableMeshSubMeshAddress SubMeshAddressToQuery = UEditableMeshFactory::MakeSubmeshAddress(const_cast<UStaticMeshComponent*>(StaticMeshComponent), LODIndex);
-			CachedEditableMeshes.Remove(SubMeshAddressToQuery);
+			return;
 		}
-	}
-}
 
-FMeshEditingContext::FMeshEditingContext()
-	: LODIndex(INDEX_NONE)
-	, StaticMeshComponent(nullptr)
-	, EditableMesh(nullptr)
-{
-}
-
-FMeshEditingContext::FMeshEditingContext(UStaticMeshComponent* InStaticMeshComponent)
-	: LODIndex(INDEX_NONE)
-	, StaticMeshComponent(InStaticMeshComponent)
-	, EditableMesh(nullptr)
-{
-	check(StaticMeshComponent);
-}
-
-void FMeshEditingContext::Reset()
-{
-	if (StaticMeshComponent == nullptr)
-	{
-		return;
-	}
-
-	SelectedMeshElements.Empty();
-
-	if (EditableMesh != nullptr)
-	{
-		EditableMesh->OnElementIDsRemapped().RemoveAll( this );
-
-		EditableMesh = nullptr;
-		LODIndex = INDEX_NONE;
-	}
-}
-
-void FMeshEditingContext::Activate(FEditorViewportClient& ViewportClient, int32 InLODIndex)
-{
-	if (StaticMeshComponent == nullptr)
-	{
-		return;
-	}
-
-	SelectedMeshElements.Empty();
-
-	SetLODIndex(InLODIndex);
-}
-
-void FMeshEditingContext::Deactivate()
-{
-	if (StaticMeshComponent == nullptr)
-	{
-		return;
-	}
-
-	Reset();
-}
-
-void FMeshEditingContext::SetLODIndex(int32 InLODIndex)
-{
-	if (StaticMeshComponent == nullptr || InLODIndex < 0 || InLODIndex == LODIndex)
-	{
-		return;
-	}
-
-	Reset();
-
-	LODIndex = InLODIndex;
-
-	FEditableMeshSubMeshAddress SubMeshAddressToQuery = UEditableMeshFactory::MakeSubmeshAddress( StaticMeshComponent, LODIndex );
-	EditableMesh = FEditableMeshCache::Get().FindOrCreateEditableMesh( *StaticMeshComponent, SubMeshAddressToQuery );
-	check(EditableMesh);
-
-	// Set a callback so any cached ElementIDs can be remapped
-	EditableMesh->OnElementIDsRemapped().AddRaw( this, &FMeshEditingContext::OnEditableMeshElementIDsRemapped );
-
-	// Point EditableMesh's MeshDescription to StaticMesh's
-	FMeshDescription* EditableMeshDescription = EditableMesh->GetMeshDescription();
-	FMeshDescription* MeshDescription = StaticMeshComponent->GetStaticMesh()->GetMeshDescription(LODIndex);
-	if (MeshDescription != EditableMeshDescription)
-	{
 		UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
 
 		// Register additional attributes required by features modifying EditableMesh
@@ -315,6 +156,206 @@ void FMeshEditingContext::SetLODIndex(int32 InLODIndex)
 
 		EditableMesh->SetMeshDescription(MeshDescription);
 		EditableMesh->InitializeAdapters();
+	}
+}
+
+
+FEditableMeshCache& FEditableMeshCache::Get()
+{
+	if (EditableMeshCacheSingleton == nullptr)
+	{
+		EditableMeshCacheSingleton = new FEditableMeshCache();
+		check(EditableMeshCacheSingleton);
+
+		GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetReimport.AddRaw(EditableMeshCacheSingleton, &FEditableMeshCache::OnObjectReimported);
+	}
+
+	return *EditableMeshCacheSingleton;
+}
+
+UEditableMesh* FEditableMeshCache::FindOrCreateEditableMesh(const UPrimitiveComponent& Component, const FEditableMeshSubMeshAddress& SubMeshAddress)
+{
+	if (Cast<UStaticMeshComponent>(&Component) == nullptr || SubMeshAddress.EditableMeshFormat == nullptr)
+	{
+		return nullptr;
+	}
+
+	// Grab the existing editable mesh from our cache if we have one, otherwise create one now
+	TStrongObjectPtr<UEditableMesh>* EditableMeshPtr = CachedEditableMeshes.Find( SubMeshAddress );
+	if( EditableMeshPtr )
+	{
+		return EditableMeshPtr->Get();
+	}
+
+	// @todo mesheditor perf: This is going to HITCH as you hover over meshes.  Ideally we do this on a thread, or worst case give the user a progress dialog.  Maybe save out the editable mesh in editor builds?
+	UEditableMesh* EditableMesh = UEditableMeshFactory::MakeEditableMesh( const_cast<UPrimitiveComponent*>(&Component), SubMeshAddress );
+
+	// We don't want to regenerate the collision when entering Edit Mode or editing the mesh in any way, so turn off the simple collision regeneration on the associated EditableStaticMeshAdapter
+	// as normally UEditableStaticMeshAdapter::UpdateCollision would generate a box simple collision whenever the mesh is modified (including modifications that didn't change the geometry like
+	// flipping normals or setting material) whether the mesh initially had no simple collision or a custom collision.
+	for (UEditableMeshAdapter* Adapter : EditableMesh->Adapters)
+	{
+		if (UEditableStaticMeshAdapter* StaticMeshAdapter = Cast<UEditableStaticMeshAdapter>(Adapter))
+		{
+			StaticMeshAdapter->SetRecreateSimpleCollision(false);
+		}
+	}
+
+	// Enable undo tracking on this mesh
+	EditableMesh->SetAllowUndo( true );
+
+	// Disable octree, it will be enabled and updated when editable mesh is attached to context
+	EditableMesh->SetAllowSpatialDatabase( false );
+
+	// Enable compaction on this mesh
+	EditableMesh->SetAllowCompact( true );
+
+	CachedEditableMeshes.Add( SubMeshAddress ).Reset(EditableMesh);
+
+	const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(&Component);
+
+	StaticMeshesToComponents.Add(StaticMeshComponent->GetStaticMesh(), StaticMeshComponent);
+
+	return EditableMesh;
+}
+
+const UEditableMesh* FEditableMeshCache::FindEditableMesh(const UPrimitiveComponent& Component, const FEditableMeshSubMeshAddress& SubMeshAddress) const
+{
+	return FindModifiableEditableMesh(Component, SubMeshAddress);
+}
+
+UEditableMesh* FEditableMeshCache::FindModifiableEditableMesh(const UPrimitiveComponent& Component, const FEditableMeshSubMeshAddress& SubMeshAddress) const
+{
+	if (Cast<UStaticMeshComponent>(&Component) == nullptr || SubMeshAddress.EditableMeshFormat == nullptr)
+	{
+		return nullptr;
+	}
+
+	const TStrongObjectPtr<UEditableMesh>* EditableMeshPtr = CachedEditableMeshes.Find( SubMeshAddress );
+
+	return EditableMeshPtr ? EditableMeshPtr->Get() : nullptr;
+}
+
+void FEditableMeshCache::OnObjectReimported(UObject* InObject)
+{
+	// If a static mesh has been re-imported, it might have been edited
+	if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(InObject))
+	{
+		RemoveObject(StaticMesh);
+	}
+}
+
+void FEditableMeshCache::RemoveObject(UStaticMesh * StaticMesh)
+{
+	const UStaticMeshComponent* StaticMeshComponent = nullptr;
+	if (StaticMeshesToComponents.RemoveAndCopyValue(StaticMesh, StaticMeshComponent))
+	{
+		// If one of the LODs has been edited, remove it
+		for (int32 LODIndex = 0; LODIndex < StaticMesh->GetNumSourceModels(); ++LODIndex)
+		{
+			const FEditableMeshSubMeshAddress SubMeshAddressToQuery = UEditableMeshFactory::MakeSubmeshAddress(const_cast<UStaticMeshComponent*>(StaticMeshComponent), LODIndex);
+			CachedEditableMeshes.Remove(SubMeshAddressToQuery);
+		}
+	}
+}
+
+void FEditableMeshCache::ResetObject(UStaticMesh * StaticMesh)
+{
+	const UStaticMeshComponent* StaticMeshComponent = StaticMeshesToComponents.FindRef(StaticMesh);
+	if (StaticMeshComponent)
+	{
+		// If one of the LODs has been edited, reset its MeshDescription
+		for (int32 LODIndex = 0; LODIndex < StaticMesh->GetNumSourceModels(); ++LODIndex)
+		{
+			const FEditableMeshSubMeshAddress SubMeshAddressToQuery = UEditableMeshFactory::MakeSubmeshAddress(const_cast<UStaticMeshComponent*>(StaticMeshComponent), LODIndex);
+			TStrongObjectPtr<UEditableMesh> EditableMeshPtr = CachedEditableMeshes.FindRef(SubMeshAddressToQuery);
+			if (EditableMeshPtr)
+			{
+				EditableMeshPtr->SetMeshDescription(&EditableMeshPtr->OwnedMeshDescription);
+			}
+		}
+	}
+}
+
+FMeshEditingContext::FMeshEditingContext()
+	: LODIndex(INDEX_NONE)
+	, StaticMeshComponent(nullptr)
+	, EditableMesh(nullptr)
+{
+}
+
+FMeshEditingContext::FMeshEditingContext(UStaticMeshComponent* InStaticMeshComponent)
+	: LODIndex(INDEX_NONE)
+	, StaticMeshComponent(InStaticMeshComponent)
+	, EditableMesh(nullptr)
+{
+	check(StaticMeshComponent);
+}
+
+void FMeshEditingContext::Reset()
+{
+	if (StaticMeshComponent == nullptr)
+	{
+		return;
+	}
+
+	SelectedMeshElements.Empty();
+
+	if (EditableMesh != nullptr)
+	{
+		EditableMesh->OnElementIDsRemapped().RemoveAll( this );
+
+		EditableMesh = nullptr;
+		LODIndex = INDEX_NONE;
+	}
+}
+
+void FMeshEditingContext::Activate(FEditorViewportClient& ViewportClient, int32 InLODIndex)
+{
+	if (StaticMeshComponent == nullptr)
+	{
+		return;
+	}
+
+	SelectedMeshElements.Empty();
+
+	SetLODIndex(InLODIndex);
+}
+
+void FMeshEditingContext::Deactivate()
+{
+	if (StaticMeshComponent == nullptr)
+	{
+		return;
+	}
+
+	Reset();
+}
+
+void FMeshEditingContext::SetLODIndex(int32 InLODIndex)
+{
+	if (StaticMeshComponent == nullptr || InLODIndex < 0 || InLODIndex == LODIndex)
+	{
+		return;
+	}
+
+	Reset();
+
+	LODIndex = InLODIndex;
+
+	FEditableMeshSubMeshAddress SubMeshAddressToQuery = UEditableMeshFactory::MakeSubmeshAddress( StaticMeshComponent, LODIndex );
+	EditableMesh = FEditableMeshCache::Get().FindOrCreateEditableMesh( *StaticMeshComponent, SubMeshAddressToQuery );
+	check(EditableMesh);
+
+	// Set a callback so any cached ElementIDs can be remapped
+	EditableMesh->OnElementIDsRemapped().AddRaw( this, &FMeshEditingContext::OnEditableMeshElementIDsRemapped );
+
+	// Point EditableMesh's MeshDescription to StaticMesh's
+	FMeshDescription* EditableMeshDescription = EditableMesh->GetMeshDescription();
+	FMeshDescription* MeshDescription = StaticMeshComponent->GetStaticMesh()->GetMeshDescription(LODIndex);
+	if (MeshDescription != EditableMeshDescription)
+	{
+		MeshEditingContext::SetEditableMeshDescription(EditableMesh, StaticMeshComponent, LODIndex);
 
 		// Disable spatial database to flush it
 		EditableMesh->SetAllowSpatialDatabase( false );
@@ -691,9 +732,9 @@ void FMeshEditingUIContext::OnMeshChanged()
 		return;
 	}
 
-	// A PostEdit has been called on the edited static mesh, remove associated editable mesh
-	// It is not valid anymore
-	FEditableMeshCache::Get().RemoveObject(StaticMeshComponent->GetStaticMesh());
+	// A PostEdit has been called on the edited static mesh, the associated editable mesh has to be reset
+	// The same EditableMesh has to be reused for the undo operations since they reference it
+	FEditableMeshCache::Get().ResetObject(StaticMeshComponent->GetStaticMesh());
 
 	// Re-initialize EditableMesh if context was active
 	if (LODIndex != INDEX_NONE)
@@ -705,6 +746,21 @@ void FMeshEditingUIContext::OnMeshChanged()
 		FMeshEditingContext::Deactivate();
 		// Regenerate editable mesh and related data
 		SetLODIndex(CachedLODIndex);
+	}
+
+	// Make sure the EditableMesh MeshDescription for all LODs are updated after the ResetObject (even when not in Edit Mode, LODIndex == INDEX_NONE)
+	// The user could be undoing operations outside of Edit Mode
+	for (int32 CurrentLODIndex = 0; CurrentLODIndex < StaticMeshComponent->GetStaticMesh()->GetNumSourceModels(); ++CurrentLODIndex)
+	{
+		// MeshDescription for LODIndex is already set through SetLODIndex
+		if (CurrentLODIndex == LODIndex)
+		{
+			continue;
+		}
+
+		FEditableMeshSubMeshAddress SubMeshAddressToQuery = UEditableMeshFactory::MakeSubmeshAddress(StaticMeshComponent, CurrentLODIndex);
+		UEditableMesh* CurrentEditableMesh = FEditableMeshCache::Get().FindModifiableEditableMesh(*StaticMeshComponent, SubMeshAddressToQuery);
+		MeshEditingContext::SetEditableMeshDescription(CurrentEditableMesh, StaticMeshComponent, CurrentLODIndex);
 	}
 }
 
