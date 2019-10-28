@@ -129,6 +129,12 @@ public:
 	FHairGroupResources HairGroupResources;
 	struct FHairStrandsInterpolationOutput* InterpolationOutput = nullptr;
 	struct FHairStrandsInterpolationInput* InterpolationInput = nullptr;
+
+protected:
+	// Used for tracking if a Niagara component is attached or not
+	virtual void OnChildAttached(USceneComponent* ChildComponent) override;
+	virtual void OnChildDetached(USceneComponent* ChildComponent) override;
+
 private:
 	void* InitializedResources;
 
