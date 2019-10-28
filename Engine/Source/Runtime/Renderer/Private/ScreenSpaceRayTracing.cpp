@@ -111,7 +111,7 @@ bool ShouldRenderScreenSpaceDiffuseIndirect(const FViewInfo& View)
 		return false;
 	}
 
-	return View.PrevViewInfo.TemporalAAHistory.IsValid();
+	return View.PrevViewInfo.TemporalAAHistory.IsValid() && View.AntiAliasingMethod == AAM_TemporalAA;
 }
 
 bool IsSSRTemporalPassRequired(const FViewInfo& View)
