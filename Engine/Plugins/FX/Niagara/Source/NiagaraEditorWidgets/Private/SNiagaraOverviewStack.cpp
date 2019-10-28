@@ -507,7 +507,9 @@ FReply SNiagaraOverviewStack::OnRowDragDetected(const FGeometry& InGeometry, con
 	UNiagaraStackEntry* StackEntry = InStackEntryWeak.Get();
 	if (StackEntry != nullptr && StackEntry->CanDrag())
 	{
-		return FReply::Handled().BeginDragDrop(FNiagaraStackEditorWidgetsUtilities::ConstructDragDropOperationForStackEntries(StackEntry->GetSystemViewModel()->GetSelectionViewModel()->GetSelectedEntries()));
+		TArray<UNiagaraStackEntry*> EntriesToDrag = StackEntry->GetSystemViewModel()->GetSelectionViewModel()->GetSelectedEntries();
+		EntriesToDrag.AddUnique(StackEntry);
+		return FReply::Handled().BeginDragDrop(FNiagaraStackEditorWidgetsUtilities::ConstructDragDropOperationForStackEntries(EntriesToDrag));
 	}
 	return FReply::Unhandled();
 }

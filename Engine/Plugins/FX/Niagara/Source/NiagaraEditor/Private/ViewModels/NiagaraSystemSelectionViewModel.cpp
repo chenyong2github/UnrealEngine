@@ -29,6 +29,7 @@ void UNiagaraSystemSelectionViewModel::Initialize(TSharedRef<FNiagaraSystemViewM
 	SelectionStackViewModel->InitializeWithRootEntry(StackSelection);
 
 	bSystemIsSelected = false;
+	bRefreshIsPending = false;
 }
 
 void UNiagaraSystemSelectionViewModel::Finalize()
@@ -271,6 +272,11 @@ void UNiagaraSystemSelectionViewModel::Refresh()
 	}
 }
 
+void UNiagaraSystemSelectionViewModel::RefreshDeferred()
+{
+	bRefreshIsPending = true;
+}
+
 UNiagaraSystemSelectionViewModel::FOnSelectionChanged& UNiagaraSystemSelectionViewModel::OnSelectionChanged()
 {
 	return OnSelectionChangedDelegate;
@@ -308,6 +314,12 @@ void FindStackGroupsAndItemsForDisplayedObjectKeys(UNiagaraStackViewModel* Stack
 
 void UNiagaraSystemSelectionViewModel::Tick()
 {
+	if (bRefreshIsPending)
+	{
+		Refresh();
+		bRefreshIsPending = false;
+	}
+
 	TArray<UNiagaraStackEntry*> FoundStackEntries;
 	TSharedRef<FNiagaraSystemViewModel> SystemViewModel = GetSystemViewModel();
 	FindStackGroupsAndItemsForDisplayedObjectKeys(SystemViewModel->GetSystemStackViewModel(), DeferredDisplayedObjectKeysToAddToSelection, FoundStackEntries);
