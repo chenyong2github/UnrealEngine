@@ -3684,6 +3684,19 @@ void UPrimitiveComponent::SetCustomNavigableGeometry(const EHasCustomNavigableGe
 	bHasCustomNavigableGeometry = InType;
 }
  
+bool UPrimitiveComponent::WasRecentlyRendered(float Tolerance /*= 0.2*/) const
+{
+	if (const UWorld* const World = GetWorld())
+	{
+		// Adjust tolerance, so visibility is not affected by bad frame rate / hitches.
+		const float RenderTimeThreshold = FMath::Max(Tolerance, World->DeltaTimeSeconds + KINDA_SMALL_NUMBER);
+
+		// If the current cached value is less than the tolerance then we don't need to go look at the components
+		return World->TimeSince(GetLastRenderTime()) <= RenderTimeThreshold;
+	}
+	return false;
+}
+
 void UPrimitiveComponent::SetLastRenderTime(float InLastRenderTime)
 {
 	LastRenderTime = InLastRenderTime;
