@@ -19,19 +19,15 @@
  ******************************************************************************/
 
 //------------------------------------------------------------------------------
-UBlueprintVariableNodeSpawner* UBlueprintVariableNodeSpawner::CreateFromMemberOrParam(TSubclassOf<UK2Node_Variable> NodeClass, UProperty const* VarProperty, UEdGraph* VarContext, UObject* Outer)
+UBlueprintVariableNodeSpawner* UBlueprintVariableNodeSpawner::CreateFromMemberOrParam(TSubclassOf<UK2Node_Variable> NodeClass, UProperty const* VarProperty, UEdGraph* VarContext, UClass* OwnerClass)
 {
 	check(VarProperty != nullptr);
-	if (Outer == nullptr)
-	{
-		Outer = GetTransientPackage();
-	}
 
 	//--------------------------------------
 	// Constructing the Spawner
 	//--------------------------------------
 
-	UBlueprintVariableNodeSpawner* NodeSpawner = NewObject<UBlueprintVariableNodeSpawner>(Outer);
+	UBlueprintVariableNodeSpawner* NodeSpawner = NewObject<UBlueprintVariableNodeSpawner>(GetTransientPackage());
 	NodeSpawner->NodeClass = NodeClass;
 	NodeSpawner->Field = VarProperty;
 	NodeSpawner->LocalVarOuter = VarContext;
@@ -71,22 +67,22 @@ UBlueprintVariableNodeSpawner* UBlueprintVariableNodeSpawner::CreateFromMemberOr
 	// Post-Spawn Setup
 	//--------------------------------------
 
-	auto MemberVarSetupLambda = [](UEdGraphNode* NewNode, UField const* InField)
+	auto MemberVarSetupLambda = [](UEdGraphNode* NewNode, UField const* InField, UClass* OwnerClass)
 	{
 		if (UProperty const* Property = Cast<UProperty>(InField))
 		{
 			UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(NewNode);
-			UClass* OwnerClass = Property->GetOwnerClass();
+			OwnerClass = OwnerClass ? OwnerClass : Property->GetOwnerClass();
 
 			// We need to use a generated class instead of a skeleton class for IsChildOf, so if the OwnerClass has a Blueprint, grab the GeneratedClass
 			const bool bOwnerClassIsSelfContext = (Blueprint->SkeletonGeneratedClass->GetAuthoritativeClass() == OwnerClass) || Blueprint->SkeletonGeneratedClass->IsChildOf(OwnerClass);
 			const bool bIsFunctionVariable = Property->GetOuter()->IsA(UFunction::StaticClass());
 
 			UK2Node_Variable* VarNode = CastChecked<UK2Node_Variable>(NewNode);
-			VarNode->SetFromProperty(Property, bOwnerClassIsSelfContext && !bIsFunctionVariable);
+			VarNode->SetFromProperty(Property, bOwnerClassIsSelfContext && !bIsFunctionVariable, OwnerClass);
 		}
 	};
-	NodeSpawner->SetNodeFieldDelegate = FSetNodeFieldDelegate::CreateStatic(MemberVarSetupLambda);
+	NodeSpawner->SetNodeFieldDelegate = FSetNodeFieldDelegate::CreateStatic(MemberVarSetupLambda, OwnerClass);
 
 	return NodeSpawner;
 }
@@ -192,9 +188,10 @@ FBlueprintActionUiSpec UBlueprintVariableNodeSpawner::GetUiSpec(FBlueprintAction
 			}
 		}
 
-		auto OwnerClass = WrappedVariable->GetOwnerClass();
-		const bool bIsOwneClassValid = OwnerClass && (!Cast<const UBlueprintGeneratedClass>(OwnerClass) || OwnerClass->ClassGeneratedBy); //todo: more general validation
-		UClass const* VariableClass = bIsOwneClassValid ? OwnerClass->GetAuthoritativeClass() : NULL;
+		UClass const* EffectiveOwnerClass = WrappedVariable->GetOwnerClass();
+		EffectiveOwnerClass = EffectiveOwnerClass ? EffectiveOwnerClass : OwnerClass;
+		const bool bIsOwningClassValid = EffectiveOwnerClass && (!Cast<const UBlueprintGeneratedClass>(EffectiveOwnerClass) || EffectiveOwnerClass->ClassGeneratedBy); //todo: more general validation
+		UClass const* VariableClass = bIsOwningClassValid ? EffectiveOwnerClass->GetAuthoritativeClass() : nullptr;
 		if (VariableClass && !TargetClass->IsChildOf(VariableClass))
 		{
 			MenuSignature.Category = FEditorCategoryUtils::BuildCategoryString(FCommonEditorCategory::Class,

@@ -6348,7 +6348,7 @@ private:
 		{
 			NewTarget = NewObject<UK2Node_VariableGet>(Graph);
 			check(NewTarget);
-			NewTarget->SetFromProperty(Property, true);
+			NewTarget->SetFromProperty(Property, true, Property->GetOwnerClass());
 			AddedTargets.Add(NewTarget);
 			const float AutoNodeOffsetX = 160.0f;
 			InitializeNewNode(NewTarget, OldTarget, OldCall->NodePosX - AutoNodeOffsetX, OldCall->NodePosY);

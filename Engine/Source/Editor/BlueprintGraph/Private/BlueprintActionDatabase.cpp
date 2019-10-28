@@ -746,7 +746,8 @@ static void BlueprintActionDatabaseImpl::AddClassDataObjectActions(UClass const*
 				continue;
 			}
 
-			UBlueprintVariableNodeSpawner* GetterSpawner = UBlueprintVariableNodeSpawner::CreateFromMemberOrParam(UK2Node_VariableGet::StaticClass(), Property);
+			UClass* NonConstClass = const_cast<UClass*>(Class);
+			UBlueprintVariableNodeSpawner* GetterSpawner = UBlueprintVariableNodeSpawner::CreateFromMemberOrParam(UK2Node_VariableGet::StaticClass(), Property, nullptr, NonConstClass);
 			ActionListOut.Add(GetterSpawner);
 //			UBlueprintVariableNodeSpawner* SetterSpawner = UBlueprintVariableNodeSpawner::CreateFromMemberOrParam(UK2Node_VariableSet::StaticClass(), Property);
 //			ActionListOut.Add(SetterSpawner);

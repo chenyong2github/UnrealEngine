@@ -94,7 +94,7 @@ UBlueprintDelegateNodeSpawner* UBlueprintDelegateNodeSpawner::Create(TSubclassOf
 			UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(NewNode);
 			UClass* OwnerClass = MCDProperty->GetOwnerClass();
 
-			DelegateNode->SetFromProperty(MCDProperty, false);
+			DelegateNode->SetFromProperty(MCDProperty, false, OwnerClass);
 		}
 	};
 	NodeSpawner->SetNodeFieldDelegate = FSetNodeFieldDelegate::CreateStatic(SetDelegateLambda);
