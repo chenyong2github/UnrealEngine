@@ -7,6 +7,7 @@
 #include "Editor/Transactor.h"
 #include "UObject/UObjectIterator.h"
 
+#include "UObject/ReleaseObjectVersion.h"
 #include "Dialogs/Dialogs.h"
 #include "Editor/Transactor.h"
 #include "UObject/UObjectIterator.h"
