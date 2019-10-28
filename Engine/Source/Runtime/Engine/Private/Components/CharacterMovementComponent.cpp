@@ -5636,7 +5636,8 @@ void UCharacterMovementComponent::OnTeleported()
 
 float GetAxisDeltaRotation(float InAxisRotationRate, float DeltaTime)
 {
-	return (InAxisRotationRate >= 0.f) ? (InAxisRotationRate * DeltaTime) : 360.f;
+	// Values over 360 don't do anything, see FMath::FixedTurn. However we are trying to avoid giant floats from overflowing other calculations.
+	return (InAxisRotationRate >= 0.f) ? FMath::Min(InAxisRotationRate * DeltaTime, 360.f) : 360.f;
 }
 
 FRotator UCharacterMovementComponent::GetDeltaRotation(float DeltaTime) const
