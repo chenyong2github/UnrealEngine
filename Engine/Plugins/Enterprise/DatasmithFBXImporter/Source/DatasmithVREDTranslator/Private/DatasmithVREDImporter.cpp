@@ -1770,6 +1770,7 @@ TSharedPtr<IDatasmithLevelSequenceElement> FDatasmithVREDImporter::ConvertAnimBl
 
 				if (VisibilityAnimation.IsValid())
 				{
+					VisibilityAnimation->SetPropagateToChildren(true);
 					PopulateVisibilityAnimation(VisibilityAnimation.ToSharedRef().Get(), Curves[0]);
 				}
 			}
