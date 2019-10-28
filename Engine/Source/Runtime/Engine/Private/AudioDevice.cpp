@@ -2890,9 +2890,16 @@ void FAudioDevice::SetListener(UWorld* World, const int32 InViewportIndex, const
 			InitializePluginListeners(World);
 			bPluginListenersInitialized = true;
 		}
-		else if (Listeners[InViewportIndex].WorldID != WorldID)
+		else 
 		{
-			NotifyPluginListenersWorldChanged(World);
+			// World change event triggered on change in world of existing listener.
+			if (InViewportIndex < Listeners.Num())
+			{
+				if (Listeners[InViewportIndex].WorldID != WorldID)
+				{
+					NotifyPluginListenersWorldChanged(World);
+				}
+			}
 		}
 	}
 
