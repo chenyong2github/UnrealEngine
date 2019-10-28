@@ -70,7 +70,7 @@ namespace Chaos
 			return FCrc::MemCrc32(Bytes.GetData(), Bytes.GetAllocatedSize());
 		}
 
-		static ImplicitObjectType GetType()
+		static EImplicitObjectType GetType()
 		{
 			return ImplicitObjectType::HeightField;
 		}
