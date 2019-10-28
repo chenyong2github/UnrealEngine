@@ -5,7 +5,8 @@
 
 uint VertexCount;
 uint DispatchCountX;
-float3 InHairPositionOffset;
+float3 InRenderHairPositionOffset;
+float3 InSimHairPositionOffset;
 float3 OutHairPositionOffset;
 
 Buffer<uint4>  RenderRestPosePositionBuffer;
@@ -89,13 +90,13 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		#if PERMUTATION_DYNAMIC_GEOMETRY == 0
 		{
 			float3 CurrOffset = 0;
-			float3 ControlPoint = f16tof32(RenderRestPosePositionBuffer[VertexIndex].xyz) + InHairPositionOffset;
+			float3 ControlPoint = f16tof32(RenderRestPosePositionBuffer[VertexIndex].xyz) + InRenderHairPositionOffset;
 			#if PERMUTATION_SIMULATION == 1
 			[unroll]
 			for (uint K = 0; K < 3; ++K)
 			{
 				const uint GuideIndex = GuideVertexIndices[K];
-				const float3 RestGuidePoint	= f16tof32(SimRestPosePositionBuffer[GuideIndex].xyz) + InHairPositionOffset;
+				const float3 RestGuidePoint	= f16tof32(SimRestPosePositionBuffer[GuideIndex].xyz) + InSimHairPositionOffset;
 
 				const float3 DeformedGuidePoint	= f16tof32(DeformedSimPositionBuffer[GuideIndex].xyz) + OutHairPositionOffset;
 				CurrOffset += (DeformedGuidePoint - RestGuidePoint) * GuideVertexWeights[K];
@@ -109,7 +110,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		// Apply dynamic mesh deformation (translation / rotation)
 		#if PERMUTATION_DYNAMIC_GEOMETRY == 1
 		{
-			float3 ControlPoint = f16tof32(RenderRestPosePositionBuffer[VertexIndex].xyz) + InHairPositionOffset;
+			float3 ControlPoint = f16tof32(RenderRestPosePositionBuffer[VertexIndex].xyz) + InRenderHairPositionOffset;
 			float3 CurrOffset = 0;
 
 			// Compute the simulation offset in hair local space (i.e., triangle)
@@ -123,7 +124,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 				const FHairMeshTriangle RestTriangle		= GetTriangleTransformation(RootIndex, SimRestPosition0Buffer, SimRestPosition1Buffer, SimRestPosition2Buffer, SimRestPositionOffset);
 				const FHairMeshTriangle DeformedTriangle	= GetTriangleTransformation(RootIndex, SimDeformedPosition0Buffer, SimDeformedPosition1Buffer, SimDeformedPosition2Buffer, SimDeformedPositionOffset);
 
-				const float3 RestGuidePoint	= f16tof32(SimRestPosePositionBuffer[GuideIndex].xyz) + InHairPositionOffset;
+				const float3 RestGuidePoint	= f16tof32(SimRestPosePositionBuffer[GuideIndex].xyz) + InSimHairPositionOffset;
 				const float3 LocalRestGuidePoint = ToTriangle(RestGuidePoint,RootBarycentric,RestTriangle);
 
 				const float3 DeformedGuidePoint	= f16tof32(DeformedSimPositionBuffer[GuideIndex].xyz) + OutHairPositionOffset;
