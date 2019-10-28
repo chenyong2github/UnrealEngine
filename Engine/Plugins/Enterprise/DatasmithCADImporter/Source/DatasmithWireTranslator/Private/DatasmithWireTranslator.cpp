@@ -206,8 +206,7 @@ bool FWireTranslatorImpl::Read()
 	// Initialize Alias.
 	AlUniverse::initialize();
 
-	char* fileName = TCHAR_TO_UTF8(*SceneFullPath);
-	if (AlUniverse::retrieve(fileName) != sSuccess)
+	if (AlUniverse::retrieve(TCHAR_TO_UTF8(*SceneFullPath)) != sSuccess)
 	{
 		return false;
 	}
@@ -1615,12 +1614,14 @@ bool FWireTranslatorImpl::RecurseDagForLeaves(AlDagNode* FirstDagNode, const FDa
 			AlShellNode *ShellNode = DagNode->asShellNodePtr();
 			AlShell *Shell = ShellNode->shell();
 			uint32 NbPatch = getNumOfPatch(*Shell);
+
+			if (AlShader* Shader = Shell->firstShader())
+			{
+				ShaderName = Shader->name();
+			}
+
 			if (NbPatch == 1)
 			{
-				if (AlShader * Shader = Shell->firstShader())
-				{
-					ShaderName = Shader->name();
-				}
 				AddNodeInBodySet(*DagNode, ShaderName, ShellToProcess, true, MaxSize);
 			}
 			else
