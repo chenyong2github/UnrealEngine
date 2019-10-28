@@ -49,15 +49,14 @@ bool FNiagaraScriptExecutionContext::Init(UNiagaraScript* InScript, ENiagaraSimT
 
 bool FNiagaraScriptExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemInstance, ENiagaraSimTarget SimTarget)
 {
-	SCOPE_CYCLE_COUNTER(STAT_NiagaraScriptExecContextTick);
-
-	if (Script && Script->IsReadyToRun(ENiagaraSimTarget::CPUSim))//TODO: Remove. Script can only be null for system instances that currently don't have their script exec context set up correctly.
+	//Bind data interfaces if needed.
+	if (Parameters.GetInterfacesDirty())
 	{
-		const TArray<UNiagaraDataInterface*>& DataInterfaces = GetDataInterfaces();
-		
-		//Bind data interfaces if needed.
-		if (Parameters.GetInterfacesDirty())
+		SCOPE_CYCLE_COUNTER(STAT_NiagaraScriptExecContextTick);
+		if (Script && Script->IsReadyToRun(ENiagaraSimTarget::CPUSim))//TODO: Remove. Script can only be null for system instances that currently don't have their script exec context set up correctly.
 		{
+			const TArray<UNiagaraDataInterface*>& DataInterfaces = GetDataInterfaces();
+
 			SCOPE_CYCLE_COUNTER(STAT_NiagaraRebindDataInterfaceFunctionTable);
 			// UE_LOG(LogNiagara, Log, TEXT("Updating data interfaces for script %s"), *Script->GetFullName());
 
