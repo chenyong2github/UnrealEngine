@@ -3,6 +3,7 @@
 
 #include "GameFramework/Pawn.h"
 #include "Movement/FlyingMovement.h"
+#include "MockAbilitySimulation.h"
 #include "NetworkPredictionExtrasFlyingPawn.generated.h"
 
 class UInputComponent;
@@ -41,19 +42,19 @@ enum class ENetworkPredictionExtrasFlyingInputPreset: uint8
 };
 
 /** Sample pawn that uses UFlyingMovementComponent. The main thing this provides is actually producing user input for the component/simulation to consume. */
-UCLASS(config = Game)
+UCLASS()
 class NETWORKPREDICTIONEXTRAS_API ANetworkPredictionExtrasFlyingPawn : public APawn
 {
 	GENERATED_BODY()
 
 public:
 
-	ANetworkPredictionExtrasFlyingPawn();
+	ANetworkPredictionExtrasFlyingPawn(const FObjectInitializer& ObjectInitializer);
 
 	virtual void BeginPlay() override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 	virtual void Tick( float DeltaSeconds) override;
-	virtual UNetConnection* GetNetConnection() const override;
+	virtual UNetConnection* GetNetConnection() const override; // For bFakeAutonomousProxy only
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Automation")
@@ -84,9 +85,12 @@ protected:
 	const FlyingMovement::FAuxState* GetAuxStateRead() const;
 	FlyingMovement::FAuxState* GetAuxStateWrite();
 
-private:
-
 	void ProduceInput(const FNetworkSimTime SimTime, FlyingMovement::FInputCmd& Cmd);
+
+	UPROPERTY()
+	UFlyingMovementComponent* FlyingMovementComponent;
+
+private:
 
 	FVector CachedMoveInput;
 	FVector2D CachedLookInput;
@@ -102,7 +106,42 @@ private:
 	void Action_LeftShoulder_Released() { }
 	void Action_RightShoulder_Pressed() { }
 	void Action_RightShoulder_Released() { }
+};
 
-	UPROPERTY()
-	UFlyingMovementComponent* FlyingMovementComponent;
+// Example subclass of ANetworkPredictionExtrasFlyingPawn that uses the MockAbility simulation
+UCLASS()
+class NETWORKPREDICTIONEXTRAS_API ANetworkPredictionExtrasFlyingPawn_MockAbility : public ANetworkPredictionExtrasFlyingPawn
+{
+	GENERATED_BODY()
+
+public:
+
+	ANetworkPredictionExtrasFlyingPawn_MockAbility(const FObjectInitializer& ObjectInitializer);
+	virtual void BeginPlay() override;
+	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
+
+	
+	UMockFlyingAbilityComponent* GetMockFlyingAbilityComponent();
+	const UMockFlyingAbilityComponent* GetMockFlyingAbilityComponent() const;
+
+	UFUNCTION(BlueprintCallable, Category="Ability")
+	float GetStamina() const;
+
+	UFUNCTION(BlueprintCallable, Category="Ability")
+	float GetMaxStamina() const;
+	
+protected:
+	using ANetworkPredictionExtrasFlyingPawn::ProduceInput;
+	void ProduceInput(const FNetworkSimTime SimTime, FMockAbilityInputCmd& Cmd);
+
+	void Action_Sprint_Pressed();
+	void Action_Sprint_Released();
+	void Action_Dash_Pressed();
+	void Action_Dash_Released();
+	void Action_Blink_Pressed();
+	void Action_Blink_Released();
+
+	bool bSprintPressed = false;
+	bool bDashPressed = false;
+	bool bBlinkPressed = false;
 };

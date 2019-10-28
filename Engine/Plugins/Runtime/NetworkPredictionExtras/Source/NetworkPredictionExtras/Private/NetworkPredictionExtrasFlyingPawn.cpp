@@ -17,6 +17,7 @@
 #include "Misc/AssertionMacros.h"
 #include "HAL/PlatformStackWalk.h"
 #include "HAL/ThreadHeartBeat.h"
+#include "MockAbilitySimulation.h"
 
 namespace FlyingPawnCVars
 {
@@ -33,9 +34,12 @@ static FAutoConsoleVariableRef CVarBindAutomatically(TEXT("NetworkPredictionExtr
 	BindAutomatically, TEXT("Binds local input and mispredict commands to 5 and 6 respectively"), ECVF_Default);
 }
 
-ANetworkPredictionExtrasFlyingPawn::ANetworkPredictionExtrasFlyingPawn()
+const FName Name_FlyingMovementComponent(TEXT("FlyingMovementComponent"));
+
+ANetworkPredictionExtrasFlyingPawn::ANetworkPredictionExtrasFlyingPawn(const FObjectInitializer& ObjectInitializer)
 {
-	FlyingMovementComponent = CreateDefaultSubobject<UFlyingMovementComponent>(TEXT("FlyingMovementComponent"));
+	FlyingMovementComponent = CreateDefaultSubobject<UFlyingMovementComponent>(Name_FlyingMovementComponent);
+	ensure(FlyingMovementComponent);
 }
 
 void ANetworkPredictionExtrasFlyingPawn::BeginPlay()
@@ -44,6 +48,7 @@ void ANetworkPredictionExtrasFlyingPawn::BeginPlay()
 
 	if (UWorld* World = GetWorld())
 	{
+		ensure(FlyingMovementComponent);
 		FlyingMovementComponent->ProduceInputDelegate.BindUObject(this, &ANetworkPredictionExtrasFlyingPawn::ProduceInput);
 
 		// Binds 0 and 9 to the debug hud commands. This is just a convenience for the extras plugin. Real projects should bind this themselves
@@ -84,7 +89,6 @@ UNetConnection* ANetworkPredictionExtrasFlyingPawn::GetNetConnection() const
 			return GetWorld()->GetFirstPlayerController()->GetNetConnection();
 		}
 	}
-	
 
 	return nullptr;
 }
@@ -115,8 +119,8 @@ void ANetworkPredictionExtrasFlyingPawn::SetupPlayerInputComponent(UInputCompone
 			PC->PlayerInput->AddAxisMapping(FInputAxisKeyMapping(TEXT("MoveRight"), EKeys::A, -1.f));
 			PC->PlayerInput->AddAxisMapping(FInputAxisKeyMapping(TEXT("MoveForward"), EKeys::W, 1.f));
 			PC->PlayerInput->AddAxisMapping(FInputAxisKeyMapping(TEXT("MoveForward"), EKeys::S, -1.f));
-			PC->PlayerInput->AddAxisMapping(FInputAxisKeyMapping(TEXT("LeftTriggerAxis"), EKeys::LeftControl, 1.f));
-			PC->PlayerInput->AddAxisMapping(FInputAxisKeyMapping(TEXT("RightTriggerAxis"), EKeys::LeftShift, 1.f));
+			PC->PlayerInput->AddAxisMapping(FInputAxisKeyMapping(TEXT("LeftTriggerAxis"), EKeys::C, 1.f));
+			PC->PlayerInput->AddAxisMapping(FInputAxisKeyMapping(TEXT("RightTriggerAxis"), EKeys::LeftControl, 1.f));
 
 			// Mouse
 			PC->PlayerInput->AddAxisMapping(FInputAxisKeyMapping(TEXT("LookYaw"), EKeys::MouseX));
@@ -445,4 +449,127 @@ void ANetworkPredictionExtrasFlyingPawn::ProduceInput(const FNetworkSimTime SimT
 
 	CachedMoveInput = FVector::ZeroVector;
 	CachedLookInput = FVector2D::ZeroVector;
+}
+
+// ------------------------------------------------------------------------
+
+ANetworkPredictionExtrasFlyingPawn_MockAbility::ANetworkPredictionExtrasFlyingPawn_MockAbility(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UMockFlyingAbilityComponent>(Name_FlyingMovementComponent))
+{
+
+}
+
+UMockFlyingAbilityComponent* ANetworkPredictionExtrasFlyingPawn_MockAbility::GetMockFlyingAbilityComponent()
+{
+	return Cast<UMockFlyingAbilityComponent>(FlyingMovementComponent);
+}
+
+const UMockFlyingAbilityComponent* ANetworkPredictionExtrasFlyingPawn_MockAbility::GetMockFlyingAbilityComponent() const
+{
+	return Cast<UMockFlyingAbilityComponent>(FlyingMovementComponent);
+}
+
+void ANetworkPredictionExtrasFlyingPawn_MockAbility::ProduceInput(const FNetworkSimTime SimTime, FMockAbilityInputCmd& Cmd)
+{
+	Super::ProduceInput(SimTime, Cmd);
+	Cmd.bSprintPressed = bSprintPressed;
+	Cmd.bDashPressed = bDashPressed;
+	Cmd.bBlinkPressed = bBlinkPressed;
+}
+
+void ANetworkPredictionExtrasFlyingPawn_MockAbility::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (UWorld* World = GetWorld())
+	{
+		if (UMockFlyingAbilityComponent* FlyingAbilityComponent = GetMockFlyingAbilityComponent())
+		{
+			FlyingAbilityComponent->ProduceInputDelegate.BindUObject(this, &ANetworkPredictionExtrasFlyingPawn_MockAbility::ProduceInput);
+		}
+	}
+}
+
+float ANetworkPredictionExtrasFlyingPawn_MockAbility::GetStamina() const
+{
+	if (const UMockFlyingAbilityComponent* FlyingAbilityComponent = GetMockFlyingAbilityComponent())
+	{
+		if (const FMockAbilitySyncState* SyncState = FlyingAbilityComponent->MovementSyncState.GetStateRead())
+		{
+			return SyncState->Stamina;
+		}
+	}
+	return 0.f;
+}
+
+float ANetworkPredictionExtrasFlyingPawn_MockAbility::GetMaxStamina() const
+{
+	if (const UMockFlyingAbilityComponent* FlyingAbilityComponent = GetMockFlyingAbilityComponent())
+	{
+		if (const FMockAbilityAuxstate* AuxState = FlyingAbilityComponent->MovementAuxState.GetStateRead())
+		{
+			return AuxState->MaxStamina;
+		}
+	}
+	return 0.f;
+}
+
+void ANetworkPredictionExtrasFlyingPawn_MockAbility::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+{
+	Super::SetupPlayerInputComponent(PlayerInputComponent);
+
+	if (APlayerController* PC = Cast<APlayerController>(Controller))
+	{
+		if (PC->PlayerInput)
+		{
+			//Gamepad
+			PC->PlayerInput->AddActionMapping(FInputActionKeyMapping(TEXT("Sprint"), EKeys::Gamepad_LeftThumbstick));
+			PC->PlayerInput->AddActionMapping(FInputActionKeyMapping(TEXT("Dash"), EKeys::Gamepad_FaceButton_Left));
+			PC->PlayerInput->AddActionMapping(FInputActionKeyMapping(TEXT("Blink"), EKeys::Gamepad_FaceButton_Top));
+
+			// Keyboard
+			PC->PlayerInput->AddActionMapping(FInputActionKeyMapping(TEXT("Sprint"), EKeys::LeftShift));
+			PC->PlayerInput->AddActionMapping(FInputActionKeyMapping(TEXT("Dash"), EKeys::Q));
+			PC->PlayerInput->AddActionMapping(FInputActionKeyMapping(TEXT("Blink"), EKeys::E));
+		}
+	}
+
+	PlayerInputComponent->BindAction(TEXT("Sprint"), IE_Pressed, this, &ThisClass::Action_Sprint_Pressed);
+	PlayerInputComponent->BindAction(TEXT("Sprint"), IE_Released, this, &ThisClass::Action_Sprint_Released);
+
+	PlayerInputComponent->BindAction(TEXT("Dash"), IE_Pressed, this, &ThisClass::Action_Dash_Pressed);
+	PlayerInputComponent->BindAction(TEXT("Dash"), IE_Released, this, &ThisClass::Action_Dash_Released);
+
+	PlayerInputComponent->BindAction(TEXT("Blink"), IE_Pressed, this, &ThisClass::Action_Blink_Pressed);
+	PlayerInputComponent->BindAction(TEXT("Blink"), IE_Released, this, &ThisClass::Action_Blink_Released);
+}
+
+void ANetworkPredictionExtrasFlyingPawn_MockAbility::Action_Sprint_Pressed()
+{
+	bSprintPressed = true;
+}
+
+void ANetworkPredictionExtrasFlyingPawn_MockAbility::Action_Sprint_Released()
+{
+	bSprintPressed = false;
+}
+
+void ANetworkPredictionExtrasFlyingPawn_MockAbility::Action_Dash_Pressed()
+{
+	bDashPressed = true;
+}
+
+void ANetworkPredictionExtrasFlyingPawn_MockAbility::Action_Dash_Released()
+{
+	bDashPressed = false;
+}
+
+void ANetworkPredictionExtrasFlyingPawn_MockAbility::Action_Blink_Pressed()
+{
+	bBlinkPressed = true;
+}
+
+void ANetworkPredictionExtrasFlyingPawn_MockAbility::Action_Blink_Released()
+{
+	bBlinkPressed = false;
 }
