@@ -891,12 +891,12 @@ void UGroomComponent::PostLoad()
 		GroomAsset->ConditionalPostLoad();
 	}
 
+	UpdateHairGroupsDesc(GroomAsset, GroomGroupsDesc);
 	if (!IsTemplate())
 	{
 		InitResources();
 	}
 
-	UpdateHairGroupsDesc(GroomAsset, GroomGroupsDesc);
 
 #if WITH_EDITOR
 	if (!bIsGroomAssetCallbackRegistered)
@@ -1282,8 +1282,8 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		{
 			if (GroomAsset)
 			{
-				InitResources();
 				UpdateHairGroupsDesc(GroomAsset, GroomGroupsDesc);
+				InitResources();
 			}
 			else
 			{
@@ -1303,6 +1303,7 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, HairWidth))
 	{	
 		UpdateHairGroupsDesc(GroomAsset, GroomGroupsDesc);
+		MarkRenderStateDirty();
 	}
 #if WITH_EDITOR
 	ValidateMaterials(false);
