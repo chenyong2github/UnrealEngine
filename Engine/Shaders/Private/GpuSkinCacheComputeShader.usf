@@ -262,8 +262,8 @@ void SkinCacheUpdateBatchCS(uint3 GroupID : SV_GroupID,
 	}
 #else
 #if GPUSKIN_APEX_CLOTH
-    float3 ClothTangentX;
-    float3 ClothTangentZ;
+    float3 ClothTangentX = float3(0, 0, 0);
+    float3 ClothTangentZ = float3(0, 0, 0);
 	float TempClothBlendWeight = 0.0f;
 	if( Unpacked.SourceMeshVertIndices.w < 0xFFFF )
 	{ 
