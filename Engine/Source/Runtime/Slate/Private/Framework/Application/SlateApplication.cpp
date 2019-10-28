@@ -3359,6 +3359,18 @@ bool FSlateApplication::HasTraveledFarEnoughToTriggerDrag(const FPointerEvent& P
 	return ( PointerEvent.GetScreenSpacePosition() - ScreenSpaceOrigin ).SizeSquared() >= ( DragTriggerDistance * DragTriggerDistance );
 }
 
+bool FSlateApplication::HasTraveledFarEnoughToTriggerDrag(const FPointerEvent& PointerEvent, const FVector2D ScreenSpaceOrigin, EOrientation Orientation) const
+{
+	if (Orientation == Orient_Horizontal)
+	{
+		return FMath::Abs(PointerEvent.GetScreenSpacePosition().X - ScreenSpaceOrigin.X) >= DragTriggerDistance;
+	}
+	else // Orientation == Orient_Vertical
+	{
+		return FMath::Abs(PointerEvent.GetScreenSpacePosition().Y - ScreenSpaceOrigin.Y) >= DragTriggerDistance;
+	}
+}
+
 void FSlateApplication::SetDragTriggerDistance( float ScreenPixels )
 {
 	DragTriggerDistance = ScreenPixels;
