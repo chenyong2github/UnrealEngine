@@ -228,7 +228,7 @@ void SetupMobileDirectionalLightUniformParameters(
 
 void SetupMobileSkyReflectionUniformParameters(FSkyLightSceneProxy* SkyLight, FMobileReflectionCaptureShaderParameters& Parameters)
 {
-	float InvBrightness = 1.f;
+	float Brightness = 0.f;
 	float SkyMaxMipIndex = 0.f;
 	FTexture* CaptureTexture = GBlackTextureCube;
 
@@ -237,10 +237,11 @@ void SetupMobileSkyReflectionUniformParameters(FSkyLightSceneProxy* SkyLight, FM
 		check(SkyLight->ProcessedTexture->IsInitialized());
 		CaptureTexture = SkyLight->ProcessedTexture;
 		SkyMaxMipIndex = FMath::Log2(CaptureTexture->GetSizeX());
-		InvBrightness = FMath::Max(FMath::Min(1.0f / SkyLight->AverageBrightness, 65504.f), -65504.f);
+		Brightness = SkyLight->AverageBrightness;
 	}
 	
-	Parameters.Params = FVector4(InvBrightness, SkyMaxMipIndex, 0.f, 0.f);
+	//To keep ImageBasedReflectionLighting coherence with PC, use AverageBrightness instead of InvAverageBrightness to calculate the IBL contribution
+	Parameters.Params = FVector4(Brightness, SkyMaxMipIndex, 0.f, 0.f);
 	Parameters.Texture = CaptureTexture->TextureRHI;
 	Parameters.TextureSampler = CaptureTexture->SamplerStateRHI;
 }
