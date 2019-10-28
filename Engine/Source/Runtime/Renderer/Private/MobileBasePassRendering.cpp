@@ -162,7 +162,7 @@ void SetupMobileBasePassUniformParameters(
 	SetupPlanarReflectionUniformParameters(View, ReflectionSceneProxy, BasePassParameters.PlanarReflection);
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-	SetupMobileSceneTextureUniformParameters(SceneContext, View.FeatureLevel, bTranslucentPass, BasePassParameters.SceneTextures);
+	SetupMobileSceneTextureUniformParameters(SceneContext, View.FeatureLevel, bTranslucentPass, View.bUsesCustomDepthStencil, BasePassParameters.SceneTextures);
 }
 
 void CreateMobileBasePassUniformBuffer(
