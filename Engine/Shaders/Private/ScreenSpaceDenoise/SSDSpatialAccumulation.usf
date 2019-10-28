@@ -157,14 +157,14 @@
 
 		// Configure the bilateral therm.
 		#if DIM_MULTI_SPP
-			#define CONFIG_SAMPLE_SET           SAMPLE_SET_DIRECTIONAL_RECT
+			#define CONFIG_SAMPLE_SET           SAMPLE_SET_DIRECTIONAL_ELLIPSE
 
 			#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_REFLECTIONS
 			//#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_REFLECTIONS_1SPP
 			//#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DISABLED
 		#else
 			#if 1
-				#define CONFIG_SAMPLE_SET           SAMPLE_SET_DIRECTIONAL_RECT
+				#define CONFIG_SAMPLE_SET           SAMPLE_SET_DIRECTIONAL_ELLIPSE
 			#else
 				// Use stackowiak sample set to keep noise in the signal to avoid flicker in history rejection,
 				// and adapt number of samples based on the sample.
@@ -453,11 +453,6 @@
 	#define CONFIG_MAX_WITH_REF_DISTANCE 0
 #endif
 
-/** Project GGX lobe to compute the kernel. */
-#ifndef CONFIG_PROJECT_GGX_LOBE
-	#define CONFIG_PROJECT_GGX_LOBE 0
-#endif
-
 
 //------------------------------------------------------- COMPILATION WHITE LISTING
 
@@ -466,7 +461,7 @@
 	#define COMPILE_STACKOWIAK_KERNEL 1
 #elif CONFIG_SAMPLE_SET == SAMPLE_SET_HEXAWEB
 	#define COMPILE_DISK_KERNEL 1
-#elif CONFIG_SAMPLE_SET == SAMPLE_SET_DIRECTIONAL_RECT
+#elif CONFIG_SAMPLE_SET == SAMPLE_SET_DIRECTIONAL_RECT || CONFIG_SAMPLE_SET == SAMPLE_SET_DIRECTIONAL_ELLIPSE
 	#define COMPILE_DIRECTIONAL_KERNEL 1
 #else
 	#define COMPILE_BOX_KERNEL 1
@@ -939,7 +934,7 @@ void MainCS(
 				KernelBufferUV = KernelConfig.BufferUV;
 			#endif
 		}
-		#elif CONFIG_SAMPLE_SET == SAMPLE_SET_DIRECTIONAL_RECT
+		#elif CONFIG_SAMPLE_SET == SAMPLE_SET_DIRECTIONAL_RECT || CONFIG_SAMPLE_SET == SAMPLE_SET_DIRECTIONAL_ELLIPSE
 		{
 			#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
 			{
@@ -979,11 +974,11 @@ void MainCS(
 				//	KernelConfig.MinorPixelRadius,
 				//	OutOfFocus);
 
-				DebugOutput[DispatchThreadId] = float4(
-					KernelConfig.SampleCount,
-					KernelConfig.MajorPixelRadius,
-					KernelConfig.MinorPixelRadius,
-					OutOfFocus);
+				// DebugOutput[DispatchThreadId] = float4(
+				// 	KernelConfig.SampleCount,
+				// 	KernelConfig.MajorPixelRadius,
+				// 	KernelConfig.MinorPixelRadius,
+				// 	OutOfFocus);
 			}
 			#else
 				#error Directional rect sample set is not supported.
