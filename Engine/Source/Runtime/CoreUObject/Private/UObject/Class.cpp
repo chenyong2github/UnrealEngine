@@ -1328,6 +1328,9 @@ void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* D
 		FStructuredArchive::FRecord PropertiesRecord = Slot.EnterRecord();
 
 		check(UnderlyingArchive.IsSaving() || UnderlyingArchive.IsCountingMemory());
+		checkf(!UnderlyingArchive.ArUseCustomPropertyList, 
+				TEXT("Custom property lists only work with binary serialization, not tagged property serialization. "
+					 "Attempted for struct '%s' and archive '%s'. "), *GetFName().ToString(), *UnderlyingArchive.GetArchiveName());
 
 		UScriptStruct* DefaultsScriptStruct = dynamic_cast<UScriptStruct*>(DefaultsStruct);
 
@@ -1337,6 +1340,10 @@ void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* D
 		{
 			bUseAtomicSerialization = DefaultsScriptStruct->ShouldSerializeAtomically(UnderlyingArchive);
 		}
+
+		checkf(!(Defaults && UnderlyingArchive.DoDelta() && !UnderlyingArchive.IsTransacting() && bUseAtomicSerialization), 
+				TEXT("Dense/'atomic' structs shouldn't be sparsely delta-serialized. Struct '%s', archive: '%s'."),
+				*DefaultsScriptStruct->GetFName().ToString(), *UnderlyingArchive.GetArchiveName());
 
 		// Save tagged properties.
 
