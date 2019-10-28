@@ -802,12 +802,13 @@ void UGroomComponent::InitResources()
 		BeginInitResource(Res.RenderDeformedResources);
 		BeginInitResource(Res.SimDeformedResources);
 
-		const FVector RestHairPositionOffset = Res.RenderRestResources->PositionOffset;
+		const FVector RenderRestHairPositionOffset = Res.RenderRestResources->PositionOffset;
+		const FVector SimRestHairPositionOffset = Res.SimRestResources->PositionOffset;
 
-		Res.RenderDeformedResources->PositionOffset = RestHairPositionOffset;
-		Res.RenderRestResources->PositionOffset = RestHairPositionOffset;
-		Res.SimDeformedResources->PositionOffset = RestHairPositionOffset;
-		Res.SimRestResources->PositionOffset = RestHairPositionOffset;
+		Res.RenderDeformedResources->PositionOffset = RenderRestHairPositionOffset;
+		Res.RenderRestResources->PositionOffset = RenderRestHairPositionOffset;
+		Res.SimDeformedResources->PositionOffset = SimRestHairPositionOffset;
+		Res.SimRestResources->PositionOffset = SimRestHairPositionOffset;
 
 		FHairStrandsInterpolationOutput::HairGroup& InterpolationOutputGroup = InterpolationOutput->HairGroups.AddDefaulted_GetRef();
 		FHairStrandsInterpolationInput::FHairGroup& InterpolationInputGroup = InterpolationInput->HairGroups.AddDefaulted_GetRef();
@@ -816,10 +817,13 @@ void UGroomComponent::InitResources()
 		const FHairGroupDesc& InGroupDesc = GroomGroupsDesc[GroupIt];
 		InterpolationInputGroup.HairRadius = GetGroupMaxHairRadius(InGroupDesc, GroupData);
 		InterpolationInputGroup.HairRaytracingRadiusScale = HairRaytracingRadiusScale;
-		InterpolationInputGroup.InHairPositionOffset = RestHairPositionOffset;
+		InterpolationInputGroup.InRenderHairPositionOffset = RenderRestHairPositionOffset;
+		InterpolationInputGroup.InSimHairPositionOffset = SimRestHairPositionOffset;
+
 		// For skinned groom, these value will be updated during TickComponent() call
-		InterpolationInputGroup.OutHairPositionOffset = RestHairPositionOffset;
-		InterpolationInputGroup.OutHairPreviousPositionOffset = RestHairPositionOffset;
+		// Deformed sim & render are expressed within the referencial (unlike rest pose)
+		InterpolationInputGroup.OutHairPositionOffset = RenderRestHairPositionOffset;
+		InterpolationInputGroup.OutHairPreviousPositionOffset = RenderRestHairPositionOffset;
 		InterpolationInputGroup.bIsSimulationEnable = bIsSimulationEnable;
 
 		GroupIt++;

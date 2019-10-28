@@ -35,7 +35,8 @@ struct FHairStrandsInterpolationInput
 		bool bIsSimulationEnable = false;
 		float HairRadius = 0;
 		float HairRaytracingRadiusScale = 0;
-		FVector InHairPositionOffset = FVector::ZeroVector;
+		FVector InRenderHairPositionOffset = FVector::ZeroVector;
+		FVector InSimHairPositionOffset = FVector::ZeroVector;
 		FVector OutHairPositionOffset = FVector::ZeroVector;
 		FVector OutHairPreviousPositionOffset = FVector::ZeroVector;
 
