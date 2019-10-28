@@ -864,16 +864,6 @@ TSharedPtr<IDatasmithActorElement> FDatasmithVREDImporter::ConvertNode(const TSh
 			MeshNameToFBXMesh.Add(MeshName, ThisMesh);
 			TSharedRef<IDatasmithMeshElement> MeshElement = FDatasmithSceneFactory::CreateMesh(*ThisMesh->Name);
 
-			if (ImportOptions->bGenerateLightmapUVs)
-			{
-				MeshElement->SetLightmapSourceUV(0);
-				MeshElement->SetLightmapCoordinateIndex(-1);
-			}
-			else
-			{
-				MeshElement->SetLightmapCoordinateIndex(0);
-			}
-
 			DatasmithScene->AddMesh(MeshElement);
 		}
 
