@@ -4,7 +4,8 @@
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Pawn.h"
-#include "NetworkSimulationGlobalManager.h"
+#include "NetworkedSimulationGlobalManager.h"
+#include "Engine/World.h"
 
 UNetworkPredictionComponent::UNetworkPredictionComponent()
 {
