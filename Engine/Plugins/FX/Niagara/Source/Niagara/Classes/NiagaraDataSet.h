@@ -413,12 +413,12 @@ struct FNiagaraDataSetAccessorBase
 		VarLayout = DataSet->GetVariableLayout(InVar);
 	}
 
-	void SetDataSet(FNiagaraDataSet& InDataSet)
+	FORCEINLINE void SetDataSet(FNiagaraDataSet& InDataSet)
 	{
 		if (Var.IsValid())
 		{
 			DataSet = &InDataSet;
-			VarLayout = InDataSet.GetVariableLayout(Var);
+			checkSlow(VarLayout == InDataSet.GetVariableLayout(Var));
 		}
 		else
 		{
