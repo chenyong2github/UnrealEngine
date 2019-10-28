@@ -709,9 +709,20 @@ void UGroomComponent::OnChildDetached(USceneComponent* ChildComponent)
 	}
 }
 
+void UGroomComponent::ResetSimulation()
+{
+	USkeletalMeshComponent* SkeletalMeshComponent = GetAttachParent() ? Cast<USkeletalMeshComponent>(GetAttachParent()) : nullptr;
+	if (SkeletalMeshComponent)
+	{
+		SkeletalMeshComponent->OnBoneTransformsFinalized.RemoveDynamic(this, &UGroomComponent::ResetSimulation);
+		bResetSimulation = false;
+	}
+}
+
 void UGroomComponent::InitResources()
 {
 	ReleaseResources();
+	bResetSimulation = true;
 
 	if (!GroomAsset || GroomAsset->GetNumHairGroups() == 0)
 		return;
@@ -977,6 +988,13 @@ void UGroomComponent::Invalidate()
 void UGroomComponent::OnRegister()
 {
 	Super::OnRegister();
+
+	// Insure the ticking of the Groom component always happens after the skeletalMeshComponent.
+	USkeletalMeshComponent* SkeletalMeshComponent = GetAttachParent() ? Cast<USkeletalMeshComponent>(GetAttachParent()) : nullptr;
+	if (SkeletalMeshComponent)
+	{
+		SkeletalMeshComponent->OnBoneTransformsFinalized.AddDynamic(this, &UGroomComponent::ResetSimulation);
+	}
 
 	const EWorldType::Type WorldType = GetWorld() ? EWorldType::Type(GetWorld()->WorldType) : EWorldType::None;
 	const uint64 Id = ComponentId.PrimIDValue;
