@@ -61,11 +61,11 @@ protected:
 	UPROPERTY(config, EditAnywhere, Category="LiveLink")
 	TArray<FLiveLinkRoleProjectSetting> DefaultRoleSettings;
 
-	/** The interpolation to use for the subject. If null, no interpolation will be performed. */
+public:
+	/** The interpolation class to use for new Subjects if no specific settings we set for the Subject's role. */
 	UPROPERTY(config)
 	TSubclassOf<ULiveLinkFrameInterpolationProcessor> FrameInterpolationProcessor;
-
-public:
+	
 	/** The default location in which to save take presets */
 	UPROPERTY(config, EditAnywhere, Category="LiveLink", meta=(DisplayName="Preset Save Location"))
 	FDirectoryPath PresetSaveDir;
