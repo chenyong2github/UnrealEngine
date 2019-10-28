@@ -21,28 +21,12 @@
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "Debug/ReporterGraph.h"
-#include "NetworkSimulationModelDebugger.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFlyingMovement, Log, All);
 
 
 namespace FlyingMovementCVars
 {
-
-static float PenetrationPullbackDistance = 0.125f;
-static FAutoConsoleVariableRef CVarPenetrationPullbackDistance(TEXT("fp.PenetrationPullbackDistance"),
-	PenetrationPullbackDistance,
-	TEXT("Pull out from penetration of an object by this extra distance.\n")
-	TEXT("Distance added to penetration fix-ups."),
-	ECVF_Default);
-
-static float PenetrationOverlapCheckInflation = 0.100f;
-static FAutoConsoleVariableRef CVarPenetrationOverlapCheckInflation(TEXT("motion.PenetrationOverlapCheckInflation"),
-	PenetrationOverlapCheckInflation,
-	TEXT("Inflation added to object when checking if a location is free of blocking collision.\n")
-	TEXT("Distance added to inflation in penetration overlap check."),
-	ECVF_Default);
-
 static float MaxSpeed = 1200.f;
 static FAutoConsoleVariableRef CVarMaxSpeed(TEXT("motion.MaxSpeed"),
 	MaxSpeed,
@@ -70,7 +54,13 @@ UFlyingMovementComponent::UFlyingMovementComponent()
 INetworkSimulationModel* UFlyingMovementComponent::InstantiateNetworkSimulation()
 {
 	check(UpdatedComponent);
+
+	// Create the simulation
+	MovementSimulation.Reset(new FlyingMovement::FMovementSimulation());
+	MovementSimulation->UpdatedComponent = UpdatedComponent;
+	MovementSimulation->UpdatedPrimitive = UpdatedPrimitive;
 	
+	// Initial states
 	FlyingMovement::FMoveState InitialSyncState;
 	InitialSyncState.Location = UpdatedComponent->GetComponentLocation();
 	InitialSyncState.Rotation = UpdatedComponent->GetComponentQuat().Rotator();	
@@ -78,11 +68,13 @@ INetworkSimulationModel* UFlyingMovementComponent::InstantiateNetworkSimulation(
 	FlyingMovement::FAuxState InitialAuxState;
 	InitialAuxState.MaxSpeed = FlyingMovementCVars::MaxSpeed;
 
-	auto NewSim = new FlyingMovement::FMovementSystem<0>(this, InitialSyncState, InitialAuxState);
-	DO_NETSIM_MODEL_DEBUG(FNetworkSimulationModelDebuggerManager::Get().RegisterNetworkSimulationModel(NewSim, GetOwner()));
-	MovementSyncState.Init(NewSim);
-	MovementAuxState.Init(NewSim);
-	return NewSim;
+	// The NetworkModel
+	auto NewModel = new FlyingMovement::FMovementSystem<0>(MovementSimulation.Get(), this, InitialSyncState, InitialAuxState);
+
+	// Accessors to the latest sync/aux state
+	MovementSyncState.Init(NewModel);
+	MovementAuxState.Init(NewModel);
+	return NewModel;
 }
 
 void UFlyingMovementComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -136,7 +128,13 @@ void UFlyingMovementComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 //
 // ----------------------------------------------------------------------------------------------------------
 
-void UFlyingMovementComponent::PreSimSync(const FlyingMovement::FMoveState& SyncState)
+void UFlyingMovementComponent::ProduceInput(const FNetworkSimTime SimTime, FlyingMovement::FInputCmd& Cmd)
+{
+	// This isn't ideal. It probably makes sense for the component to do all the input binding rather.
+	ProduceInputDelegate.ExecuteIfBound(SimTime, Cmd);
+}
+
+void UFlyingMovementComponent::FinalizeFrame(const FlyingMovement::FMoveState& SyncState, const FlyingMovement::FAuxState& AuxState)
 {
 	// Does checking equality make any sense here? This is unfortunate
 	if (UpdatedComponent->GetComponentLocation().Equals(SyncState.Location) == false || UpdatedComponent->GetComponentQuat().Rotator().Equals(SyncState.Rotation, FlyingMovement::ROTATOR_TOLERANCE) == false)
@@ -148,23 +146,18 @@ void UFlyingMovementComponent::PreSimSync(const FlyingMovement::FMoveState& Sync
 	}
 }
 
-void UFlyingMovementComponent::ProduceInput(const FNetworkSimTime SimTime, FlyingMovement::FInputCmd& Cmd)
-{
-	// This isn't ideal. It probably makes sense for the component to do all the input binding rather.
-	ProduceInputDelegate.ExecuteIfBound(SimTime, Cmd);
-}
-
-void UFlyingMovementComponent::FinalizeFrame(const FlyingMovement::FMoveState& SyncState, const FlyingMovement::FAuxState& AuxState)
-{
-	PreSimSync(SyncState);
-}
-
 FString UFlyingMovementComponent::GetDebugName() const
 {
 	return FString::Printf(TEXT("FlyingMovement. %s. %s"), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwnerRole()), *GetName());
 }
 
-const UObject* UFlyingMovementComponent::GetVLogOwner() const
+const AActor* UFlyingMovementComponent::GetVLogOwner() const
 {
 	return GetOwner();
+}
+
+void UFlyingMovementComponent::VisualLog(const FlyingMovement::FInputCmd* Input, const FlyingMovement::FMoveState* Sync, const FlyingMovement::FAuxState* Aux, const FVisualLoggingParameters& SystemParameters) const
+{
+	FTransform Transform(Sync->Rotation, Sync->Location);
+	FVisualLoggingHelpers::VisualLogActor(GetOwner(), Transform, SystemParameters);	
 }

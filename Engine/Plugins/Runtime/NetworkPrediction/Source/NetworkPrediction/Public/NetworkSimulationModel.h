@@ -5,6 +5,7 @@
 #include "NetworkSimulationModelBuffer.h"
 #include "NetworkSimulationModelTypes.h"
 #include "NetworkSimulationModelReplicators.h"
+#include "NetworkSimulationModelDebugger.h"
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //	TNetworkedSimulationModel
@@ -28,8 +29,7 @@
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 template <
-	typename TSimulation,								// Final Simulation class. Used to call static T::Update function.
-	typename TInDriver,
+	typename InTSimulation,								// Final Simulation class
 	typename TUserBufferTypes,							// The user types (input, sync, aux, debug). Note this gets wrapped in TInternalBufferTypes internally.
 	typename InTTickSettings=TNetworkSimTickSettings<>, // Defines global rules about time keeping and ticking
 
@@ -46,7 +46,8 @@ class TNetworkedSimulationModel : public INetworkSimulationModel
 {
 public:
 
-	using TDriver = TInDriver;
+	using TSimulation = InTSimulation;
+	using TDriver = TNetworkedSimulationModelDriver<TUserBufferTypes>;
 
 	using TBufferTypes = TInternalBufferTypes<TUserBufferTypes, InTTickSettings>;
 	using TTickSettings = InTTickSettings;
@@ -59,13 +60,17 @@ public:
 	using TSimTime = FNetworkSimTime;
 	using TRealTime = FNetworkSimTime::FRealTime;
 	
-	TNetworkedSimulationModel(TDriver* InDriver, const TSyncState& InitialSyncState = TSyncState(), const TAuxState& InitialAuxState = TAuxState())
+	TNetworkedSimulationModel(TSimulation* InSimulation, TDriver* InDriver, const TSyncState& InitialSyncState = TSyncState(), const TAuxState& InitialAuxState = TAuxState())
 	{
+		check(InSimulation && InDriver);
+		Simulation = InSimulation;
 		Driver = InDriver;
 		*Buffers.Sync.WriteKeyframe(0) = InitialSyncState;
 		*Buffers.Aux.WriteKeyframe(0) = InitialAuxState;
 		TickInfo.SetTotalProcessedSimulationTime(FNetworkSimTime(), 0);
+		DO_NETSIM_MODEL_DEBUG(FNetworkSimulationModelDebuggerManager::Get().RegisterNetworkSimulationModel(this, Driver->GetVLogOwner()));
 	}
+
 	virtual ~TNetworkedSimulationModel()
 	{
 		SetParentSimulation(nullptr);
@@ -118,15 +123,15 @@ public:
 		switch (Parameters.Role)
 		{
 			case ROLE_Authority:
-				RepProxy_ServerRPC.template PreSimTick<TSimulation, TDriver>(Driver, Buffers, TickInfo, Parameters);
+				RepProxy_ServerRPC.template PreSimTick<TDriver>(Driver, Buffers, TickInfo, Parameters);
 			break;
 
 			case ROLE_AutonomousProxy:
-				RepProxy_Autonomous.template PreSimTick<TSimulation, TDriver>(Driver, Buffers, TickInfo, Parameters);
+				RepProxy_Autonomous.template PreSimTick<TDriver>(Driver, Buffers, TickInfo, Parameters);
 			break;
 
 			case ROLE_SimulatedProxy:
-				RepProxy_Simulated.template PreSimTick<TSimulation, TDriver>(Driver, Buffers, TickInfo, Parameters);
+				RepProxy_Simulated.template PreSimTick<TDriver>(Driver, Buffers, TickInfo, Parameters);
 			break;
 		}
 
@@ -164,7 +169,7 @@ public:
 
 				{
 					TScopedSimulationTick UpdateScope(TickInfo, OutputKeyframe, InputCmd->GetFrameDeltaTime());
-					TSimulation::Update(Driver, InputCmd->GetFrameDeltaTime().ToRealTimeSeconds(), *InputCmd, *InSyncState, *OutSyncState, *InAuxState, Buffers.Aux.WriteKeyframeFunc(OutputKeyframe));
+					Simulation->Update(InputCmd->GetFrameDeltaTime().ToRealTimeSeconds(), *InputCmd, *InSyncState, *OutSyncState, *InAuxState, Buffers.Aux.LazyWriter(OutputKeyframe));
 				}
 
 				if (DebugState)
@@ -228,15 +233,15 @@ public:
 		switch (Role)
 		{
 			case ROLE_Authority:
-				RepProxy_ServerRPC.template Reconcile<TSimulation, TDriver>(Driver, Buffers, TickInfo);
+				RepProxy_ServerRPC.template Reconcile<TSimulation, TDriver>(Simulation, Driver, Buffers, TickInfo);
 			break;
 
 			case ROLE_AutonomousProxy:
-				RepProxy_Autonomous.template Reconcile<TSimulation, TDriver>(Driver, Buffers, TickInfo);
+				RepProxy_Autonomous.template Reconcile<TSimulation, TDriver>(Simulation, Driver, Buffers, TickInfo);
 			break;
 
 			case ROLE_SimulatedProxy:
-				RepProxy_Simulated.template Reconcile<TSimulation, TDriver>(Driver, Buffers, TickInfo);
+				RepProxy_Simulated.template Reconcile<TSimulation, TDriver>(Simulation, Driver, Buffers, TickInfo);
 			break;
 		}
 	}
@@ -319,17 +324,17 @@ public:
 
 	// ------------------------------------------------------------------------------------------------------
 
-	void SetParentSimulation(INetworkSimulationModel* Simulation) final override
+	void SetParentSimulation(INetworkSimulationModel* ParentSimulation) final override
 	{
 		if (RepProxy_Simulated.ParentSimulation)
 		{
 			RepProxy_Simulated.ParentSimulation->RemoveDependentSimulation(this);
 		}
 		
-		RepProxy_Simulated.ParentSimulation = Simulation;
-		if (Simulation)
+		RepProxy_Simulated.ParentSimulation = ParentSimulation;
+		if (ParentSimulation)
 		{
-			Simulation->AddDepdentSimulation(this);
+			ParentSimulation->AddDependentSimulation(this);
 		}
 	}
 
@@ -338,16 +343,16 @@ public:
 		return RepProxy_Simulated.ParentSimulation;
 	}
 
-	void AddDepdentSimulation(INetworkSimulationModel* Simulation) final override
+	void AddDependentSimulation(INetworkSimulationModel* DependentSimulation) final override
 	{
-		check(RepProxy_Autonomous.DependentSimulations.Contains(Simulation) == false);
-		RepProxy_Autonomous.DependentSimulations.Add(Simulation);
+		check(RepProxy_Autonomous.DependentSimulations.Contains(DependentSimulation) == false);
+		RepProxy_Autonomous.DependentSimulations.Add(DependentSimulation);
 		NotifyDependentSimNeedsReconcile(); // force reconcile on purpose
 	}
 
-	void RemoveDependentSimulation(INetworkSimulationModel* Simulation) final override
+	void RemoveDependentSimulation(INetworkSimulationModel* DependentSimulation) final override
 	{
-		RepProxy_Autonomous.DependentSimulations.Remove(Simulation);
+		RepProxy_Autonomous.DependentSimulations.Remove(DependentSimulation);
 	}
 
 	void NotifyDependentSimNeedsReconcile()
@@ -357,12 +362,12 @@ public:
 
 	void BeginRollback(const FNetworkSimTime& RollbackDeltaTime, const int32 ParentKeyframe) final override
 	{
-		RepProxy_Simulated.template DependentRollbackBegin<TSimulation, TDriver>(Driver, Buffers, TickInfo, RollbackDeltaTime, ParentKeyframe);
+		RepProxy_Simulated.template DependentRollbackBegin<TSimulation, TDriver>(Simulation, Driver, Buffers, TickInfo, RollbackDeltaTime, ParentKeyframe);
 	}
 
 	void StepRollback(const FNetworkSimTime& Step, const int32 ParentKeyframe, const bool bFinalStep) final override
 	{
-		RepProxy_Simulated.template DependentRollbackStep<TSimulation, TDriver>(Driver, Buffers, TickInfo, Step, ParentKeyframe, bFinalStep);
+		RepProxy_Simulated.template DependentRollbackStep<TSimulation, TDriver>(Simulation, Driver, Buffers, TickInfo, Step, ParentKeyframe, bFinalStep);
 	}
 
 	void ClearAllDependentSimulations()
@@ -376,7 +381,9 @@ public:
 
 	// -------------------------------------------------------------------------------------------------------
 
-	TDriver* Driver = nullptr;	
+	TSimulation* Simulation = nullptr;
+	TDriver* Driver = nullptr;
+
 	TSimulationTickState<TTickSettings> TickInfo;	// Manages simulation time and what inputs we are processed
 
 	TNetworkSimBufferContainer<TBufferTypes> Buffers;
@@ -448,4 +455,5 @@ private:
 	TRepProxyDebug RepProxy_Debug;
 	TUniquePtr<TNetworkSimBufferContainer<TBufferTypes>> HistoricBuffers;
 #endif
+
 };

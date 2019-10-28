@@ -18,7 +18,7 @@ FNetworkSimulationModelDebuggerManager& FNetworkSimulationModelDebuggerManager::
 	return Manager;
 }
 
-UObject* FindReplicatedObjectOnPIEServer(UObject* ClientObject)
+UObject* FindReplicatedObjectOnPIEServer(const UObject* ClientObject)
 {
 	if (ClientObject == nullptr)
 	{
