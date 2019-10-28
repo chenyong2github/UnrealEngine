@@ -17,6 +17,7 @@
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 #include "Misc/MapErrors.h"
+#include "NiagaraComponent.h"
 
 static float GHairClipLength = -1;
 static FAutoConsoleVariableRef CVarHairClipLength(TEXT("r.HairStrands.DebugClipLength"), GHairClipLength, TEXT("Clip hair strands which have a lenth larger than this value. (default is -1, no effect)"));
@@ -654,6 +655,60 @@ void CallbackMeshObjectCallback(
 	});
 }
 
+static bool IsSimulationEnabled(const USceneComponent* Component)
+{
+	check(Component);
+
+	// If the groom component has an Niagara component attached, we assume it has simulation capabilities
+	bool bHasNiagaraSimulationComponent = false;
+	for (int32 ChildIt = 0, ChildCount = Component->GetNumChildrenComponents(); ChildIt < ChildCount; ++ChildIt)
+	{
+		const USceneComponent* ChildComponent = Component->GetChildComponent(ChildIt);
+		const UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(ChildComponent);
+		if (NiagaraComponent != nullptr)
+		{
+			bHasNiagaraSimulationComponent = true;
+			break;
+		}
+	}
+
+	return bHasNiagaraSimulationComponent;
+}
+
+void UGroomComponent::OnChildAttached(USceneComponent* ChildComponent)
+{
+	const UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(ChildComponent);
+	if (NiagaraComponent && InterpolationInput)
+	{
+		FHairStrandsInterpolationInput* LocalInterpolationInput = InterpolationInput;
+		ENQUEUE_RENDER_COMMAND(FHairStrandsTick_UpdateSimulationEnable)(
+			[LocalInterpolationInput](FRHICommandListImmediate& RHICmdList)
+		{
+			for (FHairStrandsInterpolationInput::FHairGroup& HairGroup : LocalInterpolationInput->HairGroups)
+			{
+				HairGroup.bIsSimulationEnable = true;
+			}
+		});
+	}
+}
+
+void UGroomComponent::OnChildDetached(USceneComponent* ChildComponent)
+{
+	const UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(ChildComponent);
+	if (NiagaraComponent && InterpolationInput)
+	{
+		FHairStrandsInterpolationInput* LocalInterpolationInput = InterpolationInput;
+		ENQUEUE_RENDER_COMMAND(FHairStrandsTick_UpdateSimulationDisable)(
+			[LocalInterpolationInput](FRHICommandListImmediate& RHICmdList)
+		{
+			for (FHairStrandsInterpolationInput::FHairGroup& HairGroup : LocalInterpolationInput->HairGroups)
+			{
+				HairGroup.bIsSimulationEnable = false;
+			}
+		});
+	}
+}
+
 void UGroomComponent::InitResources()
 {
 	ReleaseResources();
@@ -679,6 +734,8 @@ void UGroomComponent::InitResources()
 		CallbackData.UserData = (uint64(LocalComponentId.PrimIDValue) & 0xFFFFFFFF) | (uint64(WorldType) << 32);
 		SkeletalMeshComponent->MeshObjectCallbackData = CallbackData;
 	}
+
+	const bool bIsSimulationEnable = IsSimulationEnabled(this);
 
 	FTransform HairLocalToWorld = GetComponentTransform();
 	FTransform SkinLocalToWorld = bBindGroomToSkeletalMesh && SkeletalMeshComponent ? SkeletalMeshComponent->GetComponentTransform() : FTransform::Identity;
@@ -752,6 +809,7 @@ void UGroomComponent::InitResources()
 		// For skinned groom, these value will be updated during TickComponent() call
 		InterpolationInputGroup.OutHairPositionOffset = RestHairPositionOffset;
 		InterpolationInputGroup.OutHairPreviousPositionOffset = RestHairPositionOffset;
+		InterpolationInputGroup.bIsSimulationEnable = bIsSimulationEnable;
 
 		GroupIt++;
 	}
