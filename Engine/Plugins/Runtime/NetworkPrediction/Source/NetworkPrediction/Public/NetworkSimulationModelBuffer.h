@@ -2,6 +2,7 @@
 
 #pragma once
 
+// Generic iterator for iterating over each keyframe from tail to head
 template<typename TBuffer, typename ElementType>
 struct TNetworkSimBufferIterator
 {
@@ -17,6 +18,42 @@ private:
 	int32 CurrentPos = -1;
 };
 
+// Helper struct to encapsulate optional, delayed writing of new element to buffer
+template<typename ElementType>
+struct TNetSimLazyWriterFunc
+{
+	template<typename TBuffer>
+	TNetSimLazyWriterFunc(TBuffer& Buffer, int32 PendingKeyframe)
+	{
+		GetFunc = [&Buffer, PendingKeyframe]() { return Buffer.WriteKeyframeInitializedFromHead(PendingKeyframe); };
+	}
+
+	ElementType* Get() const
+	{
+		check(GetFunc);
+		return (ElementType*)GetFunc();
+	}
+
+	TFunction<void*()> GetFunc;
+};
+
+// Reference version of LazyWriter. Faster to pass around and do cascading downcasts
+template<typename ElementType>
+struct TNetSimLazyWriter
+{
+	template<typename TLazyWriter>
+	TNetSimLazyWriter(const TLazyWriter& Parent)
+		: GetFunc(Parent.GetFunc) { }
+
+	ElementType* Get() const
+	{
+		return (ElementType*)GetFunc();
+	}
+
+	TFunctionRef<void*()> GetFunc;
+};
+
+// Common implementations shared by TNetworkSimContiguousBuffer/TNetworkSimSparseBuffer
 template<typename T>
 struct TNetworkSimBufferBase
 {
@@ -39,12 +76,14 @@ struct TNetworkSimBufferBase
 			*((T*)this)->WriteKeyframe( It.Keyframe() ) = *It.Element();
 		}
 	}
+
 protected:
 
 	// Creates a new keyframe, but
 	//	-If keyframe already exists, returns existing
 	//	-If keyframe > head, contents of head are copied into new frame
-	//	-If keyframe < head, contents are cleared to default value
+	//	-If keyframe < tail, contents are cleared to default value
+	// (this function is sketchy and poorly named but is proving to be useful in a few places)
 	template<typename ElementType>
 	ElementType* WriteKeyframeInitializedFromHeadImpl(int32 Keyframe)
 	{
@@ -120,9 +159,9 @@ struct TNetworkSimContiguousBuffer : public TNetworkSimBufferBase<TNetworkSimCon
 		return this->template WriteKeyframeInitializedFromHeadImpl<ElementType>(Keyframe);
 	}
 
-	TUniqueFunction<T*()> WriteKeyframeFunc(int32 Keyframe)
+	TNetSimLazyWriterFunc<ElementType> LazyWriter(int32 Keyframe)
 	{
-		return [this, Keyframe]() { return WriteKeyframe(Keyframe); };
+		return TNetSimLazyWriterFunc<ElementType>(*this, Keyframe);
 	}
 
 	using IteratorType = TNetworkSimBufferIterator<TNetworkSimContiguousBuffer<ElementType, NumElements>, ElementType>;
@@ -248,9 +287,9 @@ struct TNetworkSimSparseBuffer : public TNetworkSimBufferBase<TNetworkSimSparseB
 		return this->template WriteKeyframeInitializedFromHeadImpl<ElementType>(Keyframe);
 	}
 
-	TUniqueFunction<T*()> WriteKeyframeFunc(int32 Keyframe)
+	TNetSimLazyWriterFunc<ElementType> LazyWriter(int32 Keyframe)
 	{
-		return [this, Keyframe]() { return WriteKeyframe(Keyframe); };
+		return TNetSimLazyWriterFunc<ElementType>(*this, Keyframe);
 	}
 
 	using IteratorType = TNetworkSimBufferIterator<TNetworkSimSparseBuffer<ElementType, NumElements>, ElementType>;

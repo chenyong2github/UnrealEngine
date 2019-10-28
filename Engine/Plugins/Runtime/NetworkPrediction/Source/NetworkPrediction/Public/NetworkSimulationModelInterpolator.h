@@ -7,6 +7,7 @@
 #include "GameFramework/Actor.h"
 #include "NetworkPredictionTypes.h"
 #include "Engine/World.h"
+#include "NetworkSimulationModelTypes.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNetInterpolation, Log, All);
 
@@ -32,13 +33,13 @@ struct TInterpolator
 
 	bool bEnableVisualLog = true;
 
-	template<typename TDriver>
-	void PostSimTick(TDriver* Driver, const TNetworkSimBufferContainer<TBufferTypes>& Buffers, const TSimulationTickState<TTickSettings>& TickInfo, const FNetSimTickParameters& TickParameters)
+	template<typename TSystemDriver>
+	void PostSimTick(TSystemDriver* Driver, const TNetworkSimBufferContainer<TBufferTypes>& Buffers, const TSimulationTickState<TTickSettings>& TickInfo, const FNetSimTickParameters& TickParameters)
 	{
 		const bool bDoVLog = NetworkInterpolationDebugCVars::VLog() && bEnableVisualLog;
 		const float DeltaSeconds = TickParameters.LocalDeltaTimeSeconds;
 
-		const UObject* LogOwner = Driver->GetVLogOwner();
+		const AActor* LogOwner = Driver->GetVLogOwner();
 
 		// Interpolation disabled
 		if (NetworkInterpolationDebugCVars::Disable() > 0)
@@ -196,15 +197,30 @@ struct TInterpolator
 					const TSyncState* DebugTail = Buffers.Sync.TailElement();
 					const TSyncState* DebugHead = Buffers.Sync.HeadElement();
 
-					DebugTail->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::InterpolationBufferTail, Buffers.Sync.TailKeyframe(), EVisualLoggingLifetime::Transient), Driver, Driver );
-					DebugHead->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::InterpolationBufferHead, Buffers.Sync.HeadKeyframe(), EVisualLoggingLifetime::Transient), Driver, Driver );
+					auto VLogHelper = [&](int32 Keyframe, EVisualLoggingContext Context)
+					{
+						FVisualLoggingParameters VLogParams(Context, Keyframe, EVisualLoggingLifetime::Transient);
+						Driver->VisualLog(Buffers.Input[Keyframe], Buffers.Sync[Keyframe], Buffers.Aux[Keyframe], VLogParams);
+					};
 
-					InterpolationState.VisualLog( FVisualLoggingParameters(EVisualLoggingContext::InterpolationFrom, InterpolationKeyframe, EVisualLoggingLifetime::Transient), Driver, Driver );
-					ToState->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::InterpolationTo, InterpolationKeyframe, EVisualLoggingLifetime::Transient), Driver, Driver );
+					VLogHelper(Buffers.Sync.TailKeyframe(), EVisualLoggingContext::InterpolationBufferTail);
+					VLogHelper(Buffers.Sync.HeadKeyframe(), EVisualLoggingContext::InterpolationBufferHead);
 
-					NewInterpolatedState.VisualLog( FVisualLoggingParameters(LoggingContext, InterpolationKeyframe, EVisualLoggingLifetime::Transient), Driver, Driver );
+					{
+						FVisualLoggingParameters VLogParams(EVisualLoggingContext::InterpolationFrom, InterpolationKeyframe-1, EVisualLoggingLifetime::Transient);
+						Driver->VisualLog(Buffers.Input[InterpolationKeyframe-1], &InterpolationState, Buffers.Aux[InterpolationKeyframe-1], VLogParams);
+					}
+
+					{
+						FVisualLoggingParameters VLogParams(EVisualLoggingContext::InterpolationTo, InterpolationKeyframe, EVisualLoggingLifetime::Transient);
+						Driver->VisualLog(Buffers.Input[InterpolationKeyframe], &InterpolationState, Buffers.Aux[InterpolationKeyframe], VLogParams);
+					}
+
+					{
+						FVisualLoggingParameters VLogParams(LoggingContext, InterpolationKeyframe, EVisualLoggingLifetime::Transient);
+						Driver->VisualLog(Buffers.Input[InterpolationKeyframe], &NewInterpolatedState, Buffers.Aux[InterpolationKeyframe], VLogParams);
+					}
 				}
-
 
 				InterpolationState = NewInterpolatedState;
 				InterpolationTime = NewInterpolationTime;
