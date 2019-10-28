@@ -963,21 +963,27 @@ void MainCS(
 
 				float AspectRatio = InifinityMinorViewportRadius / InifinityMajorViewportRadius;
 
-				float MaxPixelRadius = sqrt(rcp(TargetSamplePerPixel) * MaxSampleCount / AspectRatio);
-
+				float MaxPixelDiameter = sqrt(rcp(TargetSamplePerPixel) * MaxSampleCount / AspectRatio);
+				float MaxPixelRadius = 0.5 * MaxPixelDiameter;
 
 				KernelConfig.MajorPixelRadius = clamp(KernelConfig.MajorPixelRadius, 0, MaxPixelRadius);
 				KernelConfig.MinorPixelRadius = AspectRatio * KernelConfig.MajorPixelRadius;
 
-				float ConvolutionArea = max(KernelConfig.MajorPixelRadius, MinimalPixelRadius) * max(KernelConfig.MinorPixelRadius, MinimalPixelRadius);
+				// *4 to multiply from radii area to diameters area.
+				float ConvolutionArea = 4.0 * max(KernelConfig.MajorPixelRadius, MinimalPixelRadius) * max(KernelConfig.MinorPixelRadius, MinimalPixelRadius);
 
 				KernelConfig.SampleCount = clamp(ConvolutionArea * TargetSamplePerPixel, 0, MaxSampleCount);
 			
-				// DebugOutput[DispatchThreadId] = float4(
-				// 	KernelConfig.SampleCount,
-				// 	KernelConfig.MajorPixelRadius,
-				// 	KernelConfig.MinorPixelRadius,
-				// 	0.0);
+				//DebugOutput[DispatchThreadId] = float4(
+				//	NormalizedScreenMajorAxis,
+				//	KernelConfig.MinorPixelRadius,
+				//	OutOfFocus);
+
+				DebugOutput[DispatchThreadId] = float4(
+					KernelConfig.SampleCount,
+					KernelConfig.MajorPixelRadius,
+					KernelConfig.MinorPixelRadius,
+					OutOfFocus);
 			}
 			#else
 				#error Directional rect sample set is not supported.
