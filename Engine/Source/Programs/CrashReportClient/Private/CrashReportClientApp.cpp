@@ -791,6 +791,9 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 			return MonitoredProcess.IsValid() && FPlatformProcess::IsProcRunning(MonitoredProcess) && !FPlatformProcess::GetProcReturnCode(MonitoredProcess, &OutReturnCode);
 		};
 
+		// Keep track of whether we've initialized the analytics system
+		bool bInitializedAnalytics = false;
+
 		// This IsApplicationAlive() call is quite expensive, perform it at low frequency.
 		int32 ApplicationReturnCode = 0;
 		bool bApplicationAlive = IsMonitoredProcessAlive(ApplicationReturnCode);
@@ -809,6 +812,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 					if (bReportCrashAnalyticInfo)
 					{
 						FCrashReportAnalytics::Initialize();
+						bInitializedAnalytics = true;
 					}
 
 					// Build error report in memory.
@@ -909,7 +913,11 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 
 		FPlatformProcess::CloseProc(MonitoredProcess);
 
-		FCrashReportAnalytics::Shutdown();
+		if (bInitializedAnalytics)
+		{
+			FCrashReportAnalytics::Shutdown();
+			bInitializedAnalytics = false;
+		}
 	}
 
 	FPrimaryCrashProperties::Shutdown();
