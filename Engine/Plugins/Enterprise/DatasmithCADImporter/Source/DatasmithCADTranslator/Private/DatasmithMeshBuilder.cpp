@@ -16,9 +16,9 @@
 using namespace CADLibrary;
 
 FDatasmithMeshBuilder::FDatasmithMeshBuilder(TMap<FString, FString>& InCADFileToUE4GeomMap, TMap< TSharedPtr< IDatasmithMeshElement >, uint32 >& InMeshElementToCTBodyUuidMap, const FString& InCachePath, const CADLibrary::FImportParameters& InImportParameters)
-	: CADFileToMeshFileMap(InCADFileToUE4GeomMap)
+	: CachePath(InCachePath)
+	, CADFileToMeshFileMap(InCADFileToUE4GeomMap)
 	, MeshElementToBodyUuidMap(InMeshElementToCTBodyUuidMap)
-	, CachePath(InCachePath)
 	, ImportParameters(InImportParameters)
 {
 	LoadMeshFiles();
