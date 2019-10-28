@@ -1108,3 +1108,5 @@ void FAnimNode_StateMachine::CacheMachineDescription(IAnimClassInterface* AnimBl
 {
 	PRIVATE_MachineDescription = AnimBlueprintClass->GetBakedStateMachines().IsValidIndex(StateMachineIndexInClass) ? &(AnimBlueprintClass->GetBakedStateMachines()[StateMachineIndexInClass]) : nullptr;
 }
+
+#undef LOCTEXT_NAMESPACE

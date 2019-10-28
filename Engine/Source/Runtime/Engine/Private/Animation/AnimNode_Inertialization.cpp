@@ -675,3 +675,5 @@ float FInertializationPoseDiff::CalcInertialFloat(float x0, float v0, float t, f
 
 	return x * sign;
 }
+
+#undef LOCTEXT_NAMESPACE
