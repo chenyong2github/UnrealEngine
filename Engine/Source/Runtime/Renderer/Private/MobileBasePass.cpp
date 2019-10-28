@@ -83,9 +83,6 @@ void GetMobileBasePassShaders(
 	case LMP_MOBILE_DIRECTIONAL_LIGHT_CSM_AND_SH_INDIRECT:
 		GetUniformMobileBasePassShaders<LMP_MOBILE_DIRECTIONAL_LIGHT_CSM_AND_SH_INDIRECT, NumMovablePointLights>(Material, VertexFactoryType, bEnableSkyLight, VertexShader, PixelShader);
 		break;
-	case LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT:
-		GetUniformMobileBasePassShaders<LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT, NumMovablePointLights>(Material, VertexFactoryType, bEnableSkyLight, VertexShader, PixelShader);
-		break;
 	case LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT_CSM:
 		GetUniformMobileBasePassShaders<LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT_CSM, NumMovablePointLights>(Material, VertexFactoryType, bEnableSkyLight, VertexShader, PixelShader);
 		break;
@@ -257,6 +254,9 @@ ELightMapPolicyType MobileBasePass::SelectMeshLightmapPolicy(
 
 		const bool bMovableWithCSM = bUseMovableLight && MobileDirectionalLight->ShouldRenderViewIndependentWholeSceneShadows() && bPrimReceivesCSM;
 
+		const FIndirectLightingCacheAllocation* IndirectLightingCacheAllocation = PrimitiveSceneProxy->GetPrimitiveSceneInfo()->IndirectLightingCacheAllocation;
+		const bool bPrimitiveUsesILC = PrimitiveSceneProxy->GetIndirectLightingCacheQuality() != ILCQ_Off;
+
 		if (LightMapInteraction.GetType() == LMIT_Texture && ReadOnlyCVARCache.bAllowStaticLighting && ReadOnlyCVARCache.bEnableLowQualityLightmaps)
 		{
 			// Lightmap path
@@ -303,8 +303,12 @@ ELightMapPolicyType MobileBasePass::SelectMeshLightmapPolicy(
 			&& PrimitiveSceneProxy
 			// Movable objects need to get their GI from the indirect lighting cache
 			&& (PrimitiveSceneProxy->IsMovable() 
-			// Static objects with lightmap type set to ForceVolumetric also need to get GI from ILC
-			|| LightMapInteraction.GetType() == LMIT_GlobalVolume) )
+				// Static objects with lightmap type set to ForceVolumetric also need to get GI from ILC
+				|| LightMapInteraction.GetType() == LMIT_GlobalVolume)
+			// if there is no valid ILC data, skip SH calculation by using Movable Directional Light permutation.
+			&& (IndirectLightingCacheAllocation && IndirectLightingCacheAllocation->IsValid())
+			// Use the indirect lighting cache shaders if the object does not turn off ILC 
+			&& bPrimitiveUsesILC)
 		{
 			if (bUseMovableLight)
 			{
@@ -329,17 +333,10 @@ ELightMapPolicyType MobileBasePass::SelectMeshLightmapPolicy(
 				}
 			}
 		}
-		else if (bUseMovableLight)
+		else if (bMovableWithCSM || bUseStaticAndCSM)
 		{
 			// final determination of whether CSMs are rendered can be view dependent, thus we always need to clear the CSMs even if we're not going to render to them based on the condition below.
-			if (MobileDirectionalLight && bMovableWithCSM)
-			{
-				SelectedLightmapPolicy = LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT_CSM;
-			}
-			else
-			{
-				SelectedLightmapPolicy = LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT;
-			}
+			SelectedLightmapPolicy = LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT_CSM;
 		}
 	}
 		
