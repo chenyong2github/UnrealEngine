@@ -966,6 +966,12 @@ void MainCS(
 			float ConvolutionArea = max(KernelConfig.MajorPixelRadius, MinimalPixelRadius) * max(KernelConfig.MinorPixelRadius, MinimalPixelRadius);
 
 			KernelConfig.SampleCount = clamp(ConvolutionArea * TargetSamplePerPixel, 0, MaxSampleCount);
+			
+			// DebugOutput[DispatchThreadId] = float4(
+			// 	KernelConfig.SampleCount,
+			// 	KernelConfig.MajorPixelRadius,
+			// 	KernelConfig.MinorPixelRadius,
+			// 	0.0);
 		}
 		#endif // CONFIG_SAMPLE_SET == SAMPLE_SET_STOCASTIC_HIERARCHY
 		
