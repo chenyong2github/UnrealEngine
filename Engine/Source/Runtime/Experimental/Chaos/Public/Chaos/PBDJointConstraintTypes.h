@@ -118,7 +118,6 @@ namespace Chaos
 		T MaxInertiaRatio;
 
 		// @todo(ccaulfield): remove these TEMP overrides for testing
-		bool bProjectPostApply;
 		bool bEnableLinearLimits;
 		bool bEnableTwistLimits;
 		bool bEnableSwingLimits;
@@ -127,5 +126,6 @@ namespace Chaos
 		T Projection;
 		T Stiffness;
 		T DriveStiffness;
+		int32 PositionIterations;
 	};
 }

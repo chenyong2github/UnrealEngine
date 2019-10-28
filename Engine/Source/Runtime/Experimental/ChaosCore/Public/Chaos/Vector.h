@@ -410,6 +410,10 @@ namespace Chaos
 		{
 			return TVector<float, 3>(-X, -Y, -Z);
 		}
+		TVector<float, 3> operator+(const float Other) const
+		{
+			return TVector<float, 3>(X + Other, Y + Other, Z + Other);
+		}
 		TVector<float, 3> operator-(const float Other) const
 		{
 			return TVector<float, 3>(X - Other, Y - Other, Z - Other);
@@ -426,6 +430,10 @@ namespace Chaos
 		{
 			return TVector<float, 3>(S / V.X, S / V.Y, S / V.Z);
 		}
+		TVector<float, 3> operator+(const TVector<float, 3>& Other) const
+		{
+			return TVector<float, 3>(X + Other[0], Y + Other[1], Z + Other[2]);
+		}
 		TVector<float, 3> operator-(const TVector<float, 3>& Other) const
 		{
 			return TVector<float, 3>(X - Other[0], Y - Other[1], Z - Other[2]);
@@ -437,6 +445,11 @@ namespace Chaos
 		TVector<float, 3> operator/(const TVector<float, 3>& Other) const
 		{
 			return TVector<float, 3>(X / Other[0], Y / Other[1], Z / Other[2]);
+		}
+		template<class T2>
+		TVector<float, 3> operator+(const TVector<T2, 3>& Other) const
+		{
+			return TVector<float, 3>(X + Other[0], Y + Other[1], Z + Other[2]);
 		}
 		template<class T2>
 		TVector<float, 3> operator-(const TVector<T2, 3>& Other) const

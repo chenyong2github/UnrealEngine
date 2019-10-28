@@ -37,8 +37,8 @@ namespace ImmediatePhysics_Chaos
 	Chaos::PMatrix<T, d, d> CalculateInertia_Solid(const T Mass, const FKSphylElem& SphylElem)
 	{
 		return Chaos::PMatrix<T, d, d>(
-			((T)1 / (T)12) * Mass * ((T)3 * SphylElem.Radius + SphylElem.Length),
-			((T)1 / (T)12) * Mass * ((T)3 * SphylElem.Radius + SphylElem.Length),
+			((T)1 / (T)12) * Mass * ((T)3 * SphylElem.Radius * SphylElem.Radius + SphylElem.Length * SphylElem.Length),
+			((T)1 / (T)12) * Mass * ((T)3 * SphylElem.Radius * SphylElem.Radius + SphylElem.Length * SphylElem.Length),
 			((T)1 / (T)2) * Mass * SphylElem.Radius * SphylElem.Radius
 			);
 	}
