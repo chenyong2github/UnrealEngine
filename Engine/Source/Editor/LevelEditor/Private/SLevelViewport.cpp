@@ -3483,6 +3483,10 @@ void SLevelViewport::PreviewActors( const TArray< AActor* >& InActorsToPreview, 
 				ActorPreviewLevelViewportClient->EngineShowFlags = FEngineShowFlags(ESFIM_Game);
 				ActorPreviewLevelViewportClient->EngineShowFlags.SetSelection(true);
 				ActorPreviewLevelViewportClient->LastEngineShowFlags = FEngineShowFlags(ESFIM_Editor);
+				if (!bPreviewInDesktopViewport)
+				{
+					ActorPreviewLevelViewportClient->EngineShowFlags.Tonemapper = false;
+				}
 
 				// We don't use view modes for preview viewports
 				ActorPreviewLevelViewportClient->SetViewMode(VMI_Unknown);

@@ -5,6 +5,7 @@
 #include "EditorSubsystem.h"
 #include "EditorUtilityWidget.h"
 #include "Templates/SubclassOf.h"
+#include "TickableEditorObject.h"
 #include "UI/VREditorFloatingUI.h"
 #include "UnrealEdMisc.h"
 #include "VPScoutingSubsystem.generated.h"
@@ -22,13 +23,62 @@ enum class EVProdPanelIDs : uint8
 	Gaffer
 };
 
+
+/*
+ * Base class of the helper class defined in BP
+ */
+UCLASS(Abstract, Blueprintable, MinimalAPI, meta = (ShowWorldContextPin))
+class UVPScoutingSubsystemHelpersBase : public UObject
+{
+	GENERATED_BODY()
+};
+
+
+/*
+ * Base class of the gesture manager defined in BP
+ */
+UCLASS(Abstract, Blueprintable, MinimalAPI, meta = (ShowWorldContextPin))
+class UVPScoutingSubsystemGestureManagerBase : public UObject, public FTickableEditorObject
+{
+	GENERATED_BODY()
+
+public:
+	UVPScoutingSubsystemGestureManagerBase();
+
+	UFUNCTION(BlueprintNativeEvent, CallInEditor, BlueprintCallable, Category = "Tick")
+	void EditorTick(float DeltaSeconds);
+
+	UFUNCTION(BlueprintNativeEvent, CallInEditor, BlueprintCallable, Category = "VR")
+	void OnVREditingModeEnter();
+	UFUNCTION(BlueprintNativeEvent, CallInEditor, BlueprintCallable, Category = "VR")
+	void OnVREditingModeExit();
+
+	//~ Begin UObject interface
+	virtual void BeginDestroy() override;
+	//~ End UObject interface
+
+	//~ Begin FTickableEditorObject interface
+	virtual void Tick(float DeltaTime) override;
+	virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Conditional; }
+	virtual bool IsTickable() const override;
+	virtual TStatId GetStatId() const override;
+	//~ End FTickableEditorObject interface
+
+private:
+	void OnVREditingModeEnterCallback();
+	void OnVREditingModeExitCallback();
+};
+
+
+/*
+ * Subsystem used for VR Scouting
+ */
 UCLASS()
 class UVPScoutingSubsystem : public UEditorSubsystem
 {
 	GENERATED_BODY()
 
 public:
-
 	UVPScoutingSubsystem();
 	
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
@@ -36,7 +86,11 @@ public:
 
 	/** Subsystems can't have any Blueprint implementations, so we attach this class for any BP logic that we to provide. */
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Virtual Production")
-	class AEditorUtilityActor* VProdHelper;
+	UVPScoutingSubsystemHelpersBase* VPSubsystemHelpers;
+
+	/** GestureManager that manage some user input in VR editor. */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Virtual Production")
+	UVPScoutingSubsystemGestureManagerBase* GestureManager;
 
 	/** bool to keep track of whether the settings menu panel in the main menu is open*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Main Menu")
@@ -148,14 +202,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
 	static void SetIsHelperSystemEnabled(const bool bInIsHelperSystemEnabled);
 
+	/** Exit VR Mode  */
+	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
+	static void ExitVRMode();
+
 private:
 
 	FDelegateHandle EngineInitCompleteDelegate;
 
 	void OnEngineInitComplete();
-
-	/** Callback from the level editor when the map changes */
-	void OnMapChanged(UWorld* World, EMapChangeType MapChangeType);
 	
 	// Static IDs when submitting open/close requests for the VProd main menu panels. VREditorUISystem uses FNames to manage its panels, so these should be used for consistency.	
 	static const FName VProdPanelID;
