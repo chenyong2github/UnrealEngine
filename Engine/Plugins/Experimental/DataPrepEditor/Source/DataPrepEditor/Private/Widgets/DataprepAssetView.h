@@ -60,7 +60,6 @@ private:
 };
 
 // Inspired from SKismetInspector class
-// #ueent_todo: Revisit SGraphNodeDetailsWidget class based on tpm's feedback
 class SGraphNodeDetailsWidget : public SCompoundWidget
 {
 public:

@@ -115,7 +115,6 @@ void UDataprepDeleteObjectsOperation::OnExecution_Implementation(const FDataprep
 		if (AActor* Actor = Cast< AActor >( Object ))
 		{
 			ActorsToDelete.Add(FActorAndDepth{Actor, DatasmithEditingOperationsUtils::GetActorDepth(Actor)});
-			// #ueent_todo if rem children option, add them here
 		}
 		else if(FDataprepCoreUtils::IsAsset(Object))
 		{
@@ -681,6 +680,7 @@ namespace DatasmithEditingOperationsUtils
 			{
 				if(!Actor->IsPendingKillOrUnreachable())
 				{
+					// Set current world to first world encountered
 					if(World == nullptr)
 					{
 						World = Actor->GetWorld();
@@ -688,7 +688,7 @@ namespace DatasmithEditingOperationsUtils
 
 					if(World != Actor->GetWorld())
 					{
-						// #ueent_todo: Warn that incompatible actor found and discarded
+						UE_LOG( LogDataprep, Log, TEXT("Actor %s is not part of the Dataprep transient world ..."), *Actor->GetActorLabel() );
 						continue;
 					}
 
