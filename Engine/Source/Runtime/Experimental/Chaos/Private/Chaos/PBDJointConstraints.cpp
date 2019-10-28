@@ -116,6 +116,7 @@ namespace Chaos
 		: SwingTwistAngleTolerance((T)1.0e-6)
 		, MinParentMassRatio((T)0.5)
 		, MaxInertiaRatio((T)5.0)
+		, bEnableVelocitySolve(true)
 		, bEnableLinearLimits(true)
 		, bEnableTwistLimits(true)
 		, bEnableSwingLimits(true)
@@ -347,7 +348,14 @@ namespace Chaos
 
 		for (FConstraintHandle* ConstraintHandle : SortedConstraintHandles)
 		{
-			SolveVelocity(Dt, ConstraintHandle->GetConstraintIndex(), It, NumIts);
+			if (Settings.bEnableVelocitySolve)
+			{
+				SolveVelocity(Dt, ConstraintHandle->GetConstraintIndex(), It, NumIts);
+			}
+			else
+			{
+				SolvePosition(Dt, ConstraintHandle->GetConstraintIndex(), It, NumIts);
+			}
 		}
 
 		if (PostApplyCallback != nullptr)
@@ -366,11 +374,14 @@ namespace Chaos
 			return L.GetConstraintLevel() < R.GetConstraintLevel();
 		});
 
-		for (int32 It = 0; It < Settings.PositionIterations; ++It)
+		if (Settings.bEnableVelocitySolve)
 		{
-			for (FConstraintHandle* ConstraintHandle : SortedConstraintHandles)
+			for (int32 It = 0; It < Settings.PositionIterations; ++It)
 			{
-				SolvePosition(Dt, ConstraintHandle->GetConstraintIndex(), It, Settings.PositionIterations);
+				for (FConstraintHandle* ConstraintHandle : SortedConstraintHandles)
+				{
+					SolvePosition(Dt, ConstraintHandle->GetConstraintIndex(), It, Settings.PositionIterations);
+				}
 			}
 		}
 
@@ -566,15 +577,18 @@ namespace Chaos
 		}
 
 		// Freeze the closest to kinematic connection if there is a difference
-		if (Level0 < Level1)
+		if (Settings.bEnableVelocitySolve)
 		{
-			InvM0 = 0;
-			InvIL0 = PMatrix<T, d, d>(0, 0, 0);
-		}
-		else if (Level1 < Level0)
-		{
-			InvM1 = 0;
-			InvIL1 = PMatrix<T, d, d>(0, 0, 0);
+			if (Level0 < Level1)
+			{
+				InvM0 = 0;
+				InvIL0 = PMatrix<T, d, d>(0, 0, 0);
+			}
+			else if (Level1 < Level0)
+			{
+				InvM1 = 0;
+				InvIL1 = PMatrix<T, d, d>(0, 0, 0);
+			}
 		}
 
 		const TVector<EJointMotionType, d>& LinearMotion = JointSettings.Motion.LinearMotionTypes;
@@ -586,6 +600,38 @@ namespace Chaos
 		if (!Settings.bEnableLinearLimits && ((LinearMotion[0] == EJointMotionType::Limited) || (LinearMotion[1] == EJointMotionType::Limited) || (LinearMotion[2] == EJointMotionType::Limited)))
 		{
 			return;
+		}
+
+		// Apply angular drives (NOTE: modifies position, not velocity)
+		if (!Settings.bEnableVelocitySolve && Settings.bEnableDrives)
+		{
+			bool bTwistLocked = TwistMotion == EJointMotionType::Locked;
+			bool bSwing1Locked = Swing1Motion == EJointMotionType::Locked;
+			bool bSwing2Locked = Swing2Motion == EJointMotionType::Locked;
+
+			// No SLerp drive if we have a locked rotation (it will be grayed out in the editor in this case, but could still have been set before the rotation was locked)
+			if (JointSettings.Motion.bAngularSLerpDriveEnabled && !bTwistLocked && !bSwing1Locked && !bSwing2Locked)
+			{
+				TPBDJointUtilities<T, d>::ApplyJointSLerpDrive(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+			}
+
+			if (JointSettings.Motion.bAngularTwistDriveEnabled && !bTwistLocked)
+			{
+				TPBDJointUtilities<T, d>::ApplyJointTwistDrive(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+			}
+
+			if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing1Locked && !bSwing2Locked)
+			{
+				TPBDJointUtilities<T, d>::ApplyJointConeDrive(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+			}
+			else if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing1Locked)
+			{
+				//TPBDJointUtilities<T, d>::ApplyJointSwingDrive(Dt, Settings, JointSettings, Index0, Index1, EJointAngularConstraintIndex::Swing1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+			}
+			else if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing2Locked)
+			{
+				//TPBDJointUtilities<T, d>::ApplyJointSwingDrive(Dt, Settings, JointSettings, Index0, Index1, EJointAngularConstraintIndex::Swing2, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+			}
 		}
 
 		// Apply twist constraint

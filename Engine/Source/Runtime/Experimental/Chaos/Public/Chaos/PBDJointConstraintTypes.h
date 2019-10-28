@@ -118,6 +118,7 @@ namespace Chaos
 		T MaxInertiaRatio;
 
 		// @todo(ccaulfield): remove these TEMP overrides for testing
+		bool bEnableVelocitySolve;
 		bool bEnableLinearLimits;
 		bool bEnableTwistLimits;
 		bool bEnableSwingLimits;
