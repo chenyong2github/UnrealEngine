@@ -689,7 +689,7 @@ namespace UnrealBuildTool
 			{
 				return false;
 			}
-			if(ModuleCompileEnvironment.bEnableShadowVariableWarnings != CompileEnvironment.bEnableShadowVariableWarnings)
+			if(ModuleCompileEnvironment.ShadowVariableWarningLevel != CompileEnvironment.ShadowVariableWarningLevel)
 			{
 				return false;
 			}
@@ -742,11 +742,15 @@ namespace UnrealBuildTool
 					Variant += ".NoExceptions";
 				}
 			}
-			if (CompileEnvironment.bEnableShadowVariableWarnings != BaseCompileEnvironment.bEnableShadowVariableWarnings)
+			if (CompileEnvironment.ShadowVariableWarningLevel != BaseCompileEnvironment.ShadowVariableWarningLevel)
 			{
-				if (CompileEnvironment.bEnableShadowVariableWarnings)
+				if (CompileEnvironment.ShadowVariableWarningLevel == WarningLevel.Error)
 				{
-					Variant += ".Shadow";
+					Variant += ".ShadowErrors";
+				}
+				else if (CompileEnvironment.ShadowVariableWarningLevel == WarningLevel.Warning)
+				{
+					Variant += ".ShadowWarnings";
 				}
 				else
 				{
@@ -777,7 +781,7 @@ namespace UnrealBuildTool
 			CompileEnvironment.bOptimizeCode = ModuleCompileEnvironment.bOptimizeCode;
 			CompileEnvironment.bUseRTTI = ModuleCompileEnvironment.bUseRTTI;
 			CompileEnvironment.bEnableExceptions = ModuleCompileEnvironment.bEnableExceptions;
-			CompileEnvironment.bEnableShadowVariableWarnings = ModuleCompileEnvironment.bEnableShadowVariableWarnings;
+			CompileEnvironment.ShadowVariableWarningLevel = ModuleCompileEnvironment.ShadowVariableWarningLevel;
 			CompileEnvironment.bEnableUndefinedIdentifierWarnings = ModuleCompileEnvironment.bEnableUndefinedIdentifierWarnings;
 		}
 
@@ -1152,7 +1156,7 @@ namespace UnrealBuildTool
 			Result.bBuildLocallyWithSNDBS = Rules.bBuildLocallyWithSNDBS;
 			Result.bEnableExceptions |= Rules.bEnableExceptions;
 			Result.bEnableObjCExceptions |= Rules.bEnableObjCExceptions;
-			Result.bEnableShadowVariableWarnings = Rules.bEnableShadowVariableWarnings;
+			Result.ShadowVariableWarningLevel = Rules.ShadowVariableWarningLevel;
 			Result.bEnableUndefinedIdentifierWarnings = Rules.bEnableUndefinedIdentifierWarnings;
 
 			// If the module overrides the C++ language version, override it on the compile environment
