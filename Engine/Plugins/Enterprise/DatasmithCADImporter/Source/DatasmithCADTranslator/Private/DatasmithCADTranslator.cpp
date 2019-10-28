@@ -81,6 +81,8 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 	if (FileExtension == TEXT("sldprt") || FileExtension == TEXT("sldasm"))
 	{
 		ImportParameters.ModelCoordSys = CADLibrary::EModelCoordSystem::YUp_RightHanded;
+		ImportParameters.DisplayPreference = CADLibrary::EDisplayPreference::ColorOnly;
+		ImportParameters.Propagation = CADLibrary::EDisplayDataPropagationMode::BodyOnly;
 	}
 
 	FString CachePath = FPaths::ConvertRelativePathToFull(FDatasmithCADTranslatorModule::Get().GetCacheDir());
