@@ -77,7 +77,7 @@ class AVREditorFloatingUI : public AVREditorBaseActor
 public:
 
 	/** Default constructor which sets up safe defaults */
-	AVREditorFloatingUI();
+	AVREditorFloatingUI(const FObjectInitializer& ObjectInitializer);
 
 	/** Creates a FVREditorFloatingUI using a Slate widget, and sets up safe defaults */
 	void SetSlateWidget( class UVREditorUISystem& InitOwner, const VREditorPanelID& InID, const TSharedRef<SWidget>& InitSlateWidget, const FIntPoint InitResolution, const float InitScale, const EDockedTo InitDockedTo );
@@ -180,7 +180,7 @@ public:
 
 	/** All params used to create this panel if this panel has a UMG widget and was created via BP. Invalid otherwise. */
 	UPROPERTY()
-	FVREditorFloatingUICreationContext CreationContext;
+	FVREditorFloatingUICreationContext CreationContext;	
 
 protected:
 
