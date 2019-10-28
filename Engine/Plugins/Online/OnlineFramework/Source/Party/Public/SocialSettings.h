@@ -55,7 +55,7 @@ private:
 	bool bLeavePartyOnDisconnect = true;
 
 	UPROPERTY(config)
-	float UserListAutoUpdateRate = 7.5f;
+	float UserListAutoUpdateRate = 0.5f;
 
 	UPROPERTY(Config)
 	int32 MinNicknameLength = 3;
