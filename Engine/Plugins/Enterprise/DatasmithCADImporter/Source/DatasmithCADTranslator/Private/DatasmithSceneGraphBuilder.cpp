@@ -839,7 +839,9 @@ void FDatasmithSceneGraphBuilder::AddMetaData(TSharedPtr< IDatasmithActorElement
 		UnwantedAttributes.Add(TEXT("OriginalIdStr"));
 		UnwantedAttributes.Add(TEXT("ShowAttribute"));
 		UnwantedAttributes.Add(TEXT("Identification"));
-
+		UnwantedAttributes.Add(TEXT("MaterialId"));
+		UnwantedAttributes.Add(TEXT("ColorUEId"));
+		UnwantedAttributes.Add(TEXT("ColorId"));
 		return UnwantedAttributes;
 	};
 

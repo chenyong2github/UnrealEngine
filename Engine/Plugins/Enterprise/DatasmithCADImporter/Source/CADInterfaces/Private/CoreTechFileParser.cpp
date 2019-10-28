@@ -852,10 +852,7 @@ CT_FLAGS FCoreTechFileParser::SetCoreTechImportOption(const FString& MainFileExt
 	// Set import option
 	CT_FLAGS Flags = CT_LOAD_FLAGS_USE_DEFAULT;
 
-	if (MainFileExt == TEXT("jt"))
-	{
-		Flags |= CT_LOAD_FLAGS_READ_META_DATA;
-	}
+	Flags |= CT_LOAD_FLAGS_READ_META_DATA;
 
 	if (MainFileExt == TEXT("catpart") || MainFileExt == TEXT("catproduct") || MainFileExt == TEXT("cgr"))
 	{
