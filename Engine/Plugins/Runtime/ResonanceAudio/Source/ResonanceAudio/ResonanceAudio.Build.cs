@@ -62,7 +62,7 @@ public class ResonanceAudio : ModuleRules
             PrivateDependencyModuleNames.Add("Landscape");
         }
 
-        bEnableShadowVariableWarnings = false;
+		ShadowVariableWarningLevel = WarningLevel.Off;
 
         AddEngineThirdPartyPrivateStaticDependencies(Target,
                 "UEOgg",
