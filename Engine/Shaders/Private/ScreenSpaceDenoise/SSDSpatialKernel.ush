@@ -3,6 +3,7 @@
 #include "SSDSignalAccumulatorArray.ush"
 #include "SSDSignalBufferEncoding.ush"
 #include "../TextureSampling.ush"
+#include "../MonteCarlo.ush"
 
 
 //------------------------------------------------------- ENUMS
@@ -2170,9 +2171,18 @@ void ConvolveDirectionalRect(
 
 			float2 E = Hammersley16(SampleId, BatchCountCount * kSamplingBatchSize, KernelConfig.HammersleySeed);
 
+			if (KernelConfig.SampleSet == SAMPLE_SET_DIRECTIONAL_RECT)
+			{
+				E = (E * 2.0 - 1.0);
+			}
+			else // if (KernelConfig.SampleSet == SAMPLE_SET_DIRECTIONAL_ELLIPSE)
+			{
+				E = UniformSampleDiskConcentric(E);
+			}
+
 			float2 SampleOffset = 
-				float2(KernelConfig.MajorAxis) * KernelConfig.MajorPixelRadius * (E.x * 2.0 - 1.0) +
-				float2(-KernelConfig.MajorAxis.y, KernelConfig.MajorAxis.x) * KernelConfig.MinorPixelRadius * (E.y * 2.0 - 1.0);
+				float2(KernelConfig.MajorAxis) * KernelConfig.MajorPixelRadius * E.x +
+				float2(-KernelConfig.MajorAxis.y, KernelConfig.MajorAxis.x) * KernelConfig.MinorPixelRadius * E.y;
 			
 			SampleBufferUV[SampleBatchId] = KernelConfig.BufferUV + SampleOffset * KernelConfig.BufferSizeAndInvSize.zw;
 		}
@@ -2361,7 +2371,7 @@ void AccumulateKernel(
 	}
 #endif // COMPILE_HEIRARCHY_KERNEL
 #if COMPILE_DIRECTIONAL_KERNEL
-	else if (KernelConfig.SampleSet == SAMPLE_SET_DIRECTIONAL_RECT)
+	else if (KernelConfig.SampleSet == SAMPLE_SET_DIRECTIONAL_RECT || KernelConfig.SampleSet == SAMPLE_SET_DIRECTIONAL_ELLIPSE)
 	{
 		ConvolveDirectionalRect(
 			KernelConfig,
