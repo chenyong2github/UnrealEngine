@@ -445,20 +445,16 @@ TSharedPtr<IDatasmithActorElement> FDatasmithDeltaGenImporter::ConvertNode(const
 			MeshNameToFBXMesh.Add(MeshName, ThisMesh);
 			TSharedRef<IDatasmithMeshElement> MeshElement = FDatasmithSceneFactory::CreateMesh(*ThisMesh->Name);
 
-			if (ImportOptions->bGenerateLightmapUVs)
-			{
-				MeshElement->SetLightmapSourceUV(0);
-				MeshElement->SetLightmapCoordinateIndex(-1);
-			}
-			else
-			{
-				FMeshDescription& MeshDescription = ThisMesh->MeshDescription;
-				FStaticMeshAttributes StaticMeshAttributes(MeshDescription);
-				TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = StaticMeshAttributes.GetVertexInstanceUVs();
-				int32 NumUVChannels = VertexInstanceUVs.GetNumIndices();
+			FMeshDescription& MeshDescription = ThisMesh->MeshDescription;
+			FStaticMeshAttributes StaticMeshAttributes(MeshDescription);
+			TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = StaticMeshAttributes.GetVertexInstanceUVs();
+			int32 NumUVChannels = VertexInstanceUVs.GetNumIndices();
 
-				// DeltaGen uses UV channel 0 for texture UVs, and UV channel 1 for lightmap UVs
-				MeshElement->SetLightmapCoordinateIndex(NumUVChannels > 1 ? 1 : 0);
+			// DeltaGen uses UV channel 0 for texture UVs, and UV channel 1 for lightmap UVs
+			// Don't set it to zero or else it will disable Datasmith's GenerateLightmapUV option
+			if (NumUVChannels > 1)
+			{
+				MeshElement->SetLightmapCoordinateIndex(1);
 			}
 
 			DatasmithScene->AddMesh(MeshElement);

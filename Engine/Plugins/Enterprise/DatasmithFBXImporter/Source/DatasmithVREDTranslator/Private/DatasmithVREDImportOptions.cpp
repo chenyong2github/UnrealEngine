@@ -20,7 +20,6 @@ UDatasmithVREDImportOptions::UDatasmithVREDImportOptions(const FObjectInitialize
 	, bImportLightInfo(true)
 	, bImportClipInfo(true)
 {
-	bGenerateLightmapUVs = false;
 }
 
 namespace VREDImportOptionsImpl
