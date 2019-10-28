@@ -102,7 +102,7 @@ namespace DataprepParameterization
 			ValueTypeValidationData.Reserve( 3 );
 			ValueTypeValidationData.Add( CurrentProperty->GetClass() );
 			ValueTypeValidationData.Add( CurrentProperty->GetEnum() );
-			ValueTypeValidationData.Add( CurrentProperty->GetUnderlyingProperty() );
+			PopulateValueTypeValidationData( CurrentProperty->GetUnderlyingProperty(), ValueTypeValidationData );
 		}
 	}
 
