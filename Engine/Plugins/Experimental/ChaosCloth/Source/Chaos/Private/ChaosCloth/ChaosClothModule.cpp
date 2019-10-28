@@ -3,6 +3,7 @@
 #include "ChaosCloth/ChaosClothModule.h"
 #include "ChaosCloth/ChaosClothPrivate.h"
 #include "ChaosCloth/ChaosClothingSimulationFactory.h"
+#include "Features/IModularFeatures.h"
 #include "Modules/ModuleManager.h"
 
 //////////////////////////////////////////////////////////////////////////
