@@ -42,6 +42,7 @@
 #include "GeomModifier_Optimize.h"
 #include "GeomModifier_Turn.h"
 #include "GeomModifier_Weld.h"
+#include "GeometryModeModule.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGeomModifier, Log, All);
 
