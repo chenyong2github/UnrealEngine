@@ -17,6 +17,11 @@ THIRD_PARTY_INCLUDES_START
 	#include "NvEncoder/nvEncodeAPI.h"
 THIRD_PARTY_INCLUDES_END
 
+// This is mostly to use internally at Epic.
+// Setting this to 1 will collect detailed timings in the `Timings` member array.
+// It will also clear every frame with a solid colour before copying the backbuffer into it.
+#define NVENC_VIDEO_ENCODER_DEBUG 0
+
 class FVideoEncoder;
 class FThread;
 
@@ -57,16 +62,21 @@ private:
 
 	struct FInputFrame
 	{
+		FInputFrame() {}
+		UE_NONCOPYABLE(FInputFrame);
 		void* RegisteredResource = nullptr;
 		NV_ENC_INPUT_PTR MappedResource = nullptr;
 		NV_ENC_BUFFER_FORMAT BufferFormat;
 		FTexture2DRHIRef BackBuffer;
 		ID3D11Texture2D* SharedBackBuffer = nullptr;
 		FTimespan CaptureTs;
+		FGPUFenceRHIRef CopyFence;
 	};
 
 	struct FOutputFrame
 	{
+		FOutputFrame() {}
+		UE_NONCOPYABLE(FOutputFrame);
 		NV_ENC_OUTPUT_PTR BitstreamBuffer = nullptr;
 		HANDLE EventHandle = nullptr;
 		webrtc::EncodedImage EncodedFrame;
@@ -75,34 +85,48 @@ private:
 	enum class EFrameState
 	{
 		Free,
+		Capturing,
 		Captured,
 		Encoding
 	};
 
 	struct FFrame
 	{
-		const FBufferId Id = 0;
-		EFrameState State = EFrameState::Free;
+		FFrame() {}
+		UE_NONCOPYABLE(FFrame);
+
+		// Array index of this FFrame. This is set at startup, and should never be changed
+		FBufferId Id = 0;
+
+		TAtomic<EFrameState> State = EFrameState::Free;
 		// Bitrate requested at the time the video encoder asked us to encode this frame
 		// We save this, because we can't use it at the moment we receive it.
 		uint32 BitrateRequested = 0;
 		FInputFrame InputFrame;
 		FOutputFrame OutputFrame;
 		uint64 FrameIdx = 0;
+
+		// Some timestamps for debugging
+#if NVENC_VIDEO_ENCODER_DEBUG
+		FTimespan CopyBufferStartTs;
+		FTimespan CopyBufferFinishTs;
+		FTimespan EncodingStartTs;
+		FTimespan EncodingFinishTs;
+#endif
 	};
 
 	void Init();
-	void InitFrameInputBuffer(FInputFrame& InputFrame, uint32 Width, uint32 Heigh);
+	void InitFrameInputBuffer(FFrame& Frame, uint32 Width, uint32 Heigh);
 	void InitializeResources();
-	void ReleaseFrameInputBuffer(FInputFrame& InputFrame);
+	void ReleaseFrameInputBuffer(FFrame& Frame);
 	void ReleaseResources();
 	void RegisterAsyncEvent(void** OutEvent);
 	void UnregisterAsyncEvent(void* Event);
 
 	bool UpdateFramerate();
 	void UpdateNvEncConfig(const FInputFrame& InputFrame, uint32 Bitrate);
-	void UpdateRes(const FTexture2DRHIRef& BackBuffer, FInputFrame& InputFrame);
-	void CopyBackBuffer(const FTexture2DRHIRef& BackBuffer, FInputFrame& InputFrame);
+	void UpdateRes(const FTexture2DRHIRef& BackBuffer, FFrame& Frame);
+	void CopyBackBuffer(const FTexture2DRHIRef& BackBuffer, FFrame& Frame);
 
 	void EncoderCheckLoop();
 
@@ -121,7 +145,7 @@ private:
 	NV_ENC_CONFIG NvEncConfig;
 	FThreadSafeBool bWaitForRenderThreadToResume = false;
 	uint32 CapturedFrameCount = 0; // of captured, not encoded frames
-	static const uint32 NumBufferedFrames = 3;
+	static constexpr uint32 NumBufferedFrames = 3;
 	FFrame BufferedFrames[NumBufferedFrames];
 	TUniquePtr<FThread> EncoderThread;
 	FThreadSafeBool bExitEncoderThread = false;
@@ -199,6 +223,24 @@ private:
 			ResetEvent(EncodeEvent);
 		}
 	};
+
+#if NVENC_VIDEO_ENCODER_DEBUG
+	// This is just for debugging
+	void ClearFrame(FFrame& Frame);
+	// Timings in milliseconds. Just for debugging
+	struct FFrameTiming
+	{
+		// 0 : CopyBufferStart -> CopyBufferFinish
+		// 1 : CopyBufferStart -> EncodingStart
+		// 2 : CopyBufferStart -> EncodingFinish
+		double Total[3];
+		// 0 : CopyBufferStart -> CopyBufferFinish
+		// 1 : CopyBufferFinish -> EncodingStart
+		// 2 : EncodingStart -> EncodingFinish
+		double Steps[3];
+	};
+	TArray<FFrameTiming> Timings;
+#endif
 
 	FEncodeQueue EncodeQueue;
 	double RequestedBitrateMbps = 0;
