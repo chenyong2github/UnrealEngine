@@ -52,6 +52,8 @@ public:
 
 	void Refresh();
 
+	void RefreshDeferred();
+
 	FOnSelectionChanged& OnSelectionChanged();
 
 	void Tick();
@@ -81,4 +83,6 @@ private:
 	FOnSelectionChanged OnSelectionChangedDelegate;
 
 	TArray<FObjectKey> DeferredDisplayedObjectKeysToAddToSelection;
+
+	bool bRefreshIsPending;
 };
