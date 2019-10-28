@@ -207,7 +207,15 @@ FAudioChunkHandle FCachedAudioStreamingManager::GetLoadedChunk(const USoundWave*
 
 		// TODO:  See if we can avoid non-const calls on the USoundWave here.
 		USoundWave* MutableWave = const_cast<USoundWave*>(SoundWave);
-		const FAudioChunkCache::FChunkKey ChunkKey = { MutableWave, SoundWave->GetFName(), ChunkIndex };
+		const FAudioChunkCache::FChunkKey ChunkKey =
+		{
+			  MutableWave
+			, SoundWave->GetFName()
+			, ChunkIndex
+#if WITH_EDITOR
+			, SoundWave->CurrentChunkRevision.GetValue()
+#endif
+		};
 
 		if (!FAudioChunkCache::IsKeyValid(ChunkKey))
 		{
@@ -223,7 +231,16 @@ FAudioChunkHandle FCachedAudioStreamingManager::GetLoadedChunk(const USoundWave*
 
 		if (NextChunk != INDEX_NONE)
 		{
-			const FAudioChunkCache::FChunkKey NextChunkKey = { MutableWave, SoundWave->GetFName(), ((uint32)NextChunk) };
+			const FAudioChunkCache::FChunkKey NextChunkKey = 
+			{ 
+				  MutableWave 
+				, SoundWave->GetFName() 
+				, ((uint32)NextChunk) 
+#if WITH_EDITOR
+				, SoundWave->CurrentChunkRevision.GetValue()
+#endif
+			};
+
 			bool bIsValidChunk = Cache->AddOrTouchChunk(NextChunkKey, [](EAudioChunkLoadResult) {}, ENamedThreads::AnyThread);
 			if (!bIsValidChunk)
 			{
@@ -307,9 +324,12 @@ void FCachedAudioStreamingManager::AddReferenceToChunk(const FAudioChunkHandle& 
 
 	FAudioChunkCache::FChunkKey ChunkKey =
 	{
-		const_cast<USoundWave*>(InHandle.CorrespondingWave),
-		InHandle.CorrespondingWaveName,
-		((uint32) InHandle.ChunkIndex)
+		  const_cast<USoundWave*>(InHandle.CorrespondingWave)
+		, InHandle.CorrespondingWaveName
+		, ((uint32) InHandle.ChunkIndex)
+#if WITH_EDITOR
+		, InHandle.ChunkGeneration
+#endif
 	};
 
 	Cache->AddNewReferenceToChunk(ChunkKey);
@@ -322,9 +342,12 @@ void FCachedAudioStreamingManager::RemoveReferenceToChunk(const FAudioChunkHandl
 
 	FAudioChunkCache::FChunkKey ChunkKey =
 	{
-		const_cast<USoundWave*>(InHandle.CorrespondingWave),
-		InHandle.CorrespondingWaveName,
-		((uint32) InHandle.ChunkIndex)
+		  const_cast<USoundWave*>(InHandle.CorrespondingWave)
+		, InHandle.CorrespondingWaveName
+		, ((uint32) InHandle.ChunkIndex)
+#if WITH_EDITOR
+		, InHandle.ChunkGeneration
+#endif
 	};
 
 	Cache->RemoveReferenceToChunk(ChunkKey);
@@ -1081,6 +1104,9 @@ TPair<int, int> FAudioChunkCache::DebugDisplay(UWorld* World, FViewport* Viewpor
 	// A chunk that's been trimmed by TrimMemory.
 	const FLinearColor TrimmedChunkColor(204 / ColorMax, 46 / ColorMax, 43 / ColorMax);
 
+	// In editor builds, this is a chunk that was built in a previous version of the cook quality settings.
+	const FLinearColor StaleChunkColor(143 / ColorMax, 73 / ColorMax, 70 / ColorMax);
+	
 	// A chunk that currently has an async load in flight.
 	const FLinearColor CurrentlyLoadingChunkColor = FLinearColor::Yellow;
 
@@ -1140,6 +1166,7 @@ TPair<int, int> FAudioChunkCache::DebugDisplay(UWorld* World, FViewport* Viewpor
 		double TimeToLoad = -1.0;
 		float AveragePlaceInCache = -1.0f;
 		bool bWasCacheMiss = false;
+		bool bIsStaleChunk = false;
 
 #if DEBUG_STREAM_CACHE
 		NumTotalChunks = CurrentElement->DebugInfo.NumTotalChunks;
@@ -1149,9 +1176,14 @@ TPair<int, int> FAudioChunkCache::DebugDisplay(UWorld* World, FViewport* Viewpor
 		bWasCacheMiss = CurrentElement->DebugInfo.bWasCacheMiss;
 #endif
 
+#if WITH_EDITOR
+		// TODO: Worry about whether the sound wave is alive here. In most editor cases this is ok because the soundwave will always be loaded, but this may not be the case in the future.
+		bIsStaleChunk = (CurrentElement->Key.SoundWave->CurrentChunkRevision.GetValue() != CurrentElement->Key.ChunkRevision);
+#endif
+
 		const bool bWasTrimmed = CurrentElement->ChunkData.Num() == 0;
 
-		FString ElementInfo = *FString::Printf(TEXT("%4i. Size: %6.2f KB   Chunk: %d of %d   Request Count: %d    Average Index: %6.2f  Number of Handles Retaining Chunk: %d     Chunk Load Time: %6.4fms      Name: %s %s"),
+		FString ElementInfo = *FString::Printf(TEXT("%4i. Size: %6.2f KB   Chunk: %d of %d   Request Count: %d    Average Index: %6.2f  Number of Handles Retaining Chunk: %d     Chunk Load Time: %6.4fms      Name: %s Notes: %s %s"),
 			Index,
 			CurrentElement->ChunkData.Num() / 1024.0f,
 			CurrentElement->Key.ChunkIndex,
@@ -1161,13 +1193,22 @@ TPair<int, int> FAudioChunkCache::DebugDisplay(UWorld* World, FViewport* Viewpor
 			CurrentElement->NumConsumers.GetValue(),
 			TimeToLoad,
 			bWasTrimmed ? TEXT("TRIMMED CHUNK") : *CurrentElement->Key.SoundWaveName.ToString(),
-			bWasCacheMiss ? TEXT("(Cache Miss!)") : TEXT("")
+			bWasCacheMiss ? TEXT("(Cache Miss!)") : TEXT(""),
+			bIsStaleChunk ? TEXT("(Stale Chunk)") : TEXT("")
 			);
 
 		// Since there's a lot of info here,
 		// Subtly fading the chunk info to gray seems to help as a visual indicator of how far down on the list things are.
 		ColorLerpAmount = FMath::Min(ColorLerpAmount + ColorLerpStep, 1.0f);
-		FLinearColor TextColor = FLinearColor::LerpUsingHSV(LoadedChunkColor, FLinearColor::Gray, ColorLerpAmount);
+		FLinearColor TextColor;
+		if (bIsStaleChunk)
+		{
+			TextColor = FLinearColor::LerpUsingHSV(StaleChunkColor, FLinearColor::Gray, ColorLerpAmount);
+		}
+		else
+		{
+			TextColor = FLinearColor::LerpUsingHSV(LoadedChunkColor, FLinearColor::Gray, ColorLerpAmount);
+		}
 
 		// If there's a load in flight, paint this element yellow.
 		if (CurrentElement->IsLoadInProgress())

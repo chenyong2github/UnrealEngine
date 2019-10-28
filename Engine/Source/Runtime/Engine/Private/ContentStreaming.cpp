@@ -1371,6 +1371,9 @@ FAudioChunkHandle::FAudioChunkHandle()
 	, CorrespondingWave(nullptr)
 	, CorrespondingWaveName()
 	, ChunkIndex(INDEX_NONE)
+#if WITH_EDITOR
+	, ChunkGeneration(INDEX_NONE)
+#endif
 {
 }
 
@@ -1380,6 +1383,9 @@ FAudioChunkHandle::FAudioChunkHandle(const uint8* InData, uint32 NumBytes, const
 	, CorrespondingWave(InSoundWave)
 	, CorrespondingWaveName(SoundWaveName)
 	, ChunkIndex(InChunkIndex)
+#if WITH_EDITOR
+	, ChunkGeneration(InSoundWave->CurrentChunkRevision.GetValue())
+#endif
 {
 }
 
@@ -1402,7 +1408,9 @@ FAudioChunkHandle& FAudioChunkHandle::operator=(const FAudioChunkHandle& Other)
 	CorrespondingWave = Other.CorrespondingWave;
 	CorrespondingWaveName = Other.CorrespondingWaveName;
 	ChunkIndex = Other.ChunkIndex;
-
+#if WITH_EDITOR
+	ChunkGeneration = Other.ChunkGeneration;
+#endif
 
 	if (IsValid())
 	{
@@ -1435,6 +1443,21 @@ bool FAudioChunkHandle::IsValid() const
 {
 	return GetData() != nullptr;
 }
+
+#if WITH_EDITOR
+bool FAudioChunkHandle::IsStale() const
+{
+	if (CorrespondingWave != nullptr)
+	{
+		// NOTE: While this is currently safe in editor, there's no guarantee the USoundWave will be kept alive during the lifecycle of this chunk handle.
+		return ChunkGeneration != CorrespondingWave->CurrentChunkRevision.GetValue();
+	}
+	else
+	{
+		return false;
+	}
+}
+#endif
 
 FAudioChunkHandle IAudioStreamingManager::BuildChunkHandle(const uint8* InData, uint32 NumBytes, const USoundWave* InSoundWave, const FName& SoundWaveName, uint32 InChunkIndex)
 {

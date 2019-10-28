@@ -735,6 +735,19 @@ void USoundWave::InvalidateCompressedData(bool bFreeResources)
 	{
 		FreeResources(false);
 	}
+
+#if WITH_EDITOR
+	// Rebuild our streaming chunks.
+	CachePlatformData();
+	CurrentChunkRevision.Increment();
+	
+	// If this sound wave is retained, release and re-retain the new chunk.
+	if (FirstChunk.IsValid())
+	{
+		ReleaseCompressedAudio();
+		RetainCompressedAudio(true);
+	}
+#endif
 }
 
 bool USoundWave::HasStreamingChunks()
