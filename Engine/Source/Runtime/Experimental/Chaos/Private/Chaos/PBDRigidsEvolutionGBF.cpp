@@ -239,9 +239,12 @@ TPBDRigidsEvolutionGBF<T, d>::TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<T, d>& InPar
 	, PostApplyCallback(nullptr)
 	, PostApplyPushOutCallback(nullptr)
 {
-	SetParticleUpdateVelocityFunction([PBDUpdateRule = TPerParticlePBDUpdateFromDeltaPosition<float, 3>(), this](const TParticleView<TPBDRigidParticles<T, d>>& ParticlesInput, const T Dt) {
-		ParticlesInput.ParallelFor([&](auto& Particle, int32 Index) {
-			PBDUpdateRule.Apply(Particle, Dt);
+	SetParticleUpdateVelocityFunction([PBDUpdateRule = TPerParticlePBDUpdateFromDeltaPosition<float, 3>(), this](const TArray<TGeometryParticleHandle<T, d>*>& ParticlesInput, const T Dt) {
+		ParticlesParallelFor(ParticlesInput, [&](auto& Particle, int32 Index) {
+			if (Particle->AsDynamic())
+			{
+				PBDUpdateRule.Apply(Particle->AsDynamic(), Dt);
+			}
 		});
 	});
 

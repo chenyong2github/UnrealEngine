@@ -215,7 +215,7 @@ class TPBDRigidsEvolutionBase
 {
   public:
 	typedef TFunction<void(TTransientPBDRigidParticleHandle<T,d>& Particle, const T)> FForceRule;
-	typedef TFunction<void(const TParticleView<TPBDRigidParticles<T, d>>&, const T)> FUpdateVelocityRule;
+	typedef TFunction<void(const TArray<TGeometryParticleHandle<T, d>*>&, const T)> FUpdateVelocityRule;
 	typedef TFunction<void(const TParticleView<TPBDRigidParticles<T, d>>&, const T)> FUpdatePositionRule;
 	typedef TFunction<void(TPBDRigidParticles<T, d>&, const T, const T, const int32)> FKinematicUpdateRule;
 
@@ -551,7 +551,7 @@ protected:
 	
 	void UpdateVelocities(const T Dt, int32 Island)
 	{
-		ParticleUpdateVelocity(Particles.GetActiveParticlesView(), Dt);
+		ParticleUpdateVelocity(ConstraintGraph.GetIslandParticles(Island), Dt);
 	}
 
 	void ApplyPushOut(const T Dt, int32 Island)
