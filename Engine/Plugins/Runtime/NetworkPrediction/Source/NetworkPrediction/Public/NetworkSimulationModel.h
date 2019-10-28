@@ -67,7 +67,7 @@ public:
 		Driver = InDriver;
 		*Buffers.Sync.WriteKeyframe(0) = InitialSyncState;
 		*Buffers.Aux.WriteKeyframe(0) = InitialAuxState;
-		TickInfo.SetTotalProcessedSimulationTime(FNetworkSimTime(), 0);
+		Ticker.SetTotalProcessedSimulationTime(FNetworkSimTime(), 0);
 		DO_NETSIM_MODEL_DEBUG(FNetworkSimulationModelDebuggerManager::Get().RegisterNetworkSimulationModel(this, Driver->GetVLogOwner()));
 	}
 
@@ -123,34 +123,34 @@ public:
 		switch (Parameters.Role)
 		{
 			case ROLE_Authority:
-				RepProxy_ServerRPC.template PreSimTick<TDriver>(Driver, Buffers, TickInfo, Parameters);
+				RepProxy_ServerRPC.template PreSimTick<TDriver>(Driver, Buffers, Ticker, Parameters);
 			break;
 
 			case ROLE_AutonomousProxy:
-				RepProxy_Autonomous.template PreSimTick<TDriver>(Driver, Buffers, TickInfo, Parameters);
+				RepProxy_Autonomous.template PreSimTick<TDriver>(Driver, Buffers, Ticker, Parameters);
 			break;
 
 			case ROLE_SimulatedProxy:
-				RepProxy_Simulated.template PreSimTick<TDriver>(Driver, Buffers, TickInfo, Parameters);
+				RepProxy_Simulated.template PreSimTick<TDriver>(Driver, Buffers, Ticker, Parameters);
 			break;
 		}
 
 		// -------------------------------------------------------------------------------------------------------------------------------------------------
 		//												Input Processing & Simulation Update
 		// -------------------------------------------------------------------------------------------------------------------------------------------------
-		while (TickInfo.PendingKeyframe <= TickInfo.MaxAllowedKeyframe)
+		while (Ticker.PendingKeyframe <= Ticker.MaxAllowedKeyframe)
 		{
-			const int32 InputKeyframe = TickInfo.PendingKeyframe;
-			const int32 OutputKeyframe = TickInfo.PendingKeyframe + 1;
+			const int32 InputKeyframe = Ticker.PendingKeyframe;
+			const int32 OutputKeyframe = Ticker.PendingKeyframe + 1;
 
 			const TInputCmd* InputCmd = Buffers.Input[InputKeyframe];
-			if (!ensureMsgf(InputCmd, TEXT("No InputCmd available for Keyframe %d. PendingKeyframe: %d. MaxAllowedKeyframe: %d."), InputKeyframe, TickInfo.PendingKeyframe, TickInfo.MaxAllowedKeyframe))
+			if (!ensureMsgf(InputCmd, TEXT("No InputCmd available for Keyframe %d. PendingKeyframe: %d. MaxAllowedKeyframe: %d."), InputKeyframe, Ticker.PendingKeyframe, Ticker.MaxAllowedKeyframe))
 			{
 				break;
 			}
 
 			// We have an unprocessed command, do we have enough allotted simulation time to process it?
-			if (TickInfo.GetRemainingAllowedSimulationTime() >= InputCmd->GetFrameDeltaTime())
+			if (Ticker.GetRemainingAllowedSimulationTime() >= InputCmd->GetFrameDeltaTime())
 			{
 				TSyncState* InSyncState = Buffers.Sync[InputKeyframe];
 				if (InSyncState == nullptr)
@@ -162,14 +162,19 @@ public:
 				}
 
 				const TAuxState* InAuxState = Buffers.Aux[InputKeyframe];
-				checkf(InAuxState, TEXT("No AuxState available for Keyframe %d. PendingKeyframe: %d. MaxAllowedKeyframe: %d."), InputKeyframe, TickInfo.PendingKeyframe, TickInfo.MaxAllowedKeyframe);
+				checkf(InAuxState, TEXT("No AuxState available for Keyframe %d. PendingKeyframe: %d. MaxAllowedKeyframe: %d."), InputKeyframe, Ticker.PendingKeyframe, Ticker.MaxAllowedKeyframe);
 
 				TSyncState* OutSyncState = Buffers.Sync.WriteKeyframe(OutputKeyframe);
 				check(OutSyncState);
 
 				{
-					TScopedSimulationTick UpdateScope(TickInfo, OutputKeyframe, InputCmd->GetFrameDeltaTime());
-					Simulation->Update(InputCmd->GetFrameDeltaTime().ToRealTimeSeconds(), *InputCmd, *InSyncState, *OutSyncState, *InAuxState, Buffers.Aux.LazyWriter(OutputKeyframe));
+					TScopedSimulationTick UpdateScope(Ticker, OutputKeyframe, InputCmd->GetFrameDeltaTime());
+					
+					Simulation->SimulationTick( 
+						{ InputCmd->GetFrameDeltaTime(), Ticker },
+						{ *InputCmd, *InSyncState, *InAuxState },
+						{ *OutSyncState, Buffers.Aux.LazyWriter(OutputKeyframe) } );
+													
 				}
 
 				if (DebugState)
@@ -190,15 +195,15 @@ public:
 		switch (Parameters.Role)
 		{
 			case ROLE_Authority:
-				RepProxy_ServerRPC.template PostSimTick<TDriver>(Driver, Buffers, TickInfo, Parameters);
+				RepProxy_ServerRPC.template PostSimTick<TDriver>(Driver, Buffers, Ticker, Parameters);
 			break;
 
 			case ROLE_AutonomousProxy:
-				RepProxy_Autonomous.template PostSimTick<TDriver>(Driver, Buffers, TickInfo, Parameters);
+				RepProxy_Autonomous.template PostSimTick<TDriver>(Driver, Buffers, Ticker, Parameters);
 			break;
 
 			case ROLE_SimulatedProxy:
-				RepProxy_Simulated.template PostSimTick<TDriver>(Driver, Buffers, TickInfo, Parameters);
+				RepProxy_Simulated.template PostSimTick<TDriver>(Driver, Buffers, Ticker, Parameters);
 			break;
 		}
 
@@ -209,9 +214,9 @@ public:
 		// Finish debug state buffer recording (what the server processed each frame)
 		if (DebugState)
 		{
-			DebugState->PendingKeyframe = TickInfo.PendingKeyframe;
+			DebugState->PendingKeyframe = Ticker.PendingKeyframe;
 			DebugState->HeadKeyframe = Buffers.Input.HeadKeyframe();
-			DebugState->RemainingAllowedSimulationTimeSeconds = (float)TickInfo.GetRemainingAllowedSimulationTime().ToRealTimeSeconds();
+			DebugState->RemainingAllowedSimulationTimeSeconds = (float)Ticker.GetRemainingAllowedSimulationTime().ToRealTimeSeconds();
 		}
 
 		// Historical data recording (longer buffers for historical reference)
@@ -233,15 +238,15 @@ public:
 		switch (Role)
 		{
 			case ROLE_Authority:
-				RepProxy_ServerRPC.template Reconcile<TSimulation, TDriver>(Simulation, Driver, Buffers, TickInfo);
+				RepProxy_ServerRPC.template Reconcile<TSimulation, TDriver>(Simulation, Driver, Buffers, Ticker);
 			break;
 
 			case ROLE_AutonomousProxy:
-				RepProxy_Autonomous.template Reconcile<TSimulation, TDriver>(Simulation, Driver, Buffers, TickInfo);
+				RepProxy_Autonomous.template Reconcile<TSimulation, TDriver>(Simulation, Driver, Buffers, Ticker);
 			break;
 
 			case ROLE_SimulatedProxy:
-				RepProxy_Simulated.template Reconcile<TSimulation, TDriver>(Simulation, Driver, Buffers, TickInfo);
+				RepProxy_Simulated.template Reconcile<TSimulation, TDriver>(Simulation, Driver, Buffers, Ticker);
 			break;
 		}
 	}
@@ -266,7 +271,7 @@ public:
 			//MyHistoricBuffers->Aux.SetBufferSize(Parameters.HistoricBufferSize); AUXFIXME
 		}
 
-		//TickInfo.InitSimulationTimeBuffer(Parameters.SyncedBufferSize);
+		//Ticker.InitSimulationTimeBuffer(Parameters.SyncedBufferSize);
 	}
 
 	void NetSerializeProxy(EReplicationProxyTarget Target, const FNetSerializeParams& Params) final override
@@ -274,20 +279,20 @@ public:
 		switch(Target)
 		{
 		case EReplicationProxyTarget::ServerRPC:
-			RepProxy_ServerRPC.NetSerialize(Params, Buffers, TickInfo);
+			RepProxy_ServerRPC.NetSerialize(Params, Buffers, Ticker);
 			break;
 		case EReplicationProxyTarget::AutonomousProxy:
-			RepProxy_Autonomous.NetSerialize(Params, Buffers, TickInfo);
+			RepProxy_Autonomous.NetSerialize(Params, Buffers, Ticker);
 			break;
 		case EReplicationProxyTarget::SimulatedProxy:
-			RepProxy_Simulated.NetSerialize(Params, Buffers, TickInfo);
+			RepProxy_Simulated.NetSerialize(Params, Buffers, Ticker);
 			break;
 		case EReplicationProxyTarget::Replay:
-			RepProxy_Replay.NetSerialize(Params, Buffers, TickInfo);
+			RepProxy_Replay.NetSerialize(Params, Buffers, Ticker);
 			break;
 		case EReplicationProxyTarget::Debug:
 #if NETSIM_MODEL_DEBUG
-			RepProxy_Debug.NetSerialize(Params, Buffers, TickInfo);
+			RepProxy_Debug.NetSerialize(Params, Buffers, Ticker);
 			break;
 #endif
 		default:
@@ -362,12 +367,12 @@ public:
 
 	void BeginRollback(const FNetworkSimTime& RollbackDeltaTime, const int32 ParentKeyframe) final override
 	{
-		RepProxy_Simulated.template DependentRollbackBegin<TSimulation, TDriver>(Simulation, Driver, Buffers, TickInfo, RollbackDeltaTime, ParentKeyframe);
+		RepProxy_Simulated.template DependentRollbackBegin<TSimulation, TDriver>(Simulation, Driver, Buffers, Ticker, RollbackDeltaTime, ParentKeyframe);
 	}
 
 	void StepRollback(const FNetworkSimTime& Step, const int32 ParentKeyframe, const bool bFinalStep) final override
 	{
-		RepProxy_Simulated.template DependentRollbackStep<TSimulation, TDriver>(Simulation, Driver, Buffers, TickInfo, Step, ParentKeyframe, bFinalStep);
+		RepProxy_Simulated.template DependentRollbackStep<TSimulation, TDriver>(Simulation, Driver, Buffers, Ticker, Step, ParentKeyframe, bFinalStep);
 	}
 
 	void ClearAllDependentSimulations()
@@ -384,7 +389,7 @@ public:
 	TSimulation* Simulation = nullptr;
 	TDriver* Driver = nullptr;
 
-	TSimulationTickState<TTickSettings> TickInfo;	// Manages simulation time and what inputs we are processed
+	TSimulationTicker<TTickSettings> Ticker;
 
 	TNetworkSimBufferContainer<TBufferTypes> Buffers;
 

@@ -61,16 +61,16 @@ static bool ForceMispredict = false;
 
 const FName FMockNetworkSimulation::GroupName(TEXT("Mock"));
 
-void FMockNetworkSimulation::Update(const float DeltaTimeSeconds, const FMockInputCmd& InputCmd, const FMockSyncState& InputState, FMockSyncState& OutputState, const FMockAuxState& AuxState, const TNetSimLazyWriter<FMockAuxState>& OutAuxStateAccessor)
+void FMockNetworkSimulation::SimulationTick(const TNetSimTimeStep& TimeStep, const TNetSimInput<TMockNetworkSimulationBufferTypes>& Input, const TNetSimOutput<TMockNetworkSimulationBufferTypes>& Output)
 {
-	OutputState.Total = InputState.Total + (InputCmd.InputValue * AuxState.Multiplier * DeltaTimeSeconds);
+	Output.Sync.Total = Input.Sync.Total + (Input.Cmd.InputValue * Input.Aux.Multiplier * TimeStep.StepMS.ToRealTimeSeconds());
 
 	// Dev hack to force mispredict
 	if (ForceMispredict)
 	{
 		const float Fudge = FMath::FRand() * 100.f;
-		OutputState.Total += Fudge;
-		UE_LOG(LogMockNetworkSim, Warning, TEXT("ForcingMispredict via CVar. Fudge=%.2f. NewTotal: %.2f"), Fudge, OutputState.Total);
+		Output.Sync.Total += Fudge;
+		UE_LOG(LogMockNetworkSim, Warning, TEXT("ForcingMispredict via CVar. Fudge=%.2f. NewTotal: %.2f"), Fudge, Output.Sync.Total);
 		
 		ForceMispredict = false;
 	}
