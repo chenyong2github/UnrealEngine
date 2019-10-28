@@ -24,6 +24,7 @@ void SModifierListView::Construct(const FArguments& InArgs)
 
 	OnApplyModifierDelegate = InArgs._OnApplyModifier;
 	OnRevertModifierDelegate = InArgs._OnRevertModifier;
+	OnCanRevertModifierDelegate = InArgs._OnCanRevertModifier;
 	OnOpenModifierDelegate = InArgs._OnOpenModifier;
 	OnRemoveModifierDelegate = InArgs._OnRemoveModifier;
 	OnMoveUpModifierDelegate = InArgs._OnMoveUpModifier;
@@ -90,6 +91,17 @@ void SModifierListView::OnRevertModifier()
 	}
 }
 
+bool SModifierListView::OnCanRevertModifier()
+{
+	if (OnCanRevertModifierDelegate.IsBound() && Listview->GetNumItemsSelected())
+	{
+		TArray<TWeakObjectPtr<UAnimationModifier>> Instances = GetSelectedModifierInstances();
+		return OnCanRevertModifierDelegate.Execute(Instances);
+	}
+
+	return false;
+}
+
 void SModifierListView::OnMoveUpModifier()
 {
 	if (OnOpenModifierDelegate.IsBound() && (Listview->GetNumItemsSelected() == 1))
@@ -154,7 +166,7 @@ TSharedPtr<SWidget> SModifierListView::OnContextMenuOpening()
 			const FText RevertTooltip = FText::FormatOrdered(LOCTEXT("ApplyRevertToolTip", "Revert selected {0}|plural(one=Modifier,other=Modifiers)"), NumItems);
 			if (OnRevertModifierDelegate.IsBound())
 			{
-				MenuBuilder.AddMenuEntry(RevertLabel, RevertTooltip, FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCommands.Undo"), FUIAction(FExecuteAction::CreateSP(this, &SModifierListView::OnRevertModifier)));
+				MenuBuilder.AddMenuEntry(RevertLabel, RevertTooltip, FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCommands.Undo"), FUIAction(FExecuteAction::CreateSP(this, &SModifierListView::OnRevertModifier), FCanExecuteAction::CreateSP(this, &SModifierListView::OnCanRevertModifier)));
 			}
 
 			const FText RemoveLabel = FText::FormatOrdered(LOCTEXT("RemoveModifierLabel", "Remove {0}|plural(one=Modifier,other=Modifiers)"), NumItems);
