@@ -87,6 +87,9 @@ struct CORE_API FReleaseObjectVersion
 		GroomAssetVersion1,
 		GroomAssetVersion2,
 
+		// Store applied version of Animation Modifier to use when reverting
+		SerializeAnimModifierState,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
