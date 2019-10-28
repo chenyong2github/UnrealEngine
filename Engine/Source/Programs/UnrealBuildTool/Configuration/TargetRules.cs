@@ -1419,6 +1419,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// HoloLens-specific target settings.
 		/// </summary>
+		[ConfigSubObject]
 		public HoloLensTargetRules HoloLensPlatform = new HoloLensTargetRules();
 
 		/// <summary>

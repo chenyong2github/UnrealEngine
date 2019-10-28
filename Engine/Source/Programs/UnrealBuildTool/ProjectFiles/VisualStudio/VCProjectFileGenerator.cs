@@ -123,6 +123,11 @@ namespace UnrealBuildTool
 			}
 		}
 
+		public override string[] GetTargetArguments(string[] Arguments)
+		{
+			return Arguments.Where(s => string.Equals(s, BuildToolOverride, StringComparison.InvariantCultureIgnoreCase)).ToArray();
+		}
+
 		/// File extension for project files we'll be generating (e.g. ".vcxproj")
 		override public string ProjectFileExtension
 		{

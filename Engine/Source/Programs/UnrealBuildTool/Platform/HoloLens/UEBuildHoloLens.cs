@@ -20,6 +20,7 @@ namespace UnrealBuildTool
 		/// Version of the compiler toolchain to use on HoloLens. A value of "default" will be changed to a specific version at UBT startup.
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "CompilerVersion")]
+		[XmlConfigFile(Category = "HoloLensPlatform")]
 		[CommandLine("-2015", Value = "VisualStudio2015")]
 		[CommandLine("-2017", Value = "VisualStudio2017")]
 		[CommandLine("-2019", Value = "VisualStudio2019")]
@@ -28,8 +29,8 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Architecture of Target.
 		/// </summary>
-		[CommandLine("x64", Value = "x64")]
-		[CommandLine("arm64", Value = "ARM64")]
+		[CommandLine("-x64", Value = "x64")]
+		[CommandLine("-arm64", Value = "ARM64")]
 		public WindowsArchitecture Architecture = WindowsArchitecture.x64;
 
 		/// <summary>
