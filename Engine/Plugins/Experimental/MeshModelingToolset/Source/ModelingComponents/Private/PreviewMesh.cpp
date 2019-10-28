@@ -4,6 +4,16 @@
 
 #include "Containers/StaticArray.h"
 
+
+APreviewMeshActor::APreviewMeshActor()
+{
+#if WITH_EDITORONLY_DATA
+	// hide this actor in the scene outliner
+	bListedInSceneOutliner = false;
+#endif
+}
+
+
 UPreviewMesh::UPreviewMesh()
 {
 	bBuildSpatialDataStructure = false;
