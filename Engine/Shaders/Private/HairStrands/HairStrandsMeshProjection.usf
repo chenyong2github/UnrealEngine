@@ -7,12 +7,12 @@ uint bClear;
 uint MaxRootCount;
 float DistanceThreshold;
 
-uint MeshNumPrimitives;
+uint MeshPrimitiveOffset_Iteration;
+uint MeshPrimitiveCount_Iteration;
 uint MeshSectionIndex;
 uint MeshMaxIndexCount;
 uint MeshMaxVertexCount;
 uint MeshIndexOffset;
-uint MaxSpinLockCount;
 Buffer<uint> MeshIndexBuffer;
 Buffer<float> MeshPositionBuffer;
 
@@ -140,7 +140,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	float MinDistance = bClear ? 999999999 : OutRootTriangleDistance[RootIndex];
 	int TriangleIndex = -1;
 	float3 TriangleBarycentric = float3(0,0,0);
-	for (uint PrimitiveIt = 0; PrimitiveIt < MeshNumPrimitives; ++PrimitiveIt)
+	for (uint PrimitiveIt = 0; PrimitiveIt < MeshPrimitiveCount_Iteration; ++PrimitiveIt)
 	{
 		const FHairMeshTriangle Tri = GetTriangleData(PrimitiveIt, MeshPositionBuffer, MeshIndexBuffer, MeshIndexOffset, MeshMaxIndexCount, MeshMaxVertexCount);
 		
@@ -151,7 +151,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		{			
 			MinDistance = abs(Distance);
 			TriangleBarycentric = C.Barycentric;
-			TriangleIndex = PrimitiveIt;
+			TriangleIndex = MeshPrimitiveOffset_Iteration + PrimitiveIt;
 		}
 	}
 
