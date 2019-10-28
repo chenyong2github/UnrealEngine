@@ -123,6 +123,15 @@ namespace Audio
 		}
 	}
 
+	FOutputBuffer::~FOutputBuffer()
+	{
+		if (IsReadyEvent != nullptr)
+		{
+			FPlatformProcess::ReturnSynchEventToPool(IsReadyEvent);
+			IsReadyEvent = nullptr;
+		}
+	}
+
 	void FOutputBuffer::Init(IAudioMixer* InAudioMixer, const int32 InNumSamples, const EAudioMixerStreamDataFormat::Type InDataFormat)
 	{
 		Buffer.SetNumZeroed(InNumSamples);
@@ -220,6 +229,15 @@ namespace Audio
 	int32 FOutputBuffer::GetNumFrames() const
 	{
 		return Buffer.Num();
+	}
+
+	void FOutputBuffer::ResetReadyState()
+	{
+		bIsReady = false;
+		if (IsReadyEvent)
+		{
+			IsReadyEvent->Reset();
+		}
 	}
 
 	void FOutputBuffer::Reset(const int32 InNewNumSamples)
