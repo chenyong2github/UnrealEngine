@@ -408,9 +408,12 @@ void ProjectSpecularLobeToScreenSpace(
 	{
 		float3 R = 2 * dot(V, N) * N - V;
 
-		float3 ViewR = mul(float4(R, 0.0), View.TranslatedWorldToView).xyz;
+		float4 RayEndClip = mul(float4(GetTranslatedWorldPosition(SceneMetadata) + R * (0.5 * SceneMetadata.WorldDepth), 1), View.TranslatedWorldToClip);
+		float2 RayEndScreen = RayEndClip.xy * rcp(RayEndClip.w);
 
-		NormalizedScreenMajorAxis = normalize(ViewR.xy);
+		float2 RayDirectionScreen = RayEndScreen - SceneMetadata.ScreenPosition;
+
+		NormalizedScreenMajorAxis = normalize(RayDirectionScreen * View.ViewSizeAndInvSize.xy);
 	}
 
 	{
