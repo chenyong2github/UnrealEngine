@@ -586,7 +586,7 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 						.VAlign(VAlign_Center)
 						.Padding(10.0f, 5.0f, 0.0f, 5.0f)
 						[
-							SNew( SConstrainedBox )
+							SNew( DataprepWidgetUtils::SConstrainedBox )
 							[
 								SNew( SDataprepDetailsView )
 								.Object( DataprepAssetInterfacePtr->GetParameterizationObject() )
