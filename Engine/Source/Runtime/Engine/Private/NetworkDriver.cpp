@@ -5593,6 +5593,21 @@ bool UNetDriver::ShouldClientDestroyActor(AActor* Actor) const
 	return (Actor && !Actor->IsA(ALevelScriptActor::StaticClass()));
 }
 
+void UNetDriver::NotifyActorChannelOpen(UActorChannel* Channel, AActor* Actor)
+{
+
+}
+
+void UNetDriver::NotifyActorChannelCleanedUp(UActorChannel* Channel, EChannelCloseReason CloseReason)
+{
+
+}
+
+void UNetDriver::NotifyActorTornOff(AActor* Actor)
+{
+
+}
+
 void UNetDriver::ConsumeAsyncLoadDelinquencyAnalytics(FNetAsyncLoadDelinquencyAnalytics& Out)
 {
 	if (FNetGUIDCache* LocalGuidCache = GuidCache.Get())
