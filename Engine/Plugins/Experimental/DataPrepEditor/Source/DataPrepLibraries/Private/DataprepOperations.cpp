@@ -55,13 +55,18 @@ namespace DataprepOperationTime
 
 void UDataprepSetLODsOperation::OnExecution_Implementation(const FDataprepContext& InContext)
 {
+	if(ReductionSettings.Num() > MAX_STATIC_MESH_LODS)
+	{
+		FText Message = FText::Format( LOCTEXT( "DatasmithMeshOperations_SetLODs_Max", "Limiting number of reduction settings to max allowed, {0}" ), MAX_STATIC_MESH_LODS );
+		LogWarning( Message );
+	}
+
+	// Limit size of array to MAX_STATIC_MESH_LODS
 	const int32 LODCount = FMath::Min( ReductionSettings.Num(), MAX_STATIC_MESH_LODS );
 	if( LODCount == 0 )
 	{
 		FText OutReason = FText( LOCTEXT( "DatasmithMeshOperations_SetLODs", "No reduction settings. Aborting operation..." ) );
 		LogInfo( OutReason );
-		// #ueent_todo: Remove call to UE_LOG when DataprepLogger is operational
-		UE_LOG(LogDataprep, Log, TEXT("UDataprepSetLODsOperation: %s"), *OutReason.ToString());
 		return;
 	}
 
@@ -163,8 +168,6 @@ void UDataprepSetMaterialOperation::OnExecution_Implementation(const FDataprepCo
 	{
 		FText OutReason = FText( LOCTEXT( "DatasmithMeshOperations_SetMaterial", "No material specified. Aborting operation..." ) );
 		LogInfo( OutReason );
-		// #ueent_todo: Remove call to UE_LOG when DataprepLogger is operational
-		UE_LOG(LogDataprep, Log, TEXT("UDataprepSetMaterialOperation: %s"), *OutReason.ToString());
 		return;
 	}
 
@@ -182,8 +185,6 @@ void UDataprepSubstituteMaterialOperation::OnExecution_Implementation(const FDat
 	{
 		FText OutReason = FText( LOCTEXT( "DatasmithDirProducer_SubstituteMaterial", "No material specified. Aborting operation..." ) );
 		LogInfo( OutReason );
-		// #ueent_todo: Remove call to UE_LOG when DataprepLogger is operational
-		UE_LOG(LogDataprep, Log, TEXT("UDataprepSubstituteMaterialOperation: %s"), *OutReason.ToString());
 		return;
 	}
 
@@ -201,8 +202,6 @@ void UDataprepSubstituteMaterialByTableOperation::OnExecution_Implementation(con
 	{
 		FText OutReason = FText( LOCTEXT( "DatasmithDirProducer_SubstituteMaterialByTable", "No data table specified. Aborting operation..." ) );
 		LogInfo( OutReason );
-		// #ueent_todo: Remove call to UE_LOG when DataprepLogger is operational
-		UE_LOG(LogDataprep, Log, TEXT("UDataprepSubstituteMaterialByTableOperation: %s"), *OutReason.ToString());
 		return;
 	}
 
@@ -299,8 +298,6 @@ void UDataprepSetMeshOperation::OnExecution_Implementation(const FDataprepContex
 	{
 		FText OutReason = FText( LOCTEXT( "DatasmithMeshOperations_SetMesh", "No mesh specified. Aborting operation..." ) );
 		LogInfo( OutReason );
-		// #ueent_todo: Remove call to UE_LOG when DataprepLogger is operational
-		UE_LOG(LogDataprep, Log, TEXT("UDataprepSetMeshOperation: %s"), *OutReason.ToString());
 		return;
 	}
 

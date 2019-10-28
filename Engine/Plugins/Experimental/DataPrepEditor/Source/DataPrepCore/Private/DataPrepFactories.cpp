@@ -40,7 +40,6 @@ UObject * UDataprepAssetFactory::FactoryCreateNew(UClass* InClass, UObject* InPa
 
 	if(ConsumerClasses.Num() == 0)
 	{
-		// #ueent_todo: Log error about missing consumer classes
 		return nullptr;
 	}
 
