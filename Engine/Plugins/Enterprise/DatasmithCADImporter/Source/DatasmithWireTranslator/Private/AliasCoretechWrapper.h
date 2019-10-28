@@ -10,7 +10,6 @@
 // Additional scale factor required when tessellating NURBS as Alias has extremely small geometry,
 // originally tessellating to triangles with area in the order of 10^-5, failing the
 // FourSquaredTriangleArea > SMALL_NUMBER test in DatasmithMeshHelper.cpp::IsMeshValid
-#define ALIAS_BUILD_SCALE 100
 
 class AlDagNode;
 class AlShell;
@@ -36,7 +35,9 @@ public:
 	 * eg. For a file in inches, arg should be 0.0254
 	 */
 	FAliasCoretechWrapper(const TCHAR* InOwner)
-		: CTSession(InOwner, 0.01, ALIAS_BUILD_SCALE) // Alias files are in cm units
+		: CTSession(InOwner, 0.001, 1) 
+// We prefere to tell to kernelIO that Nurbs are in mm (default unit of kernelIO) to don't have side effect. 
+// Scale == 1 because in fact Alias work in cm so we do not need to scale mesh parameters
 	{
 	}
 
