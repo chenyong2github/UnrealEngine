@@ -15,6 +15,7 @@ public:
 	virtual ~IInstallBundleSource() {}
 
 	virtual EInstallBundleSourceType GetSourceType() const = 0;
+	virtual float GetSourceWeight() const { return 1.0f; }
 
 	virtual void Init(
 		TSharedRef<FConfigFile> InstallBundleConfig, 
@@ -24,6 +25,8 @@ public:
 	virtual EInstallBundleManagerInitState GetInitState() const = 0;
 	// Only valid after AsyncInit completes
 	virtual EInstallBundleManagerInitResult GetLastInitResult() const = 0;
+
+	virtual void GetContentState(TArrayView<FName> BundleNames, EInstallBundleGetContentStateFlags Flags, FInstallBundleGetContentStateDelegate Callback) = 0;
 
 	virtual void SetErrorSimulationCommands(const FString& CommandLine) {}
 };

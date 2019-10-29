@@ -21,6 +21,21 @@ namespace CADLibrary
 		YUp_RightHanded,
 	};
 
+	enum class EDisplayPreference : uint8
+	{
+		ColorPrefered,
+		MaterialPrefered,
+		ColorOnly,
+		MaterialOnly,
+	};
+
+	enum class EDisplayDataPropagationMode : uint8
+	{
+		TopDown,
+		BottomUp,
+		BodyOnly,
+	};
+
 	struct FImportParameters
 	{
 		double MetricUnit = 0.001;
@@ -30,6 +45,8 @@ namespace CADLibrary
 		double MaxNormalAngle = 20.0;
 		EStitchingTechnique StitchingTechnique = EStitchingTechnique::StitchingNone;
 		EModelCoordSystem ModelCoordSys = EModelCoordSystem::ZUp_RightHanded;
+		EDisplayDataPropagationMode Propagation = EDisplayDataPropagationMode::TopDown;
+		EDisplayPreference DisplayPreference = EDisplayPreference::MaterialPrefered;
 	};
 
 	struct FMeshParameters

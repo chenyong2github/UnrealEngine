@@ -332,11 +332,17 @@ static void RenderVoxelization(
 
 	TUniformBufferRef<FViewUniformShaderParameters> ViewUniformShaderParameters;
 	{
+		// Save some status we need to restore
+		const FVector SavedViewForward = ViewInfo->CachedViewUniformShaderParameters->ViewForward;
+		// Update our view parameters
 		ViewInfo->CachedViewUniformShaderParameters->HairRenderInfo.X = RadiusAtDepth1;
 		ViewInfo->CachedViewUniformShaderParameters->HairRenderInfo.Y = RadiusAtDepth1;
 		ViewInfo->CachedViewUniformShaderParameters->HairRenderInfo.Z = bIsOrtho;
 		ViewInfo->CachedViewUniformShaderParameters->ViewForward = LightDirection;
+		// Create the uniform buffer
 		ViewUniformShaderParameters = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*ViewInfo->CachedViewUniformShaderParameters, UniformBuffer_SingleDraw);
+		// Restore the view cached parameters
+		ViewInfo->CachedViewUniformShaderParameters->ViewForward = SavedViewForward;
 	}
 
 	RHICmdList.BeginRenderPass(RPInfo, TEXT("HairVoxelization"));

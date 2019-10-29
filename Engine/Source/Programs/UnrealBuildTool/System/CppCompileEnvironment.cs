@@ -178,12 +178,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Whether to warn about the use of shadow variables
 		/// </summary>
-		public bool bEnableShadowVariableWarnings = true;
-
-		/// <summary>
-		/// Whether to treat shadow variable warnings as errors.
-		/// </summary>
-		public bool bShadowVariableWarningsAsErrors = false;
+		public WarningLevel ShadowVariableWarningLevel = WarningLevel.Warning;
 
 		/// <summary>
 		/// Whether to warn about the use of undefined identifiers in #if expressions
@@ -398,8 +393,7 @@ namespace UnrealBuildTool
 			bBuildLocallyWithSNDBS = Other.bBuildLocallyWithSNDBS;
 			bEnableExceptions = Other.bEnableExceptions;
 			bEnableObjCExceptions = Other.bEnableObjCExceptions;
-			bShadowVariableWarningsAsErrors = Other.bShadowVariableWarningsAsErrors;
-			bEnableShadowVariableWarnings = Other.bEnableShadowVariableWarnings;
+			ShadowVariableWarningLevel = Other.ShadowVariableWarningLevel;
 			bUndefinedIdentifierWarningsAsErrors = Other.bUndefinedIdentifierWarningsAsErrors;
 			bEnableUndefinedIdentifierWarnings = Other.bEnableUndefinedIdentifierWarnings;
 			bOptimizeCode = Other.bOptimizeCode;

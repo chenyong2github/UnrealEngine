@@ -221,12 +221,13 @@ void DIHairStrands_ComputeNodeInertia(in FDIHairStrandsContext DIContext, in int
 	const float MeanRadius = 0.25 * ( PrevThick + NextThick );
 
 	//const float EdgeMass = StrandsDensity * EdgeLength * M_PI * (PrevThick * PrevThick + NextThick * PrevThick + NextThick * NextThick) / 12.0;
-	//const float RadialInertia = EdgeMass * ( 3.0 * MeanRadius * MeanRadius + EdgeLength * EdgeLength) / 12.0;
-	//OutNodeInertia = float3( RadialInertia, RadialInertia, EdgeMass * MeanRadius * MeanRadius * 0.5 );
-
 	const float EdgeMass = StrandsDensity * EdgeLength * M_PI * MeanRadius * MeanRadius;
-	const float RadialInertia = EdgeMass * ( MeanRadius * MeanRadius) / 4.0;
-	OutNodeInertia = float3( RadialInertia, RadialInertia, 2.0 * RadialInertia );
+	const float RadialInertia = EdgeMass * ( 3.0 * MeanRadius * MeanRadius + EdgeLength * EdgeLength) / 12.0;
+	OutNodeInertia = float3( RadialInertia, RadialInertia, EdgeMass * MeanRadius * MeanRadius * 0.5 );
+
+	//const float EdgeMass = StrandsDensity * EdgeLength * M_PI * MeanRadius * MeanRadius;
+	//const float RadialInertia = EdgeMass * ( MeanRadius * MeanRadius) / 4.0;
+	//OutNodeInertia = float3( RadialInertia, RadialInertia, 2.0 * RadialInertia );
 }
 
 // Compute the node position by linear interpolation over the points

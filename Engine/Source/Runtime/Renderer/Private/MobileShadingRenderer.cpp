@@ -305,7 +305,6 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 
 	// update buffers used in cached mesh path
 	// in case there are multiple views, these buffers will be updated before rendering each view
-	// OpaqueBasePassUniformBuffer, TranslucentBasePassUniformBuffer and DistortionPassUniformBuffer may depend on custom depth render target, so they should be updated after custom depth rendering 
 	if (Views.Num() > 0)
 	{
 		const FViewInfo& View = Views[0];
@@ -314,6 +313,10 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		UpdateOpaqueBasePassUniformBuffer(RHICmdList, View);
 		UpdateTranslucentBasePassUniformBuffer(RHICmdList, View);
 		UpdateDirectionalLightUniformBuffers(RHICmdList, View);
+
+		FMobileDistortionPassUniformParameters DistortionPassParameters;
+		SetupMobileDistortionPassUniformBuffer(RHICmdList, View, DistortionPassParameters);
+		Scene->UniformBuffers.MobileDistortionPassUniformBuffer.UpdateUniformBufferImmediate(DistortionPassParameters);
 	}
 	UpdateSkyReflectionUniformBuffer();
 
@@ -390,7 +393,10 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	const bool bForceDepthResolve = CVarMobileForceDepthResolve.GetValueOnRenderThread() == 1;
 	const bool bSeparateTranslucencyActive = IsMobileSeparateTranslucencyActive(View);
 	bool bKeepDepthContent = bRenderToSceneColor &&
-		(bForceDepthResolve || bSeparateTranslucencyActive || (View.bIsSceneCapture && (ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorHDR || ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorSceneDepth)));
+		(bForceDepthResolve ||
+		 bSeparateTranslucencyActive ||
+		 View.bIsReflectionCapture ||
+		 (View.bIsSceneCapture && (ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorHDR || ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorSceneDepth)));
 
 	// Whether to submit cmdbuffer with offscreen rendering before doing post-processing
 	bool bSubmitOffscreenRendering = !bGammaSpace || bRenderToSceneColor;
@@ -475,16 +481,6 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		{
 			RenderCustomDepthPass(RHICmdList);
 		}
-	}
-
-	// Update OpaqueBasePassUniformBuffer, TranslucentBasePassUniformBuffer and DistortionUniformBuffer right after CustomDepthPass and before BeginRenderPass of MobileBasePass
-	{
-		UpdateOpaqueBasePassUniformBuffer(RHICmdList, View);
-		UpdateTranslucentBasePassUniformBuffer(RHICmdList, View);
-
-		FMobileDistortionPassUniformParameters DistortionPassParameters;
-		SetupMobileDistortionPassUniformBuffer(RHICmdList, View, DistortionPassParameters);
-		Scene->UniformBuffers.MobileDistortionPassUniformBuffer.UpdateUniformBufferImmediate(DistortionPassParameters);
 	}
 		
 	//
@@ -785,6 +781,7 @@ void FMobileSceneRenderer::BasicPostProcess(FRHICommandListImmediate& RHICmdList
 	// todo: this should come from View.Family->RenderTarget
 	Desc.Format = PF_B8G8R8A8;
 	Desc.NumMips = 1;
+	Desc.TargetableFlags |= TexCreate_RenderTargetable;
 
 	GRenderTargetPool.CreateUntrackedElement(Desc, Temp, Item);
 
@@ -1011,7 +1008,9 @@ void FMobileSceneRenderer::UpdateSkyReflectionUniformBuffer()
 	FSkyLightSceneProxy* SkyLight = nullptr;
 	if (Scene->ReflectionSceneData.RegisteredReflectionCapturePositions.Num() == 0
 		&& Scene->SkyLight
-		&& Scene->SkyLight->ProcessedTexture->TextureRHI)
+		&& Scene->SkyLight->ProcessedTexture->TextureRHI
+		// Don't use skylight reflection if it is a static sky light for keeping coherence with PC.
+		&& !Scene->SkyLight->bHasStaticLighting)
 	{
 		SkyLight = Scene->SkyLight;
 	}

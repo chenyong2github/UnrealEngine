@@ -3091,7 +3091,7 @@ void FSceneRenderer::RenderCustomDepthPass(FRHICommandListImmediate& RHICmdList)
 				if (FSceneInterface::GetShadingPath(View.FeatureLevel) == EShadingPath::Mobile)
 				{
 					FMobileSceneTextureUniformParameters SceneTextureParameters;
-					SetupMobileSceneTextureUniformParameters(SceneContext, View.FeatureLevel, false, SceneTextureParameters);
+					SetupMobileSceneTextureUniformParameters(SceneContext, View.FeatureLevel, false, false, SceneTextureParameters);
 					Scene->UniformBuffers.MobileCustomDepthPassUniformBuffer.UpdateUniformBufferImmediate(SceneTextureParameters);
 					PassUniformBuffer = Scene->UniformBuffers.MobileCustomDepthPassUniformBuffer;
 				}

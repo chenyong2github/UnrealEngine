@@ -30,9 +30,18 @@ public:
 		FName SoundWaveName = FName();
 		uint32 ChunkIndex = INDEX_NONE;
 
+#if WITH_EDITOR
+		// This is used in the editor to invalidate stale compressed chunks.
+		uint32 ChunkRevision = INDEX_NONE;
+#endif
+
 		inline bool operator==(const FChunkKey& Other) const
 		{
+#if WITH_EDITOR
+			return (SoundWaveName == Other.SoundWaveName) && (ChunkIndex == Other.ChunkIndex) && (ChunkRevision == Other.ChunkRevision);
+#else
 			return (SoundWaveName == Other.SoundWaveName) && (ChunkIndex == Other.ChunkIndex);
+#endif
 		}
 	};
 

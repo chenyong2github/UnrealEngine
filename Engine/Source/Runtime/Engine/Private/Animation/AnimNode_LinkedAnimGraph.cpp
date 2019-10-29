@@ -42,6 +42,10 @@ void FAnimNode_LinkedAnimGraph::InitializeSubGraph_AnyThread(const FAnimationIni
 	if(InstanceToRun && LinkedRoot)
 	{
 		FAnimInstanceProxy& Proxy = InstanceToRun->GetProxyOnAnyThread<FAnimInstanceProxy>();
+
+		// Make sure we have valid objects in place for the sub-graph init
+		Proxy.InitializeObjects(InstanceToRun);
+
 		Proxy.InitializationCounter.SynchronizeWith(Context.AnimInstanceProxy->InitializationCounter);
 		Proxy.InitializeRootNode_WithRoot(LinkedRoot);
 	}

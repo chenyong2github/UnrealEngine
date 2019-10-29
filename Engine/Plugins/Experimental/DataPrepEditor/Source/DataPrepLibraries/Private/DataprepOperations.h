@@ -58,8 +58,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MeshOperation, Meta = (ToolTip = "Array of LOD reduction settings") )
 	TArray<FDataprepSetLODsReductionSettings> ReductionSettings;
 
-	// #ueent_todo: Limit size of array to MAX_STATIC_MESH_LODS
-
 	//~ Begin UDataprepOperation Interface
 public:
 	virtual FText GetCategory_Implementation() const override

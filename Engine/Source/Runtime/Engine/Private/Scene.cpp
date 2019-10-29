@@ -431,6 +431,7 @@ FPostProcessSettings::FPostProcessSettings()
 	BloomConvolutionCenterUV = FVector2D(0.5f, 0.5f);
 #if WITH_EDITORONLY_DATA
 	BloomConvolutionPreFilter_DEPRECATED = FVector(-1.f, -1.f, -1.f);
+	DepthOfFieldMethod_DEPRECATED = EDepthOfFieldMethod::DOFM_MAX;
 #endif
 	BloomConvolutionPreFilterMin = 7.f;
 	BloomConvolutionPreFilterMax = 15000.f;
@@ -757,7 +758,6 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, bMobileHQGaussian(Settings.bMobileHQGaussian)
 	, BloomMethod(Settings.BloomMethod)
 	, AutoExposureMethod(Settings.AutoExposureMethod)
-	//, DepthOfFieldMethod_DEPRECATED(Settings.DepthOfFieldMethod_DEPRECATED)
 	, WhiteTemp(Settings.WhiteTemp)
 	, WhiteTint(Settings.WhiteTint)
 	, ColorSaturation(Settings.ColorSaturation)

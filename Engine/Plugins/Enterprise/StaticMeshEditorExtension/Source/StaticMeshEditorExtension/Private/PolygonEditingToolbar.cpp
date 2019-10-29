@@ -41,6 +41,8 @@
 
 #define LOCTEXT_NAMESPACE "StaticMeshEditorExtensionToolbar"
 
+DEFINE_LOG_CATEGORY_STATIC(LogStaticMeshEditorExtension, Log, All);
+
 namespace FPolygonEditingCommandsUtil
 {
 	template< typename InMeshEditorCommand >
@@ -190,6 +192,7 @@ FPolygonEditingToolbar::FPolygonEditingToolbar()
 	, StaticMesh(nullptr)
 	, PolygonSelectionTool(nullptr)
 	, bDeleteCommandOverriden(false)
+	, bClearUndoTransactions(false)
 {
 	PolygonToolbarProxyObject = TStrongObjectPtr<UPolygonToolbarProxyObject>(NewObject<UPolygonToolbarProxyObject>());
 	PolygonToolbarProxyObject->Owner = this;
@@ -216,6 +219,12 @@ FPolygonEditingToolbar::~FPolygonEditingToolbar()
 
 		// Remove editable meshes related to static mesh from cache
 		FEditableMeshCache::Get().RemoveObject(StaticMesh);
+	}
+
+	if (bClearUndoTransactions)
+	{
+		GEditor->ResetTransaction(LOCTEXT("MeshEditingResetTransaction", "Destroying Mesh Editing toolbar"));
+		UE_LOG(LogStaticMeshEditorExtension, Warning, TEXT("Undo history cleared after closing Static Mesh Editor"));
 	}
 
 	bIsEditing = false;
@@ -625,7 +634,9 @@ void FPolygonEditingToolbar::OnMeshChanged()
 	if (bIsEditing)
 	{
 		// Check if current selected LOD is still editable
-		if (!EditableLODs.IsValidIndex(StaticMeshEditor->GetCurrentLODLevel()) || !EditableLODs[StaticMeshEditor->GetCurrentLODLevel()])
+		// Note that EditableLODIndex is shifted by 1 EditableLODs since index 0 in EditableLODs is the LOD Auto
+		int32 EditableLODIndex = StaticMeshEditor->GetCurrentLODIndex() + 1;
+		if (!EditableLODs.IsValidIndex(EditableLODIndex) || !EditableLODs[EditableLODIndex])
 		{
 			if (StaticMeshEditor->GetCurrentLODLevel() == 0 && !EditableLODs[0])
 			{
@@ -652,8 +663,8 @@ void FPolygonEditingToolbar::UpdateEditableLODs()
 	// Build list of valid LODs
 	EditableLODs.AddUninitialized(StaticMesh->GetNumSourceModels() + 1);
 
-	// 'LOD Auto' is not a valid selection
-	EditableLODs[0] = false;
+	// 'LOD Auto' is not a valid selection except in case of only 1 LOD, then it is equivalent to LOD 0
+	EditableLODs[0] = StaticMesh->GetNumSourceModels() <= 1;
 
 	// LOD 0 is assumed to be a valid selection
 	EditableLODs[1] = true;
@@ -677,6 +688,12 @@ void FPolygonEditingToolbar::TrackUndo(UObject* Object, TUniquePtr<FChange> Reve
 		check( GUndo != nullptr || GEditor == nullptr || GEditor->bIsSimulatingInEditor );
 		if( GUndo != nullptr )
 		{
+			UEditableMesh* EditableMesh = Cast<UEditableMesh>(Object);
+			if (EditableMesh)
+			{
+				// Make sure to clear undo buffer if there were any EditableMesh changes
+				bClearUndoTransactions = true;
+			}
 			GUndo->StoreUndo( Object, MoveTemp( RevertChange ) );
 		}
 	}

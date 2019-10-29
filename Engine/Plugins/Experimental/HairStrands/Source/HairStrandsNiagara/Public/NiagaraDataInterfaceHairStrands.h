@@ -99,6 +99,12 @@ struct FNDIHairStrandsData
 	/** Tick Count*/
 	int32 TickCount;
 
+	/** Force reset simulation */
+	bool ForceReset;
+
+	/** Reset Tick*/
+	int32 ResetTick;
+
 	/** Strands Gpu buffer */
 	FNDIHairStrandsBuffer* HairStrandsBuffer;
 };

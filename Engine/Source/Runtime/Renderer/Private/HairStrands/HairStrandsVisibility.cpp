@@ -761,10 +761,11 @@ static void AddHairVisibilityCommonPass(
 				FIntPoint(ViewInfo->UnconstrainedViewRect.Width(), ViewInfo->UnconstrainedViewRect.Height()), ViewInfo->FOV, HairVisibilitySampleCount, RasterizationScaleOverride);
 
 			TUniformBufferRef<FViewUniformShaderParameters> ViewUniformShaderParameters;
+			// Update our view parameters
 			ViewInfo->CachedViewUniformShaderParameters->HairRenderInfo.X = MinHairRadius.Primary;
 			ViewInfo->CachedViewUniformShaderParameters->HairRenderInfo.Y = MinHairRadius.Velocity;
 			ViewInfo->CachedViewUniformShaderParameters->HairRenderInfo.Z = ViewInfo->IsPerspectiveProjection() ? 0.0f : 1.0f;
-			ViewInfo->CachedViewUniformShaderParameters->ViewForward = ViewInfo->ViewMatrices.GetOverriddenTranslatedViewMatrix().GetColumn(2);
+			// Create and set the uniform buffer
 			ViewUniformShaderParameters = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*ViewInfo->CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
 			DrawRenderState.SetViewUniformBuffer(ViewUniformShaderParameters);
 		}

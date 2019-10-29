@@ -319,7 +319,7 @@ void FAliasCoretechWrapper::AddFace(AlSurface& Surface, CT_LIST_IO& FaceList, bo
 	CT_OBJECT_ID FaceID;
 	CT_ORIENTATION FaceOrient = bOrientation ? CT_ORIENTATION::CT_FORWARD : CT_ORIENTATION::CT_REVERSE;
 	CT_IO_ERROR Result = CT_FACE_IO::Create(FaceID, NurbsId, FaceOrient, Boundaries);
-	if (Result != IO_OK)
+	if (Result == IO_OK)
 	{
 		FaceList.PushBack(FaceID);
 	}

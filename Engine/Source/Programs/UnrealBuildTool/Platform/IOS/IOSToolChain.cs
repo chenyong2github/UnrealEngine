@@ -269,9 +269,9 @@ namespace UnrealBuildTool
 			Result += " -Wall -Werror";
 			Result += " -Wdelete-non-virtual-dtor";
 
-			if (CompileEnvironment.bEnableShadowVariableWarnings)
+			if (CompileEnvironment.ShadowVariableWarningLevel != WarningLevel.Off)
 			{
-				Result += " -Wshadow" + (CompileEnvironment.bShadowVariableWarningsAsErrors ? "" : " -Wno-error=shadow");
+				Result += " -Wshadow" + ((CompileEnvironment.ShadowVariableWarningLevel == WarningLevel.Error) ? "" : " -Wno-error=shadow");
 			}
 
 			if (CompileEnvironment.bEnableUndefinedIdentifierWarnings)
