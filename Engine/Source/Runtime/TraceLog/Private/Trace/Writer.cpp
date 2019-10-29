@@ -135,7 +135,9 @@ static FWriteBuffer* Writer_NextBufferInternal(uint32 PageGrowth)
 		// it to the free list.
 		MemoryMap(PageBase, PageGrowth);
 
-		// The first block in the page we'll use for the next buffer
+		// The first block in the page we'll use for the next buffer. Note that the
+		// buffer objects are at the _end_ of their blocks.
+		PageBase += GPoolBlockSize - sizeof(FWriteBuffer);
 		Next = (FWriteBuffer*)PageBase;
 		uint8* FirstBlock = PageBase + GPoolBlockSize;
 
@@ -164,7 +166,7 @@ static FWriteBuffer* Writer_NextBufferInternal(uint32 PageGrowth)
 
 	GWriteBuffer = Next;
 
-	Next->Cursor = ((uint8*)Next + GPoolBlockSize);
+	Next->Cursor = ((uint8*)Next - GPoolBlockSize + sizeof(FWriteBuffer));
 	return Next;
 }
 
@@ -218,7 +220,7 @@ TRACELOG_API uint8* Writer_NextBuffer(uint16 Size)
 	FWriteBuffer* NextBuffer = Writer_NextBufferInternal(GPoolPageGrowth);
 	NextBuffer->ThreadId = ThreadId;
 
-	NextBuffer->Cursor -= Size;
+	NextBuffer->Cursor += Size;
 	return NextBuffer->Cursor;
 }
 
@@ -234,7 +236,7 @@ static void Writer_InitializeBuffers()
 	static_assert(GPoolInitPageSize >= 0x10000, "Initial page size must be >= 64KB");
 
 	auto* EmptyBuffer = (FWriteBuffer*)GEmptyBuffer;
-	EmptyBuffer->Cursor = EmptyBuffer->Data;
+	EmptyBuffer->Cursor = GEmptyBuffer;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -457,7 +459,7 @@ static void Writer_ConsumeEvents()
 	for (void* EventPtr = LatestEvent; EventPtr != nullptr; )
 	{
 		// Is this "event" a retired buffer?
-		if ((UPTRINT(EventPtr) & (GPoolBlockSize - 1)) == 0)
+		if ((UPTRINT(EventPtr) & (GPoolBlockSize - 1)) == (GPoolBlockSize - sizeof(FWriteBuffer)))
 		{
 			auto* Retiree = (FWriteBuffer*)EventPtr;
 			EventPtr = *(void**)EventPtr;

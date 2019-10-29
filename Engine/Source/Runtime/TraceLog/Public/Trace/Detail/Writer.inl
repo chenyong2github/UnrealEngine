@@ -27,7 +27,6 @@ struct FWriteBuffer
 		FWriteBuffer*	Next;
 	};
 	uint32				ThreadId;
-	uint8				Data[];
 };
 
 #if defined(_MSC_VER)
@@ -58,11 +57,12 @@ inline uint8* Writer_BeginLog(uint16 EventUid, uint16 Size)
 	uint32 AllocSize = ((Size + HeaderSize) + 7) & ~7;
 
 	FWriteBuffer* Buffer = Writer_GetBuffer();
-	uint8* Cursor = (Buffer->Cursor -= AllocSize);
-	if (UNLIKELY(PTRINT(Cursor) < PTRINT(Buffer->Data)))
+	uint8* Cursor = (Buffer->Cursor += AllocSize);
+	if (UNLIKELY(UPTRINT(Cursor) > UPTRINT(Buffer)))
 	{
 		Cursor = Writer_NextBuffer(AllocSize);
 	}
+	Cursor -= AllocSize;
 
 	uint32* Out = (uint32*)(Cursor + sizeof(void*));
 	Out[0] = (uint32(Size) << 16)|uint32(EventUid);
