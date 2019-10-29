@@ -405,8 +405,11 @@ void FSkeletalMeshStreamIn_IO::SetIORequest(const FContext& Context, const FStri
 	{
 		SetAsyncFileCallback(Context);
 
-		const FSkeletalMeshLODRenderData& FirstLOD = RenderData->LODRenderData[PendingFirstMip];
-		const FSkeletalMeshLODRenderData& LastLOD = RenderData->LODRenderData[CurrentFirstLODIdx - 1];
+		FBulkDataInterface::BulkDataRangeArray BulkDataArray;
+		for (int32 Index = PendingFirstMip; Index < CurrentFirstLODIdx; ++Index)
+		{
+			BulkDataArray.Push(&RenderData->LODRenderData[Index].StreamingBulkData);
+		}
 
 		// Increment as we push the request. If a request complete immediately, then it will call the callback
 		// but that won't do anything because the tick would not try to acquire the lock since it is already locked.
@@ -414,8 +417,7 @@ void FSkeletalMeshStreamIn_IO::SetIORequest(const FContext& Context, const FStri
 
 		IORequest = FBulkDataInterface::CreateStreamingRequestForRange(
 			STREAMINGTOKEN_PARAM(IOFilename)
-			FirstLOD.StreamingBulkData,
-			LastLOD.StreamingBulkData,
+			BulkDataArray,
 			bHighPrioIORequest ? AIOP_BelowNormal : AIOP_Low,
 			&AsyncFileCallback);
 	}

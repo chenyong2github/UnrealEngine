@@ -580,6 +580,22 @@ void FPackageStoreBulkDataManifest::PackageDesc::AddData(uint16 InIndex, uint64 
 	Entry.Size = InSize;
 }
 
+FIoChunkId IBulkDataManifest::CreateChunkId(uint32 NameIndex, uint32 NameNumber, uint16 ChunkIndex)
+{
+	uint8 Data[12] = { 0 };
+
+	*reinterpret_cast<uint32*>(&Data[0]) = NameIndex;
+	*reinterpret_cast<int32*>(&Data[4]) = NameNumber;
+	*reinterpret_cast<uint16*>(&Data[8]) = ChunkIndex;
+	*reinterpret_cast<uint8*>(&Data[10]) = static_cast<uint8>(3); 	// EZenChunkType::BulkData in ZenCreator
+																	// TODO: We need to expose this somewhere!
+
+	FIoChunkId ChunkId;
+	ChunkId.Set(Data, 12);
+
+	return ChunkId;
+}
+
 FPackageStoreBulkDataManifest::FPackageStoreBulkDataManifest(const FString& InRootPath)
 {
 	RootPath = InRootPath;
@@ -598,7 +614,7 @@ FArchive& operator<<(FArchive& Ar, FPackageStoreBulkDataManifest::PackageDesc::B
 	Ar << Entry.Index;
 	Ar << Entry.Offset;
 	Ar << Entry.Size; 
-	
+
 	return Ar;
 }
 
@@ -6293,9 +6309,9 @@ void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Fil
 			BulkDataAlignment = TargetPlatform->GetMemoryMappingAlignment();
 		}
 
-		for (int iBulkDataIndex = 0; iBulkDataIndex < Linker->BulkDataToAppend.Num(); ++iBulkDataIndex)
+		uint16 BulkDataIndex = 1;
+		for (FLinkerSave::FBulkDataStorageInfo& BulkDataStorageInfo : Linker->BulkDataToAppend)
 		{
-			FLinkerSave::FBulkDataStorageInfo& BulkDataStorageInfo = Linker->BulkDataToAppend[iBulkDataIndex];
 			BulkDataFeedback.EnterProgressFrame();
 
 			// Set bulk data flags to what they were during initial serialization (they might have changed after that)
@@ -6393,27 +6409,32 @@ void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Fil
 				*Linker << SizeOnDiskAsInt32;
 			}
 
+			if ((BulkDataStorageInfo.BulkDataFlags & BULKDATA_CookedForIoDispatcher) != 0 && SavePackageContext != nullptr)
+			{
+				const int32 PackageNameIndex = SavePackageContext->HeaderSaver.NameMapSaver.MapName(InOuter->GetFName());
+				const int32 PackageNameNumber = InOuter->GetFName().GetNumber();
+				check(BulkDataIndex < TNumericLimits<uint16>::Max());
+				const uint16 ChunkIndex = BulkDataIndex++;
+
+				FIoChunkId ChunkId = IBulkDataManifest::CreateChunkId(PackageNameIndex, PackageNameNumber, ChunkIndex);
+
+				SavePackageContext->BulkDataManifest.AddFileAccess
+				(
+					Filename, ChunkIndex, BulkStartOffset, SizeOnDisk
+				);
+
+				check(BulkDataStorageInfo.BulkDataChunkIdPos != INDEX_NONE);
+
+				Linker->Seek(BulkDataStorageInfo.BulkDataChunkIdPos);
+				*Linker << ChunkId;
+			}
+
 			Linker->Seek(LinkerEndOffset);
 
 			// Restore BulkData flags to before serialization started
 			BulkDataStorageInfo.BulkData->ClearBulkDataFlags(0xFFFFFFFF);
 			BulkDataStorageInfo.BulkData->SetBulkDataFlags(OldBulkDataFlags);
 			BulkDataStorageInfo.BulkData->Unlock();
-
-			if ((BulkDataStorageInfo.BulkDataFlags & BULKDATA_CookedForIoDispatcher) != 0 && SavePackageContext != nullptr)
-			{
-				// TODO: iBulkDataIndex should be based on the number of BulkData objects we are adding to the manifest not
-				// it's position in Linker->BulkDataToAppend so that inlined BulkData objects are ignored and we won't have 
-				// missing index  values. 
-				// We can't do this yet because the BulkData object is writing out its index for runtime in ::Serialize and 
-				// so it's position in Linker->BulkDataToAppend is the only info we have.
-				// This can be fixed by generating the FIoChunkId at this point and writing it back to the bulkdata before it
-				// is written to disk as do for the data values above this point.
-				SavePackageContext->BulkDataManifest.AddFileAccess
-				(
-					Filename, iBulkDataIndex, BulkStartOffset, SizeOnDisk
-				);
-			}
 		}
 
 		if (BulkArchive)

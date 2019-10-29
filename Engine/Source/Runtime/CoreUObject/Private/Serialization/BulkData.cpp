@@ -978,11 +978,19 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 
 			Ar << BulkDataOffsetInFile;
 
+			if ((BulkDataFlags & BULKDATA_BadDataVersion) != 0)
+			{
+				uint16 DummyValue;
+				Ar << DummyValue;
+
+				BulkDataFlags &= ~BULKDATA_BadDataVersion;		
+			}
+			
 			if ((BulkDataFlags & BULKDATA_CookedForIoDispatcher) != 0)
 			{
 				// Load the ChunkID that will be used by the IoDispatcher, but this version of BulkData will not use it!
-				uint16 ChunkIndex;
-				Ar << ChunkIndex;
+				FIoChunkId ChunkId;
+ 				Ar << ChunkId;
 			}
 
 			// determine whether the payload is stored inline or at the end of the file
@@ -1213,6 +1221,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 			// Only serialize status information if wanted.
 			int64 SavedBulkDataSizeOnDiskPos	= INDEX_NONE;
 			int64 SavedBulkDataOffsetInFilePos	= INDEX_NONE;
+			int64 SavedBulkDataChunkIdPos		= INDEX_NONE;
 			
 			// Keep track of position we are going to serialize placeholder BulkDataSizeOnDisk.
 			SavedBulkDataSizeOnDiskPos = Ar.Tell();
@@ -1249,12 +1258,15 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 				bStoreInline = true;
 			}
 
-			// Write the ChunkID that will be used by the IoDispatcher
+			// Write the ChunkID that will be used by the IoDispatcher, but ONLY if we are producing cooked data
+			if(Ar.IsCooking() )
 			{
 				FArchive::FScopeSetDebugSerializationFlags S(Ar, DSF_IgnoreDiff);
 
-				uint16 ChunkIndex = (bStoreInline || !Ar.IsCooking()) ? INDEX_NONE : LinkerSave->BulkDataToAppend.Num();
-				Ar << ChunkIndex;
+				SavedBulkDataChunkIdPos = Ar.Tell();
+
+				FIoChunkId InvalidChunkId = FIoChunkId::InvalidChunkId;
+				Ar << InvalidChunkId;
 
 				BulkDataFlags |= BULKDATA_CookedForIoDispatcher;
 			}
@@ -1274,6 +1286,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 				BulkStore.BulkDataOffsetInFilePos = SavedBulkDataOffsetInFilePos;
 				BulkStore.BulkDataSizeOnDiskPos = SavedBulkDataSizeOnDiskPos;
 				BulkStore.BulkDataFlagsPos = SavedBulkDataFlagsPos;
+				BulkStore.BulkDataChunkIdPos = SavedBulkDataChunkIdPos;
 				BulkStore.BulkDataFlags = BulkDataFlags;
 				BulkStore.BulkData = this;
 
@@ -1283,6 +1296,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 					int64 SavedDupeBulkDataFlagsPos = INDEX_NONE;
 					int64 SavedDupeBulkDataSizeOnDiskPos = INDEX_NONE;
 					int64 SavedDupeBulkDataOffsetInFilePos = INDEX_NONE;
+					int64 SavedDupeBulkDataChunkIdPos = INDEX_NONE;
 
 					int32 SavedDupeBulkDataFlags = (BulkDataFlags & ~BULKDATA_DuplicateNonOptionalPayload) | BULKDATA_OptionalPayload;
 					{
@@ -1303,11 +1317,24 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 							int32 BulkDataSizeOnDiskAsInt32 = BulkDataSizeOnDisk;
 							Ar << BulkDataSizeOnDiskAsInt32;
 						}
+
 						// Keep track of position we are going to serialize placeholder BulkDataOffsetInFile.
 						SavedDupeBulkDataOffsetInFilePos = Ar.Tell();
 						BulkDataOffsetInFile = INDEX_NONE;
 						// And serialize the placeholder which is going to be overwritten later.
 						Ar << BulkDataOffsetInFile;
+
+						// TODO: Fairly sure we can only be in the BULKDATA_DuplicateNonOptionalPayload branch if this
+						// is cooked data, see if we can remove the if check
+						if (Ar.IsCooking())
+						{
+							SavedBulkDataChunkIdPos = Ar.Tell();
+							
+							FIoChunkId InvalidChunkId = FIoChunkId::InvalidChunkId;
+							Ar << InvalidChunkId;
+
+							check((SavedDupeBulkDataFlagsPos& BULKDATA_CookedForIoDispatcher) != 0); // Validate that the BULKDATA_CookedForIoDispatcher flag was already set
+						}
 					}
 
 					// add duplicate bulkdata with different flag
@@ -1318,6 +1345,8 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 					DupeBulkStore.BulkDataSizeOnDiskPos = SavedDupeBulkDataSizeOnDiskPos;
 					DupeBulkStore.BulkDataFlagsPos = SavedDupeBulkDataFlagsPos;
 					DupeBulkStore.BulkDataFlags = SavedDupeBulkDataFlags;
+					DupeBulkStore.BulkDataChunkIdPos = SavedDupeBulkDataChunkIdPos;
+
 					DupeBulkStore.BulkData = this;
 				}
 				
@@ -1661,9 +1690,14 @@ FBulkDataStreamingToken FUntypedBulkData::CreateStreamingToken() const
 	return FBulkDataStreamingToken((uint32)GetBulkDataOffsetInFile(), (uint32)GetBulkDataSize());
 }
 
-IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequestForRange(const FString& Filename, const FBulkDataStreamingToken& Start, const FBulkDataStreamingToken& End, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback)
+IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequestForRange(const FString& Filename, const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback)
 {
 	check(Filename.IsEmpty() == false);
+	check(RangeArray.Num() > 0);
+
+	const FBulkDataStreamingToken& Start = *(RangeArray[0]);
+	const FBulkDataStreamingToken& End = *(RangeArray[RangeArray.Num()-1]);
+
 	check(Start.IsValid());
 	check(End.IsValid());
 
@@ -1710,8 +1744,7 @@ bool FBulkDataIORequest::WaitCompletion(float TimeLimitSeconds) const
 	return ReadRequest->WaitCompletion(TimeLimitSeconds);
 }
 
-
-uint8* FBulkDataIORequest::GetReadResults() const
+uint8* FBulkDataIORequest::GetReadResults()
 {
 	return ReadRequest->GetReadResults();
 }
@@ -1728,7 +1761,7 @@ int64 FBulkDataIORequest::GetSize() const
 	}
 }
 
-void FBulkDataIORequest::Cancel() const
+void FBulkDataIORequest::Cancel()
 {
 	ReadRequest->Cancel();
 }

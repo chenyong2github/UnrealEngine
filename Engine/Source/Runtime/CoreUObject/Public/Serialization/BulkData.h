@@ -11,7 +11,7 @@
 #include "BulkData2.h"
 
 #if WITH_EDITOR == 0 && WITH_EDITORONLY_DATA == 0 //Runtime
-	#define USE_NEW_BULKDATA 0
+	#define USE_NEW_BULKDATA 0 // Set to 1 to enable 
 #else
 	#define USE_NEW_BULKDATA 0
 #endif
@@ -62,8 +62,10 @@ enum EBulkDataFlags
 	BULKDATA_Size64Bit							= 1 << 13,
 	/** Duplicate non-optional payload in optional bulk data. */
 	BULKDATA_DuplicateNonOptionalPayload		= 1 << 14,
+	/** Indicates that an old ID is present in the data, at some point when the DDCs are flushed we can remove this. */
+	BULKDATA_BadDataVersion						= 1 << 15,
 	/** Indicates that the data was cooked for use with IoDispatcher. */
-	BULKDATA_CookedForIoDispatcher				= 1 << 15
+	BULKDATA_CookedForIoDispatcher				= 1 << 16,
 };
 
 /**
@@ -165,15 +167,10 @@ public:
 	virtual bool PollCompletion() const override;
 	virtual bool WaitCompletion( float TimeLimitSeconds = 0.0f ) const override;
 
-	virtual uint8* GetReadResults() const override;
+	virtual uint8* GetReadResults() override;
 	virtual int64 GetSize() const override;
 
-	virtual bool operator == (const IAsyncReadRequest* InReadRequest) override
-	{
-		return ReadRequest == InReadRequest;
-	}
-
-	virtual void Cancel() const override;
+	virtual void Cancel() override;
 
 private:
 	IAsyncReadFileHandle* FileHandle;
@@ -358,6 +355,7 @@ private:
 
 public:
 	friend class FLinkerLoad;
+	using BulkDataRangeArray = TArray<FBulkDataStreamingToken*, TInlineAllocator<8>>;
 
 	/*-----------------------------------------------------------------------------
 		Constructors and operators
@@ -715,8 +713,7 @@ public:
 	* @param CompleteCallback	Called from an arbitrary thread when the request is complete. Can be nullptr, if non-null, must remain valid until it is called. It will always be called.
 	* @return					A request for the read. This is owned by the caller and must be deleted by the caller.
 	**/
-	static IBulkDataIORequest* CreateStreamingRequestForRange(const FString& Filename, const FBulkDataStreamingToken& Start, const FBulkDataStreamingToken& End, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback);
-
+	static IBulkDataIORequest* CreateStreamingRequestForRange(const FString& Filename, const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback);
 #endif
 
 	/*-----------------------------------------------------------------------------

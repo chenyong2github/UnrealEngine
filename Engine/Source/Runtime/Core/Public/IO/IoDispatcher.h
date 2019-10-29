@@ -499,14 +499,7 @@ private:
 class FIoChunkId
 {
 public:
-	static inline FIoChunkId CreateEmptyId()
-	{
-		FIoChunkId ChunkId;
-		uint8 Data[12] = { 0 };
-		ChunkId.Set(Data, sizeof Data);
-
-		return ChunkId;
-	}
+	CORE_API static const FIoChunkId InvalidChunkId;
 
 	friend uint32 GetTypeHash(FIoChunkId InId)
 	{
@@ -524,9 +517,14 @@ public:
 		return Ar;
 	}
 
-	inline bool operator==(const FIoChunkId& Rhs) const
+	inline bool operator ==(const FIoChunkId& Rhs) const
 	{
 		return 0 == FMemory::Memcmp(Id, Rhs.Id, sizeof Id);
+	}
+
+	inline bool operator !=(const FIoChunkId& Rhs) const
+	{
+		return !(*this == Rhs);
 	}
 
 	CORE_API void GenerateFromData(const void* InData, SIZE_T InDataSize);
@@ -537,13 +535,21 @@ public:
 		FMemory::Memcpy(Id, InIdPtr, sizeof Id);
 	}
 
-	bool IsValid() const
+	inline bool IsValid() const
 	{
-		uint8 Data[12] = { 0 };
-		return FMemory::Memcmp(Id, Data, sizeof Id) != 0;
+		return *this != InvalidChunkId;
 	}
 
 private:
+	static inline FIoChunkId CreateEmptyId()
+	{
+		FIoChunkId ChunkId;
+		uint8 Data[12] = { 0 };
+		ChunkId.Set(Data, sizeof Data);
+
+		return ChunkId;
+	}
+
 	uint8	Id[12];
 };
 

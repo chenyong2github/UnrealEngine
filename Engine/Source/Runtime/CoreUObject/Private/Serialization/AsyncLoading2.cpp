@@ -45,6 +45,7 @@
 #include "IO/IoDispatcher.h"
 #include "UObject/GCObject.h"
 #include "UObject/ObjectRedirector.h"
+#include "Serialization/BulkData.h"
 
 #if UE_BUILD_DEVELOPMENT || UE_BUILD_DEBUG
 //PRAGMA_DISABLE_OPTIMIZATION
@@ -1790,6 +1791,10 @@ void FAsyncLoadingThread2Impl::InitializeLoading()
 		{
 			AltZenaphore.NotifyOne();
 		}));
+
+#if USE_NEW_BULKDATA
+		FBulkDataBase::SetIODispatcher(&IoDispatcher);
+#endif
 	}
 
 	AsyncThreadReady.Increment();
@@ -3685,6 +3690,10 @@ FAsyncLoadingThread2Impl::~FAsyncLoadingThread2Impl()
 	{
 		ShutdownLoading();
 	}
+
+#if USE_NEW_BULKDATA
+	FBulkDataBase::SetIODispatcher(nullptr);
+#endif
 }
 
 void FAsyncLoadingThread2Impl::ShutdownLoading()

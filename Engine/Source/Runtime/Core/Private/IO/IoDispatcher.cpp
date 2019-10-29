@@ -24,8 +24,9 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogIoDispatch, Log, All);
 
-#if !defined(PLATFORM_IMPLEMENTS_IO)
+const FIoChunkId FIoChunkId::InvalidChunkId = FIoChunkId::CreateEmptyId();
 
+#if !defined(PLATFORM_IMPLEMENTS_IO)
 //////////////////////////////////////////////////////////////////////////
 
 UE_TRACE_EVENT_BEGIN(IoDispatcher, BatchIssued, Always)

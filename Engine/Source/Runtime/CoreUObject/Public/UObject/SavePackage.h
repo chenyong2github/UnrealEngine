@@ -75,6 +75,8 @@ public:
 
 	virtual void Save() = 0;
 	virtual void AddFileAccess(const FString& PackageFilename, uint16 InIndex, uint64 InOffset, uint64 InSize) = 0;
+
+	static FIoChunkId CreateChunkId(uint32 NameIndex, uint32 NameNumber, uint16 ChunkIndex);
 };
 
 class FPackageStoreBulkDataManifest : public IBulkDataManifest
