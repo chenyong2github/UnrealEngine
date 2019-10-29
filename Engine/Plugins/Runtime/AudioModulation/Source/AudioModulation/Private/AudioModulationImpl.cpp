@@ -515,6 +515,11 @@ namespace AudioModulation
 
 	bool FAudioModulationImpl::CalculateModulationValue(FModulationPatchProxy& OutProxy, float& OutValue) const
 	{
+		if (OutProxy.bBypass)
+		{
+			return false;
+		}
+
 		const float InitValue = OutValue;
 		OutValue = CalculateModulationValue(OutProxy);
 
@@ -638,15 +643,49 @@ namespace AudioModulation
 
 		FModulationSettingsProxy& Settings = SourceSettings[InSourceId];
 
-		bControlsUpdated |= CalculateModulationValue(Settings.Volume, OutControls.Volume);
-		bControlsUpdated |= CalculateModulationValue(Settings.Pitch, OutControls.Pitch);
-		bControlsUpdated |= CalculateModulationValue(Settings.Lowpass, OutControls.Lowpass);
-		bControlsUpdated |= CalculateModulationValue(Settings.Highpass, OutControls.Highpass);
+		if (Settings.Volume.bBypass)
+		{
+			OutControls.Volume = 1.0f;
+		}
+		else
+		{
+			bControlsUpdated |= CalculateModulationValue(Settings.Volume, OutControls.Volume);
+		}
+
+		if (Settings.Pitch.bBypass)
+		{
+			OutControls.Pitch = 1.0f;
+		}
+		else
+		{
+			bControlsUpdated |= CalculateModulationValue(Settings.Pitch, OutControls.Pitch);
+		}
+
+		if (Settings.Highpass.bBypass)
+		{
+			OutControls.Highpass = MIN_FILTER_FREQUENCY;
+		}
+		else
+		{
+			bControlsUpdated |= CalculateModulationValue(Settings.Highpass, OutControls.Highpass);
+		}
+
+		if (Settings.Lowpass.bBypass)
+		{
+			OutControls.Lowpass = MAX_FILTER_FREQUENCY;
+		}
+		else
+		{
+			bControlsUpdated |= CalculateModulationValue(Settings.Lowpass, OutControls.Lowpass);
+		}
 
 		for (TPair<FName, FModulationPatchProxy>& Pair : Settings.Controls)
 		{
-			float& OutputValue = OutControls.Controls.FindOrAdd(Pair.Key);
-			bControlsUpdated |= CalculateModulationValue(Pair.Value, OutputValue);
+			if (!Pair.Value.bBypass)
+			{
+				float& OutputValue = OutControls.Controls.FindOrAdd(Pair.Key);
+				bControlsUpdated |= CalculateModulationValue(Pair.Value, OutputValue);
+			}
 		}
 
 		return bControlsUpdated;
