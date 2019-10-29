@@ -53,7 +53,7 @@ inline uint8* Writer_BeginLog(uint16 EventUid, uint16 Size)
 {
 	using namespace Private;
 
-	static const uint32 HeaderSize = sizeof(void*) + sizeof(uint32);
+	static const uint32 HeaderSize = sizeof(void*) + sizeof(FEventHeader);
 	uint32 AllocSize = ((Size + HeaderSize) + 7) & ~7;
 
 	FWriteBuffer* Buffer = Writer_GetBuffer();
@@ -74,7 +74,7 @@ inline void Writer_EndLog(uint8* EventData)
 {
 	using namespace Private;
 
-	EventData -= sizeof(void*) + sizeof(uint32);
+	EventData -= sizeof(void*) + sizeof(FEventHeader);
 
 	// Add the event into the master linked list of events.
 	while (true)

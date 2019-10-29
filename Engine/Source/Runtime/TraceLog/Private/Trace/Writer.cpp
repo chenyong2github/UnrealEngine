@@ -470,8 +470,8 @@ static void Writer_ConsumeEvents()
 			continue;
 		}
 
-		const uint16* Header = (uint16*)(UPTRINT(EventPtr) + sizeof(void*));
-		uint16 DataSize = Header[1] + sizeof(uint32);
+		const auto* Header = (FEventHeader*)(UPTRINT(EventPtr) + sizeof(void*));
+		uint16 DataSize = Header->Size + sizeof(*Header);
 
 		Collector.Write(Header, DataSize);
 
