@@ -23,6 +23,7 @@ namespace WindowsMixedReality
 		SpatialAnchorHelper(class MixedRealityInterop& interop, void(*logFunctionPointer)(const wchar_t*));
 		~SpatialAnchorHelper();
 
+		void InitializeSpatialAnchorStore();
 		bool IsSpatialAnchorStoreLoaded() const;
 		bool CreateAnchor(const wchar_t* anchorId, const DirectX::XMFLOAT3 position, DirectX::XMFLOAT4 rotationQuat, winrt::Windows::Perception::Spatial::SpatialCoordinateSystem& coordinateSystem);
 		void RemoveAnchor(const wchar_t* anchorId);
