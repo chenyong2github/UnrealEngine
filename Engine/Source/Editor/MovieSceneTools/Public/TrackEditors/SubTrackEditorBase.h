@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Editor.h"
 #include "ISequencerSection.h"
 #include "Sections/MovieSceneSubSection.h"
 #include "CommonMovieSceneTools.h"
