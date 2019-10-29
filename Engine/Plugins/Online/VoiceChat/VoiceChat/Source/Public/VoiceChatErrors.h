@@ -17,6 +17,7 @@ namespace VoiceChat
 		inline FVoiceChatResult NotInChannel() { return VOICECHAT_ERROR(EVoiceChatResult::InvalidState, TEXT("not_in_channel")); }
 		inline FVoiceChatResult ChannelJoinInProgress() { return VOICECHAT_ERROR(EVoiceChatResult::InvalidState, TEXT("channel_join_in_progress")); }
 		inline FVoiceChatResult ChannelLeaveInProgress() { return VOICECHAT_ERROR(EVoiceChatResult::InvalidState, TEXT("channel_leave_in_progress")); }
+		inline FVoiceChatResult PlatformPartyChatActive() { return VOICECHAT_ERROR(EVoiceChatResult::InvalidState, TEXT("platform_party_chat_active")); }
 
 		inline FVoiceChatResult InvalidArgument(const FString& ErrorDesc = FString()) { return VOICECHAT_ERROR(EVoiceChatResult::InvalidArgument, TEXT("invalid_argument"), ErrorDesc); }
 		inline FVoiceChatResult CredentialsInvalid() { return VOICECHAT_ERROR(EVoiceChatResult::CredentialsInvalid, TEXT("credentials_invalid")); }
