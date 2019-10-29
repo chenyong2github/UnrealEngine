@@ -211,7 +211,6 @@ struct ENGINE_API FPhysicsInterface_PhysX : public FGenericPhysicsInterface
 	static FCollisionFilterData GetQueryFilter(const FPhysicsShapeHandle_PhysX& InShape);
 	static bool IsSimulationShape(const FPhysicsShapeHandle_PhysX& InShape);
 	static bool IsQueryShape(const FPhysicsShapeHandle_PhysX& InShape);
-	static bool IsShapeType(const FPhysicsShapeHandle_PhysX& InShape, ECollisionShapeType InType);
 	static ECollisionShapeType GetShapeType(const FPhysicsShapeHandle_PhysX& InShape);
 	static FPhysicsGeometryCollection_PhysX GetGeometryCollection(const FPhysicsShapeHandle_PhysX& InShape);
 	static FTransform GetLocalTransform(const FPhysicsShapeHandle_PhysX& InShape);
