@@ -377,3 +377,54 @@ private:
 	uint32 NumberOfFramesWithNoPackets;
 	uint64 NumberOfTrackedFrames;
 };
+
+
+/**
+* Calculates the current packet loss along with a rolling average of the past X updates
+* Constructed with the number of samples you want to average over time.
+*/
+template<uint32 NbPeriodsForAverage>
+struct TPacketLossData
+{
+public:
+
+	/** The loss percentage over the last StatPeriod */
+	float GetLossPercentage() const { return LossPercentage; }
+
+	/** The average loss percentage over the previous X StatPeriods */
+	float GetAvgLossPercentage() const { return AvgLossPercentage; }
+
+	/** Update the packet loss based on total and lost packets */
+	void UpdateLoss(int32 NbPacketsLost, int32 TotalPackets, int32 SampleCount)
+	{
+		// Update the current statistic
+		const int32 PacketsDuringLastPeriod = TotalPackets - TotalPacketsAtPeriodStart;
+		LossPercentage = PacketsDuringLastPeriod > 0 ? ((float)NbPacketsLost / (float)PacketsDuringLastPeriod) : 0.0f;
+
+		// Update the rolling average
+		const int32 SampleIndex = SampleCount % NbPeriodsForAverage;
+		LossSamples[SampleIndex] = LossPercentage;
+
+		float RollingAverage = 0.0f;
+		for (float LossSample : LossSamples)
+		{
+			RollingAverage += LossSample;
+		}
+		AvgLossPercentage = RollingAverage / NbPeriodsForAverage;
+
+		// Store data for the next update
+		TotalPacketsAtPeriodStart = TotalPackets;
+	}
+
+private:
+	/**
+	* The amount of samples to average.
+	* The length of the period will be NbPeriodsForAverage * StatPeriod.
+	* With default values that is 3 samples * 1 second -> an average of the past 3 seconds
+	*/
+	float LossSamples[NbPeriodsForAverage] = { 0.0f };
+
+	int32 TotalPacketsAtPeriodStart = 0;
+	float LossPercentage = 0.0f;
+	float AvgLossPercentage = 0.0f;
+};
