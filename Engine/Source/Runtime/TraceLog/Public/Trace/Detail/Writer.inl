@@ -13,12 +13,6 @@ namespace Private
 {
 
 ////////////////////////////////////////////////////////////////////////////////
-#if defined(_MSC_VER)
-	#pragma warning(push)
-	#pragma warning(disable : 4200) // non-standard zero-sized array
-#endif
-
-////////////////////////////////////////////////////////////////////////////////
 struct FWriteBuffer
 {
 	union
@@ -28,10 +22,6 @@ struct FWriteBuffer
 	};
 	uint32				ThreadId;
 };
-
-#if defined(_MSC_VER)
-	#pragma warning(pop)
-#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 extern TRACELOG_API void* volatile	GLastEvent;
