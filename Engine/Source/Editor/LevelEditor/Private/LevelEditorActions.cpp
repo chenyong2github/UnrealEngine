@@ -1363,27 +1363,9 @@ bool FLevelEditorActionCallbacks::LockActorMovement_IsChecked()
 	return GEditor->HasLockedActors();
 }
 
-void FLevelEditorActionCallbacks::AddActor_Clicked( UActorFactory* ActorFactory, FAssetData AssetData, bool bUsePlacement )
+void FLevelEditorActionCallbacks::AddActor_Clicked( UActorFactory* ActorFactory, FAssetData AssetData)
 {
-	UObject* Object = AssetData.GetAsset();
-	if(bUsePlacement && IPlacementModeModule::IsAvailable() && Object != NULL)
-	{
-		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-		LevelEditorModule.FocusViewport();
-
-		// Make sure we're in actor placement mode
-		GLevelEditorModeTools().ActivateMode(FBuiltinEditorModes::EM_Placement);
-
-		TArray<UObject*> AssetsToPlace;
-		AssetsToPlace.Add(Object);
-
-		auto* PlacementMode = GLevelEditorModeTools().GetActiveModeTyped<IPlacementMode>(FBuiltinEditorModes::EM_Placement);
-		PlacementMode->StartPlacing(AssetsToPlace, ActorFactory);
-	}
-	else
-	{
-		FLevelEditorActionCallbacks::AddActor(ActorFactory, AssetData, NULL);
-	}
+	FLevelEditorActionCallbacks::AddActor(ActorFactory, AssetData, NULL);
 }
 
 AActor* FLevelEditorActionCallbacks::AddActor( UActorFactory* ActorFactory, const FAssetData& AssetData, const FTransform* ActorTransform )
