@@ -44,7 +44,7 @@ TSharedRef<ISequencerSection> FTemplateSequenceTrackEditor::MakeSectionInterface
 {
 	check( SupportsType( SectionObject.GetOuter()->GetClass() ) );
 	
-	return MakeShareable(new FTemplateSequenceSection(*CastChecked<UTemplateSequenceSection>(&SectionObject)));
+	return MakeShareable(new FTemplateSequenceSection(GetSequencer(), *CastChecked<UTemplateSequenceSection>(&SectionObject)));
 }
 
 void FTemplateSequenceTrackEditor::AddTemplateSequenceSubMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings)
@@ -132,36 +132,9 @@ FKeyPropertyResult FTemplateSequenceTrackEditor::AddKeyInternal(FFrameNumber Key
 	return KeyPropertyResult;
 }
 
-FTemplateSequenceSection::FTemplateSequenceSection(UTemplateSequenceSection& InSection)
-	: WeakSection(&InSection)
+FTemplateSequenceSection::FTemplateSequenceSection(TSharedPtr<ISequencer> InSequencer, UTemplateSequenceSection& InSection)
+	: TSubSectionMixin(InSequencer, InSection)
 {
-}
-
-UMovieSceneSection* FTemplateSequenceSection::GetSectionObject()
-{
-	return WeakSection.Get();
-}
-
-bool FTemplateSequenceSection::IsReadOnly() const
-{
-	return WeakSection.IsValid() ? WeakSection.Get()->IsReadOnly() : false;
-}
-
-FText FTemplateSequenceSection::GetSectionTitle() const
-{
-	if (const UTemplateSequenceSection* Section = WeakSection.Get())
-	{
-		if (const UMovieSceneSequence* TemplateSequence = Section->GetSequence())
-		{
-			return FText::FromString(TemplateSequence->GetName());
-		}
-	}
-	return LOCTEXT("NoTemplateSequenceSection", "No Template Animation");
-}
-
-int32 FTemplateSequenceSection::OnPaintSection(FSequencerSectionPainter& Painter) const
-{
-	return Painter.PaintSectionBackground();
 }
 
 #undef LOCTEXT_NAMESPACE
