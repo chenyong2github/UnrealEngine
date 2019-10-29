@@ -17,6 +17,7 @@
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 #include "Misc/MapErrors.h"
+#include "NiagaraComponent.h"
 
 static float GHairClipLength = -1;
 static FAutoConsoleVariableRef CVarHairClipLength(TEXT("r.HairStrands.DebugClipLength"), GHairClipLength, TEXT("Clip hair strands which have a lenth larger than this value. (default is -1, no effect)"));
@@ -654,9 +655,71 @@ void CallbackMeshObjectCallback(
 	});
 }
 
+static bool IsSimulationEnabled(const USceneComponent* Component)
+{
+	check(Component);
+
+	// If the groom component has an Niagara component attached, we assume it has simulation capabilities
+	bool bHasNiagaraSimulationComponent = false;
+	for (int32 ChildIt = 0, ChildCount = Component->GetNumChildrenComponents(); ChildIt < ChildCount; ++ChildIt)
+	{
+		const USceneComponent* ChildComponent = Component->GetChildComponent(ChildIt);
+		const UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(ChildComponent);
+		if (NiagaraComponent != nullptr)
+		{
+			bHasNiagaraSimulationComponent = true;
+			break;
+		}
+	}
+
+	return bHasNiagaraSimulationComponent;
+}
+
+void UGroomComponent::OnChildAttached(USceneComponent* ChildComponent)
+{
+	const UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(ChildComponent);
+	if (NiagaraComponent && InterpolationInput)
+	{
+		FHairStrandsInterpolationInput* LocalInterpolationInput = InterpolationInput;
+		ENQUEUE_RENDER_COMMAND(FHairStrandsTick_UpdateSimulationEnable)(
+			[LocalInterpolationInput](FRHICommandListImmediate& RHICmdList)
+		{
+			for (FHairStrandsInterpolationInput::FHairGroup& HairGroup : LocalInterpolationInput->HairGroups)
+			{
+				HairGroup.bIsSimulationEnable = true;
+			}
+		});
+	}
+}
+
+void UGroomComponent::OnChildDetached(USceneComponent* ChildComponent)
+{
+	const UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(ChildComponent);
+	if (NiagaraComponent && InterpolationInput)
+	{
+		FHairStrandsInterpolationInput* LocalInterpolationInput = InterpolationInput;
+		ENQUEUE_RENDER_COMMAND(FHairStrandsTick_UpdateSimulationDisable)(
+			[LocalInterpolationInput](FRHICommandListImmediate& RHICmdList)
+		{
+			for (FHairStrandsInterpolationInput::FHairGroup& HairGroup : LocalInterpolationInput->HairGroups)
+			{
+				HairGroup.bIsSimulationEnable = false;
+			}
+		});
+	}
+}
+
+void UGroomComponent::ResetSimulation()
+{
+	bResetSimulation = false;
+	//UE_LOG(LogHairStrands, Warning, TEXT("Groom Reset = %d"), bResetSimulation);
+}
+
 void UGroomComponent::InitResources()
 {
 	ReleaseResources();
+	bResetSimulation = true;
+	//UE_LOG(LogHairStrands, Warning, TEXT("Groom Init = %d"), bResetSimulation);
 
 	if (!GroomAsset || GroomAsset->GetNumHairGroups() == 0)
 		return;
@@ -678,7 +741,14 @@ void UGroomComponent::InitResources()
 		CallbackData.Run = CallbackMeshObjectCallback;
 		CallbackData.UserData = (uint64(LocalComponentId.PrimIDValue) & 0xFFFFFFFF) | (uint64(WorldType) << 32);
 		SkeletalMeshComponent->MeshObjectCallbackData = CallbackData;
+
+
+		{
+			SkeletalMeshComponent->OnBoneTransformsFinalized.AddDynamic(this, &UGroomComponent::ResetSimulation);
+		}
 	}
+
+	const bool bIsSimulationEnable = IsSimulationEnabled(this);
 
 	FTransform HairLocalToWorld = GetComponentTransform();
 	FTransform SkinLocalToWorld = bBindGroomToSkeletalMesh && SkeletalMeshComponent ? SkeletalMeshComponent->GetComponentTransform() : FTransform::Identity;
@@ -734,12 +804,13 @@ void UGroomComponent::InitResources()
 		BeginInitResource(Res.RenderDeformedResources);
 		BeginInitResource(Res.SimDeformedResources);
 
-		const FVector RestHairPositionOffset = Res.RenderRestResources->PositionOffset;
+		const FVector RenderRestHairPositionOffset = Res.RenderRestResources->PositionOffset;
+		const FVector SimRestHairPositionOffset = Res.SimRestResources->PositionOffset;
 
-		Res.RenderDeformedResources->PositionOffset = RestHairPositionOffset;
-		Res.RenderRestResources->PositionOffset = RestHairPositionOffset;
-		Res.SimDeformedResources->PositionOffset = RestHairPositionOffset;
-		Res.SimRestResources->PositionOffset = RestHairPositionOffset;
+		Res.RenderDeformedResources->PositionOffset = RenderRestHairPositionOffset;
+		Res.RenderRestResources->PositionOffset = RenderRestHairPositionOffset;
+		Res.SimDeformedResources->PositionOffset = SimRestHairPositionOffset;
+		Res.SimRestResources->PositionOffset = SimRestHairPositionOffset;
 
 		FHairStrandsInterpolationOutput::HairGroup& InterpolationOutputGroup = InterpolationOutput->HairGroups.AddDefaulted_GetRef();
 		FHairStrandsInterpolationInput::FHairGroup& InterpolationInputGroup = InterpolationInput->HairGroups.AddDefaulted_GetRef();
@@ -748,10 +819,14 @@ void UGroomComponent::InitResources()
 		const FHairGroupDesc& InGroupDesc = GroomGroupsDesc[GroupIt];
 		InterpolationInputGroup.HairRadius = GetGroupMaxHairRadius(InGroupDesc, GroupData);
 		InterpolationInputGroup.HairRaytracingRadiusScale = HairRaytracingRadiusScale;
-		InterpolationInputGroup.InHairPositionOffset = RestHairPositionOffset;
+		InterpolationInputGroup.InRenderHairPositionOffset = RenderRestHairPositionOffset;
+		InterpolationInputGroup.InSimHairPositionOffset = SimRestHairPositionOffset;
+
 		// For skinned groom, these value will be updated during TickComponent() call
-		InterpolationInputGroup.OutHairPositionOffset = RestHairPositionOffset;
-		InterpolationInputGroup.OutHairPreviousPositionOffset = RestHairPositionOffset;
+		// Deformed sim & render are expressed within the referencial (unlike rest pose)
+		InterpolationInputGroup.OutHairPositionOffset = RenderRestHairPositionOffset;
+		InterpolationInputGroup.OutHairPreviousPositionOffset = RenderRestHairPositionOffset;
+		InterpolationInputGroup.bIsSimulationEnable = bIsSimulationEnable;
 
 		GroupIt++;
 	}
@@ -878,6 +953,13 @@ void UGroomComponent::ReleaseResources()
 	SkeletalPreviousPositionOffset = FVector::ZeroVector;
 	RegisteredSkeletalMeshComponent = nullptr;
 
+	USkeletalMeshComponent* SkeletalMeshComponent = GetAttachParent() ? Cast<USkeletalMeshComponent>(GetAttachParent()) : nullptr;
+	if (SkeletalMeshComponent)
+	{
+		SkeletalMeshComponent->OnBoneTransformsFinalized.RemoveDynamic(this, &UGroomComponent::ResetSimulation);
+		bResetSimulation = true;
+	}
+
 	MarkRenderStateDirty();
 }
 
@@ -891,12 +973,12 @@ void UGroomComponent::PostLoad()
 		GroomAsset->ConditionalPostLoad();
 	}
 
+	UpdateHairGroupsDesc(GroomAsset, GroomGroupsDesc);
 	if (!IsTemplate())
 	{
 		InitResources();
 	}
 
-	UpdateHairGroupsDesc(GroomAsset, GroomGroupsDesc);
 
 #if WITH_EDITOR
 	if (!bIsGroomAssetCallbackRegistered)
@@ -919,6 +1001,13 @@ void UGroomComponent::Invalidate()
 void UGroomComponent::OnRegister()
 {
 	Super::OnRegister();
+
+	// Insure the ticking of the Groom component always happens after the skeletalMeshComponent.
+	USkeletalMeshComponent* SkeletalMeshComponent = GetAttachParent() ? Cast<USkeletalMeshComponent>(GetAttachParent()) : nullptr;
+	/*if (SkeletalMeshComponent)
+	{
+		SkeletalMeshComponent->OnBoneTransformsFinalized.AddDynamic(this, &UGroomComponent::ResetSimulation);
+	}*/
 
 	const EWorldType::Type WorldType = GetWorld() ? EWorldType::Type(GetWorld()->WorldType) : EWorldType::None;
 	const uint64 Id = ComponentId.PrimIDValue;
@@ -1282,8 +1371,8 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		{
 			if (GroomAsset)
 			{
-				InitResources();
 				UpdateHairGroupsDesc(GroomAsset, GroomGroupsDesc);
+				InitResources();
 			}
 			else
 			{
@@ -1303,6 +1392,7 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, HairWidth))
 	{	
 		UpdateHairGroupsDesc(GroomAsset, GroomGroupsDesc);
+		MarkRenderStateDirty();
 	}
 #if WITH_EDITOR
 	ValidateMaterials(false);

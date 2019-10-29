@@ -318,14 +318,6 @@ namespace UnrealBuildTool
 					);
 				}
 			}
-			else
-			{
-				// strip the final elf file if we are not producing debug info
-				Out += string.Format("\"{0}\" \"{1}\"\n",
-					GetStripPath(LinkEnvironment.Architecture),
-					OutputFile.AbsolutePath
-				);
-			}
 
 			return Out;
 		}
@@ -684,9 +676,9 @@ namespace UnrealBuildTool
 				}
 			}
 
-			if (CompileEnvironment.bEnableShadowVariableWarnings)
+			if (CompileEnvironment.ShadowVariableWarningLevel != WarningLevel.Off)
 			{
-				Result += " -Wshadow" + (CompileEnvironment.bShadowVariableWarningsAsErrors ? "" : " -Wno-error=shadow");
+				Result += " -Wshadow" + ((CompileEnvironment.ShadowVariableWarningLevel == WarningLevel.Error) ? "" : " -Wno-error=shadow");
 			}
 
 			if (CompileEnvironment.bEnableUndefinedIdentifierWarnings)

@@ -431,7 +431,6 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 
 		// Necessary step to regenerate blueprint generated class
 		// Note that this compilation will always succeed as Dataprep node does not have real body
-		// #ueent_todo: Is there a better solution
 		{
 			FKismetEditorUtilities::CompileBlueprint( DataprepRecipeBPPtr.Get(), EBlueprintCompileOptions::None, nullptr );
 		}
@@ -543,7 +542,6 @@ void FDataprepEditor::OnBuildWorld()
 	{
 		FTimeLogger TimeLogger( TEXT("Import") );
 
-		// #ueent_todo: Add progress logger to Dataprep editor
 		FDataprepProducerContext Context;
 		Context.SetWorld( PreviewWorld.Get() )
 			.SetRootPackage( TransientPackage )
@@ -647,7 +645,6 @@ void FDataprepEditor::CleanPreviewWorld()
 		}
 	}
 
-	// #ueent_todo: Should we find a better way to silently delete assets?
 	// Disable warnings from LogStaticMesh because FDataprepCoreUtils::PurgeObjects is pretty verbose on harmless warnings
 	ELogVerbosity::Type PrevLogStaticMeshVerbosity = LogStaticMesh.GetVerbosity();
 	LogStaticMesh.SetVerbosity( ELogVerbosity::Error );
@@ -765,7 +762,7 @@ void FDataprepEditor::OnCommitWorld()
 
 	if( !DataprepAssetInterfacePtr->RunConsumer( Context ) )
 	{
-		// #ueent_todo: Inform consumer failed
+		UE_LOG( LogDataprepEditor, Error, TEXT("Consumer failed...") );
 	}
 
 	ResetBuildWorld();
@@ -1123,8 +1120,6 @@ void FDataprepEditor::UpdatePreviewPanels(bool bInclude3DViewport)
 	{
 		FTimeLogger TimeLogger( TEXT("UpdatePreviewPanels") );
 
-		// #ueent_todo: There should be a event triggered to inform listeners
-		//				   that new assets have been generated.
 		AssetPreviewView->ClearAssetList();
 		FString SubstitutePath = DataprepAssetInterfacePtr->GetOutermost()->GetName();
 		if(DataprepAssetInterfacePtr->GetConsumer() != nullptr && !DataprepAssetInterfacePtr->GetConsumer()->GetTargetContentFolder().IsEmpty())
@@ -1142,6 +1137,15 @@ void FDataprepEditor::UpdatePreviewPanels(bool bInclude3DViewport)
 
 bool FDataprepEditor::OnRequestClose()
 {
+	const int ActorCount = PreviewWorld->GetActorCount();
+	if( bWorldBuilt && !bIgnoreCloseRequest && ActorCount > DefaultActorsInPreviewWorld.Num() )
+	{
+		// World was imported and is not empty -- show warning message
+		const FText Title( LOCTEXT( "DataprepEditor_ProceedWithClose", "Proceed with close") );
+		const FText Message( LOCTEXT( "DataprepEditor_ConfirmClose", "Imported data was not committed! Closing the editor will discard imported data.\nDo you want to close anyway?" ) );
+
+		return ( OpenMsgDlgInt( EAppMsgType::YesNo, Message, Title ) == EAppReturnType::Yes );
+	}
 	return !bIgnoreCloseRequest;
 }
 
@@ -1170,8 +1174,6 @@ bool FDataprepEditor::OnCanExecuteNextStep(UDataprepActionAsset* ActionAsset, UD
 {
 	// #ueent_todo: Make this action configurable by user
 	UpdatePreviewPanels(false);
-
-	// #ueent_todo: Make this action configurable by user
 	return true;
 }
 
@@ -1215,7 +1217,6 @@ void DataprepEditorUtil::DeleteTemporaryPackage( const FString& PathToDelete )
 
 		if(AssetsToDelete.Num() > 0)
 		{
-			// #ueent_todo: We should not use ObjectTools::DeleteObjects but FAssetDeleteModel 
 			ObjectTools::DeleteObjects(AssetsToDelete, false);
 		}
 	}

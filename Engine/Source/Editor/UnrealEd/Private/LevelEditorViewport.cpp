@@ -53,7 +53,6 @@
 #include "AssetRegistryModule.h"
 #include "IPlacementModeModule.h"
 #include "Engine/Polys.h"
-#include "Editor/GeometryMode/Public/EditorGeometry.h"
 #include "ActorEditorUtils.h"
 #include "ObjectTools.h"
 #include "PackageTools.h"
@@ -77,6 +76,7 @@
 #include "ActorGroupingUtils.h"
 #include "EditorWorldExtension.h"
 #include "VREditorMode.h"
+#include "Subsystems/BrushEditingSubsystem.h"
 #include "Engine/VolumeTexture.h"
 #include "Materials/MaterialExpressionDivide.h"
 #include "Materials/MaterialExpressionSubtract.h"
@@ -2118,18 +2118,19 @@ void FLevelEditorViewportClient::LostFocus(FViewport* InViewport)
 //
 void FLevelEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY)
 {
+	UBrushEditingSubsystem* BrushSubsystem = GEditor->GetEditorSubsystem<UBrushEditingSubsystem>();
 
 	const FViewportClick Click(&View,this,Key,Event,HitX,HitY);
 	if (Click.GetKey() == EKeys::MiddleMouseButton && !Click.IsAltDown() && !Click.IsShiftDown())
 	{
-		ClickHandlers::ClickViewport(this, Click);
+		LevelViewportClickHandlers::ClickViewport(this, Click);
 		return;
 	}
 	if (!ModeTools->HandleClick(this, HitProxy,Click))
 	{
 		if (HitProxy == NULL)
 		{
-			ClickHandlers::ClickBackdrop(this,Click);
+			LevelViewportClickHandlers::ClickBackdrop(this,Click);
 		}
 		else if (HitProxy->IsA(HWidgetAxis::StaticGetType()))
 		{
@@ -2199,11 +2200,11 @@ void FLevelEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitPr
 
 			if (bSelectComponent)
 			{
-				ClickHandlers::ClickComponent(this, ActorHitProxy, Click);
+				LevelViewportClickHandlers::ClickComponent(this, ActorHitProxy, Click);
 			}
 			else
 			{
-				ClickHandlers::ClickActor(this, ConsideredActor, Click, true);
+				LevelViewportClickHandlers::ClickActor(this, ConsideredActor, Click, true);
 			}
 
 			// We clicked an actor, allow the pivot to reposition itself.
@@ -2211,56 +2212,19 @@ void FLevelEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitPr
 		}
 		else if (HitProxy->IsA(HInstancedStaticMeshInstance::StaticGetType()))
 		{
-			ClickHandlers::ClickActor(this, ((HInstancedStaticMeshInstance*)HitProxy)->Component->GetOwner(), Click, true);
+			LevelViewportClickHandlers::ClickActor(this, ((HInstancedStaticMeshInstance*)HitProxy)->Component->GetOwner(), Click, true);
 		}
 		else if (HitProxy->IsA(HBSPBrushVert::StaticGetType()) && ((HBSPBrushVert*)HitProxy)->Brush.IsValid())
 		{
-			ClickHandlers::ClickBrushVertex(this,((HBSPBrushVert*)HitProxy)->Brush.Get(),((HBSPBrushVert*)HitProxy)->Vertex,Click);
+			LevelViewportClickHandlers::ClickBrushVertex(this,((HBSPBrushVert*)HitProxy)->Brush.Get(),((HBSPBrushVert*)HitProxy)->Vertex,Click);
 		}
 		else if (HitProxy->IsA(HStaticMeshVert::StaticGetType()))
 		{
-			ClickHandlers::ClickStaticMeshVertex(this,((HStaticMeshVert*)HitProxy)->Actor,((HStaticMeshVert*)HitProxy)->Vertex,Click);
+			LevelViewportClickHandlers::ClickStaticMeshVertex(this,((HStaticMeshVert*)HitProxy)->Actor,((HStaticMeshVert*)HitProxy)->Vertex,Click);
 		}
-		else if (HitProxy->IsA(HGeomPolyProxy::StaticGetType()))
+		else if (BrushSubsystem && BrushSubsystem->ProcessClickOnBrushGeometry(this, HitProxy, Click))
 		{
-			HGeomPolyProxy* GeomHitProxy = (HGeomPolyProxy*)HitProxy;
-
-			if( GeomHitProxy->GetGeomObject() )
-			{
-				FHitResult CheckResult(ForceInit);
-				FCollisionQueryParams BoxParams(SCENE_QUERY_STAT(ProcessClickTrace), false, GeomHitProxy->GetGeomObject()->ActualBrush);
-				bool bHit = GWorld->SweepSingleByObjectType(CheckResult, Click.GetOrigin(), Click.GetOrigin() + Click.GetDirection() * HALF_WORLD_MAX, FQuat::Identity, FCollisionObjectQueryParams(ECC_WorldStatic), FCollisionShape::MakeBox(FVector(1.f)), BoxParams);
-
-				if(bHit)
-				{
-					GEditor->UnsnappedClickLocation = CheckResult.Location;
-					GEditor->ClickLocation = CheckResult.Location;
-					GEditor->ClickPlane = FPlane(CheckResult.Location, CheckResult.Normal);
-				}
-
-				if(!ClickHandlers::ClickActor(this, GeomHitProxy->GetGeomObject()->ActualBrush, Click, false))
-				{
-					ClickHandlers::ClickGeomPoly(this, GeomHitProxy, Click);
-				}
-
-				Invalidate(true, true);
-			}
-		}
-		else if (HitProxy->IsA(HGeomEdgeProxy::StaticGetType()))
-		{
-			HGeomEdgeProxy* GeomHitProxy = (HGeomEdgeProxy*)HitProxy;
-
-			if( GeomHitProxy->GetGeomObject() !=nullptr )
-			{
-				if(!ClickHandlers::ClickGeomEdge(this, GeomHitProxy, Click))
-				{
-					ClickHandlers::ClickActor(this, GeomHitProxy->GetGeomObject()->ActualBrush, Click, true);
-				}
-			}
-		}
-		else if (HitProxy->IsA(HGeomVertexProxy::StaticGetType()))
-		{
-			ClickHandlers::ClickGeomVertex(this,(HGeomVertexProxy*)HitProxy,Click);
+			// Handled by the brush subsystem
 		}
 		else if (HitProxy->IsA(HModel::StaticGetType()))
 		{
@@ -2273,12 +2237,12 @@ void FLevelEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitPr
 			uint32 SurfaceIndex = INDEX_NONE;
 			if(ModelHit->ResolveSurface(SceneView,HitX,HitY,SurfaceIndex))
 			{
-				ClickHandlers::ClickSurface(this,ModelHit->GetModel(),SurfaceIndex,Click);
+				LevelViewportClickHandlers::ClickSurface(this,ModelHit->GetModel(),SurfaceIndex,Click);
 			}
 		}
 		else if (HitProxy->IsA(HLevelSocketProxy::StaticGetType()))
 		{
-			ClickHandlers::ClickLevelSocket(this, HitProxy, Click);
+			LevelViewportClickHandlers::ClickLevelSocket(this, HitProxy, Click);
 		}
 	}
 }
@@ -5200,10 +5164,3 @@ bool FLevelEditorViewportClient::GetPivotForOrbit(FVector& Pivot) const
 }
 
 #undef LOCTEXT_NAMESPACE
-
-// Doxygen cannot parse these correctly since the declarations are made in Editor, not UnrealEd
-#if !UE_BUILD_DOCS
-IMPLEMENT_HIT_PROXY(HGeomPolyProxy,HHitProxy);
-IMPLEMENT_HIT_PROXY(HGeomEdgeProxy,HHitProxy);
-IMPLEMENT_HIT_PROXY(HGeomVertexProxy,HHitProxy);
-#endif

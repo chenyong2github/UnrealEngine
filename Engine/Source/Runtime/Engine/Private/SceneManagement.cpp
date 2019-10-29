@@ -747,7 +747,7 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	CameraAerialPerspectiveVolume = GBlackAlpha1VolumeTexture->TextureRHI;
 	CameraAerialPerspectiveVolumeSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 
-	PrimitiveSceneDataTexture = GIdentityPrimitiveBuffer.PrimitiveSceneDataTextureRHI;
+	PrimitiveSceneDataTexture = OrBlack2DIfNull(GIdentityPrimitiveBuffer.PrimitiveSceneDataTextureRHI);
 	PrimitiveSceneData = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
 	LightmapSceneData = GIdentityPrimitiveBuffer.LightmapSceneDataBufferSRV;
 

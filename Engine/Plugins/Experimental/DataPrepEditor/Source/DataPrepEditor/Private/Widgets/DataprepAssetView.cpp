@@ -413,7 +413,6 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 				.Padding( 0, 10, 0, 0 )
 				.HAlign( EHorizontalAlignment::HAlign_Center )
 				[
-					// #ueent_todo: make color block's width vary with parent widget
 					SNew(SColorBlock)
 					.Color( FLinearColor( 0.9f, 0.9f, 0.9f ) )
 					.Size( FVector2D( 3000, 1 ) )
@@ -471,7 +470,6 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 						.Padding( 0, 10, 0, 0 )
 						.HAlign( EHorizontalAlignment::HAlign_Center )
 						[
-							// #ueent_todo: make color block's width vary with parent widget
 							SNew(SColorBlock)
 							.Color( FLinearColor( 0.9f, 0.9f, 0.9f ) )
 							.Size( FVector2D( 3000, 1 ) )
@@ -586,7 +584,7 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 						.VAlign(VAlign_Center)
 						.Padding(10.0f, 5.0f, 0.0f, 5.0f)
 						[
-							SNew( SConstrainedBox )
+							SNew( DataprepWidgetUtils::SConstrainedBox )
 							[
 								SNew( SDataprepDetailsView )
 								.Object( DataprepAssetInterfacePtr->GetParameterizationObject() )

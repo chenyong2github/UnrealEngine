@@ -358,6 +358,11 @@ class ENGINE_API USoundWave : public USoundBase
 	/** Whether this SoundWave was decompressed from OGG. */
 	uint8 bDecompressedFromOgg : 1;
 
+#if WITH_EDITOR
+	/** The current revision of our compressed audio data. Used to tell when a chunk in the cache is stale. */
+	FThreadSafeCounter CurrentChunkRevision;
+#endif
+
 private:
 
 	// This is set to false on initialization, then set to true on non-editor platforms when we cache appropriate sample rate.
@@ -822,7 +827,7 @@ public:
 	 * Change the guid and flush all compressed data
 	 * @param bFreeResources if true, will delete any precached compressed data as well.
 	 */
-	void InvalidateCompressedData(bool bFreeResources = false);
+	void InvalidateCompressedData(bool bFreeResources = false, bool bRebuildStreamingChunks = true);
 
 	/** Returns curves associated with this sound wave */
 	virtual class UCurveTable* GetCurveData() const override { return Curves; }

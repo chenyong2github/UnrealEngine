@@ -129,7 +129,7 @@ void UEditorValidatorSubsystem::CleanupValidators()
 	Validators.Empty();
 }
 
-EDataValidationResult UEditorValidatorSubsystem::IsObjectValid(UObject* InObject, TArray<FText>& ValidationErrors) const
+EDataValidationResult UEditorValidatorSubsystem::IsObjectValid(UObject* InObject, TArray<FText>& ValidationErrors, TArray<FText>& ValidationWarnings) const
 {
 	EDataValidationResult Result = EDataValidationResult::NotValidated;
 	
@@ -153,6 +153,8 @@ EDataValidationResult UEditorValidatorSubsystem::IsObjectValid(UObject* InObject
 						Result = NewResult;
 					}
 
+					ValidationWarnings.Append(ValidatorPair.Value->GetAllWarnings());
+
 					ensureMsgf(ValidatorPair.Value->IsValidationStateSet(), TEXT("Validator %s did not include a pass or fail state."), *ValidatorPair.Value->GetClass()->GetName());
 				}
 			}
@@ -162,14 +164,14 @@ EDataValidationResult UEditorValidatorSubsystem::IsObjectValid(UObject* InObject
 	return Result;
 }
 
-EDataValidationResult UEditorValidatorSubsystem::IsAssetValid(FAssetData& AssetData, TArray<FText>& ValidationErrors) const
+EDataValidationResult UEditorValidatorSubsystem::IsAssetValid(FAssetData& AssetData, TArray<FText>& ValidationErrors, TArray<FText>& ValidationWarnings) const
 {
 	if (AssetData.IsValid())
 	{
 		UObject* Obj = AssetData.GetAsset();
 		if (Obj)
 		{
-			return IsObjectValid(Obj, ValidationErrors);
+			return IsObjectValid(Obj, ValidationErrors, ValidationWarnings);
 		}
 		return EDataValidationResult::NotValidated;
 	}
@@ -214,12 +216,18 @@ int32 UEditorValidatorSubsystem::ValidateAssets(TArray<FAssetData> AssetDataList
 		UE_LOG(LogContentValidation, Display, TEXT("%s"), *ValidatingMessage.ToString());
 
 		TArray<FText> ValidationErrors;
-		EDataValidationResult Result = IsAssetValid(Data, ValidationErrors);
+		TArray<FText> ValidationWarnings;
+		EDataValidationResult Result = IsAssetValid(Data, ValidationErrors, ValidationWarnings);
 		++NumFilesChecked;
 
 		for (const FText& ErrorMsg : ValidationErrors)
 		{
 			DataValidationLog.Error()->AddToken(FTextToken::Create(ErrorMsg));
+		}
+
+		for (const FText& WarningMsg : ValidationWarnings)
+		{
+			DataValidationLog.Warning()->AddToken(FTextToken::Create(WarningMsg));
 		}
 
 		if (Result == EDataValidationResult::Valid)

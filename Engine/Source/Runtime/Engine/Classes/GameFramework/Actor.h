@@ -2701,7 +2701,7 @@ public:
 	 * @param Tolerance  How many seconds ago the actor last render time can be and still count as having been "recently" rendered.
 	 * @return Whether this actor was recently rendered.
 	 */
-	UFUNCTION(Category="Rendering", BlueprintCallable, meta=(Keywords="scene visible"))
+	UFUNCTION(Category="Rendering", BlueprintCallable, meta=(DisplayName="WasActorRecentlyRendered", Keywords="scene visible"))
 	bool WasRecentlyRendered(float Tolerance = 0.2) const;
 
 	/** Returns the most recent time any of this actor's components were rendered */

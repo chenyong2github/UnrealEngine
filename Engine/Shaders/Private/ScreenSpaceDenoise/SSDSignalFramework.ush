@@ -362,8 +362,37 @@ float ComputeBluringOutOfFocusOfNormalizedSample(FSSDSignalSample Sample, FSSDSa
 {
 	float DistanceCameraToPixel = length(View.TranslatedWorldCameraOrigin - GetTranslatedWorldPosition(SceneMetadata));
 
-	return (1 - DistanceCameraToPixel / (DistanceCameraToPixel + Sample.ClosestHitDistance));
+	return Sample.ClosestHitDistance / (DistanceCameraToPixel + Sample.ClosestHitDistance);
 }
+
+
+// TODO(Denoiser): Update ImportanceSampleVisibleGGX() instead?
+float3 StableImportanceSampleVisibleGGX( float2 DiskE, float a2, float3 V )
+{
+	// TODO float2 alpha for anisotropic
+	float a = sqrt(a2);
+
+	// stretch
+	float3 Vh = normalize( float3( a * V.xy, V.z ) );
+
+	// Orthonormal basis
+	// Tangent0 is orthogonal to N.
+	float3 Tangent0 = (V.z < 0.9999) ? normalize( cross( float3(0, 0, 1), V ) ) : float3(1, 0, 0);
+	float3 Tangent1 = normalize(cross( Vh, Tangent0 ));
+
+	float2 p = DiskE;
+	float s = 0.5 + 0.5 * Vh.z;
+	p.y = (1 - s) * sqrt( 1 - p.x * p.x ) + s * p.y;
+
+	float3 H;
+	H  = p.x * Tangent0;
+	H += p.y * Tangent1;
+	H += sqrt( saturate( 1 - dot( p, p ) ) ) * Vh;
+
+	// unstretch
+	return normalize( float3( a * H.xy, max(0.0, H.z) ) );
+}
+
 
 /** Project the specular lobe in screen space. Returns the major axis of the lobe anysotropy, and the inifinity bluring in ViewportUV.x space. */
 void ProjectSpecularLobeToScreenSpace(
@@ -379,14 +408,17 @@ void ProjectSpecularLobeToScreenSpace(
 	{
 		float3 R = 2 * dot(V, N) * N - V;
 
-		float3 ViewR = mul(float4(R, 0.0), View.TranslatedWorldToView).xyz;
+		float4 RayEndClip = mul(float4(GetTranslatedWorldPosition(SceneMetadata) + R * (0.5 * SceneMetadata.WorldDepth), 1), View.TranslatedWorldToClip);
+		float2 RayEndScreen = RayEndClip.xy * rcp(RayEndClip.w);
 
-		NormalizedScreenMajorAxis = normalize(ViewR.xy);
+		float2 RayDirectionScreen = RayEndScreen - SceneMetadata.ScreenPosition;
+
+		NormalizedScreenMajorAxis = normalize(RayDirectionScreen * View.ViewSizeAndInvSize.xy);
 	}
 
 	{
 		// Measure the angle that only truncate 10% of D_GGX's tale.
-		const float E = (1.0 - GGX_IMPORTANT_SAMPLE_BIAS);
+		const float E = (1.0 - 0.5);
 		const float SqrtE = sqrt(E);
 
 		const float2 ArrayE[4] = {
@@ -407,7 +439,7 @@ void ProjectSpecularLobeToScreenSpace(
 		for (uint i = 0; i < 4; i++)
 		{
 			// TODO(Denoiser): optimise VALU here.
-			float3 TangentH = ImportanceSampleVisibleGGX(ArrayE[i], a2, TangentV).xyz;
+			float3 TangentH = StableImportanceSampleVisibleGGX(ArrayE[i], a2, TangentV).xyz;
 			TangentL[i] = 2 * dot(TangentV, TangentH) * TangentH - TangentV;
 		}
 	

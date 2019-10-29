@@ -135,6 +135,11 @@ void FHoloLensARSystem::RemoveARPinFromAnchorStore(UARPin* InPin)
 
 	WMRPin->SetIsInAnchorStore(false);
 	const FString& AnchorId = WMRPin->GetAnchorId();
+	if (AnchorId.IsEmpty())
+	{
+		UE_LOG(LogHoloLensAR, Warning, TEXT("RemoveARPinFromAnchorStore: ARPin %s has already been removed as a runtime pin, which means its WMR anchorID is not longer valid and it cannot be removed from the store.  You must remove the pin from the anchor store *before* removing the runtime ARPin. RemoveAllARPinsFromWMRAnchorStore will also remove stored anchors that have been orphaned in this way."), *WMRPin->GetDebugName().ToString());
+		return;
+	}
 	WMRRemoveSavedAnchor(*AnchorId);
 }
 

@@ -467,8 +467,8 @@ FPlatformErrorReport CollectErrorReport(FRecoveryService* RecoveryService, uint3
 	// At this point the game can continue execution. It is important this happens
 	// as soon as thread state and minidump has been created, so that ensures cause
 	// as little hitch as possible.
-	//uint8 ResponseCode[] = { 0xd, 0xe, 0xa, 0xd };
-	//FPlatformProcess::WritePipe(WritePipe, ResponseCode, sizeof(ResponseCode));
+	uint8 ResponseCode[] = { 0xd, 0xe, 0xa, 0xd };
+	FPlatformProcess::WritePipe(WritePipe, ResponseCode, sizeof(ResponseCode));
 
 	// Write out the XML file.
 	const FString CrashContextXMLPath = FPaths::Combine(*ReportDirectoryAbsolutePath, FPlatformCrashContext::CrashContextRuntimeXMLNameW);
@@ -787,6 +787,9 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 			return MonitoredProcess.IsValid() && FPlatformProcess::IsProcRunning(MonitoredProcess) && !FPlatformProcess::GetProcReturnCode(MonitoredProcess, &OutReturnCode);
 		};
 
+		// Keep track of whether we've initialized the analytics system
+		bool bInitializedAnalytics = false;
+
 		// This IsApplicationAlive() call is quite expensive, perform it at low frequency.
 		int32 ApplicationReturnCode = 0;
 		bool bApplicationAlive = IsMonitoredProcessAlive(ApplicationReturnCode);
@@ -805,6 +808,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 					if (bReportCrashAnalyticInfo)
 					{
 						FCrashReportAnalytics::Initialize();
+						bInitializedAnalytics = true;
 					}
 
 					// Build error report in memory.
@@ -820,12 +824,6 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 
 					const bool bNoDialog = CrashContext.UserSettings.bNoDialog && CrashContext.UserSettings.bSendUnattendedBugReports;
 					const SubmitCrashReportResult Result = SendErrorReport(ErrorReport, bNoDialog);
-
-					// At this point the game can continue execution. It is important this happens
-					// as soon as thread state and minidump has been created, so that ensures cause
-					// as little hitch as possible.
-					uint8 ResponseCode[] = { 0xd, 0xe, 0xa, 0xd };
-					FPlatformProcess::WritePipe(MonitorWritePipe, ResponseCode, sizeof(ResponseCode));
 
 					if (bReportCrashAnalyticInfo)
 					{
@@ -905,7 +903,11 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 
 		FPlatformProcess::CloseProc(MonitoredProcess);
 
-		FCrashReportAnalytics::Shutdown();
+		if (bInitializedAnalytics)
+		{
+			FCrashReportAnalytics::Shutdown();
+			bInitializedAnalytics = false;
+		}
 	}
 
 	FPrimaryCrashProperties::Shutdown();

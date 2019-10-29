@@ -852,7 +852,8 @@ CT_FLAGS FCoreTechFileParser::SetCoreTechImportOption(const FString& MainFileExt
 	// Set import option
 	CT_FLAGS Flags = CT_LOAD_FLAGS_USE_DEFAULT;
 
-	if (MainFileExt == TEXT("jt"))
+	// Do not read meta-data from JT files with CoreTech. It crashes...
+	if (MainFileExt != TEXT("jt"))
 	{
 		Flags |= CT_LOAD_FLAGS_READ_META_DATA;
 	}
@@ -864,7 +865,7 @@ CT_FLAGS FCoreTechFileParser::SetCoreTechImportOption(const FString& MainFileExt
 
 	// All the BRep topology is not available in IGES import
 	// Ask Kernel IO to complete or create missing topology
-	if (MainFileExt == TEXT(".igs") || MainFileExt == TEXT("iges"))
+	if (MainFileExt == TEXT("igs") || MainFileExt == TEXT("iges"))
 	{
 		Flags |= CT_LOAD_FLAG_SEARCH_NEW_TOPOLOGY | CT_LOAD_FLAG_COMPLETE_TOPOLOGY;
 	}

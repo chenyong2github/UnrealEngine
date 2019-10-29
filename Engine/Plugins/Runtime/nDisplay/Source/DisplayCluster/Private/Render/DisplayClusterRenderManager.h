@@ -87,7 +87,8 @@ private:
 	// FDisplayClusterRenderManager
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	void ResizeWindow(int32 WinX, int32 WinY, int32 ResX, int32 ResY);
-	void OnViewportCreatedHandler();
+	void OnViewportCreatedHandler_SetCustomPresent();
+	void OnViewportCreatedHandler_CheckViewportClass();
 	void OnBeginDrawHandler();
 
 private:

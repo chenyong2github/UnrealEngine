@@ -57,6 +57,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom Rendering", meta = (ClampMin = "0.0001", UIMin = "0.01", UIMax = "10.0"))
 	float HairRaytracingRadiusScale;
 
+	/** Boolean to check when animation has been loaded */
+	bool bResetSimulation;
+
+	/** Listen for the animation event to trigger the sim */
+	UFUNCTION()
+	void ResetSimulation();
+
 	//~ Begin UActorComponent Interface.
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
@@ -129,6 +136,12 @@ public:
 	FHairGroupResources HairGroupResources;
 	struct FHairStrandsInterpolationOutput* InterpolationOutput = nullptr;
 	struct FHairStrandsInterpolationInput* InterpolationInput = nullptr;
+
+protected:
+	// Used for tracking if a Niagara component is attached or not
+	virtual void OnChildAttached(USceneComponent* ChildComponent) override;
+	virtual void OnChildDetached(USceneComponent* ChildComponent) override;
+
 private:
 	void* InitializedResources;
 

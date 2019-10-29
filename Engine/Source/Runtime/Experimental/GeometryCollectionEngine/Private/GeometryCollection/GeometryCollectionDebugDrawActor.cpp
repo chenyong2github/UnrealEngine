@@ -2428,7 +2428,7 @@ void AGeometryCollectionDebugDrawActor::DrawRigidBodyCollisionNoChecks(const UGe
 	const FColor& ActiveColor = (bIsDisabled && !bIsParentUnion) ? FColor::Black: Color;
 
 	// Draw collision volume
-	const Chaos::ImplicitObjectType GeometryType = ParticlesData.GetGeometryType(TransformIndex);
+	const Chaos::EImplicitObjectType GeometryType = ParticlesData.GetGeometryType(TransformIndex);
 	switch (GeometryType)
 	{
 	case Chaos::ImplicitObjectType::Box:

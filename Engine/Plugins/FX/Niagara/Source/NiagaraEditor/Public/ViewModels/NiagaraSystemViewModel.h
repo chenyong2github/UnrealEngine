@@ -415,6 +415,9 @@ private:
 	/** builds stack module data for use in module dependencies */
 	void BuildStackModuleData(UNiagaraScript* Script, FGuid InEmitterHandleId, TArray<FNiagaraStackModuleData>& OutStackModuleData);
 
+	/** Called whenever one of the owned stack viewmodels structure changes. */
+	void StackViewModelStructureChanged();
+
 private:
 	/** The System being viewed and edited by this view model. */
 	UNiagaraSystem* System;

@@ -87,7 +87,7 @@ namespace DataprepWidgetUtils
 				[
 					// Trick to force the splitter widget to fill up the space of its parent
 					// Strongly inspired from SDetailSingleItemRow
-					SNew(SConstrainedBox)
+					SNew(DataprepWidgetUtils::SConstrainedBox)
 					[
 						ValueWidget.ToSharedRef()
 					]
@@ -103,7 +103,7 @@ void SDataprepConsumerWidget::OnLevelNameChanged( const FText &NewLevelName, ETe
 	FText OutReason;
 	if( !DataprepConsumerPtr->SetLevelName( NewLevelName.ToString(), OutReason ) )
 	{
-		// #ueent_todo: Warn user name is wrong
+		UE_LOG( LogDataprepEditor, Error, TEXT("%s"), *OutReason.ToString() );
 		LevelTextBox->SetText( FText::FromString( DataprepConsumerPtr->GetLevelName() ) );
 	}
 }
@@ -272,7 +272,7 @@ TSharedRef<SWidget> SDataprepConsumerWidget::BuildWidget()
 					[
 						// Trick to force the splitter widget to fill up the space of its parent
 						// Strongly inspired from SDetailSingleItemRow
-						SNew(SConstrainedBox)
+						SNew(DataprepWidgetUtils::SConstrainedBox)
 						[
 							SAssignNew(ContentFolderTextBox, SEditableTextBox)
 							.Font(IDetailLayoutBuilder::GetDetailFont())
@@ -361,7 +361,7 @@ TSharedRef<SWidget> SDataprepConsumerWidget::BuildWidget()
 					[
 						// Trick to force the splitter widget to fill up the space of its parent
 						// Strongly inspired from SDetailSingleItemRow
-						SNew(SConstrainedBox)
+						SNew(DataprepWidgetUtils::SConstrainedBox)
 						[
 							SAssignNew(LevelTextBox, SEditableTextBox)
 							.Font(IDetailLayoutBuilder::GetDetailFont())

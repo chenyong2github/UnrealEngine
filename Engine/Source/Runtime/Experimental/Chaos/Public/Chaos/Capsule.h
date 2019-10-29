@@ -74,7 +74,7 @@ namespace Chaos
 
 		~TCapsule() {}
 
-		static ImplicitObjectType GetType() { return ImplicitObjectType::Capsule; }
+		static EImplicitObjectType GetType() { return ImplicitObjectType::Capsule; }
 
 		static TCapsule<T> NewFromOriginAndAxis(const TVector<T, 3>& Origin, const TVector<T, 3>& Axis, const T Height, const T Radius)
 		{
@@ -290,6 +290,13 @@ namespace Chaos
 		TVector<T,3> Support(const TVector<T, 3>& Direction, const T Thickness) const override
 		{
 			return MSegment.Support(Direction, MRadius + Thickness);
+		}
+
+		virtual TVector<T, 3> Support2(const TVector<T, 3>& Direction) const override { return MSegment.Support2(Direction); }
+
+		virtual T GetMargin() const override
+		{
+			return MRadius;
 		}
 
 		FORCEINLINE void SerializeImp(FArchive& Ar)

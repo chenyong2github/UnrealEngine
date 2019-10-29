@@ -691,7 +691,7 @@ TSharedPtr< IDatasmithActorElement > FDatasmithSceneGraphBuilder::BuildBody(FSce
 	uint32 MaterialUuid = 0;
 	MaterialUuid = ParentData.MaterialUuid ? ParentData.MaterialUuid : ParentData.ColorUuid;
 
-	if (MaterialUuid)
+	if (MaterialUuid && ImportParameters.Propagation != CADLibrary::EDisplayDataPropagationMode::BodyOnly)
 	{
 		TSharedPtr< IDatasmithMaterialIDElement > PartMaterialIDElement = FindOrAddMaterial(MaterialUuid);
 		const TCHAR* MaterialIDElementName = PartMaterialIDElement->GetName();
@@ -703,7 +703,6 @@ TSharedPtr< IDatasmithActorElement > FDatasmithSceneGraphBuilder::BuildBody(FSce
 			ActorElement->AddMaterialOverride(MaterialIDElement);
 		}
 	}
-
 	return ActorElement;
 }
 
@@ -839,7 +838,9 @@ void FDatasmithSceneGraphBuilder::AddMetaData(TSharedPtr< IDatasmithActorElement
 		UnwantedAttributes.Add(TEXT("OriginalIdStr"));
 		UnwantedAttributes.Add(TEXT("ShowAttribute"));
 		UnwantedAttributes.Add(TEXT("Identification"));
-
+		UnwantedAttributes.Add(TEXT("MaterialId"));
+		UnwantedAttributes.Add(TEXT("ColorUEId"));
+		UnwantedAttributes.Add(TEXT("ColorId"));
 		return UnwantedAttributes;
 	};
 

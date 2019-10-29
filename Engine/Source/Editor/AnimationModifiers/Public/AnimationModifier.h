@@ -17,6 +17,8 @@ class ANIMATIONMODIFIERS_API UAnimationModifier : public UObject
 
 	friend class FAnimationModifierDetailCustomization;
 public:
+	UAnimationModifier();
+
 	/** Applying and reverting the modifier for the given Animation Sequence */
 	void ApplyToAnimationSequence(class UAnimSequence* InAnimationSequence);
 	void RevertFromAnimationSequence(class UAnimSequence* InAnimationSequence);
@@ -30,11 +32,15 @@ public:
 	void OnRevert(UAnimSequence* AnimationSequence);
 	virtual void OnRevert_Implementation(UAnimSequence* AnimationSequence) {}
 
+	/** Returns whether or not this modifier can be reverted, which means it will have to been applied (PreviouslyAppliedModifier != nullptr) */
+	bool CanRevert() const { return PreviouslyAppliedModifier != nullptr; };
+
 	/** Whether or not the latest compiled version of the blueprint is applied for this instance */
 	bool IsLatestRevisionApplied() const;
 
 	// Begin UObject Overrides
 	virtual void PostInitProperties() override;
+	virtual void Serialize(FArchive& Ar) override;
 	// End UObject Overrides
 protected:
 	// Derived class accessors to skeleton and anim sequence 
@@ -69,4 +75,8 @@ private:
 	// This holds the latest value returned by UpdateNativeRevisionGuid during the last PostLoad (changing this value will invalidate the GUIDs for all instances)
 	UPROPERTY(config)
 	int32 StoredNativeRevision;
+
+	/** Serialized version of the modifier that has been previously applied to the Animation Asset */
+	UPROPERTY()
+	UAnimationModifier* PreviouslyAppliedModifier;
 };
