@@ -266,6 +266,7 @@ public:
 	TSharedPtr< FUICommandInfo > CreateNewOutlinerFolder;
 
 	TSharedPtr< FUICommandInfo > HoldToEnableVertexSnapping;
+	TSharedPtr< FUICommandInfo > HoldToEnablePivotVertexSnapping;
 
 	/**
 	 * Brush Commands                   

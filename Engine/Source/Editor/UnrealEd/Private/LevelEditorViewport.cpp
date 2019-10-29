@@ -2601,7 +2601,7 @@ bool FLevelEditorViewportClient::InputWidgetDelta(FViewport* InViewport, EAxisLi
 				}
 				else
 				{
-					FSnappingUtils::SnapDragLocationToNearestVertex( ModeTools->PivotLocation, Drag, this );
+					FSnappingUtils::SnapDragLocationToNearestVertex( ModeTools->PivotLocation, Drag, this, true );
 					GUnrealEd->SetPivotMovedIndependently(true);
 					bOnlyMovedPivot = true;
 				}
