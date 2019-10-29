@@ -650,16 +650,16 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader::FData& Data)
 
 	switch (Header->TransportVersion)
 	{
-	case 1:		Transport = new FTransport(); break;
-	case 2:		Transport = new FPacketTransport(); break;
-	default:	return false;
+	case ETransport::Raw:		Transport = new FTransport(); break;
+	case ETransport::Packet:	Transport = new FPacketTransport(); break;
+	default:					return false;
 	//case 'E':	/* See the magic above */ break;
 	//case 'T':	/* See the magic above */ break;
 	}
 
 	switch (Header->ProtocolVersion)
 	{
-	case 0:
+	case Protocol0::EProtocol::Id:
 		ProtocolHandler = &FAnalysisEngine::OnDataProtocol0;
 		{
 			FDispatchBuilder Builder;

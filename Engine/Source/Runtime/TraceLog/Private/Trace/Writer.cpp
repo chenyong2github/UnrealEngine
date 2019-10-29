@@ -517,8 +517,8 @@ static void Writer_UpdateData()
 
 		// Stream header
 		const struct {
-			uint8 TransportVersion	= 2;
-			uint8 ProtocolVersion	= 0;
+			uint8 TransportVersion	= uint8(ETransport::Packet);
+			uint8 ProtocolVersion	= uint8(EProtocol::Id);
 		} TransportHeader;
 		bOk &= IoWrite(GDataHandle, &TransportHeader, sizeof(TransportHeader));
 
