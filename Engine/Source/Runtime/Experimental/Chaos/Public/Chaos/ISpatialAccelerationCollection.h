@@ -16,6 +16,7 @@ public:
 	ISpatialAccelerationCollection()
 	: ISpatialAcceleration<TPayloadType, T, d>(StaticType)
 	, ActiveBucketsMask(0)
+	, AllAsyncTrasksComplete(true)
 	{}
 	static constexpr ESpatialAcceleration StaticType = ESpatialAcceleration::Collection;
 	virtual FSpatialAccelerationIdx AddSubstructure(TUniquePtr<ISpatialAcceleration<TPayloadType, T, d>>&& Substructure, uint16 Bucket) = 0;
@@ -31,8 +32,13 @@ public:
 	{
 		return (1 << BucketIdx) & ActiveBucketsMask;
 	}
+
+	bool IsAllAsyncTrasksComplete() const { return AllAsyncTrasksComplete; }
+	void SetAllAsyncTrasksComplete(bool State) { AllAsyncTrasksComplete = State; }
+
 protected:
 	uint8 ActiveBucketsMask;
+	bool AllAsyncTrasksComplete;
 };
 
 template <typename T>
@@ -405,7 +411,12 @@ public:
 	virtual ISpatialAcceleration<TPayloadType, T, d>* GetSubstructure(FSpatialAccelerationIdx Idx) override
 	{
 		check(Idx.Bucket < MaxBuckets);
-		return Buckets[Idx.Bucket].Objects[Idx.InnerIdx].Acceleration.Get();
+		if (Buckets[Idx.Bucket].Objects.Num() > 0)
+		{
+			return Buckets[Idx.Bucket].Objects[Idx.InnerIdx].Acceleration.Get();
+		}
+
+		return nullptr;
 	}
 
 	virtual void Raycast(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T Length, ISpatialVisitor<TPayloadType, T>& Visitor) const override
