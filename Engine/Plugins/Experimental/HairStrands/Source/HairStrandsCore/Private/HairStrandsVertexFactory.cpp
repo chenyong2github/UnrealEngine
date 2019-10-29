@@ -37,8 +37,8 @@ public:
 
 	FShaderParameter Radius;
 	FShaderParameter Length;
-	FShaderParameter RadiusAtDepth1_Primary;
-	FShaderParameter RadiusAtDepth1_Velocity;
+	FShaderParameter RadiusAtDepth1_Primary;	// unused
+	FShaderParameter RadiusAtDepth1_Velocity;	// unused
 	FShaderParameter PositionOffset;
 	FShaderParameter PreviousPositionOffset;
 	FShaderParameter Density;
@@ -46,14 +46,13 @@ public:
 	FShaderResourceParameter PositionBuffer;
 	FShaderResourceParameter PreviousPositionBuffer;
 	FShaderResourceParameter AttributeBuffer;
+	FShaderResourceParameter MaterialBuffer;
 	FShaderResourceParameter TangentBuffer;
 
 	virtual void Bind(const FShaderParameterMap& ParameterMap) override
 	{
 		Radius.Bind(ParameterMap, TEXT("HairStrandsVF_Radius"));
 		Length.Bind(ParameterMap, TEXT("HairStrandsVF_Length"));
-		RadiusAtDepth1_Primary.Bind(ParameterMap, TEXT("HairStrandsVF_RadiusAtDepth1_Primary"));
-		RadiusAtDepth1_Velocity.Bind(ParameterMap, TEXT("HairStrandsVF_RadiusAtDepth1_Velocity"));
 		PositionOffset.Bind(ParameterMap, TEXT("HairStrandsVF_PositionOffset"));
 		PreviousPositionOffset.Bind(ParameterMap, TEXT("HairStrandsVF_PreviousPositionOffset"));
 		Density.Bind(ParameterMap, TEXT("HairStrandsVF_Density"));	
@@ -61,6 +60,7 @@ public:
 		PositionBuffer.Bind(ParameterMap, TEXT("HairStrandsVF_PositionBuffer"));
 		PreviousPositionBuffer.Bind(ParameterMap, TEXT("HairStrandsVF_PreviousPositionBuffer"));
 		AttributeBuffer.Bind(ParameterMap, TEXT("HairStrandsVF_AttributeBuffer"));
+		MaterialBuffer.Bind(ParameterMap, TEXT("HairStrandsVF_MaterialBuffer"));
 		TangentBuffer.Bind(ParameterMap, TEXT("HairStrandsVF_TangentBuffer"));
 	}
 
@@ -68,8 +68,8 @@ public:
 	{
 		Ar << Radius;
 		Ar << Length;
-		Ar << RadiusAtDepth1_Primary;
-		Ar << RadiusAtDepth1_Velocity;
+		Ar << RadiusAtDepth1_Primary;	// unused
+		Ar << RadiusAtDepth1_Velocity;	// unused
 		Ar << PositionOffset;
 		Ar << PreviousPositionOffset;
 		Ar << Density;
@@ -77,6 +77,7 @@ public:
 		Ar << PositionBuffer;
 		Ar << PreviousPositionBuffer;
 		Ar << AttributeBuffer;
+		Ar << MaterialBuffer;
 		Ar << TangentBuffer;
 	}
 
@@ -93,26 +94,18 @@ public:
 	) const override
 	{
 		const FHairStrandsVertexFactory* VF = static_cast<const FHairStrandsVertexFactory*>(VertexFactory);
-		
-		const FMinHairRadiusAtDepth1 MinRadiusAtDepth1 = ComputeMinStrandRadiusAtDepth1(
-			FIntPoint(View->UnconstrainedViewRect.Width(), View->UnconstrainedViewRect.Height()),
-			View->FOV,
-			GetHairVisibilitySampleCount(),
-			0.f);
 
 		const uint64 GroupIndex = reinterpret_cast<uint64>(BatchElement.UserData);
-
 		BindParam(ShaderBindings, PositionBuffer, VF->GetPositionSRV(GroupIndex));
 		BindParam(ShaderBindings, PreviousPositionBuffer, VF->GetPreviousPositionSRV(GroupIndex));
 		BindParam(ShaderBindings, AttributeBuffer, VF->GetAttributeSRV(GroupIndex));
+		BindParam(ShaderBindings, MaterialBuffer, VF->GetMaterialSRV(GroupIndex));
 		BindParam(ShaderBindings, TangentBuffer, VF->GetTangentSRV(GroupIndex));
 		BindParam(ShaderBindings, Radius, VF->GetMaxStrandRadius(GroupIndex));
 		BindParam(ShaderBindings, Length, VF->GetMaxStrandLength(GroupIndex));
 		BindParam(ShaderBindings, PositionOffset, VF->GetPositionOffset(GroupIndex));
 		BindParam(ShaderBindings, PreviousPositionOffset, VF->GetPreviousPositionOffset(GroupIndex));
 		BindParam(ShaderBindings, Density, VF->GetHairDensity(GroupIndex));
-		BindParam(ShaderBindings, RadiusAtDepth1_Primary, MinRadiusAtDepth1.Primary);
-		BindParam(ShaderBindings, RadiusAtDepth1_Velocity, MinRadiusAtDepth1.Velocity);		
 	}
 };
 
@@ -126,8 +119,10 @@ bool FHairStrandsVertexFactory::ShouldCompilePermutation(EShaderPlatform Platfor
 
 void FHairStrandsVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
 {
-	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), Type->SupportsPrimitiveIdStream() && UseGPUScene(Platform, GetMaxSupportedFeatureLevel(Platform)));
+	const bool bUseGPUSceneAndPrimitiveIdStream = Type->SupportsPrimitiveIdStream() && UseGPUScene(Platform, GetMaxSupportedFeatureLevel(Platform));
+	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), bUseGPUSceneAndPrimitiveIdStream);
 	OutEnvironment.SetDefine(TEXT("VF_STRAND_HAIR"), TEXT("1"));
+	OutEnvironment.SetDefine(TEXT("VF_GPU_SCENE_BUFFER"), bUseGPUSceneAndPrimitiveIdStream && !GPUSceneUseTexture2D(Platform));
 }
 
 void FHairStrandsVertexFactory::ValidateCompiledResult(const FVertexFactoryType* Type, EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors)
@@ -194,6 +189,11 @@ void FHairStrandsVertexFactory::InitRHI()
 FVertexFactoryShaderParameters* FHairStrandsVertexFactory::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
 {
 	if (ShaderFrequency == SF_Vertex)
+	{
+		return new FHairStrandsVertexFactoryShaderParameters();
+	}
+
+	if (ShaderFrequency == SF_Pixel)
 	{
 		return new FHairStrandsVertexFactoryShaderParameters();
 	}

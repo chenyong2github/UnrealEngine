@@ -94,7 +94,7 @@ bool USocialSettings::ValidateNickname(const FString& InNickname)
 	FRegexMatcher Matcher(MatchPattern, InNickname);
 	if (Matcher.FindNext())
 	{
-		return Matcher.GetMatchEnding() == InNickname.Len();
+		return Matcher.GetMatchBeginning() == 0 && Matcher.GetMatchEnding() == InNickname.Len();
 	}
 	return false;
 }

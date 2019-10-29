@@ -7,6 +7,7 @@
 #include "Chaos/Capsule.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformMisc.h"
+#include "Chaos/Triangle.h"
 
 namespace Chaos
 {
@@ -215,16 +216,7 @@ namespace Chaos
 				{
 					return false;
 				}
-
-				// This isn't great as we build a convex on-the-fly but we have no other
-				// trimesh support. Update later as better trimesh collisions come online
-				TParticles<T, 3> TriParticles;
-				TriParticles.AddParticles(3);
-				TriParticles.X(0) = A;
-				TriParticles.X(1) = B;
-				TriParticles.X(2) = C;
-
-				TConvex<T, 3> Convex(TriParticles);
+				TTriangle<T> Convex(A, B, C);
 
 				T Time;
 				TVector<T, 3> HitPosition;
@@ -531,10 +523,10 @@ namespace Chaos
 		if(FlatGrid.IsValid(InCoord))
 		{
 			const TBox<T, 3>& Bound = GeomData.CellBounds[InCoord[1] * (GeomData.NumCols - 1) + InCoord[0]];
-			OutMin = Bound.Min() - InInflate;
-			OutMax = Bound.Max() + InInflate;
-			OutMin *= GeomData.Scale;
-			OutMax *= GeomData.Scale;
+			OutMin = Bound.Min();
+			OutMax = Bound.Max();
+			OutMin = OutMin * GeomData.Scale - InInflate;
+			OutMax = OutMax * GeomData.Scale + InInflate;
 			return true;
 		}
 
@@ -1225,7 +1217,7 @@ namespace Chaos
 		
 		TVector<T, 2> MinCorner(0, 0);
 		TVector<T, 2> MaxCorner(GeomData.NumCols - 1, GeomData.NumRows - 1);
-		MaxCorner *= {GeomData.Scale[0], GeomData.Scale[1]};
+		//MaxCorner *= {GeomData.Scale[0], GeomData.Scale[1]};
 
 		FlatGrid = TUniformGrid<T, 2>(MinCorner, MaxCorner, Cells);
 	}

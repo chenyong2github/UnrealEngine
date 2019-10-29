@@ -87,6 +87,41 @@ protected:
 	AStaticMeshActor* MergedActor;
 };
 
+UCLASS(Experimental, Category = ObjectOperation, Meta = (DisplayName = "Create Proxy Mesh", ToolTip = "Merge the meshes into a (simplified) proxy mesh"))
+class UDataprepCreateProxyMeshOperation : public UDataprepEditingOperation
+{
+	GENERATED_BODY()
+
+public:
+	UDataprepCreateProxyMeshOperation()
+		: ReductionPercent(50.f)
+		, MergedMesh(nullptr)
+		, MergedActor(nullptr)
+	{
+	}
+
+public:
+	//~ Begin UDataprepOperation Interface
+	virtual FText GetCategory_Implementation() const override
+	{
+		return FDataprepOperationCategories::ObjectOperation;
+	}
+
+	/** Settings to use for the create proxy operation */
+	UPROPERTY(EditAnywhere, Category = ProxySettings)
+	FString NewActorLabel;
+
+	UPROPERTY(EditAnywhere, Category = ProxySettings,  meta = (UIMin = 0, UIMax = 100))
+	float ReductionPercent;
+
+protected:
+	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
+	//~ End UDataprepOperation Interface
+protected:
+	UStaticMesh* MergedMesh;
+	AStaticMeshActor* MergedActor;
+};
+
 UCLASS(Experimental, Category = ObjectOperation, Meta = (DisplayName="Delete Unused Assets", ToolTip = "Delete assets that are not referenced by any objects") )
 class UDataprepDeleteUnusedAssetsOperation : public UDataprepEditingOperation
 {

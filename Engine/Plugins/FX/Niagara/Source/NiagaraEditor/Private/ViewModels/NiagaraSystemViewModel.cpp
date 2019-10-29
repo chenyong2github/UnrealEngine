@@ -523,6 +523,21 @@ void FNiagaraSystemViewModel::Tick(float DeltaTime)
 		UpdateSequencerTracksForEmitters(EmitterIdsRequiringSequencerTrackUpdate);
 		EmitterIdsRequiringSequencerTrackUpdate.Empty();
 	}
+
+	if (SystemStackViewModel != nullptr)
+	{
+		SystemStackViewModel->Tick();
+	}
+
+	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : EmitterHandleViewModels)
+	{
+		EmitterHandleViewModel->GetEmitterStackViewModel()->Tick();
+	}
+
+	if (SelectionViewModel != nullptr)
+	{
+		SelectionViewModel->Tick();
+	}
 }
 
 void FNiagaraSystemViewModel::OnPreSave()
@@ -715,7 +730,7 @@ void FNiagaraSystemViewModel::NotifyDataObjectChanged(UObject* ChangedObject)
 		}
 	}
 
-	ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::ResetThisInstance, EReinitMode::ReinitializeSystem);
+	ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::AllowResetAllInstances, EReinitMode::ReinitializeSystem);
 }
 
 void FNiagaraSystemViewModel::IsolateEmitters(TArray<FGuid> EmitterHandlesIdsToIsolate)

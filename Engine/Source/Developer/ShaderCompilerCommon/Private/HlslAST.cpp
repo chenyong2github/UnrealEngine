@@ -706,6 +706,10 @@ namespace CrossCompiler
 			}
 			else
 			{
+				if (bPrecise)
+				{
+					Writer << TEXT("precise ");
+				}
 				Writer << TypeName;
 				if (TextureMSNumSamples > 1)
 				{

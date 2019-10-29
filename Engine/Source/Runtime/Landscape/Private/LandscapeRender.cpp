@@ -872,7 +872,7 @@ void FLandscapeRenderSystem::ComputeSectionPerViewParameters(
 
 			// Calculate the falloff using a = C - K * d by sending C & K into the shader
 			NewSectionTessellationFalloffC[EntityIndex] = MaxTesselationDistance / (MaxTesselationDistance - FallOffStartingDistance);
-			NewSectionTessellationFalloffC[EntityIndex] = -(1 / (-MaxTesselationDistance + FallOffStartingDistance));
+			NewSectionTessellationFalloffK[EntityIndex] = -(1 / (-MaxTesselationDistance + FallOffStartingDistance));
 		}
 	}
 
@@ -884,7 +884,7 @@ void FLandscapeRenderSystem::ComputeSectionPerViewParameters(
 		if (TessellationFalloffSettings.UseTessellationComponentScreenSizeFalloff && NumEntitiesWithTessellation > 0)
 		{
 			CachedSectionTessellationFalloffC.Add(ViewPtrAsIdentifier, NewSectionTessellationFalloffC);
-			CachedSectionTessellationFalloffK.Add(ViewPtrAsIdentifier, NewSectionTessellationFalloffC);
+			CachedSectionTessellationFalloffK.Add(ViewPtrAsIdentifier, NewSectionTessellationFalloffK);
 		}
 	}
 }
@@ -4574,7 +4574,7 @@ FVertexFactoryShaderParameters* FLandscapeFixedGridVertexFactory::ConstructShade
 	}
 }
 
-IMPLEMENT_VERTEX_FACTORY_TYPE(FLandscapeFixedGridVertexFactory, "/Engine/Private/LandscapeVertexFactory.ush", true, true, true, false, false);
+IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FLandscapeFixedGridVertexFactory, "/Engine/Private/LandscapeVertexFactory.ush", true, true, true, false, false, true, false);
 
 
 /** ULandscapeMaterialInstanceConstant */

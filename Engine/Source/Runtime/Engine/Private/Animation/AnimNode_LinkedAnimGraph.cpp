@@ -98,12 +98,11 @@ void FAnimNode_LinkedAnimGraph::Update_AnyThread(const FAnimationUpdateContext& 
 
 		PropagateInputProperties(InContext.AnimInstanceProxy->GetAnimInstanceObject());
 
-		// Only update if we've not had a single-threaded update already
-		if(InstanceToRun->bNeedsUpdate)
-		{
-			FAnimationUpdateContext NewContext = InContext.WithOtherProxy(&Proxy);
-			Proxy.UpdateAnimation_WithRoot(NewContext, LinkedRoot, GetDynamicLinkFunctionName());
-		}
+		// We can call this unconditionally here now because linked anim instances are forced to have a parallel update
+		// in USkeletalMeshComponent::TickAnimation. It used to be the case that we could do non-parallel work in 
+		// USkeletalMeshComponent::TickAnimation, which would mean we would have to skip doing that work here.
+		FAnimationUpdateContext NewContext = InContext.WithOtherProxy(&Proxy);
+		Proxy.UpdateAnimation_WithRoot(NewContext, LinkedRoot, GetDynamicLinkFunctionName());
 	}
 	else if(InputPoses.Num() > 0)
 	{
@@ -113,12 +112,19 @@ void FAnimNode_LinkedAnimGraph::Update_AnyThread(const FAnimationUpdateContext& 
 	}
 
 	// Consume pending inertial blend request
-	if (PendingBlendDuration >= 0.0f)
+	if(PendingBlendDuration >= 0.0f)
 	{
-		FAnimNode_Inertialization* InertializationNode = InContext.GetAncestor<FAnimNode_Inertialization>();
-		if (InertializationNode)
+		if(InputPoses.Num() > 0)
 		{
-			InertializationNode->Request(PendingBlendDuration);
+			FAnimNode_Inertialization* InertializationNode = InContext.GetAncestor<FAnimNode_Inertialization>();
+			if(InertializationNode)
+			{
+				InertializationNode->RequestInertialization(PendingBlendDuration);
+			}
+			else if (PendingBlendDuration != 0.0f)
+			{
+				FAnimNode_Inertialization::LogRequestError(InContext, InputPoses[0]);
+			}
 		}
 
 		PendingBlendDuration = -1.0f;

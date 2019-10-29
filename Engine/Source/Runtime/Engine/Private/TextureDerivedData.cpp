@@ -47,7 +47,7 @@
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID and set this new
 // guid as version
 
-#define TEXTURE_DERIVEDDATA_VER		TEXT("51C887FFAD4D4179AECB2FA5D9D6A0F8")
+#define TEXTURE_DERIVEDDATA_VER		TEXT("A52A75F077004A798078A42DCF5502E9")
 
 // This GUID is mixed into DDC version for virtual textures only, this allows updating DDC version for VT without invalidating DDC for all textures
 // This is useful during development, but once large numbers of VT are present in shipped content, it will have the same problem as TEXTURE_DERIVEDDATA_VER
@@ -571,7 +571,7 @@ uint32 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& D
 
 	// Write out individual mips to the derived data cache.
 	const int32 MipCount = DerivedData->Mips.Num();
-	const bool bIsCubemap = DerivedData->bCubemap;
+	const bool bIsCubemap = DerivedData->IsCubemap();
 	const int32 FirstInlineMip = bIsCubemap ? 0 : FMath::Max(0, MipCount - FMath::Max((int32)NUM_INLINE_DERIVED_MIPS, (int32)DerivedData->NumMipsInTail));
 	const int32 WritableMipCount = MipCount - ((DerivedData->NumMipsInTail > 0) ? (DerivedData->NumMipsInTail - 1) : 0);
 	for (int32 MipIndex = 0; MipIndex < WritableMipCount; ++MipIndex)
@@ -1010,11 +1010,10 @@ bool FTexturePlatformData::TryInlineMipData(int32 FirstMipToLoad)
 FTexturePlatformData::FTexturePlatformData()
 	: SizeX(0)
 	, SizeY(0)
-	, NumSlices(0)
+	, NumSlicesCubemapMask(0)
 	, PixelFormat(PF_Unknown)
 	, ExtData(0)
 	, NumMipsInTail(0)
-	, bCubemap(false)
 	, VTData(nullptr)
 #if WITH_EDITORONLY_DATA
 	, AsyncTask(NULL)
@@ -1251,7 +1250,7 @@ static void SerializePlatformData(
 
 	Ar << PlatformData->SizeX;
 	Ar << PlatformData->SizeY;
-	Ar << PlatformData->NumSlices;
+	Ar << PlatformData->NumSlicesCubemapMask;
 	if (Ar.IsLoading())
 	{
 		FString PixelFormatString;
@@ -1265,7 +1264,6 @@ static void SerializePlatformData(
 	}
  	Ar << PlatformData->ExtData;
  	Ar << PlatformData->NumMipsInTail;
-	Ar << PlatformData->bCubemap;
 
 	int32 NumMips = PlatformData->Mips.Num();
 	int32 FirstMipToSerialize = 0;
@@ -1455,7 +1453,7 @@ void FTexturePlatformData::SerializeCooked(FArchive& Ar, UTexture* Owner, bool b
 			// SizeZ is not the same as NumSlices for texture arrays and cubemaps.
 			if (Owner && Owner->IsA(UVolumeTexture::StaticClass()))
 			{
-				 NumSlices = Mips[0].SizeZ;
+				SetNumSlices(Mips[0].SizeZ);
 			}
 		}
 		else if ( VTData )

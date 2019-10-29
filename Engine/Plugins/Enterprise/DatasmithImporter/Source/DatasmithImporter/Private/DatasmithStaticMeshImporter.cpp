@@ -29,6 +29,7 @@
 #include "Templates/UniquePtr.h"
 #include "UObject/Package.h"
 #include "UVTools/UVGenerationFlattenMapping.h"
+#include "UVTools/UVGenerationUtils.h"
 
 #define LOCTEXT_NAMESPACE "DatasmithStaticMeshImporter"
 
@@ -197,16 +198,17 @@ bool FDatasmithStaticMeshImporter::PreBuildStaticMesh( UStaticMesh* StaticMesh )
 		FMeshBuildSettings& BuildSettings = StaticMesh->GetSourceModel(LodIndex).BuildSettings;
 		FMeshDescription& MeshDescription = *StaticMesh->GetMeshDescription(LodIndex);
 
+		if (BuildSettings.bGenerateLightmapUVs && !DatasmithMeshHelper::HasUVData(MeshDescription, BuildSettings.SrcLightmapIndex))
+		{
+			//If no UV data exist at the source index we generate unwrapped UVs.
+			//Do this before calling DatasmithMeshHelper::CreateDefaultUVs() as the UVs may be unwrapped at channel 0.
+			UUVGenerationFlattenMapping::GenerateUVs(MeshDescription, BuildSettings.SrcLightmapIndex, BuildSettings.bRemoveDegenerates);
+		}
+
 		// We should always have some UV data in channel 0 because it is used in the mesh tangent calculation during the build.
 		if (!DatasmithMeshHelper::HasUVData(MeshDescription, 0))
 		{
 			DatasmithMeshHelper::CreateDefaultUVs(MeshDescription);
-		}
-
-		if (BuildSettings.bGenerateLightmapUVs && !DatasmithMeshHelper::HasUVData(MeshDescription, BuildSettings.SrcLightmapIndex))
-		{
-			//If no UV data exist at the source index we generate unwrapped UVs.
-			UUVGenerationFlattenMapping::GenerateUVs(MeshDescription, BuildSettings.SrcLightmapIndex, BuildSettings.bRemoveDegenerates);
 		}
 
 		if (DatasmithMeshHelper::IsMeshValid(MeshDescription, BuildSettings.BuildScale3D))
@@ -214,6 +216,7 @@ bool FDatasmithStaticMeshImporter::PreBuildStaticMesh( UStaticMesh* StaticMesh )
 			if (BuildSettings.bGenerateLightmapUVs)
 			{
 				DatasmithMeshHelper::RequireUVChannel(MeshDescription, BuildSettings.DstLightmapIndex);
+				UVGenerationUtils::SetupGeneratedLightmapUVResolution(StaticMesh, LodIndex);
 			}
 
 			UStaticMesh::FCommitMeshDescriptionParams Params;
@@ -225,6 +228,10 @@ bool FDatasmithStaticMeshImporter::PreBuildStaticMesh( UStaticMesh* StaticMesh )
 			Params.bUseHashAsGuid = true;
 
 			StaticMesh->CommitMeshDescription(LodIndex, Params);
+
+			// Get rid of the memory used now that its committed into its bulk form.
+			// Will be reloaded from bulk data when building the mesh if not present in memory.
+			StaticMesh->ClearMeshDescription(LodIndex);
 		}
 		else
 		{
@@ -299,7 +306,7 @@ void FDatasmithStaticMeshImporter::PreBuildStaticMeshes( FDatasmithImportContext
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithStaticMeshImporter::PreBuildStaticMeshes);
 
-	FScopedSlowTask Progress(ImportContext.ImportedStaticMeshes.Num(), LOCTEXT("PreBuildStaticMeshes", "Packing UVs and computing tangents..."), true, *ImportContext.Warn);
+	FScopedSlowTask Progress(ImportContext.ImportedStaticMeshes.Num(), LOCTEXT("PreBuildStaticMeshes", "Setting up UVs..."), true, *ImportContext.Warn);
 	Progress.MakeDialog(true);
 
 	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked< IMeshUtilities >( "MeshUtilities" );
@@ -490,24 +497,12 @@ void FDatasmithStaticMeshImporter::SetupStaticMesh( FDatasmithAssetsImportContex
 
 		FMeshDescription& MeshDescription = *StaticMesh->GetMeshDescription(LodIndex);
 
-		auto GetNextOpenUVChannel = [](FMeshDescription& Mesh, int32 FromUVChannelIndex)
-		{
-			for (int32 UVChannelIndex = FromUVChannelIndex; UVChannelIndex < MAX_MESH_TEXTURE_COORDS_MD; ++UVChannelIndex)
-			{
-				if (!DatasmithMeshHelper::HasUVData(Mesh, UVChannelIndex))
-				{
-					return UVChannelIndex;
-				}
-			}
-			return -1;
-		};
-
 		// UV Channels
 		int32 SourceIndex = 0;
 		int32 DestinationIndex = 1;
 		bool bUseImportedLightmap = false;
 		bool bGenerateLightmapUVs = StaticMeshImportOptions.bGenerateLightmapUVs;
-		const int32 FirstOpenUVChannel = GetNextOpenUVChannel(MeshDescription, 0);
+		const int32 FirstOpenUVChannel = UVGenerationUtils::GetNextOpenUVChannel(StaticMesh, LodIndex);
 
 		// if a custom lightmap coordinate index was imported, disable lightmap generation
 		if (DatasmithMeshHelper::HasUVData(MeshDescription, MeshElement->GetLightmapCoordinateIndex()))

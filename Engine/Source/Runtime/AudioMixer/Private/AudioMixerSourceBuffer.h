@@ -91,7 +91,7 @@ namespace Audio
 		// Begin and end generation on the audio render thread (audio mixer only)
 		void OnBeginGenerate();
 		void OnEndGenerate();
-
+		void ClearWave() { SoundWave = nullptr; }
 	private:
 		FMixerSourceBuffer(FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking);
 

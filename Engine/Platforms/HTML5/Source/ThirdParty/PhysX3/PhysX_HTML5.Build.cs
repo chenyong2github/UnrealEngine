@@ -8,7 +8,7 @@ using System.IO;
 public class PhysX_HTML5 : PhysX
 {
 	protected override string LibRootDirectory { get { return Target.HTML5Platform.PlatformThirdPartySourceDirectory; } }
-	protected override string PhysXLibDir { get { return Path.Combine(LibRootDirectory, "PhysX3", PhysXVersion); } }
+	protected override string PhysXLibDir { get { return Path.Combine(LibRootDirectory, "PhysX3", PhysXVersion, "lib"); } }
 
 	public PhysX_HTML5(ReadOnlyTargetRules Target) : base(Target)
 	{
@@ -24,12 +24,13 @@ public class PhysX_HTML5 : PhysX
 			"PhysX3Common",
 			"PhysX3Cooking",
 			"PhysX3Extensions",
-			//"PhysXVisualDebuggerSDK",
+			//"PhysX3Vehicle",
+			//"RenderDebug",
 			"SceneQuery",
 			"SimulationController",
 			"PxFoundation",
-			"PxTask",
 			"PxPvdSDK",
+			"PxTask",
 			"PsFastXml"
 		};
 

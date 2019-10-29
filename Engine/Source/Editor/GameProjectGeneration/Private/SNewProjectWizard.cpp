@@ -303,8 +303,6 @@ private:
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SNewProjectWizard::Construct( const FArguments& InArgs )
 {
-	bProjectSettingsHidden = false;
-
 	bLastGlobalValidityCheckSuccessful = true;
 	bLastNameAndLocationValidityCheckSuccessful = true;
 	bCopyStarterContent = GEditor ? GetDefault<UEditorSettings>()->bCopyStarterContentPreference : true;
@@ -1103,19 +1101,40 @@ bool SNewProjectWizard::CreateProject(const FString& ProjectFile)
 
 	FText FailReason, FailLog;
 
+	const TArray<ETemplateSetting>& HiddenSettings = GetSelectedTemplateProperty(&FTemplateItem::HiddenSettings);
+
 	FProjectInformation ProjectInfo;
 	ProjectInfo.ProjectFilename = ProjectFile;
 	ProjectInfo.bShouldGenerateCode = bShouldGenerateCode;
 	ProjectInfo.bCopyStarterContent = bCopyStarterContent;
 	ProjectInfo.TemplateFile = bShouldGenerateCode ? SelectedTemplate->CodeProjectFile : SelectedTemplate->BlueprintProjectFile;
 	ProjectInfo.TemplateCategory = ActiveCategory;
-	ProjectInfo.TargetedHardware = SelectedHardwareClassTarget;
-	ProjectInfo.DefaultGraphicsPerformance = SelectedGraphicsPreset;
-	ProjectInfo.bForceExtendedLuminanceRange = ProjectInfo.TemplateFile.IsEmpty();
-	ProjectInfo.bEnableXR = bEnableXR;
-	ProjectInfo.bEnableRaytracing = bEnableRaytracing;
 	ProjectInfo.bIsEnterpriseProject = SelectedTemplate->bIsEnterprise;
 	ProjectInfo.bIsBlankTemplate = SelectedTemplate->bIsBlankTemplate;
+	ProjectInfo.bForceExtendedLuminanceRange = SelectedTemplate->bIsBlankTemplate;
+
+	if (!HiddenSettings.Contains(ETemplateSetting::All))
+	{
+		if (!HiddenSettings.Contains(ETemplateSetting::HardwareTarget))
+		{
+			ProjectInfo.TargetedHardware = SelectedHardwareClassTarget;
+		}
+
+		if (!HiddenSettings.Contains(ETemplateSetting::GraphicsPreset))
+		{
+			ProjectInfo.DefaultGraphicsPerformance = SelectedGraphicsPreset;
+		}
+
+		if (!HiddenSettings.Contains(ETemplateSetting::XR))
+		{
+			ProjectInfo.bEnableXR = bEnableXR;
+		}
+
+		if (!HiddenSettings.Contains(ETemplateSetting::Raytracing))
+		{
+			ProjectInfo.bEnableRaytracing = bEnableRaytracing;
+		}
+	}
 
 	if (!GameProjectUtils::CreateProject(ProjectInfo, FailReason, FailLog))
 	{

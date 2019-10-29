@@ -1407,6 +1407,11 @@ void SMyBlueprint::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
 						OverridableFunctionActions.Add(NewFuncAction);
 						OverridableFunctionNames.Add(FunctionName);
 					}
+
+					if(bIsAnimFunction && NewFuncAction->EdGraph)
+					{
+						GetChildGraphs(NewFuncAction->EdGraph, NewFuncAction->GetSectionID(), SortList, FunctionCategory);
+					}
 				}
 			}
 		}
@@ -2144,6 +2149,10 @@ void SMyBlueprint::BuildAddNewMenu(FMenuBuilder& MenuBuilder)
 		if (CurrentBlueprint->SupportsDelegates())
 		{
 			MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().AddNewDelegate);
+		}
+		if (CurrentBlueprint->SupportsAnimLayers())
+		{
+			MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().AddNewAnimationLayer);
 		}
 	}
 	MenuBuilder.EndSection();

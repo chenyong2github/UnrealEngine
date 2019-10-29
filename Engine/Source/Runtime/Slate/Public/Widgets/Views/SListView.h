@@ -898,6 +898,11 @@ public:
 		return SelectionMode.Get();
 	}
 
+	virtual bool Private_IsPendingRefresh() const override
+	{
+		return IsPendingRefresh();
+	}
+
 	virtual void Private_OnItemRightClicked( ItemType TheItem, const FPointerEvent& MouseEvent ) override
 	{
 		this->OnRightMouseButtonUp( MouseEvent );

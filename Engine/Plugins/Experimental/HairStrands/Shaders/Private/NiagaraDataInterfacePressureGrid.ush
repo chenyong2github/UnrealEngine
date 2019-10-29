@@ -427,6 +427,10 @@ void DIPressureGrid_SampleVelocityField(in FDIPressureGridContext DIContext, in 
 	DIPressureGrid_SampleVelocityComponent(DIContext,GridPosition,float3(0.5,0.5,0.0),2,OutGridVelocity.z,GridMass.z,OutGridGradientZ);
 
 	OutNodeDensity = (GridMass.x + GridMass.y + GridMass.z)/(3.0*DIContext.GridOrigin.w*DIContext.GridOrigin.w*DIContext.GridOrigin.w);
+
+	//int3 GridIndex = int3(0,0,0); float3 GridFraction = float3(0,0,0);
+	//DIPressureGrid_GetGridIndex(DIContext,GridPosition,0,GridIndex,GridFraction);
+	//OutGridVelocity = GridIndex;
 }
 
 /* -----------------------------------------------------------------
@@ -460,7 +464,7 @@ void DIPressureGrid_SetSolidBoundary(in FDIPressureGridContext DIContext, in int
  // Update the solid weights and velocities
 void DIPressureGrid_ComputeBoundaryWeights(in FDIPressureGridContext DIContext, in int GridCell, out bool OutWeightsStatus)
 {
-	int3 GridIndex = DIPressureGrid_ComputeGridIndex(DIContext,GridCell);
+	const int3 GridIndex = DIPressureGrid_ComputeGridIndex(DIContext,GridCell);
 	OutWeightsStatus = false;
 
 	for(int ComponentIndex = 0; ComponentIndex < 3; ++ComponentIndex)
@@ -474,9 +478,9 @@ void DIPressureGrid_ComputeBoundaryWeights(in FDIPressureGridContext DIContext, 
 				const float RightDistance = DIPressureGrid_GetGridScalar(DIContext,GridIndex,SOLID_DISTANCE_OFFSET);
 				const float RightVelocity = DIPressureGrid_GetGridScalar(DIContext,GridIndex,SOLID_VELOCITY_OFFSET+ComponentIndex);
 
-				GridIndex[ComponentIndex] -= 1;
-				const float LeftDistance = DIPressureGrid_GetGridScalar(DIContext,GridIndex,SOLID_DISTANCE_OFFSET);
-				const float LeftVelocity = DIPressureGrid_GetGridScalar(DIContext,GridIndex,SOLID_VELOCITY_OFFSET+ComponentIndex);
+				int3 LeftIndex = GridIndex; LeftIndex[ComponentIndex] -= 1;
+				const float LeftDistance = DIPressureGrid_GetGridScalar(DIContext,LeftIndex,SOLID_DISTANCE_OFFSET);
+				const float LeftVelocity = DIPressureGrid_GetGridScalar(DIContext,LeftIndex,SOLID_VELOCITY_OFFSET+ComponentIndex);
 
 				SolidWeight = max(0.0,min(1.0 - DIPressureGrid_GetFractionInside(LeftDistance,RightDistance),1.0));
 				SolidVelocity = 0.5 * (RightVelocity+LeftVelocity);

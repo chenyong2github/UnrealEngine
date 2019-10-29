@@ -50,8 +50,9 @@ static void RenderDeepShadowFrontDepth(
 	const FScene* Scene,
 	const FViewInfo* ViewInfo,
 	const FHairStrandsClusterData::TPrimitiveInfos& PrimitiveSceneInfo,
-	const FHairStrandsLightDesc& LightDesc,
 	const FIntRect& AtlasRect,
+	const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformShaderParameters,
+	const TUniformBufferRef<FDeepShadowPassUniformParameters>& DeepShadowPassUniformParameters,
 	const bool bClearOutput,
 	TRefCountPtr<IPooledRenderTarget>& outShadowDepthRT)
 {
@@ -69,10 +70,10 @@ static void RenderDeepShadowFrontDepth(
 		Scene,
 		ViewInfo,
 		PrimitiveSceneInfo,
-		LightDesc,
 		EHairStrandsRasterPassType::FrontDepth,
-		nullptr,
-		AtlasRect);
+		AtlasRect,
+		ViewUniformShaderParameters,
+		DeepShadowPassUniformParameters);
 	RHICmdList.EndRenderPass();
 }
 
@@ -83,9 +84,9 @@ static void RenderDeepShadowLayers(
 	const FScene* Scene,
 	const FViewInfo* ViewInfo,
 	const FHairStrandsClusterData::TPrimitiveInfos& PrimitiveSceneInfo,
-	const FHairStrandsLightDesc& LightDesc,
 	const FIntRect& AtlasRect,
-	FRHITexture* ShadowDepthTexture,
+	const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformShaderParameters,
+	const TUniformBufferRef<FDeepShadowPassUniformParameters>& DeepShadowPassUniformParameters,
 	const bool bClearOutput,
 	TRefCountPtr<IPooledRenderTarget>& outDeepShadowLayersRT)
 {
@@ -100,10 +101,10 @@ static void RenderDeepShadowLayers(
 		Scene,
 		ViewInfo,
 		PrimitiveSceneInfo,
-		LightDesc,
 		EHairStrandsRasterPassType::DeepOpacityMap,
-		ShadowDepthTexture,
-		AtlasRect);
+		AtlasRect,
+		ViewUniformShaderParameters,
+		DeepShadowPassUniformParameters);
 	RHICmdList.EndRenderPass();
 }
 
@@ -191,8 +192,8 @@ FHairStrandsDeepShadowViews RenderHairStrandsDeepShadows(
 	uint32 AtlasSlotIndex = 0;
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
-		const FViewInfo& View = Views[ViewIndex];
-		if (View.Family)
+		const FViewInfo& ViewInfo = Views[ViewIndex];
+		if (ViewInfo.Family)
 		{
 			FHairStrandsDeepShadowDatas& DeepShadowDatas = DeepShadowsPerView.Views[ViewIndex];
 
@@ -235,31 +236,49 @@ FHairStrandsDeepShadowViews RenderHairStrandsDeepShadows(
 					DomData.LayersTexture = DeepShadowLayersAtlasTexture;
 					AtlasSlotIndex++;
 
-					FHairStrandsLightDesc LightDesc;
-					LightDesc.bIsOrtho = LightType == ELightComponentType::LightType_Directional;
-					LightDesc.LightDirection = DomData.LightDirection;
-					LightDesc.LightPosition = DomData.LightPosition;
-					LightDesc.WorldToLightClipTransform = DomData.WorldToLightTransform;
-					LightDesc.MinStrandRadiusAtDepth1 = MinStrandRadiusAtDepth1;
+					TUniformBufferRef<FDeepShadowPassUniformParameters> DeepShadowPassUniformParameters;
+					{
+						FDeepShadowPassUniformParameters PassParameters;
+						PassParameters.WorldToClipMatrix = DomData.WorldToLightTransform;;
+						PassParameters.SliceValue = FVector4(1, 1, 1, 1);
+						PassParameters.FrontDepthTexture = DomData.DepthTexture->GetRenderTargetItem().TargetableTexture.GetReference();
+						PassParameters.AtlasRect = DomData.AtlasRect;
+						PassParameters.VoxelMinAABB = FVector::ZeroVector;
+						PassParameters.VoxelMaxAABB = FVector::ZeroVector;
+						PassParameters.VoxelResolution = 0;
+						DeepShadowPassUniformParameters = CreateUniformBufferImmediate(PassParameters, UniformBuffer_SingleFrame, EUniformBufferValidation::None);
+					}
+
+					TUniformBufferRef<FViewUniformShaderParameters> ViewUniformShaderParameters;
+					{
+						const float bIsOrtho = LightType == ELightComponentType::LightType_Directional;
+
+						ViewInfo.CachedViewUniformShaderParameters->HairRenderInfo.X = MinStrandRadiusAtDepth1.Primary;
+						ViewInfo.CachedViewUniformShaderParameters->HairRenderInfo.Y = MinStrandRadiusAtDepth1.Primary;
+						ViewInfo.CachedViewUniformShaderParameters->HairRenderInfo.Z = bIsOrtho;
+						ViewInfo.CachedViewUniformShaderParameters->ViewForward = DomData.LightDirection;
+						ViewUniformShaderParameters = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*ViewInfo.CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
+					}
 
 					RenderDeepShadowFrontDepth(
 						RHICmdList,
 						Scene,
-						&View,
+						&ViewInfo,
 						Cluster.PrimitivesInfos,
-						LightDesc,
 						DomData.AtlasRect,
+						ViewUniformShaderParameters,
+						DeepShadowPassUniformParameters,
 						bClearFrontDepthAtlasTexture,
 						DomData.DepthTexture);
 
 					RenderDeepShadowLayers(
 						RHICmdList,
 						Scene,
-						&View,
+						&ViewInfo,
 						Cluster.PrimitivesInfos,
-						LightDesc,
 						DomData.AtlasRect,
-						DomData.DepthTexture->GetRenderTargetItem().TargetableTexture.GetReference(),
+						ViewUniformShaderParameters,
+						DeepShadowPassUniformParameters,
 						bClearLayerAtlasTexture,
 						DomData.LayersTexture);
 

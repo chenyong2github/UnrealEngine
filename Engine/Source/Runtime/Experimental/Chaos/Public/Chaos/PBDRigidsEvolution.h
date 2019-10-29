@@ -80,6 +80,7 @@ public:
 		, MBounds(MoveTemp(Other.MBounds))
 		, MPayloads(MoveTemp(Other.MPayloads))
 	{
+		ResizeHelper(Other.MSize);
 		Other.MSize = 0;
 
 		AddArray(&MHasBoundingBoxes);
@@ -97,6 +98,7 @@ public:
 			MHasBoundingBoxes = MoveTemp(Other.MHasBoundingBoxes);
 			MBounds = MoveTemp(Other.MBounds);
 			MPayloads = MoveTemp(Other.MPayloads);
+			ResizeHelper(Other.MSize);
 			Other.MSize = 0;
 #if PARTICLE_ITERATOR_RANGED_FOR_CHECK
 			MDirtyValidationCount = 0;
@@ -309,7 +311,11 @@ class TPBDRigidsEvolutionBase
 		SpatialData.bUpdate = true;
 		SpatialData.UpdatedSpatialIdx = Particle.SpatialIdx();
 
-		AsyncAccelerationQueue.FindOrAdd(Particle.Handle()) = SpatialData;
+		auto& AsyncSpatialData = AsyncAccelerationQueue.FindOrAdd(Particle.Handle());
+		AsyncSpatialData.AccelerationHandle = TAccelerationStructureHandle<T, d>(Particle);
+		AsyncSpatialData.bUpdate = true;
+		AsyncSpatialData.UpdatedSpatialIdx = Particle.SpatialIdx();
+		//question: is it safe to reuse for external? Should probably avoid it
 		ExternalAccelerationQueue.FindOrAdd(Particle.Handle()) = SpatialData;
 	}
 
@@ -473,6 +479,9 @@ class TPBDRigidsEvolutionBase
 	/** Perform a blocking flush of the spatial acceleration structure for situations where we aren't simulating but must have an up to date structure */
 	CHAOS_API void FlushSpatialAcceleration();
 
+	/** Rebuilds the spatial acceleration from scratch. This should only be used for perf testing */
+	CHAOS_API void RebuildSpatialAccelerationForPerfTest();
+
 	const auto& GetRigidClustering() const { return Clustering; }
 	auto& GetRigidClustering() { return Clustering; }
 
@@ -633,15 +642,15 @@ protected:
 	/** Used for async acceleration rebuild */
 	TMap<TGeometryParticleHandle<T, d>*, uint32> ParticleToCacheInnerIdx;
 
-	TMap<FSpatialAccelerationIdx, TSpatialAccelerationCache<T, d>> SpatialAccelerationCache;
+	TMap<FSpatialAccelerationIdx, TUniquePtr<TSpatialAccelerationCache<T, d>>> SpatialAccelerationCache;
 
-	FORCEINLINE_DEBUGGABLE void ApplyParticlePendingData(TGeometryParticleHandle<T, d>* Particle, const FPendingSpatialData& PendingData, FAccelerationStructure& SpatialAcceleration, bool bAsync);
+	FORCEINLINE_DEBUGGABLE void ApplyParticlePendingData(TGeometryParticleHandle<T, d>* Particle, const FPendingSpatialData& PendingData, FAccelerationStructure& SpatialAcceleration, bool bUpdateCache);
 
 	class FChaosAccelerationStructureTask
 	{
 	public:
 		FChaosAccelerationStructureTask(ISpatialAccelerationCollectionFactory<T,d>& InSpatialCollectionFactory
-			, const TMap<FSpatialAccelerationIdx, TSpatialAccelerationCache<T,d>>& InSpatialAccelerationCache
+			, const TMap<FSpatialAccelerationIdx, TUniquePtr<TSpatialAccelerationCache<T,d>>>& InSpatialAccelerationCache
 			, TUniquePtr<FAccelerationStructure>& InAccelerationStructure
 			, TUniquePtr<FAccelerationStructure>& InAccelerationStructureCopy);
 		static FORCEINLINE TStatId GetStatId();
@@ -650,7 +659,7 @@ protected:
 		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
 
 		ISpatialAccelerationCollectionFactory<T, d>& SpatialCollectionFactory;
-		const TMap<FSpatialAccelerationIdx, TSpatialAccelerationCache<T, d>>& SpatialAccelerationCache;
+		const TMap<FSpatialAccelerationIdx, TUniquePtr<TSpatialAccelerationCache<T, d>>>& SpatialAccelerationCache;
 		TUniquePtr<FAccelerationStructure>& AccelerationStructure;
 		TUniquePtr<FAccelerationStructure>& AccelerationStructureCopy;
 	};

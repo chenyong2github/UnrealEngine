@@ -14,7 +14,7 @@
 #include "HAL/ThreadSafeBool.h"
 
 THIRD_PARTY_INCLUDES_START
-#include "NvEncoder/nvEncodeAPI.h"
+	#include "NvEncoder/nvEncodeAPI.h"
 THIRD_PARTY_INCLUDES_END
 
 class FVideoEncoder;

@@ -13,14 +13,20 @@ OPUS_HTML5_DST="$HTML5_TPS_LIBS/libOpus/$OPUS_VERSION"
 
 
 # local destination
-if [ ! -d "$OPUS_HTML5_DST" ]; then
-	mkdir -p "$OPUS_HTML5_DST"
+if [ ! -d "$OPUS_HTML5_DST/lib" ]; then
+	mkdir -p "$OPUS_HTML5_DST/lib"
 fi
-# TODO change this to p4 checkout
-if [ ! -z "$(ls -A "$OPUS_HTML5_DST")" ]; then
-	chmod +w "$OPUS_HTML5_DST"/*
+# TODO remove these p4 hack after HTML5 becomes community driven only
+if [ ! -z "$(ls -A "$OPUS_HTML5_DST/lib")" ]; then
+	chmod +w "$OPUS_HTML5_DST"/lib/*
 fi
+chmod +w $OPUS_VERSION/CMakeLists.txt
+
+
+# ----------------------------------------
+# add CMakeLists.txt to src
 cp $OPUS_VERSION/CMakeLists.txt "$OPUS_HTML5_SRC"/.
+# ----------------------------------------
 
 
 build_via_cmake()
@@ -52,7 +58,7 @@ build_via_cmake()
 	if [ $OLEVEL == 0 ]; then
 		SUFFIX=
 	fi
-	cp libopus.$UE_LIB_EXT "$OPUS_HTML5_DST"/libopus${SUFFIX}.$UE_LIB_EXT
+	cp libopus.$UE_LIB_EXT "$OPUS_HTML5_DST"/lib/libopus${SUFFIX}.$UE_LIB_EXT
 	# ----------------------------------------
 	# speex_resampler
 	mkdir speex_resampler
@@ -64,7 +70,7 @@ build_via_cmake()
 	SRCFILE=resample.c
 	emcc $OPTIMIZATION -D$DBGFLAG $EMFLAGS -DOUTSIDE_SPEEX -I../include -s WASM=1 -Wall -Wextra -Wcast-align -Wnested-externs -Wshadow -Wstrict-prototypes -o $SRCFILE.o -c $SRCFILE
 	emcc -o libspeex_resampler.$UE_LIB_EXT $SRCFILE.o
-	cp libspeex_resampler.$UE_LIB_EXT "$OPUS_HTML5_DST"/libspeex_resampler${SUFFIX}.$UE_LIB_EXT
+	cp libspeex_resampler.$UE_LIB_EXT "$OPUS_HTML5_DST"/lib/libspeex_resampler${SUFFIX}.$UE_LIB_EXT
 	cd ../..
 	# ----------------------------------------
 	cd ..
@@ -73,5 +79,5 @@ type=Debug;       OLEVEL=0;  build_via_cmake
 type=Release;     OLEVEL=2;  build_via_cmake
 type=Release;     OLEVEL=3;  build_via_cmake
 type=MinSizeRel;  OLEVEL=z;  build_via_cmake
-ls -l "$OPUS_HTML5_DST"
+ls -l "$OPUS_HTML5_DST/lib"
 

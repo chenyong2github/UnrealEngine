@@ -8,7 +8,7 @@
 #include "MaterialExpressionSingleLayerWaterMaterialOutput.generated.h"
 
 /** Material output expression for writing single layer water volume material properties. */
-UCLASS(collapsecategories, hidecategories = Object)
+UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
 class UMaterialExpressionSingleLayerWaterMaterialOutput : public UMaterialExpressionCustomOutput
 {
 	GENERATED_UCLASS_BODY()

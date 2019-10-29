@@ -12,7 +12,7 @@ TSharedPtr<IRemoteSessionChannel> FRemoteSessionFrameBufferChannelFactoryWorker:
 
 	if (InMode == ERemoteSessionChannelMode::Write)
 	{
-		TSharedPtr<FRemoteSessionFrameBufferImageProvider> ImageProvider = MakeShared<FRemoteSessionFrameBufferImageProvider>(Channel);
+		TSharedPtr<FRemoteSessionFrameBufferImageProvider> ImageProvider = MakeShared<FRemoteSessionFrameBufferImageProvider>(Channel->GetImageSender());
 
 		{
 			int32 Quality = 85;

@@ -202,7 +202,11 @@ bool FFileHelper::SaveArrayToFile(TArrayView<const uint8> Array, const TCHAR* Fi
 	{
 		return false;
 	}
-	Ar->Serialize(const_cast<uint8*>(Array.GetData()), Array.Num());	
+	Ar->Serialize(const_cast<uint8*>(Array.GetData()), Array.Num());
+
+	// Always explicitly close to catch errors from flush/close
+	Ar->Close();
+
 	return !Ar->IsError() && !Ar->IsCriticalError();
 }
 
@@ -248,6 +252,9 @@ bool FFileHelper::SaveStringToFile( const FString& String, const TCHAR* Filename
 		auto Src = StringCast<ANSICHAR>(*String, String.Len());
 		Ar->Serialize( (ANSICHAR*)Src.Get(), Src.Length() * sizeof(ANSICHAR) );
 	}
+
+	// Always explicitly close to catch errors from flush/close
+	Ar->Close();
 
 	return !Ar->IsError() && !Ar->IsCriticalError();
 }

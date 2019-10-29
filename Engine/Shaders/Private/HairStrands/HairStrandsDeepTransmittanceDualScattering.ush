@@ -1,5 +1,13 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#ifndef HAIR_COMPONENT_LS
+	#error HAIR_COMPONENT_LS is not defined, please include ShadingCommon.ush
+#endif
+
+#ifndef HAIR_COMPONENT_GS
+	#error HAIR_COMPONENT_GS is not defined, please include ShadingCommon.ush
+#endif
+
 float Hair_g2(float B,float Theta)
 {
 	#if 0
@@ -17,9 +25,9 @@ void ComputeDualScatteringTerms(
 	const float3 V,
 	const float3 L,
 	const float3 T,
-	const float4 HairComponents,
-	out float3 OutGlobalScattering,
-	out float3 OutLocalScattering)
+	const uint HairComponents,
+	inout float3 OutGlobalScattering,
+	inout float3 OutLocalScattering)
 {
 	const float SinThetaL = clamp(dot(T, L), -1, 1);
 	const float SinThetaV = clamp(dot(T, V), -1, 1);
@@ -105,10 +113,9 @@ void ComputeDualScatteringTerms(
 	const float3 LocalScattering  = 2 * Ab * Sb * db;
 	
 	// Decode if the Local/Global component should be enabled or not (for debug purpose)
-    const float LocalWeights  = floor(HairComponents.w / 10.0f) > 0?1:0;
-    const float GlobalWeights = frac(HairComponents.w / 10.0f)*10.f > 0?1:0;
+	const float LocalWeights  = (HairComponents & HAIR_COMPONENT_LS) > 0 ? 1 : 0;
 
-	OutGlobalScattering = GlobalWeights > 0 ? GlobalScattering : 1;
+	OutGlobalScattering = (HairComponents & HAIR_COMPONENT_GS) > 0 ? GlobalScattering : 1;
 	OutLocalScattering  = LocalScattering * LocalWeights;
 
 	// Final computation is done in ShadingModels.ush with the following formula
@@ -122,18 +129,15 @@ FHairTransmittanceData GetHairTransmittance(
 	float4 HairTransmittance,
 	Texture3D<float4> HairLUTTexture,
 	SamplerState HairLUTSampler,
-	const uint HairTransmittanceEnable,
-	const float4 HairComponents)
+	const uint HairComponents)
 {
 	FHairTransmittanceData TransmittanceData = InitHairTransmittanceData();
 	TransmittanceData.Transmittance = HairTransmittance.xyz;
 	TransmittanceData.HairCount = HairTransmittance.w;
-	TransmittanceData.MultipleScattering = 1;
 	TransmittanceData.GlobalScattering = 1;
 	TransmittanceData.LocalScattering = 0;
-	TransmittanceData.ScatteringComponent = float3(HairComponents.x > 0 ? 1 : 0, HairComponents.y > 0 ? 1 : 0, HairComponents.z > 0 ? 1 : 0);
+	TransmittanceData.ScatteringComponent = HairComponents | HAIR_COMPONENT_MULTISCATTER;
 	TransmittanceData.OpaqueVisibility = 1;
-	TransmittanceData.Enable = HairTransmittanceEnable > 0;
 
 	const float3 T = GBuffer.WorldNormal;
 	{
@@ -167,8 +171,7 @@ FHairTransmittanceData GetHairTransmittance(
 	StructuredBuffer<float4> HairTransmittanceBuffer,
 	Texture3D<float4> HairLUTTexture,
 	SamplerState HairLUTSampler,
-	const uint HairTransmittanceEnable,
-	const float4 HairComponents)
+	const uint HairComponents)
 {
 	float4 HairTransmittance = float4(1, 1, 1, 0);
 	if (SampleOffset < HairTransmittanceBufferMaxCount)
@@ -182,6 +185,5 @@ FHairTransmittanceData GetHairTransmittance(
 		HairTransmittance,
 		HairLUTTexture,
 		HairLUTSampler,
-		HairTransmittanceEnable,
 		HairComponents);
 }

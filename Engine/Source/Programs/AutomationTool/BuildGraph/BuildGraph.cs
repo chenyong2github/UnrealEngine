@@ -80,7 +80,6 @@ namespace AutomationTool
 			string SchemaFileName = ParseParamValue("Schema", null);
 			string ExportFileName = ParseParamValue("Export", null);
 			string PreprocessedFileName = ParseParamValue("Preprocess", null);
-			bool bPreprocessOnly = ParseParam("PreprocessOnly");
 			string SharedStorageDir = ParseParamValue("SharedStorageDir", null);
 			string SingleNodeName = ParseParamValue("SingleNode", null);
 			string TriggerName = ParseParamValue("Trigger", null);
@@ -127,11 +126,20 @@ namespace AutomationTool
 			DefaultProperties["EscapedBranch"] = P4Enabled ? CommandUtils.EscapePath(P4Env.Branch) : "Unknown";
 			DefaultProperties["Change"] = P4Enabled ? P4Env.Changelist.ToString() : "0";
 			DefaultProperties["CodeChange"] = P4Enabled ? P4Env.CodeChangelist.ToString() : "0";
-			DefaultProperties["RootDir"] = CommandUtils.RootDirectory.FullName;
 			DefaultProperties["IsBuildMachine"] = IsBuildMachine ? "true" : "false";
 			DefaultProperties["HostPlatform"] = HostPlatform.Current.HostEditorPlatform.ToString();
 			DefaultProperties["RestrictedFolderNames"] = String.Join(";", RestrictedFolder.GetNames());
 			DefaultProperties["RestrictedFolderFilter"] = String.Join(";", RestrictedFolder.GetNames().Select(x => String.Format(".../{0}/...", x)));
+
+			// Prevent expansion of the root directory if we're just preprocessing the output. They may vary by machine.
+			if (PreprocessedFileName == null)
+			{
+				DefaultProperties["RootDir"] = CommandUtils.RootDirectory.FullName;
+			}
+			else
+			{
+				DefaultProperties["RootDir"] = null;
+			}
 
 			// Attempt to read existing Build Version information
 			BuildVersion Version;
@@ -198,7 +206,7 @@ namespace AutomationTool
 
 			// Read the script from disk
 			Graph Graph;
-			if(!ScriptReader.TryRead(new FileReference(ScriptFileName), Arguments, DefaultProperties, Schema, out Graph))
+			if(!ScriptReader.TryRead(new FileReference(ScriptFileName), Arguments, DefaultProperties, PreprocessedFileName != null, Schema, out Graph))
 			{
 				return ExitCode.Error_Unknown;
 			}
@@ -365,10 +373,7 @@ namespace AutomationTool
 				FileReference PreprocessedFileLocation = new FileReference(PreprocessedFileName);
 				LogInformation("Writing {0}...", PreprocessedFileLocation);
 				Graph.Write(PreprocessedFileLocation, (SchemaFileName != null)? new FileReference(SchemaFileName) : null);
-				if (bPreprocessOnly)
-				{
-					return ExitCode.Success;
-				}
+				bListOnly = true;
 			}
 
 			// Find the triggers which we are explicitly running.

@@ -1332,6 +1332,9 @@ public:
 
 	ENGINE_API virtual void NotifyActorTearOff(AActor* Actor);
 
+	/** Set whether this actor should swap roles before replicating properties. */
+	ENGINE_API void SetRoleSwapOnReplicate(AActor* Actor, bool bSwapRoles);
+
 	// ---------------------------------------------------------------
 	//
 	// ---------------------------------------------------------------	

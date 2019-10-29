@@ -232,6 +232,11 @@ namespace AutomationTool
 		Dictionary<string, ScriptMacro> MacroNameToDefinition = new Dictionary<string, ScriptMacro>();
 
 		/// <summary>
+		/// Preprocess the file, but do not expand any values that are not portable (eg. paths on the local machine)
+		/// </summary>
+		bool bPreprocessOnly;
+
+		/// <summary>
 		/// Schema for the script
 		/// </summary>
 		ScriptSchema Schema;
@@ -245,9 +250,11 @@ namespace AutomationTool
 		/// Private constructor. Use ScriptReader.TryRead() to read a script file.
 		/// </summary>
 		/// <param name="DefaultProperties">Default properties available to the script</param>
+		/// <param name="bPreprocessOnly">Preprocess the file, but do not expand any values that are not portable (eg. paths on the local machine)</param>
 		/// <param name="Schema">Schema for the script</param>
-		private ScriptReader(IDictionary<string, string> DefaultProperties, ScriptSchema Schema)
+		private ScriptReader(IDictionary<string, string> DefaultProperties, bool bPreprocessOnly, ScriptSchema Schema)
 		{
+			this.bPreprocessOnly = bPreprocessOnly;
 			this.Schema = Schema;
 
 			EnterScope();
@@ -264,10 +271,11 @@ namespace AutomationTool
 		/// <param name="File">File to read from</param>
 		/// <param name="Arguments">Arguments passed in to the graph on the command line</param>
 		/// <param name="DefaultProperties">Default properties available to the script</param>
+		/// <param name="bPreprocessOnly">Preprocess the file, but do not expand any values that are not portable (eg. paths on the local machine)</param>
 		/// <param name="Schema">Schema for the script</param>
 		/// <param name="Graph">If successful, the graph constructed from the given script</param>
 		/// <returns>True if the graph was read, false if there were errors</returns>
-		public static bool TryRead(FileReference File, Dictionary<string, string> Arguments, Dictionary<string, string> DefaultProperties, ScriptSchema Schema, out Graph Graph)
+		public static bool TryRead(FileReference File, Dictionary<string, string> Arguments, Dictionary<string, string> DefaultProperties, bool bPreprocessOnly, ScriptSchema Schema, out Graph Graph)
 		{
 			// Check the file exists before doing anything.
 			if (!FileReference.Exists(File))
@@ -278,7 +286,7 @@ namespace AutomationTool
 			}
 
 			// Read the file and build the graph
-			ScriptReader Reader = new ScriptReader(DefaultProperties, Schema);
+			ScriptReader Reader = new ScriptReader(DefaultProperties, bPreprocessOnly, Schema);
 			if (!Reader.TryRead(File, Arguments) || Reader.NumErrors > 0)
 			{
 				Graph = null;
@@ -1424,11 +1432,25 @@ namespace AutomationTool
 			}
 			else if (ValueType == typeof(FileReference))
 			{
-				return CustomTask.ResolveFile(ValueText);
+				if (bPreprocessOnly)
+				{
+					return new FileReference(ValueText, FileReference.Sanitize.None);
+				}
+				else
+				{
+					return CustomTask.ResolveFile(ValueText);
+				}
 			}
 			else if (ValueType == typeof(DirectoryReference))
 			{
-				return CustomTask.ResolveDirectory(ValueText);
+				if (bPreprocessOnly)
+				{
+					return new DirectoryReference(ValueText, DirectoryReference.Sanitize.None);
+				}
+				else
+				{
+					return CustomTask.ResolveDirectory(ValueText);
+				}
 			}
 			else if (ValueType == typeof(UnrealTargetPlatform))
 			{
@@ -1952,11 +1974,20 @@ namespace AutomationTool
 					Value = "";
 				}
 
-				// Replace the variable, or skip past it
-				Result = Result.Substring(0, Idx) + Value + Result.Substring(EndIdx + 1);
+				// Check if we've got a value for this variable
+				if (Value == null)
+				{
+					// Do not expand it; must be preprocessing the script.
+					Idx = EndIdx;
+				}
+				else
+				{
+					// Replace the variable, or skip past it
+					Result = Result.Substring(0, Idx) + Value + Result.Substring(EndIdx + 1);
 
-				// Make sure we skip over the expanded variable; we don't want to recurse on it.
-				Idx += Value.Length;
+					// Make sure we skip over the expanded variable; we don't want to recurse on it.
+					Idx += Value.Length;
+				}
 			}
 			return Result;
 		}

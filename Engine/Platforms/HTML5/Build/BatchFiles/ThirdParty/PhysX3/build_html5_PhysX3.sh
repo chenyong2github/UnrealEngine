@@ -21,18 +21,17 @@ export GW_DEPS_ROOT="$UE4_TPS_SRC/PhysX3"
 
 
 # local destination
-if [ ! -d "$PHYSX_HTML5_DST" ]; then
-	mkdir -p "$PHYSX_HTML5_DST"
+if [ ! -d "$PHYSX_HTML5_DST/lib" ]; then
+	mkdir -p "$PHYSX_HTML5_DST/lib"
 fi
 # TODO change this to p4 checkout
-if [ ! -z "$(ls -A "$PHYSX_HTML5_DST")" ]; then
-	chmod +w "$PHYSX_HTML5_DST"/*
+if [ ! -z "$(ls -A "$PHYSX_HTML5_DST/lib")" ]; then
+	chmod +w "$PHYSX_HTML5_DST"/lib/*
 fi
 
 
 # ----------------------------------------
 # copy CMake files to PhysX location
-
 FOLDERS=(	"$APEX_VERSION/compiler/cmake/html5"
 			'NvCloth/compiler/cmake/html5'
 			"$PHYSX_VERSION/Source/compiler/cmake/html5"
@@ -45,11 +44,9 @@ for f in ${FOLDERS[@]}; do
 	PHYSX_SYSTEM=$(IFS=/ read -ra x <<<"$f" && printf "%s\n" "${x[0]}")
 	cp -vp $PHYSX_SYSTEM/* "$GW_DEPS_ROOT"/$f/.
 done
-
-
 # ----------------------------------------
-
 export CMAKE_MODULE_PATH="$GW_DEPS_ROOT/Externals/CMakeModules"
+
 
 build_via_cmake()
 {
@@ -93,7 +90,7 @@ build_via_cmake()
 	cd ..
 
 
-# WARNING: APEX CLOTHING REQUIRES SIMD instructions (see APEX_1.4/APEX CMakeList.txt)
+# WARNING: APEX CLOTH REQUIRES SIMD instructions (see APEX_1.4/APEX CMakeList.txt)
 	# APEX !!!
 	rm -rf APEX
 	mkdir APEX
@@ -135,19 +132,19 @@ build_via_cmake()
 	if [ $OLEVEL == "z" ]; then
 		# for some reason: _Oz is not getting done here...
 		cd PhysX
-			find . -type f -name "*.$UE_LIB_EXT" -print | while read i; do b=`basename $i .$UE_LIB_EXT`; cp $i "$PHYSX_HTML5_DST"/${b}_Oz.$UE_LIB_EXT; done
+			find . -type f -name "*.$UE_LIB_EXT" -print | while read i; do b=`basename $i .$UE_LIB_EXT`; cp $i "$PHYSX_HTML5_DST"/lib/${b}_Oz.$UE_LIB_EXT; done
 		cd ../APEX
-			find . -type f -name "*.$UE_LIB_EXT" -print | while read i; do b=`basename $i .$UE_LIB_EXT`; cp $i "$PHYSX_HTML5_DST"/${b}_Oz.$UE_LIB_EXT; done
+			find . -type f -name "*.$UE_LIB_EXT" -print | while read i; do b=`basename $i .$UE_LIB_EXT`; cp $i "$PHYSX_HTML5_DST"/lib/${b}_Oz.$UE_LIB_EXT; done
 #		cd ../NvCloth
-#			find . -type f -name "*.$UE_LIB_EXT" -print | while read i; do b=`basename $i .$UE_LIB_EXT`; cp $i "$PHYSX_HTML5_DST"/${b}_Oz.$UE_LIB_EXT; done
+#			find . -type f -name "*.$UE_LIB_EXT" -print | while read i; do b=`basename $i .$UE_LIB_EXT`; cp $i "$PHYSX_HTML5_DST"/lib/${b}_Oz.$UE_LIB_EXT; done
 		cd ..
 	else
 		cd PhysX
-			find . -type f -name "*.$UE_LIB_EXT" -exec cp {} "$PHYSX_HTML5_DST" \;
+			find . -type f -name "*.$UE_LIB_EXT" -exec cp {} "$PHYSX_HTML5_DST/lib/." \;
 		cd ../APEX
-			find . -type f -name "*.$UE_LIB_EXT" -exec cp {} "$PHYSX_HTML5_DST" \;
+			find . -type f -name "*.$UE_LIB_EXT" -exec cp {} "$PHYSX_HTML5_DST/lib/." \;
 #		cd ../NvCloth
-#			find . -type f -name "*.$UE_LIB_EXT" -exec cp {} "$PHYSX_HTML5_DST" \;
+#			find . -type f -name "*.$UE_LIB_EXT" -exec cp {} "$PHYSX_HTML5_DST/lib/." \;
 		cd ..
 	fi
 	cd ../..
@@ -156,5 +153,5 @@ type=Debug;       OLEVEL=0;  build_via_cmake
 type=Release;     OLEVEL=2;  build_via_cmake
 type=Release;     OLEVEL=3;  build_via_cmake
 type=MinSizeRel;  OLEVEL=z;  build_via_cmake
-ls -l "$PHYSX_HTML5_DST"
+ls -l "$PHYSX_HTML5_DST/lib"
 

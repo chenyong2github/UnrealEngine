@@ -18,6 +18,10 @@
 class UDataprepParameterizableObject;
 class UProperty;
 
+/**
+ * The parameterization binding is a struct that hold an object and the property path to the parameterized property
+ * It also hold a array to validate the that value type of the parameterized property didn't change since it's creation
+ */
 USTRUCT()
 struct FDataprepParameterizationBinding
 {
@@ -26,14 +30,10 @@ struct FDataprepParameterizationBinding
 	FDataprepParameterizationBinding()
 		: ObjectBinded( nullptr )
 		, PropertyChain()
-		, ValueType( nullptr )
+		, ValueTypeValidationData()
 	{}
 
-	FDataprepParameterizationBinding(UDataprepParameterizableObject* InObjectBinded, TArray<FDataprepPropertyLink> InPropertyChain)
-		: ObjectBinded( InObjectBinded )
-		, PropertyChain( MoveTemp( InPropertyChain ) )
-		, ValueType( PropertyChain.Last().CachedProperty.Get() ? PropertyChain.Last().CachedProperty.Get()->GetClass() : nullptr )
-	{}
+	FDataprepParameterizationBinding(UDataprepParameterizableObject* InObjectBinded, TArray<FDataprepPropertyLink> InPropertyChain);
 
 	FDataprepParameterizationBinding(FDataprepParameterizationBinding&&) = default;
 	FDataprepParameterizationBinding(const FDataprepParameterizationBinding&) = default;
@@ -48,9 +48,9 @@ struct FDataprepParameterizationBinding
 	UPROPERTY()
 	TArray<FDataprepPropertyLink> PropertyChain;
 
-	// The class of the property managing the value
+	// Value Type Validation Array. This is the result of a depth first search on the parametrized property
 	UPROPERTY()
-	UClass* ValueType;
+	TArray<UObject*> ValueTypeValidationData;
 };
 
 uint32 GetTypeHash(const FDataprepParameterizationBinding& Binding);
@@ -204,11 +204,15 @@ public:
 
 	bool IsObjectPropertyBinded(UDataprepParameterizableObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain) const;
 
+	FName GetNameOfParameterForObjectProperty(UDataprepParameterizableObject* Object, const TArray<struct FDataprepPropertyLink>& PropertyChain) const;
+
 	void RemoveBindedObjectProperty(UDataprepParameterizableObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain);
 
 	void RemoveBindingFromObjects(TArray<UDataprepParameterizableObject*> Objects);
 
 	void OnObjectPostEdit(UDataprepParameterizableObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain, EPropertyChangeType::Type ChangeType);
+
+	void GetExistingParameterNamesForType(UProperty* Property,TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const;
 
 private:
 
@@ -259,6 +263,12 @@ private:
 	 * Push the value of the parametrization to the bindings
 	 */
 	void PushParametrizationValueToBindings(FName ParameterName);
+
+	/**
+	 * Do the actual removing of a binding
+	 * @return True if binding was remove
+	 */
+	bool RemoveBinding(const TSharedRef<FDataprepParameterizationBinding>& Binding, bool& bOutClassNeedUpdate);
 
 public:
 

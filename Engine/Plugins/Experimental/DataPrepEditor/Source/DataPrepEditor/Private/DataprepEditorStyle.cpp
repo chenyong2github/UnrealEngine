@@ -13,6 +13,8 @@
 
 #define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush( FDataprepEditorStyle::InContent( RelativePath, ".png" ), __VA_ARGS__ )
 
+#define DEFAULT_FONT(...) FCoreStyle::GetDefaultFontStyle(__VA_ARGS__)
+
 TSharedPtr<FSlateStyleSet> FDataprepEditorStyle::StyleSet;
 
 void FDataprepEditorStyle::Initialize()
@@ -57,12 +59,14 @@ void FDataprepEditorStyle::Initialize()
 	StyleSet->Set("DataprepEditor.ExecutePipeline.Selected", new IMAGE_PLUGIN_BRUSH("Icons/ExecutePipeline", Icon40x40));
 	StyleSet->Set("DataprepEditor.ExecutePipeline.Selected.Small", new IMAGE_PLUGIN_BRUSH("Icons/ExecutePipeline", Icon20x20));
 
+	StyleSet->Set( "DataprepEditor.SectionFont", DEFAULT_FONT( "Bold", 10 ) );
+
 	// Dataprep action UI
 	{
 		StyleSet->Set("DataprepAction.Padding", 2.f);
 		StyleSet->Set("DataprepAction.OutlineColor", FLinearColor(0.f, 0.f, 0.f));
-		StyleSet->Set("DataprepActionBlock.TitleBackgroundColor", FLinearColor(0.095307f, 0.095307f, 0.095307f));
-		StyleSet->Set("DataprepActionBlock.ContentBackgroundColor", FLinearColor(0.215861f, 0.215861f, 0.215861f));
+		StyleSet->Set("DataprepActionBlock.TitleBackgroundColor", FLinearColor(0.065307f, 0.065307f, 0.065307f));
+		StyleSet->Set("DataprepActionBlock.ContentBackgroundColor", FLinearColor(0.115861f, 0.115861f, 0.115861f));
 		FTextBlockStyle TilteTextBlockStyle = FEditorStyle::GetWidgetStyle< FTextBlockStyle >("NormalText");
 		TilteTextBlockStyle.SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 14));
 		StyleSet->Set("DataprepActionBlock.TitleTextBlockStyle", TilteTextBlockStyle);

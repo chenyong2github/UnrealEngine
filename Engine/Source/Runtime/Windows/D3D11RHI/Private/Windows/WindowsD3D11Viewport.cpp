@@ -51,6 +51,7 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 	SizeX(InSizeX),
 	SizeY(InSizeY),
 	bIsFullscreen(bInIsFullscreen),
+	bFullscreenLost(false),
 	PixelFormat(InPreferredPixelFormat),
 	PixelColorSpace(EColorSpaceAndEOTF::ERec709_sRGB),
 	bIsValid(true),
@@ -181,11 +182,11 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 			IDXGIFactory2* Factory2 = (IDXGIFactory2*)D3DRHI->GetFactory();
 
 			VERIFYD3D11RESULT_EX((Factory2->CreateSwapChainForHwnd(D3DRHI->GetDevice(), WindowHandle, &SwapChainDesc, &FSSwapChainDesc, nullptr, &SwapChain1)), D3DRHI->GetDevice());
-			SwapChain1->QueryInterface(__uuidof(IDXGISwapChain1), (void**)SwapChain.GetInitReference());
+				SwapChain1->QueryInterface(__uuidof(IDXGISwapChain1), (void**)SwapChain.GetInitReference());
 
-			// See if we are running on a HDR monitor 
-			CheckHDRMonitorStatus();
-		}
+				// See if we are running on a HDR monitor 
+				CheckHDRMonitorStatus();
+			}
 
 
 		if (SwapChain == nullptr)
@@ -284,6 +285,23 @@ void FD3D11Viewport::CheckHDRMonitorStatus()
 }
 
 void FD3D11Viewport::ConditionalResetSwapChain(bool bIgnoreFocus)
+{
+	if (!bIsValid)
+	{
+		if (bFullscreenLost)
+		{
+			FlushRenderingCommands();
+			bFullscreenLost = false;
+			Resize(SizeX, SizeY, false, PixelFormat);
+		}
+		else
+		{
+			ResetSwapChainInternal(bIgnoreFocus);
+		}
+	}
+}
+
+void FD3D11Viewport::ResetSwapChainInternal(bool bIgnoreFocus)
 {
 	if (!bIsValid)
 	{

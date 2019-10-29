@@ -76,18 +76,21 @@ struct FClothCollisionPrim_Box
 	GENERATED_BODY()
 
 	FClothCollisionPrim_Box()
-		: BoneIndex(INDEX_NONE)
-		, LocalMin(FVector::ZeroVector)
-		, LocalMax(FVector::ZeroVector)
+		: LocalPosition(FVector::ZeroVector)
+		, LocalRotation(FQuat::Identity)
+		, HalfExtents(FVector::ZeroVector)
+		, BoneIndex(INDEX_NONE)
 	{}
 
 	UPROPERTY()
+	FVector LocalPosition;
+
+	UPROPERTY()
+	FQuat LocalRotation;
+
+	UPROPERTY()
+	FVector HalfExtents;
+
+	UPROPERTY()
 	int32 BoneIndex;
-
-	UPROPERTY()
-	FVector LocalMin;
-
-	UPROPERTY()
-	FVector LocalMax;
 };
-

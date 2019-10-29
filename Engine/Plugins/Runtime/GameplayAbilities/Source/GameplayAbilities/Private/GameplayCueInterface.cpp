@@ -56,6 +56,11 @@ void IGameplayCueInterface::HandleGameplayCue(AActor *Self, FGameplayTag Gamepla
 {
 	SCOPE_CYCLE_COUNTER(STAT_GameplayCueInterface_HandleGameplayCue);
 
+	if (!Self)
+	{
+		return;
+	}
+
 	// Look up a custom function for this gameplay tag. 
 	UClass* Class = Self->GetClass();
 	FGameplayTagContainer TagAndParentsContainer = GameplayCueTag.GetGameplayTagParents();

@@ -13,6 +13,8 @@
 #include "DatasmithSceneFactory.h"
 #include "IDatasmithSceneElements.h"
 #include "DatasmithStaticMeshImporter.h"
+#include "DataprepAssetUserData.h"
+#include "DataprepAssetInterface.h"
 #include "LevelVariantSets.h"
 #include "ObjectTemplates/DatasmithActorTemplate.h"
 #include "ObjectTemplates/DatasmithAreaLightActorTemplate.h"
@@ -111,6 +113,26 @@ bool UDatasmithConsumer::Initialize()
 
 		DatasmithScene->AssetImportData = NewObject< UDatasmithSceneImportData >( DatasmithScene.Get(), UDatasmithSceneImportData::StaticClass() );
 		check( DatasmithScene->AssetImportData );
+
+		// Store a dataprep asset pointer into the scene asset in order to be able to later re-execute the dataprep pipeline
+		UDataprepAssetInterface* DataprepAssetInterface = Cast< UDataprepAssetInterface >( GetOuter() );
+		check( DataprepAssetInterface );
+
+		if ( DatasmithScene->GetClass()->ImplementsInterface(UInterface_AssetUserData::StaticClass()) )
+		{
+			if ( IInterface_AssetUserData* AssetUserDataInterface = Cast< IInterface_AssetUserData >( DatasmithScene.Get() ) )
+			{
+				UDataprepAssetUserData* DataprepAssetUserData = AssetUserDataInterface->GetAssetUserData< UDataprepAssetUserData >();
+
+				if ( !DataprepAssetUserData )
+				{
+					EObjectFlags Flags = RF_Public;
+					DataprepAssetUserData = NewObject< UDataprepAssetUserData >( DatasmithScene.Get(), NAME_None, Flags );
+					AssetUserDataInterface->AddAssetUserData( DataprepAssetUserData );
+				}
+				DataprepAssetUserData->DataprepAssetPtr = DataprepAssetInterface;
+			}
+		}
 	}
 
 	// #ueent_todo: Find out necessity of namespace for uniqueness of asset's and actor's names
@@ -639,6 +661,7 @@ namespace DatasmithConsumerUtils
 		// First skip UMaterial objects which are not referenced by a UmaterialInstance one
 		int32 MaterialCount = 0;
 		TSet< UMaterialInterface* > ParentMaterials;
+		TSet< UMaterialFunctionInterface* > MaterialFunctions;
 		for(TWeakObjectPtr<UObject>& AssetPtr : Assets)
 		{
 			if( UObject* Asset = AssetPtr.Get() )
@@ -655,8 +678,14 @@ namespace DatasmithConsumerUtils
 				}
 				else if(UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(Asset))
 				{
-					TSharedRef< IDatasmithMaterialElement > MaterialElement = FDatasmithSceneFactory::CreateMaterial( *AssetTag );
+					TSharedRef< IDatasmithBaseMaterialElement > MaterialElement = FDatasmithSceneFactory::CreateMaterial( *AssetTag );
 					MaterialElement->SetLabel( *MaterialInstance->GetName() );
+
+					if (UMaterial* SourceMaterial = Cast< UMaterial >(MaterialInstance))
+					{
+						MaterialElement = StaticCastSharedRef< IDatasmithBaseMaterialElement >( FDatasmithSceneFactory::CreateUEPbrMaterial( *AssetTag ) );
+						MaterialElement->SetLabel( *MaterialInstance->GetName() );
+					}
 
 					if ( UMaterialInterface* MaterialParent = MaterialInstance->Parent )
 					{
@@ -734,7 +763,8 @@ namespace DatasmithConsumerUtils
 		// Second take care UMaterial objects which are not referenced by a UmaterialInstance one
 		for( TWeakObjectPtr<UObject>& AssetPtr : Assets )
 		{
-			if( UMaterial* Material = Cast<UMaterial>( AssetPtr.Get() ) )
+			UObject* AssetObject = AssetPtr.Get();
+			if( UMaterial* Material = Cast<UMaterial>( AssetObject ) )
 			{
 				if( !ParentMaterials.Contains( Material ) )
 				{
@@ -744,6 +774,25 @@ namespace DatasmithConsumerUtils
 
 					ImportContext.ImportedMaterials.Add( MaterialElement, Material );
 					ImportContext.Scene->AddMaterial( MaterialElement );
+				}
+			}
+			else if( UMaterialFunction* MaterialFunction = Cast<UMaterialFunction>( AssetObject ) )
+			{
+				if( !MaterialFunctions.Contains( Cast<UMaterialFunctionInterface>( MaterialFunction ) ) )
+				{
+					FString AssetTag = FDatasmithImporterUtils::GetDatasmithElementIdString( MaterialFunction );
+
+					TSharedRef< IDatasmithUEPbrMaterialElement > UEPbrMaterialFunctionElement = FDatasmithSceneFactory::CreateUEPbrMaterial( *AssetTag );
+
+					UEPbrMaterialFunctionElement->SetLabel( *MaterialFunction->GetName() );
+					UEPbrMaterialFunctionElement->SetMaterialFunctionOnly( true );
+
+					TSharedRef< IDatasmithBaseMaterialElement > BaseMaterialElement = StaticCastSharedRef< IDatasmithBaseMaterialElement >( UEPbrMaterialFunctionElement );
+
+					ImportContext.ImportedMaterialFunctions.Add( BaseMaterialElement, MaterialFunction );
+					ImportContext.ImportedMaterialFunctionsByName.Add( BaseMaterialElement->GetName(), BaseMaterialElement );
+
+					ImportContext.Scene->AddMaterial( BaseMaterialElement );
 				}
 			}
 		}
