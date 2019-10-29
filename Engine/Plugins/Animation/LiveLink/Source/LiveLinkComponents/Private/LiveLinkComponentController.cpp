@@ -2,6 +2,7 @@
 
 #include "LiveLinkComponentController.h"
 
+#include "Features/IModularFeatures.h"
 #include "LiveLinkComponentSettings.h"
 #include "LiveLinkComponentPrivate.h"
 #include "LiveLinkControllerBase.h"
