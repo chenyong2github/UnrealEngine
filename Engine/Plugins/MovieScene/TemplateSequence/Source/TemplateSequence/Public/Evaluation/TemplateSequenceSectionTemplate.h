@@ -21,14 +21,20 @@ struct FTemplateSequenceSectionTemplate : public FMovieSceneEvalTemplate
 	virtual UScriptStruct& GetScriptStructImpl() const override { return *StaticStruct(); }
 	virtual void SetupOverrides() override;
 	virtual void Evaluate(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const override;
-	virtual void Initialize(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) const override;
+	virtual void Setup(FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) const override;
 	virtual void TearDown(FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) const override;
 
 private:
+	FMovieSceneObjectBindingID GetAbsoluteInnerBindingID(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player) const;
 
 	UPROPERTY()
 	FFrameNumber SectionStartTime;
 
 	UPROPERTY()
+	FGuid OuterBindingId;
+
+	UPROPERTY()
 	FMovieSceneEvaluationOperand InnerOperand;
+
+	friend class UTemplateSequenceTrack;
 };
