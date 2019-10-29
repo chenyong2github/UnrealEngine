@@ -43,6 +43,9 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=Editing, meta=( DisplayName = "Preserve Actor Scale on Replace" ))
 	uint32 bReplaceRespectsScale:1;
 
+	/** If enabled, the modes tab will revert to the previous mode UI */
+	UPROPERTY(EditAnywhere, config, AdvancedDisplay, Category = Editing, meta=(ConfigRestartRequired = true))
+	uint32 bEnableLegacyEditorModeUI : 1;
 public:
 	/** If checked audio playing in the editor will continue to play even if the editor is in the background */
 	UPROPERTY(EditAnywhere, config, Category=Sound)
