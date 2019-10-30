@@ -138,8 +138,6 @@ public:
 
 	~SDataprepDetailsView();
 
-	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;	
-
 	void SetObjectToDisplay(UObject& Object);
 
 	void ForceRefresh();
@@ -149,6 +147,9 @@ public:
 	// End of FGCObject interface
 
 protected:
+	// ueent_hotfix Hack for 4.24 allow to refresh the ui in between two frame without any flickering
+	virtual bool CustomPrepass(float LayoutScaleMultiplier) override;
+
 	// Begin SWidget overrides.
 	// #ueent_todo: This is temporary until we find a better solution to the splitter issue
 	//				See SConstrainedBox's trick in cpp file

@@ -575,12 +575,9 @@ void SDataprepDetailsView::OnObjectReplaced(const TMap<UObject*, UObject*>& Repl
 
 void SDataprepDetailsView::ForceRefresh()
 {
-	// Hotfix for 4.24 (Remove the ui flickering)
-	TArray< UObject* > Objects;
-	Objects.Add( DetailedObject );
-	Generator->SetObjects( Objects );
-	Construct();
-	//bRefreshObjectToDisplay = true;
+	// ueent_hotfix Hotfix for 4.24 (Remove the ui flickering)
+	InvalidatePrepass();
+	bRefreshObjectToDisplay = true;
 }
 
 void SDataprepDetailsView::OnDataprepParameterizationStatusForObjectsChanged(const TSet<UObject*>* Objects)
@@ -797,6 +794,7 @@ void SDataprepDetailsView::Construct(const FArguments& InArgs)
 void SDataprepDetailsView::Construct()
 {
 	DataprepAssetForParameterization.Reset();
+	bHasCustomPrepass = true;
 
 	if ( DetailedObject )
 	{
@@ -873,21 +871,6 @@ SDataprepDetailsView::~SDataprepDetailsView()
 	}
 }
 
-void SDataprepDetailsView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
-{
-	Super::Tick( AllottedGeometry, InCurrentTime, InDeltaTime );
-
-	if ( bRefreshObjectToDisplay )
-	{
-		TArray< UObject* > Objects;
-		Objects.Add( DetailedObject );
-		Generator->SetObjects( Objects );
-		 
-		Construct();
-		bRefreshObjectToDisplay = false;
-	}
-}
-
 void SDataprepDetailsView::SetObjectToDisplay(UObject& Object)
 {
 	UObject* NewObjectToDisplay = &Object;
@@ -909,6 +892,19 @@ void SDataprepDetailsView::AddReferencedObjects(FReferenceCollector& Collector)
 	Collector.AddReferencedObjects( TrackedProperties );
 }
 
+bool SDataprepDetailsView::CustomPrepass(float LayoutScaleMultiplier)
+{
+	if ( bRefreshObjectToDisplay )
+	{
+		TArray< UObject* > Objects;
+		Objects.Add( DetailedObject );
+		Generator->SetObjects( Objects );
+		Construct();
+		bRefreshObjectToDisplay = false;
+	}
+
+	return true;
+}
 
 void SDataprepContextMenuOverride::Construct(const FArguments& InArgs)
 {
