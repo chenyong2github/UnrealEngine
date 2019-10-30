@@ -21,6 +21,22 @@ namespace InstallBundleUtil
 		return (StateIn == EInstallBundleContentState::NotInstalled || StateIn == EInstallBundleContentState::NeedsUpdate);
 	}
 
+	const TCHAR* GetInstallBundlePauseReason(EInstallBundlePauseFlags Flags)
+	{
+		// Return the most appropriate reason given the flags
+
+		if (EnumHasAnyFlags(Flags, EInstallBundlePauseFlags::UserPaused))
+			return TEXT("UserPaused");
+
+		if (EnumHasAnyFlags(Flags, EInstallBundlePauseFlags::NoInternetConnection))
+			return TEXT("NoInternetConnection");
+
+		if (EnumHasAnyFlags(Flags, EInstallBundlePauseFlags::OnCellularNetwork))
+			return TEXT("OnCellularNetwork");
+
+		return TEXT("");
+	}
+
 	FName FInstallBundleManagerKeepAwake::Tag(TEXT("InstallBundleManagerKeepAwake"));
 	FName FInstallBundleManagerKeepAwake::TagWithRendering(TEXT("InstallBundleManagerKeepAwakeWithRendering"));
 
