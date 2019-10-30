@@ -314,7 +314,7 @@ bool FSessionService::Tick(float DeltaTime)
 
 void FSessionService::UpdateSessionContext(FStoreSessionHandle StoreHandle, FSessionInfoInternal& Info)
 {
-	if (Info.bIsUpdated)
+	if (Info.bIsUpdated || Info.bIsLive)
 	{
 		return;
 	}
