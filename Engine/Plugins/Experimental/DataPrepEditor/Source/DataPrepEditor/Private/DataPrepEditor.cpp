@@ -413,7 +413,7 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 
 	ActionsContext = MakeShareable( new FDataprepActionContext() );
 
-	ActionsContext->SetTransientContentFolder( GetTransientContentFolder() / TEXT("Pipeline") )
+	ActionsContext->SetTransientContentFolder( GetTransientContentFolder() / DataprepAssetInterfacePtr->GetName() / TEXT("Pipeline") )
 		.SetLogger( TSharedPtr<IDataprepLogger>( new FDataprepCoreUtils::FDataprepLogger ) )
 		.SetCanExecuteNextStep( CanExecuteNextStepFunc )
 		.SetActionsContextChanged( ActionsContextChangedFunc );

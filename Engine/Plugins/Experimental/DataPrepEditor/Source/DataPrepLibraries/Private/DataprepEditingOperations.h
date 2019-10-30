@@ -34,7 +34,7 @@ protected:
 	//~ End UDataprepOperation Interface
 };
 
-UCLASS(Experimental, Category = ObjectOperation, Meta = (DisplayName="Merge Actors", ToolTip = "Merge the meshes into a unique mesh with the provided StaticMeshActors") )
+UCLASS(Experimental, Category = ObjectOperation, Meta = (DisplayName="Merge", ToolTip = "Collect geometry from selected actors and merge them into single mesh.") )
 class UDataprepMergeActorsOperation : public UDataprepEditingOperation
 {
 	GENERATED_BODY()
@@ -53,7 +53,7 @@ public:
 public:
 	virtual FText GetCategory_Implementation() const override
 	{
-		return FDataprepOperationCategories::ObjectOperation;
+		return FDataprepOperationCategories::ActorOperation;
 	}
 
 	/** Settings to use for the merge operation */
@@ -87,14 +87,14 @@ protected:
 	AStaticMeshActor* MergedActor;
 };
 
-UCLASS(Experimental, Category = ObjectOperation, Meta = (DisplayName = "Create Proxy Mesh", ToolTip = "Merge the meshes into a (simplified) proxy mesh"))
+UCLASS(Experimental, Category = ObjectOperation, Meta = (DisplayName = "Create Proxy Mesh", ToolTip = "Collect geometry from selected actors and merge them into single mesh with reduction."))
 class UDataprepCreateProxyMeshOperation : public UDataprepEditingOperation
 {
 	GENERATED_BODY()
 
 public:
 	UDataprepCreateProxyMeshOperation()
-		: ReductionPercent(50.f)
+		: Quality(50.f)
 		, MergedMesh(nullptr)
 		, MergedActor(nullptr)
 	{
@@ -104,7 +104,7 @@ public:
 	//~ Begin UDataprepOperation Interface
 	virtual FText GetCategory_Implementation() const override
 	{
-		return FDataprepOperationCategories::ObjectOperation;
+		return FDataprepOperationCategories::ActorOperation;
 	}
 
 	/** Settings to use for the create proxy operation */
@@ -112,7 +112,7 @@ public:
 	FString NewActorLabel;
 
 	UPROPERTY(EditAnywhere, Category = ProxySettings,  meta = (UIMin = 0, UIMax = 100))
-	float ReductionPercent;
+	float Quality;
 
 protected:
 	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
