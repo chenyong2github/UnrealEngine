@@ -264,6 +264,7 @@ void SNiagaraStack::Construct(const FArguments& InArgs, UNiagaraStackViewModel* 
 			.TreeItemsSource(&StackViewModel->GetRootEntryAsArray())
 			.OnTreeViewScrolled(this, &SNiagaraStack::StackTreeScrolled)
 			.SelectionMode(ESelectionMode::None)
+			.OnItemToString_Debug_Static(&FNiagaraStackEditorWidgetsUtilities::StackEntryToStringForListDebug)
 		]
 	];
 

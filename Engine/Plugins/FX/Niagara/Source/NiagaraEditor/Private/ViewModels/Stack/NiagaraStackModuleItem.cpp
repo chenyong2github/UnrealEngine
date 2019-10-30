@@ -559,6 +559,21 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 				{
 					TArray<FAssetData> ModuleAssets;
 					FNiagaraStackGraphUtilities::GetScriptAssetsByDependencyProvided(ENiagaraScriptUsage::Module, Dependency.Id, ModuleAssets);
+
+					// Find duplicate module names in the fixes so that unique fix descriptions can be generated.
+					TArray<FName> ModuleNames;
+					TArray<FName> DuplicateModuleNames;
+					for (FAssetData ModuleAsset : ModuleAssets)
+					{
+						if (ModuleNames.Contains(ModuleAsset.AssetName))
+						{
+							DuplicateModuleNames.Add(ModuleAsset.AssetName);
+						}
+						else
+						{
+							ModuleNames.Add(ModuleAsset.AssetName);
+						}
+					}
 					for (FAssetData ModuleAsset : ModuleAssets)
 					{
 						UNiagaraScript* DependencyScript = Cast<UNiagaraScript>(ModuleAsset.GetAsset());
@@ -572,7 +587,8 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 							}
 						}
 						
-						FText FixDescription = FText::Format(LOCTEXT("AddDependency", "Add new dependency module {0}"), FText::FromName(ModuleAsset.AssetName));
+						FText AssetNameText = DuplicateModuleNames.Contains(ModuleAsset.AssetName) ? FText::FromName(ModuleAsset.PackageName) : FText::FromName(ModuleAsset.AssetName);
+						FText FixDescription = FText::Format(LOCTEXT("AddDependency", "Add new dependency module {0}"), AssetNameText);
 						UNiagaraStackEntry::FStackIssueFix Fix(
 							FixDescription,
 							FStackIssueFixDelegate::CreateLambda([=]()
