@@ -3,7 +3,7 @@
 #include "Parameterization/DataprepParameterization.h"
 
 #include "DataPrepAsset.h"
-#include "DataPrepAssetInstance.h"
+#include "DataprepAssetInstance.h"
 #include "DataprepParameterizableObject.h"
 #include "DataprepParameterizationArchive.h"
 #include "Parameterization/DataprepParameterizationUtils.h"
