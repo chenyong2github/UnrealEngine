@@ -2,6 +2,8 @@
 #pragma once
 
 #include "MoviePipelineSetting.h"
+#include "GameFramework/GameModeBase.h"
+#include "Templates/SubclassOf.h"
 #include "MoviePipelineGameOverrideSetting.generated.h"
 
 // Forward Declares
