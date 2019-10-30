@@ -1022,17 +1022,18 @@ static void AddHairVisibilityPPLLPass(
 
 	const uint32 MaxNodeCount = GetMaxNodePerPixel(Resolution);
 	{
-		// Example: 20bytes * 8spp = 160bytes per pixel = 316.4Mb @ 1080p
-		struct NodeData
+		// Example: 24bytes * 8spp = 192bytes per pixel = 379Mb @ 1080p
+		struct PPLLNodeData
 		{
 			uint32 Depth;
 			uint32 PrimitiveId_ClusterId;
 			uint32 Tangent_Coverage;
 			uint32 BaseColor_Roughness;
+			uint32 Specular;
 			uint32 NextNodeIndex;
 		};
 
-		VisibilityPPLLNodeData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(NodeData), MaxNodeCount), TEXT("HairVisibilityPPLLNodeData"));
+		VisibilityPPLLNodeData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(PPLLNodeData), MaxNodeCount), TEXT("HairVisibilityPPLLNodeData"));
 	}
 	AddClearUAVPass(GraphBuilder, RDG_EVENT_NAME("ClearHairVisibilityPPLLCounter"), VisibilityPPLLNodeCounter, 0);
 	AddClearUAVPass(GraphBuilder, RDG_EVENT_NAME("ClearHairVisibilityPPLLNodeIndex"), VisibilityPPLLNodeIndex, 0xFFFFFFFF);
