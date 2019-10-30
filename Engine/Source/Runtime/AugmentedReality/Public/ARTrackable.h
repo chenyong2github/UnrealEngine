@@ -346,7 +346,7 @@ public:
 
 	UE_DEPRECATED(4.21, "This property is now deprecated, please use GetTrackingState() and check for EARTrackingState::Tracking or IsTracked() instead.")
 	/** Whether the face is currently being tracked by the AR system */
-	UPROPERTY(BlueprintReadOnly, Category="AR AugmentedReality|Face Geometry")
+	UPROPERTY(BlueprintReadOnly, Category="AR AugmentedReality|Face Geometry", meta=(Deprecated, DeprecationMessage = "This property is now deprecated, please use GetTrackingState() and check for EARTrackingState::Tracking or IsTracked() instead."))
 	bool bIsTracked;
 
 private:
