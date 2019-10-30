@@ -5,19 +5,6 @@
 #include "Trace/Config.h"
 
 ////////////////////////////////////////////////////////////////////////////////
-namespace Trace
-{
-
-enum class ETransport : uint8
-{
-	_Unused		= 0,
-	Raw			= 1,
-	Packet		= 2,
-};
-
-} // namespace Trace
-
-////////////////////////////////////////////////////////////////////////////////
 #if UE_TRACE_ENABLED
 #	define TRACE_PRIVATE_PROTOCOL_0
 #endif
@@ -32,3 +19,16 @@ enum class ETransport : uint8
 #if defined(_MSC_VER)
 	#pragma warning(pop)
 #endif
+
+////////////////////////////////////////////////////////////////////////////////
+namespace Trace
+{
+
+enum class ETransport : uint8
+{
+	_Unused		= 0,
+	Raw			= 1,
+	Packet		= 2,
+};
+
+} // namespace Trace
