@@ -488,6 +488,7 @@ int32 ReportCrashForMonitor(
 	bool bNoDialog = ReportUI == EErrorReportUI::ReportInUnattendedMode || IsRunningDedicatedServer();
 	bool bSendUnattendedBugReports = true;
 	bool bSendUsageData = true;
+	bool bCanSendCrashReport = true;
 
 	if (FCommandLine::IsInitialized())
 	{
@@ -498,6 +499,18 @@ int32 ReportCrashForMonitor(
 	{
 		GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), bSendUnattendedBugReports, GEditorSettingsIni);
 		GConfig->GetBool(TEXT("/Script/UnrealEd.AnalyticsPrivacySettings"), TEXT("bSendUsageData"), bSendUsageData, GEditorSettingsIni);
+	}
+
+	if (bNoDialog && !bSendUnattendedBugReports)
+	{
+		// If we shouldn't display a dialog (like for ensures) and the user
+		// does not allow unattended bug reports we cannot send the report.
+		bCanSendCrashReport = false;
+	}
+
+	if (!bSendUnattendedBugReports)
+	{
+		return EXCEPTION_CONTINUE_EXECUTION;
 	}
 
 	SharedContext->UserSettings.bNoDialog = bNoDialog;
