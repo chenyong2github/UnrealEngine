@@ -685,7 +685,8 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 					continue;
 				}
 
-				if (View.bIsReflectionCapture && !SceneInfo->bIsVisibleInReflectionCaptures)
+				if ((View.bIsReflectionCapture && !SceneInfo->bIsVisibleInReflectionCaptures)
+					|| View.bIsSceneCapture)
 				{
 					continue;
 				}
