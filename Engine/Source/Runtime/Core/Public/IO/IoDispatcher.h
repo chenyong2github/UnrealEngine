@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/UnrealString.h"
+#include "Logging/LogMacros.h"
 #include "Misc/StringView.h"
 #include "Misc/StringBuilder.h"
 #include "Templates/RefCounting.h"
@@ -30,6 +31,8 @@ class FIoBatchImpl;
 class FIoDispatcherImpl;
 class FIoStoreReaderImpl;
 class FIoStoreWriterImpl;
+
+CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogIoDispatcher, Log, All);
 
 /*
  * I/O error code.
@@ -61,6 +64,7 @@ public:
 	CORE_API			FIoStatus(EIoErrorCode Code, const FStringView& InErrorMessage);
 	CORE_API			FIoStatus(EIoErrorCode Code);
 	CORE_API FIoStatus&	operator=(const FIoStatus& Other);
+	CORE_API FIoStatus&	operator=(const EIoErrorCode InErrorCode);
 
 	CORE_API bool		operator==(const FIoStatus& Other) const;
 			 bool		operator!=(const FIoStatus& Other) const { return !operator==(Other); }
@@ -75,7 +79,7 @@ public:
 	CORE_API static const FIoStatus Invalid;
 
 private:
-	static constexpr int32 MaxErrorMessageLength = 256;
+	static constexpr int32 MaxErrorMessageLength = 128;
 	using FErrorMessage = TCHAR[MaxErrorMessageLength];
 
 	EIoErrorCode	ErrorCode = EIoErrorCode::Ok;
@@ -155,12 +159,13 @@ CORE_API void StatusOrCrash(const FIoStatus& Status);
 template<typename T>
 void TIoStatusOr<T>::Reset()
 {
-	if (StatusValue.IsOk())
+	EIoErrorCode ErrorCode = StatusValue.GetErrorCode();
+	StatusValue = EIoErrorCode::Unknown;
+
+	if (ErrorCode == EIoErrorCode::Ok)
 	{
 		((T*)&Value)->~T();
 	}
-
-	StatusValue = FIoStatus::Unknown;
 }
 
 template<typename T>
@@ -204,6 +209,7 @@ TIoStatusOr<T>::TIoStatusOr(TIoStatusOr&& Other)
 	if (StatusValue.IsOk())
 	{
 		new(&Value) T(MoveTempIfPossible(*(T*)&Other.Value));
+		Other.StatusValue = EIoErrorCode::Unknown;
 	}
 }
 
@@ -261,11 +267,15 @@ TIoStatusOr<T>::operator=(const TIoStatusOr<T>& Other)
 	if (&Other != this)
 	{
 		Reset();
-		StatusValue = Other.StatusValue;
 
-		if (StatusValue.IsOk())
+		if (Other.StatusValue.IsOk())
 		{
 			new(&Value) T(*(const T*)&Other.Value);
+			StatusValue = EIoErrorCode::Ok;
+		}
+		else
+		{
+			StatusValue = Other.StatusValue;
 		}
 	}
 
@@ -279,11 +289,16 @@ TIoStatusOr<T>::operator=(TIoStatusOr<T>&& Other)
 	if (&Other != this)
 	{
 		Reset();
-		StatusValue = Other.StatusValue;
  
-		if (StatusValue.IsOk())
+		if (Other.StatusValue.IsOk())
 		{
 			new(&Value) T(MoveTempIfPossible(*(T*)&Other.Value));
+			Other.StatusValue = EIoErrorCode::Unknown;
+			StatusValue = EIoErrorCode::Ok;
+		}
+		else
+		{
+			StatusValue = Other.StatusValue;
 		}
 	}
 
@@ -310,8 +325,8 @@ TIoStatusOr<T>::operator=(const T& OtherValue)
 	{
 		Reset();
 		
-		StatusValue = FIoStatus::Ok;
 		new(&Value) T(OtherValue);
+		StatusValue = EIoErrorCode::Ok;
 	}
 
 	return *this;
@@ -325,8 +340,8 @@ TIoStatusOr<T>::operator=(T&& OtherValue)
 	{
 		Reset();
 		
-		StatusValue = FIoStatus::Ok;
 		new(&Value) T(MoveTempIfPossible(OtherValue));
+		StatusValue = EIoErrorCode::Ok;
 	}
 
 	return *this;
@@ -349,11 +364,14 @@ TIoStatusOr<T>& TIoStatusOr<T>::operator=(const TIoStatusOr<U>& Other)
 {
 	Reset();
 
-	StatusValue = Other.StatusValue;
-
-	if (StatusValue.IsOk())
+	if (Other.StatusValue.IsOk())
 	{
 		new(&Value) T(*(const U*)&Other.Value);
+		StatusValue = EIoErrorCode::Ok;
+	}
+	else
+	{
+		StatusValue = Other.StatusValue;
 	}
 
 	return *this;

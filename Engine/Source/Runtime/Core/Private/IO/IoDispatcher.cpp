@@ -3,13 +3,10 @@
 #include "IO/IoDispatcher.h"
 #include "IO/IoStore.h"
 #include "Async/MappedFileHandle.h"
-#include "Containers/ChunkedArray.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/FileManager.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
-#include "Logging/LogMacros.h"
-#include "Memory/MemoryArena.h"
 #include "Misc/CString.h"
 #include "Misc/EventPool.h"
 #include "Misc/ScopeRWLock.h"
@@ -22,7 +19,7 @@
 
 #define IODISPATCHER_TRACE_ENABLED !UE_BUILD_SHIPPING
 
-DEFINE_LOG_CATEGORY_STATIC(LogIoDispatch, Log, All);
+DEFINE_LOG_CATEGORY(LogIoDispatcher);
 
 const FIoChunkId FIoChunkId::InvalidChunkId = FIoChunkId::CreateEmptyId();
 

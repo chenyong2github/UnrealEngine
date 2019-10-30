@@ -54,8 +54,7 @@ FIoStatus::FIoStatus(EIoErrorCode Code, const FStringView& InErrorMessage)
 	ErrorMessage[ErrorMessageLength] = 0;
 }
 
-FIoStatus& 
-FIoStatus::operator=(const FIoStatus& Other)
+FIoStatus& FIoStatus::operator=(const FIoStatus& Other)
 {
 	ErrorCode = Other.ErrorCode;
 	FMemory::Memcpy(ErrorMessage, Other.ErrorMessage, MaxErrorMessageLength * sizeof(TCHAR));
@@ -63,22 +62,28 @@ FIoStatus::operator=(const FIoStatus& Other)
 	return *this;
 }
 
-bool		
-FIoStatus::operator==(const FIoStatus& Other) const
+FIoStatus& FIoStatus::operator=(const EIoErrorCode InErrorCode)
+{
+	ErrorCode = InErrorCode;
+	ErrorMessage[0] = 0;
+
+	return *this;
+}
+
+bool FIoStatus::operator==(const FIoStatus& Other) const
 {
 	return ErrorCode == Other.ErrorCode &&
 		FPlatformString::Stricmp(ErrorMessage, Other.ErrorMessage) == 0;
 }
 
-FString	
-FIoStatus::ToString() const
+FString FIoStatus::ToString() const
 {
 	return FString::Format(TEXT("{0} ({1})"), { ErrorMessage, GetIoErrorText(ErrorCode) });
 }
 
 void StatusOrCrash(const FIoStatus& Status)
 {
-	// TODO
+	UE_LOG(LogIoDispatcher, Fatal, TEXT("I/O Error '%s'"), *Status.ToString());
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -103,8 +108,7 @@ FIoStatusBuilder::operator FIoStatus()
 	return FIoStatus(StatusCode, Message);
 }
 
-FIoStatusBuilder& 
-FIoStatusBuilder::operator<<(FStringView String)
+FIoStatusBuilder& FIoStatusBuilder::operator<<(FStringView String)
 {
 	Message.Append(String.Data(), String.Len());
 
