@@ -5,6 +5,7 @@
 #include "UObject/SoftObjectPath.h"
 #include "MoviePipelineSetting.h"
 #include "Engine/EngineTypes.h"
+#include "Misc/FrameRate.h"
 
 #include "MoviePipelineShotConfig.generated.h"
 

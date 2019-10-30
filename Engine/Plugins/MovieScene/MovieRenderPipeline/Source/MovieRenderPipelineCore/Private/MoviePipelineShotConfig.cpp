@@ -4,6 +4,7 @@
 #include "MoviePipelineSetting.h"
 #include "MoviePipelineRenderPass.h"
 #include "MoviePipelineOutput.h"
+#include "Misc/FrameRate.h"
 
 #define LOCTEXT_NAMESPACE "MovieRenderShotConfig"
 

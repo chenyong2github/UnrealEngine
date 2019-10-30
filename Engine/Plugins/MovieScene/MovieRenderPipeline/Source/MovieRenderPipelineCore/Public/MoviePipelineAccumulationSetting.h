@@ -2,6 +2,7 @@
 #pragma once
 
 #include "MoviePipelineSetting.h"
+#include "MovieRenderPipelineDataTypes.h"
 #include "MoviePipelineAccumulationSetting.generated.h"
 
 

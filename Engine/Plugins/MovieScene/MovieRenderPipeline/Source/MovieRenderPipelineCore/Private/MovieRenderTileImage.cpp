@@ -7,6 +7,7 @@
 
 #include "MovieRenderPipelineCoreModule.h"
 #include "Math/Float16.h"
+#include "HAL/PlatformTime.h"
 
 void FImageTilePlane::Init(int32 InSizeX, int32 InSizeY)
 {

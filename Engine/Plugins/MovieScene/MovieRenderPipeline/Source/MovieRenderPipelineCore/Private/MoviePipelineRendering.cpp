@@ -9,6 +9,7 @@
 #include "MoviePipelineShotConfig.h"
 #include "MoviePipelineRenderPass.h"
 #include "MoviePipelineOutputBuilder.h"
+#include "RenderingThread.h"
 
 void UMoviePipeline::SetupRenderingPipelineForShot(FMoviePipelineShotCache& Shot)
 {
