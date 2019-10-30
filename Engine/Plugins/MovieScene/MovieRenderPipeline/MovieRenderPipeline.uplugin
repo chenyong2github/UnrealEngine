@@ -1,0 +1,41 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Movie Render Pipeline",
+	"Description": "Advanced movie rendering pipeline for use in creating rendered cinematics or other multi-media creation.",
+	"Category": "Scripting",
+	"CreatedBy": "Epic Games Inc.",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": true,
+	"IsBetaVersion": true,
+	"Installed": false,
+	"EnabledByDefault": true,
+	"Plugins": [
+	],
+	"Modules": [
+		{
+			"Name": "MovieRenderPipelineCore",
+			"Type": "DeveloperTool",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "MovieRenderPipelineSettings",
+			"Type": "DeveloperTool",
+			"LoadingPhase": "Default"
+		}, 
+		{
+			"Name" : "MovieRenderPipelineRenderPasses",
+			"Type": "DeveloperTool",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "MovieRenderPipelineEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		}
+	]
+}

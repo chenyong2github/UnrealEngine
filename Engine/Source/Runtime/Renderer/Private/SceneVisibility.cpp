@@ -3406,8 +3406,8 @@ void FSceneViewState::UpdateMotionBlurTimeScale(const FViewInfo& View)
 {
 	const int32 MotionBlurTargetFPS = View.FinalPostProcessSettings.MotionBlurTargetFPS;
 
-	// Frame rates over 120 FPS are clamped to avoid creating huge motion vectors.
-	float DeltaWorldTime = FMath::Max(View.Family->DeltaWorldTime, 1.0f / 120.0f);
+	// Ensure we can divide by the Delta Time later without a divide by zero.
+	float DeltaWorldTime = FMath::Max(View.Family->DeltaWorldTime, SMALL_NUMBER);
 
 	// Track the current FPS by using an exponential moving average of the current delta time.
 	if (MotionBlurTargetFPS <= 0)

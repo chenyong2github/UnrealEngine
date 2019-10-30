@@ -62,7 +62,7 @@ struct FMediaImagePixelData : FImagePixelData
 		, ERGBFormat InPixelLayout
 		, uint8 InBitDepth
 		, uint8 InNumChannels)
-		: FImagePixelData(InSize, InPixelType, InPixelLayout, InBitDepth, InNumChannels)
+		: FImagePixelData(InSize, InPixelType, InPixelLayout, InBitDepth, InNumChannels, nullptr)
 		, Sample(InSample)
 	{
 	}

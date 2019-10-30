@@ -929,6 +929,9 @@ public:
 	FVector4 NormalOverrideParameter;
 	FVector2D RoughnessOverrideParameter;
 
+	/** Mip bias to apply in material's samplers. */
+	float MaterialTextureMipBias;
+
 	/** The primitives which are hidden for this view. */
 	TSet<FPrimitiveComponentId> HiddenPrimitives;
 

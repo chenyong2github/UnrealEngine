@@ -18,6 +18,13 @@ enum class EImagePixelType
 	Float32,
 };
 
+struct IImagePixelDataPayload
+{
+	virtual ~IImagePixelDataPayload() {}
+};
+
+typedef TSharedPtr<IImagePixelDataPayload, ESPMode::ThreadSafe> FImagePixelPayloadPtr;
+
 struct FImagePixelData
 {
 	virtual ~FImagePixelData() {}
@@ -83,7 +90,8 @@ struct FImagePixelData
 
 		RetrieveData(RawPtr, SizeBytes);
 
-		if (RawPtr && SizeBytes == Size.X*Size.Y*BitDepth/8*NumChannels)
+		int64 FoundTotalSize = int64(Size.X)*int64(Size.Y)*int64(BitDepth / 8)*int64(NumChannels);
+		if (RawPtr && SizeBytes == FoundTotalSize)
 		{
 			OutRawData = RawPtr;
 			OutSizeBytes = SizeBytes;
@@ -108,14 +116,21 @@ struct FImagePixelData
 		return Move();
 	}
 
+	/**
+	* Return a pointer to the Payload stored in this data.
+	*/
+	template<typename T>
+	T* GetPayload() { return static_cast<T*>(Payload.Get()); }
+
 protected:
 
-	FImagePixelData(const FIntPoint& InSize, EImagePixelType InPixelType, ERGBFormat InPixelLayout, uint8 InBitDepth, uint8 InNumChannels)
+	FImagePixelData(const FIntPoint& InSize, EImagePixelType InPixelType, ERGBFormat InPixelLayout, uint8 InBitDepth, uint8 InNumChannels, FImagePixelPayloadPtr InPayload)
 		: Size(InSize)
 		, Type(InPixelType)
 		, PixelLayout(InPixelLayout)
 		, BitDepth(InBitDepth)
 		, NumChannels(InNumChannels)
+		, Payload(InPayload)
 	{}
 
 private:
@@ -141,6 +156,9 @@ private:
 
 	/** Number of channels in the data */
 	uint8 NumChannels;
+
+	/** Optional user-specified payload */
+	FImagePixelPayloadPtr Payload;
 };
 
 /**
@@ -152,11 +170,20 @@ struct TImagePixelData : FImagePixelData
 	TArray<PixelType> Pixels;
 
 	TImagePixelData(const FIntPoint& InSize)
-		: FImagePixelData(InSize, TImagePixelDataTraits<PixelType>::PixelType, TImagePixelDataTraits<PixelType>::PixelLayout, TImagePixelDataTraits<PixelType>::BitDepth, TImagePixelDataTraits<PixelType>::NumChannels)
+		: FImagePixelData(InSize, TImagePixelDataTraits<PixelType>::PixelType, TImagePixelDataTraits<PixelType>::PixelLayout, TImagePixelDataTraits<PixelType>::BitDepth, TImagePixelDataTraits<PixelType>::NumChannels, nullptr)
 	{}
 
 	TImagePixelData(const FIntPoint& InSize, TArray<PixelType>&& InPixels)
-		: FImagePixelData(InSize, TImagePixelDataTraits<PixelType>::PixelType, TImagePixelDataTraits<PixelType>::PixelLayout, TImagePixelDataTraits<PixelType>::BitDepth, TImagePixelDataTraits<PixelType>::NumChannels)
+		: FImagePixelData(InSize, TImagePixelDataTraits<PixelType>::PixelType, TImagePixelDataTraits<PixelType>::PixelLayout, TImagePixelDataTraits<PixelType>::BitDepth, TImagePixelDataTraits<PixelType>::NumChannels, nullptr)
+		, Pixels(MoveTemp(InPixels))
+	{}
+
+	TImagePixelData(const FIntPoint& InSize, FImagePixelPayloadPtr InPayload)
+		: FImagePixelData(InSize, TImagePixelDataTraits<PixelType>::PixelType, TImagePixelDataTraits<PixelType>::PixelLayout, TImagePixelDataTraits<PixelType>::BitDepth, TImagePixelDataTraits<PixelType>::NumChannels, InPayload)
+	{}
+
+	TImagePixelData(const FIntPoint& InSize, TArray<PixelType>&& InPixels, FImagePixelPayloadPtr InPayload)
+		: FImagePixelData(InSize, TImagePixelDataTraits<PixelType>::PixelType, TImagePixelDataTraits<PixelType>::PixelLayout, TImagePixelDataTraits<PixelType>::BitDepth, TImagePixelDataTraits<PixelType>::NumChannels, InPayload)
 		, Pixels(MoveTemp(InPixels))
 	{}
 

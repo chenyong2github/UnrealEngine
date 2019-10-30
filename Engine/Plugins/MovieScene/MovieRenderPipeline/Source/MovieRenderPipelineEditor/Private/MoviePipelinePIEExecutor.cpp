@@ -1,0 +1,132 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+#include "MoviePipelinePIEExecutor.h"
+#include "Settings/LevelEditorPlaySettings.h"
+#include "MovieRenderPipelineCoreModule.h"
+#include "MovieRenderPipelineConfig.h"
+#include "MoviePipelineShotConfig.h"
+#include "MoviePipelineSeparateProcessSetting.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Editor/EditorEngine.h"
+#include "Editor.h"
+#include "MoviePipelineGameOverrideSetting.h"
+#include "MovieRenderPipelineDataTypes.h"
+#include "MoviePipeline.h"
+#include "MovieRenderPipelineSettings.h"
+
+#define LOCTEXT_NAMESPACE "MoviePipelinePIEExecutor"
+
+FText UMoviePipelinePIEExecutor::GetWindowTitle(const int32 InConfigIndex, const int32 InNumConfigs) const
+{
+	FNumberFormattingOptions PercentFormatOptions;
+	PercentFormatOptions.MinimumIntegralDigits = 2;
+	PercentFormatOptions.MaximumIntegralDigits = 3;
+
+	FText TitleFormatString = LOCTEXT("MoviePreviewWindowTitleFormat", "Movie Pipeline Render (Preview) [{CurrentCount}/{TotalCount} Total] {PercentComplete}% Completed.");
+	FText WindowTitle = FText::FormatNamed(TitleFormatString, TEXT("CurrentCount"), FText::AsNumber(InConfigIndex + 1), TEXT("TotalCount"), FText::AsNumber(InNumConfigs), TEXT("PercentComplete"), FText::AsNumber(12.f, &PercentFormatOptions));
+	return WindowTitle;
+}
+
+void UMoviePipelinePIEExecutor::Start(UMovieRenderPipelineConfig* InConfig, const int32 InConfigIndex, const int32 InNumConfigs)
+{
+	Super::Start(InConfig, InConfigIndex, InNumConfigs);
+
+	ActiveConfig = InConfig;
+
+	// Create a Slate window to hold our preview.
+	TSharedRef<SWindow> CustomWindow = SNew(SWindow)
+		.Title_UObject(this, &UMoviePipelinePIEExecutor::GetWindowTitle, InConfigIndex, InNumConfigs)
+		.ClientSize(FVector2D(1280, 720))
+		.AutoCenter(EAutoCenter::PrimaryWorkArea)
+		.UseOSWindowBorder(true)
+		.FocusWhenFirstShown(false)
+		.ActivationPolicy(EWindowActivationPolicy::Never)
+		.HasCloseButton(true)
+		.SupportsMaximize(false)
+		.SupportsMinimize(true)
+		.SizingRule(ESizingRule::UserSized);
+
+	FSlateApplication::Get().AddWindow(CustomWindow);
+
+	// Initialize our own copy of the Editor Play settings which we will adjust defaults on.
+	ULevelEditorPlaySettings* PlayInEditorSettings = NewObject<ULevelEditorPlaySettings>();
+	PlayInEditorSettings->SetPlayNetMode(EPlayNetMode::PIE_Standalone);
+	PlayInEditorSettings->SetPlayNumberOfClients(1);
+	PlayInEditorSettings->bLaunchSeparateServer = false;
+
+	FRequestPlaySessionParams Params;
+	Params.EditorPlaySettings = PlayInEditorSettings;
+	Params.CustomPIEWindow = CustomWindow;
+
+	UMoviePipelineGameOverrideSetting* GameOverrides = InConfig->DefaultShotConfig->FindSetting<UMoviePipelineGameOverrideSetting>();
+	if (GameOverrides)
+	{
+		Params.GameModeOverride = GameOverrides->GameModeOverride;
+	}
+
+	// Kick off an async request to start a play session. This won't happen until the next frame.
+	GEditor->RequestPlaySession(Params);
+
+	// Listen for PIE startup since there's no current way to pass a delegate through the request.
+	FEditorDelegates::PostPIEStarted.AddUObject(this, &UMoviePipelinePIEExecutor::OnPIEStartupFinished);
+}
+
+void UMoviePipelinePIEExecutor::OnPIEStartupFinished(bool)
+{
+	// Immediately un-bind our delegate so that we don't catch all PIE startup requests in the future.
+	FEditorDelegates::PostPIEStarted.RemoveAll(this);
+
+
+	// Hack to find out the PIE world since it is not provided by the delegate.
+	UWorld* ExecutingWorld = nullptr;
+	
+	for (const FWorldContext& Context : GEngine->GetWorldContexts())
+	{
+		if (Context.WorldType == EWorldType::PIE)
+		{
+			ExecutingWorld = Context.World();
+		}
+	}
+	
+	check(ExecutingWorld);
+
+	// Allow the user to have overridden which Pipeline is actually run. This is an unlikely scenario but allows
+	// the user to create their own implementation while still re-using the rest of our UI and infrastructure.
+	const UMovieRenderPipelineProjectSettings* ProjectSettings = GetDefault<UMovieRenderPipelineProjectSettings>();
+	TSubclassOf<UMoviePipeline> PipelineClass = ProjectSettings->DefaultPipeline;
+
+	// This Pipeline belongs to the world being created so that they have context for things they execute.
+	ActiveMoviePipeline = NewObject<UMoviePipeline>(ExecutingWorld, PipelineClass);
+	
+	ActiveMoviePipeline->Initialize(ActiveConfig);
+
+	// Listen for when the pipeline thinks it has finished.
+	ActiveMoviePipeline->OnMoviePipelineFinished().AddUObject(this, &UMoviePipelinePIEExecutor::OnPIEMoviePipelineFinished);
+}
+
+void UMoviePipelinePIEExecutor::OnPIEMoviePipelineFinished(UMoviePipeline* InMoviePipeline)
+{
+	if (ActiveMoviePipeline)
+	{
+		// Unsubscribe in the event that it gets called twice we don't have issues.
+		ActiveMoviePipeline->OnMoviePipelineFinished().RemoveAll(this);
+	}
+
+	// The End Play will happen on the next frame.
+	GEditor->RequestEndPlayMap();
+
+	// Delay for one frame so that PIE can finish shut down. It's not a huge fan of us starting up on the same frame.
+	FTimerHandle Handle;
+	GEditor->GetTimerManager()->SetTimer(Handle, FTimerDelegate::CreateUObject(this, &UMoviePipelinePIEExecutor::DelayedFinishNotification), 1.f, false);
+}
+
+void UMoviePipelinePIEExecutor::DelayedFinishNotification()
+{
+	// Now that another frame has passed and we should be OK to start another PIE session, notify our owner.
+	OnIndividualPipelineFinished(ActiveMoviePipeline);
+	
+
+	ActiveMoviePipeline = nullptr;
+	ActiveConfig = nullptr;
+}
+
+#undef LOCTEXT_NAMESPACE // "MoviePipelinePIEExecutor"
