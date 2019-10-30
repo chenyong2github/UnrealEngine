@@ -24,20 +24,44 @@ struct FWriteBuffer
 	uint32				ThreadId;
 };
 
-////////////////////////////////////////////////////////////////////////////////
-extern TRACELOG_API void* volatile	GLastEvent;
-TRACELOG_API uint8*					Writer_NextBuffer(uint16);
-TRACELOG_API FWriteBuffer*			Writer_GetBuffer();
 
+
+////////////////////////////////////////////////////////////////////////////////
+struct FWriteTlsContext
+{
+							FWriteTlsContext();
+	bool					HasValidBuffer() const;
+	void					SetBuffer(FWriteBuffer*);
+	uint32					GetThreadId() const;
+	FWriteBuffer*			GetBuffer() const { return Buffer; }
+
+private:
+	FWriteBuffer*			Buffer;
+	uint32					ThreadId;
+	static uint8			DefaultBuffer[sizeof(FWriteBuffer)];
+	static UPTRINT volatile	ThreadIdCounter;
+};
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+extern TRACELOG_API void* volatile		GLastEvent;
+TRACELOG_API uint8*						Writer_NextBuffer(uint16);
+
+////////////////////////////////////////////////////////////////////////////////
 #if IS_MONOLITHIC
-extern thread_local FWriteBuffer* GWriteBuffer;
+extern thread_local FWriteTlsContext TlsContext;
 inline FWriteBuffer* Writer_GetBuffer()
 {
-	return GWriteBuffer;
+	return TlsContext.GetBuffer();
 }
+#else
+TRACELOG_API FWriteBuffer* Writer_GetBuffer();
 #endif
 
 } // Private
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 inline uint8* Writer_BeginLog(uint16 EventUid, uint16 Size)
