@@ -355,6 +355,7 @@ void UAddPrimitiveTool::UpdatePreviewMesh()
 
 void UAddPrimitiveTool::OnClicked(const FInputDeviceRay& DeviceClickPos)
 {
+#if WITH_EDITOR
 	const UEnum* const MakeMeshShapeTypeEnum = StaticEnum<EMakeMeshShapeType>();		
 	FString ShapeTypeName = MakeMeshShapeTypeEnum->GetNameStringByValue((int64)ShapeSettings->Shape);
 	UMaterialInterface* Material = PreviewMesh->GetMaterial();
@@ -379,8 +380,6 @@ void UAddPrimitiveTool::OnClicked(const FInputDeviceRay& DeviceClickPos)
 		return;
 	}
 
-
-#if WITH_EDITOR
 	const FDynamicMesh3* CurMesh = PreviewMesh->GetPreviewDynamicMesh();
 	FTransform3d CurTransform(PreviewMesh->GetTransform());
 	
