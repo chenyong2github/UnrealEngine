@@ -18,6 +18,7 @@ limitations under the License.
 
 #include <algorithm>
 #include <string>
+#include <memory>
 
 #include "base/integral_types.h"
 #include "base/logging.h"
