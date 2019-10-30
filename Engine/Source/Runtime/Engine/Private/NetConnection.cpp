@@ -3746,7 +3746,21 @@ void UNetConnection::SendChallengeControlMessage(const FEncryptionKeyResponse& R
 	{
 		if (Response.Response == EEncryptionResponse::Success)
 		{
-			EnableEncryptionServer(Response.EncryptionData);
+			// handle deprecated path where only the key is set
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			if ((Response.EncryptionKey.Num() > 0) && (Response.EncryptionData.Key.Num() == 0))
+			{
+				FEncryptionData ResponseData = Response.EncryptionData;
+				ResponseData.Key = Response.EncryptionKey;
+
+				EnableEncryptionServer(ResponseData);
+			}
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			else
+			{
+				EnableEncryptionServer(Response.EncryptionData);
+			}
+
 			SendChallengeControlMessage();
 		}
 		else
