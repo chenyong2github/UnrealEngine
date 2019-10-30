@@ -257,7 +257,7 @@ void WaterTileVS(
 	uint TileData = TileListData[InstanceId.x];
 	uint2 TileOrigin = uint2((TileData & 0x0000FFFF) * WORK_TILE_SIZE, (TileData >> 16) * WORK_TILE_SIZE);
 
-	uint2 TileVertex = TileOrigin + View.ViewRectMin.xy;
+	uint2 TileVertex = TileOrigin;
 	TileVertex.x += VertexId == 1 || VertexId == 2 || VertexId == 4 ? WORK_TILE_SIZE : 0;
 	TileVertex.y += VertexId == 2 || VertexId == 4 || VertexId == 5 ? WORK_TILE_SIZE : 0;
 

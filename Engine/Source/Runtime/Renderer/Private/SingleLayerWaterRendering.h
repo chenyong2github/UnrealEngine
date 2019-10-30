@@ -17,7 +17,13 @@ struct FSingleLayerWaterPassData
 {
 	TRefCountPtr<IPooledRenderTarget> SceneColorWithoutSingleLayerWater;
 	TRefCountPtr<IPooledRenderTarget> SceneDepthWithoutSingleLayerWater;
-	FVector2D SceneWithoutSingleLayerWaterMaxUV;
+
+	struct FSingleLayerWaterPassViewData
+	{
+		FVector2D SceneWithoutSingleLayerWaterMaxUV;
+	};
+
+	TArray<FSingleLayerWaterPassViewData> ViewData;
 };
 
 class FSingleLayerWaterPassMeshProcessor : public FMeshPassProcessor

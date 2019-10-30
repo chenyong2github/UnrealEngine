@@ -2344,6 +2344,13 @@ namespace ObjectTools
 			{
 				MorphTarget->BaseSkelMesh->UnregisterMorphTarget(MorphTarget);
 			}
+
+			// @todo Hack for 4.23.2 since public headers can't be touched.
+			// Worlds get hooked on by a lot of external non-uobject system through GCObject, call World cleanup to fire delegates to tell them to unhook and release reference
+			if (UWorld* World = Cast<UWorld>(ObjectToDelete))
+			{
+				World->CleanupWorld();
+			}
 		}
 
 		if ( bPerformReferenceCheck )
@@ -2396,7 +2403,7 @@ namespace ObjectTools
 		return true;
 	}
 
-	static void RecursiveRetrieveReferencers(UObject* Object, TSet<UObject*>& ReferencingObjects)
+	static void RecursiveRetrieveReferencers(UObject* Object, TSet<FWeakObjectPtr>& ReferencingObjects)
 	{
 		TArray<FReferencerInformation> ExternalReferencers;
 		Object->RetrieveReferencers(nullptr /* internal refs */, &ExternalReferencers);
@@ -2438,7 +2445,7 @@ namespace ObjectTools
 		}
 
 		// Recursively find all references to objects being deleted
-		TSet<UObject*> ReferencingObjects;
+		TSet<FWeakObjectPtr> ReferencingObjects;
 		for (UObject* ToDelete : InObjectsToDelete)
 		{
 			ReferencingObjects.Add(ToDelete);
@@ -2448,8 +2455,9 @@ namespace ObjectTools
 
 		// Attempt to close all editors referencing any of the deleted objects
 		bool bClosedAllEditors = true;
-		for (UObject* Object : ReferencingObjects)
+		for (const FWeakObjectPtr& ObjectPtr : ReferencingObjects)
 		{
+			UObject* Object = ObjectPtr.Get();
 			if (Object != nullptr && Object->IsAsset())
 			{
 				TArray<IAssetEditorInstance*> ObjectEditors = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorsForAssetAndSubObjects(Object);

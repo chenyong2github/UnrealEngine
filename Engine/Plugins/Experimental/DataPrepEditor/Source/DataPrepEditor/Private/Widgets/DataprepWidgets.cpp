@@ -575,6 +575,8 @@ void SDataprepDetailsView::OnObjectReplaced(const TMap<UObject*, UObject*>& Repl
 
 void SDataprepDetailsView::ForceRefresh()
 {
+	// ueent_hotfix Hotfix for 4.24 (Remove the ui flickering)
+	InvalidatePrepass();
 	bRefreshObjectToDisplay = true;
 }
 
@@ -792,13 +794,14 @@ void SDataprepDetailsView::Construct(const FArguments& InArgs)
 void SDataprepDetailsView::Construct()
 {
 	DataprepAssetForParameterization.Reset();
+	bHasCustomPrepass = true;
 
 	if ( DetailedObject )
 	{
 		UDataprepAsset* DataprepAsset = FDataprepParameterizationUtils::GetDataprepAssetForParameterization( DetailedObject );
 		if ( DataprepAsset )
 		{
-			OnDataprepParameterizationStatusForObjectsChangedHandle = DataprepAsset->OnParameterizationStatusForObjectsChanged.AddSP( this, &SDataprepDetailsView::OnDataprepParameterizationStatusForObjectsChanged );
+			OnDataprepParameterizationStatusForObjectsChangedHandle = DataprepAsset->OnParameterizedObjectsChanged.AddSP( this, &SDataprepDetailsView::OnDataprepParameterizationStatusForObjectsChanged );
 		}
 
 		if ( DetailedObject->IsA<UDataprepParameterizableObject>() )
@@ -864,22 +867,7 @@ SDataprepDetailsView::~SDataprepDetailsView()
 
 	if ( UDataprepAsset* DataprepAsset = DataprepAssetForParameterization.Get() )
 	{
-		DataprepAsset->OnParameterizationStatusForObjectsChanged.Remove( OnDataprepParameterizationStatusForObjectsChangedHandle );
-	}
-}
-
-void SDataprepDetailsView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
-{
-	Super::Tick( AllottedGeometry, InCurrentTime, InDeltaTime );
-
-	if ( bRefreshObjectToDisplay )
-	{
-		TArray< UObject* > Objects;
-		Objects.Add( DetailedObject );
-		Generator->SetObjects( Objects );
-		 
-		Construct();
-		bRefreshObjectToDisplay = false;
+		DataprepAsset->OnParameterizedObjectsChanged.Remove( OnDataprepParameterizationStatusForObjectsChangedHandle );
 	}
 }
 
@@ -904,6 +892,19 @@ void SDataprepDetailsView::AddReferencedObjects(FReferenceCollector& Collector)
 	Collector.AddReferencedObjects( TrackedProperties );
 }
 
+bool SDataprepDetailsView::CustomPrepass(float LayoutScaleMultiplier)
+{
+	if ( bRefreshObjectToDisplay )
+	{
+		TArray< UObject* > Objects;
+		Objects.Add( DetailedObject );
+		Generator->SetObjects( Objects );
+		Construct();
+		bRefreshObjectToDisplay = false;
+	}
+
+	return true;
+}
 
 void SDataprepContextMenuOverride::Construct(const FArguments& InArgs)
 {

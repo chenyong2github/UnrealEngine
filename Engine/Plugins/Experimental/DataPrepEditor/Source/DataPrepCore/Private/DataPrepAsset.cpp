@@ -231,9 +231,9 @@ void UDataprepAsset::RemoveObjectPropertyFromParameterization(UDataprepParameter
 	Parameterization->RemoveBindedObjectProperty( Object, InPropertyChain );
 }
 
-void UDataprepAsset::GetExistingParameterNamesForType(UProperty* Property, TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const
+void UDataprepAsset::GetExistingParameterNamesForType(UProperty* Property, bool bIsDescribingFullProperty, TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const
 {
-	Parameterization->GetExistingParameterNamesForType( Property, OutValidExistingNames, OutInvalidNames );
+	Parameterization->GetExistingParameterNamesForType( Property, bIsDescribingFullProperty, OutValidExistingNames, OutInvalidNames );
 }
 
 void UDataprepAsset::OnDataprepBlueprintChanged( UBlueprint* InBlueprint )
@@ -271,8 +271,7 @@ void UDataprepAsset::UpdateActions()
 
 			if(UK2Node_DataprepActionCore* ActionNode = Cast<UK2Node_DataprepActionCore>(NextNode))
 			{
-	
-				if(UDataprepActionAsset* DataprepAction = ActionNode->GetDataprepAction())
+				if( UDataprepActionAsset* DataprepAction = ActionNode->GetDataprepAction() )
 				{
 					ActionAssets.Add( DataprepAction );
 				}

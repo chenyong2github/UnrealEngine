@@ -336,7 +336,7 @@ namespace Chaos
 			break;
 		}
 		default:
-			check(false);
+			ensure(false);
 			ClosestPoint = TVector<T, 3>(0);
 		}
 

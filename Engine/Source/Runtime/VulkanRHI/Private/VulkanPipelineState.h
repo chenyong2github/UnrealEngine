@@ -256,7 +256,7 @@ public:
 
 	inline void BindDescriptorSets(VkCommandBuffer CmdBuffer)
 	{
-		Bind(CmdBuffer, GfxPipeline->Pipeline->GetLayout().GetPipelineLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS);
+		Bind(CmdBuffer, GfxPipeline->GetLayout().GetPipelineLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS);
 	}
 
 	void Reset()

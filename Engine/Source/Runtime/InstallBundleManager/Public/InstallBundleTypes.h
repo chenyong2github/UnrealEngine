@@ -80,3 +80,77 @@ ENUM_CLASS_FLAGS(EInstallBundleGetContentStateFlags);
 
 DECLARE_DELEGATE_OneParam(FInstallBundleGetContentStateDelegate, FInstallBundleContentState);
 
+enum class EInstallBundleRequestInfoFlags : int32
+{
+	None = 0,
+	EnqueuedBundlesForInstall = (1 << 0),
+	SkippedAlreadyMountedBundles = (1 << 1),
+	SkippedBundlesQueuedForInstall = (1 << 2), // Only valid for removal requests
+	SkippedUnknownBundles = (1 << 3),
+	InitializationError = (1 << 4), // Can't enqueue because the bundle manager failed to initialize
+};
+ENUM_CLASS_FLAGS(EInstallBundleRequestInfoFlags);
+
+enum class EInstallBundleResult : int
+{
+	OK,
+	FailedPrereqRequiresLatestClient,
+	InstallError,
+	InstallerOutOfDiskSpaceError,
+	ManifestArchiveError,
+	UserCancelledError,
+	InitializationError,
+	Count,
+};
+INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleResult Result);
+
+enum class EInstallBundleRequestFlags : uint32
+{
+	None = 0,
+	CheckForCellularDataUsage = (1 << 0),
+	UseBackgroundDownloads = (1 << 1),
+	SendNotificationIfDownloadCompletesInBackground = (1 << 2),
+	ForceNoPatching = (1 << 3),
+	Defaults = UseBackgroundDownloads,
+};
+ENUM_CLASS_FLAGS(EInstallBundleRequestFlags)
+
+struct FInstallBundleRequestInfo
+{
+	EInstallBundleRequestInfoFlags InfoFlags = EInstallBundleRequestInfoFlags::None;
+	TArray<FName> BundlesQueuedForInstall;
+};
+
+struct FInstallBundleSourceRequestResultInfo
+{
+	FName BundleName;
+	EInstallBundleResult Result = EInstallBundleResult::OK;
+
+	// Forward any errors from the underlying implementation for a specific source
+	// Currently, these just forward BPT Error info
+	FText OptionalErrorText;
+	FString OptionalErrorCode;
+};
+
+enum class EInstallBundleCancelFlags : int32
+{
+	None = 0,
+	Resumable = (1 << 0),
+};
+ENUM_CLASS_FLAGS(EInstallBundleCancelFlags);
+
+enum class EInstallBundlePauseFlags : uint32
+{
+	None = 0,
+	OnCellularNetwork = (1 << 0),
+	NoInternetConnection = (1 << 1),
+	UserPaused = (1 << 2)
+};
+ENUM_CLASS_FLAGS(EInstallBundlePauseFlags);
+
+struct FInstallBundleSourcePauseInfo
+{
+	FName BundleName;
+	EInstallBundlePauseFlags PauseFlags = EInstallBundlePauseFlags::None;
+	bool bDidPauseChange = false;
+};

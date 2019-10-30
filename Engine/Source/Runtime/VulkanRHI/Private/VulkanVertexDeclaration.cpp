@@ -60,6 +60,9 @@ FVertexDeclarationRHIRef FVulkanDynamicRHI::RHICreateVertexDeclaration(const FVe
 	return *VertexDeclarationRefPtr;
 }
 
+FVulkanVertexInputStateInfo::~FVulkanVertexInputStateInfo()
+{
+}
 FVulkanVertexInputStateInfo::FVulkanVertexInputStateInfo()
 	: Hash(0)
 	, BindingsNum(0)
@@ -69,6 +72,22 @@ FVulkanVertexInputStateInfo::FVulkanVertexInputStateInfo()
 	FMemory::Memzero(Info);
 	FMemory::Memzero(Attributes);
 	FMemory::Memzero(Bindings);
+}
+
+bool FVulkanVertexInputStateInfo::operator ==(const FVulkanVertexInputStateInfo& Other)
+{
+	if(AttributesNum != Other.AttributesNum)
+	{
+		return false;
+	}
+	for(uint32 i = 0; i < AttributesNum; ++i)
+	{
+		if(0 != FMemory::Memcmp(&Attributes[i], &Other.Attributes[i], sizeof(Attributes[i])))
+		{
+			return false;
+		}
+	}
+	return true;
 }
 
 void FVulkanVertexInputStateInfo::Generate(FVulkanVertexDeclaration* VertexDeclaration, uint32 VertexHeaderInOutAttributeMask)

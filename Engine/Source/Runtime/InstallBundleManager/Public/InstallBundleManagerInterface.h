@@ -10,72 +10,6 @@
 
 class IAnalyticsProviderET;
 
-enum class EInstallBundleResult : int
-{
-	OK,
-	FailedPrereqRequiresLatestClient,
-	InstallError,
-	InstallerOutOfDiskSpaceError,
-	ManifestArchiveError,
-	UserCancelledError,
-	InitializationError,
-	Count,
-};
-
-inline const TCHAR* LexToString(EInstallBundleResult Result)
-{
-	using UnderType = __underlying_type(EInstallBundleResult);
-	static const TCHAR* Strings[] =
-	{
-		TEXT("OK"),
-		TEXT("FailedPrereqRequiresLatestClient"),
-		TEXT("InstallError"),
-		TEXT("InstallerOutOfDiskSpaceError"),
-		TEXT("ManifestArchiveError"),
-		TEXT("UserCancelledError"),
-		TEXT("InitializationError"),
-	};
-	static_assert(static_cast<UnderType>(EInstallBundleResult::Count) == UE_ARRAY_COUNT(Strings), "");
-
-	return Strings[static_cast<UnderType>(Result)];
-}
-
-enum class EInstallBundlePauseFlags : uint32
-{
-	None = 0,
-	OnCellularNetwork = (1 << 0),
-	NoInternetConnection = (1 << 1),
-	UserPaused	= (1 << 2)
-};
-ENUM_CLASS_FLAGS(EInstallBundlePauseFlags)
-
-inline const TCHAR* GetInstallBundlePauseReason(EInstallBundlePauseFlags Flags)
-{
-	// Return the most appropriate reason given the flags
-
-	if (EnumHasAnyFlags(Flags, EInstallBundlePauseFlags::UserPaused))
-		return TEXT("UserPaused");
-
-	if (EnumHasAnyFlags(Flags, EInstallBundlePauseFlags::NoInternetConnection))
-		return TEXT("NoInternetConnection");
-	
-	if (EnumHasAnyFlags(Flags, EInstallBundlePauseFlags::OnCellularNetwork))
-		return TEXT("OnCellularNetwork");
-
-	return TEXT("");
-}
-
-enum class EInstallBundleRequestFlags : uint32
-{
-	None											= 0,
-	CheckForCellularDataUsage						= (1 << 0),
-	UseBackgroundDownloads							= (1 << 1),
-	SendNotificationIfDownloadCompletesInBackground = (1 << 2),
-	ForceNoPatching									= (1 << 3),
-	Defaults = UseBackgroundDownloads,
-};
-ENUM_CLASS_FLAGS(EInstallBundleRequestFlags)
-
 enum class EInstallBundleStatus : int
 {
 	Requested,
@@ -147,7 +81,7 @@ struct FInstallBundleStatus
 	float Finishing_Percent = 0;
 };
 
-struct FInstallBundleResultInfo
+struct FInstallBundleRequestResultInfo
 {
 	FName BundleName;
 	EInstallBundleResult Result = EInstallBundleResult::OK;
@@ -164,31 +98,6 @@ struct FInstallBundlePauseInfo
 	EInstallBundlePauseFlags PauseFlags = EInstallBundlePauseFlags::None;
 };
 
-enum class EInstallBundleRequestInfoFlags : int32
-{
-	None							= 0,
-	EnqueuedBundlesForInstall		= (1 << 0),
-	EnqueuedBundlesForRemoval		= (1 << 1),
-	SkippedAlreadyMountedBundles	= (1 << 2),
-	SkippedBundlesQueuedForInstall  = (1 << 3), // Only valid for removal requests
-	SkippedUnknownBundles			= (1 << 4),
-	InitializationError				= (1 << 5), // Can't enqueue because the bundle manager failed to initialize
-};
-ENUM_CLASS_FLAGS(EInstallBundleRequestInfoFlags);
-
-struct FInstallBundleRequestInfo
-{
-	EInstallBundleRequestInfoFlags InfoFlags = EInstallBundleRequestInfoFlags::None;
-	TArray<FName> BundlesQueuedForInstall;
-};
-
-enum class EInstallBundleCancelFlags : int32
-{
-	None		= 0,
-	Resumable	= (1 << 0),
-};
-ENUM_CLASS_FLAGS(EInstallBundleCancelFlags);
-
 enum class EInstallBundleManagerInitErrorHandlerResult
 {
 	NotHandled, // Defer to the next handler
@@ -198,7 +107,7 @@ enum class EInstallBundleManagerInitErrorHandlerResult
 
 DECLARE_DELEGATE_RetVal_OneParam(EInstallBundleManagerInitErrorHandlerResult, FInstallBundleManagerInitErrorHandler, EInstallBundleManagerInitResult);
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FInstallBundleCompleteMultiDelegate, FInstallBundleResultInfo);
+DECLARE_MULTICAST_DELEGATE_OneParam(FInstallBundleCompleteMultiDelegate, FInstallBundleRequestResultInfo);
 DECLARE_MULTICAST_DELEGATE_OneParam(FInstallBundlePausedMultiDelegate, FInstallBundlePauseInfo);
 
 class INSTALLBUNDLEMANAGER_API IInstallBundleManager

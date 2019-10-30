@@ -217,12 +217,12 @@ protected:
 	// Whether the significance sort should sort high values to the end of the list
 	uint32 bSortSignificanceAscending:1;
 
+	// The cached viewpoints for significance for calculating when a new object is registered
+	TArray<FTransform> Viewpoints;
+
 private:
 
 	uint32 ManagedObjectsWithSequentialPostWork;
-
-	// The cached viewpoints for significance for calculating when a new object is registered
-	TArray<FTransform> Viewpoints;
 
 	// All objects being managed organized by Tag
 	TMap<FName, TArray<FManagedObjectInfo*>> ManagedObjectsByTag;

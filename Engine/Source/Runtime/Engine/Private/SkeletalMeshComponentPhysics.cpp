@@ -2372,7 +2372,7 @@ void USkeletalMeshComponent::RecreateClothingActors()
 				}
 				ClothingSimulation->CreateActor(this, Asset, BaseAssetIndex);
 			}
-
+			ClothingSimulation->PostActorCreationInitialize();
 			WritebackClothingSimulationData();
 		}
 	}

@@ -620,6 +620,13 @@ static void ReadSingleJob(FShaderCompileJob* CurrentJob, FArchive& OutputFile)
 	// The shader processing this output will use it to search for existing FShaderResources
 	CurrentJob->Output.GenerateOutputHash();
 	CurrentJob->bSucceeded = CurrentJob->Output.bSucceeded;
+
+	if (CurrentJob->bSucceeded && CurrentJob->Input.DumpDebugInfoRootPath.Len() > 0)
+	{
+		// write down the output hash as a file
+		FString HashFileName = FPaths::Combine(CurrentJob->Input.DumpDebugInfoPath, TEXT("OutputHash.txt"));
+		FFileHelper::SaveStringToFile(CurrentJob->Output.OutputHash.ToString(), *HashFileName, FFileHelper::EEncodingOptions::ForceAnsi);
+	}
 };
 
 // Process results from Worker Process
@@ -4494,6 +4501,8 @@ void RecompileShadersForRemote(
 			{
 				// These platforms are deprecated and we should warn about their use
 				if (ShaderPlatform == SP_OPENGL_SM5 || ShaderPlatform == SP_PCD3D_SM4_DEPRECATED || ShaderPlatform == SP_OPENGL_ES2_IOS_DEPRECATED ||
+					ShaderPlatform == SP_PCD3D_ES2 || ShaderPlatform == SP_METAL_MACES2 || ShaderPlatform == SP_OPENGL_PCES2 ||
+					ShaderPlatform == SP_OPENGL_ES2_ANDROID || ShaderPlatform == SP_OPENGL_ES2_WEBGL ||
 					ShaderPlatform == SP_VULKAN_SM4_DEPRECATED)
 				{
 					UE_LOG(LogShaderCompilers, Warning, TEXT("You are compiling shaders for a deprecated platform '%s'"), *LegacyShaderPlatformToShaderFormat(ShaderPlatform).ToString());

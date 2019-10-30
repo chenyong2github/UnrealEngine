@@ -158,6 +158,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = Config)
 	UPhysicsAsset* PhysicsAsset;
 
+	// Shared by all cloth instances in a skeletal mesh
+	// Only supported with Chaos Cloth for now
+	// This may not be editable on unused cloth assets
+	UPROPERTY(EditAnywhere, Category = Config, NoClear, meta = (NoResetToDefault))
+	UClothSharedSimConfigBase* ClothSharedSimConfig;
+
 	// Parameters for how the NVcloth behaves.
 	// These will have no effect on Chaos cloth
 	UPROPERTY(EditAnywhere, Category = Config, NoClear, meta = (NoResetToDefault))

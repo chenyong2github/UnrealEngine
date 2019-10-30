@@ -63,3 +63,20 @@ const TCHAR* LexToString(EInstallBundleContentState State)
 
 	return Strings[InstallBundleUtil::CastToUnderlying(State)];
 }
+
+const TCHAR* LexToString(EInstallBundleResult Result)
+{
+	static const TCHAR* Strings[] =
+	{
+		TEXT("OK"),
+		TEXT("FailedPrereqRequiresLatestClient"),
+		TEXT("InstallError"),
+		TEXT("InstallerOutOfDiskSpaceError"),
+		TEXT("ManifestArchiveError"),
+		TEXT("UserCancelledError"),
+		TEXT("InitializationError"),
+	};
+	static_assert(InstallBundleUtil::CastToUnderlying(EInstallBundleResult::Count) == UE_ARRAY_COUNT(Strings), "");
+
+	return Strings[InstallBundleUtil::CastToUnderlying(Result)];
+}

@@ -102,6 +102,22 @@ void FDatasmithGLTFMaterialElement::CreateExpressions(TArray<IDatasmithMaterialE
 				IDatasmithMaterialExpressionGeneric*    NewExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 				NewExpression->SetExpressionName(GenericExpression.GetExpressionName());
 
+				for (const TPair<FString, bool>& NameValue : GenericExpression.GetBoolProperties())
+				{
+					TSharedPtr<IDatasmithKeyValueProperty> PropertyPtr = FDatasmithSceneFactory::CreateKeyValueProperty(*NameValue.Key);
+					PropertyPtr->SetPropertyType(EDatasmithKeyValuePropertyType::Bool);
+					PropertyPtr->SetValue(NameValue.Value ? TEXT("True") : TEXT("False"));
+					NewExpression->AddProperty(PropertyPtr);
+				}
+
+				for (const TPair<FString, float>& NameValue : GenericExpression.GetFloatProperties())
+				{
+					TSharedPtr<IDatasmithKeyValueProperty> PropertyPtr = FDatasmithSceneFactory::CreateKeyValueProperty(*NameValue.Key);
+					PropertyPtr->SetPropertyType(EDatasmithKeyValuePropertyType::Float);
+					PropertyPtr->SetValue(*FString::SanitizeFloat(NameValue.Value));
+					NewExpression->AddProperty(PropertyPtr);
+				}
+
 				MaterialExpressions.Add(NewExpression);
 			}
 			break;
