@@ -14,7 +14,7 @@
 #include "LevelSequenceActor.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
-#include "Object.h"
+#include "GameFramework/WorldSettings.h"
 
 void UMoviePipeline::TickProducingFrames()
 {
