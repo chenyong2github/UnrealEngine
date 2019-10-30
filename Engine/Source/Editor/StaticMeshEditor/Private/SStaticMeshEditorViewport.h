@@ -12,6 +12,7 @@
 #include "AdvancedPreviewScene.h"
 #include "SEditorViewport.h"
 #include "SCommonEditorViewportToolbarBase.h"
+#include "SAssetEditorViewport.h"
 
 class IStaticMeshEditor;
 class SVerticalBox;
@@ -21,7 +22,7 @@ class UStaticMeshComponent;
 /**
  * StaticMesh Editor Preview viewport widget
  */
-class SStaticMeshEditorViewport : public SEditorViewport, public FGCObject, public ICommonEditorViewportToolbarInfoProvider
+class SStaticMeshEditorViewport : public SAssetEditorViewport, public FGCObject, public ICommonEditorViewportToolbarInfoProvider
 {
 public:
 	SLATE_BEGIN_ARGS( SStaticMeshEditorViewport ){}
@@ -75,7 +76,7 @@ public:
 	/** Retrieves the static mesh component. */
 	UStaticMeshComponent* GetStaticMeshComponent() const;
 
-	/** 
+	/**
 	 *	Sets up the static mesh that the Static Mesh editor is viewing.
 	 *
 	 *	@param	InStaticMesh		The static mesh being viewed in the editor.
@@ -129,24 +130,27 @@ protected:
 	virtual TSharedPtr<SWidget> MakeViewportToolbar() override;
 	virtual void PopulateViewportOverlays(TSharedRef<SOverlay> Overlay) override;
 
-private:
-	/** Determines the visibility of the viewport. */
-	bool IsVisible() const override;
-
-	/** Callback for toggling the wireframe mode flag. */
-	void SetViewModeWireframe();
-	
-	/** Callback for checking the wireframe mode flag. */
-	bool IsInViewModeWireframeChecked() const;
+public:
 
 	/** Callback for toggling the vertex color show flag. */
 	void SetViewModeVertexColor();
 
-	/** Implementation of the SetViewModeVertexColor, used to apply the vertex color show flag. */
-	void SetViewModeVertexColorImplemetation(bool bValue);
-
 	/** Callback for checking the vertex color show flag. */
 	bool IsInViewModeVertexColorChecked() const;
+
+	/** Callback for toggling the wireframe mode. */
+	void SetViewModeWireframe();
+
+	/** Callback for checking the wireframe flag. */
+	bool IsInViewModeWireframeChecked() const;
+
+private:
+
+	/** Determines the visibility of the viewport. */
+	bool IsVisible() const override;
+
+	/** Implementation of the SetViewModeVertexColor, used to apply the vertex color show flag. */
+	void SetViewModeVertexColorImplemetation(bool bValue);
 
 	/** Callback for toggling the realtime preview flag. */
 	void SetRealtimePreview();

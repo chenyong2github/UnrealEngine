@@ -7269,6 +7269,26 @@ void FSlateEditorStyle::FStyle::SetupToolkitStyles()
 		Set( "StaticMeshEditor.GroupSection", new BOX_BRUSH( "Common/RoundedSelection_16x", FMargin( 4.0f / 16.0f ) ) );
 		Set( "StaticMeshEditor.SetShowVertices", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Vertices_40x", Icon40x40 ) );
 		Set( "StaticMeshEditor.SetShowVertices.Small", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Vertices_40x", Icon20x20 ) );
+		Set( "StaticMeshEditor.ToggleShowPivots", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_ShowPivot_40x", Icon40x40));
+		Set( "StaticMeshEditor.ToggleShowPivot.Small", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_ShowPivot_40x", Icon20x20));
+		Set( "StaticMeshEditor.ToggleShowSockets", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_ShowSockets_40x", Icon40x40));
+		Set( "StaticMeshEditor.ToggleShowSockets.Small", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_ShowSockets_40x", Icon20x20));
+		Set( "StaticMeshEditor.ToggleShowNormals", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Normals_40x", Icon40x40));
+		Set( "StaticMeshEditor.ToggleShowNormals.Small", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Normals_40x", Icon20x20));
+		Set( "StaticMeshEditor.ToggleShowTangents", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Tangents_40x", Icon40x40));
+		Set( "StaticMeshEditor.TogglShowTangents.Small", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Tangents_40x", Icon20x20));
+		Set( "StaticMeshEditor.ToggleShowBinormals", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Binormals_40x", Icon40x40));
+		Set( "StaticMeshEditor.ToggleShowBinormals.Small", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Binormals_40x", Icon20x20));
+		Set( "StaticMeshEditor.ToggleShowBounds", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Bounds_40x", Icon40x40));
+		Set( "StaticMeshEditor.ToggleShowBounds.Small", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Bounds_40x", Icon20x20));
+		Set( "StaticMeshEditor.ToggleShowGrids", new IMAGE_BRUSH("Icons/icon_MatEd_Grid_40x", Icon40x40));
+		Set( "StaticMeshEditor.ToggleShowGrids.Small", new IMAGE_BRUSH("Icons/icon_MatEd_Grid_40x", Icon20x20));
+		Set( "StaticMeshEditor.ToggleShowVertices", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Vertices_40x", Icon40x40));
+		Set( "StaticMeshEditor.ToggleShowVertices.Small", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Vertices_40x", Icon20x20));
+		Set( "StaticMeshEditor.ToggleShowWireframes", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Wireframe_40x", Icon40x40));
+		Set( "StaticMeshEditor.ToggleShowWireframes.Small", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Wireframe_40x", Icon20x20));
+		Set( "StaticMeshEditor.ToggleShowVertexColors", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_VertColor_40x", Icon40x40));
+		Set( "StaticMeshEditor.ToggleShowVertexColors.Small", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_VertColor_40x", Icon20x20));
 	}
 
 	// Skeletal Mesh Editor
