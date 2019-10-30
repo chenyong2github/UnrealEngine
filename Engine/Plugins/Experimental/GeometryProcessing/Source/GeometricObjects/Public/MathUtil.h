@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"   // required for GEOMETRICOBJECTS_API macro
 #include <cmath>
+#include <cfloat>
 
 
 /**
@@ -16,66 +17,76 @@ template<>
 struct TMathUtilConstants<float>
 {
 	/** Machine Epsilon - float approx 1e-7, double approx 2e-16 */
-	GEOMETRICOBJECTS_API static const float Epsilon;
+	GEOMETRICOBJECTS_API static constexpr float Epsilon = FLT_EPSILON;
 	/** Zero tolerance for math operations (eg like parallel tests) - float 1e-6, double 1e-8 */
-	GEOMETRICOBJECTS_API static const float ZeroTolerance;
+	GEOMETRICOBJECTS_API static constexpr float ZeroTolerance = 1e-06f;
 
 	/** largest possible number for type */
-	GEOMETRICOBJECTS_API static const float MaxReal;
+	GEOMETRICOBJECTS_API static constexpr float MaxReal = FLT_MAX;
 
 	/** 3.14159... */
-	GEOMETRICOBJECTS_API static const float Pi;
-	GEOMETRICOBJECTS_API static const float FourPi;
-	GEOMETRICOBJECTS_API static const float TwoPi;
-	GEOMETRICOBJECTS_API static const float HalfPi;
+	GEOMETRICOBJECTS_API static constexpr float Pi = 3.1415926535897932384626433832795f;
+	GEOMETRICOBJECTS_API static constexpr float FourPi = 4.0f * Pi;
+	GEOMETRICOBJECTS_API static constexpr float TwoPi = 2.0f*Pi;
+	GEOMETRICOBJECTS_API static constexpr float HalfPi = 0.5f*Pi;
 
 	/** 1.0 / Pi */
-	GEOMETRICOBJECTS_API static const float InvPi;
+	GEOMETRICOBJECTS_API static constexpr float InvPi = 1.0f / Pi;
 	/** 1.0 / (2*Pi) */
-	GEOMETRICOBJECTS_API static const float InvTwoPi;
+	GEOMETRICOBJECTS_API static constexpr float InvTwoPi = 1.0f / TwoPi;
 
 	/** pi / 180 */
-	GEOMETRICOBJECTS_API static const float DegToRad;
+	GEOMETRICOBJECTS_API static constexpr float DegToRad = Pi / 180.0f;
 	/** 180 / pi */
-	GEOMETRICOBJECTS_API static const float RadToDeg;
+	GEOMETRICOBJECTS_API static constexpr float RadToDeg = 180.0f / Pi;
 
-	GEOMETRICOBJECTS_API static const float Sqrt2;
-	GEOMETRICOBJECTS_API static const float InvSqrt2;
-	GEOMETRICOBJECTS_API static const float Sqrt3;
-	GEOMETRICOBJECTS_API static const float InvSqrt3;
+	//static constexpr float LN_2;
+	//static constexpr float LN_10;
+	//static constexpr float INV_LN_2;
+	//static constexpr float INV_LN_10;
+
+	GEOMETRICOBJECTS_API static constexpr float Sqrt2 = 1.4142135623730950488016887242097f;
+	GEOMETRICOBJECTS_API static constexpr float InvSqrt2 = 1.0f / Sqrt2;
+	GEOMETRICOBJECTS_API static constexpr float Sqrt3 = 1.7320508075688772935274463415059f;
+	GEOMETRICOBJECTS_API static constexpr float InvSqrt3 = 1.0f / Sqrt3;
 };
 
 template<>
 struct TMathUtilConstants<double>
 {
 	/** Machine Epsilon - float approx 1e-7, double approx 2e-16 */
-	GEOMETRICOBJECTS_API static const double Epsilon;
+	GEOMETRICOBJECTS_API static constexpr double Epsilon = DBL_EPSILON;
 	/** Zero tolerance for math operations (eg like parallel tests) - float 1e-6, double 1e-8 */
-	GEOMETRICOBJECTS_API static const double ZeroTolerance;
+	GEOMETRICOBJECTS_API static constexpr double ZeroTolerance = 1e-08;
 
 	/** largest possible number for type */
-	GEOMETRICOBJECTS_API static const double MaxReal;
+	GEOMETRICOBJECTS_API static constexpr double MaxReal = DBL_MAX;
 
 	/** 3.14159... */
-	GEOMETRICOBJECTS_API static const double Pi;
-	GEOMETRICOBJECTS_API static const double FourPi;
-	GEOMETRICOBJECTS_API static const double TwoPi;
-	GEOMETRICOBJECTS_API static const double HalfPi;
+	GEOMETRICOBJECTS_API static constexpr double Pi = 3.1415926535897932384626433832795;
+	GEOMETRICOBJECTS_API static constexpr double FourPi = 4.0 * Pi;
+	GEOMETRICOBJECTS_API static constexpr double TwoPi = 2.0 * Pi;
+	GEOMETRICOBJECTS_API static constexpr double HalfPi = 0.5 * Pi;
 
 	/** 1.0 / Pi */
-	GEOMETRICOBJECTS_API static const double InvPi;
+	GEOMETRICOBJECTS_API static constexpr double InvPi = 1.0 / Pi;
 	/** 1.0 / (2*Pi) */
-	GEOMETRICOBJECTS_API static const double InvTwoPi;
+	GEOMETRICOBJECTS_API static constexpr double InvTwoPi = 1.0 / TwoPi;
 
 	/** pi / 180 */
-	GEOMETRICOBJECTS_API static const double DegToRad;
+	GEOMETRICOBJECTS_API static constexpr double DegToRad = Pi / 180.0;
 	/** 180 / pi */
-	GEOMETRICOBJECTS_API static const double RadToDeg;
+	GEOMETRICOBJECTS_API static constexpr double RadToDeg = 180.0 / Pi;
 
-	GEOMETRICOBJECTS_API static const double Sqrt2;
-	GEOMETRICOBJECTS_API static const double InvSqrt2;
-	GEOMETRICOBJECTS_API static const double Sqrt3;
-	GEOMETRICOBJECTS_API static const double InvSqrt3;
+	//static constexpr double LN_2;
+	//static constexpr double LN_10;
+	//static constexpr double INV_LN_2;
+	//static constexpr double INV_LN_10;
+
+	GEOMETRICOBJECTS_API static constexpr double Sqrt2 = 1.4142135623730950488016887242097;
+	GEOMETRICOBJECTS_API static constexpr double InvSqrt2 = 1.0 / Sqrt2;
+	GEOMETRICOBJECTS_API static constexpr double Sqrt3 = 1.7320508075688772935274463415059;
+	GEOMETRICOBJECTS_API static constexpr double InvSqrt3 = 1.0 / Sqrt3;
 };
 
 template<typename RealType>
@@ -232,5 +243,3 @@ RealType TMathUtil<RealType>::Atan2Positive(const RealType Y, const RealType X)
 	}
 	return Theta;
 }
-
-
