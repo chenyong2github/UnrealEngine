@@ -26,6 +26,8 @@
 #include "MaterialEditingLibrary.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInterface.h"
+#include "Materials/MaterialInstanceConstant.h"
+
 #include "MeshDescriptionOperations.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopedSlowTask.h"
@@ -85,7 +87,7 @@ FMeshDescription LoadMeshDescription( const pxr::UsdGeomMesh& UsdMesh, const pxr
 	return MeshDescription;
 }
 
-void ProcessMaterials( const pxr::UsdStageRefPtr& Stage, UStaticMesh* StaticMesh, const FMeshDescription& MeshDescription, TMap< FString, UMaterial* >& MaterialsCache, bool bHasPrimDisplayColor )
+void ProcessMaterials( const pxr::UsdPrim& UsdPrim, UStaticMesh* StaticMesh, const FMeshDescription& MeshDescription, TMap< FString, UMaterial* >& MaterialsCache, bool bHasPrimDisplayColor, float Time )
 {
 	FStaticMeshConstAttributes StaticMeshAttributes( MeshDescription );
 
@@ -114,17 +116,17 @@ void ProcessMaterials( const pxr::UsdStageRefPtr& Stage, UStaticMesh* StaticMesh
 		}
 
 		UMaterialInterface* Material = nullptr;
-		pxr::UsdPrim MaterialPrim = Stage->GetPrimAtPath( UnrealToUsd::ConvertPath( *ImportedMaterialSlotName.ToString() ).Get() );
+		TUsdStore< pxr::UsdPrim > MaterialPrim = UsdPrim.GetStage()->GetPrimAtPath( UnrealToUsd::ConvertPath( *ImportedMaterialSlotName.ToString() ).Get() );
 
-		if ( MaterialPrim )
+		if ( MaterialPrim.Get() )
 		{
-			UMaterial*& CachedMaterial = MaterialsCache.FindOrAdd( UsdToUnreal::ConvertPath( MaterialPrim.GetPrimPath() ) );
+			UMaterial*& CachedMaterial = MaterialsCache.FindOrAdd( UsdToUnreal::ConvertPath( MaterialPrim.Get().GetPrimPath() ) );
 
 			if ( !CachedMaterial )
 			{
 				CachedMaterial = NewObject< UMaterial >();
 
-				if ( UsdToUnreal::ConvertMaterial( pxr::UsdShadeMaterial( MaterialPrim ), *CachedMaterial ) )
+				if ( UsdToUnreal::ConvertMaterial( pxr::UsdShadeMaterial( MaterialPrim.Get() ), *CachedMaterial ) )
 				{
 					//UMaterialEditingLibrary::RecompileMaterial( CachedMaterial ); // Too slow
 					CachedMaterial->PostEditChange();
@@ -140,8 +142,11 @@ void ProcessMaterials( const pxr::UsdStageRefPtr& Stage, UStaticMesh* StaticMesh
 
 		if ( Material == nullptr && bHasPrimDisplayColor )
 		{
-			FSoftObjectPath VertexColorMaterialPath( TEXT("Material'/Engine/EngineDebugMaterials/VertexColorMaterial.VertexColorMaterial'") );
-			Material = Cast< UMaterialInterface >( VertexColorMaterialPath.TryLoad() );
+			UMaterialInstanceConstant* MaterialInstance = NewObject< UMaterialInstanceConstant >();
+			if ( UsdToUnreal::ConvertDisplayColor( pxr::UsdGeomMesh( UsdPrim ), *MaterialInstance, pxr::UsdTimeCode( Time ) ) )
+			{
+				Material = MaterialInstance;
+			}
 		}
 
 		FStaticMaterial StaticMaterial( Material, MaterialSlotName, ImportedMaterialSlotName );
@@ -154,14 +159,14 @@ void ProcessMaterials( const pxr::UsdStageRefPtr& Stage, UStaticMesh* StaticMesh
 	}
 }
 
-void ProcessMaterials( const pxr::UsdStageRefPtr& Stage, FSkeletalMeshImportData& SkelMeshImportData, TMap< FString, UMaterial* >& MaterialsCache, bool bHasPrimDisplayColor )
+void ProcessMaterials( const pxr::UsdPrim& UsdPrim, FSkeletalMeshImportData& SkelMeshImportData, TMap< FString, UMaterial* >& MaterialsCache, bool bHasPrimDisplayColor, float Time )
 {
 	for (SkeletalMeshImportData::FMaterial& ImportedMaterial : SkelMeshImportData.Materials)
 	{
 		if (!ImportedMaterial.Material.IsValid())
 		{
 			UMaterialInterface* Material = nullptr;
-			TUsdStore< pxr::UsdPrim > MaterialPrim = Stage->GetPrimAtPath( UnrealToUsd::ConvertPath( *ImportedMaterial.MaterialImportName ).Get() );
+			TUsdStore< pxr::UsdPrim > MaterialPrim = UsdPrim.GetStage()->GetPrimAtPath( UnrealToUsd::ConvertPath( *ImportedMaterial.MaterialImportName ).Get() );
 
 			if ( MaterialPrim.Get() )
 			{
@@ -189,9 +194,13 @@ void ProcessMaterials( const pxr::UsdStageRefPtr& Stage, FSkeletalMeshImportData
 
 			if ( Material == nullptr && bHasPrimDisplayColor )
 			{
-				FSoftObjectPath VertexColorMaterialPath( TEXT("Material'/Engine/EngineDebugMaterials/VertexColorMaterial.VertexColorMaterial'") );
-				Material = Cast< UMaterialInterface >( VertexColorMaterialPath.TryLoad() );
+				UMaterialInstanceConstant* MaterialInstance = NewObject< UMaterialInstanceConstant >();
+				if ( UsdToUnreal::ConvertDisplayColor( pxr::UsdGeomMesh( UsdPrim ), *MaterialInstance, pxr::UsdTimeCode( Time ) ) )
+				{
+					Material = MaterialInstance;
+				}
 			}
+
 			ImportedMaterial.Material = Material;
 		}
 	}
@@ -265,7 +274,7 @@ bool AUsdStageActor::LoadStaticMesh( const pxr::UsdGeomMesh& UsdMesh, UStaticMes
 		StaticMesh->CommitMeshDescription(0);
 
 		const bool bHasPrimDisplayColor = UsdMesh.GetDisplayColorPrimvar().IsDefined();
-		ProcessMaterials( GetUsdStage(), StaticMesh, *StaticMeshDescription, MaterialsCache, bHasPrimDisplayColor );
+		ProcessMaterials( UsdMesh.GetPrim(), StaticMesh, *StaticMeshDescription, MaterialsCache, bHasPrimDisplayColor, Time );
 
 		// Create render data
 		if ( !StaticMesh->RenderData )
@@ -737,7 +746,7 @@ bool AUsdStageActor::ProcessSkeletonRoot( const pxr::UsdPrim& Prim, USkinnedMesh
 				PrimDelegates.Add(UsdToUnreal::ConvertPath(PrimPath), Handle);
 			}
 
-			ProcessMaterials(GetUsdStage(), SkelMeshImportData, MaterialsCache, bHasPrimDisplayColor);
+			ProcessMaterials(Prim, SkelMeshImportData, MaterialsCache, bHasPrimDisplayColor, Time);
 
 			break;
 		}

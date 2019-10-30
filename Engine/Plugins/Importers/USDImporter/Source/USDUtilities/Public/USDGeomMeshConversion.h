@@ -20,12 +20,16 @@ PXR_NAMESPACE_CLOSE_SCOPE
 struct FMeshDescription;
 struct FStaticMeshLODResources;
 class UMaterial;
+class UMaterialInstanceConstant;
 class UStaticMesh;
 
 namespace UsdToUnreal
 {
 	USDUTILITIES_API bool ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescription& MeshDescription, const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::EarliestTime() );
 	USDUTILITIES_API bool ConvertMaterial( const pxr::UsdShadeMaterial& UsdMesh, UMaterial& Material );
+
+	/** Reads the first display color and opacity value and assigns it as the base color and opacity of the material */
+	USDUTILITIES_API bool ConvertDisplayColor( const pxr::UsdGeomMesh& UsdMesh, UMaterialInstanceConstant& MaterialInstance, const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::EarliestTime() );
 }
 
 namespace UnrealToUsd

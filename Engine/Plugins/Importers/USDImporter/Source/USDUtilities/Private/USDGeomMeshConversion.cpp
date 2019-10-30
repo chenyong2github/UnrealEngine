@@ -15,6 +15,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionConstant.h"
 #include "Materials/MaterialExpressionConstant4Vector.h"
+#include "Materials/MaterialInstanceConstant.h"
 #include "MeshDescription.h"
 #include "Misc/Paths.h"
 #include "StaticMeshAttributes.h"
@@ -341,27 +342,61 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 				return FLinearColor( FLinearColor( UsdToUnreal::ConvertColor( UsdColor ) ).ToFColor( false ) );
 			};
 
-			pxr::TfToken USDInterpType = ColorPrimvar.GetInterpolation();
-			if ( USDInterpType == pxr::UsdGeomTokens->faceVarying && NumColors >= MeshDescriptionColors.GetNumElements() )
+			pxr::TfToken UsdInterpType = ColorPrimvar.GetInterpolation();
+			if ( UsdInterpType == pxr::UsdGeomTokens->faceVarying && NumColors >= MeshDescriptionColors.GetNumElements() )
 			{
 				for(int Index = 0; Index < MeshDescriptionColors.GetNumElements(); ++Index)
 				{
-					MeshDescriptionColors[FVertexInstanceID(Index)] = ConvertToLinear(UsdColors[Index]);
+					MeshDescriptionColors[ FVertexInstanceID(Index) ] = ConvertToLinear( UsdColors[Index] );
 				}
 			}
-			else if ( USDInterpType == pxr::UsdGeomTokens->vertex && NumColors >= MeshDescription.Vertices().Num() )
+			else if ( UsdInterpType == pxr::UsdGeomTokens->vertex && NumColors >= MeshDescription.Vertices().Num() )
 			{
-				for( auto VertexInstID : MeshDescription.VertexInstances().GetElementIDs() )
+				for( FVertexInstanceID VertexInstID : MeshDescription.VertexInstances().GetElementIDs() )
 				{
-					FVertexID VertexID = MeshDescription.GetVertexInstanceVertex(VertexInstID);
-					MeshDescriptionColors[VertexInstID] = ConvertToLinear(UsdColors[VertexID.GetValue()]);
+					FVertexID VertexID = MeshDescription.GetVertexInstanceVertex( VertexInstID );
+					MeshDescriptionColors[ VertexInstID ] = ConvertToLinear( UsdColors[ VertexID.GetValue() ] );
 				}
 			}
-			else if ( USDInterpType == pxr::UsdGeomTokens->constant && NumColors == 1 )
+			else if ( UsdInterpType == pxr::UsdGeomTokens->constant && NumColors == 1 )
 			{
 				for( int Index = 0; Index < MeshDescriptionColors.GetNumElements(); ++Index )
 				{
-					MeshDescriptionColors[FVertexInstanceID(Index)] = ConvertToLinear(UsdColors[0]);
+					MeshDescriptionColors[ FVertexInstanceID(Index) ] = ConvertToLinear( UsdColors[0] );
+				}
+			}
+		}
+
+		// Vertex opacity
+		UsdGeomPrimvar OpacityPrimvar = UsdMesh.GetDisplayOpacityPrimvar();
+		if ( OpacityPrimvar )
+		{
+			pxr::VtArray< float > UsdOpacities;
+			OpacityPrimvar.ComputeFlattened( &UsdOpacities );
+
+			const int32 NumOpacities = UsdOpacities.size();
+
+			pxr::TfToken UsdInterpType = OpacityPrimvar.GetInterpolation();
+			if ( UsdInterpType == pxr::UsdGeomTokens->faceVarying && NumOpacities >= MeshDescriptionColors.GetNumElements() )
+			{
+				for(int Index = 0; Index < MeshDescriptionColors.GetNumElements(); ++Index)
+				{
+					MeshDescriptionColors[ FVertexInstanceID(Index) ][3] = UsdOpacities[Index];
+				}
+			}
+			else if ( UsdInterpType == pxr::UsdGeomTokens->vertex && NumOpacities >= MeshDescription.Vertices().Num() )
+			{
+				for( FVertexInstanceID VertexInstID : MeshDescription.VertexInstances().GetElementIDs() )
+				{
+					FVertexID VertexID = MeshDescription.GetVertexInstanceVertex( VertexInstID );
+					MeshDescriptionColors[ VertexInstID ][3] = UsdOpacities[ VertexID.GetValue() ];
+				}
+			}
+			else if ( UsdInterpType == pxr::UsdGeomTokens->constant && NumOpacities == 1 )
+			{
+				for( int Index = 0; Index < MeshDescriptionColors.GetNumElements(); ++Index )
+				{
+					MeshDescriptionColors[ FVertexInstanceID(Index) ][3] = UsdOpacities[0];
 				}
 			}
 		}
@@ -406,6 +441,7 @@ namespace UsdGeomMeshConversionImpl
 					{
 						UMaterialExpressionTextureSample* TextureSample = Cast< UMaterialExpressionTextureSample >( UMaterialEditingLibrary::CreateMaterialExpression( &Material, UMaterialExpressionTextureSample::StaticClass() ) );
 						TextureSample->Texture = Texture2D;
+						TextureSample->SamplerType = UMaterialExpressionTextureBase::GetSamplerTypeForTexture( Texture2D );
 
 						Result = TextureSample;
 					}
@@ -525,6 +561,57 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 	}
 
 	return bHasMaterialInfo;
+}
+
+bool UsdToUnreal::ConvertDisplayColor( const pxr::UsdGeomMesh& UsdMesh, UMaterialInstanceConstant& MaterialInstance, const pxr::UsdTimeCode TimeCode )
+{
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::VtArray< pxr::GfVec3f > UsdDisplayColors = UsdUtils::GetUsdValue< pxr::VtArray< pxr::GfVec3f > >( UsdMesh.GetDisplayColorAttr(), TimeCode );
+
+	if ( !UsdDisplayColors.empty() )
+	{
+		pxr::VtArray< float > UsdOpacities = UsdUtils::GetUsdValue< pxr::VtArray< float > >( UsdMesh.GetDisplayOpacityAttr(), TimeCode );
+
+		bool bHasTransparency = false;
+
+		for ( float Opacity : UsdOpacities )
+		{
+			bHasTransparency = !FMath::IsNearlyEqual( Opacity, 1.f );
+
+			if ( bHasTransparency )
+			{
+				break;
+			}
+		}
+
+		{
+			FScopedUnrealAllocs UnrealAllocs;
+
+			FSoftObjectPath DisplayColorMaterialPath( TEXT("Material'/USDImporter/Materials/DisplayColorAndOpacity.DisplayColorAndOpacity'") );
+			UMaterialInterface* DisplayColorAndOpacityMaterial = Cast< UMaterialInterface >( DisplayColorMaterialPath.TryLoad() );
+
+			UMaterialEditingLibrary::SetMaterialInstanceParent( &MaterialInstance, DisplayColorAndOpacityMaterial );
+
+			if ( bHasTransparency )
+			{
+				MaterialInstance.BasePropertyOverrides.bOverride_BlendMode = true;
+				MaterialInstance.BasePropertyOverrides.BlendMode = EBlendMode::BLEND_Translucent;
+			}
+
+			if ( UsdMesh.GetDoubleSidedAttr().IsDefined() )
+			{
+				MaterialInstance.BasePropertyOverrides.bOverride_TwoSided = true;
+				MaterialInstance.BasePropertyOverrides.TwoSided = UsdUtils::GetUsdValue< bool >( UsdMesh.GetDoubleSidedAttr(), TimeCode );
+			}
+		}
+
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdGeomMesh& UsdMesh, const pxr::UsdTimeCode TimeCode )

@@ -228,6 +228,7 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 
 		if(/*USDInterpType == pxr::UsdGeomTokens->vertex &&*/ NumColors >= NumFaces)
 		{
+			FaceColors.Reserve( NumColors );
 			for (uint32 Index = 0; Index < NumColors; ++Index)
 			{
 				FaceColors.Add(ConvertToColor(UsdColors[Index]));
@@ -239,6 +240,39 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 			bIsConstantColor = true;
 		}
 		SkelMeshImportData.bHasVertexColors = true;
+	}
+
+	// Retrieve vertex opacity
+	UsdGeomPrimvar OpacityPrimvar = UsdMesh.GetDisplayOpacityPrimvar();
+	if ( OpacityPrimvar )
+	{
+		pxr::VtArray< float > UsdOpacities;
+		OpacityPrimvar.ComputeFlattened( &UsdOpacities );
+
+		const uint32 NumOpacities = UsdOpacities.size();
+
+		pxr::TfToken UsdInterpType = OpacityPrimvar.GetInterpolation();
+		if ( /*UsdInterpType == pxr::UsdGeomTokens->vertex &&*/ NumOpacities >= NumFaces )
+		{
+			for (uint32 Index = 0; Index < NumOpacities; ++Index)
+			{
+				if ( !FaceColors.IsValidIndex( Index ) )
+				{
+					FaceColors.Add( FColor::White );
+				}
+
+				FaceColors[ Index ].A = UsdOpacities[ Index ];
+			}
+		}
+		else if ( /*UsdInterpType == pxr::UsdGeomTokens->constant &&*/ NumOpacities == 1 )
+		{
+			if ( FaceColors.Num() < 1 )
+			{
+				FaceColors.Add( FColor::White );
+			}
+
+			FaceColors[ 0 ].A = UsdOpacities[ 0 ];
+		}
 	}
 
 	SkelMeshImportData.NumTexCoords = 0;
