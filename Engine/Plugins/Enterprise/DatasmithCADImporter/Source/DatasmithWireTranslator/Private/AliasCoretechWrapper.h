@@ -7,10 +7,6 @@
 
 #include "CTSession.h"
 
-// Additional scale factor required when tessellating NURBS as Alias has extremely small geometry,
-// originally tessellating to triangles with area in the order of 10^-5, failing the
-// FourSquaredTriangleArea > SMALL_NUMBER test in DatasmithMeshHelper.cpp::IsMeshValid
-
 class AlDagNode;
 class AlShell;
 class AlSurface;
