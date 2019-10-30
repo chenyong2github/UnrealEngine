@@ -68,6 +68,7 @@ private:
 private:
 	TUniquePtr< FDatasmithImportContext > ImportContextPtr;
 	TUniquePtr< FDataprepWorkReporter > ProgressTaskPtr;
+	TStrongObjectPtr< UDatasmithScene > WorkingScenePtr;
 
 	ULevel* PreviousCurrentLevel;
 };
