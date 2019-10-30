@@ -5,8 +5,8 @@
 #if UE_TRACE_ENABLED
 
 #include "Trace/Detail/Atomic.h"
-#include "Trace/Platform.h"
 #include "Trace/Detail/Protocol.h"
+#include "Trace/Platform.h"
 #include "Trace/Trace.h"
 
 #include "Misc/CString.h"
