@@ -443,4 +443,5 @@ private:
 
 	class FVulkanPipelineStateCacheManager* PipelineStateCache;
 	friend class FVulkanDynamicRHI;
+	friend class FVulkanRHIGraphicsPipelineState;
 };

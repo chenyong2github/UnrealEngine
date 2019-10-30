@@ -445,7 +445,7 @@ void FVulkanPendingGfxState::PrepareForDraw(FVulkanCmdBuffer* CmdBuffer)
 		SCOPE_CYCLE_COUNTER(STAT_VulkanBindVertexStreamsTime);
 #endif
 		// Its possible to have no vertex buffers
-		const FVulkanVertexInputStateInfo& VertexInputStateInfo = CurrentPipeline->Pipeline->GetVertexInputState();
+		const FVulkanVertexInputStateInfo& VertexInputStateInfo = CurrentPipeline->GetVertexInputState();
 		if (VertexInputStateInfo.AttributesNum == 0)
 		{
 			// However, we need to verify that there are also no bindings
@@ -922,4 +922,34 @@ float FVulkanDescriptorSetCache::FCachedPool::CalcAllocRatio() const
 		AllocRatio = MinAllocRatio;
 	}
 	return AllocRatio;
+}
+bool FVulkanPendingGfxState::SetGfxPipeline(FVulkanRHIGraphicsPipelineState* InGfxPipeline, bool bForceReset)
+{
+	bool bChanged = bForceReset;
+
+	if (InGfxPipeline != CurrentPipeline)
+	{
+		CurrentPipeline = InGfxPipeline;
+		FVulkanGraphicsPipelineDescriptorState** Found = PipelineStates.Find(InGfxPipeline);
+		if (Found)
+		{
+			CurrentState = *Found;
+			check(CurrentState->GfxPipeline == InGfxPipeline);
+		}
+		else
+		{
+			CurrentState = new FVulkanGraphicsPipelineDescriptorState(Device, InGfxPipeline);
+			PipelineStates.Add(CurrentPipeline, CurrentState);
+		}
+
+		PrimitiveType = InGfxPipeline->PrimitiveType;
+		bChanged = true;
+	}
+
+	if (bChanged || bForceReset)
+	{
+		CurrentState->Reset();
+	}
+
+	return bChanged;
 }

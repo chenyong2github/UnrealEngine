@@ -16,8 +16,8 @@ FPhysicsAssetEditorSkeletonTreeBuilder::FPhysicsAssetEditorSkeletonTreeBuilder(U
 	, bShowBodies(true)
 	, bShowKinematicBodies(true)
 	, bShowSimulatedBodies(true)
-	, bShowConstraints(true)
-	, bShowPrimitives(true)
+	, bShowConstraints(false)
+	, bShowPrimitives(false)
 	, PhysicsAsset(InPhysicsAsset)
 {
 }

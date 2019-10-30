@@ -232,6 +232,7 @@ void SNiagaraOverviewStack::Construct(const FArguments& InArgs, UNiagaraStackVie
 		.OnGenerateRow(this, &SNiagaraOverviewStack::OnGenerateRowForEntry)
 		.OnSelectionChanged(this, &SNiagaraOverviewStack::OnSelectionChanged)
 		.SelectionMode(ESelectionMode::Multi)
+		.OnItemToString_Debug_Static(&FNiagaraStackEditorWidgetsUtilities::StackEntryToStringForListDebug)
 	];
 
 	InStackViewModel.OnStructureChanged().AddSP(this, &SNiagaraOverviewStack::EntryStructureChanged);

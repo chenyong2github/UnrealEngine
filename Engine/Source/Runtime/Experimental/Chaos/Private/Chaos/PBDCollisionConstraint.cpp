@@ -1998,59 +1998,59 @@ typename TPBDCollisionConstraint<T, d>::FRigidBodyContactConstraint TPBDCollisio
 	{
 		return ComputeLevelsetConstraint(Particle0, Particle1, Thickness);
 	}
-	if (Particle0->Geometry()->GetType() == TBox<T, d>::GetType() && Particle1->Geometry()->GetType() == TBox<T, d>::GetType())
+	if (Particle0->Geometry()->GetType() == TBox<T, d>::StaticType() && Particle1->Geometry()->GetType() == TBox<T, d>::StaticType())
 	{
 		return ComputeBoxConstraint(Particle0, Particle1, Thickness);
 	}
-	else if (Particle0->Geometry()->GetType() == TSphere<T, d>::GetType() && Particle1->Geometry()->GetType() == TSphere<T, d>::GetType())
+	else if (Particle0->Geometry()->GetType() == TSphere<T, d>::StaticType() && Particle1->Geometry()->GetType() == TSphere<T, d>::StaticType())
 	{
 		return ComputeSphereConstraint(Particle0, Particle1, Thickness);
 	}
-	else if (Particle0->Geometry()->GetType() == TBox<T, d>::GetType() && Particle1->Geometry()->GetType() == TPlane<T, d>::GetType())
+	else if (Particle0->Geometry()->GetType() == TBox<T, d>::StaticType() && Particle1->Geometry()->GetType() == TPlane<T, d>::StaticType())
 	{
 		return ComputeBoxPlaneConstraint(Particle0, Particle1, Thickness);
 	}
-	else if (Particle1->Geometry()->GetType() == TBox<T, d>::GetType() && Particle0->Geometry()->GetType() == TPlane<T, d>::GetType())
+	else if (Particle1->Geometry()->GetType() == TBox<T, d>::StaticType() && Particle0->Geometry()->GetType() == TPlane<T, d>::StaticType())
 	{
 		return ComputeBoxPlaneConstraint(Particle1, Particle0, Thickness);
 	}
-	else if (Particle0->Geometry()->GetType() == TSphere<T, d>::GetType() && Particle1->Geometry()->GetType() == TPlane<T, d>::GetType())
+	else if (Particle0->Geometry()->GetType() == TSphere<T, d>::StaticType() && Particle1->Geometry()->GetType() == TPlane<T, d>::StaticType())
 	{
 		return ComputeSpherePlaneConstraint(Particle0, Particle1, Thickness);
 	}
-	else if (Particle1->Geometry()->GetType() == TSphere<T, d>::GetType() && Particle0->Geometry()->GetType() == TPlane<T, d>::GetType())
+	else if (Particle1->Geometry()->GetType() == TSphere<T, d>::StaticType() && Particle0->Geometry()->GetType() == TPlane<T, d>::StaticType())
 	{
 		return ComputeSpherePlaneConstraint(Particle1, Particle0, Thickness);
 	}
-	else if (Particle0->Geometry()->GetType() == TSphere<T, d>::GetType() && Particle1->Geometry()->GetType() == TBox<T, d>::GetType())
+	else if (Particle0->Geometry()->GetType() == TSphere<T, d>::StaticType() && Particle1->Geometry()->GetType() == TBox<T, d>::StaticType())
 	{
 		return ComputeSphereBoxConstraint(Particle0, Particle1, Thickness);
 	}
-	else if (Particle1->Geometry()->GetType() == TSphere<T, d>::GetType() && Particle0->Geometry()->GetType() == TBox<T, d>::GetType())
+	else if (Particle1->Geometry()->GetType() == TSphere<T, d>::StaticType() && Particle0->Geometry()->GetType() == TBox<T, d>::StaticType())
 	{
 		return ComputeSphereBoxConstraint(Particle1, Particle0, Thickness);
 	}
-	else if (Particle0->Geometry()->GetType() == TCapsule<T>::GetType() && Particle1->Geometry()->GetType() == TCapsule<T>::GetType())
+	else if (Particle0->Geometry()->GetType() == TCapsule<T>::StaticType() && Particle1->Geometry()->GetType() == TCapsule<T>::StaticType())
 	{
 		return ComputeCapsuleCapsuleConstraint(Particle0, Particle1, Thickness);
 	}
-	else if (Particle0->Geometry()->GetType() == TCapsule<T>::GetType() && Particle1->Geometry()->GetType() == TBox<T, d>::GetType())
+	else if (Particle0->Geometry()->GetType() == TCapsule<T>::StaticType() && Particle1->Geometry()->GetType() == TBox<T, d>::StaticType())
 	{
 		return ComputeCapsuleBoxConstraint(Particle0, Particle1, Thickness);
 	}
-	else if (Particle1->Geometry()->GetType() == TCapsule<T>::GetType() && Particle0->Geometry()->GetType() == TBox<T, d>::GetType())
+	else if (Particle1->Geometry()->GetType() == TCapsule<T>::StaticType() && Particle0->Geometry()->GetType() == TBox<T, d>::StaticType())
 	{
 		return ComputeCapsuleBoxConstraint(Particle1, Particle0, Thickness);
 	}
-	else if (Particle0->Geometry()->GetType() < TImplicitObjectUnion<T, d>::GetType() && Particle1->Geometry()->GetType() == TImplicitObjectUnion<T, d>::GetType())
+	else if (Particle0->Geometry()->GetType() < TImplicitObjectUnion<T, d>::StaticType() && Particle1->Geometry()->GetType() == TImplicitObjectUnion<T, d>::StaticType())
 	{
 		return ComputeSingleUnionConstraint(Particle0, Particle1, Thickness);
 	}
-	else if (Particle0->Geometry()->GetType() == TImplicitObjectUnion<T, d>::GetType() && Particle1->Geometry()->GetType() < TImplicitObjectUnion<T, d>::GetType())
+	else if (Particle0->Geometry()->GetType() == TImplicitObjectUnion<T, d>::StaticType() && Particle1->Geometry()->GetType() < TImplicitObjectUnion<T, d>::StaticType())
 	{
 		return ComputeSingleUnionConstraint(Particle1, Particle0, Thickness);
 	}
-	else if(Particle0->Geometry()->GetType() == TImplicitObjectUnion<T, d>::GetType() && Particle1->Geometry()->GetType() == TImplicitObjectUnion<T, d>::GetType())
+	else if(Particle0->Geometry()->GetType() == TImplicitObjectUnion<T, d>::StaticType() && Particle1->Geometry()->GetType() == TImplicitObjectUnion<T, d>::StaticType())
 	{
 		return ComputeUnionUnionConstraint(Particle0, Particle1, Thickness);
 	}
@@ -2080,35 +2080,35 @@ void UpdateLevelsetConstraintImp(const float Thickness, TRigidBodyContactConstra
 template<ECollisionUpdateType UpdateType, typename T, int d>
 void UpdateConstraintImp2(const TImplicitObject<T, d>& ParticleObject, const TRigidTransform<T, d>& ParticleTM, const TImplicitObject<T, d>& LevelsetObject, const TRigidTransform<T, d>& LevelsetTM, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
 {
-	if (ParticleObject.GetType() == TBox<T, d>::GetType() && LevelsetObject.GetType() == TBox<T, d>::GetType())
+	if (ParticleObject.GetType() == TBox<T, d>::StaticType() && LevelsetObject.GetType() == TBox<T, d>::StaticType())
 	{
 		UpdateBoxConstraint(*ParticleObject.template GetObject<TBox<T,d>>(), ParticleTM, *LevelsetObject.template GetObject<TBox<T, d>>(), LevelsetTM, Thickness, Constraint);
 	}
-	else if (ParticleObject.GetType() == TSphere<T, d>::GetType() && LevelsetObject.GetType() == TSphere<T, d>::GetType())
+	else if (ParticleObject.GetType() == TSphere<T, d>::StaticType() && LevelsetObject.GetType() == TSphere<T, d>::StaticType())
 	{
 		UpdateSphereConstraint(*ParticleObject.template GetObject<TSphere<T, d>>(), ParticleTM, *LevelsetObject.template GetObject<TSphere<T, d>>(), LevelsetTM, Thickness, Constraint);
 	}
-	else if (ParticleObject.GetType() == TBox<T, d>::GetType() && LevelsetObject.GetType() == TPlane<T, d>::GetType())
+	else if (ParticleObject.GetType() == TBox<T, d>::StaticType() && LevelsetObject.GetType() == TPlane<T, d>::StaticType())
 	{
 		UpdateBoxPlaneConstraint(*ParticleObject.template GetObject<TBox<T, d>>(), ParticleTM, *LevelsetObject.template GetObject<TPlane<T, d>>(), LevelsetTM, Thickness, Constraint);
 	}
-	else if (ParticleObject.GetType() == TSphere<T, d>::GetType() && LevelsetObject.GetType() == TPlane<T, d>::GetType())
+	else if (ParticleObject.GetType() == TSphere<T, d>::StaticType() && LevelsetObject.GetType() == TPlane<T, d>::StaticType())
 	{
 		UpdateSpherePlaneConstraint(*ParticleObject.template GetObject<TSphere<T, d>>(), ParticleTM, *LevelsetObject.template GetObject<TPlane<T, d>>(), LevelsetTM, Thickness, Constraint);
 	}
-	else if (ParticleObject.GetType() == TSphere<T, d>::GetType() && LevelsetObject.GetType() == TBox<T, d>::GetType())
+	else if (ParticleObject.GetType() == TSphere<T, d>::StaticType() && LevelsetObject.GetType() == TBox<T, d>::StaticType())
 	{
 		UpdateSphereBoxConstraint(*ParticleObject.template GetObject<TSphere<T, d>>(), ParticleTM, *LevelsetObject.template GetObject<TBox<T, d>>(), LevelsetTM, Thickness, Constraint);
 	}
-	else if (ParticleObject.GetType() == TCapsule<T>::GetType() && LevelsetObject.GetType() == TCapsule<T>::GetType())
+	else if (ParticleObject.GetType() == TCapsule<T>::StaticType() && LevelsetObject.GetType() == TCapsule<T>::StaticType())
 	{
 		UpdateCapsuleCapsuleConstraint(*ParticleObject.template GetObject<TCapsule<T>>(), ParticleTM, *LevelsetObject.template GetObject<TCapsule<T>>(), LevelsetTM, Thickness, Constraint);
 	}
-	else if (ParticleObject.GetType() == TCapsule<T>::GetType() && LevelsetObject.GetType() == TBox<T, d>::GetType())
+	else if (ParticleObject.GetType() == TCapsule<T>::StaticType() && LevelsetObject.GetType() == TBox<T, d>::StaticType())
 	{
 		UpdateCapsuleBoxConstraint(*ParticleObject.template GetObject<TCapsule<T>>(), ParticleTM, *LevelsetObject.template GetObject<TBox<T, d>>(), LevelsetTM, Thickness, Constraint);
 	}
-	else if (ParticleObject.GetType() == TPlane<T, d>::GetType() && LevelsetObject.GetType() == TBox<T, d>::GetType())
+	else if (ParticleObject.GetType() == TPlane<T, d>::StaticType() && LevelsetObject.GetType() == TBox<T, d>::StaticType())
 	{
 		TRigidBodyContactConstraint<T, d> TmpConstraint = Constraint;
 		UpdateBoxPlaneConstraint(*LevelsetObject.template GetObject<TBox<T, d>>(), LevelsetTM, *ParticleObject.template GetObject<TPlane<T, d>>(), ParticleTM, Thickness, TmpConstraint);
@@ -2118,7 +2118,7 @@ void UpdateConstraintImp2(const TImplicitObject<T, d>& ParticleObject, const TRi
 			Constraint.Normal = -Constraint.Normal;
 		}
 	}
-	else if (ParticleObject.GetType() == TPlane<T, d>::GetType() && LevelsetObject.GetType() == TSphere<T, d>::GetType())
+	else if (ParticleObject.GetType() == TPlane<T, d>::StaticType() && LevelsetObject.GetType() == TSphere<T, d>::StaticType())
 	{
 		TRigidBodyContactConstraint<T, d> TmpConstraint = Constraint;
 		UpdateSpherePlaneConstraint(*LevelsetObject.template GetObject<TSphere<T, d>>(), LevelsetTM, *ParticleObject.template GetObject<TPlane<T, d>>(), ParticleTM, Thickness, TmpConstraint);
@@ -2128,7 +2128,7 @@ void UpdateConstraintImp2(const TImplicitObject<T, d>& ParticleObject, const TRi
 			Constraint.Normal = -Constraint.Normal;
 		}
 	}
-	else if (ParticleObject.GetType() == TBox<T, d>::GetType() && LevelsetObject.GetType() == TSphere<T, d>::GetType())
+	else if (ParticleObject.GetType() == TBox<T, d>::StaticType() && LevelsetObject.GetType() == TSphere<T, d>::StaticType())
 	{
 		TRigidBodyContactConstraint<T, d> TmpConstraint = Constraint;
 		UpdateSphereBoxConstraint(*LevelsetObject.template GetObject<TSphere<T, d>>(), LevelsetTM, *ParticleObject.template GetObject<TBox<T, d>>(), ParticleTM, Thickness, TmpConstraint);
@@ -2138,7 +2138,7 @@ void UpdateConstraintImp2(const TImplicitObject<T, d>& ParticleObject, const TRi
 			Constraint.Normal = -Constraint.Normal;
 		}
 	}
-	else if (ParticleObject.GetType() == TBox<T, d>::GetType() && LevelsetObject.GetType() == TCapsule<T>::GetType())
+	else if (ParticleObject.GetType() == TBox<T, d>::StaticType() && LevelsetObject.GetType() == TCapsule<T>::StaticType())
 	{
 		TRigidBodyContactConstraint<T, d> TmpConstraint = Constraint;
 		UpdateCapsuleBoxConstraint(*LevelsetObject.template GetObject<TCapsule<T>>(), LevelsetTM, *ParticleObject.template GetObject<TBox<T, d>>(), ParticleTM, Thickness, TmpConstraint);
@@ -2148,15 +2148,15 @@ void UpdateConstraintImp2(const TImplicitObject<T, d>& ParticleObject, const TRi
 			Constraint.Normal = -Constraint.Normal;
 		}
 	}
-	else if (ParticleObject.GetType() < TImplicitObjectUnion<T, d>::GetType() && LevelsetObject.GetType() == TImplicitObjectUnion<T, d>::GetType())
+	else if (ParticleObject.GetType() < TImplicitObjectUnion<T, d>::StaticType() && LevelsetObject.GetType() == TImplicitObjectUnion<T, d>::StaticType())
 	{
 		return UpdateSingleUnionConstraint<UpdateType>(Thickness, Constraint);
 	}
-	else if (ParticleObject.GetType() == TImplicitObjectUnion<T, d>::GetType() && LevelsetObject.GetType() < TImplicitObjectUnion<T, d>::GetType())
+	else if (ParticleObject.GetType() == TImplicitObjectUnion<T, d>::StaticType() && LevelsetObject.GetType() < TImplicitObjectUnion<T, d>::StaticType())
 	{
 		check(false);	//should not be possible to get this ordering (see ComputeConstraint)
 	}
-	else if (ParticleObject.GetType() == TImplicitObjectUnion<T, d>::GetType() && LevelsetObject.GetType() == TImplicitObjectUnion<T, d>::GetType())
+	else if (ParticleObject.GetType() == TImplicitObjectUnion<T, d>::StaticType() && LevelsetObject.GetType() == TImplicitObjectUnion<T, d>::StaticType())
 	{
 		return UpdateUnionUnionConstraint<UpdateType>(Thickness, Constraint);
 	}

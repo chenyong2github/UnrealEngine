@@ -2033,6 +2033,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 		// Copy the texture to be available for the water surface to refrace
 		FSingleLayerWaterPassData SingleLayerWaterPassData;
+		SingleLayerWaterPassData.ViewData.SetNum(Views.Num());
 		CopySingleLayerWaterTextures(RHICmdList, SingleLayerWaterPassData);
 
 		// Make the Depth texture writable since the water GBuffer pass will update it

@@ -1,7 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "GroomBuilder.h"
 #include "GroomAsset.h"
 #include "GroomComponent.h"
@@ -821,7 +819,7 @@ namespace HairInterpolationBuilder
 		const uint32 RenCurveCount = RenStrandsData.GetNumCurves();
 		const uint32 SimCurveCount = SimStrandsData.GetNumCurves();
 
-		TAtomic<uint32> CompletedTasks = 0;
+		TAtomic<uint32> CompletedTasks(0);
 		FScopedSlowTask SlowTask(RenCurveCount, LOCTEXT("BuildInterpolationData", "Building groom simulation data"));
 		SlowTask.MakeDialog();
 

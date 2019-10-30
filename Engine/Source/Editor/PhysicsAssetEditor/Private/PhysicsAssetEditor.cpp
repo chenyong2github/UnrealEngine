@@ -79,6 +79,7 @@
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "AnimationEditorPreviewActor.h"
+#include "Preferences/PersonaOptions.h"
 
 const FName PhysicsAssetEditorModes::PhysicsAssetEditorMode("PhysicsAssetEditorMode");
 
@@ -148,6 +149,10 @@ void FPhysicsAssetEditor::InitPhysicsAssetEditor(const EToolkitMode::Type Mode, 
 	SkeletonTreeArgs.ContextName = GetToolkitFName();
 
 	ISkeletonEditorModule& SkeletonEditorModule = FModuleManager::GetModuleChecked<ISkeletonEditorModule>("SkeletonEditor");
+
+	GetMutableDefault<UPersonaOptions>()->bFlattenSkeletonHierarchyWhenFiltering = false;
+	GetMutableDefault<UPersonaOptions>()->bHideParentsWhenFiltering = true;
+
 	SkeletonTree = SkeletonEditorModule.CreateSkeletonTree(PersonaToolkit->GetSkeleton(), SkeletonTreeArgs);
 
 	bSelecting = false;
@@ -569,6 +574,7 @@ void FPhysicsAssetEditor::ExtendMenu()
 			MenuBarBuilder.AddMenuEntry(Commands.SelectKinematicBodies);
 			MenuBarBuilder.AddMenuEntry(Commands.SelectAllConstraints);
 			MenuBarBuilder.AddMenuEntry(Commands.ToggleSelectionType);
+			MenuBarBuilder.AddMenuEntry(Commands.ToggleShowSelected);
 			MenuBarBuilder.AddMenuEntry(Commands.DeselectAll);
 			MenuBarBuilder.EndSection();
 		}
@@ -824,6 +830,11 @@ void FPhysicsAssetEditor::BindCommands()
 	ToolkitCommands->MapAction(
 		Commands.ToggleSelectionType,
 		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnToggleSelectionType),
+		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::IsNotSimulation));
+
+	ToolkitCommands->MapAction(
+		Commands.ToggleShowSelected,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnToggleShowSelected),
 		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::IsNotSimulation));
 
 	ToolkitCommands->MapAction(
@@ -1240,10 +1251,11 @@ void FPhysicsAssetEditor::BuildMenuWidgetSelection(FMenuBuilder& InMenuBuilder)
 
 		InMenuBuilder.BeginSection( "Selection", LOCTEXT("Selection", "Selection" ) );
 		InMenuBuilder.AddMenuEntry( Commands.SelectAllBodies );
-		InMenuBuilder.AddMenuEntry(Commands.SelectSimulatedBodies);
-		InMenuBuilder.AddMenuEntry(Commands.SelectKinematicBodies);
+		InMenuBuilder.AddMenuEntry( Commands.SelectSimulatedBodies );
+		InMenuBuilder.AddMenuEntry( Commands.SelectKinematicBodies );
 		InMenuBuilder.AddMenuEntry( Commands.SelectAllConstraints );
 		InMenuBuilder.AddMenuEntry( Commands.ToggleSelectionType );
+		InMenuBuilder.AddMenuEntry( Commands.ToggleShowSelected );
 		InMenuBuilder.EndSection();
 	}
 	InMenuBuilder.PopCommandList();
@@ -1271,6 +1283,7 @@ TSharedRef<ISkeletonTree> FPhysicsAssetEditor::BuildMenuWidgetNewConstraintForBo
 	SkeletonTreeArgs.bAllowSkeletonOperations = false;
 	SkeletonTreeArgs.bShowBlendProfiles = false;
 	SkeletonTreeArgs.bShowFilterMenu = false;
+	SkeletonTreeArgs.bHideBonesByDefault = false;
 	SkeletonTreeArgs.Builder = Builder;
 	SkeletonTreeArgs.PreviewScene = GetPersonaToolkit()->GetPreviewScene();
 	SkeletonTreeArgs.OnSelectionChanged = FOnSkeletonTreeSelectionChanged::CreateLambda([this, InSourceBodyIndex, InOnActionMenuClosed](const TArrayView<TSharedPtr<ISkeletonTreeItem>>& InSelectedItems, ESelectInfo::Type SelectInfo)
@@ -2688,6 +2701,11 @@ void FPhysicsAssetEditor::OnToggleSelectionType()
 	SharedData->ToggleSelectionType();
 }
 
+void FPhysicsAssetEditor::OnToggleShowSelected()
+{
+	SharedData->ToggleShowSelected();
+}
+
 void FPhysicsAssetEditor::OnDeselectAll()
 {
 	SharedData->ClearSelectedBody();
@@ -2908,7 +2926,7 @@ void FPhysicsAssetEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPre
 	SharedData->EditorSkelComp->SetDisablePostProcessBlueprint(true);
 	InPersonaPreviewScene->SetPreviewMeshComponent(SharedData->EditorSkelComp);
 	InPersonaPreviewScene->AddComponent(SharedData->EditorSkelComp, FTransform::Identity);
-
+	InPersonaPreviewScene->SetAdditionalMeshesSelectable(false);
 	// set root component, so we can attach to it. 
 	Actor->SetRootComponent(SharedData->EditorSkelComp);
 

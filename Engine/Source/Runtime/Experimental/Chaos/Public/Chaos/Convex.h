@@ -37,7 +37,7 @@ namespace Chaos
 			TConvexBuilder<T>::Build(InParticles, Planes, SurfaceParticles, LocalBoundingBox);
 		}
 
-		static EImplicitObjectType GetType()
+		static EImplicitObjectType StaticType()
 		{
 			return ImplicitObjectType::Convex;
 		}

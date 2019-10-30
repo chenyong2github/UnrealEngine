@@ -1355,6 +1355,7 @@ class FVulkanVertexInputStateInfo
 {
 public:
 	FVulkanVertexInputStateInfo();
+	~FVulkanVertexInputStateInfo();
 
 	void Generate(FVulkanVertexDeclaration* VertexDeclaration, uint32 VertexHeaderInOutAttributeMask);
 
@@ -1368,6 +1369,8 @@ public:
 	{
 		return Info;
 	}
+
+	bool operator ==(const FVulkanVertexInputStateInfo& Other);
 
 protected:
 	VkPipelineVertexInputStateCreateInfo Info;
