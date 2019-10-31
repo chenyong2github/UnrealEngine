@@ -740,8 +740,8 @@ public:
 			SelectedItems.Remove( TheItem );
 		}
 
-		// Only move the selector item and range selection start if the user directed this change in selection.
-		if( bWasUserDirected )
+		// Move the selector item and range selection start if the user directed this change in selection or if the list view is single selection
+		if( bWasUserDirected || SelectionMode.Get() == ESelectionMode::Single || SelectionMode.Get() == ESelectionMode::SingleToggle )
 		{
 			SelectorItem = TheItem;
 			RangeSelectionStart = TheItem;
