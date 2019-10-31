@@ -180,6 +180,7 @@ protected:
 	using Base::CreateConstraintGraph;
 	using Base::CreateIslands;
 	using Base::ConstraintGraph;
+	using Base::ConstraintRules;
 	using Base::UpdateVelocities;
 	using Base::PhysicsMaterials;
 	using Base::ParticleDisableCount;
