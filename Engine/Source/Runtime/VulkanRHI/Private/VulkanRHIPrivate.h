@@ -193,6 +193,7 @@ protected:
 	void CalculateRenderPassHashes(const FRHISetRenderTargetsInfo& RTInfo);
 
 	friend class FVulkanPipelineStateCacheManager;
+	friend struct FGfxPipelineDesc;
 };
 
 class FVulkanFramebuffer
@@ -382,6 +383,20 @@ inline void VulkanSetImageLayoutSimple(VkCommandBuffer CmdBuffer, VkImage Image,
 
 void VulkanResolveImage(VkCommandBuffer Cmd, FRHITexture* SourceTextureRHI, FRHITexture* DestTextureRHI);
 
+DECLARE_STATS_GROUP(TEXT("Vulkan PSO"), STATGROUP_VulkanPSO, STATCAT_Advanced);
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("PSO LRU Elements"), STAT_VulkanNumPSOLRU, STATGROUP_VulkanPSO, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("PSO LRU Size"), STAT_VulkanNumPSOLRUSize, STATGROUP_VulkanPSO, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Num PSOs"), STAT_VulkanNumPSOs, STATGROUP_VulkanPSO, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Num Graphics PSOs"), STAT_VulkanNumGraphicsPSOs, STATGROUP_VulkanPSO, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Num Compute  PSOs"), STAT_VulkanNumComputePSOs, STATGROUP_VulkanPSO, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("VulkanPSOKey Memory"), STAT_VulkanPSOKeyMemory, STATGROUP_VulkanPSO, );
+
+DECLARE_CYCLE_STAT_EXTERN(TEXT("PSO HeaderInit time"), STAT_VulkanPSOHeaderInitTime, STATGROUP_VulkanPSO, );
+DECLARE_CYCLE_STAT_EXTERN(TEXT("PSO Lookup time"), STAT_VulkanPSOLookupTime, STATGROUP_VulkanPSO, );
+DECLARE_CYCLE_STAT_EXTERN(TEXT("PSO Creation time"), STAT_VulkanPSOCreationTime, STATGROUP_VulkanPSO, );
+DECLARE_CYCLE_STAT_EXTERN(TEXT("PSO Vulkan Creation time"), STAT_VulkanPSOVulkanCreationTime, STATGROUP_VulkanPSO, );
+
+
 // Stats
 DECLARE_STATS_GROUP(TEXT("Vulkan RHI"), STATGROUP_VulkanRHI, STATCAT_Advanced);
 //DECLARE_STATS_GROUP(TEXT("Vulkan RHI Verbose"), STATGROUP_VulkanRHIVERBOSE, STATCAT_Advanced);
@@ -394,7 +409,6 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("Get Or Create Pipeline"), STAT_VulkanGetOrCreate
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Get DescriptorSet"), STAT_VulkanGetDescriptorSet, STATGROUP_VulkanRHI, );
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Pipeline Bind"), STAT_VulkanPipelineBind, STATGROUP_VulkanRHI, );
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Num Cmd Buffers"), STAT_VulkanNumCmdBuffers, STATGROUP_VulkanRHI, );
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Num PSOs"), STAT_VulkanNumPSOs, STATGROUP_VulkanRHI, );
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Num Render Passes"), STAT_VulkanNumRenderPasses, STATGROUP_VulkanRHI, );
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Num Frame Buffers"), STAT_VulkanNumFrameBuffers, STATGROUP_VulkanRHI, );
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Num Buffer Views"), STAT_VulkanNumBufferViews, STATGROUP_VulkanRHI, );
