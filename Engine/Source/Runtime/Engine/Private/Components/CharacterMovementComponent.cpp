@@ -2821,7 +2821,7 @@ void UCharacterMovementComponent::UnCrouch(bool bClientSimulation)
 void UCharacterMovementComponent::UpdateCharacterStateBeforeMovement(float DeltaSeconds)
 {
 	// Proxies get replicated crouch state.
-	if (CharacterOwner->Role != ROLE_SimulatedProxy)
+	if (CharacterOwner->GetLocalRole() != ROLE_SimulatedProxy)
 	{
 		// Check for a change in crouch state. Players toggle crouch by changing bWantsToCrouch.
 		const bool bIsCrouching = IsCrouching();
@@ -2839,7 +2839,7 @@ void UCharacterMovementComponent::UpdateCharacterStateBeforeMovement(float Delta
 void UCharacterMovementComponent::UpdateCharacterStateAfterMovement(float DeltaSeconds)
 {
 	// Proxies get replicated crouch state.
-	if (CharacterOwner->Role != ROLE_SimulatedProxy)
+	if (CharacterOwner->GetLocalRole() != ROLE_SimulatedProxy)
 	{
 		// Uncrouch if no longer allowed to be crouched
 		if (IsCrouching() && !CanCrouchInCurrentState())

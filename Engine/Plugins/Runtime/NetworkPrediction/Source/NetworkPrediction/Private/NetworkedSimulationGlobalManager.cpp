@@ -35,7 +35,7 @@ void UNetworkSimulationGlobalManager::ReconcileSimulationsPostNetworkUpdate()
 	{
 		for (auto& SimItem : It.Value().Simulations)
 		{
-			SimItem.Simulation->Reconcile(SimItem.OwningActor->Role);
+			SimItem.Simulation->Reconcile(SimItem.OwningActor->GetLocalRole());
 		}
 	}
 }

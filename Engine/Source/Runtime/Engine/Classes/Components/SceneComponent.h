@@ -149,10 +149,12 @@ public:
 	FBoxSphereBounds Bounds;
 
 	/** Location of the component relative to its parent */
+	UE_DEPRECATED(4.24, "This member will be made private. Please use GetRelativeLocation or SetRelativeLocation.")
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing=OnRep_Transform, Category = Transform)
 	FVector RelativeLocation;
 
 	/** Rotation of the component relative to its parent */
+	UE_DEPRECATED(4.24, "This member will be made private. Please use GetRelativeRotation or SetRelativeRotation.")
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing=OnRep_Transform, Category=Transform)
 	FRotator RelativeRotation;
 
@@ -160,6 +162,7 @@ public:
 	*	Non-uniform scaling of the component relative to its parent.
 	*	Note that scaling is always applied in local space (no shearing etc)
 	*/
+	UE_DEPRECATED(4.24, "This member will be made private. Please use GetRelativeScale3D or SetRelativeScale3D.")
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_Transform, interp, Category=Transform)
 	FVector RelativeScale3D;
 
@@ -181,18 +184,22 @@ private:
 
 public:
 	/** If RelativeLocation should be considered relative to the world, rather than the parent */
+	UE_DEPRECATED(4.24, "This member will be made private. Please use IsUsingAbsoluteLocation or SetUsingAbsoluteLocation.")
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, ReplicatedUsing=OnRep_Transform, Category=Transform)
 	uint8 bAbsoluteLocation:1;
 
 	/** If RelativeRotation should be considered relative to the world, rather than the parent */
+	UE_DEPRECATED(4.24, "This member will be made private. Please use IsUsingAbsoluteRotation or SetUsingAbsoluteRotation.")
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, ReplicatedUsing=OnRep_Transform, Category=Transform)
 	uint8 bAbsoluteRotation:1;
 
 	/** If RelativeScale3D should be considered relative to the world, rather than the parent */
+	UE_DEPRECATED(4.24, "This member will be made private. Please use IsUsingAbsoluteScale or SetUsingAbsoluteScale.")
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, ReplicatedUsing=OnRep_Transform, Category=Transform)
 	uint8 bAbsoluteScale:1;
 
 	/** Whether to completely draw the primitive; if false, the primitive is not drawn, does not cast a shadow. */
+	UE_DEPRECATED(4.24, "This member will be made private. Please use IsVisible or SetVisibility.")
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing=OnRep_Visibility,  Category = Rendering)
 	uint8 bVisible:1;
 
@@ -1250,7 +1257,8 @@ private:
 	friend class FScopedPreventAttachedComponentMove;
 	friend struct FDirectAttachChildrenAccessor;
 
-	//~ Begin Methods for Replicated Members.	
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	//~ Begin Methods for Replicated Members.
 private:
 
 	/**
@@ -1507,6 +1515,7 @@ public:
 	void SetVisibleFlag(const bool bInVisible);
 	
 	//~ End Methods for Replicated Members.
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 };
 
 /** 
