@@ -28,12 +28,8 @@ public:
 	{
 	}
 
-	UPROPERTY( BlueprintReadOnly, Category = DatasmithConsumerInternal)
+	UPROPERTY( BlueprintReadOnly, Category = DatasmithConsumerInternal, DuplicateTransient )
 	TSoftObjectPtr<UDatasmithScene> DatasmithScene;
-
-	/** Stores the package path used on the last call to UDatasmithConsumer::Run */
-	UPROPERTY( BlueprintReadOnly, Category = DatasmithConsumerInternal )
-	FString LastPackagePath;
 
 	/** Stores the level used on the last call to UDatasmithConsumer::Run */
 	UPROPERTY( BlueprintReadOnly, Category = DatasmithConsumerInternal )
@@ -58,7 +54,7 @@ private:
 	ULevel* FindLevel( const FString& InLevelName );
 
 	/** Move assets if destination package path has changed since last call to UDatasmithConsumer::Run */
-	void MoveAssets();
+	void UpdateDestinationPackage();
 
 	/** Move level if destination level's name has changed since last call to UDatasmithConsumer::Run */
 	void MoveLevel();
