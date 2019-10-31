@@ -2296,6 +2296,14 @@ void FSceneView::SetupCommonViewUniformBufferParameters(
 		FPlane(0, 0, ProjectionMatrixUnadjustedForRHI.M[3][2], 0))
 		* InViewMatrices.GetInvTranslatedViewProjectionMatrix();
 
+	ViewUniformShaderParameters.MobileMultiviewShadowTransform = FMatrix(
+		FPlane(1, 0, 0, 0),
+		FPlane(0, 1, 0, 0),
+		FPlane(0, 0, InViewMatrices.GetProjectionMatrix().M[2][2], 1),
+		FPlane(0, 0, InViewMatrices.GetProjectionMatrix().M[3][2], 0)) *
+		InViewMatrices.GetInvTranslatedViewProjectionMatrix() *
+		FTranslationMatrix(-InViewMatrices.GetPreViewTranslation());
+
 	ViewUniformShaderParameters.PrevScreenToTranslatedWorld = FMatrix(
 		FPlane(1, 0, 0, 0),
 		FPlane(0, 1, 0, 0),

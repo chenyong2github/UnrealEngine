@@ -545,7 +545,7 @@ void Main(
 		half Shadow = 1.0f;
 	#if !MATERIAL_SHADINGMODEL_UNLIT
 		Shadow = GetPrimaryPrecomputedShadowMask(Interpolants).r;
-		#if DIRECTIONAL_LIGHT_CSM && !MOBILE_MULTI_VIEW && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+		#if DIRECTIONAL_LIGHT_CSM && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 		// Cascaded Shadow Map
 		{
 			FPCFSamplerSettings Settings;
@@ -563,7 +563,12 @@ void Main(
 			{
 				if (MaterialParameters.ScreenPosition.w < MobileDirectionalLight.DirectionalLightShadowDistances[i])
 				{
+				#if MOBILE_MULTI_VIEW
+					ShadowPosition = mul(float4(MaterialParameters.ScreenPosition.xyw, 1), ResolvedView.MobileMultiviewShadowTransform);
+					ShadowPosition = mul(ShadowPosition, MobileDirectionalLight.DirectionalLightScreenToShadow[i]);
+				#else
 					ShadowPosition = mul(float4(MaterialParameters.ScreenPosition.xyw, 1), MobileDirectionalLight.DirectionalLightScreenToShadow[i]);
+				#endif
 					break; // position found.
 				}
 			}
