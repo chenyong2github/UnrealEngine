@@ -15,10 +15,10 @@ namespace Chaos
 {
 
 	template<typename T>
-	class CHAOS_API TTriangleMeshImplicitObject final : public TImplicitObject<T,3>
+	class CHAOS_API TTriangleMeshImplicitObject final : public FImplicitObject
 	{
 	public:
-		using TImplicitObject<T, 3>::GetTypeName;
+		using FImplicitObject::GetTypeName;
 
 		TTriangleMeshImplicitObject(TParticles<T,3>&& Particles, TArray<TVector<int32, 3>>&& Elements);
 		TTriangleMeshImplicitObject(const TTriangleMeshImplicitObject& Other) = delete;
@@ -34,8 +34,8 @@ namespace Chaos
 		virtual bool Raycast(const TVector<T, 3>& StartPoint, const TVector<T, 3>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T,3>& OutPosition, TVector<T,3>& OutNormal, int32& OutFaceIndex) const override;
 		virtual bool Overlap(const TVector<T, 3>& Point, const T Thickness) const override;
 
-		bool OverlapGeom(const TImplicitObject<T,3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const;
-		bool SweepGeom(const TImplicitObject<T, 3>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T,3>& Dir, const T Length, T& OutTime, TVector<T,3>& OutPosition, TVector<T,3>& OutNormal, int32& OutFaceIndex, const T Thickness = 0) const;
+		bool OverlapGeom(const FImplicitObject& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const;
+		bool SweepGeom(const FImplicitObject& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T,3>& Dir, const T Length, T& OutTime, TVector<T,3>& OutPosition, TVector<T,3>& OutNormal, int32& OutFaceIndex, const T Thickness = 0) const;
 		virtual int32 FindMostOpposingFace(const TVector<T, 3>& Position, const TVector<T, 3>& UnitDir, int32 HintFaceIndex, T SearchDistance) const override;
 		virtual TVector<T, 3> FindGeometryOpposingNormal(const TVector<T, 3>& DenormDir, int32 FaceIndex, const TVector<T, 3>& OriginalNormal) const override;
 
@@ -53,7 +53,7 @@ namespace Chaos
 		{
 			Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 
-			TImplicitObject<T, 3>::SerializeImp(Ar);
+			FImplicitObject::SerializeImp(Ar);
 			Ar << MParticles;
 			Ar << MElements;
 			Ar << MLocalBoundingBox;
@@ -142,11 +142,10 @@ namespace Chaos
 		friend struct TTriangleMeshSweepVisitor;
 
 		// Required by implicit object serialization, disabled for general use.
-		template<typename InnerT, int InnerD>
-		friend class TImplicitObject;
+		friend class FImplicitObject;
 
 		TTriangleMeshImplicitObject() 
-			: TImplicitObject<T, 3>(EImplicitObject::HasBoundingBox, ImplicitObjectType::TriangleMesh)
+			: FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::TriangleMesh)
 		{};
 	};
 }

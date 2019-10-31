@@ -23,7 +23,7 @@ inline TUniquePtr<Chaos::TImplicitObjectTransformed<float, 3>> PxShapeToChaosGeo
 {
 	using namespace Chaos;
 
-	TUniquePtr<TImplicitObject<float, 3>> InnerObj;
+	TUniquePtr<FImplicitObject> InnerObj;
 	PxTransform ShapeTM = Shape->getLocalPose();
 	PxGeometryHolder Geom = Shape->getGeometry();
 	switch (Geom.getType())

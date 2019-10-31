@@ -34,7 +34,7 @@ using namespace Chaos;
 
 template<class T, int d>
 TLevelSet<T, d>::TLevelSet(FErrorReporter& ErrorReporter, const TUniformGrid<T, d>& InGrid, const TParticles<T, d>& InParticles, const TTriangleMesh<T>& Mesh, const int32 BandWidth)
-    : TImplicitObject<T, d>(EImplicitObject::HasBoundingBox, ImplicitObjectType::LevelSet)
+    : FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::LevelSet)
     , MGrid(InGrid)
     , MPhi(MGrid)
     , MNormals(MGrid)
@@ -91,8 +91,8 @@ TLevelSet<T, d>::TLevelSet(FErrorReporter& ErrorReporter, const TUniformGrid<T, 
 }
 
 template<class T, int d>
-TLevelSet<T, d>::TLevelSet(FErrorReporter& ErrorReporter, const TUniformGrid<T, d>& InGrid, const TImplicitObject<T, d>& InObject, const int32 BandWidth, const bool bUseObjectPhi)
-    : TImplicitObject<T, d>(EImplicitObject::HasBoundingBox, ImplicitObjectType::LevelSet)
+TLevelSet<T, d>::TLevelSet(FErrorReporter& ErrorReporter, const TUniformGrid<T, d>& InGrid, const FImplicitObject& InObject, const int32 BandWidth, const bool bUseObjectPhi)
+    : FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::LevelSet)
     , MGrid(InGrid)
     , MPhi(MGrid)
     , MNormals(MGrid)
@@ -149,7 +149,7 @@ TLevelSet<T, d>::TLevelSet(FErrorReporter& ErrorReporter, const TUniformGrid<T, 
 
 template<class T, int d>
 TLevelSet<T, d>::TLevelSet(std::istream& Stream)
-    : TImplicitObject<T, d>(EImplicitObject::HasBoundingBox, ImplicitObjectType::LevelSet)
+    : FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::LevelSet)
     , MGrid(Stream)
     , MPhi(Stream)
     , MLocalBoundingBox(MGrid.MinCorner(), MGrid.MaxCorner())
@@ -160,7 +160,7 @@ TLevelSet<T, d>::TLevelSet(std::istream& Stream)
 
 template<class T, int d>
 TLevelSet<T, d>::TLevelSet(TLevelSet<T, d>&& Other)
-    : TImplicitObject<T, d>(EImplicitObject::HasBoundingBox, ImplicitObjectType::LevelSet)
+    : FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::LevelSet)
     , MGrid(MoveTemp(Other.MGrid))
     , MPhi(MoveTemp(Other.MPhi))
     , MLocalBoundingBox(MoveTemp(Other.MLocalBoundingBox))
@@ -637,7 +637,7 @@ bool TLevelSet<T, d>::ComputeDistancesNearZeroIsocontour(FErrorReporter& ErrorRe
 }
 
 template<class T, int d>
-void TLevelSet<T, d>::ComputeDistancesNearZeroIsocontour(const TImplicitObject<T, d>& Object, const TArrayND<T, d>& ObjectPhi, TArray<TVector<int32, d>>& InterfaceIndices)
+void TLevelSet<T, d>::ComputeDistancesNearZeroIsocontour(const FImplicitObject& Object, const TArrayND<T, d>& ObjectPhi, TArray<TVector<int32, d>>& InterfaceIndices)
 {
 	MPhi.Fill(FLT_MAX);
 	const auto& Counts = MGrid.Counts();
