@@ -4,9 +4,11 @@
 #include "NiagaraOverviewNode.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "SNiagaraOverviewStack.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraEditorWidgetsStyle.h"
+#include "Stack/SNiagaraStackIssueIcon.h"
 
 #include "Modules/ModuleManager.h"
 #include "Widgets/Layout/SBox.h"
@@ -45,18 +47,30 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateTitleWidget(TSharedPtr<SNod
 	TSharedRef<SWidget> DefaultTitle = SGraphNode::CreateTitleWidget(NodeTitle);
 	
 	return SNew(SHorizontalBox)
+		// Enabled checkbox
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
-		.Padding(0, 0, 5, 0)
+		.Padding(0)
 		[
 			SNew(SCheckBox)
 			.Visibility(this, &SNiagaraOverviewStackNode::GetEnabledCheckBoxVisibility)
 			.IsChecked(this, &SNiagaraOverviewStackNode::GetEnabledCheckState)
 			.OnCheckStateChanged(this, &SNiagaraOverviewStackNode::OnEnabledCheckStateChanged)
 		]
+		// Name
 		+ SHorizontalBox::Slot()
+		.Padding(4, 0, 0, 0)
 		[
 			DefaultTitle
+		]
+		// Stack issues icon
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.Padding(5, 0, 0, 0)
+		[
+			SNew(SNiagaraStackIssueIcon, StackViewModel, StackViewModel->GetRootEntry())
+			.Visibility(this, &SNiagaraOverviewStackNode::GetIssueIconVisibility)
 		];
 }
 
@@ -111,6 +125,11 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 				SAssignNew(RightNodeBox, SVerticalBox)
 			]
 		];
+}
+
+EVisibility SNiagaraOverviewStackNode::GetIssueIconVisibility() const
+{
+	return StackViewModel->HasIssues() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 EVisibility SNiagaraOverviewStackNode::GetEnabledCheckBoxVisibility() const
