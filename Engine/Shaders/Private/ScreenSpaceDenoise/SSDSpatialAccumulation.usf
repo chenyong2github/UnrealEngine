@@ -40,10 +40,11 @@
 
 // Configures all the pass for each individual signals.
 #if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK
+	#define MAX_SIGNAL_BATCH_SIZE CONFIG_SIGNAL_BATCH_SIZE
+	#define SIGNAL_ARRAY_SIZE CONFIG_SIGNAL_BATCH_SIZE
+
 	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_MONOCHROMATIC_PENUMBRA
 	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN 1
-
-	#define MAX_SIGNAL_BATCH_SIZE CONFIG_SIGNAL_BATCH_SIZE
 
 	#if DIM_STAGE == STAGE_RECONSTRUCTION
 		// Input and output layout.
@@ -77,16 +78,6 @@
 		#define CONFIG_MAX_WITH_REF_DISTANCE 1
 		#define CONFIG_OUTPUT_MODE          OUTPUT_MODE_DRB
 
-	#elif DIM_STAGE == STAGE_REJECTION_PRE_CONVOLUTION
-		// Input and output layout.
-		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION
-		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_PENUMBRA_REJECTION
-
-		#define CONFIG_INPUT_TEXTURE_COUNT CONFIG_SIGNAL_BATCH_SIZE
-		#define CONFIG_OUTPUT_TEXTURE_COUNT CONFIG_SIGNAL_BATCH_SIZE
-
-		#define CONFIG_BILATERAL_DISTANCE_COMPUTATION SIGNAL_WORLD_FREQUENCY_PRECOMPUTED_BLURING_RADIUS
-
 	#elif DIM_STAGE == STAGE_POST_FILTERING
 		// Input and output layout.
 		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_PENUMBRA_HISTORY
@@ -119,15 +110,17 @@
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_POLYCHROMATIC_PENUMBRA_HARMONIC
+	// Denoise diffuse and specular harmonics at the same time.
+	#define MAX_SIGNAL_BATCH_SIZE 2
+	#define SIGNAL_ARRAY_SIZE 2
+	#undef CONFIG_SIGNAL_BATCH_SIZE
+	#define CONFIG_SIGNAL_BATCH_SIZE 2
+
+	// Each harmonic requires input and output RGB.
 	#define COMPILE_SIGNAL_COLOR_ARRAY 2
 
 	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_POLYCHROMATIC_PENUMBRA
 	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN 1
-	#undef CONFIG_SIGNAL_BATCH_SIZE
-	#define CONFIG_SIGNAL_BATCH_SIZE 2
-
-	// Denoise diffuse and specular harmonics at the same time.
-	#define MAX_SIGNAL_BATCH_SIZE 2
 
 	// Any world distance depends on the harmonic being processed.
 	#define CONFIG_BILATERAL_DISTANCE_COMPUTATION SIGNAL_WORLD_FREQUENCY_HARMONIC
@@ -148,9 +141,14 @@
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
+	// Denoise only specular.
+	#define MAX_SIGNAL_BATCH_SIZE 1
+
 	#define COMPILE_SIGNAL_COLOR 1
 
 	#if DIM_STAGE == STAGE_RECONSTRUCTION
+		#define SIGNAL_ARRAY_SIZE 1
+
 		// Input and output layout.
 		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_REFLECTIONS_INPUT
 		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY
@@ -188,6 +186,8 @@
 		#define CONFIG_OUTPUT_TEXTURE_COUNT 2
 
 	#elif DIM_STAGE == STAGE_REJECTION_PRE_CONVOLUTION
+		#define SIGNAL_ARRAY_SIZE 2 // first and second momment to measure variance in temporal accumulation.
+
 		// Input and output layout.
 		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY
 		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_REFLECTIONS_REJECTION
@@ -201,6 +201,8 @@
 		#define CONFIG_OUTPUT_TEXTURE_COUNT 3
 
 	#elif DIM_STAGE == STAGE_POST_FILTERING
+		#define SIGNAL_ARRAY_SIZE 1
+
 		// Input and output layout.
 		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY
 		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY
@@ -221,9 +223,14 @@
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO
+	// Denoise only AO.
+	#define MAX_SIGNAL_BATCH_SIZE 1
+
 	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
 
 	#if DIM_STAGE == STAGE_RECONSTRUCTION
+		#define SIGNAL_ARRAY_SIZE 1
+
 		// Input and output layout.
 		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_AO_INPUT
 		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_AO_HISTORY
@@ -236,6 +243,8 @@
 		#define CONFIG_OUTPUT_MODE          OUTPUT_MODE_DRB
 
 	#elif DIM_STAGE == STAGE_REJECTION_PRE_CONVOLUTION
+		#define SIGNAL_ARRAY_SIZE 2 // first and second momment to measure variance in temporal accumulation.
+
 		// Input and output layout.
 		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_AO_HISTORY
 		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_AO_REJECTION
@@ -246,6 +255,8 @@
 		#define CONFIG_BILATERAL_DISTANCE_COMPUTATION SIGNAL_WORLD_FREQUENCY_HIT_DISTANCE
 
 	#elif DIM_STAGE == STAGE_POST_FILTERING
+		#define SIGNAL_ARRAY_SIZE 1
+
 		// Input and output layout.
 		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_AO_HISTORY
 		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_AO_HISTORY
@@ -263,6 +274,10 @@
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_INDIRECT_AND_AO
+	// Denoise diffuse and AO, but AO is FSSDSignalSample::MissCount.
+	#define MAX_SIGNAL_BATCH_SIZE 1
+	#define SIGNAL_ARRAY_SIZE 1
+
 	#define COMPILE_SIGNAL_COLOR 1
 
 	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
@@ -303,6 +318,9 @@
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_SPHERICAL_HARMONIC
+	#define MAX_SIGNAL_BATCH_SIZE 1
+	#define SIGNAL_ARRAY_SIZE 1
+
 	#define COMPILE_SIGNAL_COLOR_SH 1
 
 	// Given it's a spherical harmonic that store directionality, only need position based rejection.
@@ -335,6 +353,10 @@
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SSGI
+	// Denoise diffuse and AO, but AO is FSSDSignalSample::MissCount.
+	#define MAX_SIGNAL_BATCH_SIZE 1
+	#define SIGNAL_ARRAY_SIZE 1
+
 	#define COMPILE_SIGNAL_COLOR 1
 
 	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
@@ -435,7 +457,7 @@
 
 /** The number of signal that should be processed per signal domain. */
 #ifndef CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN
-	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN MAX_SIGNAL_MULTIPLEXING
+	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN SIGNAL_ARRAY_SIZE
 #endif
 
 /** Selects how the world distance should be computed for bilateral rejection. */
@@ -655,7 +677,8 @@ void MainCS(
 		#if CONFIG_NORMALIZE_INPUT
 			FSSDSignalArray NormalizedRefSamples = RefSamples;
 		#else
-			FSSDSignalArray NormalizedRefSamples = NormalizeToOneSample(RefSamples);
+			// TODO(Denoiser): Decode twice instead.
+			FSSDSignalArray NormalizedRefSamples = NormalizeToOneSampleArray(RefSamples);
 		#endif
 	#endif
 
@@ -749,8 +772,8 @@ void MainCS(
 		KernelConfig.bComputeSampleColorSH = DIM_STAGE == STAGE_RECONSTRUCTION && DIM_MULTI_SPP == 0;
 		
 		{
-			UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
-			for (uint MultiplexId = 0; MultiplexId < MAX_SIGNAL_MULTIPLEXING; MultiplexId++)
+			UNROLL_N(SIGNAL_ARRAY_SIZE)
+			for (uint MultiplexId = 0; MultiplexId < SIGNAL_ARRAY_SIZE; MultiplexId++)
 			{
 				KernelConfig.BufferColorSpace[MultiplexId] = CONFIG_INPUT_COLOR_SPACE;
 				KernelConfig.AccumulatorColorSpace[MultiplexId] = CONFIG_ACCUMULATION_COLOR_SPACE;
@@ -796,8 +819,8 @@ void MainCS(
 		{
 			KernelConfig.bMaxWithRefBilateralDistance = true;
 
-			UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
-			for (uint MultiplexId = 0; MultiplexId < MAX_SIGNAL_MULTIPLEXING; MultiplexId++)
+			UNROLL_N(SIGNAL_ARRAY_SIZE)
+			for (uint MultiplexId = 0; MultiplexId < SIGNAL_ARRAY_SIZE; MultiplexId++)
 			{
 				if (KernelConfig.BilateralDistanceComputation == SIGNAL_WORLD_FREQUENCY_PRECOMPUTED_BLURING_RADIUS)
 				{
@@ -843,8 +866,8 @@ void MainCS(
 		// When not upscaling, manually force accumulate the sample of the kernel.
 		if (!KernelConfig.bSampleKernelCenter && !KernelConfig.bDescOrder)
 		{
-			UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
-			for (uint SignalMultiplexId = 0; SignalMultiplexId < MAX_SIGNAL_MULTIPLEXING; SignalMultiplexId++)
+			UNROLL_N(SIGNAL_ARRAY_SIZE)
+			for (uint SignalMultiplexId = 0; SignalMultiplexId < SIGNAL_ARRAY_SIZE; SignalMultiplexId++)
 			{
 				const uint BatchedSignalId = ComputeSignalBatchIdFromSignalMultiplexId(KernelConfig, SignalMultiplexId);
 				
@@ -1116,6 +1139,10 @@ void MainCS(
 		}
 		#elif CONFIG_OUTPUT_MODE == OUTPUT_MODE_2MOMMENT_SUM
 		{
+			#if SIGNAL_ARRAY_SIZE != 2 * MAX_SIGNAL_BATCH_SIZE
+				#error Invalid signal array size.
+			#endif
+
 			MultiplexCount = 2 * CONFIG_SIGNAL_BATCH_SIZE;
 
 			UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
