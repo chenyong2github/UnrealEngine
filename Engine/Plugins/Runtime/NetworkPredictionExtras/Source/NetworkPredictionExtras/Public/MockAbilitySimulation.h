@@ -90,12 +90,16 @@ struct FMockAbilityAuxstate : public FlyingMovement::FAuxState
 	float MaxStamina = 100.f;
 	float StaminaRegenRate = 20.f;
 	int16 DashTimeLeft = 0;
+	int16 BlinkWarmupLeft = 0;
+	bool bIsSprinting = false;
 
 	void NetSerialize(const FNetSerializeParams& P)
 	{
 		P.Ar << MaxStamina;
 		P.Ar << StaminaRegenRate;
 		P.Ar << DashTimeLeft;
+		P.Ar << BlinkWarmupLeft;
+		P.Ar << bIsSprinting;
 		FlyingMovement::FAuxState::NetSerialize(P);
 	}
 
@@ -106,12 +110,26 @@ struct FMockAbilityAuxstate : public FlyingMovement::FAuxState
 		{
 			P.Ar->Logf(TEXT("MaxStamina: %.2f"), MaxStamina);
 			P.Ar->Logf(TEXT("StaminaRegenRate: %.2f"), StaminaRegenRate);
-			P.Ar->Logf(TEXT("StaminaRegenRate: %.2f"), DashTimeLeft);
+			P.Ar->Logf(TEXT("DashTimeLeft: %d"), DashTimeLeft);
+			P.Ar->Logf(TEXT("BlinkWarmupLeft: %d"), BlinkWarmupLeft);
+			P.Ar->Logf(TEXT("bIsSprinting: %d"), bIsSprinting);
 		}
 	}
 };
 
 using TMockAbilityBufferTypes = TNetworkSimBufferTypes<FMockAbilityInputCmd, FMockAbilitySyncState, FMockAbilityAuxstate>;
+
+// A very hard coded event handling interface for events that are emitted in FMockAbilitySimulation::SimulationTick.
+// These events are for cosmetic, client side work. E.g, we are not implementing sprint/dash/blink here, we are doing
+// visual/audio effects based on those states changing within the core simulation update. These are effectively skipped on the server (in implementation).
+class IMockAbilityEventHandler
+{
+public:
+	virtual void NotifySprint(bool bIsSprinting) = 0;
+	virtual void NotifyDash(bool bIsDashing) = 0;
+	virtual void NotifyBlinkStartup() = 0;
+	virtual void NotifyBlinkFinished() = 0;
+};
 
 class FMockAbilitySimulation : public FlyingMovement::FMovementSimulation
 {
@@ -121,6 +139,8 @@ public:
 
 	/** Main update function */
 	void SimulationTick(const TNetSimTimeStep& TimeStep, const TNetSimInput<TMockAbilityBufferTypes>& Input, const TNetSimOutput<TMockAbilityBufferTypes>& Output);
+
+	IMockAbilityEventHandler* EventHandler = nullptr;
 };
 
 template<int32 InFixedStepMS=0>
@@ -133,7 +153,7 @@ class IMockFlyingAbilitySystemDriver : public TNetworkedSimulationModelDriver<TM
 // -------------------------------------------------------------------------------------------------------------------------------
 
 UCLASS(BlueprintType, meta=(BlueprintSpawnableComponent))
-class NETWORKPREDICTIONEXTRAS_API UMockFlyingAbilityComponent : public UFlyingMovementComponent, public IMockFlyingAbilitySystemDriver
+class NETWORKPREDICTIONEXTRAS_API UMockFlyingAbilityComponent : public UFlyingMovementComponent, public IMockFlyingAbilitySystemDriver, public IMockAbilityEventHandler
 {
 	GENERATED_BODY()
 
@@ -159,6 +179,12 @@ public:
 	using UFlyingMovementComponent::VisualLog;
 	using UFlyingMovementComponent::ProduceInput;
 	using UFlyingMovementComponent::FinalizeFrame;
+
+	// IMockAbilityEventHandler
+	virtual void NotifySprint(bool bIsSprinting) override;
+	virtual void NotifyDash(bool bIsDashing) override;
+	virtual void NotifyBlinkStartup() override;
+	virtual void NotifyBlinkFinished() override;
 
 protected:
 

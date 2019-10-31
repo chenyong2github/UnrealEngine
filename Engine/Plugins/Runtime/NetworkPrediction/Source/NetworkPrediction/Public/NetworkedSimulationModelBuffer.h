@@ -37,7 +37,7 @@ struct TNetSimLazyWriterFunc
 	TFunction<void*()> GetFunc;
 };
 
-// Reference version of LazyWriter. Faster to pass around and do cascading downcasts
+// Reference version of LazyWriter. This is what gets passed through chains of ::SimulationTick calls. This is to avoid copying the TFunction in TNetSimLazyWriterFunc around.
 template<typename ElementType>
 struct TNetSimLazyWriter
 {
@@ -87,7 +87,7 @@ protected:
 	template<typename ElementType>
 	ElementType* WriteFrameInitializedFromHeadImpl(int32 Frame)
 	{
-		if (((T*)this)->HeadFrame() > Frame)
+		if (Frame > ((T*)this)->HeadFrame())
 		{
 			ElementType* HeadElementPtr = ((T*)this)->HeadElement();
 			ElementType* NewElement = ((T*)this)->WriteFrame(Frame);
