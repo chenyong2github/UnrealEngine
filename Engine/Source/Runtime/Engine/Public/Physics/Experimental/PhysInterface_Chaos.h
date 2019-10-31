@@ -211,10 +211,7 @@ public:
 	static void SetActorUserData_AssumesLocked(FPhysicsActorHandle& InActorReference, FPhysicsUserData* InUserData);
 
 	static bool IsRigidBody(const FPhysicsActorHandle& InActorReference);
-	static bool IsDynamic(const FPhysicsActorHandle& InActorReference)
-    {
-        return !IsStatic(InActorReference);
-    }
+	static bool IsDynamic(const FPhysicsActorHandle& InActorReference);
     static bool IsStatic(const FPhysicsActorHandle& InActorReference);
     static bool IsKinematic(const FPhysicsActorHandle& InActorReference);
 	static bool IsKinematic_AssumesLocked(const FPhysicsActorHandle& InActorReference);
