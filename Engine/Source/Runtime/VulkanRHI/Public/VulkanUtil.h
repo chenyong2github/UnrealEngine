@@ -280,6 +280,11 @@ protected:
 		check(FMemory::Memcmp(Data->GetData(), Other.Data->GetData(), Data->Num()) == 0);
 		return true;
 	}
+public:
+	TArray<uint8>& GetDataRef()
+	{
+		return *Data;
+	}
 
 private:
 	void EnsureDataStorage()
@@ -311,7 +316,7 @@ protected:
 };
 
 template <class Derived, bool AlwaysCompareData = false>
-class TDataKey : private TDataKeyBase<AlwaysCompareData ? 2 : (DO_CHECK != 0)>
+class TDataKey : public TDataKeyBase<AlwaysCompareData ? 2 : (DO_CHECK != 0)>
 {
 public:
 	template <class ArchiveWriter>

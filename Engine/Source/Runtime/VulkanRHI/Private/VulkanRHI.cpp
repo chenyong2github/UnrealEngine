@@ -323,6 +323,8 @@ void FVulkanDynamicRHI::Shutdown()
 
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
 	IConsoleManager::Get().UnregisterConsoleObject(DumpMemoryCmd);
+	IConsoleManager::Get().UnregisterConsoleObject(DumpLRUCmd);
+	IConsoleManager::Get().UnregisterConsoleObject(TrimLRUCmd);
 #endif
 
 	FVulkanPlatform::FreeVulkanLibrary();
@@ -757,6 +759,19 @@ void FVulkanDynamicRHI::InitInstance()
 			FConsoleCommandDelegate::CreateStatic(DumpMemory),
 			ECVF_Default
 			);
+		DumpLRUCmd = IConsoleManager::Get().RegisterConsoleCommand(
+			TEXT("r.Vulkan.DumpPSOLRU"),
+			TEXT("Dumps Vulkan PSO LRU."),
+			FConsoleCommandDelegate::CreateStatic(DumpLRU),
+			ECVF_Default
+		);
+		TrimLRUCmd = IConsoleManager::Get().RegisterConsoleCommand(
+			TEXT("r.Vulkan.TrimPSOLRU"),
+			TEXT("Trim Vulkan PSO LRU."),
+			FConsoleCommandDelegate::CreateStatic(TrimLRU),
+			ECVF_Default
+		);
+
 #endif
 	}
 }
@@ -1735,6 +1750,18 @@ void FVulkanDynamicRHI::DumpMemory()
 	GVulkanRHI->Device->GetResourceHeapManager().DumpMemory();
 	GVulkanRHI->Device->GetStagingManager().DumpMemory();
 }
+void FVulkanDynamicRHI::DumpLRU()
+{
+	FVulkanDynamicRHI* RHI = (FVulkanDynamicRHI*)GDynamicRHI;
+	RHI->Device->PipelineStateCache->LRUDump();
+}
+void FVulkanDynamicRHI::TrimLRU()
+{
+	FVulkanDynamicRHI* RHI = (FVulkanDynamicRHI*)GDynamicRHI;
+	RHI->Device->PipelineStateCache->LRUDebugEvictAll();
+}
+
+
 #endif
 
 void FVulkanDynamicRHI::DestroySwapChain()
