@@ -670,7 +670,7 @@ PyObject* PythonizeEnumEntry(const int64 Val, const UEnum* EnumType, const ESetE
 	return Obj;
 }
 
-FPyConversionResult NativizeProperty(PyObject* PyObj, const UProperty* Prop, void* ValueAddr, const FPyWrapperOwnerContext& InChangeOwner, const ESetErrorState SetErrorState)
+FPyConversionResult NativizeProperty(PyObject* PyObj, const UProperty* Prop, void* ValueAddr, const FPropertyAccessChangeNotify* InChangeNotify, const ESetErrorState SetErrorState)
 {
 #define PYCONVERSION_PROPERTY_RETURN(RESULT) \
 	PYCONVERSION_RETURN(RESULT, TEXT("NativizeProperty"), *FString::Printf(TEXT("Cannot nativize '%s' as '%s' (%s)"), *PyUtil::GetFriendlyTypename(PyObj), *Prop->GetName(), *Prop->GetClass()->GetName()))
@@ -680,18 +680,21 @@ FPyConversionResult NativizeProperty(PyObject* PyObj, const UProperty* Prop, voi
 		FPyWrapperFixedArrayPtr PyFixedArray = FPyWrapperFixedArrayPtr::StealReference(FPyWrapperFixedArray::CastPyObject(PyObj, &PyWrapperFixedArrayType, Prop));
 		if (PyFixedArray)
 		{
-			const int32 ArrSize = FMath::Min(Prop->ArrayDim, PyFixedArray->ArrayProp->ArrayDim);
-			for (int32 ArrIndex = 0; ArrIndex < ArrSize; ++ArrIndex)
+			EmitPropertyChangeNotifications(InChangeNotify, [&]()
 			{
-				Prop->CopySingleValue(static_cast<uint8*>(ValueAddr) + (Prop->ElementSize * ArrIndex), FPyWrapperFixedArray::GetItemPtr(PyFixedArray, ArrIndex));
-			}
+				const int32 ArrSize = FMath::Min(Prop->ArrayDim, PyFixedArray->ArrayProp->ArrayDim);
+				for (int32 ArrIndex = 0; ArrIndex < ArrSize; ++ArrIndex)
+				{
+					Prop->CopySingleValue(static_cast<uint8*>(ValueAddr) + (Prop->ElementSize * ArrIndex), FPyWrapperFixedArray::GetItemPtr(PyFixedArray, ArrIndex));
+				}
+			});
 			return FPyConversionResult::Success();
 		}
 
 		PYCONVERSION_PROPERTY_RETURN(FPyConversionResult::Failure());
 	}
 
-	return NativizeProperty_Direct(PyObj, Prop, ValueAddr, InChangeOwner, SetErrorState);
+	return NativizeProperty_Direct(PyObj, Prop, ValueAddr, InChangeNotify, SetErrorState);
 
 #undef PYCONVERSION_PROPERTY_RETURN
 }
@@ -707,7 +710,7 @@ FPyConversionResult PythonizeProperty(const UProperty* Prop, const void* ValueAd
 	return PythonizeProperty_Direct(Prop, ValueAddr, OutPyObj, ConversionMethod, OwnerPyObj, SetErrorState);
 }
 
-FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Prop, void* ValueAddr, const FPyWrapperOwnerContext& InChangeOwner, const ESetErrorState SetErrorState)
+FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Prop, void* ValueAddr, const FPropertyAccessChangeNotify* InChangeNotify, const ESetErrorState SetErrorState)
 {
 #define PYCONVERSION_PROPERTY_RETURN(RESULT) \
 	PYCONVERSION_RETURN(RESULT, TEXT("NativizeProperty"), *FString::Printf(TEXT("Cannot nativize '%s' as '%s' (%s)"), *PyUtil::GetFriendlyTypename(PyObj), *Prop->GetName(), *Prop->GetClass()->GetName()))
@@ -722,7 +725,7 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 			auto OldValue = CastProp->GetPropertyValue(ValueAddr);					\
 			if (OldValue != NewValue)												\
 			{																		\
-				EmitPropertyChangeNotifications(InChangeOwner, [&]()				\
+				EmitPropertyChangeNotifications(InChangeNotify, [&]()				\
 				{																	\
 					CastProp->SetPropertyValue(ValueAddr, NewValue);				\
 				});																	\
@@ -741,7 +744,7 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 			auto* ValuePtr = static_cast<PROPTYPE::TCppType*>(ValueAddr);			\
 			if (!CastProp->Identical(ValuePtr, &NewValue, PPF_None))				\
 			{																		\
-				EmitPropertyChangeNotifications(InChangeOwner, [&]()				\
+				EmitPropertyChangeNotifications(InChangeNotify, [&]()				\
 				{																	\
 					*ValuePtr = MoveTemp(NewValue);									\
 				});																	\
@@ -793,7 +796,7 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 			auto* ValuePtr = static_cast<uint8*>(ValueAddr);
 			if (*ValuePtr != NewValue)
 			{
-				EmitPropertyChangeNotifications(InChangeOwner, [&]()
+				EmitPropertyChangeNotifications(InChangeNotify, [&]()
 				{
 					*ValuePtr = NewValue;
 				});
@@ -823,7 +826,7 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 				const int64 OldValue = EnumInternalProp->GetSignedIntPropertyValue(ValueAddr);
 				if (OldValue != NewValue)
 				{
-					EmitPropertyChangeNotifications(InChangeOwner, [&]()
+					EmitPropertyChangeNotifications(InChangeNotify, [&]()
 					{
 						EnumInternalProp->SetIntPropertyValue(ValueAddr, NewValue);
 					});
@@ -843,7 +846,7 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 			UObject* OldValue = CastProp->GetObjectPropertyValue(ValueAddr);
 			if (OldValue != NewValue)
 			{
-				EmitPropertyChangeNotifications(InChangeOwner, [&]()
+				EmitPropertyChangeNotifications(InChangeNotify, [&]()
 				{
 					CastProp->SetObjectPropertyValue(ValueAddr, NewValue);
 				});
@@ -861,7 +864,7 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 			UObject* OldValue = CastProp->GetObjectPropertyValue(ValueAddr);
 			if (OldValue != NewValue)
 			{
-				EmitPropertyChangeNotifications(InChangeOwner, [&]()
+				EmitPropertyChangeNotifications(InChangeNotify, [&]()
 				{
 					CastProp->SetObjectPropertyValue(ValueAddr, NewValue);
 				});
@@ -879,7 +882,7 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 			UObject* OldValue = CastProp->GetObjectPropertyValue(ValueAddr);
 			if (OldValue != NewValue)
 			{
-				EmitPropertyChangeNotifications(InChangeOwner, [&]()
+				EmitPropertyChangeNotifications(InChangeNotify, [&]()
 				{
 					CastProp->SetObjectPropertyValue(ValueAddr, NewValue);
 				});
@@ -897,7 +900,7 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 			UObject* OldValue = CastProp->GetPropertyValue(ValueAddr).GetObject();
 			if (OldValue != NewValue)
 			{
-				EmitPropertyChangeNotifications(InChangeOwner, [&]()
+				EmitPropertyChangeNotifications(InChangeNotify, [&]()
 				{
 					CastProp->SetPropertyValue(ValueAddr, FScriptInterface(NewValue, NewValue ? NewValue->GetInterfaceAddress(CastProp->InterfaceClass) : nullptr));
 				});
@@ -915,7 +918,7 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 		{
 			if (!CastProp->Identical(ValueAddr, PyStruct->StructInstance, PPF_None))
 			{
-				EmitPropertyChangeNotifications(InChangeOwner, [&]()
+				EmitPropertyChangeNotifications(InChangeNotify, [&]()
 				{
 					CastProp->Struct->CopyScriptStruct(ValueAddr, PyStruct->StructInstance);
 				});
@@ -941,7 +944,7 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 		{
 			if (!CastProp->Identical(ValueAddr, PyDelegate->DelegateInstance, PPF_None))
 			{
-				EmitPropertyChangeNotifications(InChangeOwner, [&]()
+				EmitPropertyChangeNotifications(InChangeNotify, [&]()
 				{
 					CastProp->SetPropertyValue(ValueAddr, *PyDelegate->DelegateInstance);
 				});
@@ -959,7 +962,7 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 		{
 			if (!CastProp->Identical(ValueAddr, PyDelegate->DelegateInstance, PPF_None))
 			{
-				EmitPropertyChangeNotifications(InChangeOwner, [&]()
+				EmitPropertyChangeNotifications(InChangeNotify, [&]()
 				{
 					CastProp->SetMulticastDelegate(ValueAddr, *PyDelegate->DelegateInstance);
 				});
@@ -976,9 +979,9 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 		{
 			if (!CastProp->Identical(ValueAddr, PyArray->ArrayInstance, PPF_None))
 			{
-				EmitPropertyChangeNotifications(InChangeOwner, [&]()
+				EmitPropertyChangeNotifications(InChangeNotify, [&]()
 				{
-					CastProp->CopyCompleteValue(ValueAddr, PyArray->ArrayInstance);
+					CastProp->CopySingleValue(ValueAddr, PyArray->ArrayInstance);
 				});
 			}
 		}
@@ -993,9 +996,9 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 		{
 			if (!CastProp->Identical(ValueAddr, PySet->SetInstance, PPF_None))
 			{
-				EmitPropertyChangeNotifications(InChangeOwner, [&]()
+				EmitPropertyChangeNotifications(InChangeNotify, [&]()
 				{
-					CastProp->CopyCompleteValue(ValueAddr, PySet->SetInstance);
+					CastProp->CopySingleValue(ValueAddr, PySet->SetInstance);
 				});
 			}
 		}
@@ -1010,9 +1013,9 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 		{
 			if (!CastProp->Identical(ValueAddr, PyMap->MapInstance, PPF_None))
 			{
-				EmitPropertyChangeNotifications(InChangeOwner, [&]()
+				EmitPropertyChangeNotifications(InChangeNotify, [&]()
 				{
-					CastProp->CopyCompleteValue(ValueAddr, PyMap->MapInstance);
+					CastProp->CopySingleValue(ValueAddr, PyMap->MapInstance);
 				});
 			}
 		}
@@ -1161,10 +1164,10 @@ FPyConversionResult PythonizeProperty_Direct(const UProperty* Prop, const void* 
 #undef PYCONVERSION_PROPERTY_RETURN
 }
 
-FPyConversionResult NativizeProperty_InContainer(PyObject* PyObj, const UProperty* Prop, void* BaseAddr, const int32 ArrayIndex, const FPyWrapperOwnerContext& InChangeOwner, const ESetErrorState SetErrorState)
+FPyConversionResult NativizeProperty_InContainer(PyObject* PyObj, const UProperty* Prop, void* BaseAddr, const int32 ArrayIndex, const FPropertyAccessChangeNotify* InChangeNotify, const ESetErrorState SetErrorState)
 {
 	check(ArrayIndex < Prop->ArrayDim);
-	return NativizeProperty(PyObj, Prop, Prop->ContainerPtrToValuePtr<void>(BaseAddr, ArrayIndex), InChangeOwner, SetErrorState);
+	return NativizeProperty(PyObj, Prop, Prop->ContainerPtrToValuePtr<void>(BaseAddr, ArrayIndex), InChangeNotify, SetErrorState);
 }
 
 FPyConversionResult PythonizeProperty_InContainer(const UProperty* Prop, const void* BaseAddr, const int32 ArrayIndex, PyObject*& OutPyObj, const EPyConversionMethod ConversionMethod, PyObject* OwnerPyObj, const ESetErrorState SetErrorState)
@@ -1173,83 +1176,11 @@ FPyConversionResult PythonizeProperty_InContainer(const UProperty* Prop, const v
 	return PythonizeProperty(Prop, Prop->ContainerPtrToValuePtr<void>(BaseAddr, ArrayIndex), OutPyObj, ConversionMethod, OwnerPyObj, SetErrorState);
 }
 
-void EmitPropertyChangeNotifications(const FPyWrapperOwnerContext& InChangeOwner, const TFunctionRef<void()>& InDoChangeFunc)
+void EmitPropertyChangeNotifications(const FPropertyAccessChangeNotify* InChangeNotify, const TFunctionRef<void()>& InDoChangeFunc)
 {
-#if WITH_EDITOR
-	auto BuildPropertyChain = [&InChangeOwner](FEditPropertyChain& OutPropertyChain) -> UObject*
-	{
-		auto AppendOwnerPropertyToChain = [&OutPropertyChain](const FPyWrapperOwnerContext& InOwnerContext) -> bool
-		{
-			const UProperty* LeafProp = nullptr;
-			if (PyObject_IsInstance(InOwnerContext.GetOwnerObject(), (PyObject*)&PyWrapperObjectType) == 1 || PyObject_IsInstance(InOwnerContext.GetOwnerObject(), (PyObject*)&PyWrapperStructType) == 1)
-			{
-				LeafProp = InOwnerContext.GetOwnerProperty();
-			}
-
-			if (LeafProp)
-			{
-				OutPropertyChain.AddHead((UProperty*)LeafProp);
-				return true;
-			}
-
-			return false;
-		};
-
-		FPyWrapperOwnerContext OwnerContext = InChangeOwner;
-		while (OwnerContext.HasOwner() && AppendOwnerPropertyToChain(OwnerContext))
-		{
-			PyObject* PyObj = OwnerContext.GetOwnerObject();
-
-			if (PyObj == InChangeOwner.GetOwnerObject())
-			{
-				OutPropertyChain.SetActivePropertyNode(OutPropertyChain.GetHead()->GetValue());
-			}
-
-			if (PyObject_IsInstance(PyObj, (PyObject*)&PyWrapperObjectType) == 1)
-			{
-				// Found an object, this is the end of the chain
-				OutPropertyChain.SetActiveMemberPropertyNode(OutPropertyChain.GetHead()->GetValue());
-				return ((FPyWrapperObject*)PyObj)->ObjectInstance;
-			}
-
-			if (PyObject_IsInstance(PyObj, (PyObject*)&PyWrapperStructType) == 1)
-			{
-				// Found a struct, recurse up the chain
-				OwnerContext = ((FPyWrapperStruct*)PyObj)->OwnerContext;
-				continue;
-			}
-
-			// Unknown object type - just bail
-			break;
-		}
-
-		return nullptr;
-	};
-
-	// Build the property chain we should notify of the change
-	FEditPropertyChain PropertyChain;
-	UObject* ObjectToNotify = BuildPropertyChain(PropertyChain);
-
-	// Notify that a change is about to occur
-	if (ObjectToNotify)
-	{
-		ObjectToNotify->PreEditChange(PropertyChain);
-	}
-
-	// Perform the change
+	PropertyAccessUtil::EmitPreChangeNotify(InChangeNotify);
 	InDoChangeFunc();
-
-	// Notify that the change has occurred
-	if (ObjectToNotify)
-	{
-		FPropertyChangedEvent PropertyEvent(PropertyChain.GetActiveNode()->GetValue());
-		PropertyEvent.SetActiveMemberProperty(PropertyChain.GetActiveMemberNode()->GetValue());
-		FPropertyChangedChainEvent PropertyChainEvent(PropertyChain, PropertyEvent);
-		ObjectToNotify->PostEditChangeChainProperty(PropertyChainEvent);
-	}
-#else	// WITH_EDITOR
-	InDoChangeFunc();
-#endif	// WITH_EDITOR
+	PropertyAccessUtil::EmitPostChangeNotify(InChangeNotify);
 }
 
 }

@@ -609,7 +609,7 @@ FPropertyAccess::Result FPropertyValueImpl::ImportText( const TArray<FObjectBase
 			FPropertyValueImpl::GenerateArrayIndexMapToObjectNode( ArrayIndicesPerObject[ObjectIndex], InPropertyNode );
 		}
 
-		FPropertyChangedEvent ChangeEvent(NodeProperty, bFinished ? EPropertyChangeType::ValueSet : EPropertyChangeType::Interactive, &TopLevelObjects);
+		FPropertyChangedEvent ChangeEvent(NodeProperty, bFinished ? EPropertyChangeType::ValueSet : EPropertyChangeType::Interactive, MakeArrayView(TopLevelObjects));
 		ChangeEvent.SetArrayIndexPerObject(ArrayIndicesPerObject);
 
 		// If PreEditChange was called, so should PostEditChange.
@@ -1201,7 +1201,7 @@ void FPropertyValueImpl::AddChild()
 				}
 			}
 
-			FPropertyChangedEvent ChangeEvent(NodeProperty, EPropertyChangeType::ArrayAdd, &TopLevelObjects);
+			FPropertyChangedEvent ChangeEvent(NodeProperty, EPropertyChangeType::ArrayAdd, MakeArrayView(TopLevelObjects));
 			ChangeEvent.SetArrayIndexPerObject(ArrayIndicesPerObject);
 			ChangeEvent.SetInstancesChangedResultPerArchetype(PropagationResultPerObject);
 
@@ -1364,7 +1364,7 @@ void FPropertyValueImpl::ClearChildren()
 				}
 			}
 
-			FPropertyChangedEvent ChangeEvent(NodeProperty, EPropertyChangeType::ArrayClear, &TopLevelObjects);
+			FPropertyChangedEvent ChangeEvent(NodeProperty, EPropertyChangeType::ArrayClear, MakeArrayView(TopLevelObjects));
 
 			if ( bNotifiedPreChange )
 			{
@@ -1449,7 +1449,7 @@ void FPropertyValueImpl::InsertChild( TSharedPtr<FPropertyNode> ChildNodeToInser
 			FPropertyValueImpl::GenerateArrayIndexMapToObjectNode(ArrayIndicesPerObject[ObjectIndex], ChildNodePtr );
 		}
 
-		FPropertyChangedEvent ChangeEvent(ParentNode->GetProperty(), EPropertyChangeType::ArrayAdd, &TopLevelObjects);
+		FPropertyChangedEvent ChangeEvent(ParentNode->GetProperty(), EPropertyChangeType::ArrayAdd, MakeArrayView(TopLevelObjects));
 		ChangeEvent.SetArrayIndexPerObject(ArrayIndicesPerObject);
 		ChangeEvent.SetInstancesChangedResultPerArchetype(PropagationResultPerObject);
 
@@ -1596,7 +1596,7 @@ void FPropertyValueImpl::DeleteChild( TSharedPtr<FPropertyNode> ChildNodeToDelet
 			}
 		}
 
-		FPropertyChangedEvent ChangeEvent(ParentNode->GetProperty(), EPropertyChangeType::ArrayRemove, &TopLevelObjects);
+		FPropertyChangedEvent ChangeEvent(ParentNode->GetProperty(), EPropertyChangeType::ArrayRemove, MakeArrayView(TopLevelObjects));
 		ChangeEvent.SetArrayIndexPerObject(ArrayIndicesPerObject);
 		ChangeEvent.SetInstancesChangedResultPerArchetype(PropagationResultPerObject);
 
@@ -1697,7 +1697,7 @@ void FPropertyValueImpl::SwapChildren( TSharedPtr<FPropertyNode> FirstChildNode,
 			}
 		}
 
-		FPropertyChangedEvent ChangeEvent(ParentNode->GetProperty(), EPropertyChangeType::Unspecified, &TopLevelObjects);
+		FPropertyChangedEvent ChangeEvent(ParentNode->GetProperty(), EPropertyChangeType::Unspecified, MakeArrayView(TopLevelObjects));
 		FirstChildNodePtr->NotifyPostChange(ChangeEvent, NotifyHook);
 		SecondChildNodePtr->NotifyPostChange(ChangeEvent, NotifyHook);
 
@@ -1763,7 +1763,7 @@ void FPropertyValueImpl::MoveElementTo(int32 OriginalIndex, int32 NewIndex)
 					FPropertyValueImpl::GenerateArrayIndexMapToObjectNode(ArrayIndicesPerObject[ObjectIndex], ChildNodePtr);
 				}
 
-				FPropertyChangedEvent ChangeEvent(ParentNode->GetProperty(), EPropertyChangeType::ArrayAdd, &TopLevelObjects);
+				FPropertyChangedEvent ChangeEvent(ParentNode->GetProperty(), EPropertyChangeType::ArrayAdd, MakeArrayView(TopLevelObjects));
 				ChangeEvent.SetArrayIndexPerObject(ArrayIndicesPerObject);
 
 				if (PropertyUtilities.IsValid())
@@ -1829,7 +1829,7 @@ void FPropertyValueImpl::MoveElementTo(int32 OriginalIndex, int32 NewIndex)
 					}
 				}
 
-				FPropertyChangedEvent ChangeEvent(NodeProperty, EPropertyChangeType::ArrayAdd, &TopLevelObjects);
+				FPropertyChangedEvent ChangeEvent(NodeProperty, EPropertyChangeType::ArrayAdd, MakeArrayView(TopLevelObjects));
 				ChangeEvent.SetArrayIndexPerObject(ArrayIndicesPerObject);
 
 				if (PropertyUtilities.IsValid())
@@ -1920,7 +1920,7 @@ void FPropertyValueImpl::MoveElementTo(int32 OriginalIndex, int32 NewIndex)
 				}
 			}
 
-			FPropertyChangedEvent ChangeEvent(ParentNode->GetProperty(), EPropertyChangeType::Unspecified, &TopLevelObjects);
+			FPropertyChangedEvent ChangeEvent(ParentNode->GetProperty(), EPropertyChangeType::Unspecified, MakeArrayView(TopLevelObjects));
 
 			if (PropertyUtilities.IsValid())
 			{
@@ -1989,7 +1989,7 @@ void FPropertyValueImpl::MoveElementTo(int32 OriginalIndex, int32 NewIndex)
 				}
 			}
 
-			FPropertyChangedEvent ChangeEvent(ParentNode->GetProperty(), EPropertyChangeType::Unspecified, &TopLevelObjects);
+			FPropertyChangedEvent ChangeEvent(ParentNode->GetProperty(), EPropertyChangeType::Unspecified, MakeArrayView(TopLevelObjects));
 			if (PropertyUtilities.IsValid())
 			{
 				ChildNodePtr->FixPropertiesInEvent(ChangeEvent);
@@ -2099,7 +2099,7 @@ void FPropertyValueImpl::DuplicateChild( TSharedPtr<FPropertyNode> ChildNodeToDu
 			FPropertyValueImpl::GenerateArrayIndexMapToObjectNode(ArrayIndicesPerObject[0], ChildNodePtr);
 		}
 
-		FPropertyChangedEvent ChangeEvent(ParentNode->GetProperty(), EPropertyChangeType::Duplicate, &TopLevelObjects);
+		FPropertyChangedEvent ChangeEvent(ParentNode->GetProperty(), EPropertyChangeType::Duplicate, MakeArrayView(TopLevelObjects));
 		ChangeEvent.SetArrayIndexPerObject(ArrayIndicesPerObject);
 		ChangeEvent.SetInstancesChangedResultPerArchetype(PropagationResultPerObject);
 
@@ -2978,7 +2978,7 @@ void FPropertyHandleBase::NotifyPostChange( EPropertyChangeType::Type ChangeType
 			}
 		}
 
-		FPropertyChangedEvent PropertyChangedEvent( PropertyNode->GetProperty(), ChangeType, &ObjectsBeingChanged );
+		FPropertyChangedEvent PropertyChangedEvent( PropertyNode->GetProperty(), ChangeType, MakeArrayView(ObjectsBeingChanged) );
 		PropertyNode->NotifyPostChange( PropertyChangedEvent, Implementation->GetNotifyHook());
 	}
 }

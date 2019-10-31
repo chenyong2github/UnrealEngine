@@ -2423,7 +2423,7 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedType(PyTypeObject* PyType
 		// We use strict typing for return values to aid auto-complete (we also only care about the type and not the value, so structs can be default constructed)
 		static const uint32 PythonizeValueFlags = PyGenUtil::EPythonizeValueFlags::UseStrictTyping | PyGenUtil::EPythonizeValueFlags::DefaultConstructStructs;
 		const FString GetReturnValue = PyGenUtil::PythonizeDefaultValue(InGetSet.Prop.Prop, FString(), PythonizeValueFlags);
-		const bool bIsReadOnly = InGetSet.Prop.Prop->HasAnyPropertyFlags(CPF_BlueprintReadOnly | CPF_EditConst);
+		const bool bIsReadOnly = InGetSet.Prop.Prop->HasAnyPropertyFlags(PropertyAccessUtil::RuntimeReadOnlyFlags);
 		ExportGetSet(UTF8_TO_TCHAR(InGetSet.GetSetName.GetData()), UTF8_TO_TCHAR(InGetSet.GetSetDoc.GetData()), *GetReturnValue, bIsReadOnly);
 	};
 
