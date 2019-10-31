@@ -18,7 +18,7 @@
 AControlPointMeshActor::AControlPointMeshActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	bCanBeDamaged = false;
+	SetCanBeDamaged(false);
 
 	ControlPointMeshComponent = ObjectInitializer.CreateDefaultSubobject<UControlPointMeshComponent>(this, TEXT("ControlPointMeshComponent0"));
 	ControlPointMeshComponent->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
