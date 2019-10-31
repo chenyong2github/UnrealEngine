@@ -16,10 +16,10 @@ void TickSettingsTest(TTickSettings& Settings)
 {
 	using TBufferTypes = TInternalBufferTypes<FDummyBufferTypes, TTickSettings>;
 
-	TSimulationTickState<TTickSettings>	TickState;
+	TSimulationTicker<TTickSettings> Ticker;
 
 	float RealTime = FMath::Rand();
-	TickState.GiveSimulationTime(RealTime);
+	Ticker.GiveSimulationTime(RealTime);
 
 }
 

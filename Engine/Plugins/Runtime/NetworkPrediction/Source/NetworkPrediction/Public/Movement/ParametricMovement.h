@@ -112,7 +112,7 @@ namespace ParametricMovement
 	public:
 		static const FName GroupName;
 
-		void Update(const float DeltaSeconds, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState, const TNetSimLazyWriter<FAuxState>& OutAuxStateAccessor);
+		void SimulationTick(const TNetSimTimeStep& TimeStep, const TNetSimInput<TMovementBufferTypes>& Input, const TNetSimOutput<TMovementBufferTypes>& Output);
 
 		// Pointer to our static mapping of time->position
 		const FSimpleParametricMotion* Motion = nullptr;
