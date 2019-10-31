@@ -508,7 +508,7 @@ int32 ReportCrashForMonitor(
 		bCanSendCrashReport = false;
 	}
 
-	if (!bSendUnattendedBugReports)
+	if (!bCanSendCrashReport)
 	{
 		return EXCEPTION_CONTINUE_EXECUTION;
 	}
