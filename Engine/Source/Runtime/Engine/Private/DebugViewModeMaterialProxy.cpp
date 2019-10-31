@@ -15,13 +15,14 @@ DebugViewModeMaterialProxy.cpp : Contains definitions the debug view mode materi
 FDebugViewModeMaterialProxy::FDebugViewModeMaterialProxy(
 	UMaterialInterface* InMaterialInterface, 
 	EMaterialQualityLevel::Type QualityLevel, 
-	ERHIFeatureLevel::Type FeatureLevel, 
+	ERHIFeatureLevel::Type InFeatureLevel,
 	bool InSynchronousCompilation, 
 	EDebugViewShaderMode InDebugViewMode
 )
 	: FMaterial()
 	, MaterialInterface(InMaterialInterface)
 	, Material(nullptr)
+	, FeatureLevel(InFeatureLevel)
 	, Usage(EMaterialShaderMapUsage::DebugViewMode)
 	, DebugViewMode(InDebugViewMode)
 	, PixelShaderName(nullptr)
@@ -96,7 +97,7 @@ bool FDebugViewModeMaterialProxy::RequiresSynchronousCompilation() const
 	return bSynchronousCompilation;
 }
 
-const FMaterial& FDebugViewModeMaterialProxy::GetMaterialWithFallback(ERHIFeatureLevel::Type FeatureLevel, const FMaterialRenderProxy*& OutFallbackMaterialRenderProxy) const
+const FMaterial& FDebugViewModeMaterialProxy::GetMaterialWithFallback(ERHIFeatureLevel::Type InFeatureLevel, const FMaterialRenderProxy*& OutFallbackMaterialRenderProxy) const
 {
 	if (GetRenderingThreadShaderMap())
 	{
@@ -105,7 +106,7 @@ const FMaterial& FDebugViewModeMaterialProxy::GetMaterialWithFallback(ERHIFeatur
 	else
 	{
 		OutFallbackMaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
-		return OutFallbackMaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, OutFallbackMaterialRenderProxy);
+		return OutFallbackMaterialRenderProxy->GetMaterialWithFallback(InFeatureLevel, OutFallbackMaterialRenderProxy);
 	}
 }
 
@@ -208,6 +209,30 @@ void FDebugViewModeMaterialProxy::GatherExpressionsForCustomInterpolators(TArray
 	{
 		Material->GetAllExpressionsForCustomInterpolators(OutExpressions);
 	}
+}
+
+enum EMaterialTessellationMode FDebugViewModeMaterialProxy::GetTessellationMode() const
+{
+	FMaterialResource* Resource = MaterialInterface->GetMaterialResource(FeatureLevel);
+	return Resource ? Resource->GetTessellationMode() : MTM_NoTessellation;
+}
+
+bool FDebugViewModeMaterialProxy::IsCrackFreeDisplacementEnabled() const
+{
+	FMaterialResource* Resource = MaterialInterface->GetMaterialResource(FeatureLevel);
+	return Resource ? Resource->IsCrackFreeDisplacementEnabled() : false;
+}
+
+bool FDebugViewModeMaterialProxy::IsAdaptiveTessellationEnabled() const
+{
+	FMaterialResource* Resource = MaterialInterface->GetMaterialResource(FeatureLevel);
+	return Resource ? Resource->IsAdaptiveTessellationEnabled() : false;
+}
+
+float FDebugViewModeMaterialProxy::GetMaxDisplacement() const
+{
+	FMaterialResource* Resource = MaterialInterface->GetMaterialResource(FeatureLevel);
+	return Resource ? Resource->GetMaxDisplacement() : 0.0f;
 }
 
 #endif // WITH_EDITORONLY_DATA
