@@ -17,9 +17,6 @@ limitations under the License.
 #include "hrtf_assets.h"
 
 namespace sadie {
-
-	static constexpr unsigned int kNumHrtfFiles = 3;
-
 	const unsigned char* GetByteArray(const std::string& filename, size_t& out_file_size);
 
 	const unsigned char* HrtfAssets::GetFile(const std::string& filename, size_t& out_file_size)
