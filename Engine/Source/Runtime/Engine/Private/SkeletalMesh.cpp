@@ -3847,19 +3847,17 @@ FGuid FSkeletalMeshLODInfo::ComputeDeriveDataCacheKey(const FSkeletalMeshLODGrou
 	FArchive_Serialize_BitfieldBool(Ar, bSupportUniformlyDistributedSampling);
 
 	//Use the LOD settings asset if there is one
-	FSkeletalMeshBuildSettings RealBuildSettings = BuildSettings;
 	FSkeletalMeshOptimizationSettings RealReductionSettings = ReductionSettings;
 	if (SkeletalMeshLODGroupSettings != nullptr)
 	{
-		RealBuildSettings = SkeletalMeshLODGroupSettings->GetBuildSettings();
 		RealReductionSettings = SkeletalMeshLODGroupSettings->GetReductionSettings();
 	}
 
-	if (!RealBuildSettings.bUseFullPrecisionUVs && !bIs16BitfloatBufferSupported)
+	if (!BuildSettings.bUseFullPrecisionUVs && !bIs16BitfloatBufferSupported)
 	{
-		RealBuildSettings.bUseFullPrecisionUVs = true;
+		BuildSettings.bUseFullPrecisionUVs = true;
 	}
-	SerializeBuildSettingsForDDC(Ar, RealBuildSettings);
+	SerializeBuildSettingsForDDC(Ar, BuildSettings);
 	SerializeReductionSettingsForDDC(Ar, RealReductionSettings);
 
 	FSHA1 Sha;
