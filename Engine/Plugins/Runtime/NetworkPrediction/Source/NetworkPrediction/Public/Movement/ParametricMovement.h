@@ -28,7 +28,7 @@ namespace ParametricMovement
 		{
 			if (P.Context == EStandardLoggingContext::HeaderOnly)
 			{
-				P.Ar->Logf(TEXT(" %d "), P.Keyframe);
+				P.Ar->Logf(TEXT(" %d "), P.Frame);
 			}
 			else if (P.Context == EStandardLoggingContext::Full)
 			{
@@ -63,11 +63,11 @@ namespace ParametricMovement
 		{
 			if (Params.Context == EStandardLoggingContext::HeaderOnly)
 			{
-				Params.Ar->Logf(TEXT(" %d "), Params.Keyframe);
+				Params.Ar->Logf(TEXT(" %d "), Params.Frame);
 			}
 			else if (Params.Context == EStandardLoggingContext::Full)
 			{
-				Params.Ar->Logf(TEXT("Frame: %d"), Params.Keyframe);
+				Params.Ar->Logf(TEXT("Frame: %d"), Params.Frame);
 				Params.Ar->Logf(TEXT("Pos: %.2f"), Position);
 				Params.Ar->Logf(TEXT("Rate: %.2f"), PlayRate);
 			}
@@ -96,7 +96,7 @@ namespace ParametricMovement
 		{
 			if (Params.Context == EStandardLoggingContext::HeaderOnly)
 			{
-				Params.Ar->Logf(TEXT(" %d "), Params.Keyframe);
+				Params.Ar->Logf(TEXT(" %d "), Params.Frame);
 			}
 			else if (Params.Context == EStandardLoggingContext::Full)
 			{

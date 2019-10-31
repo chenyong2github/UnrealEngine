@@ -2,12 +2,12 @@
 
 #pragma once
 
-// Generic iterator for iterating over each keyframe from tail to head
+// Generic iterator for iterating over each frame from tail to head
 template<typename TBuffer, typename ElementType>
 struct TNetworkSimBufferIterator
 {
 	TNetworkSimBufferIterator(TBuffer& InBuffer) : Buffer(InBuffer)	{ CurrentPos = Buffer.IterStartPos(); }
-	int32 Keyframe() const { return Buffer.IterKeyframe(CurrentPos); }
+	int32 Frame() const { return Buffer.IterFrame(CurrentPos); }
 	ElementType* Element() const { return Buffer.IterElement(CurrentPos); }
 
 	void operator++() { CurrentPos++; }
@@ -23,9 +23,9 @@ template<typename ElementType>
 struct TNetSimLazyWriterFunc
 {
 	template<typename TBuffer>
-	TNetSimLazyWriterFunc(TBuffer& Buffer, int32 PendingKeyframe)
+	TNetSimLazyWriterFunc(TBuffer& Buffer, int32 PendingFrame)
 	{
-		GetFunc = [&Buffer, PendingKeyframe]() { return Buffer.WriteKeyframeInitializedFromHead(PendingKeyframe); };
+		GetFunc = [&Buffer, PendingFrame]() { return Buffer.WriteFrameInitializedFromHead(PendingFrame); };
 	}
 
 	ElementType* Get() const
@@ -59,12 +59,12 @@ struct TNetworkSimBufferBase
 {
 	FString GetBasicDebugStr() const
 	{
-		return FString::Printf(TEXT("Elements: [%d/%d]. Keyframes: [%d-%d]"), ((T*)this)->Num(), ((T*)this)->Max(), ((T*)this)->TailKeyframe(), ((T*)this)->HeadKeyframe());
+		return FString::Printf(TEXT("Elements: [%d/%d]. Frames: [%d-%d]"), ((T*)this)->Num(), ((T*)this)->Max(), ((T*)this)->TailFrame(), ((T*)this)->HeadFrame());
 	}
 
-	bool IsValidKeyframe(int32 Keyframe) const 
+	bool IsValidFrame(int32 Frame) const 
 	{ 
-		return Keyframe >= ((T*)this)->TailKeyframe() && Keyframe <= ((T*)this)->HeadKeyframe(); 
+		return Frame >= ((T*)this)->TailFrame() && Frame <= ((T*)this)->HeadFrame(); 
 	}
 
 	// Copies each element of SourceBuffer into this buffer. This could break continuity so for TNetworkSimContiguousBuffer, it is possible to lose elements by doing this.
@@ -73,35 +73,35 @@ struct TNetworkSimBufferBase
 	{
 		for (auto It = SourceBuffer.CreateConstIterator(); It; ++It)
 		{
-			*((T*)this)->WriteKeyframe( It.Keyframe() ) = *It.Element();
+			*((T*)this)->WriteFrame( It.Frame() ) = *It.Element();
 		}
 	}
 
 protected:
 
-	// Creates a new keyframe, but
-	//	-If keyframe already exists, returns existing
-	//	-If keyframe > head, contents of head are copied into new frame
-	//	-If keyframe < tail, contents are cleared to default value
+	// Creates a new frame, but
+	//	-If frame already exists, returns existing
+	//	-If frame > head, contents of head are copied into new frame
+	//	-If frame < tail, contents are cleared to default value
 	// (this function is sketchy and poorly named but is proving to be useful in a few places)
 	template<typename ElementType>
-	ElementType* WriteKeyframeInitializedFromHeadImpl(int32 Keyframe)
+	ElementType* WriteFrameInitializedFromHeadImpl(int32 Frame)
 	{
-		if (((T*)this)->HeadKeyframe() > Keyframe)
+		if (((T*)this)->HeadFrame() > Frame)
 		{
 			ElementType* HeadElementPtr = ((T*)this)->HeadElement();
-			ElementType* NewElement = ((T*)this)->WriteKeyframe(Keyframe);
+			ElementType* NewElement = ((T*)this)->WriteFrame(Frame);
 			*NewElement = *HeadElementPtr;
 			return NewElement;
 		}
-		else if (Keyframe < ((T*)this)->TailKeyframe())
+		else if (Frame < ((T*)this)->TailFrame())
 		{
-			ElementType* NewElement = ((T*)this)->WriteKeyframe(Keyframe);
+			ElementType* NewElement = ((T*)this)->WriteFrame(Frame);
 			*NewElement = ElementType();
 			return NewElement;
 		}
 		
-		return ((T*)this)->WriteKeyframe(Keyframe);
+		return ((T*)this)->WriteFrame(Frame);
 	}
 };
 
@@ -114,11 +114,11 @@ struct TNetworkSimContiguousBuffer : public TNetworkSimBufferBase<TNetworkSimCon
 		Data.SetNum(NumElements);
 	}
 
-	T* operator[](int32 Keyframe) {	return const_cast<T*>(GetImpl(Keyframe)); }
-	const T* operator[](int32 Keyframe) const { return GetImpl(Keyframe); }
+	T* operator[](int32 Frame) {	return const_cast<T*>(GetImpl(Frame)); }
+	const T* operator[](int32 Frame) const { return GetImpl(Frame); }
 
-	T* Get(int32 Keyframe) { return const_cast<T*>(GetImpl(Keyframe)); }
-	const T* Get(int32 Keyframe) const { return GetImpl(Keyframe); }
+	T* Get(int32 Frame) { return const_cast<T*>(GetImpl(Frame)); }
+	const T* Get(int32 Frame) const { return GetImpl(Frame); }
 
 	const T* HeadElement() const { return HeadElementImpl(); }
 	T* HeadElement() { return const_cast<T*>(HeadElementImpl()); }
@@ -126,19 +126,19 @@ struct TNetworkSimContiguousBuffer : public TNetworkSimBufferBase<TNetworkSimCon
 	const T* TailElement() const { return TailElementImpl(); }
 	T* TailElement() { return const_cast<T*>(TailElementImpl()); }
 
-	int32 HeadKeyframe() const { return Head; }
-	int32 TailKeyframe() const { return GetTail(); }
+	int32 HeadFrame() const { return Head; }
+	int32 TailFrame() const { return GetTail(); }
 
 	int32 Num() const { return Head == INDEX_NONE ? 0 : (Head - GetTail() + 1); }
 	int32 Max() const { return Data.Max(); }
 	int32 GetDirtyCount() const { return DirtyCount; }
 
-	T* WriteKeyframe(int32 Keyframe)
+	T* WriteFrame(int32 Frame)
 	{
-		check(Keyframe >= 0);
+		check(Frame >= 0);
 
 		const int32 Tail = GetTail();
-		if (Head == INDEX_NONE || Keyframe < Tail || Keyframe > Head+1)
+		if (Head == INDEX_NONE || Frame < Tail || Frame > Head+1)
 		{
 			// Writing outside the current range (+1) results in a full wipe of valid contents
 			NumValidElements = 1;
@@ -146,22 +146,22 @@ struct TNetworkSimContiguousBuffer : public TNetworkSimBufferBase<TNetworkSimCon
 		else
 		{
 			// Writing inside the current range (+1) preserves valid elements up to the size of our buffer
-			NumValidElements = FMath::Min<int32>(Keyframe - Tail + 1, Data.Num());
+			NumValidElements = FMath::Min<int32>(Frame - Tail + 1, Data.Num());
 		}
 		
-		Head = Keyframe;
+		Head = Frame;
 		++DirtyCount;
-		return &Data[Keyframe % Data.Num()];
+		return &Data[Frame % Data.Num()];
 	}
 	
-	T* WriteKeyframeInitializedFromHead(int32 Keyframe)
+	T* WriteFrameInitializedFromHead(int32 Frame)
 	{
-		return this->template WriteKeyframeInitializedFromHeadImpl<ElementType>(Keyframe);
+		return this->template WriteFrameInitializedFromHeadImpl<ElementType>(Frame);
 	}
 
-	TNetSimLazyWriterFunc<ElementType> LazyWriter(int32 Keyframe)
+	TNetSimLazyWriterFunc<ElementType> LazyWriter(int32 Frame)
 	{
-		return TNetSimLazyWriterFunc<ElementType>(*this, Keyframe);
+		return TNetSimLazyWriterFunc<ElementType>(*this, Frame);
 	}
 
 	using IteratorType = TNetworkSimBufferIterator<TNetworkSimContiguousBuffer<ElementType, NumElements>, ElementType>;
@@ -172,15 +172,15 @@ struct TNetworkSimContiguousBuffer : public TNetworkSimBufferBase<TNetworkSimCon
 
 private:
 
-	const T* GetImpl(int32 Keyframe) const
+	const T* GetImpl(int32 Frame) const
 	{
-		const int32 RelativeToHead = Keyframe - Head;
+		const int32 RelativeToHead = Frame - Head;
 		if (RelativeToHead > 0 || RelativeToHead <= -NumValidElements)
 		{
 			return nullptr;
 		}
 
-		return &Data[Keyframe % Data.Num()];
+		return &Data[Frame % Data.Num()];
 	}
 
 	const T* HeadElementImpl() const
@@ -214,12 +214,12 @@ private:
 	friend struct TNetworkSimBufferIterator;
 	int32 IterStartPos() const { return GetTail(); }
 	int32 IterEndPos() const { return Head; }
-	int32 IterKeyframe(int32 Pos) const { return Pos; }
+	int32 IterFrame(int32 Pos) const { return Pos; }
 	T* IterElement(int32 Pos) { return &Data[Pos % Data.Num()]; }
 	const T* IterElement(int32 Pos) const { return &Data[Pos % Data.Num()]; }
 };
 
-// Keyframe: arbitrary identifier for data. Not contiguous or controlled by us (always passed in)
+// Frame: arbitrary identifier for data. Not contiguous or controlled by us (always passed in)
 // Position/Pos: increasing counter for position in array. Mod with Data.Num to get Index.
 // Index/Idx: actual index into Data Array
 template<typename T, int32 NumElements=32>
@@ -231,11 +231,11 @@ struct TNetworkSimSparseBuffer : public TNetworkSimBufferBase<TNetworkSimSparseB
 		Data.SetNum(NumElements);
 	}
 
-	T* operator[](int32 Keyframe) {	return const_cast<T*>(GetImpl(Keyframe)); }
-	const T* operator[](int32 Keyframe) const { return GetImpl(Keyframe); }
+	T* operator[](int32 Frame) {	return const_cast<T*>(GetImpl(Frame)); }
+	const T* operator[](int32 Frame) const { return GetImpl(Frame); }
 
-	T* Get(int32 Keyframe) { return const_cast<T*>(GetImpl(Keyframe)); }
-	const T* Get(int32 Keyframe) const { return GetImpl(Keyframe); }
+	T* Get(int32 Frame) { return const_cast<T*>(GetImpl(Frame)); }
+	const T* Get(int32 Frame) const { return GetImpl(Frame); }
 
 	const T* HeadElement() const { return HeadElementImpl(); }
 	T* HeadElement() { return const_cast<T*>(HeadElementImpl()); }
@@ -243,32 +243,32 @@ struct TNetworkSimSparseBuffer : public TNetworkSimBufferBase<TNetworkSimSparseB
 	const T* TailElement() const { return TailElementImpl(); }
 	T* TailElement() { return const_cast<T*>(TailElementImpl()); }
 
-	int32 HeadKeyframe() const { return Data[HeadPos % Data.Num()].Keyframe; }
-	int32 TailKeyframe() const { return Data[GetTailPos() % Data.Num()].Keyframe; }
+	int32 HeadFrame() const { return Data[HeadPos % Data.Num()].Frame; }
+	int32 TailFrame() const { return Data[GetTailPos() % Data.Num()].Frame; }
 
 	int32 Num() const { return HeadPos == INDEX_NONE ? 0 : (HeadPos - GetTailPos() + 1); }
 	int32 Max() const { return Data.Max(); }
 	int32 GetDirtyCount() const { return DirtyCount; }
 
-	// Returns the element @ keyframe for writing. The contents of this element are unknown (could be stale content!). Note the element returned is immediately considered "valid" by Num(), Iterators, etc!
-	T* WriteKeyframe(int32 Keyframe)
+	// Returns the element @ frame for writing. The contents of this element are unknown (could be stale content!). Note the element returned is immediately considered "valid" by Num(), Iterators, etc!
+	T* WriteFrame(int32 Frame)
 	{
-		check(Keyframe >= 0);
+		check(Frame >= 0);
 		++DirtyCount;
 
 		int32 Pos = HeadPos;
 		if (HeadPos != INDEX_NONE)
 		{
-			// If we have elements, find where this Keyframe would go
+			// If we have elements, find where this Frame would go
 			const int32 Tail = GetTailPos();
 			for (; Pos >= Tail; --Pos)
 			{
 				TInternal& InternalData = Data[Pos % Data.Num()];
-				if (InternalData.Keyframe == Keyframe)
+				if (InternalData.Frame == Frame)
 				{
 					return &InternalData.Element;
 				}
-				if (InternalData.Keyframe <= Keyframe)
+				if (InternalData.Frame <= Frame)
 				{
 					break;
 				}
@@ -278,18 +278,18 @@ struct TNetworkSimSparseBuffer : public TNetworkSimBufferBase<TNetworkSimSparseB
 		// Write frame to next pos
 		HeadPos = Pos+1;
 		TInternal& WriteData = Data[HeadPos % Data.Num()];
-		WriteData.Keyframe = Keyframe;
+		WriteData.Frame = Frame;
 		return &WriteData.Element;
 	}
 
-	ElementType* WriteKeyframeInitializedFromHead(int32 Keyframe)
+	ElementType* WriteFrameInitializedFromHead(int32 Frame)
 	{
-		return this->template WriteKeyframeInitializedFromHeadImpl<ElementType>(Keyframe);
+		return this->template WriteFrameInitializedFromHeadImpl<ElementType>(Frame);
 	}
 
-	TNetSimLazyWriterFunc<ElementType> LazyWriter(int32 Keyframe)
+	TNetSimLazyWriterFunc<ElementType> LazyWriter(int32 Frame)
 	{
-		return TNetSimLazyWriterFunc<ElementType>(*this, Keyframe);
+		return TNetSimLazyWriterFunc<ElementType>(*this, Frame);
 	}
 
 	using IteratorType = TNetworkSimBufferIterator<TNetworkSimSparseBuffer<ElementType, NumElements>, ElementType>;
@@ -302,13 +302,13 @@ private:
 
 	struct TInternal
 	{
-		int32 Keyframe = -1;
+		int32 Frame = -1;
 		T Element;
 	};
 
-	const T* GetImpl(int32 Keyframe) const
+	const T* GetImpl(int32 Frame) const
 	{
-		const int32 Pos = GetPosForKeyframe(Keyframe);
+		const int32 Pos = GetPosForFrame(Frame);
 		if (Pos != INDEX_NONE)
 		{		
 			return &Data[Pos % Data.Num()].Element;
@@ -336,12 +336,12 @@ private:
 		return nullptr;
 	}
 	
-	int32 GetPosForKeyframe(int32 Keyframe) const
+	int32 GetPosForFrame(int32 Frame) const
 	{
 		const int32 TailPos = GetTailPos();
 		for (int32 Pos=HeadPos; Pos >= TailPos; --Pos)
 		{
-			if (Data[Pos % Data.Num()].Keyframe <= Keyframe)
+			if (Data[Pos % Data.Num()].Frame <= Frame)
 			{
 				return Pos;
 			}
@@ -360,7 +360,7 @@ private:
 	friend struct TNetworkSimBufferIterator;
 	int32 IterStartPos() const { return GetTailPos(); }
 	int32 IterEndPos() const { return HeadPos; }
-	int32 IterKeyframe(int32 Pos) const { return Data[Pos % Data.Num()].Keyframe; }
+	int32 IterFrame(int32 Pos) const { return Data[Pos % Data.Num()].Frame; }
 	T* IterElement(int32 Pos) { return &Data[Pos % Data.Num()].Element; }
 	const T* IterElement(int32 Pos) const { return &Data[Pos % Data.Num()].Element; }
 };
