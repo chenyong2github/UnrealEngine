@@ -214,7 +214,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 	uint2 DispatchThreadId = DispatchRaysIndex().xy + uint2(RenderTileOffsetX, RenderTileOffsetY);
 #endif
 
-	DispatchThreadId += View.ViewRectMin;
+	DispatchThreadId += (uint2)View.ViewRectMin;
 
 	uint2 PixelCoord = GetPixelCoord(DispatchThreadId, UpscaleFactor); // GBuffer pixel coordinates (full resolution)
 
@@ -424,7 +424,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 
 				// Trace the top layer reflection
 				float3 TopLayerRadiance = float3(0, 0, 0);
-				FMaterialClosestHitPayload Payload = (FMaterialClosestHitPayload)0;
+				FPackedMaterialClosestHitPayload Payload = (FPackedMaterialClosestHitPayload)0;
 
 				if (DIM_HYBRID && DIM_DEFERRED_MATERIAL_MODE == DEFERRED_MATERIAL_MODE_SHADE 
 					&& DeferredMaterialPayload.SortKey == RAY_TRACING_DEFERRED_MATERIAL_KEY_SCREEN_SPACE)
@@ -438,17 +438,17 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 					//   FScreenSpaceData HitScreenSpaceData = GetScreenSpaceData(RayHitUV);
 					//   Payload = MaterialPayloadFromScreenSpaceData(HitScreenSpaceData);
 
-					Payload.WorldPos = RayHitWorldPos;
 					Payload.HitT = DeferredMaterialPayload.HitT;
 
-					TopLayerRadiance += SceneColor.SampleLevel(GlobalPointClampedSampler, RayHitUV, 0) / View.PreExposure;
+					TopLayerRadiance += SceneColor.SampleLevel(GlobalPointClampedSampler, RayHitUV, 0).rgb / View.PreExposure;
 				}
 				else
 				{
 					const uint RayFlags = 0;
 					const uint InstanceInclusionMask = RAY_TRACING_MASK_OPAQUE;
 
-					Payload = TraceMaterialRay(
+					TraceMaterialRayPacked(
+						Payload,
 						TLAS,
 						RayFlags,
 						InstanceInclusionMask,
@@ -466,18 +466,20 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 						Transmission = Transmit(TransmissionRay, RandSequence, TopLayerRadiance);
 					}
 
-					RayDesc LightingRay = TopLayerRay;
+					float3 RayHitWorldPos = TopLayerRay.Origin + Payload.HitT * TopLayerRay.Direction;
+					float3 LightingViewDirection = TopLayerRay.Direction;
 					if (DIM_HYBRID)
 					{
 						// Enforce consistent eye vector for computing lighting between screen space and ray traced reflections when using hybrid mode.
 						// This ensures that specular lighting matches and there is no visual discontinuity, even though it is wrong.
-						LightingRay.Direction = normalize(Payload.WorldPos - View.WorldCameraOrigin);
+						LightingViewDirection = normalize(RayHitWorldPos - View.WorldCameraOrigin);
 					}
 
 					float3 Radiance = 0.0;
 					AccumulateResults(
 						Payload,
-						LightingRay,
+						RayHitWorldPos,
+						LightingViewDirection,
 						TLAS,
 						RandSequence,
 						ReflectionMaxNormalBias,
@@ -504,7 +506,8 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 					}
 
 					bApplyHeightFog = HeightFog > 0;
-					OriginToCollider = Payload.WorldPos - TopLayerRay.Origin;
+					float3 RayHitWorldPos = TopLayerRay.Origin + Payload.HitT * TopLayerRay.Direction;
+					OriginToCollider = RayHitWorldPos - TopLayerRay.Origin;
 				}
 				else if (bAllowSkySampling && ReflectionStruct.SkyLightParameters.y > 0)
 				{
@@ -681,10 +684,10 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 				IncidentDirection = TopLayerRay.Direction;
 				WorldPosition = TopLayerRay.Origin + Payload.HitT * TopLayerRay.Direction;
 
-				ShadingModelID = Payload.ShadingModelID;
-				TopLayerWorldNormal = Payload.WorldNormal;
-				TopLayerRoughness = Payload.Roughness;
-				TopLayerSpecularColor = Payload.SpecularColor;
+				ShadingModelID = Payload.GetShadingModelID();
+				TopLayerWorldNormal = Payload.GetWorldNormal();
+				TopLayerRoughness = Payload.GetRoughness();
+				TopLayerSpecularColor = Payload.GetSpecularColor();
 
 				if (ShadingModelID == SHADINGMODELID_CLEAR_COAT)
 				{
@@ -696,8 +699,9 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 					BottomLayerWorldNormal = OctahedronToUnitVector(oct1);
 					#endif
 
-					ClearCoat = Payload.CustomData.x;				// Clear coat weight
-					TopLayerRoughness = Payload.CustomData.y;		// Clear coat roughness
+					ClearCoat = Payload.GetCustomData().x;				// Clear coat weight
+					TopLayerRoughness = Payload.GetCustomData().y;		// Clear coat roughness
+
 					TopLayerSpecularColor = ClearCoatSpecularColor;	// Hard coded top layer specular color
 				}
 
