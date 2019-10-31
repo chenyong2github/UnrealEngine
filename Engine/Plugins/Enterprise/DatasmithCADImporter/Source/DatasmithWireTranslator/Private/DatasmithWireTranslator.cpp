@@ -64,6 +64,52 @@ public:
 	FString LayerName;
 	FString Label;
 	bool bCadData = true;
+
+	// Generates BodyData's unique id from AlDagNode objects
+	FString GetUUID(const FString& ParentUUID)
+	{
+		if(ShellSet.Num() == 0)
+		{
+			return ParentUUID;
+		}
+
+		auto GetLongPersistentID = []( AlDagNode& DagNode ) -> int64
+		{
+			union {
+				int a[2];
+				int64 b;
+			} Value;
+
+			Value.b = -1;
+
+			AlPersistentID* PersistentID = nullptr;
+			DagNode.persistentID( PersistentID );
+
+			if( PersistentID != nullptr )
+			{
+				int Dummy;
+				PersistentID->id( Value.a[0], Value.a[1], Dummy, Dummy );
+			}
+
+			return Value.b;
+		};
+
+		if(ShellSet.Num() > 1)
+		{
+			ShellSet.Sort([&](AlDagNode& A, AlDagNode& B)
+			{
+				return GetLongPersistentID( A ) < GetLongPersistentID( B );
+			});
+		}
+
+		FString Buffer;
+		for(AlDagNode* DagNode : ShellSet)
+		{
+			Buffer += FString::Printf(TEXT("%016lx"), GetLongPersistentID( *DagNode ) );
+		}
+
+		return GetUEUUIDFromAIPersistentID( ParentUUID, Buffer );
+	}
 };
 
 class FWireTranslatorImpl
@@ -127,7 +173,7 @@ private:
 	bool ProcessAlGroupNode(AlGroupNode& GroupNode, const FDagNodeInfo& ParentInfo);
 	bool ProcessAlShellNode(AlDagNode& GroupNode, const FDagNodeInfo& ParentInfo, const char* ShaderName);
 	bool ProcessBodyNode(TSharedRef<BodyData> Body, const FDagNodeInfo& ParentInfo);
-	TSharedPtr< IDatasmithMeshElement > AddMeshElement(TSharedRef<BodyData> Body, const FDagNodeInfo& ParentInfo);
+	TSharedPtr< IDatasmithMeshElement > FindOrAddMeshElement(TSharedRef<BodyData> Body, const FDagNodeInfo& ParentInfo);
 	TSharedPtr< IDatasmithMeshElement > FindOrAddMeshElement(AlDagNode& ShellNode, const FDagNodeInfo& ParentInfo, const char* ShaderName);
 	void GetDagNodeInfo(AlDagNode& GroupNode, const FDagNodeInfo& ParentInfo, FDagNodeInfo& CurrentNodeInfo);
 	void GetDagNodeInfo(TSharedRef<BodyData> CurrentNode, const FDagNodeInfo& ParentInfo, FDagNodeInfo& CurrentNodeInfo);
@@ -166,6 +212,7 @@ private:
 
 	/** Table of correspondence between mesh identifier and associated Datasmith mesh element */
 	TMap< uint32, TSharedPtr< IDatasmithMeshElement > > ShellUUIDToMeshElementMap;
+	TMap< FString, TSharedPtr< IDatasmithMeshElement > > BodyToMeshElementMap;
 
 	/** Datasmith mesh elements to OpenModel objects */
 	TMap< IDatasmithMeshElement*, AlDagNode* > MeshElementToAlDagNodeMap;
@@ -1241,11 +1288,10 @@ void FWireTranslatorImpl::GetDagNodeInfo(AlDagNode& CurrentNode, const FDagNodeI
 {
 	CurrentNodeInfo.Label = CurrentNode.name();
 
-	FString ThisGroupNodeID;
-	AlPersistentID* GroupNodeId = new AlPersistentID();
-
+	AlPersistentID* GroupNodeId = nullptr;
 	CurrentNode.persistentID(GroupNodeId);
-	ThisGroupNodeID = GetPersistentIDString(GroupNodeId);
+
+	FString ThisGroupNodeID( GetPersistentIDString(GroupNodeId) );
 
     // Limit length of UUID by combining hash of parent UUID and container's UUID if ParentUuid is not empty
 	CurrentNodeInfo.UEuuid = GetUEUUIDFromAIPersistentID(ParentInfo.UEuuid, ThisGroupNodeID);
@@ -1257,7 +1303,7 @@ void FWireTranslatorImpl::GetDagNodeInfo(TSharedRef<BodyData> CurrentNode, const
 	CurrentNode->Label = CurrentNodeInfo.Label;
 
 	// Limit length of UUID by combining hash of parent UUID and container's UUID if ParentUuid is not empty
-	CurrentNodeInfo.UEuuid = GetUEUUIDFromAIPersistentID(ParentInfo.UEuuid, CurrentNodeInfo.Label);
+	CurrentNodeInfo.UEuuid = GetUEUUIDFromAIPersistentID( ParentInfo.UEuuid, CurrentNode->GetUUID( ParentInfo.UEuuid ) );
 }
 
 
@@ -1296,11 +1342,15 @@ bool FWireTranslatorImpl::ProcessAlGroupNode(AlGroupNode& GroupNode, const FDagN
 	return true;
 }
 
-TSharedPtr< IDatasmithMeshElement > FWireTranslatorImpl::AddMeshElement(TSharedRef<BodyData> Body, const FDagNodeInfo& NodeInfo)
+TSharedPtr< IDatasmithMeshElement > FWireTranslatorImpl::FindOrAddMeshElement(TSharedRef<BodyData> Body, const FDagNodeInfo& NodeInfo)
 {
-	uint32 BodyUUID = GetTypeHash(NodeInfo.UEuuid);
-
-	TSharedPtr< IDatasmithMeshElement > MeshElement = FDatasmithSceneFactory::CreateMesh(*FString::Printf(TEXT("0x%08x"), BodyUUID));
+	TSharedPtr< IDatasmithMeshElement >* MeshElementPtr = BodyToMeshElementMap.Find( NodeInfo.UEuuid );
+	if (MeshElementPtr != nullptr)
+	{
+		return *MeshElementPtr;
+	}
+	
+	TSharedPtr< IDatasmithMeshElement > MeshElement = FDatasmithSceneFactory::CreateMesh( *NodeInfo.UEuuid );
 	MeshElement->SetLabel(*NodeInfo.Label);
 	MeshElement->SetLightmapSourceUV(-1);
 
@@ -1312,8 +1362,10 @@ TSharedPtr< IDatasmithMeshElement > FWireTranslatorImpl::AddMeshElement(TSharedR
 
 	DatasmithScene->AddMesh(MeshElement);
 
-	ShellUUIDToMeshElementMap.Add(BodyUUID, MeshElement);
+	ShellUUIDToMeshElementMap.Add(FCString::Atoi(*NodeInfo.UEuuid), MeshElement);
 	MeshElementToBodyMap.Add(MeshElement.Get(), Body);
+
+	BodyToMeshElementMap.Add( NodeInfo.UEuuid, MeshElement );
 
 	return MeshElement;
 }
@@ -1424,7 +1476,7 @@ bool FWireTranslatorImpl::ProcessBodyNode(TSharedRef<BodyData> Body, const FDagN
 	FDagNodeInfo ShellInfo;
 	GetDagNodeInfo(Body, ParentInfo, ShellInfo);
 
-	TSharedPtr< IDatasmithMeshElement > MeshElement = AddMeshElement(Body, ShellInfo);
+	TSharedPtr< IDatasmithMeshElement > MeshElement = FindOrAddMeshElement(Body, ShellInfo);
 	if (!MeshElement.IsValid())
 	{
 		return false;
@@ -1781,8 +1833,6 @@ TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(A
 		MeshElement->SetFile(*FilePath);
 	}
 
-	//Result = LocalSession->TopoFixes();
-
 	FMeshDescription MeshDescription;
 	DatasmithMeshHelper::PrepareAttributeForStaticMesh(MeshDescription);
 
@@ -1800,8 +1850,7 @@ TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(T
 	Result = LocalSession->AddBRep(Body->ShellSet, MeshParameters.bIsSymmetric);
 
 	//const char*Name = DagNode->name();
-	FString Filename = Body->Label;
-	Filename += TEXT(".ct");
+	FString Filename = Body->Label + TEXT(".ct");
 
 	FString FilePath = FPaths::Combine(OutputPath, Filename);
 	Result = LocalSession->SaveBrep(FilePath);
@@ -1809,8 +1858,6 @@ TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(T
 	{
 		MeshElement->SetFile(*FilePath);
 	}
-
-	//Result = LocalSession->TopoFixes();
 
 	FMeshDescription MeshDescription;
 	DatasmithMeshHelper::PrepareAttributeForStaticMesh(MeshDescription);
@@ -1861,6 +1908,7 @@ TOptional<FMeshDescription> FWireTranslatorImpl::GetMeshOfMeshBody(TSharedRef<Bo
 {
 	FMeshDescription MeshDescription;
 	DatasmithMeshHelper::PrepareAttributeForStaticMesh(MeshDescription);
+	MeshDescription.Empty();
 	bool True = true;
 
 	for (auto DagNode : Body->ShellSet)
@@ -1869,8 +1917,7 @@ TOptional<FMeshDescription> FWireTranslatorImpl::GetMeshOfMeshBody(TSharedRef<Bo
 		AlMesh *Mesh = MeshNode->mesh();
 		if (Mesh)
 		{
-			//TransferAlMeshToMeshDescription(*Mesh, MeshDescription, MeshParameters, True);
-			// TODO
+			TransferAlMeshToMeshDescription(*Mesh, MeshDescription, MeshParameters, True, true);
 		}
 	}
 
