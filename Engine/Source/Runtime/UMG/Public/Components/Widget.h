@@ -366,7 +366,7 @@ public:
 
 private:
 	/** A custom set of accessibility rules for this widget. If null, default rules for the widget are used. */
-	UPROPERTY()
+	UPROPERTY(Instanced)
 	USlateAccessibleWidgetData* AccessibleWidgetData;
 
 protected:
