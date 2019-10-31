@@ -94,6 +94,7 @@ void FGenericCrashContext::Initialize()
 	FCString::Strcpy(NCached::Session.GameSessionID, TEXT(""));
 	FCString::Strcpy(NCached::Session.GameStateName, TEXT(""));
 	FCString::Strcpy(NCached::Session.UserActivityHint, TEXT(""));
+	FCString::Strcpy(NCached::Session.BuildConfigurationName, LexToString(FApp::GetBuildConfiguration()));
 	FCString::Strcpy(NCached::Session.ExecutableName, FPlatformProcess::ExecutableName());
 	FCString::Strcpy(NCached::Session.BaseDir, FPlatformProcess::BaseDir());
 	FCString::Strcpy(NCached::Session.RootDir, FPlatformMisc::RootDir());
@@ -443,7 +444,7 @@ void FGenericCrashContext::SerializeSessionContext(FString& Buffer)
 		}
 	}
 	AddCrashPropertyInternal(Buffer, TEXT("ExecutableName"), NCached::Session.ExecutableName);
-	AddCrashPropertyInternal(Buffer, TEXT("BuildConfiguration"), LexToString(FApp::GetBuildConfiguration()));
+	AddCrashPropertyInternal(Buffer, TEXT("BuildConfiguration"), NCached::Session.BuildConfigurationName);
 	AddCrashPropertyInternal(Buffer, TEXT("GameSessionID"), NCached::Session.GameSessionID);
 
 	// Unique string specifying the symbols to be used by CrashReporter
@@ -451,7 +452,7 @@ void FGenericCrashContext::SerializeSessionContext(FString& Buffer)
 #ifdef UE_APP_FLAVOR
 	Symbols = FString::Printf(TEXT("%s-%s"), *Symbols, *FString(UE_APP_FLAVOR));
 #endif
-	Symbols = FString::Printf(TEXT("%s-%s-%s"), *Symbols, FPlatformMisc::GetUBTPlatform(), LexToString(FApp::GetBuildConfiguration())).Replace(TEXT("+"), TEXT("*"));
+	Symbols = FString::Printf(TEXT("%s-%s-%s"), *Symbols, FPlatformMisc::GetUBTPlatform(), NCached::Session.BuildConfigurationName).Replace(TEXT("+"), TEXT("*"));
 #ifdef UE_BUILD_FLAVOR
 	Symbols = FString::Printf(TEXT("%s-%s"), *Symbols, *FString(UE_BUILD_FLAVOR));
 #endif
@@ -471,7 +472,7 @@ void FGenericCrashContext::SerializeSessionContext(FString& Buffer)
 	AddCrashPropertyInternal(Buffer, TEXT("AppDefaultLocale"), NCached::Session.DefaultLocale);
 	AddCrashPropertyInternal(Buffer, TEXT("BuildVersion"), FApp::GetBuildVersion());
 	AddCrashPropertyInternal(Buffer, TEXT("IsUE4Release"), NCached::Session.bIsUE4Release);
-	AddCrashPropertyInternal(Buffer, TEXT("IsRequestingExit"), IsEngineExitRequested());
+	AddCrashPropertyInternal(Buffer, TEXT("IsRequestingExit"), NCached::Session.bIsExitRequested);
 
 	// Remove periods from user names to match AutoReporter user names
 	// The name prefix is read by CrashRepository.AddNewCrash in the website code
