@@ -179,65 +179,6 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 	 uint   HairSampleCount;
  };
 
- void ComputeUniqueSamples(
-	 inout FSampleDesc OutSamples[HAIR_VISIBILITY_MAXSAMPLECOUNT],
-	 inout FSampleSetDesc OutSet,
-	 const uint2 PixelCoord,
-	 const uint SampleCount,
-	 Texture2D<float4> InSceneDepthTexture,
-	 Texture2DMS<uint4, HAIR_VISIBILITY_MAXSAMPLECOUNT>  InMSAA_IDTexture,
-	 Texture2DMS<float4, HAIR_VISIBILITY_MAXSAMPLECOUNT> InMSAA_MaterialTexture,
-//	 Texture2DMS<float4, HAIR_VISIBILITY_MAXSAMPLECOUNT> InMSAA_AttributeTexture,
-	 Texture2DMS<float, HAIR_VISIBILITY_MAXSAMPLECOUNT>  InMSAA_DepthTexture)
- {
-	 OutSet.UniqueSampleCount = 0;
-	 OutSet.ValidSampleCount = 0;
-
-	 OutSet.HairSampleCount = clamp(SampleCount, 0, HAIR_VISIBILITY_MAXSAMPLECOUNT);
-	 const uint InvalidSample = 0xFFFF;
-	 const float OpaqueDepth = InSceneDepthTexture.Load(uint3(PixelCoord, 0)).r;
-	 for (uint SampleIt = 0; SampleIt < OutSet.HairSampleCount; ++SampleIt)
-	 {
-		 const uint4 EncodedData = InMSAA_IDTexture.Load(PixelCoord, SampleIt);
-		 const bool bIsValid = IsValidHairData(EncodedData);
-		 if (!bIsValid)
-			 continue;
-
-		 const float SampleDepth = InMSAA_DepthTexture.Load(PixelCoord, SampleIt);
-		 if (OpaqueDepth > SampleDepth) // Reverse-Z
-			 continue;
-
-		 ++OutSet.ValidSampleCount;
-
-		 const FVisibilityData VisibilityData = DecodeVisibilityData(EncodedData);
-		 bool bAlreadyExist = false;
-		 for (uint UniqueIt = 0; UniqueIt < OutSet.UniqueSampleCount; ++UniqueIt)
-		 {
-			 if (VisibilityData.PrimitiveId == OutSamples[UniqueIt].SampleId)
-			 {
-				 OutSamples[UniqueIt].Weights += 1;
-				 bAlreadyExist = true;
-				 break;
-			 }
-		 }
-
-		 if (!bAlreadyExist)
-		 {
-			 //const float Specular = InMSAA_AttributeTexture.Load(PixelCoord, SampleIt).x;
-			 const float4 BaseColorAndRoughness = InMSAA_MaterialTexture.Load(PixelCoord, SampleIt);
-			 OutSamples[OutSet.UniqueSampleCount].SampleId = VisibilityData.PrimitiveId;
-			 OutSamples[OutSet.UniqueSampleCount].Tangents = VisibilityData.Tangent;
-			 OutSamples[OutSet.UniqueSampleCount].Coverage8bit = VisibilityData.Coverage8bit;
-			 OutSamples[OutSet.UniqueSampleCount].Depths = SampleDepth;
-			 OutSamples[OutSet.UniqueSampleCount].Weights = 1;
-			 OutSamples[OutSet.UniqueSampleCount].ClusterId = VisibilityData.ClusterId;
-			 OutSamples[OutSet.UniqueSampleCount].BaseColorAndRoughness = float4(BaseColorAndRoughness.xyz * BaseColorAndRoughness.xyz, BaseColorAndRoughness.a);
-			 OutSamples[OutSet.UniqueSampleCount].Specular = 0.5f; // Specular;
-			 ++OutSet.UniqueSampleCount;
-		 }
-	 }
- }
-
  uint To8bitCoverage(float Coverage)
  {
 	 return min(uint(Coverage * 0x100), 0xFFu);
@@ -350,3 +291,44 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 	 Out.Seed		= ((Attributes.y>>8) & 0xFF) / 255.f;
 	 return Out;
  }
+
+ //////////
+ // PPLL
+
+// Footprint: 160bits | 20bytes
+ struct FPPLLNodeData
+ {
+	 float Depth;
+	 uint PrimitiveID_ClusterID;
+	 uint Tangent_Coverage8bit;
+	 uint BaseColor_Roughness;
+	 uint NextNodeIndex;
+ };
+
+ FPPLLNodeData ConvertToPPLLNodeData(float Depth, FVisibilityData VisibilityData, float3 BaseColor, float Roughness, uint NextNodeIndex)
+ {
+	 // 4x16bits
+	 const uint4 EncodedVisibilityData = EncodeVisibilityData(VisibilityData);
+
+	 FPPLLNodeData Out;
+	 Out.Depth = Depth;																								// 32bits float
+	 Out.Tangent_Coverage8bit = (0xFFFF & EncodedVisibilityData.x) | ((0xFFFF & EncodedVisibilityData.y) << 16);	// 32bits uint
+	 Out.PrimitiveID_ClusterID = (0xFFFF & EncodedVisibilityData.z) | ((0xFFFF & EncodedVisibilityData.w) << 16);	// 32bits uint
+	 Out.BaseColor_Roughness = float4ToUint(float4(sqrt(BaseColor), Roughness));									// 32bits uint
+	 Out.NextNodeIndex = NextNodeIndex;																				// 32bits next node
+
+	 return Out;
+ }
+
+ FNodeData ConvertToNodeData(FPPLLNodeData In)
+ {
+	 FNodeData Out;
+	 Out.Depth = In.Depth;
+	 Out.PrimitiveID_ClusterID = In.PrimitiveID_ClusterID;
+	 Out.Tangent_Coverage8bit = In.Tangent_Coverage8bit;
+	 Out.BaseColor_Roughness = In.BaseColor_Roughness;
+	 Out.Specular = 0.5f;		// TODO
+
+	 return Out;
+ }
+

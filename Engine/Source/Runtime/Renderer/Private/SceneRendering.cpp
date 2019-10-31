@@ -57,8 +57,8 @@
 #include "IXRCamera.h"
 #include "IHeadMountedDisplay.h"
 #include "DiaphragmDOF.h" 
-#include "SingleLayerWaterRendering.h" 
-#include "HairStrands/HairStrandsUtils.h"
+#include "SingleLayerWaterRendering.h"
+#include "HairStrands/HairStrandsVisibility.h"
 
 /*-----------------------------------------------------------------------------
 	Globals
@@ -328,11 +328,6 @@ TAutoConsoleVariable<int32> CVarTransientResourceAliasing_Buffers(
 	1,
 	TEXT("Enables transient resource aliasing for specified buffers. Used only if GSupportsTransientResourceAliasing is true.\n"),
 	ECVF_ReadOnly);
-
-static TAutoConsoleVariable<int32> CVarHairVelocityMagnitudeScale(
-	TEXT("r.HairStrands.VelocityMagnitudeScale"), 
-	100,  // Tuned by eye, based on heavy motion (strong head shack)
-	TEXT("Velocity magnitude (in pixel) at which a hair will reach its pic velocity-rasterization-scale under motion to reduce aliasing. Default is 100."));
 
 #if !UE_BUILD_SHIPPING
 
@@ -1685,16 +1680,8 @@ void FViewInfo::SetupUniformBufferParameters(
 
 	// Deep opacity maps info
 	{
-		const FMinHairRadiusAtDepth1 MinRadiusAtDepth1 = ComputeMinStrandRadiusAtDepth1(
-			FIntPoint(UnconstrainedViewRect.Width(), UnconstrainedViewRect.Height()), FOV, GetHairVisibilitySampleCount(), 0.0f);
-
-		FVector2D PixelVelocity(1.f / (ViewRect.Width() * 2), 1.f / (ViewRect.Height() * 2));
-		const float VelocityMagnitudeScale = FMath::Clamp(CVarHairVelocityMagnitudeScale.GetValueOnAnyThread(), 0, 512) * FMath::Min(PixelVelocity.X, PixelVelocity.Y);
-
-		ViewUniformShaderParameters.HairRenderInfo.X = MinRadiusAtDepth1.Primary;
-		ViewUniformShaderParameters.HairRenderInfo.Y = MinRadiusAtDepth1.Velocity;
-		ViewUniformShaderParameters.HairRenderInfo.Z = IsPerspectiveProjection() ? 0.0f : 1.0f;
-		ViewUniformShaderParameters.HairRenderInfo.W = VelocityMagnitudeScale;
+		const bool bEnableMSAA = true;
+		SetUpViewHairRenderInfo(*this, bEnableMSAA, ViewUniformShaderParameters.HairRenderInfo);
 	}
 }
 

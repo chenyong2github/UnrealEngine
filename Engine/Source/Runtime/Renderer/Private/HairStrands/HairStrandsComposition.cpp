@@ -21,9 +21,13 @@ class FHairVisibilityComposeSubPixelPS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FHairVisibilityComposeSubPixelPS);
 	SHADER_USE_PARAMETER_STRUCT(FHairVisibilityComposeSubPixelPS, FGlobalShader);
 
+	class FPPLL : SHADER_PERMUTATION_INT("PERMUTATION_PPLL", 2);
+	using FPermutationDomain = TShaderPermutationDomain<FPPLL>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SubPixelColorTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairVisibilityDepthTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CategorisationTexture)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -38,22 +42,23 @@ static void AddHairVisibilityComposeSubPixelPass(
 	const FViewInfo& View,
 	const FRDGTextureRef& SubPixelColorTexture,
 	const FRDGTextureRef& HairVisibilityDepthTexture,
+	const FRDGTextureRef CategorisationTexture,
 	FRDGTextureRef& OutColorTexture,
 	FRDGTextureRef& OutDepthTexture)
 {
+	const bool bPPLL = HairVisibilityDepthTexture == nullptr;
+
 	FHairVisibilityComposeSubPixelPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairVisibilityComposeSubPixelPS::FParameters>();
 	Parameters->SubPixelColorTexture = SubPixelColorTexture;
+	Parameters->CategorisationTexture = CategorisationTexture;
 	Parameters->HairVisibilityDepthTexture = HairVisibilityDepthTexture;
 	Parameters->RenderTargets[0] = FRenderTargetBinding(OutColorTexture, ERenderTargetLoadAction::ELoad);
-	Parameters->RenderTargets.DepthStencil = FDepthStencilBinding(
-		OutDepthTexture,
-		ERenderTargetLoadAction::ELoad,
-		ERenderTargetLoadAction::ENoAction,
-		FExclusiveDepthStencil::DepthWrite_StencilNop);
-	
+	Parameters->RenderTargets.DepthStencil = FDepthStencilBinding(OutDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
+
+	FHairVisibilityComposeSubPixelPS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FHairVisibilityComposeSubPixelPS::FPPLL>(bPPLL ? 1 : 0);	// TODO we need a permutation for each MSAA count we accept
+	TShaderMapRef<FHairVisibilityComposeSubPixelPS> PixelShader(View.ShaderMap, PermutationVector);
 	TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
-	TShaderMapRef<FHairVisibilityComposeSubPixelPS> PixelShader(View.ShaderMap);
-	const TShaderMap<FGlobalShaderType>* GlobalShaderMap = View.ShaderMap;
 	const FIntRect Viewport = View.ViewRect;
 	const FIntPoint Resolution = OutColorTexture->Desc.Extent;
 	const FViewInfo* CapturedView = &View;
@@ -228,11 +233,18 @@ void RenderHairComposeSubPixel(
 		const FViewInfo& View = Views[ViewIndex];
 		if (View.Family)
 		{
-			if (ViewIndex < HairVisibilityViews.HairDatas.Num() && HairVisibilityViews.HairDatas[ViewIndex].DepthTexture)
+			if (ViewIndex < HairVisibilityViews.HairDatas.Num())
 			{
-				FRDGTextureRef HairVisibilityDepthTexture = GraphBuilder.RegisterExternalTexture(HairVisibilityViews.HairDatas[ViewIndex].DepthTexture, TEXT("HairVisibilityDepthTexture"));
-				FRDGTextureRef HairVisibilityVelocityTexture = GraphBuilder.RegisterExternalTexture(HairVisibilityViews.HairDatas[ViewIndex].VelocityTexture, TEXT("HairVisibilityVelocityTexture"));
-				
+				TRefCountPtr<IPooledRenderTarget> DepthTexture = HairVisibilityViews.HairDatas[ViewIndex].DepthTexture;
+				TRefCountPtr<IPooledRenderTarget> CategorisationTexture = HairVisibilityViews.HairDatas[ViewIndex].CategorizationTexture;
+				if (!DepthTexture && !CategorisationTexture)
+				{
+					continue; // Automatically skip for any view not rendering hair
+				}
+
+				const FRDGTextureRef RDGHairVisibilityDepthTexture = DepthTexture ? GraphBuilder.RegisterExternalTexture(DepthTexture, TEXT("HairVisibilityDepthTexture")) : nullptr;
+				const FRDGTextureRef RDGCategorisationTexture = CategorisationTexture ? GraphBuilder.RegisterExternalTexture(CategorisationTexture, TEXT("HairVisibilityCategorisationTexture")) : nullptr;
+
 				// #hair_todo : compose partially covered hair with transparent surface: this can be done by 
 				// rendering quad(s) covering the hair at the correct depth. This will be sorted with other 
 				// transparent surface, which should make the overall sorting workable
@@ -240,16 +252,21 @@ void RenderHairComposeSubPixel(
 					GraphBuilder,
 					View,
 					SceneColorSubPixelTexture,
-					HairVisibilityDepthTexture,
+					RDGHairVisibilityDepthTexture,
+					RDGCategorisationTexture,
 					SceneColorTexture,
 					SceneColorDepth);
 
-				AddHairVisibilityFastResolvePass(
-					GraphBuilder,
-					View,
-					HairVisibilityVelocityTexture,
-					HairVisibilityDepthTexture,
-					SceneColorDepth);
+				if (HairVisibilityViews.HairDatas[ViewIndex].VelocityTexture)
+				{
+					FRDGTextureRef RDGHairVisibilityVelocityTexture = GraphBuilder.RegisterExternalTexture(HairVisibilityViews.HairDatas[ViewIndex].VelocityTexture, TEXT("HairVisibilityVelocityTexture"));
+					AddHairVisibilityFastResolvePass(
+						GraphBuilder,
+						View,
+						RDGHairVisibilityVelocityTexture,
+						RDGHairVisibilityDepthTexture,
+						SceneColorDepth);
+				}
 			}
 		}
 	}
