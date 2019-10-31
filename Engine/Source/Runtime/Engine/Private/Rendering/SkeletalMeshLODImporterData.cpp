@@ -3,11 +3,15 @@
 #if WITH_EDITOR
 
 #include "Rendering/SkeletalMeshLODImporterData.h"
+#include "Logging/LogVerbosity.h"
+#include "Logging/LogMacros.h"
 #include "Serialization/BulkDataWriter.h"
 #include "Serialization/BulkDataReader.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Engine/SkeletalMesh.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogSkeletalMeshLODImporterData, Log, All);
 
 void FSkeletalMeshImportData::CopyDataNeedByMorphTargetImport(FSkeletalMeshImportData& Other) const
 {
@@ -403,7 +407,16 @@ FArchive& operator<<(FArchive& Ar, FReductionSkeletalMeshData& ReductionSkeletal
 	Ar << Version;
 	Ar << LicenseeVersion;
 	ReductionSkeletalMeshData.BaseLODModel.Serialize(Ar, ReductionSkeletalMeshData.Owner, INDEX_NONE);
-	Ar << ReductionSkeletalMeshData.BaseLODMorphTargetData;
+	
+	if(Ar.IsLoading() && Ar.AtEnd())
+	{
+		//Hack to fix a serialization error, serialize the MorphTargetData only if there is some left space in the archive
+		UE_ASSET_LOG(LogSkeletalMeshLODImporterData, Display, ReductionSkeletalMeshData.Owner, TEXT("This skeletalMesh should be re-import to save some missing reduction source data."));
+	}
+	else
+	{
+		Ar << ReductionSkeletalMeshData.BaseLODMorphTargetData;
+	}
 	return Ar;
 }
 
