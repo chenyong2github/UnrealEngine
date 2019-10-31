@@ -1050,6 +1050,7 @@ namespace EGameplayCueEvent
 }
 
 DECLARE_DELEGATE_OneParam(FOnGameplayAttributeEffectExecuted, struct FGameplayModifierEvaluatedData&);
+DECLARE_DELEGATE(FDeferredTagChangeDelegate);
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGameplayEffectTagCountChanged, const FGameplayTag, int32);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnGivenActiveGameplayEffectRemoved, const FActiveGameplayEffect&);
@@ -1197,14 +1198,20 @@ struct GAMEPLAYABILITIES_API FGameplayTagCountContainer
 		if (CountDelta != 0)
 		{
 			bool bUpdatedAny = false;
+			TArray<FDeferredTagChangeDelegate> DeferredTagChangeDelegates;
 			for (auto TagIt = Container.CreateConstIterator(); TagIt; ++TagIt)
 			{
-				bUpdatedAny |= UpdateTagMap_Internal(*TagIt, CountDelta, true);
+				bUpdatedAny |= UpdateTagMapDeferredParentRemoval_Internal(*TagIt, CountDelta, DeferredTagChangeDelegates);
 			}
 
 			if (bUpdatedAny && CountDelta < 0)
 			{
 				ExplicitTags.FillParentTags();
+			}
+
+			for (FDeferredTagChangeDelegate& Delegate : DeferredTagChangeDelegates)
+			{
+				Delegate.Execute();
 			}
 		}
 	}
@@ -1214,15 +1221,34 @@ struct GAMEPLAYABILITIES_API FGameplayTagCountContainer
 	 * 
 	 * @param Tag						Tag to update
 	 * @param CountDelta				Delta of the tag count to apply
-	 * @param bDeferParentTagsOnRemove	Skip calling FillParentTags for performance (must be handled by calling code)
 	 * 
 	 * @return True if tag was *either* added or removed. (E.g., we had the tag and now dont. or didnt have the tag and now we do. We didn't just change the count (1 count -> 2 count would return false).
 	 */
-	FORCEINLINE bool UpdateTagCount(const FGameplayTag& Tag, int32 CountDelta, bool bDeferParentTagsOnRemove=false)
+	FORCEINLINE bool UpdateTagCount(const FGameplayTag& Tag, int32 CountDelta)
 	{
 		if (CountDelta != 0)
 		{
-			return UpdateTagMap_Internal(Tag, CountDelta, bDeferParentTagsOnRemove);
+			return UpdateTagMap_Internal(Tag, CountDelta);
+		}
+
+		return false;
+	}
+
+	/**
+	 * Update the specified tag by the specified delta, potentially causing an additional or removal from the explicit tag list.
+	 * Calling code MUST call FillParentTags followed by executing the returned delegates.
+	 * 
+	 * @param Tag						Tag to update
+	 * @param CountDelta				Delta of the tag count to apply
+	 * @param DeferredTagChangeDelegates		Delegates to be called after this code runs
+	 * 
+	 * @return True if tag was *either* added or removed. (E.g., we had the tag and now dont. or didnt have the tag and now we do. We didn't just change the count (1 count -> 2 count would return false).
+	 */
+	FORCEINLINE bool UpdateTagCount_DeferredParentRemoval(const FGameplayTag& Tag, int32 CountDelta, TArray<FDeferredTagChangeDelegate>& DeferredTagChangeDelegates)
+	{
+		if (CountDelta != 0)
+		{
+			return UpdateTagMapDeferredParentRemoval_Internal(Tag, CountDelta, DeferredTagChangeDelegates);
 		}
 
 		return false;
@@ -1333,7 +1359,16 @@ private:
 	FGameplayTagContainer ExplicitTags;
 
 	/** Internal helper function to adjust the explicit tag list & corresponding maps/delegates/etc. as necessary */
-	bool UpdateTagMap_Internal(const FGameplayTag& Tag, int32 CountDelta, bool bDeferParentTagsOnRemove=false);
+	bool UpdateTagMap_Internal(const FGameplayTag& Tag, int32 CountDelta);
+
+	/** Internal helper function to adjust the explicit tag list & corresponding maps/delegates/etc. as necessary. This does not call FillParentTags or any of the tag change delegates. These delegates are returned and must be executed by the caller. */
+	bool UpdateTagMapDeferredParentRemoval_Internal(const FGameplayTag& Tag, int32 CountDelta, TArray<FDeferredTagChangeDelegate>& DeferredTagChangeDelegates);
+
+	/** Internal helper function to adjust the explicit tag list & corresponding map. */
+	bool UpdateExplicitTags(const FGameplayTag& Tag, int32 CountDelta, bool bDeferParentTagsOnRemove);
+
+	/** Internal helper function to collect the delegates that need to be called when Tag has its count changed by CountDelta. */
+	bool GatherTagChangeDelegates(const FGameplayTag& Tag, int32 CountDelta, TArray<FDeferredTagChangeDelegate>& TagChangeDelegates);
 };
 
 

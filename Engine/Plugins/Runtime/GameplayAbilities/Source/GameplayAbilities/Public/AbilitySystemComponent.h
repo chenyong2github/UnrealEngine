@@ -508,43 +508,9 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	/** Update the number of instances of a given tag and calls callback */
 	FORCEINLINE void UpdateTagMap(const FGameplayTagContainer& Container, int32 CountDelta)
 	{
-		// For removal, reorder calls so that FillParentTags is only called once
-		if (CountDelta > 0)
+		if (!Container.IsEmpty())
 		{
-			for (auto TagIt = Container.CreateConstIterator(); TagIt; ++TagIt)
-			{
-				const FGameplayTag& Tag = *TagIt;
-				if (GameplayTagCountContainer.UpdateTagCount(Tag, CountDelta))
-				{
-					OnTagUpdated(Tag, true);
-				}
-			}
-		}
-		else if (CountDelta < 0)
-		{
-			// Defer FillParentTags until all Tags have been removed
-			TArray<FGameplayTag> RemovedTags;
-			RemovedTags.Reserve(Container.Num()); // pre-allocate max number (if all are removed)
-
-			for (auto TagIt = Container.CreateConstIterator(); TagIt; ++TagIt)
-			{
-				const FGameplayTag& Tag = *TagIt;
-				if (GameplayTagCountContainer.UpdateTagCount(Tag, CountDelta, true))
-				{
-					RemovedTags.Add(Tag);
-				}
-			}
-			
-			if (RemovedTags.Num() > 0)
-			{
-				GameplayTagCountContainer.FillParentTags();
-			}
-
-			// Notify last in case OnTagUpdated queries this container
-			for (FGameplayTag& Tag : RemovedTags)
-			{
-				OnTagUpdated(Tag, false);
-			}
+			UpdateTagMap_Internal(Container, CountDelta);
 		}
 	}
 
@@ -1567,6 +1533,8 @@ protected:
 	const UAttributeSet*	GetAttributeSubobject(const TSubclassOf<UAttributeSet> AttributeClass) const;
 	const UAttributeSet*	GetAttributeSubobjectChecked(const TSubclassOf<UAttributeSet> AttributeClass) const;
 	const UAttributeSet*	GetOrCreateAttributeSubobject(TSubclassOf<UAttributeSet> AttributeClass);
+
+	void UpdateTagMap_Internal(const FGameplayTagContainer& Container, int32 CountDelta);
 
 	friend struct FActiveGameplayEffect;
 	friend struct FActiveGameplayEffectAction;
