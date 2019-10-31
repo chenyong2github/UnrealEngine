@@ -46,6 +46,11 @@ static float GetGroupHairShadowDensity(const FHairGroupDesc& GroupDesc, const FH
 	return GroupDesc.HairShadowDensity > 0 ? GroupDesc.HairShadowDensity : GroupData.HairRenderData.HairDensity;
 }
 
+static float GetGroupHairRaytracingRadiusScale(const FHairGroupDesc& GroupDesc, const FHairGroupData& GroupData)
+{
+	return GroupDesc.HairRaytracingRadiusScale;
+}
+
 /**
  * An material render proxy which overrides the debug mode parameter.
  */
@@ -424,6 +429,11 @@ static void UpdateHairGroupsDesc(UGroomAsset* GroomAsset, TArray<FHairGroupDesc>
 		{
 			Desc.HairShadowDensity = GroupData.HairRenderData.HairDensity;
 		}
+
+		if (bReinitOverride)
+		{
+			Desc.HairRaytracingRadiusScale = 1;
+		}
 	}
 }
 
@@ -442,7 +452,6 @@ UGroomComponent::UGroomComponent(const FObjectInitializer& ObjectInitializer)
 	bSelectable = true;
 	RegisteredSkeletalMeshComponent = nullptr;
 	SkeletalPreviousPositionOffset = FVector::ZeroVector;
-	HairRaytracingRadiusScale = 1;
 	bBindGroomToSkeletalMesh = false;
 	InitializedResources = nullptr;
 	Mobility = EComponentMobility::Movable;
@@ -826,12 +835,12 @@ void UGroomComponent::InitResources()
 		check(GroupIt < GroomGroupsDesc.Num());
 		const FHairGroupDesc& InGroupDesc = GroomGroupsDesc[GroupIt];
 		InterpolationInputGroup.HairRadius = GetGroupMaxHairRadius(InGroupDesc, GroupData);
-		InterpolationInputGroup.HairRaytracingRadiusScale = HairRaytracingRadiusScale;
+		InterpolationInputGroup.HairRaytracingRadiusScale = GetGroupHairRaytracingRadiusScale(InGroupDesc, GroupData);
 		InterpolationInputGroup.InRenderHairPositionOffset = RenderRestHairPositionOffset;
 		InterpolationInputGroup.InSimHairPositionOffset = SimRestHairPositionOffset;
 
 		// For skinned groom, these value will be updated during TickComponent() call
-		// Deformed sim & render are expressed within the referencial (unlike rest pose)
+		// Deformed sim & render are expressed within the referential (unlike rest pose)
 		InterpolationInputGroup.OutHairPositionOffset = RenderRestHairPositionOffset;
 		InterpolationInputGroup.OutHairPreviousPositionOffset = RenderRestHairPositionOffset;
 		InterpolationInputGroup.bIsSimulationEnable = bIsSimulationEnable;
@@ -1389,11 +1398,12 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		}
 	}
 
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, HairRaytracingRadiusScale) && InterpolationInput)
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, HairRaytracingRadiusScale) && InterpolationInput && InterpolationInput->HairGroups.Num() == GroomGroupsDesc.Num())
 	{
-		for (FHairStrandsInterpolationInput::FHairGroup& Group : InterpolationInput->HairGroups)
+		const int32 GroupCount = InterpolationInput->HairGroups.Num();
+		for (int32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
 		{
-			Group.HairRaytracingRadiusScale = HairRaytracingRadiusScale;
+			InterpolationInput->HairGroups[GroupIt].HairRaytracingRadiusScale = GroomGroupsDesc[GroupIt].HairRaytracingRadiusScale;
 		}
 	}
 
