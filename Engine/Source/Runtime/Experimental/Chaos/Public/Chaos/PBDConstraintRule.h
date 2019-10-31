@@ -16,12 +16,25 @@ namespace Chaos
 	/**
 	 * Constraint Rules bind constraint collections to the evolution and provide their update algorithm.
 	 */
-	template<typename T, int d>
-	class CHAOS_API TPBDConstraintRule
+	class CHAOS_API FConstraintRule
 	{
 	public:
-		TPBDConstraintRule() {}
-		virtual ~TPBDConstraintRule() {}
+		FConstraintRule(int32 InPriority) : Priority(InPriority) {}
+		virtual ~FConstraintRule() {}
+
+		/** Determines the order in which constraints are resolved. Higher priority constraints override lower priority ones. */
+		int32 GetPriority() const { return Priority; }
+
+		/** Set the constraint resolution priority. Higher priority constraints override lower priority ones. */
+		void SetPriority(const int32 InPriority) { Priority = InPriority; }
+
+		friend bool operator<(const FConstraintRule& L, const FConstraintRule& R)
+		{
+			return L.GetPriority() < R.GetPriority();
+		}
+
+	protected:
+		int32 Priority;
 	};
 
 	/**
@@ -32,12 +45,12 @@ namespace Chaos
 	 * @see TPBDConstraintGraphRuleImpl
 	 */
 	template<typename T, int d>
-	class CHAOS_API TPBDConstraintGraphRule
+	class CHAOS_API TPBDConstraintGraphRule : public FConstraintRule
 	{
 	public:
 		typedef TPBDConstraintGraph<T, d> FConstraintGraph;
 
-		TPBDConstraintGraphRule() {}
+		TPBDConstraintGraphRule(int32 InPriority) : FConstraintRule(InPriority) {}
 		virtual ~TPBDConstraintGraphRule() {}
 
 		virtual void BindToGraph(FConstraintGraph& InContactGraph, uint32 InContainerId) {}
@@ -80,8 +93,9 @@ namespace Chaos
 		typedef T_CONSTRAINTS FConstraints;
 		typedef TPBDConstraintGraph<T, d> FConstraintGraph;
 
-		TPBDConstraintGraphRuleImpl(FConstraints& InConstraints)
-			: Constraints(InConstraints)
+		TPBDConstraintGraphRuleImpl(FConstraints& InConstraints, int32 InPriority)
+			: TPBDConstraintGraphRule<T, d>(InPriority)
+			, Constraints(InConstraints)
 			, ConstraintGraph(nullptr)
 		{
 		}
@@ -128,8 +142,8 @@ namespace Chaos
 		using FConstraintList = TArray<TConstraintHandle<T, d>*>;
 		using FConstraintGraph = typename Base::FConstraintGraph;
 
-		TPBDConstraintIslandRule(FConstraints& InConstraints)
-			: TPBDConstraintGraphRuleImpl<T_CONSTRAINTS, T, d>(InConstraints)
+		TPBDConstraintIslandRule(FConstraints& InConstraints, int32 InPriority = 0)
+			: TPBDConstraintGraphRuleImpl<T_CONSTRAINTS, T, d>(InConstraints, InPriority)
 		{
 		}
 
@@ -213,8 +227,8 @@ namespace Chaos
 		typedef typename Base::FConstraintGraph FConstraintGraph;
 		typedef TPBDConstraintColor<T, d> FConstraintColor;
 
-		TPBDConstraintColorRule(FConstraints& InConstraints, const int32 InPushOutIterations)
-			: TPBDConstraintGraphRuleImpl<T_CONSTRAINTS, T, d>(InConstraints)
+		TPBDConstraintColorRule(FConstraints& InConstraints, const int32 InPushOutIterations, int32 InPriority = 0)
+			: TPBDConstraintGraphRuleImpl<T_CONSTRAINTS, T, d>(InConstraints, InPriority)
 			, PushOutIterations(InPushOutIterations)
 		{
 		}
@@ -382,15 +396,15 @@ namespace Chaos
 		typedef TPBDConstraintGraph<T, d> FConstraintGraph;
 
 		template<typename T_CONSTRAINTS>
-		static TPBDConstraintIslandRule<T_CONSTRAINTS, T, d> CreateIslandRule(T_CONSTRAINTS& Constraints)
+		static TPBDConstraintIslandRule<T_CONSTRAINTS, T, d> CreateIslandRule(T_CONSTRAINTS& Constraints, const int32 Priority = 0)
 		{
-			return TPBDConstraintIslandRule<T_CONSTRAINTS, T, d>(Constraints);
+			return TPBDConstraintIslandRule<T_CONSTRAINTS, T, d>(Constraints, Priority);
 		}
 
 		template<typename T_CONSTRAINTS>
-		static TPBDConstraintColorRule<T_CONSTRAINTS, T, d> CreateColorRule(T_CONSTRAINTS& Constraints, const int32 InPushOutIterations)
+		static TPBDConstraintColorRule<T_CONSTRAINTS, T, d> CreateColorRule(T_CONSTRAINTS& Constraints, const int32 InPushOutIterations, const int32 Priority = 0)
 		{
-			return TPBDConstraintColorRule<T_CONSTRAINTS, T, d>(Constraints, InPushOutIterations);
+			return TPBDConstraintColorRule<T_CONSTRAINTS, T, d>(Constraints, InPushOutIterations, Priority);
 		}
 	};
 

@@ -76,6 +76,13 @@ namespace Chaos
 		TVector<EJointMotionType, d> AngularMotionTypes;
 		TVector<T, d> AngularLimits;
 
+		bool bSoftLinearLimitsEnabled;
+		bool bSoftTwistLimitsEnabled;
+		bool bSoftSwingLimitsEnabled;
+		T SoftLinearStiffness;
+		T SoftTwistStiffness;
+		T SoftSwingStiffness;
+
 		// @todo(ccaulfield): remove one of these
 		TRotation<T, d> AngularDriveTarget;
 		TVector<T, d> AngularDriveTargetAngles;
@@ -83,9 +90,7 @@ namespace Chaos
 		bool bAngularSLerpDriveEnabled;
 		bool bAngularTwistDriveEnabled;
 		bool bAngularSwingDriveEnabled;
-
 		T AngularDriveStiffness;
-		T AngularDriveDamping;
 	};
 
 
@@ -122,11 +127,12 @@ namespace Chaos
 		bool bEnableLinearLimits;
 		bool bEnableTwistLimits;
 		bool bEnableSwingLimits;
-		bool bEnablePositionCorrection;
 		bool bEnableDrives;
 		T Projection;
 		T Stiffness;
 		T DriveStiffness;
+		T SoftLinearStiffness;
+		T SoftAngularStiffness;
 		int32 PositionIterations;
 	};
 }

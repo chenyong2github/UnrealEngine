@@ -10,6 +10,7 @@
 
 #include "HAL/IConsoleManager.h"
 
+//#pragma optimize("", off)
 
 namespace Chaos
 {
@@ -66,13 +67,18 @@ namespace Chaos
 		, LinearLimit(FLT_MAX)
 		, AngularMotionTypes({ EJointMotionType::Free, EJointMotionType::Free, EJointMotionType::Free })
 		, AngularLimits(TVector<T, d>(FLT_MAX, FLT_MAX, FLT_MAX))
+		, bSoftLinearLimitsEnabled(false)
+		, bSoftTwistLimitsEnabled(false)
+		, bSoftSwingLimitsEnabled(false)
+		, SoftLinearStiffness(0)
+		, SoftTwistStiffness(0)
+		, SoftSwingStiffness(0)
 		, AngularDriveTarget(TRotation<T, d>::FromIdentity())
 		, AngularDriveTargetAngles(TVector<T, d>(0, 0, 0))
 		, bAngularSLerpDriveEnabled(false)
 		, bAngularTwistDriveEnabled(false)
 		, bAngularSwingDriveEnabled(false)
 		, AngularDriveStiffness(0)
-		, AngularDriveDamping(0)
 	{
 	}
 
@@ -84,13 +90,18 @@ namespace Chaos
 		, LinearLimit(FLT_MAX)
 		, AngularMotionTypes({ EJointMotionType::Free, EJointMotionType::Free, EJointMotionType::Free })
 		, AngularLimits(TVector<T, d>(FLT_MAX, FLT_MAX, FLT_MAX))
+		, bSoftLinearLimitsEnabled(false)
+		, bSoftTwistLimitsEnabled(false)
+		, bSoftSwingLimitsEnabled(false)
+		, SoftLinearStiffness(0)
+		, SoftTwistStiffness(0)
+		, SoftSwingStiffness(0)
 		, AngularDriveTarget(TRotation<T, d>::FromIdentity())
 		, AngularDriveTargetAngles(TVector<T, d>(0, 0, 0))
 		, bAngularSLerpDriveEnabled(false)
 		, bAngularTwistDriveEnabled(false)
 		, bAngularSwingDriveEnabled(false)
 		, AngularDriveStiffness(0)
-		, AngularDriveDamping(0)
 	{
 	}
 
@@ -120,11 +131,12 @@ namespace Chaos
 		, bEnableLinearLimits(true)
 		, bEnableTwistLimits(true)
 		, bEnableSwingLimits(true)
-		, bEnablePositionCorrection(false)
 		, bEnableDrives(true)
 		, Projection((T)0)
 		, Stiffness((T)0)
 		, DriveStiffness((T)0)
+		, SoftLinearStiffness((T)0)
+		, SoftAngularStiffness((T)0)
 		, PositionIterations((T)0)
 	{
 	}
@@ -367,15 +379,15 @@ namespace Chaos
 	template<class T, int d>
 	void TPBDJointConstraints<T, d>::ApplyPushOut(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles)
 	{
-		TArray<FConstraintHandle*> SortedConstraintHandles = InConstraintHandles;
-		SortedConstraintHandles.Sort([](const FConstraintHandle& L, const FConstraintHandle& R)
-		{
-			// Sort bodies from root to leaf
-			return L.GetConstraintLevel() < R.GetConstraintLevel();
-		});
-
 		if (Settings.bEnableVelocitySolve)
 		{
+			TArray<FConstraintHandle*> SortedConstraintHandles = InConstraintHandles;
+			SortedConstraintHandles.Sort([](const FConstraintHandle& L, const FConstraintHandle& R)
+				{
+					// Sort bodies from root to leaf
+					return L.GetConstraintLevel() < R.GetConstraintLevel();
+				});
+
 			for (int32 It = 0; It < Settings.PositionIterations; ++It)
 			{
 				for (FConstraintHandle* ConstraintHandle : SortedConstraintHandles)
@@ -385,8 +397,22 @@ namespace Chaos
 			}
 		}
 
+		// @todo(ccaulfield): should be called constraint rule
+		ApplyProjection(Dt, InConstraintHandles);
+	}
+
+	template<class T, int d>
+	void TPBDJointConstraints<T, d>::ApplyProjection(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles)
+	{
 		if (Settings.Projection > 0)
 		{
+			TArray<FConstraintHandle*> SortedConstraintHandles = InConstraintHandles;
+			SortedConstraintHandles.Sort([](const FConstraintHandle& L, const FConstraintHandle& R)
+				{
+					// Sort bodies from root to leaf
+					return L.GetConstraintLevel() < R.GetConstraintLevel();
+				});
+
 			for (FConstraintHandle* ConstraintHandle : SortedConstraintHandles)
 			{
 				ProjectPosition(Dt, ConstraintHandle->GetConstraintIndex(), 0, 1);
@@ -576,18 +602,19 @@ namespace Chaos
 			TPBDJointUtilities<T, d>::GetConditionedInverseMass(Particle0->M(), Particle0->I().GetDiagonal(), Particle1->M(), Particle1->I().GetDiagonal(), InvM0, InvM1, InvIL0, InvIL1, (T)0, Settings.MaxInertiaRatio);
 		}
 
-		// Freeze the closest to kinematic connection if there is a difference
-		if (Settings.bEnableVelocitySolve)
+		// Freeze the closest to kinematic connection (if one is closer than the other)
+		if (Settings.bEnableVelocitySolve && (Level0 != Level1))
 		{
+			const T FreezeFactor = (T)(NumIts - (It + 1)) / (T)NumIts;
 			if (Level0 < Level1)
 			{
-				InvM0 = 0;
-				InvIL0 = PMatrix<T, d, d>(0, 0, 0);
+				InvM0 = InvM0 * FreezeFactor * FreezeFactor;
+				InvIL0 = InvIL0 * FreezeFactor * FreezeFactor;
 			}
 			else if (Level1 < Level0)
 			{
-				InvM1 = 0;
-				InvIL1 = PMatrix<T, d, d>(0, 0, 0);
+				InvM1 = InvM1 * FreezeFactor * FreezeFactor;
+				InvIL1 = InvIL1 * FreezeFactor * FreezeFactor;
 			}
 		}
 
