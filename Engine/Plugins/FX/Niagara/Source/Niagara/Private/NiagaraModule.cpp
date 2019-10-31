@@ -477,7 +477,7 @@ void INiagaraModule::OnChangeDetailLevel(class IConsoleVariable* CVar)
 			UNiagaraComponent* Comp = *It;
 			check(Comp);
 
-			const bool bWasActive = Comp->bIsActive;
+			const bool bWasActive = Comp->IsActive();
 			Comp->DestroyInstance();
 			if ( bWasActive )
 			{
