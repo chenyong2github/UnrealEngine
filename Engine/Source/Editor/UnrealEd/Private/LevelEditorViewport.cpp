@@ -3462,7 +3462,7 @@ void FLevelEditorViewportClient::MoveLockedActorToCamera()
 			TOptional<FRotator> PreviousRotator;
 			if (ActiveActorLockComponent)
 			{
-				PreviousRotator = ActiveActorLockComponent->RelativeRotation;
+				PreviousRotator = ActiveActorLockComponent->GetRelativeRotation();
 			}
 
 			// If we're locked to a camera then we're reflecting the camera view and not the actor position. We need to reflect that delta when we reposition the piloted actor
@@ -3488,7 +3488,7 @@ void FLevelEditorViewportClient::MoveLockedActorToCamera()
 				FRotator ActorRotWind, ActorRotRem;
 				Rot.GetWindingAndRemainder(ActorRotWind, ActorRotRem);
 				const FQuat ActorQ = ActorRotRem.Quaternion();
-				const FQuat ResultQ = ActiveActorLockComponent->RelativeRotation.Quaternion();
+				const FQuat ResultQ = ActiveActorLockComponent->GetRelativeRotation().Quaternion();
 				FRotator NewActorRotRem = FRotator(ResultQ);
 				ActorRotRem.SetClosestToMe(NewActorRotRem);
 				FRotator DeltaRot = NewActorRotRem - ActorRotRem;
