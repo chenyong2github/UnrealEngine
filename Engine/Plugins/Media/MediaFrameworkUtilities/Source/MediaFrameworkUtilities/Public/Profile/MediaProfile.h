@@ -121,4 +121,25 @@ public:
 	 * Update the number of sources and outputs to the number to proxies.
 	 */
 	void FixNumSourcesAndOutputs();
+
+private:
+
+	void ResetTimecodeProvider();
+	void ResetCustomTimeStep();
+
+private:
+
+	/** Applied Timecode provider, cached to reset the previous value. */
+	bool bTimecodeProvideWasApplied;
+	UPROPERTY(Transient)
+	UTimecodeProvider* AppliedTimecodeProvider;
+	UPROPERTY(Transient)
+	UTimecodeProvider* PreviousTimecodeProvider;
+
+	/** Applied Custom time step, cached to reset the previous value. */
+	bool bCustomTimeStepWasApplied;
+	UPROPERTY(Transient)
+	UEngineCustomTimeStep* AppliedCustomTimeStep;
+	UPROPERTY(Transient)
+	UEngineCustomTimeStep* PreviousCustomTimeStep;
 };
