@@ -188,7 +188,14 @@ void FEditorSessionSummaryWriter::Shutdown()
 
 		if (FEditorAnalyticsSession::Lock())
 		{
-			CurrentSession->Save();
+			if (CurrentSession->bWasShutdown)
+			{
+				CurrentSession->Save();
+			}
+			else
+			{
+				CurrentSession->SaveForCrash();
+			}
 
 			FEditorAnalyticsSession::Unlock();
 		}
@@ -273,7 +280,7 @@ void FEditorSessionSummaryWriter::OnCrashing()
 
 		if (FEditorAnalyticsSession::Lock())
 		{
-			CurrentSession->Save();
+			CurrentSession->SaveForCrash();
 			
 			FEditorAnalyticsSession::Unlock();
 		}
@@ -290,7 +297,7 @@ void FEditorSessionSummaryWriter::OnTerminate()
 
 		if (FEditorAnalyticsSession::Lock())
 		{
-			CurrentSession->Save();
+			CurrentSession->SaveForCrash();
 		
 			FEditorAnalyticsSession::Unlock();
 		}
