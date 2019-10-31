@@ -29,6 +29,7 @@ struct FWriteBuffer
 struct FWriteTlsContext
 {
 							FWriteTlsContext();
+							~FWriteTlsContext();
 	bool					HasValidBuffer() const;
 	void					SetBuffer(FWriteBuffer*);
 	uint32					GetThreadId() const;

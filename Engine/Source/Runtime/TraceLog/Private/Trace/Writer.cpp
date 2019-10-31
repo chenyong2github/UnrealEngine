@@ -111,7 +111,16 @@ FWriteTlsContext::FWriteTlsContext()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-inline bool FWriteTlsContext::HasValidBuffer() const
+FWriteTlsContext::~FWriteTlsContext()
+{
+	if (HasValidBuffer())
+	{
+		AtomicStoreRelease<uint8* __restrict>(&(Buffer->Committed), nullptr);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool FWriteTlsContext::HasValidBuffer() const
 {
 	return (UPTRINT(Buffer) != UPTRINT(DefaultBuffer));
 }
