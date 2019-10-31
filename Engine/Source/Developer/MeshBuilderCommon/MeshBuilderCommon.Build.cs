@@ -20,11 +20,6 @@ namespace UnrealBuildTool.Rules
                 "ForsythTriOptimizer",
                 "nvTessLib"
                 );
-
-            if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
-            {
-                PublicSystemLibraries.Add("stdc++");    // can be fixed, see UE-70769
-            }
        }
 	}
 }
