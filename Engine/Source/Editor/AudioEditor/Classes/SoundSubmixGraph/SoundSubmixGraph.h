@@ -38,7 +38,7 @@ public:
 	 * @param	NodePosX		X coordinate submix(es) were dropped at
 	 * @param	NodePosY		Y coordinate submix(es) were dropped at
 	 */
-	void AddDroppedSoundSubmixes(const TArray<USoundSubmix*>& SoundSubmixes, int32 NodePosX, int32 NodePosY);
+	void AddDroppedSoundSubmixes(const TSet<USoundSubmix*>& SoundSubmixes, int32 NodePosX, int32 NodePosY);
 
 	/**
 	 * Display a new SoundSubmix that has just been created using the editor
