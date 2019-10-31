@@ -11,6 +11,16 @@ namespace InstallBundleUtil
 			&& ConnectionType != ENetworkConnectionType::None;
 	}
 
+	bool StateSignifiesNeedsInstall(EBundleState StateIn)
+	{
+		return (StateIn == EBundleState::NotInstalled || StateIn == EBundleState::NeedsUpdate);
+	}
+
+	bool StateSignifiesNeedsInstall(EInstallBundleContentState StateIn)
+	{
+		return (StateIn == EInstallBundleContentState::NotInstalled || StateIn == EInstallBundleContentState::NeedsUpdate);
+	}
+
 	FName FInstallBundleManagerKeepAwake::Tag(TEXT("InstallBundleManagerKeepAwake"));
 	FName FInstallBundleManagerKeepAwake::TagWithRendering(TEXT("InstallBundleManagerKeepAwakeWithRendering"));
 

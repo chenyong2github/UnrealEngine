@@ -3,12 +3,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "InstallBundleTypes.h"
 #include "Async/AsyncWork.h"
 #include "Misc/EmbeddedCommunication.h"
 
 namespace InstallBundleUtil
 {
 	INSTALLBUNDLEMANAGER_API bool HasInternetConnection(ENetworkConnectionType ConnectionType);
+
+	INSTALLBUNDLEMANAGER_API bool StateSignifiesNeedsInstall(EBundleState StateIn);
+
+	INSTALLBUNDLEMANAGER_API bool StateSignifiesNeedsInstall(EInstallBundleContentState StateIn);
 
 	// It would really be nice to have these in core
 	template<class EnumType>
