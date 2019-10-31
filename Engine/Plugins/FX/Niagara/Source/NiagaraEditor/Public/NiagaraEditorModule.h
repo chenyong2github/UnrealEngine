@@ -37,6 +37,8 @@ public:
 	virtual FLinearColor GetColorForExecutionCategory(FName ExecutionCategory) const = 0;
 };
 
+extern int32 GbShowFastPathOptions;
+
 /** Niagara Editor module */
 class FNiagaraEditorModule : public IModuleInterface,
 	public IHasMenuExtensibility, public IHasToolBarExtensibility, public FGCObject
