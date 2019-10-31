@@ -18,7 +18,7 @@ class UFlyingMovementComponent;
 //	that are used by the flying movement simulation. This includes some basic camera/aiming code.
 //
 //	Highlights:
-//		FlyingMovement::FMovementSystem::Update						The "core update" function of the flying movement simulation.
+//		FlyingMovement::FMovementSystem::SimulationTick				The "core update" function of the flying movement simulation.
 //		ANetworkPredictionExtrasFlyingPawn::GenerateLocalInput		Function that generates local input commands that are fed into the movement system.
 //
 //	Usage:
