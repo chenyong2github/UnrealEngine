@@ -102,6 +102,8 @@ private:
 
 	FReply OnRowAcceptDrop(const FDragDropEvent& InDragDropEvent, EItemDropZone InDropZone, UNiagaraStackEntry* InTargetEntry);
 
+	EVisibility GetIssueIconVisibility() const;
+
 private:
 	UNiagaraStackViewModel* StackViewModel;
 
@@ -117,5 +119,4 @@ private:
 	TSharedPtr<SSearchBox> SearchBox;
 	static const FText OccurencesFormat;
 	bool bNeedsJumpToNextOccurence;
-	
 };

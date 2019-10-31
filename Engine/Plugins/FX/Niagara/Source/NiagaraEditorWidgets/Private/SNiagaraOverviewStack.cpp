@@ -14,6 +14,7 @@
 #include "NiagaraEditorWidgetsUtilities.h"
 #include "SNiagaraStack.h"
 #include "Stack/SNiagaraStackItemGroupAddButton.h"
+#include "Stack/SNiagaraStackIssueIcon.h"
 #include "NiagaraEditorCommon.h"
 
 #include "Widgets/Layout/SScrollBox.h"
@@ -34,14 +35,16 @@
 class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 {
 	SLATE_BEGIN_ARGS(SNiagaraSystemOverviewEntryListRow) {}
+		SLATE_ATTRIBUTE(EVisibility, IssueIconVisibility)
 		SLATE_EVENT(FOnDragDetected, OnDragDetected)
 		SLATE_EVENT(FOnCanAcceptDrop, OnCanAcceptDrop)
 		SLATE_EVENT(FOnAcceptDrop, OnAcceptDrop)
 		SLATE_DEFAULT_SLOT(FArguments, Content);
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs, UNiagaraStackEntry* InStackEntry, const TSharedRef<STableViewBase>& InOwnerTableView)
+	void Construct(const FArguments& InArgs, UNiagaraStackViewModel* InStackViewModel, UNiagaraStackEntry* InStackEntry, const TSharedRef<STableViewBase>& InOwnerTableView)
 	{
+		StackViewModel = InStackViewModel;
 		StackEntry = InStackEntry;
 		FSlateColor IconColor = FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetColorNameForExecutionCategory(StackEntry->GetExecutionCategoryName()));
 		ItemBackgroundColor = FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Item.HeaderBackgroundColor");
@@ -88,9 +91,22 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 		[
 			SNew(SBorder)
 			.BorderImage(this, &SNiagaraSystemOverviewEntryListRow::GetBorder)
-			.Padding(FMargin(5, 2, 5, 2))
+			.Padding(FMargin(5, 2, 3, 2))
 			[
-				WrappedContent.ToSharedRef()
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.Padding(0, 0, 2, 0)
+				[
+					WrappedContent.ToSharedRef()
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(1, 0, 0, 0)
+				[
+					SNew(SNiagaraStackIssueIcon, StackViewModel, StackEntry)
+					.Visibility(InArgs._IssueIconVisibility)
+				]
 			]
 		],
 		InOwnerTableView);
@@ -133,6 +149,7 @@ private:
 	}
 
 private:
+	UNiagaraStackViewModel* StackViewModel;
 	UNiagaraStackEntry* StackEntry;
 	FLinearColor ItemBackgroundColor;
 	FLinearColor DisabledItemBackgroundColor;
@@ -328,18 +345,18 @@ void SNiagaraOverviewStack::RefreshEntryList()
 		TArray<UClass*> AcceptableClasses;
 		AcceptableClasses.Add(UNiagaraStackItemGroup::StaticClass());
 		AcceptableClasses.Add(UNiagaraStackItem::StaticClass());
-		for (UNiagaraStackEntry* RootEntry : StackViewModel->GetRootEntries())
+
+		UNiagaraStackEntry* RootEntry = StackViewModel->GetRootEntry();
+		checkf(RootEntry != nullptr, TEXT("Root entry was null."));
+		TArray<UNiagaraStackEntry*> RootChildren;
+		RootEntry->GetFilteredChildren(RootChildren);
+		for (UNiagaraStackEntry* RootChild : RootChildren)
 		{
-			checkf(RootEntry != nullptr, TEXT("Root entry was null."));
-			TArray<UNiagaraStackEntry*> RootChildren;
-			RootEntry->GetFilteredChildren(RootChildren);
-			for (UNiagaraStackEntry* RootChild : RootChildren)
-			{
-				checkf(RootEntry != nullptr, TEXT("Root entry child was null."));
-				TArray<UNiagaraStackEntry*> ParentChain;
-				AddEntriesRecursive(*RootChild, FlattenedEntryList, AcceptableClasses, ParentChain);
-			}
+			checkf(RootEntry != nullptr, TEXT("Root entry child was null."));
+			TArray<UNiagaraStackEntry*> ParentChain;
+			AddEntriesRecursive(*RootChild, FlattenedEntryList, AcceptableClasses, ParentChain);
 		}
+
 		bRefreshEntryListPending = false;
 		EntryListView->RequestListRefresh();
 	}
@@ -357,6 +374,7 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 	{
 		UNiagaraStackItem* StackItem = CastChecked<UNiagaraStackItem>(Item);
 		Content = SNew(SHorizontalBox)
+			// Name
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
 			[
@@ -365,6 +383,7 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 				.Text_UObject(Item, &UNiagaraStackEntry::GetDisplayName)
 				.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
 			]
+			// Enabled checkbox
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
 			.AutoWidth()
@@ -381,8 +400,9 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 	{
 		UNiagaraStackItemGroup* StackItemGroup = CastChecked<UNiagaraStackItemGroup>(Item);
 		TSharedRef<SHorizontalBox> ContentBox = SNew(SHorizontalBox)
+			// Execution category icon
 			+ SHorizontalBox::Slot()
-			.Padding(2, 0, 6, 0)
+			.Padding(0, 0, 6, 0)
 			.VAlign(VAlign_Center)
 			.AutoWidth()
 			[
@@ -391,6 +411,7 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 				.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForExecutionCategory(Item->GetExecutionCategoryName())))
 				.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
 			]
+			// Name
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
 			[
@@ -418,10 +439,11 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 	}
 
 
-	return SNew(SNiagaraSystemOverviewEntryListRow, Item, OwnerTable)
+	return SNew(SNiagaraSystemOverviewEntryListRow, StackViewModel, Item, OwnerTable)
 		.OnDragDetected(this, &SNiagaraOverviewStack::OnRowDragDetected, TWeakObjectPtr<UNiagaraStackEntry>(Item))
 		.OnCanAcceptDrop(this, &SNiagaraOverviewStack::OnRowCanAcceptDrop)
 		.OnAcceptDrop(this, &SNiagaraOverviewStack::OnRowAcceptDrop)
+		.IssueIconVisibility(this, &SNiagaraOverviewStack::GetIssueIconVisibility)
 	[
 		Content.ToSharedRef()
 	];
@@ -523,6 +545,11 @@ FReply SNiagaraOverviewStack::OnRowAcceptDrop(const FDragDropEvent& InDragDropEv
 {
 	bool bHandled = FNiagaraStackEditorWidgetsUtilities::HandleDropForStackEntry(InDragDropEvent, InDropZone, InTargetEntry, UNiagaraStackEntry::EDropOptions::Overview);
 	return bHandled ? FReply::Handled() : FReply::Unhandled();
+}
+
+EVisibility SNiagaraOverviewStack::GetIssueIconVisibility() const
+{
+	return StackViewModel->HasIssues() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 #undef LOCTEXT_NAMESPACE
