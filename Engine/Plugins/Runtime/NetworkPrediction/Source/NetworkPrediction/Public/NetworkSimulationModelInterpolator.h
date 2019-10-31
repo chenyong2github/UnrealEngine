@@ -66,7 +66,7 @@ struct TInterpolator
 		if (InterpolationTime <= 0.f)
 		{
 			InterpolationTime = SimulationTimeBuffer.TailElement()->ToRealTimeSeconds();
-			InterpolationKeyframe = SimulationTimeBuffer.TailKeyframe();
+			InterpolationFrame = SimulationTimeBuffer.TailFrame();
 			InterpolationState = *Buffers.Sync.TailElement();
 		}
 
@@ -135,7 +135,7 @@ struct TInterpolator
 			}
 		}
 
-		// Find "To" keyframe
+		// Find "To" frame
 		const TSyncState* ToState = nullptr;
 		const TAuxState* AuxState = nullptr;
 		FRealTime ToTime = 0.f;
@@ -145,10 +145,10 @@ struct TInterpolator
 			FSimTime ElementSimTime = *It.Element();
 			if (NewInterpolationTime <= ElementSimTime.ToRealTimeSeconds())
 			{
-				InterpolationKeyframe = It.Keyframe();
+				InterpolationFrame = It.Frame();
 				ToTime = ElementSimTime.ToRealTimeSeconds();
-				ToState = Buffers.Sync[It.Keyframe()];
-				AuxState = Buffers.Aux[It.Keyframe()];
+				ToState = Buffers.Sync[It.Frame()];
+				AuxState = Buffers.Aux[It.Frame()];
 				break;
 			}
 		}
@@ -197,28 +197,28 @@ struct TInterpolator
 					const TSyncState* DebugTail = Buffers.Sync.TailElement();
 					const TSyncState* DebugHead = Buffers.Sync.HeadElement();
 
-					auto VLogHelper = [&](int32 Keyframe, EVisualLoggingContext Context)
+					auto VLogHelper = [&](int32 Frame, EVisualLoggingContext Context)
 					{
-						FVisualLoggingParameters VLogParams(Context, Keyframe, EVisualLoggingLifetime::Transient);
-						Driver->VisualLog(Buffers.Input[Keyframe], Buffers.Sync[Keyframe], Buffers.Aux[Keyframe], VLogParams);
+						FVisualLoggingParameters VLogParams(Context, Frame, EVisualLoggingLifetime::Transient);
+						Driver->VisualLog(Buffers.Input[Frame], Buffers.Sync[Frame], Buffers.Aux[Frame], VLogParams);
 					};
 
-					VLogHelper(Buffers.Sync.TailKeyframe(), EVisualLoggingContext::InterpolationBufferTail);
-					VLogHelper(Buffers.Sync.HeadKeyframe(), EVisualLoggingContext::InterpolationBufferHead);
+					VLogHelper(Buffers.Sync.TailFrame(), EVisualLoggingContext::InterpolationBufferTail);
+					VLogHelper(Buffers.Sync.HeadFrame(), EVisualLoggingContext::InterpolationBufferHead);
 
 					{
-						FVisualLoggingParameters VLogParams(EVisualLoggingContext::InterpolationFrom, InterpolationKeyframe-1, EVisualLoggingLifetime::Transient);
-						Driver->VisualLog(Buffers.Input[InterpolationKeyframe-1], &InterpolationState, Buffers.Aux[InterpolationKeyframe-1], VLogParams);
+						FVisualLoggingParameters VLogParams(EVisualLoggingContext::InterpolationFrom, InterpolationFrame-1, EVisualLoggingLifetime::Transient);
+						Driver->VisualLog(Buffers.Input[InterpolationFrame-1], &InterpolationState, Buffers.Aux[InterpolationFrame-1], VLogParams);
 					}
 
 					{
-						FVisualLoggingParameters VLogParams(EVisualLoggingContext::InterpolationTo, InterpolationKeyframe, EVisualLoggingLifetime::Transient);
-						Driver->VisualLog(Buffers.Input[InterpolationKeyframe], &InterpolationState, Buffers.Aux[InterpolationKeyframe], VLogParams);
+						FVisualLoggingParameters VLogParams(EVisualLoggingContext::InterpolationTo, InterpolationFrame, EVisualLoggingLifetime::Transient);
+						Driver->VisualLog(Buffers.Input[InterpolationFrame], &InterpolationState, Buffers.Aux[InterpolationFrame], VLogParams);
 					}
 
 					{
-						FVisualLoggingParameters VLogParams(LoggingContext, InterpolationKeyframe, EVisualLoggingLifetime::Transient);
-						Driver->VisualLog(Buffers.Input[InterpolationKeyframe], &NewInterpolatedState, Buffers.Aux[InterpolationKeyframe], VLogParams);
+						FVisualLoggingParameters VLogParams(LoggingContext, InterpolationFrame, EVisualLoggingLifetime::Transient);
+						Driver->VisualLog(Buffers.Input[InterpolationFrame], &NewInterpolatedState, Buffers.Aux[InterpolationFrame], VLogParams);
 					}
 				}
 
@@ -231,7 +231,7 @@ struct TInterpolator
 private:
 
 	FRealTime InterpolationTime = 0.f; // SimTime we are currently interpolating at
-	int32 InterpolationKeyframe = INDEX_NONE; // Keyframe we are currently/last interpolated at
+	int32 InterpolationFrame = INDEX_NONE; // Frame we are currently/last interpolated at
 
 	TSyncState InterpolationState;
 
