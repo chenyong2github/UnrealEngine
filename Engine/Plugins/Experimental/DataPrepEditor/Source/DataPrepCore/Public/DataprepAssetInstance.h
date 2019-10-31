@@ -9,6 +9,7 @@
 #include "DataprepAssetInstance.generated.h"
 
 class UDataprepActionAsset;
+class UDataprepAsset;
 class UDataprepParameterizationInstance;
 
 /**
@@ -29,6 +30,10 @@ public:
 	}
 
 	virtual ~UDataprepAssetInstance() = default;
+
+	// UObject interface
+	virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	// End of UObject interface
 
 	// UDataprepAssetInterface interface
 	virtual void ExecuteRecipe( const TSharedPtr<FDataprepActionContext>& InActionsContext ) override;
@@ -57,10 +62,12 @@ protected:
 	UPROPERTY()
 	UDataprepParameterizationInstance* Parameterization;
 
-
-protected:
 	/** Delegate broadcasted when the consumer or one of the producers has changed */
 	FOnDataprepAssetInstanceChanged OnParentChanged;
+
+private:
+	/** Returns a pointer to the UDataprepAsset */
+	UDataprepAsset* GetRootParent(UDataprepAssetInterface* InParent);
 
 private:
 	UPROPERTY()
