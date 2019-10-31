@@ -49,7 +49,7 @@ public:
 	template <typename TContextType>
 	TContextType* FindContext() const
 	{
-		return Context.Find<TContextType>();
+		return Context.FindContext<TContextType>();
 	}
 
 	FToolMenuEntry* FindEntry(const FName InName);
@@ -68,6 +68,8 @@ private:
 	void AssembleBlock(const FToolMenuEntry& InBlock);
 
 	bool IsNonLegacyDynamic() const;
+
+	bool IsRegistering() const;
 
 	friend class UToolMenuSectionExtensions;
 	friend class UToolMenus;
@@ -93,4 +95,8 @@ public:
 	TAttribute<FText> Label;
 
 	FNewSectionConstructChoice Construct;
+
+private:
+
+	bool bIsRegistering;
 };
