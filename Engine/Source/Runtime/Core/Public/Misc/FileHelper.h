@@ -56,6 +56,16 @@ struct CORE_API FFileHelper
 	static bool LoadFileToString( FString& Result, const TCHAR* Filename, EHashOptions VerifyFlags = EHashOptions::None, uint32 ReadFlags = 0 );
 
 	/**
+	 * Load a text file to an FString. Supports all combination of ANSI/Unicode files and platforms.
+	 *
+	 * @param Result       String representation of the loaded file
+	 * @param PlatformFile PlatformFile interface to use
+	 * @param Filename     Name of the file to load
+	 * @param VerifyFlags  Flags controlling the hash verification behavior ( see EHashOptions )
+	 */
+	static bool LoadFileToString(FString& Result, IPlatformFile* PlatformFile, const TCHAR* Filename, EHashOptions VerifyFlags = EHashOptions::None, uint32 ReadFlags = 0 );
+
+	/**
 	 * Load a text file to an array of strings. Supports all combination of ANSI/Unicode files and platforms.
 	 *
 	 * @param Result       String representation of the loaded file
