@@ -5,6 +5,7 @@
 #include "AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "AudioEditorModule.h"
+#include "EdGraph/EdGraph.h"
 #include "Editor.h"
 #include "GraphEditor.h"
 #include "GraphEditAction.h"
@@ -26,6 +27,7 @@
 #include "UObject/Package.h"
 #include "Widgets/Docking/SDockTab.h"
 
+
 #define LOCTEXT_NAMESPACE "SoundSubmixEditor"
 DEFINE_LOG_CATEGORY_STATIC(LogSoundSubmixEditor, Log, All);
 
@@ -36,7 +38,7 @@ const FName FSoundSubmixEditor::PropertiesTabId(TEXT("SoundSubmixEditor_Properti
 class SSoundSubmixGraphEditor : public SGraphEditor
 {
 private:
-	FSoundSubmixEditor* SubmixEditor;
+	TWeakPtr<FSoundSubmixEditor> SubmixEditor;
 
 public:
 	SSoundSubmixGraphEditor()
@@ -45,15 +47,22 @@ public:
 	{
 	}
 
-	void Construct(const FArguments& InArgs, FSoundSubmixEditor& InEditor)
+	void Construct(const FArguments& InArgs, TSharedPtr<FSoundSubmixEditor> InEditor)
 	{
-		SubmixEditor = &InEditor;
+		SubmixEditor = InEditor;
 		SGraphEditor::Construct(InArgs);
 	}
 
 	void OnGraphChanged(const FEdGraphEditAction& InAction) override
 	{
-		SubmixEditor->AddMissingEditableSubmixes(InAction.Graph);
+		if (SubmixEditor.IsValid())
+		{
+			TSharedPtr<FSoundSubmixEditor> PinnedEditor = SubmixEditor.Pin();
+			if (InAction.Graph && InAction.Graph == PinnedEditor->GetGraph())
+			{
+				PinnedEditor->AddMissingEditableSubmixes();
+			}
+		}
 		SGraphEditor::OnGraphChanged(InAction);
 	}
 };
@@ -122,14 +131,11 @@ void FSoundSubmixEditor::Init(const EToolkitMode::Type Mode, const TSharedPtr<IT
 		FGenericCommands::Get().Redo,
 		FExecuteAction::CreateSP(this, &FSoundSubmixEditor::RedoGraphAction));
 
-	if (!SoundSubmix->SoundSubmixGraph)
-	{
-		USoundSubmixGraph* SoundSubmixGraph = CastChecked<USoundSubmixGraph>(FBlueprintEditorUtils::CreateNewGraph(SoundSubmix, NAME_None, USoundSubmixGraph::StaticClass(), USoundSubmixGraphSchema::StaticClass()));
-		SoundSubmixGraph->SetRootSoundSubmix(SoundSubmix);
+	USoundSubmixGraph* SoundSubmixGraph = CastChecked<USoundSubmixGraph>(FBlueprintEditorUtils::CreateNewGraph(SoundSubmix, NAME_None, USoundSubmixGraph::StaticClass(), USoundSubmixGraphSchema::StaticClass()));
+	SoundSubmixGraph->SetRootSoundSubmix(SoundSubmix);
 
-		SoundSubmix->SoundSubmixGraph = SoundSubmixGraph;
-		SoundSubmixGraph->RebuildGraph();
-	}
+	SoundSubmix->SoundSubmixGraph = SoundSubmixGraph;
+	SoundSubmixGraph->RebuildGraph();
 
 	CreateInternalWidgets(SoundSubmix);
 
@@ -288,7 +294,7 @@ TSharedRef<SGraphEditor> FSoundSubmixEditor::CreateGraphEditorWidget(USoundSubmi
 	InEvents.OnSelectionChanged = SGraphEditor::FOnSelectionChanged::CreateSP(this, &FSoundSubmixEditor::OnSelectedNodesChanged);
 	InEvents.OnCreateActionMenu = SGraphEditor::FOnCreateActionMenu::CreateSP(this, &FSoundSubmixEditor::OnCreateGraphActionMenu);
 
-	return SNew(SSoundSubmixGraphEditor, *this)
+	return SNew(SSoundSubmixGraphEditor, SharedThis(this))
 		.AdditionalCommands(GraphEditorCommands)
 		.IsEditable(true)
 		.Appearance(AppearanceInfo)
@@ -369,7 +375,7 @@ void FSoundSubmixEditor::RemoveSelectedNodes()
 {
 	const FScopedTransaction Transaction(LOCTEXT("SoundSubmixEditorRemoveSelectedNode", "Sound Submix Editor: Remove Selected SoundSubmixes from editor"));
 
-	int32 NumObjectsRemoved = GetEditingObjects().Num();
+	int32 NumObjectsRemoved = 0;
 
 	const TSet<UObject*> SelectedNodes = GraphEditor->GetSelectedNodes();
 	for (UObject* SelectedNode : SelectedNodes)
@@ -377,16 +383,14 @@ void FSoundSubmixEditor::RemoveSelectedNodes()
 		USoundSubmixGraphNode* Node = Cast<USoundSubmixGraphNode>(SelectedNode);
 		if (Node && Node->SoundSubmix && Node->CanUserDeleteNode())
 		{
-			NumObjectsRemoved--;
+			NumObjectsRemoved++;
 			RemoveEditingObject(Node->SoundSubmix);
 		}
 	}
 
-	check(NumObjectsRemoved >= 0);
 	if (NumObjectsRemoved > 0)
 	{
-		USoundSubmix* SoundSubmix = CastChecked<USoundSubmix>(GetEditingObjects()[0]);
-		USoundSubmixGraph* Graph = CastChecked<USoundSubmixGraph>(SoundSubmix->SoundSubmixGraph);
+		USoundSubmixGraph* Graph = CastChecked<USoundSubmixGraph>(GraphEditor->GetCurrentGraph());
 		Graph->RecursivelyRemoveNodes(SelectedNodes);
 		GraphEditor->ClearSelectionSet();
 	}
@@ -446,38 +450,41 @@ void FSoundSubmixEditor::CreateSoundSubmix(UEdGraphPin* FromPin, const FVector2D
 	}
 }
 
+UEdGraph* FSoundSubmixEditor::GetGraph()
+{
+	return GraphEditor->GetCurrentGraph();
+}
+
 FText FSoundSubmixEditor::GetToolkitName() const
 {
 	UObject* EditObject = GetEditingObjects()[0];
 	return GetLabelForObject(EditObject);
 }
 
-void FSoundSubmixEditor::AddMissingEditableSubmixes(UEdGraph* InGraph)
+void FSoundSubmixEditor::AddMissingEditableSubmixes()
 {
-	UEdGraph* Graph = GraphEditor->GetCurrentGraph();
-	check(Graph);
-
-	if (InGraph != Graph)
+	if (UEdGraph* Graph = GraphEditor->GetCurrentGraph())
 	{
-		return;
-	}
-
-	bool bRefreshGraphs = false;
-	if (Graph->Nodes.Num() > GetEditingObjects().Num())
-	{
-		for (UEdGraphNode* Node : Graph->Nodes)
+		bool bChanged = false;
+		if (Graph->Nodes.Num() > GetEditingObjects().Num())
 		{
-			USoundSubmixGraphNode* GraphNode = CastChecked<USoundSubmixGraphNode>(Node);
-			USoundSubmix* UntrackedSubmix = GraphNode->SoundSubmix;
-			if (UntrackedSubmix && !GetEditingObjects().Contains(UntrackedSubmix))
+			for (UEdGraphNode* Node : Graph->Nodes)
 			{
-				AddEditingObject(UntrackedSubmix);
-				bRefreshGraphs = true;
+				USoundSubmixGraphNode* GraphNode = CastChecked<USoundSubmixGraphNode>(Node);
+				USoundSubmix* UntrackedSubmix = GraphNode->SoundSubmix;
+				if (UntrackedSubmix && !GetEditingObjects().Contains(UntrackedSubmix))
+				{
+					bChanged = true;
+					AddEditingObject(UntrackedSubmix);
+				}
 			}
 		}
-	}
 
-	GraphEditor->NotifyGraphChanged();
+		if (bChanged)
+		{
+			GraphEditor->NotifyGraphChanged();
+		}
+	}
 }
 
 void FSoundSubmixEditor::PostUndo(bool bSuccess)
