@@ -60,6 +60,7 @@ UMediaTexture::UMediaTexture(const FObjectInitializer& ObjectInitializer)
 	, AddressY(TA_Clamp)
 	, AutoClear(false)
 	, ClearColor(FLinearColor::Black)
+	, NumMips(1)
 	, DefaultGuid(FGuid::NewGuid())
 	, Dimensions(FIntPoint::ZeroValue)
 	, Size(0)
@@ -140,7 +141,9 @@ FTextureResource* UMediaTexture::CreateResource()
 		}
 	}
 
-	return new FMediaTextureResource(*this, Dimensions, Size, ClearColor, CurrentGuid.IsValid() ? CurrentGuid : DefaultGuid);
+	Filter = (NumMips > 1) ? TF_Trilinear : TF_Bilinear;
+
+	return new FMediaTextureResource(*this, Dimensions, Size, ClearColor, CurrentGuid.IsValid() ? CurrentGuid : DefaultGuid, NumMips);
 }
 
 
@@ -337,12 +340,17 @@ void UMediaTexture::TickResource(FTimespan Timecode)
 		return; // retain last frame
 	}
 
+	// update filter state, responding to mips setting
+	Filter = (NumMips > 1) ? TF_Trilinear : TF_Bilinear;
+
+	// setup render parameters
 	RenderParams.CanClear = AutoClear;
 	RenderParams.ClearColor = ClearColor;
 	RenderParams.PreviousGuid = PreviousGuid;
 	RenderParams.CurrentGuid = CurrentGuid;
 	RenderParams.SrgbOutput = SRGB;
-
+	RenderParams.NumMips = NumMips;
+	
 	// redraw texture resource on render thread
 	FMediaTextureResource* ResourceParam = (FMediaTextureResource*)Resource;
 	ENQUEUE_RENDER_COMMAND(MediaTextureResourceRender)(
