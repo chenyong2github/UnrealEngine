@@ -152,7 +152,7 @@ void UParametricMovementComponent::VisualLog(const ParametricMovement::FInputCmd
 	FTransform Transform;
 	ParametricMotion.MapTimeToTransform(Sync->Position, Transform);
 	FVisualLoggingHelpers::VisualLogActor(GetOwner(), Transform, SystemParameters);
-	//DrawParams.LogText = FString::Printf(TEXT("[%d] %s. Position: %.4f. Location: %s. Rotation: %s"), Parameters.Keyframe, *LexToString(Parameters.Context), Position, *Transform.GetLocation().ToString(), *Transform.GetRotation().Rotator().ToString());
+	//DrawParams.LogText = FString::Printf(TEXT("[%d] %s. Position: %.4f. Location: %s. Rotation: %s"), Parameters.Frame, *LexToString(Parameters.Context), Position, *Transform.GetLocation().ToString(), *Transform.GetRotation().Rotator().ToString());
 }
 
 
