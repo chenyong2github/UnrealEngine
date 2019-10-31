@@ -20,7 +20,7 @@ public:
 	void Setup(const FTransform& ParentToWorld, USceneComponent* Component, bool bSkipLateUpdate);
 
 	/** Returns true if the LateUpdateSetup data is stale. */
-	bool GetSkipLateUpdate_RenderThread() const { return RenderThreadState.bSkip; }
+	bool GetSkipLateUpdate_RenderThread() const { return UpdateStates[LateUpdateRenderReadIndex].bSkip; }
 
 	/** Apply the late update delta to the cached components */
 	void Apply_RenderThread(FSceneInterface* Scene, const FTransform& OldRelativeTransform, const FTransform& NewRelativeTransform);
@@ -50,8 +50,8 @@ private:
 		int64 TrackingNumber;
 	};
 
-	FLateUpdateState GameThreadState;
-	FLateUpdateState RenderThreadState;
-	FCriticalSection StateCriticalSection;
+	FLateUpdateState UpdateStates[2];
+	int32 LateUpdateGameWriteIndex;
+	int32 LateUpdateRenderReadIndex;
 };
 

@@ -7,6 +7,8 @@
 #include "HeadMountedDisplayTypes.h"
 
 FLateUpdateManager::FLateUpdateManager()
+	: LateUpdateGameWriteIndex(0)
+	, LateUpdateRenderReadIndex(0)
 {
 }
 
@@ -14,45 +16,41 @@ void FLateUpdateManager::Setup(const FTransform& ParentToWorld, USceneComponent*
 {
 	check(IsInGameThread());
 
-	FScopeLock Lock(&StateCriticalSection);
-
-	GameThreadState.ParentToWorld = ParentToWorld;
+	UpdateStates[LateUpdateGameWriteIndex].Primitives.Reset();
+	UpdateStates[LateUpdateGameWriteIndex].ParentToWorld = ParentToWorld;
 	GatherLateUpdatePrimitives(Component);
-	GameThreadState.bSkip = bSkipLateUpdate;
-	++GameThreadState.TrackingNumber;
+	UpdateStates[LateUpdateGameWriteIndex].bSkip = bSkipLateUpdate;
+	++UpdateStates[LateUpdateGameWriteIndex].TrackingNumber;
+
+	int32 NextFrameRenderReadIndex = LateUpdateGameWriteIndex;
+	LateUpdateGameWriteIndex = 1 - LateUpdateGameWriteIndex;
+
+	ENQUEUE_RENDER_COMMAND(UpdateLateUpdateRenderReadIndexCommand)(
+		[NextFrameRenderReadIndex, this](FRHICommandListImmediate& RHICmdList)
+	{
+		LateUpdateRenderReadIndex = NextFrameRenderReadIndex;
+	});
+
 }
 
 void FLateUpdateManager::Apply_RenderThread(FSceneInterface* Scene, const FTransform& OldRelativeTransform, const FTransform& NewRelativeTransform)
 {
 	check(IsInRenderingThread());
 
-	{
-		// Only grab the lock to protect access to the GameThreadState collection - the RenderThreadState is
-		// only ever accessed from the rendering thread.
-		FScopeLock Lock(&StateCriticalSection);
-		RenderThreadState.bSkip = GameThreadState.bSkip;
-		RenderThreadState.ParentToWorld = GameThreadState.ParentToWorld;
-		RenderThreadState.Primitives = MoveTemp(GameThreadState.Primitives);
-
-		GameThreadState.Primitives.Reset();
-
-		RenderThreadState.TrackingNumber = GameThreadState.TrackingNumber;
-	}
-
-	if (!RenderThreadState.Primitives.Num() || RenderThreadState.bSkip)
+	if (!UpdateStates[LateUpdateRenderReadIndex].Primitives.Num() || UpdateStates[LateUpdateRenderReadIndex].bSkip)
 	{
 		return;
 	}
 
-	const FTransform OldCameraTransform = OldRelativeTransform * RenderThreadState.ParentToWorld;
-	const FTransform NewCameraTransform = NewRelativeTransform * RenderThreadState.ParentToWorld;
+	const FTransform OldCameraTransform = OldRelativeTransform * UpdateStates[LateUpdateRenderReadIndex].ParentToWorld;
+	const FTransform NewCameraTransform = NewRelativeTransform * UpdateStates[LateUpdateRenderReadIndex].ParentToWorld;
 	const FMatrix LateUpdateTransform = (OldCameraTransform.Inverse() * NewCameraTransform).ToMatrixWithScale();
 
 	bool bIndicesHaveChanged = false;
 
 	// Apply delta to the cached scene proxies
 	// Also check whether any primitive indices have changed, in case the scene has been modified in the meantime.
-	for (auto PrimitivePair : RenderThreadState.Primitives)
+	for (auto& PrimitivePair : UpdateStates[LateUpdateRenderReadIndex].Primitives)
 	{
 		FPrimitiveSceneInfo* RetrievedSceneInfo = Scene->GetPrimitiveSceneInfo(PrimitivePair.Value);
 		FPrimitiveSceneInfo* CachedSceneInfo = PrimitivePair.Key;
@@ -79,7 +77,7 @@ void FLateUpdateManager::Apply_RenderThread(FSceneInterface* Scene, const FTrans
 		RetrievedSceneInfo = Scene->GetPrimitiveSceneInfo(Index++);
 		while(RetrievedSceneInfo)
 		{
-			if (RetrievedSceneInfo->Proxy && RenderThreadState.Primitives.Contains(RetrievedSceneInfo) && RenderThreadState.Primitives[RetrievedSceneInfo] >= 0)
+			if (RetrievedSceneInfo->Proxy && UpdateStates[LateUpdateRenderReadIndex].Primitives.Contains(RetrievedSceneInfo) && UpdateStates[LateUpdateRenderReadIndex].Primitives[RetrievedSceneInfo] >= 0)
 			{
 				RetrievedSceneInfo->Proxy->ApplyLateUpdateTransform(LateUpdateTransform);
 			}
@@ -97,7 +95,7 @@ void FLateUpdateManager::CacheSceneInfo(USceneComponent* Component)
 		FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveComponent->SceneProxy->GetPrimitiveSceneInfo();
 		if (PrimitiveSceneInfo && PrimitiveSceneInfo->IsIndexValid())
 		{
-			GameThreadState.Primitives.Emplace(PrimitiveSceneInfo, PrimitiveSceneInfo->GetIndex());
+			UpdateStates[LateUpdateGameWriteIndex].Primitives.Emplace(PrimitiveSceneInfo, PrimitiveSceneInfo->GetIndex());
 		}
 	}
 }
