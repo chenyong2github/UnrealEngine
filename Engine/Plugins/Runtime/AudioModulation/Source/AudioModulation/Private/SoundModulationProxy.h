@@ -264,6 +264,9 @@ namespace AudioModulation
 		/** Default value of patch (Value mixed when inputs are provided or not, regardless of active state)*/
 		float DefaultInputValue;
 
+		/** Bypasses the patch and doesn't update modulation value */
+		uint8 bBypass : 1;
+
 		/** Optional modulation inputs */
 		TArray<FModulationInputProxy> InputProxies;
 
