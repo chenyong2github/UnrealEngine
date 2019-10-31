@@ -14,6 +14,7 @@
 #include "PhysicsPublic.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Features/IModularFeatures.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "UObject/AnimPhysObjectVersion.h"
 #include "Rendering/SkeletalMeshModel.h"
