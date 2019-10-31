@@ -3,6 +3,7 @@
 #include "Parameterization/DataprepParameterization.h"
 
 #include "DataPrepAsset.h"
+#include "DataPrepAssetInstance.h"
 #include "DataprepParameterizableObject.h"
 #include "DataprepParameterizationArchive.h"
 #include "Parameterization/DataprepParameterizationUtils.h"
@@ -1366,6 +1367,12 @@ void UDataprepParameterizationInstance::PostLoad()
 {
 	if ( !HasAnyFlags( RF_ClassDefaultObject | RF_NeedLoad ) )
 	{
+		// #ueent_hotfix: If source is null, the parent of the DataprepAssetInstance is null. So recreate a temporary source parameterization
+		if(SourceParameterization == nullptr)
+		{
+			ensure( Cast<UDataprepAssetInstance>( GetOuter()) && Cast<UDataprepAssetInstance>( GetOuter())->GetParent() == nullptr );
+			SourceParameterization = NewObject<UDataprepParameterization>( GetTransientPackage(), FName(), RF_Public );
+		}
 		SetFlags( RF_Public );
 		LoadParameterization();
 		SetupCallbacksFromSourceParameterisation();
