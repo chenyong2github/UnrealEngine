@@ -1907,6 +1907,9 @@ protected:
 
 	/** Ensure physics state created **/
 	void EnsurePhysicsStateCreated();
+
+	/**  Go through attached primitive components and call MarkRenderStateDirty */
+	void MarkChildPrimitiveComponentRenderStateDirty();
 public:
 
 	//~ Begin UObject Interface.
