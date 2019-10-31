@@ -165,7 +165,7 @@ void UMockNetworkSimulationComponent::VisualLog(const FMockInputCmd* Input, cons
 	AActor* Owner = GetOwner();
 	FTransform Transform = Owner->GetActorTransform();
 
-	LocalParameters.DebugString += FString::Printf(TEXT(" [%d] Total: %.4f"), SystemParameters.Keyframe, Sync->Total);
+	LocalParameters.DebugString += FString::Printf(TEXT(" [%d] Total: %.4f"), SystemParameters.Frame, Sync->Total);
 
 	FVisualLoggingHelpers::VisualLogActor(Owner, Transform, LocalParameters);
 }
