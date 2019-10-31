@@ -538,7 +538,7 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList &RHICmdList, FRHI
 			{
 				continue;
 			}
-			else if (GNiagaraAllowTickBeforeRender && ComputeShader->ViewUniformBufferParam.IsBound() != (ViewUniformBuffer != nullptr))
+			else if (GNiagaraAllowTickBeforeRender && (ComputeShader->ViewUniformBufferParam.IsBound() || Tick.bRequiredDistanceFieldData) != (ViewUniformBuffer != nullptr))
 			{   // When allowing tick before render, skip this emitter if it is not in the right pass.
 				continue;
 			}
