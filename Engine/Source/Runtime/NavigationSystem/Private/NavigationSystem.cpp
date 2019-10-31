@@ -32,8 +32,6 @@
 #if WITH_EDITOR
 #include "EditorModeManager.h"
 #include "EditorModes.h"
-#include "Editor/GeometryMode/Public/GeometryEdMode.h"
-#include "Editor/GeometryMode/Public/EditorGeometry.h"
 #include "Editor/LevelEditor/Public/LevelEditor.h"
 #endif
 
@@ -422,28 +420,12 @@ UNavigationSystemV1::UNavigationSystemV1(const FObjectInitializer& ObjectInitial
 		const FTransform RecastToUnrealTransfrom(Recast2UnrealMatrix());
 		SetCoordTransform(ENavigationCoordSystem::Navigation, ENavigationCoordSystem::Unreal, RecastToUnrealTransfrom);
 	}
-
-#if WITH_EDITOR
-	if (GIsEditor && HasAnyFlags(RF_ClassDefaultObject) == false)
-	{
-		FEditorDelegates::EditorModeIDEnter.AddUObject(this, &UNavigationSystemV1::OnEditorModeIDChanged, true);
-		FEditorDelegates::EditorModeIDExit.AddUObject(this, &UNavigationSystemV1::OnEditorModeIDChanged, false);
-	}
-#endif // WITH_EDITOR
 }
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UNavigationSystemV1::~UNavigationSystemV1()
 {
 	CleanUp(FNavigationSystem::ECleanupMode::CleanupUnsafe);
-
-#if WITH_EDITOR
-	if (GIsEditor)
-	{
-		FEditorDelegates::EditorModeIDEnter.RemoveAll(this);
-		FEditorDelegates::EditorModeIDExit.RemoveAll(this);
-	}
-#endif // WITH_EDITOR
 
 #if !UE_BUILD_SHIPPING
 	FCoreDelegates::OnGetOnScreenMessages.RemoveAll(this);
@@ -2769,47 +2751,6 @@ void UNavigationSystemV1::UpdateLevelCollision(ULevel* InLevel)
 		OnLevelAddedToWorld(InLevel, World);
 	}
 }
-
-void UNavigationSystemV1::OnEditorModeChanged(FEdMode* Mode, bool IsEntering)
-{
-	if (Mode == NULL)
-	{
-		return;
-	}
-
-	if (IsEntering == false && Mode->GetID() == FBuiltinEditorModes::EM_Geometry)
-	{
-		// check if any of modified brushes belongs to an ANavMeshBoundsVolume
-		FEdModeGeometry* GeometryMode = (FEdModeGeometry*)Mode;
-		for (auto GeomObjectIt = GeometryMode->GeomObjectItor(); GeomObjectIt; GeomObjectIt++)
-		{
-			ANavMeshBoundsVolume* Volume = Cast<ANavMeshBoundsVolume>((*GeomObjectIt)->GetActualBrush());
-			if (Volume)
-			{
-				OnNavigationBoundsUpdated(Volume);
-			}
-		}
-	}
-}
-
-void UNavigationSystemV1::OnEditorModeIDChanged(const FEditorModeID& ModeID, bool IsEntering)
-{
-	if (IsEntering == false && ModeID == FBuiltinEditorModes::EM_Geometry)
-	{
-		// check if any of modified brushes belongs to an ANavMeshBoundsVolume
-		FEdMode* Mode = GLevelEditorModeTools().GetActiveMode(ModeID);
-		FEdModeGeometry* GeometryMode = (FEdModeGeometry*)Mode;
-		for (auto GeomObjectIt = GeometryMode->GeomObjectItor(); GeomObjectIt; GeomObjectIt++)
-		{
-			ANavMeshBoundsVolume* Volume = Cast<ANavMeshBoundsVolume>((*GeomObjectIt)->GetActualBrush());
-			if (Volume)
-			{
-				OnNavigationBoundsUpdated(Volume);
-			}
-		}
-	}
-}
-
 #endif
 
 void UNavigationSystemV1::OnNavigationBoundsUpdated(ANavMeshBoundsVolume* NavVolume)

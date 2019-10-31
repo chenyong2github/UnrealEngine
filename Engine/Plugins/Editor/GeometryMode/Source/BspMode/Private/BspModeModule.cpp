@@ -27,13 +27,15 @@ void FBspModeModule::StartupModule()
 {
 	FBspModeStyle::Initialize();
 
+/*
 	FEditorModeRegistry::Get().RegisterMode<FBspMode>(
-		FBuiltinEditorModes::EM_Bsp,
+		FGeometryEditingModes::EM_Bsp,
 		NSLOCTEXT("GeometryMode", "DisplayName", "Geometry Editing"),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.BspMode", "LevelEditor.BspMode.Small"),
 		false,		// Visible
 		100			// UI priority order
 		);
+*/
 
 	RegisterBspBuilderType(UCubeBuilder::StaticClass(), LOCTEXT("CubeBuilderName", "Box"), LOCTEXT("CubeBuilderToolTip", "Make a box brush"), FBspModeStyle::Get().GetBrush(TEXT("BspMode.BoxBrush")));
 	RegisterBspBuilderType(UConeBuilder::StaticClass(), LOCTEXT("ConeBuilderName", "Cone"), LOCTEXT("ConeBuilderToolTip", "Make a cone brush"), FBspModeStyle::Get().GetBrush(TEXT("BspMode.ConeBrush")));
@@ -53,7 +55,7 @@ void FBspModeModule::StartupModule()
 
 void FBspModeModule::ShutdownModule()
 {
-	FEditorModeRegistry::Get().UnregisterMode( FBuiltinEditorModes::EM_Bsp );
+	//FEditorModeRegistry::Get().UnregisterMode(FGeometryEditingModes::EM_Bsp);
 
 	BspBuilderTypes.Empty();
 }
