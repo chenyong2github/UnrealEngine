@@ -763,7 +763,7 @@ bool UEdGraphSchema_K2::CanFunctionBeUsedInGraph(const UClass* InClass, const UF
 		}
 
 		const bool bIsNotNative = !FBlueprintEditorUtils::IsNativeSignature(InFunction);
-		if(!bIsNotNative)
+		if(bIsNotNative)
 		{
 			// Blueprint functions visibility flags can be enforced in blueprints - native functions
 			// are often using these flags to only hide functionality from other native functions:
