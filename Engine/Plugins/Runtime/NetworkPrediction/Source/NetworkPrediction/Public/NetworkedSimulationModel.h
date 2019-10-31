@@ -2,10 +2,10 @@
 
 #pragma once
 #include "NetworkPredictionTypes.h"
-#include "NetworkSimulationModelBuffer.h"
-#include "NetworkSimulationModelTypes.h"
-#include "NetworkSimulationModelReplicators.h"
-#include "NetworkSimulationModelDebugger.h"
+#include "NetworkedSimulationModelBuffer.h"
+#include "NetworkedSimulationModelTypes.h"
+#include "NetworkedSimulationModelReplicators.h"
+#include "NetworkedSimulationModelDebugger.h"
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //	TNetworkedSimulationModel

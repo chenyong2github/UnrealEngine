@@ -14,7 +14,7 @@
 #include "Misc/OutputDevice.h"
 #include "Misc/CoreDelegates.h"
 
-#include "NetworkSimulationModel.h"
+#include "NetworkedSimulationModel.h"
 #include "NetworkPredictionComponent.h"
 
 #include "MockNetworkSimulation.generated.h"
