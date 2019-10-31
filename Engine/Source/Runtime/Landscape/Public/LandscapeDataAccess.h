@@ -210,6 +210,9 @@ struct FLandscapeComponentDataInterface
 		XYOffsetMipData = NewXYOffsetData;
 	}
 
+	LANDSCAPE_API int32 GetHeightmapSizeX(int32 MipIndex) const;
+	LANDSCAPE_API int32 GetHeightmapSizeY(int32 MipIndex) const;
+
 	/* Return the raw heightmap data exactly same size for Heightmap texture which belong to only this component */
 	LANDSCAPE_API void GetHeightmapTextureData(TArray<FColor>& OutData, bool bOkToFail = false);
 
