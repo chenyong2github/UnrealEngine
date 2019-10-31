@@ -10,7 +10,7 @@
 /** Structure that is just an array of accumulators, to work arround shader compiler bug on "out" of arrays. */
 struct FSSDSignalAccumulatorArray
 {
-	FSSDSignalAccumulator Array[MAX_SIGNAL_MULTIPLEXING];
+	FSSDSignalAccumulator Array[SIGNAL_ARRAY_SIZE];
 };
 
 /** Accumulator array that is compressed to have lower VGPR footprint. */
@@ -24,8 +24,8 @@ FSSDSignalAccumulatorArray CreateSignalAccumulatorArray()
 {
 	FSSDSignalAccumulatorArray Accumulators;
 	
-	UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
-	for (uint i = 0; i < MAX_SIGNAL_MULTIPLEXING; i++)
+	UNROLL_N(SIGNAL_ARRAY_SIZE)
+	for (uint i = 0; i < SIGNAL_ARRAY_SIZE; i++)
 	{
 		Accumulators.Array[i] = CreateSignalAccumulator();
 	}
