@@ -205,7 +205,7 @@ public:
 	inline float GetMaximumAxisScale() const;
 
 	/** Apply Scale to this matrix **/
-	inline FMatrix ApplyScale(float Scale);
+	inline FMatrix ApplyScale(float Scale) const;
 
 	// @return the origin of the co-ordinate system
 	inline FVector GetOrigin() const;
