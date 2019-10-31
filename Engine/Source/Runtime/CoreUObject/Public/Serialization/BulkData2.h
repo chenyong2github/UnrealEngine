@@ -55,7 +55,11 @@ public:
 	FBulkDataBase(FBulkDataBase&& Other);
 	FBulkDataBase& operator=(const FBulkDataBase& Other);
 
-	FBulkDataBase() = default;
+	FBulkDataBase()
+	{ 
+		Fallback.BulkDataSize = 0;
+		Fallback.Token = InvalidToken;
+	}
 	~FBulkDataBase();
 
 protected:
