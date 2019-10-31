@@ -396,16 +396,12 @@ namespace UnrealBuildTool
 						}
 						if (ParentModule.BlacklistPlatforms != null && ParentModule.BlacklistPlatforms.Length > 0)
 						{
-							List<UnrealTargetPlatform> Blacklist = ParentModule.BlacklistPlatforms.ToList();
 							if (ChildModule.BlacklistPlatforms != null && ChildModule.BlacklistPlatforms.Length > 0)
 							{
+								List<UnrealTargetPlatform> Blacklist = ParentModule.BlacklistPlatforms.ToList();
 								Blacklist.AddRange(ChildModule.BlacklistPlatforms);
+								ParentModule.BlacklistPlatforms = Blacklist.ToArray();
 							}
-							else
-							{
-								Blacklist.Add(Platform);
-							}
-							ParentModule.BlacklistPlatforms = Blacklist.ToArray();
 						}
 					}
 				}
