@@ -120,7 +120,7 @@ namespace Chaos
 			return AABB.Contains(Point, Tolerance);
 		}
 
-		FORCEINLINE static EImplicitObjectType GetType() { return ImplicitObjectType::Box; }
+		FORCEINLINE static EImplicitObjectType StaticType() { return ImplicitObjectType::Box; }
 
 		const TBox<T, d>& BoundingBox() const { return *this; }
 
