@@ -47,6 +47,11 @@ namespace Chaos
 			return TVector<T, 3>::DotProduct((InSamplePoint - ClosestPoint), OutNormal);
 		}
 
+		FORCEINLINE TVector<T, 3> Support2(const TVector<T, 3>& Direction) const
+		{
+			return Support(Direction, 0);
+		}
+
 		FORCEINLINE TVector<T, 3> Support(const TVector<T, 3>& Direction, const T Thickness) const
 		{
 			const float DotA = TVector<T, 3>::DotProduct(A, Direction);
