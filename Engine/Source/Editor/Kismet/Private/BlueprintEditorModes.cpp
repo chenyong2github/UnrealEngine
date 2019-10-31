@@ -114,16 +114,6 @@ FBlueprintEditorApplicationMode::FBlueprintEditorApplicationMode(TSharedPtr<clas
 	CoreTabFactories.RegisterFactory(MakeShareable(new FSelectionDetailsSummoner(InBlueprintEditor)));
 
 	TabLayout = GetDefaltEditorLayout(InBlueprintEditor);
-	
-	// setup toolbar
-	//@TODO: Keep this in sync with AnimBlueprintMode.cpp
-	if (UToolMenu* Toolbar = InBlueprintEditor->RegisterModeToolbarIfUnregistered(GetModeName()))
-	{
-		InBlueprintEditor->GetToolbarBuilder()->AddCompileToolbar(Toolbar);
-		InBlueprintEditor->GetToolbarBuilder()->AddScriptingToolbar(Toolbar);
-		InBlueprintEditor->GetToolbarBuilder()->AddBlueprintGlobalOptionsToolbar(Toolbar);
-		InBlueprintEditor->GetToolbarBuilder()->AddDebuggingToolbar(Toolbar);
-	}
 
 	FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::LoadModuleChecked<FBlueprintEditorModule>("Kismet");
 	BlueprintEditorModule.OnRegisterTabsForEditor().Broadcast(BlueprintEditorTabFactories, InModeName, InBlueprintEditor);
