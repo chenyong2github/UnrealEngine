@@ -118,7 +118,7 @@ public:
 	*/
 	bool RenderSingleLayerWaterPass(FRHICommandListImmediate& RHICmdList, FSingleLayerWaterPassData& PassData, FExclusiveDepthStencil::Type WaterPassDepthStencilAccess, bool bParallel);
 	/** Renders the water draw pass for a given View. */
-	bool RenderSingleLayerWaterPassView(FRHICommandListImmediate& RHICmdList, FViewInfo& View, FSingleLayerWaterPassData& PassData, const FMeshPassProcessorRenderState& InDrawRenderState, bool bParallel);
+	bool RenderSingleLayerWaterPassView(FRHICommandListImmediate& RHICmdList, FViewInfo& View, const FMeshPassProcessorRenderState& InDrawRenderState, bool bParallel);
 	/** Render, denoise and composite the scene SSR and under water effect.*/
 	void RenderSingleLayerWaterReflections(FRHICommandListImmediate& RHICmdList, FSingleLayerWaterPassData& PassData);
 
