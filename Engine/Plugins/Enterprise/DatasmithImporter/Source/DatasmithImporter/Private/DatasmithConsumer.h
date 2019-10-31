@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "DatasmithImporter.h"
+#include "DatasmithScene.h"
 
 #include "DataPrepContentConsumer.h"
 
