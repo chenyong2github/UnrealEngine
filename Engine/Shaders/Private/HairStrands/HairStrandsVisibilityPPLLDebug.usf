@@ -4,7 +4,9 @@
 
 #include "HairStrandsVisibilityCommon.ush"
 
-uint MaxPPLLNodeCount;
+float PPLLMeanListElementCountPerPixel;
+float PPLLMaxTotalListElementCount;
+
 Texture2D<uint> PPLLCounter;
 Texture2D<uint> PPLLNodeIndex;
 StructuredBuffer<FPPLLNodeData> PPLLNodeData;
@@ -26,12 +28,35 @@ void VisibilityDebugPPLLPS(
 			NextNodeIndex = Node.NextNodeIndex;
 		} while (NextNodeIndex != 0xFFFFFFFF);
 
-		float l = saturate(StrandCount / 16.0f);
+		float l = saturate(StrandCount / PPLLMeanListElementCountPerPixel);
 
 		OutLuminance = float4(l, 1.0f - l, 0.0f, 0.0f);
 	}
 	else
 	{
 		OutLuminance = float4(0.0f, 0.0f, 0.0f, 1.0f);
+	}
+
+	const float2 Origin = 100.0f;
+	const float2 Size = float2(200.0f, 20.0f);
+	if (all(PixPos >= Origin) && all(PixPos <= (Origin + Size)))
+	{
+		float2 LocalPos = PixPos - Origin;
+		float PPLLListElementcount = PPLLCounter[uint2(0, 0)];
+		float MemoryUsage = PPLLListElementcount / PPLLMaxTotalListElementCount;
+
+		if (MemoryUsage > LocalPos.x / Size.x)
+		{
+			OutLuminance = float4(MemoryUsage, 1.0f - MemoryUsage, 1.0f - MemoryUsage, 0.0f);
+		}
+		else
+		{
+			OutLuminance = float4(0.2f, 0.2f, 0.2f, 0.0f);
+		}
+
+		if (any(PixPos == Origin) || any(PixPos == (Origin + Size)))
+		{
+			OutLuminance = float4(1.0f, 1.0f, 1.0f, 0.0f);
+		}
 	}
 }

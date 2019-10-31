@@ -53,4 +53,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 
 void SetUpViewHairRenderInfo(const FViewInfo& ViewInfo, bool bEnableMSAA, FVector4& OutHairRenderInfo);
 
-uint32 GetMaxNodePerPixel(FIntPoint Resolution);
+
+uint32 GetPPLLMeanListElementCountPerPixel();
+uint32 GetPPLLMaxTotalListElementCount(FIntPoint Resolution);
+
