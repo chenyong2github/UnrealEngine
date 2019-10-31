@@ -576,6 +576,9 @@ void SDataprepDetailsView::OnObjectReplaced(const TMap<UObject*, UObject*>& Repl
 void SDataprepDetailsView::ForceRefresh()
 {
 	// Hotfix for 4.24 (Remove the ui flickering)
+	TArray< UObject* > Objects;
+	Objects.Add( DetailedObject );
+	Generator->SetObjects( Objects );
 	Construct();
 	//bRefreshObjectToDisplay = true;
 }
