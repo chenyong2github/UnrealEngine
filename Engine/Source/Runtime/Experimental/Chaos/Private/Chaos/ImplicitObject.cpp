@@ -162,6 +162,12 @@ Pair<TVector<T, d>, bool> TImplicitObject<T, d>::FindDeepestIntersection(const T
 	}
 	return MakePair(Point, Phi < Thickness);
 }
+template<class T, int d>
+bool TImplicitObject<T, d>::Overlap(const TVector<T, d>& Point, const T Thickness) const
+{
+	return SignedDistance(Point) <= Thickness;
+}
+
 
 template<class T, int d>
 Pair<TVector<T, d>, bool> TImplicitObject<T, d>::FindClosestIntersection(const TVector<T, d>& StartPoint, const TVector<T, d>& EndPoint, const T Thickness) const
