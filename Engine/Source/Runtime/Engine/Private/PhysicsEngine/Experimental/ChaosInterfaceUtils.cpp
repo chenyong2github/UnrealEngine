@@ -12,6 +12,7 @@
 #include "Chaos/TriangleMesh.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/UniformGrid.h"
+#include "Chaos/Convex.h"
 
 #include "PhysicsEngine/BoxElem.h"
 #include "PhysicsEngine/ConvexElem.h"
@@ -257,7 +258,7 @@ namespace ChaosInterface
 				//}
 				//else
 				{
-					TUniquePtr<Chaos::TImplicitObjectScaled<float, 3, true>> Implicit = MakeUnique<Chaos::TImplicitObjectScaled<float, 3>>(MakeSerializable(ConvexImplicit), Scale);
+					auto Implicit = MakeUnique<Chaos::TImplicitObjectScaled<Chaos::TConvex<float, 3>>>(MakeSerializable(ConvexImplicit), Scale);
 					auto NewShape = NewShapeHelper(MakeSerializable(Implicit));
 					Shapes.Emplace(MoveTemp(NewShape));
 					Geoms.Add(MoveTemp(Implicit));
@@ -267,7 +268,7 @@ namespace ChaosInterface
 
 		for (const auto& ChaosTriMesh : InParams.ChaosTriMeshes)
 		{
-			auto Implicit = MakeUnique<Chaos::TImplicitObjectScaled<float, 3>>(MakeSerializable(ChaosTriMesh), Scale);
+			auto Implicit = MakeUnique<Chaos::TImplicitObjectScaled<Chaos::TTriangleMeshImplicitObject<float>>>(MakeSerializable(ChaosTriMesh), Scale);
 			auto NewShape = NewShapeHelper(MakeSerializable(Implicit), true);
 			Shapes.Emplace(MoveTemp(NewShape));
 			Geoms.Add(MoveTemp(Implicit));

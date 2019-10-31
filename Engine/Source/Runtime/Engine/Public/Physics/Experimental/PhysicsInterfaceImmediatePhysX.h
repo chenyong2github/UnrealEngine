@@ -208,7 +208,6 @@ struct ENGINE_API FPhysicsInterface_ImmediatePhysX
 
 	static bool IsSimulationShape(const FPhysicsShapeReference_ImmediatePhysX& InShape);
 	static bool IsQueryShape(const FPhysicsShapeReference_ImmediatePhysX& InShape);
-	static bool IsShapeType(const FPhysicsShapeReference_ImmediatePhysX& InShape, ECollisionShapeType InType);
     // @todo(mlentine): We don't keep track of what is shared but anything can be
     static bool IsShared(const FPhysicsShapeHandle& InShape) { return true; }
 	static ECollisionShapeType GetShapeType(const FPhysicsShapeReference_ImmediatePhysX& InShape);
