@@ -8,6 +8,7 @@
 #include "Chaos/PBDEvolution.h"
 #include "Chaos/Transform.h"
 #include "Chaos/TriangleMesh.h"
+#include "ChaosCloth/ChaosClothConfig.h"
 #include "Components/SkeletalMeshComponent.h"
 
 namespace Chaos
@@ -24,8 +25,7 @@ namespace Chaos
 		FTransform ComponentToWorld;
 	};
 
-	class ClothingSimulation
-		: public IClothingSimulation
+	class ClothingSimulation : public IClothingSimulation
 #if WITH_EDITOR
 		, public FGCObject  // Add garbage collection for debug cloth material
 #endif  // #if WITH_EDITOR
@@ -56,6 +56,7 @@ namespace Chaos
 		// IClothingSimulation interface
 		void Initialize() override;
 		void CreateActor(USkeletalMeshComponent* InOwnerComponent, UClothingAssetBase* InAsset, int32 SimDataIndex) override;
+		void PostActorCreationInitialize() override;
 		IClothingSimulationContext* CreateContext() override { return new ClothingSimulationContext(); }
 		void FillContext(USkeletalMeshComponent* InComponent, float InDeltaTime, IClothingSimulationContext* InOutContext) override;
 		void Shutdown() override;
@@ -91,6 +92,7 @@ namespace Chaos
 	private:
 		// Assets
 		TArray<UClothingAssetCommon*> Assets;
+		UChaosClothSharedSimConfig* ClothSharedSimConfig;
 
 		// Collision Data
 		FClothCollisionData ExtractedCollisions;  // Collisions extracted from the referenced physics asset
@@ -120,13 +122,6 @@ namespace Chaos
 		float DeltaTime;
 		float MaxDeltaTime;
 		float ClampDeltaTime;
-		// Parameters that should be set in the ui
-		int32 NumIterations;
-		float SelfCollisionThickness;
-		float CollisionThickness;
-		float CoefficientOfFriction;
-		float Damping;
-		float GravityMagnitude;
 
 #if WITH_EDITOR
 		// Visualization material

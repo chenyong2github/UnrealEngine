@@ -45,19 +45,9 @@
 
 using namespace Chaos;
 
-static TAutoConsoleVariable<int32> CVarClothNumIterations(TEXT("physics.ClothNumIterations"), 1, TEXT(""));
-static TAutoConsoleVariable<float> CVarClothSelfCollisionThickness(TEXT("physics.ClothSelfCollisionThickness"), 2.f, TEXT(""));
-static TAutoConsoleVariable<float> CVarClothCollisionThickness(TEXT("physics.ClothCollisionThickness"), 1.2f, TEXT(""));
-static TAutoConsoleVariable<float> CVarClothCoefficientOfFriction(TEXT("physics.ClothCoefficientOfFriction"), 0.f, TEXT(""));
-static TAutoConsoleVariable<float> CVarClothDamping(TEXT("physics.ClothDamping"), 0.01f, TEXT(""));
-static TAutoConsoleVariable<float> CVarClothGravityMagnitude(TEXT("physics.ClothGravityMagnitude"), 490.f, TEXT(""));
-
 ClothingSimulation::ClothingSimulation()
-	: ExternalCollisionsOffset(0)
-	, NumIterations(1)
-	, SelfCollisionThickness(2.f)
-	, CollisionThickness(1.2f)
-	, GravityMagnitude(490.f)
+	: ClothSharedSimConfig(nullptr)
+	, ExternalCollisionsOffset(0)
 {
 #if WITH_EDITOR
 	DebugClothMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorMaterials/Cloth/CameraLitDoubleSided.CameraLitDoubleSided"), nullptr, LOAD_None, nullptr);  // LOAD_EditorOnly
@@ -69,12 +59,14 @@ ClothingSimulation::~ClothingSimulation()
 
 void ClothingSimulation::Initialize()
 {
-    NumIterations = CVarClothNumIterations.GetValueOnGameThread();
-    SelfCollisionThickness = CVarClothSelfCollisionThickness.GetValueOnGameThread();
-    CollisionThickness = CVarClothCollisionThickness.GetValueOnGameThread();
-    CoefficientOfFriction = CVarClothCoefficientOfFriction.GetValueOnGameThread();
-    Damping = CVarClothDamping.GetValueOnGameThread();
-    GravityMagnitude = CVarClothGravityMagnitude.GetValueOnGameThread();
+
+	// Default parameters. Will be overwritten when cloth assets are loaded
+	int32 NumIterations = 1;
+	float SelfCollisionThickness = 2.0f;
+	float CollisionThickness = 1.2f;
+	float CoefficientOfFriction = 0.0f;
+	float Damping = 0.01f;
+	float GravityMagnitude = 490.0f;
 
     Chaos::TPBDParticles<float, 3> LocalParticles;
     Chaos::TKinematicGeometryClothParticles<float, 3> TRigidParticles;
@@ -143,6 +135,7 @@ void ClothingSimulation::Shutdown()
 	PointNormals.Reset();
 	Evolution.Reset();
 	ExternalCollisionsOffset = 0;
+	ClothSharedSimConfig = nullptr;
 }
 
 void ClothingSimulation::DestroyActors()
@@ -160,7 +153,7 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 	
 	UClothingAssetCommon* Asset = Cast<UClothingAssetCommon>(InAsset);
 	const UChaosClothConfig* const ChaosClothSimConfig = Cast<UChaosClothConfig>(Asset->ChaosClothSimConfig);
-	check(ChaosClothSimConfig);	
+	check(ChaosClothSimConfig);
 
 	ClothingSimulationContext Context;
     FillContext(InOwnerComponent, 0, &Context);
@@ -204,6 +197,12 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 	TPBDParticles<float, 3>& Particles = Evolution->Particles();
 	const uint32 Offset = Particles.Size();
 	Particles.AddParticles(PhysMesh->Vertices.Num());
+
+	// ClothSharedSimConfig should either be a nullptr, or point to an object common to the whole skeletal mesh
+	if (ClothSharedSimConfig == nullptr)
+	{
+		ClothSharedSimConfig = Cast<UChaosClothSharedSimConfig>(Asset->ClothSharedSimConfig);
+	}
 
 	AnimationPositions.SetNum(Particles.Size());
 	AnimationNormals.SetNum(Particles.Size());
@@ -475,6 +474,33 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 		ExternalCollisions.Convexes.Num() == 0 &&
 		ExternalCollisions.Boxes.Num() == 0, TEXT("There cannot be any external collisions added before all the cloth assets collisions are processed."));
 	ExternalCollisionsOffset = CollisionParticles.Size();
+}
+
+void ClothingSimulation::PostActorCreationInitialize()
+{
+	if (ClothSharedSimConfig == nullptr)
+	{
+		check(Assets.Num())
+		// None of the cloth assets had a clothSharedSimConfig, so we will create it
+		ClothSharedSimConfig = NewObject<UChaosClothSharedSimConfig>(Assets[0], UChaosClothSharedSimConfig::StaticClass()->GetFName());
+	}
+	check(ClothSharedSimConfig);
+
+	// Let all assets point to the same shared configuration
+	for (UClothingAssetCommon* Asset : Assets)
+	{
+		if (Asset)
+		{
+			Asset->ClothSharedSimConfig = ClothSharedSimConfig;
+		}
+	}
+
+	// Now set all the common parameters on the simulation
+	Evolution->SetIterations(ClothSharedSimConfig->IterationCount);
+	Evolution->SetSelfCollisionThickness(ClothSharedSimConfig->SelfCollisionThickness);
+	Evolution->SetCollisionThickness(ClothSharedSimConfig->CollisionThickness);
+	Evolution->SetDamping(ClothSharedSimConfig->Damping);
+	Evolution->GetGravityForces().SetAcceleration(Chaos::TVector<float, 3>(ClothSharedSimConfig->Gravity));
 }
 
 void ClothingSimulation::UpdateCollisionTransforms(const ClothingSimulationContext& Context)
@@ -1443,7 +1469,7 @@ void ClothingSimulation::DebugDrawSelfCollision(USkeletalMeshComponent* OwnerCom
 					const FVector ParticlePosition =
 						RootBoneTransform.TransformPosition(
 							Particles.X(PhysMesh->SelfCollisionIndices[SelfColIdx]));
-					DrawWireSphere(PDI, ParticlePosition, FColor::White, SelfCollisionThickness, 8, SDPG_World, 0.0f, 0.001f);
+					DrawWireSphere(PDI, ParticlePosition, FColor::White, Evolution->GetSelfCollisionThickness(), 8, SDPG_World, 0.0f, 0.001f);
 				}
 			}
 		}
