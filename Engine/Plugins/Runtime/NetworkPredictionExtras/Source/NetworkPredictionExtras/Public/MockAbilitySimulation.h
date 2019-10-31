@@ -111,6 +111,8 @@ struct FMockAbilityAuxstate : public FlyingMovement::FAuxState
 	}
 };
 
+using TMockAbilityBufferTypes = TNetworkSimBufferTypes<FMockAbilityInputCmd, FMockAbilitySyncState, FMockAbilityAuxstate>;
+
 class FMockAbilitySimulation : public FlyingMovement::FMovementSimulation
 {
 public:
@@ -118,10 +120,8 @@ public:
 	static const FName GroupName;
 
 	/** Main update function */
-	void Update(const float DeltaTimeSeconds, const FMockAbilityInputCmd& InputCmd, const FMockAbilitySyncState& InputState, FMockAbilitySyncState& OutputState, const FMockAbilityAuxstate& AuxState, const TNetSimLazyWriter<FMockAbilityAuxstate>& OutAuxStateAccessor);
+	void SimulationTick(const TNetSimTimeStep& TimeStep, const TNetSimInput<TMockAbilityBufferTypes>& Input, const TNetSimOutput<TMockAbilityBufferTypes>& Output);
 };
-
-using TMockAbilityBufferTypes = TNetworkSimBufferTypes<FMockAbilityInputCmd, FMockAbilitySyncState, FMockAbilityAuxstate>;
 
 template<int32 InFixedStepMS=0>
 using FMockAbilitySystem = TNetworkedSimulationModel<FMockAbilitySimulation, TMockAbilityBufferTypes, TNetworkSimTickSettings<InFixedStepMS>>;
