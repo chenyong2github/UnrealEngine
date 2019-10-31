@@ -374,8 +374,7 @@ public:
 	static FCollisionFilterData GetQueryFilter(const FPhysicsShapeHandle& InShape);
 	static bool IsSimulationShape(const FPhysicsShapeHandle& InShape);
 	static bool IsQueryShape(const FPhysicsShapeHandle& InShape);
-	static bool IsShapeType(const FPhysicsShapeHandle& InShape, ECollisionShapeType InType);
-	static ECollisionShapeType GetShapeType(const FPhysicsShapeHandle& InShape, bool GetInnerType = false);
+	static ECollisionShapeType GetShapeType(const FPhysicsShapeHandle& InShape);
 	static FTransform GetLocalTransform(const FPhysicsShapeHandle& InShape);
     static void* GetUserData(const FPhysicsShapeHandle& InShape) { return nullptr; }
 
