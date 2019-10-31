@@ -114,6 +114,14 @@ const FLinearColor FNiagaraEditorModule::WorldCentricTabColorScale(0.0f, 0.0f, 0
 
 EAssetTypeCategories::Type FNiagaraEditorModule::NiagaraAssetCategory;
 
+int32 GbShowFastPathOptions = 0;
+static FAutoConsoleVariableRef CVarShowFastPathOptions(
+	TEXT("fx.Niagara.ShowFastPathOptions"),
+	GbShowFastPathOptions,
+	TEXT("If > 0 the experimental fast path options will be shown in the system and emitter properties in the niagara system editor.\n"),
+	ECVF_Default
+);
+
 //////////////////////////////////////////////////////////////////////////
 
 class FNiagaraEditorOnlyDataUtilities : public INiagaraEditorOnlyDataUtilities
