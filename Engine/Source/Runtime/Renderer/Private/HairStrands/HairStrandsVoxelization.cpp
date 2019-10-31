@@ -35,6 +35,9 @@ static FAutoConsoleVariableRef CVarHairVoxelizationDepthBiasScale(TEXT("r.HairSt
 static int32 GHairVoxelInjectOpaqueDepthEnable = 1;
 static FAutoConsoleVariableRef CVarHairVoxelInjectOpaqueDepthEnable(TEXT("r.HairStrands.Voxelization.InjectOpaqueDepth"), GHairVoxelInjectOpaqueDepthEnable, TEXT("Inject opaque geometry depth into the voxel volume for acting as occluder."));
 
+static int32 GHairStrandsVoxelMipMethod = 0;
+static FAutoConsoleVariableRef CVarHairVoxelMipMethod(TEXT("r.HairStrands.Voxelization.MipMethod"), GHairStrandsVoxelMipMethod, TEXT("Voxel mip methods (0 : one level per pass, 1 : two levels per pass."));
+
 float GetHairStrandsVoxelizationDensityScale() { return FMath::Max(0.0f, GHairVoxelizationDensityScale); }
 float GetHairStrandsVoxelizationDepthBiasScale() { return FMath::Max(0.0f, GHairVoxelizationDepthBiasScale); }
 
@@ -173,6 +176,9 @@ class FVoxelGenerateMipCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FVoxelGenerateMipCS);
 	SHADER_USE_PARAMETER_STRUCT(FVoxelGenerateMipCS, FGlobalShader);
 
+	class FMethod : SHADER_PERMUTATION_INT("PERMUTATION_METHOD", 2);
+	using FPermutationDomain = TShaderPermutationDomain<FMethod>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 
@@ -181,7 +187,8 @@ class FVoxelGenerateMipCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, TargetMip)
 
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture3D, InDensityTexture)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D, OutDensityTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D, OutDensityTexture0)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D, OutDensityTexture1)
 
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -202,24 +209,36 @@ static void AddVoxelGenerateMipPass(
 	TRefCountPtr<IPooledRenderTarget> DensityTexture = Cluster.VoxelResources.DensityTexture;
 	check(DensityTexture->GetDesc().Extent.X == DensityTexture->GetDesc().Extent.Y);
 
+	const uint32 NumLevelPerPass = GHairStrandsVoxelMipMethod > 0 ? 2 : 1;
+
 	const uint32 VoxelResolution = DensityTexture->GetDesc().Extent.X;
 	const uint32 MipCount = DensityTexture->GetDesc().NumMips;
 	FRDGTextureRef VoxelDensityTexture = GraphBuilder.RegisterExternalTexture(DensityTexture, TEXT("HairVoxelDensityTexture"));
-	for (uint32 MipIt = 0; MipIt < MipCount-1; ++MipIt)
+	for (uint32 MipIt = 0; MipIt < MipCount-1; MipIt += NumLevelPerPass)
 	{
 		FVoxelGenerateMipCS::FParameters* Parameters = GraphBuilder.AllocParameters<FVoxelGenerateMipCS::FParameters>();
 		Parameters->InDensityTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(VoxelDensityTexture, MipIt));
-		Parameters->OutDensityTexture = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(VoxelDensityTexture, MipIt+1));
+		Parameters->OutDensityTexture0 = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(VoxelDensityTexture, MipIt+1));
+		if (NumLevelPerPass > 1)
+		{
+			Parameters->OutDensityTexture1 = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(VoxelDensityTexture, MipIt+2));
+		}
 		Parameters->VoxelResolution = VoxelResolution;
 		Parameters->SourceMip = MipIt;
 		Parameters->TargetMip = MipIt+1;
 
-		uint32 SourceResolution = VoxelResolution >> (MipIt);
-		uint32 TargetResolution = VoxelResolution >> (MipIt + 1);
+		const uint32 SourceResolution = VoxelResolution >> (MipIt);
+		const uint32 TargetResolution = VoxelResolution >> (MipIt + 1);
 
-		TShaderMapRef<FVoxelGenerateMipCS> ComputeShader(View.ShaderMap);
+		FVoxelGenerateMipCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FVoxelGenerateMipCS::FMethod>(NumLevelPerPass == 2 ? 1 : 0);
+		
+		TShaderMapRef<FVoxelGenerateMipCS> ComputeShader(View.ShaderMap, PermutationVector);
 		const TShaderMap<FGlobalShaderType>* GlobalShaderMap = View.ShaderMap;
-		const FIntVector DispatchCount = FComputeShaderUtils::GetGroupCount(FIntVector(TargetResolution, TargetResolution, TargetResolution), FIntVector(4, 4, 4));
+		const FIntVector DispatchCount = 
+			NumLevelPerPass == 1 ? 
+			FComputeShaderUtils::GetGroupCount(FIntVector(TargetResolution, TargetResolution, TargetResolution), FIntVector(4, 4, 4)):
+			FComputeShaderUtils::GetGroupCount(FIntVector(SourceResolution, SourceResolution, SourceResolution), FIntVector(4, 4, 4));
 		
 		ClearUnusedGraphResources(*ComputeShader, Parameters);
 		GraphBuilder.AddPass(
