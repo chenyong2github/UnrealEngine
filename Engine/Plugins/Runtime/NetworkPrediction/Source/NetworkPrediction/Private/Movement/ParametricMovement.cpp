@@ -2,7 +2,7 @@
 
 #include "Movement/ParametricMovement.h"
 #include "HAL/IConsoleManager.h"
-#include "NetworkSimulationGlobalManager.h"
+#include "NetworkedSimulationGlobalManager.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
 
