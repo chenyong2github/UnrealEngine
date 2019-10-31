@@ -14,6 +14,7 @@
 
 
 // Forward Declarations
+class FOnSubmixEnvelopeBP;
 class UEdGraph;
 class USoundEffectSubmixPreset;
 class USoundSubmix;
