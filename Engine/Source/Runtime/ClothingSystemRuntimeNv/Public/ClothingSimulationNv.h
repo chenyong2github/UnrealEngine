@@ -198,6 +198,7 @@ public:
 
 	// IClothingSimulation Interface
 	virtual void CreateActor(USkeletalMeshComponent* InOwnerComponent, UClothingAssetBase* InAsset, int32 InSimDataIndex) override;
+	virtual void PostActorCreationInitialize() override {};
 	virtual IClothingSimulationContext* CreateContext() override;
 	virtual void FillContext(USkeletalMeshComponent* InComponent, float InDeltaTime, IClothingSimulationContext* InOutContext) override;
 	virtual void Initialize() override;
