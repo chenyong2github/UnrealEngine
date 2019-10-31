@@ -778,12 +778,12 @@ bool FOculusInput::GetControllerOrientationAndPosition( const int32 ControllerIn
 								CurrentFrame = OculusHMD->GetFrame_RenderThread();
 							}
 
-							if (Settings && CurrentFrame)
+							if (Settings)
 							{
 								ovrpPoseStatef InPoseState;
 								OculusHMD::FPose OutPose;
 
-								if (OVRP_SUCCESS(ovrp_GetNodePoseState3(ovrpStep_Render, CurrentFrame->FrameNumber, Node, &InPoseState)) &&
+								if (OVRP_SUCCESS(ovrp_GetNodePoseState3(ovrpStep_Render, CurrentFrame ? CurrentFrame->FrameNumber : OVRP_CURRENT_FRAMEINDEX, Node, &InPoseState)) &&
 									OculusHMD->ConvertPose_Internal(InPoseState.Pose, OutPose, Settings, WorldToMetersScale))
 								{
 									if (bIsPositionValid)
