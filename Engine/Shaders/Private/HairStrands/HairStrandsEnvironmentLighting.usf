@@ -66,8 +66,6 @@ float3 GatherRadiance(float3 RayDirection, float Roughness, uint2 PixelPosition,
 		EyeIndex);
 }
 
-Texture2D<uint4>			HairCategorizationTexture;
-Texture2D<uint>				HairVisibilityNodeOffsetAndCount;
 StructuredBuffer<FNodeData> HairVisibilityNodeData;
 
 Texture3D<float4>			HairScatteringLUTTexture;
@@ -82,9 +80,6 @@ uint  Voxel_ClusterId;
 float Voxel_TanConeAngle;
 float Voxel_DensityScale;
 float Voxel_DepthBiasScale;
-
-float AO_Power;
-float AO_Intensity;
 
 float3 Voxel_MinAABB;
 float3 Voxel_MaxAABB;
@@ -409,106 +404,6 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 	// Transform NaNs to black, transform negative colors to black.
 	return -min(-Color.rgb, 0.0);
 }
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-#if PIXELSHADER
-void MainPS(
-	in float4 SvPosition : SV_Position,
-	out float4 OutColor : SV_Target0,
-	out float4 OutColorSubPixel : SV_Target1
-)
-{
-	const float2 ScreenPosition = SvPositionToScreenPosition(SvPosition).xy;
-	const uint3 PixelCoord = uint3(floor(SvPosition.xy), 0);
-
-	FNodeDesc NodeDesc = DecodeNodeDesc(HairVisibilityNodeOffsetAndCount.Load(PixelCoord));
-
-	OutColor = 0.0f;
-	OutColorSubPixel = 0.0f;
-
-	if (NodeDesc.Count > 0)
-	{
-		const FCategorizationData CatData = DecodeCategorizationData(HairCategorizationTexture.Load(PixelCoord));
-
-		// Note:
-		// * Currently: compute take the closest sample
-		// * Change this to per sample evaluation once we have better hair transmittance evaluation for sky
-		float ClosestDepth = 0;
-		bool bIsClusterCompatible = false;
-		FGBufferData HairGBuffer = (FGBufferData)0;
-		float3 SkyLighting = 0;
-
-		LOOP
-		for (uint SampleIt = 0; SampleIt < NodeDesc.Count; SampleIt++)
-		{
-			const uint LocalOffset = NodeDesc.Offset + SampleIt;
-			const FNodeData NodeData = HairVisibilityNodeData[LocalOffset];
-			float			SampleDepth;
-			FVisibilityData SampleVisData;
-			float3			SampleBaseColor;
-			float			SampleRoughness;
-			float			SampleSpecular;
-			DecodeNodeData(NodeData, SampleDepth, SampleVisData, SampleBaseColor, SampleRoughness, SampleSpecular);
-			bIsClusterCompatible = bIsClusterCompatible || SampleVisData.ClusterId == Voxel_ClusterId;
-
-			// Inject material data from the visibility/mini-gbuffer for hair
-			const float SceneDepth = ConvertFromDeviceZ(SampleDepth);
-			#if PERMUTATION_PER_SAMPLE == 0
-			if (SampleDepth > ClosestDepth)
-			#endif
-			{
-				HairGBuffer.WorldNormal = SampleVisData.Tangent;
-				HairGBuffer.BaseColor = SampleBaseColor;
-				HairGBuffer.Roughness = SampleRoughness;
-				HairGBuffer.ShadingModelID = SHADINGMODELID_HAIR;
-				HairGBuffer.DiffuseColor = 0;
-				HairGBuffer.SpecularColor = 0;
-				HairGBuffer.Specular = SampleSpecular;
-				HairGBuffer.Metallic = 0;
-				HairGBuffer.Depth = SceneDepth;
-				HairGBuffer.GBufferAO = 1;
-				HairGBuffer.CustomData = 0;
-				HairGBuffer.IndirectIrradiance = 1000000;
-			}
-
-			#if PERMUTATION_PER_SAMPLE == 0
-			ClosestDepth = max(ClosestDepth, SampleDepth);  // Inverse-Z
-			#else
-			if (bIsClusterCompatible = SampleVisData.ClusterId == Voxel_ClusterId)
-			{
-				const float SampleCoverage = From8bitCoverage(SampleVisData.Coverage8bit);
-				SkyLighting += ReflectionEnvironment(HairGBuffer, ScreenPosition, SvPosition.xy) * SampleCoverage;
-			}
-			#endif
-		}
-		
-		// Lit fully covered or partially covered pixel
-		// * Fully covered pixel output their result into the main color target
-		// * Partially covered pixel output their result into the sub pixel color target. the main color target will store the underlying pixel color 
-		if (bIsClusterCompatible)
-		{
-			#if PERMUTATION_PER_SAMPLE == 0
-			SkyLighting = ReflectionEnvironment(HairGBuffer, ScreenPosition, SvPosition.xy) * saturate(CatData.PixelCoverage);
-			#endif
-
-			// Scene color alpha is used for ScreenSpaceSubsurfaceScattering (if that is not needed it can be disabled with SUBSURFACE_CHANNEL_MODE)
-			FLightAccumulator LightAccumulator = (FLightAccumulator)0;
-			LightAccumulator_Add(LightAccumulator, SkyLighting, SkyLighting, 1.0f, false);
-			const float4 LocalOutColor = LightAccumulator_GetResult(LightAccumulator);
-			if (CatData.PixelCoverage < 1)
-			{
-				OutColorSubPixel = LocalOutColor; // * PixelCoverage <-- this would be need if Coverage8bit was storing the ratio (sampleCoverage / validCoverage)
-				OutColorSubPixel.a = CatData.PixelCoverage;
-			}
-			else
-			{
-				OutColor += LocalOutColor;
-			}
-		}
-	}
-}
-#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
