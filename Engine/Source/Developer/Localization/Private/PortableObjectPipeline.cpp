@@ -51,6 +51,18 @@ namespace
 		FLocKeyPairMultiMap CollapsedNSSourceStringToExpandedNSKey;
 	};
 
+	struct FLocComments
+	{
+		FLocComments(TArray<FString> InExtracted, TArray<FString> InTranslator)
+			: ExtractedComments(MoveTemp(InExtracted))
+			, TranslatorComments(MoveTemp(InTranslator))
+		{
+		}
+
+		TArray<FString> ExtractedComments;
+		TArray<FString> TranslatorComments;
+	};
+
 	void BuildCollapsedManifest(FLocTextHelper& InLocTextHelper, const ELocalizedTextCollapseMode InTextCollapseMode, FCollapsedData& OutCollapsedData, TSharedPtr<FInternationalizationManifest>& OutPlatformAgnosticManifest, TMap<FName, TSharedRef<FInternationalizationManifest>>& OutPerPlatformManifests)
 	{
 		// Always add the split platforms so that they generate an empty manifest if there are no entries for that platform in the master manifest
@@ -154,9 +166,9 @@ namespace
 		}, true);
 	}
 
-	TMap<FPortableObjectEntryKey, TArray<FString>> ExtractPreservedPOComments(const FPortableObjectFormatDOM& InPortableObject)
+	TMap<FPortableObjectEntryKey, FLocComments> ExtractPreservedPOComments(const FPortableObjectFormatDOM& InPortableObject)
 	{
-		TMap<FPortableObjectEntryKey, TArray<FString>> POEntryToCommentMap;
+		TMap<FPortableObjectEntryKey, FLocComments> POEntryToCommentMap;
 		for (auto EntryPairIterator = InPortableObject.GetEntriesIterator(); EntryPairIterator; ++EntryPairIterator)
 		{
 			const TSharedPtr< FPortableObjectEntry >& Entry = EntryPairIterator->Value;
@@ -167,9 +179,9 @@ namespace
 				return !ExtractedComment.StartsWith(TEXT("Key:"), ESearchCase::CaseSensitive) && !ExtractedComment.StartsWith(TEXT("SourceLocation:"), ESearchCase::CaseSensitive) && !ExtractedComment.StartsWith(TEXT("InfoMetaData:"), ESearchCase::CaseSensitive);
 			});
 
-			if (CommentsToPreserve.Num())
+			if (CommentsToPreserve.Num() || Entry->TranslatorComments.Num())
 			{
-				POEntryToCommentMap.Add(FPortableObjectEntryKey(Entry->MsgId, Entry->MsgIdPlural, Entry->MsgCtxt), CommentsToPreserve);
+				POEntryToCommentMap.Add(FPortableObjectEntryKey(Entry->MsgId, Entry->MsgIdPlural, Entry->MsgCtxt), FLocComments(CommentsToPreserve, Entry->TranslatorComments));
 			}
 		}
 		return POEntryToCommentMap;
@@ -376,7 +388,7 @@ namespace
 		if (bShouldPersistComments)
 		{
 			// Preserve comments from the specified file now
-			TMap<FPortableObjectEntryKey, TArray<FString>> POEntryToCommentMap;
+			TMap<FPortableObjectEntryKey, FLocComments> POEntryToCommentMap;
 			{
 				FPortableObjectFormatDOM ExistingPortableObject;
 				if (LoadPOFile(InPOFilePath, ExistingPortableObject))
@@ -391,7 +403,8 @@ namespace
 				const TSharedPtr<FPortableObjectEntry> FoundEntry = NewPortableObject.FindEntry(Pair.Key.MsgId, Pair.Key.MsgIdPlural, Pair.Key.MsgCtxt);
 				if (FoundEntry.IsValid())
 				{
-					FoundEntry->AddExtractedComments(Pair.Value);
+					FoundEntry->AddExtractedComments(Pair.Value.ExtractedComments);
+					FoundEntry->AddTranslatorComments(Pair.Value.TranslatorComments);
 				}
 			}
 		}
