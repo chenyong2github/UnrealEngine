@@ -270,8 +270,14 @@ void FMacWindow::Destroy()
 	{
 		SCOPED_AUTORELEASE_POOL;
 		bIsClosed = true;
-		[WindowHandle setAlphaValue:0.0f];
-		[WindowHandle setBackgroundColor:[NSColor clearColor]];
+
+		FCocoaWindow* WindowHandleCopy = WindowHandle;
+		MainThreadCall(^{
+			SCOPED_AUTORELEASE_POOL;
+			[WindowHandleCopy setAlphaValue:0.0f];
+			[WindowHandleCopy setBackgroundColor:[NSColor clearColor]];
+		}, UE4ShowEventMode, false);
+
 		MacApplication->OnWindowDestroyed(SharedThis(this));
 		WindowHandle = nullptr;
 	}
