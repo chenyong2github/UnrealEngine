@@ -26,6 +26,8 @@
 
 void SUsdStageInfo::Construct( const FArguments& InArgs, AUsdStageActor* UsdStageActor )
 {
+	OnInitialLoadSetChanged = InArgs._OnInitialLoadSetChanged;
+
 	InitialLoadSetStrings.Reset();
 	InitialLoadSetStrings.Add( MakeShared< FString >( TEXT("Load All") ) );
 	InitialLoadSetStrings.Add( MakeShared< FString >( TEXT("Load None") ) );
