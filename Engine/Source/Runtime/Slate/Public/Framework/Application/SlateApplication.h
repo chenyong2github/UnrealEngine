@@ -1218,6 +1218,7 @@ public:
 
 	/** @return true if the difference between the ScreenSpaceOrigin and the ScreenSpacePosition is larger than the trigger distance for dragging in Slate. */
 	bool HasTraveledFarEnoughToTriggerDrag(const FPointerEvent& PointerEvent, const FVector2D ScreenSpaceOrigin) const;
+	bool HasTraveledFarEnoughToTriggerDrag(const FPointerEvent& PointerEvent, const FVector2D ScreenSpaceOrigin, EOrientation Orientation) const;
 
 	/** Set the size of the deadzone for dragging in screen pixels */
 	void SetDragTriggerDistance( float ScreenPixels );
