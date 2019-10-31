@@ -11,8 +11,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Automation", "Automation", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Android.Automation", "Android\Android.Automation.csproj", "{32E3A47E-359A-4F78-AE6C-703B87DE0B97}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HTML5.Automation", "HTML5\HTML5.Automation.csproj", "{90FF4220-1CAE-4CCA-BBF6-7AAAED069F03}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IOS.Automation", "IOS\IOS.Automation.csproj", "{E1F1261F-DA95-41BD-80C1-60FBE0D37D22}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Linux.Automation", "Linux\Linux.Automation.csproj", "{EC395254-405B-4030-92CE-E346CC50848D}"
