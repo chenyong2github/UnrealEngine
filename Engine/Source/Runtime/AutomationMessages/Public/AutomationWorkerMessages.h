@@ -436,6 +436,8 @@ public:
 	int32 EffectsQuality;
 	UPROPERTY(EditAnywhere, Category="Message")
 	int32 FoliageQuality;
+	UPROPERTY(EditAnywhere, Category = "Message")
+	int32 ShadingQuality;
 
 	// Comparison Requests
 	UPROPERTY(EditAnywhere, Category="Message")
@@ -475,6 +477,7 @@ public:
 		, TextureQuality(0)
 		, EffectsQuality(0)
 		, FoliageQuality(0)
+		, ShadingQuality(0)
 		, bHasComparisonRules(0)
 		, ToleranceRed(0)
 		, ToleranceGreen(0)
@@ -528,6 +531,7 @@ public:
 		TextureQuality = Data.TextureQuality;
 		EffectsQuality = Data.EffectsQuality;
 		FoliageQuality = Data.FoliageQuality;
+		ShadingQuality = Data.ShadingQuality;
 
 		// Enabled Features
 		// TBD

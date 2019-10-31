@@ -123,6 +123,7 @@ namespace AutomationCommon
 		Data.TextureQuality = QualityLevels.TextureQuality;
 		Data.EffectsQuality = QualityLevels.EffectsQuality;
 		Data.FoliageQuality = QualityLevels.FoliageQuality;
+		Data.ShadingQuality = QualityLevels.ShadingQuality;
 		
 		//GRHIDeviceId
 

@@ -244,6 +244,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category=Settings)
 	int32 GetFoliageQuality() const;
 
+	// Sets the shading quality (0..4, higher is better)
+	// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
+	UFUNCTION(BlueprintCallable, Category = Settings)
+	void SetShadingQuality(int32 Value);
+
+	// Returns the shading quality (0..4, higher is better)
+	UFUNCTION(BlueprintCallable, Category = Settings)
+	int32 GetShadingQuality() const;
+
 	/** Checks if any user settings is different from current */
 	UFUNCTION(BlueprintPure, Category=Settings)
 	virtual bool IsDirty() const;

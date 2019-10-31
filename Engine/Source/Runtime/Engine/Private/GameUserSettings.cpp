@@ -836,6 +836,16 @@ int32 UGameUserSettings::GetFoliageQuality() const
 	return ScalabilityQuality.FoliageQuality;
 }
 
+void UGameUserSettings::SetShadingQuality(int32 Value)
+{
+	ScalabilityQuality.SetShadingQuality(Value);
+}
+
+int32 UGameUserSettings::GetShadingQuality() const
+{
+	return ScalabilityQuality.ShadingQuality;
+}
+
 UGameUserSettings* UGameUserSettings::GetGameUserSettings()
 {
 	return GEngine->GetGameUserSettings();
