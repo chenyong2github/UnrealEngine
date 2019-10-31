@@ -68,6 +68,17 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	uint OffsetInStorage = 0;
 	uint PixelSamplecount = 0;
 
+#if PERMUTATION_VELOCITY == VELOCITY_TYPE_AVG
+	float2 AverageVelocity = 0;
+	uint ValidVelocityCount = 0;
+#elif PERMUTATION_VELOCITY == VELOCITY_TYPE_CLOSEST
+	float2 ClosestVelocity = 0;
+	float ClosestDepth = 0;
+#elif PERMUTATION_VELOCITY == VELOCITY_TYPE_MAX
+	float2 MaxVelocity = 0;
+	float MaxVelocityMagnitude2 = 0;
+#endif
+
 	if (FirstNodeIndex != 0xFFFFFFFF && all(PixelCoord < OutputResolution))
 	{
 		//////////
@@ -102,7 +113,6 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 				SortedIndex[PixelNodeCount] = NodeIndex;
 				SortedDepth[PixelNodeCount] = PPLLNode.Depth;
 				// TODO sort and keep closest, merge furthest
-
 			}
 
 			PixelNodeCount++;
@@ -138,6 +148,28 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 			OutCompactNodeData[OffsetInStorage + i] = OutNodeData;
 			OutCompactNodeCoord[OffsetInStorage + i] = (PixelCoord.x & 0xFFFF) | ((PixelCoord.y & 0xFFFF) << 16);
+
+		#if PERMUTATION_VELOCITY != VELOCITY_TYPE_NONE
+			const float2 Velocity = UnpackVelocity(PPLLNode.PackedVelocity) * 0.0f;	// TODO: investigate why TAA jitter is still visible. Disabled for now.
+		#endif
+		#if PERMUTATION_VELOCITY == VELOCITY_TYPE_AVG
+			AverageVelocity += Velocity;
+			++ValidVelocityCount;
+		#elif PERMUTATION_VELOCITY == VELOCITY_TYPE_CLOSEST
+			if (ClosestDepth < Categorization.ClosestDepth) // Inverse-Z
+			{
+				ClosestVelocity = Velocity;
+				ClosestDepth = Categorization.ClosestDepth;
+			}
+		#elif PERMUTATION_VELOCITY == VELOCITY_TYPE_MAX
+			const float2 CurrentVelocity = Velocity;
+			const float CurrentVelocityMagnitude2 = dot(CurrentVelocity, CurrentVelocity);
+			if (CurrentVelocityMagnitude2 > MaxVelocityMagnitude2)
+			{
+				MaxVelocity = Velocity;
+				MaxVelocityMagnitude2 = CurrentVelocityMagnitude2;
+			}
+		#endif		
 		}
 
 	#if PERMUTATION_COVERAGE == 1
@@ -145,6 +177,14 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	#else
 		Categorization.PixelCoverage = 1.0f - Transmittance;
 	#endif
+
+	#if PERMUTATION_VELOCITY == VELOCITY_TYPE_AVG
+		OutVelocityTexture[PixelCoord] = EncodeVelocityToTexture(AverageVelocity / max(ValidVelocityCount, 1));
+	#elif PERMUTATION_VELOCITY == VELOCITY_TYPE_CLOSEST
+		OutVelocityTexture[PixelCoord] = EncodeVelocityToTexture(ClosestVelocity);
+	#elif PERMUTATION_VELOCITY == VELOCITY_TYPE_MAX
+		OutVelocityTexture[PixelCoord] = EncodeVelocityToTexture(MaxVelocity);
+	#endif		
 	}
 
 	FNodeDesc NodeDesc;
@@ -154,9 +194,6 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 	Categorization.SampleCount = PixelSamplecount;
 	OutCategorizationTexture[PixelCoord] = EncodeCategorizationData(Categorization);
-
-
-
 }
 
 
