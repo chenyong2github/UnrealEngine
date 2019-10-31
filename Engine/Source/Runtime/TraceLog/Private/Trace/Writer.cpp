@@ -1118,7 +1118,9 @@ void Writer_EventCreate(
 	uint16 EventSize = sizeof(FNewEventEvent);
 	EventSize += sizeof(FNewEventEvent::Fields[0]) * FieldCount;
 	EventSize += NamesSize;
-	auto& Event = *(FNewEventEvent*)Writer_BeginLog(EventUid, EventSize);
+
+	FLogInstance LogInstance = Writer_BeginLog(EventUid, EventSize);
+	auto& Event = *(FNewEventEvent*)(LogInstance.Ptr);
 
 	// Write event's main properties.
 	Event.EventUid = uint16(Uid) & uint16(EKnownEventUids::UidMask);
@@ -1153,7 +1155,7 @@ void Writer_EventCreate(
 		WriteName(Desc.Name, Desc.NameSize);
 	}
 
-	Writer_EndLog(&(uint8&)Event);
+	Writer_EndLog(LogInstance);
 
 	// Add this new event into the list so we can look them up later.
 	for (;; Writer_Yield())

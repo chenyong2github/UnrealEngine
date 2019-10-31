@@ -6,6 +6,8 @@
 
 #if UE_TRACE_ENABLED
 
+#include "Writer.inl"
+
 namespace Trace
 {
 
@@ -28,7 +30,7 @@ public:
 								FLogScope(uint16 EventUid, uint16 Size);
 								FLogScope(uint16 EventUid, uint16 Size, uint16 ExtraBytes);
 								~FLogScope();
-		uint8*					Ptr;
+		FLogInstance			Instance;
 	};
 
 	void*						Handle;

@@ -64,7 +64,13 @@ TRACELOG_API FWriteBuffer* Writer_GetBuffer();
 
 
 ////////////////////////////////////////////////////////////////////////////////
-inline uint8* Writer_BeginLog(uint16 EventUid, uint16 Size)
+struct FLogInstance
+{
+	uint8* Ptr;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+inline FLogInstance Writer_BeginLog(uint16 EventUid, uint16 Size)
 {
 	using namespace Private;
 
@@ -81,14 +87,15 @@ inline uint8* Writer_BeginLog(uint16 EventUid, uint16 Size)
 
 	uint32* Out = (uint32*)(Cursor + sizeof(void*));
 	Out[0] = (uint32(Size) << 16)|uint32(EventUid);
-	return (uint8*)(Out + 1);
+	return {(uint8*)(Out + 1)};
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-inline void Writer_EndLog(uint8* EventData)
+inline void Writer_EndLog(FLogInstance Instance)
 {
 	using namespace Private;
 
+	uint8* EventData = Instance.Ptr;
 	EventData -= sizeof(void*) + sizeof(FEventHeader);
 
 	// Add the event into the master linked list of events.
