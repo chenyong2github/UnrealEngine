@@ -17,6 +17,7 @@ limitations under the License.
 #include "utils/wav_reader.h"
 
 #include <algorithm>
+#include <cstring>
 #include <string>
 #include <memory>
 
