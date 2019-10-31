@@ -292,6 +292,13 @@ namespace Chaos
 			return MSegment.Support(Direction, MRadius + Thickness);
 		}
 
+		virtual TVector<T, 3> Support2(const TVector<T, 3>& Direction) const override { return MSegment.Support2(Direction); }
+
+		virtual T GetMargin() const override
+		{
+			return MRadius;
+		}
+
 		FORCEINLINE void SerializeImp(FArchive& Ar)
 		{
 			TImplicitObject<T, 3>::SerializeImp(Ar);
