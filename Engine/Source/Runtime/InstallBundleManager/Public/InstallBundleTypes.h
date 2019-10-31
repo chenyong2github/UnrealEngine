@@ -85,9 +85,8 @@ enum class EInstallBundleRequestInfoFlags : int32
 	None = 0,
 	EnqueuedBundlesForInstall = (1 << 0),
 	SkippedAlreadyMountedBundles = (1 << 1),
-	SkippedBundlesQueuedForInstall = (1 << 2), // Only valid for removal requests
-	SkippedUnknownBundles = (1 << 3),
-	InitializationError = (1 << 4), // Can't enqueue because the bundle manager failed to initialize
+	SkippedUnknownBundles = (1 << 2),
+	InitializationError = (1 << 3), // Can't enqueue because the bundle manager failed to initialize
 };
 ENUM_CLASS_FLAGS(EInstallBundleRequestInfoFlags);
 
