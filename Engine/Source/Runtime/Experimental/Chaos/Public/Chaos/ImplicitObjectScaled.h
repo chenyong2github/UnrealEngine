@@ -61,7 +61,7 @@ public:
 	}
 	~TImplicitObjectScaled() {}
 
-	static ImplicitObjectType GetType()
+	static EImplicitObjectType GetType()
 	{
 		return ImplicitObjectType::Scaled;
 	}
