@@ -9,6 +9,7 @@
 #include "SurfaceIterators.h"
 #include "EditorSupportDelegates.h"
 #include "Engine/Polys.h"
+#include "GeometryModeModule.h"
 
 IMPLEMENT_MODULE( FTextureAlignModeModule, TextureAlignMode );
 
@@ -18,14 +19,14 @@ DEFINE_LOG_CATEGORY_STATIC(LogTextureAlignMode, Log, All);
 void FTextureAlignModeModule::StartupModule()
 {
 	FEditorModeRegistry::Get().RegisterMode<FEdModeTexture>(
-		FBuiltinEditorModes::EM_Texture,
+		FGeometryEditingModes::EM_TextureAlign,
 		NSLOCTEXT("EditorModes", "TextureAlignmentMode", "Texture Alignment")
 		);
 }
 
 void FTextureAlignModeModule::ShutdownModule()
 {
-	FEditorModeRegistry::Get().UnregisterMode(FBuiltinEditorModes::EM_Texture);
+	FEditorModeRegistry::Get().UnregisterMode(FGeometryEditingModes::EM_TextureAlign);
 }
 
 /*------------------------------------------------------------------------------
@@ -190,7 +191,7 @@ bool FEdModeTexture::EndTracking(FEditorViewportClient* InViewportClient, FViewp
 
 bool FEdModeTexture::IsCompatibleWith(FEditorModeID OtherModeID) const
 {
-	return OtherModeID == FBuiltinEditorModes::EM_Bsp;
+	return OtherModeID == FGeometryEditingModes::EM_Bsp;
 }
 
 

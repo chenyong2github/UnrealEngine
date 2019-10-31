@@ -29,26 +29,11 @@
 #include "GeomModifier_Optimize.h"
 #include "GeomModifier_Turn.h"
 #include "GeomModifier_Weld.h"
-
-IMPLEMENT_MODULE( FGeometryModeModule, GeometryMode );
+#include "NavMesh/NavMeshBoundsVolume.h"
+#include "NavigationSystem.h"
+#include "GeometryModeModule.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGeometryMode, Log, All);
-
-
-void FGeometryModeModule::StartupModule()
-{
-	FEditorModeRegistry::Get().RegisterMode<FEdModeGeometry>(
-		FBuiltinEditorModes::EM_Geometry,
-		NSLOCTEXT("EditorModes", "GeometryMode", "Geometry Editing"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.BspMode", "LevelEditor.BspMode.Small"),
-		true, 500
-		);
-}
-
-void FGeometryModeModule::ShutdownModule()
-{
-	FEditorModeRegistry::Get().UnregisterMode(FBuiltinEditorModes::EM_Geometry);
-}
 
 /*------------------------------------------------------------------------------
 	Geometry Editing.
@@ -158,6 +143,19 @@ void FEdModeGeometry::Enter()
 
 void FEdModeGeometry::Exit()
 {
+	if(GetWorld())
+	{
+		UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+		for (auto GeomObjectIt = GeomObjectItor(); GeomObjectIt; GeomObjectIt++)
+		{
+			ANavMeshBoundsVolume* Volume = Cast<ANavMeshBoundsVolume>((*GeomObjectIt)->GetActualBrush());
+			if (Volume)
+			{
+				NavSys->OnNavigationBoundsUpdated(Volume);
+			}
+		}
+	}
+
 	FToolkitManager::Get().CloseToolkit(Toolkit.ToSharedRef());
 	Toolkit.Reset();
 
@@ -438,7 +436,7 @@ FVector FEdModeGeometry::GetWidgetLocation() const
 
 bool FEdModeGeometry::IsCompatibleWith(FEditorModeID OtherModeID) const
 {
-	return OtherModeID == FBuiltinEditorModes::EM_Bsp;
+	return OtherModeID == FGeometryEditingModes::EM_Bsp;
 }
 
 bool FEdModeGeometry::ComputeBoundingBoxForViewportFocus(AActor* Actor, UPrimitiveComponent* PrimitiveComponent, FBox& InOutBox) const
@@ -866,7 +864,7 @@ bool FEdModeGeometry::SelectCachedData( TArray<FGeomBase*>& raSelectedGeom ) con
 		return false;
 	}
 
-	check(Owner->IsModeActive(FBuiltinEditorModes::EM_Geometry));
+	check(Owner->IsModeActive(FGeometryEditingModes::EM_Geometry));
 
 	// Backup widget position, we want it to be in the same position as it was previously too
 	FVector PivLoc = Owner->PivotLocation;
@@ -1031,7 +1029,7 @@ void FEdModeGeometry::PostUndo()
 
 bool FEdModeGeometry::ExecDelete()
 {
-	check( Owner->IsModeActive( FBuiltinEditorModes::EM_Geometry ) );
+	check( Owner->IsModeActive(FGeometryEditingModes::EM_Geometry ) );
 
 	// Find the delete modifier and execute it.
 
@@ -1104,7 +1102,7 @@ FModeTool_GeometryModify::FModeTool_GeometryModify()
 
 void FModeTool_GeometryModify::SelectNone()
 {
-	FEdModeGeometry* Mode = GLevelEditorModeTools().GetActiveModeTyped<FEdModeGeometry>(FBuiltinEditorModes::EM_Geometry);
+	FEdModeGeometry* Mode = GLevelEditorModeTools().GetActiveModeTyped<FEdModeGeometry>(FGeometryEditingModes::EM_Geometry);
 	check(Mode);
 	Mode->GeometrySelectNone(false, false);
 }
@@ -1113,9 +1111,9 @@ void FModeTool_GeometryModify::SelectNone()
 bool FModeTool_GeometryModify::BoxSelect( FBox& InBox, bool InSelect )
 {
 	bool bResult = false;
-	if( GLevelEditorModeTools().IsModeActive( FBuiltinEditorModes::EM_Geometry ) )
+	if( GLevelEditorModeTools().IsModeActive(FGeometryEditingModes::EM_Geometry ) )
 	{
-		FEdModeGeometry* mode = (FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode( FBuiltinEditorModes::EM_Geometry );
+		FEdModeGeometry* mode = (FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode(FGeometryEditingModes::EM_Geometry );
 
 		for( FEdModeGeometry::TGeomObjectIterator Itor( mode->GeomObjectItor() ) ; Itor ; ++Itor )
 		{
@@ -1142,9 +1140,9 @@ bool FModeTool_GeometryModify::BoxSelect( FBox& InBox, bool InSelect )
 bool FModeTool_GeometryModify::FrustumSelect( const FConvexVolume& InFrustum, FEditorViewportClient* InViewportClient, bool InSelect /* = true */ )
 {
 	bool bResult = false;
-	if( GLevelEditorModeTools().IsModeActive( FBuiltinEditorModes::EM_Geometry ) )
+	if( GLevelEditorModeTools().IsModeActive(FGeometryEditingModes::EM_Geometry ) )
 	{
-		FEdModeGeometry* mode = (FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode( FBuiltinEditorModes::EM_Geometry );
+		FEdModeGeometry* mode = (FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode(FGeometryEditingModes::EM_Geometry );
 
 		for( FEdModeGeometry::TGeomObjectIterator Itor( mode->GeomObjectItor() ) ; Itor ; ++Itor )
 		{
@@ -1213,7 +1211,7 @@ bool FModeTool_GeometryModify::EndModify()
 	// Let the modifier finish up.
 	if( CurrentModifier != NULL )
 	{
-		FEdModeGeometry* mode = ((FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode(FBuiltinEditorModes::EM_Geometry));
+		FEdModeGeometry* mode = ((FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode(FGeometryEditingModes::EM_Geometry));
 
 		// Update the source data to match the current geometry data.
 		mode->SendToSource();
@@ -1274,7 +1272,7 @@ void FModeTool_GeometryModify::EndTrans()
  */
 bool FModeTool_GeometryModify::InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event)
 {
-	check( GLevelEditorModeTools().IsModeActive( FBuiltinEditorModes::EM_Geometry ) );
+	check( GLevelEditorModeTools().IsModeActive(FGeometryEditingModes::EM_Geometry ) );
 	// Give the current modifier a chance to handle this first
 	if( CurrentModifier && CurrentModifier->InputKey( ViewportClient, Viewport, Key, Event ) )
 	{
@@ -1286,7 +1284,7 @@ bool FModeTool_GeometryModify::InputKey(FEditorViewportClient* ViewportClient, F
 		// Hitting ESC will deselect any subobjects first.  If no subobjects are selected, then it will
 		// deselect the brushes themselves.
 
-		FEdModeGeometry* mode = (FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode( FBuiltinEditorModes::EM_Geometry );
+		FEdModeGeometry* mode = (FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode(FGeometryEditingModes::EM_Geometry );
 		bool bHadSubObjectSelections = (mode->GetSelectionState() > 0) ? true : false;
 
 		for( FEdModeGeometry::TGeomObjectIterator Itor( mode->GeomObjectItor() ) ; Itor ; ++Itor )
