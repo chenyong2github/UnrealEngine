@@ -39,7 +39,7 @@ void FModelingToolsEditorModeModule::OnPostEngineInit()
 	FEditorModeRegistry::Get().RegisterMode<FModelingToolsEditorMode>(
 		FModelingToolsEditorMode::EM_ModelingToolsEditorModeId,
 		LOCTEXT("ModelingToolsEditorModeName", "ModelingToolsEditorMode"),
-		FSlateIcon(),
+		FSlateIcon("ModelingToolsStyle", "LevelEditor.ModelingToolsMode", "LevelEditor.ModelingToolsMode.Small"),
 		true);
 
 	FModelingToolActionCommands::RegisterAllToolActions();
