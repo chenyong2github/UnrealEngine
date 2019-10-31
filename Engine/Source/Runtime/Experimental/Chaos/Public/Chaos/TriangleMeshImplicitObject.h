@@ -44,7 +44,7 @@ namespace Chaos
 			return MLocalBoundingBox;
 		}
 
-		static ImplicitObjectType GetType()
+		static EImplicitObjectType GetType()
 		{
 			return ImplicitObjectType::TriangleMesh;
 		}

@@ -26,26 +26,34 @@ class TBVHParticles;
 template<class T, int d>
 class TImplicitObject;
 
-
-enum class ImplicitObjectType : int8
+namespace ImplicitObjectType
 {
-	//Note: add entries at the bottom for serialization
-	Sphere = 0,
-	Box,
-	Plane,
-	Capsule,
-	Transformed,
-	Union,
-	LevelSet,
-	Unknown,
-	Convex,
-	TaperedCylinder,
-	Cylinder,
-	TriangleMesh,
-	HeightField,
-	Scaled,
-	Triangle
-};
+	enum
+	{
+		//Note: add entries in order to avoid serialization issues (but before IsInstanced)
+		Sphere = 0,
+		Box,
+		Plane,
+		Capsule,
+		Transformed,
+		Union,
+		LevelSet,
+		Unknown,
+		Convex,
+		TaperedCylinder,
+		Cylinder,
+		TriangleMesh,
+		HeightField,
+		Scaled,
+		Triangle,
+
+		//Add entries above this line for serialization
+		IsInstanced = 1 << 6,
+		IsScaled = 1 << 7
+	};
+}
+
+using EImplicitObjectType = uint8;	//see ImplicitObjectType
 
 namespace EImplicitObject
 {
@@ -96,7 +104,7 @@ class CHAOS_API TImplicitObject
 public:
 	static TImplicitObject<T,d>* SerializationFactory(FChaosArchive& Ar, TImplicitObject<T, d>* Obj);
 
-	TImplicitObject(int32 Flags, ImplicitObjectType InType = ImplicitObjectType::Unknown);
+	TImplicitObject(int32 Flags, EImplicitObjectType InType = ImplicitObjectType::Unknown);
 	TImplicitObject(const TImplicitObject<T, d>&) = delete;
 	TImplicitObject(TImplicitObject<T, d>&&) = delete;
 	virtual ~TImplicitObject();
@@ -135,7 +143,7 @@ public:
 		return static_cast<const T_DERIVED&>(*this);
 	}
 
-	ImplicitObjectType GetType(bool bGetTrueType = false) const;
+	EImplicitObjectType GetType(bool bGetTrueType = false) const;
 
 	virtual bool IsValidGeometry() const;
 
@@ -252,10 +260,10 @@ public:
 
 	virtual FName GetTypeName() const { return GetTypeName(GetType()); }
 
-	static const FName GetTypeName(const ImplicitObjectType InType);
+	static const FName GetTypeName(const EImplicitObjectType InType);
 
 protected:
-	ImplicitObjectType Type;
+	EImplicitObjectType Type;
 	bool bIsConvex;
 	bool bIgnoreAnalyticCollisions;
 	bool bHasBoundingBox;
