@@ -88,7 +88,21 @@ void SerializeToDisk(TEvolution& Evolution)
 #endif
 
 template <typename T, int d>
-void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(T Dt)
+void TPBDRigidsEvolutionGBF<T, d>::Advance(const T Dt, const T MaxStepDt, const int32 MaxSteps)
+{
+	const int32 NumSteps = FMath::Clamp(FMath::CeilToInt(Dt / MaxStepDt), 1, MaxSteps);
+	const T StepDt = Dt / (T)NumSteps;
+	for (int32 Step = 0; Step < NumSteps; ++Step)
+	{
+		// StepFraction: how much of the remaining time this step represents, used to interpolate kinematic targets
+		// E.g., for 4 steps this will be: 1/4, 1/3, 1/2, 1
+		const float StepFraction = (T)1 / (T)(NumSteps - Step);
+		AdvanceOneTimeStep(StepDt, StepFraction);
+	}
+}
+
+template <typename T, int d>
+void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(const T Dt, const T StepFraction)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Evo_AdvanceOneTimeStep);
 
@@ -106,7 +120,7 @@ void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(T Dt)
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evo_KinematicTargets);
-		ApplyKinematicTargets(Dt);
+		ApplyKinematicTargets(Dt, StepFraction);
 	}
 
 	if (PostIntegrateCallback != nullptr)

@@ -420,8 +420,11 @@ class TPBDRigidsEvolutionBase
 		}
 	}
 
-	void ApplyKinematicTargets(T Dt)
+	void ApplyKinematicTargets(const T Dt, const T StepFraction)
 	{
+		check(StepFraction > (T)0);
+		check(StepFraction <= (T)1);
+
 		// @todo(ccaulfield): optimize. Depending on the number of kinematics relative to the number that have 
 		// targets set, it may be faster to process a command list rather than iterate over them all each frame. 
 		const T MinDt = 1e-6f;
@@ -447,17 +450,29 @@ class TPBDRigidsEvolutionBase
 			{
 				// Move to kinematic target and update velocities to match
 				// Target positions only need to be processed once, and we reset the velocity next frame (if no new target is set)
+				TVector<T, d> TargetPos;
+				TRotation<T, d> TargetRot;
+				if (FMath::IsNearlyEqual(StepFraction, (T)1, KINDA_SMALL_NUMBER))
+				{
+					TargetPos = KinematicTarget.GetTarget().GetLocation();
+					TargetRot = KinematicTarget.GetTarget().GetRotation();
+					KinematicTarget.SetMode(EKinematicTargetMode::Zero);
+				}
+				else
+				{
+					TargetPos = TVector<T, d>::Lerp(Particle.X(), KinematicTarget.GetTarget().GetLocation(), StepFraction);
+					TargetRot = TRotation<T, d>::Slerp(Particle.R(), KinematicTarget.GetTarget().GetRotation(), StepFraction);
+				}
 				if (Dt > MinDt)
 				{
-					TVector<float, 3> V = TVector<float, 3>::CalculateVelocity(Particle.X(), KinematicTarget.GetTarget().GetLocation(), Dt);
+					TVector<float, 3> V = TVector<float, 3>::CalculateVelocity(Particle.X(), TargetPos, Dt);
 					Particle.V() = V;
 
-					TVector<float, 3> W = TRotation<float, 3>::CalculateAngularVelocity(Particle.R(), KinematicTarget.GetTarget().GetRotation(), Dt);
+					TVector<float, 3> W = TRotation<float, 3>::CalculateAngularVelocity(Particle.R(), TargetRot, Dt);
 					Particle.W() = W;
 				}
-				Particle.X() = KinematicTarget.GetTarget().GetTranslation();
-				Particle.R() = KinematicTarget.GetTarget().GetRotation();
-				KinematicTarget.SetMode(EKinematicTargetMode::Zero);
+				Particle.X() = TargetPos;
+				Particle.R() = TargetRot;
 				break;
 			}
 
