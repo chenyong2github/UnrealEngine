@@ -508,6 +508,7 @@ const FVisibilitySample& UGeometryCacheTrackStreamable::GetVisibilitySample(floa
 			return Sample;
 		}
 	}
+	ensure(VisibilitySamples.Num());
 	return VisibilitySamples.Last();
 }
 
