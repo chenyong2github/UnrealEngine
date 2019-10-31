@@ -29,7 +29,7 @@ void UAnimCurveCompressionCodec::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
-	if (!Ar.IsCooking())
+	if (!Ar.IsCooking() && !(Ar.IsLoading() && GetOutermost()->bIsCookedForEditor))
 	{
 		Ar << InstanceGuid;
 	}
