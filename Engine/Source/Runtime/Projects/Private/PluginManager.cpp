@@ -230,6 +230,10 @@ void FPluginManager::ReadAllPlugins(TMap<FString, TSharedRef<FPlugin>>& Plugins,
 		ReadPluginsInDirectory(FPaths::EnginePluginsDir(), EPluginType::Engine, Plugins, ChildPlugins);
 		for (auto const& Platform : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
 		{
+			for (auto const& AdditionalFolder : Platform.Value.AdditionalRestrictedFolders)
+			{
+				ReadPluginsInDirectory(FPaths::EnginePlatformExtensionsDir() / AdditionalFolder / TEXT("Plugins"), EPluginType::Engine, Plugins, ChildPlugins);
+			}
 			ReadPluginsInDirectory(FPaths::EnginePlatformExtensionsDir() / Platform.Key / TEXT("Plugins"), EPluginType::Engine, Plugins, ChildPlugins);
 		}
 
@@ -241,6 +245,10 @@ void FPluginManager::ReadAllPlugins(TMap<FString, TSharedRef<FPlugin>>& Plugins,
 			ReadPluginsInDirectory(Root / TEXT("Plugins"), EPluginType::Project, Plugins, ChildPlugins);
 			for (auto const& Platform : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
 			{
+				for (auto const& AdditionalFolder : Platform.Value.AdditionalRestrictedFolders)
+				{
+					ReadPluginsInDirectory(Root / TEXT("Platforms") / AdditionalFolder / TEXT("Plugins"), EPluginType::Project, Plugins, ChildPlugins);
+				}
 				ReadPluginsInDirectory(Root / TEXT("Platforms") / Platform.Key / TEXT("Plugins"), EPluginType::Project, Plugins, ChildPlugins);
 			}
 		}
@@ -466,7 +474,7 @@ void FPluginManager::CreatePluginObject(const FString& FileName, const FPluginDe
 		Plugins[Plugin->GetName()] = Plugin;
 		UE_LOG(LogPluginManager, Verbose, TEXT("Replacing engine version of '%s' plugin with game version"), *Plugin->GetName());
 	}
-	else if( (*ExistingPlugin)->Type != EPluginType::Project || Type != EPluginType::Engine)
+	else if (((*ExistingPlugin)->Type != EPluginType::Project || Type != EPluginType::Engine) && (*ExistingPlugin)->FileName != Plugin->FileName)
 	{
 		UE_LOG(LogPluginManager, Warning, TEXT("Plugin '%s' exists at '%s' and '%s' - second location will be ignored"), *Plugin->GetName(), *(*ExistingPlugin)->FileName, *Plugin->FileName);
 	}
