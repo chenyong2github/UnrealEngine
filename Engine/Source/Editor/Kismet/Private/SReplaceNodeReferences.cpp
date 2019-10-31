@@ -359,7 +359,7 @@ void SReplaceNodeReferences::GatherAllAvailableBlueprintVariables(UClass* InTarg
 			}
 
 			TSharedPtr< FTargetVariableReplaceReferences > VariableItem = MakeShareable(new FTargetVariableReplaceReferences);
-			VariableItem->VariableReference.SetFromField<UProperty>(Property, true);
+			VariableItem->VariableReference.SetFromField<UProperty>(Property, true, InTargetClass);
 
 			FEdGraphPinType Type;
 			K2Schema->ConvertPropertyToPinType(Property, VariableItem->PinType);
@@ -436,7 +436,7 @@ void SReplaceNodeReferences::OnSubmitSearchQuery(bool bFindAndReplace)
 	FString SearchTerm;
 
 	FMemberReference SourceVariableReference;
-	SourceVariableReference.SetFromField<UProperty>(SourceProperty, true);
+	SourceVariableReference.SetFromField<UProperty>(SourceProperty, true, SourceProperty->GetOwnerClass());
 	SearchTerm = SourceVariableReference.GetReferenceSearchString(SourceProperty->GetOwnerClass());
 
 	FOnSearchComplete OnSearchComplete;

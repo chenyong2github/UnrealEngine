@@ -90,7 +90,7 @@ public:
 	//~ End K2Node Interface
 
 	/** Set up this variable node from the supplied UProperty */
-	void SetFromProperty(const UProperty* Property, bool bSelfContext);
+	void SetFromProperty(const UProperty* Property, bool bSelfContext, UClass* OwnerClass);
 
 	/** Util to get variable name as a string */
 	FString GetVarNameString() const
