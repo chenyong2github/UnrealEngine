@@ -78,3 +78,5 @@ enum class EInstallBundleGetContentStateFlags : uint32
 };
 ENUM_CLASS_FLAGS(EInstallBundleGetContentStateFlags);
 
+DECLARE_DELEGATE_OneParam(FInstallBundleGetContentStateDelegate, FInstallBundleContentState);
+
