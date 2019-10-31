@@ -331,6 +331,8 @@ struct FNetworkSimTime
 	// FIXME
 	void NetSerialize(FArchive& Ar) { Ar << Time; }
 
+	operator FSimTime() const { return Time; }
+
 	using T = FNetworkSimTime;
 	T& operator+= (const T &rhs) { this->Time += rhs.Time; return(*this); }
 	T& operator-= (const T &rhs) { this->Time -= rhs.Time; return(*this); }
