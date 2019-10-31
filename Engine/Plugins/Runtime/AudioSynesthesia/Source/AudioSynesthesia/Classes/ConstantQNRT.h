@@ -71,51 +71,51 @@ class AUDIOSYNESTHESIA_API UConstantQNRTSettings : public UAudioSynesthesiaNRTSe
 		UConstantQNRTSettings();
 
 		/** Starting frequency for first bin of CQT */
-		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AudioAnalyzer, meta = (ClampMin = "20.0", ClampMax = "20000"))
+		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AudioAnalyzer, meta = (ClampMin = "20.0", ClampMax = "20000"))
 		float StartingFrequency;
 
         /** Total number of resulting constant Q bands. */
-		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AudioAnalyzer, meta = (ClampMin = "1", ClampMax = "96"))
+		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AudioAnalyzer, meta = (ClampMin = "1", ClampMax = "96"))
 		int32 NumBands;
 
 		/** Number of bands within an octave. */
-		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AudioAnalyzer, meta = (ClampMin = "1", ClampMax = "24"))
+		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AudioAnalyzer, meta = (ClampMin = "1", ClampMax = "24"))
 		float NumBandsPerOctave;                        
 
 		/** Number of seconds between cqt measurements */
-		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AudioAnalyzer, meta = (ClampMin = "0.01", ClampMax = "1.0"))
+		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AudioAnalyzer, meta = (ClampMin = "0.01", ClampMax = "1.0"))
 		float AnalysisPeriod;
 
 		/** If true, multichannel audio is downmixed to mono with equal amplitude scaling. If false, each channel gets it's own CQT result. */
-		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AudioAnalyzer)
+		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AudioAnalyzer)
 		bool bDownmixToMono;
 
 		/** Size of FFT. */
-		UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category=AudioAnalyzer)
+		UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category=AudioAnalyzer)
 		EConstantQFFTSizeEnum FFTSize;
 
 		/** Type of window to be applied to input audio */
-		UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category=AudioAnalyzer)
+		UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category=AudioAnalyzer)
         EFFTWindowType WindowType;
 
 		/** Type of spectrum to use. */
-		UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category=AudioAnalyzer)
+		UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category=AudioAnalyzer)
 		EAudioSpectrumType SpectrumType;
 		
 		/** Stretching factor to control overlap of adjacent bands. */
-		UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category=AudioAnalyzer, meta = (ClampMin = "0.01", ClampMax = "2.0"))
+		UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category=AudioAnalyzer, meta = (ClampMin = "0.01", ClampMax = "2.0"))
 		float BandWidthStretch;                         
 		
 		/** Normalization scheme used to generate band windows. */
-		UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category=AudioAnalyzer)
+		UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category=AudioAnalyzer)
 		EConstantQNormalizationEnum CQTNormalization;
 
 		/** Noise floor to use when normalizing CQT */
-		UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = AudioAnalyzer, meta = (ClampMin = "-120.0", ClampMax="0.0"))
+		UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category = AudioAnalyzer, meta = (ClampMin = "-120.0", ClampMax="0.0"))
 		float NoiseFloorDb;
 
 		/** Convert UConstantQNRTSettings to FConstantQNRTSettings */
-		TUniquePtr<Audio::IAnalyzerNRTSettings> GetSettings();
+		TUniquePtr<Audio::IAnalyzerNRTSettings> GetSettings(const float InSampleRate, const int32 InNumChannels) const;
 };
 
 
@@ -134,19 +134,19 @@ class AUDIOSYNESTHESIA_API UConstantQNRT : public UAudioSynesthesiaNRT
 		UConstantQNRT();
 
 		/** The settings for the audio analyzer.  */
-		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AudioAnalyzer)
+		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AudioAnalyzer)
 		UConstantQNRTSettings* Settings;
 
 		/** Get a specific channel cqt of the analyzed sound at a given time. */
 		UFUNCTION(BlueprintCallable, Category="Audio Analyzer")
-		void GetChannelConstantQAtTime(const float InSeconds, const int32 InChannel, TArray<float>& OutConstantQ);
+		void GetChannelConstantQAtTime(const float InSeconds, const int32 InChannel, TArray<float>& OutConstantQ) const;
 
 		/** Get a specific channel cqt of the analyzed sound at a given time. */
 		UFUNCTION(BlueprintCallable, Category="Audio Analyzer")
-		void GetNormalizedChannelConstantQAtTime(const float InSeconds, const int32 InChannel, TArray<float>& OutConstantQ);
+		void GetNormalizedChannelConstantQAtTime(const float InSeconds, const int32 InChannel, TArray<float>& OutConstantQ) const;
 
 		/** Convert ULoudnessNRTSettings to FLoudnessNRTSettings */
- 		virtual TUniquePtr<Audio::IAnalyzerNRTSettings> GetSettings() override;
+ 		virtual TUniquePtr<Audio::IAnalyzerNRTSettings> GetSettings(const float InSampleRate, const int32 InNumChannels) const override;
 
 	protected:
 

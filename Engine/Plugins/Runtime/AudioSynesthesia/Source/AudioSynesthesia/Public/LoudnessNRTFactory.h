@@ -56,12 +56,15 @@ namespace Audio
 		/**
 		 * Defines how to serialize result.
 		 */
-		void Serialize(FArchive& Archive) override;
+		virtual void Serialize(FArchive& Archive) override;
 
 		/**
 		 * Appends an FLoudnessDatum to the container.
 		 */
 		void Add(const FLoudnessDatum& InDatum);
+
+		/** Returns true if this object data for the given channel index */
+		bool ContainsChannel(int32 InChannelIndex) const;
 
 		/**
 		 * Returns const reference to FLoudnessDatum array for individual channel.
@@ -78,15 +81,18 @@ namespace Audio
 		 */
 		float GetLoudnessRange(float InNoiseFloor) const;
 
-		/**
-		 * Returns range in dB of loudness result given the noise floor.
-		 */
+
+		/** Returns range in dB of loudness result given the noise floor. */
 		float GetChannelLoudnessRange(int32 InChannelIdx, float InNoiseFloor) const;
 
-		/**
-		 * Get Number of Channels
-		 */
-		int32 GetNumChannels() const;
+		/** Returns the channel indices availabe in result. */
+		void GetChannels(TArray<int32>& OutChannels) const;
+
+		/** Gets the duration of the anlayzed audio. */
+		virtual float GetDurationInSeconds() const override;
+
+		/** Sets the duration of the anlayzed audio. */
+		void SetDurationInSeconds(float InDuration);
 
 		/**
 		 * Returns true if FLoudnessDatum arrays are sorted in chronologically ascending order via their timestamp.
@@ -99,6 +105,8 @@ namespace Audio
 		void SortChronologically();
 
 	private:
+		float DurationInSeconds;
+
 		TMap<int32, TArray<FLoudnessDatum> > ChannelLoudnessArrays;
 
 		TMap<int32, FFloatInterval> ChannelLoudnessIntervals;
@@ -119,12 +127,12 @@ namespace Audio
 		/**
 		 * Analyzes input sample buffer and updates result. 
 		 */
-		void Analyze(TArrayView<const float> InAudio, IAnalyzerNRTResult* OutResult) override;
+		virtual void Analyze(TArrayView<const float> InAudio, IAnalyzerNRTResult* OutResult) override;
 
 		/**
 		 * Call when all audio data has been analyzed. 
 		 */
-		void Finalize(IAnalyzerNRTResult* OutResult) override;
+		virtual void Finalize(IAnalyzerNRTResult* OutResult) override;
 
 	private:
 
@@ -134,6 +142,7 @@ namespace Audio
 		int32 NumChannels;
 		int32 NumAnalyzedBuffers;
 		int32 NumHopFrames;
+		int32 NumFrames;
 
 		float SampleRate;
 
@@ -153,19 +162,19 @@ namespace Audio
 		public:
 
 		/** Name of specific analyzer type. */
-		FName GetName() const override;
+		virtual FName GetName() const override;
 
 		/** Human readable name of analyzer. */
-		FString GetTitle() const override;
+		virtual FString GetTitle() const override;
 
 		/** Creates a new FLoudnessNRTResult */
-		TUniquePtr<IAnalyzerNRTResult> NewResult() override;
+		virtual TUniquePtr<IAnalyzerNRTResult> NewResult() const override;
 
 		/** 
 		 * Creates a new FLoudnessNRTWorker. This expects IAnalyzerNRTSettings to be a valid pointer to
 		 * a FLoudnessNRTSettings object.
 		 */
-		TUniquePtr<IAnalyzerNRTWorker> NewWorker(const FAnalyzerNRTParameters& InParams, const IAnalyzerNRTSettings* InSettings) override;
+		virtual TUniquePtr<IAnalyzerNRTWorker> NewWorker(const FAnalyzerNRTParameters& InParams, const IAnalyzerNRTSettings* InSettings) const override;
 	};
 }
 

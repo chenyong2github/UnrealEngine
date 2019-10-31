@@ -56,7 +56,10 @@ namespace Audio
 		virtual void CopyFrom(IAnalyzerNRTResult* SourceResult);
 
 		// This can be overridden to return a string description of this results struct.
-		virtual FString ToString();
+		virtual FString ToString() const;
+
+		// This must be overridden to return the duration of the original audio analyzed.
+		virtual float GetDurationInSeconds() const = 0;
 	};
 
 	/** IAnalyzerNRTWorker
@@ -101,11 +104,11 @@ namespace Audio
 		virtual FString GetTitle() const;
 
 		// Create a new result.
-		virtual TUniquePtr<IAnalyzerNRTResult> NewResult() = 0;
+		virtual TUniquePtr<IAnalyzerNRTResult> NewResult() const = 0;
 
 		// Convenience function to create a new shared result by calling NewResult.
 		template<ESPMode Mode = ESPMode::Fast>
-		TSharedPtr<IAnalyzerNRTResult, Mode> NewResultShared()
+		TSharedPtr<IAnalyzerNRTResult, Mode> NewResultShared() const
 		{
 			TUniquePtr<Audio::IAnalyzerNRTResult> Result = NewResult();
 
@@ -113,7 +116,7 @@ namespace Audio
 		}
 
 		// Create a new worker.
-		virtual TUniquePtr<IAnalyzerNRTWorker> NewWorker(const FAnalyzerNRTParameters& InParams, const IAnalyzerNRTSettings* InSettings) = 0;
+		virtual TUniquePtr<IAnalyzerNRTWorker> NewWorker(const FAnalyzerNRTParameters& InParams, const IAnalyzerNRTSettings* InSettings) const = 0;
 	};
 }
 

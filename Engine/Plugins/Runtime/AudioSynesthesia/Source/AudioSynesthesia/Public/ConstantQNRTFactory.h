@@ -76,22 +76,28 @@ namespace Audio
 		FConstantQNRTResult();
 
 		/** Serialize or unserialize object */
-		void Serialize(FArchive& Archive) override;
+		virtual void Serialize(FArchive& Archive) override;
 
 		/** Add a single frame of CQT data */
 		void AddFrame(int32 InChannelIndex, float InTimestamp, TArrayView<const float> InSpectrum);
 
+		/** Returns true if this result contains data for the given channel index. */
+		bool ContainsChannel(int32 InChannelIndex) const;
+
 		/** Retrieve the array of frames for a single channel of audio. */
 		const TArray<FConstantQFrame>& GetFramesForChannel(int32 InChannelIndex) const;
 
-		/** Retrieve the difference between the maximum and minimum value in the spectrum. If 
-		 *  the minimum value is less than InNoiseFloor, then the result will be the difference
-		 *  betwen the maximum value and the noise floor. 
-		 */
-		float GetChannelConstantQRange(int32 InChannelIdx, float InNoiseFloor) const;
+		/** Retrieve the difference between the maximum and minimum value in the spectrum. */
+		FFloatInterval GetChannelConstantQInterval(int32 InChannelIdx) const;
 
-		/** Retrieve the number of channels available in the result. */
-		int32 GetNumChannels() const;
+		/** Retrieve an array of channel indices which exist in this result. */
+		void GetChannels(TArray<int32>& OutChannels) const;
+
+		/** Returns the duration of the analyzed audio in seconds */
+		virtual float GetDurationInSeconds() const override;
+
+		/** Sets the duration of the analyzed audio in seconds */
+		void SetDurationInSeconds(float InDuration); 
 
 	 	/** Returns true if FConstantQFrame arrays are sorted in chronologically ascending order via their timestamp.  */
 		bool IsSortedChronologically() const;
@@ -99,7 +105,10 @@ namespace Audio
 		/** Sorts FConstantQFrame arrays in chronologically ascnding order via their timestamp.  */
 		void SortChronologically();
 
+
 	private:
+
+		float DurationInSeconds;
 
 		TMap<int32, TArray<FConstantQFrame> > ChannelCQTFrames;
 
@@ -129,14 +138,14 @@ namespace Audio
 		 *  InAudio is an array view of audio.
 		 *  OutResult is a pointer to a valid FConstantQNRTResult
 		 */
-		void Analyze(TArrayView<const float> InAudio, IAnalyzerNRTResult* OutResult) override;
+		virtual void Analyze(TArrayView<const float> InAudio, IAnalyzerNRTResult* OutResult) override;
 
 		/** 
 		 *  Call when analysis of audio asset is complete. 
 		 *
 		 *  OutResult must be a pointer to a valid FConstantQNRTResult. 
 		 */
-		void Finalize(IAnalyzerNRTResult* OutResult) override;
+		virtual void Finalize(IAnalyzerNRTResult* OutResult) override;
 
 	private:
 
@@ -146,6 +155,7 @@ namespace Audio
 		/** Analyze a single window of audio from a single channel */
 		void AnalyzeWindow(const AlignedFloatBuffer& InWindow, int32 InChannelIndex, FConstantQNRTResult& OutResult);
 
+		int32 NumFrames;
 		int32 NumChannels;
 		int32 NumBuffers;
 		float SampleRate;
@@ -177,18 +187,18 @@ namespace Audio
 	public:
 
 		/** Name of this analyzer type. */
-		FName GetName() const override;
+		virtual FName GetName() const override;
 
 		/** Human readable name of this analyzer. */
-		FString GetTitle() const override;
+		virtual FString GetTitle() const override;
 
 		/** Create a new FConstantQNRTResult. */
-		TUniquePtr<IAnalyzerNRTResult> NewResult() override;
+		virtual TUniquePtr<IAnalyzerNRTResult> NewResult() const override;
 
 		/** Create a new FConstantQNRTWorker 
 		 *
 		 *  InSettings must be a pointer to FConstantQNRTSetting
 		 */
-		TUniquePtr<IAnalyzerNRTWorker> NewWorker(const FAnalyzerNRTParameters& InParams, const IAnalyzerNRTSettings* InSettings) override;
+		virtual TUniquePtr<IAnalyzerNRTWorker> NewWorker(const FAnalyzerNRTParameters& InParams, const IAnalyzerNRTSettings* InSettings) const override;
 	};
 }
