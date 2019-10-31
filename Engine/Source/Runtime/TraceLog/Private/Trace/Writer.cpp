@@ -235,7 +235,7 @@ static FWriteBuffer* Writer_NextBufferInternal(uint32 PageGrowth)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-TRACELOG_API uint8* Writer_NextBuffer(uint16 Size)
+TRACELOG_API FWriteBuffer* Writer_NextBuffer(uint16 Size)
 {
 	if (Size >= GPoolBlockSize - sizeof(FWriteBuffer))
 	{
@@ -265,7 +265,7 @@ TRACELOG_API uint8* Writer_NextBuffer(uint16 Size)
 	NextBuffer->ThreadId = TlsContext.GetThreadId();
 
 	NextBuffer->Cursor += Size;
-	return NextBuffer->Cursor;
+	return NextBuffer;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -46,7 +46,7 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////
 extern TRACELOG_API void* volatile		GLastEvent;
-TRACELOG_API uint8*						Writer_NextBuffer(uint16);
+TRACELOG_API FWriteBuffer*				Writer_NextBuffer(uint16);
 
 ////////////////////////////////////////////////////////////////////////////////
 #if IS_MONOLITHIC
@@ -81,7 +81,8 @@ inline FLogInstance Writer_BeginLog(uint16 EventUid, uint16 Size)
 	uint8* Cursor = (Buffer->Cursor += AllocSize);
 	if (UNLIKELY(UPTRINT(Cursor) > UPTRINT(Buffer)))
 	{
-		Cursor = Writer_NextBuffer(AllocSize);
+		Buffer = Writer_NextBuffer(AllocSize);
+		Cursor = Buffer->Cursor;
 	}
 	Cursor -= AllocSize;
 
