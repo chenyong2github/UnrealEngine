@@ -7341,7 +7341,10 @@ void UEditorEngine::AutomationLoadMap(const FString& MapName, FString* OutError)
 		EditorPlaySettings->bLaunchSeparateServer = false;
 		RequestParams.EditorPlaySettings = EditorPlaySettings;
 
-		StartPlayInEditorSession(RequestParams);
+		RequestPlaySession(RequestParams);
+
+		// Immediately launch the session 
+		StartQueuedPlaySessionRequest();
 
 		if (!FailHandler.CanProceed())
 		{
