@@ -5,6 +5,7 @@
 #include "DataPrepAsset.h"
 #include "DataPrepEditor.h"
 #include "DataprepAssetInstance.h"
+#include "DataprepWidgets.h"
 
 #include "DataPrepContentConsumer.h"
 #include "DataprepEditorStyle.h"
@@ -33,6 +34,7 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Text/STextBlock.h"
+
 
 #define LOCTEXT_NAMESPACE "DataprepAssetView"
 
@@ -421,6 +423,8 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 		];
 	}
 
+	TSharedPtr<SDataprepDetailsView> ParameterizationDetailsView;
+
 	ChildSlot
 	[
 		SNew(SBorder)
@@ -586,7 +590,7 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 						[
 							SNew( DataprepWidgetUtils::SConstrainedBox )
 							[
-								SNew( SDataprepDetailsView )
+								SAssignNew( ParameterizationDetailsView, SDataprepDetailsView )
 								.Object( DataprepAssetInterfacePtr->GetParameterizationObject() )
 								.ColumnSizeData( ColumnSizeData )
 								.Spacing( 10.0f )
@@ -608,13 +612,35 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 			]
 		]
 	];
+
+	if ( DataprepAssetInterfacePtr->IsA<UDataprepAsset>() )
+	{
+		TWeakObjectPtr<UDataprepAsset> DataprepAsset = static_cast<UDataprepAsset*>( DataprepAssetInterfacePtr.Get() );
+		OnParameterizationWasEdited = DataprepAsset->OnParameterizedObjectsChanged.AddLambda( [ParameterizationDetailsView, DataprepAsset](const TSet<UObject*>* Objects)
+		{
+			if ( Objects && Objects->Contains( DataprepAsset->GetParameterizationObject() ) )
+			{
+				ParameterizationDetailsView->ForceRefresh();
+			}
+		});
+	}
+
 }
 
 SDataprepAssetView::~SDataprepAssetView()
 {
-	if( UDataprepAssetInterface* DataprepAsset = DataprepAssetInterfacePtr.Get() )
+	if( UDataprepAssetInterface* DataprepAssetInterface = DataprepAssetInterfacePtr.Get() )
 	{
-		DataprepAsset->GetOnChanged().RemoveAll( this );
+		DataprepAssetInterface->GetOnChanged().RemoveAll( this );
+
+		if ( OnParameterizationWasEdited.IsValid() )
+		{
+			if ( DataprepAssetInterfacePtr->IsA<UDataprepAsset>() )
+			{
+				TWeakObjectPtr<UDataprepAsset> DataprepAsset = static_cast<UDataprepAsset*>( DataprepAssetInterfacePtr.Get() );
+				DataprepAsset->OnParameterizedObjectsChanged.Remove( OnParameterizationWasEdited );
+			}
+		}
 	}
 }
 
