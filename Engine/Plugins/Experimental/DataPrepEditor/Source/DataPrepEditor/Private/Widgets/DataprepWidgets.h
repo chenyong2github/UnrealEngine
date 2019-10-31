@@ -142,6 +142,8 @@ public:
 
 	void SetObjectToDisplay(UObject& Object);
 
+	void ForceRefresh();
+
 	// FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	// End of FGCObject interface
@@ -191,8 +193,6 @@ private:
 
 	/** Callback used to detect the existence of a new object to display after a reinstancing process */
 	void OnObjectReplaced(const TMap<UObject*, UObject*>& ReplacementObjectMap);
-
-	void ForceRefresh();
 
 	void OnDataprepParameterizationStatusForObjectsChanged(const TSet<UObject*>* Objects);
 
