@@ -78,7 +78,7 @@ void SNiagaraStackErrorItemFix::Construct(const FArguments& InArgs, UNiagaraStac
 		[
 			SNew(STextBlock)
 				.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
-				.Text_UObject(ErrorItem, &UNiagaraStackErrorItemFix::FixDescription)
+				.Text_UObject(ErrorItem, &UNiagaraStackErrorItemFix::GetDisplayName)
 				.ColorAndOpacity(this, &SNiagaraStackErrorItemFix::GetTextColorForSearch)
 				.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
 		];
