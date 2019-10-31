@@ -168,9 +168,9 @@ public:
 			{
 				for (UMaterialExpression* FunctionExpression : *Function->GetFunctionExpressions())
 				{
-					if (ExpressionType* ExpressionParameter = Cast<ExpressionType>(FunctionExpression))
+					if (FunctionExpression->GetParameterName() == ParameterInfo.Name)
 					{
-						if (ExpressionParameter->ParameterName == ParameterInfo.Name)
+						if (ExpressionType* ExpressionParameter = Cast<ExpressionType>(FunctionExpression))
 						{
 							Parameter = ExpressionParameter;
 
