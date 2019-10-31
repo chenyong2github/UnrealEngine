@@ -558,14 +558,10 @@ protected:
 	}
 	void SwapSafeZoneTypes()
 	{
-		if (FDisplayMetrics::GetDebugTitleSafeZoneRatio() != CachedDebugTitleSafeRatio)
-		{
-			FDisplayMetrics DisplayMetrics;
-			GetDisplayMetrics(DisplayMetrics);
-			CustomSafeZoneRatio = FMargin();
-			OnDebugSafeZoneChanged.Broadcast(FMargin(), false);
-		}
-
+		FDisplayMetrics DisplayMetrics;
+		GetDisplayMetrics(DisplayMetrics);
+		CustomSafeZoneRatio = FMargin();
+		OnDebugSafeZoneChanged.Broadcast(FMargin(), false);
 	}
 #endif
 
