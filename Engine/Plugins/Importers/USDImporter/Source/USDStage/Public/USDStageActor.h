@@ -114,8 +114,6 @@ private:
 
 	TMap< UObject*, FString > ObjectsToWatch;
 
-	TOptional< FString > PrimBeingUpdated; // Ignore prim updates if we are the one updating the USD prim
-
 private:
 	UPROPERTY( NonPIEDuplicateTransient )
 	TMap< FString, UStaticMesh* > MeshCache;
