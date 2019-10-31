@@ -39,6 +39,7 @@ typedef enum ovrMessageType_ {
   ovrMessage_AssetFile_Status                                    = 0x02D32F60, ///< Generated in response to ovr_AssetFile_Status()
   ovrMessage_AssetFile_StatusById                                = 0x5D955D38, ///< Generated in response to ovr_AssetFile_StatusById()
   ovrMessage_AssetFile_StatusByName                              = 0x41CFDA50, ///< Generated in response to ovr_AssetFile_StatusByName()
+  ovrMessage_CloudStorage2_GetUserDirectoryPath                  = 0x76A42EEE, ///< Generated in response to ovr_CloudStorage2_GetUserDirectoryPath()
   ovrMessage_CloudStorage_Delete                                 = 0x28DA456D, ///< Generated in response to ovr_CloudStorage_Delete()
   ovrMessage_CloudStorage_GetNextCloudStorageMetadataArrayPage   = 0x5C07A2EF, ///< Generated in response to ovr_CloudStorage_GetNextCloudStorageMetadataArrayPage()
   ovrMessage_CloudStorage_Load                                   = 0x40846B41, ///< Generated in response to ovr_CloudStorage_Load()
@@ -55,6 +56,7 @@ typedef enum ovrMessageType_ {
   ovrMessage_IAP_GetNextPurchaseArrayPage                        = 0x47570A95, ///< Generated in response to ovr_IAP_GetNextPurchaseArrayPage()
   ovrMessage_IAP_GetProductsBySKU                                = 0x7E9ACAF5, ///< Generated in response to ovr_IAP_GetProductsBySKU()
   ovrMessage_IAP_GetViewerPurchases                              = 0x3A0F8419, ///< Generated in response to ovr_IAP_GetViewerPurchases()
+  ovrMessage_IAP_GetViewerPurchasesDurableCache                  = 0x63599E2B, ///< Generated in response to ovr_IAP_GetViewerPurchasesDurableCache()
   ovrMessage_IAP_LaunchCheckoutFlow                              = 0x3F9B0D0D, ///< Generated in response to ovr_IAP_LaunchCheckoutFlow()
   ovrMessage_LanguagePack_GetCurrent                             = 0x1F90F0D5, ///< Generated in response to ovr_LanguagePack_GetCurrent()
   ovrMessage_LanguagePack_SetCurrent                             = 0x5B4FBBE0, ///< Generated in response to ovr_LanguagePack_SetCurrent()
@@ -88,6 +90,8 @@ typedef enum ovrMessageType_ {
   ovrMessage_Notification_GetRoomInvites                         = 0x6F916B92, ///< Generated in response to ovr_Notification_GetRoomInvites()
   ovrMessage_Notification_MarkAsRead                             = 0x717259E3, ///< Generated in response to ovr_Notification_MarkAsRead()
   ovrMessage_Party_GetCurrent                                    = 0x47933760, ///< Generated in response to ovr_Party_GetCurrent()
+  ovrMessage_RichPresence_Clear                                  = 0x57B752B3, ///< Generated in response to ovr_RichPresence_Clear()
+  ovrMessage_RichPresence_Set                                    = 0x3C147509, ///< Generated in response to ovr_RichPresence_Set()
   ovrMessage_Room_CreateAndJoinPrivate                           = 0x75D6E377, ///< Generated in response to ovr_Room_CreateAndJoinPrivate()
   ovrMessage_Room_CreateAndJoinPrivate2                          = 0x5A3A6243, ///< Generated in response to ovr_Room_CreateAndJoinPrivate2()
   ovrMessage_Room_Get                                            = 0x659A8FB8, ///< Generated in response to ovr_Room_Get()
@@ -191,6 +195,12 @@ typedef enum ovrMessageType_ {
   /// The message will contain a payload of type ::ovrPingResultHandle.
   /// Extract the payload from the message handle with ::ovr_Message_GetPingResult().
   ovrMessage_Notification_Networking_PingResult = 0x51153012,
+
+  /// Indicates that party has been updated
+  ///
+  /// The message will contain a payload of type ::ovrPartyUpdateNotificationHandle.
+  /// Extract the payload from the message handle with ::ovr_Message_GetPartyUpdateNotification().
+  ovrMessage_Notification_Party_PartyUpdate = 0x1D118AB2,
 
   /// Indicates that the user has accepted an invitation, for example in Oculus
   /// Home. Use ovr_Message_GetString() to extract the ID of the room that the
