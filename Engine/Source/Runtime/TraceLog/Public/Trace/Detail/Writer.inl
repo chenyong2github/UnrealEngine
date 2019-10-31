@@ -16,12 +16,11 @@ namespace Private
 ////////////////////////////////////////////////////////////////////////////////
 struct FWriteBuffer
 {
-	union
-	{
-		uint8*			Cursor;
-		FWriteBuffer*	Next;
-	};
-	uint32				ThreadId;
+	FWriteBuffer* __restrict	Next;
+	uint8* __restrict			Cursor;
+	uint8* __restrict volatile	Committed;
+	uint8* __restrict			Reaped;
+	uint32						ThreadId;
 };
 
 
@@ -66,7 +65,8 @@ TRACELOG_API FWriteBuffer* Writer_GetBuffer();
 ////////////////////////////////////////////////////////////////////////////////
 struct FLogInstance
 {
-	uint8* Ptr;
+	uint8*					Ptr;
+	Private::FWriteBuffer*	Internal;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -74,8 +74,8 @@ inline FLogInstance Writer_BeginLog(uint16 EventUid, uint16 Size)
 {
 	using namespace Private;
 
-	static const uint32 HeaderSize = sizeof(void*) + sizeof(FEventHeader);
-	uint32 AllocSize = ((Size + HeaderSize) + 7) & ~7;
+	static const uint32 HeaderSize = sizeof(FEventHeader);
+	uint32 AllocSize = Size + HeaderSize;
 
 	FWriteBuffer* Buffer = Writer_GetBuffer();
 	uint8* Cursor = (Buffer->Cursor += AllocSize);
@@ -86,29 +86,17 @@ inline FLogInstance Writer_BeginLog(uint16 EventUid, uint16 Size)
 	}
 	Cursor -= AllocSize;
 
-	uint32* Out = (uint32*)(Cursor + sizeof(void*));
+	uint32* Out = (uint32*)Cursor;
 	Out[0] = (uint32(Size) << 16)|uint32(EventUid);
-	return {(uint8*)(Out + 1)};
+	return {(uint8*)(Out + 1), Buffer};
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 inline void Writer_EndLog(FLogInstance Instance)
 {
 	using namespace Private;
-
-	uint8* EventData = Instance.Ptr;
-	EventData -= sizeof(void*) + sizeof(FEventHeader);
-
-	// Add the event into the master linked list of events.
-	while (true)
-	{
-		void* Expected = AtomicLoadRelaxed(&GLastEvent);
-		*(void**)EventData = Expected;
-		if (AtomicCompareExchangeRelease(&GLastEvent, (void*)EventData, Expected))
-		{
-			break;
-		}
-	}
+	FWriteBuffer* Buffer = Instance.Internal;
+	Private::AtomicStoreRelease<uint8* __restrict>(&(Buffer->Committed), Buffer->Cursor);
 }
 
 } // namespace Trace
