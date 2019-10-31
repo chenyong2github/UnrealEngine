@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
 #include "InteractiveGizmo.h"
-#include "SingleSelectionTool.h"
+#include "MultiSelectionTool.h"
 #include "InteractiveToolBuilder.h"
 #include "MeshOpPreviewHelpers.h"
 #include "DynamicMesh3.h"
@@ -93,13 +93,15 @@ public:
 
 	UPROPERTY()
 	bool bCutBackSide = false;
+
+	int ComponentIndex;
 };
 
 /**
  * Simple Mesh Plane Cutting Tool
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UPlaneCutTool : public USingleSelectionTool
+class MESHMODELINGTOOLS_API UPlaneCutTool : public UMultiSelectionTool
 {
 	GENERATED_BODY()
 
@@ -146,7 +148,7 @@ protected:
 
 
 protected:
-	TSharedPtr<FDynamicMesh3> OriginalDynamicMesh;
+	TArray<TSharedPtr<FDynamicMesh3>> OriginalDynamicMeshes;
 
 	UWorld* TargetWorld;
 	IToolsContextAssetAPI* AssetAPI;
