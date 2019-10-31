@@ -19,17 +19,17 @@
 	"Modules": [
 		{
 			"Name": "MovieRenderPipelineCore",
-			"Type": "DeveloperTool",
+			"Type": "UncookedOnly",
 			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "MovieRenderPipelineSettings",
-			"Type": "DeveloperTool",
+			"Type": "UncookedOnly",
 			"LoadingPhase": "Default"
 		}, 
 		{
 			"Name" : "MovieRenderPipelineRenderPasses",
-			"Type": "DeveloperTool",
+			"Type": "UncookedOnly",
 			"LoadingPhase": "Default"
 		},
 		{

@@ -32,8 +32,9 @@ protected:
 	virtual void OnInitializedForPipelineImpl(UMoviePipeline* InPipeline) {}
 
 public:
+#if WITH_EDITOR
 	virtual FText GetDisplayText() const { return this->GetClass()->GetDisplayNameText(); }
-
+#endif
 	/** Should the Pipeline automatically create an instance of this under the hood so calling code can rely on it existing? */
 	virtual bool IsRequired() const { return false; }
 	

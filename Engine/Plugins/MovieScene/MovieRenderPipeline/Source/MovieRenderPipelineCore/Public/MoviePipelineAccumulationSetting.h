@@ -19,6 +19,7 @@ public:
 		, bIsUsingOverlappedTiles(false)
 		, PadRatioX(.50f)
 		, PadRatioY(.50f)
+		, AccumulationGamma(1.f)
 	{
 	}
 	
@@ -72,7 +73,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 1, ClampMin = 1), Category = "Movie Pipeline")
 	int32 SpatialSampleCount;
 
-
+	/**
+	* 
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 1, ClampMin = 1), Category = "Movie Pipeline")
 	bool bIsUsingOverlappedTiles;
 
 	float PadRatioX;

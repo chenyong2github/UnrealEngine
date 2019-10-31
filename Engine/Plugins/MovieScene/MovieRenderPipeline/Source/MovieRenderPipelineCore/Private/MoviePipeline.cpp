@@ -1,6 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "MoviePipeline.h"
-#include "Editor.h"
 #include "MovieRenderPipelineCoreModule.h"
 #include "LevelSequence.h"
 #include "Tracks/MovieSceneSubTrack.h"

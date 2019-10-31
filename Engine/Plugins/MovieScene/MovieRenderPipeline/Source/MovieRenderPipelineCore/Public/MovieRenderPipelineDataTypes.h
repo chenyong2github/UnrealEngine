@@ -398,7 +398,9 @@ struct FMoviePipelineFrameOutputState
 public:
 	FMoviePipelineFrameOutputState()
 		: OutputFrameNumber(-1)
+		, TotalSamplesRendered(0)
 		, TemporalSampleIndex(-1)
+		, MotionBlurFraction(0.5f)
 		, FrameDeltaTime(0)
 		, WorldSeconds(0)
 		, bWasAffectedByTimeDilation(false)
