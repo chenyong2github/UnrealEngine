@@ -138,13 +138,10 @@ id<MTLDevice> GMetalDevice = nil;
 	GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bSupportsMetal"), bSupportsMetal, GEngineIni);
 	GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bSupportsMetalMRT"), bSupportsMetalMRT, GEngineIni);
 
-	// does commandline override?
-	bool bForceES2 = FParse::Param(FCommandLine::Get(), TEXT("ES2"));
-	
 	bool bTriedToInit = false;
 
 	// the check for the function pointer itself is to determine if the Metal framework exists, before calling it
-	if ((bSupportsMetal || bSupportsMetalMRT) && !bForceES2 && MTLCreateSystemDefaultDevice != NULL)
+	if ((bSupportsMetal || bSupportsMetalMRT) && MTLCreateSystemDefaultDevice != NULL)
 	{
 		SCOPED_BOOT_TIMING("CreateMetalDevice");
 		// if the device is unable to run with Metal (pre-A7), this will return nil
@@ -159,7 +156,7 @@ id<MTLDevice> GMetalDevice = nil;
 	{
 		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Not using Metal because: [Project Settings Disabled Metal? %s :: Commandline Forced ES2? %s :: Older OS? %s :: Pre-A7 Device? %s]"),
 			bSupportsMetal ? TEXT("No") : TEXT("Yes"),
-			bForceES2? TEXT("Yes") : TEXT("No"),
+			TEXT("No"),
 			(MTLCreateSystemDefaultDevice == NULL) ? TEXT("Yes") : TEXT("No"),
 			bTriedToInit ? TEXT("Yes") : TEXT("Unknown (didn't test)"));
 	}
