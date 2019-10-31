@@ -40,6 +40,14 @@ void USoundControlBusBase::PostEditChangeProperty(FPropertyChangedEvent& Propert
 		{
 			Address = GetName();
 		}
+
+		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(USoundControlBusBase, DefaultValue)
+			|| Property->GetFName() == GET_MEMBER_NAME_CHECKED(USoundControlBusBase, Min)
+			|| Property->GetFName() == GET_MEMBER_NAME_CHECKED(USoundControlBusBase, Max))
+		{
+			Min = FMath::Min(Min, Max);
+			DefaultValue = FMath::Clamp(DefaultValue, Min, Max);
+		}
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
