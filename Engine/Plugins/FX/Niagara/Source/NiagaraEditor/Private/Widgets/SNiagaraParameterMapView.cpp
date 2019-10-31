@@ -141,7 +141,8 @@ SNiagaraParameterMapView::~SNiagaraParameterMapView()
 		}
 	}
 
-	Graphs.Empty();
+	EmptyGraphs();
+
 	SelectedScriptObjects->OnSelectedObjectsChanged().RemoveAll(this);
 	if (SelectedVariableObjects)
 	{
@@ -584,7 +585,7 @@ EVisibility SNiagaraParameterMapView::OnAddButtonTextVisibility(TWeakPtr<SWidget
 
 void SNiagaraParameterMapView::Refresh(bool bRefreshMenu/* = true*/)
 {
-	Graphs.Empty();
+	EmptyGraphs();
 
 	TSet<UObject*> Objects = SelectedScriptObjects->GetSelectedObjects();
 	for (UObject* Object : Objects)
@@ -597,16 +598,10 @@ void SNiagaraParameterMapView::Refresh(bool bRefreshMenu/* = true*/)
 		else if (UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(Object))
 		{
 			AddGraph(Emitter->GraphSource);
-			break;
 		}
 		else if (UNiagaraSystem* System = Cast<UNiagaraSystem>(Object))
 		{
-			for (const FNiagaraEmitterHandle& EmitterHandle : System->GetEmitterHandles())
-			{
-				AddGraph(EmitterHandle.GetInstance()->GraphSource);
-			}
-			System->GetExposedParameters().AddOnChangedHandler(FNiagaraParameterStore::FOnChanged::FDelegate::CreateSP(this, &SNiagaraParameterMapView::RefreshActions));
-			break;
+			AddGraph(System->GetSystemSpawnScript()->GetSource());
 		}
 	}
 
@@ -616,30 +611,39 @@ void SNiagaraParameterMapView::Refresh(bool bRefreshMenu/* = true*/)
 	}
 }
 
-void SNiagaraParameterMapView::RefreshEmitterHandles(const TArray<TSharedPtr<FNiagaraEmitterHandleViewModel>>& EmitterHandles)
-{
-	Graphs.Empty();
-	for (const TSharedPtr<FNiagaraEmitterHandleViewModel>& Handle : EmitterHandles)
-	{
-		AddGraph(Handle->GetEmitterHandle()->GetInstance()->GraphSource);
-	}
-	GraphActionMenu->RefreshAllActions(true);
-}
-
 void SNiagaraParameterMapView::SelectedObjectsChanged()
 {
 	Refresh(true);
 }
 
+void SNiagaraParameterMapView::EmptyGraphs()
+{
+	checkf(Graphs.Num() == OnGraphChangedHandles.Num() && Graphs.Num() == OnRecompileHandles.Num(), TEXT("Graphs and change delegates out of sync!"));
+	for (int GraphIndex = 0; GraphIndex < Graphs.Num(); ++GraphIndex)
+	{
+		if (Graphs[GraphIndex].IsValid())
+		{
+			Graphs[GraphIndex]->RemoveOnGraphChangedHandler(OnGraphChangedHandles[GraphIndex]);
+			Graphs[GraphIndex]->RemoveOnGraphNeedsRecompileHandler(OnRecompileHandles[GraphIndex]);
+		}
+	}
+	Graphs.Empty();
+	OnGraphChangedHandles.Empty();
+	OnRecompileHandles.Empty();
+}
+
 void SNiagaraParameterMapView::AddGraph(UNiagaraGraph* Graph)
 {
-	if (Graph)
+	if (Graph && Graphs.Contains(Graph) == false)
 	{
-		Graphs.AddUnique(Graph);
-		OnGraphChangedHandle = Graph->AddOnGraphChangedHandler(
+		Graphs.Add(Graph);
+		FDelegateHandle OnGraphChangedHandle = Graph->AddOnGraphChangedHandler(
 			FOnGraphChanged::FDelegate::CreateRaw(this, &SNiagaraParameterMapView::OnGraphChanged));
-		OnRecompileHandle = Graph->AddOnGraphNeedsRecompileHandler(
+		FDelegateHandle OnRecompileHandle = Graph->AddOnGraphNeedsRecompileHandler(
 			FOnGraphChanged::FDelegate::CreateRaw(this, &SNiagaraParameterMapView::OnGraphChanged));
+
+		OnGraphChangedHandles.Add(OnGraphChangedHandle);
+		OnRecompileHandles.Add(OnRecompileHandle);
 	}
 }
 

@@ -289,6 +289,7 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, const FGuid& MessageLogGuid)
 {
 	NiagaraMessageLogViewModel = MakeShared<FNiagaraMessageLogViewModel>(GetNiagaraSystemMessageLogName(System), MessageLogGuid, NiagaraMessageLog);
+	ObjectSelectionForParameterMapView = MakeShared<FNiagaraObjectSelection>();
 
 	SystemViewModel->OnEmitterHandleViewModelsChanged().AddSP(this, &FNiagaraSystemToolkit::RefreshParameters);
 	SystemViewModel->GetSelectionViewModel()->OnSelectionChanged().AddSP(this, &FNiagaraSystemToolkit::OnSystemSelectionChanged);
@@ -491,26 +492,16 @@ TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_SystemParameters(const FSpa
 {
 	check(Args.GetTabId().TabType == SystemParametersTabID);
 
-	TSharedRef<FNiagaraObjectSelection> ObjectSelection = MakeShareable(new FNiagaraObjectSelection());
-	if (SystemToolkitMode == ESystemToolkitMode::Emitter)
-	{
-		TSharedPtr<FNiagaraEmitterViewModel> EditableEmitterViewModel = SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterViewModel();
-		UNiagaraEmitter* EditableEmitter = EditableEmitterViewModel->GetEmitter();
-		ObjectSelection->SetSelectedObject(EditableEmitter);
-	}
-	else if (SystemToolkitMode == ESystemToolkitMode::System)
-	{
-		ObjectSelection->SetSelectedObject(System);
-	}
 
-	TArray<TSharedRef<FNiagaraObjectSelection>> Array;
-	Array.Push(ObjectSelection);
+	TArray<TSharedRef<FNiagaraObjectSelection>> ObjectSelections;
+	ObjectSelections.Add(ObjectSelectionForParameterMapView.ToSharedRef());
 
 	TSharedRef<SDockTab> SpawnedTab =
 		SNew(SDockTab)
 		[
-			SAssignNew(ParameterMapView, SNiagaraParameterMapView, Array, SNiagaraParameterMapView::EToolkitType::SYSTEM, GetToolkitCommands())
+			SAssignNew(ParameterMapView, SNiagaraParameterMapView, ObjectSelections, SNiagaraParameterMapView::EToolkitType::SYSTEM, GetToolkitCommands())
 		];
+	RefreshParameters();
 
 	return SpawnedTab;
 }
@@ -1284,22 +1275,32 @@ void FNiagaraSystemToolkit::OnPinnedCurvesChanged()
 
 void FNiagaraSystemToolkit::RefreshParameters()
 {
-	if (ParameterMapView.IsValid())
-	{
-		TArray<TSharedPtr<FNiagaraEmitterHandleViewModel>> EmitterHandlesToDisplay;
-		EmitterHandlesToDisplay.Append(SystemViewModel->GetPinnedEmitterHandles());
-		
-		TArray<FGuid> SelectedEmitterHandleIds = SystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds();
-		for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : SystemViewModel->GetEmitterHandleViewModels())
-		{
-			if (SelectedEmitterHandleIds.Contains(EmitterHandleViewModel->GetId()))
-			{
-				EmitterHandlesToDisplay.AddUnique(EmitterHandleViewModel);
-			}
-		}
+	TArray<UObject*> NewParameterViewSelection;
 
-		ParameterMapView->RefreshEmitterHandles(EmitterHandlesToDisplay);
+	// Always display the system parameters
+	NewParameterViewSelection.Add(&SystemViewModel->GetSystem());
+
+	TArray<TSharedRef<FNiagaraEmitterHandleViewModel>> EmitterHandlesToDisplay;
+	EmitterHandlesToDisplay.Append(SystemViewModel->GetPinnedEmitterHandles());
+		
+	TArray<FGuid> SelectedEmitterHandleIds = SystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds();
+	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : SystemViewModel->GetEmitterHandleViewModels())
+	{
+		if (SelectedEmitterHandleIds.Contains(EmitterHandleViewModel->GetId()))
+		{
+			EmitterHandlesToDisplay.AddUnique(EmitterHandleViewModel);
+		}
 	}
+
+	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleToDisplay : EmitterHandlesToDisplay)
+	{
+		if (EmitterHandleToDisplay->IsValid() && EmitterHandleToDisplay->GetEmitterViewModel()->GetEmitter() != nullptr)
+		{
+			NewParameterViewSelection.Add(EmitterHandleToDisplay->GetEmitterViewModel()->GetEmitter());
+		}
+	}
+
+	ObjectSelectionForParameterMapView->SetSelectedObjects(NewParameterViewSelection);
 }
 
 void FNiagaraSystemToolkit::OnSystemSelectionChanged(UNiagaraSystemSelectionViewModel::ESelectionChangeSource SelectionChangeSource)

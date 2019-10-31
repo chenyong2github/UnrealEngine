@@ -89,7 +89,6 @@ public:
 
 	/** Refreshes the graphs used for this menu. */
 	void Refresh(bool bRefreshMenu = true);
-	void RefreshEmitterHandles(const TArray<TSharedPtr<class FNiagaraEmitterHandleViewModel>>& EmitterHandles);
 
 	static TSharedRef<SExpanderArrow> CreateCustomActionExpander(const struct FCustomExpanderData& ActionMenuData);
 
@@ -122,6 +121,7 @@ private:
 	EVisibility OnAddButtonTextVisibility(TWeakPtr<SWidget> RowWidget, const NiagaraParameterMapSectionID::Type InSection) const;
 
 	void SelectedObjectsChanged();
+	void EmptyGraphs();
 	void AddGraph(UNiagaraGraph* Graph);
 	void AddGraph(class UNiagaraScriptSourceBase* SourceBase);
 	void OnGraphChanged(const struct FEdGraphEditAction& InAction);
@@ -161,8 +161,8 @@ private:
 	TArray<TWeakObjectPtr<UNiagaraGraph>> Graphs;
 
 	/** The handle to the graph changed delegate. */
-	FDelegateHandle OnGraphChangedHandle;
-	FDelegateHandle OnRecompileHandle;
+	TArray<FDelegateHandle> OnGraphChangedHandles;
+	TArray<FDelegateHandle> OnRecompileHandles;
 
 	EToolkitType ToolkitType;
 	TSharedPtr<FUICommandList> ToolkitCommands;
