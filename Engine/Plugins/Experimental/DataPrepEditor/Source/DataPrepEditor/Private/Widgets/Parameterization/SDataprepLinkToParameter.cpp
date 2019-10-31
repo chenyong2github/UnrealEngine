@@ -179,9 +179,8 @@ void SDataprepLinkToParameter::OnTextChanged(const FText& Text)
 
 void SDataprepLinkToParameter::OnTextCommited(const FText& Text, ETextCommit::Type CommitType)
 {
-
 	ParameterName = Text.ToString();
-	bool bHasError = SetErrorMessage();
+	bool bHasError = ParameterName.IsEmpty() || InvalidNames.Contains( ParameterName );
 	
 	if ( CommitType == ETextCommit::OnEnter )
 	{
