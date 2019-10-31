@@ -125,8 +125,8 @@ void DecodeMultiplexedSignalsFromFloat4(
 	}
 	//else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION)
 	//{
-	//	UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
-	//	for (uint MultiplexId = 0; MultiplexId < MAX_SIGNAL_MULTIPLEXING; MultiplexId++)
+	//	UNROLL_N(SIGNAL_ARRAY_SIZE)
+	//	for (uint MultiplexId = 0; MultiplexId < SIGNAL_ARRAY_SIZE; MultiplexId++)
 	//	{
 	//		float2 Channels = float2(RawSample[MultiplexId / 2][2 * (MultiplexId % 2)], RawSample[MultiplexId / 2][2 * (MultiplexId % 2) + 1]);
 	//
@@ -314,7 +314,7 @@ void DecodeMultiplexedSignalsFromFloat4(
 		OutSamples.Array[0].SceneColor = OutSamples.Array[0].SampleCount * RawSample[0];
 
 		// Temporal analysis of the history.
-		#if MAX_SIGNAL_MULTIPLEXING >= 3
+		#if SIGNAL_ARRAY_SIZE >= 3
 			OutSamples.Array[1].SampleCount = OutSamples.Array[0].SampleCount;
 			OutSamples.Array[1].SceneColor.x = OutSamples.Array[1].SampleCount * RawSample[1].g;
 			OutSamples.Array[2].SampleCount = OutSamples.Array[0].SampleCount;
@@ -402,7 +402,7 @@ void DecodeMultiplexedSignalsFromFloat4(
 		OutSamples.Array[0].SceneColor = OutSamples.Array[0].SampleCount * RawSample[0];
 		
 		// Temporal analysis.
-		#if MAX_SIGNAL_MULTIPLEXING >= 3
+		#if SIGNAL_ARRAY_SIZE >= 3
 			OutSamples.Array[1].SampleCount = OutSamples.Array[0].SampleCount;
 			OutSamples.Array[1].SceneColor.x = OutSamples.Array[1].SampleCount * RawSample[1].g;
 			OutSamples.Array[2].SampleCount = OutSamples.Array[0].SampleCount;
@@ -483,7 +483,7 @@ FSSDSignalArray DecodeMultiplexedSignals(
 /** Encode output signal sample. */
 void EncodeMultiplexedSignals(
 	const uint SignalBufferLayout, const uint MultiplexCount,
-	FSSDSignalSample Sample[MAX_SIGNAL_MULTIPLEXING],
+	FSSDSignalSample Sample[SIGNAL_ARRAY_SIZE],
 	out FSSDOutputRawSample OutRawSample[MAX_MULTIPLEXED_TEXTURES],
 	out uint OutBufferCount)
 #if CONFIG_SIGNAL_OUTPUT_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_FLOAT4
@@ -662,7 +662,7 @@ void EncodeMultiplexedSignals(
 		OutBufferCount = 2;
 
 		// Temporal analysis.
-		#if MAX_SIGNAL_MULTIPLEXING >= 3
+		#if SIGNAL_ARRAY_SIZE >= 3
 		if (MultiplexCount == 3)
 		{
 			OutRawSample[1].g = Sample[1].SceneColor.x * NormalizationFactor;
@@ -710,7 +710,7 @@ void EncodeMultiplexedSignals(
 		OutBufferCount = 2;
 
 		// Temporal analysis.
-		#if MAX_SIGNAL_MULTIPLEXING >= 3
+		#if SIGNAL_ARRAY_SIZE >= 3
 		if (MultiplexCount == 3)
 		{
 			OutRawSample[1].g = Sample[1].SceneColor.x * NormalizationFactor;
@@ -822,7 +822,7 @@ void OutputMultiplexedSignal(
 	FSSDRWTexture2D OutputSignalBuffer2,
 	FSSDRWTexture2D OutputSignalBuffer3,
 	const uint SignalBufferLayout, const uint MultiplexCount,
-	const uint2 PixelPosition, FSSDSignalSample MultiplexedSamples[MAX_SIGNAL_MULTIPLEXING])
+	const uint2 PixelPosition, FSSDSignalSample MultiplexedSamples[SIGNAL_ARRAY_SIZE])
 {
 	// Encode the output signal.
 	FSSDOutputRawSample RawSample[MAX_MULTIPLEXED_TEXTURES];
