@@ -353,7 +353,9 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return ((IsES2Platform(Parameters.Platform) && IsPCPlatform(Parameters.Platform)) || Parameters.Platform == SP_OPENGL_ES2_ANDROID) && TSimpleElementBase::ShouldCompilePermutation(Parameters);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 };
 
