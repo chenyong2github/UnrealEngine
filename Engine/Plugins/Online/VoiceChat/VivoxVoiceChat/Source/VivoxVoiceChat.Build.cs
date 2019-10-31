@@ -21,7 +21,7 @@ namespace UnrealBuildTool.Rules
 			PublicIncludePathModuleNames.AddRange(
 				new string[]
 				{
-					"Voice"
+					"VoiceChat"
 				}
 			);
 
