@@ -219,7 +219,7 @@ struct TBufferGetterHelper_ByState<TContainer, typename TContainer::TDebugState>
 
 // -------------------------------------------------------------------
 
-// Struct that encapsulates writing a new element to a buffer. This is used to allow a new Aux state to be created in the ::Update loop.
+// Struct that encapsulates writing a new element to a buffer. This is used to allow a new Aux state to be created in the ::SimulationTick loop.
 template<typename T>
 struct TLazyStateAccessor
 {
@@ -434,11 +434,11 @@ private:
 };
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-//	TSimulationTickState: Holds active state for simulation ticking. We track two things: keyframes and time.
+//	FSimulationTickState: Holds active state for simulation ticking. We track two things: keyframes and time.
 //
-//	PendingKeyframe is the next keyframe we will process: the input/sync/aux state @ PendingKeyframe will be run through T::Update and produce the 
+//	PendingKeyframe is the next keyframe we will process: the input/sync/aux state @ PendingKeyframe will be run through ::SimulationTick and produce the 
 //	next frame's (PendingKeyframe+1) Sync and possibly Aux state (if it changes). "Out of band" modifications to the sync/aux state should happen
-//	to PendingKeyframe (e.g, before it is processed. Once a frame has been processed, we won't run it through T::Update again!).
+//	to PendingKeyframe (e.g, before it is processed. Once a frame has been processed, we won't run it through ::SimulationTick again!).
 //
 //	MaxAllowedKeyframe is a keyframe based limiter on simulation updates. This must be incremented to allow the simulation to advance.
 //
@@ -448,14 +448,12 @@ private:
 //	Consider that Keyframes are essentially client dependent and gaps can happen due to packet loss, etc. Time will always be continuous though.
 //	
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-template<typename TickSettings=TNetworkSimTickSettings<>>
-struct TSimulationTickState
-{
-	using TSettings = TickSettings;
 
+struct FSimulationTickState
+{
 	int32 PendingKeyframe = 0;
 	int32 MaxAllowedKeyframe = -1;
-	bool UpdateInProgress = false;
+	bool bUpdateInProgress = false;
 	
 	FNetworkSimTime GetTotalProcessedSimulationTime() const 
 	{ 
@@ -477,19 +475,6 @@ struct TSimulationTickState
 	// Historic tracking of simulation time. This allows us to timestamp sync data as its produced
 	TNetworkSimContiguousBuffer<FNetworkSimTime>	SimulationTimeBuffer;
 
-	void SetTotalAllowedSimulationTime(const FNetworkSimTime& SimTime)
-	{
-		TotalAllowedSimulationTime = SimTime;
-		RealtimeAccumulator.Reset();
-	}
-
-	// "Grants" allowed simulation time to this tick state. That is, we are now allowed to advance the simulation by this amount the next time the sim ticks.
-	// Note the input is RealTime in SECONDS. This is what the rest of the engine uses when dealing with float delta time.
-	void GiveSimulationTime(float RealTimeSeconds)
-	{
-		RealtimeAccumulator.Accumulate(TotalAllowedSimulationTime, RealTimeSeconds);
-	}
-
 	// How much granted simulation time is left to process
 	FNetworkSimTime GetRemainingAllowedSimulationTime() const
 	{
@@ -501,32 +486,54 @@ struct TSimulationTickState
 		return TotalAllowedSimulationTime;
 	}
 
-private:
+protected:
 
 	FNetworkSimTime TotalAllowedSimulationTime;	// Total time we have been "given" to process. We cannot process more simulation time than this: doing so would be speed hacking.
 	FNetworkSimTime TotalProcessedSimulationTime;	// How much time we've actually processed. The only way to increment this is to process user commands or receive authoritative state from the network.
-
-	TRealTimeAccumulator<TSettings>	RealtimeAccumulator;
 };
 
-// Scoped helper to be used right before entering a call to the sim's ::Update function.
+template<typename TickSettings=TNetworkSimTickSettings<>>
+struct TSimulationTicker : public FSimulationTickState
+{
+	using TSettings = TickSettings;
+
+	void SetTotalAllowedSimulationTime(const FNetworkSimTime& SimTime)
+	{
+		TotalAllowedSimulationTime = SimTime;
+		RealtimeAccumulator.Reset();
+	}
+
+	// "Grants" allowed simulation time to this tick state. That is, we are now allowed to advance the simulation by this amount the next time the sim ticks.
+	// Note the input is RealTime in SECONDS. This is what the rest of the engine uses when dealing with float delta time.
+	void GiveSimulationTime(float RealTimeSeconds)
+	{
+		RealtimeAccumulator.Accumulate(TotalAllowedSimulationTime, RealTimeSeconds);
+	}	
+
+private:
+
+	TRealTimeAccumulator<TSettings>	RealtimeAccumulator;	
+};
+
+// Scoped helper to be used right before entering a call to the sim's ::SimulationTick function.
 // Important to note that this advanced the PendingKeyFrame to the output Keyframe. So that any writes that occur to the buffers will go to the output frame.
 struct TScopedSimulationTick
 {
-	template<typename TSimulationTickState>
-	TScopedSimulationTick(TSimulationTickState& TickState, const int32& OutputKeyframe, const FNetworkSimTime& DeltaSimTime)
+	TScopedSimulationTick(FSimulationTickState& InTicker, const int32& InOutputKeyframe, const FNetworkSimTime& InDeltaSimTime)
+		: Ticker(InTicker), OutputKeyframe(InOutputKeyframe), DeltaSimTime(InDeltaSimTime)
 	{
-		check(TickState.UpdateInProgress == false);
-		TickState.UpdateInProgress = true;
-		TickState.PendingKeyframe = OutputKeyframe;
-		TickState.IncrementTotalProcessedSimulationTime(DeltaSimTime, OutputKeyframe);
-		UpdateInProgressPtr = &TickState.UpdateInProgress;
+		check(Ticker.bUpdateInProgress == false);
+		Ticker.PendingKeyframe = OutputKeyframe;
+		Ticker.bUpdateInProgress = true;
 	}
 	~TScopedSimulationTick()
 	{
-		*UpdateInProgressPtr = false;
+		Ticker.IncrementTotalProcessedSimulationTime(DeltaSimTime, OutputKeyframe);
+		Ticker.bUpdateInProgress = false;
 	}
-	bool* UpdateInProgressPtr;
+	FSimulationTickState& Ticker;
+	const int32& OutputKeyframe;
+	const FNetworkSimTime& DeltaSimTime;
 };
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -535,12 +542,12 @@ struct TScopedSimulationTick
 
 // Accessor conditionally gives access to the current (pending) Sync/Aux state to outside code.
 // Reads are always allowed
-// Writes are conditional. Authority can always write to the pending keyframe. Non authority requires the netsim to be currently processing an ::Update.
-// If you aren't inside an ::Update call, it is really not safe to predict state changes. It is safest and simplest to just not predict these changes.
+// Writes are conditional. Authority can always write to the pending keyframe. Non authority requires the netsim to be currently processing an ::SimulationTick.
+// If you aren't inside an ::SimulationTick call, it is really not safe to predict state changes. It is safest and simplest to just not predict these changes.
 //
-// Explanation: During the scope of an ::Update call, we know exactly 'when' we are relative to what the server is processing. If the predicting client wants
+// Explanation: During the scope of an ::SimulationTick call, we know exactly 'when' we are relative to what the server is processing. If the predicting client wants
 // to predict a change to sync/aux state during an update, the server will do it at the exact same time (assuming not a mis prediction). When a state change
-// happens "out of band" (outside an ::Update call) - we really have no way to correlate when the server will do it. While its tempting to think "we will get
+// happens "out of band" (outside an ::SimulationTick call) - we really have no way to correlate when the server will do it. While its tempting to think "we will get
 // a correction anyways, might as well guess at it and maybe get a smaller correction" - but this opens us up to other problems. The server may actually not 
 // change the state at all and you may not get an update that corrects you. You could add a timeout and track the state change somewhere but that really complicates
 // things and could leave you open to "double" problems: if the state change is additive, you may stack the authority change on top of the local predicted change, or
@@ -558,8 +565,8 @@ struct TNetworkSimStateAccessor
 			// Gross: find the buffer our TState is in. This allows these accessors to be declared as class member variables without knowing the exact net sim it will
 			// be pulling from. (For example, you may want to templatize your network sim model).
 			auto& Buffer = TBufferGetterHelper_ByState<TNetworkSimBufferContainer<typename TNetworkSimModel::TBufferTypes>, TState>::GetBuffer(NetSimModel->Buffers);
-			OutState = bWrite ? Buffer.WriteKeyframeInitializedFromHead(NetSimModel->TickInfo.PendingKeyframe) : Buffer[NetSimModel->TickInfo.PendingKeyframe];
-			OutSafe = NetSimModel->TickInfo.UpdateInProgress;
+			OutState = bWrite ? Buffer.WriteKeyframeInitializedFromHead(NetSimModel->Ticker.PendingKeyframe) : Buffer[NetSimModel->Ticker.PendingKeyframe];
+			OutSafe = NetSimModel->Ticker.bUpdateInProgress;
 		};
 	}
 
@@ -618,7 +625,7 @@ struct FNetworkSimEventAccessor
 };
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-//
+//	FrameCmd - in variable tick simulations we store the timestep of each frame with the input. TFrameCmd wraps the user struct to do this.
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 // Wraps an input command (BaseType) in a NetworkSimulation time. 
@@ -687,3 +694,45 @@ public:
 	// Called from the Network Sim at the end of the sim frame when there is new sync data.
 	virtual void FinalizeFrame(const typename TBufferTypes::TSyncState& SyncState, const typename TBufferTypes::TAuxState& AuxState) = 0;
 };
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+//	SimulationTick parameters. These are the data structures passed into the simulation code each frame
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+struct TNetSimTimeStep
+{
+	// The delta time step for this tick (in MS by default)
+	const FNetworkSimTime& StepMS;
+	// The tick state of the simulation prior to running this tick. E.g, does not "include" the above StepMS that we are simulating now.
+	// The first time ::SimulationTick runs, TickState.GetTotalProcessedSimulationTime() == 0.
+	const FSimulationTickState& TickState;
+};
+
+// Input state: const references to the InputCmd/SyncState/AuxStates
+template<typename TBufferTypes>
+struct TNetSimInput
+{
+	const typename TBufferTypes::TInputCmd& Cmd;
+	const typename TBufferTypes::TSyncState& Sync;
+	const typename TBufferTypes::TAuxState& Aux;
+
+	TNetSimInput(const typename TBufferTypes::TInputCmd& InInputCmd, const typename TBufferTypes::TSyncState& InSync, const typename TBufferTypes::TAuxState& InAux)
+		: Cmd(InInputCmd), Sync(InSync), Aux(InAux) { }	
+	
+	// Allows implicit downcasting to a parent simulation class's input types
+	template<typename T>
+	TNetSimInput(const TNetSimInput<T>& Other)
+		: Cmd(Other.Cmd), Sync(Other.Sync), Aux(Other.Aux) { }
+};
+
+// Output state: the output SyncState (always created) and TNetSimLazyWriter for the AuxState (created on demand since every tick does not generate a new aux frame)
+template<typename TBufferTypes>
+struct TNetSimOutput
+{
+	typename TBufferTypes::TSyncState& Sync;
+	const TNetSimLazyWriter<typename TBufferTypes::TAuxState>& Aux;
+
+	TNetSimOutput(typename TBufferTypes::TSyncState& InSync, const TNetSimLazyWriter<typename TBufferTypes::TAuxState>& InAux)
+		: Sync(InSync), Aux(InAux) { }
+};
+
