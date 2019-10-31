@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "NetworkSimulationModelBuffer.h"
+#include "NetworkedSimulationModelBuffer.h"
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	BufferTypes: template helpers for addressing the different buffer types of the system.

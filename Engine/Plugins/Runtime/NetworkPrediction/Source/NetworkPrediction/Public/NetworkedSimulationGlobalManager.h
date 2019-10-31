@@ -8,9 +8,10 @@
 #include "UObject/Object.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "Engine/EngineBaseTypes.h"
-#include "NetworkSimulationModelDebugger.h"
+#include "NetworkPredictionTypes.h"
+#include "Containers/SortedMap.h"
 
-#include "NetworkSimulationGlobalManager.generated.h"
+#include "NetworkedSimulationGlobalManager.generated.h"
 
 // ----------------------------------------------------------------------------------------------------------------------------
 //	The purpose of the global manager is to enforce frame boundaries and ordering amongst all instances of network simulations.

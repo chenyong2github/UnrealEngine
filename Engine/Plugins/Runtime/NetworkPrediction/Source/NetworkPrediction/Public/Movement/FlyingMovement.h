@@ -13,7 +13,7 @@
 #include "Components/SceneComponent.h"
 #include "Misc/OutputDevice.h"
 #include "Misc/CoreDelegates.h"
-#include "NetworkSimulationModel.h"
+#include "NetworkedSimulationModel.h"
 #include "BaseMovementComponent.h"
 
 #include "FlyingMovement.generated.h"
