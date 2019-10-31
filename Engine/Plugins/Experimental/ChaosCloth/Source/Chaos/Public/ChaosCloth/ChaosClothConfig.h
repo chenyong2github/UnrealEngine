@@ -8,7 +8,7 @@
 
 /** Holds initial, asset level config for clothing actors. */
 // Hiding categories that will be used in the future
-UCLASS(HideCategories = (Solver, Collision))
+UCLASS(HideCategories = (Collision))
 class CHAOSCLOTH_API UChaosClothConfig : public UClothConfigBase
 {
 	GENERATED_BODY()
@@ -44,12 +44,7 @@ public:
 
 	// This is a lower bound to cloth particle masses
 	UPROPERTY(EditAnywhere, Category = MassConfig)
-	float MinPerParticleMass = 0.0001f;
-
-	// The Number of iterations used in the cloth solver
-	// All cloth constraints will be more stiff when increased
-	UPROPERTY(EditAnywhere, Category = Solver)
-	int32 NumIterations = 1;
+	float MinPerParticleMass = 0.0001f;	
 
 	// The Stiffness of the Edge constraints
 	UPROPERTY(EditAnywhere, Category = Stiffness, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
@@ -73,25 +68,11 @@ public:
 	
 	// The stiffness of the shape target constraints
 	UPROPERTY(EditAnywhere, Category = Stiffness, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
-	float ShapeTargetStiffness = 0.f;
-
-	// The radius of the self collisions spheres
-	UPROPERTY(EditAnywhere, Category = Collision)
-	float SelfCollisionThickness = 2.f;
-
-	// The thickness of the cloth point spheres when colliding against collisions primitives
-	UPROPERTY(EditAnywhere, Category = Collision)
-	float CollisionThickness = 1.2;
+	float ShapeTargetStiffness = 0.f;	
 
 	// Friction coefficient for cloth - collider interaction
 	UPROPERTY(EditAnywhere, Category = Collision, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "10"))
-	float CoefficientOfFriction = 0.0f;
-
-	UPROPERTY(EditAnywhere, Category = Solver, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
-	float Damping = 0.01f;
-
-	UPROPERTY(EditAnywhere, Category = Solver)
-	float GravityMagnitude = 490.f;
+	float CoefficientOfFriction = 0.0f;	
 
 	// Default spring stiffness for anim drive if an anim drive is in use
 	UPROPERTY(EditAnywhere, Category = Stiffness, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
@@ -117,3 +98,37 @@ public:
 	UPROPERTY(EditAnywhere, Category = ClothEnableFlags)
 	bool bUseContinuousCollisionDetection = false;
 };
+
+/*
+These settings are shared between all instances on a skeletal mesh
+*/
+UCLASS()
+class CHAOSCLOTH_API UChaosClothSharedSimConfig : public UClothSharedSimConfigBase
+{
+	GENERATED_BODY()
+public:
+	UChaosClothSharedSimConfig() : Gravity(FVector(0.0f, 0.0f, -490)) {};
+	virtual ~UChaosClothSharedSimConfig() {};
+
+	// The number of solver iterations
+	// This will increase the stiffness of all constraints but will increase the CPU cost
+	UPROPERTY(EditAnywhere, Category = Simulation, meta = (UIMin = "0", UIMax = "20", ClampMin = "0", ClampMax = "100"))
+	int32 IterationCount = 1;
+
+	// The radius of the spheres used in self collision 
+	UPROPERTY(EditAnywhere, Category = Collision, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
+	float SelfCollisionThickness = 2.0f;
+
+	// The radius of cloth points when considering collisions against collider shapes
+	UPROPERTY(EditAnywhere, Category = Collision, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
+	float CollisionThickness = 1.0f;
+
+	//The amount of cloth damping
+	UPROPERTY(EditAnywhere, Category = Simulation, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
+	float Damping = 0.01f;
+
+	// The gravitational acceleration vector [cm/s^2]
+	UPROPERTY(EditAnywhere, Category = Simulation)
+	FVector Gravity;
+};
+
