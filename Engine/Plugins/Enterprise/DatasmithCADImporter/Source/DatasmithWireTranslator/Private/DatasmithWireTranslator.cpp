@@ -1387,16 +1387,7 @@ bool FWireTranslatorImpl::ProcessAlShellNode(AlDagNode& ShellNode, const FDagNod
 
 	SetActorTransform(ShellInfo.ActorElement, ShellNode);
 
-	// If the mesh is NURBS, it will be built with an additional ALIAS_BUILD_SCALE (see AliasCoretechWrapper constructor),
-	// so we need to compensate the same scale on the actor. Alias doesn't seem to allow parenting geometry
-	// to other geometry, so we don't have to handle consequences on any potential children of this actor by doing this
-	AlObjectType Type = ShellNode.type();
-	if (Type == AlObjectType::kSurfaceNodeType || Type == AlObjectType::kShellNodeType)
-	{
-		ActorElement->SetScale(ActorElement->GetScale());
-	}
-
-	//// Apply materials on the current part
+	// Apply materials on the current part
 	if (ShaderName)
 	{
 		TSharedPtr< IDatasmithMaterialIDElement > MaterialIDElement = ShaderNameToUEMaterialId[FString(ShaderName)];
