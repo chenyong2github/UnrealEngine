@@ -41,6 +41,11 @@ static float GetGroupMaxHairRadius(const FHairGroupDesc& GroupDesc, const FHairG
 	return GroupDesc.HairWidth > 0 ? GroupDesc.HairWidth * 0.5f : GroupData.HairRenderData.StrandsCurves.MaxRadius;
 }
 
+static float GetGroupHairShadowDensity(const FHairGroupDesc& GroupDesc, const FHairGroupData& GroupData)
+{
+	return GroupDesc.HairShadowDensity > 0 ? GroupDesc.HairShadowDensity : GroupData.HairRenderData.HairDensity;
+}
+
 /**
  * An material render proxy which overrides the debug mode parameter.
  */
@@ -168,7 +173,7 @@ public:
 			VFGroupData.MinStrandRadius		= 0;
 			VFGroupData.MaxStrandRadius		= GetGroupMaxHairRadius(InGroupDesc, InGroupData);
 			VFGroupData.MaxStrandLength		= InGroupData.HairRenderData.StrandsCurves.MaxLength;
-			VFGroupData.HairDensity			= InGroupData.HairRenderData.HairDensity;
+			VFGroupData.HairDensity			= GetGroupHairShadowDensity(InGroupDesc, InGroupData);
 			VFGroupData.HairWorldOffset		= InGroupData.HairRenderData.BoundingBox.GetCenter();
 
 			#if RHI_RAYTRACING
@@ -409,11 +414,15 @@ static void UpdateHairGroupsDesc(UGroomAsset* GroomAsset, TArray<FHairGroupDesc>
 		FHairGroupData& GroupData = GroomAsset->HairGroupsData[GroupIt];
 
 		FHairGroupDesc& Desc = GroomGroupsDesc[GroupIt];
-		Desc.GuideCount = GroupInfo.NumGuides;
-		Desc.HairCount  = GroupInfo.NumCurves;
+		Desc.GuideCount	= GroupInfo.NumGuides;
+		Desc.HairCount	= GroupInfo.NumCurves;
 		if (bReinitOverride || Desc.HairWidth == 0)
 		{
 			Desc.HairWidth = GroupData.HairRenderData.StrandsCurves.MaxRadius * 0.5f;
+		}
+		if (bReinitOverride || Desc.HairShadowDensity == 0)
+		{
+			Desc.HairShadowDensity = GroupData.HairRenderData.HairDensity;
 		}
 	}
 }
@@ -433,7 +442,6 @@ UGroomComponent::UGroomComponent(const FObjectInitializer& ObjectInitializer)
 	bSelectable = true;
 	RegisteredSkeletalMeshComponent = nullptr;
 	SkeletalPreviousPositionOffset = FVector::ZeroVector;
-	HairShadowDensity = 1;
 	HairRaytracingRadiusScale = 1;
 	bBindGroomToSkeletalMesh = false;
 	InitializedResources = nullptr;
@@ -1389,11 +1397,13 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		}
 	}
 
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, HairWidth))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, HairWidth) || 
+		PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, HairShadowDensity))
 	{	
 		UpdateHairGroupsDesc(GroomAsset, GroomGroupsDesc);
 		MarkRenderStateDirty();
 	}
+
 #if WITH_EDITOR
 	ValidateMaterials(false);
 #endif
