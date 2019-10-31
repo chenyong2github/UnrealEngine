@@ -10,10 +10,10 @@ bool UDataprepFloatFilter::Filter(float Float) const
 {
 	switch ( FloatMatchingCriteria )
 	{
-	case EDataprepFloatMatchType::LessThen:
+	case EDataprepFloatMatchType::LessThan:
 		return Float < EqualValue;
 		break;
-	case EDataprepFloatMatchType::GreatherThen:
+	case EDataprepFloatMatchType::GreatherThan:
 		return Float > EqualValue;
 		break;
 	case EDataprepFloatMatchType::IsNearlyEqual:
