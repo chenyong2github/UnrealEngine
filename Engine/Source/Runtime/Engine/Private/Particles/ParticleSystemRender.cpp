@@ -2445,7 +2445,6 @@ void FDynamicMeshEmitterData::GetInstanceData(void* InstanceData, void* DynamicP
 		const uint8* ParticleBase	= Source.DataContainer.ParticleData + CurrentIndex * Source.ParticleStride;
 		const FBaseParticle& Particle		= *((const FBaseParticle*) ParticleBase);
 
-
 		FMeshParticleInstanceVertex CurrentInstanceVertex;
 		
 		// Populate instance buffer;
