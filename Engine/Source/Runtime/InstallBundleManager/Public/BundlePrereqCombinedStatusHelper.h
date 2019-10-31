@@ -61,7 +61,7 @@ private:
 	void CleanUpDelegates();
 	
 	//Called so we can track when a bundle is finished
-	void OnBundleInstallComplete(FInstallBundleResultInfo CompletedBundleInfo);
+	void OnBundleInstallComplete(FInstallBundleRequestResultInfo CompletedBundleInfo);
 	
 	float GetCombinedProgressPercent();
 	float GetIndividualWeightedProgressPercent(FInstallBundleStatus& Bundle);
