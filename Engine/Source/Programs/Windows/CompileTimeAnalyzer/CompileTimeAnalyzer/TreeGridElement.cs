@@ -12,10 +12,10 @@ namespace Timing_Data_Investigator
 	{
 		private const string NullItemError = "The item added to the collection cannot be null.";
 
-		public static readonly RoutedEvent        ExpandingEvent;
-		public static readonly RoutedEvent        ExpandedEvent;
-		public static readonly RoutedEvent        CollapsingEvent;
-		public static readonly RoutedEvent        CollapsedEvent;
+		public static readonly RoutedEvent ExpandingEvent;
+		public static readonly RoutedEvent ExpandedEvent;
+		public static readonly RoutedEvent CollapsingEvent;
+		public static readonly RoutedEvent CollapsedEvent;
 		public static readonly DependencyProperty HasChildrenProperty;
 		public static readonly DependencyProperty IsExpandedProperty;
 		public static readonly DependencyProperty LevelProperty;
@@ -28,14 +28,14 @@ namespace Timing_Data_Investigator
 		{
 			// Register dependency properties
 			HasChildrenProperty = RegisterHasChildrenProperty();
-			IsExpandedProperty  = RegisterIsExpandedProperty();
-			LevelProperty       = RegisterLevelProperty();
+			IsExpandedProperty = RegisterIsExpandedProperty();
+			LevelProperty = RegisterLevelProperty();
 
 			// Register routed events
-			ExpandingEvent  = RegisterExpandingEvent();
-			ExpandedEvent   = RegisterExpandedEvent();
+			ExpandingEvent = RegisterExpandingEvent();
+			ExpandedEvent = RegisterExpandedEvent();
 			CollapsingEvent = RegisterCollapsingEvent();
-			CollapsedEvent  = RegisterCollapsedEvent();
+			CollapsedEvent = RegisterCollapsedEvent();
 		}
 
 		public TreeGridElement()
@@ -70,7 +70,7 @@ namespace Timing_Data_Investigator
 		private void OnChildrenChanged(object sender, NotifyCollectionChangedEventArgs args)
 		{
 			// Process the event
-			switch(args.Action)
+			switch (args.Action)
 			{
 				case NotifyCollectionChangedAction.Add:
 
@@ -133,10 +133,10 @@ namespace Timing_Data_Investigator
 
 		private void OnChildrenCleared(IList children)
 		{
-            if (children == null)
-            {
-                return;
-            }
+			if (children == null)
+			{
+				return;
+			}
 
 			// Iterate through all of the children
 			foreach (TreeGridElement child in children)
@@ -221,7 +221,7 @@ namespace Timing_Data_Investigator
 			// Create the property metadata
 			FrameworkPropertyMetadata metadata = new FrameworkPropertyMetadata()
 			{
-				DefaultValue            = false,
+				DefaultValue = false,
 				PropertyChangedCallback = OnIsExpandedChanged
 			};
 
