@@ -10,6 +10,21 @@
 #include "SoundModulationTransform.h"
 
 
+namespace
+{
+	template <typename T>
+	void ClampPatchInputs(TArray<T>& Inputs)
+	{
+		for (T& Input : Inputs)
+		{
+			if (Input.Transform.InputMin > Input.Transform.InputMax)
+			{
+				Input.Transform.InputMin = Input.Transform.InputMax;
+			}
+		}
+	}
+} // namespace <>
+
 USoundModulationSettings::USoundModulationSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -69,6 +84,11 @@ void FSoundModulationPatchBase::Clamp()
 {
 	if (FSoundModulationOutputBase* Output = GetOutput())
 	{
+		if (Output->Transform.InputMin > Output->Transform.InputMax)
+		{
+			Output->Transform.InputMin = Output->Transform.InputMax;
+		}
+
 		if (Output->Transform.OutputMin > Output->Transform.OutputMax)
 		{
 			Output->Transform.OutputMin = Output->Transform.OutputMax;
@@ -80,6 +100,7 @@ void FSoundVolumeModulationPatch::Clamp()
 {
 	FSoundModulationPatchBase::Clamp();
 
+	ClampPatchInputs<FSoundVolumeModulationInput>(Inputs);
 	Output.Transform.OutputMin = FMath::Clamp(Output.Transform.OutputMin, 0.0f, MAX_VOLUME);
 	Output.Transform.OutputMax = FMath::Clamp(Output.Transform.OutputMax, 0.0f, MAX_VOLUME);
 }
@@ -88,6 +109,7 @@ void FSoundPitchModulationPatch::Clamp()
 {
 	FSoundModulationPatchBase::Clamp();
 
+	ClampPatchInputs<FSoundPitchModulationInput>(Inputs);
 	Output.Transform.OutputMin = FMath::Clamp(Output.Transform.OutputMin, MIN_PITCH, MAX_PITCH);
 	Output.Transform.OutputMax = FMath::Clamp(Output.Transform.OutputMax, MIN_PITCH, MAX_PITCH);
 }
@@ -96,6 +118,7 @@ void FSoundLPFModulationPatch::Clamp()
 {
 	FSoundModulationPatchBase::Clamp();
 
+	ClampPatchInputs<FSoundLPFModulationInput>(Inputs);
 	Output.Transform.OutputMin = FMath::Clamp(Output.Transform.OutputMin, MIN_FILTER_FREQUENCY, MAX_FILTER_FREQUENCY);
 	Output.Transform.OutputMax = FMath::Clamp(Output.Transform.OutputMax, MIN_FILTER_FREQUENCY, MAX_FILTER_FREQUENCY);
 }
@@ -104,6 +127,7 @@ void FSoundHPFModulationPatch::Clamp()
 {
 	FSoundModulationPatchBase::Clamp();
 
+	ClampPatchInputs<FSoundHPFModulationInput>(Inputs);
 	Output.Transform.OutputMin = FMath::Clamp(Output.Transform.OutputMin, MIN_FILTER_FREQUENCY, MAX_FILTER_FREQUENCY);
 	Output.Transform.OutputMax = FMath::Clamp(Output.Transform.OutputMax, MIN_FILTER_FREQUENCY, MAX_FILTER_FREQUENCY);
 }
@@ -191,6 +215,7 @@ FSoundLPFModulationInput::FSoundLPFModulationInput()
 
 FSoundModulationPatchBase::FSoundModulationPatchBase()
 	: DefaultInputValue(1.0f)
+	, bBypass(1)
 {
 }
 
@@ -230,11 +255,13 @@ namespace AudioModulation
 
 	FModulationPatchProxy::FModulationPatchProxy()
 		: DefaultInputValue(1.0f)
+		, bBypass(1)
 	{
 	}
 
 	FModulationPatchProxy::FModulationPatchProxy(const FSoundModulationPatchBase& Patch)
 		: DefaultInputValue(Patch.DefaultInputValue)
+		, bBypass(Patch.bBypass)
 		, OutputProxy(*Patch.GetOutput())
 	{
 		Patch.GenerateProxies(InputProxies);
