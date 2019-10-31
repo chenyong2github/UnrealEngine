@@ -61,6 +61,16 @@ static FAutoConsoleVariableRef CVarRayTracingReflectionsShadows(
 	TEXT(" 2: Soft area shadows")
 );
 
+static int32 GRayTracingReflectionsTranslucency = -1;
+static FAutoConsoleVariableRef CVarRayTracingReflectionsTranslucency(
+	TEXT("r.RayTracing.Reflections.Translucency"),
+	GRayTracingReflectionsTranslucency,
+	TEXT("Translucent objects visible in ray tracing reflections)")
+	TEXT(" -1: Driven by postprocessing volume (default)")
+	TEXT(" 0: Translucent objects not visible")
+	TEXT(" 1: Translucent objects visible")
+);
+
 static int32 GRayTracingReflectionsCaptures = 0;
 static FAutoConsoleVariableRef CVarRayTracingReflectionsCaptures(
 	TEXT("r.RayTracing.Reflections.ReflectionCaptures"),
@@ -138,7 +148,6 @@ static TAutoConsoleVariable<int32> CVarRayTracingReflectionsMaxUnderCoatBounces(
 	ECVF_RenderThreadSafe);
 
 
-
 static const int32 GReflectionLightCountMaximum = 64;
 
 class FRayTracingReflectionsRGS : public FGlobalShader
@@ -173,6 +182,7 @@ class FRayTracingReflectionsRGS : public FGlobalShader
 		SHADER_PARAMETER(int32, TestPathRoughness)
 		SHADER_PARAMETER(float, MinClearCoatLevel)
 		SHADER_PARAMETER(int32, MaxUnderCoatBounces)
+		SHADER_PARAMETER(uint32, EnableTranslucency)
 
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColor)
@@ -234,11 +244,13 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingReflections(const FViewInfo
 	}
 	else
 	{
-		FRayTracingReflectionsRGS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FRayTracingReflectionsRGS::FEnableTwoSidedGeometryForShadowDim>(EnableRayTracingShadowTwoSidedGeometry());
-		PermutationVector.Set<FRayTracingReflectionsRGS::FDeferredMaterialMode>(EDeferredMaterialMode::None);
-		auto RayGenShader = View.ShaderMap->GetShader<FRayTracingReflectionsRGS>(PermutationVector);
-		OutRayGenShaders.Add(RayGenShader->GetRayTracingShader());
+		{
+			FRayTracingReflectionsRGS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FRayTracingReflectionsRGS::FEnableTwoSidedGeometryForShadowDim>(EnableRayTracingShadowTwoSidedGeometry());
+			PermutationVector.Set<FRayTracingReflectionsRGS::FDeferredMaterialMode>(EDeferredMaterialMode::None);
+			auto RayGenShader = View.ShaderMap->GetShader<FRayTracingReflectionsRGS>(PermutationVector);
+			OutRayGenShaders.Add(RayGenShader->GetRayTracingShader());
+		}
 	}
 }
 
@@ -261,6 +273,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 
 	const bool bHybridReflections = CVarRayTracingReflectionsHybrid.GetValueOnRenderThread() != 0;
 	const bool bSortMaterials = bHybridReflections || CVarRayTracingReflectionsSortMaterials.GetValueOnRenderThread() != 0;
+	const uint32 EnableTranslucency = GRayTracingReflectionsTranslucency > -1 ? (uint32)GRayTracingReflectionsTranslucency : (uint32) View.FinalPostProcessSettings.RayTracingReflectionsTranslucency;
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
 
@@ -309,6 +322,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 	CommonParameters.TestPathRoughness = CVarRayTracingReflectionsTestPathRoughness.GetValueOnRenderThread();
 	CommonParameters.MinClearCoatLevel = CVarRayTracingReflectionsMinClearCoatLevel.GetValueOnRenderThread();
 	CommonParameters.MaxUnderCoatBounces = CVarRayTracingReflectionsMaxUnderCoatBounces.GetValueOnRenderThread();
+	CommonParameters.EnableTranslucency = EnableTranslucency;
 
 	CommonParameters.TLAS = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
 	CommonParameters.ViewUniformBuffer = View.ViewUniformBuffer;
