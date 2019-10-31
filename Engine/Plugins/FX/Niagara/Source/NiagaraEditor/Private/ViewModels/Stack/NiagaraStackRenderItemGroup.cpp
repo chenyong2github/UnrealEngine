@@ -124,7 +124,8 @@ void UNiagaraStackRenderItemGroup::Initialize(FRequiredEntryData InRequiredEntry
 	FText ToolTip = LOCTEXT("RendererGroupTooltip", "Describes how we should display/present each particle. Note that this doesn't have to be visual. Multiple renderers are supported. Order in this stack is not necessarily relevant to draw order.");
 	AddUtilities = MakeShared<FRenderItemGroupAddUtilities>(InRequiredEntryData.EmitterViewModel.ToSharedRef());
 	Super::Initialize(InRequiredEntryData, DisplayName, ToolTip, AddUtilities.Get());
-	GetEmitterViewModel()->GetEmitter()->OnRenderersChanged().AddUObject(this, &UNiagaraStackRenderItemGroup::EmitterRenderersChanged);
+	EmitterWeak = GetEmitterViewModel()->GetEmitter();
+	EmitterWeak->OnRenderersChanged().AddUObject(this, &UNiagaraStackRenderItemGroup::EmitterRenderersChanged);
 }
 
 void UNiagaraStackRenderItemGroup::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
@@ -151,13 +152,20 @@ void UNiagaraStackRenderItemGroup::RefreshChildrenInternal(const TArray<UNiagara
 
 void UNiagaraStackRenderItemGroup::EmitterRenderersChanged()
 {
-	OnDataObjectModified().Broadcast(nullptr);
-	RefreshChildren();
+	if (IsFinalized() == false)
+	{
+		// With undo/redo sometimes it's not possible to unbind this delegate, so we have to check to insure safety in those cases.
+		OnDataObjectModified().Broadcast(nullptr);
+		RefreshChildren();
+	}
 }
 
 void UNiagaraStackRenderItemGroup::FinalizeInternal()
 {
-	GetEmitterViewModel()->GetEmitter()->OnRenderersChanged().RemoveAll(this);
+	if (EmitterWeak.IsValid())
+	{
+		EmitterWeak->OnRenderersChanged().RemoveAll(this);
+	}
 	Super::FinalizeInternal();
 }
 
