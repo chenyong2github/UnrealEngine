@@ -36,6 +36,8 @@ void UDataprepTessellationOperation::PostLoad()
 
 		MarkPackageDirty();
 	}
+
+	Super::PostLoad();
 }
 
 void UDataprepTessellationOperation::OnExecution_Implementation(const FDataprepContext& InContext)
