@@ -73,7 +73,7 @@ TArray<FDataprepPropertyLink> FDataprepParameterizationUtils::MakePropertyChain(
 				// We manipulate a bit the chain to store the property inside a container in a special way. So that we can 
 				if ( DataprepParameterizationUtils::IsAContainerProperty( ParentProperty ) )
 				{
-					PropertyChain.Emplace( Property, Property->GetFName(), 0);
+					PropertyChain.Emplace( Property, Property->GetFName(), INDEX_NONE );
 					PropertyChain.Emplace( ParentProperty, ParentProperty->GetFName(), CurrentHandle->GetIndexInArray() );
 					CurrentHandle = ParentHandle->GetParentHandle();
 					bWasProccess = true;
@@ -87,8 +87,25 @@ TArray<FDataprepPropertyLink> FDataprepParameterizationUtils::MakePropertyChain(
 			}
 
 			if ( CurrentHandle )
-			{ 
-				Property = CurrentHandle->GetProperty();
+			{
+				UProperty* NextProperty = CurrentHandle->GetProperty();
+
+				// Deal with the case of a property of a raw c++ array
+				while ( CurrentHandle && NextProperty == Property )
+				{
+					// Skip the new current handle as it point on the same property
+					CurrentHandle = CurrentHandle->GetParentHandle();
+					if ( CurrentHandle.IsValid() )
+					{
+						NextProperty = CurrentHandle->GetProperty();
+					}
+					else
+					{
+						NextProperty = nullptr;
+					}
+				}
+
+				Property = NextProperty;
 			}
 		}
 		
@@ -109,6 +126,7 @@ TArray<FDataprepPropertyLink> FDataprepParameterizationUtils::MakePropertyChain(
 
 TArray<FDataprepPropertyLink> FDataprepParameterizationUtils::MakePropertyChain(FPropertyChangedChainEvent& PropertyChangedEvent)
 {
+	// This implementation is base on what the property editor does in general
 	const FEditPropertyChain& EditPropertyChain = PropertyChangedEvent.PropertyChain;
 
 	TArray<FDataprepPropertyLink> DataprepPropertyChain;
@@ -124,6 +142,37 @@ TArray<FDataprepPropertyLink> FDataprepParameterizationUtils::MakePropertyChain(
 		{ 
 			int32 ContainerIndex = PropertyChangedEvent.GetArrayIndex( Property->GetName() );
 			DataprepPropertyChain.Emplace( Property, Property->GetFName(), ContainerIndex);
+
+			// Used to validate if we should skip the next property
+			UProperty* PossibleNextProperty = nullptr;
+
+			if ( Property->GetClass() == UArrayProperty::StaticClass() )
+			{
+				UArrayProperty* ArrayProperty  = static_cast<UArrayProperty*>( Property );
+				UProperty* ArrayTypeProperty = ArrayProperty->Inner;
+				DataprepPropertyChain.Emplace( ArrayTypeProperty, ArrayTypeProperty->GetFName(), INDEX_NONE );
+				PossibleNextProperty = ArrayTypeProperty;
+			}
+			else if ( Property->GetClass() == USetProperty::StaticClass() )
+			{
+				USetProperty* SetProperty = static_cast<USetProperty*>(Property);
+				UProperty* SetTypeProperty = SetProperty->ElementProp;
+				DataprepPropertyChain.Emplace(SetTypeProperty, SetTypeProperty->GetFName(), INDEX_NONE);
+				PossibleNextProperty = SetTypeProperty;
+			}
+
+			// We can't deal with map yet du to a lack of information from the property chain
+
+			
+			if ( PossibleNextProperty )
+			{ 
+				const TDoubleLinkedList<UProperty*>::TDoubleLinkedListNode* NextNode = CurrentNode->GetNextNode();
+				if ( NextNode && PossibleNextProperty == NextNode->GetValue() )
+				{
+					//skip the next property
+					CurrentNode = NextNode->GetNextNode();
+				}
+			}
 		}
 		else
 		{
@@ -204,13 +253,7 @@ bool FDataprepParameterizationUtils::IsPropertyChainValid(const TArray<FDataprep
 		return false;
 	}
 
-	// We will support those latter (there is still some bugs to fix before)
-	if ( PropertyChain.Num() > 1 )
-	{
-		return false;
-	}
-
-
+	bool bParentWasAContainer = false;
 	for ( const FDataprepPropertyLink& PropertyLink : PropertyChain )
 	{
 		UProperty* Property = PropertyLink.CachedProperty.Get();
@@ -219,12 +262,21 @@ bool FDataprepParameterizationUtils::IsPropertyChainValid(const TArray<FDataprep
 			return false;
 		}
 
-		// todo check for custom getter and setter
-
-		// Temporary unsupported property check
+		// Ensure that the properties are editable
+		if ( !bParentWasAContainer && !bool( Property->PropertyFlags & CPF_Edit ) )
 		{
-			// Reject container properties for now (there is still some bugs to fix before)
-			if ( DataprepParameterizationUtils::IsAContainerProperty( Property ) )
+			return false;
+		}
+
+		if ( Property->ArrayDim <= PropertyLink.ContainerIndex )
+		{
+			return false;
+		}
+
+		// Temporary unsupported properties check
+		{
+			// We don't support properties chain that are a subpart of a container property
+			if ( bParentWasAContainer )
 			{
 				return false;
 			}
@@ -234,6 +286,8 @@ bool FDataprepParameterizationUtils::IsPropertyChainValid(const TArray<FDataprep
 			{
 				return false;
 			}
+
+			bParentWasAContainer = DataprepParameterizationUtils::IsAContainerProperty( Property );
 		}
 	}
 

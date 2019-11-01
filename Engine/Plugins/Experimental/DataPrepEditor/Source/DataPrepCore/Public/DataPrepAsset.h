@@ -101,7 +101,7 @@ public:
 	 * Note on the objects param: The parameterized objects that should refresh their ui. If nullptr all widgets that can display some info on the parameterization should be refreshed
 	 */
 	DECLARE_EVENT_OneParam(UDataprepParameterization, FDataprepParameterizationStatusForObjectsChanged, const TSet<UObject*>* /** Objects */)
-	FDataprepParameterizationStatusForObjectsChanged OnParameterizationStatusForObjectsChanged;
+	FDataprepParameterizationStatusForObjectsChanged OnParameterizedObjectsChanged;
 
 	virtual UObject* GetParameterizationObject() override;
 
@@ -113,7 +113,7 @@ public:
 
 	void RemoveObjectPropertyFromParameterization(UDataprepParameterizableObject* Object, const TArray<struct FDataprepPropertyLink>& InPropertyChain);
 
-	void GetExistingParameterNamesForType(UProperty* Property, TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const;
+	void GetExistingParameterNamesForType(UProperty* Property, bool bIsDescribingFullProperty, TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const;
 
 	UDataprepParameterization* GetDataprepParameterization() { return Parameterization; }
 
