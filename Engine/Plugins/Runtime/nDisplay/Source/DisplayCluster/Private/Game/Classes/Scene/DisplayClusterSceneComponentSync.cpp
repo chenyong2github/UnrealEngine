@@ -54,7 +54,7 @@ void UDisplayClusterSceneComponentSync::TickComponent( float DeltaTime, ELevelTi
 	// ...
 }
 
-void UDisplayClusterSceneComponentSync::DestroyComponent(bool bPromoteChildren)
+void UDisplayClusterSceneComponentSync::OnComponentDestroyed(bool bDestroyingHierarchy)
 {
 	if (GDisplayCluster->IsModuleInitialized())
 	{
@@ -68,13 +68,18 @@ void UDisplayClusterSceneComponentSync::DestroyComponent(bool bPromoteChildren)
 		}
 	}
 
-	Super::DestroyComponent(bPromoteChildren);
+	Super::OnComponentDestroyed(bDestroyingHierarchy);
 }
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterClusterSyncObject
 //////////////////////////////////////////////////////////////////////////////////////////////
+bool UDisplayClusterSceneComponentSync::IsActive() const
+{
+	return !this->IsPendingKill();
+}
+
 FString UDisplayClusterSceneComponentSync::GetSyncId() const
 {
 	return FString::Printf(TEXT("S_%s"), *GetOwner()->GetName());
