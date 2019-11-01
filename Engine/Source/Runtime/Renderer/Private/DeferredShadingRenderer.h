@@ -504,9 +504,6 @@ private:
 		int32 SamplePerPixel,
 		int32 HeightFog,
 		float ResolutionFraction,
-		FRDGTextureUAV* ColorOutputUAV,
-		FRDGTextureUAV* RayHitDistanceOutputUAV,
-		FRDGTextureUAV* RayImaginaryDepthOutputUAV,
 		IScreenSpaceDenoiser::FReflectionsInputs* OutDenoiserInputs);
 
 	void RenderRayTracingShadows(
