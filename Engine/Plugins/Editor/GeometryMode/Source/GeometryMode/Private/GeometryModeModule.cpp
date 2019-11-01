@@ -4,6 +4,8 @@
 #include "Modules/ModuleManager.h"
 #include "EditorModeManager.h"
 #include "Editor.h"
+#include "EditorModeRegistry.h"
+#include "GeometryEdMode.h"
 
 
 FEditorModeID FGeometryEditingModes::EM_Geometry = FEditorModeID(TEXT("EM_Geometry"));
