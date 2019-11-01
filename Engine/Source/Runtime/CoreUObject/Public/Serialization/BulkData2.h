@@ -127,7 +127,7 @@ private:
 	void AllocateData(SIZE_T SizeInBytes);
 	void FreeData();
 
-	FString ConvertFilenameFromFlags(const FString& Filename);
+	FString ConvertFilenameFromFlags(const FString& Filename) const;
 
 private:
 	friend class FBulkDataIoDispatcherRequest;

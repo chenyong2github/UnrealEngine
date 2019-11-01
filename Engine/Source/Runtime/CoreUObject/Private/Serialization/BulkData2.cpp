@@ -1011,7 +1011,7 @@ void FBulkDataBase::FreeData()
 	DataBuffer = nullptr;
 }
 
-FString FBulkDataBase::ConvertFilenameFromFlags(const FString& Filename)
+FString FBulkDataBase::ConvertFilenameFromFlags(const FString& Filename) const
 {
 	if (IsInlined())
 	{
