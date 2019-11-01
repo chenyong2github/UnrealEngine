@@ -979,7 +979,7 @@ static void Writer_LogHeader()
 	UE_TRACE_EVENT_END()
 
 	UE_TRACE_LOG($Trace, NewTrace)
-		<< NewTrace.Version(1)
+		<< NewTrace.Version(2)
 		<< NewTrace.Endian(0x524d)
 		<< NewTrace.PointerSize(sizeof(void*));
 }
