@@ -434,6 +434,9 @@ bool FAnalysisEngine::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 ////////////////////////////////////////////////////////////////////////////////
 void FAnalysisEngine::OnNewTrace(const FOnEventContext& Context)
 {
+	const FEventData& EventData = Context.EventData;
+	SessionContext.Version = EventData.GetValue<uint16>("Version");
+
 	struct : IAnalyzer::FInterfaceBuilder
 	{
 		virtual void RouteEvent(uint16 RouteId, const ANSICHAR* Logger, const ANSICHAR* Event) override
