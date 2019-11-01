@@ -888,7 +888,18 @@ void UDataprepParameterization::PostLoad()
 			BindingsContainer = NewObject<UDataprepParameterizationBindings>(this, NAME_None, RF_Transactional);
 		}
 
+		PrepareCustomClassForNewClassGeneration();
+		UClass* OldClass = CustomContainerClass;
+		CustomContainerClass = nullptr;
+
 		LoadParameterization();
+
+		if ( OldClass )
+		{
+			DoReinstancing( OldClass, false );
+			OnTellInstancesToReloadTheirSerializedData.Broadcast();
+			CastChecked<UDataprepAsset>( GetOuter() )->OnParameterizedObjectsChanged.Broadcast( nullptr );
+		}
 	}
 	Super::PostLoad();
 }
