@@ -232,17 +232,6 @@ void FSkeletalMeshRenderData::Cache(USkeletalMesh* Owner)
 					bool bUseFullPrecisionUVs = LODInfo->BuildSettings.bUseFullPrecisionUVs;
 					bool bUseHighPrecisionTangentBasis = LODInfo->BuildSettings.bUseHighPrecisionTangentBasis;
 					bool bBuildAdjacencyBuffer = LODInfo->BuildSettings.bBuildAdjacencyBuffer;
-					if (Owner->LODSettings != nullptr)
-					{
-						const int32 NumSettings = Owner->LODSettings->GetNumberOfSettings();
-						if (LODIndex < NumSettings)
-						{
-							const FSkeletalMeshLODGroupSettings& SkeletalMeshLODGroupSettings = Owner->LODSettings->GetSettingsForLODLevel(LODIndex);
-							bUseFullPrecisionUVs = SkeletalMeshLODGroupSettings.GetBuildSettings().bUseFullPrecisionUVs;
-							bUseHighPrecisionTangentBasis = SkeletalMeshLODGroupSettings.GetBuildSettings().bUseHighPrecisionTangentBasis;
-							bBuildAdjacencyBuffer = SkeletalMeshLODGroupSettings.GetBuildSettings().bBuildAdjacencyBuffer;
-						}
-					}
 					if (bUseFullPrecisionUVs || !GVertexElementTypeSupport.IsSupported(VET_Half2))
 					{
 						VertexBufferBuildFlags |= ESkeletalMeshVertexFlags::UseFullPrecisionUVs;
