@@ -2344,6 +2344,13 @@ namespace ObjectTools
 			{
 				MorphTarget->BaseSkelMesh->UnregisterMorphTarget(MorphTarget);
 			}
+
+			// @todo Hack for 4.23.2 since public headers can't be touched.
+			// Worlds get hooked on by a lot of external non-uobject system through GCObject, call World cleanup to fire delegates to tell them to unhook and release reference
+			if (UWorld* World = Cast<UWorld>(ObjectToDelete))
+			{
+				World->CleanupWorld();
+			}
 		}
 
 		if ( bPerformReferenceCheck )
