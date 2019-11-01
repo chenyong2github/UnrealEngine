@@ -88,6 +88,8 @@ uint2 TileAlignedResolution;
 uint TestPathRoughness;
 float MinClearCoatLevel;
 uint MaxUnderCoatBounces;
+uint RenderTileOffsetX;
+uint RenderTileOffsetY;
 uint EnableTranslucency;
 
 float ReflectionMinRayDistance;
@@ -105,7 +107,7 @@ RWTexture2D<float> RayHitDistanceOutput;
 RWTexture2D<float> RayImaginaryDepthOutput;
 
 
-// Material buffer and tile size are used for sorted materials.
+// Material buffer and sort tile size are used for sorted materials.
 RWStructuredBuffer<FDeferredMaterialPayload> MaterialBuffer;
 
 // Generate a random direction to sample according to world normal and roughness.
@@ -209,7 +211,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 		return;
 	}
 #else
-	uint2 DispatchThreadId = DispatchRaysIndex().xy;
+	uint2 DispatchThreadId = DispatchRaysIndex().xy + uint2(RenderTileOffsetX, RenderTileOffsetY);
 #endif
 
 	DispatchThreadId += View.ViewRectMin;
@@ -236,7 +238,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 		LocalSamplesPerPixel = 0;
 	}
 
-	// Mask out samples from rounding to tile boundaries
+	// Mask out samples from rounding to sort tile boundaries
 	if (DIM_DEFERRED_MATERIAL_MODE == DEFERRED_MATERIAL_MODE_GATHER && any(DispatchThreadId >= RayTracingResolution))
 	{
 		LocalSamplesPerPixel = 0;

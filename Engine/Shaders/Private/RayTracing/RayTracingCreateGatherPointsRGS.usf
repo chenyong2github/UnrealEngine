@@ -21,8 +21,8 @@ uint SamplesPerPixel;
 uint SampleIndex;
 uint MaxBounces;
 uint UpscaleFactor;
-uint TileOffsetX;
-uint TileOffsetY;
+uint RenderTileOffsetX;
+uint RenderTileOffsetY;
 float MaxRayDistanceForGI;
 float NextEventEstimationSamples;
 float DiffuseThreshold;
@@ -62,7 +62,7 @@ void GenerateCosineNormalRay(
 
 RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsRGS)
 {
-	uint2 DispatchThreadId = DispatchRaysIndex().xy + View.ViewRectMin + uint2(TileOffsetX, TileOffsetY);
+	uint2 DispatchThreadId = DispatchRaysIndex().xy + View.ViewRectMin + uint2(RenderTileOffsetX, RenderTileOffsetY);
 	uint GatherPointsIndex = DispatchThreadIdToLinearIndex(DispatchThreadId);
 #if 1
 	// Default initialization
