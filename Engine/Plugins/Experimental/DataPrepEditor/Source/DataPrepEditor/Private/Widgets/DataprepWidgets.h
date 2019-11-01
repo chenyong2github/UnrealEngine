@@ -233,6 +233,8 @@ private:
 
 	void OnDataprepParameterizationStatusForObjectsChanged(const TSet<UObject*>* Objects);
 
+	void OnObjectTransacted(UObject* Object, const class FTransactionObjectEvent& TransactionObjectEvent);
+
 private:
 	/** Row generator applied on detailed object */
 	TSharedPtr< class IPropertyRowGenerator > Generator;
@@ -249,8 +251,11 @@ private:
 	/** Delegate handle to track property changes on array properties */
 	FDelegateHandle OnPropertyChangedHandle;
 
-	/** Delegate to track new object after a re-instancing process */
+	/** Delegate handle to track new object after a re-instancing process */
 	FDelegateHandle OnObjectReplacedHandle;
+
+	/** Delegate handle to track when a object was transacted */
+	FDelegateHandle OnObjectTransactedHandle;
 
 	/** Relative width to control splitters. */
 	float ColumnWidth;
