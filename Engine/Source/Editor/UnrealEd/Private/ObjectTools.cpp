@@ -2401,13 +2401,16 @@ namespace ObjectTools
 		TArray<FReferencerInformation> ExternalReferencers;
 		Object->RetrieveReferencers(nullptr /* internal refs */, &ExternalReferencers);
 
-		for (const FReferencerInformation& Referencer : ExternalReferencers)
+		for (const FReferencerInformation& RefInfo : ExternalReferencers)
 		{
-			bool bAlreadyIn = false;
-			ReferencingObjects.Add(Referencer.Referencer, &bAlreadyIn);
-			if (!bAlreadyIn)
+			if (RefInfo.Referencer != nullptr)
 			{
-				RecursiveRetrieveReferencers(Referencer.Referencer, ReferencingObjects);
+				bool bAlreadyIn = false;
+				ReferencingObjects.Add(RefInfo.Referencer, &bAlreadyIn);
+				if (!bAlreadyIn)
+				{
+					RecursiveRetrieveReferencers(RefInfo.Referencer, ReferencingObjects);
+				}
 			}
 		}
 	}
