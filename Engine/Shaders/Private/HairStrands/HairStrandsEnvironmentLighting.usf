@@ -47,6 +47,8 @@ Texture3D<float4>			HairScatteringLUTTexture;
 Texture3D<float4>			HairEnergyLUTTexture;
 SamplerState 				HairLUTSampler;
 
+uint  MultipleScatterSampleCount;
+
 uint  Voxel_ClusterId;
 float Voxel_TanConeAngle;
 float Voxel_DensityScale;
@@ -138,7 +140,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 		};
 
 		float3 AvgR = 0;
-		const uint SampleCount = 16;
+		const uint SampleCount = clamp(MultipleScatterSampleCount, 1, 16);
 		for (uint i = 0; i < SampleCount; ++i)
 		{
 			const float2 Rand2 = (PoissonDisk[i] + float2(1, 1)) * 0.5f;
