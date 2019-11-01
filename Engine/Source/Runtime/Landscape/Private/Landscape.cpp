@@ -1056,6 +1056,10 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 #endif
 
 #if WITH_EDITOR
+	NumComponentsNeedingGrassMapRender = 0;
+	NumTexturesToStreamForVisibleGrassMapRender = 0;
+	NumComponentsNeedingTextureBaking = 0;
+
 	if (VisibilityLayer == nullptr)
 	{
 		// Structure to hold one-time initialization
