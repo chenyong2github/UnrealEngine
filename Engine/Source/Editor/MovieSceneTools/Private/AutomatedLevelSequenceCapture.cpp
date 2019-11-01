@@ -22,6 +22,8 @@
 #include "Protocols/AudioCaptureProtocol.h"
 #include "Evaluation/IMovieSceneMotionVectorSimulation.h"
 #include "Rendering/MotionVectorSimulation.h"
+#include "ShaderCompiler.h"
+#include "DistanceFieldAtlas.h"
 
 const FName UAutomatedLevelSequenceCapture::AutomatedLevelSequenceCaptureUIName = FName(TEXT("AutomatedLevelSequenceCaptureUIInstance"));
 
@@ -649,6 +651,21 @@ void UAutomatedLevelSequenceCapture::OnTick(float DeltaSeconds)
 	if (GetWorld())
 	{
 		GetWorld()->FlushLevelStreaming(EFlushLevelStreamingType::Full);
+	}
+
+
+	if (GShaderCompilingManager && GShaderCompilingManager->GetNumRemainingJobs() > 0)
+	{
+		UE_LOG(LogMovieSceneCapture, Log, TEXT("[%d] Waiting for %d shaders to finish compiling..."), GFrameCounter, GShaderCompilingManager->GetNumRemainingJobs());
+		GShaderCompilingManager->FinishAllCompilation();
+		UE_LOG(LogMovieSceneCapture, Log, TEXT("[%d] Done waiting for shaders to finish."), GFrameCounter);
+	}
+
+	if (GDistanceFieldAsyncQueue && GDistanceFieldAsyncQueue->GetNumOutstandingTasks() > 0)
+	{
+		UE_LOG(LogMovieSceneCapture, Log, TEXT("[%d] Waiting for %d Mesh Distance Fields to finish building..."), GFrameCounter, GDistanceFieldAsyncQueue->GetNumOutstandingTasks());
+		GDistanceFieldAsyncQueue->BlockUntilAllBuildsComplete();
+		UE_LOG(LogMovieSceneCapture, Log, TEXT("[%d] Done waiting for Mesh Distance Fields to build."), GFrameCounter);
 	}
 
 	// Setup the automated capture

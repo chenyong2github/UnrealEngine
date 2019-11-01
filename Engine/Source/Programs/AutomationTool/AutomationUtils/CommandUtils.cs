@@ -2098,17 +2098,17 @@ namespace AutomationTool
 		/// <param name="Files">Files to include in the archive</param>
 		public static void ZipFiles(FileReference ZipFile, DirectoryReference BaseDirectory, IEnumerable<FileReference> Files)
 		{
-			using(Ionic.Zip.ZipFile Zip = new Ionic.Zip.ZipFile(Encoding.UTF8))
-			{
-				Zip.UseZip64WhenSaving = Ionic.Zip.Zip64Option.AsNecessary;
-				foreach(FileReference File in Files)
+				using(Ionic.Zip.ZipFile Zip = new Ionic.Zip.ZipFile(Encoding.UTF8))
 				{
-					Zip.AddFile(File.FullName, Path.GetDirectoryName(File.MakeRelativeTo(BaseDirectory)));
+				Zip.UseZip64WhenSaving = Ionic.Zip.Zip64Option.AsNecessary;
+					foreach(FileReference File in Files)
+					{
+						Zip.AddFile(File.FullName, Path.GetDirectoryName(File.MakeRelativeTo(BaseDirectory)));
+					}
+					CommandUtils.CreateDirectory(ZipFile.Directory);
+					Zip.Save(ZipFile.FullName);
 				}
-				CommandUtils.CreateDirectory(ZipFile.Directory);
-				Zip.Save(ZipFile.FullName);
 			}
-		}
 
 		/// <summary>
 		/// Extracts the contents of a zip file
@@ -2748,6 +2748,16 @@ namespace AutomationTool
 		/// <returns>Path to signtool.exe</returns>
 		static string GetSignToolPath()
 		{
+			List<KeyValuePair<string, DirectoryReference>> WindowsSdkDirs = WindowsExports.GetWindowsSdkDirs();
+			foreach (KeyValuePair<string, DirectoryReference> Pair in WindowsSdkDirs)
+			{
+				FileReference SignToolFile = FileReference.Combine(Pair.Value, "bin", Pair.Key, "x64", "SignTool.exe");
+				if (FileReference.Exists(SignToolFile))
+				{
+					return SignToolFile.FullName;
+				}
+			}
+
 			string[] PossibleSignToolNames =
 			{
 				"C:/Program Files (x86)/Windows Kits/8.1/bin/x86/SignTool.exe",

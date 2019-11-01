@@ -291,6 +291,11 @@ public:
 		TArray<int32>& WedgeMap
 	)
 	{
+		if (Vertices.Num() <= 0)
+		{
+			return;
+		}
+
 		// Copy the vertices since we will be reordering them
 		TArray<FStaticMeshBuildVertex> OriginalVertices = Vertices;
 

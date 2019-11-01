@@ -10,6 +10,7 @@ namespace Audio
 		, SampleRate(44100.0f)
 		, Nyquist(0.5f * SampleRate)
 		, Freq(440.0f)
+		, BaseFreq(1.0f)
 		, Gain(1.0f)
 		, ExternalGainMod(1.0f)
 		, Phase(0.0f)

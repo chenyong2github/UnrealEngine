@@ -1023,4 +1023,55 @@ FString FSkeletalMeshLODModel::GetLODModelDeriveDataKey() const
 	return KeySuffix;
 }
 
+void FSkeletalMeshLODModel::UpdateChunkedSectionInfo()
+{
+	//Look if the data is pre skeletalmesh build refactor
+	if (RawSkeletalMeshBulkData.IsBuildDataAvailable())
+	{
+		//If the data is up to date just return and do nothing
+		return;
+	}
+	int32 LODModelSectionNum = Sections.Num();
+	//Fill the ChunkedParentSectionIndex data, we assume that every section using the same material are chunked
+	int32 LastMaterialIndex = INDEX_NONE;
+	int32 CurrentParentChunkIndex = INDEX_NONE;
+	int32 OriginalIndex = 0;
+
+	for (int32 LODModelSectionIndex = 0; LODModelSectionIndex < LODModelSectionNum; ++LODModelSectionIndex)
+	{
+		//If we have cloth on a chunked section we treat the chunked section has a parent section (this is to get the same result has before the refactor)
+		if (Sections[LODModelSectionIndex].MaterialIndex == LastMaterialIndex && !Sections[LODModelSectionIndex].ClothingData.AssetGuid.IsValid())
+		{
+			Sections[LODModelSectionIndex].ChunkedParentSectionIndex = CurrentParentChunkIndex;
+			Sections[LODModelSectionIndex].OriginalDataSectionIndex = Sections[CurrentParentChunkIndex].OriginalDataSectionIndex;
+			//In case of a child section that was BONE chunked ensure it has the same setting has the original section
+			FSkelMeshSourceSectionUserData& SectionUserData = UserSectionsData.FindOrAdd(Sections[LODModelSectionIndex].OriginalDataSectionIndex);
+			Sections[LODModelSectionIndex].bDisabled = SectionUserData.bDisabled;
+			Sections[LODModelSectionIndex].bCastShadow = SectionUserData.bCastShadow;
+			Sections[LODModelSectionIndex].bRecomputeTangent = SectionUserData.bRecomputeTangent;
+			Sections[LODModelSectionIndex].GenerateUpToLodIndex = SectionUserData.GenerateUpToLodIndex;
+			//Chunked section cannot have cloth, a cloth section will be a parent section
+			Sections[LODModelSectionIndex].CorrespondClothAssetIndex = INDEX_NONE;
+			Sections[LODModelSectionIndex].ClothingData.AssetGuid = FGuid();
+			Sections[LODModelSectionIndex].ClothingData.AssetLodIndex = INDEX_NONE;
+		}
+		else
+		{
+			CurrentParentChunkIndex = LODModelSectionIndex;
+			FSkelMeshSourceSectionUserData& SectionUserData = UserSectionsData.FindOrAdd(OriginalIndex);
+			SectionUserData.bDisabled = Sections[LODModelSectionIndex].bDisabled;
+			SectionUserData.bCastShadow = Sections[LODModelSectionIndex].bCastShadow;
+			SectionUserData.bRecomputeTangent = Sections[LODModelSectionIndex].bRecomputeTangent;
+			SectionUserData.GenerateUpToLodIndex = Sections[LODModelSectionIndex].GenerateUpToLodIndex;
+			SectionUserData.CorrespondClothAssetIndex = Sections[LODModelSectionIndex].CorrespondClothAssetIndex;
+			SectionUserData.ClothingData.AssetGuid = Sections[LODModelSectionIndex].ClothingData.AssetGuid;
+			SectionUserData.ClothingData.AssetLodIndex = Sections[LODModelSectionIndex].ClothingData.AssetLodIndex;
+
+			Sections[LODModelSectionIndex].OriginalDataSectionIndex = OriginalIndex++;
+			Sections[LODModelSectionIndex].ChunkedParentSectionIndex = INDEX_NONE;
+		}
+		LastMaterialIndex = Sections[LODModelSectionIndex].MaterialIndex;
+	}
+}
+
 #endif // WITH_EDITOR

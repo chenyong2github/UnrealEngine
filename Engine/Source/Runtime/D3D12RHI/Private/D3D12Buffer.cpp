@@ -18,20 +18,17 @@ template void FD3D12DynamicRHI::UnlockBuffer<FD3D12StructuredBuffer>(FRHICommand
 template FD3D12VertexBuffer* FD3D12Adapter::CreateRHIBuffer<FD3D12VertexBuffer>(FRHICommandListImmediate* RHICmdList,
 	const D3D12_RESOURCE_DESC& Desc,
 	uint32 Alignment, uint32 Stride, uint32 Size, uint32 InUsage,
-	FRHIResourceCreateInfo& CreateInfo,
-	FRHIGPUMask GPUMask);
+	FRHIResourceCreateInfo& CreateInfo);
 
 template FD3D12IndexBuffer* FD3D12Adapter::CreateRHIBuffer<FD3D12IndexBuffer>(FRHICommandListImmediate* RHICmdList,
 	const D3D12_RESOURCE_DESC& Desc,
 	uint32 Alignment, uint32 Stride, uint32 Size, uint32 InUsage,
-	FRHIResourceCreateInfo& CreateInfo,
-	FRHIGPUMask GPUMask);
+	FRHIResourceCreateInfo& CreateInfo);
 
 template FD3D12StructuredBuffer* FD3D12Adapter::CreateRHIBuffer<FD3D12StructuredBuffer>(FRHICommandListImmediate* RHICmdList,
 	const D3D12_RESOURCE_DESC& Desc,
 	uint32 Alignment, uint32 Stride, uint32 Size, uint32 InUsage,
-	FRHIResourceCreateInfo& CreateInfo,
-	FRHIGPUMask GPUMask);
+	FRHIResourceCreateInfo& CreateInfo);
 
 struct FRHICommandUpdateBuffer final : public FRHICommand<FRHICommandUpdateBuffer>
 {
@@ -118,19 +115,18 @@ BufferType* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdList,
 	uint32 Stride,
 	uint32 Size,
 	uint32 InUsage,
-	FRHIResourceCreateInfo& CreateInfo,
-	FRHIGPUMask GPUMask)
+	FRHIResourceCreateInfo& CreateInfo)
 {
 	SCOPE_CYCLE_COUNTER(STAT_D3D12CreateBufferTime);
 
 	const bool bIsDynamic = (InUsage & BUF_AnyDynamic) ? true : false;
-	const uint32 FirstGPUIndex = GPUMask.GetFirstIndex();
+	const uint32 FirstGPUIndex = CreateInfo.GPUMask.GetFirstIndex();
 
 	BufferType* BufferOut = nullptr;
 	if (bIsDynamic)
 	{
 		BufferType* NewBuffer0 = nullptr;
-		BufferOut = CreateLinkedObject<BufferType>(GPUMask, [&](FD3D12Device* Device)
+		BufferOut = CreateLinkedObject<BufferType>(CreateInfo.GPUMask, [&](FD3D12Device* Device)
 		{
 			BufferType* NewBuffer = new BufferType(Device, Stride, Size, InUsage);
 			NewBuffer->BufferAlignment = Alignment;
@@ -151,7 +147,7 @@ BufferType* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdList,
 	}
 	else
 	{
-		BufferOut = CreateLinkedObject<BufferType>(GPUMask, [&](FD3D12Device* Device)
+		BufferOut = CreateLinkedObject<BufferType>(CreateInfo.GPUMask, [&](FD3D12Device* Device)
 		{
 			BufferType* NewBuffer = new BufferType(Device, Stride, Size, InUsage);
 			NewBuffer->BufferAlignment = Alignment;

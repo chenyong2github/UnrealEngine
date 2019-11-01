@@ -14,7 +14,6 @@
 #include "NiagaraSystemEditorData.h"
 #include "NiagaraEmitterEditorData.h"
 #include "ViewModels/Stack/NiagaraStackSystemSettingsGroup.h"
-#include "ViewModels/Stack/NiagaraStackSpacer.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackViewModel"
 
@@ -163,47 +162,22 @@ void UNiagaraStackRoot::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*
 		RenderGroup->Initialize(RequiredEntryData);
 	}
 
-	auto GetOrCreateSpacer = [&](FName SpacerExecutionCategory, FName SpacerKey)
-	{
-		UNiagaraStackSpacer* Spacer = FindCurrentChildOfTypeByPredicate<UNiagaraStackSpacer>(CurrentChildren,
-			[SpacerKey](UNiagaraStackSpacer* CurrentSpacer) { return CurrentSpacer->GetSpacerKey() == SpacerKey; });
-
-		if (Spacer == nullptr)
-		{
-			Spacer = NewObject<UNiagaraStackSpacer>(this);
-			FRequiredEntryData RequiredEntryData(GetSystemViewModel(), GetEmitterViewModel(),
-				SpacerExecutionCategory, NAME_None,
-				GetSystemViewModel()->GetEditorData().GetStackEditorData());
-			Spacer->Initialize(RequiredEntryData, SpacerKey, 1.5f);
-		}
-
-		return Spacer;
-	};
-
 	// Populate new children
 	if (bIncludeSystemInformation)
 	{
 		NewChildren.Add(SystemSettingsGroup);
-		NewChildren.Add(GetOrCreateSpacer(FExecutionCategoryNames::System, "SystemSettingsSpacer"));
 		NewChildren.Add(SystemSpawnGroup);
-		NewChildren.Add(GetOrCreateSpacer(FExecutionCategoryNames::System, "SystemSpawnSpacer"));
 		NewChildren.Add(SystemUpdateGroup);
-		NewChildren.Add(GetOrCreateSpacer(NAME_None, "SystemSpacer"));
 	}
 
 	if (bIncludeEmitterInformation)
 	{
 		NewChildren.Add(EmitterSettingsGroup);
-		NewChildren.Add(GetOrCreateSpacer(FExecutionCategoryNames::Emitter, "EmitterSettingsSpacer"));
 		NewChildren.Add(EmitterSpawnGroup);
-		NewChildren.Add(GetOrCreateSpacer(FExecutionCategoryNames::Emitter, "EmitterSpawnSpacer"));
 		NewChildren.Add(EmitterUpdateGroup);
-		NewChildren.Add(GetOrCreateSpacer(NAME_None, "EmitterSpacer"));
 
 		NewChildren.Add(ParticleSpawnGroup);
-		NewChildren.Add(GetOrCreateSpacer(FExecutionCategoryNames::Particle, "ParticleSpawnSpacer"));
 		NewChildren.Add(ParticleUpdateGroup);
-		NewChildren.Add(GetOrCreateSpacer(FExecutionCategoryNames::Particle, "ParticleUpdateSpacer"));
 
 		for (const FNiagaraEventScriptProperties& EventScriptProperties : GetEmitterViewModel()->GetEmitter()->GetEventHandlers())
 		{
@@ -224,7 +198,6 @@ void UNiagaraStackRoot::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*
 		}
 
 		NewChildren.Add(AddEventHandlerGroup);
-		NewChildren.Add(GetOrCreateSpacer(NAME_None, "ParticleSpacer"));
 
 		NewChildren.Add(RenderGroup);
 	}

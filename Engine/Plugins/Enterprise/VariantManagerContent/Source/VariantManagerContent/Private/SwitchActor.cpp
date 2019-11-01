@@ -8,7 +8,9 @@
 ASwitchActor::ASwitchActor(const FObjectInitializer& Init)
 	: Super(Init)
 {
-	USceneComponent* SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+	SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+	SceneComponent->SetMobility(EComponentMobility::Static);
+
 	RootComponent = SceneComponent;
 }
 

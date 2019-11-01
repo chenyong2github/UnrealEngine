@@ -1,0 +1,72 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#if !defined(WITH_MLSDK) || WITH_MLSDK
+
+#include "Lumin/CAPIShims/LuminAPI.h"
+
+LUMIN_THIRD_PARTY_INCLUDES_START
+#include <ml_media_common.h>
+#include <ml_media_extractor.h>
+LUMIN_THIRD_PARTY_INCLUDES_END
+
+namespace MLSDK_API
+{
+
+CREATE_FUNCTION_SHIM(ml_mediaextractor, MLResult, MLMediaExtractorCreate)
+#define MLMediaExtractorCreate ::MLSDK_API::MLMediaExtractorCreateShim
+CREATE_FUNCTION_SHIM(ml_mediaextractor, MLResult, MLMediaExtractorDestroy)
+#define MLMediaExtractorDestroy ::MLSDK_API::MLMediaExtractorDestroyShim
+CREATE_FUNCTION_SHIM(ml_mediaextractor, MLResult, MLMediaExtractorSetDataSourceForPath)
+#define MLMediaExtractorSetDataSourceForPath ::MLSDK_API::MLMediaExtractorSetDataSourceForPathShim
+CREATE_FUNCTION_SHIM(ml_mediaextractor, MLResult, MLMediaExtractorSetDataSourceForURI)
+#define MLMediaExtractorSetDataSourceForURI ::MLSDK_API::MLMediaExtractorSetDataSourceForURIShim
+CREATE_FUNCTION_SHIM(ml_mediaextractor, MLResult, MLMediaExtractorSetDataSourceForURIWithHeaders)
+#define MLMediaExtractorSetDataSourceForURIWithHeaders ::MLSDK_API::MLMediaExtractorSetDataSourceForURIWithHeadersShim
+CREATE_FUNCTION_SHIM(ml_mediaextractor, MLResult, MLMediaExtractorSetDataSourceForFD)
+#define MLMediaExtractorSetDataSourceForFD ::MLSDK_API::MLMediaExtractorSetDataSourceForFDShim
+CREATE_FUNCTION_SHIM(ml_mediaextractor, MLResult, MLMediaExtractorSetMediaDataSource)
+#define MLMediaExtractorSetMediaDataSource ::MLSDK_API::MLMediaExtractorSetMediaDataSourceShim
+CREATE_FUNCTION_SHIM(ml_mediaextractor, MLResult, MLMediaExtractorGetDRMInitData)
+#define MLMediaExtractorGetDRMInitData ::MLSDK_API::MLMediaExtractorGetDRMInitDataShim
+CREATE_FUNCTION_SHIM(ml_mediaextractor, MLResult, MLMediaExtractorReleaseDRMInitData)
+#define MLMediaExtractorReleaseDRMInitData ::MLSDK_API::MLMediaExtractorReleaseDRMInitDataShim
+CREATE_FUNCTION_SHIM(ml_mediaextractor, MLResult, MLMediaExtractorGetTrackCount)
+#define MLMediaExtractorGetTrackCount ::MLSDK_API::MLMediaExtractorGetTrackCountShim
+CREATE_FUNCTION_SHIM(ml_mediaextractor, MLResult, MLMediaExtractorGetTrackFormat)
+#define MLMediaExtractorGetTrackFormat ::MLSDK_API::MLMediaExtractorGetTrackFormatShim
+CREATE_FUNCTION_SHIM(ml_mediaextractor, MLResult, MLMediaExtractorSelectTrack)
+#define MLMediaExtractorSelectTrack ::MLSDK_API::MLMediaExtractorSelectTrackShim
+CREATE_FUNCTION_SHIM(ml_mediaextractor, MLResult, MLMediaExtractorUnselectTrack)
+#define MLMediaExtractorUnselectTrack ::MLSDK_API::MLMediaExtractorUnselectTrackShim
+CREATE_FUNCTION_SHIM(ml_mediaextractor, MLResult, MLMediaExtractorSeekTo)
+#define MLMediaExtractorSeekTo ::MLSDK_API::MLMediaExtractorSeekToShim
+CREATE_FUNCTION_SHIM(ml_mediaextractor, MLResult, MLMediaExtractorAdvance)
+#define MLMediaExtractorAdvance ::MLSDK_API::MLMediaExtractorAdvanceShim
+CREATE_FUNCTION_SHIM(ml_mediaextractor, MLResult, MLMediaExtractorReadSampleData)
+#define MLMediaExtractorReadSampleData ::MLSDK_API::MLMediaExtractorReadSampleDataShim
+CREATE_FUNCTION_SHIM(ml_mediaextractor, MLResult, MLMediaExtractorGetSampleTrackIndex)
+#define MLMediaExtractorGetSampleTrackIndex ::MLSDK_API::MLMediaExtractorGetSampleTrackIndexShim
+CREATE_FUNCTION_SHIM(ml_mediaextractor, MLResult, MLMediaExtractorGetSampleTime)
+#define MLMediaExtractorGetSampleTime ::MLSDK_API::MLMediaExtractorGetSampleTimeShim
+CREATE_FUNCTION_SHIM(ml_mediaextractor, MLResult, MLMediaExtractorGetSampleFlags)
+#define MLMediaExtractorGetSampleFlags ::MLSDK_API::MLMediaExtractorGetSampleFlagsShim
+CREATE_FUNCTION_SHIM(ml_mediaextractor, MLResult, MLMediaExtractorGetSampleCryptoInfo)
+#define MLMediaExtractorGetSampleCryptoInfo ::MLSDK_API::MLMediaExtractorGetSampleCryptoInfoShim
+CREATE_FUNCTION_SHIM(ml_mediaextractor, MLResult, MLMediaExtractorReleaseCryptoInfo)
+#define MLMediaExtractorReleaseCryptoInfo ::MLSDK_API::MLMediaExtractorReleaseCryptoInfoShim
+CREATE_FUNCTION_SHIM(ml_mediaextractor, MLResult, MLMediaExtractorGetCachedDuration)
+#define MLMediaExtractorGetCachedDuration ::MLSDK_API::MLMediaExtractorGetCachedDurationShim
+CREATE_FUNCTION_SHIM(ml_mediaextractor, MLResult, MLMediaExtractorHasCacheReachedEOS)
+#define MLMediaExtractorHasCacheReachedEOS ::MLSDK_API::MLMediaExtractorHasCacheReachedEOSShim
+CREATE_FUNCTION_SHIM(ml_mediaextractor, MLResult, MLMediaExtractorGetPSSHInfoCount)
+#define MLMediaExtractorGetPSSHInfoCount ::MLSDK_API::MLMediaExtractorGetPSSHInfoCountShim
+CREATE_FUNCTION_SHIM(ml_mediaextractor, MLResult, MLMediaExtractorGetPSSHInfo)
+#define MLMediaExtractorGetPSSHInfo ::MLSDK_API::MLMediaExtractorGetPSSHInfoShim
+CREATE_FUNCTION_SHIM(ml_mediaextractor, MLResult, MLMediaExtractorReleasePSSHInfo)
+#define MLMediaExtractorReleasePSSHInfo ::MLSDK_API::MLMediaExtractorReleasePSSHInfoShim
+
+}
+
+#endif // !defined(WITH_MLSDK) || WITH_MLSDK

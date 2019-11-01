@@ -5,14 +5,19 @@
 #include "Misc/CallbackDevice.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Misc/CommandLine.h"
+#include "GenericPlatform/GenericPlatformFile.h"
+#include "Lumin/LuminPlatformFile.h"
+#include "Lumin/CAPIShims/LuminAPIFileInfo.h"
 
 DEFINE_LOG_CATEGORY(LogLifecycle);
 
 bool FLuminLifecycle::bIsEngineLoopInitComplete = false;
 bool FLuminLifecycle::bIsAppPaused = false;
 MLResult FLuminLifecycle::LifecycleState = MLResult_UnspecifiedFailure;
-MLLifecycleCallbacks FLuminLifecycle::LifecycleCallbacks = { nullptr, nullptr, nullptr, nullptr, nullptr };
-TArray<FString> FLuminLifecycle::PendingStartupArgs;
+MLLifecycleInitArgList* FLuminLifecycle::InitArgList = nullptr;
+MLLifecycleCallbacksEx FLuminLifecycle::LifecycleCallbacks;
+TArray<FString> FLuminLifecycle::InitStringArgs;
+TArray<FLuminFileInfo> FLuminLifecycle::InitFileArgs;
 
 void FLuminLifecycle::Initialize()
 {
@@ -21,13 +26,17 @@ void FLuminLifecycle::Initialize()
 		return;
 	}
 
+	MLLifecycleCallbacksExInit(&LifecycleCallbacks);
 	LifecycleCallbacks.on_stop = Stop_Handler;
 	LifecycleCallbacks.on_pause = Pause_Handler;
 	LifecycleCallbacks.on_resume = Resume_Handler;
 	LifecycleCallbacks.on_unload_resources = UnloadResources_Handler;
 	LifecycleCallbacks.on_new_initarg = OnNewInitArgs_Handler;
+	LifecycleCallbacks.on_device_active = OnDeviceActive_Handler;
+	LifecycleCallbacks.on_device_reality = OnDeviceReality_Handler;
+	LifecycleCallbacks.on_device_standby = OnDeviceStandby_Handler;
 
-	LifecycleState = MLLifecycleInit(&LifecycleCallbacks, nullptr);
+	LifecycleState = MLLifecycleInitEx(&LifecycleCallbacks, nullptr);
 
 	FCoreDelegates::OnFEngineLoopInitComplete.AddStatic(FLuminLifecycle::OnFEngineLoopInitComplete_Handler);
 
@@ -67,6 +76,12 @@ void FLuminLifecycle::Stop_Handler(void* ApplicationContext)
 			FCoreDelegates::ApplicationWillTerminateDelegate.Broadcast();
 		}, TStatId(), nullptr, ENamedThreads::GameThread);
 		FTaskGraphInterface::Get().WaitUntilTaskCompletes(WillTerminateTask);
+	}
+
+	if (InitArgList != nullptr)
+	{
+		MLResult Result = MLLifecycleFreeInitArgList(&InitArgList);
+		UE_CLOG(MLResult_Ok != Result, LogLifecycle, Error, TEXT("Error %s freeing init args list."), UTF8_TO_TCHAR(MLGetResultString(Result)));
 	}
 
 	FPlatformMisc::RequestExit(false);
@@ -120,6 +135,11 @@ void FLuminLifecycle::Resume_Handler(void* ApplicationContext)
 		}
 
 		bIsAppPaused = false;
+
+		// if an app is resumed from a paused state, init_args callback is received before resume.
+		// in that case, we simply cache the args and fire them after the engine actually resumes.
+		// Otherwise, certain events like changing the map while the app is paused might cause a crash, or a deadlock.
+		FirePendingInitArgs();
 	}
 }
 
@@ -139,7 +159,10 @@ void FLuminLifecycle::UnloadResources_Handler(void* ApplicationContext)
 
 void FLuminLifecycle::OnNewInitArgs_Handler(void* ApplicationContext)
 {
-	MLLifecycleInitArgList* InitArgList = nullptr;
+	IPlatformFile& PlatformFile = IPlatformFile::GetPlatformPhysical();
+	FLuminPlatformFile* LuminPlatformFile = static_cast<FLuminPlatformFile*>(&PlatformFile);
+
+	InitArgList = nullptr;
 	MLResult Result = MLLifecycleGetInitArgList(&InitArgList);
 	if (Result == MLResult_Ok && InitArgList != nullptr)
 	{
@@ -147,7 +170,6 @@ void FLuminLifecycle::OnNewInitArgs_Handler(void* ApplicationContext)
 		Result = MLLifecycleGetInitArgListLength(InitArgList, &InitArgCount);
 		if (Result == MLResult_Ok && InitArgCount > 0)
 		{
-			TArray<FString> InitArgsArray;
 			for (int64 i = 0; i < InitArgCount; ++i)
 			{
 				const MLLifecycleInitArg* InitArg = nullptr;
@@ -163,39 +185,121 @@ void FLuminLifecycle::OnNewInitArgs_Handler(void* ApplicationContext)
 						ArgStr.Append(UTF8_TO_TCHAR(Arg));
 						ArgStr.TrimEndInline();
 						FCommandLine::Append(*ArgStr);
+	
+						InitStringArgs.Add(UTF8_TO_TCHAR(Arg));
 					}
-					InitArgsArray.Add(UTF8_TO_TCHAR(Arg));
+
+					int64_t FileInfoListLength = 0;
+					Result = MLLifecycleGetFileInfoListLength(InitArg, &FileInfoListLength);
+					FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FileInfoListLength = %lld"), FileInfoListLength);
+					for (int64_t j = 0; j < FileInfoListLength; ++j)
+					{
+						const MLFileInfo* FileInfo = nullptr;
+						Result = MLLifecycleGetFileInfoByIndex(InitArg, j, &FileInfo);
+						if (Result == MLResult_Ok && FileInfo != nullptr)
+						{
+							FLuminFileInfo LuminFile;
+							const char* Filename = nullptr;
+							Result = MLFileInfoGetFileName(FileInfo, &Filename);
+							if (Result == MLResult_Ok && Filename != nullptr)
+							{
+								LuminFile.FileName = UTF8_TO_TCHAR(Filename);
+							}
+
+							const char* MimeType = nullptr;
+							Result = MLFileInfoGetMimeType(FileInfo, &MimeType);
+							if (Result == MLResult_Ok && MimeType != nullptr)
+							{
+								LuminFile.MimeType = UTF8_TO_TCHAR(MimeType);
+							}
+
+							LuminFile.FileHandle = LuminPlatformFile->GetFileHandleForMLFileInfo(FileInfo);
+							if (LuminFile.FileHandle != nullptr)
+							{
+								InitFileArgs.Add(LuminFile);
+							}
+						}
+					}
 				}
 			}
 
-			if (FTaskGraphInterface::IsRunning() && bIsEngineLoopInitComplete)
+			if (bIsEngineLoopInitComplete && !bIsAppPaused)
 			{
-				FGraphEventRef StartupArgumentsTask = FFunctionGraphTask::CreateAndDispatchWhenReady([&]()
-				{
-					FCoreDelegates::ApplicationReceivedStartupArgumentsDelegate.Broadcast(InitArgsArray);
-				}, TStatId(), nullptr, ENamedThreads::GameThread);
-				FTaskGraphInterface::Get().WaitUntilTaskCompletes(StartupArgumentsTask);
-			}
-			else
-			{
-				PendingStartupArgs = InitArgsArray;
+				FirePendingInitArgs();
 			}
 		}
+	}
+}
+
+void FLuminLifecycle::OnDeviceActive_Handler(void* ApplicationContext)
+{
+	UE_LOG(LogLifecycle, Log, TEXT("FLuminLifecycle : The device is active again."));
+	if (FTaskGraphInterface::IsRunning())
+	{
+		FGraphEventRef WillTerminateTask = FFunctionGraphTask::CreateAndDispatchWhenReady([&]()
+		{
+#if PLATFORM_LUMIN
+			FLuminDelegates::DeviceHasReactivatedDelegate.Broadcast();
+#endif // PLATFORM_LUMIN
+		}, TStatId(), nullptr, ENamedThreads::GameThread);
+		FTaskGraphInterface::Get().WaitUntilTaskCompletes(WillTerminateTask);
+	}
+}
+
+void FLuminLifecycle::OnDeviceReality_Handler(void* ApplicationContext)
+{
+	UE_LOG(LogLifecycle, Log, TEXT("FLuminLifecycle : The device's reality button has been pressed."));
+	if (FTaskGraphInterface::IsRunning())
+	{
+		FGraphEventRef WillTerminateTask = FFunctionGraphTask::CreateAndDispatchWhenReady([&]()
+		{
+#if PLATFORM_LUMIN
+			FLuminDelegates::DeviceWillEnterRealityModeDelegate.Broadcast();
+#endif // PLATFORM_LUMIN
+		}, TStatId(), nullptr, ENamedThreads::GameThread);
+		FTaskGraphInterface::Get().WaitUntilTaskCompletes(WillTerminateTask);
+	}
+}
+
+void FLuminLifecycle::OnDeviceStandby_Handler(void* ApplicationContext)
+{
+	UE_LOG(LogLifecycle, Log, TEXT("FLuminLifecycle : The device is going into standby."));
+	if (FTaskGraphInterface::IsRunning())
+	{
+		FGraphEventRef WillTerminateTask = FFunctionGraphTask::CreateAndDispatchWhenReady([&]()
+		{
+#if PLATFORM_LUMIN
+			FLuminDelegates::DeviceWillGoInStandbyDelegate.Broadcast();
+#endif // PLATFORM_LUMIN
+		}, TStatId(), nullptr, ENamedThreads::GameThread);
+		FTaskGraphInterface::Get().WaitUntilTaskCompletes(WillTerminateTask);
 	}
 }
 
 void FLuminLifecycle::OnFEngineLoopInitComplete_Handler()
 {
 	bIsEngineLoopInitComplete = true;
+	FirePendingInitArgs();
+}
 
-	if (PendingStartupArgs.Num() > 0 && FTaskGraphInterface::IsRunning())
+void FLuminLifecycle::FirePendingInitArgs()
+{
+	if ((InitStringArgs.Num() > 0 || InitFileArgs.Num() > 0) && FTaskGraphInterface::IsRunning())
 	{
 		FPlatformMisc::LowLevelOutputDebugString(TEXT("FLuminLifecycle :: Firing startup args..."));
 		FGraphEventRef StartupArgumentsTask = FFunctionGraphTask::CreateAndDispatchWhenReady([&]()
 		{
-			FCoreDelegates::ApplicationReceivedStartupArgumentsDelegate.Broadcast(PendingStartupArgs);
+			FCoreDelegates::ApplicationReceivedStartupArgumentsDelegate.Broadcast(InitStringArgs);
 		}, TStatId(), nullptr, ENamedThreads::GameThread);
 		FTaskGraphInterface::Get().WaitUntilTaskCompletes(StartupArgumentsTask);
-		PendingStartupArgs.Empty();
+
+		StartupArgumentsTask = FFunctionGraphTask::CreateAndDispatchWhenReady([&]()
+		{
+			FLuminDelegates::LuminAppReceivedStartupArgumentsDelegate.Broadcast(InitStringArgs, InitFileArgs);
+		}, TStatId(), nullptr, ENamedThreads::GameThread);
+		FTaskGraphInterface::Get().WaitUntilTaskCompletes(StartupArgumentsTask);
+
+		InitStringArgs.Empty();
+		InitFileArgs.Empty();
 	}
 }

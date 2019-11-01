@@ -2,7 +2,7 @@
 
 using UnrealBuildTool;
 
-[SupportedPlatformsAttribute(new string[] {"Win32", "Win64", "Mac", "Linux", "HTML5", "Android", "LinuxAArch64"})]
+[SupportedPlatformsAttribute(new string[] {"Win32", "Win64", "Mac", "Linux", "Android", "LinuxAArch64"})]
 public class OpenGLDrv : ModuleRules
 {
 	public OpenGLDrv(ReadOnlyTargetRules Target) : base(Target)

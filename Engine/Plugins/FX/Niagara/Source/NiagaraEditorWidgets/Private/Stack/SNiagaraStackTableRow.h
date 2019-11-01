@@ -25,14 +25,17 @@ public:
 		, _ItemBackgroundColor(FLinearColor::Transparent)
 		, _IsCategoryIconHighlighted(false)
 		, _ShowExecutionCategoryIcon(false)
+		, _RowPadding(FMargin(0, 0, 0, 0))
 	{}
-	SLATE_ARGUMENT(FMargin, ContentPadding)
+		SLATE_ARGUMENT(FMargin, ContentPadding)
 		SLATE_ARGUMENT(FLinearColor, ItemBackgroundColor)
 		SLATE_ARGUMENT(FLinearColor, ItemForegroundColor)
 		SLATE_ARGUMENT(bool, IsCategoryIconHighlighted)
 		SLATE_ARGUMENT(bool, ShowExecutionCategoryIcon)
 		SLATE_ATTRIBUTE(float, NameColumnWidth)
 		SLATE_ATTRIBUTE(float, ValueColumnWidth)
+		SLATE_ATTRIBUTE(EVisibility, IssueIconVisibility)
+		SLATE_ATTRIBUTE(FMargin, RowPadding)
 		SLATE_EVENT(FOnColumnWidthChanged, OnNameColumnWidthChanged)
 		SLATE_EVENT(FOnColumnWidthChanged, OnValueColumnWidthChanged)
 		SLATE_EVENT(FOnDragDetected, OnDragDetected)
@@ -100,6 +103,9 @@ private:
 	TAttribute<float> ValueColumnWidth;
 	FOnColumnWidthChanged NameColumnWidthChanged;
 	FOnColumnWidthChanged ValueColumnWidthChanged;
+
+	TAttribute<EVisibility> IssueIconVisibility;
+	TAttribute<FMargin> RowPadding;
 
 	const FSlateBrush* ExpandedImage;
 	const FSlateBrush* CollapsedImage;

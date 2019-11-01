@@ -10,7 +10,7 @@
 #include "LinuxTargetPlatform.h"
 
 
-/* UAndroidTargetSettings structors
+/* ULinuxTargetSettings structors
  *****************************************************************************/
 
 ULinuxTargetSettings::ULinuxTargetSettings( const FObjectInitializer& ObjectInitializer )

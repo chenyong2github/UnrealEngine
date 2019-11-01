@@ -149,19 +149,29 @@ namespace AutomationTool
 		internal P4Environment(CommandEnvironment CmdEnv)
 		{
 			// Get the Perforce port setting
-			ServerAndPort = CommandUtils.GetEnvVar(EnvVarNames.P4Port);
+			ServerAndPort = CommandUtils.ParseParamValue(Environment.GetCommandLineArgs(), "-p4port", null);  
 			if(String.IsNullOrEmpty(ServerAndPort))
 			{
-				ServerAndPort = DetectP4Port();
+				// check env var
+				ServerAndPort = CommandUtils.GetEnvVar(EnvVarNames.P4Port);
+
+				if (String.IsNullOrEmpty(ServerAndPort))
+				{
+					ServerAndPort = DetectP4Port();
+				}
 				CommandUtils.SetEnvVar(EnvVarNames.P4Port, ServerAndPort);
 			}
 
 			// Get the Perforce user setting
-			User = CommandUtils.GetEnvVar(EnvVarNames.User);
-			if(String.IsNullOrEmpty(User))
+			User = CommandUtils.ParseParamValue(Environment.GetCommandLineArgs(), "-p4user", null);
+			if (String.IsNullOrEmpty(User))
 			{
-				P4Connection DefaultConnection = new P4Connection(User: null, Client: null, ServerAndPort: ServerAndPort);
-				User = DetectUserName(DefaultConnection);
+				User = CommandUtils.GetEnvVar(EnvVarNames.User);
+				if (String.IsNullOrEmpty(User))
+				{
+					P4Connection DefaultConnection = new P4Connection(User: null, Client: null, ServerAndPort: ServerAndPort);
+					User = DetectUserName(DefaultConnection);
+				}
 				CommandUtils.SetEnvVar(EnvVarNames.User, User);
 			}
 
@@ -289,7 +299,7 @@ namespace AutomationTool
 		/// <returns>Source control server address.</returns>
 		private static string DetectP4Port()
 		{
-			string P4Port = null;
+			string P4Port = null;			
 
 			// If it's not set, spawn Perforce to get the current server port setting
 			IProcessResult Result = CommandUtils.Run(HostPlatform.Current.P4Exe, "set P4PORT", null, CommandUtils.ERunOptions.NoLoggingOfRunCommand);

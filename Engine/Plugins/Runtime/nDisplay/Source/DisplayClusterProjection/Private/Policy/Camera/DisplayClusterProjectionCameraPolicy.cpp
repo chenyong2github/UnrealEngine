@@ -7,17 +7,15 @@
 
 #include "DisplayClusterUtils/DisplayClusterCommonHelpers.h"
 
-#include "IDisplayCluster.h"
 #include "Config/IDisplayClusterConfigManager.h"
 #include "Game/IDisplayClusterGameManager.h"
-#include "DisplayClusterCameraComponent.h"
 
-#include "DisplayClusterPawn.h"
+#include "DisplayClusterCameraComponent.h"
+#include "DisplayClusterRootComponent.h"
 #include "DisplayClusterScreenComponent.h"
 
 #include "Camera/CameraComponent.h"
 #include "ComposurePostMoves.h"
-
 
 
 FDisplayClusterProjectionCameraPolicy::FDisplayClusterProjectionCameraPolicy(const FString& ViewportId)
@@ -36,20 +34,13 @@ FDisplayClusterProjectionCameraPolicy::~FDisplayClusterProjectionCameraPolicy()
 void FDisplayClusterProjectionCameraPolicy::StartScene(UWorld* World)
 {
 	check(IsInGameThread());
-
-	if (!AssignedCamera)
-	{
-		ADisplayClusterPawn* Pawn = IDisplayCluster::Get().GetGameMgr()->GetRoot();
-		if (Pawn)
-		{
-			AssignedCamera = Pawn->GetCameraComponent();
-		}
-	}
 }
 
 void FDisplayClusterProjectionCameraPolicy::EndScene()
 {
 	check(IsInGameThread());
+
+	AssignedCamera = nullptr;
 }
 
 bool FDisplayClusterProjectionCameraPolicy::HandleAddViewport(const FIntPoint& InViewportSize, const uint32 InViewsAmount)

@@ -240,6 +240,8 @@ public:
 #if RHI_RAYTRACING
 struct FRayTracingShaderBindingsWriter : FRayTracingShaderBindings
 {
+	FUniformBufferRHIRef RootUniformBuffer;
+
 	void Set(const FShaderResourceParameter& Param, FRHITexture* Value)
 	{
 		if (Param.IsBound())

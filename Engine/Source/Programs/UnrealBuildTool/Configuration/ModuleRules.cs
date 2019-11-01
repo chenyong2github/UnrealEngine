@@ -11,6 +11,27 @@ using Tools.DotNETCommon;
 namespace UnrealBuildTool
 {
 	/// <summary>
+	/// Controls how a particular warning is treated
+	/// </summary>
+	public enum WarningLevel
+	{
+		/// <summary>
+		/// Do not display diagnostics
+		/// </summary>
+		Off,
+
+		/// <summary>
+		/// Output warnings normally
+		/// </summary>
+		Warning,
+
+		/// <summary>
+		/// Output warnings as errors
+		/// </summary>
+		Error,
+	}
+
+	/// <summary>
 	/// ModuleRules is a data structure that contains the rules for defining a module
 	/// </summary>
 	public class ModuleRules
@@ -139,7 +160,6 @@ namespace UnrealBuildTool
 			/// </summary>
 			VisibileForDll,
 		}
-
 
 		/// <summary>
 		/// Information about a file which is required by the target at runtime, and must be moved around with it.
@@ -567,9 +587,24 @@ namespace UnrealBuildTool
 		public bool bEnableObjCExceptions = false;
 
 		/// <summary>
+		/// How to treat shadow variable warnings
+		/// </summary>
+		public WarningLevel ShadowVariableWarningLevel
+		{
+			get { return ShadowVariableWarningLevelPrivate ?? ((DefaultBuildSettings >= BuildSettingsVersion.V2) ? WarningLevel.Error : Target.ShadowVariableWarningLevel); }
+			set { ShadowVariableWarningLevelPrivate = value; }
+		}
+		private WarningLevel? ShadowVariableWarningLevelPrivate;
+
+		/// <summary>
 		/// Enable warnings for shadowed variables
 		/// </summary>
-		public bool bEnableShadowVariableWarnings = true;
+		[Obsolete("The bEnableShadowVariableWarnings setting is deprecated in UE 4.24. Please use ShadowVariableWarningLevel = WarningLevel.Warning/Off; instead.")]
+		public bool bEnableShadowVariableWarnings
+		{
+			get { return ShadowVariableWarningLevel >= WarningLevel.Warning; }
+			set { ShadowVariableWarningLevel = (value ? WarningLevel.Warning : WarningLevel.Off); }
+		}
 
 		/// <summary>
 		/// Enable warnings for using undefined identifiers in #if expressions
@@ -1176,7 +1211,7 @@ namespace UnrealBuildTool
 					case ModuleRules.PrecompileTargetsType.None:
 						return false;
 					case ModuleRules.PrecompileTargetsType.Default:
-						return (Target.Type == TargetType.Editor || !RulesFile.IsUnderDirectory(UnrealBuildTool.EngineSourceDeveloperDirectory) || Plugin != null);
+						return (Target.Type == TargetType.Editor || !UnrealBuildTool.GetAllEngineDirectories("Source/Developer").Any(Dir => RulesFile.IsUnderDirectory(Dir)) || Plugin != null);
 					case ModuleRules.PrecompileTargetsType.Game:
 						return (Target.Type == TargetType.Client || Target.Type == TargetType.Server || Target.Type == TargetType.Game);
 					case ModuleRules.PrecompileTargetsType.Editor:

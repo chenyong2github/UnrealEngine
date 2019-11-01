@@ -18,6 +18,22 @@ void SNiagaraStackErrorItem::Construct(const FArguments& InArgs, UNiagaraStackEr
 	ErrorItem = InErrorItem;
 	StackViewModel = InStackViewModel;
 	TSharedPtr<SHorizontalBox> ErrorInternalBox = SNew(SHorizontalBox);
+	const FSlateBrush* IconBrush;
+	switch (ErrorItem->GetStackIssue().GetSeverity())
+	{
+	case EStackIssueSeverity::Error:
+		IconBrush = FEditorStyle::GetBrush("Icons.Error");
+		break;
+	case EStackIssueSeverity::Warning:
+		IconBrush = FEditorStyle::GetBrush("Icons.Warning");
+		break;
+	case EStackIssueSeverity::Info:
+		IconBrush = FEditorStyle::GetBrush("Icons.Info");
+		break;
+	default:
+		IconBrush = FEditorStyle::GetBrush("NoBrush");
+		break;
+	}
 	ErrorInternalBox->AddSlot()
 		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
@@ -38,7 +54,7 @@ void SNiagaraStackErrorItem::Construct(const FArguments& InArgs, UNiagaraStackEr
 		.VAlign(VAlign_Center)
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::GetBrush("Icons.Error"))
+			.Image(IconBrush)
 		]
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
@@ -62,7 +78,7 @@ void SNiagaraStackErrorItemFix::Construct(const FArguments& InArgs, UNiagaraStac
 		[
 			SNew(STextBlock)
 				.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
-				.Text_UObject(ErrorItem, &UNiagaraStackErrorItemFix::FixDescription)
+				.Text_UObject(ErrorItem, &UNiagaraStackErrorItemFix::GetDisplayName)
 				.ColorAndOpacity(this, &SNiagaraStackErrorItemFix::GetTextColorForSearch)
 				.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
 		];

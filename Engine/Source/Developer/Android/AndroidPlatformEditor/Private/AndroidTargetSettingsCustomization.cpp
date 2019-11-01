@@ -86,7 +86,7 @@ void FAndroidTargetSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder&
 	BuildLaunchImageSection(DetailLayout);
 	BuildDaydreamAppTileImageSection(DetailLayout);
 	BuildGraphicsDebuggerSection(DetailLayout);
-	AudioPluginWidgetManager.BuildAudioCategory(DetailLayout, EAudioPlatform::Android);
+	AudioPluginWidgetManager.BuildAudioCategory(DetailLayout, FString(TEXT("Android")));
 }
 
 static void OnBrowserLinkClicked(const FSlateHyperlinkRun::FMetadata& Metadata)
@@ -307,8 +307,9 @@ void FAndroidTargetSettingsCustomization::BuildAppManifestSection(IDetailLayoutB
 
 	// check for Gradle change
 	TSharedRef<IPropertyHandle> EnableGradleProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bEnableGradle));
-	FSimpleDelegate EnableGradleChange = FSimpleDelegate::CreateSP(this, &FAndroidTargetSettingsCustomization::OnEnableGradleChange);
-	EnableGradleProperty->SetOnPropertyValueChanged(EnableGradleChange);
+	EnableGradleProperty->MarkHiddenByCustomization();
+	//FSimpleDelegate EnableGradleChange = FSimpleDelegate::CreateSP(this, &FAndroidTargetSettingsCustomization::OnEnableGradleChange);
+	//EnableGradleProperty->SetOnPropertyValueChanged(EnableGradleChange);
 
 	// check for GoogleVR change
 	TSharedRef<IPropertyHandle> GoogleVRCapsProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, GoogleVRCaps));

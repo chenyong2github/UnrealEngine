@@ -138,10 +138,16 @@ public:
 		return ReplicationPolicy;
 	}
 
-	/** How does an ability execute on the network. Does a client "ask and predict", "ask and wait", "don't ask (just do it)" */
+	/** Where does an ability execute on the network? Does a client "ask and predict", "ask and wait", "don't ask (just do it)" */
 	EGameplayAbilityNetExecutionPolicy::Type GetNetExecutionPolicy() const
 	{
 		return NetExecutionPolicy;
+	}
+
+	/** Where should an ability execute on the network? Provides protection from clients attempting to execute restricted abilities. */
+	EGameplayAbilityNetSecurityPolicy::Type GetNetSecurityPolicy() const
+	{
+		return NetSecurityPolicy;
 	}
 
 	/** Returns the actor info associated with this ability, has cached pointers to useful objects */
@@ -671,6 +677,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category=Advanced)
 	TEnumAsByte<EGameplayAbilityNetExecutionPolicy::Type> NetExecutionPolicy;
+
+	UPROPERTY(EditDefaultsOnly, Category = Advanced)
+	TEnumAsByte<EGameplayAbilityNetSecurityPolicy::Type> NetSecurityPolicy;
 
 	/** This GameplayEffect represents the cost (mana, stamina, etc) of the ability. It will be applied when the ability is committed. */
 	UPROPERTY(EditDefaultsOnly, Category = Costs)

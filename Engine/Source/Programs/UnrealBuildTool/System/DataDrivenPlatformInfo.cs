@@ -23,7 +23,12 @@ namespace UnrealBuildTool
 			/// Is the platform a confidential ("console-style") platform
 			/// </summary>
 			public bool bIsConfidential;
-			
+
+			/// <summary>
+			/// Additional restricted folders for this platform.
+			/// </summary>
+			public string[] AdditionalRestrictedFolders = null;
+
 			/// <summary>
 			/// Entire ini parent chain, ending with this platform
 			/// </summary>
@@ -89,6 +94,13 @@ namespace UnrealBuildTool
 								NewInfo.bIsConfidential = false;
 							}
 
+							// get a list of additional restricted folders
+							IReadOnlyList<string> AdditionalRestrictedFolders;
+							if(ParsedSection.TryGetValues("AdditionalRestrictedFolders", out AdditionalRestrictedFolders) && AdditionalRestrictedFolders.Count > 0)
+							{
+								NewInfo.AdditionalRestrictedFolders = AdditionalRestrictedFolders.Select(x => x.Trim()).Where(x => x.Length > 0).ToArray();
+							}
+
 							// create cache it
 							PlatformInfos[IniPlatformName] = NewInfo;
 						}
@@ -96,7 +108,7 @@ namespace UnrealBuildTool
 				}
 
 				// now that all are read in, calculate the ini parent chain, starting with parent-most
-				foreach (var Pair in PlatformInfos)
+				foreach (KeyValuePair<string, ConfigDataDrivenPlatformInfo> Pair in PlatformInfos)
 				{
 					string CurrentPlatform;
 

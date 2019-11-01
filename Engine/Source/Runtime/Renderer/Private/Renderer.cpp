@@ -120,7 +120,7 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 		extern FForwardLightingViewResources* GetMinimalDummyForwardLightingResources();
 		View.ForwardLightingResources = GetMinimalDummyForwardLightingResources();
 
-		FSinglePrimitiveStructuredBuffer& SinglePrimitiveStructuredBuffer = GTilePrimitiveBuffer;
+		FSinglePrimitiveStructured& SinglePrimitiveStructured = GTilePrimitiveBuffer;
 
 		if (Mesh.VertexFactory->GetPrimitiveIdStreamIndex(EVertexInputStreamType::PositionOnly) >= 0)
 		{
@@ -140,16 +140,25 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 				PrimitiveParams.LightmapDataIndex = 0;
 
 				// Now we just need to fill out the first entry of primitive data in a buffer and bind it
-				SinglePrimitiveStructuredBuffer.PrimitiveSceneData = FPrimitiveSceneShaderData(PrimitiveParams);
+				SinglePrimitiveStructured.PrimitiveSceneData = FPrimitiveSceneShaderData(PrimitiveParams);
+				SinglePrimitiveStructured.ShaderPlatform = View.GetShaderPlatform();
 
 				// Set up the parameters for the LightmapSceneData from the given LCI data 
 				FPrecomputedLightingUniformParameters LightmapParams;
 				GetPrecomputedLightingParameters(FeatureLevel, LightmapParams, Mesh.LCI);
-				SinglePrimitiveStructuredBuffer.LightmapSceneData = FLightmapSceneShaderData(LightmapParams);
+				SinglePrimitiveStructured.LightmapSceneData = FLightmapSceneShaderData(LightmapParams);
 
-				SinglePrimitiveStructuredBuffer.UploadToGPU();
-				View.PrimitiveSceneDataOverrideSRV = SinglePrimitiveStructuredBuffer.PrimitiveSceneDataBufferSRV;
-				View.LightmapSceneDataOverrideSRV = SinglePrimitiveStructuredBuffer.LightmapSceneDataBufferSRV;
+				SinglePrimitiveStructured.UploadToGPU();
+
+				if (!GPUSceneUseTexture2D(View.GetShaderPlatform()))
+				{
+					View.PrimitiveSceneDataOverrideSRV = SinglePrimitiveStructured.PrimitiveSceneDataBufferSRV;
+				}
+				else
+				{
+					View.PrimitiveSceneDataTextureOverrideRHI = SinglePrimitiveStructured.PrimitiveSceneDataTextureRHI;
+				}
+				View.LightmapSceneDataOverrideSRV = SinglePrimitiveStructured.LightmapSceneDataBufferSRV;
 			}
 		}
 

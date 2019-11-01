@@ -74,7 +74,6 @@ void FGlobalDynamicReadBuffer::Cleanup()
 {
 	if (FloatBufferPool)
 	{
-		UE_LOG(LogRendererCore, Verbose, TEXT("FGlobalDynamicReadBuffer::Cleanup()"));
 		delete FloatBufferPool;
 		FloatBufferPool = nullptr;
 	}
@@ -87,12 +86,10 @@ void FGlobalDynamicReadBuffer::Cleanup()
 }
 void FGlobalDynamicReadBuffer::InitRHI()
 {
-	UE_LOG(LogRendererCore, Verbose, TEXT("FGlobalReadBuffer::InitRHI"));
 }
 
 void FGlobalDynamicReadBuffer::ReleaseRHI()
 {
-	UE_LOG(LogRendererCore, Verbose, TEXT("FGlobalReadBuffer::ReleaseRHI"));
 	Cleanup();
 }
 

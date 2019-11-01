@@ -23,7 +23,7 @@ class AVREditorDockableWindow : public AVREditorFloatingUI, public IViewportInte
 public:
 
 	/** Default constructor */
-	AVREditorDockableWindow();
+	AVREditorDockableWindow(const FObjectInitializer& ObjectInitializer);
 	virtual void PostActorCreated() override;
 
 	/** Updates the meshes for the UI */

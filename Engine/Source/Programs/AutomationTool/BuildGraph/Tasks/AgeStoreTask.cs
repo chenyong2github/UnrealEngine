@@ -35,7 +35,7 @@ namespace Win.Automation
 		public int Days;
 
 		/// <summary>
-		/// The root of the build dir to check for existing buildversion named directories
+		/// The root of the build directory to check for existing buildversion named directories.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string BuildDir;
@@ -43,14 +43,14 @@ namespace Win.Automation
 		/// <summary>
 		/// A substring to match in directory file names before deleting symbols. This allows the "age store" task
 		/// to avoid deleting symbols from other builds in the case where multiple builds share the same symbol server.
-		/// Specific use of the filter value is determined by the symbol server structure defined by the platform tool chain.
+		/// Specific use of the filter value is determined by the symbol server structure defined by the platform toolchain.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string Filter;
 	}
 
 	/// <summary>
-	/// Task which strips symbols from a set of files. This task is named after the AGESTORE utility that comes with the Microsoft debugger tools SDK, but is actually a separate implementation. The main
+	/// Task that strips symbols from a set of files. This task is named after the AGESTORE utility that comes with the Microsoft debugger tools SDK, but is actually a separate implementation. The main
 	/// difference is that it uses the last modified time rather than last access time to determine which files to delete.
 	/// </summary>
 	[TaskElement("AgeStore", typeof(AgeStoreTaskParameters))]

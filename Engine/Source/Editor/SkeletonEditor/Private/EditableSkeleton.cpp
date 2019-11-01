@@ -1121,6 +1121,8 @@ void FEditableSkeleton::AddNotify(FName NewName)
 	const FScopedTransaction Transaction(LOCTEXT("AddNewNotifyToSkeleton", "Add New Anim Notify To Skeleton"));
 	Skeleton->Modify();
 	Skeleton->AddNewAnimationNotify(NewName);
+
+	FBlueprintActionDatabase::Get().RefreshAssetActions(Skeleton);
 	OnNotifiesChanged.Broadcast();
 }
 
@@ -1174,6 +1176,7 @@ int32 FEditableSkeleton::RenameNotify(const FName NewName, const FName OldName)
 		}
 	}
 
+	FBlueprintActionDatabase::Get().RefreshAssetActions(Skeleton);
 	OnNotifiesChanged.Broadcast();
 
 	return NumAnimationsModified;

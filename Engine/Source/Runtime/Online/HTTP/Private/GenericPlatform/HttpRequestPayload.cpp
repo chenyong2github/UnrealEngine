@@ -82,6 +82,10 @@ FRequestPayloadInMemory::FRequestPayloadInMemory(const TArray<uint8>& Array) : B
 {
 }
 
+FRequestPayloadInMemory::FRequestPayloadInMemory(TArray<uint8>&& Array) : Buffer(MoveTemp(Array))
+{
+}
+
 FRequestPayloadInMemory::~FRequestPayloadInMemory()
 {
 }

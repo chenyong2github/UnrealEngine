@@ -1,0 +1,52 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#if !defined(WITH_MLSDK) || WITH_MLSDK
+
+#include "Lumin/CAPIShims/LuminAPI.h"
+
+LUMIN_THIRD_PARTY_INCLUDES_START
+#include <ml_music_service_common.h>
+#include <ml_music_service_provider.h>
+LUMIN_THIRD_PARTY_INCLUDES_END
+
+namespace MLSDK_API
+{
+
+CREATE_FUNCTION_SHIM(ml_musicservice_provider, MLResult, MLMusicServiceProviderCreate)
+#define MLMusicServiceProviderCreate ::MLSDK_API::MLMusicServiceProviderCreateShim
+CREATE_FUNCTION_SHIM(ml_musicservice_provider, MLResult, MLMusicServiceProviderStart)
+#define MLMusicServiceProviderStart ::MLSDK_API::MLMusicServiceProviderStartShim
+CREATE_FUNCTION_SHIM(ml_musicservice_provider, MLResult, MLMusicServiceProviderSetAudioOutput)
+#define MLMusicServiceProviderSetAudioOutput ::MLSDK_API::MLMusicServiceProviderSetAudioOutputShim
+CREATE_FUNCTION_SHIM(ml_musicservice_provider, MLResult, MLMusicServiceProviderWriteAudioOutput)
+#define MLMusicServiceProviderWriteAudioOutput ::MLSDK_API::MLMusicServiceProviderWriteAudioOutputShim
+CREATE_FUNCTION_SHIM(ml_musicservice_provider, MLResult, MLMusicServiceProviderFlushAudioOutput)
+#define MLMusicServiceProviderFlushAudioOutput ::MLSDK_API::MLMusicServiceProviderFlushAudioOutputShim
+CREATE_FUNCTION_SHIM(ml_musicservice_provider, MLResult, MLMusicServiceProviderReleaseAudioOutput)
+#define MLMusicServiceProviderReleaseAudioOutput ::MLSDK_API::MLMusicServiceProviderReleaseAudioOutputShim
+CREATE_FUNCTION_SHIM(ml_musicservice_provider, MLResult, MLMusicServiceProviderSetVolume)
+#define MLMusicServiceProviderSetVolume ::MLSDK_API::MLMusicServiceProviderSetVolumeShim
+CREATE_FUNCTION_SHIM(ml_musicservice_provider, MLResult, MLMusicServiceProviderNotifyPositionChange)
+#define MLMusicServiceProviderNotifyPositionChange ::MLSDK_API::MLMusicServiceProviderNotifyPositionChangeShim
+CREATE_FUNCTION_SHIM(ml_musicservice_provider, MLResult, MLMusicServiceProviderNotifyPlaybackStateChange)
+#define MLMusicServiceProviderNotifyPlaybackStateChange ::MLSDK_API::MLMusicServiceProviderNotifyPlaybackStateChangeShim
+CREATE_FUNCTION_SHIM(ml_musicservice_provider, MLResult, MLMusicServiceProviderNotifyRepeatStateChange)
+#define MLMusicServiceProviderNotifyRepeatStateChange ::MLSDK_API::MLMusicServiceProviderNotifyRepeatStateChangeShim
+CREATE_FUNCTION_SHIM(ml_musicservice_provider, MLResult, MLMusicServiceProviderNotifyShuffleStateChange)
+#define MLMusicServiceProviderNotifyShuffleStateChange ::MLSDK_API::MLMusicServiceProviderNotifyShuffleStateChangeShim
+CREATE_FUNCTION_SHIM(ml_musicservice_provider, MLResult, MLMusicServiceProviderNotifyStatus)
+#define MLMusicServiceProviderNotifyStatus ::MLSDK_API::MLMusicServiceProviderNotifyStatusShim
+CREATE_FUNCTION_SHIM(ml_musicservice_provider, MLResult, MLMusicServiceProviderNotifyError)
+#define MLMusicServiceProviderNotifyError ::MLSDK_API::MLMusicServiceProviderNotifyErrorShim
+CREATE_FUNCTION_SHIM(ml_musicservice_provider, MLResult, MLMusicServiceProviderNotifyMetadataChange)
+#define MLMusicServiceProviderNotifyMetadataChange ::MLSDK_API::MLMusicServiceProviderNotifyMetadataChangeShim
+CREATE_FUNCTION_SHIM(ml_musicservice_provider, MLResult, MLMusicServiceProviderNotifyVolumeChange)
+#define MLMusicServiceProviderNotifyVolumeChange ::MLSDK_API::MLMusicServiceProviderNotifyVolumeChangeShim
+CREATE_FUNCTION_SHIM(ml_musicservice_provider, MLResult, MLMusicServiceProviderTerminate)
+#define MLMusicServiceProviderTerminate ::MLSDK_API::MLMusicServiceProviderTerminateShim
+
+}
+
+#endif // !defined(WITH_MLSDK) || WITH_MLSDK

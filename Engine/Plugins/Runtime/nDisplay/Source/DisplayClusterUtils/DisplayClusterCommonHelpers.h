@@ -24,11 +24,11 @@ namespace DisplayClusterHelpers
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	namespace str
 	{
-		static inline auto BoolToStr(bool bVal, bool bAsWord = true)
+		static inline FString BoolToStr(bool bVal, bool bAsWord = true)
 		{
 			return (bVal ? 
-				(bAsWord ? TEXT("true")  : TEXT("1")) :
-				(bAsWord ? TEXT("false") : TEXT("0")));
+				(bAsWord ? FString(TEXT("true"))  : FString(TEXT("1"))) :
+				(bAsWord ? FString(TEXT("false")) : FString(TEXT("0"))));
 		}
 
 		static void TrimStringValue(FString& InLine, bool bTrimQuotes = true)
@@ -57,11 +57,11 @@ namespace DisplayClusterHelpers
 			while (TmpR.Split(InSeparator, &TmpL, &TmpR, ESearchCase::IgnoreCase, ESearchDir::FromStart))
 			{
 				TrimStringValue(TmpL, false);
-				OutData.Add(FDisplayClusterTypesConverter::FromString<T>(TmpL));
+				OutData.Add(FDisplayClusterTypesConverter::template FromString<T>(TmpL));
 			}
 
 			TrimStringValue(TmpR, false);
-			OutData.Add(FDisplayClusterTypesConverter::FromString<T>(TmpR));
+			OutData.Add(FDisplayClusterTypesConverter::template FromString<T>(TmpR));
 
 			return OutData;
 		}
@@ -86,7 +86,7 @@ namespace DisplayClusterHelpers
 				ResultStr += FString::Printf(TEXT("%s%s"), *FDisplayClusterTypesConverter::ToString(InData[i]), *InSeparator);
 			}
 
-			if (InSeparator.Len() > 0)
+			if (InSeparator.Len() > 0 && InData.Num() > 0)
 			{
 				ResultStr.RemoveAt(ResultStr.Len() - InSeparator.Len());
 			}
@@ -113,7 +113,7 @@ namespace DisplayClusterHelpers
 
 				if (StrPair.Split(InKeyValSeparator, &StrKey, &StrVal, ESearchCase::IgnoreCase))
 				{
-					OutData.Emplace(FDisplayClusterTypesConverter::FromString<TKey>(StrKey), FDisplayClusterTypesConverter::FromString<TVal>(StrVal));
+					OutData.Emplace(FDisplayClusterTypesConverter::template FromString<TKey>(StrKey), FDisplayClusterTypesConverter::template FromString<TVal>(StrVal));
 				}
 			}
 		}
@@ -163,7 +163,7 @@ namespace DisplayClusterHelpers
 			if (FParse::Value(*InLine, *FullParamName, TmpVal, false))
 			{
 				TrimStringValue(TmpVal, bInTrimQuotes);
-				OutValue = FDisplayClusterTypesConverter::FromString<T>(TmpVal);
+				OutValue = FDisplayClusterTypesConverter::template FromString<T>(TmpVal);
 				return true;
 			}
 
@@ -464,34 +464,34 @@ namespace DisplayClusterHelpers
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	namespace math
 	{
-		static FMatrix GetSafeProjectionMatrix(float l, float r, float t, float b, float n, float f)
+		static FMatrix GetProjectionMatrixFromOffsets(float l, float r, float t, float b, float n, float f)
 		{
-			const float LeftFOVRad = atan(l / n);
-			const float RightFOVRad = atan(r / n);
-			const float TopFOVRad = atan(t / n);
-			const float BottomFOVRad = atan(b / n);
+			const float LeftFOVRad   = FMath::Atan(l / n);
+			const float RightFOVRad  = FMath::Atan(r / n);
+			const float TopFOVRad    = FMath::Atan(t / n);
+			const float BottomFOVRad = FMath::Atan(b / n);
 
 			{
 				const float MinFOVRad = FMath::DegreesToRadians(1.0f);   // min FOV = 1 degree
 				const float MaxFOVRad = FMath::DegreesToRadians(179.0f); // max FOV = 179 degree
 
 				// clamp FOV values:
-				const float FOVRadH = (RightFOVRad - LeftFOVRad);
+				const float FOVRadH  = (RightFOVRad - LeftFOVRad);
 				float NewRightFOVRad = (FOVRadH < MinFOVRad) ? (LeftFOVRad + MinFOVRad) : RightFOVRad;
-				NewRightFOVRad = (FOVRadH > MaxFOVRad) ? (LeftFOVRad + MaxFOVRad) : NewRightFOVRad;
+				NewRightFOVRad       = (FOVRadH > MaxFOVRad) ? (LeftFOVRad + MaxFOVRad) : NewRightFOVRad;
 
 				const float FOVRadV = (TopFOVRad - BottomFOVRad);
-				float NewTopFOVRad = (FOVRadV < MinFOVRad) ? (BottomFOVRad + MinFOVRad) : TopFOVRad;
-				NewTopFOVRad = (FOVRadV > MaxFOVRad) ? (BottomFOVRad + MaxFOVRad) : NewTopFOVRad;
+				float NewTopFOVRad  = (FOVRadV < MinFOVRad) ? (BottomFOVRad + MinFOVRad) : TopFOVRad;
+				NewTopFOVRad        = (FOVRadV > MaxFOVRad) ? (BottomFOVRad + MaxFOVRad) : NewTopFOVRad;
 
 				if (RightFOVRad != NewRightFOVRad)
 				{
-					r = float(n*tan(NewRightFOVRad));
+					r = float(n * FMath::Tan(NewRightFOVRad));
 					//! add LOG warning
 				}
 				if (TopFOVRad != NewTopFOVRad)
 				{
-					t = float(n*tan(NewTopFOVRad));
+					t = float(n * FMath::Tan(NewTopFOVRad));
 					//! add LOG warning
 				}
 			}
@@ -503,18 +503,37 @@ namespace DisplayClusterHelpers
 
 			// Support unlimited far plane (f==n)
 			const float mc = (f == n) ? (1.0f - Z_PRECISION) : (f / (f - n));
-			const float md = (f == n) ? -n * (1.0f - Z_PRECISION) : (-(f * n) / (f - n));
+			const float md = (f == n) ? (-n * (1.0f - Z_PRECISION)) : (-(f * n) / (f - n));
 
 			const float me = 1.f;
 
 			// Normal LHS
-			FMatrix ProjectionMatrix = FMatrix(
+			const FMatrix ProjectionMatrix = FMatrix(
 				FPlane(mx,  0,  0,  0),
 				FPlane(0,  my,  0,  0),
 				FPlane(ma, mb, mc, me),
 				FPlane(0,  0,  md,  0));
 
-			return ProjectionMatrix;
+			// Invert Z-axis (UE4 uses Z-inverted LHS)
+			static const FMatrix flipZ = FMatrix(
+				FPlane(1, 0, 0, 0),
+				FPlane(0, 1, 0, 0),
+				FPlane(0, 0, -1, 0),
+				FPlane(0, 0, 1, 1));
+
+			const FMatrix ResultMatrix(ProjectionMatrix * flipZ);
+
+			return ResultMatrix;
+		}
+
+		static FMatrix GetProjectionMatrixFromAngles(float LeftAngle, float RightAngle, float TopAngle, float BottomAngle, float ZNear, float ZFar)
+		{
+			const float t = ZNear * FMath::Tan(FMath::DegreesToRadians(TopAngle));
+			const float b = ZNear * FMath::Tan(FMath::DegreesToRadians(BottomAngle));
+			const float l = ZNear * FMath::Tan(FMath::DegreesToRadians(LeftAngle));
+			const float r = ZNear * FMath::Tan(FMath::DegreesToRadians(RightAngle));
+
+			return DisplayClusterHelpers::math::GetProjectionMatrixFromOffsets(l, r, t, b, ZNear, ZFar);
 		}
 	}
 };

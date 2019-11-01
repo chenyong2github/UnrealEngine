@@ -83,6 +83,13 @@ struct CORE_API FReleaseObjectVersion
 		// Removed versioning, but version entry must still exist to keep assets saved with this version loadable
 		Unused_SoundClass2DReverbSend,
 
+		// Groom asset version
+		GroomAssetVersion1,
+		GroomAssetVersion2,
+
+		// Store applied version of Animation Modifier to use when reverting
+		SerializeAnimModifierState,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

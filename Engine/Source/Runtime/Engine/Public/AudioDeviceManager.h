@@ -25,6 +25,7 @@ struct FSourceEffectChainEntry;
 
 enum class ESoundType : uint8
 {
+	Class,
 	Cue,
 	Wave
 };

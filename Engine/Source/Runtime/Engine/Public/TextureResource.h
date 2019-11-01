@@ -238,7 +238,7 @@ private:
 	int32 CurrentFirstMip;
 	
 	/** Local copy/ cache of mip data between creation and first call to InitRHI.							*/
-	void*				MipData[MAX_TEXTURE_MIP_COUNT];
+	TArray<void*, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > MipData;
 
 	/** 2D texture version of TextureRHI which is used to lock the 2D texture during mip transitions.		*/
 	FTexture2DRHIRef	Texture2DRHI;

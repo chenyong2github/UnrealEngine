@@ -654,7 +654,7 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICm
 				}
 			}
 		}
-		GPUInstanceCounterManager.ResizeBuffers(TotalDispatchCount);
+		GPUInstanceCounterManager.ResizeBuffers(RHICmdList, FeatureLevel, TotalDispatchCount);
 
 		// Update the instance counts from the GPU readback.
 		{
@@ -705,7 +705,7 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICm
 	}
 	else
 	{
-		GPUInstanceCounterManager.ResizeBuffers(0);
+		GPUInstanceCounterManager.ResizeBuffers(RHICmdList, FeatureLevel,  0);
 	}
 }
 

@@ -145,6 +145,7 @@ public:
 	uint8 bClampLinearTranslationLimitToRefPose : 1;
 
 private:
+	uint8 bEnabled : 1;
 	uint8 bSimulationStarted : 1;
 	uint8 bCheckForBodyTransformInit : 1;
 

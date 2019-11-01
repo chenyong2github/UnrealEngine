@@ -26,25 +26,50 @@ class TBVHParticles;
 template<class T, int d>
 class TImplicitObject;
 
-
-enum class ImplicitObjectType : int8
+namespace ImplicitObjectType
 {
-	//Note: add entries at the bottom for serialization
-	Sphere = 0,
-	Box,
-	Plane,
-	Capsule,
-	Transformed,
-	Union,
-	LevelSet,
-	Unknown,
-	Convex,
-	TaperedCylinder,
-	Cylinder,
-	TriangleMesh,
-	HeightField,
-	Scaled
-};
+	enum
+	{
+		//Note: add entries in order to avoid serialization issues (but before IsInstanced)
+		Sphere = 0,
+		Box,
+		Plane,
+		Capsule,
+		Transformed,
+		Union,
+		LevelSet,
+		Unknown,
+		Convex,
+		TaperedCylinder,
+		Cylinder,
+		TriangleMesh,
+		HeightField,
+		DEPRECATED_Scaled,	//needed for serialization of existing data
+		Triangle,
+
+		//Add entries above this line for serialization
+		IsInstanced = 1 << 6,
+		IsScaled = 1 << 7
+	};
+}
+
+using EImplicitObjectType = uint8;	//see ImplicitObjectType
+
+FORCEINLINE bool IsInstanced(EImplicitObjectType Type)
+{
+	return (Type & ImplicitObjectType::IsInstanced) != 0;
+}
+
+FORCEINLINE bool IsScaled(EImplicitObjectType Type)
+{
+	return (Type & ImplicitObjectType::IsScaled) != 0;
+}
+
+FORCEINLINE EImplicitObjectType GetInnerType(EImplicitObjectType Type)
+{
+	return Type & (~(ImplicitObjectType::IsScaled | ImplicitObjectType::IsInstanced));
+}
+
 
 namespace EImplicitObject
 {
@@ -93,9 +118,11 @@ template<class T, int d>
 class CHAOS_API TImplicitObject
 {
 public:
+	using TType = T;
+	static constexpr int D = d;
 	static TImplicitObject<T,d>* SerializationFactory(FChaosArchive& Ar, TImplicitObject<T, d>* Obj);
 
-	TImplicitObject(int32 Flags, ImplicitObjectType InType = ImplicitObjectType::Unknown);
+	TImplicitObject(int32 Flags, EImplicitObjectType InType = ImplicitObjectType::Unknown);
 	TImplicitObject(const TImplicitObject<T, d>&) = delete;
 	TImplicitObject(TImplicitObject<T, d>&&) = delete;
 	virtual ~TImplicitObject();
@@ -103,7 +130,7 @@ public:
 	template<class T_DERIVED>
 	T_DERIVED* GetObject()
 	{
-		if (T_DERIVED::GetType() == Type)
+		if (T_DERIVED::StaticType() == Type)
 		{
 			return static_cast<T_DERIVED*>(this);
 		}
@@ -113,7 +140,7 @@ public:
 	template<class T_DERIVED>
 	const T_DERIVED* GetObject() const
 	{
-		if (T_DERIVED::GetType() == Type)
+		if (T_DERIVED::StaticType() == Type)
 		{
 			return static_cast<const T_DERIVED*>(this);
 		}
@@ -123,18 +150,18 @@ public:
 	template<class T_DERIVED>
 	const T_DERIVED& GetObjectChecked() const
 	{
-		check(T_DERIVED::GetType() == Type);
+		check(T_DERIVED::StaticType() == Type);
 		return static_cast<const T_DERIVED&>(*this);
 	}
 
 	template<class T_DERIVED>
 	T_DERIVED& GetObjectChecked()
 	{
-		check(T_DERIVED::GetType() == Type);
+		check(T_DERIVED::StaticType() == Type);
 		return static_cast<const T_DERIVED&>(*this);
 	}
 
-	ImplicitObjectType GetType(bool bGetTrueType = false) const;
+	EImplicitObjectType GetType(bool bGetTrueType = false) const;
 
 	virtual bool IsValidGeometry() const;
 
@@ -151,6 +178,7 @@ public:
 	virtual T PhiWithNormal(const TVector<T, d>& x, TVector<T, d>& Normal) const = 0;
 	virtual const class TBox<T, d>& BoundingBox() const;
 	virtual TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const;
+	virtual TVector<T, d> Support2(const TVector<T, d>& Direction) const { return Support(Direction, 0); }
 	bool HasBoundingBox() const { return bHasBoundingBox; }
 	bool IsConvex() const { return bIsConvex; }
 	void IgnoreAnalyticCollisions(const bool Ignore = true) { bIgnoreAnalyticCollisions = Ignore; }
@@ -223,6 +251,11 @@ public:
 		Out.Add(MakePair(This, ParentTM));
 	}
 
+	virtual T GetMargin() const
+	{
+		return 0;
+	}
+
 	virtual void FindAllIntersectingObjects(TArray < Pair<const TImplicitObject<T, d>*, TRigidTransform<T, d>>>& Out, const TBox<T, d>& LocalBounds) const;
 
 	virtual FString ToString() const
@@ -231,6 +264,11 @@ public:
 	}
 
 	void SerializeImp(FArchive& Ar);
+
+	static EImplicitObjectType StaticType()
+	{
+		return ImplicitObjectType::Unknown;
+	}
 	
 	virtual void Serialize(FArchive& Ar)
 	{
@@ -245,10 +283,10 @@ public:
 
 	virtual FName GetTypeName() const { return GetTypeName(GetType()); }
 
-	static const FName GetTypeName(const ImplicitObjectType InType);
+	static const FName GetTypeName(const EImplicitObjectType InType);
 
 protected:
-	ImplicitObjectType Type;
+	EImplicitObjectType Type;
 	bool bIsConvex;
 	bool bIgnoreAnalyticCollisions;
 	bool bHasBoundingBox;

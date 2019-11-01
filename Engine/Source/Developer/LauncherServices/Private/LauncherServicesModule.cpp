@@ -32,7 +32,9 @@ public:
 
 	virtual ILauncherRef CreateLauncher() override
 	{
-		return MakeShareable(new FLauncher());
+		ILauncherRef Launcher = MakeShareable(new FLauncher());
+		OnCreateLauncherDelegate.Broadcast(Launcher);
+		return Launcher;
 	}
 
 	virtual ILauncherProfileRef CreateProfile(const FString& ProfileName) override

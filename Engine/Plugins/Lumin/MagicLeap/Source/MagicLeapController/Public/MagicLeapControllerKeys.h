@@ -19,32 +19,64 @@ struct FMagicLeapMotionSourceNames
 struct FMagicLeapControllerKeyNames
 {
 	static const FName MotionController_Left_Thumbstick_Z_Name;
-	static const FName Left_MoveButton_Name;
-	static const FName Left_AppButton_Name;
 	static const FName Left_HomeButton_Name;
 
 	static const FName MotionController_Right_Thumbstick_Z_Name;
-	static const FName Right_MoveButton_Name;
-	static const FName Right_AppButton_Name;
 	static const FName Right_HomeButton_Name;
+
+	static const FName TouchpadGesture_Swipe_Up_Name;
+	static const FName TouchpadGesture_Swipe_Down_Name;
+	static const FName TouchpadGesture_Swipe_Right_Name;
+	static const FName TouchpadGesture_Swipe_Left_Name;
+	static const FName TouchpadGesture_RadialScroll_Clockwise_Name;
+	static const FName TouchpadGesture_RadialScroll_CounterClockwise_Name;
+	static const FName TouchpadGesture_Scroll_Up_Name;
+	static const FName TouchpadGesture_Scroll_Down_Name;
+	static const FName TouchpadGesture_Scroll_Right_Name;
+	static const FName TouchpadGesture_Scroll_Left_Name;
+	static const FName TouchpadGesture_Pinch_In_Name;
+	static const FName TouchpadGesture_Pinch_Out_Name;
+	static const FName TouchpadGesture_LongHold_Name;
+	static const FName TouchpadGesture_Tap_Name;
+	static const FName TouchpadGesture_ForceTapDown_Name;
+	static const FName TouchpadGesture_SecondForceDown_Name;
+	static const FName TouchpadGesture_ForceTapUp_Name;
+	static const FName TouchpadGesture_ForceDwell_Name;
+	static const FName TouchpadGesture_Any_Name;
 };
 
-struct FMagicLeapKeys
+struct MAGICLEAPCONTROLLER_API FMagicLeapKeys
 {
 	static const FKey MotionController_Left_Thumbstick_Z;
-	static const FKey Left_MoveButton;
-	static const FKey Left_AppButton;
 	static const FKey Left_HomeButton;
 
 	static const FKey MotionController_Right_Thumbstick_Z;
-	static const FKey Right_MoveButton;
-	static const FKey Right_AppButton;
 	static const FKey Right_HomeButton;
+
+	static const FKey TouchpadGesture_Swipe_Up;
+	static const FKey TouchpadGesture_Swipe_Down;
+	static const FKey TouchpadGesture_Swipe_Right;
+	static const FKey TouchpadGesture_Swipe_Left;
+	static const FKey TouchpadGesture_RadialScroll_Clockwise;
+	static const FKey TouchpadGesture_RadialScroll_CounterClockwise;
+	static const FKey TouchpadGesture_Scroll_Up;
+	static const FKey TouchpadGesture_Scroll_Down;
+	static const FKey TouchpadGesture_Scroll_Right;
+	static const FKey TouchpadGesture_Scroll_Left;
+	static const FKey TouchpadGesture_Pinch_In;
+	static const FKey TouchpadGesture_Pinch_Out;
+	static const FKey TouchpadGesture_LongHold;
+	static const FKey TouchpadGesture_Tap;
+	static const FKey TouchpadGesture_ForceTapDown;
+	static const FKey TouchpadGesture_SecondForceDown;
+	static const FKey TouchpadGesture_ForceTapUp;
+	static const FKey TouchpadGesture_ForceDwell;
+	static const FKey TouchpadGesture_Any;
 };
 
 /** Defines the Magic Leap controller type. */
 UENUM(BlueprintType)
-enum class EMLControllerType : uint8
+enum class EMagicLeapControllerType : uint8
 {
 	None,
 	Device,
@@ -53,7 +85,7 @@ enum class EMLControllerType : uint8
 
 /** LED patterns supported on the controller. */
 UENUM(BlueprintType)
-enum class EMLControllerLEDPattern : uint8
+enum class EMagicLeapControllerLEDPattern : uint8
 {
 	None,
 	Clock01,
@@ -78,7 +110,7 @@ enum class EMLControllerLEDPattern : uint8
 
 /** LED effects supported on the controller. */
 UENUM(BlueprintType)
-enum class EMLControllerLEDEffect : uint8
+enum class EMagicLeapControllerLEDEffect : uint8
 {
 	RotateCW,
 	RotateCCW,
@@ -90,7 +122,7 @@ enum class EMLControllerLEDEffect : uint8
 
 /** LED colors supported on the controller. */
 UENUM(BlueprintType)
-enum class EMLControllerLEDColor : uint8
+enum class EMagicLeapControllerLEDColor : uint8
 {
 	BrightMissionRed,
 	PastelMissionRed,
@@ -112,7 +144,7 @@ enum class EMLControllerLEDColor : uint8
 
 /** LED speeds supported on the controller. */
 UENUM(BlueprintType)
-enum class EMLControllerLEDSpeed : uint8
+enum class EMagicLeapControllerLEDSpeed : uint8
 {
 	Slow,
 	Medium,
@@ -121,7 +153,7 @@ enum class EMLControllerLEDSpeed : uint8
 
 /** Haptic patterns supported on the controller. */
 UENUM(BlueprintType)
-enum class EMLControllerHapticPattern : uint8
+enum class EMagicLeapControllerHapticPattern : uint8
 {
 	None,
 	Click,
@@ -137,7 +169,7 @@ enum class EMLControllerHapticPattern : uint8
 
 /** Haptic intesities supported on the controller. */
 UENUM(BlueprintType)
-enum class EMLControllerHapticIntensity : uint8
+enum class EMagicLeapControllerHapticIntensity : uint8
 {
 	Low,
 	Medium,
@@ -146,7 +178,7 @@ enum class EMLControllerHapticIntensity : uint8
 
 /** Tracking modes provided by Magic Leap. */
 UENUM(BlueprintType)
-enum class EMLControllerTrackingMode : uint8
+enum class EMagicLeapControllerTrackingMode : uint8
 {
 	InputService,
 	CoordinateFrameUID,

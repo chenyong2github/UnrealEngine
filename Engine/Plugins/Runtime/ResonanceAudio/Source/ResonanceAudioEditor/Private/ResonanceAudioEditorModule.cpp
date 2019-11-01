@@ -51,8 +51,8 @@ namespace ResonanceAudio
 		// Register the audio editor asset type actions.
 		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 
-		AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ResonanceAudioReverbPluginPreset));
-		AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ResonanceAudioSpatializationSourceSettings));
+		AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_ResonanceAudioReverbPluginPreset>());
+		AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_ResonanceAudioSpatializationSourceSettings>());
 	}
 
 	void FResonanceAudioEditorModule::ShutdownModule()

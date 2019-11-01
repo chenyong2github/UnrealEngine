@@ -231,7 +231,10 @@ public:
 		return FileVersionLicenseeUE4;
 	}
 
-	COREUOBJECT_API const FCustomVersionContainer& GetCustomVersionContainer() const;
+	const FCustomVersionContainer& GetCustomVersionContainer() const
+	{
+		return CustomVersionContainer;
+	}
 
 	void SetCustomVersionContainer(const FCustomVersionContainer& InContainer);
 

@@ -8,7 +8,7 @@ public class PhysXVehicleLib_HTML5 : PhysXVehicleLib
 	// anyway to get his from PhysX?
 	protected string PhysXVersion { get { return "PhysX_3.4"; } }
 	protected override string LibRootDirectory { get { return Target.HTML5Platform.PlatformThirdPartySourceDirectory; } }
-	protected override string PhysXLibDir { get { return Path.Combine(LibRootDirectory, "PhysX3", PhysXVersion); } }
+	protected override string PhysXLibDir { get { return Path.Combine(LibRootDirectory, "PhysX3", PhysXVersion, "lib"); } }
 
 	public PhysXVehicleLib_HTML5(ReadOnlyTargetRules Target) : base(Target)
 	{

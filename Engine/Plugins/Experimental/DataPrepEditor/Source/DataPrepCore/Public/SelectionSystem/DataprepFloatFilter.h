@@ -15,8 +15,8 @@ class UDataprepFloatFetcher;
 UENUM()
 enum class EDataprepFloatMatchType : uint8
 {
-	LessThen,
-	GreatherThen,
+	LessThan,
+	GreatherThan,
 	IsNearlyEqual
 };
 
@@ -51,14 +51,14 @@ private:
 	UDataprepFloatFetcher* FloatFetcher;
 
 	// The criteria selected by the user
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = Filter)
 	EDataprepFloatMatchType FloatMatchingCriteria;
 
 	// The value to use for the equality check
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = Filter)
 	float EqualValue;
 
 	// The value used for the tolerance when doing a nearly equal
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = Filter)
 	float Tolerance = KINDA_SMALL_NUMBER;
 };

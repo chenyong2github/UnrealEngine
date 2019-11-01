@@ -41,11 +41,8 @@ struct FVertexFactoryInterpolantsVSToPS
 	#endif
 #endif
 #if VF_STRAND_HAIR
-	nointerpolation uint HairPrimitiveId	: HAIR_PRIMITIVE_ID;
-	float2 HairDimensions					: HAIR_DIMENSIONS;
-	float2 HairUV							: HAIR_UV;
-	float2 HairRootUV						: HAIR_ROOT_UV;
-	float  HairSeed							: HAIR_SEED;
+	nointerpolation uint HairPrimitiveId	: HAIR_PRIMITIVE_ID; // Control point ID
+	float2 HairPrimitiveUV					: HAIR_PRIMITIVE_UV; // U: parameteric distance between the two surrounding control points. V: parametric distance along the width.
 #endif
 };
 

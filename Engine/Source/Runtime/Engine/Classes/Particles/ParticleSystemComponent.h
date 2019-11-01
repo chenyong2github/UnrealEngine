@@ -51,6 +51,7 @@ enum EParticleSysParamType
 	PSPT_Color UMETA(DisplayName="Color"),
 	PSPT_Actor UMETA(DisplayName="Actor"),
 	PSPT_Material UMETA(DisplayName="Material"),
+	PSPT_VectorUnitRand UMETA(DisplayName = "Vector Unit Random"),
 	PSPT_MAX,
 };
 
@@ -116,6 +117,7 @@ struct FParticleSysParam
 	 *	PSPT_Color      - Use the color value
 	 *	PSPT_Actor      - Use the actor value
 	 *	PSPT_Material   - Use the material value
+	 *	PSPT_VectorUnitRand - Select a random unit vector and scale along the range [Vector_Low..Vector)
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=ParticleSysParam)
 	TEnumAsByte<enum EParticleSysParamType> ParamType;
@@ -1547,6 +1549,14 @@ public:
 	 *	Updates the parameter if it already exists, or creates a new entry if not. 
 	 */
 	void SetVectorRandParameter(FName ParameterName, const FVector& Param, const FVector& ParamLow);
+
+
+
+	/**
+	 *	Set a named random unit vector instance parameter on this ParticleSystemComponent.
+	 *	Updates the parameter if it already exists, or creates a new entry if not.
+	 */
+	void SetVectorUnitRandParameter(FName ParameterName, const FVector& Param, const FVector& ParamLow);
 
 	/** 
 	 *	Set a named random float instance parameter on this ParticleSystemComponent. 

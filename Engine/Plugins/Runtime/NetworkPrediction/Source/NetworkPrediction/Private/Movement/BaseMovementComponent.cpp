@@ -9,13 +9,10 @@
 #include "VisualLogger/VisualLogger.h"
 #include "NetworkPredictionTypes.h"
 
-
 DEFINE_LOG_CATEGORY_STATIC(LogBaseMovement, Log, All);
-
 
 namespace BaseMovementCVars
 {
-
 static float PenetrationPullbackDistance = 0.125f;
 static FAutoConsoleVariableRef CVarPenetrationPullbackDistance(TEXT("bm.PenetrationPullbackDistance"),
 	PenetrationPullbackDistance,
@@ -33,19 +30,6 @@ static FAutoConsoleVariableRef CVarPenetrationOverlapCheckInflation(TEXT("bm.Pen
 static int32 RequestMispredict = 0;
 static FAutoConsoleVariableRef CVarRequestMispredict(TEXT("bm.RequestMispredict"),
 	RequestMispredict, TEXT("Causes a misprediction by inserting random value into stream on authority side"), ECVF_Default);
-
-
-static int32 UseVLogger = 1;
-static FAutoConsoleVariableRef CVarUseVLogger(TEXT("bm.Debug.UseUnrealVLogger"),
-	UseVLogger,	TEXT("Use Unreal Visual Logger\n"),	ECVF_Default);
-
-static int32 UseDrawDebug = 1;
-static FAutoConsoleVariableRef CVarUseDrawDebug(TEXT("bm.Debug.UseDrawDebug"),
-	UseDrawDebug,	TEXT("Use built in DrawDebug* functions for visual logging\n"), ECVF_Default);
-
-static float DrawDebugDefaultLifeTime = 30.f;
-static FAutoConsoleVariableRef CVarDrawDebugDefaultLifeTime(TEXT("bm.Debug.DrawDebugLifetime.DefaultLifeTime"),
-	DrawDebugDefaultLifeTime, TEXT("Use built in DrawDebug* functions for visual logging"), ECVF_Default);
 }
 
 // ----------------------------------------------------------------------------------------------------------
@@ -183,7 +167,7 @@ void UBaseMovementComponent::PhysicsVolumeChanged(APhysicsVolume* NewVolume)
 //
 // ----------------------------------------------------------------------------------------------------------
 
-FVector UBaseMovementComponent::GetPenetrationAdjustment(const FHitResult& Hit)
+FVector FBaseMovementSimulation::GetPenetrationAdjustment(const FHitResult& Hit) const
 {
 	if (!Hit.bStartPenetrating)
 	{
@@ -199,15 +183,15 @@ FVector UBaseMovementComponent::GetPenetrationAdjustment(const FHitResult& Hit)
 	return Result;
 }
 
-bool UBaseMovementComponent::OverlapTest(const FVector& Location, const FQuat& RotationQuat, const ECollisionChannel CollisionChannel, const FCollisionShape& CollisionShape, const AActor* IgnoreActor) const
+bool FBaseMovementSimulation::OverlapTest(const FVector& Location, const FQuat& RotationQuat, const ECollisionChannel CollisionChannel, const FCollisionShape& CollisionShape, const AActor* IgnoreActor) const
 {
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(MovementOverlapTest), false, IgnoreActor);
 	FCollisionResponseParams ResponseParam;
 	InitCollisionParams(QueryParams, ResponseParam);
-	return GetWorld()->OverlapBlockingTestByChannel(Location, RotationQuat, CollisionChannel, CollisionShape, QueryParams, ResponseParam);
+	return UpdatedComponent->GetWorld()->OverlapBlockingTestByChannel(Location, RotationQuat, CollisionChannel, CollisionShape, QueryParams, ResponseParam);
 }
 
-void UBaseMovementComponent::InitCollisionParams(FCollisionQueryParams &OutParams, FCollisionResponseParams& OutResponseParam) const
+void FBaseMovementSimulation::InitCollisionParams(FCollisionQueryParams &OutParams, FCollisionResponseParams& OutResponseParam) const
 {
 	if (UpdatedPrimitive)
 	{
@@ -215,7 +199,7 @@ void UBaseMovementComponent::InitCollisionParams(FCollisionQueryParams &OutParam
 	}
 }
 
-bool UBaseMovementComponent::ResolvePenetration(const FVector& ProposedAdjustment, const FHitResult& Hit, const FQuat& NewRotationQuat) const
+bool FBaseMovementSimulation::ResolvePenetration(const FVector& ProposedAdjustment, const FHitResult& Hit, const FQuat& NewRotationQuat) const
 {
 	// SceneComponent can't be in penetration, so this function really only applies to PrimitiveComponent.
 	const FVector Adjustment = ProposedAdjustment; //ConstrainDirectionToPlane(ProposedAdjustment);
@@ -237,7 +221,7 @@ bool UBaseMovementComponent::ResolvePenetration(const FVector& ProposedAdjustmen
 			   *GetNameSafe(Hit.GetComponent()),
 			   Hit.Component.IsValid() ? *Hit.GetComponent()->GetComponentLocation().ToString() : TEXT("<unknown>"),
 			   Hit.PenetrationDepth,
-			   (uint32)GetNetMode());
+			   (uint32)ActorOwner->GetNetMode());
 
 		// We really want to make sure that precision differences or differences between the overlap test and sweep tests don't put us into another overlap,
 		// so make the overlap test a bit more restrictive.
@@ -292,7 +276,7 @@ bool UBaseMovementComponent::ResolvePenetration(const FVector& ProposedAdjustmen
 	return false;
 }
 
-bool UBaseMovementComponent::SafeMoveUpdatedComponent(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult& OutHit, ETeleportType Teleport) const
+bool FBaseMovementSimulation::SafeMoveUpdatedComponent(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult& OutHit, ETeleportType Teleport) const
 {
 	if (UpdatedComponent == NULL)
 	{
@@ -321,7 +305,7 @@ bool UBaseMovementComponent::SafeMoveUpdatedComponent(const FVector& Delta, cons
 	return bMoveResult;
 }
 
-bool UBaseMovementComponent::MoveUpdatedComponent(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult* OutHit, ETeleportType Teleport) const
+bool FBaseMovementSimulation::MoveUpdatedComponent(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult* OutHit, ETeleportType Teleport) const
 {
 	if (UpdatedComponent)
 	{
@@ -332,103 +316,12 @@ bool UBaseMovementComponent::MoveUpdatedComponent(const FVector& Delta, const FQ
 	return false;
 }
 
-FTransform UBaseMovementComponent::GetUpdateComponentTransform() const
+
+FTransform FBaseMovementSimulation::GetUpdateComponentTransform() const
 {
 	if (ensure(UpdatedComponent))
 	{
 		return UpdatedComponent->GetComponentTransform();		
 	}
 	return FTransform::Identity;
-}
-
-UObject* UBaseMovementComponent::GetBaseMovementVLogOwner() const
-{
-	return GetOwner();
-}
-
-void UBaseMovementComponent::DrawDebug(const IBaseMovementDriver::FDrawDebugParams& Params) const
-{
-	if (!UpdatedComponent)
-	{
-		return;
-	}
-
-	AActor* Owner = GetOwner();
-
-	const bool PersistentLines = (Params.Lifetime == EVisualLoggingLifetime::Persistent);
-	const float LifetimeSeconds = PersistentLines ? 20.f : -1.f;
-
-	if (Params.DrawType == EVisualLoggingDrawType::Crumb)
-	{
-		if (BaseMovementCVars::UseDrawDebug)
-		{
-			static float PointSize = 3.f;
-			DrawDebugPoint(Params.DebugWorld, Params.Transform.GetLocation(), PointSize, Params.DrawColor, false, LifetimeSeconds);
-		}
-
-		if (BaseMovementCVars::UseVLogger)
-		{
-			static float CrumbRadius = 3.f;
-			UE_VLOG_LOCATION(Params.DebugLogOwner, LogBaseMovement, Log, Params.Transform.GetLocation(), CrumbRadius, Params.DrawColor, TEXT("%s"), *Params.InWorldText);
-		}
-	}
-	else
-	{
-		// Full drawing. Trying to provide a generic implementation that will give the most accurate representation.
-		// Still, subclasses may want to customize this
-		if (UCapsuleComponent* CapsuleComponent = Cast<UCapsuleComponent>(UpdatedComponent))
-		{
-			float Radius=0.f;
-			float HalfHeight=0.f;
-			CapsuleComponent->GetScaledCapsuleSize(Radius, HalfHeight);
-
-			if (BaseMovementCVars::UseDrawDebug)
-			{
-				static const float Thickness = 2.f;
-				DrawDebugCapsule(Params.DebugWorld, Params.Transform.GetLocation(), HalfHeight, Radius, Params.Transform.GetRotation(), Params.DrawColor, false, LifetimeSeconds, 0.f, Thickness);
-			}
-
-			if (BaseMovementCVars::UseVLogger)
-			{
-				FVector VLogPosition = Params.Transform.GetLocation();
-				VLogPosition.Z -= HalfHeight;
-				UE_VLOG_CAPSULE(Params.DebugLogOwner, LogBaseMovement, Log, VLogPosition, HalfHeight, Radius, Params.Transform.GetRotation(), Params.DrawColor, TEXT("%s"), *Params.InWorldText);
-			}
-		}
-		else
-		{
-			// Generic Actor Bounds drawing
-			FBox LocalSpaceBox = Owner->CalculateComponentsBoundingBoxInLocalSpace();
-
-			if (BaseMovementCVars::UseDrawDebug)
-			{
-				static const float Thickness = 2.f;
-
-				FVector ActorOrigin;
-				FVector ActorExtent;
-				LocalSpaceBox.GetCenterAndExtents(ActorOrigin, ActorExtent);
-				ActorExtent *= Params.Transform.GetScale3D();
-				DrawDebugBox(Params.DebugWorld, Params.Transform.GetLocation(), ActorExtent, Params.Transform.GetRotation(), Params.DrawColor, false, LifetimeSeconds, 0, Thickness);
-			}
-
-			if (BaseMovementCVars::UseVLogger)
-			{
-				UE_VLOG_OBOX(Params.DebugLogOwner, LogBaseMovement, Log, LocalSpaceBox, Params.Transform.ToMatrixWithScale(), Params.DrawColor, TEXT("%s"), *Params.InWorldText);
-			}
-		}
-	}
-
-	if (BaseMovementCVars::UseVLogger)
-	{
-		UE_VLOG(Params.DebugLogOwner, LogBaseMovement, Log, TEXT("%s"), *Params.LogText);
-	}
-}
-
-IBaseMovementDriver::FDrawDebugParams::FDrawDebugParams(const FVisualLoggingParameters& Parameters, IBaseMovementDriver* LogDriver)
-{
-	DebugWorld = LogDriver->GetBaseMovementDriverWorld();
-	DebugLogOwner = LogDriver->GetBaseMovementVLogOwner();
-	DrawType = (Parameters.Context == EVisualLoggingContext::OtherMispredicted || Parameters.Context == EVisualLoggingContext::OtherPredicted) ? EVisualLoggingDrawType::Crumb : EVisualLoggingDrawType::Full;
-	Lifetime = Parameters.Lifetime;
-	DrawColor = Parameters.GetDebugColor();	
 }

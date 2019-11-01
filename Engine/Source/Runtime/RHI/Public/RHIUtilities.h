@@ -73,14 +73,15 @@ struct FTextureRWBuffer2D
 	}
 
 	// @param AdditionalUsage passed down to RHICreateVertexBuffer(), get combined with "BUF_UnorderedAccess | BUF_ShaderResource" e.g. BUF_Static
-	void Initialize(const uint32 BytesPerElement, const uint32 SizeX, const uint32 SizeY, const EPixelFormat Format)
+	const static uint32 DefaultTextureInitFlag = TexCreate_ShaderResource | TexCreate_UAV;
+	void Initialize(const uint32 BytesPerElement, const uint32 SizeX, const uint32 SizeY, const EPixelFormat Format, uint32 Flags = DefaultTextureInitFlag)
 	{
 		check(GMaxRHIFeatureLevel == ERHIFeatureLevel::SM5
 			|| IsVulkanPlatform(GMaxRHIShaderPlatform)
 			|| IsMetalPlatform(GMaxRHIShaderPlatform)
 			|| (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1 && GSupportsResourceView)
 		);		
-
+				
 		NumBytes = SizeX * SizeY * BytesPerElement;
 
 		FRHIResourceCreateInfo CreateInfo;
@@ -88,7 +89,7 @@ struct FTextureRWBuffer2D
 			SizeX, SizeY, Format, //PF_R32_FLOAT,
 			/*NumMips=*/ 1,
 			1,
-			/*Flags=*/ TexCreate_ShaderResource | TexCreate_UAV,
+			Flags,
 			/*BulkData=*/ CreateInfo);
 
 							
@@ -500,7 +501,7 @@ inline void DecodeRenderTargetMode(ESimpleRenderTargetMode Mode, ERenderTargetLo
 
 inline void TransitionRenderPassTargets(FRHICommandList& RHICmdList, const FRHIRenderPassInfo& RPInfo)
 {
-	FRHITexture* Transitions[MaxSimultaneousRenderTargets + 1];
+	FRHITexture* Transitions[MaxSimultaneousRenderTargets];
 	int32 TransitionIndex = 0;
 	uint32 NumColorRenderTargets = RPInfo.GetNumColorRenderTargets();
 	for (uint32 Index = 0; Index < NumColorRenderTargets; Index++)
@@ -514,10 +515,9 @@ inline void TransitionRenderPassTargets(FRHICommandList& RHICmdList, const FRHIR
 	}
 
 	const FRHIRenderPassInfo::FDepthStencilEntry& DepthStencilTarget = RPInfo.DepthStencilRenderTarget;
-	if (DepthStencilTarget.DepthStencilTarget != nullptr && RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil.IsDepthWrite())
+	if (DepthStencilTarget.DepthStencilTarget != nullptr && (RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil.IsAnyWrite()))
 	{
-		Transitions[TransitionIndex] = DepthStencilTarget.DepthStencilTarget;
-		TransitionIndex++;
+		RHICmdList.TransitionResource(RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil, DepthStencilTarget.DepthStencilTarget);
 	}
 
 	RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, Transitions, TransitionIndex);

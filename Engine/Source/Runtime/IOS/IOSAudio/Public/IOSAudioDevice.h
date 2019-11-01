@@ -212,10 +212,10 @@ public:
 	
 	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar = *GLog ) override;
 
-	static int32& GetSuspendCounter();
-
-
 	virtual void UpdateDeviceDeltaTime() override;
+    
+    static void IncrementSuspendCounter();
+    static void DecrementSuspendCounter();
 
 protected:
 	/** Starts up any platform specific hardware/APIs */

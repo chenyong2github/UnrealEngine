@@ -215,48 +215,4 @@ public:
 	* @return - new eyes swap state. False - normal eyes left|right, true - swapped eyes right|left
 	*/
 	virtual bool ToggleEyesSwap(const FString& CameraId) = 0;
-
-	/**
-	* Get camera frustum near culling
-	*
-	* @return - near culling plane distance
-	*/
-	virtual float GetNearCullingDistance(const FString& CameraId) const = 0;
-
-	/**
-	* Set camera frustum near culling
-	*
-	* @param NCP - near culling plane distance
-	*/
-	virtual void SetNearCullingDistance(const FString& CameraId, float NearDistance) = 0;
-
-	/**
-	* Get camera frustum far culling
-	*
-	* @return - far culling plane distance
-	*/
-	virtual float GetFarCullingDistance(const FString& CameraId) const = 0;
-
-	/**
-	* Set camera frustum far culling
-	*
-	* @return - far culling plane distance
-	*/
-	virtual void SetFarCullingDistance(const FString& CameraId, float FarDistance) = 0;
-
-	/**
-	* Get camera frustum culling
-	*
-	* @param NearDistance - near culling plane distance
-	* @param FarDistance - far culling plane distance
-	*/
-	virtual void GetCullingDistance(const FString& CameraId, float& NearDistance, float& FarDistance) const = 0;
-
-	/**
-	* Set camera frustum culling
-	*
-	* @param NearDistance - near culling plane distance
-	* @param FarDistance - far culling plane distance
-	*/
-	virtual void SetCullingDistance(const FString& CameraId, float NearDistance, float FarDistance) = 0;
 };

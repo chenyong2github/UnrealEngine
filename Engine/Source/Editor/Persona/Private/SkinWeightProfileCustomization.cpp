@@ -10,6 +10,8 @@
 #include "Rendering/SkeletalMeshLODModel.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Components/SkinnedMeshComponent.h"
+#include "Animation/DebugSkelMeshComponent.h"
+#include "SkeletalMeshTypes.h"
 
 #include "PropertyHandle.h"
 #include "DetailWidgetRow.h"
@@ -412,12 +414,15 @@ TSharedRef<class SWidget> FSkinWeightProfileCustomization::GenerateRemoveMenu()
 		{
 			if (USkeletalMesh* SkeletalMesh = WeakSkeletalMesh.Get())
 			{
-				FSkinnedMeshComponentRecreateRenderStateContext ReregisterContext(SkeletalMesh);
-				FScopedTransaction ScopedTransaction(LOCTEXT("RemoveSkinProfileTransaction", "Remove Skin Weight Profile"));
-				SkeletalMesh->Modify();
-				FSkinWeightProfileHelpers::RemoveSkinWeightProfile(SkeletalMesh, LastKnownProfileName);
-				SkeletalMesh->PostEditChange();
-				UpdateNameRestriction();
+				//Scope the postedit change
+				{
+					FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(SkeletalMesh);
+					FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMesh);
+					FScopedTransaction ScopedTransaction(LOCTEXT("RemoveSkinProfileTransaction", "Remove Skin Weight Profile"));
+					SkeletalMesh->Modify();
+					FSkinWeightProfileHelpers::RemoveSkinWeightProfile(SkeletalMesh, LastKnownProfileName);
+					UpdateNameRestriction();
+				}
 
 				PropertyUtilities->ForceRefresh();
 			}

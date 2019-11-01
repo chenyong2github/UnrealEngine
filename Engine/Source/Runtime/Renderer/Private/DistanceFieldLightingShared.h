@@ -32,11 +32,6 @@ extern int32 GAverageObjectsPerShadowCullTile;
 
 extern int32 GDistanceFieldGI;
 
-inline bool DoesPlatformSupportDistanceFieldGI(EShaderPlatform Platform)
-{
-	return Platform == SP_PCD3D_SM5;
-}
-
 inline bool SupportsDistanceFieldGI(ERHIFeatureLevel::Type FeatureLevel, EShaderPlatform ShaderPlatform)
 {
 	return GDistanceFieldGI 

@@ -439,7 +439,7 @@ void AWorldSettings::PostLoad()
 	for (FHierarchicalSimplification& Entry : HierarchicalLODSetup)
 	{
 		Entry.ProxySetting.PostLoadDeprecated();
-		Entry.MergeSetting.LODSelectionType = EMeshLODSelectionType::CalculateLOD;
+		Entry.MergeSetting.PostLoadDeprecated();
 	}
 
 #endif// WITH_EDITOR
@@ -555,12 +555,6 @@ bool AWorldSettings::CanEditChange(const UProperty* InProperty) const
 			{
 				return LightmassSettings.EnvironmentIntensity > 0;
 			}
-		}
-
-		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(AWorldSettings, OverrideBaseMaterial) ||
-			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(AWorldSettings, HierarchicalLODSetup))
-		{
-			return bEnableHierarchicalLODSystem && HLODSetupAsset.IsNull();
 		}
 	}
 

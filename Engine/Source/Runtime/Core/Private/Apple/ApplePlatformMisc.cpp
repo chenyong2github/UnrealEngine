@@ -56,9 +56,15 @@ void FApplePlatformMisc::LocalPrint(const TCHAR* Message)
 
 const TCHAR* FApplePlatformMisc::GetSystemErrorMessage(TCHAR* OutBuffer, int32 BufferCount, int32 Error)
 {
-	// There's no iOS equivalent for GetLastError()
 	check(OutBuffer && BufferCount);
 	*OutBuffer = TEXT('\0');
+	if (Error == 0)
+	{
+		Error = errno;
+	}
+	char* ErrorBuffer = (char*)alloca(BufferCount);
+	strerror_r(Error, ErrorBuffer, BufferCount);
+	FCString::Strcpy(OutBuffer, BufferCount, UTF8_TO_TCHAR((const ANSICHAR*)ErrorBuffer));
 	return OutBuffer;
 }
 

@@ -765,7 +765,7 @@ protected:
 	void AddReferencedObjects(UAnimInstance* InAnimInstance, FReferenceCollector& Collector);
 
 	/** Allow nodes to register log messages to be processed on the game thread */
-	void LogMessage(FName InLogType, EMessageSeverity::Type InSeverity, const FText& InMessage);
+	void LogMessage(FName InLogType, EMessageSeverity::Type InSeverity, const FText& InMessage) const;
 
 	/** Get the current value of all animation curves **/
 	TMap<FName, float>& GetAnimationCurves(EAnimCurveType InCurveType) { return AnimationCurves[(uint8)InCurveType]; }
@@ -941,10 +941,10 @@ private:
 	 *  on a worked thread
 	 */
 	typedef TPair<EMessageSeverity::Type, FText> FLogMessageEntry;
-	TMap<FName, TArray<FLogMessageEntry>> LoggedMessagesMap;
+	mutable TMap<FName, TArray<FLogMessageEntry>> LoggedMessagesMap;
 
 	/** Cache of guids generated from previously sent messages so we can stop spam*/
-	TArray<FGuid> PreviouslyLoggedMessages;
+	mutable TArray<FGuid> PreviouslyLoggedMessages;
 #endif
 
 	/** Scope guard to prevent duplicate work on re-entracy */

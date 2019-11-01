@@ -31,6 +31,10 @@ public:
 		// this uses generic, non-platform-specific .ini files
 		return "";
 	}
+	static FORCEINLINE const TCHAR* GetRuntimeSettingsClassName()
+	{
+		return TEXT("");
+	}
 	static FORCEINLINE bool HasEditorOnlyData()
 	{
 		return false;

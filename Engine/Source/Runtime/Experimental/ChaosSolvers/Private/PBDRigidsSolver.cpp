@@ -133,6 +133,14 @@ namespace Chaos
 		Reset();
 	}
 
+	float MaxBoundsForTree = 10000;
+	FAutoConsoleVariableRef CVarMaxBoundsForTree(
+		TEXT("p.MaxBoundsForTree"),
+		MaxBoundsForTree,
+		TEXT("The max bounds before moving object into a large objects structure. Only applies on object registration")
+		TEXT(""),
+		ECVF_Default);
+
 	void FPBDRigidsSolver::RegisterObject(TGeometryParticle<float, 3>* GTParticle)
 	{
 		UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("FPBDRigidsSolver::RegisterObject()"));
@@ -140,7 +148,7 @@ namespace Chaos
 		// Make sure this particle doesn't already have a proxy
 		checkSlow(GTParticle->Proxy == nullptr);
 
-		if (GTParticle->Geometry() && GTParticle->Geometry()->HasBoundingBox() && GTParticle->Geometry()->BoundingBox().Extents().Max() >= 100000)
+		if (GTParticle->Geometry() && GTParticle->Geometry()->HasBoundingBox() && GTParticle->Geometry()->BoundingBox().Extents().Max() >= MaxBoundsForTree)
 		{
 			GTParticle->SetSpatialIdx(FSpatialAccelerationIdx{ 1,0 });
 		}

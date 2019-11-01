@@ -23,7 +23,7 @@
 #include "LocalPlayer.generated.h"
 
 
-#define INVALID_CONTROLLERID 255
+#define INVALID_CONTROLLERID (-1)
 
 class AActor;
 class FSceneView;

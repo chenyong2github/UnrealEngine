@@ -88,6 +88,12 @@ bool FModelingToolsEditorMode::ProcessEditDelete()
 }
 
 
+bool FModelingToolsEditorMode::CanAutoSave() const
+{
+	// prevent autosave if any tool is active
+	return ToolsContext->ToolManager->HasAnyActiveTool() == false;
+}
+
 bool FModelingToolsEditorMode::AllowWidgetMove()
 { 
 	return false; 

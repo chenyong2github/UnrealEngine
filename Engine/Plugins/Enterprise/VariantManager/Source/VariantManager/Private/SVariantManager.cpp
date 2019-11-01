@@ -58,6 +58,7 @@
 #include "Engine/BlueprintGeneratedClass.h"
 #include "VariantManagerUtils.h"
 #include "SwitchActor.h"
+#include "Brushes/SlateImageBrush.h"
 
 #define LOCTEXT_NAMESPACE "SVariantManager"
 
@@ -184,6 +185,8 @@ void SVariantManager::Construct(const FArguments& InArgs, TSharedRef<FVariantMan
 		OnMapChangedHandle = LevelEditorModule.OnMapChanged().AddSP(this, &SVariantManager::OnMapChanged);
 	}
 
+	RecordButtonBrush = MakeShared<FSlateImageBrush>(FPaths::EngineContentDir() / TEXT("Editor/Slate/Icons/CA_Record.png"), FVector2D(24.0f, 24.0f));
+
 	ChildSlot
 	[
 		SAssignNew(MainSplitter, SSplitter)
@@ -240,7 +243,7 @@ void SVariantManager::Construct(const FArguments& InArgs, TSharedRef<FVariantMan
 								.Padding(FMargin(0.0f, 2.0, 2.0f, 2.0)) // Extra padding on the right because ToggleButtonCheckboxes always nudges the image to the right
 								[
 									SNew(SImage)
-									.Image(FEditorStyle::GetBrush("Sequencer.ToggleIsSnapEnabled"))
+									.Image(RecordButtonBrush.Get())
 								]
 							]
 						]
@@ -2188,7 +2191,9 @@ FReply SVariantManager::OnAddVariantSetClicked()
 // Will return true if it created or updated a UPropertyValue
 bool AutoCaptureProperty(FVariantManager* VarMan, AActor* TargetActor, const FString& PropertyPath, const UProperty* Property)
 {
-	if (!VarMan || !TargetActor || PropertyPath.IsEmpty())
+	// Transient actors are generated temporarily while dragging actors into the level. Once the
+	// mouse is released, another non-transient actor is instantiated
+	if (!VarMan || !TargetActor || TargetActor->HasAnyFlags(RF_Transient) || PropertyPath.IsEmpty())
 	{
 		return false;
 	}
@@ -2435,7 +2440,8 @@ void SVariantManager::OnObjectPropertyChanged(UObject* Object, struct FPropertyC
 	AActor* TargetActor = nullptr;
 	FString PropertyPath;
 
-	bool bIsBuiltIn = VariantManagerUtils::IsBuiltInStructProperty(Event.MemberProperty);
+	bool bIsStructProperty = Event.MemberProperty && Event.MemberProperty->IsA(UStructProperty::StaticClass());
+	bool bIsBuiltIn = bIsStructProperty && FVariantManagerUtils::IsBuiltInStructProperty(Event.MemberProperty);
 
 	// We don't want to capture just the X component of a RelativeLocation property, but we want to capture
 	// the ISO property of a FPostProcessSettings StructProperty
@@ -2501,8 +2507,8 @@ void SVariantManager::OnObjectPropertyChanged(UObject* Object, struct FPropertyC
 	}
 
 	// If we're a non-built in struct property, build the path with the categories
-	// like the propertycapturer would have done
-	if (Event.MemberProperty && !bIsBuiltIn)
+	// like the propertycapturer would have done (this is mostly to manage Post Process Volume properties)
+	if (bIsStructProperty && !bIsBuiltIn)
 	{
 		// Add 'Settings /'
 		PropertyPath += Event.MemberProperty->GetDisplayNameText().ToString() + PATH_DELIMITER;
@@ -2518,12 +2524,11 @@ void SVariantManager::OnObjectPropertyChanged(UObject* Object, struct FPropertyC
 
 	FString PropertyName = Prop->GetDisplayNameText().ToString();
 	TArray<FString> PropertyPaths;
-	const UProperty* OverrideMaterialsProp = FindField<UProperty>( UMeshComponent::StaticClass(), GET_MEMBER_NAME_CHECKED( UMeshComponent, OverrideMaterials ) );
-	const TSet<FString> ProxyPropertyPaths{ TEXT("Relative Location"), TEXT("Relative Rotation"), TEXT("Relative Scale 3D") };
+	static const TSet<FString> ProxyPropertyPaths{ TEXT("Relative Location"), TEXT("Relative Rotation"), TEXT("Relative Scale 3D") };
 
 	// We capture as just 'Materials' in the Variant Manager UI, instead of 'Override Materials'
 	// Override Materials doesn't work like a regular UArrayProperty, we need to use GetNumMaterials
-	if (Prop == OverrideMaterialsProp)
+	if (Prop == FVariantManagerUtils::GetOverrideMaterialsProperty())
 	{
 		if (UStaticMeshComponent* ObjAsComp = Cast<UStaticMeshComponent>(Object))
 		{

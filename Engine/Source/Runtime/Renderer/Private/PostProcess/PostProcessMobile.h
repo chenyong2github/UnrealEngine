@@ -17,7 +17,7 @@ float GetMobileDepthOfFieldScale(const FViewInfo& View);
 
 // Used to indicate the final PP stage which needs to be flipped on platforms that 'RHINeedsToSwitchVerticalAxis'
 void SetMobilePassFlipVerticalAxis(const FRenderingCompositePass* FlipPass);
-bool ShouldMobilePassFlipVerticalAxis(const FRenderingCompositePass* ShouldFlipPass);
+bool ShouldMobilePassFlipVerticalAxis(const FRenderingCompositePassContext& Context, const FRenderingCompositePass* ShouldFlipPass);
 
 class FRCPassPostProcessBloomSetupES2 : public TRenderingCompositePassBase<1, 1>
 {

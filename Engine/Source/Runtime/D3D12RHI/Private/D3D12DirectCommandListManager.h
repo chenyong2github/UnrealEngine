@@ -97,6 +97,7 @@ public:
 	uint64 GetLastSignaledFence() const { return LastSignaledFence; }
 
 	uint64 PeekLastCompletedFence() const;
+	uint64 PeekLastCompletedFence(FRHIGPUMask InGPUMask) const;
 	uint64 UpdateLastCompletedFence();
 
 	// Might not be the most up to date value but avoids calling GetCompletedValue().

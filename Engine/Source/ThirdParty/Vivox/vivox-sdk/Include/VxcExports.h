@@ -1,4 +1,3 @@
-#pragma once
 /* Copyright (c) 2013-2018 by Mercer Road Corp
  *
  * Permission to use, copy, modify or distribute this software in binary or source form
@@ -13,6 +12,8 @@
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
  */
+#pragma once
+
 # if defined(VIVOXDOC) || defined(SWIG)
 #   define VIVOXSDK_DLLEXPORT
 # else

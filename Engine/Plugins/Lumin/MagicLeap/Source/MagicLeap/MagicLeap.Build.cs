@@ -24,10 +24,11 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"HeadMountedDisplay",
-					"ProceduralMeshComponent",
 					"InputDevice",
                     "LuminRuntimeSettings",
 					"AugmentedReality",
+					"MLSDK",
+					"MagicLeapPrivileges"
                 }
 			);
 
@@ -44,12 +45,10 @@ namespace UnrealBuildTool.Rules
 					"Renderer",
 					"Slate",
 					"SlateCore",
-					"MLSDK",
 					"MRMesh",
                     "MagicLeapHelperOpenGL",
 					// Public headers of MagicLeapHelperVulkan are protected against Mac so this is fine here.
 					"MagicLeapHelperVulkan",
-					"LuminRuntimeSettings",
 					"MagicLeapSecureStorage",
 				}
 			);
@@ -62,6 +61,16 @@ namespace UnrealBuildTool.Rules
 						"VulkanRHI"
 					}
 				);
+                PrivateDefinitions.Add("MLSDK_API_USE_VULKAN=1");
+			}
+			else
+			{
+				PrivateDependencyModuleNames.Add("MetalRHI");
+				PrivateIncludePaths.AddRange(
+					new string[] {
+						Path.Combine(EngineSourceDirectory, "Runtime/Apple/MetalRHI/Private"),
+					});
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "MTLPP");
 			}
 
 			if (Target.bBuildEditor == true)
@@ -95,6 +104,14 @@ namespace UnrealBuildTool.Rules
 						Path.Combine(EngineSourceDirectory, "ThirdParty/SDL2/SDL-gui-backend/include"),
 					}
 				);
+				PrivateIncludePaths.AddRange(
+					new string[] {
+						Path.Combine(EngineSourceDirectory, "Runtime/VulkanRHI/Private"),
+						Path.Combine(EngineSourceDirectory, "Runtime/VulkanRHI/Private/Linux")
+					}
+				);
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
+
 				// HACK This is a workaround for a bug introduced in Unreal 4.13 which should be
 				// removed if all SensoryWare libs are compiled with libc++ instead of libstdc++
 				// https://udn.unrealengine.com/questions/305445/ue-33584-linux-build.html

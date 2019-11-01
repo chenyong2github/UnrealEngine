@@ -543,6 +543,11 @@ bool UWidget::HasUserFocusedDescendants(APlayerController* PlayerController) con
 	return false;
 }
 
+void UWidget::SetFocus()
+{
+	SetUserFocus(GetOwningPlayer());
+}
+
 void UWidget::SetUserFocus(APlayerController* PlayerController)
 {
 	if ( PlayerController == nullptr || !PlayerController->IsLocalPlayerController() || PlayerController->Player == nullptr )

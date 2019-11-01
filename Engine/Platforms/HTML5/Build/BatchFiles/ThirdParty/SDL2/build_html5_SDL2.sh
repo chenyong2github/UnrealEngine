@@ -12,12 +12,12 @@ SDL2_HTML5_DST="$HTML5_TPS_LIBS/SDL2/$SDL2_VERSION"
 
 
 # local destination
-if [ ! -d "$SDL2_HTML5_DST" ]; then
-	mkdir -p "$SDL2_HTML5_DST"
+if [ ! -d "$SDL2_HTML5_DST/lib" ]; then
+	mkdir -p "$SDL2_HTML5_DST/lib"
 fi
-# TODO change this to p4 checkout
-if [ ! -z "$(ls -A "$SDL2_HTML5_DST")" ]; then
-	chmod +w "$SDL2_HTML5_DST"/*
+# TODO remove this p4 hack after HTML5 becomes community driven only
+if [ ! -z "$(ls -A "$SDL2_HTML5_DST/lib")" ]; then
+	chmod +w "$SDL2_HTML5_DST"/lib/*
 fi
 
 
@@ -53,12 +53,12 @@ build_via_cmake()
 	if [ $OLEVEL == 0 ]; then
 		SUFFIX=
 	fi
-	cp libSDL2${DSUFFIX}.$UE_LIB_EXT "$SDL2_HTML5_DST"/libSDL2${SUFFIX}.$UE_LIB_EXT
+	cp libSDL2${DSUFFIX}.$UE_LIB_EXT "$SDL2_HTML5_DST"/lib/libSDL2${SUFFIX}.$UE_LIB_EXT
 	cd ..
 }
 type=Debug;       OLEVEL=0;  build_via_cmake
 type=Release;     OLEVEL=2;  build_via_cmake
 type=Release;     OLEVEL=3;  build_via_cmake
 type=MinSizeRel;  OLEVEL=z;  build_via_cmake
-ls -l "$SDL2_HTML5_DST"
+ls -l "$SDL2_HTML5_DST/lib"
 

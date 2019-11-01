@@ -1,224 +1,204 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-PostProcessVisualizeComplexity.cpp: Contains definitions for complexity viewmode.
-=============================================================================*/
-
 #include "PostProcess/PostProcessVisualizeComplexity.h"
-#include "EngineGlobals.h"
-#include "StaticBoundShaderState.h"
 #include "CanvasTypes.h"
-#include "UnrealEngine.h"
 #include "RenderTargetTemp.h"
-#include "SceneUtils.h"
-#include "PostProcess/SceneRenderTargets.h"
-#include "PostProcess/SceneFilterRendering.h"
-#include "PostProcess/PostProcessing.h"
-#include "PipelineStateCache.h"
 
-/**
- * Gets the maximum shader complexity count from the ini settings.
- */
-float GetMaxShaderComplexityCount(ERHIFeatureLevel::Type InFeatureType)
+class FVisualizeComplexityApplyPS : public FGlobalShader
 {
-	switch (InFeatureType)
-	{
-		case ERHIFeatureLevel::ES2:
-			return GEngine->MaxES2PixelShaderAdditiveComplexityCount;
-		break;
+public:
+	DECLARE_GLOBAL_SHADER(FVisualizeComplexityApplyPS);
+	SHADER_USE_PARAMETER_STRUCT(FVisualizeComplexityApplyPS, FGlobalShader);
 
-		case ERHIFeatureLevel::ES3_1:
-			return GEngine->MaxES3PixelShaderAdditiveComplexityCount;
-		break;
-		
-		default:
-			return GEngine->MaxPixelShaderAdditiveComplexityCount;
-		break;
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Input)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, InputSampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, QuadOverdrawTexture)
+		SHADER_PARAMETER_TEXTURE(Texture2D, MiniFontTexture)
+		SHADER_PARAMETER_ARRAY(FLinearColor, ShaderComplexityColors, [MaxNumShaderComplexityColors])
+		SHADER_PARAMETER(FIntPoint, UsedQuadTextureSize)
+		SHADER_PARAMETER(uint32, bLegend)
+		SHADER_PARAMETER(uint32, bShowError)
+		SHADER_PARAMETER(uint32, DebugViewShaderMode)
+		SHADER_PARAMETER(uint32, ColorSamplingMethod)
+		SHADER_PARAMETER(float, ShaderComplexityColorCount)
+		SHADER_PARAMETER(float, ComplexityScale)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return true;
 	}
 
-	return GEngine->MaxPixelShaderAdditiveComplexityCount;
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("READ_QUAD_OVERDRAW"), AllowDebugViewShaderMode(DVSM_QuadComplexity, Parameters.Platform, GetMaxSupportedFeatureLevel(Parameters.Platform)));
+		OutEnvironment.SetDefine(TEXT("MAX_NUM_COMPLEXITY_COLORS"), MaxNumShaderComplexityColors);
+		// EVisualizeComplexityColorSamplingMethod values
+		OutEnvironment.SetDefine(TEXT("CS_RAMP"), (uint32)FVisualizeComplexityInputs::EColorSamplingMethod::Ramp);
+		OutEnvironment.SetDefine(TEXT("CS_LINEAR"), (uint32)FVisualizeComplexityInputs::EColorSamplingMethod::Linear);
+		OutEnvironment.SetDefine(TEXT("CS_STAIR"), (uint32)FVisualizeComplexityInputs::EColorSamplingMethod::Stair);
+		// EDebugViewShaderMode values
+		OutEnvironment.SetDefine(TEXT("DVSM_None"), (uint32)DVSM_None);
+		OutEnvironment.SetDefine(TEXT("DVSM_ShaderComplexity"), (uint32)DVSM_ShaderComplexity);
+		OutEnvironment.SetDefine(TEXT("DVSM_ShaderComplexityContainedQuadOverhead"), (uint32)DVSM_ShaderComplexityContainedQuadOverhead);
+		OutEnvironment.SetDefine(TEXT("DVSM_ShaderComplexityBleedingQuadOverhead"), (uint32)DVSM_ShaderComplexityBleedingQuadOverhead);
+		OutEnvironment.SetDefine(TEXT("DVSM_QuadComplexity"), (uint32)DVSM_QuadComplexity);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FVisualizeComplexityApplyPS, "/Engine/Private/ShaderComplexityApplyPixelShader.usf", "Main", SF_Pixel);
+
+float GetMaxShaderComplexityCount(ERHIFeatureLevel::Type FeatureLevel)
+{
+	switch (FeatureLevel)
+	{
+	case ERHIFeatureLevel::ES2:
+		return GEngine->MaxES2PixelShaderAdditiveComplexityCount;
+	case ERHIFeatureLevel::ES3_1:
+		return GEngine->MaxES3PixelShaderAdditiveComplexityCount;
+	default:
+		return GEngine->MaxPixelShaderAdditiveComplexityCount;
+	}
 }
 
-
-/** 
-* Constructor - binds all shader params
-* @param Initializer - init data from shader compiler
-*/
-FVisualizeComplexityApplyPS::FVisualizeComplexityApplyPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-	:	FGlobalShader(Initializer)
+FScreenPassTexture AddVisualizeComplexityPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FVisualizeComplexityInputs& Inputs)
 {
-	PostprocessParameter.Bind(Initializer.ParameterMap);
-	ShaderComplexityColors.Bind(Initializer.ParameterMap,TEXT("ShaderComplexityColors"));
-	MiniFontTexture.Bind(Initializer.ParameterMap, TEXT("MiniFontTexture"));
-	ShaderComplexityParams.Bind(Initializer.ParameterMap, TEXT("ShaderComplexityParams"));
-	ShaderComplexityParams2.Bind(Initializer.ParameterMap, TEXT("ShaderComplexityParams2"));
-	QuadOverdrawTexture.Bind(Initializer.ParameterMap,TEXT("QuadOverdrawTexture"));
-}
+	check(Inputs.SceneColor.IsValid());
 
-template <typename TRHICmdList>
-void FVisualizeComplexityApplyPS::SetParameters(
-	TRHICmdList& RHICmdList,
-	const FRenderingCompositePassContext& Context,
-	const TArray<FLinearColor>& Colors,
-	EColorSampling ColorSampling,
-	float ComplexityScale,
-	bool bLegend,
-	bool bShowError
-	)
-{
-	FRHIPixelShader* ShaderRHI = GetPixelShader();
+	FScreenPassRenderTarget Output = Inputs.OverrideOutput;
 
-	FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
-
-	PostprocessParameter.SetPS(RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
-
-	int32 NumColors = FMath::Min<int32>(Colors.Num(), MaxNumShaderComplexityColors);
-	if (NumColors > 0)
-	{	//pass the complexity -> color mapping into the pixel shader
-		for (int32 ColorIndex = 0; ColorIndex < NumColors; ColorIndex++)
-		{
-			SetShaderValue(RHICmdList, ShaderRHI, ShaderComplexityColors, Colors[ColorIndex], ColorIndex);
-		}
-	}
-	else // Otherwise fallback to a safe value.
+	if (!Output.IsValid())
 	{
-		NumColors = 1;
-		SetShaderValue(RHICmdList, ShaderRHI, ShaderComplexityColors, FLinearColor::Gray, 0);
+		Output = FScreenPassRenderTarget::CreateFromInput(GraphBuilder, Inputs.SceneColor, View.GetOverwriteLoadAction(), TEXT("VisualizeComplexity"));
 	}
 
-	SetTextureParameter(RHICmdList, ShaderRHI, MiniFontTexture, GEngine->MiniFontTexture ? GEngine->MiniFontTexture->Resource->TextureRHI : GSystemTextures.WhiteDummy->GetRenderTargetItem().TargetableTexture);
+	const FScreenPassTextureViewport InputViewport(Inputs.SceneColor);
 
-	// Whether acccess or not the QuadOverdraw buffer.
-	EDebugViewShaderMode DebugViewShaderMode = Context.View.Family->GetDebugViewShaderMode();
-	if (QuadOverdrawTexture.IsBound())
+	FVisualizeComplexityApplyPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeComplexityApplyPS::FParameters>();
+	PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
+	PassParameters->Input = GetScreenPassTextureViewportParameters(InputViewport);
+	PassParameters->InputTexture = Inputs.SceneColor.Texture;
+	PassParameters->InputSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
 	{
-		const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
-		if (SceneContext.QuadOverdrawBuffer.IsValid() && SceneContext.QuadOverdrawBuffer->GetRenderTargetItem().ShaderResourceTexture.IsValid())
+		const int32 ClampedColorCount = FMath::Min<int32>(Inputs.Colors.Num(), MaxNumShaderComplexityColors);
+		if (ClampedColorCount > 0)
 		{
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EGfxToGfx, SceneContext.QuadOverdrawBuffer->GetRenderTargetItem().UAV);
-			SetTextureParameter(RHICmdList, ShaderRHI, QuadOverdrawTexture, SceneContext.QuadOverdrawBuffer->GetRenderTargetItem().ShaderResourceTexture);
+			for (int32 ColorIndex = 0; ColorIndex < ClampedColorCount; ColorIndex++)
+			{
+				PassParameters->ShaderComplexityColors[ColorIndex] = Inputs.Colors[ColorIndex];
+			}
+			PassParameters->ShaderComplexityColorCount = ClampedColorCount;
 		}
-		else // Otherwise fallback to a complexity mode that does not require the QuadOverdraw resources.
+		else // Otherwise fallback to a safe value.
 		{
-			SetTextureParameter(RHICmdList, ShaderRHI, QuadOverdrawTexture, FTextureRHIRef());
-			DebugViewShaderMode = DVSM_ShaderComplexity;
+			PassParameters->ShaderComplexityColors[0] = FLinearColor::Gray;
+			PassParameters->ShaderComplexityColorCount = 1;
 		}
 	}
 
-	FIntPoint UsedQuadBufferSize = (Context.View.ViewRect.Size() + FIntPoint(1, 1)) / 2;
-	SetShaderValue(RHICmdList, ShaderRHI, ShaderComplexityParams, FVector4(bLegend, DebugViewShaderMode, ColorSampling, ComplexityScale));
-	SetShaderValue(RHICmdList, ShaderRHI, ShaderComplexityParams2, FVector4((float)Colors.Num(), bShowError, (float)UsedQuadBufferSize.X, (float)UsedQuadBufferSize.Y));
-}
+	const uint32 ShaderComplexityColorCount = PassParameters->ShaderComplexityColorCount;
 
-IMPLEMENT_SHADER_TYPE(,FVisualizeComplexityApplyPS,TEXT("/Engine/Private/ShaderComplexityApplyPixelShader.usf"),TEXT("Main"),SF_Pixel);
+	PassParameters->MiniFontTexture = GetMiniFontTexture();
 
-void FRCPassPostProcessVisualizeComplexity::Process(FRenderingCompositePassContext& Context)
-{
-	SCOPED_DRAW_EVENT(Context.RHICmdList, PostProcessVisualizeComplexity);
-	const FPooledRenderTargetDesc* InputDesc = GetInputDesc(ePId_Input0);
+	const FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	const EDebugViewShaderMode DebugViewShaderMode = View.Family->GetDebugViewShaderMode();
 
-	if(!InputDesc)
+	if (FRDGTextureRef QuadOverdrawTexture = GraphBuilder.TryRegisterExternalTexture(SceneRenderTargets.QuadOverdrawBuffer))
 	{
-		// input is not hooked up correctly
-		return;
+		PassParameters->QuadOverdrawTexture = QuadOverdrawTexture;
+		PassParameters->DebugViewShaderMode = DebugViewShaderMode;
+	}
+	else // Otherwise fallback to a complexity mode that does not require the QuadOverdraw resources.
+	{
+		PassParameters->DebugViewShaderMode = DVSM_ShaderComplexity;
 	}
 
-	const FViewInfo& View = Context.View;
-	const FSceneViewFamily& ViewFamily = *(View.Family);
-	
-	FIntRect SrcRect = Context.SceneColorViewRect;
-	FIntRect DestRect = Context.SceneColorViewRect;
-	FIntPoint SrcSize = InputDesc->Extent;
+	PassParameters->bLegend = Inputs.bDrawLegend;
+	PassParameters->bShowError = PassParameters->DebugViewShaderMode != DVSM_QuadComplexity;
+	PassParameters->ColorSamplingMethod = (uint32)Inputs.ColorSamplingMethod;
+	PassParameters->ComplexityScale = Inputs.ComplexityScale;
+	PassParameters->UsedQuadTextureSize = FIntPoint(View.ViewRect.Size() + FIntPoint(1, 1)) / 2;
 
-	const FSceneRenderTargetItem& DestRenderTarget = PassOutputs[0].RequestSurface(Context);
+	TShaderMapRef<FVisualizeComplexityApplyPS> PixelShader(View.ShaderMap);
 
-	// Set the view family's render target/viewport.
-	FRHIRenderPassInfo RPInfo(DestRenderTarget.TargetableTexture, ERenderTargetActions::Load_Store);
-	Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("VisualizeComplexity"));
+	RDG_EVENT_SCOPE(GraphBuilder, "VisualizeComplexity");
+
+	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("Visualizer"), View, FScreenPassTextureViewport(Output), InputViewport, *PixelShader, PassParameters);
+
+	Output.LoadAction = ERenderTargetLoadAction::ELoad;
+
+	AddDrawCanvasPass(GraphBuilder, RDG_EVENT_NAME("Overlay"), View, Output,
+		[Output, &View, ShaderComplexityColorCount](FCanvas& Canvas)
 	{
-		Context.SetViewportAndCallRHI(DestRect);
-
-		FGraphicsPipelineStateInitializer GraphicsPSOInit;
-		Context.RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-
-		// turn off culling and blending
-		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
-		GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-
-		// turn off depth reads/writes
-		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-
-		//reuse this generic vertex shader
-		TShaderMapRef<FPostProcessVS> VertexShader(Context.GetShaderMap());
-		TShaderMapRef<FVisualizeComplexityApplyPS> PixelShader(Context.GetShaderMap());
-
-		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
-		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-		SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
-
-		PixelShader->SetParameters(Context.RHICmdList, Context, Colors, ColorSampling, ComplexityScale, bLegend, ViewFamily.GetDebugViewShaderMode() != DVSM_QuadComplexity);
-
-		DrawRectangle(
-			Context.RHICmdList,
-			0, 0,
-			DestRect.Width(), DestRect.Height(),
-			SrcRect.Min.X, SrcRect.Min.Y,
-			SrcRect.Width(), SrcRect.Height(),
-			DestRect.Size(),
-			SrcSize,
-			*VertexShader,
-			EDRF_UseTriangleOptimization);
-	}
-	Context.RHICmdList.EndRenderPass();
-
-	if (bLegend)
-	{
-		FRenderTargetTemp TempRenderTarget(View, (const FTexture2DRHIRef&)DestRenderTarget.TargetableTexture);
-		FCanvas Canvas(&TempRenderTarget, NULL, ViewFamily.CurrentRealTime, ViewFamily.CurrentWorldTime, ViewFamily.DeltaWorldTime, Context.GetFeatureLevel());
-
-		//later?		Canvas.DrawShadowedString(DestRect.Max.X - DestRect.Width() / 3 - 64 + 8, DestRect.Max.Y - 80, TEXT("Overdraw"), GetStatsFont(), FLinearColor(0.7f, 0.7f, 0.7f), FLinearColor(0,0,0,0));
-		//later?		Canvas.DrawShadowedString(DestRect.Min.X + 64 + 4, DestRect.Max.Y - 80, TEXT("VS Instructions"), GetStatsFont(), FLinearColor(0.0f, 0.0f, 0.0f), FLinearColor(0,0,0,0));
-
 		if (View.Family->GetDebugViewShaderMode() == DVSM_QuadComplexity)
 		{
-			int32 StartX = DestRect.Min.X + 62;
-			int32 EndX = DestRect.Max.X - 66;
-			int32 NumOffset = (EndX - StartX) / (Colors.Num() - 1);
+			int32 StartX = Output.ViewRect.Min.X + 62;
+			int32 EndX = Output.ViewRect.Max.X - 66;
+			int32 NumOffset = (EndX - StartX) / (ShaderComplexityColorCount - 1);
 			for (int32 PosX = StartX, Number = 0; PosX <= EndX; PosX += NumOffset, ++Number)
 			{
 				FString Line;
 				Line = FString::Printf(TEXT("%d"), Number);
-				Canvas.DrawShadowedString(PosX, DestRect.Max.Y - 87, *Line, GetStatsFont(), FLinearColor(0.5f, 0.5f, 0.5f));
+				Canvas.DrawShadowedString(PosX, Output.ViewRect.Max.Y - 87, *Line, GetStatsFont(), FLinearColor(0.5f, 0.5f, 0.5f));
 			}
 		}
 		else
 		{
-			Canvas.DrawShadowedString(DestRect.Min.X + 63, DestRect.Max.Y - 51, TEXT("Good"), GetStatsFont(), FLinearColor(0.5f, 0.5f, 0.5f));
-			Canvas.DrawShadowedString(DestRect.Min.X + 63 + (int32)(DestRect.Width() * 107.0f / 397.0f), DestRect.Max.Y - 51, TEXT("Bad"), GetStatsFont(), FLinearColor(0.5f, 0.5f, 0.5f));
-			Canvas.DrawShadowedString(DestRect.Max.X - 162, DestRect.Max.Y - 51, TEXT("Extremely bad"), GetStatsFont(), FLinearColor(0.5f, 0.5f, 0.5f));
+			Canvas.DrawShadowedString(Output.ViewRect.Min.X + 63, Output.ViewRect.Max.Y - 51, TEXT("Good"), GetStatsFont(), FLinearColor(0.5f, 0.5f, 0.5f));
+			Canvas.DrawShadowedString(Output.ViewRect.Min.X + 63 + (int32)(Output.ViewRect.Width() * 107.0f / 397.0f), Output.ViewRect.Max.Y - 51, TEXT("Bad"), GetStatsFont(), FLinearColor(0.5f, 0.5f, 0.5f));
+			Canvas.DrawShadowedString(Output.ViewRect.Max.X - 162, Output.ViewRect.Max.Y - 51, TEXT("Extremely bad"), GetStatsFont(), FLinearColor(0.5f, 0.5f, 0.5f));
 
-			Canvas.DrawShadowedString(DestRect.Min.X + 62, DestRect.Max.Y - 87, TEXT("0"), GetStatsFont(), FLinearColor(0.5f, 0.5f, 0.5f));
+			Canvas.DrawShadowedString(Output.ViewRect.Min.X + 62, Output.ViewRect.Max.Y - 87, TEXT("0"), GetStatsFont(), FLinearColor(0.5f, 0.5f, 0.5f));
 
 			FString Line;
-			Line = FString::Printf(TEXT("MaxShaderComplexityCount=%d"), (int32)GetMaxShaderComplexityCount(Context.GetFeatureLevel()));
-			Canvas.DrawShadowedString(DestRect.Max.X - 260, DestRect.Max.Y - 88, *Line, GetStatsFont(), FLinearColor(0.5f, 0.5f, 0.5f));
+			Line = FString::Printf(TEXT("MaxShaderComplexityCount=%d"), (int32)GetMaxShaderComplexityCount(View.GetFeatureLevel()));
+			Canvas.DrawShadowedString(Output.ViewRect.Max.X - 260, Output.ViewRect.Max.Y - 88, *Line, GetStatsFont(), FLinearColor(0.5f, 0.5f, 0.5f));
 		}
+	});
 
-		Canvas.Flush_RenderThread(Context.RHICmdList);
-	}
-
-	Context.RHICmdList.CopyToResolveTarget(DestRenderTarget.TargetableTexture, DestRenderTarget.ShaderResourceTexture, FResolveParams());
+	return MoveTemp(Output);
 }
 
-FPooledRenderTargetDesc FRCPassPostProcessVisualizeComplexity::ComputeOutputDesc(EPassOutputId InPassOutputId) const
+FRenderingCompositeOutputRef AddVisualizeComplexityPass(
+	FRenderingCompositionGraph& Graph,
+	FRenderingCompositeOutputRef Input,
+	const TArray<FLinearColor>& InColors,
+	FVisualizeComplexityInputs::EColorSamplingMethod InColorSampling,
+	float InComplexityScale,
+	bool bInLegend)
 {
-	FPooledRenderTargetDesc Ret = GetInput(ePId_Input0)->GetOutput()->RenderTargetDesc;
+	FRenderingCompositePass* Pass = Graph.RegisterPass(
+		new(FMemStack::Get()) TRCPassForRDG<1, 1>(
+			[InColors, InColorSampling, InComplexityScale, bInLegend](FRenderingCompositePass* InPass, FRenderingCompositePassContext& InContext)
+	{
+		FRDGBuilder GraphBuilder(InContext.RHICmdList);
 
-	Ret.Reset();
-	Ret.DebugName = TEXT("VisualizeComplexity");
+		FVisualizeComplexityInputs PassInputs;
+		PassInputs.SceneColor.Texture = InPass->CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"));
+		PassInputs.SceneColor.ViewRect = InContext.SceneColorViewRect;
+		PassInputs.Colors = InColors;
+		PassInputs.ColorSamplingMethod = InColorSampling;
+		PassInputs.ComplexityScale = InComplexityScale;
+		PassInputs.bDrawLegend = bInLegend;
 
-	return Ret;
+		if (FRDGTextureRef OverrideOutputTexture = InPass->FindRDGTextureForOutput(GraphBuilder, ePId_Output0, TEXT("FrameBuffer")))
+		{
+			PassInputs.OverrideOutput.Texture = OverrideOutputTexture;
+			PassInputs.OverrideOutput.ViewRect = InContext.GetSceneColorDestRect(InPass);
+			PassInputs.OverrideOutput.LoadAction = InContext.View.IsFirstInFamily() ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
+		}
+
+		FScreenPassTexture PassOutput = AddVisualizeComplexityPass(GraphBuilder, InContext.View, PassInputs);
+
+		InPass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, PassOutput.Texture);
+
+		GraphBuilder.Execute();
+	}));
+	Pass->SetInput(ePId_Input0, Input);
+	return Pass;
 }

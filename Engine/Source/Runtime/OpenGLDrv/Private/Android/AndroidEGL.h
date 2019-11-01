@@ -92,6 +92,7 @@ public:
 	void SetCurrentRenderingContext();
 	uint32_t GetCurrentContextType();
 	FPlatformOpenGLContext* GetRenderingContext();
+	bool GetSupportsNoErrorContext();
 
 	// recreate the EGL surface for the current hardware window.
 	void SetRenderContextWindowSurface();

@@ -125,25 +125,13 @@ void FD3D11DynamicRHI::ResolveTextureUsingShader(
 		Direct3DDeviceContext->OMSetRenderTargets(1,&DestTextureRTV,NULL);
 	}
 
-	RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, ResolveTargetDesc.Width, ResolveTargetDesc.Height, 1.0f  );
-
-
-	// Generate the vertices used to copy from the source surface to the destination surface.
-	const float MinU = SourceRect.X1;
-	const float MinV = SourceRect.Y1;
-	const float MaxU = SourceRect.X2;
-	const float MaxV = SourceRect.Y2;
-	const float MinX = -1.f + DestRect.X1 / ((float)ResolveTargetDesc.Width * 0.5f);		
-	const float MinY = +1.f - DestRect.Y1 / ((float)ResolveTargetDesc.Height * 0.5f);
-	const float MaxX = -1.f + DestRect.X2 / ((float)ResolveTargetDesc.Width * 0.5f);		
-	const float MaxY = +1.f - DestRect.Y2 / ((float)ResolveTargetDesc.Height * 0.5f);
+	RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, ResolveTargetDesc.Width, ResolveTargetDesc.Height, 1.0f);
 
 	// Set the vertex and pixel shader
 	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 	TShaderMapRef<FResolveVS> ResolveVertexShader(ShaderMap);
 	TShaderMapRef<TPixelShader> ResolvePixelShader(ShaderMap);
 
-	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GResolveVertexBuffer.VertexDeclarationRHI;
 	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*ResolveVertexShader);
 	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*ResolvePixelShader);
 	GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
@@ -152,8 +140,8 @@ void FD3D11DynamicRHI::ResolveTextureUsingShader(
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 	RHICmdList.SetBlendFactor(FLinearColor::White);
 
+	ResolveVertexShader->SetParameters(RHICmdList, SourceRect, DestRect, ResolveTargetDesc.Width, ResolveTargetDesc.Height);
 	ResolvePixelShader->SetParameters(RHICmdList, PixelShaderParameter);
-	ResolveVertexShader->SetParameters(RHICmdList, FVector4(MinX, MinY, MaxX, MaxY), FVector4(MinU, MinV, MaxU, MaxV));
 	RHICmdList.Flush(); // always call flush when using a command list in RHI implementations before doing anything else. This is super hazardous.
 
 	// Set the source texture.
@@ -164,7 +152,6 @@ void FD3D11DynamicRHI::ResolveTextureUsingShader(
 		SetShaderResourceView<SF_Pixel>(SourceTexture, SourceTexture->GetShaderResourceView(), TextureIndex, SourceTexture->GetName());
 	}
 
-	RHICmdList.SetStreamSource(0, GResolveVertexBuffer.VertexBufferRHI, 0);
 	RHICmdList.DrawPrimitive(0, 2, 1);
 
 	RHICmdList.Flush(); // always call flush when using a command list in RHI implementations before doing anything else. This is super hazardous.
@@ -815,7 +802,7 @@ void FD3D11DynamicRHI::ReadSurfaceDataMSAARaw(FRHICommandList_RecursiveHazardous
 	}
 }
 
-void FD3D11DynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFence* FenceRHI, void*& OutData, int32& OutWidth, int32& OutHeight)
+void FD3D11DynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFence* FenceRHI, void*& OutData, int32& OutWidth, int32& OutHeight, uint32 GPUIndex)
 {
 	ID3D11Texture2D* Texture = (ID3D11Texture2D*)(GetD3D11TextureFromRHITexture(TextureRHI)->GetResource());
 	
@@ -833,7 +820,7 @@ void FD3D11DynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFenc
 	check(OutData);
 }
 
-void FD3D11DynamicRHI::RHIUnmapStagingSurface(FRHITexture* TextureRHI)
+void FD3D11DynamicRHI::RHIUnmapStagingSurface(FRHITexture* TextureRHI, uint32 GPUIndex)
 {
 	ID3D11Texture2D* Texture = (ID3D11Texture2D*)(GetD3D11TextureFromRHITexture(TextureRHI)->GetResource());
 

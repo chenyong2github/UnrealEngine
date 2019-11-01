@@ -5,7 +5,17 @@
 
 FText UAudioSynesthesiaNRTSettings::GetAssetActionName() const
 {
-	return FText::FromString("Audio Synesthesia NRT Settings"); 
+	return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_AssetSoundSynesthesiaNRTSettings", "Synesthesia NRT Settings");
+}
+
+const TArray<FText>& UAudioSynesthesiaNRTSettings::GetAssetActionSubmenus() const
+{
+	static const TArray<FText> SubMenus
+	{
+		NSLOCTEXT("AssetTypeActions", "AssetTypeActions_AssetSoundAnalysisSubmenu", "Analysis")
+	};
+
+	return SubMenus;
 }
 
 UClass* UAudioSynesthesiaNRTSettings::GetSupportedClass() const 
@@ -20,7 +30,17 @@ FColor UAudioSynesthesiaNRTSettings::GetTypeColor() const
 
 FText UAudioSynesthesiaNRT::GetAssetActionName() const
 {
-	return FText::FromString("Audio Synesthesia NRT"); 
+	return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_AssetSoundSynesthesiaNRT", "Synesthesia NRT");
+}
+
+const TArray<FText>& UAudioSynesthesiaNRT::GetAssetActionSubmenus() const
+{
+	static const TArray<FText> SubMenus
+	{
+		NSLOCTEXT("AssetTypeActions", "AssetTypeActions_AssetSoundAnalysisSubmenu", "Analysis")
+	};
+
+	return SubMenus;
 }
 
 UClass* UAudioSynesthesiaNRT::GetSupportedClass() const

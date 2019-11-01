@@ -67,15 +67,9 @@ public:
 	bool HasSessionChanges() const;
 
 	/**
-	 * Gather package changes that happened in this session.
-	 * @return A list of package files that were modified during the session.
+	 * Persist the session changes from the package name list and prepare it for source control submission.
 	 */
-	TArray<FString> GatherSessionChanges();
-
-	/**
-	 * Persist the session changes from the file list and prepare it for source control submission.
-	 */
-	bool PersistSessionChanges(TArrayView<const FString> InFilesToPersist, ISourceControlProvider* SourceControlProvider, TArray<FText>* OutFailureReasons = nullptr);
+	bool PersistSessionChanges(TArrayView<const FName> InPackagesToPersist, ISourceControlProvider* SourceControlProvider, TArray<FText>* OutFailureReasons = nullptr);
 
 private:
 	/**

@@ -11,6 +11,7 @@
 #include "Internationalization/Internationalization.h"
 
 #include "HAL/PlatformApplicationMisc.h" // For clipboard
+#include "Widgets/Layout/SScrollBox.h"
 
 #define LOCTEXT_NAMESPACE "ToolMenuSubsystem"
 
@@ -1497,7 +1498,7 @@ TSharedRef<SWidget> UToolMenus::GenerateWidget(UToolMenu* GeneratedMenu)
 	{
 		FMenuBuilder MenuBuilder(GeneratedMenu->bShouldCloseWindowAfterMenuSelection, GeneratedMenu->Context.CommandList, GeneratedMenu->Context.GetAllExtenders(), GeneratedMenu->bCloseSelfOnly, GeneratedMenu->StyleSet, GeneratedMenu->bSearchable, GeneratedMenu->MenuName);
 		PopulateMenuBuilder(MenuBuilder, GeneratedMenu);
-		TSharedRef<SWidget> Result = MenuBuilder.MakeWidget();
+		TSharedRef<SWidget> Result = MenuBuilder.MakeWidget(nullptr, GeneratedMenu->MaxHeight);
 		GeneratedMenuWidget.Widget = Result;
 		return Result;
 	}

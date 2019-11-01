@@ -23,7 +23,7 @@ class FMDLMapHandler : public Mdl::IMapDistilHandler
 {
 public:
 	FMDLMapHandler(const Mdl::FApiContext& MdlContext);
-	virtual ~FMDLMapHandler() = default;
+	virtual ~FMDLMapHandler();
 
 	virtual void PreImport(const mi::neuraylib::IMaterial_definition& MDLMaterialDefinition,
 	                       const mi::neuraylib::ICompiled_material&   MDLMaterial,

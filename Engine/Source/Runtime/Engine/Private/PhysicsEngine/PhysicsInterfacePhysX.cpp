@@ -972,16 +972,6 @@ bool FPhysicsInterface_PhysX::IsQueryShape(const FPhysicsShapeHandle_PhysX& InSh
 	return false;
 }
 
-bool FPhysicsInterface_PhysX::IsShapeType(const FPhysicsShapeHandle_PhysX& InShape, ECollisionShapeType InType)
-{
-	if(InShape.IsValid())
-	{
-		return InShape.Shape->getGeometryType() == U2PCollisionShapeType(InType);
-	}
-
-	return false;
-}
-
 ECollisionShapeType FPhysicsInterface_PhysX::GetShapeType(const FPhysicsShapeHandle_PhysX& InShape)
 {
 	if(InShape.IsValid())

@@ -21,6 +21,6 @@ public:
 	UPROPERTY()
 	FNiagaraVariable Variable;
 	/** The metadata associated with this script variable. */
-	UPROPERTY(EditAnywhere, Category = "Script Variable Data")
+	UPROPERTY(EditAnywhere, Category = "Variable", meta=(ShowOnlyInnerProperties))
 	FNiagaraVariableMetaData Metadata;
-};
+}; 

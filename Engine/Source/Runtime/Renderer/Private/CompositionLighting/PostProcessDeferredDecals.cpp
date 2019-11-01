@@ -479,6 +479,8 @@ void FRCPassPostProcessDeferredDecals::Process(FRenderingCompositePassContext& C
 
 	SCOPED_DRAW_EVENTF(RHICmdList, DeferredDecals, TEXT("DeferredDecals %s"), GetStageName(CurrentStage));
 
+	RHICmdList.TransitionResource(FExclusiveDepthStencil::DepthNop_StencilWrite, SceneContext.GetSceneDepthSurface());
+
 	// this cast is safe as only the dedicated server implements this differently and this pass should not be executed on the dedicated server
 	const FViewInfo& View = Context.View;
 	const FSceneViewFamily& ViewFamily = *(View.Family);
@@ -510,7 +512,7 @@ void FRCPassPostProcessDeferredDecals::Process(FRenderingCompositePassContext& C
 			FPooledRenderTargetDesc GBufferADesc;
 			SceneContext.GetGBufferADesc(GBufferADesc);
 
-			uint32 BaseFlags = (GSupportsRenderTargetWriteMask) ? TexCreate_NoFastClearFinalize : TexCreate_None;
+			uint32 BaseFlags = RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform) ? TexCreate_NoFastClearFinalize : TexCreate_None;
 
 			// DBuffer: Decal buffer
 			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(GBufferADesc.Extent,
@@ -785,9 +787,13 @@ void FRCPassPostProcessDeferredDecals::Process(FRenderingCompositePassContext& C
 
 				FRHIRenderPassInfo RPInfo;
 				RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::DontLoad_DontStore, ERenderTargetActions::Clear_Store);
-				RPInfo.DepthStencilRenderTarget.DepthStencilTarget = SceneContext.GetSceneDepthTexture();
+				RPInfo.DepthStencilRenderTarget.DepthStencilTarget = SceneContext.GetSceneDepthSurface();
 				RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthNop_StencilWrite;
 				RPInfo.DepthStencilRenderTarget.ResolveTarget = nullptr;
+
+				RHICmdList.TransitionResource(
+					RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil,
+					RPInfo.DepthStencilRenderTarget.DepthStencilTarget);
 
 				RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearStencil"));
 				RHICmdList.EndRenderPass();
@@ -795,21 +801,20 @@ void FRCPassPostProcessDeferredDecals::Process(FRenderingCompositePassContext& C
 
 			if (CurrentStage == DRS_BeforeBasePass)
 			{
-				// combine DBuffer RTWriteMasks; will end up in one texture we can load from in the base pass PS and decide whether to do the actual work or not
-				FRHITexture* Textures[3] =
-				{
-					SceneContext.DBufferA->GetRenderTargetItem().TargetableTexture,
-					SceneContext.DBufferB->GetRenderTargetItem().TargetableTexture,
-					SceneContext.DBufferC->GetRenderTargetItem().TargetableTexture
-				};
-				RenderTargetManager.FlushMetaData(Textures, 3);
-
 				if (bLastView)
 				{
-					if (GSupportsRenderTargetWriteMask)
+					if (RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform))
 					{
 						SCOPED_DRAW_EVENTF(RHICmdList, DeferredDecals, TEXT("Combine DBuffer WriteMasks"));
-						FRenderTargetWriteMask::Decode(Context.RHICmdList, Context.GetShaderMap(), { SceneContext.DBufferA, SceneContext.DBufferB, SceneContext.DBufferC }, SceneContext.DBufferMask, GFastVRamConfig.DBufferMask, TEXT("DBufferMask"));
+
+						// combine DBuffer RTWriteMasks; will end up in one texture we can load from in the base pass PS and decide whether to do the actual work or not
+						IPooledRenderTarget* Textures[3] =
+						{
+							SceneContext.DBufferA,
+							SceneContext.DBufferB,
+							SceneContext.DBufferC
+						};
+						FRenderTargetWriteMask::Decode<3>(Context.RHICmdList, Context.GetShaderMap(), Textures, SceneContext.DBufferMask, GFastVRamConfig.DBufferMask, TEXT("DBufferMask"));
 					}
 
 					if (SceneContext.DBufferMask)
@@ -820,7 +825,7 @@ void FRCPassPostProcessDeferredDecals::Process(FRenderingCompositePassContext& C
 				}
 			}
 
-			if (bLastView || !GSupportsRenderTargetWriteMask)
+			if (bLastView || !RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform))
 			{
 				bShouldResolveTargets = true;
 			}
@@ -1063,11 +1068,4 @@ void FDecalRenderTargetManager::SetRenderTargetMode(FDecalRenderingCommon::ERend
 	RHICmdList.BeginRenderPass(RPInfo, TEXT("DecalPass"));
 
 	TargetsToTransitionWritable[CurrentRenderTargetMode] = false;
-}
-
-
-
-void FDecalRenderTargetManager::FlushMetaData(FRHITexture** Textures, uint32 NumTextures)
-{
-	RHICmdList.TransitionResources(EResourceTransitionAccess::EMetaData, Textures, NumTextures);
 }

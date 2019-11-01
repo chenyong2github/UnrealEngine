@@ -9,12 +9,9 @@
 
 #include "Editor/PlacementMode/Public/IPlacementModeModule.h"
 #include "Editor/LandscapeEditor/Public/LandscapeEditorModule.h"
-#include "Editor/BspMode/Public/IBspModeModule.h"
 #include "Editor/MeshPaint/Public/MeshPaintModule.h"
-#include "Editor/GeometryMode/Public/GeometryEdMode.h"
 #include "Editor/ActorPickerMode/Public/ActorPickerMode.h"
 #include "Editor/SceneDepthPickerMode/Public/SceneDepthPickerMode.h"
-#include "Editor/TextureAlignMode/Public/TextureAlignEdMode.h"
 #include "Editor/FoliageEdit/Public/FoliageEditModule.h"
 #include "Editor/VirtualTexturingEditor/Public/VirtualTexturingEditorModule.h"
 #include "Tools/UEdMode.h"
@@ -59,9 +56,6 @@ void FEditorModeRegistry::Initialize()
 	// Load editor mode modules that will automatically register their editor modes, and clean themselves up on unload.
 	//@TODO: ROCKET: These are probably good plugin candidates, that shouldn't have to be force-loaded here but discovery loaded somehow
 	FModuleManager::LoadModuleChecked<IPlacementModeModule>(TEXT("PlacementMode"));
-	FModuleManager::LoadModuleChecked<IBspModeModule>(TEXT("BspMode"));
-	FModuleManager::LoadModuleChecked<FTextureAlignModeModule>(TEXT("TextureAlignMode"));
-	FModuleManager::LoadModuleChecked<FGeometryModeModule>(TEXT("GeometryMode"));
 	FModuleManager::LoadModuleChecked<FActorPickerModeModule>(TEXT("ActorPickerMode"));
 	FModuleManager::LoadModuleChecked<FSceneDepthPickerModeModule>(TEXT("SceneDepthPickerMode"));
 	FModuleManager::LoadModuleChecked<IMeshPaintModule>(TEXT("MeshPaintMode"));

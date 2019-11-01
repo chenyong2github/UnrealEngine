@@ -15,7 +15,7 @@ FTexture2DStreamIn::FTexture2DStreamIn(UTexture2D* InTexture, int32 InRequestedM
 {
 	ensure(InRequestedMips > InTexture->GetNumResidentMips());
 
-	FMemory::Memzero(MipData, sizeof(MipData));
+	MipData.AddZeroed(InTexture->GetNumMips());
 }
 
 FTexture2DStreamIn::~FTexture2DStreamIn()
@@ -142,7 +142,7 @@ void FTexture2DStreamIn::DoAsyncCreateWithNewMips(const FContext& Context)
 				Texture2DRHI->GetFormat(),
 				RequestedMips,
 				Flags,
-				MipData + PendingFirstMip,
+				&MipData[PendingFirstMip],
 				RequestedMips - ResidentMips);
 		}
 	}

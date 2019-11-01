@@ -105,8 +105,6 @@ namespace Chaos
 				break;
 			case ImplicitObjectType::HeightField:
 				break;
-			case ImplicitObjectType::Scaled:
-				break;
 			default:
 				break;
 			}
@@ -170,7 +168,7 @@ namespace Chaos
 		}
 
 		template<typename T, int d>
-		void DrawJointConstraintImpl(const TRigidTransform<float, 3>& SpaceTransform, const TVector<T, d>& InXa, const PMatrix<T, d, d>& Ra, const TVector<T, d>& InXb, const PMatrix<T, d, d>& Rb, const TVector<T, d>& CR, T ColorScale)
+		void DrawJointConstraintImpl(const TRigidTransform<float, 3>& SpaceTransform, const TVector<T, d>& InXa, const PMatrix<T, d, d>& Ra, const TVector<T, d>& InXb, const PMatrix<T, d, d>& Rb, const TVector<T, d>& CR, int32 Level, T ColorScale)
 		{
 			using namespace Chaos::DebugDraw;
 			FColor R = (ColorScale * FColor::Red).ToFColor(false);
@@ -187,6 +185,10 @@ namespace Chaos
 			FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Xb, Xb + DrawScale * ConstraintAxisLen * SpaceTransform.TransformVector(Rb.GetAxis(0)), DrawScale * ArrowSize, C, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
 			FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Xb, Xb + DrawScale * ConstraintAxisLen * SpaceTransform.TransformVector(Rb.GetAxis(1)), DrawScale * ArrowSize, M, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
 			FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Xb, Xb + DrawScale * ConstraintAxisLen * SpaceTransform.TransformVector(Rb.GetAxis(2)), DrawScale * ArrowSize, Y, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+			if (Level >= 0)
+			{
+				FDebugDrawQueue::GetInstance().DrawDebugString(Xb + FontHeight * TVector<T, d>(0, 0, 1), FString::Format(TEXT("{0}"), { Level }), nullptr, FColor::Red, KINDA_SMALL_NUMBER, false, FontScale);
+			}
 			//FDebugDrawQueue::GetInstance().DrawDebugString(Xb + 3 * FontHeight * TVector<T, d>(0, 0, 1), FString::Format(TEXT("T=  {0}"), { FMath::RadiansToDegrees(CR[(int32)E6DJointAngularConstraintIndex::Twist]) }), nullptr, FColor::Red, KINDA_SMALL_NUMBER, false, FontScale);
 			//FDebugDrawQueue::GetInstance().DrawDebugString(Xb + 2 * FontHeight * TVector<T, d>(0, 0, 1), FString::Format(TEXT("S1= {0}"), { FMath::RadiansToDegrees(CR[(int32)E6DJointAngularConstraintIndex::Swing1]) }), nullptr, FColor::Red, KINDA_SMALL_NUMBER, false, FontScale);
 			//FDebugDrawQueue::GetInstance().DrawDebugString(Xb + 1 * FontHeight * TVector<T, d>(0, 0, 1), FString::Format(TEXT("S2= {0}"), { FMath::RadiansToDegrees(CR[(int32)E6DJointAngularConstraintIndex::Swing2]) }), nullptr, FColor::Red, KINDA_SMALL_NUMBER, false, FontScale);
@@ -201,7 +203,7 @@ namespace Chaos
 				TVector<T, d> Xa, Xb, CR;
 				PMatrix<T, d, d> Ra, Rb;
 				ConstraintHandle->CalculateConstraintSpace(Xa, Ra, Xb, Rb, CR);
-				DrawJointConstraintImpl<T, d>(SpaceTransform, Xa, Ra, Xb, Rb, CR, ColorScale);
+				DrawJointConstraintImpl<T, d>(SpaceTransform, Xa, Ra, Xb, Rb, CR, ConstraintHandle->GetConstraintLevel(), ColorScale);
 			}
 		}
 
@@ -211,7 +213,7 @@ namespace Chaos
 			TVector<T, d> Xa, Xb, CR;
 			PMatrix<T, d, d> Ra, Rb;
 			ConstraintHandle->CalculateConstraintSpace(Xa, Ra, Xb, Rb, CR);
-			DrawJointConstraintImpl<T, d>(SpaceTransform, Xa, Ra, Xb, Rb, CR, ColorScale);
+			DrawJointConstraintImpl<T, d>(SpaceTransform, Xa, Ra, Xb, Rb, CR, INDEX_NONE, ColorScale);
 		}
 
 #endif
@@ -220,53 +222,65 @@ namespace Chaos
 		//
 		//
 
-		void DrawParticleShapes(const TRigidTransform<float, 3>& SpaceTransform, const TParticleView<TGeometryParticles<float, 3>>& ParticlesView, float ColorScale)
+		void DrawParticleShapes(const TRigidTransform<float, 3>& SpaceTransform, const TParticleView<TGeometryParticles<float, 3>>& ParticlesView, float ColorScale, bool bDrawKinemtatic, bool bDrawDynamic)
 		{
 #if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (auto& Particle : ParticlesView)
 				{
-					DrawParticleShapesImpl<float, 3>(SpaceTransform, GetHandleHelper<float, 3>(&Particle), ColorScale);
+					if ((bDrawKinemtatic && !Particle.AsDynamic()) || (bDrawDynamic && Particle.AsDynamic()))
+					{
+						DrawParticleShapesImpl<float, 3>(SpaceTransform, GetHandleHelper<float, 3>(&Particle), ColorScale);
+					}
 				}
 			}
 #endif
 		}
 
-		void DrawParticleShapes(const TRigidTransform<float, 3>& SpaceTransform, const TArray<TGeometryParticleHandle<float, 3>*>& Particles, float ColorScale)
+		void DrawParticleShapes(const TRigidTransform<float, 3>& SpaceTransform, const TArray<TGeometryParticleHandle<float, 3>*>& Particles, float ColorScale, bool bDrawKinemtatic, bool bDrawDynamic)
 		{
 #if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (auto& Particle : Particles)
 				{
-					DrawParticleShapesImpl<float, 3>(SpaceTransform, Particle, ColorScale);
+					if ((bDrawKinemtatic && !Particle->AsDynamic()) || (bDrawDynamic && Particle->AsDynamic()))
+					{
+						DrawParticleShapesImpl<float, 3>(SpaceTransform, Particle, ColorScale);
+					}
 				}
 			}
 #endif
 		}
 
-		void DrawParticleTransforms(const TRigidTransform<float, 3>& SpaceTransform, const TParticleView<TGeometryParticles<float, 3>>& ParticlesView, float ColorScale)
+		void DrawParticleTransforms(const TRigidTransform<float, 3>& SpaceTransform, const TParticleView<TGeometryParticles<float, 3>>& ParticlesView, float ColorScale, bool bDrawKinemtatic, bool bDrawDynamic)
 		{
 #if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (auto& Particle : ParticlesView)
 				{
-					DrawParticleTransformImpl<float, 3>(SpaceTransform, GetHandleHelper<float, 3>(&Particle), ColorScale);
+					if ((bDrawKinemtatic && !Particle.AsDynamic()) || (bDrawDynamic && Particle.AsDynamic()))
+					{
+						DrawParticleTransformImpl<float, 3>(SpaceTransform, GetHandleHelper<float, 3>(&Particle), ColorScale);
+					}
 				}
 			}
 #endif
 		}
 
-		void DrawParticleTransforms(const TRigidTransform<float, 3>& SpaceTransform, const TArray<TGeometryParticleHandle<float, 3>*>& Particles, float ColorScale)
+		void DrawParticleTransforms(const TRigidTransform<float, 3>& SpaceTransform, const TArray<TGeometryParticleHandle<float, 3>*>& Particles, float ColorScale, bool bDrawKinemtatic, bool bDrawDynamic)
 		{
 #if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (auto& Particle : Particles)
 				{
-					DrawParticleTransformImpl<float, 3>(SpaceTransform, Particle, ColorScale);
+					if ((bDrawKinemtatic && !Particle->AsDynamic()) || (bDrawDynamic && Particle->AsDynamic()))
+					{
+						DrawParticleTransformImpl<float, 3>(SpaceTransform, Particle, ColorScale);
+					}
 				}
 			}
 #endif

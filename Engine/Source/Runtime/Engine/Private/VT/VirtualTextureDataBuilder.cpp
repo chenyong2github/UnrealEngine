@@ -650,7 +650,8 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
 
 			TArray<FCompressedImage2D> CompressedMip;
 			TArray<FImage> EmptyList;
-			if (!ensure(Compressor->BuildTexture(TileImages, EmptyList, TBSettings, CompressedMip)))
+			uint32 NumMipsInTail, ExtData;
+			if (!ensure(Compressor->BuildTexture(TileImages, EmptyList, TBSettings, CompressedMip, NumMipsInTail, ExtData)))
 			{
 				bCompressionError = true;
 			}
@@ -906,7 +907,8 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 			bool bBuildTextureResult = false;
 			if (LocalBlockSizeScale == 1)
 			{
-				bBuildTextureResult = Compressor->BuildTexture(SourceMips, *CompositeSourceMips, TBSettings, CompressedMips);
+				uint32 NumMipsInTail, ExtData;
+				bBuildTextureResult = Compressor->BuildTexture(SourceMips, *CompositeSourceMips, TBSettings, CompressedMips, NumMipsInTail, ExtData);
 			}
 			else
 			{
@@ -928,7 +930,8 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 					SrcMip.ResizeTo(*ScaledMip, SrcMip.SizeX * LocalBlockSizeScale, SrcMip.SizeY * LocalBlockSizeScale, SrcMip.Format, SrcMip.GammaSpace);
 				}
 
-				bBuildTextureResult = Compressor->BuildTexture(ScaledSourceMips, ScaledCompositeMips, TBSettings, CompressedMips);
+				uint32 NumMipsInTail, ExtData;
+				bBuildTextureResult = Compressor->BuildTexture(ScaledSourceMips, ScaledCompositeMips, TBSettings, CompressedMips, NumMipsInTail, ExtData);
 			}
 
 			check(bBuildTextureResult);
@@ -1052,7 +1055,8 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 			// Use the texture compressor module to do all the hard work
 			// TODO - composite images?
 			TArray<FCompressedImage2D> CompressedMips;
-			if (!Compressor->BuildTexture(MiptailInputImages, EmptyImageArray, TBSettings, CompressedMips))
+			uint32 NumMipsInTail, ExtData;
+			if (!Compressor->BuildTexture(MiptailInputImages, EmptyImageArray, TBSettings, CompressedMips, NumMipsInTail, ExtData))
 			{
 				check(false);
 			}
@@ -1178,7 +1182,8 @@ void FVirtualTextureDataBuilder::BuildMipTails()
 		check(TBSettings.GetGammaSpace() == Settings.Layers[Layer].GammaSpace);
 
 		TArray<FCompressedImage2D> CompressedMips;
-		if (!Compressor->BuildTexture(SourceList, EmptyList, TBSettings, CompressedMips))
+		uint32 NumMipsInTail, ExtData;
+		if (!Compressor->BuildTexture(SourceList, EmptyList, TBSettings, CompressedMips, NumMipsInTail, ExtData))
 		{
 			check(false);
 		}

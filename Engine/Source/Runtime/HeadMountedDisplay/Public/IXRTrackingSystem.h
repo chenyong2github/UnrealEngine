@@ -306,6 +306,14 @@ public:
 	 */
 	virtual IXRInput* GetXRInput() { return nullptr; }
 
+
+	/**
+	 * Access the loading screen interface associated with this tracking system, if any.
+	 *
+	 * @return an IXRLoadingScreen pointer or a nullptr if this tracking system does not support loading screens.
+	 */
+	virtual class IXRLoadingScreen* GetLoadingScreen() { return nullptr; }
+
 	/*** XR System related methods moved from IHeadMountedDisplay ***/
 
 	/**

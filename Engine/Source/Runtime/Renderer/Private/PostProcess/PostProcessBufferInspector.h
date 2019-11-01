@@ -1,30 +1,31 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessBufferInspector.h: Post processing pixel inspector
-=============================================================================*/
-
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RendererInterface.h"
-#include "PostProcess/RenderingCompositionGraph.h"
+#if WITH_EDITOR
 
-// derives from TRenderingCompositePassBase<InputCount, OutputCount>
-// ePId_Input0: SceneColor
-// ePId_Input1: SeparateTranslucency
-class FRCPassPostProcessBufferInspector : public TRenderingCompositePassBase<3, 1>
+#include "ScreenPass.h"
+
+class FSceneTextureParameters;
+
+struct FPixelInspectorInputs
 {
-public:
+	// [Optional] Render to the specified output. If invalid, a new texture is created and returned.
+	FScreenPassRenderTarget OverrideOutput;
 
-	FRCPassPostProcessBufferInspector(FRHICommandList& RHICmdList);
+	// [Required] The tonemapped scene color.
+	FScreenPassTexture SceneColor;
 
-	// interface FRenderingCompositePass ---------
+	// [Required] The scene color before tonemapping in HDR.
+	FScreenPassTexture SceneColorBeforeTonemap;
 
-	virtual void Process(FRenderingCompositePassContext& Context) override;
-	virtual void Release() override { delete this; }
-	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
-private:
-	template <typename TRHICmdList>
-	FShader* SetShaderTempl(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context);
+	// [Required] The original scene color before processing.
+	FScreenPassTexture OriginalSceneColor;
+
+	// [Required] The scene textures with GBuffer data.
+	const FSceneTextureParameters* SceneTextures = nullptr;
 };
+
+FScreenPassTexture AddPixelInspectorPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPixelInspectorInputs& Inputs);
+
+#endif

@@ -46,8 +46,8 @@ public:
 	FUniqueNetIdRepl GetUserId(ESocialSubsystem SubsystemType) const;
 	FString GetDisplayName() const;
 	FString GetDisplayName(ESocialSubsystem SubsystemType) const;
-	FString GetNickname() const;
-	void SetNickname(const FString& InNickName);
+	virtual FString GetNickname() const;
+	virtual bool SetNickname(const FString& InNickName);
 
 	EInviteStatus::Type GetFriendInviteStatus(ESocialSubsystem SubsystemType) const;
 	bool IsFriend() const;
@@ -55,6 +55,7 @@ public:
 	bool IsFriendshipPending(ESocialSubsystem SubsystemType) const;
 	const FOnlineUserPresence* GetFriendPresenceInfo(ESocialSubsystem SubsystemType) const;
 	FDateTime GetFriendshipCreationDate() const;
+	virtual FDateTime GetLastOnlineDate() const;
 	FText GetSocialName() const;
 	virtual FUserPlatform GetCurrentPlatform() const;
 
@@ -73,7 +74,8 @@ public:
 	bool IsPlayingThisGame() const;
 	
 	virtual bool CanReceiveOfflineInvite() const { return false; }
-	virtual int32 GetCustomSortValue() const { return 0; }
+	virtual int64 GetCustomSortValuePrimary() const { return 0; }
+	virtual int64 GetCustomSortValueSecondary() const { return 0; }
 
 	bool SetUserLocalAttribute(ESocialSubsystem SubsystemType, const FString& AttrName, const FString& AttrValue);
 	bool GetUserAttribute(ESocialSubsystem SubsystemType, const FString& AttrName, FString& OutAttrValue) const;
@@ -105,8 +107,8 @@ public:
 
 	UPartyMember* GetPartyMember(const FOnlinePartyTypeId& PartyTypeId) const;
 
-	DECLARE_EVENT(USocialUser, FOnNicknameChanged);
-	FOnNicknameChanged& OnNicknameChanged() const { return OnNicknameChangedEvent; }
+	DECLARE_EVENT_OneParam(USocialUser, FOnNicknameChanged, const FText&);
+	FOnNicknameChanged& OnSetNicknameCompleted() const { return OnSetNicknameCompletedEvent; }
 
 	DECLARE_EVENT(USocialUser, FPartyInviteResponseEvent);
 	FPartyInviteResponseEvent& OnPartyInviteAccepted() const { return OnPartyInviteAcceptedEvent; }
@@ -151,15 +153,14 @@ protected:
 	virtual void OnPresenceChangedInternal(ESocialSubsystem SubsystemType);
 	virtual void OnPartyInviteAcceptedInternal(const FOnlinePartyTypeId& PartyTypeId) const;
 	virtual void OnPartyInviteRejectedInternal(const FOnlinePartyTypeId& PartyTypeId) const;
+	virtual void HandleSetNicknameComplete(int32 LocalUserNum, const FUniqueNetId& FriendId, const FString& ListName, const FOnlineError& Error);
 	virtual void SetSubsystemId(ESocialSubsystem SubsystemType, const FUniqueNetIdRepl& SubsystemId);
 	int32 NumPendingQueries = 0;
 
 	void TryBroadcastInitializationComplete();
 private:
-	
 	void SetUserInfo(ESocialSubsystem SubsystemType, const TSharedRef<FOnlineUser>& UserInfo);
 	void HandleQueryUserInfoComplete(ESocialSubsystem SubsystemType, bool bWasSuccessful, const TSharedPtr<FOnlineUser>& UserInfo);
-	void HandleSetNicknameComplete(int32 LocalUserNum, const FUniqueNetId& FriendId, const FString& ListName, const FOnlineError& Error);
 
 	virtual FString SanitizePresenceString(FString InString) const;
 	
@@ -198,7 +199,7 @@ private:
 	// Initialization delegates that fire only when a specific user has finishing initializing
 	static TMap<TWeakObjectPtr<USocialUser>, FOnNewSocialUserInitialized> InitEventsByUser;
 
-	mutable FOnNicknameChanged OnNicknameChangedEvent;
+	mutable FOnNicknameChanged OnSetNicknameCompletedEvent;
 	mutable FPartyInviteResponseEvent OnPartyInviteAcceptedEvent;
 	mutable FPartyInviteResponseEvent OnPartyInviteRejectedEvent;
 	mutable FOnUserPresenceChanged OnUserPresenceChangedEvent;

@@ -27,11 +27,11 @@ float MaxRayDistanceForGI;
 float MaxRayDistanceForAO;
 float NextEventEstimationSamples;
 float DiffuseThreshold;
-bool EvalSkyLight;
-bool UseRussianRoulette;
+uint EvalSkyLight;
+uint UseRussianRoulette;
 float MaxNormalBias;
-uint TileOffsetX;
-uint TileOffsetY;
+uint RenderTileOffsetX;
+uint RenderTileOffsetY;
 
 void GenerateCosineNormalRay(
 	float3 WorldPosition,
@@ -55,10 +55,9 @@ void GenerateCosineNormalRay(
 	RayPdf = Direction_Tangent.w;
 }
 
-[shader("raygeneration")]
-void GlobalIlluminationRGS()
+RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 {
-	uint2 DispatchThreadId = DispatchRaysIndex().xy + View.ViewRectMin + uint2(TileOffsetX, TileOffsetY);
+	uint2 DispatchThreadId = DispatchRaysIndex().xy + View.ViewRectMin + uint2(RenderTileOffsetX, RenderTileOffsetY);
 	RWGlobalIlluminationUAV[DispatchThreadId] = 0.0;
 	RWRayDistanceUAV[DispatchThreadId] = float2(-1.0, 0.0);
 
@@ -151,20 +150,19 @@ void GlobalIlluminationRGS()
 		{
 			// Cast ray
 			uint RayFlags = 0;
+			const uint InstanceInclusionMask = RAY_TRACING_MASK_OPAQUE;
+
 #if !ENABLE_TWO_SIDED_GEOMETRY
 			RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 #endif
+
 			FRayCone RayCone = (FRayCone)0;
-			FMaterialClosestHitPayload Payload = TraceRayInternal(
-				TLAS,   // AccelerationStructure
+			FMaterialClosestHitPayload Payload = TraceMaterialRay(
+				TLAS,
 				RayFlags,
-				RAY_TRACING_MASK_OPAQUE,
-				RAY_TRACING_SHADER_SLOT_MATERIAL, // RayContributionToHitGroupIndex
-				RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
-				0,      // MissShaderIndex
-				Ray,    // RayDesc
-				RayCone
-			);
+				InstanceInclusionMask,
+				Ray,
+				RayCone);
 
 			// Environment hit
 			if (Payload.IsMiss())
@@ -231,21 +229,18 @@ void GlobalIlluminationRGS()
 					ApplyPositionBias(LightRay, Payload.WorldNormal, MaxNormalBias);
 
 					// Trace visibility ray
-					uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
+					uint NeeRayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
+					const uint NeeInstanceInclusionMask = RAY_TRACING_MASK_OPAQUE;
+
 #if !ENABLE_TWO_SIDED_GEOMETRY
-					RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+					NeeRayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 #endif
-					FRayCone LightRayCone = (FRayCone)0;
-					FMaterialClosestHitPayload NeePayload = TraceRayInternal(
-						TLAS,   // AccelerationStructure
-						RayFlags,
-						RAY_TRACING_MASK_OPAQUE,
-						RAY_TRACING_SHADER_SLOT_SHADOW,  // RayContributionToHitGroupIndex
-						RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
-						0,      // MissShaderIndex
-						LightRay,    // RayDesc
-						LightRayCone
-					);
+
+					FMinimalPayload NeePayload = TraceVisibilityRay(
+						TLAS,
+						NeeRayFlags,
+						NeeInstanceInclusionMask,
+						LightRay);
 
 					// No hit indicates successful next-event connection
 					if (NeePayload.IsMiss())

@@ -433,13 +433,23 @@ FString USocialUser::GetNickname() const
 	return TEXT("");
 }
 
-void USocialUser::SetNickname(const FString& InNickname)
+bool USocialUser::SetNickname(const FString& InNickname)
 {
-	// @note StephanJ: Nickname for now only applies to primary/MCP subsystem.
 	IOnlineFriendsPtr FriendsInterface = GetOwningToolkit().GetSocialOss(ESocialSubsystem::Primary)->GetFriendsInterface();
 	check(FriendsInterface.IsValid());
 
-	FriendsInterface->SetFriendAlias(GetOwningToolkit().GetLocalUserNum(), *GetUserId(ESocialSubsystem::Primary), EFriendsLists::ToString(EFriendsLists::Default), InNickname, FOnSetFriendAliasComplete::CreateUObject(const_cast<USocialUser*>(this), &USocialUser::HandleSetNicknameComplete));
+	if (!InNickname.IsEmpty())
+	{
+		FriendsInterface->SetFriendAlias(GetOwningToolkit().GetLocalUserNum(), *GetUserId(ESocialSubsystem::Primary), EFriendsLists::ToString(EFriendsLists::Default), InNickname, FOnSetFriendAliasComplete::CreateUObject(const_cast<USocialUser*>(this), &USocialUser::HandleSetNicknameComplete));
+		return true;
+	}
+	else if (!GetNickname().IsEmpty())
+	{
+		FriendsInterface->DeleteFriendAlias(GetOwningToolkit().GetLocalUserNum(), *GetUserId(ESocialSubsystem::Primary), EFriendsLists::ToString(EFriendsLists::Default), FOnDeleteFriendAliasComplete::CreateUObject(const_cast<USocialUser*>(this), &USocialUser::HandleSetNicknameComplete));
+		return true;
+	}
+	OnSetNicknameCompleted().Broadcast(FText::GetEmpty());
+	return false;
 }
 
 EInviteStatus::Type USocialUser::GetFriendInviteStatus(ESocialSubsystem SubsystemType) const
@@ -526,6 +536,20 @@ FDateTime USocialUser::GetFriendshipCreationDate() const
 					}
 				}
 			}
+		}
+	}
+
+	return FDateTime::MaxValue();
+}
+
+FDateTime USocialUser::GetLastOnlineDate() const
+{
+	if (IsFriend(ESocialSubsystem::Primary))
+	{
+		const FOnlineUserPresence* PrimaryPresence = GetFriendPresenceInfo(ESocialSubsystem::Primary);
+		if (PrimaryPresence)
+		{
+			return PrimaryPresence->LastOnline;
 		}
 	}
 
@@ -1286,12 +1310,9 @@ void USocialUser::HandleSetNicknameComplete(int32 LocalUserNum, const FUniqueNet
 {
 	if (!Error.WasSuccessful())
 	{
-		UE_LOG(LogOnline, Warning, TEXT("Set nickname request failed for user: %s"), *FriendId.ToDebugString());
+		UE_LOG(LogOnline, Warning, TEXT("Set nickname request failed for user: %s with error message: %s"), *FriendId.ToDebugString(), *Error.GetErrorMessage().ToString());
 	}
-	else
-	{
-		OnNicknameChanged().Broadcast();
-	}
+	OnSetNicknameCompleted().Broadcast(Error.GetErrorMessage());
 }
 
 FString USocialUser::SanitizePresenceString(FString InString) const

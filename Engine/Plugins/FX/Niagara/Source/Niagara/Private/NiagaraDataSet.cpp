@@ -66,6 +66,14 @@ static FAutoConsoleVariableRef CVarNiagaraRenderBufferShrinkFactor(
 	ECVF_Default
 );
 
+static float GNiagaraGPUDataBufferBufferSlack = 1.5;
+static FAutoConsoleVariableRef CVarNiagaraGPUDataBufferBufferSlack(
+	TEXT("fx.NiagaraGPUDataBufferBufferSlack"),
+	GNiagaraGPUDataBufferBufferSlack,
+	TEXT("Niagara GPU data buffer size threshold for resizing. <= 1 to disable shrinking. (Default=1.5) \n"),
+	ECVF_Default
+);
+
 FNiagaraDataSet::FNiagaraDataSet()
 	: CompiledData(&FNiagaraDataSetCompiledData::DummyCompiledData)
 	, NumFreeIDs(0)
@@ -601,32 +609,42 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 	FloatStride = PaddedNumInstances * sizeof(float);
 	Int32Stride = PaddedNumInstances * sizeof(int32);
 
-	// When the number of elements that we are going to need is greater than the number we have reserved, we need to expand it.
-	if (PaddedNumInstances > NumChunksAllocatedForGPU * ALLOC_CHUNKSIZE)
+	// This never seems to happen because of the +1 in NiagaraEmitterInstanceBatcher::ResizeBuffersAndGatherResources()
+	if (PaddedNumInstances == 0)
 	{
-		NumChunksAllocatedForGPU = FMath::DivideAndRoundUp(PaddedNumInstances, ALLOC_CHUNKSIZE);
-		const uint32 NumElementsToAlloc = NumChunksAllocatedForGPU * ALLOC_CHUNKSIZE;
-		if (NumElementsToAlloc == 0)
+		if (GPUBufferFloat.Buffer)
 		{
-			return;
+			GPUBufferFloat.Release();
 		}
-
-		if (Owner->GetNumFloatComponents())
+		if (GPUBufferInt.Buffer)
 		{
-			if (GPUBufferFloat.Buffer)
-			{
-				GPUBufferFloat.Release();
-			}
-			GPUBufferFloat.Initialize(sizeof(float), NumElementsToAlloc * Owner->GetNumFloatComponents(), EPixelFormat::PF_R32_FLOAT, BUF_Static);
-
+			GPUBufferInt.Release();
 		}
-		if (Owner->GetNumInt32Components())
+	}
+	else // Otherwise check for growing and possibly shrinking (if GNiagaraGPUDataBufferBufferSlack > 1) .
+	{
+		const uint32 RecommendedNumChunks = FMath::DivideAndRoundUp<uint32>((uint32)(PaddedNumInstances * FMath::Max<float>(GNiagaraGPUDataBufferBufferSlack, 1.f)), ALLOC_CHUNKSIZE); 
+		if (PaddedNumInstances > NumChunksAllocatedForGPU * ALLOC_CHUNKSIZE || (GNiagaraGPUDataBufferBufferSlack > 1.f && (uint32)(RecommendedNumChunks * GNiagaraGPUDataBufferBufferSlack) < NumChunksAllocatedForGPU))
 		{
-			if (GPUBufferInt.Buffer)
+			NumChunksAllocatedForGPU = RecommendedNumChunks; 
+			const uint32 NumElementsToAlloc = NumChunksAllocatedForGPU * ALLOC_CHUNKSIZE;
+
+			if (Owner->GetNumFloatComponents())
 			{
-				GPUBufferInt.Release();
+				if (GPUBufferFloat.Buffer)
+				{
+					GPUBufferFloat.Release();
+				}
+				GPUBufferFloat.Initialize(sizeof(float), NumElementsToAlloc * Owner->GetNumFloatComponents(), EPixelFormat::PF_R32_FLOAT, BUF_Static);
 			}
-			GPUBufferInt.Initialize(sizeof(int32), NumElementsToAlloc * Owner->GetNumInt32Components(), EPixelFormat::PF_R32_SINT, BUF_Static);
+			if (Owner->GetNumInt32Components())
+			{
+				if (GPUBufferInt.Buffer)
+				{
+					GPUBufferInt.Release();
+				}
+				GPUBufferInt.Initialize(sizeof(int32), NumElementsToAlloc * Owner->GetNumInt32Components(), EPixelFormat::PF_R32_SINT, BUF_Static);
+			}
 		}
 	}
 }
@@ -815,9 +833,7 @@ void FNiagaraDataBuffer::CopyTo(FNiagaraDataBuffer& DestBuffer)const
 
 void FNiagaraDataBuffer::Dump(int32 StartIndex, int32 InNumInstances, const FString& Label)const
 {
-	TArray<FNiagaraVariable> Variables = Owner->GetVariables();
 	FNiagaraDataVariableIterator Itr(this, StartIndex);
-	Itr.AddVariables(Variables);
 
 	if (InNumInstances == INDEX_NONE)
 	{
@@ -833,7 +849,7 @@ void FNiagaraDataBuffer::Dump(int32 StartIndex, int32 InNumInstances, const FStr
 		Itr.Get();
 
 		FString Line = TEXT("| ");
-		for (const FNiagaraVariable& Var : Owner->GetVariables())
+		for (const FNiagaraVariable& Var : Itr.GetVariables())
 		{
 			Line += Var.ToString() + TEXT(" | ");
 		}

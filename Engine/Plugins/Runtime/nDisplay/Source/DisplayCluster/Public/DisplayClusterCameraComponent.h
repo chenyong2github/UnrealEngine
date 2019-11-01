@@ -5,6 +5,8 @@
 #include "DisplayClusterSceneComponent.h"
 #include "DisplayClusterCameraComponent.generated.h"
 
+class UCameraComponent;
+
 
 /**
  * Camera component
@@ -60,64 +62,6 @@ public:
 	{ return (bEyeSwap = !bEyeSwap); }
 
 	/**
-	* Get camera frustum near culling
-	*
-	* @return - near culling plane distance
-	*/
-	float GetNearCullingDistance() const
-	{ return NearClipPlane; }
-
-	/**
-	* Set camera frustum near culling
-	*
-	* @param NCP - near culling plane distance
-	*/
-	void SetNearCullingDistance(float NCP)
-	{
-		NearClipPlane = NCP;
-	}
-
-	/**
-	* Get camera frustum far culling
-	*
-	* @return - far culling plane distance
-	*/
-	float GetFarCullingDistance() const
-	{ return FarClipPlane; }
-
-	/**
-	* Set camera frustum far culling
-	*
-	* @param FCP - far culling plane distance
-	*/
-	void SetFarCullingDistance(float FCP)
-	{ FarClipPlane = FCP; }
-
-	/**
-	* Get camera frustum culling
-	*
-	* @param OutNCP - near culling plane distance
-	* @param OutFCP - far culling plane distance
-	*/
-	void GetCullingDistance(float& OutNCP, float& OutFCP) const
-	{
-		OutNCP = NearClipPlane;
-		OutFCP = FarClipPlane;
-	}
-
-	/**
-	* Set camera frustum culling
-	*
-	* @param NCP - near culling plane distance
-	* @param FCP - far culling plane distance
-	*/
-	void SetCullingDistance(float NCP, float FCP)
-	{
-		NearClipPlane = NCP;
-		FarClipPlane = FCP;
-	}
-
-	/**
 	* Returns force eye offset value
 	*
 	* @return - -1, 0 or 1 depending on config file
@@ -139,12 +83,13 @@ public:
 
 public:
 	virtual void BeginPlay() override;
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 private:
 	float EyeDist;
 	bool  bEyeSwap;
 	int   ForceEyeOffset = 0;
-	float NearClipPlane;
-	float FarClipPlane;
+
+#if 0
+	UCameraComponent* CameraComponent = nullptr;
+#endif
 };

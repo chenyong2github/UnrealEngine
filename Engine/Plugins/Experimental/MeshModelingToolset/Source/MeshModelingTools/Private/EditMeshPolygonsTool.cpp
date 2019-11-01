@@ -1051,7 +1051,8 @@ void UEditMeshPolygonsTool::OnEndDrag(const FRay& Ray)
 
 	HilightSelection.Clear(); 
 	TopoSelector.Invalidate(true, false);
-	QuickAxisRotator.ClearAxisLock();
+	QuickAxisRotator.Reset();
+	QuickAxisTranslater.Reset();
 
 	//If it's linear, it's computed real time with no delay. This may need to be restructured for clarity by using the background task for this as well.
 	if (DeformationStrategy == EGroupTopologyDeformationStrategy::Linear)

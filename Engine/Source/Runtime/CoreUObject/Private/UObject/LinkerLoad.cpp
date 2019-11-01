@@ -1292,39 +1292,27 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummary()
 FLinkerLoad::ELinkerStatus FLinkerLoad::UpdateFromPackageFileSummary()
 {
 	// When unversioned, pretend we are the latest version
-	bool bCustomVersionIsLatest = Summary.bUnversioned;
-	if (!bCustomVersionIsLatest)
+	bool bCustomVersionIsLatest = true;
+	if (!Summary.bUnversioned)
 	{
-		// Check custom versions.
-		const FCustomVersionContainer& LatestCustomVersions  = FCustomVersionContainer::GetRegistered();
-		bool bAllSavedVersionsMatch = true;
-		const FCustomVersionArray&  PackageCustomVersions = Summary.GetCustomVersionContainer().GetAllVersions();
-		for (auto It = PackageCustomVersions.CreateConstIterator(); It; ++It)
+		TArray<FCustomVersionDifference> Diffs = FCurrentCustomVersions::Compare(Summary.GetCustomVersionContainer().GetAllVersions());
+		for (FCustomVersionDifference Diff : Diffs)
 		{
-			const FCustomVersion& SerializedCustomVersion = *It;
-
-			const FCustomVersion* LatestVersion = LatestCustomVersions.GetVersion(SerializedCustomVersion.Key);
-			if (!LatestVersion)
+			bCustomVersionIsLatest = false;
+			if (Diff.Type == ECustomVersionDifference::Missing)
 			{
 				// Loading a package with custom integration that we don't know about!
 				// Temporarily just warn and continue. @todo: this needs to be fixed properly
-				UE_LOG(LogLinker, Warning, TEXT("Package %s was saved with a custom integration that is not present. Tag %s  Version %d"), *Filename, *SerializedCustomVersion.Key.ToString(), SerializedCustomVersion.Version);
-				bAllSavedVersionsMatch = false;
+				UE_LOG(LogLinker, Warning, TEXT("Package %s was saved with a custom integration that is not present. Tag %s  Version %d"), *Filename, *Diff.Version->Key.ToString(), Diff.Version->Version);
 			}
-			else if (SerializedCustomVersion.Version > LatestVersion->Version)
+			else if (Diff.Type == ECustomVersionDifference::Newer)
 			{
+				FCustomVersion LatestVersion = FCurrentCustomVersions::Get(Diff.Version->Key).GetValue();
 				// Loading a package with a newer custom version than the current one.
-				UE_LOG(LogLinker, Error, TEXT("Package %s was saved with a newer custom version than the current. Tag %s Name '%s' PackageVersion %d  MaxExpected %d"), *Filename, *SerializedCustomVersion.Key.ToString(), *LatestVersion->GetFriendlyName().ToString(), SerializedCustomVersion.Version, LatestVersion->Version);
+				UE_LOG(LogLinker, Error, TEXT("Package %s was saved with a newer custom version than the current. Tag %s Name '%s' PackageVersion %d  MaxExpected %d"), *Filename, *Diff.Version->Key.ToString(), *LatestVersion.GetFriendlyName().ToString(), Diff.Version->Version, LatestVersion.Version);
 				return LINKER_Failed;
 			}
-			else if (SerializedCustomVersion.Version != LatestVersion->Version)
-			{
-				bAllSavedVersionsMatch = false;
-			}
 		}
-
-		const bool bSameNumberOfVersions = (PackageCustomVersions.Num() == LatestCustomVersions.GetAllVersions().Num());
-		bCustomVersionIsLatest = bSameNumberOfVersions && bAllSavedVersionsMatch;
 	}
 
 	const FCustomVersionContainer& SummaryVersions = Summary.GetCustomVersionContainer();

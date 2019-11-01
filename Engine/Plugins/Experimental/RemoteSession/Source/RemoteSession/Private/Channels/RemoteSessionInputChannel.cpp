@@ -28,7 +28,7 @@ FRemoteSessionInputChannel::FRemoteSessionInputChannel(ERemoteSessionChannelMode
 		// and passes it through to the default UE handler
 		DefaultHandler = FSlateApplication::Get().GetPlatformApplication()->GetMessageHandler();
 
-		RecordingHandler = MakeShareable(new FRecordingMessageHandler(DefaultHandler));
+		RecordingHandler = MakeShared<FRecordingMessageHandler>(DefaultHandler);
 		RecordingHandler->SetRecordingHandler(this);
 
 		FSlateApplication::Get().GetPlatformApplication()->SetMessageHandler(RecordingHandler.ToSharedRef());
@@ -37,7 +37,7 @@ FRemoteSessionInputChannel::FRemoteSessionInputChannel(ERemoteSessionChannelMode
 	{
 		DefaultHandler = FSlateApplication::Get().GetPlatformApplication()->GetMessageHandler();
 
-		PlaybackHandler = MakeShareable(new FRecordingMessageHandler(DefaultHandler));
+		PlaybackHandler = MakeShared<FRecordingMessageHandler>(DefaultHandler);
 		
 		auto Delegate = FBackChannelDispatchDelegate::FDelegate::CreateRaw(this, &FRemoteSessionInputChannel::OnRemoteMessage);
 		MessageCallbackHandle = Connection->AddMessageHandler(TEXT("/MessageHandler/"), Delegate);

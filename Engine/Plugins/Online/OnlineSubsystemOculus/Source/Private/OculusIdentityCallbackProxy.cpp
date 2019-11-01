@@ -23,7 +23,7 @@ void UOculusIdentityCallbackProxy::Activate()
 
 	if (OculusIdentityInterface.IsValid())
 	{
-		DelegateHandle = Online::GetIdentityInterface()->AddOnLoginCompleteDelegate_Handle(
+		DelegateHandle = OculusIdentityInterface->AddOnLoginCompleteDelegate_Handle(
 			0, 
 			FOnLoginCompleteDelegate::CreateUObject(this, &UOculusIdentityCallbackProxy::OnLoginCompleteDelegate)
 		);

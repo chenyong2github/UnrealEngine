@@ -123,7 +123,14 @@ public:
 
 void SSkeletonTree::Construct(const FArguments& InArgs, const TSharedRef<FEditableSkeleton>& InEditableSkeleton, const FSkeletonTreeArgs& InSkeletonTreeArgs)
 {
-	BoneFilter = EBoneFilter::All;
+	if (InSkeletonTreeArgs.bHideBonesByDefault)
+	{
+		BoneFilter = EBoneFilter::None;
+	}
+	else
+	{
+		BoneFilter = EBoneFilter::All;
+	}
 	SocketFilter = ESocketFilter::Active;
 	bShowingAdvancedOptions = false;
 	bSelecting = false;

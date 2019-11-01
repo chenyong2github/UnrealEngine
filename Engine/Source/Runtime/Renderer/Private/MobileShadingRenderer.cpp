@@ -72,6 +72,8 @@ static TAutoConsoleVariable<int32> CVarMobileAdrenoOcclusionMode(
 	TEXT("1: Render occlusion queries after translucency and a flush, which can help Adreno devices in GL mode."),
 	ECVF_RenderThreadSafe);
 
+DECLARE_GPU_STAT_NAMED(MobileSceneRender, TEXT("Mobile Scene Render"));
+
 DECLARE_CYCLE_STAT(TEXT("SceneStart"), STAT_CLMM_SceneStart, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("SceneEnd"), STAT_CLMM_SceneEnd, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("InitViews"), STAT_CLMM_InitViews, STATGROUP_CommandListMarkers);
@@ -88,9 +90,12 @@ TGlobalResource<FGlobalDynamicReadBuffer> FMobileSceneRenderer::DynamicReadBuffe
 
 static bool UsesCustomDepthStencilLookup(const FViewInfo& View)
 {
+	if (View.bUsesCustomDepthStencil)
+	{
+		return true;
+	}
+
 	// Find out whether post-process materials use CustomDepth/Stencil lookups
-	bool bPPUsesCustomDepth = false;
-	bool bPPUsesCustomStencil = false;
 	const FBlendableManager& BlendableManager = View.FinalPostProcessSettings.BlendableManager;
 	FBlendableEntry* BlendableIt = nullptr;
 
@@ -103,15 +108,21 @@ static bool UsesCustomDepthStencilLookup(const FViewInfo& View)
 
 			const FMaterial* Material = Proxy->GetMaterial(View.GetFeatureLevel());
 			check(Material);
-			const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();
+			if (Material->IsStencilTestEnabled())
+			{
+				return true;
+			}
 
-			bPPUsesCustomDepth|= MaterialShaderMap->UsesSceneTexture(PPI_CustomDepth);
-			bPPUsesCustomStencil|= MaterialShaderMap->UsesSceneTexture(PPI_CustomStencil);
+			const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();
+			if (MaterialShaderMap->UsesSceneTexture(PPI_CustomDepth) || MaterialShaderMap->UsesSceneTexture(PPI_CustomStencil))
+			{
+				return true;
+			}
 		}
 	}
 
 	//TODO: check if translucency uses CustomDepth
-	return bPPUsesCustomDepth || bPPUsesCustomStencil;
+	return false;
 }
 
 
@@ -322,6 +333,9 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 {
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_SceneStart));
 
+	SCOPED_DRAW_EVENT(RHICmdList, MobileSceneRender);
+	SCOPED_GPU_STAT(RHICmdList, MobileSceneRender);
+
 	Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
 
 	PrepareViewRectsForRendering();
@@ -379,7 +393,10 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	const bool bForceDepthResolve = CVarMobileForceDepthResolve.GetValueOnRenderThread() == 1;
 	const bool bSeparateTranslucencyActive = IsMobileSeparateTranslucencyActive(View);
 	bool bKeepDepthContent = bRenderToSceneColor &&
-		(bForceDepthResolve || bSeparateTranslucencyActive || (View.bIsSceneCapture && (ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorHDR || ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorSceneDepth)));
+		(bForceDepthResolve ||
+		 bSeparateTranslucencyActive ||
+		 View.bIsReflectionCapture ||
+		 (View.bIsSceneCapture && (ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorHDR || ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorSceneDepth)));
 
 	// Whether to submit cmdbuffer with offscreen rendering before doing post-processing
 	bool bSubmitOffscreenRendering = !bGammaSpace || bRenderToSceneColor;
@@ -453,7 +470,11 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		bool bUsesCustomDepthStencil = false;
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++) 
 		{
-			bUsesCustomDepthStencil = UsesCustomDepthStencilLookup(Views[ViewIndex]);
+			if (UsesCustomDepthStencilLookup(Views[ViewIndex]))
+			{
+				bUsesCustomDepthStencil = true;
+				break;
+			}
 		}
 
 		if (bUsesCustomDepthStencil)
@@ -509,13 +530,21 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		}
 	}
 
+	FRHITexture* FoveationTexture = nullptr;
+	
+	if (SceneContext.IsFoveationTextureAllocated())
+	{
+		FoveationTexture = SceneContext.GetFoveationTexture();
+	}
+
 	FRHIRenderPassInfo SceneColorRenderPassInfo(
 		SceneColor,
 		ColorTargetAction,
 		SceneColorResolve,
 		SceneDepth,
-		DepthTargetAction, 
+		DepthTargetAction,
 		nullptr, // we never resolve scene depth on mobile
+		FoveationTexture,
 		FExclusiveDepthStencil::DepthWrite_StencilWrite
 	);
 	SceneColorRenderPassInfo.SubpassHint = ESubpassHint::DepthReadSubpass;
@@ -606,6 +635,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			SceneDepth,
 			DepthTargetAction, 
 			nullptr,
+			FoveationTexture,
 			ExclusiveDepthStencil
 		);
 		TranslucentRenderPassInfo.NumOcclusionQueries = 0;
@@ -719,39 +749,24 @@ void FMobileSceneRenderer::BasicPostProcess(FRHICommandListImmediate& RHICmdList
 	const bool bBlitRequired = !bDoUpscale && !bDoEditorPrimitives;
 
 	if (bDoUpscale || bBlitRequired)
-	{	// blit from sceneRT to view family target, simple bilinear if upscaling otherwise point filtered.
-		uint32 UpscaleQuality = bDoUpscale ? 1 : 0;
-		FRenderingCompositePass* Node = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessUpscaleES2(View, UpscaleQuality, false));
+	{
+		const EUpscaleMethod UpscaleMethod = bDoUpscale ? EUpscaleMethod::Bilinear : EUpscaleMethod::Nearest;
 
-		Node->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Context.FinalOutput));
-		Node->SetInput(ePId_Input1, FRenderingCompositeOutputRef(Context.FinalOutput));
-
-		Context.FinalOutput = FRenderingCompositeOutputRef(Node);
+		Context.FinalOutput = AddUpscalePass(Context.Graph, Context.FinalOutput, UpscaleMethod, EUpscaleStage::PrimaryToOutput);
 	}
 
 #if WITH_EDITOR
 	// Composite editor primitives if we had any to draw and compositing is enabled
 	if (bDoEditorPrimitives)
 	{
-		FRenderingCompositePass* EditorCompNode = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessCompositeEditorPrimitives(false));
-		EditorCompNode->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Context.FinalOutput));
-		//Node->SetInput(ePId_Input1, FRenderingCompositeOutputRef(Context.SceneDepth));
-		Context.FinalOutput = FRenderingCompositeOutputRef(EditorCompNode);
+		Context.FinalOutput = AddEditorPrimitivePass(Context.Graph, Context.FinalOutput, FEditorPrimitiveInputs::EBasePassType::Mobile);
 	}
 #endif
 
 	bool bStereoRenderingAndHMD = View.Family->EngineShowFlags.StereoRendering && View.Family->EngineShowFlags.HMDDistortion;
 	if (bStereoRenderingAndHMD)
 	{
-		const IHeadMountedDisplay* HMD =  GEngine->XRSystem->GetHMDDevice();
-		checkf(HMD, TEXT("EngineShowFlags.HMDDistortion can not be true when IXRTrackingSystem::GetHMDDevice returns null"));
-		FRenderingCompositePass* Node = Context.Graph.RegisterPass(new FRCPassPostProcessHMD());
-
-		if (Node)
-		{
-			Node->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Context.FinalOutput));
-			Context.FinalOutput = FRenderingCompositeOutputRef(Node);
-		}
+		Context.FinalOutput = AddHMDDistortionPass(Context.Graph, Context.FinalOutput);
 	}
 
 	// currently created on the heap each frame but View.Family->RenderTarget could keep this object and all would be cleaner
@@ -766,6 +781,7 @@ void FMobileSceneRenderer::BasicPostProcess(FRHICommandListImmediate& RHICmdList
 	// todo: this should come from View.Family->RenderTarget
 	Desc.Format = PF_B8G8R8A8;
 	Desc.NumMips = 1;
+	Desc.TargetableFlags |= TexCreate_RenderTargetable;
 
 	GRenderTargetPool.CreateUntrackedElement(Desc, Temp, Item);
 
@@ -883,7 +899,6 @@ bool FMobileSceneRenderer::RequiresTranslucencyPass(FRHICommandListImmediate& RH
 void FMobileSceneRenderer::ConditionalResolveSceneDepth(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
 {
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-	SceneContext.ResolveSceneDepthToAuxiliaryTexture(RHICmdList);
 	
 	if (IsSimulatedPlatform(ShaderPlatform)) // mobile emulation on PC
 	{
@@ -993,7 +1008,9 @@ void FMobileSceneRenderer::UpdateSkyReflectionUniformBuffer()
 	FSkyLightSceneProxy* SkyLight = nullptr;
 	if (Scene->ReflectionSceneData.RegisteredReflectionCapturePositions.Num() == 0
 		&& Scene->SkyLight
-		&& Scene->SkyLight->ProcessedTexture->TextureRHI)
+		&& Scene->SkyLight->ProcessedTexture->TextureRHI
+		// Don't use skylight reflection if it is a static sky light for keeping coherence with PC.
+		&& !Scene->SkyLight->bHasStaticLighting)
 	{
 		SkyLight = Scene->SkyLight;
 	}

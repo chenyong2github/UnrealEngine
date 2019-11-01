@@ -7,8 +7,9 @@
 #include "MeshPassProcessor.h"
 #include "RenderGraphUtils.h"
 
-static int32 GHairProjectionMaxSpinLockCount = 4096;
-static FAutoConsoleVariableRef CVarHairProjectionMaxSpinLockCount(TEXT("r.HairStrands.Projection.MaxSpinLockCount"), GHairProjectionMaxSpinLockCount, TEXT("Change the spin lock count for writing hair projection data"));
+static int32 GHairProjectionMaxTrianglePerProjectionIteration = 8;
+static FAutoConsoleVariableRef CVarHairProjectionMaxTrianglePerProjectionIteration(TEXT("r.HairStrands.Projection.MaxTrianglePerIteration"), GHairProjectionMaxTrianglePerProjectionIteration, TEXT("Change the number of triangles which are iterated over during one projection iteration step. In kilo triangle (e.g., 8 == 8000 triangles). Default is 8."));
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 class FHairMeshProjectionCS : public FGlobalShader
@@ -19,11 +20,9 @@ class FHairMeshProjectionCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, bClear)
 		SHADER_PARAMETER(uint32, MaxRootCount)
-		SHADER_PARAMETER(uint32, MaxSpinLockCount)
-		SHADER_PARAMETER(FMatrix, RootLocalToWorld)
 
-		SHADER_PARAMETER(FMatrix, MeshLocalToWorld)
-		SHADER_PARAMETER(uint32, MeshNumPrimitives)
+		SHADER_PARAMETER(uint32, MeshPrimitiveOffset_Iteration)
+		SHADER_PARAMETER(uint32, MeshPrimitiveCount_Iteration)
 		SHADER_PARAMETER(uint32, MeshSectionIndex)
 		SHADER_PARAMETER(uint32, MeshMaxIndexCount)
 		SHADER_PARAMETER(uint32, MeshMaxVertexCount)
@@ -34,8 +33,8 @@ class FHairMeshProjectionCS : public FGlobalShader
 		SHADER_PARAMETER_SRV(Buffer, RootPositionBuffer)
 		SHADER_PARAMETER_SRV(Buffer, RootNormalBuffer)
 
-		SHADER_PARAMETER_UAV(StructuredBuffer, OutRootTriangleIndex)
-		SHADER_PARAMETER_UAV(StructuredBuffer, OutRootTriangleBarycentrics)
+		SHADER_PARAMETER_UAV(RWBuffer, OutRootTriangleIndex)
+		SHADER_PARAMETER_UAV(RWBuffer, OutRootTriangleBarycentrics)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(StructuredBuffer, OutRootTriangleDistance)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -50,8 +49,8 @@ static void AddHairStrandMeshProjectionPass(
 	TShaderMap<FGlobalShaderType>* ShaderMap,
 	const bool bClear,
 	const int32 LODIndex,
-	const FHairStrandsProjectionMeshSection& MeshSectionData,
-	const FHairStrandsProjectionHairData& RootData,
+	const FHairStrandsProjectionMeshData::Section& MeshSectionData,
+	const FHairStrandsProjectionHairData::HairGroup& RootData,
 	FRDGBufferRef RootDistanceBuffer)
 {
 	if (!RootData.RootPositionBuffer ||
@@ -67,42 +66,50 @@ static void AddHairStrandMeshProjectionPass(
 		return;
 	}
 
-	// Change the transform to be just a relative transform from the mesh
-	FTransform RootTranform = RootData.LocalToWorld;
-	FTransform MeshTranform = MeshSectionData.LocalToWorld;
-	RootTranform.SetLocation(RootTranform.GetLocation() - MeshTranform.GetLocation());
-	MeshTranform.SetLocation(FVector(0, 0, 0));
+	// For projecting hair onto a skeletal mesh, 1 thread is spawn for each hair which iterates over all triangles.
+	// To avoid TDR, we split projection into multiple passes when the mesh is too large.
+	uint32 MeshPassNumPrimitive = 1024 * FMath::Clamp(GHairProjectionMaxTrianglePerProjectionIteration, 1, 256);
+	uint32 MeshPassCount = 1;
+	if (MeshSectionData.NumPrimitives < MeshPassNumPrimitive)
+	{
+		MeshPassNumPrimitive = MeshSectionData.NumPrimitives;
+	}
+	else
+	{
+		MeshPassCount = FMath::CeilToInt(MeshSectionData.NumPrimitives / float(MeshPassNumPrimitive));
+	}
 
-	FHairMeshProjectionCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairMeshProjectionCS::FParameters>();
-	Parameters->bClear				= bClear ? 1 : 0;
-	Parameters->MaxRootCount		= RootData.RootCount;
-	Parameters->MaxSpinLockCount	= FMath::Clamp(GHairProjectionMaxSpinLockCount, 0, 100000);
-	Parameters->RootPositionBuffer	= RootData.RootPositionBuffer;
-	Parameters->RootNormalBuffer	= RootData.RootNormalBuffer;
-	Parameters->RootLocalToWorld	= RootTranform.ToMatrixWithScale();
+	FRDGBufferUAVRef DistanceUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(RootDistanceBuffer, PF_R32_FLOAT));
+	for (uint32 MeshPassIt=0;MeshPassIt<MeshPassCount;++MeshPassIt)
+	{
+		FHairMeshProjectionCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairMeshProjectionCS::FParameters>();
+		Parameters->bClear				= bClear && MeshPassIt == 0 ? 1 : 0;
+		Parameters->MaxRootCount		= RootData.RootCount;
+		Parameters->RootPositionBuffer	= RootData.RootPositionBuffer;
+		Parameters->RootNormalBuffer	= RootData.RootNormalBuffer;
+		Parameters->MeshSectionIndex	= MeshSectionData.SectionIndex;
+		Parameters->MeshMaxIndexCount	= MeshSectionData.TotalIndexCount;
+		Parameters->MeshMaxVertexCount	= MeshSectionData.TotalVertexCount;
+		Parameters->MeshIndexOffset		= MeshSectionData.IndexBaseIndex + (MeshPassNumPrimitive * MeshPassIt * 3);
+		Parameters->MeshIndexBuffer		= MeshSectionData.IndexBuffer;
+		Parameters->MeshPositionBuffer	= MeshSectionData.PositionBuffer;
+		Parameters->MeshPrimitiveOffset_Iteration	= MeshPassNumPrimitive * MeshPassIt;
+		Parameters->MeshPrimitiveCount_Iteration	= (MeshPassIt < MeshPassCount-1) ? MeshPassNumPrimitive : (MeshSectionData.NumPrimitives - MeshPassNumPrimitive * MeshPassIt);
 
-	Parameters->MeshLocalToWorld	= MeshTranform.ToMatrixWithScale();
-	Parameters->MeshNumPrimitives	= MeshSectionData.NumPrimitives;
-	Parameters->MeshSectionIndex	= MeshSectionData.SectionIndex;
-	Parameters->MeshMaxIndexCount	= MeshSectionData.TotalIndexCount;
-	Parameters->MeshMaxVertexCount	= MeshSectionData.TotalVertexCount;
-	Parameters->MeshIndexOffset		= MeshSectionData.IndexBaseIndex;
-	Parameters->MeshIndexBuffer		= MeshSectionData.IndexBuffer;
-	Parameters->MeshPositionBuffer	= MeshSectionData.PositionBuffer;
+		Parameters->OutRootTriangleIndex		= RootData.LODDatas[LODIndex].RootTriangleIndexBuffer->UAV;
+		Parameters->OutRootTriangleBarycentrics = RootData.LODDatas[LODIndex].RootTriangleBarycentricBuffer->UAV;
+		Parameters->OutRootTriangleDistance		= DistanceUAV;
 
-	Parameters->OutRootTriangleIndex		= RootData.LODDatas[LODIndex].RootTriangleIndexBuffer->UAV;
-	Parameters->OutRootTriangleBarycentrics = RootData.LODDatas[LODIndex].RootTriangleBarycentricBuffer->UAV;
-	Parameters->OutRootTriangleDistance		= GraphBuilder.CreateUAV(FRDGBufferUAVDesc(RootDistanceBuffer, PF_R32_FLOAT));
-
-	const FIntVector DispatchGroupCount = FComputeShaderUtils::GetGroupCount(RootData.RootCount, 32);
-	check(DispatchGroupCount.X < 65536);
-	TShaderMapRef<FHairMeshProjectionCS> ComputeShader(ShaderMap);
-	FComputeShaderUtils::AddPass(
-		GraphBuilder,
-		RDG_EVENT_NAME("HairStrandsMeshProjection"),
-		*ComputeShader,
-		Parameters,
-		DispatchGroupCount);
+		const FIntVector DispatchGroupCount = FComputeShaderUtils::GetGroupCount(RootData.RootCount, 32);
+		check(DispatchGroupCount.X < 65536);
+		TShaderMapRef<FHairMeshProjectionCS> ComputeShader(ShaderMap);
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("HairStrandsMeshProjection"),
+			*ComputeShader,
+			Parameters,
+			DispatchGroupCount);
+	}
 }
 
 void ProjectHairStrandsOntoMesh(
@@ -110,7 +117,7 @@ void ProjectHairStrandsOntoMesh(
 	TShaderMap<FGlobalShaderType>* ShaderMap,
 	const int32 LODIndex,
 	FHairStrandsProjectionMeshData& ProjectionMeshData, 
-	FHairStrandsProjectionHairData& ProjectionHairData)
+	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData)
 {
 	if (LODIndex < 0 || LODIndex >= ProjectionHairData.LODDatas.Num())
 		return;
@@ -120,7 +127,7 @@ void ProjectHairStrandsOntoMesh(
 	FRDGBufferRef RootDistanceBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(float),  ProjectionHairData.RootCount),	TEXT("HairStrandsTriangleDistance"));
 
 	bool ClearDistance = true;
-	for (FHairStrandsProjectionMeshSection& MeshSection : ProjectionMeshData.Sections)
+	for (FHairStrandsProjectionMeshData::Section& MeshSection : ProjectionMeshData.Sections)
 	{
 		check(ProjectionHairData.LODDatas[LODIndex].LODIndex == LODIndex);
 		AddHairStrandMeshProjectionPass(GraphBuilder, ShaderMap, ClearDistance, LODIndex, MeshSection, ProjectionHairData, RootDistanceBuffer);
@@ -139,11 +146,9 @@ class FHairUpdateMeshTriangleCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FHairUpdateMeshTriangleCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector, RootTriangleWorldCenter)
+		SHADER_PARAMETER(FVector, RootTrianglePositionOffset)
 		SHADER_PARAMETER(uint32, MaxRootCount)
-		SHADER_PARAMETER(FMatrix, RootLocalToWorld)
-
-		SHADER_PARAMETER(FMatrix, MeshLocalToWorld)
+		
 		SHADER_PARAMETER(uint32, MeshSectionIndex)
 		SHADER_PARAMETER(uint32, MeshMaxIndexCount)
 		SHADER_PARAMETER(uint32, MeshMaxVertexCount)
@@ -168,8 +173,8 @@ static void AddHairStrandUpdateMeshTrianglesPass(
 	TShaderMap<FGlobalShaderType>* ShaderMap,
 	const int32 LODIndex,
 	const HairStrandsTriangleType Type,
-	const FHairStrandsProjectionMeshSection& MeshSectionData,
-	FHairStrandsProjectionHairData& RootData)	
+	const FHairStrandsProjectionMeshData::Section& MeshSectionData,
+	FHairStrandsProjectionHairData::HairGroup& RootData)
 {
 	if (RootData.RootCount == 0 || LODIndex < 0 || LODIndex >= RootData.LODDatas.Num())
 	{
@@ -178,18 +183,9 @@ static void AddHairStrandUpdateMeshTrianglesPass(
 	FHairStrandsProjectionHairData::LODData& LODData = RootData.LODDatas[LODIndex];
 	check(LODData.LODIndex == LODIndex);
 
-	// Change the transform to be just a relative transform from the mesh
-	FTransform RootTranform = RootData.LocalToWorld;
-	FTransform MeshTranform = MeshSectionData.LocalToWorld;
-	RootTranform.SetLocation(RootTranform.GetLocation() - MeshTranform.GetLocation());
-	MeshTranform.SetLocation(FVector(0, 0, 0));
-
 	FHairUpdateMeshTriangleCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairUpdateMeshTriangleCS::FParameters>();
 	Parameters->MaxRootCount		= RootData.RootCount;
 	Parameters->RootTriangleIndex	= LODData.RootTriangleIndexBuffer->SRV;
-	Parameters->RootLocalToWorld	= RootTranform.ToMatrixWithScale();
-	
-	Parameters->MeshLocalToWorld	= MeshTranform.ToMatrixWithScale();
 	Parameters->MeshSectionIndex	= MeshSectionData.SectionIndex;
 	Parameters->MeshMaxIndexCount	= MeshSectionData.TotalIndexCount;
 	Parameters->MeshMaxVertexCount	= MeshSectionData.TotalVertexCount;
@@ -199,14 +195,14 @@ static void AddHairStrandUpdateMeshTrianglesPass(
 
 	if (Type == HairStrandsTriangleType::RestPose)
 	{
-		Parameters->RootTriangleWorldCenter = FVector::ZeroVector; // TODO  LODData.RestRootCenter;
+		Parameters->RootTrianglePositionOffset = LODData.RestPositionOffset;
 		Parameters->OutRootTrianglePosition0 = LODData.RestRootTrianglePosition0Buffer->UAV;
 		Parameters->OutRootTrianglePosition1 = LODData.RestRootTrianglePosition1Buffer->UAV;
 		Parameters->OutRootTrianglePosition2 = LODData.RestRootTrianglePosition2Buffer->UAV;
 	}
 	else if (Type == HairStrandsTriangleType::DeformedPose)
 	{
-		Parameters->RootTriangleWorldCenter = FVector::ZeroVector; // TODO LODData.DeformedRootCenter;
+		Parameters->RootTrianglePositionOffset = LODData.DeformedPositionOffset;
 		Parameters->OutRootTrianglePosition0 = LODData.DeformedRootTrianglePosition0Buffer->UAV;
 		Parameters->OutRootTrianglePosition1 = LODData.DeformedRootTrianglePosition1Buffer->UAV;
 		Parameters->OutRootTrianglePosition2 = LODData.DeformedRootTrianglePosition2Buffer->UAV;
@@ -229,11 +225,11 @@ void UpdateHairStrandsMeshTriangles(
 	const int32 LODIndex,
 	const HairStrandsTriangleType Type,
 	FHairStrandsProjectionMeshData& ProjectionMeshData,
-	FHairStrandsProjectionHairData& ProjectionHairData)
+	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData)
 {
 	FRDGBuilder GraphBuilder(RHICmdList);
 
-	for (FHairStrandsProjectionMeshSection& MeshSection : ProjectionMeshData.Sections)
+	for (FHairStrandsProjectionMeshData::Section& MeshSection : ProjectionMeshData.Sections)
 	{
 		AddHairStrandUpdateMeshTrianglesPass(GraphBuilder, ShaderMap, LODIndex, Type, MeshSection, ProjectionHairData);
 	}

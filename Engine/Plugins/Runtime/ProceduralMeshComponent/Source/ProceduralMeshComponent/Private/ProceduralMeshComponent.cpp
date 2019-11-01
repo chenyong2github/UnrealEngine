@@ -176,21 +176,22 @@ public:
 						[this, NewSection/*, VertexBufferRHI, IndexBufferRHI, VertexBufferStride, TrianglesCount, RenderSections*/](FRHICommandListImmediate& RHICmdList)
 					{
 						FRayTracingGeometryInitializer Initializer;
-						Initializer.PositionVertexBuffer = nullptr;
 						Initializer.IndexBuffer = nullptr;
-						Initializer.VertexBufferStride = 12;
-						Initializer.VertexBufferByteOffset = 0;
 						Initializer.TotalPrimitiveCount = 0;
-						Initializer.VertexBufferElementType = VET_Float3;
 						Initializer.GeometryType = RTGT_Triangles;
 						Initializer.bFastBuild = true;
 						Initializer.bAllowUpdate = false;
+
 						NewSection->RayTracingGeometry.SetInitializer(Initializer);
 						NewSection->RayTracingGeometry.InitResource();
 
-						NewSection->RayTracingGeometry.Initializer.PositionVertexBuffer = NewSection->VertexBuffers.PositionVertexBuffer.VertexBufferRHI;
 						NewSection->RayTracingGeometry.Initializer.IndexBuffer = NewSection->IndexBuffer.IndexBufferRHI;
 						NewSection->RayTracingGeometry.Initializer.TotalPrimitiveCount = NewSection->IndexBuffer.Indices.Num() / 3;
+
+						FRayTracingGeometrySegment Segment;
+						Segment.VertexBuffer = NewSection->VertexBuffers.PositionVertexBuffer.VertexBufferRHI;
+						Segment.NumPrimitives = NewSection->RayTracingGeometry.Initializer.TotalPrimitiveCount;
+						NewSection->RayTracingGeometry.Initializer.Segments.Add(Segment);
 
 						//#dxr_todo: add support for segments?
 						
@@ -434,7 +435,6 @@ public:
 				
 				if (Section->RayTracingGeometry.RayTracingGeometryRHI.IsValid())
 				{
-					check(Section->RayTracingGeometry.Initializer.PositionVertexBuffer.IsValid());
 					check(Section->RayTracingGeometry.Initializer.IndexBuffer.IsValid());
 
 					FRayTracingInstance RayTracingInstance;

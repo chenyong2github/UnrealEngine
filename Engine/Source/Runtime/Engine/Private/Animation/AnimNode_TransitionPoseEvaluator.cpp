@@ -77,5 +77,6 @@ bool FAnimNode_TransitionPoseEvaluator::InputNodeNeedsEvaluate() const
 void FAnimNode_TransitionPoseEvaluator::CachePose(const FPoseContext& PoseToCache)
 {
 	CachedPose.CopyBonesFrom(PoseToCache.Pose);
+	CachedPose.NormalizeRotations();
 	CachedCurve.CopyFrom(PoseToCache.Curve);
 }

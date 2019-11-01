@@ -123,6 +123,10 @@ struct FNetProfilerAggregatedStats
 class INetProfilerProvider : public IProvider
 {
 public:
+	// Return the version reported in the trace
+	// A return value of 0 indicates no network trace data
+	virtual uint32 GetNetTraceVersion() const = 0;
+
 	// Access Names
 	virtual uint32 GetNameCount() const = 0;
 	virtual void ReadNames(TFunctionRef<void(const FNetProfilerName*, uint64)> Callback) const = 0;

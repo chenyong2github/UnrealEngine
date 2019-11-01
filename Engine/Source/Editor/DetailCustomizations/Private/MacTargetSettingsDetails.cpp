@@ -259,7 +259,7 @@ void FMacTargetSettingsDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBu
 		]
 	];
 
-	AudioPluginWidgetManager.BuildAudioCategory(DetailBuilder, EAudioPlatform::Mac);
+	AudioPluginWidgetManager.BuildAudioCategory(DetailBuilder, FString(TEXT("Mac")));
 }
 
 

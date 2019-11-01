@@ -62,7 +62,7 @@ public:
 	void DecrementMaxDrawIndirectCount() { checkSlow(IsInRenderingThread()); --MaxDrawIndirectArgs; }
 
 	// Resize instance count and draw indirect buffers to ensure it is big enough to hold all draw indirect args.
-	void ResizeBuffers(int32 ReservedInstanceCounts);
+	void ResizeBuffers(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, int32 ReservedInstanceCounts);
 
 	// Generate the draw indirect buffers, and reset all release counts.
 	void UpdateDrawIndirectBuffer(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel);

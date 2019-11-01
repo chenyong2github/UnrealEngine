@@ -551,7 +551,7 @@ void FReimportManager::ValidateAllSourceFileAndReimport(TArray<UObject*> &ToImpo
 				{
 					TArray<FString> SourceFilenames;
 					this->GetNewReimportPath(Asset, SourceFilenames, FileIndex);
-					if (SourceFilenames.Num() == 0)
+					if (SourceFilenames.Num() == 0 || SourceFilenames[0].IsEmpty())
 					{
 						continue;
 					}

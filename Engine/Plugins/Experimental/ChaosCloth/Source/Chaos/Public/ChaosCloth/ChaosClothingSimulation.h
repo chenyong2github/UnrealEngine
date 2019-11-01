@@ -8,11 +8,12 @@
 #include "Chaos/PBDEvolution.h"
 #include "Chaos/Transform.h"
 #include "Chaos/TriangleMesh.h"
+#include "ChaosCloth/ChaosClothConfig.h"
 #include "Components/SkeletalMeshComponent.h"
 
 namespace Chaos
 {
-	class ClothingSimulationContext : public IClothingSimulationContext
+	class ClothingSimulationContext : public IClothingSimulationContext  // TODO(Kriss.Gossart): Check whether this should inherit from FClothingSimulationContextBase
 	{
 	public:
 		ClothingSimulationContext() {}
@@ -24,8 +25,7 @@ namespace Chaos
 		FTransform ComponentToWorld;
 	};
 
-	class ClothingSimulation
-		: public IClothingSimulation
+	class ClothingSimulation : public IClothingSimulation
 #if WITH_EDITOR
 		, public FGCObject  // Add garbage collection for debug cloth material
 #endif  // #if WITH_EDITOR
@@ -36,7 +36,7 @@ namespace Chaos
 
 #if WITH_EDITOR
 		// FGCObject interface
-		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+		void AddReferencedObjects(FReferenceCollector& Collector) override;
 		// End of FGCObject interface
 
 		CHAOSCLOTH_API void DebugDrawPhysMeshWired(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
@@ -53,38 +53,60 @@ namespace Chaos
 #endif  // #if WITH_EDITOR
 
 	protected:
-		void Initialize();
-		void CreateActor(USkeletalMeshComponent* InOwnerComponent, UClothingAssetBase* InAsset, int32 SimDataIndex);
-		IClothingSimulationContext* CreateContext() { return new ClothingSimulationContext(); }
-		void FillContext(USkeletalMeshComponent* InComponent, float InDeltaTime, IClothingSimulationContext* InOutContext);
-		void Shutdown() {}
-		bool ShouldSimulate() const { return true; }
-		void Simulate(IClothingSimulationContext* InContext);
-		void DestroyActors() {}
-		void DestroyContext(IClothingSimulationContext* InContext) { delete InContext; }
-		void GetSimulationData(TMap<int32, FClothSimulData>& OutData, USkeletalMeshComponent* InOwnerComponent, USkinnedMeshComponent* InOverrideComponent) const;
+		// IClothingSimulation interface
+		void Initialize() override;
+		void CreateActor(USkeletalMeshComponent* InOwnerComponent, UClothingAssetBase* InAsset, int32 SimDataIndex) override;
+		void PostActorCreationInitialize() override;
+		IClothingSimulationContext* CreateContext() override { return new ClothingSimulationContext(); }
+		void FillContext(USkeletalMeshComponent* InComponent, float InDeltaTime, IClothingSimulationContext* InOutContext) override;
+		void Shutdown() override;
+		bool ShouldSimulate() const override { return true; }
+		void Simulate(IClothingSimulationContext* InContext) override;
+		void DestroyActors() override;
+		void DestroyContext(IClothingSimulationContext* InContext) override { delete InContext; }
+		void GetSimulationData(TMap<int32, FClothSimulData>& OutData, USkeletalMeshComponent* InOwnerComponent, USkinnedMeshComponent* InOverrideComponent) const override;
 
-		FBoxSphereBounds GetBounds(const USkeletalMeshComponent* InOwnerComponent) const
+		FBoxSphereBounds GetBounds(const USkeletalMeshComponent* InOwnerComponent) const override
 		{ return FBoxSphereBounds(Evolution->Particles().X().GetData(), Evolution->Particles().Size()); }
 
-		void AddExternalCollisions(const FClothCollisionData& InData);
-		void ClearExternalCollisions();
-		void GetCollisions(FClothCollisionData& OutCollisions, bool bIncludeExternal = true) const;
+		void AddExternalCollisions(const FClothCollisionData& InData) override;
+		void ClearExternalCollisions() override;
+		void GetCollisions(FClothCollisionData& OutCollisions, bool bIncludeExternal = true) const override;
+		// End of IClothingSimulation interface
 
 	private:
-		// UE Collision Data (Needed only for GetCollisions)
-		TArray<Pair<uint32, FClothCollisionPrim_Sphere>> IndexAndSphereCollisionMap;
-		TArray<Pair<uint32, FClothCollisionPrim_SphereConnection>> IndexAndCapsuleCollisionMap;
-		TArray<Pair<uint32, FClothCollisionPrim_Convex>> IndexAndConvexCollisionMap;
-		// Animation Data
+		// Extract the collisions from the physics asset referenced by the specified clothing asset
+		void ExtractPhysicsAssetCollisions(UClothingAssetCommon* Asset);
+		// Extract the collisions from the specified clothing asset 
+		void ExtractLegacyAssetCollisions(UClothingAssetCommon* Asset, const USkeletalMeshComponent* InOwnerComponent);
+		// Add collisions from a ClothCollisionData structure
+		void AddCollisions(const FClothCollisionData& ClothCollisionData, const TArray<int32>& UsedBoneIndices);
+		// Update the collision transforms using the specified context
+		void UpdateCollisionTransforms(const ClothingSimulationContext& Context);
+		// Return the correct bone index based on the asset used bone index array
+		FORCEINLINE int32 GetMappedBoneIndex(const TArray<int32>& UsedBoneIndices, int32 BoneIndex)
+		{
+			return UsedBoneIndices.IsValidIndex(BoneIndex) ? UsedBoneIndices[BoneIndex] : INDEX_NONE;
+		}
+
+	private:
+		// Assets
 		TArray<UClothingAssetCommon*> Assets;
-		TArray<Chaos::TRigidTransform<float, 3>> OldAnimationTransforms;
-		TArray<Chaos::TRigidTransform<float, 3>> AnimationTransforms;
+		UChaosClothSharedSimConfig* ClothSharedSimConfig;
+
+		// Collision Data
+		FClothCollisionData ExtractedCollisions;  // Collisions extracted from the referenced physics asset
+		FClothCollisionData ExternalCollisions;  // External collisions
+		TArray<Chaos::TRigidTransform<float, 3>> OldCollisionTransforms;  // Used for the kinematic collision transform update
+		TArray<Chaos::TRigidTransform<float, 3>> CollisionTransforms;  // Used for the kinematic collision transform update
+		Chaos::TArrayCollectionArray<int32> BoneIndices;
+		Chaos::TArrayCollectionArray<Chaos::TRigidTransform<float, 3>> BaseTransforms;
+
+		// Animation Data
 		TArray<Chaos::TVector<float, 3>> OldAnimationPositions;
 		TArray<Chaos::TVector<float, 3>> AnimationPositions;
 		TArray<Chaos::TVector<float, 3>> AnimationNormals;
-		Chaos::TArrayCollectionArray<int32> BoneIndices;
-		Chaos::TArrayCollectionArray<Chaos::TRigidTransform<float, 3>> BaseTransforms;
+
 		// Sim Data
 		TArray<Chaos::TVector<uint32, 2>> IndexToRangeMap;
 
@@ -93,36 +115,16 @@ namespace Chaos
 		mutable TArray<TArray<Chaos::TVector<float, 3>>> PointNormals;
 
 		TUniquePtr<Chaos::TPBDEvolution<float, 3>> Evolution;
+
+		uint32 ExternalCollisionsOffset;  // External collisions first particle index
+
 		float Time;
 		float DeltaTime;
 		float MaxDeltaTime;
 		float ClampDeltaTime;
-		// Parameters that should be set in the ui
-		int32 NumIterations;
 
-		EClothMassMode MassMode;
-		float UniformMass;
-		float TotalMass;
-		float Density;
-		float MinMass;
-
-		float EdgeStiffness;
-		float BendingStiffness;
-		float AreaStiffness;
-		float VolumeStiffness;
-		float StrainLimitingStiffness;
-		float ShapeTargetStiffness;
-		float SelfCollisionThickness;
-		float CollisionThickness;
-		float CoefficientOfFriction;
-		float Damping;
-		float GravityMagnitude;
-		bool bUseBendingElements;
-		bool bUseTetrahedralConstraints;
-		bool bUseThinShellVolumeConstraints;
-		bool bUseSelfCollisions;
-		bool bUseContinuousCollisionDetection;
 #if WITH_EDITOR
+		// Visualization material
 		UMaterial* DebugClothMaterial;
 #endif  // #if WITH_EDITOR
 	};

@@ -122,7 +122,7 @@ namespace Gauntlet
 		protected DateTime TimeOfFirstMissingProcess;
 
 		protected int TimeToWaitForProcesses { get; set; }
-
+		
 		protected DateTime LastHeartbeatTime = DateTime.MinValue;
 		protected DateTime LastActiveHeartbeatTime = DateTime.MinValue;
 
@@ -850,6 +850,7 @@ namespace Gauntlet
 		private void CheckHeartbeat()
 		{
 			if (CachedConfig == null 
+				|| CachedConfig.DisableHeartbeatTimeout
 				|| CachedConfig.HeartbeatOptions.bExpectHeartbeats == false
 				|| GetTestStatus() != TestStatus.InProgress)
 			{

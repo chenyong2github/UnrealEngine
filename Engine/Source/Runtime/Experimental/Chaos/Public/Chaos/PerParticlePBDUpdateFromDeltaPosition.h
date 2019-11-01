@@ -33,6 +33,12 @@ class TPerParticlePBDUpdateFromDeltaPosition : public TPerParticleRule<T, d>
 		InParticles.W(Index) = TRotation<T, d>::CalculateAngularVelocity(InParticles.R(Index), InParticles.Q(Index), Dt);
 	}
 
+	inline void Apply(TPBDRigidParticleHandle<T, d>* Particle, const T Dt) const override //-V762
+	{
+		Particle->V() = (Particle->P() - Particle->X()) / Dt;
+		Particle->W() = TRotation<T, d>::CalculateAngularVelocity(Particle->R(), Particle->Q(), Dt);
+	}
+
 	inline void Apply(TTransientPBDRigidParticleHandle<T, d>& Particle, const T Dt) const override //-V762
 	{
 		Particle.V() = (Particle.P() - Particle.X()) / Dt;

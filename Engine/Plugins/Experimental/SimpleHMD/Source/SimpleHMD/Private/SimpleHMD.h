@@ -42,7 +42,7 @@ public:
 	virtual FQuat GetBaseOrientation() const override;
 
 	virtual class IHeadMountedDisplay* GetHMDDevice() override
-	{ 
+	{
 		return this;
 	}
 
@@ -50,6 +50,7 @@ public:
 	{
 		return SharedThis(this);
 	}
+
 protected:
 	/** FXRTrackingSystemBase protected interface */
 	virtual float GetWorldToMetersScale() const override;

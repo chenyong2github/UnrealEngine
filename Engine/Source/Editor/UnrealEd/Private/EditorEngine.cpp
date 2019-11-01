@@ -897,7 +897,6 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 	FCoreUObjectDelegates::OnAssetLoaded.AddUObject(this, &UEditorEngine::OnAssetLoaded);
 	FWorldDelegates::LevelAddedToWorld.AddUObject(this, &UEditorEngine::OnLevelAddedToWorld);
 	FWorldDelegates::LevelRemovedFromWorld.AddUObject(this, &UEditorEngine::OnLevelRemovedFromWorld);
-	FLevelStreamingGCHelper::OnGCStreamedOutLevels.AddUObject(this, &UEditorEngine::OnGCStreamedOutLevels);
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 	AssetRegistryModule.Get().OnInMemoryAssetCreated().AddUObject(this, &UEditorEngine::OnAssetCreated);
@@ -1228,7 +1227,6 @@ void UEditorEngine::FinishDestroy()
 		FCoreUObjectDelegates::OnAssetLoaded.RemoveAll(this);
 		FWorldDelegates::LevelAddedToWorld.RemoveAll(this);
 		FWorldDelegates::LevelRemovedFromWorld.RemoveAll(this);
-		FLevelStreamingGCHelper::OnGCStreamedOutLevels.RemoveAll(this);
 		GetMutableDefault<UEditorStyleSettings>()->OnSettingChanged().RemoveAll(this);
 
 		FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>("AssetRegistry");
@@ -4481,8 +4479,11 @@ FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase
 				CleanupPhysicsSceneThatWasInitializedForSave(World, bForceInitializedWorld);
 			}
 
-			// Rerunning construction scripts may have made it dirty again
-			InOuter->SetDirtyFlag(false);
+			if (Result == ESavePackageResult::Success) // Package saved successfully?
+			{
+				// Rerunning construction scripts may have made it dirty again
+				InOuter->SetDirtyFlag(false);
+			}
 		}
 	}
 
@@ -6663,30 +6664,19 @@ void UEditorEngine::OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld)
 			}
 		}
 	}
-	else
+	// UEngine::LoadMap broadcast this event with InLevel==NULL, before cleaning up the world during travel in Multiplayer
+	else if (InWorld->IsPlayInEditor() && Trans)
 	{
-		// UEngine::LoadMap broadcast this event with InLevel==NULL, before cleaning up the world
-		if (InWorld->IsPlayInEditor())
-		{
-			// Each additional instance of PIE in a multiplayer game will add another barrier, so if the event is triggered then this is the case and we need to lift it
-			// Otherwise there will be an imbalance between barriers set and barriers removed and we won't be able to undo when we return.
-			if (Trans)
-			{
-				Trans->RemoveUndoBarrier();
-			}
-		}
-		else
-		{	
-			// If we're in editor mode, reset transactions buffer, to ensure that there are no references to a world which is about to be destroyed
-			ResetTransaction(NSLOCTEXT("UnrealEd", "LoadMapTransReset", "Loading a New Map"));
-		}
+		// Each additional instance of PIE in a multiplayer game will add another barrier, so if the event is triggered then this is the case and we need to lift it
+		// Otherwise there will be an imbalance between barriers set and barriers removed and we won't be able to undo when we return.
+		Trans->RemoveUndoBarrier();
 	}
-}
 
-void UEditorEngine::OnGCStreamedOutLevels()
-{
-	// Reset transaction buffer because it may hold references to streamed out levels
-	ResetTransaction( NSLOCTEXT("UnrealEd", "GCStreamedOutLevelsTransReset", "GC Streaming Levels") );
+	if (!InWorld->IsPlayInEditor())
+	{
+		// If we're in editor mode, reset transactions buffer, to ensure that there are no references to a world which is about to be destroyed
+		ResetTransaction(NSLOCTEXT("UnrealEd", "LevelRemovedFromWorldEditorCallback", "Level removed from world"));
+	}
 }
 
 void UEditorEngine::UpdateRecentlyLoadedProjectFiles()

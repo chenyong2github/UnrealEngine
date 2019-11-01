@@ -101,10 +101,24 @@ TArray<IAssetEditorInstance*> UAssetEditorSubsystem::FindEditorsForAsset(UObject
 	return AssetEditors;
 }
 
+TArray<IAssetEditorInstance*> UAssetEditorSubsystem::FindEditorsForAssetAndSubObjects(UObject* Asset)
+{
+	TArray<IAssetEditorInstance*> EditorInstances;
+
+	for (const TPair<UObject*, IAssetEditorInstance*>& Pair : OpenedAssets)
+	{
+		if (Pair.Key == Asset || Pair.Key->IsIn(Asset))
+		{		
+			EditorInstances.Add(Pair.Value);
+		}
+	}
+
+	return EditorInstances;
+}
 
 int32 UAssetEditorSubsystem::CloseAllEditorsForAsset(UObject* Asset)
 {
-	TArray<IAssetEditorInstance*> EditorInstances = FindEditorsForAsset(Asset);
+	TArray<IAssetEditorInstance*> EditorInstances = FindEditorsForAssetAndSubObjects(Asset);
 
 	for (IAssetEditorInstance* EditorInstance : EditorInstances)
 	{

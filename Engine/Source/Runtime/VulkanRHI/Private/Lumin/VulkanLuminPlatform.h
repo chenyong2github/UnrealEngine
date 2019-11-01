@@ -12,6 +12,7 @@
 #define VULKAN_SUPPORTS_NV_DIAGNOSTIC_CHECKPOINT	0
 #define VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2	0
 #define VULKAN_SUPPORTS_DEDICATED_ALLOCATION		0
+#define VULKAN_SUPPORTS_GPU_CRASH_DUMPS				1
 
 
 #define ENUM_VK_ENTRYPOINTS_PLATFORM_BASE(EnumMacro)
@@ -62,6 +63,8 @@ public:
 	static void EnablePhysicalDeviceFeatureExtensions(VkDeviceCreateInfo& DeviceInfo);
 
 	static bool RequiresWaitingForFrameCompletionEvent() { return false; }
+
+	static VkBool32 DebugReportFunction(VkDebugReportFlagsEXT MsgFlags, VkDebugReportObjectTypeEXT ObjType, uint64_t SrcObject, size_t Location, int32 MsgCode, const ANSICHAR* LayerPrefix, const ANSICHAR* Msg, void* UserData);
 
 protected:
 	static void* VulkanLib;

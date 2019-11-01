@@ -47,6 +47,8 @@ static int32 GD3DCheckForDoubles = 1;
 static int32 GD3DCheckForTypedUAVs = 1;
 static int32 GD3DDumpAMDCodeXLFile = 0;
 
+static const uint32 GD3DMaximumNumUAVs = 8; // Limit for feature level 11.0
+
 /**
  * TranslateCompilerFlag - translates the platform-independent compiler flags into D3DX defines
  * @param CompilerFlag - the platform-independent compiler flag to translate
@@ -959,6 +961,40 @@ static void ParseRayTracingEntryPoint(const FString& Input, FString& OutMain, FS
 	}
 }
 
+static bool DumpDebugShaderUSF(FString& PreprocessedShaderSource, const FShaderCompilerInput& Input)
+{
+	bool bDumpDebugInfo = false;
+
+	// Write out the preprocessed file and a batch file to compile it if requested (DumpDebugInfoPath is valid)
+	if (Input.DumpDebugInfoPath.Len() > 0 && IFileManager::Get().DirectoryExists(*Input.DumpDebugInfoPath))
+	{
+		bDumpDebugInfo = true;
+		FString Filename = Input.GetSourceFilename();
+		FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*(Input.DumpDebugInfoPath / Filename));
+		if (FileWriter)
+		{
+			auto AnsiSourceFile = StringCast<ANSICHAR>(*PreprocessedShaderSource);
+			FileWriter->Serialize((ANSICHAR*)AnsiSourceFile.Get(), AnsiSourceFile.Length());
+			{
+				FString Line = CrossCompiler::CreateResourceTableFromEnvironment(Input.Environment);
+
+				Line += TEXT("#if 0 /*DIRECT COMPILE*/\n");
+				Line += CreateShaderCompilerWorkerDirectCommandLine(Input);
+				Line += TEXT("\n#endif /*DIRECT COMPILE*/\n");
+				Line += TEXT("//");
+				Line += Input.DebugDescription;
+				Line += TEXT("\n");
+				FileWriter->Serialize(TCHAR_TO_ANSI(*Line), Line.Len());
+			}
+			FileWriter->Close();
+			delete FileWriter;
+		}
+	}
+
+	return bDumpDebugInfo;
+}
+
+
 // Generate the dumped usf file; call the D3D compiler, gather reflection information and generate the output data
 static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const FString& CompilerPath,
 	uint32 CompileFlags, const FShaderCompilerInput& Input, FString& EntryPointName,
@@ -998,33 +1034,12 @@ static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const 
 		}
 	}
 
-	bool bDumpDebugInfo = false;
 	// Write out the preprocessed file and a batch file to compile it if requested (DumpDebugInfoPath is valid)
-	if (Input.DumpDebugInfoPath.Len() > 0 && IFileManager::Get().DirectoryExists(*Input.DumpDebugInfoPath))
+	bool bDumpDebugInfo = DumpDebugShaderUSF(PreprocessedShaderSource, Input);
+	if (bDumpDebugInfo)
 	{
-		bDumpDebugInfo = true;
-		FString Filename = Input.GetSourceFilename();
-		FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*(Input.DumpDebugInfoPath / Filename));
-		if (FileWriter)
-		{
-			FileWriter->Serialize((ANSICHAR*)AnsiSourceFile.Get(), AnsiSourceFile.Length());
-			{
-				FString Line = CrossCompiler::CreateResourceTableFromEnvironment(Input.Environment);
-
-				Line += TEXT("#if 0 /*DIRECT COMPILE*/\n");
-				Line += CreateShaderCompilerWorkerDirectCommandLine(Input);
-				Line += TEXT("\n#endif /*DIRECT COMPILE*/\n");
-				Line += TEXT("//");
-				Line += Input.DebugDescription;
-				Line += TEXT("\n");
-				FileWriter->Serialize(TCHAR_TO_ANSI(*Line), Line.Len());
-			}
-			FileWriter->Close();
-			delete FileWriter;
-		}
-
 		FString BatchFileContents;
-
+		FString Filename = Input.GetSourceFilename();
 		if (bUseDXC)
 		{
 			BatchFileContents = D3DCreateDXCCompileBatchFile(Filename, *EntryPointName, *RayTracingExports, ShaderProfile, CompileFlags, Output, AutoBindingSpace);
@@ -1584,6 +1599,12 @@ static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const 
 			//			uncommenting this will cause the project to have non deterministic materials and will hurt patch sizes
 			//Output.ShaderCode.AddOptionalData('n', TCHAR_TO_UTF8(*Input.GenerateShaderName()));
 
+			// Check for resource limits for feature level 11.0
+			if (NumUAVs > GD3DMaximumNumUAVs)
+			{
+				UE_LOG(LogD3D11ShaderCompiler, Fatal, TEXT("Number of UAVs in \"%s\" exceeded limit: %d slots used, but limit is %d due to maximum feature level 11.0"), *Input.VirtualSourceFilePath, NumUAVs, GD3DMaximumNumUAVs);
+			}
+
 			// Set the number of instructions.
 			Output.NumInstructions = NumInstructions;
 
@@ -1707,6 +1728,7 @@ void CompileD3DShader(const FShaderCompilerInput& Input,FShaderCompilerOutput& O
 		TArray<FString> Errors;
 		if (!RemoveUnusedOutputs(PreprocessedShaderSource, UsedOutputs, Exceptions, EntryPointName, Errors))
 		{
+			DumpDebugShaderUSF(PreprocessedShaderSource, Input);
 			UE_LOG(LogD3D11ShaderCompiler, Warning, TEXT("Failed to Remove unused outputs [%s]!"), *Input.DumpDebugInfoPath);
 			for (int32 Index = 0; Index < Errors.Num(); ++Index)
 			{
@@ -1720,7 +1742,7 @@ void CompileD3DShader(const FShaderCompilerInput& Input,FShaderCompilerOutput& O
 
 	if (Input.RootParameterBindings.Num())
 	{
-		MoveShaderParametersToRootConstantBuffer(Input, PreprocessedShaderSource);
+		MoveShaderParametersToRootConstantBuffer(Input, PreprocessedShaderSource, TEXT("cbuffer"));
 	}
 	RemoveUniformBuffersFromSource(Input.Environment, PreprocessedShaderSource);
 

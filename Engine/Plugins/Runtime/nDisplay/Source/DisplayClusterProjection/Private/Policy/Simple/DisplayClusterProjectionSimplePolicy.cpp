@@ -11,7 +11,7 @@
 #include "Config/IDisplayClusterConfigManager.h"
 #include "Game/IDisplayClusterGameManager.h"
 
-#include "DisplayClusterPawn.h"
+#include "DisplayClusterRootComponent.h"
 #include "DisplayClusterScreenComponent.h"
 
 
@@ -170,19 +170,7 @@ bool FDisplayClusterProjectionSimplePolicy::GetProjectionMatrix(const uint32 Vie
 	const float b = FVector::DotProduct(vu, va) * ndifd; // distance to bottom screen edge
 	const float t = FVector::DotProduct(vu, vc) * ndifd; // distance to top screen edge
 
-	// Normal LHS
-	const FMatrix pm = DisplayClusterHelpers::math::GetSafeProjectionMatrix(l, r, t, b, n, f);
-
-	// Invert Z-axis (UE4 uses Z-inverted LHS)
-	const FMatrix flipZ = FMatrix(
-		FPlane(1, 0, 0, 0),
-		FPlane(0, 1, 0, 0),
-		FPlane(0, 0, -1, 0),
-		FPlane(0, 0, 1, 1));
-
-	const FMatrix result(pm * flipZ);
-
-	OutPrjMatrix = result;
+	OutPrjMatrix = DisplayClusterHelpers::math::GetProjectionMatrixFromOffsets(l, r, t, b, n, f);
 
 	return true;
 }
@@ -203,9 +191,9 @@ void FDisplayClusterProjectionSimplePolicy::InitializeMeshData()
 		return;
 	}
 
-	// Get our pawn
-	APawn* Pawn = GameMgr->GetRoot();
-	if (!Pawn)
+	// Get our VR root
+	UDisplayClusterRootComponent* Root = GameMgr->GetRoot();
+	if (!Root)
 	{
 		UE_LOG(LogDisplayClusterProjectionSimple, Error, TEXT("Couldn't get a VR root object"));
 		return;
@@ -215,7 +203,7 @@ void FDisplayClusterProjectionSimplePolicy::InitializeMeshData()
 	USceneComponent* ParentComp = nullptr;
 	if (CfgScreen.ParentId.IsEmpty())
 	{
-		ParentComp = Pawn->GetRootComponent();
+		ParentComp = Root;
 	}
 	else
 	{
@@ -229,7 +217,7 @@ void FDisplayClusterProjectionSimplePolicy::InitializeMeshData()
 	}
 
 	// Finally, create the component
-	ScreenComp = NewObject<UDisplayClusterScreenComponent>(Pawn, FName(*CfgScreen.Id), RF_Transient);
+	ScreenComp = NewObject<UDisplayClusterScreenComponent>(Root->GetOwner(), FName(*CfgScreen.Id), RF_Transient);
 	check(ScreenComp);
 
 	// Initialize it

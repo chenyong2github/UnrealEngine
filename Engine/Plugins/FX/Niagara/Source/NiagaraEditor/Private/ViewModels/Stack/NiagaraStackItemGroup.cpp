@@ -5,7 +5,6 @@
 #include "ViewModels/Stack/NiagaraStackErrorItem.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "NiagaraStackEditorData.h"
-#include "ViewModels/Stack/NiagaraStackSpacer.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
@@ -18,6 +17,7 @@ void UNiagaraStackItemGroup::Initialize(FRequiredEntryData InRequiredEntryData, 
 	GroupDisplayName = InDisplayName;
 	GroupToolTip = InToolTip;
 	AddUtilities = InAddUtilities;
+	GroupFooter = nullptr;
 }
 
 FText UNiagaraStackItemGroup::GetDisplayName() const
@@ -81,6 +81,14 @@ void UNiagaraStackItemGroup::SetDisplayName(FText InDisplayName)
 
 void UNiagaraStackItemGroup::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
+	if (GroupFooter == nullptr)
+	{
+		GroupFooter = NewObject<UNiagaraStackItemGroupFooter>(this);
+		GroupFooter->Initialize(FRequiredEntryData(GetSystemViewModel(), GetEmitterViewModel(), NAME_None, NAME_None, GetStackEditorData()));
+	}
+
+	NewChildren.Add(GroupFooter);
+
 	RecursiveStackIssuesCount.Reset();
 	HighestIssueSeverity.Reset();
 
@@ -108,4 +116,19 @@ void UNiagaraStackItemGroup::ChlildStructureChangedInternal()
 	Super::ChlildStructureChangedInternal();
 	RecursiveStackIssuesCount.Reset();
 	HighestIssueSeverity.Reset();
+}
+
+void UNiagaraStackItemGroupFooter::Initialize(FRequiredEntryData InRequiredEntryData)
+{
+	Super::Initialize(InRequiredEntryData, FString());
+}
+
+UNiagaraStackEntry::EStackRowStyle UNiagaraStackItemGroupFooter::GetStackRowStyle() const
+{
+	return UNiagaraStackEntry::EStackRowStyle::GroupFooter;
+}
+
+bool UNiagaraStackItemGroupFooter::GetCanExpand() const
+{
+	return false;
 }

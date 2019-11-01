@@ -495,7 +495,7 @@ void SUsdStageTreeView::SetupColumns()
 	AddColumn( TEXT("Payload"), LOCTEXT( "Payload", "Payload" ), MakeShared< FUsdStagePayloadColumn >(), PayloadColumnArguments );
 }
 
-TSharedPtr< SWidget > SUsdStageTreeView::ConstructPrimContextMenu() const
+TSharedPtr< SWidget > SUsdStageTreeView::ConstructPrimContextMenu()
 {
 	TSharedRef< SWidget > MenuWidget = SNullWidget::NullWidget;
 

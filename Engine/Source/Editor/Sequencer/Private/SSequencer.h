@@ -34,6 +34,7 @@ class SSequencerStretchBox;
 class SSequencerTreeView;
 class SCurveEditorPanel;
 class SDockTab;
+class SWindow;
 class USequencerSettings;
 class FSequencerTrackFilter;
 struct FPaintPlaybackRangeArgs;
@@ -395,7 +396,7 @@ private:
 	/** Makes the key group menu for the toolbar. */
 	TSharedRef<SWidget> MakeKeyGroupMenu();
 
-	void PopulateExposeBindingsMenu(FMenuBuilder& InMenuBuilder);
+	void OpenTaggedBindingManager();
 
 	/** Makes the playback speed menu for the toolbar. */
 	void FillPlaybackSpeedMenu(FMenuBuilder& InMenuBuilder);
@@ -700,6 +701,8 @@ private:
 
 	/** All possible track filter objects */
 	TArray< TSharedRef<FSequencerTrackFilter> > AllTrackFilters;
+
+	TWeakPtr<SWindow> WeakExposedBindingsWindow;
 
 public:
 	static const FName CurveEditorTabName;

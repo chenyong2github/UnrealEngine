@@ -12,11 +12,13 @@
 #include "Misc/Guid.h"
 #include "Async/AsyncWork.h"
 #include "Sound/SoundBase.h"
+#include "Sound/SoundClass.h"
 #include "Serialization/BulkData.h"
 #include "Sound/SoundGroups.h"
 #include "AudioMixerTypes.h"
 #include "AudioCompressionSettings.h"
 #include "PerPlatformProperties.h"
+#include "ContentStreaming.h"
 #include "SoundWave.generated.h"
 
 class ITargetPlatform;
@@ -308,7 +310,7 @@ class ENGINE_API USoundWave : public USoundBase
 	UPROPERTY(EditAnywhere, Category=Sound, AssetRegistrySearchable)
 	uint8 bLooping:1;
 
-	/** Whether this sound can be streamed to avoid increased memory usage */
+	/** Whether this sound can be streamed to avoid increased memory usage. If using Stream Caching, use Loading Behavior instead to control memory usage. */
 	UPROPERTY(EditAnywhere, Category="Playback|Streaming", meta = (DisplayName = "Force Streaming"))
 	uint8 bStreaming:1;
 
@@ -316,15 +318,11 @@ class ENGINE_API USoundWave : public USoundBase
 	UPROPERTY(EditAnywhere, Category = "Playback|Streaming", meta = (DisplayName = "Seekable", EditCondition = "bStreaming"))
 	uint8 bSeekableStreaming:1;
 
-	/** If Load On Demand or Auto-Streaming is enabled, use this to force the entire compressed audio file to be loaded when this USoundWave is loaded. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Loading", meta = (DisplayName = "Ensure Sound is Always Loaded (Inlined)"))
-	uint8 bForceInline : 1;
+	/** If stream caching is enabled, this can be used to specify how and when compressed audio data is loaded for this asset. */
+	UPROPERTY(EditAnywhere, Category = "Loading", meta = (DisplayName = "Loading Behavior Override"))
+	ESoundWaveLoadingBehavior LoadingBehavior;
 
-	/** If Load On Demand or Auto-Streaming is enabled, This will immediately kick off a load for this sound once postload is complete. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Loading", meta = (DisplayName = "Load Compressed Audio When This Sound Wave Is Loaded"))
-	uint8 bLoadCompressedAudioWhenSoundWaveIsLoaded : 1;
-
-	/** Set to true for programmatically-generated, streamed audio. */
+	/** Set to true for programmatically generated audio. */
 	uint8 bProcedural:1;
 
 	/** Set to true of this is a bus sound source. This will result in the sound wave not generating audio for itself, but generate audio through instances. Used only in audio mixer. */
@@ -360,15 +358,20 @@ class ENGINE_API USoundWave : public USoundBase
 	/** Whether this SoundWave was decompressed from OGG. */
 	uint8 bDecompressedFromOgg : 1;
 
+#if WITH_EDITOR
+	/** The current revision of our compressed audio data. Used to tell when a chunk in the cache is stale. */
+	FThreadSafeCounter CurrentChunkRevision;
+#endif
+
 private:
 
-#if !WITH_EDITOR
 	// This is set to false on initialization, then set to true on non-editor platforms when we cache appropriate sample rate.
 	uint8 bCachedSampleRateFromPlatformSettings:1;
 
 	// This is set when SetSampleRate is called to invalidate our cached sample rate while not re-parsing project settings.
 	uint8 bSampleRateManuallyReset:1;
-#else
+
+#if WITH_EDITOR
 	// Whether this was previously cooked with stream caching enabled.
 	uint8 bWasStreamCachingEnabledOnLastCook:1;
 #endif // !WITH_EDITOR
@@ -449,6 +452,25 @@ public:
 	bool GetInterpolatedCookedFFTDataForTime(float InTime, uint32& InOutLastIndex, TArray<FSoundWaveSpectralData>& OutData, bool bLoop);
 	bool GetInterpolatedCookedEnvelopeDataForTime(float InTime, uint32& InOutLastIndex, float& OutAmplitude, bool bLoop);
 
+	/** If stream caching is enabled, allows the user to retain a strong handle to the first chunk of audio in the cache. 
+	 *  Please note that this USoundWave is NOT guaranteed to be still alive when OnLoadCompleted is called.
+	 */
+	void GetHandleForChunkOfAudio(TFunction<void(FAudioChunkHandle)> OnLoadCompleted, bool bForceSync = false, int32 ChunkIndex = 1, ENamedThreads::Type CallbackThread = ENamedThreads::GameThread);
+
+	/** If stream caching is enabled, set this sound wave to retain a strong handle to its first chunk. 
+	 *  If not called on the game thread, bForceSync must be true.
+	*/
+	void RetainCompressedAudio(bool bForceSync = false);
+
+	/** If stream caching is enabled and au.streamcache.KeepFirstChunkInMemory is 1, this will release this USoundWave's first chunk, allowing it to be deleted. */
+	void ReleaseCompressedAudio();
+
+	/** Returns the loading behavior we should use for this sound wave.
+	 *  If this is called within Serialize(), this should be called with bCheckSoundClasses = false,
+	 *  Since there is no guarantee that the deserialized USoundClasses have been resolved yet.
+	 */
+	ESoundWaveLoadingBehavior GetLoadingBehavior(bool bCheckSoundClasses = true) const;
+
 	/** Use this to override how much audio data is loaded when this USoundWave is loaded. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Loading")
 	int32 InitialChunkSize;
@@ -465,10 +487,13 @@ private:
 	/** the number of sounds currently playing this sound wave. */
 	FThreadSafeCounter NumSourcesPlaying;
 
-#if !WITH_EDITOR
-	// This is the sample rate gotten from platform settings.
+	// This is the sample rate retrieved from platform settings.
 	float CachedSampleRateOverride;
-#endif // !WITH_EDITOR
+
+	// We cache a soundwave's loading behavior on the first call to USoundWave::GetLoadingBehaviorForWave(true);
+	// Caches resolved loading behavior from the SoundClass graph. Must be called on the game thread.
+	void CacheInheritedLoadingBehavior();
+	ESoundWaveLoadingBehavior CachedSoundWaveLoadingBehavior;
 
 public:
 
@@ -554,6 +579,9 @@ protected:
 	/** Hold a reference to our internal curve so we can switch back to it if we want to */
 	UPROPERTY()
 	class UCurveTable* InternalCurves;
+
+	/** Potential strong handle to the first chunk of audio data. Can be released via ReleaseCompressedAudioData. */
+	FAudioChunkHandle FirstChunk;
 
 private:
 
@@ -799,7 +827,7 @@ public:
 	 * Change the guid and flush all compressed data
 	 * @param bFreeResources if true, will delete any precached compressed data as well.
 	 */
-	void InvalidateCompressedData(bool bFreeResources = false);
+	void InvalidateCompressedData(bool bFreeResources = false, bool bRebuildStreamingChunks = true);
 
 	/** Returns curves associated with this sound wave */
 	virtual class UCurveTable* GetCurveData() const override { return Curves; }

@@ -237,6 +237,17 @@ inline TShaderMap<FGlobalShaderType>* GetGlobalShaderMap(ERHIFeatureLevel::Type 
  * // Instantiates global shader's global variable that will take care of compilation process of the shader. This needs imperatively to be
  * done in a .cpp file regardless of whether FMyGlobalShaderPS is in a header or not.
  * IMPLEMENT_GLOBAL_SHADER(FMyGlobalShaderPS, "/Engine/Private/MyShaderFile.usf", "MainPS", SF_Pixel);
+ *
+ * When the shader class is a public header, let say in RenderCore module public header, the shader class then should have the RENDERCORE_API
+ * like this:
+ *
+ * class RENDERCORE_API FMyGlobalShaderPS : public FGlobalShader
+ * {
+ *		// Setup the shader's boiler plate.
+ *		DECLARE_GLOBAL_SHADER(FMyGlobalShaderPS);
+ *
+ *		// ...
+ * };
  */
 #define DECLARE_GLOBAL_SHADER(ShaderClass) \
 	public: \

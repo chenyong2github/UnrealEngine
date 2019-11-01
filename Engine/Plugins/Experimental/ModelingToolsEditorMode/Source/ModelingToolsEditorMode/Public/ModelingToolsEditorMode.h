@@ -42,6 +42,7 @@ public:
 
 	virtual bool ProcessEditDelete();
 
+	virtual bool CanAutoSave() const override;
 
 	/*
 	 * focus events

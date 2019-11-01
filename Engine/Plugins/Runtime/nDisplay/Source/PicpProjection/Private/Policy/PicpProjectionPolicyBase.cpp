@@ -8,7 +8,8 @@
 #include "Config/IDisplayClusterConfigManager.h"
 #include "Game/IDisplayClusterGameManager.h"
 
-#include "DisplayClusterPawn.h"
+#include "DisplayClusterRootComponent.h"
+#include "DisplayClusterSceneComponent.h"
 
 
 FPicpProjectionPolicyBase::FPicpProjectionPolicyBase(const FString& InViewportId)
@@ -41,7 +42,7 @@ void FPicpProjectionPolicyBase::InitializeOriginComponent(const FString& OriginC
 	if(PolicyOriginComp == nullptr)
 	{
 		UE_LOG(LogPicpProjectionMPCDI, Log, TEXT("No custom origin set or component '%s' not found for viewport '%s'. VR root will be used."), *OriginCompId, *PolicyViewportId);
-		PolicyOriginComp = GameMgr->GetRoot()->GetRootComponent();
+		PolicyOriginComp = GameMgr->GetRoot();
 	}
 
 	if (!PolicyOriginComp)

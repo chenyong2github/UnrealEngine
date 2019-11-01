@@ -50,14 +50,16 @@ namespace AudioModulation
 {
 	FModulatorLFOProxy::FModulatorLFOProxy()
 		: Offset(0.0f)
-		, Value(0.0f)
+		, Value(1.0f)
 	{
+		LFO.SetFrequency(1.0f);
+		LFO.Start();
 	}
 
 	FModulatorLFOProxy::FModulatorLFOProxy(const USoundBusModulatorLFO& InLFO)
 		: TModulatorProxyRefBase<FLFOId>(InLFO.GetName(), InLFO.GetUniqueID(), InLFO.bAutoActivate)
 		, Offset(InLFO.Offset)
-		, Value(0.0f)
+		, Value(1.0f)
 	{
 		LFO.SetGain(InLFO.Amplitude);
 		LFO.SetFrequency(InLFO.Frequency);

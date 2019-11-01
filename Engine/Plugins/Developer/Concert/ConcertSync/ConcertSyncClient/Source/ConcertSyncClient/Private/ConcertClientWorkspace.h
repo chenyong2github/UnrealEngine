@@ -37,8 +37,8 @@ public:
 	virtual TFuture<FConcertResourceLockResponse> LockResources(TArray<FName> InResourceNames) override;
 	virtual TFuture<FConcertResourceLockResponse> UnlockResources(TArray<FName> InResourceNames) override;
 	virtual bool HasSessionChanges() const override;
-	virtual TArray<FString> GatherSessionChanges() override;
-	virtual bool PersistSessionChanges(TArrayView<const FString> InFilesToPersist, ISourceControlProvider* SourceControlProvider, TArray<FText>* OutFailureReasons = nullptr) override;
+	virtual TArray<FName> GatherSessionChanges(bool IgnorePersisted = true) override;
+	virtual bool PersistSessionChanges(TArrayView<const FName> InPackagesToPersist, ISourceControlProvider* SourceControlProvider, TArray<FText>* OutFailureReasons = nullptr) override;
 	virtual bool HasLiveTransactionSupport(UPackage* InPackage) const override;
 	virtual bool ShouldIgnorePackageDirtyEvent(class UPackage* InPackage) const override;
 	virtual bool FindTransactionEvent(const int64 TransactionEventId, FConcertSyncTransactionEvent& OutTransactionEvent, const bool bMetaDataOnly) const override;
@@ -74,8 +74,15 @@ private:
 	void HandleConnectionChanged(IConcertClientSession& InSession, EConcertConnectionStatus Status);
 
 #if WITH_EDITOR
-	/** */
+	/**
+	 * Save all live transactions to packages.
+	 */
 	void SaveLiveTransactionsToPackages();
+
+	/**
+	 * Save live transactions, if any, to the specified packages, adding a client side dummy package event to the db
+	 */
+	void SaveLiveTransactionsToPackage(const FName PackageName);
 
 	/** */
 	void HandleAssetLoaded(UObject* InAsset);

@@ -109,7 +109,7 @@ void FConcertSyncClient::PersistAllSessionChanges()
 #if WITH_EDITOR
 	if (Workspace)
 	{
-		TArray<FString> SessionChanges = Workspace->GatherSessionChanges();
+		TArray<FName> SessionChanges = Workspace->GatherSessionChanges();
 		Workspace->PersistSessionChanges(SessionChanges, SourceControlProxy.Get());
 	}
 #endif

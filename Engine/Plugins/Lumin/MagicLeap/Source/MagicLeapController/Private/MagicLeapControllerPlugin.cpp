@@ -1,6 +1,7 @@
 #include "IMagicLeapControllerPlugin.h"
 #include "MagicLeapController.h"
 #include "Framework/Application/SlateApplication.h"
+#include "MagicLeapPluginUtil.h"
 
 class FMagicLeapControllerPlugin : public IMagicLeapControllerPlugin
 {
@@ -26,17 +27,6 @@ public:
 		// Unfortunately, the UObject system hasn't finished initialization when this module has been loaded.
 		bool bIsVDZIEnabled = false;
 		GConfig->GetBool(TEXT("/Script/MagicLeap.MagicLeapSettings"), TEXT("bEnableZI"), bIsVDZIEnabled, GEngineIni);
-
-		APISetup.Startup(bIsVDZIEnabled);
-#if WITH_MLSDK
-		APISetup.LoadDLL(TEXT("ml_input"));
-#endif
-	}
-
-	virtual void ShutdownModule() override
-	{
-		APISetup.Shutdown();
-		IMagicLeapControllerPlugin::ShutdownModule();
 	}
 
 	virtual TSharedPtr<class IInputDevice> CreateInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler) override

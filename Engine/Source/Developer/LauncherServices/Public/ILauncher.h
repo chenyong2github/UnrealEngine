@@ -15,6 +15,8 @@ typedef TSharedPtr<class ILauncher> ILauncherPtr;
 /** Type definition for shared references to instances of ILauncher. */
 typedef TSharedRef<class ILauncher> ILauncherRef;
 
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLauncherWorkerStarted, ILauncherWorkerPtr, ILauncherProfileRef);
+
 
 /**
  * Interface for game launchers.
@@ -36,4 +38,6 @@ public:
 
 	/** Virtual destructor. */
 	virtual ~ILauncher( ) { }
+
+	FOnLauncherWorkerStarted FLauncherWorkerStartedDelegate;
 };

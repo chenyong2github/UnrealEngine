@@ -12,6 +12,7 @@
 #include "ProfilingDebugging/DiagnosticTable.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
+#include "Interfaces/IShaderFormat.h"
 #include "ShaderCodeLibrary.h"
 #include "ShaderCore.h"
 #include "RenderUtils.h"
@@ -1011,15 +1012,13 @@ void FShaderResource::InitRHI()
 	{
 		if (GRHISupportsRayTracing)
 		{
-			RayTracingShader = RHICreateRayTracingShader(UncompressedCode, Target.GetFrequency());
+			RayTracingShader = FShaderCodeLibrary::CreateRayTracingShader((EShaderPlatform)Target.Platform, Target.GetFrequency(), OutputHash, UncompressedCode);
 			UE_CLOG((bCodeInSharedLocation && !IsValidRef(RayTracingShader)), LogShaders, Fatal, TEXT("FShaderResource::SerializeShaderCode can't find shader code for: [%s]"), *LegacyShaderPlatformToShaderFormat((EShaderPlatform)Target.Platform).ToString());
 
 			if (Target.Frequency == SF_RayHitGroup)
 			{
 				RayTracingMaterialLibraryIndex = AddToRayTracingLibrary(RayTracingShader);
 			}
-
-			RayTracingShader->SetHash(OutputHash);
 		}
 	}
 #endif // RHI_RAYTRACING
@@ -2291,40 +2290,30 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		{
 			// make it per shader platform ?
 			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.SupportGPUScene"));
-			KeyString += (CVar && CVar->GetInt() != 0) ? TEXT("_MobGPUSc") : TEXT("");
+			bool bMobileGpuScene = (CVar && CVar->GetInt() != 0);
+			KeyString += bMobileGpuScene ? TEXT("_MobGPUSc") : TEXT("");
+			if (bMobileGpuScene)
+			{
+				// Mobile specific verify if we are using texturebuffer or texture2D
+				if (!GPUSceneUseTexture2D(Platform))
+				{
+					KeyString += TEXT("_TexBuf");
+				}
+				else
+				{
+					KeyString += TEXT("_Tex2D");
+				}
+			}
 		}
-		
 	}
 
-	if (Platform == SP_PS4)
+	const FName ShaderFormatName = LegacyShaderPlatformToShaderFormat(Platform);
+	const IShaderFormat* ShaderFormat = GetTargetPlatformManagerRef().FindShaderFormat(ShaderFormatName);
+	if (ShaderFormat)
 	{
-		{
-			static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.PS4MixedModeShaderDebugInfo"));
-			if (CVar && CVar->GetValueOnAnyThread() != 0)
-			{
-				KeyString += TEXT("_MMDBG");
-			}
-		}
-
-		{
-			static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.PS4ShaderSDBMode"));
-			switch (CVar ? CVar->GetValueOnAnyThread() : 0)
-			{
-			case 1: KeyString += TEXT("_SDB1"); break;
-			case 2: KeyString += TEXT("_SDB2"); break;
-			default: break;
-			}
-		}
-
-		{
-			static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.PS4UseTTrace"));
-			if (CVar && CVar->GetValueOnAnyThread() > 0)
-			{
-				KeyString += FString::Printf(TEXT("TT%d"), CVar->GetValueOnAnyThread());
-			}
-		}
+		ShaderFormat->AppendToKeyString(KeyString);
 	}
-	
+
 	// Encode the Metal standard into the shader compile options so that they recompile if the settings change.
 	if (IsMetalPlatform(Platform))
 	{
@@ -2533,5 +2522,15 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 
 		auto tt = FString::Printf(TEXT("_VT-%d-%d-%d-%d"), VTLightmaps, VTTextures, VTFeedbackFactor, VTSupported);
  		KeyString += tt;
+	}
+
+	if (RHISupportsRenderTargetWriteMask(Platform))
+	{
+		KeyString += TEXT("_RTWM");
+	}
+
+	if (IsUsingPerPixelDBufferMask(Platform))
+	{
+		KeyString += TEXT("_PPDBM");
 	}
 }

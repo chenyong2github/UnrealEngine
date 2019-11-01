@@ -170,7 +170,7 @@ class CHAOS_API TBoundingVolumeHierarchy final : public ISpatialAcceleration<int
 	FCriticalSection CriticalSection;
 };
 
-#if PLATFORM_MAC
+#if PLATFORM_MAC || PLATFORM_LINUX
 extern template class CHAOS_API Chaos::TBoundingVolumeHierarchy<Chaos::TParticles<float, 3>, TArray<int32>, float, 3>;
 extern template class CHAOS_API Chaos::TBoundingVolumeHierarchy<Chaos::TGeometryParticles<float, 3>, TArray<int32>, float, 3>;
 #endif

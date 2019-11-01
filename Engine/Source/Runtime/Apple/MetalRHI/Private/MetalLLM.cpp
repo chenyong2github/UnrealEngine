@@ -150,29 +150,30 @@ static mtlpp::SizeAndAlign TextureSizeAndAlign(mtlpp::TextureType TextureType, u
 	SizeAlign.Align = 0;
 	
 	uint32 Align = 0;
+	FRHIResourceCreateInfo CreateInfo;
 	switch (TextureType)
 	{
 		case mtlpp::TextureType::Texture2D:
 		case mtlpp::TextureType::Texture2DMultisample:
-			SizeAlign.Size = RHICalcTexture2DPlatformSize(Width, Height, MetalToRHIPixelFormat(Format), MipCount, SampleCount, 0, Align);
+			SizeAlign.Size = RHICalcTexture2DPlatformSize(Width, Height, MetalToRHIPixelFormat(Format), MipCount, SampleCount, 0, CreateInfo, Align);
 			SizeAlign.Align = Align;
 			break;
 		case mtlpp::TextureType::Texture2DArray:
-			SizeAlign.Size = RHICalcTexture2DPlatformSize(Width, Height, MetalToRHIPixelFormat(Format), MipCount, SampleCount, 0, Align) * ArrayCount;
+			SizeAlign.Size = RHICalcTexture2DPlatformSize(Width, Height, MetalToRHIPixelFormat(Format), MipCount, SampleCount, 0, CreateInfo, Align) * ArrayCount;
 			SizeAlign.Align = Align;
 			break;
 		case mtlpp::TextureType::TextureCube:
-			SizeAlign.Size = RHICalcTextureCubePlatformSize(Width, MetalToRHIPixelFormat(Format), MipCount, 0, Align);
+			SizeAlign.Size = RHICalcTextureCubePlatformSize(Width, MetalToRHIPixelFormat(Format), MipCount, 0, CreateInfo, Align);
 			SizeAlign.Align = Align;
 			break;
 #if PLATFORM_MAC || __IPHONE_OS_VERSION_MAX_ALLOWED >= 110000
 		case mtlpp::TextureType::TextureCubeArray:
-			SizeAlign.Size = RHICalcTextureCubePlatformSize(Width, MetalToRHIPixelFormat(Format), MipCount, 0, Align) * ArrayCount;
+			SizeAlign.Size = RHICalcTextureCubePlatformSize(Width, MetalToRHIPixelFormat(Format), MipCount, 0, CreateInfo, Align) * ArrayCount;
 			SizeAlign.Align = Align;
 			break;
 #endif
 		case mtlpp::TextureType::Texture3D:
-			SizeAlign.Size = RHICalcTexture3DPlatformSize(Width, Height, Depth, MetalToRHIPixelFormat(Format), MipCount, 0, Align);
+			SizeAlign.Size = RHICalcTexture3DPlatformSize(Width, Height, Depth, MetalToRHIPixelFormat(Format), MipCount, 0, CreateInfo, Align);
 			SizeAlign.Align = Align;
 			break;
 		case mtlpp::TextureType::Texture1D:

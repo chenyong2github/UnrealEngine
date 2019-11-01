@@ -5,7 +5,7 @@
 #include "Modules/ModuleManager.h"
 #include "Modules/ModuleInterface.h"
 
-#include "DisplayClusterOperationMode.h"
+#include "DisplayClusterEnums.h"
 
 
 class IDisplayClusterRenderManager;
@@ -108,7 +108,23 @@ public:
 	DECLARE_EVENT(IDisplayCluster, FDisplayClusterEndSessionEvent);
 	virtual FDisplayClusterEndSessionEvent& OnDisplayClusterEndSession() = 0;
 
+	/** Called on DisplayCluster StartFrame **/
+	DECLARE_EVENT_OneParam(IDisplayCluster, FDisplayClusterStartFrameEvent, uint64);
+	virtual FDisplayClusterStartFrameEvent& OnDisplayClusterStartFrame(uint64 FrameNum) = 0;
+
+	/** Called on DisplayCluster EndFrame **/
+	DECLARE_EVENT_OneParam(IDisplayCluster, FDisplayClusterEndFrameEvent, uint64);
+	virtual FDisplayClusterEndFrameEvent& OnDisplayClusterEndFrame(uint64 FrameNum) = 0;
+
 	/** Called on DisplayCluster PreTick **/
 	DECLARE_EVENT(IDisplayCluster, FDisplayClusterPreTickEvent);
 	virtual FDisplayClusterPreTickEvent& OnDisplayClusterPreTick() = 0;
+
+	/** Called on DisplayCluster Tick **/
+	DECLARE_EVENT(IDisplayCluster, FDisplayClusterTickEvent);
+	virtual FDisplayClusterTickEvent& OnDisplayClusterTick() = 0;
+
+	/** Called on DisplayCluster PostTick **/
+	DECLARE_EVENT(IDisplayCluster, FDisplayClusterPostTickEvent);
+	virtual FDisplayClusterPostTickEvent& OnDisplayClusterPostTick() = 0;
 };

@@ -19,7 +19,7 @@
 using namespace Chaos;
 
 template<class T, int d>
-TImplicitObject<T, d>::TImplicitObject(int32 Flags, ImplicitObjectType InType)
+TImplicitObject<T, d>::TImplicitObject(int32 Flags, EImplicitObjectType InType)
     : Type(InType)
     , bIsConvex(!!(Flags & EImplicitObject::IsConvex))
     , bIgnoreAnalyticCollisions(!!(Flags & EImplicitObject::IgnoreAnalyticCollisions))
@@ -33,7 +33,7 @@ TImplicitObject<T, d>::~TImplicitObject()
 }
 
 template<class T, int d>
-ImplicitObjectType TImplicitObject<T, d>::GetType(bool bGetTrueType) const
+EImplicitObjectType TImplicitObject<T, d>::GetType(bool bGetTrueType) const
 {
 	if (bIgnoreAnalyticCollisions && !bGetTrueType)
 	{
@@ -294,9 +294,9 @@ FArchive& TImplicitObject<T, d>::SerializeLegacyHelper(FArchive& Ar, TUniquePtr<
 	{
 		if (Ar.IsLoading())
 		{
-			int8 ObjectType;
+			uint8 ObjectType;
 			Ar << ObjectType;
-			switch ((ImplicitObjectType)ObjectType)
+			switch ((EImplicitObjectType)ObjectType)
 			{
 			case ImplicitObjectType::Sphere: { Value = TUniquePtr<TSphere<T, d>>(new TSphere<T, d>()); break; }
 			case ImplicitObjectType::Box: { Value = TUniquePtr<TBox<T, d>>(new TBox<T, d>()); break; }
@@ -338,7 +338,7 @@ void TImplicitObject<T, d>::Serialize(FChaosArchive& Ar)
 }
 
 template<typename T, int d>
-const FName TImplicitObject<T, d>::GetTypeName(const ImplicitObjectType InType)
+const FName TImplicitObject<T, d>::GetTypeName(const EImplicitObjectType InType)
 {
 	static const FName SphereName = TEXT("Sphere");
 	static const FName BoxName = TEXT("Box");
@@ -353,9 +353,8 @@ const FName TImplicitObject<T, d>::GetTypeName(const ImplicitObjectType InType)
 	static const FName CylinderName = TEXT("Cylinder");
 	static const FName TriangleMeshName = TEXT("TriangleMesh");
 	static const FName HeightFieldName = TEXT("HeightField");
-	static const FName ScaledName = TEXT("Scaled");
 
-	switch (InType)
+	switch (GetInnerType(InType))
 	{
 		case ImplicitObjectType::Sphere: return SphereName;
 		case ImplicitObjectType::Box: return BoxName;
@@ -370,7 +369,6 @@ const FName TImplicitObject<T, d>::GetTypeName(const ImplicitObjectType InType)
 		case ImplicitObjectType::Cylinder: return CylinderName;
 		case ImplicitObjectType::TriangleMesh: return TriangleMeshName;
 		case ImplicitObjectType::HeightField: return HeightFieldName;
-		case ImplicitObjectType::Scaled: return ScaledName;
 	}
 	return NAME_None;
 }
@@ -380,7 +378,25 @@ TImplicitObject<T, d>* TImplicitObject<T, d>::SerializationFactory(FChaosArchive
 {
 	int8 ObjectType = Ar.IsLoading() ? 0 : (int8)Obj->Type;
 	Ar << ObjectType;
-	switch ((ImplicitObjectType)ObjectType)
+
+	Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+	if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::ScaledGeometryIsConcrete)
+	{
+		if (IsScaled(ObjectType))
+		{
+			EImplicitObjectType InnerType = GetInnerType(ObjectType);
+			switch (InnerType)
+			{
+			case ImplicitObjectType::Convex: if (Ar.IsLoading()) { return new TImplicitObjectScaled<TConvex<T, d>>(); } break;
+			case ImplicitObjectType::TriangleMesh: if (Ar.IsLoading()) { return new TImplicitObjectScaled<TTriangleMeshImplicitObject<T>>(); } break;
+			default: check(false);
+			}
+
+			return nullptr;
+		}
+	}
+
+	switch ((EImplicitObjectType)ObjectType)
 	{
 	case ImplicitObjectType::Sphere: if (Ar.IsLoading()) { return new TSphere<T, d>(); } break;
 	case ImplicitObjectType::Box: if (Ar.IsLoading()) { return new TBox<T, d>(); } break;
@@ -392,7 +408,11 @@ TImplicitObject<T, d>* TImplicitObject<T, d>::SerializationFactory(FChaosArchive
 	case ImplicitObjectType::Convex: if (Ar.IsLoading()) { return new TConvex<T, d>(); } break;
 	case ImplicitObjectType::TaperedCylinder: if (Ar.IsLoading()) { return new TTaperedCylinder<T>(); } break;
 	case ImplicitObjectType::TriangleMesh: if (Ar.IsLoading()) { return new TTriangleMeshImplicitObject<T>(); } break;
-	case ImplicitObjectType::Scaled: if (Ar.IsLoading()) { return new TImplicitObjectScaled<T,d>(); } break;
+	case ImplicitObjectType::DEPRECATED_Scaled:
+	{
+		ensure(Ar.IsLoading() && (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::ScaledGeometryIsConcrete));
+		return new TImplicitObjectScaledGeneric<T, d>();
+	}
 	case ImplicitObjectType::HeightField: if (Ar.IsLoading()) { return new THeightField<T>(); } break;
 	case ImplicitObjectType::Cylinder: if (Ar.IsLoading()) { return new TCylinder<T>(); } break;
 	default:

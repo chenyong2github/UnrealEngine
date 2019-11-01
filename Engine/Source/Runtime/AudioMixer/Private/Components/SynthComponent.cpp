@@ -121,7 +121,7 @@ USynthComponent::USynthComponent(const FObjectInitializer& ObjectInitializer)
 	bIsSynthPlaying = false;
 	bIsInitialized = false;
 	bIsUISound = false;
-
+	bAlwaysPlay = false;
 	Synth = nullptr;
 
 	// Set the default sound class
@@ -288,6 +288,7 @@ void USynthComponent::CreateAudioComponent()
 		// Set defaults to be the same as audio component defaults
 		AudioComponent->EnvelopeFollowerAttackTime = EnvelopeFollowerAttackTime;
 		AudioComponent->EnvelopeFollowerReleaseTime = EnvelopeFollowerReleaseTime;
+		AudioComponent->bAlwaysPlay = bAlwaysPlay;
 	}
 }
 

@@ -57,6 +57,14 @@ FAutoConsoleVariableRef CVarOverrunTimeout(
 	TEXT("Amount of time to wait for the render thread to time out before swapping to the null device. \n"),
 	ECVF_Default);
 
+static int32 UnderrunTimeoutCVar = 0;
+FAutoConsoleVariableRef CVarUnderrunTimeout(
+	TEXT("au.UnderrunTimeoutMSec"),
+	UnderrunTimeoutCVar,
+	TEXT("Amount of time to wait for the render thread to generate the next buffer before submitting an underrun buffer. \n"),
+	ECVF_Default);
+
+
 namespace Audio
 {
 	int32 sRenderInstanceIds = 0;
@@ -115,6 +123,15 @@ namespace Audio
 		}
 	}
 
+	FOutputBuffer::~FOutputBuffer()
+	{
+		if (IsReadyEvent != nullptr)
+		{
+			FPlatformProcess::ReturnSynchEventToPool(IsReadyEvent);
+			IsReadyEvent = nullptr;
+		}
+	}
+
 	void FOutputBuffer::Init(IAudioMixer* InAudioMixer, const int32 InNumSamples, const EAudioMixerStreamDataFormat::Type InDataFormat)
 	{
 		Buffer.SetNumZeroed(InNumSamples);
@@ -122,6 +139,12 @@ namespace Audio
 
 		check(InAudioMixer != nullptr);
 		AudioMixer = InAudioMixer;
+
+		if (IsReadyEvent == nullptr)
+		{
+			IsReadyEvent = FPlatformProcess::GetSynchEventFromPool(true /*Manual Reset*/);
+		}
+		check(IsReadyEvent != nullptr);
 
 		switch (DataFormat)
 		{
@@ -174,8 +197,9 @@ namespace Audio
 			break;
 		}
 
-		// Mark that we're ready
+		// Mark/signal that we're ready
 		bIsReady = true;
+		IsReadyEvent->Trigger();
  	}
  
 	const uint8* FOutputBuffer::GetBufferData() const
@@ -205,6 +229,15 @@ namespace Audio
 	int32 FOutputBuffer::GetNumFrames() const
 	{
 		return Buffer.Num();
+	}
+
+	void FOutputBuffer::ResetReadyState()
+	{
+		bIsReady = false;
+		if (IsReadyEvent)
+		{
+			IsReadyEvent->Reset();
+		}
 	}
 
 	void FOutputBuffer::Reset(const int32 InNewNumSamples)
@@ -405,16 +438,27 @@ namespace Audio
 		// If it's not ready, warn, and then wait here. This will cause underruns but is preferable than getting out-of-order buffer state.
 		static int32 UnderrunCount = 0;
 		static int32 CurrentUnderrunCount = 0;
-		
+
+		bool bSubmittingUnderrunBuffer = false;
+
 		if (!OutputBuffers[NextReadIndex].IsReady())
 		{
-
+			// try to wait for the buffer to be ready
+			FEvent* BufferReadyEvent = OutputBuffers[NextReadIndex].IsReadyEvent;
+			if (!BufferReadyEvent || !BufferReadyEvent->Wait(static_cast<uint32>(UnderrunTimeoutCVar)))
+			{
+				bSubmittingUnderrunBuffer = true; // Event didn't fire in time
+			}
+		}
+		
+		if (bSubmittingUnderrunBuffer)
+		{
 			UnderrunCount++;
 			CurrentUnderrunCount++;
 			
 			if (!bWarnedBufferUnderrun)
 			{						
-				UE_LOG(LogAudioMixerDebug, Log, TEXT("Audio Buffer Underrun detected."));
+				UE_LOG(LogAudioMixer, Display, TEXT("Audio Buffer Underrun detected."));
 				bWarnedBufferUnderrun = true;
 			}
 		
@@ -437,6 +481,7 @@ namespace Audio
 
 			// Update the current read index to the next read index
 			CurrentBufferReadIndex = NextReadIndex;
+			OutputBuffers[NextReadIndex].IsReadyEvent->Reset();
 		}
 
 		DeviceSwapCriticalSection.Unlock();

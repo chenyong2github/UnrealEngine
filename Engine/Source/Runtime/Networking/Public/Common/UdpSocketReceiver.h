@@ -68,6 +68,12 @@ public:
 
 public:
 
+	/** Set the maximum size allocated to read off of the socket. */
+	void SetMaxReadBufferSize(uint32 InMaxReadBufferSize)
+	{
+		MaxReadBufferSize = InMaxReadBufferSize;
+	}
+
 	/** Start the receiver thread. */
 	void Start()
 	{
@@ -134,13 +140,14 @@ protected:
 
 		while (Socket->HasPendingData(Size))
 		{
-			FArrayReaderPtr Reader = MakeShareable(new FArrayReader(true));
-			Reader->SetNumUninitialized(FMath::Min(Size, 65507u));
+			FArrayReaderPtr Reader = MakeShared<FArrayReader, ESPMode::ThreadSafe>(true);
+			Reader->SetNumUninitialized(FMath::Min(Size, MaxReadBufferSize));
 
 			int32 Read = 0;
 
 			if (Socket->RecvFrom(Reader->GetData(), Reader->Num(), Read, *Sender))
 			{
+				ensure((uint32)Read < MaxReadBufferSize);
 				Reader->RemoveAt(Read, Reader->Num() - Read, false);
 				DataReceivedDelegate.ExecuteIfBound(Reader, FIPv4Endpoint(Sender));
 			}
@@ -175,6 +182,9 @@ private:
 
 	/** The amount of time to wait for inbound packets. */
 	FTimespan WaitTime;
+
+	/** The maximum read buffer size used to read the socket. */
+	uint32 MaxReadBufferSize = 65507u;
 
 private:
 

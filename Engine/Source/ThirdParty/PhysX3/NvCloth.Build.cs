@@ -170,11 +170,6 @@ public class NvCloth : ModuleRules
 				LibraryFormatString = Path.Combine("Linux", Target.Architecture, "lib{0}.a");
 			}
 		}
-		else if (Target.Platform == UnrealTargetPlatform.PS4)
-		{
-			NvClothLibraries.Add("NvCloth{0}");
-			LibraryFormatString = Path.Combine("PS4", "lib{0}.a");
-		}
         else if (Target.Platform == UnrealTargetPlatform.Switch)
         {
 			NvClothLibraries.Add("NvCloth{0}");

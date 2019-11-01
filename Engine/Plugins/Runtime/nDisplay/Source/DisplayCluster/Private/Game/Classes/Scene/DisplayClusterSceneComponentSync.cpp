@@ -2,6 +2,8 @@
 
 #include "DisplayClusterSceneComponentSync.h"
 
+#include "GameFramework/Actor.h"
+
 #include "Cluster/IPDisplayClusterClusterManager.h"
 #include "Game/IPDisplayClusterGameManager.h"
 
@@ -35,7 +37,7 @@ void UDisplayClusterSceneComponentSync::BeginPlay()
 		if (ClusterMgr)
 		{
 			UE_LOG(LogDisplayClusterGame, Log, TEXT("Registering sync object %s..."), *SyncId);
-			ClusterMgr->RegisterSyncObject(this);
+			ClusterMgr->RegisterSyncObject(this, EDisplayClusterSyncGroup::Tick);
 		}
 		else
 		{

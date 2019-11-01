@@ -54,7 +54,7 @@ void FStreamingRenderAsset::UpdateStaticData(const FRenderAssetStreamingSettings
 
 		if (IsTexture())
 		{
-			check(MipCount <= MAX_TEXTURE_MIP_COUNT);
+			MipCount = FMath::Min<int32>(MipCount, MAX_TEXTURE_MIP_COUNT);
 			const TextureGroup TextureLODGroup = static_cast<TextureGroup>(LODGroup);
 			BoostFactor = GetExtraBoost(TextureLODGroup, Settings);
 			bIsCharacterTexture = (TextureLODGroup == TEXTUREGROUP_Character || TextureLODGroup == TEXTUREGROUP_CharacterSpecular || TextureLODGroup == TEXTUREGROUP_CharacterNormalMap);
@@ -160,6 +160,13 @@ void FStreamingRenderAsset::UpdateDynamicData(const int32* NumStreamedMips, int3
 		if (!Settings.bUseAllMips)
 		{
 			LODBias = FMath::Max<int32>(RenderAsset->GetCachedLODBias() - NumCinematicMipLevels, 0);
+
+
+#if WITH_EDITORONLY_DATA
+			// When data is not cooked, the asset can have more mips than the engine supports.
+			// The engine limit is applied in UpdateStaticData() when computing MipCount, but this will also be be accounted in GetCachedLODBias().
+			LODBias -= RenderAsset->GetNumMipsForStreaming() - MipCount;
+#endif
 
 			// Reduce the max allowed resolution according to LODBias if the texture group allows it.
 			if (IsMaxResolutionAffectedByGlobalBias() && !Settings.bUsePerTextureBias)

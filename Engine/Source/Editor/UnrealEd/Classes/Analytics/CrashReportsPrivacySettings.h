@@ -27,7 +27,7 @@ class UCrashReportsPrivacySettings : public UObject, public IImportantToggleSett
 public:
 
 	// BEGIN IImportantToggleSettingInterface
-	virtual void GetToogleCategoryAndPropertyNames(FName& OutCategory, FName& OutProperty) const override;
+	virtual void GetToggleCategoryAndPropertyNames(FName& OutCategory, FName& OutProperty) const override;
 	virtual FText GetFalseStateLabel() const override;
 	virtual FText GetFalseStateTooltip() const override;
 	virtual FText GetFalseStateDescription() const override;
@@ -37,4 +37,10 @@ public:
 	virtual FString GetAdditionalInfoUrl() const override;
 	virtual FText GetAdditionalInfoUrlLabel() const override;
 	// END IImportantToggleSettingInterface
+
+#if WITH_EDITOR
+	//~ Begin UObject Interface
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	//~ End UObject Interface
+#endif
 };

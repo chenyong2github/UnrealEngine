@@ -60,13 +60,13 @@ struct SYNTHESIS_API FTapDelayInfo
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Realtime, meta = (ClampMin = "-60.0", ClampMax = "6.0"))
 	float Gain;
 
-	// When the Tap Line Mode is set to Send To Channel, this parameter designates which channel the echo should play out of.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Realtime)
+	// When the Tap Line Mode is set to Send To Channel, designates index of channel from which the echo should play.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Realtime, meta = (EditCondition="TapLineMode == ETapLineMode::SendToChannel", ClampMin = "0", ClampMax = "8"))
 	int32 OutputChannel;
 
-	// When the Tap Line Mode is set to Panning, this parameter designates the angle at which the echo should be panned.
+	// When the Tap Line Mode is set to Panning, designates the angle at which the echo should be panned.
 	// -90 is left, 90 is right, and 180/-180 is directly behind the listener.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Realtime, meta = (ClampMin = "-180.0", ClampMax = "180.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Realtime, meta = (EditCondition = "TapLineMode == ETapLineMode::Panning", ClampMin = "-180.0", ClampMax = "180.0"))
 	float PanInDegrees;
 
 	UPROPERTY(Transient, meta = (IgnoreForMemberInitializationTest))
@@ -171,7 +171,7 @@ private:
 // Class which processes audio streams and uses parameters defined in the preset class.
 // ========================================================================
 
-UCLASS(ClassGroup = AudioSourceEffect, meta = (BlueprintSpawnableComponent))
+UCLASS(ClassGroup = AudioSourceEffect, meta = (BlueprintSpawnableComponent), AutoExpandCategories = (Realtime))
 class SYNTHESIS_API USubmixEffectTapDelayPreset : public USoundEffectSubmixPreset
 {
 	GENERATED_BODY()

@@ -247,6 +247,7 @@ namespace Audio
 		void UpdateDeviceChannelCount(const int32 InNumOutputChannels);
 
 		void UpdateSourceEffectChain(const uint32 SourceEffectChainId, const TArray<FSourceEffectChainEntry>& SourceEffectChain, const bool bPlayEffectChainTails);
+		void UpdateModulationControls(const int32 SourceId, const FSoundModulationControls& InControls);
 
 		const float* GetPreDistanceAttenuationBuffer(const int32 SourceId) const;
 		const float* GetPreEffectBuffer(const int32 SourceId) const;
@@ -480,6 +481,9 @@ namespace Audio
 			Audio::FEnvelopeFollower SourceEnvelopeFollower;
 			float SourceEnvelopeValue;
 
+			// Modulation control state
+			FSoundModulationControls ModulationControls;
+
 			FSpatializationParams SpatParams;
 			Audio::AlignedFloatBuffer ScratchChannelMap;
 
@@ -502,7 +506,7 @@ namespace Audio
 			uint8 bIsVorbis:1;
 			uint8 bIsBypassingLPF:1;
 			uint8 bIsBypassingHPF:1;
-
+			uint8 bIsModulationUpdated:1;
 			// Source format info
 			int32 NumInputChannels;
 			int32 NumPostEffectChannels;
@@ -534,7 +538,7 @@ namespace Audio
 
 		// Array of source infos.
 		TArray<FSourceInfo> SourceInfos;
-		
+
 		// These structs are used for guaranteed vectorization when downmixing
 		// sources.
 		TArray<FSourceDownmixData> DownmixDataArray;

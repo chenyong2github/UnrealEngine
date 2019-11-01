@@ -2,7 +2,6 @@
 
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "ViewModels/Stack/NiagaraStackRoot.h"
-#include "ViewModels/Stack/NiagaraStackSpacer.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
@@ -114,6 +113,8 @@ void UNiagaraStackViewModel::InitializeWithRootEntry(UNiagaraStackEntry* InRootE
 
 	RootEntry = InRootEntry;
 	RootEntry->OnStructureChanged().AddUObject(this, &UNiagaraStackViewModel::EntryStructureChanged);
+	RootEntry->OnRequestFullRefresh().AddUObject(this, &UNiagaraStackViewModel::EntryRequestFullRefresh);
+	RootEntry->OnRequestFullRefreshDeferred().AddUObject(this, &UNiagaraStackViewModel::EntryRequestFullRefreshDeferred);
 	RootEntries.Add(RootEntry);
 
 	GEditor->RegisterForUndo(this);
@@ -156,6 +157,11 @@ void UNiagaraStackViewModel::Reset()
 	bRestartSearch = false;
 	bRefreshPending = false;
 	bUsesTopLevelViewModels = false;
+}
+
+bool UNiagaraStackViewModel::HasIssues() const
+{
+	return bHasIssues;
 }
 
 void UNiagaraStackViewModel::Finalize()
@@ -231,7 +237,7 @@ void UNiagaraStackViewModel::AddSearchScrollOffset(int NumberOfSteps)
 
 void UNiagaraStackViewModel::CollapseToHeaders()
 {
-	CollapseToHeadersRecursive(GetRootEntries());
+	CollapseToHeadersRecursive(GetRootEntryAsArray());
 	NotifyStructureChanged();
 }
 
@@ -325,7 +331,7 @@ void UNiagaraStackViewModel::CollapseToHeadersRecursive(TArray<UNiagaraStackEntr
 	}
 }
 
-void UNiagaraStackViewModel::GetPathForEntry(UNiagaraStackEntry* Entry, TArray<UNiagaraStackEntry*>& EntryPath)
+void UNiagaraStackViewModel::GetPathForEntry(UNiagaraStackEntry* Entry, TArray<UNiagaraStackEntry*>& EntryPath) const
 {
 	GeneratePathForEntry(RootEntry, Entry, TArray<UNiagaraStackEntry*>(), EntryPath);
 }
@@ -434,7 +440,7 @@ bool UNiagaraStackViewModel::ItemMatchesSearchCriteria(UNiagaraStackEntry::FStac
 	return SearchItem.Value.ToString().Contains(CurrentSearchText.ToString());
 }
 
-void UNiagaraStackViewModel::GeneratePathForEntry(UNiagaraStackEntry* Root, UNiagaraStackEntry* Entry, TArray<UNiagaraStackEntry*> CurrentPath, TArray<UNiagaraStackEntry*>& EntryPath)
+void UNiagaraStackViewModel::GeneratePathForEntry(UNiagaraStackEntry* Root, UNiagaraStackEntry* Entry, TArray<UNiagaraStackEntry*> CurrentPath, TArray<UNiagaraStackEntry*>& EntryPath) const
 {
 	if (EntryPath.Num() > 0)
 	{
@@ -476,7 +482,12 @@ void UNiagaraStackViewModel::RestoreStackEntryExpansionPreSearch()
 	}
 }
 
-TArray<UNiagaraStackEntry*>& UNiagaraStackViewModel::GetRootEntries()
+UNiagaraStackEntry* UNiagaraStackViewModel::GetRootEntry()
+{
+	return RootEntry;
+}
+
+TArray<UNiagaraStackEntry*>& UNiagaraStackViewModel::GetRootEntryAsArray()
 {
 	return RootEntries;
 }
@@ -607,6 +618,7 @@ void UNiagaraStackViewModel::EntryStructureChanged()
 	{
 		RefreshTopLevelViewModels();
 	}
+	RefreshHasIssues();
 	StructureChangedDelegate.Broadcast();
 	OnSearchTextChanged(CurrentSearchText);
 }
@@ -640,12 +652,6 @@ void UNiagaraStackViewModel::RefreshTopLevelViewModels()
 	RootEntry->GetUnfilteredChildren(RootChildren);
 	for (UNiagaraStackEntry* RootChild : RootChildren)
 	{
-		if (RootChild->IsA<UNiagaraStackSpacer>())
-		{
-			// Skip spacers they're not a good indication of top level object.  This will be unnecessary when spacers are removed.
-			continue;
-		}
-
 		TSharedPtr<FTopLevelViewModel> TopLevelViewModel;
 		if (RootChild->GetEmitterViewModel().IsValid())
 		{
@@ -678,6 +684,37 @@ void UNiagaraStackViewModel::RefreshTopLevelViewModels()
 		{
 			TopLevelViewModels.Add(TopLevelViewModel.ToSharedRef());
 		}
+	}
+}
+
+void UNiagaraStackViewModel::RefreshHasIssues()
+{
+	bHasIssues = false;
+	if (bUsesTopLevelViewModels)
+	{
+		for (TSharedRef<FTopLevelViewModel> TopLevelViewModel : TopLevelViewModels)
+		{
+			if (TopLevelViewModel->SystemViewModel.IsValid())
+			{
+				if (TopLevelViewModel->SystemViewModel->GetSystemStackViewModel()->GetRootEntry()->HasIssuesOrAnyChildHasIssues())
+				{
+					bHasIssues = true;
+					return;
+				}
+			}
+			else if (TopLevelViewModel->EmitterHandleViewModel.IsValid())
+			{
+				if (TopLevelViewModel->EmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntry()->HasIssuesOrAnyChildHasIssues())
+				{
+					bHasIssues = true;
+					return;
+				}
+			}
+		}
+	}
+	else
+	{
+		bHasIssues = RootEntry->HasIssuesOrAnyChildHasIssues();
 	}
 }
 

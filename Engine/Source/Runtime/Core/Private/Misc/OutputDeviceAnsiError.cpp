@@ -82,7 +82,7 @@ void FOutputDeviceAnsiError::HandleError()
 	{
 		// print to log and flush it
 		UE_LOG( LogHAL, Log, TEXT( "=== Critical error: ===" ) LINE_TERMINATOR LINE_TERMINATOR TEXT( "%s" ) LINE_TERMINATOR, GErrorExceptionDescription );
-		UE_LOG(LogHAL, Log, GErrorHist);
+		UE_LOG(LogHAL, Log, TEXT("%s"), GErrorHist);
 
 		GLog->Flush();
 	}

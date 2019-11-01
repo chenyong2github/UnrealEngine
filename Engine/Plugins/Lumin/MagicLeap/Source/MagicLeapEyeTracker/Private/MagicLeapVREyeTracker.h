@@ -9,20 +9,17 @@
 #include "MagicLeapEyeTrackerTypes.h"
 #include "Containers/Ticker.h"
 #include "GameFramework/HUD.h"
-#include "MagicLeapPluginUtil.h" // for ML_INCLUDES_START/END
+#include "Lumin/CAPIShims/LuminAPIEyeTracking.h"
+#include "IMagicLeapTrackerEntity.h"
 
-#if WITH_MLSDK
-ML_INCLUDES_START
-#include <ml_api.h>
-#include <ml_eye_tracking.h>
-ML_INCLUDES_END
-#endif //WITH_MLSDK
-
-class FMagicLeapVREyeTracker : public IMagicLeapVREyeTracker, public FTickerObjectBase
+class FMagicLeapVREyeTracker : public IMagicLeapVREyeTracker, public FTickerObjectBase, public IMagicLeapTrackerEntity
 {
 public:
 	FMagicLeapVREyeTracker();
 	virtual ~FMagicLeapVREyeTracker();
+
+	/** IMagicLeapTrackerEntity interface */
+	virtual void DestroyEntityTracker() override;
 
 	void SetDefaultDataValues();
 
@@ -33,7 +30,6 @@ public:
 
 	void DrawDebug(AHUD* HUD, UCanvas* Canvas, const FDebugDisplayInfo& DisplayInfo, float& YL, float& YPos);
 
-	bool IsEyeTrackerCalibrated() const;
 	EMagicLeapEyeTrackingCalibrationStatus GetCalibrationStatus() const;
 
 public:

@@ -7,6 +7,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SListView.h"
 #include "UObject/ObjectKey.h"
+#include "Framework/Commands/UICommandList.h"
 
 class UNiagaraStackEntry;
 class UNiagaraStackItem;
@@ -24,9 +25,17 @@ public:
 
 	~SNiagaraOverviewStack();
 
+	virtual bool SupportsKeyboardFocus() const override;
+
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 private:
+	void SetupCommands();
+
+	void DeleteSelectedEntries();
+
 	void AddEntriesRecursive(UNiagaraStackEntry& EntryToAdd, TArray<UNiagaraStackEntry*>& EntryList, const TArray<UClass*>& AcceptableClasses, TArray<UNiagaraStackEntry*> ParentChain);
 
 	void RefreshEntryList();
@@ -41,6 +50,14 @@ private:
 
 	void SystemSelectionChanged(UNiagaraSystemSelectionViewModel::ESelectionChangeSource SelectionChangeSource);
 
+	FReply OnRowDragDetected(const FGeometry& InGeometry, const FPointerEvent& InPointerEvent, TWeakObjectPtr<UNiagaraStackEntry> InStackEntryWeak);
+
+	TOptional<EItemDropZone> OnRowCanAcceptDrop(const FDragDropEvent& InDragDropEvent, EItemDropZone InDropZone, UNiagaraStackEntry* InTargetEntry);
+
+	FReply OnRowAcceptDrop(const FDragDropEvent& InDragDropEvent, EItemDropZone InDropZone, UNiagaraStackEntry* InTargetEntry);
+
+	EVisibility GetIssueIconVisibility() const;
+
 private:
 	UNiagaraStackViewModel* StackViewModel;
 	UNiagaraSystemSelectionViewModel* OverviewSelectionViewModel;
@@ -50,6 +67,8 @@ private:
 	TSharedPtr<SListView<UNiagaraStackEntry*>> EntryListView;
 
 	TArray<TWeakObjectPtr<UNiagaraStackEntry>> PreviousSelection;
+
+	TSharedPtr<FUICommandList> Commands;
 
 	bool bRefreshEntryListPending;
 	bool bUpdatingOverviewSelectionFromStackSelection;

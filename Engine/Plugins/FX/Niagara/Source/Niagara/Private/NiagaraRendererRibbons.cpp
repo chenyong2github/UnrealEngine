@@ -230,12 +230,8 @@ void FNiagaraRendererRibbons::CreateRenderThreadResources(NiagaraEmitterInstance
 		RayTracingDynamicVertexBuffer.Initialize(4, 256, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("RayTracingDynamicVertexBuffer"));
 
 		FRayTracingGeometryInitializer Initializer;
-		Initializer.PositionVertexBuffer = nullptr;
 		Initializer.IndexBuffer = nullptr;
-		Initializer.VertexBufferStride = 12;
-		Initializer.VertexBufferByteOffset = 0;
 		Initializer.TotalPrimitiveCount = 0;
-		Initializer.VertexBufferElementType = VET_Float3;
 		Initializer.GeometryType = RTGT_Triangles;
 		Initializer.bFastBuild = true;
 		Initializer.bAllowUpdate = false;
@@ -1047,7 +1043,7 @@ void FNiagaraRendererRibbons::GetDynamicRayTracingInstances(FRayTracingMaterialG
 			VertexCount, NumPrimitives, CollectorResources.UniformBuffer, DynamicIndexAllocation);
 
 		RayTracingGeometry.Initializer.IndexBuffer = DynamicIndexAllocation.IndexBuffer->IndexBufferRHI;
-		RayTracingGeometry.Initializer.IndexBufferByteOffset = DynamicIndexAllocation.FirstIndex * sizeof(uint16);
+		RayTracingGeometry.Initializer.IndexBufferOffset = DynamicIndexAllocation.FirstIndex * sizeof(uint16);
 
 
 		FMeshBatch MeshBatch;

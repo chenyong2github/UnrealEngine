@@ -234,3 +234,8 @@ namespace Chaos
 	};
 
 }
+
+#if PLATFORM_MAC || PLATFORM_LINUX
+extern template class CHAOS_API Chaos::TPBDConstraintGraph<float, 3>;
+extern template class CHAOS_API Chaos::TPBDConstraintGraph<float, 3>;
+#endif

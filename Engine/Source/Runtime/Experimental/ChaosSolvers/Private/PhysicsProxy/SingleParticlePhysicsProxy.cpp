@@ -115,6 +115,8 @@ void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::P
 		RigidHandle->SetSharedGeometry(Data->Geometry);
 		RigidHandle->SetV(Data->MV);
 		RigidHandle->SetW(Data->MW);
+
+		RigidHandle->SetSpatialIdx(Data->SpatialIdx);	//todo: this needs to only happen once during initialization
 		
 		if (Data->Geometry && Data->Geometry->HasBoundingBox())
 		{
@@ -182,6 +184,7 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 		RigidHandle->SetInvI(Data->MInvI);
 		RigidHandle->SetExternalForce(Data->MExternalForce);
 		RigidHandle->SetExternalTorque(Data->MExternalTorque);
+		RigidHandle->SetSpatialIdx(Data->SpatialIdx);	//todo: this needs to only happen once during initialization
 		GetSolver()->GetEvolution()->GetGravityForces().SetEnabled(*RigidHandle, Data->MGravityEnabled);
 
 		if (Data->Geometry && Data->Geometry->HasBoundingBox())

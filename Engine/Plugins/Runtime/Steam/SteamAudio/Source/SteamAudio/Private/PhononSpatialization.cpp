@@ -52,10 +52,8 @@ namespace SteamAudio
 
 		IPLHrtfParams HrtfParams;
 		HrtfParams.hrtfData = nullptr;
-		HrtfParams.loadCallback = nullptr;
-		HrtfParams.lookupCallback = nullptr;
-		HrtfParams.unloadCallback = nullptr;
-		HrtfParams.numHrirSamples = 0;
+		// TODO: Sofa File Support
+		HrtfParams.sofaFileName = IPLstring("");
 		HrtfParams.type = IPL_HRTFDATABASETYPE_DEFAULT;
 
 		iplCreateBinauralRenderer(SteamAudio::GlobalContext, RenderingSettings, HrtfParams, &BinauralRenderer);
@@ -142,10 +140,10 @@ namespace SteamAudio
 		switch (BinauralSource.SpatializationMethod)
 		{
 		case EIplSpatializationMethod::HRTF:
-			iplApplyBinauralEffect(BinauralSource.BinauralEffect, BinauralSource.InBuffer, RelativeDirection, static_cast<IPLHrtfInterpolation>(BinauralSource.HrtfInterpolationMethod), BinauralSource.OutBuffer);
+			iplApplyBinauralEffect(BinauralSource.BinauralEffect, BinauralRenderer, BinauralSource.InBuffer, RelativeDirection, static_cast<IPLHrtfInterpolation>(BinauralSource.HrtfInterpolationMethod), BinauralSource.OutBuffer);
 			break;
 		case EIplSpatializationMethod::PANNING:
-			iplApplyPanningEffect(BinauralSource.PanningEffect, BinauralSource.InBuffer, RelativeDirection, BinauralSource.OutBuffer);
+			iplApplyPanningEffect(BinauralSource.PanningEffect, BinauralRenderer, BinauralSource.InBuffer, RelativeDirection, BinauralSource.OutBuffer);
 			break;
 		}
 	}

@@ -6,7 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public AudioMixer_HTML5(ReadOnlyTargetRules Target) : base(Target)
 		{
-			// pretty syre we can delete this!
 		}
 	}
 }

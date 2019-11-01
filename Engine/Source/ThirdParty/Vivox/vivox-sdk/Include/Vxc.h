@@ -1,4 +1,3 @@
-#pragma once
 /* Copyright (c) 2013-2018 by Mercer Road Corp
  *
  * Permission to use, copy, modify or distribute this software in binary or source form
@@ -13,9 +12,11 @@
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
  */
+#pragma once
 
 #include <time.h>
 #include "VxcExports.h"
+#include "VxcTypes.h"
 
 #define VIVOX_SDK_HAS_CRASH_REPORTING 1
 #define VIVOX_SDK_HAS_VOICE_FONTS 1
@@ -44,8 +45,6 @@
 #define VIVOX_SDK_HAS_ADVANCED_AUDIO_LEVELS 1
 #define VIVOX_SDK_HAS_AUDIO_UNIT_CALLBACKS 1
 
-#include "VxcTypes.h"
-
 #pragma pack(push)
 #pragma pack(8)
 
@@ -57,6 +56,7 @@ extern "C" {
  * Request cookie type. Used when passing in requests to the SDK.
  */
 typedef char *VX_COOKIE;
+
 /**
  * Generic handle type for state objects (connectors, accounts, session groups, session, etc)
  */
@@ -70,13 +70,13 @@ typedef unsigned int VX_SDK_HANDLE;
  * \ingroup memorymanagement
  */
 VIVOXSDK_DLLEXPORT int vx_cookie_create(const char *value, VX_COOKIE *cookie);
+
 /**
  * Used to free a cookie
  * \ingroup memorymanagement
  */
 VIVOXSDK_DLLEXPORT int vx_cookie_free(VX_COOKIE *cookie);
 #endif
-
 
 /**
  * Type of STUN probe to do
@@ -85,15 +85,17 @@ typedef enum {
     /**
      * Use the default as configured on the account management server.
      */
-    attempt_stun_unspecified,
+    attempt_stun_unspecified = 0,
+
     /**
      * Use STUN
      */
-    attempt_stun_on,
+    attempt_stun_on = 1,
+
     /**
      * Don't use STUN
      */
-    attempt_stun_off,
+    attempt_stun_off = 2
 } vx_attempt_stun;
 
 /**
@@ -105,11 +107,12 @@ typedef enum {
      * The default and only valid value
      */
     connector_mode_normal = 0,
+
     /**
      * This value is deprecated.
      * \deprecated
      */
-    connector_mode_legacy,
+    connector_mode_legacy = 1
 } vx_connector_mode;
 
 /**
@@ -118,21 +121,24 @@ typedef enum {
  */
 typedef enum {
     /**
-    * Each handle will be unique for the lifetime of the connector
-    */
+     * Each handle will be unique for the lifetime of the connector
+     */
     session_handle_type_unique = 0,
+
     /**
-    * Handles will be sequential integers
-    */
-    session_handle_type_legacy,
+     * Handles will be sequential integers
+     */
+    session_handle_type_legacy = 1,
+
     /**
-    * Handles will be heirarchical numeric
-    */
-    session_handle_type_heirarchical_numeric,
+     * Handles will be heirarchical numeric
+     */
+    session_handle_type_heirarchical_numeric = 2,
+
     /**
-    * Handles will be heirarchical unique
-    */
-    session_handle_type_heirarchical_unique
+     * Handles will be heirarchical unique
+     */
+    session_handle_type_heirarchical_unique = 3
 } vx_session_handle_type;
 
 /**
@@ -145,18 +151,21 @@ typedef enum {
      * Unused
      */
     log_to_none = 0,
+
     /**
      * Log to the native configured logfile
      */
-    log_to_file,
+    log_to_file = 1,
+
     /**
      * Send log information to the client applicaiton via the registered callback method
      */
-    log_to_callback,
+    log_to_callback = 2,
+
     /**
      * Log to the native configured log file and the client applicaiton via the registered callback method
      */
-    log_to_file_and_callback,
+    log_to_file_and_callback = 3
 } vx_log_type;
 
 /**
@@ -167,21 +176,24 @@ typedef enum {
      * Unused
      */
     msg_none = 0,
+
     /**
      * Message is a request
      * @see vx_req_base_t
      */
     msg_request = 1,
+
     /**
      * Message is a response
      * @see vx_resp_base_t
      */
-    msg_response,
+    msg_response = 2,
+
     /**
      * Message is an event
      * @see vx_evt_base_t
      */
-    msg_event,
+    msg_event = 3
 } vx_message_type;
 
 typedef enum {
@@ -189,14 +201,16 @@ typedef enum {
      * Stop a recording
      */
     VX_SESSIONGROUP_RECORDING_CONTROL_STOP = 0,
+
     /**
      * Start a recording
      */
     VX_SESSIONGROUP_RECORDING_CONTROL_START = 1,
+
     /**
      * Flush a continuous recording
      */
-    VX_SESSIONGROUP_RECORDING_CONTROL_FLUSH_TO_FILE = 2,
+    VX_SESSIONGROUP_RECORDING_CONTROL_FLUSH_TO_FILE = 2
 } vx_sessiongroup_recording_control_type;
 
 typedef enum {
@@ -204,51 +218,62 @@ typedef enum {
      * Stop audio injection
      */
     VX_SESSIONGROUP_AUDIO_INJECTION_CONTROL_STOP = 0,
+    vx_sessiongroup_audio_injection_control_stop = VX_SESSIONGROUP_AUDIO_INJECTION_CONTROL_STOP,
+
     /**
      * Start audio injection (only if currently stopped)
      */
     VX_SESSIONGROUP_AUDIO_INJECTION_CONTROL_START = 1,
+    vx_sessiongroup_audio_injection_control_start = VX_SESSIONGROUP_AUDIO_INJECTION_CONTROL_START,
+
     /**
      * Restart audio injection (start if currently stopped. Stop if currently injecting, and restart)
      */
     VX_SESSIONGROUP_AUDIO_INJECTION_CONTROL_RESTART = 2,
-    VX_SESSIONGROUP_AUDIO_INJECTION_CONTROL_MIN = VX_SESSIONGROUP_AUDIO_INJECTION_CONTROL_STOP,
-    VX_SESSIONGROUP_AUDIO_INJECTION_CONTROL_MAX = VX_SESSIONGROUP_AUDIO_INJECTION_CONTROL_RESTART
-} vx_sessiongroup_audio_injection_control_type;
+    vx_sessiongroup_audio_injection_control_restart = VX_SESSIONGROUP_AUDIO_INJECTION_CONTROL_RESTART,
 
+    VX_SESSIONGROUP_AUDIO_INJECTION_CONTROL_MIN = VX_SESSIONGROUP_AUDIO_INJECTION_CONTROL_STOP,
+    vx_sessiongroup_audio_injection_control_min = vx_sessiongroup_audio_injection_control_stop,
+    VX_SESSIONGROUP_AUDIO_INJECTION_CONTROL_MAX = VX_SESSIONGROUP_AUDIO_INJECTION_CONTROL_RESTART,
+    vx_sessiongroup_audio_injection_control_max = vx_sessiongroup_audio_injection_control_restart
+} vx_sessiongroup_audio_injection_control_type;
 
 typedef enum {
     /**
-    * Stop playback
-    *
-    * When playback is stopped, it closes the playback file, and generates a media frame played event
-    * with 0 for the first frame and 0 for the total frames.
-    */
+     * Stop playback
+     *
+     * When playback is stopped, it closes the playback file, and generates a media frame played event
+     * with 0 for the first frame and 0 for the total frames.
+     */
     VX_SESSIONGROUP_PLAYBACK_CONTROL_STOP = 0,
+
     /**
-    * Start playback
-    */
+     * Start playback
+     */
     VX_SESSIONGROUP_PLAYBACK_CONTROL_START = 1,
+
     /**
-    * Pause a playback
-    */
+     * Pause a playback
+     */
     VX_SESSIONGROUP_PLAYBACK_CONTROL_PAUSE = 3,
+
     /**
-    * Unpause playback
-    */
-    VX_SESSIONGROUP_PLAYBACK_CONTROL_UNPAUSE = 4,
+     * Unpause playback
+     */
+    VX_SESSIONGROUP_PLAYBACK_CONTROL_UNPAUSE = 4
 } vx_sessiongroup_playback_control_type;
 
 typedef enum {
     /**
-    * Normal mode playback
-    */
+     * Normal mode playback
+     */
     VX_SESSIONGROUP_PLAYBACK_MODE_NORMAL = 0,
+
     /**
-    * Vox mode playback: Catch-up mode.
-    * Skip all silence periods. Playback at desired speed.
-    */
-    VX_SESSIONGROUP_PLAYBACK_MODE_VOX = 1,
+     * Vox mode playback: Catch-up mode.
+     * Skip all silence periods. Playback at desired speed.
+     */
+    VX_SESSIONGROUP_PLAYBACK_MODE_VOX = 1
 } vx_sessiongroup_playback_mode;
 
 /**
@@ -259,40 +284,43 @@ typedef enum {
      * The issuing user will not hear the blocked user, *and* the blocked user will not hear the issuing user
      */
     vx_control_communications_operation_block = 0,
+
     /**
      * The issuing user will hear the blocked user, and the blocked user will hear the issuing user, unless the blocked
      * user has blocked the issuing user as well.
      */
     vx_control_communications_operation_unblock = 1,
+
     vx_control_communications_operation_list = 2,
+
     vx_control_communications_operation_clear = 3
 } vx_control_communications_operation;
 
 typedef enum {
     media_type_none = 0,
-    media_type_text,
-    media_type_audio,
-    media_type_video,
-    media_type_audiovideo,
+    media_type_text = 1,
+    media_type_audio = 2,
+    media_type_video = 3,
+    media_type_audiovideo = 4
 } vx_media_type;
 
 typedef enum {
     termination_status_none = 0,
-    termination_status_busy,
-    termination_status_decline,
+    termination_status_busy = 1,
+    termination_status_decline = 2
 } vx_termination_status;
 
 typedef enum {
     diagnostic_dump_level_all = 0,
-    diagnostic_dump_level_sessions,
+    diagnostic_dump_level_sessions = 1
 } vx_diagnostic_dump_level;
 
 typedef enum {
     media_ringback_none = 0,
-    media_ringback_ringing = 1,      // 180
-    // media_ringback_answer=2,     // 200
-    media_ringback_busy = 3,         // 486
-    // media_ringback_terminated=4, // 487
+    media_ringback_ringing = 1,       // 180
+    // media_ringback_answer = 2,     // 200
+    media_ringback_busy = 3,          // 486
+    // media_ringback_terminated = 4  // 487
 } vx_media_ringback;
 
 typedef enum {
@@ -320,21 +348,26 @@ typedef enum {
     channel_moderation_type_current_user = 1
 } vx_channel_moderation_type;
 
-/** The type of the sessiongroup specified at sessiongroup creation time */
+/**
+ * The type of the sessiongroup specified at sessiongroup creation time
+ */
 typedef enum {
     /**
-    * Normal type for general use.
-    */
+     * Normal type for general use.
+     */
     sessiongroup_type_normal = 0,
+
     /**
-    * Playback type.
-    * Only use this for playing back a Vivox recording.
-    * Live sessions cannot be added to this type of sessiongroup.
-    */
+     * Playback type.
+     * Only use this for playing back a Vivox recording.
+     * Live sessions cannot be added to this type of sessiongroup.
+     */
     sessiongroup_type_playback = 1
 } vx_sessiongroup_type;
 
-/** The reason why a participant was removed from a session. */
+/**
+ * The reason why a participant was removed from a session.
+ */
 typedef enum {
     participant_left = 0,
     participant_timeout = 1,
@@ -349,7 +382,9 @@ typedef struct vx_message_base {
     unsigned long long last_step_ms;
 } vx_message_base_t;
 
-/** The set of requests that can be issued. */
+/**
+ * The set of requests that can be issued.
+ */
 typedef enum {
     req_none = 0,
     req_connector_create = 1,
@@ -361,15 +396,13 @@ typedef enum {
     req_sessiongroup_terminate = 7,
     req_sessiongroup_add_session = 8,
     req_sessiongroup_remove_session = 9,
-#ifndef VX_DISABLE_SESSIONGRP_FOCUS
     req_sessiongroup_set_focus = 10,
     req_sessiongroup_unset_focus = 11,
     req_sessiongroup_reset_focus = 12,
-#endif
     req_sessiongroup_set_tx_session = 13,
     req_sessiongroup_set_tx_all_sessions = 14,
     req_sessiongroup_set_tx_no_session = 15,
-    req_session_create = 16,                    /**< Do Not Use, use req_sessiongroup_add_session */
+    req_session_create = 16,  /**< Do Not Use, use req_sessiongroup_add_session */
     req_session_media_connect = 18,
     req_session_media_disconnect = 19,
     req_session_terminate = 21,
@@ -394,11 +427,9 @@ typedef enum {
     req_account_channel_add_moderator = 50,
     req_account_channel_remove_moderator = 51,
     req_account_channel_get_moderators = 52,
-#ifndef VX_DISABLE_ACL
     req_account_channel_add_acl = 53,
     req_account_channel_remove_acl = 54,
     req_account_channel_get_acl = 55,
-#endif
     req_channel_mute_user = 56,
     req_channel_ban_user = 57,
     req_channel_get_banned_users = 58,
@@ -409,29 +440,23 @@ typedef enum {
     req_connector_set_local_mic_volume = 63,
     req_connector_set_local_speaker_volume = 64,
     req_connector_get_local_audio_info = 65,
-#ifndef VX_DISABLE_PRESENCE
     req_account_buddy_set = 67,
     req_account_buddy_delete = 68,
     req_account_buddygroup_set = 69,
     req_account_buddygroup_delete = 70,
     req_account_list_buddies_and_groups = 71,
-#endif
     req_session_send_message = 72,
-#ifndef VX_DISABLE_PRESENCE
     req_account_set_presence = 73,
     req_account_send_subscription_reply = 74,
-#endif
     req_session_send_notification = 75,
-#ifndef VX_DISABLE_PRESENCE
     req_account_create_block_rule = 76,
     req_account_delete_block_rule = 77,
     req_account_list_block_rules = 78,
     req_account_create_auto_accept_rule = 79,
     req_account_delete_auto_accept_rule = 80,
     req_account_list_auto_accept_rules = 81,
-#endif
-    req_account_update_account = 82,   /* deprecated */
-    req_account_get_account = 83,   /* deprecated */
+    req_account_update_account = 82,  /**< deprecated */
+    req_account_get_account = 83,  /**< deprecated */
     req_account_send_sms = 84,
     req_aux_connectivity_info = 86,
     req_aux_get_render_devices = 87,
@@ -469,9 +494,9 @@ typedef enum {
     req_aux_set_vad_properties = 120,
     req_aux_get_vad_properties = 121,
     req_sessiongroup_control_audio_injection = 124,
-    req_account_channel_change_owner = 125,             /**< Not yet implemented (3030) */
-    req_account_channel_get_participants = 126,         /**< Not yet implemented (3030) */
-    req_account_send_user_app_data = 128,               /**< Not yet implemented (3030) */
+    req_account_channel_change_owner = 125,  /**< Not yet implemented (3030) */
+    req_account_channel_get_participants = 126,  /**< Not yet implemented (3030) */
+    req_account_send_user_app_data = 128,  /**< Not yet implemented (3030) */
     req_aux_diagnostic_state_dump = 129,
     req_account_web_call = 130,
     req_account_anonymous_login = 131,
@@ -480,10 +505,15 @@ typedef enum {
     req_account_send_message = 134,
     req_aux_notify_application_state_change = 135,
     req_account_control_communications = 136,
-    req_max = req_account_control_communications + 1
+    req_session_archive_query = 137,
+    req_account_archive_query = 138,
+    req_session_transcription_control = 139,
+    req_max = req_session_transcription_control + 1
 } vx_request_type;
 
-/** Response types that will be reported back to the calling app. */
+/**
+ * Response types that will be reported back to the calling app.
+ */
 typedef enum {
     resp_none = 0,
     resp_connector_create = 1,
@@ -495,15 +525,13 @@ typedef enum {
     resp_sessiongroup_terminate = 7,
     resp_sessiongroup_add_session = 8,
     resp_sessiongroup_remove_session = 9,
-#ifndef VX_DISABLE_SESSIONGRP_FOCUS
     resp_sessiongroup_set_focus = 10,
     resp_sessiongroup_unset_focus = 11,
     resp_sessiongroup_reset_focus = 12,
-#endif
     resp_sessiongroup_set_tx_session = 13,
     resp_sessiongroup_set_tx_all_sessions = 14,
     resp_sessiongroup_set_tx_no_session = 15,
-    resp_session_create = 16,                   /**< Do Not Use */
+    resp_session_create = 16,  /**< Do Not Use */
     resp_session_media_connect = 18,
     resp_session_media_disconnect = 19,
     resp_session_terminate = 21,
@@ -529,11 +557,9 @@ typedef enum {
     resp_account_channel_add_moderator = 50,
     resp_account_channel_remove_moderator = 51,
     resp_account_channel_get_moderators = 52,
-#ifndef VX_DISABLE_ACL
     resp_account_channel_add_acl = 53,
     resp_account_channel_remove_acl = 54,
     resp_account_channel_get_acl = 55,
-#endif
     resp_channel_mute_user = 56,
     resp_channel_ban_user = 57,
     resp_channel_get_banned_users = 58,
@@ -544,29 +570,23 @@ typedef enum {
     resp_connector_set_local_mic_volume = 63,
     resp_connector_set_local_speaker_volume = 64,
     resp_connector_get_local_audio_info = 65,
-#ifndef VX_DISABLE_PRESENCE
     resp_account_buddy_set = 67,
     resp_account_buddy_delete = 68,
     resp_account_buddygroup_set = 69,
     resp_account_buddygroup_delete = 70,
     resp_account_list_buddies_and_groups = 71,
-#endif
     resp_session_send_message = 72,
-#ifndef VX_DISABLE_PRESENCE
     resp_account_set_presence = 73,
     resp_account_send_subscription_reply = 74,
-#endif
     resp_session_send_notification = 75,
-#ifndef VX_DISABLE_PRESENCE
     resp_account_create_block_rule = 76,
     resp_account_delete_block_rule = 77,
     resp_account_list_block_rules = 78,
     resp_account_create_auto_accept_rule = 79,
     resp_account_delete_auto_accept_rule = 80,
     resp_account_list_auto_accept_rules = 81,
-#endif
-    resp_account_update_account = 82,   // deprecated
-    resp_account_get_account = 83,   // deprecated
+    resp_account_update_account = 82,  /**< deprecated */
+    resp_account_get_account = 83,  /**< deprecated */
     resp_account_send_sms = 84,
     resp_aux_connectivity_info = 86,
     resp_aux_get_render_devices = 87,
@@ -604,9 +624,9 @@ typedef enum {
     resp_aux_set_vad_properties = 120,
     resp_aux_get_vad_properties = 121,
     resp_sessiongroup_control_audio_injection = 124,
-    resp_account_channel_change_owner = 125,                /**< Not yet implemented (3030) */
-    resp_account_channel_get_participants = 126,            /**< Not yet implemented (3030) */
-    resp_account_send_user_app_data = 128,                  /**< Not yet implemented (3030) */
+    resp_account_channel_change_owner = 125,  /**< Not yet implemented (3030) */
+    resp_account_channel_get_participants = 126,  /**< Not yet implemented (3030) */
+    resp_account_send_user_app_data = 128,  /**< Not yet implemented (3030) */
     resp_aux_diagnostic_state_dump = 129,
     resp_account_web_call = 130,
     resp_account_anonymous_login = 131,
@@ -615,25 +635,26 @@ typedef enum {
     resp_account_send_message = 134,
     resp_aux_notify_application_state_change = 135,
     resp_account_control_communications = 136,
-    resp_max = resp_account_control_communications + 1
+    resp_session_archive_query = 137,
+    resp_account_archive_query = 138,
+    resp_session_transcription_control = 139,
+    resp_max = resp_session_transcription_control + 1
 } vx_response_type;
 
-/** Event types that will be reported back to the calling app. */
+/**
+ * Event types that will be reported back to the calling app.
+ */
 typedef enum {
     evt_none = 0,
     evt_account_login_state_change = 2,
-#ifndef VX_DISABLE_PRESENCE
     evt_buddy_presence = 7,
     evt_subscription = 8,
-#endif
     evt_session_notification = 9,
     evt_message = 10,
     evt_aux_audio_properties = 11,
-#ifndef VX_DISABLE_PRESENCE
     evt_buddy_changed = 15,
     evt_buddy_group_changed = 16,
     evt_buddy_and_group_list_changed = 17,
-#endif
     evt_keyboard_mouse = 18,
     evt_idle_state_changed = 19,
     evt_media_stream_updated = 20,
@@ -653,11 +674,16 @@ typedef enum {
     evt_user_app_data = 36,
     evt_network_message = 38,
     evt_voice_service_connection_state_changed = 39,
-#ifndef VX_DISABLE_PRESENCE
     evt_publication_state_changed = 40,
-#endif
     evt_audio_device_hot_swap = 41,
-    evt_max = evt_audio_device_hot_swap + 1
+    evt_user_to_user_message = 42,
+    evt_session_archive_message = 43,
+    evt_session_archive_query_end = 44,
+    evt_account_archive_message = 45,
+    evt_account_archive_query_end = 46,
+    evt_account_send_message_failed = 47,
+    evt_transcribed_message = 48,
+    evt_max = evt_transcribed_message + 1
 } vx_event_type;
 
 typedef struct vx_req_base {
@@ -685,124 +711,125 @@ typedef struct vx_evt_base {
 
 typedef enum {
     ND_E_NO_ERROR = 0,
-    ND_E_TEST_NOT_RUN,
-    ND_E_NO_INTERFACE,
-    ND_E_NO_INTERFACE_WITH_GATEWAY,
-    ND_E_NO_INTERFACE_WITH_ROUTE,
-    ND_E_TIMEOUT,
-    ND_E_CANT_ICMP,
-    ND_E_CANT_RESOLVE_VIVOX_UDP_SERVER,
-    ND_E_CANT_RESOLVE_ROOT_DNS_SERVER,
-    ND_E_CANT_CONVERT_LOCAL_IP_ADDRESS,
-    ND_E_CANT_CONTACT_STUN_SERVER_ON_UDP_PORT_3478,
-    ND_E_CANT_CREATE_TCP_SOCKET,
-    ND_E_CANT_LOAD_ICMP_LIBRARY,
-    ND_E_CANT_FIND_SENDECHO2_PROCADDR,
-    ND_E_CANT_CONNECT_TO_ECHO_SERVER,
-    ND_E_ECHO_SERVER_LOGIN_SEND_FAILED,
-    ND_E_ECHO_SERVER_LOGIN_RECV_FAILED,
-    ND_E_ECHO_SERVER_LOGIN_RESPONSE_MISSING_STATUS,
-    ND_E_ECHO_SERVER_LOGIN_RESPONSE_FAILED_STATUS,
-    ND_E_ECHO_SERVER_LOGIN_RESPONSE_MISSING_SESSIONID,
-    ND_E_ECHO_SERVER_LOGIN_RESPONSE_MISSING_SIPPORT,
-    ND_E_ECHO_SERVER_LOGIN_RESPONSE_MISSING_AUDIORTP,
-    ND_E_ECHO_SERVER_LOGIN_RESPONSE_MISSING_AUDIORTCP,
-    ND_E_ECHO_SERVER_LOGIN_RESPONSE_MISSING_VIDEORTP,
-    ND_E_ECHO_SERVER_LOGIN_RESPONSE_MISSING_VIDEORTCP,
-    ND_E_ECHO_SERVER_CANT_ALLOCATE_SIP_SOCKET,
-    ND_E_ECHO_SERVER_CANT_ALLOCATE_MEDIA_SOCKET,
-    ND_E_ECHO_SERVER_SIP_UDP_SEND_FAILED,
-    ND_E_ECHO_SERVER_SIP_UDP_RECV_FAILED,
-    ND_E_ECHO_SERVER_SIP_TCP_SEND_FAILED,
-    ND_E_ECHO_SERVER_SIP_TCP_RECV_FAILED,
-    ND_E_ECHO_SERVER_SIP_NO_UDP_OR_TCP,
-    ND_E_ECHO_SERVER_SIP_NO_UDP,
-    ND_E_ECHO_SERVER_SIP_NO_TCP,
-    ND_E_ECHO_SERVER_SIP_MALFORMED_TCP_PACKET,
-    ND_E_ECHO_SERVER_SIP_UDP_DIFFERENT_LENGTH,
-    ND_E_ECHO_SERVER_SIP_UDP_DATA_DIFFERENT,
-    ND_E_ECHO_SERVER_SIP_TCP_PACKETS_DIFFERENT,
-    ND_E_ECHO_SERVER_SIP_TCP_PACKETS_DIFFERENT_SIZE,
-    ND_E_ECHO_SERVER_LOGIN_RECV_FAILED_TIMEOUT,
-    ND_E_ECHO_SERVER_TCP_SET_ASYNC_FAILED,
-    ND_E_ECHO_SERVER_UDP_SET_ASYNC_FAILED,
-    ND_E_ECHO_SERVER_CANT_RESOLVE_NAME
+    ND_E_TEST_NOT_RUN = 1,
+    ND_E_NO_INTERFACE = 2,
+    ND_E_NO_INTERFACE_WITH_GATEWAY = 3,
+    ND_E_NO_INTERFACE_WITH_ROUTE = 4,
+    ND_E_TIMEOUT = 5,
+    ND_E_CANT_ICMP = 6,
+    ND_E_CANT_RESOLVE_VIVOX_UDP_SERVER = 7,
+    ND_E_CANT_RESOLVE_ROOT_DNS_SERVER = 8,
+    ND_E_CANT_CONVERT_LOCAL_IP_ADDRESS = 9,
+    ND_E_CANT_CONTACT_STUN_SERVER_ON_UDP_PORT_3478 = 10,
+    ND_E_CANT_CREATE_TCP_SOCKET = 11,
+    ND_E_CANT_LOAD_ICMP_LIBRARY = 12,
+    ND_E_CANT_FIND_SENDECHO2_PROCADDR = 13,
+    ND_E_CANT_CONNECT_TO_ECHO_SERVER = 14,
+    ND_E_ECHO_SERVER_LOGIN_SEND_FAILED = 15,
+    ND_E_ECHO_SERVER_LOGIN_RECV_FAILED = 16,
+    ND_E_ECHO_SERVER_LOGIN_RESPONSE_MISSING_STATUS = 17,
+    ND_E_ECHO_SERVER_LOGIN_RESPONSE_FAILED_STATUS = 18,
+    ND_E_ECHO_SERVER_LOGIN_RESPONSE_MISSING_SESSIONID = 19,
+    ND_E_ECHO_SERVER_LOGIN_RESPONSE_MISSING_SIPPORT = 20,
+    ND_E_ECHO_SERVER_LOGIN_RESPONSE_MISSING_AUDIORTP = 21,
+    ND_E_ECHO_SERVER_LOGIN_RESPONSE_MISSING_AUDIORTCP = 22,
+    ND_E_ECHO_SERVER_LOGIN_RESPONSE_MISSING_VIDEORTP = 23,
+    ND_E_ECHO_SERVER_LOGIN_RESPONSE_MISSING_VIDEORTCP = 24,
+    ND_E_ECHO_SERVER_CANT_ALLOCATE_SIP_SOCKET = 25,
+    ND_E_ECHO_SERVER_CANT_ALLOCATE_MEDIA_SOCKET = 26,
+    ND_E_ECHO_SERVER_SIP_UDP_SEND_FAILED = 27,
+    ND_E_ECHO_SERVER_SIP_UDP_RECV_FAILED = 28,
+    ND_E_ECHO_SERVER_SIP_TCP_SEND_FAILED = 29,
+    ND_E_ECHO_SERVER_SIP_TCP_RECV_FAILED = 30,
+    ND_E_ECHO_SERVER_SIP_NO_UDP_OR_TCP = 31,
+    ND_E_ECHO_SERVER_SIP_NO_UDP = 32,
+    ND_E_ECHO_SERVER_SIP_NO_TCP = 33,
+    ND_E_ECHO_SERVER_SIP_MALFORMED_TCP_PACKET = 34,
+    ND_E_ECHO_SERVER_SIP_UDP_DIFFERENT_LENGTH = 35,
+    ND_E_ECHO_SERVER_SIP_UDP_DATA_DIFFERENT = 36,
+    ND_E_ECHO_SERVER_SIP_TCP_PACKETS_DIFFERENT = 37,
+    ND_E_ECHO_SERVER_SIP_TCP_PACKETS_DIFFERENT_SIZE = 38,
+    ND_E_ECHO_SERVER_LOGIN_RECV_FAILED_TIMEOUT = 39,
+    ND_E_ECHO_SERVER_TCP_SET_ASYNC_FAILED = 40,
+    ND_E_ECHO_SERVER_UDP_SET_ASYNC_FAILED = 41,
+    ND_E_ECHO_SERVER_CANT_RESOLVE_NAME = 42
 } ND_ERROR;
 
 typedef enum {
-    ND_TEST_LOCATE_INTERFACE,
-    ND_TEST_PING_GATEWAY,
-    ND_TEST_DNS,
-    ND_TEST_STUN,
-    ND_TEST_ECHO,
-    ND_TEST_ECHO_SIP_FIRST_PORT,
-    ND_TEST_ECHO_SIP_FIRST_PORT_INVITE_REQUEST,
-    ND_TEST_ECHO_SIP_FIRST_PORT_INVITE_RESPONSE,
-    ND_TEST_ECHO_SIP_FIRST_PORT_REGISTER_REQUEST,
-    ND_TEST_ECHO_SIP_FIRST_PORT_REGISTER_RESPONSE,
-    ND_TEST_ECHO_SIP_SECOND_PORT,
-    ND_TEST_ECHO_SIP_SECOND_PORT_INVITE_REQUEST,
-    ND_TEST_ECHO_SIP_SECOND_PORT_INVITE_RESPONSE,
-    ND_TEST_ECHO_SIP_SECOND_PORT_REGISTER_REQUEST,
-    ND_TEST_ECHO_SIP_SECOND_PORT_REGISTER_RESPONSE,
-    ND_TEST_ECHO_MEDIA,
-    ND_TEST_ECHO_MEDIA_LARGE_PACKET
+    ND_TEST_LOCATE_INTERFACE = 0,
+    ND_TEST_PING_GATEWAY = 1,
+    ND_TEST_DNS = 2,
+    ND_TEST_STUN = 3,
+    ND_TEST_ECHO = 4,
+    ND_TEST_ECHO_SIP_FIRST_PORT = 5,
+    ND_TEST_ECHO_SIP_FIRST_PORT_INVITE_REQUEST = 6,
+    ND_TEST_ECHO_SIP_FIRST_PORT_INVITE_RESPONSE = 7,
+    ND_TEST_ECHO_SIP_FIRST_PORT_REGISTER_REQUEST = 8,
+    ND_TEST_ECHO_SIP_FIRST_PORT_REGISTER_RESPONSE = 9,
+    ND_TEST_ECHO_SIP_SECOND_PORT = 10,
+    ND_TEST_ECHO_SIP_SECOND_PORT_INVITE_REQUEST = 11,
+    ND_TEST_ECHO_SIP_SECOND_PORT_INVITE_RESPONSE = 12,
+    ND_TEST_ECHO_SIP_SECOND_PORT_REGISTER_REQUEST = 13,
+    ND_TEST_ECHO_SIP_SECOND_PORT_REGISTER_RESPONSE = 14,
+    ND_TEST_ECHO_MEDIA = 15,
+    ND_TEST_ECHO_MEDIA_LARGE_PACKET = 16
 } ND_TEST_TYPE;
 
 /**
-* How incoming calls are handled.  Set at login.
-*/
+ * How incoming calls are handled.  Set at login.
+ */
 typedef enum {
     /**
-    * Not valid for use.
-    */
+     * Not valid for use.
+     */
     mode_none = 0,
+
     /**
-    * DEPRECATED: The incoming call will be automatically connected if a call is not already established.
-    */
+     * DEPRECATED: The incoming call will be automatically connected if a call is not already established.
+     */
     mode_auto_answer = 1,
+
     /**
-    * Requires the client to explicitly answer the incoming call.
-    */
+     * Requires the client to explicitly answer the incoming call.
+     */
     mode_verify_answer = 2,
+
     /**
-    * The incoming call will be automatically answered with a 486 busy.
-    */
-    mode_busy_answer = 3,
+     * The incoming call will be automatically answered with a 486 busy.
+     */
+    mode_busy_answer = 3
 } vx_session_answer_mode;
 
 typedef enum {
     mode_auto_accept = 0,
     mode_auto_add = 1,
-    mode_block,
-    mode_hide,
-    mode_application
+    mode_block = 2,
+    mode_hide = 3,
+    mode_application = 4
 } vx_buddy_management_mode;
 
 typedef enum {
     rule_none = 0,
-    rule_allow,
-    rule_block,
-    rule_hide,
+    rule_allow = 1,
+    rule_block = 2,
+    rule_hide = 3
 } vx_rule_type;
 
 typedef enum {
     type_none = 0,
     type_root = 1,
-    type_user = 2,
+    type_user = 2
 } vx_font_type;
 
 typedef enum {
     status_none = 0,
     status_free = 1,
-    status_not_free = 2,
+    status_not_free = 2
 } vx_font_status;
 
-#ifndef VX_DISABLE_PRESENCE
 typedef enum {
-    subscription_presence = 0,
+    subscription_presence = 0
 } vx_subscription_type;
-#endif
 
 typedef enum {
     notification_not_typing = 0,
@@ -833,28 +860,28 @@ typedef enum {
     dtmf_B = 13,
     dtmf_C = 14,
     dtmf_D = 15,
-    dtmf_max = dtmf_D,
+    dtmf_max = dtmf_D
 } vx_dtmf_type;
 
 typedef enum {
     text_mode_disabled = 0,
-    text_mode_enabled,
+    text_mode_enabled = 1
 } vx_text_mode;
 
 typedef enum {
     channel_unlock = 0,
-    channel_lock,
+    channel_lock = 1
 } vx_channel_lock_mode;
 
 typedef enum {
     mute_scope_all = 0,
     mute_scope_audio = 1,
-    mute_scope_text = 2,
+    mute_scope_text = 2
 } vx_mute_scope;
 
 /**
-* Holds a recorded audio frame
-*/
+ * Holds a recorded audio frame
+ */
 typedef enum {
     VX_RECORDING_FRAME_TYPE_DELTA = 0,
     VX_RECORDING_FRAME_TYPE_CONTROL = 1
@@ -863,7 +890,7 @@ typedef enum {
 typedef enum {
     op_none = 0,
     op_safeupdate = 1,
-    op_delete,
+    op_delete = 2
 } vx_audiosource_operation;
 
 typedef enum {
@@ -879,7 +906,6 @@ typedef enum {
     login_state_error = 100
 } vx_login_state_change_state;
 
-#ifndef VX_DISABLE_PRESENCE
 typedef enum {
     publication_state_success = 0,
     publication_state_transient_error = 1,
@@ -887,20 +913,23 @@ typedef enum {
 } vx_publication_state_change_state;
 
 typedef enum {
-    buddy_presence_unknown = 0,             /**< OBSOLETE */
-    buddy_presence_pending = 1,             /**< OBSOLETE */
+    buddy_presence_unknown = 0,  /**< OBSOLETE */
+    buddy_presence_pending = 1,  /**< OBSOLETE */
     buddy_presence_online = 2,
     buddy_presence_busy = 3,
     buddy_presence_brb = 4,
     buddy_presence_away = 5,
     buddy_presence_onthephone = 6,
     buddy_presence_outtolunch = 7,
-    buddy_presence_custom = 8,              /**< OBSOLETE */
-    buddy_presence_online_slc = 9,          /**< OBSOLETE */
-    buddy_presence_closed = 0,              /**< OBSOLETE */
+    buddy_presence_custom = 8,  /**< OBSOLETE */
+    buddy_presence_online_slc = 9,  /**< OBSOLETE */
+    buddy_presence_closed = 0,  /**< OBSOLETE */
     buddy_presence_offline = 0,
+    buddy_presence_chat = 10,
+    buddy_presence_extended_away = 11,
+    buddy_presence_min = buddy_presence_unknown,
+    buddy_presence_max = buddy_presence_extended_away
 } vx_buddy_presence_state;
-#endif
 
 typedef enum {
     session_notification_none = 0
@@ -912,32 +941,34 @@ typedef enum {
 
 typedef enum {
     // NB: keep in sync with enum TextState in sessionproperties.h
-    session_text_disconnected  = 0,
-    session_text_connected     = 1,
-    session_text_connecting    = 2,
+    session_text_disconnected = 0,
+    session_text_connected = 1,
+    session_text_connecting = 2,
     session_text_disconnecting = 3
 } vx_session_text_state;
 
 typedef enum {
     // NB: keep in sync with enum MediaState in sessionproperties.h
-    session_media_none          = 0,     // deprecated: not used anywhere, was mapped to MediaStateDisconnected which is mapped back to session_media_disconnected
-    session_media_disconnected  = 1,
-    session_media_connected     = 2,
-    session_media_ringing       = 3,
-    session_media_hold          = 4,     // deprecated: not used anywhere
-    session_media_refer         = 5,     // deprecated: not used anywhere
-    session_media_connecting    = 6,
+    // NB: MediaState has additional state: MediaStateIncoming, which is mapped to session_media_ringing or session_media_disconnected in different places
+    session_media_none = 0,  // deprecated: not used anywhere, was mapped to MediaStateDisconnected which is mapped back to session_media_disconnected
+    session_media_disconnected = 1,
+    session_media_connected = 2,
+    session_media_ringing = 3,
+    session_media_hold = 4,  // deprecated: not used anywhere
+    session_media_refer = 5,  // deprecated: not used anywhere
+    session_media_connecting = 6,
     session_media_disconnecting = 7
-        // NB: MediaState has additional state: MediaStateIncoming, which is mapped to session_media_ringing or session_media_disconnected in different places
 } vx_session_media_state;
 
 typedef enum {
     participant_user = 0,
-    part_user = 0,          // For backward compatibility
+    part_user = participant_user,  // For backward compatibility
+
     participant_moderator = 1,
-    part_moderator = 1,     // For backward compatibility
+    part_moderator = participant_moderator,  // For backward compatibility
+
     participant_owner = 2,
-    part_focus = 2,         // For backward compatibility
+    part_focus = participant_owner  // For backward compatibility
 } vx_participant_type;
 
 enum media_codec_type {
@@ -966,10 +997,9 @@ typedef enum {
 /**
  * Participant media flags
  */
-    #define VX_MEDIA_FLAGS_AUDIO 0x1
-    #define VX_MEDIA_FLAGS_TEXT  0x2
+#define VX_MEDIA_FLAGS_AUDIO 0x1
+#define VX_MEDIA_FLAGS_TEXT  0x2
 
-#ifndef VX_DISABLE_PRESENCE
 // Buddy for state dump
 typedef struct vx_state_buddy_contact {
     vx_buddy_presence_state presence;
@@ -1011,6 +1041,7 @@ typedef vx_state_buddy_ref_t *vx_state_buddy_list_t;
 VIVOXSDK_DLLEXPORT int vx_state_buddy_list_create(int size, vx_state_buddy_list_t *list_out);
 VIVOXSDK_DLLEXPORT int vx_state_buddy_list_free(vx_state_buddy_t **list, int size);
 #endif
+
 typedef struct vx_state_buddy_group {
     int group_id;
     char *group_name;
@@ -1026,9 +1057,10 @@ typedef vx_state_buddy_group_ref_t *vx_state_buddy_group_list_t;
 VIVOXSDK_DLLEXPORT int vx_state_buddy_group_list_create(int size, vx_state_buddy_group_list_t *list_out);
 VIVOXSDK_DLLEXPORT int vx_state_buddy_group_list_free(vx_state_buddy_group_t **list, int size);
 #endif
-#endif // VX_DISABLE_PRESENCE
 
-/** Channel participant. */
+/**
+ * Channel participant.
+ */
 typedef struct vx_participant {
     char *uri;
     char *first_name;
@@ -1038,9 +1070,9 @@ typedef struct vx_participant {
     int is_moderator;
     int is_moderator_muted;
     int is_moderator_text_muted;
-    int is_muted_for_me;        // NOT CURRENTLY IMPLEMENTED
+    int is_muted_for_me;  // NOT CURRENTLY IMPLEMENTED
     int is_owner;
-    int account_id;     // @deprecated
+    int account_id;  /**< deprecated */
 } vx_participant_t;
 #ifndef VIVOX_TYPES_ONLY
 VIVOXSDK_DLLEXPORT int vx_participant_create(vx_participant_t **participant);
@@ -1055,8 +1087,8 @@ VIVOXSDK_DLLEXPORT int vx_participant_list_free(vx_participant_t **list, int siz
 #endif
 
 /** State Participant
-* Used for state dump only
-*/
+ * Used for state dump only
+ */
 typedef struct vx_state_participant {
     char *uri;
     char *display_name;
@@ -1087,14 +1119,14 @@ VIVOXSDK_DLLEXPORT int vx_state_participant_list_free(vx_state_participant_t **l
 #endif
 
 /** State Session
-* Used for state dump only
-*/
+ * Used for state dump only
+ */
 typedef struct vx_state_session {
     char *session_handle;
     char *uri;
     char *name;
     int is_audio_muted_for_me;
-    int is_text_muted_for_me;           // Not Currently Supported
+    int is_text_muted_for_me;  // Not Currently Supported
     int is_transmitting;
     int is_focused;
     int volume;
@@ -1121,8 +1153,8 @@ VIVOXSDK_DLLEXPORT int vx_state_session_list_free(vx_state_session_t **list, int
 #endif
 
 /** State SessionGroup
-* Used for state dump only
-*/
+ * Used for state dump only
+ */
 typedef struct vx_state_sessiongroup {
     char *sessiongroup_handle;
     int state_sessions_count;
@@ -1151,8 +1183,8 @@ VIVOXSDK_DLLEXPORT int vx_state_sessiongroup_list_free(vx_state_sessiongroup_t *
 #endif
 
 /** State Account
-* Used for state dump only
-*/
+ * Used for state dump only
+ */
 typedef struct vx_state_account {
     char *account_handle;
     char *account_uri;
@@ -1163,10 +1195,8 @@ typedef struct vx_state_account {
     vx_state_sessiongroup_t **state_sessiongroups;
     int state_buddy_count;
     int state_buddy_group_count;
-#ifndef VX_DISABLE_PRESENCE
     vx_state_buddy_t **state_buddies;
     vx_state_buddy_group_t **state_buddy_groups;
-#endif
 } vx_state_account_t;
 #ifndef VIVOX_TYPES_ONLY
 VIVOXSDK_DLLEXPORT int vx_state_account_create(vx_state_account_t **state_account);
@@ -1181,8 +1211,8 @@ VIVOXSDK_DLLEXPORT int vx_state_account_list_free(vx_state_account_t **list, int
 #endif
 
 /** State Connector
-* Used for state dump only
-*/
+ * Used for state dump only
+ */
 typedef struct vx_state_connector {
     char *connector_handle;
     int state_accounts_count;
@@ -1205,72 +1235,87 @@ VIVOXSDK_DLLEXPORT int vx_state_connector_list_free(vx_state_connector_t **list,
 #endif
 
 /**
-  * Channel struct.
-  */
+ * Channel struct.
+ */
 typedef struct vx_channel {
     /**
      * The name of the channel
      */
     char *channel_name;
+
     /**
      * channel_desc: The description of the channel
      */
     char *channel_desc;
+
     /**
      * Not currently implemented
      */
     char *host;
+
     /**
      * channel_id: The numeric identifier of the channel
      * @deprecated
      */
     int channel_id;
+
     /**
      * limit: The maximum number of participants allowed in the channel
      */
     int limit;
+
     /**
      * DEPRECATED.  capacity: The forecasted number of participants in the channel.
      * @deprecated
      */
-    int capacity;         /**< DEPRECATED */
+    int capacity;  /**< DEPRECATED */
+
     /**
      * modified: The date and time the channel modified
      */
     char *modified;
+
     /**
      * owner: The uri of the channel owner
      */
     char *owner;
+
     /**
      * owner_user_name: The user name of the channel owner
      */
     char *owner_user_name;
+
     /**
      * is_persistent: Flag identifying this channel as persistent or not.
      * If it is not persistent then it will be deleted automatically after a certain period of inactivity.
      */
-    int is_persistent;     /* 1 true, <= 0 false */
+    int is_persistent;  /* 1 true, <= 0 false */
+
     /**
      * is_protected: A flag identifying this channel as being password protected or not
      */
-    int is_protected;     /* 1 true, <= 0 false */
+    int is_protected;  /* 1 true, <= 0 false */
+
     /**
      * @deprecated
      */
     int size;
+
     /**
      * type: This identifies this as a channel (0), positional(2)
      */
     int type;
+
     /**
      * mode: The mode of the channel is none (0), normal (1), presentation (2), lecture (3), open (4)
      */
     vx_channel_mode mode;
+
     /**
      * channel_uri: The URI of the channel, this is used to join the channel as well as perform moderator actions against the channel
      */
     char *channel_uri;
+
     /**
      * This is the distance beyond which a participant is considered 'out of range'.
      * When participants cross this threshold distance from a particular listening position in
@@ -1280,6 +1325,7 @@ typedef struct vx_channel {
      * This will use server defaults on create, and will leave existing values unchanged on update
      */
     int max_range;
+
     /**
      * This is the distance from the listener below which the 'gain rolloff' effects for a given
      * audio rolloff model (see below) are not applied.
@@ -1288,6 +1334,7 @@ typedef struct vx_channel {
      * This will use server defaults on create, and will leave existing values unchanged on update.
      */
     int clamping_dist;
+
     /**
      * This value indicates how sharp the audio attenuation will 'rolloff' between the clamping
      * and maximum distances.
@@ -1296,6 +1343,7 @@ typedef struct vx_channel {
      * will leave existing values unchanged on update.
      */
     double roll_off;
+
     /**
      * The (render side) loudness for all speakers in this channel.
      * Note that this is a receive side value, and should not in practice be raised above, say 2.5.
@@ -1303,37 +1351,41 @@ typedef struct vx_channel {
      * values unchanged on update.
      */
     double max_gain;
+
     /**
-    * This is the distance model for the channel, this tells the server which algorithm to use
-    * when computing attenuation.
-    * The audio from speakers will drop to 0 abruptly at the maximum distance.
-    * There are four possible values in this field:
-    *    - 0 - None:
-    *        - No distance based attenuation is applied. All speakers are rendered as if they
-    *          were in the same position as the listener.
-    *    - 1 - Inverse Distance Clamped:
-    *        - The attenuation increases in inverse proportion to the distance. The rolloff
-    *          factor n is the inverse of the slope of the attenuation curve.
-    *    - 2 - Linear Distance Clamped:
-    *        - The attenuation increases in linear proportion to the distance.The rolloff factor
-    *          is the negative slope of the attenuation curve.
-    *    - 3 - Exponent Distance Clamped:
-    *        - The attenuation increases in inverse proportion to the distance raised to the
-    *          power of the rolloff factor.
-    * The default audio model is 1 - Inverse Distance Clamped. This will use server defaults on
-    * create, and will leave existing values unchanged on update.
-    *
-    * If channel_type == dir, this does not apply.
+     * This is the distance model for the channel, this tells the server which algorithm to use
+     * when computing attenuation.
+     * The audio from speakers will drop to 0 abruptly at the maximum distance.
+     * There are four possible values in this field:
+     *    - 0 - None:
+     *        - No distance based attenuation is applied. All speakers are rendered as if they
+     *          were in the same position as the listener.
+     *    - 1 - Inverse Distance Clamped:
+     *        - The attenuation increases in inverse proportion to the distance. The rolloff
+     *          factor n is the inverse of the slope of the attenuation curve.
+     *    - 2 - Linear Distance Clamped:
+     *        - The attenuation increases in linear proportion to the distance.The rolloff factor
+     *          is the negative slope of the attenuation curve.
+     *    - 3 - Exponent Distance Clamped:
+     *        - The attenuation increases in inverse proportion to the distance raised to the
+     *          power of the rolloff factor.
+     * The default audio model is 1 - Inverse Distance Clamped. This will use server defaults on
+     * create, and will leave existing values unchanged on update.
+     *
+     * If channel_type == dir, this does not apply.
      */
     int dist_model;
+
     /**
      * encrypt_audio: Whether or not the audio is encrypted
      */
     int encrypt_audio;
+
     /**
      * owner_display_name: The display name of the channel owner
      */
     char *owner_display_name;
+
     /**
      * active_participants: The number of participants in the channel
      */
@@ -1343,14 +1395,16 @@ typedef struct vx_channel {
 VIVOXSDK_DLLEXPORT int vx_channel_create(vx_channel_t **channel);
 VIVOXSDK_DLLEXPORT int vx_channel_free(vx_channel_t *channel);
 #endif
-
 typedef vx_channel_t *vx_channel_ref_t;
 typedef vx_channel_ref_t *vx_channel_list_t;
 #ifndef VIVOX_TYPES_ONLY
 VIVOXSDK_DLLEXPORT int vx_channel_list_create(int size, vx_channel_list_t *list_out);
 VIVOXSDK_DLLEXPORT int vx_channel_list_free(vx_channel_t **list, int size);
 #endif
-/** Channel Favorite struct. */
+
+/**
+ * Channel Favorite struct.
+ */
 typedef struct vx_channel_favorite {
     int favorite_id;
     int favorite_group_id;
@@ -1359,11 +1413,11 @@ typedef struct vx_channel_favorite {
     char *channel_uri;
     char *channel_description;
     int channel_limit;
-    int channel_capacity;         /**< DEPRECATED */
+    int channel_capacity;  /**< DEPRECATED */
     char *channel_modified;
     char *channel_owner_user_name;
-    int channel_is_persistent;     /* 1 true, <= 0 false */
-    int channel_is_protected;     /* 1 true, <= 0 false */
+    int channel_is_persistent;  /* 1 true, <= 0 false */
+    int channel_is_protected;  /* 1 true, <= 0 false */
     int channel_size;
     char *channel_owner;
     char *channel_owner_display_name;
@@ -1379,7 +1433,10 @@ typedef vx_channel_favorite_ref_t *vx_channel_favorite_list_t;
 VIVOXSDK_DLLEXPORT int vx_channel_favorite_list_create(int size, vx_channel_favorite_list_t *list_out);
 VIVOXSDK_DLLEXPORT int vx_channel_favorite_list_free(vx_channel_favorite_t **list, int size);
 #endif
-/** Channel Favorite Group struct. */
+
+/**
+ * Channel Favorite Group struct.
+ */
 typedef struct vx_channel_favorite_group {
     int favorite_group_id;
     char *favorite_group_name;
@@ -1396,7 +1453,10 @@ typedef vx_channel_favorite_group_ref_t *vx_channel_favorite_group_list_t;
 VIVOXSDK_DLLEXPORT int vx_channel_favorite_group_list_create(int size, vx_channel_favorite_group_list_t *list_out);
 VIVOXSDK_DLLEXPORT int vx_channel_favorite_group_list_free(vx_channel_favorite_group_t **list, int size);
 #endif
-/** Voice Font struct. */
+
+/**
+ * Voice Font struct.
+ */
 typedef struct vx_voice_font {
     int id;
     int parent_id;
@@ -1404,7 +1464,7 @@ typedef struct vx_voice_font {
     char *name;
     char *description;
     char *expiration_date;
-    int expired;            // 0 is false, 1 is true
+    int expired;  // 0 is false, 1 is true
     char *font_delta;
     char *font_rules;
     vx_font_status status;
@@ -1421,8 +1481,6 @@ VIVOXSDK_DLLEXPORT int vx_voice_font_list_free(vx_voice_font_t **list, int size)
 VIVOXSDK_DLLEXPORT int vx_string_list_create(int size, char ***list_out);
 VIVOXSDK_DLLEXPORT int vx_string_list_free(char **list);
 #endif
-
-#ifndef VX_DISABLE_PRESENCE
 
 typedef struct vx_block_rule {
     char *block_mask;
@@ -1449,13 +1507,11 @@ typedef struct vx_auto_accept_rule {
 VIVOXSDK_DLLEXPORT int vx_auto_accept_rule_create(vx_auto_accept_rule_t **auto_accept_rule);
 VIVOXSDK_DLLEXPORT int vx_auto_accept_rule_free(vx_auto_accept_rule_t *auto_accept_rule);
 #endif
-
 typedef vx_auto_accept_rule_t *vx_auto_accept_rule_ref_t;
 typedef vx_auto_accept_rule_ref_t *vx_auto_accept_rules_t;
 #ifndef VIVOX_TYPES_ONLY
 VIVOXSDK_DLLEXPORT int vx_auto_accept_rules_create(int size, vx_auto_accept_rules_t *list_out);
 VIVOXSDK_DLLEXPORT int vx_auto_accept_rules_free(vx_auto_accept_rule_t **list, int size);
-#endif
 #endif
 
 typedef struct vx_user_channel {
@@ -1475,10 +1531,10 @@ VIVOXSDK_DLLEXPORT int vx_user_channels_free(vx_user_channel_t **list, int size)
 #endif
 
 /**
-* test_type: Enumeration that defines the test performed (see appendix ?15.8 for values).
-* error_code: Enumeration that defines the error or success of the test (see appendix ?15.9 for values).
-* test_additional_info: Any additional info for this test.  This may be IP addresses used, port numbers, error information, etc
-*/
+ * test_type: Enumeration that defines the test performed (see appendix ?15.8 for values).
+ * error_code: Enumeration that defines the error or success of the test (see appendix ?15.9 for values).
+ * test_additional_info: Any additional info for this test.  This may be IP addresses used, port numbers, error information, etc
+ */
 typedef struct vx_connectivity_test_result {
     ND_TEST_TYPE test_type;
     ND_ERROR test_error_code;
@@ -1494,6 +1550,7 @@ typedef vx_connectivity_test_result_ref_t *vx_connectivity_test_results_t;
 VIVOXSDK_DLLEXPORT int vx_connectivity_test_results_create(int size, vx_connectivity_test_results_t *list_out);
 VIVOXSDK_DLLEXPORT int vx_connectivity_test_results_free(vx_connectivity_test_result_t **list, int size);
 #endif
+
 typedef struct vx_account {
     char *uri;
     char *firstname;
@@ -1502,7 +1559,7 @@ typedef struct vx_account {
     char *displayname;
     char *email;
     char *phone;
-    char *carrier;          // Not currently implemented
+    char *carrier;  // Not currently implemented
     char *created_date;
 } vx_account_t;
 #ifndef VIVOX_TYPES_ONLY
@@ -1518,20 +1575,23 @@ typedef enum vx_device_type {
      * This type is a specific device.
      */
     vx_device_type_specific_device = 0,
+
     /**
      * This type means to use what ever the system has configured as a default, at the time of the call.
      * Don't switch devices mid-call if the default system device changes.
      */
     vx_device_type_default_system = 1,
+
     /**
      * This is the null device, which means that either input or output from/to that device will not occur.
      */
     vx_device_type_null = 2,
+
     /**
      * This type means to use what ever the system has configured as a default communication device, at the time of the call.
      * Don't switch devices mid-call if the default communication device changes.
      */
-    vx_device_type_default_communication = 3,
+    vx_device_type_default_communication = 3
 } vx_device_type_t;
 
 typedef struct vx_device {
@@ -1539,16 +1599,17 @@ typedef struct vx_device {
      * The identifier to passed to vx_req_set_render_device or vx_req_set_capture_device
      */
     char *device;
+
     /**
      * The display name to present to the user
      */
     char *display_name;
+
     /**
      * The type of device
      */
     vx_device_type_t device_type;
 } vx_device_t;
-
 #ifndef VIVOX_TYPES_ONLY
 VIVOXSDK_DLLEXPORT int vx_device_create(vx_device_t **device);
 VIVOXSDK_DLLEXPORT int vx_device_free(vx_device_t *device);
@@ -1560,13 +1621,12 @@ VIVOXSDK_DLLEXPORT int vx_devices_create(int size, vx_devices_t *list_out);
 VIVOXSDK_DLLEXPORT int vx_devices_free(vx_device_t **list, int size);
 #endif
 
-#ifndef VX_DISABLE_PRESENCE
 typedef struct vx_buddy {
     char *buddy_uri;
     char *display_name;
     int parent_group_id;
     char *buddy_data;
-    int account_id;      // @deprecated
+    int account_id;  /**< deprecated */
     char *account_name;
 } vx_buddy_t;
 #ifndef VIVOX_TYPES_ONLY
@@ -1580,7 +1640,6 @@ VIVOXSDK_DLLEXPORT int vx_buddy_list_create(int size, vx_buddy_list_t *list_out)
 VIVOXSDK_DLLEXPORT int vx_buddy_list_free(vx_buddy_t **list, int size);
 #endif
 
-#endif
 typedef struct vx_group {
     int group_id;
     char *group_name;
@@ -1596,17 +1655,18 @@ typedef vx_group_ref_t *vx_group_list_t;
 VIVOXSDK_DLLEXPORT int vx_group_list_create(int size, vx_group_list_t *list_out);
 VIVOXSDK_DLLEXPORT int vx_group_list_free(vx_group_t **list, int size);
 #endif
+
 typedef struct vx_name_value_pair {
     /**
      * The name of the parameter
      */
     char *name;
+
     /**
      * The value of teh parameter
      */
     char *value;
 } vx_name_value_pair_t;
-
 #ifndef VIVOX_TYPES_ONLY
 VIVOXSDK_DLLEXPORT int vx_name_value_pair_create(vx_name_value_pair_t **nvpair);
 VIVOXSDK_DLLEXPORT int vx_name_value_pair_free(vx_name_value_pair_t *nvpair);
@@ -1622,14 +1682,15 @@ VIVOXSDK_DLLEXPORT int vx_name_value_pairs_free(vx_name_value_pair_t **list, int
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Use this function to allocate string data to send to the SDK.
- * The function will NOT work until vx_initialize*() is called, and after vx_uninitialize() call.
+ * The function will NOT work until vx_initialize3() is called, and after vx_uninitialize() call.
  * \ingroup memorymanagement
  */
 VIVOXSDK_DLLEXPORT char *vx_strdup(const char *);
+
 /**
  * Use this function to free string data returned to the application.
- * This funciton is rarely used in practice.
- * The function will NOT work until vx_initialize*() is called, and after vx_uninitialize() call.
+ * This function is rarely used in practice.
+ * This function will NOT work until vx_initialize3() is called, and after vx_uninitialize() call.
  * \ingroup memorymanagement
  */
 VIVOXSDK_DLLEXPORT int vx_free(char *);
@@ -1643,17 +1704,23 @@ VIVOXSDK_DLLEXPORT void *vx_calloc(size_t num, size_t bytesPerElement);
 VIVOXSDK_DLLEXPORT void *vx_allocate_aligned(size_t alignment, size_t size);
 VIVOXSDK_DLLEXPORT int vx_unallocate_aligned(void *p);
 
+#define VX_GET_MESSAGE_NO_MESSAGE -1
+#define VX_GET_MESSAGE_AVAILABLE 0
+#define VX_GET_MESSAGE_FAILURE 1
+
 /**
  * The VxSDK polling function.  Should be called periodically to check for any incoming events.
  *
  * @param message           [out] The object containing the message data.
- * @return                  Status of the poll, 0 = Success, 1 = Failure, -1 = No Mesasge Available
+ * @return                  Status of the poll, VX_GET_MESSAGE_AVAILABLE = Success, VX_GET_MESSAGE_FAILURE = Failure, VX_GET_MESSAGE_NO_MESSAGE = No Message Available
  * \ingroup messaging
  */
 VIVOXSDK_DLLEXPORT int vx_get_message(vx_message_base_t **message);
 
 /**
- * Execute the given request. This function will initialize the sdk automatically if not already initialized (see vx_initialize3())
+ * Execute the given request.
+ * On V4: This function will initialize the sdk automatically if not already initialized (see vx_initialize3())
+ * On V5: This function has the same behavior as vx_issue_request2
  *
  * @param request           The request object to execute.  This is of one of the vx_req_* structs.
  * @return                  Success status of the request.
@@ -1678,7 +1745,7 @@ VIVOXSDK_DLLEXPORT int vx_issue_request2(vx_req_base_t *request);
  * @param request           The request object to execute.  This is of one of the vx_req_* structs.
  * @param request_count     if non-null, vx_issue_request3 will output the number of requests still outstanding
  *                          requests at a rate of 12 requests/second - an application can use this value to determine
- *                          if the application is issue requests at an unacceptable rate
+ *                          if the application is issuing requests at an unacceptable rate
  * @return                  Success status of the request.
  * \ingroup messaging
  */
@@ -1808,9 +1875,9 @@ VIVOXSDK_DLLEXPORT int vx_register_logging_initialization(
         void (*pf_handler)(const char *source, const char *level, const char *message));
 
 /**
-* Get the SDK log file path
-* \ingroup diagnostics
-*/
+ * Get the SDK log file path
+ * \ingroup diagnostics
+ */
 VIVOXSDK_DLLEXPORT char *vx_get_log_file_path(void);
 
 /**
@@ -1906,29 +1973,28 @@ VIVOXSDK_DLLEXPORT const char *vx_get_sdk_version_info(void);
 VIVOXSDK_DLLEXPORT int vx_apply_font_to_file(const char *fontDefinition, const char *inputFile, const char *outputFile);
 
 /**
-* Apply a vivox voice font to a wav file, and return the energy ratio (Output Energy/Input Energy)
-*
-* @param fontDefinition - string containing the font "definition" (in XML format)
-* @param inputFile - string contaning path to the input wav file, contaning the "unmodified" voice
-* @param outputFile - string containing path to the output wav file, with font applied
-* @param energyRatio - Raw Energy ratio between the input and output audio
-* @return                  0 if successful, non-zero if failed.
-* \ingroup voicefonts
-*/
+ * Apply a vivox voice font to a wav file, and return the energy ratio (Output Energy/Input Energy)
+ *
+ * @param fontDefinition - string containing the font "definition" (in XML format)
+ * @param inputFile - string contaning path to the input wav file, contaning the "unmodified" voice
+ * @param outputFile - string containing path to the output wav file, with font applied
+ * @param energyRatio - Raw Energy ratio between the input and output audio
+ * @return                  0 if successful, non-zero if failed.
+ * \ingroup voicefonts
+ */
 VIVOXSDK_DLLEXPORT int vx_apply_font_to_file_return_energy_ratio(const char *fontDefinition, const char *inputFile, const char *outputFile, double *energyRatio);
 
 /**
-* Apply a vivox voice font to a vxz file, and return the energy ratio (Output Energy/Input Energy)
-*
-* @param fontDefinition - string containing the font "definition" (in XML format)
-* @param inputFile - string contaning path to the input vxz file, contaning the "unmodified" voice
-* @param outputFile - string containing path to the output wav file, with font applied
-* @param energyRatio - Raw Energy ratio between the input and output audio
-* @return                  0 if successful, non-zero if failed.
-* \ingroup voicefonts
-*/
+ * Apply a vivox voice font to a vxz file, and return the energy ratio (Output Energy/Input Energy)
+ *
+ * @param fontDefinition - string containing the font "definition" (in XML format)
+ * @param inputFile - string contaning path to the input vxz file, contaning the "unmodified" voice
+ * @param outputFile - string containing path to the output wav file, with font applied
+ * @param energyRatio - Raw Energy ratio between the input and output audio
+ * @return                  0 if successful, non-zero if failed.
+ * \ingroup voicefonts
+ */
 VIVOXSDK_DLLEXPORT int vx_apply_font_to_vxz_file_return_energy_ratio(const char *fontDefinition, const char *inputFile, const char *outputFile, double *energyRatio);
-
 
 /**
  * Create a copy of the internal local audio buffer (associated with the vx_req_aux_start_buffer_capture_t request/response)
@@ -1987,8 +2053,20 @@ VIVOXSDK_DLLEXPORT int vx_export_audioBuffer_to_pcm(void *audioBufferPtr, short 
  * @return               -  0 if successful, non-zero if failed.
  * \ingroup adi
  */
-
 VIVOXSDK_DLLEXPORT int vx_export_audioBuffer_to_wav_file(void *audioBufferPtr, const char *outputFile);
+
+/**
+ * Export audio data in an audioBufferPtr to memory
+ *
+ * @param audioBufferPtr - Pointer to the pointer to audio data in vivox proprietary format
+ * @param audioBufferOut - interleaved (if stereo) audio buffer of PCM encoded audio. Must be freed with vx_free()
+ * @param nSamplesOut    - the number of samples
+ * @param sampleRateOut  - the sample rate of the audio buffer
+ * @param nChannelsOut   - the number of channels in the buffer
+ * @return               -  0 if successful, non-zero if failed.
+ * \ingroup adi
+ */
+VIVOXSDK_DLLEXPORT int vx_export_audioBuffer_to_memory(void *audioBufferPtr, short **audioBufferOut, int *nSamplesOut, int *sampleRateOut, int *nChannelsOut);
 
 /**
  * Set the default out of proc server address, once set requests issued using vx_issue_request will be sent
@@ -2024,18 +2102,6 @@ VIVOXSDK_DLLEXPORT int vx_alloc_sdk_handle(const char *address, unsigned short p
  */
 VIVOXSDK_DLLEXPORT int vx_free_sdk_handle(VX_SDK_HANDLE sdkHandle);
 
-#ifdef SN_TARGET_PS3
-/**
- * @deprecated
- * Application must call this API before calling any other Vivox API.
- * @return               -  0 if successful, non-zero if failed.
- */
-VIVOXSDK_DLLEXPORT int vx_initialize(
-        void * (*pfMallocFunc)(size_t),
-        void (*pfFreeFunc)(void *),
-        void *(*pfReallocFunc)(void *, size_t));
-
-#else
 /**
  * @deprecated
  * Application must call this API before calling any other Vivox API.
@@ -2045,19 +2111,14 @@ VIVOXSDK_DLLEXPORT int vx_initialize(
 VIVOXSDK_DLLEXPORT int vx_initialize(void);
 
 /**
- * this structure contains configuration parameters for the SDK as a whole
- */
-#endif
-
-
-/**
  * @deprecated
- * Application must call this API before calling any other Vivox API, except vx_get_default_config3();
- * @return               -  0 if successful, non-zero if failed.
+ * Use vx_initialize3() instead
+ *
+ * This function isn't supported starting from 5.1.0
+ * @return               -  Always returns VX_E_DEPRECATED
  * @deprecated           - use vx_initialize3()
  */
 VIVOXSDK_DLLEXPORT int vx_initialize2(vx_sdk_config_t *config);
-
 
 /**
  * Application must call this API before calling any other Vivox API, except vx_get_default_config3();
@@ -2067,7 +2128,7 @@ VIVOXSDK_DLLEXPORT int vx_initialize2(vx_sdk_config_t *config);
 VIVOXSDK_DLLEXPORT int vx_initialize3(vx_sdk_config_t *config, size_t config_size);
 
 /**
- * Check if Vivox SDK was initialized with vx_initialize*() call, and not yet uninitialized with vx_uninitialize() call.
+ * Check if Vivox SDK was initialized with vx_initialize3() call, and not yet uninitialized with vx_uninitialize() call.
  * @return               -  0 if NOT initialized, non-zero if initialized.
  * \ingroup initialization
  */
@@ -2077,8 +2138,8 @@ VIVOXSDK_DLLEXPORT int vx_is_initialized(void);
  * @deprecated
  * Use vx_get_default_config3() instead
  *
- * Application must call this API before calling any other Vivox API.
- * @return               -  0 if successful, non-zero if failed.
+ * This function isn't supported starting from 5.1.0
+ * @return               -  Always returns VX_E_DEPRECATED
  */
 VIVOXSDK_DLLEXPORT int vx_get_default_config(vx_sdk_config_t *config);
 
@@ -2098,6 +2159,7 @@ VIVOXSDK_DLLEXPORT int vx_uninitialize(void);
 #endif
 
 #define VIVOX_V_V2_AUDIO_DATA_MONO_SIREN14_32000_EXPANDED 0x10001
+
 /**
  * @deprecated
  *
@@ -2110,6 +2172,7 @@ VIVOXSDK_DLLEXPORT int vx_uninitialize(void);
 #define VIVOX_V_V2_AUDIO_DATA_MONO_OPUS_48000_EXPANDED 0x10009
 
 #define VIVOX_V_V2_AUDIO_DATA_MONO_PCMU_8000_COLLAPSED 0x20005
+
 /**
  * @deprecated
  *
@@ -2122,16 +2185,16 @@ VIVOXSDK_DLLEXPORT int vx_uninitialize(void);
 /**
  * configured_codecs is a mask of these constants
  */
-#define VIVOX_VANI_PCMU         0x1 /* PCMU */
-#define VIVOX_VANI_SIREN7       0x2 /* Siren7, 16kHz, 32kbps */
-#define VIVOX_VANI_SIREN14      0x4 /* Siren14, 32kHz, 32kbps */
+#define VIVOX_VANI_PCMU         0x1   /* PCMU */
+#define VIVOX_VANI_SIREN7       0x2   /* Siren7, 16kHz, 32kbps */
+#define VIVOX_VANI_SIREN14      0x4   /* Siren14, 32kHz, 32kbps */
 #define VIVOX_VANI_LEGACY_MASK  0x7
-#define VIVOX_VANI_OPUS8       0x10 /* Opus, 48kHz, 8kbps */
-#define VIVOX_VANI_OPUS40      0x20 /* Opus, 48kHz, 40kbps */
-#define VIVOX_VANI_OPUS57      0x40 /* Opus, 48kHz, 57kbps */ /* proposed; pending research */
-#define VIVOX_VANI_OPUS72      0x80 /* Opus, 48kHz, 72kbps */ /* proposed; pending research */
-#define VIVOX_VANI_OPUS VIVOX_VANI_OPUS40
-#define VIVOX_VANI_OPUS_MASK   0xf0
+#define VIVOX_VANI_OPUS8        0x10  /* Opus, 48kHz, 8kbps */
+#define VIVOX_VANI_OPUS40       0x20  /* Opus, 48kHz, 40kbps */
+#define VIVOX_VANI_OPUS57       0x40  /* Opus, 48kHz, 57kbps */ /* proposed; pending research */
+#define VIVOX_VANI_OPUS72       0x80  /* Opus, 48kHz, 72kbps */ /* proposed; pending research */
+#define VIVOX_VANI_OPUS         VIVOX_VANI_OPUS40
+#define VIVOX_VANI_OPUS_MASK    0xf0
 
 typedef struct vx_stat_sample {
     double sample_count;
@@ -2166,27 +2229,77 @@ typedef struct vx_system_stats {
     vx_stat_sample_t ar_source_queue_depth;
     vx_stat_thread_t vp_thread;
     vx_stat_thread_t ticker_thread;
+
+    /**
+     * VivoxClient::Client instance count.
+     * \note V5 only. In V4 always equal -1.
+     */
+    int clnt_count;
+
+    /**
+     * LoginContext instance count.
+     * \note V5 only. In V4 always equal -1.
+     */
+    int lc_count;
+
+    /**
+     * MorpheusSession instance count.
+     * \note V5 only. In V4 always equal -1.
+     */
+    int mps_count;
+
+    /**
+     * MorpheusSessionGroup instance count.
+     * \note V5 only. In V4 always equal -1.
+     */
+    int mpsg_count;
+
+    /**
+     * VivoxStro::StroMediaSession instance count.
+     * \note V5 only. In V4 always equal -1.
+     */
+    int strms_count;
+
+    /**
+     * VivoxStro::StroRtp instance count.
+     * \note V5 only. In V4 always equal -1.
+     */
+    int strr_count;
+
+    /**
+     * VivoxStro::StroSessionState instance count.
+     * \note V5 only. In V4 always equal -1.
+     */
+    int strss_count;
+
+    /**
+     * VoiceProcessor instance count.
+     * \note V5 only. In V4 always equal -1.
+     */
+    int vp_count;
 } vx_system_stats_t;
 
 /**
  * This describes the state of the application. Valid only on mobile platforms
  */
 typedef enum vx_application_state_notification_type {
-    vx_application_state_notification_type_before_background,
-    vx_application_state_notification_type_after_foreground,
-    vx_application_state_notification_type_periodic_background_idle
+    vx_application_state_notification_type_before_background = 0,
+    vx_application_state_notification_type_after_foreground = 1,
+    vx_application_state_notification_type_periodic_background_idle = 2
 } vx_application_state_notification_type_t;
 
-    #ifndef VIVOX_TYPES_ONLY
+#ifndef VIVOX_TYPES_ONLY
+VIVOXSDK_DLLEXPORT int vx_debug_call(void *);
+
 /**
  * Get statistics about various system internals
  * @return               -  0 if successful, non-zero if failed
  */
 VIVOXSDK_DLLEXPORT int vx_get_system_stats(vx_system_stats_t *system_stats);
 
-#define VX_VAR_DECODER_COUNT_LIMIT "DecoderLimit"
+#define VX_VAR_DECODER_COUNT_LIMIT    "DecoderLimit"
 #define VX_VAR_DECODER_HANGOVER_LIMIT "DecoderHangoverLimit"
-#define VX_VAR_RTP_ENCRYPTION "RTPEncryption"
+#define VX_VAR_RTP_ENCRYPTION         "RTPEncryption"
 
 /**
  * Call this to get named variables
@@ -2195,6 +2308,7 @@ VIVOXSDK_DLLEXPORT int vx_get_system_stats(vx_system_stats_t *system_stats);
  * @return 0 if successful, no-zero if failed.
  */
 VIVOXSDK_DLLEXPORT int vx_get_int_var(const char *var_name, int *p_value);
+
 /**
  * Call this to set named variables
  * @param var_name the name of the variable
@@ -2209,6 +2323,7 @@ VIVOXSDK_DLLEXPORT int vx_set_int_var(const char *var_name, int value);
  */
 VIVOXSDK_DLLEXPORT int vx_destroy_message(vx_message_base_t *message);
 #endif
+
 /**
  * Error Codes that are returned by the VXA subsystem
  */
@@ -2217,40 +2332,49 @@ typedef enum {
      * Method executed successfully.
      */
     VXA_SUCCESS = 0,
+
     /**
      * The caller provided an invalid parameter
      */
     VXA_INVALID_PARAMETER = 1,
+
     /**
      * The caller attempted to open a device that does not exist
      */
     VXA_DEVICE_DOES_NOT_EXIST = 2,
+
     /**
      * There was an unexpected operating system specific failure.
      */
     VXA_INTERNAL_ERROR = 3,
+
     /**
      * The method could not allocate enough memory to complete the request
      */
     VXA_OUT_OF_MEMORY = 4,
+
     /**
      * The method attempt to perform an invalid operation on the object in its current state.
      * Typically, this is an attempt to open an already open device, or read or write a closed device.
      * May also be called if VXA is not initialized
      */
     VXA_INVALID_STATE = 5,
+
     /**
      * returned by "read()" functions when there is no more data available.
      */
     VXA_NO_MORE_DATA = 6,
+
     /**
      * returned by method if the feature is not supported.
      */
     VXA_FEATURE_NOT_SUPPORTED = 7,
+
     /**
      * returned by method if there is an attempt to create more than MAX_VXA_DEVICE_COUNT devices
      */
     VXA_MAX_DEVICES_EXCEEDED = 8,
+
     /**
      * returned by method if there are no more render buffers available
      */
@@ -2265,12 +2389,12 @@ typedef enum {
      * Use acoustic echo cancellation. This flag is not universally implemented.
      */
     VXA_CAPTURE_OPEN_FLAG_USE_AEC = 0x00000001,
+
     /**
      * Use automatic gain control. This flag is not universally implemented.
      */
     VXA_CAPTURE_OPEN_FLAG_USE_AGC = 0x00000002
 } VXA_CAPTURE_FLAGS;
-
 
 /**
  * The common return code for vxa* methods
@@ -2285,9 +2409,8 @@ typedef struct vxa_capture_device_stats_t {
     int buffer_underrun_count;
     int buffer_overrun_count;
     int other_error_count;
-
-    int audio_queue_read_count;     // correlate with buffer_underrun_count
-    int audio_queue_write_count;    // correlate with buffer_overrun_count
+    int audio_queue_read_count;  // correlate with buffer_underrun_count
+    int audio_queue_write_count;  // correlate with buffer_overrun_count
 } vxa_capture_device_stats_t;
 
 /**
@@ -2300,11 +2423,13 @@ typedef struct vxa_apcd {
      * @return the user visible name of the device
      */
     const char * (*pf_get_display_name)(struct vxa_apcd *pThis);
+
     /**
      * Used to get the internal identifier of the device
      * @return the internal device identifier
      */
-    const char * (*pf_get_internal_name)(struct vxa_apcd *pThis);      // Get the internal device identifier
+    const char * (*pf_get_internal_name)(struct vxa_apcd *pThis);  // Get the internal device identifier
+
     /**
      * Opens the device to capture mono audio, PCM encoded, 16 bit interleaved at the provided sample rate.
      *
@@ -2316,25 +2441,29 @@ typedef struct vxa_apcd {
      *
      */
     vxa_status_t (*pf_open)(struct vxa_apcd *pThis, int samples_per_second, int flags);
+
     /**
      * @return true if the device is open
      */
-    int (*pf_is_open)(struct vxa_apcd *pThis);               // returns true if the device is currently open
+    int (*pf_is_open)(struct vxa_apcd *pThis);  // returns true if the device is currently open
+
     /**
-      * write audio data to the device
-      *
-      * @param audio_data - pointer to the audio data
-      * @param audio_data_size_bytes - the size of the data in bytes. This must be an integral of 2
-      *
-      * @return - VXA_SUCCESS if exactly audio_data_size_bytes read, VXA_NO_MORE_DATA if there is less than audio_data_size_bytes available.
-      */
+     * write audio data to the device
+     *
+     * @param audio_data - pointer to the audio data
+     * @param audio_data_size_bytes - the size of the data in bytes. This must be an integral of 2
+     *
+     * @return - VXA_SUCCESS if exactly audio_data_size_bytes read, VXA_NO_MORE_DATA if there is less than audio_data_size_bytes available.
+     */
     vxa_status_t (*pf_read)(struct vxa_apcd *pThis, void *audio_data, int audio_data_size_bytes);
+
     /**
      * get statistics about the device. This function is optional.
      *
      * @param stats - a pointer to a stats structure. The application is responsible for allocating/deallocating this.
      */
     vxa_status_t (*pf_get_stats)(struct vxa_apcd *pThis, vxa_capture_device_stats_t *stats);
+
     /**
      * close the device
      */
@@ -2350,10 +2479,8 @@ typedef struct vxa_render_device_stats_t {
     int buffer_underrun_count;
     int buffer_overrun_count;
     int other_error_count;
-
-    int audio_queue_read_count;         // correlate with buffer_underrun_count
-    int audio_queue_write_count;        // correlate with buffer_overrun_count
-
+    int audio_queue_read_count;  // correlate with buffer_underrun_count
+    int audio_queue_write_count;  // correlate with buffer_overrun_count
     int hardware_output_channels;
     int hardware_preferred_samplerate;
     int hardware_preferred_buffer_duration;
@@ -2369,11 +2496,13 @@ typedef struct vxa_aprd {
      * @return the user visible name of the device
      */
     const char * (*pf_get_display_name)(struct vxa_aprd *pThis);
+
     /**
      * Used to get the internal identifier of the device
      * @return the internal device identifier
      */
     const char * (*pf_get_internal_name)(struct vxa_aprd *pThis);
+
     /**
      * Opens the device to render stereo audio, PCM encoded, 16 bit interleaved at the provided sample rate.
      *
@@ -2384,26 +2513,28 @@ typedef struct vxa_aprd {
      *
      */
     vxa_status_t (*pf_open)(struct vxa_aprd *pThis, int samples_per_second);
+
     /**
      * @return true if the device is open
      */
     int (*pf_is_open)(struct vxa_aprd *pThis);
+
     /**
-      * get a buffer for audio data
-      *
-      * @param buffer_length_frames - the number of frames of stereo audio data
-      * @param native_buffer - a place to receive the buffer handle. Note that the this may be null, and that
-      * the application should only return this to pf_release_buffer.
-      */
+     * get a buffer for audio data
+     *
+     * @param buffer_length_frames - the number of frames of stereo audio data
+     * @param native_buffer - a place to receive the buffer handle. Note that the this may be null, and that
+     * the application should only return this to pf_release_buffer.
+     */
     vxa_status_t (*pf_get_buffer)(struct vxa_aprd *pThis, int buffer_length_frames, void **native_buffer);
 
     /**
-      * get a buffer for audio data
-      *
-      * @param buffer_length_frames - the number of frames of stereo audio data
-      * @param native_buffer - the value returned from pf_get_buffer.
-      * @param stereo_buffer - buffer_length_frames of stereo audio data
-      */
+     * get a buffer for audio data
+     *
+     * @param buffer_length_frames - the number of frames of stereo audio data
+     * @param native_buffer - the value returned from pf_get_buffer.
+     * @param stereo_buffer - buffer_length_frames of stereo audio data
+     */
     vxa_status_t (*pf_release_buffer)(struct vxa_aprd *pThis, int buffer_length_frames, void *native_buffer, void *stereo_buffer);
 
     /**
@@ -2412,6 +2543,7 @@ typedef struct vxa_aprd {
      * @param stats - a pointer to a stats structure. The application is responsible for allocating/deallocating this.
      */
     vxa_status_t (*pf_get_stats)(struct vxa_aprd *pThis, struct vxa_render_device_stats_t *stats);
+
     /**
      * close the device
      */
@@ -2422,7 +2554,7 @@ typedef struct vxa_aprd {
  * The maximum number of application provided capture devices
  * The maximum number of application provided render devices
  */
-    #define MAX_VXA_DEVICE_COUNT 32
+#define MAX_VXA_DEVICE_COUNT 32
 
 #ifndef VIVOX_TYPES_ONLY
 /**
@@ -2453,28 +2585,26 @@ VIVOXSDK_DLLEXPORT int vxa_aprd_create(vxa_aprd_t *render_device, int *aprd_id);
 VIVOXSDK_DLLEXPORT int vxa_aprd_destroy(int aprd_id);
 
 /**
-* generates a Vivox Access Token.
-*
-* !!! This function should only be called when prototyping, or debugging token generation server implementations. !!!
-* It should not be in production code since that would require the issuer/key pair to be resident client memory, which would create
-* a security exposure.
-*
-* Supported on all platforms except XBox 360
-*
-* @param issuer standard issuer claim
-* @param expiration standard expiration time claim
-* @param vxa Vivox action, e.g. "login", "join", "kick", "mute"
-* @param serial number, to guarantee uniqueness within an epoch second
-* @param subject OPTIONAL - URI of the target of the actions "kick" and "mute", NULL otherwise.
-* @param from_uri SIP From URI
-* @param to_uri SIP To URI
-* @param key token-signing key
-* @param key_len length of key
-* @returns null-terminated buffer to be freed with vx_free() - if NULL is returned, an error occurred.
-*
-*/
+ * generates a Vivox Access Token.
+ *
+ * !!! This function should only be called when prototyping, or debugging token generation server implementations. !!!
+ * It should not be in production code since that would require the issuer/key pair to be resident client memory, which would create
+ * a security exposure.
+ *
+ * Supported on all platforms except XBox 360
+ *
+ * @param issuer standard issuer claim
+ * @param expiration standard expiration time claim, if set to (time_t)-1 uses default value 300 seconds
+ * @param vxa Vivox action, e.g. "login", "join", "kick", "mute"
+ * @param serial number, to guarantee uniqueness within an epoch second
+ * @param subject OPTIONAL - URI of the target of the actions "kick" and "mute", NULL otherwise.
+ * @param from_uri SIP From URI
+ * @param to_uri SIP To URI
+ * @param key token-signing key
+ * @param key_len length of key
+ * @returns null-terminated buffer to be freed with vx_free() - if NULL is returned, an error occurred.
+ */
 VIVOXSDK_DLLEXPORT char *vx_debug_generate_token(const char *issuer, time_t expiration, const char *vxa, unsigned long long serial, const char *subject, const char *from_uri, const char *to_uri, const unsigned char *key, size_t key_len);
-#endif
 
 /**
  * Synchronously downloads content of the specified URL with the GET method.
@@ -2487,7 +2617,6 @@ VIVOXSDK_DLLEXPORT char *vx_debug_generate_token(const char *issuer, time_t expi
  * @param content_type_len - [out] pointer to the returned content type length
  * @return 0 if successful, no-zero if failed.
  */
-
 VIVOXSDK_DLLEXPORT unsigned int vx_get_http(const char *url, unsigned int *response_code, char **content, size_t *content_len, char **content_type, size_t *content_type_len);
 
 /**
@@ -2498,9 +2627,60 @@ VIVOXSDK_DLLEXPORT unsigned int vx_get_http(const char *url, unsigned int *respo
  */
 VIVOXSDK_DLLEXPORT int vx_free_http(char **content, char **content_type);
 
+/**
+ * Get a random guest user id, with the given prefix. Note that the returned id will always start and end with the '.' character.
+ * This must be deallocated with vx_free();
+ *
+ * @param [in] prefix The prefix for the user
+ * \ingroup diagnostics
+ */
+VIVOXSDK_DLLEXPORT char *vx_get_random_user_id(const char *prefix);
+
+/**
+ * Get a random guest user id for the given issuer, with the given prefix. Note that the returned id will always start and end with the '.' character.
+ * This must be deallocated with vx_free();
+ *
+ * @param prefix [in] The prefix for the user
+ * @param issuer [in, optional] The issuer. If NULL or empty string passed, the generated user id will be the same as generated by vx_get_random_user_id()
+ * \ingroup diagnostics
+ */
+VIVOXSDK_DLLEXPORT char *vx_get_random_user_id_ex(const char *prefix, const char *issuer);
+
+/**
+ * Get a random ephemeral channel id, with the given prefix for the specific realm.
+ *
+ * The prefix should start with
+ *     confctl-g- for general non-positional channels
+ *     confctl-e- for echo channels
+ *     confctl-d- for positional channels
+ *
+ * This must be deallocated with vx_free();
+ *
+ * @param prefix [in] The prefix for the user
+ * @param realm [in] The realm for that user (e.g. vdx5.vivox.com)
+ * \ingroup diagnostics
+ */
+VIVOXSDK_DLLEXPORT char *vx_get_random_channel_uri(const char *prefix, const char *realm);
+
+/**
+ * Get a random ephemeral channel id for the given issuer, with the given prefix for the specific realm.
+ *
+ * The prefix should start with
+ *     confctl-g- for general non-positional channels
+ *     confctl-e- for echo channels
+ *     confctl-d- for positional channels
+ *
+ * This must be deallocated with vx_free();
+ *
+ * @param prefix [in] The prefix for the user
+ * @param realm [in] The realm for that user (e.g. vdx5.vivox.com)
+ * @param issuer [in, optional] The issuer. If NULL or empty string passed, the generated channel id will be the same as generated by vx_get_random_channel_uri()
+ * \ingroup diagnostics
+ */
+VIVOXSDK_DLLEXPORT char *vx_get_random_channel_uri_ex(const char *prefix, const char *realm, const char *issuer);
+#endif
 
 /* Audio Quality Controls functions */
-
 /**
  * Values for OPUS VBR mode
  */
@@ -2509,14 +2689,16 @@ typedef enum {
      * Constant bit rate mode
      */
     opus_mode_cbr = 0,
+
     /**
      * Limited variable bit rate mode, actual bit rate will never exceed the requested bit rate
      */
-    opus_mode_lvbr,
+    opus_mode_lvbr = 1,
+
     /**
      * Variable bit rate mode
      */
-    opus_mode_vbr,
+    opus_mode_vbr = 2
 } vx_opus_vbr_mode;
 
 /**
@@ -2530,23 +2712,23 @@ typedef enum {
     /**
      * Narrowband, 4kHz
      */
-    opus_bandwidth_nb,
+    opus_bandwidth_nb = 1,
     /**
      * Medium-band, 6kHz
      */
-    opus_bandwidth_mb,
+    opus_bandwidth_mb = 2,
     /**
      * Wideband, 8kHz
      */
-    opus_bandwidth_wb,
+    opus_bandwidth_wb = 3,
     /**
      * Super-wideband, 12 kHz
      */
-    opus_bandwidth_swb,
+    opus_bandwidth_swb = 4,
     /**
      * Fullband, 20 kHz
      */
-    opus_bandwidth_fb,
+    opus_bandwidth_fb = 5
 } vx_opus_bandwidth;
 
 /**
@@ -2619,8 +2801,8 @@ VIVOXSDK_DLLEXPORT int vx_opus_get_bandwidth(int *p_bandwidth);
 VIVOXSDK_DLLEXPORT unsigned int vx_get_available_codecs_mask(void);
 
 /**
-* Get a recommended default mask for available codecs (to be used as configured_codecs)
-*/
+ * Get a recommended default mask for available codecs (to be used as configured_codecs)
+ */
 VIVOXSDK_DLLEXPORT unsigned int vx_get_default_codecs_mask(void);
 
 #ifdef __ANDROID__
@@ -2632,14 +2814,14 @@ VIVOXSDK_DLLEXPORT unsigned int vx_get_default_codecs_mask(void);
 VIVOXSDK_DLLEXPORT int vx_get_dump_memory_interval(void);
 
 /**
-* Starts the CPU load information dumping to logcat - Android only
-*
-* @param interval - [in] sampling interval in milliseconds. The recommended value is 1000 milliseconds. It is not recommended to have this value under 100 milliseconds.
-* @param report_interval - [in] reporting interval in milliseconds. SDK will dump the collected data to logcat once per reporting interval. The recommended value is 5000 milliseconds. It is not recommended to have this value under 1000 milliseconds.
-*
-* Larger report_interval reduces the average amount of information output by the SDK to logcat.
-* Smaller sampling intervals allows better short peak loads detection.
-*/
+ * Starts the CPU load information dumping to logcat - Android only
+ *
+ * @param interval - [in] sampling interval in milliseconds. The recommended value is 1000 milliseconds. It is not recommended to have this value under 100 milliseconds.
+ * @param report_interval - [in] reporting interval in milliseconds. SDK will dump the collected data to logcat once per reporting interval. The recommended value is 5000 milliseconds. It is not recommended to have this value under 1000 milliseconds.
+ *
+ * Larger report_interval reduces the average amount of information output by the SDK to logcat.
+ * Smaller sampling intervals allows better short peak loads detection.
+ */
 VIVOXSDK_DLLEXPORT int vx_cpumonitor_start(int interval, int report_interval);
 
 /**
@@ -2661,66 +2843,85 @@ VIVOXSDK_DLLEXPORT int vx_cpumonitor_start_eater(int nthreads, int priority);
  * Stops all the CPU eater threads started with vx_cpumonitor_start_eater() call - Android only
  */
 VIVOXSDK_DLLEXPORT int vx_cpumonitor_stop_eater(void);
-#endif // __ANDROID__
+#endif  // __ANDROID__
 
 /**
-* Values for vx_crash_test( crash type )
-*/
+ * Values for vx_crash_test( crash type )
+ */
 typedef enum vx_crash_test_type {
     /**
-    * crash on access to the zero pointer
-    */
+     * crash on access to the zero pointer
+     */
     vx_crash_access_zero_pointer = 0,
+
     /**
-    * crash on access to a restricted page
-    */
-    vx_crash_access_violation,
+     * crash on access to a restricted page
+     */
+    vx_crash_access_violation = 1,
+
     /**
-    * overflows the program stack
-    */
-    vx_crash_stack_overflow,
+     * overflows the program stack
+     */
+    vx_crash_stack_overflow = 2,
+
     /**
-    * corrupts the heap and tries to allocate more memory
-    */
-    vx_crash_heap_corruption,
+     * corrupts the heap and tries to allocate more memory
+     */
+    vx_crash_heap_corruption = 3,
+
 #ifdef __clang__
     /**
-    * corrupts the heap and tries to allocate more memory
-    */
-    vx_crash_builtin_trap,
+     * corrupts the heap and tries to allocate more memory
+     */
+    vx_crash_builtin_trap = 4
 #endif
 } vx_crash_test_type_t;
 
 /**
-* crashes the program
-*
-* Supported on all platforms
-*
-* @param crash_type - type of crash (see vx_crash_test_type)
-*
-* \ingroup diagnostics
-*/
+ * crashes the program
+ *
+ * Supported on all platforms
+ *
+ * @param crash_type - type of crash (see vx_crash_test_type)
+ *
+ * \ingroup diagnostics
+ */
 VIVOXSDK_DLLEXPORT int vx_crash_test(vx_crash_test_type_t crash_type);
 
 /**
-* Changes api messages rate params
-*
-* @param messageSpeed - messages per second
-* @param fillBucket - is bool
-*
-* \ingroup diagnostics
-*/
+ * Changes api messages rate params
+ *
+ * @param messageSpeed - messages per second
+ * @param fillBucket - is bool
+ *
+ * \ingroup diagnostics
+ */
 VIVOXSDK_DLLEXPORT int vx_set_message_rate_params(unsigned bucketSize, float messageSpeed, int fillBucket);
+
 /**
-* Returns api messages rate params to default state
-*
-* \ingroup diagnostics
-*/
+ * Returns api messages rate params to default state
+ *
+ * \ingroup diagnostics
+ */
 VIVOXSDK_DLLEXPORT int vx_set_default_message_rate_params(void);
 
 #ifdef __ANDROID__
 VIVOXSDK_DLLEXPORT int vx_android_set_mic_mute(int mute);
 #endif
+
+/**
+ * Internal: enables debug mode and disables strict parameters check of some requests. Don't call this function if you are not completely sure what are you doing!
+ *
+ * \ingroup diagnostics
+ */
+VIVOXSDK_DLLEXPORT int vx_internal_enable_debug_mode_disable_strict_checks(void);
+
+/**
+ * Internal: disables debug mode enabled by vx_internal_enable_debug_mode_disable_strict_checks. Don't call this function if you are not completely sure what are you doing!
+ *
+ * \ingroup diagnostics
+ */
+VIVOXSDK_DLLEXPORT int vx_internal_disable_debug_mode_enable_strict_checks(void);
 
 /**
  * Verifies whether the passed access token is well-formed.
@@ -2741,14 +2942,17 @@ typedef struct vx_vxd {
      * Struct version. Must be sizeof(vx_vxd_t);
      */
     size_t version;
+
     /**
      * The URI of the participant whose properties are being updated
      */
     char *participant_uri;
+
     /**
      * The data received.
      */
     char *data;
+
     /**
      * The amount of data received.
      */
@@ -2772,7 +2976,7 @@ VIVOXSDK_DLLEXPORT int vx_vxd_send(VX_HANDLE session_handle, const char *data, s
  *
  * @param session_handle - [in]  the session handle to receive VXD from
  * @param vxd_ptr        - [out] on success will contain a pointer to the received VXD. Untouched on failure. The caller is responsible for disposing it with vx_vxd_destroy().
- * @return               -  0 if successful, non-zero if failed (SDK not initialized, not initialized, invalid argument (session, ptr), no more data).
+ * @return               -  0 if successful, non-zero if failed (SDK not initialized, invalid argument (session, ptr), no more data).
  *
  * \ingroup session
  */
@@ -2805,7 +3009,6 @@ typedef enum {
  * @param path id.
  * @return null-terminated buffer to be freed with vx_free() - if NULL is returned, an error occurred.
  */
-
 VIVOXSDK_DLLEXPORT char *vx_get_path(unsigned int path_id);
 
 /**
@@ -2815,7 +3018,6 @@ VIVOXSDK_DLLEXPORT char *vx_get_path(unsigned int path_id);
  * @return 0 if successful, non-zero if failed.
  */
 VIVOXSDK_DLLEXPORT int vx_get_dynamic_voice_processing_switching_enabled(int *enabled);
-
 /**
  * Enables and disables dynamic voice processing switching
  *

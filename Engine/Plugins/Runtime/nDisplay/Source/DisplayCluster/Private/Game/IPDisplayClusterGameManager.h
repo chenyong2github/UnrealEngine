@@ -5,9 +5,6 @@
 #include "Game/IDisplayClusterGameManager.h"
 #include "IPDisplayClusterManager.h"
 
-class ADisplayClusterGameMode;
-class ADisplayClusterSettings;
-
 
 /**
  * Game manager private interface
@@ -20,11 +17,6 @@ public:
 	virtual ~IPDisplayClusterGameManager()
 	{ }
 
+public:
 	virtual bool IsDisplayClusterActive() const = 0;
-
-	virtual void SetDisplayClusterGameMode(ADisplayClusterGameMode* pGameMode) = 0;
-	virtual ADisplayClusterGameMode* GetDisplayClusterGameMode() const = 0;
-
-	virtual void SetDisplayClusterSceneSettings(ADisplayClusterSettings* pSceneSettings) = 0;
-	virtual ADisplayClusterSettings* GetDisplayClusterSceneSettings() const = 0;
 };

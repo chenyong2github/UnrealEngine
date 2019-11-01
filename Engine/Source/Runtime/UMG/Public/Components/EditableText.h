@@ -121,6 +121,9 @@ public:
 	UPROPERTY(EditAnywhere, Category=Behavior, AdvancedDisplay)
 	FVirtualKeyboardOptions VirtualKeyboardOptions;
 
+	UPROPERTY(EditAnywhere, Category = Behavior, AdvancedDisplay)
+	EVirtualKeyboardTrigger VirtualKeyboardTrigger;
+
 	/** What action should be taken when the virtual keyboard is dismissed? */
 	UPROPERTY(EditAnywhere, Category=Behavior, AdvancedDisplay)
 	EVirtualKeyboardDismissAction VirtualKeyboardDismissAction;

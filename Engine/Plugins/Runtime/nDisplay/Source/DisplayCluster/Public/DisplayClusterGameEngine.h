@@ -5,7 +5,8 @@
 #include "Engine/GameEngine.h"
 
 #include "Config/DisplayClusterConfigTypes.h"
-#include "DisplayClusterOperationMode.h"
+
+#include "DisplayClusterEnums.h"
 
 #include "Tickable.h"
 #include "Stats/Stats2.h"
@@ -34,7 +35,7 @@ public:
 	{ return ETickableTickType::Always; }
 
 	virtual TStatId GetStatId() const override;
-	virtual void Tick(float DeltaTime) override;
+	virtual void Tick(float DeltaSeconds) override;
 };
 
 
@@ -54,11 +55,6 @@ public:
 	virtual bool LoadMap(FWorldContext& WorldContext, FURL URL, class UPendingNetGame* Pending, FString& Error) override;
 
 	EDisplayClusterOperationMode GetOperationMode() const { return OperationMode; }
-
-	void RegisterSyncObject(IDisplayClusterClusterSyncObject* SyncObj);
-	void UnregisterSyncObject(IDisplayClusterClusterSyncObject* SyncObj);
-
-	bool IsMaster() const;
 
 protected:
 	virtual bool InitializeInternals();

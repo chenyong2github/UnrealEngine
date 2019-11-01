@@ -16,12 +16,11 @@
 #include "RenderingThread.h"
 #include "RHI.h"
 #include "RHIResources.h"
-
-#include "ml_api.h"
+#include "Lumin/CAPIShims/LuminAPIMediaCCParser.h"
+#include "Lumin/CAPIShims/LuminAPIMediaPlayer.h"
 
 class FMediaSamples;
 class IMediaEventSink;
-class FMagicLeapMediaTextureSamplePool;
 struct FMagicLeapVideoTextureData;
 
 /**
@@ -30,7 +29,7 @@ struct FMagicLeapVideoTextureData;
 class FMagicLeapMediaPlayer : public IMediaPlayer, public IMediaControls, public IMediaCache, public IMediaTracks, public IMediaView
 {
 public:
-  
+
 	/**
 	 * Create and initialize a new instance.
 	 *
@@ -100,7 +99,14 @@ protected:
 	// TODO: mature this to return track dimensions.
 	FIntPoint GetVideoDimensions() const;
 
+	/** Adds Subtitle and Caption tracks, should only be used when metadata has changed */
+	void CheckSubtitlesAndCaptioning();
+
+	/** Processes segments of captioned text into media overlay samples */
+	void ProcessCaptioningSegment(MLCea608CaptionSegment& Segment, MLMediaPlayerSubtitleData* SubtitleDataPtr);
+
 	MLHandle MediaPlayerHandle;
+	MLHandle CaptionParserHandle;
 
 	bool bMediaPrepared;
 
@@ -137,16 +143,11 @@ protected:
 	/** The media sample queue. */
 	TSharedPtr<FMediaSamples, ESPMode::ThreadSafe> Samples;
 
-	/** Video sample object pool. */
-	FMagicLeapMediaTextureSamplePool* VideoSamplePool;
-
 	TSharedPtr<FMagicLeapVideoTextureData, ESPMode::ThreadSafe> TextureData;
 
 	TMap<EMediaTrackType, TArray<int32>> TrackInfo;
 
 	TMap<EMediaTrackType, int32> SelectedTrack;
-
-	class FMediaWorker* MediaWorker;
 
 	FCriticalSection CriticalSection;
 
@@ -157,11 +158,11 @@ protected:
 	TAtomic<FTimespan> CurrentPlaybackTime;
 
 private:
-	virtual bool SetRateOne();
-	virtual bool GetMediaPlayerState(uint16 FlagToPoll) const;
-	virtual void RegisterExternalTexture(const FGuid& InGuid, FTextureRHIRef& InTextureRHI, FSamplerStateRHIRef& InSamplerStateRHI);
-	virtual bool RenderThreadIsBufferAvailable(MLHandle MediaPlayerHandle);
-	virtual bool RenderThreadGetNativeBuffer(const MLHandle MediaPlayerHandle, MLHandle& NativeBuffer, bool& OutIsVideoTextureValid);
-	virtual bool RenderThreadReleaseNativeBuffer(const MLHandle MediaPlayerHandle, MLHandle NativeBuffer);
-	virtual bool RenderThreadGetCurrentPosition(const MLHandle MediaPlayerHandle, int32& CurrentPosition);
+	bool GetMediaPlayerState(uint16 FlagToPoll) const;
+	void RegisterExternalTexture(const FGuid& InGuid, FTextureRHIRef& InTextureRHI, FSamplerStateRHIRef& InSamplerStateRHI);
+	bool RenderThreadIsBufferAvailable(MLHandle MediaPlayerHandle);
+	bool RenderThreadGetNativeBuffer(const MLHandle MediaPlayerHandle, MLHandle& NativeBuffer, bool& OutIsVideoTextureValid);
+	bool RenderThreadReleaseNativeBuffer(const MLHandle MediaPlayerHandle, MLHandle NativeBuffer);
+	bool RenderThreadGetCurrentPosition(const MLHandle MediaPlayerHandle, int32& CurrentPosition);
+	void TriggerResetAndDestroy();
 };

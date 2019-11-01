@@ -237,7 +237,7 @@ void FSkeletalMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particle
 			Particles.CollisionGroup(RigidBodyId) = Parameters.CollisionGroup;
 			
 			// Set implicit surface
-			const Chaos::ImplicitObjectType ShapeType = ImplicitObject->GetType();
+			const Chaos::EImplicitObjectType ShapeType = ImplicitObject->GetType();
 			if (ShapeType == Chaos::ImplicitObjectType::LevelSet)
 			{
 				FCollisionStructureManager::UpdateImplicitFlags(

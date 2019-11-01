@@ -3,6 +3,7 @@
 #include "IFCStaticMeshFactory.h"
 
 #include "AssetRegistryModule.h"
+#include "DatasmithMeshHelper.h"
 #include "Engine/StaticMesh.h"
 #include "StaticMeshAttributes.h"
 #include "MeshDescription.h"
@@ -39,7 +40,7 @@ namespace IFC
 		return Hash;
 	}
 
-	void FStaticMeshFactory::FillMeshDescription(const IFC::FObject* InObject, FMeshDescription* MeshDescription)
+	void FStaticMeshFactory::FillMeshDescription(const IFC::FObject* InObject, FMeshDescription* MeshDescription) const
 	{
 		const int32 NumUVs = 1;
 
@@ -70,7 +71,8 @@ namespace IFC
 		}
 
 		// Add the PolygonGroups.
-		MaterialIndexToPolygonGroupID.Empty(10);
+		TMap<int32, FPolygonGroupID> MaterialIndexToPolygonGroupID;
+		MaterialIndexToPolygonGroupID.Reserve(10);
 		for (int32 MaterialIndex = 0; MaterialIndex < InObject->Materials.Num() || MaterialIndex < 1; MaterialIndex++)
 		{
 			const FPolygonGroupID& PolygonGroupID = MeshDescription->CreatePolygonGroup();
@@ -102,6 +104,9 @@ namespace IFC
 
 				VertexInstanceIDs.Add(VertexInstanceID);
 				VertexIDs.Add(VertexID);
+
+				const float* Vertex = &(InObject->facesVertices[(VertexIndex * (InObject->vertexElementSize / sizeof(float)))]);
+				VertexInstanceNormals.Set(VertexInstanceID, FVector(Vertex[3], Vertex[4], Vertex[5]));
 			}
 
 			bool bIsWrong = false;
@@ -119,6 +124,8 @@ namespace IFC
 
 			MeshDescription->CreatePolygon(MaterialIndexToPolygonGroupID[IFCPolygon->MaterialIndex], VertexInstanceIDs);
 		}
+
+		DatasmithMeshHelper::RemoveEmptyPolygonGroups(*MeshDescription);
 	}
 
 	float FStaticMeshFactory::GetUniformScale() const
@@ -129,11 +136,6 @@ namespace IFC
 	void FStaticMeshFactory::SetUniformScale(const float Scale)
 	{
 		ImportUniformScale = Scale;
-	}
-
-	void FStaticMeshFactory::CleanUp()
-	{
-		MaterialIndexToPolygonGroupID.Empty();
 	}
 
 }  //  namespace IFC

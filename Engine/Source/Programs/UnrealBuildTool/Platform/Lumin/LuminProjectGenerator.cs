@@ -104,9 +104,10 @@ namespace UnrealBuildTool
 				}
 				PackageFile = Path.Combine(PackageFile, PackageName + ".mpk");
 
-                // TODO: Fix NMakeOutput to have the the correct architecture name and then set ELFFile to $(NMakeOutput)
+                // Can't use $(NMakeOutput) directly since that is defined after <ELFFile> tag and thus ends up being translated as an empty string.
                 string ELFFile = Utils.MakePathRelativeTo(NMakeOutputPath.Directory.FullName, ProjectFilePath.Directory.FullName);
-                ELFFile = Path.Combine(ELFFile, "..\\..\\Intermediate\\Lumin\\Mabu\\Packaged\\bin\\" + GameName);
+				// Provide path to stripped executable so all symbols are resolved from the external sym file instead.
+                ELFFile = Path.Combine(ELFFile, "..\\..\\Intermediate\\Lumin\\Mabu\\Binaries", GetElfName(NMakeOutputPath));
 				string DebuggerFlavor = "MLDebugger";
 
 				string SymFile = Utils.MakePathRelativeTo(NMakeOutputPath.Directory.FullName, ProjectFilePath.Directory.FullName);
@@ -127,10 +128,24 @@ namespace UnrealBuildTool
 													"<EnableAutoStop>{5}</EnableAutoStop>" + ProjectFileGenerator.NewLine +
 													"<AutoStopAtFunction>{6}</AutoStopAtFunction>" + ProjectFileGenerator.NewLine +
 													"<EnablePrettyPrinting>{7}</EnablePrettyPrinting>" + ProjectFileGenerator.NewLine +
-													"<MLDownloadOnStart>{8}</MLDownloadOnStart>" + ProjectFileGenerator.NewLine +
-													"<SymFile>{9}</SymFile>" + ProjectFileGenerator.NewLine;
-				ProjectFileBuilder.Append(ProjectFileGenerator.NewLine + string.Format(CustomPathEntriesTemplate, MLSDK, PackageFile, ELFFile, DebuggerFlavor, Attach, EnableAutoStop, AutoStopAtFunction, EnablePrettyPrinting, MLDownloadOnStart, SymFile));
+													"<MLDownloadOnStart>{8}</MLDownloadOnStart>" + ProjectFileGenerator.NewLine;
+													// No need to provide SymFile path. The file is automatically picked up when it resides in the same folder and has the same name as the ElfFile
+													// "<SymFile>{9}</SymFile>" + ProjectFileGenerator.NewLine;
+				ProjectFileBuilder.Append(ProjectFileGenerator.NewLine + string.Format(CustomPathEntriesTemplate, MLSDK, PackageFile, ELFFile, DebuggerFlavor, Attach, EnableAutoStop, AutoStopAtFunction, EnablePrettyPrinting, MLDownloadOnStart));
 			}
+		}
+
+		private string GetElfName(FileReference InNMakeOutputPath)
+		{
+			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, InNMakeOutputPath.Directory.ParentDirectory.ParentDirectory, UnrealTargetPlatform.Lumin);
+			bool bUseMobileRendering = false;
+			Ini.GetBool("/Script/LuminRuntimeSettings.LuminRuntimeSettings", "bUseMobileRendering", out bUseMobileRendering);
+			bool bUseVulkan = false;
+			Ini.GetBool("/Script/LuminRuntimeSettings.LuminRuntimeSettings", "bUseVulkan", out bUseVulkan);
+
+			string OutputFileName = string.Format("{0}-arm64-{1}{2}", InNMakeOutputPath.GetFileNameWithoutExtension(), !(bUseMobileRendering || bUseVulkan) ? "lumingl4" : "lumin", InNMakeOutputPath.GetExtension());
+
+			return OutputFileName;
 		}
 	}
 }

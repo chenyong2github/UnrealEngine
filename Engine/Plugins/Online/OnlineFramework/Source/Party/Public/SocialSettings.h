@@ -21,10 +21,14 @@ public:
 	USocialSettings();
 
 	static FString GetUniqueIdEnvironmentPrefix(ESocialSubsystem SubsystemType);
+	static int32 GetDefaultMaxPartySize();
 	static bool ShouldPreferPlatformInvites();
 	static bool MustSendPrimaryInvites();
-	static int32 GetDefaultMaxPartySize();
+	static bool ShouldLeavePartyOnDisconnect();
 	static float GetUserListAutoUpdateRate();
+	static int32 GetMinNicknameLength();
+	static int32 GetMaxNicknameLength();
+	static bool ValidateNickname(const FString& InNickname);
 
 private:
 	/**
@@ -46,6 +50,19 @@ private:
 	UPROPERTY(config)
 	bool bMustSendPrimaryInvites = false;
 
+	/** Should we leave a party when it enters the disconnected state? */
 	UPROPERTY(config)
-	float UserListAutoUpdateRate = 7.5f;
+	bool bLeavePartyOnDisconnect = true;
+
+	UPROPERTY(config)
+	float UserListAutoUpdateRate = 0.5f;
+
+	UPROPERTY(Config)
+	int32 MinNicknameLength = 3;
+
+	UPROPERTY(Config)
+	int32 MaxNicknameLength = 16;
+
+	UPROPERTY(Config)
+	FString NicknameRegexPattern = TEXT("[\\p{L}\\p{N} \\-_.'\\u0091\\u0092\\u2018\\u2019]+");
 };

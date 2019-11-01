@@ -469,7 +469,7 @@ void AllocateOrReuseAORenderTarget(FRHICommandList& RHICmdList, TRefCountPtr<IPo
 	{
 		FIntPoint BufferSize = GetBufferSizeForAO();
 
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, Format, FClearValueBinding::None, Flags, TexCreate_RenderTargetable | TexCreate_UAV, false));
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, Format, FClearValueBinding::None, Flags, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false));
 		Desc.AutoWritable = false;
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, Target, Name, true, ERenderTargetTransience::NonTransient);
 	}
@@ -538,6 +538,11 @@ void UpdateHistory(
 
 	if (BentNormalHistoryState && GAOUseHistory)
 	{
+#if WITH_MGPU
+		static const FName NameForTemporalEffect("DistanceFieldAOHistory");
+		RHICmdList.WaitForTemporalEffect(FName(NameForTemporalEffect, View.ViewState->UniqueID));
+#endif
+
 		FIntPoint BufferSize = GetBufferSizeForAO();
 
 		if (*BentNormalHistoryState 
@@ -605,6 +610,8 @@ void UpdateHistory(
 					// Update the view state's render target reference with the new history
 					AllocateOrReuseAORenderTarget(RHICmdList, *BentNormalHistoryState, BentNormalHistoryRTName, PF_FloatRGBA);
 				}
+
+				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, (*BentNormalHistoryState)->GetRenderTargetItem().TargetableTexture);
 
 				FRHIRenderPassInfo RPInfo((*BentNormalHistoryState)->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Load_Store);
 				RHICmdList.BeginRenderPass(RPInfo, TEXT("UpdateHistoryStability"));
@@ -680,6 +687,11 @@ void UpdateHistory(
 		DistanceFieldAOHistoryViewRect->Min = FIntPoint::ZeroValue;
 		DistanceFieldAOHistoryViewRect->Max.X = View.ViewRect.Size().X / GAODownsampleFactor;
 		DistanceFieldAOHistoryViewRect->Max.Y = View.ViewRect.Size().Y / GAODownsampleFactor;
+
+#if WITH_MGPU
+		FRHITexture* TexturesToCopyForTemporalEffect[] = { BentNormalHistoryOutput->GetRenderTargetItem().ShaderResourceTexture.GetReference() };
+		RHICmdList.BroadcastTemporalEffect(FName(NameForTemporalEffect, View.ViewState->UniqueID), TexturesToCopyForTemporalEffect);
+#endif
 	}
 	else
 	{
@@ -772,6 +784,7 @@ void UpsampleBentNormalAO(
 	{
 		const FViewInfo& View = Views[ViewIndex];
 
+		SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 		SCOPED_DRAW_EVENT(RHICmdList, UpsampleAO);
 
 		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);

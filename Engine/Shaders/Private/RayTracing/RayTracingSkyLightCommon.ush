@@ -4,6 +4,9 @@
 	SkyLightMipTreeCommon.ush: Common utilities for MipTree-based SkyLight sampling
 ===============================================================================================*/
 
+#define USE_MIP_PDF_TEXTURE 1
+#define USE_SOLID_ANGLE_TEXTURE 1
+
 float PdfSkyLightOcclusionRay(
 	float FaceCdf[7],
 	float3 WorldDirection

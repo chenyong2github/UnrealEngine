@@ -1150,35 +1150,25 @@ FShaderPipelineCache::~FShaderPipelineCache()
 	
 	// The render thread tick should be dead now and we are safe to destroy everything that needs to wait or manual destruction
 
-	for(CompileJob& Entry: ReadTasks )
+	// Close() should have called though to Flush() - all work is now in the shutdown lists
+	for(CompileJob& Entry: ShutdownReadCompileTasks)
 	{
-		check(Entry.ReadRequests);
-		Entry.ReadRequests->BlockingWaitComplete();
-	}
-	
-	for(CompileJob& Entry: ShutdownReadCompileTasks )
-	{
-		check(Entry.ReadRequests);
-		Entry.ReadRequests->BlockingWaitComplete();
-	}
-	
-	for (FPipelineCacheFileFormatPSORead* Entry : FetchTasks)
-	{
-		if(Entry->ReadRequest.IsValid())
+		if(Entry.ReadRequests != nullptr)
 		{
-			Entry->ReadRequest->WaitCompletion(0.0);
+			Entry.ReadRequests->BlockingWaitComplete();
+			delete Entry.ReadRequests;
+			Entry.ReadRequests = nullptr;
 		}
-		delete Entry;
 	}
 	
 	for (FPipelineCacheFileFormatPSORead* Entry : ShutdownFetchTasks)
 	{
 		if(Entry->ReadRequest.IsValid())
 		{
-			Entry->ReadRequest->WaitCompletion(0.0);
+			Entry->ReadRequest->WaitCompletion(0.f);
 		}
 		delete Entry;
-	}	
+	}
 }
 
 bool FShaderPipelineCache::IsTickable() const

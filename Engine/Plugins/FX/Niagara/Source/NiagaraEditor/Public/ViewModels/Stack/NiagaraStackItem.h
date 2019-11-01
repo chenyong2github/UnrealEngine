@@ -6,8 +6,7 @@
 #include "Layout/Visibility.h"
 #include "NiagaraStackItem.generated.h"
 
-class UNiagaraStackSpacer;
-class UNiagaraStackAdvancedExpander;
+class UNiagaraStackItemFooter;
 class UNiagaraNode;
 
 UCLASS()
@@ -25,15 +24,12 @@ public:
 
 	FOnModifiedGroupItems& OnModifiedGroupItems();
 
-	uint32 GetRecursiveStackIssuesCount() const;
-	EStackIssueSeverity GetHighestStackIssueSeverity() const;
-
 	virtual bool SupportsChangeEnabled() const { return false; }
-	virtual void SetIsEnabled(bool bInIsEnabled) { }
+	void SetIsEnabled(bool bInIsEnabled);
 
 	virtual bool SupportsDelete() const { return false; }
 	virtual bool TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const { return false; }
-	virtual void Delete() { }
+	void Delete();
 	
 protected:
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
@@ -42,14 +38,11 @@ protected:
 
 	virtual int32 GetChildIndentLevel() const override;
 
-	virtual UNiagaraNode* GetOwningNiagaraNode() const;
-
-	virtual void ChlildStructureChangedInternal() override;
+	virtual void SetIsEnabledInternal(bool bInIsEnabled) { }
+	virtual void DeleteInternal() { }
 
 private:
 	bool FilterAdvancedChildren(const UNiagaraStackEntry& Child) const;
-
-	bool FilterShowAdvancedChild(const UNiagaraStackEntry& Child) const;
 
 	void ToggleShowAdvanced();
 
@@ -57,18 +50,8 @@ protected:
 	FOnModifiedGroupItems ModifiedGroupItemsDelegate;
 
 private:
-	bool bHasAdvancedContent;
-
 	UPROPERTY()
-	UNiagaraStackSpacer* FooterSpacer;
-
-	UPROPERTY()
-	UNiagaraStackAdvancedExpander* ShowAdvancedExpander;
-
-	/** How many errors this entry has along its tree. */
-	mutable TOptional<uint32> RecursiveStackIssuesCount;
-	/** The highest severity of issues along this entry's tree. */
-	mutable TOptional<EStackIssueSeverity> HighestIssueSeverity;
+	UNiagaraStackItemFooter* ItemFooter;
 };
 
 UCLASS()

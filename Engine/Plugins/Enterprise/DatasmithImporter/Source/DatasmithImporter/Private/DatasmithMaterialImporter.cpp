@@ -168,6 +168,7 @@ UMaterialFunction* FDatasmithMaterialImporter::CreateMaterialFunction( FDatasmit
 	if ( MaterialFunction != nullptr )
 	{
 		ImportContext.ImportedMaterialFunctions.Add( BaseMaterialElement ) = MaterialFunction;
+		ImportContext.ImportedMaterialFunctionsByName.Add( BaseMaterialElement->GetName(), BaseMaterialElement );
 	}
 
 	return MaterialFunction;

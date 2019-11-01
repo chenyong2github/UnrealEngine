@@ -197,11 +197,23 @@ private:
 	// Hold the game directory from the connected platform.
 	FString ConnectedProjectDir;
 
+	// Hold the engine platform extensions directory from the connected platform.
+	FString ConnectedEnginePlatformExtensionsDir;
+
+	// Hold the project platform extensions directory from the connected platform.
+	FString ConnectedProjectPlatformExtensionsDir;
+
 	// Hold the sandbox engine directory for the connected platform
 	FString SandboxEngine;
 
 	// hold the sandbox game directory for the connected platform
 	FString SandboxProject;
+
+	// hold the engine sandbox platform extensions directory for the connected platform
+	FString SandboxEnginePlatformExtensions;
+
+	// hold the project sandbox platform extensions directory for the connected platform
+	FString SandboxProjectPlatformExtensions;
 
 	// Should we send the filenames in lowercase
 	bool bSendLowerCase;
@@ -232,6 +244,12 @@ private:
 
 	// Local path to the project directory
 	FString LocalProjectDir;
+
+	// Local path to the engine platform extensions directory
+	FString LocalEnginePlatformExtensionsDir;
+
+	// Local path to the project platform extensions directory
+	FString LocalProjectPlatformExtensionsDir;
 
 	const FNetworkFileDelegateContainer* NetworkFileDelegates;
 

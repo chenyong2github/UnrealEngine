@@ -138,6 +138,7 @@ FReply SMergeActorsToolbar::OnMergeActorsClicked()
 			SaveAssetDialogConfig.DefaultPath = DefaultPath;
 			SaveAssetDialogConfig.DefaultAssetName = DefaultName;
 			SaveAssetDialogConfig.ExistingAssetPolicy = ESaveAssetDialogExistingAssetPolicy::AllowButWarn;
+			SaveAssetDialogConfig.AssetClassNames = { UStaticMesh::StaticClass()->GetFName() };
 
 			FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
 			FString SaveObjectPath = ContentBrowserModule.Get().CreateModalSaveAssetDialog(SaveAssetDialogConfig);

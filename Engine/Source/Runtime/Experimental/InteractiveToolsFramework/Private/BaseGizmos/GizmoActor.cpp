@@ -17,6 +17,11 @@ AGizmoActor::AGizmoActor()
 {
 	// generally gizmo actor creation/destruction should not be transacted
 	ClearFlags(RF_Transactional);
+
+#if WITH_EDITORONLY_DATA
+	// hide this actor in the scene outliner
+	bListedInSceneOutliner = false;
+#endif
 }
 
 

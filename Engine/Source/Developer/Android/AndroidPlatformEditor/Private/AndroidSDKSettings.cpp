@@ -51,13 +51,6 @@ void UAndroidSDKSettings::UpdateTargetModulePaths()
 		Values.Add(NDKPath.Path);
 	}
 	
-	if (!ANTPath.Path.IsEmpty())
-	{
-		FPaths::NormalizeFilename(ANTPath.Path);
-		Keys.Add(TEXT("ANT_HOME"));
-		Values.Add(ANTPath.Path);
-	}
-
 	if (!JavaPath.Path.IsEmpty())
 	{
 		FPaths::NormalizeFilename(JavaPath.Path);

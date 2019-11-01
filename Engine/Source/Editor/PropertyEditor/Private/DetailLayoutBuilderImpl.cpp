@@ -209,10 +209,10 @@ FDetailCategoryImpl& FDetailLayoutBuilderImpl::DefaultCategory( FName CategoryNa
 		// We want categories within a type to display in the order they were added but sorting is unstable so we make unique numbers 
 		uint32 SortOrder = (uint32)ECategoryPriority::Default * 1000 + (DefaultCategoryMap.Num() - 1);
 		CategoryImpl->SetSortOrder( SortOrder );
-	}
-	
 
-	CategoryImpl->SetDisplayName( CategoryName, FText::GetEmpty() );
+		CategoryImpl->SetDisplayName( CategoryName, FText::GetEmpty() );
+	}
+
 	return *CategoryImpl;
 }
 

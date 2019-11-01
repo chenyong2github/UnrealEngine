@@ -345,9 +345,7 @@ void FLandscapeComponentSceneProxyMobile::CreateRenderThreadResources()
 
 	if (IsComponentLevelVisible())
 	{
-		OriginAndSphereRadius = FVector4(GetBounds().Origin, GetBounds().SphereRadius);
-		LandscapeSceneProxy = this;
-		RegisterNeighbors();
+		RegisterNeighbors(this);
 	}
 	
 	auto FeatureLevel = GetScene().GetFeatureLevel();

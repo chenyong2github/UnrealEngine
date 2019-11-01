@@ -3037,6 +3037,15 @@ void UAbilitySystemComponent::ServerSetReplicatedTargetData_Implementation(FGame
 
 bool UAbilitySystemComponent::ServerSetReplicatedTargetData_Validate(FGameplayAbilitySpecHandle AbilityHandle, FPredictionKey AbilityOriginalPredictionKey, const FGameplayAbilityTargetDataHandle& ReplicatedTargetDataHandle, FGameplayTag ApplicationTag, FPredictionKey CurrentPredictionKey)
 {
+	// check the data coming from the client to ensure it's valid
+	for (const TSharedPtr<FGameplayAbilityTargetData>& TgtData : ReplicatedTargetDataHandle.Data)
+	{
+		if (!ensure(TgtData.IsValid()))
+		{
+			return false;
+		}
+	}
+
 	return true;
 }
 

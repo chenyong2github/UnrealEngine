@@ -48,7 +48,6 @@ bool USkeletalMeshLODSettings::SetLODSettingsToMesh(USkeletalMesh* InMesh, int32
 		FSkeletalMeshLODInfo* LODInfo = InMesh->GetLODInfo(LODIndex);
 		const FSkeletalMeshLODGroupSettings& Setting = LODGroups[LODIndex];
 		LODInfo->ReductionSettings = Setting.ReductionSettings;
-		LODInfo->BuildSettings = Setting.BuildSettings;
 		LODInfo->ScreenSize = Setting.ScreenSize;
 		LODInfo->LODHysteresis = Setting.LODHysteresis;
 		LODInfo->WeightOfPrioritization = Setting.WeightOfPrioritization;
@@ -208,7 +207,6 @@ int32 USkeletalMeshLODSettings::SetLODSettingsFromMesh(USkeletalMesh* InMesh)
 			FSkeletalMeshLODInfo* LODInfo = InMesh->GetLODInfo(Index);
 			FSkeletalMeshLODGroupSettings& Setting = LODGroups[Index];
 			Setting.ReductionSettings = LODInfo->ReductionSettings;
-			Setting.BuildSettings = LODInfo->BuildSettings;
 			Setting.ScreenSize = LODInfo->ScreenSize;
 			Setting.LODHysteresis = LODInfo->LODHysteresis;
 			// copy mesh setting to shared setting
@@ -279,27 +277,6 @@ void USkeletalMeshLODSettings::Serialize(FArchive& Ar)
 			}
 		}
 	}
-
-	if (Ar.CustomVer(FEditorObjectVersion::GUID) < FEditorObjectVersion::SkeletalMeshBuildRefactor)
-	{
-		//Since we use the bake source model when loading old asset we do not want to change anything
-		for (int32 Index = 0; Index < LODGroups.Num(); ++Index)
-		{
-			FSkeletalMeshBuildSettings& BuildSettings = LODGroups[Index].BuildSettings;
-			BuildSettings.bRecomputeNormals = false;
-			BuildSettings.bRecomputeTangents = false;
-			BuildSettings.bUseMikkTSpace = false;
-			BuildSettings.bRemoveDegenerates = false;
-			BuildSettings.ThresholdPosition = 0.0f;
-			BuildSettings.ThresholdTangentNormal = 0.0f;
-			BuildSettings.ThresholdUV = 0.0f;
-
-			//The user will have to make sure those settings are ok since before the modification precisions
-			//were one value for the whole skeletal mesh LODs. We set them to false by default
-			BuildSettings.bUseFullPrecisionUVs = GVertexElementTypeSupport.IsSupported(VET_Half2) ? false : true;
-			BuildSettings.bUseHighPrecisionTangentBasis = false;
-		}
-	}
 }
 
 /////////////////////////////////////////////////////////////
@@ -308,14 +285,6 @@ void USkeletalMeshLODSettings::Serialize(FArchive& Ar)
 FSkeletalMeshOptimizationSettings FSkeletalMeshLODGroupSettings::GetReductionSettings() const
 {
 	return ReductionSettings;
-}
-
-/////////////////////////////////////////////////////////////
-// FSkeletalMeshBuildSettings 
-/////////////////////////////////////////////////////////////
-FSkeletalMeshBuildSettings FSkeletalMeshLODGroupSettings::GetBuildSettings() const
-{
-	return BuildSettings;
 }
 
 const float FSkeletalMeshLODGroupSettings::GetScreenSize() const

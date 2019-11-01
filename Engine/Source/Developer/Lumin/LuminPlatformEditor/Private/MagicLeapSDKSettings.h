@@ -11,7 +11,7 @@ class IAndroidDeviceDetection;
 /**
  * Implements the settings for the Magic Leap SDK setup.
  */
-UCLASS(config = Engine, defaultconfig)
+UCLASS(config = Engine, globaluserconfig)
 class LUMINPLATFORMEDITOR_API UMagicLeapSDKSettings : public UObject
 {
 public:

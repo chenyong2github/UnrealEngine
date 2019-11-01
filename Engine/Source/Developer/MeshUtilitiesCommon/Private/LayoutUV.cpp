@@ -1,21 +1,28 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "LayoutUV.h"
+#include "Algo/IntroSort.h"
+#include "Async/Async.h"
 #include "DisjointSet.h"
 #include "OverlappingCorners.h"
-#include "Algo/IntroSort.h"
 #include "HAL/PlatformTime.h"
+#include "Misc/App.h"
+#include "Misc/SecureHash.h"
 #include "Modules/ModuleManager.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, MeshUtilitiesCommon)
 
-DEFINE_LOG_CATEGORY_STATIC(LogLayoutUV, Warning, All);
+DEFINE_LOG_CATEGORY_STATIC(LogLayoutUV, Log, All);
 
 #define CHART_JOINING	1
 
 #define NEW_UVS_ARE_SAME THRESH_POINTS_ARE_SAME
 #define LEGACY_UVS_ARE_SAME (1.0f / 1024.0f)
 #define UVLAYOUT_THRESH_UVS_ARE_SAME (GetUVEqualityThreshold())
+
+TAtomic<uint64> FLayoutUV::FindBestPackingCount(0);
+TAtomic<uint64> FLayoutUV::FindBestPackingCycles(0);
+TAtomic<uint64> FLayoutUV::FindBestPackingEfficiency(0);
 
 FLayoutUV::FLayoutUV( IMeshView& InMeshView )
 	: MeshView( InMeshView )
@@ -57,18 +64,15 @@ struct FLayoutUV::FChartPacker
 
 private:
 	void ScaleCharts( TArray< FMeshChart >& Charts, float UVScale );
-	bool PackCharts(TArray< FMeshChart >& Charts, const TArray< FVector2D >& TexCoords, const TArray< uint32 >& SortedTris);
+	bool PackCharts( TArray< FMeshChart >& Charts, float UVScale, const TArray< FVector2D >& TexCoords, const TArray< uint32 >& SortedTris, float& OutEfficiency, TAtomic<bool>& bAbort, bool bTrace);
 	void OrientChart( FMeshChart& Chart, int32 Orientation );
-	void RasterizeChart( const FMeshChart& Chart, const TArray< FVector2D >& TexCoords, const TArray< uint32 >& SortedTris, uint32 RectW, uint32 RectH );
+	void RasterizeChart( const FMeshChart& Chart, const TArray< FVector2D >& TexCoords, const TArray< uint32 >& SortedTris, uint32 RectW, uint32 RectH, FAllocator2D& OutChartRaster );
 
 private:
 	IMeshView& MeshView;
 	ELightmapUVVersion LayoutVersion;
 
 	uint32 TextureResolution;
-	FAllocator2D LayoutRaster;
-	FAllocator2D ChartRaster;
-	FAllocator2D BestChartRaster;
 	float TotalUVArea;
 };
 
@@ -76,9 +80,6 @@ FLayoutUV::FChartPacker::FChartPacker(IMeshView& InMeshView, ELightmapUVVersion 
 	: MeshView(InMeshView)
 	, LayoutVersion(InLayoutVersion)
 	, TextureResolution(TextureResolution)
-	, LayoutRaster( TextureResolution, TextureResolution )
-	, ChartRaster( TextureResolution, TextureResolution )
-	, BestChartRaster( TextureResolution, TextureResolution )
 	, TotalUVArea(0.0f)
 {
 }
@@ -624,10 +625,18 @@ int32 FLayoutUV::FChartFinder::FindCharts( const FOverlappingCorners& Overlappin
 
 	double End = FPlatformTime::Seconds();
 
-	UE_LOG(LogLayoutUV, Display, TEXT("FindCharts: %s"), *FPlatformTime::PrettyTime(End - Begin) );
+	UE_LOG(LogLayoutUV, VeryVerbose, TEXT("FindCharts: %s"), *FPlatformTime::PrettyTime(End - Begin) );
 
 	return Charts.Num();
 }
+
+#if UE_EDITOR && (UE_BUILD_DEVELOPMENT || UE_BUILD_DEBUG)
+static TAutoConsoleVariable<FString> CVarLayoutUVTracePackingForInputHash(
+	TEXT("LayoutUV.TracePackingForInputHash"),
+	TEXT(""),
+	TEXT("Activate tracing for the input hash specified in the value.\n"),
+	ECVF_Default);
+#endif
 
 bool FLayoutUV::FChartPacker::FindBestPacking(const TArray< FVector2D >& TexCoords, const TArray< uint32 >& SortedTris, TArray< FMeshChart >& Charts)
 {
@@ -642,55 +651,217 @@ bool FLayoutUV::FChartPacker::FindBestPacking(const TArray< FVector2D >& TexCoor
 	{
 		TotalUVArea += Chart.UVArea * Chart.WorldScale.X * Chart.WorldScale.Y;
 	}
+
 	if( TotalUVArea <= 0.0f )
 	{
 		return false;
 	}
 
+	uint64 StartCycles = FPlatformTime::Cycles64();
+	TRACE_CPUPROFILER_EVENT_SCOPE(FChartPacker::FindBestPacking)
+
+	// Cleanup uninitialized values to get a stable input hash
+	for (FMeshChart& Chart : Charts)
+	{
+		Chart.PackingBias   = FVector2D::ZeroVector;
+		Chart.PackingScaleU = FVector2D::ZeroVector;
+		Chart.PackingScaleV = FVector2D::ZeroVector;
+		Chart.UVScale       = FVector2D::ZeroVector;
+	}
+
+	FString InputHash = FMD5::HashBytes((uint8*)Charts.GetData(), Charts.Num() * Charts.GetTypeSize());
+
+#if UE_EDITOR && (UE_BUILD_DEVELOPMENT || UE_BUILD_DEBUG)
+	// When you need to find where an unexpected difference in output hash might come from
+	// after changing the algorithm. You can set this CVar to activate tracing for a particular
+	// input hash.
+	FString InputHashTrace = CVarLayoutUVTracePackingForInputHash.GetValueOnAnyThread().TrimStartAndEnd();
+	const bool bTrace = InputHashTrace.Len() > 0 && InputHash.StartsWith(InputHashTrace);
+#else
+	const bool bTrace = false;
+#endif
+
+	// Those might require tuning, changing them won't affect the outcome and will maintain backward compatibility
+	const int32 MultithreadChartsCountThreshold       = 100*1000;
+	const int32 MultithreadTextureResolutionThreshold = 1000;
+	const int32 MultithreadAheadWorkCount             = 3;
+
 	const float LinearSearchStart = 0.5f;
-	const float LinearSearchStep = 0.5f;
+	const float LinearSearchStep  = 0.5f;
 	const int32 BinarySearchSteps = 6;
-	
+
 	float UVScaleFail = TextureResolution * FMath::Sqrt( 1.0f / TotalUVArea );
 	float UVScalePass = TextureResolution * FMath::Sqrt( LinearSearchStart / TotalUVArea );
 
-	// Linear search for first fit
-	while(1)
+	// Store successful charts packing to avoid redoing the final step
+	TArray<FMeshChart>         LastPassCharts;
+	TAtomic<bool>              bAbort(false);
+
+	struct FThreadContext
 	{
-		ScaleCharts( Charts, UVScalePass );
+		TArray<FMeshChart> Charts;
+		TFuture<bool>      Result;
+		float              Efficiency = 0.0f;
+	};
 
-		bool bFit = PackCharts(Charts, TexCoords, SortedTris);
-		if( bFit )
+	TArray<FThreadContext> ThreadContexts;
+
+	bool bShouldUseMultipleThreads =
+		 FApp::ShouldUseThreadingForPerformance() && 
+		!bTrace &&
+ 		 Charts.Num() >= MultithreadChartsCountThreshold &&
+		 TextureResolution >= MultithreadTextureResolutionThreshold;
+
+	if ( bShouldUseMultipleThreads )
+	{
+		// Do forward work only when multi-thread activated
+		ThreadContexts.SetNum(MultithreadAheadWorkCount);
+	}
+
+	// Linear search for first fit
+	float LastEfficiency = 0.0f;
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(LinearSearch);
+
+		while(!bAbort)
 		{
-			break;
-		}
+			// Launch forward work in other threads
+			for (int32 Index = 0; Index < ThreadContexts.Num(); ++Index)
+			{
+				ThreadContexts[Index].Charts = Charts;
+				float ThreadUVScale  = UVScalePass * FMath::Pow(LinearSearchStep, Index + 1);
+				ThreadContexts[Index].Result =
+					Async(
+						EAsyncExecution::ThreadPool,
+						[this, &ThreadContexts, &SortedTris, &TexCoords, &bAbort, ThreadUVScale, Index]()
+						{
+							TRACE_CPUPROFILER_EVENT_SCOPE(SearchStep);
+							return PackCharts(ThreadContexts[Index].Charts, ThreadUVScale, TexCoords, SortedTris, ThreadContexts[Index].Efficiency, bAbort, false);
+						}
+					);
+			}
 
-		UVScaleFail = UVScalePass;
-		UVScalePass *= LinearSearchStep;
+			if (bTrace)
+			{
+				UE_LOG(LogLayoutUV, Log, TEXT("[LAYOUTUV_TRACE] Scale %f"), UVScalePass);
+			}
+
+			// Process the first iteration in this thread
+			bool bFit = false;
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(SearchStep);
+				bFit = PackCharts(Charts, UVScalePass, TexCoords, SortedTris, LastEfficiency, bAbort, bTrace);
+			}
+
+			// Wait for the work sequentially and cancel everything once we have a first viable solution
+			for (int32 Index = 0; Index < ThreadContexts.Num() + 1; ++Index)
+			{
+				// The first result is not coming from a future
+				bFit = Index == 0 ? bFit : ThreadContexts[Index - 1].Result.Get();
+				if (bFit && !bAbort)
+				{
+					// We got a success, cancel other searches
+					bAbort = true;
+
+					if (Index > 0)
+					{
+						Charts         = ThreadContexts[Index - 1].Charts;
+						LastEfficiency = ThreadContexts[Index - 1].Efficiency;
+					}
+
+					LastPassCharts = Charts;
+				}
+
+				if (!bAbort)
+				{
+					UVScaleFail = UVScalePass;
+					UVScalePass *= LinearSearchStep;
+				}
+			}
+		}
 	}
 
 	// Binary search for best fit
-	for( int32 i = 0; i < BinarySearchSteps; i++ )
 	{
-		float UVScale = 0.5f * ( UVScaleFail + UVScalePass );
-		ScaleCharts( Charts, UVScale );
+		TRACE_CPUPROFILER_EVENT_SCOPE(BinarySearch);
 
-		bool bFit = PackCharts(Charts, TexCoords, SortedTris);
-		if( bFit )
+		bAbort = false;
+		for( int32 i = 0; i < BinarySearchSteps; i++ )
 		{
-			UVScalePass = UVScale;
-		}
-		else
-		{
-			UVScaleFail = UVScale;
+			TRACE_CPUPROFILER_EVENT_SCOPE(SearchStep);
+
+			float UVScale = 0.5f * ( UVScaleFail + UVScalePass );
+
+			if (bTrace)
+			{
+				UE_LOG(LogLayoutUV, Log, TEXT("[LAYOUTUV_TRACE] Scale %f"), UVScale);
+			}
+
+			float Efficiency = 0.0f;
+			bool bFit = PackCharts(Charts, UVScale, TexCoords, SortedTris, Efficiency, bAbort, bTrace);
+			if( bFit )
+			{
+				LastPassCharts = Charts;
+				float EfficiencyGainPercent = 100.0f * FMath::Abs(Efficiency - LastEfficiency);
+				LastEfficiency = Efficiency;
+
+				// Early out when we're inside a 1% efficiency range
+				if (LayoutVersion >= ELightmapUVVersion::Segments2D && EfficiencyGainPercent <= 1.0f)
+				{
+					break;
+				}
+			
+				UVScalePass = UVScale;
+			}
+			else
+			{
+				UVScaleFail = UVScale;
+			}
 		}
 	}
 
-	// TODO store packing scale/bias separate so this isn't necessary
-	ScaleCharts( Charts, UVScalePass );
-	PackCharts(Charts, TexCoords, SortedTris);
+	if (LayoutVersion < ELightmapUVVersion::ScaleChartsOrderingFix)
+	{
+		// Early versions applied a sort that was determinist
+		// but dependent on earlier sorts. Since we strive to maintain
+		// backward compatibility of the UV layout to avoid screwing
+		// with already backed static lighting, we must apply a final
+		// scaling and packing that will reuse the last step's ordering
+		// whether it was a failure or not.
+		PackCharts(Charts, UVScalePass, TexCoords, SortedTris, LastEfficiency, bAbort, bTrace);
+	}
+	else
+	{
+		// In case the last step was a failure, restore from last known good computation
+		Charts = LastPassCharts;
+	}
+
+	FString OutputHash = FMD5::HashBytes((uint8*)Charts.GetData(), Charts.Num() * Charts.GetTypeSize());
+
+	// Increase verbosity level to use this for packing results validation when modifying code
+	UE_LOG(LogLayoutUV, Verbose, TEXT("FindBestPacking (Input Data MD5: %s, Output Data MD5: %s, LayoutVersion: %d, Efficiency: %0.2f %%)"), *InputHash, *OutputHash, LayoutVersion, LastEfficiency*100);
+
+	static TAtomic<uint64> Count(0);
+	static TAtomic<uint64> TotalCycles(0);
+	static TAtomic<uint64> Efficiency(0);
+
+	FindBestPackingCount++;
+	FindBestPackingEfficiency += LastEfficiency*100000;
+	FindBestPackingCycles += FPlatformTime::Cycles64() - StartCycles;
 
 	return true;
+}
+
+void FLayoutUV::ResetStats()
+{
+	FindBestPackingCount = 0;
+	FindBestPackingEfficiency = 0;
+	FindBestPackingCycles = 0;
+}
+
+void FLayoutUV::LogStats()
+{
+	UE_LOG(LogLayoutUV, Log, TEXT("FindBestPacking (Total Time: %s, Avg Efficiency: %f)"), *FPlatformTime::PrettyTime(FPlatformTime::ToSeconds64(FindBestPackingCycles.Load())), double(FindBestPackingEfficiency.Load()) / (FindBestPackingCount.Load()*1000));
 }
 
 void FLayoutUV::FChartPacker::ScaleCharts( TArray< FMeshChart >& Charts, float UVScale )
@@ -838,137 +1009,241 @@ void FLayoutUV::FChartPacker::ScaleCharts( TArray< FMeshChart >& Charts, float U
 	Algo::IntroSort( Charts, FCompareCharts() );
 }
 
-bool FLayoutUV::FChartPacker::PackCharts(TArray< FMeshChart >& Charts, const TArray< FVector2D >& TexCoords, const TArray< uint32 >& SortedTris)
+// Hash function to use FMD5Hash in TMap
+inline uint32 GetTypeHash(const FMD5Hash& Hash)
 {
-	uint32 RasterizeCycles = 0;
-	uint32 FindCycles = 0;
-	
+	uint32* HashAsInt32 = (uint32*)Hash.GetBytes();
+	return HashAsInt32[0] ^ HashAsInt32[1] ^ HashAsInt32[2] ^ HashAsInt32[3];
+}
+
+bool FLayoutUV::FChartPacker::PackCharts(TArray< FMeshChart >& Charts, float UVScale, const TArray< FVector2D >& TexCoords, const TArray< uint32 >& SortedTris, float& OutEfficiency, TAtomic<bool>& bAbort, bool bTrace)
+{
+	ScaleCharts( Charts, UVScale );
+	TRACE_CPUPROFILER_EVENT_SCOPE(FChartPacker::PackCharts)
+
+	FAllocator2D BestChartRaster(FAllocator2D::EMode::UsedSegments, TextureResolution, TextureResolution, LayoutVersion);
+	FAllocator2D ChartRaster    (FAllocator2D::EMode::UsedSegments, TextureResolution, TextureResolution, LayoutVersion);
+	FAllocator2D LayoutRaster   (FAllocator2D::EMode::FreeSegments, TextureResolution, TextureResolution, LayoutVersion);
+
+	uint64 RasterizeCycles = 0;
+	uint64 FindCycles = 0;
+
 	double BeginPackCharts = FPlatformTime::Seconds();
 
+	OutEfficiency = 0.0f;
 	LayoutRaster.Clear();
 
-	for( int32 i = 0; i < Charts.Num(); i++ )
+	// Store the position where we found a spot for each unique raster
+	// so we can skip whole sections we know won't work out.
+	// This method is obviously more efficient with smaller charts
+	// but helps tremendously as the number of charts goes up for
+	// the same texture space. This helps counteract the slowdown
+	// induced by having more parts to place in the grid and is
+	// particularly useful for foliage.
+	TMap<FMD5Hash, FVector2D> BestStartPos;
+
+	// Reduce Insights CPU tracing to once per batch
+	const int32 BatchSize = 1024;
+	for( int32 ChartIndex = 0; ChartIndex < Charts.Num() && !bAbort.Load(EMemoryOrder::Relaxed);)
 	{
-		FMeshChart& Chart = Charts[i];
-
-		// Try different orientations and pick best
-		int32				BestOrientation = -1;
-		FAllocator2D::FRect	BestRect = { ~0u, ~0u, ~0u, ~0u };
-
-		for( int32 Orientation = 0; Orientation < 8; Orientation++ )
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChartBatch);
+		for( int32 BatchIndex = 0; BatchIndex < BatchSize && ChartIndex < Charts.Num() && !bAbort.Load(EMemoryOrder::Relaxed); ++ChartIndex, ++BatchIndex)
 		{
-			// TODO If any dimension is less than 1 pixel shrink dimension to zero
+			FMeshChart& Chart = Charts[ChartIndex];
 
-			OrientChart( Chart, Orientation );
-			
-			FVector2D ChartSize = Chart.MaxUV - Chart.MinUV;
-			ChartSize = ChartSize.X * Chart.PackingScaleU + ChartSize.Y * Chart.PackingScaleV;
+			// Try different orientations and pick best
+			int32				BestOrientation = -1;
+			FAllocator2D::FRect	BestRect = { ~0u, ~0u, ~0u, ~0u };
 
-			// Only need half pixel dilate for rects
-			FAllocator2D::FRect	Rect;
-			Rect.X = 0;
-			Rect.Y = 0;
-			Rect.W = FMath::CeilToInt( FMath::Abs( ChartSize.X ) + 1.0f );
-			Rect.H = FMath::CeilToInt( FMath::Abs( ChartSize.Y ) + 1.0f );
-
-			// Just in case lack of precision pushes it over
-			Rect.W = FMath::Min( TextureResolution, Rect.W );
-			Rect.H = FMath::Min( TextureResolution, Rect.H );
-
-			const bool bRectPack = false;
-
-			if( bRectPack )
+			for( int32 Orientation = 0; Orientation < 8; Orientation++ )
 			{
-				if( LayoutRaster.Find( Rect ) )
+				// TODO If any dimension is less than 1 pixel shrink dimension to zero
+
+				OrientChart( Chart, Orientation);
+			
+				FVector2D ChartSize = Chart.MaxUV - Chart.MinUV;
+				ChartSize = ChartSize.X * Chart.PackingScaleU + ChartSize.Y * Chart.PackingScaleV;
+
+				// Only need half pixel dilate for rects
+				FAllocator2D::FRect	Rect;
+				Rect.X = 0;
+				Rect.Y = 0;
+				Rect.W = FMath::CeilToInt( FMath::Abs( ChartSize.X ) + 1.0f );
+				Rect.H = FMath::CeilToInt( FMath::Abs( ChartSize.Y ) + 1.0f );
+
+				// Just in case lack of precision pushes it over
+				Rect.W = FMath::Min( TextureResolution, Rect.W );
+				Rect.H = FMath::Min( TextureResolution, Rect.H );
+
+				const bool bRectPack = false;
+
+				if( bRectPack )
 				{
-					// Is best?
-					if( Rect.X + Rect.Y * TextureResolution < BestRect.X + BestRect.Y * TextureResolution )
+					if( LayoutRaster.Find( Rect ) )
 					{
-						BestOrientation = Orientation;
-						BestRect = Rect;
+						// Is best?
+						if( Rect.X + Rect.Y * TextureResolution < BestRect.X + BestRect.Y * TextureResolution )
+						{
+							BestOrientation = Orientation;
+							BestRect = Rect;
+						}
+					}
+					else
+					{
+						continue;
 					}
 				}
 				else
 				{
-					continue;
+					if ( LayoutVersion >= ELightmapUVVersion::Segments && Orientation % 4 == 1 )
+					{
+						ChartRaster.FlipX( Rect );
+					}
+					else if ( LayoutVersion >= ELightmapUVVersion::Segments && Orientation % 4 == 3 )
+					{
+						ChartRaster.FlipY( Rect );
+					}
+					else
+					{
+						int32 BeginRasterize = FPlatformTime::Cycles();
+						RasterizeChart( Chart, TexCoords, SortedTris, Rect.W , Rect.H, ChartRaster);
+						RasterizeCycles += FPlatformTime::Cycles() - BeginRasterize;
+					}
+
+					bool bFound = false;
+
+					uint32 BeginFind = FPlatformTime::Cycles();
+					if ( LayoutVersion == ELightmapUVVersion::BitByBit )
+					{
+						bFound = LayoutRaster.FindBitByBit( Rect, ChartRaster );
+					}
+					else if ( LayoutVersion >= ELightmapUVVersion::Segments )
+					{
+						// Use the real raster size for optimal placement
+						FAllocator2D::FRect RasterRect = Rect;
+						RasterRect.W = ChartRaster.GetRasterWidth();
+						RasterRect.H = ChartRaster.GetRasterHeight();
+
+						// Nothing rasterized, returning 0,0 as fast as possible
+						// since this is what the actual algorithm is doing but
+						// we might have to flag the entire UV map as invalid since
+						// charts are going to overlap
+						if (RasterRect.H == 0 && RasterRect.W == 0)
+						{
+							Rect.X = 0;
+							Rect.Y = 0;
+							bFound = true;
+						}
+						else
+						{
+							FMD5Hash RasterMD5 = ChartRaster.GetRasterMD5();
+							FVector2D* StartPos = BestStartPos.Find(RasterMD5);
+
+							if (StartPos)
+							{
+								RasterRect.X = StartPos->X;
+								RasterRect.Y = StartPos->Y;
+							}
+
+							LayoutRaster.ResetStats();
+							bFound = LayoutRaster.FindWithSegments(RasterRect, BestRect, ChartRaster);
+							if (bFound)
+							{
+								// Store only the best possible position in the hash table so we can start from there for other identical charts
+								BestStartPos.Add(RasterMD5, FVector2D(RasterRect.X, RasterRect.Y));
+
+								// Since the older version stops searching at Width - Rect.W instead of using the raster size,
+								// it means a perfect rasterized square of 2,2 won't fit a 2,2 hole at the end of a row if Rect.W = 3.
+								// Because of that, we have no choice to worsen our algorithm behavior for backward compatibility.
+
+								// Once we know the best possible position, we'll continue our search from there with the original
+								// rect value if it differs from the raster rect to ensure we get the same result as the old algorithm.
+								if (LayoutVersion < ELightmapUVVersion::Segments2D && (Rect.X != RasterRect.X || Rect.Y != RasterRect.Y))
+								{
+									Rect.X = RasterRect.X;
+									Rect.Y = RasterRect.Y;
+
+									bFound = LayoutRaster.FindWithSegments(Rect, BestRect, ChartRaster);
+								}
+								else
+								{
+									// We can't copy W and H here as they might be different than what we got initially
+									Rect.X = RasterRect.X;
+									Rect.Y = RasterRect.Y;
+								}
+							}
+
+							LayoutRaster.PublishStats(ChartIndex, Orientation, bFound, Rect, BestRect, RasterMD5);
+						}
+
+					}
+					FindCycles += FPlatformTime::Cycles() - BeginFind;
+
+					if (bTrace)
+					{
+						UE_LOG(LogLayoutUV, Log, TEXT("[LAYOUTUV_TRACE] Chart %d Orientation %d Found = %d Rect = %d,%d,%d,%d\n"), ChartIndex, Orientation, bFound ? 1 : 0, Rect.X, Rect.Y, Rect.W, Rect.H);
+					}
+
+					if( bFound )
+					{
+						// Is best?
+						if( Rect.X + Rect.Y * TextureResolution < BestRect.X + BestRect.Y * TextureResolution )
+						{
+							BestChartRaster = ChartRaster;
+
+							BestOrientation = Orientation;
+							BestRect = Rect;
+
+							if ( BestRect.X == 0 && BestRect.Y == 0 )
+							{
+								// BestRect can't be beat, stop here
+								break;
+							}
+						}
+					}
+					else
+					{
+						continue;
+					}
 				}
+			}
+
+			if( BestOrientation >= 0 )
+			{
+				// Add chart to layout
+				OrientChart( Chart, BestOrientation );
+
+				LayoutRaster.Alloc( BestRect, BestChartRaster );
+
+				Chart.PackingBias.X += BestRect.X;
+				Chart.PackingBias.Y += BestRect.Y;
 			}
 			else
 			{
-				if ( LayoutVersion >= ELightmapUVVersion::Segments && Orientation % 4 == 1 )
+				if (bTrace)
 				{
-					ChartRaster.FlipX( Rect, LayoutVersion );
+					UE_LOG(LogLayoutUV, Log, TEXT("[LAYOUTUV_TRACE] Chart %d Found no orientation that fit\n"), ChartIndex);
 				}
-				else if ( LayoutVersion >= ELightmapUVVersion::Segments && Orientation % 4 == 3 )
-				{
-					ChartRaster.FlipY( Rect );
-				}
-				else
-				{
-					int32 BeginRasterize = FPlatformTime::Cycles();
-					RasterizeChart( Chart, TexCoords, SortedTris, Rect.W , Rect.H );
-					RasterizeCycles += FPlatformTime::Cycles() - BeginRasterize;
-				}
-
-				bool bFound = false;
-
-				uint32 BeginFind = FPlatformTime::Cycles();
-				if ( LayoutVersion == ELightmapUVVersion::BitByBit )
-				{
-					bFound = LayoutRaster.FindBitByBit( Rect, ChartRaster );
-				}
-				else if ( LayoutVersion >= ELightmapUVVersion::Segments )
-				{
-					bFound = LayoutRaster.FindWithSegments( Rect, BestRect, ChartRaster );
-				}
-				FindCycles += FPlatformTime::Cycles() - BeginFind;
-
-				if( bFound )
-				{
-					// Is best?
-					if( Rect.X + Rect.Y * TextureResolution < BestRect.X + BestRect.Y * TextureResolution )
-					{
-						BestChartRaster = ChartRaster;
-
-						BestOrientation = Orientation;
-						BestRect = Rect;
-
-						if ( BestRect.X == 0 && BestRect.Y == 0 )
-						{
-							// BestRect can't be beat, stop here
-							break;
-						}
-					}
-				}
-				else
-				{
-					continue;
-				}
+				// Found no orientation that fit
+				return false;
 			}
-		}
-
-		if( BestOrientation >= 0 )
-		{
-			// Add chart to layout
-			OrientChart( Chart, BestOrientation );
-
-			LayoutRaster.Alloc( BestRect, BestChartRaster );
-
-			Chart.PackingBias.X += BestRect.X;
-			Chart.PackingBias.Y += BestRect.Y;
-		}
-		else
-		{
-			// Found no orientation that fit
-			return false;
 		}
 	}
 
+	if (bAbort)
+	{
+		return false;
+	}
+
+	const uint32 TotalTexels = TextureResolution * TextureResolution;
+	const uint32 UsedTexels  = LayoutRaster.GetUsedTexels();
+
+	OutEfficiency = float( UsedTexels ) / TotalTexels;
 	double EndPackCharts = FPlatformTime::Seconds();
 
-	UE_LOG(LogLayoutUV, Display, TEXT("PackCharts: %s"),	*FPlatformTime::PrettyTime(EndPackCharts - BeginPackCharts));
-	UE_LOG(LogLayoutUV, Display, TEXT("  Rasterize: %u"),	RasterizeCycles);
-	UE_LOG(LogLayoutUV, Display, TEXT("  Find: %u"),		FindCycles);
+	UE_LOG(LogLayoutUV, VeryVerbose, TEXT("PackCharts: %s"),	*FPlatformTime::PrettyTime(EndPackCharts - BeginPackCharts));
+	UE_LOG(LogLayoutUV, VeryVerbose, TEXT("  Rasterize: %llu"),	RasterizeCycles);
+	UE_LOG(LogLayoutUV, VeryVerbose, TEXT("  Find: %llu"),		FindCycles);
 
 	return true;
 }
@@ -1109,14 +1384,14 @@ void RasterizeTriangle( FAllocator2D& Shader, const FVector2D Points[3], int32 S
 	}
 }
 
-void FLayoutUV::FChartPacker::RasterizeChart( const FMeshChart& Chart, const TArray< FVector2D >& TexCoords, const TArray< uint32 >& SortedTris, uint32 RectW, uint32 RectH )
+void FLayoutUV::FChartPacker::RasterizeChart( const FMeshChart& Chart, const TArray< FVector2D >& TexCoords, const TArray< uint32 >& SortedTris, uint32 RectW, uint32 RectH, FAllocator2D& OutChartRaster )
 {
 	// Bilinear footprint is -1 to 1 pixels. If packed geometrically, only a half pixel dilation
 	// would be needed to guarantee all charts were at least 1 pixel away, safe for bilinear filtering.
 	// Unfortunately, with pixel packing a full 1 pixel dilation is required unless chart edges exactly
 	// align with pixel centers.
 
-	ChartRaster.Clear();
+	OutChartRaster.Clear();
 
 	for( uint32 Tri = Chart.FirstTri; Tri < Chart.LastTri; Tri++ )
 	{
@@ -1127,12 +1402,12 @@ void FLayoutUV::FChartPacker::RasterizeChart( const FMeshChart& Chart, const TAr
 			Points[k] = UV.X * Chart.PackingScaleU + UV.Y * Chart.PackingScaleV + Chart.PackingBias;
 		}
 
-		RasterizeTriangle< 16 >( ChartRaster, Points, RectW, RectH );
+		RasterizeTriangle< 16 >( OutChartRaster, Points, RectW, RectH );
 	}
 
 	if ( LayoutVersion >= ELightmapUVVersion::Segments )
 	{
-		ChartRaster.CreateUsedSegments();
+		OutChartRaster.CreateUsedSegments();
 	}
 }
 
@@ -1150,6 +1425,8 @@ void FLayoutUV::CommitPackedUVs()
 	{
 		return;
 	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(FLayoutUV::CommitPackedUVs)
 
 	// Alloc new UV channel
 	MeshView.InitOutputTexcoords(MeshTexCoords.Num());

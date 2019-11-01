@@ -2,10 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Tools.DotNETCommon;
 
 namespace UnrealBuildTool
@@ -34,6 +30,11 @@ namespace UnrealBuildTool
 		/// Array of all restricted folders
 		/// </summary>
 		private static RestrictedFolder[] Values;
+
+		/// <summary>
+		/// Set of permitted references for each restricted folder. Determined via data-driven platform info.
+		/// </summary>
+		private static Dictionary<RestrictedFolder, RestrictedFolder[]> PermittedReferences;
 
 		/// <summary>
 		/// Constructor
@@ -96,16 +97,42 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Returns an array of folders which are allowed to be referenced from this restricted folder
+		/// </summary>
+		/// <returns>Collection of restricted folders</returns>
+		public IEnumerable<RestrictedFolder> GetPermittedReferences()
+		{
+			RestrictedFolder[] References;
+			if (PermittedReferences.TryGetValue(this, out References))
+			{
+				foreach (RestrictedFolder Reference in References)
+				{
+					yield return Reference;
+				}
+			}
+		}
+
+		/// <summary>
 		/// Creates entries for all the confidential platforms. Should be called before returning any list of all folder values.
 		/// </summary>
 		private static void AddConfidentialPlatforms()
 		{
-			foreach (KeyValuePair<string, DataDrivenPlatformInfo.ConfigDataDrivenPlatformInfo> Pair in DataDrivenPlatformInfo.GetAllPlatformInfos())
+			if (PermittedReferences == null)
 			{
-				if (Pair.Value.bIsConfidential)
+				Dictionary<RestrictedFolder, RestrictedFolder[]> NewPermittedReferences = new Dictionary<RestrictedFolder, RestrictedFolder[]>();
+				foreach (KeyValuePair<string, DataDrivenPlatformInfo.ConfigDataDrivenPlatformInfo> Pair in DataDrivenPlatformInfo.GetAllPlatformInfos())
 				{
-					FindOrAddByName(Pair.Key);
+					if (Pair.Value.bIsConfidential)
+					{
+						RestrictedFolder Folder = FindOrAddByName(Pair.Key);
+						if (Pair.Value.AdditionalRestrictedFolders != null && Pair.Value.AdditionalRestrictedFolders.Length > 0)
+						{
+							RestrictedFolder[] References = Array.ConvertAll(Pair.Value.AdditionalRestrictedFolders, x => FindOrAddByName(x));
+							NewPermittedReferences[Folder] = References;
+						}
+					}
 				}
+				PermittedReferences = NewPermittedReferences;
 			}
 		}
 
@@ -189,12 +216,34 @@ namespace UnrealBuildTool
 			List<RestrictedFolder> Folders = new List<RestrictedFolder>();
 			if (OtherDir.IsUnderDirectory(BaseDir))
 			{
-				foreach(RestrictedFolder Value in RestrictedFolder.GetValues())
+				foreach (RestrictedFolder Value in RestrictedFolder.GetValues())
 				{
 					string Name = Value.ToString();
 					if (OtherDir.ContainsName(Name, BaseDir.FullName.Length))
 					{
 						Folders.Add(Value);
+					}
+				}
+			}
+			return Folders;
+		}
+
+		/// <summary>
+		/// Finds all the permitted restricted folder references for a given path
+		/// </summary>
+		/// <param name="BaseDir">The base directory to check against</param>
+		/// <param name="OtherDir">The file or directory to check</param>
+		/// <returns>Array of restricted folder names</returns>
+		public static List<RestrictedFolder> FindPermittedRestrictedFolderReferences(DirectoryReference BaseDir, DirectoryReference OtherDir)
+		{
+			List<RestrictedFolder> Folders = FindRestrictedFolders(BaseDir, OtherDir);
+			for (int Idx = 0; Idx < Folders.Count; Idx++)
+			{
+				foreach (RestrictedFolder Folder in Folders[Idx].GetPermittedReferences())
+				{
+					if (!Folders.Contains(Folder))
+					{
+						Folders.Add(Folder);
 					}
 				}
 			}

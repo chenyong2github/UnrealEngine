@@ -13,15 +13,18 @@ public:
 		const FScene* Scene, 
 		const FSceneView* View, 
 		const FPrimitiveSceneProxy* PrimitiveSceneProxy, 
-		FRayTracingDynamicGeometryUpdateParams Params);
+		FRayTracingDynamicGeometryUpdateParams Params,
+		uint32 PrimitiveId 
+	);
 
-	void DispatchUpdates(FRHICommandListImmediate& RHICmdList);
+	template<typename CmdListType>
+	void DispatchUpdates(CmdListType& RHICmdList);
+
 	void Clear();
 
 private:
 	TUniquePtr<TArray<struct FMeshComputeDispatchCommand>> DispatchCommands;
-	TArray<FAccelerationStructureUpdateParams> BuildParams;
-	TArray<FAccelerationStructureUpdateParams> RefitParams;
+	TArray<FAccelerationStructureBuildParams> BuildParams;
 };
 
 #endif // RHI_RAYTRACING

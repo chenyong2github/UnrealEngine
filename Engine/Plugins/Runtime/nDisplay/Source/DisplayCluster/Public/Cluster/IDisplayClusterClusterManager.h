@@ -5,9 +5,12 @@
 #include "CoreMinimal.h"
 #include "Delegates/Delegate.h"
 #include "UObject/ScriptInterface.h"
+#include "DisplayClusterEnums.h"
+
 
 struct FDisplayClusterClusterEvent;
 class IDisplayClusterClusterEventListener;
+class IDisplayClusterClusterSyncObject;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnClusterEvent, const FDisplayClusterClusterEvent& /* Event */);
 typedef FOnClusterEvent::FDelegate FOnClusterEventListener;
@@ -28,6 +31,9 @@ public:
 	virtual bool IsCluster()        const = 0;
 	virtual FString GetNodeId()     const = 0;
 	virtual uint32 GetNodesAmount() const = 0;
+
+	virtual void RegisterSyncObject(IDisplayClusterClusterSyncObject* pSyncObj, EDisplayClusterSyncGroup SyncGroup) = 0;
+	virtual void UnregisterSyncObject(IDisplayClusterClusterSyncObject* pSyncObj) = 0;
 
 	virtual void AddClusterEventListener(TScriptInterface<IDisplayClusterClusterEventListener> Listener) = 0;
 	virtual void RemoveClusterEventListener(TScriptInterface<IDisplayClusterClusterEventListener> Listener) = 0;

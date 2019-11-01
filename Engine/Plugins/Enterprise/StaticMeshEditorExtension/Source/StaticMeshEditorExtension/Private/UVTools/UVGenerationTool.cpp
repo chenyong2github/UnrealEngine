@@ -3,6 +3,7 @@
 #include "UVGenerationTool.h"
 #include "EditorModeManager.h"
 #include "EditorViewportClient.h"
+#include "UVGenerationSettings.h"
 
 #define LOCTEXT_NAMESPACE "UVGenerationTool"
 

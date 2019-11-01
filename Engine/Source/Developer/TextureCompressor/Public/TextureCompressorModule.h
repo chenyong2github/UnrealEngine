@@ -164,6 +164,8 @@ struct FTextureBuildSettings
 	uint32 bVirtualTextureEnableCompressZlib : 1;
 	/** Is crunch compression enabled */
 	uint32 bVirtualTextureEnableCompressCrunch : 1;
+	/** True if the target platform requires the FOptTexturePlatformData strucutre */
+	uint32 bOptData : 1;
 
 	/** Default settings. */
 	FTextureBuildSettings()
@@ -214,6 +216,7 @@ struct FTextureBuildSettings
 		, VirtualTextureBorderSize(0)
 		, bVirtualTextureEnableCompressZlib(false)
 		, bVirtualTextureEnableCompressCrunch(false)
+		, bOptData(false)
 	{
 	}
 
@@ -235,13 +238,17 @@ public:
 	 * @param SourceMips - The input mips.
 	 * @param BuildSettings - Build settings.
 	 * @param OutCompressedMips - The compressed mips built by the compressor.
+	 * @param OutNumMipsInTail - The number of mips that are joined into a single mip tail mip
+	 * @param OutCompressedMips - Extra data that the runtime may need
 	 * @returns true on success
 	 */
 	virtual bool BuildTexture(
 		const TArray<struct FImage>& SourceMips,
 		const TArray<struct FImage>& AssociatedNormalSourceMips,
 		const FTextureBuildSettings& BuildSettings,
-		TArray<FCompressedImage2D>& OutTextureMips
+		TArray<FCompressedImage2D>& OutTextureMips,
+		uint32& OutNumMipsInTail,
+		uint32& OutExtData
 		) = 0;
 
 	
@@ -266,4 +273,20 @@ public:
      * @param	InBuildSettings	Image build settings
      */
 	TEXTURECOMPRESSOR_API static void AdjustImageColors(FImage& Image, const FTextureBuildSettings& InBuildSettings);
+
+	/**
+	 * Generates the base cubemap mip from a longitude-latitude 2D image.
+	 * @param OutMip - The output mip.
+	 * @param SrcImage - The source longlat image.
+	 */
+	TEXTURECOMPRESSOR_API static void GenerateBaseCubeMipFromLongitudeLatitude2D(FImage* OutMip, const FImage& SrcImage, const int32 MaxCubemapTextureResolution);
+
+
+	/**
+	 * Generates angularly filtered mips.
+	 * @param InOutMipChain - The mip chain to angularly filter.
+	 * @param NumMips - The number of mips the chain should have.
+	 * @param DiffuseConvolveMipLevel - The mip level that contains the diffuse convolution.
+	 */
+	TEXTURECOMPRESSOR_API static void GenerateAngularFilteredMips(TArray<FImage>& InOutMipChain, int32 NumMips, uint32 DiffuseConvolveMipLevel);
 };

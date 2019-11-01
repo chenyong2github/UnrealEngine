@@ -7,6 +7,7 @@
 
 struct FForceFeedbackValues;
 enum class FForceFeedbackChannelType;
+struct FInputDeviceProperty;
 
 /**
  * Input device interface.
@@ -41,6 +42,15 @@ public:
 	 */
 	virtual void SetLightColor(int32 ControllerId, FColor Color) { };
 	virtual void ResetLightColor(int32 ControllerId) { };
+
+	/**
+	* Sets a property for a given controller id.
+	* Will be ignored for devices which don't support the property.
+	*
+	* @param ControllerId the id of the controller whose property is to be applied
+	* @param Property Base class pointer to property that will be applied
+	*/
+	virtual void SetDeviceProperty(int32 ControllerId, const FInputDeviceProperty* Property) {}
 
 	/** If this device supports a haptic interface, implement this, and inherit the IHapticDevice interface */
 	virtual class IHapticDevice* GetHapticDevice()

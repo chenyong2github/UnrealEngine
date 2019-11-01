@@ -28,13 +28,22 @@ TAutoConsoleVariable<int32> CVarPathTracingSamplesPerPixel(
 	ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<int32> CVarPathTracingFrameIndependentTemporalSeed(
+	TEXT("r.PathTracing.FrameIndependentTemporalSeed"),
+	1,
+	TEXT("Indicates to use different temporal seed for each sample across frames rather than resetting the sequence at the start of each frame\n")
+	TEXT("0: off\n")
+	TEXT("1: on (default)\n"),
+	ECVF_RenderThreadSafe
+);
+
 TAutoConsoleVariable<int32> CVarPathTracingRandomSequence(
 	TEXT("r.PathTracing.RandomSequence"),
 	2,
 	TEXT("Changes the underlying random sequence\n")
-	TEXT("0: LCG (default\n")
+	TEXT("0: LCG\n")
 	TEXT("1: Halton\n")
-	TEXT("2: Scrambled Halton\n"),
+	TEXT("2: Scrambled Halton (default)\n"),
 	ECVF_RenderThreadSafe
 );
 
@@ -119,6 +128,7 @@ public:
 		const TSparseArray<FLightSceneInfoCompact>& Lights,
 		// Adaptive sampling
 		uint32 Iteration,
+		uint32 FrameIndependentTemporalSeed,
 		FIntVector VarianceDimensions,
 		const FRWBuffer& VarianceMipTree,
 		// Output
@@ -237,6 +247,16 @@ public:
 
 		// Adaptive sampling
 		{
+			uint32 TemporalSeed;
+			if (CVarPathTracingFrameIndependentTemporalSeed.GetValueOnRenderThread() == 0)
+			{
+				TemporalSeed = Iteration;
+			}
+			else
+			{
+				TemporalSeed = FrameIndependentTemporalSeed;
+			}
+
 			FPathTracingAdaptiveSamplingData AdaptiveSamplingData;
 			AdaptiveSamplingData.MaxNormalBias = GetRaytracingMaxNormalBias();
 			AdaptiveSamplingData.UseAdaptiveSampling = CVarPathTracingAdaptiveSampling.GetValueOnRenderThread();
@@ -244,6 +264,7 @@ public:
 			if (VarianceMipTree.NumBytes > 0)
 			{
 				AdaptiveSamplingData.Iteration = Iteration;
+				AdaptiveSamplingData.TemporalSeed = TemporalSeed;
 				AdaptiveSamplingData.VarianceDimensions = VarianceDimensions;
 				AdaptiveSamplingData.VarianceMipTree = VarianceMipTree.SRV;
 				AdaptiveSamplingData.MinimumSamplesPerPixel = CVarPathTracingAdaptiveSamplingMinimumSamplesPerPixel.GetValueOnRenderThread();
@@ -252,6 +273,7 @@ public:
 			{
 				AdaptiveSamplingData.UseAdaptiveSampling = 0;
 				AdaptiveSamplingData.Iteration = Iteration;
+				AdaptiveSamplingData.TemporalSeed = TemporalSeed;
 				AdaptiveSamplingData.VarianceDimensions = FIntVector(1, 1, 1);
 				AdaptiveSamplingData.VarianceMipTree = RHICreateShaderResourceView(GBlackTexture->TextureRHI->GetTexture2D(), 0);
 				AdaptiveSamplingData.MinimumSamplesPerPixel = CVarPathTracingAdaptiveSamplingMinimumSamplesPerPixel.GetValueOnRenderThread();
@@ -407,6 +429,8 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 
 	// The local iteration counter.
 	static int32 SPPCount = 0;
+	// The frame independent temporal seed, not reset at the beginning of each frame unlike SPPCount to allow for less temporal aliasing.
+	static uint32 FrameIndependentTemporalSeed = 0;
 
 	// Conditionally rebuild sky light CDFs
 	if (Scene->SkyLight && Scene->SkyLight->ShouldRebuildCdf())
@@ -457,7 +481,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 		View.ViewUniformBuffer,
 		SceneTexturesUniformBuffer,
 		Scene->Lights,
-		SPPCount, ViewState->VarianceMipTreeDimensions, *ViewState->VarianceMipTree,
+		SPPCount, FrameIndependentTemporalSeed, ViewState->VarianceMipTreeDimensions, *ViewState->VarianceMipTree,
 		RadianceRT->GetRenderTargetItem().UAV,
 		SampleCountRT->GetRenderTargetItem().UAV,
 		PixelPositionRT->GetRenderTargetItem().UAV,
@@ -582,6 +606,8 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 		{
 			SPPCount = 0;
 		}
+
+		++FrameIndependentTemporalSeed;
 
 		PixelShader->SetParameters(RHICmdList, View, RadianceRedTexture, RadianceGreenTexture, RadianceBlueTexture, RadianceAlphaTexture, SampleCountTexture, CumulativeRadianceTexture, CumulativeSampleCount);
 		DrawRectangle(

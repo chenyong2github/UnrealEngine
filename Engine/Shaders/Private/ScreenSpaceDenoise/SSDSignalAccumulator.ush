@@ -111,7 +111,7 @@ FSSDSignalAccumulator CreateSignalAccumulator()
 	
 	#if COMPILE_MINMAX_ACCUMULATOR
 		Accumulator.Min = CreateSignalSampleFromScalarValue(INFINITE_FLOAT);
-		Accumulator.Max = CreateSignalSampleFromScalarValue(0.0); // TODO: -INFINITE_FLOAT? otherwise there is a risk to color clamp with YCoCg.
+		Accumulator.Max = CreateSignalSampleFromScalarValue(0.0); // TODO(Denoiser): -INFINITE_FLOAT? otherwise there is a risk to color clamp with YCoCg.
 	#endif
 		
 	#if COMPILE_MININVFREQ_ACCUMULATOR
@@ -227,7 +227,7 @@ void StartAccumulatingClusterInDRB(
 
 	Accumulator.BorderingRadius = RefPixelWorldBluringRadius * (ClusterInfo.OutterBoundaryRadius + ErrorCorrection);
 
-	// TODO: could this be constant.
+	// TODO(Denoiser): could this be constant.
 	Accumulator.HighestInvFrequency = Accumulator.BorderingRadius * 2;
 
 	// Reset current bucket.
@@ -264,8 +264,8 @@ void AccumulateSampleInDRB(inout FSSDSignalAccumulator Accumulator, FSSDSampleAc
 	{
 		float SampleTranslucency = saturate(ClampedInvFrequency - Accumulator.BorderingRadius);
 		
-		// TODO: do need (A.Sample.MissCount * SafeRcp(A.Sample.SampleCount)) computation onen 1spp reconstruction.
-		// TODO: could pass down a normalised version of A.Sample to avoid Rcp.
+		// TODO(Denoiser): do need (A.Sample.MissCount * SafeRcp(A.Sample.SampleCount)) computation onen 1spp reconstruction.
+		// TODO(Denoiser): could pass down a normalised version of A.Sample to avoid Rcp.
 		float R = A.Sample.MissCount * SafeRcp(A.Sample.SampleCount);
 		
 		float Translucency = lerp(R, 1, SampleTranslucency);
@@ -302,13 +302,13 @@ void DijestSampleClusterInDRB(
 	float CurrentInvFrequency = Accumulator.CurrentInvFrequency * rcp(Accumulator.Current.SampleCount);
 
 	// Whether current bucket is occluding previous bucket.
-	// TODO: put a contrast.
+	// TODO(Denoiser): put a contrast.
 	float bOccludingCluster = saturate((PreviousInvFrequency - CurrentInvFrequency) * rcp(Accumulator.BorderingRadius));
 
 	// Compute final factor to use to with previous bucket.
 	float PreviousBucketFactor = (Accumulator.Previous.SampleCount == 0.0) ? 0.0 : (1.0 - CurrentClusterOpacity * bOccludingCluster);
 
-	// TODO: the big difference in sample count could lead to wrong opacity between sample clusters.
+	// TODO(Denoiser): the big difference in sample count could lead to wrong opacity between sample clusters.
 	//if (PreviousBucketFactor < 1)
 	//	PreviousBucketFactor *= Accumulator.Current.SampleCount * SafeRcp(Accumulator.Previous.SampleCount);
 

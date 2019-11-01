@@ -125,6 +125,10 @@ public:
 	virtual class ISpectatorScreenController* GetSpectatorScreenController() { return nullptr; }
 	virtual class ISpectatorScreenController const* GetSpectatorScreenController() const { return nullptr; }
 
+	/**
+	* When implemented, creates a new post process node to provide platform-specific HMD distortion.
+	*/
+	virtual void CreateHMDPostProcessPass_RenderThread(class FRDGBuilder& GraphBuilder, const class FViewInfo& View, const struct FHMDDistortionInputs& Inputs, struct FScreenPassTexture& OutPass) const {}
 
 public:
 

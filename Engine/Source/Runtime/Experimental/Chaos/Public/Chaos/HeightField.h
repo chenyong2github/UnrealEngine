@@ -34,6 +34,10 @@ namespace Chaos
 
 		virtual ~THeightField() {}
 
+		/** Support for editing a subsection of the heightfield */
+		void EditHeights(TArrayView<T> InHeights, int32 InBeginRow, int32 InBeginCol, int32 InNumRows, int32 InNumCols);
+		void EditHeights(TArrayView<const uint16> InHeights, int32 InBeginRow, int32 InBeginCol, int32 InNumRows, int32 InNumCols);
+
 		virtual T PhiWithNormal(const TVector<T, 3>& x, TVector<T, 3>& Normal) const
 		{
 			check(false);	//not supported yet - might support it in the future or we may change the interface
@@ -66,7 +70,7 @@ namespace Chaos
 			return FCrc::MemCrc32(Bytes.GetData(), Bytes.GetAllocatedSize());
 		}
 
-		static ImplicitObjectType GetType()
+		static EImplicitObjectType StaticType()
 		{
 			return ImplicitObjectType::HeightField;
 		}
@@ -95,6 +99,7 @@ namespace Chaos
 			if(Ar.IsLoading())
 			{
 				BuildQueryData();
+				BoundingBox();	//temp hack to initialize cache
 			}
 		}
 

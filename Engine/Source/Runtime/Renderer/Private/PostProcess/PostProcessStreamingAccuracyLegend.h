@@ -1,33 +1,14 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessStreamingAccuracyLegend.h: PP to apply the streaming accuracy legend
-=============================================================================*/
-
 #pragma once
 
-#include "CoreMinimal.h"
-#include "CompositionLighting/PostProcessPassThrough.h"
+#include "ScreenPass.h"
 
-class FCanvas;
-
-class FRCPassPostProcessStreamingAccuracyLegend : public FRCPassPostProcessPassThrough
+struct FStreamingAccuracyLegendInputs
 {
-public:
-
-	FRCPassPostProcessStreamingAccuracyLegend(const TArray<FLinearColor>& InColors)
-		: FRCPassPostProcessPassThrough(nullptr), Colors(InColors)
-	{}
-
-protected:
-
-	virtual void DrawCustom(FRenderingCompositePassContext& Context) override;
-
-	void DrawDesc(FCanvas& Canvas, float PosX, float PosY, const FText& Text);
-	void DrawBox(FCanvas& Canvas, float PosX, float PosY, const FLinearColor& Color, const FText& Text);
-	void DrawCheckerBoard(FCanvas& Canvas, float PosX, float PosY, const FLinearColor& Color0, const FLinearColor& Color1, const FText& Text);
-
-private: 
-
-	TArray<FLinearColor> Colors;
+	FScreenPassRenderTarget OverrideOutput;
+	FScreenPassTexture SceneColor;
+	TArrayView<const FLinearColor> Colors;
 };
+
+FScreenPassTexture AddStreamingAccuracyLegendPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FStreamingAccuracyLegendInputs& Inputs);

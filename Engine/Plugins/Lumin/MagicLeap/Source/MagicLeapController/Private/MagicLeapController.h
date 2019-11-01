@@ -4,20 +4,14 @@
 
 #include "GenericPlatform/IInputInterface.h"
 #include "IInputDevice.h"
-#include "IMagicLeapInputDevice.h"
+#include "IMagicLeapTrackerEntity.h"
 #include "IMotionController.h"
 #include "XRMotionControllerBase.h"
 #include "IMagicLeapControllerPlugin.h"
 #include <Containers/Queue.h>
 #include "Misc/ScopeLock.h"
-#include "MagicLeapPluginUtil.h" // for ML_INCLUDES_START/END
-
-#if WITH_MLSDK
-ML_INCLUDES_START
-#include <ml_input.h>
-#include <ml_controller.h>
-ML_INCLUDES_END
-#endif //WITH_MLSDK
+#include "Lumin/CAPIShims/LuminAPIController.h"
+#include "Lumin/CAPIShims/LuminAPIInput.h"
 
 #include "CoreMinimal.h"
 #include "InputCoreTypes.h"
@@ -33,7 +27,7 @@ class IMagicLeapTouchpadGestures;
 /**
  * MagicLeap Motion Controller
  */
-class FMagicLeapController : public IMagicLeapInputDevice, public FXRMotionControllerBase
+class FMagicLeapController : public IInputDevice, public IMagicLeapTrackerEntity, public FXRMotionControllerBase
 {
 private:
 #if WITH_MLSDK
@@ -63,7 +57,7 @@ private:
 
 		EControllerHand GetHandForInputControllerIndex(uint8 controller_id) const;
 		uint8 GetInputControllerIndexForHand(EControllerHand Hand) const;
-		EMLControllerType MotionSourceToControllerType(FName InMotionSource);
+		EMagicLeapControllerType MotionSourceToControllerType(FName InMotionSource);
 
 		void SwapHands();
 	};
@@ -72,15 +66,16 @@ public:
 	FMagicLeapController(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler);
 	virtual ~FMagicLeapController();
 
-	/** IMagicLeapInputDevice interface */
+	/** IInputDevice interface */
 	void Tick(float DeltaTime) override;
 	void SendControllerEvents() override;
 	void SetMessageHandler(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler) override;
 	bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 	bool IsGamepadAttached() const override;
-	void Enable() override;
-	bool SupportsExplicitEnable() const override;
-	void Disable() override;
+
+	/** IMagicLeapTrackerEntity interface */
+	void CreateEntityTracker() override;
+	void DestroyEntityTracker() override;
 
 	/** IMotionController interface */
 	bool GetControllerOrientationAndPosition(const int32 ControllerIndex, const FName MotionSource, FRotator& OutOrientation, FVector& OutPosition, float WorldToMetersScale) const override;
@@ -92,15 +87,17 @@ public:
 	void SetChannelValue(int32 ControllerId, FForceFeedbackChannelType ChannelType, float Value) override { }
 	void SetChannelValues(int32 ControllerId, const FForceFeedbackValues &values) override { }
 
-	EMLControllerTrackingMode GetControllerTrackingMode();
-	bool SetControllerTrackingMode(EMLControllerTrackingMode TrackingMode);
+	EMagicLeapControllerTrackingMode GetControllerTrackingMode();
+	bool SetControllerTrackingMode(EMagicLeapControllerTrackingMode TrackingMode);
 
 	void RegisterTouchpadGestureReceiver(IMagicLeapTouchpadGestures* Receiver);
 	void UnregisterTouchpadGestureReceiver(IMagicLeapTouchpadGestures* Receiver);
 
-	bool PlayLEDPattern(FName MotionSource, EMLControllerLEDPattern LEDPattern, EMLControllerLEDColor LEDColor, float DurationInSec);
-	bool PlayLEDEffect(FName MotionSource, EMLControllerLEDEffect LEDEffect, EMLControllerLEDSpeed LEDSpeed, EMLControllerLEDPattern LEDPattern, EMLControllerLEDColor LEDColor, float DurationInSec);
-	bool PlayHapticPattern(FName MotionSource, EMLControllerHapticPattern HapticPattern, EMLControllerHapticIntensity Intensity);
+	bool PlayLEDPattern(FName MotionSource, EMagicLeapControllerLEDPattern LEDPattern, EMagicLeapControllerLEDColor LEDColor, float DurationInSec);
+	bool PlayLEDEffect(FName MotionSource, EMagicLeapControllerLEDEffect LEDEffect, EMagicLeapControllerLEDSpeed LEDSpeed, EMagicLeapControllerLEDPattern LEDPattern, EMagicLeapControllerLEDColor LEDColor, float DurationInSec);
+	bool PlayHapticPattern(FName MotionSource, EMagicLeapControllerHapticPattern HapticPattern, EMagicLeapControllerHapticIntensity Intensity);
+
+	bool IsMLControllerConnected(FName MotionSource) const;
 
 #if WITH_MLSDK
 	// Has to be public so button functions can use it
@@ -109,15 +106,15 @@ public:
 
 	bool GetControllerOrientationAndPosition(const int32 ControllerIndex, const EControllerHand DeviceHand, FRotator& OutOrientation, FVector& OutPosition, float WorldToMetersScale) const override;
 	ETrackingStatus GetControllerTrackingStatus(const int32 ControllerIndex, const EControllerHand DeviceHand) const override;
-	EMLControllerType GetMLControllerType(EControllerHand Hand) const;
-	bool PlayControllerLED(EControllerHand Hand, EMLControllerLEDPattern LEDPattern, EMLControllerLEDColor LEDColor, float DurationInSec);
-	bool PlayControllerLEDEffect(EControllerHand Hand, EMLControllerLEDEffect LEDEffect, EMLControllerLEDSpeed LEDSpeed, EMLControllerLEDPattern LEDPattern, EMLControllerLEDColor LEDColor, float DurationInSec);
-	bool PlayControllerHapticFeedback(EControllerHand Hand, EMLControllerHapticPattern HapticPattern, EMLControllerHapticIntensity Intensity);
+	EMagicLeapControllerType GetMLControllerType(EControllerHand Hand) const;
+	bool PlayControllerLED(EControllerHand Hand, EMagicLeapControllerLEDPattern LEDPattern, EMagicLeapControllerLEDColor LEDColor, float DurationInSec);
+	bool PlayControllerLEDEffect(EControllerHand Hand, EMagicLeapControllerLEDEffect LEDEffect, EMagicLeapControllerLEDSpeed LEDSpeed, EMagicLeapControllerLEDPattern LEDPattern, EMagicLeapControllerLEDColor LEDColor, float DurationInSec);
+	bool PlayControllerHapticFeedback(EControllerHand Hand, EMagicLeapControllerHapticPattern HapticPattern, EMagicLeapControllerHapticIntensity Intensity);
 
 private:
 	void UpdateTrackerData();
-	void UpdateControllerStateFromInputTracker(const class FAppFramework& AppFramework, FName MotionSource);
-	void UpdateControllerStateFromControllerTracker(const class FAppFramework& AppFramework, FName MotionSource);
+	void UpdateControllerStateFromInputTracker(const class IMagicLeapPlugin& MLPlugin, FName MotionSource);
+	void UpdateControllerStateFromControllerTracker(const class IMagicLeapPlugin& MLPlugin, FName MotionSource);
 	void AddKeys();
 	void ReadConfigParams();
 	void InitializeInputCallbacks();
@@ -130,7 +127,7 @@ private:
 	MLHandle InputTracker;
 	MLHandle ControllerTracker;
 	MLInputControllerDof ControllerDof;
-	EMLControllerTrackingMode TrackingMode;
+	EMagicLeapControllerTrackingMode TrackingMode;
 	MLInputControllerState InputControllerState[MLInput_MaxControllers];
 	MLControllerSystemState ControllerSystemState;
 	MLInputControllerCallbacks InputControllerCallbacks;

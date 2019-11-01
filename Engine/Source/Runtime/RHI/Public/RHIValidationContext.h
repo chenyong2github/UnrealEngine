@@ -804,17 +804,7 @@ public:
 		RHIContext->RHICopyTexture(SourceTexture, DestTexture, CopyInfo);
 	}
 
-	virtual void RHIBuildAccelerationStructure(FRHIRayTracingGeometry* Geometry) override final
-	{
-		RHIContext->RHIBuildAccelerationStructure(Geometry);
-	}
-
-	virtual void RHIUpdateAccelerationStructures(const TArrayView<const FAccelerationStructureUpdateParams> Params) override final
-	{
-		RHIContext->RHIUpdateAccelerationStructures(Params);
-	}
-
-	virtual void RHIBuildAccelerationStructures(const TArrayView<const FAccelerationStructureUpdateParams> Params) override final
+	virtual void RHIBuildAccelerationStructures(const TArrayView<const FAccelerationStructureBuildParams> Params) override final
 	{
 		RHIContext->RHIBuildAccelerationStructures(Params);
 	}

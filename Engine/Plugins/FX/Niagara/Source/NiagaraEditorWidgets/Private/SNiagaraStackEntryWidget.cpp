@@ -27,6 +27,11 @@ void SNiagaraStackDisplayName::Construct(const FArguments& InArgs, UNiagaraStack
 	];
 }
 
+SNiagaraStackDisplayName::~SNiagaraStackDisplayName()
+{
+	StackViewModel->OnStructureChanged().RemoveAll(this);
+}
+
 TSharedRef<SWidget> SNiagaraStackDisplayName::ConstructChildren()
 {
 	TSharedRef<STextBlock> BaseNameWidget = SNew(STextBlock)
@@ -100,7 +105,7 @@ FText SNiagaraStackDisplayName::GetTopLevelDisplayName(TWeakPtr<UNiagaraStackVie
 
 void SNiagaraStackDisplayName::StackViewModelStructureChanged()
 {
-	if (StackViewModel->GetTopLevelViewModels().Num() != TopLevelViewModelCountAtLastConstruction)
+	if (StackEntry->IsFinalized() == false && StackViewModel->GetTopLevelViewModels().Num() != TopLevelViewModelCountAtLastConstruction)
 	{
 		Container->SetContent(ConstructChildren());
 	}

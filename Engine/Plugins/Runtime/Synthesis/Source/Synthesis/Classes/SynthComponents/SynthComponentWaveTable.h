@@ -6,6 +6,7 @@
 #include "Components/SynthComponent.h"
 #include "DSP/SampleBufferReader.h"
 #include "SampleBuffer.h"
+#include "Sound/SampleBufferIO.h"
 #include "Sound/SoundWave.h"
 #include "SynthComponentWaveTable.generated.h"
 

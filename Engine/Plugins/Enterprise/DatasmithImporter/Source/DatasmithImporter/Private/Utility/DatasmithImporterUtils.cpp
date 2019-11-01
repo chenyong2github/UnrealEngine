@@ -462,18 +462,19 @@ FName FDatasmithImporterUtils::GetDatasmithElementId( UObject* Object )
 
 FString FDatasmithImporterUtils::GetDatasmithElementIdString(UObject* Object)
 {
-	return UDatasmithAssetUserData::GetDatasmithUserDataValueForKey(Object, UDatasmithAssetUserData::UniqueIdMetaDataKey);
+	FString ElementId = UDatasmithAssetUserData::GetDatasmithUserDataValueForKey(Object, UDatasmithAssetUserData::UniqueIdMetaDataKey);
+
+	if( Object != nullptr && ElementId.IsEmpty() )
+	{
+		const FString ObjectPath = FPaths::Combine( Object->GetOutermost()->GetName(), Object->GetName() );
+		return FMD5::HashBytes( reinterpret_cast<const uint8*>(*ObjectPath), ObjectPath.Len() * sizeof(TCHAR) );
+	}
+
+	return ElementId;
 }
 
 namespace FDatasmithImporterUtilsHelper
 {
-	// #ueent_todo: Replace this with using FDatasmithImporterUtils::UniqueIdMetaDataKey
-	FString GetObjectTag(UObject* Object)
-	{
-		FString ObjectPath = FPaths::Combine( Object->GetOutermost()->GetName(), Object->GetName() );
-		return FMD5::HashAnsiString( *ObjectPath );
-	}
-
 	void SetupPointLightElement( const UPointLightComponent* PointLightComponent, IDatasmithPointLightElement* PointLightElement )
 	{
 		switch ( PointLightComponent->IntensityUnits )
@@ -570,7 +571,7 @@ namespace FDatasmithImporterUtilsHelper
 
 		if( LightComponent->LightFunctionMaterial != nullptr )
 		{
-			FString MaterialTag = GetObjectTag( LightComponent->LightFunctionMaterial );
+			FString MaterialTag = FDatasmithImporterUtils::GetDatasmithElementIdString( LightComponent->LightFunctionMaterial );
 			TSharedPtr< IDatasmithMaterialIDElement > MaterialIDElement = FDatasmithSceneFactory::CreateMaterialId( *MaterialTag );
 			LightActorElement->SetLightFunctionMaterial( MaterialIDElement );
 		}
@@ -670,6 +671,11 @@ namespace FDatasmithImporterUtilsHelper
 			return TSharedPtr< IDatasmithActorElement >();
 		}
 
+		FSoftObjectPath LightShapeBlueprintRef = FSoftObjectPath( TEXT("/DatasmithContent/Datasmith/DatasmithArealight.DatasmithArealight") );
+		UBlueprint* LightShapeBlueprint = Cast< UBlueprint >( LightShapeBlueprintRef.TryLoad() );
+
+		bool bNeedsTemplates = FDatasmithObjectTemplateUtils::GetObjectTemplate<UDatasmithActorTemplate>( Actor ) == nullptr;
+
 		auto AddTemplate = [](UClass* TemplateClass, UObject* Source, UObject* Outer)
 		{
 			UDatasmithObjectTemplate* DatasmithTemplate = NewObject< UDatasmithObjectTemplate >( Outer, TemplateClass );
@@ -677,9 +683,32 @@ namespace FDatasmithImporterUtilsHelper
 			FDatasmithObjectTemplateUtils::SetObjectTemplate( Outer, DatasmithTemplate );
 		};
 
-		FSoftObjectPath LightShapeBlueprintRef = FSoftObjectPath( TEXT("/DatasmithContent/Datasmith/DatasmithArealight.DatasmithArealight") );
-		UBlueprint* LightShapeBlueprint = Cast< UBlueprint >( LightShapeBlueprintRef.TryLoad() );
-		bool bNeedsTemplates = FDatasmithObjectTemplateUtils::GetObjectTemplate<UDatasmithActorTemplate>( Actor ) == nullptr;
+		auto CreateMeshActorElement = [&](FString& ElementName, UStaticMeshComponent* StaticMeshComponent)
+		{
+			TSharedPtr< IDatasmithMeshActorElement > StaticMeshActorElement = FDatasmithSceneFactory::CreateMeshActor( *ElementName );
+
+			for( UMaterialInterface* MaterialInterface : StaticMeshComponent->OverrideMaterials )
+			{
+				if ( MaterialInterface )
+				{
+					StaticMeshActorElement->AddMaterialOverride( *MaterialInterface->GetName(), 0 );
+				}
+				StaticMeshActorElement->AddMaterialOverride( TEXT(""), 0 );
+			}
+
+			if ( UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh() )
+			{
+				FString StaticMeshTag = FDatasmithImporterUtils::GetDatasmithElementIdString( StaticMesh );
+				StaticMeshActorElement->SetStaticMeshPathName(*StaticMeshTag);
+			}
+
+			if(bNeedsTemplates)
+			{
+				AddTemplate( UDatasmithStaticMeshComponentTemplate::StaticClass(), StaticMeshComponent, StaticMeshComponent );
+			}
+
+			return StaticMeshActorElement;
+		};
 
 		FString ActorName = Actor->GetName();
 
@@ -696,30 +725,7 @@ namespace FDatasmithImporterUtilsHelper
 		// #ueent_todo: Add proper support for all type of actors
 		if( AStaticMeshActor* StaticMeshActor = Cast<AStaticMeshActor>(Actor) )
 		{
-			TSharedPtr< IDatasmithMeshActorElement > StaticMeshActorElement = FDatasmithSceneFactory::CreateMeshActor( *ActorName );
-
-			UStaticMeshComponent* StaticMeshComponent = StaticMeshActor->GetStaticMeshComponent();
-			for( UMaterialInterface* MaterialInterface : StaticMeshComponent->OverrideMaterials )
-			{
-				if ( MaterialInterface )
-				{
-					StaticMeshActorElement->AddMaterialOverride( *MaterialInterface->GetName(), 0 );
-				}
-				StaticMeshActorElement->AddMaterialOverride( TEXT(""), 0 );
-			}
-
-			if ( UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh() )
-			{
-				FString StaticMeshTag = GetObjectTag(StaticMeshComponent->GetStaticMesh());
-				StaticMeshActorElement->SetStaticMeshPathName(*StaticMeshTag);
-			}
-
-			if(bNeedsTemplates)
-			{
-				AddTemplate( UDatasmithStaticMeshComponentTemplate::StaticClass(), StaticMeshComponent, StaticMeshComponent );
-			}
-
-			ActorElement = StaticMeshActorElement;
+			ActorElement = CreateMeshActorElement( ActorName, StaticMeshActor->GetStaticMeshComponent() );
 		}
 		else if( ADatasmithAreaLightActor* AreaLightActor = Cast<ADatasmithAreaLightActor>(Actor) )
 		{
@@ -824,7 +830,7 @@ namespace FDatasmithImporterUtilsHelper
 						HISMActorElement->AddMaterialOverride( *MaterialInterface->GetName(), 0 );
 					}
 
-					FString StaticMeshTag = GetObjectTag( HISMComponent->GetStaticMesh() );
+					FString StaticMeshTag = FDatasmithImporterUtils::GetDatasmithElementIdString( HISMComponent->GetStaticMesh() );
 					HISMActorElement->SetStaticMeshPathName( *StaticMeshTag );
 
 					ActorElement = HISMActorElement;
@@ -832,7 +838,17 @@ namespace FDatasmithImporterUtilsHelper
 				break;
 			case EDatasmithElementType::None:
 			default:
-				ActorElement = FDatasmithSceneFactory::CreateActor( *ActorName );
+				{
+					ActorElement = FDatasmithSceneFactory::CreateActor( *ActorName );
+					TArray<UStaticMeshComponent*> MeshComponents;
+					Actor->GetComponents<UStaticMeshComponent>( MeshComponents );
+					for(UStaticMeshComponent* MeshComponent : MeshComponents)
+					{
+						TSharedPtr< IDatasmithMeshActorElement > MeshActorElement = CreateMeshActorElement( ActorName, MeshComponent );
+						MeshActorElement->SetIsAComponent(true);
+						ActorElement->AddChild( MeshActorElement );
+					}
+				}
 				break;
 			}
 		}
@@ -967,9 +983,11 @@ FScopedLogger::~FScopedLogger()
 	Dump(true);
 }
 
-void FScopedLogger::Push(EMessageSeverity::Type Severity, const FText& Message)
+TSharedRef<FTokenizedMessage> FScopedLogger::Push(EMessageSeverity::Type Severity, const FText& Message)
 {
 	TokenizedMessages.Add(FTokenizedMessage::Create(Severity, Message));
+	
+	return TokenizedMessages.Last();
 }
 
 void FScopedLogger::Dump(bool bClearPrevious)

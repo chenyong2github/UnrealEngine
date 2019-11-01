@@ -3452,7 +3452,7 @@ void UClass::Link(FArchive& Ar, bool bRelinkExistingProperties)
 	Super::Link(Ar, bRelinkExistingProperties);
 }
 
-#if (UE_BUILD_SHIPPING)
+#if (UE_BUILD_SHIPPING || HACK_HEADER_GENERATOR)
 static int32 GValidateReplicatedProperties = 0;
 #else 
 static int32 GValidateReplicatedProperties = 1;
@@ -3555,7 +3555,7 @@ void UClass::ValidateRuntimeReplicationData()
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Class ValidateRuntimeReplicationData"), STAT_Class_ValidateRuntimeReplicationData, STATGROUP_Game);
 
-	if (HasAnyClassFlags(CLASS_CompiledFromBlueprint))
+	if (HasAnyClassFlags(CLASS_CompiledFromBlueprint|CLASS_LayoutChanging))
 	{
 		// Blueprint classes don't always generate a GetLifetimeReplicatedProps function. 
 		// Assume the Blueprint compiler was ok to do this.
@@ -3565,6 +3565,12 @@ void UClass::ValidateRuntimeReplicationData()
 	if (HasAnyClassFlags(CLASS_ReplicationDataIsSetUp) == false)
 	{
 		UE_LOG(LogClass, Warning, TEXT("ValidateRuntimeReplicationData for class %s called before ReplicationData was setup."), *GetName());
+		return;
+	}
+
+	// Our replication data was set up, but there are no class reps, so there's nothing to do.
+	if (ClassReps.Num() == 0)
+	{
 		return;
 	}
 

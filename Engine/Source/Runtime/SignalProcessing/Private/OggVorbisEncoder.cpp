@@ -2,7 +2,7 @@
 
 #include "DSP/Encoders/OggVorbisEncoder.h"
 
-#if !PLATFORM_TVOS
+#if PLATFORM_SUPPORTS_VORBIS_CODEC 
 #pragma pack(push, 8)
 #include "vorbis/vorbisenc.h"
 #include "vorbis/vorbisfile.h"

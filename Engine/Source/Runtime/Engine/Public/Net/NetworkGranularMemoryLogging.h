@@ -8,9 +8,10 @@
 
 namespace GranularNetworkMemoryTrackingPrivate
 {
-	struct ENGINE_API FHelper
+	struct ENGINE_API FScopeMarker
 	{
-		FHelper(FArchive& InAr, FString&& InScopeName);
+		FScopeMarker(FArchive& InAr, FString&& InScopeName);
+		~FScopeMarker();
 
 		void BeginWork();
 
@@ -20,27 +21,34 @@ namespace GranularNetworkMemoryTrackingPrivate
 
 		const bool IsEnabled() const
 		{
-			return bShouldTrack;
+			return ScopeStack != nullptr;
+		}
+
+		const FString& GetScopeName()
+		{
+			return ScopeName;
 		}
 
 	private:
+
+		friend struct FNetworkMemoryTrackingScopeStack;
 
 		uint64 PreWorkPos = 0;
 
 		const FArchive& Ar;
 		const FString ScopeName;
-		const bool bShouldTrack;
+		struct FNetworkMemoryTrackingScopeStack* ScopeStack;
 	};
 }
 
-#define GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Archive, ScopeName) GranularNetworkMemoryTrackingPrivate::FHelper GranularNetworkMemoryHelper(Archive, ScopeName);
+#define GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Archive, ScopeName) GranularNetworkMemoryTrackingPrivate::FScopeMarker GranularNetworkMemoryScope(Archive, ScopeName);
 #define GRANULAR_NETWORK_MEMORY_TRACKING_TRACK(Id, Work) \
 	{ \
-		GranularNetworkMemoryHelper.BeginWork(); \
+		GranularNetworkMemoryScope.BeginWork(); \
 		Work; \
-		GranularNetworkMemoryHelper.EndWork(Id); \
+		GranularNetworkMemoryScope.EndWork(Id); \
 	}
-#define GRANULAR_NETWORK_MEMORY_TRACKING_CUSTOM_WORK(Id, Value) GranularNetworkMemoryHelper.LogCustomWork(Id, Value);
+#define GRANULAR_NETWORK_MEMORY_TRACKING_CUSTOM_WORK(Id, Value) GranularNetworkMemoryScope.LogCustomWork(Id, Value);
 
 #else
 

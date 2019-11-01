@@ -149,9 +149,9 @@ namespace
 
 	FString GenerateUniqueMaterialName( const TCHAR* MaterialLabel, FDatasmithUniqueNameProvider& UniqueNameProvider )
 	{
-		FString Label = MaterialLabel;
+		FString Label = ObjectTools::SanitizeObjectName( MaterialLabel );
 		// Generate unique name from label if valid, otherwise return element's name as it is unique
-		return  UniqueNameProvider.GenerateUniqueName( Label );
+		return UniqueNameProvider.GenerateUniqueName( Label );
 	}
 }
 
@@ -2476,7 +2476,7 @@ UMaterialExpressionMaterialFunctionCall* FDatasmithMaterialExpressions::BlendFun
 }
 
 // any kind of material
-UMaterialInterface* FDatasmithMaterialExpressions::CreateDatasmithMaterial(UPackage* Package, TSharedPtr< IDatasmithMaterialElement > MaterialElement, FDatasmithAssetsImportContext& AssetsContext,
+UMaterialInterface* FDatasmithMaterialExpressions::CreateDatasmithMaterial(UPackage* Package, const TSharedPtr< IDatasmithMaterialElement >& MaterialElement, FDatasmithAssetsImportContext& AssetsContext,
 																		  UMaterial* ExistingMaterial, EObjectFlags ObjectFlags)
 {
 	FString MaterialElementName = MaterialElement->GetName();
@@ -2799,7 +2799,7 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateExpression( IDatasmith
 	}
 }
 
-void FDatasmithMaterialExpressions::ConnectExpression( TSharedRef< IDatasmithUEPbrMaterialElement > MaterialElement, TArray< TStrongObjectPtr< UMaterialExpression > >& MaterialExpressions,
+void FDatasmithMaterialExpressions::ConnectExpression( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, TArray< TStrongObjectPtr< UMaterialExpression > >& MaterialExpressions,
 	IDatasmithMaterialExpression* MaterialExpression, FExpressionInput* MaterialInput, int32 OutputIndex )
 {
 	if ( !MaterialExpression || !MaterialInput )
@@ -2930,7 +2930,7 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateGenericExpression( IDa
 
 	for ( int32 PropertyIndex = 0; PropertyIndex < DatasmithGeneric.GetPropertiesCount(); ++PropertyIndex )
 	{
-		TSharedPtr< IDatasmithKeyValueProperty > KeyValueProperty = DatasmithGeneric.GetProperty( PropertyIndex );
+		const TSharedPtr< IDatasmithKeyValueProperty >& KeyValueProperty = DatasmithGeneric.GetProperty( PropertyIndex );
 
 		if ( !KeyValueProperty )
 		{
@@ -3016,7 +3016,7 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateFunctionCallExpression
 	return FunctionCall;
 }
 
-void FDatasmithMaterialExpressions::ConnectAnyExpression( TSharedRef< IDatasmithUEPbrMaterialElement > MaterialElement, TArray< TStrongObjectPtr< UMaterialExpression > >& MaterialExpressions,
+void FDatasmithMaterialExpressions::ConnectAnyExpression( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, TArray< TStrongObjectPtr< UMaterialExpression > >& MaterialExpressions,
 	IDatasmithMaterialExpression& DatasmithExpression, FExpressionInput* ExpressionInput, int32 OutputIndex )
 {
 	int32 ExpressionIndex = MaterialElement->GetExpressionIndex( &DatasmithExpression );
@@ -3037,7 +3037,7 @@ void FDatasmithMaterialExpressions::ConnectAnyExpression( TSharedRef< IDatasmith
 	}
 }
 
-void FDatasmithMaterialExpressions::CreateUEPbrMaterialGraph(TSharedPtr< IDatasmithUEPbrMaterialElement > MaterialElement, FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction)
+void FDatasmithMaterialExpressions::CreateUEPbrMaterialGraph(const TSharedPtr< IDatasmithUEPbrMaterialElement >& MaterialElement, FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction)
 {
 	TArray< TStrongObjectPtr< UMaterialExpression > > MaterialExpressions;
 
@@ -3073,7 +3073,7 @@ void FDatasmithMaterialExpressions::CreateUEPbrMaterialGraph(TSharedPtr< IDatasm
 
 	if (MaterialElement->GetOpacity().GetExpression())
 	{
-		if (GetUEPbrImportBlendMode(MaterialElement) == BLEND_Translucent)
+		if (GetUEPbrImportBlendMode(MaterialElement, AssetsContext) == BLEND_Translucent)
 		{
 			ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetOpacity().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::OPACITY ), MaterialElement->GetOpacity().GetOutputIndex() );
 			
@@ -3089,7 +3089,7 @@ void FDatasmithMaterialExpressions::CreateUEPbrMaterialGraph(TSharedPtr< IDatasm
 	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetWorldDisplacement().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::DISPLACE ), MaterialElement->GetWorldDisplacement().GetOutputIndex() );
 }
 
-UMaterialFunction* FDatasmithMaterialExpressions::CreateUEPbrMaterialFunction(UPackage* Package, TSharedPtr< IDatasmithUEPbrMaterialElement > MaterialElement, FDatasmithAssetsImportContext& AssetsContext, UMaterial* ExistingMaterial, EObjectFlags ObjectFlags)
+UMaterialFunction* FDatasmithMaterialExpressions::CreateUEPbrMaterialFunction(UPackage* Package, const TSharedPtr< IDatasmithUEPbrMaterialElement >& MaterialElement, FDatasmithAssetsImportContext& AssetsContext, UMaterial* ExistingMaterial, EObjectFlags ObjectFlags)
 {
 	FString MaterialFunctionName = GenerateUniqueMaterialName(MaterialElement->GetParentLabel(), AssetsContext.MaterialFunctionNameProvider);
 
@@ -3109,20 +3109,41 @@ UMaterialFunction* FDatasmithMaterialExpressions::CreateUEPbrMaterialFunction(UP
 	return UnrealMaterialFunc;
 }
 
-EBlendMode FDatasmithMaterialExpressions::GetUEPbrImportBlendMode(TSharedPtr<IDatasmithUEPbrMaterialElement> MaterialElement)
+EBlendMode FDatasmithMaterialExpressions::GetUEPbrImportBlendMode(const TSharedPtr< IDatasmithUEPbrMaterialElement >& MaterialElement, const FDatasmithAssetsImportContext& AssetsContext)
 {
 	EBlendMode BlendMode = static_cast<EBlendMode>(MaterialElement->GetBlendMode());
-	
+
 	if ( MaterialElement->GetOpacity().GetExpression() &&
 		BlendMode != BLEND_Translucent && BlendMode != BLEND_Masked )
 	{
-		BlendMode = EBlendMode::BLEND_Translucent; // force translucent
+		return EBlendMode::BLEND_Translucent; // force translucent
+	}
+
+	// If this material is dependent on function call expression, we need to check if those are translucent to apply
+	// translucency attribute to this material too.
+	for (int32 ExpressionIndex = 0; ExpressionIndex < MaterialElement->GetExpressionsCount(); ExpressionIndex++)
+	{
+		IDatasmithMaterialExpression* MaterialExpression = MaterialElement->GetExpression(ExpressionIndex);
+		if (MaterialExpression && MaterialExpression->IsA(EDatasmithMaterialExpressionType::FunctionCall))
+		{
+			IDatasmithMaterialExpressionFunctionCall* MaterialExpressionFunctionCall = static_cast< IDatasmithMaterialExpressionFunctionCall* >(MaterialExpression);
+				
+			const TSharedRef<IDatasmithBaseMaterialElement>* MaterialFunction = FDatasmithFindAssetTypeHelper<UMaterialFunction>::GetImportedElementByName(AssetsContext, MaterialExpressionFunctionCall->GetFunctionPathName());
+			if (MaterialFunction && (*MaterialFunction)->IsA(EDatasmithElementType::UEPbrMaterial))
+			{
+				const TSharedRef<IDatasmithUEPbrMaterialElement> MaterialFunctionElement = StaticCastSharedRef<IDatasmithUEPbrMaterialElement>(*MaterialFunction);
+				if (GetUEPbrImportBlendMode(MaterialFunctionElement, AssetsContext) == EBlendMode::BLEND_Translucent)
+				{
+					return EBlendMode::BLEND_Translucent;
+				}
+			}
+		}
 	}
 
 	return BlendMode;
 }
 
-UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterial(UPackage* Package, TSharedPtr< IDatasmithUEPbrMaterialElement > MaterialElement, FDatasmithAssetsImportContext& AssetsContext,
+UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterial(UPackage* Package, const TSharedPtr< IDatasmithUEPbrMaterialElement >& MaterialElement, FDatasmithAssetsImportContext& AssetsContext,
 	UMaterial* ExistingMaterial, EObjectFlags ObjectFlags)
 {
 	FString MaterialName = GenerateUniqueMaterialName(MaterialElement->GetParentLabel(), AssetsContext.MasterMaterialNameProvider);
@@ -3148,7 +3169,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterial(UPackage*
 
 	UnrealMaterial->bUseMaterialAttributes = MaterialElement->GetUseMaterialAttributes();
 	UnrealMaterial->TwoSided = MaterialElement->GetTwoSided();
-	UnrealMaterial->BlendMode = GetUEPbrImportBlendMode(MaterialElement);
+	UnrealMaterial->BlendMode = GetUEPbrImportBlendMode(MaterialElement, AssetsContext);
 	
 	CreateUEPbrMaterialGraph(MaterialElement, AssetsContext, UnrealMaterial);
 
@@ -3168,7 +3189,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterial(UPackage*
 	return UnrealMaterial;
 }
 
-UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterialInstance(UPackage* Package, TSharedPtr< IDatasmithUEPbrMaterialElement > MaterialElement, FDatasmithAssetsImportContext& AssetsContext,
+UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterialInstance(UPackage* Package, const TSharedPtr< IDatasmithUEPbrMaterialElement >& MaterialElement, FDatasmithAssetsImportContext& AssetsContext,
 	UMaterialInterface* ParentMaterial, EObjectFlags ObjectFlags)
 {
 	FString MaterialName = GenerateUniqueMaterialName(MaterialElement->GetLabel(), AssetsContext.MaterialNameProvider);
@@ -3270,7 +3291,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterialInstance(U
 			{
 				FName ParameterName = GenerateParamName( *DatasmithExpression, TEXT("Generic"), ExpressionIndex + 1 );
 
-				TSharedPtr< IDatasmithKeyValueProperty > KeyValueProperty = GenericExpression->GetProperty( 0 );
+				const TSharedPtr< IDatasmithKeyValueProperty >& KeyValueProperty = GenericExpression->GetProperty( 0 );
 
 				if ( KeyValueProperty )
 				{

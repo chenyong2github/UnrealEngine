@@ -91,13 +91,14 @@ namespace UnrealBuildTool
 			Log.TraceInformation("*** Emscripten Config File: " + Environment.GetEnvironmentVariable("EM_CONFIG"));
 		}
 
-		string GetSharedArguments_Global(CppConfiguration Configuration, bool bOptimizeForSize, string Architecture, bool bEnableShadowVariableWarnings, bool bShadowVariableWarningsAsErrors, bool bEnableUndefinedIdentifierWarnings, bool bUndefinedIdentifierWarningsAsErrors, bool bUseInlining)
+		string GetSharedArguments_Global(CppConfiguration Configuration, bool bOptimizeForSize, string Architecture, WarningLevel ShadowVariableWarningLevel, bool bEnableUndefinedIdentifierWarnings, bool bUndefinedIdentifierWarningsAsErrors, bool bUseInlining)
 		{
 			string Result = " ";
 //			string Result = " -Werror";
 
 			Result += " -fdiagnostics-format=msvc";
 			Result += " -fno-exceptions";
+//			Result += " -s DISABLE_EXCEPTION_CATCHING=1"; // as of 1.38.45, need this switch when using -fno-exceptions to skip error check and force loading library_exceptions.js (EPIC EDIT)
 
 			Result += " -Wdelete-non-virtual-dtor";
 			Result += " -Wno-switch"; // many unhandled cases
@@ -109,7 +110,7 @@ namespace UnrealBuildTool
 			Result += " -Wno-invalid-offsetof"; // using offsetof on non-POD types
 			Result += " -Wno-gnu-string-literal-operator-template"; // allow static FNames
 
-			if (bEnableShadowVariableWarnings)
+			if (ShadowVariableWarningLevel != WarningLevel.Off)
 			{
 				Result += " -Wshadow" ;//+ (bShadowVariableWarningsAsErrors ? "" : " -Wno-error=shadow");
 			}
@@ -209,7 +210,7 @@ namespace UnrealBuildTool
 //			Environment.SetEnvironmentVariable("EMCC_OPTIMIZE_NORMALLY", "1");
 
 			// enable verbose mode
-//			Result += " -v"; // useful for path hunting issues
+			Result += " -v"; // useful for path hunting issues
 
 			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux)
 			{
@@ -226,7 +227,7 @@ namespace UnrealBuildTool
 
 		string GetCLArguments_Global(CppCompileEnvironment CompileEnvironment)
 		{
-			string Result = GetSharedArguments_Global(CompileEnvironment.Configuration, CompileEnvironment.bOptimizeForSize, CompileEnvironment.Architecture, CompileEnvironment.bEnableShadowVariableWarnings, CompileEnvironment.bShadowVariableWarningsAsErrors, CompileEnvironment.bEnableUndefinedIdentifierWarnings, CompileEnvironment.bUndefinedIdentifierWarningsAsErrors, CompileEnvironment.bUseInlining);
+			string Result = GetSharedArguments_Global(CompileEnvironment.Configuration, CompileEnvironment.bOptimizeForSize, CompileEnvironment.Architecture, CompileEnvironment.ShadowVariableWarningLevel, CompileEnvironment.bEnableUndefinedIdentifierWarnings, CompileEnvironment.bUndefinedIdentifierWarningsAsErrors, CompileEnvironment.bUseInlining);
 
 			return Result;
 		}
@@ -247,7 +248,7 @@ namespace UnrealBuildTool
 
 		string GetLinkArguments(LinkEnvironment LinkEnvironment)
 		{
-			string Result = GetSharedArguments_Global(LinkEnvironment.Configuration, LinkEnvironment.bOptimizeForSize, LinkEnvironment.Architecture, false, false, false, false, false);
+			string Result = GetSharedArguments_Global(LinkEnvironment.Configuration, LinkEnvironment.bOptimizeForSize, LinkEnvironment.Architecture, WarningLevel.Off, false, false, false);
 
 			/* N.B. When editing link flags in this function, UnrealBuildTool does not seem to automatically pick them up and do an incremental
 			 *	relink only of UE4Game.js (at least when building blueprints projects). Therefore after editing, delete the old build
@@ -397,10 +398,12 @@ namespace UnrealBuildTool
 
 			// export console command handler. Export main func too because default exports ( e.g Main ) are overridden if we use custom exported functions.
 			Result += " -s EXPORTED_FUNCTIONS=\"['_main', '_on_fatal']\"";
+//XXXResult += " -s EXPORTED_FUNCTIONS=\"['_main', '_on_fatal', '__cxa_uncaught_exceptions' ,'__cxa_allocate_exception']\"";
 			Result += " -s EXTRA_EXPORTED_RUNTIME_METHODS=\"['Pointer_stringify', 'writeAsciiToMemory', 'stackTrace']\"";
 
-			Result += " -s DISABLE_EXCEPTION_CATCHING=1";
+//			Result += " -s DISABLE_EXCEPTION_CATCHING=1"; // can remove when using 1.39.0+ this is automatically set when using -fno-exceptions
 			Result += " -s ERROR_ON_UNDEFINED_SYMBOLS=1";
+//XXXResult += " -s ERROR_ON_UNDEFINED_SYMBOLS=0";
 			Result += " -s NO_EXIT_RUNTIME=1";
 
 
@@ -621,12 +624,14 @@ namespace UnrealBuildTool
 			OutputFile = FileItem.GetItemByFileReference(LinkEnvironment.OutputFilePath);
 			LinkAction.ProducedItems.Add(OutputFile);
 			ReponseLines.Add(string.Format(" -o \"{0}\"", OutputFile.AbsolutePath));
+Log.TraceInformation("XXX: -o " + OutputFile.AbsolutePath);
 
 			FileItem OutputLink = FileItem.GetItemByPath(LinkEnvironment.OutputFilePath.FullName.Replace(".js", libExt).Replace(".html", libExt));
 			LinkAction.ProducedItems.Add(OutputLink);
 			if(!useLLVMwasmBackend)
 			{
 				ReponseLines.Add(string.Format(" --save-bc \"{0}\"", OutputLink.AbsolutePath));
+Log.TraceInformation("XXX: --save-bc " + OutputLink.AbsolutePath);
 			}
 
 			LinkAction.StatusDescription = Path.GetFileName(OutputFile.AbsolutePath);

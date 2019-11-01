@@ -57,7 +57,7 @@ void FSoundEffectBase::ClearPreset()
 	}
 }
 
-void FSoundEffectBase::Update()
+bool FSoundEffectBase::Update()
 {
 	PumpPendingMessages();
 
@@ -65,7 +65,11 @@ void FSoundEffectBase::Update()
 	{
 		OnPresetChanged();
 		bChanged = false;
+
+		return true;
 	}
+
+	return false;
 }
 
 bool FSoundEffectBase::IsPreset(USoundEffectPreset* InPreset) const

@@ -157,12 +157,9 @@ struct FVulkanGPUProfiler : public FGPUProfiler
 	/** GPU hitch profile histories */
 	TIndirectArray<FVulkanEventNodeFrame> GPUHitchEventNodeFrames;
 
-	FVulkanGPUProfiler(FVulkanCommandListContext* InCmd, FVulkanDevice* InDevice)
-		: bCommandlistSubmitted(false)
-		, Device(InDevice)
-		, CmdContext(InCmd)
-	{
-	}
+	FVulkanGPUProfiler(FVulkanCommandListContext* InCmd, FVulkanDevice* InDevice);
+
+	virtual ~FVulkanGPUProfiler();
 
 	virtual FGPUProfilerEventNode* CreateEventNode(const TCHAR* InName, FGPUProfilerEventNode* InParent) override final
 	{
@@ -188,6 +185,10 @@ struct FVulkanGPUProfiler : public FGPUProfiler
 	// For crash/marker tracking
 	TMap<uint32, FString> CachedStrings;
 	TArray<uint32> PushPopStack;
+
+	FVulkanTimingQueryPool* LocalTracePointsQueryPool;
+	TArray<uint64> CrashMarkers;
+	bool bBeginFrame;
 };
 
 namespace VulkanRHI
@@ -279,6 +280,11 @@ protected:
 		check(FMemory::Memcmp(Data->GetData(), Other.Data->GetData(), Data->Num()) == 0);
 		return true;
 	}
+public:
+	TArray<uint8>& GetDataRef()
+	{
+		return *Data;
+	}
 
 private:
 	void EnsureDataStorage()
@@ -310,7 +316,7 @@ protected:
 };
 
 template <class Derived, bool AlwaysCompareData = false>
-class TDataKey : private TDataKeyBase<AlwaysCompareData ? 2 : (DO_CHECK != 0)>
+class TDataKey : public TDataKeyBase<AlwaysCompareData ? 2 : (DO_CHECK != 0)>
 {
 public:
 	template <class ArchiveWriter>

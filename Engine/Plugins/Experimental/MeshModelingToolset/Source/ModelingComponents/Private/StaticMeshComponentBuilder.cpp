@@ -15,7 +15,7 @@ FStaticMeshComponentBuilder::FStaticMeshComponentBuilder()
 	NewStaticMesh = nullptr;
 }
 
-void FStaticMeshComponentBuilder::Initialize(UPackage* AssetPackage, FName MeshName)
+void FStaticMeshComponentBuilder::Initialize(UPackage* AssetPackage, FName MeshName, int NumMaterialSlots)
 {
 	// create new UStaticMesh object
 	EObjectFlags flags = EObjectFlags::RF_Public | EObjectFlags::RF_Standalone;
@@ -40,7 +40,10 @@ void FStaticMeshComponentBuilder::Initialize(UPackage* AssetPackage, FName MeshN
 	}
 
 	// add a material slot
-	NewStaticMesh->StaticMaterials.Add(FStaticMaterial());
+	for (int MatIdx = 0; MatIdx < NumMaterialSlots; MatIdx++)
+	{
+		NewStaticMesh->StaticMaterials.Add(FStaticMaterial());
+	}
 }
 
 

@@ -21,6 +21,10 @@ struct FHoloLensPlatformProperties : public FGenericPlatformProperties
 	{
 		return "HoloLens";
 	}
+	static FORCEINLINE const TCHAR* GetRuntimeSettingsClassName()
+	{
+		return TEXT("/Script/HoloLensRuntimeSettings.HoloLensRuntimeSettings");
+	}
 	static FORCEINLINE bool HasEditorOnlyData()
 	{
 		return false;

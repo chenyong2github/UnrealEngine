@@ -54,7 +54,7 @@ THIRD_PARTY_INCLUDES_END
 #	include <IOS/IOSPlatformWebBrowser.h>
 #	include <IOS/IOSCookieManager.h>
 #elif PLATFORM_PS4
-#	include <PS4/PS4PlatformWebBrowser.h>
+#	include "PS4PlatformWebBrowser.h"
 #endif
 
 // Define some platform-dependent file locations
@@ -109,7 +109,7 @@ namespace {
 			uint32 dwFlags;		// Reserved for future use, must be zero.
 		};
 
-		THREADNAME_INFO ThreadNameInfo = {0x1000, ThreadName, -1, 0};
+		THREADNAME_INFO ThreadNameInfo = {0x1000, ThreadName, (uint32)-1, 0};
 
 		__try
 		{

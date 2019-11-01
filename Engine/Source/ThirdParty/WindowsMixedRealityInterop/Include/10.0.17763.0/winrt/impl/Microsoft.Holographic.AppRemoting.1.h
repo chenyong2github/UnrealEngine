@@ -93,6 +93,13 @@ struct WINRT_EBO IPlayerContext :
     IPlayerContext(std::nullptr_t = nullptr) noexcept {}
 };
 
+struct WINRT_EBO IPlayerContext2 :
+    Windows::Foundation::IInspectable,
+    impl::consume_t<IPlayerContext2>
+{
+    IPlayerContext2(std::nullptr_t = nullptr) noexcept {}
+};
+
 struct WINRT_EBO IPlayerContextStatics :
     Windows::Foundation::IInspectable,
     impl::consume_t<IPlayerContextStatics>

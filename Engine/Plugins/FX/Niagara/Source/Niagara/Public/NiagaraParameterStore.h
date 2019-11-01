@@ -245,7 +245,7 @@ public:
 	/** Recreates any bindings to reflect a layout change etc. */
 	void TransferBindings(FNiagaraParameterStore& OtherStore);
 	/** Handles any update such as pushing parameters to bound stores etc. */
-	void Tick();
+	FORCEINLINE_DEBUGGABLE void Tick();
 	/** Unbinds this store from all stores it's being driven by. */
 	void UnbindFromSourceStores();
 	
@@ -610,6 +610,7 @@ public:
 	void TriggerOnLayoutChanged() { OnLayoutChange(); }
 
 protected:
+	void TickBindings();
 	void OnLayoutChange();
 
 	/** Returns the parameter data at the passed offset. */
@@ -634,6 +635,22 @@ protected:
 
 	friend struct FNiagaraParameterStoreToDataSetBinding;    // this should be the only class calling SetParameterByOffset
 };
+
+FORCEINLINE_DEBUGGABLE void FNiagaraParameterStore::Tick()
+{
+#if NIAGARA_NAN_CHECKING
+	CheckForNaNs();
+#endif
+	if (Bindings.Num() > 0 && (bParametersDirty || bInterfacesDirty || bUObjectsDirty))
+	{
+		TickBindings();
+	}
+
+	//We have to have ticked all our source stores before now.
+	bParametersDirty = false;
+	bInterfacesDirty = false;
+	bUObjectsDirty = false;
+}
 
 FORCEINLINE_DEBUGGABLE void FNiagaraParameterStoreBinding::Empty(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore)
 {

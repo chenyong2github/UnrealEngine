@@ -81,6 +81,9 @@ public:
 	 */
 	virtual void PreviewRender(IToolsContextRenderAPI* RenderAPI) override;
 
+	/** Reset transformer state */
+	virtual void Reset() override;
+
 
 protected:
 	// camera state saved at last Render()

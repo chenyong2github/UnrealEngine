@@ -22,7 +22,7 @@ struct FNiagaraEmitterHandle;
 class UNiagaraParameterCollection;
 class UNiagaraParameterCollectionInstance;
 class NiagaraEmitterInstanceBatcher;
-
+struct FNiagaraEmitterCompiledData;
 
 /**
 * A Niagara particle simulation.
@@ -190,15 +190,14 @@ private:
 	FNiagaraParameterDirectBinding<int32> UpdateExecCountBinding;
 	TArray<FNiagaraParameterDirectBinding<int32>> EventExecCountBindings;
 
-	/*
 	FNiagaraParameterDirectBinding<int32> SpawnTotalSpawnedParticlesBinding;
 	FNiagaraParameterDirectBinding<int32> UpdateTotalSpawnedParticlesBinding;
-	FNiagaraParameterDirectBinding<int32> GPUTotalSpawnedParticlesBinding;
-	*/
+	TArray<FNiagaraParameterDirectBinding<int32>> EventTotalSpawnedParticlesBindings;
 
 	FNiagaraParameterDirectBinding<int32> SpawnRandomSeedBinding;
 	FNiagaraParameterDirectBinding<int32> UpdateRandomSeedBinding;
 	FNiagaraParameterDirectBinding<int32> GPURandomSeedBinding;
+	TArray<FNiagaraParameterDirectBinding<int>> EventRandomSeedBindings;
 
 	/*
 	FNiagaraParameterDirectBinding<int32> SpawnDeterminismBinding;
@@ -244,4 +243,6 @@ private:
 
 	TArray<TNiagaraFastPathAttributeBinding<int32>> FastPathIntAttributeBindings;
 	TArray<TNiagaraFastPathAttributeBinding<float>> FastPathFloatAttributeBindings;
+
+	TSharedPtr<const FNiagaraEmitterCompiledData> CachedEmitterCompiledData;
 };

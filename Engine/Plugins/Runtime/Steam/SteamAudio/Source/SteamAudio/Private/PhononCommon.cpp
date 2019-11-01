@@ -282,7 +282,7 @@ namespace SteamAudio
 	}
 
 	void ClosestHit(const IPLfloat32* Origin, const IPLfloat32* Direction, const IPLfloat32 MinDistance, const IPLfloat32 MaxDistance,
-		IPLfloat32* HitDistance, IPLfloat32* HitNormal, IPLint32* HitMaterialIndex, IPLvoid* UserData)
+		IPLfloat32* HitDistance, IPLfloat32* HitNormal, IPLMaterial** HitMaterial, IPLvoid* UserData)
 	{
 		UWorld* World = (UWorld*)UserData;
 
@@ -313,7 +313,7 @@ namespace SteamAudio
 		HitNormal[0] = PhononNormal.X;
 		HitNormal[1] = PhononNormal.Y;
 		HitNormal[2] = PhononNormal.Z;
-		*HitMaterialIndex = 0;
+		*HitMaterial = nullptr;
 	}
 
 	void AnyHit(const IPLfloat32* Origin, const IPLfloat32* Direction, const IPLfloat32 MinDistance, const IPLfloat32 MaxDistance,

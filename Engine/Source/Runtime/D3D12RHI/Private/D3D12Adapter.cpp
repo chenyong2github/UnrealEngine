@@ -350,6 +350,13 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 			UE_LOG(LogD3D12RHI, Log, TEXT("Enabling multi-GPU with %d nodes"), Desc.NumDeviceNodes);
 		}
 	}
+
+	// Viewport ignores AFR if PresentGPU is specified.
+	int32 Dummy;
+	if (!FParse::Value(FCommandLine::Get(), TEXT("PresentGPU="), Dummy) && FParse::Param(FCommandLine::Get(), TEXT("AFR")))
+	{
+		GNumAlternateFrameRenderingGroups = GNumExplicitGPUsForRendering;
+	}
 #endif
 }
 
@@ -445,7 +452,17 @@ void FD3D12Adapter::InitializeDevices()
 
 		CreateSignatures();
 
-		//Create all of the FD3D12Devices
+		// Context redirectors allow RHI commands to be executed on multiple GPUs at the
+		// same time in a multi-GPU system. Redirectors have a physical mask for the GPUs
+		// they can support and an active mask which restricts commands to operate on a
+		// subset of the physical GPUs. The default context redirectors used by the
+		// immediate command list can support all physical GPUs, whereas context containers
+		// used by the parallel command lists might only support a subset of GPUs in the
+		// system.
+		DefaultContextRedirector.SetPhysicalGPUMask(FRHIGPUMask::All());
+		DefaultAsyncComputeContextRedirector.SetPhysicalGPUMask(FRHIGPUMask::All());
+
+		// Create all of the FD3D12Devices.
 		for (uint32 GPUIndex : FRHIGPUMask::All())
 		{
 			Devices[GPUIndex] = new FD3D12Device(FRHIGPUMask::FromIndex(GPUIndex), this);
@@ -458,13 +475,6 @@ void FD3D12Adapter::InitializeDevices()
 				DefaultAsyncComputeContextRedirector.SetPhysicalContext(&Devices[GPUIndex]->GetDefaultAsyncComputeContext());
 			}
 		}
-
-		DefaultContextRedirector.SetGPUMask(FRHIGPUMask::All());
-		DefaultAsyncComputeContextRedirector.SetGPUMask(FRHIGPUMask::All());
-
-		// Initialize the immediate command list GPU mask now that everything is set.
-		FRHICommandListExecutor::GetImmediateCommandList().SetGPUMask(FRHIGPUMask::All());
-		FRHICommandListExecutor::GetImmediateAsyncComputeCommandList().SetGPUMask(FRHIGPUMask::All());
 
 		GPUProfilingData.Init();
 
@@ -560,11 +570,13 @@ void FD3D12Adapter::Cleanup()
 	}
 #endif // D3D12_RHI_RAYTRACING
 
+#if WITH_MGPU
 	// Manually destroy the effects as we can't do it in their destructor.
 	for (auto& Effect : TemporalEffectMap)
 	{
 		Effect.Value.Destroy();
 	}
+#endif
 
 	// Ask all initialized FRenderResources to release their RHI resources.
 	for (TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList()); ResourceIt; ResourceIt.Next())
@@ -640,6 +652,7 @@ void FD3D12Adapter::EndFrame()
 	GetDeferredDeletionQueue().ReleaseResources();
 }
 
+#if WITH_MGPU
 FD3D12TemporalEffect* FD3D12Adapter::GetTemporalEffect(const FName& EffectName)
 {
 	FD3D12TemporalEffect* Effect = TemporalEffectMap.Find(EffectName);
@@ -653,6 +666,7 @@ FD3D12TemporalEffect* FD3D12Adapter::GetTemporalEffect(const FName& EffectName)
 	check(Effect);
 	return Effect;
 }
+#endif // WITH_MGPU
 
 FD3D12FastConstantAllocator& FD3D12Adapter::GetTransientUniformBufferAllocator()
 {

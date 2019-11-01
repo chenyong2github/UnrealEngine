@@ -37,31 +37,31 @@ namespace UnrealBuildTool
 	class RemoteMac
 	{
 		/// <summary>
-		/// These two variables will be loaded from XML config file in XmlConfigLoader.Init()
+		/// These two variables will be loaded from the XML config file in XmlConfigLoader.Init().
 		/// </summary>
 		[XmlConfigFile]
 		private readonly string ServerName;
 
 		/// <summary>
-		/// The remote username
+		/// The remote username.
 		/// </summary>
 		[XmlConfigFile]
 		private readonly string UserName;
 
 		/// <summary>
-		/// Instead of looking for RemoteToolChainPrivate.key in the usual places (Documents/Unreal Engine/UnrealBuildTool/SSHKeys, Engine/Build/SSHKeys), this private key will be used if set
+		/// If set, instead of looking for RemoteToolChainPrivate.key in the usual places (Documents/Unreal, Engine/UnrealBuildTool/SSHKeys or Engine/Build/SSHKeys), this private key will be used.
 		/// </summary>
 		[XmlConfigFile]
 		private FileReference SshPrivateKey;
 
 		/// <summary>
-		/// The authentication used for Rsync (for the -e rsync flag)
+		/// The authentication used for Rsync (for the -e rsync flag).
 		/// </summary>
 		[XmlConfigFile]
 		private string RsyncAuthentication = "ssh -i '${CYGWIN_SSH_PRIVATE_KEY}'";
 
 		/// <summary>
-		/// The authentication used for SSH (probably similar to RsyncAuthentication)
+		/// The authentication used for SSH (probably similar to RsyncAuthentication).
 		/// </summary>
 		[XmlConfigFile]
 		private string SshAuthentication = "-i '${CYGWIN_SSH_PRIVATE_KEY}'";

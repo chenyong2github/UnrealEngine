@@ -23,6 +23,18 @@
 #include "Async/Async.h"
 #include "Modules/ModuleManager.h"
 
+THIRD_PARTY_INCLUDES_START
+	#include "Windows/AllowWindowsPlatformTypes.h"
+	#include <d3d11_1.h>
+	#include <d3d12.h>
+	#include <dxgi1_4.h>
+	#include "Windows/HideWindowsPlatformTypes.h"
+THIRD_PARTY_INCLUDES_END
+
+#if NVENC_VIDEO_ENCODER_DEBUG
+	#include "ClearQuad.h"
+#endif
+
 TAutoConsoleVariable<float> CVarEncoderMaxBitrate(
 	TEXT("Encoder.MaxBitrate"),
 	50000000,
@@ -78,6 +90,7 @@ TAutoConsoleVariable<FString> CVarEncoderRateControl(
 	TEXT("CBR"),
 	TEXT("PixelStreaming video encoder RateControl mode. Supported modes are `ConstQP`, `VBR`, `CBR`, `VBR_MinQP`"),
 	ECVF_Default);
+
 
 namespace
 {
@@ -165,13 +178,94 @@ namespace
 		}
 	}
 
+	static bool D3D_ShouldCreateWithD3DDebug()
+	{
+		// Use a debug device if specified on the command line.
+		static bool bCreateWithD3DDebug =
+			FParse::Param(FCommandLine::Get(), TEXT("d3ddebug")) ||
+			FParse::Param(FCommandLine::Get(), TEXT("d3debug")) ||
+			FParse::Param(FCommandLine::Get(), TEXT("dxdebug"));
+		return bCreateWithD3DDebug;
+	}
+
+	static bool D3D_ShouldAllowAsyncResourceCreation()
+	{
+		static bool bAllowAsyncResourceCreation = !FParse::Param(FCommandLine::Get(), TEXT("nod3dasync"));
+		return bAllowAsyncResourceCreation;
+	}
+
+
+}
+
+FPixelStreamingNvVideoEncoder::FEncoderDevice::FEncoderDevice()
+{
+	if (GDynamicRHI)
+	{
+		FString RHIName = GDynamicRHI->GetName();
+
+		TRefCountPtr<IDXGIDevice> DXGIDevice;
+		uint32 DeviceFlags = D3D_ShouldAllowAsyncResourceCreation() ? 0 : D3D11_CREATE_DEVICE_SINGLETHREADED;
+		if (D3D_ShouldCreateWithD3DDebug())
+			DeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+		D3D_FEATURE_LEVEL FeatureLevel = D3D_FEATURE_LEVEL_11_1;
+		TRefCountPtr<IDXGIAdapter> Adapter;
+
+		if (RHIName == TEXT("D3D11"))
+		{
+			auto UE4D3DDevice = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
+			checkf(UE4D3DDevice != nullptr, TEXT("Cannot initialize NvEnc with invalid device"));
+			CHECK_HR_DX9_VOID(UE4D3DDevice->QueryInterface(__uuidof(IDXGIDevice), (void**)DXGIDevice.GetInitReference()));
+			CHECK_HR_DX9_VOID(DXGIDevice->GetAdapter(Adapter.GetInitReference()));
+			FeatureLevel = D3D_FEATURE_LEVEL_11_0;
+		}
+		else if (RHIName == TEXT("D3D12"))
+		{
+			auto UE4D3DDevice = static_cast<ID3D12Device*>(GDynamicRHI->RHIGetNativeDevice());
+			checkf(UE4D3DDevice != nullptr, TEXT("Cannot initialize NvEnc with invalid device"));
+			LUID AdapterLuid = UE4D3DDevice->GetAdapterLuid();
+			TRefCountPtr<IDXGIFactory4> DXGIFactory;
+			CHECK_HR_DX9_VOID(CreateDXGIFactory(IID_PPV_ARGS(DXGIFactory.GetInitReference())));
+			// To use a shared texture from D3D12, we need to use a D3D 11.1 device, because we need the
+			// D3D11Device1::OpenSharedResource1 method
+			FeatureLevel = D3D_FEATURE_LEVEL_11_1;
+			CHECK_HR_DX9_VOID(DXGIFactory->EnumAdapterByLuid(AdapterLuid, IID_PPV_ARGS(Adapter.GetInitReference())));
+		}
+		else
+		{
+			UE_LOG(PixelStreamer, Fatal, TEXT("NvEnc requires D3D11/D3D12"));
+			return;
+		}
+
+		D3D_FEATURE_LEVEL ActualFeatureLevel;
+
+		CHECK_HR_DX9_VOID(D3D11CreateDevice(
+			Adapter,
+			D3D_DRIVER_TYPE_UNKNOWN,
+			NULL,
+			DeviceFlags,
+			&FeatureLevel,
+			1,
+			D3D11_SDK_VERSION,
+			Device.GetInitReference(),
+			&ActualFeatureLevel,
+			DeviceContext.GetInitReference()
+		));
+
+		// If we are using D3D12, make sure we got a 11.1 device
+		if (FeatureLevel == D3D_FEATURE_LEVEL_11_1 && ActualFeatureLevel!=D3D_FEATURE_LEVEL_11_1)
+		{
+			UE_LOG(PixelStreamer, Fatal, TEXT("Failed to create a D3D 11.1 device. This is needed when using the D3D12 renderer."));
+		}
+	}
+	else
+	{
+		UE_LOG(PixelStreamer, Error, TEXT("Attempting to create Encoder Device without existing RHI"));
+	}
 }
 
 const uint32 BitstreamSize = 1024 * 1024 * 2;
 
 #define NV_RESULT(NvFunction) NvFunction == NV_ENC_SUCCESS
-
-FThreadSafeCounter FPixelStreamingNvVideoEncoder::ImplCounter(0);
 
 bool FPixelStreamingNvVideoEncoder::CheckPlatformCompatibility()
 {
@@ -194,7 +288,7 @@ bool FPixelStreamingNvVideoEncoder::CheckPlatformCompatibility()
 	}
 }
 
-FPixelStreamingNvVideoEncoder::FPixelStreamingNvVideoEncoder(bool bEnableAsyncMode)
+FPixelStreamingNvVideoEncoder::FPixelStreamingNvVideoEncoder()
 	: InitialMaxFPS(GEngine->GetMaxFPS())
 {
 	DllHandle = FPlatformProcess::GetDllHandle(GetDllName());
@@ -204,41 +298,24 @@ FPixelStreamingNvVideoEncoder::FPixelStreamingNvVideoEncoder(bool bEnableAsyncMo
 		return;
 	}
 
-	// actual initialization must happen in render thread
-	int32 CurrImplCounter = ImplCounter.GetValue();
-	ENQUEUE_RENDER_COMMAND(NvEncInit)(
-	[this, bEnableAsyncMode, CurrImplCounter](FRHICommandListImmediate& RHICmdList)
-	{
-		if (CurrImplCounter != ImplCounter.GetValue()) // Check if the "this" we captured is still valid
-			return;
-
-		Init_RenderThread(bEnableAsyncMode);
-	});
+	Init();
 }
 
-void FPixelStreamingNvVideoEncoder::Init_RenderThread(bool bEnableAsyncMode)
+void FPixelStreamingNvVideoEncoder::Init()
 {
 	if (InitialMaxFPS == 0)
 	{
 		const float DefaultFPS = 60.0;
 		InitialMaxFPS = DefaultFPS;
 
-		check(IsInRenderingThread());
+		//check(IsInRenderingThread());
 		AsyncTask(ENamedThreads::GameThread, [this]()
 		{
 			GEngine->SetMaxFPS(InitialMaxFPS);
 		});
 	}
 
-	// Bind to the delegates that are triggered when render thread is created or destroyed, so the encoder thread can act accordingly.
-	FCoreDelegates::PostRenderingThreadCreated.AddRaw(this, &FPixelStreamingNvVideoEncoder::PostRenderingThreadCreated);
-	FCoreDelegates::PreRenderingThreadDestroyed.AddRaw(this, &FPixelStreamingNvVideoEncoder::PreRenderingThreadDestroyed);
-
-	FString RHIName = GDynamicRHI->GetName();
-	check(RHIName == TEXT("D3D11"));
-
-	auto Device = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
-	checkf(Device != nullptr, TEXT("Cannot initialize NvEnc with invalid device"));
+	EncoderDevice = MakeUnique<FEncoderDevice>();
 
 	_NVENCSTATUS Result;
 
@@ -268,7 +345,7 @@ void FPixelStreamingNvVideoEncoder::Init_RenderThread(bool bEnableAsyncMode)
 		NV_ENC_OPEN_ENCODE_SESSION_EX_PARAMS OpenEncodeSessionExParams;
 		FMemory::Memzero(OpenEncodeSessionExParams);
 		OpenEncodeSessionExParams.version = NV_ENC_OPEN_ENCODE_SESSION_EX_PARAMS_VER;
-		OpenEncodeSessionExParams.device = Device;
+		OpenEncodeSessionExParams.device = EncoderDevice->Device;
 		OpenEncodeSessionExParams.deviceType = NV_ENC_DEVICE_TYPE_DIRECTX;	// Currently only DX11 is supported
 		OpenEncodeSessionExParams.apiVersion = NVENCAPI_VERSION;
 		Result = NvEncodeAPI->nvEncOpenEncodeSessionEx(&OpenEncodeSessionExParams, &EncoderInterface);
@@ -342,6 +419,7 @@ void FPixelStreamingNvVideoEncoder::Init_RenderThread(bool bEnableAsyncMode)
 		// maybe doesn't have an effect, high level is chosen because we aim at high bitrate
 		NvEncConfig.encodeCodecConfig.h264Config.level = NV_ENC_LEVEL_H264_52;
 	}
+
 	// Get encoder capability
 	{
 		NV_ENC_CAPS_PARAM CapsParam;
@@ -351,25 +429,27 @@ void FPixelStreamingNvVideoEncoder::Init_RenderThread(bool bEnableAsyncMode)
 		int32 AsyncMode = 0;
 		Result = NvEncodeAPI->nvEncGetEncodeCaps(EncoderInterface, NvEncInitializeParams.encodeGUID, &CapsParam, &AsyncMode);
 		checkf(NV_RESULT(Result), TEXT("Failed to get NVEncoder capability params (status: %d)"), Result);
-		NvEncInitializeParams.enableEncodeAsync = bEnableAsyncMode ? AsyncMode : 0;
+		if (AsyncMode == 0)
+		{
+			UE_LOG(LogVideoEncoder, Fatal, TEXT("NvEnc doesn't support async mode"));
+			return;
+		}
+
+		NvEncInitializeParams.enableEncodeAsync = true;
 	}
 
 	Result = NvEncodeAPI->nvEncInitializeEncoder(EncoderInterface, &NvEncInitializeParams);
 	checkf(NV_RESULT(Result), TEXT("Failed to initialize NVEncoder (status: %d)"), Result);
 
+	FBufferId Id = 0;
+	for(FFrame& Frame : BufferedFrames)
+	{
+		Frame.Id = Id++;
+	}
+
 	InitializeResources();
 
-	// initially all buffers are free
-	FBufferId BufferId = 0;
-	for (FFrame& frame : BufferedFrames)
-	{
-		FreeBuffers.Enqueue(BufferId++);
-	}
-
-	if (NvEncInitializeParams.enableEncodeAsync)
-	{
-		EncoderThread = MakeUnique<FThread>(TEXT("PixelStreaming Video Send"), [this]() { EncoderCheckLoop(); });
-	}
+	EncoderThread = MakeUnique<FThread>(TEXT("NvVideoEncoder"), [this]() { EncoderCheckLoop(); });
 
 	UE_LOG(LogVideoEncoder, Log, TEXT("NvEnc initialised: %dFPS%s"), static_cast<int32>(InitialMaxFPS), CVarEncoderPrioritiseQuality.GetValueOnAnyThread() != 0 ? TEXT(", prioritise quality") : TEXT(""));
 }
@@ -386,22 +466,13 @@ FPixelStreamingNvVideoEncoder::~FPixelStreamingNvVideoEncoder()
 
 	if (EncoderThread)
 	{
-		// Reset bWaitForRenderThreadToResume so encoder thread can quit
-		bWaitForRenderThreadToResume = false;
-
 		bExitEncoderThread = true;
-		// Trigger all frame events to release encoder thread waiting on them
-		// (we don't know here which frame it's waiting for)
-		for (FFrame& Frame : BufferedFrames)
-		{
-			SetEvent(Frame.OutputFrame.EventHandle);
-		}
+
+		// Trigger an event to ensure we can get out of the encoder thread.
+		SetEvent(EncodeQueue.EncodeEvent);
 
 		// Exit encoder runnable thread before shutting down NvEnc interface
 		EncoderThread->Join();
-		// Increment the counter, so that if any pending render commands sent from EncoderCheckLoop 
-		// to the Render Thread still reference "this", they will be ignored because the counter is different
-		ImplCounter.Increment();
 	}
 
 	ReleaseResources();
@@ -423,33 +494,56 @@ FPixelStreamingNvVideoEncoder::~FPixelStreamingNvVideoEncoder()
 
 bool FPixelStreamingNvVideoEncoder::CopyBackBuffer(const FTexture2DRHIRef& BackBuffer, FTimespan Timestamp, FBufferId& BufferId)
 {
-	if (!FreeBuffers.Dequeue(BufferId))
+	check(IsInRenderingThread());
+
+	// Find a free slot we can use
+	FFrame* Frame = nullptr;
+	for (FFrame& Slot : BufferedFrames)
 	{
-		UE_LOG(LogVideoEncoder, Verbose, TEXT("Frame dropped cos NvEnc queue is full"));
+		if (Slot.State.Load() == EFrameState::Free)
+		{
+			Frame = &Slot;
+			BufferId = Slot.Id;
+			break;
+		}
+	}
+
+	if (!Frame)
+	{
+		UE_LOG(LogVideoEncoder, Verbose, TEXT("Frame dropped because NvEnc queue is full"));
 		return false;
 	}
 
-	FFrame& Frame = BufferedFrames[BufferId];
 
-	Frame.FrameIdx = CapturedFrameCount++;
-	Frame.InputFrame.CaptureTs = Timestamp;
-	CopyBackBuffer(BackBuffer, Frame.InputFrame);
+	Frame->FrameIdx = CapturedFrameCount++;
+	Frame->InputFrame.CaptureTs = Timestamp;
 
-	UE_LOG(LogVideoEncoder, Verbose, TEXT("Buffer #%d (%d) captured"), Frame.FrameIdx, BufferId);
-	CapturedBuffers.Enqueue(BufferId);
+#if NVENC_VIDEO_ENCODER_DEBUG
+	Frame->CopyBufferStartTs = FTimespan::FromSeconds(FPlatformTime::Seconds());
+	// By clearing the frame at this point, we can catch the occasional glimpse of a solid color
+	// frame in PixelStreaming if there are any bugs detecting when the copy finished
+	ClearFrame(*Frame);
+#endif
+
+	CopyBackBuffer(BackBuffer, *Frame);
+
+	UE_LOG(LogVideoEncoder, Verbose, TEXT("Buffer #%d (%d) captured"), Frame->FrameIdx, BufferId);
+	Frame->State = EFrameState::Capturing;
 
 	return true;
 }
 
-void FPixelStreamingNvVideoEncoder::CopyBackBuffer(const FTexture2DRHIRef& BackBuffer, FInputFrame& InputFrame)
+void FPixelStreamingNvVideoEncoder::CopyBackBuffer(const FTexture2DRHIRef& BackBuffer, FFrame& Frame)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NvEnc_CopyBackBuffer);
+	FInputFrame& InputFrame = Frame.InputFrame;
 
-	UpdateRes(BackBuffer, InputFrame);
+	UpdateRes(BackBuffer, Frame);
 
 	IRendererModule* RendererModule = &FModuleManager::GetModuleChecked<IRendererModule>("Renderer");
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
+	InputFrame.CopyFence->Clear();
 	if (BackBuffer->GetFormat() == InputFrame.BackBuffer->GetFormat() &&
 		BackBuffer->GetSizeXY() == InputFrame.BackBuffer->GetSizeXY())
 	{
@@ -503,46 +597,69 @@ void FPixelStreamingNvVideoEncoder::CopyBackBuffer(const FTexture2DRHIRef& BackB
 		}
 		RHICmdList.EndRenderPass();
 	}
+
+	RHICmdList.WriteGPUFence(Frame.InputFrame.CopyFence);
 }
+
 
 void FPixelStreamingNvVideoEncoder::EncodeFrame(FBufferId BufferId, const webrtc::EncodedImage& EncodedFrame, uint32 Bitrate)
 {
-	{
-		FBufferId NextCapturedBufferId;
-		bool bRes = CapturedBuffers.Dequeue(NextCapturedBufferId);
-		checkf(bRes && BufferId == NextCapturedBufferId, TEXT("%d: %d - %d"), bRes, BufferId, NextCapturedBufferId);
-	}
-
 	FFrame& Frame = BufferedFrames[BufferId];
 
+	{
+		EFrameState State = Frame.State.Load();
+		checkf(State == EFrameState::Capturing, TEXT("Buffer %d : Expected state %d, but found %d"), BufferId, (int)EFrameState::Captured, (int)State);
+	}
+
+	// Loop and sleep until the fence is signaled.
+	// Also, at the moment of writing there is not proper GPU fence for D3D11 in UE4. It uses FGenericRHIGPUFence.
+	// Due to this, if this thread doesn't make progress because of the fence not being signaled, it can end up stalling the RenderThread
+	// when restarting a PixelStreaming client session (e.g: Refreshing the browser page).
+	// This causes a deadlock, because the RenderThread is the one signaling the fence.
+	// So, if we are waiting for too long, just ignore the fence.
+	{
+		double StartTime = FPlatformTime::Seconds();
+		while (!Frame.InputFrame.CopyFence->Poll())
+		{
+			FPlatformProcess::Sleep(2.0f/1000);
+			if ((FPlatformTime::Seconds() - StartTime) > 0.250f)
+			{
+				UE_LOG(LogVideoEncoder, Warning, TEXT("Buffer #%d taking too long to reach the GPU fence. Ignoring fence."), (int)BufferId);
+				break;
+			}
+		}
+	}
+
+#if NVENC_VIDEO_ENCODER_DEBUG
+	Frame.CopyBufferFinishTs = FTimespan::FromSeconds(FPlatformTime::Seconds());
+#endif
+
+	Frame.State = EFrameState::Captured;
 	Frame.OutputFrame.EncodedFrame = EncodedFrame;
 	Frame.OutputFrame.EncodedFrame._encodedWidth = NvEncInitializeParams.encodeWidth;
 	Frame.OutputFrame.EncodedFrame._encodedHeight = NvEncInitializeParams.encodeHeight;
 
-	int32 CurrImplCounter = ImplCounter.GetValue();
-	ENQUEUE_RENDER_COMMAND(NvEncEncodeFrame)(
-	[this, &Frame, BufferId, Bitrate, CurrImplCounter](FRHICommandListImmediate& RHICmdList)
-	{
-		if (CurrImplCounter != ImplCounter.GetValue()) // Check if the "this" we captured is still valid
-			return;
+	// Save the requested bitrate, so we can reconfigure the encoder later
+	Frame.BitrateRequested = Bitrate;
+	EncodeQueue.Push(&Frame);
 
-		EncodeFrameInRenderingThread(Frame, Bitrate);
+	UE_LOG(LogVideoEncoder, VeryVerbose, TEXT("Buffer #%d (%d), ts %u sent to the encoder thread"), Frame.FrameIdx, BufferId, Frame.OutputFrame.EncodedFrame.Timestamp());
 
-		UE_LOG(LogVideoEncoder, VeryVerbose, TEXT("Buffer #%d (%d), ts %u started encoding"), Frame.FrameIdx, BufferId, Frame.OutputFrame.EncodedFrame.Timestamp());
-		BuffersBeingEncoded.Enqueue(BufferId);
-	});
 }
 
 void FPixelStreamingNvVideoEncoder::OnFrameDropped(FBufferId BufferId)
 {
+	FFrame& Frame = BufferedFrames[BufferId];
+
 	{
-		FBufferId NextCapturedBufferId;
-		bool bRes = CapturedBuffers.Dequeue(NextCapturedBufferId);
-		checkf(bRes && NextCapturedBufferId == BufferId, TEXT("%d: %d - %d"), bRes, NextCapturedBufferId, BufferId);
+		EFrameState State = Frame.State.Load();
+		checkf(State == EFrameState::Capturing, TEXT("Buffer %d: Expected state %d, found %d")
+			, BufferId, (int)EFrameState::Capturing, (int)State);
 	}
 
+	Frame.State = EFrameState::Free;
+
 	UE_LOG(LogVideoEncoder, Log, TEXT("Buffer #%d (%d) dropped"), BufferedFrames[BufferId].FrameIdx, BufferId);
-	FreeBuffers.Enqueue(BufferId);
 }
 
 void FPixelStreamingNvVideoEncoder::SubscribeToFrameEncodedEvent(FVideoEncoder& Subscriber)
@@ -562,12 +679,10 @@ void FPixelStreamingNvVideoEncoder::UnsubscribeFromFrameEncodedEvent(FVideoEncod
 
 void FPixelStreamingNvVideoEncoder::UpdateNvEncConfig(const FInputFrame& InputFrame, uint32 Bitrate)
 {
-	check(IsInRenderingThread());
-
 	bool bSettingsChanged = false;
 	bool bResolutionChanged = false;
 
-	float MaxBitrate = CVarEncoderMaxBitrate.GetValueOnRenderThread();
+	float MaxBitrate = CVarEncoderMaxBitrate.GetValueOnAnyThread();
 	uint32 ClampedBitrate = FMath::Min(Bitrate, static_cast<uint32_t>(MaxBitrate));
 	if (NvEncConfig.rcParams.averageBitRate != ClampedBitrate)
 	{
@@ -576,7 +691,7 @@ void FPixelStreamingNvVideoEncoder::UpdateNvEncConfig(const FInputFrame& InputFr
 		bSettingsChanged = true;
 	}
 
-	uint32 MinQP = static_cast<uint32>(CVarEncoderMinQP.GetValueOnRenderThread());
+	uint32 MinQP = static_cast<uint32>(CVarEncoderMinQP.GetValueOnAnyThread());
 	MinQP = FMath::Clamp(MinQP, 0u, 54u);
 	if (NvEncConfig.rcParams.minQP.qpIntra != MinQP)
 	{
@@ -585,7 +700,7 @@ void FPixelStreamingNvVideoEncoder::UpdateNvEncConfig(const FInputFrame& InputFr
 		bSettingsChanged = true;
 	}
 
-	NV_ENC_PARAMS_RC_MODE RcMode = ToRcMode(CVarEncoderRateControl.GetValueOnRenderThread());
+	NV_ENC_PARAMS_RC_MODE RcMode = ToRcMode(CVarEncoderRateControl.GetValueOnAnyThread());
 	if (RcMode != NvEncConfig.rcParams.rateControlMode)
 	{
 		NvEncConfig.rcParams.rateControlMode = RcMode;
@@ -670,9 +785,11 @@ bool FPixelStreamingNvVideoEncoder::UpdateFramerate()
 }
 
 // checks if resolution changed, either the game res changed or new streaming resolution was specified by the console var
-void FPixelStreamingNvVideoEncoder::UpdateRes(const FTexture2DRHIRef& BackBuffer, FInputFrame& InputFrame)
+void FPixelStreamingNvVideoEncoder::UpdateRes(const FTexture2DRHIRef& BackBuffer, FFrame& Frame)
 {
 	check(IsInRenderingThread());
+
+	FInputFrame& InputFrame = Frame.InputFrame;
 
 	// find out what resolution we'd like to stream, it's either "native" (BackBuffer) resolution or something configured specially
 	bool bUseBackBufferSize = CVarEncoderUseBackBufferSize.GetValueOnRenderThread() > 0;
@@ -701,40 +818,28 @@ void FPixelStreamingNvVideoEncoder::UpdateRes(const FTexture2DRHIRef& BackBuffer
 		}
 	}
 
-	// check if target resolution matches of currently allocated `InputFrame.BackBuffer` resolution
+	// check if target resolution matches our currently allocated `InputFrame.BackBuffer` resolution
 	if (InputFrame.BackBuffer->GetSizeX() == Width && InputFrame.BackBuffer->GetSizeY() == Height)
 	{
 		return;
 	}
 
 	// reallocate and re-register InputFrame with NvEnc
-	ReleaseFrameInputBuffer(InputFrame);
-	InitFrameInputBuffer(InputFrame, Width, Height);
+	ReleaseFrameInputBuffer(Frame);
+	InitFrameInputBuffer(Frame, Width, Height);
 }
 
-void FPixelStreamingNvVideoEncoder::EncodeFrameInRenderingThread(FFrame& Frame, uint32 Bitrate)
+void FPixelStreamingNvVideoEncoder::SubmitFrameToEncoder(FFrame& Frame)
 {
-	UpdateNvEncConfig(Frame.InputFrame, Bitrate);
+	check(Frame.State.Load() == EFrameState::Captured);
 
-	// Encode frame
-	{
-		FRHICommandList& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-		if (RHICmdList.Bypass())
-		{
-			FRHITransferRenderTargetToNvEnc Command(this, &Frame);
-			Command.Execute(RHICmdList);
-		}
-		else
-		{
-			ALLOC_COMMAND_CL(RHICmdList, FRHITransferRenderTargetToNvEnc)(this, &Frame);
-		}
-	}
-}
+#if NVENC_VIDEO_ENCODER_DEBUG
+	Frame.EncodingStartTs = FTimespan::FromSeconds(FPlatformTime::Seconds());
+#endif
 
-void FPixelStreamingNvVideoEncoder::TransferRenderTargetToHWEncoder(FFrame& Frame)
-{
 	SCOPE_CYCLE_COUNTER(STAT_NvEnc_SendBackBufferToEncoder);
 
+	Frame.State = EFrameState::Encoding;
 	Frame.OutputFrame.EncodedFrame.timing_.encode_start_ms = rtc::TimeMicros() / 1000;
 
 	NV_ENC_PIC_PARAMS PicParams;
@@ -754,65 +859,76 @@ void FPixelStreamingNvVideoEncoder::TransferRenderTargetToHWEncoder(FFrame& Fram
 
 	_NVENCSTATUS Result = NvEncodeAPI->nvEncEncodePicture(EncoderInterface, &PicParams);
 	checkf(NV_RESULT(Result), TEXT("Failed to encode frame (status: %d)"), Result);
-
-	if (!NvEncInitializeParams.enableEncodeAsync)
-	{
-		// In synchronous mode, simply process the frame immediately.
-		ProcessFrame(Frame);
-	}
 }
 
 void FPixelStreamingNvVideoEncoder::EncoderCheckLoop()
 {
-	while (!bExitEncoderThread)
+	// This thread will both encode frames and will also wait for the next frame
+	// to finish encoding.
+	TQueue<FFrame*> CurrentlyEncodingQueue;
+
+	while (true)
 	{
-		FBufferId BufferId;
-		if (!BuffersBeingEncoded.Dequeue(BufferId))
+		// Wait for either the command to encode frames or the information
+		// that the next frame has finished encoding.
+		// The signalling events are a pair of handles for windows events so we
+		// can wait for one or the other.
+		enum EncodeEvents
 		{
-			FPlatformProcess::Sleep(0);
-			continue; // to check for exit request
+			START_ENCODING_EVENT = 0,
+			FINISHED_ENCODING_EVENT = 1,
+			NUM_ENCODING_EVENTS = 2
+		};
+
+		int NumEvents = 1;
+		HANDLE Handles[NUM_ENCODING_EVENTS];
+		Handles[START_ENCODING_EVENT] = EncodeQueue.EncodeEvent;
+
+		if (!CurrentlyEncodingQueue.IsEmpty())
+		{
+			NumEvents++;
+			Handles[FINISHED_ENCODING_EVENT] = (**CurrentlyEncodingQueue.Peek()).OutputFrame.EventHandle;
 		}
 
-		FFrame& Frame = BufferedFrames[BufferId];
+		DWORD Result = WaitForMultipleObjects(NumEvents, Handles, false, INFINITE);
 
+		if (!bExitEncoderThread)
 		{
-			SCOPE_CYCLE_COUNTER(STAT_NvEnc_WaitForEncodeEvent);
-			DWORD Result = WaitForSingleObject(Frame.OutputFrame.EventHandle, INFINITE);
-			checkf(Result == WAIT_OBJECT_0, TEXT("Error waiting for frame event: %d"), Result);
-			if (bExitEncoderThread)
-				return;
-		}
-
-		ResetEvent(Frame.OutputFrame.EventHandle);
-
-		// When resolution changes, render thread is stopped and later restarted from game thread.
-		// We can't enqueue render commands when render thread is stopped, so pause until render thread is restarted.
-		while (bWaitForRenderThreadToResume)
-		{
-			FPlatformProcess::Sleep(0);
-		}
-
-		FPixelStreamingNvVideoEncoder* This = this;
-		FFrame* InFrame = &Frame;
-		int32 CurrImplCounter = ImplCounter.GetValue();
-		ENQUEUE_RENDER_COMMAND(NvEncProcessFrame)(
-		[This, InFrame, BufferId, CurrImplCounter](FRHICommandListImmediate& RHICmdList)
-		{
-			if (CurrImplCounter != ImplCounter.GetValue()) // Check if the "this" we captured is still valid
+			if (Result == WAIT_OBJECT_0 + START_ENCODING_EVENT)
 			{
-				return;
+				// Get the list of all frames we want to encode.
+				FFrame* Frames[NumBufferedFrames];
+				int NumFrames;
+				EncodeQueue.PopAll(Frames, NumFrames);
+				for (int Idx = 0; Idx < NumFrames; Idx++)
+				{
+					FFrame& Frame = *Frames[Idx];
+					UpdateNvEncConfig(Frame.InputFrame, Frame.BitrateRequested);
+					SubmitFrameToEncoder(Frame);
+					CurrentlyEncodingQueue.Enqueue(&Frame);
+				}
 			}
+			else if (Result == WAIT_OBJECT_0 + FINISHED_ENCODING_EVENT)
+			{
+				FFrame* Frame = nullptr;
+				verify(CurrentlyEncodingQueue.Dequeue(Frame));
+				ResetEvent(Frame->OutputFrame.EventHandle);
+				UE_LOG(LogVideoEncoder, Verbose, TEXT("Buffer #%d (%d) encoded"), Frame->FrameIdx, Frame->Id);
+				ProcessFrame(*Frame);
+			}
+		}
+		else
+		{
+			break;
+		}
 
-			This->ProcessFrame(*InFrame);
-
-			UE_LOG(LogVideoEncoder, Verbose, TEXT("Buffer #%d (%d) encoded"), InFrame->FrameIdx, BufferId);
-			This->FreeBuffers.Enqueue(BufferId);
-		});
 	}
 }
 
 void FPixelStreamingNvVideoEncoder::ProcessFrame(FFrame& Frame)
 {
+	check(Frame.State.Load() == EFrameState::Encoding);
+
 	FOutputFrame& OutputFrame = Frame.OutputFrame;
 
 	FHUDStats& Stats = FHUDStats::Get();
@@ -865,37 +981,103 @@ void FPixelStreamingNvVideoEncoder::ProcessFrame(FFrame& Frame)
 		Stats.EncoderQP.Update(OutputFrame.EncodedFrame.qp_);
 	}
 
-	UE_LOG(LogVideoEncoder, VeryVerbose, TEXT("encoded %s ts %u, capture ts %lld, QP %d/%.0f,  latency %.0f/%.0f ms, bitrate %.3f/%.3f/%.3f Mbps, %zu bytes"), ToString(OutputFrame.EncodedFrame._frameType), OutputFrame.EncodedFrame.Timestamp(), Frame.InputFrame.CaptureTs.GetTicks(), OutputFrame.EncodedFrame.qp_, Stats.EncoderQP.Get(), LatencyMs, Stats.EncoderLatencyMs.Get(), RequestedBitrateMbps.Load(), BitrateMbps, Stats.EncoderBitrateMbps.Get(), OutputFrame.EncodedFrame._length);
+#if NVENC_VIDEO_ENCODER_DEBUG
+	Frame.EncodingFinishTs = FTimespan::FromSeconds(FPlatformTime::Seconds());
+	{
+		FFrameTiming Timing;
+		Timing.Total[0] = (Frame.CopyBufferFinishTs - Frame.CopyBufferStartTs).GetTotalMilliseconds();
+		Timing.Total[1] = (Frame.EncodingStartTs - Frame.CopyBufferStartTs).GetTotalMilliseconds();
+		Timing.Total[2] = (Frame.EncodingFinishTs - Frame.CopyBufferStartTs).GetTotalMilliseconds();
+
+		Timing.Steps[0] = (Frame.CopyBufferFinishTs - Frame.CopyBufferStartTs).GetTotalMilliseconds();
+		Timing.Steps[1] = (Frame.EncodingStartTs - Frame.CopyBufferFinishTs).GetTotalMilliseconds();
+		Timing.Steps[2] = (Frame.EncodingFinishTs - Frame.EncodingStartTs).GetTotalMilliseconds();
+		Timings.Add(Timing);
+		// Limit the array size
+		if (Timings.Num()>1000)
+		{
+			Timings.RemoveAt(0);
+		}
+	}
+#endif
+
+	UE_LOG(LogVideoEncoder, VeryVerbose, TEXT("encoded %s ts %u, capture ts %lld, QP %d/%.0f,  latency %.0f/%.0f ms, bitrate %.3f/%.3f/%.3f Mbps, %zu bytes"), ToString(OutputFrame.EncodedFrame._frameType), OutputFrame.EncodedFrame.Timestamp(), Frame.InputFrame.CaptureTs.GetTicks(), OutputFrame.EncodedFrame.qp_, Stats.EncoderQP.Get(), LatencyMs, Stats.EncoderLatencyMs.Get(), RequestedBitrateMbps, BitrateMbps, Stats.EncoderBitrateMbps.Get(), OutputFrame.EncodedFrame._length);
 
 	// Stream the encoded frame
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NvEnc_StreamEncodedFrame);
 		OnEncodedFrame(OutputFrame.EncodedFrame);
 	}
+
+	Frame.State = EFrameState::Free;
 }
 
-void FPixelStreamingNvVideoEncoder::InitFrameInputBuffer(FInputFrame& InputFrame, uint32 Width, uint32 Height)
+void FPixelStreamingNvVideoEncoder::InitFrameInputBuffer(FFrame& Frame, uint32 Width, uint32 Height)
 {
+	FInputFrame& InputFrame = Frame.InputFrame;
+
+	// Create (if necessary) and clear the GPU Fence so we can detect when the copy finished
+	if (!InputFrame.CopyFence)
+	{
+		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+		InputFrame.CopyFence = RHICmdList.CreateGPUFence(*FString::Printf(TEXT("PixelStreamingCopy_%d"), Frame.Id));
+	}
+
 	// Create resolved back buffer texture
 	{
 		// Make sure format used here is compatible with NV_ENC_BUFFER_FORMAT specified later in NV_ENC_REGISTER_RESOURCE bufferFormat
 		FRHIResourceCreateInfo CreateInfo;
-		InputFrame.BackBuffer = RHICreateTexture2D(Width, Height, EPixelFormat::PF_A2B10G10R10, 1, 1, TexCreate_RenderTargetable, CreateInfo);
+		InputFrame.BackBuffer = RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_RenderTargetable | TexCreate_Shared, CreateInfo);
+	}
+
+	// Share this texture with the encoder device.
+	FString RHIName = GDynamicRHI->GetName();
+
+	if (RHIName == TEXT("D3D11"))
+	{
+		ID3D11Texture2D* ResolvedBackBuffer = (ID3D11Texture2D*)InputFrame.BackBuffer->GetTexture2D()->GetNativeResource();
+
+		TRefCountPtr<IDXGIResource> DXGIResource;
+		CHECK_HR_DX9_VOID(ResolvedBackBuffer->QueryInterface(IID_PPV_ARGS(DXGIResource.GetInitReference())));
+
+		//
+		// NOTE : The HANDLE IDXGIResource::GetSharedHandle gives us is NOT an NT Handle, and therefre we should not call CloseHandle on it
+		//
+		HANDLE SharedHandle;
+		CHECK_HR_DX9_VOID(DXGIResource->GetSharedHandle(&SharedHandle));
+		CHECK_HR_DX9_VOID(EncoderDevice->Device->OpenSharedResource(SharedHandle, __uuidof(ID3D11Texture2D), (LPVOID*)&InputFrame.SharedBackBuffer));
+	}
+	else if (RHIName == TEXT("D3D12"))
+	{
+		auto UE4D3DDevice = static_cast<ID3D12Device*>(GDynamicRHI->RHIGetNativeDevice());
+		static uint32 NamingIdx = 0;
+		ID3D12Resource* ResolvedBackBuffer = (ID3D12Resource*)InputFrame.BackBuffer->GetTexture2D()->GetNativeResource();
+
+		//
+		// NOTE: ID3D12Device::CreateSharedHandle gives as an NT Handle, and so we need to call CloseHandle on it
+		//
+		HANDLE SharedHandle;
+		HRESULT Res1 = UE4D3DDevice->CreateSharedHandle(ResolvedBackBuffer, NULL, GENERIC_ALL, *FString::Printf(TEXT("PixelStreaming_NvEnc_%u"), NamingIdx++), &SharedHandle);
+		CHECK_HR_DX9_VOID(Res1);
+
+		TRefCountPtr <ID3D11Device1> Device1;
+		CHECK_HR_DX9_VOID(EncoderDevice->Device->QueryInterface(__uuidof(ID3D11Device1), (void**)Device1.GetInitReference()));
+		CHECK_HR_DX9_VOID(Device1->OpenSharedResource1(SharedHandle, __uuidof(ID3D11Texture2D), (LPVOID*)&InputFrame.SharedBackBuffer));
+		verify(CloseHandle(SharedHandle));
 	}
 
 	// Register input back buffer
 	{
 		NV_ENC_REGISTER_RESOURCE RegisterResource;
-		ID3D11Texture2D* ResolvedBackBufferDX11 = (ID3D11Texture2D*)(GetD3D11TextureFromRHITexture(InputFrame.BackBuffer)->GetResource());
+		FMemory::Memzero(RegisterResource);
 		EPixelFormat PixelFormat = InputFrame.BackBuffer->GetFormat();
 
-		FMemory::Memzero(RegisterResource);
 		RegisterResource.version = NV_ENC_REGISTER_RESOURCE_VER;
 		RegisterResource.resourceType = NV_ENC_INPUT_RESOURCE_TYPE_DIRECTX;
-		RegisterResource.resourceToRegister = (void*)ResolvedBackBufferDX11;
+		RegisterResource.resourceToRegister = (void*)InputFrame.SharedBackBuffer;
 		RegisterResource.width = Width;
 		RegisterResource.height = Height;
-		RegisterResource.bufferFormat = NV_ENC_BUFFER_FORMAT_ABGR10;	// Make sure ResolvedBackBuffer is created with a compatible format
+		RegisterResource.bufferFormat = NV_ENC_BUFFER_FORMAT_ABGR;	// Make sure ResolvedBackBuffer is created with a compatible format
 		_NVENCSTATUS Result = NvEncodeAPI->nvEncRegisterResource(EncoderInterface, &RegisterResource);
 		checkf(NV_RESULT(Result), TEXT("Failed to register input back buffer (status: %d)"), Result);
 
@@ -920,7 +1102,7 @@ void FPixelStreamingNvVideoEncoder::InitializeResources()
 	{
 		FFrame& Frame = BufferedFrames[i];
 
-		InitFrameInputBuffer(Frame.InputFrame, NvEncInitializeParams.encodeWidth, NvEncInitializeParams.encodeHeight);
+		InitFrameInputBuffer(Frame, NvEncInitializeParams.encodeWidth, NvEncInitializeParams.encodeHeight);
 
 		FMemory::Memzero(Frame.OutputFrame);
 		// Create output bitstream buffer
@@ -934,25 +1116,40 @@ void FPixelStreamingNvVideoEncoder::InitializeResources()
 			checkf(NV_RESULT(Result), TEXT("Failed to create NvEnc bitstream buffer (status: %d)"), Result);
 			Frame.OutputFrame.BitstreamBuffer = CreateBitstreamBuffer.bitstreamBuffer;
 		}
-		// Register event handles
-		if (NvEncInitializeParams.enableEncodeAsync)
-		{
-			RegisterAsyncEvent(&Frame.OutputFrame.EventHandle);
-		}
+
+		RegisterAsyncEvent(&Frame.OutputFrame.EventHandle);
 	}
 }
 
-void FPixelStreamingNvVideoEncoder::ReleaseFrameInputBuffer(FInputFrame& InputFrame)
+void FPixelStreamingNvVideoEncoder::ReleaseFrameInputBuffer(FFrame& Frame)
 {
-	_NVENCSTATUS Result = NvEncodeAPI->nvEncUnmapInputResource(EncoderInterface, InputFrame.MappedResource);
-	checkf(NV_RESULT(Result), TEXT("Failed to unmap input resource (status: %d)"), Result);
-	InputFrame.MappedResource = nullptr;
+	FInputFrame& InputFrame = Frame.InputFrame;
 
-	Result = NvEncodeAPI->nvEncUnregisterResource(EncoderInterface, InputFrame.RegisteredResource);
-	checkf(NV_RESULT(Result), TEXT("Failed to unregister input buffer resource (status: %d)"), Result);
-	InputFrame.RegisteredResource = nullptr;
+	if (InputFrame.MappedResource)
+	{
+		_NVENCSTATUS Result = NvEncodeAPI->nvEncUnmapInputResource(EncoderInterface, InputFrame.MappedResource);
+		checkf(NV_RESULT(Result), TEXT("Failed to unmap input resource (status: %d)"), Result);
+		InputFrame.MappedResource = nullptr;
+	}
+
+	if (InputFrame.RegisteredResource)
+	{
+		_NVENCSTATUS Result = NvEncodeAPI->nvEncUnregisterResource(EncoderInterface, InputFrame.RegisteredResource);
+		checkf(NV_RESULT(Result), TEXT("Failed to unregister input buffer resource (status: %d)"), Result);
+		InputFrame.RegisteredResource = nullptr;
+	}
 
 	InputFrame.BackBuffer.SafeRelease();
+	if (InputFrame.SharedBackBuffer)
+	{
+		InputFrame.SharedBackBuffer->Release();
+		InputFrame.SharedBackBuffer = nullptr;
+	}
+
+	if (InputFrame.CopyFence)
+	{
+		InputFrame.CopyFence.SafeRelease();
+	}
 }
 
 void FPixelStreamingNvVideoEncoder::ReleaseResources()
@@ -961,11 +1158,14 @@ void FPixelStreamingNvVideoEncoder::ReleaseResources()
 	{
 		FFrame& Frame = BufferedFrames[i];
 
-		ReleaseFrameInputBuffer(Frame.InputFrame);
+		ReleaseFrameInputBuffer(Frame);
 
-		_NVENCSTATUS Result = NvEncodeAPI->nvEncDestroyBitstreamBuffer(EncoderInterface, Frame.OutputFrame.BitstreamBuffer);
-		checkf(NV_RESULT(Result), TEXT("Failed to destroy output buffer bitstream (status: %d)"), Result);
-		Frame.OutputFrame.BitstreamBuffer = nullptr;
+		if (Frame.OutputFrame.BitstreamBuffer)
+		{
+			_NVENCSTATUS Result = NvEncodeAPI->nvEncDestroyBitstreamBuffer(EncoderInterface, Frame.OutputFrame.BitstreamBuffer);
+			checkf(NV_RESULT(Result), TEXT("Failed to destroy output buffer bitstream (status: %d)"), Result);
+			Frame.OutputFrame.BitstreamBuffer = nullptr;
+		}
 
 		if (Frame.OutputFrame.EventHandle)
 		{
@@ -1010,4 +1210,32 @@ void FPixelStreamingNvVideoEncoder::OnEncodedFrame(const webrtc::EncodedImage& E
 		s->OnEncodedFrame(EncodedImage);
 	}
 }
+
+#if NVENC_VIDEO_ENCODER_DEBUG
+// Fills with a solid colour
+void FPixelStreamingNvVideoEncoder::ClearFrame(FFrame& Frame)
+{
+	check(IsInRenderingThread());
+
+	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+
+	static_assert(NumBufferedFrames == 3, "Unexpected number of slots. Please update the array to match.");
+	FLinearColor Colors[NumBufferedFrames] =
+	{
+		FLinearColor(1,0,0),
+		FLinearColor(0,1,0),
+		FLinearColor(0,0,1)
+	};
+
+	FRHIRenderPassInfo RPInfo(Frame.InputFrame.BackBuffer, ERenderTargetActions::Load_Store);
+	TransitionRenderPassTargets(RHICmdList, RPInfo);
+	RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearCanvas"));
+	RHICmdList.SetViewport(0, 0, 0.0f
+		, Frame.InputFrame.BackBuffer->GetSizeXY().X
+		, Frame.InputFrame.BackBuffer->GetSizeXY().Y, 1.0f);
+
+	DrawClearQuad(RHICmdList, Colors[Frame.Id]);
+	RHICmdList.EndRenderPass();
+}
+#endif
 

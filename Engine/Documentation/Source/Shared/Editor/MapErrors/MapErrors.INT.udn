@@ -2,7 +2,11 @@ Availability:Public
 Title:Map Check Errors
 Crumbs:%ROOT%, Engine, Engine/UI/LevelEditor
 Description:Descriptions of errors generated during map builds or running a map check in Unreal Editor.
-Version: 4.9
+Version: 4.22
+Type:reference
+Parent:Shared/Editor
+Tags:map
+Tags:error
 
 [TOC(start:2 end:3)]
 

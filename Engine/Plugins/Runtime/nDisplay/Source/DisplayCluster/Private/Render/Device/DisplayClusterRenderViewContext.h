@@ -7,10 +7,6 @@
 
 struct FDisplayClusterRenderViewContext
 {
-	// Near/far clipping
-	float ClipPlaneNear = GNearClippingPlane;
-	float ClipPlaneFar  = 2000000.f;
-
 	// Camera location and orientation
 	FVector  ViewLocation = FVector::ZeroVector;
 	FRotator ViewRotation = FRotator::ZeroRotator;

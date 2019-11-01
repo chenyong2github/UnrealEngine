@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	LinuxTargetPlatformModule.cpp: Implements the FAndroidTargetPlatformModule class.
+	LinuxTargetPlatformModule.cpp: Implements the FLinuxServerTargetPlatformModule class.
 =============================================================================*/
 
 #include "CoreMinimal.h"

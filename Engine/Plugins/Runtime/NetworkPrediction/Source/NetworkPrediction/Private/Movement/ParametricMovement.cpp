@@ -1,9 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Movement/ParametricMovement.h"
-#include "NetworkSimulationModelDebugger.h"
 #include "HAL/IConsoleManager.h"
-#include "NetworkSimulationGlobalManager.h"
+#include "NetworkedSimulationGlobalManager.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
 
@@ -42,14 +41,14 @@ namespace ParametricMovement
 {
 	const FName FMovementSimulation::GroupName(TEXT("Parametric"));
 
-	void FMovementSimulation::Update(IMovementDriver* Driver, const float DeltaSeconds, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState)
+	void FMovementSimulation::SimulationTick(const TNetSimTimeStep& TimeStep, const TNetSimInput<TMovementBufferTypes>& Input, const TNetSimOutput<TMovementBufferTypes>& Output)
 	{
-		IBaseMovementDriver& BaseMovementDriver = Driver->GetBaseMovementDriver();
-		//const float DeltaSeconds = SimTimeDeltaMS.ToRealTimeSeconds();
+		check(Motion != nullptr); // Must set motion mapping prior to running the simulation
+		const float DeltaSeconds = TimeStep.StepMS.ToRealTimeSeconds();
 
 		// Advance parametric time. This won't always be linear: we could loop, rewind/bounce, etc
-		const float InputPlayRate = InputCmd.PlayRate.Get(InputState.PlayRate); // Returns InputCmds playrate if set, else returns previous state's playrate		
-		Driver->AdvanceParametricTime(InputState.Position, InputPlayRate, OutputState.Position, OutputState.PlayRate, DeltaSeconds);
+		const float InputPlayRate = Input.Cmd.PlayRate.Get(Input.Sync.PlayRate); // Returns InputCmds playrate if set, else returns previous state's playrate		
+		Motion->AdvanceParametricTime(Input.Sync.Position, InputPlayRate, Output.Sync.Position, Output.Sync.PlayRate, DeltaSeconds);
 
 		// We have our time that we should be at. We just need to move primitive component to that position.
 		// Again, note that we expect this cannot fail. We move like this so that it can push things, but we don't expect failure.
@@ -57,38 +56,22 @@ namespace ParametricMovement
 		// the output Position in the case where a Move is blocked (E.g, you move 50% towards the desired location)
 
 		FTransform StartingTransform;
-		Driver->MapTimeToTransform(InputState.Position, StartingTransform);
+		Motion->MapTimeToTransform(Input.Sync.Position, StartingTransform);
 
 		FTransform NewTransform;
-		Driver->MapTimeToTransform(OutputState.Position, NewTransform);
+		Motion->MapTimeToTransform(Output.Sync.Position, NewTransform);
 
 		FHitResult Hit(1.f);
 
 		FVector Delta = NewTransform.GetLocation() - StartingTransform.GetLocation();
-		BaseMovementDriver.MoveUpdatedComponent(Delta, NewTransform.GetRotation(), true, &Hit, ETeleportType::None);
+		MoveUpdatedComponent(Delta, NewTransform.GetRotation(), true, &Hit, ETeleportType::None);
 
 		if (Hit.IsValidBlockingHit())
 		{
-			FTransform ActualTransform = BaseMovementDriver.GetUpdateComponentTransform();
+			FTransform ActualTransform = GetUpdateComponentTransform();
 			FVector ActualDelta = NewTransform.GetLocation() - ActualTransform.GetLocation();
 			UE_LOG(LogParametricMovement, Warning, TEXT("Blocking hit occurred when trying to move parametric mover. ActualDelta: %s"), *ActualDelta.ToString());
 		}
-	}
-
-	void FMoveState::VisualLog(const FVisualLoggingParameters& Parameters, IMovementDriver* Driver, IMovementDriver* LogDriver) const
-	{
-		IBaseMovementDriver& BaseMovementDriver = Driver->GetBaseMovementDriver();
-		IBaseMovementDriver& LogMovementDriver = LogDriver->GetBaseMovementDriver();
-
-		FTransform Transform;
-		Driver->MapTimeToTransform(Position, Transform);
-
-		IBaseMovementDriver::FDrawDebugParams DrawParams(Parameters, &LogMovementDriver);
-		DrawParams.Transform = Transform;
-		DrawParams.InWorldText = LexToString(Parameters.Keyframe);
-		DrawParams.LogText = FString::Printf(TEXT("[%d] %s. Position: %.4f. Location: %s. Rotation: %s"), Parameters.Keyframe, *LexToString(Parameters.Context), Position, *Transform.GetLocation().ToString(), *Transform.GetRotation().Rotator().ToString());
-
-		BaseMovementDriver.DrawDebug(DrawParams);
 	}
 };
 
@@ -109,18 +92,23 @@ INetworkSimulationModel* UParametricMovementComponent::InstantiateNetworkSimulat
 		return nullptr;
 	}
 
+	ParametricMovementSimulation.Reset(new FParametricMovementSimulation());
+	ParametricMovementSimulation->Motion = &ParametricMotion;
+
 	if (ParametricMoverCVars::FixStep > 0)
 	{
-		auto *NewSim = new ParametricMovement::FMovementSystem<16>(this);
-		NewSim->RepProxy_Simulated.bAllowSimulatedExtrapolation = !bEnableInterpolation;
-		DO_NETSIM_MODEL_DEBUG(FNetworkSimulationModelDebuggerManager::Get().RegisterNetworkSimulationModel(NewSim, GetOwner()));
-		return NewSim;
+		auto *NewModel = new ParametricMovement::FMovementSystem<32>(ParametricMovementSimulation.Get(), this);
+		NewModel->RepProxy_Simulated.bAllowSimulatedExtrapolation = !bEnableInterpolation;
+		MovementSyncState.Init(NewModel);
+		MovementAuxState.Init(NewModel);
+		return NewModel;
 	}
 	
-	auto *NewSim = new ParametricMovement::FMovementSystem<>(this);
-	NewSim->RepProxy_Simulated.bAllowSimulatedExtrapolation = !bEnableInterpolation;
-	DO_NETSIM_MODEL_DEBUG(FNetworkSimulationModelDebuggerManager::Get().RegisterNetworkSimulationModel(NewSim, GetOwner()));
-	return NewSim;
+	auto *NewModel = new ParametricMovement::FMovementSystem<>(ParametricMovementSimulation.Get(), this);
+	NewModel->RepProxy_Simulated.bAllowSimulatedExtrapolation = !bEnableInterpolation;
+	MovementSyncState.Init(NewModel);
+	MovementAuxState.Init(NewModel);
+	return NewModel;
 }
 
 FNetworkSimulationModelInitParameters UParametricMovementComponent::GetSimulationInitParameters(ENetRole Role)
@@ -138,20 +126,13 @@ FNetworkSimulationModelInitParameters UParametricMovementComponent::GetSimulatio
 void UParametricMovementComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	CachedStartingTransform = UpdatedComponent->GetComponentToWorld();
+	ParametricMotion.CachedStartingTransform = UpdatedComponent->GetComponentToWorld();
 }
 
-void UParametricMovementComponent::InitSyncState(ParametricMovement::FMoveState& OutSyncState) const
-{
-	// In this case, we just default to the 0 position. Maybe this could be a starting variable set on the component.
-	OutSyncState.Position = 0.f;
-	OutSyncState.PlayRate = 0.f;
-}
-
-void UParametricMovementComponent::FinalizeFrame(const ParametricMovement::FMoveState& SyncState)
+void UParametricMovementComponent::FinalizeFrame(const ParametricMovement::FMoveState& SyncState, const ParametricMovement::FAuxState& AuxState)
 {
 	FTransform NewTransform;
-	MapTimeToTransform(SyncState.Position, NewTransform);
+	ParametricMotion.MapTimeToTransform(SyncState.Position, NewTransform);
 
 	check(UpdatedComponent);
 	UpdatedComponent->SetWorldTransform(NewTransform, false, nullptr, ETeleportType::TeleportPhysics);
@@ -161,41 +142,19 @@ FString UParametricMovementComponent::GetDebugName() const
 {
 	return FString::Printf(TEXT("ParametricMovement. %s. %s"), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwnerRole()), *GetName());
 }
-const UObject* UParametricMovementComponent::GetVLogOwner() const
+const AActor* UParametricMovementComponent::GetVLogOwner() const
 {
 	return GetOwner();
 }
 
-void UParametricMovementComponent::AdvanceParametricTime(const float InPosition, const float InPlayRate, float &OutPosition, float& OutPlayRate, const float DeltaTimeSeconds) const
+void UParametricMovementComponent::VisualLog(const ParametricMovement::FInputCmd* Input, const ParametricMovement::FMoveState* Sync, const ParametricMovement::FAuxState* Aux, const FVisualLoggingParameters& SystemParameters) const
 {
-	// Real simple oscillation for now
-	OutPosition = InPosition + (InPlayRate * DeltaTimeSeconds);
-	OutPlayRate = InPlayRate;
-
-	const float DeltaMax = OutPosition - MaxTime;
-	if (DeltaMax > SMALL_NUMBER)
-	{
-		OutPosition = MaxTime - DeltaMax;
-		OutPlayRate *= -1.f;
-	}
-	else
-	{
-		const float DeltaMin = OutPosition - MinTime;
-		if (DeltaMin < SMALL_NUMBER)
-		{
-			OutPosition = MinTime - DeltaMin;
-			OutPlayRate *= -1.f;
-		}
-	}
+	FTransform Transform;
+	ParametricMotion.MapTimeToTransform(Sync->Position, Transform);
+	FVisualLoggingHelpers::VisualLogActor(GetOwner(), Transform, SystemParameters);
+	//DrawParams.LogText = FString::Printf(TEXT("[%d] %s. Position: %.4f. Location: %s. Rotation: %s"), Parameters.Frame, *LexToString(Parameters.Context), Position, *Transform.GetLocation().ToString(), *Transform.GetRotation().Rotator().ToString());
 }
 
-void UParametricMovementComponent::MapTimeToTransform(const float InPosition, FTransform& OutTransform) const
-{
-	const FVector Delta = ParametricDelta * InPosition;
-
-	OutTransform = CachedStartingTransform;
-	OutTransform.AddToTranslation(Delta);
-}
 
 void UParametricMovementComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
@@ -238,4 +197,38 @@ void UParametricMovementComponent::ProduceInput(const FNetworkSimTime DeltaTimeS
 {
 	Cmd.PlayRate = PendingPlayRate;
 	PendingPlayRate.Reset();
+}
+
+// -------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------
+
+void FSimpleParametricMotion::MapTimeToTransform(const float InPosition, FTransform& OutTransform) const
+{
+	const FVector Delta = ParametricDelta * InPosition;
+
+	OutTransform = CachedStartingTransform;
+	OutTransform.AddToTranslation(Delta);
+}
+
+void FSimpleParametricMotion::AdvanceParametricTime(const float InPosition, const float InPlayRate, float &OutPosition, float& OutPlayRate, const float DeltaTimeSeconds) const
+{
+	// Real simple oscillation for now
+	OutPosition = InPosition + (InPlayRate * DeltaTimeSeconds);
+	OutPlayRate = InPlayRate;
+
+	const float DeltaMax = OutPosition - MaxTime;
+	if (DeltaMax > SMALL_NUMBER)
+	{
+		OutPosition = MaxTime - DeltaMax;
+		OutPlayRate *= -1.f;
+	}
+	else
+	{
+		const float DeltaMin = OutPosition - MinTime;
+		if (DeltaMin < SMALL_NUMBER)
+		{
+			OutPosition = MinTime - DeltaMin;
+			OutPlayRate *= -1.f;
+		}
+	}
 }

@@ -1,92 +1,60 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessTemporalAA.cpp: Post process MotionBlur implementation.
-=============================================================================*/
-
 #include "PostProcess/PostProcessTemporalAA.h"
-#include "StaticBoundShaderState.h"
-#include "SceneUtils.h"
-#include "PostProcess/SceneRenderTargets.h"
-#include "SceneRenderTargetParameters.h"
-#include "SceneRendering.h"
-#include "ScenePrivate.h"
-#include "PostProcess/SceneFilterRendering.h"
-#include "CompositionLighting/PostProcessAmbientOcclusion.h"
 #include "PostProcess/PostProcessTonemap.h"
 #include "PostProcess/PostProcessMitchellNetravali.h"
+#include "PostProcess/PostProcessing.h"
 #include "ClearQuad.h"
-#include "PipelineStateCache.h"
 #include "PostProcessing.h"
-#include "RenderGraph.h"
 #include "SceneTextureParameters.h"
 #include "PixelShaderUtils.h"
 
-extern int32 GetPostProcessAAQuality();
-
+namespace
+{
 const int32 GTemporalAATileSizeX = 8;
 const int32 GTemporalAATileSizeY = 8;
 
-static TAutoConsoleVariable<float> CVarTemporalAAFilterSize(
+TAutoConsoleVariable<float> CVarTemporalAAFilterSize(
 	TEXT("r.TemporalAAFilterSize"),
 	1.0f,
 	TEXT("Size of the filter kernel. (1.0 = smoother, 0.0 = sharper but aliased)."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarTemporalAACatmullRom(
+TAutoConsoleVariable<int32> CVarTemporalAACatmullRom(
 	TEXT("r.TemporalAACatmullRom"),
 	0,
 	TEXT("Whether to use a Catmull-Rom filter kernel. Should be a bit sharper than Gaussian."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarTemporalAAPauseCorrect(
+TAutoConsoleVariable<int32> CVarTemporalAAPauseCorrect(
 	TEXT("r.TemporalAAPauseCorrect"),
 	1,
 	TEXT("Correct temporal AA in pause. This holds onto render targets longer preventing reuse and consumes more memory."),
 	ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<float> CVarTemporalAACurrentFrameWeight(
+TAutoConsoleVariable<float> CVarTemporalAACurrentFrameWeight(
 	TEXT("r.TemporalAACurrentFrameWeight"),
 	.04f,
 	TEXT("Weight of current frame's contribution to the history.  Low values cause blurriness and ghosting, high values fail to hide jittering."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarTemporalAAUpsampleFiltered(
+TAutoConsoleVariable<int32> CVarTemporalAAUpsampleFiltered(
 	TEXT("r.TemporalAAUpsampleFiltered"),
 	1,
 	TEXT("Use filtering to fetch color history during TamporalAA upsampling (see AA_FILTERED define in TAA shader). Disabling this makes TAAU faster, but lower quality. "),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<float> CVarTemporalAAHistorySP(
+TAutoConsoleVariable<float> CVarTemporalAAHistorySP(
 	TEXT("r.TemporalAA.HistoryScreenPercentage"),
 	100.0f,
 	TEXT("Size of temporal AA's history."),
 	ECVF_RenderThreadSafe);
 
-static float CatmullRom( float x )
-{
-	float ax = FMath::Abs(x);
-	if( ax > 1.0f )
-		return ( ( -0.5f * ax + 2.5f ) * ax - 4.0f ) *ax + 2.0f;
-	else
-		return ( 1.5f * ax - 2.5f ) * ax*ax + 1.0f;
-}
-
-static float GetTemporalAAHistoryUpscaleFactor(const FViewInfo& View)
-{
-	// We only support history upscale on PC with feature level SM5+
-	if (!IsPCPlatform(View.GetShaderPlatform()) || !IsFeatureLevelSupported(View.GetShaderPlatform(), ERHIFeatureLevel::SM5))
-	{
-		return 1.0f;
-	}
-
-	return FMath::Clamp(CVarTemporalAAHistorySP.GetValueOnRenderThread() / 100.0f, 1.0f, 2.0f);
-}
-
-// ---------------------------------------------------- Shader permutation dimensions
-
-namespace
-{
+TAutoConsoleVariable<int32> CVarTemporalAAAllowDownsampling(
+	TEXT("r.TemporalAA.AllowDownsampling"),
+	1,
+	TEXT("Allows half-resolution color buffer to be produced during TAA. Only possible when motion blur is off and when using compute shaders for post processing."),
+	ECVF_RenderThreadSafe);
 
 class FTAAPassConfigDim : SHADER_PERMUTATION_ENUM_CLASS("TAA_PASS_CONFIG", ETAAPassConfig);
 class FTAAFastDim : SHADER_PERMUTATION_BOOL("TAA_FAST");
@@ -94,11 +62,6 @@ class FTAAResponsiveDim : SHADER_PERMUTATION_BOOL("TAA_RESPONSIVE");
 class FTAAScreenPercentageDim : SHADER_PERMUTATION_INT("TAA_SCREEN_PERCENTAGE_RANGE", 4);
 class FTAAUpsampleFilteredDim : SHADER_PERMUTATION_BOOL("TAA_UPSAMPLE_FILTERED");
 class FTAADownsampleDim : SHADER_PERMUTATION_BOOL("TAA_DOWNSAMPLE");
-
-}
-
-
-// ---------------------------------------------------- Shaders
 
 class FTemporalAACS : public FGlobalShader
 {
@@ -250,11 +213,18 @@ class FTemporalAACS : public FGlobalShader
 	}
 }; // class FTemporalAACS
 
-
 IMPLEMENT_GLOBAL_SHADER(FTemporalAACS, "/Engine/Private/PostProcessTemporalAA.usf", "MainCS", SF_Compute);
 
+float CatmullRom(float x)
+{
+	float ax = FMath::Abs(x);
+	if (ax > 1.0f)
+		return ((-0.5f * ax + 2.5f) * ax - 4.0f) *ax + 2.0f;
+	else
+		return (1.5f * ax - 2.5f) * ax*ax + 1.0f;
+}
 
-static void SetupSampleWeightParameters(FTemporalAACS::FParameters* OutTAAParameters, const FTAAPassParameters& PassParameters, FVector2D TemporalJitterPixels)
+void SetupSampleWeightParameters(FTemporalAACS::FParameters* OutTAAParameters, const FTAAPassParameters& PassParameters, FVector2D TemporalJitterPixels)
 {
 	float JitterX = TemporalJitterPixels.X;
 	float JitterY = TemporalJitterPixels.Y;
@@ -321,11 +291,9 @@ static void SetupSampleWeightParameters(FTemporalAACS::FParameters* OutTAAParame
 		for (int32 i = 0; i < 5; i++)
 			OutTAAParameters->PlusWeights[i] /= TotalWeightPlus;
 	}
-} // SetupSampleWeightParameters()
-
+}
 
 DECLARE_GPU_STAT(TAA)
-
 
 const TCHAR* const kTAAOutputNames[] = {
 	TEXT("TemporalAA"),
@@ -347,10 +315,25 @@ const TCHAR* const kTAAPassNames[] = {
 	TEXT("DOFUpsampling"),
 };
 
-
 static_assert(UE_ARRAY_COUNT(kTAAOutputNames) == int32(ETAAPassConfig::MAX), "Missing TAA output name.");
 static_assert(UE_ARRAY_COUNT(kTAAPassNames) == int32(ETAAPassConfig::MAX), "Missing TAA pass name.");
+} //! namespace
 
+bool IsTemporalAASceneDownsampleAllowed(const FViewInfo& View)
+{
+	return CVarTemporalAAAllowDownsampling.GetValueOnRenderThread() != 0;
+}
+
+float GetTemporalAAHistoryUpscaleFactor(const FViewInfo& View)
+{
+	// We only support history upscale on PC with feature level SM5+
+	if (!IsPCPlatform(View.GetShaderPlatform()) || !IsFeatureLevelSupported(View.GetShaderPlatform(), ERHIFeatureLevel::SM5))
+	{
+		return 1.0f;
+	}
+
+	return FMath::Clamp(CVarTemporalAAHistorySP.GetValueOnRenderThread() / 100.0f, 1.0f, 2.0f);
+}
 
 FIntPoint FTAAPassParameters::GetOutputExtent() const
 {
@@ -396,7 +379,7 @@ FTAAOutputs AddTemporalAAPass(
 	check(Inputs.Validate());
 
 	// Number of render target in TAA history.
-	const int32 RenderTargetCount = IsDOFTAAConfig(Inputs.Pass) && FPostProcessing::HasAlphaChannelSupport() ? 2 : 1;
+	const int32 RenderTargetCount = IsDOFTAAConfig(Inputs.Pass) && IsPostProcessingWithAlphaChannelSupported() ? 2 : 1;
 	
 	// Whether this is main TAA pass;
 	const bool bIsMainPass = IsMainTAAConfig(Inputs.Pass);
@@ -682,7 +665,7 @@ FTAAOutputs AddTemporalAAPass(
 void AddTemporalAAPass(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextureParameters& SceneTextures,
-	const FScreenPassViewInfo& ScreenPassView,
+	const FViewInfo& View,
 	const bool bAllowDownsampleSceneColor,
 	const EPixelFormat DownsampleOverrideFormat,
 	FRDGTextureRef InSceneColorTexture,
@@ -691,8 +674,6 @@ void AddTemporalAAPass(
 	FRDGTextureRef* OutSceneColorHalfResTexture,
 	FIntRect* OutSceneColorHalfResViewRect)
 {
-	const FViewInfo& View = ScreenPassView.View;
-
 	check(View.AntiAliasingMethod == AAM_TemporalAA && View.ViewState);
 
 	FTAAPassParameters TAAParameters(View);
@@ -703,7 +684,7 @@ void AddTemporalAAPass(
 
 	TAAParameters.SetupViewRect(View);
 
-	const int32 LowQualityTemporalAA = 3;
+	const EPostProcessAAQuality LowQualityTemporalAA = EPostProcessAAQuality::Medium;
 
 	TAAParameters.bUseFast = GetPostProcessAAQuality() == LowQualityTemporalAA;
 
@@ -719,9 +700,6 @@ void AddTemporalAAPass(
 		const FIntPoint HistoryViewSize(
 			TAAParameters.OutputViewRect.Width() * HistoryUpscaleFactor,
 			TAAParameters.OutputViewRect.Height() * HistoryUpscaleFactor);
-
-		FIntPoint QuantizedMinHistorySize;
-		QuantizeSceneBufferSize(HistoryViewSize, QuantizedMinHistorySize);
 
 		TAAParameters.Pass = ETAAPassConfig::MainSuperSampling;
 		TAAParameters.bUseFast = false;
@@ -764,7 +742,7 @@ void AddTemporalAAPass(
 		OutputViewport.Extent.X = FMath::Max(InSceneColorTexture->Desc.Extent.X, QuantizedOutputSize.X);
 		OutputViewport.Extent.Y = FMath::Max(InSceneColorTexture->Desc.Extent.Y, QuantizedOutputSize.Y);
 
-		SceneColorTexture = ComputeMitchellNetravaliDownsample(GraphBuilder, ScreenPassView, SceneColorTexture, InputViewport, OutputViewport);
+		SceneColorTexture = ComputeMitchellNetravaliDownsample(GraphBuilder, View, FScreenPassTexture(SceneColorTexture, InputViewport), OutputViewport);
 	}
 
 	*OutSceneColorTexture = SceneColorTexture;
@@ -809,6 +787,10 @@ public:
 		FTAAPassParameters Parameters = SavedParameters;
 		Parameters.SceneColorInput = CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"));
 
+#if WITH_MGPU
+		static const FName NameForTemporalEffect("RCPassPostProcessTemporalAA");
+		GraphBuilder.SetNameForTemporalEffect(FName(NameForTemporalEffect, Context.View.ViewState->UniqueID));
+#endif
 		FTAAOutputs Outputs = AddTemporalAAPass(
 			GraphBuilder,
 			SceneTextures,

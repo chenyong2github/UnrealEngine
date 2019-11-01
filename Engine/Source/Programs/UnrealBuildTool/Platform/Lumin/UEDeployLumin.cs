@@ -9,6 +9,7 @@ using System.Text.RegularExpressions;
 using Tools.DotNETCommon;
 using System.Linq;
 using System.Xml;
+using System.Xml.Serialization;
 using System.Xml.Linq;
 
 namespace UnrealBuildTool
@@ -16,6 +17,8 @@ namespace UnrealBuildTool
 	class UEDeployLumin : UEBuildDeploy, ILuminDeploy
 	{
 		private FileReference ProjectFile;
+
+		public manifest PackageManifest = new manifest();
 
 		protected UnrealPluginLanguage UPL;
 
@@ -53,16 +56,16 @@ namespace UnrealBuildTool
 			return PackageName.ToLower();
 		}
 
-		private string GetApplicationType()
+		private manifestApplicationComponentType GetApplicationType()
 		{
 			ConfigHierarchy Ini = GetConfigCacheIni(ConfigHierarchyType.Engine);
 			bool Value = false;
 			Ini.GetBool("/Script/LuminRuntimeSettings.LuminRuntimeSettings", "bIsScreensApp", out Value);
 			if (Value)
 			{
-				return "ScreensImmersive";
+				return manifestApplicationComponentType.ScreensImmersive;
 			}
-			return "Fullscreen";
+			return manifestApplicationComponentType.Fullscreen;
 		}
 
 		private string GetApplicationDisplayName(string ProjectName)
@@ -90,27 +93,6 @@ namespace UnrealBuildTool
 			return Value.ToString();
 		}
 
-		private void GetAppPrivileges(ConfigHierarchy EngineIni, StringBuilder Text)
-		{
-			List<string> AppPrivileges;
-			EngineIni.GetArray("/Script/LuminRuntimeSettings.LuminRuntimeSettings", "AppPrivileges", out AppPrivileges);
-			if (AppPrivileges != null)
-			{
-				foreach (string Privilege in AppPrivileges)
-				{
-					string TrimmedPrivilege = Privilege.Trim(' ');
-					if (TrimmedPrivilege != "")
-					{
-						string PrivilegeString = string.Format("\t\t\t<uses-privilege ml:name=\"{0}\"/>", TrimmedPrivilege);
-						if (!Text.ToString().Contains(PrivilegeString))
-						{
-							Text.AppendLine(PrivilegeString);
-						}
-					}
-				}
-			}
-		}
-
 		private string CleanFilePath(string FilePath)
 		{
 			// Removes the extra characters from a FFilePath parameter.
@@ -129,6 +111,24 @@ namespace UnrealBuildTool
 		public string GetIconPortalStagingPath()
 		{
 			return "Icon/Portal";
+		}
+
+		public string GetProjectRelativeCertificatePath()
+		{
+			return CleanFilePath(GetRuntimeSetting("Certificate"));
+		}
+
+		public bool UseVulkan()
+		{
+			ConfigHierarchy Ini = GetConfigCacheIni(ConfigHierarchyType.Engine);
+			bool Value = false;
+			Ini.GetBool("/Script/LuminRuntimeSettings.LuminRuntimeSettings", "bUseVulkan", out Value);
+			return Value;
+		}
+
+		public string GetVulkanValdationLayerLibsDir()
+		{
+			return CleanFilePath(GetRuntimeSetting("VulkanValidationLayerLibs"));
 		}
 
 		public string GetMLSDKVersion(ConfigHierarchy EngineIni)
@@ -161,6 +161,112 @@ namespace UnrealBuildTool
 			return string.Format("{0}.{1}", Major, Minor);
 		}
 
+		private object GetComponentSubElement(string ElementType, string ElementValue)
+		{
+			switch (ElementType)
+			{
+				case "FileExtension":
+					return new manifestApplicationComponentFileextension
+					{
+						name = ElementValue,
+					};
+				case "MimeType":
+					return new manifestApplicationComponentMimetype
+					{
+						name = ElementValue,
+					};
+				case "MusicAttribute":
+					return new manifestApplicationComponentMusicattribute
+					{
+						name = ElementValue,
+					};
+				case "Mode":
+					return new manifestApplicationComponentMode
+					{
+						shareable = ElementValue,
+					};
+				case "Schema":
+					return new manifestApplicationComponentSchema
+					{
+						name = ElementValue,
+					};
+				default:
+					Log.TraceInformation("Tried to use an unsupported component sub-element type: {0}", ElementType);
+					return null;
+			}
+		}
+
+		private object GetComponentElement(Dictionary<string, string> ComponentElement)
+		{
+			manifestApplicationComponent OutComponent = new manifestApplicationComponent
+			{
+				name = ComponentElement["Name"],
+				visible_name = ComponentElement["VisibleName"],
+			};
+
+			// App developer has the responsibility to package the executable in the bin folder,
+			// perhaps by using UPL. We simply generate the manifest correctly.
+			string BinaryName = ComponentElement["ExecutableName"];
+			if (BinaryName.IndexOf("bin/") != 0)
+			{
+				// Prepend bin folder string to executable name if it not there already.
+				BinaryName = string.Format("bin/{0}", BinaryName);
+			}
+			OutComponent.binary_name = BinaryName;
+
+			switch (ComponentElement["ComponentType"])
+			{
+				case "Universe":
+					OutComponent.type = manifestApplicationComponentType.Universe;
+					break;
+				case "Fullscreen":
+					OutComponent.type = manifestApplicationComponentType.Fullscreen;
+					break;
+				case "SearchProvider":
+					OutComponent.type = manifestApplicationComponentType.SearchProvider;
+					break;
+				case "MusicService":
+					OutComponent.type = manifestApplicationComponentType.MusicService;
+					break;
+				case "Screens":
+					OutComponent.type = manifestApplicationComponentType.Screens;
+					break;
+				case "ScreensImmersive":
+					OutComponent.type = manifestApplicationComponentType.ScreensImmersive;
+					break;
+				case "Console":
+				default:
+					OutComponent.type = manifestApplicationComponentType.Console;
+					break;
+				case "SystemUI":
+					OutComponent.type = manifestApplicationComponentType.SystemUI;
+					break;
+			}
+
+			if (ComponentElement.ContainsKey("ExtraComponentSubElements"))
+			{
+				// Unfortunately there are no config object array parsing functions in UBT
+				string SubElementsString = ComponentElement["ExtraComponentSubElements"];
+				string ConfObjArrayPattern = "\\([a-zA-Z0-9]+=[a-zA-Z0-9]+,[a-zA-Z0-9]+=\"?[a-zA-Z0-9]+\"?\\)";
+				Regex ConfigObjArrayRegex = new Regex(ConfObjArrayPattern);
+				MatchCollection ConfigObjMatches = ConfigObjArrayRegex.Matches(SubElementsString);
+				if (ConfigObjMatches.Count != 0)
+				{
+					OutComponent.Items = new object[ConfigObjMatches.Count];
+					for (int Index = 0; Index < ConfigObjMatches.Count; ++Index)
+					{
+						Match Match = ConfigObjMatches[Index];
+						Dictionary<string, string> SubElement;
+						if (ConfigHierarchy.TryParse(Match.Value, out SubElement))
+						{
+							OutComponent.Items[Index] = GetComponentSubElement(SubElement["ElementType"], SubElement["Value"]);
+						}
+					}
+				}
+			}
+			return OutComponent;
+		}
+
 		public string GenerateManifest(string ProjectName, bool bForDistribution, string Architecture)
 		{
 			ConfigHierarchy GameIni = GetConfigCacheIni(ConfigHierarchyType.Game);
@@ -172,63 +278,115 @@ namespace UnrealBuildTool
 			}
 
 			ConfigHierarchy EngineIni = GetConfigCacheIni(ConfigHierarchyType.Engine);
-			int VersionCode;
+			Int32 VersionCode;
 			EngineIni.GetInt32("/Script/LuminRuntimeSettings.LuminRuntimeSettings", "VersionCode", out VersionCode);
 
 			string SDKVersion = GetMLSDKVersion(EngineIni);
-
-			StringBuilder Text = new StringBuilder();
-
 			string PackageName = GetPackageName(ProjectName);
 			string ApplicationDisplayName = GetApplicationDisplayName(ProjectName);
 			string MinimumAPILevel = GetMinimumAPILevelRequired();
 			string TargetExecutableName = "bin/" + ProjectName;
 
-			Text.AppendLine(string.Format("<manifest xmlns:ml=\"magicleap\" ml:package=\"{0}\" ml:version_name=\"{1}\" ml:version_code=\"{2}\">", PackageName, ProjectVersion, VersionCode));
-			Text.AppendLine(string.Format("\t<application ml:visible_name=\"{0}\" ml:sdk_version=\"{1}\" ml:min_api_level=\"{2}\">",
-				ApplicationDisplayName,
-				SDKVersion,
-				MinimumAPILevel));
-			GetAppPrivileges(EngineIni, Text);
-			Text.AppendLine(string.Format("\t\t<component ml:name=\".fullscreen\" ml:visible_name=\"{0}\" ml:binary_name=\"{1}\" ml:type=\"{2}\">", ApplicationDisplayName, TargetExecutableName, GetApplicationType()));
+			PackageManifest.version_name = ProjectVersion;
+			PackageManifest.package = PackageName;
+			PackageManifest.version_code = Convert.ToUInt64(VersionCode);
 
-			string IconTag = string.Format("<icon ml:model_folder=\"{0}\" ml:portal_folder=\"{1}\"/>", GetIconModelStagingPath(), GetIconPortalStagingPath());
-			Text.AppendLine(string.Format("\t\t\t{0}", IconTag));
-
-			List<string> ExtraComponentNodes;
-			EngineIni.GetArray("/Script/LuminRuntimeSettings.LuminRuntimeSettings", "ExtraComponentNodes", out ExtraComponentNodes);
-			if (ExtraComponentNodes != null)
+			PackageManifest.application = new manifestApplication
 			{
-				foreach (string ComponentNode in ExtraComponentNodes)
+				sdk_version = SDKVersion,
+				min_api_level = MinimumAPILevel,
+				visible_name = ApplicationDisplayName
+			};
+
+			List<string> AppPrivileges;
+			EngineIni.GetArray("/Script/LuminRuntimeSettings.LuminRuntimeSettings", "AppPrivileges", out AppPrivileges);
+
+			List<string> ExtraComponentElements;
+			EngineIni.GetArray("/Script/LuminRuntimeSettings.LuminRuntimeSettings", "ExtraComponentElements", out ExtraComponentElements);
+
+			// We always add an additional item as that will be our 'root' <component>
+			int Size = (ExtraComponentElements == null ? AppPrivileges.Count() : AppPrivileges.Count() + ExtraComponentElements.Count()) + 1;
+			// Index used for sibling elements (app privileges, root component and any extra components)
+			int CurrentIndex = 0;
+			PackageManifest.application.Items = new object[Size];
+			// Remove all invalid strings from the list of strings
+			AppPrivileges.RemoveAll(item => item == "Invalid");
+			// Privileges get added first
+			for (int Index = 0; Index < AppPrivileges.Count(); ++Index)
+			{
+				string TrimmedPrivilege = AppPrivileges[Index].Trim(' ');
+				if (TrimmedPrivilege != "")
 				{
-					Text.AppendLine(string.Format("\t\t\t{0}", ComponentNode));
+					PackageManifest.application.Items[CurrentIndex] = new manifestApplicationUsesprivilege
+					{
+						name = TrimmedPrivilege,
+					};
+					CurrentIndex++;
 				}
 			}
 
-			Text.AppendLine("\t\t</component>");
+			// Then our root component, this is important as `mldb launch` will use the first component in the manifest
+			PackageManifest.application.Items[CurrentIndex] = new manifestApplicationComponent();
+			manifestApplicationComponent RootComponent = (manifestApplicationComponent)PackageManifest.application.Items[CurrentIndex];
+			RootComponent.name = ".fullscreen";
+			RootComponent.visible_name = ApplicationDisplayName;
+			RootComponent.binary_name = TargetExecutableName;
+			RootComponent.type = GetApplicationType();
 
-			List<string> ExtraApplicationNodes;
-			EngineIni.GetArray("/Script/LuminRuntimeSettings.LuminRuntimeSettings", "ExtraApplicationNodes", out ExtraApplicationNodes);
-			if (ExtraApplicationNodes != null)
+			// Sub-elements under root <component>
+			List<string> ExtraComponentSubElements;
+			EngineIni.GetArray("/Script/LuminRuntimeSettings.LuminRuntimeSettings", "ExtraComponentSubElements", out ExtraComponentSubElements);
+			RootComponent.Items = (ExtraComponentSubElements == null ? new object[1] : new object[ExtraComponentSubElements.Count() + 1]);
+
+			// Root component icon
+			RootComponent.Items[0] = new manifestApplicationComponentIcon();
+			((manifestApplicationComponentIcon)RootComponent.Items[0]).model_folder = GetIconModelStagingPath();
+			((manifestApplicationComponentIcon)RootComponent.Items[0]).portal_folder = GetIconPortalStagingPath();
+
+			if (ExtraComponentSubElements != null)
 			{
-				foreach (string ApplicationNode in ExtraApplicationNodes)
+				for (int Index = 0; Index < ExtraComponentSubElements.Count(); ++Index)
 				{
-					Text.AppendLine(string.Format("\t\t{0}", ApplicationNode));
+					Dictionary<string, string> NodeContent;
+					if (ConfigHierarchy.TryParse(ExtraComponentSubElements[Index], out NodeContent))
+					{
+						RootComponent.Items[Index + 1] = GetComponentSubElement(NodeContent["ElementType"], NodeContent["Value"]);
+					}
 				}
 			}
 
-			Text.AppendLine("\t</application>");
-			Text.AppendLine("</manifest>");
+			// Finally, add additional components
+			CurrentIndex++;
+			if (ExtraComponentElements != null)
+			{
+				for (int Index = 0; Index < ExtraComponentElements.Count(); ++Index)
+				{
+					Dictionary<string, string> ComponentElement;
+					if (ConfigHierarchy.TryParse(ExtraComponentElements[Index], out ComponentElement))
+					{
+						PackageManifest.application.Items[CurrentIndex] = GetComponentElement(ComponentElement);
+						CurrentIndex++;
+					}
+				}
+			}
+
+			// Wrap up serialization
+			XmlSerializer PackageManifestSerializer = new XmlSerializer(PackageManifest.GetType());
+			XmlSerializerNamespaces MLNamespace = new XmlSerializerNamespaces();
+			MLNamespace.Add("ml", "magicleap");
+			StringWriter Writer = new StringWriter();
+
+			PackageManifestSerializer.Serialize(Writer, PackageManifest, MLNamespace);
 
 			// allow plugins to modify final manifest HERE
 			XDocument XDoc;
 			try
 			{
-				XDoc = XDocument.Parse(Text.ToString());
+				XDoc = XDocument.Parse(Writer.ToString());
 			}
 			catch (Exception e)
 			{
-				throw new BuildException("LuminManifest.xml is invalid {0}\n{1}", e, Text.ToString());
+				throw new BuildException("LuminManifest.xml is invalid {0}\n{1}", e, Writer.ToString());
 			}
 
 			UPL.ProcessPluginNode(Architecture, "luminManifestUpdates", "", ref XDoc);
@@ -315,55 +473,41 @@ namespace UnrealBuildTool
 				// If asked for, and if we are doing a distribution package, we strip debug symbols.
 				Directory.CreateDirectory(Path.GetDirectoryName(ExecSrcFile));
 				ToolChain.StripSymbols(new Tools.DotNETCommon.FileReference(ExePath), new Tools.DotNETCommon.FileReference(ExecSrcFile));
-				// We also create a SYM file to support debugging of stripped executables
-				string SymFile = Path.ChangeExtension(ExecSrcFile, "sym");
-				ToolChain.ExtractSymbols(new FileReference(ExePath), new FileReference(SymFile));
-				ToolChain.LinkSymbols(new FileReference(SymFile), new FileReference(ExecSrcFile));
 			}
 			else
 			{
 				// The generated mabu needs the src exe file. So we copy the original as-is so mabu can find it.
 				Directory.CreateDirectory(Path.GetDirectoryName(ExecSrcFile));
 				File.Copy(ExePath, ExecSrcFile, true);
-				// If the exe has debug info we need to remove a likely old sym file so that debugging doesn't use
-				// outdated information.
-				string SymFile = Path.ChangeExtension(ExecSrcFile, "sym");
-				File.Delete(SymFile);
 			}
 
+			// We also create a SYM file to support debugging
+			string SymFile = Path.ChangeExtension(ExecSrcFile, "sym");
+			ToolChain.ExtractSymbols(new FileReference(ExePath), new FileReference(SymFile));
+			ToolChain.LinkSymbols(new FileReference(SymFile), new FileReference(ExecSrcFile));
+			
 			// Generate manifest (after UPL is setup
-			string Architecture = "arm64-v8a";
+			const string Architecture = "arm64-v8a";
 			var Manifest = GenerateManifest(ProjectName, bForDistribution, Architecture);
 			File.WriteAllText(ManifestFile, Manifest);
 
+			string MabuPackagingMessage = "Building mabu package....";
 			string Certificate = GetRuntimeSetting("Certificate");
 			Certificate = CleanFilePath(Certificate);
 			if (!string.IsNullOrEmpty(Certificate))
 			{
-				Certificate = Path.GetFullPath(Path.Combine(ProjectDirectory.FullName, Certificate));
-
-				if (File.Exists(Certificate))
-				{
-					ToolChain.RunMabuWithException(Path.GetDirectoryName(MabuFile), String.Format("-t device -s \"{0}\" -o \"{1}\" \"{2}\"", Certificate, MabuOutputPath, Path.GetFileName(MabuFile)), "Building signed mabu package....");
-				}
-				else
-				{
-					throw new BuildException(string.Format("Certificate file does not exist at path {0}. Please enter a valid certificate file path in Project Settings > Magic Leap or clear the field if you do not intend to sign the package.", Certificate));
-				}
+				// For legacy sakes. We used to print this message when signing via the mbu commnd line so should continue to do so.
+				// However, now this would only indicate if we are signing via the .package file and does not take into consideration
+				// the MLCERT env var.
+				MabuPackagingMessage = "Building signed mabu package....";
 			}
-			else
+			else if (bForDistribution)
 			{
-				if (bForDistribution)
-				{
-					// Certificate required for a distribution package.
-					throw new BuildException("Packaging for distribution, however no certificate file has been chosen. Please enter a certificate file in Project Settings > Magic Leap.");
-				}
-				// If a certificate file is not present but the package is not for distribution, package without signing.
-				else
-				{
-					ToolChain.RunMabuWithException(Path.GetDirectoryName(MabuFile), String.Format("-t device --allow-unsigned -o \"{0}\" \"{1}\"", MabuOutputPath, Path.GetFileName(MabuFile)), "Building mabu package....");
-				}
+				// The user could be signing via the MLCERT env var so instead of throwing an exception, we simply log a warning.
+				Log.TraceWarning("Packaging for distribution, however no certificate file has been chosen. Are you using the MLCERT environment variable instead?");
 			}
+
+			ToolChain.RunMabuWithException(Path.GetDirectoryName(MabuFile), String.Format("-t device --allow-unsigned -o \"{0}\" \"{1}\"", MabuOutputPath, Path.GetFileName(MabuFile)), MabuPackagingMessage);
 
 			// copy the .mpk into binaries
 			// @todo Lumin: Move this logic into a function in this class, and have AndroidAutomation call into it in GetFinalMpkName

@@ -101,16 +101,15 @@ IMPLEMENT_GLOBAL_SHADER(FHistogramReducePS, "/Engine/Private/PostProcessHistogra
 
 FRDGTextureRef AddHistogramPass(
 	FRDGBuilder& GraphBuilder,
-	const FScreenPassViewInfo& ScreenPassView,
+	const FViewInfo& View,
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
-	const FIntRect SceneColorViewportRect,
-	FRDGTextureRef SceneColorTexture,
+	FScreenPassTexture SceneColor,
 	FRDGTextureRef EyeAdaptationTexture)
 {
-	check(SceneColorTexture);
+	check(SceneColor.IsValid());
 	check(EyeAdaptationTexture);
 
-	const FIntPoint HistogramThreadGroupCount = FIntPoint::DivideAndRoundUp(SceneColorViewportRect.Size(), FHistogramCS::TexelsPerThreadGroup);
+	const FIntPoint HistogramThreadGroupCount = FIntPoint::DivideAndRoundUp(SceneColor.ViewRect.Size(), FHistogramCS::TexelsPerThreadGroup);
 
 	const uint32 HistogramThreadGroupCountTotal = HistogramThreadGroupCount.X * HistogramThreadGroupCount.Y;
 
@@ -127,24 +126,24 @@ FRDGTextureRef AddHistogramPass(
 			PF_FloatRGBA,
 			FClearValueBinding::None,
 			GFastVRamConfig.Histogram,
-			TexCreate_RenderTargetable | TexCreate_UAV,
+			TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_ShaderResource,
 			false);
 
 		HistogramTexture = GraphBuilder.CreateTexture(TextureDesc, TEXT("Histogram"));
 
 		FHistogramCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHistogramCS::FParameters>();
-		PassParameters->View = ScreenPassView.View.ViewUniformBuffer;
-		PassParameters->Input = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(SceneColorViewportRect, SceneColorTexture));
-		PassParameters->InputTexture = SceneColorTexture;
+		PassParameters->View = View.ViewUniformBuffer;
+		PassParameters->Input = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(SceneColor));
+		PassParameters->InputTexture = SceneColor.Texture;
 		PassParameters->HistogramRWTexture = GraphBuilder.CreateUAV(HistogramTexture);
 		PassParameters->ThreadGroupCount = HistogramThreadGroupCount;
 		PassParameters->EyeAdaptation = EyeAdaptationParameters;
 
-		TShaderMapRef<FHistogramCS> ComputeShader(ScreenPassView.View.ShaderMap);
+		TShaderMapRef<FHistogramCS> ComputeShader(View.ShaderMap);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("Histogram %dx%d (CS)", SceneColorViewportRect.Width(), SceneColorViewportRect.Height()),
+			RDG_EVENT_NAME("Histogram %dx%d (CS)", SceneColor.ViewRect.Width(), SceneColor.ViewRect.Height()),
 			*ComputeShader,
 			PassParameters,
 			FIntVector(HistogramThreadGroupCount.X, HistogramThreadGroupCount.Y, 1));
@@ -161,7 +160,7 @@ FRDGTextureRef AddHistogramPass(
 			FHistogramReducePS::OutputFormat,
 			FClearValueBinding::None,
 			GFastVRamConfig.HistogramReduce,
-			TexCreate_RenderTargetable,
+			TexCreate_RenderTargetable | TexCreate_ShaderResource,
 			false);
 
 		HistogramReduceTexture = GraphBuilder.CreateTexture(TextureDesc, TEXT("HistogramReduce"));
@@ -177,12 +176,12 @@ FRDGTextureRef AddHistogramPass(
 		PassParameters->EyeAdaptationTexture = EyeAdaptationTexture;
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(HistogramReduceTexture, ERenderTargetLoadAction::ENoAction);
 
-		TShaderMapRef<FHistogramReducePS> PixelShader(ScreenPassView.View.ShaderMap);
+		TShaderMapRef<FHistogramReducePS> PixelShader(View.ShaderMap);
 
 		AddDrawScreenPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("HistogramReduce %dx%d (PS)", InputViewport.Extent.X, InputViewport.Extent.Y),
-			ScreenPassView,
+			View,
 			OutputViewport,
 			InputViewport,
 			*PixelShader,

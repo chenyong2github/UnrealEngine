@@ -15,6 +15,7 @@ public class Core : ModuleRules
 		PrivateDependencyModuleNames.Add("BuildSettings");
 
 		PublicDependencyModuleNames.Add("TraceLog");
+		PublicIncludePaths.Add("Runtime/TraceLog/Public");
 
 		PrivateIncludePaths.AddRange(
 			new string[] {
@@ -128,10 +129,6 @@ public class Core : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
         {
-			string PlatformName = Target.IsInPlatformGroup(UnrealPlatformGroup.Linux) ?
-				"Linux" : Target.Platform.ToString();
-
-			PublicIncludePaths.Add(string.Format("Runtime/Core/Public/{0}", PlatformName));
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
 				"zlib",
 				"jemalloc"
@@ -139,10 +136,6 @@ public class Core : ModuleRules
 
 			// Core uses dlopen()
 			PublicSystemLibraries.Add("dl");
-        }
-        else if (Target.Platform == UnrealTargetPlatform.PS4)
-        {
-            PublicSystemLibraries.Add("SceRtc_stub_weak"); //ORBIS SDK rtc.h, used in PS4Time.cpp
         }
 
 		if ( Target.bCompileICU == true )

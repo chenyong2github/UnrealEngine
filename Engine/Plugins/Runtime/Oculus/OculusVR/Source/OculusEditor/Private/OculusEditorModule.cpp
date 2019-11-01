@@ -46,7 +46,7 @@ void FOculusEditorModule::StartupModule()
 	RegisterSettings();
 	FOculusAssetDirectory::LoadForCook();
 
-	if(!IsRunningCommandlet())
+	if (!IsRunningCommandlet())
 	{
 		FOculusToolStyle::Initialize();
 		FOculusToolStyle::ReloadTextures();
@@ -66,7 +66,7 @@ void FOculusEditorModule::StartupModule()
 		TSharedPtr<FExtender> MenuExtender = MakeShareable(new FExtender());
 		MenuExtender->AddMenuExtension("Miscellaneous", EExtensionHook::After, PluginCommands, FMenuExtensionDelegate::CreateRaw(this, &FOculusEditorModule::AddMenuExtension));
 		LevelEditorModule.GetMenuExtensibilityManager()->AddExtender(MenuExtender);
-		
+
 		/*
 		// If you want to make the tool even easier to launch, and add a toolbar button.
 		TSharedPtr<FExtender> ToolbarExtender = MakeShareable(new FExtender);
@@ -81,7 +81,9 @@ void FOculusEditorModule::StartupModule()
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(OculusPlatToolTabName, FOnSpawnTab::CreateRaw(this, &FOculusEditorModule::OnSpawnPlatToolTab))
 			.SetDisplayName(LOCTEXT("FOculusPlatfToolTabTitle", "Oculus Platform Tool"))
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
-	 }
+
+		FCoreDelegates::OnFEngineLoopInitComplete.AddRaw(this, &FOculusEditorModule::OnEngineLoopInitComplete);
+	}
 }
 
 void FOculusEditorModule::ShutdownModule()
@@ -91,19 +93,20 @@ void FOculusEditorModule::ShutdownModule()
 		return;
 	}
 
-	if(!IsRunningCommandlet())
+	if (!IsRunningCommandlet())
 	{
 		FOculusToolStyle::Shutdown();
 		FOculusToolCommands::Unregister();
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(OculusPerfTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(OculusPlatToolTabName);
+		FOculusBuildAnalytics::Shutdown();
 	}
 
 	FOculusAssetDirectory::ReleaseAll();
 	if (UObjectInitialized())
 	{
-		UnregisterSettings();  
-	}		
+		UnregisterSettings();
+	}
 }
 
 TSharedRef<SDockTab> FOculusEditorModule::OnSpawnPluginTab(const FSpawnTabArgs& SpawnTabArgs)
@@ -178,6 +181,11 @@ void FOculusEditorModule::AddToolbarExtension(FToolBarBuilder& Builder)
 	Builder.AddToolBarButton(FOculusToolCommands::Get().OpenPluginWindow);
 }
 
+void FOculusEditorModule::OnEngineLoopInitComplete()
+{
+	BuildAnalytics = FOculusBuildAnalytics::GetInstance();
+}
+
 TSharedRef<IDetailCustomization> FOculusHMDSettingsDetailsCustomization::MakeInstance()
 {
 	return MakeShareable(new FOculusHMDSettingsDetailsCustomization);
@@ -195,6 +203,20 @@ FReply FOculusHMDSettingsDetailsCustomization::PluginClickPlatFn(bool text)
 	return FReply::Handled();
 }
 
+void FOculusHMDSettingsDetailsCustomization::OnEnableBuildTelemetry(ECheckBoxState NewState)
+{
+	FOculusBuildAnalytics::GetInstance()->OnTelemetryToggled(NewState == ECheckBoxState::Checked);
+	GConfig->SetBool(TEXT("/Script/OculusEditor.OculusEditorSettings"), TEXT("bEnableOculusBuildTelemetry"), NewState == ECheckBoxState::Checked, GEditorIni);
+	GConfig->Flush(0);
+}
+
+ECheckBoxState FOculusHMDSettingsDetailsCustomization::IsBuildTelemetryEnabled() const
+{
+	bool v;
+	GConfig->GetBool(TEXT("/Script/OculusEditor.OculusEditorSettings"), TEXT("bEnableOculusBuildTelemetry"), v, GEditorIni);
+	return v ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
 void FOculusHMDSettingsDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 {
 	// Labeled "General Oculus" instead of "General" to enable searchability. The button "Launch Oculus Utilities Window" doesn't show up if you search for "Oculus"
@@ -204,27 +226,50 @@ void FOculusHMDSettingsDetailsCustomization::CustomizeDetails(IDetailLayoutBuild
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot().AutoHeight().Padding(2)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth()
+		[
+			SNew(SButton)
+			.Text(LOCTEXT("LaunchTool", "Launch Oculus Performance Window"))
+		.OnClicked(this, &FOculusHMDSettingsDetailsCustomization::PluginClickPerfFn, true)
+		]
+	+ SHorizontalBox::Slot().FillWidth(8)
+		]
+	+ SVerticalBox::Slot().AutoHeight().Padding(2)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth()
+		[
+			SNew(SButton)
+			.Text(LOCTEXT("LaunchPlatTool", "Launch Oculus Platform Window"))
+		.OnClicked(this, &FOculusHMDSettingsDetailsCustomization::PluginClickPlatFn, true)
+		]
+	+ SHorizontalBox::Slot().FillWidth(8)
+		]
+	+ SVerticalBox::Slot().AutoHeight().Padding(5)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth()
+		[
+			SNew(SBox)
 			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot().AutoWidth()
-				[
-					SNew(SButton)
-					.Text(LOCTEXT("LaunchTool", "Launch Oculus Performance Window"))
-					.OnClicked(this, &FOculusHMDSettingsDetailsCustomization::PluginClickPerfFn, true)
-				]
-				+ SHorizontalBox::Slot().FillWidth(8)
+				SNew(STextBlock)
+				.Text(LOCTEXT("EnableBuildTelemetry", "Enable Oculus Build Telemetry"))
 			]
-			+ SVerticalBox::Slot().AutoHeight().Padding(2)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot().AutoWidth()
-				[
-					SNew(SButton)
-					.Text(LOCTEXT("LaunchPlatTool", "Launch Oculus Platform Window"))
-					.OnClicked(this, &FOculusHMDSettingsDetailsCustomization::PluginClickPlatFn, true)
-				]
-				+ SHorizontalBox::Slot().FillWidth(8)
-			]
+		]
+	+ SHorizontalBox::Slot().AutoWidth()
+		[
+			SNew(SBox).WidthOverride(10.f)
+		]
+	+ SHorizontalBox::Slot().AutoWidth()
+		[
+			SNew(SCheckBox)
+			.OnCheckStateChanged(this, &FOculusHMDSettingsDetailsCustomization::OnEnableBuildTelemetry)
+		.IsChecked(this, &FOculusHMDSettingsDetailsCustomization::IsBuildTelemetryEnabled)
+		]
+	+ SHorizontalBox::Slot().FillWidth(8)
+		]
 		];
 }
 

@@ -15,13 +15,33 @@
 	"IsBetaVersion": false,
 	"Installed": false,
 	"SupportedTargetPlatforms": [
-		"Lumin"
+		"Lumin",
+		"Win64",
+		"Mac"
 	],
 	"Modules": [
 		{
 			"Name": "MagicLeapCamera",
 			"Type": "Runtime",
-			"LoadingPhase": "PostConfigInit",
+			"LoadingPhase": "PostEngineInit",
+			"WhitelistPlatforms": [
+				"Win64",
+				"Mac",
+				"Lumin"
+			]
+		},
+		{
+			"Name": "MagicLeapCameraPreview",
+			"Type": "Runtime",
+			"LoadingPhase": "PostEngineInit",
+			"WhitelistPlatforms": [
+				"Lumin"
+			]
+		},
+		{
+			"Name": "MagicLeapCameraPreviewFactory",
+			"Type": "Runtime",
+			"LoadingPhase": "PostEngineInit",
 			"WhitelistPlatforms": [
 				"Win64",
 				"Mac",
@@ -30,6 +50,10 @@
 		}
 	],
 	"Plugins": [
+		{
+			"Name": "MLSDK",
+			"Enabled": true
+		},
 		{
 			"Name": "MagicLeap",
 			"Enabled": true

@@ -5,8 +5,9 @@
 #include "CoreMinimal.h"
 #include "Misc/Timecode.h"
 #include "Misc/FrameRate.h"
-#include "DisplayClusterOperationMode.h"
+#include "DisplayClusterEnums.h"
 #include "DisplayClusterUtils/DisplayClusterCommonStrings.h"
+#include "DisplayClusterUtils/DisplayClusterCommonHelpers.h"
 
 
 /**
@@ -39,6 +40,7 @@ template <> inline FString FDisplayClusterTypesConverter::ToString<>(const doubl
 template <> inline FString FDisplayClusterTypesConverter::ToString<>(const FVector& from)    { return from.ToString(); }
 template <> inline FString FDisplayClusterTypesConverter::ToString<>(const FVector2D& from)  { return from.ToString(); }
 template <> inline FString FDisplayClusterTypesConverter::ToString<>(const FRotator& from)   { return from.ToString(); }
+template <> inline FString FDisplayClusterTypesConverter::ToString<>(const FMatrix& from)    { return from.ToString(); }
 
 // We can't just use FTimecode ToString as that loses information.
 template <> inline FString FDisplayClusterTypesConverter::ToString<>(const FTimecode& from)  { return FString::Printf(TEXT("%d;%d;%d;%d;%d"), from.bDropFrameFormat ? 1 : 0, from.Hours, from.Minutes, from.Seconds, from.Frames); }
@@ -61,6 +63,21 @@ template <> inline FString FDisplayClusterTypesConverter::ToString<>(const EDisp
 	}
 }
 
+template <> inline FString FDisplayClusterTypesConverter::ToString<>(const EDisplayClusterSyncGroup& from)
+{
+	switch (from)
+	{
+	case EDisplayClusterSyncGroup::PreTick:
+		return FString("PreTick");
+	case EDisplayClusterSyncGroup::Tick:
+		return FString("Tick");
+	case EDisplayClusterSyncGroup::PostTick:
+		return FString("PostTick");
+	}
+
+	return FString("Tick");
+}
+
 
 template <> inline FString   FDisplayClusterTypesConverter::FromString<> (const FString& from) { return from; }
 template <> inline bool      FDisplayClusterTypesConverter::FromString<> (const FString& from) { return (from == FString("1") || (from.Compare(DisplayClusterStrings::cfg::spec::ValTrue, ESearchCase::IgnoreCase) == 0)); }
@@ -73,6 +90,54 @@ template <> inline double    FDisplayClusterTypesConverter::FromString<> (const 
 template <> inline FVector   FDisplayClusterTypesConverter::FromString<> (const FString& from) { FVector vec;  vec.InitFromString(from); return vec; }
 template <> inline FVector2D FDisplayClusterTypesConverter::FromString<> (const FString& from) { FVector2D vec;  vec.InitFromString(from); return vec; }
 template <> inline FRotator  FDisplayClusterTypesConverter::FromString<> (const FString& from) { FRotator rot; rot.InitFromString(from); return rot; }
+
+template <> inline FMatrix   FDisplayClusterTypesConverter::FromString<>(const FString& from)
+{
+	FMatrix ResultMatrix = FMatrix::Identity;
+	FPlane  Planes[4];
+
+	int32 IdxStart = 0;
+	int32 IdxEnd = 0;
+	for (int PlaneNum = 0; PlaneNum < 4; ++PlaneNum)
+	{
+		IdxStart = from.Find(FString(TEXT("[")), ESearchCase::IgnoreCase, ESearchDir::FromStart, IdxEnd);
+		IdxEnd   = from.Find(FString(TEXT("]")), ESearchCase::IgnoreCase, ESearchDir::FromStart, IdxStart);
+		if (IdxStart == INDEX_NONE || IdxEnd == INDEX_NONE || (IdxEnd - IdxStart) < 8)
+		{
+			return ResultMatrix;
+		}
+
+		FString StrPlane = from.Mid(IdxStart + 1, IdxEnd - IdxStart - 1);
+
+		int32 StrLen = 0;
+		int32 NewStrLen = -1;
+		while (NewStrLen < StrLen)
+		{
+			StrLen = StrPlane.Len();
+			StrPlane.ReplaceInline(TEXT("  "), TEXT(" "));
+			NewStrLen = StrPlane.Len();
+		}
+
+		TArray<FString> StrPlaneValues;
+		StrPlane.ParseIntoArray(StrPlaneValues, TEXT(" "));
+		if (StrPlaneValues.Num() != 4)
+		{
+			return ResultMatrix;
+		}
+
+		float PlaneValues[4] = { 0.f };
+		for (int i = 0; i < 4; ++i)
+		{
+			PlaneValues[i] = FromString<float>(StrPlaneValues[i]);
+		}
+
+		Planes[PlaneNum] = FPlane(PlaneValues[0], PlaneValues[1], PlaneValues[2], PlaneValues[3]);
+	}
+
+	ResultMatrix = FMatrix(Planes[0], Planes[1], Planes[2], Planes[3]);
+
+	return ResultMatrix;
+}
 
 template <> inline FTimecode FDisplayClusterTypesConverter::FromString<> (const FString& from)
 {
@@ -106,9 +171,27 @@ template <> inline FFrameRate FDisplayClusterTypesConverter::FromString<> (const
 	// We are expecting 2 "parts" - Numerator, Denominator.
 	if (found == 2)
 	{
-		frameRate.Numerator = FromString<int32>(parts[0]);
+		frameRate.Numerator   = FromString<int32>(parts[0]);
 		frameRate.Denominator = FromString<int32>(parts[1]);
 	}
 
 	return frameRate;
+}
+
+template <> inline EDisplayClusterSyncGroup FDisplayClusterTypesConverter::FromString<>(const FString& from)
+{
+	if (from.Equals(TEXT("PreTick")))
+	{
+		return EDisplayClusterSyncGroup::PreTick;
+	}
+	else if (from.Equals(TEXT("Tick")))
+	{
+		return EDisplayClusterSyncGroup::Tick;
+	}
+	else if (from.Equals(TEXT("PostTick")))
+	{
+		return EDisplayClusterSyncGroup::PostTick;
+	}
+
+	return EDisplayClusterSyncGroup::Tick;
 }

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.3)
-MESSAGE("[NvCloth]cmake/windows/CMakeList.txt")
+MESSAGE(STATUS "[NvCloth]cmake/windows/CMakeList.txt")
 include(../common/CMakeLists.txt)
 
 
@@ -80,4 +80,4 @@ INCLUDE(NvCloth.cmake)
 IF(DEFINED PX_GENERATE_GPU_PROJECTS)
 # INCLUDE(NVCLOTHGpu.cmake)
 ENDIF()
-MESSAGE("[NvCloth]cmake/windows/CMakeList.txt END")
+MESSAGE(STATUS "[NvCloth]cmake/windows/CMakeList.txt END")

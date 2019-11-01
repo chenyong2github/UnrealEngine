@@ -137,7 +137,9 @@ namespace Chaos
 
 		CHAOS_API void CalculateConstraintSpace(int32 ConstraintIndex, TVector<T, d>& OutX0, PMatrix<T, d, d>& OutR0, TVector<T, d>& OutX1, PMatrix<T, d, d>& OutR1, TVector<T, d>& OutAngles) const;
 
-		CHAOS_API void ApplySingle(const T Dt, const int32 ConstraintIndex, const int32 It, const int32 NumIts);
+		CHAOS_API void SolveVelocity(const T Dt, const int32 ConstraintIndex, const int32 It, const int32 NumIts);
+		CHAOS_API void SolvePosition(const T Dt, const int32 ConstraintIndex, const int32 It, const int32 NumIts);
+		CHAOS_API void ProjectPosition(const T Dt, const int32 ConstraintIndex, const int32 It, const int32 NumIts);
 
 		TPBDJointSolverSettings<T, d> Settings;
 

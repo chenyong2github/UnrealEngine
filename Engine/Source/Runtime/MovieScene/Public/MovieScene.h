@@ -908,9 +908,9 @@ public:
 	int32 FindNextMarkedFrame(FFrameNumber InFrameNumber, bool bForward);
 
 	/*
-	 * Retrieve all the exposed binding groups for this movie scene
+	 * Retrieve all the tagged binding groups for this movie scene
 	 */
-	const TMap<FName, FMovieSceneObjectBindingIDs>& AllBindingGroups() const
+	const TMap<FName, FMovieSceneObjectBindingIDs>& AllTaggedBindings() const
 	{
 		return BindingGroups;
 	}
@@ -918,22 +918,22 @@ public:
 	/*
 	 * Add a new binding group for the specified name
 	 */
-	void ExposeBinding(FName ExposeAs);
+	void AddNewBindingTag(const FName& NewTag);
 
 	/*
-	 * Expose the specified binding ID using the specified name
+	 * Tag the specified binding ID with the specified name
 	 */
-	void ExposeBinding(FName ExposeAs, FMovieSceneObjectBindingID BindingToExpose);
+	void TagBinding(const FName& NewTag, FMovieSceneObjectBindingID BindingToTag);
 
 	/*
-	 * Remove the specified binding ID from the specified expose group name
+	 * Remove a tag from the specified object binding
 	 */
-	void RemoveExposedBinding(FName ExposedAs, FMovieSceneObjectBindingID BindingToExpose);
+	void UntagBinding(const FName& Tag, FMovieSceneObjectBindingID Binding);
 
 	/*
-	 * Remove the entire group with the specified name
+	 * Remove the specified tag from any binding and forget about it completely
 	 */
-	void RemoveExposedBinding(FName ExposedAs);
+	void RemoveTag(const FName& TagToRemove);
 
 protected:
 
@@ -979,7 +979,7 @@ private:
 	UPROPERTY()
 	TArray<FMovieSceneBinding> ObjectBindings;
 
-	/** Map of persistent named bindings for this sequence */
+	/** Map of persistent tagged bindings for this sequence */
 	UPROPERTY()
 	TMap<FName, FMovieSceneObjectBindingIDs> BindingGroups;
 

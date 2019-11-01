@@ -37,9 +37,10 @@ public:
 	 */
 	virtual void UpdateActiveFrameOrigin(const FVector3d& NewOrigin) = 0;
 
-
-
-
+	/**
+	 * Reset transformer state
+	 */
+	virtual void Reset() = 0;
 
 
 	/**

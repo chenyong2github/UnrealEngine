@@ -207,7 +207,7 @@ void FSimpleHMD::DrawDistortionMesh_RenderThread(struct FRenderingCompositePassC
 	FRHIResourceCreateInfo CreateInfo;
 	FVertexBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FDistortionVertex) * NumVerts, BUF_Volatile, CreateInfo);
 	void* VoidPtr = RHILockVertexBuffer(VertexBufferRHI, 0, sizeof(FDistortionVertex) * NumVerts, RLM_WriteOnly);
-	FPlatformMemory::Memcpy(VoidPtr, IStereoRendering::IsASecondaryView(View.StereoPass) ? RightVerts : LeftVerts, sizeof(FDistortionVertex) * NumVerts);
+	FPlatformMemory::Memcpy(VoidPtr, View.StereoPass == eSSP_RIGHT_EYE ? RightVerts : LeftVerts, sizeof(FDistortionVertex) * NumVerts);
 	RHIUnlockVertexBuffer(VertexBufferRHI);
 
 	static const uint16 Indices[] = { 0, 1, 2, 0, 2, 3 };
@@ -237,7 +237,7 @@ bool FSimpleHMD::EnableStereo(bool stereo)
 void FSimpleHMD::AdjustViewRect(EStereoscopicPass StereoPass, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const
 {
 	SizeX = SizeX / 2;
-	if(IStereoRendering::IsASecondaryView(StereoPass))
+	if( StereoPass == eSSP_RIGHT_EYE )
 	{
 		X += SizeX;
 	}
@@ -245,10 +245,10 @@ void FSimpleHMD::AdjustViewRect(EStereoscopicPass StereoPass, int32& X, int32& Y
 
 void FSimpleHMD::CalculateStereoViewOffset(const enum EStereoscopicPass StereoPassType, FRotator& ViewRotation, const float InWorldToMeters, FVector& ViewLocation)
 {
-	if(IStereoRendering::IsStereoEyeView(StereoPassType))
+	if( StereoPassType != eSSP_FULL)
 	{
 		float EyeOffset = 3.20000005f;
-		const float PassOffset = IStereoRendering::IsAPrimaryView(StereoPassType) ? EyeOffset : -EyeOffset;
+		const float PassOffset = (StereoPassType == eSSP_LEFT_EYE) ? EyeOffset : -EyeOffset;
 		ViewLocation += ViewRotation.Quaternion().RotateVector(FVector(0,PassOffset,0));
 	}
 }
@@ -256,7 +256,7 @@ void FSimpleHMD::CalculateStereoViewOffset(const enum EStereoscopicPass StereoPa
 FMatrix FSimpleHMD::GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const
 {
 	const float ProjectionCenterOffset = 0.151976421f;
-	const float PassProjectionOffset = IStereoRendering::IsAPrimaryView(StereoPassType) ? ProjectionCenterOffset : -ProjectionCenterOffset;
+	const float PassProjectionOffset = (StereoPassType == eSSP_LEFT_EYE) ? ProjectionCenterOffset : -ProjectionCenterOffset;
 
 	const float HalfFov = 2.19686294f / 2.f;
 	const float InWidth = 640.f;

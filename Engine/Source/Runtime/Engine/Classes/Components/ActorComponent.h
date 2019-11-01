@@ -67,6 +67,10 @@ CONSTEXPR inline EUpdateTransformFlags operator ~(EUpdateTransformFlags Value)
 /** Converts legacy bool into the SkipPhysicsUpdate bitflag */
 FORCEINLINE EUpdateTransformFlags SkipPhysicsToEnum(bool bSkipPhysics){ return bSkipPhysics ? EUpdateTransformFlags::SkipPhysicsUpdate : EUpdateTransformFlags::None; }
 
+class FSceneInterface;
+extern ENGINE_API void UpdateAllPrimitiveSceneInfosForSingleComponent(UActorComponent* InComponent, TSet<FSceneInterface*>* InScenesToUpdateAllPrimitiveSceneInfosForBatching = nullptr);
+extern ENGINE_API void UpdateAllPrimitiveSceneInfosForScenes(TSet<FSceneInterface*> ScenesToUpdateAllPrimitiveSceneInfos);
+
 class UActorComponent;
 
 DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_TwoParams(FActorComponentActivatedSignature, UActorComponent, OnComponentActivated, UActorComponent*, Component, bool, bReset);
@@ -129,6 +133,7 @@ protected:
 	uint8 bPhysicsStateCreated:1;
 
 	/** Is this component currently replicating? Should the network code consider it for replication? Owning Actor must be replicating first! */
+	UE_DEPRECATED(4.24, "This member will be made private. Please use GetIsReplicated, SetIsReplicated, or SetIsReplicatedByDefault for constructors.")
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Replicated, Category=ComponentReplication,meta=(DisplayName = "Component Replicates"))
 	uint8 bReplicates:1;
 
@@ -185,6 +190,7 @@ public:
 	uint8 bAutoActivate:1;
 
 	/** Whether the component is currently active. */
+	UE_DEPRECATED(4.24, "This member will be made private. Please use IsActive or SetActive.")
 	UPROPERTY(transient, ReplicatedUsing=OnRep_IsActive)
 	uint8 bIsActive:1;
 
@@ -349,12 +355,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Components|Activation", meta=(UnsafeDuringActorConstruction="true"))
 	virtual void ToggleActive();
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/**
 	 * Returns whether the component is active or not
 	 * @return - The active state of the component.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|Activation", meta=(UnsafeDuringActorConstruction="true"))
 	bool IsActive() const { return bIsActive; }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**
 	 * Sets whether the component should be auto activate or not. Only safe during construction scripts.
@@ -383,11 +391,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Components")
 	void SetIsReplicated(bool ShouldReplicate);
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Returns whether replication is enabled or not. */
 	FORCEINLINE bool GetIsReplicated() const
 	{
 		return bReplicates;
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Allows a component to replicate other subobject on the actor  */
 	virtual bool ReplicateSubobjects(class UActorChannel *Channel, class FOutBunch *Bunch, FReplicationFlags *RepFlags);
@@ -917,6 +927,7 @@ private:
 	friend class FComponentRecreateRenderStateContext;
 	friend struct FActorComponentTickFunction;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	//~ Begin Methods for Replicated Members.
 protected:
 
@@ -950,6 +961,7 @@ public:
 	void SetActiveFlag(const bool bNewIsActive);
 
 	//~ End Methods for Replicated Members.
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 protected:
 

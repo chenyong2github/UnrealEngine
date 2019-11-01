@@ -28,17 +28,8 @@ public:
 	/** Placement mode */
 	const static FEditorModeID EM_Placement;
 
-	/** Bsp mode */
-	const static FEditorModeID EM_Bsp;
-
-	/** Geometry editing mode. */
-	const static FEditorModeID EM_Geometry;
-
 	/** Interpolation editing. */
 	const static FEditorModeID EM_InterpEdit;
-
-	/** Texture alignment via the widget. */
-	const static FEditorModeID EM_Texture;
 
 	/** Mesh paint tool */
 	const static FEditorModeID EM_MeshPaint;

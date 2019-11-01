@@ -24,26 +24,16 @@
 namespace ConcertSyncServerUtils
 {
 
-const TCHAR SessionDatabaseFilename[] = TEXT("Session.db");
 const TCHAR SessionInfoFilename[] = TEXT("SessionInfo.json");
 
-/** Attempt to get the last modification time for a session */
-FDateTime GetSessionModificationTime(const FString& InSessionRoot)
+/** Deduce the creation time of a session from the creation time of its containing folder. */
+FDateTime GetSessionCreationTime(const FString& InSessionRoot)
 {
 	IFileManager& FileManager = IFileManager::Get();
 
-	const FString SessionDatabasePathname = InSessionRoot / SessionDatabaseFilename;
-	const FString SessionInfoPathname = InSessionRoot / SessionInfoFilename;
-
-	// Try the database first, as that will be written as the session is in progress
-	FDateTime SessionModificationTime = FileManager.GetTimeStamp(*SessionDatabasePathname);
-	if (SessionModificationTime == FDateTime::MinValue())
-	{
-		// Failing that try the info file, as that will be written whenever the session is initialized
-		SessionModificationTime = FileManager.GetTimeStamp(*SessionInfoPathname);
-	}
-
-	return SessionModificationTime;
+	FFileStatData FileStatData = FileManager.GetStatData(*InSessionRoot);
+	check(FileStatData.bIsValid && FileStatData.CreationTime != FDateTime::MinValue());
+	return FileStatData.CreationTime;
 }
 
 /** Write the session info file to a session root directory */
@@ -242,9 +232,9 @@ IConcertServerRef FConcertSyncServer::GetConcertServer() const
 	return ConcertServer;
 }
 
-void FConcertSyncServer::GetSessionsFromPath(const IConcertServer& InServer, const FString& InPath, TArray<FConcertSessionInfo>& OutSessionInfos, TArray<FDateTime>* OutSessionLastModifiedTimes)
+void FConcertSyncServer::GetSessionsFromPath(const IConcertServer& InServer, const FString& InPath, TArray<FConcertSessionInfo>& OutSessionInfos, TArray<FDateTime>* OutSessionCreationTimes)
 {
-	IFileManager::Get().IterateDirectory(*InPath, [&OutSessionInfos, &OutSessionLastModifiedTimes](const TCHAR* FilenameOrDirectory, bool bIsDirectory) -> bool
+	IFileManager::Get().IterateDirectory(*InPath, [&OutSessionInfos, &OutSessionCreationTimes](const TCHAR* FilenameOrDirectory, bool bIsDirectory) -> bool
 	{
 		if (bIsDirectory)
 		{
@@ -260,9 +250,9 @@ void FConcertSyncServer::GetSessionsFromPath(const IConcertServer& InServer, con
 				if (FGuid::Parse(SessionFolderName, SessionFolderGuid) && SessionFolderGuid == SessionInfo.SessionId)
 				{
 					OutSessionInfos.Add(MoveTemp(SessionInfo));
-					if (OutSessionLastModifiedTimes)
+					if (OutSessionCreationTimes)
 					{
-						OutSessionLastModifiedTimes->Add(ConcertSyncServerUtils::GetSessionModificationTime(SessionRoot));
+						OutSessionCreationTimes->Add(ConcertSyncServerUtils::GetSessionCreationTime(SessionRoot));
 					}
 				}
 			}

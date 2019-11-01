@@ -98,6 +98,7 @@ void RectLight_SampleLight(
 	float LightHeight = GetHeight(LightId);
 	
 	// Compute the visible portion of the light from the current shading point
+	if (false)
 	{
 		float3 ToLight = LightPosition - WorldPosition;
 		FRect VisibleRect = GetRect(
@@ -121,15 +122,17 @@ void RectLight_SampleLight(
 
 	// Map sample point to quad
 	float3 LightSamplePosition = LightPosition + LightdPdu * LightWidth * UV.x + LightdPdv * LightHeight * UV.y;
-	float3 LightDirection = normalize(LightSamplePosition - WorldPosition);
-#ifdef USE_ATTENUATION_TERM
+	float3 LightDirection = LightSamplePosition - WorldPosition;
+	float LightDirectionLength = length(LightDirection);
+#if USE_ATTENUATION_TERM
 	float Epsilon = 1.0e-5;
-	if (ComputeAttenuationFalloff(length(LightDirection), GetAttenuation(LightId)) < Epsilon)
+	if (ComputeAttenuationFalloff(LightDirectionLength, GetAttenuation(LightId)) < Epsilon)
 	{
 		OutPdf = 0.0;
 		return;
 	}
 #endif
+	LightDirection *= rcp(LightDirectionLength);
 
 	// Light-normal culling
 	if (dot(-LightDirection, LightNormal) <= 0.0)

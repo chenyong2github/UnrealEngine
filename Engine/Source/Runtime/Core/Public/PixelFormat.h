@@ -80,7 +80,9 @@ enum EPixelFormat
 	PF_PLATFORM_HDR_2		=66,	// Reserved.
 	PF_NV12					=67,
 	PF_R32G32_UINT          =68,
-	PF_MAX					=69,
+	PF_ETC2_R11_EAC			=69,
+	PF_ETC2_RG11_EAC		=70,
+	PF_MAX					=71,
 };
 #define FOREACH_ENUM_EPIXELFORMAT(op) \
 	op(PF_Unknown) \

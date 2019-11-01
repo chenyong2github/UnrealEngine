@@ -5,7 +5,7 @@
 #include "RemoteSessionImageChannel.h"
 
 // FRemoteSessionFrameBufferChannel is deprecated. Please use FRemoteSessionImageChannel.
-// FRemoteSessionFrameBufferChannelFactoryWorker was created for backward comptability with older app
+// FRemoteSessionFrameBufferChannelFactoryWorker was created for backward compatibility with older app
 
 class REMOTESESSION_API FRemoteSessionFrameBufferChannelFactoryWorker : public IRemoteSessionChannelFactoryWorker
 {

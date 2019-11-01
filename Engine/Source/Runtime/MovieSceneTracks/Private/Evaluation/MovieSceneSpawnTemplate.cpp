@@ -25,11 +25,7 @@ struct FSpawnTrackPreAnimatedTokenProducer : IMovieScenePreAnimatedTokenProducer
 
 			virtual void RestoreState(UObject& InObject, IMovieScenePlayer& Player) override
 			{
-				bool bDestroyed = Player.GetSpawnRegister().DestroySpawnedObject(OperandToDestroy.ObjectBindingID, OperandToDestroy.SequenceID, Player);
-				if (!bDestroyed)
-				{
-					Player.GetSpawnRegister().DestroyObjectDirectly(InObject);
-				}
+				Player.GetSpawnRegister().DestroySpawnedObject(OperandToDestroy.ObjectBindingID, OperandToDestroy.SequenceID, Player);
 			}
 		};
 		

@@ -220,6 +220,8 @@ void ULevelSequence::PostLoad()
 
 	if (DirectorBlueprint)
 	{
+		DirectorBlueprint->ClearFlags(RF_Standalone);
+
 		// Remove the binding for the director blueprint recompilation and re-add it to be sure there is only one entry in the list
 		DirectorBlueprint->OnCompiled().RemoveAll(this);
 		DirectorBlueprint->OnCompiled().AddUObject(this, &ULevelSequence::OnDirectorRecompiled);

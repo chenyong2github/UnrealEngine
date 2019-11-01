@@ -7,6 +7,18 @@
 #include "Engine/Engine.h"
 #include "IStereoLayers.h"
 #include "StereoRendering.h"
+#include "IXRTrackingSystem.h"
+#include "IXRLoadingScreen.h"
+
+static IXRLoadingScreen* GetLoadingScreen()
+{
+	if (GEngine && GEngine->XRSystem.IsValid())
+	{
+		return GEngine->XRSystem->GetLoadingScreen();
+	}
+
+	return nullptr;
+}
 
 static IStereoLayers* GetStereoLayers()
 {
@@ -17,6 +29,7 @@ static IStereoLayers* GetStereoLayers()
 
 	return nullptr;
 }
+
 
 class FAutoShow: public TSharedFromThis<FAutoShow>
 {
@@ -30,19 +43,19 @@ public:
 
 void FAutoShow::OnPreLoadMap(const FString&)
 {
-	IStereoLayers* StereoLayers = GetStereoLayers();
-	if (StereoLayers)
+	IXRLoadingScreen* LoadingScreen = GetLoadingScreen();
+	if (LoadingScreen)
 	{
-		StereoLayers->ShowSplashScreen();
+		LoadingScreen->ShowLoadingScreen();
 	}
 }
 
 void FAutoShow::OnPostLoadMap(UWorld* LoadedWorld)
 {
-	IStereoLayers* StereoLayers = GetStereoLayers();
-	if (StereoLayers)
+	IXRLoadingScreen* LoadingScreen = GetLoadingScreen();
+	if (LoadingScreen)
 	{
-		StereoLayers->HideSplashScreen();
+		LoadingScreen->HideLoadingScreen();
 	}
 }
 
@@ -67,32 +80,38 @@ UStereoLayerFunctionLibrary::UStereoLayerFunctionLibrary(const FObjectInitialize
 
 void UStereoLayerFunctionLibrary::SetSplashScreen(class UTexture* Texture, FVector2D Scale, FVector Offset, bool bShowLoadingMovie, bool bShowOnSet)
 {
-	IStereoLayers* StereoLayers = GetStereoLayers();
-	if (StereoLayers && Texture && Texture->Resource)
+	IXRLoadingScreen* LoadingScreen = GetLoadingScreen();
+	if (LoadingScreen && Texture && Texture->Resource)
 	{
-		StereoLayers->SetSplashScreen(Texture->Resource->TextureRHI, Scale, Offset, bShowLoadingMovie);
+		LoadingScreen->ClearSplashes();
+		IXRLoadingScreen::FSplashDesc Splash;
+		Splash.Texture = Texture->Resource->TextureRHI;
+		Splash.QuadSize = Scale;
+		Splash.Transform = FTransform(Offset);
+		LoadingScreen->AddSplash(Splash);
+
 		if (bShowOnSet)
 		{
-			StereoLayers->ShowSplashScreen();
+			LoadingScreen->ShowLoadingScreen();
 		}
 	}
 }
 
 void UStereoLayerFunctionLibrary::ShowSplashScreen()
 {
-	IStereoLayers* StereoLayers = GetStereoLayers();
-	if (StereoLayers)
+	IXRLoadingScreen* LoadingScreen = GetLoadingScreen();
+	if (LoadingScreen)
 	{
-		StereoLayers->ShowSplashScreen();
+		LoadingScreen->ShowLoadingScreen();
 	}
 }
 
 void UStereoLayerFunctionLibrary::HideSplashScreen()
 {
-	IStereoLayers* StereoLayers = GetStereoLayers();
-	if (StereoLayers)
+	IXRLoadingScreen* LoadingScreen = GetLoadingScreen();
+	if (LoadingScreen)
 	{
-		StereoLayers->HideSplashScreen();
+		LoadingScreen->HideLoadingScreen();
 	}
 }
 
@@ -100,12 +119,18 @@ void UStereoLayerFunctionLibrary::EnableAutoLoadingSplashScreen(bool InAutoShowE
 {
 	if (InAutoShowEnabled)
 	{
-		AutoShow = MakeShareable(new FAutoShow);
-		AutoShow->Register();
+		if (!AutoShow.IsValid())
+		{
+			AutoShow = MakeShareable(new FAutoShow);
+			AutoShow->Register();
+		}
 	}
-	else if (AutoShow.IsValid())
+	else 
 	{
-		AutoShow->Unregister();
-		AutoShow = nullptr;
+		if (AutoShow.IsValid())
+		{
+			AutoShow->Unregister();
+			AutoShow = nullptr;
+		}
 	}
 }

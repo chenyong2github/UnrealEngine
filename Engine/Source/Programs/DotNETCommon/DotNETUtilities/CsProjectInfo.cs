@@ -466,7 +466,10 @@ namespace Tools.DotNETCommon
 
 					ExistingPath = DirectoryReference.Combine(ExistingPath, NonWildCardComponents.ToArray());
 
-					ProcessPathComponents(ExistingPath, RemainingComponents, OutFoundFiles);
+					if (Directory.Exists(ExistingPath.FullName))
+					{
+						ProcessPathComponents(ExistingPath, RemainingComponents, OutFoundFiles);
+					}
 				}
 			}
 		}
@@ -484,7 +487,7 @@ namespace Tools.DotNETCommon
 		/// <param name="InPath">Path specifier to process</param>
 		/// <returns></returns>
 		static IEnumerable<FileReference> FindMatchingFiles(FileReference InPath)
-		{		
+		{
 			List<FileReference> FoundFiles = new List<FileReference>();		
 
 			// split off the drive root

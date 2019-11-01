@@ -5,24 +5,12 @@ using System.IO;
 
 public class ICU_HTML5 : ICU
 {
+	protected override string ICUVersion { get { return ICU64VersionString; } }
+	protected override string ICULibRootPath { get { return Target.HTML5Platform.PlatformThirdPartySourceDirectory; } }
+	protected override string ICULibPath { get { return Path.Combine(ICULibRootPath, "ICU", ICUVersion, "lib"); } }
+
 	public ICU_HTML5(ReadOnlyTargetRules Target) : base(Target)
 	{
-		string ICULibPath = Path.Combine(Target.HTML5Platform.PlatformThirdPartySourceDirectory, "ICU/icu4c-53_1");
-
-		string[] LibraryNameStems =
-		{
-			"data", // Data
-			"uc",   // Unicode Common
-			"i18n", // Internationalization
-			"le",   // Layout Engine
-			"lx",   // Layout Extensions
-			"io"    // Input/Output
-		};
-//		string LibraryNamePostfix = (Target.Configuration == UnrealTargetConfiguration.Debug) ? "d" : string.Empty;
-
-		foreach (string Stem in LibraryNameStems)
-		{
-			PublicAdditionalLibraries.Add(ICULibPath + "/libicu" + Stem + Target.HTML5OptimizationSuffix + ".bc");
-		}
+		PublicAdditionalLibraries.Add(ICULibPath + "/libicu" + Target.HTML5OptimizationSuffix + ".bc");
 	}
 }

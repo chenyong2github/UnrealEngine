@@ -48,21 +48,24 @@ namespace ABI {
 	} /* Windows */
 } /* ABI */
 
+struct MIXEDREALITYINTEROP_API TransformUpdate
+{
+	/** Location of this object in UE4 world space */
+	float Translation[3] = { 0.f, 0.f, 0.f };
+	/** Quaternion rotation. Requires normalization on the UE4 side before use */
+	float Rotation[4] = { 0.f, 0.f, 0.f, 0.f };
+	/** Scale for this object */
+	float Scale[3] = { 0.f, 0.f, 0.f };
+};
 
 /**
  * A struct telling UE4 about the update. Also allows UE4 to allocate the buffers
  * to copy vertices/indices into (avoids one copy)
  */
-struct MIXEDREALITYINTEROP_API MeshUpdate
+struct MIXEDREALITYINTEROP_API MeshUpdate :
+	public TransformUpdate
 {
 	GUID Id;
-
-	/** Location of this mesh in UE4 world space */
-	float Translation[3] = { 0.f, 0.f, 0.f };
-	/** Quaternion rotation. Requires normalization on the UE4 side before use */
-	float Rotation[4] = { 0.f, 0.f, 0.f, 0.f };
-	/** Scale for this mesh */
-	float Scale[3] = { 0.f, 0.f, 0.f };
 
 	/** If this is zero, there were no mesh changes */
 	int NumVertices = 0;
@@ -72,6 +75,25 @@ struct MIXEDREALITYINTEROP_API MeshUpdate
 	int NumIndices = 0;
 	/** The indices for the mesh */
 	void* Indices = nullptr;
+};
+
+/**
+ * A struct telling UE4 about the update. The Translation is assumed to be the center of the plane
+ */
+struct MIXEDREALITYINTEROP_API PlaneUpdate :
+	public TransformUpdate
+{
+	GUID Id;
+
+	/** Width (X) of this plane */	
+	float Width = 0.f;
+	/** Height (Y) of this plane */
+	float Height = 0.f;
+
+	/** Orientation of the plane (horizontal, diagonal, vertical) */
+	int Orientation = 0;
+	/** Object classification (wall, floor, etc.) */
+	int ObjectLabel = 0;
 };
 
 // QR code data structure to pass data back to UE4
@@ -320,7 +342,7 @@ namespace WindowsMixedReality
 		bool IsTrackingAvailable();
 		void ResetOrientationAndPosition();
 
-		bool IsInitialized();
+		bool IsInitialized() const;
 		bool IsImmersiveWindowValid();
 		bool IsAvailable();
 		bool IsCurrentlyImmersive();
@@ -434,6 +456,13 @@ namespace WindowsMixedReality
 		bool DidAnchorCoordinateSystemChange();
 
 		// Remoting
+		enum class ConnectionEvent
+		{
+			DisconnectedFromPeer
+		};
+
+		typedef std::function<void(ConnectionEvent)> ConnectionCallback;
+
 		void SetLogCallback(void (*functionPointer)(const wchar_t* text));
 		void ConnectToRemoteHoloLens(ID3D11Device* device, const wchar_t* ip, int bitrate, bool IsHoloLens1 = false);
 		void ConnectToLocalWMRHeadset();
@@ -441,13 +470,31 @@ namespace WindowsMixedReality
 		void DisconnectFromDevice();
 		bool IsRemoting();
 		bool IsRemotingConnected();
+		uint32 SubscribeConnectionEvent(ConnectionCallback callback);
+		void UnsubscribeConnectionEvent(uint32 id);
 
 		// Spatial Mapping
 		void StartSpatialMapping(float InTriangleDensity, float InVolumeSize, void(*StartFunctionPointer)(),
 			void(*AllocFunctionPointer)(MeshUpdate*),
+			void(*RemovedMeshPointer)(MeshUpdate*),
 			void(*FinishFunctionPointer)());
 		void StopSpatialMapping();
 		//~ Spatial Mapping
+
+		// Scene understanding
+		void StartSceneUnderstanding(
+			bool bGeneratePlanes,
+			bool bGenerateSceneMeshes,
+			float InVolumeSize,
+			void(*StartFunctionPointer)(),
+			void(*AddPlaneFunctionPointer)(PlaneUpdate*),
+			void(*RemovePlaneFunctionPointer)(PlaneUpdate*),
+			void(*AllocMeshFunctionPointer)(MeshUpdate*),
+			void(*RemoveMeshFunctionPointer)(MeshUpdate*),
+			void(*FinishFunctionPointer)()
+		);
+		void StopSceneUnderstanding();
+		//~Scene understanding
 
 		// Used by the AR system to receive notifications of tracking change
 		void SetTrackingChangedCallback(void(*CallbackPointer)(WindowsMixedReality::HMDSpatialLocatability));

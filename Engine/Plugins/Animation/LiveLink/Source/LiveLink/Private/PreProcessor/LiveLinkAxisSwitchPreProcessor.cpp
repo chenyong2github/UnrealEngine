@@ -18,7 +18,7 @@ namespace
 
 	float AxisSign(ELiveLinkAxis InAxis)
 	{
-		return static_cast<uint8>(InAxis) < 3 ? 1.f : 0.f;
+		return static_cast<uint8>(InAxis) < 3 ? 1.f : -1.f;
 	}
 
 	void SwitchTransform(FTransform& Transform, ELiveLinkAxis AxisX, ELiveLinkAxis AxisY, ELiveLinkAxis AxisZ)

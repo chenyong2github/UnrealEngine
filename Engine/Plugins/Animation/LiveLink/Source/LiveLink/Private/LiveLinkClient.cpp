@@ -448,7 +448,8 @@ void FLiveLinkClient::PushSubjectStaticData_Internal(FPendingSubjectStatic&& Sub
 
 	if(LiveLinkSubject == nullptr)
 	{
-		const FLiveLinkRoleProjectSetting DefaultSetting = GetDefault<ULiveLinkSettings>()->GetDefaultSettingForRole(SubjectStaticData.Role.Get());
+		const ULiveLinkSettings* LiveLinkSettings = GetDefault<ULiveLinkSettings>();
+		const FLiveLinkRoleProjectSetting DefaultSetting = LiveLinkSettings->GetDefaultSettingForRole(SubjectStaticData.Role.Get());
 
 		// Setting class should always be valid
 		ULiveLinkSubjectSettings* SubjectSettings = nullptr;
@@ -473,6 +474,19 @@ void FLiveLinkClient::PushSubjectStaticData_Internal(FPendingSubjectStatic&& Sub
 				else
 				{
 					FLiveLinkLog::Warning(TEXT("The interpolator '%s' is not valid for the Role '%s'"), *FrameInterpolationProcessorClass->GetName(), *SubjectStaticData.Role->GetName());
+				}
+			}
+			else
+			{
+				// If no settings were found for a specific role, check if the default interpolator is compatible with the role
+				UClass* FallbackInterpolationProcessorClass = LiveLinkSettings->FrameInterpolationProcessor.Get();
+				if (FallbackInterpolationProcessorClass != nullptr)
+				{
+					UClass* InterpolationRole = FallbackInterpolationProcessorClass->GetDefaultObject<ULiveLinkFrameInterpolationProcessor>()->GetRole();
+					if (SubjectStaticData.Role->IsChildOf(InterpolationRole))
+					{
+						SubjectSettings->InterpolationProcessor = NewObject<ULiveLinkFrameInterpolationProcessor>(SubjectSettings, FallbackInterpolationProcessorClass);
+					}
 				}
 			}
 

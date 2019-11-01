@@ -2,7 +2,6 @@
 
 #include "MagicLeapHandTracking.h"
 #include "IMagicLeapPlugin.h"
-#include "MagicLeapHMD.h"
 #include "MagicLeapMath.h"
 #include "Framework/Application/SlateApplication.h"
 #include "CoreMinimal.h"
@@ -95,10 +94,10 @@ IMPLEMENT_MODULE(FMagicLeapHandTrackingPlugin, MagicLeapHandTracking);
 
 // Partial sanity check of UE4 enums vs ML enums.  If these fail there has probably been an MLSDK update that requires an UE4 update.
 #if WITH_MLSDK
-static_assert(EHandTrackingKeypointCount == static_cast<int32>(MLHandTrackingStaticData_MaxKeyPoints), "EHandTrackingGesture does not match api enum.");
-static_assert(static_cast<int32>(EHandTrackingGesture::NoHand) == static_cast<int32>(MLHandTrackingKeyPose::MLHandTrackingKeyPose_NoHand), "EHandTrackingGesture does not match api enum.");
-static_assert(static_cast<int32>(EHandTrackingKeypointFilterLevel::PredictiveSmoothing) == static_cast<int32>(MLKeypointFilterLevel::MLKeypointFilterLevel_2), "EHandTrackingKeypointFilterLevel does not match api enum.");
-static_assert(static_cast<int32>(EHandTrackingGestureFilterLevel::MoreRobustnessToFlicker) == static_cast<int32>(MLPoseFilterLevel::MLPoseFilterLevel_2), "EHandTrackingGestureFilterLevel does not match api enum.");
+static_assert(EMagicLeapHandTrackingKeypointCount == static_cast<int32>(MLHandTrackingStaticData_MaxKeyPoints), "EMagicLeapHandTrackingGesture does not match api enum.");
+static_assert(static_cast<int32>(EMagicLeapHandTrackingGesture::NoHand) == static_cast<int32>(MLHandTrackingKeyPose::MLHandTrackingKeyPose_NoHand), "EMagicLeapHandTrackingGesture does not match api enum.");
+static_assert(static_cast<int32>(EMagicLeapHandTrackingKeypointFilterLevel::PredictiveSmoothing) == static_cast<int32>(MLKeypointFilterLevel::MLKeypointFilterLevel_2), "EMagicLeapHandTrackingKeypointFilterLevel does not match api enum.");
+static_assert(static_cast<int32>(EMagicLeapHandTrackingGestureFilterLevel::MoreRobustnessToFlicker) == static_cast<int32>(MLPoseFilterLevel::MLPoseFilterLevel_2), "EMagicLeapHandTrackingGestureFilterLevel does not match api enum.");
 #endif
 
 // Left Gestures
@@ -117,6 +116,9 @@ const FName FMagicLeapGestureKeyNames::Left_Thumb_Name("MagicLeap_Left_Thumb");
 const FKey FMagicLeapHandTracking::FStaticHandTracking::Left_L("MagicLeap_Left_L");
 const FName FMagicLeapGestureKeyNames::Left_L_Name("MagicLeap_Left_L");
 
+const FKey FMagicLeapHandTracking::FStaticHandTracking::Left_OpenHand("MagicLeap_Left_OpenHand");
+const FName FMagicLeapGestureKeyNames::Left_OpenHand_Name("MagicLeap_Left_OpenHand");
+// DEPRECATED
 const FKey FMagicLeapHandTracking::FStaticHandTracking::Left_OpenHandBack("MagicLeap_Left_OpenHandBack");
 const FName FMagicLeapGestureKeyNames::Left_OpenHandBack_Name("MagicLeap_Left_OpenHandBack");
 
@@ -148,6 +150,9 @@ const FName FMagicLeapGestureKeyNames::Right_Thumb_Name("MagicLeap_Right_Thumb")
 const FKey FMagicLeapHandTracking::FStaticHandTracking::Right_L("MagicLeap_Right_L");
 const FName FMagicLeapGestureKeyNames::Right_L_Name("MagicLeap_Right_L");
 
+const FKey FMagicLeapHandTracking::FStaticHandTracking::Right_OpenHand("MagicLeap_Right_OpenHand");
+const FName FMagicLeapGestureKeyNames::Right_OpenHand_Name("MagicLeap_Right_OpenHand");
+// DEPRECATED
 const FKey FMagicLeapHandTracking::FStaticHandTracking::Right_OpenHandBack("MagicLeap_Right_OpenHandBack");
 const FName FMagicLeapGestureKeyNames::Right_OpenHandBack_Name("MagicLeap_Right_OpenHandBack");
 
@@ -272,60 +277,60 @@ FName FMagicLeapHandTracking::LiveLinkRightHandTrackingSubjectName(TEXT("MagicLe
 
 
 #if WITH_MLSDK
-EHandTrackingKeypointFilterLevel MLToUnrealKeypointsFilterLevel(MLKeypointFilterLevel FilterLevel)
+EMagicLeapHandTrackingKeypointFilterLevel MLToUnrealKeypointsFilterLevel(MLKeypointFilterLevel FilterLevel)
 {
 	switch (FilterLevel)
 	{
 	case MLKeypointFilterLevel_0:
-		return EHandTrackingKeypointFilterLevel::NoFilter;
+		return EMagicLeapHandTrackingKeypointFilterLevel::NoFilter;
 	case MLKeypointFilterLevel_1:
-		return EHandTrackingKeypointFilterLevel::SimpleSmoothing;
+		return EMagicLeapHandTrackingKeypointFilterLevel::SimpleSmoothing;
 	case MLKeypointFilterLevel_2:
-		return EHandTrackingKeypointFilterLevel::PredictiveSmoothing;
+		return EMagicLeapHandTrackingKeypointFilterLevel::PredictiveSmoothing;
 	}
 
-	return EHandTrackingKeypointFilterLevel::NoFilter;
+	return EMagicLeapHandTrackingKeypointFilterLevel::NoFilter;
 }
 
-EHandTrackingGestureFilterLevel MLToUnrealGestureFilterLevel(MLPoseFilterLevel FilterLevel)
+EMagicLeapHandTrackingGestureFilterLevel MLToUnrealGestureFilterLevel(MLPoseFilterLevel FilterLevel)
 {
 	switch (FilterLevel)
 	{
 	case MLPoseFilterLevel_0:
-		return EHandTrackingGestureFilterLevel::NoFilter;
+		return EMagicLeapHandTrackingGestureFilterLevel::NoFilter;
 	case MLPoseFilterLevel_1:
-		return EHandTrackingGestureFilterLevel::SlightRobustnessToFlicker;
+		return EMagicLeapHandTrackingGestureFilterLevel::SlightRobustnessToFlicker;
 	case MLPoseFilterLevel_2:
-		return EHandTrackingGestureFilterLevel::MoreRobustnessToFlicker;
+		return EMagicLeapHandTrackingGestureFilterLevel::MoreRobustnessToFlicker;
 	}
 
-	return EHandTrackingGestureFilterLevel::NoFilter;
+	return EMagicLeapHandTrackingGestureFilterLevel::NoFilter;
 }
 
-MLKeypointFilterLevel UnrealToMLKeypointsFilterLevel(EHandTrackingKeypointFilterLevel FilterLevel)
+MLKeypointFilterLevel UnrealToMLKeypointsFilterLevel(EMagicLeapHandTrackingKeypointFilterLevel FilterLevel)
 {
 	switch (FilterLevel)
 	{
-	case EHandTrackingKeypointFilterLevel::NoFilter:
+	case EMagicLeapHandTrackingKeypointFilterLevel::NoFilter:
 		return MLKeypointFilterLevel_0;
-	case EHandTrackingKeypointFilterLevel::SimpleSmoothing:
+	case EMagicLeapHandTrackingKeypointFilterLevel::SimpleSmoothing:
 		return MLKeypointFilterLevel_1;
-	case EHandTrackingKeypointFilterLevel::PredictiveSmoothing:
+	case EMagicLeapHandTrackingKeypointFilterLevel::PredictiveSmoothing:
 		return MLKeypointFilterLevel_2;
 	}
 
 	return MLKeypointFilterLevel_0;
 }
 
-MLPoseFilterLevel UnrealToMLGestureFilterLevel(EHandTrackingGestureFilterLevel FilterLevel)
+MLPoseFilterLevel UnrealToMLGestureFilterLevel(EMagicLeapHandTrackingGestureFilterLevel FilterLevel)
 {
 	switch (FilterLevel)
 	{
-	case EHandTrackingGestureFilterLevel::NoFilter:
+	case EMagicLeapHandTrackingGestureFilterLevel::NoFilter:
 		return MLPoseFilterLevel_0;
-	case EHandTrackingGestureFilterLevel::SlightRobustnessToFlicker:
+	case EMagicLeapHandTrackingGestureFilterLevel::SlightRobustnessToFlicker:
 		return MLPoseFilterLevel_1;
-	case EHandTrackingGestureFilterLevel::MoreRobustnessToFlicker:
+	case EMagicLeapHandTrackingGestureFilterLevel::MoreRobustnessToFlicker:
 		return MLPoseFilterLevel_2;
 	}
 
@@ -363,7 +368,7 @@ FMagicLeapHandTracking::FMagicLeapHandTracking(const TSharedRef<FGenericApplicat
 
 	// We're implicitly requiring that the MagicLeapPlugin has been loaded and
 	// initialized at this point.
-	IMagicLeapPlugin::Get().RegisterMagicLeapInputDevice(this);
+	IMagicLeapPlugin::Get().RegisterMagicLeapTrackerEntity(this);
 }
 
 FMagicLeapHandTracking::~FMagicLeapHandTracking()
@@ -372,10 +377,10 @@ FMagicLeapHandTracking::~FMagicLeapHandTracking()
 	// but it isn't an assumption that we should make.
 	if (IMagicLeapPlugin::IsAvailable())
 	{
-		IMagicLeapPlugin::Get().UnregisterMagicLeapInputDevice(this);
+		IMagicLeapPlugin::Get().UnregisterMagicLeapTrackerEntity(this);
 	}
 
-	Disable();
+	DestroyEntityTracker();
 
 	// Unregister "MotionController" modular feature manually
 	IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureName(), this);
@@ -383,7 +388,7 @@ FMagicLeapHandTracking::~FMagicLeapHandTracking()
 
 void FMagicLeapHandTracking::BuildKeypointMaps()
 {
-	SourceToTransformMap.Reserve(EHandTrackingKeypointCount * 2);
+	SourceToTransformMap.Reserve(EMagicLeapHandTrackingKeypointCount * 2);
 
 	SourceToTransformMap.Add(LeftHandCenter_Name, &LeftHand.HandCenter.Transform);
 
@@ -450,7 +455,7 @@ void FMagicLeapHandTracking::BuildKeypointMaps()
 
 
 
-	SourceToHandMap.Reserve(EHandTrackingKeypointCount * 2);
+	SourceToHandMap.Reserve(EMagicLeapHandTrackingKeypointCount * 2);
 
 	SourceToHandMap.Add(LeftHandCenter_Name, &LeftHand);
 
@@ -518,48 +523,48 @@ void FMagicLeapHandTracking::BuildKeypointMaps()
 
 FMagicLeapHandTracking::FHandState::FHandState()
 {
-	EnumToTransformMap[static_cast<int32>(EHandTrackingKeypoint::Thumb_Tip)] = &Thumb.Tip;
-	EnumToTransformMap[static_cast<int32>(EHandTrackingKeypoint::Thumb_IP)] = &Thumb.DIP;
-	EnumToTransformMap[static_cast<int32>(EHandTrackingKeypoint::Thumb_MCP)] = &Thumb.PIP;
-	EnumToTransformMap[static_cast<int32>(EHandTrackingKeypoint::Thumb_CMC)] = &Thumb.MCP;
+	EnumToTransformMap[static_cast<int32>(EMagicLeapHandTrackingKeypoint::Thumb_Tip)] = &Thumb.Tip;
+	EnumToTransformMap[static_cast<int32>(EMagicLeapHandTrackingKeypoint::Thumb_IP)] = &Thumb.DIP;
+	EnumToTransformMap[static_cast<int32>(EMagicLeapHandTrackingKeypoint::Thumb_MCP)] = &Thumb.PIP;
+	EnumToTransformMap[static_cast<int32>(EMagicLeapHandTrackingKeypoint::Thumb_CMC)] = &Thumb.MCP;
 
-	EnumToTransformMap[static_cast<int32>(EHandTrackingKeypoint::Index_Tip)] = &IndexFinger.Tip;
-	EnumToTransformMap[static_cast<int32>(EHandTrackingKeypoint::Index_DIP)] = &IndexFinger.DIP;
-	EnumToTransformMap[static_cast<int32>(EHandTrackingKeypoint::Index_PIP)] = &IndexFinger.PIP;
-	EnumToTransformMap[static_cast<int32>(EHandTrackingKeypoint::Index_MCP)] = &IndexFinger.MCP;
+	EnumToTransformMap[static_cast<int32>(EMagicLeapHandTrackingKeypoint::Index_Tip)] = &IndexFinger.Tip;
+	EnumToTransformMap[static_cast<int32>(EMagicLeapHandTrackingKeypoint::Index_DIP)] = &IndexFinger.DIP;
+	EnumToTransformMap[static_cast<int32>(EMagicLeapHandTrackingKeypoint::Index_PIP)] = &IndexFinger.PIP;
+	EnumToTransformMap[static_cast<int32>(EMagicLeapHandTrackingKeypoint::Index_MCP)] = &IndexFinger.MCP;
 
-	EnumToTransformMap[static_cast<int32>(EHandTrackingKeypoint::Middle_Tip)] = &MiddleFinger.Tip;
-	EnumToTransformMap[static_cast<int32>(EHandTrackingKeypoint::Middle_DIP)] = &MiddleFinger.DIP;
-	EnumToTransformMap[static_cast<int32>(EHandTrackingKeypoint::Middle_PIP)] = &MiddleFinger.PIP;
-	EnumToTransformMap[static_cast<int32>(EHandTrackingKeypoint::Middle_MCP)] = &MiddleFinger.MCP;
+	EnumToTransformMap[static_cast<int32>(EMagicLeapHandTrackingKeypoint::Middle_Tip)] = &MiddleFinger.Tip;
+	EnumToTransformMap[static_cast<int32>(EMagicLeapHandTrackingKeypoint::Middle_DIP)] = &MiddleFinger.DIP;
+	EnumToTransformMap[static_cast<int32>(EMagicLeapHandTrackingKeypoint::Middle_PIP)] = &MiddleFinger.PIP;
+	EnumToTransformMap[static_cast<int32>(EMagicLeapHandTrackingKeypoint::Middle_MCP)] = &MiddleFinger.MCP;
 
-	EnumToTransformMap[static_cast<int32>(EHandTrackingKeypoint::Ring_Tip)] = &RingFinger.Tip;
-	EnumToTransformMap[static_cast<int32>(EHandTrackingKeypoint::Ring_DIP)] = &RingFinger.DIP;
-	EnumToTransformMap[static_cast<int32>(EHandTrackingKeypoint::Ring_PIP)] = &RingFinger.PIP;
-	EnumToTransformMap[static_cast<int32>(EHandTrackingKeypoint::Ring_MCP)] = &RingFinger.MCP;
+	EnumToTransformMap[static_cast<int32>(EMagicLeapHandTrackingKeypoint::Ring_Tip)] = &RingFinger.Tip;
+	EnumToTransformMap[static_cast<int32>(EMagicLeapHandTrackingKeypoint::Ring_DIP)] = &RingFinger.DIP;
+	EnumToTransformMap[static_cast<int32>(EMagicLeapHandTrackingKeypoint::Ring_PIP)] = &RingFinger.PIP;
+	EnumToTransformMap[static_cast<int32>(EMagicLeapHandTrackingKeypoint::Ring_MCP)] = &RingFinger.MCP;
 
-	EnumToTransformMap[static_cast<int32>(EHandTrackingKeypoint::Pinky_Tip)] = &PinkyFinger.Tip;
-	EnumToTransformMap[static_cast<int32>(EHandTrackingKeypoint::Pinky_DIP)] = &PinkyFinger.DIP;
-	EnumToTransformMap[static_cast<int32>(EHandTrackingKeypoint::Pinky_PIP)] = &PinkyFinger.PIP;
-	EnumToTransformMap[static_cast<int32>(EHandTrackingKeypoint::Pinky_MCP)] = &PinkyFinger.MCP;
+	EnumToTransformMap[static_cast<int32>(EMagicLeapHandTrackingKeypoint::Pinky_Tip)] = &PinkyFinger.Tip;
+	EnumToTransformMap[static_cast<int32>(EMagicLeapHandTrackingKeypoint::Pinky_DIP)] = &PinkyFinger.DIP;
+	EnumToTransformMap[static_cast<int32>(EMagicLeapHandTrackingKeypoint::Pinky_PIP)] = &PinkyFinger.PIP;
+	EnumToTransformMap[static_cast<int32>(EMagicLeapHandTrackingKeypoint::Pinky_MCP)] = &PinkyFinger.MCP;
 
-	EnumToTransformMap[static_cast<int32>(EHandTrackingKeypoint::Wrist_Center)] = &Wrist.Center;
-	EnumToTransformMap[static_cast<int32>(EHandTrackingKeypoint::Wrist_Ulnar)] = &Wrist.Ulnar;
-	EnumToTransformMap[static_cast<int32>(EHandTrackingKeypoint::Wrist_Radial)] = &Wrist.Radial;
+	EnumToTransformMap[static_cast<int32>(EMagicLeapHandTrackingKeypoint::Wrist_Center)] = &Wrist.Center;
+	EnumToTransformMap[static_cast<int32>(EMagicLeapHandTrackingKeypoint::Wrist_Ulnar)] = &Wrist.Ulnar;
+	EnumToTransformMap[static_cast<int32>(EMagicLeapHandTrackingKeypoint::Wrist_Radial)] = &Wrist.Radial;
 	
-	EnumToTransformMap[static_cast<int32>(EHandTrackingKeypoint::Hand_Center)] = &HandCenter;
+	EnumToTransformMap[static_cast<int32>(EMagicLeapHandTrackingKeypoint::Hand_Center)] = &HandCenter;
 }
 
-bool FMagicLeapHandTracking::FHandState::GetTransform(EHandTrackingKeypoint KeyPoint, FTransform& OutTransform) const
+bool FMagicLeapHandTracking::FHandState::GetTransform(EMagicLeapHandTrackingKeypoint KeyPoint, FTransform& OutTransform) const
 {
-	check(static_cast<int32>(KeyPoint) >= 0 && static_cast<int32>(KeyPoint) <= EHandTrackingKeypointCount);
+	check(static_cast<int32>(KeyPoint) >= 0 && static_cast<int32>(KeyPoint) <= EMagicLeapHandTrackingKeypointCount);
 	OutTransform = EnumToTransformMap[static_cast<int32>(KeyPoint)]->Transform;
 	return IsValid();
 }
 
-const FMagicLeapHandTracking::FTransformRecord& FMagicLeapHandTracking::FHandState::GetTransform(EHandTrackingKeypoint KeyPoint) const
+const FMagicLeapHandTracking::FTransformRecord& FMagicLeapHandTracking::FHandState::GetTransform(EMagicLeapHandTrackingKeypoint KeyPoint) const
 {
-	check(static_cast<int32>(KeyPoint) >= 0 && static_cast<int32>(KeyPoint) <= EHandTrackingKeypointCount);
+	check(static_cast<int32>(KeyPoint) >= 0 && static_cast<int32>(KeyPoint) <= EMagicLeapHandTrackingKeypointCount);
 	return *EnumToTransformMap[static_cast<int32>(KeyPoint)];
 }
 
@@ -600,6 +605,24 @@ bool FMagicLeapHandTracking::GetControllerOrientationAndPosition(const int32 Con
 	
 	// Then call super to handle a few of the default labels, for backward compatibility
 	return FXRMotionControllerBase::GetControllerOrientationAndPosition(ControllerIndex, MotionSource, OutOrientation, OutPosition, WorldToMetersScale);
+}
+
+ETrackingStatus FMagicLeapHandTracking::GetControllerTrackingStatus(const int32 ControllerIndex, const FName MotionSource) const
+{
+	ETrackingStatus status = ETrackingStatus::NotTracked;
+
+	if (ControllerIndex == DeviceIndex)
+	{
+		if (bIsHandTrackingStateValid)
+		{
+			const FHandState* HandState = SourceToHandMap.FindRef(MotionSource);
+			if (HandState != nullptr && HandState->IsValid())
+			{
+				status = ETrackingStatus::Tracked;
+			}
+		}
+	}
+	return status;
 }
 
 bool FMagicLeapHandTracking::GetControllerOrientationAndPosition(const int32 ControllerIndex, const EControllerHand DeviceHand, FRotator& OutOrientation, FVector& OutPosition, float WorldToMetersScale) const
@@ -649,24 +672,26 @@ bool FMagicLeapHandTracking::GetControllerOrientationAndPosition(const int32 Con
 ETrackingStatus FMagicLeapHandTracking::GetControllerTrackingStatus(const int32 ControllerIndex, const EControllerHand DeviceHand) const
 {
 	ETrackingStatus status = ETrackingStatus::NotTracked;
-	if (bIsHandTrackingStateValid)
+	if (ControllerIndex == DeviceIndex)
 	{
-		if (DeviceHand == EControllerHand::Special_1 || DeviceHand == EControllerHand::Special_3 || DeviceHand == EControllerHand::Special_5)
+		if (bIsHandTrackingStateValid)
 		{
-			if (LeftHand.Gesture != EHandTrackingGesture::NoHand)
+			if (DeviceHand == EControllerHand::Special_1 || DeviceHand == EControllerHand::Special_3 || DeviceHand == EControllerHand::Special_5)
 			{
-				status = ETrackingStatus::Tracked;
+				if (LeftHand.Gesture != EMagicLeapHandTrackingGesture::NoHand)
+				{
+					status = ETrackingStatus::Tracked;
+				}
 			}
-		}
-		else if (DeviceHand == EControllerHand::Special_2 || DeviceHand == EControllerHand::Special_4 || DeviceHand == EControllerHand::Special_6)
-		{
-			if (RightHand.Gesture != EHandTrackingGesture::NoHand)
+			else if (DeviceHand == EControllerHand::Special_2 || DeviceHand == EControllerHand::Special_4 || DeviceHand == EControllerHand::Special_6)
 			{
-				status = ETrackingStatus::Tracked;
+				if (RightHand.Gesture != EMagicLeapHandTrackingGesture::NoHand)
+				{
+					status = ETrackingStatus::Tracked;
+				}
 			}
 		}
 	}
-
 	return status;
 }
 
@@ -772,7 +797,7 @@ void FMagicLeapHandTracking::SendControllerEventsForHand(const MLHandTrackingHan
 	const float NewConfidence = NewHandState.keypose_confidence[NewHandState.keypose];
 	if (NewHandState.keypose != OldHandState.keypose)
 	{
-		FMagicLeapHMD::EnableInput EnableInputFromHMD;
+		MagicLeap::EnableInput EnableInputFromHMD;
 		// fixes unreferenced parameter error for Windows package builds.
 		(void)EnableInputFromHMD;
 		MessageHandler->OnControllerButtonReleased(GestureMap[OldHandState.keypose], DeviceIndex, false);
@@ -783,7 +808,7 @@ void FMagicLeapHandTracking::SendControllerEventsForHand(const MLHandTrackingHan
 	}
 	else if (OldConfidence < GestureConfidenceThresholds[GestureIndex] && NewConfidence >= GestureConfidenceThresholds[GestureIndex])
 	{
-		FMagicLeapHMD::EnableInput EnableInputFromHMD;
+		MagicLeap::EnableInput EnableInputFromHMD;
 		// fixes unreferenced parameter error for Windows package builds.
 		(void)EnableInputFromHMD;
 		MessageHandler->OnControllerButtonPressed(GestureMap[GestureIndex], DeviceIndex, false);
@@ -810,34 +835,24 @@ bool FMagicLeapHandTracking::IsGamepadAttached() const
 #endif //WITH_MLSDK
 }
 
-void FMagicLeapHandTracking::Enable()
-{
-	checkf(false, TEXT("FMagicLeapHandTracking::Enable is not supported! Check 'SupportsExplicitEnable()' first!"));
-}
-
-bool FMagicLeapHandTracking::SupportsExplicitEnable() const
-{
-	return false;
-}
-
-void FMagicLeapHandTracking::Disable()
+void FMagicLeapHandTracking::DestroyEntityTracker()
 {
 #if WITH_MLSDK
 	if (MLHandleIsValid(HandTracker))
 	{
-		if (MLResult_Ok == MLHandTrackingDestroy(HandTracker))
+		MLResult Result = MLHandTrackingDestroy(HandTracker);
+		if (Result != MLResult_Ok)
 		{
-			HandTracker = ML_INVALID_HANDLE;
+			UE_LOG(LogMagicLeapHandTracking, Error, TEXT("MLHandTrackingDestroy failed with error '%s'."), UTF8_TO_TCHAR(MLGetResultString(Result)));
+			return;
 		}
-		else
-		{
-			UE_LOG(LogMagicLeapHandTracking, Error, TEXT("Error destroying hand tracker."));
-		}
+
+		HandTracker = ML_INVALID_HANDLE;
 	}
 #endif
 }
 
-void FMagicLeapHandTracking::OnBeginRendering_GameThread_Update()
+void FMagicLeapHandTracking::OnBeginRendering_GameThread()
 {
 #if WITH_MLSDK
 	UpdateCurrentHandTrackerTransforms();
@@ -859,14 +874,14 @@ bool FMagicLeapHandTracking::IsHandTrackingStateValid() const
 	return bIsHandTrackingStateValid;
 }
 
-bool FMagicLeapHandTracking::GetKeypointTransform(EControllerHand Hand, EHandTrackingKeypoint Keypoint, FTransform& OutTransform) const
+bool FMagicLeapHandTracking::GetKeypointTransform(EControllerHand Hand, EMagicLeapHandTrackingKeypoint Keypoint, FTransform& OutTransform) const
 {
 	const FMagicLeapHandTracking::FHandState& HandState = (Hand == EControllerHand::Left) ? GetLeftHandState() : GetRightHandState();
 
 	return HandState.GetTransform(Keypoint, OutTransform);
 }
 
-bool FMagicLeapHandTracking::SetConfiguration(bool bTrackingEnabled, const TArray<EHandTrackingGesture>& ActiveKeyPoses, EHandTrackingKeypointFilterLevel KeypointsFilterLevel, EHandTrackingGestureFilterLevel GestureFilterLevel)
+bool FMagicLeapHandTracking::SetConfiguration(bool bTrackingEnabled, const TArray<EMagicLeapHandTrackingGesture>& ActiveKeyPoses, EMagicLeapHandTrackingKeypointFilterLevel KeypointsFilterLevel, EMagicLeapHandTrackingGestureFilterLevel GestureFilterLevel)
 {
 #if WITH_MLSDK
 	ConditionallyEnable();
@@ -886,7 +901,7 @@ bool FMagicLeapHandTracking::SetConfiguration(bool bTrackingEnabled, const TArra
 
 	bool EnableHandTrackingPipeline = false;
 
-	for (const EHandTrackingGesture& StaticPose : ActiveKeyPoses)
+	for (const EMagicLeapHandTrackingGesture& StaticPose : ActiveKeyPoses)
 	{
 		if (static_cast<uint32>(StaticPose) <= MaxConfigurablePose)
 		{
@@ -897,14 +912,16 @@ bool FMagicLeapHandTracking::SetConfiguration(bool bTrackingEnabled, const TArra
 	Config.handtracking_pipeline_enabled = bTrackingEnabled;
 	Config.keypoints_filter_level = UnrealToMLKeypointsFilterLevel(KeypointsFilterLevel);
 	Config.pose_filter_level = UnrealToMLGestureFilterLevel(GestureFilterLevel);
-
-	return MLHandTrackingSetConfiguration(HandTracker, &Config) == MLResult_Ok;
+	MLResult Result = MLHandTrackingSetConfiguration(HandTracker, &Config);
+	UE_CLOG(Result != MLResult_Ok, LogMagicLeapHandTracking, Error, TEXT("MLHandTrackingSetConfiguration failed with error '%s'."), UTF8_TO_TCHAR(MLGetResultString(Result)));
+	
+	return Result == MLResult_Ok;
 #else
 	return false;
 #endif //WITH_MLSDK
 }
 
-bool FMagicLeapHandTracking::GetConfiguration(bool& bTrackingEnabled, TArray<EHandTrackingGesture>& ActiveKeyPoses, EHandTrackingKeypointFilterLevel& KeypointsFilterLevel, EHandTrackingGestureFilterLevel& GestureFilterLevel)
+bool FMagicLeapHandTracking::GetConfiguration(bool& bTrackingEnabled, TArray<EMagicLeapHandTrackingGesture>& ActiveKeyPoses, EMagicLeapHandTrackingKeypointFilterLevel& KeypointsFilterLevel, EMagicLeapHandTrackingGestureFilterLevel& GestureFilterLevel)
 {
 #if WITH_MLSDK
 	ConditionallyEnable();
@@ -914,43 +931,45 @@ bool FMagicLeapHandTracking::GetConfiguration(bool& bTrackingEnabled, TArray<EHa
 		return false;
 	}
 
-	MLHandTrackingConfiguration config;
-	bool validResult = MLHandTrackingGetConfiguration(HandTracker, &config) == MLResult_Ok;
-
-	if (validResult)
+	MLHandTrackingConfiguration Config;
+	MLResult Result = MLHandTrackingGetConfiguration(HandTracker, &Config);
+	if (Result != MLResult_Ok)
 	{
-		ActiveKeyPoses.Empty(MLHandTrackingKeyPose_Count);
-		for (uint32 i = 0; i < MLHandTrackingKeyPose_Count; ++i)
-		{
-			if (config.keypose_config[i])
-			{
-				ActiveKeyPoses.Add(static_cast<EHandTrackingGesture>(i));
-			}
-		}
-
-		bTrackingEnabled = config.handtracking_pipeline_enabled;
-		KeypointsFilterLevel = MLToUnrealKeypointsFilterLevel(config.keypoints_filter_level);
-		GestureFilterLevel = MLToUnrealGestureFilterLevel(config.pose_filter_level);
+		UE_LOG(LogMagicLeapHandTracking, Error, TEXT("MLHandTrackingGetConfiguration failed with error '%s'."), UTF8_TO_TCHAR(MLGetResultString(Result)));
+		return false;
 	}
 
-	return validResult;
+	ActiveKeyPoses.Empty(MLHandTrackingKeyPose_Count);
+	for (uint32 i = 0; i < MLHandTrackingKeyPose_Count; ++i)
+	{
+		if (Config.keypose_config[i])
+		{
+			ActiveKeyPoses.Add(static_cast<EMagicLeapHandTrackingGesture>(i));
+		}
+	}
+
+	bTrackingEnabled = Config.handtracking_pipeline_enabled;
+	KeypointsFilterLevel = MLToUnrealKeypointsFilterLevel(Config.keypoints_filter_level);
+	GestureFilterLevel = MLToUnrealGestureFilterLevel(Config.pose_filter_level);
+	
+	return true;
 #else
 	return false;
 #endif //WITH_MLSDK
 
 }
 
-void FMagicLeapHandTracking::SetGestureConfidenceThreshold(EHandTrackingGesture Gesture, float Confidence)
+void FMagicLeapHandTracking::SetGestureConfidenceThreshold(EMagicLeapHandTrackingGesture Gesture, float Confidence)
 {
-	if (Gesture <= EHandTrackingGesture::NoHand)
+	if ((Gesture <= EMagicLeapHandTrackingGesture::NoHand) && (GestureConfidenceThresholds.Num() != 0))
 	{
 		GestureConfidenceThresholds[static_cast<int32>(Gesture)] = Confidence;
 	}
 }
 
-float FMagicLeapHandTracking::GetGestureConfidenceThreshold(EHandTrackingGesture Gesture) const
+float FMagicLeapHandTracking::GetGestureConfidenceThreshold(EMagicLeapHandTrackingGesture Gesture) const
 {
-	if (Gesture <= EHandTrackingGesture::NoHand)
+	if ((Gesture <= EMagicLeapHandTrackingGesture::NoHand) && (GestureConfidenceThresholds.Num() != 0))
 	{
 		return GestureConfidenceThresholds[static_cast<int32>(Gesture)];
 	}
@@ -960,18 +979,18 @@ float FMagicLeapHandTracking::GetGestureConfidenceThreshold(EHandTrackingGesture
 namespace MagicLeapHandTracking
 {
 #if WITH_MLSDK
-	bool FetchTransform(const FAppFramework& AppFramework, const MLKeyPointState& Source, FMagicLeapHandTracking::FTransformRecord& OutDest, const TCHAR* DebugString, const TCHAR* DebugString2, const TCHAR* DebugString3)
+	bool FetchTransform(const IMagicLeapPlugin& MLPlugin, const MLKeyPointState& Source, FMagicLeapHandTracking::FTransformRecord& OutDest, const TCHAR* DebugString, const TCHAR* DebugString2, const TCHAR* DebugString3)
 	{
 		bool bResult = false;
 
 		if (Source.is_valid)
 		{
-			EFailReason FailReason = EFailReason::None;
+			EMagicLeapTransformFailReason FailReason = EMagicLeapTransformFailReason::None;
 			FTransform Transform;
-			bResult = AppFramework.GetTransform(Source.frame_id, Transform, FailReason);
+			bResult = MLPlugin.GetTransform(Source.frame_id, Transform, FailReason);
 			if (!bResult)
 			{
-				if (FailReason == EFailReason::NaNsInTransform)
+				if (FailReason == EMagicLeapTransformFailReason::NaNsInTransform)
 				{
 					UE_LOG(LogMagicLeapHandTracking, Error, TEXT("NaNs in %s %s %s transform."), DebugString, DebugString2, DebugString3);
 				}
@@ -986,31 +1005,31 @@ namespace MagicLeapHandTracking
 		return bResult;
 	}
 
-	void FetchFingerTransforms(const FAppFramework& AppFramework, const MLFingerState& Source, FMagicLeapHandTracking::FDigitTransforms& OutDest, const TCHAR* DebugString, const TCHAR* DebugString2)
+	void FetchFingerTransforms(const IMagicLeapPlugin& MLPlugin, const MLFingerState& Source, FMagicLeapHandTracking::FDigitTransforms& OutDest, const TCHAR* DebugString, const TCHAR* DebugString2)
 	{
-		FetchTransform(AppFramework, Source.tip, OutDest.Tip, DebugString, DebugString2, TEXT("Tip"));
-		FetchTransform(AppFramework, Source.dip, OutDest.DIP, DebugString, DebugString2, TEXT("DIP"));
-		FetchTransform(AppFramework, Source.pip, OutDest.PIP, DebugString, DebugString2, TEXT("PIP"));
-		FetchTransform(AppFramework, Source.mcp, OutDest.MCP, DebugString, DebugString2, TEXT("MCP"));
+		FetchTransform(MLPlugin, Source.tip, OutDest.Tip, DebugString, DebugString2, TEXT("Tip"));
+		FetchTransform(MLPlugin, Source.dip, OutDest.DIP, DebugString, DebugString2, TEXT("DIP"));
+		FetchTransform(MLPlugin, Source.pip, OutDest.PIP, DebugString, DebugString2, TEXT("PIP"));
+		FetchTransform(MLPlugin, Source.mcp, OutDest.MCP, DebugString, DebugString2, TEXT("MCP"));
 	}
 
-	void FetchHandTransforms(const FAppFramework& AppFramework, const MLHandTrackingStaticHandState& Source, FMagicLeapHandTracking::FHandState& OutDest, const TCHAR* DebugString)
+	void FetchHandTransforms(const IMagicLeapPlugin& MLPlugin, const MLHandTrackingStaticHandState& Source, FMagicLeapHandTracking::FHandState& OutDest, const TCHAR* DebugString)
 	{
-		FetchTransform(AppFramework, Source.thumb.tip, OutDest.Thumb.Tip, DebugString, TEXT("thumb"), TEXT("Tip"));
-		FetchTransform(AppFramework, Source.thumb.ip,  OutDest.Thumb.DIP, DebugString, TEXT("thumb"), TEXT("DIP"));
-		FetchTransform(AppFramework, Source.thumb.mcp, OutDest.Thumb.PIP, DebugString, TEXT("thumb"), TEXT("PIP"));
-		FetchTransform(AppFramework, Source.thumb.cmc, OutDest.Thumb.MCP, DebugString, TEXT("thumb"), TEXT("MCP"));
+		FetchTransform(MLPlugin, Source.thumb.tip, OutDest.Thumb.Tip, DebugString, TEXT("thumb"), TEXT("Tip"));
+		FetchTransform(MLPlugin, Source.thumb.ip,  OutDest.Thumb.DIP, DebugString, TEXT("thumb"), TEXT("DIP"));
+		FetchTransform(MLPlugin, Source.thumb.mcp, OutDest.Thumb.PIP, DebugString, TEXT("thumb"), TEXT("PIP"));
+		FetchTransform(MLPlugin, Source.thumb.cmc, OutDest.Thumb.MCP, DebugString, TEXT("thumb"), TEXT("MCP"));
 
-		FetchFingerTransforms(AppFramework, Source.index,  OutDest.IndexFinger,  DebugString, TEXT("Index"));
-		FetchFingerTransforms(AppFramework, Source.middle, OutDest.MiddleFinger, DebugString, TEXT("Index"));
-		FetchFingerTransforms(AppFramework, Source.ring,   OutDest.RingFinger,   DebugString, TEXT("Index"));
-		FetchFingerTransforms(AppFramework, Source.pinky,  OutDest.PinkyFinger,  DebugString, TEXT("Index"));
+		FetchFingerTransforms(MLPlugin, Source.index,  OutDest.IndexFinger,  DebugString, TEXT("Index"));
+		FetchFingerTransforms(MLPlugin, Source.middle, OutDest.MiddleFinger, DebugString, TEXT("Index"));
+		FetchFingerTransforms(MLPlugin, Source.ring,   OutDest.RingFinger,   DebugString, TEXT("Index"));
+		FetchFingerTransforms(MLPlugin, Source.pinky,  OutDest.PinkyFinger,  DebugString, TEXT("Index"));
 
-		FetchTransform(AppFramework, Source.wrist.center, OutDest.Wrist.Center, DebugString, TEXT("wrist"), TEXT("center"));
-		FetchTransform(AppFramework, Source.wrist.ulnar,  OutDest.Wrist.Ulnar,  DebugString, TEXT("wrist"), TEXT("ulnar"));
-		FetchTransform(AppFramework, Source.wrist.radial, OutDest.Wrist.Radial, DebugString, TEXT("wrist"), TEXT("radial"));
+		FetchTransform(MLPlugin, Source.wrist.center, OutDest.Wrist.Center, DebugString, TEXT("wrist"), TEXT("center"));
+		FetchTransform(MLPlugin, Source.wrist.ulnar,  OutDest.Wrist.Ulnar,  DebugString, TEXT("wrist"), TEXT("ulnar"));
+		FetchTransform(MLPlugin, Source.wrist.radial, OutDest.Wrist.Radial, DebugString, TEXT("wrist"), TEXT("radial"));
 
-		FetchTransform(AppFramework, Source.hand_center, OutDest.HandCenter, DebugString, TEXT(""), TEXT("center"));
+		FetchTransform(MLPlugin, Source.hand_center, OutDest.HandCenter, DebugString, TEXT(""), TEXT("center"));
 	}
 
 	//void LogMLHandTackingHandState(const MLHandTrackingHandState& State)
@@ -1109,8 +1128,16 @@ void FMagicLeapHandTracking::UpdateTrackerData()
 	if (MLHandleIsValid(HandTracker))
 	{
 		CurrentHandTrackingDataIndex = 1 - CurrentHandTrackingDataIndex;
-		bIsHandTrackingStateValid = MLHandTrackingGetData(HandTracker, &HandTrackingDatas[CurrentHandTrackingDataIndex]) == MLResult_Ok;
-		//MagicLeapHandTracking::LogMLHandTrackingData(GetCurrentHandTrackingData());
+		MLResult Result = MLHandTrackingGetData(HandTracker, &HandTrackingDatas[CurrentHandTrackingDataIndex]);
+		if (Result != MLResult_Ok)
+		{
+			bIsHandTrackingStateValid = false;
+			UE_LOG(LogMagicLeapHandTracking, Error, TEXT("MLHandTrackingGetData failed with error '%s'."), UTF8_TO_TCHAR(MLGetResultString(Result)));
+		}
+		else
+		{
+			bIsHandTrackingStateValid = true;
+		}
 	}
 	else
 	{
@@ -1118,9 +1145,6 @@ void FMagicLeapHandTracking::UpdateTrackerData()
 	}
 	if (bIsHandTrackingStateValid && IMagicLeapPlugin::Get().IsMagicLeapHMDValid())
 	{
-		const FAppFramework& AppFramework = static_cast<FMagicLeapHMD*>(GEngine->XRSystem->GetHMDDevice())->GetAppFrameworkConst();
-		check(AppFramework.IsInitialized());
-
 		const MLHandTrackingData& HandTrackingData = GetCurrentHandTrackingData();
 
 		LeftHand.Gesture = TranslateGestureEnum(HandTrackingData.left_hand_state.keypose);
@@ -1139,12 +1163,11 @@ void FMagicLeapHandTracking::UpdateCurrentHandTrackerTransforms()
 
 	if (MLHandleIsValid(HandTracker) && bIsHandTrackingStateValid && IMagicLeapPlugin::Get().IsMagicLeapHMDValid())
 	{
-		const FAppFramework& AppFramework = static_cast<FMagicLeapHMD*>(GEngine->XRSystem->GetHMDDevice())->GetAppFrameworkConst();
-		check(AppFramework.IsInitialized());
+		IMagicLeapPlugin& MLPlugin = IMagicLeapPlugin::Get();
 
 		const MLHandTrackingData& HandTrackingData = GetCurrentHandTrackingData();
 
-		if (LeftHand.Gesture != EHandTrackingGesture::NoHand)
+		if (LeftHand.Gesture != EMagicLeapHandTrackingGesture::NoHand)
 		{
 			LeftHand.HandCenterNormalized = MagicLeap::ToFVector(HandTrackingData.left_hand_state.hand_center_normalized, 1.0f);
 			if (LeftHand.HandCenterNormalized.ContainsNaN())
@@ -1153,9 +1176,9 @@ void FMagicLeapHandTracking::UpdateCurrentHandTrackerTransforms()
 				LeftHand.HandCenterNormalized = FVector::ZeroVector;
 			}
 
-			MagicLeapHandTracking::FetchHandTransforms(AppFramework, HandTrackingStaticData.left, LeftHand, TEXT("left hand"));
+			MagicLeapHandTracking::FetchHandTransforms(MLPlugin, HandTrackingStaticData.left, LeftHand, TEXT("left hand"));
 		}
-		if (RightHand.Gesture != EHandTrackingGesture::NoHand)
+		if (RightHand.Gesture != EMagicLeapHandTrackingGesture::NoHand)
 		{
 			RightHand.HandCenterNormalized = MagicLeap::ToFVector(HandTrackingData.right_hand_state.hand_center_normalized, 1.0f);
 			if (RightHand.HandCenterNormalized.ContainsNaN())
@@ -1164,7 +1187,7 @@ void FMagicLeapHandTracking::UpdateCurrentHandTrackerTransforms()
 				RightHand.HandCenterNormalized = FVector::ZeroVector;
 			}
 
-			MagicLeapHandTracking::FetchHandTransforms(AppFramework, HandTrackingStaticData.right, RightHand, TEXT("right hand"));
+			MagicLeapHandTracking::FetchHandTransforms(MLPlugin, HandTrackingStaticData.right, RightHand, TEXT("right hand"));
 		}
 	}
 #endif
@@ -1178,7 +1201,9 @@ void FMagicLeapHandTracking::AddKeys()
 	EKeys::AddKey(FKeyDetails(FStaticHandTracking::Left_Pinch, LOCTEXT("MagicLeap_Left_Pinch", "ML Left Pinch"), FKeyDetails::GamepadKey));
 	EKeys::AddKey(FKeyDetails(FStaticHandTracking::Left_Thumb, LOCTEXT("MagicLeap_Left_Thumb", "ML Left Thumb"), FKeyDetails::GamepadKey));
 	EKeys::AddKey(FKeyDetails(FStaticHandTracking::Left_L, LOCTEXT("MagicLeap_Left_L", "ML Left L"), FKeyDetails::GamepadKey));
-	EKeys::AddKey(FKeyDetails(FStaticHandTracking::Left_OpenHandBack, LOCTEXT("MagicLeap_Left_OpenHandBack", "ML Left Open Hand Back"), FKeyDetails::GamepadKey));
+	EKeys::AddKey(FKeyDetails(FStaticHandTracking::Left_OpenHand, LOCTEXT("MagicLeap_Left_OpenHand", "ML Left Open Hand"), FKeyDetails::GamepadKey));
+	// DEPRECATED
+	EKeys::AddKey(FKeyDetails(FStaticHandTracking::Left_OpenHandBack, LOCTEXT("MagicLeap_Left_OpenHandBack", "ML Left Open Hand Back DEPRECATED"), FKeyDetails::GamepadKey));
 	EKeys::AddKey(FKeyDetails(FStaticHandTracking::Left_Ok, LOCTEXT("MagicLeap_Left_Ok", "ML Left Ok"), FKeyDetails::GamepadKey));
 	EKeys::AddKey(FKeyDetails(FStaticHandTracking::Left_C, LOCTEXT("MagicLeap_Left_C", "ML Left C"), FKeyDetails::GamepadKey));
 	EKeys::AddKey(FKeyDetails(FStaticHandTracking::Left_NoPose, LOCTEXT("MagicLeap_Left_NoPose", "ML Left NoPose"), FKeyDetails::GamepadKey));
@@ -1190,7 +1215,9 @@ void FMagicLeapHandTracking::AddKeys()
 	EKeys::AddKey(FKeyDetails(FStaticHandTracking::Right_Pinch, LOCTEXT("MagicLeap_Right_Pinch", "ML Right Pinch"), FKeyDetails::GamepadKey));
 	EKeys::AddKey(FKeyDetails(FStaticHandTracking::Right_Thumb, LOCTEXT("MagicLeap_Right_Thumb", "ML Right Thumb"), FKeyDetails::GamepadKey));
 	EKeys::AddKey(FKeyDetails(FStaticHandTracking::Right_L, LOCTEXT("MagicLeap_Right_L", "ML Right L"), FKeyDetails::GamepadKey));
-	EKeys::AddKey(FKeyDetails(FStaticHandTracking::Right_OpenHandBack, LOCTEXT("MagicLeap_Right_OpenHandBack", "ML Right Open Hand Back"), FKeyDetails::GamepadKey));
+	EKeys::AddKey(FKeyDetails(FStaticHandTracking::Right_OpenHand, LOCTEXT("MagicLeap_Right_OpenHand", "ML Right Open Hand"), FKeyDetails::GamepadKey));
+	// DEPRECATED
+	EKeys::AddKey(FKeyDetails(FStaticHandTracking::Right_OpenHandBack, LOCTEXT("MagicLeap_Right_OpenHandBack", "ML Right Open Hand Back DEPRECATED"), FKeyDetails::GamepadKey));
 	EKeys::AddKey(FKeyDetails(FStaticHandTracking::Right_Ok, LOCTEXT("MagicLeap_Right_Ok", "ML Right Ok"), FKeyDetails::GamepadKey));
 	EKeys::AddKey(FKeyDetails(FStaticHandTracking::Right_C, LOCTEXT("MagicLeap_Right_C", "ML Right C"), FKeyDetails::GamepadKey));
 	EKeys::AddKey(FKeyDetails(FStaticHandTracking::Right_NoPose, LOCTEXT("MagicLeap_Right_NoPose", "ML Right NoPose"), FKeyDetails::GamepadKey));
@@ -1209,6 +1236,8 @@ void FMagicLeapHandTracking::AddKeys()
 	LeftStaticGestureMap[MLHandTrackingKeyPose_Pinch] = FMagicLeapGestureKeyNames::Left_Pinch_Name;
 	LeftStaticGestureMap[MLHandTrackingKeyPose_Thumb] = FMagicLeapGestureKeyNames::Left_Thumb_Name;
 	LeftStaticGestureMap[MLHandTrackingKeyPose_L] = FMagicLeapGestureKeyNames::Left_L_Name;
+	LeftStaticGestureMap[MLHandTrackingKeyPose_OpenHand] = FMagicLeapGestureKeyNames::Left_OpenHand_Name;
+	// DEPRECATED
 	LeftStaticGestureMap[MLHandTrackingKeyPose_OpenHandBack] = FMagicLeapGestureKeyNames::Left_OpenHandBack_Name;
 	LeftStaticGestureMap[MLHandTrackingKeyPose_Ok] = FMagicLeapGestureKeyNames::Left_Ok_Name;
 	LeftStaticGestureMap[MLHandTrackingKeyPose_C] = FMagicLeapGestureKeyNames::Left_C_Name;
@@ -1221,6 +1250,8 @@ void FMagicLeapHandTracking::AddKeys()
 	RightStaticGestureMap[MLHandTrackingKeyPose_Pinch] = FMagicLeapGestureKeyNames::Right_Pinch_Name;
 	RightStaticGestureMap[MLHandTrackingKeyPose_Thumb] = FMagicLeapGestureKeyNames::Right_Thumb_Name;
 	RightStaticGestureMap[MLHandTrackingKeyPose_L] = FMagicLeapGestureKeyNames::Right_L_Name;
+	RightStaticGestureMap[MLHandTrackingKeyPose_OpenHand] = FMagicLeapGestureKeyNames::Right_OpenHand_Name;
+	// DEPRECATED
 	RightStaticGestureMap[MLHandTrackingKeyPose_OpenHandBack] = FMagicLeapGestureKeyNames::Right_OpenHandBack_Name;
 	RightStaticGestureMap[MLHandTrackingKeyPose_Ok] = FMagicLeapGestureKeyNames::Right_Ok_Name;
 	RightStaticGestureMap[MLHandTrackingKeyPose_C] = FMagicLeapGestureKeyNames::Right_C_Name;
@@ -1231,33 +1262,33 @@ void FMagicLeapHandTracking::AddKeys()
 }
 
 #if WITH_MLSDK
-EHandTrackingGesture FMagicLeapHandTracking::TranslateGestureEnum(MLHandTrackingKeyPose HandState)
+EMagicLeapHandTrackingGesture FMagicLeapHandTracking::TranslateGestureEnum(MLHandTrackingKeyPose HandState)
 {
 	switch (HandState)
 	{
 	case MLHandTrackingKeyPose_Finger:
-		return EHandTrackingGesture::Finger;
+		return EMagicLeapHandTrackingGesture::Finger;
 	case MLHandTrackingKeyPose_Fist:
-		return EHandTrackingGesture::Fist;
+		return EMagicLeapHandTrackingGesture::Fist;
 	case MLHandTrackingKeyPose_Pinch:
-		return EHandTrackingGesture::Pinch;
+		return EMagicLeapHandTrackingGesture::Pinch;
 	case MLHandTrackingKeyPose_Thumb:
-		return EHandTrackingGesture::Thumb;
+		return EMagicLeapHandTrackingGesture::Thumb;
 	case MLHandTrackingKeyPose_L:
-		return EHandTrackingGesture::L;
-	case MLHandTrackingKeyPose_OpenHandBack:
-		return EHandTrackingGesture::OpenHandBack;
+		return EMagicLeapHandTrackingGesture::L;
+	case MLHandTrackingKeyPose_OpenHand:
+		return EMagicLeapHandTrackingGesture::OpenHand;
 	case MLHandTrackingKeyPose_Ok:
-		return EHandTrackingGesture::Ok;
+		return EMagicLeapHandTrackingGesture::Ok;
 	case MLHandTrackingKeyPose_C:
-		return EHandTrackingGesture::C;
+		return EMagicLeapHandTrackingGesture::C;
 	case MLHandTrackingKeyPose_NoPose:
-		return EHandTrackingGesture::NoPose;
+		return EMagicLeapHandTrackingGesture::NoPose;
 	case MLHandTrackingKeyPose_NoHand:
-		return EHandTrackingGesture::NoHand;
+		return EMagicLeapHandTrackingGesture::NoHand;
 	default:
 		check(false);
-		return EHandTrackingGesture::NoHand;
+		return EMagicLeapHandTrackingGesture::NoHand;
 	}
 }
 #endif //WITH_MLSDK
@@ -1265,20 +1296,26 @@ EHandTrackingGesture FMagicLeapHandTracking::TranslateGestureEnum(MLHandTracking
 void FMagicLeapHandTracking::ConditionallyEnable()
 {
 #if WITH_MLSDK
-	if (!MLHandleIsValid(HandTracker) && GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice())
+	if (!MLHandleIsValid(HandTracker) && IMagicLeapPlugin::Get().IsPerceptionEnabled())
 	{
-		MLResult CreateResult = MLHandTrackingCreate(&HandTracker);
-		if (CreateResult == MLResult_Ok && MLHandleIsValid(HandTracker))
+		MLResult Result = MLHandTrackingCreate(&HandTracker);
+		if (Result != MLResult_Ok)
 		{
-			if (MLResult_Ok != MLHandTrackingGetStaticData(HandTracker, &HandTrackingStaticData))
-			{
-				UE_LOG(LogMagicLeapHandTracking, Error, TEXT("Error getting hand tracker static data."));
-			}
-			//MagicLeapHandTracking::LogMLHandTrackingStaticData(HandTrackingStaticData);
+			UE_LOG(LogMagicLeapHandTracking, Error, TEXT("MLHandTrackingCreate failed with error '%s'."), UTF8_TO_TCHAR(MLGetResultString(Result)));
+			return;
 		}
-		else
+
+		if (!MLHandleIsValid(HandTracker))
 		{
-			UE_LOG(LogMagicLeapHandTracking, Error, TEXT("Error creating hand tracker."));
+			UE_LOG(LogMagicLeapHandTracking, Error, TEXT("MLHandTrackingCreate succeeded but resulting tracker is invalid."));
+			return;
+		}
+
+		Result = MLHandTrackingGetStaticData(HandTracker, &HandTrackingStaticData);
+		if (Result != MLResult_Ok)
+		{
+			UE_LOG(LogMagicLeapHandTracking, Error, TEXT("MLHandTrackingGetStaticData failed with error '%s'."), UTF8_TO_TCHAR(MLGetResultString(Result)));
+			return;
 		}
 	}
 #endif //WITH_MLSDK
@@ -1289,39 +1326,33 @@ void FMagicLeapHandTracking::OnAppPause()
 #if WITH_MLSDK
 	if (!MLHandleIsValid(HandTracker))
 	{
-		UE_LOG(LogMagicLeapHandTracking, Error, TEXT("Hand tracker was invalid on application pause."));
+		return;
 	}
-	else
+
+	MLHandTrackingConfiguration HandTrackingConfig;
+	MLResult Result = MLHandTrackingGetConfiguration(HandTracker, &HandTrackingConfig);
+	if (Result != MLResult_Ok)
 	{
-		MLHandTrackingConfiguration HandTrackingConfig;
-
-		if (MLResult_Ok != MLHandTrackingGetConfiguration(HandTracker, &HandTrackingConfig))
-		{
-			UE_LOG(LogMagicLeapHandTracking, Error, TEXT("Failed to retrieve hand tracking configuration on application pause."));
-		}
-		else
-		{
-			bWasSystemEnabledOnPause = HandTrackingConfig.handtracking_pipeline_enabled;
-
-			if (!bWasSystemEnabledOnPause)
-			{
-				UE_LOG(LogMagicLeapHandTracking, Log, TEXT("Hand tracking was not enabled at time of application pause."));
-			}
-			else
-			{
-				HandTrackingConfig.handtracking_pipeline_enabled = false;
-
-				if (MLResult_Ok != MLHandTrackingSetConfiguration(HandTracker, &HandTrackingConfig))
-				{
-					UE_LOG(LogMagicLeapHandTracking, Error, TEXT("Failed to disable hand tracking on application pause."));
-				}
-				else
-				{
-					UE_LOG(LogMagicLeapHandTracking, Log, TEXT("Hand tracking paused until app resumes."));
-				}
-			}
-		}
+		UE_LOG(LogMagicLeapHandTracking, Error, TEXT("MLHandTrackingGetConfiguration failed with error '%s'."), UTF8_TO_TCHAR(MLGetResultString(Result)));
+		return;
 	}
+
+	bWasSystemEnabledOnPause = HandTrackingConfig.handtracking_pipeline_enabled;
+	if (!bWasSystemEnabledOnPause)
+	{
+		UE_LOG(LogMagicLeapHandTracking, Log, TEXT("Hand tracking was not enabled at time of application pause."));
+		return;
+	}
+	
+	HandTrackingConfig.handtracking_pipeline_enabled = false;
+	Result = MLHandTrackingSetConfiguration(HandTracker, &HandTrackingConfig);
+	if (Result != MLResult_Ok)
+	{
+		UE_LOG(LogMagicLeapHandTracking, Error, TEXT("MLHandTrackingSetConfiguration failed with error '%s'."), UTF8_TO_TCHAR(MLGetResultString(Result)));
+		return;
+	}
+
+	UE_LOG(LogMagicLeapHandTracking, Log, TEXT("Hand tracking paused until app resumes."));
 #endif //WITH_MLSDK
 }
 
@@ -1330,37 +1361,32 @@ void FMagicLeapHandTracking::OnAppResume()
 #if WITH_MLSDK
 	if (!MLHandleIsValid(HandTracker))
 	{
-		UE_LOG(LogMagicLeapHandTracking, Error, TEXT("Hand tracker was invalid on application resume."));
+		return;
 	}
-	else
+
+	MLHandTrackingConfiguration HandTrackingConfig;
+	if (!bWasSystemEnabledOnPause)
 	{
-		MLHandTrackingConfiguration HandTrackingConfig;
-
-		if (!bWasSystemEnabledOnPause)
-		{
-			UE_LOG(LogMagicLeapHandTracking, Log, TEXT("Not resuming hand tracking as it was not enabled at time of application pause."));
-		}
-		else
-		{
-			if (MLResult_Ok != MLHandTrackingGetConfiguration(HandTracker, &HandTrackingConfig))
-			{
-				UE_LOG(LogMagicLeapHandTracking, Error, TEXT("Failed to retrieve hand tracking configuration on application resume."));
-			}
-			else
-			{
-				HandTrackingConfig.handtracking_pipeline_enabled = true;
-
-				if (MLResult_Ok != MLHandTrackingSetConfiguration(HandTracker, &HandTrackingConfig))
-				{
-					UE_LOG(LogMagicLeapHandTracking, Error, TEXT("Failed to re-enable hand tracking on application resume."));
-				}
-				else
-				{
-					UE_LOG(LogMagicLeapHandTracking, Log, TEXT("Hand tracking resumed."));
-				}
-			}
-		}
+		UE_LOG(LogMagicLeapHandTracking, Log, TEXT("Not resuming hand tracking as it was not enabled at time of application pause."));
+		return;
 	}
+
+	MLResult Result = MLHandTrackingGetConfiguration(HandTracker, &HandTrackingConfig);
+	if (Result != MLResult_Ok)
+	{
+		UE_LOG(LogMagicLeapHandTracking, Error, TEXT("MLHandTrackingGetConfiguration failed with error '%s'."), UTF8_TO_TCHAR(MLGetResultString(Result)));
+		return;
+	}
+
+	HandTrackingConfig.handtracking_pipeline_enabled = true;
+	Result = MLHandTrackingSetConfiguration(HandTracker, &HandTrackingConfig);
+	if (Result != MLResult_Ok)
+	{
+		UE_LOG(LogMagicLeapHandTracking, Error, TEXT("MLHandTrackingSetConfiguration failed with error '%s'."), UTF8_TO_TCHAR(MLGetResultString(Result)));
+		return;
+	}
+
+	UE_LOG(LogMagicLeapHandTracking, Log, TEXT("Hand tracking resumed."));
 #endif //WITH_MLSDK
 }
 

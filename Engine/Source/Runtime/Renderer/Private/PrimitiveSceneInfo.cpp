@@ -895,9 +895,9 @@ void FPrimitiveSceneInfo::UnlinkAttachmentGroup()
 		FAttachmentGroupSceneInfo& AttachmentGroup = Scene->AttachmentGroups.FindChecked(LightingAttachmentRoot);
 		AttachmentGroup.Primitives.RemoveSwap(this);
 
-		if (AttachmentGroup.Primitives.Num() == 0)
+		if (AttachmentGroup.Primitives.Num() == 0 && AttachmentGroup.ParentSceneInfo == nullptr)
 		{
-			// If this was the last primitive attached that uses this attachment root, free the group.
+			// If this was the last primitive attached that uses this attachment group and the root has left the building, free the group.
 			Scene->AttachmentGroups.Remove(LightingAttachmentRoot);
 		}
 	}
@@ -908,6 +908,11 @@ void FPrimitiveSceneInfo::UnlinkAttachmentGroup()
 		if (AttachmentGroup)
 		{
 			AttachmentGroup->ParentSceneInfo = NULL;
+			if (AttachmentGroup->Primitives.Num() == 0)
+			{
+				// If this was the owner and the group is empty, remove it (otherwise the above will remove when the last attached goes).
+				Scene->AttachmentGroups.Remove(LightingAttachmentRoot);
+			}
 		}
 	}
 }

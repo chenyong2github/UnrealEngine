@@ -27,4 +27,8 @@ struct CLOTHINGSYSTEMRUNTIMEINTERFACE_API FClothCollisionData
 	// Convex Data
 	UPROPERTY(EditAnywhere, Category = Collison)
 	TArray<FClothCollisionPrim_Convex> Convexes;
+
+	// Box data
+	UPROPERTY(EditAnywhere, Category = Collison)
+	TArray<FClothCollisionPrim_Box> Boxes;
 };

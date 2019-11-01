@@ -3,11 +3,15 @@
 #if WITH_EDITOR
 
 #include "Rendering/SkeletalMeshLODImporterData.h"
+#include "Logging/LogVerbosity.h"
+#include "Logging/LogMacros.h"
 #include "Serialization/BulkDataWriter.h"
 #include "Serialization/BulkDataReader.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Engine/SkeletalMesh.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogSkeletalMeshLODImporterData, Log, All);
 
 void FSkeletalMeshImportData::CopyDataNeedByMorphTargetImport(FSkeletalMeshImportData& Other) const
 {
@@ -403,7 +407,16 @@ FArchive& operator<<(FArchive& Ar, FReductionSkeletalMeshData& ReductionSkeletal
 	Ar << Version;
 	Ar << LicenseeVersion;
 	ReductionSkeletalMeshData.BaseLODModel.Serialize(Ar, ReductionSkeletalMeshData.Owner, INDEX_NONE);
-	Ar << ReductionSkeletalMeshData.BaseLODMorphTargetData;
+	
+	if(Ar.IsLoading() && Ar.AtEnd())
+	{
+		//Hack to fix a serialization error, serialize the MorphTargetData only if there is some left space in the archive
+		UE_ASSET_LOG(LogSkeletalMeshLODImporterData, Display, ReductionSkeletalMeshData.Owner, TEXT("This skeletalMesh should be re-import to save some missing reduction source data."));
+	}
+	else
+	{
+		Ar << ReductionSkeletalMeshData.BaseLODMorphTargetData;
+	}
 	return Ar;
 }
 
@@ -477,6 +490,8 @@ void FReductionBaseSkeletalMeshBulkData::SaveReductionData(FSkeletalMeshLODModel
 	bUseSerializeLoadingCustomVersion = false;
 	FReductionSkeletalMeshData ReductionSkeletalMeshData(BaseLODModel, BaseLODMorphTargetData, Owner);
 
+	CacheGeometryInfo(BaseLODModel);
+
 	//Clear the bulk data before writing it
 	BulkData.RemoveBulkData();
 
@@ -509,9 +524,41 @@ void FReductionBaseSkeletalMeshBulkData::LoadReductionData(FSkeletalMeshLODModel
 			Ar.SetCustomVersions(SerializeLoadingCustomVersionContainer);
 
 			Ar << ReductionSkeletalMeshData;
+
+			CacheGeometryInfo(BaseLODModel);
 		}
 		// Unlock the bulk data
 	}
+}
+
+void FReductionBaseSkeletalMeshBulkData::CacheGeometryInfo(const FSkeletalMeshLODModel& SourceLODModel)
+{
+	CacheLODVertexNumber = 0;
+	CacheLODTriNumber = 0;
+	for (int32 SectionIndex = 0; SectionIndex < SourceLODModel.Sections.Num(); ++SectionIndex)
+	{
+		const FSkelMeshSection& Section = SourceLODModel.Sections[SectionIndex];
+
+		if (!Section.bDisabled)
+		{
+			//Make sure the count fit in a uint32
+			CacheLODVertexNumber += Section.NumVertices < 0 ? 0 : Section.NumVertices;
+			CacheLODTriNumber += Section.NumTriangles;
+		}
+	}
+}
+
+void FReductionBaseSkeletalMeshBulkData::GetGeometryInfo(uint32& LODVertexNumber, uint32& LODTriNumber, UObject* Owner)
+{
+	if (!IsEmpty() && (CacheLODVertexNumber == MAX_uint32 || CacheLODTriNumber == MAX_uint32))
+	{
+		FSkeletalMeshLODModel ReductionSourceLODModel;
+		TMap<FString, TArray<FMorphTargetDelta>> TempLODMorphTargetData;
+		LoadReductionData(ReductionSourceLODModel, TempLODMorphTargetData, Owner);
+		CacheGeometryInfo(ReductionSourceLODModel);
+	}
+	LODVertexNumber = CacheLODVertexNumber;
+	LODTriNumber = CacheLODTriNumber;
 }
 
 /*------------------------------------------------------------------------------

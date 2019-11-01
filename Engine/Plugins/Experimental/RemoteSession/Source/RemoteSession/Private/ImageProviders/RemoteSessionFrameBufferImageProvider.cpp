@@ -32,11 +32,12 @@ static FAutoConsoleVariableRef CVarResYOverride(
 	TEXT("Sets the desired Y resolution"),
 	ECVF_Default);
 
-FRemoteSessionFrameBufferImageProvider::FRemoteSessionFrameBufferImageProvider(TWeakPtr<FRemoteSessionImageChannel> InOwner)
+FRemoteSessionFrameBufferImageProvider::FRemoteSessionFrameBufferImageProvider(TSharedPtr<FRemoteSessionImageChannel::FImageSender, ESPMode::ThreadSafe> InImageSender)
 {
-	ImageChannel = InOwner;
+	ImageSender = InImageSender;
 	LastSentImageTime = 0.0;
 	ViewportResized = false;
+	NumDecodingTasks = MakeShared<FThreadSafeCounter, ESPMode::ThreadSafe>();
 }
 
 FRemoteSessionFrameBufferImageProvider::~FRemoteSessionFrameBufferImageProvider()
@@ -112,33 +113,38 @@ void FRemoteSessionFrameBufferImageProvider::Tick(const float InDeltaTime)
 			const int32 DesiredFrameTimeMS = 1000 / FramerateMasterSetting;
 
 			// Encoding/decoding can take longer than a frame, so skip if we're still processing the previous frame
-			if (NumDecodingTasks.GetValue() == 0 && ElapsedImageTimeMS >= DesiredFrameTimeMS)
+			if (NumDecodingTasks->GetValue() == 0 && ElapsedImageTimeMS >= DesiredFrameTimeMS)
 			{
-				NumDecodingTasks.Increment();
+				NumDecodingTasks->Increment();
 
 				FCapturedFrameData& LastFrame = Frames.Last();
-
-				TArray<FColor>* ColorData = new TArray<FColor>(MoveTemp(LastFrame.ColorBuffer));
-
 				FIntPoint Size = LastFrame.BufferSize;
+				TArray<FColor> ColorData = MoveTemp(LastFrame.ColorBuffer);
+				TWeakPtr<FThreadSafeCounter, ESPMode::ThreadSafe> WeakNumDecodingTasks = NumDecodingTasks;
+				TWeakPtr<FRemoteSessionImageChannel::FImageSender, ESPMode::ThreadSafe> WeakImageSender = ImageSender;
 
-				AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, Size, ColorData]()
+				AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [WeakNumDecodingTasks, WeakImageSender, Size, ColorData=MoveTemp(ColorData)]() mutable
 				{
 					SCOPE_CYCLE_COUNTER(STAT_ImageCompression);
 
-					if (TSharedPtr<FRemoteSessionImageChannel> ImageChannelPinned = ImageChannel.Pin())
+					if (WeakImageSender.IsValid())
 					{
-						for (FColor& Color : *ColorData)
+						if (TSharedPtr<FThreadSafeCounter, ESPMode::ThreadSafe> NumDecodingTasksPinned = WeakNumDecodingTasks.Pin())
 						{
-							Color.A = 255;
-						}
+							for (FColor& Color : ColorData)
+							{
+								Color.A = 255;
+							}
 
-						ImageChannelPinned->SendRawImageToClients(Size.X, Size.Y, *ColorData);
+							if (TSharedPtr<FRemoteSessionImageChannel::FImageSender, ESPMode::ThreadSafe> ImageSenderPinned = WeakImageSender.Pin())
+							{
+								ImageSenderPinned->SendRawImageToClients(Size.X, Size.Y, ColorData.GetData(), ColorData.GetAllocatedSize());
+							}
+
+							NumDecodingTasksPinned->Decrement();
+						}
 					}
 
-					delete ColorData;
-
-					NumDecodingTasks.Decrement();
 				});
 
 				LastSentImageTime = FPlatformTime::Seconds();

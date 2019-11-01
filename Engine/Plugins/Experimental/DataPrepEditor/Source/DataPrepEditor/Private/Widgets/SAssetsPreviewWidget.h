@@ -32,6 +32,14 @@ namespace AssetPreviewWidget
 		void ClearAssetList();
 
 		FOnSelectionChanged& OnSelectionChanged() { return OnSelectionChangedDelegate; };
+	
+		FText OnGetHighlightText() const;
+
+		const TSharedPtr< STreeView< FAssetTreeItemPtr > > GetTreeView() const
+		{
+			return TreeView;
+		}
+
 	private:
 
 		friend struct FAssetTreeItem;
@@ -40,6 +48,8 @@ namespace AssetPreviewWidget
 		void ExpandAllFolders();
 		void ExpandFolderRecursive(FAssetTreeItemPtr InItem);
 
+		void SortRecursive(TArray< FAssetTreeItemPtr >& InItems);
+
 		TArray< FString > GetItemsName(TWeakObjectPtr< UObject > Asset) const;
 
 		TSharedRef< class ITableRow > MakeRowWidget(FAssetTreeItemPtr InItem, const TSharedRef< class STableViewBase >& OwnerTable) const;
@@ -47,8 +57,6 @@ namespace AssetPreviewWidget
 
 		void OnSearchBoxChanged(const FText& InSearchText);
 		void OnSearchBoxCommitted(const FText& InSearchText, ETextCommit::Type CommitInfo);
-
-		FText OnGetHighlightText() const;
 
 		void OnSetExpansionRecursive(FAssetTreeItemPtr InTreeNode, bool bInIsItemExpanded);
 

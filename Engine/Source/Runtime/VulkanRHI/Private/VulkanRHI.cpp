@@ -83,7 +83,7 @@ FDynamicRHI* FVulkanDynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type InRequest
 	else
 	{
 		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;
-		GMaxRHIShaderPlatform = (PLATFORM_LUMINGL4 || PLATFORM_LUMIN) ? SP_VULKAN_SM5_LUMIN : SP_VULKAN_SM5;
+		GMaxRHIShaderPlatform = (PLATFORM_LUMIN) ? SP_VULKAN_SM5_LUMIN : SP_VULKAN_SM5;
 	}
 
 	GVulkanRHI = new FVulkanDynamicRHI();
@@ -323,6 +323,8 @@ void FVulkanDynamicRHI::Shutdown()
 
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
 	IConsoleManager::Get().UnregisterConsoleObject(DumpMemoryCmd);
+	IConsoleManager::Get().UnregisterConsoleObject(DumpLRUCmd);
+	IConsoleManager::Get().UnregisterConsoleObject(TrimLRUCmd);
 #endif
 
 	FVulkanPlatform::FreeVulkanLibrary();
@@ -609,7 +611,7 @@ void FVulkanDynamicRHI::SelectAndInitDevice()
 
 	Device->InitGPU(DeviceIndex);
 
-	if (PLATFORM_ANDROID && !PLATFORM_LUMIN && !PLATFORM_LUMINGL4)
+	if (PLATFORM_ANDROID && !PLATFORM_LUMIN)
 	{
 		GRHIAdapterName.Append(TEXT(" Vulkan"));
 		GRHIAdapterInternalDriverVersion = FString::Printf(TEXT("%d.%d.%d"), VK_VERSION_MAJOR(Props.apiVersion), VK_VERSION_MINOR(Props.apiVersion), VK_VERSION_PATCH(Props.apiVersion));
@@ -699,8 +701,6 @@ void FVulkanDynamicRHI::InitInstance()
 		GRHISupportsBaseVertexIndex = true;
 		GSupportsSeparateRenderTargetBlendState = true;
 
-		GSupportsDepthFetchDuringDepthTest = true;
-
 		FVulkanPlatform::SetupFeatureLevels();
 
 		GRHIRequiresRenderTargetForPixelShaderUAVs = true;
@@ -759,6 +759,19 @@ void FVulkanDynamicRHI::InitInstance()
 			FConsoleCommandDelegate::CreateStatic(DumpMemory),
 			ECVF_Default
 			);
+		DumpLRUCmd = IConsoleManager::Get().RegisterConsoleCommand(
+			TEXT("r.Vulkan.DumpPSOLRU"),
+			TEXT("Dumps Vulkan PSO LRU."),
+			FConsoleCommandDelegate::CreateStatic(DumpLRU),
+			ECVF_Default
+		);
+		TrimLRUCmd = IConsoleManager::Get().RegisterConsoleCommand(
+			TEXT("r.Vulkan.TrimPSOLRU"),
+			TEXT("Trim Vulkan PSO LRU."),
+			FConsoleCommandDelegate::CreateStatic(TrimLRU),
+			ECVF_Default
+		);
+
 #endif
 	}
 }
@@ -1031,6 +1044,29 @@ void FVulkanDynamicRHI::RHIAliasTextureResources(FRHITexture* DestTextureRHI, FR
 			DestTextureBase->AliasTextureResources(SrcTextureBase);
 		}
 	}
+}
+
+FTextureRHIRef FVulkanDynamicRHI::RHICreateAliasedTexture(FRHITexture* SourceTexture)
+{
+	FTextureRHIRef AliasedTexture;
+	if (SourceTexture->GetTexture2D() != nullptr)
+	{
+		AliasedTexture = new FVulkanTexture2D(static_cast<FVulkanTexture2D*>(SourceTexture));
+	}
+	else if (SourceTexture->GetTexture2DArray() != nullptr)
+	{
+		AliasedTexture = new FVulkanTexture2DArray(static_cast<FVulkanTexture2DArray*>(SourceTexture));
+	}
+	else if (SourceTexture->GetTextureCube() != nullptr)
+	{
+		AliasedTexture = new FVulkanTextureCube(static_cast<FVulkanTextureCube*>(SourceTexture));
+	}
+	else
+	{
+		UE_LOG(LogRHI, Error, TEXT("Currently FOpenGLDynamicRHI::RHICreateAliasedTexture only supports 2D, 2D Array and Cube textures."));
+	}
+
+	return AliasedTexture;
 }
 
 void FVulkanDynamicRHI::RHICopySubTextureRegion(FRHITexture2D* SourceTexture, FRHITexture2D* DestinationTexture, FBox2D SourceBox, FBox2D DestinationBox)
@@ -1511,6 +1547,18 @@ static VkRenderPass CreateRenderPass(FVulkanDevice& InDevice, const FVulkanRende
 		CreateInfo.pNext = &MultiviewInfo;
 	}
 	
+	VkRenderPassFragmentDensityMapCreateInfoEXT FragDensityCreateInfo;
+	if (InDevice.GetOptionalExtensions().HasEXTFragmentDensityMap && RTLayout.GetHasFragmentDensityAttachment())
+	{
+		ZeroVulkanStruct(FragDensityCreateInfo, VK_STRUCTURE_TYPE_RENDER_PASS_FRAGMENT_DENSITY_MAP_CREATE_INFO_EXT);
+		FragDensityCreateInfo.fragmentDensityMapAttachment = *RTLayout.GetFragmentDensityAttachmentReference();
+
+		// Chain fragment density info onto create info and the rest of the pNexts
+		// onto the fragment density info
+		FragDensityCreateInfo.pNext = CreateInfo.pNext;
+		CreateInfo.pNext = &FragDensityCreateInfo;
+	}
+
 	VkRenderPass RenderPassHandle;
 	VERIFYVULKANRESULT_EXPANDED(VulkanRHI::vkCreateRenderPass(InDevice.GetInstanceHandle(), &CreateInfo, VULKAN_CPU_ALLOCATOR, &RenderPassHandle));
 	return RenderPassHandle;
@@ -1702,6 +1750,18 @@ void FVulkanDynamicRHI::DumpMemory()
 	GVulkanRHI->Device->GetResourceHeapManager().DumpMemory();
 	GVulkanRHI->Device->GetStagingManager().DumpMemory();
 }
+void FVulkanDynamicRHI::DumpLRU()
+{
+	FVulkanDynamicRHI* RHI = (FVulkanDynamicRHI*)GDynamicRHI;
+	RHI->Device->PipelineStateCache->LRUDump();
+}
+void FVulkanDynamicRHI::TrimLRU()
+{
+	FVulkanDynamicRHI* RHI = (FVulkanDynamicRHI*)GDynamicRHI;
+	RHI->Device->PipelineStateCache->LRUDebugEvictAll();
+}
+
+
 #endif
 
 void FVulkanDynamicRHI::DestroySwapChain()

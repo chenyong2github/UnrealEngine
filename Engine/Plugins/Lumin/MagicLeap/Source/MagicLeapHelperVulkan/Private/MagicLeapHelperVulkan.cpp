@@ -13,9 +13,8 @@
 #include "VulkanUtil.h"
 #endif
 
-#if PLATFORM_LUMIN
-#include <ml_graphics_utils.h>
-#endif //PLATFORM_LUMIN
+#include "Lumin/CAPIShims/LuminAPIGraphics.h"
+#include "Lumin/CAPIShims/LuminAPIGraphicsUtils.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMagicLeapHelperVulkan, Display, All);
 
@@ -26,7 +25,7 @@ IMPLEMENT_MODULE(FMagicLeapHelperVulkanPlugin, MagicLeapHelperVulkan);
 
 //////////////////////////////////////////////////////////////////////////
 
-void FMagicLeapHelperVulkan::BlitImage(uint64 SrcName, int32 SrcLevel, int32 SrcX, int32 SrcY, int32 SrcZ, int32 SrcWidth, int32 SrcHeight, int32 SrcDepth, uint64 DstName, int32 DstLevel, int32 DstX, int32 DstY, int32 DstZ, int32 DstWidth, int32 DstHeight, int32 DstDepth)
+void FMagicLeapHelperVulkan::BlitImage(uint64 SrcName, int32 SrcX, int32 SrcY, int32 SrcZ, int32 SrcWidth, int32 SrcHeight, int32 SrcDepth, uint64 DstName, int32 DstLayer, int32 DstX, int32 DstY, int32 DstZ, int32 DstWidth, int32 DstHeight, int32 DstDepth)
 {
 #if !PLATFORM_MAC
 	VkImage Src = (VkImage)SrcName;
@@ -63,20 +62,20 @@ void FMagicLeapHelperVulkan::BlitImage(uint64 SrcName, int32 SrcLevel, int32 Src
 	Region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	Region.srcSubresource.layerCount = 1;
 	Region.dstOffsets[0].x = DstX;
+	// Unreal's viewport is bottom-left, ml_graphics is top-left so we invert the texture here.
 	Region.dstOffsets[0].y = DstY + DstHeight;
 	Region.dstOffsets[0].z = DstZ;
 	Region.dstOffsets[1].x = DstX + DstWidth;
 	Region.dstOffsets[1].y = DstY;
 	Region.dstOffsets[1].z = DstZ + DstDepth;
 	Region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	Region.dstSubresource.baseArrayLayer = DstLevel;
+	Region.dstSubresource.baseArrayLayer = DstLayer;
 	Region.dstSubresource.layerCount = 1;
-	VulkanRHI::vkCmdBlitImage(CmdBuffer->GetHandle(), Src, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Dst, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, 1, &Region, VK_FILTER_LINEAR);
+	VulkanRHI::vkCmdBlitImage(CmdBuffer->GetHandle(), Src, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &Region, VK_FILTER_LINEAR);
 #endif
 }
 
-
-void FMagicLeapHelperVulkan::TestClear(uint64 DstName)
+void FMagicLeapHelperVulkan::ClearImage(uint64 DstName, const FLinearColor& ClearColor, uint32 BaseMipLevel, uint32 LevelCount, uint32 BaseArrayLayer, uint32 LayerCount)
 {
 #if !PLATFORM_MAC
 	VkImage Dst = (VkImage)DstName;
@@ -87,16 +86,16 @@ void FMagicLeapHelperVulkan::TestClear(uint64 DstName)
 	FVulkanCmdBuffer* CmdBuffer = CmdBufferMgr->GetUploadCmdBuffer();
 
 	VkClearColorValue Color;
-	Color.float32[0] = 0;
-	Color.float32[1] = 0;
-	Color.float32[2] = 1;
-	Color.float32[3] = 1;
+	Color.float32[0] = ClearColor.R;
+	Color.float32[1] = ClearColor.G;
+	Color.float32[2] = ClearColor.B;
+	Color.float32[3] = ClearColor.A;
 	VkImageSubresourceRange Range;
 	Range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	Range.baseMipLevel = 0;
-	Range.levelCount = 1;
-	Range.baseArrayLayer = 0;
-	Range.layerCount = 2;
+	Range.baseMipLevel = BaseMipLevel;
+	Range.levelCount = LevelCount;
+	Range.baseArrayLayer = BaseArrayLayer;
+	Range.layerCount = LayerCount;
 	VulkanRHI::vkCmdClearColorImage(CmdBuffer->GetHandle(), Dst, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, &Color, 1, &Range);
 #endif
 }
@@ -160,6 +159,30 @@ uint64 FMagicLeapHelperVulkan::AliasImageSRGB(const uint64 Allocation, const uin
 #endif
 }
 
+void FMagicLeapHelperVulkan::DestroyImageSRGB(void* Image)
+{
+#if !PLATFORM_MAC
+	if (Image != VK_NULL_HANDLE)
+	{
+		FVulkanDynamicRHI* RHI = (FVulkanDynamicRHI*)GDynamicRHI;
+		FVulkanDevice* Device = RHI->GetDevice();
+		VulkanRHI::vkDestroyImage(Device->GetInstanceHandle(), reinterpret_cast<VkImage>(Image), nullptr);
+	}
+#endif
+}
+
+bool FMagicLeapHelperVulkan::GetVulkanInstanceExtensionsRequired(TArray<const ANSICHAR*>& Out)
+{
+#if PLATFORM_LUMIN
+	// Used inside ml_graphics. We get an error from validation layers for this extension not being enabled.
+	// TODO: Talk to graphics team for adding a MLGraphicsEnumerateRequiredVkInstanceExtensions() function so we dont have to hardcode this here.
+	// TODO: Talk to Epic if VULKAN_ENABLE_DESKTOP_HMD_SUPPORT can/should be enabled on Lumin since the extension is supported.
+	Out.Add(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+#endif // PLATFORM_LUMIN
+
+	return true;
+}
+
 bool FMagicLeapHelperVulkan::GetVulkanDeviceExtensionsRequired(VkPhysicalDevice_T* pPhysicalDevice, TArray<const ANSICHAR*>& Out)
 {
 #if PLATFORM_LUMIN
@@ -199,6 +222,13 @@ bool FMagicLeapHelperVulkan::GetVulkanDeviceExtensionsRequired(VkPhysicalDevice_
 
 	const bool bFoundRequiredExtensions = (ExtensionsFound == RequiredExtensions.Num());
 	GSupportsImageExternal = bFoundRequiredExtensions; // This should probably be set by the vk rhi if the needed extensions are supported VK_KHR_external_memory?
+
+	// Used inside ml_graphics. We get an error from validation layers for these extensions not being enabled.
+	// Added after the checks for GSupportsImageExternal so we don't taint its flag with these unrelated extensions.
+	// TODO: Talk to graphics team for adding a MLGraphicsEnumerateRequiredVkDeviceExtensions() function so we dont have to hardcode this here.
+	Out.Add("VK_KHR_external_semaphore");
+	Out.Add("VK_KHR_external_semaphore_fd");
+
 	return bFoundRequiredExtensions;
 #endif //PLATFORM_LUMIN
 

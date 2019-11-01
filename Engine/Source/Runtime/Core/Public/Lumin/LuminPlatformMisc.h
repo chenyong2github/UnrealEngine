@@ -57,6 +57,9 @@ struct CORE_API FLuminPlatformMisc : public FAndroidMisc
 	static const FString& GetApplicationApplicationPackageName();
 	static const FString& GetApplicationComponentName();
 
+	static FString GetDefaultLocale();
+	static FString GetDefaultLanguage();
+
 private:
 	static void InitApplicationPaths();
 

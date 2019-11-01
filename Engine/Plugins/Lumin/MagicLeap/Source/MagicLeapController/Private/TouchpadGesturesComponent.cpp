@@ -4,55 +4,45 @@
 #include "IMagicLeapControllerPlugin.h"
 #include "MagicLeapController.h"
 
-UTouchpadGesturesComponent::UTouchpadGesturesComponent()
+UMagicLeapTouchpadGesturesComponent::UMagicLeapTouchpadGesturesComponent()
 {
 	// Make sure this component ticks
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.bStartWithTickEnabled = true;
 	PrimaryComponentTick.TickGroup = TG_PrePhysics;
 	bAutoActivate = true;
-
-	if (!HasAnyFlags(RF_ClassDefaultObject))
-	{
-		TSharedPtr<FMagicLeapController> controller = StaticCastSharedPtr<FMagicLeapController>(IMagicLeapControllerPlugin::Get().GetInputDevice());
-		if (controller.IsValid())
-		{
-			controller->RegisterTouchpadGestureReceiver(this);
-		}
-	}
 }
 
-UTouchpadGesturesComponent::~UTouchpadGesturesComponent()
-{
-	if (!HasAnyFlags(RF_ClassDefaultObject))
-	{
-		TSharedPtr<FMagicLeapController> controller = StaticCastSharedPtr<FMagicLeapController>(IMagicLeapControllerPlugin::Get().GetInputDevice());
-		if (controller.IsValid())
-		{
-			controller->UnregisterTouchpadGestureReceiver(this);
-		}
-	}
-}
-
-void UTouchpadGesturesComponent::OnTouchpadGestureStartCallback(const FMagicLeapTouchpadGesture& GestureData)
+void UMagicLeapTouchpadGesturesComponent::OnTouchpadGestureStartCallback(const FMagicLeapTouchpadGesture& GestureData)
 {
 	FScopeLock Lock(&CriticalSection);
 	PendingTouchpadGestureStart.Add(GestureData);
 }
 
-void UTouchpadGesturesComponent::OnTouchpadGestureContinueCallback(const FMagicLeapTouchpadGesture& GestureData)
+void UMagicLeapTouchpadGesturesComponent::OnTouchpadGestureContinueCallback(const FMagicLeapTouchpadGesture& GestureData)
 {
 	FScopeLock Lock(&CriticalSection);
 	PendingTouchpadGestureContinue.Add(GestureData);
 }
 
-void UTouchpadGesturesComponent::OnTouchpadGestureEndCallback(const FMagicLeapTouchpadGesture& GestureData)
+void UMagicLeapTouchpadGesturesComponent::OnTouchpadGestureEndCallback(const FMagicLeapTouchpadGesture& GestureData)
 {
 	FScopeLock Lock(&CriticalSection);
 	PendingTouchpadGestureEnd.Add(GestureData);
 }
 
-void UTouchpadGesturesComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
+void UMagicLeapTouchpadGesturesComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	TSharedPtr<FMagicLeapController> controller = StaticCastSharedPtr<FMagicLeapController>(IMagicLeapControllerPlugin::Get().GetInputDevice());
+	if (controller.IsValid())
+	{
+		controller->RegisterTouchpadGestureReceiver(this);
+	}
+}
+
+void UMagicLeapTouchpadGesturesComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
@@ -78,4 +68,13 @@ void UTouchpadGesturesComponent::TickComponent(float DeltaTime, enum ELevelTick 
 
 }
 
+void UMagicLeapTouchpadGesturesComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	TSharedPtr<FMagicLeapController> controller = StaticCastSharedPtr<FMagicLeapController>(IMagicLeapControllerPlugin::Get().GetInputDevice());
+	if (controller.IsValid())
+	{
+		controller->UnregisterTouchpadGestureReceiver(this);
+	}
 
+	Super::EndPlay(EndPlayReason);
+}

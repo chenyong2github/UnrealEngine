@@ -15,7 +15,9 @@
 	"IsBetaVersion" : false,
 	"Installed" : false,
 	"SupportedTargetPlatforms": [
-		"Lumin"
+		"Lumin",
+		"Win64",
+		"Mac"
 	],
 	"Modules" :
 	[
@@ -33,6 +35,10 @@
 	],
 	"Plugins":
 	[
+		{
+			"Name": "MLSDK",
+			"Enabled": true
+		},
 		{
 			"Name": "MagicLeap",
 			"Enabled": true

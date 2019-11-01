@@ -222,7 +222,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture()
 		DerivedData->SizeX = DerivedData->VTData->Width;
 		DerivedData->SizeY = DerivedData->VTData->Height;
 		DerivedData->PixelFormat = DerivedData->VTData->LayerTypes[0];
-		DerivedData->NumSlices = 1;
+		DerivedData->SetNumSlices(1);
 
 		// Store it in the cache.
 		// @todo: This will remove the streaming bulk data, which we immediately reload below!
@@ -252,6 +252,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture()
 		DerivedData->SizeX = 0;
 		DerivedData->SizeY = 0;
 		DerivedData->PixelFormat = PF_Unknown;
+		DerivedData->SetIsCubemap(false);
 		DerivedData->VTData = nullptr;
 
 		// Compress the texture.
@@ -259,7 +260,9 @@ void FTextureCacheDerivedDataWorker::BuildTexture()
 		if (Compressor->BuildTexture(TextureData.Blocks[0].MipsPerLayer[0],
 			((bool)Texture.CompositeTexture && CompositeTextureData.Blocks.Num() && CompositeTextureData.Blocks[0].MipsPerLayer.Num()) ? CompositeTextureData.Blocks[0].MipsPerLayer[0] : TArray<FImage>(),
 			BuildSettingsPerLayer[0],
-			CompressedMips))
+			CompressedMips,
+			DerivedData->OptData.NumMipsInTail,
+			DerivedData->OptData.ExtData))
 		{
 			check(CompressedMips.Num());
 
@@ -285,7 +288,8 @@ void FTextureCacheDerivedDataWorker::BuildTexture()
 					DerivedData->SizeX = CompressedImage.SizeX;
 					DerivedData->SizeY = CompressedImage.SizeY;
 					DerivedData->PixelFormat = (EPixelFormat)CompressedImage.PixelFormat;
-					DerivedData->NumSlices = BuildSettingsPerLayer[0].bCubemap ? 6 : (BuildSettingsPerLayer[0].bVolume || BuildSettingsPerLayer[0].bTextureArray) ? CompressedImage.SizeZ : 1;
+					DerivedData->SetNumSlices(BuildSettingsPerLayer[0].bCubemap ? 6 : (BuildSettingsPerLayer[0].bVolume || BuildSettingsPerLayer[0].bTextureArray) ? CompressedImage.SizeZ : 1);
+					DerivedData->SetIsCubemap(BuildSettingsPerLayer[0].bCubemap);
 				}
 				else
 				{

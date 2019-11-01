@@ -609,11 +609,11 @@ EReimportResult::Type UReimportFbxSceneFactory::Reimport(UObject* Obj)
 	SFbxSceneOptionWindow::CopyFbxOptionsToFbxOptions(GlobalImportSettingsReference, GlobalImportSettings);
 	SFbxSceneOptionWindow::CopyFbxOptionsToStaticMeshOptions(GlobalImportSettingsReference, SceneImportOptionsStaticMesh);
 	SceneImportOptionsStaticMesh->FillStaticMeshInmportData(StaticMeshImportData, SceneImportOptions);
-	StaticMeshImportData->SaveConfig();
+	SceneImportOptionsStaticMesh->SaveConfig();
 
 	SFbxSceneOptionWindow::CopyFbxOptionsToSkeletalMeshOptions(GlobalImportSettingsReference, SceneImportOptionsSkeletalMesh);
 	SceneImportOptionsSkeletalMesh->FillSkeletalMeshInmportData(SkeletalMeshImportData, AnimSequenceImportData, SceneImportOptions);
-	SkeletalMeshImportData->SaveConfig();
+	SceneImportOptionsSkeletalMesh->SaveConfig();
 
 	//Update the blueprint
 	UBlueprint *ReimportBlueprint = nullptr;

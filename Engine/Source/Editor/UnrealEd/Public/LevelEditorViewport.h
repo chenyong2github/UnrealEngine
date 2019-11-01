@@ -83,7 +83,7 @@ struct UNREALED_API FTrackingTransaction
 	/**
 	 * Initiates a transaction.
 	 */
-	void Begin(const FText& Description);
+	void Begin(const FText& Description, AActor* AdditionalActor = nullptr);
 
 	void End();
 

@@ -26,6 +26,7 @@ class ITableRow;
 class STableViewBase;
 class SSplitter;
 class FTransactionObjectEvent;
+struct FSlateImageBrush;
 enum class EMapChangeType : uint8;
 
 namespace VariantManagerLayoutConstants
@@ -263,4 +264,7 @@ private:
 
 	// We keep track of this to remember splitter values between loads
 	TSharedPtr<SSplitter> MainSplitter;
+	
+	// TODO: Make separate VariantManagerStyle
+	TSharedPtr<FSlateImageBrush> RecordButtonBrush;
 };

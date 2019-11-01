@@ -1,24 +1,26 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessVisualizeHDR.usf: PostProcessing shader to visualize HDR histogram
-=============================================================================*/
-
 #include "Common.ush"
+#include "ScreenPass.ush"
 #include "PostProcessCommon.ush"
 #include "PostProcessHistogramCommon.ush"
 #include "DeferredShadingCommon.ush"
 #include "TonemapCommon.ush"
-#include "MiniFontCommon.ush"		// for PrintFloat()
-
-// .xy:GatherExtent.xy, .zw:TexelPerThreadGroupXY
-uint4 HistogramParams;
+#include "MiniFontCommon.ush"
 
 // the prior frame's eye adaptation settings
 Texture2D EyeAdaptationTexture;
 
-// UV coordinate of the center of the viewport.
-float2 ViewportCenterUV;
+Texture2D SceneColorTexture;
+SamplerState SceneColorSampler;
+
+Texture2D HDRSceneColorTexture;
+SamplerState HDRSceneColorSampler;
+
+Texture2D HistogramTexture;
+
+SCREEN_PASS_TEXTURE_VIEWPORT(Input)
+SCREEN_PASS_TEXTURE_VIEWPORT(Output)
 
 // only needed for nice visualization
 float ComputeHistogramMax(Texture2D HistogramTexture)
@@ -32,7 +34,6 @@ float ComputeHistogramMax(Texture2D HistogramTexture)
 
 	return Max;
 }
-
 
 uint ComputeAdvice(float3 HDRColor)
 {
@@ -48,7 +49,7 @@ uint ComputeAdvice(float3 HDRColor)
 
 uint ComputeAdviceUV(float2 UV)
 {
-	float3 HDRColor = Texture2DSample(PostprocessInput2, PostprocessInput2Sampler, UV).rgb;
+	float3 HDRColor = Texture2DSample(HDRSceneColorTexture, HDRSceneColorSampler, UV).rgb;
 	
 	return ComputeAdvice(HDRColor);
 }
@@ -61,10 +62,10 @@ void HighlightAdvice(inout float3 OutColor, float2 UV, int2 PixelPos)
 
 	bool SpecialDotInArea = ((PixelPos.x + PixelPos.y) % 6) == 0 && ((PixelPos.x - PixelPos.y) % 6) == 0;
 	
-	AdviceOuter = max(AdviceOuter, ComputeAdviceUV(UV + float2( 1,  0) * PostprocessInput0Size.zw));
-	AdviceOuter = max(AdviceOuter, ComputeAdviceUV(UV + float2( 0,  1) * PostprocessInput0Size.zw));
-	AdviceOuter = max(AdviceOuter, ComputeAdviceUV(UV + float2(-1,  0) * PostprocessInput0Size.zw));
-	AdviceOuter = max(AdviceOuter, ComputeAdviceUV(UV + float2( 0, -1) * PostprocessInput0Size.zw));
+	AdviceOuter = max(AdviceOuter, ComputeAdviceUV(UV + float2( 1,  0) * Input_ExtentInverse));
+	AdviceOuter = max(AdviceOuter, ComputeAdviceUV(UV + float2( 0,  1) * Input_ExtentInverse));
+	AdviceOuter = max(AdviceOuter, ComputeAdviceUV(UV + float2(-1,  0) * Input_ExtentInverse));
+	AdviceOuter = max(AdviceOuter, ComputeAdviceUV(UV + float2( 0, -1) * Input_ExtentInverse));
 
 	uint Advice = (AdviceInner == AdviceOuter && !SpecialDotInArea) ? 0 : AdviceOuter;
 
@@ -120,12 +121,14 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 	float EyeAdaptationResult = EyeAdaptationTexture.Load(int3(0, 0, 0)).r;
 	float EyeAdaptationTarget = EyeAdaptationTexture.Load(int3(0, 0, 0)).g;
 
-	int2 ViewportCenter = (int2)(ViewportRect.xy + ViewportSize.xy / 2);
+	int2 OutputViewportCenter = (int2)(Output_ViewportMin + Output_ViewportSize / 2);
+
+	float2 UVViewportCenter = (Input_UVViewportMin + Input_UVViewportSize / 2);
 
 	// Luminance meter at the center of the screen
 	{
-		const float PixelDx = abs(PixelPos.x - ViewportCenter.x);
-		const float PixelDy = abs(PixelPos.y - ViewportCenter.y);
+		const float PixelDx = abs(PixelPos.x - OutputViewportCenter.x);
+		const float PixelDy = abs(PixelPos.y - OutputViewportCenter.y);
 		if (PixelDx < 100 && PixelDy < 40)
 		{
 			float3 LuminanceAvg = 0.0f;
@@ -136,9 +139,9 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 			{
 				for (float OffsetY = -MeterSize; OffsetY <= MeterSize; OffsetY++)
 				{
-					float2 UV = (((ViewportCenter.xy + 0.5) + float2(OffsetX, OffsetY)) / ViewportSize.xy) * View.ViewSizeAndInvSize.xy * View.BufferSizeAndInvSize.zw + ViewportRect.xy * ViewportSize.zw;
-					LuminanceAvg  += Texture2DSample(PostprocessInput2, PostprocessInput2Sampler, UV).rgb;
-					SceneColorAvg += Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UV).rgb;
+					float2 UV = UVViewportCenter + float2(OffsetX, OffsetY) * Input_ExtentInverse;
+					LuminanceAvg  += Texture2DSample(HDRSceneColorTexture, HDRSceneColorSampler, UV).rgb;
+					SceneColorAvg += Texture2DSample(SceneColorTexture, SceneColorSampler, UV).rgb;
 					SampleCount++;
 				}
 			}
@@ -160,14 +163,14 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 			}
 			else
 			{
-				OutColor = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UV); // Influenced area default scene color
+				OutColor = Texture2DSample(SceneColorTexture, SceneColorSampler, UV); // Influenced area default scene color
 			}
 
 			float MaxLuminance = max(LuminanceAvg.r, max(LuminanceAvg.g, LuminanceAvg.b));
 			float MaxIlluminance = MaxLuminance * PI;
 
 			// Luminance
-			int2 TopLeft = ViewportCenter + int2(11, 11);
+			int2 TopLeft = OutputViewportCenter + int2(11, 11);
 			if (MaxLuminance < 1000.0f)
 			{
 				PrintFloat(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, MaxLuminance);
@@ -181,7 +184,7 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 			PrintCharacter(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, _I_);
 			PrintCharacter(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, _T_);
 			// Illuminance
-			TopLeft = ViewportCenter + int2(11, 22);
+			TopLeft = OutputViewportCenter + int2(11, 22);
 			if (MaxIlluminance < 1000.0f)
 			{
 				PrintFloat(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, MaxIlluminance);
@@ -206,8 +209,8 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 	if (PIPUV.x == saturate(PIPUV.x) && PIPUV.y == saturate(PIPUV.y))
 	{
 		// Remap from (0, 0) - (1, 1) to ViewportRect / BufferSize
-		PIPUV = PIPUV * View.ViewSizeAndInvSize.xy * View.BufferSizeAndInvSize.zw + ViewportRect.xy * ViewportSize.zw;
-		float4 SceneColor = Texture2DSample(PostprocessInput2, PostprocessInput2Sampler, PIPUV);
+		PIPUV = PIPUV * Input_ViewportSize * Input_ExtentInverse + Input_UVViewportBilinearMin;
+		float4 SceneColor = Texture2DSample(HDRSceneColorTexture, HDRSceneColorSampler, PIPUV);
 	#if USE_PREEXPOSURE
 		SceneColor.xyz *= View.OneOverPreExposure;
 	#endif
@@ -216,69 +219,26 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 	}
 	else
 	{
-		OutColor = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UV);
+		OutColor = Texture2DSample(SceneColorTexture, SceneColorSampler, UV);
 	}
 
 	// Compute and apply weight value at this location 
 	float WeightSlope = EyeAdaptation_WeightSlope;
-	float2 NdPos = ViewportSize.zw * (PixelPos.xy - ViewportRect.xy);
+	float2 NdPos = Output_ViewportSizeInverse * (PixelPos.xy - Output_ViewportMin);
 	float weight = AdaptationWeight(NdPos.x, WeightSlope) * AdaptationWeight(NdPos.y, WeightSlope);
 	OutColor *= max(weight, 0.05f);  
 
 	float2 IDAreaLocalUV = ViewLocalUV * 2 + float2(-1, 0);
 
-	// disabled for now, useful for debgugging the histogram content
-	if(0)
-	BRANCH if(InUnitBox(IDAreaLocalUV))
-	{
-		float2 HistogramUV = frac(IDAreaLocalUV * HistogramParams.xy / HistogramParams.zw);
-
-		int2 HistogramXY = int2(IDAreaLocalUV * HistogramParams.xy / HistogramParams.zw);
-
-		bool bChecker = dot(HistogramXY, 1) % 2;
-	
-		int HistogramId = HistogramXY.x + HistogramXY.y * ceil(HistogramParams.x / (float)HistogramParams.z);
-
-		float2 UnrolledHistogramUV = float2(HistogramUV.x, (HistogramId + 0.5f) * PostprocessInput3Size.w);
-
-		float4 HistogramRGBA = Texture2DSampleLevel(PostprocessInput3, PostprocessInput3Sampler, UnrolledHistogramUV, 0);
-
-		// 16 buckets are good enough for the small space there
-		float Value = max(max(HistogramRGBA.r,HistogramRGBA.g), max(HistogramRGBA.b,HistogramRGBA.a));
-
-		// we want the histogram to be 0 at the bottom
-		float HistogramY = 1 - HistogramUV.y;
-		// /2 as we rea covering a quarter of the screen
-		float HistogramPixelHeight = ViewportSize.y / 2 / HistogramXY.y; 
-
-		// checked overlay
-		OutColor = bChecker ? float4(0.2f,0,0,0) : float4(0,0.15f,0,0);
-		
-		// SceneColor overlay
-		OutColor += 0.1f * Texture2DSampleLevel(PostprocessInput0, PostprocessInput0Sampler, IDAreaLocalUV * View.ViewSizeAndInvSize.xy * View.BufferSizeAndInvSize.zw, 0);
-
-		// could be the same as (HistogramY < Value) but a bit more antialiased
-//		float HistogramMask = HistogramY < Value;
-		float HistogramMask = saturate((Value - HistogramY) * HistogramPixelHeight);
-
-		OutColor = lerp(OutColor, float4(Colorize(HistogramUV.x), 1.0f), HistogramMask);
-	}
-
-
-
-	// not fully functional yet
-	//	HighlightAdvice(OutColor.rgb, UV, PixelPos);
-
 	// left top of the border
-	const int2 HistogramLeftTop = int2(ViewportRect.x + 64, ViewportRect.w - 128 - 32);
-	const int2 HistogramSize = int2(ViewportRect.z - ViewportRect.x - 64 * 2, 128);
+	const int2 HistogramLeftTop = int2(Output_ViewportMin.x + 64, Output_ViewportMax.y - 128 - 32);
+	const int2 HistogramSize = int2(Output_ViewportMax.x - Output_ViewportMin.x - 64 * 2, 128);
 	const int HistogramOuterBorder = 4;
 
 	// (0, 0) .. (1, 1)
 	float2 InsetPx = PixelPos - HistogramLeftTop;
 	float2 InsetUV = InsetPx / HistogramSize;
 	
-//	const float3 BorderColor = float3(0.5f, 0.5f, 0.5f);
 	const float3 BorderColor = Colorize(InsetUV.x);
 
 	float BorderDistance = ComputeDistanceToRect(PixelPos, HistogramLeftTop, HistogramSize);
@@ -299,12 +259,7 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 	}
 
 	// inside the histogram
-
 	uint Bucket = (uint)(InsetUV.x * HISTOGRAM_SIZE);
-	
-	
-//	Texture2D HistogramTexture = InputNew1;
-#define HistogramTexture PostprocessInput1 // WAR (workaround) for HLSLCC not allowing assignment to samplers (yet)
 
 	float HistogramSum = ComputeHistogramSum(HistogramTexture);
 
@@ -331,7 +286,6 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 		OutColor.xyz = lerp(OutColor.xyz, Colorize(InsetUV.x), 0.5f);
 	}
 
-	//if (false)
 	{
 		// HDR luminance >0
 		float LuminanceVal = ComputeLuminanceFromHistogramPosition(InsetUV.x);

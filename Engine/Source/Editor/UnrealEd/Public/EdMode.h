@@ -183,6 +183,12 @@ public:
 
 	virtual void PostUndo() {}
 
+	/** 
+	 * Check to see if this EdMode wants to disallow AutoSave
+	 * @return true if AutoSave can be applied right now
+	 */
+	virtual bool CanAutoSave() const { return true; }
+
 	/**
 	 * Lets each mode/tool handle box selection in its own way.
 	 *

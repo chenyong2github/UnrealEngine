@@ -2,29 +2,10 @@
 
 #include "DataPrepFilterLibrary.h"
 
-#include "DatasmithContentBlueprintLibrary.h"
 #include "Engine/StaticMesh.h"
 
 namespace DataprepFilterLibraryImpl
 {
-	bool StringCompare( const FString& StringToCompare, const FString& SearchString, EEditorScriptingStringMatchType StringMatch )
-	{
-		switch ( StringMatch )
-		{
-			case EEditorScriptingStringMatchType::Contains:
-				return StringToCompare.Contains( SearchString );
-
-			case EEditorScriptingStringMatchType::ExactMatch:
-				return StringToCompare.Equals( SearchString );
-
-			case EEditorScriptingStringMatchType::MatchesWildcard:
-				return StringToCompare.MatchesWildcard( SearchString );
-
-			default:
-				return false;
-		}
-	}
-
 	template<typename T>
 	T* CastIfValid(UObject* Target)
 	{
@@ -41,23 +22,6 @@ TArray< UObject* > UDataprepFilterLibrary::FilterByClass(const TArray< UObject* 
 TArray< UObject* > UDataprepFilterLibrary::FilterByName( const TArray< UObject* >& TargetArray, const FString& NameSubString, EEditorScriptingStringMatchType StringMatch )
 {
 	return UEditorFilterLibrary::ByIDName( TargetArray, NameSubString, StringMatch, EEditorScriptingFilterType::Include );
-}
-
-TArray< UObject* > UDataprepFilterLibrary::FilterByMetadata( const TArray< UObject* >& TargetArray, FName Key, const FString& Value, EEditorScriptingStringMatchType ValueMatch )
-{
-	TArray< UObject* > Results;
-
-	for ( UObject* Object : TargetArray )
-	{
-		FString KeyValue = UDatasmithContentBlueprintLibrary::GetDatasmithUserDataValueForKey( Object, Key );
-
-		if ( !KeyValue.IsEmpty() && DataprepFilterLibraryImpl::StringCompare( KeyValue, Value, ValueMatch ) )
-		{
-			Results.Add( Object );
-		}
-	}
-
-	return Results;
 }
 
 TArray< UObject* > UDataprepFilterLibrary::FilterBySize(const TArray< UObject* >& TargetArray, EDataprepSizeSource SizeSource, EDataprepSizeFilterMode FilterMode, float Threshold)

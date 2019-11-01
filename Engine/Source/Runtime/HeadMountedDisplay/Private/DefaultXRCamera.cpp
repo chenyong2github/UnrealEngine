@@ -72,7 +72,7 @@ void FDefaultXRCamera::SetupLateUpdate(const FTransform& ParentToWorld, USceneCo
 
 void FDefaultXRCamera::CalculateStereoCameraOffset(const enum EStereoscopicPass StereoPassType, FRotator& ViewRotation, FVector& ViewLocation)
 {
-	if (IStereoRendering::IsStereoEyeView(StereoPassType))
+	if (StereoPassType != eSSP_FULL)
 	{
 		FQuat EyeOrientation;
 		FVector EyeOffset;

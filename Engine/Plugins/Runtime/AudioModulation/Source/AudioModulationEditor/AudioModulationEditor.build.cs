@@ -18,8 +18,12 @@ public class AudioModulationEditor : ModuleRules
 				"SequenceRecorder",
 				"Slate",
 				"SlateCore",
+				"InputCore",
+				"EditorStyle",
 				"AudioEditor",
 				"AudioModulation",
+				"CurveEditor",
+				"Persona"
 			}
 		);
 

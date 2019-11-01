@@ -12,7 +12,11 @@ DECLARE_CYCLE_STAT(TEXT("HandleViewParallelForImp"), STAT_HandleViewParallelForI
 
 namespace Chaos
 {
-CHAOS_API extern int32 ChaosParticleParallelFor;
+#if UE_BUILD_SHIPPING
+	const bool bDisableParticleParallelFor = false;
+#else
+	CHAOS_API extern bool bDisableParticleParallelFor;
+#endif
 
 template <typename TSOA>
 class TConstParticleView;
@@ -89,15 +93,13 @@ void ParticlesParallelFor(const TView& Particles, const Lambda& Func, bool bForc
 {
 	SCOPE_CYCLE_COUNTER(STAT_ParticlesParallelFor);
 
-	switch (ChaosParticleParallelFor)
+	if (!bForceSingleThreaded && !bDisableParticleParallelFor)
 	{
-		case 0:
-			Chaos::ParticlesSequentialFor(Particles, Func);
-			break;
-
-		case 1:
-			Chaos::ParticlesParallelForImp(Particles, Func);
-			break;
+		Chaos::ParticlesParallelForImp(Particles, Func);
+	}
+	else
+	{
+		Chaos::ParticlesSequentialFor(Particles, Func);
 	}
 }
 

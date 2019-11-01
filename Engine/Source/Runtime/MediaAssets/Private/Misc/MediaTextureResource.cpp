@@ -20,6 +20,7 @@
 #include "StaticBoundShaderState.h"
 #include "RenderUtils.h"
 #include "RHIStaticStates.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 #include "MediaTexture.h"
 
@@ -32,6 +33,10 @@ DECLARE_CYCLE_STAT(TEXT("MediaAssets MediaTextureResource Render"), STAT_MediaAs
 
 /** Sample time of texture last rendered. */
 DECLARE_FLOAT_COUNTER_STAT(TEXT("MediaAssets MediaTextureResource Sample"), STAT_MediaUtils_TextureSampleTime, STATGROUP_Media);
+
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(MEDIA_API, MediaStreaming);
+
+DECLARE_GPU_STAT_NAMED(MediaTextureResource, TEXT("MediaTextureResource"));
 
 /* Local helpers
  *****************************************************************************/
@@ -177,7 +182,9 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 {
 	check(IsInRenderingThread());
 
+	LLM_SCOPE(ELLMTag::MediaStreaming);
 	SCOPE_CYCLE_COUNTER(STAT_MediaAssets_MediaTextureResourceRender);
+	CSV_SCOPED_TIMING_STAT(MediaStreaming, FMediaTextureResource_Render);
 
 	FLinearColor Rotation(1, 0, 0, 1);
 	FLinearColor Offset(0, 0, 0, 0);
@@ -250,6 +257,7 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 			{
 				CreateOutputRenderTarget(Sample, Params);
 				Sample->GetMediaTextureSampleConverter()->Convert(RenderTargetTextureRHI);
+				Cleared = false;
 			}
 			else if (MediaTextureResource::RequiresConversion(Sample, Params.SrgbOutput))
 			{
@@ -279,49 +287,44 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 			Rotation = Sample->GetScaleRotation();
 			Offset = Sample->GetOffset();
 
-			/*
-				We need to keep any sample used for display around to avoid any player reusing it before any async tasks are done.
-
-				Two cases are to be considered:
-				a) we directly use the textures in the sample -> we need to keep it as long as the sample is visible
-				b) we copy (e.g. as part of a conversion) the sample into a local texture -> we only need it for the current rendering interval
-
-				In both cases the FTextureSampleKeeper will make sure that it is kept for the current rendering interval per FRHIResource rules
-				for delayed deletion.
-			*/
-			TRefCountPtr<FTextureSampleKeeper> NewCurrentSample = TRefCountPtr<FTextureSampleKeeper>(new FTextureSampleKeeper(Sample));
-			check(NewCurrentSample);
-//TODO: using normal sample retention at all times for now to avoid issues on some platforms
-			if (1) //RenderTargetTextureRHI != OutputTarget)
-			{
-				// We use the texture data in the sample
-				CurrentSample = NewCurrentSample;
-			}
-			else
-			{
-				// We use the internal copy, no need to hold on to the new one or keep any older one
-				CurrentSample = nullptr;
-			}
+			// Keep new current sample around to avoid it returning to any pool too soon
+			// (we hold on to rendering resources at a lower level anyway)
+			CurrentSample = TRefCountPtr<FTextureSampleKeeper>(new FTextureSampleKeeper(Sample));
+			check(CurrentSample);
 
 			SET_FLOAT_STAT(STAT_MediaUtils_TextureSampleTime, Sample->GetTime().GetTotalMilliseconds());
 		}
-#if MEDIATEXTURERESOURCE_TRACE_RENDER
-		else if (Sample.IsValid())
-		{
-			UE_LOG(LogMediaAssets, VeryVerbose, TEXT("TextureResource %p: Sample with time %s cannot be used at time %s"),
-				this,
-				*Sample->GetTime().ToString(TEXT("%h:%m:%s.%t")),
-				*Params.Time.ToString(TEXT("%h:%m:%s.%t"))
-			);
-		}
 		else
 		{
-			UE_LOG(LogMediaAssets, VeryVerbose, TEXT("TextureResource %p: No valid sample available at time %s"),
-				this,
-				*Params.Time.ToString(TEXT("%h:%m:%s.%t"))
-			);
-		}
+			if (OutputTarget == RenderTargetTextureRHI)
+			{
+				/*
+					We know that the current sample is using the internal buffer to store converted data.
+					This data is the data actually used by any user of this resource. Hence we can release
+					the current sample as soon as the first frame using it is done processing.
+					Either this will happen when a new sample arrives or we do it explicitly here.
+				*/
+				CurrentSample = nullptr;
+			}
+
+#if MEDIATEXTURERESOURCE_TRACE_RENDER
+			if (Sample.IsValid())
+			{
+				UE_LOG(LogMediaAssets, VeryVerbose, TEXT("TextureResource %p: Sample with time %s cannot be used at time %s"),
+					this,
+					*Sample->GetTime().ToString(TEXT("%h:%m:%s.%t")),
+					*Params.Time.ToString(TEXT("%h:%m:%s.%t"))
+				);
+			}
+			else
+			{
+				UE_LOG(LogMediaAssets, VeryVerbose, TEXT("TextureResource %p: No valid sample available at time %s"),
+					this,
+					*Params.Time.ToString(TEXT("%h:%m:%s.%t"))
+				);
+			}
 #endif
+		}
 	}
 	else if (Params.CanClear)
 	{
@@ -481,6 +484,9 @@ void FMediaTextureResource::ClearTexture(const FLinearColor& ClearColor, bool Sr
 	// draw the clear color
 	FRHICommandListImmediate& CommandList = FRHICommandListExecutor::GetImmediateCommandList();
 	{
+		SCOPED_DRAW_EVENT(CommandList, FMediaTextureResource_ClearTexture);
+		SCOPED_GPU_STAT(CommandList, MediaTextureResource);
+
 		FRHIRenderPassInfo RPInfo(RenderTargetTextureRHI, ERenderTargetActions::Clear_Store);
 		CommandList.BeginRenderPass(RPInfo, TEXT("ClearTexture"));
 		CommandList.EndRenderPass();
@@ -587,7 +593,8 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 	// perform the conversion
 	FRHICommandListImmediate& CommandList = FRHICommandListExecutor::GetImmediateCommandList();
 	{
-		SCOPED_DRAW_EVENT(CommandList, MediaTextureConvertResource);
+		SCOPED_DRAW_EVENT(CommandList, FMediaTextureResource_Convert);
+		SCOPED_GPU_STAT(CommandList, MediaTextureResource);
 
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;
 		FRHITexture* RenderTarget = RenderTargetTextureRHI.GetReference();
@@ -872,6 +879,8 @@ void FMediaTextureResource::CreateOutputRenderTarget(const TSharedPtr<IMediaText
 
 		CurrentClearColor = InParams.ClearColor;
 		UpdateResourceSize();
+
+		Cleared = false;
 	}
 
 	if (RenderTargetTextureRHI != OutputTarget)

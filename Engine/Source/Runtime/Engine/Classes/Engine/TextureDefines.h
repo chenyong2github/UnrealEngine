@@ -74,6 +74,11 @@ enum TextureGroup
 	TEXTUREGROUP_Project08 UMETA(DisplayName="ini:Project Group 08"),
 	TEXTUREGROUP_Project09 UMETA(DisplayName="ini:Project Group 09"),
 	TEXTUREGROUP_Project10 UMETA(DisplayName="ini:Project Group 10"),
+	TEXTUREGROUP_Project11 UMETA(DisplayName="ini:Project Group 11"),
+	TEXTUREGROUP_Project12 UMETA(DisplayName="ini:Project Group 12"),
+	TEXTUREGROUP_Project13 UMETA(DisplayName="ini:Project Group 13"),
+	TEXTUREGROUP_Project14 UMETA(DisplayName="ini:Project Group 14"),
+	TEXTUREGROUP_Project15 UMETA(DisplayName="ini:Project Group 15"),
 	TEXTUREGROUP_MAX,
 };
 

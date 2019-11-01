@@ -9,30 +9,18 @@
     <setBoolIsEqual result="GCMClientSenderInvalid" arg1="$S(GCMClientSenderID)" arg2=""/>
     <setBoolNot result="GCMEnabled" source="$B(GCMClientSenderInvalid)"/>
     <log text="GCMClientSenderID set: $B(GCMEnabled)"/>
-		<!-- check if using Gradle -->
-		<setBoolFromProperty result="bGradle" ini="Engine" section="/Script/AndroidRuntimeSettings.AndroidRuntimeSettings" property="bEnableGradle" default="false"/>
 	</init>
 
-	<AARImports>
-		<!-- only modify AAR imports if enabled -->
+	<buildGradleAdditions>
 		<if condition="GCMEnabled">
 			<true>
-				<if condition="bGradle">
-					<false>
-						<insert>com.google.android.gms,play-services-gcm,11.0.4</insert>
-						<insertNewline/>
-					</false>
-				</if>
-			</true>
-		</if>
-	</AARImports>
-
-	<buildGradleAdditions>
-		<insert>
+				<insert>
 dependencies {
 	implementation('com.google.android.gms:play-services-gcm:11.8.0')
 }
-		</insert>
+				</insert>
+			</true>
+		</if>
 	</buildGradleAdditions>
 
 	<!-- optional updates applied to AndroidManifest.xml -->

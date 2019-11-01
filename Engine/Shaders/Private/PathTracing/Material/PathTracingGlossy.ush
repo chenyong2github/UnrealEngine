@@ -78,6 +78,10 @@ void Glossy_SampleMaterial(
 	out float3 OutThroughput,
 	out float OutPdf)
 {
+	OutDirection = float3(0, 0, 0);
+	OutThroughput = float3(0, 0, 0);
+	OutPdf = 0.0f;
+
 	float3 N_World = GetWorldNormal(Payload);
 
 	// Diffuse and Specular color are calculated in the payload unpacking, both depend on BaseColor and Metallic attributes
@@ -91,9 +95,6 @@ void Glossy_SampleMaterial(
 
 	const float NoV = V.z;
 	const float ProbSpecular = GetSpecularEventProbability(SpecularColor, NoV); 
-
-	OutPdf = 0.0f;
-	OutThroughput = float3(0, 0, 0);
 
 	if ((RandSample.z <= ProbSpecular)) 
 	{	

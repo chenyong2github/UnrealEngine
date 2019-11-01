@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 
-#include "DisplayClusterOperationMode.h"
+#include "DisplayClusterEnums.h"
 #include "Cluster/DisplayClusterClusterEvent.h"
 #include "Cluster/IDisplayClusterClusterEventListener.h"
 
@@ -14,8 +14,8 @@
 
 #include "IDisplayClusterBlueprintAPI.generated.h"
 
+class UDisplayClusterRootComponent;
 struct FPostProcessSettings;
-
 
 
 UINTERFACE(meta = (CannotImplementInterfaceInBlueprint))
@@ -91,7 +91,6 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get local viewports"), Category = "DisplayCluster|Config")
 	virtual void GetLocalViewports(bool IsRTT, TArray<FString>& ViewportIDs, TArray<FString>& ViewportTypes, TArray<FIntPoint>& ViewportLocations, TArray<FIntPoint>& ViewportSizes) = 0;
 
-
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// Game API
@@ -99,7 +98,7 @@ public:
 	// Root
 	/** Returns Cluster Pawn. */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get root"), Category = "DisplayCluster|Game")
-	virtual ADisplayClusterPawn* GetRoot() = 0;
+	virtual UDisplayClusterRootComponent* GetRoot() = 0;
 
 	// Screens
 	/** Returns screen reference by id name. */
@@ -131,10 +130,6 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get default camera"), Category = "DisplayCluster|Game")
 	virtual UDisplayClusterCameraComponent* GetDefaultCamera() = 0;
 
-	/** Sets default camera component specified by index. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set default camera by index"), Category = "DisplayCluster|Game")
-	virtual void SetDefaultCameraByIndex(int32 Index) = 0;
-
 	/** Sets default camera component specified by ID. */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set default camera by ID"), Category = "DisplayCluster|Game")
 	virtual void SetDefaultCameraById(const FString& id) = 0;
@@ -147,31 +142,6 @@ public:
 	/** Returns array of all nodes references by its id name. */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get all nodes"), Category = "DisplayCluster|Game")
 	virtual TArray<UDisplayClusterSceneComponent*> GetAllNodes() = 0;
-
-	// Navigation
-	/** Returns scene component used for default pawn navigation. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get translation direction component"), Category = "DisplayCluster|Game")
-	virtual USceneComponent* GetTranslationDirectionComponent() = 0;
-
-	/** Set scene component to be used for default pawn navigation. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set translation direction component"), Category = "DisplayCluster|Game")
-	virtual void SetTranslationDirectionComponent(USceneComponent* pComp) = 0;
-
-	/** Set scene component to be used for default pawn navigation by id name. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set translation direction component by ID"), Category = "DisplayCluster|Game")
-	virtual void SetTranslationDirectionComponentId(const FString& id) = 0;
-
-	/** Return scene component used as a pivot point for rotation of the scene node hierarchy. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get rotate around component"), Category = "DisplayCluster|Game")
-	virtual USceneComponent* GetRotateAroundComponent() = 0;
-
-	/** Set scene component used as a pivot point for rotation of the scene node hierarchy. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set rotate around component"), Category = "DisplayCluster|Game")
-	virtual void SetRotateAroundComponent(USceneComponent* pComp) = 0;
-
-	/** Set scene component used as a pivot point for rotation of the scene node hierarchy by id name. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set rotate around component by ID"), Category = "DisplayCluster|Game")
-	virtual void SetRotateAroundComponentId(const FString& id) = 0;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -285,28 +255,4 @@ public:
 	/** Toggle current eye swap state. */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Toggle eye swap"), Category = "DisplayCluster|Render|Camera")
 	virtual bool ToggleEyesSwap(const FString& CameraId) = 0;
-
-	/** Return near culling distance of specified camera. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get near culling distance"), Category = "DisplayCluster|Render|Camera")
-	virtual float GetNearCullingDistance(const FString& CameraId) const = 0;
-
-	/** Set near culling distance of specified camera. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set near culling distance"), Category = "DisplayCluster|Render|Camera")
-	virtual void SetNearCullingDistance(const FString& CameraId, float NearDistance) = 0;
-
-	/** Get far culling distance of specified camera. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get far culling distance"), Category = "DisplayCluster|Render|Camera")
-	virtual float GetFarCullingDistance(const FString& CameraId) const = 0;
-
-	/** Set far culling distance of specified camera. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set far culling distance"), Category = "DisplayCluster|Render|Camera")
-	virtual void SetFarCullingDistance(const FString& CameraId, float FarDistance) = 0;
-
-	/** Return near and far plane clip plane distances. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get near and far clipping distance"), Category = "DisplayCluster|Render|Camera")
-	virtual void GetCullingDistance(const FString& CameraId, float& NearDistance, float& FarDistance) = 0;
-
-	/** Set near and far plane clip plane distances. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set near and far clipping distance"), Category = "DisplayCluster|Render|Camera")
-	virtual void SetCullingDistance(const FString& CameraId, float NearDistance, float FarDistance) = 0;
 };

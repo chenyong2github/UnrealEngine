@@ -90,7 +90,7 @@ void FMacErrorOutputDevice::HandleError()
 
 	// Dump the error and flush the log.
 	UE_LOG(LogMac, Log, TEXT("=== Critical error: ===") LINE_TERMINATOR TEXT("%s") LINE_TERMINATOR, GErrorExceptionDescription);
-	UE_LOG(LogMac, Log, GErrorHist);
+	UE_LOG(LogMac, Log, TEXT("%s"), GErrorHist);
 
 	GLog->Flush();
 

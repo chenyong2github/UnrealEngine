@@ -5,6 +5,8 @@
 #include "Widgets/SToolTip.h"
 #include "LevelEditorViewport.h"
 #include "EditorModes.h"
+#include "Editor/ActorPositioning.h"
+
 
 #define LOCTEXT_NAMESPACE "SceneDepthPicker"
 
@@ -77,13 +79,22 @@ bool FEdModeSceneDepthPicker::InputKey(FEditorViewportClient* ViewportClient, FV
 	{
 		if (Key == EKeys::LeftMouseButton && Event == IE_Pressed)
 		{
-			// See if we clicked on an actor
 			int32 const HitX = Viewport->GetMouseX();
 			int32 const HitY = Viewport->GetMouseY();
 
-			FVector const ObjectLoc = ViewportClient->GetHitProxyObjectLocation(HitX, HitY);
+			FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
+				Viewport,
+				ViewportClient->GetScene(),
+				ViewportClient->EngineShowFlags)
+				.SetRealtimeUpdate(true));
+			FSceneView* View = ViewportClient->CalcSceneView(&ViewFamily);
+			FViewportCursorLocation Cursor(View, ViewportClient, HitX, HitY);
 
-			OnSceneDepthLocationSelected.ExecuteIfBound(ObjectLoc);
+			const FActorPositionTraceResult TraceResult = FActorPositioning::TraceWorldForPosition(Cursor, *View);
+
+			FVector WorldPosition = TraceResult.State == FActorPositionTraceResult::HitSuccess ? TraceResult.Location : ViewportClient->GetHitProxyObjectLocation(HitX, HitY);
+
+			OnSceneDepthLocationSelected.ExecuteIfBound(WorldPosition);
 			RequestDeletion();
 			return true;
 		}

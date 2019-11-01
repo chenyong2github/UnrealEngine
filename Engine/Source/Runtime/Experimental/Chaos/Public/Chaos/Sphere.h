@@ -62,7 +62,7 @@ namespace Chaos
 
 		virtual ~TSphere() {}
 
-		static ImplicitObjectType GetType() 
+		static EImplicitObjectType StaticType()
 		{ 
 			return ImplicitObjectType::Sphere; 
 		}
@@ -189,6 +189,13 @@ namespace Chaos
 			const TVector<T,d> Normalized = Direction / sqrt(SizeSqr);
 
 			return Center + Normalized * (Radius + Thickness);
+		}
+
+		virtual TVector<T, d> Support2(const TVector<T, d>& Direction) const override { return Center; }
+
+		virtual T GetMargin() const override
+		{
+			return Radius;
 		}
 
 		virtual const TBox<T, d>& BoundingBox() const 

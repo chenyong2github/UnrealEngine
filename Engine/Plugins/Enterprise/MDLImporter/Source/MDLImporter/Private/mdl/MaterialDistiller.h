@@ -7,6 +7,13 @@
 #include "Containers/UnrealString.h"
 #include "Math/IntPoint.h"
 
+#ifdef USE_MDLSDK
+
+#include "mdl/Common.h"
+#include "mi/base/handle.h"
+
+#endif // #ifdef USE_MDLSDK
+
 namespace Mdl
 {
 	class FApiContext;
@@ -59,10 +66,6 @@ namespace Mdl
 }
 
 #ifdef USE_MDLSDK
-
-#include "mdl/Common.h"
-
-#include "mi/base/handle.h"
 
 namespace mi
 {

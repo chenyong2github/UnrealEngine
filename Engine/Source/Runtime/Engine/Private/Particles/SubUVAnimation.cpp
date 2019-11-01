@@ -613,7 +613,7 @@ void FSubUVDerivedData::Build(UTexture2D* SubUVTexture, int32 SubImages_Horizont
 					{
 						TArray<int32> ConvexHullIndices;
 						// Compute the 2d convex hull of texels with non-zero alpha
-						ConvexHull2D::ComputeConvexHull2(PotentialHullVertices, ConvexHullIndices);
+						ConvexHull2D::ComputeConvexHullLegacy2(PotentialHullVertices, ConvexHullIndices);
 
 						bSubImageSuccess = ConvexHullIndices.Num() >= 3;
 

@@ -565,7 +565,7 @@ FViewMatrices::FViewMatrices(const FSceneViewInitOptions& InitOptions) : FViewMa
 
 	// Compute screen scale factors.
 	// Stereo renders at half horizontal resolution, but compute shadow resolution based on full resolution.
-	const bool bStereo = IStereoRendering::IsStereoEyeView(InitOptions.StereoPass);
+	const bool bStereo = InitOptions.StereoPass != eSSP_FULL;
 	const float ScreenXScale = bStereo ? 2.0f : 1.0f;
 	ProjectionScale.X = ScreenXScale * FMath::Abs(ProjectionMatrix.M[0][0]);
 	ProjectionScale.Y = FMath::Abs(ProjectionMatrix.M[1][1]);
@@ -629,6 +629,7 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 	, ColorScale(InitOptions.ColorScale)
 	, StereoPass(InitOptions.StereoPass)
 	, StereoIPD(InitOptions.StereoIPD)
+	, GPUMask(FRHIGPUMask::GPU0())
 	, bRenderFirstInstanceOnly(false)
 	, DiffuseOverrideParameter(FVector4(0,0,0,1))
 	, SpecularOverrideParameter(FVector4(0,0,0,1))
@@ -759,7 +760,7 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 	bShouldBindInstancedViewUB = bIsInstancedStereoEnabled || bIsMobileMultiViewEnabled;
 
 	// If the device doesn't support mobile multi-view, disable it.
-	bIsMobileMultiViewEnabled = bIsMobileMultiViewEnabled && GSupportsMobileMultiView && IStereoRendering::IsStereoEyeView(StereoPass);
+	bIsMobileMultiViewEnabled = bIsMobileMultiViewEnabled && GSupportsMobileMultiView && StereoPass != eSSP_FULL;
 
 	SetupAntiAliasingMethod();
 
@@ -835,8 +836,7 @@ void FSceneView::SetupAntiAliasingMethod()
 		if (!bWillApplyTemporalAA || !Family->EngineShowFlags.AntiAliasing || Quality <= 0
 			// Disable antialiasing in GammaLDR mode to avoid jittering.
 			|| (FeatureLevel <= ERHIFeatureLevel::ES3_1 && MobileHDRCvar->GetValueOnAnyThread() == 0)
-			|| (FeatureLevel <= ERHIFeatureLevel::ES3_1 && (MobileMSAAValue > 1))
-			|| Family->EngineShowFlags.VisualizeDOF)
+			|| (FeatureLevel <= ERHIFeatureLevel::ES3_1 && (MobileMSAAValue > 1)))
 		{
 			AntiAliasingMethod = AAM_None;
 		}
@@ -969,7 +969,7 @@ void FSceneView::UpdateViewMatrix()
 {
 	FVector StereoViewLocation = ViewLocation;
 	FRotator StereoViewRotation = ViewRotation;
-	if (GEngine->StereoRenderingDevice.IsValid() && IStereoRendering::IsStereoEyeView(StereoPass))
+	if (GEngine->StereoRenderingDevice.IsValid() && StereoPass != eSSP_FULL)
 	{
 		GEngine->StereoRenderingDevice->CalculateStereoViewOffset(StereoPass, StereoViewRotation, WorldToMetersScale, StereoViewLocation);
 		ViewLocation = StereoViewLocation;
@@ -1418,6 +1418,11 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 		if (Src.bOverride_RayTracingReflectionsShadows)
 		{
 			Dest.RayTracingReflectionsShadows = Src.RayTracingReflectionsShadows;
+		}
+
+		if (Src.bOverride_RayTracingReflectionsTranslucency)
+		{
+			Dest.RayTracingReflectionsTranslucency = Src.RayTracingReflectionsTranslucency;
 		}
 
 		if (Src.bOverride_TranslucencyType)

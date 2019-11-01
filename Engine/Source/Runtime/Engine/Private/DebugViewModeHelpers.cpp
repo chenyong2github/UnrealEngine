@@ -273,7 +273,7 @@ bool CompileDebugViewModeShaders(EDebugViewShaderMode ShaderMode, EMaterialQuali
 
 		if (bSkipShader)
 		{
-			// Clear the data as it won't be udpated.
+			// Clear the data as it won't be updated.
 			MaterialsToRemove.Add(MaterialInterface);
 			MaterialInterface->SetTextureStreamingData(TArray<FMaterialTextureInfo>());
 			continue;

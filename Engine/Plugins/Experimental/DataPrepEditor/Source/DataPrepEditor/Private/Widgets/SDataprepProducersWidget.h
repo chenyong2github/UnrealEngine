@@ -35,24 +35,9 @@ public:
 
 	bool WillBeRun() { return bIsEnabled && !bIsSuperseded; }
 
-	void ToggleProducer()
-	{
-		if( UDataprepAssetProducers* AssetProducers = AssetProducersPtr.Get() )
-		{
-			AssetProducers->EnableProducer(ProducerIndex, !bIsEnabled);
+	void ToggleProducer();
 
-			// #ueent_todo: Cache previous value to report failed enabling/disabling
-			bIsEnabled = AssetProducers->IsProducerEnabled(ProducerIndex);
-		}
-	}
-
-	void RemoveProducer()
-	{
-		if( UDataprepAssetProducers* AssetProducers = AssetProducersPtr.Get() )
-		{
-			AssetProducers->RemoveProducer( ProducerIndex );
-		}
-	}
+	void RemoveProducer();
 
 	FString Label;
 	int32 ProducerIndex;

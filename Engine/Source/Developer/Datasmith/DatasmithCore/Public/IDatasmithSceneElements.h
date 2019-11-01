@@ -763,7 +763,7 @@ public:
 	 */
 	virtual void SetData(const uint8* InData, uint32 InDataSize, EDatasmithTextureFormat InFormat) = 0;
 
-	/** Retun the optional data, if loading from memory */
+	/** Return the optional data, if loading from memory. Must be callable from any thread. */
 	virtual const uint8* GetData(uint32& OutDataSize, EDatasmithTextureFormat& OutFormat) const = 0;
 
 	/** Return a MD5 hash of the content of the Texture Element. Used in CalculateElementHash to quickly identify Element with identical content */

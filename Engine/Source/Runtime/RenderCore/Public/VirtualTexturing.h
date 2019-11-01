@@ -63,6 +63,13 @@ struct FAllocatedVTDescription
 			 * The system only supports a limited number of unique page tables, so this must be used carefully
 			 */
 			uint8 bPrivateSpace : 1;
+
+			/**
+			 * If the AllocatedVT has the same producer mapped to multiple layers, should those be merged into a single page table layer?
+			 * This can make for more efficient page tables when enabled, but certain code may make assumption that number of layers
+			 * specified when allocating VT exactly matches the resulting page page
+			 */
+			uint8 bShareDuplicateLayers : 1;
 		};
 	};
 };

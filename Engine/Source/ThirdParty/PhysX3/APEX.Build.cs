@@ -7,99 +7,44 @@ using System.Collections.Generic;
 
 public class APEX : ModuleRules
 {
-	enum APEXLibraryMode
-	{
-		Debug,
-		Profile,
-		Checked,
-		Shipping
-	}
+    protected virtual List<string> ApexLibraries_Default { get { return new List<string>(); } }
 
-	APEXLibraryMode GetAPEXLibraryMode(UnrealTargetConfiguration Config)
-	{
-		switch (Config)
-		{
-			case UnrealTargetConfiguration.Debug:
-                if (Target.bDebugBuildsActuallyUseDebugCRT)
-                {
-                    return APEXLibraryMode.Debug;
-                }
-                else
-                {
-                    return APEXLibraryMode.Checked;
-                }
-			case UnrealTargetConfiguration.Shipping:
-				return APEXLibraryMode.Shipping;
-			case UnrealTargetConfiguration.Test:
-				return APEXLibraryMode.Profile;
-			case UnrealTargetConfiguration.Development:
-			case UnrealTargetConfiguration.DebugGame:
-			case UnrealTargetConfiguration.Unknown:
-			default:
-                if(Target.bUseShippingPhysXLibraries)
-                {
-                    return APEXLibraryMode.Shipping;
-                }
-                else if (Target.bUseCheckedPhysXLibraries)
-                {
-                    return APEXLibraryMode.Checked;
-                }
-                else
-                {
-                    return APEXLibraryMode.Profile;
-                }
-		}
-	}
+    protected virtual bool bIsApexStaticallyLinked_Default { get { return false; } }
+	protected virtual bool bHasApexLegacy_Default          { get { return true; } }
+	protected virtual string LibraryFormatString_Default   { get { return null; } }
 
-	static string GetAPEXLibrarySuffix(APEXLibraryMode Mode)
-	{
-		switch (Mode)
-		{
-			case APEXLibraryMode.Debug:
-				return "DEBUG";
-			case APEXLibraryMode.Checked:
-				return "CHECKED";
-			case APEXLibraryMode.Profile:
-				return "PROFILE";
-            case APEXLibraryMode.Shipping:
-            default:
-				return "";	
-		}
-	}
+    protected virtual string IncRootDirectory { get { return ModuleDirectory; } }
+    protected virtual string LibRootDirectory { get { return ModuleDirectory; } }
 
-	public APEX(ReadOnlyTargetRules Target) : base(Target)
+    protected virtual string ApexVersion { get { return "APEX_1.4"; } }
+    protected virtual string ApexDir     { get { return Path.Combine(IncRootDirectory, ApexVersion); } }
+    protected virtual string ApexLibDir_Default { get { return Path.Combine(LibRootDirectory, "Lib"); } }
+
+	protected virtual PhysXLibraryMode LibraryMode { get { return Target.GetPhysXLibraryMode(); } }
+    protected virtual string LibrarySuffix         { get { return LibraryMode.AsSuffix(); } }
+
+    public APEX(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
 
-		// Determine which kind of libraries to link against
-		APEXLibraryMode LibraryMode = GetAPEXLibraryMode(Target.Configuration);
-		string LibrarySuffix = GetAPEXLibrarySuffix(LibraryMode);
-
-		string ApexVersion = "APEX_1.4";
-
-		string APEXDir = Target.UEThirdPartySourceDirectory + "PhysX3/" + ApexVersion + "/";
-
-		string APEXLibDir = Target.UEThirdPartySourceDirectory + "PhysX3/Lib";
-
-		PublicSystemIncludePaths.AddRange(
-			new string[] {
-				APEXDir + "include",
-				APEXDir + "include/clothing",
-				APEXDir + "include/nvparameterized",
-				APEXDir + "include/legacy",
-				APEXDir + "include/PhysX3",
-				APEXDir + "common/include",
-				APEXDir + "common/include/autogen",
-				APEXDir + "framework/include",
-				APEXDir + "framework/include/autogen",
-				APEXDir + "shared/general/RenderDebug/public",
-				APEXDir + "shared/general/PairFilter/include",
-				APEXDir + "shared/internal/include",
-			}
-			);
+		PublicSystemIncludePaths.AddRange(new string[]
+		{
+			Path.Combine(ApexDir, "include"),
+			Path.Combine(ApexDir, "include", "clothing"),
+			Path.Combine(ApexDir, "include", "nvparameterized"),
+			Path.Combine(ApexDir, "include", "legacy"),
+			Path.Combine(ApexDir, "include", "PhysX3"),
+			Path.Combine(ApexDir, "common", "include"),
+			Path.Combine(ApexDir, "common", "include", "autogen"),
+			Path.Combine(ApexDir, "framework", "include"),
+			Path.Combine(ApexDir, "framework", "include", "autogen"),
+			Path.Combine(ApexDir, "shared", "general", "RenderDebug", "public"),
+			Path.Combine(ApexDir, "shared", "general", "PairFilter", "include"),
+			Path.Combine(ApexDir, "shared", "internal", "include"),
+		});
 
 		// List of default library names (unused unless LibraryFormatString is non-null)
-		List<string> ApexLibraries = new List<string>();
+		List<string> ApexLibraries = ApexLibraries_Default;
 		ApexLibraries.AddRange(
 			new string[]
 			{
@@ -108,17 +53,19 @@ public class APEX : ModuleRules
 				"ApexShared{0}",
 				"APEX_Clothing{0}",
 			});
-		string LibraryFormatString = null;
+		string LibraryFormatString = LibraryFormatString_Default;
 
-		bool bIsApexStaticallyLinked = false;
-		bool bHasApexLegacy = true;
+		bool bIsApexStaticallyLinked = bIsApexStaticallyLinked_Default;
+		bool bHasApexLegacy = bHasApexLegacy_Default;
+
+		string ApexLibDir = ApexLibDir_Default;
 
 		// Libraries and DLLs for windows platform
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			APEXLibDir += "/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
+			ApexLibDir = Path.Combine(ApexLibDir, "Win64", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 
-			PublicAdditionalLibraries.Add(APEXLibDir + String.Format("APEXFramework{0}_x64.lib", LibrarySuffix));
+			PublicAdditionalLibraries.Add(Path.Combine(ApexLibDir, String.Format("APEXFramework{0}_x64.lib", LibrarySuffix)));
 			PublicDelayLoadDLLs.Add(String.Format("APEXFramework{0}_x64.dll", LibrarySuffix));
 
 			string[] RuntimeDependenciesX64 =
@@ -143,9 +90,9 @@ public class APEX : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win32)
 		{
-			APEXLibDir += "/Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
+			ApexLibDir = Path.Combine(ApexLibDir, "Win32", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 
-			PublicAdditionalLibraries.Add(APEXLibDir + String.Format("APEXFramework{0}_x86.lib", LibrarySuffix));
+			PublicAdditionalLibraries.Add(Path.Combine(ApexLibDir, String.Format("APEXFramework{0}_x86.lib", LibrarySuffix)));
 			PublicDelayLoadDLLs.Add(String.Format("APEXFramework{0}_x86.dll", LibrarySuffix));
 
 			string[] RuntimeDependenciesX86 =
@@ -171,9 +118,9 @@ public class APEX : ModuleRules
 		{
             string Arch = Target.WindowsPlatform.GetArchitectureSubpath();
 
-            APEXLibDir += "/" + Target.Platform.ToString() + "/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
+			ApexLibDir = Path.Combine(ApexLibDir, Target.Platform.ToString(), "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 
-			PublicAdditionalLibraries.Add(APEXLibDir + String.Format("APEXFramework{0}_{1}.lib", LibrarySuffix, Arch));
+			PublicAdditionalLibraries.Add(Path.Combine(ApexLibDir, String.Format("APEXFramework{0}_{1}.lib", LibrarySuffix, Arch)));
 			PublicDelayLoadDLLs.Add(String.Format("APEXFramework{0}_{1}.dll", LibrarySuffix, Arch));
 
 
@@ -200,8 +147,6 @@ public class APEX : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			APEXLibDir += "/Mac";
-
 			ApexLibraries.Clear();
 			ApexLibraries.AddRange(
 				new string[]
@@ -210,7 +155,8 @@ public class APEX : ModuleRules
 					"ApexShared{0}",
 				});
 
-			LibraryFormatString = "lib{0}" + ".a";
+			ApexLibDir = Path.Combine(ApexLibDir, "Mac");
+			LibraryFormatString = "lib{0}.a";
 
 			string[] DynamicLibrariesMac = new string[] {
 				"/libAPEX_Clothing{0}.dylib",
@@ -257,18 +203,6 @@ public class APEX : ModuleRules
 				}
 			}
 		}
-		else if (Target.Platform == UnrealTargetPlatform.PS4)
-		{
-			bIsApexStaticallyLinked = true;
-			bHasApexLegacy = false;
-
-			APEXLibDir += "/PS4";
-
-            ApexLibraries.Add("NvParameterized{0}");
-            ApexLibraries.Add("RenderDebug{0}");
-
-			LibraryFormatString = "lib{0}.a";
-		}
 		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
 		{
 			bIsApexStaticallyLinked = true;
@@ -279,7 +213,7 @@ public class APEX : ModuleRules
 			// This MUST be defined for XboxOne!
 			PublicDefinitions.Add("PX_HAS_SECURE_STRCPY=1");
 
-			APEXLibDir += "/XboxOne/VS2015";
+			ApexLibDir = Path.Combine(ApexLibDir, "XboxOne", "VS2015");
 
 			ApexLibraries.Add("NvParameterized{0}");
 			ApexLibraries.Add("RenderDebug{0}");
@@ -291,7 +225,7 @@ public class APEX : ModuleRules
 			bIsApexStaticallyLinked = true;
 			bHasApexLegacy = false;
 
-			APEXLibDir += "/Switch";
+			ApexLibDir = Path.Combine(ApexLibDir, "Switch");
 
 			ApexLibraries.Add("NvParameterized{0}");
 			ApexLibraries.Add("RenderDebug{0}");
@@ -311,8 +245,8 @@ public class APEX : ModuleRules
 			{
 				string ConfiguredLib = String.Format(Lib, LibrarySuffix);
 				string FinalLib = String.Format(LibraryFormatString, ConfiguredLib);
-				PublicAdditionalLibraries.Add(Path.Combine(APEXLibDir, FinalLib));
+				PublicAdditionalLibraries.Add(Path.Combine(ApexLibDir, FinalLib));
 			}
-		}
+		}		
 	}
 }

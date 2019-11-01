@@ -99,10 +99,6 @@ public class UElibPNG : ModuleRules
 		{
 			PublicAdditionalLibraries.Add(Path.Combine(LibPNGPath, "Linux", Target.Architecture, "libpng.a"));
 		}
-		else if (Target.Platform == UnrealTargetPlatform.PS4)
-		{
-			PublicAdditionalLibraries.Add(Path.Combine(LibPNGPath, "PS4", "libpng152.a"));
-		}
 		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
 		{
 			// Use reflection to allow type not to exist if console code is not present

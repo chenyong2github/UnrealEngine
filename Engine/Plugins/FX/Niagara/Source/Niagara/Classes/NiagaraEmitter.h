@@ -209,6 +209,7 @@ class UNiagaraEmitter : public UObject
 public:
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE(FOnPropertiesChanged);
+	DECLARE_MULTICAST_DELEGATE(FOnRenderersChanged);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnEmitterCompiled, UNiagaraEmitter*);
 
 	struct NIAGARA_API PrivateMemberNames
@@ -228,6 +229,7 @@ public:
 	//Begin UObject Interface
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	NIAGARA_API FOnPropertiesChanged& OnPropertiesChanged();
+	NIAGARA_API FOnRenderersChanged& OnRenderersChanged();
 #endif
 	void Serialize(FArchive& Ar)override;
 	virtual void PostInitProperties() override;
@@ -503,6 +505,7 @@ private:
 
 #if WITH_EDITOR
 	FOnPropertiesChanged OnPropertiesChangedDelegate;
+	FOnRenderersChanged OnRenderersChangedDelegate;
 #endif
 
 	void GenerateStatID()const;

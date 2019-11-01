@@ -180,7 +180,7 @@ typedef TPyPtr<FPyWrapperObject> FPyWrapperObjectPtr;
 #endif	// WITH_PYTHON
 
 /** An Unreal class that was generated from a Python type */
-UCLASS()
+UCLASS(BlueprintType, Transient)
 class UPythonGeneratedClass : public UClass, public IPythonResourceOwner
 {
 	GENERATED_BODY()

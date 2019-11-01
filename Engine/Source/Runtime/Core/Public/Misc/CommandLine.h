@@ -91,6 +91,12 @@ struct CORE_API FCommandLine
 	 */
 	static bool IsCommandLineLoggingFiltered();
 
+	/**
+	 * Builds a command line string from the ArgC/ArgV main() arguments, together with
+	 * an optional prefix or suffix, for adding additional command list arguments programmatically.
+	*/
+	static FString BuildFromArgV(const TCHAR* Prefix, int32 ArgC, TCHAR* ArgV[], const TCHAR* Suffix);
+
 private:
 #if WANTS_COMMANDLINE_WHITELIST
 	/** Filters both the original and current command line list for approved only args */

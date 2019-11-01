@@ -36,7 +36,7 @@ public:
 	}
 	FORCEINLINE int32 GetNumSlices() const
 	{
-		return PlatformData ? PlatformData->NumSlices : 0;
+		return PlatformData ? PlatformData->GetNumSlices() : 0;
 	}
 	FORCEINLINE int32 GetNumMips() const
 	{

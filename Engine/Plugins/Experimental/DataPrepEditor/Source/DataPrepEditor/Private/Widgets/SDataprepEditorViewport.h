@@ -86,6 +86,9 @@ public:
 	TSharedPtr<FUICommandInfo> ApplyPerMeshMaterial;
 	TSharedPtr<FUICommandInfo> ApplyReflectionMaterial;
 
+	TSharedPtr<FUICommandInfo> ApplyOutlineSelection;
+	TSharedPtr<FUICommandInfo> ApplyXRaySelection;
+
 	TSharedPtr<FUICommandInfo> ApplyWireframeMode;
 
 #ifdef VIEWPORT_EXPERIMENTAL
@@ -159,8 +162,11 @@ public:
 	SDataprepEditorViewport();
 	~SDataprepEditorViewport();
 
-	void UpdateMeshes();
-	void ClearMeshes();
+	/** UpdateScene the viewport with the current content of the editor's preview world */
+	void UpdateScene();
+
+	/** Delete all the rendering data created by the viewport for display */
+	void ClearScene();
 
 	// ICommonEditorViewportToolbarInfoProvider interface
 	virtual TSharedRef<class SEditorViewport> GetViewportWidget() override;
@@ -169,6 +175,12 @@ public:
 	// End of ICommonEditorViewportToolbarInfoProvider interface
 
 	void SelectActors( const TArray< AActor* >& SelectedActors );
+
+	/** Change visibility of preview mesh components */
+	void SetActorVisibility(AActor* SceneActor, bool bInVisibility);
+
+	/** Load the settings affecting the viewport, i.e. environment map */
+	static void LoadDefaultSettings();
 
 protected:
 	/** SEditorViewport interface */
@@ -189,6 +201,13 @@ private:
 		PerMeshRenderingMaterial,
 		ReflectionRenderingMaterial,
 		MaxRenderingMaterial
+	};
+
+	enum class ESelectionModeType : uint8
+	{
+		OutlineSelectionMode,
+		XRaySelectionMode,
+		MaxSelectionMode
 	};
 
 	enum class ERenderingMode : uint8
@@ -236,9 +255,6 @@ private:
 	/** Initialize the materials used for the different rendering options */
 	void InitializeDefaultMaterials();
 
-	/** Initialize the set of materials to use for the mesh components to preview */
-	void CreateDisplayMaterials(const TArray< UStaticMeshComponent* >& MeshComponentsToPreview);
-
 	/** Set the material to apply on the preview mesh components */
 	void SetRenderingMaterial(ERenderingMaterialType InRenderingMaterial);
 
@@ -274,6 +290,15 @@ private:
 	bool IsShowOrientedBoxOn() { return bShowOrientedBox; }
 #endif
 
+	/** Set the selection mode */
+	void SetSelectionMode(ESelectionModeType InSelectionMode);
+
+	/** Check if a given selection mode is active */
+	bool IsSetSelectionModeApplied(ESelectionModeType InSelectionMode) { return InSelectionMode == CurrentSelectionMode; }
+
+	/** Returns true if the given primitive component is part of the selection set */
+	bool IsComponentSelected(const UPrimitiveComponent* PrimitiveComponent);
+
 private:
 	/** The scene for this viewport */
 	TSharedPtr< FAdvancedPreviewScene > PreviewScene;
@@ -301,12 +326,6 @@ private:
 	/** Mapping between preview's static mesh component and scene's one */
 	TMap< UStaticMeshComponent*, UStaticMeshComponent* > MeshComponentsReverseMapping;
 
-	/** Array of static mesh components which render state needs to be restored */
-	TArray<  TWeakObjectPtr< UStaticMeshComponent > > MeshComponentsToRestore;
-
-	/** Mapping between scene's materials and preview's materials */
-	TMap< class UMaterialInterface*, TWeakObjectPtr<UMaterialInstanceConstant> > DisplayMaterialsMap;
-
 	/** Array of selected static mesh components */
 	TSet<UStaticMeshComponent*> SelectedPreviewComponents;
 
@@ -317,6 +336,8 @@ private:
 	FBox SceneBounds;
 
 	ERenderingMaterialType RenderingMaterialType;
+
+	ESelectionModeType CurrentSelectionMode;
 
 	/** Indicates if wireframe mode is on or off */
 	bool bWireframeRenderingMode;
@@ -331,7 +352,7 @@ private:
 	static TWeakObjectPtr<UMaterial> BackFaceMaterial;
 
 	/** Transparent material instance used to display non-selected meshes */
-	static TWeakObjectPtr<UMaterialInstanceConstant> SelectionMaterial;
+	static TWeakObjectPtr<UMaterialInstanceConstant> TransparentMaterial;
 
 	/** Fully reflective material used to display surface discontinuity */
 	static TWeakObjectPtr<UMaterial> ReflectionMaterial;
@@ -340,15 +361,15 @@ private:
 	static TWeakObjectPtr<UMaterial> PerMeshMaterial;
 	static TArray<TWeakObjectPtr<UMaterialInstanceConstant>> PerMeshMaterialInstances;
 
-	/** Array of meshes built for viewing */
-	TArray<UStaticMesh*> BuiltMeshes;
-
 	TWeakPtr<FDataprepEditor> DataprepEditor;
 
 	/** Pointer to the vertical box into which the overlay text items are added */
 	TSharedPtr<SVerticalBox> OverlayTextVerticalBox;
 	TSharedPtr<STextBlock> ScreenSizeText;
-	
+
+	/** Index of the profile to use in the preview scene */
+	static int32 AssetViewerProfileIndex;
+
 #ifdef VIEWPORT_EXPERIMENTAL
 	bool bShowOrientedBox;
 #endif

@@ -174,6 +174,7 @@ void FEditorSessionSummaryWriter::Shutdown()
 	FCoreDelegates::OnHandleSystemError.RemoveAll(this);
 	FCoreDelegates::ApplicationWillTerminateDelegate.RemoveAll(this);
 	FCoreDelegates::IsVanillaProductChanged.RemoveAll(this);
+
 	FUserActivityTracking::OnActivityChanged.RemoveAll(this);
 
 	if (CurrentSession != nullptr)

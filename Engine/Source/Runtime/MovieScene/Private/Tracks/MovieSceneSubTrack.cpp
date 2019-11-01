@@ -96,11 +96,22 @@ UMovieSceneSubSection* UMovieSceneSubTrack::AddSequenceToRecord()
 	return NewSection;
 }
 
-bool UMovieSceneSubTrack::ContainsSequence(const UMovieSceneSequence& Sequence, bool Recursively) const
+bool UMovieSceneSubTrack::ContainsSequence(const UMovieSceneSequence& Sequence, bool Recursively, const UMovieSceneSection* SectionToSkip) const
 {
+	UMovieSceneSequence* OuterSequence = GetTypedOuter<UMovieSceneSequence>();
+	if (OuterSequence == &Sequence)
+	{
+		return true;
+	}
+
 	for (const auto& Section : Sections)
 	{
 		const auto SubSection = CastChecked<UMovieSceneSubSection>(Section);
+
+		if (SubSection == SectionToSkip)
+		{
+			continue;
+		}
 
 		// is the section referencing the sequence?
 		const UMovieSceneSequence* SubSequence = SubSection->GetSequence();

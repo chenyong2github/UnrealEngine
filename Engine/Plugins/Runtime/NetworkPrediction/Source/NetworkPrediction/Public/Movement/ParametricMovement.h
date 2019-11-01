@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "NetworkSimulationModel.h"
+#include "NetworkedSimulationModel.h"
 #include "BaseMovementComponent.h"
 
 #include "ParametricMovement.generated.h"
 
-class IParametricMovementDriver;
+struct FSimpleParametricMotion;
 
 namespace ParametricMovement
 {
@@ -28,7 +28,7 @@ namespace ParametricMovement
 		{
 			if (P.Context == EStandardLoggingContext::HeaderOnly)
 			{
-				P.Ar->Logf(TEXT(" %d "), P.Keyframe);
+				P.Ar->Logf(TEXT(" %d "), P.Frame);
 			}
 			else if (P.Context == EStandardLoggingContext::Full)
 			{
@@ -63,11 +63,11 @@ namespace ParametricMovement
 		{
 			if (Params.Context == EStandardLoggingContext::HeaderOnly)
 			{
-				Params.Ar->Logf(TEXT(" %d "), Params.Keyframe);
+				Params.Ar->Logf(TEXT(" %d "), Params.Frame);
 			}
 			else if (Params.Context == EStandardLoggingContext::Full)
 			{
-				Params.Ar->Logf(TEXT("Frame: %d"), Params.Keyframe);
+				Params.Ar->Logf(TEXT("Frame: %d"), Params.Frame);
 				Params.Ar->Logf(TEXT("Pos: %.2f"), Position);
 				Params.Ar->Logf(TEXT("Rate: %.2f"), PlayRate);
 			}
@@ -91,45 +91,68 @@ namespace ParametricMovement
 		{
 			P.Ar << Multiplier;
 		}
+
+		void Log(FStandardLoggingParameters& Params) const
+		{
+			if (Params.Context == EStandardLoggingContext::HeaderOnly)
+			{
+				Params.Ar->Logf(TEXT(" %d "), Params.Frame);
+			}
+			else if (Params.Context == EStandardLoggingContext::Full)
+			{
+				Params.Ar->Logf(TEXT("Multiplier: %f"), Multiplier);
+			}
+		}
 	};
 
 	using TMovementBufferTypes = TNetworkSimBufferTypes<FInputCmd, FMoveState, FAuxState>;
-
-	// Interface between the simulation and owning component driving it. Functions added here are available in ::Update
-	class IMovementDriver : public TNetworkSimDriverInterfaceBase<TMovementBufferTypes>
-	{
-	public:
-
-		// BaseMovement driver API (functions for moving around a primitive component)
-		virtual IBaseMovementDriver& GetBaseMovementDriver() = 0;
-
-		// Advance parametric time. This is meant to do simple things like looping/reversing etc.
-		// Note how this should be STATIC and not rely on state outside of what is passed in (such thing would need to be done inside the simulation, not through the driver!)
-		virtual void AdvanceParametricTime(const float InPosition, const float InPlayRate, float &OutPosition, float& OutPlayRate, const float DeltaTimeSeconds) const = 0;
-
-		// Actually turn the given position into a transform. Again, should be static and not conditional on changing state outside of the network sim
-		virtual void MapTimeToTransform(const float InPosition, FTransform& OutTransform) const = 0;
-	};
 	
-	class FMovementSimulation
+	class FMovementSimulation : public FBaseMovementSimulation
 	{
 	public:
-		static void Update(IMovementDriver* Driver, const float DeltaSeconds, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState);
 		static const FName GroupName;
+
+		void SimulationTick(const TNetSimTimeStep& TimeStep, const TNetSimInput<TMovementBufferTypes>& Input, const TNetSimOutput<TMovementBufferTypes>& Output);
+
+		// Pointer to our static mapping of time->position
+		const FSimpleParametricMotion* Motion = nullptr;
 	};
 
 
 	// Actual definition of our network simulation.
 	template<int32 FixedStepMS=0>
-	using FMovementSystem = TNetworkedSimulationModel<FMovementSimulation, IMovementDriver, TMovementBufferTypes, TNetworkSimTickSettings<FixedStepMS>>;
-
-	//using TSimTime = FMovementSystem::TSimTime;
+	using FMovementSystem = TNetworkedSimulationModel<FMovementSimulation, TMovementBufferTypes, TNetworkSimTickSettings<FixedStepMS>>;
 
 } // End namespace
 
 // Needed to trick UHT into letting UMockNetworkSimulationComponent implement. UHT cannot parse the ::
 // Also needed for forward declaring. Can't just be a typedef/using =
-class IParametricMovementDriver : public ParametricMovement::IMovementDriver { };
+class IParametricMovementDriver : public TNetworkedSimulationModelDriver<ParametricMovement::TMovementBufferTypes> { };
+class FParametricMovementSimulation : public ParametricMovement::FMovementSimulation { };
+
+// Extremely simple struct for defining parametric motion. This is editable in UParametricMovementComponent's defaults, and also used by the simulation code above. 
+USTRUCT(BlueprintType)
+struct FSimpleParametricMotion
+{
+	GENERATED_BODY()
+
+	// Actually turn the given position into a transform. Again, should be static and not conditional on changing state outside of the network sim
+	void MapTimeToTransform(const float InPosition, FTransform& OutTransform) const;
+
+	// Advance parametric time. This is meant to do simple things like looping/reversing etc.
+	void AdvanceParametricTime(const float InPosition, const float InPlayRate, float &OutPosition, float& OutPlayRate, const float DeltaTimeSeconds) const;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovement)
+	FVector ParametricDelta = FVector(0.f, 0.f, 500.f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovement)
+	float MinTime = -1.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovement)
+	float MaxTime = 1.f;
+
+	FTransform CachedStartingTransform;
+};
 
 // -------------------------------------------------------------------------------------------------------------------------------
 //	ActorComponent for running basic Parametric movement. 
@@ -152,22 +175,21 @@ class NETWORKPREDICTION_API UParametricMovementComponent : public UBaseMovementC
 
 	// Base TNetworkModelSimulation driver
 	FString GetDebugName() const override;
-	const UObject* GetVLogOwner() const override;
-	void InitSyncState(ParametricMovement::FMoveState& OutSyncState) const override;
-	void FinalizeFrame(const ParametricMovement::FMoveState& SyncState) override;
+	const AActor* GetVLogOwner() const override;
+	void VisualLog(const ParametricMovement::FInputCmd* Input, const ParametricMovement::FMoveState* Sync, const ParametricMovement::FAuxState* Aux, const FVisualLoggingParameters& SystemParameters) const override;
+
 	void ProduceInput(const FNetworkSimTime SimTime, ParametricMovement::FInputCmd& Cmd);
-
-	// Base Movement Driver
-	IBaseMovementDriver& GetBaseMovementDriver() override final { return *static_cast<IBaseMovementDriver*>(this); }
-
-	// Parametric Movement Driver
-	virtual void AdvanceParametricTime(const float InPosition, const float InPlayRate, float &OutPosition, float& OutPlayRate, const float DeltaTimeSeconds) const override;
-	virtual void MapTimeToTransform(const float InPosition, FTransform& OutTransform) const override;
+	void FinalizeFrame(const ParametricMovement::FMoveState& SyncState, const ParametricMovement::FAuxState& AuxState) override;
 
 protected:
 
+	TNetworkSimStateAccessor<ParametricMovement::FMoveState> MovementSyncState;
+	TNetworkSimStateAccessor<ParametricMovement::FAuxState> MovementAuxState;
+
 	virtual INetworkSimulationModel* InstantiateNetworkSimulation() override;
 	FNetworkSimulationModelInitParameters GetSimulationInitParameters(ENetRole Role) override;
+
+	TUniquePtr<FParametricMovementSimulation> ParametricMovementSimulation;
 
 	// ------------------------------------------------------------------------
 	// Temp Parametric movement example
@@ -180,15 +202,9 @@ protected:
 	/** Disables starting the simulation. For development/testing ease of use */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovement)
 	bool bDisableParametricMovementSimulation = false;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovement)
-	FVector ParametricDelta = FVector(0.f, 0.f, 500.f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovement)
-	float MinTime = -1.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovement)
-	float MaxTime = 1.f;
+	FSimpleParametricMotion ParametricMotion;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovementNetworking)
 	bool bEnableDependentSimulation = false;
@@ -203,8 +219,6 @@ protected:
 	/** Sets NetUpdateFrequency on parent. This is editable on the component and really just meant for use during development/test maps */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovementNetworking)
 	float ParentNetUpdateFrequency = 0.f;
-
-	FTransform CachedStartingTransform;
 
 	TOptional<float> PendingPlayRate = 1.f;
 };

@@ -469,28 +469,6 @@ int32 ReportCrashForMonitor(
 	void* ReadPipe,
 	EErrorReportUI ReportUI)
 {
-	// Determine UI settings for the crash report. Suppress the user input dialog if we're running in unattended mode
-	// Usage data controls if we want analytics in the crash report client
-	// Finally we cannot call some of these functions if we crash during static init, so check if they are initialized.
-	bool bNoDialog = ReportUI == EErrorReportUI::ReportInUnattendedMode;
-	bool bSendUnattendedBugReports = true;
-	bool bSendUsageData = true;
-	if (FCommandLine::IsInitialized())
-	{
-		bNoDialog |= FApp::IsUnattended() || IsRunningDedicatedServer();
-	}
-	// If we don't have a command line, but know we are dedicated server, also run in no dialog mode.
-	else if (IsRunningDedicatedServer())
-	{
-		bNoDialog = true;
-	}
-
-	if (GConfig)
-	{
-		GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), bSendUnattendedBugReports, GEditorSettingsIni);
-		GConfig->GetBool(TEXT("/Script/UnrealEd.AnalyticsPrivacySettings"), TEXT("bSendUsageData"), bSendUsageData, GEditorSettingsIni);
-	}
-	
 	//Initialize all the static data from crash context
 	FGenericCrashContext::Initialize();
 	FGenericCrashContext::CopySharedCrashContext(*SharedContext);
@@ -503,9 +481,52 @@ int32 ReportCrashForMonitor(
 	SharedContext->CrashType = Type;
 	SharedContext->CrashingThreadId = CrashingThreadId;
 	SharedContext->NumStackFramesToIgnore = NumStackFramesToIgnore;
-	SharedContext->bNoDialog = bNoDialog;
-	SharedContext->bSendUnattenededBugReports = bSendUnattendedBugReports;
-	SharedContext->bSendUsageData = bSendUsageData;
+
+	// Determine UI settings for the crash report. Suppress the user input dialog if we're running in unattended mode
+	// Usage data controls if we want analytics in the crash report client
+	// Finally we cannot call some of these functions if we crash during static init, so check if they are initialized.
+	bool bNoDialog = ReportUI == EErrorReportUI::ReportInUnattendedMode || IsRunningDedicatedServer();
+	bool bSendUnattendedBugReports = true;
+	bool bSendUsageData = true;
+	bool bCanSendCrashReport = true;
+
+	if (FCommandLine::IsInitialized())
+	{
+		bNoDialog |= FApp::IsUnattended();
+	}
+
+	if (GConfig)
+	{
+		GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), bSendUnattendedBugReports, GEditorSettingsIni);
+		GConfig->GetBool(TEXT("/Script/UnrealEd.AnalyticsPrivacySettings"), TEXT("bSendUsageData"), bSendUsageData, GEditorSettingsIni);
+	}
+
+#if !UE_EDITOR
+	if (BuildSettings::IsLicenseeVersion())
+	{
+		// do not send unattended reports in licensees' builds except for the editor, where it is governed by the above setting
+		bSendUnattendedBugReports = false;
+		bSendUsageData = false;
+	}
+#endif
+
+	if (bNoDialog && !bSendUnattendedBugReports)
+	{
+		// If we shouldn't display a dialog (like for ensures) and the user
+		// does not allow unattended bug reports we cannot send the report.
+		bCanSendCrashReport = false;
+	}
+
+	if (!bCanSendCrashReport)
+	{
+		return EXCEPTION_CONTINUE_EXECUTION;
+	}
+
+	SharedContext->UserSettings.bNoDialog = bNoDialog;
+	SharedContext->UserSettings.bSendUnattendedBugReports = bSendUnattendedBugReports;
+	SharedContext->UserSettings.bSendUsageData = bSendUsageData;
+
+	SharedContext->SessionContext.bIsExitRequested = IsEngineExitRequested();
 	FCString::Strcpy(SharedContext->ErrorMessage, CR_MAX_ERROR_MESSAGE_CHARS-1, ErrorMessage);
 
 	if (GLog)
@@ -568,11 +589,17 @@ int32 ReportCrashForMonitor(
 	CloseHandle(ThreadSnapshot);
 
 	FString CrashDirectoryAbsolute;
-	if (FGenericCrashContext::CreateCrashReportDirectory(SharedContext->SessionContext.CrashGUIDRoot, SharedContext->SessionContext.GameName, ReportCrashCallCount, CrashDirectoryAbsolute))
+	if (FGenericCrashContext::CreateCrashReportDirectory(SharedContext->SessionContext.CrashGUIDRoot, ReportCrashCallCount, CrashDirectoryAbsolute))
 	{
 		FCString::Strcpy(SharedContext->CrashFilesDirectory, *CrashDirectoryAbsolute);
 		// Copy the log file to output
 		FGenericCrashContext::DumpLog(CrashDirectoryAbsolute);
+	}
+
+	// Allow the monitor process to take window focus
+	if (const DWORD MonitorProcessId = ::GetProcessId(CrashMonitorHandle.Get()))
+	{
+		::AllowSetForegroundWindow(MonitorProcessId);
 	}
 
 	// Write the shared context to the pipe

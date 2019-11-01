@@ -61,6 +61,9 @@ struct CORE_API FMapErrors
 	static FLazyName MultipleSkyAtmospheres;
 	static FLazyName MultipleSkyAtmosphereTypes;
 
+	/** Actor gas invalid hair strands material */
+	static FLazyName InvalidHairStrandsMaterial;
+
 	/** {ActorName} has WorldTrace blocked. It will be considered to be world geometry */
 	static FLazyName InvalidTrace;
 

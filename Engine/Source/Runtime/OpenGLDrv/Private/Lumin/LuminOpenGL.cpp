@@ -16,6 +16,11 @@ namespace GL_EXT
 	PFNEGLDESTROYSYNCKHRPROC eglDestroySyncKHR = NULL;
 	PFNEGLCLIENTWAITSYNCKHRPROC eglClientWaitSyncKHR = NULL;
 
+	PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR = NULL;
+	PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR = NULL;
+
+	PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES = NULL;
+
 	// Occlusion Queries
 	PFNGLGENQUERIESEXTPROC 					glGenQueriesEXT = NULL;
 	PFNGLDELETEQUERIESEXTPROC 				glDeleteQueriesEXT = NULL;
@@ -238,6 +243,11 @@ void FPlatformOpenGLDevice::LoadEXT()
 	eglCreateSyncKHR = (PFNEGLCREATESYNCKHRPROC)((void*)eglGetProcAddress("eglCreateSyncKHR"));
 	eglDestroySyncKHR = (PFNEGLDESTROYSYNCKHRPROC)((void*)eglGetProcAddress("eglDestroySyncKHR"));
 	eglClientWaitSyncKHR = (PFNEGLCLIENTWAITSYNCKHRPROC)((void*)eglGetProcAddress("eglClientWaitSyncKHR"));
+
+	eglCreateImageKHR = (PFNEGLCREATEIMAGEKHRPROC)((void*)eglGetProcAddress("eglCreateImageKHR"));
+	eglDestroyImageKHR = (PFNEGLDESTROYIMAGEKHRPROC)((void*)eglGetProcAddress("eglDestroyImageKHR"));
+
+	glEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)((void*)eglGetProcAddress("glEGLImageTargetTexture2DOES"));
 
 	glDebugMessageControlKHR = (PFNGLDEBUGMESSAGECONTROLKHRPROC)((void*)eglGetProcAddress("glDebugMessageControlKHR"));
 	glDebugMessageInsertKHR = (PFNGLDEBUGMESSAGEINSERTKHRPROC)((void*)eglGetProcAddress("glDebugMessageInsertKHR"));

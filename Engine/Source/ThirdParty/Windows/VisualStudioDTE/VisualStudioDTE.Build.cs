@@ -57,6 +57,8 @@ namespace UnrealBuildTool.Rules
 			{
 				PublicDefinitions.Add("WITH_VISUALSTUDIO_DTE=0");
 			}
+
+			bBuildLocallyWithSNDBS = true; // modules that contain a #import must be built locally
 		}
 	}
 }

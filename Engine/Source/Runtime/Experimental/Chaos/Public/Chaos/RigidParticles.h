@@ -197,4 +197,5 @@ extern template class CHAOS_API TRigidParticles<float, 3>;
 #else
 extern template class TRigidParticles<float, 3>;
 #endif
+
 }

@@ -515,6 +515,8 @@ FProjectedShadowInfo::FProjectedShadowInfo()
 	, bPerObjectOpaqueShadow(false)
 	, bTransmission(false)
 	, bHairStrandsDeepShadow(false)
+	, PerObjectShadowFadeStart(WORLD_MAX)
+	, InvPerObjectShadowFadeLength(0.0f)
 	, LightSceneInfo(0)
 	, ParentSceneInfo(0)
 	, NumDynamicSubjectMeshElements(0)
@@ -622,6 +624,19 @@ bool FProjectedShadowInfo::SetupPerObjectProjection(
 			SubjectAndReceiverMatrix = SubjectMatrix;
 			ReceiverMatrix = PostSubjectMatrix;
 			MaxSubjectDepth = MaxSubjectAndReceiverDepth;
+
+			if (bDirectionalLight)
+			{
+				// No room to fade out if the end of receiver range is inside the subject range, it will just clip.
+				if (MaxSubjectZ < MaxReceiverZ)
+				{
+					float ShadowSubjectRange = MaxSubjectZ - MinSubjectZ;
+					float FadeLength = FMath::Min(ShadowSubjectRange, MaxReceiverZ - MaxSubjectZ);
+					//Initializer.MaxDistanceToCastInLightW / 16.0f;
+					PerObjectShadowFadeStart = (MaxReceiverZ - MinSubjectZ - FadeLength) / ShadowSubjectRange;
+					InvPerObjectShadowFadeLength = ShadowSubjectRange / FMath::Max(0.000001f, FadeLength);
+				}
+			}
 		}
 
 		InvMaxSubjectDepth = 1.0f / MaxSubjectDepth;
@@ -1341,7 +1356,7 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForProjectionStenciling(FSceneRe
 
 			// If instanced stereo is enabled, we need to render each view of the stereo pair using the instanced stereo transform to avoid bias issues.
 			// TODO: Support instanced stereo properly in the projection stenciling pass.
-			const uint32 InstanceFactor = View.bIsInstancedStereoEnabled && !View.bIsMultiViewEnabled && IStereoRendering::IsStereoEyeView(View.StereoPass) ? 2 : 1;
+			const uint32 InstanceFactor = View.bIsInstancedStereoEnabled && !View.bIsMultiViewEnabled && View.StereoPass != eSSP_FULL ? 2 : 1;
 			SortAndMergeDynamicPassMeshDrawCommands(Renderer.FeatureLevel, ProjectionStencilingPass.VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, ProjectionStencilingPass.PrimitiveIdVertexBuffer, InstanceFactor);
 		}
 	}
@@ -1918,6 +1933,7 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 
 	const bool bRenderPreShadow = 
 		CVarAllowPreshadows.GetValueOnRenderThread() 
+		&& LightSceneInfo->Proxy->HasStaticShadowing()
 		// Preshadow only affects the subject's pixels
 		&& bSubjectIsVisible 
 		// Only objects with dynamic lighting should create a preshadow
@@ -2746,9 +2762,9 @@ void FSceneRenderer::InitProjectedShadowVisibility(FRHICommandListImmediate& RHI
 				{
 					// The view dependent projected shadow is valid for this view if it's the
 					// right eye and the projected shadow is being rendered for the left eye.
-					const bool bIsValidForView = IStereoRendering::IsASecondaryView(View.StereoPass)
+					const bool bIsValidForView = View.StereoPass == eSSP_RIGHT_EYE
 						&& Views.IsValidIndex(ViewIndex - 1)
-						&& IStereoRendering::IsAPrimaryView(Views[ViewIndex - 1].StereoPass)
+						&& Views[ViewIndex - 1].StereoPass == eSSP_LEFT_EYE
 						&& ProjectedShadowInfo.FadeAlphas.IsValidIndex(ViewIndex)
 						&& ProjectedShadowInfo.FadeAlphas[ViewIndex] == 1.0f;
 
@@ -3326,15 +3342,15 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 		FadeAlphas.Init(0.0f, Views.Num());
 		FadeAlphas[ViewIndex] = LightShadowAmount;
 
-		if (IStereoRendering::IsAPrimaryView(View.StereoPass)
+		if (IStereoRendering::IsAPrimaryView(View, GEngine->StereoRenderingDevice)
 			&& Views.IsValidIndex(ViewIndex + 1)
-			&& IStereoRendering::IsASecondaryView(Views[ViewIndex + 1].StereoPass))
+			&& IStereoRendering::IsASecondaryView(Views[ViewIndex + 1], GEngine->StereoRenderingDevice))
 		{
 			FadeAlphas[ViewIndex + 1] = LightShadowAmount;
 		}		
 		
 		// If rendering in stereo mode we render shadow depths only for the left eye, but project for both eyes!
-		if (IStereoRendering::IsAPrimaryView(View.StereoPass))
+		if (IStereoRendering::IsAPrimaryView(View, GEngine->StereoRenderingDevice))
 		{
 			const bool bExtraDistanceFieldCascade = LightSceneInfo.Proxy->ShouldCreateRayTracedCascade(View.GetFeatureLevel(), LightSceneInfo.IsPrecomputedLightingValid(), View.MaxShadowCascades);
 
@@ -3769,7 +3785,7 @@ void FSceneRenderer::AllocateCachedSpotlightShadowDepthTargets(FRHICommandListIm
 		FSortedShadowMapAtlas& ShadowMap = SortedShadowsForShadowDepthPass.ShadowMapAtlases.Last();
 
 		FIntPoint ShadowResolution(ProjectedShadowInfo->ResolutionX + ProjectedShadowInfo->BorderSize * 2, ProjectedShadowInfo->ResolutionY + ProjectedShadowInfo->BorderSize * 2);
-		FPooledRenderTargetDesc ShadowMapDesc2D = FPooledRenderTargetDesc::Create2DDesc(ShadowResolution, PF_ShadowDepth, FClearValueBinding::DepthOne, TexCreate_None, TexCreate_DepthStencilTargetable, false);
+		FPooledRenderTargetDesc ShadowMapDesc2D = FPooledRenderTargetDesc::Create2DDesc(ShadowResolution, PF_ShadowDepth, FClearValueBinding::DepthOne, TexCreate_None, TexCreate_DepthStencilTargetable, false, 1, false);
 		GRenderTargetPool.FindFreeElement(RHICmdList, ShadowMapDesc2D, ShadowMap.RenderTargets.DepthTarget, TEXT("CachedShadowDepthMap"), true, ERenderTargetTransience::NonTransient);
 
 		check(ProjectedShadowInfo->CacheMode == SDCM_StaticPrimitivesOnly);
@@ -3972,7 +3988,7 @@ void FSceneRenderer::AllocateOnePassPointLightDepthTargets(FRHICommandListImmedi
 				SortedShadowsForShadowDepthPass.ShadowMapCubemaps.AddDefaulted();
 				FSortedShadowMapAtlas& ShadowMapCubemap = SortedShadowsForShadowDepthPass.ShadowMapCubemaps.Last();
 
-				FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::CreateCubemapDesc(ProjectedShadowInfo->ResolutionX, PF_ShadowDepth, FClearValueBinding::DepthOne, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_NoFastClear, false));
+				FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::CreateCubemapDesc(ProjectedShadowInfo->ResolutionX, PF_ShadowDepth, FClearValueBinding::DepthOne, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_NoFastClear, false, 1, 1, false));
 				Desc.Flags |= GFastVRamConfig.ShadowPointLight;
 				GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ShadowMapCubemap.RenderTargets.DepthTarget, TEXT("CubeShadowDepthZ"), true, ERenderTargetTransience::NonTransient );
 

@@ -1,0 +1,38 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+  
+#include "../Common.ush"
+#include "HairStrandsVisibilityCommon.ush"
+
+Buffer<float4>		HairLightingSampleBuffer;
+Texture2D<uint4>	HairCategorizationTexture;
+Texture2D<uint>		HairVisibilityNodeOffsetAndCount;
+
+void MainPS(
+	in FScreenVertexOutput Input,
+	out float4 OutColor : SV_Target0,
+	out float4 OutColorSubPixel : SV_Target1)
+{
+	const uint3 PixelCoord = uint3(floor(Input.Position.xy), 0);
+
+	FNodeDesc NodeDesc = DecodeNodeDesc(HairVisibilityNodeOffsetAndCount.Load(PixelCoord));
+
+	OutColor = 0.0f;
+	OutColorSubPixel = 0.0f;
+
+	if (NodeDesc.Count > 0)
+	{
+		const FCategorizationData CatData = DecodeCategorizationData(HairCategorizationTexture.Load(PixelCoord));
+		const float PixelCoverage = min(CatData.PixelCoverage, 1);
+
+		LOOP
+		for (uint SampleIt = 0; SampleIt < NodeDesc.Count; SampleIt++)
+		{
+			const uint LocalOffset = NodeDesc.Offset + SampleIt;
+			const float4 LightingSample = HairLightingSampleBuffer[LocalOffset];
+			if (PixelCoverage >= 1)
+				OutColor += LightingSample;
+			else
+				OutColorSubPixel += LightingSample * PixelCoverage;
+		}		
+	}
+}

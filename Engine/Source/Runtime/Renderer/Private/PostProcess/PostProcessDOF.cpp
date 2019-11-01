@@ -15,6 +15,26 @@
 #include "ClearQuad.h"
 #include "PipelineStateCache.h"
 
+FVector4 GetDepthOfFieldParameters(const FPostProcessSettings& PostProcessSettings)
+{
+	const float SkyFocusDistance = PostProcessSettings.DepthOfFieldSkyFocusDistance;
+
+	// *2 to go to account for Radius/Diameter, 100 for percent
+	const float DepthOfFieldVignetteSize = FMath::Max(0.0f, PostProcessSettings.DepthOfFieldVignetteSize / 100.0f * 2);
+
+	// doesn't make much sense to expose this property as the effect is very non linear and it would cost some performance to fix that
+	const float DepthOfFieldVignetteFeather = 10.0f / 100.0f;
+
+	const float DepthOfFieldVignetteMul = 1.0f / DepthOfFieldVignetteFeather;
+	const float DepthOfFieldVignetteAdd = (0.5f - DepthOfFieldVignetteSize) * DepthOfFieldVignetteMul;
+
+	return FVector4(
+		(SkyFocusDistance > 0) ? SkyFocusDistance : 100000000.0f, // very large if <0 to not mask out skybox, can be optimized to disable feature completely
+		DepthOfFieldVignetteMul,
+		DepthOfFieldVignetteAdd,
+		0.0f);
+}
+
 /** Encapsulates the DOF setup pixel shader. */
 // @param FarBlur 0:off, 1:on
 // @param NearBlur 0:off, 1:on, 2:on with Vignette
@@ -82,11 +102,9 @@ public:
 		SceneTextureParameters.Set(RHICmdList, ShaderRHI, Context.View.FeatureLevel, ESceneTextureSetupMode::All);
 
 		{
-			FVector4 DepthOfFieldParamValues[2];
+			const FVector4 DepthOfFieldParamValue = GetDepthOfFieldParameters(Context.View.FinalPostProcessSettings);
 
-			FRCPassPostProcessDOFSetup::ComputeDepthOfFieldParams(Context, DepthOfFieldParamValues);
-
-			SetShaderValueArray(RHICmdList, ShaderRHI, DepthOfFieldParams, DepthOfFieldParamValues, 2);
+			SetShaderValue(RHICmdList, ShaderRHI, DepthOfFieldParams, DepthOfFieldParamValue);
 		}
 	}
 
@@ -190,7 +208,7 @@ void FRCPassPostProcessDOFSetup::Process(FRenderingCompositePassContext& Context
 	FRHIRenderPassInfo RPInfo(NumRenderTargets, RenderTargets, LoadStoreAction);
 	Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("DOFSetup"));
 	{
-		if (!IStereoRendering::IsStereoEyeView(View.StereoPass))
+		if (View.StereoPass == eSSP_FULL)
 		{
 			FLinearColor ClearColors[2] =
 			{
@@ -453,7 +471,7 @@ void FRCPassPostProcessDOFRecombine::Process(FRenderingCompositePassContext& Con
 	{
 		LoadStoreAction = ERenderTargetActions::Clear_Store;
 	}
-	else if (!IStereoRendering::IsStereoEyeView(View.StereoPass))
+	else if (View.StereoPass == eSSP_FULL)
 	{
 		// #todo-renderpasses a possible optimization here is to use DontLoad since we'll clear immediately.
 		LoadStoreAction = ERenderTargetActions::Load_Store;
@@ -462,7 +480,7 @@ void FRCPassPostProcessDOFRecombine::Process(FRenderingCompositePassContext& Con
 	FRHIRenderPassInfo RPInfo(DestRenderTarget.TargetableTexture, LoadStoreAction);
 	Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("DOFRecombine"));
 	{
-		if (!IStereoRendering::IsStereoEyeView(View.StereoPass))
+		if (View.StereoPass == eSSP_FULL)
 		{
 			// is optimized away if possible (RT size=view size, )
 			DrawClearQuad(Context.RHICmdList, true, FLinearColor::Black, false, 0, false, 0, PassOutputs[0].RenderTargetDesc.Extent, View.ViewRect);
@@ -519,35 +537,4 @@ FPooledRenderTargetDesc FRCPassPostProcessDOFRecombine::ComputeOutputDesc(EPassO
 	Ret.ClearValue = FClearValueBinding(FLinearColor::Black);
 
 	return Ret;
-}
-
-// static
-void FRCPassPostProcessDOFSetup::ComputeDepthOfFieldParams(const FRenderingCompositePassContext& Context, FVector4 Out[2])
-{
-	// border between front and back layer as we don't use viewports (only possible with GS)
-	const uint32 SafetyBorder = 40;
-
-	uint32 FullRes = FSceneRenderTargets::Get(Context.RHICmdList).GetBufferSizeXY().Y;
-	uint32 HalfRes = FMath::DivideAndRoundUp(FullRes, (uint32)2);
-	uint32 BokehLayerSizeY = HalfRes * 2 + SafetyBorder;
-	float SkyFocusDistance = Context.View.FinalPostProcessSettings.DepthOfFieldSkyFocusDistance;
-	
-	// *2 to go to account for Radius/Diameter, 100 for percent
-	float DepthOfFieldVignetteSize = FMath::Max(0.0f, Context.View.FinalPostProcessSettings.DepthOfFieldVignetteSize / 100.0f * 2);
-	// doesn't make much sense to expose this property as the effect is very non linear and it would cost some performance to fix that
-	float DepthOfFieldVignetteFeather = 10.0f / 100.0f;
-	float DepthOfFieldVignetteMul = 1.0f / DepthOfFieldVignetteFeather;
-	float DepthOfFieldVignetteAdd = (0.5f - DepthOfFieldVignetteSize) * DepthOfFieldVignetteMul;
-	Out[0] = FVector4(
-		(SkyFocusDistance > 0) ? SkyFocusDistance : 100000000.0f,			// very large if <0 to not mask out skybox, can be optimized to disable feature completely
-		DepthOfFieldVignetteMul,
-		DepthOfFieldVignetteAdd,
-		Context.View.FinalPostProcessSettings.DepthOfFieldOcclusion);
-	FIntPoint ViewSize = Context.View.ViewRect.Size();
-	
-	// Scale and offset to put two views in one texture with safety border
-	float UsedYDivTextureY = HalfRes / (float)BokehLayerSizeY;
-	float YOffsetInPixel = HalfRes + SafetyBorder;
-	float YOffsetInUV = (HalfRes + SafetyBorder) / (float)BokehLayerSizeY;
-	Out[1] = FVector4(0.0f, YOffsetInUV, UsedYDivTextureY, YOffsetInPixel);
 }

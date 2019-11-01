@@ -298,8 +298,9 @@ void FStaticLightingSystem::RadiositySetupTextureMapping(FStaticLightingTextureM
 					Vertex.ApplyVertexModifications(TexelToVertex.ElementIndex, MaterialSettings.bUseNormalMapsForLighting, TextureMapping->Mesh);
 					FFinalGatherSample SkyLighting;
 					FFinalGatherSample UnusedSecondLighting;
+					float UnusedBackfacingHitsFraction;
 
-					if (!RadiosityCache.InterpolateLighting(Vertex, true, false, 1.0f, SkyLighting, UnusedSecondLighting, MappingContext.DebugCacheRecords))
+					if (!RadiosityCache.InterpolateLighting(Vertex, true, false, 1.0f, SkyLighting, UnusedSecondLighting, UnusedBackfacingHitsFraction, MappingContext.DebugCacheRecords))
 					{
 						FFinalGatherSample UniformSampledIncomingRadiance;
 						TArray<FVector4> ImportancePhotonDirections;
@@ -403,7 +404,8 @@ void FStaticLightingSystem::RadiositySetupTextureMapping(FStaticLightingTextureM
 				{
 					FFinalGatherSample SkyLighting;
 					FFinalGatherSample UnusedSecondLighting;
-					RadiosityCache.InterpolateLighting(CurrentVertex, false, false, IrradianceCachingSettings.SkyOcclusionSmoothnessReduction, SkyLighting, UnusedSecondLighting, MappingContext.DebugCacheRecords, RecordCollectorPtr);
+					float UnusedBackfacingHitsFraction;
+					RadiosityCache.InterpolateLighting(CurrentVertex, false, false, IrradianceCachingSettings.SkyOcclusionSmoothnessReduction, SkyLighting, UnusedSecondLighting, UnusedBackfacingHitsFraction, MappingContext.DebugCacheRecords, RecordCollectorPtr);
 
 					if (GeneralSettings.ViewSingleBounceNumber < 0 || GeneralSettings.ViewSingleBounceNumber == 1)
 					{
@@ -611,8 +613,9 @@ void FStaticLightingSystem::RadiosityIterationTextureMapping(FStaticLightingText
 					Vertex.ApplyVertexModifications(TexelToVertex.ElementIndex, MaterialSettings.bUseNormalMapsForLighting, TextureMapping->Mesh);
 					FFinalGatherSample SkyLighting;
 					FFinalGatherSample UnusedSecondLighting;
+					float UnusedBackfacingHitsFraction;
 
-					if (!RadiosityCache.InterpolateLighting(Vertex, true, false, 1.0f, SkyLighting, UnusedSecondLighting, MappingContext.DebugCacheRecords))
+					if (!RadiosityCache.InterpolateLighting(Vertex, true, false, 1.0f, SkyLighting, UnusedSecondLighting, UnusedBackfacingHitsFraction, MappingContext.DebugCacheRecords))
 					{
 						FFinalGatherSample UniformSampledIncomingRadiance;
 						//@todo - find and pass in photons from the appropriate bounce number to improve bUseRadiositySolverForLightMultibounce quality
@@ -689,7 +692,8 @@ void FStaticLightingSystem::RadiosityIterationTextureMapping(FStaticLightingText
 
 					FFinalGatherSample IterationLighting;
 					FFinalGatherSample UnusedSecondLighting;
-					RadiosityCache.InterpolateLighting(CurrentVertex, false, false, IrradianceCachingSettings.SkyOcclusionSmoothnessReduction, IterationLighting, UnusedSecondLighting, MappingContext.DebugCacheRecords);
+					float UnusedBackfacingHitsFraction;
+					RadiosityCache.InterpolateLighting(CurrentVertex, false, false, IrradianceCachingSettings.SkyOcclusionSmoothnessReduction, IterationLighting, UnusedSecondLighting, UnusedBackfacingHitsFraction, MappingContext.DebugCacheRecords);
 				
 					const bool bIsTranslucent = TextureMapping->Mesh->IsTranslucent(TexelToVertex.ElementIndex);
 					const FLinearColor Reflectance = (bIsTranslucent ? FLinearColor::Black : TextureMapping->Mesh->EvaluateTotalReflectance(CurrentVertex, TexelToVertex.ElementIndex)) * (float)INV_PI;

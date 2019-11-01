@@ -8,8 +8,10 @@
 
 #include "DisplayClusterGlobals.h"
 #include "DisplayClusterLog.h"
-#include "DisplayClusterOperationMode.h"
 #include "DisplayClusterStrings.h"
+
+#include "DisplayClusterCameraComponent.h"
+#include "DisplayClusterViewportClient.h"
 
 #include "Config/DisplayClusterConfigTypes.h"
 #include "Config/IDisplayClusterConfigManager.h"
@@ -17,7 +19,6 @@
 #include "Game/IDisplayClusterGameManager.h"
 
 #include "Render/Device/DisplayClusterRenderDeviceFactoryInternal.h"
-#include "Render/Device/DisplayClusterDeviceNativePresentHandler.h"
 #include "Render/Device/Monoscopic/DisplayClusterDeviceMonoscopicDX11.h"
 
 #include "Render/Device/IDisplayClusterRenderDeviceFactory.h"
@@ -25,6 +26,8 @@
 #include "Render/Projection/IDisplayClusterProjectionPolicyFactory.h"
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
 #include "Render/Synchronization/IDisplayClusterRenderSyncPolicyFactory.h"
+
+#include "Render/Presentation/DisplayClusterPresentationNative.h"
 
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicyFactoryInternal.h"
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicyNone.h"
@@ -93,35 +96,51 @@ bool FDisplayClusterRenderManager::StartSession(const FString& configPath, const
 		return true;
 	}
 
+	// Set callback on viewport created. We want to make sure the DisplayClusterViewportClient is used.
+	UGameViewportClient::OnViewportCreated().AddRaw(this, &FDisplayClusterRenderManager::OnViewportCreatedHandler_CheckViewportClass);
+
 	// Create synchronization object
 	UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating synchronization policy object..."));
 	SyncPolicy = CreateRenderSyncPolicy();
 
 	// Instantiate render device
+	TSharedPtr<IDisplayClusterRenderDevice, ESPMode::ThreadSafe> NewRenderDevice;
 	UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating stereo device..."));
-	RenderDevice = CreateRenderDevice();
+	NewRenderDevice = CreateRenderDevice();
 
 	// Set new device as the engine's stereoscopic device
-	if (GEngine && RenderDevice.IsValid())
+	if (GEngine && NewRenderDevice.IsValid())
 	{
-		GEngine->StereoRenderingDevice = StaticCastSharedPtr<IStereoRendering>(RenderDevice);
+		GEngine->StereoRenderingDevice = StaticCastSharedPtr<IStereoRendering>(NewRenderDevice);
+		RenderDevicePtr = NewRenderDevice.Get();
 	}
 
 	// When session is starting in Editor the device won't be initialized so we avoid nullptr access here.
 	//@todo Now we always have a device, even for Editor. Change the condition working on the EditorDevice.
-	return (RenderDevice.IsValid() ? RenderDevice->Initialize() : true);
+	return (RenderDevicePtr ? RenderDevicePtr->Initialize() : true);
 }
 
 void FDisplayClusterRenderManager::EndSession()
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
+
+#if WITH_EDITOR
+	if (GIsEditor)
+	{
+		// Since we can run multiple PIE sessions we have to clean device before the next one.
+		GEngine->StereoRenderingDevice.Reset();
+		RenderDevicePtr = nullptr;
+	}
+#endif
 }
 
 bool FDisplayClusterRenderManager::StartScene(UWorld* InWorld)
 {
-	if (RenderDevice.IsValid())
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
+
+	if (RenderDevicePtr)
 	{
-		RenderDevice->InitializeWorldContent(InWorld);
+		RenderDevicePtr->InitializeWorldContent(InWorld);
 	}
 
 	return true;
@@ -129,14 +148,7 @@ bool FDisplayClusterRenderManager::StartScene(UWorld* InWorld)
 
 void FDisplayClusterRenderManager::EndScene()
 {
-#if WITH_EDITOR
-	if (GIsEditor)
-	{
-		// Since we can run multiple PIE sessions we have to clean device before the next one.
-		GEngine->StereoRenderingDevice.Reset();
-		RenderDevice.Reset();
-	}
-#endif
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 }
 
 void FDisplayClusterRenderManager::PreTick(float DeltaSeconds)
@@ -449,9 +461,9 @@ void FDisplayClusterRenderManager::SetViewportCamera(const FString& InCameraId /
 
 	{
 		FScopeLock lock(&CritSecInternals);
-		if (RenderDevice.IsValid())
+		if (RenderDevicePtr)
 		{
-			RenderDevice->SetViewportCamera(InCameraId, InViewportId);
+			RenderDevicePtr->SetViewportCamera(InCameraId, InViewportId);
 		}
 	}
 }
@@ -461,12 +473,12 @@ bool FDisplayClusterRenderManager::GetViewportRect(const FString& InViewportID, 
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 	check(IsInGameThread());
 
-	if (!RenderDevice.IsValid())
+	if (!RenderDevicePtr)
 	{
 		return false;
 	}
 
-	return RenderDevice->GetViewportRect(InViewportID, Rect);
+	return RenderDevicePtr->GetViewportRect(InViewportID, Rect);
 }
 
 bool FDisplayClusterRenderManager::SetBufferRatio(const FString& InViewportID, float InBufferRatio)
@@ -474,12 +486,12 @@ bool FDisplayClusterRenderManager::SetBufferRatio(const FString& InViewportID, f
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 	check(IsInGameThread());
 
-	if (!RenderDevice.IsValid())
+	if (!RenderDevicePtr)
 	{
 		return false;
 	}
 
-	return RenderDevice->SetBufferRatio(InViewportID, InBufferRatio);
+	return RenderDevicePtr->SetBufferRatio(InViewportID, InBufferRatio);
 }
 
 bool FDisplayClusterRenderManager::GetBufferRatio(const FString& InViewportID, float &OutBufferRatio) const
@@ -487,12 +499,12 @@ bool FDisplayClusterRenderManager::GetBufferRatio(const FString& InViewportID, f
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 	check(IsInGameThread());
 
-	if (!RenderDevice.IsValid())
+	if (!RenderDevicePtr)
 	{
 		return false;
 	}
 
-	return RenderDevice->GetBufferRatio(InViewportID, OutBufferRatio);
+	return RenderDevicePtr->GetBufferRatio(InViewportID, OutBufferRatio);
 }
 
 void FDisplayClusterRenderManager::SetStartPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& StartPostProcessingSettings)
@@ -500,12 +512,12 @@ void FDisplayClusterRenderManager::SetStartPostProcessingSettings(const FString&
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 	check(IsInGameThread());
 
-	if (!RenderDevice.IsValid())
+	if (!RenderDevicePtr)
 	{
 		return;
 	}
 
-	RenderDevice->SetStartPostProcessingSettings(ViewportID, StartPostProcessingSettings);
+	RenderDevicePtr->SetStartPostProcessingSettings(ViewportID, StartPostProcessingSettings);
 }
 
 void FDisplayClusterRenderManager::SetOverridePostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& OverridePostProcessingSettings, float BlendWeight)
@@ -513,12 +525,12 @@ void FDisplayClusterRenderManager::SetOverridePostProcessingSettings(const FStri
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 	check(IsInGameThread());
 
-	if (!RenderDevice.IsValid())
+	if (!RenderDevicePtr)
 	{
 		return;
 	}
 
-	RenderDevice->SetOverridePostProcessingSettings(ViewportID, OverridePostProcessingSettings, BlendWeight);
+	RenderDevicePtr->SetOverridePostProcessingSettings(ViewportID, OverridePostProcessingSettings, BlendWeight);
 }
 
 void FDisplayClusterRenderManager::SetFinalPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& FinalPostProcessingSettings)
@@ -526,12 +538,12 @@ void FDisplayClusterRenderManager::SetFinalPostProcessingSettings(const FString&
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 	check(IsInGameThread());
 
-	if (!RenderDevice.IsValid())
+	if (!RenderDevicePtr)
 	{
 		return;
 	}
 
-	RenderDevice->SetFinalPostProcessingSettings(ViewportID, FinalPostProcessingSettings);
+	RenderDevicePtr->SetFinalPostProcessingSettings(ViewportID, FinalPostProcessingSettings);
 }
 
 void FDisplayClusterRenderManager::SetInterpupillaryDistance(const FString& CameraId, float EyeDistance)
@@ -585,72 +597,6 @@ bool FDisplayClusterRenderManager::ToggleEyesSwap(const FString& CameraId)
 	return (Camera ? Camera->ToggleEyesSwap() : false);
 }
 
-float FDisplayClusterRenderManager::GetNearCullingDistance(const FString& CameraId) const
-{
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-	check(IsInGameThread());
-
-	UDisplayClusterCameraComponent* const Camera = DisplayClusterHelpers::game::GetCamera(CameraId);
-	return (Camera ? Camera->GetNearCullingDistance() : 0.f);
-}
-
-void FDisplayClusterRenderManager::SetNearCullingDistance(const FString& CameraId, float NearDistance)
-{
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-	check(IsInGameThread());
-
-	UDisplayClusterCameraComponent* const Camera = DisplayClusterHelpers::game::GetCamera(CameraId);
-	if (Camera)
-	{
-		Camera->SetNearCullingDistance(NearDistance);
-	}
-}
-
-float FDisplayClusterRenderManager::GetFarCullingDistance(const FString& CameraId) const
-{
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-	check(IsInGameThread());
-
-	UDisplayClusterCameraComponent* const Camera = DisplayClusterHelpers::game::GetCamera(CameraId);
-	return (Camera ? Camera->GetFarCullingDistance() : 0.f);
-}
-
-void FDisplayClusterRenderManager::SetFarCullingDistance(const FString& CameraId, float FarDistance)
-{
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-	check(IsInGameThread());
-
-	UDisplayClusterCameraComponent* const Camera = DisplayClusterHelpers::game::GetCamera(CameraId);
-	if (Camera)
-	{
-		Camera->SetFarCullingDistance(FarDistance);
-	}
-}
-
-void FDisplayClusterRenderManager::GetCullingDistance(const FString& CameraId, float& NearDistance, float& FarDistance) const
-{
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-	check(IsInGameThread());
-
-	UDisplayClusterCameraComponent* const Camera = DisplayClusterHelpers::game::GetCamera(CameraId);
-	if (Camera)
-	{
-		Camera->GetCullingDistance(NearDistance, FarDistance);
-	}
-}
-
-void FDisplayClusterRenderManager::SetCullingDistance(const FString& CameraId, float NearDistance, float FarDistance)
-{
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-	check(IsInGameThread());
-
-	UDisplayClusterCameraComponent* const Camera = DisplayClusterHelpers::game::GetCamera(CameraId);
-	if (Camera)
-	{
-		Camera->SetCullingDistance(NearDistance, FarDistance);
-	}
-}
-
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterRenderManager
@@ -696,13 +642,15 @@ TSharedPtr<IDisplayClusterRenderDevice, ESPMode::ThreadSafe> FDisplayClusterRend
 		else
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("A native present handler will be instantiated when viewport is available"));
-			UGameViewportClient::OnViewportCreated().AddRaw(this, &FDisplayClusterRenderManager::OnViewportCreatedHandler);
+			UGameViewportClient::OnViewportCreated().AddRaw(this, &FDisplayClusterRenderManager::OnViewportCreatedHandler_SetCustomPresent);
 		}
 	}
 	else if (CurrentOperationMode == EDisplayClusterOperationMode::Editor)
 	{
+#if 0
 		UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating DX11 mono device for PIE"));
 		NewRenderDevice = MakeShareable(new FDisplayClusterDeviceMonoscopicDX11());
+#endif
 	}
 	else if (CurrentOperationMode == EDisplayClusterOperationMode::Disabled)
 	{
@@ -779,7 +727,7 @@ void FDisplayClusterRenderManager::ResizeWindow(int32 WinX, int32 WinY, int32 Re
 	window->ReshapeWindow(FVector2D(WinX, WinY), FVector2D(ResX, ResY));
 }
 
-void FDisplayClusterRenderManager::OnViewportCreatedHandler()
+void FDisplayClusterRenderManager::OnViewportCreatedHandler_SetCustomPresent()
 {
 	if (GEngine && GEngine->GameViewport)
 	{
@@ -790,13 +738,25 @@ void FDisplayClusterRenderManager::OnViewportCreatedHandler()
 	}
 }
 
+void FDisplayClusterRenderManager::OnViewportCreatedHandler_CheckViewportClass()
+{
+	if (GEngine && GEngine->GameViewport)
+	{
+		UDisplayClusterViewportClient* const GameViewport = Cast<UDisplayClusterViewportClient>(GEngine->GameViewport);
+		if (!GameViewport)
+		{
+			UE_LOG(LogDisplayClusterRender, Warning, TEXT("DisplayClusterViewportClient is not set as default GameViewport class"));
+		}
+	}
+}
+
 void FDisplayClusterRenderManager::OnBeginDrawHandler()
 {
-	//@todo: this is fast solution for prototype. We shouldn't use raw handlers to be able to unsubscribe from the event.
 	static bool initialized = false;
 	if (!initialized && GEngine->GameViewport->Viewport->GetViewportRHI().IsValid())
 	{
-		NativePresentHandler = new FDisplayClusterDeviceNativePresentHandler();
+		FDisplayClusterPresentationNative* const NativePresentHandler = new FDisplayClusterPresentationNative(GEngine->GameViewport->Viewport, SyncPolicy);
+		check(NativePresentHandler);
 		GEngine->GameViewport->Viewport->GetViewportRHI().GetReference()->SetCustomPresent(NativePresentHandler);
 		initialized = true;
 	}

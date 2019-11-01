@@ -78,6 +78,12 @@ void UDisplayClusterViewportClient::Init(struct FWorldContext& WorldContext, UGa
 		ForceLoadCVar->Set(int32(1));
 	}
 
+	IConsoleVariable* const RTResizeCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SceneRenderTargetResizeMethod"));
+	if (RTResizeCVar)
+	{
+		RTResizeCVar->Set(int32(2));
+	}
+
 	Super::Init(WorldContext, OwningGameInstance, bCreateNewAudioDevice);
 }
 
@@ -91,19 +97,18 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 	const bool bStereoRendering = GEngine->IsStereoscopic3D(InViewport);
 	FCanvas* DebugCanvas = InViewport->GetDebugCanvas();
 
-	
 	// Create a temporary canvas if there isn't already one.
 	static FName CanvasObjectName(TEXT("CanvasObject"));
 	UCanvas* CanvasObject = GetCanvasByName(CanvasObjectName);
 	CanvasObject->Canvas = SceneCanvas;
-	
+
 	// Create temp debug canvas object
 	FIntPoint DebugCanvasSize = InViewport->GetSizeXY();
 	if (bStereoRendering && GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice())
 	{
 		DebugCanvasSize = GEngine->XRSystem->GetHMDDevice()->GetIdealDebugCanvasRenderTargetSize();
 	}
-	
+
 	static FName DebugCanvasObjectName(TEXT("DebugCanvasObject"));
 	UCanvas* DebugCanvasObject = GetCanvasByName(DebugCanvasObjectName);
 	DebugCanvasObject->Init(DebugCanvasSize.X, DebugCanvasSize.Y, NULL, DebugCanvas);
@@ -120,7 +125,7 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 	}
 
 	UWorld* MyWorld = GetWorld();
-	
+
 	// Force path tracing view mode, and extern code set path tracer show flags
 	const bool bForcePathTracing = InViewport->GetClient()->GetEngineShowFlags()->PathTracing;
 	if (bForcePathTracing)
@@ -143,7 +148,7 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 			nDisplay = true;
 		}
 	}
-	
+
 	for (int32 viewFamily = 0; viewFamily < NumFamilies; ++viewFamily)
 	{
 		float CustomBufferRatio = 1.f;

@@ -316,7 +316,7 @@ ovrAudioContext UOculusAudioGeometryComponent::GetContext(UWorld* World)
 
 			// Note: getting the context from the spatializer, should we get it from the reverb instead?
 			FString OculusSpatializerPluginName = Plugin->GetSpatializationPluginFactory()->GetDisplayName();
-			FString CurrentSpatializerPluginName = AudioPluginUtilities::GetDesiredPluginName(EAudioPlugin::SPATIALIZATION, AudioPluginUtilities::CurrentPlatform);
+			FString CurrentSpatializerPluginName = AudioPluginUtilities::GetDesiredPluginName(EAudioPlugin::SPATIALIZATION);
 			if (CurrentSpatializerPluginName.Equals(OculusSpatializerPluginName)) // we have a match!
 			{
 				if (World == nullptr)

@@ -13,6 +13,8 @@
 #include "DatasmithSceneFactory.h"
 #include "IDatasmithSceneElements.h"
 #include "DatasmithStaticMeshImporter.h"
+#include "DataprepAssetUserData.h"
+#include "DataprepAssetInterface.h"
 #include "LevelVariantSets.h"
 #include "ObjectTemplates/DatasmithActorTemplate.h"
 #include "ObjectTemplates/DatasmithAreaLightActorTemplate.h"
@@ -77,12 +79,6 @@ namespace DatasmithConsumerUtils
 
 		return DatasmithUniqueId.IsEmpty() ? Object->GetName() : DatasmithUniqueId;
 	}
-
-	FString GetObjectTag(UObject* Object)
-	{
-		const FString ObjectPath = FPaths::Combine( Object->GetOutermost()->GetName(), Object->GetName() );
-		return FMD5::HashBytes( reinterpret_cast<const uint8*>(*ObjectPath), ObjectPath.Len() * sizeof(TCHAR) );
-	}
 }
 
 bool UDatasmithConsumer::Initialize()
@@ -101,28 +97,50 @@ bool UDatasmithConsumer::Initialize()
 	UPackage* ParentPackage = CreatePackage( nullptr, *TargetContentFolder );
 	ParentPackage->FullyLoad();
 
+	WorkingScenePtr.Reset( DatasmithScene.Get() );
+
 	// Check if the Datasmith scene is not already in memory
-	if ( !DatasmithScene.IsValid() )
+	if ( !WorkingScenePtr.IsValid() )
 	{
 		FName DatasmithSceneName = MakeUniqueObjectName( ParentPackage, UDatasmithScene::StaticClass(), *( GetName() + TEXT("_DS") ) );
 
 		UPackage* Package = CreatePackage( nullptr, *FPaths::Combine( ParentPackage->GetPathName(), DatasmithSceneName.ToString() ) );
 		Package->FullyLoad();
 
-		DatasmithScene = NewObject< UDatasmithScene >( Package, DatasmithSceneName, GetFlags() | RF_Public | RF_Standalone | RF_Transactional );
+		DatasmithScene = NewObject< UDatasmithScene >( Package, DatasmithSceneName, GetFlags() | RF_Public | RF_Transactional );
 		check( DatasmithScene.IsValid() );
 
-		FAssetRegistryModule::AssetCreated( DatasmithScene.Get() );
-		DatasmithScene->MarkPackageDirty();
+		WorkingScenePtr.Reset( DatasmithScene.Get() );
 
-		DatasmithScene->AssetImportData = NewObject< UDatasmithSceneImportData >( DatasmithScene.Get(), UDatasmithSceneImportData::StaticClass() );
-		check( DatasmithScene->AssetImportData );
+		FAssetRegistryModule::AssetCreated( DatasmithScene.Get() );
+		WorkingScenePtr->MarkPackageDirty();
+
+		WorkingScenePtr->AssetImportData = NewObject< UDatasmithSceneImportData >( DatasmithScene.Get(), UDatasmithSceneImportData::StaticClass() );
+		check( WorkingScenePtr->AssetImportData );
+
+		// Store a Dataprep asset pointer into the scene asset in order to be able to later re-execute the dataprep pipeline
+		UDataprepAssetInterface* DataprepAssetInterface = Cast< UDataprepAssetInterface >( GetOuter() );
+		check( DataprepAssetInterface );
+
+		if ( WorkingScenePtr->GetClass()->ImplementsInterface(UInterface_AssetUserData::StaticClass()) )
+		{
+			if ( IInterface_AssetUserData* AssetUserDataInterface = Cast< IInterface_AssetUserData >( DatasmithScene.Get() ) )
+			{
+				UDataprepAssetUserData* DataprepAssetUserData = AssetUserDataInterface->GetAssetUserData< UDataprepAssetUserData >();
+
+				if ( !DataprepAssetUserData )
+				{
+					EObjectFlags Flags = RF_Public;
+					DataprepAssetUserData = NewObject< UDataprepAssetUserData >( DatasmithScene.Get(), NAME_None, Flags );
+					AssetUserDataInterface->AddAssetUserData( DataprepAssetUserData );
+				}
+				DataprepAssetUserData->DataprepAssetPtr = DataprepAssetInterface;
+			}
+		}
 	}
 
-	// #ueent_todo: Find out necessity of namespace for uniqueness of asset's and actor's names
 	if ( !BuildContexts( Context.WorldPtr.Get() ) )
 	{
-		// #ueent_todo: Provide details of why initialization failed
 		return false;
 	}
 
@@ -188,6 +206,7 @@ void UDatasmithConsumer::Reset()
 	ImportContextPtr.Reset();
 	ProgressTaskPtr.Reset();
 	UDataprepContentConsumer::Reset();
+	WorkingScenePtr.Reset(nullptr);
 
 	// Restore previous current level
 	if( PreviousCurrentLevel != nullptr )
@@ -209,18 +228,15 @@ const FText& UDatasmithConsumer::GetDescription() const
 
 bool UDatasmithConsumer::BuildContexts( UWorld* ImportWorld )
 {
-	UDatasmithSceneImportData* ImportData = Cast< UDatasmithSceneImportData >( DatasmithScene->AssetImportData );
-
-	const FString FilePath = FPaths::Combine( FPaths::ProjectIntermediateDir(), ( DatasmithScene->GetName() + TEXT( ".udatasmith" ) ) );
+	const FString FilePath = FPaths::Combine( FPaths::ProjectIntermediateDir(), ( WorkingScenePtr->GetName() + TEXT( ".udatasmith" ) ) );
 
 	ImportContextPtr = MakeUnique< FDatasmithImportContext >( FilePath, false, TEXT("DatasmithImport"), LOCTEXT("DatasmithImportFactoryDescription", "Datasmith") );
 
 	// Update import context with consumer's data
-	ImportContextPtr->Options->BaseOptions = ImportData->BaseOptions;
 	ImportContextPtr->Options->BaseOptions.SceneHandling = EDatasmithImportScene::CurrentLevel;
 	ImportContextPtr->SceneAsset = DatasmithScene.Get();
 	ImportContextPtr->ActorsContext.ImportWorld = ImportWorld;
-	ImportContextPtr->Scene = FDatasmithSceneFactory::CreateScene( *DatasmithScene->GetName() );
+	ImportContextPtr->Scene = FDatasmithSceneFactory::CreateScene( *WorkingScenePtr->GetName() );
 	ImportContextPtr->SceneName = ImportContextPtr->Scene->GetName();
 
 	// Convert all incoming Datasmith scene actors as regular actors
@@ -233,11 +249,8 @@ bool UDatasmithConsumer::BuildContexts( UWorld* ImportWorld )
 	ImportContextPtr->ActorsContext.ImportSceneActor->GetAttachedActors( RootActors );
 	FDatasmithImporterUtils::FillSceneElement( ImportContextPtr->Scene, RootActors );
 
-	// Store IDatasmithScene(Element) in UDatasmithScene
-	FDatasmithImporterUtils::SaveDatasmithScene( ImportContextPtr->Scene.ToSharedRef(), ImportContextPtr->SceneAsset );
-
 	// Initialize context
-	FString SceneOuterPath = DatasmithScene->GetOutermost()->GetName();
+	FString SceneOuterPath = WorkingScenePtr->GetOutermost()->GetName();
 	FString RootPath = FPackageName::GetLongPackagePath( SceneOuterPath );
 
 	if ( Algo::Count( RootPath, TEXT('/') ) > 1 )
@@ -250,6 +263,8 @@ bool UDatasmithConsumer::BuildContexts( UWorld* ImportWorld )
 
 	if ( !ImportContextPtr->Init( ImportContextPtr->Scene.ToSharedRef(), RootPath, RF_Public | RF_Standalone | RF_Transactional, GWarn, TSharedPtr< FJsonObject >(), true ) )
 	{
+		FText Message = LOCTEXT( "DatasmithConsumer_BuildContexts", "Initialization of consumer failed" );
+		LogError( Message );
 		return false;
 	}
 
@@ -279,12 +294,11 @@ bool UDatasmithConsumer::BuildContexts( UWorld* ImportWorld )
 	ImportContextPtr->ActorsContext.UniqueNameProvider = FDatasmithActorUniqueLabelProvider();
 	ImportContextPtr->ActorsContext.UniqueNameProvider.PopulateLabelFrom( GWorld );
 
-	// Copy BaseOptions from ImportContext
-	ImportData->BaseOptions.AssetOptions.PackagePath = ImportContextPtr->Options->BaseOptions.AssetOptions.PackagePath;
-
 	// Add assets as if they have been imported using the current import context
 	DatasmithConsumerUtils::AddAssetsToContext( *ImportContextPtr, Context.Assets );
 
+	// Store IDatasmithScene(Element) in UDatasmithScene
+	FDatasmithImporterUtils::SaveDatasmithScene( ImportContextPtr->Scene.ToSharedRef(), ImportContextPtr->SceneAsset );
 	return true;
 }
 
@@ -309,40 +323,53 @@ ULevel * UDatasmithConsumer::FindLevel( const FString& InLevelName )
 
 bool UDatasmithConsumer::SetLevelName( const FString & InLevelName, FText& OutReason )
 {
-	// Update current level
-	if( !InLevelName.IsEmpty() && InLevelName.Compare( TEXT("current"), ESearchCase::IgnoreCase ) != 0 )
+	FString NewLevelName = InLevelName;
+
+	bool bValidLevelName = false;
+	OutReason = FText();
+
+	// Check if a new level can be used with the new name and current limitations
+	if( !NewLevelName.IsEmpty() && NewLevelName.Compare( TEXT("current"), ESearchCase::IgnoreCase ) != 0 )
 	{
-		// #ueent_todo: What about sub-level of sub-level?
+		// Sub-level of sub-level is not supported yet
+		// #ueent_todo: sub-level of sub-level
 		if( InLevelName.Contains( TEXT("/") ) || InLevelName.Contains( TEXT("\\") ))
 		{
 			OutReason = LOCTEXT( "DatasmithConsumer_SubLevel", "Sub-level of sub-levels is not supported yet" );
-			return false;
 		}
-
 		// Try to see if there is any issue to eventually create this level, i.e. name collision
-		if( FindLevel( InLevelName ) == nullptr )
+		else if( FindLevel( InLevelName ) == nullptr )
 		{
 			FSoftObjectPath LevelObjectPath( FPaths::Combine( TargetContentFolder, InLevelName ) );
 
 			if( StaticFindObject( nullptr, ANY_PACKAGE, *LevelObjectPath.ToString(), true) )
 			{
 				OutReason = LOCTEXT( "DatasmithConsumer_LevelExists", "A object with that name already exists. Please choose another name." );
-				return false;
 			}
 
 			// #ueent_todo: Check if persistent level is locked, etc
 		}
 
-		LevelName = InLevelName;
+		// Good to go if no error documented
+		bValidLevelName = OutReason.IsEmpty();
 	}
-	else
+	// New name of level is empty or keyword 'current' used
+	else if( !LevelName.IsEmpty() )
 	{
-		LevelName = TEXT("");
+		NewLevelName = TEXT("");
+		bValidLevelName = true;
 	}
 
-	OnChanged.Broadcast();
+	if(bValidLevelName)
+	{
+		Modify();
 
-	return true;
+		LevelName = NewLevelName;
+
+		OnChanged.Broadcast();
+	}
+
+	return bValidLevelName;
 }
 
 void UDatasmithConsumer::MoveAssets()
@@ -357,7 +384,7 @@ void UDatasmithConsumer::MoveAssets()
 	const FText DialogTitle( LOCTEXT( "DatasmithConsumerDlgTitle", "Warning" ) );
 
 	// Warn user if related Datasmith scene is not in package path and force re-creation of Datasmith scene
-	if( DatasmithScene.IsValid() && !DatasmithScene->GetPathName().StartsWith( TargetContentFolder ) )
+	if( DatasmithScene.IsValid() && !WorkingScenePtr->GetPathName().StartsWith( TargetContentFolder ) )
 	{
 		FText WarningMessage = FText::Format(LOCTEXT("DatasmithConsumer_NoSceneAsset", "Package path {0} different from path previously used, {1}.\nPrevious content will not be updated."), FText::FromString (TargetContentFolder ), FText::FromString ( LastPackagePath ) );
 		FMessageDialog::Open(EAppMsgType::Ok, WarningMessage, &DialogTitle );
@@ -436,7 +463,8 @@ void UDatasmithConsumer::UpdateLevel()
 			}
 			else
 			{
-				// #ueent_todo: Warn user that level could not be created
+				FText Message = LOCTEXT( "DatasmithConsumer_UpdateLevel", "Cannot create level..." );
+				LogWarning( Message );
 				Level = FinalWorld->PersistentLevel;
 			}
 
@@ -494,7 +522,6 @@ namespace DatasmithConsumerUtils
 			const FString SceneActorLabel = SceneActor->GetActorLabel();
 			SceneActor->Rename( nullptr, nullptr, REN_DontCreateRedirectors | REN_NonTransactional );
 
-			// #ueent_todo: is there more to add to the actor element?
 			// Use actor's label instead of name.
 			// Rationale: Datasmith scene actors are created with the same name and label and their name can change when calling SetLabel.
 			TSharedRef< IDatasmithActorElement > RootActorElement = FDatasmithSceneFactory::CreateActor( *SceneActorLabel );
@@ -561,7 +588,6 @@ namespace DatasmithConsumerUtils
 			ActorsToVisit.Append( Children );
 		}
 
-		// #ueent_todo: Find a better way to filter those out.
 		auto IsUnregisteredActor = [&](AActor* Actor)
 		{
 			// Skip non-imported actors
@@ -633,21 +659,31 @@ namespace DatasmithConsumerUtils
 		// First skip UMaterial objects which are not referenced by a UmaterialInstance one
 		int32 MaterialCount = 0;
 		TSet< UMaterialInterface* > ParentMaterials;
+		TSet< UMaterialFunctionInterface* > MaterialFunctions;
 		for(TWeakObjectPtr<UObject>& AssetPtr : Assets)
 		{
 			if( UObject* Asset = AssetPtr.Get() )
 			{
-				FString AssetTag = DatasmithConsumerUtils::GetObjectTag( Asset );
+				FString AssetTag = FDatasmithImporterUtils::GetDatasmithElementIdString( Asset );
 
 				if(UTexture* Texture = Cast<UTexture>(Asset))
 				{
 					TSharedRef< IDatasmithTextureElement > TextureElement = FDatasmithSceneFactory::CreateTexture( *AssetTag );
+					TextureElement->SetLabel( *Texture->GetName() );
+
 					ImportContext.ImportedTextures.Add( TextureElement, Texture );
+					ImportContext.Scene->AddTexture( TextureElement );
 				}
 				else if(UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(Asset))
 				{
-					TSharedRef< IDatasmithMaterialElement > MaterialElement = FDatasmithSceneFactory::CreateMaterial( *AssetTag );
-					ImportContext.ImportedMaterials.Add( MaterialElement, MaterialInstance );
+					TSharedRef< IDatasmithBaseMaterialElement > MaterialElement = FDatasmithSceneFactory::CreateMaterial( *AssetTag );
+					MaterialElement->SetLabel( *MaterialInstance->GetName() );
+
+					if (UMaterial* SourceMaterial = Cast< UMaterial >(MaterialInstance))
+					{
+						MaterialElement = StaticCastSharedRef< IDatasmithBaseMaterialElement >( FDatasmithSceneFactory::CreateUEPbrMaterial( *AssetTag ) );
+						MaterialElement->SetLabel( *MaterialInstance->GetName() );
+					}
 
 					if ( UMaterialInterface* MaterialParent = MaterialInstance->Parent )
 					{
@@ -657,7 +693,6 @@ namespace DatasmithConsumerUtils
 						// Add parent material to ImportedParentMaterials if applicable
 						if ( ParentPath.StartsWith( MaterialInstancePath ) )
 						{
-							// #ueent_todo : Do we want to compute the hash of the material and check its existence?
 							ImportContext.ImportedParentMaterials.Add( MaterialCount, MaterialParent );
 							MaterialCount++;
 
@@ -672,6 +707,9 @@ namespace DatasmithConsumerUtils
 							AddTemplate( UDatasmithMaterialInstanceTemplate::StaticClass(), MaterialInstanceConstant );
 						}
 					}
+
+					ImportContext.ImportedMaterials.Add( MaterialElement, MaterialInstance );
+					ImportContext.Scene->AddMaterial( MaterialElement );
 				}
 				else if(UStaticMesh* StaticMesh = Cast<UStaticMesh>(Asset))
 				{
@@ -687,17 +725,33 @@ namespace DatasmithConsumerUtils
 					}
 
 					TSharedRef< IDatasmithMeshElement > MeshElement = FDatasmithSceneFactory::CreateMesh( *AssetTag );
+					MeshElement->SetLabel( *StaticMesh->GetName() );
+
+
+					for(int32 Index = 0; Index < StaticMesh->GetNumSections( 0 ); ++Index)
+					{
+						const FString MaterialTag = FDatasmithImporterUtils::GetDatasmithElementIdString( StaticMesh->GetMaterial( Index ) );
+						MeshElement->SetMaterial( *MaterialTag, Index );
+					}
+
 					ImportContext.ImportedStaticMeshes.Add( MeshElement, StaticMesh );
+					ImportContext.Scene->AddMesh( MeshElement );
 				}
 				else if(ULevelSequence* LevelSequence = Cast<ULevelSequence>(Asset))
 				{
 					TSharedRef< IDatasmithLevelSequenceElement > LevelSequenceElement = FDatasmithSceneFactory::CreateLevelSequence( *AssetTag );
+					LevelSequenceElement->SetLabel( *LevelSequence->GetName() );
+
 					ImportContext.ImportedLevelSequences.Add( LevelSequenceElement, LevelSequence );
+					ImportContext.Scene->AddLevelSequence( LevelSequenceElement );
 				}
 				else if(ULevelVariantSets* LevelVariantSets = Cast<ULevelVariantSets>(Asset))
 				{
 					TSharedRef< IDatasmithLevelVariantSetsElement > LevelVariantSetsElement = FDatasmithSceneFactory::CreateLevelVariantSets( *AssetTag );
+					LevelVariantSetsElement->SetLabel( *LevelVariantSets->GetName() );
+
 					ImportContext.ImportedLevelVariantSets.Add( LevelVariantSetsElement, LevelVariantSets );
+					ImportContext.Scene->AddLevelVariantSets( LevelVariantSetsElement );
 				}
 				// #ueent_todo: Add support for assets which are not of the classes above
 			}
@@ -706,13 +760,36 @@ namespace DatasmithConsumerUtils
 		// Second take care UMaterial objects which are not referenced by a UmaterialInstance one
 		for( TWeakObjectPtr<UObject>& AssetPtr : Assets )
 		{
-			if( UMaterial* Material = Cast<UMaterial>( AssetPtr.Get() ) )
+			UObject* AssetObject = AssetPtr.Get();
+			if( UMaterial* Material = Cast<UMaterial>( AssetObject ) )
 			{
 				if( !ParentMaterials.Contains( Material ) )
 				{
-					FString AssetTag = DatasmithConsumerUtils::GetObjectTag( Material );
+					FString AssetTag = FDatasmithImporterUtils::GetDatasmithElementIdString( Material );
 					TSharedRef< IDatasmithMaterialElement > MaterialElement = FDatasmithSceneFactory::CreateMaterial( *AssetTag );
+					MaterialElement->SetLabel( *Material->GetName() );
+
 					ImportContext.ImportedMaterials.Add( MaterialElement, Material );
+					ImportContext.Scene->AddMaterial( MaterialElement );
+				}
+			}
+			else if( UMaterialFunction* MaterialFunction = Cast<UMaterialFunction>( AssetObject ) )
+			{
+				if( !MaterialFunctions.Contains( Cast<UMaterialFunctionInterface>( MaterialFunction ) ) )
+				{
+					FString AssetTag = FDatasmithImporterUtils::GetDatasmithElementIdString( MaterialFunction );
+
+					TSharedRef< IDatasmithUEPbrMaterialElement > UEPbrMaterialFunctionElement = FDatasmithSceneFactory::CreateUEPbrMaterial( *AssetTag );
+
+					UEPbrMaterialFunctionElement->SetLabel( *MaterialFunction->GetName() );
+					UEPbrMaterialFunctionElement->SetMaterialFunctionOnly( true );
+
+					TSharedRef< IDatasmithBaseMaterialElement > BaseMaterialElement = StaticCastSharedRef< IDatasmithBaseMaterialElement >( UEPbrMaterialFunctionElement );
+
+					ImportContext.ImportedMaterialFunctions.Add( BaseMaterialElement, MaterialFunction );
+					ImportContext.ImportedMaterialFunctionsByName.Add( BaseMaterialElement->GetName(), BaseMaterialElement );
+
+					ImportContext.Scene->AddMaterial( BaseMaterialElement );
 				}
 			}
 		}

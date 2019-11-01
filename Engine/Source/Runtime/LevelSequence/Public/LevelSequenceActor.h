@@ -184,6 +184,16 @@ public:
 	void SetBinding(FMovieSceneObjectBindingID Binding, const TArray<AActor*>& Actors, bool bAllowBindingsFromAsset = false);
 
 	/**
+	 * Assigns an set of actors to all the bindings tagged with the specified name in this sequence. Object Bindings can be tagged within the sequence UI by RMB -> Tags... on the object binding in the tree.
+	 *
+	 * @param BindingTag   The unique tag name to lookup bindings with
+	 * @param Actors       The actors to assign to all the tagged bindings
+	 * @param bAllowBindingsFromAsset Whether to continue to allow bindings from the level sequence asset (true) or not (false)
+	 */
+	UFUNCTION(BlueprintCallable, Category="Game|Cinematic|Bindings")
+	void SetBindingByTag(FName BindingTag, const TArray<AActor*>& Actors, bool bAllowBindingsFromAsset = false);
+
+	/**
 	 * Adds the specified actor to the overridden bindings for the specified binding ID, optionally still allowing the bindings defined in the Level Sequence asset
 	 *
 	 * @param Binding Binding to modify
@@ -194,10 +204,26 @@ public:
 	void AddBinding(FMovieSceneObjectBindingID Binding, AActor* Actor, bool bAllowBindingsFromAsset = false);
 
 	/**
+	 * Binds an actor to all the bindings tagged with the specified name in this sequence. Does not remove any exising bindings that have been set up through this API. Object Bindings can be tagged within the sequence UI by RMB -> Tags... on the object binding in the tree.
+	 *
+	 * @param BindingTag   The unique tag name to lookup bindings with
+	 * @param Actor        The actor to assign to all the tagged bindings
+	 * @param bAllowBindingsFromAsset Whether to continue to allow bindings from the level sequence asset (true) or not (false)
+	 */
+	UFUNCTION(BlueprintCallable, Category="Game|Cinematic|Bindings")
+	void AddBindingByTag(FName BindingTag, AActor* Actor, bool bAllowBindingsFromAsset = false);
+
+	/**
 	 * Removes the specified actor from the specified binding's actor array
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Cinematic|Bindings")
 	void RemoveBinding(FMovieSceneObjectBindingID Binding, AActor* Actor);
+
+	/**
+	 * Removes the specified actor from the specified binding's actor array
+	 */
+	UFUNCTION(BlueprintCallable, Category="Game|Cinematic|Bindings")
+	void RemoveBindingByTag(FName Tag, AActor* Actor);
 
 	/**
 	 * Resets the specified binding back to the defaults defined by the Level Sequence asset
@@ -212,16 +238,19 @@ public:
 	void ResetBindings();
 
 	/**
-	 * Find the first object binding ID associated with the specified name (set up through RMB->Expose on Object bindings from within sequencer)
+	 * Retrieve the first object binding that has been tagged with the specified name
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Game|Cinematic|Bindings")
-	FMovieSceneObjectBindingID FindNamedBinding(FName InBindingName) const;
+	UFUNCTION(BlueprintCallable, Category = "Game|Cinematic|Bindings", DisplayName="FindBindingByTag")
+	FMovieSceneObjectBindingID FindNamedBinding(FName Tag) const;
 
 	/**
-	 * Find all object binding IDs associated with the specified name (set up through RMB->Expose on Object bindings from within sequencer)
+	 * Retrieve all the bindings that have been tagged with the specified name
+	 *
+	 * @param Tag  The unique tag name to lookup bindings with. Object Bindings can be tagged within the sequence UI by RMB -> Tags... on the object binding in the tree.
+	 * @return An array containing all the bindings that are tagged with this name, potentially empty.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Game|Cinematic|Bindings")
-	const TArray<FMovieSceneObjectBindingID>& FindNamedBindings(FName InBindingName) const;
+	UFUNCTION(BlueprintCallable, Category = "Game|Cinematic|Bindings", DisplayName="FindBindingByTag")
+	const TArray<FMovieSceneObjectBindingID>& FindNamedBindings(FName Tag) const;
 
 protected:
 

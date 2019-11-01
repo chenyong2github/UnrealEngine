@@ -91,16 +91,15 @@ public:
 		{
 			const bool bWireframe = AllowDebugViewmodes() && ViewFamily.EngineShowFlags.Wireframe;
 
-			auto WireframeMaterialInstance = new FColoredMaterialRenderProxy(
-				GEngine->WireframeMaterial->GetRenderProxy(),
-				FLinearColor(0, 0.5f, 1.f)
-			);
-
-			Collector.RegisterOneFrameMaterialProxy(WireframeMaterialInstance);
-
 			FMaterialRenderProxy* MaterialProxy = NULL;
 			if (bWireframe)
 			{
+				auto WireframeMaterialInstance = new FColoredMaterialRenderProxy(
+					GEngine->WireframeMaterial->GetRenderProxy(),
+					FLinearColor(0, 0.5f, 1.f)
+				);
+
+				Collector.RegisterOneFrameMaterialProxy(WireframeMaterialInstance);
 				MaterialProxy = WireframeMaterialInstance;
 			}
 			else

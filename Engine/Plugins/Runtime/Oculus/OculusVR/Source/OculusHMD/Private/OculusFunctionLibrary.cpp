@@ -382,18 +382,18 @@ float UOculusFunctionLibrary::GetGPUFrameTime()
 	return 0.0f;
 }
 
-void UOculusFunctionLibrary::SetTiledMultiresLevel(ETiledMultiResLevel level)
+void UOculusFunctionLibrary::SetFixedFoveatedRenderingLevel(EFixedFoveatedRenderingLevel level)
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
 	if (OculusHMD != nullptr)
 	{
-		OculusHMD->SetTiledMultiResLevel(level);
+		OculusHMD->SetFixedFoveatedRenderingLevel(level);
 	}
 #endif // OCULUS_HMD_SUPPORTED_PLATFORMS
 }
 
-ETiledMultiResLevel UOculusFunctionLibrary::GetTiledMultiresLevel()
+EFixedFoveatedRenderingLevel UOculusFunctionLibrary::GetFixedFoveatedRenderingLevel()
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -402,11 +402,11 @@ ETiledMultiResLevel UOculusFunctionLibrary::GetTiledMultiresLevel()
 		ovrpTiledMultiResLevel Lvl;
 		if (OVRP_SUCCESS(ovrp_GetTiledMultiResLevel(&Lvl)))
 		{
-			return (ETiledMultiResLevel)Lvl;
+			return (EFixedFoveatedRenderingLevel)Lvl;
 		}
 	}
 #endif // OCULUS_HMD_SUPPORTED_PLATFORMS
-	return ETiledMultiResLevel::ETiledMultiResLevel_Off;
+	return EFixedFoveatedRenderingLevel::FFR_Off;
 }
 
 FString UOculusFunctionLibrary::GetDeviceName()

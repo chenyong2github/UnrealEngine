@@ -318,10 +318,8 @@ bool FDatasmithGLTFImporter::SendSceneToDatasmith()
 	return true;
 }
 
-TArray<FMeshDescription> FDatasmithGLTFImporter::GetGeometriesForMeshElement(const TSharedRef<IDatasmithMeshElement> MeshElement)
+void FDatasmithGLTFImporter::GetGeometriesForMeshElementAndRelease(const TSharedRef<IDatasmithMeshElement> MeshElement, TArray<FMeshDescription>& OutMeshDescriptions)
 {
-	TArray<FMeshDescription> Result;
-
 	if (int32* MeshIndexPtr = MeshElementToGLTFMeshIndex.Find(&MeshElement.Get()))
 	{
 		int32 MeshIndex = *MeshIndexPtr;
@@ -331,10 +329,8 @@ TArray<FMeshDescription> FDatasmithGLTFImporter::GetGeometriesForMeshElement(con
 
 		StaticMeshFactory->FillMeshDescription(GLTFAsset->Meshes[MeshIndex], &MeshDescription);
 
-		Result.Add(MoveTemp(MeshDescription));
+		OutMeshDescriptions.Add(MoveTemp(MeshDescription));
 	}
-
-	return Result;
 }
 
 const TArray<TSharedRef<IDatasmithLevelSequenceElement>>& FDatasmithGLTFImporter::GetImportedSequences()

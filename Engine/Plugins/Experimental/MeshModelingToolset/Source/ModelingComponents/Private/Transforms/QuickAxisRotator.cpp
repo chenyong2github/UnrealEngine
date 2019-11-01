@@ -193,3 +193,9 @@ void FQuickAxisRotator::PreviewRender(IToolsContextRenderAPI* RenderAPI)
 	MoveAxisSolver.Draw(&QuickAxisPreviewRenderer, 2 * CurViewSizeFactor);
 	QuickAxisPreviewRenderer.EndFrame();
 }
+
+void FQuickAxisRotator::Reset()
+{
+	MoveAxisSolver.Reset();
+	ClearAxisLock();
+}

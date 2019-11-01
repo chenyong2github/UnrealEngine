@@ -157,16 +157,22 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 				{
 					UVSet.UVIndices.Emplace();
 
-					if ( PrimvarST.GetIndices( &UVSet.UVIndices.GetValue() ) && PrimvarST.Get( &UVSet.UVs ) )
+					if ( PrimvarST.GetIndices( &UVSet.UVIndices.GetValue(), TimeCode ) && PrimvarST.Get( &UVSet.UVs, TimeCode ) )
 					{
-						UVSets.Add( MoveTemp( UVSet ) );
+						if ( UVSet.UVs.size() > 0 )
+						{
+							UVSets.Add( MoveTemp( UVSet ) );
+						}
 					}
 				}
 				else
 				{
 					if ( PrimvarST.Get( &UVSet.UVs ) )
 					{
-						UVSets.Add( MoveTemp( UVSet ) );
+						if ( UVSet.UVs.size() > 0 )
+						{
+							UVSets.Add( MoveTemp( UVSet ) );
+						}
 					}
 				}
 			}
@@ -422,6 +428,35 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 
 	bool bHasMaterialInfo = false;
 
+	auto ParseFloatInput = [ &Material, &SurfaceShader ]( const ANSICHAR* InputName, float DefaultValue ) -> UMaterialExpression*
+	{
+		pxr::UsdShadeInput Input = SurfaceShader.GetInput( pxr::TfToken(InputName) );
+		UMaterialExpression* InputExpression = nullptr;
+
+		if ( Input )
+		{
+			if ( !Input.HasConnectedSource() )
+			{
+				float InputValue = DefaultValue;
+				Input.Get< float >( &InputValue );
+
+				if ( !FMath::IsNearlyEqual( InputValue, DefaultValue ) )
+				{
+					UMaterialExpressionConstant* ExpressionConstant = Cast< UMaterialExpressionConstant >( UMaterialEditingLibrary::CreateMaterialExpression( &Material, UMaterialExpressionConstant::StaticClass() ) );
+					ExpressionConstant->R = InputValue;
+
+					InputExpression = ExpressionConstant;
+				}
+			}
+			else
+			{
+				InputExpression = UsdGeomMeshConversionImpl::ParseInputTexture( Input, Material );
+			}
+		}
+
+		return InputExpression;
+	};
+
 	// Base color
 	{
 		pxr::UsdShadeInput DiffuseInput = SurfaceShader.GetInput( pxr::TfToken("diffuseColor") );
@@ -457,63 +492,35 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 	
 	// Metallic
 	{
-		pxr::UsdShadeInput MetallicInput = SurfaceShader.GetInput( pxr::TfToken("metallic") );
+		UMaterialExpression* MetallicExpression = ParseFloatInput( "metallic", 0.f );
 
-		if ( MetallicInput )
+		if ( MetallicExpression )
 		{
-			UMaterialExpression* MetallicExpression = nullptr;
-
-			if ( !MetallicInput.HasConnectedSource() )
-			{
-				float Metallic = 0.f;
-				MetallicInput.Get< float >( &Metallic );
-
-				UMaterialExpressionConstant* ExpressionConstant = Cast< UMaterialExpressionConstant >( UMaterialEditingLibrary::CreateMaterialExpression( &Material, UMaterialExpressionConstant::StaticClass() ) );
-				ExpressionConstant->R = Metallic;
-
-				MetallicExpression = ExpressionConstant;
-			}
-			else
-			{
-				MetallicExpression = UsdGeomMeshConversionImpl::ParseInputTexture( MetallicInput, Material );
-			}
-
-			if ( MetallicExpression )
-			{
-				Material.Metallic.Expression = MetallicExpression;
-				bHasMaterialInfo = true;
-			}
+			Material.Metallic.Expression = MetallicExpression;
+			bHasMaterialInfo = true;
 		}
 	}
 
 	// Roughness
 	{
-		pxr::UsdShadeInput RoughnessInput = SurfaceShader.GetInput( pxr::TfToken("roughness") );
+		UMaterialExpression* RoughnessExpression = ParseFloatInput( "roughness", 1.f );
 
-		if ( RoughnessInput )
+		if ( RoughnessExpression )
 		{
-			UMaterialExpression* RoughnessExpression = nullptr;
+			Material.Roughness.Expression = RoughnessExpression;
+			bHasMaterialInfo = true;
+		}
+	}
 
-			if ( !RoughnessInput.HasConnectedSource() )
-			{
-				float Roughness = 1.f;
-				SurfaceShader.GetInput( pxr::TfToken("roughness") ).Get< float >( &Roughness );
+	// Opacity
+	{
+		UMaterialExpression* OpacityExpression = ParseFloatInput( "opacity", 1.f );;
 
-				UMaterialExpressionConstant* ExpressionConstant = Cast< UMaterialExpressionConstant >( UMaterialEditingLibrary::CreateMaterialExpression( &Material, UMaterialExpressionConstant::StaticClass() ) );
-				ExpressionConstant->R = Roughness;
-
-				RoughnessExpression = ExpressionConstant;
-			}
-			else
-			{
-				RoughnessExpression = UsdGeomMeshConversionImpl::ParseInputTexture( RoughnessInput, Material );
-			}
-
-			if ( RoughnessExpression )
-			{
-				Material.Roughness.Expression = RoughnessExpression;
-				bHasMaterialInfo = true;
-			}
+		if ( OpacityExpression )
+		{
+			Material.Opacity.Expression = OpacityExpression;
+			Material.BlendMode = BLEND_Translucent;
+			bHasMaterialInfo = true;
 		}
 	}
 

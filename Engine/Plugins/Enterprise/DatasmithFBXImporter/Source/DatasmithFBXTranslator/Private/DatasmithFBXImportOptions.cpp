@@ -10,7 +10,6 @@
 
 UDatasmithFBXImportOptions::UDatasmithFBXImportOptions(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, bGenerateLightmapUVs(false)
 	, IntermediateSerialization(EDatasmithFBXIntermediateSerializationType::Disabled)
 	, bColorizeMaterials(false)
 {
@@ -20,9 +19,7 @@ void UDatasmithFBXImportOptions::FromSceneImportData(UDatasmithFBXSceneImportDat
 {
 	if (InImportData)
 	{
-		bGenerateLightmapUVs		= InImportData->bGenerateLightmapUVs;
-		//TexturesDir.Path			= InImportData->TexturesDir;
-		IntermediateSerialization	= (EDatasmithFBXIntermediateSerializationType)InImportData->IntermediateSerialization;
+		IntermediateSerialization = (EDatasmithFBXIntermediateSerializationType)InImportData->IntermediateSerialization;
 	}
 }
 
@@ -30,9 +27,7 @@ void UDatasmithFBXImportOptions::ToSceneImportData(UDatasmithFBXSceneImportData*
 {
 	if (OutImportData)
 	{
-		OutImportData->bGenerateLightmapUVs			= bGenerateLightmapUVs;
-		//OutImportData->TexturesDir					= TexturesDir.Path;
-		OutImportData->IntermediateSerialization	= (uint8)IntermediateSerialization;
+		OutImportData->IntermediateSerialization = (uint8)IntermediateSerialization;
 	}
 }
 

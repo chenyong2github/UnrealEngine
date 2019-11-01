@@ -94,9 +94,9 @@ private:
 	const uint8* Data;
 };
 
-template<class RHIShaderType>
+template<class RHICmdListType, class RHIShaderType>
 void FMeshDrawShaderBindings::SetShaderBindings(
-	FRHICommandList& RHICmdList,
+	RHICmdListType& RHICmdList,
 	RHIShaderType Shader,
 	const FReadOnlyMeshDrawSingleShaderBindings& RESTRICT SingleShaderBindings,
 	FShaderBindingState& RESTRICT ShaderBindingState)
@@ -193,9 +193,9 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 	}
 }
 
-template<class RHIShaderType>
+template<class RHICmdListType, class RHIShaderType>
 void FMeshDrawShaderBindings::SetShaderBindings(
-	FRHICommandList& RHICmdList,
+	RHICmdListType& RHICmdList,
 	RHIShaderType Shader,
 	const FReadOnlyMeshDrawSingleShaderBindings& RESTRICT SingleShaderBindings)
 {
@@ -820,6 +820,15 @@ void FMeshDrawShaderBindings::SetOnCommandListForCompute(FRHICommandList& RHICmd
 	SetShaderBindings(RHICmdList, Shader, SingleShaderBindings);
 }
 
+void FMeshDrawShaderBindings::SetOnCommandListForCompute(FRHIAsyncComputeCommandList& RHICmdList, FRHIComputeShader* Shader) const
+{
+	check(ShaderLayouts.Num() == 1);
+	FReadOnlyMeshDrawSingleShaderBindings SingleShaderBindings(ShaderLayouts[0], GetData());
+	check(SingleShaderBindings.Frequency == SF_Compute);
+
+	SetShaderBindings(RHICmdList, Shader, SingleShaderBindings);
+}
+
 bool FMeshDrawShaderBindings::MatchesForDynamicInstancing(const FMeshDrawShaderBindings& Rhs) const
 {
 	if (!(ShaderLayouts == Rhs.ShaderLayouts
@@ -1010,13 +1019,14 @@ void FMeshDrawCommand::SubmitDraw(
 	}
 }
 #if MESH_DRAW_COMMAND_DEBUG_DATA
-void FMeshDrawCommand::SetDebugData(const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterial* Material, const FMaterialRenderProxy* MaterialRenderProxy, const FMeshProcessorShaders& UntypedShaders)
+void FMeshDrawCommand::SetDebugData(const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterial* Material, const FMaterialRenderProxy* MaterialRenderProxy, const FMeshProcessorShaders& UntypedShaders, const FVertexFactory* VertexFactory)
 {
 	DebugData.PrimitiveSceneProxyIfNotUsingStateBuckets = PrimitiveSceneProxy;
 	DebugData.Material = Material;
 	DebugData.MaterialRenderProxy = MaterialRenderProxy;
 	DebugData.VertexShader = UntypedShaders.VertexShader;
 	DebugData.PixelShader = UntypedShaders.PixelShader;
+	DebugData.VertexFactory = VertexFactory;
 	DebugData.ResourceName =  PrimitiveSceneProxy ? PrimitiveSceneProxy->GetResourceName() : FName();
 }
 #endif

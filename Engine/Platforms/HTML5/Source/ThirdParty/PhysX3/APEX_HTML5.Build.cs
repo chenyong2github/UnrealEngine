@@ -6,6 +6,7 @@ public class APEX_HTML5 : APEX
 {
 	public APEX_HTML5(ReadOnlyTargetRules Target) : base(Target)
 	{
-		throw new BuildException("Apex isn't supported");
+		// APEX CLOTH REQUIRES SIMD instructions
+		throw new BuildException("Apex isn't fully supported (yet)");
 	}
 }

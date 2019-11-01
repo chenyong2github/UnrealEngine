@@ -8,33 +8,66 @@
 #include "HairStrandsDeepShadowCommon.ush"
 #include "../DeferredShadingCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"
-#include "../VelocityCommon.ush"  
+#include "../VelocityCommon.ush"
+
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"
 
-#define SUPPORT_OPACITY_MASK 0
-#define SUPPORT_MATERIAL_PROPERTY 1
+#define RENDER_MODE_MSAA 0
+#define RENDER_MODE_COVERAGE 1
+#define RENDER_MODE_PPLL 2
 
 #ifndef HAIR_RENDER_MODE
 #error Undefined hair render mode
 #endif
 
+#define SUPPORT_OPACITY_MASK 0
+
+#if HAIR_RENDER_MODE == RENDER_MODE_MSAA || HAIR_RENDER_MODE == RENDER_MODE_PPLL
+#define SUPPORT_MATERIAL_PROPERTY 1
+#endif
+
+#if HAIR_RENDER_MODE == RENDER_MODE_COVERAGE
+#define SUPPORT_MATERIAL_PROPERTY 0
+#endif
+
+#if HAIR_RENDER_MODE == RENDER_MODE_PPLL 
+uint HairVisibilityPass_MaxPPLLNodeCount;
+RWTexture2D<uint> PPLLCounter;
+RWTexture2D<uint> PPLLNodeIndex;
+RWStructuredBuffer<FPPLLNodeData> PPLLNodes;
+#endif
+
 uint HairVisibilityPass_HairClusterIndex;
 
+#if HAIR_RENDER_MODE == RENDER_MODE_PPLL
+EARLYDEPTHSTENCIL	// Required for UAV operations to not happen.
+#endif
 void MainVisibility(
 	centroid FVertexFactoryInterpolantsVSToPS Interpolants,
-	in float4 SvPosition	: SV_Position,
-	float4 PixelPosition : TEXCOORD6,
+	in float4 SvPosition	: SV_Position
+#if HAIR_RENDER_MODE == RENDER_MODE_MSAA || HAIR_RENDER_MODE == RENDER_MODE_PPLL
+	,
 	centroid in float WorldStrandRadius : TEXCOORD8,
 	const float4 PackedVelocityA : TEXCOORD9,
 	const float4 PackedVelocityC : TEXCOORD12
-	OPTIONAL_IsFrontFace,
-	out uint4  OutColor0	: SV_Target0
-	#if SUPPORT_MATERIAL_PROPERTY
+#elif HAIR_RENDER_MODE == RENDER_MODE_COVERAGE 
+	,
+	in float WorldStrandRadius : TEXCOORD8
+#endif
+	OPTIONAL_IsFrontFace
+#if HAIR_RENDER_MODE == RENDER_MODE_COVERAGE
+	,
+	out float OutColor0 : SV_Target0
+#elif HAIR_RENDER_MODE == RENDER_MODE_MSAA
+	,
+	out uint4 OutColor0	: SV_Target0
+  #if SUPPORT_MATERIAL_PROPERTY
 	, out float4 OutColor1	: SV_Target1
 	, out float4 OutColor2	: SV_Target2
 	, out float2 OutColor3	: SV_Target3
-	#endif
+  #endif
+#endif
 )
 {
 	ResolvedView = ResolveView();
@@ -50,29 +83,34 @@ void MainVisibility(
 
 	float Coverage = 1;
 	{
+		FHairRenderInfo HairRenderInfo = GetHairRenderInfo(ResolvedView.HairRenderInfo);
 		const float SceneDepth = ConvertFromDeviceZ(SvPosition.z); // Linear depth in world unit
-		const float PixelRadius = SceneDepth * HairVisibilityPass.MinStrandRadius_Primary; // Not correct but the coverage is not used (we count instead the number of sub-sample covered)
+		const float PixelRadius = HairRenderInfo.bIsOrthoView ? HairRenderInfo.RadiusAtDepth1Primary : SceneDepth * HairRenderInfo.RadiusAtDepth1Primary; // Not correct but the coverage is not used (we count instead the number of sub-sample covered)
 		const float StrandRealRadius = WorldStrandRadius;
 		Coverage = StrandRealRadius / max(StrandRealRadius, PixelRadius);
 	}
 
+#if HAIR_RENDER_MODE == RENDER_MODE_COVERAGE
+	OutColor0 = Coverage;
+#endif
+
+#if HAIR_RENDER_MODE == RENDER_MODE_MSAA || HAIR_RENDER_MODE == RENDER_MODE_PPLL
 	FVisibilityData VisibilityData;
-#if VF_STRAND_HAIR
+  #if VF_STRAND_HAIR
 	VisibilityData.Tangent = normalize(Interpolants.TangentToWorld2.xyz);
 	VisibilityData.PrimitiveId = Interpolants.HairPrimitiveId;
-#else
+  #else
 	VisibilityData.Tangent = float3(0, 0, 1);
 	VisibilityData.PrimitiveId = 0;
-#endif
+  #endif
 	VisibilityData.ClusterId = HairVisibilityPass_HairClusterIndex;
 	VisibilityData.Coverage8bit = To8bitCoverage(Coverage);
-
 
 	half3 BaseColor = 0;
 	float Roughness = 0;
 	float Specular  = 0;
 	float2 EncodedVelocity = 0;
-	#if SUPPORT_MATERIAL_PROPERTY
+#if SUPPORT_MATERIAL_PROPERTY
 	{
 		FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants, SvPosition);
 		FPixelMaterialInputs PixelMaterialInputs;
@@ -93,11 +131,36 @@ void MainVisibility(
 		const float2 Velocity = Calculate2DVelocity(PackedVelocityA, PackedVelocityC);
 		EncodedVelocity = EncodeVelocityToTexture(Velocity);
 	}
-	#endif
+#endif
+#endif
+
+#if HAIR_RENDER_MODE == RENDER_MODE_MSAA
 	OutColor0 = EncodeVisibilityData(VisibilityData);
 	OutColor1 = float4(sqrt(BaseColor), Roughness);
 	OutColor2 = float4(Specular,0,0,0);
 	OutColor3 = EncodedVelocity;
+#endif
+
+#if HAIR_RENDER_MODE == RENDER_MODE_PPLL
+	const uint2 PixelCoord = SvPosition.xy;
+
+	float2 NDC = SvPosition.xy / SvPosition.w;
+	float2 ScreenUV = NDC * ResolvedView.ScreenPositionScaleBias.xy + ResolvedView.ScreenPositionScaleBias.wz;
+
+	// Allocate space for a new node
+	uint NodeIndex;
+	InterlockedAdd(PPLLCounter[uint2(0, 0)], 1, NodeIndex);
+
+	if (NodeIndex < HairVisibilityPass_MaxPPLLNodeCount)
+	{
+		// If we can append new node, add it and make it point to the node previously in head of list
+		uint NextNodeIndex;
+		InterlockedExchange(PPLLNodeIndex[PixelCoord], NodeIndex, NextNodeIndex);
+		const FPPLLNodeData Node = ConvertToPPLLNodeData(SvPosition.z, VisibilityData, BaseColor, Roughness, Specular, NextNodeIndex);
+		PPLLNodes[NodeIndex] = Node;
+	}
+#endif
+
 }
 
 

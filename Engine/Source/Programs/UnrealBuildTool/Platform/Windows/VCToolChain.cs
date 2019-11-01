@@ -475,13 +475,13 @@ namespace UnrealBuildTool
 			if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2015_DEPRECATED)
 			{
 				// Disable shadow variable warnings
-				if (!CompileEnvironment.bEnableShadowVariableWarnings)
+				if (CompileEnvironment.ShadowVariableWarningLevel == WarningLevel.Off)
 				{
 					Arguments.Add("/wd4456"); // 4456 - declaration of 'LocalVariable' hides previous local declaration
 					Arguments.Add("/wd4458"); // 4458 - declaration of 'parameter' hides class member
 					Arguments.Add("/wd4459"); // 4459 - declaration of 'LocalVariable' hides global declaration
 				}
-				else if (CompileEnvironment.bShadowVariableWarningsAsErrors)
+				else if (CompileEnvironment.ShadowVariableWarningLevel == WarningLevel.Error)
 				{
 					Arguments.Add("/we4456"); // 4456 - declaration of 'LocalVariable' hides previous local declaration
 					Arguments.Add("/we4458"); // 4458 - declaration of 'parameter' hides class member
@@ -596,9 +596,13 @@ namespace UnrealBuildTool
 				// @todo clang: Hack due to how we have our 'DummyPCH' wrappers setup when using unity builds.  This warning should not be disabled!!
 				Arguments.Add("-Wno-msvc-include");
 
-				if (CompileEnvironment.bEnableShadowVariableWarnings)
+				if (CompileEnvironment.ShadowVariableWarningLevel != WarningLevel.Off)
 				{
-					Arguments.Add("-Wshadow" + (CompileEnvironment.bShadowVariableWarningsAsErrors ? "" : " -Wno-error=shadow"));
+					Arguments.Add("-Wshadow");
+					if(CompileEnvironment.ShadowVariableWarningLevel == WarningLevel.Warning)
+					{
+						Arguments.Add("-Wno-error=shadow");
+					}
 				}
 
 				if (CompileEnvironment.bEnableUndefinedIdentifierWarnings)

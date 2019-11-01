@@ -3,8 +3,8 @@
 #
 
 SET(PXPVDSDK_HEADERS
-	${PROJECT_SOURCE_DIR}/../../../../include/pvd/PxPvd.h
-	${PROJECT_SOURCE_DIR}/../../../../include/pvd/PxPvdTransport.h
+	${PXSHARED_ROOT_DIR}/include/pvd/PxPvd.h
+	${PXSHARED_ROOT_DIR}/include/pvd/PxPvdTransport.h
 )
 SOURCE_GROUP(include FILES ${PXPVDSDK_HEADERS})
 

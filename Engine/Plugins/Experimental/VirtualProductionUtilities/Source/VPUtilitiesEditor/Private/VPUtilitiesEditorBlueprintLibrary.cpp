@@ -56,7 +56,7 @@ AVPTransientEditorTickableActorBase* UVPUtilitiesEditorBlueprintLibrary::SpawnVP
 	return NewActor;
 }
 
-UTexture* UVPUtilitiesEditorBlueprintLibrary::ImportSnapshotTexture(FString FileName, FString SubFolderName)
+UTexture* UVPUtilitiesEditorBlueprintLibrary::ImportSnapshotTexture(FString FileName, FString SubFolderName, FString AbsolutePathPackage)
 {
 	UTexture* UnrealTexture = NULL;
 
@@ -65,13 +65,16 @@ UTexture* UVPUtilitiesEditorBlueprintLibrary::ImportSnapshotTexture(FString File
 		return UnrealTexture;
 	}
 
-	FString AbsolutePathPackage = FPaths::ProjectSavedDir() + "VirtualProduction/Snapshots/" + SubFolderName + "/";
+	if (AbsolutePathPackage.IsEmpty())
+	{
+		AbsolutePathPackage = FPaths::ProjectSavedDir() + "VirtualProduction/Snapshots/" + SubFolderName + "/";
+	}
 
 	FString TextureName = FPaths::GetBaseFilename(FileName);
 	TextureName = ObjectTools::SanitizeObjectName(TextureName);
 	FString Extension = FPaths::GetExtension(FileName).ToLower();
 
-	FString PackageName = TEXT("/Game/VirtualProduction/Snapshots/" + SubFolderName + "/");
+	FString PackageName = TEXT("/Game/Snapshots/" + SubFolderName + "/");
 	PackageName += TextureName;
 	UPackage* Package = CreatePackage(NULL, *PackageName);
 	Package->FullyLoad();

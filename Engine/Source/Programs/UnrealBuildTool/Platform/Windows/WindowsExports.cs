@@ -67,25 +67,25 @@ namespace UnrealBuildTool
 		/// Gets a list of Windows Sdk installation directories, ordered by preference
 		/// </summary>
 		/// <returns>String with the name</returns>
-		public static List<DirectoryReference> GetWindowsSdkDirs()
+		public static List<KeyValuePair<string, DirectoryReference>> GetWindowsSdkDirs()
 		{
-			List<DirectoryReference> WindowsSdkDirs = new List<DirectoryReference>();
+			List<KeyValuePair<string, DirectoryReference>> WindowsSdkDirs = new List<KeyValuePair<string, DirectoryReference>>();
 
 			// Add the default directory first
 			VersionNumber Version;
 			DirectoryReference DefaultWindowsSdkDir;
 			if (WindowsPlatform.TryGetWindowsSdkDir(null, out Version, out DefaultWindowsSdkDir))
 			{
-				WindowsSdkDirs.Add(DefaultWindowsSdkDir);
+				WindowsSdkDirs.Add(new KeyValuePair<string, DirectoryReference>(Version.ToString(), DefaultWindowsSdkDir));
 			}
 
 			// Add all the other directories sorted in reverse order
 			IReadOnlyDictionary<VersionNumber, DirectoryReference> WindowsSdkDirPairs = WindowsPlatform.FindWindowsSdkDirs();
 			foreach(KeyValuePair<VersionNumber, DirectoryReference> Pair in WindowsSdkDirPairs.OrderByDescending(x => x.Key))
 			{
-				if(!WindowsSdkDirs.Contains(Pair.Value))
+				if(!WindowsSdkDirs.Any(x => x.Value == Pair.Value))
 				{
-					WindowsSdkDirs.Add(Pair.Value);
+					WindowsSdkDirs.Add(new KeyValuePair<string, DirectoryReference>(Pair.Key.ToString(), Pair.Value));
 				}
 			}
 

@@ -6,6 +6,7 @@
 #include "Misc/App.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/EngineVersion.h"
+#include "HardwareInfo.h"
 #include "RendererPrivate.h"
 #include "ScenePrivate.h"
 #include "Slate/SceneViewport.h"
@@ -290,6 +291,45 @@ public:
 		VRCompositor = nullptr;
 		vr::VR_Shutdown();
 	}
+
+#if PLATFORM_WINDOWS
+	enum class D3DApiLevel
+	{
+		Undefined,
+		Direct3D11,
+		Direct3D12
+	};
+
+	static inline D3DApiLevel GetD3DApiLevel()
+	{
+		FString RHIString;
+		{
+			FString HardwareDetails = FHardwareInfo::GetHardwareDetailsString();
+			FString RHILookup = NAME_RHI.ToString() + TEXT("=");
+
+			if (!FParse::Value(*HardwareDetails, *RHILookup, RHIString))
+			{
+				// RHI might not be up yet. Let's check the command-line and see if DX12 was specified.
+				// This will get hit on startup since we don't have RHI details during stereo device bringup. 
+				// This is not a final fix; we should probably move the stereo device init to later on in startup.
+				bool bForceD3D12 = FParse::Param(FCommandLine::Get(), TEXT("d3d12")) || FParse::Param(FCommandLine::Get(), TEXT("dx12"));
+				return bForceD3D12 ? D3DApiLevel::Direct3D12 : D3DApiLevel::Direct3D11;
+			}
+		}
+
+		if (RHIString == TEXT("D3D11"))
+		{
+			return D3DApiLevel::Direct3D11;
+		}
+		if (RHIString == TEXT("D3D12"))
+		{
+			return D3DApiLevel::Direct3D12;
+		}
+
+		return D3DApiLevel::Undefined;
+	}
+
+#endif
 	
 	uint64 GetGraphicsAdapterLuid() override
 	{
@@ -329,7 +369,20 @@ public:
 #if PLATFORM_WINDOWS
 				else
 				{
-					TextureType = vr::ETextureType::TextureType_DirectX;
+					D3DApiLevel level = GetD3DApiLevel();
+
+					if (level == D3DApiLevel::Direct3D11)
+					{
+						TextureType = vr::ETextureType::TextureType_DirectX;
+					}
+					else if (level == D3DApiLevel::Direct3D12)
+					{
+						TextureType = vr::ETextureType::TextureType_DirectX12;
+					}
+					else
+					{
+						return NoDevice;
+					}
 				}
 #endif
 			}
@@ -916,47 +969,6 @@ private:
 };
 #endif
 
-bool FSteamVRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 InTexFlags, uint32 InTargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples)
-{
-	if (!IsStereoEnabled())
-	{
-		return false;
-	}
-	
-#if PLATFORM_MAC
-	const uint32 SwapChainLength = 3;
-	
-	MetalBridge* MetalBridgePtr = (MetalBridge*)pBridge.GetReference();
-	
-	MetalBridgePtr->TextureSet = new FRHITextureSet2D(SwapChainLength, PF_B8G8R8A8, SizeX, SizeY, 1, NumSamples, InTexFlags, FClearValueBinding(FLinearColor::Transparent));
-	
-	for (uint32 SwapChainIter = 0; SwapChainIter < SwapChainLength; ++SwapChainIter)
-	{
-		IOSurfaceRef Surface = MetalBridgePtr->GetSurface(SizeX, SizeY);
-		check(Surface != nil);
-		
-		FRHIResourceCreateInfo CreateInfo;
-		CreateInfo.BulkData = new FIOSurfaceResourceWrapper(Surface);
-		CFRelease(Surface);
-		CreateInfo.ResourceArray = nullptr;
-		
-		FTexture2DRHIRef TargetableTexture, ShaderResourceTexture;
-		RHICreateTargetableShaderResource2D(SizeX, SizeY, PF_B8G8R8A8, 1, TexCreate_None, TexCreate_RenderTargetable, false, CreateInfo, TargetableTexture, ShaderResourceTexture, NumSamples);
-		check(TargetableTexture == ShaderResourceTexture);
-		static_cast<FRHITextureSet2D*>(MetalBridgePtr->TextureSet.GetReference())->AddTexture(TargetableTexture, SwapChainIter);
-	}
-	
-	OutTargetableTexture = OutShaderResourceTexture = MetalBridgePtr->TextureSet;
-
-	return true;
-#else
-	FRHIResourceCreateInfo CreateInfo;
-	RHICreateTargetableShaderResource2D(SizeX, SizeY, PF_B8G8R8A8, 1, TexCreate_None, TexCreate_RenderTargetable, false, CreateInfo, OutTargetableTexture, OutShaderResourceTexture);
-
-	return true;
-#endif
-}
-
 void FSteamVRHMD::PoseToOrientationAndPosition(const vr::HmdMatrix34_t& InPose, const float WorldToMetersScale, FQuat& OutOrientation, FVector& OutPosition) const
 {
 	FMatrix Pose = ToFMatrix(InPose);
@@ -1391,7 +1403,7 @@ void FSteamVRHMD::AdjustViewRect(EStereoscopicPass StereoPass, int32& X, int32& 
 	SizeY = FMath::CeilToInt(IdealRenderTargetSize.Y * PixelDensity);
 
 	SizeX = SizeX / 2;
-	if(IStereoRendering::IsASecondaryView(StereoPass))
+	if( StereoPass == eSSP_RIGHT_EYE )
 	{
 		X += SizeX;
 	}
@@ -1399,13 +1411,13 @@ void FSteamVRHMD::AdjustViewRect(EStereoscopicPass StereoPass, int32& X, int32& 
 
 bool FSteamVRHMD::GetRelativeEyePose(int32 DeviceId, EStereoscopicPass Eye, FQuat& OutOrientation, FVector& OutPosition)
 {
-	if (DeviceId != IXRTrackingSystem::HMDDeviceId || !IStereoRendering::IsStereoEyeView(Eye))
+	if (DeviceId != IXRTrackingSystem::HMDDeviceId || !(Eye == eSSP_LEFT_EYE || Eye == eSSP_RIGHT_EYE))
 	{
 		return false;
 	}
 	auto Frame = GetTrackingFrame();
 
-	vr::Hmd_Eye HmdEye = IStereoRendering::IsAPrimaryView(Eye) ? vr::Eye_Left : vr::Eye_Right;
+	vr::Hmd_Eye HmdEye = (Eye == eSSP_LEFT_EYE) ? vr::Eye_Left : vr::Eye_Right;
 	vr::HmdMatrix34_t HeadFromEye = VRSystem->GetEyeToHeadTransform(HmdEye);
 
 		// grab the eye position, currently ignoring the rotation supplied by GetHeadFromEyePose()
@@ -1433,7 +1445,7 @@ FMatrix FSteamVRHMD::GetStereoProjectionMatrix(const enum EStereoscopicPass Ster
 {
 	check(IsStereoEnabled() || IsHeadTrackingEnforced());
 
-	vr::Hmd_Eye HmdEye = IStereoRendering::IsAPrimaryView(StereoPassType) ? vr::Eye_Left : vr::Eye_Right;
+	vr::Hmd_Eye HmdEye = (StereoPassType == eSSP_LEFT_EYE) ? vr::Eye_Left : vr::Eye_Right;
 	float Left, Right, Top, Bottom;
 
 	VRSystem->GetProjectionRaw(HmdEye, &Right, &Left, &Top, &Bottom);
@@ -1467,12 +1479,11 @@ FMatrix FSteamVRHMD::GetStereoProjectionMatrix(const enum EStereoscopicPass Ster
 #endif
 
 	return Mat;
-
 }
 
 void FSteamVRHMD::GetEyeRenderParams_RenderThread(const FRenderingCompositePassContext& Context, FVector2D& EyeToSrcUVScaleValue, FVector2D& EyeToSrcUVOffsetValue) const
 {
-	if (IStereoRendering::IsAPrimaryView(Context.View.StereoPass))
+	if (Context.View.StereoPass == eSSP_LEFT_EYE)
 	{
 		EyeToSrcUVOffsetValue.X = 0.0f;
 		EyeToSrcUVOffsetValue.Y = 0.0f;
@@ -1508,7 +1519,7 @@ void FSteamVRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmd
 
 	check(pBridge);
 	pBridge->BeginRendering_RenderThread(RHICmdList);
-	
+
 	check(SpectatorScreenController);
 	SpectatorScreenController->UpdateSpectatorScreenMode_RenderThread();
 
@@ -1558,6 +1569,160 @@ bool FSteamVRHMD::NeedReAllocateViewportRenderTarget(const FViewport& Viewport)
 		}
 	}
 	return false;
+}
+
+bool FSteamVRHMD::NeedReAllocateDepthTexture(const TRefCountPtr<struct IPooledRenderTarget> & DepthTarget)
+{
+	check(IsInGameThread());
+
+	// Check the dimensions of the currently stored depth swapchain vs the current rendering swapchain.
+	if (pBridge->GetSwapChain()->GetTexture2D()->GetSizeX() != pBridge->GetDepthSwapChain()->GetTexture2D()->GetSizeX() ||
+		pBridge->GetSwapChain()->GetTexture2D()->GetSizeY() != pBridge->GetDepthSwapChain()->GetTexture2D()->GetSizeY())
+	{
+		return true;
+	}
+
+	return false;
+}
+
+#if PLATFORM_MAC
+static const uint32 SteamVRSwapChainLength = 3;
+#else
+static const uint32 SteamVRSwapChainLength = 1;
+#endif
+
+bool FSteamVRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 InTexFlags, uint32 InTargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples)
+{
+	if (!IsStereoEnabled())
+	{
+		return false;
+	}
+
+	TArray<FTextureRHIRef> SwapChainTextures;
+	FTextureRHIRef BindingTexture;
+
+#if PLATFORM_MAC
+	MetalBridge* MetalBridgePtr = (MetalBridge*)pBridge.GetReference();
+#endif
+
+	for (uint32 SwapChainIter = 0; SwapChainIter < SteamVRSwapChainLength; ++SwapChainIter)
+	{
+#if PLATFORM_MAC
+		IOSurfaceRef Surface = MetalBridgePtr->GetSurface(SizeX, SizeY);
+		check(Surface != nil);
+
+		FRHIResourceCreateInfo CreateInfo;
+		CreateInfo.BulkData = new FIOSurfaceResourceWrapper(Surface);
+		CFRelease(Surface);
+		CreateInfo.ResourceArray = nullptr;
+#else
+		FRHIResourceCreateInfo CreateInfo;
+#endif
+
+		FTexture2DRHIRef TargetableTexture, ShaderResourceTexture;
+		RHICreateTargetableShaderResource2D(SizeX, SizeY, PF_B8G8R8A8, 1, TexCreate_None, TexCreate_RenderTargetable, false, CreateInfo, TargetableTexture, ShaderResourceTexture, NumSamples);
+		check(TargetableTexture == ShaderResourceTexture);
+
+		SwapChainTextures.Add((FTextureRHIRef&)TargetableTexture);
+
+		if (BindingTexture == nullptr)
+		{
+			// For this iteration, create a temporary texture resource that will get stomped the first time we do our bind/alias
+			// pass on this object.
+			// Note, even though this is a wasted allocation, it never gets bound or used in any way, so should be minimally impactful.
+			FTexture2DRHIRef TempTargetableTexture, TempShaderResourceTexture;
+			RHICreateTargetableShaderResource2D(SizeX, SizeY, PF_B8G8R8A8, 1, TexCreate_None, TexCreate_RenderTargetable, false, CreateInfo, TempTargetableTexture, TempShaderResourceTexture, NumSamples);
+			check(TempTargetableTexture == TempShaderResourceTexture);
+			BindingTexture = TempTargetableTexture;
+
+			// Alias immediately.
+			GDynamicRHI->RHIAliasTextureResources(BindingTexture, TargetableTexture);
+		}
+	}
+
+	pBridge->CreateSwapChain(BindingTexture, MoveTemp(SwapChainTextures));
+
+	// These are the same.
+	OutTargetableTexture = (FTexture2DRHIRef&)BindingTexture;
+	OutShaderResourceTexture = (FTexture2DRHIRef&)BindingTexture;
+
+	return true;
+}
+
+bool FSteamVRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 Flags, uint32 TargetableTextureFlags, 
+	FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples /* = 1 */)
+{
+	if (!IsStereoEnabled() || pBridge == nullptr)
+	{
+		return false;
+	}
+
+#if PLATFORM_MAC
+	// @todo: Determine if we want to manage depth on the Mac?
+	return false;
+#else
+	auto DepthSwapChain = pBridge->GetDepthSwapChain();
+	if (DepthSwapChain)
+	{
+		// If size is the same as requested, return the swap-chain texture.
+		if (DepthSwapChain->GetTexture2D()->GetSizeX() == SizeX && DepthSwapChain->GetTexture2D()->GetSizeY() == SizeY)
+		{
+			// @todo: Do we need to check format, etc?
+			OutTargetableTexture = OutShaderResourceTexture = DepthSwapChain->GetTexture2D();
+			return true;
+		}
+	}
+
+	TArray<FTextureRHIRef> SwapChainTextures;
+	FTextureRHIRef BindingTexture;
+
+	FClearValueBinding ClearValue(0.0f, 0);
+	ClearValue.ColorBinding = EClearBinding::EDepthStencilBound;
+	FRHIResourceCreateInfo CreateInfo(ClearValue);
+	CreateInfo.DebugName = TEXT("SteamVRDepthStencil");
+
+	for (uint32 SwapChainIter = 0; SwapChainIter < SteamVRSwapChainLength; ++SwapChainIter)
+	{
+		FTexture2DRHIRef TargetableTexture, ShaderResourceTexture;
+
+		RHICreateTargetableShaderResource2D(
+			SizeX,
+			SizeY,
+			PF_DepthStencil,
+			1,			// 1 mip for depth (0 is usually passed in above, which is invalid).
+			Flags,
+			TargetableTextureFlags,
+			false,
+			CreateInfo,
+			TargetableTexture,
+			ShaderResourceTexture,
+			NumSamples);
+
+		check(TargetableTexture == ShaderResourceTexture);
+
+		SwapChainTextures.Add((FTextureRHIRef&)TargetableTexture);
+
+		// As above, create a temp, stompable texture to alias over.
+		if (BindingTexture == nullptr)
+		{
+			FTexture2DRHIRef TempTargetableTexture, TempShaderResourceTexture;
+			RHICreateTargetableShaderResource2D(SizeX, SizeY, PF_DepthStencil, 1, Flags, TargetableTextureFlags, false, CreateInfo, TempTargetableTexture, TempShaderResourceTexture, NumSamples);
+			check(TempTargetableTexture == TempShaderResourceTexture);
+			BindingTexture = TempTargetableTexture;
+
+			// Alias immediately.
+			GDynamicRHI->RHIAliasTextureResources(BindingTexture, TargetableTexture);
+		}
+	}
+
+	OutTargetableTexture = (FTexture2DRHIRef&)BindingTexture;
+	OutShaderResourceTexture = (FTexture2DRHIRef&)BindingTexture;
+
+	// Create the bridge's depth swapchain.
+	pBridge->CreateDepthSwapChain(BindingTexture, MoveTemp(SwapChainTextures));
+
+	return true;
+#endif
 }
 
 FSteamVRHMD::FSteamVRHMD(const FAutoRegister& AutoRegister, ISteamVRPlugin* InSteamVRPlugin) :
@@ -1667,7 +1832,16 @@ bool FSteamVRHMD::Startup()
 #if PLATFORM_WINDOWS
 			else
 			{
-				pBridge = new D3D11Bridge( this );
+				auto level = FSteamVRPlugin::GetD3DApiLevel();
+
+				if (level == FSteamVRPlugin::D3DApiLevel::Direct3D11)
+				{
+					pBridge = new D3D11Bridge(this);
+				}
+				else if (level == FSteamVRPlugin::D3DApiLevel::Direct3D12)
+				{
+					pBridge = new D3D12Bridge(this);
+				}
 			}
 #endif
 			ensure( pBridge != nullptr );

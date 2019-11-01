@@ -14,7 +14,7 @@ public:
 	static float GetCompressionDurationForCurrentPlatform();
 
 	// Returns the sample rate for a given platform,
-	static float GetTargetSampleRateForPlatform(ESoundwaveSampleRateSettings InSampleRateLevel = ESoundwaveSampleRateSettings::High, EAudioPlatform SpecificPlatform = AudioPluginUtilities::CurrentPlatform);
+	static float GetTargetSampleRateForPlatform(ESoundwaveSampleRateSettings InSampleRateLevel = ESoundwaveSampleRateSettings::High);
 
 	static int32 GetMaxPreloadedBranchesForCurrentPlatform();
 
@@ -32,7 +32,7 @@ public:
 	static FCachedAudioStreamingManagerParams BuildCachedStreamingManagerParams();
 
 	/** This is used at runtime in BuildCachedStreamingManagerParams, as well as cooktime in FStreamedAudioCacheDerivedDataWorker::BuildStreamedAudio to split compressed audio.  */
-	static uint32 GetMaxChunkSizeForCookOverrides(const FPlatformAudioCookOverrides* InCompressionOverrides);
+	static uint32 GetMaxChunkSizeForCookOverrides(const FPlatformAudioCookOverrides* InCompressionOverrides, int32 DefaultMaxChunkSizeKB);
 
 private:
 	static const FPlatformRuntimeAudioCompressionOverrides* GetRuntimeCompressionOverridesForCurrentPlatform();

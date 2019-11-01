@@ -69,7 +69,7 @@ struct DATASMITHIMPORTER_API FDatasmithImporter
 	/**
 	 * @return The imported texture
 	 */
-	static UTexture* ImportTexture( FDatasmithImportContext& ImportContext, class FDatasmithTextureImporter& DatasmithTextureImporter, TSharedRef< IDatasmithTextureElement > TextureElement, UTexture* ExistingTexture );
+	static UTexture* ImportTexture( FDatasmithImportContext& ImportContext, class FDatasmithTextureImporter& DatasmithTextureImporter, TSharedRef< IDatasmithTextureElement > TextureElement, UTexture* ExistingTexture, const TArray<uint8>& TextureData, const FString& Extension );
 
 	/**
 	 * Copy a texture from its transient package into its final public package and builds it.
@@ -199,6 +199,7 @@ private:
 	/* This class is designed not to have state. Instance are meaningless */
 	FDatasmithImporter() = delete;
 
+private:
 	static void ConvertUnsupportedVirtualTexture( FDatasmithImportContext& ImportContext, TArray<UTexture2D*>& VirtualTexturesToConvert, TArray<UMaterial*>& MaterialsToRefreshAfterVirtualTextureConversion, const TMap<UObject*, UObject*>& ReferencesToRemap);
 };
 

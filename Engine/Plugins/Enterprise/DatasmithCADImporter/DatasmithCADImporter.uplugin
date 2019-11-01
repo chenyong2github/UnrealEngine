@@ -42,6 +42,30 @@
 			]
 		},
 		{
+			"Name": "DatasmithDispatcher",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
+		},
+		{
+			"Name": "CADInterfaces",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
+		},
+		{
+			"Name": "CADTools",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
+		},
+		{
 			"Name": "DatasmithWireTranslator",
 			"Type": "Editor",
 			"LoadingPhase": "Default",

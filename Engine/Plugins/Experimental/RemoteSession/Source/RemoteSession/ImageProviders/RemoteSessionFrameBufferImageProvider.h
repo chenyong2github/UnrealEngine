@@ -15,7 +15,7 @@ class REMOTESESSION_API FRemoteSessionFrameBufferImageProvider : public IRemoteS
 {
 public:
 
-	FRemoteSessionFrameBufferImageProvider(TWeakPtr<FRemoteSessionImageChannel> Owner);
+	FRemoteSessionFrameBufferImageProvider(TSharedPtr<FRemoteSessionImageChannel::FImageSender, ESPMode::ThreadSafe> ImageSender);
 	~FRemoteSessionFrameBufferImageProvider();
 
 	/** Specifies which viewport to capture */
@@ -38,11 +38,11 @@ protected:
 	/** Release the FrameGrabber*/
 	void ReleaseFrameGrabber();
 
-	TWeakPtr<FRemoteSessionImageChannel> ImageChannel;
+	TWeakPtr<FRemoteSessionImageChannel::FImageSender, ESPMode::ThreadSafe> ImageSender;
 
 	TSharedPtr<FFrameGrabber> FrameGrabber;
 
-	FThreadSafeCounter NumDecodingTasks;
+	TSharedPtr<FThreadSafeCounter, ESPMode::ThreadSafe> NumDecodingTasks;
 
 	/** Time we last sent an image */
 	double LastSentImageTime;

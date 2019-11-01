@@ -3,6 +3,9 @@
 #include "DisplayClusterSceneComponentSyncParent.h"
 #include "GameFramework/Actor.h"
 
+#include "DisplayClusterHelpers.h"
+#include "DisplayClusterLog.h"
+
 
 UDisplayClusterSceneComponentSyncParent::UDisplayClusterSceneComponentSyncParent(const FObjectInitializer& ObjectInitializer) :
 	UDisplayClusterSceneComponentSync(ObjectInitializer)
@@ -44,15 +47,25 @@ FString UDisplayClusterSceneComponentSyncParent::GetSyncId() const
 bool UDisplayClusterSceneComponentSyncParent::IsDirty() const
 {
 	USceneComponent* const pParent = GetAttachParent();
-	return (LastSyncLoc != pParent->GetRelativeLocation() || LastSyncRot != pParent->GetRelativeRotation() || LastSyncScale != pParent->GetRelativeScale3D());
+	if (pParent && !pParent->IsPendingKill())
+	{
+		const bool bIsDirty = (LastSyncLoc != pParent->GetRelativeLocation() || LastSyncRot != pParent->GetRelativeRotation() || LastSyncScale != pParent->GetRelativeScale3D());
+		UE_LOG(LogDisplayClusterGame, Verbose, TEXT("SYNC_PARENT: %s dirty state is %s"), *GetSyncId(), *DisplayClusterHelpers::str::BoolToStr(bIsDirty));
+		return bIsDirty;
+	}
+
+	return false;
 }
 
 void UDisplayClusterSceneComponentSyncParent::ClearDirty()
 {
 	USceneComponent* const pParent = GetAttachParent();
-	LastSyncLoc = pParent->GetRelativeLocation();
-	LastSyncRot = pParent->GetRelativeRotation();
-	LastSyncScale = pParent->GetRelativeScale3D();
+	if (pParent && !pParent->IsPendingKill())
+	{
+		LastSyncLoc   = pParent->GetRelativeLocation();
+		LastSyncRot   = pParent->GetRelativeRotation();
+		LastSyncScale = pParent->GetRelativeScale3D();
+	}
 }
 
 

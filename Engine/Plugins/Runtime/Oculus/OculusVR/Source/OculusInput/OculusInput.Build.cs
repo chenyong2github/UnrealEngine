@@ -24,7 +24,8 @@ namespace UnrealBuildTool.Rules
 					"InputCore",
 					"HeadMountedDisplay",
 					"OculusHMD",
-					"OVRPlugin"
+					"OculusMR",
+					"OVRPlugin",
 				});
 
 			PrivateIncludePaths.AddRange(

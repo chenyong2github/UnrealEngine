@@ -5,8 +5,7 @@
 =============================================================================*/
 
 // [0] .x:SkyFocusDistance or very value if 0, .y:DepthOfFieldVignetteMul, .z:DepthOfFieldVignetteAdd, w:OcclusionTweak1
-// [1] .x:MaxBokehSizeInPixel, y:vertical offset in UV, z:UsedY/TextureY, w:vertical offset to put two views in one texture with safety border
-float4 DepthOfFieldParams[2];
+float4 DepthOfFieldParams;
 
 
 // Computed the "Circle Of Confusion" radius for "Depth of Field"

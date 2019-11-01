@@ -6,18 +6,19 @@ set -x -e
 # NOTE: this script needs to be built from Engine/Platforms/HTML5/Build/BatchFiles/Build_All_HTML5_libs.sh
 
 
+OGG_HTML5=$(pwd)
 OGG_VERSION='libogg-1.2.2'
 OGG_HTML5_SRC="$UE4_TPS_SRC/Ogg/$OGG_VERSION"
 OGG_HTML5_DST="$HTML5_TPS_LIBS/Ogg/$OGG_VERSION"
 
 
 # local destination
-if [ ! -d "$OGG_HTML5_DST" ]; then
-	mkdir -p "$OGG_HTML5_DST"
+if [ ! -d "$OGG_HTML5_DST/lib" ]; then
+	mkdir -p "$OGG_HTML5_DST/lib"
 fi
-# TODO change this to p4 checkout
-if [ ! -z "$(ls -A "$OGG_HTML5_DST")" ]; then
-	chmod +w "$OGG_HTML5_DST"/*
+# TODO remove this p4 hack after HTML5 becomes community driven only
+if [ ! -z "$(ls -A "$OGG_HTML5_DST/lib")" ]; then
+	chmod +w "$OGG_HTML5_DST"/lib/*
 fi
 
 
@@ -56,12 +57,12 @@ build_via_cmake()
 	if [ $OLEVEL == 0 ]; then
 		SUFFIX=
 	fi
-	cp libogg.$UE_LIB_EXT "$OGG_HTML5_DST"/libogg${SUFFIX}.$UE_LIB_EXT
+	cp libogg.$UE_LIB_EXT "$OGG_HTML5_DST"/lib/libogg${SUFFIX}.$UE_LIB_EXT
 	cd ..
 }
 type=Debug;       OLEVEL=0;  build_via_cmake
 type=Release;     OLEVEL=2;  build_via_cmake
 type=Release;     OLEVEL=3;  build_via_cmake
 type=MinSizeRel;  OLEVEL=z;  build_via_cmake
-ls -l "$OGG_HTML5_DST"
+ls -l "$OGG_HTML5_DST/lib"
 

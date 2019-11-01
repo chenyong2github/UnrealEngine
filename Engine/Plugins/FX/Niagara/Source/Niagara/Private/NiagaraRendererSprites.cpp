@@ -180,12 +180,7 @@ void FNiagaraRendererSprites::CreateRenderThreadResources(NiagaraEmitterInstance
 		RayTracingDynamicVertexBuffer.Initialize(4, 256, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("RayTracingDynamicVertexBuffer"));
 
 		FRayTracingGeometryInitializer Initializer;
-		Initializer.PositionVertexBuffer = nullptr;
 		Initializer.IndexBuffer = nullptr;
-		Initializer.VertexBufferStride = 12;
-		Initializer.VertexBufferByteOffset = 0;
-		Initializer.TotalPrimitiveCount = 0;
-		Initializer.VertexBufferElementType = VET_Float3;
 		Initializer.GeometryType = RTGT_Triangles;
 		Initializer.bFastBuild = true;
 		Initializer.bAllowUpdate = false;

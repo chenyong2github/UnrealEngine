@@ -5,11 +5,11 @@
 #include "GameFramework/WorldSettings.h"
 #include "Engine/World.h"
 
-#if WITH_WINDOWS_MIXED_REALITY && PLATFORM_HOLOLENS
+#if WITH_WINDOWS_MIXED_REALITY
 	#include "MixedRealityInterop.h"
 #endif
 
-#if WITH_WINDOWS_MIXED_REALITY && PLATFORM_HOLOLENS
+#if WITH_WINDOWS_MIXED_REALITY
 static WindowsMixedReality::MixedRealityInterop hmd;
 
 class FWindowsMixedRealityEyeTracker :
@@ -19,7 +19,10 @@ public:
 	FWindowsMixedRealityEyeTracker()
 	{
 		// If this was created, then we want to use it, so request user perms
+#if PLATFORM_HOLOLENS
+		// If remoting, delay requesting permissions until after the remoting session is created.
 		hmd.RequestUserPermissionForEyeTracking();
+#endif
 	}
 	
 	virtual ~FWindowsMixedRealityEyeTracker()
@@ -93,7 +96,7 @@ public:
 
 	virtual bool IsEyeTrackerConnected() const override
 	{
-#if WITH_WINDOWS_MIXED_REALITY && PLATFORM_HOLOLENS
+#if WITH_WINDOWS_MIXED_REALITY
 		return hmd.SupportsEyeTracking();
 #else
 		return false;
@@ -102,7 +105,7 @@ public:
 	
 	virtual TSharedPtr< class IEyeTracker, ESPMode::ThreadSafe > CreateEyeTracker() override
 	{
-#if WITH_WINDOWS_MIXED_REALITY && PLATFORM_HOLOLENS
+#if WITH_WINDOWS_MIXED_REALITY
 		return TSharedPtr< class IEyeTracker, ESPMode::ThreadSafe >(new FWindowsMixedRealityEyeTracker);
 #else
 		return TSharedPtr< class IEyeTracker, ESPMode::ThreadSafe >();

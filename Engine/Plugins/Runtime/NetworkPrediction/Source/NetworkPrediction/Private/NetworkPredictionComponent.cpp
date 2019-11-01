@@ -4,7 +4,8 @@
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Pawn.h"
-#include "NetworkSimulationGlobalManager.h"
+#include "NetworkedSimulationGlobalManager.h"
+#include "Engine/World.h"
 
 UNetworkPredictionComponent::UNetworkPredictionComponent()
 {
@@ -15,32 +16,34 @@ void UNetworkPredictionComponent::InitializeComponent()
 {
 	Super::InitializeComponent();
 
-	// Child class will instantiate
-	INetworkSimulationModel* NewNetworkSim = InstantiateNetworkSimulation();
-	NetworkSim.Reset(NewNetworkSim);
-
-	if (NewNetworkSim == nullptr)
-	{
-		// Its ok to not instantiate a sim
-		return;
-	}
-
-	// Init RepProxies
-	ReplicationProxy_ServerRPC.Init(NewNetworkSim, EReplicationProxyTarget::ServerRPC);
-	ReplicationProxy_Autonomous.Init(NewNetworkSim, EReplicationProxyTarget::AutonomousProxy);
-	ReplicationProxy_Simulated.Init(NewNetworkSim, EReplicationProxyTarget::SimulatedProxy);
-	ReplicationProxy_Replay.Init(NewNetworkSim, EReplicationProxyTarget::Replay);
-#if NETSIM_MODEL_DEBUG
-	ReplicationProxy_Debug.Init(NewNetworkSim, EReplicationProxyTarget::Debug);
-#endif
-
-	// Register with GlobalManager
+	UWorld* World = GetWorld();
 	UNetworkSimulationGlobalManager* NetworkSimGlobalManager = GetWorld()->GetSubsystem<UNetworkSimulationGlobalManager>();
-	check(NetworkSimGlobalManager);
+	if (NetworkSimGlobalManager)
+	{
 
-	NetworkSimGlobalManager->RegisterModel(NewNetworkSim, GetOwner());
-	
-	CheckOwnerRoleChange();
+		// Child class will instantiate
+		INetworkSimulationModel* NewNetworkSim = InstantiateNetworkSimulation();
+		NetworkSim.Reset(NewNetworkSim);
+
+		if (NewNetworkSim == nullptr)
+		{
+			// Its ok to not instantiate a sim
+			return;
+		}
+
+		// Init RepProxies
+		ReplicationProxy_ServerRPC.Init(NewNetworkSim, EReplicationProxyTarget::ServerRPC);
+		ReplicationProxy_Autonomous.Init(NewNetworkSim, EReplicationProxyTarget::AutonomousProxy);
+		ReplicationProxy_Simulated.Init(NewNetworkSim, EReplicationProxyTarget::SimulatedProxy);
+		ReplicationProxy_Replay.Init(NewNetworkSim, EReplicationProxyTarget::Replay);
+	#if NETSIM_MODEL_DEBUG
+		ReplicationProxy_Debug.Init(NewNetworkSim, EReplicationProxyTarget::Debug);
+	#endif
+
+		// Register with GlobalManager			
+		NetworkSimGlobalManager->RegisterModel(NewNetworkSim, GetOwner());
+		CheckOwnerRoleChange();
+	}
 }
 
 void UNetworkPredictionComponent::UninitializeComponent()
@@ -50,16 +53,16 @@ void UNetworkPredictionComponent::UninitializeComponent()
 	if (NetworkSim.IsValid())
 	{
 		UNetworkSimulationGlobalManager* NetworkSimGlobalManager = GetWorld()->GetSubsystem<UNetworkSimulationGlobalManager>();
-		check(NetworkSimGlobalManager);
-
-		NetworkSimGlobalManager->UnregisterModel(NetworkSim.Get(), GetOwner());
-
-		if (ServerRPCHandle.IsValid())
+		if (ensure(NetworkSimGlobalManager))
 		{
-			NetworkSimGlobalManager->TickServerRPCDelegate.Remove(ServerRPCHandle);
-		}
+			NetworkSimGlobalManager->UnregisterModel(NetworkSim.Get(), GetOwner());
+			if (ServerRPCHandle.IsValid())
+			{
+				NetworkSimGlobalManager->TickServerRPCDelegate.Remove(ServerRPCHandle);
+			}
 
-		NetworkSim.Reset(nullptr);
+			NetworkSim.Reset(nullptr);
+		}
 	}
 }
 

@@ -388,6 +388,12 @@ public:
 	* Build a derive data key with the user section data (UserSectionsData) and the original bulk data
 	*/
 	ENGINE_API FString GetLODModelDeriveDataKey() const;
+
+	/**
+	* This function will update the chunked information for each section. Only old data before the 
+	* skeletal mesh build refactor should need to call this function.
+	*/
+	ENGINE_API void UpdateChunkedSectionInfo();
 };
 
 #endif // WITH_EDITOR

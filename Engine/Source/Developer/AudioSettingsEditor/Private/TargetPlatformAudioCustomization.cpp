@@ -39,7 +39,7 @@ FAudioPluginWidgetManager::~FAudioPluginWidgetManager()
 {
 }
 
-TSharedRef<SWidget> FAudioPluginWidgetManager::MakeAudioPluginSelectorWidget(const TSharedPtr<IPropertyHandle>& PropertyHandle, EAudioPlugin AudioPluginType, EAudioPlatform AudioPlatform)
+TSharedRef<SWidget> FAudioPluginWidgetManager::MakeAudioPluginSelectorWidget(const TSharedPtr<IPropertyHandle>& PropertyHandle, EAudioPlugin AudioPluginType, const FString& PlatformName)
 {
 	TArray<TSharedPtr<FText>>* ValidPluginNames = nullptr;
 	FText TooltipText;
@@ -89,7 +89,7 @@ TSharedRef<SWidget> FAudioPluginWidgetManager::MakeAudioPluginSelectorWidget(con
 			TArray<IAudioSpatializationFactory*> AvailableSpatializationPlugins = IModularFeatures::Get().GetModularFeatureImplementations<IAudioSpatializationFactory>(IAudioSpatializationFactory::GetModularFeatureName());
 			for (IAudioSpatializationFactory* Plugin : AvailableSpatializationPlugins)
 			{
-				if (Plugin->SupportsPlatform(AudioPlatform))
+				if (Plugin->SupportsPlatform(PlatformName))
 				{
 					ValidPluginNames->Add(TSharedPtr<FText>(new FText(FText::FromString(Plugin->GetDisplayName()))));
 				}
@@ -102,7 +102,7 @@ TSharedRef<SWidget> FAudioPluginWidgetManager::MakeAudioPluginSelectorWidget(con
 			TArray<IAudioReverbFactory*> AvailableReverbPlugins = IModularFeatures::Get().GetModularFeatureImplementations<IAudioReverbFactory>(IAudioReverbFactory::GetModularFeatureName());
 			for (IAudioReverbFactory* Plugin : AvailableReverbPlugins)
 			{
-				if (Plugin->SupportsPlatform(AudioPlatform))
+				if (Plugin->SupportsPlatform(PlatformName))
 				{
 					ValidPluginNames->Add(TSharedPtr<FText>(new FText(FText::FromString(Plugin->GetDisplayName()))));
 				}
@@ -115,7 +115,7 @@ TSharedRef<SWidget> FAudioPluginWidgetManager::MakeAudioPluginSelectorWidget(con
 			TArray<IAudioOcclusionFactory*> AvailableOcclusionPlugins = IModularFeatures::Get().GetModularFeatureImplementations<IAudioOcclusionFactory>(IAudioOcclusionFactory::GetModularFeatureName());
 			for (IAudioOcclusionFactory* Plugin : AvailableOcclusionPlugins)
 			{
-				if (Plugin->SupportsPlatform(AudioPlatform))
+				if (Plugin->SupportsPlatform(PlatformName))
 				{
 					ValidPluginNames->Add(TSharedPtr<FText>(new FText(FText::FromString(Plugin->GetDisplayName()))));
 				}
@@ -222,7 +222,7 @@ TSharedRef<SWidget> FAudioPluginWidgetManager::MakeAudioPluginSelectorWidget(con
 	return NewWidget;
 }
 
-void FAudioPluginWidgetManager::BuildAudioCategory(IDetailLayoutBuilder& DetailLayout, EAudioPlatform AudioPlatform)
+void FAudioPluginWidgetManager::BuildAudioCategory(IDetailLayoutBuilder& DetailLayout, const FString& PlatformName)
 {
 	IDetailCategoryBuilder& AudioCategory = DetailLayout.EditCategory(TEXT("Audio"));
 
@@ -238,7 +238,7 @@ void FAudioPluginWidgetManager::BuildAudioCategory(IDetailLayoutBuilder& DetailL
 		.MaxDesiredWidth(500.0f)
 		.MinDesiredWidth(100.0f)
 		[
-			MakeAudioPluginSelectorWidget(AudioSpatializationPropertyHandle, EAudioPlugin::SPATIALIZATION, AudioPlatform)
+			MakeAudioPluginSelectorWidget(AudioSpatializationPropertyHandle, EAudioPlugin::SPATIALIZATION, PlatformName)
 		];
 
 	TSharedPtr<IPropertyHandle> AudioReverbPropertyHandle = DetailLayout.GetProperty("ReverbPlugin");
@@ -253,7 +253,7 @@ void FAudioPluginWidgetManager::BuildAudioCategory(IDetailLayoutBuilder& DetailL
 		.MaxDesiredWidth(500.0f)
 		.MinDesiredWidth(100.0f)
 		[
-			MakeAudioPluginSelectorWidget(AudioReverbPropertyHandle, EAudioPlugin::REVERB, AudioPlatform)
+			MakeAudioPluginSelectorWidget(AudioReverbPropertyHandle, EAudioPlugin::REVERB, PlatformName)
 		];
 
 	TSharedPtr<IPropertyHandle> AudioOcclusionPropertyHandle = DetailLayout.GetProperty("OcclusionPlugin");
@@ -268,7 +268,7 @@ void FAudioPluginWidgetManager::BuildAudioCategory(IDetailLayoutBuilder& DetailL
 		.MaxDesiredWidth(500.0f)
 		.MinDesiredWidth(100.0f)
 		[
-			MakeAudioPluginSelectorWidget(AudioOcclusionPropertyHandle, EAudioPlugin::OCCLUSION, AudioPlatform)
+			MakeAudioPluginSelectorWidget(AudioOcclusionPropertyHandle, EAudioPlugin::OCCLUSION, PlatformName)
 		];
 		
 	

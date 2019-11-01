@@ -4,36 +4,46 @@
 #include "IMagicLeapMediaModule.h"
 #include "Misc/Paths.h"
 #include "Lumin/LuminPlatformFile.h"
+#include "Lumin/CAPIShims/LuminAPILogging.h"
+#include "Lumin/CAPIShims/LuminAPIMediaError.h"
+#include "Lumin/CAPIShims/LuminAPIMediaFormat.h"
+#include "Lumin/CAPIShims/LuminAPISharedFile.h"
+#include "Lumin/CAPIShims/LuminAPIFileInfo.h"
 #include "IMediaEventSink.h"
+#include "IMediaOptions.h"
+#include "MagicLeapMediaOverlaySample.h"
 #include "MediaSamples.h"
 #include "Misc/CoreDelegates.h"
 #include "UObject/Class.h"
 #include "UObject/UObjectGlobals.h"
 #include "ExternalTexture.h"
-#include "MagicLeapMediaTextureSample.h"
-#include "ExternalOESTextureRenderer.h"
-#include "Lumin/LuminEGL.h"
-#include "MediaWorker.h"
-#include "CameraCaptureComponent.h"
+#include "ExternalTextureRendererGL.h"
 #include "MagicLeapHelperVulkan.h"
-
-#ifndef EGL_EGLEXT_PROTOTYPES
-#define EGL_EGLEXT_PROTOTYPES
-#endif // !EGL_EGLEXT_PROTOTYPES
-
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
-
-#ifndef GL_GLEXT_PROTOTYPES
-#define GL_GLEXT_PROTOTYPES
-#endif // !GL_GLEXT_PROTOTYPES
-
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
-
-#include "ml_media_player.h"
+#include "HAL/Platform.h"
 
 #define LOCTEXT_NAMESPACE "FMagicLeapMediaModule"
+
+static void *STDCALL _ThreadProc(void *PlayerHandle)
+{
+	FPlatformMisc::LowLevelOutputDebugString(TEXT("In the detatched thread to destroy media player"));
+
+	MLHandle MediaPlayerHandle = reinterpret_cast<MLHandle>(PlayerHandle);
+
+	MLResult Result = MLMediaPlayerReset(MediaPlayerHandle);
+	if (Result != MLResult_Ok)
+	{
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("MLMediaPlayerReset failed with error %s"), MLMediaResultGetString(Result));
+	}
+
+	Result = MLMediaPlayerDestroy(MediaPlayerHandle);
+	if (Result != MLResult_Ok)
+	{
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("MLMediaPlayerDestroy failed with error %s"), MLMediaResultGetString(Result));
+	}
+
+	pthread_exit(nullptr);
+	return nullptr;
+}
 
 struct FMagicLeapVideoTextureData
 {
@@ -59,90 +69,18 @@ struct FMagicLeapVideoTextureDataGL : public FMagicLeapVideoTextureData
 public:
 
 	FMagicLeapVideoTextureDataGL()
-	: Image(EGL_NO_IMAGE_KHR)
-	, ExternalRenderer(GSupportsImageExternal ? nullptr : new FExternalOESTextureRenderer(false))
-	, Display(EGL_NO_DISPLAY)
-	, Context(EGL_NO_CONTEXT)
-	, SavedDisplay(EGL_NO_DISPLAY)
-	, SavedContext(EGL_NO_CONTEXT)
-	, bContextCreated(false)
 	{}
 
-	~FMagicLeapVideoTextureDataGL()
-	{
-		delete ExternalRenderer;
-		ExternalRenderer = nullptr;
-		PreviousNativeBuffer = ML_INVALID_HANDLE;
-		eglDestroyContext(Display, Context);
-		Display = EGL_NO_DISPLAY;
-		Context = EGL_NO_CONTEXT;   
-	}
-
-	bool InitContext()
-	{
-#if !PLATFORM_LUMINGL4
-		if (Context == EGL_NO_CONTEXT)
-		{
-			Display = LuminEGL::GetInstance()->GetDisplay();
-			EGLContext SharedContext = LuminEGL::GetInstance()->GetCurrentContext();
-			Context = SharedContext; // LuminEGL::GetInstance()->CreateContext(SharedContext);
-		}
-
-		return (Context != EGL_NO_CONTEXT);
-#else
-		return false;
-#endif
-	}
-
-	void SaveContext()
-	{
-#if !PLATFORM_LUMINGL4
-		SavedDisplay = LuminEGL::GetInstance()->GetDisplay();
-		SavedContext = LuminEGL::GetInstance()->GetCurrentContext();
-#endif
-	}
-
-	void MakeCurrent()
-	{
-#if !PLATFORM_LUMINGL4
-		return;	// skip for now
-		EGLBoolean bResult = eglMakeCurrent(Display, EGL_NO_SURFACE, EGL_NO_SURFACE, Context);
-		if (bResult == EGL_FALSE)
-		{
-			UE_LOG(LogMagicLeapMedia, Error, TEXT("Error setting media player context."));
-		}
-#endif
-	}
-
-	void RestoreContext()
-	{
-#if !PLATFORM_LUMINGL4
-		return;	// skip for now
-		EGLBoolean bResult = eglMakeCurrent(SavedDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, SavedContext);
-		if (bResult == EGL_FALSE)
-		{
-			UE_LOG(LogMagicLeapMedia, Error, TEXT("Error setting unreal context."));
-		}
-#endif
-	}
-
-	EGLImageKHR Image;
-	FExternalOESTextureRenderer* ExternalRenderer;
-	EGLDisplay Display;
-	EGLContext Context;
-	EGLDisplay SavedDisplay;
-	EGLContext SavedContext;
-	bool bContextCreated;
+	FExternalTextureRendererGL TextureRenderer;
 };
 
 FMagicLeapMediaPlayer::FMagicLeapMediaPlayer(IMediaEventSink& InEventSink)
 : MediaPlayerHandle(ML_INVALID_HANDLE)
+, CaptionParserHandle(ML_INVALID_HANDLE)
 , bMediaPrepared(false)
 , CurrentState(EMediaState::Closed)
 , EventSink(InEventSink)
 , Samples(MakeShared<FMediaSamples, ESPMode::ThreadSafe>())
-, VideoSamplePool(new FMagicLeapMediaTextureSamplePool())
-, MediaWorker(nullptr)
 , bWasMediaPlayingBeforeAppPause(false)
 , bPlaybackCompleted(false)
 , CurrentPlaybackTime(FTimespan::Zero())
@@ -154,113 +92,12 @@ FMagicLeapMediaPlayer::FMagicLeapMediaPlayer(IMediaEventSink& InEventSink)
 	else
 	{
 		TextureData = MakeShared<FMagicLeapVideoTextureDataGL, ESPMode::ThreadSafe>();
-	}
-	
-	MLResult Result = MLMediaPlayerCreate(&MediaPlayerHandle);
-	UE_CLOG(Result != MLResult_Ok, LogMagicLeapMedia, Error, TEXT("MLMediaPlayerCreate failed with error %s."), UTF8_TO_TCHAR(MLMediaResultGetString(Result)));
-	CurrentState = (Samples.IsValid() && Result == MLResult_Ok) ? EMediaState::Closed : EMediaState::Error;
-	
-	if (!GSupportsImageExternal)
-	{
-		MediaWorker = new FMediaWorker(MediaPlayerHandle, CriticalSection);
-	}
+	}	
 }
 
 FMagicLeapMediaPlayer::~FMagicLeapMediaPlayer()
 {
 	Close();
-
-	delete MediaWorker;
-	MediaWorker = nullptr;
-
-	if (MLHandleIsValid(MediaPlayerHandle))
-	{
-		if (GSupportsImageExternal)
-		{
-			if (FLuminPlatformMisc::ShouldUseVulkan())
-			{
-				// Unregister the external texture on render thread
-				struct FReleaseVideoResourcesParams
-				{
-					FMagicLeapMediaPlayer* MediaPlayer;
-					TSharedPtr<FMagicLeapVideoTextureDataVK, ESPMode::ThreadSafe> TextureData;
-					FGuid PlayerGuid;
-					MLHandle MediaPlayerHandle;
-				};
-
-				FReleaseVideoResourcesParams Params = { this, StaticCastSharedPtr<FMagicLeapVideoTextureDataVK>(TextureData), PlayerGuid, MediaPlayerHandle };
-
-				ENQUEUE_RENDER_COMMAND(MagicLeapMediaPlayerDestroy)(
-					[Params](FRHICommandListImmediate& RHICmdList)
-					{
-						FExternalTextureRegistry::Get().UnregisterExternalTexture(Params.PlayerGuid);
-
-						if (Params.TextureData->PreviousNativeBuffer != 0 && MLHandleIsValid(Params.TextureData->PreviousNativeBuffer))
-						{
-							Params.MediaPlayer->RenderThreadReleaseNativeBuffer(Params.MediaPlayerHandle, Params.TextureData->PreviousNativeBuffer);
-						}
-
-						if (MLHandleIsValid(Params.MediaPlayerHandle))
-						{
-							MLResult Result = MLMediaPlayerDestroy(Params.MediaPlayerHandle);
-							UE_CLOG(Result != MLResult_Ok, LogMagicLeapMedia, Error, TEXT("MLMediaPlayerDestroy failed with error %s."), UTF8_TO_TCHAR(MLMediaResultGetString(Result)));
-						}
-					});
-			}
-			else
-			{
-				// Unregister the external texture on render thread
-				struct FReleaseVideoResourcesParams
-				{
-					FMagicLeapMediaPlayer* MediaPlayer;
-					// Can we make this a TWeakPtr? We need to ensure that FMagicLeapMediaPlayer::TextureData is not destroyed before
-					// we unregister the external texture and releae the VideoTexture.
-					TSharedPtr<FMagicLeapVideoTextureDataGL, ESPMode::ThreadSafe> TextureData;
-					FGuid PlayerGuid;
-					MLHandle MediaPlayerHandle;
-				};
-
-				FReleaseVideoResourcesParams Params = { this, StaticCastSharedPtr<FMagicLeapVideoTextureDataGL>(TextureData), PlayerGuid, MediaPlayerHandle };
-
-				ENQUEUE_RENDER_COMMAND(MagicLeapMediaPlayerDestroy)(
-					[Params](FRHICommandListImmediate& RHICmdList)
-					{
-						FExternalTextureRegistry::Get().UnregisterExternalTexture(Params.PlayerGuid);
-						// @todo: this causes a crash
-						//Params.TextureData->VideoTexture->Release();
-						Params.TextureData->SaveContext();
-						Params.TextureData->MakeCurrent();
-
-						if (Params.TextureData->Image != EGL_NO_IMAGE_KHR)
-						{
-							eglDestroyImageKHR(eglGetCurrentDisplay(), Params.TextureData->Image);
-							Params.TextureData->Image = EGL_NO_IMAGE_KHR;
-						}
-
-						Params.TextureData->RestoreContext();
-						if (Params.TextureData->PreviousNativeBuffer != 0 && MLHandleIsValid(Params.TextureData->PreviousNativeBuffer))
-						{
-							Params.MediaPlayer->RenderThreadReleaseNativeBuffer(Params.MediaPlayerHandle, Params.TextureData->PreviousNativeBuffer);
-						}
-
-						MLResult Result = MLMediaPlayerDestroy(Params.MediaPlayerHandle);
-						UE_CLOG(Result != MLResult_Ok, LogMagicLeapMedia, Error, TEXT("MLMediaPlayerDestroy failed with error %s."), UTF8_TO_TCHAR(MLMediaResultGetString(Result)));
-					});
-			}
-
-			FlushRenderingCommands();
-		}
-		else
-		{
-			MLResult Result = MLMediaPlayerDestroy(MediaPlayerHandle);
-			UE_CLOG(Result != MLResult_Ok, LogMagicLeapMedia, Error, TEXT("MLMediaPlayerDestroy failed with error %s."), UTF8_TO_TCHAR(MLMediaResultGetString(Result)));
-		}
-
-		MediaPlayerHandle = ML_INVALID_HANDLE;
-	}
-
-	delete VideoSamplePool;
-	VideoSamplePool = nullptr;
 }
 
 void FMagicLeapMediaPlayer::Close()
@@ -291,15 +128,90 @@ void FMagicLeapMediaPlayer::Close()
 	MLResult StopResult = MLMediaPlayerStop(MediaPlayerHandle);
 	UE_CLOG(StopResult != MLResult_Ok, LogMagicLeapMedia, Error, TEXT("MLMediaPlayerStop failed with error %s"), UTF8_TO_TCHAR(MLMediaResultGetString(StopResult)));
 
-	MLResult ResetResult = MLMediaPlayerReset(MediaPlayerHandle);
-	UE_CLOG(ResetResult != MLResult_Ok, LogMagicLeapMedia, Error, TEXT("MLMediaPlayerReset failed with error %s"), UTF8_TO_TCHAR(MLMediaResultGetString(ResetResult)));
+	// Moved here from the constructor temporarily, until the freeze in MLMediaPlayerReset()/Destroy() is fixed.
+	if (GSupportsImageExternal)
+	{
+		if (FLuminPlatformMisc::ShouldUseVulkan())
+		{
+			// Unregister the external texture on render thread
+			struct FReleaseVideoResourcesParams
+			{
+				FMagicLeapMediaPlayer* MediaPlayer;
+				TSharedPtr<FMagicLeapVideoTextureDataVK, ESPMode::ThreadSafe> TextureData;
+				FGuid PlayerGuid;
+				MLHandle MediaPlayerHandle;
+			};
 
+			FReleaseVideoResourcesParams Params = { this, StaticCastSharedPtr<FMagicLeapVideoTextureDataVK>(TextureData), PlayerGuid, MediaPlayerHandle };
+
+			ENQUEUE_RENDER_COMMAND(MagicLeapMediaPlayerDestroy)(
+				[Params](FRHICommandListImmediate& RHICmdList)
+				{
+					FExternalTextureRegistry::Get().UnregisterExternalTexture(Params.PlayerGuid);
+
+					if (Params.TextureData->PreviousNativeBuffer != 0 && MLHandleIsValid(Params.TextureData->PreviousNativeBuffer))
+					{
+						Params.MediaPlayer->RenderThreadReleaseNativeBuffer(Params.MediaPlayerHandle, Params.TextureData->PreviousNativeBuffer);
+					}
+
+					Params.TextureData->VideoTexturePool.Empty();
+
+					Params.MediaPlayer->TriggerResetAndDestroy();
+				});
+		}
+		else
+		{
+			// Unregister the external texture on render thread
+			struct FReleaseVideoResourcesParams
+			{
+				FMagicLeapMediaPlayer* MediaPlayer;
+				// Can we make this a TWeakPtr? We need to ensure that FMagicLeapMediaPlayer::TextureData is not destroyed before
+				// we unregister the external texture and releae the VideoTexture.
+				TSharedPtr<FMagicLeapVideoTextureDataGL, ESPMode::ThreadSafe> TextureData;
+				FGuid PlayerGuid;
+				MLHandle MediaPlayerHandle;
+			};
+
+			FReleaseVideoResourcesParams Params = { this, StaticCastSharedPtr<FMagicLeapVideoTextureDataGL>(TextureData), PlayerGuid, MediaPlayerHandle };
+
+			ENQUEUE_RENDER_COMMAND(MagicLeapMediaPlayerDestroy)(
+				[Params](FRHICommandListImmediate& RHICmdList)
+				{
+					FExternalTextureRegistry::Get().UnregisterExternalTexture(Params.PlayerGuid);
+					// @todo: this causes a crash
+					//Params.TextureData->VideoTexture->Release();
+
+					Params.TextureData->TextureRenderer.DestroyImageKHR();
+
+					if (Params.TextureData->PreviousNativeBuffer != 0 && MLHandleIsValid(Params.TextureData->PreviousNativeBuffer))
+					{
+						Params.MediaPlayer->RenderThreadReleaseNativeBuffer(Params.MediaPlayerHandle, Params.TextureData->PreviousNativeBuffer);
+					}
+
+					Params.MediaPlayer->TriggerResetAndDestroy();
+				});
+		}
+
+		FlushRenderingCommands();
+	}
+	else
+	{
+		TriggerResetAndDestroy();
+	}
+
+	if (MLHandleIsValid(CaptionParserHandle))
+	{
+		MLResult Result = MLMediaCCParserDestroy(CaptionParserHandle);
+		UE_CLOG(Result != MLResult_Ok, LogMagicLeapMedia, Error, TEXT("MLMediaCCParserDestroy failed with error %s."), UTF8_TO_TCHAR(MLGetResultString(Result)));
+		CaptionParserHandle = ML_INVALID_HANDLE;
+	}
+
+	MediaPlayerHandle = ML_INVALID_HANDLE;
 	CurrentState = EMediaState::Closed;
 
 	bMediaPrepared = false;
 	Info.Empty();
 	MediaUrl = FString();
-	VideoSamplePool->Reset();
 	TrackInfo.Empty();
 	SelectedTrack.Empty();
 
@@ -356,6 +268,11 @@ IMediaView& FMagicLeapMediaPlayer::GetView()
 
 bool FMagicLeapMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
 {
+	// Moved here from the constructor temporarily, until the freeze in MLMediaPlayerReset()/Destroy() is fixed.
+	MLResult Result = MLMediaPlayerCreate(&MediaPlayerHandle);
+	UE_CLOG(Result != MLResult_Ok, LogMagicLeapMedia, Error, TEXT("MLMediaPlayerCreate failed with error %s."), UTF8_TO_TCHAR(MLMediaResultGetString(Result)));
+	CurrentState = (Samples.IsValid() && Result == MLResult_Ok) ? EMediaState::Closed : EMediaState::Error;
+
 	if (CurrentState == EMediaState::Error)
 	{
 		EventSink.ReceiveMediaEvent(EMediaEvent::MediaOpenFailed);
@@ -373,6 +290,7 @@ bool FMagicLeapMediaPlayer::Open(const FString& Url, const IMediaOptions* Option
 	MediaUrl = Url;
 
 	const FString localFileSchema = "file://";
+	const FString sharedFileSchema = "mlshared://";
 
 	// open the media
 	if (Url.StartsWith(localFileSchema))
@@ -391,7 +309,7 @@ bool FMagicLeapMediaPlayer::Open(const FString& Url, const IMediaOptions* Option
 			return false;
 		}
 
-		MLResult Result = MLMediaPlayerSetDataSourceForPath(MediaPlayerHandle, TCHAR_TO_UTF8(*FilePath));
+		Result = MLMediaPlayerSetDataSourceForPath(MediaPlayerHandle, TCHAR_TO_UTF8(*FilePath));
 		if (Result != MLResult_Ok)
 		{
 			UE_LOG(LogMagicLeapMedia, Error, TEXT("MLMediaPlayerSetDataSourceForPath for path %s failed with error %s."), *FilePath, UTF8_TO_TCHAR(MLMediaResultGetString(Result)));
@@ -399,10 +317,51 @@ bool FMagicLeapMediaPlayer::Open(const FString& Url, const IMediaOptions* Option
 			return false;
 		}
 	}
+	else if (Url.StartsWith(sharedFileSchema))
+	{
+		const FString SharedFileName = Url.RightChop(sharedFileSchema.Len());
+		const char* Filename_UTF8 = TCHAR_TO_UTF8(*SharedFileName);
+		MLSharedFileList* SharedFileList = nullptr;
+		Result = MLSharedFileRead(&Filename_UTF8, 1, &SharedFileList);
+		UE_CLOG(Result != MLResult_Ok, LogMagicLeapMedia, Error, TEXT("MLSharedFileRead(%s) failed with error %s"), *SharedFileName, UTF8_TO_TCHAR(MLSharedFileGetResultString(Result)));
+
+		if (Result == MLResult_Ok && SharedFileList != nullptr)
+		{
+			MLHandle ListLength = 0;
+			Result = MLSharedFileGetListLength(SharedFileList, &ListLength);
+			UE_CLOG(Result != MLResult_Ok, LogMagicLeapMedia, Error, TEXT("MLSharedFileGetListLength failed with error %s"), UTF8_TO_TCHAR(MLSharedFileGetResultString(Result)));
+			if (Result == MLResult_Ok && ListLength > 0)
+			{
+				MLFileInfo* FileInfo = nullptr;
+				Result = MLSharedFileGetMLFileInfoByIndex(SharedFileList, 0, &FileInfo);
+				UE_CLOG(Result != MLResult_Ok, LogMagicLeapMedia, Error, TEXT("MLSharedFileGetMLFileInfoByIndex failed with error %s"), UTF8_TO_TCHAR(MLSharedFileGetResultString(Result)));
+				if (Result == MLResult_Ok && FileInfo != nullptr)
+				{
+					MLFileDescriptor FileHandle = -1;
+					Result = MLFileInfoGetFD(FileInfo, &FileHandle);
+					UE_CLOG(Result != MLResult_Ok, LogMagicLeapMedia, Error, TEXT("MLFileInfoGetFD failed with error %s"), UTF8_TO_TCHAR(MLGetResultString(Result)));
+					if (Result == MLResult_Ok && FileHandle > -1)
+					{
+						Result = MLMediaPlayerSetDataSourceForFD(MediaPlayerHandle, FileHandle);
+						UE_CLOG(Result != MLResult_Ok, LogMagicLeapMedia, Error, TEXT("MLMediaPlayerSetDataSourceForFD failed with error %s"), UTF8_TO_TCHAR(MLMediaResultGetString(Result)));
+					}
+				}
+			}
+
+			MLSharedFileListRelease(&SharedFileList);
+		}
+
+		if (Result != MLResult_Ok)
+		{
+			UE_LOG(LogMagicLeapMedia, Error, TEXT("MLMediaPlayerSetDataSourceForFD for shared file %s failed."), *Url);
+			EventSink.ReceiveMediaEvent(EMediaEvent::MediaOpenFailed);
+			return false;
+		}
+	}
 	else
 	{    
 		// open remote media
-		MLResult Result = MLMediaPlayerSetDataSourceForURI(MediaPlayerHandle, TCHAR_TO_UTF8(*Url));
+		Result = MLMediaPlayerSetDataSourceForURI(MediaPlayerHandle, TCHAR_TO_UTF8(*Url));
 		if (Result != MLResult_Ok)
 		{
 			UE_LOG(LogMagicLeapMedia, Error, TEXT("MLMediaPlayerSetDataSourceForURI for remote media source %s failed with error %s."), *Url, UTF8_TO_TCHAR(MLMediaResultGetString(Result)));
@@ -411,12 +370,15 @@ bool FMagicLeapMediaPlayer::Open(const FString& Url, const IMediaOptions* Option
 		}
 	}
 
+	const bool Precache = (Options != nullptr) ? Options->GetMediaOption("PrecacheFile", false) : false;
+	UE_CLOG(Precache, LogMagicLeapMedia, Warning, TEXT("Precaching is not supported in Magic Leap Media. Use Magic Leap Media Codec instead if this feature is necessarry."));
+
 	EventSink.ReceiveMediaEvent(EMediaEvent::MediaConnecting);
 
 	// prepare media
 	MediaUrl = Url;
 
-	MLResult Result = MLMediaPlayerPrepareAsync(MediaPlayerHandle);
+	Result = MLMediaPlayerPrepareAsync(MediaPlayerHandle);
 	if (Result != MLResult_Ok)
 	{
 		UE_LOG(LogMagicLeapMedia, Error, TEXT("MLMediaPlayerPrepareAsync for media source %s failed with error %s"), *Url, UTF8_TO_TCHAR(MLMediaResultGetString(Result)));
@@ -522,7 +484,7 @@ bool FMagicLeapMediaPlayer::Seek(const FTimespan& Time)
 	}
 	else if (CurrentState == EMediaState::Playing || CurrentState == EMediaState::Paused)
 	{
-		MLResult Result = MLMediaPlayerSeekTo(MediaPlayerHandle, Time.GetTotalMilliseconds(), MLMediaSeekMode_Closest_Sync);
+		MLResult Result = MLMediaPlayerSeekTo(MediaPlayerHandle, static_cast<int32>(Time.GetTotalMilliseconds()), MLMediaSeekMode_Closest_Sync);
 		if (Result != MLResult_Ok)
 		{
 			bSuccess = false;
@@ -575,7 +537,16 @@ bool FMagicLeapMediaPlayer::SetRate(float Rate)
 	}
 	else if (Rate == 1.0f)
 	{
-		bResult = SetRateOne();
+		MLResult Result = MLMediaPlayerStart(MediaPlayerHandle);
+		if (Result != MLResult_Ok)
+		{
+			UE_LOG(LogMagicLeapMedia, Error, TEXT("MLMediaPlayerStart failed with error %s"), UTF8_TO_TCHAR(MLMediaResultGetString(Result)));
+			bResult = false;
+		}
+
+		CurrentState = EMediaState::Playing;
+		EventSink.ReceiveMediaEvent(EMediaEvent::PlaybackResumed);
+		bResult = true;
 	}
 	else
 	{
@@ -768,154 +739,44 @@ void FMagicLeapMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan Timecode)
 						return;
 					}
 
-					// Clear gl errors as they can creep in from the UE4 renderer.
-					glGetError();
-
-					if (!TextureDataPtr->bContextCreated)
-					{
-						TextureDataPtr->InitContext();
-						TextureDataPtr->bContextCreated = true;
-					}
-					TextureDataPtr->SaveContext();
-					TextureDataPtr->MakeCurrent();
-
 					int32 TextureID = *reinterpret_cast<int32*>(MediaVideoTexture->GetNativeResource());
-					if (TextureDataPtr->Image != EGL_NO_IMAGE_KHR)
-					{
-						eglDestroyImageKHR(eglGetCurrentDisplay(), TextureDataPtr->Image);
-						TextureDataPtr->Image = EGL_NO_IMAGE_KHR;
-					}
+
+					TextureDataPtr->TextureRenderer.DestroyImageKHR();
+
 					if (TextureDataPtr->PreviousNativeBuffer != 0 && MLHandleIsValid(TextureDataPtr->PreviousNativeBuffer))
 					{
 						Params.MediaPlayer->RenderThreadReleaseNativeBuffer(Params.MediaPlayerHandle, TextureDataPtr->PreviousNativeBuffer);
 					}
 					TextureDataPtr->PreviousNativeBuffer = nativeBuffer;
 
-					// Wrap latest decoded frame into a new gl texture oject
-					TextureDataPtr->Image = eglCreateImageKHR(TextureDataPtr->Display, EGL_NO_CONTEXT, EGL_NATIVE_BUFFER_ANDROID, (EGLClientBuffer)(void *)nativeBuffer, NULL);
-					if (TextureDataPtr->Image == EGL_NO_IMAGE_KHR)
+					if (TextureDataPtr->TextureRenderer.CreateImageKHR(reinterpret_cast<void*>(nativeBuffer)))
 					{
-						EGLint errorcode = eglGetError();
-						UE_LOG(LogMagicLeapMedia, Error, TEXT("Failed to create EGLImage from the buffer. %d"), errorcode);
-						TextureDataPtr->RestoreContext();
-						return;
-					}
-					glActiveTexture(GL_TEXTURE0);
-					glBindTexture(GL_TEXTURE_EXTERNAL_OES, TextureID);
-					glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, TextureDataPtr->Image);
-					glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-					glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-					glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-					glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-					glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
-
-					TextureDataPtr->RestoreContext();
-
-					if (!TextureDataPtr->bIsVideoTextureValid)
-					{
-						FSamplerStateInitializerRHI SamplerStateInitializer(SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp);
-						FSamplerStateRHIRef SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
-						Params.MediaPlayer->RegisterExternalTexture(Params.PlayerGuid, MediaVideoTexture, SamplerStateRHI);
-						TextureDataPtr->bIsVideoTextureValid = true;
+						TextureDataPtr->TextureRenderer.BindImageKHRToTexture(TextureID);
+						if (!TextureDataPtr->bIsVideoTextureValid)
+						{
+							FSamplerStateInitializerRHI SamplerStateInitializer(SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp);
+							FSamplerStateRHIRef SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
+							Params.MediaPlayer->RegisterExternalTexture(Params.PlayerGuid, MediaVideoTexture, SamplerStateRHI);
+							TextureDataPtr->bIsVideoTextureValid = true;
+						}
 					}
 				});
 		}
 	}
-	else
+
+	if (GetMediaPlayerState(MLMediaPlayerPollingStateFlag_HasSubtitleUpdated))
 	{
-		FMediaVideoTrackFormat TrackFormat;
-		bool bTrackFormatValid = GetVideoTrackFormat(0, 0, TrackFormat);
-		if (!bTrackFormatValid)
-		{
-			UE_LOG(LogMagicLeapMedia, Error, TEXT("Invalid track format. Skipping frame."));
-			return;
-		}
+		MLCea608CaptionSegment Segment;
+		MLCea608CaptionSegmentInit(&Segment);
+		MLMediaPlayerSubtitleData* SubtitleDataPtr = nullptr;
 
-		auto VideoSample = VideoSamplePool->AcquireShared();
-		if (!VideoSample->Initialize(TrackFormat.Dim, FTimespan::FromSeconds(1.0 / TrackFormat.FrameRate)))
-		{
-			UE_LOG(LogMagicLeapMedia, Error, TEXT("Could not initialize video sample."));
-			return;
-		}
+		ProcessCaptioningSegment(Segment, SubtitleDataPtr);
 
-		struct FWriteVideoSampleParams
-		{
-			FMagicLeapMediaPlayer* MediaPlayer;
-			TWeakPtr<FMagicLeapVideoTextureDataGL, ESPMode::ThreadSafe> TextureData;
-			MLHandle MediaPlayerHandle;
-			TWeakPtr<FMediaSamples, ESPMode::ThreadSafe> SamplesPtr;
-			TSharedRef<FMagicLeapMediaTextureSample, ESPMode::ThreadSafe> VideoSample;
-			FCriticalSection* CriticalSectionPtr;
-			FMediaWorker* MediaWorkerPtr;
-		}
-		Params = { this, StaticCastSharedPtr<FMagicLeapVideoTextureDataGL>(TextureData), MediaPlayerHandle, Samples, VideoSample, &CriticalSection, MediaWorker };
+		MLResult ReleaseSegmentResult = MLMediaCCParserReleaseSegment(CaptionParserHandle, &Segment);
+		UE_CLOG(ReleaseSegmentResult != MLResult_Ok, LogMagicLeapMedia, Error, TEXT("MLMediaCCParserReleaseSegment failed with error %s."), UTF8_TO_TCHAR(MLGetResultString(ReleaseSegmentResult)));
 
-		ENQUEUE_RENDER_COMMAND(MagicLeapMediaPlayerWriteVideoSample)(
-			[Params](FRHICommandListImmediate& RHICmdList)
-			{
-				auto PinnedTextureData = Params.TextureData.Pin();
-				auto PinnedSamples = Params.SamplesPtr.Pin();
-
-				if (!PinnedTextureData.IsValid() || !PinnedSamples.IsValid())
-				{
-					UE_LOG(LogMagicLeapMedia, Error, TEXT("Invalid texture data or samples."));
-					return;
-				}
-
-				if (FLuminPlatformMisc::ShouldUseVulkan() || FLuminPlatformMisc::ShouldUseDesktopOpenGL())
-				{
-					bool BufferAvailable = false;
-					{
-						FScopeLock Lock(Params.CriticalSectionPtr);
-						if (Params.MediaWorkerPtr->NextBufferAvailable.GetValue() > 0)
-						{
-							FIntPoint CurrentDim;
-							FTimespan CurrentTime;
-							void* ReadBuffer = Params.MediaWorkerPtr->GetReadBuffer(&CurrentDim, &CurrentTime);
-							Params.VideoSample->Initialize(CurrentDim, Params.VideoSample->GetDuration());
-							Params.VideoSample->InitializeBuffer(CurrentTime, ReadBuffer, true);
-							Params.MediaWorkerPtr->NextBufferAvailable.Decrement();
-							BufferAvailable = true;
-						}
-					}
-
-					if (BufferAvailable)
-					{
-						PinnedSamples->AddVideo(Params.VideoSample);
-					}
-				}
-				else
-				{
-					if (!Params.MediaPlayer->RenderThreadIsBufferAvailable(Params.MediaPlayerHandle))
-					{
-						return;
-					}
-
-					// MLHandle because Unreal's uint64 is 'unsigned long long *' whereas uint64_t for the C-API is 'unsigned long *'
-					// TODO: Fix the Unreal types for the above comment.
-					MLHandle NativeBuffer = ML_INVALID_HANDLE;
-					if (!Params.MediaPlayer->RenderThreadGetNativeBuffer(Params.MediaPlayerHandle, NativeBuffer, PinnedTextureData->bIsVideoTextureValid))
-					{
-						UE_LOG(LogMagicLeapMedia, Error, TEXT("Error acquiring next video buffer"));
-						return;
-					}
-
-					// write frame into texture
-					FRHITexture2D* Texture = Params.VideoSample->InitializeTexture(Params.MediaPlayer->GetTime());
-					if (Texture != nullptr)
-					{
-						int32 Resource = *reinterpret_cast<int32*>(Texture->GetNativeResource());
-						bool TextureCopyResult = PinnedTextureData->ExternalRenderer->CopyFrameTexture(Resource, NativeBuffer, Params.VideoSample->GetDim(), nullptr);
-						if (!TextureCopyResult)
-						{
-							UE_LOG(LogMagicLeapMedia, Error, TEXT("CopyFrameTexture failed"));
-						}
-					}
-
-					Params.MediaPlayer->RenderThreadReleaseNativeBuffer(Params.MediaPlayerHandle, NativeBuffer);
-					PinnedSamples->AddVideo(Params.VideoSample);
-				}
-			});
+		MLResult ReleaseSubtitleResult = MLMediaPlayerReleaseSubtitleEx(MediaPlayerHandle);
+		UE_CLOG(ReleaseSubtitleResult != MLResult_Ok, LogMagicLeapMedia, Error, TEXT("MLMediaPlayerReleaseSubtitleEx failed with error %s."), UTF8_TO_TCHAR(MLGetResultString(ReleaseSubtitleResult)));
 	}
 }
 
@@ -979,15 +840,21 @@ void FMagicLeapMediaPlayer::TickInput(FTimespan DeltaTime, FTimespan Timecode)
 			// notify listeners
 			EventSink.ReceiveMediaEvent(EMediaEvent::TracksChanged);
 			EventSink.ReceiveMediaEvent(EMediaEvent::MediaOpened);
-
-			if (!GSupportsImageExternal)
-			{
-				MediaWorker->InitThread();
-			}
 		}
 		else
 		{
 			return;
+		}
+	}
+
+	// Subtitle/Caption tracks are only picked up on MetadataUpdated
+	if (GetMediaPlayerState(MLMediaPlayerPollingStateFlag_HasMetadataUpdated))
+	{
+		CheckSubtitlesAndCaptioning();
+		if (!MLHandleIsValid(CaptionParserHandle))
+		{
+			MLResult Result = MLMediaCCParserCreate(&CaptionParserHandle);
+			UE_CLOG(Result != MLResult_Ok, LogMagicLeapMedia, Error, TEXT("MLMediaCCParserCreate failed with error %s."), UTF8_TO_TCHAR(MLGetResultString(Result)));
 		}
 	}
 
@@ -1043,8 +910,37 @@ void FMagicLeapMediaPlayer::TickInput(FTimespan DeltaTime, FTimespan Timecode)
 
 bool FMagicLeapMediaPlayer::GetAudioTrackFormat(int32 TrackIndex, int32 FormatIndex, FMediaAudioTrackFormat& OutFormat) const
 {
-	// TODO: can we implement this using the audio handle coming from MLMediaPlayerGetAudioHandle()?
-	return false;
+	if ((FormatIndex != static_cast<int32>(EMediaTrackType::Audio)) || TrackIndex >= TrackInfo[EMediaTrackType::Audio].Num() || TrackIndex < 0)
+	{
+		return false;
+	}
+
+	MLHandle FormatHandle;
+	MLResult Result = MLMediaPlayerGetTrackMediaFormat(MediaPlayerHandle, static_cast<uint32>(TrackInfo[EMediaTrackType::Audio][TrackIndex]), &FormatHandle);
+	if (Result != MLResult_Ok)
+	{
+		UE_LOG(LogMagicLeapMedia, Error, TEXT("MLMediaPlayerGetTrackMediaFormat failed with error %s"), UTF8_TO_TCHAR(MLMediaResultGetString(Result)));
+		return false;
+	}
+
+	//Update integer format values
+	Result = MLMediaFormatGetKeyValueInt32(FormatHandle, MLMediaFormat_Key_Sample_Rate, &OutFormat.SampleRate);
+	UE_CLOG(Result != MLResult_Ok, LogMagicLeapMedia, Error, TEXT("MLMediaFormatGetKeyValueInt32(sample-rate) failed with error %s"), UTF8_TO_TCHAR(MLMediaResultGetString(Result)));
+	Result = MLMediaFormatGetKeyValueInt32(FormatHandle, MLMediaFormat_Key_Channel_Count, &OutFormat.NumChannels);
+	UE_CLOG(Result != MLResult_Ok, LogMagicLeapMedia, Error, TEXT("MLMediaFormatGetKeyValueInt32(channel-count) failed with error %s"), UTF8_TO_TCHAR(MLMediaResultGetString(Result)));
+	Result = MLMediaFormatGetKeyValueInt32(FormatHandle, MLMediaFormat_Key_Bit_Rate, &OutFormat.BitsPerSample);
+	UE_CLOG(Result != MLResult_Ok, LogMagicLeapMedia, Error, TEXT("MLMediaFormatGetKeyValueInt32(bit-rate) failed with error %s"), UTF8_TO_TCHAR(MLMediaResultGetString(Result)));
+
+	//Update string format value, removing the format type.
+	char FormatName[MAX_FORMAT_STRING_SIZE] = "";
+	Result = MLMediaFormatGetKeyString(FormatHandle, MLMediaFormat_Key_Mime, &FormatName);
+	UE_CLOG(Result != MLResult_Ok, LogMagicLeapMedia, Error, TEXT("MLMediaFormatGetKeyString(mime) failed with error %s"), UTF8_TO_TCHAR(MLMediaResultGetString(Result)));
+	OutFormat.TypeName = (Result == MLResult_Ok) ? FString(FormatName) : FString();
+	OutFormat.TypeName.RemoveFromStart("audio/");
+
+	MLMediaFormatDestroy(FormatHandle);
+
+	return true;
 }
 
 int32 FMagicLeapMediaPlayer::GetNumTracks(EMediaTrackType TrackType) const
@@ -1125,11 +1021,34 @@ bool FMagicLeapMediaPlayer::GetVideoTrackFormat(int32 TrackIndex, int32 FormatIn
 		return false;
 	}
 
-	OutFormat.Dim = FIntPoint(width, height);
-	// TODO: Don't hardcode. Get from C-API. ml_media_player api does not provide that right now. Try the ml_media_codec api.
-	OutFormat.FrameRate = 30.0f;
-	OutFormat.FrameRates = TRange<float>(30.0f);
-	OutFormat.TypeName = TEXT("BGRA");
+	MLHandle MediaFormatHandle = ML_INVALID_HANDLE;
+	Result = MLMediaPlayerGetTrackMediaFormat(MediaPlayerHandle, TrackIndex, &MediaFormatHandle);
+	if (Result != MLResult_Ok)
+	{
+		UE_LOG(LogMagicLeapMedia, Error, TEXT("MLMediaPlayerGetTrackMediaFormat failed with error %s"), UTF8_TO_TCHAR(MLMediaResultGetString(Result)));
+		return false;
+	}
+
+	int32 FrameRate = 0;
+	MLMediaFormatGetKeyValueInt32(MediaFormatHandle, MLMediaFormat_Key_Frame_Rate, &FrameRate);
+
+	if (Result != MLResult_Ok)
+	{
+		UE_LOG(LogMagicLeapMedia, Error, TEXT("MLMediaFormatGetKeyValueInt32 failed with error %s"), UTF8_TO_TCHAR(MLMediaResultGetString(Result)));
+		return false;
+	}
+	OutFormat.FrameRate = static_cast<float>(FrameRate);
+	OutFormat.FrameRates = TRange<float>(FrameRate);
+
+	char MIME[MAX_KEY_STRING_SIZE] = "";
+	Result = MLMediaFormatGetKeyString(MediaFormatHandle, MLMediaFormat_Key_Mime, &MIME);
+	if (Result != MLResult_Ok)
+	{
+		UE_LOG(LogMagicLeapMedia, Error, TEXT("MLMediaFormatGetKeyString failed with error %s"), UTF8_TO_TCHAR(MLMediaResultGetString(Result)));
+		return false;
+	}
+	OutFormat.TypeName = UTF8_TO_TCHAR(MIME);
+
 	return true;
 }
 
@@ -1164,7 +1083,7 @@ void FMagicLeapMediaPlayer::HandleApplicationHasEnteredForeground()
 	// check state in case changed before ticked
 	if (CurrentState == EMediaState::Paused && bWasMediaPlayingBeforeAppPause)
 	{
-		// pause
+		// Unpause
 		SetRate(1.0f);
 	}
 }
@@ -1180,6 +1099,85 @@ void FMagicLeapMediaPlayer::HandleApplicationWillEnterBackground()
 	}
 }
 
+void FMagicLeapMediaPlayer::CheckSubtitlesAndCaptioning()
+{
+	uint32 NumTracks = 0;
+	MLMediaPlayerGetTrackCount(MediaPlayerHandle, &NumTracks);
+	for (uint32 i = 0; i < NumTracks; ++i)
+	{
+		MLMediaPlayerTrackType TrackType = MediaPlayerTrackType_Unknown;
+		MLMediaPlayerGetTrackType(MediaPlayerHandle, i, &TrackType);
+		switch (TrackType)
+		{
+		case MediaPlayerTrackType_TimedText:
+			if (!TrackInfo[EMediaTrackType::Caption].Contains(static_cast<int32>(i)))
+			{
+				TrackInfo[EMediaTrackType::Caption].Add(static_cast<int32>(i));
+			}
+			if (SelectedTrack[EMediaTrackType::Caption] == INDEX_NONE)
+			{
+				SelectedTrack[EMediaTrackType::Caption] = 0;
+				SelectTrack(EMediaTrackType::Caption, SelectedTrack[EMediaTrackType::Caption]);
+			}
+			break;
+		case MediaPlayerTrackType_Subtitle:
+			if (!TrackInfo[EMediaTrackType::Subtitle].Contains(static_cast<int32>(i)))
+			{
+				TrackInfo[EMediaTrackType::Subtitle].Add(static_cast<int32>(i));
+			}
+			if (SelectedTrack[EMediaTrackType::Subtitle] == INDEX_NONE)
+			{
+				SelectedTrack[EMediaTrackType::Subtitle] = 0;
+				SelectTrack(EMediaTrackType::Subtitle, SelectedTrack[EMediaTrackType::Subtitle]);
+			}
+			break;
+		// We currently ignore other track types at detected metadata changes
+		default:
+			break;
+		}
+	}
+}
+
+void FMagicLeapMediaPlayer::ProcessCaptioningSegment(MLCea608CaptionSegment& Segment, MLMediaPlayerSubtitleData* SubtitleDataPtr)
+{
+	check(MLHandleIsValid(CaptionParserHandle));
+	MLResult Result = MLMediaPlayerGetSubtitleEx(MediaPlayerHandle, &SubtitleDataPtr);
+	if (Result == MLResult_Ok)
+	{
+		MLResult DisplayableResult = MLMediaCCParserGetDisplayable(CaptionParserHandle, SubtitleDataPtr->data, SubtitleDataPtr->data_size, &Segment);
+		if (DisplayableResult != MLResult_Ok)
+		{
+			UE_LOG(LogMagicLeapMedia, Error, TEXT("MLMediaCCParserGetDisplayable failed with error %s."), UTF8_TO_TCHAR(MLGetResultString(DisplayableResult)));
+			return;
+		}
+
+		for (uint32 Index = 0; Index < MLCea608_CCMaxRowsPlus2; ++Index)
+		{
+			if (Segment.ccLine[Index] != nullptr)
+			{
+				TArray<char> LineCharacters;
+				LineCharacters.Reserve(MLCea608_CCMaxColsPlus2);
+				// Caption lines are kept in their respective row and column due to style data corresponding
+				// to row/column. So we must check for non-characters in the string
+				for (uint32 LineIndex = 0; LineIndex < MLCea608_CCMaxColsPlus2; ++LineIndex)
+				{
+					if (Segment.ccLine[Index]->displayChars[LineIndex] != '\xff')
+					{
+						LineCharacters.Emplace(Segment.ccLine[Index]->displayChars[LineIndex]);
+					}
+				}
+				TSharedRef<FMagicLeapMediaOverlaySample, ESPMode::ThreadSafe> Subtitle = MakeShared<FMagicLeapMediaOverlaySample, ESPMode::ThreadSafe>();
+				Subtitle->Intitialize(LineCharacters.GetData(), EMediaOverlaySampleType::Subtitle, FTimespan::FromMicroseconds(SubtitleDataPtr->duration_us), FTimespan::FromMicroseconds(SubtitleDataPtr->start_time_us));
+				Samples->AddSubtitle(Subtitle);
+			}
+		}
+	}
+	else
+	{
+		UE_LOG(LogMagicLeapMedia, Error, TEXT("MLMediaPlayerGetSubtitleEx failed with error %s."), UTF8_TO_TCHAR(MLGetResultString(Result)));
+	}
+}
+
 FIntPoint FMagicLeapMediaPlayer::GetVideoDimensions() const
 {
 	int32 width = 0;
@@ -1190,20 +1188,6 @@ FIntPoint FMagicLeapMediaPlayer::GetVideoDimensions() const
 		UE_LOG(LogMagicLeapMedia, Error, TEXT("MLMediaPlayerGetVideoSize failed with error %s"), UTF8_TO_TCHAR(MLMediaResultGetString(Result)));
 	}
 	return FIntPoint(width, height);
-}
-
-bool FMagicLeapMediaPlayer::SetRateOne()
-{
-	MLResult Result = MLMediaPlayerStart(MediaPlayerHandle);
-	if (Result != MLResult_Ok)
-	{
-		UE_LOG(LogMagicLeapMedia, Error, TEXT("MLMediaPlayerStart failed with error %s"), UTF8_TO_TCHAR(MLMediaResultGetString(Result)));
-		return false;
-	}
-	
-	CurrentState = EMediaState::Playing;
-	EventSink.ReceiveMediaEvent(EMediaEvent::PlaybackResumed);
-	return true;
 }
 
 bool FMagicLeapMediaPlayer::GetMediaPlayerState(uint16 FlagToPoll) const
@@ -1289,6 +1273,35 @@ bool FMagicLeapMediaPlayer::RenderThreadGetCurrentPosition(const MLHandle InMedi
 	}
 
 	return true;
+}
+
+void FMagicLeapMediaPlayer::TriggerResetAndDestroy()
+{
+	// Platform api for MLMediaPlayerReset()/Destroy() has a bug where the function can stall for several seconds.
+	// Until that is fixed, we call those functions on a detached thread so as not to block the app's process from exiting.
+
+	int32 ThreadFuncResult = 0;
+	pthread_t Thread;
+	pthread_attr_t attr;
+
+	ThreadFuncResult = pthread_attr_init(&attr);
+	if (ThreadFuncResult == 0)
+	{
+		ThreadFuncResult = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+		if (ThreadFuncResult == 0)
+		{
+			ThreadFuncResult = pthread_create(&Thread, &attr, _ThreadProc, reinterpret_cast<void*>(MediaPlayerHandle));
+			UE_CLOG(ThreadFuncResult != 0, LogMagicLeapMedia, Error, TEXT("pthread_create failed with error %d."), ThreadFuncResult);
+		}
+		else
+		{
+			UE_LOG(LogMagicLeapMedia, Error, TEXT("pthread_attr_setdetachstate failed with error %d."), ThreadFuncResult);
+		}
+	}
+	else
+	{
+		UE_LOG(LogMagicLeapMedia, Error, TEXT("pthread_attr_init failed with error %d."), ThreadFuncResult);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

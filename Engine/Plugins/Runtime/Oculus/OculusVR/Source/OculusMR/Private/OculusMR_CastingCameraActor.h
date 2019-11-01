@@ -3,9 +3,14 @@
 
 #include "UObject/ObjectMacros.h"
 #include "Engine/SceneCapture2D.h"
+#include "AudioResampler.h"
 #include "OVR_Plugin_Types.h"
 
 #include "OculusMR_CastingCameraActor.generated.h"
+
+#if PLATFORM_ANDROID
+#define MRC_SWAPCHAIN_LENGTH 3
+#endif
 
 class UOculusMR_PlaneMeshComponent;
 class UMaterial;
@@ -108,33 +113,45 @@ private:
 
 	void OnHMDRecentered();
 
-	const FLinearColor& GetForegroundLayerBackgroundColor() const { return ForegroundLayerBackgroundColor; }
+	const FColor& GetForegroundLayerBackgroundColor() const { return ForegroundLayerBackgroundColor; }
 
 	void SetupCameraFrameMaterialInstance();
+	void SetBackdropMaterialColor();
 	void SetupBackdropMaterialInstance();
 	void RepositionPlaneMesh();
 	void RefreshBoundaryMesh();
 	void UpdateRenderTargetSize();
-	void SetupSpectatorScreen();
-	void CloseSpectatorScreen();
+	void SetupMRCScreen();
+	void CloseMRCScreen();
 
 	void Execute_BindToTrackedCameraIndexIfAvailable();
 
-	FLinearColor ForegroundLayerBackgroundColor;
+	FColor ForegroundLayerBackgroundColor;
 	float ForegroundMaxDistance;
 
 	UPROPERTY()
-	UTextureRenderTarget2D* BackgroundRenderTarget;
+	TArray<UTextureRenderTarget2D*> BackgroundRenderTargets;
 
 	UPROPERTY()
 	ASceneCapture2D* ForegroundCaptureActor;
 
 	UPROPERTY()
-	UTextureRenderTarget2D* ForegroundRenderTarget;
+	TArray<UTextureRenderTarget2D*> ForegroundRenderTargets;
 
 	UPROPERTY()
 	UOculusMR_Settings* MRSettings;
 
 	UPROPERTY()
 	UOculusMR_State* MRState;
+
+#if PLATFORM_ANDROID
+	TArray<Audio::AlignedFloatBuffer> AudioBuffers;
+	TArray<double> AudioTimes;
+
+	int SyncId;
+
+	const unsigned int NumRTs = MRC_SWAPCHAIN_LENGTH;
+	unsigned int RenderedRTs;
+	unsigned int CaptureIndex;
+#endif
 };

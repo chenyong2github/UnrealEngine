@@ -137,23 +137,6 @@ float GetAutoExposureCompensation(const FViewInfo& View)
 
 	const FEngineShowFlags& EngineShowFlags = View.Family->EngineShowFlags;
 
-	// Skip the exposure bias when any of these flags are set.
-	const bool bSkipExposureBias =
-		View.Family->ExposureSettings.bFixed ||
-		View.Family->UseDebugViewPS() ||
-		!EngineShowFlags.Lighting ||
-		(EngineShowFlags.VisualizeBuffer && View.CurrentBufferVisualizationMode != NAME_None) ||
-		EngineShowFlags.RayTracingDebug ||
-		EngineShowFlags.VisualizeDistanceFieldAO ||
-		EngineShowFlags.VisualizeGlobalDistanceField ||
-		EngineShowFlags.CollisionVisibility ||
-		EngineShowFlags.CollisionPawn;
-
-	if (bSkipExposureBias)
-	{
-		return 1.0f;
-	}
-
 	// This scales the average luminance AFTER it gets clamped, affecting the exposure value directly.
 	float AutoExposureBias = Settings.AutoExposureBias;
 
@@ -191,38 +174,54 @@ FEyeAdaptationParameters GetEyeAdaptationParameters(const FViewInfo& View, ERHIF
 	// These clamp the average luminance computed from the scene color.
 	float MinAverageLuminance = 1.0f;
 	float MaxAverageLuminance = 1.0f;
+	float ExposureCompensation = 1.0f;
 
-	// Fixed exposure override in effect.
-	if (View.Family->ExposureSettings.bFixed)
+	// Force an exposure of 1 when any of these flags are set.
+	const bool bUseDebugExposure =
+		View.Family->ExposureSettings.bFixed ||
+		View.Family->UseDebugViewPS() ||
+		!EngineShowFlags.Lighting ||
+		(EngineShowFlags.VisualizeBuffer && View.CurrentBufferVisualizationMode != NAME_None) ||
+		EngineShowFlags.RayTracingDebug ||
+		EngineShowFlags.VisualizeDistanceFieldAO ||
+		EngineShowFlags.VisualizeGlobalDistanceField ||
+		EngineShowFlags.CollisionVisibility ||
+		EngineShowFlags.CollisionPawn;
+
+	if (!bUseDebugExposure)
 	{
-		MinAverageLuminance = MaxAverageLuminance = EV100ToLuminance(View.Family->ExposureSettings.FixedEV100);
-	}
-	// When !EngineShowFlags.EyeAdaptation (from "r.EyeAdaptationQuality 0") or the feature level doesn't support eye adaptation, only Settings.AutoExposureBias controls exposure.
-	else if (EngineShowFlags.EyeAdaptation && View.GetFeatureLevel() >= MinFeatureLevel)
-	{
-		if (AutoExposureMethod == EAutoExposureMethod::AEM_Manual)
+		// Fixed exposure override in effect.
+		if (View.Family->ExposureSettings.bFixed)
 		{
-			const float FixedEV100 = FMath::Log2(FMath::Square(Settings.DepthOfFieldFstop) * Settings.CameraShutterSpeed * 100 / FMath::Max(1.f, Settings.CameraISO));
-			MinAverageLuminance = MaxAverageLuminance = EV100ToLuminance(FixedEV100);
+			MinAverageLuminance = MaxAverageLuminance = EV100ToLuminance(View.Family->ExposureSettings.FixedEV100);
 		}
-		else if (bExtendedLuminanceRange)
+		// When !EngineShowFlags.EyeAdaptation (from "r.EyeAdaptationQuality 0") or the feature level doesn't support eye adaptation, only Settings.AutoExposureBias controls exposure.
+		else if (EngineShowFlags.EyeAdaptation && View.GetFeatureLevel() >= MinFeatureLevel)
 		{
-			MinAverageLuminance = EV100ToLuminance(Settings.AutoExposureMinBrightness);
-			MaxAverageLuminance = EV100ToLuminance(Settings.AutoExposureMaxBrightness);
+			if (AutoExposureMethod == EAutoExposureMethod::AEM_Manual)
+			{
+				const float FixedEV100 = FMath::Log2(FMath::Square(Settings.DepthOfFieldFstop) * Settings.CameraShutterSpeed * 100 / FMath::Max(1.f, Settings.CameraISO));
+				MinAverageLuminance = MaxAverageLuminance = EV100ToLuminance(FixedEV100);
+			}
+			else if (bExtendedLuminanceRange)
+			{
+				MinAverageLuminance = EV100ToLuminance(Settings.AutoExposureMinBrightness);
+				MaxAverageLuminance = EV100ToLuminance(Settings.AutoExposureMaxBrightness);
+			}
+			else
+			{
+				MinAverageLuminance = Settings.AutoExposureMinBrightness;
+				MaxAverageLuminance = Settings.AutoExposureMaxBrightness;
+			}
 		}
-		else
-		{
-			MinAverageLuminance = Settings.AutoExposureMinBrightness;
-			MaxAverageLuminance = Settings.AutoExposureMaxBrightness;
-		}
+
+		ExposureCompensation = GetAutoExposureCompensation(View);
 	}
 
 	MinAverageLuminance = FMath::Min(MinAverageLuminance, MaxAverageLuminance);
 
 	// This scales the average luminance BEFORE it gets clamped. Note that AEM_Histogram implements the calibration constant through ExposureLowPercent and ExposureHighPercent.
 	const float CalibrationConstant = FMath::Clamp(Settings.AutoExposureCalibrationConstant, 1.0f, 100.0f) * PercentToScale;
-
-	const float ExposureCompensation = GetAutoExposureCompensation(View);
 
 	const float WeightSlope = (AutoExposureMethod == EAutoExposureMethod::AEM_Basic) ? GetBasicAutoExposureFocus() : 0.0f;
 
@@ -322,12 +321,10 @@ IMPLEMENT_GLOBAL_SHADER(FEyeAdaptationCS, "/Engine/Private/PostProcessEyeAdaptat
 
 FRDGTextureRef AddHistogramEyeAdaptationPass(
 	FRDGBuilder& GraphBuilder,
-	const FScreenPassViewInfo& ScreenPassView,
+	const FViewInfo& View,
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
 	FRDGTextureRef HistogramTexture)
 {
-	const FViewInfo& View = ScreenPassView.View;
-
 	View.SwapEyeAdaptationRTs(GraphBuilder.RHICmdList);
 	View.SetValidEyeAdaptation();
 
@@ -337,13 +334,18 @@ FRDGTextureRef AddHistogramEyeAdaptationPass(
 	PassBaseParameters.EyeAdaptation = GetEyeAdaptationParameters(View, ERHIFeatureLevel::SM5);
 	PassBaseParameters.HistogramTexture = HistogramTexture;
 
-	if (ScreenPassView.bUseComputePasses)
+#if WITH_MGPU
+	static const FName NameForTemporalEffect("HistogramEyeAdaptationPass");
+	GraphBuilder.SetNameForTemporalEffect(FName(NameForTemporalEffect, View.ViewState ? View.ViewState->UniqueID : 0));
+#endif
+
+	if (View.bUseComputePasses)
 	{
 		FEyeAdaptationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FEyeAdaptationCS::FParameters>();
 		PassParameters->Base = PassBaseParameters;
 		PassParameters->RWEyeAdaptationTexture = GraphBuilder.CreateUAV(OutputTexture);
 
-		TShaderMapRef<FEyeAdaptationCS> ComputeShader(ScreenPassView.View.ShaderMap);
+		TShaderMapRef<FEyeAdaptationCS> ComputeShader(View.ShaderMap);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
@@ -358,12 +360,12 @@ FRDGTextureRef AddHistogramEyeAdaptationPass(
 		PassParameters->Base = PassBaseParameters;
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ENoAction);
 
-		TShaderMapRef<FEyeAdaptationPS> PixelShader(ScreenPassView.View.ShaderMap);
+		TShaderMapRef<FEyeAdaptationPS> PixelShader(View.ShaderMap);
 
 		AddDrawScreenPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("HistogramEyeAdaptation (PS)"),
-			ScreenPassView,
+			View,
 			FScreenPassTextureViewport(OutputTexture),
 			FScreenPassTextureViewport(HistogramTexture),
 			*PixelShader,
@@ -399,16 +401,15 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FBasicEyeAdaptationSetupPS, "/Engine/Private/PostProcessEyeAdaptation.usf", "BasicEyeAdaptationSetupPS", SF_Pixel);
 
-FRDGTextureRef AddBasicEyeAdaptationSetupPass(
+FScreenPassTexture AddBasicEyeAdaptationSetupPass(
 	FRDGBuilder& GraphBuilder,
-	const FScreenPassViewInfo& ScreenPassView,
+	const FViewInfo& View,
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
-	FRDGTextureRef SceneColorTexture,
-	FIntRect SceneColorViewRect)
+	FScreenPassTexture SceneColor)
 {
-	check(SceneColorTexture);
+	check(SceneColor.IsValid());
 
-	FRDGTextureDesc OutputDesc = SceneColorTexture->Desc;
+	FRDGTextureDesc OutputDesc = SceneColor.Texture->Desc;
 	OutputDesc.Reset();
 	OutputDesc.DebugName = TEXT("EyeAdaptationBasicSetup");
 	// Require alpha channel for log2 information.
@@ -417,26 +418,27 @@ FRDGTextureRef AddBasicEyeAdaptationSetupPass(
 
 	FRDGTextureRef OutputTexture = GraphBuilder.CreateTexture(OutputDesc, TEXT("BasicEyeAdaptationSetup"));
 
-	const FScreenPassTextureViewport Viewport(SceneColorViewRect, OutputTexture);
+	const FScreenPassTextureViewport Viewport(SceneColor);
 
 	FBasicEyeAdaptationSetupPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBasicEyeAdaptationSetupPS::FParameters>();
 	PassParameters->EyeAdaptation = EyeAdaptationParameters;
-	PassParameters->ColorTexture = SceneColorTexture;
+	PassParameters->ColorTexture = SceneColor.Texture;
 	PassParameters->ColorSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, ScreenPassView.GetOverwriteLoadAction());
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, View.GetOverwriteLoadAction());
 
-	TShaderMapRef<FBasicEyeAdaptationSetupPS> PixelShader(ScreenPassView.View.ShaderMap);
+	TShaderMapRef<FBasicEyeAdaptationSetupPS> PixelShader(View.ShaderMap);
 
 	AddDrawScreenPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("BasicEyeAdaptationSetup (PS) %dx%d", Viewport.Rect.Width(), Viewport.Rect.Height()),
-		ScreenPassView,
+		View,
 		Viewport,
 		Viewport,
 		*PixelShader,
-		PassParameters);
+		PassParameters,
+		EScreenPassDrawFlags::AllowHMDHiddenAreaMask);
 
-	return OutputTexture;
+	return FScreenPassTexture(OutputTexture, SceneColor.ViewRect);
 }
 
 class FBasicEyeAdaptationShader : public FGlobalShader
@@ -506,35 +508,37 @@ IMPLEMENT_GLOBAL_SHADER(FBasicEyeAdaptationCS, "/Engine/Private/PostProcessEyeAd
 
 FRDGTextureRef AddBasicEyeAdaptationPass(
 	FRDGBuilder& GraphBuilder,
-	const FScreenPassViewInfo& ScreenPassView,
+	const FViewInfo& View,
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
-	FRDGTextureRef SceneColorTexture,
-	FIntRect SceneColorViewRect,
+	FScreenPassTexture SceneColor,
 	FRDGTextureRef EyeAdaptationTexture)
 {
-	const FViewInfo& View = ScreenPassView.View;
-
 	View.SwapEyeAdaptationRTs(GraphBuilder.RHICmdList);
 	View.SetValidEyeAdaptation();
 
-	const FScreenPassTextureViewport SceneColorViewport(SceneColorViewRect, SceneColorTexture);
+	const FScreenPassTextureViewport SceneColorViewport(SceneColor);
 
 	FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(View.GetEyeAdaptation(GraphBuilder.RHICmdList), TEXT("EyeAdaptation"), ERDGResourceFlags::MultiFrame);
 
 	FBasicEyeAdaptationShader::FParameters PassBaseParameters;
-	PassBaseParameters.View = ScreenPassView.View.ViewUniformBuffer;
+	PassBaseParameters.View = View.ViewUniformBuffer;
 	PassBaseParameters.EyeAdaptation = EyeAdaptationParameters;
 	PassBaseParameters.Color = GetScreenPassTextureViewportParameters(SceneColorViewport);
-	PassBaseParameters.ColorTexture = SceneColorTexture;
+	PassBaseParameters.ColorTexture = SceneColor.Texture;
 	PassBaseParameters.EyeAdaptationTexture = EyeAdaptationTexture;
 
-	if (ScreenPassView.bUseComputePasses)
+#if WITH_MGPU
+	static const FName NameForTemporalEffect("BasicEyeAdaptationPass");
+	GraphBuilder.SetNameForTemporalEffect(FName(NameForTemporalEffect, View.ViewState ? View.ViewState->UniqueID : 0));
+#endif
+
+	if (View.bUseComputePasses)
 	{
 		FBasicEyeAdaptationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBasicEyeAdaptationCS::FParameters>();
 		PassParameters->Base = PassBaseParameters;
 		PassParameters->RWEyeAdaptationTexture = GraphBuilder.CreateUAV(OutputTexture);
 
-		TShaderMapRef<FBasicEyeAdaptationCS> ComputeShader(ScreenPassView.View.ShaderMap);
+		TShaderMapRef<FBasicEyeAdaptationCS> ComputeShader(View.ShaderMap);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
@@ -549,14 +553,14 @@ FRDGTextureRef AddBasicEyeAdaptationPass(
 		PassParameters->Base = PassBaseParameters;
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ENoAction);
 
-		TShaderMapRef<FBasicEyeAdaptationPS> PixelShader(ScreenPassView.View.ShaderMap);
+		TShaderMapRef<FBasicEyeAdaptationPS> PixelShader(View.ShaderMap);
 
 		const FScreenPassTextureViewport OutputViewport(OutputTexture);
 
 		AddDrawScreenPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("BasicEyeAdaptation (PS)"),
-			ScreenPassView,
+			View,
 			OutputViewport,
 			OutputViewport,
 			*PixelShader,
@@ -619,7 +623,7 @@ TRefCountPtr<IPooledRenderTarget>& FSceneViewState::FEyeAdaptationRTManager::Get
 	if (!PooledRenderTarget[BufferNumber].IsValid() && RHICmdList)
 	{
 		// Create the texture needed for EyeAdaptation
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(1, 1), PF_A32B32G32R32F, FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable, false));
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(1, 1), PF_A32B32G32R32F, FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
 		if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5)
 		{
 			Desc.TargetableFlags |= TexCreate_UAV;

@@ -1033,6 +1033,9 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRHIC
 			DistanceFieldSceneData.AtlasGeneration != GDistanceFieldVolumeTextureAtlas.GetGeneration()))
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateObjectData);
+		// Multi-GPU support : Updating on all GPUs may be inefficient for AFR. Work is
+		// wasted for any objects that update on consecutive frames.
+		SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
 		SCOPED_DRAW_EVENT(RHICmdList, UpdateSceneObjectData);
 
 		if (DistanceFieldSceneData.ObjectBuffers[DistanceFieldSceneData.ObjectBufferIndex]==nullptr)

@@ -68,7 +68,7 @@ namespace SteamAudio
 			return false;
 		}
 
-		IPLerror Error = iplLoadFinalizedScene(GlobalContext, SimulationSettings, SceneData.GetData(), SceneData.Num(), ComputeDevice, nullptr, PhononScene);
+		IPLerror Error = iplLoadScene(GlobalContext, SimulationSettings, SceneData.GetData(), SceneData.Num(), ComputeDevice, nullptr, PhononScene);
 		if (Error != IPL_STATUS_SUCCESS)
 		{
 			UE_LOG(LogSteamAudio, Warning, TEXT("Unable to load Phonon scene: error loading file."));
@@ -105,13 +105,15 @@ namespace SteamAudio
 
 #if WITH_EDITOR
 
-	static uint32 LoadBSPGeometry(UWorld* World, IPLhandle PhononScene, TArray<IPLhandle>* PhononStaticMeshes);
-	static uint32 LoadStaticMeshActors(UWorld* World, IPLhandle PhononScene, TArray<IPLhandle>* PhononStaticMeshes);
-	static uint32 LoadLandscapeActors(UWorld* World, IPLhandle PhononScene, TArray<IPLhandle>* PhononStaticMeshes);
+	static void LoadBSPGeometry(UWorld* World, IPLhandle PhononScene, TArray<IPLVector3>& IplVertices, TArray<IPLTriangle>& IplTriangles,
+		TArray<IPLint32>& IplMaterialIndices);
+	static void LoadStaticMeshActors(UWorld* World, IPLhandle PhononScene, TArray<IPLVector3>& IplVertices, TArray<IPLTriangle>& IplTriangles,
+		TArray<IPLint32>& IplMaterialIndices);
+	static void LoadLandscapeActors(UWorld* World, IPLhandle PhononScene, TArray<IPLVector3>& IplVertices, TArray<IPLTriangle>& IplTriangles,
+		TArray<IPLint32>& IplMaterialIndices);
 	static void RegisterStaticMesh(IPLhandle PhononScene, TArray<IPLVector3>& IplVertices, TArray<IPLTriangle>& IplTriangles,
-		TArray<IPLint32>& IplMaterialIndices, TArray<IPLhandle>* PhononStaticMeshes);
-	static void SetCommonSceneMaterials(IPLhandle PhononScene);
-	static uint32 CalculateNumMaterials(UWorld* World);
+		TArray<IPLint32>& IplMaterialIndices, IPLhandle* PhononStaticMesh);
+	static void GetPhononMaterials(UWorld* World, TArray<IPLMaterial>& IplMaterials);
 
 	//==============================================================================================================================================
 	// High level scene export
@@ -120,28 +122,39 @@ namespace SteamAudio
 	/**
 	 * Loads scene geometry, providing handles to the Phonon scene object and Phonon static meshes.
 	 */
-	bool CreateScene(UWorld* World, IPLhandle* PhononScene, TArray<IPLhandle>* PhononStaticMeshes, uint32& NumSceneTriangles)
+	bool CreateScene(UWorld* World, IPLhandle* PhononScene, IPLhandle* PhononStaticMesh, uint32& NumSceneTriangles)
 	{
 		check(World);
 		check(PhononScene);
-		check(PhononStaticMeshes);
+		check(PhononStaticMesh);
 
 		UE_LOG(LogSteamAudio, Log, TEXT("Loading Phonon scene."));
 
 		TPromise<bool> Result;
 
-		AsyncTask(ENamedThreads::GameThread, [World, PhononScene, PhononStaticMeshes, &NumSceneTriangles, &Result]()
+		AsyncTask(ENamedThreads::GameThread, [World, PhononScene, PhononStaticMesh, &NumSceneTriangles, &Result]()
 		{
+			// Setup simulation settings - we really only care about scene type here, but Beta 17 API throws if ambisonics order > max order,
+			// so just zero the struct for now.
 			IPLSimulationSettings SimulationSettings;
-			SimulationSettings.sceneType = IPL_SCENETYPE_PHONON;
-			SimulationSettings.irDuration = GetDefault<USteamAudioSettings>()->IndirectImpulseResponseDuration;
-			SimulationSettings.ambisonicsOrder = GetDefault<USteamAudioSettings>()->IndirectImpulseResponseOrder;
-			SimulationSettings.maxConvolutionSources = 1024; // FIXME
-			SimulationSettings.numBounces = GetDefault<USteamAudioSettings>()->BakedBounces;
-			SimulationSettings.numRays = GetDefault<USteamAudioSettings>()->BakedRays;
-			SimulationSettings.numDiffuseSamples = GetDefault<USteamAudioSettings>()->BakedSecondaryRays;
+			FMemory::Memset(SimulationSettings, 0);
+			SimulationSettings.sceneType = IPLSceneType::IPL_SCENETYPE_PHONON;
 
-			IPLerror IplResult = iplCreateScene(GlobalContext, nullptr, SimulationSettings, CalculateNumMaterials(World), PhononScene);
+			// Setup IPL Material defaults - custom will be unused
+			TArray<IPLMaterial> SceneMaterials;
+			MaterialPresets.GenerateValueArray(SceneMaterials);
+
+			// Add default materials as fixed slots (3)
+			SceneMaterials.Add(GetDefault<USteamAudioSettings>()->GetDefaultStaticMeshMaterial());
+			SceneMaterials.Add(GetDefault<USteamAudioSettings>()->GetDefaultBSPMaterial());
+			SceneMaterials.Add(GetDefault<USteamAudioSettings>()->GetDefaultLandscapeMaterial());
+
+			// Get IPLMaterials in scene
+			GetPhononMaterials(World, SceneMaterials);
+			UE_LOG(LogSteamAudio, Log, TEXT("Loading Phonon scene found [%i] materials."), SceneMaterials.Num());
+
+			IPLerror IplResult = iplCreateScene(GlobalContext, nullptr, SimulationSettings, SceneMaterials.Num(),
+				SceneMaterials.GetData(), nullptr, nullptr, nullptr, nullptr, nullptr, PhononScene);
 			if (IplResult != IPL_STATUS_SUCCESS)
 			{
 				UE_LOG(LogSteamAudio, Warning, TEXT("Error creating Phonon scene."));
@@ -149,20 +162,25 @@ namespace SteamAudio
 				return;
 			}
 
-			NumSceneTriangles = LoadStaticMeshActors(World, *PhononScene, PhononStaticMeshes);
+			TArray<IPLVector3> IplVertices;
+			TArray<IPLTriangle> IplTriangles;
+			TArray<IPLint32> IplMaterialIndices;
+
+			LoadStaticMeshActors(World, *PhononScene, IplVertices, IplTriangles, IplMaterialIndices);
 
 			if (GetDefault<USteamAudioSettings>()->ExportLandscapeGeometry)
 			{
-				NumSceneTriangles += LoadLandscapeActors(World, *PhononScene, PhononStaticMeshes);
+				LoadLandscapeActors(World, *PhononScene, IplVertices, IplTriangles, IplMaterialIndices);
 			}
 
 			if (GetDefault<USteamAudioSettings>()->ExportBSPGeometry)
 			{
-				NumSceneTriangles += LoadBSPGeometry(World, *PhononScene, PhononStaticMeshes);
+				LoadBSPGeometry(World, *PhononScene, IplVertices, IplTriangles, IplMaterialIndices);
 			}
 
-			SetCommonSceneMaterials(*PhononScene);
-			
+			RegisterStaticMesh(*PhononScene, IplVertices, IplTriangles, IplMaterialIndices, PhononStaticMesh);
+			NumSceneTriangles = IplTriangles.Num();
+
 			Result.SetValue(true);
 		});
 
@@ -177,7 +195,7 @@ namespace SteamAudio
 		// Write Phonon Scene data to byte array
 		TArray<uint8> SceneData;
 		SceneData.SetNum(PhononSceneInfo.DataSize);
-		iplSaveFinalizedScene(PhononScene, SceneData.GetData());
+		iplSaveScene(PhononScene, SceneData.GetData());
 
 		// Serialize byte array to disk
 		FString SceneFileName = RuntimePath + World->GetMapName() + ".phononscene";
@@ -224,16 +242,40 @@ namespace SteamAudio
 	{
 		check(World);
 
-		for (TActorIterator<AStaticMeshActor> AStaticMeshItr(World); AStaticMeshItr; ++AStaticMeshItr)
+		for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
 		{
-			if (AStaticMeshItr->GetComponentByClass(UPhononGeometryComponent::StaticClass()))
+			// Check if there's already a phonon geometry component in this actor
+			if (ActorItr->GetComponentByClass(UPhononGeometryComponent::StaticClass()))
 			{
 				continue;
 			}
 
-			auto PhononGeometryComponent = NewObject<UPhononGeometryComponent>(*AStaticMeshItr);
-			PhononGeometryComponent->RegisterComponent();
-			AStaticMeshItr->AddInstanceComponent(PhononGeometryComponent);
+			// Go through any static mesh components found in this actor
+			TArray<UActorComponent*> Components;
+			ActorItr->GetComponents(UStaticMeshComponent::StaticClass(), Components);
+
+			for (auto ActorComp : Components)
+			{
+				if (ActorComp && ActorComp->IsValidLowLevel())
+				{
+					auto* StaticMeshComp = Cast<UStaticMeshComponent>(ActorComp);
+	
+					// Check if this static mesh can affect audio
+					if (StaticMeshComp
+						&& StaticMeshComp->IsValidLowLevelFast()
+						&& StaticMeshComp->Mobility != EComponentMobility::Movable
+						&& StaticMeshComp->GetStaticMesh()
+						&& StaticMeshComp->GetStaticMesh()->HasValidRenderData()
+						&& !StaticMeshComp->IsVisualizationComponent()
+						)
+					{
+						// Add phonon geometry object
+						auto PhononGeometryComponent = NewObject<UPhononGeometryComponent>(*ActorItr);
+						PhononGeometryComponent->RegisterComponent();
+						ActorItr->AddInstanceComponent(PhononGeometryComponent);
+					}
+				}
+			}
 		}
 	}
 
@@ -244,16 +286,15 @@ namespace SteamAudio
 	{
 		check(World);
 
-		for (TActorIterator<AStaticMeshActor> AStaticMeshItr(World); AStaticMeshItr; ++AStaticMeshItr)
+		for (TObjectIterator<UPhononGeometryComponent> PhononGeometryObj; PhononGeometryObj; ++PhononGeometryObj)
 		{
-			auto PhononGeometryComponent = Cast<UPhononGeometryComponent>(
-				AStaticMeshItr->GetComponentByClass(UPhononGeometryComponent::StaticClass()));
-			if (PhononGeometryComponent)
+			if (PhononGeometryObj && PhononGeometryObj->IsValidLowLevel())
 			{
-				PhononGeometryComponent->DestroyComponent();
+				PhononGeometryObj->DestroyComponent();
 			}
 		}
 	}
+
 
 	//==============================================================================================================================================
 	// Static mesh geometry export
@@ -323,19 +364,15 @@ namespace SteamAudio
 	}
 
 	/**
-	 * Loads any static mesh actors, adding any Phonon static meshes to the provided array.
+	 * Loads any static mesh actors.
 	 */
-	static uint32 LoadStaticMeshActors(UWorld* World, IPLhandle PhononScene, TArray<IPLhandle>* PhononStaticMeshes)
+	static void LoadStaticMeshActors(UWorld* World, IPLhandle PhononScene, TArray<IPLVector3>& IplVertices, TArray<IPLTriangle>& IplTriangles,
+		TArray<IPLint32>& IplMaterialIndices)
 	{
 		check(World);
 		check(PhononScene);
-		check(PhononStaticMeshes);
 
 		UE_LOG(LogSteamAudio, Log, TEXT("Loading static mesh actors."));
-
-		TArray<IPLVector3> IplVertices;
-		TArray<IPLTriangle> IplTriangles;
-		TArray<IPLint32> IplMaterialIndices;
 
 		for (TActorIterator<AStaticMeshActor> AStaticMeshItr(World); AStaticMeshItr; ++AStaticMeshItr)
 		{
@@ -365,7 +402,6 @@ namespace SteamAudio
 				if (PhononMaterialComponent)
 				{
 					MaterialIndex = PhononMaterialComponent->MaterialIndex;
-					iplSetSceneMaterial(PhononScene, PhononMaterialComponent->MaterialIndex, PhononMaterialComponent->GetMaterialPreset());
 				}
 				else
 				{
@@ -376,14 +412,10 @@ namespace SteamAudio
 				for (auto i = 0; i < NumMeshTriangles; ++i)
 				{
 					IplMaterialIndices.Add(MaterialIndex);
+					//UE_LOG(LogSteamAudio, Warning, TEXT("Phonon scene Material Index Added [%i]"), MaterialIndex);
 				}
 			}
 		}
-
-		// Register a new static mesh with Phonon
-		RegisterStaticMesh(PhononScene, IplVertices, IplTriangles, IplMaterialIndices, PhononStaticMeshes);
-
-		return IplTriangles.Num();
 	}
 
 	//==============================================================================================================================================
@@ -391,19 +423,18 @@ namespace SteamAudio
 	//==============================================================================================================================================
 
 	/**
-	 * Loads any BSP geometry, adding any Phonon static meshes to the provided array.
+	 * Loads any BSP geometry.
 	 */
-	static uint32 LoadBSPGeometry(UWorld* World, IPLhandle PhononScene, TArray<IPLhandle>* PhononStaticMeshes)
+	static void LoadBSPGeometry(UWorld* World, IPLhandle PhononScene, TArray<IPLVector3>& IplVertices, TArray<IPLTriangle>& IplTriangles,
+		TArray<IPLint32>& IplMaterialIndices)
 	{
 		check(World);
 		check(PhononScene);
-		check(PhononStaticMeshes);
 
 		UE_LOG(LogSteamAudio, Log, TEXT("Loading BSP geometry."));
 
-		TArray<IPLVector3> IplVertices;
-		TArray<IPLTriangle> IplTriangles;
-		TArray<IPLint32> IplMaterialIndices;
+		int32 InitialNumVertices = IplVertices.Num();
+		int32 InitialNumTriangles = IplTriangles.Num();
 
 		// Gather and convert all world vertices to Phonon coords
 		for (auto& WorldVertex : World->GetModel()->Points)
@@ -430,9 +461,9 @@ namespace SteamAudio
 				Index2 = World->GetModel()->Verts[WorldNode.iVertPool + v].pVertex;
 
 				IPLTriangle IplTriangle;
-				IplTriangle.indices[0] = Index0;
-				IplTriangle.indices[1] = Index2;
-				IplTriangle.indices[2] = Index1;
+				IplTriangle.indices[0] = Index0 + InitialNumVertices;
+				IplTriangle.indices[1] = Index2 + InitialNumVertices;
+				IplTriangle.indices[2] = Index1 + InitialNumVertices;
 				IplTriangles.Add(IplTriangle);
 
 				Index1 = Index2;
@@ -441,15 +472,10 @@ namespace SteamAudio
 
 		// The default BSP material is always registered at size(MaterialPresets) + 1
 		auto MaterialIdx = MaterialPresets.Num() + 1;
-		for (auto i = 0; i < IplTriangles.Num(); ++i)
+		for (auto i = InitialNumTriangles; i < IplTriangles.Num(); ++i)
 		{
 			IplMaterialIndices.Add(MaterialIdx);
 		}
-
-		// Register a new static mesh with Phonon
-		RegisterStaticMesh(PhononScene, IplVertices, IplTriangles, IplMaterialIndices, PhononStaticMeshes);
-
-		return IplTriangles.Num();
 	}
 
 	//==============================================================================================================================================
@@ -457,19 +483,17 @@ namespace SteamAudio
 	//==============================================================================================================================================
 
 	/**
-	 * Loads any Landscape actors, adding any Phonon static meshes to the provided array.
+	 * Loads any Landscape actors.
 	 */
-	static uint32 LoadLandscapeActors(UWorld* World, IPLhandle PhononScene, TArray<IPLhandle>* PhononStaticMeshes)
+	static void LoadLandscapeActors(UWorld* World, IPLhandle PhononScene, TArray<IPLVector3>& IplVertices, TArray<IPLTriangle>& IplTriangles,
+		TArray<IPLint32>& IplMaterialIndices)
 	{
 		check(World);
 		check(PhononScene);
-		check(PhononStaticMeshes);
 
 		UE_LOG(LogSteamAudio, Log, TEXT("Loading landscape actors."));
 
-		TArray<IPLVector3> IplVertices;
-		TArray<IPLTriangle> IplTriangles;
-		TArray<IPLint32> IplMaterialIndices;
+		int32 InitialNumTriangles = IplTriangles.Num();
 
 		for (TActorIterator<ALandscape> ALandscapeItr(World); ALandscapeItr; ++ALandscapeItr)
 		{
@@ -509,15 +533,10 @@ namespace SteamAudio
 
 		// The default landscape material is always registered at size(MaterialPresets) + 2
 		auto MaterialIdx = MaterialPresets.Num() + 2;
-		for (auto i = 0; i < IplTriangles.Num(); ++i)
+		for (auto i = InitialNumTriangles; i < IplTriangles.Num(); ++i)
 		{
 			IplMaterialIndices.Add(MaterialIdx);
 		}
-
-		// Register a new static mesh with Phonon
-		RegisterStaticMesh(PhononScene, IplVertices, IplTriangles, IplMaterialIndices, PhononStaticMeshes);
-
-		return IplTriangles.Num();
 	}
 
 	//==============================================================================================================================================
@@ -525,27 +544,22 @@ namespace SteamAudio
 	//==============================================================================================================================================
 
 	/**
-	 * Registers a new static mesh with Phonon, adding its handle to the provided array of static meshes.
+	 * Registers a new static mesh with Phonon.
 	 */
 	static void RegisterStaticMesh(IPLhandle PhononScene, TArray<IPLVector3>& IplVertices, TArray<IPLTriangle>& IplTriangles,
-		TArray<IPLint32>& IplMaterialIndices, TArray<IPLhandle>* PhononStaticMeshes)
+		TArray<IPLint32>& IplMaterialIndices, IPLhandle* PhononStaticMesh)
 	{
 		if (IplVertices.Num() > 0)
 		{
 			UE_LOG(LogSteamAudio, Log, TEXT("Registering new mesh with %d triangles."), IplTriangles.Num());
 
-			IPLhandle IplStaticMesh = nullptr;
-			auto IplResult = iplCreateStaticMesh(PhononScene, IplVertices.Num(), IplTriangles.Num(), &IplStaticMesh);
+			auto IplResult = iplCreateStaticMesh(PhononScene, IplVertices.Num(), IplTriangles.Num(), IplVertices.GetData(), IplTriangles.GetData(),
+				IplMaterialIndices.GetData(), PhononStaticMesh);
 			if (IplResult != IPL_STATUS_SUCCESS)
 			{
-				UE_LOG(LogSteamAudio, Warning, TEXT("Error adding a new object to the acoustic scene."));
+				UE_LOG(LogSteamAudio, Warning, TEXT("Error adding a new object to the Phonon scene."));
 				return;
 			}
-
-			iplSetStaticMeshMaterials(PhononScene, IplStaticMesh, IplMaterialIndices.GetData());
-			iplSetStaticMeshVertices(PhononScene, IplStaticMesh, IplVertices.GetData());
-			iplSetStaticMeshTriangles(PhononScene, IplStaticMesh, IplTriangles.GetData());
-			PhononStaticMeshes->Add(IplStaticMesh);
 		}
 		else
 		{
@@ -556,7 +570,7 @@ namespace SteamAudio
 	/**
 	 * Calculates the total number of materials that must be registered with Phonon. This includes presets and any custom materials.
 	 */
-	static uint32 CalculateNumMaterials(UWorld* World)
+	static void GetPhononMaterials(UWorld* World, TArray<IPLMaterial>& IPLMaterials)
 	{
 		check(World);
 
@@ -569,9 +583,19 @@ namespace SteamAudio
 				AActorItr->GetComponentByClass(UPhononMaterialComponent::StaticClass()));
 			if (PhononMaterialComponent)
 			{
+
 				if (PhononMaterialComponent->MaterialPreset == EPhononMaterial::CUSTOM)
 				{
 					PhononMaterialComponent->MaterialIndex = NumMaterials++;
+					IPLMaterials.Add(PhononMaterialComponent->GetMaterialPreset());
+					UE_LOG(LogSteamAudio, Log, TEXT("Custom Material [%i] added with Absorption[%f][%f][%f] Transmission[%f][%f][%f]"), 
+						PhononMaterialComponent->MaterialIndex,
+						PhononMaterialComponent->GetMaterialPreset().lowFreqAbsorption,
+						PhononMaterialComponent->GetMaterialPreset().midFreqAbsorption,
+						PhononMaterialComponent->GetMaterialPreset().highFreqAbsorption,
+						PhononMaterialComponent->GetMaterialPreset().lowFreqTransmission,
+						PhononMaterialComponent->GetMaterialPreset().midFreqTransmission,
+						PhononMaterialComponent->GetMaterialPreset().highFreqTransmission);
 				}
 				else
 				{
@@ -579,25 +603,6 @@ namespace SteamAudio
 				}
 			}
 		}
-
-		return NumMaterials;
-	}
-
-	/**
-	 * Registers any presets and default materials for static mesh actors, BSP geometry, and landscape actors.
-	 */
-	static void SetCommonSceneMaterials(IPLhandle PhononScene)
-	{
-		check(PhononScene);
-
-		for (const auto& Preset : MaterialPresets)
-		{
-			iplSetSceneMaterial(PhononScene, static_cast<int32>(Preset.Key), Preset.Value);
-		}
-
-		iplSetSceneMaterial(PhononScene, MaterialPresets.Num(), GetDefault<USteamAudioSettings>()->GetDefaultStaticMeshMaterial());
-		iplSetSceneMaterial(PhononScene, MaterialPresets.Num() + 1, GetDefault<USteamAudioSettings>()->GetDefaultBSPMaterial());
-		iplSetSceneMaterial(PhononScene, MaterialPresets.Num() + 2, GetDefault<USteamAudioSettings>()->GetDefaultLandscapeMaterial());
 	}
 
 #endif // WITH_EDITOR

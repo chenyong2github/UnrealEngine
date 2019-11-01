@@ -25,7 +25,7 @@ FArchive& FDataprepParameterizationWriter::operator<<(FName& Value)
 FArchive& FDataprepParameterizationWriter::operator<<(UObject*& Value)
 {
 	FString Path;
-	if ( Value )
+	if ( Value && Value->IsValidLowLevelFast() )
 	{
 		if ( UObject* Outer = Value->GetOuter() )
 		{

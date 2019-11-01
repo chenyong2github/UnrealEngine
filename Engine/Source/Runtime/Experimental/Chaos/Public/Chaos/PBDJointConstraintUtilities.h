@@ -44,18 +44,21 @@ namespace Chaos
 			const T MinRatio);
 
 		static CHAOS_API void GetConditionedInverseMass(
-			const TPBDRigidParticleHandle<T, d>* PParent, 
-			const TPBDRigidParticleHandle<T, d>* PChild, 
-			T& OutInvMParent, 
-			T& OutInvMChild, 
-			PMatrix<T, d, d>& OutInvIParent, 
-			PMatrix<T, d, d>& OutInvIChild, 
-			const T MinParentMassRatio, 
+			const float MParent,
+			const TVector<T, d> IParent,
+			const float MChild,
+			const TVector<T, d> IChild,
+			T& OutInvMParent,
+			T& OutInvMChild,
+			PMatrix<T, d, d>& OutInvIParent,
+			PMatrix<T, d, d>& OutInvIChild,
+			const T MinParentMassRatio,
 			const T MaxInertiaRatio);
 
 		static CHAOS_API void GetConditionedInverseMass(
-			const TPBDRigidParticleHandle<T, d>* P0, 
-			T& OutInvM0, 
+			const float M,
+			const TVector<T, d> I,
+			T& OutInvM0,
 			PMatrix<T, d, d>& OutInvI0, 
 			const T MaxInertiaRatio);
 
@@ -104,6 +107,25 @@ namespace Chaos
 			float InvM1,
 			const PMatrix<T, d, d>& InvIL1);
 
+		static CHAOS_API void ApplyJointVelocityConstraint(
+			const T Dt,
+			const TPBDJointSolverSettings<T, d>& SolverSettings,
+			const TPBDJointSettings<T, d>& JointSettings,
+			const int32 Index0,
+			const int32 Index1,
+			TVector<T, d>& P0,
+			TRotation<T, d>& Q0,
+			TVector<T, d>& V0,
+			TVector<T, d>& W0,
+			TVector<T, d>& P1,
+			TRotation<T, d>& Q1,
+			TVector<T, d>& V1,
+			TVector<T, d>& W1,
+			float InvM0,
+			const PMatrix<T, d, d>& InvIL0,
+			float InvM1,
+			const PMatrix<T, d, d>& InvIL1);
+
 		static CHAOS_API void ApplyJointTwistConstraint(
 			const T Dt,
 			const TPBDJointSolverSettings<T, d>& SolverSettings,
@@ -114,6 +136,25 @@ namespace Chaos
 			TRotation<T, d>& Q0,
 			TVector<T, d>& P1,
 			TRotation<T, d>& Q1,
+			float InvM0,
+			const PMatrix<T, d, d>& InvIL0,
+			float InvM1,
+			const PMatrix<T, d, d>& InvIL1);
+
+		static CHAOS_API void ApplyJointTwistVelocityConstraint(
+			const T Dt,
+			const TPBDJointSolverSettings<T, d>& SolverSettings,
+			const TPBDJointSettings<T, d>& JointSettings,
+			const int32 Index0,
+			const int32 Index1,
+			TVector<T, d>& P0,
+			TRotation<T, d>& Q0,
+			TVector<T, d>& V0,
+			TVector<T, d>& W0,
+			TVector<T, d>& P1,
+			TRotation<T, d>& Q1,
+			TVector<T, d>& V1,
+			TVector<T, d>& W1,
 			float InvM0,
 			const PMatrix<T, d, d>& InvIL0,
 			float InvM1,
@@ -134,17 +175,58 @@ namespace Chaos
 			float InvM1,
 			const PMatrix<T, d, d>& InvIL1);
 
+		static CHAOS_API void ApplyJointConeVelocityConstraint(
+			const T Dt,
+			const TPBDJointSolverSettings<T, d>& SolverSettings,
+			const TPBDJointSettings<T, d>& JointSettings,
+			const int32 Index0,
+			const int32 Index1,
+			TVector<T, d>& P0,
+			TRotation<T, d>& Q0,
+			TVector<T, d>& V0,
+			TVector<T, d>& W0,
+			TVector<T, d>& P1,
+			TRotation<T, d>& Q1,
+			TVector<T, d>& V1,
+			TVector<T, d>& W1,
+			float InvM0,
+			const PMatrix<T, d, d>& InvIL0,
+			float InvM1,
+			const PMatrix<T, d, d>& InvIL1);
+
 		static CHAOS_API void ApplyJointSwingConstraint(
 			const T Dt,
 			const TPBDJointSolverSettings<T, d>& SolverSettings,
 			const TPBDJointSettings<T, d>& JointSettings,
 			const int32 Index0,
 			const int32 Index1,
-			const EJointAngularConstraintIndex SwingConstraint,
+			const EJointAngularConstraintIndex SwingConstraintIndex,
+			const EJointAngularAxisIndex SwingAxisIndex,
 			TVector<T, d>& P0,
 			TRotation<T, d>& Q0,
 			TVector<T, d>& P1,
 			TRotation<T, d>& Q1,
+			float InvM0,
+			const PMatrix<T, d, d>& InvIL0,
+			float InvM1,
+			const PMatrix<T, d, d>& InvIL1);
+
+		static CHAOS_API void ApplyJointSwingVelocityConstraint(
+			const T Dt,
+			const TPBDJointSolverSettings<T, d>& SolverSettings,
+			const TPBDJointSettings<T, d>& JointSettings,
+			const int32 Index0,
+			const int32 Index1,
+			const EJointAngularConstraintIndex SwingConstraintIndex,
+			const EJointAngularAxisIndex SwingAxisIndex,
+			TVector<T, d>& P0,
+			TRotation<T, d>& Q0,
+			TVector<T, d>& V0,
+			TVector<T, d>& W0,
+			TVector<T, d>& P1,
+			TRotation<T, d>& Q1,
+			TVector<T, d>& V1,
+			TVector<T, d>& W1,
 			float InvM0,
 			const PMatrix<T, d, d>& InvIL0,
 			float InvM1,
@@ -194,5 +276,71 @@ namespace Chaos
 			const PMatrix<T, d, d>& InvIL0,
 			float InvM1,
 			const PMatrix<T, d, d>& InvIL1);
+
+		static CHAOS_API void ApplyJointPositionProjection(
+			const T Dt,
+			const TPBDJointSolverSettings<T, d>& SolverSettings,
+			const TPBDJointSettings<T, d>& JointSettings,
+			const int32 Index0,
+			const int32 Index1,
+			TVector<T, d>& P0,
+			TRotation<T, d>& Q0,
+			TVector<T, d>& P1,
+			TRotation<T, d>& Q1,
+			float InvM0,
+			const PMatrix<T, d, d>& InvIL0,
+			float InvM1,
+			const PMatrix<T, d, d>& InvIL1,
+			const T ProjectionFactor);
+
+		static CHAOS_API void ApplyJointTwistProjection(
+			const T Dt,
+			const TPBDJointSolverSettings<T, d>& SolverSettings,
+			const TPBDJointSettings<T, d>& JointSettings,
+			const int32 Index0,
+			const int32 Index1,
+			TVector<T, d>& P0,
+			TRotation<T, d>& Q0,
+			TVector<T, d>& P1,
+			TRotation<T, d>& Q1,
+			float InvM0,
+			const PMatrix<T, d, d>& InvIL0,
+			float InvM1,
+			const PMatrix<T, d, d>& InvIL1,
+			const T ProjectionFactor);
+
+		static CHAOS_API void ApplyJointConeProjection(
+			const T Dt,
+			const TPBDJointSolverSettings<T, d>& SolverSettings,
+			const TPBDJointSettings<T, d>& JointSettings,
+			const int32 Index0,
+			const int32 Index1,
+			TVector<T, d>& P0,
+			TRotation<T, d>& Q0,
+			TVector<T, d>& P1,
+			TRotation<T, d>& Q1,
+			float InvM0,
+			const PMatrix<T, d, d>& InvIL0,
+			float InvM1,
+			const PMatrix<T, d, d>& InvIL1,
+			const T ProjectionFactor);
+
+		static CHAOS_API void ApplyJointSwingProjection(
+			const T Dt,
+			const TPBDJointSolverSettings<T, d>& SolverSettings,
+			const TPBDJointSettings<T, d>& JointSettings,
+			const int32 Index0,
+			const int32 Index1,
+			const EJointAngularConstraintIndex SwingConstraint,
+			TVector<T, d>& P0,
+			TRotation<T, d>& Q0,
+			TVector<T, d>& P1,
+			TRotation<T, d>& Q1,
+			float InvM0,
+			const PMatrix<T, d, d>& InvIL0,
+			float InvM1,
+			const PMatrix<T, d, d>& InvIL1,
+			const T ProjectionFactor);
+
 	};
 }

@@ -473,14 +473,7 @@ IMemoryReadStreamRef FFileCacheHandle::ReadData(FGraphEventArray& OutCompletionE
 		LineToRequest.SetNum(TotalNumSlots, false);
 	}
 
-	int32 NumSlotsNeeded = 0;
-	for (CacheLineID LineID = StartLine; LineID.Get() <= EndLine.Get(); ++LineID)
-	{
-		if (LineID.Get() >= NumSlots || !LineToSlot[LineID.Get()].IsValid())
-		{
-			++NumSlotsNeeded;
-		}
-	}
+	int32 NumSlotsNeeded = EndLine.Get() + 1 - StartLine.Get();
 
 	FFileCache& Cache = GetCache();
 

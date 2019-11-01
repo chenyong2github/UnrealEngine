@@ -13,7 +13,6 @@
 
 UDatasmithVREDImportOptions::UDatasmithVREDImportOptions(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, bMergeNodes(false)
 	, bOptimizeDuplicatedNodes(false)
 	, bImportMats(true)
 	, bImportVar(true)
@@ -21,7 +20,6 @@ UDatasmithVREDImportOptions::UDatasmithVREDImportOptions(const FObjectInitialize
 	, bImportLightInfo(true)
 	, bImportClipInfo(true)
 {
-	bGenerateLightmapUVs = false;
 }
 
 namespace VREDImportOptionsImpl
@@ -88,7 +86,6 @@ void UDatasmithVREDImportOptions::FromSceneImportData(UDatasmithFBXSceneImportDa
 
 	if (UDatasmithVREDSceneImportData* VREDImportData = Cast<UDatasmithVREDSceneImportData>(InImportData))
 	{
-		bMergeNodes					= VREDImportData->bMergeNodes;
 		bOptimizeDuplicatedNodes	= VREDImportData->bOptimizeDuplicatedNodes;
 		bImportMats					= VREDImportData->bImportMats;
 		MatsPath.FilePath			= VREDImportData->MatsPath;
@@ -108,7 +105,6 @@ void UDatasmithVREDImportOptions::ToSceneImportData(UDatasmithFBXSceneImportData
 
 	if (UDatasmithVREDSceneImportData* VREDImportData = Cast<UDatasmithVREDSceneImportData>(OutImportData))
 	{
-		VREDImportData->bMergeNodes					= bMergeNodes;
 		VREDImportData->bOptimizeDuplicatedNodes	= bOptimizeDuplicatedNodes;
 		VREDImportData->bImportMats					= bImportMats;
 		VREDImportData->MatsPath					= MatsPath.FilePath;

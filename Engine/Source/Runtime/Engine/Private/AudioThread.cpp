@@ -557,11 +557,11 @@ void FAudioCommandFence::Wait(bool bProcessGameThreadTasks) const
 					double LongestTaskTimeMs;
 					FAudioThread::GetLongestTaskInfo(LongestTask, LongestTaskTimeMs);
 
-					UE_LOG(LogAudio, Warning, TEXT("Waited %.2f ms for audio thread. (Current Task: %s, Longest task: %s %.2f ms)"), ThisTime * 1000.0f, *CurrentTask, *LongestTask, LongestTaskTimeMs);
+					UE_LOG(LogAudio, Display, TEXT("Waited %.2f ms for audio thread. (Current Task: %s, Longest task: %s %.2f ms)"), ThisTime * 1000.0f, *CurrentTask, *LongestTask, LongestTaskTimeMs);
 				}
 				else
 				{
-					UE_LOG(LogAudio, Warning,  TEXT("Waited %f ms for audio thread."), ThisTime * 1000.0f);
+					UE_LOG(LogAudio, Display,  TEXT("Waited %f ms for audio thread."), ThisTime * 1000.0f);
 				}
 			}
 		} while (!bDone);

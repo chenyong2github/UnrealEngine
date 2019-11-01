@@ -1284,7 +1284,6 @@ void FReflectionCaptureProxy::SetTransform(const FMatrix& InTransform)
 
 void FReflectionCaptureProxy::UpdateMobileUniformBuffer()
 {
-	float InvBrightness = FMath::Max(FMath::Min(1.0f / EncodedHDRAverageBrightness, 65504.f), -65504.f);
 	FTexture* CaptureTexture = GBlackTextureCube;
 	if (EncodedHDRCubemap)
 	{
@@ -1293,7 +1292,8 @@ void FReflectionCaptureProxy::UpdateMobileUniformBuffer()
 	}
 		
 	FMobileReflectionCaptureShaderParameters Parameters;
-	Parameters.Params = FVector4(InvBrightness, 0.f, 0.f, 0.f);
+	//To keep ImageBasedReflectionLighting coherence with PC, use AverageBrightness instead of InvAverageBrightness to calculate the IBL contribution
+	Parameters.Params = FVector4(EncodedHDRAverageBrightness, 0.f, 0.f, 0.f);
 	Parameters.Texture = CaptureTexture->TextureRHI;
 	Parameters.TextureSampler = CaptureTexture->SamplerStateRHI;
 

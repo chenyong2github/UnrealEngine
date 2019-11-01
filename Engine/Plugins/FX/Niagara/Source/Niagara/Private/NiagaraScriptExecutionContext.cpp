@@ -49,15 +49,14 @@ bool FNiagaraScriptExecutionContext::Init(UNiagaraScript* InScript, ENiagaraSimT
 
 bool FNiagaraScriptExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemInstance, ENiagaraSimTarget SimTarget)
 {
-	SCOPE_CYCLE_COUNTER(STAT_NiagaraScriptExecContextTick);
-
-	if (Script && Script->IsReadyToRun(ENiagaraSimTarget::CPUSim))//TODO: Remove. Script can only be null for system instances that currently don't have their script exec context set up correctly.
+	//Bind data interfaces if needed.
+	if (Parameters.GetInterfacesDirty())
 	{
-		const TArray<UNiagaraDataInterface*>& DataInterfaces = GetDataInterfaces();
-		
-		//Bind data interfaces if needed.
-		if (Parameters.GetInterfacesDirty())
+		SCOPE_CYCLE_COUNTER(STAT_NiagaraScriptExecContextTick);
+		if (Script && Script->IsReadyToRun(ENiagaraSimTarget::CPUSim))//TODO: Remove. Script can only be null for system instances that currently don't have their script exec context set up correctly.
 		{
+			const TArray<UNiagaraDataInterface*>& DataInterfaces = GetDataInterfaces();
+
 			SCOPE_CYCLE_COUNTER(STAT_NiagaraRebindDataInterfaceFunctionTable);
 			// UE_LOG(LogNiagara, Log, TEXT("Updating data interfaces for script %s"), *Script->GetFullName());
 
@@ -149,16 +148,29 @@ void FNiagaraScriptExecutionContext::PostTick()
 
 void FNiagaraScriptExecutionContext::BindData(int32 Index, FNiagaraDataSet& DataSet, int32 StartInstance, bool bUpdateInstanceCounts)
 {
+	FNiagaraDataBuffer* Input = DataSet.GetCurrentData();
+	FNiagaraDataBuffer* Output = DataSet.GetDestinationData();
+
 	DataSetInfo.SetNum(FMath::Max(DataSetInfo.Num(), Index + 1));
-	
-	DataSetInfo[Index].Init(&DataSet, DataSet.GetCurrentData(), DataSet.GetDestinationData(), StartInstance, bUpdateInstanceCounts);
+	DataSetInfo[Index].Init(&DataSet, Input, Output, StartInstance, bUpdateInstanceCounts);
+
+	//Would be nice to roll this and DataSetInfo into one but currently the VM being in it's own Engine module prevents this. Possibly should move the VM into Niagara itself.
+	uint8** InputRegisters = Input ? Input->GetRegisterTable().GetData() : nullptr;
+	uint8** OutputRegisters = Output ? Output->GetRegisterTable().GetData() : nullptr;
+	DataSetMetaTable.SetNum(FMath::Max(DataSetMetaTable.Num(), Index + 1));
+	DataSetMetaTable[Index].Init(InputRegisters, OutputRegisters, StartInstance,
+		Output ? &Output->GetIDTable() : nullptr, &DataSet.GetFreeIDTable(), &DataSet.GetNumFreeIDs(), &DataSet.GetMaxUsedID(), DataSet.GetIDAcquireTag());
 }
 
-void FNiagaraScriptExecutionContext::BindData(int32 Index, FNiagaraDataBuffer* Input, FNiagaraDataBuffer* Output, int32 StartInstance, bool bUpdateInstanceCounts)
+void FNiagaraScriptExecutionContext::BindData(int32 Index, FNiagaraDataBuffer* Input, int32 StartInstance, bool bUpdateInstanceCounts)
 {
+	check(Input && Input->GetOwner());
 	DataSetInfo.SetNum(FMath::Max(DataSetInfo.Num(), Index + 1));
-	check(Input || Output);
-	DataSetInfo[Index].Init(Input ? Input->GetOwner() : Output->GetOwner(), Input, Output, StartInstance, bUpdateInstanceCounts);
+	FNiagaraDataSet* DataSet = Input->GetOwner();
+	DataSetInfo[Index].Init(DataSet, Input, nullptr, StartInstance, bUpdateInstanceCounts);
+
+	DataSetMetaTable.SetNum(FMath::Max(DataSetMetaTable.Num(), Index + 1));
+	DataSetMetaTable[Index].Init(Input->GetRegisterTable().GetData(), nullptr, StartInstance, nullptr, nullptr, &DataSet->GetNumFreeIDs(), &DataSet->GetMaxUsedID(), DataSet->GetIDAcquireTag());
 }
 
 bool FNiagaraScriptExecutionContext::Execute(uint32 NumInstances)
@@ -171,56 +183,12 @@ bool FNiagaraScriptExecutionContext::Execute(uint32 NumInstances)
 
 	++TickCounter;//Should this be per execution?
 
-	FNiagaraRegisterTable InputRegisters;
-	FNiagaraRegisterTable OutputRegisters;
-
-	DataSetMetaTable.Reset();
-
-	bool bError = false;
-	{
-		SCOPE_CYCLE_COUNTER(STAT_NiagaraSimRegisterSetup);
-		for (FNiagaraDataSetExecutionInfo& Info : DataSetInfo)
-		{
-			FNiagaraDataBuffer* DestinationData = Info.DataSet->GetDestinationData();
-#if NIAGARA_NAN_CHECKING
-			DataSetInfo.DataSet->CheckForNaNs();
-#endif
-			check(Info.DataSet);
-			int32 NumInputRegisters = InputRegisters.Num();
-			DataSetMetaTable.Emplace(NumInputRegisters, Info.StartInstance,
-				DestinationData ? &DestinationData->GetIDTable() : nullptr, &Info.DataSet->GetFreeIDTable(), &Info.DataSet->GetNumFreeIDs(), &Info.DataSet->GetMaxUsedID(), Info.DataSet->GetIDAcquireTag());
-
-			int32 TotalComponents = Info.DataSet->GetNumFloatComponents() + Info.DataSet->GetNumInt32Components();
-			if (Info.Input && Info.Input->GetNumInstances() > 0)
-			{
-				Info.Input->AppendToRegisterTable(InputRegisters, Info.StartInstance);
-			}
-			else
-			{
-				Info.DataSet->GetCurrentDataChecked().ClearRegisterTable(InputRegisters);
-			}
-
-			if (Info.Output)
-			{
-				Info.Output->AppendToRegisterTable(OutputRegisters, Info.StartInstance);
-			}
-			else
-			{
-				Info.DataSet->GetCurrentDataChecked().ClearRegisterTable(OutputRegisters);
-			}
-		}
-	}
-
-	if (GbExecVMScripts != 0 && !bError)
+	if (GbExecVMScripts != 0)
 	{
 		const FNiagaraVMExecutableData& ExecData = Script->GetVMExecutableData();
 		VectorVM::Exec(
 			ExecData.ByteCode.GetData(),
 			ExecData.NumTempRegisters,
-			InputRegisters.GetData(),
-			InputRegisters.Num(),
-			OutputRegisters.GetData(),
-			OutputRegisters.Num(),
 			Parameters.GetParameterDataArray().GetData(),
 			DataSetMetaTable,
 			FunctionTable.GetData(),
@@ -247,7 +215,12 @@ bool FNiagaraScriptExecutionContext::Execute(uint32 NumInstances)
 		}
 	}
 
-	DataSetInfo.Reset();
+	//Can maybe do without resetting here. Just doing it for tidiness.
+	for (int32 DataSetIdx = 0; DataSetIdx < DataSetInfo.Num(); ++DataSetIdx)
+	{
+		DataSetInfo[DataSetIdx].Reset();
+		DataSetMetaTable[DataSetIdx].Reset();
+	}
 
 	return true;//TODO: Error cases?
 }

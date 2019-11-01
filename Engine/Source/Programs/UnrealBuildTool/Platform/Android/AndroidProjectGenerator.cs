@@ -422,7 +422,6 @@ namespace UnrealBuildTool
 								"	<PropertyGroup Label=\"UserMacros\">" + ProjectFileGenerator.NewLine +
 								"		<ANDROID_HOME>" + vsAndroidSDKPath + "</ANDROID_HOME>" + ProjectFileGenerator.NewLine +
 								"		<JAVA_HOME>$(VS_JavaHome)</JAVA_HOME>" + ProjectFileGenerator.NewLine +
-								"		<ANT_HOME>$(VS_AntHome)</ANT_HOME>" + ProjectFileGenerator.NewLine +
 								"		<NDKROOT>$(VS_NdkRoot)</NDKROOT>" + ProjectFileGenerator.NewLine +
 								"	</PropertyGroup>" + ProjectFileGenerator.NewLine +
 								"	<PropertyGroup />" + ProjectFileGenerator.NewLine +
@@ -434,10 +433,6 @@ namespace UnrealBuildTool
 								"		</BuildMacro>" + ProjectFileGenerator.NewLine +
 								"		<BuildMacro Include=\"JAVA_HOME\">" + ProjectFileGenerator.NewLine +
 								"			<Value>$(JAVA_HOME)</Value>" + ProjectFileGenerator.NewLine +
-								"			<EnvironmentVariable>true</EnvironmentVariable>" + ProjectFileGenerator.NewLine +
-								"		</BuildMacro>" + ProjectFileGenerator.NewLine +
-								"		<BuildMacro Include=\"ANT_HOME\">" + ProjectFileGenerator.NewLine +
-								"			<Value>$(ANT_HOME)</Value>" + ProjectFileGenerator.NewLine +
 								"			<EnvironmentVariable>true</EnvironmentVariable>" + ProjectFileGenerator.NewLine +
 								"		</BuildMacro>" + ProjectFileGenerator.NewLine +
 								"		<BuildMacro Include=\"NDKROOT\">" + ProjectFileGenerator.NewLine +

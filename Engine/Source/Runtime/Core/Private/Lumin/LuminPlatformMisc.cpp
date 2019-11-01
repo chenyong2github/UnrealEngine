@@ -17,8 +17,9 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
-#include <ml_lifecycle.h>
-#include <ml_logging.h>
+#include "Lumin/CAPIShims/LuminAPILifecycle.h"
+#include "Lumin/CAPIShims/LuminAPILogging.h"
+#include "Lumin/CAPIShims/LuminAPILocale.h"
 
 // @todo Lumin: this is super gross - but HMD plugin had it hardcoded as well
 static int32 GBuiltinDisplayWidth = 2560;
@@ -278,6 +279,39 @@ const FString& FLuminPlatformMisc::GetApplicationComponentName()
 	return ComponentName;
 }
 
+FString FLuminPlatformMisc::GetDefaultLocale()
+{
+	const char* CountryCode = nullptr;
+	MLResult Result = MLLocaleGetSystemCountry(&CountryCode);
+	if (Result != MLResult_Ok)
+	{
+		UE_LOG(LogLumin, Error, TEXT("MLLocaleGetSystemCountry failed with error '%s'"), UTF8_TO_TCHAR(MLGetResultString(Result)));
+		return FString();
+	}
+	
+	return UTF8_TO_TCHAR(CountryCode);
+}
+
+FString FLuminPlatformMisc::GetDefaultLanguage()
+{
+	const char* LanguageCode = nullptr;
+	MLResult Result = MLLocaleGetSystemLanguage(&LanguageCode);
+	if (Result != MLResult_Ok)
+	{
+		UE_LOG(LogLumin, Error, TEXT("MLLocaleGetSystemLanguage failed with error '%s'"), UTF8_TO_TCHAR(MLGetResultString(Result)));
+		return FString();
+	}
+
+	FString DefaultLanguage = UTF8_TO_TCHAR(LanguageCode);
+	FString DefaultCountryCode = GetDefaultLocale();
+	if (DefaultLanguage != DefaultCountryCode)
+	{
+		DefaultCountryCode.ToUpperInline();
+		DefaultLanguage = FString::Printf(TEXT("%s-%s"), *DefaultLanguage, *DefaultCountryCode);
+	}
+	
+	return DefaultLanguage;
+}
 
 void FLuminPlatformMisc::InitApplicationPaths()
 {

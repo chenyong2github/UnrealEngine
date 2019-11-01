@@ -12,6 +12,7 @@
 #include "Components/BillboardComponent.h"
 #include "UObject/FrameworkObjectVersion.h"
 #include "Misc/App.h"
+#include "Kismet/GameplayStatics.h"
 
 DECLARE_CYCLE_STAT(TEXT("AudioComponent Play"), STAT_AudioComp_Play, STATGROUP_Audio);
 
@@ -20,6 +21,14 @@ FAutoConsoleVariableRef CVarBackedAnalysisTimeShift(
 	TEXT("au.AnalysisTimeShift"),
 	BakedAnalysisTimeShiftCVar,
 	TEXT("Shifts the timeline for baked analysis playback.\n")
+	TEXT("Value: The time in seconds to shift the timeline."),
+	ECVF_Default);
+
+static int32 PrimeSoundOnAudioComponentSpawnCVar = 0;
+FAutoConsoleVariableRef CVarPrimeSoundOnAudioComponentSpawn(
+	TEXT("au.streamcaching.PrimeSoundOnAudioComponents"),
+	PrimeSoundOnAudioComponentSpawnCVar,
+	TEXT("When set to 1, automatically primes a USoundBase when a UAudioComponent is spawned with that sound, or when UAudioComponent::SetSound is called.\n")
 	TEXT("Value: The time in seconds to shift the timeline."),
 	ECVF_Default);
 
@@ -169,6 +178,11 @@ void UAudioComponent::PostLoad()
 	}
 #endif
 
+	if (PrimeSoundOnAudioComponentSpawnCVar && Sound)
+	{
+		UGameplayStatics::PrimeSound(Sound);
+	}
+
 	Super::PostLoad();
 }
 
@@ -253,6 +267,11 @@ void UAudioComponent::SetSound(USoundBase* NewSound)
 	bAutoDestroy = bWasAutoDestroy;
 
 	Sound = NewSound;
+
+	if (PrimeSoundOnAudioComponentSpawnCVar && Sound)
+	{
+		UGameplayStatics::PrimeSound(Sound);
+	}
 
 	if (bPlay)
 	{

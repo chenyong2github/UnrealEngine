@@ -2,7 +2,7 @@
 
 #include "FunctionLoader.h"
 
-#include "FunctionGenerator.H"
+#include "FunctionGenerator.h"
 #include "common/Utility.h"
 
 #include "AssetRegistryModule.h"

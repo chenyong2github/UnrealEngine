@@ -3,7 +3,6 @@
 #include "ViewModels/Stack/NiagaraStackFunctionInput.h"
 #include "ViewModels/Stack/NiagaraStackFunctionInputCollection.h"
 #include "ViewModels/Stack/NiagaraStackObject.h"
-#include "ViewModels/Stack/NiagaraStackSpacer.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraNodeAssignment.h"
 #include "NiagaraNodeParameterMapGet.h"
@@ -396,20 +395,6 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 			ValueObjectEntry->Initialize(CreateDefaultChildRequiredData(), InputValues.DataObjects.GetValueObject(), GetOwnerStackItemEditorDataKey(), OwningFunctionCallNode.Get());
 		}
 		NewChildren.Add(ValueObjectEntry);
-	}
-
-	if (NewChildren.Num() > 0)
-	{
-		UNiagaraStackSpacer* ChildrenSpacer = FindCurrentChildOfTypeByPredicate<UNiagaraStackSpacer>(CurrentChildren,
-			[=](UNiagaraStackSpacer* CurrentSpacer) { return true; });
-
-		if (ChildrenSpacer == nullptr)
-		{
-			ChildrenSpacer = NewObject<UNiagaraStackSpacer>(this);
-			ChildrenSpacer->Initialize(CreateDefaultChildRequiredData(), "ChildrenSpacer", .5f, UNiagaraStackEntry::EStackRowStyle::ItemContent);
-		}
-
-		NewChildren.Add(ChildrenSpacer);
 	}
 
 	DisplayNameOverride.Reset();

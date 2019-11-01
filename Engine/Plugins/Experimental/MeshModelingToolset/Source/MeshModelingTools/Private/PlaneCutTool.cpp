@@ -356,6 +356,13 @@ bool UPlaneCutTool::CanAccept() const
 
 void UPlaneCutTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 {
+	if (Results.Num() == 0 
+		|| Results[0].Mesh.IsValid() == false
+		|| Results[0].Mesh->TriangleCount() == 0 )
+	{
+		return;
+	}
+
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("PlaneCutToolTransactionName", "Plane Cut Tool"));
 	
 

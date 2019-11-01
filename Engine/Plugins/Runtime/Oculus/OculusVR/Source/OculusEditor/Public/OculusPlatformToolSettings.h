@@ -15,6 +15,67 @@ enum class EOculusPlatformTarget : uint8
 	Length UMETA(DisplayName="Invalid")
 };
 
+UENUM()
+enum class EOculusGamepadEmulation : uint8
+{
+	Off UMETA(DisplayName="Off"),
+	Twinstick UMETA(DisplayName = "Twinstick"),
+	RightDPad UMETA(DisplayName = "Right D Pad"),
+	LeftDPad UMETA(DisplayName = "Left D Pad"),
+	Length UMETA(DisplayName = "Invalid")
+};
+
+UENUM()
+enum class EOculusAssetType : uint8
+{
+	Default UMETA(DisplayName="Default"),
+	Store UMETA(DisplayName="Store"),
+	Language_Pack UMETA(DisplayName="Language Pack"),
+	Length UMETA(DisplayName="Invlaid"),
+};
+
+USTRUCT()
+struct FRedistPackage
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	bool Included = false;
+
+	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	FString Name;
+
+	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	FString Id;
+};
+
+USTRUCT()
+struct FAssetConfig
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	EOculusAssetType AssetType = EOculusAssetType::Default;
+
+	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	bool Required = false;
+
+	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	FString Name;
+
+	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	FString Sku;
+};
+
+USTRUCT()
+struct FAssetConfigArray
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	TArray<FAssetConfig> ConfigArray;
+};
+
 /**
  * 
  */
@@ -37,7 +98,7 @@ public:
 
 	FString GetApplicationID()
 	{
-		return OculusTargetPlatform < EOculusPlatformTarget::Length ? OculusApplicationID[(uint8)OculusTargetPlatform] : "";
+		return (uint8)OculusTargetPlatform < OculusApplicationID.Num() ? OculusApplicationID[(uint8)OculusTargetPlatform] : "";
 	}
 	void SetApplicationID(FString s)
 	{
@@ -49,7 +110,7 @@ public:
 
 	FString GetApplicationToken()
 	{
-		return OculusTargetPlatform < EOculusPlatformTarget::Length ? OculusApplicationToken[(uint8)OculusTargetPlatform] : "";
+		return (uint8)OculusTargetPlatform < OculusApplicationToken.Num() ? OculusApplicationToken[(uint8)OculusTargetPlatform] : "";
 	}
 	void SetApplicationToken(FString s)
 	{
@@ -61,7 +122,7 @@ public:
 
 	FString GetReleaseChannel()
 	{
-		return OculusTargetPlatform < EOculusPlatformTarget::Length ? OculusReleaseChannel[(uint8)OculusTargetPlatform] : "Alpha";
+		return (uint8)OculusTargetPlatform < OculusReleaseChannel.Num() ? OculusReleaseChannel[(uint8)OculusTargetPlatform] : "Alpha";
 	}
 	void SetReleaseChannel(FString s)
 	{
@@ -73,7 +134,7 @@ public:
 
 	FString GetReleaseNote()
 	{
-		return OculusTargetPlatform < EOculusPlatformTarget::Length ? OculusReleaseNote[(uint8)OculusTargetPlatform] : "";
+		return (uint8)OculusTargetPlatform < OculusReleaseNote.Num() ? OculusReleaseNote[(uint8)OculusTargetPlatform] : "";
 	}
 	void SetReleaseNote(FString s)
 	{
@@ -85,7 +146,7 @@ public:
 
 	FString GetLaunchFilePath()
 	{
-		return OculusTargetPlatform < EOculusPlatformTarget::Length ? OculusLaunchFilePath[(uint8)OculusTargetPlatform] : "";
+		return (uint8)OculusTargetPlatform < OculusLaunchFilePath.Num() ? OculusLaunchFilePath[(uint8)OculusTargetPlatform] : "";
 	}
 	void SetLaunchFilePath(FString s)
 	{
@@ -95,11 +156,64 @@ public:
 		}
 	}
 
-	UPROPERTY(config, EditAnywhere, Category = Oculus)
-		FString OculusRiftBuildDirectory;
+	EOculusGamepadEmulation GetRiftGamepadEmulation()
+	{
+		return OculusRiftGamepadEmulation;
+	}
+	void SetRiftGamepadEmulation(uint8 i)
+	{
+		OculusRiftGamepadEmulation = (EOculusGamepadEmulation)i;
+	}
+
+	FString GetLanguagePacksPath()
+	{
+		return (uint8)OculusTargetPlatform < OculusLanguagePacksPath.Num() ? OculusLanguagePacksPath[(uint8)OculusTargetPlatform] : "";
+	}
+	void SetLanguagePacksPath(FString s)
+	{
+		if (OculusTargetPlatform < EOculusPlatformTarget::Length)
+		{
+			OculusLanguagePacksPath[(uint8)OculusTargetPlatform] = s;
+		}
+	}
+
+	FString GetExpansionFilesPath()
+	{
+		return (uint8)OculusTargetPlatform < OculusExpansionFilesPath.Num() ? OculusExpansionFilesPath[(uint8)OculusTargetPlatform] : "";
+	}
+	void SetExpansionFilesPath(FString s)
+	{
+		if (OculusTargetPlatform < EOculusPlatformTarget::Length)
+		{
+			OculusExpansionFilesPath[(uint8)OculusTargetPlatform] = s;
+		}
+	}
+
+	TArray<FAssetConfig>* GetAssetConfigs()
+	{
+		return (uint8)OculusTargetPlatform < OculusAssetConfigs.Num() ? &OculusAssetConfigs[(uint8)OculusTargetPlatform].ConfigArray : NULL;
+	}
 
 	UPROPERTY(config, EditAnywhere, Category = Oculus)
-		FString OculusRiftBuildVersion;
+	FString OculusRiftBuildDirectory;
+
+	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	FString OculusRiftBuildVersion;
+
+	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	FString OculusRiftLaunchParams;
+
+	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	bool OculusRiftFireWallException;
+
+	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	FString OculusRift2DLaunchPath;
+
+	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	FString OculusRift2DLaunchParams;
+
+	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	TArray<FRedistPackage> OculusRedistPackages;
 
 private:
 	UPROPERTY(config, EditAnywhere, Category = Oculus)
@@ -119,4 +233,16 @@ private:
 
 	UPROPERTY(config, EditAnywhere, Category = Oculus)
 	TArray<FString> OculusLaunchFilePath;
+
+	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	EOculusGamepadEmulation OculusRiftGamepadEmulation;
+
+	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	TArray<FString> OculusLanguagePacksPath;
+
+	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	TArray<FString> OculusExpansionFilesPath;
+
+	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	TArray<FAssetConfigArray> OculusAssetConfigs;
 };

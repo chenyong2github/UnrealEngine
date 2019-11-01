@@ -102,10 +102,10 @@ FHTML5TargetSettingsCustomization::~FHTML5TargetSettingsCustomization()
 
 void FHTML5TargetSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 {
-	BuildDeprecationMessage(DetailLayout); // !!! HTML5 Deprecation Message
+//	BuildDeprecationMessage(DetailLayout); // !!! HTML5 Deprecation Message
 	// --------------------------------------------------
-	BuildEmscriptenCategory(DetailLayout); // !!! HTML5 Deprecation Message
-	AudioPluginWidgetManager.BuildAudioCategory(DetailLayout, EAudioPlatform::HTML5);
+	BuildEmscriptenCategory(DetailLayout);
+	AudioPluginWidgetManager.BuildAudioCategory(DetailLayout, FString("HTML5"));
 }
 
 void FHTML5TargetSettingsCustomization::BuildEmscriptenCategory(IDetailLayoutBuilder& DetailLayout)

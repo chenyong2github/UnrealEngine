@@ -946,7 +946,7 @@ int32 UTexture2D::CalcTextureMemorySize( int32 MipCount ) const
 		FIntPoint MipExtents = CalcMipMapExtent(SizeX, SizeY, Format, FirstMip);
 
 		uint32 TextureAlign = 0;
-		uint64 TextureSize = RHICalcTexture2DPlatformSize(MipExtents.X, MipExtents.Y, Format, MipCount, 1, 0, TextureAlign);
+		uint64 TextureSize = RHICalcTexture2DPlatformSize(MipExtents.X, MipExtents.Y, Format, MipCount, 1, 0, FRHIResourceCreateInfo(PlatformData->GetExtData()), TextureAlign);
 		Size = (int32)TextureSize;
 	}
 	return Size;
@@ -960,6 +960,7 @@ int32 UTexture2D::GetNumMipsAllowed(bool bIgnoreMinResidency) const
 	// See the logic around FirstMipToSerialize in TextureDerivedData.cpp, SerializePlatformData().
 	const int32 LODBiasNoCinematics = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->CalculateLODBias(this, false);
 	const int32 CookedMips = FMath::Clamp<int32>(NumMips - LODBiasNoCinematics, 1, GMaxTextureMipCount);
+	const int32 MinResidentMipCount = GetMinTextureResidentMipCount();
 
 	// If the data is already cooked, then mips bellow min resident can't be stripped out.
 	// This would happen if the data is cooked with some texture group settings, but launched
@@ -968,10 +969,10 @@ int32 UTexture2D::GetNumMipsAllowed(bool bIgnoreMinResidency) const
 	{
 		return CookedMips;
 	}
-	else if (NumMips > GetMinTextureResidentMipCount())
+	else if (NumMips > MinResidentMipCount)
 	{
 		// In non cooked, the engine can not partially load the resident mips.
-		return FMath::Max<int32>(CookedMips, GetMinTextureResidentMipCount());
+		return FMath::Max<int32>(CookedMips, MinResidentMipCount);
 	}
 	else
 	{
@@ -1083,7 +1084,7 @@ int32 UTexture2D::GetNumNonStreamingMips() const
 		NumNonStreamingMips = FMath::Max(0, MipCount - GetMipTailBaseIndex());
 
 		// Take in to account the min resident limit.
-		NumNonStreamingMips = FMath::Max(NumNonStreamingMips, UTexture2D::GetMinTextureResidentMipCount());
+		NumNonStreamingMips = FMath::Max(NumNonStreamingMips, GetMinTextureResidentMipCount());
 		NumNonStreamingMips = FMath::Min(NumNonStreamingMips, MipCount);
 	}
 
@@ -1093,14 +1094,14 @@ int32 UTexture2D::GetNumNonStreamingMips() const
 void UTexture2D::CalcAllowedMips( int32 MipCount, int32 NumNonStreamingMips, int32 LODBias, int32& OutMinAllowedMips, int32& OutMaxAllowedMips )
 {
 	// Calculate the minimum number of mip-levels required.
-	int32 MinAllowedMips = UTexture2D::GetMinTextureResidentMipCount();
-	MinAllowedMips = FMath::Max( MinAllowedMips, MipCount - LODBias );
-	MinAllowedMips = FMath::Min( MinAllowedMips, NumNonStreamingMips );
-	MinAllowedMips = FMath::Min( MinAllowedMips, MipCount );
+	int32 MinAllowedMips = GMinTextureResidentMipCount;
+	MinAllowedMips = FMath::Max(MinAllowedMips, MipCount - LODBias);
+	MinAllowedMips = FMath::Min(MinAllowedMips, NumNonStreamingMips);
+	MinAllowedMips = FMath::Min(MinAllowedMips, MipCount);
 
 	// Calculate the maximum number of mip-levels.
-	int32 MaxAllowedMips = FMath::Max( MipCount - LODBias, MinAllowedMips );
-	MaxAllowedMips = FMath::Min( MaxAllowedMips, GMaxTextureMipCount );
+	int32 MaxAllowedMips = FMath::Max(MipCount - LODBias, MinAllowedMips);
+	MaxAllowedMips = FMath::Min(MaxAllowedMips, GMaxTextureMipCount);
 
 	// Make sure min <= max
 	MinAllowedMips = FMath::Min(MinAllowedMips, MaxAllowedMips);
@@ -1496,10 +1497,9 @@ FTexture2DResource::FTexture2DResource( UTexture2D* InOwner, int32 InitialMipCou
 	bSRGB = InOwner->SRGB;
 
 	check(InitialMipCount>0);
-	check(UE_ARRAY_COUNT(MipData)>=GMaxTextureMipCount);
 
 	// Keep track of first miplevel to use.
-	CurrentFirstMip = InOwner->GetNumMips() - InitialMipCount;
+	CurrentFirstMip = InOwner->GetNumMips() - FMath::Max(InitialMipCount, Owner->PlatformData ? (int32)Owner->PlatformData->GetNumMipsInTail() : 0);
 	InOwner->SetCachedNumResidentLODs(static_cast<uint8>(InitialMipCount));
 
 	check(CurrentFirstMip>=0);
@@ -1507,7 +1507,7 @@ FTexture2DResource::FTexture2DResource( UTexture2D* InOwner, int32 InitialMipCou
 	check(CurrentFirstMip<=Owner->GetMipTailBaseIndex());
 
 	// Retrieve initial mip data.
-	FMemory::Memzero(MipData, sizeof(MipData));
+	MipData.AddZeroed(InOwner->GetNumMips());
 	InOwner->GetMipData(CurrentFirstMip, &MipData[CurrentFirstMip]);
 	STAT( TextureSize = Owner->CalcTextureMemorySize( InitialMipCount ) );
 	STAT( LODGroupStatName = TextureGroupStatFNames[Owner->LODGroup] );
@@ -1529,7 +1529,7 @@ FTexture2DResource::~FTexture2DResource()
 		});
 
 	// Make sure we're not leaking memory if InitRHI has never been called.
-	for( int32 MipIndex=0; MipIndex<UE_ARRAY_COUNT(MipData); MipIndex++ )
+	for( int32 MipIndex=0; MipIndex<MipData.Num(); MipIndex++ )
 	{
 		// free any mip data that was copied 
 		if( MipData[MipIndex] )
@@ -1596,12 +1596,13 @@ void FTexture2DResource::InitRHI()
 			static auto CVarVirtualTextureReducedMemoryEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextureReducedMemory"));
 			check(CVarVirtualTextureReducedMemoryEnabled);
 
-			if ( Owner->bIsStreamable && bUseVirtualUpdatePath && (CVarVirtualTextureReducedMemoryEnabled->GetValueOnRenderThread() == 0 || RequestedMips > UTexture2D::GetMinTextureResidentMipCount()) )
+			if ( Owner->bIsStreamable && bUseVirtualUpdatePath && (CVarVirtualTextureReducedMemoryEnabled->GetValueOnRenderThread() == 0 || RequestedMips > Owner->GetMinTextureResidentMipCount()) )
 			{
 				TexCreateFlags |= TexCreate_Virtual;
 
 				FRHIResourceCreateInfo CreateInfo(ResourceMem);
-				Texture2DRHI	= RHICreateTexture2D( OwnerMips[0].SizeX, OwnerMips[0].SizeY, EffectiveFormat, OwnerMips.Num(), 1, TexCreateFlags, CreateInfo);
+				CreateInfo.ExtData = Owner->PlatformData->GetExtData();
+				Texture2DRHI = RHICreateTexture2D( OwnerMips[0].SizeX, OwnerMips[0].SizeY, EffectiveFormat, OwnerMips.Num(), 1, TexCreateFlags, CreateInfo);
 				RHIVirtualTextureSetFirstMipInMemory(Texture2DRHI, CurrentFirstMip);
 				RHIVirtualTextureSetFirstMipVisible(Texture2DRHI, CurrentFirstMip);
 
@@ -1636,6 +1637,7 @@ void FTexture2DResource::InitRHI()
 
 			// create texture with ResourceMem data when available
 			FRHIResourceCreateInfo CreateInfo(ResourceMem);
+			CreateInfo.ExtData = Owner->PlatformData->GetExtData();
 			Texture2DRHI	= RHICreateTexture2D( SizeX, SizeY, EffectiveFormat, RequestedMips, 1, TexCreateFlags, CreateInfo);
 			TextureRHI		= Texture2DRHI;
 			TextureRHI->SetName(Owner->GetFName());
@@ -1657,7 +1659,7 @@ void FTexture2DResource::InitRHI()
 			else
 			{
 				// Read the resident mip-levels into the RHI texture.
-				for( int32 MipIndex=CurrentFirstMip; MipIndex<Owner->PlatformData->Mips.Num(); MipIndex++ )
+				for (int32 MipIndex = CurrentFirstMip; MipIndex < Owner->PlatformData->Mips.Num(); MipIndex++)
 				{
 					if( MipData[MipIndex] != NULL )
 					{
@@ -1686,12 +1688,13 @@ void FTexture2DResource::InitRHI()
 		if (GIsEditor || (!bSkipRHITextureCreation)) //-V560
 		{
 			FRHIResourceCreateInfo CreateInfo;
+			CreateInfo.ExtData = Owner->PlatformData->GetExtData();
 			Texture2DRHI	= RHICreateTexture2D( SizeX, SizeY, EffectiveFormat, RequestedMips, 1, TexCreateFlags, CreateInfo );
 			TextureRHI		= Texture2DRHI;
 			TextureRHI->SetName(Owner->GetFName());
 			RHIBindDebugLabelName(TextureRHI, *Owner->GetName());
 			RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI,TextureRHI);
-			for( int32 MipIndex=CurrentFirstMip; MipIndex<OwnerMips.Num(); MipIndex++ )
+			for (int32 MipIndex = CurrentFirstMip; MipIndex < OwnerMips.Num(); MipIndex++)
 			{
 				if( MipData[MipIndex] != NULL )
 				{
@@ -1960,13 +1963,14 @@ void FVirtualTexture2DResource::InitializeEditorResources(IVirtualTexture* InVir
 		while (((MipWidth > 128u && MipHeight > 128u) || MipWidth > MaxTextureSize || MipHeight > MaxTextureSize) && MipLevel < MaxMipLevel)
 		{
 			++MipLevel;
-			MipWidth = FMath::Max(MipWidth / 2u, 1u);
-			MipHeight = FMath::Max(MipHeight / 2u, 1u);
+			MipWidth = FMath::DivideAndRoundUp(MipWidth, 2u);
+			MipHeight = FMath::DivideAndRoundUp(MipHeight, 2u);
 		}
 
 		const EPixelFormat PixelFormat = VTData->LayerTypes[0];
-		const uint32 MipWidthInTiles = FMath::Max(GetNumTilesX() >> MipLevel, 1u);
-		const uint32 MipHeightInTiles = FMath::Max(GetNumTilesY() >> MipLevel, 1u);
+		const uint32 MipScaleFactor = (1u << MipLevel);
+		const uint32 MipWidthInTiles = FMath::DivideAndRoundUp(GetNumTilesX(), MipScaleFactor);
+		const uint32 MipHeightInTiles = FMath::DivideAndRoundUp(GetNumTilesY(), MipScaleFactor);
 		const uint32 TileSizeInPixels = GetTileSize();
 		const uint32 LayerMask = 1u; // FVirtualTexture2DResource should only have a single layer
 
@@ -2027,6 +2031,9 @@ void FVirtualTexture2DResource::InitializeEditorResources(IVirtualTexture* InVir
 		{
 			// Logical dimensions of mip image may be smaller than tile size (in this case tile will contain mirrored/wrapped padding)
 			// In this case, copy the proper sub-image from the tiled texture we produced into a new texture of the correct size
+			check(MipWidth <= MipWidthInTiles * TileSizeInPixels);
+			check(MipHeight <= MipHeightInTiles * TileSizeInPixels);
+
 			FTexture2DRHIRef ResizedTexture2DRHI = RHICreateTexture2D(MipWidth, MipHeight, PixelFormat, 1, 1, TexCreateFlags, CreateInfo);
 			FRHICopyTextureInfo CopyInfo;
 			CopyInfo.Size = FIntVector(MipWidth, MipHeight, 1);
@@ -2252,7 +2259,7 @@ void FTexture2DResource::UpdateTexture(FTexture2DRHIRef& InTextureRHI, int32 InN
 
 		TextureRHI		= InTextureRHI;
 		Texture2DRHI	= InTextureRHI;
-		CurrentFirstMip = InNewFirstMip;
+		CurrentFirstMip = FMath::Min(InNewFirstMip, NumMips - (Owner->PlatformData ? (int32)Owner->PlatformData->GetNumMipsInTail() : 0));
 		Owner->SetCachedNumResidentLODs(static_cast<uint8>(NumMips - InNewFirstMip));
 		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, TextureRHI);
 	}

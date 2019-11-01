@@ -18,7 +18,7 @@ namespace UnrealBuildTool
 	public partial class IOSTargetRules
 	{
 		/// <summary>
-		/// Whether to strip iOS symbols or not (implied by Shipping config)
+		/// Whether to strip iOS symbols or not (implied by Shipping config).
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		[CommandLine("-stripsymbols", Value = "true")]

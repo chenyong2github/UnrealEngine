@@ -49,6 +49,8 @@ public:
 		((FNiagaraFloat*)Struct->GetStructMemory())->Value = FloatValue;
 	}
 
+	virtual bool CanChangeContinuously() const override { return true; }
+
 private:
 	void BeginSliderMovement()
 	{

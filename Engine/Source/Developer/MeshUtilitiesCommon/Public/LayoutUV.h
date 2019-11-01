@@ -59,6 +59,8 @@ public:
 	bool FindBestPacking( uint32 InTextureResolution );
 	void CommitPackedUVs();
 
+	static void LogStats();
+	static void ResetStats();
 private:
 	IMeshView& MeshView;
 	ELightmapUVVersion LayoutVersion;
@@ -70,4 +72,8 @@ private:
 
 	struct FChartFinder;
 	struct FChartPacker;
+
+	static TAtomic<uint64> FindBestPackingCount;
+	static TAtomic<uint64> FindBestPackingCycles;
+	static TAtomic<uint64> FindBestPackingEfficiency;
 };

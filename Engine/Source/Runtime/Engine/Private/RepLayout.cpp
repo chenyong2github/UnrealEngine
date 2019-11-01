@@ -472,11 +472,15 @@ struct FCustomDeltaChangelistState
 
 	void CountBytes(FArchive& Ar) const
 	{
-		ArrayStates.CountBytes(Ar);
-		for (const FDeltaArrayHistoryState& ArrayState : ArrayStates)
-		{
-			ArrayState.CountBytes(Ar);
-		}
+		GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "FCustomDeltaChangelistState::CountBytes");
+
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ArrayStates",
+			ArrayStates.CountBytes(Ar);
+			for (const FDeltaArrayHistoryState& ArrayState : ArrayStates)
+			{
+				ArrayState.CountBytes(Ar);
+			}
+		);
 	}
 };
 
@@ -788,15 +792,17 @@ void FRepStateStaticBuffer::CountBytes(FArchive& Ar) const
 	struct FCountBytesHelper
 	{
 		FCountBytesHelper(
-			FArchive& InAr,
+			FArchiveCountMem& InAr,
 			const FConstRepShadowDataBuffer InShadowData,
+			const uint64 InTotalShadowMemory,
 			const TArray<FRepParentCmd>& InParents,
 			const TArray<FRepLayoutCmd>& InCmds)
 
-			: Ar((FArchiveCountMem&)InAr)
+			: Ar(InAr)
 			, MainShadowData(InShadowData)
 			, Parents(InParents)
 			, Cmds(InCmds)
+			, TotalShadowMemory(InTotalShadowMemory)
 		{
 		}
 
@@ -804,9 +810,12 @@ void FRepStateStaticBuffer::CountBytes(FArchive& Ar) const
 		{
 			uint64 NewMax = Ar.GetMax();
 			uint64 OldMax = 0;
+			uint64 OldShadowOffset = 0u;
 
-			for (const FRepParentCmd& Parent : Parents)
+			for (int32 ParentIndex = 0; ParentIndex < Parents.Num(); ++ParentIndex)
 			{
+				const FRepParentCmd& Parent = Parents[ParentIndex];
+
 				OldMax = NewMax;
 
 				CountBytes_Command(Parent, Parent.CmdStart, Parent.CmdEnd, MainShadowData);
@@ -820,26 +829,25 @@ void FRepStateStaticBuffer::CountBytes(FArchive& Ar) const
 				}
 				else
 				{
+					const uint64 NextShadowOffset = (ParentIndex < Parents.Num() - 1) ? Parents[ParentIndex + 1].ShadowOffset : TotalShadowMemory;
+
 					NonRepMemory += (NewMax - OldMax);
+					NonRepStaticMemory += NextShadowOffset - OldShadowOffset;
 				}
+
+				OldShadowOffset = Parent.ShadowOffset;
 			}
 		}
 
-		void CountBytes_Command(const FRepParentCmd& Parent, const int32 CmdStart, const int32 CmdEnd, const FConstRepShadowDataBuffer ShadowData) const
+		void CountBytes_Command(const FRepParentCmd& Parent, const int32 CmdStart, const int32 CmdEnd, const FConstRepShadowDataBuffer ShadowData)
 		{
 			for (int32 CmdIndex = CmdStart; CmdIndex < CmdEnd; ++CmdIndex)
 			{
-				const FRepLayoutCmd& Cmd = Cmds[CmdIndex];
-				CountBytes_r(Parent, Cmd, CmdIndex, ShadowData);
-
-				if (ERepLayoutCmdType::DynamicArray == Cmd.Type)
-				{
-					CmdIndex = Cmd.EndCmd - 1;
-				}
+				CountBytes_r(Parent, Cmds[CmdIndex], CmdIndex, ShadowData);
 			}
 		}
 
-		void CountBytes_r(const FRepParentCmd& Parent, const FRepLayoutCmd& Cmd, const int32 InCmdIndex, const FConstRepShadowDataBuffer ShadowData) const
+		void CountBytes_r(const FRepParentCmd& Parent, const FRepLayoutCmd& Cmd, int32& InCmdIndex, const FConstRepShadowDataBuffer ShadowData)
 		{
 			if (ERepLayoutCmdType::DynamicArray == Cmd.Type)
 			{
@@ -851,8 +859,10 @@ void FRepStateStaticBuffer::CountBytes(FArchive& Ar) const
 				for (int32 i = 0; i < Array->Num(); ++i)
 				{
 					const int32 ArrayElementOffset = Cmd.ElementSize * i;
-					CountBytes_Command(Parent, InCmdIndex + 1, Cmd.EndCmd, ShadowArrayData + ArrayElementOffset);
+					CountBytes_Command(Parent, InCmdIndex + 1, Cmd.EndCmd - 1, ShadowArrayData + ArrayElementOffset);
 				}
+
+				InCmdIndex = Cmd.EndCmd - 1;
 			}
 			else if (ERepLayoutCmdType::PropertyString == Cmd.Type)
 			{
@@ -865,17 +875,25 @@ void FRepStateStaticBuffer::CountBytes(FArchive& Ar) const
 		const TArray<FRepParentCmd>& Parents;
 		const TArray<FRepLayoutCmd>& Cmds;
 
+		const uint64 TotalShadowMemory;
 		uint64 OnRepMemory = 0;
 		uint64 NonRepMemory = 0;
+		uint64 NonRepStaticMemory = 0u;
 	};
 
-	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Static Memory", Buffer.CountBytes(Ar));
-	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Dynamic Memory (Undercounts!)",
-		// FCountBytesHelper CountBytesHelper(Ar, Buffer.GetData(), RepLayout->Parents, RepLayout->Cmds);
-		// CountBytesHelper.CountBytes();
-		// GRANULAR_NETWORK_MEMORY_TRACKING_CUSTOM_WORK("OnRepMemory", CountBytesHelper.OnRepMemory);
-		// GRANULAR_NETWORK_MEMORY_TRACKING_CUSTOM_WORK("NonRepMemory", CountBytesHelper.NonRepMemory);
-	);
+	FArchiveCountMem LocalAr(nullptr);
+	Buffer.CountBytes(LocalAr);
+	const uint64 StaticTotalMemory = LocalAr.GetMax();
+
+	FCountBytesHelper CountBytesHelper(LocalAr, Buffer.GetData(), StaticTotalMemory, RepLayout->Parents, RepLayout->Cmds);
+	CountBytesHelper.CountBytes();
+
+	const uint64 StaticOnRepMemory = StaticTotalMemory - CountBytesHelper.NonRepStaticMemory;
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Static_OnRep", Ar.CountBytes(StaticTotalMemory, StaticTotalMemory));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Static_NotOnRep", Ar.CountBytes(CountBytesHelper.NonRepStaticMemory, CountBytesHelper.NonRepStaticMemory));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Dynamic_OnRep", Ar.CountBytes(CountBytesHelper.OnRepMemory, CountBytesHelper.OnRepMemory));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Dynamic_NotOnRep", Ar.CountBytes(CountBytesHelper.NonRepMemory, CountBytesHelper.NonRepMemory));
 }
 
 FRepChangelistState::FRepChangelistState(
@@ -892,13 +910,16 @@ FRepChangelistState::FRepChangelistState(
 
 void FRepChangelistState::CountBytes(FArchive& Ar) const
 {
-	StaticBuffer.CountBytes(Ar);
-	SharedSerialization.CountBytes(Ar);
+	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "FRepChangelistState::CountBytes");
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("StaticBuffer", StaticBuffer.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("SharedSerialization", SharedSerialization.CountBytes(Ar));
 
 	if (CustomDeltaChangelistState)
 	{
-		Ar.CountBytes(sizeof(FCustomDeltaChangelistState), sizeof(FCustomDeltaChangelistState));
-		CustomDeltaChangelistState->CountBytes(Ar);
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("CustomDeltaChangelistState",
+			Ar.CountBytes(sizeof(FCustomDeltaChangelistState), sizeof(FCustomDeltaChangelistState));
+			CustomDeltaChangelistState->CountBytes(Ar);
+		);
 	}
 }
 
@@ -920,8 +941,6 @@ FReceivingRepState::FReceivingRepState(FRepStateStaticBuffer&& InStaticBuffer) :
 
 FRepLayout::FRepLayout() :
 	Flags(ERepLayoutFlags::None),
-	RoleIndex(INDEX_NONE),
-	RemoteRoleIndex(-1),
 	Owner(nullptr)
 {}
 
@@ -991,8 +1010,6 @@ struct FComparePropertiesSharedParams
 {
 	const bool bIsInitial;
 	const bool bForceFail;
-	const int16 RoleIndex;
-	const int16 RemoteRoleIndex;
 	const ERepLayoutFlags Flags;
 	const TArray<FRepParentCmd>& Parents;
 	const TArray<FRepLayoutCmd>& Cmds;
@@ -1041,8 +1058,8 @@ static void CompareRoleProperties(
 {
 	if (RepState && EnumHasAnyFlags(SharedParams.Flags, ERepLayoutFlags::IsActor))
 	{
-		CompareRoleProperty(SharedParams, Data, SharedParams.RemoteRoleIndex, RepState->SavedRemoteRole, Changed);
-		CompareRoleProperty(SharedParams, Data, SharedParams.RoleIndex, RepState->SavedRole, Changed);
+		CompareRoleProperty(SharedParams, Data, NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole, RepState->SavedRemoteRole, Changed);
+		CompareRoleProperty(SharedParams, Data, NetworkingPrivate::Net_AActor::NETFIELD_Role, RepState->SavedRole, Changed);
 	}
 }
 
@@ -1081,14 +1098,14 @@ static void CompareParentProperties(
 
 		if (bCheckForRole)
 		{
-			if (UNLIKELY(ParentIndex == SharedParams.RoleIndex))
+			if (UNLIKELY(ParentIndex == NetworkingPrivate::Net_AActor::NETFIELD_Role))
 			{
-				CompareRoleProperty(SharedParams, Data, SharedParams.RoleIndex, RepState->SavedRole, Changed);
+				CompareRoleProperty(SharedParams, Data, NetworkingPrivate::Net_AActor::NETFIELD_Role, RepState->SavedRole, Changed);
 				continue;
 			}
-			else if (UNLIKELY(ParentIndex == SharedParams.RemoteRoleIndex))
+			else if (UNLIKELY(ParentIndex == NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole))
 			{
-				CompareRoleProperty(SharedParams, Data, SharedParams.RemoteRoleIndex, RepState->SavedRemoteRole, Changed);
+				CompareRoleProperty(SharedParams, Data, NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole, RepState->SavedRemoteRole, Changed);
 				continue;
 			}
 		}
@@ -1219,8 +1236,6 @@ bool FRepLayout::CompareProperties(
 	FComparePropertiesSharedParams SharedParams{
 		/*bIsInitial=*/ !!RepFlags.bNetInitial,
 		/*bForceFail=*/ false,
-		RoleIndex,
-		RemoteRoleIndex,
 		Flags,
 		Parents,
 		Cmds
@@ -1969,6 +1984,21 @@ void FRepLayout::FilterChangeListToActive(
 	OutProperties.Add(0);
 }
 
+void FRepSerializationSharedInfo::CountBytes(FArchive& Ar) const
+{
+	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "FRepSerializationSharedInfo::CountBytes");
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("SharedPropertyInfo", SharedPropertyInfo.CountBytes(Ar));
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("SerializedProperties",
+		if (FNetBitWriter const* const LocalSerializedProperties = SerializedProperties.Get())
+		{
+			Ar.CountBytes(sizeof(FNetBitWriter), sizeof(FNetBitWriter));
+			LocalSerializedProperties->CountMemory(Ar);
+		}
+	);
+}
+
 const FRepSerializedPropertyInfo* FRepSerializationSharedInfo::WriteSharedProperty(
 	const FRepLayoutCmd& Cmd,
 	const FGuid& PropertyGuid,
@@ -2541,8 +2571,26 @@ static bool ReceivePropertyHelper(
 	const FRepLayoutCmd& Cmd = Cmds[CmdIndex];
 	const FRepParentCmd& Parent = Parents[Cmd.ParentIndex];
 
+	auto GetSwappedCmd = [&Cmd, &Cmds, &Parents, bSkipSwapRoles]() -> const FRepLayoutCmd&
+	{
+		if (!bSkipSwapRoles)
+		{
+			// Swap Role to RemoteRole, and vice-versa. Leave everything else the same.
+			if (UNLIKELY(NetworkingPrivate::Net_AActor::NETFIELD_Role == Cmd.ParentIndex))
+			{
+				return Cmds[Parents[NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole].CmdStart];
+			}
+			else if (UNLIKELY(NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole == Cmd.ParentIndex))
+			{
+				return Cmds[Parents[NetworkingPrivate::Net_AActor::NETFIELD_Role].CmdStart];
+			}
+		}
+
+		return Cmd;
+	};
+
 	// This swaps Role/RemoteRole as we write it
-	const FRepLayoutCmd& SwappedCmd = (!bSkipSwapRoles && Parent.RoleSwapIndex != -1) ? Cmds[Parents[Parent.RoleSwapIndex].CmdStart] : Cmd;
+	const FRepLayoutCmd& SwappedCmd = GetSwappedCmd();
 
 	if (GuidReferencesMap)		// Don't reset unmapped guids here if we are told not to (assuming calling code is handling this)
 	{
@@ -4981,8 +5029,6 @@ void FRepLayout::InitFromClass(
 	SCOPE_CYCLE_UOBJECT(ObjectClass, InObjectClass);
 
 	const bool bIsObjectActor = InObjectClass->IsChildOf(AActor::StaticClass());
-	RoleIndex = INDEX_NONE;
-	RemoteRoleIndex = INDEX_NONE;
 
 	if (bIsObjectActor)
 	{
@@ -5030,48 +5076,21 @@ void FRepLayout::InitFromClass(
 			Parents[ParentHandle].Flags |= ERepParentFlags::IsConfig;
 		}
 
-		if (bIsObjectActor)
-		{
-		    // Find Role/RemoteRole property indexes so we can swap them on the client
-		    if (Property->GetFName() == NAME_Role)
-		    {
-			    check(RoleIndex == INDEX_NONE);
-			    check(Parents[ParentHandle].CmdEnd == Parents[ParentHandle].CmdStart + 1);
-			    RoleIndex = ParentHandle;
-		    }
-
-		    if (Property->GetFName() == NAME_RemoteRole)
-		    {
-			    check(RemoteRoleIndex == INDEX_NONE);
-			    check(Parents[ParentHandle].CmdEnd == Parents[ParentHandle].CmdStart + 1);
-			    RemoteRoleIndex = ParentHandle;
-		    }
-	    }
-
 		if (EnumHasAnyFlags(Parents[ParentHandle].Flags, ERepParentFlags::IsCustomDelta))
 		{
 			HighestCustomDeltaRepIndex = ParentHandle;
 		}
 	}
 
-	// Make sure it either found both, or didn't find either
-	check((RoleIndex == INDEX_NONE) == (RemoteRoleIndex == INDEX_NONE));
+	// Make sure RemoteRole has a lower RepIndex than Role, otherwise assumptions RepLayout may break.
+	static_assert(NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole < NetworkingPrivate::Net_AActor::NETFIELD_Role, "Role and RemoteRole have been rearranged in AActor. This will break assumptions in RepLayout.");
 
-	// Make sure that we only find these if we're an Actor, and if we're
-	// an Actor we always find these.
-	check((RoleIndex == INDEX_NONE) == !bIsObjectActor);
+	// Make sure that our RemoteRole property actually points to RemoteRole.
+	check(!bIsObjectActor || Parents[NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole].Property->GetFName() == NAME_RemoteRole);
 
-	// This is so the receiving side can swap these as it receives them
-	if (RoleIndex != -1)
-	{
-		// Make sure that if we have Role and RemoteRole, that Role comes before RemoteRole.
-		// If this fails, it means that the order of Role and RemoteRole has been changed in AActor, and that
-		// will break assumptions RepLayout makes.
-		check(RemoteRoleIndex < RoleIndex);
-		Parents[RoleIndex].RoleSwapIndex = RemoteRoleIndex;
-		Parents[RemoteRoleIndex].RoleSwapIndex = RoleIndex;
-	}
-	
+	// Make sure that our Role property actually points to Role.
+	check(!bIsObjectActor || Parents[NetworkingPrivate::Net_AActor::NETFIELD_Role].Property->GetFName() == NAME_Role);
+
 	AddReturnCmd(Cmds);
 
 	// Initialize lifetime props
@@ -5208,7 +5227,7 @@ void FRepLayout::InitFromClass(
 	{
 		// We handle remote role specially, since it can change between connections when downgraded
 		// So we force it on the conditional list
-		FRepParentCmd& RemoteRoleParent = Parents[RemoteRoleIndex];
+		FRepParentCmd& RemoteRoleParent = Parents[NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole];
 		if (RemoteRoleParent.Condition != COND_Never)
 		{
 			if (COND_None != RemoteRoleParent.Condition)
@@ -5216,8 +5235,8 @@ void FRepLayout::InitFromClass(
 				UE_LOG(LogRep, Warning, TEXT("FRepLayout::InitFromClass: Forcing replication of RemoteRole. Owner=%s"), *InObjectClass->GetPathName());
 			}
 
-			Parents[RemoteRoleIndex].Flags |= ERepParentFlags::IsConditional;
-			Parents[RemoteRoleIndex].Condition = COND_None;
+			Parents[NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole].Flags |= ERepParentFlags::IsConditional;
+			Parents[NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole].Condition = COND_None;
 		}
 	}
 
@@ -5970,13 +5989,13 @@ FRepStateStaticBuffer FRepLayout::CreateShadowBuffer(const FConstRepObjectDataBu
 	return ShadowData;
 }
 
-TSharedPtr<FReplicationChangelistMgr> FRepLayout::CreateReplicationChangelistMgr(const UObject* InObject) const
+TSharedPtr<FReplicationChangelistMgr> FRepLayout::CreateReplicationChangelistMgr(const UObject* InObject, const ECreateReplicationChangelistMgrFlags CreateFlags) const
 {
 	// ChangelistManager / ChangelistState will hold onto a unique pointer for this
 	// so no need to worry about deleting it here.
 
 	FCustomDeltaChangelistState* DeltaChangelistState = nullptr;
-	if (LifetimeCustomPropertyState && !!LifetimeCustomPropertyState->GetNumFastArrayProperties())
+	if (!EnumHasAnyFlags(CreateFlags, ECreateReplicationChangelistMgrFlags::SkipDeltaCustomState) && LifetimeCustomPropertyState && !!LifetimeCustomPropertyState->GetNumFastArrayProperties())
 	{
 		DeltaChangelistState = new FCustomDeltaChangelistState(LifetimeCustomPropertyState->GetNumFastArrayProperties());
 	}
@@ -6565,8 +6584,6 @@ bool FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSerializeParams&
 							FComparePropertiesSharedParams SharedParams{
 								/*bIsInitial=*/ bIsInitial,
 								/*bForceFail=*/ bIsInitial || ShadowArrayItemIsNew[IDIndexPair.Idx],
-								RoleIndex,
-								RemoteRoleIndex,
 								Flags,
 								Parents,
 								Cmds

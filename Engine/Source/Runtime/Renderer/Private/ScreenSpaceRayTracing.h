@@ -53,4 +53,5 @@ void RenderScreenSpaceDiffuseIndirect(
 	const FSceneTextureParameters& SceneTextures,
 	const FRDGTextureRef SceneColor,
 	const FViewInfo& View,
+	IScreenSpaceDenoiser::FAmbientOcclusionRayTracingConfig* OutRayTracingConfig,
 	IScreenSpaceDenoiser::FDiffuseIndirectInputs* OutDenoiserInputs);

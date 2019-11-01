@@ -16,14 +16,14 @@ class UDatasmithGLTFImportOptions : public UObject
 
 public:
 	UPROPERTY(
-	    config, EditAnywhere, Category = Lightmaps,
+	    config, EditAnywhere, BlueprintReadWrite, Category = Lightmaps,
 	    meta =
 	        (ToolTip =
 	             "Generate new UV coordinates for lightmapping instead of using the highest index UV set. \nTurn this on to have Unreal Studio generate lightmap UV sets automatically.\nTurn this off to try using the highest index existing UV set (if available) as the lightmap UV set.\nFor both cases, geometry without existing UV sets will receive an empty UV set, which will by itself not be valid for use with Lightmass."))
 	bool bGenerateLightmapUVs;
 
 	UPROPERTY(
-	    config, EditAnywhere, Category = AssetImporting,
+	    config, EditAnywhere, BlueprintReadWrite, Category = AssetImporting,
 	    meta =
 	        (DisplayName = "Import Uniform Scale",
 	         ToolTip = "Scale factor used for importing assets, by default: 100, for conversion from meters(glTF) to centimeters(Unreal default)."))

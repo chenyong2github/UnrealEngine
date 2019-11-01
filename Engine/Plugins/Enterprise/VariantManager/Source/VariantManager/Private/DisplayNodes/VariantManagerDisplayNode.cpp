@@ -55,7 +55,7 @@ TSharedRef<SWidget> FVariantManagerDisplayNode::GetCustomOutlinerContent(TShared
 		.VAlign(VAlign_Fill)
 		.HAlign(HAlign_Fill)
 		.BorderImage(this, &FVariantManagerDisplayNode::GetNodeBorderImage)
-		.BorderBackgroundColor(FLinearColor(FColor(96, 96, 96, 255)))
+		.BorderBackgroundColor(this, &FVariantManagerDisplayNode::GetNodeBackgroundTint)
 	];
 }
 

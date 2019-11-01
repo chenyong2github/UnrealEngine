@@ -15,6 +15,7 @@ FDisplayClusterMessageInterceptor::FDisplayClusterMessageInterceptor()
 	: bIsIntercepting(false)
 	, InterceptorId(FGuid::NewGuid())
 	, Address(FMessageAddress::NewAddress())
+	, ClusterManager(nullptr)
 {}
 
 void FDisplayClusterMessageInterceptor::Setup(IDisplayClusterClusterManager* InClusterManager, TSharedPtr<IMessageBus, ESPMode::ThreadSafe> InBus)

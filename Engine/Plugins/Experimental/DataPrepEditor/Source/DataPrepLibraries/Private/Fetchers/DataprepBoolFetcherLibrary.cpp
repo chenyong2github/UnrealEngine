@@ -4,6 +4,8 @@
 
 #include "GameFramework/Actor.h"
 
+#define LOCTEXT_NAMESPACE "DataprepBoolFetcherLibrary"
+
 /* UDataprepIsOfClassFetcher methods
  *****************************************************************************/
 FText UDataprepIsClassOfFetcher::AdditionalKeyword = NSLOCTEXT("DataprepIsClassOfFetcher","AdditionalKeyword","Is Child Of");
@@ -37,21 +39,9 @@ FText UDataprepIsClassOfFetcher::GetAdditionalKeyword_Implementation() const
 	return AdditionalKeyword;
 }
 
-
-/* UDataprepHasActorTagFetcher methods
- *****************************************************************************/
-bool UDataprepHasActorTagFetcher::Fetch_Implementation(const UObject* Object, bool& bOutFetchSucceded) const
+FText UDataprepIsClassOfFetcher::GetNodeDisplayFetcherName_Implementation() const
 {
-	if ( const AActor* Actor = Cast< const AActor >( Object ) )
-	{
-		bOutFetchSucceded = true;
-		return Actor->Tags.Contains( Tag );
-	}
-	 bOutFetchSucceded = false;
-	return false;
+	return LOCTEXT("ClassFilterTitle", "Class");
 }
 
-bool UDataprepHasActorTagFetcher::IsThreadSafe() const
-{
-	return true;
-}
+#undef LOCTEXT_NAMESPACE

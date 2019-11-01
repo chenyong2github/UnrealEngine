@@ -31,6 +31,8 @@
 #include "NiagaraEditorModule.h"
 #include "NiagaraNodeReroute.h"
 
+#include "NiagaraFunctionLibrary.h"
+
 #include "NiagaraDataInterface.h"
 #include "NiagaraDataInterfaceCurve.h"
 #include "NiagaraDataInterfaceVector2DCurve.h"
@@ -1323,6 +1325,8 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 			FString DataInterfaceHLSL;
 			DefineDataInterfaceHLSL(DataInterfaceHLSL);
 			HlslOutput += DataInterfaceHLSL;
+
+			DefineExternalFunctionsHLSL(HlslOutput);
 		}
 
 		//And finally, define the actual main function that handles the reading and writing of data and calls the shared per instance simulate function.
@@ -1778,6 +1782,16 @@ void FHlslNiagaraTranslator::DefineDataInterfaceHLSL(FString &InHlslOutput)
 	InHlslOutput += InterfaceCommonHLSL + InterfaceUniformHLSL + InterfaceFunctionHLSL;
 }
 
+void FHlslNiagaraTranslator::DefineExternalFunctionsHLSL(FString &InHlslOutput)
+{
+	for (FNiagaraFunctionSignature& FunctionSig : CompilationOutput.ScriptData.AdditionalExternalFunctions )
+	{
+		if ( UNiagaraFunctionLibrary::DefineFunctionHLSL(FunctionSig, InHlslOutput) == false )
+		{
+			Error(FText::Format(LOCTEXT("ExternFunctionMissingHLSL", "ExternalFunction {0} does not have a HLSL implementation for the GPU."), FText::FromName(FunctionSig.Name)), nullptr, nullptr);
+		}
+	}
+}
 
 void FHlslNiagaraTranslator::DefineMain(FString &OutHlslOutput,
 	TArray<TArray<FNiagaraVariable>*> &InstanceReadVars, TArray<FNiagaraDataSetID>& ReadIds,

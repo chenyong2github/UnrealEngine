@@ -24,6 +24,8 @@
 #include "LevelSequence.h"
 #include "Materials/MaterialInstance.h"
 #include "MeshMergeModule.h"
+#include "ObjectTools.h"
+#include "StaticMeshAttributes.h"
 #include "StaticMeshResources.h"
 
 #define LOCTEXT_NAMESPACE "DatasmithEditingOperations"
@@ -68,6 +70,7 @@ namespace DatasmithEditingOperationsUtils
 	void FindActorsToMerge(const TArray<AActor*>& ChildrenActors, TArray<AActor*>& ActorsToMerge);
 	void FindActorsToCollapseOrDelete(const TArray<AActor*>& ActorsToVisit, TArray<AActor*>& ActorsToCollapse, TArray<UObject*>& ActorsToDelete );
 	void GetRootActors(UWorld* World, TArray<AActor*>& RootActors);
+	void GetActorsToMerge(UWorld*& World, const TArray<UObject*>& InObjects, TArray<AActor*>& ActorsToMerge, TArray<UPrimitiveComponent*>& ComponentsToMerge);
 
 	int32 GetActorDepth(AActor* Actor)
 	{
@@ -85,7 +88,7 @@ namespace DatasmithEditingOperationsUtils
 	};
 }
 
-void UDataprepRemoveObjectsOperation::OnExecution_Implementation(const FDataprepContext& InContext)
+void UDataprepDeleteObjectsOperation::OnExecution_Implementation(const FDataprepContext& InContext)
 {
 #ifdef LOG_TIME
 	DataprepEditingOperationTime::FTimeLogger TimeLogger( TEXT("RemoveObjects"), [&]( FText Text) { this->LogInfo( Text ); });
@@ -114,7 +117,6 @@ void UDataprepRemoveObjectsOperation::OnExecution_Implementation(const FDataprep
 		if (AActor* Actor = Cast< AActor >( Object ))
 		{
 			ActorsToDelete.Add(FActorAndDepth{Actor, DatasmithEditingOperationsUtils::GetActorDepth(Actor)});
-			// #ueent_todo if rem children option, add them here
 		}
 		else if(FDataprepCoreUtils::IsAsset(Object))
 		{
@@ -157,52 +159,14 @@ void UDataprepRemoveObjectsOperation::OnExecution_Implementation(const FDataprep
 
 void UDataprepMergeActorsOperation::OnExecution_Implementation(const FDataprepContext& InContext)
 {
-	TArray<AStaticMeshActor*> ActorsToMerge;
+	TArray<AActor*> ActorsToMerge;
 	TArray<UPrimitiveComponent*> ComponentsToMerge;
 	UWorld* CurrentWorld = nullptr;
 
-	for(UObject* Object : InContext.Objects)
-	{
-		if( AStaticMeshActor* MeshActor = Cast<AStaticMeshActor>(Object) )
-		{
-			if(!MeshActor->IsPendingKillOrUnreachable())
-			{
-				if(CurrentWorld == nullptr)
-				{
-					CurrentWorld = MeshActor->GetWorld();
-				}
+	DatasmithEditingOperationsUtils::GetActorsToMerge(CurrentWorld, InContext.Objects, ActorsToMerge, ComponentsToMerge);
 
-				if(CurrentWorld != MeshActor->GetWorld())
-				{
-					// #ueent_todo: Warn that incompatible actor found and discarded
-					continue;
-				}
-
-				TInlineComponentArray<UStaticMeshComponent*> ComponentArray;
-				MeshActor->GetComponents<UStaticMeshComponent>(ComponentArray);
-
-				bool bMeshActorIsValid = false;
-				for (UStaticMeshComponent* MeshComponent : ComponentArray)
-				{
-					if (MeshComponent->GetStaticMesh()/* && MeshComponent->GetStaticMesh()->RenderData.IsValid()*/)
-					{
-						bMeshActorIsValid = true;
-						ComponentsToMerge.Add(MeshComponent);
-					}
-				}
-
-				//Actor needs at least one StaticMeshComponent to be considered valid
-				if (bMeshActorIsValid)
-				{
-					ActorsToMerge.Add( MeshActor );
-				}
-
-			}
-		}
-	}
-
-	// Nothing to do if there is none or only one static mesh actor
-	if( ActorsToMerge.Num() < 2 && ComponentsToMerge.Num() < 2)
+	// Nothing to do if there is only one component to merge
+	if( ComponentsToMerge.Num() < 2)
 	{
 		UE_LOG( LogDataprep, Log, TEXT("No static mesh actors to merge") );
 		return;
@@ -212,7 +176,7 @@ void UDataprepMergeActorsOperation::OnExecution_Implementation(const FDataprepCo
 	DataprepEditingOperationTime::FTimeLogger TimeLogger( TEXT("MergeActors"), [&]( FText Text) { this->LogInfo( Text ); });
 #endif
 
-	if(!MergeStaticMeshActors(CurrentWorld, ComponentsToMerge, TEXT("Merged") ))
+	if(!MergeStaticMeshActors(CurrentWorld, ComponentsToMerge, NewActorLabel.IsEmpty() ? TEXT("Merged") : *NewActorLabel ))
 	{
 		return;
 	}
@@ -228,31 +192,36 @@ void UDataprepMergeActorsOperation::OnExecution_Implementation(const FDataprepCo
 
 	MergedActor->GetRootComponent()->SetWorldLocation( MergedMeshWorldLocation );
 
+	// Keep the merged actor in the hierarchy, taking the parent of the first component
+	// In the future, the merged actor could be attached to the common ancestor instead of the first parent in the list
+	MergedActor->GetRootComponent()->AttachToComponent( ComponentsToMerge[0]->GetAttachParent(), FAttachmentTransformRules::KeepWorldTransform );
+
 	// Collect all objects to be deleted
 	TArray<UObject*> ObjectsToDelete;
 	ObjectsToDelete.Reserve( ComponentsToMerge.Num() + ActorsToMerge.Num() );
 
-	if(bDeleteMergedMeshes)
+	// Simple way to delete the actors: detach the merged components if it's safe to do so
+	for (UPrimitiveComponent* Component : ComponentsToMerge)
 	{
-		TSet<UObject*> StaticMeshes;
-		StaticMeshes.Reserve( ComponentsToMerge.Num() );
-
-		for(UPrimitiveComponent* PrimitiveComponent : ComponentsToMerge)
+		if (Component->GetNumChildrenComponents() == 0)
 		{
-			if(UStaticMesh* StaticMesh = Cast<UStaticMeshComponent>(PrimitiveComponent)->GetStaticMesh())
-			{
-				StaticMeshes.Add(StaticMesh);
-				ObjectsToDelete.Add( StaticMesh );
-				Cast<UStaticMeshComponent>(PrimitiveComponent)->SetStaticMesh( nullptr );
-			}
+			Component->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
+		}
+		else if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component))
+		{
+			// To keep the children in the hierarchy, simply hide the StaticMesh, but the StaticMeshComponent could be replaced by a SceneComponent and
+			// then attach the children to it
+			StaticMeshComponent->SetStaticMesh(nullptr);
 		}
 	}
 
-	if(bDeleteMergedActors)
+	// Then delete the merged actors that don't have any children component
+	for(AActor* Actor : ActorsToMerge)
 	{
-		for(AStaticMeshActor* MeshActor : ActorsToMerge)
+		UPrimitiveComponent* RootComponent = Cast<UPrimitiveComponent>(Actor->GetRootComponent());
+		if (RootComponent && RootComponent->GetNumChildrenComponents() == 0)
 		{
-			ObjectsToDelete.Add( MeshActor );
+			ObjectsToDelete.Add(Actor);
 		}
 	}
 
@@ -261,10 +230,27 @@ void UDataprepMergeActorsOperation::OnExecution_Implementation(const FDataprepCo
 
 bool UDataprepMergeActorsOperation::MergeStaticMeshActors(UWorld* World, const TArray<UPrimitiveComponent*>& ComponentsToMerge, const FString& RootName, bool bCreateActor)
 {
+	TSet<UStaticMesh*> StaticMeshes;
+	for(UPrimitiveComponent* PrimitiveComponent : ComponentsToMerge)
+	{
+		if(UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(PrimitiveComponent))
+		{
+			if(StaticMeshComponent->GetStaticMesh()->RenderData == nullptr)
+			{
+				StaticMeshes.Add(StaticMeshComponent->GetStaticMesh());
+			}
+		}
+	}
+
+	DataprepOperationsLibraryUtil::FStaticMeshBuilder StaticMeshBuilder( StaticMeshes );
+
 	//
 	// See MeshMergingTool.cpp
 	//
 	const IMeshMergeUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
+
+	FMeshMergingSettings MergeSettings;
+	MergeSettings.bPivotPointAtZero = bPivotPointAtZero;
 
 	TArray<UObject*> CreatedAssets;
 	const float ScreenAreaSize = TNumericLimits<float>::Max();
@@ -278,7 +264,7 @@ bool UDataprepMergeActorsOperation::MergeStaticMeshActors(UWorld* World, const T
 	}
 
 	// Add asset to set of assets in Dataprep action working set
-	MergedMesh = Cast<UStaticMesh>( AddAsset( UtilitiesMergedMesh, UStaticMesh::StaticClass(), *(RootName + TEXT("Mesh")) ) );
+	MergedMesh = Cast<UStaticMesh>( AddAsset( UtilitiesMergedMesh, NewActorLabel.IsEmpty() ? TEXT("Merged_Mesh") : *NewActorLabel ) );
 	if (!MergedMesh)
 	{
 		UE_LOG(LogDataprep, Error, TEXT("MergeStaticMeshActors failed. Internal error while creating the merged mesh."));
@@ -288,7 +274,7 @@ bool UDataprepMergeActorsOperation::MergeStaticMeshActors(UWorld* World, const T
 	if(bCreateActor == true)
 	{
 		// Place new mesh in the world
-		MergedActor = Cast<AStaticMeshActor>( CreateActor( AStaticMeshActor::StaticClass(), *(RootName + TEXT("Actor")) ) );
+		MergedActor = Cast<AStaticMeshActor>( CreateActor( AStaticMeshActor::StaticClass(), NewActorLabel.IsEmpty() ? TEXT("Merged_Actor") : *NewActorLabel ) );
 		if (!MergedActor)
 		{
 			UE_LOG(LogDataprep, Error, TEXT("MergeStaticMeshActors failed. Internal error while creating the merged actor."));
@@ -303,263 +289,194 @@ bool UDataprepMergeActorsOperation::MergeStaticMeshActors(UWorld* World, const T
 	return true;
 }
 
-void UDataprepMergeActorsOperation::PrepareStaticMeshes(TSet<UStaticMesh*> StaticMeshes, IMeshBuilderModule& MeshBuilderModule)
+void UDataprepCreateProxyMeshOperation::OnExecution_Implementation(const FDataprepContext& InContext)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UDataprepMergeActorsOperation::PrepareStaticMeshes);
+	TArray<AActor*> ActorsToMerge;
+	TArray<UPrimitiveComponent*> ComponentsToMerge;
+	UWorld* CurrentWorld = nullptr;
 
-	if( StaticMeshes.Num() > 1 )
-	{
-		TArray<UStaticMesh*> StaticMeshesToBuild = StaticMeshes.Array();
-		ParallelFor( StaticMeshesToBuild.Num(), [&]( int32 Index ) {
-			DataprepOperationsLibraryUtil::BuildRenderData( StaticMeshesToBuild[Index], MeshBuilderModule );
-		});
-	}
-	else
-	{
-		for(UStaticMesh* StaticMesh : StaticMeshes)
-		{
-			DataprepOperationsLibraryUtil::BuildRenderData( StaticMesh, MeshBuilderModule );
-		}
-	}
-}
+	DatasmithEditingOperationsUtils::GetActorsToMerge(CurrentWorld, InContext.Objects, ActorsToMerge, ComponentsToMerge);
 
-void UDataprepSmartMergeOperation::OnExecution_Implementation(const FDataprepContext& InContext)
-{
-	UWorld* World = nullptr;
-
-	for(UObject* Object : InContext.Objects)
+	// Nothing to do if there is no static mesh components to merge
+	if(ComponentsToMerge.Num() == 0)
 	{
-		if(AActor* Actor = Cast<AActor>(Object))
-		{
-			World = Actor->GetWorld();
-			break;
-		}
-	}
-
-	if(World == nullptr/* || World == GWorld*/)
-	{
+		UE_LOG(LogDataprep, Log, TEXT("No static mesh to merge"));
 		return;
 	}
 
-	// Get root actors
-	TArray<AActor*> RootActors;
-	DatasmithEditingOperationsUtils::GetRootActors(World, RootActors);
-
-	TArray<AActor*> Actors;
-	DatasmithEditingOperationsUtils::FindActorsToMerge(RootActors, Actors);
-
-#ifdef LOG_TIME
-	DataprepEditingOperationTime::FTimeLogger TimeLogger( TEXT("SmartMerge"), [&]( FText Text) { this->LogInfo( Text ); });
-#endif
-
-	SmartMerge( World, Actors );
-}
-
-void UDataprepSmartMergeOperation::SmartMerge(UWorld* World, const TArray<AActor*>& Actors)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(UDataprepSmartMergeOperation::SmartMerge);
-
-	TSharedPtr<FDataprepWorkReporter> Task = CreateTask( NSLOCTEXT( "SmartMergeOperation", "RunMerge", "Executing operation ..." ), 100.f, 1.0f );
-
-	Task->ReportNextStep( NSLOCTEXT( "SmartMergeOperation", "FindingActors", "Analyzing scene \"{0}\" ..."), 10.f );
-
-	// Group actor to merge by number of valid components
-	typedef TPair< AActor*, TArray<UPrimitiveComponent*> > FMergeableActor;
-	TMap< int32, TArray< FMergeableActor > > MergeableActorsMap;
-	for(AActor* Actor : Actors)
-	{
-		TArray<AActor*> ChildActors;
-		Actor->GetAttachedActors( ChildActors );
-
-		TArray< UPrimitiveComponent* > MeshComponents;
-		for(AActor* ChildActor : ChildActors)
-		{
-			TArray<UPrimitiveComponent*> Components;
-			ChildActor->GetComponents<UPrimitiveComponent>( Components );
-
-			for(UPrimitiveComponent* Component : Components)
-			{
-				// #ueent_todo: Support all primitive components
-				if(UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component))
-				{
-					if(StaticMeshComponent->GetStaticMesh() && StaticMeshComponent->GetStaticMesh()->GetNumSourceModels())
-					{
-						MeshComponents.Add( StaticMeshComponent );
-					}
-				}
-			}
-		}
-
-		TArray< FMergeableActor >& MergeableActors = MergeableActorsMap.FindOrAdd( MeshComponents.Num() );
-
-		MergeableActors.Emplace( Actor, MeshComponents );
-	}
-
-	Task->ReportNextStep( NSLOCTEXT( "SmartMergeOperation", "GroupingActors", "Grouping actors ..."), 10.f );
-
-	TArray< TArray< FMergeableActor > > MergeableActorsSet;
-	for(auto& MergeableActorsEntry : MergeableActorsMap)
-	{
-		TArray< FMergeableActor >& GroupedMergeableActors = MergeableActorsEntry.Value;
-		int32 ProcessedCount = 0;
-		TArray<bool> ProcessedEntries;
-		ProcessedEntries.AddZeroed( GroupedMergeableActors.Num() );
-
-		while(ProcessedCount < GroupedMergeableActors.Num())
-		{
-			for(int32 Index = 0; Index < ProcessedEntries.Num(); ++Index)
-			{
-				if(ProcessedEntries[Index] == false)
-				{
-					ProcessedEntries[Index] = true;
-					DatasmithEditingOperationsUtils::FMergingData ReferenceMergingData( GroupedMergeableActors[Index].Value );
-					ProcessedCount++;
-
-					TArray< FMergeableActor > MergeableActors;
-					MergeableActors.Add( GroupedMergeableActors[Index] );
-
-					for(int32 SubIndex = 0; SubIndex < ProcessedEntries.Num(); ++SubIndex)
-					{
-						if(ProcessedEntries[SubIndex] == false)
-						{
-							if( ReferenceMergingData.Equals( DatasmithEditingOperationsUtils::FMergingData( GroupedMergeableActors[SubIndex].Value ) ) )
-							{
-								MergeableActors.Add( GroupedMergeableActors[SubIndex] );
-								ProcessedEntries[SubIndex] = true;
-								ProcessedCount++;
-							}
-						}
-					}
-
-					MergeableActorsSet.Add( MergeableActors );
-				}
-			}
-		}
-	}
-
-	TArray< UObject* > ObjectsToDelete;
-
-	// Build render data for static meshes to be merged
-	IMeshBuilderModule& MeshBuilderModule = FModuleManager::LoadModuleChecked< IMeshBuilderModule >( TEXT("MeshBuilder") );
+	// Validate render data for static meshes
 	TSet<UStaticMesh*> StaticMeshes;
-
-	Task->ReportNextStep( NSLOCTEXT( "SmartMergeOperation", "BuildingMeshes", "Analyzing meshes ..."), 20.f );
-
-	for( auto& MergeableActors : MergeableActorsSet )
+	for(UPrimitiveComponent* PrimitiveComponent : ComponentsToMerge)
 	{
-		TArray<UPrimitiveComponent*>& PrimitiveComponents = MergeableActors[0].Value;
-
-		if( PrimitiveComponents.Num() > 1 )
+		if(UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(PrimitiveComponent))
 		{
-			for(UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
+			if(StaticMeshComponent->GetStaticMesh()->RenderData == nullptr)
 			{
-				if( UStaticMeshComponent* StaticMeshComponent = Cast< UStaticMeshComponent >( PrimitiveComponent ) )
-				{
-					if( StaticMeshComponent->GetStaticMesh()->RenderData == nullptr )
-					{
-						StaticMeshes.Add( StaticMeshComponent->GetStaticMesh() );
-					}
-					ObjectsToDelete.Add( StaticMeshComponent->GetStaticMesh() );
-				}
+				StaticMeshes.Add(StaticMeshComponent->GetStaticMesh());
 			}
 		}
 	}
 
-	PrepareStaticMeshes( StaticMeshes, MeshBuilderModule );
+	DataprepOperationsLibraryUtil::FStaticMeshBuilder StaticMeshBuilder( StaticMeshes );
 
-	Task->ReportNextStep( NSLOCTEXT( "SmartMergeOperation", "MergingActors", "Merging actors ..."), 60.f );
+	// Update the settings for geometry
+	FMeshProxySettings ProxySettings;
+	ProxySettings.bOverrideVoxelSize = false;
+	
+	const float Coefficient = 2.0f * Quality / 100.0f;
+
+	const float MinScreenSize = Coefficient <= 1.0f ? 100.0f : 300.0f;
+	const float MaxScreenSize = Coefficient <= 1.0f ? 300.0f : 1200.0f;
+	ProxySettings.ScreenSize = FMath::FloorToInt( FMath::Lerp( MinScreenSize, MaxScreenSize, Coefficient <= 1.0f ? Coefficient : Coefficient - 1.0f ) + 0.5f );
+
+	// Determine if incoming lightmap UVs are usable
+	ProxySettings.bReuseMeshLightmapUVs = true;
+	StaticMeshes.Empty( ComponentsToMerge.Num() );
+	for(UPrimitiveComponent* PrimitiveComponent : ComponentsToMerge)
 	{
-		TSharedPtr<FDataprepWorkReporter> SubTask = CreateTask( NSLOCTEXT( "SmartMergeOperation", "MergingActors", "Merging actors ..."), MergeableActorsSet.Num(), 1.0f );
-
-		for( auto& MergeableActors : MergeableActorsSet )
+		if(UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(PrimitiveComponent))
 		{
-			SubTask->ReportNextStep( NSLOCTEXT( "SmartMergeOperation", "MergingActor", "Merging actor ...") );
-
-			TArray<UPrimitiveComponent*>& PrimitiveComponents = MergeableActors[0].Value;
-			if( PrimitiveComponents.Num() > 1 )
+			if(StaticMeshComponent->GetStaticMesh())
 			{
-				MergeStaticMeshActors( World, PrimitiveComponents, TEXT("SmartMerge"), false );
-
-				if(MergedMesh == nullptr)
-				{
-					continue;
-				}
-
-				// IMeshUtilities::MergeComponentsToStaticMesh seems to bake the rotation (maybe scaling) of the parent actor in the merged mesh.
-				// To compensate for this, the inverse rotation and the inverse scaling are computed and will be applied to the world transform of
-				// the mesh actors which will be created
-				// #ueent_todo: Investigate the reason why this must be done
-				FTransform BaseComponentToWorld = MergeableActors[0].Key->GetRootComponent()->GetComponentToWorld();
-				FQuat InvBaseRotation = BaseComponentToWorld.GetRotation().Inverse();
-				FVector InvBaseScale = FVector::OneVector / BaseComponentToWorld.GetScale3D();
-
-				for( FMergeableActor& MergeableActor : MergeableActors )
-				{
-					AActor* Actor = MergeableActor.Key;
-
-					FActorSpawnParameters Params;
-					Params.OverrideLevel = Actor->GetLevel();
-
-					// Place new mesh in the world
-					MergedActor = Cast<AStaticMeshActor>( CreateActor( AStaticMeshActor::StaticClass(), TEXT("SmartMergeActor") ) );
-					if(MergedActor != nullptr)
-					{
-						USceneComponent* ParentComponent = Actor->GetRootComponent()->GetAttachParent();
-						FString ActorName = Actor->GetName();
-						FName NewName = MakeUniqueObjectName( Actor->GetOuter(), Actor->GetClass() );
-						FDataprepCoreUtils::RenameObject( Actor, *NewName.ToString() );
-
-						MergedActor->GetStaticMeshComponent()->SetStaticMesh( MergedMesh );
-						FDataprepCoreUtils::RenameObject( MergedActor, *ActorName );
-						MergedActor->SetActorLabel( Actor->GetActorLabel() );
-
-						FTransform ComponentToWorld = Actor->GetRootComponent()->GetComponentToWorld();
-						ComponentToWorld.SetTranslation( ComponentToWorld.GetTranslation() /*+ MergedActorLocation*/ );
-						ComponentToWorld.SetRotation( ComponentToWorld.GetRotation() * InvBaseRotation );
-						ComponentToWorld.SetScale3D( ComponentToWorld.GetScale3D() * InvBaseScale );
-						MergedActor->GetRootComponent()->SetComponentToWorld( ComponentToWorld );
-
-						World->UpdateCullDistanceVolumes( MergedActor, MergedActor->GetStaticMeshComponent() );
-
-						if(ParentComponent)
-						{
-							MergedActor->GetRootComponent()->AttachToComponent( ParentComponent, FAttachmentTransformRules::KeepWorldTransform );
-						}
-
-						TArray<AActor*> ActorsToDelete;
-						Actor->GetAttachedActors( ActorsToDelete );
-						ActorsToDelete.Add( Actor );
-
-						ObjectsToDelete.Append( ActorsToDelete );
-					}
-					else
-					{
-						UE_LOG(LogDataprep, Error, TEXT("MergeStaticMeshActors failed. Internal error while creating the merged actor."));
-					}
-
-					TArray<AActor*> ActorsToDelete;
-					Actor->GetAttachedActors( ActorsToDelete );
-					ActorsToDelete.Add( Actor );
-
-					ObjectsToDelete.Append( ActorsToDelete );
-				}
+				StaticMeshes.Add( StaticMeshComponent->GetStaticMesh() );
 			}
 		}
 	}
 
-	// Release render data of built static meshes
 	for(UStaticMesh* StaticMesh : StaticMeshes)
 	{
-		if(StaticMesh)
+		const FMeshBuildSettings& BuildSettings = StaticMesh->GetSourceModel(0).BuildSettings;
+		if(!BuildSettings.bGenerateLightmapUVs)
 		{
-			StaticMesh->RenderData.Reset();
+			ProxySettings.bReuseMeshLightmapUVs = false;
+			break;
+		}
+		else if(FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription( 0 ))
+		{
+			FStaticMeshAttributes Attributes(*MeshDescription);
+			bool bHasValidLightmapUVs = Attributes.GetVertexInstanceUVs().IsValid() &&
+				Attributes.GetVertexInstanceUVs().GetNumIndices() > BuildSettings.SrcLightmapIndex &&
+				Attributes.GetVertexInstanceUVs().GetNumIndices() > BuildSettings.DstLightmapIndex;
+			if(!bHasValidLightmapUVs)
+			{
+				ProxySettings.bReuseMeshLightmapUVs = false;
+				break;
+			}
+		}
+	}
+
+	// Update the settings for materials
+	ProxySettings.MaterialSettings.bMetallicMap = true;
+	ProxySettings.MaterialSettings.bRoughnessMap = true;
+
+	const int32 TextureSize = (Coefficient <= 0.5f) ? 512 : ((Coefficient <= 1.0f) ? 1024 : ((Coefficient <= 1.5f) ? 2048 : 4096 ));
+	ProxySettings.MaterialSettings.TextureSize = FIntPoint( TextureSize, TextureSize );
+
+	// Generate proxy mesh and proxy material assets 
+	FCreateProxyDelegate ProxyDelegate;
+	ProxyDelegate.BindLambda( [&](const FGuid Guid, TArray<UObject*>& AssetsToSync )
+	{
+		UStaticMesh* ProxyMesh = nullptr;
+		if(!AssetsToSync.FindItemByClass(&ProxyMesh))
+		{
+			UE_LOG(LogDataprep, Error, TEXT("CreateProxyMesh failed. No mesh was created."));
+			return;
+		}
+
+		// Add asset to set of assets in Dataprep action working set
+		MergedMesh = Cast<UStaticMesh>(AddAsset(ProxyMesh, NewActorLabel.IsEmpty() ? TEXT("Proxy_Mesh") : *NewActorLabel));
+		if(!MergedMesh)
+		{
+			UE_LOG(LogDataprep, Error, TEXT("CreateProxyMesh failed. Internal error while creating the merged mesh."));
+			return;
+		}
+
+		// Place new mesh in the world (on a new actor)
+		MergedActor = Cast<AStaticMeshActor>(CreateActor(AStaticMeshActor::StaticClass(), NewActorLabel.IsEmpty() ? TEXT("Proxy_Actor") : *NewActorLabel));
+		if(!MergedActor)
+		{
+			UE_LOG(LogDataprep, Error, TEXT("CreateProxyMesh failed. Internal error while creating the merged actor."));
+			return;
+		}
+
+		MergedActor->GetStaticMeshComponent()->SetStaticMesh(MergedMesh);
+		MergedActor->SetActorLabel(NewActorLabel.IsEmpty() ? TEXT("Proxy_Actor") : *NewActorLabel);
+		CurrentWorld->UpdateCullDistanceVolumes(MergedActor, MergedActor->GetStaticMeshComponent());
+
+		// Add the other assets created by the merge, i.e. material, texture, etc, to the context
+		TArray< TPair< UObject*, UObject* > > RedirectionMap;
+		RedirectionMap.Reserve( AssetsToSync.Num() );
+
+		for(UObject* Object : AssetsToSync)
+		{
+			if( Cast<UStaticMesh>(Object) != ProxyMesh)
+			{
+				const FString DefaultName = Object->GetClass()->GetName() + TEXT("_Proxy");
+				UObject* AssetFromMerge = AddAsset(Object, NewActorLabel.IsEmpty() ? *DefaultName : *NewActorLabel);
+
+				RedirectionMap.Emplace( AssetFromMerge, Object );
+			}
+		}
+
+		// Update references accordingly
+		for(TPair< UObject*, UObject* >& MapEntry : RedirectionMap)
+		{
+			TArray<UObject*> ObjectsToReplace(&MapEntry.Value, 1);
+			ObjectTools::ForceReplaceReferences( MapEntry.Key, ObjectsToReplace );
+		}
+	});
+
+	FGuid JobGuid = FGuid::NewGuid();
+
+	const IMeshMergeUtilities& MergeUtilities = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
+	MergeUtilities.CreateProxyMesh(ActorsToMerge, ProxySettings, nullptr, GetTransientPackage(), FString(), JobGuid, ProxyDelegate);
+
+	// Position the merged actor at the right location
+	if(MergedActor->GetRootComponent() == nullptr)
+	{
+		USceneComponent* RootComponent = NewObject< USceneComponent >(MergedActor, USceneComponent::StaticClass(), *MergedActor->GetActorLabel(), RF_Transactional);
+
+		MergedActor->AddInstanceComponent(RootComponent);
+		MergedActor->SetRootComponent(RootComponent);
+	}
+
+	// Keep the merged actor in the hierarchy, taking the parent of the first component
+	// In the future, the merged actor could be attached to the common ancestor instead of the first parent in the list
+	MergedActor->GetRootComponent()->AttachToComponent(ComponentsToMerge[0]->GetAttachParent(), FAttachmentTransformRules::KeepWorldTransform);
+
+	// Collect all objects to be deleted
+	TArray<UObject*> ObjectsToDelete;
+	ObjectsToDelete.Reserve(ComponentsToMerge.Num() + ActorsToMerge.Num());
+
+	// Simple way to delete the actors: detach the merged components if it's safe to do so
+	for(UPrimitiveComponent* Component : ComponentsToMerge)
+	{
+		if(Component->GetNumChildrenComponents() == 0)
+		{
+			Component->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
+		}
+		else if(UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component))
+		{
+			// To keep the children in the hierarchy, simply hide the StaticMesh, but the StaticMeshComponent could be replaced by a SceneComponent and
+			// then attach the children to it
+			StaticMeshComponent->SetStaticMesh(nullptr);
+		}
+	}
+
+	// Then delete the merged actors that don't have any children component
+	for(AActor* Actor : ActorsToMerge)
+	{
+		UPrimitiveComponent* RootComponent = Cast<UPrimitiveComponent>(Actor->GetRootComponent());
+		if(RootComponent && RootComponent->GetNumChildrenComponents() == 0)
+		{
+			ObjectsToDelete.Add(Actor);
 		}
 	}
 
 	DeleteObjects(ObjectsToDelete);
 }
 
-void UDataprepCleanWorldOperation::OnExecution_Implementation(const FDataprepContext& InContext)
+void UDataprepDeleteUnusedAssetsOperation::OnExecution_Implementation(const FDataprepContext& InContext)
 {
 	UWorld* World = nullptr;
 
@@ -577,12 +494,11 @@ void UDataprepCleanWorldOperation::OnExecution_Implementation(const FDataprepCon
 			}
 		}
 
-		for(const FMaterialTextureInfo& TextureInfo : MaterialInterface->GetTextureStreamingData())
+		TArray<UTexture*> Textures;
+		MaterialInterface->GetUsedTextures(Textures, EMaterialQualityLevel::Num, true, ERHIFeatureLevel::Num, true);
+		for (UTexture* Texture : Textures)
 		{
-			if(UObject* Texture = TextureInfo.TextureReference.ResolveObject())
-			{
-				UsedAssets.Add(Texture);
-			}
+			UsedAssets.Add(Texture);
 		}
 	};
 
@@ -640,47 +556,6 @@ void UDataprepCleanWorldOperation::OnExecution_Implementation(const FDataprepCon
 	TArray<UObject*> ObjectsToDelete;
 	ObjectsToDelete.Reserve(InContext.Objects.Num());
 
-	if(World != nullptr)
-	{
-		// Get root actors
-		TArray<AActor*> RootActors;
-		DatasmithEditingOperationsUtils::GetRootActors(World, RootActors);
-
-		TArray<AActor*> ActorsToCollapse;
-		DatasmithEditingOperationsUtils::FindActorsToCollapseOrDelete(RootActors, ActorsToCollapse, ObjectsToDelete);
-
-		for(AActor* Actor : ActorsToCollapse)
-		{
-			USceneComponent* RootComponent = Actor->GetRootComponent();
-
-			TArray< USceneComponent* > AttachChildren = RootComponent->GetAttachChildren(); // Make a copy because the array in RootComponent will get modified during the process
-			USceneComponent* AttachParent = RootComponent->GetAttachParent();
-
-			for ( USceneComponent* ChildComponent : AttachChildren )
-			{
-				if(ChildComponent)
-				{
-					// skip component with invalid or condemned owner
-					AActor* Owner = ChildComponent->GetOwner();
-					if ( Owner == nullptr || Owner == Actor || Owner->IsPendingKill() || InContext.Objects.Contains(Owner) /* Slow!!! */)
-					{
-						continue;
-					}
-
-					ChildComponent->AttachToComponent( AttachParent, FAttachmentTransformRules::KeepWorldTransform );
-				}
-			}
-
-			// Remove actor from world and add to array for deletion
-			{
-				World->RemoveActor(Actor, true);
-				FDataprepCoreUtils::MoveToTransientPackage( Actor );
-
-				ObjectsToDelete.Add( Actor );
-			}
-		}
-	}
-
 	for(UObject* Object : InContext.Objects)
 	{
 		if(FDataprepCoreUtils::IsAsset(Object) && !UsedAssets.Contains(Object))
@@ -690,6 +565,80 @@ void UDataprepCleanWorldOperation::OnExecution_Implementation(const FDataprepCon
 	}
 
 	DeleteObjects( ObjectsToDelete );
+}
+
+void UDataprepCompactSceneGraphOperation::OnExecution_Implementation(const FDataprepContext& InContext)
+{
+#ifdef LOG_TIME
+	DataprepEditingOperationTime::FTimeLogger TimeLogger(TEXT("CompactSceneGraph"), [&](FText Text) { this->LogInfo(Text); });
+#endif
+
+	TMap<AActor*, bool> VisibilityMap;
+	for (UObject* Object : InContext.Objects)
+	{
+		if (!ensure(Object) || Object->IsPendingKill())
+		{
+			continue;
+		}
+
+		if (AActor* Actor = Cast<AActor>(Object))
+		{
+			IsActorVisible(Actor, VisibilityMap);
+		}
+	}
+
+	TArray<UObject*> ObjectsToDelete;
+	ObjectsToDelete.Reserve(InContext.Objects.Num());
+
+	for (const TPair<AActor*, bool>& ActorVisiblity : VisibilityMap)
+	{
+		if (!ActorVisiblity.Value)
+		{
+			ObjectsToDelete.Add(ActorVisiblity.Key);
+		}
+	}
+
+	DeleteObjects(ObjectsToDelete);
+}
+
+bool UDataprepCompactSceneGraphOperation::IsActorVisible(AActor* Actor, TMap<AActor*, bool>& VisibilityMap)
+{
+	if (!Actor)
+	{
+		return false;
+	}
+
+	// For scene compaction, actor visibility is defined as the actor having a MeshComponent (PrimitiveComponent could also be used)
+	// or an attached child that is visible
+	bool* bIsVisible = VisibilityMap.Find(Actor);
+	if (bIsVisible)
+	{
+		return *bIsVisible;
+	}
+
+	TArray<UActorComponent*> Components = Actor->GetComponents().Array();
+	for (UActorComponent* Component : Components)
+	{
+		if (UMeshComponent* MeshComponent = Cast<UMeshComponent>(Component))
+		{
+			VisibilityMap.Add(Actor, true);
+			return true;
+		}
+	}
+
+	TArray<AActor*> AttachedActors;
+	Actor->GetAttachedActors(AttachedActors);
+	for (AActor* AttachedActor : AttachedActors)
+	{
+		if (IsActorVisible(AttachedActor, VisibilityMap))
+		{
+			VisibilityMap.Add(Actor, true);
+			return true;
+		}
+	}
+
+	VisibilityMap.Add(Actor, false);
+	return false;
 }
 
 namespace DatasmithEditingOperationsUtils
@@ -790,6 +739,51 @@ namespace DatasmithEditingOperationsUtils
 				if(bIsValidRootActor )
 				{
 					OutRootActors.Add( Actor );
+				}
+			}
+		}
+	}
+
+	void GetActorsToMerge(UWorld*& World, const TArray<UObject*>& InObjects, TArray<AActor*>& ActorsToMerge, TArray<UPrimitiveComponent*>& ComponentsToMerge)
+	{
+		World = nullptr;
+
+		for(UObject* Object : InObjects)
+		{
+			if(AActor* Actor = Cast<AActor>(Object))
+			{
+				if(!Actor->IsPendingKillOrUnreachable())
+				{
+					// Set current world to first world encountered
+					if(World == nullptr)
+					{
+						World = Actor->GetWorld();
+					}
+
+					if(World != Actor->GetWorld())
+					{
+						UE_LOG( LogDataprep, Log, TEXT("Actor %s is not part of the Dataprep transient world ..."), *Actor->GetActorLabel() );
+						continue;
+					}
+
+					TInlineComponentArray<UStaticMeshComponent*> ComponentArray;
+					Actor->GetComponents<UStaticMeshComponent>(ComponentArray);
+
+					bool bMeshActorIsValid = false;
+					for(UStaticMeshComponent* MeshComponent : ComponentArray)
+					{
+						if(MeshComponent->GetStaticMesh() && MeshComponent->GetStaticMesh()->GetSourceModels().Num() > 0)
+						{
+							bMeshActorIsValid = true;
+							ComponentsToMerge.Add(MeshComponent);
+						}
+					}
+
+					//Actor needs at least one StaticMeshComponent to be considered valid
+					if(bMeshActorIsValid)
+					{
+						ActorsToMerge.Add(Actor);
+					}
 				}
 			}
 		}

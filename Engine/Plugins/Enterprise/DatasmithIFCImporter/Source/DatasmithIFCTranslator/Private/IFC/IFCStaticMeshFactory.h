@@ -26,7 +26,7 @@ namespace IFC
 
 		inline const TArray<FLogMessage>& GetLogMessages() const { return Messages; }
 
-		void FillMeshDescription(const IFC::FObject* InObject, FMeshDescription* MeshDescription);
+		void FillMeshDescription(const IFC::FObject* InObject, FMeshDescription* OutMeshDescription) const;
 
 		FMD5Hash ComputeHash(const IFC::FObject& InObject);
 
@@ -35,8 +35,6 @@ namespace IFC
 
 		void SetReserveSize(uint32 Size);
 
-		void CleanUp();
-
 	protected:
 		mutable TArray<FLogMessage> Messages;
 
@@ -44,8 +42,6 @@ namespace IFC
 
 	private:
 		using FIndexVertexIdMap = TMap<int32, FVertexID>;
-
-		TMap<int32, FPolygonGroupID> MaterialIndexToPolygonGroupID;
 	};
 
 }  // namespace IFC

@@ -25,6 +25,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogLuminTargetSettingsDetail, Log, All);
 
 #define LOCTEXT_NAMESPACE "LuminTargetSettingsDetails"
 
+static constexpr float ExpireDuration = 5.0f;
+
 TSharedRef<IDetailCustomization> FLuminTargetSettingsDetails::MakeInstance()
 {
 	return MakeShareable(new FLuminTargetSettingsDetails);
@@ -60,14 +62,10 @@ FString FLuminTargetSettingsDetails::IconModelPathGetter()
 	FString Result;
 	if (IconModelPathProp->GetValue(Result) == FPropertyAccess::Success && !Result.IsEmpty())
 	{
-		if (SetupForPlatformAttribute.Get())
-		{
-			// If we did the setup, the values are game/project dir relative. So we root them at that
-			// for display. Otherwise we show the default values which will show engine exec relative
-			// paths to the platform build resource locations.
-			Result = FPaths::ProjectDir() / Result;
-		}
-		else
+		// If we did the setup, the values are game/project dir relative. So we display
+		// them as is. Otherwise we show the default values which will show engine exec relative
+		// paths to the platform build resource locations.
+		if (!SetupForPlatformAttribute.Get())
 		{
 			// Otherwise they are in the engine tree. But they could be outdate paths.
 			// In which case we use the hard-wired defaults.
@@ -89,14 +87,10 @@ FString FLuminTargetSettingsDetails::IconPortalPathGetter()
 	FString Result;
 	if (IconPortalPathProp->GetValue(Result) == FPropertyAccess::Success && !Result.IsEmpty())
 	{
-		if (SetupForPlatformAttribute.Get())
-		{
-			// If we did the setup, the values are game/project dir relative. So we root them at that
-			// for display. Otherwise we show the default values which will show engine exec relative
-			// paths to the platform build resource locations.
-			Result = FPaths::ProjectDir() / Result;
-		}
-		else
+		// If we did the setup, the values are game/project dir relative. So we display
+		// them as is. Otherwise we show the default values which will show engine exec relative
+		// paths to the platform build resource locations.
+		if (!SetupForPlatformAttribute.Get())
 		{
 			// Otherwise they are in the engine tree. But they could be outdate paths.
 			// In which case we use the hard-wired defaults.
@@ -116,10 +110,7 @@ FString FLuminTargetSettingsDetails::IconPortalPathGetter()
 FString FLuminTargetSettingsDetails::CertificateGetter()
 {
 	FString Result;
-	if (CertificateProp->GetValue(Result) == FPropertyAccess::Success && !Result.IsEmpty())
-	{
-		Result = FPaths::ProjectDir() / Result;
-	}
+	CertificateProp->GetValue(Result);
 	return Result;
 }
 
@@ -163,7 +154,7 @@ void FLuminTargetSettingsDetails::CopySetupFilesIntoProject()
 
 void FLuminTargetSettingsDetails::BuildAudioSection(IDetailLayoutBuilder& DetailBuilder)
 {
-	AudioPluginManager.BuildAudioCategory(DetailBuilder, EAudioPlatform::Lumin);
+	AudioPluginManager.BuildAudioCategory(DetailBuilder, FString(TEXT("Lumin")));
 }
 
 void FLuminTargetSettingsDetails::BuildAppTileSection(IDetailLayoutBuilder& DetailBuilder)
@@ -212,12 +203,18 @@ void FLuminTargetSettingsDetails::BuildAppTileSection(IDetailLayoutBuilder& Deta
 		LOCTEXT("IconModelLabel", "Icon Model"),
 		LOCTEXT("PickIconModelButton_Tooltip", "Select the icon model to use for the application. The files will be copied to the project build folder."),
 		FOnChoosePath::CreateRaw(this, &FLuminTargetSettingsDetails::OnPickDirectory),
-		FOnPickPath::CreateRaw(this, &FLuminTargetSettingsDetails::OnPickIconModelPath));
+		FOnPickPath::CreateRaw(this, &FLuminTargetSettingsDetails::OnPickIconModelPath),
+		false /*bClearButton*/,
+		LOCTEXT("NoClearButton_Tooltip", ""),
+		true /*bDisableUntilConfigured*/);
 	BuildPathPicker(DetailBuilder, AppTitleCategory, IconPortalPathAttribute,
 		LOCTEXT("IconPortalLabel", "Icon Portal"),
 		LOCTEXT("PickIconPortalButton_Tooltip", "Select the icon portal to use for the application. The files will be copied to the project build folder."),
 		FOnChoosePath::CreateRaw(this, &FLuminTargetSettingsDetails::OnPickDirectory),
-		FOnPickPath::CreateRaw(this, &FLuminTargetSettingsDetails::OnPickIconPortalPath));
+		FOnPickPath::CreateRaw(this, &FLuminTargetSettingsDetails::OnPickIconPortalPath),
+		false /*bClearButton*/,
+		LOCTEXT("NoClearButton_Tooltip", ""),
+		true /*bDisableUntilConfigured*/);
 
 	////////// UI for signing cert..
 
@@ -233,7 +230,11 @@ void FLuminTargetSettingsDetails::BuildAppTileSection(IDetailLayoutBuilder& Deta
 				LOCTEXT("PickCertificateFileDialogTitle", "Choose a certificate").ToString(),
 				FString::Printf(TEXT("%s (*.cert)|*.cert"), *FilterText));
 		}),
-		FOnPickPath::CreateRaw(this, &FLuminTargetSettingsDetails::OnPickCertificate));
+		FOnPickPath::CreateRaw(this, &FLuminTargetSettingsDetails::OnPickCertificate),
+		true /*bClearButton*/,
+		LOCTEXT("CertClearButton_Tooltip", "Clear the selected certificate."),
+		false /*bDisableUntilConfigured*/);
+
 }
 
 FReply FLuminTargetSettingsDetails::OnPickIconModelPath(const FString& DirPath)
@@ -242,7 +243,13 @@ FReply FLuminTargetSettingsDetails::OnPickIconModelPath(const FString& DirPath)
 	if (ProjectModelPath != DirPath)
 	{
 		// Copy the contents of the selected path to the project build path.
-		CopyDir(DirPath, ProjectModelPath);
+		const bool bModelFilesUpdated = CopyDir(DirPath, ProjectModelPath);
+		if (bModelFilesUpdated)
+		{
+			FNotificationInfo SuccessInfo(LOCTEXT("ModelFilesUpdatedLabel", "Icon model files updated."));
+			SuccessInfo.ExpireDuration = ExpireDuration;
+			FSlateNotificationManager::Get().AddNotification(SuccessInfo);
+		}
 	}
 	return FReply::Handled();
 }
@@ -253,7 +260,13 @@ FReply FLuminTargetSettingsDetails::OnPickIconPortalPath(const FString& DirPath)
 	if (ProjectPortalPath != DirPath)
 	{
 		// Copy the contents of the selected path to the project build path.
-		CopyDir(DirPath, ProjectPortalPath);
+		const bool bPortalFilesUpdated = CopyDir(DirPath, ProjectPortalPath);
+		if (bPortalFilesUpdated)
+		{
+			FNotificationInfo SuccessInfo(LOCTEXT("PortalFilesUpdatedLabel", "Icon portal files updated."));
+			SuccessInfo.ExpireDuration = ExpireDuration;
+			FSlateNotificationManager::Get().AddNotification(SuccessInfo);
+		}
 	}
 	return FReply::Handled();
 }
@@ -272,6 +285,26 @@ bool FLuminTargetSettingsDetails::CopyDir(FString SourceDir, FString TargetDir)
 	int FilesCopiedCount = 0;
 	IPlatformFile::GetPlatformPhysical().FindFilesRecursively(FilesToCopy, *SourceDir, nullptr);
 	FText Description = FText::FromString(FPaths::GetBaseFilename(TargetDir));
+
+	// Delete files already existing in TargetDir but not in SourceDir i.e. the ones that won't be replaced.
+	TArray<FString> ExistingFiles;
+	IPlatformFile::GetPlatformPhysical().FindFilesRecursively(ExistingFiles, *TargetDir, nullptr);
+	for (const FString& ExistingFile : ExistingFiles)
+	{
+		const FString ExistingFileInSourceDir = ExistingFile.Replace(*TargetDir, *SourceDir);
+		if (!IPlatformFile::GetPlatformPhysical().FileExists(*ExistingFileInSourceDir))
+		{
+			if (SourceControlHelpers::IsEnabled())
+			{
+				SourceControlHelpers::MarkFileForDelete(ExistingFile);
+			}
+			else
+			{
+				IPlatformFile::GetPlatformPhysical().DeleteFile(*ExistingFile);
+			}
+		}
+	}
+
 	for (FString& FileToCopy : FilesToCopy)
 	{
 		FString NewFile = FileToCopy.Replace(*SourceDir, *TargetDir);
@@ -295,13 +328,15 @@ bool FLuminTargetSettingsDetails::CopyDir(FString SourceDir, FString TargetDir)
 			}
 		}
 	}
-	return true;
+
+	return FilesCopiedCount > 0;
 }
 
 void FLuminTargetSettingsDetails::BuildPathPicker(
 	IDetailLayoutBuilder& DetailBuilder, IDetailCategoryBuilder& Category,
 	TAttribute<FString> Path, const FText& Label, const FText& Tooltip,
-	const FOnChoosePath& OnChoose, const FOnPickPath& OnPick)
+	const FOnChoosePath& OnChoose, const FOnPickPath& OnPick, bool bClearButton, const FText& ClearTooltip,
+	bool bDisableUntilConfigured)
 {
 	TSharedPtr<SButton> PickButton = nullptr;
 	TSharedPtr<SWidget> PickWidget = nullptr;
@@ -322,8 +357,54 @@ void FLuminTargetSettingsDetails::BuildPathPicker(
 		return OnChoose.Execute(Path.Get(), OnPick, PickButton);
 	}));
 
-	Category.AddCustomRow(Label, false)
-		.IsEnabled(SetupForPlatformAttribute)
+	TSharedPtr<SButton> ClearButton = nullptr;
+	TSharedPtr<SWidget> ClearWidget = nullptr;
+	ClearWidget = SAssignNew(ClearButton, SButton)
+		.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+		.ToolTipText(ClearTooltip)
+		.ContentPadding(2.0f)
+		.ForegroundColor(FSlateColor::UseForeground())
+		.IsFocusable(false)
+		.IsEnabled(bClearButton)
+		[
+			SNew(SImage)
+			.Image(FEditorStyle::GetBrush("PropertyWindow.Button_Clear"))
+			.ColorAndOpacity(FSlateColor::UseForeground())
+		]
+	;
+	ClearButton->SetOnClicked(FOnClicked::CreateLambda([this]()->FReply
+	{
+		CertificateProp->SetValue(TEXT(""));
+		return FReply::Handled();
+	}));
+
+	TSharedPtr<SHorizontalBox> PathPickerBox = SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(STextBlock)
+			.Text(TAttribute<FText>::Create(
+				TAttribute<FText>::FGetter::CreateLambda([Path]()->FText { return FText::FromString(Path.Get()); })))
+			.Font(DetailBuilder.GetDetailFont())
+			.Margin(2.0f)
+		]
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			PickWidget.ToSharedRef()
+		]
+	;
+
+	if (bClearButton)
+	{
+		PathPickerBox->AddSlot()
+			.AutoWidth()
+			[
+				ClearWidget.ToSharedRef()
+			];
+	}
+
+	FDetailWidgetRow& Row = Category.AddCustomRow(Label, false)
 		.NameContent()
 		[
 			SNew(SHorizontalBox)
@@ -338,22 +419,13 @@ void FLuminTargetSettingsDetails::BuildPathPicker(
 		]
 		.ValueContent()
 		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SNew(STextBlock)
-				.Text(TAttribute<FText>::Create(
-					TAttribute<FText>::FGetter::CreateLambda([Path]()->FText { return FText::FromString(Path.Get()); })))
-				.Font(DetailBuilder.GetDetailFont())
-				.Margin(2.0f)
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				PickWidget.ToSharedRef()
-			]
+			PathPickerBox.ToSharedRef()
 		];
+
+	if (bDisableUntilConfigured)
+	{
+		Row.IsEnabled(SetupForPlatformAttribute);
+	}
 }
 
 FReply FLuminTargetSettingsDetails::OnPickDirectory(TAttribute<FString> DirPath, const FLuminTargetSettingsDetails::FOnPickPath& OnPick, TSharedPtr<SButton> PickButton)

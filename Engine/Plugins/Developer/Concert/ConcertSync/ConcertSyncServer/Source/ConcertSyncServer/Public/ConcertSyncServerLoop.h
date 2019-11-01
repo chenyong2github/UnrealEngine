@@ -27,6 +27,9 @@ struct FConcertSyncServerLoopInitArgs
 
 	/** Function to get the server settings object to configure the server with with, or unbound to parse the default settings */
 	TFunction<const UConcertServerConfig*()> GetServerConfigFunc;
+    
+    /** Whether the service should show the log console. */
+    bool bShowConsole = true;
 };
 
 /**

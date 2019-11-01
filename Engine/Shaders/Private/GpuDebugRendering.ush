@@ -14,8 +14,8 @@
 
 // TODO abstract/add binding configuration based on define 
 // Note: for pixel shader, UAV are in the output space, if one RT is bound, first available UAV is 1
-RWTexture2D<uint>	OutputDebugPrimitiveCount	: register(u1);
-RWTexture2D<float4>	OutputDebugPrimitive		: register(u2);
+RWTexture2D<uint>	OutputDebugPrimitiveCount	REGISTER(u1);
+RWTexture2D<float4>	OutputDebugPrimitive		REGISTER(u2);
 
 static bool	bGpuDebugEnable					= false;
 static const uint MaxDebugPrimitiveCount	= 1024;		// Match GpuDebugRednering.cpp :: AllocateGpuDebugPrimitiveBuffers()

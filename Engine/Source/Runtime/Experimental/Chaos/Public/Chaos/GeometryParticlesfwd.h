@@ -34,6 +34,11 @@ namespace Chaos
 		}
 	};
 
+	inline uint32 GetTypeHash(const FSpatialAccelerationIdx& Idx)
+	{
+		return ::GetTypeHash((const uint16&) Idx);
+	}
+
 	inline FArchive& operator<<(FArchive& Ar, FSpatialAccelerationIdx& Idx)
 	{
 		return Ar << (uint16&)Idx;

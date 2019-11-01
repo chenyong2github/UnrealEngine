@@ -26,7 +26,6 @@ public:
 
 	virtual bool SupportsDelete() const override { return true; }
 	virtual bool TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const;
-	virtual void Delete() override;
 
 	bool HasBaseRenderer() const;
 
@@ -36,7 +35,6 @@ public:
 
 	virtual bool SupportsChangeEnabled() const override { return true; }
 	virtual bool GetIsEnabled() const override;
-	virtual void SetIsEnabled(bool bInIsEnabled) override;
 
 	static TArray<FNiagaraVariable> GetMissingVariables(UNiagaraRendererProperties* RendererProperties, UNiagaraEmitter* Emitter);
 	static bool AddMissingVariable(UNiagaraEmitter* Emitter, const FNiagaraVariable& Variable);
@@ -45,6 +43,9 @@ protected:
 	virtual void FinalizeInternal() override;
 
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
+
+	virtual void SetIsEnabledInternal(bool bInIsEnabled) override;
+	virtual void DeleteInternal() override;
 
 private:
 	void RendererChanged();

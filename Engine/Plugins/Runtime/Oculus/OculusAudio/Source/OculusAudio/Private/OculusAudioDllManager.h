@@ -37,14 +37,15 @@ static const TCHAR* GetOculusErrorString(ovrResult Result)
 #endif
 
 
-#define OVR_AUDIO_CHECK(Result, Context)																\
+#define OVR_AUDIO_CHECK_RETURN_VALUE(Result, Context, FailureReturnValue)								\
 	if (Result != ovrSuccess)																			\
 	{																									\
 		const TCHAR* ErrString = GetOculusErrorString(Result);											\
 		UE_LOG(LogAudio, Error, TEXT("Oculus Audio SDK Error - %s: %s"), TEXT(Context), ErrString);		\
-		return;																							\
+		return FailureReturnValue;																		\
 	}
 
+#define OVR_AUDIO_CHECK(Result, Context) OVR_AUDIO_CHECK_RETURN_VALUE(Result, Context, (void)0)
 
 /************************************************************************/
 /* FOculusAudioLibraryManager										   */

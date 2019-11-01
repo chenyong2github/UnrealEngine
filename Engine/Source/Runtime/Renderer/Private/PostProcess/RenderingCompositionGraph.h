@@ -174,6 +174,8 @@ struct FRenderingCompositePassContext
 		return SceneColorViewRect;
 	}
 
+	FIntRect GetSceneColorDestRect(FRenderingCompositePass* InPass) const;
+
 	FIntPoint GetSceneColorDownscaleFactor(FIntPoint InputExtent) const
 	{
 		const uint32 ScaleFactorX = FMath::RoundUpToPowerOfTwo(FMath::DivideAndRoundUp(ReferenceBufferSize.X, InputExtent.X));
@@ -399,7 +401,7 @@ struct FRenderingCompositePass
 	 * Convenience method, is using other virtual methods.
 	 * @return 0 if there is an error
 	 */
-	const FPooledRenderTargetDesc* GetInputDesc(EPassInputId InPassInputId) const;
+	RENDERER_API const FPooledRenderTargetDesc* GetInputDesc(EPassInputId InPassInputId) const;
 
 	/** */
 	virtual void Release() = 0;
@@ -444,7 +446,7 @@ struct FRenderingCompositeOutputRef
 	}
 
 	/** @return can be 0 */
-	FRenderingCompositeOutput* GetOutput() const;
+	RENDERER_API FRenderingCompositeOutput* GetOutput() const;
 
 	EPassOutputId GetOutputId() const { return PassOutputId; }
 
@@ -536,7 +538,7 @@ struct FRenderingCompositeOutput
 	 * get the surface to write to
 	 * @param DebugName must not be 0
 	 */
-	const FSceneRenderTargetItem& RequestSurface(const FRenderingCompositePassContext& Context);
+	RENDERER_API const FSceneRenderTargetItem& RequestSurface(const FRenderingCompositePassContext& Context);
 
 	// private:
 	FPooledRenderTargetDesc RenderTargetDesc; 

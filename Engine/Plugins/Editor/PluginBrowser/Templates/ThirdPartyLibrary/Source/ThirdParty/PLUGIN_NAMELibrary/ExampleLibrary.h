@@ -1,9 +1,9 @@
 #if defined _WIN32 || defined _WIN64
-#define DLLIMPORT __declspec(dllimport)
+#define EXAMPLELIBRARY_IMPORT __declspec(dllimport)
 #elif defined __linux__
-#define DLLIMPORT __attribute__((visibility("default")))
+#define EXAMPLELIBRARY_IMPORT __attribute__((visibility("default")))
 #else
-#define DLLIMPORT
+#define EXAMPLELIBRARY_IMPORT
 #endif
 
-DLLIMPORT void ExampleLibraryFunction();
+EXAMPLELIBRARY_IMPORT void ExampleLibraryFunction();

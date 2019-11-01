@@ -124,6 +124,13 @@ public:
 		AddPassInternal(NewPass);
 	}
 
+#if WITH_MGPU
+	void SetNameForTemporalEffect(FName InNameForTemporalEffect)
+	{
+		NameForTemporalEffect = InNameForTemporalEffect;
+	}
+#endif
+
 	/** Queue a texture extraction. This will set *OutTexturePtr with the internal pooled render target at the Execute().
 	 *
 	 *  Note: even when the render graph uses the immediate debugging mode (executing passes as they get added), the texture extractions
@@ -209,6 +216,11 @@ private:
 
 	/** Tracks whether we are in a scope of adding passes to the builder. Used to avoid recursion. */
 	bool bInDebugPassScope = false;
+#endif
+
+#if WITH_MGPU
+	/** Name for the temporal effect used to synchronize multi-frame resources. */
+	FName NameForTemporalEffect;
 #endif
 
 	void VisualizePassOutputs(const FRDGPass* Pass);

@@ -185,7 +185,6 @@ void FShaderParametersMetadata::InitializeLayout()
 			BaseType == UBMT_SAMPLER);
 		const bool bIsRDGResource = IsRDGResourceReferenceShaderParameterType(BaseType);
 		const bool bIsVariableNativeType = (
-			BaseType == UBMT_BOOL ||
 			BaseType == UBMT_INT32 ||
 			BaseType == UBMT_UINT32 ||
 			BaseType == UBMT_FLOAT32);
@@ -193,6 +192,15 @@ void FShaderParametersMetadata::InitializeLayout()
 		if (DO_CHECK)
 		{
 			const FString CppName = FString::Printf(TEXT("%s::%s"), CurrentStruct.GetStructTypeName(), CurrentMember.GetName());
+
+			if (BaseType == UBMT_BOOL)
+			{
+				UE_LOG(LogRendererCore, Fatal,
+					TEXT("Shader parameter %s error: bool are actually illegal in shader parameter structure, ")
+					TEXT("because bool type in HLSL means using scalar register to store binary information. ")
+					TEXT("Boolean information should always be packed explicitly in bitfield to reduce memory footprint, ")
+					TEXT("and use HLSL comparison operators to translate into clean SGPR, to have minimal VGPR footprint."), *CppName);
+			}
 
 			if (IsRDGResourceReferenceShaderParameterType(BaseType) || BaseType == UBMT_RENDER_TARGET_BINDING_SLOTS)
 			{
@@ -417,4 +425,21 @@ void FShaderParametersMetadata::FindMemberFromOffset(uint16 MemberOffset, const 
 	}
 
 	checkf(0, TEXT("Looks like this offset is invalid."));
+}
+
+FString FShaderParametersMetadata::GetFullMemberCodeName(uint16 MemberOffset) const
+{
+	const FShaderParametersMetadata* MemberContainingStruct = nullptr;
+	const FShaderParametersMetadata::FMember* Member = nullptr;
+	int32 ArrayElementId = 0;
+	FString NamePrefix;
+	FindMemberFromOffset(MemberOffset, &MemberContainingStruct, &Member, &ArrayElementId, &NamePrefix);
+
+	FString MemberName = FString::Printf(TEXT("%s%s"), *NamePrefix, Member->GetName());
+	if (Member->GetNumElements() > 0)
+	{
+		MemberName = FString::Printf(TEXT("%s%s[%d]"), *NamePrefix, Member->GetName(), ArrayElementId);
+	}
+
+	return MemberName;
 }

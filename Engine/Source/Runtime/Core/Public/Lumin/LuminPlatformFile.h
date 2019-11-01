@@ -8,6 +8,16 @@ Lumin platform File functions
 #pragma once
 #include "GenericPlatform/GenericPlatformFile.h"
 
+struct CORE_API FLuminFileInfo
+{
+public:
+	FLuminFileInfo();
+
+	FString MimeType;
+	FString FileName;
+	IFileHandle* FileHandle;
+};
+
 /**
  * File I/O implementation
 **/
@@ -69,6 +79,23 @@ public:
 	virtual bool IterateDirectoryStat(const TCHAR* Directory, FDirectoryStatVisitor& Visitor) override;
 
 	FString ConvertToLuminPath(const FString& Filename, bool bForWrite) const;
+
+	/**
+		Return a IFileHandle pointer to read the user shared file (file descriptor recieved from ml_sharedfile api).
+		@param FileName Name of the shared file to read.
+		@return IFileHandle pointer to read the file. If the application does not have user permission to access the file, nullptr will be returned.
+	*/
+	IFileHandle* SharedFileOpenRead(const TCHAR* Filename);
+
+	/**
+		Return a IFileHandle pointer to write the user shared file (file descriptor recieved from ml_sharedfile api)..
+		@param FileName Name of the shared file to write to. Needs to just be a file name, cannot be a path.
+		@return IFileHandle pointer to read the file. If the application does not have user permission to access the file, nullptr will be returned.
+	*/
+	IFileHandle* SharedFileOpenWrite(const TCHAR* Filename);
+
+	IFileHandle* GetFileHandleForMLFileInfo(const void* FileInfo);
+	bool SetMLFileInfoFD(const IFileHandle* FileHandle, void* FileInfo);
 
 protected:
 	bool IterateDirectoryCommon(const TCHAR* Directory, const TFunctionRef<bool(struct dirent*)>& Visitor);

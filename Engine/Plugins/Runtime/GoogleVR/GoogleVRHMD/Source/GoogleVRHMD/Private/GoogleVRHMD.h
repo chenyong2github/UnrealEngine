@@ -668,6 +668,7 @@ public:
 
 	virtual class TSharedPtr< class IStereoRendering, ESPMode::ThreadSafe > GetStereoRenderingDevice() override { return SharedThis(this); }
 
+
 	//////////////////////////////////////
 	// Begin IXRInput Virtual Interface //
 	//////////////////////////////////////

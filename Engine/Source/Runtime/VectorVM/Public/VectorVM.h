@@ -154,7 +154,9 @@ enum class EVectorVMOp : uint8
 //Some require RWBuffer like support.
 struct FDataSetMeta
 {
-	int32 RegisterOffset;
+	uint8*RESTRICT*RESTRICT InputRegisters;
+	uint8*RESTRICT*RESTRICT OutputRegisters;
+
 	int32 DataSetAccessIndex;	// index for individual elements of this set
 
 	int32 InstanceOffset;		// offset of the first instance processed 
@@ -179,16 +181,45 @@ struct FDataSetMeta
 	FORCEINLINE void LockFreeTable();
 	FORCEINLINE void UnlockFreeTable();
 
-	FDataSetMeta(int32 InRegisterOffset, int32 InInstanceOffset, TArray<int32>* InIDTable, TArray<int32>* InFreeIDTable, int32* InNumFreeIDs, int32* InMaxUsedID, int32 InIDAcquireTag)
-		: RegisterOffset(InRegisterOffset), DataSetAccessIndex(INDEX_NONE), InstanceOffset(InInstanceOffset)
-		, IDTable(InIDTable), FreeIDTable(InFreeIDTable), NumFreeIDs(InNumFreeIDs), MaxUsedID(InMaxUsedID), IDAcquireTag(InIDAcquireTag)
+	FDataSetMeta()
+		: InputRegisters(nullptr)
+		, OutputRegisters(nullptr)
+		, DataSetAccessIndex(INDEX_NONE)
+		, InstanceOffset(INDEX_NONE)
+		, IDTable(nullptr)
+		, FreeIDTable(nullptr)
+		, NumFreeIDs(nullptr)
+		, MaxUsedID(nullptr)
+		, IDAcquireTag(INDEX_NONE)
 	{
+	}	
+
+	FORCEINLINE void Reset()
+	{
+		InputRegisters = nullptr;
+		OutputRegisters = nullptr;
+		DataSetAccessIndex = INDEX_NONE;
+		InstanceOffset = INDEX_NONE;
+		IDTable = nullptr;
+		FreeIDTable = nullptr;
+		NumFreeIDs = nullptr;
+		MaxUsedID = nullptr;
+		IDAcquireTag = INDEX_NONE;
 	}
 
-	FDataSetMeta() 
-		: RegisterOffset(0), DataSetAccessIndex(INDEX_NONE), InstanceOffset(0)
-		, IDTable(nullptr), FreeIDTable(nullptr), NumFreeIDs(nullptr), MaxUsedID(nullptr), IDAcquireTag(0)
-	{}
+	FORCEINLINE void Init(uint8*RESTRICT *RESTRICT InInputRegisters, uint8*RESTRICT *RESTRICT InOutputRegisters, int32 InInstanceOffset, TArray<int32>* InIDTable, TArray<int32>* InFreeIDTable, int32* InNumFreeIDs, int32* InMaxUsedID, int32 InIDAcquireTag)
+	{
+		InputRegisters = InInputRegisters;
+		OutputRegisters = InOutputRegisters;
+
+		DataSetAccessIndex = INDEX_NONE;
+		InstanceOffset = InInstanceOffset;
+		IDTable = InIDTable;
+		FreeIDTable = InFreeIDTable;
+		NumFreeIDs = InNumFreeIDs;
+		MaxUsedID = InMaxUsedID;
+		IDAcquireTag = InIDAcquireTag;
+	}
 
 private:
 	// Non-copyable and non-movable
@@ -198,28 +229,19 @@ private:
 	FDataSetMeta& operator=(const FDataSetMeta&) = delete;
 };
 
-namespace VectorVM
-{
-	/** Constants. */
-	enum
-	{
-		NumTempRegisters = 400,
-		MaxInputRegisters = 400,
-		MaxOutputRegisters = MaxInputRegisters,
-		MaxConstants = 256,
-		FirstTempRegister = 0,
-		FirstInputRegister = NumTempRegisters,
-		FirstOutputRegister = FirstInputRegister + MaxInputRegisters,
-		MaxRegisters = NumTempRegisters + MaxInputRegisters + MaxOutputRegisters + MaxConstants,
-	};
-}
-
 //Data the VM will keep on each dataset locally per thread which is then thread safely pushed to it's destination at the end of execution.
 struct FDataSetThreadLocalTempData
 {
 	FDataSetThreadLocalTempData()
-		:MaxID(INDEX_NONE)
-	{}
+	{
+		Reset();
+	}
+
+	FORCEINLINE void Reset()
+	{
+		IDsToFree.Reset();
+		MaxID = INDEX_NONE;
+	}
 
 	TArray<int32> IDsToFree;
 	int32 MaxID;
@@ -241,14 +263,7 @@ struct FVectorVMContext : TThreadSingleton<FVectorVMContext>
 	uint8 const* RESTRICT ConstantTable;
 	/** Num temp registers required by this script. */
 	int32 NumTempRegisters;
-	/** Num input required by this script. */
-	int32 NumInputRegisters;
-	/** Num output required by this script. */
-	int32 NumOutputRegisters;
-	/** Pointer to the data set index counter table */
-	int32* RESTRICT DataSetIndexTable;
-	int32* RESTRICT DataSetOffsetTable;
-	int32 NumSecondaryDataSets;
+
 	/** Pointer to the shared data table. */
 	FVMExternalFunction* RESTRICT ExternalFunctionTable;
 	/** Table of user pointers.*/
@@ -259,7 +274,7 @@ struct FVectorVMContext : TThreadSingleton<FVectorVMContext>
 	int32 StartInstance;
 
 	/** Array of meta data on data sets. TODO: This struct should be removed and all features it contains be handled by more general vm ops and the compiler's knowledge of offsets etc. */
-	TArray<FDataSetMeta>* RESTRICT DataSetMetaTable;
+	TArrayView<FDataSetMeta> DataSetMetaTable;
 
 	TArray<FDataSetThreadLocalTempData> ThreadLocalTempData;
 
@@ -269,7 +284,8 @@ struct FVectorVMContext : TThreadSingleton<FVectorVMContext>
 #endif
 
 	TArray<uint8, TAlignedHeapAllocator<VECTOR_WIDTH_BYTES>> TempRegTable;
-	uint8*RESTRICT RegisterTable[VectorVM::MaxRegisters];
+	uint32 TempRegisterSize;
+	uint32 TempBufferSize;
 
 	/** Thread local random stream for use in external functions needing non-deterministic randoms. */
 	FRandomStream RandStream;
@@ -280,18 +296,11 @@ struct FVectorVMContext : TThreadSingleton<FVectorVMContext>
 	FVectorVMContext();
 
 	void PrepareForExec(
-		uint8*RESTRICT*RESTRICT InputRegisters,
-		uint8*RESTRICT*RESTRICT OutputRegisters,
 		int32 InNumTempRegisters,
-		int32 NumInputRegisters,
-		int32 NumOutputRegisters,
 		const uint8* InConstantTable,
-		int32 *InDataSetIndexTable,
-		int32 *InDataSetOffsetTable,
-		int32 InNumSecondaryDatasets,
 		FVMExternalFunction* InExternalFunctionTable,
 		void** InUserPtrTable,
-		TArray<FDataSetMeta>& RESTRICT InDataSetMetaTable,
+		TArrayView<FDataSetMeta> InDataSetMetaTable,
 		int32 MaxNumInstances
 #if STATS
 		, const TArray<TStatId>* InStatScopes
@@ -309,6 +318,22 @@ struct FVectorVMContext : TThreadSingleton<FVectorVMContext>
 		RandCounters.Reset();
 		RandCounters.SetNumZeroed(InNumInstances);
 	}
+
+	FORCEINLINE FDataSetMeta& GetDataSetMeta(int32 DataSetIndex) { return DataSetMetaTable[DataSetIndex]; }
+	FORCEINLINE uint8 * RESTRICT GetTempRegister(int32 RegisterIndex) { return TempRegTable.GetData() + TempRegisterSize * RegisterIndex; }
+	template<typename T>
+	FORCEINLINE T* RESTRICT GetInputRegister(int32 DataSetIndex, int32 RegisterIndex) 
+	{
+		FDataSetMeta& Meta = GetDataSetMeta(DataSetIndex);
+		return ((T*)Meta.InputRegisters[RegisterIndex]) + Meta.InstanceOffset;
+	}
+	template<typename T>
+	FORCEINLINE T* RESTRICT GetOutputRegister(int32 DataSetIndex, int32 RegisterIndex) 
+	{ 
+		FDataSetMeta& Meta = GetDataSetMeta(DataSetIndex);
+		return  ((T*)Meta.OutputRegisters[RegisterIndex]) + Meta.InstanceOffset;
+	}
+
 };
 
 namespace VectorVM
@@ -329,12 +354,8 @@ namespace VectorVM
 	VECTORVM_API void Exec(
 		uint8 const* Code,
 		int32 NumTempRegisters,
-		uint8** InputRegisters,
-		int32 NumInputRegisters,
-		uint8** OutputRegisters,
-		int32 NumOutputRegisters,
 		uint8 const* ConstantTable,
-		TArray<FDataSetMeta> &DataSetMetaTable,
+		TArrayView<FDataSetMeta> DataSetMetaTable,
 		FVMExternalFunction* ExternalFunctionTable,
 		void** UserPtrTable,
 		int32 NumInstances
@@ -415,7 +436,7 @@ namespace VectorVM
 		void Init(FVectorVMContext& Context)
 		{
 			InputOffset = DecodeU16(Context);
-			InputPtr = IsConstant() ? (T*)(Context.ConstantTable + GetOffset()) : (T*)Context.RegisterTable[GetOffset()];
+			InputPtr = IsConstant() ? (T*)(Context.ConstantTable + GetOffset()) : (T*)Context.GetTempRegister(GetOffset());
 			AdvanceOffset = IsConstant() ? 0 : 1;
 		}
 
@@ -455,8 +476,8 @@ namespace VectorVM
 		{
 			if (IsValid())
 			{
-				check(RegisterIndex < VectorVM::MaxRegisters);
-				Register = (T*)Context.RegisterTable[RegisterIndex];
+				checkSlow(RegisterIndex < Context.NumTempRegisters);
+				Register = (T*)Context.GetTempRegister(RegisterIndex);
 			}
 			else
 			{

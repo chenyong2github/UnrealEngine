@@ -17,9 +17,62 @@ class FConcertPersistItem;
 
 struct FConcertPersistCommand
 {
+	TArray<FName> PackagesToPersist;
 	TArray<FString> FilesToPersist;
 	FText ChangelistDescription;
 	bool bShouldSubmit;
+};
+
+/**
+ * Persist Widget Row Item View Model
+ */
+class FConcertPersistItem : public TSharedFromThis<FConcertPersistItem>
+{
+public:
+	/** Constructor */
+	explicit FConcertPersistItem(FName InPackageName, const FSourceControlStateRef& InItem)
+		: Item(InItem)
+		, PackageName(MoveTemp(InPackageName))
+	{
+		CheckBoxState = ECheckBoxState::Checked;
+		DisplayName = FText::FromString(Item->GetFilename());
+	}
+
+	/** Returns the package name of this persist item */
+	FName GetPackageName() const { return PackageName; }
+
+	/** Returns the full path of the item in source control */
+	FString GetFilename() const { return Item->GetFilename(); }
+
+	/** Returns the name of the item as displayed in the widget */
+	FText GetDisplayName() const { return DisplayName; }
+
+	/** Returns the name of the icon to be used in the list item widget */
+	FName GetIconName() const { return Item->GetSmallIconName(); }
+
+	/** Returns the tooltip text for the icon */
+	FText GetIconTooltip() const { return Item->GetDisplayTooltip(); }
+
+	/** Returns the checkbox state of this item */
+	ECheckBoxState GetCheckBoxState() const { return CheckBoxState; }
+
+	/** Sets the checkbox state of this item */
+	void SetCheckBoxState(ECheckBoxState NewState) { CheckBoxState = NewState; }
+
+	/** true if the item is enabled in the list */
+	bool IsEnabled() const { return true; }
+private:
+	/** Reference to the source control state */
+	FSourceControlStateRef Item;
+
+	/** Checkbox state */
+	ECheckBoxState CheckBoxState;
+
+	/** Cached name to display in the listview */
+	FText DisplayName;
+
+	/** The associated package name for this persist item. */
+	FName PackageName;
 };
 
 /**
@@ -32,7 +85,7 @@ public:
 		/** The parent window this widget is hosted in. */
 		SLATE_ARGUMENT(TSharedPtr<SWindow>, ParentWindow)
 		/** The file list to display. */
-		SLATE_ARGUMENT(TArray<FSourceControlStateRef>, Items)
+		SLATE_ARGUMENT(TArray<TSharedPtr<FConcertPersistItem>>, Items)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);

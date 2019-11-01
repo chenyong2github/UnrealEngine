@@ -67,20 +67,18 @@ int32 UObjectBaseUtility::GetLinkerCustomVersion(FGuid CustomVersionKey) const
 	if ( Loader != NULL )
 	{
 		// We have a linker so we can return its version.
-		auto* CustomVersion = Loader->Summary.GetCustomVersionContainer().GetVersion(CustomVersionKey);
+		const FCustomVersion* CustomVersion = Loader->Summary.GetCustomVersionContainer().GetVersion(CustomVersionKey);
 		return CustomVersion ? CustomVersion->Version : -1;
 	}
 	else if (GetOutermost() && GetOutermost()->LinkerCustomVersion.GetAllVersions().Num())
 	{
 		// Get the linker version associated with the package this object lives in
-		auto* CustomVersion = GetOutermost()->LinkerCustomVersion.GetVersion(CustomVersionKey);
+		const FCustomVersion* CustomVersion = GetOutermost()->LinkerCustomVersion.GetVersion(CustomVersionKey);
 		return CustomVersion ? CustomVersion->Version : -1;
 	}
 	// We don't have a linker associated as we e.g. might have been saved or had loaders reset, ...
 	// We must have a current version for this tag.
-	auto* CustomVersion = FCustomVersionContainer::GetRegistered().GetVersion(CustomVersionKey);
-	check(CustomVersion);
-	return CustomVersion->Version;
+	return FCurrentCustomVersions::Get(CustomVersionKey).GetValue().Version;
 }
 
 /**

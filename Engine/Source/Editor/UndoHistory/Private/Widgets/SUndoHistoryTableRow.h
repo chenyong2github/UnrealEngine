@@ -53,21 +53,22 @@ public:
 	{
 		IsApplied = InArgs._IsApplied;
 		QueueIndex = InArgs._QueueIndex;
-		TransactionId = InArgs._Transaction->GetId();
 		OnGotoTransactionClicked = InArgs._OnGotoTransactionClicked;
 
 		FSuperRowType::FArguments Args = FSuperRowType::FArguments()
 			.Style(&FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("SceneOutliner.TableViewRow"));
 
-		UObject* ContextObject = InArgs._Transaction->GetContext().PrimaryObject;
+		UObject* ContextObject = nullptr;
+		if (InArgs._Transaction)
+		{
+			TransactionId = InArgs._Transaction->GetId();
+			ContextObject = InArgs._Transaction->GetContext().PrimaryObject;
+			Title = InArgs._Transaction->GetTitle();
+		}
 
 		if (ContextObject != nullptr)
 		{
 			Title = FText::Format(LOCTEXT("UndoHistoryTableRowTitleF", "{0} [{1}]"), InArgs._Transaction->GetTitle(), FText::FromString(ContextObject->GetFName().ToString()));
-		}
-		else
-		{
-			Title = InArgs._Transaction->GetTitle();
 		}
 
 		SMultiColumnTableRow<TSharedPtr<int32> >::Construct(Args, InOwnerTableView);

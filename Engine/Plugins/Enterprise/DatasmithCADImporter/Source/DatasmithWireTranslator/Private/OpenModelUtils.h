@@ -4,8 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#include "CADLibraryOptions.h"
-
+#include "CADOptions.h"
 
 #ifdef USE_OPENMODEL
 

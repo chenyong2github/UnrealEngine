@@ -5,7 +5,6 @@
 #ifdef CAD_LIBRARY
 #include "CoreMinimal.h"
 
-
 #include "CTSession.h"
 
 class AlDagNode;
@@ -32,13 +31,17 @@ public:
 	 * eg. For a file in inches, arg should be 0.0254
 	 */
 	FAliasCoretechWrapper(const TCHAR* InOwner)
-		: CTSession(InOwner, 0.001, 1)
+		: CTSession(InOwner, 0.001, 1) 
+// We prefere to tell to kernelIO that Nurbs are in mm (default unit of kernelIO) to don't have side effect. 
+// Scale == 1 because in fact Alias work in cm so we do not need to scale mesh parameters
 	{
 	}
 
-	CheckedCTError AddBRep(TArray<AlDagNode*>& DagNodeSet, bool bIsSymmetricBody);
+	CT_IO_ERROR AddBRep(TArray<AlDagNode*>& DagNodeSet, bool bIsSymmetricBody);
 
 	static TSharedPtr<FAliasCoretechWrapper> GetSharedSession();
+
+	CT_IO_ERROR Tessellate(FMeshDescription& Mesh, FMeshParameters& MeshParameters);
 
 protected:
 	/**

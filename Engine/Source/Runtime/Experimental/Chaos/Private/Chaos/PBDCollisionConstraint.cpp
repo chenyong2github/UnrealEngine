@@ -34,6 +34,11 @@ FAutoConsoleVariableRef CVarConstraintBPBVHDepth(TEXT("p.ConstraintBPBVHDepth"),
 int32 BPTreeOfGrids = 1;
 FAutoConsoleVariableRef CVarBPTreeOfGrids(TEXT("p.BPTreeOfGrids"), BPTreeOfGrids, TEXT("Whether to use a seperate tree of grids for bp"));
 
+bool bSupportCollisionHistoryCVar = false;
+FAutoConsoleVariableRef CVarSupportCollisionHistory(TEXT("p.SupportCollisionHistory"), bSupportCollisionHistoryCVar, TEXT("Whether to support collision history caching."));
+
+int32 CollisionHistoryLifespanCVar = 1;
+FAutoConsoleVariableRef CVarCollisionHistoryLifespan(TEXT("p.CollisionHistoryLifespan"), CollisionHistoryLifespanCVar, TEXT("Number of iterations to cache a collision point.[def:5]"));
 
 extern int32 UseLevelsetCollision;
 
@@ -94,17 +99,18 @@ TPBDCollisionConstraint<T, d>::TPBDCollisionConstraint(const TPBDRigidsSOAs<T,d>
 	, PostComputeCallback(nullptr)
 	, PostApplyCallback(nullptr)
 	, PostApplyPushOutCallback(nullptr)
+	, bSupportHistory(bSupportCollisionHistoryCVar)
 {
 }
 
-DECLARE_CYCLE_STAT(TEXT("CollisionConstraint::Reset"), STAT_CollisionConstraintsReset, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::Reset"), STAT_CollisionConstraintsReset, STATGROUP_Chaos);
 
 template<typename T, int d>
 void TPBDCollisionConstraint<T, d>::Reset(/*const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices*/)
 {
 	SCOPE_CYCLE_COUNTER(STAT_CollisionConstraintsReset);
 
-	int32 Threshold = LifespanCounter - 1; // Maybe this should be solver time?
+	int32 Threshold = LifespanCounter - CollisionHistoryLifespanCVar; // Maybe this should be solver time?
 	for (int32 Idx = Constraints.Num() - 1; Idx >= 0; Idx--)
 	{
 		if ((Constraints[Idx].Lifespan < Threshold) || !bEnableCollisions)
@@ -120,14 +126,25 @@ void TPBDCollisionConstraint<T, d>::Reset(/*const TPBDRigidParticles<T, d>& InPa
 template<typename T, int d>
 void TPBDCollisionConstraint<T, d>::RemoveConstraint(int32 Idx)
 {
-	HandleAllocator.FreeHandle(Handles.FindAndRemoveChecked(GetConstraintHandleID(Idx)));
+	if (bSupportHistory)
+	{
+		FConstraintHandleID HandleID = GetConstraintHandleID(Constraints[Idx]);
+		History[HandleID]->RemoveHandle(Handles[Idx]);
+		if (!History[HandleID]->GetHandles().Num())
+		{
+			History.Remove(HandleID);
+		}
+	}
+
+	HandleAllocator.FreeHandle(Handles[Idx]);
+	Handles.RemoveAtSwap(Idx);
 	Constraints.RemoveAtSwap(Idx);
 	if (Idx < Constraints.Num())
 	{
-		Handles[GetConstraintHandleID(Idx)]->SetConstraintIndex(Idx);
+		Handles[Idx]->SetConstraintIndex(Idx);
 	}
+	ensure(Handles.Num() == Constraints.Num());
 }
-
 
 template<typename T, int d>
 void TPBDCollisionConstraint<T, d>::RemoveConstraints(const TSet<TGeometryParticleHandle<T, d>*>&  InHandleSet)
@@ -135,17 +152,14 @@ void TPBDCollisionConstraint<T, d>::RemoveConstraints(const TSet<TGeometryPartic
 	const TArray<TGeometryParticleHandle<T, d>*> HandleArray = InHandleSet.Array();
 	for (auto ParticleHandle : HandleArray)
 	{
-		TArray<FConstraintHandleID> Keys;
-		Handles.GetKeys(Keys);
-		for (FConstraintHandleID Key : Keys)
+		for (int32 Idx = Constraints.Num() - 1; Idx >= 0; Idx--)
 		{
-			if (Key.Key == ParticleHandle || Key.Value == ParticleHandle)
+			if (Constraints[Idx].Levelset == ParticleHandle || Constraints[Idx].Particle == ParticleHandle)
 			{
-				RemoveConstraint(Handles[Key]->GetConstraintIndex());
+				RemoveConstraint(Idx);
 			}
 		}
 	}
-	Handles.Compact();
 }
 
 template<typename T, int d>
@@ -222,9 +236,6 @@ DEFINE_STAT(STAT_ComputeConstraints);
 DEFINE_STAT(STAT_ComputeConstraintsNP);
 DEFINE_STAT(STAT_ComputeConstraintsBP);
 DEFINE_STAT(STAT_ComputeConstraintsSU);
-
-CHAOS_API int32 CollisionConstraintsForceSingleThreaded = 0;
-FAutoConsoleVariableRef CVarCollisionConstraintsForceSingleThreaded(TEXT("p.Chaos.Collision.ForceSingleThreaded"), CollisionConstraintsForceSingleThreaded, TEXT("CollisionConstraintsForceSingleThreaded"));
 
 template<typename T, int d>
 template <bool bGatherStats>
@@ -424,13 +435,13 @@ void TPBDCollisionConstraint<T, d>::UpdateConstraintsHelper(/*const TPBDRigidPar
 #endif
 }
 
-DECLARE_CYCLE_STAT(TEXT("Reconcile Updated Constraints"), STAT_ReconcileConstraints2, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::ReconcileUpdatedConstraints"), STAT_ReconcileConstraints, STATGROUP_ChaosWide);
 template<typename T, int d>
 void TPBDCollisionConstraint<T, d>::UpdateConstraints(/*const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices,*/ T Dt, const TSet<TGeometryParticleHandle<T, d>*>& AddedParticles)
 {
 #if CHAOS_PARTICLEHANDLE_TODO
 	{
-		SCOPE_CYCLE_COUNTER(STAT_ReconcileConstraints2);
+		SCOPE_CYCLE_COUNTER(STAT_ReconcileConstraints);
 
 		// Updating post-clustering, we will have invalid constraints
 		int32 NumRemovedConstraints = 0;
@@ -521,8 +532,10 @@ TVector<T, d> GetEnergyClampedImpulse(const TRigidBodyContactConstraint<T, d>& C
 template<typename T, int d>
 void TPBDCollisionConstraint<T, d>::Apply(const T Dt, FRigidBodyContactConstraint& Constraint)
 {
-	TGeometryParticleHandle<T, d>* Particle0 = Constraint.Particle;
-	TGeometryParticleHandle<T, d>* Particle1 = Constraint.Levelset;
+	if (Constraint.bDisabled) return;
+
+	TGenericParticleHandle<T, d> Particle0 = TGenericParticleHandle<T, d>(Constraint.Particle);
+	TGenericParticleHandle<T, d> Particle1 = TGenericParticleHandle<T, d>(Constraint.Levelset);
 	TPBDRigidParticleHandle<T, d>* PBDRigid0 = Particle0->AsDynamic();
 	TPBDRigidParticleHandle<T, d>* PBDRigid1 = Particle1->AsDynamic();
 
@@ -549,14 +562,14 @@ void TPBDCollisionConstraint<T, d>::Apply(const T Dt, FRigidBodyContactConstrain
 
 	// @todo(ccaulfield): CHAOS_PARTICLEHANDLE_TODO split function to avoid ifs
 	const TVector<T, d> ZeroVector = TVector<T, d>(0);
-	const TRotation<T, d>& Q0 = PBDRigid0? PBDRigid0->Q() : Particle0->R();
-	const TRotation<T, d>& Q1 = PBDRigid1? PBDRigid1->Q() : Particle1->R();
-	const TVector<T, d>& P0 = PBDRigid0 ? PBDRigid0->P() : Particle0->X();
-	const TVector<T, d>& P1 = PBDRigid1 ? PBDRigid1->P() : Particle1->X();
-	const TVector<T, d>& V0 = PBDRigid0 ? PBDRigid0->V() : ZeroVector;
-	const TVector<T, d>& V1 = PBDRigid1 ? PBDRigid1->V() : ZeroVector;
-	const TVector<T, d>& W0 = PBDRigid0 ? PBDRigid0->W() : ZeroVector;
-	const TVector<T, d>& W1 = PBDRigid1 ? PBDRigid1->W() : ZeroVector;
+	const TRotation<T, d>& Q0 = Particle0->Q();
+	const TRotation<T, d>& Q1 = Particle1->Q();
+	const TVector<T, d>& P0 = Particle0->P();
+	const TVector<T, d>& P1 = Particle1->P();
+	const TVector<T, d>& V0 = Particle0->V();
+	const TVector<T, d>& V1 = Particle1->V();
+	const TVector<T, d>& W0 = Particle0->W();
+	const TVector<T, d>& W1 = Particle1->W();
 	TSerializablePtr<TChaosPhysicsMaterial<T>> PhysicsMaterial0 = Particle0->AuxilaryValue(MPhysicsMaterials);
 	TSerializablePtr<TChaosPhysicsMaterial<T>> PhysicsMaterial1 = Particle1->AuxilaryValue(MPhysicsMaterials);
 
@@ -721,17 +734,18 @@ void TPBDCollisionConstraint<T, d>::Apply(const T Dt, FRigidBodyContactConstrain
 	}
 }
 
-DECLARE_CYCLE_STAT(TEXT("Apply"), STAT_Apply2, STATGROUP_ChaosWide);
+DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::Apply"), STAT_Apply, STATGROUP_Chaos);
 template<typename T, int d>
 void TPBDCollisionConstraint<T, d>::Apply(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
 {
+	SCOPE_CYCLE_COUNTER(STAT_Apply);
 	if (bEnableVelocitySolve)
 	{
 		PhysicsParallelFor(InConstraintHandles.Num(), [&](int32 ConstraintHandleIndex) {
 			FConstraintHandle* ConstraintHandle = InConstraintHandles[ConstraintHandleIndex];
 			check(ConstraintHandle != nullptr);
 			Apply(Dt, Constraints[ConstraintHandle->GetConstraintIndex()]);
-			});
+			}, bDisableCollisionParallelFor);
 	}
 
 	if (PostApplyCallback != nullptr)
@@ -740,11 +754,19 @@ void TPBDCollisionConstraint<T, d>::Apply(const T Dt, const TArray<FConstraintHa
 	}
 }
 
-DECLARE_CYCLE_STAT(TEXT("ApplyPushOut"), STAT_ApplyPushOut2, STATGROUP_ChaosWide);
+template<typename T, int d>
+void TPBDCollisionConstraint<T, d>::Disable(const TArray<FConstraintHandle*>& InConstraintHandles)
+{
+	for(int32 Idx = InConstraintHandles.Num()-1; Idx>=0; Idx--) 
+	{
+		check(InConstraintHandles[Idx] != nullptr);
+		Constraints[InConstraintHandles[Idx]->GetConstraintIndex()].bDisabled = true;
+	}
+}
+
 template<typename T, int d>
 void TPBDCollisionConstraint<T, d>::ApplyPushOut(const T Dt, FRigidBodyContactConstraint& Constraint, const TSet<TGeometryParticleHandle<T,d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations, bool &NeedsAnotherIteration)
 {
-	SCOPE_CYCLE_COUNTER(STAT_ApplyPushOut2);
 	TGeometryParticleHandle<T, d>* Particle0 = Constraint.Particle;
 	TGeometryParticleHandle<T, d>* Particle1 = Constraint.Levelset;
 	TPBDRigidParticleHandle<T, d>* PBDRigid0 = Particle0->AsDynamic();
@@ -857,11 +879,11 @@ void TPBDCollisionConstraint<T, d>::ApplyPushOut(const T Dt, FRigidBodyContactCo
 	}
 }
 
-//DECLARE_CYCLE_STAT(TEXT("ApplyPushOut"), STAT_ApplyPushOut, STATGROUP_ChaosWide);
+DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::ApplyPushOut"), STAT_ApplyPushOut, STATGROUP_Chaos);
 template<typename T, int d>
 bool TPBDCollisionConstraint<T, d>::ApplyPushOut(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles, const TSet<TGeometryParticleHandle<T,d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations)
 {
-	SCOPE_CYCLE_COUNTER(STAT_ApplyPushOut2);
+	SCOPE_CYCLE_COUNTER(STAT_ApplyPushOut);
 
 	bool NeedsAnotherIteration = false;
 
@@ -871,7 +893,7 @@ bool TPBDCollisionConstraint<T, d>::ApplyPushOut(const T Dt, const TArray<FConst
 			FConstraintHandle* ConstraintHandle = InConstraintHandles[ConstraintHandleIndex];
 			check(ConstraintHandle != nullptr);
 			ApplyPushOut(Dt, Constraints[ConstraintHandle->GetConstraintIndex()], IsTemporarilyStatic, Iteration, NumIterations, NeedsAnotherIteration);
-			});
+			}, bDisableCollisionParallelFor);
 	}
 
 	if (PostApplyPushOutCallback != nullptr)
@@ -962,12 +984,12 @@ bool SampleObjectNormalAverageHelper2(const TImplicitObject<T, d>& Object, const
 	return false;
 }
 
-DECLARE_CYCLE_STAT(TEXT("UpdateLevelsetPartial"), STAT_UpdateLevelsetPartial2, STATGROUP_ChaosWide);
-DECLARE_CYCLE_STAT(TEXT("UpdateLevelsetFindParticles"), STAT_UpdateLevelsetFindParticles2, STATGROUP_ChaosWide);
-DECLARE_CYCLE_STAT(TEXT("UpdateLevelsetBVHTraversal"), STAT_UpdateLevelsetBVHTraversal2, STATGROUP_ChaosWide);
-DECLARE_CYCLE_STAT(TEXT("UpdateLevelsetSignedDistance"), STAT_UpdateLevelsetSignedDistance2, STATGROUP_ChaosWide);
-DECLARE_CYCLE_STAT(TEXT("UpdateLevelsetAll"), STAT_UpdateLevelsetAll2, STATGROUP_ChaosWide);
-DECLARE_CYCLE_STAT(TEXT("SampleObject"), STAT_SampleObject2, STATGROUP_ChaosWide);
+DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::UpdateLevelsetPartial"), STAT_UpdateLevelsetPartial, STATGROUP_ChaosWide);
+DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::UpdateLevelsetFindParticles"), STAT_UpdateLevelsetFindParticles, STATGROUP_ChaosWide);
+DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::UpdateLevelsetBVHTraversal"), STAT_UpdateLevelsetBVHTraversal, STATGROUP_ChaosWide);
+DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::UpdateLevelsetSignedDistance"), STAT_UpdateLevelsetSignedDistance, STATGROUP_ChaosWide);
+DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::UpdateLevelsetAll"), STAT_UpdateLevelsetAll, STATGROUP_ChaosWide);
+DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::SampleObject"), STAT_SampleObject, STATGROUP_ChaosWide);
 
 int32 NormalAveraging2 = 1;
 FAutoConsoleVariableRef CVarNormalAveraging2(TEXT("p.NormalAveraging2"), NormalAveraging2, TEXT(""));
@@ -978,7 +1000,7 @@ FAutoConsoleVariableRef CVarSampleMinParticlesForAcceleration2(TEXT("p.SampleMin
 template <ECollisionUpdateType UpdateType, typename T, int d>
 void SampleObject2(const TImplicitObject<T, d>& Object, const TRigidTransform<T, d>& ObjectTransform, const TBVHParticles<T, d>& SampleParticles, const TRigidTransform<T, d>& SampleParticlesTransform, T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
 {
-	SCOPE_CYCLE_COUNTER(STAT_SampleObject2);
+	SCOPE_CYCLE_COUNTER(STAT_SampleObject);
 	TRigidBodyContactConstraint<T, d> AvgConstraint;
 	AvgConstraint.Particle = Constraint.Particle;
 	AvgConstraint.Levelset = Constraint.Levelset;
@@ -993,16 +1015,16 @@ void SampleObject2(const TImplicitObject<T, d>& Object, const TRigidTransform<T,
 	const TRigidTransform<T, d> & SampleToObjectTM = SampleParticlesTransform.GetRelativeTransform(ObjectTransform);
 	if (NumParticles > SampleMinParticlesForAcceleration2 && Object.HasBoundingBox())
 	{
-		SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetPartial2);
+		SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetPartial);
 		TBox<T, d> ImplicitBox = Object.BoundingBox().TransformedBox(ObjectTransform.GetRelativeTransform(SampleParticlesTransform));
 		ImplicitBox.Thicken(Thickness);
 		TArray<int32> PotentialParticles;
 		{
-			SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetFindParticles2);
+			SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetFindParticles);
 			PotentialParticles = SampleParticles.FindAllIntersections(ImplicitBox);
 		}
 		{
-			SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetSignedDistance2);
+			SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetSignedDistance);
 			for (int32 i : PotentialParticles)
 			{
 				if (NormalAveraging2 && UpdateType != ECollisionUpdateType::Any)	//if we just want one don't bother with normal
@@ -1026,7 +1048,7 @@ void SampleObject2(const TImplicitObject<T, d>& Object, const TRigidTransform<T,
 	}
 	else
 	{
-		SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetAll2);
+		SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetAll);
 		for (int32 i = 0; i < NumParticles; ++i)
 		{
 			if (NormalAveraging2 && UpdateType != ECollisionUpdateType::Any)	//if we just want one don't bother with normal
@@ -1083,7 +1105,7 @@ void SampleObject2(const TImplicitObject<T, d>& Object, const TRigidTransform<T,
 template<ECollisionUpdateType UpdateType>
 void SampleObject2(const TImplicitObject<float, 3>& Object, const TRigidTransform<float, 3>& ObjectTransform, const TBVHParticles<float, 3>& SampleParticles, const TRigidTransform<float, 3>& SampleParticlesTransform, float Thickness, TRigidBodyContactConstraint<float, 3>& Constraint)
 {
-	SCOPE_CYCLE_COUNTER(STAT_SampleObject2);
+	SCOPE_CYCLE_COUNTER(STAT_SampleObject);
 	TRigidBodyContactConstraint<float, 3> AvgConstraint;
 	AvgConstraint.Particle = Constraint.Particle;
 	AvgConstraint.Levelset = Constraint.Levelset;
@@ -1099,16 +1121,16 @@ void SampleObject2(const TImplicitObject<float, 3>& Object, const TRigidTransfor
 
 	if (NumParticles > SampleMinParticlesForAcceleration2 && Object.HasBoundingBox())
 	{
-		SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetPartial2);
+		SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetPartial);
 		TBox<float, 3> ImplicitBox = Object.BoundingBox().TransformedBox(ObjectTransform.GetRelativeTransform(SampleParticlesTransform));
 		ImplicitBox.Thicken(Thickness);
 		TArray<int32> PotentialParticles;
 		{
-			SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetFindParticles2);
+			SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetFindParticles);
 			PotentialParticles = SampleParticles.FindAllIntersections(ImplicitBox);
 		}
 		{
-			SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetSignedDistance2);
+			SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetSignedDistance);
 
 			if (Object.GetType(true) == ImplicitObjectType::LevelSet && PotentialParticles.Num() > 0)
 			{
@@ -1218,7 +1240,7 @@ void SampleObject2(const TImplicitObject<float, 3>& Object, const TRigidTransfor
 	}
 	else
 	{
-		SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetAll2);
+		SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetAll);
 		if (Object.GetType(true) == ImplicitObjectType::LevelSet && NumParticles > 0)
 		{
 			const TLevelSet<float, 3>* LevelSet = Object.GetObject<Chaos::TLevelSet<float, 3>>();
@@ -1554,11 +1576,11 @@ void UpdateCapsuleBoxConstraint(const TCapsule<T>& A, const TRigidTransform<T, d
 
 }
 
-DECLARE_CYCLE_STAT(TEXT("FindRelevantShapes2"), STAT_FindRelevantShapes2, STATGROUP_ChaosWide);
+DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::FindRelevantShapes"), STAT_FindRelevantShapes, STATGROUP_ChaosWide);
 template <typename T, int d>
 TArray<Pair<const TImplicitObject<T, d>*, TRigidTransform<T, d>>> FindRelevantShapes2(const TImplicitObject<T,d>* ParticleObj, const TRigidTransform<T,d>& ParticlesTM, const TImplicitObject<T,d>& LevelsetObj, const TRigidTransform<T,d>& LevelsetTM, const T Thickness)
 {
-	SCOPE_CYCLE_COUNTER(STAT_FindRelevantShapes2);
+	SCOPE_CYCLE_COUNTER(STAT_FindRelevantShapes);
 	TArray<Pair<const TImplicitObject<T, d>*, TRigidTransform<T, d>>> RelevantShapes;
 	//find all levelset inner objects
 	if (ParticleObj)
@@ -1586,11 +1608,11 @@ TArray<Pair<const TImplicitObject<T, d>*, TRigidTransform<T, d>>> FindRelevantSh
 	return RelevantShapes;
 }
 
-DECLARE_CYCLE_STAT(TEXT("UpdateUnionUnionConstraint"), STAT_UpdateUnionUnionConstraint2, STATGROUP_ChaosWide);
+DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::UpdateUnionUnionConstraint"), STAT_UpdateUnionUnionConstraint, STATGROUP_ChaosWide);
 template<ECollisionUpdateType UpdateType, typename T, int d>
 void UpdateUnionUnionConstraint(const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
 {
-	SCOPE_CYCLE_COUNTER(STAT_UpdateUnionUnionConstraint2);
+	SCOPE_CYCLE_COUNTER(STAT_UpdateUnionUnionConstraint);
 
 	TGenericParticleHandle<T, d> Particle0 = Constraint.Particle;
 	TGenericParticleHandle<T, d> Particle1 = Constraint.Levelset;
@@ -1620,11 +1642,11 @@ void UpdateUnionUnionConstraint(const T Thickness, TRigidBodyContactConstraint<T
 	}
 }
 
-DECLARE_CYCLE_STAT(TEXT("UpdateSingleUnionConstraint"), STAT_UpdateSingleUnionConstraint2, STATGROUP_ChaosWide);
+DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::UpdateSingleUnionConstraint"), STAT_UpdateSingleUnionConstraint, STATGROUP_ChaosWide);
 template<ECollisionUpdateType UpdateType, typename T, int d>
 void UpdateSingleUnionConstraint(const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
 {
-	SCOPE_CYCLE_COUNTER(STAT_UpdateSingleUnionConstraint2);
+	SCOPE_CYCLE_COUNTER(STAT_UpdateSingleUnionConstraint);
 
 	TGenericParticleHandle<T, d> Particle0 = Constraint.Particle;
 	TGenericParticleHandle<T, d> Particle1 = Constraint.Levelset;
@@ -1644,12 +1666,12 @@ void UpdateSingleUnionConstraint(const T Thickness, TRigidBodyContactConstraint<
 	}
 }
 
-DECLARE_CYCLE_STAT(TEXT("UpdateLevelsetConstraint"), STAT_UpdateLevelsetConstraint2, STATGROUP_ChaosWide);
+DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::UpdateLevelsetConstraint"), STAT_UpdateLevelsetConstraint, STATGROUP_ChaosWide);
 template<typename T, int d>
 template<ECollisionUpdateType UpdateType>
 void TPBDCollisionConstraint<T, d>::UpdateLevelsetConstraint(const T Thickness, FRigidBodyContactConstraint& Constraint)
 {
-	SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetConstraint2);
+	SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetConstraint);
 	
 	TGenericParticleHandle<T, d> Particle0 = Constraint.Particle;
 	TRigidTransform<T, d> ParticlesTM = TRigidTransform<T, d>(Particle0->P(), Particle0->Q());
@@ -1683,11 +1705,11 @@ void UpdateConvexConstraintsUsingCoreShapes(const TImplicitObject<T, d> & AObj, 
 	GJKCoreShapeIntersection<T, 3>(AObj, ATM, BObj, BTM, Constraint.Location, Constraint.Phi, Constraint.Normal, Thickness);
 }
 
-DECLARE_CYCLE_STAT(TEXT("UpdateUnionLevelsetConstraint"), STAT_UpdateUnionLevelsetConstraint2, STATGROUP_ChaosWide);
+DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::UpdateUnionLevelsetConstraint"), STAT_UpdateUnionLevelsetConstraint, STATGROUP_ChaosWide);
 template<ECollisionUpdateType UpdateType, typename T, int d>
 void UpdateUnionLevelsetConstraint(const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
 {
-	SCOPE_CYCLE_COUNTER(STAT_UpdateUnionLevelsetConstraint2);
+	SCOPE_CYCLE_COUNTER(STAT_UpdateUnionLevelsetConstraint);
 
 	TGenericParticleHandle<T, d> Particle0 = Constraint.Particle;
 	TGenericParticleHandle<T, d> Particle1 = Constraint.Levelset;
@@ -1759,11 +1781,11 @@ void UpdateUnionLevelsetConstraint(const T Thickness, TRigidBodyContactConstrain
 }
 
 
-DECLARE_CYCLE_STAT(TEXT("UpdateLevelsetUnionConstraint"), STAT_UpdateLevelsetUnionConstraint2, STATGROUP_ChaosWide);
+DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::UpdateLevelsetUnionConstraint"), STAT_UpdateLevelsetUnionConstraint, STATGROUP_ChaosWide);
 template<ECollisionUpdateType UpdateType, typename T, int d>
 void UpdateLevelsetUnionConstraint(const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
 {
-	SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetUnionConstraint2);
+	SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetUnionConstraint);
 
 	TGenericParticleHandle<T, d> Particle0 = Constraint.Particle;
 	TGenericParticleHandle<T, d> Particle1 = Constraint.Levelset;
@@ -1976,59 +1998,59 @@ typename TPBDCollisionConstraint<T, d>::FRigidBodyContactConstraint TPBDCollisio
 	{
 		return ComputeLevelsetConstraint(Particle0, Particle1, Thickness);
 	}
-	if (Particle0->Geometry()->GetType() == TBox<T, d>::GetType() && Particle1->Geometry()->GetType() == TBox<T, d>::GetType())
+	if (Particle0->Geometry()->GetType() == TBox<T, d>::StaticType() && Particle1->Geometry()->GetType() == TBox<T, d>::StaticType())
 	{
 		return ComputeBoxConstraint(Particle0, Particle1, Thickness);
 	}
-	else if (Particle0->Geometry()->GetType() == TSphere<T, d>::GetType() && Particle1->Geometry()->GetType() == TSphere<T, d>::GetType())
+	else if (Particle0->Geometry()->GetType() == TSphere<T, d>::StaticType() && Particle1->Geometry()->GetType() == TSphere<T, d>::StaticType())
 	{
 		return ComputeSphereConstraint(Particle0, Particle1, Thickness);
 	}
-	else if (Particle0->Geometry()->GetType() == TBox<T, d>::GetType() && Particle1->Geometry()->GetType() == TPlane<T, d>::GetType())
+	else if (Particle0->Geometry()->GetType() == TBox<T, d>::StaticType() && Particle1->Geometry()->GetType() == TPlane<T, d>::StaticType())
 	{
 		return ComputeBoxPlaneConstraint(Particle0, Particle1, Thickness);
 	}
-	else if (Particle1->Geometry()->GetType() == TBox<T, d>::GetType() && Particle0->Geometry()->GetType() == TPlane<T, d>::GetType())
+	else if (Particle1->Geometry()->GetType() == TBox<T, d>::StaticType() && Particle0->Geometry()->GetType() == TPlane<T, d>::StaticType())
 	{
 		return ComputeBoxPlaneConstraint(Particle1, Particle0, Thickness);
 	}
-	else if (Particle0->Geometry()->GetType() == TSphere<T, d>::GetType() && Particle1->Geometry()->GetType() == TPlane<T, d>::GetType())
+	else if (Particle0->Geometry()->GetType() == TSphere<T, d>::StaticType() && Particle1->Geometry()->GetType() == TPlane<T, d>::StaticType())
 	{
 		return ComputeSpherePlaneConstraint(Particle0, Particle1, Thickness);
 	}
-	else if (Particle1->Geometry()->GetType() == TSphere<T, d>::GetType() && Particle0->Geometry()->GetType() == TPlane<T, d>::GetType())
+	else if (Particle1->Geometry()->GetType() == TSphere<T, d>::StaticType() && Particle0->Geometry()->GetType() == TPlane<T, d>::StaticType())
 	{
 		return ComputeSpherePlaneConstraint(Particle1, Particle0, Thickness);
 	}
-	else if (Particle0->Geometry()->GetType() == TSphere<T, d>::GetType() && Particle1->Geometry()->GetType() == TBox<T, d>::GetType())
+	else if (Particle0->Geometry()->GetType() == TSphere<T, d>::StaticType() && Particle1->Geometry()->GetType() == TBox<T, d>::StaticType())
 	{
 		return ComputeSphereBoxConstraint(Particle0, Particle1, Thickness);
 	}
-	else if (Particle1->Geometry()->GetType() == TSphere<T, d>::GetType() && Particle0->Geometry()->GetType() == TBox<T, d>::GetType())
+	else if (Particle1->Geometry()->GetType() == TSphere<T, d>::StaticType() && Particle0->Geometry()->GetType() == TBox<T, d>::StaticType())
 	{
 		return ComputeSphereBoxConstraint(Particle1, Particle0, Thickness);
 	}
-	else if (Particle0->Geometry()->GetType() == TCapsule<T>::GetType() && Particle1->Geometry()->GetType() == TCapsule<T>::GetType())
+	else if (Particle0->Geometry()->GetType() == TCapsule<T>::StaticType() && Particle1->Geometry()->GetType() == TCapsule<T>::StaticType())
 	{
 		return ComputeCapsuleCapsuleConstraint(Particle0, Particle1, Thickness);
 	}
-	else if (Particle0->Geometry()->GetType() == TCapsule<T>::GetType() && Particle1->Geometry()->GetType() == TBox<T, d>::GetType())
+	else if (Particle0->Geometry()->GetType() == TCapsule<T>::StaticType() && Particle1->Geometry()->GetType() == TBox<T, d>::StaticType())
 	{
 		return ComputeCapsuleBoxConstraint(Particle0, Particle1, Thickness);
 	}
-	else if (Particle1->Geometry()->GetType() == TCapsule<T>::GetType() && Particle0->Geometry()->GetType() == TBox<T, d>::GetType())
+	else if (Particle1->Geometry()->GetType() == TCapsule<T>::StaticType() && Particle0->Geometry()->GetType() == TBox<T, d>::StaticType())
 	{
 		return ComputeCapsuleBoxConstraint(Particle1, Particle0, Thickness);
 	}
-	else if (Particle0->Geometry()->GetType() < TImplicitObjectUnion<T, d>::GetType() && Particle1->Geometry()->GetType() == TImplicitObjectUnion<T, d>::GetType())
+	else if (Particle0->Geometry()->GetType() < TImplicitObjectUnion<T, d>::StaticType() && Particle1->Geometry()->GetType() == TImplicitObjectUnion<T, d>::StaticType())
 	{
 		return ComputeSingleUnionConstraint(Particle0, Particle1, Thickness);
 	}
-	else if (Particle0->Geometry()->GetType() == TImplicitObjectUnion<T, d>::GetType() && Particle1->Geometry()->GetType() < TImplicitObjectUnion<T, d>::GetType())
+	else if (Particle0->Geometry()->GetType() == TImplicitObjectUnion<T, d>::StaticType() && Particle1->Geometry()->GetType() < TImplicitObjectUnion<T, d>::StaticType())
 	{
 		return ComputeSingleUnionConstraint(Particle1, Particle0, Thickness);
 	}
-	else if(Particle0->Geometry()->GetType() == TImplicitObjectUnion<T, d>::GetType() && Particle1->Geometry()->GetType() == TImplicitObjectUnion<T, d>::GetType())
+	else if(Particle0->Geometry()->GetType() == TImplicitObjectUnion<T, d>::StaticType() && Particle1->Geometry()->GetType() == TImplicitObjectUnion<T, d>::StaticType())
 	{
 		return ComputeUnionUnionConstraint(Particle0, Particle1, Thickness);
 	}
@@ -2058,35 +2080,35 @@ void UpdateLevelsetConstraintImp(const float Thickness, TRigidBodyContactConstra
 template<ECollisionUpdateType UpdateType, typename T, int d>
 void UpdateConstraintImp2(const TImplicitObject<T, d>& ParticleObject, const TRigidTransform<T, d>& ParticleTM, const TImplicitObject<T, d>& LevelsetObject, const TRigidTransform<T, d>& LevelsetTM, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
 {
-	if (ParticleObject.GetType() == TBox<T, d>::GetType() && LevelsetObject.GetType() == TBox<T, d>::GetType())
+	if (ParticleObject.GetType() == TBox<T, d>::StaticType() && LevelsetObject.GetType() == TBox<T, d>::StaticType())
 	{
 		UpdateBoxConstraint(*ParticleObject.template GetObject<TBox<T,d>>(), ParticleTM, *LevelsetObject.template GetObject<TBox<T, d>>(), LevelsetTM, Thickness, Constraint);
 	}
-	else if (ParticleObject.GetType() == TSphere<T, d>::GetType() && LevelsetObject.GetType() == TSphere<T, d>::GetType())
+	else if (ParticleObject.GetType() == TSphere<T, d>::StaticType() && LevelsetObject.GetType() == TSphere<T, d>::StaticType())
 	{
 		UpdateSphereConstraint(*ParticleObject.template GetObject<TSphere<T, d>>(), ParticleTM, *LevelsetObject.template GetObject<TSphere<T, d>>(), LevelsetTM, Thickness, Constraint);
 	}
-	else if (ParticleObject.GetType() == TBox<T, d>::GetType() && LevelsetObject.GetType() == TPlane<T, d>::GetType())
+	else if (ParticleObject.GetType() == TBox<T, d>::StaticType() && LevelsetObject.GetType() == TPlane<T, d>::StaticType())
 	{
 		UpdateBoxPlaneConstraint(*ParticleObject.template GetObject<TBox<T, d>>(), ParticleTM, *LevelsetObject.template GetObject<TPlane<T, d>>(), LevelsetTM, Thickness, Constraint);
 	}
-	else if (ParticleObject.GetType() == TSphere<T, d>::GetType() && LevelsetObject.GetType() == TPlane<T, d>::GetType())
+	else if (ParticleObject.GetType() == TSphere<T, d>::StaticType() && LevelsetObject.GetType() == TPlane<T, d>::StaticType())
 	{
 		UpdateSpherePlaneConstraint(*ParticleObject.template GetObject<TSphere<T, d>>(), ParticleTM, *LevelsetObject.template GetObject<TPlane<T, d>>(), LevelsetTM, Thickness, Constraint);
 	}
-	else if (ParticleObject.GetType() == TSphere<T, d>::GetType() && LevelsetObject.GetType() == TBox<T, d>::GetType())
+	else if (ParticleObject.GetType() == TSphere<T, d>::StaticType() && LevelsetObject.GetType() == TBox<T, d>::StaticType())
 	{
 		UpdateSphereBoxConstraint(*ParticleObject.template GetObject<TSphere<T, d>>(), ParticleTM, *LevelsetObject.template GetObject<TBox<T, d>>(), LevelsetTM, Thickness, Constraint);
 	}
-	else if (ParticleObject.GetType() == TCapsule<T>::GetType() && LevelsetObject.GetType() == TCapsule<T>::GetType())
+	else if (ParticleObject.GetType() == TCapsule<T>::StaticType() && LevelsetObject.GetType() == TCapsule<T>::StaticType())
 	{
 		UpdateCapsuleCapsuleConstraint(*ParticleObject.template GetObject<TCapsule<T>>(), ParticleTM, *LevelsetObject.template GetObject<TCapsule<T>>(), LevelsetTM, Thickness, Constraint);
 	}
-	else if (ParticleObject.GetType() == TCapsule<T>::GetType() && LevelsetObject.GetType() == TBox<T, d>::GetType())
+	else if (ParticleObject.GetType() == TCapsule<T>::StaticType() && LevelsetObject.GetType() == TBox<T, d>::StaticType())
 	{
 		UpdateCapsuleBoxConstraint(*ParticleObject.template GetObject<TCapsule<T>>(), ParticleTM, *LevelsetObject.template GetObject<TBox<T, d>>(), LevelsetTM, Thickness, Constraint);
 	}
-	else if (ParticleObject.GetType() == TPlane<T, d>::GetType() && LevelsetObject.GetType() == TBox<T, d>::GetType())
+	else if (ParticleObject.GetType() == TPlane<T, d>::StaticType() && LevelsetObject.GetType() == TBox<T, d>::StaticType())
 	{
 		TRigidBodyContactConstraint<T, d> TmpConstraint = Constraint;
 		UpdateBoxPlaneConstraint(*LevelsetObject.template GetObject<TBox<T, d>>(), LevelsetTM, *ParticleObject.template GetObject<TPlane<T, d>>(), ParticleTM, Thickness, TmpConstraint);
@@ -2096,7 +2118,7 @@ void UpdateConstraintImp2(const TImplicitObject<T, d>& ParticleObject, const TRi
 			Constraint.Normal = -Constraint.Normal;
 		}
 	}
-	else if (ParticleObject.GetType() == TPlane<T, d>::GetType() && LevelsetObject.GetType() == TSphere<T, d>::GetType())
+	else if (ParticleObject.GetType() == TPlane<T, d>::StaticType() && LevelsetObject.GetType() == TSphere<T, d>::StaticType())
 	{
 		TRigidBodyContactConstraint<T, d> TmpConstraint = Constraint;
 		UpdateSpherePlaneConstraint(*LevelsetObject.template GetObject<TSphere<T, d>>(), LevelsetTM, *ParticleObject.template GetObject<TPlane<T, d>>(), ParticleTM, Thickness, TmpConstraint);
@@ -2106,7 +2128,7 @@ void UpdateConstraintImp2(const TImplicitObject<T, d>& ParticleObject, const TRi
 			Constraint.Normal = -Constraint.Normal;
 		}
 	}
-	else if (ParticleObject.GetType() == TBox<T, d>::GetType() && LevelsetObject.GetType() == TSphere<T, d>::GetType())
+	else if (ParticleObject.GetType() == TBox<T, d>::StaticType() && LevelsetObject.GetType() == TSphere<T, d>::StaticType())
 	{
 		TRigidBodyContactConstraint<T, d> TmpConstraint = Constraint;
 		UpdateSphereBoxConstraint(*LevelsetObject.template GetObject<TSphere<T, d>>(), LevelsetTM, *ParticleObject.template GetObject<TBox<T, d>>(), ParticleTM, Thickness, TmpConstraint);
@@ -2116,7 +2138,7 @@ void UpdateConstraintImp2(const TImplicitObject<T, d>& ParticleObject, const TRi
 			Constraint.Normal = -Constraint.Normal;
 		}
 	}
-	else if (ParticleObject.GetType() == TBox<T, d>::GetType() && LevelsetObject.GetType() == TCapsule<T>::GetType())
+	else if (ParticleObject.GetType() == TBox<T, d>::StaticType() && LevelsetObject.GetType() == TCapsule<T>::StaticType())
 	{
 		TRigidBodyContactConstraint<T, d> TmpConstraint = Constraint;
 		UpdateCapsuleBoxConstraint(*LevelsetObject.template GetObject<TCapsule<T>>(), LevelsetTM, *ParticleObject.template GetObject<TBox<T, d>>(), ParticleTM, Thickness, TmpConstraint);
@@ -2126,15 +2148,15 @@ void UpdateConstraintImp2(const TImplicitObject<T, d>& ParticleObject, const TRi
 			Constraint.Normal = -Constraint.Normal;
 		}
 	}
-	else if (ParticleObject.GetType() < TImplicitObjectUnion<T, d>::GetType() && LevelsetObject.GetType() == TImplicitObjectUnion<T, d>::GetType())
+	else if (ParticleObject.GetType() < TImplicitObjectUnion<T, d>::StaticType() && LevelsetObject.GetType() == TImplicitObjectUnion<T, d>::StaticType())
 	{
 		return UpdateSingleUnionConstraint<UpdateType>(Thickness, Constraint);
 	}
-	else if (ParticleObject.GetType() == TImplicitObjectUnion<T, d>::GetType() && LevelsetObject.GetType() < TImplicitObjectUnion<T, d>::GetType())
+	else if (ParticleObject.GetType() == TImplicitObjectUnion<T, d>::StaticType() && LevelsetObject.GetType() < TImplicitObjectUnion<T, d>::StaticType())
 	{
 		check(false);	//should not be possible to get this ordering (see ComputeConstraint)
 	}
-	else if (ParticleObject.GetType() == TImplicitObjectUnion<T, d>::GetType() && LevelsetObject.GetType() == TImplicitObjectUnion<T, d>::GetType())
+	else if (ParticleObject.GetType() == TImplicitObjectUnion<T, d>::StaticType() && LevelsetObject.GetType() == TImplicitObjectUnion<T, d>::StaticType())
 	{
 		return UpdateUnionUnionConstraint<UpdateType>(Thickness, Constraint);
 	}
@@ -2156,13 +2178,13 @@ void UpdateConstraintImp2(const TImplicitObject<T, d>& ParticleObject, const TRi
 	}
 }
 
-DECLARE_CYCLE_STAT(TEXT("UpdateConstraint"), STAT_UpdateConstraint2, STATGROUP_ChaosWide);
+DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::UpdateConstraint"), STAT_UpdateConstraint, STATGROUP_ChaosWide);
 
 template<typename T, int d>
 template<ECollisionUpdateType UpdateType>
 void TPBDCollisionConstraint<T, d>::UpdateConstraint(const T Thickness, FRigidBodyContactConstraint& Constraint)
 {
-	SCOPE_CYCLE_COUNTER(STAT_UpdateConstraint2);
+	SCOPE_CYCLE_COUNTER(STAT_UpdateConstraint);
 
 	Constraint.Phi = Thickness;
 	

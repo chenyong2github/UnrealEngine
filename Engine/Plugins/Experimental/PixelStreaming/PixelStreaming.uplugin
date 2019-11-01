@@ -1,7 +1,7 @@
 {
 	"FileVersion": 3,
-	"Version": 0.1,
-	"VersionName": "0.1",
+	"Version": 0.2,
+	"VersionName": "0.2",
 	"FriendlyName": "Pixel Streaming",
 	"Description": "Streaming of UE4 render target to WebRTC-compatible media player and playback of such streaming",
 	"Category": "Graphics",

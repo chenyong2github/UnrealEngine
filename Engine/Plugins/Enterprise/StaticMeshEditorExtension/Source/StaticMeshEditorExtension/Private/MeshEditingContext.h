@@ -32,9 +32,13 @@ public:
 
 	/** Returns editable mesh associated with component and sub-mesh address, null pointer if not in cache */
 	const UEditableMesh* FindEditableMesh( const UPrimitiveComponent& Component, const FEditableMeshSubMeshAddress& SubMeshAddress ) const;
+	UEditableMesh* FindModifiableEditableMesh( const UPrimitiveComponent& Component, const FEditableMeshSubMeshAddress& SubMeshAddress ) const;
 
 	/** Removes editable meshes associated with static mesh from cache if applicable */
 	void RemoveObject(UStaticMesh* StaticMesh);
+
+	/** Resets the editable meshes associated with static mesh from cache if applicable */
+	void ResetObject(UStaticMesh* StaticMesh);
 
 private:
 	FEditableMeshCache() {}

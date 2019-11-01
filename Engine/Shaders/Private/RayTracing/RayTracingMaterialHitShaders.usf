@@ -188,7 +188,7 @@ void CalcInterpolants(in FRayCone RayCone, in FDefaultAttributes Attributes, out
 
 	for (int i = 0; i < 3; i++)
 	{
-		FVertexFactoryInput Input = LoadVertexFactoryInput(PrimitiveIndex(), i);
+		FVertexFactoryInput Input = LoadVertexFactoryInputForHGS(PrimitiveIndex(), i);
 	
 		FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
 		float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);	
@@ -237,8 +237,9 @@ void CalcInterpolants(in FRayCone RayCone, in FDefaultAttributes Attributes, out
 #endif
 }
 
-[shader("closesthit")]
-void MaterialCHS(inout FPackedMaterialClosestHitPayload PackedPayload, in FDefaultAttributes Attributes)
+RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
+	FPackedMaterialClosestHitPayload, PackedPayload,
+	FDefaultAttributes, Attributes)
 {
 	if (PackedPayload.IsMinimalPayloadMode())
 	{
@@ -363,8 +364,9 @@ void MaterialCHS(inout FPackedMaterialClosestHitPayload PackedPayload, in FDefau
 	PackedPayload = PackRayTracingPayload(Payload, PropagatedCone);
 }
 
-[shader("anyhit")] 
-void MaterialAHS(inout FPackedMaterialClosestHitPayload PackedPayload, in FDefaultAttributes Attributes)
+RAY_TRACING_ENTRY_ANY_HIT(MaterialAHS,
+	FPackedMaterialClosestHitPayload, PackedPayload,
+	FDefaultAttributes, Attributes)
 {
 #if MATERIALBLENDING_MASKED
 	ResolvedView = ResolveView();

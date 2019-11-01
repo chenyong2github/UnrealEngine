@@ -74,6 +74,12 @@ public:
 
 	/** Remove the frame at the given index from the animation */
 	virtual void RemoveFrame(int32 Index) = 0;
+
+	/** Sets whether this animation will be duplicated to all children (recursively) when imported */
+	virtual void SetPropagateToChildren(bool bPropagate) = 0;
+
+	/** Gets whether this animation will be duplicated to all children (recursively) when imported */
+	virtual bool GetPropagateToChildren() const = 0;
 };
 
 /** IDatasmithSubsequenceAnimationElement holds a reference to a IDatasmithLevelSequenceElement, to be played as a subsequence */

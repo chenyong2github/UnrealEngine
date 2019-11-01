@@ -184,8 +184,7 @@ class ICompressedAudioInfo* FSLESAudioDevice::CreateCompressedAudioInfo(USoundWa
 
 FAudioPlatformSettings FSLESAudioDevice::GetPlatformSettings() const
 {
-	const TCHAR* ConfigSection = AudioPluginUtilities::GetPlatformConfigSection(EAudioPlatform::Android);
-	return FAudioPlatformSettings::GetPlatformSettings(ConfigSection);
+	return FAudioPlatformSettings::GetPlatformSettings(FPlatformProperties::GetRuntimeSettingsClassName());
 }
 
 /** Check if any background music or sound is playing through the audio device */

@@ -64,6 +64,9 @@ public:
 
 	virtual FFrame3d GetActiveRotationFrame() const;
 
+	/** Reset transformer state */
+	virtual void Reset() override;
+
 
 	void ClearAxisLock();
 	void SetAxisLock();

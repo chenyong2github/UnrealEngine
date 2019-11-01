@@ -192,6 +192,34 @@ void FDisplayClusterModule::EndScene()
 	}
 }
 
+void FDisplayClusterModule::StartFrame(uint64 FrameNum)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterModule);
+
+	UE_LOG(LogDisplayClusterModule, Verbose, TEXT("StartFrame: frame num - %llu"), FrameNum);
+
+	for (auto pMgr : Managers)
+	{
+		pMgr->StartFrame(FrameNum);
+	}
+
+	DisplayClusterStartFrameEvent.Broadcast(FrameNum);
+}
+
+void FDisplayClusterModule::EndFrame(uint64 FrameNum)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterModule);
+
+	UE_LOG(LogDisplayClusterModule, Verbose, TEXT("EndFrame: frame num - %llu"), FrameNum);
+
+	for (auto pMgr : Managers)
+	{
+		pMgr->EndFrame(FrameNum);
+	}
+
+	DisplayClusterEndFrameEvent.Broadcast(FrameNum);
+}
+
 void FDisplayClusterModule::PreTick(float DeltaSeconds)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterModule);
@@ -204,6 +232,34 @@ void FDisplayClusterModule::PreTick(float DeltaSeconds)
 	}
 
 	DisplayClusterPreTickEvent.Broadcast();
+}
+
+void FDisplayClusterModule::Tick(float DeltaSeconds)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterModule);
+
+	UE_LOG(LogDisplayClusterModule, Verbose, TEXT("Tick: delta time - %f"), DeltaSeconds);
+
+	for (auto pMgr : Managers)
+	{
+		pMgr->Tick(DeltaSeconds);
+	}
+
+	DisplayClusterTickEvent.Broadcast();
+}
+
+void FDisplayClusterModule::PostTick(float DeltaSeconds)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterModule);
+
+	UE_LOG(LogDisplayClusterModule, Verbose, TEXT("PostTick: delta time - %f"), DeltaSeconds);
+
+	for (auto pMgr : Managers)
+	{
+		pMgr->PostTick(DeltaSeconds);
+	}
+
+	DisplayClusterPostTickEvent.Broadcast();
 }
 
 IMPLEMENT_MODULE(FDisplayClusterModule, DisplayCluster)

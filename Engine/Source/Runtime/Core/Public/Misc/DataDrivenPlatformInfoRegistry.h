@@ -20,9 +20,17 @@ struct CORE_API FDataDrivenPlatformInfoRegistry
 		// should this platform be split when using ELocTextPlatformSplitMode::Restricted (only used when bIsConfidential is true)
 		bool bRestrictLocalization = false;
 
+		// list of additonal restricted folders
+		TArray<FString> AdditionalRestrictedFolders;
+
 		// cached list of ini parents
 		TArray<FString> IniParentChain;
 	};
+
+	/**
+	* Get the global set of data driven platform information
+	*/
+	static const TMap<FString, FDataDrivenPlatformInfoRegistry::FPlatformInfo>& GetAllPlatformInfos();
 
 	/**
 	 * Get the data driven platform info for a given platform. If the platform doesn't have any on disk,

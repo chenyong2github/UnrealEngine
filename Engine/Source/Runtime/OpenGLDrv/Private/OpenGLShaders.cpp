@@ -2853,7 +2853,6 @@ static void VerifyUniformLayout(const TCHAR* UniformName, const UniformData& GLS
 				switch(Member.GetBaseType())
 				{
 					case UBMT_NESTED_STRUCT:  BaseTypeName = TEXT("struct");  break;
-					case UBMT_BOOL:    BaseTypeName = TEXT("bool"); break;
 					case UBMT_INT32:   BaseTypeName = TEXT("int"); break;
 					case UBMT_UINT32:  BaseTypeName = TEXT("uint"); break;
 					case UBMT_FLOAT32: BaseTypeName = TEXT("float"); break;

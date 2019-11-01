@@ -528,7 +528,7 @@ void FAreaNavModifier::FillConvexNavAreaData(const FVector* InPoints, const int3
 	TArray<int32, TInlineAllocator<MaxConvexPoints>> HullIndices;
 	HullIndices.Empty(MaxConvexPoints);
 
-	ConvexHull2D::ComputeConvexHull(HullVertices, HullIndices);
+	ConvexHull2D::ComputeConvexHullLegacy(HullVertices, HullIndices);
 	
 	// ConvexHull implementation requires at least 3 vertices  (i.e. GrowConvexHull)
 	const int32 MIN_NUM_POINTS = 3;

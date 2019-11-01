@@ -227,3 +227,9 @@ void FQuickAxisTranslater::PreviewRender(IToolsContextRenderAPI* RenderAPI)
 	MoveAxisSolver.Draw(&QuickAxisPreviewRenderer, 2 * CurViewSizeFactor);
 	QuickAxisPreviewRenderer.EndFrame();
 }
+
+
+void FQuickAxisTranslater::Reset()
+{
+	MoveAxisSolver.Reset();
+}

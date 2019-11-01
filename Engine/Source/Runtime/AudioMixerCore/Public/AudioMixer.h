@@ -7,6 +7,7 @@
 #include "AudioMixerTypes.h"
 #include "HAL/Runnable.h"
 #include "HAL/ThreadSafeBool.h"
+#include "Misc/ScopeLock.h"
 #include "Misc/SingleThreadRunnable.h"
 #include "AudioMixerNullDevice.h"
 #include "DSP/ParamInterpolator.h"
@@ -289,9 +290,12 @@ namespace Audio
 	{
 	public:
 		FOutputBuffer()
-			: AudioMixer(nullptr)
+			: IsReadyEvent(nullptr)
+			, AudioMixer(nullptr)
 			, DataFormat(EAudioMixerStreamDataFormat::Unknown)
 		{}
+
+		~FOutputBuffer();
  
 		/** Initialize the buffer with the given samples and output format. */
 		void Init(IAudioMixer* InAudioMixer, const int32 InNumSamples, const EAudioMixerStreamDataFormat::Type InDataFormat);
@@ -307,6 +311,9 @@ namespace Audio
 		const uint8* GetBufferData() const;
 		uint8* GetBufferData();
 
+		/** Event to signal that the buffer is ready */
+		FEvent* IsReadyEvent;
+
 		/** Gets the number of frames of the buffer. */
 		int32 GetNumFrames() const;
 
@@ -317,7 +324,7 @@ namespace Audio
 		bool IsReady() const { return bIsReady; }
 
 		/** Resets the buffer ready state. */
-		void ResetReadyState() { bIsReady = false; }
+		void ResetReadyState();
 
 		/** Resets the internal buffers to the new sample count. Used when device is changed. */
 		void Reset(const int32 InNewNumSamples);
@@ -494,8 +501,19 @@ namespace Audio
 		/** Is called when an error is generated. */
 		inline void OnAudioMixerPlatformError(const FString& ErrorDetails, const FString& FileName, int32 LineNumber)
 		{
+#if !NO_LOGGING
+			// Log once on these errors to avoid Spam.
+			static FCriticalSection Cs;
+			static TSet<uint32> LogHistory;
+			FScopeLock Lock(&Cs);
 			LastError = FString::Printf(TEXT("Audio Platform Device Error: %s (File %s, Line %d)"), *ErrorDetails, *FileName, LineNumber);
-			UE_LOG(LogAudioMixer, Error, TEXT("%s"), *LastError);
+			uint32 Hash = GetTypeHash(LastError);
+			if (!LogHistory.Contains(Hash))
+			{
+				UE_LOG(LogAudioMixer, Error, TEXT("%s"), *LastError);
+				LogHistory.Add(Hash);
+			}
+#endif //!NO_LOGGING
 		}
 
 		/** Start generating audio from our mixer. */
@@ -547,10 +565,10 @@ namespace Audio
 		FEvent* AudioFadeEvent;
 
 		/** The buffer which is currently submitted to the output device (and is being read from). */
-		int32 CurrentBufferReadIndex;
+		TAtomic<int32> CurrentBufferReadIndex;
 
 		/** The buffer which is currently being rendered to (or about to be rendered to). */
-		int32 CurrentBufferWriteIndex;
+		TAtomic<int32> CurrentBufferWriteIndex;
 
 		/** The number of mixer buffers to queue on the output source voice. */
 		int32 NumOutputBuffers;

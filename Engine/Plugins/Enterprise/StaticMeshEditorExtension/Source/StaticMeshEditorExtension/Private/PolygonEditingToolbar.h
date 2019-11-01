@@ -311,9 +311,12 @@ private:
 	/** Dummy array used to implement method of the IMeshEditorModeUIContract interface */
 	TArray<TTuple<TSharedPtr<FUICommandInfo>, FUIAction>> ActionArray;
 
-	/* Flag to toggle the toolbar-specific bindings */
+	/** Flag to toggle the toolbar-specific bindings */
 	mutable bool bDeleteCommandOverriden;
 
-	/* Handle on callback when edited static mesh is re-imported */
+	/** Handle on callback when edited static mesh is re-imported */
 	FDelegateHandle OnObjectReimportedHandle;
+
+	/** Flag to indicate if the undo transaction buffer has to be cleared */
+	bool bClearUndoTransactions;
 };

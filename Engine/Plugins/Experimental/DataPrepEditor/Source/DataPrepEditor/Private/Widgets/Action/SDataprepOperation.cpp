@@ -13,6 +13,10 @@
 void SDataprepOperation::Construct(const FArguments& InArgs, UDataprepOperation* InOperation, const TSharedRef<FDataprepSchemaActionContext>& InDataprepActionContext)
 {
 	Operation = InOperation;
+
+	TAttribute<FText> TooltipTextAttribute = MakeAttributeSP( this, &SDataprepOperation::GetTooltipText );
+	SetToolTipText( TooltipTextAttribute );
+
 	SDataprepActionBlock::Construct( SDataprepActionBlock::FArguments(), InDataprepActionContext );
 }
 
@@ -29,4 +33,14 @@ TSharedRef<SWidget> SDataprepOperation::GetContentWidget()
 void SDataprepOperation::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObject( Operation );
+}
+
+FText SDataprepOperation::GetTooltipText() const
+{
+	FText TooltipText;
+	if ( Operation )
+	{
+		TooltipText = Operation->GetTooltip();
+	}
+	return TooltipText;
 }

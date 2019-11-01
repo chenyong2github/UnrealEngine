@@ -204,6 +204,9 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Rendering, meta=(editcondition = "bOverrideWireframeColor"))
 	FColor WireframeColorOverride;
 
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=RayTracing)
+	uint8 bEvaluateWorldPositionOffset:1;
+
 #if WITH_EDITORONLY_DATA
 	/** The section currently selected in the Editor. Used for highlighting */
 	UPROPERTY(transient)

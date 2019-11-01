@@ -84,7 +84,7 @@ namespace Audio
 
 	private:
 
-		const TCHAR* GetErrorString(HRESULT Result);
+		FString GetErrorString(HRESULT Result);
 		bool AllowDeviceSwap();
 
 		// Used to teardown and reinitialize XAudio2.

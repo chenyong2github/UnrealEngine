@@ -16,6 +16,15 @@
 #define SUPPORT_VOLUMETRIC_FOG (FEATURE_LEVEL >= FEATURE_LEVEL_SM4)
 #endif
 
+#if INSTANCED_STEREO
+	#if MATERIALBLENDING_ANY_TRANSLUCENT
+		#define FogStructISR TranslucentBasePass.Shared.FogISR
+	#else
+		#define FogStructISR OpaqueBasePass.Shared.FogISR
+	#endif
+#endif
+
+
 static const float FLT_EPSILON = 0.001f;
 static const float FLT_EPSILON2 = 0.01f;
 
@@ -208,14 +217,25 @@ half4 CalculateHeightFog(float3 WorldPositionRelativeToCamera)
 	#define SharedIntegratedLightScatteringSampler FogStruct.IntegratedLightScatteringSampler
 #endif
 
-float4 CombineVolumetricFog(float4 GlobalFog, float3 VolumeUV)
+float4 CombineVolumetricFog(float4 GlobalFog, float3 VolumeUV, uint EyeIndex)
 {
 	float4 VolumetricFogLookup = float4(0, 0, 0, 1);
 
 #if SUPPORT_VOLUMETRIC_FOG
 	if (FogStruct.ApplyVolumetricFog > 0)
 	{
+	#if INSTANCED_STEREO
+		if (EyeIndex == 0)
+		{
+			VolumetricFogLookup = Texture3DSampleLevel(FogStruct.IntegratedLightScattering, SharedIntegratedLightScatteringSampler, VolumeUV, 0);
+		}
+		else
+		{
+			VolumetricFogLookup = Texture3DSampleLevel(FogStructISR.IntegratedLightScattering, SharedIntegratedLightScatteringSampler, VolumeUV, 0);
+		}
+	#else
 		VolumetricFogLookup = Texture3DSampleLevel(FogStruct.IntegratedLightScattering, SharedIntegratedLightScatteringSampler, VolumeUV, 0);
+	#endif
 	}
 #endif
 

@@ -606,12 +606,13 @@ bool FSlateUser::SynthesizeCursorMoveIfNeeded()
 		FSlateApplication& SlateApp = FSlateApplication::Get();
 		
 		const bool bHasHardwareCursor = SlateApp.GetPlatformCursor() == Cursor;
+		const TSet<FKey> EmptySet;
 		FPointerEvent SyntheticCursorMoveEvent(
 			GetUserIndex(),
 			FSlateApplication::CursorPointerIndex,
 			GetCursorPosition(),
 			GetPreviousCursorPosition(),
-			bHasHardwareCursor ? SlateApp.GetPressedMouseButtons() : TSet<FKey>(),
+			bHasHardwareCursor ? SlateApp.GetPressedMouseButtons() : EmptySet,
 			EKeys::Invalid,
 			0,
 			bHasHardwareCursor ? SlateApp.GetPlatformApplication()->GetModifierKeys() : FModifierKeysState());

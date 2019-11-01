@@ -22,7 +22,7 @@ void USoundNodeModPlayer::Serialize(FArchive& Ar)
 		}
 		else if (Ar.IsSaving())
 		{
-			USoundMod* HardReference = (ShouldHardReferenceAsset(Ar.CookingTarget()) ? SoundMod : nullptr);
+			USoundMod* HardReference = (ShouldHardReferenceAsset() ? SoundMod : nullptr);
 			Ar << HardReference;
 		}
 	}

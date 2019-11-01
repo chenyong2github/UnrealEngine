@@ -62,7 +62,7 @@ FPooledRenderTargetDesc FRCDistortionAccumulatePassES2::ComputeOutputDesc(EPassO
 	Ret.ArraySize = 1;
 	Ret.bIsArray = false;
 	Ret.NumMips = 1;
-	Ret.TargetableFlags = TexCreate_RenderTargetable;
+	Ret.TargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
 	Ret.bForceSeparateTargetAndShaderResource = false;
 	Ret.Format = PF_B8G8R8A8;
 	Ret.NumSamples = 1;
@@ -171,7 +171,7 @@ FPooledRenderTargetDesc FRCDistortionMergePassES2::ComputeOutputDesc(EPassOutput
 	Ret.ArraySize = 1;
 	Ret.bIsArray = false;
 	Ret.NumMips = 1;
-	Ret.TargetableFlags = TexCreate_RenderTargetable;
+	Ret.TargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
 	Ret.bForceSeparateTargetAndShaderResource = false;
 	Ret.Format = PF_FloatRGBA;
 	Ret.NumSamples = 1;

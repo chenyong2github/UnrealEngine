@@ -807,9 +807,18 @@ bool UEditorLevelUtils::EditorDestroyLevel(ULevel* InLevel)
 {
 	UWorld* World = InLevel->OwningWorld;
 
-	InLevel->GetOuter()->MarkPendingKill();
+	UObject* Outer = InLevel->GetOuter();
+
+	// Call cleanup on the outer world of the level so external hooks can be properly released, so that unloading the package isn't prevented.
+	UWorld* OuterWorld = Cast<UWorld>(Outer);
+	if (OuterWorld && OuterWorld != World)
+	{
+		OuterWorld->CleanupWorld();
+	}
+
+	Outer->MarkPendingKill();
 	InLevel->MarkPendingKill();
-	InLevel->GetOuter()->ClearFlags(RF_Public | RF_Standalone);
+	Outer->ClearFlags(RF_Public | RF_Standalone);
 
 	UPackage* Package = InLevel->GetOutermost();
 	// We want to unconditionally destroy the level, so clear the dirty flag here so it can be unloaded successfully

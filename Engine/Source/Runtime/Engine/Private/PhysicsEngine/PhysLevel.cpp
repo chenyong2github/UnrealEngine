@@ -263,6 +263,8 @@ void PostEngineInitialize()
 	}
 }
 
+FDelegateHandle GPostInitHandle;
+
 bool InitGamePhys()
 {
 	if (!InitGamePhysCore())
@@ -272,11 +274,9 @@ bool InitGamePhys()
 
 	// We need to defer initializing the module as it will attempt to read from the settings provider. If the settings
 	// provider is backed by a UObject in any way access to it will fail because we're too early in the init process.
-	FDelegateHandle PostInitHandle;
-	PostInitHandle = FCoreDelegates::OnPostEngineInit.AddLambda([&PostInitHandle]
+	GPostInitHandle = FCoreDelegates::OnPostEngineInit.AddLambda([]()
 	{
 		PostEngineInitialize();
-		FCoreDelegates::OnPostEngineInit.Remove(PostInitHandle);
 	});
 
 #if WITH_PHYSX
@@ -297,6 +297,12 @@ bool InitGamePhys()
 
 void TermGamePhys()
 {
+	if (GPostInitHandle.IsValid())
+	{
+		FCoreDelegates::OnPostEngineInit.Remove(GPostInitHandle);
+		GPostInitHandle.Reset();
+	}
+
 #if WITH_PHYSX
 
 	// Do nothing if they were never initialized

@@ -10,7 +10,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "RenderGraph.h"
 #include "Templates/RefCounting.h"
 
 class FRHICommandListImmediate;
@@ -27,7 +27,7 @@ namespace ShaderPrint
 	// Allocate the debug print buffer associated with the view
 	void BeginView(FRHICommandListImmediate& RHICmdList, FViewInfo& View);
 	// Draw info from the debug print buffer to the given output target
-	void DrawView(FRHICommandListImmediate& RHICmdList, FViewInfo const& View, TRefCountPtr<IPooledRenderTarget>& OutputTarget);
+	void DrawView(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef OutputTexture);
 	// Release the debug print buffer associated with the view
 	void EndView(FViewInfo& View);
 }

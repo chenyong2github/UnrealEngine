@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "UObject/ObjectKey.h"
 #include "NiagaraSystemSelectionViewModel.generated.h"
 
 
@@ -43,12 +44,24 @@ public:
 
 	UNiagaraStackViewModel* GetSelectionStackViewModel();
 
+	void RemoveEntryFromSelectionByDisplayedObject(const UObject* InObject);
+
+	void AddEntriesToSelectionByDisplayedObjectsDeferred(const TArray<const UObject*>& InObjects);
+
+	void AddEntryToSelectionByDisplayedObjectDeferred(const UObject* InObjects);
+
 	void Refresh();
+
+	void RefreshDeferred();
 
 	FOnSelectionChanged& OnSelectionChanged();
 
+	void Tick();
+
 private:
 	TSharedRef<FNiagaraSystemViewModel> GetSystemViewModel();
+
+	void RemoveEntryFromSelectionInternal(UNiagaraStackEntry* DeselectedEntry);
 
 	void UpdateStackSelectionEntry();
 
@@ -68,4 +81,8 @@ private:
 	UNiagaraStackViewModel* SelectionStackViewModel;
 
 	FOnSelectionChanged OnSelectionChangedDelegate;
+
+	TArray<FObjectKey> DeferredDisplayedObjectKeysToAddToSelection;
+
+	bool bRefreshIsPending;
 };

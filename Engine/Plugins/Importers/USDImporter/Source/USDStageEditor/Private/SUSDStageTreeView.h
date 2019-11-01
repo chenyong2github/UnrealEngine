@@ -53,7 +53,7 @@ private:
 	void OnPrimNameCommitted( const FUsdStageTreeItemRef& TreeItem, const FText& InPrimName );
 
 	virtual void SetupColumns() override;
-	TSharedPtr< SWidget > ConstructPrimContextMenu() const;
+	TSharedPtr< SWidget > ConstructPrimContextMenu();
 
 	void OnToggleAllPayloads( EPayloadsTrigger PayloadsTrigger );
 

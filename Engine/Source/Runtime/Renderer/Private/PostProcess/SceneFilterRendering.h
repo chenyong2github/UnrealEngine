@@ -38,7 +38,7 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
  * Flags						see EDrawRectangleFlags
  * InstanceCount				Number of instances of rectangle
  */
-extern void DrawRectangle(
+extern RENDERER_API void DrawRectangle(
 	FRHICommandList& RHICmdList,
 	float X,
 	float Y,
@@ -56,7 +56,7 @@ extern void DrawRectangle(
 	);
 
 // NOTE: Assumes previously set PSO has PrimitiveType = PT_TriangleList
-extern void DrawTransformedRectangle(
+extern RENDERER_API void DrawTransformedRectangle(
 	FRHICommandListImmediate& RHICmdList,
 	float X,
 	float Y,
@@ -73,7 +73,7 @@ extern void DrawTransformedRectangle(
 	);
 
 // NOTE: Assumes previously set PSO has PrimitiveType = PT_TriangleList
-extern void DrawHmdMesh(
+extern RENDERER_API void DrawHmdMesh(
 	FRHICommandList& RHICmdList,
 	float X,
 	float Y,
@@ -90,7 +90,7 @@ extern void DrawHmdMesh(
 	);
 
 // NOTE: Assumes previously set PSO has PrimitiveType = PT_TriangleList
-extern void DrawPostProcessPass(
+extern RENDERER_API void DrawPostProcessPass(
 	FRHICommandList& RHICmdList,
 	float X,
 	float Y,

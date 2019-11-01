@@ -204,6 +204,11 @@ void FPhysInterface_Chaos::SetActorUserData_AssumesLocked(FPhysicsActorHandle& I
 
 bool FPhysInterface_Chaos::IsRigidBody(const FPhysicsActorHandle& InActorReference)
 {
+	return !IsStatic(InActorReference);
+}
+
+bool FPhysInterface_Chaos::IsDynamic(const FPhysicsActorHandle& InActorReference)
+{
 	return InActorReference->ObjectState() == Chaos::EObjectStateType::Dynamic;
 }
 
@@ -877,7 +882,7 @@ private:
 
 	FPhysScene_ChaosInterface* GetSceneForActor(FPhysicsActorHandle const * InActorHandle)
 	{
-		FBodyInstance* ActorInstance = FPhysicsUserData_Chaos::Get<FBodyInstance>((*InActorHandle)->UserData());
+		FBodyInstance* ActorInstance = (*InActorHandle) ? FPhysicsUserData_Chaos::Get<FBodyInstance>((*InActorHandle)->UserData()) : nullptr;
 
 		if(ActorInstance)
 		{
@@ -1180,86 +1185,9 @@ bool FPhysInterface_Chaos::IsQueryShape(const FPhysicsShapeHandle& InShape)
     return InShape.bQuery;
 }
 
-bool FPhysInterface_Chaos::IsShapeType(const FPhysicsShapeReference_Chaos& InShapeRef, ECollisionShapeType InType)
+ECollisionShapeType FPhysInterface_Chaos::GetShapeType(const FPhysicsShapeReference_Chaos& InShapeRef)
 {
-    if (InType == ECollisionShapeType::Box && InShapeRef.Shape->Geometry->GetType() == Chaos::ImplicitObjectType::Box)
-    {
-        return true;
-    }
-    if (InType == ECollisionShapeType::Sphere && InShapeRef.Shape->Geometry->GetType() == Chaos::ImplicitObjectType::Sphere)
-    {
-        return true;
-    }
-    if (InType == ECollisionShapeType::Plane && InShapeRef.Shape->Geometry->GetType() == Chaos::ImplicitObjectType::Plane)
-    {
-        return true;
-    }
-    if (InType == ECollisionShapeType::Capsule && InShapeRef.Shape->Geometry->GetType() == Chaos::ImplicitObjectType::Capsule)
-    {
-        return true;
-    }
-    if (InType == ECollisionShapeType::Convex && InShapeRef.Shape->Geometry->GetType() == Chaos::ImplicitObjectType::Convex)
-    {
-        return true;
-    }
-    if (InType == ECollisionShapeType::Trimesh && InShapeRef.Shape->Geometry->GetType() == Chaos::ImplicitObjectType::TriangleMesh)
-    {
-        return true;
-    }
-    if (InType == ECollisionShapeType::Heightfield && InShapeRef.Shape->Geometry->GetType() == Chaos::ImplicitObjectType::HeightField)
-    {
-        return true;
-    }
-    if (InType == ECollisionShapeType::Scaled && InShapeRef.Shape->Geometry->GetType() == Chaos::ImplicitObjectType::Scaled)
-    {
-        return true;
-    }
-
-    return false;
-}
-
-ECollisionShapeType FPhysInterface_Chaos::GetShapeType(const FPhysicsShapeReference_Chaos& InShapeRef, bool bGetInnerType)
-{
-	Chaos::ImplicitObjectType Type = InShapeRef.Shape->Geometry->GetType(true);
-	if (bGetInnerType && Type == Chaos::ImplicitObjectType::Scaled)
-	{
-		Type = InShapeRef.Shape->Geometry->GetObject<Chaos::TImplicitObjectScaled<float, 3>>()->GetUnscaledObject()->GetType(true);
-	}
-
-    if (Type == Chaos::ImplicitObjectType::Box)
-    {
-        return ECollisionShapeType::Box;
-    }
-    if (Type == Chaos::ImplicitObjectType::Sphere)
-    {
-        return ECollisionShapeType::Sphere;
-    }
-    if (Type == Chaos::ImplicitObjectType::Plane)
-    {
-        return ECollisionShapeType::Plane;
-    }
-    if (Type == Chaos::ImplicitObjectType::Capsule)
-    {
-        return ECollisionShapeType::Capsule;
-    }
-    if (Type == Chaos::ImplicitObjectType::Convex)
-    {
-        return ECollisionShapeType::Convex;
-    }
-    if (Type == Chaos::ImplicitObjectType::TriangleMesh)
-    {
-        return ECollisionShapeType::Trimesh;
-    }
-    if (Type == Chaos::ImplicitObjectType::HeightField)
-    {
-        return ECollisionShapeType::Heightfield;
-    }
-    if (Type == Chaos::ImplicitObjectType::Scaled)
-    {
-        return ECollisionShapeType::Scaled;
-    }
-
-    return ECollisionShapeType::None;
+	return GetImplicitType(*InShapeRef.Shape->Geometry);
 }
 
 FTransform FPhysInterface_Chaos::GetLocalTransform(const FPhysicsShapeReference_Chaos& InShapeRef)
@@ -1434,9 +1362,8 @@ void CalculateMassPropertiesOfImplicitType(
 			MassProperties.Add(MassProperty);
 			TotalMass += Mass;
 		}
-		else if (ImplicitObject->GetType() == Chaos::ImplicitObjectType::Scaled)
+		else if (const auto ScaledObject = Chaos::TImplicitObjectScaledGeneric<float,3>::AsScaled(*ImplicitObject))
 		{
-			const Chaos::TImplicitObjectScaled<float, 3> * ScaledObject = ImplicitObject->template GetObject<Chaos::TImplicitObjectScaled<float, 3>>();
 			if (ensureMsgf(ScaledObject->GetUnscaledObject(), TEXT("Error : Null internal MObject type within TImplicitObjectScaled.")))
 			{
 				Chaos::TRigidTransform<float, 3> ScaledWorldTransform(WorldTransform.GetTranslation(), WorldTransform.GetRotation(), ScaledObject->GetScale());
@@ -1656,7 +1583,7 @@ bool FPhysInterface_Chaos::Sweep_Geom(FHitResult& OutHit, const FBodyInstance* I
 							Chaos::TVector<float, 3> WorldPosition;
 							Chaos::TVector<float, 3> WorldNormal;
 							int32 FaceIdx;
-							if(Chaos::SweepQuery<float, 3>(*Shape->Geometry, ActorTM, ShapeAdapter.GetGeometry(), StartTM, Dir, DeltaMag, Hit.Distance, WorldPosition, WorldNormal, FaceIdx))
+							if(Chaos::SweepQuery<float, 3>(*Shape->Geometry, ActorTM, ShapeAdapter.GetGeometry(), StartTM, Dir, DeltaMag, Hit.Distance, WorldPosition, WorldNormal, FaceIdx, 0.f, false))
 							{
 								// we just like to make sure if the hit is made
 								FCollisionFilterData QueryFilter;
@@ -1793,8 +1720,7 @@ bool FPhysInterface_Chaos::GetSquaredDistanceToBody(const FBodyInstance* InInsta
 				continue;
 			}
 
-			bool bGetInnerType = true;
-			ECollisionShapeType GeomType = FPhysicsInterface::GetShapeType(Shape, bGetInnerType);
+			ECollisionShapeType GeomType = FPhysicsInterface::GetShapeType(Shape);
 
 			if (GeomType == ECollisionShapeType::Trimesh)
 			{

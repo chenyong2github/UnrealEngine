@@ -34,11 +34,10 @@
 	#include "Editor/UnrealEdEngine.h"
 	#include "PackageTools.h"
 	#include "ObjectTools.h"
-	
+	#include "Subsystems/AssetEditorSubsystem.h"
 	#include "GameMapsSettings.h"
 	#include "FileHelpers.h"
 #endif
-#include "Subsystems/AssetEditorSubsystem.h"
 
 namespace ConcertSyncClientUtil
 {
@@ -356,7 +355,7 @@ void PurgePackages(TArrayView<const FName> InPackageNames)
 	TArray<UObject*> ObjectsToPurge;
 	auto CollectObjectToPurge = [&ObjectsToPurge](UObject* InObject)
 	{
-		if (InObject->IsAsset())
+		if (InObject->IsAsset() && GIsEditor)
 		{
 			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(InObject);
 		}

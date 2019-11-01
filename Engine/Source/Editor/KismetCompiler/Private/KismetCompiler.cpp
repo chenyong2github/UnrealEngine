@@ -4094,13 +4094,26 @@ void FKismetCompilerContext::CompileFunctions(EInternalCompilerFlags InternalFla
 	// This is phase two, so we want to generated locals if PostponeLocalsGenerationUntilPhaseTwo is set:
 	const bool bGenerateLocals = !!(InternalFlags & EInternalCompilerFlags::PostponeLocalsGenerationUntilPhaseTwo);
 	// Don't propagate values to CDO if we're going to do that in reinstancing:
-	const bool bPropagateValuesToCDO = !(InternalFlags & EInternalCompilerFlags::PostponeDefaultObjectAssignmentUntilReinstancing);
+	bool bPropagateValuesToCDO = !(InternalFlags & EInternalCompilerFlags::PostponeDefaultObjectAssignmentUntilReinstancing);
 	// Don't RefreshExternalBlueprintDependencyNodes if the calling code has done so already:
 	const bool bSkipRefreshExternalBlueprintDependencyNodes = !!(InternalFlags & EInternalCompilerFlags::SkipRefreshExternalBlueprintDependencyNodes);
 	FKismetCompilerVMBackend Backend_VM(Blueprint, Schema, *this);
 
-	// Determine whether or not to skip generated class validation. This requires CDO value propagation to occur first.
-	bool bSkipGeneratedClassValidation = !bPropagateValuesToCDO || CompileOptions.CompileType == EKismetCompileType::Cpp;
+	// Determine whether or not to skip generated class validation.
+	bool bSkipGeneratedClassValidation;
+	if (CompileOptions.DoesRequireCppCodeGeneration())
+	{
+		// CPP codegen requires default value assignment to occur as part of the compilation phase, so we override it here.
+		bPropagateValuesToCDO = true;
+
+		// Also skip generated class validation since it may result in errors and we don't really need to keep the generated class.
+		bSkipGeneratedClassValidation = true;
+	}
+	else
+	{
+		// In all other cases, validation requires CDO value propagation to occur first.
+		bSkipGeneratedClassValidation = !bPropagateValuesToCDO;
+	}
 
 	if( bGenerateLocals )
 	{

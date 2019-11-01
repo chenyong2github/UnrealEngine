@@ -55,13 +55,18 @@ namespace DataprepOperationTime
 
 void UDataprepSetLODsOperation::OnExecution_Implementation(const FDataprepContext& InContext)
 {
+	if(ReductionSettings.Num() > MAX_STATIC_MESH_LODS)
+	{
+		FText Message = FText::Format( LOCTEXT( "DatasmithMeshOperations_SetLODs_Max", "Limiting number of reduction settings to max allowed, {0}" ), MAX_STATIC_MESH_LODS );
+		LogWarning( Message );
+	}
+
+	// Limit size of array to MAX_STATIC_MESH_LODS
 	const int32 LODCount = FMath::Min( ReductionSettings.Num(), MAX_STATIC_MESH_LODS );
 	if( LODCount == 0 )
 	{
 		FText OutReason = FText( LOCTEXT( "DatasmithMeshOperations_SetLODs", "No reduction settings. Aborting operation..." ) );
 		LogInfo( OutReason );
-		// #ueent_todo: Remove call to UE_LOG when DataprepLogger is operational
-		UE_LOG(LogDataprep, Log, TEXT("UDataprepSetLODsOperation: %s"), *OutReason.ToString());
 		return;
 	}
 
@@ -82,7 +87,13 @@ void UDataprepSetLODsOperation::OnExecution_Implementation(const FDataprepContex
 #endif
 
 	// Execute operation
-	UDataprepOperationsLibrary::SetLods( InContext.Objects, ReductionOptions );
+	TArray<UObject*> ModifiedStaticMeshes;
+	UDataprepOperationsLibrary::SetLods( InContext.Objects, ReductionOptions, ModifiedStaticMeshes );
+
+	if(ModifiedStaticMeshes.Num() > 0)
+	{
+		AssetsModified( MoveTemp( ModifiedStaticMeshes ) );
+	}
 }
 
 UDataprepSetLODGroupOperation::UDataprepSetLODGroupOperation()
@@ -100,7 +111,13 @@ void UDataprepSetLODGroupOperation::OnExecution_Implementation(const FDataprepCo
 #endif
 
 	// Execute operation
-	UDataprepOperationsLibrary::SetLODGroup( InContext.Objects, GroupName );
+	TArray<UObject*> ModifiedStaticMeshes;
+	UDataprepOperationsLibrary::SetLODGroup( InContext.Objects, GroupName, ModifiedStaticMeshes );
+
+	if(ModifiedStaticMeshes.Num() > 0)
+	{
+		AssetsModified( MoveTemp( ModifiedStaticMeshes ) );
+	}
 }
 
 void UDataprepSetSimpleCollisionOperation::OnExecution_Implementation(const FDataprepContext& InContext)
@@ -110,7 +127,13 @@ void UDataprepSetSimpleCollisionOperation::OnExecution_Implementation(const FDat
 #endif
 
 	// Execute operation
-	UDataprepOperationsLibrary::SetSimpleCollision( InContext.Objects, ShapeType );
+	TArray<UObject*> ModifiedStaticMeshes;
+	UDataprepOperationsLibrary::SetSimpleCollision( InContext.Objects, ShapeType, ModifiedStaticMeshes );
+
+	if(ModifiedStaticMeshes.Num() > 0)
+	{
+		AssetsModified( MoveTemp( ModifiedStaticMeshes ) );
+	}
 }
 
 void UDataprepSetConvexDecompositionCollisionOperation::OnExecution_Implementation(const FDataprepContext& InContext)
@@ -120,17 +143,13 @@ void UDataprepSetConvexDecompositionCollisionOperation::OnExecution_Implementati
 #endif
 
 	// Execute operation
-	UDataprepOperationsLibrary::SetConvexDecompositionCollision( InContext.Objects, HullCount, MaxHullVerts, HullPrecision );
-}
+	TArray<UObject*> ModifiedStaticMeshes;
+	UDataprepOperationsLibrary::SetConvexDecompositionCollision( InContext.Objects, HullCount, MaxHullVerts, HullPrecision, ModifiedStaticMeshes );
 
-void UDataprepSetGenerateLightmapUVsOperation::OnExecution_Implementation(const FDataprepContext& InContext)
-{
-#ifdef LOG_TIME
-	DataprepOperationTime::FTimeLogger TimeLogger( TEXT("SetGenerateLightmapUVs"), [&]( FText Text) { this->LogInfo( Text ); });
-#endif
-
-	// Execute operation
-	UDataprepOperationsLibrary::SetGenerateLightmapUVs( InContext.Objects, bGenerateLightmapUVs );
+	if(ModifiedStaticMeshes.Num() > 0)
+	{
+		AssetsModified( MoveTemp( ModifiedStaticMeshes ) );
+	}
 }
 
 void UDataprepSetMobilityOperation::OnExecution_Implementation(const FDataprepContext& InContext)
@@ -145,12 +164,10 @@ void UDataprepSetMobilityOperation::OnExecution_Implementation(const FDataprepCo
 
 void UDataprepSetMaterialOperation::OnExecution_Implementation(const FDataprepContext& InContext)
 {
-	if(MaterialSubstitute == nullptr)
+	if(Material == nullptr)
 	{
 		FText OutReason = FText( LOCTEXT( "DatasmithMeshOperations_SetMaterial", "No material specified. Aborting operation..." ) );
 		LogInfo( OutReason );
-		// #ueent_todo: Remove call to UE_LOG when DataprepLogger is operational
-		UE_LOG(LogDataprep, Log, TEXT("UDataprepSetMaterialOperation: %s"), *OutReason.ToString());
 		return;
 	}
 
@@ -159,7 +176,7 @@ void UDataprepSetMaterialOperation::OnExecution_Implementation(const FDataprepCo
 #endif
 
 	// Execute operation
-	UDataprepOperationsLibrary::SetMaterial( InContext.Objects, MaterialSubstitute );
+	UDataprepOperationsLibrary::SetMaterial( InContext.Objects, Material );
 }
 
 void UDataprepSubstituteMaterialOperation::OnExecution_Implementation(const FDataprepContext& InContext)
@@ -168,8 +185,6 @@ void UDataprepSubstituteMaterialOperation::OnExecution_Implementation(const FDat
 	{
 		FText OutReason = FText( LOCTEXT( "DatasmithDirProducer_SubstituteMaterial", "No material specified. Aborting operation..." ) );
 		LogInfo( OutReason );
-		// #ueent_todo: Remove call to UE_LOG when DataprepLogger is operational
-		UE_LOG(LogDataprep, Log, TEXT("UDataprepSubstituteMaterialOperation: %s"), *OutReason.ToString());
 		return;
 	}
 
@@ -187,8 +202,6 @@ void UDataprepSubstituteMaterialByTableOperation::OnExecution_Implementation(con
 	{
 		FText OutReason = FText( LOCTEXT( "DatasmithDirProducer_SubstituteMaterialByTable", "No data table specified. Aborting operation..." ) );
 		LogInfo( OutReason );
-		// #ueent_todo: Remove call to UE_LOG when DataprepLogger is operational
-		UE_LOG(LogDataprep, Log, TEXT("UDataprepSubstituteMaterialByTableOperation: %s"), *OutReason.ToString());
 		return;
 	}
 
@@ -281,12 +294,10 @@ void FDataprepSetLOGGroupDetails::CustomizeDetails(IDetailLayoutBuilder & Detail
 
 void UDataprepSetMeshOperation::OnExecution_Implementation(const FDataprepContext& InContext)
 {
-	if(MeshSubstitute == nullptr)
+	if(StaticMesh == nullptr)
 	{
 		FText OutReason = FText( LOCTEXT( "DatasmithMeshOperations_SetMesh", "No mesh specified. Aborting operation..." ) );
 		LogInfo( OutReason );
-		// #ueent_todo: Remove call to UE_LOG when DataprepLogger is operational
-		UE_LOG(LogDataprep, Log, TEXT("UDataprepSetMeshOperation: %s"), *OutReason.ToString());
 		return;
 	}
 
@@ -295,45 +306,7 @@ void UDataprepSetMeshOperation::OnExecution_Implementation(const FDataprepContex
 #endif
 
 	// Execute operation
-	UDataprepOperationsLibrary::SetMesh( InContext.Objects, MeshSubstitute );
-}
-
-void UDataprepSubstituteMeshOperation::OnExecution_Implementation(const FDataprepContext& InContext)
-{
-	if(MeshSubstitute == nullptr)
-	{
-		FText OutReason = FText( LOCTEXT( "DatasmithMeshOperations_SubstituteMesh", "No mesh specified. Aborting operation..." ) );
-		LogInfo( OutReason );
-		// #ueent_todo: Remove call to UE_LOG when DataprepLogger is operational
-		UE_LOG(LogDataprep, Log, TEXT("UDataprepSubstituteMeshOperation: %s"), *OutReason.ToString());
-		return;
-	}
-
-#ifdef LOG_TIME
-	DataprepOperationTime::FTimeLogger TimeLogger( TEXT("SubstituteMesh"), [&]( FText Text) { this->LogInfo( Text ); });
-#endif
-
-	// Execute operation
-	UDataprepOperationsLibrary::SubstituteMesh( InContext.Objects, MeshSearch, StringMatch, MeshSubstitute );
-}
-
-void UDataprepSubstituteMeshByTableOperation::OnExecution_Implementation(const FDataprepContext& InContext)
-{
-	if(MeshDataTable == nullptr)
-	{
-		FText OutReason = FText( LOCTEXT( "DatasmithMeshOperations_SubstituteMeshByTable", "No data table specified. Aborting operation..." ) );
-		LogInfo( OutReason );
-		// #ueent_todo: Remove call to UE_LOG when DataprepLogger is operational
-		UE_LOG(LogDataprep, Log, TEXT("UDataprepSubstituteMeshByTableOperation: %s"), *OutReason.ToString());
-		return;
-	}
-
-#ifdef LOG_TIME
-	DataprepOperationTime::FTimeLogger TimeLogger( TEXT("SubstituteMeshesByTable"), [&]( FText Text) { this->LogInfo( Text ); });
-#endif
-
-	// Execute operation
-	UDataprepOperationsLibrary::SubstituteMeshesByTable( InContext.Objects, MeshDataTable );
+	UDataprepOperationsLibrary::SetMesh( InContext.Objects, StaticMesh );
 }
 
 #undef LOCTEXT_NAMESPACE

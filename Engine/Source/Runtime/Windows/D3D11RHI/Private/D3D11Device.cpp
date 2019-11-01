@@ -235,8 +235,6 @@ FD3D11DynamicRHI::FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1,D3D_FEATURE_LEV
 
 FD3D11DynamicRHI::~FD3D11DynamicRHI()
 {
-	UE_LOG(LogD3D11RHI, Log, TEXT("~FD3D11DynamicRHI"));
-
 	// Removed until shutdown crashes in exception handler are fixed.
 	//check(Direct3DDeviceIMContext == nullptr);
 	//check(Direct3DDevice == nullptr);

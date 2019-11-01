@@ -33,11 +33,11 @@
 	],
 	"Plugins": [
 		{
-			"Name": "DatasmithContent",
+			"Name": "EditorScriptingUtilities",
 			"Enabled": true
 		},
 		{
-			"Name": "EditorScriptingUtilities",
+			"Name": "VariantManagerContent",
 			"Enabled": true
 		}
 	]

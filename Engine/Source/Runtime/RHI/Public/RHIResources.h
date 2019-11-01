@@ -700,6 +700,12 @@ public:
 		return ClearValue;
 	}
 
+	virtual void GetWriteMaskProperties(void*& OutData, uint32& OutSize)
+	{
+		OutData = nullptr;
+		OutSize = 0;
+	}
+
 private:
 	FClearValueBinding ClearValue;
 	uint32 NumMips;
@@ -904,6 +910,11 @@ public:
 	 */
 	virtual bool Poll() const = 0;
 
+	/**
+	 * Poll on a subset of the GPUs that this fence supports.
+	 */
+	virtual bool Poll(FRHIGPUMask GPUMask) const { return Poll(); }
+
 	const FName& GetFName() const { return FenceName; }
 
 protected:
@@ -1090,130 +1101,37 @@ class FRHIUnorderedAccessView : public FRHIResource {};
 class FRHIShaderResourceView : public FRHIResource {};
 
 
-UE_DEPRECATED(4.23, "FSamplerStateRHIParamRef typedef is deprecated; please use FRHISamplerState* directly instead.")
-typedef FRHISamplerState*              FSamplerStateRHIParamRef;
 typedef TRefCountPtr<FRHISamplerState> FSamplerStateRHIRef;
-
-UE_DEPRECATED(4.23, "FRasterizerStateRHIParamRef typedef is deprecated; please use FRHIRasterizerState* directly instead.")
-typedef FRHIRasterizerState*              FRasterizerStateRHIParamRef;
 typedef TRefCountPtr<FRHIRasterizerState> FRasterizerStateRHIRef;
-
-UE_DEPRECATED(4.23, "FDepthStencilStateRHIParamRef typedef is deprecated; please use FRHIDepthStencilState* directly instead.")
-typedef FRHIDepthStencilState*              FDepthStencilStateRHIParamRef;
 typedef TRefCountPtr<FRHIDepthStencilState> FDepthStencilStateRHIRef;
-
-UE_DEPRECATED(4.23, "FBlendStateRHIParamRef typedef is deprecated; please use FRHIBlendState* directly instead.")
-typedef FRHIBlendState*              FBlendStateRHIParamRef;
 typedef TRefCountPtr<FRHIBlendState> FBlendStateRHIRef;
-
-UE_DEPRECATED(4.23, "FVertexDeclarationRHIParamRef typedef is deprecated; please use FRHIVertexDeclaration* directly instead.")
-typedef FRHIVertexDeclaration*              FVertexDeclarationRHIParamRef;
 typedef TRefCountPtr<FRHIVertexDeclaration> FVertexDeclarationRHIRef;
-
-UE_DEPRECATED(4.23, "FVertexShaderRHIParamRef typedef is deprecated; please use FRHIVertexShader* directly instead.")
-typedef FRHIVertexShader*              FVertexShaderRHIParamRef;
 typedef TRefCountPtr<FRHIVertexShader> FVertexShaderRHIRef;
-
-UE_DEPRECATED(4.23, "FHullShaderRHIParamRef typedef is deprecated; please use FRHIHullShader* directly instead.")
-typedef FRHIHullShader*              FHullShaderRHIParamRef;
 typedef TRefCountPtr<FRHIHullShader> FHullShaderRHIRef;
-
-UE_DEPRECATED(4.23, "FDomainShaderRHIParamRef typedef is deprecated; please use FRHIDomainShader* directly instead.")
-typedef FRHIDomainShader*              FDomainShaderRHIParamRef;
 typedef TRefCountPtr<FRHIDomainShader> FDomainShaderRHIRef;
-
-UE_DEPRECATED(4.23, "FPixelShaderRHIParamRef typedef is deprecated; please use FRHIPixelShader* directly instead.")
-typedef FRHIPixelShader*              FPixelShaderRHIParamRef;
 typedef TRefCountPtr<FRHIPixelShader> FPixelShaderRHIRef;
-
-UE_DEPRECATED(4.23, "FGeometryShaderRHIParamRef typedef is deprecated; please use FRHIGeometryShader* directly instead.")
-typedef FRHIGeometryShader*              FGeometryShaderRHIParamRef;
 typedef TRefCountPtr<FRHIGeometryShader> FGeometryShaderRHIRef;
-
-UE_DEPRECATED(4.23, "FComputeShaderRHIParamRef typedef is deprecated; please use FRHIComputeShader* directly instead.")
-typedef FRHIComputeShader*              FComputeShaderRHIParamRef;
 typedef TRefCountPtr<FRHIComputeShader> FComputeShaderRHIRef;
-
-UE_DEPRECATED(4.23, "FRayTracingShaderRHIParamRef typedef is deprecated; please use FRHIRayTracingShader* directly instead.")
-typedef FRHIRayTracingShader*                       FRayTracingShaderRHIParamRef;
 typedef TRefCountPtr<FRHIRayTracingShader>          FRayTracingShaderRHIRef;
-
-UE_DEPRECATED(4.23, "FComputeFenceRHIParamRef typedef is deprecated; please use FRHIComputeFence* directly instead.")
-typedef FRHIComputeFence*				FComputeFenceRHIParamRef;
 typedef TRefCountPtr<FRHIComputeFence>	FComputeFenceRHIRef;
-
-UE_DEPRECATED(4.23, "FBoundShaderStateRHIParamRef typedef is deprecated; please use FRHIBoundShaderState* directly instead.")
-typedef FRHIBoundShaderState*              FBoundShaderStateRHIParamRef;
 typedef TRefCountPtr<FRHIBoundShaderState> FBoundShaderStateRHIRef;
-
-UE_DEPRECATED(4.23, "FUniformBufferRHIParamRef typedef is deprecated; please use FRHIUniformBuffer* directly instead.")
-typedef FRHIUniformBuffer*              FUniformBufferRHIParamRef;
 typedef TRefCountPtr<FRHIUniformBuffer> FUniformBufferRHIRef;
-
-UE_DEPRECATED(4.23, "FIndexBufferRHIParamRef typedef is deprecated; please use FRHIIndexBuffer* directly instead.")
-typedef FRHIIndexBuffer*              FIndexBufferRHIParamRef;
 typedef TRefCountPtr<FRHIIndexBuffer> FIndexBufferRHIRef;
-
-UE_DEPRECATED(4.23, "FVertexBufferRHIParamRef typedef is deprecated; please use FRHIVertexBuffer* directly instead.")
-typedef FRHIVertexBuffer*              FVertexBufferRHIParamRef;
 typedef TRefCountPtr<FRHIVertexBuffer> FVertexBufferRHIRef;
-
-UE_DEPRECATED(4.23, "FStructuredBufferRHIParamRef typedef is deprecated; please use FRHIStructuredBuffer* directly instead.")
-typedef FRHIStructuredBuffer*              FStructuredBufferRHIParamRef;
 typedef TRefCountPtr<FRHIStructuredBuffer> FStructuredBufferRHIRef;
-
-UE_DEPRECATED(4.23, "FTextureRHIParamRef typedef is deprecated; please use FRHITexture* directly instead.")
-typedef FRHITexture*              FTextureRHIParamRef;
 typedef TRefCountPtr<FRHITexture> FTextureRHIRef;
-
-UE_DEPRECATED(4.23, "FTexture2DRHIParamRef typedef is deprecated; please use FRHITexture2D* directly instead.")
-typedef FRHITexture2D*              FTexture2DRHIParamRef;
 typedef TRefCountPtr<FRHITexture2D> FTexture2DRHIRef;
-
-UE_DEPRECATED(4.23, "FTexture2DArrayRHIParamRef typedef is deprecated; please use FRHITexture2DArray* directly instead.")
-typedef FRHITexture2DArray*              FTexture2DArrayRHIParamRef;
 typedef TRefCountPtr<FRHITexture2DArray> FTexture2DArrayRHIRef;
-
-UE_DEPRECATED(4.23, "FTexture3DRHIParamRef typedef is deprecated; please use FRHITexture3D* directly instead.")
-typedef FRHITexture3D*              FTexture3DRHIParamRef;
 typedef TRefCountPtr<FRHITexture3D> FTexture3DRHIRef;
-
-UE_DEPRECATED(4.23, "FTextureCubeRHIParamRef typedef is deprecated; please use FRHITextureCube* directly instead.")
-typedef FRHITextureCube*              FTextureCubeRHIParamRef;
 typedef TRefCountPtr<FRHITextureCube> FTextureCubeRHIRef;
-
-UE_DEPRECATED(4.23, "FTextureReferenceRHIParamRef typedef is deprecated; please use FRHITextureReference* directly instead.")
-typedef FRHITextureReference*              FTextureReferenceRHIParamRef;
 typedef TRefCountPtr<FRHITextureReference> FTextureReferenceRHIRef;
-
-UE_DEPRECATED(4.23, "FRenderQueryRHIParamRef typedef is deprecated; please use FRHIRenderQuery* directly instead.")
-typedef FRHIRenderQuery*              FRenderQueryRHIParamRef;
 typedef TRefCountPtr<FRHIRenderQuery> FRenderQueryRHIRef;
-
 typedef TRefCountPtr<FRHIRenderQueryPool> FRenderQueryPoolRHIRef;
-
-UE_DEPRECATED(4.23, "FGPUFenceRHIParamRef typedef is deprecated; please use FRHIGPUFence* directly instead.")
-typedef FRHIGPUFence*				FGPUFenceRHIParamRef;
 typedef TRefCountPtr<FRHIGPUFence>	FGPUFenceRHIRef;
-
-UE_DEPRECATED(4.23, "FViewportRHIParamRef typedef is deprecated; please use FRHIViewport* directly instead.")
-typedef FRHIViewport*              FViewportRHIParamRef;
 typedef TRefCountPtr<FRHIViewport> FViewportRHIRef;
-
-UE_DEPRECATED(4.23, "FUnorderedAccessViewRHIParamRef typedef is deprecated; please use FRHIUnorderedAccessView* directly instead.")
-typedef FRHIUnorderedAccessView*              FUnorderedAccessViewRHIParamRef;
 typedef TRefCountPtr<FRHIUnorderedAccessView> FUnorderedAccessViewRHIRef;
-
-UE_DEPRECATED(4.23, "FShaderResourceViewRHIParamRef typedef is deprecated; please use FRHIShaderResourceView* directly instead.")
-typedef FRHIShaderResourceView*              FShaderResourceViewRHIParamRef;
 typedef TRefCountPtr<FRHIShaderResourceView> FShaderResourceViewRHIRef;
-
-UE_DEPRECATED(4.23, "FGraphicsPipelineStateRHIParamRef typedef is deprecated; please use FRHIGraphicsPipelineState* directly instead.")
-typedef FRHIGraphicsPipelineState*              FGraphicsPipelineStateRHIParamRef;
 typedef TRefCountPtr<FRHIGraphicsPipelineState> FGraphicsPipelineStateRHIRef;
-
-UE_DEPRECATED(4.23, "FRayTracingPipelineStateRHIParamRef typedef is deprecated; please use FRHIRayTracingPipelineState* directly instead.")
-typedef FRHIRayTracingPipelineState*              FRayTracingPipelineStateRHIParamRef;
 typedef TRefCountPtr<FRHIRayTracingPipelineState> FRayTracingPipelineStateRHIRef;
 
 
@@ -1224,8 +1142,6 @@ typedef TRefCountPtr<FRHIRayTracingPipelineState> FRayTracingPipelineStateRHIRef
 /** Bottom level ray tracing acceleration structure (contains triangles). */
 class FRHIRayTracingGeometry : public FRHIResource {};
 
-UE_DEPRECATED(4.23, "FRayTracingGeometryRHIParamRef typedef is deprecated; please use FRHIRayTracingGeometry* directly instead.")
-typedef FRHIRayTracingGeometry*                  FRayTracingGeometryRHIParamRef;
 typedef TRefCountPtr<FRHIRayTracingGeometry>     FRayTracingGeometryRHIRef;
 
 /** Top level ray tracing acceleration structure (contains instances of meshes). */
@@ -1237,8 +1153,6 @@ protected:
 	FShaderResourceViewRHIRef ShaderResourceView;
 };
 
-UE_DEPRECATED(4.23, "FRayTracingSceneRHIParamRef typedef is deprecated; please use FRHIRayTracingScene* directly instead.")
-typedef FRHIRayTracingScene*                     FRayTracingSceneRHIParamRef;
 typedef TRefCountPtr<FRHIRayTracingScene>        FRayTracingSceneRHIRef;
 
 
@@ -1275,8 +1189,6 @@ public:
 	uint32 Offset;
 };
 
-UE_DEPRECATED(4.23, "FStagingBufferRHIParamRef typedef is deprecated; please use FRHIStagingBuffer* directly instead.")
-typedef FRHIStagingBuffer*				FStagingBufferRHIParamRef;
 typedef TRefCountPtr<FRHIStagingBuffer>	FStagingBufferRHIRef;
 
 class FRHIRenderTargetView
@@ -1398,9 +1310,17 @@ public:
 	{
 		return ExtractDepth() == DepthWrite;
 	}
+	inline bool IsDepthRead() const
+	{
+		return ExtractDepth() == DepthRead;
+	}
 	inline bool IsStencilWrite() const
 	{
 		return ExtractStencil() == StencilWrite;
+	}
+	inline bool IsStencilRead() const
+	{
+		return ExtractStencil() == StencilRead;
 	}
 
 	inline bool IsAnyWrite() const
@@ -1456,6 +1376,42 @@ public:
 		}
 
 		return true;
+	}
+
+	/**
+	* Returns a new FExclusiveDepthStencil to be used to transition a depth stencil resource to readable.
+	* If the depth or stencil is already in a readable state, that particular component is returned as Nop,
+	* to avoid unnecessary subresource transitions.
+	*/
+	inline FExclusiveDepthStencil GetReadableTransition() const 
+	{
+		FExclusiveDepthStencil::Type NewDepthState = IsDepthWrite()
+			? FExclusiveDepthStencil::DepthRead
+			: FExclusiveDepthStencil::DepthNop;
+
+		FExclusiveDepthStencil::Type NewStencilState = IsStencilWrite()
+			? FExclusiveDepthStencil::StencilRead
+			: FExclusiveDepthStencil::StencilNop;
+
+		return (FExclusiveDepthStencil::Type)(NewDepthState | NewStencilState);
+	}
+
+	/**
+	* Returns a new FExclusiveDepthStencil to be used to transition a depth stencil resource to readable.
+	* If the depth or stencil is already in a readable state, that particular component is returned as Nop,
+	* to avoid unnecessary subresource transitions.
+	*/
+	inline FExclusiveDepthStencil GetWritableTransition() const
+	{
+		FExclusiveDepthStencil::Type NewDepthState = IsDepthRead()
+			? FExclusiveDepthStencil::DepthWrite
+			: FExclusiveDepthStencil::DepthNop;
+
+		FExclusiveDepthStencil::Type NewStencilState = IsStencilRead()
+			? FExclusiveDepthStencil::StencilWrite
+			: FExclusiveDepthStencil::StencilNop;
+
+		return (FExclusiveDepthStencil::Type)(NewDepthState | NewStencilState);
 	}
 
 	uint32 GetIndex() const
@@ -1611,6 +1567,8 @@ public:
 	bool bClearDepth;
 	bool bClearStencil;
 
+	FRHITexture* FoveationTexture;
+
 	// UAVs info.
 	FUnorderedAccessViewRHIRef UnorderedAccessView[MaxSimultaneousUAVs];
 	int32 NumUAVs;
@@ -1621,6 +1579,7 @@ public:
 		bHasResolveAttachments(false),
 		bClearDepth(false),
 		bClearStencil(false),
+		FoveationTexture(nullptr),
 		NumUAVs(0)
 	{}
 
@@ -1631,6 +1590,7 @@ public:
 		DepthStencilRenderTarget(InDepthStencilRenderTarget),		
 		bClearDepth(InDepthStencilRenderTarget.Texture && InDepthStencilRenderTarget.DepthLoadAction == ERenderTargetLoadAction::EClear),
 		bClearStencil(InDepthStencilRenderTarget.Texture && InDepthStencilRenderTarget.StencilLoadAction == ERenderTargetLoadAction::EClear),
+		FoveationTexture(nullptr),
 		NumUAVs(0)
 	{
 		check(InNumColorRenderTargets <= 0 || InColorRenderTargets);
@@ -1659,8 +1619,8 @@ public:
 		// Need a separate struct so we can memzero/remove dependencies on reference counts
 		struct FHashableStruct
 		{
-			// Depth goes in the last slot
-			FRHITexture* Texture[MaxSimultaneousRenderTargets*2 + 1];
+			// *2 for color and resolves, depth goes in the second-to-last slot, fixed foveation goes in the last slot
+			FRHITexture* Texture[MaxSimultaneousRenderTargets*2 + 2];
 			uint32 MipIndex[MaxSimultaneousRenderTargets];
 			uint32 ArraySliceIndex[MaxSimultaneousRenderTargets];
 			ERenderTargetLoadAction LoadAction[MaxSimultaneousRenderTargets];
@@ -1692,6 +1652,7 @@ public:
 				}
 
 				Texture[MaxSimultaneousRenderTargets] = RTInfo.DepthStencilRenderTarget.Texture;
+				Texture[MaxSimultaneousRenderTargets + 1] = RTInfo.FoveationTexture;
 				DepthLoadAction = RTInfo.DepthStencilRenderTarget.DepthLoadAction;
 				DepthStoreAction = RTInfo.DepthStencilRenderTarget.DepthStoreAction;
 				StencilLoadAction = RTInfo.DepthStencilRenderTarget.StencilLoadAction;
@@ -1749,8 +1710,6 @@ public:
 };
 
 
-UE_DEPRECATED(4.23, "FCustomPresentRHIParamRef typedef is deprecated; please use FRHICustomPresent* directly instead.")
-typedef FRHICustomPresent*              FCustomPresentRHIParamRef;
 typedef TRefCountPtr<FRHICustomPresent> FCustomPresentRHIRef;
 
 // Template magic to convert an FRHI*Shader to its enum
@@ -2400,8 +2359,6 @@ protected:
 	uint32 LibraryId;
 };
 
-UE_DEPRECATED(4.23, "FRHIShaderLibraryParamRef typedef is deprecated; please use FRHIShaderLibrary* directly instead.")
-typedef FRHIShaderLibrary*				FRHIShaderLibraryParamRef;
 typedef TRefCountPtr<FRHIShaderLibrary>	FRHIShaderLibraryRef;
 
 class FRHIPipelineBinaryLibrary : public FRHIResource
@@ -2416,8 +2373,6 @@ protected:
 	EShaderPlatform Platform;
 };
 
-UE_DEPRECATED(4.23, "FRHIPipelineBinaryLibraryParamRef typedef is deprecated; please use FRHIPipelineBinaryLibrary* directly instead.")
-typedef FRHIPipelineBinaryLibrary*				FRHIPipelineBinaryLibraryParamRef;
 typedef TRefCountPtr<FRHIPipelineBinaryLibrary>	FRHIPipelineBinaryLibraryRef;
 
 enum class ERenderTargetActions : uint8
@@ -2518,6 +2473,10 @@ struct FRHIRenderPassInfo
 	FDepthStencilEntry DepthStencilRenderTarget;
 
 	FResolveParams ResolveParameters;
+
+	// Some RHIs can use a texture to control the sampling and/or shading resolution of different areas 
+	// (@todo: This implementation is specific to fixed foveated rendering, and will be updated or replaced as a more general pathway comes online)
+	FTextureRHIRef FoveationTexture = nullptr;
 
 	// Some RHIs require a hint that occlusion queries will be used in this render pass
 	uint32 NumOcclusionQueries = 0;
@@ -2713,6 +2672,27 @@ struct FRHIRenderPassInfo
 		DepthStencilRenderTarget.ResolveTarget = ResolveDepthRT;
 		DepthStencilRenderTarget.Action = DepthActions;
 		DepthStencilRenderTarget.ExclusiveDepthStencil = InEDS;
+		FMemory::Memzero(&ColorRenderTargets[1], sizeof(FColorEntry) * (MaxSimultaneousRenderTargets - 1));
+	}
+
+	// Color and depth with resolve and optional sample density
+	explicit FRHIRenderPassInfo(FRHITexture* ColorRT, ERenderTargetActions ColorAction, FRHITexture* ResolveColorRT,
+		FRHITexture* DepthRT, EDepthStencilTargetActions DepthActions, FRHITexture* ResolveDepthRT, FRHITexture* InFoveationTexture,
+		FExclusiveDepthStencil InEDS = FExclusiveDepthStencil::DepthWrite_StencilWrite)
+	{
+		check(ColorRT);
+		ColorRenderTargets[0].RenderTarget = ColorRT;
+		ColorRenderTargets[0].ResolveTarget = ResolveColorRT;
+		ColorRenderTargets[0].ArraySlice = -1;
+		ColorRenderTargets[0].MipIndex = 0;
+		ColorRenderTargets[0].Action = ColorAction;
+		bIsMSAA = ColorRT->GetNumSamples() > 1;
+		check(DepthRT);
+		DepthStencilRenderTarget.DepthStencilTarget = DepthRT;
+		DepthStencilRenderTarget.ResolveTarget = ResolveDepthRT;
+		DepthStencilRenderTarget.Action = DepthActions;
+		DepthStencilRenderTarget.ExclusiveDepthStencil = InEDS;
+		FoveationTexture = InFoveationTexture;
 		FMemory::Memzero(&ColorRenderTargets[1], sizeof(FColorEntry) * (MaxSimultaneousRenderTargets - 1));
 	}
 

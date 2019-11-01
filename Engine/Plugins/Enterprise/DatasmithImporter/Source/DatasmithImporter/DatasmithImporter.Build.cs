@@ -44,7 +44,8 @@ namespace UnrealBuildTool.Rules
 					"UnrealEd",
 					"VariantManager",
 					"VariantManagerContent",
-				}
+                    "StaticMeshEditorExtension",
+                }
 			);
 
 			PublicDependencyModuleNames.AddRange(

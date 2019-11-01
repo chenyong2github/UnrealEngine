@@ -99,6 +99,7 @@ uint GetLightingChannelMask(float2 UV)
 
 #if USE_HAIR_LIGHTING
 
+Texture2D<uint4> HairCategorizationTexture;
 Texture2D<uint> HairVisibilityNodeOffsetAndCount;
 StructuredBuffer<FNodeData> HairVisibilityNodeData;
 
@@ -108,8 +109,9 @@ uint HairTransmittanceBufferMaxCount;
 StructuredBuffer<float4> HairTransmittanceBuffer;
 Texture3D<float4> HairLUTTexture;
 SamplerState HairLUTSampler;
-uint HairTransmittanceEnable;
-float4 HairComponents; // R, TT, TRT, LocaScattering
+uint HairShadowMaskValid;
+uint HairComponents; // R, TT, TRT, LocalScattering, GlobalScattering, MultipleScattering
+
 
 float Luma(float3 Color)
 {
@@ -137,12 +139,12 @@ float4 PerceptualToLinear(float4 Color)
 
 void ComputeHairLighting(
 	in FInputParams InputParams,
-	in FNodeDesc NodeDesc, 
-	out float OutOpaqueWeight,
-	out float4 OutColor, 
-	out float4 OutColorSubPixel)
+	in FNodeDesc NodeDesc,
+	in FCategorizationData CatData,
+	inout float OutHairCoverage,
+	inout float4 OutColor, 
+	inout float4 OutColorSubPixel)
 {
-	float Coverage = 0;
 	float4 LocalColor = 0;
 	LOOP
 	for (uint SampleIt = 0; SampleIt < NodeDesc.Count; SampleIt++)
@@ -172,14 +174,13 @@ void ComputeHairLighting(
 		HairScreenSpaceData.GBuffer.GBufferAO = 1;
 		HairScreenSpaceData.GBuffer.CustomData = 0;
 		HairScreenSpaceData.GBuffer.IndirectIrradiance = 0;
-		HairScreenSpaceData.GBuffer.PrecomputedShadowFactors = 0;
+		HairScreenSpaceData.GBuffer.PrecomputedShadowFactors = 1;
 
 		const FDerivedParams DerivedParams = GetDerivedParams(InputParams, SceneDepth);
 		FDeferredLightData LightData = SetupLightDataForStandardDeferred();
-		LightData.HairTransmittance.ScatteringComponent = HairComponents.xyz;
+		LightData.HairTransmittance.ScatteringComponent = HairComponents;
 
 		// Compute Hair transmittance
-		BRANCH if (HairTransmittanceEnable > 0)
 		{
 			const float3 LightPosition = LightData.Position;
 			float3 L = float3(0, 0, 1);
@@ -198,13 +199,12 @@ void ComputeHairLighting(
 				HairTransmittanceBuffer,
 				HairLUTTexture,
 				HairLUTSampler,
-				HairTransmittanceEnable,
 				HairComponents);
 		}
 
 		const float Dither = InterleavedGradientNoise(InputParams.PixelPos, View.StateFrameIndexMod8);
 		const uint3 PixelCoord = uint3(floor(InputParams.PixelPos), 0);
-		const float4 LightAttenuation = ScreenShadowMaskSubPixelTexture.Load(PixelCoord);
+		const float4 LightAttenuation = HairShadowMaskValid ? ScreenShadowMaskSubPixelTexture.Load(PixelCoord) : 1;
 
 		FRectTexture RectTexture = InitRectTexture(DeferredLightUniforms.SourceTexture);
 		float SurfaceShadow = 1.0f;
@@ -215,23 +215,21 @@ void ComputeHairLighting(
 		const float4 PercepualColor = LinearToPerceptual(LinearColor);
 		const float LocalCoverage = From8bitCoverage(SampleVisData.Coverage8bit);
 		LocalColor += PercepualColor * LocalCoverage;
-		Coverage += LocalCoverage;
 	}
+	const float PixelCoverage = saturate(CatData.PixelCoverage);
+	OutHairCoverage = PixelCoverage;
 
 	OutColor = 0;
 	OutColorSubPixel = 0;
-	if (Coverage < 1)
+	if (OutHairCoverage < 1)
 	{
-		OutColorSubPixel = LocalColor;
-		OutColorSubPixel.a = Coverage;
-		Coverage = 0;
+		OutColorSubPixel = LocalColor * PixelCoverage;
+		OutColorSubPixel.a = OutHairCoverage;
 	}
 	else
 	{
 		OutColor = LocalColor;
-		Coverage = 1;
 	}
-	OutOpaqueWeight = 1 - Coverage;
 }
 
 #endif // USE_HAIR_LIGHTING
@@ -270,10 +268,11 @@ void DeferredLightPixelMain(
 #if USE_HAIR_LIGHTING
 	const uint3 PixelCoord = uint3(floor(InputParams.PixelPos), 0);
 	const FNodeDesc NodeDesc = DecodeNodeDesc(HairVisibilityNodeOffsetAndCount.Load(PixelCoord));
+	const FCategorizationData CatData = DecodeCategorizationData(HairCategorizationTexture.Load(PixelCoord));
 	
 	// Only light pixels marked as using deferred shading
 	OutColorSubPixel = 0;
-	float OpaqueWeight = 1;
+	float HairCoverage = 0;
 	BRANCH 
 	if (NodeDesc.Count > 0
 	#if USE_LIGHTING_CHANNELS
@@ -281,7 +280,7 @@ void DeferredLightPixelMain(
 	#endif
 		)
 	{
-		ComputeHairLighting(InputParams, NodeDesc, OpaqueWeight, OutColor, OutColorSubPixel);
+		ComputeHairLighting(InputParams, NodeDesc, CatData, HairCoverage, OutColor, OutColorSubPixel);
 	#if USE_PREEXPOSURE
 		OutColorSubPixel.rgb *= View.PreExposure;
 	#endif
@@ -310,7 +309,8 @@ void DeferredLightPixelMain(
 		const float  Attenuation = ComputeLightProfileMultiplier(DerivedParams.WorldPosition, DeferredLightUniforms.Position, -DeferredLightUniforms.Direction, DeferredLightUniforms.Tangent);
 
 #if USE_HAIR_LIGHTING
-		OutColor += LinearToPerceptual(Radiance * Attenuation) * OpaqueWeight;
+		float OpaqueVisibility = 1.0f - HairCoverage;
+		OutColor += LinearToPerceptual(Radiance * Attenuation) * OpaqueVisibility;
 		OutColor  = PerceptualToLinear(OutColor);
 #else
 		OutColor += (Radiance * Attenuation);

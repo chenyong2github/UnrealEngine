@@ -9,7 +9,7 @@
 #include "/Engine/Generated/VertexFactory.ush"
 
 #if NUM_VIRTUALTEXTURE_SAMPLES
-	RWTexture2D<uint> VTFeedbackBuffer : register(VT_FEEDBACK_REGISTER); //MUST match FDecalRenderTargetManager::VirtualTextureFeedbackIndex
+	RWTexture2D<uint> VTFeedbackBuffer REGISTER(VT_FEEDBACK_REGISTER); //MUST match FDecalRenderTargetManager::VirtualTextureFeedbackIndex
 #endif
 
 // Additional guard to remove all struct usage if empty to avoid platform conflicts.

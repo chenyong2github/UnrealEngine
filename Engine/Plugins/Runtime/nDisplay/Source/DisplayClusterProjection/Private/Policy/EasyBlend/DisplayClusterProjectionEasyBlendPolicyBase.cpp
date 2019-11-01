@@ -11,7 +11,7 @@
 #include "Config/IDisplayClusterConfigManager.h"
 #include "Game/IDisplayClusterGameManager.h"
 
-#include "DisplayClusterPawn.h"
+#include "DisplayClusterRootComponent.h"
 #include "DisplayClusterScreenComponent.h"
 
 

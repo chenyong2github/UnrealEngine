@@ -39,12 +39,6 @@ TAutoConsoleVariable<int32> CVarTonemapperFilm(
 	TEXT("Use new film tone mapper"),
 	ECVF_RenderThreadSafe);
 
-TAutoConsoleVariable<int32> CVarMobileTonemapperFilm(
-	TEXT("r.Mobile.TonemapperFilm"),
-	0,
-	TEXT("Whether mobile platforms should use new film tone mapper"),
-	ECVF_RenderThreadSafe);
-
 // Including the neutral one at index 0
 const uint32 GMaxLUTBlendCount = 5;
 
@@ -77,17 +71,6 @@ bool PipelineVolumeTextureLUTSupportGuaranteedAtRuntime(EShaderPlatform Platform
 	return RHIVolumeTextureRenderingSupportGuaranteed(Platform) && (RHISupportsGeometryShaders(Platform) || RHISupportsVertexShaderLayer(Platform));
 }
 
-FFilmTonemapParameters GetFilmTonemapParameters(const FPostProcessSettings& Settings)
-{
-	FFilmTonemapParameters Parameters;
-	Parameters.FilmSlope = Settings.FilmSlope;
-	Parameters.FilmToe = Settings.FilmToe;
-	Parameters.FilmShoulder = Settings.FilmShoulder;
-	Parameters.FilmBlackClip = Settings.FilmBlackClip;
-	Parameters.FilmWhiteClip = Settings.FilmWhiteClip;
-	return Parameters;
-}
-
 FColorRemapParameters GetColorRemapParameters()
 {
 	FColorTransform ColorTransform;
@@ -112,9 +95,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FCombineLUTParameters, )
 	SHADER_PARAMETER_ARRAY(float, LUTWeights, [GMaxLUTBlendCount])
 	SHADER_PARAMETER(FVector4, OverlayColor)
 	SHADER_PARAMETER(FVector, ColorScale)
-	SHADER_PARAMETER(float, WhiteTemp)
-	SHADER_PARAMETER(FVector, InverseGamma)
-	SHADER_PARAMETER(float, WhiteTint)
 	SHADER_PARAMETER(FVector4, ColorSaturation)
 	SHADER_PARAMETER(FVector4, ColorContrast)
 	SHADER_PARAMETER(FVector4, ColorGamma)
@@ -135,15 +115,20 @@ BEGIN_SHADER_PARAMETER_STRUCT(FCombineLUTParameters, )
 	SHADER_PARAMETER(FVector4, ColorGammaHighlights)
 	SHADER_PARAMETER(FVector4, ColorGainHighlights)
 	SHADER_PARAMETER(FVector4, ColorOffsetHighlights)
+	SHADER_PARAMETER(float, WhiteTemp)
+	SHADER_PARAMETER(float, WhiteTint)
 	SHADER_PARAMETER(float, ColorCorrectionShadowsMax)
 	SHADER_PARAMETER(float, ColorCorrectionHighlightsMin)
 	SHADER_PARAMETER(float, BlueCorrection)
 	SHADER_PARAMETER(float, ExpandGamut)
-	SHADER_PARAMETER(uint32, OutputDevice)
-	SHADER_PARAMETER(uint32, OutputGamut)
+	SHADER_PARAMETER(float, FilmSlope)
+	SHADER_PARAMETER(float, FilmToe)
+	SHADER_PARAMETER(float, FilmShoulder)
+	SHADER_PARAMETER(float, FilmBlackClip)
+	SHADER_PARAMETER(float, FilmWhiteClip)
 	SHADER_PARAMETER(uint32, bUseMobileTonemapper)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FColorRemapParameters, ColorRemap)
-	SHADER_PARAMETER_STRUCT_INCLUDE(FFilmTonemapParameters, FilmTonemap)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FTonemapperOutputDeviceParameters, OutputDevice)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FMobileFilmTonemapParameters, MobileFilmTonemap)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -214,9 +199,13 @@ void GetCombineLUTParameters(
 	Parameters.BlueCorrection = Settings.BlueCorrection;
 	Parameters.ExpandGamut = Settings.ExpandGamut;
 
+	Parameters.FilmSlope = Settings.FilmSlope;
+	Parameters.FilmToe = Settings.FilmToe;
+	Parameters.FilmShoulder = Settings.FilmShoulder;
+	Parameters.FilmBlackClip = Settings.FilmBlackClip;
+	Parameters.FilmWhiteClip = Settings.FilmWhiteClip;
 	Parameters.bUseMobileTonemapper = CVarTonemapperFilm.GetValueOnRenderThread() == 0;
 
-	Parameters.FilmTonemap = GetFilmTonemapParameters(Settings);
 
 	Parameters.MobileFilmTonemap = GetMobileFilmTonemapParameters(
 		Settings,
@@ -224,45 +213,15 @@ void GetCombineLUTParameters(
 		/* UseShadowTint = */ true,
 		/* UseContrast = */ true);
 
-	{
-		static TConsoleVariableData<int32>* CVarOutputGamut = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.ColorGamut"));
-		static TConsoleVariableData<int32>* CVarOutputDevice = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.OutputDevice"));
-		static TConsoleVariableData<float>* CVarOutputGamma = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.TonemapperGamma"));
+	Parameters.bUseMobileTonemapper = CVarTonemapperFilm.GetValueOnRenderThread() == 0;
 
-		int32 OutputDeviceValue;
+	Parameters.OutputDevice = GetTonemapperOutputDeviceParameters(ViewFamily);
 
-		if (ViewFamily.SceneCaptureSource == SCS_FinalColorHDR)
-		{
-			OutputDeviceValue = 8; //LinearNoToneCurve from FTonemapperOutputDevice
-		}
-		else
-		{
-			OutputDeviceValue = CVarOutputDevice->GetValueOnRenderThread();
-		}
-
-		float Gamma = CVarOutputGamma->GetValueOnRenderThread();
-
-		if (PLATFORM_APPLE && Gamma == 0.0f)
-		{
-			Gamma = 2.2f;
-		}
-
-		if (Gamma > 0.0f)
-		{
-			// Enforce user-controlled ramp over sRGB or Rec709
-			OutputDeviceValue = FMath::Max(OutputDeviceValue, 2);
-		}
-
-		Parameters.OutputDevice = OutputDeviceValue;
-
-		Parameters.OutputGamut = CVarOutputGamut->GetValueOnRenderThread();
-
-		FVector InvDisplayGammaValue;
-		InvDisplayGammaValue.X = 1.0f / ViewFamily.RenderTarget->GetDisplayGamma();
-		InvDisplayGammaValue.Y = 2.2f / ViewFamily.RenderTarget->GetDisplayGamma();
-		InvDisplayGammaValue.Z = 1.0f / FMath::Max(Gamma, 1.0f);
-		Parameters.InverseGamma = InvDisplayGammaValue;
-	}
+	Parameters.MobileFilmTonemap = GetMobileFilmTonemapParameters(
+		Settings,
+		/* UseColorMatrix = */ true,
+		/* UseShadowTint = */ true,
+		/* UseContrast = */ true);
 }
 
 class FLUTBlenderShader : public FGlobalShader
@@ -303,6 +262,11 @@ public:
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCombineLUTParameters, CombineLUT)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return true;
+	}
 };
 
 IMPLEMENT_GLOBAL_SHADER(FLUTBlenderPS, "/Engine/Private/PostProcessCombineLUTs.usf", "MainPS", SF_Pixel);
@@ -318,6 +282,11 @@ public:
 		SHADER_PARAMETER(FVector2D, OutputExtentInverse)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWOutputTexture)
 	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
 };
 
 IMPLEMENT_GLOBAL_SHADER(FLUTBlenderCS, "/Engine/Private/PostProcessCombineLUTs.usf", "MainCS", SF_Compute);
@@ -421,9 +390,8 @@ uint32 GenerateFinalTable(const FFinalPostProcessSettings& Settings, const FText
 	return LocalCount;
 }
 
-FRDGTextureRef AddCombineLUTPass(FRDGBuilder& GraphBuilder, const FScreenPassViewInfo& ScreenPassView)
+FRDGTextureRef AddCombineLUTPass(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 {
-	const FViewInfo& View = ScreenPassView.View;
 	const FSceneViewFamily& ViewFamily = *(View.Family);
 	const FTexture* LocalTextures[GMaxLUTBlendCount];
 	float LocalWeights[GMaxLUTBlendCount];
@@ -438,7 +406,7 @@ FRDGTextureRef AddCombineLUTPass(FRDGBuilder& GraphBuilder, const FScreenPassVie
 		LocalCount = GenerateFinalTable(View.FinalPostProcessSettings, LocalTextures, LocalWeights, GMaxLUTBlendCount);
 	}
 
-	const bool bUseComputePass = ScreenPassView.bUseComputePasses;
+	const bool bUseComputePass = View.bUseComputePasses;
 
 	const bool bUseVolumeTextureLUT = PipelineVolumeTextureLUTSupportGuaranteedAtRuntime(View.GetShaderPlatform());
 
@@ -446,7 +414,9 @@ FRDGTextureRef AddCombineLUTPass(FRDGBuilder& GraphBuilder, const FScreenPassVie
 
 	// Attempt to register the persistent view LUT texture.
 	FRDGTextureRef OutputTexture = GraphBuilder.TryRegisterExternalTexture(
-		View.GetTonemappingLUTRenderTarget(GraphBuilder.RHICmdList, GLUTSize, bUseVolumeTextureLUT, bUseComputePass, bUseFloatOutput));
+		View.GetTonemappingLUT(GraphBuilder.RHICmdList, GLUTSize, bUseVolumeTextureLUT, bUseComputePass, bUseFloatOutput));
+
+	View.SetValidTonemappingLUT();
 
 	// View doesn't support a persistent LUT, so create a temporary one.
 	if (!OutputTexture)
@@ -471,7 +441,7 @@ FRDGTextureRef AddCombineLUTPass(FRDGBuilder& GraphBuilder, const FScreenPassVie
 		PassParameters->OutputExtentInverse = FVector2D(1.0f, 1.0f) / FVector2D(OutputViewSize);
 		PassParameters->RWOutputTexture = GraphBuilder.CreateUAV(OutputTexture);
 
-		TShaderMapRef<FLUTBlenderCS> ComputeShader(ScreenPassView.View.ShaderMap, PermutationVector);
+		TShaderMapRef<FLUTBlenderCS> ComputeShader(View.ShaderMap, PermutationVector);
 
 		const uint32 GroupSizeXY = FMath::DivideAndRoundUp(OutputViewSize.X, FLUTBlenderCS::GroupSize);
 		const uint32 GroupSizeZ = bUseVolumeTextureLUT ? GroupSizeXY : 1;
@@ -489,13 +459,13 @@ FRDGTextureRef AddCombineLUTPass(FRDGBuilder& GraphBuilder, const FScreenPassVie
 		GetCombineLUTParameters(PassParameters->CombineLUT, View, LocalTextures, LocalWeights, LocalCount);
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ENoAction);
 
-		TShaderMapRef<FLUTBlenderPS> PixelShader(ScreenPassView.View.ShaderMap, PermutationVector);
+		TShaderMapRef<FLUTBlenderPS> PixelShader(View.ShaderMap, PermutationVector);
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("CombineLUTS (PS)"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[&ScreenPassView, PixelShader, PassParameters, bUseVolumeTextureLUT] (FRHICommandList& RHICmdList)
+			[&View, PixelShader, PassParameters, bUseVolumeTextureLUT] (FRHICommandList& RHICmdList)
 		{
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -507,8 +477,8 @@ FRDGTextureRef AddCombineLUTPass(FRDGBuilder& GraphBuilder, const FScreenPassVie
 			{
 				const FVolumeBounds VolumeBounds(GLUTSize);
 
-				TShaderMapRef<FWriteToSliceVS> VertexShader(ScreenPassView.View.ShaderMap);
-				TOptionalShaderMapRef<FWriteToSliceGS> GeometryShader(ScreenPassView.View.ShaderMap);
+				TShaderMapRef<FWriteToSliceVS> VertexShader(View.ShaderMap);
+				TOptionalShaderMapRef<FWriteToSliceGS> GeometryShader(View.ShaderMap);
 
 				GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GScreenVertexDeclaration.VertexDeclarationRHI;
@@ -525,9 +495,11 @@ FRDGTextureRef AddCombineLUTPass(FRDGBuilder& GraphBuilder, const FScreenPassVie
 			}
 			else
 			{
+				TShaderMapRef<FScreenPassVS> VertexShader(View.ShaderMap);
+
 				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*ScreenPassView.ScreenPassVS);
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
@@ -541,11 +513,9 @@ FRDGTextureRef AddCombineLUTPass(FRDGBuilder& GraphBuilder, const FScreenPassVie
 					GLUTSize * GLUTSize, GLUTSize,				// SizeUV
 					FIntPoint(GLUTSize * GLUTSize, GLUTSize),	// TargetSize
 					FIntPoint(GLUTSize * GLUTSize, GLUTSize),	// TextureSize
-					*ScreenPassView.ScreenPassVS,
+					*VertexShader,
 					EDRF_UseTriangleOptimization);
 			}
-
-			ScreenPassView.View.SetValidTonemappingLUT();
 		});
 	}
 
@@ -560,9 +530,7 @@ FRenderingCompositeOutputRef AddCombineLUTPass(FRenderingCompositionGraph& Graph
 	{
 		FRDGBuilder GraphBuilder(InContext.RHICmdList);
 
-		FScreenPassViewInfo ScreenPassView(InContext.View);
-
-		FRDGTextureRef OutputTexture = AddCombineLUTPass(GraphBuilder, ScreenPassView);
+		FRDGTextureRef OutputTexture = AddCombineLUTPass(GraphBuilder, InContext.View);
 
 		InPass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, OutputTexture);
 

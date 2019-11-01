@@ -3,11 +3,13 @@
 #include "DisplayClusterProjectionModule.h"
 
 #include "DisplayClusterProjectionLog.h"
+#include "DisplayClusterProjectionStrings.h"
 
 #include "Policy/Camera/DisplayClusterProjectionCameraPolicyFactory.h"
 #include "Policy/EasyBlend/DisplayClusterProjectionEasyBlendPolicyFactory.h"
 #include "Policy/Simple/DisplayClusterProjectionSimplePolicyFactory.h"
 #include "Policy/MPCDI/DisplayClusterProjectionMPCDIPolicyFactory.h"
+#include "Policy/Manual/DisplayClusterProjectionManualPolicyFactory.h"
 
 #include "IDisplayCluster.h"
 #include "Render/IDisplayClusterRenderManager.h"
@@ -32,6 +34,10 @@ FDisplayClusterProjectionModule::FDisplayClusterProjectionModule()
 	// EasyBlend projection
 	Factory = MakeShareable(new FDisplayClusterProjectionEasyBlendPolicyFactory);
 	ProjectionPolicyFactories.Emplace(DisplayClusterStrings::projection::EasyBlend, Factory);
+
+	// Manual projection
+	Factory = MakeShareable(new FDisplayClusterProjectionManualPolicyFactory);
+	ProjectionPolicyFactories.Emplace(DisplayClusterStrings::projection::Manual, Factory);
 
 	UE_LOG(LogDisplayClusterProjection, Log, TEXT("Projection module has been instantiated"));
 }

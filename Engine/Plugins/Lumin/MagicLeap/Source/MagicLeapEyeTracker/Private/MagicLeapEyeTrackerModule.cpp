@@ -131,16 +131,6 @@ void FMagicLeapEyeTracker::SetEyeTrackedPlayer(APlayerController* PlayerControll
 	}
 }
 
-bool FMagicLeapEyeTracker::IsEyeTrackerCalibrated() const
-{
-	if (VREyeTracker)
-	{
-		return VREyeTracker->IsEyeTrackerCalibrated();
-	}
-
-	return false;
-}
-
 bool FMagicLeapEyeTracker::GetEyeBlinkState(FMagicLeapEyeBlinkState& BlinkState) const
 {
 	if (VREyeTracker)
@@ -180,10 +170,7 @@ bool FMagicLeapEyeTracker::GetFixationComfort(FMagicLeapFixationComfort& Fixatio
 /* FMagicLeapEyeTrackerModule                                           */
 /************************************************************************/
 FMagicLeapEyeTrackerModule::FMagicLeapEyeTrackerModule()
-	: IMagicLeapModule("MagicLeapEyeTracker")
-{
-
-}
+{}
 
 void FMagicLeapEyeTrackerModule::StartupModule()
 {
@@ -196,14 +183,6 @@ void FMagicLeapEyeTrackerModule::ShutdownModule()
 {
 	AHUD::OnShowDebugInfo.Remove(OnDrawDebugHandle);
 	FCoreUObjectDelegates::PreLoadMap.Remove(OnPreLoadMapHandle);
-}
-
-void FMagicLeapEyeTrackerModule::Disable()
-{
-	if (MagicLeapEyeTracker.IsValid())
-	{
-		MagicLeapEyeTracker->Destroy();
-	}
 }
 
 TSharedPtr<class IEyeTracker, ESPMode::ThreadSafe> FMagicLeapEyeTrackerModule::CreateEyeTracker()
@@ -233,18 +212,6 @@ bool FMagicLeapEyeTrackerModule::IsEyeTrackerConnected() const
 		{
 			return true;
 		}
-	}
-
-	return false;
-}
-
-bool UMagicLeapEyeTrackerFunctionLibrary::IsEyeTrackerCalibrated()
-{
-	// TODO: Don't do this. Use StaticCastSharedPtr().
-	FMagicLeapEyeTracker* ET = GEngine ? static_cast<FMagicLeapEyeTracker*>(GEngine->EyeTrackingDevice.Get()) : nullptr;
-	if (ET)
-	{
-		return ET->IsEyeTrackerCalibrated();
 	}
 
 	return false;

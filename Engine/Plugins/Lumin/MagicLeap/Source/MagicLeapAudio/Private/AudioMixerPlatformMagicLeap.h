@@ -3,13 +3,8 @@
 #pragma once
 
 #include "AudioMixer.h"
-#include "MagicLeapPluginUtil.h" // for ML_INCLUDES_START/END
-
-#if WITH_MLSDK
-ML_INCLUDES_START
-#include <ml_audio.h>
-ML_INCLUDES_END
-#endif //WITH_MLSDK
+#include "Lumin/CAPIShims/LuminAPI.h"
+#include "FakeDeviceCallbackRunnable.h"
 
 // Any platform defines
 namespace Audio
@@ -44,6 +39,7 @@ namespace Audio
 		virtual FAudioPlatformSettings GetPlatformSettings() const override;
 		virtual void SuspendContext() override;
 		virtual void ResumeContext() override;
+		virtual void OnHardwareUpdate() override;
 
 		//~ End IAudioMixerPlatformInterface
 
@@ -51,6 +47,9 @@ namespace Audio
 
 
 		virtual int32 GetNumFrames(const int32 InNumReqestedFrames) override;
+
+		void DeviceStandby();
+		void DeviceActive();
 
 	private:
 #if WITH_MLSDK
@@ -61,13 +60,14 @@ namespace Audio
 		bool bInitialized;
 		bool bInCallback;
 
+		FFakeDeviceCallbackRunnable FakeCallback;
+
 #if WITH_MLSDK
 		MLHandle StreamHandle;
-
+		FCriticalSection StreamHandleCriticalSection;
 		// Static callback used for MLAudio:
 		static void MLAudioCallback(MLHandle Handle, void* CallbackContext);
 #endif //WITH_MLSDK
 	};
 
 }
-

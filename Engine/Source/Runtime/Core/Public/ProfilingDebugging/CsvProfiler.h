@@ -261,6 +261,7 @@ public:
 	CORE_API bool IsWritingFile();
 
 	CORE_API int32 GetCaptureFrameNumber();
+	CORE_API int32 GetNumFrameToCaptureOnEvent();
 
 	CORE_API bool EnableCategoryByString(const FString& CategoryName) const;
 
@@ -310,6 +311,7 @@ private:
 
 	int32 NumFramesToCapture;
 	int32 CaptureFrameNumber;
+	int32 CaptureOnEventFrameCount;
 
 	bool bInsertEndFrameAtFrameStart;
 

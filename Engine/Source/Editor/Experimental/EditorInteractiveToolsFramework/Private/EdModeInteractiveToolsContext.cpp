@@ -5,7 +5,9 @@
 #include "Editor.h"
 #include "EditorViewportClient.h"
 #include "EditorModeManager.h"
+#include "LevelEditor.h"
 #include "LevelEditorViewport.h"   // for GCurrentLevelEditingViewportClient
+#include "Modules/ModuleManager.h"
 #include "ShowFlags.h"				// for EngineShowFlags
 #include "Engine/Selection.h"
 #include "Misc/ITransaction.h"
@@ -343,6 +345,15 @@ void UEdModeInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* Queries
 		TerminateActiveToolsOnSaveWorld();
 	});
 
+	FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+	WorldTearDownDelegateHandle = LevelEditor.OnMapChanged().AddLambda([this](UWorld* World, EMapChangeType ChangeType)
+	{
+		if (ChangeType == EMapChangeType::TearDownWorld)
+		{
+			TerminateActiveToolsOnWorldTearDown();
+		}
+	});
+
 	ToolManager->OnToolEnded.AddLambda([this](UInteractiveToolManager*, UInteractiveTool*)
 	{
 		RestoreEditorState();
@@ -354,6 +365,9 @@ void UEdModeInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* Queries
 
 void UEdModeInteractiveToolsContext::Shutdown()
 {
+
+	FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+	LevelEditor.OnMapChanged().Remove(WorldTearDownDelegateHandle);
 	FEditorDelegates::BeginPIE.Remove(BeginPIEDelegateHandle);
 	FEditorDelegates::PreSaveWorld.Remove(PreSaveWorldDelegateHandle);
 
@@ -419,6 +433,10 @@ void UEdModeInteractiveToolsContext::TerminateActiveToolsOnPIEStart()
 	DeactivateAllActiveTools();
 }
 void UEdModeInteractiveToolsContext::TerminateActiveToolsOnSaveWorld()
+{
+	DeactivateAllActiveTools();
+}
+void UEdModeInteractiveToolsContext::TerminateActiveToolsOnWorldTearDown()
 {
 	DeactivateAllActiveTools();
 }

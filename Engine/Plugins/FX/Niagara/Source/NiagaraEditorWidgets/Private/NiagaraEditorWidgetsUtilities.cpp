@@ -5,6 +5,8 @@
 #include "ViewModels/Stack/NiagaraStackItem.h"
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
 #include "Stack/SNiagaraStackItemGroupAddMenu.h"
+#include "NiagaraEditorWidgetsStyle.h"
+
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IContentBrowserSingleton.h"
@@ -250,6 +252,92 @@ bool FNiagaraStackEditorWidgetsUtilities::AddStackModuleItemContextMenuActions(F
 	}
 	MenuBuilder.EndSection();
 	return true;
+}
+
+TSharedRef<FDragDropOperation> FNiagaraStackEditorWidgetsUtilities::ConstructDragDropOperationForStackEntries(const TArray<UNiagaraStackEntry*>& DraggedEntries)
+{
+	TSharedRef<FNiagaraStackEntryDragDropOp> DragDropOp = MakeShared<FNiagaraStackEntryDragDropOp>(DraggedEntries);
+	DragDropOp->CurrentHoverText = DraggedEntries.Num() == 1 
+		? DraggedEntries[0]->GetDisplayName()
+		: FText::Format(LOCTEXT("MultipleEntryDragFormat", "{0} (and {1} others)"), DraggedEntries[0]->GetDisplayName(), FText::AsNumber(DraggedEntries.Num() - 1));
+	DragDropOp->CurrentIconBrush = FNiagaraEditorWidgetsStyle::Get().GetBrush(
+		GetIconNameForExecutionSubcategory(DraggedEntries[0]->GetExecutionSubcategoryName(), true));
+	DragDropOp->CurrentIconColorAndOpacity = FNiagaraEditorWidgetsStyle::Get().GetColor(
+		GetIconColorNameForExecutionCategory(DraggedEntries[0]->GetExecutionCategoryName()));
+	DragDropOp->SetupDefaults();
+	DragDropOp->Construct();
+	return DragDropOp;
+}
+
+TOptional<EItemDropZone> FNiagaraStackEditorWidgetsUtilities::RequestDropForStackEntry(const FDragDropEvent& InDragDropEvent, EItemDropZone InDropZone, UNiagaraStackEntry* InTargetEntry, UNiagaraStackEntry::EDropOptions DropOptions)
+{
+	TOptional<EItemDropZone> DropZone;
+	if (InDragDropEvent.GetOperation().IsValid())
+	{
+		TSharedPtr<FDecoratedDragDropOp> DecoratedDragDropOp = InDragDropEvent.GetOperationAs<FDecoratedDragDropOp>();
+		if (DecoratedDragDropOp.IsValid())
+		{
+			DecoratedDragDropOp->ResetToDefaultToolTip();
+		}
+
+		UNiagaraStackEntry::EDragOptions DragOptions = UNiagaraStackEntry::EDragOptions::None;
+		if (InDragDropEvent.IsAltDown() &&
+			InDragDropEvent.IsShiftDown() == false &&
+			InDragDropEvent.IsControlDown() == false &&
+			InDragDropEvent.IsCommandDown() == false)
+		{
+			DragOptions = UNiagaraStackEntry::EDragOptions::Copy;
+		}
+
+		TOptional<UNiagaraStackEntry::FDropRequestResponse> Response = InTargetEntry->CanDrop(UNiagaraStackEntry::FDropRequest(InDragDropEvent.GetOperation().ToSharedRef(), InDropZone, DragOptions, DropOptions));
+		if (Response.IsSet())
+		{
+			if (DecoratedDragDropOp.IsValid() && Response.GetValue().DropMessage.IsEmptyOrWhitespace() == false)
+			{
+				DecoratedDragDropOp->CurrentHoverText = FText::Format(LOCTEXT("DropFormat", "{0} - {1}"), DecoratedDragDropOp->GetDefaultHoverText(), Response.GetValue().DropMessage);
+			}
+
+			if (Response.GetValue().DropZone.IsSet())
+			{
+				DropZone = Response.GetValue().DropZone.GetValue();
+			}
+			else
+			{
+				if (DecoratedDragDropOp.IsValid())
+				{
+					DecoratedDragDropOp->CurrentIconBrush = FEditorStyle::GetBrush("Icons.Error");
+					DecoratedDragDropOp->CurrentIconColorAndOpacity = FLinearColor::White;
+				}
+			}
+		}
+	}
+	return DropZone;
+}
+
+bool FNiagaraStackEditorWidgetsUtilities::HandleDropForStackEntry(const FDragDropEvent& InDragDropEvent, EItemDropZone InDropZone, UNiagaraStackEntry* InTargetEntry, UNiagaraStackEntry::EDropOptions DropOptions)
+{
+	bool bHandled = false;
+	if (InDragDropEvent.GetOperation().IsValid())
+	{
+		UNiagaraStackEntry::EDragOptions DragOptions = UNiagaraStackEntry::EDragOptions::None;
+		if (InDragDropEvent.IsAltDown() &&
+			InDragDropEvent.IsShiftDown() == false &&
+			InDragDropEvent.IsControlDown() == false &&
+			InDragDropEvent.IsCommandDown() == false)
+		{
+			DragOptions = UNiagaraStackEntry::EDragOptions::Copy;
+		}
+
+		UNiagaraStackEntry::FDropRequest DropRequest(InDragDropEvent.GetOperation().ToSharedRef(), InDropZone, DragOptions, DropOptions);
+		bHandled = ensureMsgf(InTargetEntry->Drop(DropRequest).IsSet(),
+			TEXT("Failed to drop stack entry when it was requested"));
+	}
+	return bHandled;
+}
+
+FString FNiagaraStackEditorWidgetsUtilities::StackEntryToStringForListDebug(UNiagaraStackEntry* StackEntry)
+{
+	return FString::Printf(TEXT("0x%08x - %s - %s"), StackEntry, *StackEntry->GetClass()->GetName(), *StackEntry->GetDisplayName().ToString());
 }
 
 #undef LOCTEXT_NAMESPACE

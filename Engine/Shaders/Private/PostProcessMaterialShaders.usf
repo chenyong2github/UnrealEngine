@@ -199,6 +199,10 @@ void MainPS(
 	const float Alpha = 1.0f;
 #endif
 	OutColor = float4(GetMaterialEmissive(PixelMaterialInputs), Alpha );
+
+#if !MATERIALBLENDING_MODULATE && USE_PREEXPOSURE && POST_PROCESS_MATERIAL_BEFORE_TONEMAP
+	OutColor.xyz *= View.PreExposure;
+#endif
 } 
 
 void MainPS_VideoOverlay(

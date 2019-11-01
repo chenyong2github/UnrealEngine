@@ -4,18 +4,26 @@
 #include "NiagaraOverviewNode.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "SNiagaraOverviewStack.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraEditorWidgetsStyle.h"
+#include "Stack/SNiagaraStackIssueIcon.h"
 
 #include "Modules/ModuleManager.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SCheckBox.h"
 
+#define LOCTEXT_NAMESPACE "NiagaraOverviewStackNode"
+
 void SNiagaraOverviewStackNode::Construct(const FArguments& InArgs, UNiagaraOverviewNode* InNode)
 {
 	GraphNode = InNode;
 	OverviewStackNode = InNode;
+	StackViewModel = nullptr;
+	OverviewSelectionViewModel = nullptr;
+	EmitterHandleViewModelWeak.Reset();
+
 	if (OverviewStackNode->GetOwningSystem() != nullptr)
 	{
 		FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::Get().LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
@@ -43,20 +51,47 @@ void SNiagaraOverviewStackNode::Construct(const FArguments& InArgs, UNiagaraOver
 TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateTitleWidget(TSharedPtr<SNodeTitle> NodeTitle)
 {
 	TSharedRef<SWidget> DefaultTitle = SGraphNode::CreateTitleWidget(NodeTitle);
-	
+
+	if (StackViewModel == nullptr)
+	{
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.Padding(0, 0, 5, 0)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("InvalidNode", "INVALID"))
+			]
+			+ SHorizontalBox::Slot()
+			[
+				DefaultTitle
+			];
+	}
+
 	return SNew(SHorizontalBox)
+		// Enabled checkbox
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
-		.Padding(0, 0, 5, 0)
+		.Padding(0)
 		[
 			SNew(SCheckBox)
 			.Visibility(this, &SNiagaraOverviewStackNode::GetEnabledCheckBoxVisibility)
 			.IsChecked(this, &SNiagaraOverviewStackNode::GetEnabledCheckState)
 			.OnCheckStateChanged(this, &SNiagaraOverviewStackNode::OnEnabledCheckStateChanged)
 		]
+		// Name
 		+ SHorizontalBox::Slot()
+		.Padding(4, 0, 0, 0)
 		[
 			DefaultTitle
+		]
+		// Stack issues icon
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.Padding(5, 0, 0, 0)
+		[
+			SNew(SNiagaraStackIssueIcon, StackViewModel, StackViewModel->GetRootEntry())
+			.Visibility(this, &SNiagaraOverviewStackNode::GetIssueIconVisibility)
 		];
 }
 
@@ -113,6 +148,11 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 		];
 }
 
+EVisibility SNiagaraOverviewStackNode::GetIssueIconVisibility() const
+{
+	return StackViewModel->HasIssues() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
 EVisibility SNiagaraOverviewStackNode::GetEnabledCheckBoxVisibility() const
 {
 	return EmitterHandleViewModelWeak.IsValid() ? EVisibility::Visible : EVisibility::Collapsed;
@@ -131,3 +171,5 @@ void SNiagaraOverviewStackNode::OnEnabledCheckStateChanged(ECheckBoxState InChec
 		EmitterHandleViewModel->SetIsEnabled(InCheckState == ECheckBoxState::Checked);
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

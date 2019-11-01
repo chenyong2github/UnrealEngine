@@ -4,6 +4,8 @@
 
 #include "DataPrepAsset.h"
 #include "DataPrepEditor.h"
+#include "DataprepAssetInstance.h"
+#include "DataprepWidgets.h"
 
 #include "DataPrepContentConsumer.h"
 #include "DataprepEditorStyle.h"
@@ -32,6 +34,7 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Text/STextBlock.h"
+
 
 #define LOCTEXT_NAMESPACE "DataprepAssetView"
 
@@ -354,9 +357,74 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 	ProducersWidget = SNew(SDataprepProducersWidget, AssetProducers, CommandList)
 		.ColumnSizeData(ColumnSizeData);
 
+	TSharedRef<SDataprepDetailsView> DetailView = SNew(SDataprepDetailsView)
+	.ColumnSizeData( ColumnSizeData )
+	.Object( DataprepAssetInterfacePtr->GetParameterizationObject() );
+
 	TSharedRef<SScrollBar> ScrollBar = SNew(SScrollBar);
 
-	// #ueent_todo: Look at changing the border brushes to add color to this stuff
+	TSharedRef<SWidget> ParentWidget = SNullWidget::NullWidget;
+	TSharedRef<SWidget> ParentSpacer = SNullWidget::NullWidget;
+	if(UDataprepAssetInstance* DataprepInstance = Cast<UDataprepAssetInstance>(InDataprepAssetPtr))
+	{
+		ParentWidget = SNew(SHorizontalBox)
+		+SHorizontalBox::Slot()
+		.FillWidth(1)
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				[
+					SNew(SSpacer)
+					.Size( FVector2D( 200, 10 ) )		
+				]
+			]
+			+ SVerticalBox::Slot()
+			//.Padding( 5.0f )
+			.AutoHeight()
+			//.MaxHeight( 400.f )
+			[
+				DataprepWidgetUtils::CreateParameterRow( SNew(SDataprepInstanceParentWidget).ColumnSizeData(ColumnSizeData).DataprepInstance(DataprepInstance) )
+			]
+		];
+
+		ParentSpacer = SNew(SHorizontalBox)
+		+SHorizontalBox::Slot()
+		.FillWidth(1)
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				[
+					SNew(SSpacer)
+					.Size( FVector2D( 200, 10 ) )		
+				]
+			]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.Padding( 0, 10, 0, 0 )
+				.HAlign( EHorizontalAlignment::HAlign_Center )
+				[
+					SNew(SColorBlock)
+					.Color( FLinearColor( 0.9f, 0.9f, 0.9f ) )
+					.Size( FVector2D( 3000, 1 ) )
+				]
+			]
+		];
+	}
+
+	TSharedPtr<SDataprepDetailsView> ParameterizationDetailsView;
+
 	ChildSlot
 	[
 		SNew(SBorder)
@@ -373,6 +441,20 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 				+ SScrollBox::Slot()
 				[
 					SNew(SVerticalBox)
+					// Begin - Section for Dataprep parent
+					+ SVerticalBox::Slot()
+					.Padding( 5.0f )
+					.AutoHeight()
+					.MaxHeight( 400.f )
+					[
+						ParentWidget
+					]
+					+ SVerticalBox::Slot()
+					[
+						ParentSpacer
+					]
+					// End - Section for Dataprep parent
+					// Begin - Section for producers
 					+ SVerticalBox::Slot()
 					.Padding( 5.0f )
 					.AutoHeight()
@@ -380,6 +462,9 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 					[
 						ProducersWidget.ToSharedRef()
 					]
+					// End - Section for producers
+
+					// Begin - Section for consumer
 					+ SVerticalBox::Slot()
 					.AutoHeight()
 					[
@@ -389,7 +474,6 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 						.Padding( 0, 10, 0, 0 )
 						.HAlign( EHorizontalAlignment::HAlign_Center )
 						[
-							// #ueent_todo: make color block's width vary with parent widget
 							SNew(SColorBlock)
 							.Color( FLinearColor( 0.9f, 0.9f, 0.9f ) )
 							.Size( FVector2D( 3000, 1 ) )
@@ -405,8 +489,6 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 							.Size( FVector2D( 200, 10 ) )		
 						]
 					]
-
-					// Section for consumer
 					+ SVerticalBox::Slot()
 					.AutoHeight()
 					[
@@ -420,7 +502,7 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 							SNew(STextBlock)
 							.Text(LOCTEXT("DataprepAssetView_Consumer_label", "Output"))
 							.MinDesiredWidth( 200 )
-							.Font( IDetailLayoutBuilder::GetDetailFontBold() )
+							.Font( FDataprepEditorStyle::Get()->GetFontStyle("DataprepEditor.SectionFont") )
 						]
 						+ SHorizontalBox::Slot()
 						.AutoWidth()
@@ -453,7 +535,70 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 							.Size( FVector2D( 200, 10 ) )		
 						]
 					]
-					// Section for consumer
+					// End - Section for consumer
+
+					// Begin - Section for parameterization
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.FillWidth(1.0f)
+						.Padding( 0, 10, 0, 0 )
+						.HAlign( EHorizontalAlignment::HAlign_Center )
+						[
+							SNew(SColorBlock)
+							.Color( FLinearColor( 0.9f, 0.9f, 0.9f ) )
+							.Size( FVector2D( 3000, 1 ) )
+						]
+					]
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						[
+							SNew(SSpacer)
+							.Size( FVector2D( 200, 10 ) )		
+						]
+					]
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.FillWidth(1.0f)
+						.HAlign(EHorizontalAlignment::HAlign_Left)
+						.VAlign(VAlign_Center)
+						.Padding( FMargin( 5.0f, 5.0f, 0, 7.0f ) )
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("DataprepAssetView_Consumer_Parameterization", "Parameterization"))
+							.MinDesiredWidth( 200 )
+							.Font( FDataprepEditorStyle::Get()->GetFontStyle("DataprepEditor.SectionFont") )
+						]
+					]
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.FillWidth(1.0f)
+						.HAlign(EHorizontalAlignment::HAlign_Left)
+						.VAlign(VAlign_Center)
+						.Padding(10.0f, 5.0f, 0.0f, 5.0f)
+						[
+							SNew( DataprepWidgetUtils::SConstrainedBox )
+							[
+								SAssignNew( ParameterizationDetailsView, SDataprepDetailsView )
+								.Object( DataprepAssetInterfacePtr->GetParameterizationObject() )
+								.ColumnSizeData( ColumnSizeData )
+								.Spacing( 10.0f )
+								.ColumnPadding( true )
+							]
+						]
+					]
+					// End - Section for parameterization
 				]
 			]
 			+SHorizontalBox::Slot()
@@ -467,13 +612,35 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 			]
 		]
 	];
+
+	if ( DataprepAssetInterfacePtr->IsA<UDataprepAsset>() )
+	{
+		TWeakObjectPtr<UDataprepAsset> DataprepAsset = static_cast<UDataprepAsset*>( DataprepAssetInterfacePtr.Get() );
+		OnParameterizationWasEdited = DataprepAsset->OnParameterizedObjectsChanged.AddLambda( [ParameterizationDetailsView, DataprepAsset](const TSet<UObject*>* Objects)
+		{
+			if ( Objects && Objects->Contains( DataprepAsset->GetParameterizationObject() ) )
+			{
+				ParameterizationDetailsView->ForceRefresh();
+			}
+		});
+	}
+
 }
 
 SDataprepAssetView::~SDataprepAssetView()
 {
-	if( UDataprepAssetInterface* DataprepAsset = DataprepAssetInterfacePtr.Get() )
+	if( UDataprepAssetInterface* DataprepAssetInterface = DataprepAssetInterfacePtr.Get() )
 	{
-		DataprepAsset->GetOnChanged().RemoveAll( this );
+		DataprepAssetInterface->GetOnChanged().RemoveAll( this );
+
+		if ( OnParameterizationWasEdited.IsValid() )
+		{
+			if ( DataprepAssetInterfacePtr->IsA<UDataprepAsset>() )
+			{
+				TWeakObjectPtr<UDataprepAsset> DataprepAsset = static_cast<UDataprepAsset*>( DataprepAssetInterfacePtr.Get() );
+				DataprepAsset->OnParameterizedObjectsChanged.Remove( OnParameterizationWasEdited );
+			}
+		}
 	}
 }
 

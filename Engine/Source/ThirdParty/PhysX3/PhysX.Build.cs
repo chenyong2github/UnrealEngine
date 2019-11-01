@@ -411,31 +411,6 @@ public class PhysX : ModuleRules
 				PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "TVOS", "lib" + String.Format(PhysXLib, LibrarySuffix) + ".a"));
 			}
 		}
-		else if (Target.Platform == UnrealTargetPlatform.PS4)
-		{
-			string[] StaticLibrariesPS4 = new string[] {
-				"PhysX3{0}",
-				"PhysX3Extensions{0}",
-				"PhysX3Cooking{0}",
-				"PhysX3Common{0}",
-				"LowLevel{0}",
-				"LowLevelAABB{0}",
-				"LowLevelCloth{0}",
-				"LowLevelDynamics{0}",
-				"LowLevelParticles{0}",
-				"SceneQuery{0}",
-				"SimulationController{0}",
-				"PxFoundation{0}",
-				"PxTask{0}",
-				"PxPvdSDK{0}",
-				"PsFastXml{0}"
-			};
-
-			foreach (string Lib in StaticLibrariesPS4)
-			{
-				PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "PS4", "lib" + String.Format(Lib, LibrarySuffix) + ".a"));
-			}
-		}
 		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
 		{
 			PublicDefinitions.Add("PX_PHYSX_STATIC_LIB=1");

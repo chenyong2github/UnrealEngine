@@ -64,6 +64,9 @@ namespace UnrealBuildTool.Rules
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11Audio");
 				PublicDelayLoadDLLs.Add("GPUUtilities.dll");
 				PublicDelayLoadDLLs.Add("tanrt64.dll");
+				PublicDelayLoadDLLs.Add("embree.dll");
+				PublicDelayLoadDLLs.Add("tbb.dll");
+				PublicDelayLoadDLLs.Add("tbbmalloc.dll");
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Android)
 			{

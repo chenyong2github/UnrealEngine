@@ -28,6 +28,8 @@
 #include "StaticMeshAttributes.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/Package.h"
+#include "UVTools/UVGenerationFlattenMapping.h"
+#include "UVTools/UVGenerationUtils.h"
 
 #define LOCTEXT_NAMESPACE "DatasmithStaticMeshImporter"
 
@@ -196,26 +198,27 @@ bool FDatasmithStaticMeshImporter::PreBuildStaticMesh( UStaticMesh* StaticMesh )
 		FMeshBuildSettings& BuildSettings = StaticMesh->GetSourceModel(LodIndex).BuildSettings;
 		FMeshDescription& MeshDescription = *StaticMesh->GetMeshDescription(LodIndex);
 
+		if (BuildSettings.bGenerateLightmapUVs && !DatasmithMeshHelper::HasUVData(MeshDescription, BuildSettings.SrcLightmapIndex))
+		{
+			//If no UV data exist at the source index we generate unwrapped UVs.
+			//Do this before calling DatasmithMeshHelper::CreateDefaultUVs() as the UVs may be unwrapped at channel 0.
+			UUVGenerationFlattenMapping::GenerateUVs(MeshDescription, BuildSettings.SrcLightmapIndex, BuildSettings.bRemoveDegenerates);
+		}
+
 		// We should always have some UV data in channel 0 because it is used in the mesh tangent calculation during the build.
 		if (!DatasmithMeshHelper::HasUVData(MeshDescription, 0))
 		{
 			DatasmithMeshHelper::CreateDefaultUVs(MeshDescription);
 		}
 
-		// If lightmap UVs are not to be generated, set destination lightmap to 0.
-		if (!BuildSettings.bGenerateLightmapUVs)
-		{
-			BuildSettings.DstLightmapIndex = 0;
-		}
-		else if (!DatasmithMeshHelper::HasUVData(MeshDescription, BuildSettings.SrcLightmapIndex))
-		{
-			//We know that a UV at channel 0 exists so we fallback on it.
-			BuildSettings.SrcLightmapIndex = 0;
-		}
-
 		if (DatasmithMeshHelper::IsMeshValid(MeshDescription, BuildSettings.BuildScale3D))
 		{
-			DatasmithMeshHelper::RequireUVChannel(MeshDescription, BuildSettings.DstLightmapIndex);
+			if (BuildSettings.bGenerateLightmapUVs)
+			{
+				DatasmithMeshHelper::RequireUVChannel(MeshDescription, BuildSettings.DstLightmapIndex);
+				UVGenerationUtils::SetupGeneratedLightmapUVResolution(StaticMesh, LodIndex);
+			}
+
 			UStaticMesh::FCommitMeshDescriptionParams Params;
 
 			// We will call MarkPackageDirty() ourself from the main thread
@@ -225,6 +228,10 @@ bool FDatasmithStaticMeshImporter::PreBuildStaticMesh( UStaticMesh* StaticMesh )
 			Params.bUseHashAsGuid = true;
 
 			StaticMesh->CommitMeshDescription(LodIndex, Params);
+
+			// Get rid of the memory used now that its committed into its bulk form.
+			// Will be reloaded from bulk data when building the mesh if not present in memory.
+			StaticMesh->ClearMeshDescription(LodIndex);
 		}
 		else
 		{
@@ -299,7 +306,7 @@ void FDatasmithStaticMeshImporter::PreBuildStaticMeshes( FDatasmithImportContext
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithStaticMeshImporter::PreBuildStaticMeshes);
 
-	FScopedSlowTask Progress(ImportContext.ImportedStaticMeshes.Num(), LOCTEXT("PreBuildStaticMeshes", "Packing UVs and computing tangents..."), true, *ImportContext.Warn);
+	FScopedSlowTask Progress(ImportContext.ImportedStaticMeshes.Num(), LOCTEXT("PreBuildStaticMeshes", "Setting up UVs..."), true, *ImportContext.Warn);
 	Progress.MakeDialog(true);
 
 	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked< IMeshUtilities >( "MeshUtilities" );
@@ -480,8 +487,6 @@ void FDatasmithStaticMeshImporter::SetupStaticMesh( FDatasmithAssetsImportContex
 
 	TSet< int32 > MaterialIndexToImportIndex;
 
-	bool bLightmapCoordinateIndexInvalid = false;
-
 	// Only setup LODs declared by the mesh element
 	for ( int32 LodIndex = 0; LodIndex < MeshElement->GetLODCount(); ++LodIndex)
 	{
@@ -492,48 +497,48 @@ void FDatasmithStaticMeshImporter::SetupStaticMesh( FDatasmithAssetsImportContex
 
 		FMeshDescription& MeshDescription = *StaticMesh->GetMeshDescription(LodIndex);
 
-		auto GetNextOpenUVChannel = [](FMeshDescription& Mesh, int32 FromUVChannelIndex)
-		{
-			for (int32 UVChannelIndex = FromUVChannelIndex; UVChannelIndex < MAX_MESH_TEXTURE_COORDS_MD; ++UVChannelIndex)
-			{
-				if (!DatasmithMeshHelper::HasUVData(Mesh, UVChannelIndex))
-				{
-					return UVChannelIndex;
-				}
-			}
-			return -1;
-		};
-
 		// UV Channels
-		int32 SourceIndex = -1;
+		int32 SourceIndex = 0;
+		int32 DestinationIndex = 1;
+		bool bUseImportedLightmap = false;
 		bool bGenerateLightmapUVs = StaticMeshImportOptions.bGenerateLightmapUVs;
-		// Set DestinationIndex to 0 if generation of lightmap UVs is not required.
-		int32 DestinationIndex = bGenerateLightmapUVs ? -1 : 0;
+		const int32 FirstOpenUVChannel = UVGenerationUtils::GetNextOpenUVChannel(StaticMesh, LodIndex);
 
-		// if a lightmap coordinate index was exported, disable lightmap generation
+		// if a custom lightmap coordinate index was imported, disable lightmap generation
 		if (DatasmithMeshHelper::HasUVData(MeshDescription, MeshElement->GetLightmapCoordinateIndex()))
 		{
+			bUseImportedLightmap = true;
 			bGenerateLightmapUVs = false;
+			DestinationIndex = MeshElement->GetLightmapCoordinateIndex();
+		}
+		else
+		{
+			if (MeshElement->GetLightmapCoordinateIndex() >= 0)
+			{
+				//A custom lightmap index value was set but the data was invalid.
+				FFormatNamedArguments FormatArgs;
+				FormatArgs.Add(TEXT("LightmapCoordinateIndex"), FText::FromString(FString::FromInt(MeshElement->GetLightmapCoordinateIndex())));
+				FormatArgs.Add(TEXT("MeshName"), FText::FromName(StaticMesh->GetFName()));
+				AssetsContext.ParentContext.LogError(FText::Format(LOCTEXT("InvalidLightmapSourceUVError", "The lightmap coordinate index '{LightmapCoordinateIndex}' used for the mesh '{MeshName}' is invalid. A valid lightmap coordinate index was set instead."), FormatArgs));
+			}
+
+			DestinationIndex = FirstOpenUVChannel;
 		}
 
+		// Set the source lightmap index to the imported mesh data lightmap source if any, otherwise use the first open channel.
+		if (DatasmithMeshHelper::HasUVData(MeshDescription, MeshElement->GetLightmapSourceUV()))
+		{
+			SourceIndex = MeshElement->GetLightmapSourceUV();
+		}
+		else
+		{
+			//If the lightmap source index was not set, we set it to the first open UV channel as it will be generated.
+			//Also, it's okay to set both the source and the destination to be the same index as they are for different containers.
+			SourceIndex = FirstOpenUVChannel;
+		}
+		
 		if (bGenerateLightmapUVs)
 		{
-			// Set the source lightmap index to the imported mesh data lightmap source if any, otherwise use the first open channel.
-			const bool bOriginalSourceIsValid = DatasmithMeshHelper::HasUVData(MeshDescription, MeshElement->GetLightmapSourceUV());
-			const int32 FirstOpenUVChannel = GetNextOpenUVChannel(MeshDescription, 0);
-
-			if (bOriginalSourceIsValid)
-			{
-				SourceIndex = MeshElement->GetLightmapSourceUV();
-				DestinationIndex = FirstOpenUVChannel;
-			}
-			else
-			{
-				//If the lightmap source index was not set, set it to 0 (as we will generate a UV latter if it's missing).
-				SourceIndex = 0;
-				DestinationIndex = FMath::Max(FirstOpenUVChannel, SourceIndex + 1);
-			}
-			
 			if (!FMath::IsWithin<int32>(SourceIndex, 0, MAX_MESH_TEXTURE_COORDS_MD))
 			{
 				AssetsContext.ParentContext.LogError(FText::Format(LOCTEXT("InvalidLightmapSourceIndexError", "Lightmap generation error for mesh {0}: Specified source is invalid {1}. Cannot find an available fallback source channel."), FText::FromName(StaticMesh->GetFName()), MeshElement->GetLightmapSourceUV()));
@@ -547,12 +552,10 @@ void FDatasmithStaticMeshImporter::SetupStaticMesh( FDatasmithAssetsImportContex
 
 			if (!bGenerateLightmapUVs)
 			{
-				AssetsContext.ParentContext.LogWarning(FText::Format(LOCTEXT("LightmapUVsWontBeGenerated", "Lightmap UVs for mesh {0} won't be generated. The lightmap coordinate index will be set to 0."), FText::FromName(StaticMesh->GetFName())));
-				SourceIndex = 0;
-				DestinationIndex = 1;
+				AssetsContext.ParentContext.LogWarning(FText::Format(LOCTEXT("LightmapUVsWontBeGenerated", "Lightmap UVs for mesh {0} won't be generated."), FText::FromName(StaticMesh->GetFName())));
 			}
 		}
-
+		
 		FDatasmithMeshBuildSettingsTemplate BuildSettingsTemplate;
 		BuildSettingsTemplate.Load(StaticMesh->GetSourceModel(LodIndex).BuildSettings);
 
@@ -572,31 +575,15 @@ void FDatasmithStaticMeshImporter::SetupStaticMesh( FDatasmithAssetsImportContex
 
 		StaticMeshTemplate->BuildSettings.Add( MoveTemp( BuildSettingsTemplate ) );
 
-		if (!StaticMeshImportOptions.bGenerateLightmapUVs)
+		if ( bUseImportedLightmap || StaticMeshImportOptions.bGenerateLightmapUVs )
 		{
-			StaticMeshTemplate->LightMapCoordinateIndex = MeshElement->GetLightmapCoordinateIndex() < 0 ? BuildSettingsTemplate.DstLightmapIndex : MeshElement->GetLightmapCoordinateIndex();
-		}
-		else if (MeshElement->GetLightmapCoordinateIndex() < 0)
-		{
-			StaticMeshTemplate->LightMapCoordinateIndex = bGenerateLightmapUVs ? BuildSettingsTemplate.DstLightmapIndex : BuildSettingsTemplate.SrcLightmapIndex;
+			//If we are generating the lightmap or are using an imported lightmap the DstLightmapIndex will already be set to the proper index.
+			StaticMeshTemplate->LightMapCoordinateIndex = BuildSettingsTemplate.DstLightmapIndex;
 		}
 		else
 		{
-			int LastValidUVChannel = MAX_MESH_TEXTURE_COORDS_MD - 1;
-			while (LastValidUVChannel > 0 && !DatasmithMeshHelper::HasUVData(MeshDescription, LastValidUVChannel))
-			{
-				--LastValidUVChannel;
-			}
-
-			if (MeshElement->GetLightmapCoordinateIndex() <= LastValidUVChannel)
-			{
-				StaticMeshTemplate->LightMapCoordinateIndex = MeshElement->GetLightmapCoordinateIndex();
-			}
-			else
-			{
-				bLightmapCoordinateIndexInvalid = true;
-				StaticMeshTemplate->LightMapCoordinateIndex = LastValidUVChannel;
-			}
+			//No lightmap UV provided or generated, set the LightmapCoordinateIndex to default 0 value which will always contain contain a basic UV.
+			StaticMeshTemplate->LightMapCoordinateIndex = 0;
 		}
 	}
 
@@ -615,14 +602,6 @@ void FDatasmithStaticMeshImporter::SetupStaticMesh( FDatasmithAssetsImportContex
 
 	ApplyMaterialsToStaticMesh(AssetsContext, MeshElement, StaticMeshTemplate);
 	StaticMeshTemplate->Apply(StaticMesh);
-
-	if (bLightmapCoordinateIndexInvalid)
-	{
-		FFormatNamedArguments FormatArgs;
-		FormatArgs.Add(TEXT("LightmapCoordinateIndex"), FText::FromString(FString::FromInt(MeshElement->GetLightmapCoordinateIndex())));
-		FormatArgs.Add(TEXT("MeshName"), FText::FromName(StaticMesh->GetFName()));
-		AssetsContext.ParentContext.LogError(FText::Format(LOCTEXT("InvalidLightmapSourceUVError", "The lightmap coordinate index '{LightmapCoordinateIndex}' used for the mesh '{MeshName}' is invalid. A valid lightmap coordinate index was set instead."), FormatArgs));
-	}
 }
 
 TMap< TSharedRef< IDatasmithMeshElement >, float > FDatasmithStaticMeshImporter::CalculateMeshesLightmapWeights( const TSharedRef< IDatasmithScene >& SceneElement )

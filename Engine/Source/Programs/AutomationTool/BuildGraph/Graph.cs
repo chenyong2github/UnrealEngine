@@ -395,6 +395,12 @@ namespace AutomationTool
 
 				foreach (KeyValuePair<string, Node[]> Aggregate in AggregateNameToNodes)
 				{
+					// If the aggregate has no required elements, skip it.
+					if (!Aggregate.Value.Any())
+					{
+						continue;
+					}
+
 					Writer.WriteStartElement("Aggregate");
 					Writer.WriteAttributeString("Name", Aggregate.Key);
 					Writer.WriteAttributeString("Requires", String.Join(";", Aggregate.Value.Select(x => x.Name)));

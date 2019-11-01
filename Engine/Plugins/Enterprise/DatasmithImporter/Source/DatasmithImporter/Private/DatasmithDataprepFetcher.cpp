@@ -4,6 +4,8 @@
 
 #include "DatasmithContentBlueprintLibrary.h"
 
+#define LOCTEXT_NAMESPACE "DatasmithDataprepFetcher"
+
 /* UDataprepStringMetadataValueFetcher methods
  *****************************************************************************/
 FString UDatasmithStringMetadataValueFetcher::Fetch_Implementation(const UObject* Object, bool& bOutFetchSucceded) const
@@ -18,7 +20,14 @@ FString UDatasmithStringMetadataValueFetcher::Fetch_Implementation(const UObject
 	return {};
 }
 
+FText UDatasmithStringMetadataValueFetcher::GetNodeDisplayFetcherName_Implementation() const
+{
+	return LOCTEXT("NodeDisplayFetcher_MetadataValue", "Metadata");
+}
+
 bool UDatasmithStringMetadataValueFetcher::IsThreadSafe() const
 {
 	return true;
 }
+
+#undef LOCTEXT_NAMESPACE

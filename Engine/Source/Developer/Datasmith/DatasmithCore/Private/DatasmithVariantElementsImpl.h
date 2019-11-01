@@ -1,8 +1,9 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "DatasmithVariantElements.h"
+#include "DatasmithDefinitions.h"
 #include "DatasmithSceneElementsImpl.h"
+#include "DatasmithVariantElements.h"
 
 #include "Containers/Array.h"
 #include "Templates/SharedPointer.h"
@@ -13,6 +14,7 @@ class FDatasmithBasePropertyCaptureElementImpl : public FDatasmithElementImpl< I
 public:
 	explicit FDatasmithBasePropertyCaptureElementImpl(EDatasmithElementVariantSubType InSubType = EDatasmithElementVariantSubType::PropertyCapture)
 		: FDatasmithElementImpl< InterfaceType >(nullptr, EDatasmithElementType::Variant, (uint64)InSubType)
+		, Category(EDatasmithPropertyCategory::Undefined)
 	{
 	}
 
@@ -26,19 +28,19 @@ public:
 		return PropertyPath;
 	}
 
-	virtual void SetCategory(EPropertyValueCategory InCategory) override
+	virtual void SetCategory(EDatasmithPropertyCategory InCategory) override
 	{
 		Category = InCategory;
 	}
 
-	virtual EPropertyValueCategory GetCategory() const override
+	virtual EDatasmithPropertyCategory GetCategory() const override
 	{
 		return Category;
 	}
 
 private:
 	FString PropertyPath;
-	EPropertyValueCategory Category;
+	EDatasmithPropertyCategory Category;
 };
 
 class FDatasmithPropertyCaptureElementImpl : public FDatasmithBasePropertyCaptureElementImpl< IDatasmithPropertyCaptureElement >

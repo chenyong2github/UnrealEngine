@@ -2758,3 +2758,23 @@ void FWindowsPlatformMisc::PumpMessagesOutsideMainLoop()
 	PeekMessage(&Msg, NULL, 0, 0, PM_NOREMOVE | PM_QS_SENDMESSAGE);
 	return;
 }
+
+uint64 FWindowsPlatformMisc::GetFileVersion(const FString &FileName)
+{
+	::DWORD VersionInfoSize = GetFileVersionInfoSize(*FileName, NULL);
+	if (VersionInfoSize != 0)
+	{
+		TArray<uint8> VersionInfo;
+		VersionInfo.AddUninitialized(VersionInfoSize);
+		if (GetFileVersionInfo(*FileName, NULL, VersionInfoSize, VersionInfo.GetData()))
+		{
+			VS_FIXEDFILEINFO *FileInfo;
+			::UINT FileInfoLen;
+			if (VerQueryValue(VersionInfo.GetData(), TEXT("\\"), (LPVOID*)&FileInfo, &FileInfoLen))
+			{
+				return (uint64(FileInfo->dwFileVersionMS) << 32) | uint64(FileInfo->dwFileVersionLS);
+			}
+		}
+	}
+	return 0;
+}

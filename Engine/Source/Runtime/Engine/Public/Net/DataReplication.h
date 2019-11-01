@@ -297,11 +297,26 @@ private:
 	TWeakObjectPtr<UObject> WeakObjectPtr;
 };
 
-class FScopedActorRoleSwap : public FNoncopyable
+class ENGINE_API FScopedActorRoleSwap
 {
 public:
 	FScopedActorRoleSwap(AActor* InActor);
 	~FScopedActorRoleSwap();
+
+	FScopedActorRoleSwap(const FScopedActorRoleSwap&) = delete;
+	FScopedActorRoleSwap& operator=(const FScopedActorRoleSwap&) = delete;
+
+	FScopedActorRoleSwap(FScopedActorRoleSwap&& Other)
+	{
+		Actor = Other.Actor;
+		Other.Actor = nullptr;
+	}
+	FScopedActorRoleSwap& operator=(FScopedActorRoleSwap&& Other)
+	{
+		Actor = Other.Actor;
+		Other.Actor = nullptr;
+		return *this;
+	}
 
 private:
 	AActor* Actor;

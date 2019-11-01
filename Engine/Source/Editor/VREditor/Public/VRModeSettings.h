@@ -86,7 +86,7 @@ public:
 
 	/** The teleporter to use when UnrealEd is in VR mode. Use VREditorTeleporter to get default editor behavior, or select a custom teleporter */
 	UPROPERTY( EditAnywhere, config, NoClear, Category = "Motion Controllers" )
-	TSubclassOf<AVREditorTeleporter> TeleporterClass;
+	TSoftClassPtr<AVREditorTeleporter> TeleporterClass;
 
 private:
 #if WITH_EDITOR

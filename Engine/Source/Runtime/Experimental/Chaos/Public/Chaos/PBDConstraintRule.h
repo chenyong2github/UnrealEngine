@@ -241,6 +241,18 @@ namespace Chaos
 					}
 				}
 			}
+
+			for (int32 Level = 0; Level <= MaxLevel; ++Level)
+			{
+				for (int32 Color = 0; Color <= MaxColor; ++Color)
+				{
+					if (LevelToColorToConstraintListMap[Level].Contains(Color) && LevelToColorToConstraintListMap[Level][Color].Num())
+					{
+						const TArray<typename FConstraints::FConstraintHandle*>& ConstraintHandles = GetLevelColorConstraints(LevelToColorToConstraintListMap, Level, Color);
+						Constraints.Disable( ConstraintHandles );
+					}
+				}
+			}
 		}
 
 		virtual void RemoveConstraints(const TSet<TGeometryParticleHandle<T, d>*>& InConstraints)

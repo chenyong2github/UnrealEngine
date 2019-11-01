@@ -22,7 +22,6 @@
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "Debug/ReporterGraph.h"
-#include "NetworkSimulationModelDebugger.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFlyingPawnSimulation, Log, All);
 
@@ -39,7 +38,6 @@ static FAutoConsoleVariableRef CVarUseDrawDebug(TEXT("fp.Debug.UseDrawDebug"),
 static float DrawDebugDefaultLifeTime = 30.f;
 static FAutoConsoleVariableRef CVarDrawDebugDefaultLifeTime(TEXT("fp.Debug.UseDrawDebug.DefaultLifeTime"),
 	DrawDebugDefaultLifeTime, TEXT("Use built in DrawDebug* functions for visual logging"), ECVF_Default);
-
 }
 
 // ============================================================================================
@@ -101,7 +99,7 @@ namespace FlyingMovement
 		OutDelta = Delta;
 	}
 
-	float SlideAlongSurface(IMovementDriver* Driver, const FVector& Delta, float Time, const FQuat Rotation, const FVector& Normal, FHitResult& Hit, bool bHandleImpact)
+	float FMovementSimulation::SlideAlongSurface(const FVector& Delta, float Time, const FQuat Rotation, const FVector& Normal, FHitResult& Hit, bool bHandleImpact)
 	{
 		if (!Hit.bBlockingHit)
 		{
@@ -115,9 +113,7 @@ namespace FlyingMovement
 
 		if ((SlideDelta | Delta) > 0.f)
 		{
-			IBaseMovementDriver& BaseMovementDriver = Driver->GetBaseMovementDriver();
-
-			BaseMovementDriver.SafeMoveUpdatedComponent(SlideDelta, Rotation, true, Hit, ETeleportType::None);
+			SafeMoveUpdatedComponent(SlideDelta, Rotation, true, Hit, ETeleportType::None);
 
 			const float FirstHitPercent = Hit.Time;
 			PercentTimeApplied = FirstHitPercent;
@@ -136,7 +132,7 @@ namespace FlyingMovement
 				if (!SlideDelta.IsNearlyZero(1e-3f) && (SlideDelta | Delta) > 0.f)
 				{
 					// Perform second move
-					BaseMovementDriver.SafeMoveUpdatedComponent(SlideDelta, Rotation, true, Hit, ETeleportType::None);
+					SafeMoveUpdatedComponent(SlideDelta, Rotation, true, Hit, ETeleportType::None);
 					const float SecondHitPercent = Hit.Time * (1.f - FirstHitPercent);
 					PercentTimeApplied += SecondHitPercent;
 
@@ -154,21 +150,11 @@ namespace FlyingMovement
 		return 0.f;
 	}
 
-
-	void FMovementSimulation::Update(IMovementDriver* Driver, const float DeltaSeconds, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState)
+	void FMovementSimulation::SimulationTick(const TNetSimTimeStep& TimeStep, const TNetSimInput<TMovementBufferTypes>& Input, const TNetSimOutput<TMovementBufferTypes>& Output)
 	{
-		// ----------------------------------
-		// AuxState todo
-		float MaxSpeed = 1200.f;
-		float TurningBoost = 8.f;
-		float Deceleration = 8000.f;
-		float Acceleration = 4000.f;
+		Output.Sync = Input.Sync;
 
-		// ----------------------------------------------------------------
-		
-		OutputState = InputState;
-
-		IBaseMovementDriver& BaseMovementDriver = Driver->GetBaseMovementDriver();
+		const float DeltaSeconds = TimeStep.StepMS.ToRealTimeSeconds();
 
 		// --------------------------------------------------------------
 		//	Rotation Update
@@ -177,26 +163,26 @@ namespace FlyingMovement
 		//	In this simulation, the rotation update isn't allowed to "fail". We don't expect the collision query to be able to fail the rotational update.
 		// --------------------------------------------------------------
 
-		OutputState.Rotation += (InputCmd.RotationInput * DeltaSeconds);
-		OutputState.Rotation.Normalize();
+		Output.Sync.Rotation += (Input.Cmd.RotationInput * DeltaSeconds);
+		Output.Sync.Rotation.Normalize();
 
-		const FQuat OutputQuat = OutputState.Rotation.Quaternion();
+		const FQuat OutputQuat = Output.Sync.Rotation.Quaternion();
 
 		// After the rotation is known, we need to sync our driver to this state. This is unfortunate and probably not best for perf, but since the Driver owned
 		// primitive component is ultimately what does our scene queries, we have no choice: we must get the primitive component in the state we say it should be in.
-		Driver->PreSimSync(OutputState);
+		PreSimSync(Output.Sync);
 
-		const FVector LocalSpaceMovementInput = OutputState.Rotation.RotateVector( InputCmd.MovementInput );
+		const FVector LocalSpaceMovementInput = Output.Sync.Rotation.RotateVector( Input.Cmd.MovementInput );
 	   	
 		// --------------------------------------------------------------
-		// Calculate OutputState.RelativeVelocity based on Input
+		// Calculate Output.Sync.RelativeVelocity based on Input
 		// --------------------------------------------------------------
 		{
 			const FVector ControlAcceleration = LocalSpaceMovementInput.GetClampedToMaxSize(1.f);
-			FVector Velocity = InputState.Velocity;
+			FVector Velocity = Input.Sync.Velocity;
 
 			const float AnalogInputModifier = (ControlAcceleration.SizeSquared() > 0.f ? ControlAcceleration.Size() : 0.f);
-			const float MaxPawnSpeed = MaxSpeed * AnalogInputModifier;
+			const float MaxPawnSpeed = Input.Aux.MaxSpeed * AnalogInputModifier;
 			const bool bExceedingMaxSpeed = IsExceedingMaxSpeed(Velocity, MaxPawnSpeed);
 
 			if (AnalogInputModifier > 0.f && !bExceedingMaxSpeed)
@@ -205,7 +191,7 @@ namespace FlyingMovement
 				if (Velocity.SizeSquared() > 0.f)
 				{
 					// Change direction faster than only using acceleration, but never increase velocity magnitude.
-					const float TimeScale = FMath::Clamp(DeltaSeconds * TurningBoost, 0.f, 1.f);
+					const float TimeScale = FMath::Clamp(DeltaSeconds * Input.Aux.TurningBoost, 0.f, 1.f);
 					Velocity = Velocity + (ControlAcceleration * Velocity.Size() - Velocity) * TimeScale;
 				}
 			}
@@ -215,7 +201,7 @@ namespace FlyingMovement
 				if (Velocity.SizeSquared() > 0.f)
 				{
 					const FVector OldVelocity = Velocity;
-					const float VelSize = FMath::Max(Velocity.Size() - FMath::Abs(Deceleration) * DeltaSeconds, 0.f);
+					const float VelSize = FMath::Max(Velocity.Size() - FMath::Abs(Input.Aux.Deceleration) * DeltaSeconds, 0.f);
 					Velocity = Velocity.GetSafeNormal() * VelSize;
 
 					// Don't allow braking to lower us below max speed if we started above it.
@@ -228,15 +214,15 @@ namespace FlyingMovement
 
 			// Apply acceleration and clamp velocity magnitude.
 			const float NewMaxSpeed = (IsExceedingMaxSpeed(Velocity, MaxPawnSpeed)) ? Velocity.Size() : MaxPawnSpeed;
-			Velocity += ControlAcceleration * FMath::Abs(Acceleration) * DeltaSeconds;
+			Velocity += ControlAcceleration * FMath::Abs(Input.Aux.Acceleration) * DeltaSeconds;
 			Velocity = Velocity.GetClampedToMaxSize(NewMaxSpeed);
 
 			// Finally, output velocity that we calculated
-			OutputState.Velocity = Velocity;
+			Output.Sync.Velocity = Velocity;
 		
 			if (FMovementSimulation::ForceMispredict)
 			{
-				OutputState.Velocity += ForceMispredictVelocityMagnitude;
+				Output.Sync.Velocity += ForceMispredictVelocityMagnitude;
 				ForceMispredict = false;
 			}
 		}
@@ -246,17 +232,17 @@ namespace FlyingMovement
 		// --------------------------------------------------------------
 		//	Calculate the final movement delta and move the update component
 		// --------------------------------------------------------------
-		FVector Delta = OutputState.Velocity * DeltaSeconds;
+		FVector Delta = Output.Sync.Velocity * DeltaSeconds;
 
 		if (!Delta.IsNearlyZero(1e-6f))
 		{
 			FHitResult Hit(1.f);
-			BaseMovementDriver.SafeMoveUpdatedComponent(Delta, OutputQuat, true, Hit, ETeleportType::None);
+			SafeMoveUpdatedComponent(Delta, OutputQuat, true, Hit, ETeleportType::None);
 
 			if (Hit.IsValidBlockingHit())
 			{
 				// Try to slide the remaining distance along the surface.
-				SlideAlongSurface(Driver, Delta, 1.f-Hit.Time, OutputQuat, Hit.Normal, Hit, true);
+				SlideAlongSurface(Delta, 1.f-Hit.Time, OutputQuat, Hit.Normal, Hit, true);
 			}
 
 			// Update velocity
@@ -270,24 +256,23 @@ namespace FlyingMovement
 		}
 
 		// Finalize. This is unfortunate. The component mirrors our internal motion state and since we call into it to update, at this point, it has the real position.
-		const FTransform UpdateComponentTransform = BaseMovementDriver.GetUpdateComponentTransform();
-		OutputState.Location = UpdateComponentTransform.GetLocation();
+		const FTransform UpdateComponentTransform = GetUpdateComponentTransform();
+		Output.Sync.Location = UpdateComponentTransform.GetLocation();
 
 		// Note that we don't pull the rotation out of the final update transform. Converting back from a quat will lead to a different FRotator than what we are storing
 		// here in the simulation layer. This may not be the best choice for all movement simulations, but is ok for this one.
 	}
 
-	void FMoveState::VisualLog(const FVisualLoggingParameters& Parameters, IMovementDriver* Driver, IMovementDriver* LogDriver) const
+	void FMovementSimulation::PreSimSync(const FMoveState& SyncState)
 	{
-		IBaseMovementDriver& BaseMovementDriver = Driver->GetBaseMovementDriver();		
-		FTransform Transform(Rotation, Location);		
+		// Does checking equality make any sense here? This is unfortunate
+		if (UpdatedComponent->GetComponentLocation().Equals(SyncState.Location) == false || UpdatedComponent->GetComponentQuat().Rotator().Equals(SyncState.Rotation, ROTATOR_TOLERANCE) == false)
+		{
+			FTransform Transform(SyncState.Rotation.Quaternion(), SyncState.Location, UpdatedComponent->GetComponentTransform().GetScale3D() );
+			UpdatedComponent->SetWorldTransform(Transform, false, nullptr, ETeleportType::TeleportPhysics);
 
-		IBaseMovementDriver::FDrawDebugParams DrawParams(Parameters, &LogDriver->GetBaseMovementDriver());		
-		DrawParams.Transform = Transform;		
-		DrawParams.InWorldText = LexToString(Parameters.Keyframe);
-		DrawParams.LogText = FString::Printf(TEXT("[%d] %s. Location: %s. Rotation: %s"), Parameters.Keyframe, *LexToString(Parameters.Context), *Transform.GetLocation().ToString(), *Transform.GetRotation().Rotator().ToString());
-
-		BaseMovementDriver.DrawDebug(DrawParams);
+			UpdatedComponent->ComponentVelocity = SyncState.Velocity;
+		}
 	}
 
 } // end namespace

@@ -60,11 +60,6 @@ public class zlib : ModuleRules
 			PublicIncludePaths.Add(zlibPath + "/include" + platform);
 			PublicAdditionalLibraries.Add(zlibPath + "/lib/" + platform + "/libz_fPIC.a");
 		}
-		else if (Target.Platform == UnrealTargetPlatform.PS4)
-		{
-			PublicIncludePaths.Add(OldzlibPath + "/Inc");
-			PublicAdditionalLibraries.Add(OldzlibPath + "/Lib/PS4/libz.a");
-		}
 		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
 		{
 			// Use reflection to allow type not to exist if console code is not present

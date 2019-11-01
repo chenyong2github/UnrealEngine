@@ -19,6 +19,14 @@
 	#include "SceneOutlinerFilters.h"
 #endif
 
+bool GLevelSequenceActor_InvalidBindingTagWarnings = true;
+FAutoConsoleVariableRef CVarLevelSequenceActor_InvalidBindingTagWarnings(
+	TEXT("LevelSequence.InvalidBindingTagWarnings"),
+	GLevelSequenceActor_InvalidBindingTagWarnings,
+	TEXT("Whether to emit a warning when invalid object binding tags are used to override bindings or not.\n"),
+	ECVF_Default
+);
+
 ALevelSequenceActor::ALevelSequenceActor(const FObjectInitializer& Init)
 	: Super(Init)
 	, bShowBurnin(true)
@@ -355,6 +363,25 @@ void ALevelSequenceActor::SetBinding(FMovieSceneObjectBindingID Binding, const T
 	}
 }
 
+void ALevelSequenceActor::SetBindingByTag(FName BindingTag, const TArray<AActor*>& Actors, bool bAllowBindingsFromAsset)
+{
+	const UMovieSceneSequence*         Sequence = GetSequence();
+	const FMovieSceneObjectBindingIDs* Bindings = Sequence ? Sequence->GetMovieScene()->AllTaggedBindings().Find(BindingTag) : nullptr;
+	if (Bindings)
+	{
+		for (FMovieSceneObjectBindingID ID : Bindings->IDs)
+		{
+			SetBinding(ID, Actors, bAllowBindingsFromAsset);
+		}
+	}
+	else if (GLevelSequenceActor_InvalidBindingTagWarnings)
+	{
+		FMessageLog("PIE")
+			.Warning(FText::Format(NSLOCTEXT("LevelSequenceActor", "SetBindingByTag", "Sequence did not contain any bindings with the tag '{0}'"), FText::FromName(BindingTag)))
+			->AddToken(FUObjectToken::Create(this));
+	}
+}
+
 void ALevelSequenceActor::AddBinding(FMovieSceneObjectBindingID Binding, AActor* Actor, bool bAllowBindingsFromAsset)
 {
 	if (!Binding.IsValid())
@@ -373,6 +400,25 @@ void ALevelSequenceActor::AddBinding(FMovieSceneObjectBindingID Binding, AActor*
 	}
 }
 
+void ALevelSequenceActor::AddBindingByTag(FName BindingTag, AActor* Actor, bool bAllowBindingsFromAsset)
+{
+	const UMovieSceneSequence*         Sequence = GetSequence();
+	const FMovieSceneObjectBindingIDs* Bindings = Sequence ? Sequence->GetMovieScene()->AllTaggedBindings().Find(BindingTag) : nullptr;
+	if (Bindings)
+	{
+		for (FMovieSceneObjectBindingID ID : Bindings->IDs)
+		{
+			AddBinding(ID, Actor, bAllowBindingsFromAsset);
+		}
+	}
+	else if (GLevelSequenceActor_InvalidBindingTagWarnings)
+	{
+		FMessageLog("PIE")
+			.Warning(FText::Format(NSLOCTEXT("LevelSequenceActor", "AddBindingByTag", "Sequence did not contain any bindings with the tag '{0}'"), FText::FromName(BindingTag)))
+			->AddToken(FUObjectToken::Create(this));
+	}
+}
+
 void ALevelSequenceActor::RemoveBinding(FMovieSceneObjectBindingID Binding, AActor* Actor)
 {
 	if (!Binding.IsValid())
@@ -388,6 +434,25 @@ void ALevelSequenceActor::RemoveBinding(FMovieSceneObjectBindingID Binding, AAct
 		{
 			SequencePlayer->State.Invalidate(Binding.GetGuid(), Binding.GetSequenceID());
 		}
+	}
+}
+
+void ALevelSequenceActor::RemoveBindingByTag(FName BindingTag, AActor* Actor)
+{
+	const UMovieSceneSequence*         Sequence = GetSequence();
+	const FMovieSceneObjectBindingIDs* Bindings = Sequence ? Sequence->GetMovieScene()->AllTaggedBindings().Find(BindingTag) : nullptr;
+	if (Bindings)
+	{
+		for (FMovieSceneObjectBindingID ID : Bindings->IDs)
+		{
+			RemoveBinding(ID, Actor);
+		}
+	}
+	else if (GLevelSequenceActor_InvalidBindingTagWarnings)
+	{
+		FMessageLog("PIE")
+			.Warning(FText::Format(NSLOCTEXT("LevelSequenceActor", "RemoveBindingByTag", "Sequence did not contain any bindings with the tag '{0}'"), FText::FromName(BindingTag)))
+			->AddToken(FUObjectToken::Create(this));
 	}
 }
 
@@ -422,7 +487,7 @@ FMovieSceneObjectBindingID ALevelSequenceActor::FindNamedBinding(FName InBinding
 {
 	if (ensureAlways(SequencePlayer))
 	{
-		return SequencePlayer->GetSequence()->FindNamedBinding(InBindingName);
+		return SequencePlayer->GetSequence()->FindBindingByTag(InBindingName);
 	}
 	return FMovieSceneObjectBindingID();
 }
@@ -431,7 +496,7 @@ const TArray<FMovieSceneObjectBindingID>& ALevelSequenceActor::FindNamedBindings
 {
 	if (ensureAlways(SequencePlayer))
 	{
-		return SequencePlayer->GetSequence()->FindNamedBindings(InBindingName);
+		return SequencePlayer->GetSequence()->FindBindingsByTag(InBindingName);
 	}
 
 	static TArray<FMovieSceneObjectBindingID> EmptyBindings;

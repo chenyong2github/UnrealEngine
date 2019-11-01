@@ -5,6 +5,8 @@
 #include "GLTFAnimation.h"
 #include "GLTFLogger.h"
 
+#include "Misc/FrameRate.h"
+
 class IDatasmithScene;
 class IDatasmithTransformAnimationElement;
 class IDatasmithLevelSequenceElement;
@@ -28,10 +30,10 @@ public:
 	void SetUniformScale(float Scale);
 
 private:
-	uint32 CreateAnimationFrames(const GLTF::FAnimation&                   Animation,
-	                             const TArray<GLTF::FAnimation::FChannel>& Channels,
-	                             float                                     FrameRate,
-	                             IDatasmithTransformAnimationElement&      AnimationElement);
+	uint32 ResampleAnimationFrames(const GLTF::FAnimation& Animation,
+		const TArray<GLTF::FAnimation::FChannel>& Channels,
+		FFrameRate FrameRate,
+		IDatasmithTransformAnimationElement& AnimationElement);
 
 private:
 	using FNodeChannelMap = TMap<const GLTF::FNode*, TArray<GLTF::FAnimation::FChannel> >;

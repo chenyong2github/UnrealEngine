@@ -347,7 +347,7 @@ namespace ADPCM
 		const int32 SourceSampleStride = 1;
 
 		// Input source samples are 2-bytes
-		const int32 SourceNumSamplesPerChannel = QualityInfo.SampleDataSize / 2;
+		const int32 SourceNumSamplesPerChannel = (InputPCMData.Num() > 0) ? (InputPCMData[0].Num() / 2) : 0;
 
 		// Output samples are 4-bits
 		const int32 CompressedNumSamplesPerByte = 2;

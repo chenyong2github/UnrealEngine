@@ -515,7 +515,7 @@ public:
 		else
 		{
 			CmdContextRedirector = new FD3D12CommandContextRedirector(Adapter, false, false);
-			CmdContextRedirector->SetGPUMask(GPUMask);
+			CmdContextRedirector->SetPhysicalGPUMask(GPUMask);
 
 			for (uint32 GPUIndex : GPUMask)
 			{
@@ -680,50 +680,67 @@ void FD3D12CommandContextRedirector::RHITransitionResources(EResourceTransitionA
 //
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FD3D12TemporalEffect::FD3D12TemporalEffect()
-	: FD3D12AdapterChild(nullptr)
-	, EffectFence(nullptr, FRHIGPUMask::GPU0(), "TemporalEffectFence")
-{}
-
-FName MakeEffectName(FName InEffectName)
-{
-	ANSICHAR AnsiName[NAME_SIZE];
-	InEffectName.GetPlainANSIString(AnsiName);
-	return FName(AnsiName);
-}
+#if WITH_MGPU
 
 FD3D12TemporalEffect::FD3D12TemporalEffect(FD3D12Adapter* Parent, const FName& InEffectName)
 	: FD3D12AdapterChild(Parent)
-	, EffectFence(Parent, FRHIGPUMask::All(), MakeEffectName(InEffectName))
+	, EffectName(InEffectName)
 {}
-
-FD3D12TemporalEffect::FD3D12TemporalEffect(const FD3D12TemporalEffect& Other)
-	: EffectFence(nullptr, FRHIGPUMask::GPU0(), "TemporalEffectFence")
-{
-	FMemory::Memcpy(EffectFence, Other.EffectFence);
-}
 
 void FD3D12TemporalEffect::Init()
 {
-	EffectFence.CreateFence();
+	// Create fences for each set of sibling GPUs.
+	FD3D12FenceCorePool& FenceCorePool = GetParentAdapter()->GetFenceCorePool();
+	const auto& SiblingMasks = AFRUtils::GetSiblingMasks();
+	for (int32 MaskIndex = 0; MaskIndex < SiblingMasks.Num(); MaskIndex++)
+	{
+		const FRHIGPUMask GPUMask = SiblingMasks[MaskIndex];
+		FD3D12FenceCore* FenceCore = FenceCorePool.ObtainFenceCore(GPUMask.GetFirstIndex());
+		SetName(FenceCore->GetFence(), *FString::Printf(TEXT("%s (GPUMask 0x%x)"), *EffectName.ToString(), GPUMask.GetNative()));
+		EffectFences.Emplace(GPUMask, FenceCore->FenceValueAvailableAt, FenceCore);
+	}
 }
 
 void FD3D12TemporalEffect::Destroy()
 {
-	EffectFence.Destroy();
-}
-
-void FD3D12TemporalEffect::WaitForPrevious(ED3D12CommandQueueType InQueueType)
-{
-	const uint64 CurrentFence = EffectFence.GetCurrentFence();
-	if (CurrentFence > 1)
+	FD3D12FenceCorePool& FenceCorePool = GetParentAdapter()->GetFenceCorePool();
+	for (auto& CrossGPUFence : EffectFences)
 	{
-		EffectFence.GpuWait(InQueueType, CurrentFence - 1);
+		FenceCorePool.ReleaseFenceCore(CrossGPUFence.FenceCore, CrossGPUFence.LastSignaledFence);
 	}
+	EffectFences.Empty();
 }
 
-void FD3D12TemporalEffect::SignalSyncComplete(ED3D12CommandQueueType InQueueType)
+bool FD3D12TemporalEffect::ShouldWaitForPrevious(uint32 GPUIndex) const
 {
-	EffectFence.Signal(InQueueType);
+	const FCrossGPUFence* CrossGPUFence = GetFenceForGPU(GPUIndex);
+	check(CrossGPUFence);
+	return CrossGPUFence->LastWaitedFence != CrossGPUFence->LastSignaledFence;
 }
 
+void FD3D12TemporalEffect::WaitForPrevious(uint32 GPUIndex, ED3D12CommandQueueType InQueueType)
+{
+	FCrossGPUFence* CrossGPUFence = GetFenceForGPU(GPUIndex);
+	check(CrossGPUFence);
+
+	ID3D12CommandQueue* CommandQueue = GetParentAdapter()->GetDevice(GPUIndex)->GetD3DCommandQueue(InQueueType);
+	check(CommandQueue);
+
+	check(CrossGPUFence->FenceCore);
+	VERIFYD3D12RESULT(CommandQueue->Wait(CrossGPUFence->FenceCore->GetFence(), CrossGPUFence->LastSignaledFence));
+	CrossGPUFence->LastWaitedFence = CrossGPUFence->LastSignaledFence;
+}
+
+void FD3D12TemporalEffect::SignalSyncComplete(uint32 GPUIndex, ED3D12CommandQueueType InQueueType)
+{
+	FCrossGPUFence* CrossGPUFence = GetFenceForGPU(GPUIndex);
+	check(CrossGPUFence);
+
+	ID3D12CommandQueue* CommandQueue = GetParentAdapter()->GetDevice(GPUIndex)->GetD3DCommandQueue(InQueueType);
+	check(CommandQueue);
+
+	check(CrossGPUFence->FenceCore);
+	VERIFYD3D12RESULT(CommandQueue->Signal(CrossGPUFence->FenceCore->GetFence(), ++CrossGPUFence->LastSignaledFence));
+}
+
+#endif // WITH_MGPU

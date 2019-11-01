@@ -11,14 +11,20 @@ class PBDSphericalConstraint : public TParticleRule<T, d>
 {
 public:
 	PBDSphericalConstraint(
-		const uint32 InFirstParticleIndex,
-		const uint32 InParticleCount,
-		bool bInside,
-		const TArray<TVector<T, d>>* const InSpherePositions,
-		const TArray<T>* const InSphereRadii,
-		const TArray <T>* const InSphereOffsetDistances = nullptr,
-		const TArray<TVector<T, d>>* const InSphereOffsetDirections = nullptr)
-		: FirstParticleIndex(InFirstParticleIndex), ParticleCount(InParticleCount), bConstraintInsideOfSphere(bInside), SpherePositions(InSpherePositions), SphereRadii(InSphereRadii), SphereOffsetDistances(InSphereOffsetDistances), SphereOffsetDirections(InSphereOffsetDirections)
+		const uint32 InFirstParticleIndex
+		, const uint32 InParticleCount
+		, bool bInside
+		, const TArray<TVector<T, d>>* const InSpherePositions
+		, const TArray<T>* const InSphereRadii
+		, const TArray <T>* const InSphereOffsetDistances = nullptr
+		, const TArray<TVector<T, d>>* const InSphereOffsetDirections = nullptr
+	)
+		: FirstParticleIndex(InFirstParticleIndex), ParticleCount(InParticleCount)
+		, bConstraintInsideOfSphere(bInside)
+		, SpherePositions(InSpherePositions)
+		, SphereRadii(InSphereRadii)
+		, SphereOffsetDistances(InSphereOffsetDistances)
+		, SphereOffsetDirections(InSphereOffsetDirections)
 	{
 		check(SphereRadii);
 		check(SpherePositions);

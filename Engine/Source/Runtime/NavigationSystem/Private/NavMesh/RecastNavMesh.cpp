@@ -488,6 +488,10 @@ void ARecastNavMesh::RecreateDefaultFilter()
 	FRecastQueryFilter* DetourFilter = static_cast<FRecastQueryFilter*>(DefaultQueryFilter->GetImplementation());
 	DetourFilter->SetIsVirtual(bUseVirtualFilters);
 	DetourFilter->setHeuristicScale(HeuristicScale);
+	// clearing out the 'navlink flag' from included flags since it would make 
+	// dtQueryFilter::passInlineFilter pass navlinks of area classes with
+	// AreaFlags == 0 (like NavArea_Null), which should mean 'unwalkable'
+	DetourFilter->setIncludeFlags(DetourFilter->getIncludeFlags() & (~ARecastNavMesh::GetNavLinkFlag()));
 
 	for (int32 Idx = 0; Idx < SupportedAreas.Num(); Idx++)
 	{

@@ -8,7 +8,6 @@
 #include "CanvasTypes.h"
 #include "Components/SkyAtmosphereComponent.h"
 #include "DeferredShadingRenderer.h"
-#include "Engine/MapBuildDataRegistry.h"
 #include "LightSceneInfo.h"
 #include "PixelShaderUtils.h"
 #include "RenderTargetTemp.h"

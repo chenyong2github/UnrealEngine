@@ -12,8 +12,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RendererInterface.h"
+#include "ScreenPass.h"
 #include "PostProcess/RenderingCompositionGraph.h"
 
 // ePId_Input0: SceneColor
@@ -32,19 +31,4 @@ private:
 	void DoDirectionalOcclusionPass(FRenderingCompositePassContext& Context) const;
 };
 
-// ePId_Input0: SceneColor
-// derives from TRenderingCompositePassBase<InputCount, OutputCount> 
-class FRCPassPostProcessVisualizeLPV: public TRenderingCompositePassBase<1, 1>
-{
-public:
-	// interface FRenderingCompositePass ---------
-	virtual const TCHAR* GetDebugName() { return TEXT("FRCPassPostProcessVisualizeLPV"); }
-	virtual void Process(FRenderingCompositePassContext& Context) override;
-	virtual void Release() override { delete this; }
-	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
-	virtual bool FrameBufferBlendingWithInput0() const { return true; }
-};
-
-
-
-
+void AddVisualizeLPVPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenPassTexture Output);

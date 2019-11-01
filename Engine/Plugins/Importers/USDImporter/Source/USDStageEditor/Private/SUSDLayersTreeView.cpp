@@ -366,7 +366,7 @@ void SUsdLayersTreeView::SetupColumns()
 	AddColumn( TEXT("Edit"), LOCTEXT( "Edit", "Edit" ), LayerEditColumn );
 }
 
-TSharedPtr< SWidget > SUsdLayersTreeView::ConstructLayerContextMenu() const
+TSharedPtr< SWidget > SUsdLayersTreeView::ConstructLayerContextMenu()
 {
 	TSharedRef< SWidget > MenuWidget = SNullWidget::NullWidget;
 

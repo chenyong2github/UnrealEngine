@@ -123,17 +123,6 @@ struct FConstantHandler : public FConstantHandlerBase
 	FORCEINLINE const T& GetAndAdvance() { return Constant; }
 };
 
-struct FDataSetOffsetHandler : FConstantHandlerBase
-{
-	uint32 Offset;
-	FDataSetOffsetHandler(FVectorVMContext& Context)
-		: FConstantHandlerBase(Context)
-		, Offset(Context.DataSetOffsetTable[ConstantIndex])
-	{}
-	FORCEINLINE const uint32 Get() { return Offset; }
-	FORCEINLINE const uint32 GetAndAdvance() { return Offset; }
-};
-
 template<>
 struct FConstantHandler<VectorRegister> : public FConstantHandlerBase
 {
@@ -180,7 +169,7 @@ private:
 public:
 	FORCEINLINE FRegisterHandler(FVectorVMContext& Context)
 		: FRegisterHandlerBase(Context)
-		, Register((T*)Context.RegisterTable[RegisterIndex])
+		, Register((T*)Context.GetTempRegister(RegisterIndex))
 	{}
 	FORCEINLINE const T Get() { return *Register; }
 	FORCEINLINE T* GetDest() { return Register; }
@@ -200,9 +189,6 @@ public:
 FVectorVMContext::FVectorVMContext()
 	: Code(nullptr)
 	, ConstantTable(nullptr)
-	, DataSetIndexTable(nullptr)
-	, DataSetOffsetTable(nullptr)
-	, NumSecondaryDataSets(0)
 	, ExternalFunctionTable(nullptr)
 	, UserPtrTable(nullptr)
 	, NumInstances(0)
@@ -210,23 +196,18 @@ FVectorVMContext::FVectorVMContext()
 #if STATS
 	, StatScopes(nullptr)
 #endif
+	, TempRegisterSize(0)
+	, TempBufferSize(0)
 {
 	RandStream.GenerateNewSeed();
 }
 
 void FVectorVMContext::PrepareForExec(
-	uint8*RESTRICT*RESTRICT InputRegisters,
-	uint8*RESTRICT*RESTRICT OutputRegisters,
 	int32 InNumTempRegisters,
-	int32 InNumInputRegisters,
-	int32 InNumOutputRegisters,
 	const uint8* InConstantTable,
-	int32 *InDataSetIndexTable,
-	int32 *InDataSetOffsetTable,
-	int32 InNumSecondaryDatasets,
 	FVMExternalFunction* InExternalFunctionTable,
 	void** InUserPtrTable,
-	TArray<FDataSetMeta>& RESTRICT InDataSetMetaTable,
+	TArrayView<FDataSetMeta> InDataSetMetaTable,
 	int32 MaxNumInstances
 #if STATS
 	, const TArray<TStatId>* InStatScopes
@@ -234,12 +215,7 @@ void FVectorVMContext::PrepareForExec(
 )
 {
 	NumTempRegisters = InNumTempRegisters;
-	NumInputRegisters = InNumInputRegisters;
-	NumOutputRegisters = InNumOutputRegisters;
 	ConstantTable = InConstantTable;
-	DataSetIndexTable = InDataSetIndexTable;
-	DataSetOffsetTable = InDataSetOffsetTable;
-	NumSecondaryDataSets = InNumSecondaryDatasets;
 	ExternalFunctionTable = InExternalFunctionTable;
 	UserPtrTable = InUserPtrTable;
 #if STATS
@@ -248,61 +224,48 @@ void FVectorVMContext::PrepareForExec(
 	StatCounterStack.Reserve(StatScopes->Num());
 #endif
 
-	int32 TempRegisterSize = Align(MaxNumInstances * VectorVM::MaxInstanceSizeBytes, PLATFORM_CACHE_LINE_SIZE);
-	int32 TempBufferSize = TempRegisterSize * NumTempRegisters;
+	TempRegisterSize = Align(MaxNumInstances * VectorVM::MaxInstanceSizeBytes, PLATFORM_CACHE_LINE_SIZE);
+	TempBufferSize = TempRegisterSize * NumTempRegisters;
 	TempRegTable.SetNumUninitialized(TempBufferSize, false);
-	// Attempt to map temp registers more tightly packed for low instance counts to reduce cache misses.
-	for (int32 i = 0; i < NumTempRegisters; ++i)
-	{
-		RegisterTable[i] = TempRegTable.GetData() + TempRegisterSize * i;
-	}
 
-	//Map IO Registers
-	for (int32 i = 0; i < NumInputRegisters; ++i)
-	{
-		RegisterTable[VectorVM::NumTempRegisters + i] = InputRegisters[i];
-	}
-	for (int32 i = 0; i < NumOutputRegisters; ++i)
-	{
-		RegisterTable[VectorVM::NumTempRegisters + VectorVM::MaxInputRegisters + i] = OutputRegisters[i];
-	}
+	DataSetMetaTable = InDataSetMetaTable;
 
-	DataSetMetaTable = &InDataSetMetaTable;
-
-	ThreadLocalTempData.Reset(DataSetMetaTable->Num());
-	ThreadLocalTempData.SetNum(DataSetMetaTable->Num());
+	for (auto& TLSTempData : ThreadLocalTempData)
+	{
+		TLSTempData.Reset();
+	}
+	ThreadLocalTempData.SetNum(DataSetMetaTable.Num());
 }
 
 void FVectorVMContext::FinishExec()
 {
 	//At the end of executing each chunk we can push any thread local temporary data out to the main storage with locks or atomics.
 
-	TArray<FDataSetMeta>& MetaTable = *DataSetMetaTable;
-	check(ThreadLocalTempData.Num() == MetaTable.Num());
-	for(int32 DataSetIndex=0; DataSetIndex < MetaTable.Num(); ++DataSetIndex)
+	check(ThreadLocalTempData.Num() == DataSetMetaTable.Num());
+	for(int32 DataSetIndex=0; DataSetIndex < DataSetMetaTable.Num(); ++DataSetIndex)
 	{
 		FDataSetThreadLocalTempData&RESTRICT Data = ThreadLocalTempData[DataSetIndex];
 
 		if (Data.IDsToFree.Num() > 0)
 		{
-			TArray<int32>&RESTRICT FreeIDTable = *MetaTable[DataSetIndex].FreeIDTable;
-			int32&RESTRICT NumFreeIDs = *MetaTable[DataSetIndex].NumFreeIDs;
+			TArray<int32>&RESTRICT FreeIDTable = *DataSetMetaTable[DataSetIndex].FreeIDTable;
+			int32&RESTRICT NumFreeIDs = *DataSetMetaTable[DataSetIndex].NumFreeIDs;
 			check(FreeIDTable.Num() >= NumFreeIDs + Data.IDsToFree.Num());
 
 			//Temporarily locking the free table until we can implement something lock-free
-			MetaTable[DataSetIndex].LockFreeTable();
+			DataSetMetaTable[DataSetIndex].LockFreeTable();
 			for (int32 IDToFree : Data.IDsToFree)
 			{
 				//UE_LOG(LogVectorVM, Warning, TEXT("AddFreeID: ID:%d | FreeTableIdx:%d."), IDToFree, NumFreeIDs);
 				FreeIDTable[NumFreeIDs++] = IDToFree;
 			}
 			//Unlock the free table.
-			MetaTable[DataSetIndex].UnlockFreeTable();
+			DataSetMetaTable[DataSetIndex].UnlockFreeTable();
 			Data.IDsToFree.Reset();
 		}
 
 		//Also update the max ID seen. This should be the ONLY place in the VM we update this max value.
-		volatile int32* MaxUsedID = MetaTable[DataSetIndex].MaxUsedID;
+		volatile int32* MaxUsedID = DataSetMetaTable[DataSetIndex].MaxUsedID;
 		int32 LocalMaxUsedID;
 		do
 		{
@@ -373,26 +336,6 @@ struct TTrinaryKernelHandler
 		Arg2Handler Arg2(Context);
 
 		DstHandler Dst(Context);
-
-		int32 LoopInstances = Align(Context.NumInstances, NumInstancesPerOp) / NumInstancesPerOp;
-		for (int32 i = 0; i < LoopInstances; ++i)
-		{
-			Kernel::DoKernel(Context, Dst.GetDestAndAdvance(), Arg0.GetAndAdvance(), Arg1.GetAndAdvance(), Arg2.GetAndAdvance());
-		}
-	}
-};
-
-
-template<typename Kernel, typename DstHandler, typename Arg0Handler, typename Arg1Handler, typename Arg2Handler, int32 NumInstancesPerOp>
-struct TTrinaryOutputKernelHandler
-{
-	static void Exec(FVectorVMContext& Context)
-	{
-		Arg0Handler Arg0(Context);
-		Arg1Handler Arg1(Context);
-		Arg2Handler Arg2(Context);
-
-		DstHandler Dst(Context, Arg0.Get());
 
 		int32 LoopInstances = Align(Context.NumInstances, NumInstancesPerOp) / NumInstancesPerOp;
 		for (int32 i = 0; i < LoopInstances; ++i)
@@ -1091,16 +1034,16 @@ struct FScalarKernelAcquireID
 	static VM_FORCEINLINE void Exec(FVectorVMContext& Context)
 	{
 		int32 DataSetIndex = VectorVM::DecodeU16(Context);
-		TArray<FDataSetMeta>& MetaTable = *Context.DataSetMetaTable;
+		TArrayView<FDataSetMeta> MetaTable = Context.DataSetMetaTable;
 		TArray<int32>&RESTRICT FreeIDTable = *MetaTable[DataSetIndex].FreeIDTable;
 
 		int32 Tag = MetaTable[DataSetIndex].IDAcquireTag;
 
 		int32 IDIndexReg = VectorVM::DecodeU16(Context);
-		int32*RESTRICT IDIndex = (int32*)(Context.RegisterTable[IDIndexReg]);
+		int32*RESTRICT IDIndex = (int32*)(Context.GetTempRegister(IDIndexReg));
 
 		int32 IDTagReg = VectorVM::DecodeU16(Context);
-		int32*RESTRICT IDTag = (int32*)(Context.RegisterTable[IDTagReg]);
+		int32*RESTRICT IDTag = (int32*)(Context.GetTempRegister(IDTagReg));
 
 		int32& NumFreeIDs = *MetaTable[DataSetIndex].NumFreeIDs;
 
@@ -1140,13 +1083,13 @@ struct FScalarKernelUpdateID
 		int32 InstanceIDRegisterIndex = VectorVM::DecodeU16(Context);
 		int32 InstanceIndexRegisterIndex = VectorVM::DecodeU16(Context);
 
-		TArray<FDataSetMeta>& MetaTable = *Context.DataSetMetaTable;
+		TArrayView<FDataSetMeta> MetaTable = Context.DataSetMetaTable;
 
 		TArray<int32>&RESTRICT IDTable = *MetaTable[DataSetIndex].IDTable;
 		int32 InstanceOffset = MetaTable[DataSetIndex].InstanceOffset + Context.StartInstance;
 
-		int32*RESTRICT IDRegister = (int32*)(Context.RegisterTable[InstanceIDRegisterIndex]);
-		int32*RESTRICT IndexRegister = (int32*)(Context.RegisterTable[InstanceIndexRegisterIndex]);
+		int32*RESTRICT IDRegister = (int32*)(Context.GetTempRegister(InstanceIDRegisterIndex));
+		int32*RESTRICT IndexRegister = (int32*)(Context.GetTempRegister(InstanceIndexRegisterIndex));
 		
 		FDataSetThreadLocalTempData& DataSetTempData = Context.ThreadLocalTempData[DataSetIndex];
 
@@ -1191,9 +1134,8 @@ struct FVectorKernelReadInput
 		int32 DestRegisterIdx = VectorVM::DecodeU16(Context);
 		int32 Loops = Align(Context.NumInstances, InstancesPerVector) / InstancesPerVector;
 
-		VectorRegister* DestReg = (VectorRegister*)(Context.RegisterTable[DestRegisterIdx]);
-		int32 DataSetOffset = Context.DataSetOffsetTable[DataSetIndex];  //TODO: we'll need a different way of doing this for a proper kernel; might need a specific offset handler
-		VectorRegister* InputReg = (VectorRegister*)((T*)(Context.RegisterTable[InputRegisterIdx + DataSetOffset]) + Context.StartInstance);
+		VectorRegister* DestReg = (VectorRegister*)(Context.GetTempRegister(DestRegisterIdx));
+		VectorRegister* InputReg = (VectorRegister*)(Context.GetInputRegister<T>(DataSetIndex, InputRegisterIdx) + Context.StartInstance);
 
 		//TODO: We can actually do some scalar loads into the first and final vectors to get around alignment issues and then use the aligned load for all others.
 		for (int32 i = 0; i < Loops; ++i)
@@ -1223,9 +1165,8 @@ struct FVectorKernelReadInputNoAdvance
 		int32 DestRegisterIdx = VectorVM::DecodeU16(Context);
 		int32 Loops = Align(Context.NumInstances, InstancesPerVector) / InstancesPerVector;
 
-		VectorRegister* DestReg = (VectorRegister*)(Context.RegisterTable[DestRegisterIdx]);
-		int32 DataSetOffset = Context.DataSetOffsetTable[DataSetIndex];  //TODO: we'll need a different way of doing this for a proper kernel; might need a specific offset handler
-		VectorRegister* InputReg = (VectorRegister*)((T*)(Context.RegisterTable[InputRegisterIdx + DataSetOffset]) );
+		VectorRegister* DestReg = (VectorRegister*)(Context.GetTempRegister(DestRegisterIdx));
+		VectorRegister* InputReg = (VectorRegister*)(Context.GetInputRegister<T>(DataSetIndex, InputRegisterIdx));
 
 		//TODO: We can actually do some scalar loads into the first and final vectors to get around alignment issues and then use the aligned load for all others.
 		for (int32 i = 0; i < Loops; ++i)
@@ -1262,23 +1203,6 @@ struct FVectorKernelReadInputNoAdvance
 // 	}
 // };
 
-//Needs it's own handler as the output registers are indexed absolutely rather than incrementing in advance().
-template<typename T>
-struct FOutputRegisterHandler : public FRegisterHandlerBase
-{
-	T* Register;
-	FOutputRegisterHandler(FVectorVMContext& Context, uint32 DataSetOffset)
-		: FRegisterHandlerBase(Context)
-		, Register((T*)Context.RegisterTable[RegisterIndex+DataSetOffset])
-	{}
-
-	VM_FORCEINLINE void Advance() { }
-	VM_FORCEINLINE T Get() { return *Register; }
-	VM_FORCEINLINE T*RESTRICT GetDest() { return Register; }
-	VM_FORCEINLINE T*RESTRICT GetDestAndAdvance() { return Register; }
-	VM_FORCEINLINE T GetAndAdvance() { return *Register; }
-};
-
 /** Special kernel for writing to a specific output register. */
 template<typename T>
 struct FScalarKernelWriteOutputIndexed
@@ -1288,17 +1212,36 @@ struct FScalarKernelWriteOutputIndexed
 		uint32 SrcOpTypes = VectorVM::DecodeSrcOperandTypes(Context);
 		switch (SrcOpTypes)
 		{
-		case SRCOP_RRR: TTrinaryOutputKernelHandler<FScalarKernelWriteOutputIndexed, FOutputRegisterHandler<T>, FDataSetOffsetHandler, FRegisterHandler<int32>, FRegisterHandler<T>, 1>::Exec(Context); break;
-		case SRCOP_RRC:	TTrinaryOutputKernelHandler<FScalarKernelWriteOutputIndexed, FOutputRegisterHandler<T>, FDataSetOffsetHandler, FRegisterHandler<int32>, FConstantHandler<T>, 1>::Exec(Context); break;
+		case SRCOP_RRR: DoKernel<FRegisterHandler<T>>(Context); break;
+		case SRCOP_RRC:	DoKernel<FConstantHandler<T>>(Context); break;
 		default: check(0); break;
 		};
 	}
 
-	static VM_FORCEINLINE void DoKernel(FVectorVMContext& Context, T* RESTRICT Dst, int32 SetOffset, int32 Index, T Data)
+	template<typename DataHandlerType>
+	static VM_FORCEINLINE void DoKernel(FVectorVMContext& Context)
 	{
-		if (Index != INDEX_NONE)
+		int32 DataSetIndex = VectorVM::DecodeU16(Context);
+
+		int32 DestIndexRegisterIdx = VectorVM::DecodeU16(Context);
+		T* DestIndexReg = (T*)(Context.GetTempRegister(DestIndexRegisterIdx));
+
+		DataHandlerType DataHandler(Context);
+
+		int32 DestRegisterIdx = VectorVM::DecodeU16(Context);
+		T* DestReg = Context.GetOutputRegister<T>(DataSetIndex, DestRegisterIdx);
+
+		for (int32 i = 0; i < Context.NumInstances; ++i)
 		{
-			Dst[Index] = Data;//TODO: On sse4 we can use _mm_stream_ss here.
+			int32 DestIndex = *DestIndexReg;
+			if (DestIndex != INDEX_NONE)
+			{
+				DestReg[DestIndex] = DataHandler.Get();
+			}
+
+			++DestIndexReg;
+			DataHandler.Advance();
+			//We don't increment the dest as we index into it directly.
 		}
 	}
 };
@@ -1307,7 +1250,7 @@ struct FDataSetCounterHandler
 {
 	int32* Counter;
 	FDataSetCounterHandler(FVectorVMContext& Context)
-		: Counter(Context.DataSetIndexTable + VectorVM::DecodeU16(Context))
+		: Counter(&Context.GetDataSetMeta(VectorVM::DecodeU16(Context)).DataSetAccessIndex)
 	{}
 
 	VM_FORCEINLINE void Advance() { }
@@ -1820,12 +1763,8 @@ void VectorVM::Init()
 void VectorVM::Exec(
 	uint8 const* Code,
 	int32 NumTempRegisters,
-	uint8** InputRegisters,
-	int32 NumInputRegisters,
-	uint8** OutputRegisters,
-	int32 NumOutputRegisters,
 	uint8 const* ConstantTable,
-	TArray<FDataSetMeta> &DataSetMetaTable,
+	TArrayView<FDataSetMeta> DataSetMetaTable,
 	FVMExternalFunction* ExternalFunctionTable,
 	void** UserPtrTable,
 	int32 NumInstances
@@ -1836,19 +1775,6 @@ void VectorVM::Exec(
 {
 	//TRACE_CPUPROFILER_EVENT_SCOPE("VMExec");
 	SCOPE_CYCLE_COUNTER(STAT_VVMExec);
-
-	// table of index counters, one for each data set
-	TArray<int32, TInlineAllocator<16>> DataSetIndexTable;
-	TArray<int32, TInlineAllocator<16>> DataSetOffsetTable;
-
-	// map secondary data sets and fill in the offset table into the register table
-	//
-	for (int32 Idx = 0; Idx < DataSetMetaTable.Num(); Idx++)
-	{
-		uint32 DataSetOffset = DataSetMetaTable[Idx].RegisterOffset;
-		DataSetOffsetTable.Add(DataSetOffset);
-		DataSetIndexTable.Add(DataSetMetaTable[Idx].DataSetAccessIndex);	// prime counter index table with the data set offset; will be incremented with every write for each instance
-	}
 
 	int32 MaxInstances = FMath::Min(GParallelVVMInstancesPerChunk, NumInstances);
 	int32 NumChunks = (NumInstances / GParallelVVMInstancesPerChunk) + 1;
@@ -1861,8 +1787,7 @@ void VectorVM::Exec(
 		//SCOPE_CYCLE_COUNTER(STAT_VVMExecChunk);
 
 		FVectorVMContext& Context = FVectorVMContext::Get();
-		Context.PrepareForExec(InputRegisters, OutputRegisters, NumTempRegisters, NumInputRegisters, NumOutputRegisters, ConstantTable, DataSetIndexTable.GetData(), DataSetOffsetTable.GetData(), DataSetOffsetTable.Num(),
-			ExternalFunctionTable, UserPtrTable, DataSetMetaTable, MaxInstances
+		Context.PrepareForExec(NumTempRegisters, ConstantTable, ExternalFunctionTable, UserPtrTable, DataSetMetaTable, MaxInstances
 #if STATS
 			, &StatScopes
 #endif
@@ -2016,12 +1941,6 @@ void VectorVM::Exec(
 	};
 
 	ParallelFor(NumBatches, ExecChunkBatch, GbParallelVVM == 0 || !bParallel);
-
-	// write back data set access indices, so we know how much was written to each data set
-	for (int32 Idx = 0; Idx < DataSetMetaTable.Num(); Idx++)
-	{
-		DataSetMetaTable[Idx].DataSetAccessIndex = DataSetIndexTable[Idx];	
-	}
 }
 
 uint8 VectorVM::GetNumOpCodes()

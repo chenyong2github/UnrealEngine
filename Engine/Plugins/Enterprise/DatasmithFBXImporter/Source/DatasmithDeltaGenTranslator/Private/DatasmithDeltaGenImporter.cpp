@@ -356,14 +356,6 @@ bool FDatasmithDeltaGenImporter::ProcessScene()
 		Processor.OptimizeDuplicatedNodes();
 	}
 
-	if (ImportOptions->bMergeNodes)
-	{
-		Processor.MergeSceneNodes();
-
-		//Call "RemoveEmptyNodes" again after merging, because all nodes which previously had meshes are empty now.
-		Processor.RemoveEmptyNodes();
-	}
-
 	Processor.FixMeshNames();
 
 	return true;
@@ -453,20 +445,16 @@ TSharedPtr<IDatasmithActorElement> FDatasmithDeltaGenImporter::ConvertNode(const
 			MeshNameToFBXMesh.Add(MeshName, ThisMesh);
 			TSharedRef<IDatasmithMeshElement> MeshElement = FDatasmithSceneFactory::CreateMesh(*ThisMesh->Name);
 
-			if (ImportOptions->bGenerateLightmapUVs)
-			{
-				MeshElement->SetLightmapSourceUV(0);
-				MeshElement->SetLightmapCoordinateIndex(-1);
-			}
-			else
-			{
-				FMeshDescription& MeshDescription = ThisMesh->MeshDescription;
-				FStaticMeshAttributes StaticMeshAttributes(MeshDescription);
-				TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = StaticMeshAttributes.GetVertexInstanceUVs();
-				int32 NumUVChannels = VertexInstanceUVs.GetNumIndices();
+			FMeshDescription& MeshDescription = ThisMesh->MeshDescription;
+			FStaticMeshAttributes StaticMeshAttributes(MeshDescription);
+			TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = StaticMeshAttributes.GetVertexInstanceUVs();
+			int32 NumUVChannels = VertexInstanceUVs.GetNumIndices();
 
-				// DeltaGen uses UV channel 0 for texture UVs, and UV channel 1 for lightmap UVs
-				MeshElement->SetLightmapCoordinateIndex(NumUVChannels > 1 ? 1 : 0);
+			// DeltaGen uses UV channel 0 for texture UVs, and UV channel 1 for lightmap UVs
+			// Don't set it to zero or else it will disable Datasmith's GenerateLightmapUV option
+			if (NumUVChannels > 1)
+			{
+				MeshElement->SetLightmapCoordinateIndex(1);
 			}
 
 			DatasmithScene->AddMesh(MeshElement);
@@ -1122,15 +1110,24 @@ bool FDatasmithDeltaGenImporter::SendSceneToDatasmith()
 		for (FDeltaGenTmlDataTimeline& Timeline : TmlTimelines)
 		{
 			TSharedPtr<IDatasmithLevelSequenceElement> ConvertedSequence = ConvertAnimationTimeline(Timeline);
-			DatasmithScene->AddLevelSequence(ConvertedSequence.ToSharedRef());
+			if (ConvertedSequence.IsValid())
+			{
+				DatasmithScene->AddLevelSequence(ConvertedSequence.ToSharedRef());
+			}
 		}
 
 		TMap<FName, TArray<TSharedPtr<IDatasmithActorElement>>> ImportedActorsByOriginalName;
 		TMap<FName, TSharedPtr<IDatasmithBaseMaterialElement>> ImportedMaterialsByName;
 		BuildAssetMaps(DatasmithScene, ImportedActorsByOriginalName, ImportedMaterialsByName);
 
-		TSharedPtr<IDatasmithLevelVariantSetsElement> LevelVariantSets = FDeltaGenVariantConverter::ConvertVariants(VariantSwitches, PosStates, ImportedActorsByOriginalName, ImportedMaterialsByName);
-		DatasmithScene->AddLevelVariantSets(LevelVariantSets.ToSharedRef());
+		if (ImportOptions->bImportVar)
+		{
+			TSharedPtr<IDatasmithLevelVariantSetsElement> LevelVariantSets = FDeltaGenVariantConverter::ConvertVariants(VariantSwitches, PosStates, ImportedActorsByOriginalName, ImportedMaterialsByName);
+			if (LevelVariantSets.IsValid())
+			{
+				DatasmithScene->AddLevelVariantSets(LevelVariantSets.ToSharedRef());
+			}
+		}
 	}
 	else
 	{

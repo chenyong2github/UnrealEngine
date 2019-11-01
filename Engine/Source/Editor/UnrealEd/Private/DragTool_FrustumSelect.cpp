@@ -16,6 +16,7 @@
 #include "ScopedTransaction.h"
 #include "HModel.h"
 #include "CanvasTypes.h"
+#include "Subsystems/BrushEditingSubsystem.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -52,7 +53,8 @@ void FDragTool_ActorFrustumSelect::StartDrag(FEditorViewportClient* InViewportCl
 
 void FDragTool_ActorFrustumSelect::EndDrag()
 {
-	const bool bGeometryMode = ModeTools->IsModeActive(FBuiltinEditorModes::EM_Geometry);
+	UBrushEditingSubsystem* BrushSubsystem = GEditor->GetEditorSubsystem<UBrushEditingSubsystem>();
+	const bool bGeometryMode = BrushSubsystem ? BrushSubsystem->IsGeometryEditorModeActive() : false;
 
 	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(LevelViewportClient->Viewport, LevelViewportClient->GetScene(), LevelViewportClient->EngineShowFlags ));
 	FSceneView* SceneView = LevelViewportClient->CalcSceneView(&ViewFamily);
@@ -190,7 +192,8 @@ bool FDragTool_ActorFrustumSelect::IntersectsFrustum( AActor& InActor, const FCo
 {	
 	bool bActorHitByBox = false;
 
-	const bool bGeometryMode = ModeTools->IsModeActive(FBuiltinEditorModes::EM_Geometry);
+	UBrushEditingSubsystem* BrushSubsystem = GEditor->GetEditorSubsystem<UBrushEditingSubsystem>();
+	const bool bGeometryMode = BrushSubsystem ? BrushSubsystem->IsGeometryEditorModeActive() : false;
 
 	// Check for special cases (like certain show flags that might hide an actor)
 	bool bActorIsHiddenByShowFlags = false;

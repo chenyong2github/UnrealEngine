@@ -463,9 +463,9 @@ public:
 	* @param OutAlign - Alignment required for this texture.  Output parameter.
 	*/
 	// FlushType: Thread safe
-	virtual uint64 RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, uint32& OutAlign) override final
+	virtual uint64 RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign) override final
 	{
-		return RHI->RHICalcTexture2DPlatformSize(SizeX, SizeY, Format, NumMips, NumSamples, Flags, OutAlign);
+		return RHI->RHICalcTexture2DPlatformSize(SizeX, SizeY, Format, NumMips, NumSamples, Flags, CreateInfo, OutAlign);
 	}
 
 	/**
@@ -479,9 +479,9 @@ public:
 	* @param OutAlign - Alignment required for this texture.  Output parameter.
 	*/
 	// FlushType: Thread safe
-	virtual uint64 RHICalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 Flags, uint32& OutAlign) override final
+	virtual uint64 RHICalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign) override final
 	{
-		return RHI->RHICalcTexture3DPlatformSize(SizeX, SizeY, SizeZ, Format, NumMips, Flags, OutAlign);
+		return RHI->RHICalcTexture3DPlatformSize(SizeX, SizeY, SizeZ, Format, NumMips, Flags, CreateInfo, OutAlign);
 	}
 
 	/**
@@ -493,9 +493,9 @@ public:
 	* @param OutAlign - Alignment required for this texture.  Output parameter.
 	*/
 	// FlushType: Thread safe
-	virtual uint64 RHICalcTextureCubePlatformSize(uint32 Size, uint8 Format, uint32 NumMips, uint32 Flags, uint32& OutAlign) override final
+	virtual uint64 RHICalcTextureCubePlatformSize(uint32 Size, uint8 Format, uint32 NumMips, uint32 Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign) override final
 	{
-		return RHI->RHICalcTextureCubePlatformSize(Size, Format, NumMips, Flags, OutAlign);
+		return RHI->RHICalcTextureCubePlatformSize(Size, Format, NumMips, Flags, CreateInfo, OutAlign);
 	}
 
 	/**
@@ -559,15 +559,6 @@ public:
 	virtual FTexture2DRHIRef RHICreateTextureExternal2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, FRHIResourceCreateInfo& CreateInfo) override final
 	{
 		return RHI->RHICreateTextureExternal2D(SizeX, SizeY, Format, NumMips, NumSamples, Flags, CreateInfo);
-	}
-
-	/**
-	* Creates an FStructuredBuffer for the RT write mask of a render target
-	* @param RenderTarget - the RT to create the buffer for
-	*/
-	virtual FStructuredBufferRHIRef RHICreateRTWriteMaskBuffer(FRHITexture2D* RenderTarget) override final
-	{
-		return RHI->RHICreateRTWriteMaskBuffer(RenderTarget);
 	}
 
 	/**
@@ -663,6 +654,24 @@ public:
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHITexture* TextureRHI, const FRHITextureSRVCreateInfo& CreateInfo) override final
 	{
 		return RHI->RHICreateShaderResourceView(TextureRHI, CreateInfo);
+	}
+
+	/**
+	* Create a shader resource view that can be used to access the write mask metadata of a render target on supported platforms.
+	*/
+	// FlushType: Wait RHI Thread
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceViewWriteMask(FRHITexture2D* Texture2DRHI) override final
+	{
+		return RHI->RHICreateShaderResourceViewWriteMask(Texture2DRHI);
+	}
+
+	/**
+	* Create a shader resource view that can be used to access the multi-sample fmask metadata of a render target on supported platforms.
+	*/
+	// FlushType: Wait RHI Thread
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceViewFMask(FRHITexture2D* Texture2DRHI) override final
+	{
+		return RHI->RHICreateShaderResourceViewFMask(Texture2DRHI);
 	}
 
 	/**
@@ -905,16 +914,16 @@ public:
 
 	/** Watch out for OutData to be 0 (can happen on DXGI_ERROR_DEVICE_REMOVED), don't call RHIUnmapStagingSurface in that case. */
 	// FlushType: Flush Immediate (seems wrong)
-	virtual void RHIMapStagingSurface(FRHITexture* Texture, FRHIGPUFence* Fence, void*& OutData, int32& OutWidth, int32& OutHeight) final override
+	virtual void RHIMapStagingSurface(FRHITexture* Texture, FRHIGPUFence* Fence, void*& OutData, int32& OutWidth, int32& OutHeight, uint32 GPUIndex = 0) final override
 	{
-		RHI->RHIMapStagingSurface(Texture, Fence, OutData, OutWidth, OutHeight);
+		RHI->RHIMapStagingSurface(Texture, Fence, OutData, OutWidth, OutHeight, GPUIndex);
 	}
 
 	/** call after a succesful RHIMapStagingSurface() call */
 	// FlushType: Flush Immediate (seems wrong)
-	virtual void RHIUnmapStagingSurface(FRHITexture* Texture) override final
+	virtual void RHIUnmapStagingSurface(FRHITexture* Texture, uint32 GPUIndex = 0) override final
 	{
-		RHI->RHIUnmapStagingSurface(Texture);
+		RHI->RHIUnmapStagingSurface(Texture, GPUIndex);
 	}
 
 	// FlushType: Flush Immediate (seems wrong)
@@ -960,14 +969,34 @@ public:
 		return RHI->RHIGetViewportBackBufferUAV(ViewportRHI);
 	}
 
-	virtual FTexture2DRHIRef RHIGetFMaskTexture(FRHITexture* SourceTextureRHI) override final
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceViewHTile(FRHITexture2D* RenderTarget) override final
 	{
-		return RHI->RHIGetFMaskTexture(SourceTextureRHI);
+		return RHI->RHICreateShaderResourceViewHTile(RenderTarget);
 	}
 
-	virtual FTexture2DRHIRef RHIGetStencilTexture(FRHITexture* SourceTextureRHI) override final
+	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessViewHTile(FRHITexture2D* RenderTarget) override final
 	{
-		return RHI->RHIGetStencilTexture(SourceTextureRHI);
+		return RHI->RHICreateUnorderedAccessViewHTile(RenderTarget);
+	}
+
+	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessViewStencil(FRHITexture2D* DepthTarget, int32 MipLevel) override final
+	{
+		return RHI->RHICreateUnorderedAccessViewStencil(DepthTarget, MipLevel);
+	}
+
+	virtual void RHIAliasTextureResources(FRHITexture* DestTexture, FRHITexture* SourceTexture) override final
+	{
+		// Source and target need to be valid objects.
+		check(DestTexture && SourceTexture);
+		// Source texture must have been created (i.e. have a native resource backing).
+		check(SourceTexture->GetNativeResource() != nullptr);
+		RHI->RHIAliasTextureResources(DestTexture, SourceTexture);
+	}
+
+	virtual FTextureRHIRef RHICreateAliasedTexture(FRHITexture* SourceTexture) override final
+	{
+		check(SourceTexture);
+		return RHI->RHICreateAliasedTexture(SourceTexture);
 	}
 
 	// Only relevant with an RHI thread, this advances the backbuffer for the purpose of GetViewportBackBuffer
@@ -1169,17 +1198,6 @@ public:
 	}
 
 #if WITH_MGPU
-	/** Returns a context for sending commands to the given GPU mask. Default implementation is only valid when not using multi-gpu. */
-	virtual IRHICommandContext* RHIGetDefaultContext(FRHIGPUMask GPUMask) override final
-	{
-		return RHI->RHIGetDefaultContext(GPUMask);
-	}
-
-	virtual IRHIComputeContext* RHIGetDefaultAsyncComputeContext(FRHIGPUMask GPUMask) override final
-	{
-		return RHI->RHIGetDefaultAsyncComputeContext(GPUMask);
-	}
-
 	virtual IRHICommandContextContainer* RHIGetCommandContextContainer(int32 Index, int32 Num, FRHIGPUMask GPUMask) override final
 	{
 		return RHI->RHIGetCommandContextContainer(Index, Num, GPUMask);
@@ -1439,6 +1457,16 @@ public:
 	{
 		check(IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5));
 		return RHI->RHICreateShaderResourceView_RenderThread(RHICmdList, StructuredBuffer);
+	}
+
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceViewWriteMask_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D) override final
+	{
+		return RHI->RHICreateShaderResourceViewWriteMask_RenderThread(RHICmdList, Texture2D);
+	}
+
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceViewFMask_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D) override final
+	{
+		return RHI->RHICreateShaderResourceViewFMask_RenderThread(RHICmdList, Texture2D);
 	}
 
 	virtual FTextureCubeRHIRef RHICreateTextureCube_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, uint8 Format, uint32 NumMips, uint32 Flags, FRHIResourceCreateInfo& CreateInfo) override final

@@ -538,12 +538,17 @@ void ReduceCS(
 		GatheredColor.rgb *= (1 - ScatterFactor);
 	}
 	#endif // DIM_HYBRID_SCATTER_FGD || DIM_HYBRID_SCATTER_BGD
-
-	// Unconditionaly output mip 0 in output buffer that is always a multiple of group size,
+	
 	// for gathering pass to avoid having to clamp UV in gathering pass. 
 	uint2 OutputPixelId = DispatchThreadId;
-	OutputMipLevel(/* MipLevel = */ 0, OutputPixelId, GatheredColor, CocRadius);
 	
+	// Output mip 0 in output buffer that is always a multiple of group size. Unless reducing lower mips.
+	#if !DIM_DISABLE_OUTPUT_MIP0
+	{
+		OutputMipLevel(/* MipLevel = */ 0, OutputPixelId, GatheredColor, CocRadius);
+	}
+	#endif
+
 	FCocDownsampleParams DownsampleParams;
 	DownsampleParams.CocRadiusMultiplier = 1.0;
 	DownsampleParams.FrameExposureScale = FrameExposureScale;

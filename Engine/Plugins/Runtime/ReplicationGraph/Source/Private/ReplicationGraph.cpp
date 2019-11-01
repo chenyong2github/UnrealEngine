@@ -339,7 +339,7 @@ UNetReplicationGraphConnection* UReplicationGraph::FindOrAddConnectionManager(UN
 	if (NetConnection->GetUChildConnection() != nullptr)
 	{
 		NetConnection = ((UChildConnection*)NetConnection)->Parent;
-		UE_LOG(LogReplicationGraph, Warning, TEXT("UReplicationGraph::FindOrAddConnectionManager was called with a child connection, redirecting to parent"));
+		UE_LOG(LogReplicationGraph, Verbose, TEXT("UReplicationGraph::FindOrAddConnectionManager was called with a child connection, redirecting to parent"));
 		check(NetConnection != nullptr);
 	}
 
@@ -540,6 +540,13 @@ void UReplicationGraph::AddNetworkActor(AActor* Actor)
 	RouteAddNetworkActorToNodes(FNewReplicatedActorInfo(Actor), GlobalInfo);
 }
 
+void UReplicationGraph::SetRoleSwapOnReplicate(AActor* Actor, bool bSwapRoles)
+{
+	if (FGlobalActorReplicationInfo* GlobalInfo = GlobalActorReplicationInfoMap.Find(Actor))
+	{
+		GlobalInfo->bSwapRolesOnReplicate = bSwapRoles;
+	}
+}
 
 void UReplicationGraph::RouteAddNetworkActorToNodes(const FNewReplicatedActorInfo& ActorInfo, FGlobalActorReplicationInfo& GlobalInfo)
 {
@@ -1555,6 +1562,12 @@ int64 UReplicationGraph::ReplicateSingleActor_FastShared(AActor* Actor, FConnect
 		ConnectionData.FastPath_NextReplicationFrameNum = FrameNum + ConnectionData.FastPath_ReplicationPeriodFrame;
 	};
 	
+	TOptional<FScopedActorRoleSwap> SwapGuard;
+	if (GlobalActorInfo.bSwapRolesOnReplicate)
+	{
+		SwapGuard = FScopedActorRoleSwap(Actor);
+	}
+
 	if (CVar_RepGraph_FastShared_ForceFull > 0)
 	{
 		return ReplicateSingleActor(Actor, ConnectionData, GlobalActorInfo, FindOrAddConnectionManager(NetConnection)->ActorInfoMap, ConnectionManager, FrameNum);
@@ -1708,6 +1721,12 @@ int64 UReplicationGraph::ReplicateSingleActor(AActor* Actor, FConnectionReplicat
 		GlobalActorInfo.LastPreReplicationFrame = FrameNum;
 
 		Actor->CallPreReplication(NetDriver);
+	}
+
+	TOptional<FScopedActorRoleSwap> SwapGuard;
+	if (GlobalActorInfo.bSwapRolesOnReplicate)
+	{
+		SwapGuard = FScopedActorRoleSwap(Actor);
 	}
 
 	const bool bWantsToGoDormant = GlobalActorInfo.bWantsToBeDormant;

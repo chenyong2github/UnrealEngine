@@ -1,39 +1,27 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessSelectionOutline.h: Post processing outline effect.
-=============================================================================*/
-
 #pragma once
-
-#include "CoreMinimal.h"
-#include "RendererInterface.h"
-#include "PostProcess/RenderingCompositionGraph.h"
 
 #if WITH_EDITOR
 
+#include "ScreenPass.h"
+#include "OverridePassSequence.h"
+#include "PostProcess/RenderingCompositionGraph.h"
 
-// derives from TRenderingCompositePassBase<InputCount, OutputCount>
-// ePId_Input0: SceneColor
-class FRCPassPostProcessSelectionOutlineColor : public TRenderingCompositePassBase<1, 1>
+struct FSelectionOutlineInputs
 {
-public:
-	// interface FRenderingCompositePass ---------
-	virtual void Process(FRenderingCompositePassContext& Context) override;
-	virtual void Release() override { delete this; }
-	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
+	// [Optional] Render to the specified output. If invalid, a new texture is created and returned.
+	FScreenPassRenderTarget OverrideOutput;
+
+	// [Required] The scene color to composite with selection outlines.
+	FScreenPassTexture SceneColor;
+
+	// [Required] The scene depth to composite with selection outlines.
+	FScreenPassTexture SceneDepth;
 };
 
-// derives from TRenderingCompositePassBase<InputCount, OutputCount>
-// ePId_Input0: SceneColor
-// ePId_Input1: SelectionColor
-class FRCPassPostProcessSelectionOutline : public TRenderingCompositePassBase<2, 1>
-{
-public:
-	// interface FRenderingCompositePass ---------
-	virtual void Process(FRenderingCompositePassContext& Context) override;
-	virtual void Release() override { delete this; }
-	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
-};
+FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FSelectionOutlineInputs& Inputs);
+
+FRenderingCompositeOutputRef AddSelectionOutlinePass(FRenderingCompositionGraph& Graph, FRenderingCompositeOutputRef Input);
 
 #endif

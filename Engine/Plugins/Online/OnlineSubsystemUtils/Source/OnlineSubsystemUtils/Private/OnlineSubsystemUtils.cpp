@@ -37,6 +37,14 @@
 #include "Tests/TestExternalUIInterface.h"
 #include "Tests/TestPresenceInterface.h"
 
+static int32 CvarAlwaysPlayVoipComponent = 1;
+FAutoConsoleVariableRef CVarAlwaysPlayVoipComponent(
+	TEXT("au.voip.AlwaysPlayVoiceComponent"),
+	CvarAlwaysPlayVoipComponent,
+	TEXT("When set to 1, guarantees that voip components won't get deprioritized. \n")
+	TEXT("0: Let voip components get killed, 1: force VOIP components to be higher priority than all other audio sources."),
+	ECVF_Default);
+
 UAudioComponent* CreateVoiceAudioComponent(uint32 SampleRate, int32 NumChannels)
 {
 	UAudioComponent* AudioComponent = nullptr;
@@ -98,6 +106,11 @@ UVoipListenerSynthComponent* CreateVoiceSynthComponent(uint32 SampleRate)
 			if (VoiPSoundClassName.IsValid())
 			{
 				SynthComponentPtr->SoundClass = LoadObject<USoundClass>(nullptr, *VoiPSoundClassName.ToString());
+			}
+
+			if (CvarAlwaysPlayVoipComponent)
+			{
+				SynthComponentPtr->bAlwaysPlay = true;
 			}
 
 			SynthComponentPtr->Initialize(SampleRate);

@@ -72,7 +72,7 @@ public:
 	FScopedLogger& operator = (FScopedLogger&&) = delete;
 
 	/** Append a message */
-	void Push(EMessageSeverity::Type Severity, const FText& Message);
+	TSharedRef<FTokenizedMessage> Push(EMessageSeverity::Type Severity, const FText& Message);
 
 	/** Display pending messages, show the log window */
 	void Dump(bool bClearPrevious = false);
@@ -236,8 +236,8 @@ struct DATASMITHIMPORTER_API FDatasmithImportContext
 	/** List of previously parsed IES files */
 	TSet<FString> ParsedIesFiles;
 
-	/** Indicates if the user has cancelled the import process  */
-	bool bUserCancelled;
+	/** Indicates if the user has canceled the import process  */
+	TAtomic<bool> bUserCancelled;
 
 	bool bIsAReimport;
 	bool bImportedViaScript;
@@ -251,6 +251,9 @@ struct DATASMITHIMPORTER_API FDatasmithImportContext
 	/** Map of imported mesh for each mesh element */
 	TMap< TSharedRef< IDatasmithMeshElement >, UStaticMesh* > ImportedStaticMeshes;
 
+	/** Register IDatasmithMeshElement by their name so they can be searched faster */
+	TMap< FString, TSharedRef < IDatasmithMeshElement > > ImportedStaticMeshesByName;
+
 	/** Map of imported texture for each texture element */
 	TMap< TSharedRef< IDatasmithTextureElement >, UTexture* > ImportedTextures;
 
@@ -259,6 +262,9 @@ struct DATASMITHIMPORTER_API FDatasmithImportContext
 
 	/** Map of imported material function for each material element, they are only imported as a per-required basis */
 	TMap< TSharedRef< IDatasmithBaseMaterialElement >, UMaterialFunction* > ImportedMaterialFunctions;
+
+	/** Register IDatasmithMeshElement by their name so they can be searched faster */
+	TMap< FString, TSharedRef < IDatasmithBaseMaterialElement > > ImportedMaterialFunctionsByName;
 
 	/** List of potential parent materials with their hash. Used to create material instances from. */
 	TMap< int32, UMaterialInterface* > ImportedParentMaterials;
@@ -301,9 +307,9 @@ public:
 	void AddOption(UObject* InOption, bool bLoadConfig);
 
 	/** Push messages for display to the end-user */
-	void LogError(const FText& InErrorMessage);
-	void LogWarning(const FText& InWarningMessage, bool bPerformance = false);
-	void LogInfo(const FText& InInfoMessage);
+	TSharedRef<FTokenizedMessage> LogError(const FText& InErrorMessage);
+	TSharedRef<FTokenizedMessage> LogWarning(const FText& InWarningMessage, bool bPerformance = false);
+	TSharedRef<FTokenizedMessage> LogInfo(const FText& InInfoMessage);
 
 	bool ShouldImportActors() const;
 

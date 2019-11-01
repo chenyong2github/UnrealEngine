@@ -14,8 +14,10 @@
 FPhysicsAssetEditorSkeletonTreeBuilder::FPhysicsAssetEditorSkeletonTreeBuilder(UPhysicsAsset* InPhysicsAsset, const FSkeletonTreeBuilderArgs& InSkeletonTreeBuilderArgs)
 	: FSkeletonTreeBuilder(InSkeletonTreeBuilderArgs)
 	, bShowBodies(true)
-	, bShowConstraints(true)
-	, bShowPrimitives(true)
+	, bShowKinematicBodies(true)
+	, bShowSimulatedBodies(true)
+	, bShowConstraints(false)
+	, bShowPrimitives(false)
 	, PhysicsAsset(InPhysicsAsset)
 {
 }
@@ -55,7 +57,26 @@ ESkeletonTreeFilterResult FPhysicsAssetEditorSkeletonTreeBuilder::FilterItem(con
 
 		if(InItem->IsOfType<FSkeletonTreePhysicsBodyItem>())
 		{
+			bool bShouldHideBody = false;
 			if(!bShowBodies)
+			{
+				bShouldHideBody = true;
+			}
+			else
+			{
+				if (UBodySetup* BodySetup = Cast<UBodySetup>(InItem->GetObject()))
+				{
+					if (BodySetup->PhysicsType == EPhysicsType::PhysType_Simulated && !bShowSimulatedBodies)
+					{
+						bShouldHideBody = true;
+					}
+					else if (BodySetup->PhysicsType == EPhysicsType::PhysType_Kinematic && !bShowKinematicBodies)
+					{
+						bShouldHideBody = true;
+					}
+				}
+			}
+			if (bShouldHideBody)
 			{
 				Result = ESkeletonTreeFilterResult::Hidden;
 			}

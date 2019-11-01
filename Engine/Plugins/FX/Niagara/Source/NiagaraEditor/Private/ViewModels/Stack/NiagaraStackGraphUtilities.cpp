@@ -1847,7 +1847,7 @@ bool FNiagaraStackGraphUtilities::GetStackIssuesRecursively(const UNiagaraStackE
 	return OutIssues.Num() > 0;
 }
 
-void FNiagaraStackGraphUtilities::MoveModule(UNiagaraScript& SourceScript, UNiagaraNodeFunctionCall& ModuleToMove, UNiagaraSystem& TargetSystem, FGuid TargetEmitterHandleId, ENiagaraScriptUsage TargetUsage, FGuid TargetUsageId, int32 TargetModuleIndex, bool bForceCopy)
+void FNiagaraStackGraphUtilities::MoveModule(UNiagaraScript& SourceScript, UNiagaraNodeFunctionCall& ModuleToMove, UNiagaraSystem& TargetSystem, FGuid TargetEmitterHandleId, ENiagaraScriptUsage TargetUsage, FGuid TargetUsageId, int32 TargetModuleIndex, bool bForceCopy, UNiagaraNodeFunctionCall*& OutMovedModule)
 {
 	UNiagaraScript* TargetScript = FNiagaraEditorUtilities::GetScriptFromSystem(TargetSystem, TargetEmitterHandleId, TargetUsage, TargetUsageId);
 	checkf(TargetScript != nullptr, TEXT("Target script not found"));
@@ -1863,6 +1863,12 @@ void FNiagaraStackGraphUtilities::MoveModule(UNiagaraScript& SourceScript, UNiag
 
 	UNiagaraGraph* SourceGraph = ModuleToMove.GetNiagaraGraph();
 	UNiagaraGraph* TargetGraph = TargetOutputNode->GetNiagaraGraph();
+
+	if (SourceGraph != TargetGraph && bForceCopy == false)
+	{
+		SourceGraph->Modify();
+	}
+	TargetGraph->Modify();
 
 	// If the source and target scripts don't match, or we're forcing a copy we need to collect the rapid iteration parameter values for each function in the source group
 	// so we can restore them after moving.
@@ -2038,6 +2044,8 @@ void FNiagaraStackGraphUtilities::MoveModule(UNiagaraScript& SourceScript, UNiag
 			}
 		}
 	}
+
+	OutMovedModule = Cast<UNiagaraNodeFunctionCall>(TargetGroup.EndNode);
 }
 
 bool FNiagaraStackGraphUtilities::ParameterAllowedInExecutionCategory(const FName InParameterName, const FName ExecutionCategory)

@@ -80,15 +80,105 @@ enum EShaderPlatform
 	SP_VULKAN_ES3_1_LUMIN	= 29,
 	SP_METAL_TVOS			= 30,
 	SP_METAL_MRT_TVOS		= 31,
+	/**********************************************************************************/
+	/* !! Do not add any new platforms here. Add them below SP_StaticPlatform_Last !! */
+	/**********************************************************************************/
 
+	//---------------------------------------------------------------------------------
+	/** Pre-allocated block of shader platform enum values for platform extensions */
+#define DDPI_NUM_STATIC_SHADER_PLATFORMS 16
+	SP_StaticPlatform_First = 32,
+
+	// Pull in the extra shader platform definitions from platform extensions.
+	// @todo - when we remove EShaderPlatform, fix up the shader platforms defined in UEBuild[Platform].cs files.
 #ifdef DDPI_EXTRA_SHADERPLATFORMS
 	DDPI_EXTRA_SHADERPLATFORMS
 #endif
-	
+
+	SP_StaticPlatform_Last  = (SP_StaticPlatform_First + DDPI_NUM_STATIC_SHADER_PLATFORMS - 1),
+
+	//  Add new platforms below this line, starting from (SP_StaticPlatform_Last + 1)
+	//---------------------------------------------------------------------------------
+
 	SP_NumPlatforms,
 	SP_NumBits				= 7,
 };
 static_assert(SP_NumPlatforms <= (1 << SP_NumBits), "SP_NumPlatforms will not fit on SP_NumBits");
+
+class FStaticShaderPlatformNames
+{
+private:
+	static const uint32 NumPlatforms = DDPI_NUM_STATIC_SHADER_PLATFORMS;
+
+	struct FPlatform
+	{
+		FName Name;
+		FName ShaderPlatform;
+		FName ShaderFormat;
+	} Platforms[NumPlatforms];
+
+	FStaticShaderPlatformNames()
+	{
+#ifdef DDPI_SHADER_PLATFORM_NAME_MAP
+		struct FStaticNameMapEntry
+		{
+			FName Name;
+			int32 Index;
+		} NameMap[] =
+		{
+			DDPI_SHADER_PLATFORM_NAME_MAP
+		};
+
+		for (int32 MapIndex = 0; MapIndex < UE_ARRAY_COUNT(NameMap); ++MapIndex)
+		{
+			FStaticNameMapEntry const& Entry = NameMap[MapIndex];
+			check(IsStaticPlatform(EShaderPlatform(Entry.Index)));
+			uint32 PlatformIndex = Entry.Index - SP_StaticPlatform_First;
+
+			FPlatform& Platform = Platforms[PlatformIndex];
+			check(Platform.Name == NAME_None); // Check we've not already seen this platform
+
+			Platform.Name = Entry.Name;
+			Platform.ShaderPlatform = FName(*FString::Printf(TEXT("SP_%s"), *Entry.Name.ToString()), FNAME_Add);
+			Platform.ShaderFormat = FName(*FString::Printf(TEXT("SF_%s"), *Entry.Name.ToString()), FNAME_Add);
+		}
+#endif
+	}
+
+public:
+	static inline FStaticShaderPlatformNames const& Get()
+	{
+		static FStaticShaderPlatformNames Names;
+		return Names;
+	}
+
+	static inline bool IsStaticPlatform(EShaderPlatform Platform)
+	{
+		return Platform >= SP_StaticPlatform_First && Platform <= SP_StaticPlatform_Last;
+	}
+
+	inline const FName& GetShaderPlatform(EShaderPlatform Platform) const
+	{
+		return Platforms[GetStaticPlatformIndex(Platform)].ShaderPlatform;
+	}
+
+	inline const FName& GetShaderFormat(EShaderPlatform Platform) const
+	{
+		return Platforms[GetStaticPlatformIndex(Platform)].ShaderFormat;
+	}
+
+	inline const FName& GetPlatformName(EShaderPlatform Platform) const
+	{
+		return Platforms[GetStaticPlatformIndex(Platform)].Name;
+	}
+
+private:
+	static inline uint32 GetStaticPlatformIndex(EShaderPlatform Platform)
+	{
+		check(IsStaticPlatform(Platform));
+		return uint32(Platform) - SP_StaticPlatform_First;
+	}
+};
 
 /**
  * The RHI's feature level indicates what level of support can be relied upon.
@@ -156,6 +246,9 @@ struct RHI_API FDataDrivenShaderPlatformInfo
 	bool bSupportsMultiView;
 	bool bSupportsMSAA;
 	bool bSupports4ComponentUAVReadWrite;
+	bool bSupportsRenderTargetWriteMask;
+	bool bSupportsRayTracing;
+	bool bSupportsGPUSkinCache;
 
 	bool bTargetsTiledGPU;
 	bool bNeedsOfflineCompiler;
@@ -472,8 +565,11 @@ enum EUniformBufferBaseType : uint8
 {
 	UBMT_INVALID,
 
-	// Parameter types.
+	// Invalid type when trying to use bool, to have explicit error message to programmer on why
+	// they shouldn't use bool in shader parameter structures.
 	UBMT_BOOL,
+
+	// Parameter types.
 	UBMT_INT32,
 	UBMT_UINT32,
 	UBMT_FLOAT32,

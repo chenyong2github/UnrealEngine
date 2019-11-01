@@ -4,6 +4,7 @@
 
 #include "Templates/SharedPointer.h"
 #include "UObject/NameTypes.h"
+#include "ViewModels/Stack/NiagaraStackEntry.h"
 
 class FMenuBuilder;
 class SWidget;
@@ -25,4 +26,11 @@ namespace FNiagaraStackEditorWidgetsUtilities
 
 	bool AddStackModuleItemContextMenuActions(FMenuBuilder& MenuBuilder, UNiagaraStackModuleItem& StackItem, TSharedRef<SWidget> TargetWidget);
 
+	TSharedRef<FDragDropOperation> ConstructDragDropOperationForStackEntries(const TArray<UNiagaraStackEntry*>& DraggedEntries);
+
+	TOptional<EItemDropZone> RequestDropForStackEntry(const FDragDropEvent& InDragDropEvent, EItemDropZone InDropZone, UNiagaraStackEntry* InTargetEntry, UNiagaraStackEntry::EDropOptions DropOptions);
+
+	bool HandleDropForStackEntry(const FDragDropEvent& InDragDropEvent, EItemDropZone InDropZone, UNiagaraStackEntry* InTargetEntry, UNiagaraStackEntry::EDropOptions DropOptions);
+
+	FString StackEntryToStringForListDebug(UNiagaraStackEntry* StackEntry);
 }

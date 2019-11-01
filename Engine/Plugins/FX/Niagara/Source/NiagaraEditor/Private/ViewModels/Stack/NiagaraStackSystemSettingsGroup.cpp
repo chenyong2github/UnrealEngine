@@ -11,7 +11,6 @@
 #include "ViewModels/Stack/NiagaraStackErrorItem.h"
 #include "ViewModels/Stack/NiagaraStackParameterStoreEntry.h"
 #include "Internationalization/Internationalization.h"
-#include "ViewModels/Stack/NiagaraStackSpacer.h"
 #include "NiagaraStackEditorData.h"
 #include "ScopedTransaction.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
@@ -123,18 +122,6 @@ void UNiagaraStackSystemSettingsGroup::RefreshChildrenInternal(const TArray<UNia
 {
 	if (UserParameterStore != nullptr)
 	{
-		FName UserParameterStoreItemSpacerKey = "UserParameterStoreSpacer";
-		UNiagaraStackSpacer* UserParameterStoreItemSpacer = FindCurrentChildOfTypeByPredicate<UNiagaraStackSpacer>(CurrentChildren,
-			[=](UNiagaraStackSpacer* CurrentParameterStoreItemSpacer) { return CurrentParameterStoreItemSpacer->GetSpacerKey() == UserParameterStoreItemSpacerKey; });
-
-		if (UserParameterStoreItemSpacer == nullptr)
-		{
-			UserParameterStoreItemSpacer = NewObject<UNiagaraStackSpacer>(this);
-			UserParameterStoreItemSpacer->Initialize(CreateDefaultChildRequiredData(), UserParameterStoreItemSpacerKey, 1.4f);
-		}
-
-		NewChildren.Add(UserParameterStoreItemSpacer);
-
 		UNiagaraStackParameterStoreItem* UserParameterStoreItem = FindCurrentChildOfTypeByPredicate<UNiagaraStackParameterStoreItem>(CurrentChildren,
 			[=](UNiagaraStackParameterStoreItem* CurrentItem) { return true; });
 
@@ -146,17 +133,6 @@ void UNiagaraStackSystemSettingsGroup::RefreshChildrenInternal(const TArray<UNia
 
 		NewChildren.Add(UserParameterStoreItem);
 	}
-
-	FName SystemPropertiesItemSpacerKey = "SystemPropertiesSpacer";
-	UNiagaraStackSpacer* SystemPropertiesItemSpacer = FindCurrentChildOfTypeByPredicate<UNiagaraStackSpacer>(CurrentChildren,
-		[=](UNiagaraStackSpacer* CurrentSystemPropertiesItemSpacer) { return CurrentSystemPropertiesItemSpacer->GetSpacerKey() == SystemPropertiesItemSpacerKey; });
-
-	if (SystemPropertiesItemSpacer == nullptr)
-	{
-		SystemPropertiesItemSpacer = NewObject<UNiagaraStackSpacer>(this);
-		SystemPropertiesItemSpacer->Initialize(CreateDefaultChildRequiredData(), SystemPropertiesItemSpacerKey, 1.4f);
-	}
-	NewChildren.Add(SystemPropertiesItemSpacer);
 
 	UNiagaraStackSystemPropertiesItem* SystemPropertiesItem = FindCurrentChildOfTypeByPredicate<UNiagaraStackSystemPropertiesItem>(CurrentChildren,
 		[=](UNiagaraStackSystemPropertiesItem* CurrentItem) { return true; });

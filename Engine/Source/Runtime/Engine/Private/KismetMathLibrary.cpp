@@ -967,7 +967,7 @@ void UKismetMathLibrary::MinimumAreaRectangle(class UObject* WorldContextObject,
 	OutRectCenter /= InVerts.Num();
 
 	// Compute the convex hull of the sample points
-	ConvexHull2D::ComputeConvexHull(TransformedVerts, PolyVertIndices);
+	ConvexHull2D::ComputeConvexHullLegacy(TransformedVerts, PolyVertIndices);
 
 	// Minimum area rectangle as computed by http://www.geometrictools.com/Documentation/MinimumAreaRectangle.pdf
 	for (int32 Idx = 1; Idx < PolyVertIndices.Num() - 1; ++Idx)

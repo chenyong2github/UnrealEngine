@@ -24,12 +24,11 @@ namespace UnrealBuildTool.Rules
 			// Max SDK setup
 			{
 				string MaxVersionString = GetMaxVersion();
+				string MaxSDKLocation = "";
 
-				string MaxSDKFolder = "3dsMax" + MaxVersionString + "SDK";
-				string MaxSDKLocation = Path.Combine("..", "..", "Enterprise", "Source", "ThirdParty", "NotForLicensees", MaxSDKFolder);
+				// Try with custom setup
 				string MaxSDKEnvVar = System.Environment.GetEnvironmentVariable("ADSK_3DSMAX_SDK_" + MaxVersionString);
-
-				if (!Directory.Exists(MaxSDKLocation) && MaxSDKEnvVar != null && MaxSDKEnvVar != "")
+				if (MaxSDKEnvVar != null && MaxSDKEnvVar != "")
 				{
 					MaxSDKLocation = MaxSDKEnvVar;
 				}
@@ -61,7 +60,7 @@ namespace UnrealBuildTool.Rules
 			}
 
 			// Itoo ForestPack/RailClone API
-			string ItooInterfaceLocation = Path.Combine(ModuleDirectory, "NotForLicensees", "ThirdParty", "Itoo");
+			string ItooInterfaceLocation = Path.Combine(ModuleDirectory, "ThirdParty", "Itoo");
 			bool bWithItooInterface = Directory.Exists(ItooInterfaceLocation);
 			PublicDefinitions.Add("WITH_ITOO_INTERFACE=" + (bWithItooInterface ? "1" : "0"));
 			if (bWithItooInterface)

@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*================================================================================
-	LinuxPlatformProperties.h - Basic static properties of a platform 
+	LuminPlatformProperties.h - Basic static properties of a platform 
 	These are shared between:
 		the runtime platform - via FPlatformProperties
 		the target platforms - via ITargetPlatform
@@ -35,9 +35,19 @@ struct FLuminPlatformProperties : public FAndroidPlatformProperties
 		return "Lumin";
 	}
 
+	static FORCEINLINE const TCHAR* GetRuntimeSettingsClassName()
+	{
+		return TEXT("/Script/LuminRuntimeSettings.LuminRuntimeSettings");
+	}
+
 	static FORCEINLINE bool SupportsAutoSDK()
 	{
 		return false;
+	}
+
+	static FORCEINLINE bool SupportsQuit()
+	{
+		return true;
 	}
 };
 

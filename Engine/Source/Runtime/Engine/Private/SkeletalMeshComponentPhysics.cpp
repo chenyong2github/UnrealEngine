@@ -1776,7 +1776,7 @@ void USkeletalMeshComponent::SetPhysicsAsset(UPhysicsAsset* InPhysicsAsset, bool
 
 			// Initialize new Physics Asset
 			UWorld* World = GetWorld();
-			if(World->GetPhysicsScene() != nullptr && ShouldCreatePhysicsState())
+			if(World && World->GetPhysicsScene() != nullptr && ShouldCreatePhysicsState())
 			{
 			//	UE_LOG(LogSkeletalMesh, Warning, TEXT("Creating Physics State (%s : %s)"), *GetNameSafe(GetOuter()),  *GetName());			
 				InitArticulated(World->GetPhysicsScene());
@@ -2372,7 +2372,7 @@ void USkeletalMeshComponent::RecreateClothingActors()
 				}
 				ClothingSimulation->CreateActor(this, Asset, BaseAssetIndex);
 			}
-
+			ClothingSimulation->PostActorCreationInitialize();
 			WritebackClothingSimulationData();
 		}
 	}

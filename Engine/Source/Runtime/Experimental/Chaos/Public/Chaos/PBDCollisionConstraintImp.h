@@ -86,6 +86,12 @@ namespace Chaos
 
 #endif
 
+#if UE_BUILD_SHIPPING
+	const bool bDisableCollisionParallelFor = false;
+#else
+	CHAOS_API extern bool bDisableCollisionParallelFor;
+#endif
+
 	template <typename T, int d>
 	struct TSimOverlapVisitor
 	{
@@ -281,31 +287,35 @@ namespace Chaos
 				NarrowPhaseSkipped.Record(NPSkipped);
 				NarrowPhaseRejected.Record(RejectedNP);
 #endif
-			}, bGatherStats || CollisionConstraintsForceSingleThreaded);
+			}, bGatherStats || bDisableCollisionParallelFor);
 			
 			{
 				SCOPE_CYCLE_COUNTER(STAT_ComputeConstraintsSU);
 
 				while (!Queue.IsEmpty())
 				{
-					const TRigidBodyContactConstraint<T, d> * Constraint = Queue.Peek();
-					FConstraintHandleID HandleID = GetConstraintHandleID(*Constraint);
-					if (Handles.Contains(HandleID))
-					{
-						FConstraintHandle* Handle = Handles[HandleID];
-						int32 Idx = Handle->GetConstraintIndex();
-						FVector Position = Constraints[Idx].Location;
+					int32 Idx = Constraints.AddUninitialized(1);
+					FConstraintHandle * Handle = HandleAllocator.AllocHandle(this, Idx);
 
-						Queue.Dequeue(Constraints[Idx]);
-						Constraints[Idx].PreviousLocation = Position;
-						Constraints[Idx].Lifespan = LifespanCounter;
-					}
-					else
+					Handles.Add(Handle);
+					Queue.Dequeue(Constraints[Idx]);
+					Constraints[Idx].Lifespan = LifespanCounter;
+					ensure(Handles.Num() == Constraints.Num());
+
+					if (bSupportHistory)
 					{
-						int32 Idx = Constraints.AddUninitialized(1);
-						Queue.Dequeue(Constraints[Idx]);
-						Handles.Add(GetConstraintHandleID(Idx), HandleAllocator.AllocHandle(this, Idx));
-						Constraints[Idx].Lifespan = LifespanCounter;
+						FConstraintHandleID HandleID = GetConstraintHandleID(Constraints[Idx]);
+						FConstraintHistory* HistoryElement;
+						if (auto ValPtr = History.Find(HandleID))
+						{
+							HistoryElement = *ValPtr;
+						}
+						else
+						{
+							HistoryElement = new FConstraintHistory(Constraints[Idx].Particle->X(), Constraints[Idx].Particle->R());
+							History.Add(HandleID, HistoryElement);
+						}
+						HistoryElement->AddHandle(Handle);
 					}
 				}
 				LifespanCounter++;

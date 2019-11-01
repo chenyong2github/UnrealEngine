@@ -31,6 +31,7 @@ namespace UnrealBuildTool.Rules
                     "BlueprintGraph", // For function director
 					"WorkspaceMenuStructure",
 					"ToolMenus",
+					"VariantManagerContentEditor",
 				}
 			);
         }

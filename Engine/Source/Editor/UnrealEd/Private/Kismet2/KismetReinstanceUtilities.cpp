@@ -32,6 +32,8 @@
 #include "BlueprintEditor.h"
 #include "Engine/Selection.h"
 #include "BlueprintEditorSettings.h"
+#include "Engine/NetDriver.h"
+#include "Engine/ActorChannel.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
 DECLARE_CYCLE_STAT(TEXT("Replace Instances"), EKismetReinstancerStats_ReplaceInstancesOfClass, STATGROUP_KismetReinstancer );
@@ -80,6 +82,17 @@ struct FReplaceReferenceHelper
 		if(SourceObjects.Num() == 0 && ObjectsToReplace.Num() == 0 )
 		{
 			return;
+		}
+
+		// Remember what values were in UActorChannel::Actor so we can restore them later (this should only affect reinstancing during PIE)
+		// We need the old actor channel to tear down cleanly without affecting the new actor
+		TMap<UActorChannel*, AActor*> ActorChannelActorRestorationMap;
+		for (UActorChannel* ActorChannel : TObjectRange<UActorChannel>())
+		{
+			if (OldToNewInstanceMap.Contains(ActorChannel->Actor))
+			{
+				ActorChannelActorRestorationMap.Add(ActorChannel, ActorChannel->Actor);
+			}
 		}
 
 		// Find everything that references these objects
@@ -141,6 +154,12 @@ struct FReplaceReferenceHelper
 					ReferenceReplace ReplaceAr(Obj, OldToNewInstanceMap, ReinstancedObjectsWeakReferenceMap);
 				}
 			}
+		}
+	
+		// Restore the old UActorChannel::Actor values (undoing what the replace references archiver did above to them)
+		for (const auto& KVP : ActorChannelActorRestorationMap)
+		{
+			KVP.Key->Actor = KVP.Value;
 		}
 	}
 };
@@ -502,6 +521,13 @@ public:
 
 					Actor->ReregisterAllComponents();
 					Actor->RerunConstructionScripts();
+
+					// The reinstancing case doesn't ever explicitly call Actor->FinishSpawning, we've handled the construction script
+					// portion above but still need the PostActorConstruction() case so BeginPlay gets routed correctly while in a BegunPlay world
+					if (World->HasBegunPlay())
+					{
+						Actor->PostActorConstruction();
+					}
 
 					if (SelectedObjecs.Contains(Obj) && GEditor)
 					{
@@ -1043,6 +1069,16 @@ void FActorReplacementHelper::Finalize(const TMap<UObject*, UObject*>& OldToNewI
 		FComponentInstanceDataCache DummyComponentData;
 		NewActor->ExecuteConstruction(TargetWorldTransform, nullptr, &DummyComponentData);
 	}	
+
+	// The reinstancing case doesn't ever explicitly call Actor->FinishSpawning, we've handled the construction script
+	// portion above but still need the PostActorConstruction() case so BeginPlay gets routed correctly while in a BegunPlay world
+	if (UWorld* World = NewActor->GetWorld())
+	{
+		if (World->HasBegunPlay())
+		{
+			NewActor->PostActorConstruction();
+		}
+	}
 
 	// make sure that the actor is properly hidden if it's in a hidden sublevel:
 	bool bIsInHiddenLevel = false;

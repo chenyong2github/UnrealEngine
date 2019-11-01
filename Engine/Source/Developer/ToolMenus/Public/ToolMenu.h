@@ -74,6 +74,10 @@ public:
 	//~ End UToolMenuBase Interface
 
 	TArray<FName> GetMenuHierarchyNames(bool bIncludeSubMenuRoot) const;
+	void SetMaxHeight(uint32 InMaxHeight)
+	{
+		MaxHeight = InMaxHeight;
+	}
 
 	template <typename TContextType>
 	TContextType* FindContext() const
@@ -162,4 +166,6 @@ private:
 	bool bIsRegistering;
 
 	const ISlateStyle* StyleSet;
+
+	uint32 MaxHeight;
 };

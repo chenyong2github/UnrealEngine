@@ -85,7 +85,7 @@
 #include "LevelSequence.h"
 #include "SequencerLog.h"
 #include "MovieSceneCopyableBinding.h"
-#include "SExposedBindingsWidget.h"
+#include "SObjectBindingTagManager.h"
 #include "MovieSceneCopyableTrack.h"
 #include "IPropertyRowGenerator.h"
 #include "Fonts/FontMeasure.h"
@@ -1061,6 +1061,11 @@ void SSequencer::BindCommands(TSharedRef<FUICommandList> SequencerCommandBinding
 		FSequencerCommands::Get().OpenDirectorBlueprint,
 		FExecuteAction::CreateLambda(OpenDirectorBlueprint)
 	);
+
+	SequencerCommandBindings->MapAction(
+		FSequencerCommands::Get().OpenTaggedBindingManager,
+		FExecuteAction::CreateSP(this, &SSequencer::OpenTaggedBindingManager)
+	);
 }
 
 void SSequencer::ShowTickResolutionOverlay()
@@ -1816,11 +1821,7 @@ TSharedRef<SWidget> SSequencer::MakeGeneralMenu()
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().RebindPossessableReferences);
 	}
 
-	MenuBuilder.AddSubMenu(
-		LOCTEXT("ExposeBindingLabel", "Exposed Binding Groups"),
-		LOCTEXT("ExposeBindingTooltip", "Specifies options for exposing this binding to external systems as a persistent name."),
-		FNewMenuDelegate::CreateSP(this, &SSequencer::PopulateExposeBindingsMenu)
-	);
+	MenuBuilder.AddMenuEntry(FSequencerCommands::Get().OpenTaggedBindingManager);
 
 	MenuBuilder.EndSection();
 
@@ -1835,9 +1836,34 @@ TSharedRef<SWidget> SSequencer::MakeGeneralMenu()
 	return MenuBuilder.MakeWidget();
 }
 
-void SSequencer::PopulateExposeBindingsMenu(FMenuBuilder& InMenuBuilder)
+void SSequencer::OpenTaggedBindingManager()
 {
-	InMenuBuilder.AddWidget(SNew(SExposedBindingsWidget, SequencerPtr), FText(), true);
+	if (TSharedPtr<SWindow> Window = WeakExposedBindingsWindow.Pin())
+	{
+		Window->DrawAttention(FWindowDrawAttentionParameters());
+		return;
+	}
+
+	TSharedRef<SWindow> ExposedBindingsWindow = SNew(SWindow)
+		.Title(FText::Format(LOCTEXT("ExposedBindings_Title", "Bindings Exposed in {0}"), FText::FromName(SequencerPtr.Pin()->GetRootMovieSceneSequence()->GetFName())))
+		.SupportsMaximize(false)
+		.ClientSize(FVector2D(600.f, 500.f))
+		.Content()
+		[
+			SNew(SObjectBindingTagManager, SequencerPtr)
+		];
+
+	TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
+	if (ParentWindow)
+	{
+		FSlateApplication::Get().AddWindowAsNativeChild(ExposedBindingsWindow, ParentWindow.ToSharedRef());
+	}
+	else
+	{
+		FSlateApplication::Get().AddWindow(ExposedBindingsWindow);
+	}
+
+	WeakExposedBindingsWindow = ExposedBindingsWindow;
 }
 
 void SSequencer::FillPlaybackSpeedMenu(FMenuBuilder& InMenuBarBuilder)
@@ -2332,6 +2358,11 @@ SSequencer::~SSequencer()
 				CurveEditorTab->RequestCloseTab();
 			}
 		}
+	}
+
+	if (TSharedPtr<SWindow> Window = WeakExposedBindingsWindow.Pin())
+	{
+		Window->DestroyWindowImmediately();
 	}
 }
 
@@ -3110,6 +3141,12 @@ void SSequencer::OnCurveEditorVisibilityChanged(bool bShouldBeVisible)
 		// that the Toolkit Host's Tab Manager has already registered a tab with a NullWidget for content.
 		TSharedRef<SDockTab> CurveEditorTab = Sequencer->GetToolkitHost()->GetTabManager()->InvokeTab(TabId);
 		CurveEditorTab->SetContent(CurveEditorPanel.ToSharedRef());
+
+		const FSlateIcon SequencerGraphIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCurveEditor.TabIcon");
+		CurveEditorTab->SetTabIcon(SequencerGraphIcon.GetIcon());
+
+		CurveEditorTab->SetLabel(LOCTEXT("SequencerMainGraphEditorTitle", "Sequencer Curves"));
+
 		SequencerPtr.Pin()->GetCurveEditor()->ZoomToFit();
 	}
 	else

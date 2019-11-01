@@ -13,22 +13,6 @@
 DECLARE_LOG_CATEGORY_EXTERN(LogAndroidRuntimeSettings, Log, All);
 
 UENUM()
-namespace EAndroidAntVerbosity
-{
-	enum Type
-	{
-		/** Extra quiet logging (-quiet), errors will be logged by second run at normal verbosity. */
-		Quiet,
-
-		/** Normal logging (no options) */
-		Normal,
-
-		/** Extra verbose logging (-verbose) */
-		Verbose,
-	};
-}
-
-UENUM()
 namespace EAndroidScreenOrientation
 {
 	// IF THIS CHANGES, MAKE SURE TO UPDATE UEDeployAndroid.cs, ConvertOrientationIniValue()!
@@ -287,10 +271,6 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Restore scheduled notifications on reboot"))
 	bool bRestoreNotificationsOnReboot;
 
-	// Level of verbosity to use during packaging with Ant
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging")
-	TEnumAsByte<EAndroidAntVerbosity::Type> AntVerbosity;
-
 	// Should the software navigation buttons be hidden or not
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Enable FullScreen Immersive on KitKat and above devices."))
 	bool bFullScreen;
@@ -509,6 +489,10 @@ public:
 	/** Various overrides for how this platform should handle compression and decompression */
 	UPROPERTY(config, EditAnywhere, Category = "Audio")
 	FPlatformRuntimeAudioCompressionOverrides CompressionOverrides;
+
+	/** This determines how we split compressed audio into chunks for this platform. The smaller this value is the more granular our chunking is. */
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Audio|CookOverrides", meta = (DisplayName = "Max Size Per Streaming Chunk (KB)"))
+	int32 ChunkSizeKB;
 
 	/** When this is enabled, Actual compressed data will be separated from the USoundWave, and loaded into a cache. */
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Audio|CookOverrides", meta = (DisplayName = "Use Stream Caching (Experimental)"))

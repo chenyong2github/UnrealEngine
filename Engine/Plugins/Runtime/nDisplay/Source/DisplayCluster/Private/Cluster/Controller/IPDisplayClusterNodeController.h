@@ -22,6 +22,9 @@ public:
 	virtual bool Initialize() = 0;
 	virtual void Release() = 0;
 
+	virtual void ClearCache()
+	{ }
+
 	virtual bool IsMaster() const = 0;
 	virtual bool IsSlave() const = 0;
 	virtual bool IsStandalone() const = 0;

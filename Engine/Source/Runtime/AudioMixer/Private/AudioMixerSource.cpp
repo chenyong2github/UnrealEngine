@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AudioMixerSource.h"
+#include "AudioMixerSourceBuffer.h"
 #include "ActiveSound.h"
 #include "AudioMixerSourceBuffer.h"
 #include "AudioMixerDevice.h"
@@ -439,7 +440,7 @@ namespace Audio
 
 		if (!MixerBuffer)
 		{
-			MixerSourceBuffer.Reset();
+			FreeResources(); // APM: maybe need to call this here too? 
 			return false;
 		}
 
@@ -476,6 +477,12 @@ namespace Audio
 
 		check(!MixerSourceBuffer.IsValid());
 		MixerSourceBuffer = FMixerSourceBuffer::Create(*MixerBuffer, SoundWave, InWaveInstance->LoopingMode, bIsSeeking);
+		
+		if (!MixerSourceBuffer.IsValid())
+		{
+			FreeResources();
+		}
+		
 		return MixerSourceBuffer.IsValid();
 	}
 
@@ -821,7 +828,13 @@ namespace Audio
 
 		if (AudioDevice->IsModulationPluginEnabled())
 		{
-			AudioDevice->ModulationInterface->ProcessControls(MixerSourceVoice->GetSourceId(), WaveInstance->SoundModulationControls);
+			const int32 SourceId = MixerSourceVoice->GetSourceId();
+			const bool bUpdatePending = AudioDevice->ModulationInterface->ProcessControls(SourceId, WaveInstance->SoundModulationControls);
+
+			if (bUpdatePending)
+			{
+				AudioDevice->UpdateModulationControls(SourceId, WaveInstance->SoundModulationControls);
+			}
 		}
 	}
 

@@ -236,6 +236,9 @@ public:
 
 	const TParticleView<TGeometryParticles<T, d>>& GetAllParticlesView() const { return AllParticlesView; }
 
+	const TParticleView<TKinematicGeometryParticles<T, d>>& GetActiveKinematicParticlesView() const { return ActiveKinematicParticlesView; }
+	TParticleView<TKinematicGeometryParticles<T, d>>& GetActiveKinematicParticlesView() { return ActiveKinematicParticlesView; }
+
 	const TGeometryParticleHandles<T, d>& GetParticleHandles() const { return ParticleHandles; }
 	TGeometryParticleHandles<T, d>& GetParticleHandles() { return ParticleHandles; }
 
@@ -346,11 +349,14 @@ private:
 			TArray<TSOAView<TPBDRigidParticles<T, d>>> TmpArray = { {&ActiveParticlesArray} };
 			ActiveParticlesView = MakeParticleView(MoveTemp(TmpArray));
 		}
-
 		{
 			TArray<TSOAView<TGeometryParticles<T, d>>> TmpArray = { StaticParticles.Get(), StaticDisabledParticles.Get(), KinematicParticles.Get(), KinematicDisabledParticles.Get(),
 				DynamicParticles.Get(), DynamicDisabledParticles.Get(), ClusteredParticles.Get() };
 			AllParticlesView = MakeParticleView(MoveTemp(TmpArray));
+		}
+		{
+			TArray<TSOAView<TKinematicGeometryParticles<T, d>>> TmpArray = { KinematicParticles.Get() };
+			ActiveKinematicParticlesView = MakeParticleView(MoveTemp(TmpArray));
 		}
 	}
 
@@ -377,10 +383,11 @@ private:
 	TArray<TPBDRigidClusteredParticleHandle<T, d>*> NonDisabledClusteredArray;
 
 	//Particle Views
-	TParticleView<TGeometryParticles<T, d>> NonDisabledView;	//all particles that are not disabled
-	TParticleView<TPBDRigidParticles<T, d>> NonDisabledDynamicView;	//all dynamic particles that are not disabled
-	TParticleView<TPBDRigidParticles<T, d>> ActiveParticlesView;	//all particles that are active
-	TParticleView<TGeometryParticles<T, d>> AllParticlesView;	//all particles
+	TParticleView<TGeometryParticles<T, d>> NonDisabledView;							//all particles that are not disabled
+	TParticleView<TPBDRigidParticles<T, d>> NonDisabledDynamicView;						//all dynamic particles that are not disabled
+	TParticleView<TPBDRigidParticles<T, d>> ActiveParticlesView;						//all particles that are active
+	TParticleView<TGeometryParticles<T, d>> AllParticlesView;							//all particles
+	TParticleView<TKinematicGeometryParticles<T, d>> ActiveKinematicParticlesView;		//all kinematic particles that are not disabled
 
 	//Auxiliary data synced with particle handles
 	TGeometryParticleHandles<T, d> ParticleHandles;

@@ -5,6 +5,7 @@
 #include "DatasmithImportOptions.h"
 #include "Misc/Guid.h"
 #include "Serialization/BulkData.h"
+#include "Interfaces/Interface_AssetUserData.h"
 
 #include "DatasmithScene.generated.h"
 
@@ -17,7 +18,7 @@ class UTexture;
 class UWorld;
 
 UCLASS()
-class DATASMITHCONTENT_API UDatasmithScene : public UObject
+class DATASMITHCONTENT_API UDatasmithScene : public UObject, public IInterface_AssetUserData
 {
 	GENERATED_BODY()
 
@@ -27,10 +28,6 @@ public:
 	virtual ~UDatasmithScene();
 
 #if WITH_EDITORONLY_DATA
-	/** Pointer to data preparation pipeline blueprint used to process input data */
-	UPROPERTY()
-	class UBlueprint* DataprepRecipeBP;
-
 	/** Importing data and options used for this Datasmith scene */
 	UPROPERTY(EditAnywhere, Instanced, Category=ImportSettings)
 	class UDatasmithSceneImportData* AssetImportData;
@@ -63,10 +60,21 @@ public:
 	/** Map of all the level variant sets related to this Datasmith Scene */
 	UPROPERTY(VisibleAnywhere, Category="Datasmith", AdvancedDisplay)
 	TMap< FName, TSoftObjectPtr< ULevelVariantSets > > LevelVariantSets;
+
+	/** Array of user data stored with the asset */
+	UPROPERTY()
+	TArray< UAssetUserData* > AssetUserData;
 #endif // #if WITH_EDITORONLY_DATA
 
 	/** Register the DatasmithScene to the PreWorldRename callback as needed*/
 	void RegisterPreWorldRenameCallback();
+
+	//~ Begin IInterface_AssetUserData Interface
+	virtual void AddAssetUserData( UAssetUserData* InUserData ) override;
+	virtual void RemoveUserDataOfClass( TSubclassOf<UAssetUserData> InUserDataClass ) override;
+	virtual UAssetUserData* GetAssetUserDataOfClass( TSubclassOf<UAssetUserData> InUserDataClass ) override;
+	virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
+	//~ End IInterface_AssetUserData Interface
 
 #if WITH_EDITOR
 private:

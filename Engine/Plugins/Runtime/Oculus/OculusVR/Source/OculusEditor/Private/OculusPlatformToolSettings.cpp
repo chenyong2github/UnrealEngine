@@ -12,6 +12,14 @@ UOculusPlatformToolSettings::UOculusPlatformToolSettings()
 	OculusReleaseChannel.Init("Alpha", NumPlatforms);
 	OculusReleaseNote.Init("", NumPlatforms);
 	OculusLaunchFilePath.Init("", NumPlatforms);
+	OculusLanguagePacksPath.Init("", NumPlatforms);
+	OculusExpansionFilesPath.Init("", NumPlatforms);
+	OculusAssetConfigs.Init(FAssetConfigArray(), NumPlatforms);
+
+	for (int i = 0; i < NumPlatforms; i++)
+	{
+		OculusAssetConfigs[i].ConfigArray = TArray<FAssetConfig>();
+	}
 }
 
 

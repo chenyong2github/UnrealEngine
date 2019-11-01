@@ -3,8 +3,11 @@
 #include "DisplayClusterEditorEngine.h"
 #include "DisplayClusterEditorLog.h"
 
+#include "DisplayClusterRootComponent.h"
+
 #include "DisplayCluster/Private/IPDisplayCluster.h"
 
+#include "Editor.h"
 
 void UDisplayClusterEditorEngine::Init(IEngineLoop* InEngineLoop)
 {
@@ -12,22 +15,25 @@ void UDisplayClusterEditorEngine::Init(IEngineLoop* InEngineLoop)
 
 	// Initialize DisplayCluster module for editor mode
 	DisplayClusterModule = static_cast<IPDisplayCluster*>(&IDisplayCluster::Get());
-	if (DisplayClusterModule)
-	{
-		const bool bResult = DisplayClusterModule->Init(EDisplayClusterOperationMode::Editor);
-		if (bResult)
-		{
-			UE_LOG(LogDisplayClusterEditorEngine, Log, TEXT("DisplayCluster module has been initialized"));
-		}
-		else
-		{
-			UE_LOG(LogDisplayClusterEditorEngine, Error, TEXT("An error occured during DisplayCluster initialization"));
-		}
-	}
-	else
+	if (!DisplayClusterModule)
 	{
 		UE_LOG(LogDisplayClusterEditorEngine, Error, TEXT("Couldn't initialize DisplayCluster module"));
+		return;
 	}
+
+	// Initialize DisplayCluster module for operating in Editor mode
+	const bool bResult = DisplayClusterModule->Init(EDisplayClusterOperationMode::Editor);
+	if (!bResult)
+	{
+		UE_LOG(LogDisplayClusterEditorEngine, Error, TEXT("An error occured during DisplayCluster initialization"));
+		return;
+	}
+
+	UE_LOG(LogDisplayClusterEditorEngine, Log, TEXT("DisplayCluster module has been initialized"));
+
+	// Subscribe to PIE events
+	BeginPIEDelegate = FEditorDelegates::BeginPIE.AddUObject(this, &UDisplayClusterEditorEngine::OnBeginPIE);
+	EndPIEDelegate   = FEditorDelegates::EndPIE.AddUObject(this, &UDisplayClusterEditorEngine::OnEndPIE);
 
 	return Super::Init(InEngineLoop);
 }
@@ -39,9 +45,80 @@ void UDisplayClusterEditorEngine::PreExit()
 	Super::PreExit();
 }
 
-void UDisplayClusterEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InRequestParams)
+void UDisplayClusterEditorEngine::PlayInEditor(UWorld* InWorld, bool bInSimulateInEditor, FPlayInEditorOverrides Overrides)
 {
-	UE_LOG(LogDisplayClusterEditorEngine, VeryVerbose, TEXT("UDisplayClusterEditorEngine::StartPlayInEditorSession"));
+	UE_LOG(LogDisplayClusterEditorEngine, VeryVerbose, TEXT("UDisplayClusterEditorEngine::PlayInEditor"));
 
-	Super::StartPlayInEditorSession(InRequestParams);
+	// Find nDisplay root
+	UDisplayClusterRootComponent* RootComponent = nullptr;
+	for (AActor* Actor : InWorld->PersistentLevel->Actors)
+	{
+		if (Actor && !Actor->IsPendingKill())
+		{
+			RootComponent = Actor->FindComponentByClass<UDisplayClusterRootComponent>();
+			if (RootComponent && !RootComponent->IsPendingKill())
+			{
+				UE_LOG(LogDisplayClusterEditorEngine, Log, TEXT("Found root component - %s"), *RootComponent->GetName());
+				break;
+			}
+			else
+			{
+				RootComponent = nullptr;
+			}
+		}
+	}
+
+	if (DisplayClusterModule)
+	{
+		// If we found a root component, start DisplayCluster PIE session
+		if (RootComponent)
+		{
+			bIsNDisplayPIE = true;
+
+			if (!DisplayClusterModule->StartSession(RootComponent->GetEditorConfigPath(), RootComponent->GetEditorNodeId()))
+			{
+				UE_LOG(LogDisplayClusterEditorEngine, Error, TEXT("Couldn't start DisplayCluster session"));
+
+				// Couldn't start a new session
+				RequestEndPlayMap();
+				return;
+			}
+
+			DisplayClusterModule->StartScene(InWorld);
+		}
+	}
+
+	Super::PlayInEditor(InWorld, bInSimulateInEditor, Overrides);
+}
+
+void UDisplayClusterEditorEngine::Tick(float DeltaSeconds, bool bIdleMode)
+{
+	if (DisplayClusterModule && bIsActivePIE && bIsNDisplayPIE)
+	{
+		DisplayClusterModule->StartFrame(GFrameCounter);
+		DisplayClusterModule->PreTick(DeltaSeconds);
+		DisplayClusterModule->Tick(DeltaSeconds);
+		DisplayClusterModule->PostTick(DeltaSeconds);
+		DisplayClusterModule->EndFrame(GFrameCounter);
+	}
+
+	Super::Tick(DeltaSeconds, bIdleMode);
+}
+
+void UDisplayClusterEditorEngine::OnBeginPIE(const bool bSimulate)
+{
+	UE_LOG(LogDisplayClusterEditorEngine, VeryVerbose, TEXT("UDisplayClusterEditorEngine::OnBeginPIE"));
+
+	bIsActivePIE = true;
+}
+
+void UDisplayClusterEditorEngine::OnEndPIE(const bool bSimulate)
+{
+	UE_LOG(LogDisplayClusterEditorEngine, VeryVerbose, TEXT("UDisplayClusterEditorEngine::OnEndPIE"));
+
+	bIsActivePIE   = false;
+	bIsNDisplayPIE = false;
+
+	DisplayClusterModule->EndScene();
+	DisplayClusterModule->EndSession();
 }

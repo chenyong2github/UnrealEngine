@@ -108,6 +108,13 @@ struct FConcertAdmin_GetAllSessionsResponse : public FConcertResponseData
 
 	UPROPERTY(VisibleAnywhere, Category="Concert Message")
 	TArray<FConcertSessionInfo> ArchivedSessions;
+
+	/**
+	 * True when the queried server sees the sessions created/archived during its life time and the sessions from previous (now dead) instances.
+	 * Concurrent servers instances will not see the same sessions because sessions files are not-sharable.
+	 */
+	UPROPERTY(VisibleAnywhere, Category="Concert Message")
+	bool bIncludesPreviousInstanceSessions = true;
 };
 
 USTRUCT()

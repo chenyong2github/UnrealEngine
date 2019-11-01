@@ -42,6 +42,8 @@ public:
 		];
 	}
 
+	virtual bool CanChangeContinuously() const override { return true; }
+	
 protected:
 	virtual float GetValue(int32 Index) const = 0;
 

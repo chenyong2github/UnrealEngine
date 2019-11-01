@@ -70,8 +70,10 @@ bool FVulkanLuminPlatform::LoadVulkanInstanceFunctions(VkInstance inInstance)
 	ENUM_VK_ENTRYPOINTS_OPTIONAL_PLATFORM_INSTANCE(CHECK_VK_ENTRYPOINTS);
 
 
+#if VULKAN_HAS_DEBUGGING_ENABLED
 	//#todo-rco: Media textures are not working properly, quick workaround
 	GValidationCvar->Set(2, ECVF_SetByCommandline);
+#endif
 
 	return bFoundAllEntryPoints;
 }
@@ -161,4 +163,53 @@ void FVulkanLuminPlatform::EnablePhysicalDeviceFeatureExtensions(VkDeviceCreateI
 bool FVulkanLuminPlatform::RequiresMobileRenderer()
 {
 	return !FLuminPlatformMisc::ShouldUseDesktopVulkan();
+}
+
+VkBool32 FVulkanLuminPlatform::DebugReportFunction(
+	VkDebugReportFlagsEXT			MsgFlags,
+	VkDebugReportObjectTypeEXT		ObjType,
+	uint64_t						SrcObject,
+	size_t							Location,
+	int32							MsgCode,
+	const ANSICHAR*					LayerPrefix,
+	const ANSICHAR*					Msg,
+	void*							UserData)
+{
+	if (MsgFlags & VK_DEBUG_REPORT_ERROR_BIT_EXT)
+	{
+		if (!FCStringAnsi::Strcmp(LayerPrefix, "ParameterValidation"))
+		{
+			// Function called but its required extension has not been enabled.
+			if (MsgCode == 0xa)
+			{
+				// We don't want to disable all messages that fall into this category, just the ones we wont/cant fix.
+
+				// VK_EXT_debug_marker is not available on lumin unless running through the debugger.
+				if (FCStringAnsi::Strfind(Msg, "VK_EXT_debug_marker") != nullptr)
+				{
+					return VK_FALSE;
+				}
+			}
+		}
+	}
+	else if (MsgFlags & VK_DEBUG_REPORT_WARNING_BIT_EXT)
+	{
+		if (!FCStringAnsi::Strcmp(LayerPrefix, "ParameterValidation"))
+		{
+			// Struct from a private extension used.
+			if (MsgCode == 0x9e1c40d)
+			{
+				// vkCreateImage: pCreateInfo->pNext chain includes a structure with unknown VkStructureType (1000027002); 
+				// Allowed structures are [VkDedicatedAllocationImageCreateInfoNV, VkExternalMemoryImageCreateInfoKHR, VkExternalMemoryImageCreateInfoNV, VkImageFormatListCreateInfoKHR, VkImageSwapchainCreateInfoKHX].
+				// The spec valid usage text states 'Each pNext member of any structure (including this one) in the pNext chain must be either NULL or a pointer to a valid instance of
+				// VkDedicatedAllocationImageCreateInfoNV, VkExternalMemoryImageCreateInfoKHR, VkExternalMemoryImageCreateInfoNV, VkImageFormatListCreateInfoKHR, or VkImageSwapchainCreateInfoKHX'
+				// (https://www.khronos.org/registry/vulkan/specs/1.0/html/vkspec.html#VUID-VkImageCreateInfo-pNext-pNext) This warning is based on the Valid Usage documentation for version 69 of the Vulkan header.
+				// It is possible that you are using a struct from a private extension or an extension that was added to a later version of the Vulkan header, in which case your use of pCreateInfo->pNext is perfectly valid
+				// but is not guaranteed to work correctly with validation enabled.
+				return VK_FALSE;
+			}
+		}
+	}
+
+	return VK_TRUE;
 }

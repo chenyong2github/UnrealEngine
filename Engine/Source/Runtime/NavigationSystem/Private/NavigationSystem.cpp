@@ -32,8 +32,6 @@
 #if WITH_EDITOR
 #include "EditorModeManager.h"
 #include "EditorModes.h"
-#include "Editor/GeometryMode/Public/GeometryEdMode.h"
-#include "Editor/GeometryMode/Public/EditorGeometry.h"
 #include "Editor/LevelEditor/Public/LevelEditor.h"
 #endif
 
@@ -422,28 +420,12 @@ UNavigationSystemV1::UNavigationSystemV1(const FObjectInitializer& ObjectInitial
 		const FTransform RecastToUnrealTransfrom(Recast2UnrealMatrix());
 		SetCoordTransform(ENavigationCoordSystem::Navigation, ENavigationCoordSystem::Unreal, RecastToUnrealTransfrom);
 	}
-
-#if WITH_EDITOR
-	if (GIsEditor && HasAnyFlags(RF_ClassDefaultObject) == false)
-	{
-		FEditorDelegates::EditorModeIDEnter.AddUObject(this, &UNavigationSystemV1::OnEditorModeIDChanged, true);
-		FEditorDelegates::EditorModeIDExit.AddUObject(this, &UNavigationSystemV1::OnEditorModeIDChanged, false);
-	}
-#endif // WITH_EDITOR
 }
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UNavigationSystemV1::~UNavigationSystemV1()
 {
 	CleanUp(FNavigationSystem::ECleanupMode::CleanupUnsafe);
-
-#if WITH_EDITOR
-	if (GIsEditor)
-	{
-		FEditorDelegates::EditorModeIDEnter.RemoveAll(this);
-		FEditorDelegates::EditorModeIDExit.RemoveAll(this);
-	}
-#endif // WITH_EDITOR
 
 #if !UE_BUILD_SHIPPING
 	FCoreDelegates::OnGetOnScreenMessages.RemoveAll(this);
@@ -723,7 +705,7 @@ void UNavigationSystemV1::OnInitializeActors()
 
 void UNavigationSystemV1::OnBeginTearingDown()
 {
-	DestroyNavOctree();
+	CleanUp(FNavigationSystem::ECleanupMode::CleanupWithWorld);
 }
 
 void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
@@ -1975,6 +1957,11 @@ UNavigationSystemV1::ERegistrationResult UNavigationSystemV1::RegisterNavData(AN
 	// care needs to be taken to not make it implement navigation for agent who's real implementation has 
 	// not been loaded yet.
 
+	if (Result == RegistrationSuccessful && CrowdManager != nullptr)
+	{
+		CrowdManager->OnNavDataRegistered(*NavData);
+	}
+
 	return Result;
 }
 
@@ -1992,6 +1979,11 @@ void UNavigationSystemV1::UnregisterNavData(ANavigationData* NavData)
 	FScopeLock Lock(&NavDataRegistration);
 	NavDataRegistrationQueue.Remove(NavData);
 	NavData->OnUnregistered();
+
+	if (CrowdManager != nullptr)
+	{
+		CrowdManager->OnNavDataUnregistered(*NavData);
+	}
 }
 
 void UNavigationSystemV1::RegisterCustomLink(INavLinkCustomInterface& CustomLink)
@@ -2759,47 +2751,6 @@ void UNavigationSystemV1::UpdateLevelCollision(ULevel* InLevel)
 		OnLevelAddedToWorld(InLevel, World);
 	}
 }
-
-void UNavigationSystemV1::OnEditorModeChanged(FEdMode* Mode, bool IsEntering)
-{
-	if (Mode == NULL)
-	{
-		return;
-	}
-
-	if (IsEntering == false && Mode->GetID() == FBuiltinEditorModes::EM_Geometry)
-	{
-		// check if any of modified brushes belongs to an ANavMeshBoundsVolume
-		FEdModeGeometry* GeometryMode = (FEdModeGeometry*)Mode;
-		for (auto GeomObjectIt = GeometryMode->GeomObjectItor(); GeomObjectIt; GeomObjectIt++)
-		{
-			ANavMeshBoundsVolume* Volume = Cast<ANavMeshBoundsVolume>((*GeomObjectIt)->GetActualBrush());
-			if (Volume)
-			{
-				OnNavigationBoundsUpdated(Volume);
-			}
-		}
-	}
-}
-
-void UNavigationSystemV1::OnEditorModeIDChanged(const FEditorModeID& ModeID, bool IsEntering)
-{
-	if (IsEntering == false && ModeID == FBuiltinEditorModes::EM_Geometry)
-	{
-		// check if any of modified brushes belongs to an ANavMeshBoundsVolume
-		FEdMode* Mode = GLevelEditorModeTools().GetActiveMode(ModeID);
-		FEdModeGeometry* GeometryMode = (FEdModeGeometry*)Mode;
-		for (auto GeomObjectIt = GeometryMode->GeomObjectItor(); GeomObjectIt; GeomObjectIt++)
-		{
-			ANavMeshBoundsVolume* Volume = Cast<ANavMeshBoundsVolume>((*GeomObjectIt)->GetActualBrush());
-			if (Volume)
-			{
-				OnNavigationBoundsUpdated(Volume);
-			}
-		}
-	}
-}
-
 #endif
 
 void UNavigationSystemV1::OnNavigationBoundsUpdated(ANavMeshBoundsVolume* NavVolume)
@@ -3216,7 +3167,7 @@ ANavigationData* UNavigationSystemV1::CreateNavigationDataInstanceInLevel(const 
 			// temporary solution to make sure we don't try to change name while there's already
 			// an object with this name
 			UObject* ExistingObject = StaticFindObject(/*Class=*/ NULL, Instance->GetOuter(), *StrName, true);
-			if (ExistingObject != NULL)
+			while (ExistingObject != NULL)
 			{
 				ANavigationData* ExistingNavigationData = Cast<ANavigationData>(ExistingObject);
 				if (ExistingNavigationData)
@@ -3224,7 +3175,11 @@ ANavigationData* UNavigationSystemV1::CreateNavigationDataInstanceInLevel(const 
 					UnregisterNavData(ExistingNavigationData);
 				}
 
+				// Reset the existing object's name
 				ExistingObject->Rename(NULL, NULL, REN_DontCreateRedirectors | REN_ForceGlobalUnique | REN_DoNotDirty | REN_NonTransactional | REN_ForceNoResetLoaders);
+				// see if there's another one, it does happen when undo/redoing 
+				// nav instance deletion in the editor
+				ExistingObject = StaticFindObject(/*Class=*/ NULL, Instance->GetOuter(), *StrName, true);
 			}
 
 			// Set descriptive name

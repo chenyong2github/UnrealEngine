@@ -4,36 +4,47 @@
 
 #include "CoreMinimal.h"
 
-#include "CADLibraryOptions.h"
-#include "DatasmithImportOptions.h"
-#include "DatasmithCADTranslatorImpl.h"
-#include "Translators/DatasmithTranslator.h"
+#include "DatasmithCoreTechTranslator.h"
+
+#ifdef CAD_LIBRARY
+#include "CADOptions.h"
+#include "DatasmithDispatcher.h"
+#include "DatasmithMeshBuilder.h"
+#include "DatasmithSceneGraphBuilder.h"
+#endif // CAD_LIBRARY
+
 #include "UObject/ObjectMacros.h"
 
-class FDatasmithCADTranslatorImpl;
+class IDatasmithMeshElement;
 
-
-class FDatasmithCADTranslator : public IDatasmithTranslator
+class FDatasmithCADTranslator : public FDatasmithCoreTechTranslator
 {
 public:
-	FDatasmithCADTranslator();
-
 	virtual FName GetFName() const override { return "DatasmithCADTranslator"; };
 
+#ifndef CAD_LIBRARY
+	virtual void Initialize(FDatasmithTranslatorCapabilities& OutCapabilities) override { OutCapabilities.bIsEnabled = false; }
+#else
+	FDatasmithCADTranslator();
 	virtual void Initialize(FDatasmithTranslatorCapabilities& OutCapabilities) override;
 
 	virtual bool IsSourceSupported(const FDatasmithSceneSource& Source) override;
 
 	virtual bool LoadScene(TSharedRef<IDatasmithScene> OutScene) override;
+
 	virtual void UnloadScene() override;
 
 	virtual bool LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload& OutMeshPayload) override;
 
-	virtual void GetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options) override;
 	virtual void SetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options) override;
 
 private:
-	TSharedPtr<FDatasmithCADTranslatorImpl> Translator;
-	FDatasmithTessellationOptions TessellationOptions;
+	TMap<FString, FString> CADFileToUE4GeomMap;
+	TMap< TSharedPtr< IDatasmithMeshElement >, uint32 > MeshElementToCADBRepUuidMap;
+
+	CADLibrary::FImportParameters ImportParameters;
+
+	TUniquePtr<FDatasmithMeshBuilder> MeshBuilderPtr;
+#endif
 };
 

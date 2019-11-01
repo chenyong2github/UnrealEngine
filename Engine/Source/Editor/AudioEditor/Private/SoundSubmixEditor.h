@@ -1,29 +1,26 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
+#include "AudioEditorModule.h"
 #include "GraphEditor.h"
-#include "ISoundSubmixEditor.h"
 #include "EditorUndoClient.h"
+#include "Framework/Docking/TabManager.h"
+#include "ISoundSubmixEditor.h"
+#include "Toolkits/IToolkitHost.h"
+#include "UObject/Object.h"
+#include "Widgets/Docking/SDockableTab.h"
 
-//////////////////////////////////////////////////////////////////////////
-// FSoundSubmixEditor
 
+// Forward Declarations
+class UEdGraphPin;
 class USoundSubmix;
+class UEdGraph;
 
-class FSoundSubmixEditor :	public ISoundSubmixEditor, 
-							public FGCObject, 
-							public FEditorUndoClient
+class FSoundSubmixEditor : public ISoundSubmixEditor, public FGCObject, public FEditorUndoClient
 {
 public:
-	SLATE_BEGIN_ARGS(FSoundSubmixEditor)
-	{
-	}
-
-	SLATE_END_ARGS()
-
-	virtual void RegisterTabSpawners(const TSharedRef<class FTabManager>& TabManager) override;
-	virtual void UnregisterTabSpawners(const TSharedRef<class FTabManager>& TabManager) override;
+	virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
+	virtual void UnregisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
 
 	/**
 	 * Edits the specified sound submix object
@@ -32,46 +29,57 @@ public:
 	 * @param	InitToolkitHost			When Mode is WorldCentric, this is the level editor instance to spawn this editor within
 	 * @param	ObjectToEdit			The sound submix to edit
 	 */
-	void InitSoundSubmixEditor( const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UObject* ObjectToEdit );
+	void Init(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* ObjectToEdit);
 
-	FSoundSubmixEditor();
 	virtual ~FSoundSubmixEditor();
 
 	/** FGCObject interface */
-	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
-	/** IToolkit interface */
-	virtual FName GetToolkitFName() const override;
+	/** FAssetEditorToolkit interface */
 	virtual FText GetBaseToolkitName() const override;
+	virtual FName GetToolkitFName() const override;
+	virtual FText GetToolkitName() const override;
+	virtual FText GetToolkitToolTipText() const override;
 	virtual FString GetWorldCentricTabPrefix() const override;
 
 	/** @return Returns the color and opacity to use for the color that appears behind the tab text for this toolkit's tab in world-centric mode. */
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
 
 	//~ Begin ISoundSubmixEditor
-	void CreateSoundSubmix(class UEdGraphPin* FromPin, FVector2D Location, const FString& Name) override;
+	void CreateSoundSubmix(UEdGraphPin* FromPin, FVector2D Location, const FString& Name) override;
 	//~ End ISoundSubmixEditor
 
 	/** FEditorUndoClient Interface */
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
 
+	void AddMissingEditableSubmixes();
+
+	/** Select node associated with the provided submix */
+	void SelectSubmixes(TSet<USoundSubmix*>& InSubmixes);
+
+	/** Returns current graph handled by editor */
+	UEdGraph* GetGraph();
+
 private:
 	TSharedRef<SDockTab> SpawnTab_GraphCanvas(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Properties(const FSpawnTabArgs& Args);
 
-private:
 	/** Creates all internal widgets for the tabs to point at */
-	void CreateInternalWidgets();
+	void CreateInternalWidgets(USoundSubmix* InSoundSubmix);
 
 	/** Create new graph editor widget */
-	TSharedRef<SGraphEditor> CreateGraphEditorWidget();
+	TSharedRef<SGraphEditor> CreateGraphEditorWidget(USoundSubmix* InSoundSubmix);
 
 	/** Called when the selection changes in the GraphEditor */
-	void OnSelectedNodesChanged(const TSet<class UObject*>& NewSelection);
+	void OnSelectedNodesChanged(const TSet<UObject*>& NewSelection);
 
 	/** Called to create context menu when right-clicking on graph */
 	FActionMenuContent OnCreateGraphActionMenu(UEdGraph* InGraph, const FVector2D& InNodePosition, const TArray<UEdGraphPin*>& InDraggedPins, bool bAutoExpand, SGraphEditor::FActionMenuClosed InOnMenuClosed);
+
+	/** Adds all children of provided root submix as editable */
+	void AddEditableSubmixChildren(USoundSubmix* RootSubmix);
 
 	/** Select every node in the graph */
 	void SelectAllNodes();
@@ -92,17 +100,14 @@ private:
 	void RedoGraphAction();
 
 private:
-	/** The SoundSubmix asset being inspected */
-	USoundSubmix* SoundSubmix;
-
 	/** List of open tool panels; used to ensure only one exists at any one time */
-	TMap< FName, TWeakPtr<class SDockableTab> > SpawnedToolPanels;
+	TMap<FName, TWeakPtr<SDockableTab>> SpawnedToolPanels;
 
 	/** Graph Editor */
 	TSharedPtr<SGraphEditor> GraphEditor;
 
 	/** Property View */
-	TSharedPtr<class IDetailsView> DetailsView;
+	TSharedPtr<IDetailsView> DetailsView;
 
 	/** Command list for this editor */
 	TSharedPtr<FUICommandList> GraphEditorCommands;

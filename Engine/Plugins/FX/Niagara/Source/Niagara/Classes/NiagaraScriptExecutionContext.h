@@ -66,10 +66,11 @@ struct FNiagaraDataSetExecutionInfo
 		, StartInstance(0)
 		, bUpdateInstanceCount(false)
 	{
+		Reset();
 	}
 
 
-	void Init(FNiagaraDataSet* InDataSet, FNiagaraDataBuffer* InInput, FNiagaraDataBuffer* InOutput, int32 InStartInstance, bool bInUpdateInstanceCount)
+	FORCEINLINE void Init(FNiagaraDataSet* InDataSet, FNiagaraDataBuffer* InInput, FNiagaraDataBuffer* InOutput, int32 InStartInstance, bool bInUpdateInstanceCount)
 	{
 		if (Input)
 		{
@@ -95,11 +96,21 @@ struct FNiagaraDataSetExecutionInfo
 	
 	~FNiagaraDataSetExecutionInfo()
 	{
-		check(Output == nullptr || Output->IsBeingWritten());
+		Reset();
+	}
+
+	FORCEINLINE void Reset()
+	{
 		if (Input)
 		{
 			Input->ReleaseReadRef();
 		}
+
+		DataSet = nullptr;
+		Input = nullptr;
+		Output = nullptr;
+		StartInstance = INDEX_NONE;
+		bUpdateInstanceCount = false;
 	}
 
 	FNiagaraDataSet* DataSet;
@@ -122,7 +133,7 @@ struct FNiagaraScriptExecutionContext
 	/** Parameter store. Contains all data interfaces and a parameter buffer that can be used directly by the VM or GPU. */
 	FNiagaraScriptExecutionParameterStore Parameters;
 
-	TArray<FDataSetMeta> DataSetMetaTable;
+	TArray<FDataSetMeta, TInlineAllocator<4>> DataSetMetaTable;
 
 	TArray<FNiagaraDataSetExecutionInfo, TInlineAllocator<4>> DataSetInfo;
 
@@ -137,7 +148,7 @@ struct FNiagaraScriptExecutionContext
 	void PostTick();
 
 	void BindData(int32 Index, FNiagaraDataSet& DataSet, int32 StartInstance, bool bUpdateInstanceCounts);
-	void BindData(int32 Index, FNiagaraDataBuffer* Input, FNiagaraDataBuffer* Output, int32 StartInstance, bool bUpdateInstanceCounts);
+	void BindData(int32 Index, FNiagaraDataBuffer* Input, int32 StartInstance, bool bUpdateInstanceCounts);
 	bool Execute(uint32 NumInstances);
 
 	const TArray<UNiagaraDataInterface*>& GetDataInterfaces()const { return Parameters.GetDataInterfaces(); }

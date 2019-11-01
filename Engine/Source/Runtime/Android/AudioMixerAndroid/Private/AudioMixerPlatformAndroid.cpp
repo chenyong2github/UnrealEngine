@@ -233,6 +233,8 @@ namespace Audio
 			return false;
 		}
 
+		AudioStreamInfo.DeviceInfo.SampleRate = OpenStreamParams.SampleRate;
+
 		SLresult Result;
 
 		FAudioPlatformSettings PlatformSettings = GetPlatformSettings();
@@ -357,8 +359,7 @@ namespace Audio
  	FAudioPlatformSettings FMixerPlatformAndroid::GetPlatformSettings() const
  	{
 #if WITH_ENGINE
-		const TCHAR* ConfigSection = AudioPluginUtilities::GetPlatformConfigSection(EAudioPlatform::Android);
-		FAudioPlatformSettings PlatformSettings = FAudioPlatformSettings::GetPlatformSettings(ConfigSection);
+		FAudioPlatformSettings PlatformSettings = FAudioPlatformSettings::GetPlatformSettings(FPlatformProperties::GetRuntimeSettingsClassName());
 #else
 		FAudioPlatformSettings PlatformSettings = FAudioPlatformSettings();
 #endif // WITH_ENGINE

@@ -1215,4 +1215,9 @@ private:
 
 	bool ProcessFastForwardPackets(TArrayView<FPlaybackPacket> Packets, const TSet<int32>& LevelIndices);
 	void ProcessPlaybackPackets(TArrayView<FPlaybackPacket> Packets);
+
+	virtual ECreateReplicationChangelistMgrFlags GetCreateReplicationChangelistMgrFlags() const override
+	{
+		return ECreateReplicationChangelistMgrFlags::SkipDeltaCustomState;
+	}
 };

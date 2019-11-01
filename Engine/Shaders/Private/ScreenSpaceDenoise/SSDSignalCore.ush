@@ -17,6 +17,16 @@
 	#define COMPILE_SIGNAL_COLOR_ARRAY 0
 #endif
 
+// Maximum number of indepedendent signal domain that can be denoised at same time.
+#ifndef MAX_SIGNAL_BATCH_SIZE
+	#error Need to specify the number of signal domain being denoised.
+#endif
+
+// Number of sample that can be multiplexed into FSSDSignalSample.
+#ifndef SIGNAL_ARRAY_SIZE
+	#error Need to specify the size of the signal array.
+#endif
+
 
 //------------------------------------------------------- STRUCTURE
 
@@ -54,7 +64,7 @@ struct FSSDSignalSample
 /** Array of signal samples. Technically should be a typedef, but there is a bug in HLSL with the out operator of an array. */
 struct FSSDSignalArray
 {
-	FSSDSignalSample Array[MAX_SIGNAL_MULTIPLEXING];
+	FSSDSignalSample Array[SIGNAL_ARRAY_SIZE];
 };
 
 
@@ -101,8 +111,8 @@ FSSDSignalSample CreateSignalSample()
 FSSDSignalArray CreateSignalArrayFromScalarValue(float Scalar)
 {
 	FSSDSignalArray OutSamples;
-	UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
-	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_MULTIPLEXING; BatchedSignalId++)
+	UNROLL_N(SIGNAL_ARRAY_SIZE)
+	for (uint BatchedSignalId = 0; BatchedSignalId < SIGNAL_ARRAY_SIZE; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = CreateSignalSampleFromScalarValue(Scalar);
 	}
@@ -404,5 +414,40 @@ FSSDSignalSample NormalizeToOneSample(FSSDSignalSample Sample)
 {
 	FSSDSignalSample OutSample = MulSignal(Sample, Sample.SampleCount > 0 ? rcp(Sample.SampleCount) : 0);
 	OutSample.SampleCount = Sample.SampleCount > 0 ? 1 : 0;
+	return OutSample;
+}
+
+FSSDSignalSample WaveBroadcastSignal(const FWaveBroadcastSettings BroadcastSettings, FSSDSignalSample Sample)
+{
+	FSSDSignalSample OutSample;
+	#if COMPILE_SIGNAL_COLOR
+		OutSample.SceneColor = WaveBroadcast(BroadcastSettings, Sample.SceneColor);
+	#endif
+	#if COMPILE_SIGNAL_COLOR_ARRAY
+	{
+		UNROLL_N(COMPILE_SIGNAL_COLOR_ARRAY)
+		for (uint ColorId = 0; ColorId < COMPILE_SIGNAL_COLOR_ARRAY; ColorId++)
+			OutSample.ColorArray[ColorId] = WaveBroadcast(BroadcastSettings, Sample.ColorArray[ColorId]);
+	}
+	#endif
+	#if COMPILE_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 2
+		OutSample.ColorSH.R.V = WaveBroadcast(BroadcastSettings, Sample.ColorSH.R.V);
+		OutSample.ColorSH.G.V = WaveBroadcast(BroadcastSettings, Sample.ColorSH.G.V);
+		OutSample.ColorSH.B.V = WaveBroadcast(BroadcastSettings, Sample.ColorSH.B.V);
+	#elif COMPILE_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 3
+		OutSample.ColorSH.R.V0 = WaveBroadcast(BroadcastSettings, Sample.ColorSH.R.V0);
+		OutSample.ColorSH.R.V1 = WaveBroadcast(BroadcastSettings, Sample.ColorSH.R.V1);
+		OutSample.ColorSH.R.V2 = WaveBroadcast(BroadcastSettings, Sample.ColorSH.R.V2);
+		OutSample.ColorSH.G.V0 = WaveBroadcast(BroadcastSettings, Sample.ColorSH.G.V0);
+		OutSample.ColorSH.G.V1 = WaveBroadcast(BroadcastSettings, Sample.ColorSH.G.V1);
+		OutSample.ColorSH.G.V2 = WaveBroadcast(BroadcastSettings, Sample.ColorSH.G.V2);
+		OutSample.ColorSH.B.V0 = WaveBroadcast(BroadcastSettings, Sample.ColorSH.B.V0);
+		OutSample.ColorSH.B.V1 = WaveBroadcast(BroadcastSettings, Sample.ColorSH.B.V1);
+		OutSample.ColorSH.B.V2 = WaveBroadcast(BroadcastSettings, Sample.ColorSH.B.V2);
+	#endif
+	OutSample.SampleCount        = WaveBroadcast(BroadcastSettings, Sample.SampleCount);
+	OutSample.MissCount          = WaveBroadcast(BroadcastSettings, Sample.MissCount);
+	OutSample.ClosestHitDistance = WaveBroadcast(BroadcastSettings, Sample.ClosestHitDistance);
+	OutSample.WorldBluringRadius = WaveBroadcast(BroadcastSettings, Sample.WorldBluringRadius);
 	return OutSample;
 }

@@ -40,7 +40,7 @@ namespace VulkanRHI
 
 	enum
 	{
-#if PLATFORM_ANDROID || PLATFORM_LUMIN || PLATFORM_LUMINGL4
+#if PLATFORM_ANDROID || PLATFORM_LUMIN
 		NUM_FRAMES_TO_WAIT_BEFORE_RELEASING_TO_OS = 3,
 #else
 		NUM_FRAMES_TO_WAIT_BEFORE_RELEASING_TO_OS = 10,
@@ -822,9 +822,9 @@ namespace VulkanRHI
 		inline FOldResourceAllocation* AllocateBufferMemory(const VkMemoryRequirements& MemoryReqs, VkMemoryPropertyFlags MemoryPropertyFlags, const char* File, uint32 Line)
 		{
 			uint32 TypeIndex = 0;
-			VERIFYVULKANRESULT(DeviceMemoryManager->GetMemoryTypeFromProperties(MemoryReqs.memoryTypeBits, MemoryPropertyFlags, &TypeIndex));
+			VkResult Result = DeviceMemoryManager->GetMemoryTypeFromProperties(MemoryReqs.memoryTypeBits, MemoryPropertyFlags, &TypeIndex);
 			bool bMapped = (MemoryPropertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) == VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-			if (!ResourceTypeHeaps[TypeIndex])
+			if ((Result != VK_SUCCESS) || !ResourceTypeHeaps[TypeIndex])
 			{
 				if ((MemoryPropertyFlags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) == VK_MEMORY_PROPERTY_HOST_CACHED_BIT)
 				{
@@ -840,9 +840,10 @@ namespace VulkanRHI
 
 				// Try another heap type
 				uint32 OriginalTypeIndex = TypeIndex;
-				if (DeviceMemoryManager->GetMemoryTypeFromPropertiesExcluding(MemoryReqs.memoryTypeBits, MemoryPropertyFlags, TypeIndex, &TypeIndex) != VK_SUCCESS)
+				if (DeviceMemoryManager->GetMemoryTypeFromPropertiesExcluding(MemoryReqs.memoryTypeBits, MemoryPropertyFlags, (Result == VK_SUCCESS) ? TypeIndex : (uint32)-1, &TypeIndex) != VK_SUCCESS)
 				{
-					UE_LOG(LogVulkanRHI, Fatal, TEXT("Unable to find alternate type for index %d, MemSize %d, MemPropTypeBits %u, MemPropertyFlags %u, %s(%d)"), OriginalTypeIndex, (uint32)MemoryReqs.size, (uint32)MemoryReqs.memoryTypeBits, (uint32)MemoryPropertyFlags, ANSI_TO_TCHAR(File), Line);
+					UE_LOG(LogVulkanRHI, Fatal, TEXT("Unable to find alternate type for index %d, MemSize %d, MemPropTypeBits %u, MemPropertyFlags %u, %s(%d)"),
+						OriginalTypeIndex, (uint32)MemoryReqs.size, (uint32)MemoryReqs.memoryTypeBits, (uint32)MemoryPropertyFlags, ANSI_TO_TCHAR(File), Line);
 				}
 
 				if (!ResourceTypeHeaps[TypeIndex])
@@ -978,7 +979,7 @@ namespace VulkanRHI
 		FStagingBuffer()
 			: ResourceAllocation(nullptr)
 			, Buffer(VK_NULL_HANDLE)
-			, bCPURead(false)
+			, MemoryReadFlags(VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
 			, BufferSize(0)
 		{
 		}
@@ -1020,7 +1021,7 @@ namespace VulkanRHI
 	protected:
 		TRefCountPtr<FOldResourceAllocation> ResourceAllocation;
 		VkBuffer Buffer;
-		bool bCPURead;
+		VkMemoryPropertyFlagBits MemoryReadFlags;
 		uint32 BufferSize;
 
 		// Owner maintains lifetime
@@ -1049,7 +1050,7 @@ namespace VulkanRHI
 
 		void Deinit();
 
-		FStagingBuffer* AcquireBuffer(uint32 Size, VkBufferUsageFlags InUsageFlags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT, bool bCPURead = false);
+		FStagingBuffer* AcquireBuffer(uint32 Size, VkBufferUsageFlags InUsageFlags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VkMemoryPropertyFlagBits InMemoryReadFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
 		// Sets pointer to nullptr
 		void ReleaseBuffer(FVulkanCmdBuffer* CmdBuffer, FStagingBuffer*& StagingBuffer);

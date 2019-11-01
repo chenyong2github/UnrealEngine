@@ -116,11 +116,13 @@ public:
 		TSharedPtr<ITypedTableView<ItemType>> OwnerTable = OwnerTablePtr.Pin();
 		if (OwnerTable.IsValid())
 		{
-			const ItemType& MyItem = *OwnerTable->Private_ItemFromWidget(this);
-			if (bIsAppearingSelected != OwnerTable->Private_IsItemSelected(MyItem))
+			if (const ItemType* MyItemPtr = GetItemForThis(OwnerTable.ToSharedRef()))
 			{
-				bIsAppearingSelected = !bIsAppearingSelected;
-				OnItemSelectionChanged(bIsAppearingSelected);
+				if (bIsAppearingSelected != OwnerTable->Private_IsItemSelected(*MyItemPtr))
+				{
+					bIsAppearingSelected = !bIsAppearingSelected;
+					OnItemSelectionChanged(bIsAppearingSelected);
+				}
 			}
 		}
 	}
@@ -162,26 +164,36 @@ public:
 
 	virtual bool IsItemExpanded() const override
 	{
-		TSharedPtr<ITypedTableView<ItemType>> OwnerTable = OwnerTablePtr.Pin();
-		const ItemType& MyItem = *OwnerTable->Private_ItemFromWidget(this);
-		return OwnerTable->Private_IsItemExpanded(MyItem);
+		TSharedRef<ITypedTableView<ItemType>> OwnerTable = OwnerTablePtr.Pin().ToSharedRef();
+		if (const ItemType* MyItemPtr = GetItemForThis(OwnerTable))
+		{
+			return OwnerTable->Private_IsItemExpanded(*MyItemPtr);
+		}
+
+		return false;
 	}
 
 	virtual void ToggleExpansion() override
 	{
-		TSharedPtr<ITypedTableView<ItemType>> OwnerTable = OwnerTablePtr.Pin();
+		TSharedRef<ITypedTableView<ItemType>> OwnerTable = OwnerTablePtr.Pin().ToSharedRef();
 		if (OwnerTable->Private_DoesItemHaveChildren(IndexInList))
 		{
-			const ItemType& MyItem = *OwnerTable->Private_ItemFromWidget(this);
-			OwnerTable->Private_SetItemExpansion(MyItem, !OwnerTable->Private_IsItemExpanded(MyItem));
+			if (const ItemType* MyItemPtr = GetItemForThis(OwnerTable))
+			{
+				OwnerTable->Private_SetItemExpansion(*MyItemPtr, !OwnerTable->Private_IsItemExpanded(*MyItemPtr));
+			}
 		}
 	}
 
 	virtual bool IsItemSelected() const override
 	{
-		TSharedPtr<ITypedTableView<ItemType>> OwnerTable = OwnerTablePtr.Pin();
-		const ItemType& MyItem = *OwnerTable->Private_ItemFromWidget(this);
-		return OwnerTable->Private_IsItemSelected(MyItem);
+		TSharedRef<ITypedTableView<ItemType>> OwnerTable = OwnerTablePtr.Pin().ToSharedRef();
+		if (const ItemType* MyItemPtr = GetItemForThis(OwnerTable))
+		{
+			return OwnerTable->Private_IsItemSelected(*MyItemPtr);
+		}
+
+		return false;
 	}
 
 	virtual TBitArray<> GetWiresNeededByDepth() const override
@@ -222,9 +234,12 @@ public:
 		if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 		{
 			TSharedRef<ITypedTableView<ItemType>> OwnerTable = OwnerTablePtr.Pin().ToSharedRef();
-			OwnerTable->Private_OnItemDoubleClicked(*OwnerTable->Private_ItemFromWidget(this));
-			
-			return FReply::Handled();
+
+			if (const ItemType* MyItemPtr = GetItemForThis(OwnerTable))
+			{
+				OwnerTable->Private_OnItemDoubleClicked(*MyItemPtr);
+				return FReply::Handled();
+			}
 		}
 		return FReply::Unhandled();
 	}
@@ -246,33 +261,33 @@ public:
 		{
 			bProcessingSelectionTouch = false;
 			TSharedRef<ITypedTableView<ItemType>> OwnerTable = OwnerTablePtr.Pin().ToSharedRef();
-			if (const ItemType* MyItem = OwnerTable->Private_ItemFromWidget(this))
+			if (const ItemType* MyItemPtr = GetItemForThis(OwnerTable))
 			{
 				ESelectionMode::Type SelectionMode = GetSelectionMode();
 				if (SelectionMode != ESelectionMode::None)
 				{
-					const bool bIsSelected = OwnerTable->Private_IsItemSelected(*MyItem);
+					const bool bIsSelected = OwnerTable->Private_IsItemSelected(*MyItemPtr);
 					if (!bIsSelected)
 					{
 						if (SelectionMode != ESelectionMode::Multi)
 						{
 							OwnerTable->Private_ClearSelection();
 						}
-						OwnerTable->Private_SetItemSelection(*MyItem, true, true);
+						OwnerTable->Private_SetItemSelection(*MyItemPtr, true, true);
 						OwnerTable->Private_SignalSelectionChanged(ESelectInfo::OnMouseClick);
 
 						Reply = FReply::Handled();
 					}
 					else if (SelectionMode == ESelectionMode::SingleToggle || SelectionMode == ESelectionMode::Multi)
 					{
-						OwnerTable->Private_SetItemSelection(*MyItem, true, true);
+						OwnerTable->Private_SetItemSelection(*MyItemPtr, true, true);
 						OwnerTable->Private_SignalSelectionChanged(ESelectInfo::OnMouseClick);
 
 						Reply = FReply::Handled();
 					}
 				}
 
-				if (OwnerTable->Private_OnItemClicked(*MyItem))
+				if (OwnerTable->Private_OnItemClicked(*MyItemPtr))
 				{
 					Reply = FReply::Handled();
 				}
@@ -314,15 +329,18 @@ public:
 				if (IsItemSelectable())
 				{
 					// New selections are handled on mouse down, deselection is handled on mouse up
-					const ItemType& MyItem = *OwnerTable->Private_ItemFromWidget(this);
-					if (!OwnerTable->Private_IsItemSelected(MyItem))
+					if (const ItemType* MyItemPtr = GetItemForThis(OwnerTable))
 					{
-						if (SelectionMode != ESelectionMode::Multi)
+						const ItemType& MyItem = *MyItemPtr;
+						if (!OwnerTable->Private_IsItemSelected(MyItem))
 						{
-							OwnerTable->Private_ClearSelection();
+							if (SelectionMode != ESelectionMode::Multi)
+							{
+								OwnerTable->Private_ClearSelection();
+							}
+							OwnerTable->Private_SetItemSelection(MyItem, true, true);
+							bChangedSelectionOnMouseDown = true;
 						}
-						OwnerTable->Private_SetItemSelection(MyItem, true, true);
-						bChangedSelectionOnMouseDown = true;
 					}
 				}
 
@@ -341,61 +359,64 @@ public:
 		FReply Reply = SObjectWidget::OnMouseButtonUp(MyGeometry, MouseEvent);
 
 		TSharedRef<ITypedTableView<ItemType>> OwnerTable = OwnerTablePtr.Pin().ToSharedRef();
-		const ItemType* MyItem = OwnerTable->Private_ItemFromWidget(this);
-		if (!Reply.IsEventHandled() && MyItem)
+
+		if (!Reply.IsEventHandled())
 		{
-			const ESelectionMode::Type SelectionMode = GetSelectionMode();
-			if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && HasMouseCapture())
+			if (const ItemType* MyItemPtr = GetItemForThis(OwnerTable))
 			{
-				bool bSignalSelectionChanged = bChangedSelectionOnMouseDown;
-				if (IsItemSelectable() && MyGeometry.IsUnderLocation(MouseEvent.GetScreenSpacePosition()))
+				const ESelectionMode::Type SelectionMode = GetSelectionMode();
+				if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && HasMouseCapture())
 				{
-					if (SelectionMode == ESelectionMode::SingleToggle)
+					bool bSignalSelectionChanged = bChangedSelectionOnMouseDown;
+					if (IsItemSelectable() && MyGeometry.IsUnderLocation(MouseEvent.GetScreenSpacePosition()))
 					{
-						OwnerTable->Private_ClearSelection();
-						bSignalSelectionChanged = true;
+						if (SelectionMode == ESelectionMode::SingleToggle)
+						{
+							OwnerTable->Private_ClearSelection();
+							bSignalSelectionChanged = true;
+						}
+						else if (SelectionMode == ESelectionMode::Multi &&
+							OwnerTable->Private_GetNumSelectedItems() > 1 &&
+							OwnerTable->Private_IsItemSelected(*MyItemPtr))
+						{
+							// Releasing mouse over one of the multiple selected items - leave this one as the sole selected item
+							OwnerTable->Private_ClearSelection();
+							OwnerTable->Private_SetItemSelection(*MyItemPtr, true, true);
+							bSignalSelectionChanged = true;
+						}
 					}
-					else if (SelectionMode == ESelectionMode::Multi &&
-						OwnerTable->Private_GetNumSelectedItems() > 1 &&
-						OwnerTable->Private_IsItemSelected(*MyItem))
+
+					if (bSignalSelectionChanged)
 					{
-						// Releasing mouse over one of the multiple selected items - leave this one as the sole selected item
-						OwnerTable->Private_ClearSelection();
-						OwnerTable->Private_SetItemSelection(*MyItem, true, true);
-						bSignalSelectionChanged = true;
-					}
-				}
-
-				if (bSignalSelectionChanged)
-				{
-					OwnerTable->Private_SignalSelectionChanged(ESelectInfo::OnMouseClick);
-					Reply = FReply::Handled();
-				}
-
-				if (OwnerTable->Private_OnItemClicked(*MyItem))
-				{
-					Reply = FReply::Handled();
-				}
-
-				Reply = Reply.ReleaseMouseCapture();
-			}
-			else if (SelectionMode != ESelectionMode::None && MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
-			{
-				// Ignore the right click release if it was being used for scrolling
-				TSharedRef<STableViewBase> OwnerTableViewBase = StaticCastSharedRef<SListView<ItemType>>(OwnerTable);
-				if (!OwnerTableViewBase->IsRightClickScrolling())
-				{
-					if (IsItemSelectable() && !OwnerTable->Private_IsItemSelected(*MyItem))
-					{
-						// If this item isn't selected, it becomes the sole selected item. Otherwise we leave selection untouched.
-						OwnerTable->Private_ClearSelection();
-						OwnerTable->Private_SetItemSelection(*MyItem, true, true);
 						OwnerTable->Private_SignalSelectionChanged(ESelectInfo::OnMouseClick);
+						Reply = FReply::Handled();
 					}
 
-					OwnerTable->Private_OnItemRightClicked(*MyItem, MouseEvent);
+					if (OwnerTable->Private_OnItemClicked(*MyItemPtr))
+					{
+						Reply = FReply::Handled();
+					}
 
-					Reply = FReply::Handled();
+					Reply = Reply.ReleaseMouseCapture();
+				}
+				else if (SelectionMode != ESelectionMode::None && MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
+				{
+					// Ignore the right click release if it was being used for scrolling
+					TSharedRef<STableViewBase> OwnerTableViewBase = StaticCastSharedRef<SListView<ItemType>>(OwnerTable);
+					if (!OwnerTableViewBase->IsRightClickScrolling())
+					{
+						if (IsItemSelectable() && !OwnerTable->Private_IsItemSelected(*MyItemPtr))
+						{
+							// If this item isn't selected, it becomes the sole selected item. Otherwise we leave selection untouched.
+							OwnerTable->Private_ClearSelection();
+							OwnerTable->Private_SetItemSelection(*MyItemPtr, true, true);
+							OwnerTable->Private_SignalSelectionChanged(ESelectInfo::OnMouseClick);
+						}
+
+						OwnerTable->Private_OnItemRightClicked(*MyItemPtr, MouseEvent);
+
+						Reply = FReply::Handled();
+					}
 				}
 			}
 		}
@@ -407,15 +428,16 @@ public:
 protected:
 	virtual void InitializeObjectRow()
 	{
-		TSharedPtr<ITypedTableView<ItemType>> OwnerTable = OwnerTablePtr.Pin();
-		const ItemType& MyItem = *OwnerTable->Private_ItemFromWidget(this);
-		
-		InitObjectRowInternal(*WidgetObject, MyItem);
-
-		// Unselectable items should never be selected
-		if (!ensure(!OwnerTable->Private_IsItemSelected(MyItem) || IsItemSelectable()))
+		TSharedRef<ITypedTableView<ItemType>> OwnerTable = OwnerTablePtr.Pin().ToSharedRef();
+		if (const ItemType* MyItemPtr = GetItemForThis(OwnerTable))
 		{
-			OwnerTable->Private_SetItemSelection(MyItem, false, false);
+			InitObjectRowInternal(*WidgetObject, *MyItemPtr);
+
+			// Unselectable items should never be selected
+			if (!ensure(!OwnerTable->Private_IsItemSelected(*MyItemPtr) || IsItemSelectable()))
+			{
+				OwnerTable->Private_SetItemSelection(*MyItemPtr, false, false);
+			}
 		}
 	}
 
@@ -440,6 +462,21 @@ protected:
 	{
 		IUserListEntry* NativeListEntryImpl = Cast<IUserListEntry>(WidgetObject);
 		return NativeListEntryImpl ? NativeListEntryImpl->IsListItemSelectable() : true;
+	}
+
+	const ItemType* GetItemForThis(const TSharedRef<ITypedTableView<ItemType>>& OwnerTable) const
+	{
+		const ItemType* MyItemPtr = OwnerTable->Private_ItemFromWidget(this);
+		if (MyItemPtr)
+		{
+			return MyItemPtr;
+		}
+		else
+		{
+			checkf(OwnerTable->Private_IsPendingRefresh(), TEXT("We were unable to find the item for this widget.  If it was removed from the source collection, the list should be pending a refresh."));
+		}
+
+		return nullptr;
 	}
 
 	FOnRowHovered OnHovered;

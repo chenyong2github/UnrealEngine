@@ -7,7 +7,6 @@
 #include "DatasmithDeltaGenLog.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithVariantElements.h"
-#include "PropertyValue.h"
 
 namespace FDeltaGenVariantConverterImpl
 {
@@ -33,6 +32,12 @@ namespace FDeltaGenVariantConverterImpl
 			// It doesn't matter if there are multiple captures to the same property, as only one UPropertyCapture is ever created
 			if (TSharedPtr<IDatasmithActorBindingElement>* FoundBindingInB = BindingsInB.Find(Actor))
 			{
+				// Don't merge a binding into itself
+				if (BindingFromA == *FoundBindingInB)
+				{
+					continue;
+				}
+
 				for (int32 PropIndex = 0; PropIndex < BindingFromA->GetPropertyCapturesCount(); ++PropIndex)
 				{
 					TSharedPtr<IDatasmithBasePropertyCaptureElement> PropertyCapture = BindingFromA->GetPropertyCapture(PropIndex);
@@ -123,15 +128,15 @@ TSharedPtr<IDatasmithLevelVariantSetsElement> FDeltaGenVariantConverter::Convert
 					FVector Scale = FVector(1.0f, 1.0f, 1.0f);
 
 					TSharedPtr<IDatasmithPropertyCaptureElement> LocationProperty = FDatasmithSceneFactory::CreatePropertyCapture();
-					LocationProperty->SetCategory(EPropertyValueCategory::RelativeLocation);
+					LocationProperty->SetCategory(EDatasmithPropertyCategory::RelativeLocation);
 					LocationProperty->SetRecordedData((uint8*)&Location, sizeof(FVector));
 
 					TSharedPtr<IDatasmithPropertyCaptureElement> RotationProperty = FDatasmithSceneFactory::CreatePropertyCapture();
-					RotationProperty->SetCategory(EPropertyValueCategory::RelativeRotation);
+					RotationProperty->SetCategory(EDatasmithPropertyCategory::RelativeRotation);
 					RotationProperty->SetRecordedData((uint8*)&Rotation, sizeof(FRotator));
 
 					TSharedPtr<IDatasmithPropertyCaptureElement> ScaleProperty = FDatasmithSceneFactory::CreatePropertyCapture();
-					ScaleProperty->SetCategory(EPropertyValueCategory::RelativeScale3D);
+					ScaleProperty->SetCategory(EDatasmithPropertyCategory::RelativeScale3D);
 					ScaleProperty->SetRecordedData((uint8*)&Scale, sizeof(FVector));
 
 					TSharedPtr<IDatasmithActorBindingElement> Binding = FDatasmithSceneFactory::CreateActorBinding();
@@ -180,7 +185,7 @@ TSharedPtr<IDatasmithLevelVariantSetsElement> FDeltaGenVariantConverter::Convert
 				for (const TSharedPtr<IDatasmithActorElement>& NodeActor : NodeActorsArray)
 				{
 					TSharedPtr<IDatasmithPropertyCaptureElement> PropertyCapture = FDatasmithSceneFactory::CreatePropertyCapture();
-					PropertyCapture->SetCategory(EPropertyValueCategory::Visibility);
+					PropertyCapture->SetCategory(EDatasmithPropertyCategory::Visibility);
 
 					FName OriginalName = NodeActor->GetTagsCount() > 0? FName(NodeActor->GetTag(0)) : NAME_None;
 					bool bVisible = VisibileNodes.Contains(OriginalName);
@@ -243,7 +248,7 @@ TSharedPtr<IDatasmithLevelVariantSetsElement> FDeltaGenVariantConverter::Convert
 						case EObjectSetDataType::Translation:
 						{
 							TSharedPtr<IDatasmithPropertyCaptureElement> LocationProperty = FDatasmithSceneFactory::CreatePropertyCapture();
-							LocationProperty->SetCategory(EPropertyValueCategory::RelativeLocation);
+							LocationProperty->SetCategory(EDatasmithPropertyCategory::RelativeLocation);
 							LocationProperty->SetRecordedData((uint8*)Value.Data.GetData(), sizeof(FVector));
 							Prop = LocationProperty;
 							break;
@@ -251,7 +256,7 @@ TSharedPtr<IDatasmithLevelVariantSetsElement> FDeltaGenVariantConverter::Convert
 						case EObjectSetDataType::Rotation:
 						{
 							TSharedPtr<IDatasmithPropertyCaptureElement> RotationProperty = FDatasmithSceneFactory::CreatePropertyCapture();
-							RotationProperty->SetCategory(EPropertyValueCategory::RelativeRotation);
+							RotationProperty->SetCategory(EDatasmithPropertyCategory::RelativeRotation);
 							RotationProperty->SetRecordedData((uint8*)Value.Data.GetData(), sizeof(FRotator));
 							Prop = RotationProperty;
 							break;
@@ -259,7 +264,7 @@ TSharedPtr<IDatasmithLevelVariantSetsElement> FDeltaGenVariantConverter::Convert
 						case EObjectSetDataType::Scaling:
 						{
 							TSharedPtr<IDatasmithPropertyCaptureElement> ScaleProperty = FDatasmithSceneFactory::CreatePropertyCapture();
-							ScaleProperty->SetCategory(EPropertyValueCategory::RelativeScale3D);
+							ScaleProperty->SetCategory(EDatasmithPropertyCategory::RelativeScale3D);
 							ScaleProperty->SetRecordedData((uint8*)Value.Data.GetData(), sizeof(FVector));
 							Prop = ScaleProperty;
 							break;
@@ -267,7 +272,7 @@ TSharedPtr<IDatasmithLevelVariantSetsElement> FDeltaGenVariantConverter::Convert
 						case EObjectSetDataType::Visibility:
 						{
 							TSharedPtr<IDatasmithPropertyCaptureElement> VisibilityProperty = FDatasmithSceneFactory::CreatePropertyCapture();
-							VisibilityProperty->SetCategory(EPropertyValueCategory::Visibility);
+							VisibilityProperty->SetCategory(EDatasmithPropertyCategory::Visibility);
 							VisibilityProperty->SetRecordedData((uint8*)Value.Data.GetData(), sizeof(bool));
 							Prop = VisibilityProperty;
 							break;
@@ -314,7 +319,7 @@ TSharedPtr<IDatasmithLevelVariantSetsElement> FDeltaGenVariantConverter::Convert
 					bool bIsVisible = (ChildIndex == Option.Selection);
 
 					TSharedPtr<IDatasmithPropertyCaptureElement> VisibilityProperty = FDatasmithSceneFactory::CreatePropertyCapture();
-					VisibilityProperty->SetCategory(EPropertyValueCategory::Visibility);
+					VisibilityProperty->SetCategory(EDatasmithPropertyCategory::Visibility);
 					VisibilityProperty->SetRecordedData((uint8*)&bIsVisible, sizeof(bool));
 
 					TSharedPtr<IDatasmithActorBindingElement> Binding = FDatasmithSceneFactory::CreateActorBinding();
@@ -489,7 +494,7 @@ TSharedPtr<IDatasmithLevelVariantSetsElement> FDeltaGenVariantConverter::Convert
 					NewVarSet->AddVariant(NewVar.ToSharedRef());
 
 					TSharedPtr<IDatasmithPropertyCaptureElement> PropertyCapture = FDatasmithSceneFactory::CreatePropertyCapture();
-					PropertyCapture->SetCategory(EPropertyValueCategory::Visibility);
+					PropertyCapture->SetCategory(EDatasmithPropertyCategory::Visibility);
 					PropertyCapture->SetRecordedData((uint8*)&bOn, sizeof(bool));
 
 					TSharedPtr<IDatasmithActorBindingElement> Binding = FDatasmithSceneFactory::CreateActorBinding();
@@ -522,7 +527,7 @@ TSharedPtr<IDatasmithLevelVariantSetsElement> FDeltaGenVariantConverter::Convert
 					bool bIsVisible = (ChildIndex == static_cast<int32>(Selection));
 
 					TSharedPtr<IDatasmithPropertyCaptureElement> VisibilityProperty = FDatasmithSceneFactory::CreatePropertyCapture();
-					VisibilityProperty->SetCategory(EPropertyValueCategory::Visibility);
+					VisibilityProperty->SetCategory(EDatasmithPropertyCategory::Visibility);
 					VisibilityProperty->SetRecordedData((uint8*)&bIsVisible, sizeof(bool));
 
 					TSharedPtr<IDatasmithActorBindingElement> Binding = FDatasmithSceneFactory::CreateActorBinding();
@@ -558,7 +563,7 @@ TSharedPtr<IDatasmithLevelVariantSetsElement> FDeltaGenVariantConverter::Convert
 				}
 
 				TSharedPtr<IDatasmithObjectPropertyCaptureElement> PropertyCapture = FDatasmithSceneFactory::CreateObjectPropertyCapture();
-				PropertyCapture->SetCategory(EPropertyValueCategory::Material);
+				PropertyCapture->SetCategory(EDatasmithPropertyCategory::Material);
 				PropertyCapture->SetRecordedObject(*DatasmithMaterial);
 
 				TSharedPtr<IDatasmithActorBindingElement> Binding = FDatasmithSceneFactory::CreateActorBinding();

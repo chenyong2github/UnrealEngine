@@ -12,7 +12,7 @@ SamplerState InTextureSampler;
 float4x4 ColorWeights;
 float Gamma;
 
-bool bAlphaOnly;
+uint bAlphaOnly;
 
 #define WRITE_TO_GBUFFER (FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && !FORWARD_SHADING)
 

@@ -41,7 +41,7 @@ namespace AudioModulation
 
 		virtual void OnReleaseSound(ISoundModulatable& Sound) override;
 		virtual void OnReleaseSource(const uint32 SourceId) override;
-		virtual void ProcessControls(const uint32 SourceId, FSoundModulationControls& Controls) override;
+		virtual bool ProcessControls(const uint32 SourceId, FSoundModulationControls& Controls) override;
 		virtual void ProcessModulators(const float Elapsed) override;
 		//~ End IAudioModulation implementation
 

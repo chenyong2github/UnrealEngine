@@ -7,7 +7,7 @@
 #include "UVTools/UVGenerationFlattenMappingTool.h"
 #include "UVTools/UVGenerationToolbar.h"
 #include "UVTools/UVGenerationTool.h"
-#include "UVTools/UVGenerationUtils.h"
+#include "UVTools/UVGenerationSettings.h"
 
 #include "ContentBrowserModule.h"
 #include "Modules/ModuleManager.h"
@@ -170,6 +170,13 @@ TSharedRef<FExtender> FStaticMeshEditorExtensionModule::ExtendStaticMeshEditorTo
 		FMenuExtensionDelegate::CreateStatic(&FUVGenerationToolbar::CreateUVMenu, CommandList, Cast<UStaticMesh>(Objects[0]))
 	);
 
+	Extender->AddMenuExtension(
+		"UVActionOptions",
+		EExtensionHook::First,
+		CommandList,
+		FMenuExtensionDelegate::CreateStatic(&FUVGenerationFlattenMappingToolbar::CreateMenu, CommandList, Cast<UStaticMesh>(Objects[0]))
+	);
+
 	return Extender;
 }
 
@@ -186,13 +193,6 @@ TSharedRef<FExtender> FStaticMeshEditorExtensionModule::ExtendStaticMeshEditorSe
 		EExtensionHook::After,
 		CommandList,
 		FToolBarExtensionDelegate::CreateStatic(&FPolygonEditingToolbar::CreateToolbar, CommandList, Cast<UStaticMesh>(Objects[0]) )
-	);
-
-	Extender->AddToolBarExtension(
-		"Extensions",
-		EExtensionHook::After,
-		CommandList,
-		FToolBarExtensionDelegate::CreateStatic(&FUVGenerationFlattenMappingToolbar::CreateToolbar, CommandList, Cast<UStaticMesh>(Objects[0]))
 	);
 
 	return Extender;

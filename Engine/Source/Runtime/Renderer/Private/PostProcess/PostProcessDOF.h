@@ -10,6 +10,8 @@
 #include "RendererInterface.h"
 #include "PostProcess/RenderingCompositionGraph.h"
 
+FVector4 GetDepthOfFieldParameters(const FPostProcessSettings& PostProcessSettings);
+
 // down sample and setup DOF input
 // ePId_Input0: SceneColor
 // ePId_Input1: SceneDepth
@@ -22,8 +24,6 @@ public:
 		, bNearBlur(bInNearBlur)
 	{}
 	
-	static void ComputeDepthOfFieldParams(const FRenderingCompositePassContext& Context, FVector4 Out[2]);
-
 	// interface FRenderingCompositePass ---------
 
 	virtual void Process(FRenderingCompositePassContext& Context) override;

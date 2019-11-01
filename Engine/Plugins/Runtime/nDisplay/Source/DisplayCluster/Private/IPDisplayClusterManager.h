@@ -3,7 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "DisplayClusterOperationMode.h"
+
+#include "DisplayClusterEnums.h"
 
 
 /**
@@ -40,7 +41,23 @@ public:
 	virtual void EndScene()
 	{ }
 
+	// Called before start every frame
+	virtual void StartFrame(uint64 FrameNum)
+	{ }
+
+	// Called before start every frame
+	virtual void EndFrame(uint64 FrameNum)
+	{ }
+
 	// Called every frame before world Tick
 	virtual void PreTick(float DeltaSeconds)
+	{ }
+
+	// Called every frame during world Tick
+	virtual void Tick(float DeltaSeconds)
+	{ }
+
+	// Called every frame during world Tick
+	virtual void PostTick(float DeltaSeconds)
 	{ }
 };

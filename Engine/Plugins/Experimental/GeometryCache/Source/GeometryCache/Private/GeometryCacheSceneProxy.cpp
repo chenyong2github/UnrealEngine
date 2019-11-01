@@ -155,19 +155,19 @@ FGeometryCacheSceneProxy::FGeometryCacheSceneProxy(UGeometryCacheComponent* Comp
 						{
 							FRayTracingGeometryInitializer Initializer;
 							const int PositionBufferIndex = Section->CurrentPositionBufferIndex != -1 ? Section->CurrentPositionBufferIndex % 2 : 0;
-							Initializer.PositionVertexBuffer = Section->PositionBuffers[PositionBufferIndex].VertexBufferRHI;
 							Initializer.IndexBuffer = Section->IndexBuffer.IndexBufferRHI;
-							Initializer.VertexBufferStride = sizeof(FVector);
-							Initializer.VertexBufferByteOffset = 0;
 							Initializer.TotalPrimitiveCount = 0;
-							Initializer.VertexBufferElementType = VET_Float3;
 							Initializer.GeometryType = RTGT_Triangles;
 							Initializer.bFastBuild = false;
 
 							TArray<FRayTracingGeometrySegment> Segments;
 							for (FGeometryCacheMeshBatchInfo& BatchInfo : Section->MeshData->BatchesInfo)
 							{
-								Segments.Add(FRayTracingGeometrySegment { BatchInfo.StartIndex / 3, BatchInfo.NumTriangles });
+								FRayTracingGeometrySegment Segment;
+								Segment.FirstPrimitive = BatchInfo.StartIndex / 3;
+								Segment.NumPrimitives = BatchInfo.NumTriangles;
+								Segment.VertexBuffer = Section->PositionBuffers[PositionBufferIndex].VertexBufferRHI;
+								Segments.Add(Segment);
 								Initializer.TotalPrimitiveCount += BatchInfo.NumTriangles;
 							}
 
@@ -394,10 +394,20 @@ void FGeometryCacheSceneProxy::GetDynamicMeshElements(const TArray<const FSceneV
 	FColoredMaterialRenderProxy* WireframeMaterialInstance = nullptr;
 	if (bWireframe)
 	{
+		const FEngineShowFlags& EngineShowFlags = ViewFamily.EngineShowFlags;
+		const bool bLevelColorationEnabled = EngineShowFlags.LevelColoration;
+		const bool bPropertyColorationEnabled = EngineShowFlags.PropertyColoration;
+
+		FLinearColor ViewWireframeColor(bLevelColorationEnabled ? GetLevelColor() : GetWireframeColor());
+		if (bPropertyColorationEnabled)
+		{
+			ViewWireframeColor = GetPropertyColor();
+		}
+
 		WireframeMaterialInstance = new FColoredMaterialRenderProxy(
 			GEngine->WireframeMaterial ? GEngine->WireframeMaterial->GetRenderProxy() : nullptr,
-			FLinearColor(0, 0.5f, 1.f)
-			);
+			GetSelectionColor(ViewWireframeColor, !(GIsEditor && EngineShowFlags.Selection) || IsSelected(), IsHovered(), false)
+		);
 
 		Collector.RegisterOneFrameMaterialProxy(WireframeMaterialInstance);
 	}
@@ -557,18 +567,22 @@ void FGeometryCacheSceneProxy::UpdateAnimation(float NewTime, bool bNewLooping, 
 			{
 				const int PositionBufferIndex = Section->CurrentPositionBufferIndex != -1 ? Section->CurrentPositionBufferIndex % 2 : 0;
 
-				Section->RayTracingGeometry.Initializer.PositionVertexBuffer = Section->PositionBuffers[PositionBufferIndex].VertexBufferRHI;
 				Section->RayTracingGeometry.Initializer.IndexBuffer = Section->IndexBuffer.IndexBufferRHI;
 				Section->RayTracingGeometry.Initializer.TotalPrimitiveCount = 0;
 				
-				TArray<FRayTracingGeometrySegment> Segments;
+				TArray<FRayTracingGeometrySegment>& Segments = Section->RayTracingGeometry.Initializer.Segments;
+				Segments.Reset();
+
 				for (FGeometryCacheMeshBatchInfo& BatchInfo : Section->MeshData->BatchesInfo)
 				{
-					Segments.Add(FRayTracingGeometrySegment { BatchInfo.StartIndex / 3, BatchInfo.NumTriangles });
+					FRayTracingGeometrySegment Segment;
+					Segment.FirstPrimitive = BatchInfo.StartIndex / 3;
+					Segment.NumPrimitives = BatchInfo.NumTriangles;
+					Segment.VertexBuffer = Section->PositionBuffers[PositionBufferIndex].VertexBufferRHI;
+
+					Segments.Add(Segment);
 					Section->RayTracingGeometry.Initializer.TotalPrimitiveCount += BatchInfo.NumTriangles;
 				}
-
-				Section->RayTracingGeometry.Initializer.Segments = Segments;
 							
 				Section->RayTracingGeometry.UpdateRHI();
 			}
@@ -1040,7 +1054,7 @@ void FGeomCacheIndexBuffer::InitRHI()
 {
 	FRHIResourceCreateInfo CreateInfo;
 	void* Buffer = nullptr;
-	IndexBufferRHI = RHICreateAndLockIndexBuffer(sizeof(uint32), NumIndices * sizeof(uint32), BUF_Static | BUF_ShaderResource, CreateInfo, Buffer);
+	IndexBufferRHI = RHICreateAndLockIndexBuffer(sizeof(uint32), NumIndices * sizeof(uint32), BUF_Dynamic | BUF_ShaderResource, CreateInfo, Buffer);
 	RHIUnlockIndexBuffer(IndexBufferRHI);
 }
 
@@ -1057,7 +1071,7 @@ void FGeomCacheIndexBuffer::Update(const TArray<uint32> &Indices)
 	{
 		NumIndices = Indices.Num();
 		FRHIResourceCreateInfo CreateInfo;
-		IndexBufferRHI = RHICreateAndLockIndexBuffer(sizeof(uint32), NumIndices * sizeof(uint32), BUF_Static | BUF_ShaderResource, CreateInfo, Buffer);
+		IndexBufferRHI = RHICreateAndLockIndexBuffer(sizeof(uint32), NumIndices * sizeof(uint32), BUF_Dynamic | BUF_ShaderResource, CreateInfo, Buffer);
 	}
 	else
 	{
@@ -1077,7 +1091,7 @@ void FGeomCacheIndexBuffer::UpdateSizeOnly(int32 NewNumIndices)
 	if (NewNumIndices > NumIndices)
 	{
 		FRHIResourceCreateInfo CreateInfo;
-		IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint32), NewNumIndices * sizeof(uint32), BUF_Static | BUF_ShaderResource, CreateInfo);
+		IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint32), NewNumIndices * sizeof(uint32), BUF_Dynamic | BUF_ShaderResource, CreateInfo);
 		NumIndices = NewNumIndices;
 	}
 }

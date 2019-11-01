@@ -366,7 +366,7 @@ TSharedPtr< SWidget > SDeviceProfileEditor::CreateMainDeviceProfilePanel()
 				SNew( STextBlock )
 				.AutoWrapText(true)
 				.Text(LOCTEXT("CreateDeviceProfile", "To create a device profile, edit your project's DefaultDeviceProfiles.ini file. "
-					"Make sure add to or create a section called [DeviceProfileNameAndTypes]. See Engine/Config/BaseDeviceProfiles.ini for examples."))
+					"Make sure to add to or create a section called [DeviceProfileNameAndTypes]. See Engine/Config/BaseDeviceProfiles.ini for examples."))
 			]
 		];
 

@@ -50,7 +50,8 @@ enum class ETextLocation
 	NextPage,
 };
 
-enum class EVirtualKeyboardTrigger
+UENUM(BlueprintType)
+enum class EVirtualKeyboardTrigger : uint8
 {
 	/** Display the virtual keyboard when the widget gains keyboard focus by a pointer action. */
 	OnFocusByPointer,

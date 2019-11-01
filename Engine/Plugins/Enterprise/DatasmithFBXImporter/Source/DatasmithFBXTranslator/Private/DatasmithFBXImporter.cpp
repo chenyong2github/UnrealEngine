@@ -63,16 +63,17 @@ FDatasmithFBXImporter::~FDatasmithFBXImporter()
 {
 }
 
-TArray<FMeshDescription> FDatasmithFBXImporter::GetGeometriesForMeshElement(const TSharedRef<IDatasmithMeshElement> MeshElement)
+void FDatasmithFBXImporter::GetGeometriesForMeshElementAndRelease(const TSharedRef<IDatasmithMeshElement> MeshElement, TArray<FMeshDescription>& OutMeshDescriptions)
 {
 	TSharedPtr<FDatasmithFBXSceneMesh>* FoundMesh = MeshNameToFBXMesh.Find(MeshElement->GetName());
 	if (FoundMesh && (*FoundMesh).IsValid())
 	{
-		return {(*FoundMesh)->MeshDescription};
+		OutMeshDescriptions.Add(MoveTemp((*FoundMesh)->MeshDescription));
 	}
-
-	UE_LOG(LogDatasmithFBXImport, Error, TEXT("Failed to return FMeshDescription object for requested mesh element '%s'"), MeshElement->GetName());
-	return {};
+	else
+	{
+		UE_LOG(LogDatasmithFBXImport, Error, TEXT("Failed to return FMeshDescription object for requested mesh element '%s'"), MeshElement->GetName());
+	}
 }
 
 void FDatasmithFBXImporter::BuildAssetMaps(TSharedRef<IDatasmithScene> Scene, FActorMap& ActorsByOriginalName, FMaterialMap& MaterialsByName)

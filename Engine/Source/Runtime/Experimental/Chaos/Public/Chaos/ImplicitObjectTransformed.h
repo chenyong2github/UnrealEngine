@@ -86,7 +86,7 @@ public:
 	}
 	~TImplicitObjectTransformed() {}
 
-	static ImplicitObjectType GetType()
+	static EImplicitObjectType StaticType()
 	{
 		return ImplicitObjectType::Transformed;
 	}

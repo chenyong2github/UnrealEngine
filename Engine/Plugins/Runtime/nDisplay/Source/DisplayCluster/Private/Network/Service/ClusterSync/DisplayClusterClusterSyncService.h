@@ -43,11 +43,12 @@ private:
 	virtual void WaitForFrameStart() override;
 	virtual void WaitForFrameEnd() override;
 	virtual void WaitForTickEnd() override;
-	virtual void GetDeltaTime(float& DeltaTime) override;
+	virtual void GetDeltaTime(float& DeltaSeconds) override;
 	virtual void GetTimecode(FTimecode& Timecode, FFrameRate& FrameRate) override;
-	virtual void GetSyncData(FDisplayClusterMessage::DataType& Data)  override;
-	virtual void GetInputData(FDisplayClusterMessage::DataType& Data) override;
-	virtual void GetEventsData(FDisplayClusterMessage::DataType& Data) override;
+	virtual void GetSyncData(FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup)  override;
+	virtual void GetInputData(FDisplayClusterMessage::DataType& InputData) override;
+	virtual void GetEventsData(FDisplayClusterMessage::DataType& EventsData) override;
+	virtual void GetNativeInputData(FDisplayClusterMessage::DataType& NativeInputData) override;
 
 private:
 	// Game start sync barrier

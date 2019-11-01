@@ -2223,14 +2223,14 @@ void UPackageMapClient::SetHasQueuedBunches(const FNetworkGUID& NetGUID, bool bH
 
 void UPackageMapClient::Serialize(FArchive& Ar)
 {
-	Super::Serialize(Ar);
+	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "UPackageMapClient::Serialize");
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Super", Super::Serialize(Ar));
 
 	if (Ar.IsCountingMemory())
 	{
 		// TODO: We don't currently track:
 		//		Working Bunches.
-
-		GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "UPackageMapClient::Serialize");
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("NetGUIDExportCountMap", NetGUIDExportCountMap.CountBytes(Ar));
 
@@ -3522,6 +3522,11 @@ void FPackageMapAckState::CountBytes(FArchive& Ar) const
 	NetGUIDAckStatus.CountBytes(Ar);
 	NetFieldExportGroupPathAcked.CountBytes(Ar);
 	NetFieldExportAcked.CountBytes(Ar);
+}
+
+int32 UPackageMapClient::GetNumQueuedBunchNetGUIDs() const
+{
+	return CurrentQueuedBunchNetGUIDs.Num();
 }
 
 void FNetGUIDCache::ConsumeAsyncLoadDelinquencyAnalytics(FNetAsyncLoadDelinquencyAnalytics& Out)

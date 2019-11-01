@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Render/Device/DisplayClusterDeviceMonoscopicBase.h"
-#include "Render/Presentation/DisplayClusterDevicePresentationDX11.h"
 
 
 /**
@@ -11,15 +10,11 @@
  */
 class FDisplayClusterDeviceMonoscopicDX11
 	: public FDisplayClusterDeviceMonoscopicBase
-	, public FDisplayClusterDevicePresentationDX11
 {
 public:
 	FDisplayClusterDeviceMonoscopicDX11();
 	virtual ~FDisplayClusterDeviceMonoscopicDX11();
 
 protected:
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	// FRHICustomPresent
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual bool Present(int32& InOutSyncInterval) override;
+	virtual FDisplayClusterPresentationBase* CreatePresentationObject(FViewport* const Viewport, TSharedPtr<IDisplayClusterRenderSyncPolicy>& SyncPolicy) override;
 };

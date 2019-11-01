@@ -393,33 +393,24 @@ void FPicpProjectionOverlayViewportData::Empty()
 	ViewportUnder.Empty();
 
 	for (auto& It : Cameras)
-		{ It.Empty(); }
+	{
+		It.Empty();
+	}
+	
 	Cameras.Empty();
 }
 
 
 namespace // Helpers
 {
-	FMatrix GetProjectionMatrixAssymetric(float l, float r, float t, float b, float zNear, float zFar)
-	{
-		static const FMatrix FlipZAxisToUE4 = FMatrix(
-			FPlane(1, 0, 0, 0),
-			FPlane(0, 1, 0, 0),
-			FPlane(0, 0, -1, 0),
-			FPlane(0, 0, 1, 1));
-
-		FMatrix ProjectionMatrix = DisplayClusterHelpers::math::GetSafeProjectionMatrix(l, r, t, b, zNear, zFar);
-		return ProjectionMatrix * FlipZAxisToUE4;
-	}
-
 	FMatrix GetProjectionMatrix(float Fov, float ZNear, float ZFar)
 	{
-		float l = float(ZNear*tan(FMath::DegreesToRadians(-Fov / 2)));
-		float r = float(ZNear*tan(FMath::DegreesToRadians(Fov / 2)));
-		float b = float(ZNear*tan(FMath::DegreesToRadians(-Fov / 2)));
-		float t = float(ZNear*tan(FMath::DegreesToRadians(Fov / 2)));
+		const float r = Fov / 2;
+		const float l = -r;
+		const float t = Fov / 2;
+		const float b = -t;
 
-		return GetProjectionMatrixAssymetric(l, r, t, b, ZNear, ZFar);
+		return DisplayClusterHelpers::math::GetProjectionMatrixFromAngles(l, r, t, b, ZNear, ZFar);
 	}
 };
 

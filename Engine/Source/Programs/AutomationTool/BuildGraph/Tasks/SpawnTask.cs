@@ -19,19 +19,19 @@ namespace BuildGraph.Tasks
 	public class SpawnTaskParameters
 	{
 		/// <summary>
-		/// Executable to spawn
+		/// Executable to spawn.
 		/// </summary>
 		[TaskParameter]
 		public string Exe;
 
 		/// <summary>
-		/// Arguments for the newly created process
+		/// Arguments for the newly created process.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string Arguments;
 
 		/// <summary>
-		/// The minimum exit code which is treated as an error.
+		/// The minimum exit code, which is treated as an error.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public int ErrorLevel = 1;

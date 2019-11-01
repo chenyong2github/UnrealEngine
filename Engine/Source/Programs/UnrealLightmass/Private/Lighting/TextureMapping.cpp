@@ -2984,14 +2984,16 @@ void FStaticLightingSystem::ProcessInterpolateTask(FInterpolateIndirectTaskDescr
 				FFullStaticLightingVertex TexelVertex = TexelToVertex.GetFullVertex();
 				FFinalGatherSample IndirectLighting;
 				FFinalGatherSample SecondInterpolatedIndirectLighting;
+				float BackfacingHitsFraction = 0.0f;
+				float BackFaceBackfacingHitsFraction = 1.0f;
 				// Interpolate the indirect lighting from the irradiance cache
 				// Interpolation must succeed since this is the second pass
-				verify(Task->FirstBounceCache->InterpolateLighting(TexelVertex, false, bDebugThisTexel && GeneralSettings.ViewSingleBounceNumber == 1, IrradianceCachingSettings.SkyOcclusionSmoothnessReduction, IndirectLighting, SecondInterpolatedIndirectLighting, Task->MappingContext.DebugCacheRecords));
+				verify(Task->FirstBounceCache->InterpolateLighting(TexelVertex, false, bDebugThisTexel && GeneralSettings.ViewSingleBounceNumber == 1, IrradianceCachingSettings.SkyOcclusionSmoothnessReduction, IndirectLighting, SecondInterpolatedIndirectLighting, BackfacingHitsFraction, Task->MappingContext.DebugCacheRecords));
 
 				// Replace sky occlusion in the lighting sample that will be written into the lightmap with the interpolated sky occlusion using IrradianceCachingSettings.SkyOcclusionSmoothnessReduction
 				IndirectLighting.SkyOcclusion = SecondInterpolatedIndirectLighting.SkyOcclusion;
 				IndirectLighting.StationarySkyLighting = SecondInterpolatedIndirectLighting.StationarySkyLighting;
-
+				
 				if (Task->TextureMapping->Mesh->UsesTwoSidedLighting(TexelToVertex.ElementIndex))
 				{
 					TexelVertex.WorldTangentX = -TexelVertex.WorldTangentX;
@@ -3001,10 +3003,15 @@ void FStaticLightingSystem::ProcessInterpolateTask(FInterpolateIndirectTaskDescr
 					FFinalGatherSample BackFaceIndirectLighting;
 					FFinalGatherSample BackFaceSecondInterpolatedIndirectLighting;
 					// Interpolate indirect lighting for the back face
-					verify(Task->FirstBounceCache->InterpolateLighting(TexelVertex, false, bDebugThisTexel && GeneralSettings.ViewSingleBounceNumber == 1, IrradianceCachingSettings.SkyOcclusionSmoothnessReduction, BackFaceIndirectLighting, BackFaceSecondInterpolatedIndirectLighting, Task->MappingContext.DebugCacheRecords));
+					verify(Task->FirstBounceCache->InterpolateLighting(TexelVertex, false, bDebugThisTexel && GeneralSettings.ViewSingleBounceNumber == 1, IrradianceCachingSettings.SkyOcclusionSmoothnessReduction, BackFaceIndirectLighting, BackFaceSecondInterpolatedIndirectLighting, BackFaceBackfacingHitsFraction, Task->MappingContext.DebugCacheRecords));
 					BackFaceIndirectLighting.SkyOcclusion = BackFaceSecondInterpolatedIndirectLighting.SkyOcclusion;
 					// Average front and back face incident lighting
 					IndirectLighting = (BackFaceIndirectLighting + IndirectLighting) * 0.5f;
+				}
+
+				if (BackfacingHitsFraction > 0.5f && BackFaceBackfacingHitsFraction > 0.5f)
+				{
+					CurrentLightSample.bIsMapped = false;
 				}
 
 				float IndirectOcclusion = 1.0f;

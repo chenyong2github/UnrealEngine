@@ -112,7 +112,7 @@ protected:
 /**
  * Base class for ticker objects
  */
-class FTickerObjectBase
+class CORE_VTABLE FTickerObjectBase
 {
 public:
 

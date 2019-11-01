@@ -100,7 +100,7 @@ void Main(
 	)
 {
 #if PLATFORM_SUPPORTS_RENDERTARGET_WRITE_MASK
-	uint CompositeUIMask = DecodeRTWriteMaskTextureSingle(Input.Position, UIWriteMaskTexture);
+	uint CompositeUIMask = DecodeRTWriteMask(Input.Position, UIWriteMaskTexture, 1);
 	BRANCH
 	if (CompositeUIMask == 0)
 	{

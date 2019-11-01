@@ -80,10 +80,10 @@ namespace AudioModulation
 	}
 #endif // !UE_BUILD_SHIPPING
 
-	void FAudioModulation::ProcessControls(const uint32 SourceId, FSoundModulationControls& Controls)
+	bool FAudioModulation::ProcessControls(const uint32 InSourceId, FSoundModulationControls& OutControls)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AudioModulationProcessControls);
-		Impl->ProcessControls(SourceId, Controls);
+		return Impl->ProcessControls(InSourceId, OutControls);
 	}
 
 	void FAudioModulation::ProcessModulators(const float Elapsed)

@@ -1,5 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-// ..
+// .
 
 #include "CoreMinimal.h"
 #include "MetalShaderFormat.h"
@@ -1113,11 +1113,11 @@ void BuildMetalShaderOutput(
 		{
 			if ((TypedBuffers & (1 << i)) != 0)
 			{
-				check(TypedBufferFormats[i] > Unknown);
-                check(TypedBufferFormats[i] < Max);
+				check(TypedBufferFormats[i] > (uint8)EMetalBufferFormat::Unknown);
+                check(TypedBufferFormats[i] < (uint8)EMetalBufferFormat::Max);
                 if ((TypeMode > EMetalTypeBufferModeRaw)
                 && (TypeMode <= EMetalTypeBufferModeTB)
-                && (TypedBufferFormats[i] < RGB8Sint || TypedBufferFormats[i] > RGB32Float)
+                && (TypedBufferFormats[i] < (uint8)EMetalBufferFormat::RGB8Sint || TypedBufferFormats[i] > (uint8)EMetalBufferFormat::RGB32Float)
                 && (TypeMode == EMetalTypeBufferMode2D || TypeMode == EMetalTypeBufferModeTB || !(TypedUAVs & (1 << i))))
                 {
                 	Header.Bindings.LinearBuffer |= (1 << i);
@@ -2835,8 +2835,19 @@ bool FinalizeLibrary_Metal(FName const& Format, FString const& WorkingDir, FStri
 					FGuid Guid = FGuid::NewGuid();
 					RemoteLibPath = OriginalRemoteLibPath + FString::Printf(TEXT(".%x%x%x%x"), Guid.A, Guid.B, Guid.C, Guid.D);
 				}
-			
-				Params = FString::Printf(TEXT("-o=\"%s\" \"%s\""), *RemoteLibPath, *ArchivePath);
+
+				uint64 XcodeBuildVers = 0;
+				uint16 XcodeVers = GetXcodeVersion(XcodeBuildVers);
+				uint16 XcodeMajorVers = ((XcodeVers >> 8) & 0xff);
+
+				if (XcodeMajorVers >= 11)
+				{
+					Params = FString::Printf(TEXT("-o \"%s\" \"%s\""), *RemoteLibPath, *ArchivePath);
+				}
+				else
+				{
+					Params = FString::Printf(TEXT("-o=\"%s\" \"%s\""), *RemoteLibPath, *ArchivePath);
+				}
 				ReturnCode = 0;
 				Results = TEXT("");
 				Errors = TEXT("");

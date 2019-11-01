@@ -111,7 +111,7 @@ public:
 		/** Returns the size of the member. */
 		inline uint32 GetMemberSize() const
 		{
-			check(BaseType == UBMT_BOOL || BaseType == UBMT_FLOAT32 || BaseType == UBMT_INT32 || BaseType == UBMT_UINT32);
+			check(BaseType == UBMT_FLOAT32 || BaseType == UBMT_INT32 || BaseType == UBMT_UINT32);
 			uint32 ElementSize = sizeof(uint32) * NumRows * NumColumns;
 
 			/** If this an array, the alignment of the element are changed. */
@@ -167,6 +167,9 @@ public:
 		const FShaderParametersMetadata** OutContainingStruct,
 		const FShaderParametersMetadata::FMember** OutMember,
 		int32* ArrayElementId, FString* NamePrefix) const;
+
+	/** Returns the full C++ member name from it's byte offset in the structure. */
+	FString GetFullMemberCodeName(uint16 MemberOffset) const;
 
 	static TLinkedList<FShaderParametersMetadata*>*& GetStructList();
 	/** Speed up finding the uniform buffer by its name */

@@ -169,6 +169,12 @@ public:
 
 	virtual void PostUndo() {}
 
+	/**
+	 * Check to see if this UEdMode wants to disallow AutoSave
+	 * @return true if AutoSave can be applied right now
+	 */
+	virtual bool CanAutoSave() const { return true; }
+
 	virtual void SelectNone();
 	virtual void SelectionChanged() {}
 

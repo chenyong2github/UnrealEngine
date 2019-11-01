@@ -13,19 +13,12 @@ struct FDisasterRecoverySession
 	UPROPERTY()
 	FString LastSessionName;
 
+	/** The ID of the process hosting this client session (The PID if of the process for which the transactions are recorded). */
 	UPROPERTY()
-	int32 ProcessId = 0;
+	int32 HostProcessId = 0;
 
 	UPROPERTY()
 	bool bAutoRestoreLastSession = false;
-
-	/** The PID of the last client that write the file for this session. */
-	UPROPERTY()
-	int32 DisasterRecoveryClientPID = 0;
-
-	/** The PID of the disaster recovery service launched by the client for the session. */
-	UPROPERTY()
-	int32 DisasterRecoveryServicePID = 0;
 };
 
 /**

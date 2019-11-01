@@ -7,27 +7,34 @@
 
 #include "UVGenerationDataprepOperation.generated.h"
 
-UCLASS(Experimental, Category = MeshOperation, Meta = (DisplayName = "Generate Flatten Mapping UVs", ToolTip = "For each static mesh to process, generate a flat UV map in the specified channel"))
+UENUM()
+enum class EUnwrappedUVDatasmithOperationChannelSelection : uint8
+{
+	FirstEmptyChannel UMETA(Tooltip = "Generate the unwrapped UV in the first UV channel that is empty."),
+	SpecifyChannel UMETA(Tooltip = "Manually select the target UV channel for the unwrapped UV generation."),
+};
+
+UCLASS(Experimental, Category = MeshOperation, Meta = (DisplayName = "Generate Unwrapped UVs", ToolTip = "For each static mesh to process, generate an unwrapped UV map in the specified channel"))
 class STATICMESHEDITOREXTENSION_API UUVGenerationFlattenMappingOperation : public UDataprepOperation
 {
 	GENERATED_BODY()
 
 	UUVGenerationFlattenMappingOperation()
-		: UVChannel(0),
-		AngleThreshold(66.f),
-		AreaWeight(0.7f)
+		: ChannelSelection(EUnwrappedUVDatasmithOperationChannelSelection::FirstEmptyChannel),
+		UVChannel(0),
+		AngleThreshold(66.f)
 	{
 	}
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UV Generation Settings", meta = (ToolTip="The UV channel where to generate the flatten mapping", ClampMin = "0", ClampMax = "7")) //Clampmax is from MAX_MESH_TEXTURE_COORDS_MD - 1
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UV Generation Settings")
+	EUnwrappedUVDatasmithOperationChannelSelection ChannelSelection;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UV Generation Settings", meta = (DisplayName = "UV Channel", ToolTip = "The UV channel where to generate the flatten mapping", ClampMin = "0", ClampMax = "7", EditCondition = "ChannelSelection == EUnwrappedUVDatasmithOperationChannelSelection::SpecifyChannel")) //Clampmax is from MAX_MESH_TEXTURE_COORDS_MD - 1
 	int UVChannel;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UV Generation Settings", meta = (ClampMin = "1", ClampMax = "90"))
 	float AngleThreshold;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UV Generation Settings", meta = (ClampMin = "0", ClampMax = "1"))
-	float AreaWeight;
 
 	//~ Begin UDataprepOperation Interface
 public:

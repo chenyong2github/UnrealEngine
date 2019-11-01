@@ -6,6 +6,7 @@
 #include "Streamer.h"
 #include "InputDevice.h"
 #include "PixelStreamerInputComponent.h"
+#include "PixelStreamerDelegates.h"
 #include "SessionMonitorConnection.h"
 #include "SignallingServerConnection.h"
 #include "HUDStats.h"
@@ -14,8 +15,6 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectIterator.h"
-#include "Engine/GameEngine.h"
-#include "Engine/GameViewportClient.h"
 #include "Engine/Texture2D.h"
 #include "Slate/SceneViewport.h"
 #include "Windows/WindowsHWrapper.h"
@@ -33,6 +32,7 @@
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
 #include "Async/Async.h"
+#include "Engine/Engine.h"
 
 #if !UE_BUILD_SHIPPING
 #	include "DrawDebugHelpers.h"
@@ -83,22 +83,34 @@ void FPixelStreamingModule::InitStreamer()
 		return;
 	}
 
+	if (GIsEditor)
+	{
+		FText TitleText = FText::FromString(TEXT("Pixel Streaming Plugin"));
+		FString ErrorString = TEXT("Pixel Streaming Plugin is not supported in editor, but it was explicitly enabled by command-line arguments. Please remove `PixelStreamingIP` and `PixelStreamingPort` args from editor command line.");
+		FText ErrorText = FText::FromString(ErrorString);
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorText, &TitleText);
+		UE_LOG(PixelStreamer, Error, TEXT("%s"), *ErrorString);
+		return;
+	}
+
 	// Check to see if we can use the Pixel Streaming plugin on this platform.
 	// If not then we avoid setting up our delegates to prevent access to the
 	// plugin. Note that Pixel Streaming is not currently performed in the
 	// Editor.
-	if (!GIsEditor && !CheckPlatformCompatibility())
+	if (!CheckPlatformCompatibility())
+	{
+		return;
+	}
+
+	if (!ensure(GEngine != nullptr))
 	{
 		return;
 	}
 
 	// subscribe to engine delegates here for init / framebuffer creation / whatever
-	if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
+	if (FSlateApplication::IsInitialized())
 	{
-		if (FSlateApplication::IsInitialized())
-		{
-			FSlateApplication::Get().GetRenderer()->OnBackBufferReadyToPresent().AddRaw(this, &FPixelStreamingModule::OnBackBufferReady_RenderThread);
-		}
+		FSlateApplication::Get().GetRenderer()->OnBackBufferReadyToPresent().AddRaw(this, &FPixelStreamingModule::OnBackBufferReady_RenderThread);
 	}
 
 	FGameModeEvents::GameModePostLoginEvent.AddRaw(this, &FPixelStreamingModule::OnGameModePostLogin);
@@ -107,6 +119,10 @@ void FPixelStreamingModule::InitStreamer()
 	IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), this);
 
 	FApp::SetUnfocusedVolumeMultiplier(1.0f);
+
+	// Allow Pixel Streaming to broadcast to various delegates bound in the
+	// application-specific blueprint.
+	UPixelStreamerDelegates::CreateInstance();
 
 	// Allow Pixel Streaming to be frozen and a freeze frame image to be used
 	// instead of the video stream.
@@ -147,7 +163,7 @@ void FPixelStreamingModule::InitPlayer()
 		bool bRes = FPlayer::CreateDXManagerAndDevice();
 		if (!bRes)
 		{
-			UE_LOG(PixelPlayer, Warning, TEXT("IbmMediaPlayer failed to create DXGI Manager and Device"));
+			UE_LOG(PixelPlayer, Warning, TEXT("Failed to create DXGI Manager and Device"));
 		}
 	}
 
@@ -158,10 +174,13 @@ void FPixelStreamingModule::InitPlayer()
 /** IModuleInterface implementation */
 void FPixelStreamingModule::StartupModule()
 {
-	// only D3D11 is supported
-	if (GDynamicRHI == nullptr || GDynamicRHI->GetName() != FString(TEXT("D3D11")))
+	// only D3D11/D3D12 is supported
+	if (
+		GDynamicRHI == nullptr ||
+		!(GDynamicRHI->GetName() == FString(TEXT("D3D11")) || GDynamicRHI->GetName() == FString(TEXT("D3D12")))
+		)
 	{
-		UE_LOG(PixelStreaming, Log, TEXT("Only D3D11 Dynamic RHI is supported. Detected %s"), GDynamicRHI != nullptr ? GDynamicRHI->GetName() : TEXT("[null]"));
+		UE_LOG(PixelStreaming, Log, TEXT("Only D3D11/D3D12 Dynamic RHI is supported. Detected %s"), GDynamicRHI != nullptr ? GDynamicRHI->GetName() : TEXT("[null]"));
 		return;
 	}
 

@@ -775,14 +775,6 @@ void FDatasmithVREDImporter::ProcessScene()
 		Processor.OptimizeDuplicatedNodes();
 	}
 
-	if (ImportOptions->bMergeNodes)
-	{
-		Processor.MergeSceneNodes();
-
-		//Call "RemoveEmptyNodes" again after merging, because all nodes which previously had meshes are empty now
-		Processor.RemoveEmptyNodes();
-	}
-
 	Processor.FixMeshNames();
 }
 
@@ -871,16 +863,6 @@ TSharedPtr<IDatasmithActorElement> FDatasmithVREDImporter::ConvertNode(const TSh
 			// Create a mesh
 			MeshNameToFBXMesh.Add(MeshName, ThisMesh);
 			TSharedRef<IDatasmithMeshElement> MeshElement = FDatasmithSceneFactory::CreateMesh(*ThisMesh->Name);
-
-			if (ImportOptions->bGenerateLightmapUVs)
-			{
-				MeshElement->SetLightmapSourceUV(0);
-				MeshElement->SetLightmapCoordinateIndex(-1);
-			}
-			else
-			{
-				MeshElement->SetLightmapCoordinateIndex(0);
-			}
 
 			DatasmithScene->AddMesh(MeshElement);
 		}
@@ -1788,6 +1770,7 @@ TSharedPtr<IDatasmithLevelSequenceElement> FDatasmithVREDImporter::ConvertAnimBl
 
 				if (VisibilityAnimation.IsValid())
 				{
+					VisibilityAnimation->SetPropagateToChildren(true);
 					PopulateVisibilityAnimation(VisibilityAnimation.ToSharedRef().Get(), Curves[0]);
 				}
 			}
@@ -2085,14 +2068,17 @@ bool FDatasmithVREDImporter::SendSceneToDatasmith()
 		for (FCombinedAnimBlock& CombinedBlock : CombinedBlocks)
 		{
 			TSharedPtr<IDatasmithLevelSequenceElement> ConvertedBlock = ConvertAnimBlock(CombinedBlock);
-			DatasmithScene->AddLevelSequence(ConvertedBlock.ToSharedRef());
+			if (ConvertedBlock.IsValid())
+			{
+				DatasmithScene->AddLevelSequence(ConvertedBlock.ToSharedRef());
 
-			FImportedAnim NewImportedAnim;
-			NewImportedAnim.Name = FString(ConvertedBlock->GetName());
-			NewImportedAnim.ImportedSequence = ConvertedBlock;
-			NewImportedAnim.OriginalStartSeconds = CombinedBlock.GetStartSeconds();
-			NewImportedAnim.OriginalEndSeconds = CombinedBlock.GetEndSeconds();
-			ImportedAnimElements.Add(NewImportedAnim.Name, NewImportedAnim);
+				FImportedAnim NewImportedAnim;
+				NewImportedAnim.Name = FString(ConvertedBlock->GetName());
+				NewImportedAnim.ImportedSequence = ConvertedBlock;
+				NewImportedAnim.OriginalStartSeconds = CombinedBlock.GetStartSeconds();
+				NewImportedAnim.OriginalEndSeconds = CombinedBlock.GetEndSeconds();
+				ImportedAnimElements.Add(NewImportedAnim.Name, NewImportedAnim);
+			}
 		}
 
 		TArray<TSharedPtr<IDatasmithLevelSequenceElement>> CreatedClips;
@@ -2100,16 +2086,25 @@ bool FDatasmithVREDImporter::SendSceneToDatasmith()
 
 		for (const TSharedPtr<IDatasmithLevelSequenceElement>& CreatedClip : CreatedClips)
 		{
-			UE_LOG(LogDatasmithVREDImport, Verbose, TEXT("Added clip level sequence '%s' to the scene"), CreatedClip->GetName());
-			DatasmithScene->AddLevelSequence(CreatedClip.ToSharedRef());
+			if (CreatedClip.IsValid())
+			{
+				UE_LOG(LogDatasmithVREDImport, Verbose, TEXT("Added clip level sequence '%s' to the scene"), CreatedClip->GetName());
+				DatasmithScene->AddLevelSequence(CreatedClip.ToSharedRef());
+			}
 		}
 
 		FActorMap ImportedActorsByOriginalName;
 		FMaterialMap ImportedMaterialsByName;
 		BuildAssetMaps(DatasmithScene, ImportedActorsByOriginalName, ImportedMaterialsByName);
 
-		TSharedPtr<IDatasmithLevelVariantSetsElement> LevelVariantSets = FVREDVariantConverter::ConvertVariants(ParsedVariants, ImportedActorsByOriginalName, ImportedMaterialsByName);
-		DatasmithScene->AddLevelVariantSets(LevelVariantSets.ToSharedRef());
+		if (ImportOptions->bImportVar)
+		{
+			TSharedPtr<IDatasmithLevelVariantSetsElement> LevelVariantSets = FVREDVariantConverter::ConvertVariants(ParsedVariants, ImportedActorsByOriginalName, ImportedMaterialsByName);
+			if (LevelVariantSets.IsValid())
+			{
+				DatasmithScene->AddLevelVariantSets(LevelVariantSets.ToSharedRef());
+			}
+		}
 	}
 	else
 	{

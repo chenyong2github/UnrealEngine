@@ -45,8 +45,6 @@
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "Misc/Paths.h"
 
-#include <atomic>
-
 DEFINE_LOG_CATEGORY(LogSteamAudioEditor);
 
 IMPLEMENT_MODULE(SteamAudio::FSteamAudioEditorModule, SteamAudioEditor)

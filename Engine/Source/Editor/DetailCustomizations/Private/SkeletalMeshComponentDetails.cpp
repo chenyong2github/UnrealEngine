@@ -75,21 +75,7 @@ void FSkeletalMeshComponentDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 	DetailBuilder.EditCategory("Physics", FText::GetEmpty(), ECategoryPriority::TypeSpecific);
 	DetailBuilder.HideProperty("bCastStaticShadow", UPrimitiveComponent::StaticClass());
 	DetailBuilder.HideProperty("LightmapType", UPrimitiveComponent::StaticClass());
-	DetailBuilder.EditCategory("Animation", FText::GetEmpty(), ECategoryPriority::Important);
-	if (!FModuleManager::Get().IsModuleLoaded("UEPhysics"))
-	{
-		DetailBuilder.HideProperty("EdgeStiffness");
-		DetailBuilder.HideProperty("BendingStiffness");
-		DetailBuilder.HideProperty("AreaStiffness");
-		DetailBuilder.HideProperty("VolumeStiffness");
-		DetailBuilder.HideProperty("StrainLimitingStiffness");
-		DetailBuilder.HideProperty("ShapeTargetStiffness");
-		DetailBuilder.HideProperty("bUseBendingElements");
-		DetailBuilder.HideProperty("bUseTetrahedralConstraints");
-		DetailBuilder.HideProperty("bUseThinShellVolumeConstraints");
-		DetailBuilder.HideProperty("bUseSelfCollisions");
-		DetailBuilder.HideProperty("bUseContinuousCollisionDetection");
-	}
+	DetailBuilder.EditCategory("Animation", FText::GetEmpty(), ECategoryPriority::Important);	
 
 	PerformInitialRegistrationOfSkeletalMeshes(DetailBuilder);
 

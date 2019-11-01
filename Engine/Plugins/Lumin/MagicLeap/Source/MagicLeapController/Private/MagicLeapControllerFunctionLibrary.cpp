@@ -5,7 +5,7 @@
 #include "MagicLeapController.h"
 #include "IMagicLeapPlugin.h"
 
-bool UMagicLeapControllerFunctionLibrary::PlayLEDPattern(FName MotionSource, EMLControllerLEDPattern LEDPattern, EMLControllerLEDColor LEDColor, float DurationInSec)
+bool UMagicLeapControllerFunctionLibrary::PlayLEDPattern(FName MotionSource, EMagicLeapControllerLEDPattern LEDPattern, EMagicLeapControllerLEDColor LEDColor, float DurationInSec)
 {
 	TSharedPtr<FMagicLeapController> controller = StaticCastSharedPtr<FMagicLeapController>(IMagicLeapControllerPlugin::Get().GetInputDevice());
 	if (controller.IsValid())
@@ -15,7 +15,7 @@ bool UMagicLeapControllerFunctionLibrary::PlayLEDPattern(FName MotionSource, EML
 	return false;
 }
 
-bool UMagicLeapControllerFunctionLibrary::PlayLEDEffect(FName MotionSource, EMLControllerLEDEffect LEDEffect, EMLControllerLEDSpeed LEDSpeed, EMLControllerLEDPattern LEDPattern, EMLControllerLEDColor LEDColor, float DurationInSec)
+bool UMagicLeapControllerFunctionLibrary::PlayLEDEffect(FName MotionSource, EMagicLeapControllerLEDEffect LEDEffect, EMagicLeapControllerLEDSpeed LEDSpeed, EMagicLeapControllerLEDPattern LEDPattern, EMagicLeapControllerLEDColor LEDColor, float DurationInSec)
 {
 	TSharedPtr<FMagicLeapController> controller = StaticCastSharedPtr<FMagicLeapController>(IMagicLeapControllerPlugin::Get().GetInputDevice());
 	if (controller.IsValid())
@@ -25,7 +25,7 @@ bool UMagicLeapControllerFunctionLibrary::PlayLEDEffect(FName MotionSource, EMLC
 	return false;
 }
 
-bool UMagicLeapControllerFunctionLibrary::PlayHapticPattern(FName MotionSource, EMLControllerHapticPattern HapticPattern, EMLControllerHapticIntensity Intensity)
+bool UMagicLeapControllerFunctionLibrary::PlayHapticPattern(FName MotionSource, EMagicLeapControllerHapticPattern HapticPattern, EMagicLeapControllerHapticIntensity Intensity)
 {
 	TSharedPtr<FMagicLeapController> controller = StaticCastSharedPtr<FMagicLeapController>(IMagicLeapControllerPlugin::Get().GetInputDevice());
 	if (controller.IsValid())
@@ -35,7 +35,7 @@ bool UMagicLeapControllerFunctionLibrary::PlayHapticPattern(FName MotionSource, 
 	return false;
 }
 
-bool UMagicLeapControllerFunctionLibrary::SetControllerTrackingMode(EMLControllerTrackingMode TrackingMode)
+bool UMagicLeapControllerFunctionLibrary::SetControllerTrackingMode(EMagicLeapControllerTrackingMode TrackingMode)
 {
 	TSharedPtr<FMagicLeapController> controller = StaticCastSharedPtr<FMagicLeapController>(IMagicLeapControllerPlugin::Get().GetInputDevice());
 	if (controller.IsValid())
@@ -45,14 +45,14 @@ bool UMagicLeapControllerFunctionLibrary::SetControllerTrackingMode(EMLControlle
 	return false;
 }
 
-EMLControllerTrackingMode UMagicLeapControllerFunctionLibrary::GetControllerTrackingMode()
+EMagicLeapControllerTrackingMode UMagicLeapControllerFunctionLibrary::GetControllerTrackingMode()
 {
 	TSharedPtr<FMagicLeapController> controller = StaticCastSharedPtr<FMagicLeapController>(IMagicLeapControllerPlugin::Get().GetInputDevice());
 	if (controller.IsValid())
 	{
 		return controller->GetControllerTrackingMode();
 	}
-	return EMLControllerTrackingMode::InputService;
+	return EMagicLeapControllerTrackingMode::InputService;
 }
 
 FName UMagicLeapControllerFunctionLibrary::GetMotionSourceForHand(EControllerHand Hand)
@@ -92,7 +92,7 @@ bool UMagicLeapControllerFunctionLibrary::SetMotionSourceForHand(EControllerHand
 	return false;
 }
 
-EMLControllerType UMagicLeapControllerFunctionLibrary::GetControllerType(FName MotionSource)
+EMagicLeapControllerType UMagicLeapControllerFunctionLibrary::GetControllerType(FName MotionSource)
 {
 #if WITH_MLSDK
 	TSharedPtr<FMagicLeapController> controller = StaticCastSharedPtr<FMagicLeapController>(IMagicLeapControllerPlugin::Get().GetInputDevice());
@@ -101,20 +101,20 @@ EMLControllerType UMagicLeapControllerFunctionLibrary::GetControllerType(FName M
 		return controller->ControllerMapper.MotionSourceToControllerType(MotionSource);
 	}
 #endif //WITH_MLSDK
-	return EMLControllerType::None;
+	return EMagicLeapControllerType::None;
 }
 
-
-
-
-
-
-
-
-
-
-
-
+bool UMagicLeapControllerFunctionLibrary::IsMLControllerConnected(FName MotionSource)
+{
+#if WITH_MLSDK
+	TSharedPtr<FMagicLeapController> controller = StaticCastSharedPtr<FMagicLeapController>(IMagicLeapControllerPlugin::Get().GetInputDevice());
+	if (controller.IsValid())
+	{
+		return controller->IsMLControllerConnected(MotionSource);
+	}
+#endif //WITH_MLSDK
+	return false;
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 // DEPRECATED FUNCTIONS
@@ -144,17 +144,17 @@ void UMagicLeapControllerFunctionLibrary::InvertControllerMapping()
 #endif //WITH_MLSDK
 }
 
-EMLControllerType UMagicLeapControllerFunctionLibrary::GetMLControllerType(EControllerHand Hand)
+EMagicLeapControllerType UMagicLeapControllerFunctionLibrary::GetMLControllerType(EControllerHand Hand)
 {
 	TSharedPtr<FMagicLeapController> controller = StaticCastSharedPtr<FMagicLeapController>(IMagicLeapControllerPlugin::Get().GetInputDevice());
 	if (controller.IsValid())
 	{
 		return controller->GetMLControllerType(Hand);
 	}
-	return EMLControllerType::None;
+	return EMagicLeapControllerType::None;
 }
 
-bool UMagicLeapControllerFunctionLibrary::PlayControllerLED(EControllerHand Hand, EMLControllerLEDPattern LEDPattern, EMLControllerLEDColor LEDColor, float DurationInSec)
+bool UMagicLeapControllerFunctionLibrary::PlayControllerLED(EControllerHand Hand, EMagicLeapControllerLEDPattern LEDPattern, EMagicLeapControllerLEDColor LEDColor, float DurationInSec)
 {
 	TSharedPtr<FMagicLeapController> controller = StaticCastSharedPtr<FMagicLeapController>(IMagicLeapControllerPlugin::Get().GetInputDevice());
 	if (controller.IsValid())
@@ -164,22 +164,22 @@ bool UMagicLeapControllerFunctionLibrary::PlayControllerLED(EControllerHand Hand
 	return false;
 }
 
-bool UMagicLeapControllerFunctionLibrary::PlayControllerLEDEffect(EControllerHand Hand, EMLControllerLEDEffect LEDEffect, EMLControllerLEDSpeed LEDSpeed, EMLControllerLEDPattern LEDPattern, EMLControllerLEDColor LEDColor, float DurationInSec)
+bool UMagicLeapControllerFunctionLibrary::PlayControllerLEDEffect(EControllerHand Hand, EMagicLeapControllerLEDEffect LEDEffect, EMagicLeapControllerLEDSpeed LEDSpeed, EMagicLeapControllerLEDPattern LEDPattern, EMagicLeapControllerLEDColor LEDColor, float DurationInSec)
 {
-	TSharedPtr<FMagicLeapController> Controller = StaticCastSharedPtr<FMagicLeapController>(IMagicLeapControllerPlugin::Get().GetInputDevice());
-	if (Controller.IsValid())
+	TSharedPtr<FMagicLeapController> controller = StaticCastSharedPtr<FMagicLeapController>(IMagicLeapControllerPlugin::Get().GetInputDevice());
+	if (controller.IsValid())
 	{
-		return Controller->PlayControllerLEDEffect(Hand, LEDEffect, LEDSpeed, LEDPattern, LEDColor, DurationInSec);
+		return controller->PlayControllerLEDEffect(Hand, LEDEffect, LEDSpeed, LEDPattern, LEDColor, DurationInSec);
 	}
 	return false;
 }
 
-bool UMagicLeapControllerFunctionLibrary::PlayControllerHapticFeedback(EControllerHand Hand, EMLControllerHapticPattern HapticPattern, EMLControllerHapticIntensity Intensity)
+bool UMagicLeapControllerFunctionLibrary::PlayControllerHapticFeedback(EControllerHand Hand, EMagicLeapControllerHapticPattern HapticPattern, EMagicLeapControllerHapticIntensity Intensity)
 {
-	TSharedPtr<FMagicLeapController> Controller = StaticCastSharedPtr<FMagicLeapController>(IMagicLeapControllerPlugin::Get().GetInputDevice());
-	if (Controller.IsValid())
+	TSharedPtr<FMagicLeapController> controller = StaticCastSharedPtr<FMagicLeapController>(IMagicLeapControllerPlugin::Get().GetInputDevice());
+	if (controller.IsValid())
 	{
-		return Controller->PlayControllerHapticFeedback(Hand, HapticPattern, Intensity);
+		return controller->PlayControllerHapticFeedback(Hand, HapticPattern, Intensity);
 	}
 	return false;
 }

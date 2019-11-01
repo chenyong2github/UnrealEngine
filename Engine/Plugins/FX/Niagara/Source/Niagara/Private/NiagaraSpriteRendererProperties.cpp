@@ -44,6 +44,8 @@ UNiagaraSpriteRendererProperties::UNiagaraSpriteRendererProperties()
 	, AlphaThreshold(0.1f)
 #endif // WITH_EDITORONLY_DATA
 {
+	FNiagaraTypeDefinition MaterialDef(UMaterialInterface::StaticClass());
+	MaterialUserParamBinding.Parameter.SetType(MaterialDef);
 }
 
 FNiagaraRenderer* UNiagaraSpriteRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter)
@@ -60,7 +62,16 @@ FNiagaraBoundsCalculator* UNiagaraSpriteRendererProperties::CreateBoundsCalculat
 
 void UNiagaraSpriteRendererProperties::GetUsedMaterials(const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials) const
 {
-	OutMaterials.Add(Material);
+	bool bSet = false;
+	if (MaterialUserParamBinding.Parameter.IsValid() && InEmitter->FindBinding(MaterialUserParamBinding, OutMaterials))
+	{
+		bSet = true;
+	}
+
+	if (!bSet)
+	{
+		OutMaterials.Add(Material);
+	}
 }
 
 void UNiagaraSpriteRendererProperties::PostLoad()
@@ -68,6 +79,13 @@ void UNiagaraSpriteRendererProperties::PostLoad()
 	Super::PostLoad();
 
 #if WITH_EDITORONLY_DATA
+
+	if (MaterialUserParamBinding.Parameter.GetType().GetClass() != UMaterialInterface::StaticClass())
+	{
+		FNiagaraTypeDefinition MaterialDef(UMaterialInterface::StaticClass());
+		MaterialUserParamBinding.Parameter.SetType(MaterialDef);
+	}
+
 	if (!FPlatformProperties::RequiresCookedData())
 	{
 		if (CutoutTexture)

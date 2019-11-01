@@ -47,11 +47,11 @@
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID and set this new
 // guid as version
 
-#define TEXTURE_DERIVEDDATA_VER		TEXT("68A083899C6F4316B8CE0E2958EDE2C2")
+#define TEXTURE_DERIVEDDATA_VER		TEXT("0385EF5C8C62402ABCD94730886B0259")
 
 // This GUID is mixed into DDC version for virtual textures only, this allows updating DDC version for VT without invalidating DDC for all textures
 // This is useful during development, but once large numbers of VT are present in shipped content, it will have the same problem as TEXTURE_DERIVEDDATA_VER
-#define TEXTURE_VT_DERIVEDDATA_VER	TEXT("91E2F0C570CD44AAB33CFA9D000BEFAC")
+#define TEXTURE_VT_DERIVEDDATA_VER	TEXT("1F1EB5C2A6054EAEB31E38E85AAD1A33")
 
 #if ENABLE_COOK_STATS
 namespace TextureCookStats
@@ -222,6 +222,12 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 		OutKeySuffix.Append(FString::Printf(TEXT("VT%s_"), TEXTURE_VT_DERIVEDDATA_VER));
 	}
 
+	if (BuildSettings.bOptData)
+	{
+		// Add a flag to signal the platform needs the optional texture data structure
+		OutKeySuffix.Append(TEXT("O_"));
+	}
+
 	// Serialize the compressor settings into a temporary array. The archive
 	// is flagged as persistent so that machines of different endianness produce
 	// identical binary results.
@@ -333,6 +339,7 @@ static void GetTextureBuildSettings(
 	const UTextureLODSettings& TextureLODSettings,
 	bool bPlatformSupportsTextureStreaming,
 	bool bPlatformSupportsVirtualTextureStreaming,
+	bool bPlatformRequiresOptTextureData,
 	FTextureBuildSettings& OutBuildSettings
 	)
 {
@@ -354,6 +361,7 @@ static void GetTextureBuildSettings(
 	OutBuildSettings.bVolume = false;
 	OutBuildSettings.bCubemap = false;
 	OutBuildSettings.bTextureArray = false;
+	OutBuildSettings.bOptData = bPlatformRequiresOptTextureData;
 
 	if (Texture.MaxTextureSize > 0)
 	{
@@ -500,9 +508,10 @@ static void GetBuildSettingsForRunningPlatform(
 		const UTextureLODSettings* LODSettings = (UTextureLODSettings*)UDeviceProfileManager::Get().FindProfile(CurrentPlatform->PlatformName());
 		const bool bPlatformSupportsTextureStreaming = CurrentPlatform->SupportsFeature(ETargetPlatformFeatures::TextureStreaming);
 		const bool bPlatformSupportsVirtualTextureStreaming = CurrentPlatform->SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming);
+		const bool bPlatformRequiresOptTextureData = CurrentPlatform->RequiresOptTextureData();
 
 		FTextureBuildSettings SourceBuildSettings;
-		GetTextureBuildSettings(Texture, *LODSettings, bPlatformSupportsTextureStreaming, bPlatformSupportsVirtualTextureStreaming, SourceBuildSettings);
+		GetTextureBuildSettings(Texture, *LODSettings, bPlatformSupportsTextureStreaming, bPlatformSupportsVirtualTextureStreaming, bPlatformRequiresOptTextureData, SourceBuildSettings);
 
 		TArray< TArray<FName> > PlatformFormats;
 		CurrentPlatform->GetTextureFormats(&Texture, PlatformFormats);
@@ -571,9 +580,10 @@ uint32 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& D
 
 	// Write out individual mips to the derived data cache.
 	const int32 MipCount = DerivedData->Mips.Num();
-	const bool bIsCubemap = (DerivedData->NumSlices > 0);
-	const int32 FirstInlineMip = bIsCubemap ? 0 : FMath::Max(0, MipCount - NUM_INLINE_DERIVED_MIPS);
-	for (int32 MipIndex = 0; MipIndex < MipCount; ++MipIndex)
+	const bool bIsCubemap = DerivedData->IsCubemap();
+	const int32 FirstInlineMip = bIsCubemap ? 0 : FMath::Max(0, MipCount - FMath::Max((int32)NUM_INLINE_DERIVED_MIPS, (int32)DerivedData->GetNumMipsInTail()));
+	const int32 WritableMipCount = MipCount - ((DerivedData->GetNumMipsInTail() > 0) ? (DerivedData->GetNumMipsInTail() - 1) : 0);
+	for (int32 MipIndex = 0; MipIndex < WritableMipCount; ++MipIndex)
 	{
 		FString MipDerivedDataKey;
 		FTexture2DMipMap& Mip = DerivedData->Mips[MipIndex];
@@ -1009,7 +1019,7 @@ bool FTexturePlatformData::TryInlineMipData(int32 FirstMipToLoad)
 FTexturePlatformData::FTexturePlatformData()
 	: SizeX(0)
 	, SizeY(0)
-	, NumSlices(0)
+	, NumSlicesCubemapMask(0)
 	, PixelFormat(PF_Unknown)
 	, VTData(nullptr)
 #if WITH_EDITORONLY_DATA
@@ -1047,6 +1057,7 @@ bool FTexturePlatformData::IsReadyForAsyncPostLoad() const
 bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData)
 {
 	int32 NumMipsCached = 0;
+	const int32 LoadableMips = Mips.Num() - ((GetNumMipsInTail() > 0) ? (GetNumMipsInTail() - 1) : 0);
 
 #if WITH_EDITOR
 	TArray<uint8> TempData;
@@ -1057,7 +1068,7 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData)
 
 	// Handle the case where we inlined more mips than we intend to keep resident
 	// Discard unneeded mips
-	for (int32 MipIndex = 0; MipIndex < FirstMipToLoad && MipIndex < Mips.Num(); ++MipIndex)
+	for (int32 MipIndex = 0; MipIndex < FirstMipToLoad && MipIndex < LoadableMips; ++MipIndex)
 	{
 		FTexture2DMipMap& Mip = Mips[MipIndex];
 		if (Mip.BulkData.IsBulkDataLoaded())
@@ -1068,7 +1079,7 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData)
 	}
 
 	// Load remaining mips (if any) from bulk data.
-	for (int32 MipIndex = FirstMipToLoad; MipIndex < Mips.Num(); ++MipIndex)
+	for (int32 MipIndex = FirstMipToLoad; MipIndex < LoadableMips; ++MipIndex)
 	{
 		FTexture2DMipMap& Mip = Mips[MipIndex];
 		if (Mip.BulkData.GetBulkDataSize() > 0)
@@ -1094,7 +1105,7 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData)
 
 #if WITH_EDITOR
 	// Wait for async DDC gets.
-	for (int32 MipIndex = FirstMipToLoad; MipIndex < Mips.Num(); ++MipIndex)
+	for (int32 MipIndex = FirstMipToLoad; MipIndex < LoadableMips; ++MipIndex)
 	{
 		FTexture2DMipMap& Mip = Mips[MipIndex];
 		if (Mip.DerivedDataKey.IsEmpty() == false)
@@ -1120,10 +1131,10 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData)
 	}
 #endif // #if WITH_EDITOR
 
-	if (NumMipsCached != (Mips.Num() - FirstMipToLoad))
+	if (NumMipsCached != (LoadableMips - FirstMipToLoad))
 	{
 		// Unable to cache all mips. Release memory for those that were cached.
-		for (int32 MipIndex = FirstMipToLoad; MipIndex < Mips.Num(); ++MipIndex)
+		for (int32 MipIndex = FirstMipToLoad; MipIndex < LoadableMips; ++MipIndex)
 		{
 			if (OutMipData && OutMipData[MipIndex - FirstMipToLoad])
 			{
@@ -1164,7 +1175,8 @@ int32 FTexturePlatformData::GetNumNonStreamingMips() const
 		int32 NumNonStreamingMips = 1;
 
 		// Take in to account the min resident limit.
-		NumNonStreamingMips = FMath::Max(NumNonStreamingMips, UTexture2D::GetMinTextureResidentMipCount());
+		NumNonStreamingMips = FMath::Max(NumNonStreamingMips, (int32)GetNumMipsInTail());
+		NumNonStreamingMips = FMath::Max(NumNonStreamingMips, UTexture2D::GetStaticMinTextureResidentMipCount());
 		NumNonStreamingMips = FMath::Min(NumNonStreamingMips, MipCount);
 		int32 BlockSizeX = GPixelFormats[PixelFormat].BlockSizeX;
 		int32 BlockSizeY = GPixelFormats[PixelFormat].BlockSizeY;
@@ -1237,15 +1249,15 @@ static void SerializePlatformData(
 	UTexture* Texture,
 	bool bCooked,
 	bool bStreamable
-	)
+)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER( TEXT("SerializePlatformData"), STAT_Texture_SerializePlatformData, STATGROUP_LoadTime );
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("SerializePlatformData"), STAT_Texture_SerializePlatformData, STATGROUP_LoadTime);
 
 	UEnum* PixelFormatEnum = UTexture::GetPixelFormatEnum();
 
 	Ar << PlatformData->SizeX;
 	Ar << PlatformData->SizeY;
-	Ar << PlatformData->NumSlices;
+	Ar << PlatformData->NumSlicesCubemapMask;
 	if (Ar.IsLoading())
 	{
 		FString PixelFormatString;
@@ -1257,7 +1269,26 @@ static void SerializePlatformData(
 		FString PixelFormatString = PixelFormatEnum->GetNameByValue(PlatformData->PixelFormat).GetPlainNameString();
 		Ar << PixelFormatString;
 	}
-	
+
+	// If we're cooking, check whether the target platform requires optional data, otherwise check the current running platform.
+	// In both cases, always serialize if we have editor only data.
+#if WITH_EDITORONLY_DATA
+	if (Ar.IsCooking())
+	{
+		if (Ar.CookingTarget()->RequiresOptTextureData() || Ar.CookingTarget()->HasEditorOnlyData())
+		{
+			Ar << PlatformData->OptData;
+		}
+	}
+	else 
+#endif
+	{
+		if (FPlatformProperties::RequiresOptTextureData() || FPlatformProperties::HasEditorOnlyData())
+		{
+			Ar << PlatformData->OptData;
+		}
+	}
+
 	int32 NumMips = PlatformData->Mips.Num();
 	int32 FirstMipToSerialize = 0;
 
@@ -1286,12 +1317,15 @@ static void SerializePlatformData(
 			const int32 LODBias = Texture->LODBias;
 			const int32 NumCinematicMipLevels = Texture->NumCinematicMipLevels;
 			const TextureMipGenSettings MipGenSetting = Texture->MipGenSettings;
+			const int32 LastMip = FMath::Max(NumMips - 1, 0);
+			check(NumMips >= (int32)PlatformData->GetNumMipsInTail());
+			const int32 FirstMipTailMip = NumMips - (int32)PlatformData->GetNumMipsInTail();
 
 			FirstMipToSerialize = Ar.CookingTarget()->GetTextureLODSettings().CalculateLODBias(Width, Height, Texture->MaxTextureSize, LODGroup, LODBias, 0, MipGenSetting, bIsVirtual);
 			if (!bIsVirtual)
 			{
-				FirstMipToSerialize = FMath::Clamp(FirstMipToSerialize, 0, FMath::Max(NumMips - 1, 0));
-				NumMips -= FirstMipToSerialize;
+				FirstMipToSerialize = FMath::Clamp(FirstMipToSerialize, 0, PlatformData->GetNumMipsInTail() > 0 ? FirstMipTailMip : LastMip);
+				NumMips = FMath::Max(1, NumMips - FirstMipToSerialize);
 			}
 			else
 			{
@@ -1374,6 +1408,7 @@ static void SerializePlatformData(
 		}
 	}
 	Ar << NumMips;
+	check(NumMips >= (int32)PlatformData->GetNumMipsInTail());
 	if (Ar.IsLoading())
 	{
 		check(FirstMipToSerialize == 0);
@@ -1442,7 +1477,7 @@ void FTexturePlatformData::SerializeCooked(FArchive& Ar, UTexture* Owner, bool b
 			// SizeZ is not the same as NumSlices for texture arrays and cubemaps.
 			if (Owner && Owner->IsA(UVolumeTexture::StaticClass()))
 			{
-				 NumSlices = Mips[0].SizeZ;
+				SetNumSlices(Mips[0].SizeZ);
 			}
 		}
 		else if ( VTData )
@@ -1584,7 +1619,9 @@ void UTexture::BeginCacheForCookedPlatformData( const ITargetPlatform *TargetPla
 		FTextureBuildSettings BuildSettings;
 		const bool bPlatformSupportsTextureStreaming = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::TextureStreaming);
 		const bool bPlatformSupportsVirtualTextureStreaming = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming);
-		GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), bPlatformSupportsTextureStreaming, bPlatformSupportsVirtualTextureStreaming, BuildSettings);
+		const bool bPlatformRequiresOptTextureData = TargetPlatform->RequiresOptTextureData();
+
+		GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), bPlatformSupportsTextureStreaming, bPlatformSupportsVirtualTextureStreaming, bPlatformRequiresOptTextureData, BuildSettings);
 		
 		TArray< TArray<FTextureBuildSettings> > BuildSettingsToCache;
 		GetBuildSettingsPerFormat(*this, BuildSettings, TargetPlatform, BuildSettingsToCache);
@@ -1667,7 +1704,9 @@ void UTexture::ClearCachedCookedPlatformData( const ITargetPlatform* TargetPlatf
 		FTextureBuildSettings BuildSettings;
 		const bool bPlatformSupportsTextureStreaming = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::TextureStreaming);
 		const bool bPlatformSupportsVirtualTextureStreaming = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming);
-		GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), bPlatformSupportsTextureStreaming, bPlatformSupportsVirtualTextureStreaming, BuildSettings);
+		const bool bPlatformRequiresOptTextureData = TargetPlatform->RequiresOptTextureData();
+
+		GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), bPlatformSupportsTextureStreaming, bPlatformSupportsVirtualTextureStreaming, bPlatformRequiresOptTextureData, BuildSettings);
 
 		TArray< TArray<FTextureBuildSettings> > BuildSettingsToCache;
 		GetBuildSettingsPerFormat(*this, BuildSettings, TargetPlatform, BuildSettingsToCache);
@@ -1728,7 +1767,9 @@ bool UTexture::IsCachedCookedPlatformDataLoaded( const ITargetPlatform* TargetPl
 
 	const bool bPlatformSupportsTextureStreaming = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::TextureStreaming);
 	const bool bPlatformSupportsVirtualTextureStreaming = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming);
-	GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), bPlatformSupportsTextureStreaming, bPlatformSupportsVirtualTextureStreaming, BuildSettings);
+	const bool bPlatformRequiresOptTextureData = TargetPlatform->RequiresOptTextureData();
+
+	GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), bPlatformSupportsTextureStreaming, bPlatformSupportsVirtualTextureStreaming, bPlatformRequiresOptTextureData, BuildSettings);
 
 	TArray< TArray<FTextureBuildSettings> > BuildSettingsToCache;
 	GetBuildSettingsPerFormat(*this, BuildSettings, TargetPlatform, BuildSettingsToCache);
@@ -1932,7 +1973,9 @@ void UTexture::SerializeCookedPlatformData(FArchive& Ar)
 			FTextureBuildSettings BuildSettings;
 			const bool bPlatformSupportsTextureStreaming = Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::TextureStreaming);
 			const bool bPlatformSupportsVirtualTextureStreaming = Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming);
-			GetTextureBuildSettings(*this, Ar.CookingTarget()->GetTextureLODSettings(), bPlatformSupportsTextureStreaming, bPlatformSupportsVirtualTextureStreaming, BuildSettings);
+			const bool bPlatformRequiresOptTextureData = Ar.CookingTarget()->RequiresOptTextureData();
+
+			GetTextureBuildSettings(*this, Ar.CookingTarget()->GetTextureLODSettings(), bPlatformSupportsTextureStreaming, bPlatformSupportsVirtualTextureStreaming, bPlatformRequiresOptTextureData, BuildSettings);
 
 			TArray<FTexturePlatformData*> PlatformDataToSerialize;
 

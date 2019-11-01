@@ -16,6 +16,7 @@
 #include "Containers/Queue.h"
 
 class IDisplayClusterPostProcess;
+class FDisplayClusterPresentationBase;
 
 
 /**
@@ -24,7 +25,6 @@ class IDisplayClusterPostProcess;
 class FDisplayClusterDeviceBase
 	: public IStereoRenderTargetManager
 	, public IDisplayClusterRenderDevice
-	, public FRHICustomPresent
 	, protected FDisplayClusterDeviceBase_PostProcess
 {
 public:
@@ -89,25 +89,14 @@ protected:
 	virtual bool AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 Flags, uint32 TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1)
 	{ return false; }
 
-	virtual bool DeviceIsAPrimaryView(EStereoscopicPass Pass) override
+	virtual bool DeviceIsAPrimaryView(const FSceneView& View) override
 	{ return true; }
 	
-	virtual bool DeviceIsASecondaryView(EStereoscopicPass Pass) override
+	virtual bool DeviceIsASecondaryView(const FSceneView& View) override
 	{ return false; }
 
-	virtual bool DeviceIsAnAdditionalView(EStereoscopicPass Pass) override
+	virtual bool DeviceIsAnAdditionalView(const FSceneView& View) override
 	{ return false; }
-
-protected:
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	// FRHICustomPresent
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void OnBackBufferResize() override;
-
-	virtual bool NeedsNativePresent() override
-	{ return true; }
-
-	virtual bool Present(int32& InOutSyncInterval) override;
 
 protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -133,14 +122,13 @@ protected:
 	// Decodes view index for a viewport (i.e. left=0, right=1)
 	uint32 DecodeViewIndex(const enum EStereoscopicPass StereoPassType) const;
 
-	// Returns swap interval
-	uint32 GetSwapInt() const;
-
 	// Adds a new viewport with specified parameters and projection policy object
 	void AddViewport(const FString& InViewportId, const FIntPoint& InViewportLocation, const FIntPoint& InViewportSize, TSharedPtr<IDisplayClusterProjectionPolicy> InProjPolicy, const FString& InCameraId, float InBufferRatio = 1.f, bool IsRTT = false);
 	// Performs copying of render target data to the back buffer
 	virtual void CopyTextureToBackBuffer_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* BackBuffer, FRHITexture2D* SrcTexture, FVector2D WindowSize) const;
-	
+	// Factory method to instantiate an output presentation class implementation
+	virtual FDisplayClusterPresentationBase* CreatePresentationObject(FViewport* const Viewport, TSharedPtr<IDisplayClusterRenderSyncPolicy>& SyncPolicy) = 0;
+
 	// Checks if custom post processing settings is assigned for specific viewport and assign them to be used
 	virtual void StartFinalPostprocessSettings(struct FPostProcessSettings* StartPostProcessingSettings, const enum EStereoscopicPass StereoPassType) override;
 	virtual bool OverrideFinalPostprocessSettings(struct FPostProcessSettings* OverridePostProcessingSettings, const enum EStereoscopicPass StereoPassType, float& BlendWeight) override;

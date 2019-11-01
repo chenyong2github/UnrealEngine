@@ -165,10 +165,11 @@ class ULandscapeHeightfieldCollisionComponent : public UPrimitiveComponent
 private:
 	bool bEnableCollisionHashOptim = false;
 #endif //WITH_EDITORONLY_DATA
-
+	
 	//~ Begin UActorComponent Interface.
 protected:
 	virtual void OnCreatePhysicsState() override;
+	virtual void OnDestroyPhysicsState() override;
 public:
 
 	virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
@@ -251,6 +252,7 @@ public:
 
 	LANDSCAPE_API void SnapFoliageInstances();
 #endif
+
 	public:
 	TOptional<float> GetHeight(float X, float Y);
 };

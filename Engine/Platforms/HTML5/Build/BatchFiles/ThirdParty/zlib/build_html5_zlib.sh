@@ -5,20 +5,37 @@ set -x -e
 
 # NOTE: this script needs to be built from Engine/Platforms/HTML5/Build/BatchFiles/Build_All_HTML5_libs.sh
 
+ZLIB_HTML5=$(pwd)
+ZLIB_VERSION='v1.2.8'
 
-ZLIB_VERSION='zlib-1.2.5'
-ZLIB_HTML5_SRC="$UE4_TPS_SRC/zlib/$ZLIB_VERSION/Src"
+# building from ZLIB tar file archive
+ZLIB_TAR_SRC="$UE4_TPS_SRC/zlib/$ZLIB_VERSION/build"
+ZLIB_TAR_NAME='zlib-1.2.8'
+
+ZLIB_HTML5_SRC="$ZLIB_HTML5/$ZLIB_TAR_NAME"
 ZLIB_HTML5_DST="$HTML5_TPS_LIBS/zlib/$ZLIB_VERSION"
 
 
 # local destination
-if [ ! -d "$ZLIB_HTML5_DST" ]; then
-	mkdir -p "$ZLIB_HTML5_DST"
+if [ ! -d "$ZLIB_HTML5_DST/include" ]; then
+	mkdir -p "$ZLIB_HTML5_DST/include"
 fi
-# TODO change this to p4 checkout
-if [ ! -z "$(ls -A "$ZLIB_HTML5_DST")" ]; then
-	chmod +w "$ZLIB_HTML5_DST"/*
+if [ ! -d "$ZLIB_HTML5_DST/lib" ]; then
+	mkdir -p "$ZLIB_HTML5_DST/lib"
 fi
+# TODO remove this p4 hack after HTML5 becomes community driven only
+if [ ! -z "$(ls -A "$ZLIB_HTML5_DST"/lib)" ]; then
+	chmod +w "$ZLIB_HTML5_DST"/lib/*
+fi
+
+
+# ----------------------------------------
+# building from ZLIB tar file archive
+if [ ! -d $ZLIB_TAR_NAME ]; then
+	tar xf "$ZLIB_TAR_SRC"/$ZLIB_TAR_NAME.tar.gz
+	cp $ZLIB_TAR_NAME/zlib.h $ZLIB_HTML5_DST/include/.
+fi
+# ----------------------------------------
 
 
 build_via_cmake()
@@ -51,13 +68,16 @@ build_via_cmake()
 	if [ $OLEVEL == 0 ]; then
 		SUFFIX=
 	fi
-	cp libz.$UE_LIB_EXT "$ZLIB_HTML5_DST"/zlib${SUFFIX}.$UE_LIB_EXT
+	cp libz.$UE_LIB_EXT "$ZLIB_HTML5_DST"/lib/zlib${SUFFIX}.$UE_LIB_EXT
+
+	# note: zconf.h is the same from all optimization builds...
+	cp zconf.h "$ZLIB_HTML5_DST"/include/.
+
 	cd ..
 }
-
 type=Debug;       OLEVEL=0;  build_via_cmake
 type=Release;     OLEVEL=2;  build_via_cmake
 type=Release;     OLEVEL=3;  build_via_cmake
 type=MinSizeRel;  OLEVEL=z;  build_via_cmake
-ls -l "$ZLIB_HTML5_DST"
+ls -l "$ZLIB_HTML5_DST/lib"
 

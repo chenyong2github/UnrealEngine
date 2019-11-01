@@ -18,55 +18,55 @@ namespace AutomationTool
 	public class CompileTaskParameters
 	{
 		/// <summary>
-		/// The target to compile
+		/// The target to compile.
 		/// </summary>
 		[TaskParameter]
 		public string Target;
 
 		/// <summary>
-		/// The configuration to compile
+		/// The configuration to compile.
 		/// </summary>
 		[TaskParameter]
 		public UnrealTargetConfiguration Configuration;
 
 		/// <summary>
-		/// The platform to compile for
+		/// The platform to compile for.
 		/// </summary>
 		[TaskParameter]
 		public UnrealTargetPlatform Platform;
 
 		/// <summary>
-		/// The project to compile with
+		/// The project to compile with.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string Project;
 
 		/// <summary>
-		/// Additional arguments for UnrealBuildTool
+		/// Additional arguments for UnrealBuildTool.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string Arguments;
 
 		/// <summary>
-		/// Whether to allow using XGE for compilation
+		/// Whether to allow using XGE for compilation.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public bool AllowXGE = true;
 
 		/// <summary>
-		/// Whether to allow using the parallel executor for this compile
+		/// Whether to allow using the parallel executor for this compile.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public bool AllowParallelExecutor = true;
 
 		/// <summary>
-		/// Whether to allow cleaning this target. If unspecified, targets are cleaned if the -Clean argument passed on the command line.
+		/// Whether to allow cleaning this target. If unspecified, targets are cleaned if the -Clean argument is passed on the command line.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public bool? Clean = null;
 
 		/// <summary>
-		/// Tag to be applied to build products of this task
+		/// Tag to be applied to build products of this task.
 		/// </summary>
 		[TaskParameter(Optional = true, ValidationType = TaskParameterValidationType.TagList)]
 		public string Tag;

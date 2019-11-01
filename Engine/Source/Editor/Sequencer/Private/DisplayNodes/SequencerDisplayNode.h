@@ -248,6 +248,13 @@ public:
 	virtual TSharedRef<SWidget> GetCustomOutlinerContent();
 
 	/**
+	 * Creates an additional label widget to appear immediately beside this node's label on the tree
+	 * 
+	 * @return Content to display on the outliner node
+	 */
+	virtual TSharedPtr<SWidget> GetAdditionalOutlinerLabel() { return nullptr; }
+
+	/**
 	 * Generates a widget for display in the section area portion of the track area
 	 * 
 	 * @param ViewRange	The range of time in the sequencer that we are displaying

@@ -634,8 +634,9 @@ void UNiagaraDataInterfacePressureGrid::BuildGridTopology(FVectorVMContext& Cont
 		*OutGridOriginY.GetDestAndAdvance() = BoxOrigin.Y;
 		*OutGridOriginZ.GetDestAndAdvance() = BoxOrigin.Z;
 		*OutGridLength.GetDestAndAdvance() = MaxLength;
-		//UE_LOG(LogPressureGrid, Warning, TEXT("Get Grid Extent : %f %f %f | Grid Lengths : %f %f %f | Regular Extent : %f %f %f | Box Origin : %f %f %f"), 
-		//				GridExtent.X, GridExtent.Y, GridExtent.Z, GridLengths.X, GridLengths.Y, GridLengths.Z, RegularExtent.X, RegularExtent.Y, RegularExtent.Z, InstData->GridOrigin.X, InstData->GridOrigin.Y, InstData->GridOrigin.Z);
+		//UE_LOG(LogPressureGrid, Warning, TEXT("Get Grid Extent : %f %f %f | Grid Lengths : %f %f %f | Regular Extent : %f %f %f | Box Origin : %f %f %f | Grid Center : %f %f %f"), 
+		//				GridExtent.X, GridExtent.Y, GridExtent.Z, GridLengths.X, GridLengths.Y, GridLengths.Z, RegularExtent.X, RegularExtent.Y, RegularExtent.Z,
+		//	InstData->GridOrigin.X, InstData->GridOrigin.Y, InstData->GridOrigin.Z, GridCenter.X, GridCenter.Y, GridCenter.Z);
 	}
 
 	

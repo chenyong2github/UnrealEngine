@@ -58,8 +58,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MeshOperation, Meta = (ToolTip = "Array of LOD reduction settings") )
 	TArray<FDataprepSetLODsReductionSettings> ReductionSettings;
 
-	// #ueent_todo: Limit size of array to MAX_STATIC_MESH_LODS
-
 	//~ Begin UDataprepOperation Interface
 public:
 	virtual FText GetCategory_Implementation() const override
@@ -163,34 +161,6 @@ protected:
 	//~ End UDataprepOperation Interface
 };
 
-UCLASS(Experimental, Category = MeshOperation, Meta = (DisplayName="Enable Lightmap UVs", ToolTip = "For each static mesh to process, enable or disable the generation of lightmap UVs") )
-class UDataprepSetGenerateLightmapUVsOperation : public UDataprepOperation
-{
-	GENERATED_BODY()
-
-	UDataprepSetGenerateLightmapUVsOperation()
-		: bGenerateLightmapUVs(true)
-	{
-	}
-
-public:
-	// The value to set for the generate lightmap uvs flag on each static mesh
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MeshOperation, meta = (ToolTip = "Maximum number of convex pieces that will be created"))
-	bool bGenerateLightmapUVs;
-
-protected:
-	//~ Begin UDataprepOperation Interface
-public:
-	virtual FText GetCategory_Implementation() const override
-	{
-		return FDataprepOperationCategories::MeshOperation;
-	}
-
-protected:
-	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
-	//~ End UDataprepOperation Interface
-};
-
 UCLASS(Experimental, Category = ActorOperation, Meta = (DisplayName="Set Mobility", ToolTip = "For each mesh actor to process, update its mobilty with the selected value") )
 class UDataprepSetMobilityOperation : public UDataprepOperation
 {
@@ -224,14 +194,14 @@ class UDataprepSetMaterialOperation : public UDataprepOperation
 	GENERATED_BODY()
 
 	UDataprepSetMaterialOperation()
-		: MaterialSubstitute(nullptr)
+		: Material(nullptr)
 	{
 	}
 
 public:
 	// Material to use as a substitute
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MeshOperation, meta = (ToolTip = "Material to use as a substitute"))
-	UMaterialInterface* MaterialSubstitute;
+	UMaterialInterface* Material;
 
 	//~ Begin UDataprepOperation Interface
 public:
@@ -341,78 +311,14 @@ class UDataprepSetMeshOperation : public UDataprepOperation
 	GENERATED_BODY()
 
 	UDataprepSetMeshOperation()
-	: MeshSubstitute(nullptr)
+	: StaticMesh(nullptr)
 	{
 	}
 
 public:
 	// Mesh to use as a substitute
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ActorOperation, meta = (ToolTip = "Mesh to use as a substitute"))
-	UStaticMesh* MeshSubstitute;
-
-	//~ Begin UDataprepOperation Interface
-public:
-	virtual FText GetCategory_Implementation() const override
-	{
-		return FDataprepOperationCategories::ActorOperation;
-	}
-
-protected:
-	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
-	//~ End UDataprepOperation Interface
-};
-
-UCLASS(Experimental, Category = ActorOperation, Meta = (DisplayName="Substitute Mesh", ToolTip = "On each actor to process, replace the mesh matching the criteria with the specified one") )
-class UDataprepSubstituteMeshOperation : public UDataprepOperation
-{
-	GENERATED_BODY()
-
-	UDataprepSubstituteMeshOperation()
-	: MeshSearch(TEXT("*"))
-	, StringMatch(EEditorScriptingStringMatchType::MatchesWildcard)
-	, MeshSubstitute(nullptr)
-	{
-	}
-
-public:
-	// Name of the mesh(s) to search for. Wildcard is supported
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ActorOperation, meta = (ToolTip = "Name of the mesh(s) to search for. Wildcard is supported"))
-	FString MeshSearch;
-
-	// Type of matching to perform with MeshSearch string
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ActorOperation, meta = (ToolTip = "Type of matching to perform with MeshSearch string"))
-	EEditorScriptingStringMatchType StringMatch;
-
-	// Mesh to use as a substitute
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ActorOperation, meta = (ToolTip = "Mesh to use as a substitute"))
-	UStaticMesh* MeshSubstitute;
-
-	//~ Begin UDataprepOperation Interface
-public:
-	virtual FText GetCategory_Implementation() const override
-	{
-		return FDataprepOperationCategories::ActorOperation;
-	}
-
-protected:
-	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
-	//~ End UDataprepOperation Interface
-};
-
-UCLASS(Experimental, Category = ActorOperation, Meta = (DisplayName="Substitute Mesh By Table", ToolTip = "On each actor to process, replace the mesh found in the first column of the table with the one from the second column in the same row") )
-class UDataprepSubstituteMeshByTableOperation : public UDataprepOperation
-{
-	GENERATED_BODY()
-
-	UDataprepSubstituteMeshByTableOperation()
-	: MeshDataTable(nullptr)
-	{
-	}
-
-public:
-	// Data table to use for the substitution
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ActorOperation, meta = (ToolTip = "Data table to use for the substitution"))
-	UDataTable* MeshDataTable;
+	UStaticMesh* StaticMesh;
 
 	//~ Begin UDataprepOperation Interface
 public:

@@ -61,7 +61,7 @@ void UAndroidRuntimeSettings::PostReloadConfig(UProperty* PropertyThatWasLoaded)
 
 void UAndroidRuntimeSettings::HandlesRGBHWSupport()
 {
-	const bool SupportssRGB = bBuildForES31 && PackageForOculusMobile.Num() > 0;
+	const bool SupportssRGB = !bBuildForES2 && PackageForOculusMobile.Num() > 0;
 	URendererSettings* const Settings = GetMutableDefault<URendererSettings>();
 	static auto* MobileUseHWsRGBEncodingCVAR = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.UseHWsRGBEncoding"));
 
@@ -143,6 +143,27 @@ void UAndroidRuntimeSettings::PostEditChangeProperty(struct FPropertyChangedEven
 		if (Module)
 		{
 			Module->NotifyMultiSelectedFormatsChanged();
+		}
+	}
+
+	if (PropertyChangedEvent.Property != nullptr && PropertyChangedEvent.Property->GetName().StartsWith(TEXT("PackageForOculusMobile")))
+	{
+		if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd)
+		{
+			// Get a list of all available devices
+			TArray<EOculusMobileDevice::Type> deviceList;
+#define OCULUS_DEVICE_LOOP(device) deviceList.Add(device);
+			FOREACH_ENUM_EOCULUSMOBILEDEVICE(OCULUS_DEVICE_LOOP);
+#undef OCULUS_DEVICE_LOOP
+			// Add last device that isn't already in the list
+			for (int i = deviceList.Num() - 1; i >= 0; --i)
+			{
+				if (!PackageForOculusMobile.Contains(deviceList[i]))
+				{
+					PackageForOculusMobile.Last() = deviceList[i];
+					break;
+				}
+			}
 		}
 	}
 

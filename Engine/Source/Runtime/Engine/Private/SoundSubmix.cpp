@@ -1,28 +1,31 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-
-
 #include "Sound/SoundSubmix.h"
-#include "AudioDeviceManager.h"
-#include "EngineGlobals.h"
-#include "Engine/Engine.h"
-#include "UObject/UObjectIterator.h"
+
 #include "AudioDevice.h"
+#include "AudioDeviceManager.h"
+#include "Engine/Engine.h"
+#include "EngineGlobals.h"
+#include "Sound/SoundSubmixSend.h"
+#include "UObject/UObjectIterator.h"
 
 #if WITH_EDITOR
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#endif
-
-#if WITH_EDITOR
-TSharedPtr<ISoundSubmixAudioEditor> USoundSubmix::SoundSubmixAudioEditor = nullptr;
-#endif
+#endif // WITH_EDITOR
 
 USoundSubmix::USoundSubmix(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, ParentSubmix(nullptr)
+#if WITH_EDITORONLY_DATA
+	, SoundSubmixGraph(nullptr)
+#endif // WITH_EDITORONLY_DATA
+	, ChannelFormat(ESubmixChannelFormat::Device)
+	, bMuteWhenBackgrounded(0)
+	, AmbisonicsPluginSettings(nullptr)
+	, EnvelopeFollowerAttackTime(10)
+	, EnvelopeFollowerReleaseTime(500)
+	, OutputVolume(1.0f)
 {
-	EnvelopeFollowerAttackTime = 10;
-	EnvelopeFollowerReleaseTime = 500;
-	OutputVolume = 1.0f;
 }
 
 void USoundSubmix::StartRecordingOutput(const UObject* WorldContextObject, float ExpectedDuration)
@@ -236,9 +239,6 @@ void USoundSubmix::PostLoad()
 }
 
 #if WITH_EDITOR
-
-TArray<USoundSubmix*> BackupChildSubmixes;
-
 void USoundSubmix::PreEditChange(UProperty* PropertyAboutToChange)
 {
 	static FName NAME_ChildSubmixes(TEXT("ChildSubmixes"));
@@ -250,7 +250,7 @@ void USoundSubmix::PreEditChange(UProperty* PropertyAboutToChange)
 	}
 }
 
-void USoundSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+void USoundSubmix::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	// Whether or not we need to reinit the submix. Not all properties require reinitialization.
 	bool bReinitSubmix = true;
@@ -297,8 +297,6 @@ void USoundSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Property
 					BackupChildSubmixes[ChildIndex]->ParentSubmix = nullptr;
 				}
 			}
-
-			RefreshAllGraphs(false);
 		}
 		else if (PropertyChangedEvent.Property->GetFName() == NAME_ParentSubmix)
 		{
@@ -324,7 +322,6 @@ void USoundSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Property
 			}
 
 			Modify();
-			RefreshAllGraphs(false);
 		}
 		else if (PropertyChangedEvent.Property->GetFName() == NAME_OutputVolume)
 		{
@@ -349,7 +346,20 @@ void USoundSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Property
 		}
 	}
 
+	BackupChildSubmixes.Reset();
+
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+void USoundSubmix::PostDuplicate(EDuplicateMode::Type DuplicateMode)
+{
+	if (DuplicateMode == EDuplicateMode::Normal)
+	{
+		SetParentSubmix(nullptr);
+		ChildSubmixes.Reset();
+	}
+
+	Super::PostDuplicate(DuplicateMode);
 }
 
 bool USoundSubmix::RecurseCheckChild(USoundSubmix* ChildSoundSubmix)
@@ -394,37 +404,11 @@ void USoundSubmix::AddReferencedObjects(UObject* InThis, FReferenceCollector& Co
 
 	Collector.AddReferencedObject(This->SoundSubmixGraph, This);
 
+	for (USoundSubmix* Backup : This->BackupChildSubmixes)
+	{
+		Collector.AddReferencedObject(Backup);
+	}
+
 	Super::AddReferencedObjects(InThis, Collector);
 }
-
-void USoundSubmix::RefreshAllGraphs(bool bIgnoreThis)
-{
-	if (SoundSubmixAudioEditor.IsValid())
-	{
-		// Update the graph representation of every SoundClass
-		for (TObjectIterator<USoundSubmix> It; It; ++It)
-		{
-			USoundSubmix* SoundSubmix = *It;
-			if (!bIgnoreThis || SoundSubmix != this)
-			{
-				if (SoundSubmix->SoundSubmixGraph)
-				{
-					SoundSubmixAudioEditor->RefreshGraphLinks(SoundSubmix->SoundSubmixGraph);
-				}
-			}
-		}
-	}
-}
-
-void USoundSubmix::SetSoundSubmixAudioEditor(TSharedPtr<ISoundSubmixAudioEditor> InSoundSubmixAudioEditor)
-{
-	check(!SoundSubmixAudioEditor.IsValid());
-	SoundSubmixAudioEditor = InSoundSubmixAudioEditor;
-}
-
-TSharedPtr<ISoundSubmixAudioEditor> USoundSubmix::GetSoundSubmixAudioEditor()
-{
-	return SoundSubmixAudioEditor;
-}
-
-#endif
+#endif // WITH_EDITOR

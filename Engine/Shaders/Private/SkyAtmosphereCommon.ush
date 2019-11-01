@@ -129,12 +129,13 @@ void SkyViewLutParamsToUv(
 {
 	float Vhorizon = sqrt(ViewHeight * ViewHeight - BottomRadius * BottomRadius);
 	float CosBeta = Vhorizon / ViewHeight;				// GroundToHorizonCos
-	float Beta = acosFast(CosBeta);
+	float Beta = acosFast4(CosBeta);
 	float ZenithHorizonAngle = PI - Beta;
+	float ViewZenithAngle = acosFast4(ViewZenithCosAngle);
 
 	if (!IntersectGround)
 	{
-		float Coord = acosFast(ViewZenithCosAngle) / ZenithHorizonAngle;
+		float Coord = ViewZenithAngle / ZenithHorizonAngle;
 		Coord = 1.0f - Coord;
 		Coord = sqrt(Coord);
 		Coord = 1.0f - Coord;
@@ -142,7 +143,7 @@ void SkyViewLutParamsToUv(
 	}
 	else
 	{
-		float Coord = (acosFast(ViewZenithCosAngle) - ZenithHorizonAngle) / Beta;
+		float Coord = (ViewZenithAngle - ZenithHorizonAngle) / Beta;
 		Coord = sqrt(Coord);
 		UV.y = Coord * 0.5f + 0.5f;
 	}

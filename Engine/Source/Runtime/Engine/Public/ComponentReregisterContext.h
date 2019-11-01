@@ -20,6 +20,8 @@ ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogActorComponent, Log, All);
 class FComponentReregisterContextBase
 {
 protected:
+	TSet<FSceneInterface*>* ScenesToUpdateAllPrimitiveSceneInfos = nullptr;
+
 	//Unregisters the Component and returns the world it was registered to.
 	UWorld* UnRegister(UActorComponent* InComponent)
 	{
@@ -30,6 +32,11 @@ protected:
 
 		if(InComponent->IsRegistered() && InComponent->GetWorld())
 		{
+			if (InComponent->IsRenderStateCreated())
+			{
+				UpdateAllPrimitiveSceneInfosForSingleComponent(InComponent, ScenesToUpdateAllPrimitiveSceneInfos);
+			}
+
 			// Save the world and set the component's world to NULL to prevent a nested FComponentReregisterContext from reregistering this component.
 			World = InComponent->GetWorld();
 			FNavigationLockContext NavUpdateLock(World);
@@ -66,6 +73,8 @@ protected:
 
 			// Will set bRegistered to true
 			InComponent->ExecuteRegisterEvents();
+
+			UpdateAllPrimitiveSceneInfosForSingleComponent(InComponent, ScenesToUpdateAllPrimitiveSceneInfos);
 		}
 	}
 };
@@ -89,9 +98,11 @@ private:
 	/** Cache pointer to world from which we were removed */
 	TWeakObjectPtr<UWorld> World;
 public:
-	FComponentReregisterContext(UActorComponent* InComponent)
+	FComponentReregisterContext(UActorComponent* InComponent, TSet<FSceneInterface*>* InScenesToUpdateAllPrimitiveSceneInfos = nullptr)
 		: World(nullptr)
 	{
+		ScenesToUpdateAllPrimitiveSceneInfos = InScenesToUpdateAllPrimitiveSceneInfos;
+
 		World = UnRegister(InComponent);
 		// If we didn't get a scene back NULL the component so we dont try to
 		// process it on destruction
@@ -192,6 +203,10 @@ public:
 private:
 	/** The recreate contexts for the individual components. */
 	TIndirectArray<FComponentReregisterContext> ComponentContexts;
+
+	TSet<FSceneInterface*> ScenesToUpdateAllPrimitiveSceneInfos;
+
+	void UpdateAllPrimitiveSceneInfos();
 };
 
 /** Removes all components of the templated type from their scenes for the lifetime of the class. */
@@ -208,12 +223,28 @@ public:
 		// Reregister all components of the templated type.
 		for(TObjectIterator<ComponentType> ComponentIt;ComponentIt;++ComponentIt)
 		{
-			ComponentContexts.Add(new FComponentReregisterContext(*ComponentIt));
+			ComponentContexts.Add(new FComponentReregisterContext(*ComponentIt, &ScenesToUpdateAllPrimitiveSceneInfos));
 		}
+
+		UpdateAllPrimitiveSceneInfos();
+	}
+
+	~TComponentReregisterContext()
+	{
+		UpdateAllPrimitiveSceneInfos();
 	}
 
 private:
 	/** The recreate contexts for the individual components. */
 	TIndirectArray<FComponentReregisterContext> ComponentContexts;
+
+	TSet<FSceneInterface*> ScenesToUpdateAllPrimitiveSceneInfos;
+
+	void UpdateAllPrimitiveSceneInfos()
+	{
+		UpdateAllPrimitiveSceneInfosForScenes(MoveTemp(ScenesToUpdateAllPrimitiveSceneInfos));
+
+		check(ScenesToUpdateAllPrimitiveSceneInfos.Num() == 0);
+	}
 };
 

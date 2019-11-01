@@ -21,7 +21,7 @@ public:
 protected:
 
 	// StreamIn_Default : Locked mips of the intermediate textures, used as disk load destination.
-	void* MipData[MAX_TEXTURE_MIP_COUNT];
+	TArray<void*, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > MipData;
 
 
 	// ****************************

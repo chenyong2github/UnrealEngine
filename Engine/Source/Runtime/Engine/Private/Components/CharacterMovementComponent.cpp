@@ -1775,6 +1775,8 @@ void UCharacterMovementComponent::SimulateMovement(float DeltaSeconds)
 			}
 		}
 
+		UpdateCharacterStateBeforeMovement(DeltaSeconds);
+
 		if (MovementMode != MOVE_None)
 		{
 			//TODO: Also ApplyAccumulatedForces()?
@@ -1873,6 +1875,8 @@ void UCharacterMovementComponent::SimulateMovement(float DeltaSeconds)
 			UE_LOG(LogCharacterMovement, Verbose, TEXT("Proxy %s SKIPPING simulate movement"), *GetNameSafe(CharacterOwner));
 		}
 
+		UpdateCharacterStateAfterMovement(DeltaSeconds);
+
 		// consume path following requested velocity
 		bHasRequestedVelocity = false;
 
@@ -1926,16 +1930,8 @@ void UCharacterMovementComponent::MaybeUpdateBasedMovement(float DeltaSeconds)
 	UPrimitiveComponent* MovementBase = CharacterOwner->GetMovementBase();
 	if (MovementBaseUtility::UseRelativeLocation(MovementBase))
 	{
-		// Need to see if anything we're on is simulating physics or has a parent that is.
-		bool bBaseIsSimulatingPhysics = false;
-		USceneComponent* AttachParent = MovementBase;
-		while (!bBaseIsSimulatingPhysics && AttachParent)
-		{
-			bBaseIsSimulatingPhysics = AttachParent->IsSimulatingPhysics();
-			AttachParent = AttachParent->GetAttachParent();
-		}
-		
-		if (!bBaseIsSimulatingPhysics)
+		// Need to see if anything we're on is simulating physics or has a parent that is.		
+		if (!MovementBaseUtility::IsSimulatedBase(MovementBase))
 		{
 			bDeferUpdateBasedMovement = false;
 			UpdateBasedMovement(DeltaSeconds);
@@ -2824,24 +2820,32 @@ void UCharacterMovementComponent::UnCrouch(bool bClientSimulation)
 
 void UCharacterMovementComponent::UpdateCharacterStateBeforeMovement(float DeltaSeconds)
 {
-	// Check for a change in crouch state. Players toggle crouch by changing bWantsToCrouch.
-	const bool bIsCrouching = IsCrouching();
-	if (bIsCrouching && (!bWantsToCrouch || !CanCrouchInCurrentState()))
+	// Proxies get replicated crouch state.
+	if (CharacterOwner->GetLocalRole() != ROLE_SimulatedProxy)
 	{
-		UnCrouch(false);
-	}
-	else if (!bIsCrouching && bWantsToCrouch && CanCrouchInCurrentState())
-	{
-		Crouch(false);
+		// Check for a change in crouch state. Players toggle crouch by changing bWantsToCrouch.
+		const bool bIsCrouching = IsCrouching();
+		if (bIsCrouching && (!bWantsToCrouch || !CanCrouchInCurrentState()))
+		{
+			UnCrouch(false);
+		}
+		else if (!bIsCrouching && bWantsToCrouch && CanCrouchInCurrentState())
+		{
+			Crouch(false);
+		}
 	}
 }
 
 void UCharacterMovementComponent::UpdateCharacterStateAfterMovement(float DeltaSeconds)
 {
-	// Uncrouch if no longer allowed to be crouched
-	if (IsCrouching() && !CanCrouchInCurrentState())
+	// Proxies get replicated crouch state.
+	if (CharacterOwner->GetLocalRole() != ROLE_SimulatedProxy)
 	{
-		UnCrouch(false);
+		// Uncrouch if no longer allowed to be crouched
+		if (IsCrouching() && !CanCrouchInCurrentState())
+		{
+			UnCrouch(false);
+		}
 	}
 }
 
@@ -5624,7 +5628,8 @@ void UCharacterMovementComponent::OnTeleported()
 
 float GetAxisDeltaRotation(float InAxisRotationRate, float DeltaTime)
 {
-	return (InAxisRotationRate >= 0.f) ? (InAxisRotationRate * DeltaTime) : 360.f;
+	// Values over 360 don't do anything, see FMath::FixedTurn. However we are trying to avoid giant floats from overflowing other calculations.
+	return (InAxisRotationRate >= 0.f) ? FMath::Min(InAxisRotationRate * DeltaTime, 360.f) : 360.f;
 }
 
 FRotator UCharacterMovementComponent::GetDeltaRotation(float DeltaTime) const

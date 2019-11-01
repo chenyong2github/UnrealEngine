@@ -74,6 +74,8 @@ public:
 		*((FLinearColor*)Struct->GetStructMemory()) = ColorValue;
 	}
 
+	virtual bool CanChangeContinuously() const override { return true; }
+
 private:
 	TSharedRef<SWidget> ConstructComponentWidget(int32 Index, FText ComponentLabel)
 	{

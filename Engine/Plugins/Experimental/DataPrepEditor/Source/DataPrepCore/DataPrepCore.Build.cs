@@ -30,6 +30,7 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 					"StaticMeshDescription",
 					"UnrealEd",
+					"VariantManagerContent",
 				}
 			);
 		}

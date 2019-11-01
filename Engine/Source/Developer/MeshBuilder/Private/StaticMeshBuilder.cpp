@@ -92,19 +92,19 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 
 		float MaxDeviation = 0.0f;
 		FMeshBuildSettings& LODBuildSettings = SrcModel.BuildSettings;
-		const FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(LodIndex);
+		bool bIsMeshDescriptionValid = StaticMesh->CloneMeshDescription(LodIndex, MeshDescriptions[LodIndex]);
 		FMeshDescriptionHelper MeshDescriptionHelper(&LODBuildSettings);
 
 		FMeshReductionSettings ReductionSettings = LODGroup.GetSettings(SrcModel.ReductionSettings, LodIndex);
 
 		//Make sure we do not reduce a non custom LOD by himself
-		const int32 BaseReduceLodIndex = FMath::Clamp<int32>(ReductionSettings.BaseLODModel, 0, MeshDescription == nullptr ? LodIndex - 1 : LodIndex);
+		const int32 BaseReduceLodIndex = FMath::Clamp<int32>(ReductionSettings.BaseLODModel, 0, bIsMeshDescriptionValid ? LodIndex : LodIndex - 1);
 		// Use simplifier if a reduction in triangles or verts has been requested.
 		bool bUseReduction = StaticMesh->IsReductionActive(LodIndex);
 
-		if (MeshDescription != nullptr)
+		if (bIsMeshDescriptionValid)
 		{
-			MeshDescriptionHelper.GetRenderMeshDescription(StaticMesh, *MeshDescription, MeshDescriptions[LodIndex]);
+			MeshDescriptionHelper.SetupRenderMeshDescription(StaticMesh, MeshDescriptions[LodIndex]);
 		}
 		else
 		{
@@ -382,7 +382,6 @@ void BuildVertexBuffer(
 	TArray<int32> RemapVertexInstanceID;
 	// set up vertex buffer elements
 	StaticMeshBuildVertices.Reserve(VertexInstances.GetArraySize());
-	bool bHasColor = false;
 
 	TPolygonGroupAttributesConstRef<FName> PolygonGroupImportedMaterialSlotNames = MeshDescription.PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName);
 	TVertexAttributesConstRef<FVector> VertexPositions = MeshDescription.VertexAttributes().GetAttributesRef<FVector>( MeshAttribute::Vertex::Position );
@@ -392,11 +391,13 @@ void BuildVertexBuffer(
 	TVertexInstanceAttributesConstRef<FVector4> VertexInstanceColors = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector4>( MeshAttribute::VertexInstance::Color );
 	TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>( MeshAttribute::VertexInstance::TextureCoordinate );
 
+	const bool bHasColors = MeshDescription.VertexInstanceAttributes().HasAttribute(MeshAttribute::VertexInstance::Color);
+
 	const uint32 NumTextureCoord = VertexInstanceUVs.GetNumIndices();
+	const FMatrix ScaleMatrix = FScaleMatrix(LODBuildSettings.BuildScale3D).Inverse().GetTransposed();
 
 	TMap<FPolygonGroupID, int32> PolygonGroupToSectionIndex;
-	
-	
+
 	for (const FPolygonGroupID PolygonGroupID : MeshDescription.PolygonGroups().GetElementIDs())
 	{
 		int32& SectionIndex = PolygonGroupToSectionIndex.FindOrAdd(PolygonGroupID);
@@ -463,22 +464,25 @@ void BuildVertexBuffer(
 				const FVector& VertexInstanceNormal = VertexInstanceNormals[VertexInstanceID];
 				const FVector& VertexInstanceTangent = VertexInstanceTangents[VertexInstanceID];
 				const float VertexInstanceBinormalSign = VertexInstanceBinormalSigns[VertexInstanceID];
-				const FVector4& VertexInstanceColor = VertexInstanceColors[VertexInstanceID];
-
-				const FLinearColor LinearColor(VertexInstanceColor);
-				if (LinearColor != FLinearColor::White)
-				{
-					bHasColor = true;
-				}
 
 				FStaticMeshBuildVertex StaticMeshVertex;
 
 				StaticMeshVertex.Position = VertexPosition * LODBuildSettings.BuildScale3D;
-				const FMatrix ScaleMatrix = FScaleMatrix(LODBuildSettings.BuildScale3D).Inverse().GetTransposed();
 				StaticMeshVertex.TangentX = ScaleMatrix.TransformVector(VertexInstanceTangent).GetSafeNormal();
 				StaticMeshVertex.TangentY = ScaleMatrix.TransformVector(FVector::CrossProduct(VertexInstanceNormal, VertexInstanceTangent).GetSafeNormal() * VertexInstanceBinormalSign).GetSafeNormal();
 				StaticMeshVertex.TangentZ = ScaleMatrix.TransformVector(VertexInstanceNormal).GetSafeNormal();
-				StaticMeshVertex.Color = LinearColor.ToFColor(true);
+				
+				if (bHasColors)
+				{
+					const FVector4& VertexInstanceColor = VertexInstanceColors[VertexInstanceID];
+					const FLinearColor LinearColor(VertexInstanceColor);
+					StaticMeshVertex.Color = LinearColor.ToFColor(true);
+				}
+				else
+				{
+					StaticMeshVertex.Color = FColor::White;
+				}
+
 				const uint32 MaxNumTexCoords = FMath::Min<int32>(MAX_MESH_TEXTURE_COORDS_MD, MAX_STATIC_TEXCOORDS);
 				for (uint32 UVIndex = 0; UVIndex < MaxNumTexCoords; ++UVIndex)
 				{

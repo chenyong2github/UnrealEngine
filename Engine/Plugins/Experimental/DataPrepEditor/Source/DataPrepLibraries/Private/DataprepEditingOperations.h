@@ -17,8 +17,8 @@ class UStaticMesh;
 class UStaticMeshComponent;
 class UWorld;
 
-UCLASS(Experimental, Category = ObjectOperation, Meta = (DisplayName="Remove Objects", ToolTip = "Remove any asset or actor to process") )
-class UDataprepRemoveObjectsOperation : public UDataprepEditingOperation
+UCLASS(Experimental, Category = ObjectOperation, Meta = (DisplayName="Delete Objects", ToolTip = "Delete any asset or actor to process") )
+class UDataprepDeleteObjectsOperation : public UDataprepEditingOperation
 {
 	GENERATED_BODY()
 
@@ -34,15 +34,16 @@ protected:
 	//~ End UDataprepOperation Interface
 };
 
-UCLASS(Experimental, Category = ObjectOperation, Meta = (DisplayName="Merge Actors", ToolTip = "Merge the meshes into a unique mesh with the provided StaticMeshActors") )
+UCLASS(Experimental, Category = ObjectOperation, Meta = (DisplayName="Merge", ToolTip = "Collect geometry from selected actors and merge them into single mesh.") )
 class UDataprepMergeActorsOperation : public UDataprepEditingOperation
 {
 	GENERATED_BODY()
 
 public:
 	UDataprepMergeActorsOperation()
-		: bDeleteMergedActors(true)
-		, bDeleteMergedMeshes(true)
+		: bDeleteMergedActors_DEPRECATED(true)
+		, bDeleteMergedMeshes_DEPRECATED(true)
+		, bPivotPointAtZero(false)
 		, MergedMesh(nullptr)
 		, MergedActor(nullptr)
 	{
@@ -52,7 +53,7 @@ public:
 public:
 	virtual FText GetCategory_Implementation() const override
 	{
-		return FDataprepOperationCategories::ObjectOperation;
+		return FDataprepOperationCategories::ActorOperation;
 	}
 
 	/** Settings to use for the merge operation */
@@ -60,16 +61,19 @@ public:
 	FString NewActorLabel;
 
 	/** Settings to use for the merge operation */
-	UPROPERTY(EditAnywhere, Category = MergeSettings)
-	bool bDeleteMergedActors;
+	UPROPERTY()
+	bool bDeleteMergedActors_DEPRECATED;
 
 	/** Settings to use for the merge operation */
-	UPROPERTY(EditAnywhere, Category = MergeSettings)
-	bool bDeleteMergedMeshes;
+	UPROPERTY()
+	bool bDeleteMergedMeshes_DEPRECATED;
 
-	/** Settings to use for the merge operation */
-	UPROPERTY(EditAnywhere, Category = MergeSettings)
-	FMeshMergingSettings MergeSettings;
+	UPROPERTY()
+	FMeshMergingSettings MergeSettings_DEPRECATED;
+
+	/** Whether merged mesh should have pivot at world origin, or at first merged component otherwise */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MeshSettings)
+	bool bPivotPointAtZero;
 
 protected:
 	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
@@ -77,34 +81,53 @@ protected:
 
 	bool MergeStaticMeshActors(UWorld* World, const TArray<UPrimitiveComponent*>& ComponentsToMerge, const FString& RootName, bool bCreateActor = true);
 
-	void PrepareStaticMeshes( TSet<UStaticMesh*> StaticMeshes, IMeshBuilderModule& MeshBuilderModule );
-
 protected:
 	FVector MergedMeshWorldLocation;
 	UStaticMesh* MergedMesh;
 	AStaticMeshActor* MergedActor;
 };
 
-UCLASS(Experimental, Category = ObjectOperation, Meta = (DisplayName="Smart Merge - PROTO", ToolTip = "Collapse all actors solely holding more than one static mesh actor") )
-class UDataprepSmartMergeOperation : public UDataprepMergeActorsOperation
+UCLASS(Experimental, Category = ObjectOperation, Meta = (DisplayName = "Create Proxy Mesh", ToolTip = "Collect geometry from selected actors and merge them into single mesh with reduction."))
+class UDataprepCreateProxyMeshOperation : public UDataprepEditingOperation
+{
+	GENERATED_BODY()
+
+public:
+	UDataprepCreateProxyMeshOperation()
+		: Quality(50.f)
+		, MergedMesh(nullptr)
+		, MergedActor(nullptr)
+	{
+	}
+
+public:
+	//~ Begin UDataprepOperation Interface
+	virtual FText GetCategory_Implementation() const override
+	{
+		return FDataprepOperationCategories::ActorOperation;
+	}
+
+	/** Settings to use for the create proxy operation */
+	UPROPERTY(EditAnywhere, Category = ProxySettings)
+	FString NewActorLabel;
+
+	UPROPERTY(EditAnywhere, Category = ProxySettings,  meta = (UIMin = 0, UIMax = 100))
+	float Quality;
+
+protected:
+	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
+	//~ End UDataprepOperation Interface
+protected:
+	UStaticMesh* MergedMesh;
+	AStaticMeshActor* MergedActor;
+};
+
+UCLASS(Experimental, Category = ObjectOperation, Meta = (DisplayName="Delete Unused Assets", ToolTip = "Delete assets that are not referenced by any objects") )
+class UDataprepDeleteUnusedAssetsOperation : public UDataprepEditingOperation
 {
 	GENERATED_BODY()
 
 	//~ Begin UDataprepOperation Interface
-protected:
-	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
-	//~ End UDataprepOperation Interface
-
-private:
-	void SmartMerge(UWorld* World, const TArray<AActor*>& Actors);
-};
-
-UCLASS(Experimental, Category = ObjectOperation, Meta = (DisplayName="Clean World - PROTO", ToolTip = "Remove unused assets, collapse actors with only one child") )
-class UDataprepCleanWorldOperation : public UDataprepEditingOperation
-{
-	GENERATED_BODY()
-
-		//~ Begin UDataprepOperation Interface
 public:
 	virtual FText GetCategory_Implementation() const override
 	{
@@ -114,4 +137,23 @@ public:
 protected:
 	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
 	//~ End UDataprepOperation Interface
+};
+
+UCLASS(Experimental, Category = ActorOperation, Meta = (DisplayName="Compact Scene Graph", ToolTip = "Delete actors that do not have visuals, but keep those needed to preserve hierarchy") )
+class UDataprepCompactSceneGraphOperation : public UDataprepEditingOperation
+{
+	GENERATED_BODY()
+
+	//~ Begin UDataprepOperation Interface
+public:
+	virtual FText GetCategory_Implementation() const override
+	{
+		return FDataprepOperationCategories::ActorOperation;
+	}
+
+protected:
+	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
+	//~ End UDataprepOperation Interface
+
+	bool IsActorVisible(AActor*, TMap<AActor*, bool>& VisibilityMap);
 };

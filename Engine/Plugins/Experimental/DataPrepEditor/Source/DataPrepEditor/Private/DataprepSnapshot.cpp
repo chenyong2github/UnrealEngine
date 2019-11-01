@@ -4,9 +4,12 @@
 
 #include "DataprepCoreUtils.h"
 #include "DataprepEditorLogCategory.h"
+#include "DataprepEditorUtils.h"
 
 #include "ActorEditorUtils.h"
 #include "AutoReimport/AutoReimportManager.h"
+#include "Async/Async.h"
+#include "Async/Future.h"
 #include "Async/ParallelFor.h"
 #include "Editor/UnrealEdEngine.h"
 #include "EngineUtils.h"
@@ -16,7 +19,10 @@
 #include "HAL/FileManager.h"
 #include "GenericPlatform/GenericPlatformOutputDevices.h"
 #include "GenericPlatform/GenericPlatformTime.h"
+#include "Materials/MaterialFunction.h"
+#include "Materials/MaterialFunctionInstance.h"
 #include "Materials/MaterialInstance.h"
+#include "MaterialShared.h"
 #include "Misc/Compression.h"
 #include "Misc/FileHelper.h"
 #include "Misc/ScopedSlowTask.h"
@@ -34,6 +40,8 @@
 enum class EDataprepAssetClass : uint8 {
 	EDataprep,
 	ETexture,
+	EMaterialFunction,
+	EMaterialFunctionInstance,
 	EMaterial,
 	EMaterialInstance,
 	EStaticMesh,
@@ -41,13 +49,37 @@ enum class EDataprepAssetClass : uint8 {
 	EMaxClasses
 };
 
-// #ueent_todo: Boolean driving activating actual snapshot based logic
-const bool bUseSnapshot = true;
-const bool bUseCompression = false;
-
 namespace DataprepSnapshotUtil
 {
 	const TCHAR* SnapshotExtension = TEXT(".dpc");
+
+
+	/**
+	 * Extends FObjectAndNameAsStringProxyArchive to support FLazyObjectPtr.
+	 */
+	struct FSnapshotCustomArchive : public FObjectAndNameAsStringProxyArchive
+	{
+		FSnapshotCustomArchive(FArchive& InInnerArchive)
+			:	FObjectAndNameAsStringProxyArchive(InInnerArchive, false)
+		{
+			// Set archive as transacting to persist all data including data in memory
+			SetIsTransacting( true );
+		}
+
+		virtual FArchive& operator<<(FLazyObjectPtr& Obj) override
+		{
+			// Copied from FArchiveUObject::SerializeLazyObjectPtr
+			// Note that archive is transacting
+			if (IsLoading())
+			{
+				// Reset before serializing to clear the internal weak pointer. 
+				Obj.Reset();
+			}
+			InnerArchive << Obj.GetUniqueID();
+
+			return *this;
+		}
+	};
 
 	void RemoveSnapshotFiles(const FString& RootDir)
 	{
@@ -62,7 +94,6 @@ namespace DataprepSnapshotUtil
 
 	}
 
-	// #ueent_todo: Find a solution using the path of the RootPackage instead of the UPackage object itself
 	FString BuildAssetFileName(const FString& RootPath, const FString& AssetPath )
 	{
 		static FString FileNamePrefix( TEXT("stream_") );
@@ -106,8 +137,7 @@ namespace DataprepSnapshotUtil
 		};
 
 		FMemoryWriter MemAr(OutSerializedData);
-		FObjectAndNameAsStringProxyArchive Ar(MemAr, false);
-		Ar.SetIsTransacting(true);
+		FSnapshotCustomArchive Ar(MemAr);
 
 		// Collect sub-objects depending on input object including nested objects
 		TArray< UObject* > SubObjectsArray;
@@ -135,7 +165,6 @@ namespace DataprepSnapshotUtil
 			}
 
 			// Sort array of sub-objects: first objects do not depend on ones below
-			// #ueent_todo: Improve performance of building. Current is pretty brute force
 			int32 Count = SubObjectsArray.Num();
 			SubObjectsArray.Empty(Count);
 
@@ -206,28 +235,6 @@ namespace DataprepSnapshotUtil
 			bool bRebuildResource = !!Texture->Resource;
 			Ar << bRebuildResource;
 		}
-
-		if(bUseCompression)
-		{
-			const int32 BufferHeaderSize = (int32)sizeof(int32);
-
-			TArray<uint8> MemoryBuffer( MoveTemp( OutSerializedData ) );
-
-			// allocate all of the input space for the output, with extra space for max overhead of zlib (when compressed > uncompressed)
-			int32 CompressedSize = FCompression::CompressMemoryBound(NAME_Zlib, MemoryBuffer.Num());
-			OutSerializedData.SetNum( CompressedSize + BufferHeaderSize );
-
-			// Store the size of the uncompressed buffer
-			((int32*)OutSerializedData.GetData())[0] = MemoryBuffer.Num();
-
-			// compress the data		
-			bool bSucceeded = FCompression::CompressMemory(NAME_Zlib, OutSerializedData.GetData() + BufferHeaderSize, CompressedSize, MemoryBuffer.GetData(), MemoryBuffer.Num());
-
-			// if it failed send the data uncompressed, which we mark by setting compressed size to 0
-			checkf(bSucceeded, TEXT("zlib failed to compress, which is very unexpected"));
-
-			OutSerializedData.SetNum( CompressedSize + BufferHeaderSize );
-		}
 	}
 
 	void ReadSnapshotData(UObject* Object, const TArray<uint8>& InSerializedData, TMap<FString, UClass*>& InClassesMap, TArray<UObject*>& ObjectsToDelete)
@@ -246,27 +253,10 @@ namespace DataprepSnapshotUtil
 			}
 		};
 
-		TArray<uint8> MemoryBuffer;
-		if(bUseCompression)
-		{
-			const int32 BufferHeaderSize = (int32)sizeof(int32);
-
-			// Allocate the space required for the uncompressed data
-			int32 UncompressedSize = ((int32*)InSerializedData.GetData())[0];
-			MemoryBuffer.SetNum(UncompressedSize);
-
-			// uncompress the data		
-			bool bSucceeded = FCompression::UncompressMemory(NAME_Zlib, MemoryBuffer.GetData(), MemoryBuffer.Num(), InSerializedData.GetData() + BufferHeaderSize, InSerializedData.Num() - BufferHeaderSize);
-
-			// if it failed send the data uncompressed, which we mark by setting compressed size to 0
-			checkf(bSucceeded, TEXT("zlib failed to uncompress, which is very unexpected"));
-		}
-
 		RemoveDefaultDependencies( Object );
 
-		FMemoryReader MemAr(bUseCompression ? MemoryBuffer : InSerializedData);
-		FObjectAndNameAsStringProxyArchive Ar(MemAr, false);
-		Ar.SetIsTransacting(true);
+		FMemoryReader MemAr(InSerializedData);
+		FSnapshotCustomArchive Ar(MemAr);
 
 		// Deserialize count of sub-objects
 		int32 SubObjectsCount = 0;
@@ -412,11 +402,6 @@ public:
 
 void FDataprepEditor::TakeSnapshot()
 {
-	if(!bUseSnapshot)
-	{
-		return;
-	}
-
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDataprepEditor::TakeSnapshot);
 
 	uint64 StartTime = FPlatformTime::Cycles64();
@@ -441,6 +426,14 @@ void FDataprepEditor::TakeSnapshot()
 		if (AssetClass->IsChildOf(UStaticMesh::StaticClass()))
 		{
 			return EDataprepAssetClass::EStaticMesh;
+		}
+		else if (AssetClass->IsChildOf(UMaterialFunction::StaticClass()))
+		{
+			return EDataprepAssetClass::EMaterialFunction;
+		}
+		else if (AssetClass->IsChildOf(UMaterialFunctionInstance::StaticClass()))
+		{
+			return EDataprepAssetClass::EMaterialFunctionInstance;
 		}
 		else if (AssetClass->IsChildOf(UMaterial::StaticClass()))
 		{
@@ -475,60 +468,101 @@ void FDataprepEditor::TakeSnapshot()
 		}
 	}
 
-	FCriticalSection GlobalLock;
 	TAtomic<bool> bGlobalIsValid(true);
-	ParallelFor(Assets.Num(),
-		[&](int32 AssetIndex)
 	{
-		if (!bGlobalIsValid)
+		FText Message = LOCTEXT("SaveSnapshot_SaveAssets", "Snapshot : Caching assets ...");
+		SlowTask.EnterProgressFrame( 40.0f, Message );
+
+		FScopedSlowTask SlowSaveAssetTask( (float)Assets.Num(), Message );
+		SlowSaveAssetTask.MakeDialog(false);
+
+		TArray<TFuture<bool>> AsyncTasks;
+		AsyncTasks.Reserve( Assets.Num() );
+
+		for (TWeakObjectPtr<UObject> AssetObjectPtr : Assets)
 		{
-			return;
+			AsyncTasks.Emplace(
+				Async(
+					EAsyncExecution::LargeThreadPool,
+					[this, AssetObjectPtr, &bGlobalIsValid]()
+					{
+						if(UObject* AssetObject = AssetObjectPtr.Get())
+						{
+							if ( bGlobalIsValid.Load(EMemoryOrder::Relaxed) )
+							{
+								EObjectFlags ObjectFlags = AssetObject->GetFlags();
+								AssetObject->ClearFlags(RF_Transient);
+								AssetObject->SetFlags(RF_Public);
+
+								FSoftObjectPath AssetPath( AssetObject );
+								const FString AssetPathString = AssetPath.GetAssetPathString();
+								UE_LOG( LogDataprepEditor, Verbose, TEXT("Saving asset %s"), *AssetPathString );
+
+								bool bLocalIsValid = false;
+
+								// Serialize asset
+								{
+									TArray<uint8> SerializedData;
+									DataprepSnapshotUtil::WriteSnapshotData( AssetObject, SerializedData );
+
+									FString AssetFilePath = DataprepSnapshotUtil::BuildAssetFileName( this->TempDir, AssetPathString );
+
+									bLocalIsValid = FFileHelper::SaveArrayToFile( SerializedData, *AssetFilePath );
+								}
+
+								AssetObject->ClearFlags( RF_AllFlags );
+								AssetObject->SetFlags( ObjectFlags );
+
+								return bLocalIsValid;
+							}
+							else
+							{
+								return false;
+							}
+						}
+
+						return true;
+					}
+				)
+			);
 		}
 
-		if(UObject* AssetObject = Assets[AssetIndex].Get())
+		for (int32 Index = 0; Index < AsyncTasks.Num(); ++Index)
 		{
-			EObjectFlags ObjectFlags = AssetObject->GetFlags();
-			AssetObject->ClearFlags(RF_Transient);
-			AssetObject->SetFlags(RF_Public);
-
-			FSoftObjectPath AssetPath( AssetObject );
-			const FString AssetPathString = AssetPath.GetAssetPathString();
-			UE_LOG( LogDataprepEditor, Verbose, TEXT("Saving asset %s"), *AssetPathString );
-
-			bool bLocalIsValid = false;
-
-			// Serialize asset
+			if(UObject* AssetObject = Assets[Index].Get())
 			{
-				TArray<uint8> SerializedData;
-				DataprepSnapshotUtil::WriteSnapshotData( AssetObject, SerializedData );
+				SlowSaveAssetTask.EnterProgressFrame();
 
-				FString AssetFilePath = DataprepSnapshotUtil::BuildAssetFileName( TempDir, AssetPathString );
+				const FSoftObjectPath AssetPath( AssetObject );
+				const FString AssetPathString = AssetPath.GetAssetPathString();
 
-				bLocalIsValid = FFileHelper::SaveArrayToFile( SerializedData, *AssetFilePath );
+				// Wait the result of the async task
+				if(!AsyncTasks[Index].Get())
+				{
+					UE_LOG( LogDataprepEditor, Log, TEXT("Failed to save %s"), *AssetPathString );
+
+					bGlobalIsValid = false;
+					break;
+				}
+				else
+				{
+					UE_LOG( LogDataprepEditor, Verbose, TEXT("Asset %s successfully saved"), *AssetPathString );
+				}
 			}
-
-			AssetObject->ClearFlags( RF_AllFlags );
-			AssetObject->SetFlags( ObjectFlags );
-
-			if(!bLocalIsValid)
-			{
-				UE_LOG( LogDataprepEditor, Log, TEXT("Failed to save %s"), *AssetPathString );
-				bGlobalIsValid = false;
-				return;
-			}
-
-			UE_LOG( LogDataprepEditor, Verbose, TEXT("Asset %s successfully saved"), *AssetPathString );
 		}
 	}
-	);
 
 	ContentSnapshot.bIsValid = bGlobalIsValid;
 
 	// Serialize world if applicable
 	if(ContentSnapshot.bIsValid)
 	{
-		SlowTask.EnterProgressFrame( 50.0f, LOCTEXT("SaveSnapshot_World", "Snapshot : caching level ...") );
+		FText Message = LOCTEXT("SaveSnapshot_World", "Snapshot : caching level ...");
+		SlowTask.EnterProgressFrame( 50.0f, Message );
 		UE_LOG( LogDataprepEditor, Verbose, TEXT("Saving preview world") );
+
+		FScopedSlowTask SlowSaveAssetTask( (float)PreviewWorld->GetCurrentLevel()->Actors.Num(), Message );
+		SlowSaveAssetTask.MakeDialog(false);
 
 		PreviewWorld->ClearFlags(RF_Transient);
 		{
@@ -536,7 +570,7 @@ void FDataprepEditor::TakeSnapshot()
 			FStringOutputDevice Ar;
 			uint32 ExportFlags = PPF_DeepCompareInstances | PPF_ExportsNotFullyQualified | PPF_IncludeTransient;
 			const FDataprepExportObjectInnerContext Context( PreviewWorld.Get() );
-			UExporter::ExportToOutputDevice( &Context, PreviewWorld.Get(), NULL, Ar, TEXT("copy"), 0, ExportFlags);
+			UExporter::ExportToOutputDevice( &Context, PreviewWorld.Get(), nullptr, Ar, TEXT("copy"), 0, ExportFlags);
 
 			// Save text into file
 			FString PackageFilePath = DataprepSnapshotUtil::BuildAssetFileName( TempDir, GetTransientContentFolder() / SessionID ) + TEXT(".asc");
@@ -561,7 +595,6 @@ void FDataprepEditor::TakeSnapshot()
 		return;
 	}
 
-	// #ueent_todo: Is that necessary since Assets has already been sorted?
 	ContentSnapshot.DataEntries.Sort([&](const FSnapshotDataEntry& A, const FSnapshotDataEntry& B)
 	{
 		return GetAssetClassEnum( A.Get<1>() ) < GetAssetClassEnum( B.Get<1>() );
@@ -577,16 +610,10 @@ void FDataprepEditor::TakeSnapshot()
 
 void FDataprepEditor::RestoreFromSnapshot(bool bUpdateViewport)
 {
-	if(!bUseSnapshot)
-	{
-		OnBuildWorld();
-		return;
-	}
-
 	// Snapshot is not usable, rebuild the world from the producers
 	if ( !ContentSnapshot.bIsValid )
 	{
-		// #ueent_todo: Inform user that snapshot is no good and world is going to be rebuilt from scratch
+		UE_LOG( LogDataprepEditor, Log, TEXT("Snapshot is invalid. Running the producers...") );
 		OnBuildWorld();
 		return;
 	}
@@ -616,6 +643,8 @@ void FDataprepEditor::RestoreFromSnapshot(bool bUpdateViewport)
 
 	SlowTask.EnterProgressFrame( 40.0f, LOCTEXT("RestoreFromSnapshot_Assets", "Restoring assets ...") );
 	{
+		TArray<UMaterialInterface*> MaterialInterfaces;
+
 		FScopedSlowTask SubSlowTask( ContentSnapshot.DataEntries.Num(), LOCTEXT("RestoreFromSnapshot_Assets", "Restoring assets ...") );
 		SubSlowTask.MakeDialog(false);
 
@@ -654,6 +683,18 @@ void FDataprepEditor::RestoreFromSnapshot(bool bUpdateViewport)
 				}
 			}
 
+			if(UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(Asset))
+			{
+				{
+					FMaterialUpdateContext MaterialUpdateContext;
+
+					MaterialUpdateContext.AddMaterialInterface( MaterialInterface );
+
+					MaterialInterface->PreEditChange(nullptr);
+					MaterialInterface->PostEditChange();
+				}
+			}
+
 			Assets.Add( Asset );
 
 			UE_LOG( LogDataprepEditor, Verbose, TEXT("Asset %s loaded"), *ObjectPath.GetAssetPathString() );
@@ -662,14 +703,16 @@ void FDataprepEditor::RestoreFromSnapshot(bool bUpdateViewport)
 		FDataprepCoreUtils::PurgeObjects( MoveTemp( ObjectsToDelete ) );
 	}
 
-	/** 
-	 * Set all assets as public so the actors in the level can find the assets they are referring to
-	 * Also assets should always have a RF_Public flags as they are the public interface of their package
-	 */
+	// Make sure all assets have RF_Public flag set so the actors in the level can find the assets they are referring to
+	// Cache boolean representing if RF_Public flag was set or not on asset
+	TArray<bool> AssetFlags;
+	AssetFlags.AddDefaulted( Assets.Num() );
+
 	for(int32 Index = 0; Index < Assets.Num(); ++Index)
 	{
 		if( UObject* Asset = Assets[Index].Get() )
 		{
+			AssetFlags[Index] = bool(Asset->GetFlags() & RF_Public);
 			Asset->SetFlags( RF_Public );
 		}
 	}
@@ -688,24 +731,22 @@ void FDataprepEditor::RestoreFromSnapshot(bool bUpdateViewport)
 		check( FFileHelper::LoadFileToString(FileBuffer, *PackageFilePath) );
 
 		// Set the GWorld to the preview world since ULevelFactory::FactoryCreateText uses GWorld
-		UWorld* CachedWorld = GWorld;
+		UWorld* PrevGWorld = GWorld;
 		GWorld = PreviewWorld.Get();
 
 		// Cache and disable recording of transaction
-		UTransactor* NormalTransactor = GEditor->Trans;
-		GEditor->Trans = nullptr;
+		TGuardValue<UTransactor*> NormalTransactor( GEditor->Trans, nullptr );
 
 		// Cache and disable warnings from LogExec because ULevelFactory::FactoryCreateText is pretty verbose on harmless warnings
 		ELogVerbosity::Type PrevLogExecVerbosity = LogExec.GetVerbosity();
 		LogExec.SetVerbosity( ELogVerbosity::Error );
 
 		// Cache and disable Editor's selection
-		bool PrevEdSelectionLock = GEdSelectionLock;
-		GEdSelectionLock = false;
+		TGuardValue<bool> EdSelectionLock( GEdSelectionLock, true );
 
 		const TCHAR* Paste = *FileBuffer;
 		ULevelFactory* Factory = NewObject<ULevelFactory>();
-		Factory->FactoryCreateText( ULevel::StaticClass(), WorldLevel, WorldLevel->GetFName(), RF_Transactional, NULL, TEXT("paste"), Paste, Paste + FileBuffer.Len(), GWarn/*FGenericPlatformOutputDevices::GetFeedbackContext()*/);
+		Factory->FactoryCreateText( ULevel::StaticClass(), WorldLevel, WorldLevel->GetFName(), RF_Transactional, NULL, TEXT("paste"), Paste, Paste + FileBuffer.Len(), GWarn );
 
 		// Restore LogExec verbosity
 		LogExec.SetVerbosity( PrevLogExecVerbosity );
@@ -713,16 +754,27 @@ void FDataprepEditor::RestoreFromSnapshot(bool bUpdateViewport)
 		// Reinstate old BSP update setting, and force a rebuild - any levels whose geometry has changed while pasting will be rebuilt
 		GetMutableDefault<ULevelEditorMiscSettings>()->bBSPAutoUpdate = bBSPAutoUpdate;
 
-		// Restore transaction's recording
-		GEditor->Trans = NormalTransactor;
-
-		// Restore Editor's selection
-		GEdSelectionLock = PrevEdSelectionLock;
-
-		// Reset the GWorld to its previous value
-		GWorld = CachedWorld;
+		// Restore GWorld
+		GWorld = PrevGWorld;
 	}
 	UE_LOG( LogDataprepEditor, Verbose, TEXT("Level loaded") );
+
+	// Restore RF_Public on each asset
+	for(int32 Index = 0; Index < Assets.Num(); ++Index)
+	{
+		if( UObject* Asset = Assets[Index].Get() )
+		{
+			if( !AssetFlags[Index] )
+			{
+				Asset->ClearFlags( RF_Public );
+			}
+		}
+	}
+
+	{
+		TSharedPtr< IDataprepProgressReporter > ProgressReporter( new FDataprepCoreUtils::FDataprepProgressUIReporter() );
+		FDataprepCoreUtils::BuildAssets( Assets, ProgressReporter );
+	}
 
 	// Log time spent to import incoming file in minutes and seconds
 	double ElapsedSeconds = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - StartTime);

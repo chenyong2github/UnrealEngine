@@ -749,7 +749,7 @@ inline void FMatrix::Mirror(EAxis::Type MirrorAxis, EAxis::Type FlipAxis)
 /** 
  * Apply Scale to this matrix
  */
-inline FMatrix FMatrix::ApplyScale(float Scale)
+inline FMatrix FMatrix::ApplyScale(float Scale) const
 {
 	FMatrix ScaleMatrix(
 		FPlane(Scale, 0.0f, 0.0f, 0.0f),

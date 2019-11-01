@@ -9,8 +9,9 @@
 #include "ShaderParameterUtils.h"
 #include "RendererInterface.h"
 
-class RENDERER_API FRenderTargetWriteMask
+class FRenderTargetWriteMask
 {
 public:
-	static void Decode(FRHICommandListImmediate& RHICmdList, TShaderMap<FGlobalShaderType>* ShaderMap, const TArray<TRefCountPtr<IPooledRenderTarget> >& InRenderTargets, TRefCountPtr<IPooledRenderTarget>& OutRTWriteMask, uint32 RTWriteMaskFastVRamConfig, const TCHAR* RTWriteMaskDebugName);
+	template <uint32 NumRenderTargets>
+	static void Decode(FRHICommandListImmediate& RHICmdList, TShaderMap<FGlobalShaderType>* ShaderMap, IPooledRenderTarget* InRenderTargets[NumRenderTargets], TRefCountPtr<IPooledRenderTarget>& OutRTWriteMask, uint32 RTWriteMaskFastVRamConfig, const TCHAR* RTWriteMaskDebugName);
 };

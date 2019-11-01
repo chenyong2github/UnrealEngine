@@ -415,6 +415,26 @@ private:
 #endif // WITH_EDITORONLY_DATA
 };
 
+struct FOptTexturePlatformData
+{
+	/** Arbitrary extra data that the runtime may need. */
+	uint32 ExtData;
+	/** Number of mips making up the mip tail, which must always be resident */
+	uint32 NumMipsInTail;
+
+	FOptTexturePlatformData()
+		: ExtData(0)
+		, NumMipsInTail(0)
+	{}
+
+	friend inline FArchive& operator << (FArchive& Ar, FOptTexturePlatformData& Data)
+	{
+		Ar << Data.ExtData;
+		Ar << Data.NumMipsInTail;
+		return Ar;
+	}
+};
+
 /**
  * Platform-specific data used by the texture resource at runtime.
  */
@@ -427,10 +447,12 @@ struct FTexturePlatformData
 	int32 SizeX;
 	/** Height of the texture. */
 	int32 SizeY;
-	/** Number of texture slices. */
-	int32 NumSlices;
+	/** Number of texture slices. Bit CubeMapBitIndex contains if a texture is a Cubemap or not. */
+	uint32 NumSlicesCubemapMask;
 	/** Format in which mip data is stored. */
 	EPixelFormat PixelFormat;
+	/** Additional data required by some platforms.*/
+	FOptTexturePlatformData OptData;
 	/** Mip data or VT data. one or the other. */
 	TIndirectArray<struct FTexture2DMipMap> Mips;
 	struct FVirtualTextureBuiltData* VTData;
@@ -452,6 +474,10 @@ struct FTexturePlatformData
 
 	/** Destructor. */
 	ENGINE_API ~FTexturePlatformData();
+
+	static constexpr uint32 CubeMapBitIndex = 31;
+	static constexpr uint32 CubeMapBitMask = (1u << CubeMapBitIndex);
+	static constexpr uint32 CubeMapRemainingBitMask = CubeMapBitMask - 1u;
 
 	/** Return whether TryLoadMips() would stall because async loaded mips are not yet available. */
 	bool IsReadyForAsyncPostLoad() const;
@@ -477,6 +503,36 @@ struct FTexturePlatformData
 	 * @param bStreamable Store some mips inline, only used during cooking
 	 */
 	void SerializeCooked(FArchive& Ar, class UTexture* Owner, bool bStreamable);
+
+	inline bool IsCubemap() const
+	{
+		return (NumSlicesCubemapMask & CubeMapBitMask) == CubeMapBitMask;
+	}
+
+	inline int32 GetNumSlices() const
+	{
+		return (int32)(NumSlicesCubemapMask & CubeMapRemainingBitMask);
+	}
+
+	inline void SetNumSlices(int32 NumSlices)
+	{
+		NumSlicesCubemapMask = ((uint32)NumSlices & CubeMapRemainingBitMask) | (NumSlicesCubemapMask & CubeMapBitMask);
+	}
+
+	inline void SetIsCubemap(bool bCubemap)
+	{
+		NumSlicesCubemapMask = (bCubemap ? CubeMapBitMask : 0) | (NumSlicesCubemapMask & CubeMapRemainingBitMask);
+	}
+
+	inline int32 GetNumMipsInTail() const
+	{
+		return OptData.NumMipsInTail;
+	}
+
+	inline int32 GetExtData() const
+	{
+		return OptData.ExtData;
+	}
 
 #if WITH_EDITOR
 	void Cache(

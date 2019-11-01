@@ -2,6 +2,7 @@
 
 #pragma once
 #include "OculusHMDPrivate.h"
+#include "IXRLoadingScreen.h"
 
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 #include "OculusHMD_GameFrame.h"
@@ -33,7 +34,7 @@ public:
 // FSplash
 //-------------------------------------------------------------------------------------------------
 
-class FSplash : public TSharedFromThis<FSplash>
+class FSplash : public IXRLoadingScreen, public TSharedFromThis<FSplash>
 {
 protected:
 	class FTicker : public FTickableObjectRenderThread, public TSharedFromThis<FTicker>
@@ -54,7 +55,6 @@ public:
 	virtual ~FSplash();
 
 	void Tick_RenderThread(float DeltaTime);
-	bool IsShown() const { return bIsShown; }
 
 	void Startup();
 	void LoadSettings();
@@ -64,16 +64,25 @@ public:
 
 	void OnPreLoadMap(const FString&);
 
+	// Called from FOculusHMD
+	void UpdateLoadingScreen_GameThread();
+
+	// Internal extended API
 	int AddSplash(const FOculusSplashDesc&);
-	void ClearSplashes();
 	bool GetSplash(unsigned index, FOculusSplashDesc& OutDesc);
 	void StopTicker();
 	void StartTicker();
 
-	void Show();
-	void Hide();
+	// The standard IXRLoadingScreen interface
+	virtual void ShowLoadingScreen() override;
+	virtual void HideLoadingScreen() override;
+	virtual void ClearSplashes() override;
+	virtual void AddSplash(const FSplashDesc& Splash) override;
+	virtual bool IsShown() const override { return bIsShown; }
 
 protected:
+	void DoShow();
+	void DoHide();
 	void UnloadTextures();
 	void LoadTexture(FSplashLayer& InSplashLayer);
 	void UnloadTexture(FSplashLayer& InSplashLayer);
@@ -101,6 +110,8 @@ protected:
 	// All these flags are only modified from the Game thread
 	bool bInitialized;
 	bool bIsShown;
+	bool bNeedSplashUpdate;
+	bool bShouldShowSplash;
 
 	float SystemDisplayInterval;
 	double LastTimeInSeconds;

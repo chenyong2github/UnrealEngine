@@ -892,16 +892,26 @@ void FMeshDescriptionOperations::CreatePolygonNTB(FMeshDescription& MeshDescript
 						// Use InverseSlow to catch singular matrices.  Inverse can miss this sometimes.
 						const FMatrix TextureToLocal = ParameterToTexture.Inverse() * ParameterToLocal;
 
-						FVector TmpTangentX(0.0f);
-						FVector TmpTangentY(0.0f);
-						FVector TmpTangentZ(0.0f);
-						TmpTangentX = TextureToLocal.TransformVector(FVector(1, 0, 0)).GetSafeNormal();
-						TmpTangentY = TextureToLocal.TransformVector(FVector(0, 1, 0)).GetSafeNormal();
-						TmpTangentZ = Normal;
+						FVector TmpTangentX = TextureToLocal.TransformVector(FVector(1, 0, 0)).GetSafeNormal();
+						FVector TmpTangentY = TextureToLocal.TransformVector(FVector(0, 1, 0)).GetSafeNormal();
+						FVector TmpTangentZ = Normal;
 						FVector::CreateOrthonormalBasis(TmpTangentX, TmpTangentY, TmpTangentZ);
+
+						if (TmpTangentX.IsNearlyZero() || TmpTangentX.ContainsNaN()
+							|| TmpTangentY.IsNearlyZero() || TmpTangentY.ContainsNaN())
+						{
+							TmpTangentX = FVector::ZeroVector;
+							TmpTangentY = FVector::ZeroVector;
+						}
+
+						if (TmpTangentZ.IsNearlyZero() || TmpTangentZ.ContainsNaN())
+						{
+							TmpTangentZ = FVector::ZeroVector;
+						}
+
 						TangentX += TmpTangentX;
 						TangentY += TmpTangentY;
-						TangentZ += TmpTangentZ;
+						TangentZ += TmpTangentZ;						
 					}
 					else
 					{

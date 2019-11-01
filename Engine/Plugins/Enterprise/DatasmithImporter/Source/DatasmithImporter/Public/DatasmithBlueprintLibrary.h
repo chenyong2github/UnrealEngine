@@ -104,6 +104,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Datasmith | Static Mesh")
 	static void ComputeLightmapResolution( const TArray< UObject* >& Objects, bool bApplyChanges, float IdealRatio = 0.2f );
 
+	/**
+	 * Setup the Lightmap UVs settings to enable or disable the lightmap generation on the static meshes found in the Assets list
+	 *
+	 * @param	Assets							List of objects to set the generate lightmap uvs flag on. Only Static Meshes and Static Mesh Components will be affected.
+	 * @param	bApplyChanges					Indicates if changes must be apply or not.
+	 * @param	bGenerateLightmapUVs			The value to set for the generate lightmap uvs flag.
+	 * @param	LightmapResolutionIdealRatio	The desired lightmap density ratio
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Datasmith | Static Mesh")
+	static void SetupStaticLighting(const TArray< UObject* >& Objects, bool bApplyChanges, bool bGenerateLightmapUVs, float LightmapResolutionIdealRatio = 0.2f );
+
 private:
+	static void ComputeLightmapResolution(const TMap< UStaticMesh*, TSet< UStaticMeshComponent* > >& StaticMeshMap, bool bApplyChanges, float IdealRatio = 0.2f);
+
 	static int32 ComputeLightmapResolution(UStaticMesh* StaticMesh, float IdealRatio, const FVector& StaticMeshScale);
 };

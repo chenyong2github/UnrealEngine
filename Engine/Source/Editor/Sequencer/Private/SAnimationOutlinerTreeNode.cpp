@@ -19,6 +19,7 @@
 #include "SSequencerTreeView.h"
 #include "Widgets/Colors/SColorPicker.h"
 #include "SequencerSectionPainter.h"
+#include "ObjectBindingTagCache.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Framework/SlateDelegates.h"
 
@@ -73,6 +74,26 @@ void SAnimationOutlinerTreeNode::Construct( const FArguments& InArgs, TSharedRef
 		.Clipping(EWidgetClipping::ClipToBounds)
 		.IsSelected(FIsSelected::CreateSP(InTableRow, &SSequencerTreeViewRow::IsSelectedExclusively));
 
+	TSharedRef<SWidget> LabelContent = EditableLabel.ToSharedRef();
+
+	if (TSharedPtr<SWidget> AdditionalLabelContent = Node->GetAdditionalOutlinerLabel())
+	{
+		LabelContent = SNew(SHorizontalBox)
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(FMargin(0.f, 0.f, 5.f, 0.f))
+		[
+			LabelContent
+		]
+
+		+ SHorizontalBox::Slot()
+		[
+			AdditionalLabelContent.ToSharedRef()
+		];
+
+		LabelContent->SetClipping(EWidgetClipping::ClipToBounds);
+	}
 
 	Node->OnRenameRequested().AddRaw(this, &SAnimationOutlinerTreeNode::EnterRenameMode);
 
@@ -152,7 +173,7 @@ void SAnimationOutlinerTreeNode::Construct( const FArguments& InArgs, TSharedRef
 							.VAlign(VAlign_Center)
 							.Padding(FMargin(0.f, 0.f, 4.f, 0.f))
 							[
-								EditableLabel.ToSharedRef()
+								LabelContent
 							]
 
 							// Arbitrary customization slot

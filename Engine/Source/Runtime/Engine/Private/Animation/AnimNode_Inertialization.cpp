@@ -4,6 +4,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "AnimationRuntime.h"
 
+#define LOCTEXT_NAMESPACE "AnimNode_Inertialization"
+
 
 TAutoConsoleVariable<int32> CVarAnimInertializationEnable(TEXT("a.AnimNode.Inertialization.Enable"), 1, TEXT("Enable / Disable Inertialization"));
 TAutoConsoleVariable<int32> CVarAnimInertializationIgnoreVelocity(TEXT("a.AnimNode.Inertialization.IgnoreVelocity"), 0, TEXT("Ignore velocity information during Inertialization (effectively reverting to a quintic diff blend)"));
@@ -24,7 +26,7 @@ FAnimNode_Inertialization::FAnimNode_Inertialization()
 }
 
 
-void FAnimNode_Inertialization::Request(float Duration)
+void FAnimNode_Inertialization::RequestInertialization(float Duration)
 {
 	if (RequestedDuration < 0.0f || Duration < RequestedDuration)
 	{
@@ -32,6 +34,18 @@ void FAnimNode_Inertialization::Request(float Duration)
 	}
 }
 
+/*static*/ void FAnimNode_Inertialization::LogRequestError(const FAnimationUpdateContext& Context, const FPoseLinkBase& RequesterPoseLink)
+{
+#if WITH_EDITORONLY_DATA	
+	UAnimBlueprint* AnimBlueprint = Context.AnimInstanceProxy->GetAnimBlueprint();
+	UAnimBlueprintGeneratedClass* AnimClass = AnimBlueprint ? AnimBlueprint->GetAnimBlueprintGeneratedClass() : nullptr;
+	const UObject* RequesterNode = AnimClass ? AnimClass->GetVisualNodeFromNodePropertyIndex(RequesterPoseLink.SourceLinkID) : nullptr;
+
+	FText Message = FText::Format(LOCTEXT("InertializationRequestError", "No Inertialization node found for request from '{0}'. Add an Inertialization node after this request."),
+		FText::FromString(GetPathNameSafe(RequesterNode)));
+	Context.LogMessage(EMessageSeverity::Error, Message);
+#endif
+}
 
 void FAnimNode_Inertialization::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
@@ -264,7 +278,7 @@ void FAnimNode_Inertialization::OnUpdatesSkipped(TArrayView<const FAnimationUpda
 	{
 		if (FAnimNode_Inertialization* OtherIneritalizationNode = Update->GetAncestor<FAnimNode_Inertialization>())
 		{
-			OtherIneritalizationNode->Request(RequestedDuration);
+			OtherIneritalizationNode->RequestInertialization(RequestedDuration);
 		}
 	}
 }
@@ -661,3 +675,5 @@ float FInertializationPoseDiff::CalcInertialFloat(float x0, float v0, float t, f
 
 	return x * sign;
 }
+
+#undef LOCTEXT_NAMESPACE

@@ -87,7 +87,7 @@ namespace AliasToCoreTechUtils
 		}
 
 		CT_OBJECT_ID CTSurfaceID = 0;
-		CheckedCTError result = CT_SNURBS_IO::Create(CTSurfaceID,
+		CT_IO_ERROR Result = CT_SNURBS_IO::Create(CTSurfaceID,
 			OrderU, OrderV,
 			KnotSizeU, KnotSizeV,
 			ControlPointSizeU, ControlPointSizeV,
@@ -95,9 +95,17 @@ namespace AliasToCoreTechUtils
 			KnotValuesU.data(), KnotValuesV.data(),
 			KnotMultiplicityU.data(), KnotMultiplicityV.data()
 		);
-
+		if (Result != IO_OK)
+		{
+			return 0;
+		}
 		return CTSurfaceID;
 	}
+}
+
+CT_IO_ERROR FAliasCoretechWrapper::Tessellate(FMeshDescription& Mesh, FMeshParameters& MeshParameters)
+{
+	return CADLibrary::Tessellate(MainObjectId, ImportParams, Mesh, MeshParameters);
 }
 
 CT_OBJECT_ID FAliasCoretechWrapper::Add3DCurve(AlCurve& Curve)
@@ -133,7 +141,7 @@ CT_OBJECT_ID FAliasCoretechWrapper::Add3DCurve(AlCurve& Curve)
 	Knots[RealKnotSize - 1] = Knots[RealKnotSize - 2];
 
 	CT_OBJECT_ID NurbsID;
-	CheckedCTError setUvCurveError = CT_CNURBS_IO::Create(
+	CT_IO_ERROR setUvCurveError = CT_CNURBS_IO::Create(
 		NurbsID,               /*!< [out] Id of created coedge */
 		Order,                  /*!< [in] Order of curve */
 		RealKnotSize,           /*!< [in] Knot vector size */
@@ -156,7 +164,7 @@ CT_OBJECT_ID FAliasCoretechWrapper::Add3DCurve(AlCurve& Curve)
 
 CT_OBJECT_ID FAliasCoretechWrapper::AddTrimCurve(AlTrimCurve& TrimCurve)
 {
-	bool bIsReversed = TrimCurve.isReversed();
+	boolean bIsReversed = TrimCurve.isReversed();
 	curveFormType Form = TrimCurve.form();
 	CT_UINT32 Order = TrimCurve.degree() + 1;
 	CT_UINT32 ControlPointSize = TrimCurve.numberOfCVs();
@@ -198,8 +206,13 @@ CT_OBJECT_ID FAliasCoretechWrapper::AddTrimCurve(AlTrimCurve& TrimCurve)
 	Knots[RealKnotSize - 1] = Knots[RealKnotSize - 2];
 
 	CT_OBJECT_ID CoedgeID;
-	CheckedCTError setUvCurveError = CT_COEDGE_IO::Create(CoedgeID, bIsReversed ? CT_ORIENTATION::CT_REVERSE : CT_ORIENTATION::CT_FORWARD, D3CurveId);
-	setUvCurveError = CT_COEDGE_IO::SetUVCurve(
+	CT_IO_ERROR Result = CT_COEDGE_IO::Create(CoedgeID, bIsReversed ? CT_ORIENTATION::CT_REVERSE : CT_ORIENTATION::CT_FORWARD, D3CurveId);
+	if (Result != IO_OK)
+	{
+		return 0;
+	}
+
+	Result = CT_COEDGE_IO::SetUVCurve(
 		CoedgeID,               /*!< [out] Id of created coedge */
 		Order,                  /*!< [in] Order of curve */
 		RealKnotSize,           /*!< [in] Knot vector size */
@@ -211,6 +224,10 @@ CT_OBJECT_ID FAliasCoretechWrapper::AddTrimCurve(AlTrimCurve& TrimCurve)
 		Knots[0],               /*!< [in] start parameter of coedge on the uv curve (t range=[knot[0], knot[knot_size-1]]) */
 		Knots[RealKnotSize - 1]   /*!< [in] end parameter of coedge on the uv curve (t range=[knot[0], knot[knot_size-1]]) */
 	);
+	if (Result != IO_OK)
+	{
+		return 0;
+	}
 
 	// Build topo
 	AlTrimCurve *TwinCurve = TrimCurve.getTwinCurve();
@@ -221,11 +238,6 @@ CT_OBJECT_ID FAliasCoretechWrapper::AddTrimCurve(AlTrimCurve& TrimCurve)
 			CT_COEDGE_IO::MatchCoedges(*TwinCoedgeID, CoedgeID);
 		}
 		AlEdge2CTEdge.Add(&TrimCurve, CoedgeID);
-	}
-
-	if (!setUvCurveError)
-	{
-		return 0;
 	}
 
 	return CoedgeID;
@@ -247,20 +259,22 @@ CT_OBJECT_ID FAliasCoretechWrapper::AddTrimBoundary(AlTrimBoundary& TrimBoundary
 
 	CT_OBJECT_ID LoopId;
 
-	CheckedCTError LoopCreationError = CT_LOOP_IO::Create(LoopId, Coedges);
-	if (!LoopCreationError)
+	CT_IO_ERROR Result = CT_LOOP_IO::Create(LoopId, Coedges);
+	if (Result != IO_OK)
 	{
 		return 0;
 	}
 	return LoopId;
 }
 
-
-
-
 CT_OBJECT_ID FAliasCoretechWrapper::AddTrimRegion(AlTrimRegion& TrimRegion, bool bWorldPosition, bool bOrientation)
 {
 	CT_OBJECT_ID NurbsId = AliasToCoreTechUtils::CreateCTNurbs(TrimRegion, bWorldPosition);
+	if (NurbsId == 0)
+	{
+		return 0;
+	}
+
 	CT_LIST_IO Boundaries;
 	CT_OBJECT_ID FaceID;
 	CT_ORIENTATION FaceOrient = bOrientation ? CT_ORIENTATION::CT_FORWARD : CT_ORIENTATION::CT_REVERSE;
@@ -275,8 +289,8 @@ CT_OBJECT_ID FAliasCoretechWrapper::AddTrimRegion(AlTrimRegion& TrimRegion, bool
 		}
 		TrimBoundary = TrimBoundary->nextBoundary();
 	}
-	CheckedCTError Result = CT_FACE_IO::Create(FaceID, NurbsId, FaceOrient, Boundaries);
-	if (Result)
+	CT_IO_ERROR Result = CT_FACE_IO::Create(FaceID, NurbsId, FaceOrient, Boundaries);
+	if (Result == IO_OK)
 	{
 		return FaceID;
 	}
@@ -304,8 +318,8 @@ void FAliasCoretechWrapper::AddFace(AlSurface& Surface, CT_LIST_IO& FaceList, bo
 	CT_LIST_IO Boundaries;
 	CT_OBJECT_ID FaceID;
 	CT_ORIENTATION FaceOrient = bOrientation ? CT_ORIENTATION::CT_FORWARD : CT_ORIENTATION::CT_REVERSE;
-	CheckedCTError Result = CT_FACE_IO::Create(FaceID, NurbsId, FaceOrient, Boundaries);
-	if (Result)
+	CT_IO_ERROR Result = CT_FACE_IO::Create(FaceID, NurbsId, FaceOrient, Boundaries);
+	if (Result == IO_OK)
 	{
 		FaceList.PushBack(FaceID);
 	}
@@ -325,13 +339,12 @@ void FAliasCoretechWrapper::AddShell(AlShell& Shell, CT_LIST_IO& FaceList, bool 
 	}
 }
 
-CheckedCTError FAliasCoretechWrapper::AddBRep(TArray<AlDagNode*>& DagNodeSet, bool bWorldPosition)
+CT_IO_ERROR FAliasCoretechWrapper::AddBRep(TArray<AlDagNode*>& DagNodeSet, bool bWorldPosition)
 {
-	CheckedCTError Result;
+	CT_IO_ERROR Result = IO_OK;
 	if (!IsSessionValid())
 	{
-		Result.RaiseOtherError("bad session init");
-		return Result;
+		return IO_ERROR;
 	}
 
 	if (ImportParams.StitchingTechnique == StitchingSew)
@@ -389,14 +402,14 @@ CheckedCTError FAliasCoretechWrapper::AddBRep(TArray<AlDagNode*>& DagNodeSet, bo
 		}
 		if (FaceList.IsEmpty())
 		{
-			return Result;
+			return IO_ERROR;
 		}
 	}
 
 	// Create body from faces
 	CT_OBJECT_ID BodyID;
 	Result = CT_BODY_IO::CreateFromFaces(BodyID, CT_BODY_PROP::CT_BODY_PROP_EXACT | CT_BODY_PROP::CT_BODY_PROP_CLOSE, FaceList);
-	if (!Result)
+	if (Result != IO_OK)
 	{
 		return Result;
 	}

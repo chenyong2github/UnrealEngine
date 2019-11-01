@@ -242,7 +242,7 @@ FReply FCurveEditorMultiScaleTool::OnMouseButtonDown(TSharedRef<SWidget> OwningW
 			// Start a Delayed Drag
 			DelayedDrag = FDelayedDrag(MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()), MouseEvent.GetEffectingButton());
 
-			return FReply::Handled();
+			return FReply::Handled().PreventThrottling();
 		}
 	}
 	return FReply::Unhandled();

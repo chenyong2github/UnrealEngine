@@ -305,7 +305,7 @@ void FTransaction::FObjectRecord::Finalize( FTransaction* Owner, TSharedPtr<ITra
 			// have been tracking delta-changes between snapshots and this finalization will need to account for those changes too
 			if (bSnapshot)
 			{
-				Diff(Owner, SerializedObjectSnapshot, CurrentSerializedObject, DeltaChange);
+				Diff(Owner, SerializedObjectSnapshot, CurrentSerializedObject, DeltaChange, /*bFullDiff*/false);
 			}
 
 			SerializedObjectFlip.Swap(CurrentSerializedObject);
@@ -317,7 +317,7 @@ void FTransaction::FObjectRecord::Finalize( FTransaction* Owner, TSharedPtr<ITra
 	}
 }
 
-void FTransaction::FObjectRecord::Snapshot( FTransaction* Owner )
+void FTransaction::FObjectRecord::Snapshot( FTransaction* Owner, TArrayView<const UProperty*> Properties )
 {
 	if (Array)
 	{
@@ -338,14 +338,14 @@ void FTransaction::FObjectRecord::Snapshot( FTransaction* Owner )
 		FSerializedObject CurrentSerializedObject;
 		{
 			CurrentSerializedObject.SetObject(CurrentObject);
-			FWriter Writer(CurrentSerializedObject, bWantsBinarySerialization);
-			SerializeObject(Writer);
+			FWriter Writer(CurrentSerializedObject, bWantsBinarySerialization, Properties);
+			CurrentObject->SerializeScriptProperties(Writer);
 		}
 
 		// Diff against the correct serialized data depending on whether we already had a snapshot
 		const FSerializedObject& InitialSerializedObject = bSnapshot ? SerializedObjectSnapshot : SerializedObject;
 		FTransactionObjectDeltaChange SnapshotDeltaChange;
-		Diff(Owner, InitialSerializedObject, CurrentSerializedObject, SnapshotDeltaChange);
+		Diff(Owner, InitialSerializedObject, CurrentSerializedObject, SnapshotDeltaChange, /*bFullDiff*/false);
 
 		// Update the snapshot data for next time
 		bSnapshot = true;
@@ -361,7 +361,7 @@ void FTransaction::FObjectRecord::Snapshot( FTransaction* Owner )
 	}
 }
 
-void FTransaction::FObjectRecord::Diff( const FTransaction* Owner, const FSerializedObject& OldSerializedObject, const FSerializedObject& NewSerializedObject, FTransactionObjectDeltaChange& OutDeltaChange )
+void FTransaction::FObjectRecord::Diff( const FTransaction* Owner, const FSerializedObject& OldSerializedObject, const FSerializedObject& NewSerializedObject, FTransactionObjectDeltaChange& OutDeltaChange, const bool bFullDiff )
 {
 	auto AreObjectPointersIdentical = [&OldSerializedObject, &NewSerializedObject](const FName InPropertyName)
 	{
@@ -405,18 +405,21 @@ void FTransaction::FObjectRecord::Diff( const FTransaction* Owner, const FSerial
 		return bAreNamesIdentical;
 	};
 
-	OutDeltaChange.bHasNameChange |= OldSerializedObject.ObjectName != NewSerializedObject.ObjectName;
-	OutDeltaChange.bHasOuterChange |= OldSerializedObject.ObjectOuterPathName != NewSerializedObject.ObjectOuterPathName;
-	OutDeltaChange.bHasPendingKillChange |= OldSerializedObject.bIsPendingKill != NewSerializedObject.bIsPendingKill;
-
-	if (!AreObjectPointersIdentical(NAME_None))
+	if (bFullDiff)
 	{
-		OutDeltaChange.bHasNonPropertyChanges = true;
-	}
+		OutDeltaChange.bHasNameChange |= OldSerializedObject.ObjectName != NewSerializedObject.ObjectName;
+		OutDeltaChange.bHasOuterChange |= OldSerializedObject.ObjectOuterPathName != NewSerializedObject.ObjectOuterPathName;
+		OutDeltaChange.bHasPendingKillChange |= OldSerializedObject.bIsPendingKill != NewSerializedObject.bIsPendingKill;
 
-	if (!AreNamesIdentical(NAME_None))
-	{
-		OutDeltaChange.bHasNonPropertyChanges = true;
+		if (!AreObjectPointersIdentical(NAME_None))
+		{
+			OutDeltaChange.bHasNonPropertyChanges = true;
+		}
+
+		if (!AreNamesIdentical(NAME_None))
+		{
+			OutDeltaChange.bHasNonPropertyChanges = true;
+		}
 	}
 
 	if (OldSerializedObject.SerializedProperties.Num() > 0 || NewSerializedObject.SerializedProperties.Num() > 0)
@@ -431,8 +434,11 @@ void FTransaction::FObjectRecord::Diff( const FTransaction* Owner, const FSerial
 			const FSerializedProperty* OldSerializedProperty = OldSerializedObject.SerializedProperties.Find(NewNamePropertyPair.Key);
 			if (!OldSerializedProperty)
 			{
-				// Missing property, assume that the property changed
-				OutDeltaChange.ChangedProperties.AddUnique(NewNamePropertyPair.Key);
+				if (bFullDiff)
+				{
+					// Missing property, assume that the property changed
+					OutDeltaChange.ChangedProperties.AddUnique(NewNamePropertyPair.Key);
+				}
 				continue;
 			}
 
@@ -468,49 +474,55 @@ void FTransaction::FObjectRecord::Diff( const FTransaction* Owner, const FSerial
 			const FSerializedProperty* NewSerializedProperty = NewSerializedObject.SerializedProperties.Find(OldNamePropertyPair.Key);
 			if (!NewSerializedProperty)
 			{
-				// Missing property, assume that the property changed
-				OutDeltaChange.ChangedProperties.AddUnique(OldNamePropertyPair.Key);
+				if (bFullDiff)
+				{
+					// Missing property, assume that the property changed
+					OutDeltaChange.ChangedProperties.AddUnique(OldNamePropertyPair.Key);
+				}
 				continue;
 			}
 		}
 
-		// Compare the data before the property block to see if something else in the object has changed
-		if (!OutDeltaChange.bHasNonPropertyChanges)
+		if (bFullDiff)
 		{
-			const int32 OldHeaderSize = FMath::Min(StartOfOldPropertyBlock, OldSerializedObject.Data.Num());
-			const int32 CurrentHeaderSize = FMath::Min(StartOfNewPropertyBlock, NewSerializedObject.Data.Num());
-
-			bool bIsHeaderIdentical = OldHeaderSize == CurrentHeaderSize;
-			if (bIsHeaderIdentical && CurrentHeaderSize > 0)
+			// Compare the data before the property block to see if something else in the object has changed
+			if (!OutDeltaChange.bHasNonPropertyChanges)
 			{
-				bIsHeaderIdentical = FMemory::Memcmp(&OldSerializedObject.Data[0], &NewSerializedObject.Data[0], CurrentHeaderSize) == 0;
+				const int32 OldHeaderSize = FMath::Min(StartOfOldPropertyBlock, OldSerializedObject.Data.Num());
+				const int32 CurrentHeaderSize = FMath::Min(StartOfNewPropertyBlock, NewSerializedObject.Data.Num());
+
+				bool bIsHeaderIdentical = OldHeaderSize == CurrentHeaderSize;
+				if (bIsHeaderIdentical && CurrentHeaderSize > 0)
+				{
+					bIsHeaderIdentical = FMemory::Memcmp(&OldSerializedObject.Data[0], &NewSerializedObject.Data[0], CurrentHeaderSize) == 0;
+				}
+
+				if (!bIsHeaderIdentical)
+				{
+					OutDeltaChange.bHasNonPropertyChanges = true;
+				}
 			}
 
-			if (!bIsHeaderIdentical)
+			// Compare the data after the property block to see if something else in the object has changed
+			if (!OutDeltaChange.bHasNonPropertyChanges)
 			{
-				OutDeltaChange.bHasNonPropertyChanges = true;
-			}
-		}
+				const int32 OldFooterSize = OldSerializedObject.Data.Num() - FMath::Max(EndOfOldPropertyBlock, 0);
+				const int32 CurrentFooterSize = NewSerializedObject.Data.Num() - FMath::Max(EndOfNewPropertyBlock, 0);
 
-		// Compare the data after the property block to see if something else in the object has changed
-		if (!OutDeltaChange.bHasNonPropertyChanges)
-		{
-			const int32 OldFooterSize = OldSerializedObject.Data.Num() - FMath::Max(EndOfOldPropertyBlock, 0);
-			const int32 CurrentFooterSize = NewSerializedObject.Data.Num() - FMath::Max(EndOfNewPropertyBlock, 0);
+				bool bIsFooterIdentical = OldFooterSize == CurrentFooterSize;
+				if (bIsFooterIdentical && CurrentFooterSize > 0)
+				{
+					bIsFooterIdentical = FMemory::Memcmp(&OldSerializedObject.Data[EndOfOldPropertyBlock], &NewSerializedObject.Data[EndOfNewPropertyBlock], CurrentFooterSize) == 0;
+				}
 
-			bool bIsFooterIdentical = OldFooterSize == CurrentFooterSize;
-			if (bIsFooterIdentical && CurrentFooterSize > 0)
-			{
-				bIsFooterIdentical = FMemory::Memcmp(&OldSerializedObject.Data[EndOfOldPropertyBlock], &NewSerializedObject.Data[EndOfNewPropertyBlock], CurrentFooterSize) == 0;
-			}
-
-			if (!bIsFooterIdentical)
-			{
-				OutDeltaChange.bHasNonPropertyChanges = true;
+				if (!bIsFooterIdentical)
+				{
+					OutDeltaChange.bHasNonPropertyChanges = true;
+				}
 			}
 		}
 	}
-	else
+	else if (bFullDiff)
 	{
 		// No properties, so just compare the whole blob
 		bool bIsBlobIdentical = OldSerializedObject.Data.Num() == NewSerializedObject.Data.Num();
@@ -828,7 +840,7 @@ void FTransaction::SetPrimaryObject(UObject* InObject)
 	}
 }
 
-void FTransaction::SnapshotObject( UObject* InObject )
+void FTransaction::SnapshotObject( UObject* InObject, TArrayView<const UProperty*> Properties )
 {
 	if (InObject && ObjectMap.Contains(InObject))
 	{
@@ -839,7 +851,7 @@ void FTransaction::SnapshotObject( UObject* InObject )
 
 		if (FoundObjectRecord)
 		{
-			FoundObjectRecord->Snapshot(this);
+			FoundObjectRecord->Snapshot(this, Properties);
 		}
 	}
 }
@@ -1294,7 +1306,7 @@ void UTransBuffer::Cancel( int32 StartIndex /*=0*/ )
 bool UTransBuffer::CanUndo( FText* Text )
 {
 	CheckState();
-	if (ActiveCount)
+	if (ActiveCount || CurrentTransaction != nullptr )
 	{
 		if (Text)
 		{
@@ -1331,7 +1343,7 @@ bool UTransBuffer::CanUndo( FText* Text )
 bool UTransBuffer::CanRedo( FText* Text )
 {
 	CheckState();
-	if( ActiveCount )
+	if( ActiveCount || CurrentTransaction != nullptr )
 	{
 		if( Text )
 		{

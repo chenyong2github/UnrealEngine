@@ -14,6 +14,7 @@
 #include "PhysicsEngine/AggregateGeom.h"
 #include "Engine/Polys.h"
 #include "PhysXIncludes.h"
+#include "Chaos/Convex.h"
 
 #if WITH_CHAOS
 #include "Chaos/ImplicitObject.h"

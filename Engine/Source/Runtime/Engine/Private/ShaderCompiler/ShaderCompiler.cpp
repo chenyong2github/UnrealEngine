@@ -266,6 +266,15 @@ static FAutoConsoleVariableRef CVarCreateShadersOnLoad(
 	TEXT("Whether to create shaders on load, which can reduce hitching, but use more memory.  Otherwise they will be created as needed.")
 );
 
+
+static TAutoConsoleVariable<FString> CVarShaderOverrideDebugDir(
+	TEXT("r.OverrideShaderDebugDir"),
+	"",
+	TEXT("Override output location of shader debug files\n")
+	TEXT("Empty: use default location Saved\\ShaderDebugInfo.\n"),
+	ECVF_ReadOnly);
+
+
 extern bool CompileShaderPipeline(const IShaderFormat* Compiler, FName Format, FShaderPipelineCompileJob* PipelineJob, const FString& Dir);
 
 #if ENABLE_COOK_STATS
@@ -611,6 +620,13 @@ static void ReadSingleJob(FShaderCompileJob* CurrentJob, FArchive& OutputFile)
 	// The shader processing this output will use it to search for existing FShaderResources
 	CurrentJob->Output.GenerateOutputHash();
 	CurrentJob->bSucceeded = CurrentJob->Output.bSucceeded;
+
+	if (CurrentJob->bSucceeded && CurrentJob->Input.DumpDebugInfoRootPath.Len() > 0)
+	{
+		// write down the output hash as a file
+		FString HashFileName = FPaths::Combine(CurrentJob->Input.DumpDebugInfoPath, TEXT("OutputHash.txt"));
+		FFileHelper::SaveStringToFile(CurrentJob->Output.OutputHash.ToString(), *HashFileName, FFileHelper::EEncodingOptions::ForceAnsi);
+	}
 };
 
 // Process results from Worker Process
@@ -1572,6 +1588,11 @@ FShaderCompilingManager::FShaderCompilingManager() :
 	AbsoluteShaderBaseWorkingDirectory = AbsoluteBaseDirectory + TEXT("/");
 
 	FString AbsoluteDebugInfoDirectory = IFileManager::Get().ConvertToAbsolutePathForExternalAppForWrite(*(FPaths::ProjectSavedDir() / TEXT("ShaderDebugInfo")));
+	const FString OverrideShaderDebugDir = CVarShaderOverrideDebugDir.GetValueOnAnyThread();
+	if (!OverrideShaderDebugDir.IsEmpty())
+	{
+		AbsoluteDebugInfoDirectory = OverrideShaderDebugDir;
+	}
 	FPaths::NormalizeDirectoryName(AbsoluteDebugInfoDirectory);
 	AbsoluteShaderDebugInfoDirectory = AbsoluteDebugInfoDirectory;
 
@@ -2667,7 +2688,6 @@ static void GenerateUniformBufferStructMember(FString& Result, const FShaderPara
 	FString BaseTypeName;
 	switch (Member.GetBaseType())
 	{
-		case UBMT_BOOL:    BaseTypeName = TEXT("bool"); break;
 		case UBMT_INT32:   BaseTypeName = TEXT("int"); break;
 		case UBMT_UINT32:  BaseTypeName = TEXT("uint"); break;
 		case UBMT_FLOAT32:
@@ -2818,7 +2838,6 @@ static void PullRootShaderParametersLayout(FShaderCompilerInput& CompileInput, c
 			}
 		}
 		else if (
-			BaseType == UBMT_BOOL ||
 			BaseType == UBMT_INT32 ||
 			BaseType == UBMT_UINT32 ||
 			BaseType == UBMT_FLOAT32)
@@ -3100,8 +3119,11 @@ void GlobalBeginCompileShader(
 	Input.Environment.IncludeVirtualPathToExternalContentsMap.Add(TEXT("/Engine/Generated/GeneratedInstancedStereo.ush"), GCachedGeneratedInstancedStereoCode);
 
 	{
+		// Check if the compile environment explicitly wants to force optimization
+		const bool bForceOptimization = Input.Environment.CompilerFlags.Contains(CFLAG_ForceOptimization);
+
 		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shaders.Optimize"));
-		if (CVar && CVar->GetInt() == 0)
+		if (!bForceOptimization && CVar && CVar->GetInt() == 0)
 		{
 			Input.Environment.CompilerFlags.Add(CFLAG_Debug);
 		}
@@ -3409,17 +3431,10 @@ void GlobalBeginCompileShader(
 		Input.Environment.SetDefine(TEXT("EIGHT_BIT_MESH_DISTANCE_FIELDS"), CVar ? (CVar->GetInt() != 0) : 0);
 	}
 
-	if (GSupportsRenderTargetWriteMask)
-	{
-		Input.Environment.SetDefine(TEXT("PLATFORM_SUPPORTS_RENDERTARGET_WRITE_MASK"), 1);
-	}
-	else
-	{
-		Input.Environment.SetDefine(TEXT("PLATFORM_SUPPORTS_RENDERTARGET_WRITE_MASK"), 0);
-	}
-
+	Input.Environment.SetDefine(TEXT("PLATFORM_SUPPORTS_RENDERTARGET_WRITE_MASK"), RHISupportsRenderTargetWriteMask(EShaderPlatform(Target.Platform)) ? 1 : 0);
 	Input.Environment.SetDefine(TEXT("PLATFORM_SUPPORTS_PER_PIXEL_DBUFFER_MASK"), IsUsingPerPixelDBufferMask(EShaderPlatform(Target.Platform)) ? 1 : 0);
-	
+	Input.Environment.SetDefine(TEXT("PLATFORM_SUPPORTS_DISTANCE_FIELDS"), DoesPlatformSupportDistanceFields(EShaderPlatform(Target.Platform)) ? 1 : 0);
+
 	{
 		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.vt.FeedbackFactor"));
 		Input.Environment.SetDefine(TEXT("VIRTUAL_TEXTURE_FEEDBACK_FACTOR"), CVar ? FMath::Max(CVar->GetInt(), 1) : 1);
@@ -4486,6 +4501,8 @@ void RecompileShadersForRemote(
 			{
 				// These platforms are deprecated and we should warn about their use
 				if (ShaderPlatform == SP_OPENGL_SM5 || ShaderPlatform == SP_PCD3D_SM4_DEPRECATED || ShaderPlatform == SP_OPENGL_ES2_IOS_DEPRECATED ||
+					ShaderPlatform == SP_PCD3D_ES2 || ShaderPlatform == SP_METAL_MACES2 || ShaderPlatform == SP_OPENGL_PCES2 ||
+					ShaderPlatform == SP_OPENGL_ES2_ANDROID || ShaderPlatform == SP_OPENGL_ES2_WEBGL ||
 					ShaderPlatform == SP_VULKAN_SM4_DEPRECATED)
 				{
 					UE_LOG(LogShaderCompilers, Warning, TEXT("You are compiling shaders for a deprecated platform '%s'"), *LegacyShaderPlatformToShaderFormat(ShaderPlatform).ToString());

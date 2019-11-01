@@ -246,6 +246,21 @@ void FVirtualTextureTranscodeCache::WaitTaskFinished(FVTTranscodeTileHandle InHa
 	FTaskGraphInterface::Get().WaitUntilTaskCompletes(TaskEntry.GraphEvent, ENamedThreads::GetRenderThread_Local());
 }
 
+void FVirtualTextureTranscodeCache::WaitTasksFinished() const
+{
+	int32 TaskIndex = Tasks[LIST_PENDING].NextIndex;
+	while (TaskIndex != LIST_PENDING)
+	{
+		FTaskEntry const& TaskEntry = Tasks[TaskIndex];
+		const int32 NextIndex = TaskEntry.NextIndex;
+		if (!TaskEntry.GraphEvent->IsComplete())
+		{
+			FTaskGraphInterface::Get().WaitUntilTaskCompletes(TaskEntry.GraphEvent, ENamedThreads::GetRenderThread_Local());
+		}
+		TaskIndex = NextIndex;
+	}
+}
+
 const FVTUploadTileHandle* FVirtualTextureTranscodeCache::AcquireTaskResult(FVTTranscodeTileHandle InHandle)
 {
 	const uint32 TaskIndex = InHandle.Index;

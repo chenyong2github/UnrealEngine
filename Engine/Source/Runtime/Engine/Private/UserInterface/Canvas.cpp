@@ -1920,7 +1920,7 @@ void UCanvas::SetView(FSceneView* InView)
 	SceneView = InView;
 	if (InView)
 	{
-		if (GEngine->StereoRenderingDevice.IsValid() && IStereoRendering::IsStereoEyeView(InView->StereoPass))
+		if (GEngine->StereoRenderingDevice.IsValid() && InView->StereoPass != eSSP_FULL)
 		{
 			GEngine->StereoRenderingDevice->InitCanvasFromView(InView, this);
 		}

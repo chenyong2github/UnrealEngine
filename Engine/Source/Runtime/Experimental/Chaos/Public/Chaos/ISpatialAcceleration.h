@@ -147,11 +147,13 @@ class CHAOS_API ISpatialAcceleration
 public:
 
 	ISpatialAcceleration(SpatialAccelerationType InType = ESpatialAcceleration::Unknown)
-		: Type(InType)
+		: Type(InType), AsyncTimeSlicingComplete(true)
 	{
 	}
 	virtual ~ISpatialAcceleration() = default;
 
+	virtual bool IsAsyncTimeSlicingComplete() { return AsyncTimeSlicingComplete; }
+	virtual void ProgressAsyncTimeSlicing() {}
 	virtual TArray<TPayloadType> FindAllIntersections(const TBox<T, d>& Box) const { check(false); return TArray<TPayloadType>(); }
 
 	virtual void Raycast(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T Length, ISpatialVisitor<TPayloadType, T>& Visitor) const { check(false); }
@@ -223,8 +225,12 @@ public:
 		return static_cast<const TConcrete&>(*this);
 	}
 
+protected:
+	virtual void SetAsyncTimeSlicingComplete(bool InState) { AsyncTimeSlicingComplete = InState; }
+
 private:
 	SpatialAccelerationType Type;
+	bool AsyncTimeSlicingComplete;
 };
 
 template <typename TBase, typename TDerived>

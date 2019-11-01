@@ -12,7 +12,6 @@ public class FreeType2 : ModuleRules
 		{
 			if (Target.Platform == UnrealTargetPlatform.IOS ||
 				Target.Platform == UnrealTargetPlatform.Mac ||
-				Target.Platform == UnrealTargetPlatform.PS4 ||
 				Target.Platform == UnrealTargetPlatform.Switch ||
 				Target.Platform == UnrealTargetPlatform.Win32 ||
 				Target.Platform == UnrealTargetPlatform.Win64 ||
@@ -151,14 +150,6 @@ public class FreeType2 : ModuleRules
 				: "libfreetype_fPIC.a";
 
 			PublicAdditionalLibraries.Add(Path.Combine(FreeType2LibPath, "Linux", Target.Architecture, LibPath));
-		}
-		else if (Target.Platform == UnrealTargetPlatform.PS4)
-		{
-			LibPath = Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT
-				? "Debug"
-				: "Release";
-
-			PublicAdditionalLibraries.Add(Path.Combine(FreeType2LibPath, "PS4", LibPath, "libfreetype.a"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
 		{

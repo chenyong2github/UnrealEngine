@@ -15,7 +15,7 @@ namespace UnrealBuildTool
 	class Distcc : ActionExecutor
 	{
 		/// <summary>
-		/// When enabled allows DMUCS/Distcc to fallback to local compilation when remote compiling fails. Defaults to true as separation of pre-process and compile stages can introduce non-fatal errors.
+		/// When enabled, allows DMUCS/Distcc to fallback to local compilation when remote compiling fails. Defaults to true as separation of pre-process and compile stages can introduce non-fatal errors.
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		public bool bAllowDistccLocalFallback = true;
@@ -33,7 +33,7 @@ namespace UnrealBuildTool
 		public string DistccExecutablesPath = "/usr/local/bin";
 
 		/// <summary>
-		/// DMUCS coordinator hostname or IP address.
+		/// The DMUCS coordinator hostname or IP address.
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		public string DMUCSCoordinator = "localhost";

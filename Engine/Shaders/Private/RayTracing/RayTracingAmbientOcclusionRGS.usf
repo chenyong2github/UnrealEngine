@@ -41,8 +41,7 @@ void GenerateCosineNormalRay(
 	RayTMax = MaxRayDistance;
 }
 
-[shader("raygeneration")]
-void AmbientOcclusionRGS()
+RAY_TRACING_ENTRY_RAYGEN(AmbientOcclusionRGS)
 {
 	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin;
 
@@ -82,10 +81,12 @@ void AmbientOcclusionRGS()
 		GenerateCosineNormalRay(WorldPosition, WorldNormal, RandSequence, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax);
 		ApplyCameraRelativeDepthBias(Ray, PixelCoord, DeviceZ, WorldNormal, MaxNormalBias);
 
-		if (dot(WorldNormal, Ray.Direction) <= 0.0) // TODO: does it needs to be handled by the denoiser?
+		if (dot(WorldNormal, Ray.Direction) <= 0.0) // TODO(Denoiser): does it needs to be handled by the denoiser?
 			continue;
-		
+
 		uint RayFlags = 0;
+		const uint InstanceInclusionMask = RAY_TRACING_MASK_SHADOW | RAY_TRACING_MASK_THIN_SHADOW;
+
 #if !ENABLE_MATERIALS
 		RayFlags |= RAY_FLAG_FORCE_OPAQUE;
 #endif
@@ -93,26 +94,17 @@ void AmbientOcclusionRGS()
 		RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 #endif
 
-		FPackedMaterialClosestHitPayload Payload = (FPackedMaterialClosestHitPayload)0;
-		Payload.SetMinimalPayloadMode(); // Only HitT will be filled by closest hit shader, skipping full material evaluation.
-		
-		const uint InstanceInclusionMask = RAY_TRACING_MASK_SHADOW | RAY_TRACING_MASK_THIN_SHADOW;
-		TraceRay(
+		FMinimalPayload MinimalPayload = TraceVisibilityRay(
 			TLAS,
 			RayFlags,
 			InstanceInclusionMask,
-			RAY_TRACING_SHADER_SLOT_SHADOW,   // RayContributionToHitGroupIndex
-			RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
-			0,    // MissShaderIndex
-			Ray,
-			Payload
-		);
-		
+			Ray);
+
 		RayCount += 1;
-		Visibility += Payload.IsMiss() ? 1.0 : 1.0 - IntensityLocal;
-		if (Payload.IsHit())
+		Visibility += MinimalPayload.IsMiss() ? 1.0 : 1.0 - IntensityLocal;
+		if (MinimalPayload.IsHit())
 		{
-			ClosestRayHitDistance = min(ClosestRayHitDistance, Payload.HitT);
+			ClosestRayHitDistance = min(ClosestRayHitDistance, MinimalPayload.HitT);
 		}
 	}
 

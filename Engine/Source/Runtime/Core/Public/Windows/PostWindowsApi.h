@@ -38,6 +38,7 @@ THIRD_PARTY_INCLUDES_END
 #undef PostMessage
 #undef GetCommandLine
 #undef GetProp
+#undef SetPort
 #undef SetProp
 #undef GetFileAttributes
 #undef ReportEvent

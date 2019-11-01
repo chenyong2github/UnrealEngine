@@ -25,6 +25,7 @@
 #include "Translators/DatasmithPayload.h"
 #include "Translators/DatasmithTranslator.h"
 #include "Utility/DatasmithImporterUtils.h"
+#include "Utility/DatasmithTextureResize.h"
 
 #include "AssetRegistryModule.h"
 #include "AssetToolsModule.h"
@@ -56,6 +57,7 @@
 #include "Misc/FeedbackContext.h"
 #include "Misc/FileHelper.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Misc/UObjectToken.h"
 #include "ObjectTools.h"
 #include "PackageTools.h"
 #include "Serialization/ArchiveReplaceObjectRef.h"
@@ -73,23 +75,9 @@ extern UNREALED_API UEditorEngine* GEditor;
 
 namespace DatasmithImporterImpl
 {
-	static void SafetyGarbageCollect()
-	{
-		const int SkipCountThreshold = 1000; // Don't try to cleanup to frequently
-
-		static int SkippedCount = 0;
-		if (++SkippedCount > SkipCountThreshold)
-		{
-			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
-			SkippedCount = 0;
-		}
-	}
-
 	static UObject* PublicizeAsset( UObject* SourceAsset, const TCHAR* DestinationPath, UObject* ExistingAsset )
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithImporterImpl::PublicizeAsset);
-
-		SafetyGarbageCollect();
 
 		UPackage* DestinationPackage;
 
@@ -617,8 +605,6 @@ namespace DatasmithImporterImpl
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithImporterImpl::PublicizeComponent);
 
-		SafetyGarbageCollect();
-
 		if ( !SourceComponent.HasAnyFlags( RF_Transient | RF_TextExportTransient ) )
 		{
 			if (!DestinationComponent || DestinationComponent->IsPendingKillOrUnreachable())
@@ -923,6 +909,7 @@ void FDatasmithImporter::ImportStaticMeshes( FDatasmithImportContext& ImportCont
 								return nullptr;
 							}
 
+							TRACE_CPUPROFILER_EVENT_SCOPE(LoadStaticMesh);
 							TUniquePtr<FDatasmithMeshElementPayload> MeshPayload = MakeUnique<FDatasmithMeshElementPayload>();
 							return ImportContext.SceneTranslator->LoadStaticMesh(MeshElement, *MeshPayload) ? MeshPayload.Release() : nullptr;
 						}
@@ -970,6 +957,8 @@ void FDatasmithImporter::ImportStaticMeshes( FDatasmithImportContext& ImportCont
 		{
 			ImportStaticMesh(ImportContext, MeshElement, ExistingStaticMesh, nullptr);
 		}
+
+		ImportContext.ImportedStaticMeshesByName.Add(MeshElement->GetName(), MeshElement);
 	}
 
 	//Just make sure there is no async task left running in case of a cancellation
@@ -1005,12 +994,22 @@ UStaticMesh* FDatasmithImporter::ImportStaticMesh( FDatasmithImportContext& Impo
 		FDatasmithMeshElementPayload LocalMeshPayload;
 		if (MeshPayload == nullptr)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(LoadStaticMesh);
 			ImportContext.SceneTranslator->LoadStaticMesh(MeshElement, LocalMeshPayload);
 			MeshPayload = &LocalMeshPayload;
 		}
 
 		ImportedStaticMesh = FDatasmithStaticMeshImporter::ImportStaticMesh( MeshElement, *MeshPayload, ImportContext.ObjectFlags & ~RF_Public, ImportContext.Options->BaseOptions.StaticMeshOptions, ImportContext.AssetsContext, ExistingStaticMesh );
 		AdditionalData = MoveTemp(MeshPayload->AdditionalData);
+
+		// Make sure the garbage collector can collect additional data allocated on other thread
+		for (UDatasmithAdditionalData* Data : AdditionalData)
+		{
+			if (Data)
+			{
+				Data->ClearInternalFlags(EInternalObjectFlags::Async);
+			}
+		}
 
 		// Creation of static mesh failed, remove it from the list of importer mesh elements
 		if (ImportedStaticMesh == nullptr)
@@ -1087,10 +1086,9 @@ void FDatasmithImporter::ImportTextures( FDatasmithImportContext& ImportContext 
 	{
 		FDatasmithTextureImporter DatasmithTextureImporter(ImportContext);
 
-		for ( int32 i = 0; i < TexturesCount && !ImportContext.bUserCancelled; i++ )
+		TArray<TSharedPtr< IDatasmithTextureElement >> FilteredTextureElements;
+		for ( int32 i = 0; i < TexturesCount; i++ )
 		{
-			ImportContext.bUserCancelled |= ImportContext.Warn->ReceivedUserCancel();
-
 			TSharedPtr< IDatasmithTextureElement > TextureElement = ImportContext.FilteredScene->GetTexture(i);
 
 			if ( !TextureElement )
@@ -1098,32 +1096,82 @@ void FDatasmithImporter::ImportTextures( FDatasmithImportContext& ImportContext 
 				continue;
 			}
 
-			Progress.EnterProgressFrame( 1.f, FText::FromString( FString::Printf( TEXT("Importing texture %d/%d (%s) ..."), i + 1, TexturesCount, TextureElement->GetLabel() ) ) );
+			FilteredTextureElements.Add(TextureElement);
+		}
 
-			UTexture* ExistingTexture = nullptr;
+		FDatasmithTextureResize::Initialize();
 
-			if ( ImportContext.SceneAsset )
+		struct FAsyncData
+		{
+			FString       Extension;
+			TArray<uint8> TextureData;
+			TFuture<bool> Result;
+		};
+		TArray<FAsyncData> AsyncData;
+		AsyncData.SetNum(FilteredTextureElements.Num());
+
+		for ( int32 TextureIndex = 0; TextureIndex < FilteredTextureElements.Num(); TextureIndex++ )
+		{
+			ImportContext.bUserCancelled |= ImportContext.Warn->ReceivedUserCancel();
+
+			AsyncData[TextureIndex].Result = 
+				Async(
+					EAsyncExecution::LargeThreadPool,
+					[&ImportContext, &AsyncData, &FilteredTextureElements, &DatasmithTextureImporter, TextureIndex]()
+					{
+						if (ImportContext.bUserCancelled)
+						{
+							return false;
+						}
+
+						return DatasmithTextureImporter.GetTextureData(FilteredTextureElements[TextureIndex], AsyncData[TextureIndex].TextureData, AsyncData[TextureIndex].Extension);
+					}
+				);
+		}
+
+		for ( int32 TextureIndex = 0; TextureIndex < FilteredTextureElements.Num(); TextureIndex++ )
+		{
+			if ((ImportContext.bUserCancelled |= ImportContext.Warn->ReceivedUserCancel()))
 			{
-				TSoftObjectPtr< UTexture >* ExistingTexturePtr = ImportContext.SceneAsset->Textures.Find( TextureElement->GetName() );
+				// If operation has been canceled, just wait for other threads to also cancel
+				AsyncData[TextureIndex].Result.Wait();
+			}
+			else
+			{
+				const TSharedPtr< IDatasmithTextureElement >& TextureElement = FilteredTextureElements[TextureIndex];
 
-				if ( ExistingTexturePtr )
+				Progress.EnterProgressFrame( 1.f, FText::FromString( FString::Printf( TEXT("Importing texture %d/%d (%s) ..."), TextureIndex + 1, FilteredTextureElements.Num(), TextureElement->GetLabel() ) ) );
+
+				UTexture* ExistingTexture = nullptr;
+
+				if ( ImportContext.SceneAsset )
 				{
-					ExistingTexture = ExistingTexturePtr->LoadSynchronous();
+					TSoftObjectPtr< UTexture >* ExistingTexturePtr = ImportContext.SceneAsset->Textures.Find( TextureElement->GetName() );
+
+					if ( ExistingTexturePtr )
+					{
+						ExistingTexture = ExistingTexturePtr->LoadSynchronous();
+					}
+				}
+
+				if (AsyncData[TextureIndex].Result.Get())
+				{
+					ImportTexture( ImportContext, DatasmithTextureImporter, TextureElement.ToSharedRef(), ExistingTexture, AsyncData[TextureIndex].TextureData, AsyncData[TextureIndex].Extension );
 				}
 			}
 
-			ImportTexture( ImportContext, DatasmithTextureImporter, TextureElement.ToSharedRef(), ExistingTexture );
-
+			// Release memory as soon as possible
+			AsyncData[TextureIndex].TextureData.Empty();
 		}
 	}
 }
 
-UTexture* FDatasmithImporter::ImportTexture( FDatasmithImportContext& ImportContext, FDatasmithTextureImporter& DatasmithTextureImporter, TSharedRef< IDatasmithTextureElement > TextureElement, UTexture* ExistingTexture )
+UTexture* FDatasmithImporter::ImportTexture( FDatasmithImportContext& ImportContext, FDatasmithTextureImporter& DatasmithTextureImporter, TSharedRef< IDatasmithTextureElement > TextureElement, UTexture* ExistingTexture, const TArray<uint8>& TextureData, const FString& Extension )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithImporter::ImportTexture);
 
 	UTexture*& ImportedTexture = ImportContext.ImportedTextures.FindOrAdd( TextureElement );
-	ImportedTexture = DatasmithTextureImporter.CreateTexture( TextureElement );
+	ImportedTexture = DatasmithTextureImporter.CreateTexture( TextureElement, TextureData, Extension );
 
 	if (ImportedTexture == nullptr)
 	{
@@ -1793,7 +1841,31 @@ AActor* FDatasmithImporter::FinalizeActor( FDatasmithImportContext& ImportContex
 		Landscape->PostEditChangeProperty( MaterialPropertyChangedEvent );
 	}
 
+	FQuat PreviousRotation = DestinationActor->GetRootComponent()->GetRelativeTransform().GetRotation();
 	DestinationActor->PostEditChange();
+
+	const bool bHasPostEditChangeModifiedRotation = !PreviousRotation.Equals(DestinationActor->GetRootComponent()->GetRelativeTransform().GetRotation());
+	if (bHasPostEditChangeModifiedRotation)
+	{
+		const float SingularityTest = PreviousRotation.Z * PreviousRotation.X - PreviousRotation.W * PreviousRotation.Y;
+		//SingularityThreshold value is comming from the FQuat::Rotator() function, but is more permissive because the rotation is already diverging before the singularity threshold is reached.
+		const float SingularityThreshold = 0.4999f; 
+
+		AActor* RootSceneActor = ImportContext.ActorsContext.ImportSceneActor;
+		if (DestinationActor != RootSceneActor
+			&& FMath::Abs(SingularityTest) > SingularityThreshold)
+		{
+			//This is a warning to explain the edge-case of UE-75467 while it's being fixed.
+			FFormatNamedArguments FormatArgs;
+			FormatArgs.Add(TEXT("ActorName"), FText::FromName(DestinationActor->GetFName()));
+			ImportContext.LogWarning(FText::GetEmpty())
+				->AddToken(FUObjectToken::Create(DestinationActor))
+				->AddToken(FTextToken::Create(FText::Format(LOCTEXT("UnsupportedRotationValueError", "The actor '{ActorName}' has a rotation value pointing to either (0, 90, 0) or (0, -90, 0)."
+					"This is an edge case that is not well supported in Unreal and can cause incorrect results."
+					"In those cases, it is recommended to bake the actor's transform into the mesh at export."), FormatArgs)));
+		}
+	}
+
 	DestinationActor->RegisterAllComponents();
 
 	return DestinationActor;
@@ -1907,6 +1979,8 @@ void FDatasmithImporter::ImportLevelVariantSets( FDatasmithImportContext& Import
 	{
 		return;
 	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithImporter::ImportLevelVariantSets);
 
 	FScopedSlowTask Progress( (float)LevelVariantSetsCount, LOCTEXT("ImportingLevelVariantSets", "Importing Level Variant Sets..."), true, *ImportContext.Warn );
 	Progress.MakeDialog(true);

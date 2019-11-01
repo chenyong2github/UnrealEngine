@@ -300,3 +300,48 @@ void FCommandLine::Parse(const TCHAR* InCmdLine, TArray<FString>& Tokens, TArray
 		}
 	}
 }
+
+
+FString FCommandLine::BuildFromArgV(const TCHAR* Prefix, int32 ArgC, TCHAR* ArgV[], const TCHAR* Suffix)
+{
+	FString Result;
+
+	// loop over the parameters, skipping the first one (which is the executable name)
+	for (int32 Arg = 1; Arg < ArgC; Arg++)
+	{
+		FString ThisArg = ArgV[Arg];
+		if (ThisArg.Contains(TEXT(" ")) && !ThisArg.Contains(TEXT("\"")))
+		{
+			int32 EqualsAt = ThisArg.Find(TEXT("="));
+			if (EqualsAt > 0 && ThisArg.Find(TEXT(" ")) > EqualsAt)
+			{
+				ThisArg = ThisArg.Left(EqualsAt + 1) + FString("\"") + ThisArg.RightChop(EqualsAt + 1) + FString("\"");
+
+			}
+			else
+			{
+				ThisArg = FString("\"") + ThisArg + FString("\"");
+			}
+		}
+
+		Result += ThisArg;
+		// put a space between each argument (not needed after the end)
+		if (Arg + 1 < ArgC)
+		{
+			Result += TEXT(" ");
+		}
+	}
+
+	// add the prefix and suffix if provided
+	if (Prefix)
+	{
+		Result = FString::Printf(TEXT("%s %s"), Prefix, *Result);
+	}
+
+	if (Suffix)
+	{
+		Result = FString::Printf(TEXT("%s %s"), *Result, Suffix);
+	}
+
+	return Result;
+}

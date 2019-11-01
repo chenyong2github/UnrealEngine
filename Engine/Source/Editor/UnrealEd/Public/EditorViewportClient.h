@@ -1545,10 +1545,10 @@ protected:
 	int32 CachedLastMouseY = 0;
 
 	/** True is the use is controling the light via a shorcut*/
-	bool bUserIsControllingSunLight0 = false;
-	bool bUserIsControllingSunLight1 = false;
-	float UserIsControllingSunLightTimer = 0.0f;
-	FTransform UserControlledSunLightMatrix;
+	bool bUserIsControllingAtmosphericLight0 = false;
+	bool bUserIsControllingAtmosphericLight1 = false;
+	float UserIsControllingAtmosphericLightTimer = 0.0f;
+	FTransform UserControlledAtmosphericLightMatrix;
 
 
 	// -1, -1 if not set

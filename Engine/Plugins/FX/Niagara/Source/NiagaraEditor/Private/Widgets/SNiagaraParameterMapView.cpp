@@ -424,7 +424,10 @@ FReply SNiagaraParameterMapView::OnActionDragged(const TArray<TSharedPtr<FEdGrap
 			}
 			else if (IsSystemToolkit())
 			{
-				TSharedRef<FNiagaraStackDragOperation> DragOperation = FNiagaraStackDragOperation::New(InAction);
+				TSharedRef<FNiagaraParameterDragOperation> DragOperation = MakeShared<FNiagaraParameterDragOperation>(InAction);
+				DragOperation->CurrentHoverText = InAction->GetMenuDescription();
+				DragOperation->SetupDefaults();
+				DragOperation->Construct();
 				return FReply::Handled().BeginDragDrop(DragOperation);
 			}
 		}

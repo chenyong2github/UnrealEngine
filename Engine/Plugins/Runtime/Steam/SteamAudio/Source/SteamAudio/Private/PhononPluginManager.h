@@ -29,10 +29,13 @@ namespace SteamAudio
 		virtual void OnListenerInitialize(FAudioDevice* AudioDevice, UWorld* ListenerWorld) override;
 		virtual void OnListenerUpdated(FAudioDevice* AudioDevice, const int32 ViewportIndex, const FTransform& ListenerTransform, const float InDeltaSeconds) override;
 		virtual void OnListenerShutdown(FAudioDevice* AudioDevice) override;
+		virtual void OnWorldChanged(FAudioDevice* AudioDevice, UWorld* ListenerWorld) override;
 		//~ End IAudioPluginListener
 
 	private:
-		bool bEnvironmentCreated;
+		void InitializeEnvironment(FAudioDevice* AudioDevice, UWorld* ListenerWorld);
+
+		bool bEnvironmentInitialized;
 		FEnvironment Environment;
 		FPhononReverb* ReverbPtr;
 		FPhononOcclusion* OcclusionPtr;

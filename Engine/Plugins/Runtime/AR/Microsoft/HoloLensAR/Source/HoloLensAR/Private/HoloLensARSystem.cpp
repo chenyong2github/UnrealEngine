@@ -15,9 +15,17 @@
 
 #include "MRMeshComponent.h"
 #include "AROriginActor.h"
+#if WITH_EDITOR
+#include "Editor.h"
+#include "Editor/EditorEngine.h"
+#include "Slate/SceneViewport.h"
+#endif
 
 DECLARE_CYCLE_STAT(TEXT("OnCameraImageReceived"), STAT_FHoloLensARSystem_OnCameraImageReceived, STATGROUP_HOLOLENS);
 DECLARE_CYCLE_STAT(TEXT("Process Mesh Updates"), STAT_FHoloLensARSystem_ProcessMeshUpdates, STATGROUP_HOLOLENS);
+DECLARE_CYCLE_STAT(TEXT("QR Code Added"), STAT_FHoloLensARSystem_QRCodeAdded_GameThread, STATGROUP_HOLOLENS);
+DECLARE_CYCLE_STAT(TEXT("QR Code Updated"), STAT_FHoloLensARSystem_QRCodeUpdated_GameThread, STATGROUP_HOLOLENS);
+DECLARE_CYCLE_STAT(TEXT("QR Code Removed"), STAT_FHoloLensARSystem_QRCodeRemoved_GameThread, STATGROUP_HOLOLENS);
 
 static inline FGuid GUIDToFGuid(GUID InGuid)
 {
@@ -58,6 +66,28 @@ struct FMeshUpdateSet
 	TMap<FGuid, FMeshUpdate*> GuidToMeshUpdateList;
 };
 
+/** The UE4 version of the QR code update from the interop */
+struct FQRCodeData
+{
+	FGuid Id;
+
+	FTransform Transform;
+	FVector2D Size;
+	FString QRCode;
+	int32 Version;
+
+	FQRCodeData(QRCodeData* InData)
+		: Id(GUIDToFGuid(InData->Id))
+		, Size(InData->SizeInMeters * 100.f, InData->SizeInMeters * 100.f)
+		, QRCode(InData->Data)
+		, Version(InData->Version)
+	{
+		FVector Translation(InData->Translation[0], InData->Translation[1], InData->Translation[2]);
+		FQuat Orientation(InData->Rotation[0], InData->Rotation[1], InData->Rotation[2], InData->Rotation[3]);
+		Orientation.Normalize();
+		Transform = FTransform(Orientation, Translation);
+	}
+};
 
 FHoloLensARSystem::FHoloLensARSystem()
 	: CameraImage(nullptr)
@@ -79,10 +109,29 @@ void FHoloLensARSystem::SetTrackingSystem(TSharedPtr<FXRTrackingSystemBase, ESPM
 void FHoloLensARSystem::SetInterop(WindowsMixedReality::MixedRealityInterop* InWMRInterop)
 {
 	WMRInterop = InWMRInterop;
+
+	HandlerId = WMRInterop->SubscribeConnectionEvent([this](WindowsMixedReality::MixedRealityInterop::ConnectionEvent evt) 
+	{
+		if (evt == WindowsMixedReality::MixedRealityInterop::ConnectionEvent::DisconnectedFromPeer)
+		{
+			OnStopARSession();
+
+#if WITH_EDITOR
+			if (GEditor && GEditor->bUseVRPreviewForPlayWorld)
+			{
+				GEditor->RequestEndPlayMap();
+			}
+#endif
+
+			UE_LOG(LogHoloLensAR, Warning, TEXT("HoloLens AR session disconnected from peer"));
+		}
+	});
 }
 
 void FHoloLensARSystem::Shutdown()
 {
+	WMRInterop->UnsubscribeConnectionEvent(HandlerId);
+	HandlerId = 0;
 	FWorldDelegates::OnWorldTickStart.RemoveAll(this);
 	WMRInterop = nullptr;
 	TrackingSystem.Reset();
@@ -126,7 +175,12 @@ EARTrackingQualityReason FHoloLensARSystem::OnGetTrackingQualityReason() const
 
 void OnTrackingChanged_Raw(WindowsMixedReality::HMDSpatialLocatability InTrackingState)
 {
+	UE_LOG(LogHoloLensAR, Log, TEXT("OnTrackingChanged(%d)"), (int32)InTrackingState);
 	FHoloLensARSystem* HoloLensARThis = FHoloLensModuleAR::GetHoloLensARSystem().Get();
+	if (!HoloLensARThis)
+	{
+		return;
+	}
 	EARTrackingQuality TrackingQuality = EARTrackingQuality::NotTracking;
 	switch (InTrackingState)
 	{
@@ -199,6 +253,16 @@ void FHoloLensARSystem::OnStartARSession(UARSessionConfig* InSessionConfig)
 
 	SessionStatus.Status = EARSessionStatus::Running;
 
+#if WITH_EDITOR
+	UEditorEngine* EditorEngine = CastChecked<UEditorEngine>(GEngine);
+	FSceneViewport* PIEViewport = (FSceneViewport*)EditorEngine->GetPIEViewport();
+	if (!PIEViewport->IsStereoRenderingAllowed())
+	{
+		// Running the AR session on a non-stereo window will break spatial anchors.
+		SessionStatus.Status = EARSessionStatus::NotSupported;
+	}
+#endif
+
 	FWorldDelegates::OnWorldTickStart.AddRaw(this, &FHoloLensARSystem::OnWorldTickStart);
 
 	UE_LOG(LogHoloLensAR, Log, TEXT("HoloLens AR session started"));
@@ -257,7 +321,7 @@ void FHoloLensARSystem::OnStopARSession()
 
 	check(WMRInterop != nullptr);
 
-	if (SessionConfig->bGenerateMeshDataFromTrackedGeometry)
+	if (SessionConfig && SessionConfig->bGenerateMeshDataFromTrackedGeometry)
 	{
 		WMRInterop->StopSpatialMapping();
 	}
@@ -424,6 +488,8 @@ void FHoloLensARSystem::OnRemovePin(UARPin* PinToRemove)
 
 void FHoloLensARSystem::UpdateWMRAnchors()
 {
+	if (SessionStatus.Status != EARSessionStatus::Running) { return; }
+	
 	for (UWMRARPin* Pin : Pins)
 	{
 		const FString& AnchorId = Pin->GetAnchorId();
@@ -532,6 +598,16 @@ void FHoloLensARSystem::AllocateMeshBuffers_Raw(MeshUpdate* InMeshUpdate)
 	HoloLensARThis->AllocateMeshBuffers(InMeshUpdate);
 }
 
+void FHoloLensARSystem::RemovedMesh_Raw(MeshUpdate* InMeshRemoved)
+{
+	FMeshUpdate* MeshUpdate = new FMeshUpdate();
+	MeshUpdate->Id = GUIDToFGuid(InMeshRemoved->Id);
+
+	FHoloLensARSystem* HoloLensARThis = FHoloLensModuleAR::GetHoloLensARSystem().Get();
+	auto GTTask = FSimpleDelegateGraphTask::FDelegate::CreateThreadSafeSP(HoloLensARThis, &FHoloLensARSystem::RemovedMesh_GameThread, MeshUpdate);
+	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(GTTask, GET_STATID(STAT_FHoloLensARSystem_ProcessMeshUpdates), nullptr, ENamedThreads::GameThread);
+}
+
 void FHoloLensARSystem::EndMeshUpdates_Raw()
 {
 	FHoloLensARSystem* HoloLensARThis = FHoloLensModuleAR::GetHoloLensARSystem().Get();
@@ -556,7 +632,7 @@ void FHoloLensARSystem::SetupMeshObserver()
 	float VolumeSize = 1.f;
 	GConfig->GetFloat(TEXT("/Script/HoloLensPlatformEditor.HoloLensTargetSettings"), TEXT("SpatialMeshingVolumeSize"), VolumeSize, *iniFile);
 
-	WMRInterop->StartSpatialMapping(TriangleDensity, VolumeSize, &StartMeshUpdates_Raw, &AllocateMeshBuffers_Raw, &EndMeshUpdates_Raw);
+	WMRInterop->StartSpatialMapping(TriangleDensity, VolumeSize, &StartMeshUpdates_Raw, &AllocateMeshBuffers_Raw, &RemovedMesh_Raw, &EndMeshUpdates_Raw);
 }
 
 void FHoloLensARSystem::StartMeshUpdates()
@@ -652,10 +728,6 @@ void FHoloLensARSystem::ProcessMeshUpdates_GameThread()
 				AddOrUpdateMesh(CurrentMeshUpdate);
 				delete CurrentMeshUpdate;
 			}
-			// Now remove any meshes that weren't present this time around
-			TArray<FGuid> KnownMeshes;
-			UpdateToProcess->GuidToMeshUpdateList.GetKeys(KnownMeshes);
-			ReconcileKnownMeshes(KnownMeshes);
 
 			// This update is done, so delete it
 			delete UpdateToProcess;
@@ -689,8 +761,7 @@ void FHoloLensARSystem::AddOrUpdateMesh(FMeshUpdate* CurrentMesh)
 			GFrameCounter,
 			FPlatformTime::Seconds(),
 			FTransform(CurrentMesh->Rotation, CurrentMesh->Location, CurrentMesh->Scale),
-			// @todo JoeG - add support for an alignment transform
-			FTransform::Identity);
+			TrackingSystem->GetARCompositionComponent()->GetAlignmentTransform());
 		// Mark this as a world mesh that isn't recognized as a particular scene type, since it is loose triangles
 		NewUpdatedGeometry->SetObjectClassification(EARObjectClassification::World);
 		if (NewUpdatedGeometry->GetUnderlyingMesh() == nullptr)
@@ -735,56 +806,49 @@ void FHoloLensARSystem::AddOrUpdateMesh(FMeshUpdate* CurrentMesh)
 	}
 }
 
-void FHoloLensARSystem::ReconcileKnownMeshes(const TArray<FGuid>& KnownMeshes)
+void FHoloLensARSystem::RemovedMesh_GameThread(FMeshUpdate* RemovedMesh)
 {
-	// Loop through the current set removing them from last known
-	// Any remaining meshes are no longer tracked
-	for (const FGuid& Guid : KnownMeshes)
+	UARTrackedGeometry** TrackedGeometry = TrackedGeometries.Find(RemovedMesh->Id);
+	if (TrackedGeometry != nullptr)
 	{
-		LastKnownMeshes.Remove(Guid);
-	}
-	// Now iterate through the remainder marking those tracked geometries as not tracked and remove from our map
-	for (TSet<FGuid>::TConstIterator Iter(LastKnownMeshes); Iter; ++Iter)
-	{
-		UARTrackedGeometry** TrackedGeometry = TrackedGeometries.Find(*Iter);
-		if (TrackedGeometry != nullptr)
+		(*TrackedGeometry)->SetTrackingState(EARTrackingState::NotTracking);
+
+		// Detach the mesh component from our scene if it's valid
+		UMRMeshComponent* MRMesh = (*TrackedGeometry)->GetUnderlyingMesh();
+		if (MRMesh != nullptr)
 		{
-			(*TrackedGeometry)->SetTrackingState(EARTrackingState::NotTracking);
-
-			// Detach the mesh component from our scene if it's valid
-			UMRMeshComponent* MRMesh = (*TrackedGeometry)->GetUnderlyingMesh();
-			if (MRMesh != nullptr)
-			{
-				MRMesh->UnregisterComponent();
-				(*TrackedGeometry)->SetUnderlyingMesh(nullptr);
-			}
-
-			TrackedGeometries.Remove(*Iter);
-			TriggerOnTrackableRemovedDelegates(*TrackedGeometry);
+			MRMesh->UnregisterComponent();
+			(*TrackedGeometry)->SetUnderlyingMesh(nullptr);
 		}
+
+		TrackedGeometries.Remove(RemovedMesh->Id);
+		TriggerOnTrackableRemovedDelegates(*TrackedGeometry);
 	}
-	// Update our last know list to the currently known set of meshes
-	LastKnownMeshes.Empty();
-	LastKnownMeshes.Append(KnownMeshes);
+	delete RemovedMesh;
 }
 
-// QR code tracking
-void FHoloLensARSystem::QRCodeAdded_Raw(QRCodeData* code)
+void FHoloLensARSystem::QRCodeAdded_Raw(QRCodeData* InCode)
 {
+	FQRCodeData* QRCode = new FQRCodeData(InCode);
 	FHoloLensARSystem* HoloLensARThis = FHoloLensModuleAR::GetHoloLensARSystem().Get();
-	HoloLensARThis->QRCodeAdded(code);
+	auto CameraImageTask = FSimpleDelegateGraphTask::FDelegate::CreateThreadSafeSP(HoloLensARThis, &FHoloLensARSystem::QRCodeAdded_GameThread, QRCode);
+	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(CameraImageTask, GET_STATID(STAT_FHoloLensARSystem_QRCodeAdded_GameThread), nullptr, ENamedThreads::GameThread);
 }
 
-void FHoloLensARSystem::QRCodeUpdated_Raw(QRCodeData* code)
+void FHoloLensARSystem::QRCodeUpdated_Raw(QRCodeData* InCode)
 {
+	FQRCodeData* QRCode = new FQRCodeData(InCode);
 	FHoloLensARSystem* HoloLensARThis = FHoloLensModuleAR::GetHoloLensARSystem().Get();
-	HoloLensARThis->QRCodeUpdated(code);
+	auto CameraImageTask = FSimpleDelegateGraphTask::FDelegate::CreateThreadSafeSP(HoloLensARThis, &FHoloLensARSystem::QRCodeUpdated_GameThread, QRCode);
+	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(CameraImageTask, GET_STATID(STAT_FHoloLensARSystem_QRCodeUpdated_GameThread), nullptr, ENamedThreads::GameThread);
 }
 
-void FHoloLensARSystem::QRCodeRemoved_Raw(QRCodeData* code)
+void FHoloLensARSystem::QRCodeRemoved_Raw(QRCodeData* InCode)
 {
+	FQRCodeData* QRCode = new FQRCodeData(InCode);
 	FHoloLensARSystem* HoloLensARThis = FHoloLensModuleAR::GetHoloLensARSystem().Get();
-	HoloLensARThis->QRCodeRemoved(code);
+	auto CameraImageTask = FSimpleDelegateGraphTask::FDelegate::CreateThreadSafeSP(HoloLensARThis, &FHoloLensARSystem::QRCodeRemoved_GameThread, QRCode);
+	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(CameraImageTask, GET_STATID(STAT_FHoloLensARSystem_QRCodeRemoved_GameThread), nullptr, ENamedThreads::GameThread);
 }
 
 void FHoloLensARSystem::SetupQRCodeTracking()
@@ -792,70 +856,98 @@ void FHoloLensARSystem::SetupQRCodeTracking()
 	check(WMRInterop != nullptr);
 
 	WMRInterop->StartQRCodeTracking(&QRCodeAdded_Raw, &QRCodeUpdated_Raw, &QRCodeRemoved_Raw);
-	UE_LOG(LogHoloLensAR, Log, TEXT("FHoloLensARSystem::SetupQRCodeTracking() called"));
+	UE_LOG(LogHoloLensAR, Verbose, TEXT("FHoloLensARSystem::SetupQRCodeTracking() called"));
 }
 
-static void DebugDumpQRData(QRCodeData* code)
+static void DebugDumpQRData(QRCodeData* InCode)
 {
-	FGuid g(code->Id.Data1, code->Id.Data2, code->Id.Data3, *((uint32*)code->Id.Data4));
-	UE_LOG(LogHoloLensAR, Log, TEXT("  Id = %s"), *(g.ToString(EGuidFormats::DigitsWithHyphensInBraces)));
-	UE_LOG(LogHoloLensAR, Log, TEXT("  Version = %d"), code->Version);
-	UE_LOG(LogHoloLensAR, Log, TEXT("  SizeM = %0.3f"), code->SizeInMeters);
-	UE_LOG(LogHoloLensAR, Log, TEXT("  Timestamp = %0.6f"), code->LastSeenTimestamp);
-	UE_LOG(LogHoloLensAR, Log, TEXT("  DataSize = %d"), code->DataSize);
-	if ((code->DataSize > 0) && (code->Data != nullptr))
+	FGuid Guid = GUIDToFGuid(InCode->Id);
+	UE_LOG(LogHoloLensAR, Log, TEXT("  Id = %s"), *(Guid.ToString(EGuidFormats::DigitsWithHyphensInBraces)));
+	UE_LOG(LogHoloLensAR, Log, TEXT("  Version = %d"), InCode->Version);
+	UE_LOG(LogHoloLensAR, Log, TEXT("  SizeM = %0.3f"), InCode->SizeInMeters);
+	UE_LOG(LogHoloLensAR, Log, TEXT("  Timestamp = %0.6f"), InCode->LastSeenTimestamp);
+	UE_LOG(LogHoloLensAR, Log, TEXT("  DataSize = %d"), InCode->DataSize);
+	if ((InCode->DataSize > 0) && (InCode->Data != nullptr))
 	{
-		UE_LOG(LogHoloLensAR, Log, TEXT("  Data = %s"), code->Data);
+		UE_LOG(LogHoloLensAR, Log, TEXT("  Data = %s"), InCode->Data);
 	}
 
-	FVector Translation = WindowsMixedReality::WMRUtility::FromMixedRealityVector(DirectX::XMFLOAT3(code->Translation[0], code->Translation[1], code->Translation[2])) * 100.0f;
-	FQuat Orientation = WindowsMixedReality::WMRUtility::FromMixedRealityQuaternion(DirectX::XMFLOAT4(code->Rotation[0], code->Rotation[1], code->Rotation[2], code->Rotation[3]));
+	FVector Translation(InCode->Translation[0], InCode->Translation[1], InCode->Translation[2]);
+	FQuat Orientation(InCode->Rotation[0], InCode->Rotation[1], InCode->Rotation[2], InCode->Rotation[3]);
 	Orientation.Normalize();
 	UE_LOG(LogHoloLensAR, Log, TEXT("  Location = %s"), *Translation.ToString());
 	UE_LOG(LogHoloLensAR, Log, TEXT("  Orientation = %s"), *Orientation.ToString());
 }
 
-//
-// Currently, only relatively large sized codes can be tracked (at least 4 inches on a side but even that seems barely usable even at very close range (<30cm or so))
-// Codes also seem to update at randomly slow intervals when moved in the environment...testing seemed to show less than 1 update per second even if you are looking directly at it and moving it around
-// Sometimes it would update faster and sometimes super slowly
-// Codes would sometimes trigger an Added or Updated event even if they weren't visible at all
-//
-// @todo: Once the MS-provided library is more stable and consistent, do the following:
-// - add each new code to a list along with it's needed data
-// - update already found codes with new data
-// - remove dead/very old/unseen codes (however, MS says the Removed event is not currently implemented, so this is unclear right now when codes 'expire')
-// - provide Blueprint functionality to get the transform and data content of a code by name so content can be pinned to it
-// - Text-type codes can have an arbitrary string in them which can be used for naming or other metadata
-//
-void FHoloLensARSystem::QRCodeAdded(QRCodeData* code)
+void FHoloLensARSystem::QRCodeAdded_GameThread(FQRCodeData* InCode)
 {
-	UE_LOG(LogHoloLensAR, Log, TEXT("FHoloLensARSystem::QRCodeAdded() called"));
+	UE_LOG(LogHoloLensAR, Verbose, TEXT("FHoloLensARSystem::QRCodeAdded() called"));
 
-	if (code != nullptr)
+	if (InCode != nullptr)
 	{
-//		DebugDumpQRData(code);
+		UARTrackedQRCode* NewQRCode = NewObject<UARTrackedQRCode>();
+		TrackedGeometries.Add(InCode->Id, NewQRCode);
+
+		NewQRCode->UpdateTrackedGeometry(TrackingSystem->GetARCompositionComponent().ToSharedRef(),
+			GFrameCounter,
+			FPlatformTime::Seconds(),
+			InCode->Transform,
+			TrackingSystem->GetARCompositionComponent()->GetAlignmentTransform(),
+			InCode->Size,
+			InCode->QRCode,
+			InCode->Version);
+
+		TriggerOnTrackableAddedDelegates(NewQRCode);
+
+		//		DebugDumpQRData(InCode);
 	}
+	delete InCode;
 }
 
-void FHoloLensARSystem::QRCodeUpdated(QRCodeData* code)
+void FHoloLensARSystem::QRCodeUpdated_GameThread(FQRCodeData* InCode)
 {
 	UE_LOG(LogHoloLensAR, Log, TEXT("FHoloLensARSystem::QRCodeUpdated() called"));
 
-	if (code != nullptr)
+	if (InCode != nullptr)
 	{
-//		DebugDumpQRData(code);
+		UARTrackedGeometry** FoundGeometry = TrackedGeometries.Find(InCode->Id);
+		if (FoundGeometry != nullptr)
+		{
+			UARTrackedQRCode* UpdatedQRCode = Cast<UARTrackedQRCode>(*FoundGeometry);
+
+			UpdatedQRCode->UpdateTrackedGeometry(TrackingSystem->GetARCompositionComponent().ToSharedRef(),
+				GFrameCounter,
+				FPlatformTime::Seconds(),
+				InCode->Transform,
+				TrackingSystem->GetARCompositionComponent()->GetAlignmentTransform(),
+				InCode->Size,
+				InCode->QRCode,
+				InCode->Version);
+
+			TriggerOnTrackableUpdatedDelegates(UpdatedQRCode);
+		}
+		//		DebugDumpQRData(InCode);
 	}
+	delete InCode;
 }
 
-void FHoloLensARSystem::QRCodeRemoved(QRCodeData* code)
+void FHoloLensARSystem::QRCodeRemoved_GameThread(FQRCodeData* InCode)
 {
 	UE_LOG(LogHoloLensAR, Log, TEXT("FHoloLensARSystem::QRCodeRemoved() called"));
 
-	if (code != nullptr)
+	if (InCode != nullptr)
 	{
-//		DebugDumpQRData(code);
+		UARTrackedGeometry** FoundGeometry = TrackedGeometries.Find(InCode->Id);
+		if (FoundGeometry != nullptr)
+		{
+			(*FoundGeometry)->SetTrackingState(EARTrackingState::NotTracking);
+
+			TrackedGeometries.Remove(InCode->Id);
+			TriggerOnTrackableRemovedDelegates(*FoundGeometry);
+		}
+		//		DebugDumpQRData(InCode);
 	}
+	delete InCode;
 }
 
 #endif

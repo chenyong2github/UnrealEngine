@@ -81,7 +81,7 @@ def UE4FMinimalNameSummaryProvider(valobj,dict):
         FNameRef = valobj.CreateValueFromExpression(str(IndexVal), Expr)
         assert FNameRef != None
         Val = FNameRef.GetSummary()
-        if IndexVal == 0:
+        if IndexVal != 0:
             return 'name=' + Val + '_' + str(IndexVal-1)
         else:
             return 'name=' + Val

@@ -105,6 +105,8 @@ struct KISMET_API FFindInBlueprintSearchTags
 /** FiB data versioning */
 enum EFiBVersion
 {
+	FIB_VER_NONE = -1, // Unknown version (not set)
+
 	FIB_VER_BASE = 0, // All Blueprints prior to versioning will automatically be assumed to be at 0 if they have FiB data collected
 	FIB_VER_VARIABLE_REFERENCE, // Variable references (FMemberReference) is collected in FiB
 	FIB_VER_INTERFACE_GRAPHS, // Implemented Interface Graphs is collected in FiB
@@ -118,7 +120,7 @@ enum EFiBVersion
 struct FSearchDataVersionInfo
 {
 	/** FiB asset registry tag data version */
-	int32 FiBDataVersion = EFiBVersion::FIB_VER_BASE;
+	int32 FiBDataVersion = EFiBVersion::FIB_VER_NONE;
 
 	/** Editor object version used to serialize values in the JSON string lookup table */
 	int32 EditorObjectVersion = -1;
@@ -593,7 +595,7 @@ private:
 	void RemoveBlueprintByPath(FName InPath);
 
 	/** Begins the process of extracting unloaded FiB data */
-	void ExtractUnloadedFiBData(const FAssetData& InAssetData, const FString& InFiBData, bool bIsVersioned);
+	void ExtractUnloadedFiBData(const FAssetData& InAssetData, const FString& InFiBData, EFiBVersion InFiBDataVersion);
 
 	/** Determines the global find results tab label */
 	FText GetGlobalFindResultsTabLabel(int32 TabIdx);

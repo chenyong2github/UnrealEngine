@@ -74,7 +74,7 @@ struct FHairSamplingSettings
 	float			SceneDepth;					// SceneDepth in lightspace.
 };
 
-void InternalFetchRowOfThree(float2 Sample00TexelCenter, float VerticalOffset, out float3 Values0, FHairSamplingSettings Settings)
+void InternalFetchRowOfThree(float2 Sample00TexelCenter, float VerticalOffset, inout float3 Values0, FHairSamplingSettings Settings)
 {
 	Values0.x = Settings.ShadowDepthTexture.SampleLevel(Settings.ShadowDepthTextureSampler, (Sample00TexelCenter + float2(0, VerticalOffset)) * Settings.ShadowAtlasInvResolution, 0).r;
 	Values0.y = Settings.ShadowDepthTexture.SampleLevel(Settings.ShadowDepthTextureSampler, (Sample00TexelCenter + float2(1, VerticalOffset)) * Settings.ShadowAtlasInvResolution, 0).r;
@@ -82,7 +82,7 @@ void InternalFetchRowOfThree(float2 Sample00TexelCenter, float VerticalOffset, o
 	Values0 = float3(Settings.SceneDepth < Values0);
 }
 
-void FetchRowOfFour(float2 Sample00TexelCenter, float VerticalOffset, out float4 Values0, FHairSamplingSettings Settings)
+void FetchRowOfFour(float2 Sample00TexelCenter, float VerticalOffset, inout float4 Values0, FHairSamplingSettings Settings)
 {
 	Values0.x = Settings.ShadowDepthTexture.SampleLevel(Settings.ShadowDepthTextureSampler, (Sample00TexelCenter + float2(0, VerticalOffset)) * Settings.ShadowAtlasInvResolution, 0).r;
 	Values0.y = Settings.ShadowDepthTexture.SampleLevel(Settings.ShadowDepthTextureSampler, (Sample00TexelCenter + float2(1, VerticalOffset)) * Settings.ShadowAtlasInvResolution, 0).r;
@@ -277,7 +277,7 @@ void MainPS(
 	const uint2 PixelCoord = floor(Input.Position.xy);
 	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(UV);
 	const FCategorizationData Categorization = DecodeCategorizationData(CategorizationTexture.Load(uint3(PixelCoord, 0)));
-	const bool bIsHairPixel = Categorization.TotalCoverage8bit >= 255;
+	const bool bIsHairPixel = Categorization.PixelCoverage >= 1;
 
 	const float3 WorldPosition		= TotWorldPosition(UV, GBuffer.Depth);
 	const float3 LightSpacePosition = ToLightPosition(WorldPosition);
@@ -335,7 +335,7 @@ void MainPS(
 	const uint2 PixelCoord = floor(Input.Position.xy);
 	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(UV);
 	const FCategorizationData Categorization = DecodeCategorizationData(CategorizationTexture.Load(uint3(PixelCoord, 0)));
-	const bool bIsHairPixel = Categorization.TotalCoverage8bit >= 255;
+	const bool bIsHairPixel = Categorization.PixelCoverage >= 1;
 
 	float3 WorldPosition = TotWorldPosition(UV, GBuffer.Depth);
 

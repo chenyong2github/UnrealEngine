@@ -926,7 +926,7 @@ void LaunchUpdateMostRecentProjectFile()
 }
 
 #if WITH_ENGINE
-void OnStartupContentMounted(FInstallBundleResultInfo Result, bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads, bool bReloadConfig, bool bForceQuitAfterEarlyReads);
+void OnStartupContentMounted(FInstallBundleRequestResultInfo Result, bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads, bool bReloadConfig, bool bForceQuitAfterEarlyReads);
 #endif
 void DumpEarlyReads(bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads, bool bForceQuitAfterEarlyReads);
 void HandleConfigReload(bool bReloadConfig);
@@ -1037,40 +1037,7 @@ FEngineLoop::FEngineLoop()
 
 int32 FEngineLoop::PreInit(int32 ArgC, TCHAR* ArgV[], const TCHAR* AdditionalCommandline)
 {
-	FString CmdLine;
-
-	// loop over the parameters, skipping the first one (which is the executable name)
-	for (int32 Arg = 1; Arg < ArgC; Arg++)
-	{
-		FString ThisArg = ArgV[Arg];
-		if (ThisArg.Contains(TEXT(" ")) && !ThisArg.Contains(TEXT("\"")))
-		{
-			int32 EqualsAt = ThisArg.Find(TEXT("="));
-			if (EqualsAt > 0 && ThisArg.Find(TEXT(" ")) > EqualsAt)
-			{
-				ThisArg = ThisArg.Left(EqualsAt + 1) + FString("\"") + ThisArg.RightChop(EqualsAt + 1) + FString("\"");
-
-			}
-			else
-			{
-				ThisArg = FString("\"") + ThisArg + FString("\"");
-			}
-		}
-
-		CmdLine += ThisArg;
-		// put a space between each argument (not needed after the end)
-		if (Arg + 1 < ArgC)
-		{
-			CmdLine += TEXT(" ");
-		}
-	}
-
-	// append the additional extra command line
-	if (AdditionalCommandline)
-	{
-		CmdLine += TEXT(" ");
-		CmdLine += AdditionalCommandline;
-	}
+	FString CmdLine = FCommandLine::BuildFromArgV(nullptr, ArgC, ArgV, AdditionalCommandline);
 
 	// send the command line without the exe name
 	return GEngineLoop.PreInit(*CmdLine);
@@ -1332,7 +1299,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		ILauncherCheckModule::Get().RunLauncher(ELauncherAction::AppLaunch);
 		// We wish to exit
 		RequestEngineExit(TEXT("Run outside of launcher; restarting via launcher"));
-		return 0;
+		return 1;
 	}
 #endif
 
@@ -2279,7 +2246,8 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 	FEmbeddedCommunication::ForceTick(3);
 
-	FScopedSlowTask SlowTask(50, NSLOCTEXT("EngineLoop", "EngineLoop_Initializing_PreInitPreStartupScreen", "PreInitPreStartupScreen..."));
+	PreInitContext.SlowTaskPtr = new FScopedSlowTask(100, NSLOCTEXT("EngineLoop", "EngineLoop_Initializing", "Initializing..."));
+	FScopedSlowTask& SlowTask = *PreInitContext.SlowTaskPtr;
 
 	SlowTask.EnterProgressFrame(10);
 
@@ -2514,7 +2482,11 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 {
-	FScopedSlowTask SlowTask(50, NSLOCTEXT("EngineLoop", "EngineLoop_Initializing_PreInitPostStartupScreen", "PreInitPostStartupScreen..."));
+	if (IsEngineExitRequested())
+	{
+		return 0;
+	}
+
 	FScopeCycleCounter CycleCount_AfterStats(GET_STATID(STAT_FEngineLoop_PreInitPostStartupScreen_AfterStats));
 
 	// Restore PreInitContext
@@ -2533,6 +2505,7 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 	const TCHAR* CommandletCommandLine = PreInitContext.CommandletCommandLine;
 #endif // UE_EDITOR || WITH_ENGINE
 	TCHAR* CommandLineCopy = PreInitContext.CommandLineCopy;
+	FScopedSlowTask& SlowTask = *PreInitContext.SlowTaskPtr;
 
 #if WITH_ENGINE
 	{
@@ -2568,7 +2541,7 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 			if (GetMoviePlayer()->HasEarlyStartupMovie())
 			{
 				SCOPED_BOOT_TIMING("EarlyStartupMovie");
-				GetMoviePlayer()->Initialize(SlateRendererSharedRef.Get());
+				GetMoviePlayer()->Initialize(SlateRendererSharedRef.Get(), FPreLoadScreenManager::Get() ? FPreLoadScreenManager::Get()->GetRenderWindow() : nullptr);
 
 				// hide splash screen now before playing any movies
 				FPlatformMisc::PlatformHandleSplashScreen(false);
@@ -3251,8 +3224,6 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 	}
 #endif // !UE_BUILD_SHIPPING
 
-	delete [] CommandLineCopy;
-
 	// initialize the pointer, as it is deleted before being assigned in the first frame
 	PendingCleanupObjects = nullptr;
 
@@ -3308,12 +3279,14 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 	const int32 rv1 = PreInitPreStartupScreen(CmdLine);
 	if (rv1 != 0)
 	{
+		PreInitContext.Cleanup();
 		return rv1;
 	}
 
 	const int32 rv2 = PreInitPostStartupScreen(CmdLine);
 	if (rv2 != 0)
 	{
+		PreInitContext.Cleanup();
 		return rv2;
 	}
 
@@ -3462,7 +3435,7 @@ bool FEngineLoop::LoadStartupCoreModules()
 	}
 
 #if WITH_UNREAL_DEVELOPER_TOOLS
-	FModuleManager::Get().LoadModule("FunctionalTesting");
+		FModuleManager::Get().LoadModule("FunctionalTesting");
 #endif	//WITH_UNREAL_DEVELOPER_TOOLS
 
 	SlowTask.EnterProgressFrame(30);
@@ -3845,7 +3818,7 @@ void FEngineLoop::Exit()
 		}
 		if (bFlushOnExit)
 		{
-			FlushAsyncLoading();
+	FlushAsyncLoading();
 		}
 		else
 		{
@@ -3918,6 +3891,12 @@ void FEngineLoop::Exit()
 
 	// Stop the rendering thread.
 	StopRenderingThread();
+	
+	// Disable the PSO cache
+	FShaderPipelineCache::Shutdown();
+
+	// Close shader code map, if any
+	FShaderCodeLibrary::Shutdown();
 
 #if !PLATFORM_ANDROID || PLATFORM_LUMIN // UnloadModules doesn't work on Android
 #if WITH_ENGINE
@@ -3934,12 +3913,6 @@ void FEngineLoop::Exit()
 	// order they were loaded in, so that systems can unregister and perform general clean up.
 	FModuleManager::Get().UnloadModulesAtShutdown();
 #endif // !ANDROID
-
-	// Disable the PSO cache
-	FShaderPipelineCache::Shutdown();
-
-	// Close shader code map, if any
-	FShaderCodeLibrary::Shutdown();
 
 	// Tear down the RHI.
 	RHIExitAndStopRHIThread();
@@ -4002,7 +3975,7 @@ void FEngineLoop::ProcessLocalPlayerSlateOperations() const
 }
 
 #if WITH_ENGINE
-void OnStartupContentMounted(FInstallBundleResultInfo Result, bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads, bool bReloadConfig, bool bForceQuitAfterEarlyReads)
+void OnStartupContentMounted(FInstallBundleRequestResultInfo Result, bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads, bool bReloadConfig, bool bForceQuitAfterEarlyReads)
 {
 	if (Result.bIsStartup && Result.Result == EInstallBundleResult::OK)
 	{
@@ -5107,7 +5080,7 @@ bool FEngineLoop::AppInit( )
 		// Find the editor target
 		FString EditorTargetFileName;
 		for (const FTargetInfo& Target : FDesktopPlatformModule::Get()->GetTargetsForProject(FPaths::GetProjectFilePath()))
-		{
+	{
 			if (Target.Type == EBuildTargetType::Editor)
 			{
 				// Read the editor target receipt
@@ -5520,6 +5493,20 @@ void FEngineLoop::PreInitHMDDevice()
 		// Note we do not disable or warn here if no HMD modules matched ExplicitHMDName, as not all HMD plugins have been loaded yet.
 	}
 #endif // #if WITH_ENGINE && !UE_SERVER
+}
+
+void FPreInitContext::Cleanup()
+{
+#if WITH_ENGINE && !UE_SERVER
+	SlateRenderer = nullptr;
+#endif // WITH_ENGINE && !UE_SERVER
+	CommandletCommandLine = nullptr;
+
+	delete[] CommandLineCopy;
+	CommandLineCopy = nullptr;
+
+	delete SlowTaskPtr;
+	SlowTaskPtr = nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE

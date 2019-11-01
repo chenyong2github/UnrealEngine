@@ -115,10 +115,7 @@ bool GenerateOcclusionRay(
 	return true;
 }
 
-
-
-[shader("raygeneration")]
-void OcclusionRGS()
+RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 {
 	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin.xy + PixelOffset;
 
@@ -127,7 +124,7 @@ void OcclusionRGS()
 	float ClosestRayDistance = DENOISER_INVALID_HIT_DISTANCE;
 	float HitCount = 0.0;
 	float RayCount = 0.0;
-	uint LocalSamplesPerPixel = SamplesPerPixel;
+	uint LocalSamplesPerPixel = ENABLE_MULTIPLE_SAMPLES_PER_PIXEL ? SamplesPerPixel : 1;
 
 	if (all(PixelCoord >= LightScissor.xy) && all(PixelCoord <= LightScissor.zw))
 	{
@@ -156,17 +153,13 @@ void OcclusionRGS()
 		bool bIsValidPixel = ShadingModelID != SHADINGMODELID_UNLIT && bIsDepthValid;
 
 		// Check if there is hair geometry
-		uint RaytracingMask = 0;
-		if (bIsValidPixel && ShadowMaskType == ShadowMaskType_Opaque)
-		{
-			RaytracingMask = RAY_TRACING_MASK_SHADOW | RAY_TRACING_MASK_THIN_SHADOW;
-		}
+		uint RaytracingMask = RAY_TRACING_MASK_SHADOW | RAY_TRACING_MASK_THIN_SHADOW;
 	#if USE_HAIR_LIGHTING
-		else if (ShadowMaskType == ShadowMaskType_Hair)
+		if (ShadowMaskType == ShadowMaskType_Hair)
 		{
 			RaytracingMask = RAY_TRACING_MASK_SHADOW;
 			const FCategorizationData Categorization = DecodeCategorizationData(HairCategorizationTexture.Load(uint3(PixelCoord, 0)));
-			bIsValidPixel = Categorization.TotalCoverage8bit > 0;
+			bIsValidPixel = Categorization.PixelCoverage > 0;
 			if (bIsValidPixel)
 			{
 				DeviceZ = Categorization.ClosestDepth;
@@ -181,7 +174,7 @@ void OcclusionRGS()
 		const bool bTraceRay = bIsValidPixel && (LightChannel & LightingChannelMask) != 0;
 		if (!bTraceRay)
 		{
-			LocalSamplesPerPixel = 0.0;
+			LocalSamplesPerPixel = 0;
 		}
 
 		// Cheap solution for double sided foliage to have valid lighing through the denoiser
@@ -220,14 +213,16 @@ void OcclusionRGS()
 			bApplyNormalCulling = false;
 		}
 
-		LOOP
-		for (uint SampleIndex = 0; SampleIndex < LocalSamplesPerPixel; ++SampleIndex)
+#if ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
+		LOOP for (uint SampleIndex = 0; SampleIndex < LocalSamplesPerPixel; ++SampleIndex)
+#else // ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
+		do if (bTraceRay)
+#endif // ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
 		{
 			uint DummyVariable;
 			float2 RandSample = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
 
-			BRANCH
-			if (LocalSamplesPerPixel == 1 && 1)
+			#if !ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
 			{
 				const uint TemporalBits = 10;
 				uint FrameIndexMod1024 = ReverseBitsN(GetPowerOfTwoModulatedFrameIndex(1 << TemporalBits), TemporalBits);
@@ -237,6 +232,7 @@ void OcclusionRGS()
 
 				RandSample = SobolIndexToUniformUnitSquare(SobolFrame);
 			}
+			#endif // !ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
 
 			RayDesc Ray;
 			bool bIsValidRay = GenerateOcclusionRay(
@@ -272,48 +268,46 @@ void OcclusionRGS()
 
 			uint RayFlags = 0;
 
-	#if !ENABLE_TWO_SIDED_GEOMETRY
+#if !ENABLE_TWO_SIDED_GEOMETRY
 			RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
-	#endif
-			
+#endif
+
 			if (DIM_DENOISER_OUTPUT == 0)
 			{
 				// Denoiser mode 0 doesn't use depth, so take first hit
-				RayFlags |= RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
+				RayFlags |= RAY_FLAG_SKIP_CLOSEST_HIT_SHADER | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
 			}
 
-			FPackedMaterialClosestHitPayload Payload = (FPackedMaterialClosestHitPayload)0;
-			Payload.SetMinimalPayloadMode(); // Only HitT will be filled by closest hit shader, skipping full material evaluation.
-		
-			TraceRay(
-				TLAS,      // AccelerationStructure
+			FMinimalPayload MinimalPayload = TraceVisibilityRay(
+				TLAS,
 				RayFlags,
-				RaytracingMask,                 // InstanceInclusionMask
-				RAY_TRACING_SHADER_SLOT_SHADOW, // RayContributionToHitGroupIndex
-				RAY_TRACING_NUM_SHADER_SLOTS,   // MultiplierForGeometryContributionToShaderIndex
-				0,         // MissShaderIndex
-				Ray,       // RayDesc
-				Payload    // Payload
-			);
+				RaytracingMask,
+				Ray);
 
 			RayCount += 1.0;
-			Visibility += Payload.IsMiss() ? 1.0 : 0.0;
-			if (Payload.IsHit())
+			Visibility += MinimalPayload.IsMiss() ? 1.0 : 0.0;
+			if (MinimalPayload.IsHit())
 			{
-				ClosestRayDistance = ClosestRayDistance == DENOISER_INVALID_HIT_DISTANCE || Payload.HitT < ClosestRayDistance ? Payload.HitT : ClosestRayDistance;
-				SumRayDistance += Payload.HitT;
+				ClosestRayDistance =
+					(ClosestRayDistance == DENOISER_INVALID_HIT_DISTANCE) ||
+					(MinimalPayload.HitT < ClosestRayDistance) ? MinimalPayload.HitT : ClosestRayDistance;
+				SumRayDistance += MinimalPayload.HitT;
 				HitCount += 1.0;
 			}
 			else
 			{
-				ClosestRayDistance = ClosestRayDistance == DENOISER_INVALID_HIT_DISTANCE ? DENOISER_MISS_HIT_DISTANCE : ClosestRayDistance;
+				ClosestRayDistance = (ClosestRayDistance == DENOISER_INVALID_HIT_DISTANCE) ? DENOISER_MISS_HIT_DISTANCE : ClosestRayDistance;
 			}
 		}
+#if !ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
+		while (0);
+#endif //!ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
+
 	}
 
 	float Shadow = (LocalSamplesPerPixel > 0) ? Visibility / LocalSamplesPerPixel : Visibility;
 	
-	if (DIM_DENOISER_OUTPUT == 3)
+	if (DIM_DENOISER_OUTPUT == 2)
 	{
 		RWOcclusionMaskUAV[PixelCoord] = float4(
 			Shadow,
@@ -321,7 +315,7 @@ void OcclusionRGS()
 			0,
 			0);
 	}
-	else if (DIM_DENOISER_OUTPUT == 2)
+	else if (DIM_DENOISER_OUTPUT == 1)
 	{
 		float AvgHitDistance = -1.0;
 		if (HitCount > 0.0)
@@ -333,13 +327,9 @@ void OcclusionRGS()
 			AvgHitDistance = 1.0e27;
 		}
 
-		// TODO: the denoiser would much prefer a single RG texture.
+		// TODO(Denoiser): the denoiser would much prefer a single RG texture.
 		RWOcclusionMaskUAV[PixelCoord] = Shadow;
 		RWRayDistanceUAV[PixelCoord] = AvgHitDistance;
-	}
-	else if (DIM_DENOISER_OUTPUT == 1)
-	{
-		RWRayDistanceUAV[PixelCoord] = ClosestRayDistance;
 	}
 	else
 	{

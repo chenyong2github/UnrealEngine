@@ -71,6 +71,34 @@ protected:
 	using Base::ConstraintContainer;
 };
 
+template<class T, int d>
+class CHAOS_API TPBDCollisionConstraintHistory
+{
+public:
+	using FConstraintHandle = TPBDCollisionConstraintHandle<T, d>;
+
+	TPBDCollisionConstraintHistory(const TVector<T, d>& InLocation, const TRotation<T, d>& InRotation)
+		: Location(InLocation)
+		, Rotation(InRotation)
+	{}
+
+	const TVector<T, d>& GetLocation() { return Location; }
+	const TRotation<T, d>& GetRotation() { return Rotation; }
+
+	void AddHandle(const FConstraintHandle* InHandle) {
+		Handles.Push(InHandle);
+	}
+	void RemoveHandle(const FConstraintHandle* InHandle) {
+		Handles.RemoveSingleSwap(InHandle);
+	}
+	const TArray< const FConstraintHandle*>& GetHandles() { return Handles; }
+
+private:
+	TVector<T, d> Location;
+	TRotation<T, d> Rotation;
+	TArray< const FConstraintHandle*> Handles;
+};
+
 template<typename T, int d>
 using TRigidBodyContactConstraintsPostComputeCallback = TFunction<void()>;
 
@@ -98,6 +126,7 @@ public:
 	using FReal = T;
 	static const int Dimensions = d;
 	using FConstraintHandle = TPBDCollisionConstraintHandle<T, d>;
+	using FConstraintHistory = TPBDCollisionConstraintHistory<T, d>;
 	using FConstraintHandleAllocator = TConstraintHandleAllocator<TPBDCollisionConstraint<T, d>>;
 	using FRigidBodyContactConstraint = TRigidBodyContactConstraint<T, d>;
 	typedef TPair<TGeometryParticleHandle<T, d>*, const TGeometryParticleHandle<T, d>*> FConstraintHandleID;
@@ -149,12 +178,12 @@ public:
 		
 	const FConstraintHandle* GetConstraintHandle(int32 ConstraintIndex) const
 	{
-		return Handles[GetConstraintHandleID(ConstraintIndex)];
+		return Handles[ConstraintIndex];
 	}
 
 	FConstraintHandle* GetConstraintHandle(int32 ConstraintIndex)
 	{
-		return Handles[ GetConstraintHandleID(ConstraintIndex) ];
+		return Handles[ ConstraintIndex ];
 	}
 
 	void RemoveConstraint(int32 Idx);
@@ -211,6 +240,11 @@ public:
 	 // @todo(ccaulfield): this runs wide. The serial/parallel decision should be in the ConstraintRule
 	void Apply(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
 
+	/**
+	 * Set disabled attribute on all input handles
+	 */
+	void Disable(const TArray<FConstraintHandle*>& InConstraintHandles);
+		
 	/**
 	 * Generate all contact constraints.
 	 */
@@ -288,8 +322,11 @@ private:
 	TRigidBodyContactConstraintsPostApplyCallback<T, d> PostApplyCallback;
 	TRigidBodyContactConstraintsPostApplyPushOutCallback<T, d> PostApplyPushOutCallback;
 
-	TMap<FConstraintHandleID, FConstraintHandle*> Handles;
+	TArray<FConstraintHandle*> Handles;
 	FConstraintHandleAllocator HandleAllocator;
+
+	bool bSupportHistory;
+	TMap<FConstraintHandleID, FConstraintHistory*> History;
 };
 
 extern template void TPBDCollisionConstraint<float, 3>::UpdateConstraint<ECollisionUpdateType::Any>(const float Thickness, FRigidBodyContactConstraint& Constraint);

@@ -49,7 +49,7 @@ public:
 	virtual void InitSocialManager();
 	virtual void ShutdownSocialManager();
 
-	USocialToolkit& GetSocialToolkit(ULocalPlayer& LocalPlayer) const;
+	USocialToolkit& GetSocialToolkit(const ULocalPlayer& LocalPlayer) const;
 	USocialToolkit* GetFirstLocalUserToolkit() const;
 	FUniqueNetIdRepl GetFirstLocalUserId(ESocialSubsystem SubsystemType) const;
 	bool IsLocalUser(const FUniqueNetIdRepl& LocalUserId, ESocialSubsystem SubsystemType) const;
@@ -252,10 +252,6 @@ private:
 	 * Tracked to allow OSS level party activity to execute immediately, but hold off on establishing our local (and replicated) awareness of the party until this client is ready.
 	 */
 	bool bCanCreatePartyObjects = false;
-
-	/** Should we leave a party when it enters the disconnected state? */
-	UPROPERTY(config)
-	bool bLeavePartyOnDisconnect = true;
 
 	TSharedPtr<FPartyPlatformSessionManager> PartySessionManager;
 

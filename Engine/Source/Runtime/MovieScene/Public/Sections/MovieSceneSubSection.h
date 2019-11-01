@@ -109,6 +109,7 @@ public:
 	virtual void PostLoad() override;
 
 #if WITH_EDITOR
+	virtual void PreEditChange(UProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
 	/** Delegate to fire when our sequence is changed in the property editor */
@@ -199,5 +200,8 @@ protected:
 #if WITH_EDITOR
 	/** Delegate to fire when our sequence is changed in the property editor */
 	FOnSequenceChanged OnSequenceChangedDelegate;
+
+	/* Previous sub sequence, restored if changed sub sequence is invalid*/
+	UMovieSceneSequence* PreviousSubSequence;
 #endif
 };

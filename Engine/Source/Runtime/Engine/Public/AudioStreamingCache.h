@@ -30,9 +30,18 @@ public:
 		FName SoundWaveName = FName();
 		uint32 ChunkIndex = INDEX_NONE;
 
+#if WITH_EDITOR
+		// This is used in the editor to invalidate stale compressed chunks.
+		uint32 ChunkRevision = INDEX_NONE;
+#endif
+
 		inline bool operator==(const FChunkKey& Other) const
 		{
+#if WITH_EDITOR
+			return (SoundWaveName == Other.SoundWaveName) && (ChunkIndex == Other.ChunkIndex) && (ChunkRevision == Other.ChunkRevision);
+#else
 			return (SoundWaveName == Other.SoundWaveName) && (ChunkIndex == Other.ChunkIndex);
+#endif
 		}
 	};
 
@@ -41,7 +50,7 @@ public:
 	~FAudioChunkCache();
 
 	// Places chunk in cache, or puts this chunk back at the top of the cache if it's already loaded. Returns false on failure.
-	bool AddOrTouchChunk(const FChunkKey& InKey, TFunction<void(EAudioChunkLoadResult) > OnLoadCompleted);
+	bool AddOrTouchChunk(const FChunkKey& InKey, TFunction<void(EAudioChunkLoadResult) > OnLoadCompleted, ENamedThreads::Type CallbackThread);
 
 	// Returns the chunk asked for, or an empty TArrayView if that chunk is not loaded.
 	TArrayView<uint8> GetChunk(const FChunkKey& InKey, bool bBlockForLoadCompletion);
@@ -100,12 +109,15 @@ private:
 		// Number of times this chunk was requested during its time in the cache.
 		int32 NumTimesTouched;
 
-		double TimeLoadStarted;
+		uint64 TimeLoadStarted;
 		// Amount of time spent loading the audio file.
-		double TimeToLoad;
+		float TimeToLoad;
 
 		// This is a cumulative moving average of a chunks location before it was 
 		float AverageLocationInCacheWhenNeeded;
+
+		// if true, 
+		bool bWasCacheMiss;
 
 		FCacheElementDebugInfo()
 			: NumTotalChunks(0)
@@ -113,6 +125,7 @@ private:
 			, TimeLoadStarted(0.0)
 			, TimeToLoad(0.0)
 			, AverageLocationInCacheWhenNeeded(0.0f)
+			, bWasCacheMiss(false)
 		{
 		}
 
@@ -121,7 +134,8 @@ private:
 			NumTotalChunks = 0;
 			NumTimesTouched = 0;
 			TimeLoadStarted = 0;
-
+			TimeToLoad = 0.0f;
+			bWasCacheMiss = false;
 			AverageLocationInCacheWhenNeeded = 0.0f;
 		}
 	};
@@ -167,7 +181,11 @@ private:
 #if WITH_EDITORONLY_DATA
 			if (DDCTask.IsValid() && !DDCTask->IsDone())
 			{
-				DDCTask->Cancel();
+				if (bCancel)
+				{
+					DDCTask->Cancel();
+				}
+				
 				DDCTask->EnsureCompletion(false);
 			}
 #endif
@@ -259,8 +277,11 @@ private:
 	// Returns the least recent chunk and fixes up the linked list accordingly.
 	FCacheElement* EvictLeastRecentChunk();
 
-	void KickOffAsyncLoad(FCacheElement* CacheElement, const FChunkKey& InKey, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted);
+	void KickOffAsyncLoad(FCacheElement* CacheElement, const FChunkKey& InKey, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted, ENamedThreads::Type CallbackThread);
 	EAsyncIOPriorityAndFlags GetAsyncPriorityForChunk(const FChunkKey& InKey);
+
+	// Calls OnLoadCompleted on current thread if CallbackThread == ENamedThreads::AnyThread, and dispatchs an async task on a named thread otherwise.
+	static void ExecuteOnLoadCompleteCallback(EAudioChunkLoadResult Result, const TFunction<void(EAudioChunkLoadResult)>& OnLoadCompleted, const ENamedThreads::Type& CallbackThread);
 };
 
 // This is used to sort the cache array from smallest chunk size to biggest.
@@ -329,7 +350,7 @@ public:
 	virtual void AddStreamingSoundSource(FSoundSource* SoundSource) override;
 	virtual void RemoveStreamingSoundSource(FSoundSource* SoundSource) override;
 	virtual bool IsManagedStreamingSoundSource(const FSoundSource* SoundSource) const override;
-	virtual bool RequestChunk(USoundWave* SoundWave, uint32 ChunkIndex, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted) override;
+	virtual bool RequestChunk(USoundWave* SoundWave, uint32 ChunkIndex, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted, ENamedThreads::Type ThreadToCallOnLoadCompletedOn) override;
 	virtual FAudioChunkHandle GetLoadedChunk(const USoundWave* SoundWave, uint32 ChunkIndex, bool bBlockForLoad = false) const override;
 	virtual uint64 TrimMemory(uint64 NumBytesToFree) override;
 	virtual int32 RenderStatAudioStreaming(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation) override;

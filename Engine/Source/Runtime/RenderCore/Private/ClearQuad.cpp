@@ -130,15 +130,20 @@ static void ClearUAVShader(FRHICommandList& RHICmdList, FRHIUnorderedAccessView*
 	UE_CLOG((SizeInBytes & 0x3) != 0, LogClearQuad, Warning,
 		TEXT("Buffer size is not a multiple of DWORDs. Up to 3 bytes after buffer end will also be cleared"));
 
-	TShaderMapRef<FClearBufferReplacementCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+	TShaderMapRef<FClearReplacementCS_Buffer_Uint_Bounds> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
 	FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();
 	
-	uint32 NumDWordsToClear = (SizeInBytes + 3) / 4;
-	uint32 NumThreadGroupsX = (NumDWordsToClear + 63) / 64;
+	uint32 NumDWordsToClear = FMath::DivideAndRoundUp(SizeInBytes, 4u);
 	RHICmdList.SetComputeShader(ShaderRHI);
-	ComputeShader->SetParameters(RHICmdList, UnorderedAccessViewRHI, NumDWordsToClear, ClearValue, bBarriers);
-	RHICmdList.DispatchComputeShader(NumThreadGroupsX, 1, 1);
-	ComputeShader->FinalizeParameters(RHICmdList, UnorderedAccessViewRHI, bBarriers);
+
+	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->GetClearValueParam(), ClearValue);
+	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->GetMinBoundsParam(), FUintVector4(0, 0, 0, 0));
+	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->GetMaxBoundsParam(), FUintVector4(NumDWordsToClear, 1, 1, 0));
+	ComputeShader->SetResource(RHICmdList, UnorderedAccessViewRHI);
+
+	RHICmdList.DispatchComputeShader(FMath::DivideAndRoundUp(NumDWordsToClear, ComputeShader->ThreadGroupSizeX), 1, 1);
+
+	ComputeShader->FinalizeResource(RHICmdList, UnorderedAccessViewRHI);
 }
 
 void ClearUAV(FRHICommandList& RHICmdList, const FRWBufferStructured& StructuredBuffer, uint32 Value)
@@ -190,49 +195,76 @@ inline void ClearUAV_T(FRHICommandList& RHICmdList, FRHITexture* Texture, FRHIUn
 
 	if (auto Texture2d = Texture->GetTexture2D())
 	{
-		TShaderMapRef< FClearTexture2DReplacementCS<T> > ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+		TShaderMapRef<TClearReplacementCS<EClearReplacementResourceType::Texture2D, TClearReplacementBase<T, 4>>> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
 		FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();
 		RHICmdList.SetComputeShader(ShaderRHI);
-		ComputeShader->SetParameters(RHICmdList, TextureUAV, ClearValues);
-		uint32 x = (Texture2d->GetSizeX() + 7) / 8;
-		uint32 y = (Texture2d->GetSizeY() + 7) / 8;
-		RHICmdList.DispatchComputeShader(x, y, 1);
-		ComputeShader->FinalizeParameters(RHICmdList, TextureUAV);
+		SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->GetClearValueParam(), ClearValues);
+		ComputeShader->SetResource(RHICmdList, TextureUAV);
+
+		RHICmdList.DispatchComputeShader(
+			FMath::DivideAndRoundUp(Texture2d->GetSizeX(), ComputeShader->ThreadGroupSizeX),
+			FMath::DivideAndRoundUp(Texture2d->GetSizeY(), ComputeShader->ThreadGroupSizeY),
+			1
+		);
+
+		ComputeShader->FinalizeResource(RHICmdList, TextureUAV);
 	}
 	else if (auto Texture2dArray = Texture->GetTexture2DArray())
 	{
-		TShaderMapRef< FClearTexture2DArrayReplacementCS<T> > ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+		typedef TClearReplacementCS<EClearReplacementResourceType::Texture2DArray, TClearReplacementBase<T, 4>> FClearShader;
+
+		TShaderMapRef<FClearShader> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
 		FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();
 		RHICmdList.SetComputeShader(ShaderRHI);
-		ComputeShader->SetParameters(RHICmdList, TextureUAV, ClearValues);
-		uint32 x = (Texture2dArray->GetSizeX() + 7) / 8;
-		uint32 y = (Texture2dArray->GetSizeY() + 7) / 8;
-		uint32 z = Texture2dArray->GetSizeZ();
-		RHICmdList.DispatchComputeShader(x, y, z);
-		ComputeShader->FinalizeParameters(RHICmdList, TextureUAV);
+		SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->GetClearValueParam(), ClearValues);
+		ComputeShader->SetResource(RHICmdList, TextureUAV);
+
+		RHICmdList.DispatchComputeShader(
+			FMath::DivideAndRoundUp(Texture2dArray->GetSizeX(), ComputeShader->ThreadGroupSizeX),
+			FMath::DivideAndRoundUp(Texture2dArray->GetSizeY(), ComputeShader->ThreadGroupSizeY),
+			FMath::DivideAndRoundUp(Texture2dArray->GetSizeZ(), ComputeShader->ThreadGroupSizeZ)
+		);
+
+		ComputeShader->FinalizeResource(RHICmdList, TextureUAV);
 	}
 	else if (auto TextureCube = Texture->GetTextureCube())
 	{
-		TShaderMapRef< FClearTexture2DArrayReplacementCS<T> > ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+		typedef TClearReplacementCS<EClearReplacementResourceType::Texture2DArray, TClearReplacementBase<T, 4>> FClearShader;
+
+		TShaderMapRef<FClearShader> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
 		FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();
 		RHICmdList.SetComputeShader(ShaderRHI);
-		ComputeShader->SetParameters(RHICmdList, TextureUAV, ClearValues);
-		uint32 x = (TextureCube->GetSize() + 7) / 8;
-		uint32 y = (TextureCube->GetSize() + 7) / 8;
-		RHICmdList.DispatchComputeShader(x, y, 6);
-		ComputeShader->FinalizeParameters(RHICmdList, TextureUAV);
+		SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->GetClearValueParam(), ClearValues);
+		ComputeShader->SetResource(RHICmdList, TextureUAV);
+
+		// One complete cube of 6 faces
+		const uint32 NumSlices = 6;
+
+		RHICmdList.DispatchComputeShader(
+			FMath::DivideAndRoundUp(TextureCube->GetSize(), ComputeShader->ThreadGroupSizeX),
+			FMath::DivideAndRoundUp(TextureCube->GetSize(), ComputeShader->ThreadGroupSizeY),
+			FMath::DivideAndRoundUp(NumSlices,              ComputeShader->ThreadGroupSizeZ)
+		);
+
+		ComputeShader->FinalizeResource(RHICmdList, TextureUAV);
 	}
 	else if (auto Texture3d = Texture->GetTexture3D())
 	{
-		TShaderMapRef< FClearVolumeReplacementCS<T> > ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+		typedef TClearReplacementCS<EClearReplacementResourceType::Texture3D, TClearReplacementBase<T, 4>> FClearShader;
+
+		TShaderMapRef<FClearShader> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
 		FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();
 		RHICmdList.SetComputeShader(ShaderRHI);
-		ComputeShader->SetParameters(RHICmdList, TextureUAV, ClearValues);
-		uint32 x = (Texture3d->GetSizeX() + 3) / 4;
-		uint32 y = (Texture3d->GetSizeY() + 3) / 4;
-		uint32 z = (Texture3d->GetSizeZ() + 3) / 4;
-		RHICmdList.DispatchComputeShader(x, y, z);
-		ComputeShader->FinalizeParameters(RHICmdList, TextureUAV);
+		SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->GetClearValueParam(), ClearValues);
+		ComputeShader->SetResource(RHICmdList, TextureUAV);
+
+		RHICmdList.DispatchComputeShader(
+			FMath::DivideAndRoundUp(Texture3d->GetSizeX(), ComputeShader->ThreadGroupSizeX),
+			FMath::DivideAndRoundUp(Texture3d->GetSizeY(), ComputeShader->ThreadGroupSizeY),
+			FMath::DivideAndRoundUp(Texture3d->GetSizeZ(), ComputeShader->ThreadGroupSizeZ)
+		);
+
+		ComputeShader->FinalizeResource(RHICmdList, TextureUAV);
 	}
 	else
 	{
@@ -240,16 +272,23 @@ inline void ClearUAV_T(FRHICommandList& RHICmdList, FRHITexture* Texture, FRHIUn
 	}
 }
 
-void ClearUAV(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* UAV, int32 Width, int32 Height, const FLinearColor& ClearColor)
+void ClearUAV(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* UAV, uint32 Width, uint32 Height, const FLinearColor& ClearColor)
 {
-	TShaderMapRef< FClearTexture2DReplacementCS<float> > ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+	typedef TClearReplacementCS<EClearReplacementResourceType::Texture2D, TClearReplacementBase<float, 4>> FClearShader;
+
+	TShaderMapRef<FClearShader> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
 	FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();
 	RHICmdList.SetComputeShader(ShaderRHI);
-	ComputeShader->SetParameters(RHICmdList, UAV, reinterpret_cast<const float(&)[4]>(ClearColor));
-	uint32 x = (Width + 7) / 8;
-	uint32 y = (Height + 7) / 8;
-	RHICmdList.DispatchComputeShader(x, y, 1);
-	ComputeShader->FinalizeParameters(RHICmdList, UAV);
+	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->GetClearValueParam(), ClearColor);
+	ComputeShader->SetResource(RHICmdList, UAV);
+
+	RHICmdList.DispatchComputeShader(
+		FMath::DivideAndRoundUp(Width, ComputeShader->ThreadGroupSizeX),
+		FMath::DivideAndRoundUp(Height, ComputeShader->ThreadGroupSizeY),
+		1
+	);
+
+	ComputeShader->FinalizeResource(RHICmdList, UAV);
 }
 
 void ClearUAV(FRHICommandList& RHICmdList, const FTextureRWBuffer2D& Buffer, FLinearColor Value)

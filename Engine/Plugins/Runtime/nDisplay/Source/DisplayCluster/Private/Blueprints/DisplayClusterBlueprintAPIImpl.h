@@ -6,6 +6,8 @@
 #include "Blueprints/IDisplayClusterBlueprintAPI.h"
 #include "DisplayClusterBlueprintAPIImpl.generated.h"
 
+class UDisplayClusterRootComponent;
+
 struct FDisplayClusterClusterEvent;
 struct FPostProcessSettings;
 
@@ -78,7 +80,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// Root
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get root"), Category = "DisplayCluster|Game")
-	virtual ADisplayClusterPawn* GetRoot() override;
+	virtual UDisplayClusterRootComponent* GetRoot() override;
 
 	// Screens
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get screen by ID"), Category = "DisplayCluster|Game")
@@ -103,9 +105,6 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get default camera"), Category = "DisplayCluster|Game")
 	virtual UDisplayClusterCameraComponent* GetDefaultCamera() override;
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set default camera by index"), Category = "DisplayCluster|Game")
-	virtual void SetDefaultCameraByIndex(int32 Index) override;
-
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set default camera by ID"), Category = "DisplayCluster|Game")
 	virtual void SetDefaultCameraById(const FString& id) override;
 
@@ -115,25 +114,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get all nodes"), Category = "DisplayCluster|Game")
 	virtual TArray<UDisplayClusterSceneComponent*> GetAllNodes() override;
-
-	// Navigation
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get translation direction component"), Category = "DisplayCluster|Game")
-	virtual USceneComponent* GetTranslationDirectionComponent() override;
-
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set translation direction component"), Category = "DisplayCluster|Game")
-	virtual void SetTranslationDirectionComponent(USceneComponent* pComp) override;
-
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set translation direction component by ID"), Category = "DisplayCluster|Game")
-	virtual void SetTranslationDirectionComponentId(const FString& id) override;
-
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get rotate around component"), Category = "DisplayCluster|Game")
-	virtual USceneComponent* GetRotateAroundComponent() override;
-
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set rotate around component"), Category = "DisplayCluster|Game")
-	virtual void SetRotateAroundComponent(USceneComponent* pComp) override;
-
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set rotate around component by ID"), Category = "DisplayCluster|Game")
-	virtual void SetRotateAroundComponentId(const FString& id) override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -233,28 +213,4 @@ public:
 	/** Toggle current eye swap state. */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Toggle eye swap"), Category = "DisplayCluster|Render|Camera")
 	virtual bool ToggleEyesSwap(const FString& CameraId) override;
-
-	/** Return near culling distance of specified camera. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get near culling distance"), Category = "DisplayCluster|Render|Camera")
-	virtual float GetNearCullingDistance(const FString& CameraId) const override;
-
-	/** Set near culling distance of specified camera. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set near culling distance"), Category = "DisplayCluster|Render|Camera")
-	virtual void SetNearCullingDistance(const FString& CameraId, float NearDistance) override;
-
-	/** Get far culling distance of specified camera. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get far culling distance"), Category = "DisplayCluster|Render|Camera")
-	virtual float GetFarCullingDistance(const FString& CameraId) const override;
-
-	/** Set far culling distance of specified camera. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set far culling distance"), Category = "DisplayCluster|Render|Camera")
-	virtual void SetFarCullingDistance(const FString& CameraId, float FarDistance) override;
-
-	/** Return near and far plane clip plane distances. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get near and far clipping distance"), Category = "DisplayCluster|Render|Camera")
-	virtual void GetCullingDistance(const FString& CameraId, float& NearDistance, float& FarDistance) override;
-
-	/** Set near and far plane clip plane distances. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set near and far clipping distance"), Category = "DisplayCluster|Render|Camera")
-	virtual void SetCullingDistance(const FString& CameraId, float NearDistance, float FarDistance) override;
 };

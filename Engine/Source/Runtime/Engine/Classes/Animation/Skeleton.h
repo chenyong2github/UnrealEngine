@@ -559,10 +559,19 @@ public:
 
 #if WITH_EDITORONLY_DATA
 
-	// @todo document
+	/*
+	 * Collect animation notifies that are referenced in all animations that use this skeleton (uses the asset registry).
+	 * Updates the cached AnimationNotifies array.
+	 */
 	ENGINE_API void CollectAnimationNotifies();
 
-	// @todo document
+	/*
+	 * Collect animation notifies that are referenced in all animations that use this skeleton (uses the asset registry).
+	 * @param	OutNotifies		All the notifies that were found
+	 */
+	ENGINE_API void CollectAnimationNotifies(TArray<FName>& OutNotifies) const;
+
+	// Adds a new anim notify to the cached AnimationNotifies array.
 	ENGINE_API void AddNewAnimationNotify(FName NewAnimNotifyName);
 
 	ENGINE_API USkeletalMesh* GetAssetPreviewMesh(UObject* InAsset);

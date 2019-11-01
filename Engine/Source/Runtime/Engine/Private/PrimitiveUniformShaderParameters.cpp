@@ -4,13 +4,21 @@
 #include "PrimitiveSceneProxy.h"
 #include "PrimitiveSceneInfo.h"
 
-void FSinglePrimitiveStructuredBuffer::InitRHI() 
+void FSinglePrimitiveStructured::InitRHI() 
 {
 	if (RHISupportsComputeShaders(GMaxRHIShaderPlatform))
 	{
 		FRHIResourceCreateInfo CreateInfo;
-		PrimitiveSceneDataBufferRHI = RHICreateStructuredBuffer(sizeof(FVector4), FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s * sizeof(FVector4), BUF_Static | BUF_ShaderResource, CreateInfo);
-		PrimitiveSceneDataBufferSRV = RHICreateShaderResourceView(PrimitiveSceneDataBufferRHI);
+
+		{	
+			PrimitiveSceneDataBufferRHI = RHICreateStructuredBuffer(sizeof(FVector4), FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s * sizeof(FVector4), BUF_Static | BUF_ShaderResource, CreateInfo);
+			PrimitiveSceneDataBufferSRV = RHICreateShaderResourceView(PrimitiveSceneDataBufferRHI);
+		}
+
+		{
+			PrimitiveSceneDataTextureRHI = RHICreateTexture2D(FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s, 1, PF_A32B32G32R32F, 1, 1, TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
+			PrimitiveSceneDataTextureSRV = RHICreateShaderResourceView(PrimitiveSceneDataTextureRHI, 0);
+		}
 
 		LightmapSceneDataBufferRHI = RHICreateStructuredBuffer(sizeof(FVector4), FLightmapSceneShaderData::LightmapDataStrideInFloat4s * sizeof(FVector4), BUF_Static | BUF_ShaderResource, CreateInfo);
 		LightmapSceneDataBufferSRV = RHICreateShaderResourceView(LightmapSceneDataBufferRHI);
@@ -19,15 +27,25 @@ void FSinglePrimitiveStructuredBuffer::InitRHI()
 	UploadToGPU();
 }
 
-void FSinglePrimitiveStructuredBuffer::UploadToGPU()
+void FSinglePrimitiveStructured::UploadToGPU()
 {
 	if (RHISupportsComputeShaders(GMaxRHIShaderPlatform))
 	{
 		void* LockedData = nullptr;
 
-		LockedData = RHILockStructuredBuffer(PrimitiveSceneDataBufferRHI, 0, FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s * sizeof(FVector4), RLM_WriteOnly);
-		FPlatformMemory::Memcpy(LockedData, PrimitiveSceneData.Data, FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s * sizeof(FVector4));
-		RHIUnlockStructuredBuffer(PrimitiveSceneDataBufferRHI);
+		if (!GPUSceneUseTexture2D(ShaderPlatform))
+		{
+			LockedData = RHILockStructuredBuffer(PrimitiveSceneDataBufferRHI, 0, FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s * sizeof(FVector4), RLM_WriteOnly);
+			FPlatformMemory::Memcpy(LockedData, PrimitiveSceneData.Data, FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s * sizeof(FVector4));
+			RHIUnlockStructuredBuffer(PrimitiveSceneDataBufferRHI);
+		}
+		else
+		{
+			uint32 SrcStride;
+			LockedData = RHILockTexture2D(PrimitiveSceneDataTextureRHI, 0, RLM_WriteOnly, SrcStride, false);
+			FPlatformMemory::Memcpy(LockedData, PrimitiveSceneData.Data, FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s * sizeof(FVector4));
+			RHIUnlockTexture2D(PrimitiveSceneDataTextureRHI, 0, false);
+		}
 
 		LockedData = RHILockStructuredBuffer(LightmapSceneDataBufferRHI, 0, FLightmapSceneShaderData::LightmapDataStrideInFloat4s * sizeof(FVector4), RLM_WriteOnly);
 		FPlatformMemory::Memcpy(LockedData, LightmapSceneData.Data, FLightmapSceneShaderData::LightmapDataStrideInFloat4s * sizeof(FVector4));
@@ -35,8 +53,8 @@ void FSinglePrimitiveStructuredBuffer::UploadToGPU()
 	}
 }
 
-TGlobalResource<FSinglePrimitiveStructuredBuffer> GIdentityPrimitiveBuffer;
-TGlobalResource<FSinglePrimitiveStructuredBuffer> GTilePrimitiveBuffer;
+TGlobalResource<FSinglePrimitiveStructured> GIdentityPrimitiveBuffer;
+TGlobalResource<FSinglePrimitiveStructured> GTilePrimitiveBuffer;
 
 FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy* RESTRICT Proxy)
 {
@@ -127,4 +145,11 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 	{
 		Data[CustomPrimitiveDataStartIndex + i] = PrimitiveUniformShaderParameters.CustomPrimitiveData[i];
 	}
+}
+
+uint16 FPrimitiveSceneShaderData::GetPrimitivesPerTextureLine()
+{
+	// @todo texture size limit over 65536, revisit this in the future :). Currently you can have(with primitiveData = 35 floats4) a max of 122,683,392 primitives
+	uint16 PrimitivesPerTextureLine = FMath::Min((int32)MAX_uint16, (int32)GMaxTextureDimensions) / (FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s);
+	return PrimitivesPerTextureLine;
 }

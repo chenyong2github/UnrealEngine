@@ -127,7 +127,7 @@ void FIOSVivoxVoiceChat::JoinChannel(const FString& ChannelName, const FString& 
 	FOnVoiceChatChannelJoinCompleteDelegate DelegateWrapper = FOnVoiceChatChannelJoinCompleteDelegate::CreateLambda(
 		[this, Delegate](const FString& ChannelName, const FVoiceChatResult& Result)
 		{
-			if (!Result.bSuccess)
+			if (!Result.IsSuccess())
 			{
 				EnableVoiceChat(false);
 			}
@@ -188,7 +188,7 @@ void FIOSVivoxVoiceChat::onDisconnected(const VivoxClientApi::Uri& Server, const
 
 void FIOSVivoxVoiceChat::OnVoiceChatConnectComplete(const FVoiceChatResult& Result)
 {
-	if (Result.bSuccess)
+	if (Result.IsSuccess())
 	{
 		OnVoiceChatReconnectedDelegate.Broadcast();
 	}

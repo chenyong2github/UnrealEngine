@@ -24,6 +24,8 @@ struct FResolveParams;
 struct FViewportBounds;
 struct FRayTracingGeometryInstance;
 struct FRayTracingShaderBindings;
+struct FRayTracingGeometrySegment;
+struct FAccelerationStructureBuildParams;
 enum class EAsyncComputeBudget;
 enum class EResourceTransitionAccess;
 enum class EResourceTransitionPipeline;
@@ -139,12 +141,59 @@ public:
 	{
 		check(false);
 	}
+
+	virtual void RHISetGPUMask(FRHIGPUMask GPUMask)
+	{
+		ensure(GPUMask == FRHIGPUMask::GPU0());
+	}
+
+#if WITH_MGPU
+	virtual void RHIWaitForTemporalEffect(const FName& InEffectName)
+	{
+		/* empty default implementation */
+	}
+
+	virtual void RHIBroadcastTemporalEffect(const FName& InEffectName, const TArrayView<FRHITexture*> InTextures)
+	{
+		/* empty default implementation */
+	}
+#endif // WITH_MGPU
+
+	virtual void RHIBuildAccelerationStructure(FRHIRayTracingGeometry* Geometry)
+	{
+		checkNoEntry();
+	}
+
+	virtual void RHIBuildAccelerationStructures(const TArrayView<const FAccelerationStructureBuildParams> Params)
+	{
+		checkNoEntry();
+	}
+
+	virtual void RHIBuildAccelerationStructure(FRHIRayTracingScene* Scene)
+	{
+		checkNoEntry();
+	}
 };
 
-struct FAccelerationStructureUpdateParams
+enum class EAccelerationStructureBuildMode
+{
+	// Perform a full acceleration structure build.
+	Build,
+
+	// Update existing acceleration structure, based on new vertex positions.
+	// Index buffer must not change between initial build and update operations.
+	// Only valid when geometry was created with FRayTracingGeometryInitializer::bAllowUpdate = true.
+	Update,
+};
+
+struct FAccelerationStructureBuildParams
 {
 	FRayTracingGeometryRHIRef Geometry;
-	FVertexBufferRHIRef VertexBuffer;
+	EAccelerationStructureBuildMode BuildMode = EAccelerationStructureBuildMode::Build;
+
+	// Optional array of geometry segments that can be used to change per-segment vertex buffers.
+	// Only fields related to vertex buffer are used. If empty, then geometry vertex buffers are not changed.
+	TArrayView<const FRayTracingGeometrySegment> Segments;
 };
 
 struct FCopyBufferRegionParams
@@ -193,16 +242,25 @@ public:
 
 	/**
 	* Resolves from one texture to another.
-	* @param SourceTexture - texture to resolve from, 0 is silenty ignored
-	* @param DestTexture - texture to resolve to, 0 is silenty ignored
+	* @param SourceTexture - texture to resolve from, 0 is silently ignored
+	* @param DestTexture - texture to resolve to, 0 is silently ignored
 	* @param ResolveParams - optional resolve params
 	* @param Fence - optional fence, will be set once copy is completed by GPU
 	*/
 	virtual void RHICopyToResolveTarget(FRHITexture* SourceTexture, FRHITexture* DestTexture, const FResolveParams& ResolveParams) = 0;
 
 	/**
+	* Rebuilds the depth target HTILE meta data (on supported platforms).
+	* @param DepthTexture - the depth surface to resummarize.
+	*/
+	virtual void RHIResummarizeHTile(FRHITexture2D* DepthTexture)
+	{
+		/* empty default implementation */
+	}
+
+	/**
 	* Explicitly transition a texture resource from readable -> writable by the GPU or vice versa.
-	* We know rendertargets are only used as rendered targets on the Gfx pipeline, so these transitions are assumed to be implemented such
+	* We know render targets are only used as rendered targets on the Gfx pipeline, so these transitions are assumed to be implemented such
 	* Gfx->Gfx and Gfx->Compute pipeline transitions are both handled by this call by the RHI implementation.  Hence, no pipeline parameter on this call.
 	*
 	* @param TransitionType - direction of the transition
@@ -243,6 +301,23 @@ public:
 	void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 NumUAVs)
 	{
 		RHITransitionResources(TransitionType, TransitionPipeline, InUAVs, NumUAVs, nullptr);
+	}
+
+	/**
+	* Explicitly transition a depth/stencil texture from readable -> writable by the GPU or vice versa.
+	* This implementation provides compatibility with the old RHI behavior where the stencil mode is ignored and the whole depth/stencil resource is transitioned.
+	*
+	* RHIs should override this method to implement stencil-specific resource barriers.
+	*/
+	virtual void RHITransitionResources(FExclusiveDepthStencil DepthStencilMode, FRHITexture* DepthTexture)
+	{
+		if (DepthStencilMode.IsUsingDepthStencil())
+		{
+			RHITransitionResources(DepthStencilMode.IsAnyWrite()
+				? EResourceTransitionAccess::EWritable
+				: EResourceTransitionAccess::EReadable, 
+				&DepthTexture, 1);
+		}
 	}
 
 	virtual void RHIBeginRenderQuery(FRHIRenderQuery* RenderQuery) = 0;
@@ -455,7 +530,7 @@ public:
 
 	virtual void RHISetRenderTargetsAndClear(const FRHISetRenderTargetsInfo& RenderTargetsInfo) = 0;
 
-	// Bind the clear state of the currently set rendertargets.  This is used by platforms which
+	// Bind the clear state of the currently set render targets. This is used by platforms which
 	// need the state of the target when finalizing a hardware clear or a resource transition to SRV
 	// The explicit bind is needed to support parallel rendering (propagate state between contexts).
 	virtual void RHIBindClearMRTValues(bool bClearColor, bool bClearDepth, bool bClearStencil) {}
@@ -558,12 +633,18 @@ public:
 			int32 DestArrayIndex = CopyInfo.DestSliceIndex + ArrayIndex;
 			for (int32 FaceIndex = 0; FaceIndex < NumFaces; ++FaceIndex)
 			{
-				FResolveParams ResolveParams(FResolveRect(),
+				FResolveParams ResolveParams(FResolveRect(0, 0, 0, 0),
 					bIsCube ? (ECubeFace)FaceIndex : CubeFace_PosX,
 					CopyInfo.SourceMipIndex,
 					SourceArrayIndex,
-					DestArrayIndex
+					DestArrayIndex,
+					FResolveRect(0, 0, 0, 0)
 				);
+				if (CopyInfo.Size != FIntVector::ZeroValue)
+				{
+					ResolveParams.Rect = FResolveRect(CopyInfo.SourcePosition.X, CopyInfo.SourcePosition.Y, CopyInfo.SourcePosition.X + CopyInfo.Size.X, CopyInfo.SourcePosition.Y + CopyInfo.Size.Y);
+					ResolveParams.DestRect = FResolveRect(CopyInfo.DestPosition.X, CopyInfo.DestPosition.Y, CopyInfo.DestPosition.X + CopyInfo.Size.X, CopyInfo.DestPosition.Y + CopyInfo.Size.Y);
+				}
 				RHICopyToResolveTarget(SourceTexture, DestTexture, ResolveParams);
 			}
 		}
@@ -585,19 +666,18 @@ public:
 		checkNoEntry();
 	}
 
-	virtual void RHIBuildAccelerationStructure(FRHIRayTracingGeometry* Geometry)
+	virtual void RHIBuildAccelerationStructures(const TArrayView<const FAccelerationStructureBuildParams> Params)
 	{
 		checkNoEntry();
 	}
 
-	virtual void RHIUpdateAccelerationStructures(const TArrayView<const FAccelerationStructureUpdateParams> Params)
+	virtual void RHIBuildAccelerationStructure(FRHIRayTracingGeometry* Geometry) final override
 	{
-		checkNoEntry();
-	}
+		FAccelerationStructureBuildParams Params;
+		Params.Geometry = Geometry;
+		Params.BuildMode = EAccelerationStructureBuildMode::Build;
 
-	virtual void RHIBuildAccelerationStructures(const TArrayView<const FAccelerationStructureUpdateParams> Params)
-	{
-		checkNoEntry();
+		RHIBuildAccelerationStructures(MakeArrayView(&Params, 1));
 	}
 
 	virtual void RHIBuildAccelerationStructure(FRHIRayTracingScene* Scene)

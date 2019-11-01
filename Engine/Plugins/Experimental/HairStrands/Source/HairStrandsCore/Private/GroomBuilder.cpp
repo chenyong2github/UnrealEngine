@@ -1,7 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "GroomBuilder.h"
 #include "GroomAsset.h"
 #include "GroomComponent.h"
@@ -207,9 +205,11 @@ namespace HairStrandsBuilder
 
 		TArray<FHairStrandsPositionFormat::Type>& OutPackedPositions = HairStrands.RenderData.RenderingPositions;
 		TArray<FHairStrandsAttributeFormat::Type>& OutPackedAttributes = HairStrands.RenderData.RenderingAttributes;
+		TArray<FHairStrandsMaterialFormat::Type>& OutPackedMaterials = HairStrands.RenderData.RenderingMaterials;
 
 		OutPackedPositions.SetNum(NumPoints * FHairStrandsPositionFormat::ComponentCount);
 		OutPackedAttributes.SetNum(NumPoints * FHairStrandsAttributeFormat::ComponentCount);
+		OutPackedMaterials.SetNum(NumPoints * FHairStrandsMaterialFormat::ComponentCount);
 
 		const FVector HairBoxCenter = HairStrands.BoundingBox.GetCenter();
 
@@ -240,10 +240,27 @@ namespace HairStrandsBuilder
 
 				const FVector2D RootUV = Curves.CurvesRootUV[CurveIndex];
 				FHairStrandsAttributeFormat::Type& PackedAttributes = OutPackedAttributes[PointIndex + IndexOffset];
-				PackedAttributes.RootU = uint32(FMath::Clamp(RootUV.X, 0.f, 1.f) * 0xFF);
-				PackedAttributes.RootV = uint32(FMath::Clamp(RootUV.Y, 0.f, 1.f) * 0xFF);
+				PackedAttributes.Unused0 = 0;
+				PackedAttributes.Unused1 = 0;
 				PackedAttributes.UCoord = FMath::Clamp(CoordU * 255.f, 0.f, 255.f);
 				PackedAttributes.Seed = CurveSeed;
+
+				// Root UV support UDIM texture coordinate but limit the spans of the UDIM to be in 256x256 instead of 9999x9999.
+				// The internal UV coords are also limited to 8bits, which means if sampling need to be super precise, this is no enough.
+				const FVector2D TextureRootUV(FMath::Fractional(RootUV.X), FMath::Fractional(RootUV.Y));
+				const FVector2D TextureIndexUV = RootUV - TextureRootUV;
+				PackedAttributes.RootU  = uint32(FMath::Clamp(TextureRootUV.X*255.f, 0.f, 255.f));
+				PackedAttributes.RootV  = uint32(FMath::Clamp(TextureRootUV.Y*255.f, 0.f, 255.f));
+				PackedAttributes.IndexU = uint32(FMath::Clamp(TextureIndexUV.X, 0.f, 255.f));
+				PackedAttributes.IndexV = uint32(FMath::Clamp(TextureIndexUV.Y, 0.f, 255.f));
+
+				FHairStrandsMaterialFormat::Type& Material = OutPackedMaterials[PointIndex + IndexOffset];
+				// Cheap sRGB encoding instead of PointsBaseColor.ToFColor(true), as this makes the decompression 
+				// cheaper on GPU (since R8G8B8A8 sRGB format used/exposed not exposed)
+				Material.BaseColorR = FMath::Clamp(uint32(FMath::Sqrt(Points.PointsBaseColor[PointIndex + IndexOffset].R) * 0xFF), 0u, 0xFFu);
+				Material.BaseColorG = FMath::Clamp(uint32(FMath::Sqrt(Points.PointsBaseColor[PointIndex + IndexOffset].G) * 0xFF), 0u, 0xFFu);
+				Material.BaseColorB = FMath::Clamp(uint32(FMath::Sqrt(Points.PointsBaseColor[PointIndex + IndexOffset].B) * 0xFF), 0u, 0xFFu);
+				Material.Roughness  = FMath::Clamp(uint32(Points.PointsRoughness[PointIndex + IndexOffset] * 0xFF), 0u, 0xFFu);
 			}
 		}
 	}
@@ -361,9 +378,411 @@ namespace HairInterpolationBuilder
 		B = Temp;
 	}
 
-	void BuildInterpolationData(FHairStrandsInterpolationDatas& InterpolationData,
+	struct FMetrics
+	{
+		static const uint32 Count = 6;
+		float KMinMetrics[Count];
+		int32 KClosestGuideIndices[Count];
+	};
+
+	struct FClosestGuides
+	{
+		static const uint32 Count = 3;
+		int32 Indices[Count];
+	};
+
+	// Randomize influence guide to break interpolation coherence, and create a more random/natural pattern
+	static void SelectFinalGuides(FClosestGuides& ClosestGuides, FRandomStream& Random, const FMetrics& Metric)
+	{
+		const static bool bRandomizeInterpolation = false;
+		const static bool bUseUniqueGuide = false;
+
+		uint32 RandIndex0 = 0;
+		uint32 RandIndex1 = 1;
+		uint32 RandIndex2 = 2;
+		if (bRandomizeInterpolation)
+		{
+			do
+			{
+				RandIndex0 = Random.RandRange(0, FMetrics::Count - 1);
+				RandIndex1 = Random.RandRange(0, FMetrics::Count - 1);
+				RandIndex2 = Random.RandRange(0, FMetrics::Count - 1);
+
+			} while (RandIndex0 == RandIndex1 || RandIndex0 == RandIndex2 || RandIndex1 == RandIndex2);
+		}
+
+		ClosestGuides.Indices[0] = Metric.KClosestGuideIndices[RandIndex0];
+		ClosestGuides.Indices[1] = Metric.KClosestGuideIndices[RandIndex1];
+		ClosestGuides.Indices[2] = Metric.KClosestGuideIndices[RandIndex2];
+
+		if (bUseUniqueGuide)
+		{
+			ClosestGuides.Indices[1] = Metric.KClosestGuideIndices[RandIndex0];
+			ClosestGuides.Indices[2] = Metric.KClosestGuideIndices[RandIndex0];
+		}
+
+
+		float MinMetrics[FMetrics::Count];
+		MinMetrics[0] = Metric.KMinMetrics[RandIndex0];
+		MinMetrics[1] = Metric.KMinMetrics[RandIndex1];
+		MinMetrics[2] = Metric.KMinMetrics[RandIndex2];
+
+
+		while (!(MinMetrics[0] <= MinMetrics[1] && MinMetrics[1] <= MinMetrics[2]))
+		{
+			if (MinMetrics[0] > MinMetrics[1])
+			{
+				SwapValue(MinMetrics[0], MinMetrics[1]);
+				SwapValue(ClosestGuides.Indices[0], ClosestGuides.Indices[1]);
+			}
+
+			if (MinMetrics[1] > MinMetrics[2])
+			{
+				SwapValue(MinMetrics[1], MinMetrics[2]);
+				SwapValue(ClosestGuides.Indices[1], ClosestGuides.Indices[2]);
+			}
+		}
+
+		// If there less than 3 valid guides, fill the rest with existing valid guides
+		// This can happen due to the normal-orientation based rejection above
+		if (ClosestGuides.Indices[1] < 0)
+		{
+			ClosestGuides.Indices[1] = ClosestGuides.Indices[0];
+			MinMetrics[1] = MinMetrics[0];
+		}
+		if (ClosestGuides.Indices[2] < 0)
+		{
+			ClosestGuides.Indices[2] = ClosestGuides.Indices[1];
+			MinMetrics[2] = MinMetrics[1];
+		}
+
+		check(MinMetrics[0] <= MinMetrics[1]);
+		check(MinMetrics[1] <= MinMetrics[2]);
+	};
+
+	// Simple closest distance metric
+	static void ComputeSimpleMetric(
+		FMetrics& Metrics1, 
+		const FHairRoot& RenRoot, 
+		const FHairRoot& GuideRoot, 
+		const int32 RenCurveIndex,
+		const int32 SimCurveIndex)
+	{
+		const float Metric = FVector::Dist(GuideRoot.Position, RenRoot.Position);
+		if (Metric < Metrics1.KMinMetrics[FMetrics::Count - 1])
+		{
+			int32 LastGuideIndex = SimCurveIndex;
+			float LastMetric = Metric;
+			for (uint32 Index = 0; Index < FMetrics::Count; ++Index)
+			{
+				if (Metric < Metrics1.KMinMetrics[Index])
+				{
+					SwapValue(Metrics1.KClosestGuideIndices[Index], LastGuideIndex);
+					SwapValue(Metrics1.KMinMetrics[Index], LastMetric);
+				}
+			}
+		}
+	}
+
+	// Complex pairing metric
+	static void ComputeAdvandedMetric(FMetrics& Metrics0,
+		const FHairStrandsDatas& RenStrandsData,
 		const FHairStrandsDatas& SimStrandsData,
-		const FHairStrandsDatas& RenStrandsData)
+		const int32 RenCurveIndex,
+		const int32 SimCurveIndex)
+	{
+		const float Metric = 1.0 - ComputeCurvesMetric<16>(RenStrandsData, RenCurveIndex, SimStrandsData, SimCurveIndex, 0.0f, 1.0f, 1.0f);
+		if (Metric < Metrics0.KMinMetrics[FMetrics::Count - 1])
+		{
+			int32 LastGuideIndex = SimCurveIndex;
+			float LastMetric = Metric;
+			for (uint32 Index = 0; Index < FMetrics::Count; ++Index)
+			{
+				if (Metric < Metrics0.KMinMetrics[Index])
+				{
+					SwapValue(Metrics0.KClosestGuideIndices[Index], LastGuideIndex);
+					SwapValue(Metrics0.KMinMetrics[Index], LastMetric);
+				}
+			}
+		}
+	}
+
+	struct FRootsGrid
+	{
+		FVector MinBound = FVector::ZeroVector;
+		FVector MaxBound = FVector::ZeroVector;
+		
+		const uint32 MaxLookupDistance = 2;
+		const FIntVector GridResolution = FIntVector(32, 32, 32);
+
+		TArray<int32> GridIndirection;
+		TArray<TArray<int32>> RootIndices;
+
+		FORCEINLINE FIntVector ClampToVolume(const FIntVector& CellCoord) const
+		{
+			return FIntVector(
+				FMath::Clamp(CellCoord.X, 0, GridResolution.X - 1),
+				FMath::Clamp(CellCoord.Y, 0, GridResolution.Y - 1),
+				FMath::Clamp(CellCoord.Z, 0, GridResolution.Z - 1));
+		}
+
+		FORCEINLINE FIntVector ToCellCoord(const FVector& P) const
+		{
+			const FVector F = ((P - MinBound) / (MaxBound - MinBound));
+			const FIntVector CellCoord = FIntVector(FMath::FloorToInt(F.X * GridResolution.X), FMath::FloorToInt(F.Y * GridResolution.Y), FMath::FloorToInt(F.Z * GridResolution.Z));			
+			return ClampToVolume(CellCoord);
+		}
+
+		uint32 ToIndex(const FIntVector& CellCoord) const
+		{
+			uint32 CellIndex = CellCoord.X + CellCoord.Y * GridResolution.X + CellCoord.Z * GridResolution.X * GridResolution.Y;
+			check(CellIndex < uint32(GridIndirection.Num()));
+			return CellIndex;
+		}
+
+		void InsertRoots(TArray<FHairRoot>& Roots, const FVector& InMinBound, const FVector& InMaxBound)
+		{
+			MinBound = InMinBound;
+			MaxBound = InMaxBound;
+			GridIndirection.SetNumZeroed(GridResolution.X*GridResolution.Y*GridResolution.Z);
+			RootIndices.Empty();
+			RootIndices.AddDefaulted(); // Add a default empty list for the null element
+
+			const uint32 RootCount = Roots.Num();
+			for (uint32 RootIt = 0; RootIt < RootCount; ++RootIt)
+			{
+				const FHairRoot& Root = Roots[RootIt];
+				const FIntVector CellCoord = ToCellCoord(Root.Position);
+				const uint32 Index = ToIndex(CellCoord);
+				if (GridIndirection[Index] == 0)
+				{
+					GridIndirection[Index] = RootIndices.Num();
+					RootIndices.AddDefaulted();
+				}
+				
+				TArray<int32>& CellGuideIndices = RootIndices[GridIndirection[Index]];
+				CellGuideIndices.Add(RootIt);
+			}
+		}
+
+		FClosestGuides FindClosestRoots(
+			const uint32 RenCurveIndex,
+			const TArray<FHairRoot>& RenRoots,
+			const TArray<FHairRoot>& SimRoots,
+			const FHairStrandsDatas& RenStrandsData,
+			const FHairStrandsDatas& SimStrandsData,
+			FRandomStream& Random) const
+		{
+			const FHairRoot& RenRoot = RenRoots[RenCurveIndex];
+			const FIntVector PointCoord = ToCellCoord(RenRoot.Position);
+
+			FMetrics Metrics;
+			for (uint32 ClearIt = 0; ClearIt < FMetrics::Count; ++ClearIt)
+			{
+				Metrics.KMinMetrics[ClearIt] = FLT_MAX;
+				Metrics.KClosestGuideIndices[ClearIt] = -1;
+			}
+
+			// Up to 5x5X5 lookup within a 32x32x32 volume
+			// * Tracks two metrics: a complex (pairing) one, and simple (closest) one
+			// * If the complex one fails to find a valid guide, we fallback on the simplest one
+			//for (uint32 R = 1; R < MaxLookupDistance; ++R)
+			{
+				int32 Offset = MaxLookupDistance;
+				for (int32 X = -Offset; X <= Offset; ++X)
+				{
+					for (int32 Y = -Offset; Y <= Offset; ++Y)
+					{
+						for (int32 Z = -Offset; Z <= Offset; ++Z)
+						{
+							const FIntVector CellCoord = ClampToVolume(PointCoord + FIntVector(X, Y, Z));
+							const uint32 CellIndex = ToIndex(CellCoord);
+
+							if (GridIndirection[CellIndex] == 0)
+								continue;
+
+							const TArray<int32>& Elements = RootIndices[GridIndirection[CellIndex]];
+					
+							for (int32 SimCurveIndex : Elements)
+							{
+								const FHairRoot& GuideRoot = SimRoots[SimCurveIndex];
+								{
+									ComputeSimpleMetric(Metrics, RenRoot, GuideRoot, RenCurveIndex, SimCurveIndex);
+								}
+							}
+						}
+					}
+				}
+
+				// Early out if we have found all closest guide during a ring/layer step.
+				// This early out is not conservative, as the complex metric might find better guides one or multiple step further.
+				//if (Metrics.KClosestGuideIndices[FMetrics::ClosestCount - 1] != -1 && R >= 2)
+				//{
+				//	break;
+				//}
+			}
+
+			// If no valid guide have been found, switch to a simpler metric
+			FClosestGuides ClosestGuides;
+			SelectFinalGuides(ClosestGuides, Random, Metrics);
+
+			check(ClosestGuides.Indices[0] >= 0);
+			check(ClosestGuides.Indices[1] >= 0);
+			check(ClosestGuides.Indices[2] >= 0);
+
+			return ClosestGuides;
+		}
+
+
+		FClosestGuides FindBestClosestRoots(
+			const uint32 RenCurveIndex,
+			const TArray<FHairRoot>& RenRoots,
+			const TArray<FHairRoot>& SimRoots,
+			const FHairStrandsDatas& RenStrandsData,
+			const FHairStrandsDatas& SimStrandsData,
+			FRandomStream& Random) const 
+		{
+			const FHairRoot& RenRoot = RenRoots[RenCurveIndex];
+			const FIntVector PointCoord = ToCellCoord(RenRoot.Position);
+
+			FMetrics Metrics0;
+			FMetrics Metrics1;
+			for (uint32 ClearIt = 0; ClearIt < FMetrics::Count; ++ClearIt)
+			{
+				Metrics0.KMinMetrics[ClearIt] = FLT_MAX;
+				Metrics0.KClosestGuideIndices[ClearIt] = -1;
+				Metrics1.KMinMetrics[ClearIt] = FLT_MAX;
+				Metrics1.KClosestGuideIndices[ClearIt] = -1;
+			}
+
+			// Up to 7x7X7 lookup within a 32x32x32 volume
+			// * Tracks two metrics: a complex (pairing) one, and simple (closest) one
+			// * If the complex one fails to find a valid guide, we fallback on the simplest one
+			//for (uint32 R = 1; R < MaxLookupDistance; ++R)
+			{
+				int32 Offset = MaxLookupDistance;
+				for (int32 X = -Offset; X <= Offset; ++X)
+				{
+					for (int32 Y = -Offset; Y <= Offset; ++Y) 
+					{
+						for (int32 Z = -Offset; Z <= Offset; ++Z)
+						{
+							const FIntVector CellCoord = ClampToVolume(PointCoord + FIntVector(X, Y, Z));
+							const uint32 CellIndex = ToIndex(CellCoord);
+
+							if (GridIndirection[CellIndex] == 0)
+								continue;
+
+							const TArray<int32>& Elements = RootIndices[GridIndirection[CellIndex]];
+
+							for (int32 SimCurveIndex : Elements)
+							{
+								const FHairRoot& GuideRoot = SimRoots[SimCurveIndex];
+								{
+									ComputeSimpleMetric(Metrics1, RenRoot, GuideRoot, RenCurveIndex, SimCurveIndex);
+									ComputeAdvandedMetric(Metrics0, RenStrandsData, SimStrandsData, RenCurveIndex, SimCurveIndex);
+								}
+							}
+						}
+					}
+				}
+
+				// Early out if we have found all closest guide during a ring/layer step.
+				// This early out is not conservative, as the complex metric might find better guides one or multiple step further.
+				//if (Metrics0.KClosestGuideIndices[FMetrics::KGuideCount - 1] != -1 && R >= 2)
+				//{
+				//	break;
+				//}
+			}
+
+			// If no valid guide have been found, switch to a simpler metric
+			FClosestGuides ClosestGuides;
+			SelectFinalGuides(ClosestGuides, Random, Metrics0);
+			if (ClosestGuides.Indices[0] == -1)
+			{
+				SelectFinalGuides(ClosestGuides, Random, Metrics1);
+			}
+
+			check(ClosestGuides.Indices[0] >= 0);
+			check(ClosestGuides.Indices[1] >= 0);
+			check(ClosestGuides.Indices[2] >= 0);
+
+			return ClosestGuides;
+		}
+	};
+
+	static FClosestGuides FindBestRoots(
+		const uint32 RenCurveIndex,
+		const TArray<FHairRoot>& RenRoots,
+		const TArray<FHairRoot>& SimRoots,
+		const FHairStrandsDatas& RenStrandsData,
+		const FHairStrandsDatas& SimStrandsData,
+		FRandomStream& Random)
+	{
+		FMetrics Metrics;
+		for (uint32 ClearIt = 0; ClearIt < FMetrics::Count; ++ClearIt)
+		{
+			Metrics.KMinMetrics[ClearIt] = FLT_MAX;
+			Metrics.KClosestGuideIndices[ClearIt] = -1;
+		}
+
+		const uint32 SimRootsCount = SimRoots.Num();
+		for (uint32 SimCurveIndex =0; SimCurveIndex<SimRootsCount; ++SimCurveIndex)
+		{
+			ComputeAdvandedMetric(Metrics, RenStrandsData, SimStrandsData, RenCurveIndex, SimCurveIndex);
+		}
+			
+		FClosestGuides ClosestGuides;
+		SelectFinalGuides(ClosestGuides, Random, Metrics);
+
+		check(ClosestGuides.Indices[0] >= 0);
+		check(ClosestGuides.Indices[1] >= 0);
+		check(ClosestGuides.Indices[2] >= 0);
+
+		return ClosestGuides;
+	}
+
+	// Extract strand roots
+	static void ExtractRoots(const FHairStrandsDatas& InData, TArray<FHairRoot>& OutRoots, FVector& MinBound, FVector& MaxBound)
+	{
+		MinBound = FVector(FLT_MAX, FLT_MAX, FLT_MAX);
+		MaxBound = FVector(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+		const uint32 CurveCount = InData.StrandsCurves.Num();
+		OutRoots.Reserve(CurveCount);
+		for (uint32 CurveIndex = 0; CurveIndex < CurveCount; ++CurveIndex)
+		{
+			const uint32 PointOffset = InData.StrandsCurves.CurvesOffset[CurveIndex];
+			const uint32 PointCount = InData.StrandsCurves.CurvesCount[CurveIndex];
+			const float  CurveLength = InData.StrandsCurves.CurvesLength[CurveIndex] * InData.StrandsCurves.MaxLength;
+			check(PointCount > 1);
+			const FVector& P0 = InData.StrandsPoints.PointsPosition[PointOffset];
+			const FVector& P1 = InData.StrandsPoints.PointsPosition[PointOffset + 1];
+			FVector N = (P1 - P0).GetSafeNormal();
+
+			// Fallback in case the initial points are too close (this happens on certain assets)
+			if (FVector::DotProduct(N, N) == 0)
+			{
+				N = FVector(0, 0, 1);
+			}
+			OutRoots.Add({ P0, PointCount, N, PointOffset, CurveLength });
+
+			MinBound = MinBound.ComponentMin(P0);
+			MaxBound = MaxBound.ComponentMax(P0);
+		}
+	}
+
+	enum class EHairInterpolationDataQuality
+	{
+		Low,
+		Medium,
+		High
+	};
+
+	static void BuildInterpolationData(
+		FHairStrandsInterpolationDatas& InterpolationData,
+		const FHairStrandsDatas& SimStrandsData,
+		const FHairStrandsDatas& RenStrandsData,
+		const EHairInterpolationDataQuality Quality)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(HairInterpolationBuilder::BuildInterpolationData);
 
@@ -371,173 +790,78 @@ namespace HairInterpolationBuilder
 
 		typedef TArray<FHairRoot> FRoots;
 
-		// Extract strand roots
-		auto ExtractRoot = [](const FHairStrandsDatas& InData, TArray<FHairRoot>& OutRoots)
-		{
-			const uint32 CurveCount = InData.StrandsCurves.Num();
-			OutRoots.Reserve(CurveCount);
-			for (uint32 CurveIndex = 0; CurveIndex < CurveCount; ++CurveIndex)
-			{
-				const uint32 PointOffset = InData.StrandsCurves.CurvesOffset[CurveIndex];
-				const uint32 PointCount  = InData.StrandsCurves.CurvesCount[CurveIndex];
-				const float  CurveLength = InData.StrandsCurves.CurvesLength[CurveIndex] * InData.StrandsCurves.MaxLength;
-				check(PointCount > 1);
-				const FVector& P0 = InData.StrandsPoints.PointsPosition[PointOffset];
-				const FVector& P1 = InData.StrandsPoints.PointsPosition[PointOffset+1];
-				FVector N = (P1 - P0).GetSafeNormal();
-
-				// Fallback in case the initial points are too close (this happens on certain assets)
-				if (FVector::DotProduct(N, N) == 0)
-				{
-					N = FVector(0, 0, 1);
-				}
-				OutRoots.Add({ P0, PointCount, N, PointOffset, CurveLength });
-			}
-		};
-
+		// Build acceleration structure for fast nearest-neighbors lookup.
+		// This is used only for low quality interpolation as high quality 
+		// interpolation require broader search
 		FRoots RenRoots, SimRoots;
-		ExtractRoot(RenStrandsData, RenRoots);
-		ExtractRoot(SimStrandsData, SimRoots);
+		FRootsGrid RootsGrid;
+		{
+			FVector RenMinBound, RenMaxBound;
+			FVector SimMinBound, SimMaxBound;
+			ExtractRoots(RenStrandsData, RenRoots, RenMinBound, RenMaxBound);
+			ExtractRoots(SimStrandsData, SimRoots, SimMinBound, SimMaxBound);
+
+			if (Quality == EHairInterpolationDataQuality::Low || Quality == EHairInterpolationDataQuality::Medium)
+			{
+				// Build a conservative bound, to insure all queries will fall 
+				// into the grid volume.
+				const FVector MinBound = RenMinBound.ComponentMin(SimMinBound);
+				const FVector MaxBound = RenMaxBound.ComponentMax(SimMaxBound);
+				RootsGrid.InsertRoots(SimRoots, MinBound, MaxBound);
+			}
+		}
 
 		// Find k-closest guide:
-		// N hairs, M guides. Complexity = MxN
-		// #hair_todo: build an acceleration structure for fast(er) look up or at least make it run on parallel (e.g. with ParallelFor)
 		uint32 TotalInvalidInterpolationCount = 0;
 		const static float MinWeightDistance = 0.0001f;
-		const static uint32 GuideCount = 3;
-		const static uint32 KGuideCount = GuideCount * 2;
-
-		const static bool bRandomizeInterpolation = false;
-		const static bool bUseUniqueGuide = false;
-		const static bool bPrintDebugMetric = false;
 
 		FRandomStream Random;
 		const uint32 RenCurveCount = RenStrandsData.GetNumCurves();
 		const uint32 SimCurveCount = SimStrandsData.GetNumCurves();
 
+		TAtomic<uint32> CompletedTasks(0);
+		FScopedSlowTask SlowTask(RenCurveCount, LOCTEXT("BuildInterpolationData", "Building groom simulation data"));
+		SlowTask.MakeDialog();
+
 		ParallelFor(RenCurveCount, 
 		[
+			Quality,
 			RenCurveCount, &RenRoots, &RenStrandsData,
 			SimCurveCount, &SimRoots, &SimStrandsData, 
+			&RootsGrid,
 			&TotalInvalidInterpolationCount,  
 			&InterpolationData, 
-			&Random
+			&Random,
+			&CompletedTasks,
+			&SlowTask
 		] (uint32 RenCurveIndex) 
 		//for (uint32 RenCurveIndex = 0; RenCurveIndex < RenCurveCount; ++RenCurveIndex)
 		{
-			const FHairRoot& StrandRoot = RenRoots[RenCurveIndex];
+			TRACE_CPUPROFILER_EVENT_SCOPE(HairInterpolationBuilder::ComputingClosestGuidesAndWeights);
 
-			int32 ClosestGuideIndices[GuideCount];
+			++CompletedTasks;
+
+			if (IsInGameThread())
 			{
-				float KMinMetrics[KGuideCount];
-				int32 KClosestGuideIndices[KGuideCount];
-				for (uint32 ClearIt = 0; ClearIt < KGuideCount; ++ClearIt)
-				{
-					KMinMetrics[ClearIt] = FLT_MAX;
-					KClosestGuideIndices[ClearIt] = -1;
-				}
-
-				for (uint32 SimCurveIndex = 0; SimCurveIndex < SimCurveCount; ++SimCurveIndex)
-				{
-					const FHairRoot& GuideRoot = SimRoots[SimCurveIndex];
-					//if ((StrandRoot.Position - GuideRoot.Position).Size() < 5.0f)
-					{
-						const float Metric = 1.0 - ComputeCurvesMetric<16>(RenStrandsData, RenCurveIndex, SimStrandsData, SimCurveIndex, 0.0f, 1.0f, 1.0f);
-						if (Metric < KMinMetrics[KGuideCount - 1])
-						{
-							int32 LastGuideIndex = SimCurveIndex;
-							float LastMetric = Metric;
-							for (uint32 Index = 0; Index < KGuideCount; ++Index)
-							{
-								if (Metric < KMinMetrics[Index])
-								{
-									SwapValue(KClosestGuideIndices[Index], LastGuideIndex);
-									SwapValue(KMinMetrics[Index], LastMetric);
-								}
-							}
-						}
-					}
-				}
-
-				// Debug
-				//if (bPrintDebugMetric)
-				//{
-				//	const FHairInterpolationMetric ClosestMetric = ComputeInterpolationMetric(StrandRoot, SimRoots[KClosestGuideIndices[0]]);
-				//	const float Threshold = 20;
-				//	if (ClosestMetric.Metric > Threshold)
-				//	{
-				//		PrintInterpolationMetric(ClosestMetric);
-				//		++TotalInvalidInterpolationCount;
-				//	}
-				//}
-
-				// Randomize influence guide to break interpolation coherence, and create a more random/natural pattern
-				{
-					uint32 RandIndex0 = 0;
-					uint32 RandIndex1 = 1;
-					uint32 RandIndex2 = 2;
-					if (bRandomizeInterpolation)
-					{
-						do
-						{
-							RandIndex0 = Random.RandRange(0, KGuideCount - 1);
-							RandIndex1 = Random.RandRange(0, KGuideCount - 1);
-							RandIndex2 = Random.RandRange(0, KGuideCount - 1);
-
-						} while (RandIndex0 == RandIndex1 || RandIndex0 == RandIndex2 || RandIndex1 == RandIndex2);
-					}
-					ClosestGuideIndices[0] = KClosestGuideIndices[RandIndex0];
-					ClosestGuideIndices[1] = KClosestGuideIndices[RandIndex1];
-					ClosestGuideIndices[2] = KClosestGuideIndices[RandIndex2];
-
-					if (bUseUniqueGuide)
-					{
-						ClosestGuideIndices[1] = KClosestGuideIndices[RandIndex0];
-						ClosestGuideIndices[2] = KClosestGuideIndices[RandIndex0];
-					}
-
-					float MinMetrics[GuideCount];
-					MinMetrics[0] = KMinMetrics[RandIndex0];
-					MinMetrics[1] = KMinMetrics[RandIndex1];
-					MinMetrics[2] = KMinMetrics[RandIndex2];
-
-
-					while (!(MinMetrics[0] <= MinMetrics[1] && MinMetrics[1] <= MinMetrics[2]))
-					{
-						if (MinMetrics[0] > MinMetrics[1])
-						{
-							SwapValue(MinMetrics[0], MinMetrics[1]);
-							SwapValue(ClosestGuideIndices[0], ClosestGuideIndices[1]);
-						}
-
-						if (MinMetrics[1] > MinMetrics[2])
-						{
-							SwapValue(MinMetrics[1], MinMetrics[2]);
-							SwapValue(ClosestGuideIndices[1], ClosestGuideIndices[2]);
-						}
-					}
-
-					// If there less than 3 valid guides, fill the rest with existing valid guides
-					// This can happen due to the normal-orientation based rejection above
-					if (ClosestGuideIndices[1] < 0)
-					{
-						ClosestGuideIndices[1] = ClosestGuideIndices[0];
-						MinMetrics[1] = MinMetrics[0];
-					}
-					if (ClosestGuideIndices[2] < 0)
-					{
-						ClosestGuideIndices[2] = ClosestGuideIndices[1];
-						MinMetrics[2] = MinMetrics[1];
-					}
-
-					check(ClosestGuideIndices[0] >= 0);
-					check(ClosestGuideIndices[1] >= 0);
-					check(ClosestGuideIndices[2] >= 0);
-					check(MinMetrics[0] <= MinMetrics[1]);
-					check(MinMetrics[1] <= MinMetrics[2]);
-				}
+				uint32 CurrentCompletedTasks = CompletedTasks.Exchange(0);
+				SlowTask.EnterProgressFrame(CurrentCompletedTasks, LOCTEXT("ComputeGuidesAndWeights", "Computing closest guides and weights"));
 			}
 
+			const FHairRoot& StrandRoot = RenRoots[RenCurveIndex];
+
+			FClosestGuides ClosestGuides;
+			if (Quality == EHairInterpolationDataQuality::Low)
+			{
+				ClosestGuides = RootsGrid.FindClosestRoots(RenCurveIndex, RenRoots, SimRoots, RenStrandsData, SimStrandsData, Random);
+			}
+			else if (Quality == EHairInterpolationDataQuality::Medium)
+			{
+				ClosestGuides = RootsGrid.FindBestClosestRoots(RenCurveIndex, RenRoots, SimRoots, RenStrandsData, SimStrandsData, Random);
+			}
+			else // (Quality == EHairInterpolationDataQuality::High)
+			{
+				ClosestGuides = FindBestRoots(RenCurveIndex, RenRoots, SimRoots, RenStrandsData, SimStrandsData, Random);
+			}
 
 			const uint32 RendPointCount	= RenStrandsData.StrandsCurves.CurvesCount[RenCurveIndex];
 			const uint32 RenOffset		= RenStrandsData.StrandsCurves.CurvesOffset[RenCurveIndex];
@@ -549,14 +873,14 @@ namespace HairInterpolationBuilder
 				const float RenPointDistance = RenStrandsData.StrandsPoints.PointsCoordU[PointGlobalIndex] * RenStrandsData.StrandsCurves.CurvesLength[RenCurveIndex] * RenStrandsData.StrandsCurves.MaxLength;
 
 				float TotalWeight = 0;
-				for (uint32 KIndex = 0; KIndex < GuideCount; ++KIndex)
+				for (uint32 KIndex = 0; KIndex < FClosestGuides::Count; ++KIndex)
 				{
 
 				#define WEIGHT_METHOD 0
 
 					// Find the closest vertex on the guide which matches the strand vertex distance along its curve
 				#if WEIGHT_METHOD == 0
-					const uint32 SimCurveIndex = ClosestGuideIndices[KIndex];
+					const uint32 SimCurveIndex = ClosestGuides.Indices[KIndex];
 					const uint32 SimOffset = SimStrandsData.StrandsCurves.CurvesOffset[SimCurveIndex];
 					float PrevSimPointDistance = 0;
 					uint32 ClosestSimPointIndex = 0;
@@ -575,7 +899,7 @@ namespace HairInterpolationBuilder
 							}
 							break;
 						}
-						PrevSimPointDistance = SimPointDistance;					
+						PrevSimPointDistance = SimPointDistance;
 					}
 					check(SimPointCount > 0);
 					ClosestSimPointIndex = FMath::Clamp(ClosestSimPointIndex, 0u, uint32(SimPointCount - 1));
@@ -591,7 +915,7 @@ namespace HairInterpolationBuilder
 				#if WEIGHT_METHOD == 1
 					const uint32 SimCurveIndex = ClosestGuideIndices[KIndex];
 					const uint32 SimOffset = SimStrandsData.StrandsCurves.CurvesOffset[SimCurveIndex];
-					const FVector& SimRootPointPosition = SimStrandsData.StrandsPoints[SimOffset];
+					const FVector& SimRootPointPosition = SimStrandsData.StrandsPoints.PointsPosition[SimOffset];
 					const float Weight = 1.0f / FMath::Max(MinWeightDistance, FVector::Distance(RenPointPosition, SimRootPointPosition));
 					InterpolationData.PointsSimCurvesIndex[PointGlobalIndex][KIndex] = SimCurveIndex;
 					InterpolationData.PointsSimCurvesVertexIndex[PointGlobalIndex][KIndex] = SimOffset;
@@ -603,7 +927,7 @@ namespace HairInterpolationBuilder
 					check(SimPointCount > 0);
 					const uint32 SimCurveIndex = ClosestGuideIndices[KIndex];
 					const uint32 SimPointIndex = FMath::Clamp(RenPointIndex, 0, SimPointCount - 1);
-					const FVector& SimPointPosition = SimStrandsData.StrandsPoints[SimPointIndex + SimOffset];
+					const FVector& SimPointPosition = SimStrandsData.StrandsPoints.PointsPosition[SimPointIndex + SimOffset];
 					const float Weight = 1.0f / FMath::Max(MinWeightDistance, FVector::Distance(RenPointPosition, SimPointPosition));
 					InterpolationData.PointsSimCurvesIndex[PointGlobalIndex][KIndex] = SimCurveIndex;
 					InterpolationData.PointsSimCurvesVertexIndex[PointGlobalIndex][KIndex] = SimPointIndex + SimOffset;
@@ -613,17 +937,12 @@ namespace HairInterpolationBuilder
 					TotalWeight += Weight;
 				}
 
-				for (int32 KIndex = 0; KIndex < GuideCount; ++KIndex)
+				for (int32 KIndex = 0; KIndex < FClosestGuides::Count; ++KIndex)
 				{
 					InterpolationData.PointsSimCurvesVertexWeights[PointGlobalIndex][KIndex] /= TotalWeight;
 				}
 			}
 		});
-
-		if (bPrintDebugMetric)
-		{
-			UE_LOG(LogGroomBuilder, Log, TEXT("Invalid interpolation count: %d/%d)"), TotalInvalidInterpolationCount, RenCurveCount);
-		}
 	}
 
 	/** Build data for interpolation between simulation and rendering */
@@ -672,6 +991,8 @@ bool FGroomBuilder::BuildGroom(const FHairDescription& HairDescription, const FG
 		return false;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(FGroomBuilder::BuildGroom);
+
 	// Convert HairDescription to HairStrandsDatas
 	// For now, just convert HairDescription to HairStrandsDatas
 	int32 NumCurves = HairDescription.GetNumStrands();
@@ -702,14 +1023,17 @@ bool FGroomBuilder::BuildGroom(const FHairDescription& HairDescription, const FG
 		GroomHairColor = GroomHairColorAttribute[GroomID];
 	}
 
-	TVertexAttributesConstRef<FVector> VertexPositions = HairDescription.VertexAttributes().GetAttributesRef<FVector>(HairAttribute::Vertex::Position);
-	TStrandAttributesConstRef<int> StrandNumVertices = HairDescription.StrandAttributes().GetAttributesRef<int>(HairAttribute::Strand::VertexCount);
+	TVertexAttributesConstRef<FVector> VertexPositions	= HairDescription.VertexAttributes().GetAttributesRef<FVector>(HairAttribute::Vertex::Position);
+	TVertexAttributesConstRef<FVector> VertexBaseColor	= HairDescription.VertexAttributes().GetAttributesRef<FVector>(HairAttribute::Vertex::Color);
+	TStrandAttributesConstRef<int> StrandNumVertices	= HairDescription.StrandAttributes().GetAttributesRef<int>(HairAttribute::Strand::VertexCount);
 
 	if (!VertexPositions.IsValid() || !StrandNumVertices.IsValid())
 	{
 		UE_LOG(LogGroomBuilder, Warning, TEXT("Failed to import hair: No vertices or curves data found."));
 		return false;
 	}
+
+	const bool bHasBaseColorAttribute = VertexBaseColor.IsValid();
 
 	TVertexAttributesConstRef<float> VertexWidths = HairDescription.VertexAttributes().GetAttributesRef<float>(HairAttribute::Vertex::Width);
 	TStrandAttributesConstRef<float> StrandWidths = HairDescription.StrandAttributes().GetAttributesRef<float>(HairAttribute::Strand::Width);
@@ -771,6 +1095,11 @@ bool FGroomBuilder::BuildGroom(const FHairDescription& HairDescription, const FG
 
 			++GroupInfo.NumGuides;
 		}
+		else
+		{
+			// A guide but don't want to import it, so skip it
+			continue;
+		}
 
 		CurrentHairStrandsDatas->StrandsCurves.CurvesCount.Add(CurveNumVertices);
 
@@ -790,6 +1119,8 @@ bool FGroomBuilder::BuildGroom(const FHairDescription& HairDescription, const FG
 			FVertexID VertexID(GlobalVertexIndex);
 
 			CurrentHairStrandsDatas->StrandsPoints.PointsPosition.Add(VertexPositions[VertexID]);
+			CurrentHairStrandsDatas->StrandsPoints.PointsBaseColor.Add(bHasBaseColorAttribute ? VertexBaseColor[VertexID] : FLinearColor::Black);
+			CurrentHairStrandsDatas->StrandsPoints.PointsRoughness.Add(0); // @hair_todo: add attribute read on the alembic for reading roughness per groom/strands/vertex
 
 			float VertexWidth = 0.f;
 			if (VertexWidths.IsValid())
@@ -855,24 +1186,21 @@ bool FGroomBuilder::BuildGroom(const FHairDescription& HairDescription, const FG
 		GroomAsset->HairGroupsData.Add(MoveTemp(GroupData));
 	}
 
-	BuildData(GroomAsset);
+	BuildData(GroomAsset, uint8(BuildSettings.InterpolationQuality));
 
 	GroomAsset->InitResource();
 
 	return true;
 }
 
-void FGroomBuilder::BuildData(UGroomAsset* GroomAsset)
+void FGroomBuilder::BuildData(UGroomAsset* GroomAsset, uint8 QualityLevel)
 {
 	if (!GroomAsset)
 	{
 		return;
 	}
 
-	float NumTasks = 4.0f * GroomAsset->GetNumHairGroups();
-
-	FScopedSlowTask SlowTask(NumTasks, LOCTEXT("BuildData", "Building groom render and simulation data"));
-	SlowTask.MakeDialog();
+	TRACE_CPUPROFILER_EVENT_SCOPE(FGroomBuilder::BuildData);
 
 	for (int32 Index = 0; Index < GroomAsset->GetNumHairGroups(); ++Index)
 	{
@@ -892,20 +1220,23 @@ void FGroomBuilder::BuildData(UGroomAsset* GroomAsset)
 		}
 
 		// Build RenderData for HairStrandsDatas
-		SlowTask.EnterProgressFrame(1.0f, LOCTEXT("BuildHairRenderData", "Building render data for hair"));
 		HairStrandsBuilder::BuildRenderData(HairRenderData);
 
-		SlowTask.EnterProgressFrame(1.0f, LOCTEXT("BuildSimRenderData", "Building render data for guides"));
 		HairStrandsBuilder::BuildRenderData(HairSimulationData);
 
 		FHairStrandsInterpolationDatas& HairInterpolationData = GroupData.HairInterpolationData;
 
 		// Build InterpolationData from render and simulation HairStrandsDatas
-		SlowTask.EnterProgressFrame(1.0f, LOCTEXT("BuildInterpolationData", "Building hair interpolation data"));
-		HairInterpolationBuilder::BuildInterpolationData(HairInterpolationData, HairSimulationData, HairRenderData);
+		HairInterpolationBuilder::EHairInterpolationDataQuality InterpolationQuality = HairInterpolationBuilder::EHairInterpolationDataQuality::High;
+		switch (QualityLevel)
+		{
+			case 0: InterpolationQuality = HairInterpolationBuilder::EHairInterpolationDataQuality::Low; break;
+			case 1: InterpolationQuality = HairInterpolationBuilder::EHairInterpolationDataQuality::Medium; break;
+			case 2: InterpolationQuality = HairInterpolationBuilder::EHairInterpolationDataQuality::High; break;
+		}
+		HairInterpolationBuilder::BuildInterpolationData(HairInterpolationData, HairSimulationData, HairRenderData, InterpolationQuality);
 
 		// Build Rendering data for InterpolationData
-		SlowTask.EnterProgressFrame(1.0f, LOCTEXT("BuildInterpolationRenderData", "Building render data for hair interpolation"));
 		HairInterpolationBuilder::BuildRenderData(HairInterpolationData);
 	}
 }
@@ -950,6 +1281,8 @@ void FGroomBuilder::GenerateGuides(const FHairStrandsDatas& InData, float Decima
 			OutData.StrandsPoints.PointsPosition[OutPointOffset] = InData.StrandsPoints.PointsPosition[OutPointIndex + InPointOffset];
 			OutData.StrandsPoints.PointsCoordU[OutPointOffset] = InData.StrandsPoints.PointsCoordU[OutPointIndex + InPointOffset];
 			OutData.StrandsPoints.PointsRadius[OutPointOffset] = InData.StrandsPoints.PointsRadius[OutPointIndex + InPointOffset] * InData.StrandsCurves.MaxRadius;
+			OutData.StrandsPoints.PointsBaseColor[OutPointOffset] = FLinearColor::Black;
+			OutData.StrandsPoints.PointsRoughness[OutPointOffset] = 0;
 		}
 	}
 

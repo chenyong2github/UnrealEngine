@@ -6,9 +6,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RenderResource.h"
-#include "RendererInterface.h"
+#include "RenderGraph.h"
 
 /**
  * Encapsulates the system textures used for scene rendering.
@@ -94,6 +92,23 @@ public:
 
 	// SRV for WhiteDummy Texture.
 	TRefCountPtr<FRHIShaderResourceView> WhiteDummySRV;
+
+	FRDGTextureRef GetWhiteDummy(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef GetBlackDummy(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef GetBlackAlphaOneDummy(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef GetPerlinNoiseGradient(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef GetPerlinNoise3D(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef GetSobolSampling(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef GetSSAORandomization(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef GetPreintegratedGF(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef GetLTCMat(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef GetLTCAmp(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef GetMaxFP16Depth(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef GetDepthDummy(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef GetGreenDummy(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef GetDefaultNormal8Bit(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef GetMidGreyDummy(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef GetVolumetricBlackDummy(FRDGBuilder& GraphBuilder) const;
 
 protected:
 	/** Maximum feature level that the textures have been initialized up to */

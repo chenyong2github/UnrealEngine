@@ -23,10 +23,6 @@ private:
 
 	FReply DeleteClicked();
 
-	EVisibility GetStackIssuesWarningVisibility() const;
-
-	FText GetErrorButtonTooltipText() const;
-
 private:
 	UNiagaraStackItemGroup* Group;
 };

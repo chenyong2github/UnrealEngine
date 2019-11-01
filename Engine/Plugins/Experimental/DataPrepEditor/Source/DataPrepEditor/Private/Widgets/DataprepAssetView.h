@@ -10,6 +10,7 @@
 #include "DataPrepEditor.h"
 #include "DataprepWidgets.h"
 
+#include "Delegates/IDelegateInstance.h"
 #include "Widgets/Input/STextComboBox.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Text/STextBlock.h"
@@ -57,10 +58,11 @@ private:
 
 	/** Relative width to control splitters */
 	float ColumnWidth;
+
+	FDelegateHandle OnParameterizationWasEdited;
 };
 
 // Inspired from SKismetInspector class
-// #ueent_todo: Revisit SGraphNodeDetailsWidget class based on tpm's feedback
 class SGraphNodeDetailsWidget : public SCompoundWidget
 {
 public:

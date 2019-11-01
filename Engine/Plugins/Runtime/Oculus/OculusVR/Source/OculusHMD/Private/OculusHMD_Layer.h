@@ -46,6 +46,7 @@ public:
 	const FXRSwapChainPtr& GetSwapChain() const { return SwapChain; }
 	const FXRSwapChainPtr& GetRightSwapChain() const { return RightSwapChain; }
 	const FXRSwapChainPtr& GetDepthSwapChain() const { return DepthSwapChain; }
+	const FXRSwapChainPtr& GetFoveationSwapChain() const { return FoveationSwapChain; }
 	void MarkTextureForUpdate() { bUpdateTexture = true; }
 #if PLATFORM_ANDROID
 	bool NeedsPokeAHole() { return (Desc.Flags & IStereoLayers::LAYER_FLAG_SUPPORT_DEPTH) != 0; }
@@ -78,6 +79,7 @@ protected:
 	FOvrpLayerPtr OvrpLayer;
 	FXRSwapChainPtr SwapChain;
 	FXRSwapChainPtr DepthSwapChain;
+	FXRSwapChainPtr FoveationSwapChain;
 	FXRSwapChainPtr RightSwapChain;
 	FXRSwapChainPtr RightDepthSwapChain;
 	bool bUpdateTexture;

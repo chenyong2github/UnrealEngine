@@ -22,7 +22,7 @@ TArray<FPlatformInfo> AllPlatformInfoArray;
 // @todo platplug: Figure out why this is compiled on target devices
 #if WITH_EDITOR || IS_PROGRAM
 
-void BuildPlatformInfo(const FName& InPlatformInfoName, const FName& InTargetPlatformName, const FText& InDisplayName, const EBuildTargetType InPlatformType, const EPlatformFlags::Flags InPlatformFlags, const FPlatformIconPaths& InIconPaths, const FString& InUATCommandLine, const FString& InAutoSDKPath, EPlatformSDKStatus InStatus, const FString& InTutorial, bool InEnabled, FString InBinaryFolderName, FString InIniPlatformName, bool InUsesHostCompiler, bool InUATClosesAfterLaunch, bool InIsConfidential, const FName& InUBTTargetId, const FName& InPlatformGroupName, bool InTargetPlatformCanUseCrashReporter)
+void BuildPlatformInfo(const FName& InPlatformInfoName, const FName& InTargetPlatformName, const FText& InDisplayName, const EBuildTargetType InPlatformType, const EPlatformFlags::Flags InPlatformFlags, const FPlatformIconPaths& InIconPaths, const FString& InUATCommandLine, const FString& InAutoSDKPath, EPlatformSDKStatus InStatus, const FString& InTutorial, bool InEnabled, FString InBinaryFolderName, FString InIniPlatformName, bool InUsesHostCompiler, bool InUATClosesAfterLaunch, bool InIsConfidential, const FName& InUBTTargetId, const FName& InPlatformGroupName, const FName& InPlatformSubMenu, bool InTargetPlatformCanUseCrashReporter)
 {
 	FPlatformInfo& PlatformInfo = AllPlatformInfoArray.Emplace_GetRef();
 
@@ -59,6 +59,7 @@ void BuildPlatformInfo(const FName& InPlatformInfoName, const FName& InTargetPla
 	PlatformInfo.IniPlatformName = InIniPlatformName;
 	PlatformInfo.UBTTargetId = InUBTTargetId;
 	PlatformInfo.PlatformGroupName = InPlatformGroupName;
+	PlatformInfo.PlatformSubMenu = InPlatformSubMenu;
 
 	if (InPlatformGroupName != NAME_None)
 	{
@@ -85,8 +86,8 @@ void BuildPlatformInfo(const FName& InPlatformInfoName, const FName& InTargetPla
 
 void BuildHardcodedPlatforms()
 {
-	// PlatformInfoName									TargetPlatformName			DisplayName														PlatformType			PlatformFlags					IconPaths																																		UATCommandLine										AutoSDKPath			SDKStatus						SDKTutorial																								bEnabledForUse										BinaryFolderName	IniPlatformName		FbUsesHostCompiler		bUATClosesAfterLaunch	bIsConfidential	UBTTargetId (match UBT's UnrealTargetPlatform enum)		bTargetPlatformCanUseCrashReporter
-	BuildPlatformInfo(TEXT("AllDesktop"),				TEXT("AllDesktop"),			LOCTEXT("DesktopTargetPlatDisplay", "Desktop (Win+Mac+Linux)"),	EBuildTargetType::Game,	EPlatformFlags::None,			FPlatformIconPaths(TEXT("Launcher/Desktop/Platform_Desktop_24x"), TEXT("Launcher/Desktop/Platform_Desktop_128x")),					TEXT(""),											TEXT(""),			EPlatformSDKStatus::Unknown,	TEXT(""),																								PLATFORM_WINDOWS /* see note below */,						TEXT(""),			TEXT(""),			false,					true,					false,			TEXT("AllDesktop"),	TEXT("Desktop"),	true);
+	// PlatformInfoName									TargetPlatformName			DisplayName														PlatformType			PlatformFlags					IconPaths																																		UATCommandLine										AutoSDKPath			SDKStatus						SDKTutorial																								bEnabledForUse										BinaryFolderName	IniPlatformName		FbUsesHostCompiler		bUATClosesAfterLaunch	bIsConfidential	UBTTargetId (match UBT's UnrealTargetPlatform enum)		PlatformSubMenu		bTargetPlatformCanUseCrashReporter
+	BuildPlatformInfo(TEXT("AllDesktop"),				TEXT("AllDesktop"),			LOCTEXT("DesktopTargetPlatDisplay", "Desktop (Win+Mac+Linux)"),	EBuildTargetType::Game,	EPlatformFlags::None,			FPlatformIconPaths(TEXT("Launcher/Desktop/Platform_Desktop_24x"), TEXT("Launcher/Desktop/Platform_Desktop_128x")),					TEXT(""),											TEXT(""),			EPlatformSDKStatus::Unknown,	TEXT(""),																								PLATFORM_WINDOWS /* see note below */,						TEXT(""),			TEXT(""),			false,					true,					false,			TEXT("AllDesktop"),	TEXT("Desktop"),	TEXT(""),	true);
 	// Note: For "AllDesktop" bEnabledForUse value, see SProjectTargetPlatformSettings::Construct !!!! IsAvailableOnWindows || IsAvailableOnMac || IsAvailableOnLinux
 }
 
@@ -115,32 +116,55 @@ EPlatformFlags::Flags ConvertPlatformFlags(const FString& String)
 	return EPlatformFlags::None;
 }
 
+namespace EPlatformSection
+{
+	const FName TargetPlatformName = FName(TEXT("TargetPlatformName"));
+	const FName DisplayName = FName(TEXT("DisplayName"));
+	const FName PlatformType = FName(TEXT("PlatformType"));
+	const FName PlatformFlags = FName(TEXT("PlatformFlags"));
+	const FName NormalIconPath = FName(TEXT("NormalIconPath"));
+	const FName LargeIconPath = FName(TEXT("LargeIconPath"));
+	const FName XLargeIconPath = FName(TEXT("XLargeIconPath"));
+	const FName UATCommandLine = FName(TEXT("UATCommandLine"));
+	const FName AutoSDKPath = FName(TEXT("AutoSDKPath"));
+	const FName TutorialPath = FName(TEXT("TutorialPath"));
+	const FName bIsEnabled = FName(TEXT("bIsEnabled"));
+	const FName BinariesDirectoryName = FName(TEXT("BinariesDirectoryName"));
+	const FName IniPlatformName = FName(TEXT("IniPlatformName"));
+	const FName bUsesHostCompiler = FName(TEXT("bUsesHostCompiler"));
+	const FName bUATClosesAfterLaunch = FName(TEXT("bUATClosesAfterLaunch"));
+	const FName bIsConfidential = FName(TEXT("bIsConfidential"));
+	const FName UBTTargetID = FName(TEXT("UBTTargetID"));
+	const FName PlatformGroupName = FName(TEXT("PlatformGroupName"));
+	const FName PlatformSubMenu = FName(TEXT("PlatformSubMenu"));
+}
+
 void ParseDataDrivenPlatformInfo(const TCHAR* Name, const FConfigSection& Section)
 {
-	// @todo platplug: use FNames instead of TCHAR* for keys, so we don't ahve to re-convert every time
-	FName TargetPlatformName = *GetSectionString(Section, TEXT("TargetPlatformName"));
-	FString DisplayName = GetSectionString(Section, TEXT("DisplayName"));
-	FString PlatformType = GetSectionString(Section, TEXT("PlatformType"));
-	FString PlatformFlags = GetSectionString(Section, TEXT("PlatformFlags"));
-	FString NormalIconPath = GetSectionString(Section, TEXT("NormalIconPath"));
-	FString LargeIconPath = GetSectionString(Section, TEXT("LargeIconPath"));
-	FString XLargeIconPath = GetSectionString(Section, TEXT("XLargeIconPath"));
+	FName TargetPlatformName = *GetSectionString(Section, EPlatformSection::TargetPlatformName);
+	FString DisplayName = GetSectionString(Section, EPlatformSection::DisplayName);
+	FString PlatformType = GetSectionString(Section, EPlatformSection::PlatformType);
+	FString PlatformFlags = GetSectionString(Section, EPlatformSection::PlatformFlags);
+	FString NormalIconPath = GetSectionString(Section, EPlatformSection::NormalIconPath);
+	FString LargeIconPath = GetSectionString(Section, EPlatformSection::LargeIconPath);
+	FString XLargeIconPath = GetSectionString(Section, EPlatformSection::XLargeIconPath);
 	// no one has an XLarge path yet, but in case they add one, this will use it
 	if (XLargeIconPath == TEXT(""))
 	{
 		XLargeIconPath = LargeIconPath;
 	}
-	FString UATCommandLine = GetSectionString(Section, TEXT("UATCommandLine"));
-	FString AutoSDKPath = GetSectionString(Section, TEXT("AutoSDKPath"));
-	FString TutorialPath = GetSectionString(Section, TEXT("TutorialPath"));
-	bool bIsEnabled = GetSectionBool(Section, TEXT("bIsEnabled"));
-	FString BinariesDirectoryName = GetSectionString(Section, TEXT("BinariesDirectoryName"));
-	FString IniPlatformName = GetSectionString(Section, TEXT("IniPlatformName"));
-	bool bUsesHostCompiler = GetSectionBool(Section, TEXT("bUsesHostCompiler"));
-	bool bUATClosesAfterLaunch = GetSectionBool(Section, TEXT("bUATClosesAfterLaunch"));
-	bool bIsConfidential = GetSectionBool(Section, TEXT("bIsConfidential"));
-	FName UBTTargetID = *GetSectionString(Section, TEXT("UBTTargetID"));
-	FName PlatformGroupName = *GetSectionString(Section, TEXT("PlatformGroupName"));
+	FString UATCommandLine = GetSectionString(Section, EPlatformSection::UATCommandLine);
+	FString AutoSDKPath = GetSectionString(Section, EPlatformSection::AutoSDKPath);
+	FString TutorialPath = GetSectionString(Section, EPlatformSection::TutorialPath);
+	bool bIsEnabled = GetSectionBool(Section, EPlatformSection::bIsEnabled);
+	FString BinariesDirectoryName = GetSectionString(Section, EPlatformSection::BinariesDirectoryName);
+	FString IniPlatformName = GetSectionString(Section, EPlatformSection::IniPlatformName);
+	bool bUsesHostCompiler = GetSectionBool(Section, EPlatformSection::bUsesHostCompiler);
+	bool bUATClosesAfterLaunch = GetSectionBool(Section, EPlatformSection::bUATClosesAfterLaunch);
+	bool bIsConfidential = GetSectionBool(Section, EPlatformSection::bIsConfidential);
+	FName UBTTargetID = *GetSectionString(Section, EPlatformSection::UBTTargetID);
+	FName PlatformGroupName = *GetSectionString(Section, EPlatformSection::PlatformGroupName);
+	FName PlatformSubMenu = *GetSectionString(Section, EPlatformSection::PlatformSubMenu);
 	FString TargetPlatformCanUseCrashReporterString = GetSectionString(Section, TEXT("bTargetPlatformCanUseCrashReporter"));
 	bool bTargetPlatformCanUseCrashReporter = TargetPlatformCanUseCrashReporterString.IsEmpty() ? true : GetSectionBool(Section, TEXT("bTargetPlatformCanUseCrashReporter"));
 
@@ -151,7 +175,7 @@ void ParseDataDrivenPlatformInfo(const TCHAR* Name, const FConfigSection& Sectio
 	}
 
 	BuildPlatformInfo(Name, TargetPlatformName, FText::FromString(DisplayName), TargetType, ConvertPlatformFlags(PlatformFlags), FPlatformIconPaths(NormalIconPath, LargeIconPath, XLargeIconPath), UATCommandLine,
-		AutoSDKPath, PlatformInfo::EPlatformSDKStatus::Unknown, TutorialPath, bIsEnabled, BinariesDirectoryName, IniPlatformName, bUsesHostCompiler, bUATClosesAfterLaunch, bIsConfidential, UBTTargetID, PlatformGroupName, bTargetPlatformCanUseCrashReporter);
+		AutoSDKPath, PlatformInfo::EPlatformSDKStatus::Unknown, TutorialPath, bIsEnabled, BinariesDirectoryName, IniPlatformName, bUsesHostCompiler, bUATClosesAfterLaunch, bIsConfidential, UBTTargetID, PlatformGroupName, PlatformSubMenu, bTargetPlatformCanUseCrashReporter);
 }
 
 void LoadDataDrivenPlatforms()

@@ -12,7 +12,7 @@ class IDataprepLogger;
 class IDataprepProgressReporter;
 
 UCLASS(Blueprintable, BlueprintType, meta = (DisplayName = "Dataprep Core Blueprint Library"))
-class UDataprepCoreLibrary : public UBlueprintFunctionLibrary
+class DATAPREPCORE_API UDataprepCoreLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 

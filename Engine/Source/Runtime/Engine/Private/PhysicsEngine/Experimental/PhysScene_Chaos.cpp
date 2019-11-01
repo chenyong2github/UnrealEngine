@@ -982,6 +982,41 @@ const Chaos::FPhysicsSolver* FPhysScene_ChaosInterface::GetSolver() const
 	return Scene.GetSolver();
 }
 
+void FPhysScene_ChaosInterface::Flush_AssumesLocked()
+{
+	check(IsInGameThread());
+
+	// Flush all of our pending commands
+	Chaos::IDispatcher* Dispatcher = FChaosSolversModule::GetModule()->GetDispatcher();
+
+	if(Dispatcher->GetMode() != Chaos::EThreadingMode::SingleThread)
+	{
+		Dispatcher->Execute();
+	}
+
+	Chaos::FPBDRigidsSolver* Solver = Scene.GetSolver();
+
+	if(Solver)
+	{
+		TQueue<TFunction<void(Chaos::FPhysicsSolver*)>, EQueueMode::Mpsc>& Queue = Solver->GetCommandQueue();
+		TFunction<void(Chaos::FPhysicsSolver*)> Command;
+		while(Queue.Dequeue(Command))
+		{
+			Command(Solver);
+		}
+	}
+
+	// Populate the spacial acceleration
+	Chaos::FPBDRigidsSolver::FPBDRigidsEvolution* Evolution = GetSolver()->GetEvolution();
+
+	if(Evolution)
+	{
+		Evolution->FlushSpatialAcceleration();
+	}
+
+	Scene.CopySolverAccelerationStructure();
+}
+
 FPhysicsReplication* FPhysScene_ChaosInterface::GetPhysicsReplication()
 {
 	return nullptr;

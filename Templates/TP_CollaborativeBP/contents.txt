@@ -1,0 +1,4 @@
+../../../Templates/TP_CollaborativeBP/manifest.json
+../../../Templates/TP_CollaborativeBP/Config/config.ini
+../../../Templates/TP_CollaborativeBP/Media/TP_CollaborativeBP.png
+../../../Templates/TP_CollaborativeBP/Media/TP_CollaborativeBP_Preview.png

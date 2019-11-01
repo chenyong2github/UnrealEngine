@@ -194,6 +194,9 @@ public:
 	/** @return the selection mode of this TableView */
 	virtual ESelectionMode::Type Private_GetSelectionMode() const = 0;
 
+	/** Is the list pending a refresh? */
+	virtual bool Private_IsPendingRefresh() const = 0;
+
 	/** @return Is the tableview a tree or a list? */
 	virtual ETableViewMode::Type GetTableViewMode() const = 0;
 	

@@ -26,7 +26,7 @@ FLiveLinkMessageBusDiscoveryManager::FLiveLinkMessageBusDiscoveryManager()
 	bRunning = MessageEndpoint.IsValid();
 	if (bRunning)
 	{
-		Thread = FRunnableThread::Create(this, TEXT("MessageBusHeartbeatManager"));
+		Thread = FRunnableThread::Create(this, TEXT("LiveLinkMessageBusDiscoveryManager"));
 	}
 }
 

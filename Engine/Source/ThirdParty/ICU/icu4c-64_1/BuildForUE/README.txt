@@ -2,6 +2,7 @@
 This is a modified version of the ICU source tree that has the following changes:
   - UProperty has been renamed to UCharProperty to avoid conflicts with the Unreal version of UProperty.
   - The u_setDataFileFunctions function has been added to allow ICU data to be loaded with the Unreal Filesystem (see urename.h, uclean.h, and umapfile.cpp).
+  - The U_PLATFORM_HAS_GETENV macro has been added which can be defined to 0 in platform build scripts to disable code that calls getenv() for platforms that don't have this function.
 
 These changes must be reapplied to any new versions of ICU, then, the header files found in source/common/unicode and source/i18n/unicode should be copied to include/unicode.
 

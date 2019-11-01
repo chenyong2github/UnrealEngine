@@ -98,12 +98,13 @@ public:
 
 	/**
 	 * Gather assets changes that happened on the workspace in this session.
-	 * @return a list of asset files that were modified during the session.
+	 * @param IgnorePersisted if true will not return packages which have already been persisted in their current state.
+	 * @return a list of package names that were modified during the session.
 	 */
-	virtual TArray<FString> GatherSessionChanges() = 0;
+	virtual TArray<FName> GatherSessionChanges(bool IgnorePersisted = true) = 0;
 
-	/** Persist the session changes from the file list and prepare it for source control submission */
-	virtual bool PersistSessionChanges(TArrayView<const FString> InFilesToPersist, ISourceControlProvider* SourceControlProvider, TArray<FText>* OutFailureReasonMap = nullptr) = 0;
+	/** Persist the session changes from the package list and prepare it for source control submission */
+	virtual bool PersistSessionChanges(TArrayView<const FName> InPackageToPersist, ISourceControlProvider* SourceControlProvider, TArray<FText>* OutFailureReasonMap = nullptr) = 0;
 
 	/**
 	 * Get Activities from the session.

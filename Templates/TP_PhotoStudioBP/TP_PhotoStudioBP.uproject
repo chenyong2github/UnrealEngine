@@ -11,24 +11,22 @@
 		},
 		{
 			"Name": "DataPrepEditor",
-			"Enabled": true,
-			"SupportedTargetPlatforms": [
-				"Win64"
-			]
-		},
-		{
-			"Name": "DatasmithImporter",
-			"Enabled": true,
-			"SupportedTargetPlatforms": [
-				"Win64"
-			]
-		},
-		{
-			"Name": "DatasmithCADImporter",
-			"Name": "VariantManager",
 			"Enabled": true
 		},
 		{
+			"Name": "DatasmithImporter",
+			"Enabled": true
+		},
+		{
+			"Name": "DatasmithCADImporter",
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win64"
+			]
+		},
+		{
+			"Name": "VariantManager",
+			"Enabled": true
 		},
 		{
 			"Name": "PythonScriptPlugin",
@@ -42,7 +40,7 @@
 			"Name": "SequencerScripting",
 			"Enabled": true
 		},
-				{
+		{
 			"Name": "StaticMeshEditorExtension",
 			"Enabled": true
 		}

@@ -28,27 +28,9 @@ class FNullInstallBundleManager : public IInstallBundleManager
 	{
 	}
 
-	virtual bool IsInitializing() const override
+	virtual EInstallBundleManagerInitState GetInitState() const override
 	{
-		return false;
-	}
-	virtual bool IsInitialized() const override
-	{
-		return true;
-	}
-
-	virtual bool IsActive() const override
-	{
-		return false;
-	}
-
-	virtual FInstallBundleTestInfo TestUpdateContent(FName BundleName) override
-	{
-		return FInstallBundleTestInfo();
-	}
-	virtual FInstallBundleTestInfo TestUpdateContent(TArrayView<FName> BundleNames) override
-	{
-		return FInstallBundleTestInfo();
+		return EInstallBundleManagerInitState::Succeeded;
 	}
 
 	virtual FInstallBundleRequestInfo RequestUpdateContent(FName BundleName, EInstallBundleRequestFlags Flags) override
@@ -57,12 +39,6 @@ class FNullInstallBundleManager : public IInstallBundleManager
 		return RetInfo;
 	}
 	virtual FInstallBundleRequestInfo RequestUpdateContent(TArrayView<FName> BundleNames, EInstallBundleRequestFlags Flags) override
-	{
-		FInstallBundleRequestInfo RetInfo;
-		return RetInfo;
-	}
-
-	virtual FInstallBundleRequestInfo RequestRemoveContent(FName BundleName) override
 	{
 		FInstallBundleRequestInfo RetInfo;
 		return RetInfo;

@@ -16,7 +16,7 @@ FIND_PATH(		NVTOOLSEXTSDK_PATH include/nvToolsExt.h
 				${GW_DEPS_ROOT}/sw/physx/externals/nvToolsExt/1
 				)
 
-MESSAGE("NvToolsExt: " ${NVTOOLSEXTSDK_PATH})
+MESSAGE(STATUS "NvToolsExt: " ${NVTOOLSEXTSDK_PATH})
 				
 if (CMAKE_CL_64)
 	SET(NVTOOLSEXT_ARCH_FOLDER "x64")

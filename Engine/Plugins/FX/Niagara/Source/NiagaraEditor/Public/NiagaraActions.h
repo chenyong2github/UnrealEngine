@@ -7,6 +7,7 @@
 #include "NiagaraGraph.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "GraphEditorDragDropAction.h"
+#include "DragAndDrop/DecoratedDragDropOp.h"
 #include "NiagaraActions.generated.h"
 
 USTRUCT()
@@ -50,7 +51,7 @@ struct NIAGARAEDITOR_API FNiagaraParameterAction : public FEdGraphSchemaAction
 		const TArray<FNiagaraGraphParameterReferenceCollection>& InReferenceCollection,
 		FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords, int32 InSectionID = 0);
 
-	FNiagaraVariable& GetParameter() { return Parameter; }
+	const FNiagaraVariable& GetParameter() const { return Parameter; }
 
 	FNiagaraVariable Parameter;
 
@@ -100,36 +101,18 @@ protected:
 	bool bAltDrag;
 };
 
-class NIAGARAEDITOR_API FNiagaraStackDragOperation : public FDragDropOperation
+class NIAGARAEDITOR_API FNiagaraParameterDragOperation : public FDecoratedDragDropOp
 {
 public:
-	DRAG_DROP_OPERATOR_TYPE(FNiagaraStackDragOperation, FDragDropOperation)
+	DRAG_DROP_OPERATOR_TYPE(FNiagaraParameterDragOperation, FDecoratedDragDropOp)
 
-	static TSharedRef<FNiagaraStackDragOperation> New(TSharedPtr<FEdGraphSchemaAction> InActionNode);
+	FNiagaraParameterDragOperation(TSharedPtr<FEdGraphSchemaAction> InSourceAction)
+		: SourceAction(InSourceAction)
+	{
+	}
 
-	void Construct();
+	TSharedPtr<FEdGraphSchemaAction> GetSourceAction() const { return SourceAction; }
 
-	/** Set if operation is modified by alt */
-	void SetAltDrag(bool InIsAltDrag) { bAltDrag = InIsAltDrag; }
-
-	/** Set if operation is modified by the ctrl key */
-	void SetCtrlDrag(bool InIsCtrlDrag) { bControlDrag = InIsCtrlDrag; }
-
-	TSharedPtr<FEdGraphSchemaAction> GetAction() { return SourceAction; }
-
-	virtual void OnDrop(bool bDropWasHandled, const FPointerEvent& MouseEvent) override;
-	virtual void OnDragged(const class FDragDropEvent& DragDropEvent) override;
-protected:
-	FNiagaraStackDragOperation();
-
-	bool HasFeedbackMessage();
-	void SetFeedbackMessage(const TSharedPtr<SWidget>& Message);
-	void SetSimpleFeedbackMessage(const FText& Message);
-	
+private:
 	TSharedPtr<FEdGraphSchemaAction> SourceAction;
-
-	/** Was ctrl held down at start of drag */
-	bool bControlDrag;
-	/** Was alt held down at the start of drag */
-	bool bAltDrag;
 };

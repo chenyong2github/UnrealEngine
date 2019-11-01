@@ -11,6 +11,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "UObject/PrimaryAssetId.h"
+#include "Containers/ArrayView.h"
 #include "Templates/Function.h"
 #include "Templates/IsArrayOrRefOfType.h"
 #include "Serialization/ArchiveUObject.h"
@@ -629,8 +630,10 @@ COREUOBJECT_API bool SaveToTransactionBuffer(UObject* Object, bool bMarkDirty);
  *  b) The object has changed since it started transacting.
  *
  * @param	Object		object to snapshot.
+ * @param	Properties	optional list of properties that have potentially changed on the object (to avoid snapshotting the entire object).
  */
 COREUOBJECT_API void SnapshotTransactionBuffer(UObject* Object);
+COREUOBJECT_API void SnapshotTransactionBuffer(UObject* Object, TArrayView<const UProperty*> Properties);
 
 /**
  * Check for StaticAllocateObject error; only for use with the editor, make or other commandlets.

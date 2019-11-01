@@ -642,6 +642,7 @@ public:
 		GlobalDistanceFieldParameters.Set(RHICmdList, ShaderRHI, GlobalDistanceFieldInfo.ParameterData);
 
 		const FSceneRenderTargetItem& ClipMapRTI = Clipmap.RenderTarget->GetRenderTargetItem();
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, ClipMapRTI.UAV);
 		GlobalDistanceFieldTexture.SetTexture(RHICmdList, ShaderRHI, ClipMapRTI.ShaderResourceTexture, ClipMapRTI.UAV);
 
 		const float VolumeStep = (2.0f * GlobalDistanceFieldInfo.ParameterData.CenterAndExtent[ClipmapIndexValue].W) / GAOGlobalDFResolution;
@@ -662,7 +663,7 @@ public:
 		GlobalDistanceFieldTexture.UnsetUAV(RHICmdList, GetComputeShader());
 
 		const FSceneRenderTargetItem& ClipMapRTI = Clipmap.RenderTarget->GetRenderTargetItem();
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, ClipMapRTI.UAV);
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, ClipMapRTI.UAV);
 	}
 
 	virtual bool Serialize(FArchive& Ar)
@@ -1388,6 +1389,11 @@ void UpdateGlobalDistanceFieldVolume(
 				TArray<FGlobalDistanceFieldClipmap>& Clipmaps = CacheType == GDF_MostlyStatic 
 					? GlobalDistanceFieldInfo.MostlyStaticClipmaps 
 					: GlobalDistanceFieldInfo.Clipmaps;
+
+				// Multi-GPU support : Updating on all GPUs may be inefficient for AFR. Work is
+				// wasted for any clipmaps that update on consecutive frames.
+				const FRHIGPUMask ClipmapGPUMask = AFRUtils::GetGPUMaskWithSiblings(RHICmdList.GetGPUMask());
+				SCOPED_GPU_MASK(RHICmdList, ClipmapGPUMask);
 
 				for (int32 ClipmapIndex = 0; ClipmapIndex < Clipmaps.Num(); ClipmapIndex++)
 				{

@@ -8,14 +8,9 @@
 #include "MagicLeapGraphics.h"
 #include "MagicLeapMath.h"
 #include "MagicLeapUtils.h"
-#include "MagicLeapPluginUtil.h" // for ML_INCLUDES_START/END
-
-#if WITH_MLSDK
-ML_INCLUDES_START
-#include <ml_api.h>
-#include <ml_snapshot.h>
-ML_INCLUDES_END
-#endif //WITH_MLSDK
+#include "Lumin/CAPIShims/LuminAPIPerception.h"
+#include "MagicLeapPluginUtil.h"
+#include "Math/Vector4.h"
 
 class FMagicLeapHMD;
 class FViewport;
@@ -36,16 +31,15 @@ public:
 	float NearClippingPlane;
 	float FarClippingPlane;
 	float RecommendedFarClippingPlane;
-#if WITH_MLSDK
-	MLSnapshot* Snapshot;
-#endif //WITH_MLSDK
+	float StabilizationDepth;
 	bool bBeginFrameSucceeded;
 
 #if WITH_MLSDK
-	MLHandle Handle;
+	MLSnapshot* Snapshot;
 	MLCoordinateFrameUID FrameId;
-	MLGraphicsClipExtentsInfoArray UpdateInfoArray; // update information for the frame
-	MLGraphicsVirtualCameraInfoArray RenderInfoArray; // render information for the frame
+	MLGraphicsFrameInfo FrameInfo; // render information for the frame
+	MLGraphicsClipExtentsInfoArrayEx UpdateInfoArray; // update information for the frame
+	MLGraphicsProjectionType ProjectionType;
 #endif //WITH_MLSDK
 
 	float PixelDensity;
@@ -62,12 +56,11 @@ public:
 		, NearClippingPlane(GNearClippingPlane)
 		, FarClippingPlane(1000.0f) // 10m
 		, RecommendedFarClippingPlane(FarClippingPlane)
-#if WITH_MLSDK
-		, Snapshot(nullptr)
-#endif //WITH_MLSDK
+		, StabilizationDepth(1000.0f) // 10m
 		, bBeginFrameSucceeded(false)
 #if WITH_MLSDK
-		, Handle(ML_INVALID_HANDLE)
+		, Snapshot(nullptr)
+		, ProjectionType(MLGraphicsProjectionType_ReversedInfiniteZ)
 #endif //WITH_MLSDK
 		, PixelDensity(1.0f)
 		, WorldContext(nullptr)
@@ -77,7 +70,8 @@ public:
 		FrameId.data[1] = 0;
 
 		MagicLeap::ResetClipExtentsInfoArray(UpdateInfoArray);
-		MagicLeap::ResetVirtualCameraInfoArray(RenderInfoArray);
+		MLGraphicsFrameInfoInit(&FrameInfo);
+		MagicLeap::ResetVirtualCameraInfoArray(FrameInfo.virtual_camera_info_array);
 #endif //WITH_MLSDK
 	}
 };
@@ -85,121 +79,37 @@ public:
 class FMagicLeapCustomPresent : public FRHICustomPresent
 {
 public:
-	FMagicLeapCustomPresent(FMagicLeapHMD* plugin) :
-		FRHICustomPresent(),
-		Plugin(plugin),
-		bNeedReinitRendererAPI(true),
-		bNotifyLifecycleOfFirstPresent(true),
-		bCustomPresentIsSet(false)
-	{}
+	FMagicLeapCustomPresent(FMagicLeapHMD* plugin);
 
 	virtual void BeginRendering() = 0;
 	virtual void FinishRendering() = 0;
 	virtual bool NeedsNativePresent() override;
+	virtual void OnBackBufferResize() override;
+	virtual bool Present(int& SyncInterval) override;
 
 	virtual void UpdateViewport(const FViewport& Viewport, FRHIViewport* InViewportRHI) = 0;
 	virtual void UpdateViewport_RenderThread() = 0;
-	virtual void Reset() = 0;
-	virtual void Shutdown() = 0;
+	virtual void GetFieldOfView(float& OutHFOVInDegrees, float& OutVFOVInDegrees);
+	virtual void Reset();
+	virtual void Shutdown();
 
-	virtual void SetNeedReinitRendererAPI() { bNeedReinitRendererAPI = true; }
+	// Override if custom present needs to render to ML surfaces using Unreal's render pipeline instead of direct blit / texture copy.
+	virtual void RenderToMLSurfaces_RenderThread(class FRHICommandListImmediate& RHICmdList, class FRHITexture2D* SrcTexture) {}
 
 protected:
+	void BeginFrame(FTrackingFrame& Frame);
+	void NotifyFirstRender();
+	void RenderToTextureSlice_RenderThread(class FRHICommandListImmediate& RHICmdList, class FRHITexture2D* SrcTexture, class FRHITexture* DstTexture, uint32 ArraySlice, const FVector4& UVandSize);
 	FMagicLeapHMD* Plugin;
-	bool bNeedReinitRendererAPI;
 	bool bNotifyLifecycleOfFirstPresent;
 	bool bCustomPresentIsSet;
+	uint32 PlatformAPILevel;
+	volatile int64 HFOV;
+	volatile int64 VFOV;
+
+	template <typename CameraParamsType>
+	void InitCameraParams(CameraParamsType & CameraParams, FTrackingFrame & Frame);
+
+	template <typename CameraParamsType>
+	void InitExtraCameraParams(CameraParamsType & CameraParams, FTrackingFrame & Frame);
 };
-
-#if PLATFORM_WINDOWS
-class FMagicLeapCustomPresentD3D11 : public FMagicLeapCustomPresent
-{
-public:
-	FMagicLeapCustomPresentD3D11(FMagicLeapHMD* plugin);
-
-	virtual void OnBackBufferResize() override;
-	virtual bool Present(int& SyncInterval) override;
-
-	virtual void BeginRendering() override;
-	virtual void FinishRendering() override;
-	virtual void UpdateViewport(const FViewport& Viewport, FRHIViewport* InViewportRHI) override;
-	virtual void UpdateViewport_RenderThread() override;
-	virtual void Reset() override;
-	virtual void Shutdown() override;
-
-protected:
-	uint32_t RenderTargetTexture = 0;
-};
-#endif // PLATFORM_WINDOWS
-
-#if PLATFORM_MAC
-class FMagicLeapCustomPresentMetal : public FMagicLeapCustomPresent
-{
-public:
-	FMagicLeapCustomPresentMetal(FMagicLeapHMD* plugin);
-
-	virtual void OnBackBufferResize() override;
-	virtual bool Present(int& SyncInterval) override;
-
-	virtual void BeginRendering() override;
-	virtual void FinishRendering() override;
-	virtual void UpdateViewport(const FViewport& Viewport, FRHIViewport* InViewportRHI) override;
-	virtual void UpdateViewport_RenderThread() override;
-	virtual void Reset() override;
-	virtual void Shutdown() override;
-
-protected:
-	uint32_t RenderTargetTexture = 0;
-};
-#endif // PLATFORM_MAC
-
-#if PLATFORM_WINDOWS || PLATFORM_LINUX || PLATFORM_LUMIN
-class FMagicLeapCustomPresentOpenGL : public FMagicLeapCustomPresent
-{
-public:
-	FMagicLeapCustomPresentOpenGL(FMagicLeapHMD* plugin);
-
-	virtual void OnBackBufferResize() override;
-	virtual bool Present(int& SyncInterval) override;
-
-	virtual void BeginRendering() override;
-	virtual void FinishRendering() override;
-	virtual void UpdateViewport(const FViewport& Viewport, FRHIViewport* InViewportRHI) override;
-	virtual void UpdateViewport_RenderThread() override;
-	virtual void Reset() override;
-	virtual void Shutdown() override;
-
-protected:
-	uint32_t RenderTargetTexture = 0;
-	uint32_t Framebuffers[2];
-	bool bFramebuffersValid;
-};
-#endif // PLATFORM_WINDOWS || PLATFORM_LINUX || PLATFORM_LUMIN
-
-#if PLATFORM_WINDOWS || PLATFORM_LUMIN
-class FMagicLeapCustomPresentVulkan : public FMagicLeapCustomPresent
-{
-public:
-	FMagicLeapCustomPresentVulkan(FMagicLeapHMD* plugin);
-
-	virtual void OnBackBufferResize() override;
-	virtual bool Present(int& SyncInterval) override;
-
-	virtual void BeginRendering() override;
-	virtual void FinishRendering() override;
-	virtual void UpdateViewport(const FViewport& Viewport, FRHIViewport* InViewportRHI) override;
-	virtual void UpdateViewport_RenderThread() override;
-	virtual void Reset() override;
-	virtual void Shutdown() override;
-
-protected:
-	void* RenderTargetTexture;
-	void* RenderTargetTextureAllocation;
-	uint64 RenderTargetTextureAllocationOffset = 0;
-	void* RenderTargetTextureSRGB;
-	void* LastAliasedRenderTarget;
-};
-#endif // PLATFORM_LUMIN
-
-
-void CaptureCallStack(FString& OutCallstack);

@@ -4,14 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "GenericPlatform/IInputInterface.h"
-#include "IMagicLeapInputDevice.h"
-#include "MagicLeapPluginUtil.h" // for ML_INCLUDES_START/END
-
-#if WITH_MLSDK
-ML_INCLUDES_START
-#include <ml_hand_tracking.h>
-ML_INCLUDES_END
-#endif //WITH_MLSDK
+#include "IInputDevice.h"
+#include "IMagicLeapTrackerEntity.h"
+#include "Lumin/CAPIShims/LuminAPIHandTracking.h"
 
 #include "MagicLeapHandTrackingTypes.h"
 #include "XRMotionControllerBase.h"
@@ -22,7 +17,7 @@ ML_INCLUDES_END
 /**
   * MagicLeap HandTracking
   */
-class FMagicLeapHandTracking : public IMagicLeapInputDevice, public FXRMotionControllerBase, public MagicLeap::IAppEventHandler, public ILiveLinkSource
+class FMagicLeapHandTracking : public IInputDevice, public IMagicLeapTrackerEntity, public FXRMotionControllerBase, public MagicLeap::IAppEventHandler, public ILiveLinkSource
 {
 public:
 	static FName HandCenter_Name;
@@ -146,7 +141,7 @@ public:
 	{
 		FHandState();
 
-		EHandTrackingGesture Gesture = EHandTrackingGesture::NoHand;
+		EMagicLeapHandTrackingGesture Gesture = EMagicLeapHandTrackingGesture::NoHand;
 		float GestureConfidence = 0.0f;
 		FVector HandCenterNormalized = FVector::ZeroVector;
 
@@ -160,12 +155,12 @@ public:
 
 		FTransformRecord HandCenter;
 
-		bool IsValid() const { return Gesture != EHandTrackingGesture::NoHand; }
-		bool GetTransform(EHandTrackingKeypoint KeyPoint, FTransform& OutTransform) const;
-		const FTransformRecord& GetTransform(EHandTrackingKeypoint KeyPoint) const;
+		bool IsValid() const { return Gesture != EMagicLeapHandTrackingGesture::NoHand; }
+		bool GetTransform(EMagicLeapHandTrackingKeypoint KeyPoint, FTransform& OutTransform) const;
+		const FTransformRecord& GetTransform(EMagicLeapHandTrackingKeypoint KeyPoint) const;
 
 	private:
-		FTransformRecord* EnumToTransformMap[EHandTrackingKeypointCount];
+		FTransformRecord* EnumToTransformMap[EMagicLeapHandTrackingKeypointCount];
 	};
 
 public:
@@ -174,6 +169,7 @@ public:
 
 	/** IMotionController interface */
 	virtual bool GetControllerOrientationAndPosition(const int32 ControllerIndex, const FName MotionSource, FRotator& OutOrientation, FVector& OutPosition, float WorldToMetersScale) const override;
+	virtual ETrackingStatus GetControllerTrackingStatus(const int32 ControllerIndex, const FName MotionSource) const override;
 	virtual bool GetControllerOrientationAndPosition(const int32 ControllerIndex, const EControllerHand DeviceHand, FRotator& OutOrientation, FVector& OutPosition, float WorldToMetersScale) const override;
 	virtual ETrackingStatus GetControllerTrackingStatus(const int32 ControllerIndex, const EControllerHand DeviceHand) const override;
 	virtual FName GetMotionControllerDeviceTypeName() const override;
@@ -188,7 +184,7 @@ public:
 	virtual FText GetSourceType() const override;
 	// End ILiveLinkSource
 
-	/** IMagicLeapInputDevice interface */
+	/** IInputDevice interface */
 	virtual void Tick(float DeltaTime) override;
 	virtual void SendControllerEvents() override;
 	virtual void SetMessageHandler(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler) override;
@@ -196,22 +192,22 @@ public:
 	virtual void SetChannelValue(int32 ControllerId, FForceFeedbackChannelType ChannelType, float Value) override {};
 	virtual void SetChannelValues(int32 ControllerId, const FForceFeedbackValues &values) override {};
 	virtual bool IsGamepadAttached() const override;
-	virtual void Enable() override;
-	virtual bool SupportsExplicitEnable() const override;
-	virtual void Disable() override;
-	virtual void OnBeginRendering_GameThread_Update() override;
+
+	/** IMagicLeapTrackerEntity interface */
+	virtual void DestroyEntityTracker() override;
+	virtual void OnBeginRendering_GameThread() override;
 
 	const FHandState& GetLeftHandState() const;
 	const FHandState& GetRightHandState() const;
 	bool IsHandTrackingStateValid() const;
 
-	bool GetKeypointTransform(EControllerHand Hand, EHandTrackingKeypoint Keypoint, FTransform& OutTransform) const;
+	bool GetKeypointTransform(EControllerHand Hand, EMagicLeapHandTrackingKeypoint Keypoint, FTransform& OutTransform) const;
 
-	bool SetConfiguration(bool bTrackingEnabled, const TArray<EHandTrackingGesture>& ActiveKeyPoses, EHandTrackingKeypointFilterLevel KeypointsFilterLevel, EHandTrackingGestureFilterLevel GestureFilterLevel);
-	bool GetConfiguration(bool& bTrackingEnabled, TArray<EHandTrackingGesture>& ActiveKeyPoses, EHandTrackingKeypointFilterLevel& KeypointsFilterLevel, EHandTrackingGestureFilterLevel& GestureFilterLevel);
+	bool SetConfiguration(bool bTrackingEnabled, const TArray<EMagicLeapHandTrackingGesture>& ActiveKeyPoses, EMagicLeapHandTrackingKeypointFilterLevel KeypointsFilterLevel, EMagicLeapHandTrackingGestureFilterLevel GestureFilterLevel);
+	bool GetConfiguration(bool& bTrackingEnabled, TArray<EMagicLeapHandTrackingGesture>& ActiveKeyPoses, EMagicLeapHandTrackingKeypointFilterLevel& KeypointsFilterLevel, EMagicLeapHandTrackingGestureFilterLevel& GestureFilterLevel);
 
-	void SetGestureConfidenceThreshold(EHandTrackingGesture Gesture, float Confidence);
-	float GetGestureConfidenceThreshold(EHandTrackingGesture Gesture) const;
+	void SetGestureConfidenceThreshold(EMagicLeapHandTrackingGesture Gesture, float Confidence);
+	float GetGestureConfidenceThreshold(EMagicLeapHandTrackingGesture Gesture) const;
 
 private:
 	void BuildKeypointMaps();
@@ -233,7 +229,7 @@ private:
 	const MLHandTrackingData& GetPreviousHandTrackingData()				{ return HandTrackingDatas[1 - CurrentHandTrackingDataIndex]; }
 	void SendControllerEventsForHand(const MLHandTrackingHandState& NewHandState, const MLHandTrackingHandState& OldHandState, const TArray<FName>& GestureMap);
 
-	static EHandTrackingGesture TranslateGestureEnum(MLHandTrackingKeyPose KeyPose);
+	static EMagicLeapHandTrackingGesture TranslateGestureEnum(MLHandTrackingKeyPose KeyPose);
 #endif //WITH_MLSDK
 
 	TSharedPtr<FGenericApplicationMessageHandler> MessageHandler;
@@ -248,7 +244,7 @@ private:
 	MLHandTrackingStaticData HandTrackingStaticData;
 #endif //WITH_MLSDK
 	TArray<int32> BoneParents;
-	TArray<EHandTrackingKeypoint> BoneKeypoints;
+	TArray<EMagicLeapHandTrackingKeypoint> BoneKeypoints;
 
 	FHandState LeftHand;
 	FHandState RightHand;
@@ -270,6 +266,8 @@ private:
 		static const FKey Left_Pinch;
 		static const FKey Left_Thumb;
 		static const FKey Left_L;
+		static const FKey Left_OpenHand;
+		// DEPRECATED
 		static const FKey Left_OpenHandBack;
 		static const FKey Left_Ok;
 		static const FKey Left_C;
@@ -281,6 +279,8 @@ private:
 		static const FKey Right_Pinch;
 		static const FKey Right_Thumb;
 		static const FKey Right_L;
+		static const FKey Right_OpenHand;
+		// DEPRECATED
 		static const FKey Right_OpenHandBack;
 		static const FKey Right_Ok;
 		static const FKey Right_C;

@@ -28,7 +28,7 @@ public:
 	FDatasmithFBXImporter();
 	virtual ~FDatasmithFBXImporter();
 
-	TArray<FMeshDescription> GetGeometriesForMeshElement(const TSharedRef<IDatasmithMeshElement> MeshElement);
+	void GetGeometriesForMeshElementAndRelease(const TSharedRef<IDatasmithMeshElement> MeshElement, TArray<FMeshDescription>& OutMeshDescriptions);
 
 	void BuildAssetMaps(TSharedRef<IDatasmithScene> Scene, FActorMap& ActorsByOriginalName, FMaterialMap& MaterialsByName);
 

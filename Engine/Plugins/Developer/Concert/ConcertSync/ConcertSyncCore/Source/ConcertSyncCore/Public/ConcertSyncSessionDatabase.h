@@ -481,6 +481,16 @@ public:
 	bool GetLiveTransactionEventIdsForPackage(const FName InPackageName, TArray<int64>& OutTransactionEventIds) const;
 
 	/**
+	 * Get if a Package has any live transactions
+	 *
+	 * @param InPackageName				The name of the package to check if it has live transactions.
+	 * @param OutHasLiveTransaction		Bool to populate with the result.
+	 *
+	 * @return True if query was resolved correctly, false otherwise.
+	 */
+	bool PackageHasLiveTransactions(const FName InPackageName, bool& OutHasLiveTransaction) const;
+
+	/**
 	 * Enumerate the IDs of any live transaction events for the given package name.
 	 *
 	 * @param InPackageName				The name of the package to get the live transaction event IDs for.
@@ -529,6 +539,26 @@ public:
 	 * @return True if the package event was found, false otherwise.
 	 */
 	bool GetPackageEvent(const int64 InPackageEventId, FConcertSyncPackageEvent& OutPackageEvent, const bool InMetaDataOnly = false) const;
+
+	/**
+	 * Get package names for packages with a head revision (at least one package event)
+	 *
+	 * @param OutPackageNames			The array of names to populate with the result.
+	 * @param IgnorePersisted			Will ignore packages which head revision have been persisted.
+	 *
+	 * @return True if the package names were resolved, false otherwise.
+	 */
+	bool GetPackageNamesWithHeadRevision(TArray<FName>& OutPackageNames, bool IgnorePersisted) const;
+
+	/**
+	 * Enumerate package names for packages with a head revision (at least one package event)
+	 *
+	 * @param InCallback				Callback invoked for each package name; return true to continue enumeration, or false to stop.
+	 * @param IgnorePersisted			Will skip enumeration of packages which head revision have been persisted.
+	 *
+	 * @return True if the package data was enumerated without error, false otherwise.
+	 */
+	bool EnumeratePackageNamesWithHeadRevision(TFunctionRef<bool(FName)> InCallback, bool IgnorePersisted) const;
 
 	/**
 	 * Enumerate the head revision package data for all packages in this database.
@@ -582,6 +612,16 @@ public:
 	 * @return True if the package event ID was queried successfully, false otherwise.
 	 */
 	bool IsHeadRevisionPackageEvent(const int64 InPackageEventId, bool& OutIsHeadRevision) const;
+
+	/**
+	 * Add a package event ID for the head revision to the persist events in this database, if not already existing.
+	 *
+	 * @param PackageName				The package name to add an event for.
+	 * @param OutPersistEventId			Populated with the ID of the persist event in the database.
+	 *
+	 * @return True if the persist event was added, false otherwise.
+	 */
+	bool AddPersistEventForHeadRevision(FName InPackageName, int64& OutPersistEventId);
 
 	/**
 	 * Update the specified transaction event.

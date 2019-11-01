@@ -32,7 +32,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogWmrHmd, Log, All);
 namespace WindowsMixedReality
 {
 	// Plugin for stereo rendering on Windows Mixed Reality devices.
-	class FWindowsMixedRealityHMD
+	class WINDOWSMIXEDREALITYHMD_API FWindowsMixedRealityHMD
 		: public FHeadMountedDisplayBase
 		, public FXRRenderTargetManager
 		, public FSceneViewExtensionBase
@@ -83,7 +83,7 @@ namespace WindowsMixedReality
 		{
 			return SharedThis(this);
 		}
-		
+
 		// Tracking status
 		virtual bool DoesSupportPositionalTracking() const override { return true; }
 		virtual bool HasValidTrackingPosition() override;
@@ -118,6 +118,7 @@ namespace WindowsMixedReality
 		virtual FMatrix GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const override;
 		virtual IStereoRenderTargetManager* GetRenderTargetManager() override { return this; }
 		virtual class IStereoLayers* GetStereoLayers() override;
+		virtual int32 GetDesiredNumberOfViews(bool bStereoRequested) const override { return (bStereoRequested) ? 2 : 1; }
 
 		virtual bool HasHiddenAreaMesh() const override;
 		virtual void DrawHiddenAreaMesh_RenderThread(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const override;

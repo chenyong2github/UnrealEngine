@@ -159,17 +159,19 @@ enum ECompilerFlags
 	CFLAG_PreferFlowControl = 0,
 	CFLAG_Debug,
 	CFLAG_AvoidFlowControl,
-	/** Disable shader validation */
+	// Disable shader validation
 	CFLAG_SkipValidation,
-	/** Only allows standard optimizations, not the longest compile times. */
+	// Only allows standard optimizations, not the longest compile times.
 	CFLAG_StandardOptimization,
-	/** Shader should use on chip memory instead of main memory ring buffer memory. */
+	// Always optimize, even when CFLAG_Debug is set. Required for some complex shaders and features.
+	CFLAG_ForceOptimization,
+	// Shader should use on chip memory instead of main memory ring buffer memory.
 	CFLAG_OnChip,
 	CFLAG_KeepDebugInfo,
 	CFLAG_NoFastMath,
-	/** Explicitly enforce zero initialisation on shader platforms that may omit it. */
+	// Explicitly enforce zero initialisation on shader platforms that may omit it.
 	CFLAG_ZeroInitialise,
-	/** Explicitly enforce bounds checking on shader platforms that may omit it. */
+	// Explicitly enforce bounds checking on shader platforms that may omit it.
 	CFLAG_BoundsChecking,
 	// Compile ES2 with ES3.1 features
 	CFLAG_FeatureLevelES31,
@@ -611,6 +613,7 @@ struct FShaderCompilerInput
 	FExtraShaderCompilerSettings ExtraSettings;
 
 	FShaderCompilerInput() :
+		Target(SF_NumFrequencies, SP_NumPlatforms),
 		bSkipPreprocessedCache(false),
 		bGenerateDirectCompileFile(false),
 		bCompilingForShaderPipeline(false),
@@ -813,10 +816,10 @@ typedef uint32 RENDERCORE_ATTRIBUTE_UNALIGNED unaligned_uint32;
 // later we can transform that to the actual class passed around at the RHI level
 class FShaderCodeReader
 {
-	const TArray<uint8>& ShaderCode;
+	TArrayView<const uint8> ShaderCode;
 
 public:
-	FShaderCodeReader(const TArray<uint8>& InShaderCode)
+	FShaderCodeReader(TArrayView<const uint8> InShaderCode)
 		: ShaderCode(InShaderCode)
 	{
 		check(ShaderCode.Num());
@@ -1119,16 +1122,19 @@ extern RENDERCORE_API bool CheckVirtualShaderFilePath(const FString& VirtualPath
  */
 extern RENDERCORE_API FString ParseVirtualShaderFilename(const FString& InFilename);
 
+/** Replaces virtual platform path with appropriate path for a given ShaderPlatform. Returns true if path was changed. */
+extern RENDERCORE_API bool ReplaceVirtualFilePathForShaderPlatform(FString& InOutVirtualFilePath, EShaderPlatform ShaderPlatform);
+
 /**
  * Loads the shader file with the given name.
  * @param VirtualFilePath - The virtual path of shader file to load.
  * @param OutFileContents - If true is returned, will contain the contents of the shader file. Can be null.
  * @return True if the file was successfully loaded.
  */
-extern RENDERCORE_API bool LoadShaderSourceFile(const TCHAR* VirtualFilePath, FString* OutFileContents, TArray<FShaderCompilerError>* OutCompileErrors);
+extern RENDERCORE_API bool LoadShaderSourceFile(const TCHAR* VirtualFilePath, EShaderPlatform ShaderPlatform, FString* OutFileContents, TArray<FShaderCompilerError>* OutCompileErrors);
 
 /** Loads the shader file with the given name.  If the shader file couldn't be loaded, throws a fatal error. */
-extern RENDERCORE_API void LoadShaderSourceFileChecked(const TCHAR* VirtualFilePath, FString& OutFileContents);
+extern RENDERCORE_API void LoadShaderSourceFileChecked(const TCHAR* VirtualFilePath, EShaderPlatform ShaderPlatform, FString& OutFileContents);
 
 /**
  * Recursively populates IncludeFilenames with the include filenames from Filename

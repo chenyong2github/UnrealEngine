@@ -28,7 +28,7 @@ struct FShaderCompilerEnvironment;
 * Uniform buffer for mesh particle vertex factories.
 */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraMeshUniformParameters, NIAGARAVERTEXFACTORIES_API)
-	SHADER_PARAMETER(bool , bLocalSpace)
+	SHADER_PARAMETER(uint32, bLocalSpace)
 	SHADER_PARAMETER(FVector4, SubImageSize)
 	SHADER_PARAMETER(uint32, TexCoordWeightA)
 	SHADER_PARAMETER(uint32, TexCoordWeightB)
@@ -66,6 +66,7 @@ public:
 	/** Default constructor. */
 	FNiagaraMeshVertexFactory(ENiagaraVertexFactoryType InType, ERHIFeatureLevel::Type InFeatureLevel)
 		: FNiagaraVertexFactoryBase(InType, InFeatureLevel)
+		, LODIndex(-1)
 		, MeshFacingMode(0)
 		, InstanceVerticesCPU(nullptr)
 		, FloatDataOffset(0)
@@ -75,6 +76,7 @@ public:
 
 	FNiagaraMeshVertexFactory()
 		: FNiagaraVertexFactoryBase(NVFT_MAX, ERHIFeatureLevel::Num)
+		, LODIndex(-1)
 		, MeshFacingMode(0)
 		, InstanceVerticesCPU(nullptr)
 		, FloatDataOffset(0)
@@ -114,7 +116,7 @@ public:
 		SortedIndicesOffset = InSortedIndicesOffset;
 	}
 
-	FORCEINLINE FShaderResourceViewRHIRef GetParticleDataFloatSRV()
+	FORCEINLINE FRHIShaderResourceView* GetParticleDataFloatSRV()
 	{
 		return ParticleDataFloatSRV;
 	}
@@ -129,7 +131,7 @@ public:
 		return FloatDataStride;
 	}
 
-	FORCEINLINE FShaderResourceViewRHIRef GetSortedIndicesSRV()
+	FORCEINLINE FRHIShaderResourceView* GetSortedIndicesSRV()
 	{
 		return SortedIndicesSRV;
 	}
@@ -177,18 +179,15 @@ public:
 
 	static FVertexFactoryShaderParameters* ConstructShaderParameters(EShaderFrequency ShaderFrequency);
 	
-	uint32 GetMeshFacingMode() const
-	{
-		return MeshFacingMode;
-	}
+	int32 GetLODIndex() const { return LODIndex; }
+	void SetLODIndex(int32 InLODIndex) { LODIndex = InLODIndex; }
 
-	void SetMeshFacingMode(uint32 InMode)
-	{
-		MeshFacingMode = InMode;
-	}
+	uint32 GetMeshFacingMode() const { return MeshFacingMode; }
+	void SetMeshFacingMode(uint32 InMode) { MeshFacingMode = InMode; }
 
 protected:
 	FStaticMeshDataType Data;
+	int32 LODIndex;
 	uint32 MeshFacingMode;
 
 	/** Uniform buffer with mesh particle parameters. */

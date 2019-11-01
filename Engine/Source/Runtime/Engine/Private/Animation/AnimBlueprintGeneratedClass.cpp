@@ -18,6 +18,7 @@
 #include "Animation/AnimNode_LinkedAnimLayer.h"
 #include "Animation/AnimNode_AssetPlayerBase.h"
 #include "Animation/AnimNode_StateMachine.h"
+#include "EdGraph/EdGraphNode.h"
 
 /////////////////////////////////////////////////////
 // FStateMachineDebugData
@@ -571,4 +572,11 @@ const int32* UAnimBlueprintGeneratedClass::GetNodePropertyIndexFromGuid(FGuid Gu
 	return NULL;
 }
 
-#endif
+const UEdGraphNode* UAnimBlueprintGeneratedClass::GetVisualNodeFromNodePropertyIndex(int32 PropertyIndex) const
+{
+	const int32 ReversedPropertyIndex = AnimNodeProperties.Num() - PropertyIndex - 1;
+	const TWeakObjectPtr<const UEdGraphNode>* Node = AnimBlueprintDebugData.NodePropertyIndexToNodeMap.Find(ReversedPropertyIndex);
+	return Node ? Node->Get() : nullptr;
+}
+
+#endif // WITH_EDITORONLY_DATA

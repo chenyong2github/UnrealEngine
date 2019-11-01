@@ -7,9 +7,10 @@
 namespace MagicLeap
 {
 #if WITH_MLSDK
-	void ResetClipExtentsInfoArray(MLGraphicsClipExtentsInfoArray& UpdateInfoArray)
+	void ResetClipExtentsInfoArray(MLGraphicsClipExtentsInfoArrayEx& UpdateInfoArray)
 	{
-		UpdateInfoArray.num_virtual_cameras = 0;
+		MLGraphicsClipExtentsInfoArrayExInit(&UpdateInfoArray);
+
 		for (MLGraphicsClipExtentsInfo &ViewportInfo : UpdateInfoArray.virtual_camera_extents)
 		{
 			FMemory::Memcpy(ViewportInfo.projection.matrix_colmajor, MagicLeap::kIdentityMatColMajor, sizeof(MagicLeap::kIdentityMatColMajor));

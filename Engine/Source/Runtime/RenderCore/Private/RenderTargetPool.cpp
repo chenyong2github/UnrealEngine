@@ -388,10 +388,13 @@ Done:
 					);
 				}
 
-				if (GSupportsRenderTargetWriteMask && Desc.bCreateRenderTargetWriteMask)
+				if (RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform) && Desc.bCreateRenderTargetWriteMask)
 				{
-					Found->RenderTargetItem.RTWriteMaskDataBufferRHI = RHICreateRTWriteMaskBuffer((FTexture2DRHIRef&)Found->RenderTargetItem.TargetableTexture);
-					Found->RenderTargetItem.RTWriteMaskBufferRHI_SRV = RHICreateShaderResourceView(Found->RenderTargetItem.RTWriteMaskDataBufferRHI);
+					Found->RenderTargetItem.RTWriteMaskSRV = RHICreateShaderResourceViewWriteMask((FTexture2DRHIRef&)Found->RenderTargetItem.TargetableTexture);
+				}
+				if (Desc.bCreateRenderTargetFmask)
+				{
+					Found->RenderTargetItem.FmaskSRV = RHICreateShaderResourceViewFMask((FTexture2DRHIRef&)Found->RenderTargetItem.TargetableTexture);
 				}
 			}
 			else if (Desc.Is3DTexture())

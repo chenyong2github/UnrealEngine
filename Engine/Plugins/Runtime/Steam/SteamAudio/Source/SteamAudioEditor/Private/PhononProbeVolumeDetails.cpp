@@ -193,33 +193,54 @@ namespace SteamAudio
 			IPLhandle PhononScene = nullptr;
 			FPhononSceneInfo PhononSceneInfo;
 
-			IPLSimulationSettings SimulationSettings;
-			SimulationSettings.sceneType = IPL_SCENETYPE_PHONON;
-			SimulationSettings.irDuration = GetDefault<USteamAudioSettings>()->IndirectImpulseResponseDuration;
-			SimulationSettings.ambisonicsOrder = GetDefault<USteamAudioSettings>()->IndirectImpulseResponseOrder;
-			SimulationSettings.maxConvolutionSources = 1024; // FIXME
-			SimulationSettings.numBounces = GetDefault<USteamAudioSettings>()->BakedBounces;
-			SimulationSettings.numRays = GetDefault<USteamAudioSettings>()->BakedRays;
-			SimulationSettings.numDiffuseSamples = GetDefault<USteamAudioSettings>()->BakedSecondaryRays;
-
 			GGenerateProbesTickable->SetDisplayText(NSLOCTEXT("SteamAudio", "LoadingScene", "Loading scene..."));
 
-			// Attempt to load from disk, otherwise export
-			if (!LoadSceneFromDisk(World, nullptr, SimulationSettings, &PhononScene, PhononSceneInfo))
-			{
-				TArray<IPLhandle> PhononStaticMeshes;
+			IPLhandle ComputeDevice = nullptr;
 
-				if (!CreateScene(World, &PhononScene, &PhononStaticMeshes, PhononSceneInfo.NumTriangles))
+			IPLComputeDeviceFilter DeviceFilter;
+			DeviceFilter.fractionCUsForIRUpdate = GetDefault<USteamAudioSettings>()->GetFractionComputeUnitsForIRUpdate();
+			DeviceFilter.maxCUsToReserve = GetDefault<USteamAudioSettings>()->MaxComputeUnits;
+			DeviceFilter.type = IPL_COMPUTEDEVICE_GPU;
+
+			IPLSimulationSettings SimulationSettings = GetDefault<USteamAudioSettings>()->GetBakedSimulationSettings();
+
+			// If we are using RadeonRays, attempt to create a compute device.
+			if (GetDefault<USteamAudioSettings>()->RayTracer == EIplRayTracerType::RADEONRAYS)
+			{
+				UE_LOG(LogSteamAudioEditor, Log, TEXT("Using Radeon Rays - creating GPU compute device..."));
+
+				IPLerror Error = iplCreateComputeDevice(GlobalContext, DeviceFilter, &ComputeDevice);
+
+				// If we failed to create a compute device, fall back to Phonon scene.
+				if (Error != IPL_STATUS_SUCCESS)
+				{
+					UE_LOG(LogSteamAudioEditor, Warning, TEXT("Failed to create GPU compute device, falling back to Phonon."));
+
+					SimulationSettings.sceneType = IPL_SCENETYPE_PHONON;
+					SimulationSettings.bakingBatchSize = 1;
+				}
+			}
+
+			// Attempt to load from disk, otherwise export
+			if (!LoadSceneFromDisk(World, ComputeDevice, SimulationSettings, &PhononScene, PhononSceneInfo))
+			{
+				IPLhandle PhononStaticMesh = nullptr;
+
+				if (!CreateScene(World, &PhononScene, &PhononStaticMesh, PhononSceneInfo.NumTriangles))
 				{
 					GGenerateProbesTickable->QueueWorkItem(FWorkItem([](FText& DisplayText) {
 						DisplayText = NSLOCTEXT("SteamAudio", "UnableToCreateScene", "Unable to create scene.");
 					}, SNotificationItem::CS_Fail, true));
+
+					if (ComputeDevice)
+					{
+						iplDestroyComputeDevice(&ComputeDevice);
+					}
+
 					return;
 				}
 
-				//iplFinalizeScene(PhononScene, FinalizeSceneProgressCallback);
-				iplFinalizeScene(PhononScene, nullptr);
-				PhononSceneInfo.DataSize = iplSaveFinalizedScene(PhononScene, nullptr);
+				PhononSceneInfo.DataSize = iplSaveScene(PhononScene, nullptr);
 				bool SaveSceneSuccessful = SaveFinalizedSceneToDisk(World, PhononScene, PhononSceneInfo);
 
 				if (SaveSceneSuccessful)
@@ -231,10 +252,7 @@ namespace SteamAudio
 					}
 				}
 
-				for (IPLhandle PhononStaticMesh : PhononStaticMeshes)
-				{
-					iplDestroyStaticMesh(&PhononStaticMesh);
-				}
+				iplDestroyStaticMesh(&PhononStaticMesh);
 			}
 
 			// Place probes
@@ -245,6 +263,11 @@ namespace SteamAudio
 
 			// Clean up
 			iplDestroyScene(&SceneCopy);
+
+			if (ComputeDevice)
+			{
+				iplDestroyComputeDevice(&ComputeDevice);
+			}
 
 			// Update probe component with new probe locations
 			{

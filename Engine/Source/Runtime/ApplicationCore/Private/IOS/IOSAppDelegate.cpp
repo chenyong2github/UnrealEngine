@@ -60,6 +60,7 @@ extern bool GShowSplashScreen;
 
 FIOSCoreDelegates::FOnOpenURL FIOSCoreDelegates::OnOpenURL;
 FIOSCoreDelegates::FOnWillResignActive FIOSCoreDelegates::OnWillResignActive;
+FIOSCoreDelegates::FOnDidBecomeActive FIOSCoreDelegates::OnDidBecomeActive;
 TArray<FIOSCoreDelegates::FFilterDelegateAndHandle> FIOSCoreDelegates::PushNotificationFilters;
 
 static uint GEnabledAudioFeatures[(uint8)EAudioFeature::NumFeatures];
@@ -1398,8 +1399,6 @@ extern EDeviceScreenOrientation ConvertFromUIInterfaceOrientation(UIInterfaceOri
 FCriticalSection RenderSuspend;
 - (void)applicationWillResignActive:(UIApplication *)application
 {
-	FIOSCoreDelegates::OnWillResignActive.Broadcast();
-	
     FIOSPlatformMisc::ResetBrightness();
     
     /*
@@ -1458,6 +1457,8 @@ FCriticalSection RenderSuspend;
             }, TStatId(), NULL, ENamedThreads::ActualRenderingThread);
         }
     }
+	
+	FIOSCoreDelegates::OnWillResignActive.Broadcast();
 }
 
 - (void)applicationDidEnterBackground:(UIApplication *)application
@@ -1506,7 +1507,9 @@ FCriticalSection RenderSuspend;
 extern double GCStartTime;
 - (void)applicationDidBecomeActive:(UIApplication *)application
 {
-    // make sure a GC will not timeout because it was started before entering background
+	FIOSCoreDelegates::OnDidBecomeActive.Broadcast();
+
+	// make sure a GC will not timeout because it was started before entering background
     GCStartTime = FPlatformTime::Seconds();
 	/*
 	 Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
@@ -1873,7 +1876,11 @@ CORE_API bool IOSShowAchievementsUI()
     
     // Battery level is from 0.0 to 1.0, get it in terms of 0-100
     self.BatteryLevel = ((int)([Device batteryLevel] * 100));
-    UE_LOG(LogIOS, Display, TEXT("Battery Level Changed: %d"), self.BatteryLevel);
+	[FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
+	{
+		UE_LOG(LogIOS, Display, TEXT("Battery Level Changed: %d"), self.BatteryLevel);
+		return true;
+	}];
 #endif
 }
 
@@ -1883,7 +1890,11 @@ CORE_API bool IOSShowAchievementsUI()
     UIDevice* Device = [UIDevice currentDevice];
     UIDeviceBatteryState State = Device.batteryState;
     self.bBatteryState = State == UIDeviceBatteryStateUnplugged || State == UIDeviceBatteryStateUnknown;
-    UE_LOG(LogIOS, Display, TEXT("Battery State Changed: %d"), self.bBatteryState);
+	[FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
+	{
+		UE_LOG(LogIOS, Display, TEXT("Battery State Changed: %d"), self.bBatteryState);
+		return true;
+	}];
 #endif
 }
 
@@ -1904,8 +1915,12 @@ CORE_API bool IOSShowAchievementsUI()
 			case NSProcessInfoThermalStateCritical:	Severity = FCoreDelegates::ETemperatureSeverity::Critical; Level = TEXT("Critical"); break;
 		}
 
-        UE_LOG(LogIOS, Display, TEXT("Temperaure Changed: %s"), *Level);
-		FCoreDelegates::OnTemperatureChange.Broadcast(Severity);
+		[FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
+		{
+			UE_LOG(LogIOS, Display, TEXT("Temperature Changed: %s"), *Level);
+			FCoreDelegates::OnTemperatureChange.Broadcast(Severity);
+			return true;
+		}];
 	}
 #endif
 }

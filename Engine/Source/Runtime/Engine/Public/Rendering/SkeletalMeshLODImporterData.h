@@ -414,6 +414,15 @@ struct FReductionBaseSkeletalMeshBulkData
 	//The custom version when this was load
 	FCustomVersionContainer SerializeLoadingCustomVersionContainer;
 	bool bUseSerializeLoadingCustomVersion = false;
+
+	uint32 CacheLODVertexNumber = MAX_uint32;
+	uint32 CacheLODTriNumber = MAX_uint32;
+
+	/*
+	 * Caching those value since this is a slow operation to load the bulk data to retrieve the original geometry information
+	 */
+	void CacheGeometryInfo(const FSkeletalMeshLODModel& SourceLODModel);
+
 public:
 	/** Default constructor. */
 	ENGINE_API FReductionBaseSkeletalMeshBulkData();
@@ -427,6 +436,9 @@ public:
 
 	/** Load the raw mesh from bulk data. */
 	ENGINE_API void LoadReductionData(FSkeletalMeshLODModel& BaseLODModel, TMap<FString, TArray<FMorphTargetDelta>>& BaseLODMorphTargetData, UObject* Owner);
+
+	/** Return the number of vertices and triangles store in this bulk data. */
+	ENGINE_API void GetGeometryInfo(uint32& LODVertexNumber, uint32& LODTriNumber, UObject* Owner);
 
 	ENGINE_API FByteBulkData& GetBulkData() { return BulkData; }
 

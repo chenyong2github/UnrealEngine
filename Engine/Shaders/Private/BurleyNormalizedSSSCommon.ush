@@ -166,7 +166,7 @@ float4 GetBurleyTransmissionProfile(FGBufferData GBufferData, float Thickness)
 	float3 ScalingFactor = GetSearchLightDiffuseScalingFactor(SurfaceAlbedo);//assuming that the volume albedo is the same to the surface albedo for transmission;
 	float4 Output=float4(0,0,0,1);
 	
-	float3 r = Thickness / MeanFreePath;
+	float3 r = Thickness / MeanFreePath.xyz;
 	Output.xyz= 0.25*SurfaceAlbedo*(exp(-ScalingFactor * r) + 3 * exp(-ScalingFactor * r / 3));
 	return Output;
 }

@@ -7,7 +7,6 @@ using Tools.DotNETCommon;
 public class VorbisFile_HTML5 : VorbisFile
 {
 	protected override string LibRootDirectory { get { return Target.HTML5Platform.PlatformThirdPartySourceDirectory; } }
-	protected override string VorbisFileLibPath { get { return Path.GetDirectoryName(base.VorbisFileLibPath); } }
 
 	public VorbisFile_HTML5(ReadOnlyTargetRules Target) : base(Target)
 	{

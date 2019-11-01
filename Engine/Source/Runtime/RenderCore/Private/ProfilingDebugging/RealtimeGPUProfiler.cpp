@@ -163,7 +163,9 @@ public:
 		//QUICK_SCOPE_CYCLE_COUNTER(STAT_SceneUtils_GatherQueryResults);
 
 		// Get the query results which are still outstanding
+#if TRACING_PROFILER
 		check(GFrameNumberRenderThread != FrameNumber);
+#endif
 		check(StartQuery.IsValid() && EndQuery.IsValid());
 
 		if (StartResultMicroseconds == InvalidQueryResult)
@@ -419,12 +421,9 @@ public:
 			const bool bTracingStatsEnabled = !!CVarGPUTracingStatsEnabled.GetValueOnRenderThread();
 			if (bTracingStatsEnabled)
 			{
-				ANSICHAR EventName[NAME_SIZE];
-				Event.GetName().GetPlainANSIString(EventName);
-
 				const uint32 GPUIndex = 0;
 				FTracingProfiler::Get()->AddGPUEvent(
-					EventName,
+					Event.GetName(),
 					Event.GetStartResultMicroseconds(),
 					Event.GetEndResultMicroseconds(),
 					GPUIndex,

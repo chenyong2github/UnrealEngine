@@ -1258,19 +1258,46 @@ void UCrowdManager::UpdateNavData()
 		UNavigationSystemV1* NavSys = Cast<UNavigationSystemV1>(GetOuter());
 		if (NavSys)
 		{
-			for (int32 Idx = 0; Idx < NavSys->NavDataSet.Num(); Idx++)
+			for (ANavigationData* NavData : NavSys->NavDataSet)
 			{
-				ARecastNavMesh* RecastNavData = Cast<ARecastNavMesh>(NavSys->NavDataSet[Idx]);
-				if (RecastNavData && RecastNavData->IsSupportingDefaultAgent())
+				if (NavData && IsSuitableNavData(*NavData))
 				{
-					MyNavData = RecastNavData;
-					RecastNavData->OnNavMeshUpdate.AddUObject(this, &UCrowdManager::OnNavMeshUpdate);
-					OnNavMeshUpdate();
-
+					SetNavData(NavData);
 					break;
 				}
 			}
 		}
+	}
+}
+
+void UCrowdManager::SetNavData(ANavigationData* NavData, const bool bFindNewNavDataIfNull)
+{
+	if (NavData != MyNavData && MyNavData != nullptr)
+	{
+		// clean up
+		ARecastNavMesh* AsRecastNavData = Cast<ARecastNavMesh>(MyNavData);
+		if (AsRecastNavData)
+		{
+			AsRecastNavData->OnNavMeshUpdate.RemoveAll(this);
+		}
+	}
+
+	if (NavData)
+	{
+		ARecastNavMesh* AsRecastNavData = Cast<ARecastNavMesh>(NavData);
+		if (AsRecastNavData)
+		{
+			AsRecastNavData->OnNavMeshUpdate.AddUObject(this, &UCrowdManager::OnNavMeshUpdate);
+		}
+	}
+
+	MyNavData = NavData;
+	UE_VLOG(this, LogCrowdFollowing, Log, TEXT("Setting cached nav data to %s")
+		, MyNavData ? *MyNavData->GetFullName() : TEXT("NONE"));
+
+	if (NavData || bFindNewNavDataIfNull)
+	{
+		OnNavMeshUpdate();
 	}
 }
 
@@ -1280,6 +1307,36 @@ void UCrowdManager::OnNavMeshUpdate()
 	DestroyCrowdManager();
 	CreateCrowdManager();
 #endif // WITH_RECAST
+}
+
+bool UCrowdManager::IsSuitableNavData(const ANavigationData& NavData) const
+{
+	return NavData.IsSupportingDefaultAgent() && Cast<ARecastNavMesh>(&NavData);
+}
+
+void UCrowdManager::OnNavDataRegistered(ANavigationData& NavData)
+{
+	if (MyNavData == nullptr && IsSuitableNavData(NavData))
+	{
+		SetNavData(&NavData);
+	}
+}
+
+void UCrowdManager::OnNavDataUnregistered(ANavigationData& NavData)
+{
+	if (MyNavData == &NavData)
+	{
+		UE_VLOG(this, LogCrowdFollowing, Warning, TEXT("%s is being unregistered. Will look for new nav data")
+			, *NavData.GetName());
+		
+		// note that this will cause the manager to look for another nav data instance
+		SetNavData(nullptr, /*bFindNewNavDataIfNull=*/true);
+
+		if (MyNavData == nullptr)
+		{
+			UE_VLOG(this, LogCrowdFollowing, Warning, TEXT("Failed to find suitable navigation data instance (no navmesh). Shutting down."));
+		}
+	}
 }
 
 void UCrowdManager::UpdateAvoidanceConfig()

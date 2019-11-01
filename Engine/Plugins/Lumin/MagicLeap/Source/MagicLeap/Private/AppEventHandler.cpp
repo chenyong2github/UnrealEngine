@@ -4,53 +4,13 @@
 #include "AppFramework.h"
 #include "Engine/Engine.h"
 #include "MagicLeapHMD.h"
+#include "MagicLeapPrivilegeUtils.h"
 
 namespace MagicLeap
 {
-#if WITH_MLSDK
-	const TCHAR* MLPrivilegeToString(MLPrivilegeID PrivilegeID)
-	{
-		#define PRIV_TO_STR_CASE(x) case x: { return UTF8_TO_TCHAR((#x)); }
-		switch (PrivilegeID)
-		{
-		PRIV_TO_STR_CASE(MLPrivilegeID_Invalid)
-		PRIV_TO_STR_CASE(MLPrivilegeID_AudioRecognizer)
-		PRIV_TO_STR_CASE(MLPrivilegeID_BatteryInfo)
-		PRIV_TO_STR_CASE(MLPrivilegeID_CameraCapture)
-		PRIV_TO_STR_CASE(MLPrivilegeID_WorldReconstruction)
-		PRIV_TO_STR_CASE(MLPrivilegeID_InAppPurchase)
-		PRIV_TO_STR_CASE(MLPrivilegeID_AudioCaptureMic)
-		PRIV_TO_STR_CASE(MLPrivilegeID_DrmCertificates)
-		PRIV_TO_STR_CASE(MLPrivilegeID_Occlusion)
-		PRIV_TO_STR_CASE(MLPrivilegeID_LowLatencyLightwear)
-		PRIV_TO_STR_CASE(MLPrivilegeID_Internet)
-		PRIV_TO_STR_CASE(MLPrivilegeID_IdentityRead)
-		PRIV_TO_STR_CASE(MLPrivilegeID_BackgroundDownload)
-		PRIV_TO_STR_CASE(MLPrivilegeID_BackgroundUpload)
-		PRIV_TO_STR_CASE(MLPrivilegeID_MediaDrm)
-		PRIV_TO_STR_CASE(MLPrivilegeID_Media)
-		PRIV_TO_STR_CASE(MLPrivilegeID_MediaMetadata)
-		PRIV_TO_STR_CASE(MLPrivilegeID_PowerInfo)
-		PRIV_TO_STR_CASE(MLPrivilegeID_LocalAreaNetwork)
-		PRIV_TO_STR_CASE(MLPrivilegeID_VoiceInput)
-		PRIV_TO_STR_CASE(MLPrivilegeID_Documents)
-		PRIV_TO_STR_CASE(MLPrivilegeID_ConnectBackgroundMusicService)
-		PRIV_TO_STR_CASE(MLPrivilegeID_RegisterBackgroundMusicService)
-		PRIV_TO_STR_CASE(MLPrivilegeID_PwFoundObjRead)
-		PRIV_TO_STR_CASE(MLPrivilegeID_NormalNotificationsUsage)
-		PRIV_TO_STR_CASE(MLPrivilegeID_MusicService)
-		PRIV_TO_STR_CASE(MLPrivilegeID_ControllerPose)
-		PRIV_TO_STR_CASE(MLPrivilegeID_ScreensProvider)
-		PRIV_TO_STR_CASE(MLPrivilegeID_GesturesSubscribe)
-		PRIV_TO_STR_CASE(MLPrivilegeID_GesturesConfig)
-		default: UE_LOG(LogMagicLeap, Error, TEXT("Unmapped privilege %d"), static_cast<int32>(PrivilegeID));
-		}
-
-		return UTF8_TO_TCHAR("");
-	}
-
-	IAppEventHandler::IAppEventHandler(const TArray<MLPrivilegeID>& InRequiredPrivilegeIDs)
-	: OnAppShutDownHandler(nullptr)
+	IAppEventHandler::IAppEventHandler(const TArray<EMagicLeapPrivilege>& InRequiredPrivilegeIDs)
+	: OnPrivilegeEvent(nullptr)
+	, OnAppShutDownHandler(nullptr)
 	, OnAppTickHandler(nullptr)
 	, OnAppPauseHandler(nullptr)
 	, OnAppResumeHandler(nullptr)
@@ -58,14 +18,13 @@ namespace MagicLeap
 	, bWasSystemEnabledOnPause(false)
 	{
 		RequiredPrivileges.Reserve(InRequiredPrivilegeIDs.Num());
-		for (MLPrivilegeID RequiredPrivilegeID : InRequiredPrivilegeIDs)
+		for (EMagicLeapPrivilege RequiredPrivilegeID : InRequiredPrivilegeIDs)
 		{
 			RequiredPrivileges.Add(RequiredPrivilegeID, FRequiredPrivilege(RequiredPrivilegeID));
 		}
 
 		FAppFramework::AddEventHandler(this);
 	}
-#endif // WITH_MLSDK
 
 	IAppEventHandler::IAppEventHandler()
 	: bAllPrivilegesInSync(true)
@@ -79,46 +38,98 @@ namespace MagicLeap
 		FAppFramework::RemoveEventHandler(this);
 	}
 
-#if WITH_MLSDK
-	EPrivilegeState IAppEventHandler::GetPrivilegeStatus(MLPrivilegeID PrivilegeID, bool bBlocking/* = true*/)
+	EPrivilegeState IAppEventHandler::GetPrivilegeStatus(EMagicLeapPrivilege PrivilegeID, bool bBlocking/* = true*/)
 	{
-		FScopeLock Lock(&CriticalSection);
-		FRequiredPrivilege& RequiredPrivilege = RequiredPrivileges[PrivilegeID];
-		if (RequiredPrivilege.State == EPrivilegeState::NotYetRequested)
+#if WITH_MLSDK
+		FRequiredPrivilege RequiredPrivilege(PrivilegeID);
 		{
-			if (bBlocking)
+			FScopeLock Lock(&CriticalSection);
+			RequiredPrivilege = RequiredPrivileges[PrivilegeID];
+		}
+		
+		if (RequiredPrivilege.State == EPrivilegeState::NotYetRequested || RequiredPrivilege.State == EPrivilegeState::Pending)
+		{
+			// Attempt a quick check first. Note that MLPrivilegesCheckPrivilege will return denied if the privilege has never been requested.
+			MLResult Result = MLPrivilegesCheckPrivilege(MagicLeap::UnrealToMLPrivilege(PrivilegeID));
+			if (Result == MLPrivilegesResult_Granted)
 			{
-				MLResult Result = MLPrivilegesRequestPrivilege(PrivilegeID);
+				RequiredPrivilege.State = EPrivilegeState::Granted;
+				UE_LOG(LogMagicLeap, Log, TEXT("Privilege '%s' was granted."), *MagicLeap::MLPrivilegeToString(RequiredPrivilege.PrivilegeID));
+			} 
+			else if (bBlocking)
+			{
+				Result = MLPrivilegesRequestPrivilege(MagicLeap::UnrealToMLPrivilege(PrivilegeID));
 				switch (Result)
 				{
 				case MLPrivilegesResult_Granted:
 				{
 					RequiredPrivilege.State = EPrivilegeState::Granted;
-					UE_LOG(LogMagicLeap, Log, TEXT("Privilege '%s' was granted."), MLPrivilegeToString(RequiredPrivilege.PrivilegeID));
+					UE_LOG(LogMagicLeap, Log, TEXT("Privilege '%s' was granted."), *MagicLeap::MLPrivilegeToString(RequiredPrivilege.PrivilegeID));
 				}
 				break;
 				case MLPrivilegesResult_Denied:
 				{
 					RequiredPrivilege.State = EPrivilegeState::Denied;
-					UE_LOG(LogMagicLeap, Log, TEXT("Privilege '%s' was denied."), MLPrivilegeToString(RequiredPrivilege.PrivilegeID));
+					UE_LOG(LogMagicLeap, Log, TEXT("Privilege '%s' was denied."), *MagicLeap::MLPrivilegeToString(RequiredPrivilege.PrivilegeID));
 				}
 				break;
 				default:
 				{
 					UE_LOG(LogMagicLeap, Error, TEXT("MLPrivilegesRequestPrivilege() failed with error %s"), UTF8_TO_TCHAR(MLPrivilegesGetResultString(Result)));
+					RequiredPrivilege.State = EPrivilegeState::Error;
 				}
 				}
 			}
 			else
 			{
-				MLPrivilegesRequestPrivilegeAsync(PrivilegeID, &RequiredPrivilege.PrivilegeRequest);
-				RequiredPrivilege.State = EPrivilegeState::Pending;
+				Result = MLPrivilegesRequestPrivilegeAsync(MagicLeap::UnrealToMLPrivilege(PrivilegeID), reinterpret_cast<MLPrivilegesAsyncRequest**>(&RequiredPrivilege.PrivilegeRequest));
+				if (Result != MLResult_Ok)
+				{
+					UE_LOG(LogMagicLeap, Error, TEXT("MLPrivilegesRequestPrivilegeAsync() failed with error %s"), UTF8_TO_TCHAR(MLPrivilegesGetResultString(Result)));
+					RequiredPrivilege.State = EPrivilegeState::Error;
+				}
+				else
+				{
+					RequiredPrivilege.State = EPrivilegeState::Pending;
+				}
 			}
 		}
 
+		{
+			FScopeLock Lock(&CriticalSection);
+			RequiredPrivileges[PrivilegeID] = RequiredPrivilege;
+		}
+
 		return RequiredPrivilege.State;
-	}
+#else
+		return EPrivilegeState::NotYetRequested;
 #endif // WITH_MLSDK
+	}
+
+	FString IAppEventHandler::PrivilegeToString(EMagicLeapPrivilege PrivilegeID)
+	{
+#if WITH_MLSDK
+		return MLPrivilegeToString(PrivilegeID);
+#else
+		return TEXT("MLPrivilegeID_Invalid");
+#endif // WITH_MLSDK
+	}
+
+	const TCHAR* IAppEventHandler::PrivilegeStateToString(EPrivilegeState PrivilegeState)
+	{
+		const TCHAR* PrivilegeStateString = nullptr;
+
+		switch (PrivilegeState)
+		{
+		case EPrivilegeState::NotYetRequested:	PrivilegeStateString = TEXT("NotYetRequested"); break;
+		case EPrivilegeState::Pending:			PrivilegeStateString = TEXT("Pending"); break;
+		case EPrivilegeState::Granted:			PrivilegeStateString = TEXT("Granted"); break;
+		case EPrivilegeState::Denied:			PrivilegeStateString = TEXT("Denied"); break;
+		case EPrivilegeState::Error:			PrivilegeStateString = TEXT("Error"); break;
+		}
+
+		return PrivilegeStateString;
+	}
 
 	void IAppEventHandler::OnAppShutDown()
 	{
@@ -155,19 +166,19 @@ namespace MagicLeap
 
 			if (RequiredPrivilege.State == EPrivilegeState::Pending)
 			{
-				MLResult Result = MLPrivilegesRequestPrivilegeTryGet(RequiredPrivilege.PrivilegeRequest);
+				MLResult Result = MLPrivilegesRequestPrivilegeTryGet(static_cast<MLPrivilegesAsyncRequest*>(RequiredPrivilege.PrivilegeRequest));
 				switch (Result)
 				{
 				case MLPrivilegesResult_Granted:
 				{
 					RequiredPrivilege.State = EPrivilegeState::Granted;
-					UE_LOG(LogMagicLeap, Log, TEXT("Privilege '%s' was granted."), MLPrivilegeToString(RequiredPrivilege.PrivilegeID));
+					UE_LOG(LogMagicLeap, Log, TEXT("Privilege '%s' was granted."), *MagicLeap::MLPrivilegeToString(RequiredPrivilege.PrivilegeID));
 				}
 				break;
 				case MLPrivilegesResult_Denied:
 				{
 					RequiredPrivilege.State = EPrivilegeState::Denied;
-					UE_LOG(LogMagicLeap, Log, TEXT("Privilege '%s' was denied."), MLPrivilegeToString(RequiredPrivilege.PrivilegeID));
+					UE_LOG(LogMagicLeap, Log, TEXT("Privilege '%s' was denied."), *MagicLeap::MLPrivilegeToString(RequiredPrivilege.PrivilegeID));
 				}
 				break;
 				case MLResult_Pending:
@@ -178,8 +189,13 @@ namespace MagicLeap
 				default:
 				{
 					bAllPrivilegesInSync = false;
-					UE_LOG(LogMagicLeap, Error, TEXT("MLPrivilegesRequestPrivilegeTryGet() failed with error %s"), UTF8_TO_TCHAR(MLPrivilegesGetResultString(Result)));
+					UE_LOG(LogMagicLeap, Error, TEXT("MLPrivilegesRequestPrivilegeTryGet() failed with error %s."), UTF8_TO_TCHAR(MLPrivilegesGetResultString(Result)));
 				}
+				}
+
+				if (Result != MLResult_Pending && OnPrivilegeEvent)
+				{
+					OnPrivilegeEvent(RequiredPrivilege);
 				}
 			}
 		}

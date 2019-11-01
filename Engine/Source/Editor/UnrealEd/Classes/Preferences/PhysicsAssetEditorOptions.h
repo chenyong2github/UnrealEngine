@@ -134,6 +134,14 @@ class UNREALED_API UPhysicsAssetEditorOptions : public UObject
 	UPROPERTY(config)
 	bool bSolidRenderingForSelectedOnly;
 
+	/** When set, disables rendering for simulated bodies */
+	UPROPERTY(config)
+	bool bHideSimulatedBodies;
+
+	/** When set, disables rendering for kinematic bodies */
+	UPROPERTY(config)
+	bool bHideKinematicBodies;
+
 	/** When set, cloth will reset each time simulation is toggled */
 	UPROPERTY(EditAnywhere, config, Category=Clothing)
 	bool bResetClothWhenSimulating;

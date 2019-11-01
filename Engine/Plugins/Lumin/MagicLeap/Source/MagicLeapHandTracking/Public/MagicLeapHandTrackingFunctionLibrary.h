@@ -26,7 +26,7 @@ public:
 	  @param HandCenter Output parameter containing the position and orientation of the given hand.
 	  @return true if the output param was populated with a valid value, false means that is is either unchanged or populated with a stale value.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "HandTracking|MagicLeap", meta = (DeprecatedFunction, DeprecationMessage = "GetHandCenter is deprecated. Please use GetGestureKeypointTransform instead."))
+	UFUNCTION(BlueprintCallable, Category = "HandTracking|MagicLeap")
 	static bool GetHandCenter(EControllerHand Hand, FTransform& HandCenter);
 
 	/**
@@ -37,8 +37,8 @@ public:
 	  @param Pointer Output parameter containing the position and orientation.
 	  @return true if the output param was populated with a valid value, false means that is is either unchanged or populated with a stale value.
 	  */
-	UFUNCTION(BlueprintCallable, Category = "HandTracking|MagicLeap", meta = (DeprecatedFunction, DeprecationMessage = "GetHandIndexFingerTip is deprecated. Please use GetGestureKeypointTransform instead."))
-	static bool GetHandIndexFingerTip(EControllerHand Hand, EGestureTransformSpace TransformSpace, FTransform& Pointer);
+	UFUNCTION(BlueprintCallable, Category = "HandTracking|MagicLeap")
+	static bool GetHandIndexFingerTip(EControllerHand Hand, EMagicLeapGestureTransformSpace TransformSpace, FTransform& Pointer);
 
 	/**
 	  Transform of Thumb Tip.
@@ -52,8 +52,8 @@ public:
 	  @param Secondary Output parameter containing the position and orientation.
 	  @return true if the output param was populated with a valid value, false means that is is either unchanged or populated with a stale value.
 	  */
-	UFUNCTION(BlueprintCallable, Category = "HandTracking|MagicLeap", meta = (DeprecatedFunction, DeprecationMessage = "GetHandThumbTip is deprecated. Please use GetGestureKeypointTransform instead."))
-	static bool GetHandThumbTip(EControllerHand Hand, EGestureTransformSpace TransformSpace, FTransform& Secondary);
+	UFUNCTION(BlueprintCallable, Category = "HandTracking|MagicLeap")
+	static bool GetHandThumbTip(EControllerHand Hand, EMagicLeapGestureTransformSpace TransformSpace, FTransform& Secondary);
 
 	/**
 	  Normalized position of the center of the given hand. This can be used to detect and warn the users that the hand is out of the gesture detection frame.
@@ -79,7 +79,7 @@ public:
 	  @param Keypoints Output parameter containing transforms of the keypoints detected on the given hand.
 	  @return true if the output param was populated with a valid value, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "HandTracking|MagicLeap", meta = (DeprecatedFunction, DeprecationMessage = "GetGestureKeypoints is deprecated. Please use GetGestureKeypointTransform instead."))
+	UFUNCTION(BlueprintCallable, Category = "HandTracking|MagicLeap")
 	static bool GetGestureKeypoints(EControllerHand Hand, TArray<FTransform>& Keypoints);
 
 	/**
@@ -92,7 +92,7 @@ public:
 	@return true if the output param was populated with a valid value, false means that is is either unchanged or populated with a stale value.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "HandTracking|MagicLeap")
-	static bool GetGestureKeypointTransform(EControllerHand Hand, EHandTrackingKeypoint Keypoint, EGestureTransformSpace TransformSpace, FTransform& Transform);
+	static bool GetGestureKeypointTransform(EControllerHand Hand, EMagicLeapHandTrackingKeypoint Keypoint, EMagicLeapGestureTransformSpace TransformSpace, FTransform& Transform);
 
 	/**
 	  Enables and disables the gestures to be detected by the gesture recognition system.
@@ -104,7 +104,7 @@ public:
 	  @return true if the configuration was set successfully.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "HandTracking|MagicLeap")
-	static bool SetConfiguration(const TArray<EHandTrackingGesture>& StaticGesturesToActivate, EHandTrackingKeypointFilterLevel KeypointsFilterLevel = EHandTrackingKeypointFilterLevel::NoFilter, EHandTrackingGestureFilterLevel GestureFilterLevel = EHandTrackingGestureFilterLevel::NoFilter, EHandTrackingGestureFilterLevel HandSwitchingFilterLevel = EHandTrackingGestureFilterLevel::NoFilter, bool bTrackingEnabled = true);
+	static bool SetConfiguration(const TArray<EMagicLeapHandTrackingGesture>& StaticGesturesToActivate, EMagicLeapHandTrackingKeypointFilterLevel KeypointsFilterLevel = EMagicLeapHandTrackingKeypointFilterLevel::NoFilter, EMagicLeapHandTrackingGestureFilterLevel GestureFilterLevel = EMagicLeapHandTrackingGestureFilterLevel::NoFilter, bool bTrackingEnabled = true);
 
 	/**
 	  Gets the list of static and dynamic gestures currently set to be identified by the gesture recognition system.
@@ -116,7 +116,7 @@ public:
 	  @return true if the output params were populated with a valid value, false otherwise.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "HandTracking|MagicLeap")
-	static bool GetConfiguration(TArray<EHandTrackingGesture>& ActiveStaticGestures, EHandTrackingKeypointFilterLevel& KeypointsFilterLevel, EHandTrackingGestureFilterLevel& GestureFilterLevel, EHandTrackingGestureFilterLevel& HandSwitchingFilterLevel, bool& bTrackingEnabled);
+	static bool GetConfiguration(TArray<EMagicLeapHandTrackingGesture>& ActiveStaticGestures, EMagicLeapHandTrackingKeypointFilterLevel& KeypointsFilterLevel, EMagicLeapHandTrackingGestureFilterLevel& GestureFilterLevel, bool& bTrackingEnabled);
 
 	/**
 	  Sets the minimum gesture confidence to filter out the detected static gesture.
@@ -125,7 +125,7 @@ public:
 	  @param Confidence The gesture confidence threshold.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "HandTracking|MagicLeap")
-	static void SetStaticGestureConfidenceThreshold(EHandTrackingGesture Gesture, float Confidence);
+	static void SetStaticGestureConfidenceThreshold(EMagicLeapHandTrackingGesture Gesture, float Confidence);
 
 	/**
 	  Gets the minimum gesture confidence used to filter out the detected static gesture.
@@ -134,7 +134,7 @@ public:
 	  @return The gesture confidence threshold.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "HandTracking|MagicLeap")
-	static float GetStaticGestureConfidenceThreshold(EHandTrackingGesture Gesture);
+	static float GetStaticGestureConfidenceThreshold(EMagicLeapHandTrackingGesture Gesture);
 
 	/**
 	  The confidence level of the current gesture being performed by the given hand.
@@ -155,7 +155,7 @@ public:
 	  @return true if the output param was populated with a valid value, false otherwise.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "HandTracking|MagicLeap")
-	static bool GetCurrentGesture(EControllerHand Hand, EHandTrackingGesture& Gesture);
+	static bool GetCurrentGesture(EControllerHand Hand, EMagicLeapHandTrackingGesture& Gesture);
 
 
 	/**

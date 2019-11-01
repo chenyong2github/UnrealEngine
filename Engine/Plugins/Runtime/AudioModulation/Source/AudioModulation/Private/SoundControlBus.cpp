@@ -8,7 +8,7 @@
 #include "AudioModulationLogging.h"
 #include "Engine/World.h"
 #include "SoundModulatorLFO.h"
-
+#include "SoundModulationProxy.h"
 
 USoundControlBusBase::USoundControlBusBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -22,6 +22,16 @@ USoundControlBusBase::USoundControlBusBase(const FObjectInitializer& ObjectIniti
 }
 
 #if WITH_EDITOR
+void USoundControlBusBase::PostDuplicate(EDuplicateMode::Type DuplicateMode)
+{
+	if (!bOverrideAddress)
+	{
+		Address = GetName();
+	}
+
+	Super::PostDuplicate(DuplicateMode);
+}
+
 void USoundControlBusBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	if (UProperty* Property = PropertyChangedEvent.Property)
@@ -29,6 +39,14 @@ void USoundControlBusBase::PostEditChangeProperty(FPropertyChangedEvent& Propert
 		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(USoundControlBusBase, bOverrideAddress) && !bOverrideAddress)
 		{
 			Address = GetName();
+		}
+
+		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(USoundControlBusBase, DefaultValue)
+			|| Property->GetFName() == GET_MEMBER_NAME_CHECKED(USoundControlBusBase, Min)
+			|| Property->GetFName() == GET_MEMBER_NAME_CHECKED(USoundControlBusBase, Max))
+		{
+			Min = FMath::Min(Min, Max);
+			DefaultValue = FMath::Clamp(DefaultValue, Min, Max);
 		}
 	}
 
@@ -73,6 +91,11 @@ USoundHPFControlBus::USoundHPFControlBus(const FObjectInitializer& ObjectInitial
 	: Super(ObjectInitializer)
 {
 	DefaultValue = 0.0f;
+}
+
+USoundControlBus::USoundControlBus(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
 }
 
 void USoundControlBusBase::BeginDestroy()

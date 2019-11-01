@@ -597,7 +597,17 @@ public:
 
 	virtual void InitRHI() override
 	{
-		if (Initializer.IndexBuffer && Initializer.PositionVertexBuffer && IsRayTracingEnabled())
+		bool bAllSegmentsAreValid = true;
+		for (const FRayTracingGeometrySegment& Segment : Initializer.Segments)
+		{
+			if (!Segment.VertexBuffer)
+			{
+				bAllSegmentsAreValid = false;
+				break;
+			}
+		}
+
+		if (Initializer.IndexBuffer && bAllSegmentsAreValid && IsRayTracingEnabled())
 		{
 			RayTracingGeometryRHI = RHICreateRayTracingGeometry(Initializer);
 			FRHICommandListExecutor::GetImmediateCommandList().BuildAccelerationStructure(RayTracingGeometryRHI);

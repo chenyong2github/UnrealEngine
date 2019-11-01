@@ -152,16 +152,20 @@ void EncodeNormal( inout float3 N, out uint Face )
 	N = Axis == 0 ? N.yzx : N;
 	N = Axis == 1 ? N.xzy : N;
 	
+	float MaxAbs = 1.0 / sqrt(2.0);
+
 	Face += N.z > 0 ? 0 : 1;
 	N.xy *= N.z > 0 ? 1 : -1;
-	N.xy = N.xy * 0.5 + 0.5;
+	N.xy = N.xy * (0.5 / MaxAbs) + 0.5;
 }
 
 void DecodeNormal( inout float3 N, in uint Face )
 {
 	uint Axis = Face >> 1;
+	
+	float MaxAbs = 1.0 / sqrt(2.0);
 
-	N.xy = N.xy * 2 - 1;
+	N.xy = N.xy * (2 * MaxAbs) - (1 * MaxAbs);
 	N.z = sqrt( 1 - dot( N.xy, N.xy ) );
 
 	N = Axis == 0 ? N.zxy : N;
