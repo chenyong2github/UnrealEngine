@@ -355,6 +355,8 @@ void SScrollBox::SetScrollOffset( float NewScrollOffset )
 {
 	DesiredScrollOffset = NewScrollOffset;
 	bScrollToEnd = false;
+
+	Invalidate(EInvalidateWidget::Layout);
 }
 
 void SScrollBox::ScrollToStart()
