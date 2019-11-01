@@ -11,6 +11,7 @@
 #include "HitProxies.h"
 #include "LevelViewportClickHandlers.h"
 #include "GeometryModeModule.h"
+#include "ScopedTransaction.h"
 
 DEFINE_LOG_CATEGORY(LogBrushEditing);
 
