@@ -35,6 +35,9 @@ static FAutoConsoleVariableRef CVarHairVoxelizationDepthBiasScale(TEXT("r.HairSt
 static int32 GHairVoxelInjectOpaqueDepthEnable = 1;
 static FAutoConsoleVariableRef CVarHairVoxelInjectOpaqueDepthEnable(TEXT("r.HairStrands.Voxelization.InjectOpaqueDepth"), GHairVoxelInjectOpaqueDepthEnable, TEXT("Inject opaque geometry depth into the voxel volume for acting as occluder."));
 
+static int32 GHairVoxelFilterOpaqueDepthEnable = 0;
+static FAutoConsoleVariableRef CVarHairVoxelFilterOpaqueDepthEnable(TEXT("r.HairStrands.Voxelization.FilterOpaqueDepth"), GHairVoxelFilterOpaqueDepthEnable, TEXT("Filter opaque geometry depth into the voxel volume for acting as occluder."));
+
 static int32 GHairStrandsVoxelMipMethod = 0;
 static FAutoConsoleVariableRef CVarHairVoxelMipMethod(TEXT("r.HairStrands.Voxelization.MipMethod"), GHairStrandsVoxelMipMethod, TEXT("Voxel mip methods (0 : one level per pass, 1 : two levels per pass."));
 
@@ -167,6 +170,58 @@ static void AddVoxelInjectOpaquePass(
 			Resolution,
 			*VertexShader,
 			EDRF_UseTriangleOptimization);
+	});
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+class FVoxelFilterDepthCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FVoxelFilterDepthCS);
+	SHADER_USE_PARAMETER_STRUCT(FVoxelFilterDepthCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
+
+		SHADER_PARAMETER(uint32, VoxelResolution)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D, VoxelTexture)
+
+	END_SHADER_PARAMETER_STRUCT()
+
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+};
+
+IMPLEMENT_GLOBAL_SHADER(FVoxelFilterDepthCS, "/Engine/Private/HairStrands/HairStrandsVoxelOpaque.usf", "MainCS", SF_Compute);
+
+static void AddFilterVoxelOpaqueDepthPass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	FHairStrandsClusterData& Cluster)
+{
+	if (!Cluster.VoxelResources.DensityTexture)
+		return;
+
+	TRefCountPtr<IPooledRenderTarget> DensityTexture = Cluster.VoxelResources.DensityTexture;
+	check(DensityTexture->GetDesc().Extent.X == DensityTexture->GetDesc().Extent.Y);
+
+	const uint32 VoxelResolution = DensityTexture->GetDesc().Extent.X;
+	FRDGTextureRef VoxelDensityTexture = GraphBuilder.RegisterExternalTexture(DensityTexture, TEXT("HairVoxelDensityTexture"));
+	FVoxelFilterDepthCS::FParameters* Parameters = GraphBuilder.AllocParameters<FVoxelFilterDepthCS::FParameters>();
+	Parameters->VoxelTexture = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(VoxelDensityTexture));
+	Parameters->VoxelResolution = VoxelResolution;
+
+	TShaderMapRef<FVoxelFilterDepthCS> ComputeShader(View.ShaderMap);
+	const TShaderMap<FGlobalShaderType>* GlobalShaderMap = View.ShaderMap;
+	const FIntVector DispatchCount = FComputeShaderUtils::GetGroupCount(FIntVector(VoxelResolution, VoxelResolution, VoxelResolution), FIntVector(4, 4, 4));
+
+	ClearUnusedGraphResources(*ComputeShader, Parameters);
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("HairStrandsVoxelFilterDepth"),
+		Parameters,
+		ERDGPassFlags::Compute,
+		[Parameters, ComputeShader, DispatchCount](FRHICommandList& RHICmdList)
+	{
+		FComputeShaderUtils::Dispatch(RHICmdList, *ComputeShader, *Parameters, DispatchCount);
 	});
 }
 
@@ -380,6 +435,10 @@ static void RenderVoxelization(
 	{
 		FRDGBuilder GraphBuilder(RHICmdList);
 		AddVoxelInjectOpaquePass(GraphBuilder, *ViewInfo, Cluster);
+		if (GHairVoxelFilterOpaqueDepthEnable)
+		{
+			AddFilterVoxelOpaqueDepthPass(GraphBuilder, *ViewInfo, Cluster);
+		}
 		GraphBuilder.Execute();
 	}
 
