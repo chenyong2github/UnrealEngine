@@ -32,6 +32,8 @@ typedef FName FEditorModeID;
 
 typedef FName VREditorPanelID;
 
+enum class EAssetEditorCloseReason : uint8;
+
 /** Stores the animation playback state of a VR UI element */
 enum class EVREditorAnimationState : uint8
 {
@@ -332,6 +334,7 @@ protected:
 	/** When VR Mode debug was toggled. */
 	void ToggledDebugMode(bool bDebugModeEnabled);
 
+	void OnCloseAssetEditor(UObject* Asset, EAssetEditorCloseReason CloseReason);
 protected:
 
 	/** Owning object */
@@ -439,4 +442,6 @@ protected:
 	/** When started dragging from the radial menu we want the analog stick to be reset before the user is allowed to scale the panel. 
 	    Otherwise the panel will immediately start scaling because the user is using the analog stick to aim at the radial menu items. */
 	bool bPanelCanScale;
+
+	FDelegateHandle AssetEditorCloseDelegate;
 };
