@@ -49,11 +49,11 @@ enum class EStandardLoggingContext: uint8
 
 struct FStandardLoggingParameters
 {
-	FStandardLoggingParameters(FOutputDevice* InAr, EStandardLoggingContext InContext, int32 InKeyframe)
-		: Ar(InAr), Context(InContext), Keyframe(InKeyframe) { }
+	FStandardLoggingParameters(FOutputDevice* InAr, EStandardLoggingContext InContext, int32 InFrame)
+		: Ar(InAr), Context(InContext), Frame(InFrame) { }
 	FOutputDevice* Ar;
 	EStandardLoggingContext Context;
-	int32 Keyframe;
+	int32 Frame;
 };
 
 struct FNetworkSimulationModelInitParameters
@@ -69,47 +69,47 @@ struct FNetSimProcessedFrameDebugInfo
 {
 	int32 LocalGFrameNumber; // Local GFrame number
 	float LocalDeltaTimeSeconds; // Local frame time
-	TArray<int32> ProcessedKeyframes; // Which keyframes were processed this frame
-	int32 PendingKeyframe; // What PendingKeyframe was at the end of the frame. Does NOT mean we processed it this frame!
-	int32 HeadKeyframe; // Head keyframe of the inputbuffer when the frame ended
+	TArray<int32> ProcessedFrames; // Which frames were processed this frame
+	int32 PendingFrame; // What PendingFrame was at the end of the frame. Does NOT mean we processed it this frame!
+	int32 HeadFrame; // Head frame of the inputbuffer when the frame ended
 
 	float RemainingAllowedSimulationTimeSeconds;
 	
-	int32 LastSentInputKeyframe;
-	int32 LastReceivedInputKeyframe;
+	int32 LastSentInputFrame;
+	int32 LastReceivedInputFrame;
 
 	void NetSerialize(const FNetSerializeParams& P)
 	{	
 		P.Ar << LocalGFrameNumber;
 		P.Ar << LocalDeltaTimeSeconds;
-		P.Ar << PendingKeyframe;
-		P.Ar << HeadKeyframe;
+		P.Ar << PendingFrame;
+		P.Ar << HeadFrame;
 		P.Ar << RemainingAllowedSimulationTimeSeconds;
 
-		P.Ar << LastSentInputKeyframe;
-		P.Ar << LastReceivedInputKeyframe;
+		P.Ar << LastSentInputFrame;
+		P.Ar << LastReceivedInputFrame;
 
-		SafeNetSerializeTArray_Default<31>(P.Ar, ProcessedKeyframes);
+		SafeNetSerializeTArray_Default<31>(P.Ar, ProcessedFrames);
 	}
 	void Log(FStandardLoggingParameters& P) const
 	{
 		P.Ar->Logf(TEXT("LocalGFrameNumber: %d"), LocalGFrameNumber);
 		P.Ar->Logf(TEXT("LocalDeltaTimeSeconds: %.4f"), LocalDeltaTimeSeconds);
-		P.Ar->Logf(TEXT("PendingKeyframe: %d"), PendingKeyframe);
-		P.Ar->Logf(TEXT("HeadKeyframe: %d"), HeadKeyframe);
+		P.Ar->Logf(TEXT("PendingFrame: %d"), PendingFrame);
+		P.Ar->Logf(TEXT("HeadFrame: %d"), HeadFrame);
 		P.Ar->Logf(TEXT("RemainingAllowedSimulationTimeSeconds: %.4f"), RemainingAllowedSimulationTimeSeconds);
 
-		P.Ar->Logf(TEXT("LastSentInputKeyframe: %d"), LastSentInputKeyframe);
-		P.Ar->Logf(TEXT("LastReceivedInputKeyframe: %d"), LastReceivedInputKeyframe);
+		P.Ar->Logf(TEXT("LastSentInputFrame: %d"), LastSentInputFrame);
+		P.Ar->Logf(TEXT("LastReceivedInputFrame: %d"), LastReceivedInputFrame);
 
-		FString ProcessedKeyframesStr;
-		for (int32 k : ProcessedKeyframes)
+		FString ProcessedFramesStr;
+		for (int32 k : ProcessedFrames)
 		{
-			ProcessedKeyframesStr += LexToString(k);
-			ProcessedKeyframesStr += TEXT(" ");
+			ProcessedFramesStr += LexToString(k);
+			ProcessedFramesStr += TEXT(" ");
 		}
-		ProcessedKeyframesStr.TrimEndInline();
-		P.Ar->Logf(TEXT("ProcessedKeyframes: [%s]"), *ProcessedKeyframesStr);
+		ProcessedFramesStr.TrimEndInline();
+		P.Ar->Logf(TEXT("ProcessedFrames: [%s]"), *ProcessedFramesStr);
 	}
 };
 
@@ -130,8 +130,8 @@ enum class EVisualLoggingContext: uint8
 	// (Contexts used by interpolation)
 	InterpolationBufferHead,// Head end of sync buffer while interpolating
 	InterpolationBufferTail,// Tail end of sync buffer while interpolating
-	InterpolationFrom,		// Immediate "from" interpolation keyframe
-	InterpolationTo,		// Immediate "to" interpolation keyframe
+	InterpolationFrom,		// Immediate "from" interpolation frame
+	InterpolationTo,		// Immediate "to" interpolation frame
 	
 	InterpolationLatest,	// Latest interpolation position in normal circumstances
 	InterpolationWaiting,	// Latest interpolation while waiting (overrun)
@@ -153,11 +153,11 @@ enum class EVisualLoggingLifetime : uint8
 
 struct FVisualLoggingParameters
 {
-	FVisualLoggingParameters(EVisualLoggingContext InContext, int32 InKeyframe, EVisualLoggingLifetime InLifetime, const FString& Str=FString()) :
-		 Context(InContext), Keyframe(InKeyframe), Lifetime(InLifetime), DebugString(Str) { }
+	FVisualLoggingParameters(EVisualLoggingContext InContext, int32 InFrame, EVisualLoggingLifetime InLifetime, const FString& Str=FString()) :
+		 Context(InContext), Frame(InFrame), Lifetime(InLifetime), DebugString(Str) { }
 
 	EVisualLoggingContext Context;
-	int32 Keyframe;
+	int32 Frame;
 	EVisualLoggingLifetime Lifetime;
 	FString DebugString;
 
@@ -249,8 +249,8 @@ public:
 	virtual void NotifyDependentSimNeedsReconcile() = 0;
 	
 	// Called by parent sim on the dependent sim as it reconciles
-	virtual void BeginRollback(const struct FNetworkSimTime& RollbackDeltaTime, const int32 ParentKeyframe) = 0;
-	virtual void StepRollback(const struct FNetworkSimTime& Step, const int32 ParentKeyframe, const bool FinalStep) = 0;
+	virtual void BeginRollback(const struct FNetworkSimTime& RollbackDeltaTime, const int32 ParentFrame) = 0;
+	virtual void StepRollback(const struct FNetworkSimTime& Step, const int32 ParentFrame, const bool FinalStep) = 0;
 };
 
 // -------------------------------------------------------------------------------------------------------------------------------

@@ -65,8 +65,8 @@ public:
 		check(InSimulation && InDriver);
 		Simulation = InSimulation;
 		Driver = InDriver;
-		*Buffers.Sync.WriteKeyframe(0) = InitialSyncState;
-		*Buffers.Aux.WriteKeyframe(0) = InitialAuxState;
+		*Buffers.Sync.WriteFrame(0) = InitialSyncState;
+		*Buffers.Aux.WriteFrame(0) = InitialAuxState;
 		Ticker.SetTotalProcessedSimulationTime(FNetworkSimTime(), 0);
 		DO_NETSIM_MODEL_DEBUG(FNetworkSimulationModelDebuggerManager::Get().RegisterNetworkSimulationModel(this, Driver->GetVLogOwner()));
 	}
@@ -83,15 +83,15 @@ public:
 		// (property replication and ServerRPC get sent after the tick, rather than forcing awkward callback into the NetSim post replication, we can check it here)
 		if (auto* DebugBuffer = GetLocalDebugBuffer())
 		{
-			if (TDebugState* const PrevDebugState = DebugBuffer->Get(DebugBuffer->HeadKeyframe()))
+			if (TDebugState* const PrevDebugState = DebugBuffer->Get(DebugBuffer->HeadFrame()))
 			{
 				if (Parameters.Role == ROLE_AutonomousProxy)
 				{
-					PrevDebugState->LastSentInputKeyframe = RepProxy_ServerRPC.GetLastSerializedKeyframe();
+					PrevDebugState->LastSentInputFrame = RepProxy_ServerRPC.GetLastSerializedFrame();
 				}
 				else if (Parameters.Role == ROLE_Authority)
 				{
-					PrevDebugState->LastSentInputKeyframe = RepProxy_Autonomous.GetLastSerializedKeyframe();
+					PrevDebugState->LastSentInputFrame = RepProxy_Autonomous.GetLastSerializedFrame();
 				}
 			}
 		}
@@ -103,15 +103,15 @@ public:
 			*DebugState = TDebugState();
 			DebugState->LocalDeltaTimeSeconds = Parameters.LocalDeltaTimeSeconds;
 			DebugState->LocalGFrameNumber = GFrameNumber;
-			DebugState->ProcessedKeyframes.Reset();
+			DebugState->ProcessedFrames.Reset();
 			
 			if (Parameters.Role == ROLE_AutonomousProxy)
 			{
-				DebugState->LastReceivedInputKeyframe = RepProxy_Autonomous.GetLastSerializedKeyframe();
+				DebugState->LastReceivedInputFrame = RepProxy_Autonomous.GetLastSerializedFrame();
 			}
 			else if (Parameters.Role == ROLE_Authority)
 			{
-				DebugState->LastReceivedInputKeyframe = RepProxy_ServerRPC.GetLastSerializedKeyframe();
+				DebugState->LastReceivedInputFrame = RepProxy_ServerRPC.GetLastSerializedFrame();
 			}
 		}
 
@@ -138,13 +138,13 @@ public:
 		// -------------------------------------------------------------------------------------------------------------------------------------------------
 		//												Input Processing & Simulation Update
 		// -------------------------------------------------------------------------------------------------------------------------------------------------
-		while (Ticker.PendingKeyframe <= Ticker.MaxAllowedKeyframe)
+		while (Ticker.PendingFrame <= Ticker.MaxAllowedFrame)
 		{
-			const int32 InputKeyframe = Ticker.PendingKeyframe;
-			const int32 OutputKeyframe = Ticker.PendingKeyframe + 1;
+			const int32 InputFrame = Ticker.PendingFrame;
+			const int32 OutputFrame = Ticker.PendingFrame + 1;
 
-			const TInputCmd* InputCmd = Buffers.Input[InputKeyframe];
-			if (!ensureMsgf(InputCmd, TEXT("No InputCmd available for Keyframe %d. PendingKeyframe: %d. MaxAllowedKeyframe: %d."), InputKeyframe, Ticker.PendingKeyframe, Ticker.MaxAllowedKeyframe))
+			const TInputCmd* InputCmd = Buffers.Input[InputFrame];
+			if (!ensureMsgf(InputCmd, TEXT("No InputCmd available for Frame %d. PendingFrame: %d. MaxAllowedFrame: %d."), InputFrame, Ticker.PendingFrame, Ticker.MaxAllowedFrame))
 			{
 				break;
 			}
@@ -152,34 +152,34 @@ public:
 			// We have an unprocessed command, do we have enough allotted simulation time to process it?
 			if (Ticker.GetRemainingAllowedSimulationTime() >= InputCmd->GetFrameDeltaTime())
 			{
-				TSyncState* InSyncState = Buffers.Sync[InputKeyframe];
+				TSyncState* InSyncState = Buffers.Sync[InputFrame];
 				if (InSyncState == nullptr)
 				{
 					// We don't have valid sync state for this frame. This could mean we skipped ahead somehow, such as heavy packet loss where the server doesn't receive all input cmds
-					// We will use the last known sync state, but first write it out to the current InputKeyframe
-					UE_LOG(LogNetworkSim, Log, TEXT("%s: No sync state found @ keyframe %d. Using previous head element @ keyframe %d."), *Driver->GetDebugName(), InputKeyframe, Buffers.Sync.HeadKeyframe());
-					InSyncState = Buffers.Sync.WriteKeyframeInitializedFromHead(InputKeyframe);
+					// We will use the last known sync state, but first write it out to the current InputFrame
+					UE_LOG(LogNetworkSim, Log, TEXT("%s: No sync state found @ frame %d. Using previous head element @ frame %d."), *Driver->GetDebugName(), InputFrame, Buffers.Sync.HeadFrame());
+					InSyncState = Buffers.Sync.WriteFrameInitializedFromHead(InputFrame);
 				}
 
-				const TAuxState* InAuxState = Buffers.Aux[InputKeyframe];
-				checkf(InAuxState, TEXT("No AuxState available for Keyframe %d. PendingKeyframe: %d. MaxAllowedKeyframe: %d."), InputKeyframe, Ticker.PendingKeyframe, Ticker.MaxAllowedKeyframe);
+				const TAuxState* InAuxState = Buffers.Aux[InputFrame];
+				checkf(InAuxState, TEXT("No AuxState available for Frame %d. PendingFrame: %d. MaxAllowedFrame: %d."), InputFrame, Ticker.PendingFrame, Ticker.MaxAllowedFrame);
 
-				TSyncState* OutSyncState = Buffers.Sync.WriteKeyframe(OutputKeyframe);
+				TSyncState* OutSyncState = Buffers.Sync.WriteFrame(OutputFrame);
 				check(OutSyncState);
 
 				{
-					TScopedSimulationTick UpdateScope(Ticker, OutputKeyframe, InputCmd->GetFrameDeltaTime());
+					TScopedSimulationTick UpdateScope(Ticker, OutputFrame, InputCmd->GetFrameDeltaTime());
 					
 					Simulation->SimulationTick( 
 						{ InputCmd->GetFrameDeltaTime(), Ticker },
 						{ *InputCmd, *InSyncState, *InAuxState },
-						{ *OutSyncState, Buffers.Aux.LazyWriter(OutputKeyframe) } );
+						{ *OutSyncState, Buffers.Aux.LazyWriter(OutputFrame) } );
 													
 				}
 
 				if (DebugState)
 				{
-					DebugState->ProcessedKeyframes.Add(InputKeyframe);
+					DebugState->ProcessedFrames.Add(InputFrame);
 				}
 			}
 			else
@@ -214,8 +214,8 @@ public:
 		// Finish debug state buffer recording (what the server processed each frame)
 		if (DebugState)
 		{
-			DebugState->PendingKeyframe = Ticker.PendingKeyframe;
-			DebugState->HeadKeyframe = Buffers.Input.HeadKeyframe();
+			DebugState->PendingFrame = Ticker.PendingFrame;
+			DebugState->HeadFrame = Buffers.Input.HeadFrame();
 			DebugState->RemainingAllowedSimulationTimeSeconds = (float)Ticker.GetRemainingAllowedSimulationTime().ToRealTimeSeconds();
 		}
 
@@ -365,14 +365,14 @@ public:
 		RepProxy_Autonomous.bDependentSimulationNeedsReconcile = true;
 	}
 
-	void BeginRollback(const FNetworkSimTime& RollbackDeltaTime, const int32 ParentKeyframe) final override
+	void BeginRollback(const FNetworkSimTime& RollbackDeltaTime, const int32 ParentFrame) final override
 	{
-		RepProxy_Simulated.template DependentRollbackBegin<TSimulation, TDriver>(Simulation, Driver, Buffers, Ticker, RollbackDeltaTime, ParentKeyframe);
+		RepProxy_Simulated.template DependentRollbackBegin<TSimulation, TDriver>(Simulation, Driver, Buffers, Ticker, RollbackDeltaTime, ParentFrame);
 	}
 
-	void StepRollback(const FNetworkSimTime& Step, const int32 ParentKeyframe, const bool bFinalStep) final override
+	void StepRollback(const FNetworkSimTime& Step, const int32 ParentFrame, const bool bFinalStep) final override
 	{
-		RepProxy_Simulated.template DependentRollbackStep<TSimulation, TDriver>(Simulation, Driver, Buffers, Ticker, Step, ParentKeyframe, bFinalStep);
+		RepProxy_Simulated.template DependentRollbackStep<TSimulation, TDriver>(Simulation, Driver, Buffers, Ticker, Step, ParentFrame, bFinalStep);
 	}
 
 	void ClearAllDependentSimulations()
@@ -439,7 +439,7 @@ public:
 
 #if NETSIM_MODEL_DEBUG
 	TDebugBuffer* GetLocalDebugBuffer() {	return &Buffers.Debug; }
-	TDebugState* GetNextLocalDebugStateWrite() { return Buffers.Debug.WriteKeyframe( Buffers.Debug.HeadKeyframe() + 1 ); }
+	TDebugState* GetNextLocalDebugStateWrite() { return Buffers.Debug.WriteFrame( Buffers.Debug.HeadFrame() + 1 ); }
 	TNetworkSimBufferContainer<TBufferTypes>* GetHistoricBuffers(bool bCreate=false)
 	{
 		if (HistoricBuffers.IsValid() == false && bCreate) { HistoricBuffers.Reset(new TNetworkSimBufferContainer<TBufferTypes>()); }

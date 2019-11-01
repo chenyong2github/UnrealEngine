@@ -78,7 +78,7 @@ public:
 
 	// Only intended for debugging in test map examples. Not really intended to be useful for general game code use.
 	UFUNCTION(BlueprintCallable, Category="Gameplay")
-	int32 GetPendingKeyframe() const;
+	int32 GetPendingFrame() const;
 
 protected:
 

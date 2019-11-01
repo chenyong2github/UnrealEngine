@@ -252,13 +252,13 @@ FlyingMovement::FAuxState* ANetworkPredictionExtrasFlyingPawn::GetAuxStateWrite(
 	return nullptr;
 }
 
-int32 ANetworkPredictionExtrasFlyingPawn::GetPendingKeyframe() const
+int32 ANetworkPredictionExtrasFlyingPawn::GetPendingFrame() const
 {
 	// TODO
 	/*
 	if (ensure(FlyingMovementComponent))
 	{
-		return FlyingMovementComponent->MovementSyncState->GetPendingKeyframe();
+		return FlyingMovementComponent->MovementSyncState->GetPendingFrame();
 	}
 	*/
 	return 0;

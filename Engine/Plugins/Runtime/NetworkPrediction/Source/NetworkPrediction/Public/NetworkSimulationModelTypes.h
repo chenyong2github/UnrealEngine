@@ -434,25 +434,25 @@ private:
 };
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-//	FSimulationTickState: Holds active state for simulation ticking. We track two things: keyframes and time.
+//	FSimulationTickState: Holds active state for simulation ticking. We track two things: frames and time.
 //
-//	PendingKeyframe is the next keyframe we will process: the input/sync/aux state @ PendingKeyframe will be run through ::SimulationTick and produce the 
-//	next frame's (PendingKeyframe+1) Sync and possibly Aux state (if it changes). "Out of band" modifications to the sync/aux state should happen
-//	to PendingKeyframe (e.g, before it is processed. Once a frame has been processed, we won't run it through ::SimulationTick again!).
+//	PendingFrame is the next frame we will process: the input/sync/aux state @ PendingFrame will be run through ::SimulationTick and produce the 
+//	next frame's (PendingFrame+1) Sync and possibly Aux state (if it changes). "Out of band" modifications to the sync/aux state should happen
+//	to PendingFrame (e.g, before it is processed. Once a frame has been processed, we won't run it through ::SimulationTick again!).
 //
-//	MaxAllowedKeyframe is a keyframe based limiter on simulation updates. This must be incremented to allow the simulation to advance.
+//	MaxAllowedFrame is a frame based limiter on simulation updates. This must be incremented to allow the simulation to advance.
 //
 //	Time is also tracked. We keep running total for how much the sim has advanced and how much it is allowed to advance. There is also a historic buffer of
 //	simulation time in SimulationTimeBuffer.
 //
-//	Consider that Keyframes are essentially client dependent and gaps can happen due to packet loss, etc. Time will always be continuous though.
+//	Consider that Frames are essentially client dependent and gaps can happen due to packet loss, etc. Time will always be continuous though.
 //	
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 struct FSimulationTickState
 {
-	int32 PendingKeyframe = 0;
-	int32 MaxAllowedKeyframe = -1;
+	int32 PendingFrame = 0;
+	int32 MaxAllowedFrame = -1;
 	bool bUpdateInProgress = false;
 	
 	FNetworkSimTime GetTotalProcessedSimulationTime() const 
@@ -460,16 +460,16 @@ struct FSimulationTickState
 		return TotalProcessedSimulationTime; 
 	}
 
-	void SetTotalProcessedSimulationTime(const FNetworkSimTime& SimTime, int32 Keyframe)
+	void SetTotalProcessedSimulationTime(const FNetworkSimTime& SimTime, int32 Frame)
 	{
 		TotalProcessedSimulationTime = SimTime;
-		*SimulationTimeBuffer.WriteKeyframe(Keyframe) = SimTime;
+		*SimulationTimeBuffer.WriteFrame(Frame) = SimTime;
 	}
 
-	void IncrementTotalProcessedSimulationTime(const FNetworkSimTime& DeltaSimTime, int32 Keyframe)
+	void IncrementTotalProcessedSimulationTime(const FNetworkSimTime& DeltaSimTime, int32 Frame)
 	{
 		TotalProcessedSimulationTime += DeltaSimTime;
-		*SimulationTimeBuffer.WriteKeyframe(Keyframe) = TotalProcessedSimulationTime;
+		*SimulationTimeBuffer.WriteFrame(Frame) = TotalProcessedSimulationTime;
 	}
 		
 	// Historic tracking of simulation time. This allows us to timestamp sync data as its produced
@@ -492,6 +492,7 @@ protected:
 	FNetworkSimTime TotalProcessedSimulationTime;	// How much time we've actually processed. The only way to increment this is to process user commands or receive authoritative state from the network.
 };
 
+// "Ticker" that actually allows us to give the simulation time. This struct will generally not be passed around outside of the core TNetworkedSimulationModel/Replicators
 template<typename TickSettings=TNetworkSimTickSettings<>>
 struct TSimulationTicker : public FSimulationTickState
 {
@@ -516,23 +517,23 @@ private:
 };
 
 // Scoped helper to be used right before entering a call to the sim's ::SimulationTick function.
-// Important to note that this advanced the PendingKeyFrame to the output Keyframe. So that any writes that occur to the buffers will go to the output frame.
+// Important to note that this advances the PendingFrame to the output Frame. So that any writes that occur to the buffers during this scope will go to the output frame.
 struct TScopedSimulationTick
 {
-	TScopedSimulationTick(FSimulationTickState& InTicker, const int32& InOutputKeyframe, const FNetworkSimTime& InDeltaSimTime)
-		: Ticker(InTicker), OutputKeyframe(InOutputKeyframe), DeltaSimTime(InDeltaSimTime)
+	TScopedSimulationTick(FSimulationTickState& InTicker, const int32& InOutputFrame, const FNetworkSimTime& InDeltaSimTime)
+		: Ticker(InTicker), OutputFrame(InOutputFrame), DeltaSimTime(InDeltaSimTime)
 	{
 		check(Ticker.bUpdateInProgress == false);
-		Ticker.PendingKeyframe = OutputKeyframe;
+		Ticker.PendingFrame = OutputFrame;
 		Ticker.bUpdateInProgress = true;
 	}
 	~TScopedSimulationTick()
 	{
-		Ticker.IncrementTotalProcessedSimulationTime(DeltaSimTime, OutputKeyframe);
+		Ticker.IncrementTotalProcessedSimulationTime(DeltaSimTime, OutputFrame);
 		Ticker.bUpdateInProgress = false;
 	}
 	FSimulationTickState& Ticker;
-	const int32& OutputKeyframe;
+	const int32& OutputFrame;
 	const FNetworkSimTime& DeltaSimTime;
 };
 
@@ -542,7 +543,7 @@ struct TScopedSimulationTick
 
 // Accessor conditionally gives access to the current (pending) Sync/Aux state to outside code.
 // Reads are always allowed
-// Writes are conditional. Authority can always write to the pending keyframe. Non authority requires the netsim to be currently processing an ::SimulationTick.
+// Writes are conditional. Authority can always write to the pending frame. Non authority requires the netsim to be currently processing an ::SimulationTick.
 // If you aren't inside an ::SimulationTick call, it is really not safe to predict state changes. It is safest and simplest to just not predict these changes.
 //
 // Explanation: During the scope of an ::SimulationTick call, we know exactly 'when' we are relative to what the server is processing. If the predicting client wants
@@ -565,7 +566,7 @@ struct TNetworkSimStateAccessor
 			// Gross: find the buffer our TState is in. This allows these accessors to be declared as class member variables without knowing the exact net sim it will
 			// be pulling from. (For example, you may want to templatize your network sim model).
 			auto& Buffer = TBufferGetterHelper_ByState<TNetworkSimBufferContainer<typename TNetworkSimModel::TBufferTypes>, TState>::GetBuffer(NetSimModel->Buffers);
-			OutState = bWrite ? Buffer.WriteKeyframeInitializedFromHead(NetSimModel->Ticker.PendingKeyframe) : Buffer[NetSimModel->Ticker.PendingKeyframe];
+			OutState = bWrite ? Buffer.WriteFrameInitializedFromHead(NetSimModel->Ticker.PendingFrame) : Buffer[NetSimModel->Ticker.PendingFrame];
 			OutSafe = NetSimModel->Ticker.bUpdateInProgress;
 		};
 	}
@@ -575,7 +576,7 @@ struct TNetworkSimStateAccessor
 		GetStateFunc = nullptr;
 	}
 
-	/** Gets the current (PendingKeyframe) state for reading. This is not expected to fail outside of startup/shutdown edge cases */
+	/** Gets the current (PendingFrame) state for reading. This is not expected to fail outside of startup/shutdown edge cases */
 	const TState* GetStateRead() const
 	{
 		TState* State = nullptr;
@@ -587,7 +588,7 @@ struct TNetworkSimStateAccessor
 		return State;
 	}
 
-	/** Gets the current (PendingKeyframe) state for writing. This is expected to fail outside of the core update loop when bHasAuthority=false. (E.g, it is not safe to predict writes) */
+	/** Gets the current (PendingFrame) state for writing. This is expected to fail outside of the core update loop when bHasAuthority=false. (E.g, it is not safe to predict writes) */
 	TState* GetStateWrite(bool bHasAuthority) const
 	{
 		TState* State = nullptr;
@@ -607,7 +608,7 @@ private:
 //TODO
 struct FNetworkSimEventAccessor
 {
-	int32 GetPendingKeyframe() { return -1; }
+	int32 GetPendingFrame() { return -1; }
 
 	struct FFrameEvents
 	{

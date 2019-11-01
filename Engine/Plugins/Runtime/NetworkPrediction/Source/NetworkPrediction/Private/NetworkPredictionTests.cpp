@@ -45,17 +45,17 @@ void NetSimulationTestBuffer(TBuffer& Buffer)
 	for (int32 i=0; i < 10; ++i)
 	{
 		typename TBuffer::ElementType NewData;
-		*Buffer.WriteKeyframe(i) = NewData;
+		*Buffer.WriteFrame(i) = NewData;
 		UE_LOG(NetworkSimulationTests, Display, TEXT("%s"), *Buffer.GetBasicDebugStr());
 
 		for (auto It = Buffer.CreateIterator(); It; ++It)
 		{
-			UE_LOG(NetworkSimulationTests, Display, TEXT("   [%d] %s"), It.Keyframe(), *It.Element()->ToString());
+			UE_LOG(NetworkSimulationTests, Display, TEXT("   [%d] %s"), It.Frame(), *It.Element()->ToString());
 		}
 
 		for (auto It = Buffer.CreateConstIterator(); It; ++It)
 		{
-			UE_LOG(NetworkSimulationTests, Display, TEXT("   [%d] %s"), It.Keyframe(), *It.Element()->ToString());
+			UE_LOG(NetworkSimulationTests, Display, TEXT("   [%d] %s"), It.Frame(), *It.Element()->ToString());
 		}
 	}
 }
@@ -80,5 +80,5 @@ void NetSimulationBufferTest()
 
 
 	//TNetworkSimBufferIterator<TNetworkSimSparseBuffer<FState>> It(SparseBuffer);
-	//It.Keyframe();
+	//It.Frame();
 }

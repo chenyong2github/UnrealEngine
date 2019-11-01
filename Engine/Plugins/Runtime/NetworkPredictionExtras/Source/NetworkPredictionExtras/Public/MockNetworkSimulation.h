@@ -120,7 +120,7 @@ struct FMockAuxState
 	{
 		if (Params.Context == EStandardLoggingContext::HeaderOnly)
 		{
-			Params.Ar->Logf(TEXT(" %d "), Params.Keyframe);
+			Params.Ar->Logf(TEXT(" %d "), Params.Frame);
 		}
 		else if (Params.Context == EStandardLoggingContext::Full)
 		{
