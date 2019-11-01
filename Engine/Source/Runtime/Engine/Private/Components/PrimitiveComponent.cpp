@@ -785,6 +785,30 @@ void UPrimitiveComponent::EnsurePhysicsStateCreated()
 	}
 }
 
+
+
+void UPrimitiveComponent::MarkChildPrimitiveComponentRenderStateDirty()
+{
+	// Go through all potential children and update them 
+	TArray<USceneComponent*, TInlineAllocator<8>> ProcessStack;
+	ProcessStack.Append(GetAttachChildren());
+
+	// Walk down the tree updating
+	while (ProcessStack.Num() > 0)
+	{
+		USceneComponent* Current = ProcessStack.Pop(/*bAllowShrinking=*/ false);
+		UPrimitiveComponent* CurrentPrimitive = Cast<UPrimitiveComponent>(Current);
+
+		if (CurrentPrimitive)
+		{
+			CurrentPrimitive->MarkRenderStateDirty();
+		}
+
+		ProcessStack.Append(Current->GetAttachChildren());
+	}
+}
+
+
 bool UPrimitiveComponent::IsWelded() const
 {
 	return BodyInstance.WeldParent != nullptr;
@@ -926,6 +950,12 @@ void UPrimitiveComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 			MarkRenderStateDirty();
 		}
 
+		// In the light attachment as group has changed, we need to notify attachment children that they are invalid (they may have a new root)
+		// Unless multiple roots are in the way, in either case, they need to work this out.
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UPrimitiveComponent, bLightAttachmentsAsGroup))
+		{
+			MarkChildPrimitiveComponentRenderStateDirty();
+		}
 	}
 
 	if (UProperty* MemberPropertyThatChanged = PropertyChangedEvent.MemberProperty)
@@ -1401,6 +1431,7 @@ void UPrimitiveComponent::SetLightAttachmentsAsGroup(bool bInLightAttachmentsAsG
 	{
 		bLightAttachmentsAsGroup = bInLightAttachmentsAsGroup;
 		MarkRenderStateDirty();
+		MarkChildPrimitiveComponentRenderStateDirty();
 	}
 }
 
