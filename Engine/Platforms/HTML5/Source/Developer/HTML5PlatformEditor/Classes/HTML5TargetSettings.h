@@ -39,6 +39,13 @@ public:
 	GENERATED_UCLASS_BODY()
 
 	// ------------------------------------------------------------
+	// Use HTML5 .ini files in the editor
+	virtual const TCHAR* GetConfigOverridePlatform() const override
+	{
+		return TEXT("HTML5");
+	}
+
+	// ------------------------------------------------------------
 
 	/**
 	 * Use IndexedDB storage

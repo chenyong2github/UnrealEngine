@@ -734,10 +734,7 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 
 	if (PackagingSettings->UsePakFile)
 	{
-	  if (PlatformInfo->TargetPlatformName != FName("HTML5")) 
-	  { 
 		OptionalParams += TEXT(" -pak");
-	  }
 	}
 
 	if (PackagingSettings->IncludePrerequisites)
