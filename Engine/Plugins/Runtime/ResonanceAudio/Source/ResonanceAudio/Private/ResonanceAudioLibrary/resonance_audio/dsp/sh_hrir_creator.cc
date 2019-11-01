@@ -61,11 +61,12 @@ std::unique_ptr<AudioBuffer> CreateShHrirsFromAssets(
     const std::string& filename, int target_sample_rate_hz,
     Resampler* resampler) {
   // Read SH HRIR from asset store.
-  sadie::HrtfAssets hrtf_assets;
-  std::unique_ptr<std::string> sh_hrir_data = hrtf_assets.GetFile(filename);
-  CHECK_NOTNULL(sh_hrir_data.get());
-  std::istringstream wav_data_stream(*sh_hrir_data);
-  std::unique_ptr<const Wav> wav = Wav::CreateOrNull(&wav_data_stream);
+  size_t sh_hrir_data_size = 0;
+  const unsigned char* sh_hrir_data = sadie::HrtfAssets::GetFile(filename, sh_hrir_data_size);
+  CHECK_NOTNULL(sh_hrir_data);
+
+  std::unique_ptr<const Wav> wav = Wav::CreateOrNull(sh_hrir_data, sh_hrir_data_size);
+  CHECK_NOTNULL(wav.get());
   return CreateShHrirsFromWav(*wav, target_sample_rate_hz, resampler);
 }
 
