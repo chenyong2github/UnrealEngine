@@ -1025,7 +1025,7 @@ namespace WindowsMixedReality
 		bool is19H1 = checkUniversalApiContract(8);
 		supportsHandTracking = is19H1;
 
-#if PLATFORM_HOLOLENS
+#if PLATFORM_HOLOLENS || HOLO_STREAMING_RENDERING
 		supportsEyeTracking = is19H1;//This code was hanging sometime -> EyesPose::IsSupported();
 #endif
 	}
@@ -1177,6 +1177,7 @@ namespace WindowsMixedReality
 		if (StationaryReferenceFrame == nullptr)
 		{
 			StationaryReferenceFrame = Locator.CreateStationaryFrameOfReferenceAtCurrentLocation();
+			std::lock_guard<std::mutex> lock(gestureRecognizerLock);
 			for (auto p : gestureRecognizerMap)
 			{
 				if (p.second)
@@ -1324,6 +1325,8 @@ namespace WindowsMixedReality
 		StageReferenceFrame = nullptr;
 
 		isRemoteHolographicSpace = false;
+		
+		eyeTrackingAllowed = false;
 		
 		StopMeshObserver();
 
@@ -2181,7 +2184,7 @@ namespace WindowsMixedReality
 
 	void MixedRealityInterop::RequestUserPermissionForEyeTracking()
 	{
-#ifdef PLATFORM_HOLOLENS
+#if PLATFORM_HOLOLENS || HOLO_STREAMING_RENDERING
 		if (supportsEyeTracking && !eyeTrackingAllowed)
 		{
 			EyesPose::RequestAccessAsync().Completed([=](auto&& sender, winrt::Windows::Foundation::AsyncStatus const  args)
@@ -2204,7 +2207,7 @@ namespace WindowsMixedReality
 	{
 		memset(&eyeRay, 0, sizeof(eyeRay));
 
-#ifdef PLATFORM_HOLOLENS
+#if PLATFORM_HOLOLENS || HOLO_STREAMING_RENDERING
 		if (!supportsEyeTracking || !eyeTrackingAllowed)
 		{
 			return false;
@@ -3328,7 +3331,7 @@ namespace WindowsMixedReality
 	GestureRecognizerInterop::~GestureRecognizerInterop()
 	{
 		std::lock_guard<std::mutex> lock(gestureRecognizerLock);
-		if (gestureRecognizerMap[id] == nullptr)
+		if (gestureRecognizerMap.count(id) == 0 || gestureRecognizerMap[id] == nullptr)
 		{
 			return;
 		}
@@ -3343,7 +3346,7 @@ namespace WindowsMixedReality
 	bool GestureRecognizerInterop::SubscribeInteration(std::function<void()> callback)
 	{
 		std::lock_guard<std::mutex> lock(gestureRecognizerLock);
-		if (gestureRecognizerMap[id] == nullptr)
+		if (gestureRecognizerMap.count(id) == 0 || gestureRecognizerMap[id] == nullptr)
 		{
 			return false;
 		}
@@ -3354,7 +3357,7 @@ namespace WindowsMixedReality
 	bool GestureRecognizerInterop::SubscribeSourceStateChanges(SourceStateCallback callback)
 	{
 		std::lock_guard<std::mutex> lock(gestureRecognizerLock);
-		if (gestureRecognizerMap[id] == nullptr)
+		if (gestureRecognizerMap.count(id) == 0 || gestureRecognizerMap[id] == nullptr)
 		{
 			return false;
 		}
@@ -3365,7 +3368,7 @@ namespace WindowsMixedReality
 	void GestureRecognizerInterop::Reset()
 	{
 		std::lock_guard<std::mutex> lock(gestureRecognizerLock);
-		if (gestureRecognizerMap[id] == nullptr)
+		if (gestureRecognizerMap.count(id) == 0 || gestureRecognizerMap[id] == nullptr)
 		{
 			return;
 		}
@@ -3376,7 +3379,7 @@ namespace WindowsMixedReality
 	bool GestureRecognizerInterop::SubscribeTap(TapCallback callback)
 	{
 		std::lock_guard<std::mutex> lock(gestureRecognizerLock);
-		if (gestureRecognizerMap[id] == nullptr)
+		if (gestureRecognizerMap.count(id) == 0 || gestureRecognizerMap[id] == nullptr)
 		{
 			return false;
 		}
@@ -3387,7 +3390,7 @@ namespace WindowsMixedReality
 	bool GestureRecognizerInterop::SubscribeHold(HoldCallback callback)
 	{
 		std::lock_guard<std::mutex> lock(gestureRecognizerLock);
-		if (gestureRecognizerMap[id] == nullptr)
+		if (gestureRecognizerMap.count(id) == 0 || gestureRecognizerMap[id] == nullptr)
 		{
 			return false;
 		}
@@ -3398,7 +3401,7 @@ namespace WindowsMixedReality
 	bool GestureRecognizerInterop::SubscribeManipulation(ManipulationCallback callback)
 	{
 		std::lock_guard<std::mutex> lock(gestureRecognizerLock);
-		if (gestureRecognizerMap[id] == nullptr)
+		if (gestureRecognizerMap.count(id) == 0 || gestureRecognizerMap[id] == nullptr)
 		{
 			return false;
 		}
@@ -3409,7 +3412,7 @@ namespace WindowsMixedReality
 	bool GestureRecognizerInterop::SubscribeNavigation(NavigationCallback callback, unsigned int settings)
 	{
 		std::lock_guard<std::mutex> lock(gestureRecognizerLock);
-		if (gestureRecognizerMap[id] == nullptr)
+		if (gestureRecognizerMap.count(id) == 0 || gestureRecognizerMap[id] == nullptr)
 		{
 			return false;
 		}
@@ -3533,6 +3536,8 @@ namespace WindowsMixedReality
 
 				assert(Locator != nullptr); // bug in Hololens platform cannot initialize the spatial anchor store before the Locator is created.
 				CreateSpatialAnchorHelper(*this);
+				
+				RequestUserPermissionForEyeTracking();
 			});
 
 			m_onDisconnectedEventRevoker =

@@ -124,6 +124,11 @@ namespace WindowsMixedReality
 
 		void UpdateGestureSubscriptions()
 		{
+			if (!m_GestureRecognizer)
+			{
+				m_GestureRecognizer = SpatialGestureRecognizer(SpatialGestureSettings::None);
+			}
+
 			if (!m_GestureRecognizer.TrySetGestureSettings(m_SpatialGestureSettings))
 			{
 			}
@@ -398,7 +403,10 @@ namespace WindowsMixedReality
 
 		void Reset()
 		{
-			m_GestureRecognizer.TrySetGestureSettings(SpatialGestureSettings::None);
+			if (m_GestureRecognizer)
+			{
+				m_GestureRecognizer.TrySetGestureSettings(SpatialGestureSettings::None);
+			}
 			m_CurrentHand = HMDHand::AnyHand;
 
 			m_SpatialGestureSettings = SpatialGestureSettings::None;
@@ -410,9 +418,15 @@ namespace WindowsMixedReality
 
 		void Update()
 		{
-			UpdateCallbacks();
+			try
+			{
+				UpdateCallbacks();
 
-			UpdateGestureSubscriptions();
+				UpdateGestureSubscriptions();
+			}
+			catch (winrt::hresult_error const&)
+			{
+			}
 		}
 
 		static void SetInteractionManager(SpatialInteractionManager interactionManager)
