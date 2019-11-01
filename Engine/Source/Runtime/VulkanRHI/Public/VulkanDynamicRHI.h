@@ -448,8 +448,12 @@ protected:
 
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
 	IConsoleObject* DumpMemoryCmd = nullptr;
+	IConsoleObject* DumpLRUCmd = nullptr;
+	IConsoleObject* TrimLRUCmd = nullptr;
 public:
 	static void DumpMemory();
+	static void DumpLRU();
+	static void TrimLRU();
 #endif
 
 protected:
