@@ -2,19 +2,11 @@
 
 #pragma once
 
+#include "Containers/ArrayView.h"
 #include "Delegates/Delegate.h"
-#include "Runtime/Core/Public/Features/IModularFeature.h"
-#include "Runtime/Core/Public/Features/IModularFeatures.h"
-
-struct FVoiceChatResult
-{
-	/** Whether or not we succeeded */
-	bool bSuccess;
-	/** If we failed, a numeric code for the error */
-	int ErrorCode;
-	/** If we failed, a string describing the error suitable for logging */
-	FString Error;
-};
+#include "Features/IModularFeature.h"
+#include "Features/IModularFeatures.h"
+#include "VoiceChatResult.h"
 
 enum class EVoiceChatChannelType
 {
