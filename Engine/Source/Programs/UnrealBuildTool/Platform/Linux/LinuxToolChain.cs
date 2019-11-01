@@ -318,14 +318,6 @@ namespace UnrealBuildTool
 					);
 				}
 			}
-			else
-			{
-				// strip the final elf file if we are not producing debug info
-				Out += string.Format("\"{0}\" \"{1}\"\n",
-					GetStripPath(LinkEnvironment.Architecture),
-					OutputFile.AbsolutePath
-				);
-			}
 
 			return Out;
 		}
