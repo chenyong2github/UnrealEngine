@@ -608,7 +608,13 @@ void UNiagaraStackEntry::RefreshStackErrorChildren()
 			ErrorEntry = *Found;
 			ErrorEntry->SetStackIssue(Issue); // we found the entry by id but we want to properly refresh the subentries of the issue (specifically its fixes), too
 		}
-		NewErrorChildren.Add(ErrorEntry);
+		if (ensureMsgf(NewErrorChildren.Contains(ErrorEntry) == false,
+			TEXT("Duplicate stack issue rows detected, this is caused by two different issues generating the same unique id. Issue Short description: %s Issue Long description: %s.  This issue will not be shown in the UI."),
+			*Issue.GetShortDescription().ToString(),
+			*Issue.GetLongDescription().ToString()))
+		{
+			NewErrorChildren.Add(ErrorEntry);
+		}
 	}
 
 	// If any of the current error children were not moved to the new error children collection than finalize them since
