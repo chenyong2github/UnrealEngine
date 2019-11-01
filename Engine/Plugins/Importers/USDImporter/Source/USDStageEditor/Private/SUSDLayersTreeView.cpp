@@ -55,7 +55,7 @@ public:
 
 	bool IsValid() const
 	{
-		return (bool)UsdStage.Get();
+		return (bool)UsdStage.Get() && ( !ParentItem || ParentItem->LayerIdentifier.Get() != LayerIdentifier.Get() );
 	}
 
 	TArray< FUsdLayersTreeItemRef > GetChildren()
