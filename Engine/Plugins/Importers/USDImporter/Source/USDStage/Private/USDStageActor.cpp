@@ -831,7 +831,7 @@ void AUsdStageActor::OpenUsdStage()
 
 void AUsdStageActor::InitLevelSequence(float FramesPerSecond)
 {
-	if (LevelSequence.IsValid())
+	if (LevelSequence)
 	{
 		return;
 	}
@@ -865,7 +865,7 @@ void AUsdStageActor::InitLevelSequence(float FramesPerSecond)
 
 void AUsdStageActor::SetupLevelSequence()
 {
-	if (!LevelSequence.IsValid())
+	if (!LevelSequence)
 	{
 		return;
 	}
