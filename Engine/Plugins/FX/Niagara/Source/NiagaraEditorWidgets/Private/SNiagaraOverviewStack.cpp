@@ -91,6 +91,7 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 		[
 			SNew(SBorder)
 			.BorderImage(this, &SNiagaraSystemOverviewEntryListRow::GetBorder)
+			.ToolTipText_UObject(StackEntry, &UNiagaraStackEntry::GetTooltipText)
 			.Padding(FMargin(5, 2, 3, 2))
 			[
 				SNew(SHorizontalBox)
