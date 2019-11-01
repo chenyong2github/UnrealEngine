@@ -40,6 +40,10 @@ bool UEditorWorldExtension::InputAxis( FEditorViewportClient* InViewportClient, 
 
 UWorld* UEditorWorldExtension::GetWorld() const
 {
+	if (OwningExtensionsCollection == nullptr)
+	{
+		return nullptr;
+	}
 	return OwningExtensionsCollection->GetWorld();
 }
 
