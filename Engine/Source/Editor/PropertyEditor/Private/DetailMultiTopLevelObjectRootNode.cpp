@@ -99,10 +99,23 @@ ENodeVisibility FDetailMultiTopLevelObjectRootNode::GetVisibility() const
 TSharedRef< ITableRow > FDetailMultiTopLevelObjectRootNode::GenerateWidgetForTableView(const TSharedRef<STableViewBase>& OwnerTable, const FDetailColumnSizeData& ColumnSizeData, bool bAllowFavoriteSystem)
 {
 	FDetailWidgetRow Row;
-	TSharedRef<SDetailMultiTopLevelObjectTableRow> DetailMultiTopLevelObjectTableRow = SNew(SDetailMultiTopLevelObjectTableRow, AsShared());
-	GenerateStandaloneWidget(Row, DetailMultiTopLevelObjectTableRow);
-	DetailMultiTopLevelObjectTableRow->ChildSlotConstruct(Row.NameWidget.Widget, OwnerTable);
-	return DetailMultiTopLevelObjectTableRow;
+	TSharedPtr<SDetailMultiTopLevelObjectTableRow> DetailMultiTopLevelObjectTableRow;
+	if (RootObjectCustomization.IsValid())
+	{
+		
+		DetailMultiTopLevelObjectTableRow = SNew(SDetailMultiTopLevelObjectTableRow, AsShared());
+		GenerateStandaloneWidget(Row, DetailMultiTopLevelObjectTableRow.ToSharedRef());
+		DetailMultiTopLevelObjectTableRow->ChildSlotConstruct(Row.NameWidget.Widget, OwnerTable);
+		bShouldShowOnlyChildren = false;
+	}
+	else
+	{
+		GenerateStandaloneWidget(Row);
+		DetailMultiTopLevelObjectTableRow = SNew(SDetailMultiTopLevelObjectTableRow, AsShared(), Row.NameWidget.Widget, OwnerTable);
+		bShouldShowOnlyChildren = true;
+	}
+	
+	return DetailMultiTopLevelObjectTableRow.ToSharedRef();
 }
 
 
@@ -192,5 +205,5 @@ void FDetailMultiTopLevelObjectRootNode::FilterNode( const FDetailFilter& InFilt
 
 bool FDetailMultiTopLevelObjectRootNode::ShouldShowOnlyChildren() const
 {
-	return RootObjectCustomization.IsValid() && RootObject.IsValid() ? !RootObjectCustomization.Pin()->ShouldDisplayHeader(RootObject.Get()) : false;
+	return RootObjectCustomization.IsValid() && RootObject.IsValid() ? !RootObjectCustomization.Pin()->ShouldDisplayHeader(RootObject.Get()) : bShouldShowOnlyChildren;
 }
