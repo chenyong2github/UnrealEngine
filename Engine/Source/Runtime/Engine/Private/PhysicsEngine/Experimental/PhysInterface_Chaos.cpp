@@ -204,6 +204,11 @@ void FPhysInterface_Chaos::SetActorUserData_AssumesLocked(FPhysicsActorHandle& I
 
 bool FPhysInterface_Chaos::IsRigidBody(const FPhysicsActorHandle& InActorReference)
 {
+	return !IsStatic(InActorReference);
+}
+
+bool FPhysInterface_Chaos::IsDynamic(const FPhysicsActorHandle& InActorReference)
+{
 	return InActorReference->ObjectState() == Chaos::EObjectStateType::Dynamic;
 }
 
