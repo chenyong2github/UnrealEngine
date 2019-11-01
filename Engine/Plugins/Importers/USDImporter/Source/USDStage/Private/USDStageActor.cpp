@@ -213,11 +213,6 @@ AUsdStageActor::AUsdStageActor()
 	UsdListener.OnPrimChanged.AddLambda(
 		[ this ]( const FString& PrimPath, bool bResync )
 			{
-				if ( this->PrimBeingUpdated.IsSet() && this->PrimBeingUpdated.GetValue() == PrimPath )
-				{
-					return;
-				}
-
 				TUsdStore< pxr::SdfPath > UsdPrimPath = UnrealToUsd::ConvertPath( *PrimPath );
 				this->UpdatePrim( UsdPrimPath.Get(), bResync );
 
@@ -1070,12 +1065,10 @@ void AUsdStageActor::OnPrimObjectPropertyChanged( UObject* ObjectBeingModified, 
 
 			if ( UsdStage )
 			{
-				PrimBeingUpdated = PrimPath;
+				FScopedBlockNotices BlockNotices( UsdListener );
 
 				TUsdStore< pxr::UsdPrim > UsdPrim = UsdStage->GetPrimAtPath( UnrealToUsd::ConvertPath( *PrimPath ).Get() );
 				UnrealToUsd::ConvertSceneComponent( UsdStage, PrimSceneComponent, UsdPrim.Get() );
-
-				PrimBeingUpdated.Reset();
 			}
 		}
 	}
