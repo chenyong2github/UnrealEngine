@@ -1419,6 +1419,11 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 			Dest.RayTracingReflectionsShadows = Src.RayTracingReflectionsShadows;
 		}
 
+		if (Src.bOverride_RayTracingReflectionsTranslucency)
+		{
+			Dest.RayTracingReflectionsTranslucency = Src.RayTracingReflectionsTranslucency;
+		}
+
 		if (Src.bOverride_TranslucencyType)
 		{
 			Dest.TranslucencyType = Src.TranslucencyType;

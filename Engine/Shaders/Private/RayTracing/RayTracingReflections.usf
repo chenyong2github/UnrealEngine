@@ -88,6 +88,7 @@ uint2 TileAlignedResolution;
 uint TestPathRoughness;
 float MinClearCoatLevel;
 uint MaxUnderCoatBounces;
+uint EnableTranslucency;
 
 float ReflectionMinRayDistance;
 float ReflectionMaxRayDistance;
@@ -140,6 +141,55 @@ void FixSampleDirectionIfNeeded(float3 SmoothSurfaceNormal, inout float3 SampleD
 		SampleDirection = SampleDirection - 2.0f * dot(SmoothSurfaceNormal, SampleDirection) * SmoothSurfaceNormal;
 	}
 }
+
+// Volume rendering ala emission-absorption model along an arbitrary ray
+float Transmit(in RayDesc TransmissionRay, inout RandomSequence RandSequence, inout float3 OutRadiance)
+{
+	float Transmission = 1.0;
+
+	const uint RayFlags = 0;
+	const uint InstanceInclusionMask = RAY_TRACING_MASK_TRANSLUCENT;
+	FRayCone RayCone = (FRayCone)0;
+	FMaterialClosestHitPayload TransmPayload = TraceMaterialRay(
+		TLAS,
+		RayFlags,
+		InstanceInclusionMask,
+		TransmissionRay,
+		RayCone);
+
+	const uint HitCountMax = 32;
+	uint HitCount = 0;
+	bool bIsHit = TransmPayload.IsHit();
+	float Epsilon = 1.0e-2;
+	while (bIsHit && Transmission > Epsilon && HitCount < HitCountMax)
+	{
+		HitCount++;
+		float3 Radiance = 0.0;
+		float NoV = dot(TransmPayload.WorldNormal, -TransmissionRay.Direction);
+		if (NoV > 0.0)
+		{
+			//#dxr_todo: Pass in all the parameters to support in-scattering
+			Radiance += TransmPayload.Radiance;
+		}
+
+		OutRadiance += Radiance * TransmPayload.Opacity * Transmission;
+		Transmission *= 1.0 - TransmPayload.Opacity;
+
+		//#dxr_todo: consider modifying t-min instead Origin for efficiency
+		TransmissionRay.Origin += TransmissionRay.Direction * (TransmPayload.HitT + 0.1);
+		TransmPayload = TraceMaterialRay(
+			TLAS,
+			RayFlags,
+			RAY_TRACING_MASK_TRANSLUCENT,
+			TransmissionRay,
+			RayCone);
+
+		bIsHit = TransmPayload.IsHit();
+	}
+
+	return Transmission;
+}
+
 
 RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 {
@@ -255,7 +305,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 
 			FRayCone RayCone = (FRayCone)0;
 			RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
-			float SurfaceCurvature = 0.0f; /* #todo_dxr assume no curvature */
+			float SurfaceCurvature = 0.0f; /* #dxr_todo assume no curvature */
 			RayCone = PropagateRayCone(RayCone, SurfaceCurvature, Depth);
 
 			//
@@ -403,6 +453,17 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 						TopLayerRay,
 						RayCone);
 
+					// Trace separate ray for translucent objects
+					float Transmission = 1.0;
+					//#dxr-dxr_todo: do permutation instead of dynamic branching?
+					if (EnableTranslucency)
+					{
+						RayDesc TransmissionRay = TopLayerRay;
+						TransmissionRay.TMin = 0.01;
+						TransmissionRay.TMax = Payload.HitT;
+						Transmission = Transmit(TransmissionRay, RandSequence, TopLayerRadiance);
+					}
+
 					RayDesc LightingRay = TopLayerRay;
 					if (DIM_HYBRID)
 					{
@@ -411,6 +472,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 						LightingRay.Direction = normalize(Payload.WorldPos - View.WorldCameraOrigin);
 					}
 
+					float3 Radiance = 0.0;
 					AccumulateResults(
 						Payload,
 						LightingRay,
@@ -421,7 +483,8 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 						ShouldDoDirectLighting,
 						ShouldDoEmissiveAndIndirectLighting,
 						RayCone,
-						TopLayerRadiance);
+						Radiance);
+					TopLayerRadiance += Radiance * Transmission;
 				}
 
 				bool isTopLayerRayValid = Payload.IsHit() || (bAllowSkySampling && ReflectionStruct.SkyLightParameters.y > 0);
@@ -538,7 +601,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 						float IndirectIrradiance = 0;
 
 						// Not possible to use the screen culled grid. So going over every capture.
-						// dxr_todo This would need a spatial data structure.
+						//#dxr_todo This would need a spatial data structure.
 						uint NumCulledReflectionCaptures = ForwardLightData.NumReflectionCaptures;
 						uint ReflectionCapturesStartIndex = 0;
 
@@ -596,7 +659,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 				// If there is a contribution on this path, apply the required fog on the sample. 
 				// Also accumulate the path contribution.
 				// In case no contribution is accumulated, the ReflectionEnvironmentAndSky pass will fill it up using reflection volumes.
-				//#dxr - todo: when MaxBounces>1, we will need to take into account a path throughput affected from the fog transmittance.
+				//#dxr_todo: when MaxBounces>1, we will need to take into account a path throughput affected from the fog transmittance.
 				float4 HeightFogInscatteringAndTransmittance = float4(0.0f, 0.0f, 0.0f, 1.0f);	// no fog 
 				if (bApplyHeightFog)
 				{
@@ -667,7 +730,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 					float IndirectIrradiance = 0; 
 
 					// Not possible to use the screen culled grid. So going over every capture.
-					// dxr_todo This would need a spatial data structure.
+					//#dxr_todo This would need a spatial data structure.
 					uint NumCulledReflectionCaptures = ForwardLightData.NumReflectionCaptures;
 					uint ReflectionCapturesStartIndex = 0;
 
@@ -736,6 +799,26 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 			float DistanceFade = bAllowSkySampling ? 1.0 : saturate((LocalMaxRayDistance - HitDistance) * rcp(DistanceFadeRange));
 
 			ReflectedColor *= DistanceFade * max(RoughnessFade, ClearCoatRoughnessFade) * rcp(LocalSamplesPerPixel);
+		}
+
+		if (EnableTranslucency)
+		{
+			float3 WorldPosition;
+			float3 CameraDirection;
+			ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelCoord, DeviceZ, WorldPosition, CameraDirection);
+
+			RayDesc TransmissionRay;
+			TransmissionRay.Origin = View.WorldCameraOrigin;
+			TransmissionRay.Direction = CameraDirection;
+			TransmissionRay.TMin = 0.0;
+			TransmissionRay.TMax = length(WorldPosition - View.WorldCameraOrigin);
+			float3 Inscattering = 0.0;
+			RandomSequence RandSequence;
+			float Transmission = Transmit(TransmissionRay, RandSequence, Inscattering);
+			//#dxr_todo: add Inscattering support (this is emission only so far)
+			//#dxr_todo: depending on if there is a translucency pass the component might already be attenuated. Check for double contribution
+			ReflectedColor.rgb *= Transmission;
+			ReflectedColor.rgb += Inscattering;
 		}
 
 	#if USE_PREEXPOSURE
