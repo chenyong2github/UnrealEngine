@@ -7,7 +7,7 @@
 
 void UNiagaraStackSelection::Initialize(FRequiredEntryData InRequiredEntryData)
 {
-	Super::Initialize(InRequiredEntryData, FString());
+	Super::Initialize(InRequiredEntryData, TEXT("Selection"));
 }
 
 bool UNiagaraStackSelection::GetCanExpand() const
