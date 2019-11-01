@@ -85,9 +85,15 @@ public:
 						bNeedsRefresh = true;
 						break;
 					}
+
+					++SubLayerIndex;
 				}
 
-				++SubLayerIndex;
+				if ( !bNeedsRefresh && SubLayerIndex < Children.Num() )
+				{
+					Children.Reset();
+					bNeedsRefresh = true;
+				}
 			}
 		}
 
