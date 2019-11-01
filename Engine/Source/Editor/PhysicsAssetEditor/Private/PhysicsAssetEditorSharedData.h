@@ -144,6 +144,7 @@ public:
 	void SetSelectedBody(const FSelection& Body, bool bSelected);
 	bool IsBodySelected(const FSelection& Body) const;
 	void ToggleSelectionType();
+	void ToggleShowSelected();
 	void SetSelectedBodyAnyPrim(int32 BodyIndex, bool bSelected);
 	void DeleteCurrentPrim();
 	void DeleteBody(int32 DelBodyIndex, bool bRefreshComponent=true);
@@ -259,6 +260,9 @@ public:
 	TArray<FBoneVertInfo> AnyWeightBoneInfos;
 
 	TArray<FSelection> SelectedBodies;
+
+	TArray<int32> HiddenBodies;
+	TArray<int32> HiddenConstraints;
 	FSelection * GetSelectedBody()
 	{
 		int32 Count = SelectedBodies.Num();

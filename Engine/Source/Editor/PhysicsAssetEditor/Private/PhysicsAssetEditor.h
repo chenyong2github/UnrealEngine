@@ -274,6 +274,7 @@ private:
 	void OnSelectBodies(EPhysicsType PhysicsType = EPhysicsType::PhysType_Simulated);
 	void OnSelectAllConstraints();
 	void OnToggleSelectionType();
+	void OnToggleShowSelected();
 	void OnDeselectAll();
 
 	FText GetRepeatLastSimulationToolTip() const;
@@ -351,4 +352,9 @@ private:
 
 	/** Records PhysicsAssetEditor related data - simulating or mode change */
 	void OnAddPhatRecord(const FString& Action, bool bRecordSimulate, bool bRecordMode);
+
+public:
+
+	TArray<int32> HiddenBodies;
+	TArray<int32> HiddenConstraints;
 };

@@ -569,6 +569,7 @@ void FPhysicsAssetEditor::ExtendMenu()
 			MenuBarBuilder.AddMenuEntry(Commands.SelectKinematicBodies);
 			MenuBarBuilder.AddMenuEntry(Commands.SelectAllConstraints);
 			MenuBarBuilder.AddMenuEntry(Commands.ToggleSelectionType);
+			MenuBarBuilder.AddMenuEntry(Commands.ToggleShowSelected);
 			MenuBarBuilder.AddMenuEntry(Commands.DeselectAll);
 			MenuBarBuilder.EndSection();
 		}
@@ -824,6 +825,11 @@ void FPhysicsAssetEditor::BindCommands()
 	ToolkitCommands->MapAction(
 		Commands.ToggleSelectionType,
 		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnToggleSelectionType),
+		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::IsNotSimulation));
+
+	ToolkitCommands->MapAction(
+		Commands.ToggleShowSelected,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnToggleShowSelected),
 		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::IsNotSimulation));
 
 	ToolkitCommands->MapAction(
@@ -1240,10 +1246,11 @@ void FPhysicsAssetEditor::BuildMenuWidgetSelection(FMenuBuilder& InMenuBuilder)
 
 		InMenuBuilder.BeginSection( "Selection", LOCTEXT("Selection", "Selection" ) );
 		InMenuBuilder.AddMenuEntry( Commands.SelectAllBodies );
-		InMenuBuilder.AddMenuEntry(Commands.SelectSimulatedBodies);
-		InMenuBuilder.AddMenuEntry(Commands.SelectKinematicBodies);
+		InMenuBuilder.AddMenuEntry( Commands.SelectSimulatedBodies );
+		InMenuBuilder.AddMenuEntry( Commands.SelectKinematicBodies );
 		InMenuBuilder.AddMenuEntry( Commands.SelectAllConstraints );
 		InMenuBuilder.AddMenuEntry( Commands.ToggleSelectionType );
+		InMenuBuilder.AddMenuEntry( Commands.ToggleShowSelected );
 		InMenuBuilder.EndSection();
 	}
 	InMenuBuilder.PopCommandList();
@@ -2686,6 +2693,11 @@ void FPhysicsAssetEditor::OnSelectAllConstraints()
 void FPhysicsAssetEditor::OnToggleSelectionType()
 {
 	SharedData->ToggleSelectionType();
+}
+
+void FPhysicsAssetEditor::OnToggleShowSelected()
+{
+	SharedData->ToggleShowSelected();
 }
 
 void FPhysicsAssetEditor::OnDeselectAll()
