@@ -1522,7 +1522,8 @@ struct FEditorShaderStableInfo
 			{
 				TUniquePtr<FArchive> IntermediateFormatAr(IFileManager::Get().CreateFileWriter(*IntermediateFormatPath));
 
-				const FString HeaderText = FStableShaderKeyAndValue::HeaderLine();
+				FString HeaderText = FStableShaderKeyAndValue::HeaderLine();
+				HeaderText += TCHAR('\n');
 				auto HeaderSrc = StringCast<ANSICHAR>(*HeaderText, HeaderText.Len());
 
 				IntermediateFormatAr->Serialize((ANSICHAR*)HeaderSrc.Get(), HeaderSrc.Length() * sizeof(ANSICHAR));
