@@ -34,6 +34,8 @@
 
 #include "USDIncludesEnd.h"
 
+#include <iterator>
+
 enum class EPayloadsTrigger
 {
 	Load,
@@ -67,7 +69,7 @@ public:
 	{
 		UsdPrim = InUsdPrim;
 
-		RefreshData();
+		RefreshData( false );
 		FillChildren();
 	}
 
@@ -78,27 +80,52 @@ public:
 	{
 	}
 
-	TArray< FUsdStageTreeItemRef > GetChildren()
+	TArray< FUsdStageTreeItemRef >& UpdateChildren()
 	{
 		if ( !UsdPrim.Get() )
 		{
-			return {};
+			return Children;
 		}
 
 		bool bNeedsRefresh = false;
 
-		int32 ChildIndex = 0;
 		pxr::UsdPrimSiblingRange PrimChildren = UsdPrim.Get().GetFilteredChildren( pxr::UsdTraverseInstanceProxies( pxr::UsdPrimAllPrimsPredicate ) );
-		for ( pxr::UsdPrim Child : PrimChildren )
-		{
-			if ( !Children.IsValidIndex( ChildIndex ) || Children[ ChildIndex ]->UsdPrim.Get().GetPrimPath() != Child.GetPrimPath() )
+
+		const int32 NumUsdChildren = (TArray< FUsdStageTreeItemRef >::SizeType )std::distance( PrimChildren.begin(), PrimChildren.end() );
+		const int32 NumUnrealChildren = [&]()
 			{
-				Children.Reset();
-				bNeedsRefresh = true;
-				break;
-			}
+				int32 ValidPrims = 0;
+				for ( const FUsdStageTreeItemRef& Child : Children )
+				{
+					if ( !Child->RowData->Name.IsEmpty() )
+					{
+						++ValidPrims;
+					}
+				}
+
+				return ValidPrims;
+			}();
+
+		if ( NumUsdChildren != NumUnrealChildren )
+		{
+			Children.Reset();
+			bNeedsRefresh = true;
+		}
+		else
+		{
+			int32 ChildIndex = 0;
+
+			for ( const pxr::UsdPrim& Child : PrimChildren )
+			{
+				if ( !Children.IsValidIndex( ChildIndex ) || Children[ ChildIndex ]->UsdPrim.Get().GetPrimPath() != Child.GetPrimPath() )
+				{
+					Children.Reset();
+					bNeedsRefresh = true;
+					break;
+				}
 				
-			++ChildIndex;
+				++ChildIndex;
+			}
 		}
 
 		if ( bNeedsRefresh )
@@ -118,12 +145,17 @@ public:
 		}
 	}
 
-	void RefreshData()
+	void RefreshData( bool bRefreshChildren )
 	{
 		FString PrimName;
 
 		if ( !UsdPrim.Get() )
 		{
+			if ( ParentItem )
+			{
+				ParentItem->RefreshData( true );
+			}
+
 			RowData.Get() = FUsdStageTreeRowData();
 			return;
 		}
@@ -138,6 +170,14 @@ public:
 		if ( pxr::UsdGeomImageable UsdGeomImageable = pxr::UsdGeomImageable( UsdPrim.Get() ) )
 		{
 			RowData->bIsVisible = ( UsdGeomImageable.ComputeVisibility() != pxr::UsdGeomTokens->invisible );
+		}
+
+		if ( bRefreshChildren )
+		{
+			for ( FUsdStageTreeItemRef& Child : UpdateChildren() )
+			{
+				Child->RefreshData( bRefreshChildren );
+			}
 		}
 	}
 
@@ -387,7 +427,7 @@ TSharedRef< ITableRow > SUsdStageTreeView::OnGenerateRow( FUsdStageTreeItemRef I
 
 void SUsdStageTreeView::OnGetChildren( FUsdStageTreeItemRef InParent, TArray< FUsdStageTreeItemRef >& OutChildren ) const
 {
-	for ( FUsdStageTreeItemRef& Child : InParent->GetChildren() )
+	for ( const FUsdStageTreeItemRef& Child : InParent->UpdateChildren() )
 	{
 		OutChildren.Add( Child );
 	}
@@ -424,8 +464,8 @@ void SUsdStageTreeView::RefreshPrim( const FString& PrimPath, bool bResync )
 
 	TUsdStore< pxr::SdfPath > UsdPrimPath = UnrealToUsd::ConvertPath( *PrimPath );
 
-	TFunction< FUsdStageTreeItemPtr( FUsdStageTreeItemRef ) > FindTreeItemFromPrimPath;
-	FindTreeItemFromPrimPath = [ &UsdPrimPath, &FindTreeItemFromPrimPath ]( FUsdStageTreeItemRef ItemRef ) -> FUsdStageTreeItemPtr
+	TFunction< FUsdStageTreeItemPtr( const TUsdStore< pxr::SdfPath >&, const FUsdStageTreeItemRef& ) > FindTreeItemFromPrimPath;
+	FindTreeItemFromPrimPath = [ &FindTreeItemFromPrimPath ]( const TUsdStore< pxr::SdfPath >& UsdPrimPath, const FUsdStageTreeItemRef& ItemRef ) -> FUsdStageTreeItemPtr
 	{
 		if ( ItemRef->UsdPrim.Get().GetPrimPath() == UsdPrimPath.Get() )
 		{
@@ -435,7 +475,7 @@ void SUsdStageTreeView::RefreshPrim( const FString& PrimPath, bool bResync )
 		{
 			for ( FUsdStageTreeItemRef ChildItem : ItemRef->Children )
 			{
-				if ( FUsdStageTreeItemPtr ChildValue = FindTreeItemFromPrimPath( ChildItem ) )
+				if ( FUsdStageTreeItemPtr ChildValue = FindTreeItemFromPrimPath( UsdPrimPath, ChildItem ) )
 				{
 					return ChildValue;
 				}
@@ -449,17 +489,35 @@ void SUsdStageTreeView::RefreshPrim( const FString& PrimPath, bool bResync )
 
 	for ( FUsdStageTreeItemRef RootItem : this->RootItems )
 	{
-		if ( FUsdStageTreeItemPtr FoundItem = FindTreeItemFromPrimPath( RootItem ) )
-		{
-			FoundItem->RefreshData();
+		TUsdStore< pxr::SdfPath > PrimPathToSearch = UsdPrimPath;
 
-			if ( bResync )
+		bool bFoundPrimToRefresh = false;
+
+		while ( !bFoundPrimToRefresh )
+		{
+			if ( FUsdStageTreeItemPtr FoundItem = FindTreeItemFromPrimPath( PrimPathToSearch, RootItem ) )
 			{
-				FoundItem->Children.Reset();
+				FoundItem->RefreshData( true );
+				bFoundPrimToRefresh = true;
+
+				break;
 			}
-			break;
+			else
+			{
+				TUsdStore< pxr::SdfPath > ParentPrimPath = PrimPathToSearch.Get().GetParentPath();
+
+				if ( ParentPrimPath.Get() == PrimPathToSearch.Get() )
+				{
+					break;
+				}
+				else
+				{
+					PrimPathToSearch = MoveTemp( ParentPrimPath );
+				}
+			}
 		}
-		else
+
+		if ( !bFoundPrimToRefresh )
 		{
 			bNeedsFullRefresh = true; // Prim not found, refresh the whole tree
 		}
@@ -670,8 +728,10 @@ void SUsdStageTreeView::OnAddReference()
 
 		pxr::UsdReferences References = SelectedItem->UsdPrim.Get().GetReferences();
 
-		FPaths::MakePathRelativeTo( PickedFile.GetValue(), *UsdStageActor->RootLayer.FilePath );
-		References.AddReference( UnrealToUsd::ConvertString( *PickedFile.GetValue() ).Get() );
+		FString AbsoluteFilePath = FPaths::ConvertRelativePathToFull( PickedFile.GetValue() );
+
+		FPaths::MakePathRelativeTo( AbsoluteFilePath, *UsdStageActor->RootLayer.FilePath );
+		References.AddReference( UnrealToUsd::ConvertString( *AbsoluteFilePath ).Get() );
 	}
 }
 
@@ -762,7 +822,7 @@ void SUsdStageTreeView::OnToggleAllPayloads( EPayloadsTrigger PayloadsTrigger )
 				}
 				else
 				{
-					for ( FUsdStageTreeItemRef Child : InSelectedItem->GetChildren() )
+					for ( FUsdStageTreeItemRef Child : InSelectedItem->UpdateChildren() )
 					{
 						RecursiveTogglePayloads( Child );
 					}

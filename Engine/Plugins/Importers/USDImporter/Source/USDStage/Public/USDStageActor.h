@@ -26,9 +26,13 @@
 #include "USDStageActor.generated.h"
 
 class ALevelSequenceActor;
+struct FMeshDescription;
+class IMeshBuilderModule;
 class ULevelSequence;
 class UMaterial;
 class UUsdAsset;
+
+DECLARE_LOG_CATEGORY_EXTERN( LogUsdStage, Log, All );
 
 UENUM()
 enum class EUsdInitialLoadSet
@@ -73,6 +77,9 @@ private:
 	TWeakObjectPtr< ULevelSequence > LevelSequence;
 
 public:
+	DECLARE_EVENT_OneParam( AUsdStageActor, FOnActorLoaded, AUsdStageActor* );
+	USDSTAGE_API static FOnActorLoaded OnActorLoaded;
+
 	DECLARE_EVENT( AUsdStageActor, FOnStageChanged );
 	FOnStageChanged OnStageChanged;
 
@@ -84,12 +91,14 @@ public:
 
 public:
 	AUsdStageActor();
+	virtual ~AUsdStageActor();
 
 	void Refresh() const;
 
 public:
 	virtual void PostEditChangeProperty( FPropertyChangedEvent& PropertyChangedEvent ) override;
 	virtual void PostRegisterAllComponents() override;
+	virtual void PostLoad() override;
 
 private:
 	void Clear();
@@ -110,7 +119,7 @@ private:
 
 	TMultiMap< FString, FDelegateHandle > PrimDelegates;
 
-	TArray< FString > PrimsToAnimate;
+	TSet< FString > PrimsToAnimate;
 
 	TMap< UObject*, FString > ObjectsToWatch;
 
@@ -129,11 +138,15 @@ public:
 	const FUsdListener& GetUsdListener() const { return UsdListener; }
 
 	FUsdPrimTwin* SpawnPrim( const pxr::SdfPath& UsdPrimPath );
-	FUsdPrimTwin* LoadPrim( const pxr::SdfPath& Path );
-	FUsdPrimTwin* ExpandPrim( const pxr::UsdPrim& Prim );
-	void UpdatePrim( const pxr::SdfPath& UsdPrimPath, bool bResync );
-	bool LoadStaticMesh( const pxr::UsdGeomMesh& UsdMesh, UStaticMeshComponent& MeshComponent );
+	FUsdPrimTwin* LoadPrim( const pxr::SdfPath& Path, const TMap< FString, UStaticMesh* >& PrimPathsToStaticMeshes );
+	FUsdPrimTwin* ExpandPrim( const pxr::UsdPrim& Prim, const TMap< FString, UStaticMesh* >& PrimPathsToStaticMeshes );
+	void UpdatePrim( const pxr::SdfPath& UsdPrimPath, bool bResync, const TMap< FString, UStaticMesh* >& PrimPathsToStaticMeshes );
+	bool SetStaticMesh( const pxr::UsdGeomMesh& UsdMesh, UStaticMeshComponent& MeshComponent, const TMap< FString, UStaticMesh* >& PrimPathsToStaticMeshes );
 	bool ProcessSkeletonRoot( const pxr::UsdPrim& Prim, USkinnedMeshComponent& SkinnedMeshComponent );
+
+protected:
+	TMap< FString, UStaticMesh* > LoadStaticMeshes( const pxr::UsdPrim& StartPrim );
+	UStaticMesh* CreateStaticMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescription&& MeshDescription, bool& bOutIsNew );
 
 private:
 	TUsdStore< pxr::UsdStageRefPtr > UsdStageStore;

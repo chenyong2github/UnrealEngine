@@ -37,6 +37,8 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 	FScopedUsdAllocs UsdAllocs;
 
 	pxr::UsdStageRefPtr Stage = UsdMesh.GetPrim().GetStage();
+	const pxr::TfToken StageUpAxis = UsdUtils::GetUsdStageAxis( Stage );
+
 	const double TimeCodeValue = TimeCode.GetValue();
 
 	TTuple< TArray< FString >, TArray< int32 > > GeometryMaterials = IUsdPrim::GetGeometryMaterials( TimeCodeValue, UsdMesh.GetPrim() );
@@ -65,7 +67,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 			{
 				const GfVec3f& Point = PointsArray[ LocalPointIndex ];
 
-				FVector Pos = UsdToUnreal::ConvertVector( Stage, Point );
+				FVector Pos = UsdToUnreal::ConvertVector( StageUpAxis, Point );
 
 				FVertexID AddedVertexId = MeshDescription.CreateVertex();
 				MeshDescriptionVertexPositions[ AddedVertexId ] = Pos;
@@ -229,7 +231,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 					const int32 NormalIndex = Normals.size() != FaceIndices.size() ? FaceIndices[CurrentVertexInstanceIndex] : CurrentVertexInstanceIndex;
 					check(NormalIndex < Normals.size());
 					const GfVec3f& Normal = Normals[NormalIndex];
-					FVector TransformedNormal = UsdToUnreal::ConvertVector( Stage, Normal );
+					FVector TransformedNormal = UsdToUnreal::ConvertVector( StageUpAxis, Normal );
 
 					ensure( !TransformedNormal.IsNearlyZero() );
 					MeshDescriptionNormals[AddedVertexInstanceId] = TransformedNormal.GetSafeNormal();
@@ -411,6 +413,8 @@ namespace UsdGeomMeshConversionImpl
 	{
 		UMaterialExpression* Result = nullptr;
 
+		FScopedUsdAllocs UsdAllocs;
+
 		pxr::UsdShadeConnectableAPI Source;
 		pxr::TfToken SourceName;
 		pxr::UsdShadeAttributeType AttributeType;
@@ -425,6 +429,8 @@ namespace UsdGeomMeshConversionImpl
 				{
 					pxr::SdfAssetPath TexturePath;
 					FileInput.Get< pxr::SdfAssetPath >( &TexturePath );
+
+					FScopedUnrealAllocs UnrealAllocs;
 
 					FString TextureFileName = UsdToUnreal::ConvertString( TexturePath.GetResolvedPath() );
 					TextureFileName.RemoveFromStart( TEXT("\\\\?\\") );
@@ -625,6 +631,8 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdGeom
 		return false;
 	}
 
+	const pxr::TfToken StageUpAxis = UsdUtils::GetUsdStageAxis( Stage );
+
 	const FStaticMeshLODResources& RenderMesh = StaticMesh->GetLODForExport( 0 /*ExportLOD*/ );
 
 	// Verify the integrity of the static mesh.
@@ -653,7 +661,7 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdGeom
 				for ( int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex )
 				{
 					FVector VertexPosition = RenderMesh.VertexBuffers.PositionVertexBuffer.VertexPosition( VertexIndex );
-					PointsArray.push_back( UnrealToUsd::ConvertVector( Stage, VertexPosition ) );
+					PointsArray.push_back( UnrealToUsd::ConvertVector( StageUpAxis, VertexPosition ) );
 				}
 
 				Points.Set( PointsArray, TimeCode );
@@ -671,7 +679,7 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdGeom
 				for ( int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex )
 				{
 					FVector VertexNormal = RenderMesh.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ( VertexIndex );
-					Normals.push_back( UnrealToUsd::ConvertVector( Stage, VertexNormal ) );
+					Normals.push_back( UnrealToUsd::ConvertVector( StageUpAxis, VertexNormal ) );
 				}
 
 				NormalsAttribute.Set( Normals, TimeCode );

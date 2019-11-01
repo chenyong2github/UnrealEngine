@@ -19,6 +19,7 @@
 #include "Engine/World.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Modules/ModuleManager.h"
+#include "ScopedTransaction.h"
 #include "UObject/GCObjectScopeGuard.h"
 #include "UObject/StrongObjectPtr.h"
 #include "Widgets/Layout/SSplitter.h"
@@ -50,6 +51,9 @@ namespace SUSDStageConstants
 
 void SUsdStage::Construct( const FArguments& InArgs )
 {
+	OnStageActorPropertyChangedHandle = FCoreUObjectDelegates::OnObjectPropertyChanged.AddSP( SharedThis( this ), &SUsdStage::OnStageActorPropertyChanged );
+	OnActorLoadedHandle = AUsdStageActor::OnActorLoaded.AddSP( SharedThis( this ), &SUsdStage::OnStageActorLoaded );
+
 	IUsdStageModule& UsdStageModule = FModuleManager::Get().LoadModuleChecked< IUsdStageModule >( "UsdStage" );
 	UsdStageActor = &UsdStageModule.GetUsdStageActor( GWorld );
 
@@ -58,6 +62,11 @@ void SUsdStage::Construct( const FArguments& InArgs )
 	if ( UsdStageActor.IsValid() )
 	{
 		UsdStage = UsdStageActor->GetUsdStage();
+
+		if ( !UsdStage.Get() )
+		{
+			UsdStageActor.Reset();
+		}
 	}
 
 	ChildSlot
@@ -150,37 +159,45 @@ void SUsdStage::SetupStageActorDelegates()
 				{
 					this->UsdStageTreeView->RefreshPrim( PrimPath, bResync );
 				}
-			}
-		);
 
-		OnStageChangedHandle = UsdStageActor->OnStageChanged.AddLambda(
-			[ this ]()
-			{
-				if ( UsdStageActor.IsValid() )
+				if ( this->UsdPrimInfoWidget )
 				{
-					if ( this->UsdStageInfoWidget )
-					{
-						this->UsdStageInfoWidget->RefreshStageInfos( UsdStageActor.Get() );
-					}
-
-					if ( this->UsdStageTreeView )
-					{
-						this->UsdStageTreeView->Refresh( UsdStageActor.Get() );
-						this->UsdStageTreeView->RequestTreeRefresh();
-					}
-
-					if ( this->UsdPrimInfoWidget )
-					{
-						this->UsdPrimInfoWidget->SetPrimPath( UsdStageActor->GetUsdStage(), TEXT("/") );
-					}
-
-					if ( this->UsdLayersTreeView )
-					{
-						this->UsdLayersTreeView->Refresh( UsdStageActor.Get(), true );
-					}
+					this->UsdPrimInfoWidget->SetPrimPath( UsdStageActor->GetUsdStage(), *PrimPath );
 				}
 			}
 		);
+
+		if ( !OnStageChangedHandle.IsValid() )
+		{
+			OnStageChangedHandle = UsdStageActor->OnStageChanged.AddLambda(
+				[ this ]()
+				{
+					if ( UsdStageActor.IsValid() )
+					{
+						if ( this->UsdStageInfoWidget )
+						{
+							this->UsdStageInfoWidget->RefreshStageInfos( UsdStageActor.Get() );
+						}
+
+						if ( this->UsdStageTreeView )
+						{
+							this->UsdStageTreeView->Refresh( UsdStageActor.Get() );
+							this->UsdStageTreeView->RequestTreeRefresh();
+						}
+
+						if ( this->UsdPrimInfoWidget )
+						{
+							this->UsdPrimInfoWidget->SetPrimPath( UsdStageActor->GetUsdStage(), TEXT("/") );
+						}
+
+						if ( this->UsdLayersTreeView )
+						{
+							this->UsdLayersTreeView->Refresh( UsdStageActor.Get(), true );
+						}
+					}
+				}
+			);
+		}
 
 		OnStageEditTargetChangedHandle = UsdStageActor->GetUsdListener().OnStageEditTargetChanged.AddLambda(
 			[ this ]()
@@ -196,6 +213,9 @@ void SUsdStage::SetupStageActorDelegates()
 
 SUsdStage::~SUsdStage()
 {
+	FCoreUObjectDelegates::OnObjectPropertyChanged.Remove( OnStageActorPropertyChangedHandle );
+	AUsdStageActor::OnActorLoaded.Remove( OnActorLoadedHandle );
+
 	if ( UsdStageActor.IsValid() )
 	{
 		UsdStageActor->OnStageChanged.Remove( OnStageChangedHandle );
@@ -308,25 +328,27 @@ void SUsdStage::OnNew()
 
 	if ( UsdFilePath )
 	{
-		FScopedUsdAllocs UsdAllocs;
-
-		pxr::UsdStageCacheContext UsdStageCacheContext( UnrealUSDWrapper::GetUsdStageCache() );
-		pxr::UsdStageRefPtr UsdStage = pxr::UsdStage::CreateNew( UnrealToUsd::ConvertString( *UsdFilePath.GetValue() ).Get() );
-
-		if ( !UsdStage )
 		{
-			return;
-		}
+			FScopedUsdAllocs UsdAllocs;
 
-		// Create default prim
-		pxr::UsdGeomXform RootPrim = pxr::UsdGeomXform::Define( UsdStage, UnrealToUsd::ConvertPath( TEXT("/Root") ).Get() );
-		pxr::UsdModelAPI( RootPrim ).SetKind( pxr::TfToken("component") );
+			pxr::UsdStageCacheContext UsdStageCacheContext( UnrealUSDWrapper::GetUsdStageCache() );
+			pxr::UsdStageRefPtr UsdStage = pxr::UsdStage::CreateNew( UnrealToUsd::ConvertString( *UsdFilePath.GetValue() ).Get() );
+
+			if ( !UsdStage )
+			{
+				return;
+			}
+
+			// Create default prim
+			pxr::UsdGeomXform RootPrim = pxr::UsdGeomXform::Define( UsdStage, UnrealToUsd::ConvertPath( TEXT("/Root") ).Get() );
+			pxr::UsdModelAPI( RootPrim ).SetKind( pxr::TfToken("component") );
 		
-		// Set default prim
-		UsdStage->SetDefaultPrim( RootPrim.GetPrim() );
+			// Set default prim
+			UsdStage->SetDefaultPrim( RootPrim.GetPrim() );
 
-		// Set up axis
-		UsdUtils::SetUsdStageAxis( UsdStage, pxr::UsdGeomTokens->z );
+			// Set up axis
+			UsdUtils::SetUsdStageAxis( UsdStage, pxr::UsdGeomTokens->z );
+		}
 
 		OpenStage( *UsdFilePath.GetValue() );
 	}
@@ -464,8 +486,10 @@ void SUsdStage::OnPrimSelected( FString PrimPath )
 
 void SUsdStage::OnInitialLoadSetChanged( EUsdInitialLoadSet InitialLoadSet )
 {
-	if ( UsdStageActor.IsValid() )
+	if ( UsdStageActor.IsValid() && UsdStageActor->InitialLoadSet != InitialLoadSet )
 	{
+		const FScopedTransaction Transaction( LOCTEXT("EditInitialLoadSetTransaction", "Edit Initial Load Set") );
+		UsdStageActor->Modify();
 		UsdStageActor->InitialLoadSet = InitialLoadSet;
 	}
 }
@@ -477,6 +501,11 @@ void SUsdStage::OpenStage( const TCHAR* FilePath )
 		IUsdStageModule& UsdStageModule = FModuleManager::Get().LoadModuleChecked< IUsdStageModule >( "UsdStage" );
 		UsdStageActor = &UsdStageModule.GetUsdStageActor( GWorld );
 
+		if ( UsdStageInfoWidget )
+		{
+			UsdStageActor->InitialLoadSet = UsdStageInfoWidget->GetInitialLoadSet();
+		}
+
 		SetupStageActorDelegates();
 	}
 
@@ -485,6 +514,28 @@ void SUsdStage::OpenStage( const TCHAR* FilePath )
 
 	FPropertyChangedEvent RootLayerPropertyChangedEvent( FindFieldChecked< UProperty >( UsdStageActor->GetClass(), FName("RootLayer") ) );
 	UsdStageActor->PostEditChangeProperty( RootLayerPropertyChangedEvent );
+}
+
+void SUsdStage::OnStageActorLoaded( AUsdStageActor* InUsdStageActor )
+{
+	if ( UsdStageActor == InUsdStageActor )
+	{
+		return;
+	}
+
+	UsdStageActor = InUsdStageActor;
+	SetupStageActorDelegates();
+}
+
+void SUsdStage::OnStageActorPropertyChanged( UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent )
+{
+	if ( ObjectBeingModified == UsdStageActor )
+	{
+		if ( this->UsdStageInfoWidget )
+		{
+			this->UsdStageInfoWidget->RefreshStageInfos( UsdStageActor.Get() );
+		}
+	}
 }
 
 #endif // #if USE_USD_SDK
