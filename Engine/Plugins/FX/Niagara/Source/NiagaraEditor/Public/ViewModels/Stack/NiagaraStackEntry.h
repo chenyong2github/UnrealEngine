@@ -177,7 +177,7 @@ public:
 		FString UniqueIdentifier;
 	};
 
-	struct FStackIssue
+	struct NIAGARAEDITOR_API FStackIssue
 	{
 		FStackIssue();
 
@@ -313,6 +313,18 @@ public:
 
 	bool HasBaseEmitter() const;
 
+	bool HasIssuesOrAnyChildHasIssues() const;
+
+	int32 GetTotalNumberOfInfoIssues() const;
+
+	int32 GetTotalNumberOfWarningIssues() const;
+
+	int32 GetTotalNumberOfErrorIssues() const;
+
+	const TArray<FStackIssue>& GetIssues() const;
+
+	const TArray<UNiagaraStackEntry*>& GetAllChildrenWithIssues() const;
+
 protected:
 	virtual void BeginDestroy() override;
 
@@ -389,6 +401,8 @@ private:
 	
 	TArray<FStackIssue> StackIssues;
 
+	TArray<UNiagaraStackEntry*> ChildrenWithIssues;
+
 	bool bIsFinalized;
 
 	bool bIsSearchResult;
@@ -396,4 +410,8 @@ private:
 	mutable TOptional<bool> bHasBaseEmitterCache;
 
 	bool bOwnerIsEnabled;
+
+	int32 TotalNumberOfInfoIssues;
+	int32 TotalNumberOfWarningIssues;
+	int32 TotalNumberOfErrorIssues;
 };

@@ -32,10 +32,6 @@ private:
 
 	ECheckBoxState CheckEnabledStatus() const;
 
-	EVisibility GetStackIssuesWarningVisibility() const;
-
-	FText GetErrorButtonTooltipText() const;
-
 private:
 	UNiagaraStackRendererItem* RendererItem;
 };

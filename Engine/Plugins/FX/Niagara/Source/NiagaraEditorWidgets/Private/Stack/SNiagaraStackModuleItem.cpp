@@ -21,7 +21,6 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Application/SlateApplication.h"
 #include "SDropTarget.h"
-#include "SNiagaraStackErrorButton.h"
 #include "NiagaraEditorUtilities.h"
 #include "SGraphActionMenu.h"
 #include "NiagaraEditorWidgetsUtilities.h"
@@ -51,23 +50,10 @@ void SNiagaraStackModuleItem::Construct(const FArguments& InArgs, UNiagaraStackM
 			// Name
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
-			.Padding(0)
+			.Padding(2, 0, 0, 0)
 			[
 				SNew(SNiagaraStackDisplayName, InModuleItem, *InStackViewModel, "NiagaraEditor.Stack.ItemText")
 				.ColorAndOpacity(this, &SNiagaraStackModuleItem::GetTextColorForSearch)
-			]
-			// Stack issues icon
-			+ SHorizontalBox::Slot()
-			.Padding(2, 0, 0, 0)
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			[
-				SNew(SNiagaraStackErrorButton)
-				.IssueSeverity_UObject(ModuleItem, &UNiagaraStackModuleItem::GetHighestStackIssueSeverity)
-				.ErrorTooltip(this, &SNiagaraStackModuleItem::GetErrorButtonTooltipText)
-				.Visibility(this, &SNiagaraStackModuleItem::GetStackIssuesWarningVisibility)
-				.IsEnabled(this, &SNiagaraStackModuleItem::GetButtonsEnabled)
-				.OnButtonClicked(this, &SNiagaraStackModuleItem::ExpandEntry)
 			]
 			// Raise Action Menu button
 			+ SHorizontalBox::Slot()
@@ -296,16 +282,6 @@ bool SNiagaraStackModuleItem::OnModuleItemAllowDrop(TSharedPtr<FDragDropOperatio
 	}
 
 	return false;
-}
-
-EVisibility SNiagaraStackModuleItem::GetStackIssuesWarningVisibility() const
-{
-	return ModuleItem->GetRecursiveStackIssuesCount() > 0 ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-FText SNiagaraStackModuleItem::GetErrorButtonTooltipText() const
-{
-	return FText::Format(LOCTEXT("ModuleIssuesTooltip", "This module has {0} issues, click to expand."), ModuleItem->GetRecursiveStackIssuesCount());
 }
 
 void ReassignModuleScript(UNiagaraStackModuleItem* ModuleItem, FAssetData NewModuleScriptAsset)

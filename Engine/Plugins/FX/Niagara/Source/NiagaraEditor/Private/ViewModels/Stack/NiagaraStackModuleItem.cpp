@@ -522,7 +522,7 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 					{
 						FScopedTransaction ScopedTransaction(LOCTEXT("EnableDependencyModule", "Enable dependency module"));
 						FNiagaraStackGraphUtilities::SetModuleIsEnabled(*DisabledNode, true);
-						OnRequestFullRefresh().Broadcast();
+						OnRequestFullRefreshDeferred().Broadcast();
 
 					}));
 					Fixes.Add(Fix);
@@ -551,7 +551,7 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 							FNiagaraStackGraphUtilities::SetModuleIsEnabled(*DisorderedNode.ModuleNode, true);
 						}
 						FNiagaraStackGraphUtilities::RelayoutGraph(*OutputNode->GetGraph());
-						OnRequestFullRefresh().Broadcast();
+						OnRequestFullRefreshDeferred().Broadcast();
 					}));
 					Fixes.Add(Fix);
 				}
@@ -673,7 +673,7 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 							checkf(NewModuleNode != nullptr, TEXT("Add module action failed"));
 							FNiagaraStackGraphUtilities::InitializeStackFunctionInputs(GetSystemViewModel(), GetEmitterViewModel(), GetStackEditorData(), *NewModuleNode, *NewModuleNode);
 							FNiagaraStackGraphUtilities::RelayoutGraph(*TargetOutputNode->GetGraph());
-							OnRequestFullRefresh().Broadcast();
+							OnRequestFullRefreshDeferred().Broadcast();
 						}));
 						Fixes.Add(Fix);
 					}
@@ -808,7 +808,7 @@ void UNiagaraStackModuleItem::SetIsEnabledInternal(bool bInIsEnabled)
 	FScopedTransaction ScopedTransaction(LOCTEXT("EnableDisableModule", "Enable/Disable Module"));
 	FNiagaraStackGraphUtilities::SetModuleIsEnabled(*FunctionCallNode, bInIsEnabled);
 	bIsEnabled = bInIsEnabled;
-	OnRequestFullRefresh().Broadcast();
+	OnRequestFullRefreshDeferred().Broadcast();
 }
 
 bool UNiagaraStackModuleItem::TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const

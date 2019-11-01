@@ -25,35 +25,6 @@ UNiagaraStackItem::FOnModifiedGroupItems& UNiagaraStackItem::OnModifiedGroupItem
 	return ModifiedGroupItemsDelegate;
 }
 
-uint32 UNiagaraStackItem::GetRecursiveStackIssuesCount() const
-{
-	if (RecursiveStackIssuesCount.IsSet() == false)
-	{
-		TArray<UNiagaraStackErrorItem*> RecursiveIssues;
-		FNiagaraStackGraphUtilities::GetStackIssuesRecursively(this, RecursiveIssues);
-		RecursiveStackIssuesCount = RecursiveIssues.Num();
-		EStackIssueSeverity MinSeverity = EStackIssueSeverity::Info;
-		for (auto Issue : RecursiveIssues)
-		{
-			if (Issue->GetStackIssue().GetSeverity() < MinSeverity)
-			{
-				MinSeverity = Issue->GetStackIssue().GetSeverity();
-			}
-		}
-		HighestIssueSeverity = MinSeverity;
-	}
-	return RecursiveStackIssuesCount.GetValue();
-}
-
-EStackIssueSeverity UNiagaraStackItem::GetHighestStackIssueSeverity() const
-{
-	if (HighestIssueSeverity.IsSet() == false)
-	{
-		GetRecursiveStackIssuesCount();
-	}
-	return HighestIssueSeverity.GetValue();
-}
-
 void UNiagaraStackItem::SetIsEnabled(bool bInIsEnabled)
 {
 	if (ItemFooter != nullptr)
@@ -83,8 +54,6 @@ void UNiagaraStackItem::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*
 	ItemFooter->SetIsEnabled(GetIsEnabled());
 
 	NewChildren.Add(ItemFooter);
-	RecursiveStackIssuesCount.Reset();
-	HighestIssueSeverity.Reset();
 }
 
 void GetContentChildren(UNiagaraStackEntry& CurrentEntry, TArray<UNiagaraStackItemContent*>& ContentChildren)
@@ -122,13 +91,6 @@ void UNiagaraStackItem::PostRefreshChildrenInternal()
 int32 UNiagaraStackItem::GetChildIndentLevel() const
 {
 	return GetIndentLevel();
-}
-
-void UNiagaraStackItem::ChlildStructureChangedInternal()
-{
-	Super::ChlildStructureChangedInternal();
-	RecursiveStackIssuesCount.Reset();
-	HighestIssueSeverity.Reset();
 }
 
 bool UNiagaraStackItem::FilterAdvancedChildren(const UNiagaraStackEntry& Child) const

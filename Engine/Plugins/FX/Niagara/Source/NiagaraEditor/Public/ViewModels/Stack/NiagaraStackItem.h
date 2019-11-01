@@ -24,9 +24,6 @@ public:
 
 	FOnModifiedGroupItems& OnModifiedGroupItems();
 
-	uint32 GetRecursiveStackIssuesCount() const;
-	EStackIssueSeverity GetHighestStackIssueSeverity() const;
-
 	virtual bool SupportsChangeEnabled() const { return false; }
 	void SetIsEnabled(bool bInIsEnabled);
 
@@ -40,8 +37,6 @@ protected:
 	virtual void PostRefreshChildrenInternal() override;
 
 	virtual int32 GetChildIndentLevel() const override;
-
-	virtual void ChlildStructureChangedInternal() override;
 
 	virtual void SetIsEnabledInternal(bool bInIsEnabled) { }
 	virtual void DeleteInternal() { }
@@ -57,11 +52,6 @@ protected:
 private:
 	UPROPERTY()
 	UNiagaraStackItemFooter* ItemFooter;
-
-	/** How many errors this entry has along its tree. */
-	mutable TOptional<uint32> RecursiveStackIssuesCount;
-	/** The highest severity of issues along this entry's tree. */
-	mutable TOptional<EStackIssueSeverity> HighestIssueSeverity;
 };
 
 UCLASS()

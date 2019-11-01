@@ -1255,10 +1255,7 @@ void FNiagaraSystemViewModel::EmitterHandlePropertyChanged(FGuid OwningEmitterHa
 	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = GetEmitterHandleViewModelById(OwningEmitterHandleId);
 	if (EmitterHandleViewModel.IsValid())
 	{
-		for (UNiagaraStackEntry* RootEntry : EmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntries())
-		{
-			RootEntry->RefreshChildren();
-		}
+		EmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntry()->RefreshChildren();
 	}
 
 	ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::ResetThisInstance, EReinitMode::ReinitializeSystem);
