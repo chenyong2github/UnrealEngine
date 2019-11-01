@@ -14,7 +14,7 @@
 #include "CanvasItem.h"
 #include "Containers/Array.h"
 #include "Templates/UniquePtr.h"
-#include "NetworkSimulationModelCVars.h"
+#include "NetworkedSimulationModelCVars.h"
 #include "VisualLogger/VisualLogger.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNetworkSimDebug, Log, All);

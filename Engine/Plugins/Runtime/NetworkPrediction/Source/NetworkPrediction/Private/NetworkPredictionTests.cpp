@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "NetworkSimulationModel.h"
+#include "NetworkedSimulationModel.h"
 
 // ------------------------------------------------------------------------------------------------------------
 //	Testing Fixed vs Variable tick rate struct declration

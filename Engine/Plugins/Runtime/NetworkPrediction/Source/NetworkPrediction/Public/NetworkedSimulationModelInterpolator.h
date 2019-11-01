@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "NetworkSimulationModelCVars.h"
+#include "NetworkedSimulationModelCVars.h"
 #include "VisualLogger/VisualLogger.h"
 #include "GameFramework/Actor.h"
 #include "NetworkPredictionTypes.h"
 #include "Engine/World.h"
-#include "NetworkSimulationModelTypes.h"
+#include "NetworkedSimulationModelTypes.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNetInterpolation, Log, All);
 

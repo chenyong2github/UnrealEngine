@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "NetworkSimulationModel.h"
+#include "NetworkedSimulationModel.h"
 #include "BaseMovementComponent.h"
 
 #include "ParametricMovement.generated.h"
