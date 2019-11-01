@@ -2450,7 +2450,7 @@ namespace ObjectTools
 		bool bClosedAllEditors = true;
 		for (UObject* Object : ReferencingObjects)
 		{
-			if (Object->IsAsset())
+			if (Object != nullptr && Object->IsAsset())
 			{
 				TArray<IAssetEditorInstance*> ObjectEditors = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorsForAssetAndSubObjects(Object);
 				for (IAssetEditorInstance* ObjectEditorInstance : ObjectEditors)
