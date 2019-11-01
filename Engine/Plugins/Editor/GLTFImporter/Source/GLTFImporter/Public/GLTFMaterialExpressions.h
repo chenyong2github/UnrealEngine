@@ -247,9 +247,32 @@ namespace GLTF
 		virtual FMaterialExpressionInput* GetInput(int32 Index) override;
 		virtual int32                     GetInputCount() const override;
 
+		void SetBoolProperty(const TCHAR* Name, bool Value)
+		{
+			BoolProperties.Add(Name, Value);
+		}
+
+		void SetFloatProperty(const TCHAR* Name, float Value)
+		{
+			FloatProperties.Add(Name, Value);
+		}
+
+		const TMap<FString, bool>& GetBoolProperties() const
+		{
+			return BoolProperties;
+		}
+
+		const TMap<FString, float>& GetFloatProperties() const
+		{
+			return FloatProperties;
+		}
+
 	private:
 		FString                          ExpressionName;
 		TArray<FMaterialExpressionInput> Inputs;
+
+		TMap<FString, bool> BoolProperties;
+		TMap<FString, float> FloatProperties;
 	};
 
 	class GLTFIMPORTER_API FMaterialExpressionFunctionCall : public FMaterialExpression
