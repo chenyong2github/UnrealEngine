@@ -18,6 +18,7 @@
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"
 #include "GeomModifier.h"
+#include "GeometryModeModule.h"
 
 #define LOCTEXT_NAMESPACE "GeometryMode"
 
