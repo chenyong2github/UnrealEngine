@@ -7,6 +7,7 @@
 
 class AUsdStageActor;
 enum class EUsdInitialLoadSet;
+class STextComboBox;
 
 #if USE_USD_SDK
 
