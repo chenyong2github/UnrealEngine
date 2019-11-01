@@ -781,7 +781,7 @@ public:
 	/**
 	 * Registers the mesh attributes required by the mesh description for a static mesh.
 	 */
-	UE_DEPRECATED(4.25, "Please use FStaticMeshAttributes::Register to do this.")
+	UE_DEPRECATED(4.24, "Please use FStaticMeshAttributes::Register to do this.")
 	ENGINE_API static void RegisterMeshAttributes( FMeshDescription& MeshDescription );
 
 #if WITH_EDITORONLY_DATA

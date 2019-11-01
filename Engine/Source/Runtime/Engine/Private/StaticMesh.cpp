@@ -3767,6 +3767,9 @@ bool UStaticMesh::LoadMeshDescription(int32 LodIndex, FMeshDescription& OutMeshD
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::LoadMeshDescription);
 
+	// Ensure MeshDescription is empty, with no attributes registered
+	OutMeshDescription = FMeshDescription();
+
 	const FStaticMeshSourceModel& SourceModel = GetSourceModel(LodIndex);
 
 	// If we don't have a valid MeshDescription, try and get one...
@@ -3810,6 +3813,11 @@ bool UStaticMesh::LoadMeshDescription(int32 LodIndex, FMeshDescription& OutMeshD
 		SourceModel.LoadRawMesh(LodRawMesh);
 		TMap<int32, FName> MaterialMap;
 		FillMaterialName(StaticMaterials, MaterialMap);
+
+		// Register static mesh attributes on the mesh description
+		FStaticMeshAttributes StaticMeshAttributes(OutMeshDescription);
+		StaticMeshAttributes.Register();
+
 		FMeshDescriptionOperations::ConvertFromRawMesh(LodRawMesh, OutMeshDescription, MaterialMap);
 		return true;
 	}
