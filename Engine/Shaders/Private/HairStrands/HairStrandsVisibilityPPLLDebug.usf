@@ -1,0 +1,37 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+
+#include "HairStrandsVisibilityCommon.ush"
+
+uint MaxPPLLNodeCount;
+Texture2D<uint> PPLLCounter;
+Texture2D<uint> PPLLNodeIndex;
+StructuredBuffer<FPPLLNodeData> PPLLNodeData;
+
+void VisibilityDebugPPLLPS(
+	in float4 SVPos : SV_POSITION,
+	out float4 OutLuminance : SV_Target0)
+{
+	uint2 PixPos = SVPos.xy;
+
+	uint NextNodeIndex = PPLLNodeIndex[PixPos];
+	if (NextNodeIndex != 0xFFFFFFFF)
+	{
+		uint StrandCount = 0;
+		do
+		{
+			StrandCount++;
+			FPPLLNodeData Node = PPLLNodeData[NextNodeIndex];
+			NextNodeIndex = Node.NextNodeIndex;
+		} while (NextNodeIndex != 0xFFFFFFFF);
+
+		float l = saturate(StrandCount / 16.0f);
+
+		OutLuminance = float4(l, 1.0f - l, 0.0f, 0.0f);
+	}
+	else
+	{
+		OutLuminance = float4(0.0f, 0.0f, 0.0f, 1.0f);
+	}
+}
