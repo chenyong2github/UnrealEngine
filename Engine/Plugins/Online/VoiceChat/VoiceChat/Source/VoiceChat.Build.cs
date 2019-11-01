@@ -8,7 +8,8 @@ namespace UnrealBuildTool.Rules
 	{
 		public VoiceChat(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+			// External so we don't build a DLL for this, it is header only.
+			Type = ModuleType.External;
 
 			PublicDependencyModuleNames.AddRange(
 				new string[]
