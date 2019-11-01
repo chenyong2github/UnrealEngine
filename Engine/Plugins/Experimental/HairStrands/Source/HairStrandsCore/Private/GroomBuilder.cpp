@@ -821,7 +821,7 @@ namespace HairInterpolationBuilder
 		const uint32 RenCurveCount = RenStrandsData.GetNumCurves();
 		const uint32 SimCurveCount = SimStrandsData.GetNumCurves();
 
-		TAtomic<uint32> CompletedTasks = 0;
+		TAtomic<uint32> CompletedTasks(0);
 		FScopedSlowTask SlowTask(RenCurveCount, LOCTEXT("BuildInterpolationData", "Building groom simulation data"));
 		SlowTask.MakeDialog();
 
