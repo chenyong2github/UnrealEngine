@@ -2838,7 +2838,20 @@ void FBlueprintEditor::ReparentBlueprint_NewParentChosen(UClass* ChosenClass)
 
 		if ( bReparent )
 		{
+			const FScopedTransaction Transaction( LOCTEXT("ReparentBlueprint", "Reparent Blueprint") );
 			UE_LOG(LogBlueprint, Warning, TEXT("Reparenting blueprint %s from %s to %s..."), *BlueprintObj->GetFullName(), BlueprintObj->ParentClass ? *BlueprintObj->ParentClass->GetName() : TEXT("[None]"), *ChosenClass->GetName());
+			
+			BlueprintObj->Modify();
+			if(USimpleConstructionScript* SCS = BlueprintObj->SimpleConstructionScript)
+			{
+				SCS->Modify();
+
+				const TArray<USCS_Node*>& AllNodes = SCS->GetAllNodes();
+				for(USCS_Node* Node : AllNodes )
+				{
+					Node->Modify();
+				}
+			}
 
 			UClass* OldParentClass = BlueprintObj->ParentClass ;
 			BlueprintObj->ParentClass = ChosenClass;
