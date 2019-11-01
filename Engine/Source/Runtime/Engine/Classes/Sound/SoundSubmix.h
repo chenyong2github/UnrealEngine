@@ -85,9 +85,11 @@ class ENGINE_API USoundSubmix : public UObject
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = SoundSubmix)
 	TArray<USoundSubmix*> ChildSubmixes;
 
+public:
 	UPROPERTY()
 	USoundSubmix* ParentSubmix;
 
+private:
 #if WITH_EDITORONLY_DATA
 	/** EdGraph based representation of the SoundSubmix */
 	UEdGraph* SoundSubmixGraph;

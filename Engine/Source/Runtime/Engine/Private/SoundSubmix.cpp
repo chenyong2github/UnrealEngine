@@ -15,6 +15,7 @@
 
 USoundSubmix::USoundSubmix(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, ParentSubmix(nullptr)
 #if WITH_EDITORONLY_DATA
 	, SoundSubmixGraph(nullptr)
 #endif // WITH_EDITORONLY_DATA

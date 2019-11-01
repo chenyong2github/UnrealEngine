@@ -385,10 +385,9 @@ void USoundSubmixGraphSchema::DroppedAssetsOnGraph(const TArray<FAssetData>& Ass
 		if (USoundSubmix* RootSubmix = SoundSubmixGraph->GetRootSoundSubmix())
 		{
 			UAssetEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
-			if (IAssetEditorInstance* Editor = EditorSubsystem->FindEditorForAsset(RootSubmix, false /* bFocusIfOpen */))
-			if (IAssetEditorInstance* Editor = FAssetEditorManager::Get().FindEditorForAsset(RootSubmix, false /* bFocusIfOpen */))
+			if (IAssetEditorInstance* EditorInstance = EditorSubsystem->FindEditorForAsset(RootSubmix, false /* bFocusIfOpen */))
 			{
-				FSoundSubmixEditor* SubmixEditor = static_cast<FSoundSubmixEditor*>(Editor);
+				FSoundSubmixEditor* SubmixEditor = static_cast<FSoundSubmixEditor*>(EditorInstance);
 				SoundSubmixGraph->AddDroppedSoundSubmixes(UndisplayedSubmixes, GraphPosition.X, GraphPosition.Y);
 				SubmixEditor->AddMissingEditableSubmixes();
 				SubmixEditor->SelectSubmixes(UndisplayedSubmixes);
