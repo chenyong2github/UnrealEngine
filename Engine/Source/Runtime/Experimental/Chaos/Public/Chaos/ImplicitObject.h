@@ -55,6 +55,17 @@ namespace ImplicitObjectType
 
 using EImplicitObjectType = uint8;	//see ImplicitObjectType
 
+FORCEINLINE bool IsInstanced(EImplicitObjectType Type)
+{
+	return (Type & ImplicitObjectType::IsInstanced) != 0;
+}
+
+FORCEINLINE bool IsScaled(EImplicitObjectType Type)
+{
+	return (Type & ImplicitObjectType::IsScaled) != 0;
+}
+
+
 namespace EImplicitObject
 {
 	enum Flags
