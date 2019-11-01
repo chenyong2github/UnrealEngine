@@ -91,7 +91,10 @@ protected:
 		{
 			ElementType* HeadElementPtr = ((T*)this)->HeadElement();
 			ElementType* NewElement = ((T*)this)->WriteFrame(Frame);
-			*NewElement = *HeadElementPtr;
+			if (HeadElementPtr)
+			{
+				*NewElement = *HeadElementPtr;
+			}
 			return NewElement;
 		}
 		else if (Frame < ((T*)this)->TailFrame())
