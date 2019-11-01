@@ -49,9 +49,8 @@
 #include "EditorLevelUtils.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "LevelEditorViewport.h"
+#include "Layers/ILayers.h"
 #include "Layers/LayersSubsystem.h"
-#include "Editor/GeometryMode/Public/GeometryEdMode.h"
-#include "Editor/GeometryMode/Public/EditorGeometry.h"
 #include "ActorEditorUtils.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "UnrealExporter.h"
@@ -65,6 +64,8 @@
 #include "AssetToolsModule.h"
 #include "AssetSelection.h"
 #include "Framework/Application/SlateApplication.h"
+#include "EdMode.h"
+#include "Subsystems/BrushEditingSubsystem.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
@@ -2593,24 +2594,9 @@ void UUnrealEdEngine::edactAlignVertices()
 						PolyIdx = -1;
 					}
 
-					// Determine if we are in geometry edit mode.
-					if ( GLevelEditorModeTools().IsModeActive(FBuiltinEditorModes::EM_Geometry) )
+					if (UBrushEditingSubsystem* BrushSubsystem = GEditor->GetEditorSubsystem<UBrushEditingSubsystem>())
 					{
-						// If we are in geometry mode, go through the list of geometry objects
-						// and find our current brush and update its source data as it might have changed 
-						// in RecomputePoly
-						FEdModeGeometry* GeomMode = (FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode(FBuiltinEditorModes::EM_Geometry);
-						FEdModeGeometry::TGeomObjectIterator GeomModeIt = GeomMode->GeomObjectItor();
-						for( ; GeomModeIt; ++GeomModeIt )
-						{
-							FGeomObjectPtr Object = *GeomModeIt;
-							if( Object->GetActualBrush() == Brush )
-							{
-								// We found our current brush, update the geometry object's data
-								Object->GetFromSource();
-								break;
-							}
-						}
+						BrushSubsystem->UpdateGeometryFromBrush(Brush);
 					}
 				}
 			}

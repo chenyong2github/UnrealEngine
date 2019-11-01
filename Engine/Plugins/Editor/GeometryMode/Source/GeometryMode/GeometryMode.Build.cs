@@ -17,14 +17,15 @@ public class GeometryMode : ModuleRules
                 "EditorStyle",
 				"UnrealEd",
 				"RenderCore",
-				"LevelEditor"
-			}
+				"LevelEditor",
+				"NavigationSystem",
+				"EditorSubsystem",
+            }
 		);
 
 		DynamicallyLoadedModuleNames.AddRange(
             new string[] {
 				"PropertyEditor",
-                "BspMode"
 			}
         );
 	}

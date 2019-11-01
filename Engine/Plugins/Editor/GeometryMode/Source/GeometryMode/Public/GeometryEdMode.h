@@ -21,26 +21,12 @@ class FViewport;
 class UGeomModifier;
 struct FConvexVolume;
 
-typedef FName FEditorModeID;
 class FGeomPoly;
 class FGeomEdge;
 class FGeomVertex;
 class FGeomBase;
 class FGeomObject;
 typedef TSharedPtr<class FGeomObject> FGeomObjectPtr;
-
-/**
- * Geometry mode module
- */
-class FGeometryModeModule : public IModuleInterface
-{
-public:
-	// IModuleInterface
-	virtual void StartupModule() override;
-	virtual void ShutdownModule() override;
-	// End of IModuleInterface
-};
-
 
 
 /**

@@ -5,12 +5,14 @@
 #include "CoreMinimal.h"
 #include "UObject/GCObject.h"
 #include "HitProxies.h"
+#include "Editor.h"
 
 class ABrush;
 class FGeomObject;
 class FPoly;
 
 typedef TSharedPtr<class FGeomObject> FGeomObjectPtr;
+
 
 /**
  * Base class for all classes that support storing and editing of geometry.
@@ -334,7 +336,7 @@ private:
  */
 struct HGeomPolyProxy : public HHitProxy
 {
-	DECLARE_HIT_PROXY(UNREALED_API);
+	DECLARE_HIT_PROXY();
 
 	TWeakPtr<FGeomObject> GeomObjectWeakPtr;
 	int32				PolyIndex;
@@ -371,7 +373,7 @@ struct HGeomPolyProxy : public HHitProxy
  */
 struct HGeomEdgeProxy : public HHitProxy
 {
-	DECLARE_HIT_PROXY(UNREALED_API);
+	DECLARE_HIT_PROXY();
 
 	// Kept around for backwards compat
 	TWeakPtr<FGeomObject> GeomObjectWeakPtr;
@@ -411,7 +413,7 @@ struct HGeomEdgeProxy : public HHitProxy
  */
 struct HGeomVertexProxy : public HHitProxy
 {
-	DECLARE_HIT_PROXY(UNREALED_API);
+	DECLARE_HIT_PROXY();
 
 	TWeakPtr<FGeomObject> GeomObjectWeakPtr;
 	int32				VertexIndex;

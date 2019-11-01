@@ -41,11 +41,11 @@ struct HLevelSocketProxy : public HHitProxy
 	}
 };
 
-namespace ClickHandlers
+namespace LevelViewportClickHandlers
 {
 	bool ClickViewport(FLevelEditorViewportClient* ViewportClient, const FViewportClick& Click);
 
-	bool ClickActor(FLevelEditorViewportClient* ViewportClient,AActor* Actor,const FViewportClick& Click,bool bAllowSelectionChange);
+	bool UNREALED_API ClickActor(FLevelEditorViewportClient* ViewportClient,AActor* Actor,const FViewportClick& Click,bool bAllowSelectionChange);
 
 	bool ClickComponent(FLevelEditorViewportClient* ViewportClient, HActor* ActorHitProxy, const FViewportClick& Click);
 
@@ -53,14 +53,8 @@ namespace ClickHandlers
 
 	void ClickStaticMeshVertex(FLevelEditorViewportClient* ViewportClient,AActor* InActor,FVector& InVertex,const FViewportClick& Click);
 	
-	bool ClickGeomPoly(FLevelEditorViewportClient* ViewportClient, HGeomPolyProxy* InHitProxy, const FViewportClick& Click);
+	void ClickSurface(FLevelEditorViewportClient* ViewportClient, UModel* Model, int32 iSurf, const FViewportClick& Click);
 
-	bool ClickGeomEdge(FLevelEditorViewportClient* ViewportClient, HGeomEdgeProxy* InHitProxy, const FViewportClick& Click);
-
-	bool ClickGeomVertex(FLevelEditorViewportClient* ViewportClient,HGeomVertexProxy* InHitProxy,const FViewportClick& Click);
-	
-	void ClickSurface(FLevelEditorViewportClient* ViewportClient,UModel* Model,int32 iSurf,const FViewportClick& Click);
-	
 	void ClickBackdrop(FLevelEditorViewportClient* ViewportClient,const FViewportClick& Click);
 
 	void ClickLevelSocket(FLevelEditorViewportClient* ViewportClient, HHitProxy* HitProxy, const FViewportClick& Click);
