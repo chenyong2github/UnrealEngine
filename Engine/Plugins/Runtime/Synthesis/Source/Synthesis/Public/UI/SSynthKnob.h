@@ -196,7 +196,6 @@ private:
 	bool bIsFocusable;
 
 private:
-	TSharedPtr<SSynthTooltip> SynthTooltip;
 
 	TArray<FSlateBrush*> KnobImages;
 
