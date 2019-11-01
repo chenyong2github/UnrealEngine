@@ -3,25 +3,53 @@
 #include "DataprepAssetInstance.h"
 
 #include "DataPrepAsset.h"
-#include "DataPrepContentConsumer.h"
 #include "DataprepAssetProducers.h"
+#include "DataPrepContentConsumer.h"
+#include "DataprepCoreLogCategory.h"
 #include "DataprepCorePrivateUtils.h"
 #include "Parameterization/DataprepParameterization.h"
+
+void UDataprepAssetInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	// Check if parenting has changed, either through a force delete on the parent or a replace on deletion
+	bool bParentHasChanged = PropertyChangedEvent.ChangeType == EPropertyChangeType::Redirected && PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetName() == TEXT("Parent");
+	
+	if(bParentHasChanged)
+	{
+		if(Parent != nullptr)
+		{
+			UE_LOG( LogDataprepCore, Error, TEXT("UDataprepAssetInstance::PostEditChangeProperty: Reparenting to non null parent is not supported yet.") );
+			Parent = nullptr;
+		}
+
+		// Recreate the ParameterizationInstance property
+		Parameterization = NewObject<UDataprepParameterizationInstance>( this, NAME_None, RF_Public | RF_Transactional );
+
+		// Assign a temporary source parameterization
+		UDataprepParameterization* SourceParameterization = NewObject<UDataprepParameterization>( GetTransientPackage(), FName(), RF_Public );
+		Parameterization->SetParameterizationSource( *SourceParameterization );
+
+		ActionsFromDataprepAsset.Empty();
+	}
+
+	UDataprepAssetInterface::PostEditChangeProperty( PropertyChangedEvent );
+}
 
 // UDataprepAssetInstance =================================================================
 
 void UDataprepAssetInstance::ExecuteRecipe(const TSharedPtr<FDataprepActionContext>& InActionsContext)
 {
-	check( Parent );
+	if(Parent != nullptr)
+	{
+		// Doing the parameterization
+		TMap<UObject*,UObject*> SourceToCopy;
+		ActionsFromDataprepAsset = GetCopyOfActions( SourceToCopy );
+		Parameterization->ApplyParameterization( SourceToCopy );
 
-	// Doing the parameterizaton
-	TMap<UObject*,UObject*> SourceToCopy;
-	ActionsFromDataprepAsset = GetCopyOfActions( SourceToCopy );
-	Parameterization->ApplyParameterization( SourceToCopy );
+		ExecuteRecipe_Internal( InActionsContext, ActionsFromDataprepAsset );
 
-	ExecuteRecipe_Internal( InActionsContext, ActionsFromDataprepAsset );
-
-	ActionsFromDataprepAsset.Empty();
+		ActionsFromDataprepAsset.Empty();
+	}
 }
 
 UObject* UDataprepAssetInstance::GetParameterizationObject()
@@ -31,53 +59,53 @@ UObject* UDataprepAssetInstance::GetParameterizationObject()
 
 TArray<UDataprepActionAsset*> UDataprepAssetInstance::GetCopyOfActions(TMap<UObject*,UObject*>& OutOriginalToCopy) const
 {
-	check( Parent );
-	return Parent->GetCopyOfActions( OutOriginalToCopy );
+	return Parent ? Parent->GetCopyOfActions( OutOriginalToCopy ) : TArray<UDataprepActionAsset*>();
 }
 
 bool UDataprepAssetInstance::SetParent(UDataprepAssetInterface* InParent, bool bNotifyChanges )
 {
+	// #ueent_remark: Setting a null parent is not supported yet.
 	check(InParent);
 
-	// Copy set of producers 
-	if(Inputs != nullptr)
+	if(bNotifyChanges)
 	{
-		Inputs->GetOnChanged().RemoveAll( this );
-		DataprepCorePrivateUtils::DeleteRegisteredAsset( Inputs );
+		Modify();
 	}
-	Inputs = DuplicateObject<UDataprepAssetProducers>( InParent->GetProducers(), this );
 
-	// Copy consumer 
-	if(Output != nullptr)
+	// Copy set of producers if the instance does not have any yet
+	if(Inputs == nullptr || Inputs->GetProducersCount() == 0)
 	{
-		Output->GetOnChanged().RemoveAll( this );
-		DataprepCorePrivateUtils::DeleteRegisteredAsset( Output );
-	}
-	Output = DuplicateObject<UDataprepContentConsumer>( InParent->GetConsumer(), this );
-
-	UDataprepAssetInterface* RealParent = InParent;
-
-	// If InParent is an instance, get the up to the original parent
-	if(UDataprepAssetInstance* InstanceOfInstance = Cast<UDataprepAssetInstance>(InParent))
-	{
-		// #ueent_todo: Copy values from InstanceOfInstance's parameterization to this
-
-		do
+		if(Inputs != nullptr)
 		{
-			RealParent = InstanceOfInstance->Parent;
-			InstanceOfInstance = Cast<UDataprepAssetInstance>(InstanceOfInstance->Parent);
+			Inputs->GetOnChanged().RemoveAll( this );
+			DataprepCorePrivateUtils::DeleteRegisteredAsset( Inputs );
 		}
-		while(InstanceOfInstance != nullptr);
 
-		check(RealParent);
+		Inputs = DuplicateObject<UDataprepAssetProducers>( InParent->GetProducers(), this );
 	}
 
-	Parent = RealParent;
+	// Copy consumer if one is not set yet
+	if(Output == nullptr)
+	{
+		Output = DuplicateObject<UDataprepContentConsumer>( InParent->GetConsumer(), this );
+	}
+
+	// For the time being an instance of instance is not supported
+	Parent = GetRootParent( InParent );
 	
-	check ( Parent->GetClass() == UDataprepAsset::StaticClass() );
 	Parameterization = NewObject<UDataprepParameterizationInstance>( this, NAME_None, RF_Public | RF_Transactional );
-	Parameterization->SetParameterizationSource( *( static_cast<UDataprepAsset*>( Parent )->GetDataprepParameterization() ) );
-	
+
+	// #ueent_nextversion: Get parameterization from root parent and copy values from actual parent if parent is an instance
+	if( UDataprepAsset* RootParent = Cast<UDataprepAsset>(Parent) )
+	{
+		Parameterization->SetParameterizationSource( *( RootParent->GetDataprepParameterization() ) );
+	}
+	else
+	{
+		// Assign a temporary source parameterization
+		UDataprepParameterization* SourceParameterization = NewObject<UDataprepParameterization>( GetTransientPackage(), FName(), RF_Public );
+		Parameterization->SetParameterizationSource( *SourceParameterization );
+	}
 
 	if(bNotifyChanges)
 	{
@@ -87,4 +115,25 @@ bool UDataprepAssetInstance::SetParent(UDataprepAssetInterface* InParent, bool b
 	}
 
 	return true;
+}
+
+UDataprepAsset* UDataprepAssetInstance::GetRootParent(UDataprepAssetInterface* InParent)
+{
+	UDataprepAsset* RootParent = Cast<UDataprepAsset>(InParent);
+
+	while(RootParent == nullptr)
+	{
+		if(UDataprepAssetInstance* InstanceOfInstance = Cast<UDataprepAssetInstance>(InParent))
+		{
+			if(InstanceOfInstance->Parent == nullptr)
+			{
+				break;
+			}
+
+			InParent = Cast<UDataprepAssetInstance>(InstanceOfInstance->Parent);
+			RootParent = Cast<UDataprepAsset>(InParent);
+		}
+	}
+
+	return RootParent;
 }
