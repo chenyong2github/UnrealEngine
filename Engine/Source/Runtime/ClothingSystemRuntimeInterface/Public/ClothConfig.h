@@ -9,6 +9,7 @@ class UClothingAssetBase;
 
 /**
  * Base class for simulator specific simulation controls.
+ * Each cloth instance on a skeletal mesh can have a unique cloth config
  */
 UCLASS(Abstract, DefaultToInstanced)
 class CLOTHINGSYSTEMRUNTIMEINTERFACE_API UClothConfigBase : public UObject
@@ -19,29 +20,21 @@ public:
 	virtual ~UClothConfigBase();
 
 	virtual bool HasSelfCollision() const
-	{ unimplemented(); return false; }
-
-#if WITH_EDITOR
-	/** 
-	 * Callback invoked by \c UClothingAssetBase::PostEditChangeChainProperty(). 
-	 * Override to add custom handling of editor events.
-	 */
-	virtual bool PostEditChangeChainPropertyCallback(
-		UClothingAssetBase* Asset,
-		FPropertyChangedChainEvent& Event)
 	{
-		return false; 
+		unimplemented(); return false;
 	}
+};
 
-	/**
-	 * Callback invoked by \c UClothingAssetBase::OnFinishedChangingClothPropertiesCallback().
-	 * Override to add custom handling of editor events.
-	 */
-	virtual bool OnFinishedChangingClothingPropertiesCallback(
-		UClothingAssetBase* Asset,
-		const FPropertyChangedEvent& Event)
-	{
-		return false;
-	}
-#endif
+
+/*
+These settings are shared between all instances on a skeletal mesh
+*/
+UCLASS(Abstract)
+class CLOTHINGSYSTEMRUNTIMEINTERFACE_API UClothSharedSimConfigBase : public UObject
+{
+	GENERATED_BODY()
+public:
+	UClothSharedSimConfigBase() {};
+	virtual ~UClothSharedSimConfigBase() {};
+	
 };
