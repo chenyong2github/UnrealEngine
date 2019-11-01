@@ -54,7 +54,7 @@ class CHAOS_API TLevelSet final : public FImplicitObject
 		}
 	}
 
-	FORCEINLINE static EImplicitObjectType StaticType()
+	FORCEINLINE static constexpr EImplicitObjectType StaticType()
 	{
 		return ImplicitObjectType::LevelSet;
 	}

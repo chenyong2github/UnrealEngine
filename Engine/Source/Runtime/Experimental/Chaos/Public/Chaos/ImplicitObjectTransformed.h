@@ -82,7 +82,7 @@ public:
 	}
 	~TImplicitObjectTransformed() {}
 
-	static EImplicitObjectType StaticType()
+	static constexpr EImplicitObjectType StaticType()
 	{
 		return ImplicitObjectType::Transformed;
 	}
@@ -151,11 +151,6 @@ public:
 			ClosestIntersection.First = MTransform.TransformPosition(ClosestIntersection.First);
 		}
 		return ClosestIntersection;
-	}
-
-	virtual TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const override
-	{
-		return MTransform.TransformPosition(MObject->Support(MTransform.InverseTransformVector(Direction), Thickness));
 	}
 
 	const TRigidTransform<T, d>& GetTransform() const { return MTransform; }
