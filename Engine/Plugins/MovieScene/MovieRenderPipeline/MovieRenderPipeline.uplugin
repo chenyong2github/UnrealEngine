@@ -15,6 +15,7 @@
 	"Installed": false,
 	"EnabledByDefault": true,
 	"Plugins": [
+		"EditorScriptingUtilities"
 	],
 	"Modules": [
 		{

@@ -21,4 +21,11 @@ public:
 		: UMoviePipelineLinearExecutorBase()
 	{
 	}
+
+protected:
+	virtual void Start(UMovieRenderPipelineConfig* InConfig, const int32 InConfigIndex, const int32 InNumConfigs) override;
+
+private:
+	void OnMapLoadFinished(UWorld* NewWorld);
+	void OnMoviePipelineFinished(UMoviePipeline* InMoviePipeline);
 };

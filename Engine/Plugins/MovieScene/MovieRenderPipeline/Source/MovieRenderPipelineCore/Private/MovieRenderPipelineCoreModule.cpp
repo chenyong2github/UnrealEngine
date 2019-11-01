@@ -12,8 +12,7 @@ void FMovieRenderPipelineCoreModule::StartupModule()
 	{
 		UE_LOG(LogMovieRenderPipeline, Log, TEXT("Detected that the user intends to render a movie. Waiting until engine loop init is complete to ensure "))
 		// Register a hook to wait until the engine has finished loading to increase the likelihood that the desired classes are loaded.
-		// Note: This is not called for a commandlet.
-		FCoreDelegates::OnFEngineLoopInitComplete.AddRaw(this, &FMovieRenderPipelineCoreModule::InitializeCommandLineMovieRender);
+		FCoreDelegates::OnPostEngineInit.AddRaw(this, &FMovieRenderPipelineCoreModule::InitializeCommandLineMovieRender);
 	}
 }
 

@@ -1,3 +1,4 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "MovieRenderPipelineEditorModule.h"
 #include "MoviePipelineBackbufferPass.h"
 #include "MoviePipelineShotConfig.h"
@@ -11,7 +12,7 @@
 
 UMoviePipelineShotConfig* GenerateTestShotConfig(UObject* InOwner, int32 InSampleCount,
 	int32 InShutterAngle, EMoviePipelineShutterTiming InFrameTiming, int32 InTileCount,
-	int32 InSpatialSampleCount)
+	int32 InSpatialSampleCount, bool bIsUsingOverlappedTiles, float PadRatioX, float PadRatioY, float AccumulationGamma)
 {
 	UMoviePipelineShotConfig* OutConfig = NewObject<UMoviePipelineShotConfig>(InOwner);
 	UMoviePipelineBackbufferPass* DefaultPass = NewObject<UMoviePipelineBackbufferPass>(InOwner);
@@ -19,26 +20,31 @@ UMoviePipelineShotConfig* GenerateTestShotConfig(UObject* InOwner, int32 InSampl
 
 	UMoviePipelineGameOverrideSetting* GamemodeOverride = OutConfig->FindOrAddSetting<UMoviePipelineGameOverrideSetting>();
 	GamemodeOverride->GameModeOverride = AGameMode::StaticClass();
-		
+
 	UMoviePipelineAccumulationSetting* Accumulation = OutConfig->FindOrAddSetting< UMoviePipelineAccumulationSetting>();
 	Accumulation->TemporalSampleCount = InSampleCount;
 	Accumulation->CameraShutterAngle = InShutterAngle;
 	Accumulation->TileCount = InTileCount;
 	Accumulation->ShutterTiming = InFrameTiming;
 	Accumulation->SpatialSampleCount = InSpatialSampleCount;
+	Accumulation->bIsUsingOverlappedTiles = bIsUsingOverlappedTiles;
+	Accumulation->PadRatioX = PadRatioX;
+	Accumulation->PadRatioY = PadRatioY;
+	Accumulation->AccumulationGamma = AccumulationGamma;
 
 	return OutConfig;
 }
 
+PRAGMA_DISABLE_OPTIMIZATION
 TArray<UMovieRenderPipelineConfig*> FMovieRenderPipelineEditorModule::GenerateTestPipelineConfigs(FSoftObjectPath InSequence)
 {
 	// int32 ShutterAngles[] = { 180, 360 };
 	// EMoviePipelineShutterTiming ShutterTimings[] = { EMoviePipelineShutterTiming::FrameOpen, EMoviePipelineShutterTiming::FrameCenter, EMoviePipelineShutterTiming::FrameClose };
 	// FString ShutterTimingNames[] = { TEXT("FOpen"), TEXT("FCenter"), TEXT("FClose") };
 	// int32 TemporalSampleCounts[] = { 1, 5 };
-	   
+
 	int32 ShutterAngles[] = { 180 };
-	EMoviePipelineShutterTiming ShutterTimings[] = { EMoviePipelineShutterTiming::FrameCenter};
+	EMoviePipelineShutterTiming ShutterTimings[] = { EMoviePipelineShutterTiming::FrameCenter };
 	FString ShutterTimingNames[] = { TEXT("FCenter") };
 	int32 TemporalSampleCounts[] = { 1 };
 
@@ -55,17 +61,28 @@ TArray<UMovieRenderPipelineConfig*> FMovieRenderPipelineEditorModule::GenerateTe
 
 				UMovieRenderPipelineConfig* OutPipeline = NewObject<UMovieRenderPipelineConfig>(GetTransientPackage());
 				OutPipeline->Sequence = InSequence;
-				OutPipeline->OutputResolution = FIntPoint(1920, 1080);
+
+				int32 SizeX = 1080;
+				int32 SizeY = 1920;
+				int32 TileX = 2;
+				int32 TileY = 2;
+				int32 TestNumSamples = 2;
+				float PadRatioX = 0.5f;
+				float PadRatioY = 0.5f;
+				float AccumulationGamma = 1.0f;
+
+				OutPipeline->OutputResolution = FIntPoint(SizeX*TileX, SizeY*TileY);
 				OutPipeline->OutputDirectory.Path = FPaths::ProjectSavedDir() / TEXT("/VideoCaptures/") / *DirectoryName;
 
-				const int32 NumSpatialSamples = 1;
-				const int32 NumTiles = 1;
+				const int32 NumSpatialSamples = TestNumSamples;
+				const int32 NumTiles = TileX;
+				static bool bIsUsingOverlappedTiles = true;
 
 				UMoviePipelineShotConfig* DefaultConfig = GenerateTestShotConfig(OutPipeline,
 					TemporalSampleCounts[TemporalSampleCountIndex],
 					ShutterAngles[ShutterAngleIndex],
 					ShutterTimings[ShutterTimingIndex],
-					NumTiles, NumSpatialSamples);
+					NumTiles, NumSpatialSamples, bIsUsingOverlappedTiles, PadRatioX, PadRatioY, AccumulationGamma);
 
 				OutPipeline->DefaultShotConfig = DefaultConfig;
 
@@ -75,7 +92,7 @@ TArray<UMovieRenderPipelineConfig*> FMovieRenderPipelineEditorModule::GenerateTe
 
 				UMoviePipelineAudioOutput* AudioOutput = NewObject<UMoviePipelineAudioOutput>(OutPipeline);
 				OutPipeline->OutputContainers.Add(AudioOutput);
-				
+
 				// Add it to our list to be processed.
 				Configs.Add(OutPipeline);
 			}

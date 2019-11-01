@@ -42,6 +42,15 @@ protected:
 
 	/** Which Pipeline Config are we currently working on. */
 	int32 CurrentPipelineIndex;
+
+	/** Instance of the Pipeline that exists in the world that is currently processing (if any) */
+	UPROPERTY(Transient)
+	UMoviePipeline* ActiveMoviePipeline;
+
+	/** Instance of the Config we're supposed to be working on */
+	UPROPERTY(Transient)
+	UMovieRenderPipelineConfig* ActiveConfig;
+
 private:
 	/** Used to track total processing duration. */
 	FDateTime InitializationTime;

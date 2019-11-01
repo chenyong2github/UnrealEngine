@@ -36,14 +36,4 @@ private:
 
 	/** Gets the title for the Window. Used to show progress in the title. */
 	FText GetWindowTitle(const int32 InConfigIndex, const int32 InNumConfigs) const;
-
-
-private:
-	/** Instance of the Pipeline that exists in the world that is currently processing (if any) */
-	UPROPERTY(Transient)
-	UMoviePipeline* ActiveMoviePipeline;
-
-	/** Instance of the Config we're supposed to be working on */
-	UPROPERTY(Transient)
-	UMovieRenderPipelineConfig* ActiveConfig;
 };

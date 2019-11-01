@@ -6,6 +6,8 @@
 #include "MovieRenderPipelineConfig.h"
 #include "AssetRegistryModule.h"
 #include "FileHelpers.h"
+#include "ObjectTools.h"
+#include "PackageTools.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipelineEditorBlueprintLibrary"
 
@@ -17,14 +19,15 @@ bool UMoviePipelineEditorBlueprintLibrary::ExportConfigToAsset(const UMovieRende
 		return false;
 	}
 	
-	
-	if (!FPackageName::IsValidLongPackageName(InPackagePath, false, &OutErrorReason))
+	FString FixedAssetName = ObjectTools::SanitizeObjectName(InFileName);
+	FString NewPackageName = FPackageName::GetLongPackagePath(InPackagePath) + TEXT("/") + FixedAssetName;
+
+	if (!FPackageName::IsValidLongPackageName(NewPackageName, false, &OutErrorReason))
 	{
 		return false;
 	}
 
-
-	UPackage* NewPackage = CreatePackage(nullptr, *InPackagePath);
+	UPackage* NewPackage = CreatePackage(nullptr, *NewPackageName);
 	NewPackage->AddToRoot();
 	
 	// Duplicate the provided config into this package.

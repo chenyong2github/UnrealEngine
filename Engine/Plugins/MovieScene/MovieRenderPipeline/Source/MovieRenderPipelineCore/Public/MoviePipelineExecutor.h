@@ -2,10 +2,12 @@
 #pragma once
 
 #include "UObject/Object.h"
+#include "Templates/SubclassOf.h"
 #include "MoviePipelineExecutor.generated.h"
 
 class UMovieRenderPipelineConfig;
 class UMoviePipelineExecutorBase;
+class UMoviePipeline;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnMoviePipelineExecutorFinishedNative, UMoviePipelineExecutorBase*);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMoviePipelineExecutorFinished, UMoviePipelineExecutorBase*, PipelineExecutor);
@@ -26,6 +28,11 @@ class MOVIERENDERPIPELINECORE_API UMoviePipelineExecutorBase : public UObject
 {
 	GENERATED_BODY()
 public:
+	UMoviePipelineExecutorBase()
+		: TargetPipelineClass(nullptr)
+	{
+	}
+
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	virtual void Execute(UPARAM(Ref) TArray<UMovieRenderPipelineConfig*>& InPipelines)
 	{
@@ -36,7 +43,11 @@ public:
 	{
 		return OnExecutorFinishedDelegateNative;
 	}
-	
+
+	void SetMoviePipelineClass(UClass* InPipelineClass)
+	{
+		TargetPipelineClass = InPipelineClass;
+	}
 protected:
 	/** 
 	* This should be called when the Executor has finished executing all of the things
@@ -58,4 +69,7 @@ private:
 
 	/** For native C++ code. Called at the same time as the Blueprint/Python one. */
 	FOnMoviePipelineExecutorFinishedNative OnExecutorFinishedDelegateNative;
+protected:
+	UPROPERTY()
+	TSubclassOf<UMoviePipeline> TargetPipelineClass;
 };

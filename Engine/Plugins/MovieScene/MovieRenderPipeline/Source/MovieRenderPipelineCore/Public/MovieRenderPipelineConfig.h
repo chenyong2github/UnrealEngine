@@ -94,15 +94,15 @@ public:
 public:
 	
 	/** The default shot-setup to use for any shot that doesn't a specific implementation. This is required! */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movie Render Pipeline")
+	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = "Movie Render Pipeline")
 	UMoviePipelineShotConfig* DefaultShotConfig;
 	
 	/** A mapping of Shot Name -> Shot Config to use for rendering specific shots with specific configs. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movie Render Pipeline")
+	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = "Movie Render Pipeline")
 	TMap<FString, UMoviePipelineShotConfig*> PerShotConfigMapping;
 	
 	/** Array of Output Containers. Each output container is passed data for each Input Buffer every frame. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movie Render Pipeline")
+	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = "Movie Render Pipeline")
 	TArray<UMoviePipelineOutput*> OutputContainers;
 
 private:

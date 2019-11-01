@@ -121,12 +121,15 @@ void UMoviePipelinePIEExecutor::OnPIEMoviePipelineFinished(UMoviePipeline* InMov
 
 void UMoviePipelinePIEExecutor::DelayedFinishNotification()
 {
-	// Now that another frame has passed and we should be OK to start another PIE session, notify our owner.
-	OnIndividualPipelineFinished(ActiveMoviePipeline);
+	UMoviePipeline* MoviePipeline = ActiveMoviePipeline;
 	
-
+	// Null these out now since OnIndividualPipelineFinished might invoke something that causes a GC
+	// and we want them to go away with the GC.
 	ActiveMoviePipeline = nullptr;
 	ActiveConfig = nullptr;
+	
+	// Now that another frame has passed and we should be OK to start another PIE session, notify our owner.
+	OnIndividualPipelineFinished(MoviePipeline);
 }
 
 #undef LOCTEXT_NAMESPACE // "MoviePipelinePIEExecutor"

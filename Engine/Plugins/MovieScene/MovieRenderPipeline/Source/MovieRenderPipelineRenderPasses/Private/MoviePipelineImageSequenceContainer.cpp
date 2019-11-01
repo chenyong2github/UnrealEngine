@@ -95,10 +95,11 @@ void UMoviePipelineImageSequenceContainerBase::OnInitializedForPipelineImpl(UMov
 			TUniquePtr<FImageWriteTask> TileImageTask = MakeUnique<FImageWriteTask>();
 			TileImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FColor>(255));
 			// ImageTask->PixelPreProcessors.Add(TAsyncGammaCorrect<FColor>(2.2f));
-			TileImageTask->Format = EImageFormat::PNG;
+			TileImageTask->Format = EImageFormat::JPEG;
+			TileImageTask->CompressionQuality = 100;
 
 			// ImageTask->CompressionQuality = GetCompressionQuality();
-			FString OutputName = FString::Printf(TEXT("/%s_%d_SS_%d_TS_%d_TileX_%d_TileY_%d.png"),
+			FString OutputName = FString::Printf(TEXT("/%s_%d_SS_%d_TS_%d_TileX_%d_TileY_%d.jpeg"),
 				*TilePayload->PassName, TilePayload->OutputState.OutputFrameNumber, TilePayload->SpatialJitterIndex, TilePayload->OutputState.TemporalSampleIndex,
 				TilePayload->TileIndexX, TilePayload->TileIndexY);
 			FString OutputPath = OutputDirectory + OutputName;
@@ -143,7 +144,7 @@ void UMoviePipelineImageSequenceContainerBase::OnInitializedForPipelineImpl(UMov
 				}
 				else
 				{
-					ImageTask->Format = EImageFormat::PNG;
+					ImageTask->Format = EImageFormat::JPEG;
 
 					// 8bit FColors
 					TUniquePtr<TImagePixelData<FColor> > PixelData = MakeUnique<TImagePixelData<FColor> >(FIntPoint(FullSizeX,FullSizeY));
@@ -158,8 +159,9 @@ void UMoviePipelineImageSequenceContainerBase::OnInitializedForPipelineImpl(UMov
 
 					ImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FColor>(255));
 					ImageTask->PixelData = MoveTemp(PixelData);
+					ImageTask->CompressionQuality = 100;
 
-					FString TempOutputName = FString::Printf(TEXT("/FINAL_%s_SS.%d.png"),
+					FString TempOutputName = FString::Printf(TEXT("/FINAL_%s_SS.%d.jpeg"),
 						*TilePayload->PassName, TilePayload->OutputState.OutputFrameNumber);
 					FString TempOutputPath = OutputDirectory + TempOutputName;
 					ImageTask->Filename = TempOutputPath;

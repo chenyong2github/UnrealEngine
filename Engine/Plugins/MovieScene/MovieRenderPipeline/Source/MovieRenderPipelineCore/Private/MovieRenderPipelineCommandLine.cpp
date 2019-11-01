@@ -53,12 +53,13 @@ void FMovieRenderPipelineCoreModule::InitializeCommandLineMovieRender()
 	}
 
 	// By this time, we know what assets you want to render, how to process the array of assets, and what runs an individual render. First we will create an executor.
-	UMoviePipelineExecutorBase* ExecutorBase = NewObject<UMoviePipelineExecutorBase>(GetTransientPackage());
+	UMoviePipelineExecutorBase* ExecutorBase = NewObject<UMoviePipelineExecutorBase>(GetTransientPackage(), ExecutorClass);
 
 	// We add the Executor to the root set. It will own all of the configuration data so this keeps it nicely in memory until finished,
 	// and means we only have to add/remove one thing from the root set, everything else uses normal outer ownership.
 	ExecutorBase->AddToRoot();
 	ExecutorBase->OnExecutorFinished().AddRaw(this, &FMovieRenderPipelineCoreModule::OnCommandLineMovieRenderCompleted);
+	ExecutorBase->SetMoviePipelineClass(PipelineClass);
 
 	TArray<UMovieRenderPipelineConfig*> Pipelines;
 	Pipelines.Add(Config);
@@ -72,10 +73,10 @@ void FMovieRenderPipelineCoreModule::OnCommandLineMovieRenderCompleted(UMoviePip
 	if (InExecutor)
 	{
 		InExecutor->RemoveFromRoot();
-
-		// Return a success code. Ideally any errors detected during rendering will return different codes.
-		FPlatformMisc::RequestExitWithStatus(/*Force*/ false, /*ReturnCode*/ 0);
 	}
+
+	// Return a success code. Ideally any errors detected during rendering will return different codes.
+	FPlatformMisc::RequestExitWithStatus(/*Force*/ false, /*ReturnCode*/ 0);
 }
 
 UClass* GetLocalExecutorClass(const FString& MoviePipelineLocalExecutorClassType, const FString ExecutorClassFormatString)
