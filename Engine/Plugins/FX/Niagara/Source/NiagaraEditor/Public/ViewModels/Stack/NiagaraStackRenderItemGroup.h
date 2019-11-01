@@ -6,6 +6,7 @@
 #include "NiagaraStackRenderItemGroup.generated.h"
 
 class UNiagaraRendererProperties;
+class UNiagaraEmitter;
 
 UCLASS()
 class NIAGARAEDITOR_API UNiagaraStackRenderItemGroup : public UNiagaraStackItemGroup
@@ -25,4 +26,6 @@ private:
 
 private:
 	TSharedPtr<INiagaraStackItemGroupAddUtilities> AddUtilities;
+
+	TWeakObjectPtr<UNiagaraEmitter> EmitterWeak;
 };

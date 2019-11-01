@@ -14,10 +14,16 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SCheckBox.h"
 
+#define LOCTEXT_NAMESPACE "NiagaraOverviewStackNode"
+
 void SNiagaraOverviewStackNode::Construct(const FArguments& InArgs, UNiagaraOverviewNode* InNode)
 {
 	GraphNode = InNode;
 	OverviewStackNode = InNode;
+	StackViewModel = nullptr;
+	OverviewSelectionViewModel = nullptr;
+	EmitterHandleViewModelWeak.Reset();
+
 	if (OverviewStackNode->GetOwningSystem() != nullptr)
 	{
 		FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::Get().LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
@@ -45,7 +51,22 @@ void SNiagaraOverviewStackNode::Construct(const FArguments& InArgs, UNiagaraOver
 TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateTitleWidget(TSharedPtr<SNodeTitle> NodeTitle)
 {
 	TSharedRef<SWidget> DefaultTitle = SGraphNode::CreateTitleWidget(NodeTitle);
-	
+
+	if (StackViewModel == nullptr)
+	{
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.Padding(0, 0, 5, 0)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("InvalidNode", "INVALID"))
+			]
+			+ SHorizontalBox::Slot()
+			[
+				DefaultTitle
+			];
+	}
+
 	return SNew(SHorizontalBox)
 		// Enabled checkbox
 		+ SHorizontalBox::Slot()
@@ -150,3 +171,5 @@ void SNiagaraOverviewStackNode::OnEnabledCheckStateChanged(ECheckBoxState InChec
 		EmitterHandleViewModel->SetIsEnabled(InCheckState == ECheckBoxState::Checked);
 	}
 }
+
+#undef LOCTEXT_NAMESPACE
