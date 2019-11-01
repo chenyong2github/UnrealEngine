@@ -62,7 +62,7 @@ namespace Chaos
 
 		virtual ~TSphere() {}
 
-		static ImplicitObjectType GetType() 
+		static EImplicitObjectType GetType()
 		{ 
 			return ImplicitObjectType::Sphere; 
 		}

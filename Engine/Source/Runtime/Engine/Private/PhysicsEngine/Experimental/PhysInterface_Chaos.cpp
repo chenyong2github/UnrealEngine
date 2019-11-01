@@ -1220,7 +1220,7 @@ bool FPhysInterface_Chaos::IsShapeType(const FPhysicsShapeReference_Chaos& InSha
 
 ECollisionShapeType FPhysInterface_Chaos::GetShapeType(const FPhysicsShapeReference_Chaos& InShapeRef, bool bGetInnerType)
 {
-	Chaos::ImplicitObjectType Type = InShapeRef.Shape->Geometry->GetType(true);
+	Chaos::EImplicitObjectType Type = InShapeRef.Shape->Geometry->GetType(true);
 	if (bGetInnerType && Type == Chaos::ImplicitObjectType::Scaled)
 	{
 		Type = InShapeRef.Shape->Geometry->GetObject<Chaos::TImplicitObjectScaled<float, 3>>()->GetUnscaledObject()->GetType(true);

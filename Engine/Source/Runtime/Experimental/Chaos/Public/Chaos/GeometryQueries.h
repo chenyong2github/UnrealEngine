@@ -20,8 +20,8 @@ namespace Chaos
 	template <typename T, int d>
 	bool OverlapQuery(const TImplicitObject<T, d>& A, const TRigidTransform<T,d>& ATM, const TImplicitObject<T, d>& B, const TRigidTransform<T,d>& BTM, const T Thickness = 0, TVector<T,d>* OutMTD=nullptr)
 	{
-		const ImplicitObjectType AType = A.GetType(true);
-		const ImplicitObjectType BType = B.GetType(true);
+		const EImplicitObjectType AType = A.GetType(true);
+		const EImplicitObjectType BType = B.GetType(true);
 		
 		if (AType == ImplicitObjectType::Transformed)
 		{
@@ -86,8 +86,8 @@ namespace Chaos
 	template <typename T, int d>
 	bool SweepQuery(const TImplicitObject<T, d>& A, const TRigidTransform<T,d>& ATM, const TImplicitObject<T, d>& B, const TRigidTransform<T, d>& BTM, const TVector<T,d>& Dir, const T Length, T& OutTime, TVector<T,d>& OutPosition, TVector<T,d>& OutNormal, int32& OutFaceIndex, const T Thickness, const bool bComputeMTD)
 	{
-		const ImplicitObjectType AType = A.GetType(true);
-		const ImplicitObjectType BType = B.GetType(true);
+		const EImplicitObjectType AType = A.GetType(true);
+		const EImplicitObjectType BType = B.GetType(true);
 
 		bool bResult = false;
 		

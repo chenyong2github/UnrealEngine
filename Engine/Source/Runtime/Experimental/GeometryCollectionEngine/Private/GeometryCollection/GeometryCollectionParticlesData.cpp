@@ -208,7 +208,7 @@ void TGeometryCollectionParticlesData<T, d>::FData::Copy(EGeometryCollectionPart
 template<class T, int d>
 FString TGeometryCollectionParticlesData<T, d>::FData::ToString(int32 Index, const TCHAR* Separator) const
 {
-	auto TypeText = [](Chaos::ImplicitObjectType Type)
+	auto TypeText = [](Chaos::EImplicitObjectType Type)
 	{
 		switch (Type)
 		{
