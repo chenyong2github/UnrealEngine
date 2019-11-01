@@ -233,6 +233,8 @@ namespace Audio
 			return false;
 		}
 
+		AudioStreamInfo.DeviceInfo.SampleRate = OpenStreamParams.SampleRate;
+
 		SLresult Result;
 
 		FAudioPlatformSettings PlatformSettings = GetPlatformSettings();
