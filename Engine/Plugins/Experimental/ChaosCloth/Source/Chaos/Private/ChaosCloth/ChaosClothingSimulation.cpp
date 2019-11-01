@@ -669,7 +669,7 @@ void ClothingSimulation::ExtractPhysicsAssetCollisions(UClothingAssetCommon* Ass
 				Convex.BoneIndex = MappedBoneIndex;
 #if WITH_PHYSX
 				// Collision bodies are stored in PhysX specific data structures so they can only be imported if we enable PhysX.
-				const physx::PxConvexMesh* const PhysXMesh = ConvexElem.GetConvexMesh();
+				const physx::PxConvexMesh* const PhysXMesh = ConvexElem.GetConvexMesh();  // TODO(Kriss.Gossart): Deal with this legacy structure in a different place, so that there's only TConvex
 				const int32 NumPolygons = int32(PhysXMesh->getNbPolygons());
 				Convex.Planes.SetNumUninitialized(NumPolygons);
 				for (int32 i = 0; i < NumPolygons; ++i)
@@ -684,14 +684,28 @@ void ClothingSimulation::ExtractPhysicsAssetCollisions(UClothingAssetCommon* Ass
 						ConvexElem.VertexData[Indices[1]],
 						ConvexElem.VertexData[Indices[2]]);
 				}
+
+				// Rebuild surface points
+				Convex.RebuildSurfacePoints();
+
 #elif WITH_CHAOS  // #if WITH_PHYSX
 				const Chaos::TImplicitObject<float, 3>& ChaosConvexMesh = *ConvexElem.GetChaosConvexMesh();
 				const Chaos::TConvex<float, 3>& ChaosConvex = ChaosConvexMesh.GetObjectChecked<Chaos::TConvex<float, 3>>();
+
+				// Copy planes
 				const TArray<TPlane<float, 3>>& Planes = ChaosConvex.GetFaces();
 				Convex.Planes.Reserve(Planes.Num());
 				for (const TPlane<float, 3>& Plane : Planes)
 				{
 					Convex.Planes.Add(FPlane(Plane.X(), Plane.Normal()));
+				}
+
+				// Copy surface points
+				const uint32 NumSurfacePoints = ChaosConvex.GetSurfaceParticles().Size();
+				Convex.SurfacePoints.Reserve(NumSurfacePoints);
+				for (uint32 ParticleIndex = 0; ParticleIndex < NumSurfacePoints; ++ParticleIndex)
+				{
+					Convex.SurfacePoints.Add(ChaosConvex.GetSurfaceParticles().X(ParticleIndex));
 				}
 #endif  // #if WITH_PHYSX #elif WITH_CHAOS
 
@@ -861,37 +875,58 @@ void ClothingSimulation::AddCollisions(const FClothCollisionData& ClothCollision
 			BoneIndices[i] = GetMappedBoneIndex(UsedBoneIndices, Convex.BoneIndex);
 			UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Found collision convex on bone index %d."), BoneIndices[i]);
 
-			// Add convex planes
-			TArray<TUniquePtr<TImplicitObject<float, 3>>> Planes;
-			Planes.Reserve(Convex.Planes.Num());
-			for (const FPlane& Plane : Convex.Planes)
-			{
-				FPlane NormalizedPlane(Plane);
-				if (NormalizedPlane.Normalize())
-				{
-					const Chaos::TVector<float, 3> Normal(static_cast<FVector>(NormalizedPlane));
-					const Chaos::TVector<float, 3> Base = Normal * NormalizedPlane.W;
+			const int32 NumSurfacePoints = Convex.SurfacePoints.Num();
+			const int32 NumPlanes = Convex.Planes.Num();
 
-					Planes.Add(TUniquePtr<Chaos::TImplicitObject<float, 3>>(
-						new Chaos::TPlane<float, 3>(Base, Normal)));
-				}
-				else
-				{
-					UE_LOG(LogChaosCloth, Warning, TEXT("Invalid convex collision plane."));
-				}
+			if (NumSurfacePoints < 4)
+			{
+				UE_LOG(LogChaosCloth, Warning, TEXT("Invalid convex collision: not enough surface points."));
 			}
-
-			// Set the collision particle geometry
-			if (Planes.Num())
+			else if (NumPlanes < 4)
 			{
-				CollisionParticles.SetDynamicGeometry(i, MakeUnique<Chaos::TImplicitObjectIntersection<float, 3>>(MoveTemp(Planes)));  // TODO(Kriss.Gossart): Replace by TConvex once plane constructor has been added
+				UE_LOG(LogChaosCloth, Warning, TEXT("Invalid convex collision: not enough planes."));
 			}
 			else
 			{
-				UE_LOG(LogChaosCloth, Warning, TEXT("Invalid convex collision."));
-				CollisionParticles.SetDynamicGeometry(
-					i,
-					MakeUnique<Chaos::TSphere<float, 3>>(Chaos::TVector<float, 3>(0.0f), 1.0f));  // Default to a unit sphere to replace the faulty convex
+				// Retrieve convex planes
+				TArray<TPlane<float, 3>> Planes;
+				Planes.Reserve(Convex.Planes.Num());
+				for (const FPlane& Plane : Convex.Planes)
+				{
+					FPlane NormalizedPlane(Plane);
+					if (NormalizedPlane.Normalize())
+					{
+						const Chaos::TVector<float, 3> Normal(static_cast<FVector>(NormalizedPlane));
+						const Chaos::TVector<float, 3> Base = Normal * NormalizedPlane.W;
+
+						Planes.Add(Chaos::TPlane<float, 3>(Base, Normal));
+					}
+					else
+					{
+						UE_LOG(LogChaosCloth, Warning, TEXT("Invalid convex collision: bad plane normal."));
+						break;
+					}
+				}
+
+				if (Planes.Num() == Convex.Planes.Num())
+				{
+					// Retrieve particles
+					TParticles<float, 3> SurfaceParticles;
+					SurfaceParticles.Resize(NumSurfacePoints);
+					for (int32 ParticleIndex = 0; ParticleIndex < NumSurfacePoints; ++ParticleIndex)
+					{
+						SurfaceParticles.X(ParticleIndex) = Convex.SurfacePoints[ParticleIndex];
+					}
+
+					// Setup the collision particle geometry
+					CollisionParticles.SetDynamicGeometry(i, MakeUnique<Chaos::TConvex<float, 3>>(MoveTemp(Planes), MoveTemp(SurfaceParticles)));
+				}
+			}
+
+			if (!CollisionParticles.DynamicGeometry(i))
+			{
+				UE_LOG(LogChaosCloth, Warning, TEXT("Replacing invalid convex collision by a default unit sphere."));
+				CollisionParticles.SetDynamicGeometry(i, MakeUnique<Chaos::TSphere<float, 3>>(Chaos::TVector<float, 3>(0.0f), 1.0f));  // Default to a unit sphere to replace the faulty convex
 			}
 		}
 	}
@@ -1380,6 +1415,43 @@ void ClothingSimulation::DebugDrawCollision(USkeletalMeshComponent* OwnerCompone
 		}
 	};
 
+	auto DrawConvex = [&PDI](const Chaos::TConvex<float, 3>& Convex, const TRotation<float, 3>& Rotation, const Chaos::TVector<float, 3>& Position, const FLinearColor& Color)
+	{
+		const TArray<Chaos::TPlane<float, 3>>& Planes = Convex.GetFaces();
+		for (int32 PlaneIndex1 = 0; PlaneIndex1 < Planes.Num(); ++PlaneIndex1)
+		{
+			const Chaos::TPlane<float, 3>& Plane1 = Planes[PlaneIndex1];
+
+			for (int32 PlaneIndex2 = PlaneIndex1 + 1; PlaneIndex2 < Planes.Num(); ++PlaneIndex2)
+			{
+				const Chaos::TPlane<float, 3>& Plane2 = Planes[PlaneIndex2];
+
+				// Find the two surface points that belong to both Plane1 and Plane2
+				uint32 ParticleIndex1 = INDEX_NONE;
+
+				const Chaos::TParticles<float, 3>& SurfaceParticles = Convex.GetSurfaceParticles();
+				for (uint32 ParticleIndex = 0; ParticleIndex < SurfaceParticles.Size(); ++ParticleIndex)
+				{
+					const Chaos::TVector<float, 3>& X = SurfaceParticles.X(ParticleIndex);
+
+					if (FMath::Square(Plane1.SignedDistance(X)) < KINDA_SMALL_NUMBER && 
+						FMath::Square(Plane2.SignedDistance(X)) < KINDA_SMALL_NUMBER)
+					{
+						if (ParticleIndex1 != INDEX_NONE)
+						{
+							const Chaos::TVector<float, 3>& X1 = SurfaceParticles.X(ParticleIndex1);
+							const FVector Position1 = Position + Rotation.RotateVector(X1);
+							const FVector Position2 = Position + Rotation.RotateVector(X);
+							PDI->DrawLine(Position1, Position2, Color, SDPG_World, 0.0f, 0.001f, false);
+							break;
+						}
+						ParticleIndex1 = ParticleIndex;
+					}
+				}
+			}
+		}
+	};
+
 	static const FLinearColor MappedColor(FColor::Cyan);
 	static const FLinearColor UnmappedColor(FColor::Red);
 
@@ -1431,6 +1503,10 @@ void ClothingSimulation::DebugDrawCollision(USkeletalMeshComponent* OwnerCompone
 				}
 				break;
 	
+			case Chaos::ImplicitObjectType::Convex:
+				DrawConvex(Object->GetObjectChecked<Chaos::TConvex<float, 3>>(), Rotation, Position, Color);
+				break;
+
 			default:
 				DrawCoordinateSystem(PDI, Position, FRotator(Rotation), 10.0f, SDPG_World, 0.1f);  // Draw everything else as a coordinate for now
 				break;
