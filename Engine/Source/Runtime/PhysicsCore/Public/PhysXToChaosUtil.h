@@ -71,7 +71,7 @@ inline TUniquePtr<Chaos::TImplicitObjectTransformed<float, 3>> PxShapeToChaosGeo
 		else
 		{
 			ensure(ConvexMeshGeom.scale.rotation == PxQuat(PxIdentity));
-			InnerObj = MakeUnique<TImplicitObjectScaled<float, 3, /*bInstanced=*/false>>(MoveTemp(ConvexObj), P2UVector(ConvexMeshGeom.scale.scale));	//todo: make instanced
+			InnerObj = MakeUnique<TImplicitObjectScaled<TConvex<float, 3>, /*bInstanced=*/false>>(MoveTemp(ConvexObj), P2UVector(ConvexMeshGeom.scale.scale));	//todo: make instanced
 		}
 		break;
 	}
@@ -167,7 +167,7 @@ inline TUniquePtr<Chaos::TImplicitObjectTransformed<float, 3>> PxShapeToChaosGeo
 		else
 		{
 			ensure(TriMeshGeom.scale.rotation == PxQuat(PxIdentity));
-			InnerObj = MakeUnique<TImplicitObjectScaled<float, 3, /*bInstanced=*/false>>(MoveTemp(TriMeshObj), P2UVector(TriMeshGeom.scale.scale));	//todo: make instanced
+			InnerObj = MakeUnique<TImplicitObjectScaled<TTriangleMeshImplicitObject<float>, /*bInstanced=*/false>>(MoveTemp(TriMeshObj), P2UVector(TriMeshGeom.scale.scale));	//todo: make instanced
 		}
 		break;
 	}

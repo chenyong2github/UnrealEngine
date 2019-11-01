@@ -44,7 +44,7 @@ namespace ImplicitObjectType
 		Cylinder,
 		TriangleMesh,
 		HeightField,
-		Scaled,
+		DEPRECATED_Scaled,	//needed for serialization of existing data
 		Triangle,
 
 		//Add entries above this line for serialization
@@ -54,6 +54,22 @@ namespace ImplicitObjectType
 }
 
 using EImplicitObjectType = uint8;	//see ImplicitObjectType
+
+FORCEINLINE bool IsInstanced(EImplicitObjectType Type)
+{
+	return (Type & ImplicitObjectType::IsInstanced) != 0;
+}
+
+FORCEINLINE bool IsScaled(EImplicitObjectType Type)
+{
+	return (Type & ImplicitObjectType::IsScaled) != 0;
+}
+
+FORCEINLINE EImplicitObjectType GetInnerType(EImplicitObjectType Type)
+{
+	return Type & (~(ImplicitObjectType::IsScaled | ImplicitObjectType::IsInstanced));
+}
+
 
 namespace EImplicitObject
 {
@@ -102,6 +118,8 @@ template<class T, int d>
 class CHAOS_API TImplicitObject
 {
 public:
+	using TType = T;
+	static constexpr int D = d;
 	static TImplicitObject<T,d>* SerializationFactory(FChaosArchive& Ar, TImplicitObject<T, d>* Obj);
 
 	TImplicitObject(int32 Flags, EImplicitObjectType InType = ImplicitObjectType::Unknown);
@@ -112,7 +130,7 @@ public:
 	template<class T_DERIVED>
 	T_DERIVED* GetObject()
 	{
-		if (T_DERIVED::GetType() == Type)
+		if (T_DERIVED::StaticType() == Type)
 		{
 			return static_cast<T_DERIVED*>(this);
 		}
@@ -122,7 +140,7 @@ public:
 	template<class T_DERIVED>
 	const T_DERIVED* GetObject() const
 	{
-		if (T_DERIVED::GetType() == Type)
+		if (T_DERIVED::StaticType() == Type)
 		{
 			return static_cast<const T_DERIVED*>(this);
 		}
@@ -132,14 +150,14 @@ public:
 	template<class T_DERIVED>
 	const T_DERIVED& GetObjectChecked() const
 	{
-		check(T_DERIVED::GetType() == Type);
+		check(T_DERIVED::StaticType() == Type);
 		return static_cast<const T_DERIVED&>(*this);
 	}
 
 	template<class T_DERIVED>
 	T_DERIVED& GetObjectChecked()
 	{
-		check(T_DERIVED::GetType() == Type);
+		check(T_DERIVED::StaticType() == Type);
 		return static_cast<const T_DERIVED&>(*this);
 	}
 
@@ -246,6 +264,11 @@ public:
 	}
 
 	void SerializeImp(FArchive& Ar);
+
+	static EImplicitObjectType StaticType()
+	{
+		return ImplicitObjectType::Unknown;
+	}
 	
 	virtual void Serialize(FArchive& Ar)
 	{

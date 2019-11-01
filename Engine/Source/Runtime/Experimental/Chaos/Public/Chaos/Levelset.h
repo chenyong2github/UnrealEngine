@@ -54,7 +54,7 @@ class CHAOS_API TLevelSet final : public TImplicitObject<T, d>
 		}
 	}
 
-	FORCEINLINE static EImplicitObjectType GetType()
+	FORCEINLINE static EImplicitObjectType StaticType()
 	{
 		return ImplicitObjectType::LevelSet;
 	}

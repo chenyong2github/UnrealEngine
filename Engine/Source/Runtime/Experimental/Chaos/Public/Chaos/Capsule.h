@@ -74,7 +74,7 @@ namespace Chaos
 
 		~TCapsule() {}
 
-		static EImplicitObjectType GetType() { return ImplicitObjectType::Capsule; }
+		static EImplicitObjectType StaticType() { return ImplicitObjectType::Capsule; }
 
 		static TCapsule<T> NewFromOriginAndAxis(const TVector<T, 3>& Origin, const TVector<T, 3>& Axis, const T Height, const T Radius)
 		{

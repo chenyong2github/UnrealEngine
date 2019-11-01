@@ -66,16 +66,16 @@ namespace Chaos
 				const TTriangleMeshImplicitObject<T>& ATriangleMesh = static_cast<const TTriangleMeshImplicitObject<T>&>(A);
 				return ATriangleMesh.OverlapGeom(B, BToATM, Thickness);
 			}
-			case ImplicitObjectType::Scaled:
-			{
-				const TImplicitObjectScaled<T, d>& AScaled = static_cast<const TImplicitObjectScaled<T, d>&>(A);
-				const TImplicitObject<T, d>& UnscaledObj = *AScaled.GetUnscaledObject();
-				check(UnscaledObj.GetType(true) == ImplicitObjectType::TriangleMesh);
-				const TTriangleMeshImplicitObject<T>& ATriangleMesh = static_cast<const TTriangleMeshImplicitObject<T>&>(UnscaledObj);
-				return TImplicitObjectScaled<T,d>::LowLevelOverlapGeom(AScaled, ATriangleMesh, B, BToATM, Thickness);
-			}
 			default:
-				check(false);	//unsupported query type
+				if (IsScaled(AType))
+				{
+					const auto& AScaled = TImplicitObjectScaled<TTriangleMeshImplicitObject<T>>::AsScaledChecked(A);
+					return AScaled.LowLevelOverlapGeom(B, BToATM, Thickness);
+				}
+				else
+				{
+					check(false);	//unsupported query type
+				}
 
 			}
 		}
@@ -115,9 +115,9 @@ namespace Chaos
 		const TVector<T, d> LocalDir = ATM.InverseTransformVectorNoScale(Dir);
 
 		bool bSweepAsRaycast = BType == ImplicitObjectType::Sphere;
-		if (bSweepAsRaycast && AType == ImplicitObjectType::Scaled)
+		if (bSweepAsRaycast && IsScaled(AType))
 		{
-			const auto& Scaled = A. template GetObjectChecked<TImplicitObjectScaled<T, d>>();
+			const auto& Scaled = TImplicitObjectScaledGeneric<T, d>::AsScaledChecked(A);
 			const TVector<T, d>& Scale = Scaled.GetScale();
 			bSweepAsRaycast = FMath::IsNearlyEqual(Scale[0], Scale[1]) && FMath::IsNearlyEqual(Scale[0], Scale[2]);
 		}
@@ -134,15 +134,10 @@ namespace Chaos
 			auto IsValidConvex = [](const TImplicitObject<T, 3>& InObject) -> bool
 			{
 				//todo: move this out of here
-				const TImplicitObject<T, 3>* Obj = &InObject;
-				if (const TImplicitObjectScaled<T, 3>* Scaled = InObject.template GetObject<TImplicitObjectScaled<T, 3>>())
+				if (const auto Convex = TImplicitObjectScaled<TConvex<T,3>>::AsScaled(InObject))
 				{
-					Obj = Scaled->GetUnscaledObject();
-				}
-				if (const TConvex<T, 3>* Convex = Obj->template GetObject<TConvex<T, 3>>())
-				{
-					return Convex->GetSurfaceParticles().Size() > 0;
-				}
+					return Convex->GetUnscaledObject()->GetSurfaceParticles().Size() > 0;
+				}				
 
 				return true;
 			};
@@ -163,8 +158,9 @@ namespace Chaos
 			{
 				//todo: find face index
 			}
-			else if (AType == ImplicitObjectType::Scaled)
+			else if (AType == ImplicitObjectType::DEPRECATED_Scaled)
 			{
+				ensure(false);
 				//todo: find face index if convex hull
 			}
 
@@ -199,17 +195,17 @@ namespace Chaos
 				bResult = ATriangleMesh.SweepGeom(B, BToATM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, OutFaceIndex, Thickness);
 				break;
 			}
-			case ImplicitObjectType::Scaled:
-			{
-				const TImplicitObjectScaled<T, d>& AScaled = static_cast<const TImplicitObjectScaled<T, d>&>(A);
-				const TImplicitObject<T, d>& UnscaledObj = *AScaled.GetUnscaledObject();
-				check(UnscaledObj.GetType(true) == ImplicitObjectType::TriangleMesh);
-				const TTriangleMeshImplicitObject<T>& ATriangleMesh = static_cast<const TTriangleMeshImplicitObject<T>&>(UnscaledObj);
-				bResult = TImplicitObjectScaled<T,d>::LowLevelSweepGeom(AScaled, ATriangleMesh, B, BToATM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, OutFaceIndex, Thickness);
-				break;
-			}
 			default:
-				check(false);	//unsupported query type
+				if (IsScaled(AType))
+				{
+					const auto& AScaled = TImplicitObjectScaled<TTriangleMeshImplicitObject<T>>::AsScaledChecked(A);
+					bResult = AScaled.LowLevelSweepGeom(B, BToATM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, OutFaceIndex, Thickness);
+					break;
+				}
+				else
+				{
+					check(false);	//unsupported query type
+				}
 
 			}
 		}

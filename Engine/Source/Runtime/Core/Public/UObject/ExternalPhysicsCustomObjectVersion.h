@@ -45,6 +45,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 		// Serialize broadphase type
 		SerializeBroadphaseType,
 
+		// Allow scaled geometry to be a concrete type
+		ScaledGeometryIsConcrete,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

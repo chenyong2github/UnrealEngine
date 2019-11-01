@@ -857,7 +857,7 @@ void FBodyInstance::UpdatePhysicsFilterData()
 				// See if we currently have sim collision
 				const bool bWasSimulationShape = FPhysicsInterface::IsSimulationShape(InnerShape);
 				const bool bSyncShape = ShapeIndex < NumSyncShapes;
-				const bool bIsTrimesh = FPhysicsInterface::IsShapeType(InnerShape, ECollisionShapeType::Trimesh);
+				const bool bIsTrimesh = FPhysicsInterface::GetShapeType(InnerShape) == ECollisionShapeType::Trimesh;
 				const bool bIsStatic = FPhysicsInterface::IsStatic(Actor);
 
 				const FBodyCollisionFlags& CollisionFlags = PerShapeCollisionData.CollisionFlags;

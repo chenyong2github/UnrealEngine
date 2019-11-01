@@ -165,7 +165,7 @@ namespace Chaos
 			return Tri.GetPlane();
 		}
 
-		static EImplicitObjectType GetType()
+		static EImplicitObjectType StaticType()
 		{
 			return ImplicitObjectType::Triangle;
 		}

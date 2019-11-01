@@ -69,7 +69,7 @@ class TImplicitObjectUnion : public TImplicitObject<T, d>
 	}
 	virtual ~TImplicitObjectUnion() {}
 
-	FORCEINLINE static EImplicitObjectType GetType()
+	FORCEINLINE static EImplicitObjectType StaticType()
 	{
 		return ImplicitObjectType::Union;
 	}

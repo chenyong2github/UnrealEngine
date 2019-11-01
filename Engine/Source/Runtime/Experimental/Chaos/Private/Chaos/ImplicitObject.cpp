@@ -353,9 +353,8 @@ const FName TImplicitObject<T, d>::GetTypeName(const EImplicitObjectType InType)
 	static const FName CylinderName = TEXT("Cylinder");
 	static const FName TriangleMeshName = TEXT("TriangleMesh");
 	static const FName HeightFieldName = TEXT("HeightField");
-	static const FName ScaledName = TEXT("Scaled");
 
-	switch (InType)
+	switch (GetInnerType(InType))
 	{
 		case ImplicitObjectType::Sphere: return SphereName;
 		case ImplicitObjectType::Box: return BoxName;
@@ -370,7 +369,6 @@ const FName TImplicitObject<T, d>::GetTypeName(const EImplicitObjectType InType)
 		case ImplicitObjectType::Cylinder: return CylinderName;
 		case ImplicitObjectType::TriangleMesh: return TriangleMeshName;
 		case ImplicitObjectType::HeightField: return HeightFieldName;
-		case ImplicitObjectType::Scaled: return ScaledName;
 	}
 	return NAME_None;
 }
@@ -380,6 +378,24 @@ TImplicitObject<T, d>* TImplicitObject<T, d>::SerializationFactory(FChaosArchive
 {
 	int8 ObjectType = Ar.IsLoading() ? 0 : (int8)Obj->Type;
 	Ar << ObjectType;
+
+	Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+	if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::ScaledGeometryIsConcrete)
+	{
+		if (IsScaled(ObjectType))
+		{
+			EImplicitObjectType InnerType = GetInnerType(ObjectType);
+			switch (InnerType)
+			{
+			case ImplicitObjectType::Convex: if (Ar.IsLoading()) { return new TImplicitObjectScaled<TConvex<T, d>>(); } break;
+			case ImplicitObjectType::TriangleMesh: if (Ar.IsLoading()) { return new TImplicitObjectScaled<TTriangleMeshImplicitObject<T>>(); } break;
+			default: check(false);
+			}
+
+			return nullptr;
+		}
+	}
+
 	switch ((EImplicitObjectType)ObjectType)
 	{
 	case ImplicitObjectType::Sphere: if (Ar.IsLoading()) { return new TSphere<T, d>(); } break;
@@ -392,7 +408,11 @@ TImplicitObject<T, d>* TImplicitObject<T, d>::SerializationFactory(FChaosArchive
 	case ImplicitObjectType::Convex: if (Ar.IsLoading()) { return new TConvex<T, d>(); } break;
 	case ImplicitObjectType::TaperedCylinder: if (Ar.IsLoading()) { return new TTaperedCylinder<T>(); } break;
 	case ImplicitObjectType::TriangleMesh: if (Ar.IsLoading()) { return new TTriangleMeshImplicitObject<T>(); } break;
-	case ImplicitObjectType::Scaled: if (Ar.IsLoading()) { return new TImplicitObjectScaled<T,d>(); } break;
+	case ImplicitObjectType::DEPRECATED_Scaled:
+	{
+		ensure(Ar.IsLoading() && (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::ScaledGeometryIsConcrete));
+		return new TImplicitObjectScaledGeneric<T, d>();
+	}
 	case ImplicitObjectType::HeightField: if (Ar.IsLoading()) { return new THeightField<T>(); } break;
 	case ImplicitObjectType::Cylinder: if (Ar.IsLoading()) { return new TCylinder<T>(); } break;
 	default:

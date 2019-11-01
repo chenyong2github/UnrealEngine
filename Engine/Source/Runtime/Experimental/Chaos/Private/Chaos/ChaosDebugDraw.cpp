@@ -105,8 +105,6 @@ namespace Chaos
 				break;
 			case ImplicitObjectType::HeightField:
 				break;
-			case ImplicitObjectType::Scaled:
-				break;
 			default:
 				break;
 			}
