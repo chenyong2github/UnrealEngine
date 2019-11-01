@@ -16,6 +16,8 @@
 #include "NetworkReplayStreaming.h"
 #include "Engine/DemoNetConnection.h"
 #include "Net/RepLayout.h"
+#include "Templates/Atomic.h"
+
 #include "DemoNetDriver.generated.h"
 
 class FNetworkNotify;
@@ -1220,4 +1222,20 @@ private:
 	{
 		return ECreateReplicationChangelistMgrFlags::SkipDeltaCustomState;
 	}
+
+//////////////////////////////////////////////////////////////////////////
+// Replay frame fidelity
+public:
+	// Simplified rating of replay frame fidelity as percentage of actors that were replicated.
+	// [0..1] where 0 means nothing was recorded this frame and 1 means full fidelity.
+	// This treats all actors equally. Assuming more important actors are prioritized higher, in general actual "fidelity"
+	// is expected to be higher than reported, which should be fine for detecting low-fidelity frame/intervals in replay file.
+	float GetLastReplayFrameFidelity() const
+	{
+		return LastReplayFrameFidelity;
+	}
+
+private:
+	TAtomic<float> LastReplayFrameFidelity{ 0 };
+//////////////////////////////////////////////////////////////////////////
 };
