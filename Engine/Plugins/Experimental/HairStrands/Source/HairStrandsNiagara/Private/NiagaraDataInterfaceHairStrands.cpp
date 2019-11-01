@@ -15,7 +15,7 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceHairStrands"
 
-static const int32 MaxDelay = 5;
+static const int32 MaxDelay = 8;
 
 //------------------------------------------------------------------------------------------------------------
 
@@ -414,6 +414,8 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 			FVector DeformedPositionOffsetValue = HairStrandsBuffer->SourceRestResources->PositionOffset;
 			FVector RestPositionOffsetValue = HairStrandsBuffer->SourceRestResources->PositionOffset;
 
+			//UE_LOG(LogHairStrands, Log, TEXT("Need Reset = %d %d %d"), bNeedSimReset, ProxyData->TickCount, ProxyData->ResetTick);
+
 			if (HairStrandsBuffer->SourceRootResources != nullptr && HairStrandsBuffer->SourceRootResources->MeshProjectionLODs.Num() > 0)
 			{
 				RestTrianglePositionASRV = HairStrandsBuffer->SourceRootResources->MeshProjectionLODs[0].RestRootTrianglePosition0Buffer.SRV;
@@ -598,7 +600,7 @@ void FNDIHairStrandsProxy::InitializePerInstanceData(const FNiagaraSystemInstanc
 	TargetData->BoxExtent = BoxExtent;
 	TargetData->TickCount = 0;
 	TargetData->ResetTick = MaxDelay;
-	TargetData->ForceReset = false;
+	TargetData->ForceReset = true;
 	TargetData->WorldTransform = WorldTransform;
 }
 
@@ -737,7 +739,7 @@ bool UNiagaraDataInterfaceHairStrands::InitPerInstanceData(void* PerInstanceData
 			InstanceData->BoxCenter = BoxCenter;
 			InstanceData->BoxExtent = BoxExtent;
 			InstanceData->TickCount = 0;
-			InstanceData->ForceReset = false;
+			InstanceData->ForceReset = true;
 			InstanceData->ResetTick = MaxDelay;
 
 			//UE_LOG(LogHairStrands, Log, TEXT("Num Strands = %d | Strand Size = %d | Num Vertices = %d | Min = %f %f %f | Max = %f %f %f | Transform = %s"), NumStrands, StrandSize,
@@ -792,10 +794,11 @@ bool UNiagaraDataInterfaceHairStrands::PerInstanceTick(void* PerInstanceData, FN
 
 	if (SourceComponent != nullptr)
 	{
-		if (!InstanceData->ForceReset && !SourceComponent->bResetSimulation)
+		if (!InstanceData->ForceReset && !SourceComponent->bResetSimulation && (InstanceData->ResetTick == MaxDelay))
 		{
-			InstanceData->ResetTick = FMath::Min(MaxDelay, InstanceData->TickCount);
+			InstanceData->ResetTick = FMath::Min(MaxDelay, InstanceData->TickCount+1);
 		}
+		//UE_LOG(LogHairStrands, Warning, TEXT("Reset Simulation : %d %d %d %d"), InstanceData->ForceReset, SourceComponent->bResetSimulation, InstanceData->TickCount, InstanceData->ResetTick);
 		InstanceData->ForceReset = SourceComponent->bResetSimulation;
 	}
 
