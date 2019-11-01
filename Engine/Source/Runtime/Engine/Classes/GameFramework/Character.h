@@ -122,6 +122,9 @@ namespace MovementBaseUtility
 	/** Determine whether MovementBase can possibly move. */
 	ENGINE_API bool IsDynamicBase(const UPrimitiveComponent* MovementBase);
 
+	/** Determine whether MovementBase is simulating or attached to a simulating object. */
+	ENGINE_API bool IsSimulatedBase(const UPrimitiveComponent* MovementBase);
+
 	/** Determine if we should use relative positioning when based on a component (because it may move). */
 	FORCEINLINE bool UseRelativeLocation(const UPrimitiveComponent* MovementBase)
 	{

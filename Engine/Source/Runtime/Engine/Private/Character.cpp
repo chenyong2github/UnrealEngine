@@ -492,6 +492,18 @@ namespace MovementBaseUtility
 		return (MovementBase && MovementBase->Mobility == EComponentMobility::Movable);
 	}
 
+	bool IsSimulatedBase(const UPrimitiveComponent* MovementBase)
+	{
+		bool bBaseIsSimulatingPhysics = false;
+		const USceneComponent* AttachParent = MovementBase;
+		while (!bBaseIsSimulatingPhysics && AttachParent)
+		{
+			bBaseIsSimulatingPhysics = AttachParent->IsSimulatingPhysics();
+			AttachParent = AttachParent->GetAttachParent();
+		}
+		return bBaseIsSimulatingPhysics;
+	}
+
 	void AddTickDependency(FTickFunction& BasedObjectTick, UPrimitiveComponent* NewBase)
 	{
 		if (NewBase && MovementBaseUtility::UseRelativeLocation(NewBase))
@@ -689,7 +701,7 @@ void ACharacter::SetBase( UPrimitiveComponent* NewBaseComponent, const FName InB
 
 		if (CharacterMovement)
 		{
-			const bool bBaseIsSimulating = NewBaseComponent && NewBaseComponent->IsSimulatingPhysics();
+			const bool bBaseIsSimulating = MovementBaseUtility::IsSimulatedBase(NewBaseComponent);
 			if (bBaseChanged)
 			{
 				MovementBaseUtility::RemoveTickDependency(CharacterMovement->PrimaryComponentTick, OldBase);
