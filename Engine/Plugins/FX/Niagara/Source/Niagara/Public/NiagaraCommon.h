@@ -122,8 +122,7 @@ enum class ENiagaraScriptCompileStatus : uint8
 
 FORCEINLINE bool NiagaraSupportsComputeShaders(EShaderPlatform ShaderPlatform)
 {
-	// Change to RHISupportsComputeShaders(ShaderPlatform) to support ES3_1
-	return IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::SM5);
+	return RHISupportsComputeShaders(ShaderPlatform);
 }
 
 USTRUCT()
