@@ -114,9 +114,9 @@ namespace Chaos
 	template<class T, int d>
 	TPBDJointSolverSettings<T, d>::TPBDJointSolverSettings()
 		: SwingTwistAngleTolerance((T)1.0e-6)
-		, MinParentMassRatio((T)0.5)
-		, MaxInertiaRatio((T)5.0)
-		, bEnableVelocitySolve(true)
+		, MinParentMassRatio(0)
+		, MaxInertiaRatio(0)
+		, bEnableVelocitySolve(false)
 		, bEnableLinearLimits(true)
 		, bEnableTwistLimits(true)
 		, bEnableSwingLimits(true)
@@ -125,7 +125,7 @@ namespace Chaos
 		, Projection((T)0)
 		, Stiffness((T)0)
 		, DriveStiffness((T)0)
-		, PositionIterations((T)1)
+		, PositionIterations((T)0)
 	{
 	}
 
@@ -500,12 +500,12 @@ namespace Chaos
 				if (Swing1Motion != EJointMotionType::Free)
 				{
 					// Swing Arc/Lock
-					TPBDJointUtilities<T, d>::ApplyJointSwingVelocityConstraint(Dt, Settings, JointSettings, Index0, Index1, EJointAngularConstraintIndex::Swing1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+					TPBDJointUtilities<T, d>::ApplyJointSwingVelocityConstraint(Dt, Settings, JointSettings, Index0, Index1, EJointAngularConstraintIndex::Swing1, EJointAngularAxisIndex::Swing1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
 				}
 				if (Swing2Motion != EJointMotionType::Free)
 				{
 					// Swing Arc/Lock
-					TPBDJointUtilities<T, d>::ApplyJointSwingVelocityConstraint(Dt, Settings, JointSettings, Index0, Index1, EJointAngularConstraintIndex::Swing2, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+					TPBDJointUtilities<T, d>::ApplyJointSwingVelocityConstraint(Dt, Settings, JointSettings, Index0, Index1, EJointAngularConstraintIndex::Swing2, EJointAngularAxisIndex::Swing2, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
 				}
 			}
 		}
@@ -656,12 +656,12 @@ namespace Chaos
 				if (Swing1Motion != EJointMotionType::Free)
 				{
 					// Swing Arc/Lock
-					TPBDJointUtilities<T, d>::ApplyJointSwingConstraint(Dt, Settings, JointSettings, Index0, Index1, EJointAngularConstraintIndex::Swing1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+					TPBDJointUtilities<T, d>::ApplyJointSwingConstraint(Dt, Settings, JointSettings, Index0, Index1, EJointAngularConstraintIndex::Swing1, EJointAngularAxisIndex::Swing1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
 				}
 				if (Swing2Motion != EJointMotionType::Free)
 				{
 					// Swing Arc/Lock
-					TPBDJointUtilities<T, d>::ApplyJointSwingConstraint(Dt, Settings, JointSettings, Index0, Index1, EJointAngularConstraintIndex::Swing2, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+					TPBDJointUtilities<T, d>::ApplyJointSwingConstraint(Dt, Settings, JointSettings, Index0, Index1, EJointAngularConstraintIndex::Swing2, EJointAngularAxisIndex::Swing2, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
 				}
 			}
 		}

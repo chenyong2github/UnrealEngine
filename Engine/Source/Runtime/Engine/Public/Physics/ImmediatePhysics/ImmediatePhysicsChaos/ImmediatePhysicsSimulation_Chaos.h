@@ -59,8 +59,8 @@ namespace ImmediatePhysics_Chaos
 		//void SetIsKinematic(int32 ActorDataIndex, bool bKinematic);
 
 		/** Advance the simulation by DeltaTime */
-		void Simulate(float DeltaTime, const FVector& InGravity);
-		void Simulate_AssumesLocked(float DeltaTime, const FVector& InGravity) { Simulate(DeltaTime, InGravity); }
+		void Simulate(float DeltaTime, float MaxDeltaTime, int32 MaxSubSteps, const FVector& InGravity);
+		void Simulate_AssumesLocked(float DeltaTime, float MaxDeltaTime, int32 MaxSubSteps, const FVector& InGravity) { Simulate(DeltaTime, MaxDeltaTime, MaxSubSteps, InGravity); }
 
 		///** Whether or not an entity is simulated */
 		//bool IsSimulated(int32 ActorDataIndex) const;

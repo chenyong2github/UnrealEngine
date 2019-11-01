@@ -389,7 +389,7 @@ namespace ImmediatePhysics_Chaos
 
 	DECLARE_CYCLE_STAT(TEXT("FSimulation::Simulate_Chaos"), STAT_ImmediateSimulate_Chaos, STATGROUP_ImmediatePhysics);
 
-	void FSimulation::Simulate(float DeltaTime, const FVector& InGravity)
+	void FSimulation::Simulate(float DeltaTime, float MaxDeltaTime, int32 MaxSubSteps, const FVector& InGravity)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ImmediateSimulate_Chaos);
 		using namespace Chaos;
@@ -436,7 +436,7 @@ namespace ImmediatePhysics_Chaos
 
 		Evolution->GetGravityForces().SetAcceleration(InGravity);
 		
-		Evolution->AdvanceOneTimeStep(DeltaTime);
+		Evolution->Advance(DeltaTime, MaxDeltaTime, MaxSubSteps);
 		
 		Evolution->EndFrame(DeltaTime);
 

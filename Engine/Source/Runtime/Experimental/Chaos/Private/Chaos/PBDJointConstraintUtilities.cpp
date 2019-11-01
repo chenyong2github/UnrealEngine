@@ -1128,7 +1128,8 @@ namespace Chaos
 		const TPBDJointSettings<T, d>& JointSettings,
 		const int32 Index0,
 		const int32 Index1,
-		const EJointAngularConstraintIndex SwingConstraint,
+		const EJointAngularConstraintIndex SwingConstraintIndex,
+		const EJointAngularAxisIndex SwingAxisIndex,
 		TVector<T, d>& P0,
 		TRotation<T, d>& Q0,
 		TVector<T, d>& P1,
@@ -1167,9 +1168,10 @@ namespace Chaos
 		}
 		const TVector<T, d> TwistAxis = R0 * TwistAxis01;
 
+		const TRotation<T, d> R1NoTwist = R1 * R01Twist.Inverse();
 		const PMatrix<T, d, d> Axes0 = R0.ToMatrix();
-		const PMatrix<T, d, d> Axes1 = R1.ToMatrix();
-		TVector<T, d> SwingCross = TVector<T, d>::CrossProduct(Axes0.GetAxis((int32)SwingConstraint), Axes1.GetAxis((int32)SwingConstraint));
+		const PMatrix<T, d, d> Axes1 = R1NoTwist.ToMatrix();
+		TVector<T, d> SwingCross = TVector<T, d>::CrossProduct(Axes0.GetAxis((int32)SwingAxisIndex), Axes1.GetAxis((int32)SwingAxisIndex));
 		SwingCross = SwingCross - TVector<T, d>::DotProduct(TwistAxis, SwingCross) * TwistAxis;
 		const T SwingCrossLen = SwingCross.Size();
 		if (SwingCrossLen > KINDA_SMALL_NUMBER)
@@ -1179,19 +1181,19 @@ namespace Chaos
 			TVector<T, d> SwingAxis1 = SwingAxis;
 
 			T SwingAngle = FMath::Asin(FMath::Clamp(SwingCrossLen, (T)0, (T)1));
-			const T SwingDot = TVector<T, d>::DotProduct(Axes0.GetAxis((int32)SwingConstraint), Axes1.GetAxis((int32)SwingConstraint));
+			const T SwingDot = TVector<T, d>::DotProduct(Axes0.GetAxis((int32)SwingAxisIndex), Axes1.GetAxis((int32)SwingAxisIndex));
 			if (SwingDot < (T)0)
 			{
 				SwingAngle = (T)PI - SwingAngle;
 			}
 
 			T SwingAngleMax = FLT_MAX;
-			if (JointSettings.Motion.AngularMotionTypes[(int32)SwingConstraint] == EJointMotionType::Limited)
+			if (JointSettings.Motion.AngularMotionTypes[(int32)SwingConstraintIndex] == EJointMotionType::Limited)
 			{
-				T Swing1Limit = JointSettings.Motion.AngularLimits[(int32)SwingConstraint];
-				SwingAngleMax = Swing1Limit;
+				T SwingLimit = JointSettings.Motion.AngularLimits[(int32)SwingConstraintIndex];
+				SwingAngleMax = SwingLimit;
 			}
-			else if (JointSettings.Motion.AngularMotionTypes[(int32)SwingConstraint] == EJointMotionType::Locked)
+			else if (JointSettings.Motion.AngularMotionTypes[(int32)SwingConstraintIndex] == EJointMotionType::Locked)
 			{
 				SwingAngleMax = 0;
 			}
@@ -1224,7 +1226,8 @@ namespace Chaos
 		const TPBDJointSettings<T, d>& JointSettings,
 		const int32 Index0,
 		const int32 Index1,
-		const EJointAngularConstraintIndex SwingConstraint,
+		const EJointAngularConstraintIndex SwingConstraintIndex,
+		const EJointAngularAxisIndex SwingAxisIndex,
 		TVector<T, d>& P0,
 		TRotation<T, d>& Q0,
 		TVector<T, d>& V0,
@@ -1266,9 +1269,10 @@ namespace Chaos
 		}
 		const TVector<T, d> TwistAxis = R0 * TwistAxis01;
 
+		const TRotation<T, d> R1NoTwist = R1 * R01Twist.Inverse();
 		const PMatrix<T, d, d> Axes0 = R0.ToMatrix();
-		const PMatrix<T, d, d> Axes1 = R1.ToMatrix();
-		TVector<T, d> SwingCross = TVector<T, d>::CrossProduct(Axes0.GetAxis((int32)SwingConstraint), Axes1.GetAxis((int32)SwingConstraint));
+		const PMatrix<T, d, d> Axes1 = R1NoTwist.ToMatrix();
+		TVector<T, d> SwingCross = TVector<T, d>::CrossProduct(Axes0.GetAxis((int32)SwingAxisIndex), Axes1.GetAxis((int32)SwingAxisIndex));
 		SwingCross = SwingCross - TVector<T, d>::DotProduct(TwistAxis, SwingCross) * TwistAxis;
 		const T SwingCrossLen = SwingCross.Size();
 		if (SwingCrossLen > KINDA_SMALL_NUMBER)
@@ -1278,19 +1282,19 @@ namespace Chaos
 			TVector<T, d> SwingAxis1 = SwingAxis;
 
 			T SwingAngle = FMath::Asin(FMath::Clamp(SwingCrossLen, (T)0, (T)1));
-			const T SwingDot = TVector<T, d>::DotProduct(Axes0.GetAxis((int32)SwingConstraint), Axes1.GetAxis((int32)SwingConstraint));
+			const T SwingDot = TVector<T, d>::DotProduct(Axes0.GetAxis((int32)SwingAxisIndex), Axes1.GetAxis((int32)SwingAxisIndex));
 			if (SwingDot < (T)0)
 			{
 				SwingAngle = (T)PI - SwingAngle;
 			}
 
 			T SwingAngleMax = FLT_MAX;
-			if (JointSettings.Motion.AngularMotionTypes[(int32)SwingConstraint] == EJointMotionType::Limited)
+			if (JointSettings.Motion.AngularMotionTypes[(int32)SwingConstraintIndex] == EJointMotionType::Limited)
 			{
-				T Swing1Limit = JointSettings.Motion.AngularLimits[(int32)SwingConstraint];
+				T Swing1Limit = JointSettings.Motion.AngularLimits[(int32)SwingConstraintIndex];
 				SwingAngleMax = Swing1Limit;
 			}
-			else if (JointSettings.Motion.AngularMotionTypes[(int32)SwingConstraint] == EJointMotionType::Locked)
+			else if (JointSettings.Motion.AngularMotionTypes[(int32)SwingConstraintIndex] == EJointMotionType::Locked)
 			{
 				SwingAngleMax = 0;
 			}

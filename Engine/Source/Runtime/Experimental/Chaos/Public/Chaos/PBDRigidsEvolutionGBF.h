@@ -78,7 +78,8 @@ public:
 		PostApplyPushOutCallback = Cb;
 	}
 
-	CHAOS_API void AdvanceOneTimeStep(const T dt);
+	CHAOS_API void Advance(const T Dt, const T MaxStepDt, const int32 MaxSteps);
+	CHAOS_API void AdvanceOneTimeStep(const T dt, const T StepFraction = (T)1.0);
 
 	using Base::ApplyConstraints;
 	using Base::ApplyPushOut;

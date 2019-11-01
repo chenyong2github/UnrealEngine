@@ -396,6 +396,7 @@ namespace Chaos
 			Stream.write(reinterpret_cast<const char*>(&Y), sizeof(Y));
 			Stream.write(reinterpret_cast<const char*>(&Z), sizeof(Z));
 		}
+		static inline TVector<float, 3> Lerp(const TVector<float, 3>& V1, const TVector<float, 3>& V2, const float F) { return FMath::Lerp<FVector, float>(V1, V2, F); }
 		static inline TVector<float, 3> CrossProduct(const TVector<float, 3>& V1, const TVector<float, 3>& V2) { return FVector::CrossProduct(V1, V2); }
 		static inline float DotProduct(const TVector<float, 3>& V1, const TVector<float, 3>& V2) { return FVector::DotProduct(V1, V2); }
 		bool operator<=(const TVector<float, 3>& V) const
