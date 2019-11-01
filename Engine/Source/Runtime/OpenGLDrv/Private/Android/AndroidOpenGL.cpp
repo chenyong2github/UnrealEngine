@@ -123,7 +123,10 @@ GLint FAndroidOpenGL::MaxComputeUniformComponents = -1;
 static TAutoConsoleVariable<int32> CVarEnableAdrenoTilingHint(
 	TEXT("r.Android.EnableAdrenoTilingHint"),
 	1,
-	TEXT(""));
+	TEXT("Whether Adreno-based Android devices should hint to the driver to use tiling mode for the mobile base pass.\n")
+	TEXT("  0 = hinting disabled\n")
+	TEXT("  1 = hinting enabled for Adreno devices running Andorid 8 or earlier [default]\n")
+	TEXT("  2 = hinting always enabled for Adreno devices\n")
 
 struct FPlatformOpenGLDevice
 {
@@ -854,7 +857,7 @@ bool FAndroidOpenGL::RequiresAdrenoTilingModeHint()
 
 void FAndroidOpenGL::EnableAdrenoTilingModeHint(bool bEnable)
 {
-	if(bEnable && CVarEnableAdrenoTilingHint.GetValueOnAnyThread())
+	if(bEnable && CVarEnableAdrenoTilingHint.GetValueOnAnyThread() != 0)
 	{
 		glEnable(GL_BINNING_CONTROL_HINT_QCOM);
 		glHint(GL_BINNING_CONTROL_HINT_QCOM, GL_GPU_OPTIMIZED_QCOM);
@@ -1076,7 +1079,7 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 		}
 
 		// FORT-221329's broken adreno driver not common on Android 9 and above. TODO: check adreno driver version instead.
-		bRequiresAdrenoTilingHint = FAndroidMisc::GetAndroidBuildVersion() < 28; 
+		bRequiresAdrenoTilingHint = FAndroidMisc::GetAndroidBuildVersion() < 28 || CVarEnableAdrenoTilingHint.GetValueOnAnyThread() == 2;
 		UE_CLOG(bRequiresAdrenoTilingHint, LogRHI, Log, TEXT("Enabling Adreno tiling hint."));
 	}
 
