@@ -156,7 +156,8 @@ namespace Chaos
 
 			const TVector<T, d> Offset = ATM.GetLocation() - BTM.GetLocation();
 
-			bResult = GJKRaycast<T>(A, B, BToATM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, Thickness, Offset);
+			bResult = GJKRaycast2<T>(A, B, BToATM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, Thickness + A.GetMargin(), Offset, Thickness + B.GetMargin());
+			//bResult = GJKRaycast<T>(A, B, BToATM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, Thickness, Offset, Thickness);
 
 			if (AType == ImplicitObjectType::Convex)
 			{

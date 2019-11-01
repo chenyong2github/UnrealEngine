@@ -152,6 +152,7 @@ public:
 	virtual T PhiWithNormal(const TVector<T, d>& x, TVector<T, d>& Normal) const = 0;
 	virtual const class TBox<T, d>& BoundingBox() const;
 	virtual TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const;
+	virtual TVector<T, d> Support2(const TVector<T, d>& Direction) const { return Support(Direction, 0); }
 	bool HasBoundingBox() const { return bHasBoundingBox; }
 	bool IsConvex() const { return bIsConvex; }
 	void IgnoreAnalyticCollisions(const bool Ignore = true) { bIgnoreAnalyticCollisions = Ignore; }
@@ -222,6 +223,11 @@ public:
 	virtual void AccumulateAllSerializableImplicitObjects(TArray<Pair<TSerializablePtr<TImplicitObject<T, d>>, TRigidTransform<T, d>>>& Out, const TRigidTransform<T, d>& ParentTM, TSerializablePtr<TImplicitObject<T,d>> This) const
 	{
 		Out.Add(MakePair(This, ParentTM));
+	}
+
+	virtual T GetMargin() const
+	{
+		return 0;
 	}
 
 	virtual void FindAllIntersectingObjects(TArray < Pair<const TImplicitObject<T, d>*, TRigidTransform<T, d>>>& Out, const TBox<T, d>& LocalBounds) const;
