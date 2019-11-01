@@ -15,8 +15,8 @@ class UDataprepFloatFetcher;
 UENUM()
 enum class EDataprepFloatMatchType : uint8
 {
-	LessThen,
-	GreatherThen,
+	LessThan,
+	GreatherThan,
 	IsNearlyEqual
 };
 
