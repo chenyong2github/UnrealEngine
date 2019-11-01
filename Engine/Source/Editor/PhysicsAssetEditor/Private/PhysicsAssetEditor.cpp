@@ -2908,7 +2908,7 @@ void FPhysicsAssetEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPre
 	SharedData->EditorSkelComp->SetDisablePostProcessBlueprint(true);
 	InPersonaPreviewScene->SetPreviewMeshComponent(SharedData->EditorSkelComp);
 	InPersonaPreviewScene->AddComponent(SharedData->EditorSkelComp, FTransform::Identity);
-
+	InPersonaPreviewScene->SetAdditionalMeshesSelectable(false);
 	// set root component, so we can attach to it. 
 	Actor->SetRootComponent(SharedData->EditorSkelComp);
 
