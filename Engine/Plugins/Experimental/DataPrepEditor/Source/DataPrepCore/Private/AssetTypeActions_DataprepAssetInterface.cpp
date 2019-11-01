@@ -3,6 +3,7 @@
 #include "AssetTypeActions_DataprepAssetInterface.h"
 
 #include "DataprepAssetInstance.h"
+#include "DataprepAssetProducers.h"
 #include "DataprepCoreLibrary.h"
 #include "DataPrepCoreModule.h"
 #include "DataPrepFactories.h"
