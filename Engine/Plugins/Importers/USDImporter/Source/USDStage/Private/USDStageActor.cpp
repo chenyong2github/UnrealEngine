@@ -78,21 +78,21 @@ AUsdStageActor::FOnActorLoaded AUsdStageActor::OnActorLoaded{};
 
 namespace UsdStageActorImpl
 {
-FMeshDescription LoadMeshDescription( const pxr::UsdGeomMesh& UsdMesh, const pxr::UsdTimeCode TimeCode )
-{
-	if ( !UsdMesh )
+	FMeshDescription LoadMeshDescription( const pxr::UsdGeomMesh& UsdMesh, const pxr::UsdTimeCode TimeCode )
 	{
-		return {};
+		if ( !UsdMesh )
+		{
+			return {};
+		}
+
+		FMeshDescription MeshDescription;
+		FStaticMeshAttributes StaticMeshAttributes( MeshDescription );
+		StaticMeshAttributes.Register();
+
+		UsdToUnreal::ConvertGeomMesh( UsdMesh, MeshDescription, TimeCode );
+
+		return MeshDescription;
 	}
-
-	FMeshDescription MeshDescription;
-	FStaticMeshAttributes StaticMeshAttributes( MeshDescription );
-	StaticMeshAttributes.Register();
-
-	UsdToUnreal::ConvertGeomMesh( UsdMesh, MeshDescription, TimeCode );
-
-	return MeshDescription;
-}
 
 	void ProcessMaterials( const pxr::UsdPrim& UsdPrim, UStaticMesh& StaticMesh, TMap< FString, UMaterial* >& MaterialsCache, bool bHasPrimDisplayColor, float Time )
 	{
@@ -113,7 +113,7 @@ FMeshDescription LoadMeshDescription( const pxr::UsdGeomMesh& UsdMesh, const pxr
 			int32 MaterialIndex = INDEX_NONE;
 			int32 MeshMaterialIndex = 0;
 
-				for ( FStaticMaterial& StaticMaterial : StaticMesh.StaticMaterials )
+			for ( FStaticMaterial& StaticMaterial : StaticMesh.StaticMaterials )
 			{
 				if ( StaticMaterial.MaterialSlotName.IsEqual( ImportedMaterialSlotName ) )
 				{
@@ -756,8 +756,6 @@ void AUsdStageActor::SetTime(float InTime)
 
 void AUsdStageActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	Super::PostEditChangeProperty( PropertyChangedEvent );
-
 	UProperty* PropertyThatChanged = PropertyChangedEvent.MemberProperty;
 	const FName PropertyName = PropertyThatChanged ? PropertyThatChanged->GetFName() : NAME_None;
 	
@@ -773,6 +771,10 @@ void AUsdStageActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, Time ) )
 	{
 		Refresh();
+	}
+	else
+	{
+		Super::PostEditChangeProperty( PropertyChangedEvent );
 	}
 }
 

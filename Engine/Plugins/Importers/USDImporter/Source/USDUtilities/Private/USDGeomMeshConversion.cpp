@@ -594,22 +594,25 @@ bool UsdToUnreal::ConvertDisplayColor( const pxr::UsdGeomMesh& UsdMesh, UMateria
 		{
 			FScopedUnrealAllocs UnrealAllocs;
 
-			FSoftObjectPath DisplayColorMaterialPath( TEXT("Material'/USDImporter/Materials/DisplayColorAndOpacity.DisplayColorAndOpacity'") );
-			UMaterialInterface* DisplayColorAndOpacityMaterial = Cast< UMaterialInterface >( DisplayColorMaterialPath.TryLoad() );
-
-			UMaterialEditingLibrary::SetMaterialInstanceParent( &MaterialInstance, DisplayColorAndOpacityMaterial );
+			FSoftObjectPath MaterialPath;
 
 			if ( bHasTransparency )
 			{
-				MaterialInstance.BasePropertyOverrides.bOverride_BlendMode = true;
-				MaterialInstance.BasePropertyOverrides.BlendMode = EBlendMode::BLEND_Translucent;
+				MaterialPath = FSoftObjectPath( TEXT("Material'/USDImporter/Materials/DisplayColorAndOpacity.DisplayColorAndOpacity'") );
+			}
+			else
+			{
+				MaterialPath = FSoftObjectPath( TEXT("Material'/USDImporter/Materials/DisplayColor.DisplayColor'") );
 			}
 
-			if ( UsdMesh.GetDoubleSidedAttr().IsDefined() )
+			UMaterialInterface* DisplayColorAndOpacityMaterial = Cast< UMaterialInterface >( MaterialPath.TryLoad() );
+			UMaterialEditingLibrary::SetMaterialInstanceParent( &MaterialInstance, DisplayColorAndOpacityMaterial );
+
+			/*if ( UsdMesh.GetDoubleSidedAttr().IsDefined() )
 			{
 				MaterialInstance.BasePropertyOverrides.bOverride_TwoSided = true;
 				MaterialInstance.BasePropertyOverrides.TwoSided = UsdUtils::GetUsdValue< bool >( UsdMesh.GetDoubleSidedAttr(), TimeCode );
-			}
+			}*/
 		}
 
 		return true;
