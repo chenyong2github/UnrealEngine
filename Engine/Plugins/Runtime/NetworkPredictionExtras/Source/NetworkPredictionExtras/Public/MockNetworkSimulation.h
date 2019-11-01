@@ -30,7 +30,7 @@ class IMockDriver;
 //	in this example. This is just meant to show the bare minimum hook ups into the system to make it easier to understand.
 //
 //	Highlights:
-//		FMockNetworkModel::Update			The "core update" function of the simulation.
+//		FMockNetworkModel::SimulationTick		The "core update" function of the simulation.
 //		UMockNetworkSimulationComponent			The UE4 Actor Component that anchors the system to an actor.
 //
 //	Usage:
@@ -131,8 +131,6 @@ struct FMockAuxState
 
 using TMockNetworkSimulationBufferTypes = TNetworkSimBufferTypes<FMockInputCmd, FMockSyncState, FMockAuxState>;
 
-
-
 static FName MockSimulationGroupName("Mock");
 
 class FMockNetworkSimulation
@@ -140,7 +138,7 @@ class FMockNetworkSimulation
 public:
 
 	/** Main update function */
-	void Update(const float DeltaTimeSeconds, const FMockInputCmd& InputCmd, const FMockSyncState& InputState, FMockSyncState& OutputState, const FMockAuxState& AuxState, const TNetSimLazyWriter<FMockAuxState>& OutAuxStateAccessor);
+	void SimulationTick(const TNetSimTimeStep& TimeStep, const TNetSimInput<TMockNetworkSimulationBufferTypes>& Input, const TNetSimOutput<TMockNetworkSimulationBufferTypes>& Output);
 
 	/** Tick group the simulation maps to */
 	static const FName GroupName;

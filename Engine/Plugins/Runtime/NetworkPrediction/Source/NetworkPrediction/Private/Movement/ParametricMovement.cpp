@@ -41,13 +41,14 @@ namespace ParametricMovement
 {
 	const FName FMovementSimulation::GroupName(TEXT("Parametric"));
 
-	void FMovementSimulation::Update(const float DeltaSeconds, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState, const TNetSimLazyWriter<FAuxState>& OutAuxStateAccessor)
+	void FMovementSimulation::SimulationTick(const TNetSimTimeStep& TimeStep, const TNetSimInput<TMovementBufferTypes>& Input, const TNetSimOutput<TMovementBufferTypes>& Output)
 	{
 		check(Motion != nullptr); // Must set motion mapping prior to running the simulation
+		const float DeltaSeconds = TimeStep.StepMS.ToRealTimeSeconds();
 
 		// Advance parametric time. This won't always be linear: we could loop, rewind/bounce, etc
-		const float InputPlayRate = InputCmd.PlayRate.Get(InputState.PlayRate); // Returns InputCmds playrate if set, else returns previous state's playrate		
-		Motion->AdvanceParametricTime(InputState.Position, InputPlayRate, OutputState.Position, OutputState.PlayRate, DeltaSeconds);
+		const float InputPlayRate = Input.Cmd.PlayRate.Get(Input.Sync.PlayRate); // Returns InputCmds playrate if set, else returns previous state's playrate		
+		Motion->AdvanceParametricTime(Input.Sync.Position, InputPlayRate, Output.Sync.Position, Output.Sync.PlayRate, DeltaSeconds);
 
 		// We have our time that we should be at. We just need to move primitive component to that position.
 		// Again, note that we expect this cannot fail. We move like this so that it can push things, but we don't expect failure.
@@ -55,10 +56,10 @@ namespace ParametricMovement
 		// the output Position in the case where a Move is blocked (E.g, you move 50% towards the desired location)
 
 		FTransform StartingTransform;
-		Motion->MapTimeToTransform(InputState.Position, StartingTransform);
+		Motion->MapTimeToTransform(Input.Sync.Position, StartingTransform);
 
 		FTransform NewTransform;
-		Motion->MapTimeToTransform(OutputState.Position, NewTransform);
+		Motion->MapTimeToTransform(Output.Sync.Position, NewTransform);
 
 		FHitResult Hit(1.f);
 

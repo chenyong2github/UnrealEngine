@@ -19,39 +19,40 @@ namespace MockAbilityCVars
 //
 // -------------------------------------------------------------------------------------------------------------
 
-
 const FName FMockAbilitySimulation::GroupName(TEXT("Ability"));
 
-void FMockAbilitySimulation::Update(const float DeltaTimeSeconds, const FMockAbilityInputCmd& InputCmd, const FMockAbilitySyncState& InputState, FMockAbilitySyncState& OutputState, const FMockAbilityAuxstate& AuxState, const TNetSimLazyWriter<FMockAbilityAuxstate>& OutAuxStateAccessor)
+void FMockAbilitySimulation::SimulationTick(const TNetSimTimeStep& TimeStep, const TNetSimInput<TMockAbilityBufferTypes>& Input, const TNetSimOutput<TMockAbilityBufferTypes>& Output)
 {
+	const float DeltaSeconds = TimeStep.StepMS.ToRealTimeSeconds();
+
 	// Stamina passes through. Some code paths will modify this again, but if we don't set the output state it will be garbage/stale
 	// (considering implicit copying of old state to new state by the NetworkedSimModel code, but that could be undesired/inefficient in some cases)
-	OutputState.Stamina = InputState.Stamina;
+	Output.Sync.Stamina = Input.Sync.Stamina;
 
 	static float BlinkCost = 75.f;
-	const bool bBlink = (InputCmd.bBlinkPressed && InputState.Stamina > BlinkCost);
+	const bool bBlink = (Input.Cmd.bBlinkPressed && Input.Sync.Stamina > BlinkCost);
 
 	if (bBlink)
 	{
 		static float BlinkDist = 1000.f;
 		static float OverlapCheckInflation = 0.100f;
 
-		FVector DestLocation = InputState.Location + InputState.Rotation.RotateVector( FVector(BlinkDist, 0.f, 0.f) );
+		FVector DestLocation = Input.Sync.Location + Input.Sync.Rotation.RotateVector( FVector(BlinkDist, 0.f, 0.f) );
 		AActor* OwningActor = UpdatedComponent->GetOwner();
 		check(OwningActor);
 
-		// DrawDebugLine(OwningActor->GetWorld(), InputState.Location, DestLocation, FColor::Red, false);	
+		// DrawDebugLine(OwningActor->GetWorld(), Input.Sync.Location, DestLocation, FColor::Red, false);	
 
 		// Its unfortunate teleporting is so complicated. It may make sense for a new movement simulation to define this themselves, 
 		// but for this mock one, we will just use the engine's AActor teleport.
-		if (OwningActor->TeleportTo(DestLocation, InputState.Rotation))
+		if (OwningActor->TeleportTo(DestLocation, Input.Sync.Rotation))
 		{
-			OutputState = InputState;
+			Output.Sync = Input.Sync;
 
 			// Component now has the final location
 			const FTransform UpdateComponentTransform = GetUpdateComponentTransform();
-			OutputState.Location = UpdateComponentTransform.GetLocation();
-			OutputState.Stamina = InputState.Stamina - BlinkCost;
+			Output.Sync.Location = UpdateComponentTransform.GetLocation();
+			Output.Sync.Stamina = Input.Sync.Stamina - BlinkCost;
 
 			// And we skip the normal update simulation for this frame. This is just a choice. We could still allow it to run.
 			return;
@@ -70,43 +71,43 @@ void FMockAbilitySimulation::Update(const float DeltaTimeSeconds, const FMockAbi
 
 	static float DashCost = 75.f;
 	static int16 DashDurationMS = 400;
-	int16 DashTimeLeft = AuxState.DashTimeLeft;
-	bool bIsDashing = AuxState.DashTimeLeft > 0;
+	int16 DashTimeLeft = Input.Aux.DashTimeLeft;
+	bool bIsDashing = Input.Aux.DashTimeLeft > 0;
 	
-	if (InputCmd.bDashPressed && InputState.Stamina > DashCost && bIsDashing == false)
+	if (Input.Cmd.bDashPressed && Input.Sync.Stamina > DashCost && bIsDashing == false)
 	{
 		// Start dashing
 		DashTimeLeft = DashDurationMS;
-		OutputState.Stamina -= DashCost;
+		Output.Sync.Stamina -= DashCost;
 		bIsDashing = true;
 	}
 
 	if (bIsDashing)
 	{
-		FMockAbilityAuxstate* OutAuxState = OutAuxStateAccessor.Get();
-		OutAuxState->DashTimeLeft = FMath::Max<int16>(DashTimeLeft - (int16)(DeltaTimeSeconds * 1000.f), 0);
+		FMockAbilityAuxstate* OutAuxState = Output.Aux.Get();
+		OutAuxState->DashTimeLeft = FMath::Max<int16>(DashTimeLeft - (int16)(DeltaSeconds * 1000.f), 0);
 
-		FMockAbilityAuxstate LocalAuxState = AuxState;
+		FMockAbilityAuxstate LocalAuxState = Input.Aux;
 		LocalAuxState.MaxSpeed = MockAbilityCVars::DashMaxSpeed();
 		LocalAuxState.Acceleration = MockAbilityCVars::DashAcceleration();
 
-		FMockAbilityInputCmd LocalInputCmd = InputCmd;
+		FMockAbilityInputCmd LocalInputCmd = Input.Cmd;
 		LocalInputCmd.MovementInput = FVector(1.f, 0.f, 0.f);
 		
-		FlyingMovement::FMovementSimulation::Update(DeltaTimeSeconds, LocalInputCmd, InputState, OutputState, LocalAuxState, OutAuxStateAccessor);
+		FlyingMovement::FMovementSimulation::SimulationTick(TimeStep, { LocalInputCmd, Input.Sync, LocalAuxState }, { Output.Sync, Output.Aux });
 
 		if (OutAuxState->DashTimeLeft == 0)
 		{
 			// Stop when dash is over
-			OutputState.Velocity = FVector::ZeroVector;
+			Output.Sync.Velocity = FVector::ZeroVector;
 		}
 	}
 	else
 	{
 		// Sprint (mutually exclusive from Dash state)		
 		static float SprintBaseCost = 100.f;
-		const float SprintCostThisFrame = SprintBaseCost * DeltaTimeSeconds;
-		const bool bIsSprinting = (InputCmd.bSprintPressed && InputState.Stamina > SprintCostThisFrame);
+		const float SprintCostThisFrame = SprintBaseCost * DeltaSeconds;
+		const bool bIsSprinting = (Input.Cmd.bSprintPressed && Input.Sync.Stamina > SprintCostThisFrame);
 
 		// Set our max speed. This is an interesting case.
 		//	-Our input states are already "final". It doesn't make sense to modify the input AuxState data.
@@ -119,26 +120,26 @@ void FMockAbilitySimulation::Update(const float DeltaTimeSeconds, const FMockAbi
 		// value from other input state. This difference in how the simulations treat the variable is what causes the need to do this.
 		//
 		// It would be possible to write the base movement sim in a way that MaxSpeed is transient value on the sim class (FlyingMovement::FMovementSimulation).
-		// Something like, "MaxSpeed" really means "Base max speed" and their would be a "GetCurrentMaxSpeed" virtual on the sim.
+		// Something like, "MaxSpeed" really means "Base max speed" and there would be a "GetCurrentMaxSpeed" virtual on the sim.
 		// This would make things a bit more awkward in the base case with no ability system. So, for now, this seems like a good pattern/precedence.
 
-		FMockAbilityAuxstate LocalAuxState = AuxState;
+		FMockAbilityAuxstate LocalAuxState = Input.Aux;
 		LocalAuxState.MaxSpeed = bIsSprinting ? MockAbilityCVars::SprintMaxSpeed() : MockAbilityCVars::DefaultMaxSpeed();
 
 		if (bIsSprinting)
 		{
-			OutputState.Stamina = FMath::Max<float>( InputState.Stamina - SprintCostThisFrame, 0.f );
+			Output.Sync.Stamina = FMath::Max<float>( Input.Sync.Stamina - SprintCostThisFrame, 0.f );
 		}
-		else if (OutputState.Stamina < AuxState.MaxStamina)
+		else if (Output.Sync.Stamina < Input.Aux.MaxStamina)
 		{
-			OutputState.Stamina = FMath::Min<float>( InputState.Stamina + (DeltaTimeSeconds * AuxState.StaminaRegenRate), AuxState.MaxStamina );
+			Output.Sync.Stamina = FMath::Min<float>( Input.Sync.Stamina + (DeltaSeconds * Input.Aux.StaminaRegenRate), Input.Aux.MaxStamina );
 		}
 		else
 		{
-			OutputState.Stamina = InputState.Stamina;
+			Output.Sync.Stamina = Input.Sync.Stamina;
 		}
 
-		FlyingMovement::FMovementSimulation::Update(DeltaTimeSeconds, InputCmd, InputState, OutputState, LocalAuxState, OutAuxStateAccessor);
+		FlyingMovement::FMovementSimulation::SimulationTick(TimeStep, Input, { Output.Sync, Output.Aux });
 	}
 }
 

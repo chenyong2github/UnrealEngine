@@ -108,6 +108,14 @@ Smoothing: Taking the output of the simulation and applying an additional layer 
 // Release notes
 // ----------------------------------------------------------------------------------------------------------
 
+Update (10-28-19)
+Renaming/cleanup on ::Update function:
+-"TSimulation::Update" is now "TSimulation::SimulationTick". Makes searching through source a bit easier, less generic name
+-Collapsed parameters of SimulationTick into 3 containers: TNetSimTimeStep, TNetSimInput, TNetSimOutput
+-Time passed into simulation is now FNetworkSimTime (instead of forcing float RealTimeSeconds conversion at callsite)
+-TSimulationTickState broken up into FSimulationTickState and TSimulationTicker. 
+-::SimulationTick now also gets a reference to FSimulationTickState. This is setting us up to do timers/countdowns based on sim time within these functions.
+
 Update (10-25-19)
 -Another large refactor on the core classes. Things are feeling good!
 -"Simulation Driver" and a few other concepts have changed:
