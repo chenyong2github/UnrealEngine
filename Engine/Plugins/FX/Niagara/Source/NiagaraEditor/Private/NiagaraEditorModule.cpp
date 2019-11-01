@@ -70,6 +70,7 @@
 #include "NiagaraTypes.h"
 #include "NiagaraSystemFactoryNew.h"
 #include "NiagaraSystemEditorData.h"
+#include "NiagaraEditorCommands.h"
 
 #include "MovieScene/Parameters/MovieSceneNiagaraBoolParameterTrack.h"
 #include "MovieScene/Parameters/MovieSceneNiagaraFloatParameterTrack.h"
@@ -1041,6 +1042,11 @@ const FNiagaraEditorCommands& FNiagaraEditorModule::Commands()
 TSharedPtr<FNiagaraSystemViewModel> FNiagaraEditorModule::GetExistingViewModelForSystem(UNiagaraSystem* InSystem)
 {
 	return FNiagaraSystemViewModel::GetExistingViewModelForObject(InSystem);
+}
+
+const FNiagaraEditorCommands& FNiagaraEditorModule::GetCommands() const
+{
+	return FNiagaraEditorCommands::Get();
 }
 
 void FNiagaraEditorModule::RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)
