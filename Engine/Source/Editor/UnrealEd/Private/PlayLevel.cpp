@@ -3367,6 +3367,7 @@ UGameInstance* UEditorEngine::CreatePIEGameInstance(int32 InPIEInstance, bool bI
 						.Title(ViewportName)
 						.ScreenPosition(FVector2D(PosX, PosY))
 						.ClientSize(FVector2D(NewWindowWidth, NewWindowHeight))
+						.AdjustInitialSizeAndPositionForDPIScale(false)
 						.AutoCenter(CenterNewWindow ? EAutoCenter::PreferredWorkArea : EAutoCenter::None)
 						.UseOSWindowBorder(bUseOSWndBorder)
 						.SaneWindowPlacement(!CenterNewWindow)
