@@ -64,6 +64,11 @@ void FSoundSubmixGraphConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin*
 
 	OutParams.WireColor = Schema->GetPinTypeColor(OutputPin->PinType);
 
+	if (!OutputPin)
+	{
+		return;
+	}
+
 	bool bExecuted = false;
 
 	// Run through the predecessors, and on
@@ -272,13 +277,15 @@ bool USoundSubmixGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin
 
 		if (bReopenEditors)
 		{
-			TArray<IAssetEditorInstance*> Editors = FAssetEditorManager::Get().FindEditorsForAsset(SubmixA);
-			for (IAssetEditorInstance* Editor : Editors)
+			check(GEditor);
+			UAssetEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
+			TArray<IAssetEditorInstance*> SubmixEditors = EditorSubsystem->FindEditorsForAsset(SubmixA);
+			for (IAssetEditorInstance* Editor : SubmixEditors)
 			{
 				Editor->CloseWindow();
 			}
 
-			FAssetEditorManager::Get().OpenEditorForAsset(SubmixA);
+			EditorSubsystem->OpenEditorForAsset(SubmixA);
 		}
 	}
 
@@ -325,6 +332,7 @@ void USoundSubmixGraphSchema::BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGrap
 
 void USoundSubmixGraphSchema::DroppedAssetsOnGraph(const TArray<FAssetData>& Assets, const FVector2D& GraphPosition, UEdGraph* Graph) const
 {
+	check(GEditor);
 	check(Graph);
 
 	USoundSubmixGraph* SoundSubmixGraph = CastChecked<USoundSubmixGraph>(Graph);
@@ -342,7 +350,8 @@ void USoundSubmixGraphSchema::DroppedAssetsOnGraph(const TArray<FAssetData>& Ass
 
 			if (!SoundSubmixGraph->IsSubmixDisplayed(SoundSubmix))
 			{
-				TArray<IAssetEditorInstance*> SubmixEditors = FAssetEditorManager::Get().FindEditorsForAsset(SoundSubmix);
+				UAssetEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
+				TArray<IAssetEditorInstance*> SubmixEditors = EditorSubsystem->FindEditorsForAsset(SoundSubmix);
 				for (IAssetEditorInstance* Editor : SubmixEditors)
 				{
 					if (Editor)
@@ -375,6 +384,8 @@ void USoundSubmixGraphSchema::DroppedAssetsOnGraph(const TArray<FAssetData>& Ass
 		// If editor is this graph's editor, update editable objects and select dropped submixes.
 		if (USoundSubmix* RootSubmix = SoundSubmixGraph->GetRootSoundSubmix())
 		{
+			UAssetEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
+			if (IAssetEditorInstance* Editor = EditorSubsystem->FindEditorForAsset(RootSubmix, false /* bFocusIfOpen */))
 			if (IAssetEditorInstance* Editor = FAssetEditorManager::Get().FindEditorForAsset(RootSubmix, false /* bFocusIfOpen */))
 			{
 				FSoundSubmixEditor* SubmixEditor = static_cast<FSoundSubmixEditor*>(Editor);

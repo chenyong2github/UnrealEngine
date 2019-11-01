@@ -91,7 +91,9 @@ bool USoundSubmixGraphNode::CanCreateUnderSpecifiedSchema(const UEdGraphSchema* 
 
 bool USoundSubmixGraphNode::CanUserDeleteNode() const
 {
-	TArray<IAssetEditorInstance*> SubmixEditors = FAssetEditorManager::Get().FindEditorsForAsset(SoundSubmix);
+	check(GEditor);
+	UAssetEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
+	TArray<IAssetEditorInstance*> SubmixEditors = EditorSubsystem->FindEditorsForAsset(SoundSubmix);
 	for (IAssetEditorInstance* Editor : SubmixEditors)
 	{
 		if (!Editor)
