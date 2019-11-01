@@ -17,10 +17,9 @@ void FAssetTypeActions_SoundSubmix::OpenAssetEditor(const TArray<UObject*>& InOb
 {
 	EToolkitMode::Type Mode = EditWithinLevelEditor.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
 
-	for (auto ObjIt = InObjects.CreateConstIterator(); ObjIt; ++ObjIt)
+	for (UObject* Obj : InObjects)
 	{
-		USoundSubmix* SoundSubmix = Cast<USoundSubmix>(*ObjIt);
-		if (SoundSubmix != nullptr)
+		if (USoundSubmix* SoundSubmix = Cast<USoundSubmix>(Obj))
 		{
 			IAudioEditorModule* AudioEditorModule = &FModuleManager::LoadModuleChecked<IAudioEditorModule>("AudioEditor");
 			AudioEditorModule->CreateSoundSubmixEditor(Mode, EditWithinLevelEditor, SoundSubmix);

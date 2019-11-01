@@ -15,6 +15,7 @@ USoundSubmixGraph::USoundSubmixGraph(const FObjectInitializer& ObjectInitializer
 
 void USoundSubmixGraph::SetRootSoundSubmix(USoundSubmix* InSoundSubmix)
 {
+	check(!RootSoundSubmix);
 	RootSoundSubmix = InSoundSubmix;
 }
 
@@ -43,13 +44,13 @@ void USoundSubmixGraph::RebuildGraph()
 	Package->SetDirtyFlag(bIsDirty);
 }
 
-void USoundSubmixGraph::AddDroppedSoundSubmixes(const TArray<USoundSubmix*>& SoundSubmixes, int32 NodePosX, int32 NodePosY)
+void USoundSubmixGraph::AddDroppedSoundSubmixes(const TSet<USoundSubmix*>& SoundSubmixes, int32 NodePosX, int32 NodePosY)
 {
 	Modify();
 
-	for (int32 ClassIndex = 0; ClassIndex < SoundSubmixes.Num(); ClassIndex++)
+	for (USoundSubmix* SoundSubmix : SoundSubmixes)
 	{
-		NodePosY += ConstructNodes(SoundSubmixes[ClassIndex], NodePosX, NodePosY);
+		NodePosY += ConstructNodes(SoundSubmix, NodePosX, NodePosY);
 	}
 
 	NotifyGraphChanged();
@@ -83,10 +84,8 @@ void USoundSubmixGraph::LinkSoundSubmixes()
 			Node->SoundSubmix->Modify();
 
 			// remove parents of existing children
-			for (int32 ChildIndex = 0; ChildIndex < Node->SoundSubmix->ChildSubmixes.Num(); ChildIndex++)
+			for (USoundSubmix* ChildSubmix : Node->SoundSubmix->ChildSubmixes)
 			{
-				USoundSubmix* ChildSubmix = Node->SoundSubmix->ChildSubmixes[ChildIndex];
-
 				if (ChildSubmix)
 				{
 					ChildSubmix->Modify();
@@ -96,13 +95,19 @@ void USoundSubmixGraph::LinkSoundSubmixes()
 
 			Node->SoundSubmix->ChildSubmixes.Empty();
 
-			UEdGraphPin* ChildPin = Node->GetChildPin();
-
-			for (int32 ChildIndex = 0; ChildIndex < ChildPin->LinkedTo.Num(); ChildIndex++)
+			if (UEdGraphPin* ChildPin = Node->GetChildPin())
 			{
-				USoundSubmixGraphNode* ChildNode = CastChecked<USoundSubmixGraphNode>(ChildPin->LinkedTo[ChildIndex]->GetOwningNode());
-				Node->SoundSubmix->ChildSubmixes.Add(ChildNode->SoundSubmix);
-				ChildNode->SoundSubmix->SetParentSubmix(Node->SoundSubmix);
+				for (UEdGraphPin* GraphPin : ChildPin->LinkedTo)
+				{
+					if (!GraphPin)
+					{
+						continue;
+					}
+
+					USoundSubmixGraphNode* ChildNode = CastChecked<USoundSubmixGraphNode>(GraphPin->GetOwningNode());
+					Node->SoundSubmix->ChildSubmixes.Add(ChildNode->SoundSubmix);
+					ChildNode->SoundSubmix->SetParentSubmix(Node->SoundSubmix);
+				}
 			}
 
 			Node->SoundSubmix->PostEditChange();

@@ -14,16 +14,11 @@
 // Forward Declarations
 class UEdGraphPin;
 class USoundSubmix;
+class UEdGraph;
 
 class FSoundSubmixEditor : public ISoundSubmixEditor, public FGCObject, public FEditorUndoClient
 {
 public:
-	SLATE_BEGIN_ARGS(FSoundSubmixEditor)
-	{
-	}
-
-	SLATE_END_ARGS()
-
 	virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
 	virtual void UnregisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
 
@@ -59,16 +54,18 @@ public:
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
 
-	void AddMissingEditableSubmixes(UEdGraph* InGraph);
+	void AddMissingEditableSubmixes();
 
 	/** Select node associated with the provided submix */
 	void SelectSubmixes(TSet<USoundSubmix*>& InSubmixes);
+
+	/** Returns current graph handled by editor */
+	UEdGraph* GetGraph();
 
 private:
 	TSharedRef<SDockTab> SpawnTab_GraphCanvas(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Properties(const FSpawnTabArgs& Args);
 
-private:
 	/** Creates all internal widgets for the tabs to point at */
 	void CreateInternalWidgets(USoundSubmix* InSoundSubmix);
 

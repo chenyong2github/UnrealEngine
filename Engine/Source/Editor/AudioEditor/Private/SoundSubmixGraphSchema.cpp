@@ -12,8 +12,11 @@
 #include "Sound/SoundSubmix.h"
 #include "SoundSubmixGraph/SoundSubmixGraphNode.h"
 #include "SoundSubmixGraph/SoundSubmixGraph.h"
+#include "SoundSubmixEditor.h"
 #include "SoundSubmixEditorUtilities.h"
+#include "Toolkits/AssetEditorManager.h"
 #include "ToolMenus.h"
+
 
 #define LOCTEXT_NAMESPACE "SoundSubmixSchema"
 
@@ -242,11 +245,41 @@ const FPinConnectionResponse USoundSubmixGraphSchema::CanCreateConnection(const 
 
 bool USoundSubmixGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin* PinB) const
 {
+	check(PinA);
+	check(PinB);
+
 	bool bModified = UEdGraphSchema::TryCreateConnection(PinA, PinB);
 
 	if (bModified)
 	{
-		CastChecked<USoundSubmixGraph>(PinA->GetOwningNode()->GetGraph())->LinkSoundSubmixes();
+		USoundSubmixGraph* Graph = CastChecked<USoundSubmixGraph>(PinA->GetOwningNode()->GetGraph());
+		Graph->LinkSoundSubmixes();
+
+		USoundSubmix* SubmixA = CastChecked<USoundSubmixGraphNode>(PinA->GetOwningNode())->SoundSubmix;
+		USoundSubmix* SubmixB = CastChecked<USoundSubmixGraphNode>(PinB->GetOwningNode())->SoundSubmix;
+
+		bool bReopenEditors = false;
+
+		// If re-basing root, re-open editor.  This will force the root to be the primary edited node
+		if (Graph->GetRootSoundSubmix() == SubmixA && SubmixA->ParentSubmix != nullptr)
+		{
+			bReopenEditors = true;
+		}
+		else if (Graph->GetRootSoundSubmix() == SubmixB && SubmixB->ParentSubmix != nullptr)
+		{
+			bReopenEditors = true;
+		}
+
+		if (bReopenEditors)
+		{
+			TArray<IAssetEditorInstance*> Editors = FAssetEditorManager::Get().FindEditorsForAsset(SubmixA);
+			for (IAssetEditorInstance* Editor : Editors)
+			{
+				Editor->CloseWindow();
+			}
+
+			FAssetEditorManager::Get().OpenEditorForAsset(SubmixA);
+		}
 	}
 
 	return bModified;
@@ -290,17 +323,35 @@ void USoundSubmixGraphSchema::BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGrap
 	CastChecked<USoundSubmixGraph>(SourcePin->GetOwningNode()->GetGraph())->LinkSoundSubmixes();
 }
 
-void USoundSubmixGraphSchema::DroppedAssetsOnGraph(const TArray<struct FAssetData>& Assets, const FVector2D& GraphPosition, UEdGraph* Graph) const
+void USoundSubmixGraphSchema::DroppedAssetsOnGraph(const TArray<FAssetData>& Assets, const FVector2D& GraphPosition, UEdGraph* Graph) const
 {
-	USoundSubmixGraph* SoundSubmixGraph = CastChecked<USoundSubmixGraph>(Graph);
+	check(Graph);
 
-	TArray<USoundSubmix*> UndisplayedSubmixes;
-	for (int32 AssetIdx = 0; AssetIdx < Assets.Num(); ++AssetIdx)
+	USoundSubmixGraph* SoundSubmixGraph = CastChecked<USoundSubmixGraph>(Graph);
+	TSet<IAssetEditorInstance*> Editors;
+	TSet<USoundSubmix*> UndisplayedSubmixes;
+	for (const FAssetData& Asset : Assets)
 	{
-		USoundSubmix* SoundSubmix = Cast<USoundSubmix>(Assets[AssetIdx].GetAsset());
-		if (SoundSubmix && !SoundSubmixGraph->IsSubmixDisplayed(SoundSubmix))
+		// Walk to the root submix
+		if (USoundSubmix* SoundSubmix = Cast<USoundSubmix>(Asset.GetAsset()))
 		{
-			UndisplayedSubmixes.Add(SoundSubmix);
+			while (SoundSubmix->ParentSubmix != nullptr)
+			{
+				SoundSubmix = SoundSubmix->ParentSubmix;
+			}
+
+			if (!SoundSubmixGraph->IsSubmixDisplayed(SoundSubmix))
+			{
+				TArray<IAssetEditorInstance*> SubmixEditors = FAssetEditorManager::Get().FindEditorsForAsset(SoundSubmix);
+				for (IAssetEditorInstance* Editor : SubmixEditors)
+				{
+					if (Editor)
+					{
+						Editors.Add(Editor);
+					}
+				}
+				UndisplayedSubmixes.Add(SoundSubmix);
+			}
 		}
 	}
 
@@ -308,7 +359,30 @@ void USoundSubmixGraphSchema::DroppedAssetsOnGraph(const TArray<struct FAssetDat
 	{
 		const FScopedTransaction Transaction(LOCTEXT("SoundSubmixEditorDropSubmixes", "Sound Submix Editor: Drag and Drop Sound Submix"));
 
-		SoundSubmixGraph->AddDroppedSoundSubmixes(UndisplayedSubmixes, GraphPosition.X, GraphPosition.Y);
+		for (IAssetEditorInstance* Editor : Editors)
+		{
+			check(Editor);
+			FSoundSubmixEditor* SubmixEditor = static_cast<FSoundSubmixEditor*>(Editor);
+
+			// Close editors with dropped (and undisplayed) submix branches as they are now displayed locally in this graph
+			// (to avoid modification of multiple graph editors representing the same branch of submixes)
+			if (SubmixEditor->GetGraph() != Graph)
+			{
+				Editor->CloseWindow();
+			}
+		}
+
+		// If editor is this graph's editor, update editable objects and select dropped submixes.
+		if (USoundSubmix* RootSubmix = SoundSubmixGraph->GetRootSoundSubmix())
+		{
+			if (IAssetEditorInstance* Editor = FAssetEditorManager::Get().FindEditorForAsset(RootSubmix, false /* bFocusIfOpen */))
+			{
+				FSoundSubmixEditor* SubmixEditor = static_cast<FSoundSubmixEditor*>(Editor);
+				SoundSubmixGraph->AddDroppedSoundSubmixes(UndisplayedSubmixes, GraphPosition.X, GraphPosition.Y);
+				SubmixEditor->AddMissingEditableSubmixes();
+				SubmixEditor->SelectSubmixes(UndisplayedSubmixes);
+			}
+		}
 	}
 }
 #undef LOCTEXT_NAMESPACE
