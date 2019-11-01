@@ -48,6 +48,7 @@
 #include "OVR_OrgScopedID.h"
 #include "OVR_Party.h"
 #include "OVR_PartyID.h"
+#include "OVR_PartyUpdateNotification.h"
 #include "OVR_PidArray.h"
 #include "OVR_PingResult.h"
 #include "OVR_PlatformInitialize.h"
@@ -116,6 +117,7 @@ OVRP_PUBLIC_FUNCTION(ovrNetworkingPeerHandle)                  ovr_Message_GetNe
 OVRP_PUBLIC_FUNCTION(ovrOrgScopedIDHandle)                     ovr_Message_GetOrgScopedID(const ovrMessageHandle obj);
 OVRP_PUBLIC_FUNCTION(ovrPartyHandle)                           ovr_Message_GetParty(const ovrMessageHandle obj);
 OVRP_PUBLIC_FUNCTION(ovrPartyIDHandle)                         ovr_Message_GetPartyID(const ovrMessageHandle obj);
+OVRP_PUBLIC_FUNCTION(ovrPartyUpdateNotificationHandle)         ovr_Message_GetPartyUpdateNotification(const ovrMessageHandle obj);
 OVRP_PUBLIC_FUNCTION(ovrPidArrayHandle)                        ovr_Message_GetPidArray(const ovrMessageHandle obj);
 OVRP_PUBLIC_FUNCTION(ovrPingResultHandle)                      ovr_Message_GetPingResult(const ovrMessageHandle obj);
 OVRP_PUBLIC_FUNCTION(ovrPlatformInitializeHandle)              ovr_Message_GetPlatformInitialize(const ovrMessageHandle obj);
