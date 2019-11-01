@@ -39,6 +39,7 @@ private:
 	FText GetRootLayerDisplayName() const { return StageInfos.RootLayerDisplayName; }
 	FString GetInitialLoadSet() const { return *InitialLoadSetStrings[ (int32)StageInfos.InitialLoadSet ]; }
 
+	TSharedPtr< STextComboBox > InitialLoadSetWidget;
 };
 
 #endif // #if USE_USD_SDK

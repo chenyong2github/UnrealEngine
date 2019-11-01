@@ -68,6 +68,8 @@
 
 static const EObjectFlags DefaultObjFlag = EObjectFlags::RF_Transactional | EObjectFlags::RF_Transient;
 
+AUsdStageActor::FOnActorLoaded AUsdStageActor::OnActorLoaded{};
+
 #if USE_USD_SDK
 FMeshDescription LoadMeshDescription( const pxr::UsdGeomMesh& UsdMesh, const pxr::UsdTimeCode TimeCode )
 {
@@ -225,6 +227,11 @@ AUsdStageActor::AUsdStageActor()
 	SetupLevelSequence();
 
 	FCoreUObjectDelegates::OnObjectPropertyChanged.AddUObject( this, &AUsdStageActor::OnPrimObjectPropertyChanged );
+}
+
+AUsdStageActor::~AUsdStageActor()
+{
+	UnrealUSDWrapper::GetUsdStageCache().Erase( UsdStageStore.Get() );
 }
 
 #if USE_USD_SDK
@@ -393,6 +400,8 @@ FUsdPrimTwin* AUsdStageActor::SpawnPrim( const pxr::SdfPath& UsdPrimPath )
 	{
 		return nullptr;
 	}
+
+	FScopedUnrealAllocs UnrealAllocs;
 
 	const bool bNeedsActor = ( ParentUsdPrimTwin->SceneComponent == nullptr || Prim.IsModel() || UsdUtils::HasCompositionArcs( Prim ) || Prim.IsGroup() || Prim.IsA< pxr::UsdGeomScope >() || Prim.IsA< pxr::UsdGeomCamera >() );
 
@@ -805,12 +814,16 @@ void AUsdStageActor::SetTime(float InTime)
 
 void AUsdStageActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	Super::PostEditChangeProperty( PropertyChangedEvent );
+
 	UProperty* PropertyThatChanged = PropertyChangedEvent.MemberProperty;
 	const FName PropertyName = PropertyThatChanged ? PropertyThatChanged->GetFName() : NAME_None;
 	
 	if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, RootLayer ) )
 	{
 #if USE_USD_SDK
+		UnrealUSDWrapper::GetUsdStageCache().Erase( UsdStageStore.Get() );
+
 		UsdStageStore = TUsdStore< pxr::UsdStageRefPtr >();
 		LoadUsdStage();
 #endif // #if USE_USD_SDK
@@ -1022,6 +1035,13 @@ void AUsdStageActor::PostRegisterAllComponents()
 #endif // #if USE_USD_SDK
 }
 
+void AUsdStageActor::PostLoad()
+{
+	Super::PostLoad();
+
+	OnActorLoaded.Broadcast( this );
+}
+
 void AUsdStageActor::OnUsdPrimTwinDestroyed( const FUsdPrimTwin& UsdPrimTwin )
 {
 	TArray<FDelegateHandle> DelegateHandles;
@@ -1042,7 +1062,7 @@ void AUsdStageActor::OnUsdPrimTwinDestroyed( const FUsdPrimTwin& UsdPrimTwin )
 void AUsdStageActor::OnPrimObjectPropertyChanged( UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent )
 {
 #if USE_USD_SDK
-	if ( !ObjectsToWatch.Contains( ObjectBeingModified ) )
+	if ( ObjectBeingModified == this || !ObjectsToWatch.Contains( ObjectBeingModified ) )
 	{
 		return;
 	}
