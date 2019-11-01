@@ -339,7 +339,7 @@ UNetReplicationGraphConnection* UReplicationGraph::FindOrAddConnectionManager(UN
 	if (NetConnection->GetUChildConnection() != nullptr)
 	{
 		NetConnection = ((UChildConnection*)NetConnection)->Parent;
-		UE_LOG(LogReplicationGraph, Warning, TEXT("UReplicationGraph::FindOrAddConnectionManager was called with a child connection, redirecting to parent"));
+		UE_LOG(LogReplicationGraph, Verbose, TEXT("UReplicationGraph::FindOrAddConnectionManager was called with a child connection, redirecting to parent"));
 		check(NetConnection != nullptr);
 	}
 
