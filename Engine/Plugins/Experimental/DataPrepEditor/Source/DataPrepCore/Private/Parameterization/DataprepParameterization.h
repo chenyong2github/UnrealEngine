@@ -276,6 +276,13 @@ private:
 
 public:
 
+	/**
+	 * Update the package of the generated class
+	 * Return if it can be rename
+	 */
+	bool OnAssetRename(ERenameFlags Flags);
+
+
 	static const FName MetadataClassGeneratorName;
 
 private:
