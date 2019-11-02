@@ -1059,7 +1059,7 @@ public:
 
 
 	/**
-	 * Construct a four-vertex rectangle Polygon
+	 * Construct a four-vertex rectangle polygon
 	 */
 	static TPolygon2<T> MakeRectangle(const FVector2<T>& Center, T Width, T Height)
 	{
@@ -1072,9 +1072,41 @@ public:
 		return Rectangle;
 	}
 
+	/**
+	* Construct a rounded rectangle polygon
+	*/
+	static TPolygon2<T> MakeRoundedRectangle(const FVector2<T>& Center, T Width, T Height, T Corner, int CornerSteps)
+	{
+		TPolygon2<T> RRectangle;
+		CornerSteps = FMath::Max(2, CornerSteps);
+		RRectangle.Vertices.SetNumUninitialized(CornerSteps * 4);
+		
+		FVector2<T> InnerExtents(Width*.5 - Corner, Height*.5 - Corner);
+		FVector2<T> InnerCorners[4]
+		{
+			Center - InnerExtents,
+			FVector2<T>(Center.X + InnerExtents.X, Center.Y - InnerExtents.Y),
+			Center + InnerExtents,
+			FVector2<T>(Center.X - InnerExtents.X, Center.Y + InnerExtents.Y),
+		};
+
+		T IdxToAng = TMathUtil<T>::HalfPi / T(CornerSteps - 1);
+		for (int StepIdx = 0; StepIdx < CornerSteps; StepIdx++)
+		{
+			T Angle = StepIdx * IdxToAng;
+			T OffC = TMathUtil<T>::Cos(Angle) * Corner;
+			T OffS = TMathUtil<T>::Sin(Angle) * Corner;
+			RRectangle.Set(StepIdx + CornerSteps * 0, InnerCorners[0] + FVector2<T>(-OffC, -OffS));
+			RRectangle.Set(StepIdx + CornerSteps * 1, InnerCorners[1] + FVector2<T>(OffS, -OffC));
+			RRectangle.Set(StepIdx + CornerSteps * 2, InnerCorners[2] + FVector2<T>(OffC, OffS));
+			RRectangle.Set(StepIdx + CornerSteps * 3, InnerCorners[3] + FVector2<T>(-OffS, OffC));
+		}
+		return RRectangle;
+	}
+
 
 	/**
-	 * Construct a circular Polygon
+	 * Construct a circular polygon
 	 */
 	static TPolygon2<T> MakeCircle(T Radius, int Steps, T AngleShiftRadians = 0)
 	{

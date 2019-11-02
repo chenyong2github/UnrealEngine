@@ -295,17 +295,7 @@ TArray<FIndex3i> GEOMETRYALGORITHMS_API ConstrainedDelaunayTriangulate(const TGe
 template TArray<FIndex3i> GEOMETRYALGORITHMS_API ConstrainedDelaunayTriangulate(const TGeneralPolygon2<double>& GeneralPolygon);
 template TArray<FIndex3i> GEOMETRYALGORITHMS_API ConstrainedDelaunayTriangulate(const TGeneralPolygon2<float>& GeneralPolygon);
 
-template void TConstrainedDelaunay2<double>::Add(const FDynamicGraph2<double>& Graph);
-template void TConstrainedDelaunay2<double>::Add(const TGeneralPolygon2<double>& Polygon);
-template void TConstrainedDelaunay2<double>::Add(const TGeneralPolygon2<float>& Polygon);
-template void TConstrainedDelaunay2<double>::Add(const TPolygon2<double>& Polygon, bool bIsHole);
-template void TConstrainedDelaunay2<double>::Add(const TPolygon2<float>& Polygon, bool bIsHole);
 
-template void TConstrainedDelaunay2<float>::Add(const FDynamicGraph2<double>& Graph);
-template void TConstrainedDelaunay2<float>::Add(const TGeneralPolygon2<double>& Polygon);
-template void TConstrainedDelaunay2<float>::Add(const TGeneralPolygon2<float>& Polygon);
-template void TConstrainedDelaunay2<float>::Add(const TPolygon2<double>& Polygon, bool bIsHole);
-template void TConstrainedDelaunay2<float>::Add(const TPolygon2<float>& Polygon, bool bIsHole);
 
 template struct TConstrainedDelaunay2<float>;
 template struct TConstrainedDelaunay2<double>;

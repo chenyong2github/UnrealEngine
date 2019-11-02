@@ -8,17 +8,19 @@
 #include "BaseBehaviors/KeyAsModifierInputBehavior.h"
 
 #include "Polygon2.h"
+#include "Curve/GeneralPolygon2.h"
 #include "FrameTypes.h"
 #include "MatrixTypes.h"
 #include "DynamicMeshAttributeSet.h"
 
 #include "MeshDescriptionBuilder.h"
-#include "Generators/PlanarPolygonMeshGenerator.h"
+#include "Generators/FlatTriangulationMeshGenerator.h"
 #include "Operations/ExtrudeMesh.h"
 #include "Distance/DistLine3Ray3.h"
 #include "Intersection/IntrSegment2Segment2.h"
 #include "MeshQueries.h"
 #include "ToolSceneQueriesUtil.h"
+#include "ConstrainedDelaunay2.h"
 
 #include "DynamicMeshEditor.h"
 
@@ -346,7 +348,7 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 		if (bInInteractiveExtrude == false)		// once we are in extrude, polygon is done
 		{
 			FixedPolygonClickPoints.Add(PreviewVertex);
-			GenerateFixedPolygon(FixedPolygonClickPoints, PolygonVertices);
+			GenerateFixedPolygon(FixedPolygonClickPoints, PolygonVertices, PolygonHolesVertices);
 			FixedPolygonClickPoints.Pop(false);
 		}
 		bIsClosed = true;
@@ -421,24 +423,27 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 			UseThickness = SelfIntersectThickness;
 		}
 
-		// draw thin no-depth
-		for (int i = 0; i < NumVerts - 1; ++i)
+		auto DrawVertices = [&PDI, &UseColor](const TArray<FVector>& Vertices, ESceneDepthPriorityGroup Group, float Thickness)
 		{
-			PDI->DrawLine(PolygonVertices[i], PolygonVertices[i + 1],
-				UseColor, SDPG_Foreground, HiddenLineThickness, 0.0f, true);
-		}
-		PDI->DrawLine(PolygonVertices[NumVerts - 1], UseLastVertex,
-			UseColor, SDPG_Foreground, HiddenLineThickness, 0.0f, true);
+			for (int lasti = Vertices.Num() - 1, i = 0, NumVertices = Vertices.Num(); i < NumVertices; lasti = i++)
+			{
+				PDI->DrawLine(Vertices[lasti], Vertices[i], UseColor, Group, Thickness, 0.0f, true);
+			}
+		};
 
+		// draw thin no-depth
+		DrawVertices(PolygonVertices, SDPG_Foreground, HiddenLineThickness);
+		for (int HoleIdx = 0; HoleIdx < PolygonHolesVertices.Num(); HoleIdx++)
+		{
+			DrawVertices(PolygonHolesVertices[HoleIdx], SDPG_Foreground, HiddenLineThickness);
+		}
 
 		// draw thick depth-tested
-		for (int i = 0; i < NumVerts-1; ++i)
+		DrawVertices(PolygonVertices, SDPG_World, LineThickness);
+		for (int HoleIdx = 0; HoleIdx < PolygonHolesVertices.Num(); HoleIdx++)
 		{
-			PDI->DrawLine(PolygonVertices[i], PolygonVertices[i+1],
-				UseColor, SDPG_World, LineThickness, 0.0f, true);
+			DrawVertices(PolygonHolesVertices[HoleIdx], SDPG_World, LineThickness);
 		}
-		PDI->DrawLine(PolygonVertices[NumVerts-1], UseLastVertex,
-			UseColor, SDPG_World, LineThickness, 0.0f, true);
 
 		if (bHaveSelfIntersection)
 		{
@@ -485,6 +490,7 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 void UDrawPolygonTool::ResetPolygon()
 {
 	PolygonVertices.Reset();
+	PolygonHolesVertices.Reset();
 	SnapEngine.Reset();
 	bHaveSurfaceHit = false;
 	bInFixedPolygonMode = false;
@@ -679,11 +685,11 @@ bool UDrawPolygonTool::OnNextSequenceClick(const FInputDeviceRay& ClickPos)
 		}
 
 		FixedPolygonClickPoints.Add(HitPos);
-		int NumTargetPoints = (PolygonProperties->PolygonType == EDrawPolygonDrawMode::Rectangle) ? 3 : 2;
+		int NumTargetPoints = (PolygonProperties->PolygonType == EDrawPolygonDrawMode::Rectangle || PolygonProperties->PolygonType == EDrawPolygonDrawMode::RoundedRectangle) ? 3 : 2;
 		bDonePolygon = (FixedPolygonClickPoints.Num() == NumTargetPoints);
 		if (bDonePolygon)
 		{
-			GenerateFixedPolygon(FixedPolygonClickPoints, PolygonVertices);
+			GenerateFixedPolygon(FixedPolygonClickPoints, PolygonVertices, PolygonHolesVertices);
 		}
 	} 
 	else
@@ -800,8 +806,9 @@ bool UDrawPolygonTool::UpdateSelfIntersection()
 	return false;
 }
 
-void UDrawPolygonTool::GenerateFixedPolygon(TArray<FVector>& FixedPoints, TArray<FVector>& VerticesOut)
+void UDrawPolygonTool::GenerateFixedPolygon(const TArray<FVector>& FixedPoints, TArray<FVector>& VerticesOut, TArray<TArray<FVector>>& HolesVerticesOut)
 {
+
 	FFrame3f DrawFrame(DrawPlaneOrigin, DrawPlaneOrientation);
 	FVector2f CenterPt = DrawFrame.ToPlaneUV(FixedPoints[0], 2 );
 	FVector2f EdgePt = DrawFrame.ToPlaneUV(FixedPoints[1], 2);
@@ -813,30 +820,58 @@ void UDrawPolygonTool::GenerateFixedPolygon(TArray<FVector>& FixedPoints, TArray
 	float Width = FMath::Abs(Delta.Dot(RotAxisX));
 
 	FPolygon2f Polygon;
+	TArray<FPolygon2f> PolygonHoles;
 	if (PolygonProperties->PolygonType == EDrawPolygonDrawMode::Square)
 	{
 		Polygon = FPolygon2f::MakeRectangle(FVector2f::Zero(), 2*Width, 2*Width);
 	}
-	else if (PolygonProperties->PolygonType == EDrawPolygonDrawMode::Rectangle)
+	else if (PolygonProperties->PolygonType == EDrawPolygonDrawMode::Rectangle || PolygonProperties->PolygonType == EDrawPolygonDrawMode::RoundedRectangle)
 	{
 		FVector2f HeightPt = DrawFrame.ToPlaneUV((FixedPoints.Num() == 3) ? FixedPoints[2] : FixedPoints[1], 2);
 		FVector2f HeightDelta = HeightPt - CenterPt;
 		FVector2f RotAxisY = RotationMat * FVector2f::UnitY();
 		float YSign = FMath::Sign(HeightDelta.Dot(RotAxisY));
 		float Height = FMath::Abs(HeightDelta.Dot(RotAxisY));
-		Polygon = FPolygon2f::MakeRectangle(FVector2f(Width/2, YSign*Height/2), Width, Height);
+		if (PolygonProperties->PolygonType == EDrawPolygonDrawMode::Rectangle)
+		{
+			Polygon = FPolygon2f::MakeRectangle(FVector2f(Width / 2, YSign*Height / 2), Width, Height);
+		}
+		else // PolygonProperties->PolygonType == EDrawPolygonDrawMode::RoundedRectangle
+		{
+			Polygon = FPolygon2f::MakeRoundedRectangle(FVector2f(Width / 2, YSign*Height / 2), Width, Height, FMath::Min(Width,Height) * FMathf::Clamp(PolygonProperties->FeatureSizeRatio, .01, .99) * .5, PolygonProperties->Steps);
+		}
 	}
-	else
+	else // Circle or HoleyCircle
 	{
 		Polygon = FPolygon2f::MakeCircle(Dist, PolygonProperties->Steps, 0);
+		if (PolygonProperties->PolygonType == EDrawPolygonDrawMode::HoleyCircle)
+		{
+			PolygonHoles.Add(FPolygon2f::MakeCircle(Dist * FMathd::Clamp(PolygonProperties->FeatureSizeRatio, .01, .99), PolygonProperties->Steps, 0));
+		}
 	}
 	Polygon.Transform([RotationMat](const FVector2f& Pt) { return RotationMat * Pt; });
+	for (FPolygon2f& Hole : PolygonHoles)
+	{
+		Hole.Transform([RotationMat](const FVector2f& Pt) { return RotationMat * Pt; });
+	}
 
-	VerticesOut.Reset();
+	VerticesOut.SetNum(Polygon.VertexCount());
 	for (int k = 0; k < Polygon.VertexCount(); ++k)
 	{
 		FVector2f NewPt = CenterPt + Polygon[k];
-		VerticesOut.Add(DrawFrame.FromPlaneUV(NewPt, 2));
+		VerticesOut[k] = DrawFrame.FromPlaneUV(NewPt, 2);
+	}
+
+	HolesVerticesOut.SetNum(PolygonHoles.Num());
+	for (int HoleIdx = 0; HoleIdx < PolygonHoles.Num(); HoleIdx++)
+	{
+		int NumHoleVerts = PolygonHoles[HoleIdx].VertexCount();
+		HolesVerticesOut[HoleIdx].SetNum(NumHoleVerts);
+		for (int k = 0; k < NumHoleVerts; ++k)
+		{
+			FVector2f NewPt = CenterPt + PolygonHoles[HoleIdx][k];
+			HolesVerticesOut[HoleIdx][k] = DrawFrame.FromPlaneUV(NewPt, 2);
+		}
 	}
 }
 
@@ -971,7 +1006,7 @@ void UDrawPolygonTool::EmitCurrentPolygon()
 	FDynamicMesh3 Mesh;
 	double ExtrudeDist = (PolygonProperties->OutputMode == EDrawPolygonOutputMode::MeshedPolygon) ?
 		0 : PolygonProperties->ExtrudeHeight;
-	GeneratePolygonMesh(PolygonVertices, &Mesh, PlaneFrameOut, false, ExtrudeDist, false);
+	GeneratePolygonMesh(PolygonVertices, PolygonHolesVertices, &Mesh, PlaneFrameOut, false, ExtrudeDist, false);
 
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("CreatePolygon", "Create Polygon"));
 
@@ -1003,7 +1038,7 @@ void UDrawPolygonTool::UpdateLivePreview()
 	FDynamicMesh3 Mesh;
 	double ExtrudeDist = (PolygonProperties->OutputMode == EDrawPolygonOutputMode::MeshedPolygon) ?
 		0 : PolygonProperties->ExtrudeHeight;
-	GeneratePolygonMesh(PolygonVertices, &Mesh, PlaneFrame, false, ExtrudeDist, false);
+	GeneratePolygonMesh(PolygonVertices, PolygonHolesVertices, &Mesh, PlaneFrame, false, ExtrudeDist, false);
 
 	PreviewMesh->SetTransform(PlaneFrame.ToFTransform());
 	PreviewMesh->SetMaterial(MaterialProperties->Material);
@@ -1011,7 +1046,7 @@ void UDrawPolygonTool::UpdateLivePreview()
 	PreviewMesh->UpdatePreview(&Mesh);
 }
 
-void UDrawPolygonTool::GeneratePolygonMesh(const TArray<FVector>& Polygon, FDynamicMesh3* ResultMeshOut, FFrame3d& WorldFrameOut, bool bIncludePreviewVtx, double ExtrudeDistance, bool bExtrudeSymmetric)
+void UDrawPolygonTool::GeneratePolygonMesh(const TArray<FVector>& Polygon, const TArray<TArray<FVector>>& PolygonHoles, FDynamicMesh3* ResultMeshOut, FFrame3d& WorldFrameOut, bool bIncludePreviewVtx, double ExtrudeDistance, bool bExtrudeSymmetric)
 {
 	// construct centered frame for polygon
 	WorldFrameOut = FFrame3d(DrawPlaneOrigin, DrawPlaneOrientation);
@@ -1027,27 +1062,51 @@ void UDrawPolygonTool::GeneratePolygonMesh(const TArray<FVector>& Polygon, FDyna
 
 
 	// triangulate polygon into the MeshDescription
-	FPlanarPolygonMeshGenerator PolyMeshGen;
-	for (int k = 0; k < NumVerts; ++k)
+	FGeneralPolygon2d GeneralPolygon;
+	FFlatTriangulationMeshGenerator TriangulationMeshGen;
+
+	auto VertexArrayToPolygon = [&WorldFrameOut](const TArray<FVector>& Vertices)
 	{
-		PolyMeshGen.Polygon.AppendVertex(WorldFrameOut.ToPlaneUV(Polygon[k], 2));
-	}
+		FPolygon2d OutPolygon;
+		for (int k = 0, N = Vertices.Num(); k < N; ++k)
+		{
+			OutPolygon.AppendVertex(WorldFrameOut.ToPlaneUV(Vertices[k], 2));
+		}
+		return OutPolygon;
+	};
+
+	FPolygon2d OuterPolygon = VertexArrayToPolygon(Polygon);
 
 	// add preview vertex
 	if (bIncludePreviewVtx)
 	{
 		if (FVector::Dist(PreviewVertex, Polygon[NumVerts - 1]) > 0.1)
 		{
-			PolyMeshGen.Polygon.AppendVertex(WorldFrameOut.ToPlaneUV(PreviewVertex, 2));
+			OuterPolygon.AppendVertex(WorldFrameOut.ToPlaneUV(PreviewVertex, 2));
 		}
 	}
 
-	if (PolyMeshGen.Polygon.IsClockwise() == false)
+	if (OuterPolygon.IsClockwise() == false)
 	{
-		PolyMeshGen.Polygon.Reverse();
+		OuterPolygon.Reverse();
 	}
 
-	ResultMeshOut->Copy(&PolyMeshGen.Generate());
+	GeneralPolygon.SetOuter(OuterPolygon);
+
+	for (int HoleIdx = 0; HoleIdx < PolygonHoles.Num(); HoleIdx++)
+	{
+		// attempt to add holes (skipping if safety checks fail)
+		GeneralPolygon.AddHole(VertexArrayToPolygon(PolygonHoles[HoleIdx]), true, false /*currently don't care about hole orientation; we'll just set the triangulation algo not to care*/);
+	}
+
+	FConstrainedDelaunay2d Triangulator;
+	Triangulator.Add(GeneralPolygon);
+	bool bTriangulationSuccess = Triangulator.Triangulate();
+	// TODO: actually do something different if triangulation fails?  note that failure doesn't mean that it didn't generate triangles ... it will try to give triangles back even if input was not fully valid
+	TriangulationMeshGen.Vertices2D = Triangulator.Vertices;
+	TriangulationMeshGen.Triangles2D = Triangulator.Triangles;
+
+	ResultMeshOut->Copy(&TriangulationMeshGen.Generate());
 
 	// for symmetric extrude we translate the first poly by -dist along axis
 	if (bExtrudeSymmetric)
@@ -1066,7 +1125,7 @@ void UDrawPolygonTool::GeneratePolygonMesh(const TArray<FVector>& Polygon, FDyna
 	{
 		FExtrudeMesh Extruder(ResultMeshOut);
 		Extruder.DefaultExtrudeDistance = ExtrudeDistance;
-		FAxisAlignedBox2d bounds = PolyMeshGen.Polygon.Bounds();
+		FAxisAlignedBox2d bounds = GeneralPolygon.Bounds();
 		Extruder.UVScaleFactor = 1.0 / bounds.MaxDim();
 		if (ExtrudeDistance < 0)
 		{
@@ -1083,7 +1142,7 @@ void UDrawPolygonTool::GeneratePolygonMesh(const TArray<FVector>& Polygon, FDyna
 	}
 
 	FDynamicMeshEditor Editor(ResultMeshOut);
-	float InitialUVScale = 1.0 / PolyMeshGen.Polygon.Bounds().MaxDim(); // this is the UV scale used by both the polymeshgen and the extruder above
+	float InitialUVScale = 1.0 / GeneralPolygon.Bounds().MaxDim(); // this is the UV scale used by both the polymeshgen and the extruder above
 	// default global rescale -- initial scale doesn't factor in extrude distance; rescale so UVScale of 1.0 fits in the unit square texture
 	float GlobalUVRescale = MaterialProperties->UVScale / FMathf::Max(1.0f, ExtrudeDistance * InitialUVScale);
 	if (MaterialProperties->bWorldSpaceUVScale)
@@ -1096,7 +1155,7 @@ void UDrawPolygonTool::GeneratePolygonMesh(const TArray<FVector>& Polygon, FDyna
 
 void UDrawPolygonTool::GeneratePreviewHeightTarget()
 {
-	GeneratePolygonMesh(PolygonVertices, &PreviewHeightTarget, PreviewHeightFrame, false, 99999, true);
+	GeneratePolygonMesh(PolygonVertices, PolygonHolesVertices, &PreviewHeightTarget, PreviewHeightFrame, false, 99999, true);
 	PreviewHeightTargetAABB.SetMesh(&PreviewHeightTarget);
 }
 

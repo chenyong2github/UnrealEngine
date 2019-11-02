@@ -425,6 +425,12 @@ struct TAxisAlignedBox2
 	{
 	}
 
+	TAxisAlignedBox2(const TArray<FVector2<RealType>>& Pts)
+	{
+		*this = Empty();
+		Contain(Pts);
+	}
+
 	TAxisAlignedBox2(const FVector2<RealType>& Center, RealType HalfWidth)
 	{
 		this->Min = FVector2<RealType>(Center.X - HalfWidth, Center.Y - HalfWidth);
