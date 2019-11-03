@@ -13,6 +13,9 @@ class FNiagaraStackCurveEditorOptions
 public:
 	FNiagaraStackCurveEditorOptions();
 
+	bool GetNeedsInitializeView() const;
+	void InitializeView(float InViewMinInput, float InViewMaxInput, float InViewMinOutput, float InViewMaxOutput);
+
 	float GetViewMinInput() const;
 	float GetViewMaxInput() const;
 	void SetInputViewRange(float InViewMinInput, float InViewMaxInput);
@@ -35,6 +38,7 @@ private:
 	float ViewMinOutput;
 	float ViewMaxOutput;
 	bool bAreCurvesVisible;
+	bool bNeedsInitializeView;
 	float Height;
 };
 
