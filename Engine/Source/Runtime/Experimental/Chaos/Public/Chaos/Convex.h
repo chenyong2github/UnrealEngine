@@ -259,6 +259,11 @@ namespace Chaos
 			TConvexBuilder<T>::Simplify(Planes, SurfaceParticles, LocalBoundingBox);
 		}
 
+		TVector<T,d> GetCenter() const
+		{
+			return TVector<T, d>(0);
+		}
+
 	private:
 		TArray<TPlane<T, d>> Planes;
 		TParticles<T, d> SurfaceParticles;	//copy of the vertices that are just on the convex hull boundary
