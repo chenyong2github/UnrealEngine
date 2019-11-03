@@ -142,7 +142,7 @@ void TPBDCollisionConstraint<T, d>::Reset(/*const TPBDRigidParticles<T, d>& InPa
 		if (LifespanCounter > Elem->GetTimestamp())
 		{
 			bool bInContact = false;
-			for (FConstraintHandle* Handle : Elem->GetHandles())
+			for (FConstraintContainerHandle* Handle : Elem->GetHandles())
 			{
 				if (Handle->GetContact().Phi <= 0)
 				{
@@ -152,8 +152,8 @@ void TPBDCollisionConstraint<T, d>::Reset(/*const TPBDRigidParticles<T, d>& InPa
 
 			if (!bInContact)
 			{
-				const TArray<FConstraintHandle*> HandleArray = Elem->GetHandles();
-				for (FConstraintHandle* Handle : HandleArray)
+				const TArray<FConstraintContainerHandle*> HandleArray = Elem->GetHandles();
+				for (FConstraintContainerHandle* Handle : HandleArray)
 				{
 					RemoveConstraint(Handle->GetConstraintIndex());
 				}
@@ -461,7 +461,7 @@ void TPBDCollisionConstraint<T, d>::UpdateConstraintsHelper(/*const TPBDRigidPar
 		FConstraintHandleID HandleID = GetConstraintHandleID(*Constraint);
 		if (Handles.Contains(HandleID))
 		{
-			FConstraintHandle* Handle = Handles[HandleID];
+			FConstraintContainerHandle* Handle = Handles[HandleID];
 			int32 Idx = Handle->GetConstraintIndex();
 			Queue.Dequeue(Constraints[Idx]);
 			Constraints[Idx].Lifespan = LifespanCounter;
@@ -782,13 +782,13 @@ void TPBDCollisionConstraint<T, d>::Apply(const T Dt, FRigidBodyContactConstrain
 
 DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::Apply"), STAT_Apply, STATGROUP_Chaos);
 template<typename T, int d>
-void TPBDCollisionConstraint<T, d>::Apply(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
+void TPBDCollisionConstraint<T, d>::Apply(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Apply);
 	if (bEnableVelocitySolve)
 	{
 		PhysicsParallelFor(InConstraintHandles.Num(), [&](int32 ConstraintHandleIndex) {
-			FConstraintHandle* ConstraintHandle = InConstraintHandles[ConstraintHandleIndex];
+			FConstraintContainerHandle* ConstraintHandle = InConstraintHandles[ConstraintHandleIndex];
 			check(ConstraintHandle != nullptr);
 			Apply(Dt, Constraints[ConstraintHandle->GetConstraintIndex()]);
 			}, bDisableCollisionParallelFor);
@@ -801,7 +801,7 @@ void TPBDCollisionConstraint<T, d>::Apply(const T Dt, const TArray<FConstraintHa
 }
 
 template<typename T, int d>
-void TPBDCollisionConstraint<T, d>::Disable(const TArray<FConstraintHandle*>& InConstraintHandles)
+void TPBDCollisionConstraint<T, d>::Disable(const TArray<FConstraintContainerHandle*>& InConstraintHandles)
 {
 	for(int32 Idx = InConstraintHandles.Num()-1; Idx>=0; Idx--) 
 	{
@@ -927,7 +927,7 @@ void TPBDCollisionConstraint<T, d>::ApplyPushOut(const T Dt, FRigidBodyContactCo
 
 DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::ApplyPushOut"), STAT_ApplyPushOut, STATGROUP_Chaos);
 template<typename T, int d>
-bool TPBDCollisionConstraint<T, d>::ApplyPushOut(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles, const TSet<TGeometryParticleHandle<T,d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations)
+bool TPBDCollisionConstraint<T, d>::ApplyPushOut(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const TSet<TGeometryParticleHandle<T,d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ApplyPushOut);
 
@@ -936,7 +936,7 @@ bool TPBDCollisionConstraint<T, d>::ApplyPushOut(const T Dt, const TArray<FConst
 	if (MPairIterations > 0)
 	{
 		PhysicsParallelFor(InConstraintHandles.Num(), [&](int32 ConstraintHandleIndex) {
-			FConstraintHandle* ConstraintHandle = InConstraintHandles[ConstraintHandleIndex];
+			FConstraintContainerHandle* ConstraintHandle = InConstraintHandles[ConstraintHandleIndex];
 			check(ConstraintHandle != nullptr);
 			ApplyPushOut(Dt, Constraints[ConstraintHandle->GetConstraintIndex()], IsTemporarilyStatic, Iteration, NumIterations, NeedsAnotherIteration);
 			}, bDisableCollisionParallelFor);
@@ -2171,7 +2171,7 @@ void ConstructUnionUnionConstraints(TGeometryParticleHandle<T, d>* Particle0, TG
 }
 
 template<typename T, int d>
-typename void ConstructConstraintsImpl(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TArray< TRigidBodyContactConstraint<T, d> >& ConstraintBuffer, TPBDCollisionConstraintHistory<T, d>* History)
+void ConstructConstraintsImpl(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TArray< TRigidBodyContactConstraint<T, d> >& ConstraintBuffer, TPBDCollisionConstraintHistory<T, d>* History)
 {
 	// TriangleMesh implicit's are for scene query only.
 	if (Implicit0 && GetInnerType(Implicit0->GetType()) == ImplicitObjectType::TriangleMesh) return;
@@ -2248,7 +2248,7 @@ typename void ConstructConstraintsImpl(TGeometryParticleHandle<T, d>* Particle0,
 }
 
 template<typename T, int d>
-typename void TPBDCollisionConstraint<T, d>::ConstructConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const T Thickness, TArray<TRigidBodyContactConstraint<T, d>>& ConstraintBuffer)
+void TPBDCollisionConstraint<T, d>::ConstructConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const T Thickness, TArray<TRigidBodyContactConstraint<T, d>>& ConstraintBuffer)
 {
 	ensure(Particle0 && Particle1);
 
@@ -2381,21 +2381,21 @@ DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::UpdateConstraint"), STAT_Updat
 
 template<typename T, int d>
 template<ECollisionUpdateType UpdateType>
-void TPBDCollisionConstraint<T, d>::UpdateConstraint(const T Thickness, FRigidBodyContactConstraint* Constraints, int32 NumConstraints)
+void TPBDCollisionConstraint<T, d>::UpdateConstraint(const T Thickness, FRigidBodyContactConstraint* InConstraints, int32 NumConstraints)
 {
 	SCOPE_CYCLE_COUNTER(STAT_UpdateConstraint);
 
 	// Reset Phi and validate that the constraints operate on the same bodies.
 	check(NumConstraints >= 1);
-	check(Constraints != nullptr);
+	check(InConstraints != nullptr);
 	for (int32 i = 0; i < NumConstraints; i++)
 	{
-		Constraints[i].Phi = Thickness;
-		ensure(Constraints[i % NumConstraints].Particle == Constraints[(i + 1) % NumConstraints].Particle);
-		ensure(Constraints[i % NumConstraints].Levelset == Constraints[(i + 1) % NumConstraints].Levelset);
+		InConstraints[i].Phi = Thickness;
+		ensure(InConstraints[i % NumConstraints].Particle == InConstraints[(i + 1) % NumConstraints].Particle);
+		ensure(InConstraints[i % NumConstraints].Levelset == InConstraints[(i + 1) % NumConstraints].Levelset);
 	}
 
-	FRigidBodyContactConstraint& Constraint = Constraints[0];
+	FRigidBodyContactConstraint& Constraint = InConstraints[0];
 	const TRigidTransform<T, d> ParticleTM = GetTransform(Constraint.Particle);
 	const TRigidTransform<T, d> LevelsetTM = GetTransform(Constraint.Levelset);
 
@@ -2421,7 +2421,7 @@ void TPBDCollisionConstraint<T, d>::UpdateConstraint(const T Thickness, FRigidBo
 		{
 			HistoryData = History[HandleID];
 		}
-		UpdateConstraintImp2<UpdateType>(*Constraint.Particle->Geometry(), ParticleTM, *Constraint.Levelset->Geometry(), LevelsetTM, Thickness, Constraints, NumConstraints, HistoryData);
+		UpdateConstraintImp2<UpdateType>(*Constraint.Particle->Geometry(), ParticleTM, *Constraint.Levelset->Geometry(), LevelsetTM, Thickness, InConstraints, NumConstraints, HistoryData);
 	}
 }
 

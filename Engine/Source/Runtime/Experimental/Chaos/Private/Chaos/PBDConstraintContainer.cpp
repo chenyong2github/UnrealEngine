@@ -3,30 +3,21 @@
 
 namespace Chaos
 {
-	template<typename T, int d>
-	TPBDConstraintContainer<T, d>::TPBDConstraintContainer()
+	FPBDConstraintContainer::FPBDConstraintContainer()
 	{
 	}
 
-	template<typename T, int d>
-	TPBDConstraintContainer<T, d>::~TPBDConstraintContainer()
+	FPBDConstraintContainer::~FPBDConstraintContainer()
 	{
 	}
 
-	template<typename T, int d>
-	int32 TPBDConstraintContainer<T, d>::GetConstraintIndex(const TConstraintHandle<T, d>* ConstraintHandle) const
+	int32 FPBDConstraintContainer::GetConstraintIndex(const FConstraintHandle* ConstraintHandle) const
 	{
-		return ConstraintHandle->ConstraintIndex;
+		return ConstraintHandle->GetConstraintIndex();
 	}
 
-	template<typename T, int d>
-	void TPBDConstraintContainer<T, d>::SetConstraintIndex(TConstraintHandle<T, d>* ConstraintHandle, int32 ConstraintIndex) const
+	void FPBDConstraintContainer::SetConstraintIndex(FConstraintHandle* ConstraintHandle, int32 ConstraintIndex) const
 	{
 		ConstraintHandle->ConstraintIndex = ConstraintIndex;
 	}
-}
-
-namespace Chaos
-{
-	template class TPBDConstraintContainer<float, 3>;
 }
