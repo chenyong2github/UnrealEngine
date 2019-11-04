@@ -48,6 +48,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 		// Allow scaled geometry to be a concrete type
 		ScaledGeometryIsConcrete,
 
+		// Trimeshes serialize AABBTree
+		TrimeshSerializesAABBTree,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
