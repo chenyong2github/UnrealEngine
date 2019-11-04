@@ -35,6 +35,8 @@ private:
 
 	bool GetIsEnabled() const;
 
+	FText GetToolTipText() const;
+
 	void OnNameTextCommitted(const FText& InText, ETextCommit::Type InCommitType);
 
 private:
