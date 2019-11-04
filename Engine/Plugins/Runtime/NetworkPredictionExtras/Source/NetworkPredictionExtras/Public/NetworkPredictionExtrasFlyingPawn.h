@@ -87,7 +87,7 @@ protected:
 
 	void ProduceInput(const FNetworkSimTime SimTime, FlyingMovement::FInputCmd& Cmd);
 
-	UPROPERTY()
+	UPROPERTY(Category=Movement, VisibleAnywhere)
 	UFlyingMovementComponent* FlyingMovementComponent;
 
 private:
