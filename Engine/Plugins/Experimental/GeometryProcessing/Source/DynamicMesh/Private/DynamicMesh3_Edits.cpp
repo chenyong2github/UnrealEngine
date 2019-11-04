@@ -62,11 +62,12 @@ int FDynamicMesh3::AppendVertex(const FDynamicMesh3& from, int fromVID)
 	Vertices.InsertAt(from.Vertices[bi], i);
 	if (HasVertexNormals()) 
 	{
-		if (from.HasVertexNormals()) 
+		if (from.HasVertexNormals())
 		{
-			VertexNormals->InsertAt((*from.VertexNormals)[bi + 2], i + 2);
-			VertexNormals->InsertAt((*from.VertexNormals)[bi + 1], i + 1);
-			VertexNormals->InsertAt((*from.VertexNormals)[bi], i);
+			const TDynamicVector<float>& FromNormals = from.VertexNormals.GetValue();
+			VertexNormals->InsertAt(FromNormals[bi + 2], i + 2);
+			VertexNormals->InsertAt(FromNormals[bi + 1], i + 1);
+			VertexNormals->InsertAt(FromNormals[bi], i);
 		}
 		else 
 		{
@@ -80,9 +81,10 @@ int FDynamicMesh3::AppendVertex(const FDynamicMesh3& from, int fromVID)
 	{
 		if (from.HasVertexColors()) 
 		{
-			VertexColors->InsertAt((*from.VertexColors)[bi + 2], i + 2);
-			VertexColors->InsertAt((*from.VertexColors)[bi + 1], i + 1);
-			VertexColors->InsertAt((*from.VertexColors)[bi], i);
+			const TDynamicVector<float>& FromColors = from.VertexColors.GetValue();
+			VertexColors->InsertAt(FromColors[bi + 2], i + 2);
+			VertexColors->InsertAt(FromColors[bi + 1], i + 1);
+			VertexColors->InsertAt(FromColors[bi], i);
 		}
 		else 
 		{
@@ -97,9 +99,10 @@ int FDynamicMesh3::AppendVertex(const FDynamicMesh3& from, int fromVID)
 		int j = 2 * vid;
 		if (from.HasVertexUVs()) 
 		{
+			const TDynamicVector<float>& FromUVs = from.VertexUVs.GetValue();
 			int bj = 2 * fromVID;
-			VertexUVs->InsertAt((*from.VertexUVs)[bj + 1], j + 1);
-			VertexUVs->InsertAt((*from.VertexUVs)[bj], j);
+			VertexUVs->InsertAt(FromUVs[bj + 1], j + 1);
+			VertexUVs->InsertAt(FromUVs[bj], j);
 		}
 		else 
 		{
@@ -338,21 +341,24 @@ void FDynamicMesh3::CompactInPlace(FCompactMaps* CompactInfo)
 		Vertices[kc] = Vertices[kl];  Vertices[kc + 1] = Vertices[kl + 1];  Vertices[kc + 2] = Vertices[kl + 2];
 		if (HasVertexNormals())
 		{
-			(*VertexNormals)[kc] = (*VertexNormals)[kl];  
-			(*VertexNormals)[kc + 1] = (*VertexNormals)[kl + 1];  
-			(*VertexNormals)[kc + 2] = (*VertexNormals)[kl + 2];
+			TDynamicVector<float>& Normals = VertexNormals.GetValue();
+			Normals[kc]     = Normals[kl];
+			Normals[kc + 1] = Normals[kl + 1];
+			Normals[kc + 2] = Normals[kl + 2];
 		}
 		if (HasVertexColors())
 		{
-			(*VertexColors)[kc] = (*VertexColors)[kl];  
-			(*VertexColors)[kc + 1] = (*VertexColors)[kl + 1];  
-			(*VertexColors)[kc + 2] = (*VertexColors)[kl + 2];
+			TDynamicVector<float>& Colors = VertexColors.GetValue();
+			Colors[kc] =     Colors[kl];
+			Colors[kc + 1] = Colors[kl + 1];
+			Colors[kc + 2] = Colors[kl + 2];
 		}
 		if (HasVertexUVs())
 		{
+			TDynamicVector<float>& UVs = VertexUVs.GetValue();
 			int ukc = iCurV * 2, ukl = iLastV * 2;
-			(*VertexUVs)[ukc] = (*VertexUVs)[ukl]; 
-			(*VertexUVs)[ukc + 1] = (*VertexUVs)[ukl + 1];
+			UVs[ukc] =     UVs[ukl];
+			UVs[ukc + 1] = UVs[ukl + 1];
 		}
 
 		for (int eid : VertexEdgeLists.Values(iLastV))
@@ -439,7 +445,7 @@ void FDynamicMesh3::CompactInPlace(FCompactMaps* CompactInfo)
 		}
 		if (HasTriangleGroups())
 		{
-			(*TriangleGroups)[iCurT] = (*TriangleGroups)[iLastT];
+			TriangleGroups.GetValue()[iCurT] = TriangleGroups.GetValue()[iLastT];
 		}
 
 		// update edges
@@ -563,27 +569,23 @@ void FDynamicMesh3::ReverseTriOrientationInternal(int tID)
 
 void FDynamicMesh3::ReverseOrientation(bool bFlipNormals)
 {
-	for (int tid : TriangleIndicesItr()) 
+	for (int tid : TriangleIndicesItr())
 	{
 		ReverseTriOrientationInternal(tid);
 	}
-	if (bFlipNormals && HasVertexNormals()) 
+	if (bFlipNormals && HasVertexNormals())
 	{
-		for (int vid : VertexIndicesItr()) 
+		for (int vid : VertexIndicesItr())
 		{
 			int i = 3 * vid;
-			(*VertexNormals)[i] = -(*VertexNormals)[i];
-			(*VertexNormals)[i + 1] = -(*VertexNormals)[i + 1];
-			(*VertexNormals)[i + 2] = -(*VertexNormals)[i + 2];
+			TDynamicVector<float>& Normals = VertexNormals.GetValue();
+			Normals[i]     = -Normals[i];
+			Normals[i + 1] = -Normals[i + 1];
+			Normals[i + 2] = -Normals[i + 2];
 		}
 	}
 	UpdateTimeStamp(true, true);
 }
-
-
-
-
-
 
 EMeshResult FDynamicMesh3::RemoveVertex(int vID, bool bRemoveAllTriangles, bool bPreserveManifold)
 {
@@ -916,7 +918,7 @@ EMeshResult FDynamicMesh3::SplitEdge(int eab, FEdgeSplitInfo& SplitInfo, double 
 		int t2 = AddTriangleInternal(f, b, c, InvalidID, InvalidID, InvalidID);
 		if (HasTriangleGroups())
 		{
-			int group0 = (*TriangleGroups)[t0];
+			int group0 = TriangleGroups.GetValue()[t0];
 			TriangleGroups->InsertAt(group0, t2);
 		}
 
@@ -998,9 +1000,9 @@ EMeshResult FDynamicMesh3::SplitEdge(int eab, FEdgeSplitInfo& SplitInfo, double 
 		int t3 = AddTriangleInternal(f, d, b, InvalidID, InvalidID, InvalidID);
 		if (HasTriangleGroups()) 
 		{
-			int group0 = (*TriangleGroups)[t0];
+			int group0 = TriangleGroups.GetValue()[t0];
 			TriangleGroups->InsertAt(group0, t2);
-			int group1 = (*TriangleGroups)[t1];
+			int group1 = TriangleGroups.GetValue()[t1];
 			TriangleGroups->InsertAt(group1, t3);
 		}
 
@@ -1829,7 +1831,7 @@ EMeshResult FDynamicMesh3::PokeTriangle(int TriangleID, const FVector3d& BaryCoo
 	// transfer groups
 	if (HasTriangleGroups()) 
 	{
-		int g = (*TriangleGroups)[TriangleID];
+		int g = TriangleGroups.GetValue()[TriangleID];
 		TriangleGroups->InsertAt(g, t1);
 		TriangleGroups->InsertAt(g, t2);
 	}

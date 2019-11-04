@@ -7,6 +7,7 @@
 #include "DynamicMeshTriangleAttribute.h"
 #include "DynamicAttribute.h"
 #include "GeometryTypes.h"
+#include "InfoTypes.h"
 
 /** Standard UV overlay type - 2-element float */
 typedef TDynamicMeshVectorOverlay<float, 2, FVector2f> FDynamicMeshUVOverlay;
@@ -70,7 +71,28 @@ public:
 	/** @return the parent mesh for this overlay */
 	FDynamicMesh3* GetParentMesh() { return ParentMesh; }
 
+private:
+	/** @set the parent mesh for this overlay.  Only safe for use during FDynamicMesh move */
+	void Reparent(FDynamicMesh3* NewParent)
+	{
+		for (int UVIdx = 0; UVIdx < NumUVLayers(); UVIdx++)
+		{
+			UVLayers[UVIdx].Reparent( NewParent );
+		}
+		Normals0.Reparent( NewParent );
 
+		if (MaterialIDAttrib)
+		{
+			MaterialIDAttrib->Reparent( NewParent );
+		}
+
+		for (int Idx = 0; Idx < GenericAttributes.Num(); Idx++)
+		{
+			GenericAttributes[Idx]->Reparent( NewParent );
+		}
+	}
+
+public:
 	/** @return number of UV layers */
 	virtual int NumUVLayers() const
 	{
@@ -251,11 +273,11 @@ protected:
 	virtual void OnRemoveTriangle(int TriangleID);
 	virtual void OnRemoveVertex(int VertexID);
 	virtual void OnReverseTriOrientation(int TriangleID);
-	virtual void OnSplitEdge(const FDynamicMesh3::FEdgeSplitInfo & splitInfo);
-	virtual void OnFlipEdge(const FDynamicMesh3::FEdgeFlipInfo & flipInfo);
-	virtual void OnCollapseEdge(const FDynamicMesh3::FEdgeCollapseInfo & collapseInfo);
-	virtual void OnPokeTriangle(const FDynamicMesh3::FPokeTriangleInfo & pokeInfo);
-	virtual void OnMergeEdges(const FDynamicMesh3::FMergeEdgesInfo & mergeInfo);
+	virtual void OnSplitEdge(const DynamicMeshInfo::FEdgeSplitInfo & splitInfo);
+	virtual void OnFlipEdge(const DynamicMeshInfo::FEdgeFlipInfo & flipInfo);
+	virtual void OnCollapseEdge(const DynamicMeshInfo::FEdgeCollapseInfo & collapseInfo);
+	virtual void OnPokeTriangle(const DynamicMeshInfo::FPokeTriangleInfo & pokeInfo);
+	virtual void OnMergeEdges(const DynamicMeshInfo::FMergeEdgesInfo & mergeInfo);
 
 	/**
 	 * Check validity of attributes

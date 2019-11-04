@@ -61,7 +61,7 @@ public:
 
 	/** Allocate a new copy of the attribute layer, optionally with a different parent mesh */
 	virtual TDynamicAttributeBase* MakeCopy(ParentType* ParentIn) const = 0;
-
+	virtual void Reparent(ParentType* NewParent) = 0;
 
 	virtual void OnNewVertex(int VertexID, bool bInserted)
 	{
@@ -101,27 +101,27 @@ public:
 
 
 	/** Update to reflect an edge split in the parent mesh */
-	virtual void OnSplitEdge(const FDynamicMesh3::FEdgeSplitInfo& SplitInfo)
+	virtual void OnSplitEdge(const DynamicMeshInfo::FEdgeSplitInfo& SplitInfo)
 	{
 	}
 
 	/** Update to reflect an edge flip in the parent mesh */
-	virtual void OnFlipEdge(const FDynamicMesh3::FEdgeFlipInfo& FlipInfo)
+	virtual void OnFlipEdge(const DynamicMeshInfo::FEdgeFlipInfo& FlipInfo)
 	{
 	}
 
 	/** Update to reflect an edge collapse in the parent mesh */
-	virtual void OnCollapseEdge(const FDynamicMesh3::FEdgeCollapseInfo& CollapseInfo)
+	virtual void OnCollapseEdge(const DynamicMeshInfo::FEdgeCollapseInfo& CollapseInfo)
 	{
 	}
 
 	/** Update to reflect a face poke in the parent mesh */
-	virtual void OnPokeTriangle(const FDynamicMesh3::FPokeTriangleInfo& PokeInfo)
+	virtual void OnPokeTriangle(const DynamicMeshInfo::FPokeTriangleInfo& PokeInfo)
 	{
 	}
 
 	/** Update to reflect an edge merge in the parent mesh */
-	virtual void OnMergeEdges(const FDynamicMesh3::FMergeEdgesInfo& MergeInfo)
+	virtual void OnMergeEdges(const DynamicMeshInfo::FMergeEdgesInfo& MergeInfo)
 	{
 	}
 
@@ -227,35 +227,35 @@ public:
 	// mesh-specific on* functions; may be split out
 public:
 
-	virtual void OnSplitEdge(const FDynamicMesh3::FEdgeSplitInfo& SplitInfo)
+	virtual void OnSplitEdge(const DynamicMeshInfo::FEdgeSplitInfo& SplitInfo)
 	{
 		for (TDynamicAttributeBase<ParentType>* A : RegisteredAttributes)
 		{
 			A->OnSplitEdge(SplitInfo);
 		}
 	}
-	virtual void OnFlipEdge(const FDynamicMesh3::FEdgeFlipInfo& FlipInfo)
+	virtual void OnFlipEdge(const DynamicMeshInfo::FEdgeFlipInfo& FlipInfo)
 	{
 		for (TDynamicAttributeBase<ParentType>* A : RegisteredAttributes)
 		{
 			A->OnFlipEdge(FlipInfo);
 		}
 	}
-	virtual void OnCollapseEdge(const FDynamicMesh3::FEdgeCollapseInfo& CollapseInfo)
+	virtual void OnCollapseEdge(const DynamicMeshInfo::FEdgeCollapseInfo& CollapseInfo)
 	{
 		for (TDynamicAttributeBase<ParentType>* A : RegisteredAttributes)
 		{
 			A->OnCollapseEdge(CollapseInfo);
 		}
 	}
-	virtual void OnPokeTriangle(const FDynamicMesh3::FPokeTriangleInfo& PokeInfo)
+	virtual void OnPokeTriangle(const DynamicMeshInfo::FPokeTriangleInfo& PokeInfo)
 	{
 		for (TDynamicAttributeBase<ParentType>* A : RegisteredAttributes)
 		{
 			A->OnPokeTriangle(PokeInfo);
 		}
 	}
-	virtual void OnMergeEdges(const FDynamicMesh3::FMergeEdgesInfo& MergeInfo)
+	virtual void OnMergeEdges(const DynamicMeshInfo::FMergeEdgesInfo& MergeInfo)
 	{
 		for (TDynamicAttributeBase<ParentType>* A : RegisteredAttributes)
 		{

@@ -628,7 +628,7 @@ ESimplificationResult TMeshSimplification<QuadricErrorType>::CollapseEdge(int ed
 	// look up 'other' verts c (from t0) and d (from t1, if it exists)
 	FIndex3i T0tv = Mesh->GetTriangle(t0);
 	int c = IndexUtil::FindTriOtherVtx(a, b, T0tv);
-	FIndex3i T1tv = (bIsBoundaryEdge) ? FDynamicMesh3::InvalidTriangle() : Mesh->GetTriangle(t1);
+	FIndex3i T1tv = (bIsBoundaryEdge) ? FDynamicMesh3::InvalidTriangle : Mesh->GetTriangle(t1);
 	int d = (bIsBoundaryEdge) ? FDynamicMesh3::InvalidID : IndexUtil::FindTriOtherVtx(a, b, T1tv);
 
 	FVector3d vA = Mesh->GetVertex(a);

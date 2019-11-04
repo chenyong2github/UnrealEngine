@@ -7,8 +7,9 @@
 #include "Util/RefCountVector.h"
 #include "VectorTypes.h"
 #include "GeometryTypes.h"
-#include "DynamicMesh3.h"
+#include "InfoTypes.h"
 
+class FDynamicMesh3;
 
 /**
  * TDynamicMeshOverlay is an add-on to a FDynamicMesh3 that allows for per-triangle storage
@@ -60,7 +61,13 @@ public:
 	{
 		ParentMesh = ParentMeshIn;
 	}
-
+private:
+	/** @set the parent mesh for this overlay.  Only safe for use during FDynamicMesh move */
+	void Reparent(FDynamicMesh3* ParentMeshIn)
+	{
+		ParentMesh = ParentMeshIn;
+	}
+public:
 	/** @return the parent mesh for this overlay */
 	const FDynamicMesh3* GetParentMesh() const { return ParentMesh; }
 	/** @return the parent mesh for this overlay */
@@ -254,15 +261,15 @@ public:
 	/** Reverse the orientation of a triangle's elements */
 	void OnReverseTriOrientation(int TriangleID);
 	/** Update the overlay to reflect an edge split in the parent mesh */
-	void OnSplitEdge(const FDynamicMesh3::FEdgeSplitInfo& SplitInfo);
+	void OnSplitEdge(const DynamicMeshInfo::FEdgeSplitInfo& SplitInfo);
 	/** Update the overlay to reflect an edge flip in the parent mesh */
-	void OnFlipEdge(const FDynamicMesh3::FEdgeFlipInfo& FlipInfo);
+	void OnFlipEdge(const DynamicMeshInfo::FEdgeFlipInfo& FlipInfo);
 	/** Update the overlay to reflect an edge collapse in the parent mesh */
-	void OnCollapseEdge(const FDynamicMesh3::FEdgeCollapseInfo& CollapseInfo);
+	void OnCollapseEdge(const DynamicMeshInfo::FEdgeCollapseInfo& CollapseInfo);
 	/** Update the overlay to reflect a face poke in the parent mesh */
-	void OnPokeTriangle(const FDynamicMesh3::FPokeTriangleInfo& PokeInfo);
+	void OnPokeTriangle(const DynamicMeshInfo::FPokeTriangleInfo& PokeInfo);
 	/** Update the overlay to reflect an edge merge in the parent mesh */
-	void OnMergeEdges(const FDynamicMesh3::FMergeEdgesInfo& MergeInfo);
+	void OnMergeEdges(const DynamicMeshInfo::FMergeEdgesInfo& MergeInfo);
 
 protected:
 	/** Set the value at an Element to be a linear interpolation of two other Elements */

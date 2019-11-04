@@ -72,6 +72,14 @@ public:
 		ParentMesh = ParentMeshIn;
 	}
 
+private:
+	/** @set the parent mesh for this overlay.  Only safe for use during FDynamicMesh move */
+	void Reparent(FDynamicMesh3* ParentMeshIn)
+	{
+		ParentMesh = ParentMeshIn;
+	}
+
+public:
 	/** @return the parent mesh for this overlay */
 	const FDynamicMesh3* GetParentMesh() const { return ParentMesh; }
 	/** @return the parent mesh for this overlay */
@@ -199,7 +207,7 @@ public:
 public:
 
 	/** Update the overlay to reflect an edge split in the parent mesh */
-	void OnSplitEdge(const FDynamicMesh3::FEdgeSplitInfo& SplitInfo)
+	void OnSplitEdge(const DynamicMeshInfo::FEdgeSplitInfo& SplitInfo)
 	{
 		CopyValue(SplitInfo.OriginalTriangles.A, SplitInfo.NewTriangles.A);
 		if (SplitInfo.OriginalTriangles.B != FDynamicMesh3::InvalidID)
@@ -209,26 +217,26 @@ public:
 	}
 
 	/** Update the overlay to reflect an edge flip in the parent mesh */
-	void OnFlipEdge(const FDynamicMesh3::FEdgeFlipInfo& FlipInfo)
+	void OnFlipEdge(const DynamicMeshInfo::FEdgeFlipInfo& FlipInfo)
 	{
 		// yikes! triangles did not actually change so we will leave attrib unmodified
 	}
 
 	/** Update the overlay to reflect an edge collapse in the parent mesh */
-	void OnCollapseEdge(const FDynamicMesh3::FEdgeCollapseInfo& CollapseInfo)
+	void OnCollapseEdge(const DynamicMeshInfo::FEdgeCollapseInfo& CollapseInfo)
 	{
 		// nothing to do here, triangles were only deleted
 	}
 
 	/** Update the overlay to reflect a face poke in the parent mesh */
-	void OnPokeTriangle(const FDynamicMesh3::FPokeTriangleInfo& PokeInfo)
+	void OnPokeTriangle(const DynamicMeshInfo::FPokeTriangleInfo& PokeInfo)
 	{
 		CopyValue(PokeInfo.OriginalTriangle, PokeInfo.NewTriangles.A);
 		CopyValue(PokeInfo.OriginalTriangle, PokeInfo.NewTriangles.B);
 	}
 
 	/** Update the overlay to reflect an edge merge in the parent mesh */
-	void OnMergeEdges(const FDynamicMesh3::FMergeEdgesInfo& MergeInfo)
+	void OnMergeEdges(const DynamicMeshInfo::FMergeEdgesInfo& MergeInfo)
 	{
 		// nothing to do here because triangles did not change
 	}

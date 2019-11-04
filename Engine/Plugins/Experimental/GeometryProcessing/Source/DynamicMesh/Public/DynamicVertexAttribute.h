@@ -74,7 +74,9 @@ public:
 	const ParentType* GetParent() const { return Parent; }
 	/** @return the parent for this attribute */
 	ParentType* GetParent() { return Parent; }
-
+private:
+	void Reparent(ParentType* NewParent) override { Parent = NewParent;  }
+public:
 	virtual TDynamicAttributeBase<ParentType>* MakeCopy(ParentType* ParentIn) const override
 	{
 		TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>* ToFill = new TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>(ParentIn);

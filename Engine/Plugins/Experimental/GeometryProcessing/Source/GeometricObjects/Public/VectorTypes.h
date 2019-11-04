@@ -26,24 +26,32 @@ struct FVector2
 {
 	T X, Y;
 
-	FVector2()
+	constexpr FVector2()
 	{
 	}
-	FVector2(T ValX, T ValY)
+	constexpr FVector2(T ValX, T ValY)
 		: X(ValX), Y(ValY)
 	{
 	}
-	FVector2(const T* Data)
+
+	constexpr FVector2(const T* Data)
 	{
 		X = Data[0];
 		Y = Data[1];
 	}
 
-	inline operator const T*() const
+	constexpr FVector2(const FVector2D& Vec)
+	{
+		X = (T)Vec.X;
+		Y = (T)Vec.Y;
+	}
+
+	constexpr operator const T*() const
 	{
 		return &X;
 	};
-	inline operator T*()
+
+	constexpr  operator T*()
 	{
 		return &X;
 	}
@@ -52,46 +60,40 @@ struct FVector2
 	{
 		return FVector2D((float)X, (float)Y);
 	}
-	FVector2(const FVector2D& Vec)
-	{
-		X = (T)Vec.X;
-		Y = (T)Vec.Y;
-	}
-
-	static FVector2<T> Zero()
+	constexpr static FVector2<T> Zero()
 	{
 		return FVector2<T>((T)0, (T)0);
 	}
-	static FVector2<T> One()
+	constexpr static FVector2<T> One()
 	{
 		return FVector2<T>((T)1, (T)1);
 	}
-	static FVector2<T> UnitX()
+	constexpr static FVector2<T> UnitX()
 	{
 		return FVector2<T>((T)1, (T)0);
 	}
-	static FVector2<T> UnitY()
+	constexpr static FVector2<T> UnitY()
 	{
 		return FVector2<T>((T)0, (T)1);
 	}
 
-	FVector2<T>& operator=(const FVector2<T>& V2)
+	constexpr FVector2<T>& operator=(const FVector2<T>& V2)
 	{
 		X = V2.X;
 		Y = V2.Y;
 		return *this;
 	}
 
-	T& operator[](int Idx)
+	constexpr T& operator[](int Idx)
 	{
 		return (&X)[Idx];
 	}
-	const T& operator[](int Idx) const
+	constexpr const T& operator[](int Idx) const
 	{
 		return (&X)[Idx];
 	}
 
-	T Length() const
+	constexpr T Length() const
 	{
 		return TMathUtil<T>::Sqrt(X * X + Y * Y);
 	}
@@ -100,113 +102,113 @@ struct FVector2
 		return X * X + Y * Y;
 	}
 
-	inline T Distance(const FVector2<T>& V2) const
+	constexpr T Distance(const FVector2<T>& V2) const
 	{
 		T dx = V2.X - X;
 		T dy = V2.Y - Y;
 		return TMathUtil<T>::Sqrt(dx * dx + dy * dy);
 	}
-	inline T DistanceSquared(const FVector2<T>& V2) const
+	constexpr T DistanceSquared(const FVector2<T>& V2) const
 	{
 		T dx = V2.X - X;
 		T dy = V2.Y - Y;
 		return dx * dx + dy * dy;
 	}
 
-	T Dot(const FVector2<T>& V2) const
+	constexpr T Dot(const FVector2<T>& V2) const
 	{
 		return X * V2.X + Y * V2.Y;
 	}
 
 	// Note: DotPerp and FVector2's version of Cross are the same function
-	inline T DotPerp(const FVector2<T>& V2) const
+	constexpr T DotPerp(const FVector2<T>& V2) const
 	{
 		return X * V2.Y - Y * V2.X;
 	}
-	inline T Cross(const FVector2<T>& V2) const
+	constexpr T Cross(const FVector2<T>& V2) const
 	{
 		return X * V2.Y - Y * V2.X;
 	}
 
-	FVector2<T> Perp() const
+	constexpr FVector2<T> Perp() const
 	{
 		return FVector2<T>(Y, -X);
 	}
 
-	inline FVector2 operator-() const
+	constexpr  FVector2 operator-() const
 	{
 		return FVector2(-X, -Y);
 	}
 
-	inline FVector2 operator+(const FVector2& V2) const
+	constexpr FVector2 operator+(const FVector2& V2) const
 	{
 		return FVector2(X + V2.X, Y + V2.Y);
 	}
 
-	inline FVector2 operator-(const FVector2& V2) const
+	constexpr FVector2 operator-(const FVector2& V2) const
 	{
 		return FVector2(X - V2.X, Y - V2.Y);
 	}
 
-	inline FVector2<T> operator+(const T& Scalar) const
+	constexpr FVector2<T> operator+(const T& Scalar) const
 	{
 		return FVector2<T>(X + Scalar, Y + Scalar);
 	}
 
-	inline FVector2<T> operator-(const T& Scalar) const
+	constexpr FVector2<T> operator-(const T& Scalar) const
 	{
 		return FVector2<T>(X - Scalar, Y - Scalar);
 	}
 
-	inline FVector2 operator*(const T& Scalar) const
+	constexpr FVector2 operator*(const T& Scalar) const
 	{
 		return FVector2(X * Scalar, Y * Scalar);
 	}
 
-	inline FVector2<T> operator*(const FVector2<T>& V2) const // component-wise
+	constexpr FVector2<T> operator*(const FVector2<T>& V2) const // component-wise
 	{
 		return FVector2<T>(X * V2.X, Y * V2.Y);
 	}
 
-	inline FVector2 operator/(const T& Scalar) const
+	constexpr FVector2 operator/(const T& Scalar) const
 	{
 		return FVector2(X / Scalar, Y / Scalar);
 	}
 
-	inline FVector2<T> operator/(const FVector2<T>& V2) const // component-wise
+	constexpr FVector2<T> operator/(const FVector2<T>& V2) const // component-wise
 	{
 		return FVector2<T>(X / V2.X, Y / V2.Y);
 	}
 
-	inline FVector2<T>& operator+=(const FVector2<T>& V2)
+	constexpr FVector2<T>& operator+=(const FVector2<T>& V2)
 	{
 		X += V2.X;
 		Y += V2.Y;
 		return *this;
 	}
 
-	inline FVector2<T>& operator-=(const FVector2<T>& V2)
+	constexpr FVector2<T>& operator-=(const FVector2<T>& V2)
 	{
 		X -= V2.X;
 		Y -= V2.Y;
 		return *this;
 	}
 
-	inline FVector2<T>& operator*=(const T& Scalar)
+	constexpr FVector2<T>& operator*=(const T& Scalar)
 	{
 		X *= Scalar;
 		Y *= Scalar;
 		return *this;
 	}
 
-	inline FVector2<T>& operator/=(const T& Scalar)
+	constexpr FVector2<T>& operator/=(const T& Scalar)
 	{
 		X /= Scalar;
 		Y /= Scalar;
 		return *this;
 	}
 
-	inline bool IsNormalized()
+	constexpr bool IsNormalized()
 	{
 		return TMathUtil<T>::Abs((X * X + Y * Y) - 1) < TMathUtil<T>::ZeroTolerance;
 	}
@@ -258,7 +260,7 @@ struct FVector2
 		return 0;
 	}
 
-	inline FVector2<T> Normalized(const T Epsilon = 0) const
+	constexpr FVector2<T> Normalized(const T Epsilon = 0) const
 	{
 		T length = Length();
 		if (length > Epsilon)
@@ -310,40 +312,40 @@ struct FVector3
 {
 	T X, Y, Z;
 
-	FVector3()
+	constexpr FVector3()
 	{
 	}
-	FVector3(T ValX, T ValY, T ValZ)
+	constexpr FVector3(T ValX, T ValY, T ValZ)
 		: X(ValX), Y(ValY), Z(ValZ)
 	{
 	}
-	FVector3(const T* Data)
+	constexpr FVector3(const T* Data)
 	{
 		X = Data[0];
 		Y = Data[1];
 		Z = Data[2];
 	}
-	FVector3(const FVector2<T>& Data)
+	constexpr FVector3(const FVector2<T>& Data)
 	{
 		X = Data.X;
 		Y = Data.Y;
 		Z = (T)0;
 	}
 
-	inline operator const T*() const
+	constexpr operator const T*() const
 	{
 		return &X;
 	};
-	inline operator T*()
+	constexpr operator T*()
 	{
 		return &X;
 	}
 
-	inline operator FVector() const
+	constexpr operator FVector() const
 	{
 		return FVector((float)X, (float)Y, (float)Z);
 	}
-	inline FVector3(const FVector& Vec)
+	constexpr FVector3(const FVector& Vec)
 	{
 		X = (T)Vec.X;
 		Y = (T)Vec.Y;
@@ -351,18 +353,18 @@ struct FVector3
 	}
 
 
-	explicit inline operator FLinearColor() const
+	explicit constexpr operator FLinearColor() const
 	{
 		return FLinearColor((float)X, (float)Y, (float)Z);
 	}
-	inline FVector3(const FLinearColor& Color)
+	constexpr FVector3(const FLinearColor& Color)
 	{
 		X = (T)Color.R;
 		Y = (T)Color.G;
 		Z = (T)Color.B;
 	}
 
-	explicit inline operator FColor() const
+	explicit constexpr operator FColor() const
 	{
 		return FColor(
 			FMathf::Clamp((int)((float)X*255.0f), 0, 255),
@@ -422,14 +424,14 @@ struct FVector3
 		return X * X + Y * Y + Z * Z;
 	}
 
-	inline T Distance(const FVector3<T>& V2) const
+	constexpr T Distance(const FVector3<T>& V2) const
 	{
 		T dx = V2.X - X;
 		T dy = V2.Y - Y;
 		T dz = V2.Z - Z;
 		return TMathUtil<T>::Sqrt(dx * dx + dy * dy + dz * dz);
 	}
-	inline T DistanceSquared(const FVector3<T>& V2) const
+	constexpr T DistanceSquared(const FVector3<T>& V2) const
 	{
 		T dx = V2.X - X;
 		T dy = V2.Y - Y;
@@ -437,52 +439,52 @@ struct FVector3
 		return dx * dx + dy * dy + dz * dz;
 	}
 
-	inline FVector3<T> operator-() const
+	constexpr FVector3<T> operator-() const
 	{
 		return FVector3<T>(-X, -Y, -Z);
 	}
 
-	inline FVector3<T> operator+(const FVector3<T>& V2) const
+	constexpr FVector3<T> operator+(const FVector3<T>& V2) const
 	{
 		return FVector3<T>(X + V2.X, Y + V2.Y, Z + V2.Z);
 	}
 
-	inline FVector3<T> operator-(const FVector3<T>& V2) const
+	constexpr FVector3<T> operator-(const FVector3<T>& V2) const
 	{
 		return FVector3<T>(X - V2.X, Y - V2.Y, Z - V2.Z);
 	}
 
-	inline FVector3<T> operator+(const T& Scalar) const
+	constexpr FVector3<T> operator+(const T& Scalar) const
 	{
 		return FVector3<T>(X + Scalar, Y + Scalar, Z + Scalar);
 	}
 
-	inline FVector3<T> operator-(const T& Scalar) const
+	constexpr FVector3<T> operator-(const T& Scalar) const
 	{
 		return FVector3<T>(X - Scalar, Y - Scalar, Z - Scalar);
 	}
 
-	inline FVector3<T> operator*(const T& Scalar) const
+	constexpr FVector3<T> operator*(const T& Scalar) const
 	{
 		return FVector3<T>(X * Scalar, Y * Scalar, Z * Scalar);
 	}
 
-	inline FVector3<T> operator*(const FVector3<T>& V2) const // component-wise
+	constexpr FVector3<T> operator*(const FVector3<T>& V2) const // component-wise
 	{
 		return FVector3<T>(X * V2.X, Y * V2.Y, Z * V2.Z);
 	}
 
-	inline FVector3<T> operator/(const T& Scalar) const
+	constexpr FVector3<T> operator/(const T& Scalar) const
 	{
 		return FVector3<T>(X / Scalar, Y / Scalar, Z / Scalar);
 	}
 
-	inline FVector3<T> operator/(const FVector3<T>& V2) const // component-wise
+	constexpr FVector3<T> operator/(const FVector3<T>& V2) const // component-wise
 	{
 		return FVector3<T>(X / V2.X, Y / V2.Y, Z / V2.Z);
 	}
 
-	inline FVector3<T>& operator+=(const FVector3<T>& V2)
+	constexpr FVector3<T>& operator+=(const FVector3<T>& V2)
 	{
 		X += V2.X;
 		Y += V2.Y;
@@ -490,7 +492,7 @@ struct FVector3
 		return *this;
 	}
 
-	inline FVector3<T>& operator-=(const FVector3<T>& V2)
+	constexpr FVector3<T>& operator-=(const FVector3<T>& V2)
 	{
 		X -= V2.X;
 		Y -= V2.Y;
@@ -498,7 +500,7 @@ struct FVector3
 		return *this;
 	}
 
-	inline FVector3<T>& operator*=(const T& Scalar)
+	constexpr FVector3<T>& operator*=(const T& Scalar)
 	{
 		X *= Scalar;
 		Y *= Scalar;
@@ -506,7 +508,7 @@ struct FVector3
 		return *this;
 	}
 
-	inline FVector3<T>& operator/=(const T& Scalar)
+	constexpr FVector3<T>& operator/=(const T& Scalar)
 	{
 		X /= Scalar;
 		Y /= Scalar;
@@ -543,7 +545,7 @@ struct FVector3
 		return (T)acos(ClampedDot);
 	}
 
-	inline bool IsNormalized()
+	constexpr bool IsNormalized()
 	{
 		return TMathUtil<T>::Abs((X * X + Y * Y + Z * Z) - 1) < TMathUtil<T>::ZeroTolerance;
 	}
@@ -563,7 +565,7 @@ struct FVector3
 		return 0;
 	}
 
-	inline FVector3<T> Normalized(const T Epsilon = 0) const
+	constexpr FVector3<T> Normalized(const T Epsilon = 0) const
 	{
 		T length = Length();
 		if (length > Epsilon)
@@ -574,12 +576,12 @@ struct FVector3
 		return FVector3<T>((T)0, (T)0, (T)0);
 	}
 
-	inline T MaxAbs() const
+	constexpr T MaxAbs() const
 	{
 		return TMathUtil<T>::Max3(TMathUtil<T>::Abs(X), TMathUtil<T>::Abs(Y), TMathUtil<T>::Abs(Z));
 	}
 
-	inline T MinAbs() const
+	constexpr T MinAbs() const
 	{
 		return TMathUtil<T>::Min3(TMathUtil<T>::Abs(X), TMathUtil<T>::Abs(Y), TMathUtil<T>::Abs(Z));
 	}
@@ -592,7 +594,7 @@ struct FVector3
 						   OneMinusAlpha * A.Z + Alpha * B.Z);
 	}
 
-	inline bool operator==(const FVector3<T>& Other) const
+	constexpr bool operator==(const FVector3<T>& Other) const
 	{
 		return X == Other.X && Y == Other.Y && Z == Other.Z;
 	}

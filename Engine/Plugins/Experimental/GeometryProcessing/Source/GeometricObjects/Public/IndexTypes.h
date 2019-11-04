@@ -18,26 +18,23 @@ namespace IndexConstants
  */
 struct FIndex2i
 {
-	int A, B;
+	int A{ IndexConstants::InvalidID };
+	int B{ IndexConstants::InvalidID };
 
-	FIndex2i()
-	{
-	}
-	FIndex2i(int ValA, int ValB)
-	{
-		this->A = ValA;
-		this->B = ValB;
-	}
+	constexpr FIndex2i() = default;
+	constexpr FIndex2i(int ValA, int ValB)
+		: A(ValA), B(ValB)
+	{}
 
-	static FIndex2i Zero()
+	constexpr static FIndex2i Zero()
 	{
 		return FIndex2i(0, 0);
 	}
-	static FIndex2i Max()
+	constexpr static FIndex2i Max()
 	{
 		return FIndex2i(TNumericLimits<int>::Max(), TNumericLimits<int>::Max());
 	}
-	static FIndex2i Invalid()
+	constexpr static FIndex2i Invalid()
 	{
 		return FIndex2i(IndexConstants::InvalidID, IndexConstants::InvalidID);
 	}
@@ -82,7 +79,7 @@ struct FIndex2i
 FORCEINLINE uint32 GetTypeHash(const FIndex2i& Index)
 {
 	// (this is how FIntVector and all the other FVectors do their hash functions)
-	// Note: this assumes there's no padding that could contain uncompared data.
+	// Note: this assumes there's no padding that could contain non compared data.
 	return FCrc::MemCrc_DEPRECATED(&Index, sizeof(FIndex2i));
 }
 
@@ -97,27 +94,24 @@ FORCEINLINE uint32 GetTypeHash(const FIndex2i& Index)
  */
 struct FIndex3i
 {
-	int A, B, C;
+	int A{ IndexConstants::InvalidID };
+	int B{ IndexConstants::InvalidID };
+	int C{ IndexConstants::InvalidID };
 
-	FIndex3i()
-	{
-	}
-	FIndex3i(int ValA, int ValB, int ValC)
-	{
-		this->A = ValA;
-		this->B = ValB;
-		this->C = ValC;
-	}
+	constexpr FIndex3i() = default;
+	constexpr FIndex3i(int ValA, int ValB, int ValC)
+		: A(ValA), B(ValB), C(ValC)
+	{}
 
-	static FIndex3i Zero()
+	constexpr static FIndex3i Zero()
 	{
 		return FIndex3i(0, 0, 0);
 	}
-	static FIndex3i Max()
+	constexpr static FIndex3i Max()
 	{
 		return FIndex3i(TNumericLimits<int>::Max(), TNumericLimits<int>::Max(), TNumericLimits<int>::Max());
 	}
-	static FIndex3i Invalid()
+	constexpr static FIndex3i Invalid()
 	{
 		return FIndex3i(IndexConstants::InvalidID, IndexConstants::InvalidID, IndexConstants::InvalidID);
 	}
