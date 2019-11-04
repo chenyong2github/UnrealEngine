@@ -74,12 +74,14 @@ class ImpulseResponseComputer {
       SceneManager* scene_manager);
   virtual ~ImpulseResponseComputer();
 
+#if INCLUDE_UNUSED_CODE
   // Collects contributions from a batch of paths to all listeners if
   // the collection is not finalized yet.
   //
   // @param paths_batch All sound propagation paths in a batch.
   void CollectContributions(const std::vector<Path>& paths_batch);
-
+#endif
+	
   // Finalizes the listeners and returns them. After calling this, further
   // calls to CollectContributions() have no effect.
   //
@@ -93,12 +95,14 @@ class ImpulseResponseComputer {
   // Collection kernel used to collect contributions from rays to listeners.
   CollectionKernel collection_kernel_;
 
+#if INCLUDE_UNUSED_CODE
   // Scene manager. Used to keep records of listener spheres for ray-sphere
   // intersection tests. Also used in the diffuse rain algorithm to to test
   // whether there is an un-obstructed path from a reflection point to a
   // listener.
   SceneManager* scene_manager_;
-
+#endif
+	
   // Is the collection finalized.
   bool finalized_;
 

@@ -69,7 +69,6 @@ class ReflectionKernel {
   //     with direction and energy calculated based on the type of reflection
   //     and the incident ray.
   AcousticRay Reflect(const AcousticRay& incident_ray) const;
-#endif
 
   // Reflects an incident ray to create a diffuse-rain ray, whose |direction|
   // is from the reflection point to the listener position, and whose |t_far|
@@ -91,6 +90,7 @@ class ReflectionKernel {
                           const Eigen::Vector3f& listener_position,
                           float* direction_pdf,
                           AcousticRay* diffuse_rain_ray) const;
+#endif
 
  private:
   std::array<float, kNumReverbOctaveBands> reflection_coefficients_;
