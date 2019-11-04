@@ -44,6 +44,8 @@ public:
 
 	/**
 	 * Accumulate a single tile to this plane. The raw data will in general be smaller than the full plane.
+	 * Addtionally, we are only going to be using part of the input plane because the input plane will
+	 * have unused border areas. The SubRect parameters describe the area inside the source plane.
 	 *
 	 * @param InRawData - Raw data to accumulate
 	 * @param InRawSizeX - Width of the tile. Must exactly match.
@@ -52,7 +54,9 @@ public:
 	 * @param InSampleOffsetY - Pixel offset of the tile (in Y)
 	 */
 	void AccumulateSinglePlane(const TArray64<float>& InRawData, const TArray64<float>& InWeightData, int32 InSizeX, int32 InSizeY, int32 InOffsetX, int32 InOffsetY,
-								float SubpixelOffsetX, float SubpixelOffsetY);
+								float SubpixelOffsetX, float SubpixelOffsetY,
+								int32 SubRectOffsetX, int32 SubRectOffsetY,
+								int32 SubRectSizeX, int32 SubRectSizeY);
 
 	/** Actual channel data*/
 	TArray64<float> ChannelData;
@@ -107,6 +111,9 @@ public:
 
 	static void GenerateTileWeight(TArray64<float>& Weights, int32 SizeX, int32 SizeY);
 
+	static void GetTileSubRect(int32 & SubRectOffsetX, int32 & SubRectOffsetY, int32 & SubRectSizeX, int32 & SubRectSizeY, const TArray64<float>& Weights, const int32 SizeX, const int32 SizeY);
+
+	static void CheckTileSubRect(const TArray64<float>& Weights, const int32 SizeX, const int32 SizeY, int32 SubRectOffsetX, int32 SubRectOffsetY, int32 SubRectSizeX, int32 SubRectSizeY);
 
 	/**
 	 * Given a rendered tile, accumulate the data to the full size image.
