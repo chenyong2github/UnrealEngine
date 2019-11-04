@@ -45,13 +45,15 @@ void UDisplayClusterEditorEngine::PreExit()
 	Super::PreExit();
 }
 
-void UDisplayClusterEditorEngine::PlayInEditor(UWorld* InWorld, bool bInSimulateInEditor, FPlayInEditorOverrides Overrides)
+void UDisplayClusterEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InRequestParams)
 {
-	UE_LOG(LogDisplayClusterEditorEngine, VeryVerbose, TEXT("UDisplayClusterEditorEngine::PlayInEditor"));
+	UE_LOG(LogDisplayClusterEditorEngine, VeryVerbose, TEXT("UDisplayClusterEditorEngine::StartPlayInEditorSession"));
+
+	UWorld* EditorWorld = GetEditorWorldContext().World();
 
 	// Find nDisplay root
 	UDisplayClusterRootComponent* RootComponent = nullptr;
-	for (AActor* Actor : InWorld->PersistentLevel->Actors)
+	for (AActor* Actor : EditorWorld->PersistentLevel->Actors)
 	{
 		if (Actor && !Actor->IsPendingKill())
 		{
@@ -84,11 +86,11 @@ void UDisplayClusterEditorEngine::PlayInEditor(UWorld* InWorld, bool bInSimulate
 				return;
 			}
 
-			DisplayClusterModule->StartScene(InWorld);
+			DisplayClusterModule->StartScene(EditorWorld);
 		}
 	}
 
-	Super::PlayInEditor(InWorld, bInSimulateInEditor, Overrides);
+	Super::StartPlayInEditorSession(InRequestParams);
 }
 
 void UDisplayClusterEditorEngine::Tick(float DeltaSeconds, bool bIdleMode)

@@ -117,7 +117,7 @@ void FHoloLensARSystem::SetInterop(WindowsMixedReality::MixedRealityInterop* InW
 			OnStopARSession();
 
 #if WITH_EDITOR
-			if (GEditor && GEditor->bUseVRPreviewForPlayWorld)
+			if (GEditor && GEditor->IsVRPreviewActive())
 			{
 				GEditor->RequestEndPlayMap();
 			}

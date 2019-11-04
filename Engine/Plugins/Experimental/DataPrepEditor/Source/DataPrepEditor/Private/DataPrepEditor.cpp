@@ -1145,7 +1145,7 @@ bool FDataprepEditor::OnRequestClose()
 		const FText Title( LOCTEXT( "DataprepEditor_ProceedWithClose", "Proceed with close") );
 		const FText Message( LOCTEXT( "DataprepEditor_ConfirmClose", "Imported data was not committed! Closing the editor will discard imported data.\nDo you want to close anyway?" ) );
 
-		return ( OpenMsgDlgInt( EAppMsgType::YesNo, Message, Title ) == EAppReturnType::Yes );
+		return ( FMessageDialog::Open(EAppMsgType::YesNo, Message, &Title) == EAppReturnType::Yes );
 	}
 	return !bIgnoreCloseRequest;
 }
