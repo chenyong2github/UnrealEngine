@@ -287,6 +287,9 @@ private:
 	/** Get the config string for the hardware target for the given project. */
 	static FString GetHardwareConfigString(const FProjectInformation& InProjectInfo);
 
+	/** Get the config string to add for the default maps for the given project. */
+	static FString GetDefaultMapConfigString(const FProjectInformation& InProjectInfo);
+
 	/** Generates a new project without using a template project */
 	static bool GenerateProjectFromScratch(const FProjectInformation& InProjectInfo, FText& OutFailReason, FText& OutFailLog);
 
