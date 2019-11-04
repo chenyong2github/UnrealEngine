@@ -2,7 +2,7 @@
 #pragma once
 
 #include "ClothingAssetBase.h"
-#include "ClothConfig.h"
+#include "ClothConfigBase.h"
 #include "ClothLODData.h"
 #include "ClothingSimulationInteractor.h"
 
