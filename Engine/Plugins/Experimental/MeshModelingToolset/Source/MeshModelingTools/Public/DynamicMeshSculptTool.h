@@ -138,6 +138,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (EditCondition = "PrimaryBrushType == EDynamicMeshSculptBrushType::Sculpt || PrimaryBrushType == EDynamicMeshSculptBrushType::SculptMax || PrimaryBrushType == EDynamicMeshSculptBrushType::Pinch" ))
 	bool bFreezeTarget;
 
+	/** Hit back sides of triangles */
+	UPROPERTY(EditAnywhere, Category = Sculpting)
+	bool bHitBackFaces;
+
 	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
 	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 
@@ -331,6 +335,9 @@ protected:
 	bool bCachedFreezeTarget = false;
 	void UpdateTarget();
 	bool GetTargetMeshNearest(const FVector3d& Position, double SearchRadius, FVector3d& TargetPosOut, FVector3d& TargetNormalOut);
+
+	int FindHitSculptMeshTriangle(const FRay3d& LocalRay);
+	int FindHitTargetMeshTriangle(const FRay3d& LocalRay);
 
 	bool UpdateBrushPositionOnActivePlane(const FRay& WorldRay);
 	bool UpdateBrushPositionOnTargetMesh(const FRay& WorldRay);
