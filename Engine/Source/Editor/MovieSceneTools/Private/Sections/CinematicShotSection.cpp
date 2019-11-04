@@ -248,8 +248,12 @@ int32 FCinematicShotSection::OnPaintSection(FSequencerSectionPainter& InPainter)
 	FViewportThumbnailSection::OnPaintSection(InPainter);
 
 	// Paint the sub-sequence information/looping boundaries/etc.
+
+	FSubSectionPainterParams SubSectionPainterParams(GetContentPadding());
+	SubSectionPainterParams.bShowTrackNum = false;
+
 	FSubSectionPainterUtil::PaintSection(
-			GetSequencer(), SectionObject, InPainter, FSubSectionPainterParams(GetContentPadding()));
+			GetSequencer(), SectionObject, InPainter, SubSectionPainterParams);
 
 	return InPainter.LayerId;
 }
