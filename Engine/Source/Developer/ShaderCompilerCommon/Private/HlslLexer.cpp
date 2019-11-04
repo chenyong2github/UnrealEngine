@@ -409,6 +409,8 @@ namespace CrossCompiler
 				InsertToken(TEXT("groupshared"), EHlslToken::GroupShared);
 				InsertToken(TEXT("row_major"), EHlslToken::RowMajor);
 				InsertToken(TEXT("register"), EHlslToken::Register);
+				InsertToken(TEXT("inline"), EHlslToken::Inline);
+				InsertToken(TEXT("typedef"), EHlslToken::Typedef);
 			}
 		} GStaticInitializer;
 	}
@@ -794,7 +796,7 @@ namespace CrossCompiler
 
 		static void ProcessDirective(FTokenizer& Tokenizer, FCompilerMessages& CompilerMessages, class FHlslScanner& Scanner);
 
-		FString ReadToEndOfLine()
+		FString ReadToEndOfLine(bool bSkipToNextLine = true)
 		{
 			FString String;
 			const TCHAR* Start = Current;
@@ -817,7 +819,11 @@ namespace CrossCompiler
 					++Current;
 				}
 			}
-			SkipToNextLine();
+
+			if (bSkipToNextLine)
+			{
+				SkipToNextLine();
+			}
 
 			int32 Count = (int32)(EndOfLine - Start) + 1;
 			String.AppendChars(Start, Count);
@@ -1164,7 +1170,7 @@ namespace CrossCompiler
 		}
 		else if (Tokenizer.MatchString(MATCH_TARGET(TEXT("#pragma"))))
 		{
-			FString Pragma = TEXT("#pragma") + Tokenizer.ReadToEndOfLine();
+			FString Pragma = TEXT("#pragma") + Tokenizer.ReadToEndOfLine(false);
 			Scanner.AddToken(FHlslToken(EHlslToken::Pragma, Pragma), Tokenizer);
 		}
 		else if (Tokenizer.MatchString(MATCH_TARGET(TEXT("#if 0"))))
