@@ -5,8 +5,6 @@
 #pragma once
 
 #include "BoxTypes.h"
-#include "DynamicMesh3.h"
-#include "DynamicMeshAttributeSet.h"
 #include "InfoTypes.h"
 #include "FrameTypes.h"
 #include "GeometryTypes.h"
@@ -21,6 +19,7 @@
 #include "VectorTypes.h"
 #include "VectorUtil.h"
 
+class FDynamicMeshAttributeSet;
 class FMeshShapeGenerator;
 
 enum class EMeshComponents : uint8
