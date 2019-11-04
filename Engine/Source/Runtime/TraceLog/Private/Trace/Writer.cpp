@@ -236,6 +236,11 @@ static FWriteBuffer* Writer_NextBufferInternal(uint32 PageGrowth)
 		break;
 	}
 
+	NextBuffer->Cursor = ((uint8*)NextBuffer - GPoolBlockSize + sizeof(FWriteBuffer));
+	NextBuffer->Cursor += sizeof(uint32); // this is so we can preceed event data with a small header when sending.
+	NextBuffer->Committed = NextBuffer->Cursor;
+	NextBuffer->Reaped = NextBuffer->Cursor;
+
 	// Add this next buffer to the active list.
 	for (;; Writer_Yield())
 	{
@@ -245,11 +250,6 @@ static FWriteBuffer* Writer_NextBufferInternal(uint32 PageGrowth)
 			break;
 		}
 	}
-
-	NextBuffer->Cursor = ((uint8*)NextBuffer - GPoolBlockSize + sizeof(FWriteBuffer));
-	NextBuffer->Cursor += sizeof(uint32); // this is so we can preceed event data with a small header when sending.
-	NextBuffer->Committed = NextBuffer->Cursor;
-	NextBuffer->Reaped = NextBuffer->Cursor;
 
 	TlsContext.SetBuffer(NextBuffer);
 	return NextBuffer;
