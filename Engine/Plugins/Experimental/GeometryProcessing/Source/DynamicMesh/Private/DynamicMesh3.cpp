@@ -654,10 +654,6 @@ bool FDynamicMesh3::CheckValidity(bool bAllowNonManifoldVertices, EValidityCheck
 	TFunction<void(bool)> CheckOrFailF = [&](bool b)
 	{
 		is_ok = is_ok && b;
-		if (!is_ok)
-		{
-			is_ok = false;
-		}
 	};
 	if (FailMode == EValidityCheckFailMode::Check)
 	{
