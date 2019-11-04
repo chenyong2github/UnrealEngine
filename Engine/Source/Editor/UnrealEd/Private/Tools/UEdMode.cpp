@@ -41,9 +41,42 @@ public:
 	void CacheCurrentViewState(FEditorViewportClient* ViewportClient)
 	{
 		FViewportCameraTransform ViewTransform = ViewportClient->GetViewTransform();
-		CachedViewState.Position = ViewTransform.GetLocation();
-		CachedViewState.Orientation = ViewTransform.GetRotation().Quaternion();
 		CachedViewState.bIsOrthographic = ViewportClient->IsOrtho();
+		CachedViewState.Position = ViewTransform.GetLocation();
+
+		// ViewTransform rotation is only initialized for perspective!
+		if (CachedViewState.bIsOrthographic == false)
+		{
+			CachedViewState.Orientation = ViewTransform.GetRotation().Quaternion();
+		}
+		else
+		{
+			// These rotations are based on hardcoded values in EditorViewportClient.cpp, see switches in FEditorViewportClient::CalcSceneView and FEditorViewportClient::Draw
+			switch (ViewportClient->ViewportType)
+			{
+			case LVT_OrthoXY:
+				CachedViewState.Orientation = FQuat(FRotator(-90.0f, -90.0f, 0.0f));
+				break;
+			case LVT_OrthoNegativeXY:
+				CachedViewState.Orientation = FQuat(FRotator(90.0f, 90.0f, 0.0f));
+				break;
+			case LVT_OrthoXZ:
+				CachedViewState.Orientation = FQuat(FRotator(0.0f, -90.0f, 0.0f));
+				break;
+			case LVT_OrthoNegativeXZ:
+				CachedViewState.Orientation = FQuat(FRotator(0.0f, 90.0f, 0.0f));
+				break;
+			case LVT_OrthoYZ:
+				CachedViewState.Orientation = FQuat(FRotator(0.0f, 0.0f, 0.0f));
+				break;
+			case LVT_OrthoNegativeYZ:
+				CachedViewState.Orientation = FQuat(FRotator(0.0f, 180.0f, 0.0f));
+				break;
+			default:
+				CachedViewState.Orientation = FQuat::Identity;
+			}
+		}
+
 		CachedViewState.bIsVR = false;
 	}
 

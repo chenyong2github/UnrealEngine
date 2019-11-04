@@ -66,18 +66,24 @@ double ToolSceneQueriesUtil::CalculateDimensionFromVisualAngleD(const FViewCamer
 
 
 
-
 bool ToolSceneQueriesUtil::IsPointVisible(const FViewCameraState& CameraState, const FVector3d& Point)
 {
-	FVector3d PointDir = (Point - CameraState.Position);
-	//@todo should use view frustum here!
-	if (PointDir.Dot(CameraState.Forward()) < 0.25)		// ballpark estimate
+	if (CameraState.bIsOrthographic == false)
 	{
-		return false;
+		FVector3d PointDir = (Point - CameraState.Position);
+		//@todo should use view frustum here!
+		if (PointDir.Dot(CameraState.Forward()) < 0.25)		// ballpark estimate
+		{
+			return false;
+		}
+	}
+	else
+	{
+		// @todo probably not always true but it's not exactly clear how ortho camera is configured...
+		return true;
 	}
 	return true;
 }
-
 
 
 bool ToolSceneQueriesUtil::FindSceneSnapPoint(const UInteractiveTool* Tool, const FVector3d& Point, FVector3d& SnapPointOut,
