@@ -314,7 +314,7 @@ struct TReplicator_Simulated : public TBase
 	using TAuxState = typename TBufferTypes::TAuxState;
 
 	// Parent Simulation. If this is set, this simulation will forward predict in sync with this parent sim. The parent sim should be an autonomous proxy driven simulation
-	INetworkSimulationModel* ParentSimulation = nullptr;
+	INetworkedSimulationModel* ParentSimulation = nullptr;
 
 	// Instance flag for enabling simulated extrapolation
 	bool bAllowSimulatedExtrapolation = true;
@@ -612,7 +612,7 @@ struct TReplicator_Autonomous : public TBase
 	bool IsReconcileFaultDetected() const { return bReconcileFaultDetected; }
 	const FNetworkSimTime& GetLastSerializedSimTime() const { return SerializedTime; }
 
-	TArray<INetworkSimulationModel*> DependentSimulations;
+	TArray<INetworkedSimulationModel*> DependentSimulations;
 	bool bDependentSimulationNeedsReconcile = false;
 
 	int32 GetProxyDirtyCount(TNetworkSimBufferContainer<TBufferTypes>& Buffers) const
@@ -735,7 +735,7 @@ struct TReplicator_Autonomous : public TBase
 		}
 
 		// Tell dependent simulations to rollback
-		for (INetworkSimulationModel* DependentSim : DependentSimulations)
+		for (INetworkedSimulationModel* DependentSim : DependentSimulations)
 		{
 			DependentSim->BeginRollback(RollbackDeltaTime, SerializedFrame);
 		}
@@ -781,7 +781,7 @@ struct TReplicator_Autonomous : public TBase
 			}
 
 			// Tell dependent simulations to advance
-			for (INetworkSimulationModel* DependentSim : DependentSimulations)
+			for (INetworkedSimulationModel* DependentSim : DependentSimulations)
 			{
 				DependentSim->StepRollback(ResimulateCmd->GetFrameDeltaTime(), Frame, (Frame == LastFrameToProcess));
 			}

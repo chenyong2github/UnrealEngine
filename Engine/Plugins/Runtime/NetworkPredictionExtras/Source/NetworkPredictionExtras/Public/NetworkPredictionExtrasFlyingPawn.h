@@ -108,6 +108,16 @@ private:
 	void Action_RightShoulder_Released() { }
 };
 
+UENUM()
+enum class ENetworkPredictionExtrasMockAbilityInputPreset: uint8
+{
+	/** No input */
+	None,
+	Sprint,
+	Dash,
+	Blink
+};
+
 // Example subclass of ANetworkPredictionExtrasFlyingPawn that uses the MockAbility simulation
 UCLASS()
 class NETWORKPREDICTIONEXTRAS_API ANetworkPredictionExtrasFlyingPawn_MockAbility : public ANetworkPredictionExtrasFlyingPawn
@@ -123,6 +133,9 @@ public:
 	
 	UMockFlyingAbilityComponent* GetMockFlyingAbilityComponent();
 	const UMockFlyingAbilityComponent* GetMockFlyingAbilityComponent() const;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Automation")
+	ENetworkPredictionExtrasMockAbilityInputPreset AbilityInputPreset = ENetworkPredictionExtrasMockAbilityInputPreset::None;
 
 	UFUNCTION(BlueprintCallable, Category="Ability")
 	float GetStamina() const;

@@ -164,8 +164,8 @@ public:
 	DECLARE_DELEGATE_TwoParams(FProduceMockAbilityInput, const FNetworkSimTime /*SimTime*/, FMockAbilityInputCmd& /*Cmd*/)
 	FProduceMockAbilityInput ProduceInputDelegate;
 
-	TNetworkSimStateAccessor<FMockAbilitySyncState> MovementSyncState;
-	TNetworkSimStateAccessor<FMockAbilityAuxstate> MovementAuxState;
+	TNetSimStateAccessor<FMockAbilitySyncState> AbilitySyncState;
+	TNetSimStateAccessor<FMockAbilityAuxstate> AbilityAuxState;
 
 	// IMockFlyingAbilitySystemDriver
 	FString GetDebugName() const override;
@@ -235,6 +235,25 @@ private:
 protected:
 
 	// Network Prediction
-	virtual INetworkSimulationModel* InstantiateNetworkSimulation() override;
-	TUniquePtr<FMockAbilitySimulation> MockAbilitySimulation;
+	virtual INetworkedSimulationModel* InstantiateNetworkedSimulation() override;
+	FMockAbilitySimulation* MockAbilitySimulation = nullptr;
+
+	template<typename TSimulation>
+	void InitMockAbilitySimulation(TSimulation* Simulation, FMockAbilitySyncState& InitialSyncState, FMockAbilityAuxstate& InitialAuxState)
+	{
+		check(MockAbilitySimulation == nullptr);
+		MockAbilitySimulation = Simulation;
+		MockAbilitySimulation->EventHandler = this;
+
+		InitFlyingMovementSimulation(Simulation, InitialSyncState, InitialAuxState);
+	}
+
+	template<typename TNetSimModel>
+	void InitMockAbilityNetSimModel(TNetSimModel* Model)
+	{
+		AbilitySyncState.Bind(Model);
+		MovementAuxState.Bind(Model);
+
+		InitFlyingMovementNetSimModel(Model);
+	}
 };

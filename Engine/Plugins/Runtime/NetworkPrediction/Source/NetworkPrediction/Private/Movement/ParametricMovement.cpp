@@ -85,29 +85,29 @@ UParametricMovementComponent::UParametricMovementComponent()
 
 }
 
-INetworkSimulationModel* UParametricMovementComponent::InstantiateNetworkSimulation()
+INetworkedSimulationModel* UParametricMovementComponent::InstantiateNetworkedSimulation()
 {
 	if (bDisableParametricMovementSimulation)
 	{
 		return nullptr;
 	}
 
-	ParametricMovementSimulation.Reset(new FParametricMovementSimulation());
-	ParametricMovementSimulation->Motion = &ParametricMotion;
+	// Simulation
+	ParametricMovement::FMoveState InitialSyncState;
+	ParametricMovement::FAuxState InitialAuxState;
 
+	InitParametricMovementSimulation(new FParametricMovementSimulation(), InitialSyncState, InitialAuxState);
+
+	// Model
 	if (ParametricMoverCVars::FixStep > 0)
 	{
-		auto *NewModel = new ParametricMovement::FMovementSystem<32>(ParametricMovementSimulation.Get(), this);
-		NewModel->RepProxy_Simulated.bAllowSimulatedExtrapolation = !bEnableInterpolation;
-		MovementSyncState.Init(NewModel);
-		MovementAuxState.Init(NewModel);
+		auto *NewModel = new ParametricMovement::FMovementSystem<32>( ParametricMovementSimulation, this);
+		InitParametricMovementNetSimModel(NewModel);
 		return NewModel;
 	}
 	
-	auto *NewModel = new ParametricMovement::FMovementSystem<>(ParametricMovementSimulation.Get(), this);
-	NewModel->RepProxy_Simulated.bAllowSimulatedExtrapolation = !bEnableInterpolation;
-	MovementSyncState.Init(NewModel);
-	MovementAuxState.Init(NewModel);
+	auto *NewModel = new ParametricMovement::FMovementSystem<>(ParametricMovementSimulation, this);
+	InitParametricMovementNetSimModel(NewModel);
 	return NewModel;
 }
 
@@ -160,7 +160,7 @@ void UParametricMovementComponent::TickComponent(float DeltaTime, enum ELevelTic
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	if (bEnableDependentSimulation && NetworkSim.IsValid() && NetworkSim->GetParentSimulation() == nullptr)
+	if (bEnableDependentSimulation && NetSimModel.IsValid() && NetSimModel->GetParentSimulation() == nullptr)
 	{
 		// This is a very simply and generic way of finding a locally controlled network sim.
 		// The long term vision for dependent simulations is more game specific and dynamic. 
@@ -174,9 +174,9 @@ void UParametricMovementComponent::TickComponent(float DeltaTime, enum ELevelTic
 			APawn* Pawn = Player->GetPlayerController(World)->GetPawn();
 			if (UNetworkPredictionComponent* NetComponent = Pawn->FindComponentByClass<UNetworkPredictionComponent>())
 			{
-				if (INetworkSimulationModel* ParentNetSim = NetComponent->GetNetworkSimulation())
+				if (INetworkedSimulationModel* ParentNetSim = NetComponent->GetNetworkSimulation())
 				{
-					NetworkSim->SetParentSimulation(ParentNetSim);
+					NetSimModel->SetParentSimulation(ParentNetSim);
 				}
 			}
 		}
