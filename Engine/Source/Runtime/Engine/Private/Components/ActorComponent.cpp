@@ -1738,7 +1738,7 @@ void UActorComponent::SetIsReplicated(bool bShouldReplicate)
 {
 	if (GetIsReplicated() != bShouldReplicate)
 	{
-		ensureMsgf(!NeedsInitialization(), TEXT("SetReplicatedByDefault is preferred during Component Construction."));
+		ensureMsgf(!NeedsInitialization(), TEXT("SetIsReplicatedByDefault is preferred during Component Construction."));
 
 		if (GetComponentClassCanReplicate())
 		{
