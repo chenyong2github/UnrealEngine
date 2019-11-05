@@ -2939,7 +2939,7 @@ void SSCS_RowWidget::OnMakeNewRootDropAction(FSCSEditorTreeNodePtrType DroppedNo
 		check(bWasDefaultSceneRoot || SceneRootNodePtr->CanReparent());
 
 		// Remove the current scene root node from the SCS context
-		Blueprint->SimpleConstructionScript->RemoveNode(SceneRootNodePtr->GetSCSNode());
+		Blueprint->SimpleConstructionScript->RemoveNode(SceneRootNodePtr->GetSCSNode(), /*bValidateSceneRootNodes=*/false);
 
 		// Save old root node
 		OldSceneRootNodePtr = SceneRootNodePtr;
