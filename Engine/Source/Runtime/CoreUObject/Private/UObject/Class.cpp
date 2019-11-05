@@ -3985,10 +3985,8 @@ void UClass::SerializeSparseClassData(UObject* Object, FStructuredArchive::FSlot
 	// tell the archive that it's allowed to load data for transient properties
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
 
-	if (UnderlyingArchive.IsSaving())
-	{
-		GetOrCreateSparseClassData();
-	}
+	// make sure we always have sparse class a sparse class data struct to read from/write to
+	GetOrCreateSparseClassData();
 
 	if (((UnderlyingArchive.IsLoading() || UnderlyingArchive.IsSaving()) && !UnderlyingArchive.WantBinaryPropertySerialization()))
 	{
