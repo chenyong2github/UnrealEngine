@@ -170,9 +170,9 @@ namespace Chaos
 			}
 		}
 
-		// @todo(ccaulfield): remove  this
-		void ApplyPushOut(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles)
+		bool ApplyPushOut(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
 		{
+			return false;
 		}
 
 	protected:

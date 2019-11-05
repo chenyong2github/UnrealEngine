@@ -59,10 +59,10 @@ namespace Chaos
 		virtual void UpdatePositionBasedState(const T Dt) {}
 
 		/** Apply all corrections for constraints in the specified island */
-		virtual void ApplyConstraints(const T Dt, int32 Island, const int32 It, const int32 NumIts) {};
+		virtual void ApplyConstraints(const T Dt, int32 Island, const int32 It, const int32 NumIts) {}
 
 		/** Apply push out for constraints in the specified island */
-		virtual void ApplyPushOut(const T Dt, int32 Island) {};
+		virtual bool ApplyPushOut(const T Dt, int32 Island, const int32 It, const int32 NumIts) { return false; }
 
 		/** Add all constraints to the connectivity graph */
 		virtual void AddToGraph() {}
@@ -155,12 +155,13 @@ namespace Chaos
 			}
 		}
 
-		virtual void ApplyPushOut(const T Dt, int32 Island) override
+		virtual bool ApplyPushOut(const T Dt, int32 Island, const int32 It, const int32 NumIts) override
 		{
 			if (IslandConstraintLists[Island].Num())
 			{
-				Constraints.ApplyPushOut(Dt, GetIslandConstraints(Island));
+				return Constraints.ApplyPushOut(Dt, GetIslandConstraints(Island), It, NumIts);
 			}
+			return false;
 		}
 
 		virtual void InitializeAccelerationStructures() override
@@ -274,56 +275,56 @@ namespace Chaos
 			Constraints.RemoveConstraints(InConstraints);
 		}
 
-		virtual void ApplyPushOut(const T Dt, int32 Island) override
+		virtual bool ApplyPushOut(const T Dt, int32 Island, const int32 It, const int32 NumIts) override
 		{
 			const typename FConstraintColor::FLevelToColorToConstraintListMap& LevelToColorToConstraintListMap = GraphColor.GetIslandLevelToColorToConstraintListMap(Island);
 			int32 MaxColor = GraphColor.GetIslandMaxColor(Island);
 			int32 MaxLevel = GraphColor.GetIslandMaxLevel(Island);
 
-			TSet<TGeometryParticleHandle<T,d>*> IsTemporarilyStatic;	// Also needs to be per-constraint type
-			bool bNeedsAnotherIteration = true;
-			for (int32 Iteration = 0; bNeedsAnotherIteration && (Iteration < PushOutIterations); ++Iteration)
+			TSet<TGeometryParticleHandle<T, d>*> IsTemporarilyStatic;
+			bool bNeedsAnotherIteration = false;
+			for (int32 Level = 0; Level <= MaxLevel; ++Level)
 			{
-				bNeedsAnotherIteration = false;
-				for (int32 Level = 0; Level <= MaxLevel; ++Level)
+				for (int32 Color = 0; Color <= MaxColor; ++Color)
 				{
-					for (int32 Color = 0; Color <= MaxColor; ++Color)
+					if (LevelToColorToConstraintListMap[Level].Contains(Color) && LevelToColorToConstraintListMap[Level][Color].Num())
 					{
-						if (LevelToColorToConstraintListMap[Level].Contains(Color) && LevelToColorToConstraintListMap[Level][Color].Num())
+						const TArray<typename FConstraints::FConstraintHandle*>& ConstraintHandles = GetLevelColorConstraints(LevelToColorToConstraintListMap, Level, Color);
+						if (Constraints.ApplyPushOut(Dt, ConstraintHandles, IsTemporarilyStatic, It, NumIts))
 						{
-							const TArray<typename FConstraints::FConstraintHandle*>& ConstraintHandles = GetLevelColorConstraints(LevelToColorToConstraintListMap, Level, Color);
-							if (Constraints.ApplyPushOut(Dt, ConstraintHandles, IsTemporarilyStatic, Iteration, PushOutIterations))
-							{
-								bNeedsAnotherIteration = true;
-							}
+							bNeedsAnotherIteration = true;
 						}
 					}
+				}
+
+				// @todo(ccaulfield): Move shock propagation out of color rule
 #if USE_SHOCK_PROPOGATION
-					for (int32 Color = 0; Color <= MaxColor; ++Color)
+				for (int32 Color = 0; Color <= MaxColor; ++Color)
+				{
+					if (LevelToColorToConstraintListMap[Level].Contains(Color))
 					{
-						if (LevelToColorToConstraintListMap[Level].Contains(Color))
+						for (int32 Edge = 0; Edge < LevelToColorToConstraintListMap[Level][Color].Num(); ++Edge)
 						{
-							for (int32 Edge = 0; Edge < LevelToColorToConstraintListMap[Level][Color].Num(); ++Edge)
+							const int32 ConstraintIndex = LevelToColorToConstraintListMap[Level][Color][Edge]->GetConstraintIndex();
+							const TVector<TGeometryParticleHandle<T,d>*, 2> Particles = Constraints.ConstraintParticles(ConstraintIndex);
+							if (It == NumIts - 1)
 							{
-								const int32 ConstraintIndex = LevelToColorToConstraintListMap[Level][Color][Edge]->GetConstraintIndex();
-								const TVector<TGeometryParticleHandle<T,d>*, 2> Particles = Constraints.ConstraintParticles(ConstraintIndex);
-								if (Iteration == PushOutIterations - 1)
+								if (Particles[0]->AsDynamic() == nullptr || IsTemporarilyStatic.Contains(Particles[0]))
 								{
-									if (Particles[0]->AsDynamic() == nullptr || IsTemporarilyStatic.Contains(Particles[0]))
-									{
-										IsTemporarilyStatic.Add(Particles[1]);
-									}
-									else if (Particles[1]->AsDynamic() == nullptr || IsTemporarilyStatic.Contains(Particles[1]))
-									{
-										IsTemporarilyStatic.Add(Particles[0]);
-									}
+									IsTemporarilyStatic.Add(Particles[1]);
+								}
+								else if (Particles[1]->AsDynamic() == nullptr || IsTemporarilyStatic.Contains(Particles[1]))
+								{
+									IsTemporarilyStatic.Add(Particles[0]);
 								}
 							}
 						}
 					}
-#endif
 				}
+#endif
 			}
+
+			return bNeedsAnotherIteration;
 		}
 
 		virtual void InitializeAccelerationStructures() override

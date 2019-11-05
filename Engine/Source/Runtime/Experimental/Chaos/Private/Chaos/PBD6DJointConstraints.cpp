@@ -1372,12 +1372,17 @@ void TPBD6DJointConstraints<T, d>::Apply(const T Dt, const TArray<FConstraintHan
 }
 
 template<class T, int d>
-void TPBD6DJointConstraints<T, d>::ApplyPushOut(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles)
+bool TPBD6DJointConstraints<T, d>::ApplyPushOut(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
 {
+	// @todo(ccaulfield): track whether we are sufficiently solved
+	bool bNeedsAnotherIteration = true;
+
 	for (FConstraintHandle* ConstraintHandle : InConstraintHandles)
 	{
 		ApplyPushOutSingle(Dt, ConstraintHandle->GetConstraintIndex());
 	}
+
+	return bNeedsAnotherIteration;
 }
 
 template<class T, int d>
