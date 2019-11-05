@@ -168,6 +168,8 @@ public:
 	virtual UObject* GetPlaybackContext() const override;
 	virtual TArray<UObject*> GetEventContexts() const override;
 
+	void RewindForReplay();
+
 protected:
 
 	// IMovieScenePlayer interface
