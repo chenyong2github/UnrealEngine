@@ -78,6 +78,8 @@ protected:
 	void ClearLayer(int32 InLayerIndex, ELandscapeClearMode InClearMode);
 	void RenameLayer(int32 InLayerIndex);
 	void DeleteLayer(int32 InLayerIndex);
+	bool CanCollapseLayer(int32 InLayerIndex, FText& OutReason) const;
+	void CollapseLayer(int32 InLayerIndex);
 	void ShowOnlySelectedLayer(int32 InLayerIndex);
 	void ShowAllLayers();
 	bool CanRenameLayerTo(const FText& NewText, FText& OutErrorMessage, int32 InLayerIndex);
