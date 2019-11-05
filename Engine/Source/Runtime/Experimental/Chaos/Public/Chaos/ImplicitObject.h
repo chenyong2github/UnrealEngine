@@ -171,12 +171,6 @@ public:
 	FVec3 Normal(const FVec3& x) const;
 	virtual FReal PhiWithNormal(const FVec3& x, FVec3& Normal) const = 0;
 	virtual const class TBox<FReal, 3>& BoundingBox() const;
-	virtual FReal GetMargin() const
-	{
-		return 0;
-	}
-	virtual FVec3 Support(const FVec3& Direction, const FReal Thickness) const;
-	virtual FVec3 Support2(const FVec3& Direction) const { return Support(Direction, 0); }
 	bool HasBoundingBox() const { return bHasBoundingBox; }
 	bool IsConvex() const { return bIsConvex; }
 	void IgnoreAnalyticCollisions(const bool Ignore = true) { bIgnoreAnalyticCollisions = Ignore; }
@@ -258,7 +252,7 @@ public:
 
 	void SerializeImp(FArchive& Ar);
 
-	static EImplicitObjectType StaticType()
+	constexpr static EImplicitObjectType StaticType()
 	{
 		return ImplicitObjectType::Unknown;
 	}

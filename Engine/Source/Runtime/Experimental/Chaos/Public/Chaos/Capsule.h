@@ -74,7 +74,7 @@ namespace Chaos
 
 		~TCapsule() {}
 
-		static EImplicitObjectType StaticType() { return ImplicitObjectType::Capsule; }
+		static constexpr EImplicitObjectType StaticType() { return ImplicitObjectType::Capsule; }
 
 		static TCapsule<T> NewFromOriginAndAxis(const TVector<T, 3>& Origin, const TVector<T, 3>& Axis, const T Height, const T Radius)
 		{
@@ -287,14 +287,14 @@ namespace Chaos
 			return RaycastFast(MRadius, GetHeight(), GetAxis(), GetX1(), GetX2(), StartPoint, Dir, Length, Thickness, OutTime, OutPosition, OutNormal, OutFaceIndex);
 		}
 
-		TVector<T,3> Support(const TVector<T, 3>& Direction, const T Thickness) const override
+		FORCEINLINE TVector<T,3> Support(const TVector<T, 3>& Direction, const T Thickness) const
 		{
 			return MSegment.Support(Direction, MRadius + Thickness);
 		}
 
-		virtual TVector<T, 3> Support2(const TVector<T, 3>& Direction) const override { return MSegment.Support2(Direction); }
+		FORCEINLINE TVector<T, 3> Support2(const TVector<T, 3>& Direction) const { return MSegment.Support2(Direction); }
 
-		virtual T GetMargin() const override
+		FORCEINLINE T GetMargin() const
 		{
 			return MRadius;
 		}

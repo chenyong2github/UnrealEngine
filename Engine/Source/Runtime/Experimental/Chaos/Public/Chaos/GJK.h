@@ -578,11 +578,13 @@ namespace Chaos
 
 	template <typename T, typename TGeometryA, typename TGeometryB>
 	bool GJKRaycast2(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& RayDir, const T RayLength,
-		T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, const T ThicknessA = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T ThicknessB = 0)
+		T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, const T GivenThicknessA = 0, bool bComputeMTD = false, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T GivenThicknessB = 0)
 	{
 		ensure(FMath::IsNearlyEqual(RayDir.SizeSquared(), 1, KINDA_SMALL_NUMBER));
 		ensure(RayLength > 0);
-		check(A.IsConvex() && B.IsConvex());
+		const T ThicknessA = A.GetMargin();
+		const T ThicknessB = B.GetMargin();
+
 		const TVector<T, 3> StartPoint = StartTM.GetLocation();
 
 		TVector<T, 3> Simplex[4] = { TVector<T,3>(0), TVector<T,3>(0), TVector<T,3>(0), TVector<T,3>(0) };
@@ -686,7 +688,6 @@ namespace Chaos
 		if (Lambda > 0)
 		{
 			OutNormal = Normal;
-			TVector<T, 3> ClosestA(0);
 			TVector<T, 3> ClosestB(0);
 
 			for (int i = 0; i < SimplexIDs.NumVerts; ++i)
@@ -696,6 +697,35 @@ namespace Chaos
 			const TVector<T, 3> ClosestLocal = ClosestB - OutNormal * ThicknessB;
 
 			OutPosition = StartPoint + RayDir * Lambda + ClosestLocal;
+		}
+		else if (bComputeMTD)
+		{
+			if (InGJKPreDist2)
+			{
+				OutNormal = Normal;
+				TVector<T, 3> ClosestA(0);
+				TVector<T, 3> ClosestB(0);
+
+				for (int i = 0; i < SimplexIDs.NumVerts; ++i)
+				{
+					ClosestA += As[i] * Barycentric[i];
+					ClosestB += Bs[i] * Barycentric[i];
+				}
+
+				const T InGJKPreDist = FMath::Sqrt(InGJKPreDist2);
+				OutNormal = (ClosestA - ClosestB).GetUnsafeNormal();	//question: should we just use InGJKPreDist2?
+				const TVector<T, 3> ClosestLocal = ClosestB - OutNormal * ThicknessB;
+
+				OutPosition = StartPoint + ClosestLocal;
+				OutTime = InGJKPreDist - ThicknessA - ThicknessB;
+			}
+			else
+			{
+				ensure(false);	//todo: use EPA
+				OutTime = 0;
+				OutPosition = TVector<T, 3>(0);
+				OutNormal = { 0,0,1 };
+			}
 		}
 
 		return true;
