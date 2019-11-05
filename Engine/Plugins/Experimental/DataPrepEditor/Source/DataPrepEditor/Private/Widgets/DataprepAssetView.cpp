@@ -289,11 +289,116 @@ void SGraphNodeDetailsWidget::UpdateFromObjects(const TArray<UObject*>& Property
 	ContextualEditingBorderWidget->SetContent(ContextualEditingWidget);
 }
 
-void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInterface* InDataprepAssetPtr, TSharedPtr<FUICommandList>& CommandList )
+TSharedRef<ITableRow> SDataprepAssetView::OnGenerateRowForCategoryTree( TSharedRef<EDataprepCategory> InTreeNode, const TSharedRef<STableViewBase>& InOwnerTable )
+{
+	TSharedPtr<ITableRow> Row;
+
+	switch( InTreeNode.Get() )
+	{
+		case EDataprepCategory::Producers:
+		{
+			ProducersWidget = SNew( SDataprepProducersWidget, DataprepAssetInterfacePtr->GetProducers(), CommandList )
+				.ColumnSizeData( ColumnSizeData );
+
+			TSharedPtr< SHorizontalBox > AddNewProducerWrapper = SNew( SHorizontalBox )
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding( 8.0f, 0.0f, 0.0f, 0.0f )
+				.HAlign( EHorizontalAlignment::HAlign_Right )
+				[
+					ProducersWidget->GetAddNewMenu().ToSharedRef()
+				];
+
+			Row = SNew( SDataprepCategoryWidget, ProducersWidget.ToSharedRef(), InOwnerTable )
+				.ColumnSizeData( ColumnSizeData )
+				.Title( LOCTEXT("DataprepProducersWidget_Producers_label", "Inputs") )
+				.TitleDetail( AddNewProducerWrapper.ToSharedRef() );
+			
+			break;
+		}
+		case EDataprepCategory::Consumers:
+		{
+			ConsumerWidget = SNew( SDataprepConsumerWidget )
+				.DataprepConsumer( DataprepAssetInterfacePtr->GetConsumer() )
+				.ColumnSizeData( ColumnSizeData );
+
+			TSharedPtr< SVerticalBox > ConsumerContainer = SNew( SVerticalBox )
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					ConsumerWidget.ToSharedRef()
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew( SDataprepDetailsView )
+					.Object( DataprepAssetInterfacePtr->GetConsumer() )
+				];
+
+			TSharedPtr< SHorizontalBox > ConsumerSelectorWrapper = SNew( SHorizontalBox )
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.HAlign( EHorizontalAlignment::HAlign_Right )
+				[
+					ConsumerSelector.ToSharedRef()
+				];
+
+			Row = SNew( SDataprepCategoryWidget, ConsumerContainer.ToSharedRef(), InOwnerTable )
+				.ColumnSizeData( ColumnSizeData )
+				.Title( LOCTEXT("DataprepAssetView_Consumer_label", "Output") )
+				.TitleDetail( ConsumerSelectorWrapper.ToSharedRef() );
+
+			break;
+		}
+		case EDataprepCategory::Parameterization:
+		{
+			TSharedPtr<SDataprepDetailsView> ParameterizationDetailsView;
+
+			TSharedPtr< DataprepWidgetUtils::SConstrainedBox> ParametrizationContainer = SNew( DataprepWidgetUtils::SConstrainedBox )
+				[
+					SNew( SVerticalBox )
+					+ SVerticalBox::Slot()
+					.Padding( 8.0f, 5.0f, 0.0f, 0.0f )
+					.AutoHeight()
+					[
+
+						SAssignNew( ParameterizationDetailsView, SDataprepDetailsView )
+						.Object( DataprepAssetInterfacePtr->GetParameterizationObject() )
+						.ColumnSizeData( ColumnSizeData )
+						.Spacing( 10.0f )
+						.ColumnPadding( true )
+					]
+				];
+
+			if( DataprepAssetInterfacePtr->IsA<UDataprepAsset>() )
+			{
+				TWeakObjectPtr<UDataprepAsset> DataprepAsset = static_cast<UDataprepAsset*>( DataprepAssetInterfacePtr.Get() );
+				OnParameterizationWasEdited = DataprepAsset->OnParameterizedObjectsChanged.AddLambda( [ParameterizationDetailsView, DataprepAsset](const TSet<UObject*>* Objects )
+				{
+					if( Objects && Objects->Contains(DataprepAsset->GetParameterizationObject()) )
+					{
+						ParameterizationDetailsView->ForceRefresh();
+					}
+				});
+			}
+
+			Row = SNew( SDataprepCategoryWidget, ParametrizationContainer.ToSharedRef(), InOwnerTable )
+				.Title( LOCTEXT("DataprepAssetView_Consumer_Parameterization", "Parameterization") )
+				.ColumnSizeData( ColumnSizeData );
+			
+			break;
+		}
+	}
+
+	return Row.ToSharedRef();
+}
+
+void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInterface* InDataprepAssetPtr, TSharedPtr<FUICommandList>& InCommandList )
 {
 	check( InDataprepAssetPtr );
 
 	DataprepAssetInterfacePtr = InDataprepAssetPtr;
+	CommandList = InCommandList;
 
 	DataprepAssetInterfacePtr->GetOnChanged().AddRaw( this, &SDataprepAssetView::OnDataprepAssetChanged );
 
@@ -343,7 +448,6 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 			SelectedConsumerDescription = MakeShared<FString>( FString() );
 		}
 
-
 		ConsumerSelector = SNew( STextComboBox )
 		.OptionsSource( &ConsumerDescriptionList )
 		.OnSelectionChanged( this, &SDataprepAssetView::OnNewConsumerSelected )
@@ -353,9 +457,6 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 	{
 		ConsumerSelector = SNullWidget::NullWidget;
 	}
-
-	ProducersWidget = SNew(SDataprepProducersWidget, AssetProducers, CommandList)
-		.ColumnSizeData(ColumnSizeData);
 
 	TSharedRef<SDataprepDetailsView> DetailView = SNew(SDataprepDetailsView)
 	.ColumnSizeData( ColumnSizeData )
@@ -422,8 +523,17 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 			]
 		];
 	}
+	
+	Categories.Add( MakeShared<EDataprepCategory>( EDataprepCategory::Producers ) );
+	Categories.Add( MakeShared<EDataprepCategory>( EDataprepCategory::Consumers ) );
+	Categories.Add( MakeShared<EDataprepCategory>( EDataprepCategory::Parameterization ) );
 
-	TSharedPtr<SDataprepDetailsView> ParameterizationDetailsView;
+	TSharedRef< SDataprepCategoryTree > CategoryTree = SNew( SDataprepCategoryTree )
+		.TreeItemsSource( &Categories )
+		.OnGetChildren( this, &SDataprepAssetView::OnGetChildrenForCategoryTree )
+		.OnGenerateRow( this, &SDataprepAssetView::OnGenerateRowForCategoryTree )
+		.SelectionMode( ESelectionMode::None )
+		.HandleDirectionalNavigation( false );
 
 	ChildSlot
 	[
@@ -454,151 +564,11 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 						ParentSpacer
 					]
 					// End - Section for Dataprep parent
-					// Begin - Section for producers
-					+ SVerticalBox::Slot()
-					.Padding( 5.0f )
-					.AutoHeight()
-					.MaxHeight( 400.f )
-					[
-						ProducersWidget.ToSharedRef()
-					]
-					// End - Section for producers
-
-					// Begin - Section for consumer
 					+ SVerticalBox::Slot()
 					.AutoHeight()
 					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.FillWidth(1.0f)
-						.Padding( 0, 10, 0, 0 )
-						.HAlign( EHorizontalAlignment::HAlign_Center )
-						[
-							SNew(SColorBlock)
-							.Color( FLinearColor( 0.9f, 0.9f, 0.9f ) )
-							.Size( FVector2D( 3000, 1 ) )
-						]
+						CategoryTree
 					]
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						[
-							SNew(SSpacer)
-							.Size( FVector2D( 200, 10 ) )		
-						]
-					]
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.FillWidth(1.0f)
-						.HAlign(EHorizontalAlignment::HAlign_Left)
-						.VAlign(VAlign_Center)
-						.Padding( FMargin( 5.0f, 5.0f, 0, 7.0f ) )
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("DataprepAssetView_Consumer_label", "Output"))
-							.MinDesiredWidth( 200 )
-							.Font( FDataprepEditorStyle::Get()->GetFontStyle("DataprepEditor.SectionFont") )
-						]
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.HAlign(EHorizontalAlignment::HAlign_Right)
-						.Padding(0, 0, 2, 0)
-						[
-							ConsumerSelector.ToSharedRef()
-						]
-					]
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						SAssignNew( ConsumerWidget, SDataprepConsumerWidget )
-						.DataprepConsumer( DataprepAssetInterfacePtr->GetConsumer() )
-						.ColumnSizeData( ColumnSizeData )
-					]
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						SNew( SDataprepDetailsView )
-						.Object( DataprepAssetInterfacePtr->GetConsumer())
-					]
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						[
-							SNew(SSpacer)
-							.Size( FVector2D( 200, 10 ) )		
-						]
-					]
-					// End - Section for consumer
-
-					// Begin - Section for parameterization
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.FillWidth(1.0f)
-						.Padding( 0, 10, 0, 0 )
-						.HAlign( EHorizontalAlignment::HAlign_Center )
-						[
-							SNew(SColorBlock)
-							.Color( FLinearColor( 0.9f, 0.9f, 0.9f ) )
-							.Size( FVector2D( 3000, 1 ) )
-						]
-					]
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						[
-							SNew(SSpacer)
-							.Size( FVector2D( 200, 10 ) )		
-						]
-					]
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.FillWidth(1.0f)
-						.HAlign(EHorizontalAlignment::HAlign_Left)
-						.VAlign(VAlign_Center)
-						.Padding( FMargin( 5.0f, 5.0f, 0, 7.0f ) )
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("DataprepAssetView_Consumer_Parameterization", "Parameterization"))
-							.MinDesiredWidth( 200 )
-							.Font( FDataprepEditorStyle::Get()->GetFontStyle("DataprepEditor.SectionFont") )
-						]
-					]
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.FillWidth(1.0f)
-						.HAlign(EHorizontalAlignment::HAlign_Left)
-						.VAlign(VAlign_Center)
-						.Padding(10.0f, 5.0f, 0.0f, 5.0f)
-						[
-							SNew( DataprepWidgetUtils::SConstrainedBox )
-							[
-								SAssignNew( ParameterizationDetailsView, SDataprepDetailsView )
-								.Object( DataprepAssetInterfacePtr->GetParameterizationObject() )
-								.ColumnSizeData( ColumnSizeData )
-								.Spacing( 10.0f )
-								.ColumnPadding( true )
-							]
-						]
-					]
-					// End - Section for parameterization
 				]
 			]
 			+SHorizontalBox::Slot()
@@ -612,19 +582,6 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 			]
 		]
 	];
-
-	if ( DataprepAssetInterfacePtr->IsA<UDataprepAsset>() )
-	{
-		TWeakObjectPtr<UDataprepAsset> DataprepAsset = static_cast<UDataprepAsset*>( DataprepAssetInterfacePtr.Get() );
-		OnParameterizationWasEdited = DataprepAsset->OnParameterizedObjectsChanged.AddLambda( [ParameterizationDetailsView, DataprepAsset](const TSet<UObject*>* Objects)
-		{
-			if ( Objects && Objects->Contains( DataprepAsset->GetParameterizationObject() ) )
-			{
-				ParameterizationDetailsView->ForceRefresh();
-			}
-		});
-	}
-
 }
 
 SDataprepAssetView::~SDataprepAssetView()
