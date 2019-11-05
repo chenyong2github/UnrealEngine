@@ -95,6 +95,12 @@ namespace Chaos
 				// Should now only hit when loading older trimeshes
 				RebuildBV();
 			}
+			else if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::TrimeshSerializesAABBTree)
+			{
+				TBoundingVolume<int32, T, 3> Dummy;
+				Ar << Dummy;
+				RebuildBV();
+			}
 			else
 			{
 				// Serialize acceleration
