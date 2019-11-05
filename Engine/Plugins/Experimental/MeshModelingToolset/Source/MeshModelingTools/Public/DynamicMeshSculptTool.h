@@ -17,6 +17,9 @@
 #include "TransformTypes.h"
 #include "DynamicMeshSculptTool.generated.h"
 
+class UTransformGizmo;
+class UTransformProxy;
+
 
 DECLARE_STATS_GROUP(TEXT("SculptTool"), STATGROUP_SculptTool, STATCAT_Advanced);
 DECLARE_CYCLE_STAT(TEXT("SculptTool_UpdateROI"), SculptTool_UpdateROI, STATGROUP_SculptTool);
@@ -70,6 +73,8 @@ enum class EDynamicMeshSculptBrushType : uint8
 	/** Plane Brush pulls vertices to a plane defined by the initial brush position  */
 	Plane UMETA(DisplayName = "Plane"),
 
+	/** FixedPlane Brush pulls vertices to a fixed plane defined by the gizmo */
+	FixedPlane UMETA(DisplayName = "FixedPlane"),
 
 	LastValue UMETA(Hidden)
 
@@ -144,7 +149,31 @@ public:
 
 	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
 	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
+};
 
+
+
+UCLASS()
+class MESHMODELINGTOOLS_API UFixedPlaneBrushProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+
+public:
+	UFixedPlaneBrushProperties();
+
+	UPROPERTY()
+	bool bPropertySetEnabled = true;
+
+	/** Toggle whether interactive plane gizmo is visible */
+	UPROPERTY(EditAnywhere, Category = TargetPlane, meta = (EditCondition = "bPropertySetEnabled == true"))
+	bool bShowGizmo;
+
+	/** Toggle whether fixed plane snaps to grid */
+	UPROPERTY(EditAnywhere, Category = TargetPlane, meta = (EditCondition = "bPropertySetEnabled == true"))
+	bool bSnapToGrid;
+
+	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
+	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 };
 
 
@@ -245,6 +274,8 @@ public:
 	UPROPERTY()
 	UMeshEditingViewProperties* ViewProperties;
 
+	UPROPERTY()
+	UFixedPlaneBrushProperties* GizmoProperties;
 
 public:
 
@@ -350,6 +381,7 @@ protected:
 	void ApplyPinchBrush(const FRay& WorldRay);
 	void ApplyInflateBrush(const FRay& WorldRay);
 	void ApplyPlaneBrush(const FRay& WorldRay);
+	void ApplyFixedPlaneBrush(const FRay& WorldRay);
 	void ApplyFlattenBrush(const FRay& WorldRay);
 
 	double CalculateBrushFalloff(double Distance);
@@ -385,6 +417,34 @@ protected:
 	int BrushTypeHistoryIndex = 0;
 
 	UPreviewMesh* MakeDefaultSphereMesh(UObject* Parent, UWorld* World, int Resolution = 32);
+
+
+	//
+	// support for gizmo in FixedPlane mode
+	//
+
+	// plane gizmo
+	UPROPERTY()
+	UTransformGizmo* PlaneTransformGizmo;
+
+	UPROPERTY()
+	UTransformProxy* PlaneTransformProxy;
+
+	UPROPERTY()
+	FVector DrawPlaneOrigin;
+
+	/** Orientation of plane we will draw polygon on */
+	UPROPERTY()
+	FQuat DrawPlaneOrientation;
+
+	void PlaneTransformChanged(UTransformProxy* Proxy, FTransform Transform);
+
+	bool bPendingSetFixedPlanePosition = false;
+	void SetFixedSculptPlaneFromWorldPos(const FVector& Position);
+
+	void UpdateFixedSculptPlanePosition(const FVector& Position);
+
+	void UpdateFixedPlaneGizmoVisibility(bool bVisible);
 };
 
 
