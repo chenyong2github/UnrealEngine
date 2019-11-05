@@ -3,6 +3,7 @@
 #include "ViewModels/Stack/NiagaraStackScriptItemGroup.h"
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "NiagaraScriptViewModel.h"
 #include "NiagaraScriptGraphViewModel.h"
@@ -826,6 +827,9 @@ TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackScriptItemGroup
 
 void UNiagaraStackScriptItemGroup::ItemAdded(UNiagaraNodeFunctionCall* AddedModule)
 {
+	TArray<const UObject*> DisplayedObjectsToSelect;
+	DisplayedObjectsToSelect.Add(AddedModule);
+	GetSystemViewModel()->GetSelectionViewModel()->AddEntriesToSelectionByDisplayedObjectsDeferred(DisplayedObjectsToSelect);
 	RefreshChildren();
 }
 

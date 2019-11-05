@@ -169,8 +169,13 @@ FNiagaraSystemToolkit::~FNiagaraSystemToolkit()
 {
 	if (SystemViewModel.IsValid())
 	{
-		SystemViewModel->Cleanup();
+		if (SystemViewModel->GetSelectionViewModel() != nullptr)
+		{
+			SystemViewModel->GetSelectionViewModel()->OnSystemIsSelectedChanged().RemoveAll(this);
+			SystemViewModel->GetSelectionViewModel()->OnEmitterHandleIdSelectionChanged().RemoveAll(this);
+		}
 		SystemViewModel->GetOnPinnedCurvesChanged().RemoveAll(this);
+		SystemViewModel->Cleanup();
 	}
 	SystemViewModel.Reset();
 }
@@ -292,7 +297,8 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 	ObjectSelectionForParameterMapView = MakeShared<FNiagaraObjectSelection>();
 
 	SystemViewModel->OnEmitterHandleViewModelsChanged().AddSP(this, &FNiagaraSystemToolkit::RefreshParameters);
-	SystemViewModel->GetSelectionViewModel()->OnSelectionChanged().AddSP(this, &FNiagaraSystemToolkit::OnSystemSelectionChanged);
+	SystemViewModel->GetSelectionViewModel()->OnSystemIsSelectedChanged().AddSP(this, &FNiagaraSystemToolkit::OnSystemSelectionChanged);
+	SystemViewModel->GetSelectionViewModel()->OnEmitterHandleIdSelectionChanged().AddSP(this, &FNiagaraSystemToolkit::OnSystemSelectionChanged);
 	SystemViewModel->GetOnPinnedEmittersChanged().AddSP(this, &FNiagaraSystemToolkit::RefreshParameters);
 	SystemViewModel->GetOnPinnedCurvesChanged().AddSP(this, &FNiagaraSystemToolkit::OnPinnedCurvesChanged);
 
@@ -530,7 +536,7 @@ public:
 	void Construct(const FArguments& InArgs, TSharedRef<FNiagaraSystemViewModel> InSystemViewModel)
 	{
 		SystemViewModel = InSystemViewModel;
-		SystemViewModel->GetSelectionViewModel()->OnSelectionChanged().AddSP(this, &SNiagaraSelectedEmitterGraph::SystemSelectionChanged);
+		SystemViewModel->GetSelectionViewModel()->OnEmitterHandleIdSelectionChanged().AddSP(this, &SNiagaraSelectedEmitterGraph::SystemSelectionChanged);
 		ChildSlot
 		[
 			SAssignNew(GraphWidgetContainer, SBox)
@@ -542,12 +548,12 @@ public:
 	{
 		if (SystemViewModel.IsValid() && SystemViewModel->GetSelectionViewModel())
 		{
-			SystemViewModel->GetSelectionViewModel()->OnSelectionChanged().RemoveAll(this);
+			SystemViewModel->GetSelectionViewModel()->OnEmitterHandleIdSelectionChanged().RemoveAll(this);
 		}
 	}
 
 private:
-	void SystemSelectionChanged(UNiagaraSystemSelectionViewModel::ESelectionChangeSource SelectionChangeSource)
+	void SystemSelectionChanged()
 	{
 		UpdateGraphWidget();
 	}
@@ -1303,7 +1309,7 @@ void FNiagaraSystemToolkit::RefreshParameters()
 	ObjectSelectionForParameterMapView->SetSelectedObjects(NewParameterViewSelection);
 }
 
-void FNiagaraSystemToolkit::OnSystemSelectionChanged(UNiagaraSystemSelectionViewModel::ESelectionChangeSource SelectionChangeSource)
+void FNiagaraSystemToolkit::OnSystemSelectionChanged()
 {
 	RefreshParameters();
 }

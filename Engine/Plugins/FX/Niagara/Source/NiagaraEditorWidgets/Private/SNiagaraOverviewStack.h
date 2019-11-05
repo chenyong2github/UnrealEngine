@@ -3,7 +3,6 @@
 #pragma once
 
 #include "ViewModels/Stack/NiagaraStackEntry.h"
-#include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SListView.h"
 #include "UObject/ObjectKey.h"
@@ -48,7 +47,7 @@ private:
 
 	void OnSelectionChanged(UNiagaraStackEntry* InNewSelection, ESelectInfo::Type SelectInfo);
 
-	void SystemSelectionChanged(UNiagaraSystemSelectionViewModel::ESelectionChangeSource SelectionChangeSource);
+	void SystemSelectionChanged();
 
 	FReply OnRowDragDetected(const FGeometry& InGeometry, const FPointerEvent& InPointerEvent, TWeakObjectPtr<UNiagaraStackEntry> InStackEntryWeak);
 
