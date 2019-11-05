@@ -94,7 +94,7 @@ void SKeySelector::Construct(const FArguments& InArgs)
 
 	for (FKey Key : AllKeys)
 	{
-		if (!InArgs._FilterBlueprintBindable || Key.IsBindableInBlueprints())
+		if (Key.IsBindableToActions() && (!InArgs._FilterBlueprintBindable || Key.IsBindableInBlueprints()))
 		{
 			const FName KeyMenuCategory = Key.GetMenuCategory();
 			FKeyTreeItem* KeyCategory = TreeRootsForCatgories.Find(KeyMenuCategory);

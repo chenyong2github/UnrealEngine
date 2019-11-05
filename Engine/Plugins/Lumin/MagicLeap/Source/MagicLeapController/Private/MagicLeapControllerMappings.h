@@ -63,6 +63,30 @@ const FName& MLToUnrealButton(EControllerHand Hand, MLInputControllerButton ml_b
 	case MLInputControllerButton_Bumper:
 		if (Hand == EControllerHand::Left)
 		{
+			return FMagicLeapControllerKeyNames::Left_Bumper_Name;
+		}
+		return FMagicLeapControllerKeyNames::Right_Bumper_Name;
+	case MLInputControllerButton_HomeTap:
+		if (Hand == EControllerHand::Left)
+		{
+			return FMagicLeapControllerKeyNames::Left_HomeButton_Name;
+		}
+		return FMagicLeapControllerKeyNames::Right_HomeButton_Name;
+	default:
+		break;
+	}
+	return empty;
+}
+
+const FName& MLToUnrealButtonLegacy(EControllerHand Hand, MLInputControllerButton ml_button)
+{
+	static const FName empty;
+
+	switch (ml_button)
+	{
+	case MLInputControllerButton_Bumper:
+		if (Hand == EControllerHand::Left)
+		{
 			return FGamepadKeyNames::MotionController_Left_Shoulder;
 		}
 		return FGamepadKeyNames::MotionController_Right_Shoulder;
@@ -85,8 +109,38 @@ const FName& MLToUnrealButton(FName MotionSource, MLInputControllerButton ml_but
 }
 #endif //WITH_MLSDK
 
+const FName& MLTouchToUnrealTrackpadAxis(EControllerHand Hand, uint32 TouchIndex)
+{
+	static const FName empty;
 
-const FName& MLTouchToUnrealThumbstickAxis(EControllerHand Hand, uint32 TouchIndex)
+	switch (TouchIndex)
+	{
+	case 0:
+		if (Hand == EControllerHand::Left)
+		{
+			return FMagicLeapControllerKeyNames::Left_Trackpad_X_Name;
+		}
+		return FMagicLeapControllerKeyNames::Right_Trackpad_X_Name;
+	case 1:
+		if (Hand == EControllerHand::Left)
+		{
+			return FMagicLeapControllerKeyNames::Left_Trackpad_X_Name;;
+		}
+		return FMagicLeapControllerKeyNames::Right_Trackpad_X_Name;
+	case 2:
+		if (Hand == EControllerHand::Left)
+		{
+			return FMagicLeapControllerKeyNames::Left_Trackpad_Force_Name;
+		}
+		return FMagicLeapControllerKeyNames::Right_Trackpad_Force_Name;
+	default:
+		return empty;
+	}
+
+	return empty;
+}
+
+const FName& MLTouchToUnrealTrackpadAxisLegacy(EControllerHand Hand, uint32 TouchIndex)
 {
 	static const FName empty;
 
@@ -117,7 +171,53 @@ const FName& MLTouchToUnrealThumbstickAxis(EControllerHand Hand, uint32 TouchInd
 	return empty;
 }
 
-const FName& MLTouchToUnrealThumbstickButton(EControllerHand Hand)
+const FName& MLTouchToUnrealTouch1Axis(EControllerHand Hand, uint32 TouchIndex)
+{
+	static const FName empty;
+
+	switch (TouchIndex)
+	{
+	case 0:
+		if (Hand == EControllerHand::Left)
+		{
+			return FMagicLeapControllerKeyNames::Left_Touch1_X_Name;
+		}
+		return FMagicLeapControllerKeyNames::Right_Touch1_X_Name;
+	case 1:
+		if (Hand == EControllerHand::Left)
+		{
+			return FMagicLeapControllerKeyNames::Left_Touch1_Y_Name;
+		}
+		return FMagicLeapControllerKeyNames::Right_Touch1_Y_Name;
+	case 2:
+		if (Hand == EControllerHand::Left)
+		{
+			return FMagicLeapControllerKeyNames::Left_Touch1_Force_Name;
+		}
+		return FMagicLeapControllerKeyNames::Right_Touch1_Force_Name;
+	default:
+		return empty;
+	}
+
+	return empty;
+}
+
+const FName& MLTouchToUnrealTrackpadButton(EControllerHand Hand)
+{
+	static const FName empty;
+
+	switch (Hand)
+	{
+	case EControllerHand::Left:
+		return FMagicLeapControllerKeyNames::Left_Trackpad_Touch_Name;
+	case EControllerHand::Right:
+		return FMagicLeapControllerKeyNames::Right_Trackpad_Touch_Name;
+	}
+
+	return empty;
+}
+
+const FName& MLTouchToUnrealTrackpadButtonLegacy(EControllerHand Hand)
 {
 	static const FName empty;
 
@@ -132,7 +232,37 @@ const FName& MLTouchToUnrealThumbstickButton(EControllerHand Hand)
 	return empty;
 }
 
+const FName& MLTouchToUnrealTouch1Button(EControllerHand Hand)
+{
+	static const FName empty;
+
+	switch (Hand)
+	{
+	case EControllerHand::Left:
+		return FMagicLeapControllerKeyNames::Left_Touch1_Touch_Name;
+	case EControllerHand::Right:
+		return FMagicLeapControllerKeyNames::Right_Touch1_Touch_Name;
+	}
+
+	return empty;
+}
+
 const FName& MLTriggerToUnrealTriggerAxis(EControllerHand Hand)
+{
+	static const FName empty;
+
+	switch (Hand)
+	{
+	case EControllerHand::Left:
+		return FMagicLeapControllerKeyNames::Left_Trigger_Axis_Name;
+	case EControllerHand::Right:
+		return FMagicLeapControllerKeyNames::Right_Trigger_Axis_Name;
+	}
+
+	return empty;
+}
+
+const FName& MLTriggerToUnrealTriggerAxisLegacy(EControllerHand Hand)
 {
 	static const FName empty;
 
@@ -148,6 +278,19 @@ const FName& MLTriggerToUnrealTriggerAxis(EControllerHand Hand)
 }
 
 const FName& MLTriggerToUnrealTriggerKey(EControllerHand Hand)
+{
+	static const FName empty;
+	switch (Hand)
+	{
+	case EControllerHand::Left:
+		return FMagicLeapControllerKeyNames::Left_Trigger_Name;
+	case EControllerHand::Right:
+		return FMagicLeapControllerKeyNames::Right_Trigger_Name;
+	}
+	return empty;
+}
+
+const FName& MLTriggerToUnrealTriggerKeyLegacy(EControllerHand Hand)
 {
 	static const FName empty;
 	switch (Hand)
