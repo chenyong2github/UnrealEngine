@@ -17,6 +17,26 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #endif
 
+void FSoundClassProperties::SetAttenuationDistanceScale(float InAttenuationScale, float InTime)
+{
+	AttenuationScaleParam.Set(AttenuationDistanceScale, InTime);
+}
+
+void FSoundClassProperties::SetParentAttenuationDistanceScale(float InAttenuationDistanceScale)
+{
+	ParentAttenuationScale = InAttenuationDistanceScale;
+}
+
+float FSoundClassProperties::GetAttenuationDistanceScale() const
+{
+	return AttenuationScaleParam.GetValue() * ParentAttenuationScale;
+}
+
+void FSoundClassProperties::UpdateSoundClassProperties(float DeltaTime)
+{
+	AttenuationScaleParam.Update(DeltaTime);
+}
+
 /*-----------------------------------------------------------------------------
 	USoundClass implementation.
 -----------------------------------------------------------------------------*/
