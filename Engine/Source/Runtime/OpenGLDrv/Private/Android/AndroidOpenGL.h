@@ -144,6 +144,13 @@ extern PFNGLDRAWELEMENTSINSTANCEDPROC	glDrawElementsInstanced;
 extern PFNGLDRAWARRAYSINSTANCEDPROC		glDrawArraysInstanced;
 extern PFNGLVERTEXATTRIBDIVISORPROC		glVertexAttribDivisor;
 
+extern PFNGLGENVERTEXARRAYSPROC 		glGenVertexArrays;
+extern PFNGLBINDVERTEXARRAYPROC 		glBindVertexArray;
+extern PFNGLMAPBUFFERRANGEPROC			glMapBufferRange;
+extern PFNGLCOPYBUFFERSUBDATAPROC		glCopyBufferSubData;
+extern PFNGLDRAWARRAYSINDIRECTPROC		glDrawArraysIndirect;
+extern PFNGLDRAWELEMENTSINDIRECTPROC	glDrawElementsIndirect;
+
 extern PFNGLTEXBUFFEREXTPROC			glTexBufferEXT;
 extern PFNGLUNIFORM4UIVPROC				glUniform4uiv;
 extern PFNGLCLEARBUFFERFIPROC			glClearBufferfi;
@@ -404,6 +411,21 @@ struct FAndroidOpenGL : public FOpenGLES2
 		glDrawElementsInstanced(Mode, Count, Type, Indices, InstanceCount);
 	}
 
+	static FORCEINLINE void CopyBufferSubData(GLenum ReadTarget, GLenum WriteTarget, GLintptr ReadOffset, GLintptr WriteOffset, GLsizeiptr Size)
+	{
+		glCopyBufferSubData(ReadTarget, WriteTarget, ReadOffset, WriteOffset, Size);
+	}
+
+	static FORCEINLINE void DrawArraysIndirect(GLenum Mode, const void *Offset)
+	{
+		glDrawArraysIndirect(Mode, Offset);
+	}
+
+	static FORCEINLINE void DrawElementsIndirect(GLenum Mode, GLenum Type, const void *Offset)
+	{
+		glDrawElementsIndirect(Mode, Type, Offset);
+	}
+
 	static FORCEINLINE void VertexAttribDivisor(GLuint Index, GLuint Divisor)
 	{
 		if (SupportsInstancing())
@@ -441,6 +463,41 @@ struct FAndroidOpenGL : public FOpenGLES2
 		}
 	}
 	
+	static FORCEINLINE void* MapBufferRange(GLenum Type, uint32 InOffset, uint32 InSize, EResourceLockMode LockMode)
+	{
+		GLenum Access;
+		switch (LockMode)
+		{
+		case EResourceLockMode::RLM_ReadOnly:
+			Access = GL_MAP_READ_BIT;
+			break;
+		case EResourceLockMode::RLM_WriteOnly:
+			Access = (GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
+			break;
+		case EResourceLockMode::RLM_WriteOnlyUnsynchronized:
+			Access = (GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
+			break;
+		case EResourceLockMode::RLM_WriteOnlyPersistent:
+			Access = (GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+			break;
+		case EResourceLockMode::RLM_ReadWrite:
+		default:
+			Access = (GL_MAP_READ_BIT | GL_MAP_WRITE_BIT);
+		}
+		return glMapBufferRange(Type, InOffset, InSize, Access);
+	}
+
+	static FORCEINLINE void UnmapBuffer(GLenum Type)
+	{
+		glUnmapBuffer(Type);
+	}
+
+	static FORCEINLINE void UnmapBufferRange(GLenum Type, uint32 InOffset, uint32 InSize)
+	{
+		UnmapBuffer(Type);
+	}
+
+
 	static FORCEINLINE void TexImage3D(GLenum Target, GLint Level, GLint InternalFormat, GLsizei Width, GLsizei Height, GLsizei Depth, GLint Border, GLenum Format, GLenum Type, const GLvoid* PixelData)
 	{
 		glTexImage3D(Target, Level, InternalFormat, Width, Height, Depth, Border, Format, Type, PixelData);
@@ -691,7 +748,9 @@ struct FAndroidOpenGL : public FOpenGLES2
 			glFramebufferFetchBarrierQCOM();
 		}
 	}
-			
+		
+	static FORCEINLINE bool SupportsDrawIndirect() { return true; }
+
 	static void ProcessExtensions(const FString& ExtensionsString);
 	static void SetupDefaultGLContextState(const FString& ExtensionsString);
 
