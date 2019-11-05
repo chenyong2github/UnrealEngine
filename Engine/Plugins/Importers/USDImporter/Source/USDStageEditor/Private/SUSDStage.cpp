@@ -501,6 +501,11 @@ void SUsdStage::OpenStage( const TCHAR* FilePath )
 		IUsdStageModule& UsdStageModule = FModuleManager::Get().LoadModuleChecked< IUsdStageModule >( "UsdStage" );
 		UsdStageActor = &UsdStageModule.GetUsdStageActor( GWorld );
 
+		if ( UsdStageInfoWidget )
+		{
+			UsdStageActor->InitialLoadSet = UsdStageInfoWidget->GetInitialLoadSet();
+		}
+
 		SetupStageActorDelegates();
 	}
 
