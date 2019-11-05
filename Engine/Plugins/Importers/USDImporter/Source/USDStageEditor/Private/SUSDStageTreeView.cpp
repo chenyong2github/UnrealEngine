@@ -151,11 +151,6 @@ public:
 
 		if ( !UsdPrim.Get() )
 		{
-			if ( ParentItem )
-			{
-				ParentItem->RefreshData( true );
-			}
-
 			RowData.Get() = FUsdStageTreeRowData();
 			return;
 		}
@@ -464,8 +459,8 @@ void SUsdStageTreeView::RefreshPrim( const FString& PrimPath, bool bResync )
 
 	TUsdStore< pxr::SdfPath > UsdPrimPath = UnrealToUsd::ConvertPath( *PrimPath );
 
-	TFunction< FUsdStageTreeItemPtr( const TUsdStore< pxr::SdfPath >&, const FUsdStageTreeItemRef& ) > FindTreeItemFromPrimPath;
-	FindTreeItemFromPrimPath = [ &FindTreeItemFromPrimPath ]( const TUsdStore< pxr::SdfPath >& UsdPrimPath, const FUsdStageTreeItemRef& ItemRef ) -> FUsdStageTreeItemPtr
+	TFunction< FUsdStageTreeItemPtr( FUsdStageTreeItemRef ) > FindTreeItemFromPrimPath;
+	FindTreeItemFromPrimPath = [ &UsdPrimPath, &FindTreeItemFromPrimPath ]( FUsdStageTreeItemRef ItemRef ) -> FUsdStageTreeItemPtr
 	{
 		if ( ItemRef->UsdPrim.Get().GetPrimPath() == UsdPrimPath.Get() )
 		{
@@ -475,7 +470,7 @@ void SUsdStageTreeView::RefreshPrim( const FString& PrimPath, bool bResync )
 		{
 			for ( FUsdStageTreeItemRef ChildItem : ItemRef->Children )
 			{
-				if ( FUsdStageTreeItemPtr ChildValue = FindTreeItemFromPrimPath( UsdPrimPath, ChildItem ) )
+				if ( FUsdStageTreeItemPtr ChildValue = FindTreeItemFromPrimPath( ChildItem ) )
 				{
 					return ChildValue;
 				}
@@ -489,35 +484,13 @@ void SUsdStageTreeView::RefreshPrim( const FString& PrimPath, bool bResync )
 
 	for ( FUsdStageTreeItemRef RootItem : this->RootItems )
 	{
-		TUsdStore< pxr::SdfPath > PrimPathToSearch = UsdPrimPath;
-
-		bool bFoundPrimToRefresh = false;
-
-		while ( !bFoundPrimToRefresh )
+		if ( FUsdStageTreeItemPtr FoundItem = FindTreeItemFromPrimPath( RootItem ) )
 		{
-			if ( FUsdStageTreeItemPtr FoundItem = FindTreeItemFromPrimPath( PrimPathToSearch, RootItem ) )
-			{
-				FoundItem->RefreshData( true );
-				bFoundPrimToRefresh = true;
+			FoundItem->RefreshData( true );
 
-				break;
-			}
-			else
-			{
-				TUsdStore< pxr::SdfPath > ParentPrimPath = PrimPathToSearch.Get().GetParentPath();
-
-				if ( ParentPrimPath.Get() == PrimPathToSearch.Get() )
-				{
-					break;
-				}
-				else
-				{
-					PrimPathToSearch = MoveTemp( ParentPrimPath );
-				}
-			}
+			break;
 		}
-
-		if ( !bFoundPrimToRefresh )
+		else
 		{
 			bNeedsFullRefresh = true; // Prim not found, refresh the whole tree
 		}
