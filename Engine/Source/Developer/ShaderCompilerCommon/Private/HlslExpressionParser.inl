@@ -492,7 +492,7 @@ namespace CrossCompiler
 			ExtraQualifiers |= EEQ_PRECISE;
 		}
 
-		if ((TypeFlags & ETF_UNORM) == ETF_UNORM && Token->String.Len() == 5)
+		if ((TypeFlags & ETF_UNORM) == ETF_UNORM && Token && Token->String.Len() == 5)
 		{
 			if (!FCString::Strcmp(*Token->String, TEXT("unorm")))
 			{
