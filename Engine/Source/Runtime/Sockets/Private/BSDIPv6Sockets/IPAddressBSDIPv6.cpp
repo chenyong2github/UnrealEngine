@@ -232,7 +232,7 @@ void FInternetAddrBSDIPv6::SetAnyAddress()
 void FInternetAddrBSDIPv6::SetBroadcastAddress()
 {
 	// broadcast means something different in IPv6, but this is a rough equivalent
-#ifndef in6addr_allnodesonlink
+#if !defined(in6addr_allnodesonlink) && !PLATFORM_WINDOWS
 	// see RFC 4291, link-local multicast address http://tools.ietf.org/html/rfc4291
 	static in6_addr in6addr_allnodesonlink =
 	{
