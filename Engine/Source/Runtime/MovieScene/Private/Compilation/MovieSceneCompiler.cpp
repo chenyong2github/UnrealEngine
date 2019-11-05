@@ -67,6 +67,8 @@ struct FGatherParameters
 
 		SubParams.AccountForRounding();
 
+		SubParams.SequenceLoopCounter.AddWarpingLevel(LoopIndex);
+
 		return SubParams;
 	}
 
