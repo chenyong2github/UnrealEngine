@@ -8,12 +8,18 @@ uint DispatchCountX;
 float3 InRenderHairPositionOffset;
 float3 InSimHairPositionOffset;
 float3 OutHairPositionOffset;
+int2 HairStrandsCullIndex;
 
 Buffer<uint4>  RenderRestPosePositionBuffer;
 Buffer<uint4>  SimRestPosePositionBuffer;
 Buffer<uint4>  DeformedSimPositionBuffer;
 Buffer<uint4>  Interpolation0Buffer;
 Buffer<uint4>  Interpolation1Buffer;
+
+#if PERMUTATION_DYNAMIC_GEOMETRY == 1 || PERMUTATION_DEBUG == 2
+Buffer<uint>   RenVertexToRootIndexBuffer;
+Buffer<uint>   SimVertexToRootIndexBuffer;
+#endif
 
 RWBuffer<uint4> OutRenderDeformedPositionBuffer;
 
@@ -32,7 +38,6 @@ Buffer<float4>  DeformedPosition2Buffer;
 
 Buffer<uint>	RootBarycentricBuffer;
 Buffer<uint>	RootToTriangleIndex;
-Buffer<uint>	VertexToRootIndexBuffer;
 
 float3			SimRestPositionOffset;
 Buffer<float4>  SimRestPosition0Buffer;
@@ -46,7 +51,6 @@ Buffer<float4>  SimDeformedPosition2Buffer;
 
 Buffer<uint>	SimRootBarycentricBuffer;
 Buffer<uint>	SimRootToTriangleIndex;
-Buffer<uint>	SimVertexToRootIndexBuffer;
 #endif
 
 #if PERMUTATION_DEBUG == 1
@@ -70,7 +74,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	{
 		uint3 GuideVertexIndices = 0;
 		float3 GuideVertexWeights = 0;
-		#if PERMUTATION_SIMULATION == 1 || PERMUTATION_DEBUG == 1
+		#if PERMUTATION_SIMULATION == 1 || PERMUTATION_DEBUG == 1 || PERMUTATION_DEBUG == 2
 		{
 			const uint4 InterpolationData0	= Interpolation0Buffer[VertexIndex];
 			const uint4 InterpolationData1	= Interpolation1Buffer[VertexIndex];
@@ -134,7 +138,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			#endif		
 
 			// Transform hair from rest post to deformed pose, based triangle deformation + simulation offset (optional depending of the simulation is actual running or not
-			const uint RootIndex						= VertexToRootIndexBuffer[VertexIndex];
+			const uint RootIndex						= RenVertexToRootIndexBuffer[VertexIndex];
 			const float3 RootBarycentric				= DecodeBarycentrics(RootBarycentricBuffer[RootIndex]);
 			const FHairMeshTriangle RestTriangle		= GetTriangleTransformation(RootIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer, RestPositionOffset);
 			const FHairMeshTriangle DeformedTriangle	= GetTriangleTransformation(RootIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer, DeformedPositionOffset);
@@ -162,6 +166,37 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			const uint GuideIndex = GuideVertexIndices[0]; // Take the closest guide
 			const float4 GuideAttribute = SimAttributeBuffer[GuideIndex];
 			OutRenderAttributeBuffer[VertexIndex] = GuideAttribute;
+		}
+		#endif
+
+		// Cull hair strands or clusters which are not matching the provided index
+		#if PERMUTATION_DEBUG == 2
+		{
+			bool bIsValid = false;
+			if (HairStrandsCullIndex.y >= 0)
+			{
+
+				for (uint K = 0; K < 3; ++K)
+				{
+					const uint GuideIndex = GuideVertexIndices[K];
+					const uint RootIndex = SimVertexToRootIndexBuffer[GuideIndex];
+					if (HairStrandsCullIndex.y == RootIndex)
+					{
+						bIsValid = true;
+						break;
+					}
+				}
+			}
+			else if (HairStrandsCullIndex.x >= 0)
+			{
+				const uint RootIndex = RenVertexToRootIndexBuffer[VertexIndex];
+				bIsValid = HairStrandsCullIndex.x == RootIndex;
+			}
+
+			if (!bIsValid)
+			{
+				OutRenderDeformedPositionBuffer[VertexIndex] = float4(float3(1.#INF, 1.#INF, 1.#INF), 2);
+			}
 		}
 		#endif
 	}
