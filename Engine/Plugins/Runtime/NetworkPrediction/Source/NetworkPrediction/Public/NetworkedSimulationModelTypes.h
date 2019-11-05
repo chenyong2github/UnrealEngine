@@ -60,19 +60,6 @@ struct TSelectTypeHelper<TBufferTypes, ENetworkSimBufferTypeId::Debug>
 	using type = typename TBufferTypes::TDebugState;
 };
 
-enum ENetworkSimBufferAllocationType
-{
-	Contiguous,
-	Sparse
-};
-
-template<ENetworkSimBufferAllocationType InAllocationType, int32 InSize>
-struct TNetworkSimBufferAllocation
-{
-	enum { Size = InSize };
-	static constexpr ENetworkSimBufferAllocationType AllocationType() { return InAllocationType; }
-};
-
 template<typename T>
 struct HasNetSerialize
 {
@@ -169,55 +156,37 @@ struct TBufferGetterHelper<TContainer, ENetworkSimBufferTypeId::Debug>
 	}
 };
 
-// -------------------------------------------------
-
-// Helper struct for accessing a netsim buffer given the underlying type
-template<typename TContainer, typename TState>
-struct TBufferGetterHelper_ByState
+// Helper for accessing a netsim buffer given the underlying type
+namespace NetSimBufferSelect
 {
-	static void GetBuffer(TContainer& Container)
-	{
-		static_assert(!Container, "Failed to find specialized Get for your BufferId");
-	}
-};
-
-template<typename TContainer>
-struct TBufferGetterHelper_ByState<TContainer, typename TContainer::TInputCmd>
-{
-	static typename TContainer::TInputBuffer& GetBuffer(TContainer& Container)
+	template<typename TContainer, typename TState>
+	typename TEnableIf< TIsDerivedFrom<typename TContainer::TInputCmd, TState>::IsDerived, typename TContainer::TInputBuffer&>::Type
+	Get(TContainer& Container)
 	{
 		return Container.Input;
 	}
-};
 
-template<typename TContainer>
-struct TBufferGetterHelper_ByState<TContainer, typename TContainer::TSyncState>
-{
-	static typename TContainer::TSyncBuffer& GetBuffer(TContainer& Container)
+	template<typename TContainer, typename TState>
+	typename TEnableIf< TIsDerivedFrom<typename TContainer::TSyncState, TState>::IsDerived, typename TContainer::TSyncBuffer&>::Type
+	Get(TContainer& Container)
 	{
 		return Container.Sync;
 	}
-};
 
-template<typename TContainer>
-struct TBufferGetterHelper_ByState<TContainer, typename TContainer::TAuxState>
-{
-	static typename TContainer::TAuxBuffer& GetBuffer(TContainer& Container)
+	template<typename TContainer, typename TState>
+	typename TEnableIf< TIsDerivedFrom<typename TContainer::TAuxState, TState>::IsDerived, typename TContainer::TAuxBuffer&>::Type
+	Get(TContainer& Container)
 	{
 		return Container.Aux;
 	}
-};
 
-template<typename TContainer>
-struct TBufferGetterHelper_ByState<TContainer, typename TContainer::TDebugState>
-{
-	static typename TContainer::TDebugBuffer& GetBuffer(TContainer& Container)
+	template<typename TContainer, typename TState>
+	typename TEnableIf< TIsDerivedFrom<typename TContainer::TDebugState, TState>::IsDerived, typename TContainer::TDebugState&>::Type
+	Get(TContainer& Container)
 	{
 		return Container.Debug;
 	}
-};
-
-// -------------------------------------------------------------------
+}
 
 // Struct that encapsulates writing a new element to a buffer. This is used to allow a new Aux state to be created in the ::SimulationTick loop.
 template<typename T>
@@ -541,33 +510,30 @@ struct TScopedSimulationTick
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 //	Accessors - helper structs that provide safe/cleaner access to the underlying NetSim states/events
+//	This is the equivlent of directly calling TNetworkedSimulationModel::GetPendingStateRead() / GetPendingStateWrite()
+//
+//	This is useful because it is not always practical to have a typed pointer to your TNetworkedSimulationModel instance. For example,
+//	the TNetworkedSimulationModel may be templated and conditionally instantiated (for example fix tick vs non fixed tick models, and eventually
+//	we may offer more memory allocation related templated parameters).
+//		
+//	Essentially, this allows you to plop a TNetSimStateAccessor<MyStateType> on a class and have it bind to any TNetworkedSimulationModel instantiation  
+//	that has uses that type.
+//
+//	See additional comments in TNetworkedSimulationModel::GetPendingStateRead() / GetPendingStateWrite()
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-// Accessor conditionally gives access to the current (pending) Sync/Aux state to outside code.
-// Reads are always allowed
-// Writes are conditional. Authority can always write to the pending frame. Non authority requires the netsim to be currently processing an ::SimulationTick.
-// If you aren't inside an ::SimulationTick call, it is really not safe to predict state changes. It is safest and simplest to just not predict these changes.
-//
-// Explanation: During the scope of an ::SimulationTick call, we know exactly 'when' we are relative to what the server is processing. If the predicting client wants
-// to predict a change to sync/aux state during an update, the server will do it at the exact same time (assuming not a mis prediction). When a state change
-// happens "out of band" (outside an ::SimulationTick call) - we really have no way to correlate when the server will do it. While its tempting to think "we will get
-// a correction anyways, might as well guess at it and maybe get a smaller correction" - but this opens us up to other problems. The server may actually not 
-// change the state at all and you may not get an update that corrects you. You could add a timeout and track the state change somewhere but that really complicates
-// things and could leave you open to "double" problems: if the state change is additive, you may stack the authority change on top of the local predicted change, or
-// you may roll back the predicted change to then later receive the authority change.
-//	
-// What still may make sense to do is allow the "In Update" bool to be temporarily disabled if we enter code that we know is not rollback friendly.
+
 template<typename TState>
-struct TNetworkSimStateAccessor
+struct TNetSimStateAccessor
 {
+	// Bind to the NetsimModel that we are accessing. This is a templated method so that a single declared TNetSimStateAccessor can bind to any instantiated netsim model
+	// that has the underlying type of the accessor. This allows, for example, templated netsim models to be instantiated and bind to a single accessor. (E.g, variable or fixed tick sim)
 	template<typename TNetworkSimModel>
-	void Init(TNetworkSimModel* NetSimModel)
+	void Bind(TNetworkSimModel* NetSimModel)
 	{
 		GetStateFunc = [NetSimModel](bool bWrite, TState*& OutState, bool& OutSafe)
 		{
-			// Gross: find the buffer our TState is in. This allows these accessors to be declared as class member variables without knowing the exact net sim it will
-			// be pulling from. (For example, you may want to templatize your network sim model).
-			auto& Buffer = TBufferGetterHelper_ByState<TNetworkSimBufferContainer<typename TNetworkSimModel::TBufferTypes>, TState>::GetBuffer(NetSimModel->Buffers);
+			auto& Buffer = NetSimBufferSelect::Get<TNetworkSimBufferContainer<typename TNetworkSimModel::TBufferTypes>, TState>(NetSimModel->Buffers);
 			OutState = bWrite ? Buffer.WriteFrameInitializedFromHead(NetSimModel->Ticker.PendingFrame) : Buffer[NetSimModel->Ticker.PendingFrame];
 			OutSafe = NetSimModel->Ticker.bUpdateInProgress;
 		};
