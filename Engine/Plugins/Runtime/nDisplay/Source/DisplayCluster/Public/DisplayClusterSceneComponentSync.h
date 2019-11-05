@@ -30,6 +30,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterClusterSyncObject
 	//////////////////////////////////////////////////////////////////////////////////////////////
+	virtual bool IsActive() const override;
 	virtual FString GetSyncId() const override;
 	
 	virtual bool IsDirty() const override
@@ -48,7 +49,7 @@ public:
 public:
 	virtual void BeginPlay() override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-	virtual void DestroyComponent(bool bPromoteChildren) override;
+	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 
 protected:
 	virtual FTransform GetSyncTransform() const
