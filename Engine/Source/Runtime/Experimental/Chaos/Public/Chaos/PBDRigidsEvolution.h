@@ -503,6 +503,9 @@ class TPBDRigidsEvolutionBase
 	const auto& GetRigidClustering() const { return Clustering; }
 	auto& GetRigidClustering() { return Clustering; }
 
+	CHAOS_API const FPBDConstraintGraph& GetConstraintGraph() const { return ConstraintGraph; }
+	CHAOS_API FPBDConstraintGraph& GetConstraintGraph() { return ConstraintGraph; }
+
 	void Serialize(FChaosArchive& Ar);
 
 protected:
