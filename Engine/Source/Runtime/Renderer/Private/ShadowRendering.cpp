@@ -1178,21 +1178,26 @@ FMatrix FProjectedShadowInfo::GetScreenToShadowMatrix(const FSceneView& View, ui
 	const float InvBufferResolutionY = 1.0f / (float)ShadowBufferResolution.Y;
 	const float ShadowResolutionFractionY = 0.5f * (float)TileResolutionY * InvBufferResolutionY;
 	// Calculate the matrix to transform a screenspace position into shadow map space
-	FMatrix ScreenToShadow = 
+
+	FMatrix ScreenToShadow;
+	FMatrix ViewDependentTransform =
 		// Z of the position being transformed is actually view space Z, 
-		// Transform it into post projection space by applying the projection matrix,
-		// Which is the required space before applying View.InvTranslatedViewProjectionMatrix
+			// Transform it into post projection space by applying the projection matrix,
+			// Which is the required space before applying View.InvTranslatedViewProjectionMatrix
 		FMatrix(
 			FPlane(1,0,0,0),
 			FPlane(0,1,0,0),
 			FPlane(0,0,View.ViewMatrices.GetProjectionMatrix().M[2][2],1),
-			FPlane(0,0,View.ViewMatrices.GetProjectionMatrix().M[3][2],0)) * 
+			FPlane(0,0,View.ViewMatrices.GetProjectionMatrix().M[3][2],0)) *
 		// Transform the post projection space position into translated world space
 		// Translated world space is normal world space translated to the view's origin, 
 		// Which prevents floating point imprecision far from the world origin.
 		View.ViewMatrices.GetInvTranslatedViewProjectionMatrix() *
+		FTranslationMatrix(-View.ViewMatrices.GetPreViewTranslation());
+
+	FMatrix ShadowMapDependentTransform =
 		// Translate to the origin of the shadow's translated world space
-		FTranslationMatrix(PreShadowTranslation - View.ViewMatrices.GetPreViewTranslation()) *
+		FTranslationMatrix(PreShadowTranslation) *
 		// Transform into the shadow's post projection space
 		// This has to be the same transform used to render the shadow depths
 		SubjectAndReceiverMatrix *
@@ -1207,8 +1212,19 @@ FMatrix FProjectedShadowInfo::GetScreenToShadowMatrix(const FSceneView& View, ui
 				(TileOffsetY + BorderSize) * InvBufferResolutionY + ShadowResolutionFractionY,
 				0,
 				1
-			)
-		);
+				)
+			);
+
+	if (View.bIsMobileMultiViewEnabled && View.Family->Views.Num() > 0)
+	{
+		// In Multiview, we split ViewDependentTransform out into ViewUniformShaderParameters.MobileMultiviewShadowTransform
+		// So we can multiply it later in shader.
+		ScreenToShadow = ShadowMapDependentTransform;
+	}
+	else
+	{
+		ScreenToShadow = ViewDependentTransform * ShadowMapDependentTransform;
+	}
 	return ScreenToShadow;
 }
 
