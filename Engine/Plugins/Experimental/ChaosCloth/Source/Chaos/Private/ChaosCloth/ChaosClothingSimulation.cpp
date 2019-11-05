@@ -689,7 +689,7 @@ void ClothingSimulation::ExtractPhysicsAssetCollisions(UClothingAssetCommon* Ass
 				Convex.RebuildSurfacePoints();
 
 #elif WITH_CHAOS  // #if WITH_PHYSX
-				const Chaos::TImplicitObject<float, 3>& ChaosConvexMesh = *ConvexElem.GetChaosConvexMesh();
+				const Chaos::FImplicitObject& ChaosConvexMesh = *ConvexElem.GetChaosConvexMesh();
 				const Chaos::TConvex<float, 3>& ChaosConvex = ChaosConvexMesh.GetObjectChecked<Chaos::TConvex<float, 3>>();
 
 				// Copy planes
@@ -811,13 +811,13 @@ void ClothingSimulation::AddCollisions(const FClothCollisionData& ClothCollision
 			else
 			{
 				// Tapered capsule
-				TArray<TUniquePtr<TImplicitObject<float, 3>>> Objects;
+				TArray<TUniquePtr<FImplicitObject>> Objects;
 				Objects.Reserve(3);
-				Objects.Add(TUniquePtr<Chaos::TImplicitObject<float, 3>>(
+				Objects.Add(TUniquePtr<Chaos::FImplicitObject>(
 					new Chaos::TTaperedCylinder<float>(X0, X1, Radius0, Radius1)));
-				Objects.Add(TUniquePtr<Chaos::TImplicitObject<float, 3>>(
+				Objects.Add(TUniquePtr<Chaos::FImplicitObject>(
 					new Chaos::TSphere<float, 3>(X0, Radius0)));
-				Objects.Add(TUniquePtr<Chaos::TImplicitObject<float, 3>>(
+				Objects.Add(TUniquePtr<Chaos::FImplicitObject>(
 					new Chaos::TSphere<float, 3>(X1, Radius1)));
 				CollisionParticles.SetDynamicGeometry(
 					i,
@@ -1459,7 +1459,7 @@ void ClothingSimulation::DebugDrawCollision(USkeletalMeshComponent* OwnerCompone
 
 	for (uint32 Index = 0; Index < CollisionParticles.Size(); ++Index)
 	{
-		if (const TImplicitObject<float, 3>* const Object = CollisionParticles.DynamicGeometry(Index).Get())
+		if (const FImplicitObject* const Object = CollisionParticles.DynamicGeometry(Index).Get())
 		{
 			const uint32 BoneIndex = BoneIndices[Index];
 			const FLinearColor Color = (BoneIndex != INDEX_NONE) ? MappedColor : UnmappedColor;
@@ -1482,9 +1482,9 @@ void ClothingSimulation::DebugDrawCollision(USkeletalMeshComponent* OwnerCompone
 				break;
 
 			case Chaos::ImplicitObjectType::Union:  // Union only used as collision tappered capsules
-				for (const TUniquePtr<TImplicitObject<float, 3>>& SubObjectPtr : Object->GetObjectChecked<Chaos::TImplicitObjectUnion<float, 3>>().GetObjects())
+				for (const TUniquePtr<FImplicitObject>& SubObjectPtr : Object->GetObjectChecked<Chaos::TImplicitObjectUnion<float, 3>>().GetObjects())
 				{
-					if (const TImplicitObject<float, 3>* const SubObject = SubObjectPtr.Get())
+					if (const FImplicitObject* const SubObject = SubObjectPtr.Get())
 					{
 						switch (SubObject->GetType())
 						{
