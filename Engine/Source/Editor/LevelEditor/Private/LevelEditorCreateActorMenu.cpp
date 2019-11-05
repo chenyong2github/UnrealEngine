@@ -367,7 +367,6 @@ void LevelEditorCreateActorMenu::FillAddReplaceViewportContextMenuSections(UTool
 				NSLOCTEXT("LevelViewportContextMenu", "AddActorHeading", "Place Actor") , 
 				NSLOCTEXT("LevelViewportContextMenu", "AddActorMenu_ToolTip", "Templates for adding a new actor to the world"),
 				FNewToolMenuDelegate::CreateStatic(&LevelEditorCreateActorMenu::FillAddReplaceActorMenu, EActorCreateMode::Add));
-		}
 
 			if ( CanReplaceActors() )
 			{
