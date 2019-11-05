@@ -28,7 +28,7 @@ public:
 	SLATE_BEGIN_ARGS(SDataprepAssetView) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, UDataprepAssetInterface* InDataprepAssetPtr, TSharedPtr<FUICommandList>& CommandList);
+	void Construct(const FArguments& InArgs, UDataprepAssetInterface* InDataprepAssetPtr, TSharedPtr<FUICommandList>& InCommandList);
 
 	~SDataprepAssetView();
 
@@ -41,6 +41,12 @@ private:
 	float OnGetLeftColumnWidth() const { return 1.0f - ColumnWidth; }
 	float OnGetRightColumnWidth() const { return ColumnWidth; }
 	void OnSetColumnWidth(float InWidth) { ColumnWidth = InWidth; }
+
+	TSharedRef<ITableRow> OnGenerateRowForCategoryTree( TSharedRef<EDataprepCategory> InTreeNode, const TSharedRef<STableViewBase>& InOwnerTable );
+	void OnGetChildrenForCategoryTree( TSharedRef<EDataprepCategory> InTreeNode, TArray< TSharedRef<EDataprepCategory> >& OutChildren ) {}
+
+	TArray<TSharedRef< EDataprepCategory >> Categories;
+	TSharedPtr<FUICommandList> CommandList;
 
 private:
 	TWeakObjectPtr<UDataprepAssetInterface> DataprepAssetInterfacePtr;
