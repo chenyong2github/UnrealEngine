@@ -58,15 +58,9 @@ public:
 
 	struct NIAGARAEDITOR_API FTopLevelViewModel
 	{
-		FTopLevelViewModel(TSharedPtr<FNiagaraSystemViewModel> InSystemViewModel)
-			: SystemViewModel(InSystemViewModel)
-		{
-		}
+		FTopLevelViewModel(TSharedPtr<FNiagaraSystemViewModel> InSystemViewModel);
 
-		FTopLevelViewModel(TSharedPtr<FNiagaraEmitterHandleViewModel> InEmitterHandleViewModel)
-			: EmitterHandleViewModel(InEmitterHandleViewModel)
-		{
-		}
+		FTopLevelViewModel(TSharedPtr<FNiagaraEmitterHandleViewModel> InEmitterHandleViewModel);
 
 		bool IsValid() const;
 
@@ -78,6 +72,7 @@ public:
 
 		const TSharedPtr<FNiagaraSystemViewModel> SystemViewModel;
 		const TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel;
+		const TWeakObjectPtr<UNiagaraStackEntry> RootEntry;
 	};
 
 public:
@@ -87,8 +82,6 @@ public:
 	void Finalize();
 
 	virtual void BeginDestroy() override;
-
-	TSharedPtr<FNiagaraSystemViewModel> GetSystemViewModel();
 
 	UNiagaraStackEntry* GetRootEntry();
 

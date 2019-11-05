@@ -88,7 +88,7 @@ void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSyste
 	
 	SelectionViewModel = NewObject<UNiagaraSystemSelectionViewModel>(GetTransientPackage());
 	SelectionViewModel->Initialize(this->AsShared());
-	SelectionViewModel->OnSelectionChanged().AddSP(this, &FNiagaraSystemViewModel::SystemSelectionChanged);
+	SelectionViewModel->OnEmitterHandleIdSelectionChanged().AddSP(this, &FNiagaraSystemViewModel::SystemSelectionChanged);
 
 	SystemScriptViewModel = MakeShared<FNiagaraSystemScriptViewModel>();
 	SystemScriptViewModel->Initialize(GetSystem());
@@ -173,6 +173,7 @@ void FNiagaraSystemViewModel::Cleanup()
 
 	if (SelectionViewModel != nullptr)
 	{
+		SelectionViewModel->OnEmitterHandleIdSelectionChanged().RemoveAll(this);
 		SelectionViewModel->Finalize();
 		SelectionViewModel = nullptr;
 	}
@@ -327,9 +328,10 @@ void FNiagaraSystemViewModel::AddEmitter(UNiagaraEmitter& Emitter)
 
 	NiagaraSequence->GetMovieScene()->SetPlaybackRange(NewStartFrame.RoundToFrame(), NewDuration);
 
-	TArray<FGuid> SelectedEmitterHandles;
-	SelectedEmitterHandles.Add(NewEmitterHandleId);
-	SelectionViewModel->UpdateSelectionFromTopLevelObjects(false, SelectedEmitterHandles, true);
+	TSharedPtr<FNiagaraEmitterHandleViewModel> NewEmitterHandleViewModel = GetEmitterHandleViewModelById(NewEmitterHandleId);
+	TArray<UNiagaraStackEntry*> SelectedStackEntries;
+	SelectedStackEntries.Add(NewEmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntry());
+	SelectionViewModel->UpdateSelectedEntries(SelectedStackEntries, TArray<UNiagaraStackEntry*>(), true);
 
 	bForceAutoCompileOnce = true;
 }
@@ -1561,7 +1563,7 @@ void FNiagaraSystemViewModel::SequencerTimeChanged()
 	OnPostSequencerTimeChangeDelegate.Broadcast();
 }
 
-void FNiagaraSystemViewModel::SystemSelectionChanged(UNiagaraSystemSelectionViewModel::ESelectionChangeSource SelectionChangeSource)
+void FNiagaraSystemViewModel::SystemSelectionChanged()
 {
 	if (bUpdatingSystemSelectionFromSequencer == false)
 	{
@@ -1614,9 +1616,31 @@ void FNiagaraSystemViewModel::UpdateEmitterHandleSelectionFromSequencer()
 	TGuardValue<bool> UpdateGuard(bUpdatingSystemSelectionFromSequencer, true);
 	if (SelectionViewModel != nullptr)
 	{
+		TArray<UNiagaraStackEntry*> EntriesToSelect;
+		TArray<UNiagaraStackEntry*> EntriesToDeselect;
+		UNiagaraStackEntry* SystemRootEntry = SystemStackViewModel->GetRootEntry();
+		if (NewSelectedEmitterHandleIds.Num() > 0 && GetEditorData().GetOwningSystemIsPlaceholder() == false)
+		{
+			EntriesToSelect.Add(SystemRootEntry);
+		}
+		else
+		{
+			EntriesToDeselect.Add(SystemRootEntry);
+		}
+		for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : EmitterHandleViewModels)
+		{
+			UNiagaraStackEntry* EmitterRootEntry = EmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntry();
+			if (NewSelectedEmitterHandleIds.Contains(EmitterHandleViewModel->GetId()))
+			{
+				EntriesToSelect.Add(EmitterRootEntry);
+			}
+			else
+			{
+				EntriesToDeselect.Add(EmitterRootEntry);
+			}
+		}
 		bool bClearCurrentSelection = FSlateApplication::Get().GetModifierKeys().IsControlDown() == false;
-		bool bSelectSystem = NewSelectedEmitterHandleIds.Num() > 0 && GetEditorData().GetOwningSystemIsPlaceholder() == false;
-		SelectionViewModel->UpdateSelectionFromTopLevelObjects(bSelectSystem, NewSelectedEmitterHandleIds, bClearCurrentSelection);
+		SelectionViewModel->UpdateSelectedEntries(EntriesToSelect, EntriesToDeselect, bClearCurrentSelection);
 	}
 }
 
