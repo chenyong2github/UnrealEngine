@@ -173,7 +173,8 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 			InViewport,
 			MyWorld->Scene,
 			EngineShowFlags)
-			.SetRealtimeUpdate(true));
+			.SetRealtimeUpdate(true)
+			.SetAdditionalViewFamily(viewFamily > 0));
 
 #if WITH_EDITOR
 		if (GIsEditor)
