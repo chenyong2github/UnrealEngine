@@ -1765,7 +1765,8 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 	// If set to bAlwaysPlay, increase the current sound's priority scale by 10x. This will still result in a possible 0-priority output if the sound has 0 actual volume
 	if (bAlwaysPlay)
 	{
-		WaveInstance->Priority = MAX_FLT;
+		static constexpr float VolumeWeightedMaxPriority = TNumericLimits<float>::Max() / MAX_VOLUME;
+		WaveInstance->Priority = VolumeWeightedMaxPriority;
 	}
 	else
 	{
