@@ -14,6 +14,7 @@
 #include "VoipListenerSynthComponent.h"
 #include "OnlineSubsystemUtilsPackage.h"
 #include "AudioDevice.h"
+#include "DSP/MultithreadedPatching.h"
 
 #include "VoicePacketImpl.h"
 #include "UObject/CoreOnline.h"
@@ -37,6 +38,8 @@ struct FLocalVoiceData
 	uint32 VoiceRemainderSize;
 	/** Voice sample data not encoded last time */
 	TArray<uint8> VoiceRemainder;
+	/** Output for a local talker. */
+	Audio::FPatchSplitter LocalVoiceOutput;
 };
 
 /** 
@@ -81,6 +84,8 @@ public:
 	TArray<uint8> UncompressedDataQueue;
 	/** Per remote talker voice decoding state */
 	TSharedPtr<IVoiceDecoder> VoiceDecoder;
+	/** Patch splitter to expose incoming audio to multiple outputs. */
+	Audio::FPatchSplitter RemoteVoiceOutput;
 };
 
 /**
@@ -123,6 +128,9 @@ class ONLINESUBSYSTEMUTILS_API FVoiceEngineImpl : public IVoiceEngine, public FS
 	/** Mapping of UniqueIds to the incoming voice data and their audio component */
 	typedef TMap<FUniqueNetIdWrapper, FRemoteTalkerDataImpl> FRemoteTalkerData;
 
+	/** Total mixed down output of all remote player talkers. */
+	Audio::FPatchMixerSplitter MixedDownRemoteTalkerOutput;
+
 	/** Reference to the main online subsystem */
 	IOnlineSubsystem* OnlineSubsystem;
 
@@ -153,6 +161,9 @@ class ONLINESUBSYSTEMUTILS_API FVoiceEngineImpl : public IVoiceEngine, public FS
 	TArray<uint8> DecompressedVoiceBuffer;
 	/** Serialization helper */
 	FVoiceSerializeHelper* SerializeHelper;
+
+	/** Audio taps for the full mixdown of all remote players. */
+	Audio::FPatchMixerSplitter AllRemoteTalkerAudio;
 
 // Get Audio Device Changes on Windows
 #if PLATFORM_WINDOWS
@@ -281,6 +292,10 @@ public:
 	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 
 	virtual void GetVoiceSettingsOverride(const FUniqueNetIdWrapper& RemoteTalkerId, FVoiceSettings& VoiceSettings) {}
+
+
+	virtual Audio::FPatchOutputStrongPtr GetMicrophoneOutput() override;
+	virtual Audio::FPatchOutputStrongPtr GetRemoteTalkerOutput() override;
 
 private:
 
