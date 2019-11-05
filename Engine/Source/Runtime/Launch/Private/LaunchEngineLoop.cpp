@@ -3877,6 +3877,7 @@ void FEngineLoop::Exit()
 	FModuleManager::Get().UnloadModule("AssetTools", true);
 
 #endif // WITH_EDITOR
+	FModuleManager::Get().UnloadModule("WorldBrowser", true);
 	FModuleManager::Get().UnloadModule("AssetRegistry", true);
 
 #if !PLATFORM_ANDROID || PLATFORM_LUMIN 	// AppPreExit doesn't work on Android
