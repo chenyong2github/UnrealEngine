@@ -258,13 +258,18 @@ void SNiagaraStack::Construct(const FArguments& InArgs, UNiagaraStackViewModel* 
 		+ SVerticalBox::Slot()
 		.Padding(1)
 		[
-			SAssignNew(StackTree, STreeView<UNiagaraStackEntry*>)
-			.OnGenerateRow(this, &SNiagaraStack::OnGenerateRowForStackItem)
-			.OnGetChildren(this, &SNiagaraStack::OnGetChildren)
-			.TreeItemsSource(&StackViewModel->GetRootEntryAsArray())
-			.OnTreeViewScrolled(this, &SNiagaraStack::StackTreeScrolled)
-			.SelectionMode(ESelectionMode::None)
-			.OnItemToString_Debug_Static(&FNiagaraStackEditorWidgetsUtilities::StackEntryToStringForListDebug)
+			SNew(SBorder)
+			.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+			.BorderBackgroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.BackgroundColor"))
+			[
+				SAssignNew(StackTree, STreeView<UNiagaraStackEntry*>)
+				.OnGenerateRow(this, &SNiagaraStack::OnGenerateRowForStackItem)
+				.OnGetChildren(this, &SNiagaraStack::OnGetChildren)
+				.TreeItemsSource(&StackViewModel->GetRootEntryAsArray())
+				.OnTreeViewScrolled(this, &SNiagaraStack::StackTreeScrolled)
+				.SelectionMode(ESelectionMode::None)
+				.OnItemToString_Debug_Static(&FNiagaraStackEditorWidgetsUtilities::StackEntryToStringForListDebug)
+			]
 		]
 	];
 
