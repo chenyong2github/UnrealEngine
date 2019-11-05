@@ -24,7 +24,14 @@
 //		-UNetworkSimulationGlobalManager: responsible for ticking simulation (after recv net traffic, prior to UE4 actor ticking)
 //		-External game code can interact with the system:
 //			-The TNetworkedSimulationModel is mostly public and exposed. It is not recommend to publicly expose to your "user" code (high level scripting, designers, etc).
-//			-TNetworkSimStateAccessor is a helper for safely reading/writing to state within the system.
+//			-TNetkSimStateAccessor is a helper for safely reading/writing to state within the system.
+//
+//	* Notes on ownership and lifetime:
+//		-User code will instantiate the underlying simulation class (TSimulation)
+//		-Ownership of the simulation is taken over by TNetworkedSimulationModel on instantiation
+//		-(user code may still want to cache a pointer to the TSimulation instance for its own, but does not need to destroy the simulation)
+//		-Swapping TSimulation instance or releasing it early would be possible but use case is not clear so not implemented.
+//		-TNetworkedSimulationModel lifetime is the responsibility of the code that created it (UNetworkPredictionComponent in most cases).
 //
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -42,7 +49,7 @@ template <
 	typename TRepProxyReplay =		TReplicator_Sequence	<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings, ENetworkSimBufferTypeId::Sync,  3>,
 	typename TRepProxyDebug =		TReplicator_Debug		<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings>
 >
-class TNetworkedSimulationModel : public INetworkSimulationModel
+class TNetworkedSimulationModel : public INetworkedSimulationModel
 {
 public:
 
@@ -60,10 +67,11 @@ public:
 	using TSimTime = FNetworkSimTime;
 	using TRealTime = FNetworkSimTime::FRealTime;
 	
+	// Note: Ownership of TSimulation* is taken by this constructor
 	TNetworkedSimulationModel(TSimulation* InSimulation, TDriver* InDriver, const TSyncState& InitialSyncState = TSyncState(), const TAuxState& InitialAuxState = TAuxState())
+		: Simulation(InSimulation)
 	{
-		check(InSimulation && InDriver);
-		Simulation = InSimulation;
+		check(Simulation.IsValid() && InDriver);
 		Driver = InDriver;
 		*Buffers.Sync.WriteFrame(0) = InitialSyncState;
 		*Buffers.Aux.WriteFrame(0) = InitialAuxState;
@@ -238,15 +246,15 @@ public:
 		switch (Role)
 		{
 			case ROLE_Authority:
-				RepProxy_ServerRPC.template Reconcile<TSimulation, TDriver>(Simulation, Driver, Buffers, Ticker);
+				RepProxy_ServerRPC.template Reconcile<TSimulation, TDriver>(Simulation.Get(), Driver, Buffers, Ticker);
 			break;
 
 			case ROLE_AutonomousProxy:
-				RepProxy_Autonomous.template Reconcile<TSimulation, TDriver>(Simulation, Driver, Buffers, Ticker);
+				RepProxy_Autonomous.template Reconcile<TSimulation, TDriver>(Simulation.Get(), Driver, Buffers, Ticker);
 			break;
 
 			case ROLE_SimulatedProxy:
-				RepProxy_Simulated.template Reconcile<TSimulation, TDriver>(Simulation, Driver, Buffers, Ticker);
+				RepProxy_Simulated.template Reconcile<TSimulation, TDriver>(Simulation.Get(), Driver, Buffers, Ticker);
 			break;
 		}
 	}
@@ -328,8 +336,50 @@ public:
 	}
 
 	// ------------------------------------------------------------------------------------------------------
+	// State Accessors. This allows game code to read or conditionally write to the pending frame values.
+	// This mirrors what TNetSimStateAccessor do, but is callable directly on the NetworkedSimulationModel.
+	// Accessor conditionally gives access to the current (pending) Sync/Aux state to outside code.
+	// Reads are always allowed, Writes are conditional and null will sometimes be returned!
+	//
+	// Authority can always write to the pending frame. Non authority requires the netsim to be currently processing an ::SimulationTick.
+	// If you aren't inside an ::SimulationTick call, it is really not safe to predict state changes. It is safest and simplest to just not predict these changes.
+	//
+	// Explanation: During the scope of an ::SimulationTick call, we know exactly 'when' we are relative to what the server is processing. If the predicting client wants
+	// to predict a change to sync/aux state during an update, the server will do it at the exact same time (assuming not a mis prediction). When a state change
+	// happens "out of band" (outside an ::SimulationTick call) - we really have no way to correlate when the server will do it. While its tempting to think "we will get
+	// a correction anyways, might as well guess at it and maybe get a smaller correction" - but this opens us up to other problems. The server may actually not 
+	// change the state at all and you may not get an update that corrects you. You could add a timeout and track the state change somewhere but that really complicates
+	// things and could leave you open to "double" problems: if the state change is additive, you may stack the authority change on top of the local predicted change, or
+	// you may roll back the predicted change to then later receive the authority change.
+	//	
+	// What still may make sense to do is allow the "In Update" bool to be temporarily disabled if we enter code that we know is not rollback friendly.
+	// ------------------------------------------------------------------------------------------------------
 
-	void SetParentSimulation(INetworkSimulationModel* ParentSimulation) final override
+	template<typename TState>
+	const TState* GetPendingStateRead() const
+	{
+		// Reading is always allowed
+		auto& Buffer = NetSimBufferSelect::Get<TNetworkSimBufferContainer<TBufferTypes>, TState>(Buffers);
+		return Buffer[Ticker.PendingFrame];
+	}
+
+	template<typename TState>
+	TState* GetPendingStateWrite(bool bHasAuthority)
+	{
+		// Writes are always allowed on the authority or during a simulation update for predicting clients
+		if (bHasAuthority || Ticker.bUpdateInProgress)
+		{
+			auto& Buffer = NetSimBufferSelect::Get<TNetworkSimBufferContainer<TBufferTypes>, TState>(Buffers);
+			return Buffer.WriteFrameInitializedFromHead(Ticker.PendingFrame);
+		}
+		return nullptr;
+	}
+
+	// ------------------------------------------------------------------------------------------------------
+	//	Dependent Simulations
+	// ------------------------------------------------------------------------------------------------------
+
+	void SetParentSimulation(INetworkedSimulationModel* ParentSimulation) final override
 	{
 		if (RepProxy_Simulated.ParentSimulation)
 		{
@@ -343,19 +393,19 @@ public:
 		}
 	}
 
-	INetworkSimulationModel* GetParentSimulation() const final override
+	INetworkedSimulationModel* GetParentSimulation() const final override
 	{
 		return RepProxy_Simulated.ParentSimulation;
 	}
 
-	void AddDependentSimulation(INetworkSimulationModel* DependentSimulation) final override
+	void AddDependentSimulation(INetworkedSimulationModel* DependentSimulation) final override
 	{
 		check(RepProxy_Autonomous.DependentSimulations.Contains(DependentSimulation) == false);
 		RepProxy_Autonomous.DependentSimulations.Add(DependentSimulation);
 		NotifyDependentSimNeedsReconcile(); // force reconcile on purpose
 	}
 
-	void RemoveDependentSimulation(INetworkSimulationModel* DependentSimulation) final override
+	void RemoveDependentSimulation(INetworkedSimulationModel* DependentSimulation) final override
 	{
 		RepProxy_Autonomous.DependentSimulations.Remove(DependentSimulation);
 	}
@@ -367,18 +417,18 @@ public:
 
 	void BeginRollback(const FNetworkSimTime& RollbackDeltaTime, const int32 ParentFrame) final override
 	{
-		RepProxy_Simulated.template DependentRollbackBegin<TSimulation, TDriver>(Simulation, Driver, Buffers, Ticker, RollbackDeltaTime, ParentFrame);
+		RepProxy_Simulated.template DependentRollbackBegin<TSimulation, TDriver>(Simulation.Get(), Driver, Buffers, Ticker, RollbackDeltaTime, ParentFrame);
 	}
 
 	void StepRollback(const FNetworkSimTime& Step, const int32 ParentFrame, const bool bFinalStep) final override
 	{
-		RepProxy_Simulated.template DependentRollbackStep<TSimulation, TDriver>(Simulation, Driver, Buffers, Ticker, Step, ParentFrame, bFinalStep);
+		RepProxy_Simulated.template DependentRollbackStep<TSimulation, TDriver>(Simulation.Get(), Driver, Buffers, Ticker, Step, ParentFrame, bFinalStep);
 	}
 
 	void ClearAllDependentSimulations()
 	{
-		TArray<INetworkSimulationModel*> LocalList = MoveTemp(RepProxy_Autonomous.DependentSimulations);
-		for (INetworkSimulationModel* DependentSim : LocalList)
+		TArray<INetworkedSimulationModel*> LocalList = MoveTemp(RepProxy_Autonomous.DependentSimulations);
+		for (INetworkedSimulationModel* DependentSim : LocalList)
 		{
 			DependentSim->SetParentSimulation(nullptr);
 		}
@@ -386,7 +436,7 @@ public:
 
 	// -------------------------------------------------------------------------------------------------------
 
-	TSimulation* Simulation = nullptr;
+	TUniquePtr<TSimulation> Simulation;
 	TDriver* Driver = nullptr;
 
 	TSimulationTicker<TTickSettings> Ticker;
