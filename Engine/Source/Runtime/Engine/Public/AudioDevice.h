@@ -1265,7 +1265,7 @@ private:
 	/**
 	 * Parses the sound classes and propagates multiplicative properties down the tree.
 	 */
-	void ParseSoundClasses();
+	void ParseSoundClasses(float InDeltaTime);
 
 	/** Stops quiet sounds due to being evaluated as not fulfilling concurrency requirements
 	 */
@@ -1575,6 +1575,9 @@ public:
 	const FDynamicParameter& GetGlobalPitchScale() const { check(IsInAudioThread()); return GlobalPitchScale; }
 	void SetGlobalPitchModulation(float PitchScale, float TimeSec);
 	float ClampPitch(float InPitchScale) const;
+
+	/** Overrides the attenuation scale used on a sound class. */
+	void SetSoundClassDistanceScale(USoundClass* InSoundClass, float DistanceScale, float TimeSec);
 
 	float GetPlatformAudioHeadroom() const { check(IsInAudioThread()); return PlatformAudioHeadroom; }
 	void SetPlatformAudioHeadroom(float PlatformHeadRoom);
