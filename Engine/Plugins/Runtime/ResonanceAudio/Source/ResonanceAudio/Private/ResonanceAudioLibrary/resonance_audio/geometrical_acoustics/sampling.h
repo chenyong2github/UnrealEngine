@@ -103,7 +103,6 @@ static Eigen::Vector3f CosineSampleHemisphere(
                                             unit_normal) *
          local_vector;
 }
-#endif
 
 // The probability density function (PDF) that a vector is in a particular
 // direction if the vector is sampled from a cosine-weigted distribution over
@@ -121,6 +120,7 @@ static float CosineSampleHemispherePdf(const Eigen::Vector3f& unit_normal,
   // different sides of the plane, i.e., their inner-product is negative.
   return cos_theta >= 0.0f ? cos_theta / kPi : 0.0f;
 }
+#endif
 
 }  // namespace vraudio
 
