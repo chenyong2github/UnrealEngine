@@ -12,6 +12,7 @@
 #include "BoundingVolume.h"
 #include "ChaosArchive.h"
 #include "UObject/ExternalPhysicsCustomObjectVersion.h"
+#include "AABBTree.h"
 
 namespace Chaos
 {
@@ -131,7 +132,8 @@ namespace Chaos
 		TArray<TVector<int32, 3>> MElements;
 		TBox<T, 3> MLocalBoundingBox;
 
-		using BVHType = TBoundingVolume<int32, T, 3>;
+		//using BVHType = TBoundingVolume<int32, T, 3>;
+		using BVHType = TAABBTree<int32, TAABBTreeLeafArray<int32, T>, T>;
 
 		template<typename InStorageType, typename InRealType>
 		friend struct FBvEntry;
