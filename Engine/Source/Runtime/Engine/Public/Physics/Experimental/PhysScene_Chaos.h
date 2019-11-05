@@ -276,7 +276,7 @@ public:
 
 	// In Chaos, this function will update the pointers from actor handles to their proxies.
 	// So the array of handles must be non-const.
-	void ENGINE_API AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& InActors);
+	void ENGINE_API AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& InActors, const bool bImmediate=true);
 	void AddAggregateToScene(const FPhysicsAggregateHandle& InAggregate);
 
 	void SetOwningWorld(UWorld* InOwningWorld);
