@@ -12,6 +12,8 @@
 #include "HAL/PlatformAtomics.h"
 #include "Engine/RendererSettings.h"
 
+extern FVulkanCommandBufferManager* GVulkanCommandBufferManager;
+
 struct FRHICommandProcessDeferredDeletionQueue final : public FRHICommand<FRHICommandProcessDeferredDeletionQueue>
 {
 	FVulkanDevice* Device;
@@ -833,7 +835,7 @@ bool FVulkanViewport::Present(FVulkanCommandListContext* Context, FVulkanCmdBuff
 	}
 
 	CmdBuffer->End();
-
+	GVulkanCommandBufferManager->FlushResetQueryPools();
 	if (FVulkanPlatform::SupportsStandardSwapchain())
 	{
 		if (LIKELY(!bFailedToDelayAcquireBackbuffer))
