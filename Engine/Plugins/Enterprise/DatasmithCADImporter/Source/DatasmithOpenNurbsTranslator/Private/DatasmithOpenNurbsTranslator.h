@@ -3,6 +3,7 @@
 #pragma once
 
 #include "DatasmithCoreTechTranslator.h"
+#include "DatasmithImportOptions.h"
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
@@ -40,5 +41,9 @@ protected:
 private:
 
 	TSharedPtr<FOpenNurbsTranslatorImpl> Translator;
+
+	// Temporarily store this here for UE-81278 so that we can trigger the recreation of
+	// static meshes if we're reimporting with new materials that haven't been assigned yet
+	FDatasmithImportBaseOptions BaseOptions;
 };
 
