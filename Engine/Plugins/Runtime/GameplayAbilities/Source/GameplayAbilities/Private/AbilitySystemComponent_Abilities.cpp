@@ -481,6 +481,18 @@ void UAbilitySystemComponent::OnRemoveAbility(FGameplayAbilitySpec& Spec)
 			}
 		}
 	}
+
+	// Notify the ability that it has been removed.  It follows the same pattern as OnGiveAbility() and is only called on the primary instance of the ability or the CDO.
+	UGameplayAbility* PrimaryInstance = Spec.GetPrimaryInstance();
+	if (PrimaryInstance)
+	{
+		PrimaryInstance->OnRemoveAbility(AbilityActorInfo.Get(), Spec);
+	}
+	else
+	{
+		Spec.Ability->OnRemoveAbility(AbilityActorInfo.Get(), Spec);
+	}
+
 	Spec.ReplicatedInstances.Empty();
 	Spec.NonReplicatedInstances.Empty();
 }
