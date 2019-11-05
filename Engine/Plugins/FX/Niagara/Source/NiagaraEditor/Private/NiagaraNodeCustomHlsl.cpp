@@ -13,6 +13,7 @@
 UNiagaraNodeCustomHlsl::UNiagaraNodeCustomHlsl(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	PinPendingRename = nullptr;
 	bCanRenameNode = true;
 	ScriptUsage = ENiagaraScriptUsage::Function;
 
@@ -164,11 +165,101 @@ void UNiagaraNodeCustomHlsl::InitAsCustomHlslDynamicInput(const FNiagaraTypeDefi
 
 #endif
 
+bool UNiagaraNodeCustomHlsl::IsPinNameEditableUponCreation(const UEdGraphPin* GraphPinObj) const
+{
+	if (GraphPinObj == PinPendingRename && ScriptUsage != ENiagaraScriptUsage::DynamicInput)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool UNiagaraNodeCustomHlsl::IsPinNameEditable(const UEdGraphPin* GraphPinObj) const
+{
+
+	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
+	FNiagaraTypeDefinition TypeDef = Schema->PinToTypeDefinition(GraphPinObj);
+	if (TypeDef.IsValid() && GraphPinObj &&  CanRenamePin(GraphPinObj) && ScriptUsage != ENiagaraScriptUsage::DynamicInput)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool UNiagaraNodeCustomHlsl::VerifyEditablePinName(const FText& InName, FText& OutErrorMessage, const UEdGraphPin* InGraphPinObj)  const
+{
+	// Check to see if the symbol has to be mangled to be valid hlsl. If it does, then prevent it from being 
+	// valid. This helps clear up any ambiguity downstream in the translator.
+	FString NewName = InName.ToString();
+	FString SanitizedNewName = FHlslNiagaraTranslator::GetSanitizedSymbolName(NewName);
+
+	if (NewName != SanitizedNewName || NewName.Len() == 0)
+	{
+		OutErrorMessage = FText::Format(LOCTEXT("InvalidPinName", "Pin \"{0}\" cannot be renamed to \"{1}\". Certain words are restricted, as are spaces and special characters. Suggestion: \"{2}\""), InGraphPinObj->GetDisplayName(), InName, FText::FromString(SanitizedNewName));
+		return false;
+	}
+	TSet<FName> Names;
+	for (int32 i = 0; i < Pins.Num(); i++)
+	{
+		if (Pins[i] != InGraphPinObj)
+			Names.Add(Pins[i]->GetFName());
+	}
+	if (Names.Contains(*NewName))
+	{
+		OutErrorMessage = FText::Format(LOCTEXT("InvalidPinName", "Pin \"{0}\" cannot be renamed to \"{1}\" as it conflicts with another name in use. Suggestion: \"{2}\""), InGraphPinObj->GetDisplayName(), InName, FText::FromName(FNiagaraUtilities::GetUniqueName(*SanitizedNewName, Names)));
+		return false;
+	}
+	OutErrorMessage = FText::GetEmpty();
+	return true;
+}
+
+bool UNiagaraNodeCustomHlsl::CommitEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj)
+{
+	if (Pins.Contains(InGraphPinObj))
+	{
+		FScopedTransaction AddNewPinTransaction(LOCTEXT("Rename Pin", "Renamed pin"));
+		Modify();
+		InGraphPinObj->Modify();
+
+		FString OldPinName = InGraphPinObj->PinName.ToString();
+		InGraphPinObj->PinName = *InName.ToString();
+		OnPinRenamed(InGraphPinObj, OldPinName);
+
+		return true;
+	}
+	return false;
+}
+
+bool UNiagaraNodeCustomHlsl::CancelEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj)
+{
+	if (InGraphPinObj == PinPendingRename)
+	{
+		PinPendingRename = nullptr;
+	}
+	return true;
+}
+
+
 /** Called when a new typed pin is added by the user. */
 void UNiagaraNodeCustomHlsl::OnNewTypedPinAdded(UEdGraphPin* NewPin)
 {
+	TSet<FName> Names;
+	for (int32 i = 0; i < Pins.Num(); i++)
+	{
+		if (Pins[i] != NewPin)
+			Names.Add(Pins[i]->GetFName());
+	}
+	FName Name = FNiagaraUtilities::GetUniqueName(NewPin->GetFName(), Names);
+	NewPin->PinName = Name;
 	UNiagaraNodeWithDynamicPins::OnNewTypedPinAdded(NewPin);
 	RebuildSignatureFromPins();
+	PinPendingRename = NewPin;
 }
 
 /** Called when a pin is renamed. */
@@ -249,6 +340,7 @@ void UNiagaraNodeCustomHlsl::BuildParameterMapHistory(FNiagaraParameterMapHistor
 				bHasParamMapOutput = true;
 				FString ReplaceSrc = Output.GetName().ToString() + TEXT(".");
 				ReplaceExactMatchTokens(Tokens, ReplaceSrc, TEXT(""), false);
+				OutHistory.RegisterParameterMapPin(ParamMapIdx, OutputPins[i]);
 			}
 			else
 			{
@@ -287,8 +379,9 @@ void UNiagaraNodeCustomHlsl::BuildParameterMapHistory(FNiagaraParameterMapHistor
 }
 
 // Replace items in the tokens array if they start with the src string or optionally src string and a namespace delimiter
-void UNiagaraNodeCustomHlsl::ReplaceExactMatchTokens(TArray<FString>& Tokens, const FString& SrcString, const FString& ReplaceString, bool bAllowNamespaceSeparation)
+uint32 UNiagaraNodeCustomHlsl::ReplaceExactMatchTokens(TArray<FString>& Tokens, const FString& SrcString, const FString& ReplaceString, bool bAllowNamespaceSeparation)
 {
+	uint32 Count = 0;
 	for (int32 i = 0; i < Tokens.Num(); i++)
 	{
 		if (Tokens[i].StartsWith(SrcString, ESearchCase::CaseSensitive))
@@ -296,13 +389,25 @@ void UNiagaraNodeCustomHlsl::ReplaceExactMatchTokens(TArray<FString>& Tokens, co
 			if (Tokens[i].Len() > SrcString.Len() && Tokens[i][SrcString.Len()] == '.' && bAllowNamespaceSeparation)
 			{
 				Tokens[i] = ReplaceString + Tokens[i].Mid(SrcString.Len());
+				Count++;
 			}
 			else if (Tokens[i].Len() == SrcString.Len())
 			{
 				Tokens[i] = ReplaceString;
+				Count++;
 			}
 		}
 	}
+	return Count;
+}
+
+
+bool UNiagaraNodeCustomHlsl::AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType)
+{
+	if (Super::AllowNiagaraTypeForAddPin(InType) || InType.IsDataInterface())
+		return true;
+	else
+		return false;
 }
 
 
