@@ -36,6 +36,7 @@ public class MeshUtilities : ModuleRules
                 "MeshBuilderCommon",
                 "MeshUtilitiesCommon",
                 "MeshDescription",
+				"StaticMeshDescription",
                 "MeshDescriptionOperations",
 				"ToolMenus",
             }
