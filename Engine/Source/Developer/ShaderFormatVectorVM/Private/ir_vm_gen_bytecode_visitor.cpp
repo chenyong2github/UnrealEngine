@@ -549,8 +549,8 @@ void emit_byte(unsigned char b, TArray<uint8>& bytecode)
 
 void emit_short(unsigned short s, TArray<uint8>& bytecode)
 {
-	bytecode.Add(s >> 8);
 	bytecode.Add(s & 255);
+	bytecode.Add(s >> 8);
 }
 
 void emit_external_func_input(variable_info_node* input, TArray<uint8>& bytecode)
@@ -558,8 +558,8 @@ void emit_external_func_input(variable_info_node* input, TArray<uint8>& bytecode
 	check((input->offset & VVM_EXT_FUNC_INPUT_LOC_BIT) == 0);//Ensure the offset isn't too large.
 
 	unsigned short offset = input->offset | (input->owner->location == EVectorVMOperandLocation::Constant ? 0 : VVM_EXT_FUNC_INPUT_LOC_BIT);
-	bytecode.Add(offset >> 8);
 	bytecode.Add(offset & 255);
+	bytecode.Add(offset >> 8);
 }
 
 struct op_base
