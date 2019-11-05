@@ -23,6 +23,8 @@ public:
 	void Construct( const FArguments& InArgs, AUsdStageActor* UsdStageActor );
 	void RefreshStageInfos( AUsdStageActor* UsdStageActor );
 
+	EUsdInitialLoadSet GetInitialLoadSet() const { return StageInfos.InitialLoadSet; }
+
 private:
 	void OnInitialLoadSetSelectionChanged( TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo );
 
@@ -38,7 +40,6 @@ private:
 	FStageInfos StageInfos;
 
 	FText GetRootLayerDisplayName() const { return StageInfos.RootLayerDisplayName; }
-	FString GetInitialLoadSet() const { return *InitialLoadSetStrings[ (int32)StageInfos.InitialLoadSet ]; }
 
 	TSharedPtr< STextComboBox > InitialLoadSetWidget;
 };
