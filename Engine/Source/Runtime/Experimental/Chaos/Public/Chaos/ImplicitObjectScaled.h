@@ -276,8 +276,11 @@ public:
 			if (MObject->Raycast(UnscaledStart, UnscaledDir, UnscaledLength, MInternalThickness + Thickness * MInvScale[0], UnscaledTime, UnscaledPosition, UnscaledNormal, OutFaceIndex))
 			{
 				OutTime = LengthScaleInv * UnscaledTime;
-				OutPosition = MScale * UnscaledPosition;
-				OutNormal = (MInvScale * UnscaledNormal).GetSafeNormal();
+				if (OutTime != 0) // Normal/Position output may be uninitialized with TOI 0.
+				{
+					OutPosition = MScale * UnscaledPosition;
+					OutNormal = (MInvScale * UnscaledNormal).GetSafeNormal();
+				}
 				ensure(OutTime <= Length);
 				return true;
 			}
