@@ -35,6 +35,7 @@ public:
 	virtual void CollectAddPinActions(FGraphActionListBuilderBase& OutActions, bool& bOutCreateRemainingActions, UEdGraphPin* Pin) override;
 	virtual void GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const override;
 	
+
 	virtual bool IncludeParentNodeContextMenu() const { return true; }
 
 protected:
