@@ -148,7 +148,7 @@ void UFlyingMovementComponent::FinalizeFrame(const FlyingMovement::FMoveState& S
 
 FString UFlyingMovementComponent::GetDebugName() const
 {
-	return FString::Printf(TEXT("FlyingMovement. %s. %s"), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwnerRole()), *GetName());
+	return FString::Printf(TEXT("FlyingMovement. %s. %s"), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwnerRole()), *GetPathName());
 }
 
 const AActor* UFlyingMovementComponent::GetVLogOwner() const

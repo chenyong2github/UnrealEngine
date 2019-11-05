@@ -261,6 +261,26 @@ void UMockFlyingAbilityComponent::ProduceInput(const FNetworkSimTime SimTime, FM
 void UMockFlyingAbilityComponent::FinalizeFrame(const FMockAbilitySyncState& SyncState, const FMockAbilityAuxstate& AuxState)
 {
 	Super::FinalizeFrame(SyncState, AuxState);
+
+	if (AuxState.bIsSprinting != bIsSprinting)
+	{
+		bIsSprinting = AuxState.bIsSprinting;
+		OnSprintStateChange.Broadcast(AuxState.bIsSprinting);
+	}
+
+	const bool bLocalIsDashing = (AuxState.DashTimeLeft > 0);
+	if (bLocalIsDashing != bIsDashing)
+	{
+		bIsDashing = bLocalIsDashing;
+		OnDashStateChange.Broadcast(bIsDashing);
+	}
+
+	const bool bLocalIsBlinking = (AuxState.BlinkWarmupLeft > 0);
+	if (bLocalIsBlinking != bIsBlinking)
+	{
+		bIsBlinking = bLocalIsBlinking;
+		OnBlinkStateChange.Broadcast(bLocalIsBlinking);
+	}
 }
 
 FString UMockFlyingAbilityComponent::GetDebugName() const
@@ -280,24 +300,24 @@ void UMockFlyingAbilityComponent::VisualLog(const FMockAbilityInputCmd* Input, c
 
 // ---------------------------------------------------------------------------------
 
-void UMockFlyingAbilityComponent::NotifySprint(bool bIsSprinting)
+void UMockFlyingAbilityComponent::NotifySprint(bool bNewIsSprinting)
 {
 	if (GetNetMode() == NM_DedicatedServer)
 	{
 		return;
 	}
 
-	UE_LOG(LogTemp, Display, TEXT("Sprint: %d"), bIsSprinting);
+	//UE_LOG(LogTemp, Display, TEXT("Sprint: %d"), bNewIsSprinting);
 }
 
-void UMockFlyingAbilityComponent::NotifyDash(bool bIsDashing)
+void UMockFlyingAbilityComponent::NotifyDash(bool bNewIsDashing)
 {
 	if (GetNetMode() == NM_DedicatedServer)
 	{
 		return;
 	}
 
-	UE_LOG(LogTemp, Display, TEXT("Dash: %d"), bIsDashing);
+	//UE_LOG(LogTemp, Display, TEXT("Dash: %d"), bNewIsDashing);
 }
 
 void UMockFlyingAbilityComponent::NotifyBlinkStartup()
@@ -307,7 +327,7 @@ void UMockFlyingAbilityComponent::NotifyBlinkStartup()
 		return;
 	}
 
-	UE_LOG(LogTemp, Display, TEXT("Blink Startup"));
+	//UE_LOG(LogTemp, Display, TEXT("Blink Startup"));
 }
 
 void UMockFlyingAbilityComponent::NotifyBlinkFinished()
@@ -317,5 +337,5 @@ void UMockFlyingAbilityComponent::NotifyBlinkFinished()
 		return;
 	}
 
-	UE_LOG(LogTemp, Display, TEXT("Blink Finished"));
+	//UE_LOG(LogTemp, Display, TEXT("Blink Finished"));
 }
