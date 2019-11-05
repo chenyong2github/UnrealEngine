@@ -23,6 +23,7 @@
 #include "Kismet2/DebuggerCommands.h"
 #include "Debugging/KismetDebugCommands.h"
 #include "Widgets/Input/SHyperlink.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "DebugViewUI"
 
@@ -1062,8 +1063,19 @@ void SKismetDebuggingView::Construct(const FArguments& InArgs)
 	BlueprintToWatchPtr = InArgs._BlueprintToWatch;
 
 	// Build the debug toolbar
-	FToolBarBuilder DebugToolbarBuilder(FPlayWorldCommands::GlobalPlayWorldActions, FMultiBoxCustomization::None );
-	FPlayWorldCommands::BuildToolbar(DebugToolbarBuilder);
+	static const FName ToolbarName = "Kismet.DebuggingViewToolBar";
+	if (!UToolMenus::Get()->IsMenuRegistered(ToolbarName))
+	{
+		UToolMenu* ToolBar = UToolMenus::Get()->RegisterMenu(ToolbarName, NAME_None, EMultiBoxType::ToolBar);
+
+		{
+			FToolMenuSection& Section = ToolBar->AddSection("Debug");
+			FPlayWorldCommands::BuildToolbar(Section);
+		}
+	}
+
+	FToolMenuContext MenuContext(FPlayWorldCommands::GlobalPlayWorldActions);
+	TSharedRef<SWidget> ToolbarWidget = UToolMenus::Get()->GenerateWidget(ToolbarName, MenuContext);
 
 	this->ChildSlot
 	[
@@ -1075,7 +1087,7 @@ void SKismetDebuggingView::Construct(const FArguments& InArgs)
 			.Visibility( this, &SKismetDebuggingView::IsDebuggerVisible )
 			.BorderImage( FEditorStyle::GetBrush( TEXT("NoBorder") ) )
 			[
-				DebugToolbarBuilder.MakeWidget()
+				ToolbarWidget
 			]
 		]
 		+SVerticalBox::Slot()

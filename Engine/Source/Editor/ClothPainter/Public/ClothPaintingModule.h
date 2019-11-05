@@ -36,6 +36,9 @@ protected:
 
 private:
 
+	// Extend toolbars and menus
+	void RegisterMenus();
+
 	// Extends a skeletal mesh editor instance toolbar
 	TSharedRef<FExtender> ExtendSkelMeshEditorToolbar(const TSharedRef<FUICommandList> InCommandList, TSharedRef<ISkeletalMeshEditor> InSkeletalMeshEditor);
 

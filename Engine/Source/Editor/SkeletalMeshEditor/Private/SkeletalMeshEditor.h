@@ -21,6 +21,8 @@ class ISkeletonTreeItem;
 struct HActor;
 struct FViewportClick;
 struct FSkeletalMeshClothBuildParams;
+struct FToolMenuContext;
+class UToolMenu;
 
 namespace SkeletalMeshEditorModes
 {
@@ -61,6 +63,7 @@ public:
 	virtual FText GetBaseToolkitName() const override;
 	virtual FString GetWorldCentricTabPrefix() const override;
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
+	virtual void InitToolMenuContext(FToolMenuContext& MenuContext) override;
 
 	//~ Begin FAssetEditorToolkit Interface.
 	virtual bool OnRequestClose() override;
@@ -137,9 +140,14 @@ private:
 	void OnRemoveSectionFromLodAndBelowMenuItemClicked(int32 LodIndex, int32 SectionIndex);
 	//////////////////////////////////////////////////////////////////////////
 
+	void RegisterReimportContextMenu(const FName InBaseMenuName);
+
+	static TSharedPtr<FSkeletalMeshEditor> GetSkeletalMeshEditor(const FToolMenuContext& InMenuContext);
+
 private:
 	void ExtendMenu();
 
+	void RegisterToolbar();
 	void ExtendToolbar();
 
 	void BindCommands();
