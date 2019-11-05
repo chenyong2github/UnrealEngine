@@ -55,7 +55,7 @@ static FAutoConsoleVariableRef CVarNiagaraDumpNansOnce(
 	ECVF_Default
 );
 
-static int32 GbNiagaraShowAllocationWarnings = 1;
+static int32 GbNiagaraShowAllocationWarnings = 0;
 static FAutoConsoleVariableRef CVarNiagaraShowAllocationWarnings(
 	TEXT("fx.Niagara.ShowAllocationWarnings"),
 	GbNiagaraShowAllocationWarnings,
