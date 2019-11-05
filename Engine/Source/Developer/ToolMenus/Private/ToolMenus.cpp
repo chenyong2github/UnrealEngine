@@ -1423,7 +1423,14 @@ UToolMenu* UToolMenus::GenerateMenuOrSubMenuForEdit(const UToolMenu* InMenu)
 
 UToolMenu* UToolMenus::GenerateMenu(const FName Name, const FToolMenuContext& InMenuContext)
 {
-	return GenerateMenuFromHierarchy(CollectHierarchy(Name), InMenuContext);
+	// Allow substituting one menu for another
+	FName MenuName = Name;
+	if (const FName* Found = MenuSubstitutionsDuringGenerate.Find(Name))
+	{
+		MenuName = *Found;
+	}
+
+	return GenerateMenuFromHierarchy(CollectHierarchy(MenuName), InMenuContext);
 }
 
 UToolMenu* UToolMenus::GenerateMenuFromHierarchy(const TArray<UToolMenu*>& Hierarchy, const FToolMenuContext& InMenuContext)
