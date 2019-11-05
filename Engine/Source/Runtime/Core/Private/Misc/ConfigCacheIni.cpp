@@ -3774,6 +3774,9 @@ void FConfigCacheIni::LoadConsoleVariablesFromINI()
 	// We also apply from Engine.ini [ConsoleVariables] section
 	ApplyCVarSettingsFromIni(TEXT("ConsoleVariables"), *GEngineIni, ECVF_SetBySystemSettingsIni);
 
+	// The [SystemSettings] section also supports hotfixing
+	ApplyCVarSettingsFromIni(TEXT("SystemSettings"), *GEngineIni, ECVF_SetBySystemSettingsIni);
+
 	IConsoleManager::Get().CallAllConsoleVariableSinks();
 }
 
