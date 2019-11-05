@@ -1645,6 +1645,7 @@ void FOpenGLDynamicRHI::RHISetRenderTargets(
 
 	FOpenGLTextureBase* NewDepthStencilRT = GetOpenGLTextureFromRHITexture(NewDepthStencilTargetRHI ? NewDepthStencilTargetRHI->Texture : nullptr);
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (IsES2Platform(GMaxRHIShaderPlatform) && !IsPCPlatform(GMaxRHIShaderPlatform))
 	{
 		// @todo-mobile
@@ -1679,6 +1680,7 @@ void FOpenGLDynamicRHI::RHISetRenderTargets(
 				ContextState.LastES2ColorTargetType = NewColorTargetType;
 		}
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	
 	PendingState.DepthStencil = NewDepthStencilRT;
 	PendingState.StencilStoreAction = NewDepthStencilTargetRHI ? NewDepthStencilTargetRHI->GetStencilStoreAction() : ERenderTargetStoreAction::ENoAction;
