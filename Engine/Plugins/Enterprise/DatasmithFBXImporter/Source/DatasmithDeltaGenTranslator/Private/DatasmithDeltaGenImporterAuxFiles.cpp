@@ -976,27 +976,27 @@ bool LoadTMLFile(const TCHAR* InFilePath, FDatasmithDeltaGenImportTmlResult& Out
 				}
 
 				{
-					FDeltaGenTmlDataAnimationTrackType AnimationType = FDeltaGenTmlDataAnimationTrackType::Unsupported;
+					EDeltaGenTmlDataAnimationTrackType AnimationType = EDeltaGenTmlDataAnimationTrackType::Unsupported;
 					{
 						if (TEXT("SceneObjectTranslationAnimation") == ObjectAnimationNode->GetAttribute(TEXT("Type")))
 						{
-							AnimationType = FDeltaGenTmlDataAnimationTrackType::Translation;
+							AnimationType = EDeltaGenTmlDataAnimationTrackType::Translation;
 						}
 						else if (TEXT("SceneObjectRotationAnimation") == ObjectAnimationNode->GetAttribute(TEXT("Type"))) // quaternion
 						{
-							AnimationType = FDeltaGenTmlDataAnimationTrackType::Rotation;
+							AnimationType = EDeltaGenTmlDataAnimationTrackType::Rotation;
 						}
 						else if (TEXT("SceneObjectEulerAnimation") == ObjectAnimationNode->GetAttribute(TEXT("Type")))  // degrees
 						{
-							AnimationType = FDeltaGenTmlDataAnimationTrackType::RotationDeltaGenEuler;
+							AnimationType = EDeltaGenTmlDataAnimationTrackType::RotationDeltaGenEuler;
 						}
 						else if (TEXT("SceneObjectScaleAnimation") == ObjectAnimationNode->GetAttribute(TEXT("Type")))
 						{
-							AnimationType = FDeltaGenTmlDataAnimationTrackType::Scale;
+							AnimationType = EDeltaGenTmlDataAnimationTrackType::Scale;
 						}
 						else if (TEXT("SceneObjectCenterAnimation") == ObjectAnimationNode->GetAttribute(TEXT("Type")))
 						{
-							AnimationType = FDeltaGenTmlDataAnimationTrackType::Center;
+							AnimationType = EDeltaGenTmlDataAnimationTrackType::Center;
 						}
 
 					}
@@ -1061,13 +1061,13 @@ bool LoadTMLFile(const TCHAR* InFilePath, FDatasmithDeltaGenImportTmlResult& Out
 											// E.g. 0 vs. 360 degree euler rotation is same in quaternion representation. But for animation it makes difference.
 											// For example, take animation of [(0, 0, 0), (360, 0, 0)] in euler angles, this is full circle rotation
 											// this can't be encoded in quats as quats define orientation
-											case FDeltaGenTmlDataAnimationTrackType::RotationDeltaGenEuler:
+											case EDeltaGenTmlDataAnimationTrackType::RotationDeltaGenEuler:
 											{
 												FVector Euler(ValueFloat[0], ValueFloat[1], ValueFloat[2]);
 												ValueResult = FVector4(Euler, 0.0f);
 											}
 											break;
-											case FDeltaGenTmlDataAnimationTrackType::Rotation:
+											case EDeltaGenTmlDataAnimationTrackType::Rotation:
 												{
 													// taked from FFbxDataConverter::ConvertRotToQuat
 													FQuat Quat(ValueFloat[0], -ValueFloat[1], ValueFloat[2], -ValueFloat[3]);
