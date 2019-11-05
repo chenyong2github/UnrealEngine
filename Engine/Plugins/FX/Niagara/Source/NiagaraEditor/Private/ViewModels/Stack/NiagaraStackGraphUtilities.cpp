@@ -364,7 +364,6 @@ void GetGroupNodesRecursive(const TArray<UNiagaraNode*>& CurrentStartNodes, UNia
 			if (CurrentStartNode != EndNode)
 			{
 				TArray<UNiagaraNode*> LinkedNodes;
-				TArray<UEdGraphPin*> InputPins;
 				TArray<UEdGraphPin*> OutputPins;
 				CurrentStartNode->GetOutputPins(OutputPins);
 				for (UEdGraphPin* OutputPin : OutputPins)
