@@ -39,6 +39,7 @@ LandscapeEditLayers.cpp: Landscape editing layers mode
 #include "Misc/FileHelper.h"
 #include "Misc/MapErrors.h"
 #include "Misc/UObjectToken.h"
+#include "Misc/ScopedSlowTask.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "Landscape"
@@ -5554,6 +5555,72 @@ void ALandscape::DeleteLayer(int32 InLayerIndex)
 	LandscapeLayers.RemoveAt(InLayerIndex);
 
 	// Request Update
+	RequestLayersContentUpdateForceAll();
+}
+
+void ALandscape::CollapseLayer(int32 InLayerIndex)
+{
+	FScopedSlowTask SlowTask(GetLandscapeInfo()->XYtoComponentMap.Num(), LOCTEXT("Landscape_CollapseLayer_SlowWork", "Collapsing Layer..."));
+	SlowTask.MakeDialog();
+	TArray<bool> BackupVisibility;
+	TArray<bool> BackupBrushVisibility;
+	for (int32 i = 0; i < LandscapeLayers.Num(); ++i)
+	{
+		BackupVisibility.Add(LandscapeLayers[i].bVisible);
+		LandscapeLayers[i].bVisible = i == InLayerIndex || i == InLayerIndex - 1;
+	}
+
+	for (int32 i = 0; i < LandscapeLayers[InLayerIndex].Brushes.Num(); ++i)
+	{
+		BackupBrushVisibility.Add(LandscapeLayers[InLayerIndex].Brushes[i].GetBrush()->IsVisible());
+		LandscapeLayers[InLayerIndex].Brushes[i].GetBrush()->SetIsVisible(false);
+	}
+
+	// Call Request Update on all components...
+	GetLandscapeInfo()->ForAllLandscapeComponents([](ULandscapeComponent* LandscapeComponent)
+	{
+		LandscapeComponent->RequestWeightmapUpdate(false, false);
+		LandscapeComponent->RequestHeightmapUpdate(false, false);
+	});
+
+	const bool bLocalIntermediateRender = true;
+	ForceUpdateLayersContent(bLocalIntermediateRender);
+
+	// Do copy
+	{
+		FLandscapeEditDataInterface DataInterface(GetLandscapeInfo());
+		DataInterface.SetShouldDirtyPackage(true);
+
+		TSet<UTexture2D*> ProcessedHeightmaps;
+		FScopedSetLandscapeEditingLayer ScopeEditingLayer(this, LandscapeLayers[InLayerIndex - 1].Guid);
+		GetLandscapeInfo()->ForAllLandscapeComponents([&](ULandscapeComponent* LandscapeComponent)
+		{
+			SlowTask.EnterProgressFrame(1.f);
+			LandscapeComponent->CopyFinalLayerIntoEditingLayer(DataInterface, ProcessedHeightmaps);
+		});
+	}
+	
+	TArray<ALandscapeBlueprintBrushBase*> BrushesToMove;
+	for (int32 i = 0; i < LandscapeLayers[InLayerIndex].Brushes.Num(); ++i)
+	{
+		ALandscapeBlueprintBrushBase* CurrentBrush = LandscapeLayers[InLayerIndex].Brushes[i].GetBrush();
+		CurrentBrush->SetIsVisible(BackupBrushVisibility[i]);
+		BrushesToMove.Add(CurrentBrush);
+	}
+
+	for (ALandscapeBlueprintBrushBase* Brush : BrushesToMove)
+	{
+		RemoveBrushFromLayer(InLayerIndex, Brush);
+		AddBrushToLayer(InLayerIndex - 1, Brush);
+	}
+
+	for (int32 i = 0; i < LandscapeLayers.Num(); ++i)
+	{
+		LandscapeLayers[i].bVisible = BackupVisibility[i];
+	}
+
+	DeleteLayer(InLayerIndex);
+	
 	RequestLayersContentUpdateForceAll();
 }
 
