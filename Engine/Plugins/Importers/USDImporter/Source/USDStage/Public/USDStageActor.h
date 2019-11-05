@@ -70,7 +70,7 @@ private:
 	float TimeCodesPerSecond;
 
 	UPROPERTY(VisibleAnywhere, Category = "USD", Transient)
-	TWeakObjectPtr< ULevelSequence > LevelSequence;
+	ULevelSequence* LevelSequence;
 
 public:
 	DECLARE_EVENT_OneParam( AUsdStageActor, FOnActorLoaded, AUsdStageActor* );
