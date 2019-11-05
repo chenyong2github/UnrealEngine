@@ -2384,7 +2384,7 @@ void SVariantManager::OnObjectTransacted(UObject* Object, const class FTransacti
 		FString ParentActorPath;
 		if (ASwitchActor* SwitchActorParent = Cast<ASwitchActor>(TargetActor->GetAttachParentActor()))
 		{
-			if (Object->IsA(USceneComponent::StaticClass()) && Event.GetChangedProperties().Contains(GET_MEMBER_NAME_CHECKED(USceneComponent, bVisible)))
+			if (Object->IsA(USceneComponent::StaticClass()) && Event.GetChangedProperties().Contains(USceneComponent::GetVisiblePropertyName()))
 			{
 				ParentActorPath = SwitchActorParent->GetPathName();
 				bool bSwitchWasCapturedAlready = CachedDisplayedActorPaths.Contains(ParentActorPath);
