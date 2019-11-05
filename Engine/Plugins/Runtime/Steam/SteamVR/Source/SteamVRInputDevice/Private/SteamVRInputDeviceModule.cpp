@@ -33,6 +33,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "Runtime/Projects/Public/Interfaces/IPluginManager.h"
 #include "SteamVRInputDevice.h"
 #include "Engine/Engine.h"
+#include "IXRTrackingSystem.h"
 
 class FSteamVRInputDeviceModule : public ISteamVRInputDeviceModule
 {
