@@ -29,6 +29,7 @@ public:
 	virtual void GetAllAreaCosts(float* CostArray, float* FixedCostArray, const int32 Count) const override;
 	virtual void SetBacktrackingEnabled(const bool bBacktracking) override;
 	virtual bool IsBacktrackingEnabled() const override;
+	virtual float GetHeuristicScale() const override;
 	virtual bool IsEqual(const INavigationQueryFilterInterface* Other) const override;
 	virtual void SetIncludeFlags(uint16 Flags) override;
 	virtual uint16 GetIncludeFlags() const override;
