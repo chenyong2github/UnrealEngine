@@ -588,6 +588,7 @@ void SUsdLayersTreeView::OnRemoveSelectedLayers()
 					if ( ParentLayerHandle )
 					{
 						ParentLayerHandle->RemoveSubLayerPath( SubLayerIndex );
+						//SelectedLayer->ParentItem->Children.Remove( Child );
 						bLayerRemoved = true;
 					}
 					break;
