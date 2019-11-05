@@ -95,6 +95,9 @@ private:
 	/** Are Remote keys mapped to gamepad or not. */
 	static bool bRemoteKeysMappedToGamepad;
 
+	/** Are Go keys mapped to Touch or not. */
+	static bool bGoKeysMappedToTouch;
+
 	/** Repeat key delays, loaded from config */
 	static float InitialButtonRepeatDelay;
 	static float ButtonRepeatDelay;
