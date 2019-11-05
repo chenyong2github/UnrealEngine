@@ -1963,6 +1963,8 @@ void UAbilitySystemComponent::RemoveGameplayEventTagContainerDelegate(const FGam
 
 void UAbilitySystemComponent::MonitoredTagChanged(const FGameplayTag Tag, int32 NewCount)
 {
+	ABILITYLIST_SCOPE_LOCK();
+
 	int32 TriggeredCount = 0;
 	if (OwnedTagTriggeredAbilities.Contains(Tag))
 	{
