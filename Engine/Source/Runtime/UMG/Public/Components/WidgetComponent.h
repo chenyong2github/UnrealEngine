@@ -372,6 +372,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = UserInterface)
 	void SetWindowVisibility(EWindowVisibility InVisibility);
 
+	/** Hook to allow this component modify the local position of the widget after it has been projected from world space to screen space. */
+	virtual FVector2D ModifyProjectedLocalPosition(const FGeometry& ViewportGeometry, const FVector2D& LocalPosition) { return LocalPosition; }
+
 protected:
 	void OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld);
 
