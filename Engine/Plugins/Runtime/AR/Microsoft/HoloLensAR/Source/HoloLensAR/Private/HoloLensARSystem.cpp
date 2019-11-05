@@ -499,6 +499,11 @@ void FHoloLensARSystem::UpdateWMRAnchors()
 			if (WMRGetAnchorTransform(*AnchorId, Transform))
 			{
 				Pin->OnTransformUpdated(Transform);
+				Pin->OnTrackingStateChanged(EARTrackingState::Tracking);
+			}
+			else
+			{
+				Pin->OnTrackingStateChanged(EARTrackingState::NotTracking);
 			}
 		}
 	}
