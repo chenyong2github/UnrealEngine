@@ -579,6 +579,7 @@ struct FAutomationScreenshotData
 	int32 TextureQuality;
 	int32 EffectsQuality;
 	int32 FoliageQuality;
+	int32 ShadingQuality;
 
 	// Comparison Requests
 	bool bHasComparisonRules;
@@ -609,6 +610,7 @@ struct FAutomationScreenshotData
 		, TextureQuality(0)
 		, EffectsQuality(0)
 		, FoliageQuality(0)
+		, ShadingQuality(0)
 		, bHasComparisonRules(false)
 		, ToleranceRed(0)
 		, ToleranceGreen(0)
