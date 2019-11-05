@@ -2196,6 +2196,9 @@ void UDemoNetDriver::TickCheckpoint()
 			ReplayStreamer->FlushCheckpoint(GetLastCheckpointTimeInMS());
 		}
 
+		// writing checkpoint means we have 100% fidelity this frame
+		LastReplayFrameFidelity = 1;
+
 		const float TotalCheckpointTimeInMS = CheckpointSaveContext.TotalCheckpointReplicationTimeSeconds * 1000.0f;
 		const float TotalCheckpointTimeWithOverheadInMS = CheckpointSaveContext.TotalCheckpointSaveTimeSeconds * 1000.0f;
 
@@ -2203,6 +2206,11 @@ void UDemoNetDriver::TickCheckpoint()
 
 		// we are done, out
 		CheckpointSaveContext.CheckpointSaveState = ECheckpointSaveState_Idle;
+	}
+	else
+	{
+		// nothing was recorded this frame
+		LastReplayFrameFidelity = 0;
 	}
 }
 
@@ -2824,7 +2832,8 @@ void UDemoNetDriver::TickDemoRecordFrame(float DeltaSeconds)
 		ReplicatePrioritizedActors(PrioritizedActors.GetData(), PrioritizedActors.Num(), Params);
 	}
 
-	
+	LastReplayFrameFidelity = (float)Params.NumActorsReplicated / (float)NumPrioritizedActors;
+
 	CSV_CUSTOM_STAT(Basic, DemoNumReplicatedActors, Params.NumActorsReplicated, ECsvCustomStatOp::Set);
 
 	FlushNetChecked(*ClientConnection);
