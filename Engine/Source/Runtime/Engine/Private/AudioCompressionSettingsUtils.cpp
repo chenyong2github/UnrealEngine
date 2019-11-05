@@ -217,7 +217,7 @@ FCachedAudioStreamingManagerParams FPlatformCompressionUtilities::BuildCachedStr
 
 	if (CookOverrides && (CookOverrides->StreamChunkSizeKB != 0))
 	{
-		MaxChunkSize = CookOverrides->StreamChunkSizeKB * 1024;;
+		MaxChunkSize = FMath::Max(CookOverrides->StreamChunkSizeKB * 1024, 1024);
 	}
 
 	MaxChunkSize = GetMaxChunkSizeForCookOverrides(GetCookOverridesForCurrentPlatform(), MaxChunkSize / 1024);
