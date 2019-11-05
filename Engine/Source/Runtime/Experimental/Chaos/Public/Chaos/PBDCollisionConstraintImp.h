@@ -166,7 +166,7 @@ namespace Chaos
 
 				const bool bBody1Bounded = HasBoundingBox(Particle1);
 
-				const T Box1Thickness = ComputeThickness(Particle1, Dt).Size();
+				const T Box1Thickness = ComputeThickness(Particle1, CollisionVelocityInflation * Dt).Size();
 				if (bBody1Bounded)
 				{
 #if CHAOS_PARTICLEHANDLE_TODO
@@ -203,6 +203,9 @@ namespace Chaos
 				int32 CountNP = 0;
 				int32 RejectedNP = 0;
 #endif
+				TArray<TRigidBodyContactConstraint<T, d>> TempConstraintBuffer;
+				TempConstraintBuffer.Reserve(4);
+
 				const int32 NumPotentials = PotentialIntersections.Num();
 				for (int32 i = 0; i < NumPotentials; ++i)
 				{
@@ -252,21 +255,22 @@ namespace Chaos
 					const TVector<T, d> Box2Thickness = Particle2.AsDynamic() ? ComputeThickness(*Particle2.AsDynamic(), Dt) : TVector<T, d>(0);
 					const T UseThickness = FMath::Max(Box1Thickness, Box2Thickness.Size());// + MThickness
 
-					auto Constraint = ComputeConstraint(Particle1.Handle(), Particle2.Handle(), UseThickness);
-
-					//if (true || !InParticles.Geometry(Body1Index)->HasBoundingBox() || !InParticles.Geometry(Body2Index)->HasBoundingBox())
-					{
-						//SCOPE_CYCLE_COUNTER(STAT_ComputeConstraintsNP3);
-						//use narrow phase to determine if constraint is needed. Without this we can't do shock propagation
+					TempConstraintBuffer.Reset();
+					ConstructConstraints(Particle1.Handle(), Particle2.Handle(), UseThickness, TempConstraintBuffer);
 
 #if !UE_BUILD_SHIPPING
-						if (bGatherStats)
-						{
-							++CountNP;
-						}
+					if (bGatherStats)
+					{
+						++CountNP;
+					}
 #endif
-						UpdateConstraint<ECollisionUpdateType::Any>(UseThickness, Constraint);
+					if (TempConstraintBuffer.Num())
+					{
+						UpdateConstraint<ECollisionUpdateType::Any>(UseThickness, &TempConstraintBuffer[0], TempConstraintBuffer.Num());
+					}
 
+					for (auto& Constraint : TempConstraintBuffer)
+					{
 						if (Constraint.Phi < UseThickness)
 						{
 							Queue.Enqueue(Constraint);
@@ -278,7 +282,6 @@ namespace Chaos
 #endif
 						}
 					}
-
 				}
 
 #if !UE_BUILD_SHIPPING
@@ -295,28 +298,24 @@ namespace Chaos
 				while (!Queue.IsEmpty())
 				{
 					int32 Idx = Constraints.AddUninitialized(1);
-					FConstraintHandle * Handle = HandleAllocator.AllocHandle(this, Idx);
+					FConstraintHandle* Handle = HandleAllocator.AllocHandle(this, Idx);
 
 					Handles.Add(Handle);
 					Queue.Dequeue(Constraints[Idx]);
-					Constraints[Idx].Lifespan = LifespanCounter;
 					ensure(Handles.Num() == Constraints.Num());
 
-					if (bSupportHistory)
+					FConstraintHandleID HandleID = GetConstraintHandleID(Constraints[Idx]);
+					FConstraintHistory* HistoryElement;
+					if (auto ValPtr = History.Find(HandleID))
 					{
-						FConstraintHandleID HandleID = GetConstraintHandleID(Constraints[Idx]);
-						FConstraintHistory* HistoryElement;
-						if (auto ValPtr = History.Find(HandleID))
-						{
-							HistoryElement = *ValPtr;
-						}
-						else
-						{
-							HistoryElement = new FConstraintHistory(Constraints[Idx].Particle->X(), Constraints[Idx].Particle->R());
-							History.Add(HandleID, HistoryElement);
-						}
-						HistoryElement->AddHandle(Handle);
+						HistoryElement = *ValPtr;
 					}
+					else
+					{
+						HistoryElement = new FConstraintHistory(Constraints[Idx].Particle->X(), Constraints[Idx].Particle->R(), LifespanCounter + CollisionHistoryLifespan);
+						History.Add(HandleID, HistoryElement);
+					}
+					HistoryElement->AddHandle(Handle);
 				}
 				LifespanCounter++;
 			}
