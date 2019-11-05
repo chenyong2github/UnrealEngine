@@ -3308,6 +3308,11 @@ bool FEngineLoop::LoadCoreModules()
 }
 
 
+void FEngineLoop::CleanupPreInitContext()
+{
+	PreInitContext.Cleanup();
+}
+
 void FEngineLoop::LoadPreInitModules()
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Loading PreInit Modules"), STAT_PreInitModules, STATGROUP_LoadTime);
