@@ -1605,6 +1605,11 @@ bool OpenModelUtils::IsValidActor(const TSharedPtr< IDatasmithActorElement >& Ac
 
 FString OpenModelUtils::GetPersistentIDString(AlPersistentID* GroupNodeId)
 {
+	if(GroupNodeId == nullptr)
+	{
+		return FString();
+	}
+
 	int IdA, IdB, IdC, IdD;
 	GroupNodeId->id(IdA, IdB, IdC, IdD);
 	FString ThisGroupNodeID = FString::FromInt(IdA) + FString::FromInt(IdB) + FString::FromInt(IdC) + FString::FromInt(IdD);
@@ -1636,7 +1641,7 @@ FString OpenModelUtils::GetUEUUIDFromAIPersistentID(const FString& ParentUEuuid,
 
 
 
-bool OpenModelUtils::TransferAlMeshToMeshDescription(const AlMesh& AliasMesh, FMeshDescription& MeshDescription, CADLibrary::FMeshParameters& MeshParameters, bool& bHasNormal)
+bool OpenModelUtils::TransferAlMeshToMeshDescription(const AlMesh& AliasMesh, FMeshDescription& MeshDescription, CADLibrary::FMeshParameters& MeshParameters, bool& bHasNormal, bool bMerge)
 {
 	// Ref. GP3DMVisitorImpl::visitMesh
 	// Ref. FGPureMeshInterface::CreateMesh
@@ -1645,7 +1650,10 @@ bool OpenModelUtils::TransferAlMeshToMeshDescription(const AlMesh& AliasMesh, FM
 		return false;
 	}
 
-	MeshDescription.Empty();
+	if( !bMerge )
+	{
+		MeshDescription.Empty();
+	}
 
 	int32 NbStep = 1;
 	FMatrix SymmetricMatrix;
@@ -1676,6 +1684,9 @@ bool OpenModelUtils::TransferAlMeshToMeshDescription(const AlMesh& AliasMesh, FM
 	int TriangleCount = AliasMesh.numberOfTriangles();
 	const int32 VertexInstanceCount = 3 * TriangleCount;
 
+	TArray<FVertexID> VertexPositionIDs;
+	VertexPositionIDs.SetNum( VertexCount*NbStep );
+
 	// Reserve space for attributes
 	// At this point, all the faces are triangles
 	MeshDescription.ReserveNewVertices(VertexCount*NbStep);
@@ -1690,7 +1701,10 @@ bool OpenModelUtils::TransferAlMeshToMeshDescription(const AlMesh& AliasMesh, FM
 	PolygonGroupImportedMaterialSlotNames[PolyGroupId] = ImportedSlotName;
 
 	// At least one UV set must exist.
-	VertexInstanceUVs.SetNumIndices(1);
+	if( VertexInstanceUVs.GetNumIndices() == 0 )
+	{
+		VertexInstanceUVs.SetNumIndices(1);
+	}
 
 	// Get Alias mesh info
 	const float * AlVertices = AliasMesh.vertices();
@@ -1700,22 +1714,24 @@ bool OpenModelUtils::TransferAlMeshToMeshDescription(const AlMesh& AliasMesh, FM
 		// Fill the vertex array
 		if (Step == 0)
 		{
-			for (int Index = 0; Index < VertexCount; ++Index)
+			FVertexID* VertexPositionIDPtr = VertexPositionIDs.GetData();
+			for (int Index = 0; Index < VertexCount; ++Index, ++VertexPositionIDPtr)
 			{
 				const float * CurVertex = AlVertices + 3 * Index;
-				FVertexID AddedVertexId = MeshDescription.CreateVertex();
+				*VertexPositionIDPtr = MeshDescription.CreateVertex();
 				// ConvertVector_ZUp_RightHanded
-				VertexPositions[AddedVertexId] = FVector(-CurVertex[0], CurVertex[1], CurVertex[2]);
+				VertexPositions[*VertexPositionIDPtr] = FVector(-CurVertex[0], CurVertex[1], CurVertex[2]);
 			}
 		}
 		else 
 		{
-			for (int Index = 0; Index < VertexCount; ++Index)
+			FVertexID* VertexPositionIDPtr = VertexPositionIDs.GetData() + VertexCount;
+			for (int Index = 0, PositionIndex = VertexCount; Index < VertexCount; ++Index, ++VertexPositionIDPtr)
 			{
 				const float * CurVertex = AlVertices + 3 * Index;
-				FVertexID AddedVertexId = MeshDescription.CreateVertex();
+				*VertexPositionIDPtr = MeshDescription.CreateVertex();
 				// ConvertVector_ZUp_RightHanded
-				VertexPositions[AddedVertexId] = SymmetricMatrix.TransformPosition(FVector(-CurVertex[0], CurVertex[1], CurVertex[2]));
+				VertexPositions[*VertexPositionIDPtr] = SymmetricMatrix.TransformPosition(FVector(-CurVertex[0], CurVertex[1], CurVertex[2]));
 			}
 		}
 
@@ -1739,7 +1755,7 @@ bool OpenModelUtils::TransferAlMeshToMeshDescription(const AlMesh& AliasMesh, FM
 				// Create Vertex instances and set their attributes
 				for (int32 VertexIndex = 0, TIndex = 2; VertexIndex < CornerCount; ++VertexIndex, --TIndex)
 				{
-					CornerVertexIDs[VertexIndex] = FVertexID(Triangles[TIndex] + VertexCount * Step);
+					CornerVertexIDs[VertexIndex] = VertexPositionIDs[Triangles[TIndex] + VertexCount * Step];
 					CornerVertexInstanceIDs[VertexIndex] = MeshDescription.CreateVertexInstance(CornerVertexIDs[VertexIndex]);
 
 					// Set the normal
@@ -1785,7 +1801,7 @@ bool OpenModelUtils::TransferAlMeshToMeshDescription(const AlMesh& AliasMesh, FM
 				// Create Vertex instances and set their attributes
 				for (int32 VertexIndex = 0; VertexIndex < CornerCount; ++VertexIndex)
 				{
-					CornerVertexIDs[VertexIndex] = FVertexID(Triangles[VertexIndex] + VertexCount * Step);
+					CornerVertexIDs[VertexIndex] =  VertexPositionIDs[Triangles[VertexIndex] + VertexCount * Step];
 					CornerVertexInstanceIDs[VertexIndex] = MeshDescription.CreateVertexInstance(CornerVertexIDs[VertexIndex]);
 
 					// Set the normal
