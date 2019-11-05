@@ -557,7 +557,10 @@ void FSequencer::Close()
 	TrackEditors.Empty();
 
 	GUnrealEd->UpdatePivotLocationForSelection();
-	
+
+	// Redraw viewports after restoring pre animated state in case viewports are not set to realtime
+	GEditor->RedrawLevelEditingViewports();
+
 	OnCloseEventDelegate.Broadcast(AsShared());
 }
 
