@@ -32,6 +32,7 @@ constexpr int32 NUM_FRAMES_TO_WAIT_REUSE_POOL = 10;
 constexpr uint32 NUM_FRAMES_TO_WAIT_RELEASE_POOL = MAX_uint32; // never release
 #endif
 
+extern FVulkanCommandBufferManager* GVulkanCommandBufferManager;
 
 FVulkanQueryPool::FVulkanQueryPool(FVulkanDevice* InDevice, uint32 InMaxQueries, VkQueryType InQueryType)
 	: VulkanRHI::FDeviceChild(InDevice)
@@ -48,6 +49,8 @@ FVulkanQueryPool::FVulkanQueryPool(FVulkanDevice* InDevice, uint32 InMaxQueries,
 
 	VERIFYVULKANRESULT(VulkanRHI::vkCreateQueryPool(Device->GetInstanceHandle(), &PoolCreateInfo, VULKAN_CPU_ALLOCATOR, &QueryPool));
 
+	GVulkanCommandBufferManager->AddQueryPoolForReset(QueryPool, InMaxQueries);
+	
 	VkEventCreateInfo EventCreateInfo;
 	ZeroVulkanStruct(EventCreateInfo, VK_STRUCTURE_TYPE_EVENT_CREATE_INFO);
 	VERIFYVULKANRESULT(VulkanRHI::vkCreateEvent(Device->GetInstanceHandle(), &EventCreateInfo, VULKAN_CPU_ALLOCATOR, &ResetEvent));
