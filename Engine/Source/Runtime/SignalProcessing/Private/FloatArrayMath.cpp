@@ -35,6 +35,27 @@ namespace Audio
 		}
 	}
 
+	void ArrayMean(TArrayView<const float> InView, float& OutMean)
+	{
+		OutMean = 0.f;
+
+		const int32 Num = InView.Num();
+
+		if (Num < 1)
+		{
+			return;
+		}
+
+		const float* DataPtr = InView.GetData();
+
+		for (int32 i = 0; i < Num; i++)
+		{
+			OutMean += DataPtr[i];
+		}
+
+		OutMean /= static_cast<float>(Num);
+	}
+
 	void ArrayMeanFilter(TArrayView<const float> InView, int32 WindowSize, int32 WindowOrigin, TArray<float>& OutData)
 	{
 		// a quick but sinful implementation of a mean filter. encourages floating point rounding errors. 
@@ -196,6 +217,39 @@ namespace Audio
 		OutEuclideanNorm = FMath::Sqrt(OutEuclideanNorm);
 	}
 
+	void ArrayAbsInPlace(TArrayView<float> InView)
+	{
+		const int32 Num = InView.Num();
+		float* Data = InView.GetData();
+
+		for (int32 i = 0; i < Num; i++)
+		{
+			Data[i] = FMath::Abs(Data[i]);
+		}
+	}
+
+	void ArrayClampMinInPlace(TArrayView<float> InView, float InMin)
+	{
+		const int32 Num = InView.Num();
+		float* Data = InView.GetData();
+
+		for (int32 i = 0; i < Num; i++)
+		{
+			Data[i] = FMath::Max(InMin, Data[i]);
+		}
+	}
+
+	void ArrayClampMaxInPlace(TArrayView<float> InView, float InMax)
+	{
+		const int32 Num = InView.Num();
+		float* Data = InView.GetData();
+
+		for (int32 i = 0; i < Num; i++)
+		{
+			Data[i] = FMath::Min(InMax, Data[i]);
+		}
+	}
+
 	void ArrayClampInPlace(TArrayView<float> InView, float InMin, float InMax)
 	{
 		const int32 Num = InView.Num();
@@ -204,6 +258,44 @@ namespace Audio
 		for (int32 i = 0; i < Num; i++)
 		{
 			Data[i] = FMath::Clamp(Data[i], InMin, InMax);
+		}
+	}
+
+	void ArrayMinMaxNormalize(TArrayView<const float> InView, TArray<float>& OutArray)
+	{
+		const int32 Num = InView.Num();
+		OutArray.Reset(Num);
+
+		if (Num < 1)
+		{
+			return;
+		}
+
+		OutArray.AddUninitialized(Num);
+
+		const float* InDataPtr = InView.GetData();
+		float MaxValue = InDataPtr[0];
+		float MinValue = InDataPtr[0];
+
+		// determine min and max
+		for (int32 i = 1; i < Num; i++)
+		{
+			if (InDataPtr[i] < MinValue)
+			{
+				MinValue = InDataPtr[i];
+			}
+			else if (InDataPtr[i] > MaxValue)
+			{
+				MaxValue = InDataPtr[i];
+			}
+		}
+
+		// Normalize data by subtracting minimum value and dividing by range
+		float* OutDataPtr = OutArray.GetData();
+		float Scale = 1.f / FMath::Max(SMALL_NUMBER, MaxValue - MinValue);
+		for (int32 i = 0; i < Num; i++)
+		{
+			OutDataPtr[i] = (InDataPtr[i] - MinValue) * Scale;
 		}
 	}
 
@@ -224,6 +316,31 @@ namespace Audio
 		for (int32 i = 0; i < Num; i++)
 		{
 			InViewData[i] -= InSubtrahend;
+		}
+	}
+
+	void ArraySubtract(TArrayView<const float> InMinuend, TArrayView<const float> InSubtrahend, TArray<float>& OutArray)
+	{
+		const int32 Num = InMinuend.Num();
+
+		checkf(Num == InSubtrahend.Num(), TEXT("InMinuend and InSubtrahend must have equal Num elements (%d vs %d)"), Num, InSubtrahend.Num());
+
+		OutArray.Reset(Num);
+
+		if (Num < 1)
+		{
+			return;
+		}
+
+		OutArray.AddUninitialized(Num);
+		
+		const float* MinuendPtr = InMinuend.GetData();
+		const float* SubtrahendPtr = InSubtrahend.GetData();
+		float* OutPtr = OutArray.GetData();
+
+		for (int32 i = 0; i < Num; i++)
+		{
+			OutPtr[i] = MinuendPtr[i] - SubtrahendPtr[i];
 		}
 	}
 
