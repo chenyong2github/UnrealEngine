@@ -316,7 +316,7 @@ private:
 	template<ECollisionUpdateType>
 	void UpdateConstraint(const T Thickness, FRigidBodyContactConstraint* Constraints, int32 NumConstraints);
 
-	void ConstructConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const T Thickness, TArray<typename TPBDCollisionConstraint<T, d>::FRigidBodyContactConstraint>& ConstraintBuffer);
+	void ConstructConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const T Thickness, TArray< TRigidBodyContactConstraint<T,d> >& ConstraintBuffer);
 
 
 	template<typename SPATIAL_ACCELERATION>
