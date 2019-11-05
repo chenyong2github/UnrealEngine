@@ -2007,7 +2007,7 @@ void FAudioDevice::InitSoundClasses()
 	}
 
 	// Propagate the properties down the hierarchy
-	ParseSoundClasses();
+	ParseSoundClasses(0.0f);
 }
 
 void FAudioDevice::InitSoundSources()
@@ -2095,6 +2095,7 @@ void FAudioDevice::RecurseIntoSoundClasses(USoundClass* CurrentClass, FSoundClas
 				Properties->Pitch *= ParentProperties.Pitch;
 				Properties->bIsUISound |= ParentProperties.bIsUISound;
 				Properties->bIsMusic |= ParentProperties.bIsMusic;
+				Properties->SetParentAttenuationDistanceScale(ParentProperties.GetAttenuationDistanceScale());
 
 				// Not all values propagate equally...
 				// VoiceCenterChannelVolume, RadioFilterVolume, RadioFilterVolumeThreshold, bApplyEffects, BleedStereo, bReverb, and bCenterChannelOnly do not propagate (sub-classes can be non-zero even if parent class is zero)
@@ -2138,7 +2139,7 @@ void FAudioDevice::UpdateHighestPriorityReverb()
 	}
 }
 
-void FAudioDevice::ParseSoundClasses()
+void FAudioDevice::ParseSoundClasses(float InDeltaTime)
 {
 	TArray<USoundClass*> RootSoundClasses;
 
@@ -2148,6 +2149,9 @@ void FAudioDevice::ParseSoundClasses()
 		USoundClass* SoundClass = It.Key();
 		if (SoundClass)
 		{
+			// Update any dynamic sound class properties
+			SoundClass->Properties.UpdateSoundClassProperties(InDeltaTime);
+
 			It.Value() = SoundClass->Properties;
 			if (SoundClass->ParentClass == NULL)
 			{
@@ -2723,7 +2727,7 @@ void FAudioDevice::UpdateSoundClassProperties(float DeltaTime)
 	SCOPED_NAMED_EVENT(FAudioDevice_UpdateSoundClasses, FColor::Blue);
 
 	// Remove SoundMix modifications and propagate the properties down the hierarchy
-	ParseSoundClasses();
+	ParseSoundClasses(DeltaTime);
 
 	for (TMap< USoundMix*, FSoundMixState >::TIterator It(SoundMixModifiers); It; ++It)
 	{
@@ -6161,6 +6165,32 @@ void FAudioDevice::SetGlobalPitchModulation(float PitchModulation, float TimeSec
 	}
 
 	GlobalPitchScale.Set(PitchModulation, TimeSec);
+}
+
+void FAudioDevice::SetSoundClassDistanceScale(USoundClass* InSoundClass, float DistanceScale, float TimeSec)
+{
+	check(InSoundClass);
+
+	if (!IsInAudioThread())
+	{
+		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetSoundClassDistanceScale"), STAT_AudioSetSoundClassDistanceScale, STATGROUP_TaskGraphTasks);
+
+		FAudioThread::RunCommandOnAudioThread([this, InSoundClass, DistanceScale, TimeSec]()
+		{
+			SetSoundClassDistanceScale(InSoundClass, DistanceScale, TimeSec);
+		}, GET_STATID(STAT_AudioSetSoundClassDistanceScale));
+
+		return;
+	}
+
+	if (FSoundClassProperties* Properties = SoundClasses.Find(InSoundClass))
+	{
+		Properties->SetAttenuationDistanceScale(DistanceScale, TimeSec);
+	}
+	else
+	{
+		UE_LOG(LogAudio, Warning, TEXT("Failed to find sound class %s to set attenuation scale."), *InSoundClass->GetName());
+	}
 }
 
 float FAudioDevice::ClampPitch(float InPitchScale) const
