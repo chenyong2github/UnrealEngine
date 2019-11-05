@@ -18,6 +18,7 @@
 
 class FNiagaraSystemInstance;
 class FNiagaraSystemViewModel;
+class FNiagaraObjectSelection;
 class SNiagaraSystemEditorViewport;
 class SNiagaraSystemEditorWidget;
 class SNiagaraSystemViewport;
@@ -161,6 +162,8 @@ private:
 	TSharedPtr<FUICommandList> EditorCommands;
 
 	TSharedPtr<class SNiagaraParameterMapView> ParameterMapView;
+
+	TSharedPtr<FNiagaraObjectSelection> ObjectSelectionForParameterMapView;
 
 	bool bChangesDiscarded;
 
