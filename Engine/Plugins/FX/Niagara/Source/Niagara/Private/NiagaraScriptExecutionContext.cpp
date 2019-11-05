@@ -188,6 +188,7 @@ bool FNiagaraScriptExecutionContext::Execute(uint32 NumInstances)
 		const FNiagaraVMExecutableData& ExecData = Script->GetVMExecutableData();
 		VectorVM::Exec(
 			ExecData.ByteCode.GetData(),
+			ExecData.OptimizedByteCode.Num() > 0 ? ExecData.OptimizedByteCode.GetData() : nullptr,
 			ExecData.NumTempRegisters,
 			Parameters.GetParameterDataArray().GetData(),
 			DataSetMetaTable,
