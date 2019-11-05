@@ -22,6 +22,15 @@
 		#include <dwmapi.h>
 #endif	//D3D11_WITH_DWMAPI
 
+#ifndef DXGI_PRESENT_ALLOW_TEARING
+#define DXGI_PRESENT_ALLOW_TEARING          0x00000200UL
+#endif
+
+#ifndef DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
+#define DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING  2048
+#endif
+
+
 /**
  * RHI console variables used by viewports.
  */
@@ -335,7 +344,13 @@ bool FD3D11Viewport::PresentChecked(int32 SyncInterval)
 		if (SwapChain.IsValid())
 		{
 			// Present the back buffer to the viewport window.
-			Result = SwapChain->Present(SyncInterval, 0);
+			uint32 Flags = 0;
+			if( (D3D11GetSwapChainFlags() & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING) != 0 && !SyncInterval && !bIsFullscreen )
+			{
+				Flags |= DXGI_PRESENT_ALLOW_TEARING;
+			}
+
+			Result = SwapChain->Present(SyncInterval, Flags);
 		}
 
 		if (IsValidRef(CustomPresent))
