@@ -3,7 +3,7 @@
 #pragma once
 
 #include "UObject/ObjectMacros.h"
-#include "ClothConfig.generated.h"
+#include "ClothConfigBase.generated.h"
 
 class UClothingAssetBase;
 
