@@ -261,14 +261,9 @@ void GraphManager::InitializeAmbisonicRendererGraph(
   CHECK_LE(ambisonic_order, config_.max_ambisonic_order);
   const size_t num_channels = GetNumPeriphonicComponents(ambisonic_order);
   // Create binaural decoder pipeline.
-  ambisonic_mixer_nodes_[ambisonic_order] =
-      std::make_shared<MixerNode>(system_settings_, num_channels);
-  auto ambisonic_binaural_decoder_node =
-      std::make_shared<AmbisonicBinauralDecoderNode>(
-          system_settings_, ambisonic_order, sh_hrir_filename, &fft_manager_,
-          &resampler_);
-  ambisonic_binaural_decoder_node->Connect(
-      ambisonic_mixer_nodes_[ambisonic_order]);
+  ambisonic_mixer_nodes_[ambisonic_order] = std::make_shared<MixerNode>(system_settings_, num_channels);
+  auto ambisonic_binaural_decoder_node = std::make_shared<AmbisonicBinauralDecoderNode>(system_settings_, ambisonic_order, sh_hrir_filename, &fft_manager_, &resampler_);
+  ambisonic_binaural_decoder_node->Connect(ambisonic_mixer_nodes_[ambisonic_order]);
   stereo_mixer_node_->Connect(ambisonic_binaural_decoder_node);
 }
 
