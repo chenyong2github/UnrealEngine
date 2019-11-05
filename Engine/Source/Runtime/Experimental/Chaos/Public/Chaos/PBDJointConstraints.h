@@ -125,7 +125,7 @@ namespace Chaos
 
 		CHAOS_API void Apply(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
 
-		CHAOS_API void ApplyPushOut(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles);
+		CHAOS_API bool ApplyPushOut(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
 
 		CHAOS_API void ApplyProjection(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles);
 

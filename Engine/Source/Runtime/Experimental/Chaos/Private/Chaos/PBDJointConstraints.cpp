@@ -137,7 +137,6 @@ namespace Chaos
 		, DriveStiffness((T)0)
 		, SoftLinearStiffness((T)0)
 		, SoftAngularStiffness((T)0)
-		, PositionIterations((T)0)
 	{
 	}
 
@@ -377,8 +376,11 @@ namespace Chaos
 	}
 
 	template<class T, int d>
-	void TPBDJointConstraints<T, d>::ApplyPushOut(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles)
+	bool TPBDJointConstraints<T, d>::ApplyPushOut(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
 	{
+		// @todo(ccaulfield): track whether we are sufficiently solved
+		bool bNeedsAnotherIteration = true;
+
 		if (Settings.bEnableVelocitySolve)
 		{
 			TArray<FConstraintHandle*> SortedConstraintHandles = InConstraintHandles;
@@ -388,17 +390,19 @@ namespace Chaos
 					return L.GetConstraintLevel() < R.GetConstraintLevel();
 				});
 
-			for (int32 It = 0; It < Settings.PositionIterations; ++It)
+			for (FConstraintHandle* ConstraintHandle : SortedConstraintHandles)
 			{
-				for (FConstraintHandle* ConstraintHandle : SortedConstraintHandles)
-				{
-					SolvePosition(Dt, ConstraintHandle->GetConstraintIndex(), It, Settings.PositionIterations);
-				}
+				SolvePosition(Dt, ConstraintHandle->GetConstraintIndex(), It, NumIts);
 			}
 		}
 
-		// @todo(ccaulfield): should be called constraint rule
-		ApplyProjection(Dt, InConstraintHandles);
+		if (It == NumIts - 1)
+		{
+			// @todo(ccaulfield): should be called by constraint rule after PushOut
+			ApplyProjection(Dt, InConstraintHandles);
+		}
+
+		return bNeedsAnotherIteration;
 	}
 
 	template<class T, int d>
