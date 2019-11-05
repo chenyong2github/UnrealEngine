@@ -55,7 +55,7 @@ public:
 
 	bool IsValid() const
 	{
-		return (bool)UsdStage.Get();
+		return (bool)UsdStage.Get() && ( !ParentItem || ParentItem->LayerIdentifier.Get() != LayerIdentifier.Get() );
 	}
 
 	TArray< FUsdLayersTreeItemRef > GetChildren()
@@ -85,9 +85,15 @@ public:
 						bNeedsRefresh = true;
 						break;
 					}
+
+					++SubLayerIndex;
 				}
 
-				++SubLayerIndex;
+				if ( !bNeedsRefresh && SubLayerIndex < Children.Num() )
+				{
+					Children.Reset();
+					bNeedsRefresh = true;
+				}
 			}
 		}
 
@@ -582,6 +588,7 @@ void SUsdLayersTreeView::OnRemoveSelectedLayers()
 					if ( ParentLayerHandle )
 					{
 						ParentLayerHandle->RemoveSubLayerPath( SubLayerIndex );
+						//SelectedLayer->ParentItem->Children.Remove( Child );
 						bLayerRemoved = true;
 					}
 					break;
