@@ -3927,6 +3927,11 @@ void AInstancedFoliageActor::OnLevelActorDeleted(AActor* InActor)
 {
 	UWorld* InWorld = InActor->GetWorld();
 
+	if (GIsReinstancing)
+	{
+		return;
+	}
+
 	if (!InWorld || !InWorld->IsGameWorld())
 	{
 		for (UActorComponent* Component : InActor->GetComponents())
