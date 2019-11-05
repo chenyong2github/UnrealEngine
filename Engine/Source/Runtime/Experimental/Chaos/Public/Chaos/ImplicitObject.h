@@ -236,10 +236,7 @@ public:
 	}
 
 	//This gives derived types a way to do an overlap check without calling PhiWithNormal todo: this api is confusing
-	virtual bool Overlap(const TVector<T, d>& Point, const T Thickness) const
-	{
-		return SignedDistance(Point) <= Thickness;
-	}
+	virtual bool Overlap(const TVector<T, d>& Point, const T Thickness) const; 
 
 	virtual void AccumulateAllImplicitObjects(TArray<Pair<const TImplicitObject<T, d>*, TRigidTransform<T, d>>>& Out, const TRigidTransform<T, d>& ParentTM) const
 	{
