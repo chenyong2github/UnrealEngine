@@ -234,6 +234,7 @@
 #include "MaterialGraph/MaterialGraphNode.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "MaterialGraph/MaterialGraphSchema.h"
 #endif //WITH_EDITOR
 #include "Materials/MaterialInstanceConstant.h"
 #include "Curves/CurveLinearColorAtlas.h"
@@ -12930,6 +12931,14 @@ void UMaterialExpressionMaterialFunctionCall::UpdateFromFunctionResource(bool bR
 				const FName TempInputName = CurrentInput.Input.InputName;
 				CurrentInput.Input = OriginalInput->Input;
 				CurrentInput.Input.InputName = TempInputName;
+			}
+
+			if (GraphNode)
+			{
+				if (CurrentInput.ExpressionInput->bUsePreviewValueAsDefault)
+				{
+					bRecreateAndLinkNode = true;
+				}
 			}
 		}
 
