@@ -61,6 +61,7 @@ class ReflectionKernel {
     CHECK(scattering_coefficient_ >= 0.0f && scattering_coefficient_ <= 1.0f);
   }
 
+#if INCLUDE_UNUSED_CODE
   // Reflects a ray.
   //
   // @param incident_ray Incident (incoming) ray.
@@ -68,6 +69,7 @@ class ReflectionKernel {
   //     with direction and energy calculated based on the type of reflection
   //     and the incident ray.
   AcousticRay Reflect(const AcousticRay& incident_ray) const;
+#endif
 
   // Reflects an incident ray to create a diffuse-rain ray, whose |direction|
   // is from the reflection point to the listener position, and whose |t_far|
