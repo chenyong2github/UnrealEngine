@@ -12,7 +12,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogPython, Log, All);
 
 #if WITH_PYTHON
 
-class FPyWrapperOwnerContext;
+struct FPropertyAccessChangeNotify;
 
 /** Cast a function pointer to PyCFunction (via a void* to avoid a compiler warning) */
 #define PyCFunctionCast(FUNCPTR) (PyCFunction)(void*)(FUNCPTR)
@@ -229,10 +229,10 @@ namespace PyUtil
 	UObject* GetOwnerObject(PyObject* InPyObj);
 
 	/** Get the current value of the given property from the given struct */
-	PyObject* GetPropertyValue(const UStruct* InStruct, void* InStructData, const UProperty* InProp, const char *InAttributeName, PyObject* InOwnerPyObject, const TCHAR* InErrorCtxt);
+	PyObject* GetPropertyValue(const UStruct* InStruct, const void* InStructData, const UProperty* InProp, const char *InAttributeName, PyObject* InOwnerPyObject, const TCHAR* InErrorCtxt);
 
 	/** Set the current value of the given property from the given struct */
-	int SetPropertyValue(const UStruct* InStruct, void* InStructData, PyObject* InValue, const UProperty* InProp, const char *InAttributeName, const FPyWrapperOwnerContext& InChangeOwner, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const TCHAR* InErrorCtxt);
+	int SetPropertyValue(const UStruct* InStruct, void* InStructData, PyObject* InValue, const UProperty* InProp, const char *InAttributeName, const FPropertyAccessChangeNotify* InChangeNotify, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const TCHAR* InErrorCtxt);
 
 	/**
 	 * Check to see if the given object implements a length function.

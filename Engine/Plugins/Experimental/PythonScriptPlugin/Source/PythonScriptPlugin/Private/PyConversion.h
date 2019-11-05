@@ -218,15 +218,15 @@ namespace PyConversion
 	}
 
 	/** Conversion for property instances (including fixed arrays) - ValueAddr should point to the property data */
-	FPyConversionResult NativizeProperty(PyObject* PyObj, const UProperty* Prop, void* ValueAddr, const FPyWrapperOwnerContext& InChangeOwner = FPyWrapperOwnerContext(), const ESetErrorState SetErrorState = ESetErrorState::Yes);
+	FPyConversionResult NativizeProperty(PyObject* PyObj, const UProperty* Prop, void* ValueAddr, const FPropertyAccessChangeNotify* InChangeNotify = nullptr, const ESetErrorState SetErrorState = ESetErrorState::Yes);
 	FPyConversionResult PythonizeProperty(const UProperty* Prop, const void* ValueAddr, PyObject*& OutPyObj, const EPyConversionMethod ConversionMethod = EPyConversionMethod::Copy, PyObject* OwnerPyObj = nullptr, const ESetErrorState SetErrorState = ESetErrorState::Yes);
 
 	/** Conversion for single property instances - ValueAddr should point to the property data */
-	FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Prop, void* ValueAddr, const FPyWrapperOwnerContext& InChangeOwner = FPyWrapperOwnerContext(), const ESetErrorState SetErrorState = ESetErrorState::Yes);
+	FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Prop, void* ValueAddr, const FPropertyAccessChangeNotify* InChangeNotify = nullptr, const ESetErrorState SetErrorState = ESetErrorState::Yes);
 	FPyConversionResult PythonizeProperty_Direct(const UProperty* Prop, const void* ValueAddr, PyObject*& OutPyObj, const EPyConversionMethod ConversionMethod = EPyConversionMethod::Copy, PyObject* OwnerPyObj = nullptr, const ESetErrorState SetErrorState = ESetErrorState::Yes);
 
 	/** Conversion for property instances within a structure (including fixed arrays) - BaseAddr should point to the structure data */
-	FPyConversionResult NativizeProperty_InContainer(PyObject* PyObj, const UProperty* Prop, void* BaseAddr, const int32 ArrayIndex, const FPyWrapperOwnerContext& InChangeOwner = FPyWrapperOwnerContext(), const ESetErrorState SetErrorState = ESetErrorState::Yes);
+	FPyConversionResult NativizeProperty_InContainer(PyObject* PyObj, const UProperty* Prop, void* BaseAddr, const int32 ArrayIndex, const FPropertyAccessChangeNotify* InChangeNotify = nullptr, const ESetErrorState SetErrorState = ESetErrorState::Yes);
 	FPyConversionResult PythonizeProperty_InContainer(const UProperty* Prop, const void* BaseAddr, const int32 ArrayIndex, PyObject*& OutPyObj, const EPyConversionMethod ConversionMethod = EPyConversionMethod::Copy, PyObject* OwnerPyObj = nullptr, const ESetErrorState SetErrorState = ESetErrorState::Yes);
 
 	/**
@@ -234,7 +234,7 @@ namespace PyConversion
 	 * This function should be called when you know the value will actually change (or know you want to emit the notifications for it changing) and will do 
 	 * the pre-change notify, invoke the passed delegate to perform the change, then do the post-change notify
 	 */
-	void EmitPropertyChangeNotifications(const FPyWrapperOwnerContext& InChangeOwner, const TFunctionRef<void()>& InDoChangeFunc);
+	void EmitPropertyChangeNotifications(const FPropertyAccessChangeNotify* InChangeNotify, const TFunctionRef<void()>& InDoChangeFunc);
 }
 
 #endif	// WITH_PYTHON
