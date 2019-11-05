@@ -6,6 +6,7 @@
 #include "MagicLeapHMD.h"
 #include "IMagicLeapPlugin.h"
 
+
 FMagicLeapXRCamera::FMagicLeapXRCamera(const FAutoRegister& AutoRegister, FMagicLeapHMD& InMagicLeapSystem, int32 InDeviceID)
 	: FDefaultXRCamera(AutoRegister, &InMagicLeapSystem, InDeviceID)
 	, MagicLeapSystem(InMagicLeapSystem)
@@ -19,7 +20,7 @@ void FMagicLeapXRCamera::PreRenderView_RenderThread(FRHICommandListImmediate& RH
 	
 	if (MagicLeapSystem.IsStereoEyePass(View.StereoPass))
 	{
-		const int EyeIdx = IStereoRendering::IsAPrimaryView(View, MagicLeapSystem.AsShared()) ? 0 : 1;
+		const int EyeIdx = MagicLeapSystem.DeviceIsAPrimaryView(View) ? 0 : 1;
 
 		const FTrackingFrame& Frame = MagicLeapSystem.GetCurrentFrame();
 

@@ -281,7 +281,7 @@ void DrawPostProcessPass(
 	bool bHasCustomMesh,
 	EDrawRectangleFlags Flags)
 {
-	if (bHasCustomMesh && StereoView != eSSP_FULL)
+	if (bHasCustomMesh && IStereoRendering::IsStereoEyePass(StereoView))
 	{
 		DrawHmdMesh(RHICmdList, X, Y, SizeX, SizeY, U, V, SizeU, SizeV, TargetSize, TextureSize, StereoView, VertexShader);
 	}
