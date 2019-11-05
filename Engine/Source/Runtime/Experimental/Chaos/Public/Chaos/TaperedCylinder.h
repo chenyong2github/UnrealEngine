@@ -58,7 +58,7 @@ namespace Chaos
 		}
 		~TTaperedCylinder() {}
 
-		static EImplicitObjectType StaticType() { return ImplicitObjectType::TaperedCylinder; }
+		static constexpr EImplicitObjectType StaticType() { return ImplicitObjectType::TaperedCylinder; }
 
 		/**
 		 * Returns sample points centered about the origin.

@@ -34,7 +34,7 @@ class TPlane final : public FImplicitObject
 	}
 	virtual ~TPlane() {}
 
-	static EImplicitObjectType StaticType()
+	static constexpr EImplicitObjectType StaticType()
 	{
 		return ImplicitObjectType::Plane;
 	}
