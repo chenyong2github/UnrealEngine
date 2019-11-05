@@ -456,6 +456,13 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_Layers::OnLayerContextMenu
 					FUIAction DeleteLayerAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, InLayerIndex] { SharedThis->DeleteLayer(InLayerIndex); }), FCanExecuteAction::CreateLambda([Landscape] { return Landscape->LandscapeLayers.Num() > 1; }));
 					TAttribute<FText> DeleteLayerText(Landscape->LandscapeLayers.Num() == 1 ? LOCTEXT("CantDeleteLastLayer", "Delete (Last layer)") : LOCTEXT("DeleteLayer", "Delete..."));
 					MenuBuilder.AddMenuEntry(DeleteLayerText, LOCTEXT("DeleteLayerTooltip", "Delete Layer"), FSlateIcon(), DeleteLayerAction);
+
+					// Collapse Layer
+					if (LandscapeEdMode->CurrentToolMode->ToolModeName == "ToolMode_Manage")
+					{
+						FUIAction CollapseLayerAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, InLayerIndex] { SharedThis->CollapseLayer(InLayerIndex); }));
+						MenuBuilder.AddMenuEntry(LOCTEXT("CollapseLayer", "Collapse..."), LOCTEXT("CollapseLayerTooltip", "Collapse layer into top neighbor layer"), FSlateIcon(), CollapseLayerAction);
+					}
 				}
 
 				if (Landscape->GetLandscapeSplinesReservedLayer() != Landscape->GetLayer(InLayerIndex))
@@ -641,6 +648,74 @@ void FLandscapeEditorCustomNodeBuilder_Layers::DeleteLayer(int32 InLayerIndex)
 				LandscapeEdMode->RefreshDetailPanel();
 			}
 		}
+	}
+}
+
+bool FLandscapeEditorCustomNodeBuilder_Layers::CanCollapseLayer(int32 InLayerIndex, FText& OutReason) const
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	ALandscape* Landscape = LandscapeEdMode ? LandscapeEdMode->GetLandscape() : nullptr;
+	if (!Landscape || Landscape->LandscapeLayers.Num() <= 1)
+	{
+		OutReason = LOCTEXT("Landscape_CollapseLayer_Reason_NotEnoughLayersToCollapse", "Not enough layers to do Collapse.");
+		return false;
+	}
+
+	if (InLayerIndex < 1)
+	{
+		OutReason = LOCTEXT("Landscape_CollapseLayer_Reason_CantCollapseBaseLayer", "Can't Collapse first layer.");
+		return false;
+	}
+	
+	FLandscapeLayer* SplineLayer = Landscape->GetLandscapeSplinesReservedLayer();
+	if (SplineLayer == LandscapeEdMode->GetLayer(InLayerIndex))
+	{
+		OutReason = LOCTEXT("Landscape_CollapseLayer_Reason_CantCollapseSplineLayer", "Can't Collapse reserved spline layer.");
+		return false;
+	}
+
+	// Can't collapse on layer that has a Brush because result will change...
+	FLandscapeLayer* BaseLayer = LandscapeEdMode->GetLayer(InLayerIndex - 1);
+	if (SplineLayer == BaseLayer)
+	{
+		OutReason = LOCTEXT("Landscape_CollapseLayer_Reason_CantCollapseOnSplineLayer", "Can't Collapse on reserved spline layer.");
+		return false;
+	}
+	
+	if (!BaseLayer || BaseLayer->Brushes.Num() > 0)
+	{
+		OutReason = FText::Format(LOCTEXT("Landscape_CollapseLayer_Reason_CantCollapseOnLayerWithBrush", "Can't Collapse because base layer '{0}' contains Brush(es)."), FText::FromName(BaseLayer->Name));
+		return false;
+	}
+	
+
+	return true;
+}
+
+void FLandscapeEditorCustomNodeBuilder_Layers::CollapseLayer(int32 InLayerIndex)
+{
+	FText Reason;
+	if (CanCollapseLayer(InLayerIndex, Reason))
+	{
+		FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+		ALandscape* Landscape = LandscapeEdMode ? LandscapeEdMode->GetLandscape() : nullptr;
+		FLandscapeLayer* Layer = LandscapeEdMode->GetLayer(InLayerIndex);
+		FLandscapeLayer* BaseLayer = LandscapeEdMode->GetLayer(InLayerIndex - 1);
+		if (Layer && BaseLayer)
+		{
+			EAppReturnType::Type Result = FMessageDialog::Open(EAppMsgType::YesNo, FText::Format(LOCTEXT("Landscape_CollapseLayer_Message", "The layer {0} will be collapsed into layer {1}.  Continue?"), FText::FromName(Layer->Name), FText::FromName(BaseLayer->Name)));
+			if (Result == EAppReturnType::Yes)
+			{
+				const FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_Collapse", "Collapse Layer"));
+				Landscape->CollapseLayer(InLayerIndex);
+				OnLayerSelectionChanged(InLayerIndex-1);
+				LandscapeEdMode->RefreshDetailPanel();
+			}
+		}
+	}
+	else
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, Reason);
 	}
 }
 
