@@ -97,6 +97,100 @@ namespace DataprepWidgetUtils
 	}
 }
 
+void SDataprepCategoryWidget::ToggleExpansion()
+{
+	bIsExpanded = !bIsExpanded;
+	CategoryContent->SetVisibility(bIsExpanded ? EVisibility::Visible : EVisibility::Collapsed);
+}
+
+const FSlateBrush* SDataprepCategoryWidget::GetBackgroundImage() const
+{
+	if (IsHovered())
+	{
+		return bIsExpanded ? FEditorStyle::GetBrush("DetailsView.CategoryTop_Hovered") : FEditorStyle::GetBrush("DetailsView.CollapsedCategory_Hovered");
+	} 
+	else
+	{
+		return bIsExpanded ? FEditorStyle::GetBrush("DetailsView.CategoryTop") : FEditorStyle::GetBrush("DetailsView.CollapsedCategory");
+	}
+}
+
+void SDataprepCategoryWidget::Construct( const FArguments& InArgs, TSharedRef< SWidget > InContent, const TSharedRef<STableViewBase>& InOwnerTableView )
+{
+	const float MyContentTopPadding = 2.0f;
+	const float MyContentBottomPadding = 2.0f;
+
+	const float ChildSlotPadding = 2.0f;
+	const float BorderVerticalPadding = 3.0f;
+
+	CategoryContent = InContent;
+
+	TSharedPtr<SWidget> TitleDetail = InArgs._TitleDetail;
+	if( !TitleDetail.IsValid() )
+	{
+		TitleDetail = SNullWidget::NullWidget;
+	}
+
+	TSharedPtr<SHorizontalBox> TitleHeader = SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.VAlign( VAlign_Center )
+		.Padding( 2.0f, MyContentTopPadding, 2.0f, MyContentBottomPadding )
+		.AutoWidth()
+		[
+			SNew( SExpanderArrow, SharedThis(this) )
+		]
+		+ SHorizontalBox::Slot()
+		.VAlign( VAlign_Center )
+		.AutoWidth()
+		.Padding( 0.0f, 8.0f )
+		[
+			SNew(STextBlock)
+			.Text( InArgs._Title )
+			.Font( FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle") )
+			.ShadowOffset( FVector2D( 1.0f, 1.0f ) )
+		];
+
+	ChildSlot
+	[
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SNew( SBorder )
+			.BorderImage( this, &SDataprepCategoryWidget::GetBackgroundImage )
+			.Padding( FMargin( 0.0f, BorderVerticalPadding, 16.0f, BorderVerticalPadding ) )
+			.BorderBackgroundColor( FLinearColor( .6, .6, .6, 1.0f ) )
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.FillWidth( 0.5f )
+				.HAlign( EHorizontalAlignment::HAlign_Left )
+				[
+					TitleHeader.ToSharedRef()
+				]
+				+ SHorizontalBox::Slot()
+				.FillWidth( 0.5f )
+				.HAlign( EHorizontalAlignment::HAlign_Right )
+				[
+					TitleDetail.ToSharedRef()
+				]
+			]
+		]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			CategoryContent.ToSharedRef()
+		]
+	];
+
+	STableRow< TSharedPtr< EDataprepCategory > >::ConstructInternal(
+		STableRow::FArguments()
+		.Style( FEditorStyle::Get(), "DetailsView.TreeView.TableRow" )
+		.ShowSelection( false ),
+		InOwnerTableView
+	);
+}
+
 void SDataprepConsumerWidget::OnLevelNameChanged( const FText &NewLevelName, ETextCommit::Type CommitType )
 {
 	const FScopedTransaction Transaction( LOCTEXT("Consumer_SetLevelName", "Set Level Name") );
