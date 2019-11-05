@@ -210,15 +210,20 @@ namespace DataprepSnapshotUtil
 			MemAr << ObjectFlags;
 		}
 
-		// Serialize sub-objects' outer path
-		// Done in reverse order since an object can be the outer of the object
+		// Serialize sub-objects' outer path and name
+		// Done in reverse order since a sub-object can be the outer of another sub-object
 		// it depends on. Not the opposite
 		for(int32 Index = SubObjectsArray.Num() - 1; Index >= 0; --Index)
 		{
-			FSoftObjectPath SoftPath( SubObjectsArray[Index]->GetOuter() );
+			const UObject* SubObject = SubObjectsArray[Index];
+
+			FSoftObjectPath SoftPath( SubObject->GetOuter() );
 
 			FString SoftPathString = SoftPath.ToString();
 			MemAr << SoftPathString;
+
+			FString SubObjectName = SubObject->GetName();
+			MemAr << SubObjectName;
 		}
 
 		// Serialize sub-objects' content
@@ -290,6 +295,9 @@ namespace DataprepSnapshotUtil
 			FString SoftPathString;
 			MemAr << SoftPathString;
 
+			FString SubObjectName;
+			MemAr << SubObjectName;
+
 			const FSoftObjectPath SoftPath( SoftPathString );
 
 			UObject* NewOuter = SoftPath.ResolveObject();
@@ -298,7 +306,7 @@ namespace DataprepSnapshotUtil
 			UObject* SubObject = SubObjectsArray[Index];
 			if( NewOuter != SubObject->GetOuter() )
 			{
-				FDataprepCoreUtils::RenameObject( SubObject, nullptr, NewOuter );
+				FDataprepCoreUtils::RenameObject( SubObject, *SubObjectName, NewOuter );
 			}
 		}
 
