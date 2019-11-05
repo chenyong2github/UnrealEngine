@@ -120,10 +120,9 @@ void WriteTessellationInRawData(FTessellationData& Tessellation, TArray<uint8>& 
 
 bool ReadTessellationSetFromFile(TArray<uint8>& RawData, uint32& OutNbBodies, TArray<FBodyMesh>& CTBodySet)
 {
-	uint32 INFO[LastLine];
-	const uint32 InfoSize = sizeof(INFO);
-	int32 RawDataOffset = sizeof(uint32);
-	memcpy(&OutNbBodies, RawData.GetData(), RawDataOffset);
+	int32 RawDataOffset = 0;
+	memcpy(&OutNbBodies, RawData.GetData() + RawDataOffset, sizeof(uint32));
+	RawDataOffset += sizeof(uint32);
 
 	CTBodySet.Reserve(OutNbBodies);
 
@@ -131,54 +130,66 @@ bool ReadTessellationSetFromFile(TArray<uint8>& RawData, uint32& OutNbBodies, TA
 
 	int32 CurrentBodyId = -1;
 	int32 CurrentBodyIndex = -1;
-	while (RawDataOffset < RawData.Num())
-	{
-		memcpy(INFO, RawData.GetData() + RawDataOffset, InfoSize);
-		RawDataOffset += InfoSize;
+	uint32 BodyHeader[LastLine];
+	const uint32 BodyHeaderByteSize = sizeof(BodyHeader);
 
-		int32 Types = INFO[LineType];
-		int32 RawSize = INFO[LineRawSize];
+	while (RawDataOffset + int32(BodyHeaderByteSize) <= RawData.Num())
+	{
+		memcpy(BodyHeader, RawData.GetData() + RawDataOffset, BodyHeaderByteSize);
+
+		int32 BlocByteSize  = BodyHeader[LineRawSize];
+		if (RawDataOffset + BlocByteSize > RawData.Num())
+		{
+			return false;
+		}
+
+		RawDataOffset += BodyHeaderByteSize;
+
+		int32 Types = BodyHeader[LineType];
+		int32 RawSize = BodyHeader[LineRawSize];
 
 		if (Types != ETessellationContent::Default)
 		{
 			return false;
 		}
 
-		if (INFO[LineBodyId] != CurrentBodyId)
+		if (BodyHeader[LineBodyId] != CurrentBodyId)
 		{
-			CurrentBodyId = INFO[LineBodyId];
-			CTBodySet.Emplace(INFO[LineBodyId], INFO[LineBodyFaceNum]);
+			CurrentBodyId = BodyHeader[LineBodyId];
+			CTBodySet.Emplace(BodyHeader[LineBodyId], BodyHeader[LineBodyFaceNum]);
 			CurrentBodyIndex++;
 
 			CurrentBody = &CTBodySet[CurrentBodyIndex];
-			CurrentBody->SetBodyId(INFO[LineBodyId]);
-			CurrentBody->SetBodyUuid(INFO[LineBodyUuId]);
-			CurrentBody->GetTessellationSet().Reserve(INFO[LineBodyFaceNum]);
+			CurrentBody->SetBodyId(BodyHeader[LineBodyId]);
+			CurrentBody->SetBodyUuid(BodyHeader[LineBodyUuId]);
+			CurrentBody->GetTessellationSet().Reserve(BodyHeader[LineBodyFaceNum]);
 		}
 
-		int32 Index = CurrentBody->GetTessellationSet().Emplace();
-		FTessellationData& Tessellation = CurrentBody->GetTessellationSet()[Index];
+		if (CurrentBody == nullptr)
+		{
+			return false;
+		}
 
-		Tessellation.BodyId = INFO[LineBodyId];
-		Tessellation.BodyUuId = INFO[LineBodyUuId];
-		Tessellation.BodyFaceNum = INFO[LineBodyFaceNum];
-		Tessellation.MaterialId = INFO[LineMaterialId];
-		Tessellation.MaterialHash = INFO[LineMaterialHash];
-		Tessellation.VertexCount = INFO[LineVertexCount];
-		Tessellation.SizeOfVertexType = INFO[LineVertexType];
-		Tessellation.NormalCount = INFO[LineNormalCount];
-		Tessellation.SizeOfNormalType = INFO[LineNormalType];
-		Tessellation.IndexCount = INFO[LineIndexCount];
-		Tessellation.SizeOfIndexType = INFO[LineIndexType];
-		Tessellation.TexCoordCount = INFO[LineTexCoordCount];
-		Tessellation.SizeOfTexCoordType = INFO[LineTexCoordType];
+		FTessellationData& Tessellation = CurrentBody->GetTessellationSet().Emplace_GetRef();
+
+		Tessellation.BodyId = BodyHeader[LineBodyId];
+		Tessellation.BodyUuId = BodyHeader[LineBodyUuId];
+		Tessellation.BodyFaceNum = BodyHeader[LineBodyFaceNum];
+		Tessellation.MaterialId = BodyHeader[LineMaterialId];
+		Tessellation.MaterialHash = BodyHeader[LineMaterialHash];
+		Tessellation.VertexCount = BodyHeader[LineVertexCount];
+		Tessellation.SizeOfVertexType = BodyHeader[LineVertexType];
+		Tessellation.NormalCount = BodyHeader[LineNormalCount];
+		Tessellation.SizeOfNormalType = BodyHeader[LineNormalType];
+		Tessellation.IndexCount = BodyHeader[LineIndexCount];
+		Tessellation.SizeOfIndexType = BodyHeader[LineIndexType];
+		Tessellation.TexCoordCount = BodyHeader[LineTexCoordCount];
+		Tessellation.SizeOfTexCoordType = BodyHeader[LineTexCoordType];
 
 		uint32 VertexSize = Tessellation.VertexCount * Tessellation.SizeOfVertexType * 3;
 		uint32 NormalSize = Tessellation.NormalCount * Tessellation.SizeOfNormalType * 3;
 		uint32 IndexSize = Tessellation.IndexCount * Tessellation.SizeOfIndexType;
 		uint32 TexCoordSize = Tessellation.TexCoordCount * Tessellation.SizeOfTexCoordType * 2;
-		uint32 DataByteSize = VertexSize + NormalSize + IndexSize + TexCoordSize + InfoSize;
-
 
 		Tessellation.VertexArray.Empty(VertexSize);
 		Tessellation.NormalArray.Empty(NormalSize);
