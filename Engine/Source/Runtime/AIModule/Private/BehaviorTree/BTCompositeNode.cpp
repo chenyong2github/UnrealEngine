@@ -449,18 +449,20 @@ bool UBTCompositeNode::DoDecoratorsAllowExecution(UBehaviorTreeComponent& OwnerC
 			const bool bIsAllowed = TestDecorator ? TestDecorator->WrappedCanExecute(OwnerComp, TestDecorator->GetNodeMemory<uint8>(MyInstance)) : false;
 			OwnerComp.StoreDebuggerSearchStep(TestDecorator, InstanceIdx, bIsAllowed);
 
+			const UBTNode* ChildNode = GetChildNode(ChildIdx);
+
 			if (!bIsAllowed)
 			{
-				UE_VLOG(OwnerComp.GetOwner(), LogBehaviorTree, Verbose, TEXT("Child[%d] execution forbidden by %s"),
-					ChildIdx, *UBehaviorTreeTypes::DescribeNodeHelper(TestDecorator));
+				UE_VLOG(OwnerComp.GetOwner(), LogBehaviorTree, Verbose, TEXT("Child[%d] \"%s\" execution forbidden by %s"),
+					ChildIdx, *UBehaviorTreeTypes::DescribeNodeHelper(ChildNode), *UBehaviorTreeTypes::DescribeNodeHelper(TestDecorator));
 
 				bResult = false;
 				break;
 			}
 			else
 			{
-				UE_VLOG(OwnerComp.GetOwner(), LogBehaviorTree, Verbose, TEXT("Child[%d] execution allowed by %s"),
-					ChildIdx, *UBehaviorTreeTypes::DescribeNodeHelper(TestDecorator));
+				UE_VLOG(OwnerComp.GetOwner(), LogBehaviorTree, Verbose, TEXT("Child[%d] \"%s\" execution allowed by %s"),
+					ChildIdx, *UBehaviorTreeTypes::DescribeNodeHelper(ChildNode), *UBehaviorTreeTypes::DescribeNodeHelper(TestDecorator));
 			}
 		}
 	}
