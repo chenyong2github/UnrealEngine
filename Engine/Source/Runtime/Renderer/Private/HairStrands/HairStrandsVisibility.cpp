@@ -887,11 +887,11 @@ static void AddHairVisibilityMSAAPass(
 	const FViewInfo* ViewInfo,
 	const FHairStrandsClusterDatas& ClusterDatas,
 	const FIntPoint& Resolution,
-	FRDGTextureRef& VisibilityIdTexture,
-	FRDGTextureRef& VisibilityMaterialTexture,
-	FRDGTextureRef& VisibilityAttributeTexture,
-	FRDGTextureRef& VisibilityVelocityTexture,
-	FRDGTextureRef& VisibilityDepthTexture)
+	FRDGTextureRef& OutVisibilityIdTexture,
+	FRDGTextureRef& OutVisibilityMaterialTexture,
+	FRDGTextureRef& OutVisibilityAttributeTexture,
+	FRDGTextureRef& OutVisibilityVelocityTexture,
+	FRDGTextureRef& OutVisibilityDepthTexture)
 {
 	const uint32 MSAASampleCount = FMath::RoundUpToPowerOfTwo(FMath::Clamp(GHairVisibilitySampleCount, 1, 16));
 
@@ -906,7 +906,7 @@ static void AddHairVisibilityMSAAPass(
 		Desc.Flags = TexCreate_None;
 		Desc.TargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
 		Desc.bForceSharedTargetAndShaderResource = true;
-		VisibilityIdTexture = GraphBuilder.CreateTexture(Desc, TEXT("HairVisibilityIDTexture"));
+		OutVisibilityIdTexture = GraphBuilder.CreateTexture(Desc, TEXT("HairVisibilityIDTexture"));
 	}
 
 	{
@@ -921,7 +921,7 @@ static void AddHairVisibilityMSAAPass(
 		Desc.TargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
 		Desc.ClearValue = FClearValueBinding(FLinearColor(0, 0, 0, 0));
 		Desc.bForceSharedTargetAndShaderResource = true;
-		VisibilityMaterialTexture = GraphBuilder.CreateTexture(Desc, TEXT("HairVisibilityMaterialTexture"));
+		OutVisibilityMaterialTexture = GraphBuilder.CreateTexture(Desc, TEXT("HairVisibilityMaterialTexture"));
 	}
 
 	{
@@ -936,7 +936,7 @@ static void AddHairVisibilityMSAAPass(
 		Desc.TargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
 		Desc.ClearValue = FClearValueBinding(FLinearColor(0, 0, 0, 0));
 		Desc.bForceSharedTargetAndShaderResource = true;
-		VisibilityAttributeTexture = GraphBuilder.CreateTexture(Desc, TEXT("HairVisibilityAttributeTexture"));
+		OutVisibilityAttributeTexture = GraphBuilder.CreateTexture(Desc, TEXT("HairVisibilityAttributeTexture"));
 	}
 
 	{
@@ -951,9 +951,9 @@ static void AddHairVisibilityMSAAPass(
 		Desc.TargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
 		Desc.ClearValue = FClearValueBinding(FLinearColor(0, 0, 0, 0));
 		Desc.bForceSharedTargetAndShaderResource = true;
-		VisibilityVelocityTexture = GraphBuilder.CreateTexture(Desc, TEXT("HairVisibilityVelocityTexture"));
+		OutVisibilityVelocityTexture = GraphBuilder.CreateTexture(Desc, TEXT("HairVisibilityVelocityTexture"));
 	}
-	AddClearGraphicPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsClearVisibilityMSAAIdTexture"), ViewInfo, 0xFFFFFFFF, VisibilityIdTexture);
+	AddClearGraphicPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsClearVisibilityMSAAIdTexture"), ViewInfo, 0xFFFFFFFF, OutVisibilityIdTexture);
 
 	// Manually clear RTs as using the Clear action on the RT, issue a global clean on all targets, while still need a special clear 
 	// for the PrimitiveId buffer
@@ -962,19 +962,19 @@ static void AddHairVisibilityMSAAPass(
 	if (GHairClearVisibilityBuffer)
 	{
 		LoadAction = ERenderTargetLoadAction::ELoad;
-		AddClearGraphicPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsClearVisibilityMSAAMaterial"), ViewInfo, 0, VisibilityMaterialTexture);
-		AddClearGraphicPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsClearVisibilityMSAAAttribute"), ViewInfo, 0, VisibilityAttributeTexture);
-		AddClearGraphicPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsClearVisibilityMSAAVelocity"), ViewInfo, 0, VisibilityVelocityTexture);
+		AddClearGraphicPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsClearVisibilityMSAAMaterial"), ViewInfo, 0, OutVisibilityMaterialTexture);
+		AddClearGraphicPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsClearVisibilityMSAAAttribute"), ViewInfo, 0, OutVisibilityAttributeTexture);
+		AddClearGraphicPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsClearVisibilityMSAAVelocity"), ViewInfo, 0, OutVisibilityVelocityTexture);
 	}
 
 	FVisibilityPassParameters* PassParameters = GraphBuilder.AllocParameters<FVisibilityPassParameters>();
-	PassParameters->RenderTargets[0] = FRenderTargetBinding(VisibilityIdTexture, ERenderTargetLoadAction::ELoad, 0);
-	PassParameters->RenderTargets[1] = FRenderTargetBinding(VisibilityMaterialTexture,  LoadAction, 0);
-	PassParameters->RenderTargets[2] = FRenderTargetBinding(VisibilityAttributeTexture, LoadAction, 0);
-	PassParameters->RenderTargets[3] = FRenderTargetBinding(VisibilityVelocityTexture,  LoadAction, 0);
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(OutVisibilityIdTexture, ERenderTargetLoadAction::ELoad, 0);
+	PassParameters->RenderTargets[1] = FRenderTargetBinding(OutVisibilityMaterialTexture,  LoadAction, 0);
+	PassParameters->RenderTargets[2] = FRenderTargetBinding(OutVisibilityAttributeTexture, LoadAction, 0);
+	PassParameters->RenderTargets[3] = FRenderTargetBinding(OutVisibilityVelocityTexture,  LoadAction, 0);
 
 	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
-		VisibilityDepthTexture,
+		OutVisibilityDepthTexture,
 		ERenderTargetLoadAction::ELoad,
 		ERenderTargetLoadAction::ENoAction,
 		FExclusiveDepthStencil::DepthWrite_StencilNop);
@@ -987,10 +987,10 @@ static void AddHairVisibilityPPLLPass(
 	const FViewInfo* ViewInfo,
 	const FHairStrandsClusterDatas& ClusterDatas,
 	const FIntPoint& Resolution,
-	FRDGTextureRef& ViewZDepthTexture,
-	FRDGTextureRef& VisibilityPPLLNodeCounter,
-	FRDGTextureRef& VisibilityPPLLNodeIndex,
-	FRDGBufferRef& VisibilityPPLLNodeData)
+	FRDGTextureRef& InViewZDepthTexture,
+	FRDGTextureRef& OutVisibilityPPLLNodeCounter,
+	FRDGTextureRef& OutVisibilityPPLLNodeIndex,
+	FRDGBufferRef&  OutVisibilityPPLLNodeData)
 {
 	{
 		FRDGTextureDesc Desc;
@@ -1003,7 +1003,7 @@ static void AddHairVisibilityPPLLPass(
 		Desc.Flags = TexCreate_None;
 		Desc.TargetableFlags = TexCreate_UAV | TexCreate_ShaderResource;
 		Desc.ClearValue = FClearValueBinding(0);
-		VisibilityPPLLNodeCounter = GraphBuilder.CreateTexture(Desc, TEXT("HairVisibilityPPLLCounter"));
+		OutVisibilityPPLLNodeCounter = GraphBuilder.CreateTexture(Desc, TEXT("HairVisibilityPPLLCounter"));
 	}
 
 	{
@@ -1017,12 +1017,12 @@ static void AddHairVisibilityPPLLPass(
 		Desc.Flags = TexCreate_None;
 		Desc.TargetableFlags = TexCreate_UAV | TexCreate_ShaderResource;
 		Desc.ClearValue = FClearValueBinding(0);
-		VisibilityPPLLNodeIndex = GraphBuilder.CreateTexture(Desc, TEXT("HairVisibilityPPLLNodeIndex"));
+		OutVisibilityPPLLNodeIndex = GraphBuilder.CreateTexture(Desc, TEXT("HairVisibilityPPLLNodeIndex"));
 	}
 
 	const uint32 MaxNodeCount = GetMaxNodePerPixel(Resolution);
 	{
-		// Example: 24bytes * 8spp = 192bytes per pixel = 379Mb @ 1080p
+		// Example: 28bytes * 8spp = 224bytes per pixel = 442Mb @ 1080p
 		struct PPLLNodeData
 		{
 			uint32 Depth;
@@ -1031,19 +1031,20 @@ static void AddHairVisibilityPPLLPass(
 			uint32 BaseColor_Roughness;
 			uint32 Specular;
 			uint32 NextNodeIndex;
+			uint32 PackedVelocity;
 		};
 
-		VisibilityPPLLNodeData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(PPLLNodeData), MaxNodeCount), TEXT("HairVisibilityPPLLNodeData"));
+		OutVisibilityPPLLNodeData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(PPLLNodeData), MaxNodeCount), TEXT("HairVisibilityPPLLNodeData"));
 	}
-	AddClearUAVPass(GraphBuilder, RDG_EVENT_NAME("ClearHairVisibilityPPLLCounter"), VisibilityPPLLNodeCounter, 0);
-	AddClearUAVPass(GraphBuilder, RDG_EVENT_NAME("ClearHairVisibilityPPLLNodeIndex"), VisibilityPPLLNodeIndex, 0xFFFFFFFF);
+	AddClearUAVPass(GraphBuilder, RDG_EVENT_NAME("ClearHairVisibilityPPLLCounter"), OutVisibilityPPLLNodeCounter, 0);
+	AddClearUAVPass(GraphBuilder, RDG_EVENT_NAME("ClearHairVisibilityPPLLNodeIndex"), OutVisibilityPPLLNodeIndex, 0xFFFFFFFF);
 
 	FVisibilityPassParameters* PassParameters = GraphBuilder.AllocParameters<FVisibilityPassParameters>();
-	PassParameters->PPLLCounter = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(VisibilityPPLLNodeCounter, 0));
-	PassParameters->PPLLNodeIndex = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(VisibilityPPLLNodeIndex, 0));
-	PassParameters->PPLLNodeData = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(VisibilityPPLLNodeData));
+	PassParameters->PPLLCounter = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(OutVisibilityPPLLNodeCounter, 0));
+	PassParameters->PPLLNodeIndex = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(OutVisibilityPPLLNodeIndex, 0));
+	PassParameters->PPLLNodeData = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(OutVisibilityPPLLNodeData));
 	PassParameters->HairVisibilityPass_MaxPPLLNodeCount = MaxNodeCount;
-	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(ViewZDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthRead_StencilNop);
+	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(InViewZDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthRead_StencilNop);
 	AddHairVisibilityCommonPass(GraphBuilder, Scene, ViewInfo, ClusterDatas, HairVisibilityRenderMode_PPLL, PassParameters);
 }
 
