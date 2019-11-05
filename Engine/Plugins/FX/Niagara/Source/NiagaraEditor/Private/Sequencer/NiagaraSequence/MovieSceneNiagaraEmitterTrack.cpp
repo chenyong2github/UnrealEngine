@@ -160,6 +160,11 @@ bool UMovieSceneNiagaraEmitterTrack::HasSection(const UMovieSceneSection& Sectio
 	return Sections.Contains(&Section);
 }
 
+void UMovieSceneNiagaraEmitterTrack::AddSection(UMovieSceneSection& Section)
+{
+	Sections.Add(&Section);
+}
+
 void UMovieSceneNiagaraEmitterTrack::RemoveSection(UMovieSceneSection& Section)
 {
 	Sections.Remove(&Section);
