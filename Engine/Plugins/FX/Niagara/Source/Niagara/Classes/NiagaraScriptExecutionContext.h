@@ -162,6 +162,7 @@ struct FNiagaraGpuSpawnInfo
 {
 	uint32		EventSpawnTotal = 0;
 	uint32		SpawnRateInstances = 0;
+	uint32		MaxParticleCount = 0;
 	FVector4	SpawnInfoStartOffsets[NIAGARA_MAX_GPU_SPAWN_INFOS_V4];
 	FVector4	SpawnInfoParams[NIAGARA_MAX_GPU_SPAWN_INFOS];
 };
