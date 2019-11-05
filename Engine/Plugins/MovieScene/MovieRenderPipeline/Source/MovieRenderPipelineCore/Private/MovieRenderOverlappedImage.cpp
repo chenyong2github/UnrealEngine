@@ -327,9 +327,9 @@ void FImageOverlappedAccumulator::Reset()
 }
 
 
-void FImageOverlappedAccumulator::GenerateTileWeight(TArray64<float>& Weights, FIntPoint Size)
+void FImageOverlappedAccumulator::GenerateTileWeight(TArray64<float>& OutWeights, FIntPoint Size)
 {
-	Weights.SetNum(Size.X * Size.Y);
+	OutWeights.SetNum(Size.X * Size.Y);
 
 	// we'll use a simple triangle filter, which goes from 1.0 at the center to 0.0 at 3/4 of the way to the tile edge.
 
@@ -349,13 +349,13 @@ void FImageOverlappedAccumulator::GenerateTileWeight(TArray64<float>& Weights, F
 			float WeightX = FMath::Clamp(1.0f - DistX * ScaleX, 0.0f, 1.0f);
 			float WeightY = FMath::Clamp(1.0f - DistY * ScaleY, 0.0f, 1.0f);
 
-			Weights[PixY * Size.X + PixX] = WeightX * WeightY;
+			OutWeights[PixY * Size.X + PixX] = WeightX * WeightY;
 		}
 	}
 }
 
 // Any changes to GenerateTileWeight() need to propagate to this function. The subrect should be large enough to incorporate all nonzero values
-void FImageOverlappedAccumulator::GetTileSubRect(FIntPoint & SubRectOffset, FIntPoint & SubRectSize, const TArray64<float>& Weights, const FIntPoint Size)
+void FImageOverlappedAccumulator::GetTileSubRect(FIntPoint & OutSubRectOffset, FIntPoint & OutSubRectSize, const TArray64<float>& Weights, const FIntPoint Size)
 {
 	static bool bBruteForce = false;
 	if (bBruteForce)
@@ -382,10 +382,10 @@ void FImageOverlappedAccumulator::GetTileSubRect(FIntPoint & SubRectOffset, FInt
 			}
 		}
 
-		SubRectOffset.X = MinX;
-		SubRectOffset.Y = MinY;
-		SubRectSize.X = (MaxX - MinX) + 1;
-		SubRectSize.Y = (MaxY - MinY) + 1;
+		OutSubRectOffset.X = MinX;
+		OutSubRectOffset.Y = MinY;
+		OutSubRectSize.X = (MaxX - MinX) + 1;
+		OutSubRectSize.Y = (MaxY - MinY) + 1;
 	}
 	else
 	{
@@ -396,20 +396,20 @@ void FImageOverlappedAccumulator::GetTileSubRect(FIntPoint & SubRectOffset, FInt
 		int32 MaxX = FMath::CeilToInt(0.875f * Size.X) + 1;
 		int32 MaxY = FMath::CeilToInt(0.875f * Size.Y) + 1;
 
-		SubRectOffset.X = MinX;
-		SubRectOffset.Y = MinY;
-		SubRectSize.X = (MaxX - MinX) + 1;
-		SubRectSize.Y = (MaxY - MinY) + 1;
+		OutSubRectOffset.X = MinX;
+		OutSubRectOffset.Y = MinY;
+		OutSubRectSize.X = (MaxX - MinX) + 1;
+		OutSubRectSize.Y = (MaxY - MinY) + 1;
 	}
 }
 
-void FImageOverlappedAccumulator::CheckTileSubRect(const TArray64<float>& Weights, const FIntPoint Size, FIntPoint SubRectOffset, FIntPoint SubRectSize)
+void FImageOverlappedAccumulator::CheckTileSubRect(const TArray64<float>& OutWeights, const FIntPoint Size, FIntPoint SubRectOffset, FIntPoint SubRectSize)
 {
 	for (int32 Y = 0; Y < Size.Y; Y++)
 	{
 		for (int32 X = 0; X < Size.X; X++)
 		{
-			const float Val = Weights[Y*Size.X + X];
+			const float Val = OutWeights[Y*Size.X + X];
 			if (Val > 0.0f)
 			{
 				check(SubRectOffset.X <= X);
