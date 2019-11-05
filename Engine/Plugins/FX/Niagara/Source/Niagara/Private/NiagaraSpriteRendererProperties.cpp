@@ -11,6 +11,8 @@
 #endif
 #define LOCTEXT_NAMESPACE "UNiagaraSpriteRendererProperties"
 
+TArray<TWeakObjectPtr<UNiagaraSpriteRendererProperties>> UNiagaraSpriteRendererProperties::SpriteRendererPropertiesToDeferredInit;
+
 #if ENABLE_COOK_STATS
 class NiagaraCutoutCookStats
 {
@@ -25,7 +27,6 @@ FCookStatsManager::FAutoRegisterCallback NiagaraCutoutCookStats::RegisterCookSta
 	UsageStats.LogStats(AddStat, TEXT("NiagaraCutout.Usage"), TEXT(""));
 });
 #endif // ENABLE_COOK_STATS
-
 
 UNiagaraSpriteRendererProperties::UNiagaraSpriteRendererProperties()
 	: Alignment(ENiagaraSpriteAlignment::Unaligned)
@@ -100,8 +101,15 @@ void UNiagaraSpriteRendererProperties::PostLoad()
 void UNiagaraSpriteRendererProperties::PostInitProperties()
 {
 	Super::PostInitProperties();
+
 	if (HasAnyFlags(RF_ClassDefaultObject) == false)
 	{
+		// We can end up hitting PostInitProperties before the Niagara Module has initialized bindings this needs, mark this object for deferred init and early out.
+		if (FModuleManager::Get().IsModuleLoaded("Niagara") == false)
+		{
+			SpriteRendererPropertiesToDeferredInit.Add(this);
+			return;
+		}
 		InitBindings();
 	}
 }
@@ -127,6 +135,14 @@ void UNiagaraSpriteRendererProperties::InitCDOPropertiesAfterModuleStartup()
 {
 	UNiagaraSpriteRendererProperties* CDO = CastChecked<UNiagaraSpriteRendererProperties>(UNiagaraSpriteRendererProperties::StaticClass()->GetDefaultObject());
 	CDO->InitBindings();
+
+	for (TWeakObjectPtr<UNiagaraSpriteRendererProperties>& WeakSpriteRendererProperties : SpriteRendererPropertiesToDeferredInit)
+	{
+		if (WeakSpriteRendererProperties.Get())
+		{
+			WeakSpriteRendererProperties->InitBindings();
+		}
+	}
 }
 
 void UNiagaraSpriteRendererProperties::InitBindings()

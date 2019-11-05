@@ -82,4 +82,7 @@ public:
 	/** Which attribute should we use for the intensity of the volumetric scattering from this light? This scales the light's intensity and color. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
 	FNiagaraVariableAttributeBinding VolumetricScatteringBinding;
+
+private:
+	static TArray<TWeakObjectPtr<UNiagaraLightRendererProperties>> LightRendererPropertiesToDeferredInit;
 };
