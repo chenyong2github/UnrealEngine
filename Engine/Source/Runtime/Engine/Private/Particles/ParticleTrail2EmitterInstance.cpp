@@ -4322,7 +4322,7 @@ void FParticleAnimTrailEmitterInstance::PrintTrails()
 	}
 }
 
-static int32 GbEnableCircularAnimTrailDump = 1;
+static int32 GbEnableCircularAnimTrailDump = 2;
 static FAutoConsoleVariableRef CVarEnableCircularAnimTrailDump(
 	TEXT("fx.EnableCircularAnimTrailDump"),
 	GbEnableCircularAnimTrailDump,
