@@ -11,7 +11,7 @@
 namespace Chaos
 {
 template<class T, int32 d>
-class TPBDSpringConstraints : public TPBDSpringConstraintsBase<T, d>, public TPBDConstraintContainer<T, d>
+class TPBDSpringConstraints : public TPBDSpringConstraintsBase<T, d>, public FPBDConstraintContainer
 {
 	typedef TPBDSpringConstraintsBase<T, d> Base;
 	using Base::MConstraints;

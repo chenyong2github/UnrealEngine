@@ -75,13 +75,12 @@ namespace Chaos
 		typedef Chaos::TPBDCollisionConstraint<float, 3> FPBDCollisionConstraints;
 
 		typedef FPBDCollisionConstraints FCollisionConstraints;
-		typedef TPBDJointConstraints<float, 3> FJointConstraints;
 		typedef TPBDRigidDynamicSpringConstraints<float, 3> FRigidDynamicSpringConstraints;
 		typedef TPBDPositionConstraints<float, 3> FPositionConstraints;
 
-		typedef TPBDConstraintIslandRule<FJointConstraints, float, 3> FJointConstraintsRule;
-		typedef TPBDConstraintIslandRule<FRigidDynamicSpringConstraints, float, 3> FRigidDynamicSpringConstraintsRule;
-		typedef TPBDConstraintIslandRule<FPositionConstraints, float, 3> FPositionConstraintsRule;
+		typedef TPBDConstraintIslandRule<FPBDJointConstraints> FJointConstraintsRule;
+		typedef TPBDConstraintIslandRule<FRigidDynamicSpringConstraints> FRigidDynamicSpringConstraintsRule;
+		typedef TPBDConstraintIslandRule<FPositionConstraints> FPositionConstraintsRule;
 
 		//
 		// Execution API

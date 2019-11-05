@@ -168,8 +168,8 @@ public:
 	const FBoneHierarchy& GetBoneHierarchy() const { return Parameters.BoneHierarchy; }
 
 private:
-	typedef Chaos::TPBDJointConstraints<float, 3> FJointConstraints;
-	typedef Chaos::TPBDConstraintIslandRule<FJointConstraints, float, 3> FJointConstraintsRule;
+	using FJointConstraints = Chaos::FPBDJointConstraints;
+	using FJointConstraintsRule = Chaos::TPBDConstraintIslandRule<FJointConstraints>;
 
 	FSkeletalMeshPhysicsProxyParams Parameters;
 	TArray<int32> RigidBodyIds;
