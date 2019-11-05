@@ -73,11 +73,11 @@ inline Eigen::Vector3f StratifiedSampleSphere(float u, float v,
                              (cell_y + v) * cell_width);
 }
 
+#if INCLUDE_UNUSED_CODE
 // Samples a vector from a unit hemisphere according to the cosine-weighted
 // distribution given two random variables whose values are in [0, 1). The
 // hemisphere lies on a plane whose normal is assumed to be on the +z direction.
 //
-
 static Eigen::Vector3f CosineSampleHemisphere(float u, float v) {
   DCHECK(u >= 0.0f && u <= 1.0f);
   DCHECK(v >= 0.0f && v <= 1.0f);
@@ -103,6 +103,7 @@ static Eigen::Vector3f CosineSampleHemisphere(
                                             unit_normal) *
          local_vector;
 }
+#endif
 
 // The probability density function (PDF) that a vector is in a particular
 // direction if the vector is sampled from a cosine-weigted distribution over
