@@ -16,6 +16,7 @@
 #include "ViewModels/NiagaraOverviewGraphViewModel.h"
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraEditorCommands.h"
+#include "NiagaraEditorModule.h"
 #include "GraphEditorActions.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ScopedTransaction.h"
@@ -70,10 +71,10 @@ void SNiagaraOverviewGraph::Construct(const FArguments& InArgs, TSharedRef<FNiag
 		FGraphEditorCommands::Get().CreateComment,
 		FExecuteAction::CreateSP(this, &SNiagaraOverviewGraph::OnCreateComment));
 	Commands->MapAction(
-		FNiagaraEditorCommands::Get().ZoomToFit,
+		FNiagaraEditorModule::Get().GetCommands().ZoomToFit,
 		FExecuteAction::CreateSP(this, &SNiagaraOverviewGraph::ZoomToFit));
 	Commands->MapAction(
-		FNiagaraEditorCommands::Get().ZoomToFitAll,
+		FNiagaraEditorModule::Get().GetCommands().ZoomToFitAll,
 		FExecuteAction::CreateSP(this, &SNiagaraOverviewGraph::ZoomToFitAll));
 	
 	GraphEditor = SNew(SGraphEditor)
