@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/Interface.h"
 #include "GameFramework/Actor.h"
 #include "InteractiveToolObjects.generated.h"
 
@@ -23,4 +24,23 @@ public:
 
 };
 
+
+
+
+
+// UInterface for IToolFrameworkComponent
+UINTERFACE(MinimalAPI)
+class UToolFrameworkComponent : public UInterface
+{
+	GENERATED_BODY()
+};
+
+// IToolFrameworkComponent is an interface we can attach to custom Components used in the Tools framework.
+// Currently this interface is only used to identify such Components (to prevent certain Actors from being deleted)
+class IToolFrameworkComponent
+{
+	GENERATED_BODY()
+
+public:
+};
 
