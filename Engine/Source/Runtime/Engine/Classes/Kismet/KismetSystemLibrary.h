@@ -1733,6 +1733,22 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, Category = "Utilities")
 	static bool IsUnattended();
 
+	// --- Property Access ---------------------------
+
+#if WITH_EDITOR
+	/** Read the value of a named property on the given object to the given value pointer */
+    UFUNCTION(BlueprintCallable, CustomThunk, Category = "Properties", meta=(CustomStructureParam="ValuePtr", BlueprintInternalUseOnly="true"))
+    static bool GetEditorProperty(UObject* Object, const FName PropertyName, int32& ValuePtr);
+	static bool Generic_GetEditorProperty(const UObject* Object, const UProperty* Property, void* ValuePtr);
+	DECLARE_FUNCTION(execGetEditorProperty);
+
+	/** Write the value of the given value pointer to a named property on the given object */
+    UFUNCTION(BlueprintCallable, CustomThunk, Category = "Properties", meta=(CustomStructureParam="ValuePtr", BlueprintInternalUseOnly="true"))
+    static bool SetEditorProperty(UObject* Object, const FName PropertyName, const int32& ValuePtr);
+	static bool Generic_SetEditorProperty(UObject* Object, const UProperty* Property, const void* ValuePtr);
+	DECLARE_FUNCTION(execSetEditorProperty);
+#endif
+
 	// --- Transactions ------------------------------
 
 	/**

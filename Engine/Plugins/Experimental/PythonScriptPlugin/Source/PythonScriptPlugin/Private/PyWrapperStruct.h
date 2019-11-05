@@ -7,6 +7,7 @@
 #include "PyUtil.h"
 #include "PyConversion.h"
 #include "UObject/Class.h"
+#include "UObject/PropertyAccessUtil.h"
 #include "Templates/TypeCompatibleBytes.h"
 #include "PyWrapperStruct.generated.h"
 
@@ -64,7 +65,7 @@ struct FPyWrapperStruct : public FPyWrapperBase
 	static PyObject* GetPropertyValue(FPyWrapperStruct* InSelf, const PyGenUtil::FGeneratedWrappedProperty& InPropDef, const char* InPythonAttrName);
 
 	/** Set a property value on this instance (called via generated code) */
-	static int SetPropertyValue(FPyWrapperStruct* InSelf, PyObject* InValue, const PyGenUtil::FGeneratedWrappedProperty& InPropDef, const char* InPythonAttrName, const bool InNotifyChange = false, const uint64 InReadOnlyFlags = CPF_EditConst | CPF_BlueprintReadOnly);
+	static int SetPropertyValue(FPyWrapperStruct* InSelf, PyObject* InValue, const PyGenUtil::FGeneratedWrappedProperty& InPropDef, const char* InPythonAttrName, const bool InNotifyChange = false, const uint64 InReadOnlyFlags = PropertyAccessUtil::RuntimeReadOnlyFlags);
 
 	/** Call a make function on this instance (MakeStruct internal use only) */
 	static int CallMakeFunction_Impl(FPyWrapperStruct* InSelf, PyObject* InArgs, PyObject* InKwds, const PyGenUtil::FGeneratedWrappedFunction& InFuncDef);
