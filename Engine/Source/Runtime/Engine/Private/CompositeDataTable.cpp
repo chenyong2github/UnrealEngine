@@ -207,28 +207,28 @@ void UCompositeDataTable::Serialize(FArchive& Ar)
 
 	Super::Serialize(Ar); // When loading, this should load our RowStruct!	
 
-	if (Ar.IsLoading())
+#if WITH_EDITORONLY_DATA
+	if (Ar.IsLoading() && GIsTransacting)
 	{
-		if (GIsTransacting)
+		bIsLoading = false;
+	}
+#endif
+
+	if (bIsLoading)
+	{
+		for (UDataTable* ParentTable : ParentTables)
 		{
-			bIsLoading = false;
-		}
-		else
-		{
-			for (UDataTable* ParentTable : ParentTables)
+			if (ParentTable && ParentTable->HasAnyFlags(RF_NeedLoad))
 			{
-				if (ParentTable && ParentTable->HasAnyFlags(RF_NeedLoad))
+				FLinkerLoad* ParentTableLinker = ParentTable->GetLinker();
+				if (ParentTableLinker)
 				{
-					FLinkerLoad* ParentTableLinker = ParentTable->GetLinker();
-					if (ParentTableLinker)
-					{
-						ParentTableLinker->Preload(ParentTable);
-					}
+					ParentTableLinker->Preload(ParentTable);
 				}
 			}
-
-			OnParentTablesUpdated();
 		}
+
+		OnParentTablesUpdated();
 	}
 }
 
