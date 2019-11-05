@@ -468,7 +468,7 @@ void UDataprepCreateProxyMeshOperation::OnExecution_Implementation(const FDatapr
 	// Then delete the merged actors that don't have any children component
 	for(AActor* Actor : ActorsToMerge)
 	{
-		UPrimitiveComponent* RootComponent = Cast<UPrimitiveComponent>(Actor->GetRootComponent());
+		USceneComponent* RootComponent = Cast<USceneComponent>(Actor->GetRootComponent());
 		if(RootComponent && RootComponent->GetNumChildrenComponents() == 0)
 		{
 			ObjectsToDelete.Add(Actor);
@@ -774,10 +774,14 @@ namespace DatasmithEditingOperationsUtils
 					bool bMeshActorIsValid = false;
 					for(UStaticMeshComponent* MeshComponent : ComponentArray)
 					{
-						if(MeshComponent->GetStaticMesh() && MeshComponent->GetStaticMesh()->GetSourceModels().Num() > 0)
+						// Skip components which are either editor only or for visualization
+						if(!MeshComponent->IsEditorOnly() && !MeshComponent->IsVisualizationComponent())
 						{
-							bMeshActorIsValid = true;
-							ComponentsToMerge.Add(MeshComponent);
+							if(MeshComponent->GetStaticMesh() && MeshComponent->GetStaticMesh()->GetSourceModels().Num() > 0)
+							{
+								bMeshActorIsValid = true;
+								ComponentsToMerge.Add(MeshComponent);
+							}
 						}
 					}
 
