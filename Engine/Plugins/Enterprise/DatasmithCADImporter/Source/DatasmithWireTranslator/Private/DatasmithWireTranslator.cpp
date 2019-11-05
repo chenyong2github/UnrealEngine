@@ -1470,7 +1470,7 @@ bool FWireTranslatorImpl::ProcessBodyNode(TSharedRef<BodyData> Body, const FDagN
 {
 	if (Body->ShellSet.Num() == 1)
 	{
-		RecurseDagForLeavesNoMerge(Body->ShellSet[0], ParentInfo);
+		return RecurseDagForLeavesNoMerge(Body->ShellSet[0], ParentInfo);
 	}
 
 	FDagNodeInfo ShellInfo;
