@@ -249,6 +249,8 @@ namespace CrossCompiler
 		GroupShared,
 		RowMajor,
 		Register,
+		Inline,
+		Typedef,
 
 		Identifier,
 		UnsignedIntegerConstant,
