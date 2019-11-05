@@ -42,6 +42,7 @@ namespace UnrealBuildTool.Rules
 					"GoogleARCoreRendering",
 					"GoogleARCoreSDK",
 					"OpenGL",
+					"OpenGLDrv",
 					"ProceduralMeshComponent",
 					"UElibPNG",
 					"zlib"
