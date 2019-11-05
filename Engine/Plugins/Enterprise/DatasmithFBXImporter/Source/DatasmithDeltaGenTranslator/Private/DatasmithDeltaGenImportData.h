@@ -252,15 +252,17 @@ struct FDeltaGenPosData
 };
 
 UENUM(BlueprintType)
-enum class FDeltaGenTmlDataAnimationTrackType : uint8
+enum class EDeltaGenTmlDataAnimationTrackType : uint8
 {
-	Unsupported,
-	Translation,
-	Rotation,
-	RotationDeltaGenEuler,
-	Scale,
-	Center
+	Unsupported = 0,
+	Translation = 1,
+	Rotation = 2,
+	RotationDeltaGenEuler = 4,
+	Scale = 8,
+	Center = 16
 };
+
+ENUM_CLASS_FLAGS(EDeltaGenTmlDataAnimationTrackType);
 
 USTRUCT(BlueprintType)
 struct FDeltaGenTmlDataAnimationTrack
@@ -268,7 +270,7 @@ struct FDeltaGenTmlDataAnimationTrack
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=DeltaGen)
-	FDeltaGenTmlDataAnimationTrackType Type;
+	EDeltaGenTmlDataAnimationTrackType Type;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=DeltaGen)
 	TArray<float> Keys;
