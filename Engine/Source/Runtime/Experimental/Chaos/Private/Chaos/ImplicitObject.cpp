@@ -68,24 +68,6 @@ FVec3 FImplicitObject::Normal(const FVec3& x) const
 	return Normal;
 }
 
-FVec3 FImplicitObject::Support(const FVec3& Direction, const FReal Thickness) const
-{
-	check(false); //not a good implementation, don't use this
-	return FVec3(0);
-#if 0
-	check(bHasBoundingBox);
-	const TBox<FReal, 3> Box = BoundingBox();
-	FVec3 EndPoint = Box.Center();
-	FVec3 StartPoint = EndPoint + Direction.GetSafeNormal() * (Box.Extents().Max() + Thickness);
-	checkSlow(SignedDistance(StartPoint) > 0);
-	checkSlow(SignedDistance(EndPoint) < 0);
-	// @todo(mlentine): The termination condition is slightly different here so we can probably optimize by reimplementing for this function.
-	const auto& Intersection = FindClosestIntersection(StartPoint, EndPoint, Thickness);
-	check(Intersection.Second);
-	return Intersection.First;
-#endif
-}
-
 const TBox<FReal, 3>& FImplicitObject::BoundingBox() const
 {
 	check(false);

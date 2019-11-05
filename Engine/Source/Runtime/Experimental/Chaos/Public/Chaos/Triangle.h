@@ -47,11 +47,6 @@ namespace Chaos
 			return TVector<T, 3>::DotProduct((InSamplePoint - ClosestPoint), OutNormal);
 		}
 
-		FORCEINLINE TVector<T, 3> Support2(const TVector<T, 3>& Direction) const
-		{
-			return Support(Direction, 0);
-		}
-
 		FORCEINLINE TVector<T, 3> Support(const TVector<T, 3>& Direction, const T Thickness) const
 		{
 			const float DotA = TVector<T, 3>::DotProduct(A, Direction);
@@ -81,6 +76,26 @@ namespace Chaos
 			}
 			return C;
 		}
+
+		FORCEINLINE_DEBUGGABLE TVector<T, 3> Support2(const TVector<T, 3>& Direction) const
+		{
+			const float DotA = TVector<T, 3>::DotProduct(A, Direction);
+			const float DotB = TVector<T, 3>::DotProduct(B, Direction);
+			const float DotC = TVector<T, 3>::DotProduct(C, Direction);
+
+			if (DotA > DotB && DotA > DotC)
+			{
+				return A;
+			}
+			else if (DotB > DotA && DotB > DotC)
+			{
+				return B;
+			}
+
+			return C;
+		}
+
+		FORCEINLINE T GetMargin() const { return 0; }
 
 		FORCEINLINE bool Raycast(const TVector<T, 3>& StartPoint, const TVector<T, 3>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex) const
 		{
@@ -165,7 +180,7 @@ namespace Chaos
 			return Tri.GetPlane();
 		}
 
-		static EImplicitObjectType StaticType()
+		static constexpr EImplicitObjectType StaticType()
 		{
 			return ImplicitObjectType::Triangle;
 		}

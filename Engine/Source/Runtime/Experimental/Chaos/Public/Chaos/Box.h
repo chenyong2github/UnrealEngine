@@ -120,7 +120,7 @@ namespace Chaos
 			return AABB.Contains(Point, Tolerance);
 		}
 
-		FORCEINLINE static EImplicitObjectType StaticType() { return ImplicitObjectType::Box; }
+		FORCEINLINE static constexpr EImplicitObjectType StaticType() { return ImplicitObjectType::Box; }
 
 		const TBox<T, d>& BoundingBox() const { return *this; }
 
@@ -156,9 +156,16 @@ namespace Chaos
 			return AABB.FindGeometryOpposingNormal(DenormDir, FaceIndex, OriginalNormal);
 		}
 
-		virtual TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const override
+		FORCEINLINE T GetMargin() const { return 0; }
+
+		FORCEINLINE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const
 		{
 			return AABB.Support(Direction, Thickness);
+		}
+
+		FORCEINLINE TVector<T, d> Support2(const TVector<T, d>& Direction) const
+		{
+			return AABB.Support2(Direction);
 		}
 
 		FORCEINLINE void GrowToInclude(const TVector<T, d>& V)

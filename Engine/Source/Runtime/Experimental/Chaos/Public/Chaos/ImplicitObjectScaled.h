@@ -32,7 +32,7 @@ public:
 		this->bIsConvex = MObject->IsConvex();
 	}
 
-	static EImplicitObjectType StaticType()
+	static constexpr EImplicitObjectType StaticType()
 	{
 		return TConcrete::StaticType() | ImplicitObjectType::IsInstanced;
 	}
@@ -89,10 +89,10 @@ public:
 		return MObject->Overlap(Point, Thickness);
 	}
 
-	virtual TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const override
-	{
-		return MObject->Support(Direction, Thickness);
-	}
+	FORCEINLINE T GetMargin() const { return MObject->GetMargin(); }
+
+	FORCEINLINE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const { return MObject->Support(Direction, Thickness); }
+	FORCEINLINE TVector<T, d> Support2(const TVector<T, d>& Direction, const T Thickness) const { return MObject->Support2(Direction); }
 
 	virtual const TBox<T, d>& BoundingBox() const override { return MObject->BoundingBox(); }
 
@@ -179,7 +179,7 @@ public:
 	}
 	~TImplicitObjectScaled() {}
 
-	static EImplicitObjectType StaticType()
+	static constexpr EImplicitObjectType StaticType()
 	{
 		return TConcrete::StaticType() | ImplicitObjectType::IsScaled;
 	}
@@ -290,7 +290,8 @@ public:
 	}
 
 	/** This is a low level function and assumes the internal object has a SweepGeom function. Should not be called directly. See GeometryQueries.h : SweepQuery */
-	bool LowLevelSweepGeom(const FImplicitObject& B, const TRigidTransform<T, d>& BToATM, const TVector<T, d>& LocalDir, const T Length, T& OutTime, TVector<T, d>& LocalPosition, TVector<T, d>& LocalNormal, int32& OutFaceIndex, T Thickness = 0) const
+	template <typename QueryGeomType>
+	bool LowLevelSweepGeom(const QueryGeomType& B, const TRigidTransform<T, d>& BToATM, const TVector<T, d>& LocalDir, const T Length, T& OutTime, TVector<T, d>& LocalPosition, TVector<T, d>& LocalNormal, int32& OutFaceIndex, T Thickness = 0) const
 	{
 		ensure(Length > 0);
 		ensure(FMath::IsNearlyEqual(LocalDir.SizeSquared(), 1, KINDA_SMALL_NUMBER));
@@ -308,9 +309,7 @@ public:
 			TVector<T, d> UnscaledNormal;
 			float UnscaledTime;
 
-			TUniquePtr<FImplicitObject> HackBPtr(const_cast<FImplicitObject*>(&B));	//todo: hack, need scaled object to accept raw ptr similar to transformed implicit
-			TImplicitObjectScaled<FImplicitObject> ScaledB(MakeSerializable(HackBPtr), MInvScale);
-			HackBPtr.Release();
+			auto ScaledB = MakeScaledHelper(B, MInvScale);
 
 			TRigidTransform<T, d> BToATMNoScale(BToATM.GetLocation() * MInvScale, BToATM.GetRotation());
 			
@@ -328,14 +327,12 @@ public:
 	}
 
 	/** This is a low level function and assumes the internal object has a OverlapGeom function. Should not be called directly. See GeometryQueries.h : OverlapQuery */
-	bool LowLevelOverlapGeom(const FImplicitObject& B, const TRigidTransform<T, d>& BToATM, T Thickness = 0) const
+	template <typename QueryGeomType>
+	bool LowLevelOverlapGeom(const QueryGeomType& B, const TRigidTransform<T, d>& BToATM, T Thickness = 0) const
 	{
 		ensure(Thickness == 0 || (FMath::IsNearlyEqual(MScale[0], MScale[1]) && FMath::IsNearlyEqual(MScale[0], MScale[2])));
 
-		TUniquePtr<FImplicitObject> HackBPtr(const_cast<FImplicitObject*>(&B));	//todo: hack, need scaled object to except raw ptr similar to transformed implicit
-		TImplicitObjectScaled<FImplicitObject> ScaledB(MakeSerializable(HackBPtr), MInvScale);
-		HackBPtr.Release();
-
+		auto ScaledB = MakeScaledHelper(B, MInvScale);
 		TRigidTransform<T, d> BToATMNoScale(BToATM.GetLocation() * MInvScale, BToATM.GetRotation());
 		return MObject->OverlapGeom(ScaledB, BToATMNoScale, MInternalThickness + Thickness);
 	}
@@ -400,7 +397,7 @@ public:
 		return ClosestIntersection;
 	}
 
-	virtual TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const override
+	FORCEINLINE_DEBUGGABLE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const
 	{
 		// Support_obj(dir) = pt => for all x in obj, pt \dot dir >= x \dot dir
 		// We want Support_objScaled(dir) = Support_obj(dir') where dir' is some modification of dir so we can use the unscaled support function
@@ -411,6 +408,13 @@ public:
 		const TVector<T, d> UnthickenedPt = MObject->Support(Direction * MScale, MInternalThickness) * MScale;
 		return Thickness > 0 ? TVector<T, d>(UnthickenedPt + Direction.GetSafeNormal() * Thickness) : UnthickenedPt;
 	}
+
+	FORCEINLINE_DEBUGGABLE TVector<T, d> Support2(const TVector<T, d>& Direction) const
+	{
+		return MObject->Support2(Direction * MScale) * MScale;
+	}
+
+	FORCEINLINE T GetMargin() const { return MObject->GetMargin(); }
 
 	const TVector<T, d>& GetScale() const { return MScale; }
 	void SetScale(const TVector<T, d>& Scale)
@@ -442,6 +446,12 @@ public:
 		FImplicitObject::SerializeImp(Ar);
 		Ar << MObject << MScale << MInvScale << MLocalBoundingBox;
 		ensure(MInternalThickness == 0);	//not supported: do we care?
+
+		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::ScaledGeometryIsConcrete)
+		{
+			this->Type = MObject->GetType() | ImplicitObjectType::IsScaled;	//update type so downcasts work
+		}
 	}
 
 	virtual uint32 GetTypeHash() const override
@@ -488,6 +498,23 @@ private:
 		MLocalBoundingBox = TBox<T, d>(Vector1, Vector1);	//need to grow it out one vector at a time in case scale is negative
 		const TVector<T, d> Vector2 = UnscaledBounds.Max() *MScale;
 		MLocalBoundingBox.GrowToInclude(Vector2);
+	}
+
+	template <typename QueryGeomType>
+	static auto MakeScaledHelper(const QueryGeomType& B, const TVector<T,d>& InvScale )
+	{
+		TUniquePtr<QueryGeomType> HackBPtr(const_cast<QueryGeomType*>(&B));	//todo: hack, need scaled object to accept raw ptr similar to transformed implicit
+		TImplicitObjectScaled<QueryGeomType> ScaledB(MakeSerializable(HackBPtr), InvScale);
+		HackBPtr.Release();
+		return ScaledB;
+	}
+
+	template <typename QueryGeomType>
+	static auto MakeScaledHelper(const TImplicitObjectScaled<QueryGeomType>& B, const TVector<T,d>& InvScale)
+	{
+		//if scaled of scaled just collapse into one scaled
+		TImplicitObjectScaled<QueryGeomType> ScaledB(B.Object(), InvScale * B.GetScale());
+		return ScaledB;
 	}
 };
 
