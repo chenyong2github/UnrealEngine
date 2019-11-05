@@ -272,9 +272,19 @@ void FKismetCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedClass* Cla
 		ClassSubObjects.RemoveAllSwap(SubObjectsToSave);
 	}
 
-	for( auto SubObjIt = ClassSubObjects.CreateIterator(); SubObjIt; ++SubObjIt )
+	UClass* InheritableComponentHandlerClass = UInheritableComponentHandler::StaticClass();
+
+	for( UObject* CurrSubObj : ClassSubObjects )
 	{
-		UObject* CurrSubObj = *SubObjIt;
+		// ICH and ICH templates do not need to be destroyed in this way.. doing so will invalidate
+		// transaction buffer references to these UObjects. The UBlueprint may not have a reference to
+		// the ICH at the moment, and therefore might not have added it to SubObjectsToSave (and
+		// removed the ICH from ClassSubObjects):
+		if(Cast<UInheritableComponentHandler>(CurrSubObj) || CurrSubObj->IsInA(InheritableComponentHandlerClass))
+		{
+			continue;
+		}
+
 		FName NewSubobjectName = MakeUniqueObjectName(TransientClass, CurrSubObj->GetClass(), CurrSubObj->GetFName());
 		CurrSubObj->Rename(*NewSubobjectName.ToString(), TransientClass, RenFlags);
 		if( UProperty* Prop = Cast<UProperty>(CurrSubObj) )
