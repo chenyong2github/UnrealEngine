@@ -730,13 +730,13 @@ namespace Chaos
 
 	// Overloads for geometry types which don't have centroids.
 	template <typename T, typename TGeometryB>
-	TVector<T, 3> GJKDistanceInitialV(const TImplicitObject<T, 3>& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM)
+	TVector<T, 3> GJKDistanceInitialV(const FImplicitObject& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM)
 	{
 		return -BToATM.GetTranslation();
 	}
 
 	template <typename T, typename TGeometryA>
-	TVector<T, 3> GJKDistanceInitialV(TGeometryA A, const TImplicitObject<T, 3>& B, const TRigidTransform<T, 3>& BToATM)
+	TVector<T, 3> GJKDistanceInitialV(TGeometryA A, const FImplicitObject& B, const TRigidTransform<T, 3>& BToATM)
 	{
 		return -BToATM.GetTranslation();
 	}

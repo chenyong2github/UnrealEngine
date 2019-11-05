@@ -69,8 +69,7 @@ struct FQueryDebugParams {};
 
 namespace Chaos
 {
-	template<class T, int d>
-	class TImplicitObject;
+	class FImplicitObject;
 
 	template<class T>
 	class TCapsule;
@@ -106,7 +105,7 @@ using FPhysicsQueryHit = ChaosInterface::FQueryHit;
 using FPhysicsTransform = FTransform;
 
 using FPhysicsShape = Chaos::TPerShapeData<float, 3>;
-using FPhysicsGeometry = Chaos::TImplicitObject<float, 3>;
+using FPhysicsGeometry = Chaos::FImplicitObject;
 using FPhysicsCapsuleGeometry = Chaos::TCapsule<float>;
 using FPhysicsMaterial = FPhysTypeDummy;
 using FPhysicsActor = Chaos::TGeometryParticle<float,3>;

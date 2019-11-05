@@ -122,22 +122,22 @@ namespace Chaos
 	}
 
 	template<typename T>
-	class TImplicitTriangle final : public TImplicitObject<T, 3>
+	class TImplicitTriangle final : public FImplicitObject
 	{
 	public:
 
 		TImplicitTriangle()
-			: TImplicitObject<T, 3>(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Triangle)
+			: FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Triangle)
 		{}
 
 		TImplicitTriangle(const TImplicitTriangle&) = delete;
 
 		TImplicitTriangle(TImplicitTriangle&& InToSteal)
-			: TImplicitObject<T, 3>(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Triangle)
+			: FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Triangle)
 		{}
 
 		TImplicitTriangle(const TVector<T, 3>& InA, const TVector<T, 3>& InB, const TVector<T, 3>& InC)
-			: TImplicitObject<T, 3>(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Triangle)
+			: FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Triangle)
 			, Tri(InA, InB, InC)
 		{
 			Bounds = TBox<T, 3>(Tri[0], Tri[0]);

@@ -10,23 +10,23 @@
 namespace Chaos
 {
 	template<class T, int d>
-	class TConvex final : public TImplicitObject<T, d>
+	class TConvex final : public FImplicitObject
 	{
 	public:
-		using TImplicitObject<T, d>::GetTypeName;
+		using FImplicitObject::GetTypeName;
 
 		TConvex()
-		    : TImplicitObject<T,3>(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
+		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
 		{}
 		TConvex(const TConvex&) = delete;
 		TConvex(TConvex&& Other)
-		    : TImplicitObject<T,3>(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
+		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
 			, Planes(MoveTemp(Other.Planes))
 		    , SurfaceParticles(MoveTemp(Other.SurfaceParticles))
 		    , LocalBoundingBox(MoveTemp(Other.LocalBoundingBox))
 		{}
 		TConvex(TArray<TPlane<T, d>>&& InPlanes, TParticles<T, d>&& InSurfaceParticles)
-		    : TImplicitObject<T, d>(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
+		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
 			, Planes(MoveTemp(InPlanes))
 		    , SurfaceParticles(MoveTemp(InSurfaceParticles))
 		    , LocalBoundingBox(TBox<T, d>::EmptyBox())
@@ -37,7 +37,7 @@ namespace Chaos
 			}
 		}
 		TConvex(const TParticles<T, 3>& InParticles)
-		    : TImplicitObject<T, d>(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
+		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
 		{
 			const uint32 NumParticles = InParticles.Size();
 			if (NumParticles == 0)
@@ -212,7 +212,7 @@ namespace Chaos
 
 		FORCEINLINE void SerializeImp(FArchive& Ar)
 		{
-			TImplicitObject<T, 3>::SerializeImp(Ar);
+			FImplicitObject::SerializeImp(Ar);
 			Ar << Planes << SurfaceParticles << LocalBoundingBox;
 		}
 

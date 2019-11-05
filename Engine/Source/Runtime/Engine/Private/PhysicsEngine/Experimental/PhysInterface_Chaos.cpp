@@ -82,7 +82,7 @@ ECollisionShapeType GetGeometryType(const Chaos::TPerShapeData<float, 3>& Shape)
 	return GetType(*Shape.Geometry);
 }
 
-const Chaos::TImplicitObject<float, 3>& FPhysicsShapeReference_Chaos::GetGeometry() const
+const Chaos::FImplicitObject& FPhysicsShapeReference_Chaos::GetGeometry() const
 {
 	check(IsValid()); return *Shape->Geometry;
 }
@@ -1075,7 +1075,7 @@ const FBodyInstance* FPhysInterface_Chaos::ShapeToOriginalBodyInstance(const FBo
 
 void FPhysInterface_Chaos::AddGeometry(FPhysicsActorHandle& InActor, const FGeometryAddParams& InParams, TArray<FPhysicsShapeHandle>* OutOptShapes)
 {
-	TArray<TUniquePtr<Chaos::TImplicitObject<float, 3>>> Geoms;
+	TArray<TUniquePtr<Chaos::FImplicitObject>> Geoms;
 	Chaos::TShapesArray<float, 3> Shapes;
 	ChaosInterface::CreateGeometry(InParams, Geoms, Shapes);
 
@@ -1121,7 +1121,7 @@ ECollisionShapeType FPhysicsGeometryCollection_Chaos::GetType() const
 	return GetImplicitType(Geom);
 }
 
-const Chaos::TImplicitObject<float, 3>& FPhysicsGeometryCollection_Chaos::GetGeometry() const
+const Chaos::FImplicitObject& FPhysicsGeometryCollection_Chaos::GetGeometry() const
 {
 	return Geom;
 }
@@ -1243,7 +1243,7 @@ void CalculateMassPropertiesOfImplicitType(
 	TArray< Chaos::TMassProperties<float, 3> > & MassProperties,
 	float & TotalMass,
 	const Chaos::TRigidTransform<float, 3> & WorldTransform,
-	const Chaos::TImplicitObject<float, 3>* ImplicitObject, 
+	const Chaos::FImplicitObject* ImplicitObject, 
 	float InDensityKGPerCM)
 {
 	// WIP
@@ -1374,7 +1374,7 @@ void CalculateMassPropertiesOfImplicitType(
 		{
 			const Chaos::TImplicitObjectUnion<float,3> * ImplicitUnion = ImplicitObject->template GetObject<Chaos::TImplicitObjectUnion<float,3>>();
 
-			for (const TUniquePtr < Chaos::TImplicitObject<float,3> > & ImplicitSubObject : ImplicitUnion->GetObjects())
+			for (const TUniquePtr < Chaos::FImplicitObject > & ImplicitSubObject : ImplicitUnion->GetObjects())
 			{
 				CalculateMassPropertiesOfImplicitType(MassProperties, TotalMass, WorldTransform, ImplicitSubObject.Get(), InDensityKGPerCM);
 			}
@@ -1396,7 +1396,7 @@ void FPhysInterface_Chaos::CalculateMassPropertiesFromShapeCollection(physx::PxM
 	{
 		if (const Chaos::TPerShapeData<float, 3>* Shape = ShapeHandle.Shape)
 		{
-			if (const Chaos::TImplicitObject<float, 3> * ImplicitObject = Shape->Geometry.Get())
+			if (const Chaos::FImplicitObject * ImplicitObject = Shape->Geometry.Get())
 			{
 				FTransform WorldTransform(ShapeHandle.ActorRef->R(), ShapeHandle.ActorRef->X());
 				CalculateMassPropertiesOfImplicitType(MassProperties, TotalMass, WorldTransform, ImplicitObject, InDensityKGPerCM);
@@ -1614,7 +1614,7 @@ bool FPhysInterface_Chaos::Sweep_Geom(FHitResult& OutHit, const FBodyInstance* I
 	return bSweepHit;
 }
 
-bool Overlap_GeomInternal(const FBodyInstance* InInstance, const Chaos::TImplicitObject<float, 3>& InGeom, const FTransform& GeomTransform, FMTDResult* OutOptResult)
+bool Overlap_GeomInternal(const FBodyInstance* InInstance, const Chaos::FImplicitObject& InGeom, const FTransform& GeomTransform, FMTDResult* OutOptResult)
 {
 	const FBodyInstance* TargetInstance = InInstance->WeldParent ? InInstance->WeldParent : InInstance;
 	Chaos::TGeometryParticle<float, 3>* RigidBody = TargetInstance->ActorHandle;

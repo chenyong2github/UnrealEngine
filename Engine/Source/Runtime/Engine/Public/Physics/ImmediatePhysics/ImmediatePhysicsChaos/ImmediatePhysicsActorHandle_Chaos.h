@@ -125,7 +125,7 @@ namespace ImmediatePhysics_Chaos
 
 		Chaos::TPBDRigidsEvolutionGBF<FReal, Dimensions>* Evolution;
 		Chaos::TGeometryParticleHandle<FReal, Dimensions>* ParticleHandle;
-		TUniquePtr<Chaos::TImplicitObject<float, 3>> Geometry;
+		TUniquePtr<Chaos::FImplicitObject> Geometry;
 		TArray<TUniquePtr<Chaos::TPerShapeData<float, 3>>> Shapes;
 		FTransform ActorToCoMTransform;
 		int32 Level;

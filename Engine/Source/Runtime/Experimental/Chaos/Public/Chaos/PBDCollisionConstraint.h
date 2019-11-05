@@ -23,8 +23,7 @@ class TPBDCollisionConstraint;
 template <typename T, int d>
 class TRigidTransform;
 
-template <typename T, int d>
-class TImplicitObject;
+class FImplicitObject;
 
 template <typename T, int d>
 class TBVHParticles;

@@ -153,7 +153,7 @@ private:
 	TManagedArray<FVector> InitialLinearVelocity;
 	TManagedArray<bool> SimulatableParticles;
 	TManagedArray<TUniquePtr<FSimplicial> > Simplicials;
-	TManagedArray<Chaos::TSerializablePtr<Chaos::TImplicitObject<float, 3>>> Implicits;
+	TManagedArray<Chaos::TSerializablePtr<Chaos::FImplicitObject>> Implicits;
 	TArray<int32> EndFrameUnparentingBuffer;
 
 	// This is a subset of the geometry group that are used in the transform hierarchy to represent geometry
