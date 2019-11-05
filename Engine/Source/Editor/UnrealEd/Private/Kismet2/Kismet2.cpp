@@ -579,13 +579,9 @@ UBlueprint* FKismetEditorUtilities::CreateBlueprint(UClass* ParentClass, UObject
 	}
 	
 	// Create the sparse class data and set the flag saying it is safe to serialize it
-	if (NewBP)
-	{
-		UBlueprintGeneratedClass* BlueprintGeneratedClass = CastChecked<UBlueprintGeneratedClass>(NewBP->GeneratedClass);
-		void* SparseDataPtr = BlueprintGeneratedClass->GetOrCreateSparseClassData();
-		BlueprintGeneratedClass->bIsSparseClassDataSerializable = SparseDataPtr != nullptr;
-	}
-
+	UBlueprintGeneratedClass* BlueprintGeneratedClass = CastChecked<UBlueprintGeneratedClass>(NewBP->GeneratedClass);
+	void* SparseDataPtr = BlueprintGeneratedClass->GetOrCreateSparseClassData();
+	BlueprintGeneratedClass->bIsSparseClassDataSerializable = SparseDataPtr != nullptr;
 
 	// Report blueprint creation to analytics
 	if (FEngineAnalytics::IsAvailable())
