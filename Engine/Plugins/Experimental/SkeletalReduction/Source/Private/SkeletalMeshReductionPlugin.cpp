@@ -2087,12 +2087,7 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 	}
 	else
 	{
-		//	Bulk data arrays need to be locked before a copy can be made.
-		SrcModel->RawPointIndices.Lock(LOCK_READ_ONLY);
-		SrcModel->LegacyRawPointIndices.Lock(LOCK_READ_ONLY);
-		*NewModel = *SrcModel;
-		SrcModel->RawPointIndices.Unlock();
-		SrcModel->LegacyRawPointIndices.Unlock();
+		FSkeletalMeshLODModel::CopyStructure(NewModel, SrcModel);
 
 		// Do any joint-welding / bone removal.
 

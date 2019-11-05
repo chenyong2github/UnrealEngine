@@ -394,6 +394,11 @@ public:
 	* skeletal mesh build refactor should need to call this function.
 	*/
 	ENGINE_API void UpdateChunkedSectionInfo(const FString& SkeletalMeshName, TArray<int32>& LODMaterialMap);
+
+	/**
+	* Copy one structure to the other, make sure all bulk data is unlock and the data can be read before copying.
+	*/
+	static ENGINE_API bool CopyStructure(FSkeletalMeshLODModel* Destination, FSkeletalMeshLODModel* Source);
 };
 
 #endif // WITH_EDITOR
