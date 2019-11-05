@@ -38,6 +38,8 @@ void ConvertInterleavedToPlanarTemplated(
     const std::vector<size_t>* channel_map, OutputType output_buffer,
     size_t num_output_frames, size_t num_output_channels,
     size_t output_offset_frames, size_t num_frames_to_copy) {
+
+#if !DISABLE_CHECKS
   DCHECK_GE(num_input_frames, input_offset_frames);
   const size_t max_num_input_frames = num_input_frames - input_offset_frames;
   DCHECK_GE(num_output_frames, output_offset_frames);
@@ -50,6 +52,7 @@ void ConvertInterleavedToPlanarTemplated(
   } else {
     DCHECK_GE(channel_map->size(), num_output_channels);
   }
+#endif
 
   InputType interleaved_buffer_with_offset =
       interleaved_buffer + input_offset_frames * num_input_channels;
@@ -92,6 +95,8 @@ void ConvertPlanarToPlanarTemplated(
     PlanarOutputType planar_output_ptrs, size_t num_output_frames,
     size_t num_output_channels, size_t output_offset_frames,
     size_t num_frames_convert_and_copy) {
+
+#if !DISABLE_CHECKS
   DCHECK_GE(num_input_frames, input_offset_frames);
   const size_t max_num_input_frames = num_input_frames - input_offset_frames;
   DCHECK_GE(num_output_frames, output_offset_frames);
@@ -104,6 +109,7 @@ void ConvertPlanarToPlanarTemplated(
   } else {
     DCHECK_GE(channel_map->size(), num_output_channels);
   }
+#endif
 
   for (size_t channel = 0; channel < num_output_channels; ++channel) {
     const size_t input_channel =
@@ -121,6 +127,8 @@ void ConvertPlanarToInterleavedTemplated(
     size_t input_offset_frames, InterleavedOutputType interleaved_output_ptr,
     size_t num_output_frames, size_t num_output_channels,
     size_t output_offset_frames, size_t num_frames_convert_and_copy) {
+
+#if !DISABLE_CHECKS
   DCHECK(interleaved_output_ptr);
   DCHECK_GE(num_input_frames, input_offset_frames);
   const size_t max_num_input_frames = num_input_frames - input_offset_frames;
@@ -129,6 +137,7 @@ void ConvertPlanarToInterleavedTemplated(
   DCHECK_GE(max_num_input_frames, num_frames_convert_and_copy);
   DCHECK_GE(max_num_output_frames, num_frames_convert_and_copy);
   DCHECK_EQ(num_input_channels, num_output_channels);
+#endif
 
   InterleavedOutputType interleaved_output_ptr_with_offset =
       interleaved_output_ptr + output_offset_frames * num_output_channels;
