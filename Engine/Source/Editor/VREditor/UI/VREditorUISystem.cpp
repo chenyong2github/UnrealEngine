@@ -40,6 +40,7 @@
 #include "VREditorFloatingUI.h"
 #include "VREditorRadialFloatingUI.h"
 #include "VREditorDockableWindow.h"
+#include "VREditorDockableCameraWindow.h"
 #include "ViewportInteractionTypes.h"
 #include "IHeadMountedDisplay.h"
 #include "ViewportWorldInteraction.h"
@@ -2597,7 +2598,7 @@ void UVREditorUISystem::UpdateDetachedActorPreviewUI(TSharedRef<SWidget> InWidge
 	{
 		const FName TabIdentifier = NAME_None;	// No tab for us!
 		const bool bWithSceneComponent = false;
-		PreviewPanel = GetOwner().SpawnTransientSceneActor<AVREditorDockableWindow>(TEXT("ActorPreviewUI"), bWithSceneComponent);
+		PreviewPanel = GetOwner().SpawnTransientSceneActor<AVREditorDockableCameraWindow>(TEXT("ActorDetachablePreviewUI"), bWithSceneComponent);
 		PreviewPanel->CreationContext.bNoCloseButton = true;
 		FloatingUIs.Add(PreviewPanelID, PreviewPanel);
 		AActor* Actor = GEditor->GetSelectedActors()->GetBottom<AActor>();
@@ -2665,7 +2666,7 @@ void UVREditorUISystem::UpdateExternalUMGUI(const FVREditorFloatingUICreationCon
 	{
 		const FName TabIdentifier = NAME_None;	// No tab for us!
 		const bool bWithSceneComponent = false;
-  		ExternalPanel = GetOwner().SpawnTransientSceneActor<AVREditorDockableWindow>(TEXT("ActorPreviewUI"), bWithSceneComponent);	
+  		ExternalPanel = GetOwner().SpawnTransientSceneActor<AVREditorDockableWindow>(TEXT("ActorPreviewUMGUI"), bWithSceneComponent);	
 		
 		// AVREditorDockableWindow does most of its setup in PostActorCreated(), but the CreationContext hasn't been set yet. 
 		// We let it set its defaults, then override the custom settings here.
