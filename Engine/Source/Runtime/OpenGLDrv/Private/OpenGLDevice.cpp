@@ -807,7 +807,9 @@ static void InitRHICapabilitiesForGL()
 	
 	// Emulate uniform buffers on ES2
 	// Optional emulation on ES3.1 and PC
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	GUseEmulatedUniformBuffers = (IsES2Platform(GMaxRHIShaderPlatform) && !IsPCPlatform(GMaxRHIShaderPlatform)) || bUseEmulatedUBs;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FString FeatureLevelName;
 	GetFeatureLevelName(GMaxRHIFeatureLevel, FeatureLevelName);
@@ -1304,6 +1306,7 @@ static void CheckVaryingLimit()
 {
 #if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
 	FOpenGL::bRequiresGLFragCoordVaryingLimitHack = false;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (IsES2Platform(GMaxRHIShaderPlatform))
 	{
 		// Some mobile GPUs require an available varying vector to support gl_FragCoord.
@@ -1443,17 +1446,21 @@ static void CheckVaryingLimit()
 			AttemptLinkProgramExecute(VertexShader->Resource, PixelShader->Resource);
 		}
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #elif PLATFORM_IOS
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (IsES2Platform(GMaxRHIShaderPlatform))
 	{
 		FOpenGL::bIsLimitingShaderCompileCount = FPlatformMisc::GetIOSDeviceType() == FPlatformMisc::IOS_IPad4;
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 }
 
 static void CheckTextureCubeLodSupport()
 {
 #if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (IsES2Platform(GMaxRHIShaderPlatform))
 	{
 		UE_LOG(LogRHI, Display, TEXT("Testing for shader compiler compatibility"));
@@ -1580,6 +1587,7 @@ static void CheckTextureCubeLodSupport()
 		UE_LOG(LogRHI, Warning, TEXT("Unable to find a test shader that compiles try running anyway"));
 		FOpenGL::bIsCheckingShaderCompilerHacks = false;
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 }
 
@@ -1587,6 +1595,7 @@ static void CheckRoundFunction()
 {
 #if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
 	FOpenGL::bRequiresRoundFunctionHack = false;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (IsES2Platform(GMaxRHIShaderPlatform))
 	{
 		UE_LOG(LogRHI, Display, TEXT("Testing for round() function availability"));
@@ -1635,6 +1644,7 @@ static void CheckRoundFunction()
 
 		UE_LOG(LogRHI, Warning, TEXT("Disabling the need for the round() function hack"));
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 }
 
