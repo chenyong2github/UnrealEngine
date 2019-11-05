@@ -3,12 +3,14 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Schema;
+using System.Xml.Serialization;
 using Tools.DotNETCommon;
 using UnrealBuildTool;
 
@@ -262,6 +264,12 @@ namespace AutomationTool
 		/// </summary>
 		const string BalancedStringPattern = "[^\\$]*" + "(" + "(" + PropertyPattern + "|" + "\\$[^\\(]" + ")" + "[^\\$]*" + ")*" + "\\$?";
 
+		private ScriptSchema(XmlSchema Schema, Dictionary<string, ScriptTask> InNameToTask)
+		{
+			CompiledSchema = Schema;
+			NameToTask = InNameToTask;
+		}
+
 		/// <summary>
 		/// Constructor
 		/// </summary>
@@ -399,6 +407,38 @@ namespace AutomationTool
 			using(XmlWriter Writer = XmlWriter.Create(File.FullName, Settings))
 			{
 				CompiledSchema.Write(Writer);
+			}
+		}
+
+		/// <summary>
+		/// Imports a schema from a file
+		/// </summary>
+		/// <param name="File">The XML file to import</param>
+		/// <param name="NameToTask">Mapping of task name to information about how to construct it</param>
+		/// <returns>A <see cref="ScriptSchema"/> deserialized from the XML file, or null if file doesn't exist</returns>
+		public static ScriptSchema Import(FileReference File, Dictionary<string, ScriptTask> NameToTask)
+		{
+			if (!FileReference.Exists(File))
+			{
+				return null;
+			}
+			
+			using (XmlReader SchemaFile = XmlReader.Create(File.FullName))
+			{
+				ScriptSchema ImportedSchema = new ScriptSchema(XmlSchema.Read(SchemaFile, ValidationCallback), NameToTask);
+				return ImportedSchema;
+			}
+		}
+
+		static void ValidationCallback(object Sender, ValidationEventArgs EventArgs)
+		{
+			if (EventArgs.Severity == XmlSeverityType.Warning)
+			{
+				Log.WriteLine(LogEventType.Warning, "WARNING: {0}", EventArgs.Message);
+			}
+			else if (EventArgs.Severity == XmlSeverityType.Error)
+			{
+				Log.WriteLine(LogEventType.Error, "ERROR: {0}", EventArgs.Message);
 			}
 		}
 
