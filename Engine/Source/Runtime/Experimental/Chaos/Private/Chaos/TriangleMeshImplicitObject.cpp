@@ -42,7 +42,7 @@ struct TTriangleMeshRaycastVisitor
 	};
 
 	template <ERaycastType SQType>
-	bool Visit(int32 TriIdx, T& CurLength)
+	bool Visit(int32 TriIdx, FQueryFastData& CurData)
 	{
 		constexpr T Epsilon = 1e-4;
 		constexpr T Epsilon2 = Epsilon * Epsilon;
@@ -73,7 +73,7 @@ struct TTriangleMeshRaycastVisitor
 
 		//Check if we even intersect with triangle plane
 		int32 DummyFaceIndex;
-		if (TriPlane.Raycast(StartPoint, Dir, CurLength, Thickness, Time, RaycastPosition, RaycastNormal, DummyFaceIndex))
+		if (TriPlane.Raycast(StartPoint, Dir, CurData.CurrentLength, Thickness, Time, RaycastPosition, RaycastNormal, DummyFaceIndex))
 		{
 			TVector<T, 3> IntersectionPosition = RaycastPosition;
 			TVector<T, 3> IntersectionNormal = RaycastNormal;
@@ -108,19 +108,19 @@ struct TTriangleMeshRaycastVisitor
 				{
 					TVector<T, 3> ABCapsuleAxis = B - A;
 					T ABHeight = ABCapsuleAxis.SafeNormalize();
-					bBorderIntersections[0] = TCapsule<T>::RaycastFast(Thickness, ABHeight, ABCapsuleAxis, A, B, StartPoint, Dir, CurLength, 0, BorderTimes[0], BorderPositions[0], BorderNormals[0], DummyFaceIndex);
+					bBorderIntersections[0] = TCapsule<T>::RaycastFast(Thickness, ABHeight, ABCapsuleAxis, A, B, StartPoint, Dir, CurData.CurrentLength, 0, BorderTimes[0], BorderPositions[0], BorderNormals[0], DummyFaceIndex);
 				}
 				
 				{
 					TVector<T, 3> BCCapsuleAxis = C - B;
 					T BCHeight = BCCapsuleAxis.SafeNormalize();
-					bBorderIntersections[1] = TCapsule<T>::RaycastFast(Thickness, BCHeight, BCCapsuleAxis, B, C, StartPoint, Dir, CurLength, 0, BorderTimes[1], BorderPositions[1], BorderNormals[1], DummyFaceIndex);
+					bBorderIntersections[1] = TCapsule<T>::RaycastFast(Thickness, BCHeight, BCCapsuleAxis, B, C, StartPoint, Dir, CurData.CurrentLength, 0, BorderTimes[1], BorderPositions[1], BorderNormals[1], DummyFaceIndex);
 				}
 				
 				{
 					TVector<T, 3> ACCapsuleAxis = C - A;
 					T ACHeight = ACCapsuleAxis.SafeNormalize();
-					bBorderIntersections[2] = TCapsule<T>::RaycastFast(Thickness, ACHeight, ACCapsuleAxis, A, C, StartPoint, Dir, CurLength, 0, BorderTimes[2], BorderPositions[2], BorderNormals[2], DummyFaceIndex);
+					bBorderIntersections[2] = TCapsule<T>::RaycastFast(Thickness, ACHeight, ACCapsuleAxis, A, C, StartPoint, Dir, CurData.CurrentLength, 0, BorderTimes[2], BorderPositions[2], BorderNormals[2], DummyFaceIndex);
 				}
 
 				int32 MinBorderIdx = INDEX_NONE;
@@ -163,7 +163,7 @@ struct TTriangleMeshRaycastVisitor
 					OutPosition = IntersectionPosition;
 					OutNormal = RaycastNormal;	//We use the plane normal even when hitting triangle edges. This is to deal with triangles that approximate a single flat surface.
 					OutTime = Time;
-					CurLength = Time;	//prevent future rays from going any farther
+					CurData.SetLength(Time);	//prevent future rays from going any farther
 					OutFaceIndex = TriIdx;
 				}
 			}
@@ -172,14 +172,14 @@ struct TTriangleMeshRaycastVisitor
 		return true;
 	}
 
-	bool VisitRaycast(TSpatialVisitorData<int32> TriIdx, T& CurLength)
+	bool VisitRaycast(TSpatialVisitorData<int32> TriIdx, FQueryFastData& CurData)
 	{
-		return Visit<ERaycastType::Raycast>(TriIdx.Payload, CurLength);
+		return Visit<ERaycastType::Raycast>(TriIdx.Payload, CurData);
 	}
 
-	bool VisitSweep(TSpatialVisitorData<int32> TriIdx, T& CurLength)
+	bool VisitSweep(TSpatialVisitorData<int32> TriIdx, FQueryFastData& CurData)
 	{
-		return Visit<ERaycastType::Sweep>(TriIdx.Payload, CurLength);
+		return Visit<ERaycastType::Sweep>(TriIdx.Payload, CurData);
 	}
 
 	bool VisitOverlap(TSpatialVisitorData<int32> TriIdx)
@@ -378,13 +378,13 @@ struct TTriangleMeshSweepVisitor
 		return true;
 	}
 
-	bool VisitRaycast(const TSpatialVisitorData<int32>& VisitData, T& CurLength)
+	bool VisitRaycast(const TSpatialVisitorData<int32>& VisitData, FQueryFastData& CurData)
 	{
 		check(false);
 		return true;
 	}
 
-	bool VisitSweep(const TSpatialVisitorData<int32>& VisitData, T& CurLength)
+	bool VisitSweep(const TSpatialVisitorData<int32>& VisitData, FQueryFastData& CurData)
 	{
 		const int32 TriIdx = VisitData.Payload;
 
@@ -396,14 +396,14 @@ struct TTriangleMeshSweepVisitor
 			TriMesh.MParticles.X(TriMesh.MElements[TriIdx][1]),
 			TriMesh.MParticles.X(TriMesh.MElements[TriIdx][2]));
 
-		if(GJKRaycast2<T>(Tri, QueryGeom, StartTM, Dir, CurLength, Time, HitPosition, HitNormal, Thickness))
+		if(GJKRaycast2<T>(Tri, QueryGeom, StartTM, Dir, CurData.CurrentLength, Time, HitPosition, HitNormal, Thickness))
 		{
 			if(Time < OutTime)
 			{
 				OutNormal = HitNormal;
 				OutPosition = HitPosition;
 				OutTime = Time;
-				CurLength = Time;
+				CurData.SetLength(Time);
 				OutFaceIndex = TriIdx;
 
 				if(Time == 0)
