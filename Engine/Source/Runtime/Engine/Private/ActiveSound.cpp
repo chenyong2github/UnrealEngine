@@ -1564,6 +1564,33 @@ void FActiveSound::UpdateAttenuation(float DeltaTime, FSoundParseParameters& Par
 	check(AudioDevice);
 	FAttenuationListenerData ListenerData = FAttenuationListenerData::Create(*AudioDevice, Listener.Transform, ParseParams.Transform, *Settings);
 
+	// Apply priority attenuation if it's enabled
+	if (Settings->bEnablePriorityAttenuation)
+	{
+		float PriorityScale = 1.0f;
+		if (Settings->PriorityAttenuationMethod == EPriorityAttenuationMethod::Manual)
+		{
+			PriorityScale = Settings->ManualPriorityAttenuation;
+		}
+		else
+		{
+			const float Denom = FMath::Max(Settings->PriorityAttenuationDistanceMax - Settings->PriorityAttenuationDistanceMin, 1.0f);
+			const float Alpha = FMath::Clamp((ListenerData.ListenerToSoundDistance - Settings->PriorityAttenuationDistanceMin) / Denom, 0.0f, 1.0f);
+
+			if (Settings->PriorityAttenuationMethod == EPriorityAttenuationMethod::Linear)
+			{
+				PriorityScale = FMath::Clamp(FMath::Lerp(Settings->PriorityAttenuationMin, Settings->PriorityAttenuationMax, Alpha), 0.0f, 1.0f);
+			}
+			else
+			{
+				PriorityScale = FMath::Clamp(Settings->CustomPriorityAttenuationCurve.GetRichCurveConst()->Eval(Alpha), 0.0f, 1.0f);
+			}
+		}
+
+		ParseParams.Priority *= FMath::Max(PriorityScale, 0.0f);
+		ParseParams.Priority = FMath::Clamp(ParseParams.Priority, 0.0f, 100.0f);
+	}
+
 	if (Settings->bSpatialize || Settings->bEnableListenerFocus)
 	{
 		// Feed prior focus factor on update to allow for proper interpolation.
