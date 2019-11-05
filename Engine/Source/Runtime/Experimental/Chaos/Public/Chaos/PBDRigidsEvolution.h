@@ -272,10 +272,7 @@ class TPBDRigidsEvolutionBase
 	CHAOS_API TPBDRigidsSOAs<T,d>& GetParticles() { return Particles; }
 	CHAOS_API const TPBDRigidsSOAs<T, d>& GetParticles() const { return Particles; }
 
-	typedef TPBDConstraintGraph<T, d> FConstraintGraph;
-	typedef TPBDConstraintGraphRule<T, d> FConstraintRule;
-
-	CHAOS_API void AddConstraintRule(FConstraintRule* ConstraintRule)
+	CHAOS_API void AddConstraintRule(FPBDConstraintGraphRule* ConstraintRule)
 	{
 		uint32 ContainerId = (uint32)ConstraintRules.Num();
 		ConstraintRules.Add(ConstraintRule);
@@ -364,7 +361,7 @@ class TPBDRigidsEvolutionBase
 	// @todo(ccaulfield): Remove the uint version
 	CHAOS_API void RemoveConstraints(const TSet<TGeometryParticleHandle<T, d>*>& RemovedParticles)
 	{
-		for (FConstraintRule* ConstraintRule : ConstraintRules)
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
 			ConstraintRule->RemoveConstraints(RemovedParticles);
 		}
@@ -388,14 +385,14 @@ class TPBDRigidsEvolutionBase
 	{
 		ConstraintGraph.InitializeGraph(Particles.GetNonDisabledView());
 
-		for (FConstraintRule* ConstraintRule : ConstraintRules)
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
 			ConstraintRule->AddToGraph();
 		}
 
 		ConstraintGraph.ResetIslands(Particles.GetNonDisabledDynamicView());
 
-		for (FConstraintRule* ConstraintRule : ConstraintRules)
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
 			ConstraintRule->InitializeAccelerationStructures();
 		}
@@ -403,7 +400,7 @@ class TPBDRigidsEvolutionBase
 
 	void UpdateAccelerationStructures(int32 Island)
 	{
-		for (FConstraintRule* ConstraintRule : ConstraintRules)
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
 			ConstraintRule->UpdateAccelerationStructures(Island);
 		}
@@ -411,7 +408,7 @@ class TPBDRigidsEvolutionBase
 
 	void ApplyConstraints(const T Dt, int32 Island)
 	{
-		for (FConstraintRule* ConstraintRule : ConstraintRules)
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
 			ConstraintRule->UpdateAccelerationStructures(Island);
 		}
@@ -419,7 +416,7 @@ class TPBDRigidsEvolutionBase
 		// @todo(ccaulfield): track whether we are sufficiently solved and can early-out
 		for (int i = 0; i < NumIterations; ++i)
 		{
-			for (FConstraintRule* ConstraintRule : ConstraintRules)
+			for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 			{
 				ConstraintRule->ApplyConstraints(Dt, Island, i, NumIterations);
 			}
@@ -512,7 +509,7 @@ protected:
 	int32 NumConstraints() const
 	{
 		int32 NumConstraints = 0;
-		for (const FConstraintRule* ConstraintRule : ConstraintRules)
+		for (const FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
 			NumConstraints += ConstraintRule->NumConstraints();
 		}
@@ -544,7 +541,7 @@ protected:
 
 	void UpdateConstraintPositionBasedState(T Dt)
 	{
-		for (FConstraintRule* ConstraintRule : ConstraintRules)
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
 			ConstraintRule->UpdatePositionBasedState(Dt);
 		}
@@ -554,7 +551,7 @@ protected:
 	{
 		ConstraintGraph.InitializeGraph(Particles.GetNonDisabledView());
 
-		for (FConstraintRule* ConstraintRule : ConstraintRules)
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
 			ConstraintRule->AddToGraph();
 		}
@@ -564,7 +561,7 @@ protected:
 	{
 		ConstraintGraph.UpdateIslands(Particles.GetNonDisabledDynamicView(), Particles);
 
-		for (FConstraintRule* ConstraintRule : ConstraintRules)
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
 			ConstraintRule->InitializeAccelerationStructures();
 		}
@@ -581,7 +578,7 @@ protected:
 		for (int32 It = 0; bNeedsAnotherIteration && (It < NumPushOutIterations); ++It)
 		{
 			bNeedsAnotherIteration = false;
-			for (FConstraintRule* ConstraintRule : ConstraintRules)
+			for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 			{
 				if (ConstraintRule->ApplyPushOut(Dt, Island, It, NumPushOutIterations))
 				{
@@ -603,8 +600,8 @@ protected:
 	FUpdateVelocityRule ParticleUpdateVelocity;
 	FUpdatePositionRule ParticleUpdatePosition;
 	FKinematicUpdateRule KinematicUpdate;
-	TArray<FConstraintRule*> ConstraintRules;
-	FConstraintGraph ConstraintGraph;
+	TArray<FPBDConstraintGraphRule*> ConstraintRules;
+	FPBDConstraintGraph ConstraintGraph;
 	TArrayCollectionArray<TSerializablePtr<TChaosPhysicsMaterial<T>>> PhysicsMaterials;
 	TArrayCollectionArray<TUniquePtr<TChaosPhysicsMaterial<T>>> PerParticlePhysicsMaterials;
 	TArrayCollectionArray<int32> ParticleDisableCount;
