@@ -360,14 +360,17 @@ void SPaperExtractSpritesDialog::PreviewExtractedSprites()
 			const int32 TextureWidth = TextureSize.X;
 			const int32 TextureHeight = TextureSize.Y;
 
+			const int32 EffectiveCellWidth = FMath::Clamp(ExtractSpriteGridSettings->CellWidth, 1, TextureWidth);
+			const int32 EffectiveCellHeight = FMath::Clamp(ExtractSpriteGridSettings->CellHeight, 1, TextureHeight);
+
 			int NumExtractedCellsY = 0;
-			for (int32 Y = ExtractSpriteGridSettings->MarginY; Y + ExtractSpriteGridSettings->CellHeight <= TextureHeight; Y += ExtractSpriteGridSettings->CellHeight + ExtractSpriteGridSettings->SpacingY)
+			for (int32 Y = ExtractSpriteGridSettings->MarginY; Y + EffectiveCellHeight <= TextureHeight; Y += EffectiveCellHeight + ExtractSpriteGridSettings->SpacingY)
 			{
 				int NumExtractedCellsX = 0;
-				for (int32 X = ExtractSpriteGridSettings->MarginX; X + ExtractSpriteGridSettings->CellWidth <= TextureWidth; X += ExtractSpriteGridSettings->CellWidth + ExtractSpriteGridSettings->SpacingX)
+				for (int32 X = ExtractSpriteGridSettings->MarginX; X + EffectiveCellWidth <= TextureWidth; X += EffectiveCellWidth + ExtractSpriteGridSettings->SpacingX)
 				{
 					FPaperExtractedSprite* Sprite = new(ExtractedSprites)FPaperExtractedSprite();
-					Sprite->Rect = FIntRect(X, Y, X + ExtractSpriteGridSettings->CellWidth, Y + ExtractSpriteGridSettings->CellHeight);
+					Sprite->Rect = FIntRect(X, Y, X + EffectiveCellWidth, Y + EffectiveCellHeight);
 					
 					Sprite->Name = NamingTemplate;
 					Sprite->Name.ReplaceInline(TEXT("{0}"), *FString::Printf(TEXT("%d"), ExtractedRectIndex));
