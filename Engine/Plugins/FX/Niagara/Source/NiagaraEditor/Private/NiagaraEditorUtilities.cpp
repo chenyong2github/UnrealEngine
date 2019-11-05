@@ -269,8 +269,9 @@ void FNiagaraEditorUtilities::FixUpPastedNodes(UEdGraph* Graph, TSet<UEdGraphNod
 				FName FunctionCallName = *PastedFunctionCallNode->GetFunctionName();
 				FName UniqueFunctionCallName = FNiagaraUtilities::GetUniqueName(FunctionCallName, ExistingNames);
 				PastedFunctionCallNode->SuggestName(UniqueFunctionCallName.ToString());
-				ExistingNames.Add(UniqueFunctionCallName);
-				OldFunctionToNewFunctionNameMap.Add(FunctionCallName, UniqueFunctionCallName);
+				FName ActualPastedFunctionCallName = *PastedFunctionCallNode->GetFunctionName();
+				ExistingNames.Add(ActualPastedFunctionCallName);
+				OldFunctionToNewFunctionNameMap.Add(FunctionCallName, ActualPastedFunctionCallName);
 			}
 		}
 	}
