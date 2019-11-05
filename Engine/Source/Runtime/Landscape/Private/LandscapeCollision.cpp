@@ -404,7 +404,7 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 				FPhysicsInterface::CreateActor(Params, PhysHandle);
 
 				Chaos::TShapesArray<float, 3> ShapeArray;
-				TArray<TUniquePtr<Chaos::TImplicitObject<float, 3>>> Geoms;
+				TArray<TUniquePtr<Chaos::FImplicitObject>> Geoms;
 
 				// First add complex geometry
 				TUniquePtr<Chaos::TPerShapeData<float, 3>> NewShape = Chaos::TPerShapeData<float, 3>::CreatePerShapeData();

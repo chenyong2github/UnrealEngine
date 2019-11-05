@@ -17,14 +17,14 @@ namespace Chaos
 	};
 
 	template<class T, int d>
-	class TSphere final : public TImplicitObject<T, d>
+	class TSphere final : public FImplicitObject
 	{
 	public:
 
-		using TImplicitObject<T, d>::GetTypeName;
+		using FImplicitObject::GetTypeName;
 
 		TSphere(const TVector<T, d>& InCenter, const T InRadius)
-		    : TImplicitObject<T, d>(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Sphere)
+		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Sphere)
 		    , Center(InCenter)
 		    , Radius(InRadius)
 		    , LocalBoundingBox(Center - Radius, Center + Radius)
@@ -32,7 +32,7 @@ namespace Chaos
 		}
 
 		TSphere(const TSphere<T, d>& Other)
-		    : TImplicitObject<T, d>(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Sphere)
+		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Sphere)
 		    , Center(Other.Center)
 		    , Radius(Other.Radius)
 		    , LocalBoundingBox(Other.LocalBoundingBox)
@@ -40,7 +40,7 @@ namespace Chaos
 		}
 
 		TSphere(TSphere<T, d>&& Other)
-		    : TImplicitObject<T, d>(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Sphere)
+		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Sphere)
 		    , Center(MoveTemp(Other.Center))
 		    , Radius(Other.Radius)
 		    , LocalBoundingBox(MoveTemp(Other.LocalBoundingBox))
@@ -249,7 +249,7 @@ namespace Chaos
 
 		FORCEINLINE void SerializeImp(FArchive& Ar)
 		{
-			TImplicitObject<T, d>::SerializeImp(Ar);
+			FImplicitObject::SerializeImp(Ar);
 			Ar << Center << Radius;
 			if (Ar.IsLoading())
 			{
@@ -325,9 +325,9 @@ namespace Chaos
 			return HashCombine(CenterHash, HashCombine(RadiusHash, BoundsHash));
 		}
 
-		virtual TUniquePtr<TImplicitObject<T, d>> Copy() const override
+		virtual TUniquePtr<FImplicitObject> Copy() const override
 		{
-			return TUniquePtr<TImplicitObject<T, d>>(new TSphere<T,d>(Center, Radius));
+			return TUniquePtr<FImplicitObject>(new TSphere<T,d>(Center, Radius));
 		}
 
 	private:
@@ -338,9 +338,9 @@ namespace Chaos
 	private:
 
 		// TImplicitObject requires ability to default construct when deserializing shapes
-		friend TImplicitObject<T, d>;
+		friend FImplicitObject;
 		TSphere()
-		    : TImplicitObject<T, d>(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Sphere) 
+		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Sphere) 
 		{}
 
 	};

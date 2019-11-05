@@ -18,7 +18,7 @@
 namespace Chaos
 {
 	template <typename T, int d>
-	bool OverlapQuery(const TImplicitObject<T, d>& A, const TRigidTransform<T,d>& ATM, const TImplicitObject<T, d>& B, const TRigidTransform<T,d>& BTM, const T Thickness = 0, TVector<T,d>* OutMTD=nullptr)
+	bool OverlapQuery(const FImplicitObject& A, const TRigidTransform<T,d>& ATM, const FImplicitObject& B, const TRigidTransform<T,d>& BTM, const T Thickness = 0, TVector<T,d>* OutMTD=nullptr)
 	{
 		const EImplicitObjectType AType = A.GetType(true);
 		const EImplicitObjectType BType = B.GetType(true);
@@ -84,7 +84,7 @@ namespace Chaos
 	}
 
 	template <typename T, int d>
-	bool SweepQuery(const TImplicitObject<T, d>& A, const TRigidTransform<T,d>& ATM, const TImplicitObject<T, d>& B, const TRigidTransform<T, d>& BTM, const TVector<T,d>& Dir, const T Length, T& OutTime, TVector<T,d>& OutPosition, TVector<T,d>& OutNormal, int32& OutFaceIndex, const T Thickness, const bool bComputeMTD)
+	bool SweepQuery(const FImplicitObject& A, const TRigidTransform<T,d>& ATM, const FImplicitObject& B, const TRigidTransform<T, d>& BTM, const TVector<T,d>& Dir, const T Length, T& OutTime, TVector<T,d>& OutPosition, TVector<T,d>& OutNormal, int32& OutFaceIndex, const T Thickness, const bool bComputeMTD)
 	{
 		const EImplicitObjectType AType = A.GetType(true);
 		const EImplicitObjectType BType = B.GetType(true);
@@ -131,7 +131,7 @@ namespace Chaos
 		//todo: handle case where A is a sphere
 		else if (A.IsConvex())
 		{
-			auto IsValidConvex = [](const TImplicitObject<T, 3>& InObject) -> bool
+			auto IsValidConvex = [](const FImplicitObject& InObject) -> bool
 			{
 				//todo: move this out of here
 				if (const auto Convex = TImplicitObjectScaled<TConvex<T,3>>::AsScaled(InObject))

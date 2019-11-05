@@ -28,12 +28,12 @@ public:
 
 	typedef TArray<Chaos::TVector<float, 3>> FPoints;
 	typedef Chaos::TBVHParticles<float,3> FSimplicial;
-	typedef Chaos::TImplicitObject<float, 3> FImplicit;
+	typedef Chaos::FImplicitObject FImplicit;
 
 	static FSimplicial* NewSimplicial(
 		const Chaos::TParticles<float, 3>& Vertices,
 		Chaos::TTriangleMesh<float>& TriMesh,
-		const Chaos::TImplicitObject<float, 3>* Implicit,
+		const Chaos::FImplicitObject* Implicit,
 		int32 CollisionParticlesMaxInput
 	);
 	

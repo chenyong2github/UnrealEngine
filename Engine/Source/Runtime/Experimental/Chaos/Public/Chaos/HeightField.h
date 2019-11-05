@@ -22,10 +22,10 @@ namespace Chaos
 namespace Chaos
 {
 	template<typename T>
-	class CHAOS_API THeightField final : public TImplicitObject<T,3>
+	class CHAOS_API THeightField final : public FImplicitObject
 	{
 	public:
-		using TImplicitObject<T, 3>::GetTypeName;
+		using FImplicitObject::GetTypeName;
 
 		THeightField(TArray<T>&& Height, int32 InNumRows, int32 InNumCols, const TVector<T,3>& InScale);
 		THeightField(TArrayView<const uint16> InHeights, int32 InNumRows, int32 InNumCols, const TVector<T, 3>& InScale);
@@ -46,8 +46,8 @@ namespace Chaos
 
 		virtual bool Raycast(const TVector<T, 3>& StartPoint, const TVector<T, 3>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T,3>& OutPosition, TVector<T,3>& OutNormal, int32& OutFaceIndex) const override;
 		virtual bool Overlap(const TVector<T, 3>& Point, const T Thickness) const override;
-		bool OverlapGeom(const TImplicitObject<T, 3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const;
-		bool SweepGeom(const TImplicitObject<T, 3>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness = 0) const;
+		bool OverlapGeom(const FImplicitObject& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const;
+		bool SweepGeom(const FImplicitObject& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness = 0) const;
 		virtual int32 FindMostOpposingFace(const TVector<T, 3>& Position, const TVector<T, 3>& UnitDir, int32 HintFaceIndex, T SearchDist) const override;
 		virtual TVector<T, 3> FindGeometryOpposingNormal(const TVector<T, 3>& DenormDir, int32 FaceIndex, const TVector<T, 3>& OriginalNormal) const override;
 
@@ -78,7 +78,7 @@ namespace Chaos
 		virtual void Serialize(FChaosArchive& Ar) override
 		{
 			FChaosArchiveScopedMemory ScopedMemory(Ar, GetTypeName());
-			TImplicitObject<T, 3>::SerializeImp(Ar);
+			FImplicitObject::SerializeImp(Ar);
 			
 			GeomData.Serialize(Ar);
 
@@ -394,7 +394,7 @@ namespace Chaos
 		void BuildQueryData();
 		
 		// Needed for serialization
-		THeightField() : TImplicitObject<T, 3>(EImplicitObject::HasBoundingBox, ImplicitObjectType::HeightField) {}
-		friend TImplicitObject<T, 3>;
+		THeightField() : FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::HeightField) {}
+		friend FImplicitObject;
 	};
 }
