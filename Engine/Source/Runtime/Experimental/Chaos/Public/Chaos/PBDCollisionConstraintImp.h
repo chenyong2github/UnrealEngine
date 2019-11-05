@@ -304,6 +304,7 @@ namespace Chaos
 					Queue.Dequeue(Constraints[Idx]);
 					ensure(Handles.Num() == Constraints.Num());
 
+					/*
 					FConstraintHandleID HandleID = GetConstraintHandleID(Constraints[Idx]);
 					FConstraintManifold* Manifold;
 					if (auto ValPtr = Manifolds.Find(HandleID))
@@ -316,6 +317,7 @@ namespace Chaos
 						Manifolds.Add(HandleID, Manifold);
 					}
 					Manifold->AddHandle(Handle);
+					*/
 				}
 				LifespanCounter++;
 			}
