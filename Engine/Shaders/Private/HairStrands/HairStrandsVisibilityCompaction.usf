@@ -28,7 +28,7 @@ float CosTangentThreshold;
 
 uint2 OutputResolution;
 uint MaxNodeCount;
-uint HairVisibilitySampleCount;	// MSAA sample count
+uint HairVisibilityMSAASampleCount;
 uint2 ResolutionOffset;
 
 #if PERMUTATION_COVERAGE == 1
@@ -56,6 +56,7 @@ groupshared uint AllocationNodeOffset;
 
 
 #if PERMUTATION_PPLL
+#define PPLL_MAXELEMENTCOUNT PERMUTATION_PPLL
 
 Texture2D<uint> PPLLCounter;
 Texture2D<uint> PPLLNodeIndex;
@@ -85,8 +86,8 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	
 	const bool bExecute = FirstNodeIndex != 0xFFFFFFFF && all(PixelCoord < OutputResolution);
 
-	uint SortedIndex[HAIR_VISIBILITY_MAXSAMPLECOUNT];
-	float SortedDepth[HAIR_VISIBILITY_MAXSAMPLECOUNT];
+	uint SortedIndex[PPLL_MAXELEMENTCOUNT];
+	float SortedDepth[PPLL_MAXELEMENTCOUNT];
 	float ValidPixelSampleTotalCoverage = 0.0f;
 	float Transmittance = 1.0f;
 	uint PixelNodeCount = 0;
@@ -109,14 +110,14 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 			const float Coverage = From8bitCoverage(VisibilityData.Coverage8bit);
 			Transmittance *= 1.0f - Coverage;
-			if (PixelNodeCount < HAIR_VISIBILITY_MAXSAMPLECOUNT)
+			if (PixelNodeCount < PPLL_MAXELEMENTCOUNT)
 			{
 				ValidPixelSampleTotalCoverage += Coverage;
 
-				// Always insert up to HAIR_VISIBILITY_MAXSAMPLECOUNT data
+				// Always insert up to PPLL_MAXELEMENTCOUNT data
 				SortedIndex[PixelNodeCount] = NodeIndex;
 				SortedDepth[PixelNodeCount] = PPLLNode.Depth;
-				// TODO sort and keep closest, merge furthest
+				// TODO sort and keep closest, merge furthest 
 			}
 
 			PixelNodeCount++;
@@ -133,7 +134,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	GroupMemoryBarrierWithGroupSync();
 	// Now notify how many nodes this thread wants to allocate
 	uint PixelDataSubOffsetInStorage = 0; 
-	PixelSamplecount = min(PixelNodeCount, HAIR_VISIBILITY_MAXSAMPLECOUNT);
+	PixelSamplecount = min(PixelNodeCount, PPLL_MAXELEMENTCOUNT);
 	InterlockedAdd(AllocationNodeCount, PixelSamplecount, PixelDataSubOffsetInStorage);
 	GroupMemoryBarrierWithGroupSync();
 	// Now allocate all the nodes for this group contiguously in memory
@@ -317,7 +318,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	}
 
 	uint2 PixelCoord = DispatchThreadId.xy + ResolutionOffset;
-	if (HairVisibilitySampleCount == 0 || PixelCoord.x >= OutputResolution.x || PixelCoord.y >= OutputResolution.y)
+	if (HairVisibilityMSAASampleCount == 0 || PixelCoord.x >= OutputResolution.x || PixelCoord.y >= OutputResolution.y)
 		PixelCoord = uint2(0, 0);
 
 	FSampleSetDesc SampleDesc;
@@ -328,7 +329,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		Samples,
 		SampleDesc,
 		PixelCoord,
-		HairVisibilitySampleCount,
+		HairVisibilityMSAASampleCount,
 		OpaqueDepth,
 		MSAA_IDTexture, 
 		MSAA_DepthTexture);
