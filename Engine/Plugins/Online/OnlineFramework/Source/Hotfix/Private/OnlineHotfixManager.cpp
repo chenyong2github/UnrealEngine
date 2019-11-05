@@ -911,7 +911,6 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 				{
 					const TCHAR* LogConfigSection = TEXT("[Core.Log]");
 					const TCHAR* ConsoleVariableSection = TEXT("[ConsoleVariables]");
-					const TCHAR* SystemSettingsSection = TEXT("[SystemSettings]");
 					const TCHAR* HttpSection = TEXT("[HTTP"); // note "]" omitted on purpose since we want a partial match
 					const TCHAR* OnlineSubSectionKey = TEXT("[OnlineSubsystem"); // note "]" omitted on purpose since we want a partial match
 					if (!bUpdateLogSuppression && FCString::Strnicmp(*IniData + StartIndex, LogConfigSection, FCString::Strlen(LogConfigSection)) == 0)
@@ -919,10 +918,6 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 						bUpdateLogSuppression = true;
 					}
 					else if (!bUpdateConsoleVariables && FCString::Strnicmp(*IniData + StartIndex, ConsoleVariableSection, FCString::Strlen(ConsoleVariableSection)) == 0)
-					{
-						bUpdateConsoleVariables = true;
-					}
-					else if (!bUpdateConsoleVariables && FCString::Strnicmp(*IniData + StartIndex, SystemSettingsSection, FCString::Strlen(SystemSettingsSection)) == 0)
 					{
 						bUpdateConsoleVariables = true;
 					}
