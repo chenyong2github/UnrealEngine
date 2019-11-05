@@ -11,6 +11,7 @@
 #include "Widgets/Layout/SSplitter.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STreeView.h"
 
 class SEditableTextBox;
 class SGridPanel;
