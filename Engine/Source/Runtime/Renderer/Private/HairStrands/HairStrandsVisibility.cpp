@@ -46,8 +46,11 @@ static FAutoConsoleVariableRef CVarHairVelocityType(TEXT("r.HairStrands.Velocity
 
 static int32 GHairVisibilityPPLL = 0;
 static FAutoConsoleVariableRef CVarGHairVisibilityPPLL(TEXT("r.HairStrands.VisibilityPPLL"), GHairVisibilityPPLL, TEXT("Hair Visibility uses per pixel linked list"));
-static int32 GHairVisibilityPPLLMaxPixelNodeCount = 16;
-static FAutoConsoleVariableRef CVarGHairVisibilityPPLLMaxPixelNodeCount(TEXT("r.HairStrands.VisibilityPPLLMaxPixelNodeCount"), GHairVisibilityPPLLMaxPixelNodeCount, TEXT("The total maximum number of node allowed for all linked list will be width*height*VisibilityPPLLMaxPixelNodeCount."));
+static int32 GHairVisibilityPPLLMeanListElementCountPerPixel = 16;
+static FAutoConsoleVariableRef CVarGHairVisibilityPPLLMeanListElementCountPerPixel(TEXT("r.HairStrands.VisibilityPPLLMeanListElementCountPerPixel"), GHairVisibilityPPLLMeanListElementCountPerPixel, TEXT("The mean maximum number of node allowed for all linked list element. It will be width*height*VisibilityPPLLMeanListElementCountPerPixel."));
+static int32 GHairVisibilityPPLLMaxRenderNodePerPixel = 16;
+static FAutoConsoleVariableRef CVarGHairVisibilityPPLLMeanNodeCountPerPixel(TEXT("r.HairStrands.VisibilityPPLLMaxRenderNodePerPixel"), GHairVisibilityPPLLMaxRenderNodePerPixel, TEXT("The maximum number of node allowed to be independently shaded and composited per pixel. Total amount of node will be width*height*VisibilityPPLLMaxRenderNodePerPixel. The last node is used to aggregate all furthest strands to shade into a single one."));
+
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
@@ -64,26 +67,39 @@ EHairVisibilityRenderMode GetHairVisibilityRenderMode()
 	return GHairVisibilityPPLL >0 ? HairVisibilityRenderMode_PPLL : HairVisibilityRenderMode_MSAA;
 }
 
-uint32 GetPPLLMaxElementCount()
+uint32 GetPPLLMeanListElementCountPerPixel()
+{
+	return GHairVisibilityPPLLMeanListElementCountPerPixel;
+}
+uint32 GetPPLLMaxTotalListElementCount(FIntPoint Resolution)
+{
+	return Resolution.X * Resolution.Y * GetPPLLMeanListElementCountPerPixel();
+}
+
+uint32 GetPPLLMaxRenderNodePerPixel()
 {
 	// The following must match the FPPLL permutation of FHairVisibilityPrimitiveIdCompactionCS.
-	if (GHairVisibilityPPLLMaxPixelNodeCount == 0)
+	if (GHairVisibilityPPLLMaxRenderNodePerPixel == 0)
 	{
 		return 0;
 	}
-	else if (GHairVisibilityPPLLMaxPixelNodeCount <= 8)
+	else if (GHairVisibilityPPLLMaxRenderNodePerPixel <= 8)
 	{
 		return 8;
 	}
-	else if (GHairVisibilityPPLLMaxPixelNodeCount <= 16)
+	else if (GHairVisibilityPPLLMaxRenderNodePerPixel <= 16)
 	{
 		return 16;
 	}
-	else //if (GHairVisibilityPPLLMaxPixelNodeCount <= 32)
+	else //if (GHairVisibilityPPLLMaxRenderNodePerPixel <= 32)
 	{
 		return 32;
 	}
 	// If more is needed: please check out EncodeNodeDesc from HairStrandsVisibilityCommon.ush to verify node count representation limitations.
+}
+uint32 GetPPLLMaxTotalRenderNode(FIntPoint Resolution)
+{
+	return Resolution.X * Resolution.Y * GetPPLLMaxRenderNodePerPixel();
 }
 
 uint32 GetHairVisibilitySampleCount()
@@ -108,11 +124,6 @@ void SetUpViewHairRenderInfo(const FViewInfo& ViewInfo, bool bEnableMSAA, FVecto
 	OutHairRenderInfo.Y = MinHairRadius.Velocity;
 	OutHairRenderInfo.Z = ViewInfo.IsPerspectiveProjection() ? 0.0f : 1.0f;
 	OutHairRenderInfo.W = VelocityMagnitudeScale;
-}
-
-uint32 GetMaxNodePerPixel(FIntPoint Resolution)
-{
-	return Resolution.X * Resolution.Y * GHairVisibilityPPLLMaxPixelNodeCount;
 }
 
 static bool IsCompatibleWithHairVisibility(const FMeshMaterialShaderPermutationParameters& Parameters)
@@ -517,7 +528,7 @@ class FHairVisibilityPrimitiveIdCompactionCS : public FGlobalShader
 	class FVelocity : SHADER_PERMUTATION_INT("PERMUTATION_VELOCITY", 4);
 	class FCoverage : SHADER_PERMUTATION_INT("PERMUTATION_COVERAGE", 2);
 	class FMaterial : SHADER_PERMUTATION_INT("PERMUTATION_MATERIAL_COMPACTION", 2);
-	class FPPLL     : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_PPLL", 0, 8, 16, 32); // See GetPPLLMaxElementCount
+	class FPPLL     : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_PPLL", 0, 8, 16, 32); // See GetPPLLMaxRenderNodePerPixel
 	using FPermutationDomain = TShaderPermutationDomain<FVendor, FVelocity, FCoverage, FMaterial, FPPLL>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -631,10 +642,11 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 	AddClearUAVPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsClearCompactionOffsetAndCount"), OutCompactNodeIndex, 0);
 	AddClearUAVPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsClearCategorizationTexture"), OutCategorizationTexture, 0);
 
+	// Select render node count according to current mode
 	const uint32 HairVisibilityMSAASampleCount = GetHairVisibilitySampleCount();
 	const uint32 SampleCount = FMath::RoundUpToPowerOfTwo(HairVisibilityMSAASampleCount);
-	const uint32 PPLLMaxElementCount = GetPPLLMaxElementCount();
-	const uint32 MaxNodeCount = Resolution.X * Resolution.Y * (GetHairVisibilityRenderMode() == HairVisibilityRenderMode_MSAA ? SampleCount : PPLLMaxElementCount);
+	const uint32 PPLLMaxRenderNodePerPixel = GetPPLLMaxRenderNodePerPixel();
+	const uint32 MaxRenderNodeCount = Resolution.X * Resolution.Y * (GetHairVisibilityRenderMode() == HairVisibilityRenderMode_MSAA ? SampleCount : PPLLMaxRenderNodePerPixel);
 	{
 		struct NodeData
 		{
@@ -645,12 +657,12 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 			uint32 Specular;
 		};
 
-		OutCompactNodeData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(NodeData), MaxNodeCount), TEXT("HairVisibilityPrimitiveIdCompactNodeData"));
+		OutCompactNodeData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(NodeData), MaxRenderNodeCount), TEXT("HairVisibilityPrimitiveIdCompactNodeData"));
 	}
 
 	{
 		// Pixel coord of the node. Stored as 2*uint16, packed into a single uint32
-		OutCompactNodeCoord = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxNodeCount), TEXT("HairVisibilityPrimitiveIdCompactNodeCoord"));
+		OutCompactNodeCoord = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxRenderNodeCount), TEXT("HairVisibilityPrimitiveIdCompactNodeCoord"));
 	}
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
@@ -663,10 +675,10 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 	PermutationVector.Set<FHairVisibilityPrimitiveIdCompactionCS::FVelocity>(bWriteOutVelocity ? FMath::Clamp(GHairVelocityType+1, 0, 3) : 0);
 	PermutationVector.Set<FHairVisibilityPrimitiveIdCompactionCS::FCoverage>(PassParameters->CoverageTexture ? 1 : 0);
 	PermutationVector.Set<FHairVisibilityPrimitiveIdCompactionCS::FMaterial>(GHairStrandsMaterialCompactionEnable ? 1 : 0);
-	PermutationVector.Set<FHairVisibilityPrimitiveIdCompactionCS::FPPLL>(bUsePPLL ? PPLLMaxElementCount : 0);
+	PermutationVector.Set<FHairVisibilityPrimitiveIdCompactionCS::FPPLL>(bUsePPLL ? PPLLMaxRenderNodePerPixel : 0);
 
 	PassParameters->OutputResolution = Resolution;
-	PassParameters->MaxNodeCount = MaxNodeCount;
+	PassParameters->MaxNodeCount = MaxRenderNodeCount;
 	PassParameters->DepthTheshold = FMath::Clamp(GHairStrandsMaterialCompactionDepthThreshold, 0.f, 100.f);
 	PassParameters->CosTangentThreshold = FMath::Cos(FMath::DegreesToRadians(FMath::Clamp(GHairStrandsMaterialCompactionTangentThreshold, 0.f, 90.f)));
 	PassParameters->HairVisibilityMSAASampleCount = HairVisibilityMSAASampleCount;
@@ -1042,7 +1054,7 @@ static void AddHairVisibilityPPLLPass(
 		OutVisibilityPPLLNodeIndex = GraphBuilder.CreateTexture(Desc, TEXT("HairVisibilityPPLLNodeIndex"));
 	}
 
-	const uint32 MaxNodeCount = GetMaxNodePerPixel(Resolution);
+	const uint32 PPLLMaxTotalListElementCount = GetPPLLMaxTotalListElementCount(Resolution);
 	{
 		// Example: 28bytes * 8spp = 224bytes per pixel = 442Mb @ 1080p
 		struct PPLLNodeData
@@ -1056,7 +1068,7 @@ static void AddHairVisibilityPPLLPass(
 			uint32 PackedVelocity;
 		};
 
-		OutVisibilityPPLLNodeData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(PPLLNodeData), MaxNodeCount), TEXT("HairVisibilityPPLLNodeData"));
+		OutVisibilityPPLLNodeData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(PPLLNodeData), PPLLMaxTotalListElementCount), TEXT("HairVisibilityPPLLNodeData"));
 	}
 	AddClearUAVPass(GraphBuilder, RDG_EVENT_NAME("ClearHairVisibilityPPLLCounter"), OutVisibilityPPLLNodeCounter, 0);
 	AddClearUAVPass(GraphBuilder, RDG_EVENT_NAME("ClearHairVisibilityPPLLNodeIndex"), OutVisibilityPPLLNodeIndex, 0xFFFFFFFF);
@@ -1065,7 +1077,7 @@ static void AddHairVisibilityPPLLPass(
 	PassParameters->PPLLCounter = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(OutVisibilityPPLLNodeCounter, 0));
 	PassParameters->PPLLNodeIndex = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(OutVisibilityPPLLNodeIndex, 0));
 	PassParameters->PPLLNodeData = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(OutVisibilityPPLLNodeData));
-	PassParameters->HairVisibilityPass_MaxPPLLNodeCount = MaxNodeCount;
+	PassParameters->HairVisibilityPass_MaxPPLLNodeCount = PPLLMaxTotalListElementCount;
 	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(InViewZDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthRead_StencilNop);
 	AddHairVisibilityCommonPass(GraphBuilder, Scene, ViewInfo, ClusterDatas, HairVisibilityRenderMode_PPLL, PassParameters);
 }
