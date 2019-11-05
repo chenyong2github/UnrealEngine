@@ -444,11 +444,11 @@ namespace GeometryCollectionExample
 		Object->PhysicsProxy->Initialize();
 
 		// check implicit domain
-		typedef TUniquePtr<Chaos::TImplicitObject<float, 3>> FImplicitPointer;
+		typedef TUniquePtr<Chaos::FImplicitObject> FImplicitPointer;
 		const TManagedArray<FImplicitPointer> & Implicits = Object->RestCollection->template GetAttribute<FImplicitPointer>("Implicits", FTransformCollection::TransformGroup);
 		EXPECT_EQ(Implicits.Num(), 1);
 
-		const Chaos::TImplicitObject<float, 3> & Implicit = *Implicits[0];
+		const Chaos::FImplicitObject & Implicit = *Implicits[0];
 		for (float x = -1.05; x < 1.0; x += 0.1)
 		{
 			Vec Normal;
