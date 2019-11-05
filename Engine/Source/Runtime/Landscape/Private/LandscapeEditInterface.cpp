@@ -1898,7 +1898,7 @@ void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLands
 				continue;
 			}
 			FWeightmapLayerAllocationInfo& Allocation = ComponentWeightmapLayerAllocations[LayerIdx];
-			if (Allocation.LayerInfo->bNoWeightBlend)
+			if ((Allocation.LayerInfo == nullptr) || Allocation.LayerInfo->bNoWeightBlend)
 			{
 				continue;
 			}
