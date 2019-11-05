@@ -99,6 +99,8 @@
 
 #include "BlueprintEditorTabs.h"
 
+#include "ToolMenus.h"
+#include "BlueprintEditorContext.h"
 
 #include "Interfaces/IProjectManager.h"
 
@@ -1893,6 +1895,15 @@ void FBlueprintEditor::InitBlueprintEditor(
 			DumpMessagesToCompilerLog(Blueprint->UpgradeNotesLog->Messages, true);
 		}
 	}
+}
+
+void FBlueprintEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
+{
+	FAssetEditorToolkit::InitToolMenuContext(MenuContext);
+
+	UBlueprintEditorToolMenuContext* Context = NewObject<UBlueprintEditorToolMenuContext>();
+	Context->BlueprintEditor = SharedThis(this);
+	MenuContext.AddObject(Context);
 }
 
 void FBlueprintEditor::InitalizeExtenders()
@@ -9405,5 +9416,10 @@ void FBlueprintEditor::ClearAllGraphEditorQuickJumps()
 /////////////////////////////////////////////////////
 /////////////////////////////////////////////////////
 /////////////////////////////////////////////////////
+
+UBlueprint* UBlueprintEditorToolMenuContext::GetBlueprintObj() const
+{
+	return BlueprintEditor.IsValid() ? BlueprintEditor.Pin()->GetBlueprintObj() : nullptr;
+}
 
 #undef LOCTEXT_NAMESPACE

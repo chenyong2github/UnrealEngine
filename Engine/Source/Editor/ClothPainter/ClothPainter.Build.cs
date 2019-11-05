@@ -31,7 +31,8 @@ public class ClothPainter : ModuleRules
                 "ClothingSystemRuntimeInterface",
                 "ClothingSystemEditorInterface",
                 "SkeletalMeshEditor",
-                "AdvancedPreviewScene"
+                "AdvancedPreviewScene",
+				"ToolMenus",
             }
 		);
     }
