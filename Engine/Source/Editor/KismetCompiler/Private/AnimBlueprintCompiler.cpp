@@ -2151,7 +2151,7 @@ void FAnimBlueprintCompilerContext::ProcessLinkedInputPose(UAnimGraphNode_Linked
 					{
 						// Create new node for property access
 						UK2Node_VariableGet* VariableGetNode = SpawnIntermediateNode<UK2Node_VariableGet>(InLinkedInputPose, InLinkedInputPose->GetGraph());
-						VariableGetNode->SetFromProperty(NewLinkedInputPoseProperty, true);
+						VariableGetNode->SetFromProperty(NewLinkedInputPoseProperty, true, NewLinkedInputPoseProperty->GetOwnerClass());
 						VariableGetNode->AllocateDefaultPins();
 
 						// Add pin to generated variable association, used for pin watching

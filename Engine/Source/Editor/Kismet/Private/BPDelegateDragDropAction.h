@@ -61,7 +61,7 @@ public:
 			EK2NewNodeFlags::SelectNewNode,
 			[&Params](TNode* NewInstance)
 			{
-				NewInstance->SetFromProperty(Params.Property, Params.bSelfContext);
+				NewInstance->SetFromProperty(Params.Property, Params.bSelfContext, Params.Property->GetOwnerClass());
 			}
 		);
 		Params.AnalyticCallback.ExecuteIfBound();
