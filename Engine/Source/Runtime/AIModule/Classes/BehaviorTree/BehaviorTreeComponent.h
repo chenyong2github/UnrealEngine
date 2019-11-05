@@ -53,9 +53,6 @@ struct FBTPendingExecutionInfo
 	/** next task to execute */
 	UBTTaskNode* NextTask;
 
-	/** execution request node index */
-	FBTNodeIndex ExecutionNodeIndex;
-
 	/** if set, tree ran out of nodes */
 	uint32 bOutOfNodes : 1;
 
@@ -244,9 +241,6 @@ protected:
 
 	/** execution request, search will be performed when current task finish execution/aborting */
 	FBTNodeExecutionInfo ExecutionRequest;
-
-	/** node index currently processed while applying the search data */
-	FBTNodeIndex InProgressExecutionNodeIndex;
 
 	/** result of ExecutionRequest, will be applied when current task finish aborting */
 	FBTPendingExecutionInfo PendingExecution;

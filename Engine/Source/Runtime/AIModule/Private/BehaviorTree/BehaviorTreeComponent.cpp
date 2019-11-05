@@ -857,16 +857,6 @@ void UBehaviorTreeComponent::RequestExecution(UBTCompositeNode* RequestedOn, int
 		return;
 	}
 
-	// while processing execution request, we do not request execution from nodes 
-	// with a priority lower than the processed node since it may no longer be
-	// in the active branch and will force a restart of the tree
-	if (InProgressExecutionNodeIndex.IsSet() && InProgressExecutionNodeIndex.TakesPriorityOver(ExecutionIdx) && RequestedBy->IsA(UBTDecorator::StaticClass()))
-	{
-		UE_VLOG(GetOwner(), LogBehaviorTree, Warning, TEXT("> skip: requesting execution from a lower priority node: %s < %s"), *ExecutionIdx.Describe(), *InProgressExecutionNodeIndex.Describe());
-		StoreDebuggerRestart(DebuggerNode, InstanceIdx, false);
-		return;
-	}
-
 	// when it's aborting and moving to higher priority node:
 	if (bSwitchToHigherPriority)
 	{
@@ -1475,8 +1465,6 @@ void UBehaviorTreeComponent::ProcessExecutionRequest()
 
 	if (!SearchData.bPostponeSearch)
 	{
-		PendingExecution.ExecutionNodeIndex = FBTNodeIndex(ExecutionRequest.ExecuteInstanceIdx, ExecutionRequest.ExecuteNode->GetExecutionIndex());
-
 		// clear request accumulator
 		ExecutionRequest = FBTNodeExecutionInfo();
 
@@ -1515,7 +1503,6 @@ void UBehaviorTreeComponent::ProcessPendingExecution()
 	}
 
 	FBTPendingExecutionInfo SavedInfo = PendingExecution;
-	InProgressExecutionNodeIndex = PendingExecution.ExecutionNodeIndex;
 	PendingExecution = FBTPendingExecutionInfo();
 
 	// collect all aux nodes that have lower priority than new task
@@ -1547,8 +1534,6 @@ void UBehaviorTreeComponent::ProcessPendingExecution()
 	{
 		OnTreeFinished();
 	}
-
-	InProgressExecutionNodeIndex = FBTNodeIndex();
 }
 
 void UBehaviorTreeComponent::RollbackSearchChanges()
