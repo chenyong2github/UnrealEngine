@@ -16,8 +16,7 @@ namespace Chaos
 	template<typename T, int d>
 	class TImplicitObjectUnion;
 
-	template<typename T, int d>
-	class TImplicitObject;
+	class FImplicitObject;
 
 	template <typename T>
 	class TTriangleMeshImplicitObject;

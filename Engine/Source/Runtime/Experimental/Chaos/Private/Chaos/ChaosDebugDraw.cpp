@@ -46,7 +46,7 @@ namespace Chaos
 #if CHAOS_DEBUG_DRAW
 
 		template <typename T, int d>
-		void DrawShapesImpl(const TRigidTransform<float, 3>& ShapeTransform, const TImplicitObject<T, d>* Shape, FColor Color)
+		void DrawShapesImpl(const TRigidTransform<float, 3>& ShapeTransform, const FImplicitObject* Shape, FColor Color)
 		{
 			// @todo(ccaulfield): handle scale throughout
 			switch (Shape->GetType(false))

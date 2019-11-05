@@ -20,7 +20,7 @@ class AGeometryCollectionDebugDrawActor;
 class AChaosSolverActor;
 
 #if GEOMETRYCOLLECTION_DEBUG_DRAW
-namespace Chaos { template<class T, int d> class TImplicitObject; }
+namespace Chaos { class FImplicitObject; }
 namespace Chaos { template<class T, int d> class TPBDRigidParticles; }
 #endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW
 
