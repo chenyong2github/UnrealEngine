@@ -2772,13 +2772,15 @@ bool FLevelEditorViewportClient::InputKey(FViewport* InViewport, int32 Controlle
 			UserIsControllingAtmosphericLightTimer = 3.0f; // Keep the widget open for a few seconds even when not tweaking the sun light
 		}
 	};
-	bool bCtrlLPressed = InputState.IsCtrlButtonPressed() && Key == EKeys::L;
-	if (bCtrlLPressed && InputState.IsShiftButtonPressed())
+
+
+	bool bCmdCtrlLPressed = (InputState.IsCommandButtonPressed() || InputState.IsCtrlButtonPressed()) && Key == EKeys::L;
+	if (bCmdCtrlLPressed && InputState.IsShiftButtonPressed())
 	{
 		ProcessAtmosphericLightShortcut(1, bUserIsControllingAtmosphericLight1);
 		return true;
 	}
-	if (bCtrlLPressed)
+	if (bCmdCtrlLPressed)
 	{
 		ProcessAtmosphericLightShortcut(0, bUserIsControllingAtmosphericLight0);
 		return true;
