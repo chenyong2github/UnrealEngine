@@ -295,7 +295,7 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
  //////////
  // PPLL
 
-// Footprint: 192bits | 20bytes
+// Footprint: 224bits | 28bytes
  struct FPPLLNodeData
  {
 	 // (backloged)TODO try f16(depth) f16(Specular) and make sure depth does not lead to artefact
@@ -305,20 +305,32 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 	 uint Tangent_Coverage8bit;
 	 uint BaseColor_Roughness;
 	 uint NextNodeIndex;
+	 uint PackedVelocity;
  };
 
- FPPLLNodeData ConvertToPPLLNodeData(float Depth, FVisibilityData VisibilityData, float3 BaseColor, float Roughness, float Specular, uint NextNodeIndex)
+ uint PackVelocity(float2 EncodedVelocity)
+ {
+	 return f32tof16(EncodedVelocity.x) << 16 | f32tof16(EncodedVelocity.y);
+ }
+
+ float2 UnpackVelocity(uint PackedVelocity)
+ {
+	 return float2(f16tof32(PackedVelocity >> 16), f16tof32(PackedVelocity));
+ }
+
+ FPPLLNodeData ConvertToPPLLNodeData(float Depth, FVisibilityData VisibilityData, float3 BaseColor, float Roughness, float Specular, float2 Velocity, uint NextNodeIndex)
  {
 	 // 4x16bits
 	 const uint4 EncodedVisibilityData = EncodeVisibilityData(VisibilityData);
 
 	 FPPLLNodeData Out;
-	 Out.Depth = Depth;																								// 32bits float
-	 Out.Tangent_Coverage8bit = (0xFFFF & EncodedVisibilityData.x) | ((0xFFFF & EncodedVisibilityData.y) << 16);	// 32bits uint
-	 Out.PrimitiveID_ClusterID = (0xFFFF & EncodedVisibilityData.z) | ((0xFFFF & EncodedVisibilityData.w) << 16);	// 32bits uint
-	 Out.BaseColor_Roughness = float4ToUint(float4(sqrt(BaseColor), Roughness));									// 32bits uint
-	 Out.Specular = Specular;																						// 32 bits float
-	 Out.NextNodeIndex = NextNodeIndex;																				// 32bits next node
+	 Out.Depth = Depth;
+	 Out.Tangent_Coverage8bit = (0xFFFF & EncodedVisibilityData.x) | ((0xFFFF & EncodedVisibilityData.y) << 16);
+	 Out.PrimitiveID_ClusterID = (0xFFFF & EncodedVisibilityData.z) | ((0xFFFF & EncodedVisibilityData.w) << 16);
+	 Out.BaseColor_Roughness = float4ToUint(float4(sqrt(BaseColor), Roughness));
+	 Out.Specular = Specular;
+	 Out.NextNodeIndex = NextNodeIndex;
+	 Out.PackedVelocity = PackVelocity(Velocity);
 
 	 return Out;
  }
