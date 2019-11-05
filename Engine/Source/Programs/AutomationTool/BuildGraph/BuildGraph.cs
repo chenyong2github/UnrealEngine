@@ -47,6 +47,7 @@ namespace AutomationTool
 	[Help("Target=<Name>", "Name of the node or output tag to be built")]
 	[Help("Schema", "Generates a schema to the default location")]
 	[Help("Schema=<FileName>", "Generate a schema describing valid script documents, including all the known tasks")]
+	[Help("ImportSchema=<FileName>", "Imports a schema from an existing schema file")]
 	[Help("Set:<Property>=<Value>", "Sets a named property to the given value")]
 	[Help("Clean", "Cleans all cached state of completed build nodes before running")]
 	[Help("CleanNode=<Name>[+<Name>...]", "Cleans just the given nodes before running")]
@@ -78,6 +79,7 @@ namespace AutomationTool
 			string TargetNames = ParseParamValue("Target", null);
 			string DocumentationFileName = ParseParamValue("Documentation", null);
 			string SchemaFileName = ParseParamValue("Schema", null);
+			string ImportSchemaFileName = ParseParamValue("ImportSchema", null);
 			string ExportFileName = ParseParamValue("Export", null);
 			string PreprocessedFileName = ParseParamValue("Preprocess", null);
 			string SharedStorageDir = ParseParamValue("SharedStorageDir", null);
@@ -184,16 +186,25 @@ namespace AutomationTool
 				return ExitCode.Success;
 			}
 
-			// Create a schema for the given tasks
-			ScriptSchema Schema = new ScriptSchema(NameToTask);
-			if(SchemaFileName != null)
+			// Import schema if one is passed in
+			ScriptSchema Schema;
+			if (ImportSchemaFileName != null)
 			{
-				FileReference FullSchemaFileName = new FileReference(SchemaFileName);
-				LogInformation("Writing schema to {0}...", FullSchemaFileName.FullName);
-				Schema.Export(FullSchemaFileName);
-				if(ScriptFileName == null)
+				Schema = ScriptSchema.Import(FileReference.FromString(ImportSchemaFileName), NameToTask);
+			}
+			else
+			{
+				// Create a schema for the given tasks
+				Schema = new ScriptSchema(NameToTask);
+				if (SchemaFileName != null)
 				{
-					return ExitCode.Success;
+					FileReference FullSchemaFileName = new FileReference(SchemaFileName);
+					LogInformation("Writing schema to {0}...", FullSchemaFileName.FullName);
+					Schema.Export(FullSchemaFileName);
+					if (ScriptFileName == null)
+					{
+						return ExitCode.Success;
+					}
 				}
 			}
 
