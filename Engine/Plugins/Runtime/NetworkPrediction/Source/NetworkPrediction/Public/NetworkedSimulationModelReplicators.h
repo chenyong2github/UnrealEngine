@@ -459,7 +459,7 @@ struct TReplicator_Simulated : public TBase
 
 		check(Ticker.GetTotalProcessedSimulationTime() <= Ticker.GetTotalAllowedSimulationTime());
 
-		if (bAllowSimulatedExtrapolation && ParentSimulation == nullptr && NetworkSimulationModelCVars::EnableSimulatedExtrapolation() && NetworkSimulationModelCVars::EnableSimulatedReconcile())
+		if (GetSimulatedUpdateMode() == ESimulatedUpdateMode::Extrapolate && NetworkSimulationModelCVars::EnableSimulatedReconcile())
 		{
 			// Simulated Reconcile requires the input buffer to be kept up to date with the Sync buffer
 			// Generate a new, fake, command since we just added a new sync state to head
@@ -484,7 +484,7 @@ struct TReplicator_Simulated : public TBase
 	void PreSimTick(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTicker<TTickSettings>& Ticker, const FNetSimTickParameters& TickParameters)
 	{
 		// Tick if we are dependent simulation or extrapolation is enabled
-		if (ParentSimulation || (bAllowSimulatedExtrapolation && NetworkSimulationModelCVars::EnableSimulatedExtrapolation()))
+		if (ParentSimulation || (GetSimulatedUpdateMode() == ESimulatedUpdateMode::Extrapolate))
 		{
 			// Don't start this simulation until you've gotten at least one update from the server
 			if (Ticker.GetTotalProcessedSimulationTime().IsPositive())
@@ -500,7 +500,11 @@ struct TReplicator_Simulated : public TBase
 	template<typename TDriver>
 	void PostSimTick(TDriver* Driver, const TNetworkSimBufferContainer<TBufferTypes>& Buffers, const TSimulationTicker<TTickSettings>& Ticker, const FNetSimTickParameters& TickParameters)
 	{
-		if (bAllowSimulatedExtrapolation || ParentSimulation)
+		if (GetSimulatedUpdateMode() == ESimulatedUpdateMode::Interpolate)
+		{
+			Interpolator.template PostSimTick<TDriver>(Driver, Buffers, Ticker, TickParameters);
+		}
+		else
 		{
 			// Sync to latest frame if there is any
 			if (Buffers.Sync.Num() > 0)
@@ -508,10 +512,6 @@ struct TReplicator_Simulated : public TBase
 				Driver->FinalizeFrame(*Buffers.Sync.HeadElement(), *Buffers.Aux.HeadElement());
 			}
 			
-		}
-		else
-		{
-			Interpolator.template PostSimTick<TDriver>(Driver, Buffers, Ticker, TickParameters);
 		}
 	}
 
