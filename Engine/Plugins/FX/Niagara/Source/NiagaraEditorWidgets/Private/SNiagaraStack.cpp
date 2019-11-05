@@ -267,7 +267,7 @@ void SNiagaraStack::Construct(const FArguments& InArgs, UNiagaraStackViewModel* 
 				.OnGetChildren(this, &SNiagaraStack::OnGetChildren)
 				.TreeItemsSource(&StackViewModel->GetRootEntryAsArray())
 				.OnTreeViewScrolled(this, &SNiagaraStack::StackTreeScrolled)
-				.SelectionMode(ESelectionMode::None)
+				.SelectionMode(ESelectionMode::Single)
 				.OnItemToString_Debug_Static(&FNiagaraStackEditorWidgetsUtilities::StackEntryToStringForListDebug)
 			]
 		]
@@ -549,6 +549,11 @@ FReply SNiagaraStack::OnRowDragDetected(const FGeometry& InGeometry, const FPoin
 		return FReply::Handled().BeginDragDrop(FNiagaraStackEditorWidgetsUtilities::ConstructDragDropOperationForStackEntries(DraggedEntries));
 	}
 	return FReply::Unhandled();
+}
+
+void  SNiagaraStack::OnRowDragLeave(FDragDropEvent const& InDragDropEvent)
+{
+	FNiagaraStackEditorWidgetsUtilities::HandleDragLeave(InDragDropEvent);
 }
 
 TOptional<EItemDropZone> SNiagaraStack::OnRowCanAcceptDrop(const FDragDropEvent& InDragDropEvent, EItemDropZone InDropZone, UNiagaraStackEntry* InTargetEntry)
@@ -840,6 +845,7 @@ TSharedRef<SNiagaraStackTableRow> SNiagaraStack::ConstructContainerForItem(UNiag
 		.ValueColumnWidth(this, &SNiagaraStack::GetContentColumnWidth)
 		.OnValueColumnWidthChanged(this, &SNiagaraStack::OnContentColumnWidthChanged)
 		.OnDragDetected(this, &SNiagaraStack::OnRowDragDetected, Item)
+		.OnDragLeave(this, &SNiagaraStack::OnRowDragLeave)
 		.OnCanAcceptDrop(this, &SNiagaraStack::OnRowCanAcceptDrop)
 		.OnAcceptDrop(this, &SNiagaraStack::OnRowAcceptDrop)
 		.IssueIconVisibility(this, &SNiagaraStack::GetIssueIconVisibility);
