@@ -21,11 +21,9 @@ limitations under the License.
 
 #include "base/constants_and_types.h"
 
-#include "CoreMinimal.h"
-
 #ifndef M_PI
 #define DEFINED_M_PI
-#define M_PI PI
+#define M_PI 3.14159265358979323846
 #endif
 
 namespace vraudio {
