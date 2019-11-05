@@ -746,6 +746,8 @@ void AndroidEGL::InitSurface(bool bUseSmallSurface, bool bCreateWndSurface)
 	PImplData->SharedContext.eglSurface = PImplData->auxSurface;
 	PImplData->RenderingContext.eglSurface = PImplData->eglSurface;
 	PImplData->SingleThreadedContext.eglSurface = PImplData->eglSurface;
+	glGenVertexArrays = (PFNGLGENVERTEXARRAYSPROC)((void*)eglGetProcAddress("glGenVertexArrays"));
+	glBindVertexArray = (PFNGLBINDVERTEXARRAYPROC)((void*)eglGetProcAddress("glBindVertexArray"));
 }
 
 void AndroidEGL::ReInit()
@@ -1519,6 +1521,12 @@ bool AndroidEGL::InitContexts()
 	return Result;
 }
 
+void AndroidEGL::GenerateAndBindDefaultVAO(FPlatformOpenGLContext& InContext)
+{
+	glGenVertexArrays(1, &InContext.DefaultVertexArrayObject);
+	glBindVertexArray(InContext.DefaultVertexArrayObject);
+}
+
 void AndroidEGL::SetCurrentSharedContext()
 {
 	check(IsInGameThread());
@@ -1526,11 +1534,19 @@ void AndroidEGL::SetCurrentSharedContext()
 
 	if(GUseThreadedRendering)
 	{
-		SetCurrentContext(PImplData->SharedContext.eglContext, PImplData->SharedContext.eglSurface);
+		EGLBoolean Result = SetCurrentContext(PImplData->SharedContext.eglContext, PImplData->SharedContext.eglSurface);
+		if (Result == EGL_TRUE)
+		{
+			GenerateAndBindDefaultVAO(PImplData->SharedContext);
+		}
 	}
 	else
 	{
-		SetCurrentContext(PImplData->SingleThreadedContext.eglContext, PImplData->SingleThreadedContext.eglSurface);
+		EGLBoolean Result = SetCurrentContext(PImplData->SingleThreadedContext.eglContext, PImplData->SingleThreadedContext.eglSurface);
+		if (Result == EGL_TRUE)
+		{
+			GenerateAndBindDefaultVAO(PImplData->SingleThreadedContext);
+		}
 	}
 }
 
@@ -1544,11 +1560,19 @@ void AndroidEGL::SetCurrentRenderingContext()
 	PImplData->CurrentContextType = CONTEXT_Rendering;
 	if (GUseThreadedRendering)
 	{
-		SetCurrentContext(PImplData->RenderingContext.eglContext, PImplData->RenderingContext.eglSurface);
+		EGLBoolean Result = SetCurrentContext(PImplData->RenderingContext.eglContext, PImplData->RenderingContext.eglSurface);
+		if (Result == EGL_TRUE)
+		{
+			GenerateAndBindDefaultVAO(PImplData->RenderingContext);
+		};
 	}
 	else
 	{
-		SetCurrentContext(PImplData->SingleThreadedContext.eglContext, PImplData->SingleThreadedContext.eglSurface);
+		EGLBoolean Result = SetCurrentContext(PImplData->SingleThreadedContext.eglContext, PImplData->SingleThreadedContext.eglSurface);
+		if (Result == EGL_TRUE)
+		{
+			GenerateAndBindDefaultVAO(PImplData->SingleThreadedContext);
+		}
 	}
 }
 
