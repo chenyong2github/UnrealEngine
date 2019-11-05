@@ -1563,6 +1563,7 @@ void FLevelEditorToolBar::RegisterBuildMenu()
 			FLightingMenus::RegisterLightingQualityMenu(InBaseMenuName);
 			FLightingMenus::RegisterLightingInfoMenu(InBaseMenuName);
 		}
+
 	private:
 
 		/** Generates a lighting quality sub-menu */
@@ -2158,6 +2159,7 @@ TSharedRef< SWidget > FLevelEditorToolBar::GenerateOpenBlueprintMenuContent( TSh
 
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 	TSharedPtr<FExtender> MenuExtender = FExtender::Combine(LevelEditorModule.GetAllLevelEditorToolbarBlueprintsMenuExtenders());
+
 	FToolMenuContext MenuContext(InCommandList, MenuExtender);
 	ULevelEditorMenuContext* LevelEditorMenuContext = NewObject<ULevelEditorMenuContext>();
 	LevelEditorMenuContext->LevelEditor = InLevelEditor;
@@ -2343,8 +2345,6 @@ void FLevelEditorToolBar::RegisterCinematicsMenu()
 {
 #define LOCTEXT_NAMESPACE "LevelToolBarCinematicsMenu"
 
-#pragma message("TODO: CLEAN UP MERGED CODE")
-#if 0
 	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.Cinematics");
 	Menu->bShouldCloseWindowAfterMenuSelection = true;
 
@@ -2407,7 +2407,6 @@ void FLevelEditorToolBar::RegisterCinematicsMenu()
 
 		InSection.AddEntry(FToolMenuEntry::InitWidget("LevelEditorExistingCinematic", MiniSceneOutliner, FText::GetEmpty(), true));
 	}));
-#endif
 
 #undef LOCTEXT_NAMESPACE
 }
