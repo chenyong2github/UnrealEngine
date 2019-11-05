@@ -200,8 +200,8 @@ void UNiagaraStackModuleItem::RefreshChildrenInternal(const TArray<UNiagaraStack
 						}
 						++PropertyIter;
 					}
-					++Iter;
 				}
+				++Iter;
 			}
 		}
 
