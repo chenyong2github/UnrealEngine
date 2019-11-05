@@ -2788,7 +2788,7 @@ bool UKismetSystemLibrary::Generic_SetEditorProperty(UObject* Object, const UPro
 	if (EnumHasAnyFlags(AccessResult, EPropertyAccessResultFlags::ConversionFailed))
 	{
 		FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Property '%s' on '%s' (%s) tried to write into a property value of the incorrect type"), *Property->GetName(), *Object->GetPathName(), *Object->GetClass()->GetName()), ELogVerbosity::Warning, PropertySetFailedWarning);
-		return nullptr;
+		return false;
 	}
 
 	return true;
