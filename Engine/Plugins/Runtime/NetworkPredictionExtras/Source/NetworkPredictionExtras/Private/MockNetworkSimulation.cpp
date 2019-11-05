@@ -106,14 +106,15 @@ UMockNetworkSimulationComponent::UMockNetworkSimulationComponent()
 	}
 }
 
-INetworkSimulationModel* UMockNetworkSimulationComponent::InstantiateNetworkSimulation()
+INetworkedSimulationModel* UMockNetworkSimulationComponent::InstantiateNetworkedSimulation()
 {
-	MockNetworkSimulation.Reset(new FMockNetworkSimulation());
+	check(MockNetworkSimulation == nullptr);
+	MockNetworkSimulation = new FMockNetworkSimulation();
 
 	FMockSyncState InitialSyncState;
 	InitialSyncState.Total = MockValue;
 
-	auto* NewModel = new FMockNetworkModel(MockNetworkSimulation.Get(), this, InitialSyncState);
+	auto* NewModel = new FMockNetworkModel(MockNetworkSimulation, this, InitialSyncState);
 	return NewModel;
 }
 
