@@ -474,9 +474,30 @@ const UMockFlyingAbilityComponent* ANetworkPredictionExtrasFlyingPawn_MockAbilit
 void ANetworkPredictionExtrasFlyingPawn_MockAbility::ProduceInput(const FNetworkSimTime SimTime, FMockAbilityInputCmd& Cmd)
 {
 	Super::ProduceInput(SimTime, Cmd);
-	Cmd.bSprintPressed = bSprintPressed;
-	Cmd.bDashPressed = bDashPressed;
-	Cmd.bBlinkPressed = bBlinkPressed;
+
+	switch(AbilityInputPreset)
+	{
+	case ENetworkPredictionExtrasMockAbilityInputPreset::None:
+		Cmd.bSprintPressed = bSprintPressed;
+		Cmd.bDashPressed = bDashPressed;
+		Cmd.bBlinkPressed = bBlinkPressed;
+		break;
+	case ENetworkPredictionExtrasMockAbilityInputPreset::Sprint:
+		Cmd.bSprintPressed = true;
+		Cmd.bDashPressed = false;
+		Cmd.bBlinkPressed = false;
+		break;
+	case ENetworkPredictionExtrasMockAbilityInputPreset::Dash:
+		Cmd.bSprintPressed = false;
+		Cmd.bDashPressed = true;
+		Cmd.bBlinkPressed = false;
+		break;
+	case ENetworkPredictionExtrasMockAbilityInputPreset::Blink:
+		Cmd.bSprintPressed = false;
+		Cmd.bDashPressed = false;
+		Cmd.bBlinkPressed = true;
+		break;
+	};
 }
 
 void ANetworkPredictionExtrasFlyingPawn_MockAbility::BeginPlay()
@@ -496,7 +517,7 @@ float ANetworkPredictionExtrasFlyingPawn_MockAbility::GetStamina() const
 {
 	if (const UMockFlyingAbilityComponent* FlyingAbilityComponent = GetMockFlyingAbilityComponent())
 	{
-		if (const FMockAbilitySyncState* SyncState = FlyingAbilityComponent->MovementSyncState.GetStateRead())
+		if (const FMockAbilitySyncState* SyncState = FlyingAbilityComponent->AbilitySyncState.GetStateRead())
 		{
 			return SyncState->Stamina;
 		}
@@ -508,7 +529,7 @@ float ANetworkPredictionExtrasFlyingPawn_MockAbility::GetMaxStamina() const
 {
 	if (const UMockFlyingAbilityComponent* FlyingAbilityComponent = GetMockFlyingAbilityComponent())
 	{
-		if (const FMockAbilityAuxstate* AuxState = FlyingAbilityComponent->MovementAuxState.GetStateRead())
+		if (const FMockAbilityAuxstate* AuxState = FlyingAbilityComponent->AbilityAuxState.GetStateRead())
 		{
 			return AuxState->MaxStamina;
 		}

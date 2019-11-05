@@ -183,13 +183,29 @@ class NETWORKPREDICTION_API UParametricMovementComponent : public UBaseMovementC
 
 protected:
 
-	TNetworkSimStateAccessor<ParametricMovement::FMoveState> MovementSyncState;
-	TNetworkSimStateAccessor<ParametricMovement::FAuxState> MovementAuxState;
+	TNetSimStateAccessor<ParametricMovement::FMoveState> MovementSyncState;
+	TNetSimStateAccessor<ParametricMovement::FAuxState> MovementAuxState;
 
-	virtual INetworkSimulationModel* InstantiateNetworkSimulation() override;
+	virtual INetworkedSimulationModel* InstantiateNetworkedSimulation() override;
 	FNetworkSimulationModelInitParameters GetSimulationInitParameters(ENetRole Role) override;
 
-	TUniquePtr<FParametricMovementSimulation> ParametricMovementSimulation;
+	FParametricMovementSimulation* ParametricMovementSimulation = nullptr;
+
+	template<typename TSimulation>
+	void InitParametricMovementSimulation(TSimulation* Simulation, ParametricMovement::FMoveState& InitialSyncState, ParametricMovement::FAuxState& InitialAuxState)
+	{
+		check(ParametricMovementSimulation == nullptr);
+		ParametricMovementSimulation = Simulation;
+		ParametricMovementSimulation->Motion = &ParametricMotion;
+	}
+
+	template<typename TNetSimModel>
+	void InitParametricMovementNetSimModel(TNetSimModel* Model)
+	{
+		Model->RepProxy_Simulated.bAllowSimulatedExtrapolation = !bEnableInterpolation;
+		MovementSyncState.Bind(Model);
+		MovementAuxState.Bind(Model);
+	}
 
 	// ------------------------------------------------------------------------
 	// Temp Parametric movement example

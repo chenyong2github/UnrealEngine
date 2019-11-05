@@ -228,27 +228,19 @@ UMockFlyingAbilityComponent::UMockFlyingAbilityComponent()
 
 }
 
-INetworkSimulationModel* UMockFlyingAbilityComponent::InstantiateNetworkSimulation()
+INetworkedSimulationModel* UMockFlyingAbilityComponent::InstantiateNetworkedSimulation()
 {
 	check(UpdatedComponent);
-	
-	// FIXME: init sim helper on super?
-	MockAbilitySimulation.Reset(new FMockAbilitySimulation());
-	MockAbilitySimulation->UpdatedComponent = UpdatedComponent;
-	MockAbilitySimulation->UpdatedPrimitive = UpdatedPrimitive;
-	MockAbilitySimulation->EventHandler = this;
-	
+
+	// Simulation
 	FMockAbilitySyncState InitialSyncState;
-	InitialSyncState.Location = UpdatedComponent->GetComponentLocation();
-	InitialSyncState.Rotation = UpdatedComponent->GetComponentQuat().Rotator();	
-
 	FMockAbilityAuxstate InitialAuxState;
-	InitialAuxState.MaxSpeed = MockAbilityCVars::DefaultMaxSpeed();
+	InitMockAbilitySimulation(new FMockAbilitySimulation(), InitialSyncState, InitialAuxState);
 
-	auto NewModel = new FMockAbilitySystem<0>(MockAbilitySimulation.Get(), this, InitialSyncState, InitialAuxState);
+	// Model
+	auto NewModel = new FMockAbilitySystem<0>( MockAbilitySimulation, this, InitialSyncState, InitialAuxState);
+	InitMockAbilityNetSimModel(NewModel);
 
-	MovementSyncState.Init(NewModel);
-	MovementAuxState.Init(NewModel);
 	return NewModel;
 }
 
@@ -339,3 +331,4 @@ void UMockFlyingAbilityComponent::NotifyBlinkFinished()
 
 	//UE_LOG(LogTemp, Display, TEXT("Blink Finished"));
 }
+

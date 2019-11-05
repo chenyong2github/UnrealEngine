@@ -198,8 +198,8 @@ public:
 	DECLARE_DELEGATE_TwoParams(FProduceFlyingInput, const FNetworkSimTime /*SimTime*/, FlyingMovement::FInputCmd& /*Cmd*/)
 	FProduceFlyingInput ProduceInputDelegate;
 
-	TNetworkSimStateAccessor<FlyingMovement::FMoveState> MovementSyncState;
-	TNetworkSimStateAccessor<FlyingMovement::FAuxState> MovementAuxState;
+	TNetSimStateAccessor<FlyingMovement::FMoveState> MovementSyncState;
+	TNetSimStateAccessor<FlyingMovement::FAuxState> MovementAuxState;
 
 	// IFlyingMovementSystemDriver
 	FString GetDebugName() const override;
@@ -212,6 +212,33 @@ public:
 protected:
 
 	// Network Prediction
-	virtual INetworkSimulationModel* InstantiateNetworkSimulation() override;
-	TUniquePtr<FlyingMovement::FMovementSimulation> MovementSimulation;
+	virtual INetworkedSimulationModel* InstantiateNetworkedSimulation() override;
+	FlyingMovement::FMovementSimulation* MovementSimulation = nullptr;
+
+	// Init function. This is broken up from ::InstantiateNetworkedSimulation and templated so that subclasses can share the init code
+	template<typename TSimulation>
+	void InitFlyingMovementSimulation(TSimulation* Simulation, FlyingMovement::FMoveState& InitialSyncState, FlyingMovement::FAuxState& InitialAuxState)
+	{
+		check(UpdatedComponent);
+		check(MovementSimulation == nullptr); // Reinstantiation not supported
+		MovementSimulation = Simulation;
+		
+
+		Simulation->UpdatedComponent = UpdatedComponent;
+		Simulation->UpdatedPrimitive = UpdatedPrimitive;
+
+		InitialSyncState.Location = UpdatedComponent->GetComponentLocation();
+		InitialSyncState.Rotation = UpdatedComponent->GetComponentQuat().Rotator();	
+
+		InitialAuxState.MaxSpeed = GetDefaultMaxSpeed();
+	}
+
+	template<typename TNetSimModel>
+	void InitFlyingMovementNetSimModel(TNetSimModel* Model)
+	{
+		MovementSyncState.Bind(Model);
+		MovementAuxState.Bind(Model);
+	}
+
+	static float GetDefaultMaxSpeed();
 };
