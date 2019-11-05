@@ -1978,7 +1978,7 @@ namespace GeometryCollectionExample
 		Object->PhysicsProxy->Initialize();
 		Object->PhysicsProxy->ActivateBodies();
 
-		typedef TUniquePtr<Chaos::TImplicitObject<float, 3>> FImplicitPointer;
+		typedef TUniquePtr<Chaos::FImplicitObject> FImplicitPointer;
 		const TManagedArray<FImplicitPointer> & Implicits = Object->RestCollection->template GetAttribute<FImplicitPointer>(FGeometryCollectionPhysicsProxy::ImplicitsAttribute, FTransformCollection::TransformGroup);
 
 		typedef TUniquePtr< FCollisionStructureManager::FSimplicial > FSimplicialPointer;
