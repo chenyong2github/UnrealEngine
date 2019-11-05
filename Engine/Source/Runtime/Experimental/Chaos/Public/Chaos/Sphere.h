@@ -62,7 +62,7 @@ namespace Chaos
 
 		virtual ~TSphere() {}
 
-		static EImplicitObjectType StaticType()
+		static constexpr EImplicitObjectType StaticType()
 		{ 
 			return ImplicitObjectType::Sphere; 
 		}
@@ -177,7 +177,7 @@ namespace Chaos
 			return MakePair(TVector<T, d>(Root2 * Direction + StartPoint), true);
 		}
 
-		virtual TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const override
+		TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const
 		{
 			//We want N / ||N|| and to avoid inf
 			//So we want N / ||N|| < 1 / eps => N eps < ||N||, but this is clearly true for all eps < 1 and N > 0
@@ -191,9 +191,9 @@ namespace Chaos
 			return Center + Normalized * (Radius + Thickness);
 		}
 
-		virtual TVector<T, d> Support2(const TVector<T, d>& Direction) const override { return Center; }
+		FORCEINLINE const TVector<T, d>& Support2(const TVector<T, d>& Direction) const { return Center; }
 
-		virtual T GetMargin() const override
+		FORCEINLINE T GetMargin() const
 		{
 			return Radius;
 		}
