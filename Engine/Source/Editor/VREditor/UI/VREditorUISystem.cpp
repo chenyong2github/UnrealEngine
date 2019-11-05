@@ -215,6 +215,8 @@ void UVREditorUISystem::Init(UVREditorMode* InVRMode)
 	FVREditorActionCallbacks::SelectingCandidateActorsText = FVREditorActionCallbacks::GetSelectingCandidateActorsText();
 
 	GLevelEditorModeTools().OnEditorModeIDChanged().AddUObject(this, &UVREditorUISystem::HandleEditorModeChanged);
+	AssetEditorCloseDelegate = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnAssetEditorRequestClose().AddUObject(this, &UVREditorUISystem::OnCloseAssetEditor);
+
 }
 
 void UVREditorUISystem::UpdateInteractors( )
@@ -295,7 +297,7 @@ void UVREditorUISystem::Shutdown()
 	// Remove the proxy tab manager, we don't want to steal tabs any more.
 	FGlobalTabmanager::Get()->SetProxyTabManager(TSharedPtr<FProxyTabmanager>());
 	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnAssetEditorOpened().RemoveAll(this);
-
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnAssetEditorRequestClose().RemoveAll(this);
 	VRMode = nullptr;
 	DraggingUI = nullptr;
 	ColorPickerUI = nullptr;
@@ -2801,6 +2803,16 @@ void UVREditorUISystem::ToggledDebugMode(bool bDebugModeEnabled)
 	if (QuickRadialMenu != nullptr)
 	{
 		QuickRadialMenu->ShowUI(bShowAllFloatingUIs, false);
+	}
+}
+
+void UVREditorUISystem::OnCloseAssetEditor(UObject* Asset, EAssetEditorCloseReason CloseReason)
+{
+	AVREditorFloatingUI* AssetEditorPanel = GetPanel(TabManagerPanelID);
+	if(AssetEditorPanel)
+	{
+		AssetEditorPanel->SetSlateWidget(SNullWidget::NullWidget);
+		AssetEditorPanel->ShowUI(false);
 	}
 }
 
