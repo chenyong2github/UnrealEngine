@@ -19,8 +19,7 @@ public:
 	 * Default constructor.
 	 */
 	FImageOverlappedPlane()
-		: SizeX(0)
-		, SizeY(0)
+		: Size(0,0)
 	{
 	}
 
@@ -30,7 +29,7 @@ public:
 	 * @param InSizeX - Horizontal size of the tile.
 	 * @param InSizeY - Vertical size of the tile.
 	 */
-	void Init(int32 InSizeX, int32 InSizeY);
+	void Init(FIntPoint InSize);
 
 	/**
 	 * Zeroes the accumulation. Assumes the data is already allocated.
@@ -53,19 +52,16 @@ public:
 	 * @param InSampleOffsetX - Pixel offset of the tile (in X)
 	 * @param InSampleOffsetY - Pixel offset of the tile (in Y)
 	 */
-	void AccumulateSinglePlane(const TArray64<float>& InRawData, const TArray64<float>& InWeightData, int32 InSizeX, int32 InSizeY, int32 InOffsetX, int32 InOffsetY,
+	void AccumulateSinglePlane(const TArray64<float>& InRawData, const TArray64<float>& InWeightData, FIntPoint InSize, FIntPoint InOffset,
 								float SubpixelOffsetX, float SubpixelOffsetY,
-								int32 SubRectOffsetX, int32 SubRectOffsetY,
-								int32 SubRectSizeX, int32 SubRectSizeY);
+								FIntPoint SubRectOffset,
+								FIntPoint SubRectSize);
 
 	/** Actual channel data*/
 	TArray64<float> ChannelData;
 
-	/** Width of the image. */
-	int32 SizeX;
-
-	/** Height of the image. */
-	int32 SizeY;
+	/** Width and Height of the image. */
+	FIntPoint Size;
 };
 
 /**
@@ -78,12 +74,10 @@ public:
 	 * Default constructor.
 	 */
 	FImageOverlappedAccumulator()
-		: PlaneSizeX(0)
-		, PlaneSizeY(0)
+		: PlaneSize(0,0)
 		, NumChannels(0)
 		, AccumulationGamma(1.0f)
-		, TileMaskSizeX(0)
-		, TileMaskSizeY(0)
+		, TileMaskSize(0,0)
 	{
 	}
 
@@ -96,7 +90,7 @@ public:
 	 * @param InNumTilesY - Num vertical tiles.
 	 * @param InNumChannels - Num Channels.
 	 */
-	void InitMemory(int InPlaneSizeX, int InPlaneSizeY, int InNumChannels);
+	void InitMemory(FIntPoint InPlaneSize, int InNumChannels);
 
 	/**
 	 * Initializes memory.
@@ -111,11 +105,11 @@ public:
 	void Reset();
 
 
-	static void GenerateTileWeight(TArray64<float>& Weights, int32 SizeX, int32 SizeY);
+	static void GenerateTileWeight(TArray64<float>& Weights, FIntPoint Size);
 
-	static void GetTileSubRect(int32 & SubRectOffsetX, int32 & SubRectOffsetY, int32 & SubRectSizeX, int32 & SubRectSizeY, const TArray64<float>& Weights, const int32 SizeX, const int32 SizeY);
+	static void GetTileSubRect(FIntPoint & SubRectOffset, FIntPoint & SubRectSize, const TArray64<float>& Weights, const FIntPoint Size);
 
-	static void CheckTileSubRect(const TArray64<float>& Weights, const int32 SizeX, const int32 SizeY, int32 SubRectOffsetX, int32 SubRectOffsetY, int32 SubRectSizeX, int32 SubRectSizeY);
+	static void CheckTileSubRect(const TArray64<float>& Weights, const FIntPoint Size, FIntPoint SubRectOffset, FIntPoint SubRectSize);
 
 	/**
 	 * Given a rendered tile, accumulate the data to the full size image.
@@ -125,7 +119,7 @@ public:
 	 * @param InTileY - Tile index in Y.
 	 * @param InSubPixelOffset - SubPixel offset, should be in the range [0,1)
 	 */
-	void AccumulatePixelData(const FImagePixelData& InPixelData, int32 InTileOffsetX, int32 InTileOffsetY, FVector2D InSubpixelOffset);
+	void AccumulatePixelData(const FImagePixelData& InPixelData, FIntPoint InTileOffset, FVector2D InSubpixelOffset);
 
 	/**
 	 * After accumulation is finished, fetch the final image as bytes. In theory we don't need this, because we could
@@ -155,11 +149,8 @@ public:
 	void FetchFullImageValue(float Rgba[4], int32 FullX, int32 FullY) const;
 
 public:
-	/** Width of each tile in pixels */
-	int32 PlaneSizeX;
-
-	/** Height of each tile in pixels */
-	int32 PlaneSizeY;
+	/** Width and height of each tile in pixels */
+	FIntPoint PlaneSize;
 
 	/** Number of channels in the tiles. Typical will be 3 (RGB). */
 	int32 NumChannels;
@@ -174,11 +165,8 @@ public:
 	/** Weights image. Recalculate if it changes. */
 	TArray64<float> TileMaskData;
 
-	/** Width of weight image. */
-	int32 TileMaskSizeX;
-
-	/** Height of weight image. */
-	int32 TileMaskSizeY;
+	/** Width and height of weight mask image. */
+	FIntPoint TileMaskSize;
 };
 
 

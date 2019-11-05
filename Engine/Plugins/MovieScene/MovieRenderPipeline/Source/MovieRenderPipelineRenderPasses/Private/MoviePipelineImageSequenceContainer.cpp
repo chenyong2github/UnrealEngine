@@ -75,7 +75,7 @@ void UMoviePipelineImageSequenceContainerBase::OnInitializedForPipelineImpl(UMov
 		{
 			if (bIsFirstTile && bIsFirstTemporalSample)
 			{
-				OverlappedAccumulator->InitMemory(TilePayload->OverlappedSizeX * TilePayload->NumTilesX, TilePayload->OverlappedSizeY * TilePayload->NumTilesY, 3);
+				OverlappedAccumulator->InitMemory(FIntPoint(TilePayload->OverlappedSizeX * TilePayload->NumTilesX, TilePayload->OverlappedSizeY * TilePayload->NumTilesY), 3);
 				OverlappedAccumulator->ZeroPlanes();
 				OverlappedAccumulator->AccumulationGamma = TilePayload->AccumulationGamma;
 			}
@@ -84,7 +84,7 @@ void UMoviePipelineImageSequenceContainerBase::OnInitializedForPipelineImpl(UMov
 
 			check(TilePayload->OverlappedSizeX + 2 * TilePayload->OverlappedPadX == RawSize.X);
 			check(TilePayload->OverlappedSizeY + 2 * TilePayload->OverlappedPadY == RawSize.Y);
-			OverlappedAccumulator->AccumulatePixelData(*InOwnedImage.Get(), TilePayload->OverlappedOffsetX, TilePayload->OverlappedOffsetY, TilePayload->OverlappedSubpixelShift);
+			OverlappedAccumulator->AccumulatePixelData(*InOwnedImage.Get(), FIntPoint(TilePayload->OverlappedOffsetX, TilePayload->OverlappedOffsetY), TilePayload->OverlappedSubpixelShift);
 		}
 
 		//UE_LOG(LogTemp, Log, TEXT("[%8.2f] Accumulation time."), ElapsedMs);
@@ -113,8 +113,8 @@ void UMoviePipelineImageSequenceContainerBase::OnInitializedForPipelineImpl(UMov
 		if (bIsLastTile && bIsLastTemporalSample)
 		{
 
-			int32 FullSizeX = TilePayload->bIsUsingOverlappedTiles ? OverlappedAccumulator->PlaneSizeX : TileAccumulator->TileSizeX * TileAccumulator->NumTilesX;
-			int32 FullSizeY = TilePayload->bIsUsingOverlappedTiles ? OverlappedAccumulator->PlaneSizeY : TileAccumulator->TileSizeY * TileAccumulator->NumTilesY;
+			int32 FullSizeX = TilePayload->bIsUsingOverlappedTiles ? OverlappedAccumulator->PlaneSize.X : TileAccumulator->TileSizeX * TileAccumulator->NumTilesX;
+			int32 FullSizeY = TilePayload->bIsUsingOverlappedTiles ? OverlappedAccumulator->PlaneSize.Y : TileAccumulator->TileSizeY * TileAccumulator->NumTilesY;
 
 			{
 				TUniquePtr<FImageWriteTask> ImageTask = MakeUnique<FImageWriteTask>();
