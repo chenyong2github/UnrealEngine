@@ -5,6 +5,7 @@
 #include "Engine/StaticMesh.h"
 #include "NiagaraConstants.h"
 #include "NiagaraBoundsCalculatorHelper.h"
+#include "Modules/ModuleManager.h"
 
 TArray<TWeakObjectPtr<UNiagaraMeshRendererProperties>> UNiagaraMeshRendererProperties::MeshRendererPropertiesToDeferredInit;
 
