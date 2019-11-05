@@ -82,6 +82,8 @@ public:
 		, PlaneSizeY(0)
 		, NumChannels(0)
 		, AccumulationGamma(1.0f)
+		, TileMaskSizeX(0)
+		, TileMaskSizeY(0)
 	{
 	}
 
@@ -169,6 +171,14 @@ public:
 	
 	FImageOverlappedPlane WeightPlane;
 
+	/** Weights image. Recalculate if it changes. */
+	TArray64<float> TileMaskData;
+
+	/** Width of weight image. */
+	int32 TileMaskSizeX;
+
+	/** Height of weight image. */
+	int32 TileMaskSizeY;
 };
 
 
