@@ -42,6 +42,8 @@ UMovieSceneSection::UMovieSceneSection(const FObjectInitializer& ObjectInitializ
 
 void UMovieSceneSection::PostInitProperties()
 {
+	SetFlags(RF_Transactional);
+
 	// Propagate sub object flags from our outer (track) to ourselves. This is required for sections that are stored on blueprints (archetypes) so that they can be referenced in worlds.
 	if (GetOuter()->HasAnyFlags(RF_ClassDefaultObject|RF_ArchetypeObject))
 	{

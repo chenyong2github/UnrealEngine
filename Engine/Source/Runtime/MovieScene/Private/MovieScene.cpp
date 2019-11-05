@@ -63,6 +63,13 @@ bool UMovieScene::IsPostLoadThreadSafe() const
 	return true;
 }
 
+void UMovieScene::PostInitProperties()
+{
+	SetFlags(RF_Transactional);
+
+	Super::PostInitProperties();
+}
+
 void UMovieScene::Serialize( FArchive& Ar )
 {
 	Ar.UsingCustomVersion(FMovieSceneEvaluationCustomVersion::GUID);
