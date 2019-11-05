@@ -109,8 +109,11 @@ public:
 
 		if (MObject->Raycast(LocalStart, LocalDir, Length, Thickness, OutTime, LocalPosition, LocalNormal, OutFaceIndex))
 		{
-			OutPosition = MTransform.TransformPosition(LocalPosition);
-			OutNormal = MTransform.TransformVector(LocalNormal);
+			if (OutTime != 0.0f)
+			{
+				OutPosition = MTransform.TransformPosition(LocalPosition);
+				OutNormal = MTransform.TransformVector(LocalNormal);
+			}
 			return true;
 		}
 		
