@@ -359,6 +359,10 @@ private:
 	UPROPERTY(config, EditAnywhere, Category = Misc)
 	TArray<FCustomizedToolMenu> CustomizedMenus;
 
+	/* Allow substituting one menu for another during generate but not during find or extend */
+	UPROPERTY(config, EditAnywhere, Category = Misc)
+	TMap<FName, FName> MenuSubstitutionsDuringGenerate;
+
 	UPROPERTY()
 	TMap<FName, UToolMenu*> Menus;
 
