@@ -124,7 +124,7 @@ void FAnimNode_Inertialization::Evaluate_AnyThread(FPoseContext& Output)
 			// and reduce future durations if interruptions continue. Without this mitigation, 
 			// repeated interruptions will lead to a degenerate pose because the pose target is unstable.
 			bool bApplyDeficit = InertializationDeficit > 0.0f && !CVarAnimInertializationIgnoreDeficit.GetValueOnAnyThread();
-			InertializationDeficit += InertializationDuration - InertializationElapsedTime;
+			InertializationDeficit = InertializationDuration - InertializationElapsedTime;
 			AppliedDeficit = bApplyDeficit ? FMath::Min(Duration, InertializationDeficit) : 0.0f;
 		}
 		InertializationState = EInertializationState::Pending;
