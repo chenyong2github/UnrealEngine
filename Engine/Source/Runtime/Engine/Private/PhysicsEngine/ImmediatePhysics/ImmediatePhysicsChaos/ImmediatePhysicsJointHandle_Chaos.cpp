@@ -90,7 +90,7 @@ namespace ImmediatePhysics_Chaos
 		FTransform ConstraintFrame1 = ConstraintInstance->GetRefFrame(EConstraintFrame::Frame1);
 		FTransform ConstraintFrame2 = ConstraintInstance->GetRefFrame(EConstraintFrame::Frame2);
 
-		TPBDJointSettings<float, 3> ConstraintSettings;
+		FPBDJointSettings ConstraintSettings;
 		ConstraintSettings.ConstraintFrames = 
 		{ 
 			ConstraintFrame1.GetRelativeTransform(Actor1->GetLocalCoMTransform()),
