@@ -8,7 +8,7 @@
 namespace Chaos
 {
 template<class T, int d>
-class TPBDChainConstraints : public TPBDConstraintContainer<T, d>
+class TPBDChainConstraints : public FPBDConstraintContainer
 {
 public:
 	TPBDChainConstraints(const TDynamicParticles<T, d>& InParticles, TArray<TArray<int32>>&& Constraints, const T Coefficient = (T)1)

@@ -7,7 +7,7 @@
 
 FSkeletalMeshPhysicsProxy::FSkeletalMeshPhysicsProxy(UObject* InOwner, const FInitFunc& InInitFunc)
 	: Base(InOwner)
-	, JointConstraints(Chaos::TPBDJointSolverSettings<float, 3>())
+	, JointConstraints(Chaos::FPBDJointSolverSettings())
 	, JointConstraintsRule(JointConstraints)
 	, NextInputProducerBuffer(nullptr)
 	, CurrentOutputConsumerBuffer(nullptr)

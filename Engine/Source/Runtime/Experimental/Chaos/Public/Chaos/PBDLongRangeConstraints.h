@@ -8,7 +8,7 @@
 namespace Chaos
 {
 template<class T, int d>
-class CHAOS_API PBDLongRangeConstraints : public TPBDLongRangeConstraintsBase<T, d>, public TPBDConstraintContainer<T, d>
+class CHAOS_API PBDLongRangeConstraints : public TPBDLongRangeConstraintsBase<T, d>, public FPBDConstraintContainer
 {
 	typedef TPBDLongRangeConstraintsBase<T, d> Base;
 	using Base::MConstraints;

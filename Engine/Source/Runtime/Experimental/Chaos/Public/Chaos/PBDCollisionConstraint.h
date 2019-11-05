@@ -77,7 +77,7 @@ class CHAOS_API TPBDCollisionConstraintHistory
 	typedef TPair<const FImplicitObject*, const FImplicitObject*> ImplicitPairs;
 
 public:
-	using FConstraintHandle = TPBDCollisionConstraintHandle<T, d>;
+	using FConstraintContainerHandle = TPBDCollisionConstraintHandle<T, d>;
 	TPBDCollisionConstraintHistory(const TVector<T, d>& InLocation, const TRotation<T, d>& InRotation, int32 InTimestamp = -INT_MAX)
 		: Timestamp(InTimestamp)
 		, Location(InLocation)
@@ -87,19 +87,19 @@ public:
 	const TVector<T, d>& GetLocation() { return Location; }
 	const TRotation<T, d>& GetRotation() { return Rotation; }
 
-	void AddHandle(FConstraintHandle* InHandle)
+	void AddHandle(FConstraintContainerHandle* InHandle)
 	{
 		Implicits.Add(ImplicitPairs(InHandle->GetContact().Geometry[0], InHandle->GetContact().Geometry[1]));
 		Handles.Push(InHandle);
 	}
-	void RemoveHandle(FConstraintHandle* InHandle)
+	void RemoveHandle(FConstraintContainerHandle* InHandle)
 	{
 		Handles.RemoveSingleSwap(InHandle);
 		Implicits.Remove(ImplicitPairs(InHandle->GetContact().Geometry[0], InHandle->GetContact().Geometry[1]));
 	}
 
-	TArray<FConstraintHandle*>& GetHandles() { return Handles; }
-	const TArray<FConstraintHandle*>& GetHandles() const { return Handles; }
+	TArray<FConstraintContainerHandle*>& GetHandles() { return Handles; }
+	const TArray<FConstraintContainerHandle*>& GetHandles() const { return Handles; }
 
 	bool ContainsShapeConnection(const FImplicitObject* Implicit0In, const FImplicitObject* Implicit1In) { return Implicits.Contains(ImplicitPairs(Implicit0In, Implicit1In)); }
 
@@ -110,7 +110,7 @@ private:
 	int32 Timestamp;
 	TVector<T, d> Location;
 	TRotation<T, d> Rotation;
-	TArray<FConstraintHandle*> Handles;
+	TArray<FConstraintContainerHandle*> Handles;
 	TSet<ImplicitPairs> Implicits;
 };
 
@@ -132,15 +132,15 @@ using TRigidBodyContactConstraintsPostApplyPushOutCallback = TFunction<void(cons
  * @todo(ccaulfield): separate collision detection from constraint container
  */
 template<typename T, int d>
-class CHAOS_API TPBDCollisionConstraint : public TPBDConstraintContainer<T, d>
+class CHAOS_API TPBDCollisionConstraint : public FPBDConstraintContainer
 {
 public:
-	using Base = TPBDConstraintContainer<T, d>;
+	using Base = FPBDConstraintContainer;
 	friend class TPBDCollisionConstraintAccessor<T, d>;
 	friend class TPBDCollisionConstraintHandle<T, d>;
 	using FReal = T;
 	static const int Dimensions = d;
-	using FConstraintHandle = TPBDCollisionConstraintHandle<T, d>;
+	using FConstraintContainerHandle = TPBDCollisionConstraintHandle<T, d>;
 	using FConstraintHistory = TPBDCollisionConstraintHistory<T, d>;
 	using FConstraintHandleAllocator = TConstraintHandleAllocator<TPBDCollisionConstraint<T, d>>;
 	using FRigidBodyContactConstraint = TRigidBodyContactConstraint<T, d>;
@@ -196,12 +196,12 @@ public:
 		return  FConstraintHandleID( Constraints[ConstraintIndex].Particle, Constraints[ConstraintIndex].Levelset );
 	}
 		
-	const FConstraintHandle* GetConstraintHandle(int32 ConstraintIndex) const
+	const FConstraintContainerHandle* GetConstraintHandle(int32 ConstraintIndex) const
 	{
 		return Handles[ConstraintIndex];
 	}
 
-	FConstraintHandle* GetConstraintHandle(int32 ConstraintIndex)
+	FConstraintContainerHandle* GetConstraintHandle(int32 ConstraintIndex)
 	{
 		return Handles[ ConstraintIndex ];
 	}
@@ -258,12 +258,12 @@ public:
 	 * Apply corrections for the specified list of constraints.
 	 */
 	 // @todo(ccaulfield): this runs wide. The serial/parallel decision should be in the ConstraintRule
-	void Apply(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
+	void Apply(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
 
 	/**
 	 * Set disabled attribute on all input handles
 	 */
-	void Disable(const TArray<FConstraintHandle*>& InConstraintHandles);
+	void Disable(const TArray<FConstraintContainerHandle*>& InConstraintHandles);
 		
 	/**
 	 * Generate all contact constraints.
@@ -275,7 +275,7 @@ public:
 	 * Return true if we need another iteration 
 	 */
 	 // @todo(ccaulfield): this runs wide. The serial/parallel decision should be in the ConstraintRule
-	bool ApplyPushOut(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles, const TSet<TGeometryParticleHandle<T,d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations);
+	bool ApplyPushOut(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const TSet<TGeometryParticleHandle<T,d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations);
 
 	void UpdateConstraints(/*const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices,*/ T Dt, const TSet<TGeometryParticleHandle<T, d>*>& AddedParticles);
 
@@ -345,7 +345,7 @@ private:
 	TRigidBodyContactConstraintsPostApplyCallback<T, d> PostApplyCallback;
 	TRigidBodyContactConstraintsPostApplyPushOutCallback<T, d> PostApplyPushOutCallback;
 
-	TArray<FConstraintHandle*> Handles;
+	TArray<FConstraintContainerHandle*> Handles;
 	FConstraintHandleAllocator HandleAllocator;
 
 	TMap<FConstraintHandleID, FConstraintHistory*> History;
