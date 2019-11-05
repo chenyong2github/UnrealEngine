@@ -24,7 +24,7 @@ public:
 	virtual TSharedRef< SWidget > GenerateWidget( const TSharedPtr< IUsdTreeViewItem > TreeItem ) = 0;
 
 public:
-	bool bIsMainColumn;
+	bool bIsMainColumn = false;
 };
 
 struct FSharedUsdTreeData
