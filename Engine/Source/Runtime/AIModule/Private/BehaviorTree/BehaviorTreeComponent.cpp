@@ -1324,6 +1324,10 @@ void UBehaviorTreeComponent::ProcessExecutionRequest()
 			{
 				// error occurred and tree will restart, all pending deactivation notifies will be lost
 				// this is should happen
+
+				BT_SEARCHLOG(SearchData, Error, TEXT("Unable to deactivate up to %s. Active node is %s. All pending updates will be lost!"), 
+					*UBehaviorTreeTypes::DescribeNodeHelper(ExecutionRequest.ExecuteNode), 
+					*UBehaviorTreeTypes::DescribeNodeHelper(InstanceStack[ActiveInstanceIdx].ActiveNode));
 				SearchData.PendingUpdates.Reset();
 
 				return;
