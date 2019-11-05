@@ -50,7 +50,7 @@ namespace Chaos
 		}
 		~TCylinder() {}
 
-		static EImplicitObjectType StaticType() { return ImplicitObjectType::Cylinder; }
+		static constexpr EImplicitObjectType StaticType() { return ImplicitObjectType::Cylinder; }
 
 		/**
 		 * Returns sample points centered about the origin.

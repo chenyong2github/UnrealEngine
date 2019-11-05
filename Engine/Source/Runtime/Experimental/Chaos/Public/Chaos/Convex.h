@@ -48,7 +48,7 @@ namespace Chaos
 			TConvexBuilder<T>::Build(InParticles, Planes, SurfaceParticles, LocalBoundingBox);
 		}
 
-		static EImplicitObjectType StaticType()
+		static constexpr EImplicitObjectType StaticType()
 		{
 			return ImplicitObjectType::Convex;
 		}
@@ -157,7 +157,11 @@ namespace Chaos
 			return TVector<float, 3>(0.f, 0.f, 1.f);
 		}
 
-		virtual TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const override
+		FORCEINLINE T GetMargin() const { return 0; }
+
+		FORCEINLINE TVector<T, d> Support2(const TVector<T, d>& Direction) const { return Support(Direction, 0); }
+
+		TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const
 		{
 			T MaxDot = TNumericLimits<T>::Lowest();
 			int32 MaxVIdx = 0;

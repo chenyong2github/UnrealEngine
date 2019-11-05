@@ -3,6 +3,8 @@
 #include "Chaos/Capsule.h"
 #include "Chaos/GJK.h"
 #include "Chaos/Triangle.h"
+#include "Chaos/Convex.h"
+#include "Chaos/ImplicitObjectScaled.h"
 
 namespace Chaos
 {
@@ -258,7 +260,8 @@ bool TTriangleMeshImplicitObject<T>::Overlap(const TVector<T, 3>& Point, const T
 }
 
 template <typename T>
-bool TTriangleMeshImplicitObject<T>::OverlapGeom(const FImplicitObject& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+template <typename QueryGeomType>
+bool TTriangleMeshImplicitObject<T>::OverlapGeomImp(const QueryGeomType& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
 {
 	auto OverlapTriangle = [&](const TVector<T, 3>& A, const TVector<T, 3>& B, const TVector<T, 3>& C) -> bool
 	{
@@ -294,11 +297,66 @@ bool TTriangleMeshImplicitObject<T>::OverlapGeom(const FImplicitObject& QueryGeo
 	return false;
 }
 
+template <typename T>
+bool TTriangleMeshImplicitObject<T>::OverlapGeom(const TSphere<T, 3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+{
+	return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+}
 
 template <typename T>
+bool TTriangleMeshImplicitObject<T>::OverlapGeom(const TBox<T, 3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+{
+	return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+}
+
+template <typename T>
+bool TTriangleMeshImplicitObject<T>::OverlapGeom(const TCapsule<T>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+{
+	return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+}
+
+template <typename T>
+bool TTriangleMeshImplicitObject<T>::OverlapGeom(const TConvex<T, 3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+{
+	return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+}
+
+template <typename T>
+bool TTriangleMeshImplicitObject<T>::OverlapGeom(const TImplicitObjectScaled<TSphere<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+{
+	return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+}
+
+template <typename T>
+bool TTriangleMeshImplicitObject<T>::OverlapGeom(const TImplicitObjectScaled<TBox<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+{
+	return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+}
+
+template <typename T>
+bool TTriangleMeshImplicitObject<T>::OverlapGeom(const TImplicitObjectScaled<TCapsule<T>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+{
+	return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+}
+
+template <typename T>
+bool TTriangleMeshImplicitObject<T>::OverlapGeom(const TImplicitObjectScaled<TConvex<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+{
+	return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+}
+
+template <typename T>
+bool TTriangleMeshImplicitObject<T>::OverlapGeom(const TImplicitObjectScaled<TImplicitObjectScaled<TConvex<T, 3>>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+{
+	return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+}
+
+
+
+template <typename QueryGeomType, typename T>
 struct TTriangleMeshSweepVisitor
 {
-	TTriangleMeshSweepVisitor(const TTriangleMeshImplicitObject<T>& InTriMesh, const FImplicitObject& InQueryGeom, const TRigidTransform<T,3>& InStartTM, const TVector<T,3>& InDir, const T InThickness)
+	TTriangleMeshSweepVisitor(const TTriangleMeshImplicitObject<T>& InTriMesh, const QueryGeomType& InQueryGeom, const TRigidTransform<T,3>& InStartTM, const TVector<T,3>& InDir, const T InThickness)
 	: TriMesh(InTriMesh)
 	, StartTM(InStartTM)
 	, QueryGeom(InQueryGeom)
@@ -343,7 +401,7 @@ struct TTriangleMeshSweepVisitor
 
 	const TTriangleMeshImplicitObject<T>& TriMesh;
 	const TRigidTransform<T, 3> StartTM;
-	const FImplicitObject& QueryGeom;
+	const QueryGeomType& QueryGeom;
 	const TVector<T, 3>& Dir;
 	const T Thickness;
 
@@ -354,14 +412,15 @@ struct TTriangleMeshSweepVisitor
 };
 
 template <typename T>
-bool TTriangleMeshImplicitObject<T>::SweepGeom(const FImplicitObject& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness) const
+template <typename QueryGeomType>
+bool TTriangleMeshImplicitObject<T>::SweepGeomImp(const QueryGeomType& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness) const
 {
 	bool bHit = false;
-	TTriangleMeshSweepVisitor<T> SQVisitor(*this, QueryGeom, StartTM, Dir, Thickness);
+	TTriangleMeshSweepVisitor<QueryGeomType, T> SQVisitor(*this, QueryGeom, StartTM, Dir, Thickness);
 	const TBox<T, 3> QueryBounds = QueryGeom.BoundingBox();
 	const TVector<T, 3> StartPoint = StartTM.TransformPositionNoScale(QueryBounds.Center());
 	const TVector<T, 3> Inflation = QueryBounds.Extents() * 0.5 + TVector<T, 3>(Thickness);
-	BVH.template Sweep<TTriangleMeshSweepVisitor<T>, false>(StartPoint, Dir, Length, Inflation, SQVisitor);
+	BVH.template Sweep<TTriangleMeshSweepVisitor<QueryGeomType, T>, false>(StartPoint, Dir, Length, Inflation, SQVisitor);
 
 	if (SQVisitor.OutTime <= Length)
 	{
@@ -372,6 +431,54 @@ bool TTriangleMeshImplicitObject<T>::SweepGeom(const FImplicitObject& QueryGeom,
 		bHit = true;
 	}
 	return bHit;
+}
+
+template <typename T>
+bool TTriangleMeshImplicitObject<T>::SweepGeom(const TSphere<T,3>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness) const
+{
+	return SweepGeomImp(QueryGeom, StartTM, Dir, Length, OutTime, OutPosition, OutNormal, OutFaceIndex, Thickness);
+}
+
+template <typename T>
+bool TTriangleMeshImplicitObject<T>::SweepGeom(const TBox<T, 3>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness) const
+{
+	return SweepGeomImp(QueryGeom, StartTM, Dir, Length, OutTime, OutPosition, OutNormal, OutFaceIndex, Thickness);
+}
+
+template <typename T>
+bool TTriangleMeshImplicitObject<T>::SweepGeom(const TCapsule<T>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness) const
+{
+	return SweepGeomImp(QueryGeom, StartTM, Dir, Length, OutTime, OutPosition, OutNormal, OutFaceIndex, Thickness);
+}
+
+template <typename T>
+bool TTriangleMeshImplicitObject<T>::SweepGeom(const TConvex<T, 3>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness) const
+{
+	return SweepGeomImp(QueryGeom, StartTM, Dir, Length, OutTime, OutPosition, OutNormal, OutFaceIndex, Thickness);
+}
+
+template <typename T>
+bool TTriangleMeshImplicitObject<T>::SweepGeom(const TImplicitObjectScaled<TSphere<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness) const
+{
+	return SweepGeomImp(QueryGeom, StartTM, Dir, Length, OutTime, OutPosition, OutNormal, OutFaceIndex, Thickness);
+}
+
+template <typename T>
+bool TTriangleMeshImplicitObject<T>::SweepGeom(const TImplicitObjectScaled<TBox<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness) const
+{
+	return SweepGeomImp(QueryGeom, StartTM, Dir, Length, OutTime, OutPosition, OutNormal, OutFaceIndex, Thickness);
+}
+
+template <typename T>
+bool TTriangleMeshImplicitObject<T>::SweepGeom(const TImplicitObjectScaled<TCapsule<T>>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness) const
+{
+	return SweepGeomImp(QueryGeom, StartTM, Dir, Length, OutTime, OutPosition, OutNormal, OutFaceIndex, Thickness);
+}
+
+template <typename T>
+bool TTriangleMeshImplicitObject<T>::SweepGeom(const TImplicitObjectScaled<TConvex<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness) const
+{
+	return SweepGeomImp(QueryGeom, StartTM, Dir, Length, OutTime, OutPosition, OutNormal, OutFaceIndex, Thickness);
 }
 
 template <typename T>

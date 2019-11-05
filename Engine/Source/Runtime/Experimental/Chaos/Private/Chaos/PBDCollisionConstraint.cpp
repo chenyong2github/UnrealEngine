@@ -1701,8 +1701,13 @@ template<ECollisionUpdateType UpdateType, typename T, int d>
 void UpdateConvexConstraintsUsingCoreShapes(const FImplicitObject & AObj, const TRigidTransform<T, d>& ATM, const FImplicitObject & BObj, const TRigidTransform<T, d>& BTM, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
 {
 	SCOPE_CYCLE_COUNTER(UpdateConvexConstraintsUsingCoreShapes);
-
-	GJKCoreShapeIntersection<T, 3>(AObj, ATM, BObj, BTM, Constraint.Location, Constraint.Phi, Constraint.Normal, Thickness);
+	CastHelper(AObj, [&](const auto& ADowncast)
+	{
+		CastHelper(BObj, [&](const auto& BDowncast)
+		{
+			GJKCoreShapeIntersection<T, 3>(ADowncast, ATM, BDowncast, BTM, Constraint.Location, Constraint.Phi, Constraint.Normal, Thickness);
+		});
+	});
 }
 
 DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::UpdateUnionLevelsetConstraint"), STAT_UpdateUnionLevelsetConstraint, STATGROUP_ChaosWide);
