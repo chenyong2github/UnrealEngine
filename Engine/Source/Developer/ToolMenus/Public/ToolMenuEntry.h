@@ -176,5 +176,7 @@ private:
 
 	FNewToolMenuSectionDelegate Construct;
 	FNewToolMenuDelegateLegacy ConstructLegacy;
+
+	bool bAddedDuringRegister;
 };
 
