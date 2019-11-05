@@ -978,10 +978,6 @@ void RestoreExistingSkelMeshData(ExistingSkelMeshData* MeshData, USkeletalMesh* 
 						{
 							BaseLODInfo.LODMaterialMap.Add(INDEX_NONE);
 						}
-						if (RemapMaterial.IsValidIndex(ExistingLODMaterialIndex))
-						{
-							ExistingLODMaterialIndex = RemapMaterial[ExistingLODMaterialIndex];
-						}
 						BaseLODInfo.LODMaterialMap[MaterialIndex] = ExistingLODMaterialIndex;
 					}
 				}
@@ -1047,7 +1043,6 @@ void RestoreExistingSkelMeshData(ExistingSkelMeshData* MeshData, USkeletalMesh* 
 
 				//Get the current skelmesh section slot import name
 				FName ExistMeshSectionSlotName = MeshData->ExistingImportMeshLodSectionMaterialData[SafeReimportLODIndex][OriginalSectionIndex].ImportedMaterialSlotName;
-				if (ExistMeshSectionSlotName != OriginalImportMeshSectionSlotName)
 				{
 					//The last import slot name match the New import slot name, but the Exist slot name is different then the last import slot name.
 					//This mean the user has change the section assign slot and the fbx file did not change it
