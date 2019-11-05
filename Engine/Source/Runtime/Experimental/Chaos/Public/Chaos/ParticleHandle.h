@@ -346,14 +346,14 @@ public:
 	TRotation<T, d>& R() { return GeometryParticles->R(ParticleIdx); }
 	void SetR(const TRotation<T, d>& InR) { GeometryParticles->R(ParticleIdx) = InR; }
 
-	TSerializablePtr<TImplicitObject<T, d>> Geometry() const { return GeometryParticles->Geometry(ParticleIdx); }
-	void SetGeometry(TSerializablePtr<TImplicitObject<T, d>> InGeometry) { GeometryParticles->SetGeometry(ParticleIdx, InGeometry); }
+	TSerializablePtr<FImplicitObject> Geometry() const { return GeometryParticles->Geometry(ParticleIdx); }
+	void SetGeometry(TSerializablePtr<FImplicitObject> InGeometry) { GeometryParticles->SetGeometry(ParticleIdx, InGeometry); }
 
-	TSerializablePtr<TImplicitObject<T, d>> SharedGeometry() const { return GeometryParticles->SharedGeometry(ParticleIdx); }
-	void SetSharedGeometry(TSharedPtr<TImplicitObject<T, d>, ESPMode::ThreadSafe> InGeometry) { GeometryParticles->SetSharedGeometry(ParticleIdx, InGeometry); }
+	TSerializablePtr<FImplicitObject> SharedGeometry() const { return GeometryParticles->SharedGeometry(ParticleIdx); }
+	void SetSharedGeometry(TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> InGeometry) { GeometryParticles->SetSharedGeometry(ParticleIdx, InGeometry); }
 
-	const TUniquePtr<TImplicitObject<T, d>>& DynamicGeometry() const { return GeometryParticles->DynamicGeometry(ParticleIdx); }
-	void SetDynamicGeometry(TUniquePtr<TImplicitObject<T, d>>&& Unique) { GeometryParticles->SetDynamicGeometry(ParticleIdx, MoveTemp(Unique)); }
+	const TUniquePtr<FImplicitObject>& DynamicGeometry() const { return GeometryParticles->DynamicGeometry(ParticleIdx); }
+	void SetDynamicGeometry(TUniquePtr<FImplicitObject>&& Unique) { GeometryParticles->SetDynamicGeometry(ParticleIdx, MoveTemp(Unique)); }
 
 	const TShapesArray<T,d>& ShapesArray() const { return GeometryParticles->ShapesArray(ParticleIdx); }
 
@@ -805,8 +805,8 @@ public:
 		// Static Particles
 		const TVector<T, d>& X() const { return Handle->X(); }
 		const TRotation<T, d>& R() const { return Handle->R(); }
-		TSerializablePtr<TImplicitObject<T, d>> Geometry() const { return Handle->Geometry(); }
-		const TUniquePtr<TImplicitObject<T, d>>& DynamicGeometry() const { return Handle->DynamicGeometry(); }
+		TSerializablePtr<FImplicitObject> Geometry() const { return Handle->Geometry(); }
+		const TUniquePtr<FImplicitObject>& DynamicGeometry() const { return Handle->DynamicGeometry(); }
 		bool Sleeping() const { return Handle->Sleeping(); }
 		FString ToString() const { return Handle->ToString(); }
 
@@ -999,26 +999,26 @@ public:
 	}
 
 	//todo: geometry should not be owned by particle
-	void SetGeometry(TUniquePtr<TImplicitObject<T, d>>&& UniqueGeometry)
+	void SetGeometry(TUniquePtr<FImplicitObject>&& UniqueGeometry)
 	{
 		// Take ownership of the geometry, putting it into a shared ptr.
 		// This is necessary because we cannot be sure whether the particle
 		// will be destroyed on the game thread or physics thread first,
 		// but geometry data is shared between them.
-		TImplicitObject<T, d>* RawGeometry = UniqueGeometry.Release();
-		SetGeometry(TSharedPtr<TImplicitObject<T, d>, ESPMode::ThreadSafe>(RawGeometry));
+		FImplicitObject* RawGeometry = UniqueGeometry.Release();
+		SetGeometry(TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(RawGeometry));
 	}
 
 	// TODO: Right now this method exists so we can do things like FPhysTestSerializer::CreateChaosData.
 	//       We should replace this with a method for supporting SetGeometry(RawGeometry).
-	void SetGeometry(TSharedPtr<TImplicitObject<T, d>, ESPMode::ThreadSafe> SharedGeometry)
+	void SetGeometry(TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> SharedGeometry)
 	{
 		this->MarkDirty(EParticleFlags::Geometry);
 		this->MGeometry = SharedGeometry;
 		UpdateShapesArray();
 	}
 
-	void SetGeometry(TSerializablePtr<TImplicitObject<T, d>> RawGeometry)
+	void SetGeometry(TSerializablePtr<FImplicitObject> RawGeometry)
 	{
 		// Ultimately this method should replace SetGeometry(SharedPtr).
 		// We don't really want people making shared ptrs to geometry everywhere.
@@ -1038,7 +1038,7 @@ public:
 		MShapesArray = MoveTemp(InShapesArray);
 	}
 
-	TSerializablePtr<TImplicitObject<T, d>> Geometry() const { return MakeSerializable(MGeometry); }
+	TSerializablePtr<FImplicitObject> Geometry() const { return MakeSerializable(MGeometry); }
 
 	const TShapesArray<T,d>& ShapesArray() const { return MShapesArray; }
 
@@ -1097,7 +1097,7 @@ public:
 private:
 	TVector<T, d> MX;
 	TRotation<T, d> MR;
-	TSharedPtr<TImplicitObject<T, d>, ESPMode::ThreadSafe> MGeometry;	//TODO: geometry should live in bodysetup
+	TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> MGeometry;	//TODO: geometry should live in bodysetup
 	TShapesArray<T,d> MShapesArray;
 	FSpatialAccelerationIdx MSpatialIdx;
 
@@ -1106,7 +1106,7 @@ private:
 
 	// This is only for use by ParticleData. This should be called only in one place,
 	// when the geometry is being copied from GT to PT.
-	TSharedPtr<TImplicitObject<T, d>, ESPMode::ThreadSafe> GeometrySharedLowLevel() const
+	TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> GeometrySharedLowLevel() const
 	{
 		return MGeometry;
 	}
@@ -1162,7 +1162,7 @@ public:
 
 	TVector<T, d> X;
 	TRotation<T, d> R;
-	TSharedPtr<TImplicitObject<T, d>, ESPMode::ThreadSafe> Geometry;
+	TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> Geometry;
 	FSpatialAccelerationIdx SpatialIdx;
 };
 

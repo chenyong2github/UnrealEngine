@@ -138,7 +138,7 @@ namespace ImmediatePhysics_Chaos
 	}
 
 
-	bool CreateGeometry(FBodyInstance* BodyInstance, const FVector& Scale, float& OutMass, Chaos::TVector<float, 3>& OutInertia, Chaos::TRigidTransform<float, 3>& OutCoMTransform, TUniquePtr<Chaos::TImplicitObject<FReal, Dimensions>>& OutGeom, TArray<TUniquePtr<Chaos::TPerShapeData<float, 3>>>& OutShapes)
+	bool CreateGeometry(FBodyInstance* BodyInstance, const FVector& Scale, float& OutMass, Chaos::TVector<float, 3>& OutInertia, Chaos::TRigidTransform<float, 3>& OutCoMTransform, TUniquePtr<Chaos::FImplicitObject>& OutGeom, TArray<TUniquePtr<Chaos::TPerShapeData<float, 3>>>& OutShapes)
 	{
 		UBodySetup* BodySetup = BodyInstance->BodySetup.Get();
 
@@ -175,7 +175,7 @@ namespace ImmediatePhysics_Chaos
 		AddParams.ChaosTriMeshes = MakeArrayView(BodySetup->ChaosTriMeshes);
 #endif
 
-		TArray<TUniquePtr<Chaos::TImplicitObject<float, 3>>> Geoms;
+		TArray<TUniquePtr<Chaos::FImplicitObject>> Geoms;
 		TArray<TUniquePtr<Chaos::TPerShapeData<float, 3>>, TInlineAllocator<1>> Shapes;
 		ChaosInterface::CreateGeometry(AddParams, Geoms, Shapes);
 
