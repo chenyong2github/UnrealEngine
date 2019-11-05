@@ -27,7 +27,7 @@ FAutoConsoleVariableRef CVarChaosImmPhysDeltaTime(TEXT("p.Chaos.ImmPhys.DeltaTim
 FAutoConsoleVariableRef CVarChaosImmPhysIterations(TEXT("p.Chaos.ImmPhys.Iterations"), ChaosImmediate_Evolution_Iterations, TEXT("Number of constraint solver loops in immediate physics"));
 FAutoConsoleVariableRef CVarChaosImmPhysPushOutIterations(TEXT("p.Chaos.ImmPhys.PushOutIterations"), ChaosImmediate_Evolution_PushOutIterations, TEXT("Set the ApplyPushOut() (position correction) iteration count"));
 
-int32 ChaosImmediate_Collision_Enabled = 1;
+int32 ChaosImmediate_Collision_Enabled = 0;
 int32 ChaosImmediate_Collision_ApplyEnabled = 1;
 int32 ChaosImmediate_Collision_PushOutPairIterations = 2;
 int32 ChaosImmediate_Collision_Priority = 1;
@@ -126,8 +126,8 @@ namespace ImmediatePhysics_Chaos
 		using namespace Chaos;
 
 		Particles = MakeUnique<TPBDRigidsSOAs<FReal, Dimensions>>();
-		Joints = MakeUnique<TPBDJointConstraints<FReal, Dimensions>>(TPBDJointSolverSettings<FReal, Dimensions>());
-		JointsRule = MakeUnique<TPBDConstraintIslandRule<TPBDJointConstraints<FReal, Dimensions>, FReal, Dimensions>>(*Joints);
+		Joints = MakeUnique<FPBDJointConstraints>(FPBDJointSolverSettings());
+		JointsRule = MakeUnique<TPBDConstraintIslandRule<FPBDJointConstraints>>(*Joints);
 		Evolution = MakeUnique<TPBDRigidsEvolutionGBF<FReal, Dimensions>>(*Particles.Get(), 1);
 		TPBDCollisionConstraint<FReal, Dimensions>& Collisions = Evolution->GetCollisionConstraints();
 
@@ -192,7 +192,7 @@ namespace ImmediatePhysics_Chaos
 				}
 			});
 		Joints->SetPreApplyCallback(
-			[this](const float Dt, const TArray<TPBDJointConstraintHandle<float, 3>*>& InConstraintHandles)
+			[this](const float Dt, const TArray<FPBDJointConstraintHandle*>& InConstraintHandles)
 			{
 				if (ChaosImmediate_DebugDrawJoints == 4)
 				{
@@ -200,7 +200,7 @@ namespace ImmediatePhysics_Chaos
 				}
 			});
 		Joints->SetPostApplyCallback(
-			[this](const float Dt, const TArray<TPBDJointConstraintHandle<float, 3>*>& InConstraintHandles)
+			[this](const float Dt, const TArray<FPBDJointConstraintHandle*>& InConstraintHandles)
 			{
 				if (ChaosImmediate_DebugDrawJoints == 4)
 				{
@@ -412,7 +412,7 @@ namespace ImmediatePhysics_Chaos
 			}
 			UE_LOG(LogChaosJoint, Verbose, TEXT("Simulate dt = %f"), DeltaTime);
 
-			TPBDJointSolverSettings<float, 3> JointsSettings = Joints->GetSettings();
+			FPBDJointSolverSettings JointsSettings = Joints->GetSettings();
 			JointsSettings.SwingTwistAngleTolerance = ChaosImmediate_Joint_SwingTwistAngleTolerance;
 			JointsSettings.MinParentMassRatio = ChaosImmediate_Joint_MinParentMassRatio;
 			JointsSettings.MaxInertiaRatio = ChaosImmediate_Joint_MaxInertiaRatio;
@@ -527,7 +527,7 @@ namespace ImmediatePhysics_Chaos
 			if ((ChaosImmediate_DebugDrawJoints >= MinDebugLevel) && (ChaosImmediate_DebugDrawJoints <= MaxDebugLevel))
 			{
 				JointsRule->VisitIslandConstraints(Island,
-					[this, ColorScale](const TArray<TPBDJointConstraintHandle<float, 3>*>& ConstraintHandles)
+					[this, ColorScale](const TArray<FPBDJointConstraintHandle*>& ConstraintHandles)
 					{
 						DebugDraw::DrawJointConstraints(SimulationSpaceTransform, *Joints, ColorScale);
 					});

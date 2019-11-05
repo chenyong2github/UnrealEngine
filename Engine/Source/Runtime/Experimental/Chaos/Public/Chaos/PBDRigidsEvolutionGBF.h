@@ -49,7 +49,7 @@ public:
 	using FGravityForces = TPerParticleGravity<T, d>;
 	using FCollisionConstraints = TPBDCollisionConstraint<T, d>;
 	using FExternalForces = TPerParticleExternalForces<T, d>;
-	using FCollisionConstraintRule = TPBDConstraintColorRule<FCollisionConstraints, T, d>;
+	using FCollisionConstraintRule = TPBDConstraintColorRule<FCollisionConstraints>;
 
 	static constexpr int32 DefaultNumIterations = 1;
 	static constexpr int32 DefaultNumPushOutIterations = 5;

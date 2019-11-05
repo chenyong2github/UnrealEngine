@@ -298,7 +298,7 @@ namespace Chaos
 				while (!Queue.IsEmpty())
 				{
 					int32 Idx = Constraints.AddUninitialized(1);
-					FConstraintHandle* Handle = HandleAllocator.AllocHandle(this, Idx);
+					FConstraintContainerHandle* Handle = HandleAllocator.AllocHandle(this, Idx);
 
 					Handles.Add(Handle);
 					Queue.Dequeue(Constraints[Idx]);
