@@ -199,7 +199,7 @@ namespace Audio
 	 * This class is used to mix multiple inputs from disparate threads to a single mixdown and deliver that mixdown to multiple outputs.
 	 * This class is MPCMC, but only one thread can and should call ProcessAudio().
 	 */
-	class AUDIOMIXER_API FPatchMixerSplitter
+	class SIGNALPROCESSING_API FPatchMixerSplitter
 	{
 	public:
 		/** Constructor. */
