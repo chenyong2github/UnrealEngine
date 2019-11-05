@@ -109,6 +109,7 @@ void MainVisibility(
 	half3 BaseColor = 0;
 	float Roughness = 0;
 	float Specular  = 0;
+	float2 Velocity = 0;
 	float2 EncodedVelocity = 0;
 #if SUPPORT_MATERIAL_PROPERTY
 	{
@@ -128,7 +129,7 @@ void MainVisibility(
 		VisibilityData.Tangent = mul(normalize(GetMaterialNormalRaw(PixelMaterialInputs)), MaterialParameters.TangentToWorld);
 	}
 	{
-		const float2 Velocity = Calculate2DVelocity(PackedVelocityA, PackedVelocityC);
+		Velocity = Calculate2DVelocity(PackedVelocityA, PackedVelocityC);
 		EncodedVelocity = EncodeVelocityToTexture(Velocity);
 	}
 #endif
@@ -156,7 +157,7 @@ void MainVisibility(
 		// If we can append new node, add it and make it point to the node previously in head of list
 		uint NextNodeIndex;
 		InterlockedExchange(PPLLNodeIndex[PixelCoord], NodeIndex, NextNodeIndex);
-		const FPPLLNodeData Node = ConvertToPPLLNodeData(SvPosition.z, VisibilityData, BaseColor, Roughness, Specular, NextNodeIndex);
+		const FPPLLNodeData Node = ConvertToPPLLNodeData(SvPosition.z, VisibilityData, BaseColor, Roughness, Specular, Velocity, NextNodeIndex);
 		PPLLNodes[NodeIndex] = Node;
 	}
 #endif
