@@ -79,6 +79,23 @@ static FAutoConsoleVariableRef CVarHairStrandsDebugPPLL(									TEXT("r.HairStr
 void GetGroomInterpolationData(const EWorldType::Type WorldType, FHairStrandsProjectionMeshData& OutGeometries);
 void GetGroomInterpolationData(const EWorldType::Type WorldType, const bool bRenderData, FHairStrandsProjectionHairData& OutHairData, TArray<int32>& OutLODIndices);
 
+static int32 GHairStrandsCull = 0;
+static int32 GHairStrandsCullIndex = -1;
+static int32 GHairStrandsUpdateCullIndex = 0;
+static float GHairStrandsCullNormalizedIndex = -1;
+static FAutoConsoleVariableRef CVarHairStrandsCull			(TEXT("r.HairStrands.Cull"), GHairStrandsCull, TEXT("Cull hair strands (0:disabled, 1: render cull, 2: sim cull)."));
+static FAutoConsoleVariableRef CVarHairStrandsCullIndex		(TEXT("r.HairStrands.Cull.Index"), GHairStrandsCullIndex, TEXT("Hair strands index to be kept. Other will be culled."));
+static FAutoConsoleVariableRef CVarHairStrandsUpdateCullIndex(TEXT("r.HairStrands.Cull.Update"), GHairStrandsUpdateCullIndex, TEXT("Update the guide index to be kept using mouse position for fast selection."));
+
+FHairCullInfo GetHairStrandsCullInfo()
+{
+	FHairCullInfo Out;
+	Out.CullMode		= GHairStrandsCull == 1 ? EHairCullMode::Render : (GHairStrandsCull == 2 ? EHairCullMode::Sim : EHairCullMode::None);
+	Out.ExplicitIndex	= GHairStrandsCullIndex >= 0 ? GHairStrandsCullIndex : -1;
+	Out.NormalizedIndex = GHairStrandsCullNormalizedIndex;
+	return Out;
+}
+
 enum class EHairDebugMode : uint8
 {
 	None,
@@ -1064,6 +1081,14 @@ void RenderHairStrandsDebugInfo(FRHICommandListImmediate& RHICmdList, TArray<FVi
 
 	if (Views.Num() == 0)
 		return;
+
+	if (GHairStrandsUpdateCullIndex)
+	{
+		const FViewInfo& View = Views[0];
+		const float TotalPixelCount = View.ViewRect.Width() * View.ViewRect.Height();
+		const float Index = View.CursorPos.X + View.CursorPos.Y * View.ViewRect.Width();
+		GHairStrandsCullNormalizedIndex = Index / TotalPixelCount;
+	}
 
 	// Only render debug information for the main view
 	const uint32 ViewIndex = 0;
