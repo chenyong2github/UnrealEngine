@@ -331,6 +331,63 @@ namespace Audio
 #endif
 	}
 
+	void MixInBufferFast(const AlignedFloatBuffer& InFloatBuffer, AlignedFloatBuffer& BufferToSumTo, const float StartGain, const float EndGain)
+	{
+		MixInBufferFast(InFloatBuffer.GetData(), BufferToSumTo.GetData(), InFloatBuffer.Num(), StartGain, EndGain);
+	}
+
+	void MixInBufferFast(const float* RESTRICT InFloatBuffer, float* RESTRICT BufferToSumTo, int32 NumSamples, const float StartGain, const float EndGain)
+	{
+		checkf(IsAligned<const float*>(InFloatBuffer, 4), TEXT("Memory must be aligned to use vector operations."));
+		checkf(IsAligned<float*>(BufferToSumTo, 4), TEXT("Memory must be aligned to use vector operations."));
+		checkf(NumSamples % 4 == 0, TEXT("Please use a buffer size that is a multiple of 4."));
+
+		const int32 NumIterations = NumSamples / 4;
+
+		if (FMath::IsNearlyEqual(StartGain, EndGain))
+		{
+			// No need to do anything if start and end values are both 0.0
+			if (StartGain == 0.0f)
+			{
+				return;
+			}
+			else
+			{
+				VectorRegister Gain = VectorLoadFloat1(&StartGain);
+
+				for (int32 i = 0; i < NumSamples; i += 4)
+				{
+					VectorRegister Input = VectorLoadAligned(&InFloatBuffer[i]);
+					VectorRegister Output = VectorLoadAligned(&BufferToSumTo[i]);
+
+					Input = VectorMultiply(Input, Gain);
+					Output = VectorAdd(Input, Output);
+					
+					VectorStoreAligned(Output, &BufferToSumTo[i]);
+				}
+			}
+		}
+		else
+		{
+			const float DeltaValue = ((EndGain - StartGain) / NumIterations);
+
+			VectorRegister Gain = VectorLoadFloat1(&StartGain);
+			VectorRegister Delta = VectorLoadFloat1(&DeltaValue);
+
+			for (int32 i = 0; i < NumSamples; i += 4)
+			{
+				VectorRegister Input = VectorLoadAligned(&InFloatBuffer[i]);
+				VectorRegister Output = VectorLoadAligned(&BufferToSumTo[i]);
+				Input = VectorMultiply(Input, Gain);
+				Output = VectorAdd(Input, Output);
+				
+				VectorStoreAligned(Output, &BufferToSumTo[i]);
+
+				Gain = VectorAdd(Gain, Delta);
+			}
+		}
+	}
+
 	/* Subtracts two buffers together element-wise. */
 	void BufferSubtractFast(const AlignedFloatBuffer& InMinuend, const AlignedFloatBuffer& InSubtrahend, AlignedFloatBuffer& OutputBuffer)
 	{
