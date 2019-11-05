@@ -179,8 +179,8 @@ protected:
 	using Base::UpdateConstraintPositionBasedState;
 	using Base::CreateConstraintGraph;
 	using Base::CreateIslands;
-	using Base::ConstraintGraph;
 	using Base::ConstraintRules;
+	using Base::GetConstraintGraph;
 	using Base::UpdateVelocities;
 	using Base::PhysicsMaterials;
 	using Base::ParticleDisableCount;

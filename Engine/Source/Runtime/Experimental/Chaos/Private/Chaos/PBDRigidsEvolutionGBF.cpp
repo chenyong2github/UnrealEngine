@@ -155,15 +155,15 @@ void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(const T Dt, const T StepFr
 	}
 
 	TArray<bool> SleepedIslands;
-	SleepedIslands.SetNum(ConstraintGraph.NumIslands());
+	SleepedIslands.SetNum(GetConstraintGraph().NumIslands());
 	TArray<TArray<TPBDRigidParticleHandle<T,d>*>> DisabledParticles;
-	DisabledParticles.SetNum(ConstraintGraph.NumIslands());
-	SleepedIslands.SetNum(ConstraintGraph.NumIslands());
+	DisabledParticles.SetNum(GetConstraintGraph().NumIslands());
+	SleepedIslands.SetNum(GetConstraintGraph().NumIslands());
 	if(Dt > 0)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evo_ParallelSolve);
-		PhysicsParallelFor(ConstraintGraph.NumIslands(), [this, &SleepedIslands, &DisabledParticles, Dt](int32 Island) {
-			const TArray<TGeometryParticleHandle<T, d>*>& IslandParticles = ConstraintGraph.GetIslandParticles(Island);
+		PhysicsParallelFor(GetConstraintGraph().NumIslands(), [&](int32 Island) {
+			const TArray<TGeometryParticleHandle<T, d>*>& IslandParticles = GetConstraintGraph().GetIslandParticles(Island);
 
 			{
 				SCOPE_CYCLE_COUNTER(STAT_Evo_ApplyConstraints);
@@ -223,16 +223,16 @@ void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(const T Dt, const T StepFr
 			}
 
 			// Turn off if not moving
-			SleepedIslands[Island] = ConstraintGraph.SleepInactive(Island, PhysicsMaterials);
+			SleepedIslands[Island] = GetConstraintGraph().SleepInactive(Island, PhysicsMaterials);
 		});
 	}
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evo_DeactivateSleep);
-		for (int32 Island = 0; Island < ConstraintGraph.NumIslands(); ++Island)
+		for (int32 Island = 0; Island < GetConstraintGraph().NumIslands(); ++Island)
 		{
 			if (SleepedIslands[Island])
 			{
-				Particles.DeactivateParticles(ConstraintGraph.GetIslandParticles(Island));
+				Particles.DeactivateParticles(GetConstraintGraph().GetIslandParticles(Island));
 			}
 			for (const auto Particle : DisabledParticles[Island])
 			{
