@@ -882,3 +882,27 @@ FString FOnlineVoiceImpl::GetVoiceDebugState() const
 
 	return Output;
 }
+
+Audio::FPatchOutputStrongPtr FOnlineVoiceImpl::GetMicrophoneOutput()
+{
+	if (VoiceEngine.IsValid())
+	{
+		return VoiceEngine->GetMicrophoneOutput();
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+Audio::FPatchOutputStrongPtr FOnlineVoiceImpl::GetRemoteTalkerOutput()
+{
+	if (VoiceEngine.IsValid())
+	{
+		return VoiceEngine->GetRemoteTalkerOutput();
+	}
+	else
+	{
+		return nullptr;
+	}
+}
