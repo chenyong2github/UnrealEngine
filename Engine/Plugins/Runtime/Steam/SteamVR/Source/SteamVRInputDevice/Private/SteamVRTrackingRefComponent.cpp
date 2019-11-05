@@ -44,7 +44,7 @@ bool USteamVRTrackingReferences::ShowTrackingReferences(UStaticMesh* TrackingRef
 				//UE_LOG(LogSteamVRTrackingRefComponent, Warning, TEXT("[TRACKING REFERENCE] Found the following tracking device: [%i] %s"), id, *stringCache);
 
 				TrackedDevicePose_t TrackedDevicePose;
-				VRCompositor()->GetLastPoseForTrackedDeviceIndex(id, &TrackedDevicePose, NULL);
+				VRCompositor()->GetLastPoseForTrackedDeviceIndex(id, &TrackedDevicePose, nullptr);
 
 				// Get SteamVR Transform Matrix for this tracking reference
 				HmdMatrix34_t Matrix = TrackedDevicePose.mDeviceToAbsoluteTracking;
@@ -173,9 +173,10 @@ void USteamVRTrackingReferences::TickComponent(float DeltaTime, ELevelTick TickT
 				FName DeviceClass = GetDeviceClass(id);
 
 				// Get device model info
-				char buf[k_unMaxPropertyStringSize];
-				uint32 StringBytes = VRSystem()->GetStringTrackedDeviceProperty(id, ETrackedDeviceProperty::Prop_ModelNumber_String, buf, sizeof(buf));
-				FString DeviceModel = *FString(UTF8_TO_TCHAR(buf));
+				TArray<char> Buffer;
+				Buffer.AddUninitialized(k_unMaxPropertyStringSize);
+				uint32 StringBytes = VRSystem()->GetStringTrackedDeviceProperty(id, ETrackedDeviceProperty::Prop_ModelNumber_String, Buffer.GetData(), Buffer.Num());
+				FString DeviceModel = *FString(UTF8_TO_TCHAR(Buffer.GetData()));
 
 				UE_LOG(LogSteamVRTrackingRefComponent, Warning, TEXT("Found device [%i] %s"), id, *DeviceModel);
 			}
