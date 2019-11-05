@@ -940,6 +940,7 @@ void USocialToolkit::HandleBlockPlayerComplete(int32 LocalUserNum, bool bWasSucc
 
 					if (BlockedPlayerInfoPtr)
 					{
+						UE_LOG(LogParty, Log, TEXT("%s Block player %s complete, Establishing Oss info..."), ANSI_TO_TCHAR(__FUNCTION__), *BlockedUserId.ToDebugString());
 						User.EstablishOssInfo(*BlockedPlayerInfoPtr, SubsystemType);
 						OnUserBlocked().Broadcast(User, SubsystemType, true);
 					}
