@@ -27,6 +27,26 @@
 
 
 
+static float SnapToIncrement(float fValue, float fIncrement, float offset = 0)
+{
+	if (!FMath::IsFinite(fValue))
+	{
+		return 0;
+	}
+	fValue -= offset;
+	float sign = FMath::Sign(fValue);
+	fValue = FMath::Abs(fValue);
+	int nInc = (int)(fValue / fIncrement);
+	float fRem = (float)fmod(fValue, fIncrement);
+	if (fRem > fIncrement / 2)
+	{
+		++nInc;
+	}
+	return sign * (float)nInc * fIncrement + offset;
+}
+
+
+
 class FEdModeToolsContextQueriesImpl : public IToolsContextQueriesAPI
 {
 public:
@@ -114,6 +134,18 @@ public:
 		}
 
 		int FoundResultCount = 0;
+
+		if ((Request.TargetTypes & ESceneSnapQueryTargetType::Grid) != ESceneSnapQueryTargetType::None)
+		{
+			FSceneSnapQueryResult SnapResult;
+			SnapResult.TargetType = ESceneSnapQueryTargetType::Grid;
+			float SnapSize = GEditor->GetGridSize();
+			SnapResult.Position.X = SnapToIncrement(Request.Position.X, SnapSize);
+			SnapResult.Position.Y = SnapToIncrement(Request.Position.Y, SnapSize);
+			SnapResult.Position.Z = SnapToIncrement(Request.Position.Z, SnapSize);
+			Results.Add(SnapResult);
+			FoundResultCount++;
+		}
 
 		//
 		// Run a snap query by casting ray into the world.
