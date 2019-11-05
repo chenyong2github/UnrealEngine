@@ -14,6 +14,13 @@ namespace Audio
 	 */
 	SIGNALPROCESSING_API void ArrayCumulativeSum(TArrayView<const float> InView, TArray<float>& OutData);
 
+	/** Mean of array. Equivalent to Sum(InView) / InView.Num()
+	 *
+	 *  InView contains data to be analyzed.
+	 *  OutMean contains the result.
+	 */
+	SIGNALPROCESSING_API void ArrayMean(TArrayView<const float> InView, float& OutMean);
+
 	/** Mean filter of array.
 	 *
 	 *  Note: Uses standard biased mean estimator of Sum(x) / Count(x).
@@ -40,6 +47,26 @@ namespace Audio
 	/** Computes the EuclideanNorm of the InView. Same as calculating the energy in window. */
 	SIGNALPROCESSING_API void ArrayGetEuclideanNorm(TArrayView<const float> InView, float& OutEuclideanNorm);
 
+	/** Absolute value of array elements in place.
+	 *
+	 *  InView contains the data to be manipulated.
+	 */
+	SIGNALPROCESSING_API void ArrayAbsInPlace(TArrayView<float> InView);
+
+	/** Clamp minimum value of array in place.
+	 *
+	 *  InView contains data to be clamped.
+	 *  InMin contains the minimum value allowable in InView.
+	 */
+	SIGNALPROCESSING_API void ArrayClampMinInPlace(TArrayView<float> InView, float InMin);
+
+	/** Clamp maximum value of array in place.
+	 *
+	 *  InView contains data to be clamped.
+	 *  InMax contains the maximum value allowable in InView.
+	 */
+	SIGNALPROCESSING_API void ArrayClampMaxInPlace(TArrayView<float> InView, float InMax);
+
 	/** Clamp values in an array.
 	 *
 	 *  InView is a view of a float array to be clamped.
@@ -48,8 +75,23 @@ namespace Audio
 	 */
 	SIGNALPROCESSING_API void ArrayClampInPlace(TArrayView<float> InView, float InMin, float InMax);
 
+	/** Scale an array so the minimum is 0 and the maximum is 1
+	 *
+	 *  InView is the view of a float array with the input data.
+	 *  OutArray is an array which will hold the normalized data.
+	 */ 
+	SIGNALPROCESSING_API void ArrayMinMaxNormalize(TArrayView<const float> InView, TArray<float>& OutArray);
+
 	/** Multiplies each element in InView by InMultiplier */
 	SIGNALPROCESSING_API void ArrayMultiplyByConstantInPlace(TArrayView<float> InView, float InMultiplier);
+
+	/** Subract arrays element-wise. OutArray = InMinuend - InSubtrahend
+	 *
+	 *  InMinuend is the array of data to be subtracted from.
+	 *  InSubtrahend is the array of data to subtract.
+	 *  OutArray is the array which holds the result.
+	 */
+	SIGNALPROCESSING_API void ArraySubtract(TArrayView<const float> InMinuend, TArrayView<const float> InSubtrahend, TArray<float>& OutArray);
 
 	/** Subtract value from each element in InView */
 	SIGNALPROCESSING_API void ArraySubtractByConstantInPlace(TArrayView<float> InView, float InSubtrahend);
