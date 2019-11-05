@@ -209,19 +209,26 @@ void UCompositeDataTable::Serialize(FArchive& Ar)
 
 	if (Ar.IsLoading())
 	{
-		for (UDataTable* ParentTable : ParentTables)
+		if (GIsTransacting)
 		{
-			if (ParentTable && ParentTable->HasAnyFlags(RF_NeedLoad))
+			bIsLoading = false;
+		}
+		else
+		{
+			for (UDataTable* ParentTable : ParentTables)
 			{
-				FLinkerLoad* ParentTableLinker = ParentTable->GetLinker();
-				if (ParentTableLinker)
+				if (ParentTable && ParentTable->HasAnyFlags(RF_NeedLoad))
 				{
-					ParentTableLinker->Preload(ParentTable);
+					FLinkerLoad* ParentTableLinker = ParentTable->GetLinker();
+					if (ParentTableLinker)
+					{
+						ParentTableLinker->Preload(ParentTable);
+					}
 				}
 			}
-		}
 
-		OnParentTablesUpdated();
+			OnParentTablesUpdated();
+		}
 	}
 }
 
@@ -256,6 +263,14 @@ void UCompositeDataTable::PostEditChangeProperty(FPropertyChangedEvent& Property
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
+
+void UCompositeDataTable::PostEditUndo()
+{
+	OnParentTablesUpdated(EPropertyChangeType::ValueSet);
+
+	Super::PostEditUndo();
+}
+
 #endif // WITH_EDITOR
 
 void UCompositeDataTable::AppendParentTables(const TArray<UDataTable*>& NewTables)
@@ -266,6 +281,13 @@ void UCompositeDataTable::AppendParentTables(const TArray<UDataTable*>& NewTable
 
 void UCompositeDataTable::OnParentTablesUpdated(EPropertyChangeType::Type ChangeType)
 {
+	// Prevent recursion when there was a cycle in the parent hierarchy (or during the undo of the action that created the cycle; in that case PostEditUndo will recall OnParentTablesUpdated when the dust has settled)
+	if (bUpdatingParentTables)
+	{
+		return;
+	}
+	bUpdatingParentTables = true;
+
 	for (UDataTable* Table : OldParentTables)
 	{
 		if (Table && ParentTables.Find(Table) == INDEX_NONE)
@@ -278,13 +300,15 @@ void UCompositeDataTable::OnParentTablesUpdated(EPropertyChangeType::Type Change
 
 	for (UDataTable* Table : ParentTables)
 	{
-		if (Table && OldParentTables.Find(Table) == INDEX_NONE)
+		if ((Table != nullptr) && (Table != this) && (OldParentTables.Find(Table) == INDEX_NONE))
 		{
 			Table->OnDataTableChanged().AddUObject(this, &UCompositeDataTable::OnParentTablesUpdated, EPropertyChangeType::Unspecified);
 		}
 	}
 
 	OldParentTables = ParentTables;
+
+	bUpdatingParentTables = false;
 }
 
 #undef LOCTEXT_NAMESPACE
