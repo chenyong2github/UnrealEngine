@@ -11,17 +11,17 @@
 namespace Chaos
 {
 	template<class T, int d>
-	class TBox final : public TImplicitObject<T, d>
+	class TBox final : public FImplicitObject
 	{
 	public:
-		using TImplicitObject<T, d>::SignedDistance;
-		using TImplicitObject<T, d>::GetTypeName;
+		using FImplicitObject::SignedDistance;
+		using FImplicitObject::GetTypeName;
 
 		// This should never be used outside of creating a default for arrays
 		FORCEINLINE TBox()
-		    : TImplicitObject<T, d>(EImplicitObject::FiniteConvex, ImplicitObjectType::Box){};
+		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::Box){};
 		FORCEINLINE TBox(const TVector<T, d>& Min, const TVector<T, d>& Max)
-		    : TImplicitObject<T, d>(EImplicitObject::FiniteConvex, ImplicitObjectType::Box)
+		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::Box)
 			, AABB(Min, Max)
 		{
 			//todo: turn back on
@@ -32,19 +32,19 @@ namespace Chaos
 		}
 
 		FORCEINLINE TBox(const TBox<T, d>& Other)
-		    : TImplicitObject<T, d>(EImplicitObject::FiniteConvex, ImplicitObjectType::Box)
+		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::Box)
 			, AABB(Other.AABB)
 		{
 		}
 
 		FORCEINLINE TBox(const TAABB<T, d>& AABB)
-		    : TImplicitObject<T, d>(EImplicitObject::FiniteConvex, ImplicitObjectType::Box)
+		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::Box)
 			, AABB(AABB)
 		{
 		}
 
 		FORCEINLINE TBox(TBox<T, d>&& Other)
-		    : TImplicitObject<T, d>(EImplicitObject::FiniteConvex, ImplicitObjectType::Box)
+		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::Box)
 		    , AABB(MoveTemp(Other.AABB))
 		{
 		}
@@ -73,9 +73,9 @@ namespace Chaos
 
 		virtual ~TBox() {}
 
-		virtual TUniquePtr<TImplicitObject<T, d>> Copy() const override
+		virtual TUniquePtr<FImplicitObject> Copy() const override
 		{
-			return TUniquePtr<TImplicitObject<T, d>>(new TBox<T,d>(*this));
+			return TUniquePtr<FImplicitObject>(new TBox<T,d>(*this));
 		}
 
 		/**
@@ -230,7 +230,7 @@ namespace Chaos
 
 		FORCEINLINE void SerializeImp(FArchive& Ar)
 		{
-			TImplicitObject<T, d>::SerializeImp(Ar);
+			FImplicitObject::SerializeImp(Ar);
 			AABB.Serialize(Ar);
 		}
 

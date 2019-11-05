@@ -9,7 +9,7 @@
 
 namespace Chaos
 {
-	template<typename T, int D> class TImplicitObject;
+	class FImplicitObject;
 	template<typename T, int D> struct TKinematicGeometryParticleParameters;
 	template<typename T, int D> class TKinematicTarget;
 	template<typename P, typename T, int D> class TPBDConstraintIslandRule;

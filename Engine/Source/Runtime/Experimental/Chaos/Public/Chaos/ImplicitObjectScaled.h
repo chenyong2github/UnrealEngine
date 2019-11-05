@@ -13,7 +13,7 @@ namespace Chaos
 {
 
 template <typename TConcrete, bool bInstanced = true>
-class TImplicitObjectInstanced final : public TImplicitObject<typename TConcrete::TType,TConcrete::D>
+class TImplicitObjectInstanced final : public FImplicitObject
 {
 public:
 	using T = typename TConcrete::TType;
@@ -22,10 +22,10 @@ public:
 	static constexpr int D = d;
 
 	using ObjectType = typename TChooseClass<bInstanced, TSerializablePtr<TConcrete>, TUniquePtr<TConcrete>>::Result;
-	using TImplicitObject<T, d>::GetTypeName;
+	using FImplicitObject::GetTypeName;
 
 	TImplicitObjectInstanced(ObjectType Object)
-		: TImplicitObject<T, d>(EImplicitObject::HasBoundingBox, Object->GetType() | ImplicitObjectType::IsInstanced)
+		: FImplicitObject(EImplicitObject::HasBoundingBox, Object->GetType() | ImplicitObjectType::IsInstanced)
 		, MObject(MoveTemp(Object))
 	{
 		ensure(IsInstanced(MObject->GetType(true)) == false);	//cannot have an instance of an instance
@@ -55,20 +55,20 @@ public:
 	virtual void Serialize(FChaosArchive& Ar) override
 	{
 		FChaosArchiveScopedMemory ScopedMemory(Ar, GetTypeName(), false);
-		TImplicitObject<T, d>::SerializeImp(Ar);
+		FImplicitObject::SerializeImp(Ar);
 		Ar << MObject;
 	}
 
 	/** This is a low level function and assumes the internal object has a SweepGeom function. Should not be called directly. See GeometryQueries.h : SweepQuery */
 	template <typename TGeometry>
-	static bool LowLevelSweepGeom(const TImplicitObjectInstanced<TConcrete, bInstanced>& OwningInstanced, const TImplicitObject<T, d>& B, const TRigidTransform<T, d>& BToATM, const TVector<T, d>& LocalDir, const T Length, T& OutTime, TVector<T, d>& LocalPosition, TVector<T, d>& LocalNormal, int32& OutFaceIndex, T Thickness = 0)
+	static bool LowLevelSweepGeom(const TImplicitObjectInstanced<TConcrete, bInstanced>& OwningInstanced, const FImplicitObject& B, const TRigidTransform<T, d>& BToATM, const TVector<T, d>& LocalDir, const T Length, T& OutTime, TVector<T, d>& LocalPosition, TVector<T, d>& LocalNormal, int32& OutFaceIndex, T Thickness = 0)
 	{
 		ensure(false);
 		return false;
 	}
 
 	/** This is a low level function and assumes the internal object has a OverlapGeom function. Should not be called directly. See GeometryQueries.h : OverlapQuery */
-	bool LowLevelOverlapGeom(const TImplicitObjectInstanced<TConcrete, bInstanced>& OwningInstanced, const TImplicitObject<T, d>& B, const TRigidTransform<T, d>& BToATM, T Thickness = 0) const
+	bool LowLevelOverlapGeom(const TImplicitObjectInstanced<TConcrete, bInstanced>& OwningInstanced, const FImplicitObject& B, const TRigidTransform<T, d>& BToATM, T Thickness = 0) const
 	{
 		ensure(false);
 		return false;
@@ -103,9 +103,9 @@ public:
 		return MObject->GetTypeHash();
 	}
 
-	virtual TUniquePtr<TImplicitObject<T, d>> Copy() const override
+	virtual TUniquePtr<FImplicitObject> Copy() const override
 	{
-		return TUniquePtr<TImplicitObject<T, d>>(CopyHelper(this));
+		return TUniquePtr<FImplicitObject>(CopyHelper(this));
 	}
 
 protected:
@@ -124,7 +124,7 @@ protected:
 
 
 template<typename TConcrete, bool bInstanced = true>
-class TImplicitObjectScaled final : public TImplicitObject<typename TConcrete::TType, TConcrete::D>
+class TImplicitObjectScaled final : public FImplicitObject
 {
 public:
 	using T = typename TConcrete::TType;
@@ -133,10 +133,10 @@ public:
 	static constexpr int D = d;
 
 	using ObjectType = typename TChooseClass<bInstanced, TSerializablePtr<TConcrete>, TUniquePtr<TConcrete>>::Result;
-	using TImplicitObject<T, d>::GetTypeName;
+	using FImplicitObject::GetTypeName;
 
 	TImplicitObjectScaled(ObjectType Object, const TVector<T, d>& Scale, T Thickness = 0)
-	    : TImplicitObject<T, d>(EImplicitObject::HasBoundingBox, Object->GetType() | ImplicitObjectType::IsScaled)
+	    : FImplicitObject(EImplicitObject::HasBoundingBox, Object->GetType() | ImplicitObjectType::IsScaled)
 	    , MObject(MoveTemp(Object))
 		, MInternalThickness(Thickness)
 	{
@@ -153,8 +153,8 @@ public:
 		this->bIsConvex = MObject->IsConvex();
 		SetScale(Scale);
 	}
-	TImplicitObjectScaled(ObjectType Object, TUniquePtr<Chaos::TImplicitObject<T,d>> &&ObjectOwner, const TVector<T, d>& Scale, T Thickness = 0)
-	    : TImplicitObject<T, d>(EImplicitObject::HasBoundingBox, Object->GetType() | ImplicitObjectType::IsScaled)
+	TImplicitObjectScaled(ObjectType Object, TUniquePtr<Chaos::FImplicitObject> &&ObjectOwner, const TVector<T, d>& Scale, T Thickness = 0)
+	    : FImplicitObject(EImplicitObject::HasBoundingBox, Object->GetType() | ImplicitObjectType::IsScaled)
 	    , MObject(Object)
 		, MInternalThickness(Thickness)
 	{
@@ -166,7 +166,7 @@ public:
 
 	TImplicitObjectScaled(const TImplicitObjectScaled<TConcrete, bInstanced>& Other) = delete;
 	TImplicitObjectScaled(TImplicitObjectScaled<TConcrete, bInstanced>&& Other)
-	    : TImplicitObject<T, d>(EImplicitObject::HasBoundingBox, Other.MObject->GetType() | ImplicitObjectType::IsScaled)
+	    : FImplicitObject(EImplicitObject::HasBoundingBox, Other.MObject->GetType() | ImplicitObjectType::IsScaled)
 	    , MObject(MoveTemp(Other.MObject))
 	    , MScale(Other.MScale)
 		, MInvScale(Other.MInvScale)
@@ -184,9 +184,9 @@ public:
 		return TConcrete::StaticType() | ImplicitObjectType::IsScaled;
 	}
 
-	static const TImplicitObjectScaled<TConcrete>& AsScaledChecked(const TImplicitObject<T, d>& Obj)
+	static const TImplicitObjectScaled<TConcrete>& AsScaledChecked(const FImplicitObject& Obj)
 	{
-		if (TIsSame<TConcrete, TImplicitObject<T, d>>::Value)
+		if (TIsSame<TConcrete, FImplicitObject>::Value)
 		{
 			//can cast any scaled to ImplicitObject base
 			check(IsScaled(Obj.GetType()));
@@ -198,9 +198,9 @@ public:
 		return static_cast<const TImplicitObjectScaled<TConcrete>&>(Obj);
 	}
 
-	static TImplicitObjectScaled<TConcrete>& AsScaledChecked(TImplicitObject<T, d>& Obj)
+	static TImplicitObjectScaled<TConcrete>& AsScaledChecked(FImplicitObject& Obj)
 	{
-		if (TIsSame<TConcrete, TImplicitObject<T, d>>::Value)
+		if (TIsSame<TConcrete, FImplicitObject>::Value)
 		{
 			//can cast any scaled to ImplicitObject base
 			check(IsScaled(Obj.GetType()));
@@ -212,9 +212,9 @@ public:
 		return static_cast<TImplicitObjectScaled<TConcrete>&>(Obj);
 	}
 
-	static const TImplicitObjectScaled<TConcrete>* AsScaled(const TImplicitObject<T, d>& Obj)
+	static const TImplicitObjectScaled<TConcrete>* AsScaled(const FImplicitObject& Obj)
 	{
-		if (TIsSame<TConcrete, TImplicitObject<T, d>>::Value)
+		if (TIsSame<TConcrete, FImplicitObject>::Value)
 		{
 			//can cast any scaled to ImplicitObject base
 			return IsScaled(Obj.GetType()) ? static_cast<const TImplicitObjectScaled<TConcrete>*>(&Obj) : nullptr;
@@ -225,9 +225,9 @@ public:
 		}
 	}
 
-	static TImplicitObjectScaled<TConcrete>* AsScaled(TImplicitObject<T, d>& Obj)
+	static TImplicitObjectScaled<TConcrete>* AsScaled(FImplicitObject& Obj)
 	{
-		if (TIsSame<TConcrete, TImplicitObject<T, d>>::Value)
+		if (TIsSame<TConcrete, FImplicitObject>::Value)
 		{
 			//can cast any scaled to ImplicitObject base
 			return IsScaled(Obj.GetType()) ? static_cast<TImplicitObjectScaled<TConcrete>*>(&Obj) : nullptr;
@@ -287,7 +287,7 @@ public:
 	}
 
 	/** This is a low level function and assumes the internal object has a SweepGeom function. Should not be called directly. See GeometryQueries.h : SweepQuery */
-	bool LowLevelSweepGeom(const TImplicitObject<T, d>& B, const TRigidTransform<T, d>& BToATM, const TVector<T, d>& LocalDir, const T Length, T& OutTime, TVector<T, d>& LocalPosition, TVector<T, d>& LocalNormal, int32& OutFaceIndex, T Thickness = 0) const
+	bool LowLevelSweepGeom(const FImplicitObject& B, const TRigidTransform<T, d>& BToATM, const TVector<T, d>& LocalDir, const T Length, T& OutTime, TVector<T, d>& LocalPosition, TVector<T, d>& LocalNormal, int32& OutFaceIndex, T Thickness = 0) const
 	{
 		ensure(Length > 0);
 		ensure(FMath::IsNearlyEqual(LocalDir.SizeSquared(), 1, KINDA_SMALL_NUMBER));
@@ -305,8 +305,8 @@ public:
 			TVector<T, d> UnscaledNormal;
 			float UnscaledTime;
 
-			TUniquePtr<TImplicitObject<T, d>> HackBPtr(const_cast<TImplicitObject<T,d>*>(&B));	//todo: hack, need scaled object to accept raw ptr similar to transformed implicit
-			TImplicitObjectScaled<TImplicitObject<T, d>> ScaledB(MakeSerializable(HackBPtr), MInvScale);
+			TUniquePtr<FImplicitObject> HackBPtr(const_cast<FImplicitObject*>(&B));	//todo: hack, need scaled object to accept raw ptr similar to transformed implicit
+			TImplicitObjectScaled<FImplicitObject> ScaledB(MakeSerializable(HackBPtr), MInvScale);
 			HackBPtr.Release();
 
 			TRigidTransform<T, d> BToATMNoScale(BToATM.GetLocation() * MInvScale, BToATM.GetRotation());
@@ -325,12 +325,12 @@ public:
 	}
 
 	/** This is a low level function and assumes the internal object has a OverlapGeom function. Should not be called directly. See GeometryQueries.h : OverlapQuery */
-	bool LowLevelOverlapGeom(const TImplicitObject<T, d>& B, const TRigidTransform<T, d>& BToATM, T Thickness = 0) const
+	bool LowLevelOverlapGeom(const FImplicitObject& B, const TRigidTransform<T, d>& BToATM, T Thickness = 0) const
 	{
 		ensure(Thickness == 0 || (FMath::IsNearlyEqual(MScale[0], MScale[1]) && FMath::IsNearlyEqual(MScale[0], MScale[2])));
 
-		TUniquePtr<TImplicitObject<T, d>> HackBPtr(const_cast<TImplicitObject<T, d>*>(&B));	//todo: hack, need scaled object to except raw ptr similar to transformed implicit
-		TImplicitObjectScaled<TImplicitObject<T, d>> ScaledB(MakeSerializable(HackBPtr), MInvScale);
+		TUniquePtr<FImplicitObject> HackBPtr(const_cast<FImplicitObject*>(&B));	//todo: hack, need scaled object to except raw ptr similar to transformed implicit
+		TImplicitObjectScaled<FImplicitObject> ScaledB(MakeSerializable(HackBPtr), MInvScale);
 		HackBPtr.Release();
 
 		TRigidTransform<T, d> BToATMNoScale(BToATM.GetLocation() * MInvScale, BToATM.GetRotation());
@@ -436,7 +436,7 @@ public:
 	virtual void Serialize(FChaosArchive& Ar) override
 	{
 		FChaosArchiveScopedMemory ScopedMemory(Ar, GetTypeName(), false);
-		TImplicitObject<T, d>::SerializeImp(Ar);
+		FImplicitObject::SerializeImp(Ar);
 		Ar << MObject << MScale << MInvScale << MLocalBoundingBox;
 		ensure(MInternalThickness == 0);	//not supported: do we care?
 	}
@@ -447,9 +447,9 @@ public:
 	}
 
 #if 0
-	virtual TUniquePtr<TImplicitObject<T, d>> Copy() const override
+	virtual TUniquePtr<FImplicitObject> Copy() const override
 	{
-		return TUniquePtr<TImplicitObject<T, d>>(CopyHelper(this));
+		return TUniquePtr<FImplicitObject>(CopyHelper(this));
 	}
 #endif
 private:
@@ -461,13 +461,12 @@ private:
 
 	//needed for serialization
 	TImplicitObjectScaled()
-	: TImplicitObject<T, d>(EImplicitObject::HasBoundingBox, StaticType())
+	: FImplicitObject(EImplicitObject::HasBoundingBox, StaticType())
 	, MInternalThickness(0)
 	{}
-	friend TImplicitObject<T, d>;	//needed for serialization
+	friend FImplicitObject;	//needed for serialization
 
-	template <typename TConcrete2, bool bInstanced2>
-	friend class TImplicitObjectScaled;
+	friend class FImplicitObjectScaled;
 
 	static TImplicitObjectScaled<TConcrete, true>* CopyHelper(const TImplicitObjectScaled<TConcrete, true>* Obj)
 	{
@@ -493,6 +492,6 @@ template <typename TConcrete>
 using TImplicitObjectScaledNonSerializable = TImplicitObjectScaled<TConcrete, false>;
 
 template <typename T, int d>
-using TImplicitObjectScaledGeneric = TImplicitObjectScaled<TImplicitObject<T, d>>;
+using TImplicitObjectScaledGeneric = TImplicitObjectScaled<FImplicitObject>;
 
 }
