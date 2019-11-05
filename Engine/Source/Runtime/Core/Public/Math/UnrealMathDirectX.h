@@ -1061,7 +1061,10 @@ FORCEINLINE VectorRegister VectorFractional(const VectorRegister& X)
 
 FORCEINLINE VectorRegister VectorMod(const VectorRegister& X, const VectorRegister& Y)
 {
-	return DirectX::XMVectorMod(X, Y);
+	VectorRegister AbsY = VectorAbs(Y);
+	VectorRegister Result = DirectX::XMVectorMod(X, Y);
+	// Clamp to [-AbsY, AbsY] because of possible failures for very large numbers (>1e10) due to precision loss.
+	return DirectX::XMVectorClamp(Result, VectorNegate(AbsY), AbsY);
 }
 
 //TODO: Vectorize
