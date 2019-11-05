@@ -53,7 +53,9 @@ protected:
 	TSharedPtr<IPropertyHandle> bIsFocusedHandle;
 	TSharedPtr<IPropertyHandle> bIsOcclusionEnabledHandle;
 	TSharedPtr<IPropertyHandle> bIsReverbSendEnabledHandle;
+	TSharedPtr<IPropertyHandle> bIsPriorityAttenuationEnabledHandle;
 	TSharedPtr<IPropertyHandle> ReverbSendMethodHandle;
+	TSharedPtr<IPropertyHandle> PriorityAttenuationMethodHandle;
 	TSharedPtr<IPropertyHandle> AbsorptionMethodHandle;
 
 	TAttribute<bool> IsFocusEnabledAttribute;
@@ -63,12 +65,17 @@ protected:
 	TAttribute<bool> GetIsSpatializationEnabledAttribute() const;
 	TAttribute<bool> GetIsAirAbsorptionEnabledAttribute() const;
 	TAttribute<bool> GetIsReverbSendEnabledAttribute() const;
+	TAttribute<bool> GetIsPriorityAttenuationEnabledAttribute() const;
 
 	EVisibility IsLinearMethodSelected() const;
 	EVisibility IsCustomReverbSendCurveSelected() const;
 	EVisibility IsLinearOrCustomReverbMethodSelected() const;
 	EVisibility IsManualReverbSendSelected() const;
 	EVisibility IsCustomAirAbsorptionCurveSelected() const;
+	EVisibility IsPriorityAttenuationLinearMethodSelected() const;
+	EVisibility IsCustomPriorityAttenuationCurveSelected() const;
+	EVisibility IsLinearOrCustomPriorityAttenuationSelected() const;
+	EVisibility IsManualPriorityAttenuationSelected() const;
 };
 
 class FForceFeedbackAttenuationSettingsCustomization : public FBaseAttenuationSettingsCustomization
