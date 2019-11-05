@@ -12,6 +12,7 @@
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
+#include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "NiagaraSystemScriptViewModel.h"
 #include "NiagaraScriptGraphViewModel.h"
 #include "NiagaraSequence.h"
@@ -584,30 +585,41 @@ void FNiagaraSystemViewModel::SetToolkitCommands(const TSharedRef<FUICommandList
 	ToolkitCommands = InToolkitCommands;
 }
 
-const TArray<FNiagaraStackModuleData>& FNiagaraSystemViewModel::GetStackModuleDataForEmitter(TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel)
+const TArray<FNiagaraStackModuleData>& FNiagaraSystemViewModel::GetStackModuleData(UNiagaraStackEntry* ModuleEntry)
 {
-	FGuid EmitterHandleId;
-	TSharedRef<FNiagaraEmitterHandleViewModel>* FoundModel = EmitterHandleViewModels.FindByPredicate([EmitterViewModel](TSharedRef<FNiagaraEmitterHandleViewModel> CurrentViewModel)
-	{ return CurrentViewModel->GetEmitterViewModel() == EmitterViewModel; });
-	checkf(FoundModel != nullptr, TEXT("Couldn't get stack module data for emitter"));
-	if (FoundModel)
+	FGuid StackDataId;
+	UNiagaraEmitter* Emitter = nullptr;
+	if (ModuleEntry->GetEmitterViewModel().IsValid())
 	{
-		EmitterHandleId = (*FoundModel)->GetEmitterHandle()->GetId();
-		if (!EmitterToCachedStackModuleData.Contains(EmitterHandleId))
+		TSharedRef<FNiagaraEmitterHandleViewModel>* FoundModel = EmitterHandleViewModels.FindByPredicate([ModuleEntry](TSharedRef<FNiagaraEmitterHandleViewModel> CurrentViewModel)
 		{
-			// If not cached, rebuild
-			UNiagaraEmitter* Emitter = (*FoundModel)->GetEmitterViewModel()->GetEmitter();
-			TArray<FNiagaraStackModuleData> StackModuleData;
-			BuildStackModuleData(GetSystem().GetSystemSpawnScript(), EmitterHandleId, StackModuleData);
-			BuildStackModuleData(GetSystem().GetSystemUpdateScript(), EmitterHandleId, StackModuleData);
-			BuildStackModuleData(Emitter->EmitterSpawnScriptProps.Script, EmitterHandleId, StackModuleData);
-			BuildStackModuleData(Emitter->EmitterUpdateScriptProps.Script, EmitterHandleId, StackModuleData);
-			BuildStackModuleData(Emitter->SpawnScriptProps.Script, EmitterHandleId, StackModuleData);
-			BuildStackModuleData(Emitter->UpdateScriptProps.Script, EmitterHandleId, StackModuleData);
-			EmitterToCachedStackModuleData.Add(EmitterHandleId) = StackModuleData;
+			return CurrentViewModel->GetEmitterViewModel() == ModuleEntry->GetEmitterViewModel(); 
+		});
+		checkf(FoundModel != nullptr, TEXT("Couldn't get stack module data for emitter"));
+		StackDataId = (*FoundModel)->GetEmitterHandle()->GetId();
+		Emitter = ModuleEntry->GetEmitterViewModel()->GetEmitter();
+	}
+	else
+	{
+		StackDataId = FGuid();
+	}
+
+	TArray<FNiagaraStackModuleData>* StackModuleData = GuidToCachedStackModuleData.Find(StackDataId);
+	if (StackModuleData == nullptr)
+	{
+		// If not cached, rebuild
+		StackModuleData = &GuidToCachedStackModuleData.Add(StackDataId);
+		BuildStackModuleData(GetSystem().GetSystemSpawnScript(), StackDataId, *StackModuleData);
+		BuildStackModuleData(GetSystem().GetSystemUpdateScript(), StackDataId, *StackModuleData);
+		if (StackDataId.IsValid() && Emitter != nullptr)
+		{
+			BuildStackModuleData(Emitter->EmitterSpawnScriptProps.Script, StackDataId, *StackModuleData);
+			BuildStackModuleData(Emitter->EmitterUpdateScriptProps.Script, StackDataId, *StackModuleData);
+			BuildStackModuleData(Emitter->SpawnScriptProps.Script, StackDataId, *StackModuleData);
+			BuildStackModuleData(Emitter->UpdateScriptProps.Script, StackDataId, *StackModuleData);
 		}
 	}
-	return EmitterToCachedStackModuleData[EmitterHandleId];
+	return *StackModuleData;
 }
 
 UNiagaraStackViewModel* FNiagaraSystemViewModel::GetSystemStackViewModel()
@@ -797,7 +809,7 @@ void FNiagaraSystemViewModel::RefreshEmitterHandleViewModels()
 {
 	TArray<TSharedRef<FNiagaraEmitterHandleViewModel>> OldViewModels = EmitterHandleViewModels;
 	EmitterHandleViewModels.Empty();
-	EmitterToCachedStackModuleData.Empty();
+	GuidToCachedStackModuleData.Empty();
 
 	// Map existing view models to the real instances that now exist. Reuse if we can. Create a new one if we cannot.
 	TArray<FGuid> ValidEmitterHandleIds;
@@ -1292,12 +1304,12 @@ void FNiagaraSystemViewModel::EmitterScriptGraphChanged(const FEdGraphEditAction
 		EmitterIdsRequiringSequencerTrackUpdate.AddUnique(OwningEmitterHandleId);
 	}
 	// Remove from cache on graph change 
-	EmitterToCachedStackModuleData.Remove(OwningEmitterHandleId);
+	GuidToCachedStackModuleData.Remove(OwningEmitterHandleId);
 }
 
 void FNiagaraSystemViewModel::SystemScriptGraphChanged(const FEdGraphEditAction& InAction)
 {
-	EmitterToCachedStackModuleData.Empty();
+	GuidToCachedStackModuleData.Empty();
 }
 
 void FNiagaraSystemViewModel::EmitterParameterStoreChanged(const FNiagaraParameterStore& ChangedParameterStore, const UNiagaraScript& OwningScript)

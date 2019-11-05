@@ -431,14 +431,9 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 	// Generate dependency errors with their fixes
 	TArray<UNiagaraNodeFunctionCall*> FoundCalls;
 	TArray<FNiagaraModuleDependency> DependenciesNeeded;
-
-
-	TArray<FNiagaraStackModuleData> SystemModuleData;
-	if (GetEmitterViewModel().IsValid())
-	{
-		SystemModuleData = GetSystemViewModel()->GetStackModuleDataForEmitter(GetEmitterViewModel().ToSharedRef());
-	}
+	TArray<FNiagaraStackModuleData> SystemModuleData = GetSystemViewModel()->GetStackModuleData(this);
 	int32 ModuleIndex = INDEX_NONE;
+
 	for (int i = 0; i < SystemModuleData.Num(); i++)
 	{
 		auto ModuleData = SystemModuleData[i];
@@ -612,7 +607,9 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 								{
 									return RequiredDependency.Id == Dependency.Id;
 								});
-								if (bRequiredDependencyFound) // check for multiple dependents along the way, and stop adjacent to the last one
+								if (bRequiredDependencyFound && 
+									(Dependency.ScriptConstraint != ENiagaraModuleDependencyScriptConstraint::SameScript ||
+									SystemModuleData[ModuleIndex].Usage == SystemModuleData[i].Usage)) // check for multiple dependents along the way, and stop adjacent to the last one
 								{
 									ENiagaraScriptUsage DependencyUsage = SystemModuleData[i].Usage;
 									const FNiagaraEmitterHandle* EmitterHandle = GetEmitterViewModel().IsValid()
