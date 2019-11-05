@@ -183,12 +183,12 @@ void SDataprepConsumerWidget::SetDataprepConsumer(UDataprepContentConsumer* InDa
 	{
 		if(DataprepConsumerPtr.IsValid())
 		{
-			DataprepConsumerPtr->GetOnChanged().RemoveAll( this );
+			DataprepConsumerPtr->GetOnChanged().Remove( OnConsumerChangedHandle );
 		}
 
 		DataprepConsumerPtr = InDataprepConsumer;
 
-		InDataprepConsumer->GetOnChanged().AddRaw( this, &SDataprepConsumerWidget::OnConsumerChanged );
+		OnConsumerChangedHandle = InDataprepConsumer->GetOnChanged().AddSP( this, &SDataprepConsumerWidget::OnConsumerChanged );
 
 		OnConsumerChanged();
 	}
@@ -219,6 +219,14 @@ void SDataprepConsumerWidget::Construct(const FArguments& InArgs )
 	if(InArgs._DataprepConsumer)
 	{
 		SetDataprepConsumer( InArgs._DataprepConsumer );
+	}
+}
+
+SDataprepConsumerWidget::~SDataprepConsumerWidget()
+{
+	if ( UDataprepContentConsumer* DataprepConsumer = DataprepConsumerPtr.Get() )
+	{
+		DataprepConsumer->GetOnChanged().Remove( OnConsumerChangedHandle );
 	}
 }
 

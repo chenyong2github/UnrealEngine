@@ -70,8 +70,9 @@ public:
 	SLATE_ARGUMENT(UDataprepContentConsumer*, DataprepConsumer)
 	SLATE_END_ARGS()
 
-public:
 	void Construct(const FArguments& InArgs );
+
+	virtual ~SDataprepConsumerWidget();
 
 	/** Update DataprepConsumerPtr and content folder's and level name's text boxes */
 	void SetDataprepConsumer( UDataprepContentConsumer* DataprepConsumer );
@@ -115,6 +116,8 @@ private:
 	TSharedPtr< FDataprepDetailsViewColumnSizeData > ColumnSizeData;
 	/** Relative width to control splitters. */
 	float ColumnWidth;
+
+	FDelegateHandle OnConsumerChangedHandle;
 };
 
 class SDataprepDetailsView : public SCompoundWidget, public FGCObject
