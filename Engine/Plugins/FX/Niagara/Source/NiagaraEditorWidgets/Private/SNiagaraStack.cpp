@@ -65,7 +65,7 @@ public:
 		SLATE_ATTRIBUTE(EVisibility, IssueIconVisibility);
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs, TSharedRef<FNiagaraEmitterHandleViewModel> InEmitterHandleViewModel)
+	void Construct(const FArguments& InArgs, TSharedRef<FNiagaraEmitterHandleViewModel> InEmitterHandleViewModel, UNiagaraStackEntry* InRootEntry)
 	{
 		EmitterHandleViewModel = InEmitterHandleViewModel;
 
@@ -117,7 +117,7 @@ public:
 						.VAlign(VAlign_Center)
 						.Padding(4, 0, 0, 0)
 						[
-							SNew(SNiagaraStackIssueIcon, EmitterHandleViewModel->GetEmitterStackViewModel(), EmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntry())
+							SNew(SNiagaraStackIssueIcon, EmitterHandleViewModel->GetEmitterStackViewModel(), InRootEntry)
 							.Visibility(InArgs._IssueIconVisibility)
 						]
 					]
@@ -639,13 +639,13 @@ TSharedRef<ITableRow> SNiagaraStack::OnGenerateRowForTopLevelObject(TSharedRef<U
 			.VAlign(VAlign_Center)
 			.Padding(4, 0, 2, 0)
 			[
-				SNew(SNiagaraStackIssueIcon, Item->SystemViewModel->GetSystemStackViewModel(), Item->SystemViewModel->GetSystemStackViewModel()->GetRootEntry())
+				SNew(SNiagaraStackIssueIcon, Item->SystemViewModel->GetSystemStackViewModel(), Item->RootEntry.Get())
 				.Visibility(this, &SNiagaraStack::GetIssueIconVisibility)
 			];
 	}
 	else if(Item->EmitterHandleViewModel.IsValid())
 	{
-		Content = SNew(SNiagaraStackEmitterHeader, Item->EmitterHandleViewModel.ToSharedRef())
+		Content = SNew(SNiagaraStackEmitterHeader, Item->EmitterHandleViewModel.ToSharedRef(), Item->RootEntry.Get())
 			.IssueIconVisibility(this, &SNiagaraStack::GetIssueIconVisibility);
 	}
 

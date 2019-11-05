@@ -22,6 +22,18 @@
 #define LOCTEXT_NAMESPACE "NiagaraStackViewModel"
 const double UNiagaraStackViewModel::MaxSearchTime = .02f; // search at 50 fps
 
+UNiagaraStackViewModel::FTopLevelViewModel::FTopLevelViewModel(TSharedPtr<FNiagaraSystemViewModel> InSystemViewModel)
+	: SystemViewModel(InSystemViewModel)
+	, RootEntry(InSystemViewModel->GetSystemStackViewModel()->GetRootEntry())
+{
+}
+
+UNiagaraStackViewModel::FTopLevelViewModel::FTopLevelViewModel(TSharedPtr<FNiagaraEmitterHandleViewModel> InEmitterHandleViewModel)
+	: EmitterHandleViewModel(InEmitterHandleViewModel)
+	, RootEntry(InEmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntry())
+{
+}
+
 bool UNiagaraStackViewModel::FTopLevelViewModel::IsValid() const
 {
 	return (SystemViewModel.IsValid() && EmitterHandleViewModel.IsValid() == false) ||
@@ -62,7 +74,7 @@ FText UNiagaraStackViewModel::FTopLevelViewModel::GetDisplayName() const
 
 bool UNiagaraStackViewModel::FTopLevelViewModel::operator==(const FTopLevelViewModel& Other) const
 {
-	return Other.SystemViewModel == SystemViewModel && Other.EmitterHandleViewModel == EmitterHandleViewModel;
+	return Other.SystemViewModel == SystemViewModel && Other.EmitterHandleViewModel == EmitterHandleViewModel && Other.RootEntry == RootEntry;
 }
 
 void UNiagaraStackViewModel::InitializeWithViewModels(TSharedPtr<FNiagaraSystemViewModel> InSystemViewModel, TSharedPtr<FNiagaraEmitterHandleViewModel> InEmitterHandleViewModel, FNiagaraStackViewModelOptions InOptions)
@@ -656,8 +668,11 @@ void UNiagaraStackViewModel::RefreshTopLevelViewModels()
 		if (RootChild->GetEmitterViewModel().IsValid())
 		{
 			TSharedPtr<FNiagaraEmitterHandleViewModel> RootChildEmitterHandleViewModel = RootChild->GetSystemViewModel()->GetEmitterHandleViewModelForEmitter(RootChild->GetEmitterViewModel()->GetEmitter());
-			TSharedRef<FTopLevelViewModel>* CurrentTopLevelViewModelPtr = CurrentTopLevelViewModels.FindByPredicate(
-				[&RootChildEmitterHandleViewModel](const TSharedRef<FTopLevelViewModel>& TopLevelViewModel) { return TopLevelViewModel->EmitterHandleViewModel == RootChildEmitterHandleViewModel; });
+			TSharedRef<FTopLevelViewModel>* CurrentTopLevelViewModelPtr = CurrentTopLevelViewModels.FindByPredicate([&RootChildEmitterHandleViewModel](const TSharedRef<FTopLevelViewModel>& TopLevelViewModel) 
+			{ 
+				return TopLevelViewModel->EmitterHandleViewModel == RootChildEmitterHandleViewModel &&
+					TopLevelViewModel->RootEntry == RootChildEmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntry(); 
+			});
 			if (CurrentTopLevelViewModelPtr != nullptr)
 			{
 				TopLevelViewModel = *CurrentTopLevelViewModelPtr;
@@ -669,8 +684,11 @@ void UNiagaraStackViewModel::RefreshTopLevelViewModels()
 		}
 		else
 		{
-			TSharedRef<FTopLevelViewModel>* CurrentTopLevelViewModelPtr = CurrentTopLevelViewModels.FindByPredicate(
-				[RootChild](const TSharedRef<FTopLevelViewModel>& TopLevelViewModel) { return TopLevelViewModel->SystemViewModel == RootChild->GetSystemViewModel(); });
+			TSharedRef<FTopLevelViewModel>* CurrentTopLevelViewModelPtr = CurrentTopLevelViewModels.FindByPredicate([RootChild](const TSharedRef<FTopLevelViewModel>& TopLevelViewModel)
+			{ 
+				return TopLevelViewModel->SystemViewModel == RootChild->GetSystemViewModel() &&
+					TopLevelViewModel->RootEntry == RootChild->GetSystemViewModel()->GetSystemStackViewModel()->GetRootEntry();
+			});
 			if (CurrentTopLevelViewModelPtr != nullptr)
 			{
 				TopLevelViewModel = *CurrentTopLevelViewModelPtr;
