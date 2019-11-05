@@ -1119,10 +1119,7 @@ void FSteamVRInputDevice::InitControllerMappings()
 	{
 		for (unsigned int hand = 0; hand < k_unMaxTrackedDeviceCount; ++hand)
 		{
-			if (DeviceToControllerMap[id] < SteamVRInputDeviceConstants::MaxUnrealControllers && hand < k_unMaxTrackedDeviceCount)
-			{
-				UnrealControllerIdAndHandToDeviceIdMap[DeviceToControllerMap[id]][hand] = INDEX_NONE;
-			}
+			UnrealControllerIdAndHandToDeviceIdMap[id][hand] = INDEX_NONE;
 		}
 	}
 
