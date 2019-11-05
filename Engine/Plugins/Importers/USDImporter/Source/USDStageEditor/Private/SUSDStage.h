@@ -47,6 +47,9 @@ protected:
 
 	void OpenStage( const TCHAR* FilePath );
 
+	void OnStageActorLoaded( AUsdStageActor* InUsdStageActor );
+	void OnStageActorPropertyChanged( UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent );
+
 protected:
 	TSharedPtr< class SUsdStageInfo > UsdStageInfoWidget;
 	TSharedPtr< class SUsdStageTreeView > UsdStageTreeView;
@@ -55,6 +58,8 @@ protected:
 
 	TWeakObjectPtr< AUsdStageActor > UsdStageActor;
 
+	FDelegateHandle OnActorLoadedHandle;
+	FDelegateHandle OnStageActorPropertyChangedHandle;
 	FDelegateHandle OnStageChangedHandle;
 	FDelegateHandle OnStageEditTargetChangedHandle;
 	FDelegateHandle OnPrimChangedHandle;

@@ -63,7 +63,7 @@ void SUsdStageInfo::Construct( const FArguments& InArgs, AUsdStageActor* UsdStag
 			.HAlign( HAlign_Left )
 			.Padding( 2.f, 2.f )
 			[
-				SNew( STextComboBox )
+				SAssignNew( InitialLoadSetWidget, STextComboBox )
 				.OptionsSource( &InitialLoadSetStrings )
 				.InitiallySelectedItem( InitialLoadSetStrings[ (int32)StageInfos.InitialLoadSet ] )
 				.OnSelectionChanged( this, &SUsdStageInfo::OnInitialLoadSetSelectionChanged )
@@ -79,6 +79,13 @@ void SUsdStageInfo::RefreshStageInfos( AUsdStageActor* UsdStageActor )
 	if ( !UsdStageActor )
 	{
 		return;
+	}
+
+	StageInfos.InitialLoadSet = UsdStageActor->InitialLoadSet;
+
+	if ( InitialLoadSetWidget && InitialLoadSetStrings.IsValidIndex( (int32)StageInfos.InitialLoadSet ) )
+	{
+		InitialLoadSetWidget->SetSelectedItem( InitialLoadSetStrings[ (int32)StageInfos.InitialLoadSet ] );
 	}
 
 	if ( const pxr::UsdStageRefPtr& UsdStage = UsdStageActor->GetUsdStage() )
