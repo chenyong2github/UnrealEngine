@@ -13,16 +13,17 @@ namespace Chaos
 template<class T, int d>
 struct TRigidBodyContactConstraint
 {
-	TRigidBodyContactConstraint() : AccumulatedImpulse(0.f), bDisabled(false), Lifespan(0) {}
+	TRigidBodyContactConstraint() : bDisabled(false), Normal(0), AccumulatedImpulse(0.f) {}
 	TGeometryParticleHandle<T, d>* Particle;
 	TGeometryParticleHandle<T, d>* Levelset;
-	TVector<T, d> Normal;
-	TVector<T, d> Location;
-	T Phi;
-	TVector<T, d> AccumulatedImpulse;
+	const FImplicitObject* Geometry[2];
 
 	bool bDisabled;
-	int32 Lifespan;
+	TVector<T, d> Normal;
+	TVector<T, d> Location;
+	TVector<T, d> LocalLocation;
+	T Phi;
+	TVector<T, d> AccumulatedImpulse;
 
 	FString ToString() const
 	{
