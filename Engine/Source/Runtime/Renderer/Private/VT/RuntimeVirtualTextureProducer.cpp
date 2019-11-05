@@ -62,6 +62,7 @@ void FRuntimeVirtualTextureFinalizer::Finalize(FRHICommandListImmediate& RHICmdL
 	RenderPageBatchDesc.MaterialType = MaterialType;
 	RenderPageBatchDesc.MaxLevel = Desc.MaxLevel;
 	RenderPageBatchDesc.bClearTextures = bClearTextures;
+	RenderPageBatchDesc.bIsThumbnails = false;
 	RenderPageBatchDesc.DebugType = ERuntimeVirtualTextureDebugType::None;
 	
 	for (int LayerIndex = 0; LayerIndex < RuntimeVirtualTexture::MaxTextureLayers; ++LayerIndex)
