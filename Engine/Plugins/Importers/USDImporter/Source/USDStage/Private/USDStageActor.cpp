@@ -231,7 +231,9 @@ AUsdStageActor::AUsdStageActor()
 
 AUsdStageActor::~AUsdStageActor()
 {
+#if USE_USD_SDK
 	UnrealUSDWrapper::GetUsdStageCache().Erase( UsdStageStore.Get() );
+#endif // #if USE_USD_SDK
 }
 
 #if USE_USD_SDK
