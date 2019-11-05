@@ -54,7 +54,7 @@ private:
 	ULevel* FindLevel( const FString& InLevelName );
 
 	/** Move assets if destination package path has changed since last call to UDatasmithConsumer::Run */
-	void UpdateDestinationPackage();
+	void UpdateScene();
 
 	/** Move level if destination level's name has changed since last call to UDatasmithConsumer::Run */
 	void MoveLevel();
