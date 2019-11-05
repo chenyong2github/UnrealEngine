@@ -67,11 +67,11 @@ public:
 
 	// The width of each sprite in grid mode
 	UPROPERTY(Category = Grid, EditAnywhere, meta = (UIMin = 1, ClampMin = 1))
-	int32 CellWidth;
+	int32 CellWidth = 64;
 
 	// The height of each sprite in grid mode
 	UPROPERTY(Category = Grid, EditAnywhere, meta = (UIMin = 1, ClampMin = 1))
-	int32 CellHeight;
+	int32 CellHeight = 64;
 
 	// Number of cells extracted horizontally. Can be used to limit the number of sprites extracted. Set to 0 to extract all sprites
 	UPROPERTY(Category = Grid, EditAnywhere, meta = (UIMin = 0, ClampMin = 0))
