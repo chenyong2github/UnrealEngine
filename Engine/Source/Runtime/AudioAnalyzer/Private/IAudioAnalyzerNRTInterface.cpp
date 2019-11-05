@@ -15,7 +15,7 @@ namespace Audio
 		Serialize(DeserializedResult);
 	}
 	
-	FString IAnalyzerNRTResult::ToString()
+	FString IAnalyzerNRTResult::ToString() const
 	{
 		return FString(TEXT("To use, override ToString() in this implementation of IAnalyzerNRTResult."));
 	}
