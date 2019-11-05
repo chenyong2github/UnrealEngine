@@ -117,6 +117,7 @@ public:
 
 	void Refresh() { TreeView->Refresh(); }
 
+	TSharedPtr<SWidget> GetAddNewMenu() { return AddNewMenu; }
 
 protected:
 	void OnAddProducer( UClass* ProducerClass );
@@ -125,6 +126,7 @@ private:
 	void OnDataprepProducersChanged(FDataprepAssetChangeType ChangeType, int32 Index);
 
 private:
+	TSharedPtr<SWidget> AddNewMenu;
 	TSharedPtr<FUICommandList> CommandList;
 	TWeakObjectPtr<UDataprepAssetProducers> AssetProducersPtr;
 	TSharedPtr<SDataprepProducersTreeView> TreeView;
