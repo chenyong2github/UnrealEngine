@@ -226,7 +226,7 @@ public:
 	static constexpr T DefaultMaxPayloadBounds = 100000;
 	static constexpr int32 DefaultMaxChildrenInLeaf = 12;
 	static constexpr int32 DefaultMaxTreeDepth = 16;
-	static constexpr int32 DefaultMaxNumToProcess = 4000;
+	static constexpr int32 DefaultMaxNumToProcess = 4000000;
 	static constexpr ESpatialAcceleration StaticType = TIsSame<TAABBTreeLeafArray<TPayloadType, T>, TLeafType>::Value ? ESpatialAcceleration::AABBTree : 
 		(TIsSame<TBoundingVolume<TPayloadType, T, 3>, TLeafType>::Value ? ESpatialAcceleration::AABBTreeBV : ESpatialAcceleration::Unknown);
 	TAABBTree()
@@ -275,6 +275,14 @@ public:
 		*/
 
 	}
+
+	template <typename ParticleView>
+	void Reinitialize(const ParticleView& Particles)
+	{
+		GenerateTree(Particles);
+	}
+
+	virtual TArray<TPayloadType> FindAllIntersections(const TBox<T, 3>& Box) const override { return FindAllIntersectionsImp(Box); }
 
 	bool DumpTreeToLog(int32 NodeIdx, int32 ParentNode, TBox<T,3>& Bounds)
 	{
@@ -835,6 +843,36 @@ private:
 		return; // keep working
 	}
 
+	TArray<TPayloadType> FindAllIntersectionsImp(const TBox<T, 3>& Intersection) const
+	{
+		struct FSimpleVisitor
+		{
+			FSimpleVisitor(TArray<TPayloadType>& InResults) : CollectedResults(InResults) {}
+			bool VisitOverlap(const TSpatialVisitorData<TPayloadType>& Instance)
+			{
+				CollectedResults.Add(Instance.Payload);
+				return true;
+			}
+			bool VisitSweep(const TSpatialVisitorData<TPayloadType>& Instance, T& CurLength)
+			{
+				check(false);
+				return true;
+			}
+			bool VisitRaycast(const TSpatialVisitorData<TPayloadType>& Instance, T& CurLength)
+			{
+				check(false);
+				return true;
+			}
+			TArray<TPayloadType>& CollectedResults;
+		};
+
+		TArray<TPayloadType> Results;
+		FSimpleVisitor Collector(Results);
+		Overlap(Intersection, Collector);
+
+		return Results;
+	}
+
 
 	TAABBTree(const TAABBTree<TPayloadType, TLeafType, T>& Other)
 		: ISpatialAcceleration<TPayloadType, T, 3>(StaticType)
@@ -880,8 +918,7 @@ private:
 template<typename TPayloadType, typename TLeafType, class T>
 FArchive& operator<<(FChaosArchive& Ar, TAABBTree<TPayloadType, TLeafType, T>& AABBTree)
 {
-	check(false);
-	//AABBTree.Serialize(Ar);
+	AABBTree.Serialize(Ar);
 	return Ar;
 }
 

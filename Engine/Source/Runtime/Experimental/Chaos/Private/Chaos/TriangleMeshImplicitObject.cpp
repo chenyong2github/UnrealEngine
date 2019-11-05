@@ -182,6 +182,12 @@ struct TTriangleMeshRaycastVisitor
 		return Visit<ERaycastType::Sweep>(TriIdx.Payload, CurLength);
 	}
 
+	bool VisitOverlap(TSpatialVisitorData<int32> TriIdx)
+	{
+		check(false);
+		return true;
+	}
+
 	const TParticles<T, 3>& Particles;
 	const TArray<TVector<int32, 3>>& Elements;
 	const TVector<T, 3>& StartPoint;
@@ -366,6 +372,18 @@ struct TTriangleMeshSweepVisitor
 	{
 	}
 
+	bool VisitOverlap(const TSpatialVisitorData<int32>& VisitData)
+	{
+		check(false);
+		return true;
+	}
+
+	bool VisitRaycast(const TSpatialVisitorData<int32>& VisitData, T& CurLength)
+	{
+		check(false);
+		return true;
+	}
+
 	bool VisitSweep(const TSpatialVisitorData<int32>& VisitData, T& CurLength)
 	{
 		const int32 TriIdx = VisitData.Payload;
@@ -378,7 +396,7 @@ struct TTriangleMeshSweepVisitor
 			TriMesh.MParticles.X(TriMesh.MElements[TriIdx][1]),
 			TriMesh.MParticles.X(TriMesh.MElements[TriIdx][2]));
 
-		if(GJKRaycast<T>(Tri, QueryGeom, StartTM, Dir, CurLength, Time, HitPosition, HitNormal, Thickness))
+		if(GJKRaycast2<T>(Tri, QueryGeom, StartTM, Dir, CurLength, Time, HitPosition, HitNormal, Thickness))
 		{
 			if(Time < OutTime)
 			{
@@ -420,7 +438,7 @@ bool TTriangleMeshImplicitObject<T>::SweepGeomImp(const QueryGeomType& QueryGeom
 	const TBox<T, 3> QueryBounds = QueryGeom.BoundingBox();
 	const TVector<T, 3> StartPoint = StartTM.TransformPositionNoScale(QueryBounds.Center());
 	const TVector<T, 3> Inflation = QueryBounds.Extents() * 0.5 + TVector<T, 3>(Thickness);
-	BVH.template Sweep<TTriangleMeshSweepVisitor<QueryGeomType, T>, false>(StartPoint, Dir, Length, Inflation, SQVisitor);
+	BVH.template Sweep<TTriangleMeshSweepVisitor<QueryGeomType, T>>(StartPoint, Dir, Length, Inflation, SQVisitor);
 
 	if (SQVisitor.OutTime <= Length)
 	{
@@ -566,6 +584,7 @@ void Chaos::TTriangleMeshImplicitObject<T>::RebuildBV()
 		BVEntries.Add({ this, Tri });
 	}
 	BVH.Reinitialize(BVEntries);
+
 }
 
 
