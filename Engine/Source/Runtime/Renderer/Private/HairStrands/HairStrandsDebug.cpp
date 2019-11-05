@@ -1028,7 +1028,8 @@ class FHairVisibilityDebugPPLLPS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		SHADER_PARAMETER(uint32, MaxPPLLNodeCount)
+		SHADER_PARAMETER(float, PPLLMeanListElementCountPerPixel)
+		SHADER_PARAMETER(float, PPLLMaxTotalListElementCount)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PPLLCounter)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PPLLNodeIndex)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, PPLLNodeData)
@@ -1406,7 +1407,9 @@ void RenderHairStrandsDebugInfo(FRHICommandListImmediate& RHICmdList, TArray<FVi
 			TShaderMapRef<FHairVisibilityDebugPPLLPS> PixelShader(View.ShaderMap, PermutationVector);
 
 			FHairVisibilityDebugPPLLPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairVisibilityDebugPPLLPS::FParameters>();
-			PassParameters->MaxPPLLNodeCount = GetMaxNodePerPixel(VisibilityData.PPLLNodeCounterTexture->GetDesc().Extent);
+
+			PassParameters->PPLLMeanListElementCountPerPixel = float(GetPPLLMeanListElementCountPerPixel());
+			PassParameters->PPLLMaxTotalListElementCount = float(GetPPLLMaxTotalListElementCount(VisibilityData.PPLLNodeIndexTexture->GetDesc().Extent));
 			PassParameters->PPLLCounter = PPLLNodeCounterTexture;
 			PassParameters->PPLLNodeIndex = PPLLNodeIndexTexture;
 			PassParameters->PPLLNodeData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(PPLLNodeDataBuffer));
