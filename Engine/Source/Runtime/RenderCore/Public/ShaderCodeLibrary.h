@@ -21,7 +21,10 @@ struct RENDERCORE_API FShaderCodeLibraryPipeline
 	FSHAHash HullShader;
 	FSHAHash DomainShader;
 	mutable uint32 Hash;
-	
+
+	/** Fills the hashes from the pipeline stage shaders */
+	void Initialize(FShaderPipeline* Pipeline);
+
 	FShaderCodeLibraryPipeline() : Hash(0) {}
 	
 	friend bool operator ==(const FShaderCodeLibraryPipeline& A,const FShaderCodeLibraryPipeline& B)
@@ -41,6 +44,9 @@ struct RENDERCORE_API FShaderCodeLibraryPipeline
 		}
 		return Key.Hash;
 	}
+
+	/** Computes a longer hash that uniquely identifies the whole pipeline, used in FStableShaderKeyAndValue */
+	void GetPipelineHash(FSHAHash& Output);
 	
 	friend FArchive& operator<<( FArchive& Ar, FShaderCodeLibraryPipeline& Info )
 	{
@@ -75,6 +81,7 @@ struct RENDERCORE_API FStableShaderKeyAndValue
 	FName TargetPlatform;
 	FName VFType;
 	FName PermutationId;
+	FSHAHash PipelineHash;
 
 	uint32 KeyHash;
 
@@ -92,6 +99,9 @@ struct RENDERCORE_API FStableShaderKeyAndValue
 	void ToString(FString& OutResult) const;
 	static FString HeaderLine();
 
+	/** Computes pipeline hash from the passed pipeline. Pass nullptr to clear */
+	void SetPipelineHash(FShaderPipeline* Pipeline);
+
 	friend bool operator ==(const FStableShaderKeyAndValue& A, const FStableShaderKeyAndValue& B)
 	{
 		return
@@ -104,7 +114,8 @@ struct RENDERCORE_API FStableShaderKeyAndValue
 			A.TargetFrequency == B.TargetFrequency &&
 			A.TargetPlatform == B.TargetPlatform &&
 			A.VFType == B.VFType &&
-			A.PermutationId == B.PermutationId;
+			A.PermutationId == B.PermutationId &&
+			A.PipelineHash == B.PipelineHash;
 	}
 
 	friend uint32 GetTypeHash(const FStableShaderKeyAndValue &Key)
