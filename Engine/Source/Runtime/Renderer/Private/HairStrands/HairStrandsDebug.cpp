@@ -22,7 +22,7 @@
 #include "RenderTargetTemp.h"
 #include "CanvasTypes.h"
 #include "ShaderPrintParameters.h"
-#include "PixelShaderUtils.h"
+#include "RenderGraphUtils.h"
 
 static int32 GDeepShadowDebugIndex = 0;
 static float GDeepShadowDebugScale = 20;
@@ -1019,10 +1019,10 @@ const TCHAR* ToString(EWorldType::Type Type)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FHairVisibilityDebugPPLLPS : public FGlobalShader
+class FHairVisibilityDebugPPLLCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FHairVisibilityDebugPPLLPS);
-	SHADER_USE_PARAMETER_STRUCT(FHairVisibilityDebugPPLLPS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FHairVisibilityDebugPPLLCS);
+	SHADER_USE_PARAMETER_STRUCT(FHairVisibilityDebugPPLLCS, FGlobalShader);
 
 	using FPermutationDomain = TShaderPermutationDomain<>;
 
@@ -1033,7 +1033,8 @@ class FHairVisibilityDebugPPLLPS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PPLLCounter)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PPLLNodeIndex)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, PPLLNodeData)
-		RENDER_TARGET_BINDING_SLOTS()
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(Texture2D, SceneColorTextureUAV)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
 		static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
@@ -1052,7 +1053,7 @@ class FHairVisibilityDebugPPLLPS : public FGlobalShader
 		OutEnvironment.SetDefine(TEXT("DEBUG_PPLL_PS"), 1);
 	}
 };
-IMPLEMENT_GLOBAL_SHADER(FHairVisibilityDebugPPLLPS, "/Engine/Private/HairStrands/HairStrandsVisibilityPPLLDebug.usf", "VisibilityDebugPPLLPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FHairVisibilityDebugPPLLCS, "/Engine/Private/HairStrands/HairStrandsVisibilityPPLLDebug.usf", "VisibilityDebugPPLLCS", SF_Compute);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1391,7 +1392,7 @@ void RenderHairStrandsDebugInfo(FRHICommandListImmediate& RHICmdList, TArray<FVi
 	if (ViewIndex < uint32(HairDatas->HairVisibilityViews.HairDatas.Num()))
 	{
 		const FHairStrandsVisibilityData& VisibilityData = HairDatas->HairVisibilityViews.HairDatas[ViewIndex];
-		if (GHairStrandsDebugPPLL && VisibilityData.PPLLNodeCounterTexture) // Check if PPLL rendering is used and its debuig view is enabled.
+		if (GHairStrandsDebugPPLL && VisibilityData.PPLLNodeCounterTexture) // Check if PPLL rendering is used and its debug view is enabled.
 		{
 			FRDGBuilder GraphBuilder(RHICmdList);
 			FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneTargets.GetSceneColor(), TEXT("SceneColorTexture"));
@@ -1399,25 +1400,21 @@ void RenderHairStrandsDebugInfo(FRHICommandListImmediate& RHICmdList, TArray<FVi
 			FRDGTextureRef PPLLNodeIndexTexture = GraphBuilder.RegisterExternalTexture(VisibilityData.PPLLNodeIndexTexture, TEXT("PPLLNodeIndexTexture"));
 			FRDGBufferRef  PPLLNodeDataBuffer = GraphBuilder.RegisterExternalBuffer(VisibilityData.PPLLNodeDataBuffer, TEXT("PPLLNodeDataBuffer"));
 
-			FRHIBlendState* PreMultipliedColorTransmittanceBlend = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_SourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI();
-			FRHIDepthStencilState* DepthStencilStateWrite = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-			FRHISamplerState* SamplerLinearClamp = TStaticSamplerState<SF_Trilinear>::GetRHI();
-
-			FHairVisibilityDebugPPLLPS::FPermutationDomain PermutationVector;
-			TShaderMapRef<FHairVisibilityDebugPPLLPS> PixelShader(View.ShaderMap, PermutationVector);
-
-			FHairVisibilityDebugPPLLPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairVisibilityDebugPPLLPS::FParameters>();
-
+			FHairVisibilityDebugPPLLCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairVisibilityDebugPPLLCS::FParameters>();
 			PassParameters->PPLLMeanListElementCountPerPixel = float(GetPPLLMeanListElementCountPerPixel());
 			PassParameters->PPLLMaxTotalListElementCount = float(GetPPLLMaxTotalListElementCount(VisibilityData.PPLLNodeIndexTexture->GetDesc().Extent));
 			PassParameters->PPLLCounter = PPLLNodeCounterTexture;
 			PassParameters->PPLLNodeIndex = PPLLNodeIndexTexture;
 			PassParameters->PPLLNodeData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(PPLLNodeDataBuffer));
 			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
+			PassParameters->SceneColorTextureUAV = GraphBuilder.CreateUAV(SceneColorTexture);
+			ShaderPrint::SetParameters(View, PassParameters->ShaderPrintParameters);
 
-			FPixelShaderUtils::AddFullscreenPass<FHairVisibilityDebugPPLLPS>(GraphBuilder, View.ShaderMap, RDG_EVENT_NAME("HairPPLLDebug"), *PixelShader, PassParameters,
-				View.ViewRect, PreMultipliedColorTransmittanceBlend, nullptr, DepthStencilStateWrite);
+			FHairVisibilityDebugPPLLCS::FPermutationDomain PermutationVector;
+			TShaderMapRef<FHairVisibilityDebugPPLLCS> ComputeShader(View.ShaderMap, PermutationVector);
+			FIntVector TextureSize = SceneColorTexture->Desc.GetSize(); TextureSize.Z = 1;
+			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairPPLLDebug"), *ComputeShader, PassParameters,
+				FIntVector::DivideAndRoundUp(TextureSize, FIntVector(8, 8, 1)));
 			GraphBuilder.Execute();
 		}
 	}
