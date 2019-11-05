@@ -77,7 +77,7 @@ struct FAnimNodeTracker
 		Map.Reserve(Source.Map.Num());
 		for (const auto& Iter : Source.Map)
 		{
-			if (Iter.Value.Top())
+			if (Iter.Value.Num() != 0)
 			{
 				FNodeStack& Stack = Map.Add(Iter.Key);
 				Stack.Push(Iter.Value.Top());
