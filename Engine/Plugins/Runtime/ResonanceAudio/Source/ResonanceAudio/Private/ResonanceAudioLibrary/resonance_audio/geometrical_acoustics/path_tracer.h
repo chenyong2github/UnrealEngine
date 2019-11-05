@@ -36,6 +36,7 @@ class PathTracer {
       : scene_manager_(scene_manager) {}
   ~PathTracer() {}
 
+#if INCLUDE_UNUSED_CODE
   // Traces sound propagation paths from a source.
   //
   // @param source Source from which paths are traced.
@@ -48,6 +49,7 @@ class PathTracer {
   std::vector<Path> TracePaths(const AcousticSource& source,
                                size_t min_num_rays, size_t max_depth,
                                float energy_threshold);
+#endif
 
  private:
   // Scene manager.
