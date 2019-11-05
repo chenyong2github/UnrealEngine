@@ -209,6 +209,9 @@ public:
 	void ProduceInput(const FNetworkSimTime SimTime, FlyingMovement::FInputCmd& Cmd) override;
 	void FinalizeFrame(const FlyingMovement::FMoveState& SyncState, const FlyingMovement::FAuxState& AuxState) override;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=FlyingMovementNetworking)
+	bool bEnableInterpolation = true;
+
 protected:
 
 	// Network Prediction
@@ -236,6 +239,7 @@ protected:
 	template<typename TNetSimModel>
 	void InitFlyingMovementNetSimModel(TNetSimModel* Model)
 	{
+		Model->RepProxy_Simulated.bAllowSimulatedExtrapolation = !bEnableInterpolation;
 		MovementSyncState.Bind(Model);
 		MovementAuxState.Bind(Model);
 	}
