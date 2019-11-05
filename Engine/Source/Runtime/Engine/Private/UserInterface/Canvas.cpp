@@ -1388,7 +1388,7 @@ void UCanvas::UpdateSafeZoneData()
 	else if(FSlateApplication::IsInitialized())
 	{
 		FDisplayMetrics DisplayMetrics;
-		FSlateApplication::Get().GetCachedDisplayMetrics(DisplayMetrics);
+		FSlateApplication::Get().GetDisplayMetrics(DisplayMetrics);
  		CachedDisplayWidth = DisplayMetrics.PrimaryDisplayWidth;
  		CachedDisplayHeight = DisplayMetrics.PrimaryDisplayHeight;
 
