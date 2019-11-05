@@ -82,7 +82,7 @@ public:
 	template <typename TContextType>
 	TContextType* FindContext() const
 	{
-		return Context.Find<TContextType>();
+		return Context.FindContext<TContextType>();
 	}
 
 	//~ Begin UObject Interface
@@ -104,6 +104,8 @@ private:
 	int32 IndexOfSection(const FName SectionName) const;
 
 	int32 FindInsertIndex(const FToolMenuSection& InSection) const;
+
+	bool IsRegistering() const;
 
 public:
 
@@ -161,6 +163,7 @@ public:
 private:
 
 	bool bRegistered;
+	bool bIsRegistering;
 
 	const ISlateStyle* StyleSet;
 
