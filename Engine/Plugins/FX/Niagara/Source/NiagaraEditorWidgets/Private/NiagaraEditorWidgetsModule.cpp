@@ -22,8 +22,23 @@ FNiagaraStackCurveEditorOptions::FNiagaraStackCurveEditorOptions()
 	, ViewMinOutput(0)
 	, ViewMaxOutput(1)
 	, bAreCurvesVisible(true)
+	, bNeedsInitializeView(true)
 	, Height(100)
 {
+}
+
+bool FNiagaraStackCurveEditorOptions::GetNeedsInitializeView() const
+{
+	return bNeedsInitializeView;
+}
+
+void FNiagaraStackCurveEditorOptions::InitializeView(float InViewMinInput, float InViewMaxInput, float InViewMinOutput, float InViewMaxOutput)
+{
+	ViewMinInput = InViewMinInput;
+	ViewMaxInput = InViewMaxInput;
+	ViewMinOutput = InViewMinOutput;
+	ViewMaxOutput = InViewMaxOutput;
+	bNeedsInitializeView = false;
 }
 
 float FNiagaraStackCurveEditorOptions::GetViewMinInput() const
