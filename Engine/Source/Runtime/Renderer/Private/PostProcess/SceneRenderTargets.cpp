@@ -389,7 +389,7 @@ FIntPoint FSceneRenderTargets::ComputeDesiredSize(const FSceneViewFamily& ViewFa
 
 		bIsSceneCapture |= View->bIsSceneCapture;
 		bIsReflectionCapture |= View->bIsReflectionCapture;
-		bIsVRScene |= (View->StereoPass != EStereoscopicPass::eSSP_FULL && GEngine->XRSystem.IsValid());
+		bIsVRScene |= (IStereoRendering::IsStereoEyeView(*View) && GEngine->XRSystem.IsValid());
 	}
 
 	{

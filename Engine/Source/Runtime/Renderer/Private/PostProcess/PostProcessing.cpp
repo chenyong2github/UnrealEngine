@@ -326,7 +326,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		};
 
 		const EStereoscopicPass StereoPass = View.StereoPass;
-		const bool bPrimaryView = IStereoRendering::IsAPrimaryView(View, GEngine->StereoRenderingDevice);
+		const bool bPrimaryView = IStereoRendering::IsAPrimaryView(View);
 		const bool bHasViewState = View.ViewState != nullptr;
 		const bool bDepthOfFieldEnabled = DiaphragmDOF::IsEnabled(View);
 		const bool bVisualizeDepthOfField = bDepthOfFieldEnabled && EngineShowFlags.VisualizeDOF;
@@ -1198,7 +1198,7 @@ static FRCPassPostProcessTonemap* AddTonemapper(
 	const EStereoscopicPass StereoPass = View.StereoPass;
 
 	FRenderingCompositeOutputRef TonemapperCombinedLUTOutputRef;
-	if (IStereoRendering::IsAPrimaryView(View, GEngine->StereoRenderingDevice))
+	if (IStereoRendering::IsAPrimaryView(View))
 	{
 		TonemapperCombinedLUTOutputRef = AddCombineLUTPass(Context.Graph);
 	}
