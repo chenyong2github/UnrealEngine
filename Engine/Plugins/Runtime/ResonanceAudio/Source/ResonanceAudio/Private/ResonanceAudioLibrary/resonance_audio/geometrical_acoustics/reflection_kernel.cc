@@ -70,6 +70,7 @@ AcousticRay ReflectionKernel::Reflect(const AcousticRay& incident_ray) const {
                      new_energies, reflected_ray_type,
                      reflected_ray_prior_distance);
 }
+#endif
 
 void ReflectionKernel::ReflectDiffuseRain(
     const AcousticRay& incident_ray, const AcousticRay& reference_reflected_ray,
@@ -96,6 +97,5 @@ void ReflectionKernel::ReflectDiffuseRain(
   diffuse_rain_ray->set_prior_distance(
       reference_reflected_ray.prior_distance());
 }
-#endif
 
 }  // namespace vraudio
