@@ -23,7 +23,7 @@
 #include "UObject/LazyObjectPtr.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
-#include "Uobject/PropertyPortFlags.h"
+#include "UObject/PropertyPortFlags.h"
 #include "UObject/PropertyTag.h"
 #include "UObject/ScriptInterface.h"
 #include "UObject/SoftObjectPtr.h"
