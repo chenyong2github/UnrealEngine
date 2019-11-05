@@ -200,6 +200,7 @@ namespace RuntimeVirtualTexture
 					Desc.MaterialType = MaterialType;
 					Desc.MaxLevel = MaxLevel;
 					Desc.bClearTextures = true;
+					Desc.bIsThumbnails = false;
 					Desc.DebugType = DebugType;
 					Desc.NumPageDescs = 1;
 					Desc.Targets[0].Texture = RenderTileResources.GetRenderTarget(0);
