@@ -143,7 +143,7 @@ void SMediaPlayerEditorMedia::RegisterMenus()
 				{
 					if (Context->SelectedAsset)
 					{
-						FAssetEditorManager::Get().OpenEditorForAsset(Context->SelectedAsset);
+						GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Context->SelectedAsset);
 					}
 				}
 			})
