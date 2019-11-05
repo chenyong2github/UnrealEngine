@@ -219,7 +219,7 @@ class TPBDRigidsEvolutionBase
 	typedef TFunction<void(const TParticleView<TPBDRigidParticles<T, d>>&, const T)> FUpdatePositionRule;
 	typedef TFunction<void(TPBDRigidParticles<T, d>&, const T, const T, const int32)> FKinematicUpdateRule;
 
-	CHAOS_API TPBDRigidsEvolutionBase(TPBDRigidsSOAs<T, d>& InParticles, int32 InNumIterations = 1);
+	CHAOS_API TPBDRigidsEvolutionBase(TPBDRigidsSOAs<T, d>& InParticles, int32 InNumIterations = 1, int32 InNumPushOutIterations = 1);
 	CHAOS_API virtual ~TPBDRigidsEvolutionBase();
 
 	CHAOS_API TArray<TGeometryParticleHandle<T, d>*> CreateStaticParticles(int32 NumParticles, const TGeometryParticleParameters<T, d>& Params = TGeometryParticleParameters<T, d>())
@@ -285,6 +285,11 @@ class TPBDRigidsEvolutionBase
 	CHAOS_API void SetNumIterations(int32 InNumIterations)
 	{
 		NumIterations = InNumIterations;
+	}
+
+	CHAOS_API void SetNumPushOutIterations(int32 InNumIterations)
+	{
+		NumPushOutIterations = InNumIterations;
 	}
 
 	CHAOS_API void EnableParticle(TGeometryParticleHandle<T,d>* Particle, const TGeometryParticleHandle<T, d>* ParentParticle)
@@ -411,6 +416,7 @@ class TPBDRigidsEvolutionBase
 			ConstraintRule->UpdateAccelerationStructures(Island);
 		}
 
+		// @todo(ccaulfield): track whether we are sufficiently solved and can early-out
 		for (int i = 0; i < NumIterations; ++i)
 		{
 			for (FConstraintRule* ConstraintRule : ConstraintRules)
@@ -571,9 +577,17 @@ protected:
 
 	void ApplyPushOut(const T Dt, int32 Island)
 	{
-		for (FConstraintRule* ConstraintRule : ConstraintRules)
+		bool bNeedsAnotherIteration = true;
+		for (int32 It = 0; bNeedsAnotherIteration && (It < NumPushOutIterations); ++It)
 		{
-			ConstraintRule->ApplyPushOut(Dt, Island);
+			bNeedsAnotherIteration = false;
+			for (FConstraintRule* ConstraintRule : ConstraintRules)
+			{
+				if (ConstraintRule->ApplyPushOut(Dt, Island, It, NumPushOutIterations))
+				{
+					bNeedsAnotherIteration = true;
+				}
+			}
 		}
 	}
 
@@ -681,6 +695,7 @@ protected:
 	FGraphEventRef AccelerationStructureTaskComplete;
 
 	int32 NumIterations;
+	int32 NumPushOutIterations;
 	TUniquePtr<ISpatialAccelerationCollectionFactory<T, d>> SpatialCollectionFactory;
 };
 

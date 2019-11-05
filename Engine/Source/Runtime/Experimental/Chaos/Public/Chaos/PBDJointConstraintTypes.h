@@ -133,6 +133,5 @@ namespace Chaos
 		T DriveStiffness;
 		T SoftLinearStiffness;
 		T SoftAngularStiffness;
-		int32 PositionIterations;
 	};
 }
