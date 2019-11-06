@@ -1370,7 +1370,7 @@ FString FDatasmithFileProducerUtils::SelectFileToImport()
 	if ( bOpened && OpenedFiles.Num() > 0 )
 	{
 		const FString& OpenedFile = OpenedFiles[0];
-		FEditorDirectories::Get().SetLastDirectory( ELastDirectory::GENERIC_IMPORT, OpenedFile );
+		FEditorDirectories::Get().SetLastDirectory( ELastDirectory::GENERIC_IMPORT, FPaths::GetPath(OpenedFile) );
 
 		return FPaths::ConvertRelativePathToFull( OpenedFile );
 	}
