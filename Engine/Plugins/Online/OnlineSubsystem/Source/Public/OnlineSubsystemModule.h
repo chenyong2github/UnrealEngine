@@ -50,6 +50,9 @@ private:
 	/** Have we warned already for a given online subsystem creation failure */
 	TMap<FName, bool> OnlineSubsystemFailureNotes;
 
+	/** Config driven override of module name for online subsystem */
+	TMap<FString, FName> ModuleRedirects;
+
 	/**
 	 * Transform an online subsystem identifier into its Subsystem and Instance constituents
 	 *
@@ -69,9 +72,14 @@ private:
 	FName ParseOnlineSubsystemName(const FName& FullName, FName& SubsystemName, FName& InstanceName) const;
 
 	/**
-	* Read any config defined subsystems from the configuration file
-	*/
+	 * Read any config defined subsystems from the configuration file
+	 */
 	void ProcessConfigDefinedSubsystems();
+
+	/**
+	 * Read any config defined subsystem module overrides from the configuration file
+	 */
+	void ProcessConfigDefinedModuleRedirects();
 
 	/**
 	 * Attempt to load the default subsystem specified in the configuration file
@@ -121,13 +129,13 @@ public:
 	virtual IOnlineSubsystem* GetNativeSubsystem(bool bAutoLoad);
 
 	/**
-	* Get the online subsystem associated with the given config string
-	*
-	* @param ConfigString - Key to query for
-	* @param bAutoLoad - load the module if not already loaded
-	*
-	* @return pointer to the appropriate online subsystem
-	*/
+	 * Get the online subsystem associated with the given config string
+	 *
+	 * @param ConfigString - Key to query for
+	 * @param bAutoLoad - load the module if not already loaded
+	 *
+	 * @return pointer to the appropriate online subsystem
+	 */
 	virtual IOnlineSubsystem* GetSubsystemByConfig(const FString& ConfigString, bool bAutoLoad);
 
 	/**
