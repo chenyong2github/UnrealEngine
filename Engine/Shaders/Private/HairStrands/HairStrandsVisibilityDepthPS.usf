@@ -7,15 +7,16 @@
 #include "../DeferredShadingCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"
 
+
 #if PERMUTATION_PPLL
-Texture2D<uint4> CategorisationTexture;
+	Texture2D<uint4> CategorisationTexture;
 #else
-Texture2DMS<float, HAIR_VISIBILITY_MAXSAMPLECOUNT> HairVisibilityDepthTexture;
+	Texture2DMS<float, HAIR_VISIBILITY_MAXSAMPLECOUNT> HairVisibilityDepthTexture;
+	#if PERMUTATION_COVERAGE
+		Texture2D<float> CoverageTexture;
+	#endif
 #endif
 
-#if PERMUTATION_COVERAGE == 1
-Texture2D<float> CoverageTexture;
-#endif
 
 void MainPS(
 	in FScreenVertexOutput Input,
