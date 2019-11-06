@@ -597,11 +597,23 @@ public:
 	void PostSerialize(const FArchive& Ar);
 #endif
 
+	/** Whether projection is enabled for this constraint */
+	bool IsProjectionEnabled() const
+	{
+		return ProfileInstance.bEnableProjection;
+	}
+
 	/** Turn on linear and angular projection */
 	void EnableProjection();
 
 	/** Turn off linear and angular projection */
 	void DisableProjection();
+
+	/** Whether parent domination is enabled (meaning the parent body cannot be be affected at all by a child) */
+	bool IsParentDominatesEnabled() const
+	{
+		return ProfileInstance.bParentDominates;
+	}
 
 	/** Enable/Disable parent dominates (meaning the parent body cannot be be affected at all by a child) */
 	void EnableParentDominates();
