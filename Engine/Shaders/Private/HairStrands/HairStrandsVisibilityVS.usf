@@ -4,9 +4,7 @@
 #include "../VelocityCommon.ush"
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"
-
-#define RENDER_MODE_MSAA 0
-#define RENDER_MODE_COVERAGE 1
+#include "HairStrandsVisibilityCommon.ush"
 
 struct FHairVisibilityAccumulateVSToPS
 {
