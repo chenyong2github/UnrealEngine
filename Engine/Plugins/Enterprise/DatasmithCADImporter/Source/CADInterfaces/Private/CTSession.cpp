@@ -42,12 +42,13 @@ namespace CADLibrary
 		ensure(!breakOnError || bool(*this));
 	}
 
-	void CTSession::SetImportParameters(float ChordTolerance, float MaxEdgeLength, float NormalTolerance, CADLibrary::EStitchingTechnique StitchingTechnique)
+	void CTSession::SetImportParameters(float ChordTolerance, float MaxEdgeLength, float NormalTolerance, CADLibrary::EStitchingTechnique StitchingTechnique, bool bScaleUVMap)
 	{
 		ImportParams.ChordTolerance = ChordTolerance;
 		ImportParams.MaxEdgeLength = MaxEdgeLength;
 		ImportParams.MaxNormalAngle = NormalTolerance;
 		ImportParams.StitchingTechnique = StitchingTechnique;
+		ImportParams.bScaleUVMap = bScaleUVMap;
 
 		CT_TESS_DATA_TYPE VertexType = CT_TESS_DOUBLE;
 		CT_TESS_DATA_TYPE NormalType = CT_TESS_FLOAT;
