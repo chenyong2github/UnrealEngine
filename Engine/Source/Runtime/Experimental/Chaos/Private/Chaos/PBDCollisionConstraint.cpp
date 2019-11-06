@@ -100,14 +100,17 @@ void TPBDCollisionConstraint<T, d>::Reset(/*const TPBDRigidParticles<T, d>& InPa
 {
 	SCOPE_CYCLE_COUNTER(STAT_CollisionConstraintsReset);
 
+	// @todo(brice) : Manifolds are changing, so just default to collision constraints right now.
+
 	for (int32 Idx = Constraints.Num() - 1; Idx >= 0; Idx--)
 	{
-		if (!bEnableCollisions)
+		//if (!bEnableCollisions)
 		{
 			RemoveConstraint(Idx);
 		}
 	}
 
+	/*
 	TArray<FConstraintHandleID> ManifoldKeys;
 	Manifolds.GetKeys(ManifoldKeys);
 	for (FConstraintHandleID Key : ManifoldKeys)
@@ -134,6 +137,7 @@ void TPBDCollisionConstraint<T, d>::Reset(/*const TPBDRigidParticles<T, d>& InPa
 			}
 		}
 	}
+	*/
 
 	MAngularFriction = 0;
 	bUseCCD = false;
@@ -143,6 +147,7 @@ template<typename T, int d>
 void TPBDCollisionConstraint<T, d>::RemoveConstraint(int32 Idx)
 {
 	// Manifold
+	/*
 	FConstraintHandleID HandleID = GetConstraintHandleID(Constraints[Idx]);
 	if (FConstraintManifold** Ptr = Manifolds.Find(HandleID))
 	{
@@ -155,6 +160,7 @@ void TPBDCollisionConstraint<T, d>::RemoveConstraint(int32 Idx)
 			}
 		}
 	}
+	*/
 
 	HandleAllocator.FreeHandle(Handles[Idx]);
 	Handles.RemoveAtSwap(Idx);
