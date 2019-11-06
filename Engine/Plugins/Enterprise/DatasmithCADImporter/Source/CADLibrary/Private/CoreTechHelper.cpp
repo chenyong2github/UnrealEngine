@@ -335,7 +335,7 @@ bool FillMesh(const FMeshParameters& MeshParameters, const FImportParameters& Im
 				}
 			}
 
-			if (!Tessellation.TexCoordArray.Num())
+			if (Tessellation.TexCoordArray.Num())
 			{
 				for (int32 IndexFace = 0; IndexFace < CTFaceIndex.Num(); IndexFace += 3)
 				{
@@ -402,7 +402,7 @@ bool ConvertCTBodySetToMeshDescription(const FImportParameters& ImportParams, co
 	TMap<uint32, uint32> MaterialIdToMaterialHash;
 
 	int32 BodyRawSize = 0;
-	uint32 TriangleCount = GetBodiesTessellations(BodySet, (TArray<FTessellationData>&) FaceTessellationSet, MaterialIdToMaterialHash, BodyRawSize, ImportParams.ScaleFactor);
+	uint32 TriangleCount = GetBodiesTessellations(BodySet, (TArray<FTessellationData>&) FaceTessellationSet, MaterialIdToMaterialHash, BodyRawSize, ImportParams);
 
 	return ConvertCTBodySetToMeshDescription(ImportParams, MeshParameters, TriangleCount, FaceTessellationSet, MaterialIdToMaterialHash, MeshDescription);
 }
