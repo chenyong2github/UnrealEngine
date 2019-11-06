@@ -21,6 +21,7 @@
 #include "MeshQueries.h"
 #include "ToolSceneQueriesUtil.h"
 #include "ConstrainedDelaunay2.h"
+#include "Arrangement2d.h"
 
 #include "DynamicMeshEditor.h"
 
@@ -805,6 +806,7 @@ bool UDrawPolygonTool::UpdateSelfIntersection()
 	FFrame3f DrawFrame(DrawPlaneOrigin, DrawPlaneOrientation);
 	FSegment2f PreviewSegment(DrawFrame.ToPlaneUV(PolygonVertices[NumVertices - 1],2), DrawFrame.ToPlaneUV(PreviewVertex,2));
 
+	float BestIntersectionParameter = FMathf::MaxReal;
 	for (int k = 0; k < NumVertices - 2; ++k) 
 	{
 		FSegment2f Segment(DrawFrame.ToPlaneUV(PolygonVertices[k],2), DrawFrame.ToPlaneUV(PolygonVertices[k + 1],2));
@@ -812,12 +814,15 @@ bool UDrawPolygonTool::UpdateSelfIntersection()
 		if (Intersection.Find()) 
 		{
 			bHaveSelfIntersection = true;
-			SelfIntersectSegmentIdx = k;
-			SelfIntersectionPoint = DrawFrame.FromPlaneUV(Intersection.Point0,2);
-			return true;
+			if (Intersection.Parameter0 < BestIntersectionParameter)
+			{
+				BestIntersectionParameter = Intersection.Parameter0;
+				SelfIntersectSegmentIdx = k;
+				SelfIntersectionPoint = DrawFrame.FromPlaneUV(Intersection.Point0, 2);
+			}
 		}
 	}
-	return false;
+	return bHaveSelfIntersection;
 }
 
 void UDrawPolygonTool::GenerateFixedPolygon(const TArray<FVector>& FixedPoints, TArray<FVector>& VerticesOut, TArray<TArray<FVector>>& HolesVerticesOut)
@@ -1020,7 +1025,12 @@ void UDrawPolygonTool::EmitCurrentPolygon()
 	FDynamicMesh3 Mesh;
 	double ExtrudeDist = (PolygonProperties->OutputMode == EDrawPolygonOutputMode::MeshedPolygon) ?
 		0 : PolygonProperties->ExtrudeHeight;
-	GeneratePolygonMesh(PolygonVertices, PolygonHolesVertices, &Mesh, PlaneFrameOut, false, ExtrudeDist, false);
+	bool bSucceeded = GeneratePolygonMesh(PolygonVertices, PolygonHolesVertices, &Mesh, PlaneFrameOut, false, ExtrudeDist, false);
+	if (!bSucceeded) // somehow made a polygon with no valid triangulation; just throw it away ...
+	{
+		ResetPolygon();
+		return;
+	}
 
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("CreatePolygon", "Create Polygon"));
 
@@ -1043,7 +1053,7 @@ void UDrawPolygonTool::EmitCurrentPolygon()
 void UDrawPolygonTool::UpdateLivePreview()
 {
 	int NumVerts = PolygonVertices.Num();
-	if (NumVerts < 2 || PreviewMesh == nullptr || PreviewMesh->IsVisible() == false )
+	if (NumVerts < 2 || PreviewMesh == nullptr || PreviewMesh->IsVisible() == false)
 	{
 		return;
 	}
@@ -1052,15 +1062,16 @@ void UDrawPolygonTool::UpdateLivePreview()
 	FDynamicMesh3 Mesh;
 	double ExtrudeDist = (PolygonProperties->OutputMode == EDrawPolygonOutputMode::MeshedPolygon) ?
 		0 : PolygonProperties->ExtrudeHeight;
-	GeneratePolygonMesh(PolygonVertices, PolygonHolesVertices, &Mesh, PlaneFrame, false, ExtrudeDist, false);
-
-	PreviewMesh->SetTransform(PlaneFrame.ToFTransform());
-	PreviewMesh->SetMaterial(MaterialProperties->Material);
-	PreviewMesh->EnableWireframe(MaterialProperties->bWireframe);
-	PreviewMesh->UpdatePreview(&Mesh);
+	if (GeneratePolygonMesh(PolygonVertices, PolygonHolesVertices, &Mesh, PlaneFrame, false, ExtrudeDist, false))
+	{
+		PreviewMesh->SetTransform(PlaneFrame.ToFTransform());
+		PreviewMesh->SetMaterial(MaterialProperties->Material);
+		PreviewMesh->EnableWireframe(MaterialProperties->bWireframe);
+		PreviewMesh->UpdatePreview(&Mesh);
+	}
 }
 
-void UDrawPolygonTool::GeneratePolygonMesh(const TArray<FVector>& Polygon, const TArray<TArray<FVector>>& PolygonHoles, FDynamicMesh3* ResultMeshOut, FFrame3d& WorldFrameOut, bool bIncludePreviewVtx, double ExtrudeDistance, bool bExtrudeSymmetric)
+bool UDrawPolygonTool::GeneratePolygonMesh(const TArray<FVector>& Polygon, const TArray<TArray<FVector>>& PolygonHoles, FDynamicMesh3* ResultMeshOut, FFrame3d& WorldFrameOut, bool bIncludePreviewVtx, double ExtrudeDistance, bool bExtrudeSymmetric)
 {
 	// construct centered frame for polygon
 	WorldFrameOut = FFrame3d(DrawPlaneOrigin, DrawPlaneOrientation);
@@ -1114,11 +1125,40 @@ void UDrawPolygonTool::GeneratePolygonMesh(const TArray<FVector>& Polygon, const
 	}
 
 	FConstrainedDelaunay2d Triangulator;
-	Triangulator.Add(GeneralPolygon);
+	if (PolygonProperties->bAllowSelfIntersections)
+	{
+		FArrangement2d Arrangement(OuterPolygon.Bounds());
+		// arrangement2d builds a general 2d graph that discards orientation info ...
+		Triangulator.FillRule = FConstrainedDelaunay2d::EFillRule::Odd;
+		Triangulator.bOrientedEdges = false;
+		Triangulator.bSplitBowties = true;
+		for (FSegment2d Seg : GeneralPolygon.GetOuter().Segments())
+		{
+			Arrangement.Insert(Seg);
+		}
+		Triangulator.Add(Arrangement.Graph);
+		for (const FPolygon2d& Hole : GeneralPolygon.GetHoles())
+		{
+			Triangulator.Add(Hole, true);
+		}
+	}
+	else
+	{
+		Triangulator.Add(GeneralPolygon);
+	}
+
+	
 	bool bTriangulationSuccess = Triangulator.Triangulate();
-	// TODO: actually do something different if triangulation fails?  note that failure doesn't mean that it didn't generate triangles ... it will try to give triangles back even if input was not fully valid
+	// only truly fail if we got zero triangles back from the triangulator; if it just returned false it may still have managed to partially generate something
+	if (Triangulator.Triangles.Num() == 0)
+	{
+		return false;
+	}
+
 	TriangulationMeshGen.Vertices2D = Triangulator.Vertices;
 	TriangulationMeshGen.Triangles2D = Triangulator.Triangles;
+
+	
 
 	ResultMeshOut->Copy(&TriangulationMeshGen.Generate());
 
@@ -1165,12 +1205,16 @@ void UDrawPolygonTool::GeneratePolygonMesh(const TArray<FVector>& Polygon, const
 		GlobalUVRescale = MaterialProperties->UVScale * .01 / InitialUVScale;
 	}
 	Editor.RescaleAttributeUVs(GlobalUVRescale, false);
+
+	return true;
 }
 
 void UDrawPolygonTool::GeneratePreviewHeightTarget()
 {
-	GeneratePolygonMesh(PolygonVertices, PolygonHolesVertices, &PreviewHeightTarget, PreviewHeightFrame, false, 99999, true);
-	PreviewHeightTargetAABB.SetMesh(&PreviewHeightTarget);
+	if (GeneratePolygonMesh(PolygonVertices, PolygonHolesVertices, &PreviewHeightTarget, PreviewHeightFrame, false, 99999, true))
+	{
+		PreviewHeightTargetAABB.SetMesh(&PreviewHeightTarget);
+	}
 }
 
 

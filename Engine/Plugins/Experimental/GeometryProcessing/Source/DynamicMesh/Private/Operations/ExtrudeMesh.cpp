@@ -47,6 +47,10 @@ bool FExtrudeMesh::Apply()
 	// set vertices to new positions
 	for (int vid : InitialVertices)
 	{
+		if (!InitialToOffsetMapV.Contains(vid))
+		{
+			continue;
+		}
 		int newvid = InitialToOffsetMapV[vid];
 		if ( ! Mesh->IsVertex(newvid) )
 		{

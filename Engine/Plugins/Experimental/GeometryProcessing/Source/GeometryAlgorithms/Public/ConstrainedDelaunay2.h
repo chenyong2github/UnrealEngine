@@ -28,6 +28,7 @@ struct TConstrainedDelaunay2
 
 	bool bOrientedEdges = true;
 	bool bOutputCCW = false;
+	bool bSplitBowties = false;
 
 	enum class EFillRule {
 		Odd = 0,
@@ -67,6 +68,9 @@ struct TConstrainedDelaunay2
 	// outputs
 	//
 	TArray<FIndex3i> Triangles;
+
+	/** If vertices were added to output (e.g. to split bowties), this is set to the index of the first added vertex */
+	int AddedVerticesStartIndex = -1;
 
 	/**
 	 * Populate Triangles
