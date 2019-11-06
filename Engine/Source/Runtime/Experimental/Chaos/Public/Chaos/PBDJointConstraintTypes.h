@@ -63,7 +63,8 @@ namespace Chaos
 		FPBDJointMotionSettings(const TVector<EJointMotionType, 3>& InLinearMotionTypes, const TVector<EJointMotionType, 3>& InAngularMotionTypes);
 
 		FReal Stiffness;
-		FReal Projection;
+		FReal LinearProjection;
+		FReal AngularProjection;
 
 		TVector<EJointMotionType, 3> LinearMotionTypes;
 		FReal LinearLimit;
@@ -121,7 +122,8 @@ namespace Chaos
 		bool bEnableTwistLimits;
 		bool bEnableSwingLimits;
 		bool bEnableDrives;
-		FReal Projection;
+		FReal LinearProjection;
+		FReal AngularProjection;
 		FReal Stiffness;
 		FReal DriveStiffness;
 		FReal SoftLinearStiffness;
