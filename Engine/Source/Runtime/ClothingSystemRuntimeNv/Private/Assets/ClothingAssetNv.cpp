@@ -116,7 +116,7 @@ void UClothingAssetNv::PostLoad()
 			check(Lod.PhysicalMeshData);
 			UClothPhysicalMeshDataBase& PhysMesh = *Lod.PhysicalMeshData;
 
-			// Didn't do anything previously - clear out incase there's something in there
+			// Didn't do anything previously - clear out in case there's something in there
 			// so we can use it correctly now.
 			Lod.ParameterMasks.Reset(3);
 
