@@ -4,9 +4,8 @@
 #include "Engine/World.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipelineInProcessExecutor"
-void UMoviePipelineInProcessExecutor::Start(UMovieRenderPipelineConfig* InConfig, const int32 InConfigIndex, const int32 InNumConfigs)
+void UMoviePipelineInProcessExecutor::Start(const FMoviePipelineExecutorJob& InJob)
 {
-	ActiveConfig = InConfig;
 	FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this, &UMoviePipelineInProcessExecutor::OnMapLoadFinished);
 }
 
@@ -20,9 +19,11 @@ void UMoviePipelineInProcessExecutor::OnMapLoadFinished(UWorld* NewWorld)
 
 	// Stop listening for map load until we're done and know we want to start the next config.
 	FCoreUObjectDelegates::PostLoadMapWithWorld.RemoveAll(this);
+	
+	FMoviePipelineExecutorJob& CurrentJob = ExecutorJobs[CurrentPipelineIndex];
 
 	ActiveMoviePipeline = NewObject<UMoviePipeline>(NewWorld, TargetPipelineClass);
-	ActiveMoviePipeline->Initialize(ActiveConfig);
+	ActiveMoviePipeline->Initialize(CurrentJob);
 
 	// Listen for when the pipeline thinks it has finished.
 	ActiveMoviePipeline->OnMoviePipelineFinished().AddUObject(this, &UMoviePipelineInProcessExecutor::OnMoviePipelineFinished);
@@ -41,7 +42,6 @@ void UMoviePipelineInProcessExecutor::OnMoviePipelineFinished(UMoviePipeline* In
 	// Null these out now since OnIndividualPipelineFinished might invoke something that causes a GC
 	// and we want them to go away with the GC.
 	ActiveMoviePipeline = nullptr;
-	ActiveConfig = nullptr;
 
 	// Now that another frame has passed and we should be OK to start another PIE session, notify our owner.
 	OnIndividualPipelineFinished(MoviePipeline);

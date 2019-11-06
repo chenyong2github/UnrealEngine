@@ -3,7 +3,6 @@
 #include "MoviePipelineEditorBlueprintLibrary.h"
 #include "UObject/Package.h"
 #include "Misc/PackageName.h"
-#include "MovieRenderPipelineConfig.h"
 #include "AssetRegistryModule.h"
 #include "FileHelpers.h"
 #include "ObjectTools.h"
@@ -11,7 +10,7 @@
 
 #define LOCTEXT_NAMESPACE "MoviePipelineEditorBlueprintLibrary"
 
-bool UMoviePipelineEditorBlueprintLibrary::ExportConfigToAsset(const UMovieRenderPipelineConfig* InConfig, const FString& InPackagePath, const FString& InFileName, const bool bInSaveAsset, UMovieRenderPipelineConfig*& OutAsset, FText& OutErrorReason)
+bool UMoviePipelineEditorBlueprintLibrary::ExportConfigToAsset(const UMoviePipelineMasterConfig* InConfig, const FString& InPackagePath, const FString& InFileName, const bool bInSaveAsset, UMoviePipelineMasterConfig*& OutAsset, FText& OutErrorReason)
 {
 	if(!InConfig)
 	{
@@ -31,7 +30,7 @@ bool UMoviePipelineEditorBlueprintLibrary::ExportConfigToAsset(const UMovieRende
 	NewPackage->AddToRoot();
 	
 	// Duplicate the provided config into this package.
-	UMovieRenderPipelineConfig* NewConfig = Cast<UMovieRenderPipelineConfig>(StaticDuplicateObject(InConfig, NewPackage, FName(*InFileName), RF_NoFlags));
+	UMoviePipelineMasterConfig* NewConfig = Cast<UMoviePipelineMasterConfig>(StaticDuplicateObject(InConfig, NewPackage, FName(*InFileName), RF_NoFlags));
 	NewConfig->SetFlags(RF_Public | RF_Transactional | RF_Standalone);
 	NewConfig->MarkPackageDirty();
 

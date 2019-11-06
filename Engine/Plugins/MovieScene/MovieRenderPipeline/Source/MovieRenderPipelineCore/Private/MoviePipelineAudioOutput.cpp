@@ -9,11 +9,10 @@
 #include "AudioMixerBlueprintLibrary.h"
 #include "LevelSequence.h"
 #include "AudioDevice.h"
-#include "MovieRenderPipelineConfig.h"
 #include "AudioMixerDevice.h"
 // #include "AudioMixerPlatformNonRealtime.h"
 
-void UMoviePipelineAudioOutput::OnInitializedForPipelineImpl(UMoviePipeline* InPipeline)
+void UMoviePipelineAudioOutput::SetupForPipelineImpl(UMoviePipeline* InPipeline)
 {
 	/*
 	// Swap to the non-real-time audio renderer at runtime. This has to come before
@@ -115,15 +114,15 @@ void UMoviePipelineAudioOutput::OnPostTickImpl()
 	// Audio::FMixerPlatformNonRealtime::RenderAudio(FApp::GetDeltaTime());*/
 }
 
-void UMoviePipelineAudioOutput::OnFrameProductionStartImpl()
+/* void UMoviePipelineAudioOutput::OnFrameProductionStartImpl()
 {
 	// When we start producing frames for a shot, unpause our recording.
 	UAudioMixerBlueprintLibrary::ResumeRecordingOutput(GetWorld());
-}
+}*/
 
-void UMoviePipelineAudioOutput::OnShotFinishedImpl(const FMoviePipelineShotCache& Shot)
+void UMoviePipelineAudioOutput::OnShotFinishedImpl(const FMoviePipelineShotInfo& Shot)
 {
 	// Pause our recording when the shot finishes. This lets us skip over any audio samples that
 	// are generated between shots (ie: warm up frames) where we're not recording the output.
-	UAudioMixerBlueprintLibrary::PauseRecordingOutput(GetWorld());
+	// UAudioMixerBlueprintLibrary::PauseRecordingOutput(GetWorld());
 }

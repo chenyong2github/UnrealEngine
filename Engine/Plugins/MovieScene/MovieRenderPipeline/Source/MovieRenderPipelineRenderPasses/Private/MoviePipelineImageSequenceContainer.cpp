@@ -7,11 +7,12 @@
 #include "ImageWriteQueue.h"
 #include "MoviePipeline.h"
 #include "ImageWriteStream.h"
-#include "MovieRenderPipelineConfig.h"
+#include "MoviePipelineMasterConfig.h"
 #include "MovieRenderTileImage.h"
 #include "MovieRenderOverlappedImage.h"
 #include "MovieRenderPipelineCoreModule.h"
 #include "Misc/FrameRate.h"
+#include "MoviePipelineOutputSetting.h"
 
 
 UMoviePipelineImageSequenceContainerBase::UMoviePipelineImageSequenceContainerBase()
@@ -34,9 +35,12 @@ bool UMoviePipelineImageSequenceContainerBase::HasFinishedProcessingImpl()
 static FImageTileAccumulator TestAccumulator;
 static FImageOverlappedAccumulator TestOverlappedAccumulator;
 
-void UMoviePipelineImageSequenceContainerBase::OnInitializedForPipelineImpl(UMoviePipeline* InPipeline)
+void UMoviePipelineImageSequenceContainerBase::SetupForPipelineImpl(UMoviePipeline* InPipeline)
 {
-	FString OutputDirectory = GetPipeline()->GetPipelineConfig()->OutputDirectory.Path;
+	UMoviePipelineOutputSetting* OutputSettings = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	check(OutputSettings);
+
+	FString OutputDirectory = OutputSettings->OutputDirectory.Path;
 	IImageWriteQueue* WriteQueue = ImageWriteQueue;
 
 	FImageTileAccumulator* TileAccumulator = &TestAccumulator;
@@ -175,37 +179,4 @@ void UMoviePipelineImageSequenceContainerBase::OnInitializedForPipelineImpl(UMov
 	};
 
 	InPipeline->GetOutputPipe()->AddEndpoint(OnImageReceived);
-}
-
-void UMoviePipelineImageSequenceContainerBase::ProcessFrameImpl(TArray<MoviePipeline::FOutputFrameData> FrameData, FMoviePipelineFrameOutputState CachedOutputState, FDirectoryPath OutputDirectory)
-{
-	if (FrameData.Num() == 0)
-	{
-		return;
-	}
-
-	for (MoviePipeline::FOutputFrameData& Frame : FrameData)
-	{
-		if (Frame.Resolution.X <= 0 || Frame.Resolution.Y <= 0)
-		{
-			continue;
-		}
-
-		TUniquePtr<FImageWriteTask> ImageTask = MakeUnique<FImageWriteTask>();
-
-		// Move the color buffer into a raw image data container that we can pass to the write queue
-		ImageTask->PixelData = MakeUnique<TImagePixelData<FColor>>(Frame.Resolution, MoveTemp(Frame.ColorBuffer));
-	
-		// Always write full alpha for PNGs
-		ImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FColor>(255));
-		ImageTask->Format = EImageFormat::PNG;
-	
-		// ImageTask->CompressionQuality = GetCompressionQuality();
-	
-		FString OutputName = FString::Printf(TEXT("/Frame_%s_%d.png"), *Frame.PassName, CachedOutputState.OutputFrameNumber);
-		FString OutputPath = OutputDirectory.Path + OutputName;
-		ImageTask->Filename = OutputPath;
-
-		ImageWriteQueue->Enqueue(MoveTemp(ImageTask));
-	}
 }

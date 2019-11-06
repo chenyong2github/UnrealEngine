@@ -3,10 +3,10 @@
 #include "MoviePipelineSetting.h"
 #include "MoviePipeline.h"
 
-void UMoviePipelineSetting::OnInitializedForPipeline(UMoviePipeline* InPipeline)
+void UMoviePipelineSetting::SetupForPipeline(UMoviePipeline* InPipeline)
 {
 	CachedPipeline = MakeWeakObjectPtr(InPipeline);
-	OnInitializedForPipelineImpl(InPipeline);
+	SetupForPipelineImpl(InPipeline);
 }
 
 UMoviePipeline* UMoviePipelineSetting::GetPipeline() const

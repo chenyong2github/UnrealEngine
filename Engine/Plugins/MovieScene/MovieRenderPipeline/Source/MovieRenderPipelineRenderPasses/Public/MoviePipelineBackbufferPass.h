@@ -22,9 +22,8 @@ class MOVIERENDERPIPELINERENDERPASSES_API UMoviePipelineBackbufferPass : public 
 protected:
 
 	virtual void SetupImpl(const FMoviePipelineRenderPassInitSettings& InInitSettings, TSharedRef<FImagePixelPipe, ESPMode::ThreadSafe> InOutputPipe) override;
-	virtual void CaptureFrameImpl(const FMoviePipelineRenderPassMetrics& OutputFrameMetrics) override;
-	virtual void GetFrameDataImpl(MoviePipeline::FOutputFrameData& OutFrameData) override;
 	virtual void TeardownImpl() override;
+	virtual void CaptureFrameImpl(const FMoviePipelineRenderPassMetrics& OutputFrameMetrics) override;
 	virtual void GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses) override;
 
 	FSceneView* CalcSceneView(FSceneViewFamily* ViewFamily, const FMoviePipelineRenderPassMetrics& InPassMetrics);

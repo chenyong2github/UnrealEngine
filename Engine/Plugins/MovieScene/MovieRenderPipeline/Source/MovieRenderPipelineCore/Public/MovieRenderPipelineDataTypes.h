@@ -13,9 +13,10 @@ template<class T, class TWeakObjectPtrBase> struct TWeakObjectPtr;
 class UWorld;
 class ULevelSequence;
 class UMovieSceneCinematicShotSection;
-class UMovieRenderPipelineConfig;
+class UMoviePipelineMasterConfig;
 class UMoviePipelineShotConfig;
 class UMovieSceneCameraCutSection;
+class UMoviePipelineRenderPass;
 
 
 /**
@@ -151,6 +152,80 @@ namespace MoviePipeline
 	};
 }
 
+USTRUCT(BlueprintType)
+struct FMoviePipelineWorkInfo
+{
+	GENERATED_BODY()
+
+public:
+	FMoviePipelineWorkInfo()
+		: NumCameraCuts(0)
+		, NumOutputFrames(0)
+		, NumUtilityFrames(0)
+		, NumOutputFramesWithSubsampling(0)
+		, NumSamples(0)
+		, NumTiles(0)
+	{
+	}
+
+	FString ToDisplayString()
+	{
+		return FString::Printf(TEXT("Camera Cuts: %d Output Frames: %d SubsampledOutputFrames: %d TotalSamples: %d UtilityFrames: %d TileCount: %d"),
+			NumCameraCuts, NumOutputFramesWithSubsampling, NumOutputFramesWithSubsampling, NumSamples, NumUtilityFrames, NumTiles);
+	}
+
+	/** Either the current camera cut number (not index) or the total number of camera cuts. */
+	int32 NumCameraCuts;
+	/** How many frames do we expect to see written to disk. */
+	int32 NumOutputFrames;
+	/** How many extra engine ticks are run for utility reasons that don't produce any output. */
+	int32 NumUtilityFrames;
+	/** OutputFrames * TemporalSamples. This many engine frames are passed during the production of all Output Frames. */
+	int32 NumOutputFramesWithSubsampling;
+	/** NumOutputFrames * NumTemporalSamples * SpatialSamples * NumTiles */
+	int32 NumSamples;
+	/** Either the current tile number (not index) or the total number of tiles */
+	int32 NumTiles;
+
+	FMoviePipelineWorkInfo& operator += (const FMoviePipelineWorkInfo& InRHS)
+	{
+		NumCameraCuts += InRHS.NumCameraCuts;
+		NumOutputFrames += InRHS.NumOutputFrames;
+		NumUtilityFrames += InRHS.NumUtilityFrames;
+		NumOutputFramesWithSubsampling += InRHS.NumOutputFramesWithSubsampling;
+		NumSamples += InRHS.NumSamples;
+		NumTiles += InRHS.NumTiles;
+
+		return *this;
+	}
+
+	friend FMoviePipelineWorkInfo operator+ (const FMoviePipelineWorkInfo& InLHS, const FMoviePipelineWorkInfo& InRHS)
+	{
+		FMoviePipelineWorkInfo Sum = InLHS;
+		Sum += InRHS;
+		return Sum;
+	}
+
+	bool operator == (const FMoviePipelineWorkInfo& InRHS) const
+	{
+		return	NumCameraCuts == InRHS.NumCameraCuts
+				&& NumOutputFrames == InRHS.NumOutputFrames
+				&& NumUtilityFrames == InRHS.NumUtilityFrames
+				&& NumOutputFramesWithSubsampling == InRHS.NumOutputFramesWithSubsampling
+				&& NumSamples == InRHS.NumSamples
+				&& NumTiles == InRHS.NumTiles;
+	}
+
+	bool operator != (const FMoviePipelineWorkInfo& InRHS) const
+	{
+		return !(*this == InRHS);
+	}
+
+
+};
+
+
+
 UENUM(BlueprintType)
 enum class EMoviePipelineShutterTiming : uint8
 {
@@ -160,22 +235,20 @@ enum class EMoviePipelineShutterTiming : uint8
 };
 
 USTRUCT(BlueprintType)
-struct FMoviePipelineShotCutCache
+struct FMoviePipelineCameraCutInfo
 {
 	GENERATED_BODY()
 public:
-	FMoviePipelineShotCutCache()
+	FMoviePipelineCameraCutInfo()
 		: OriginalRange(TRange<FFrameNumber>::Empty())
 		, TotalOutputRange(TRange<FFrameNumber>::Empty())
 		, NumWarmUpFrames(0)
 		, bAccurateFirstFrameHistory(true)
 		, NumTemporalSamples(0)
 		, NumSpatialSamples(0)
+		, NumTiles(0)
 		, State(EMovieRenderShotState::Uninitialized)
 		, CurrentTick(FFrameNumber(0))
-		, NumFramesProduced(FFrameNumber(0))
-		, NumSamplesRendered(FFrameNumber(0))
-		, CurrentFrameSamples(0)
 		, bHasEvaluatedMotionBlurFrame(false)
 		, bHasNotifiedFrameProductionStarted(false)
 		, NumWarmUpFramesRemaining(0)
@@ -207,6 +280,11 @@ public:
 	*/
 	FFrameNumber GetSampleCountEstimate(const bool bIncludeWarmup = true, const bool bIncludeMotionBlur = true) const;
 	
+	/**
+	* Summarizes the total expected amount of work into one easy to access struct.
+	*/
+	FMoviePipelineWorkInfo GetTotalWorkEstimate() const;
+
 public:
 	/** The original non-modified range for this shot that will be rendered. */
 	TRange<FFrameNumber> OriginalRange;
@@ -233,6 +311,10 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
 	int32 NumSpatialSamples;
 
+	/** How many image tiles are going to be rendered per temporal frame. */
+	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
+	int32 NumTiles;
+
 	/** Display name for UI Purposes. */
 	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
 	FString DisplayName;
@@ -250,21 +332,18 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
 	FFrameNumber CurrentTick;
 
-	/** Metrics - How many frames have been rendered for this shot so far? Can be more than the estimated total due to PlayRate. */
+	/** Metrics - How much work has been done for this particular shot. */
 	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
-	FFrameNumber NumFramesProduced;
-
-	/** Metrics - How many samples have been rendered for this shot so far? Can be more than the estimated total due to PlayRate. */
-	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
-	FFrameNumber NumSamplesRendered;
+	FMoviePipelineWorkInfo CurrentWorkInfo;
 
 	/** 
-	* Metrics - How many samples of the total have been generated for this frame. Only as granular as SpatialSamples since
-	* we can't refresh the screen between individual spatial samples.
+	* Metrics - How much work is there estimated to do for this shot? Can be more than estimated total due to PlayRate tracks. 
+	* Cached after setup so that Blueprints can read the variable directly due to no support for UFunctions on Structs.
 	*/
 	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
-	int32 CurrentFrameSamples;
+	FMoviePipelineWorkInfo TotalWorkInfo;
 
+public:
 	/** Have we evaluated the motion blur frame? Only used if bEvaluateMotionBlurOnFirstFrame is set */
 	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
 	bool bHasEvaluatedMotionBlurFrame;
@@ -277,7 +356,7 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
 	int32 NumWarmUpFramesRemaining;
 
-	bool operator == (const FMoviePipelineShotCutCache& InRHS) const
+	bool operator == (const FMoviePipelineCameraCutInfo& InRHS) const
 	{
 		return
 			OriginalRange == InRHS.OriginalRange &&
@@ -291,7 +370,7 @@ public:
 			CameraCutSection == InRHS.CameraCutSection;
 	}
 
-	bool operator != (const FMoviePipelineShotCutCache& InRHS) const
+	bool operator != (const FMoviePipelineCameraCutInfo& InRHS) const
 	{
 		return !(*this == InRHS);
 	}
@@ -303,11 +382,11 @@ public:
 * all information in advanced aids in debugging and visualization of progress.
 */
 USTRUCT(BlueprintType)
-struct FMoviePipelineShotCache
+struct FMoviePipelineShotInfo
 {
 	GENERATED_BODY()
 public:
-	FMoviePipelineShotCache()
+	FMoviePipelineShotInfo()
 		: NumHandleFrames(0)
 		, OriginalRange(TRange<FFrameNumber>::Empty())
 		, TotalOutputRange(TRange<FFrameNumber>::Empty())
@@ -341,12 +420,20 @@ public:
 	TWeakObjectPtr<UMovieSceneCinematicShotSection> CinematicShotSection;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
-	TArray<FMoviePipelineShotCutCache> CameraCuts;
+	TArray<FMoviePipelineCameraCutInfo> CameraCuts;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
 	int32 CurrentCameraCutIndex;
 
-	FMoviePipelineShotCutCache& GetCurrentCameraCut()
+	/** 
+	* An array of the Render Passes for this particular shot. These are duplicated out of the settings
+	* so that they can have their own state per shot that overlaps with other in progress shots. This
+	* is useful for long running async tasks.
+	*/
+	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
+	TArray<UMoviePipelineRenderPass*> RenderPasses;
+
+	FMoviePipelineCameraCutInfo& GetCurrentCameraCut()
 	{
 		check(CurrentCameraCutIndex >= 0 && CurrentCameraCutIndex < CameraCuts.Num());
 		return CameraCuts[CurrentCameraCutIndex];
@@ -364,7 +451,7 @@ public:
 		return true;
 	}
 
-	bool operator == (const FMoviePipelineShotCache& InRHS) const
+	bool operator == (const FMoviePipelineShotInfo& InRHS) const
 	{ 
 		return
 			NumHandleFrames == InRHS.NumHandleFrames &&
@@ -377,7 +464,7 @@ public:
 			CameraCuts == InRHS.CameraCuts;
 	}
 
-	bool operator != (const FMoviePipelineShotCache& InRHS) const
+	bool operator != (const FMoviePipelineShotInfo& InRHS) const
 	{
 		return !(*this == InRHS);
 	}
@@ -582,4 +669,37 @@ struct FImagePixelDataPayload : IImagePixelDataPayload
 
 
 	FString PassName;
+};
+
+/**
+* Describes an individual job executed by a Movie Pipeline Executor.
+*/
+USTRUCT(BlueprintType)
+struct FMoviePipelineExecutorJob
+{
+	GENERATED_BODY()
+public:
+	FMoviePipelineExecutorJob()
+		: Sequence()
+		, Configuration(nullptr)
+	{
+	}
+
+	FMoviePipelineExecutorJob(const FSoftObjectPath& InSequenceAsset, UMoviePipelineMasterConfig* InConfig)
+		: Sequence(InSequenceAsset)
+		, Configuration(InConfig)
+	{
+	}
+
+	/** Which sequence should this job render? */
+	UPROPERTY(BlueprintReadWrite, Category = "Movie Render Pipeline")
+	FSoftObjectPath Sequence;
+
+	/** What master configuration is used to render this sequence? This specifies output resolution/path, etc. */
+	UPROPERTY(BlueprintReadWrite, Category = "Movie Render Pipeline")
+	UMoviePipelineMasterConfig* Configuration;
+
+	/** Which shots (by name) should this job render out of the given sequence? Leave empty to render whole sequence. */
+	UPROPERTY(BlueprintReadWrite, Category = "Movie Render Pipeline")
+	TArray<FString> ShotRenderMask;
 };

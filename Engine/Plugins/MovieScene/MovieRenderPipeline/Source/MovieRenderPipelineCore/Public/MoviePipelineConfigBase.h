@@ -1,0 +1,105 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+#pragma once
+
+#include "UObject/Object.h"
+#include "Templates/SubclassOf.h"
+#include "MoviePipelineSetting.h"
+#include "MoviePipelineConfigBase.generated.h"
+
+
+UCLASS(Blueprintable)
+class MOVIERENDERPIPELINECORE_API UMoviePipelineConfigBase : public UObject
+{
+	GENERATED_BODY()
+	
+public:
+	UMoviePipelineConfigBase()
+	{
+		SettingsSerialNumber = -1;
+	}
+
+public:
+	/**
+	* Removes the specific instance from our Setting list. 
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	void RemoveSetting(UMoviePipelineSetting* InSetting);
+
+	int32 GetSettingsSerialNumber() const { return SettingsSerialNumber; }
+	
+	/**
+	* Returns an array of all settings in this config.
+	*/
+	const TArray<UMoviePipelineSetting*> GetSettings() const { return Settings; }
+
+public:
+	/**
+	* Find a setting of a particular type for this config.
+	* @param InClass - Class that you wish to find the setting object for.
+	* @return An instance of this class if it already exists as a setting on this config, otherwise null.
+	*/
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	UMoviePipelineSetting* FindSettingByClass(TSubclassOf<UMoviePipelineSetting> InClass) const
+	{
+		UMoviePipelineSetting* const* Found = Settings.FindByPredicate([InClass](UMoviePipelineSetting* In) { return In && In->GetClass() == InClass; });
+		return Found ? CastChecked<UMoviePipelineSetting>(*Found) : nullptr;
+	}
+
+	/** 
+	* Finds a setting of a particular type for this pipeline config, adding it if it doesn't already exist.
+	* @param InClass - Class you wish to find or create the setting object for.
+	* @return An instance of this class as a setting on this config.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	UMoviePipelineSetting* FindOrAddSettingByClass(TSubclassOf<UMoviePipelineSetting> InClass)
+	{
+		UMoviePipelineSetting* Found = FindSettingByClass(InClass);
+		if (!Found)
+		{
+			Modify();
+
+			Found = NewObject<UMoviePipelineSetting>(this, InClass);
+			Settings.Add(Found);
+			++SettingsSerialNumber;
+		}
+
+		return Found;
+	}
+
+	/**
+	* Find a setting of a particular type for this config
+	*/
+	template<typename SettingType>
+	SettingType* FindSetting() const
+	{
+		UClass* PredicateClass = SettingType::StaticClass();
+		UMoviePipelineSetting* const* Found = Settings.FindByPredicate([PredicateClass](UMoviePipelineSetting* In) { return In && In->GetClass() == PredicateClass; });
+		return Found ? CastChecked<SettingType>(*Found) : nullptr;
+	}
+
+	/**
+	 * Find a setting of a particular type for this config instance, adding one if it was not found.
+	 */
+	template<typename SettingType>
+	SettingType* FindOrAddSetting()
+	{
+		SettingType* Found = FindSetting<SettingType>();
+		if (!Found)
+		{
+			Modify();
+
+			Found = NewObject<SettingType>(this);
+			Settings.Add(Found);
+			++SettingsSerialNumber;
+		}
+		return Found;
+	}
+
+protected:
+	/** Array of settings classes that affect various parts of the output pipeline. */
+	UPROPERTY(VisibleAnywhere, Category = "Movie Pipeline")
+	TArray<UMoviePipelineSetting*> Settings;
+
+private:
+	int32 SettingsSerialNumber;
+};

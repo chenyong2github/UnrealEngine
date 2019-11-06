@@ -5,7 +5,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-class UMoviePipelineShotConfig;
+class UMoviePipelineConfigBase;
 class SMoviePipelinePanel;
 
 class SMoviePipelineTabContent : public SCompoundWidget
@@ -18,7 +18,7 @@ public:
 	void Construct(const FArguments& InArgs);
 
 	/** Set this tab up for a specific Pipeline preset. Passing nullptr will initialize a default pipeline. */
-	void SetupForPipeline(UMoviePipelineShotConfig* BasePreset);
+	void SetupForPipeline(UMoviePipelineConfigBase* BasePreset);
 
 private:
 	EActiveTimerReturnType OnActiveTimer(double InCurrentTime, float InDeltaTime);

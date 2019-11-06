@@ -38,7 +38,7 @@ struct IMoviePipelineSettingTreeItem : TSharedFromThis<IMoviePipelineSettingTree
 {
 	virtual ~IMoviePipelineSettingTreeItem() {}
 
-	virtual void Delete(UMoviePipelineShotConfig* Owner) = 0;
+	virtual void Delete(UMoviePipelineConfigBase* Owner) = 0;
 
 	virtual TSharedPtr<FMoviePipelineSettingCategory> AsCategory() { return nullptr; }
 	virtual TSharedPtr<FMoviePipelineSettingTreeItem> AsSetting()   { return nullptr; }
@@ -61,7 +61,7 @@ struct FMoviePipelineSettingTreeItem : IMoviePipelineSettingTreeItem
 		return Setting ? Setting->GetDisplayText() : FText();
 	}
 
-	virtual void Delete(UMoviePipelineShotConfig* Owner) override
+	virtual void Delete(UMoviePipelineConfigBase* Owner) override
 	{
 		UMoviePipelineSetting* Setting = WeakSetting.Get();
 		if (Setting)
@@ -251,7 +251,7 @@ struct FMoviePipelineSettingCategory : IMoviePipelineSettingTreeItem
 		: Category(FText::FromString(InCategory))
 	{}
 
-	virtual void Delete(UMoviePipelineShotConfig* Owner) override
+	virtual void Delete(UMoviePipelineConfigBase* Owner) override
 	{
 		for (TSharedPtr<FMoviePipelineSettingTreeItem> Child : Children)
 		{
@@ -313,7 +313,7 @@ void SMoviePipelineSettings::Construct(const FArguments& InArgs)
 
 void SMoviePipelineSettings::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	UMoviePipelineShotConfig* ShotConfig = WeakShotConfig.Get();
+	UMoviePipelineConfigBase* ShotConfig = WeakShotConfig.Get();
 
 	// If we have a settings ptr, we expect its serial number to match our cached one, if not, we rebuild the tree
 	if (ShotConfig)
@@ -356,7 +356,7 @@ void SMoviePipelineSettings::GetSelectedSettings(TArray<UMoviePipelineSetting*>&
 	}
 }
 
-void SMoviePipelineSettings::SetShotConfigObject(UMoviePipelineShotConfig* InShotConfig)
+void SMoviePipelineSettings::SetShotConfigObject(UMoviePipelineConfigBase* InShotConfig)
 {
 	WeakShotConfig = InShotConfig;
 	ReconstructTree();
@@ -364,7 +364,7 @@ void SMoviePipelineSettings::SetShotConfigObject(UMoviePipelineShotConfig* InSho
 
 void SMoviePipelineSettings::ReconstructTree()
 {
-	UMoviePipelineShotConfig* ShotConfig = WeakShotConfig.Get();
+	UMoviePipelineConfigBase* ShotConfig = WeakShotConfig.Get();
 	if (!ShotConfig)
 	{
 		CachedSettingsSerialNumber = uint32(-1);
@@ -501,7 +501,7 @@ void SMoviePipelineSettings::OnGetChildren(TSharedPtr<IMoviePipelineSettingTreeI
 
 void SMoviePipelineSettings::OnDeleteSelected()
 {
-	UMoviePipelineShotConfig* ShotConfig = WeakShotConfig.Get();
+	UMoviePipelineConfigBase* ShotConfig = WeakShotConfig.Get();
 	if (ShotConfig)
 	{
 		TArray<TSharedPtr<IMoviePipelineSettingTreeItem>> Items = TreeView->GetSelectedItems();

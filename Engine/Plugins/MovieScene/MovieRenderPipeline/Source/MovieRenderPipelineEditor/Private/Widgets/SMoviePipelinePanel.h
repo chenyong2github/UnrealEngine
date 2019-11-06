@@ -6,7 +6,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "UObject/GCObject.h"
 
-class UMoviePipelineShotConfig;
+class UMoviePipelineConfigBase;
 class SMoviePipelineEditor;
 
 /**
@@ -26,12 +26,12 @@ public:
 		/*~ All following arguments are mutually-exclusive */
 		/*-------------------------------------------------*/
 		/** A preset asset to base the pipeline off */
-		SLATE_ARGUMENT(UMoviePipelineShotConfig*, BasePreset)
+		SLATE_ARGUMENT(UMoviePipelineConfigBase*, BasePreset)
 
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
-	UMoviePipelineShotConfig* GetMoviePipeline() const;
+	UMoviePipelineConfigBase* GetMoviePipeline() const;
 
 private:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -44,12 +44,12 @@ private:
 	FReply OnRevertChanges();
 
 	/** Allocates a transient preset so that the user can use the pipeline without saving it to an asset first. */
-	UMoviePipelineShotConfig* AllocateTransientPreset();
+	UMoviePipelineConfigBase* AllocateTransientPreset();
 
 
 private:
 	/** The transient preset that we use - kept alive by AddReferencedObjects */
-	UMoviePipelineShotConfig* TransientPreset;
+	UMoviePipelineConfigBase* TransientPreset;
 
 	/** The main movie pipeline editor widget */
 	TSharedPtr<SMoviePipelineEditor> MoviePipelineEditorWidget;

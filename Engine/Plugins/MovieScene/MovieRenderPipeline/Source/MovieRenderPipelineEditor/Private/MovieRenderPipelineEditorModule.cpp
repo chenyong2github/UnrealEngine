@@ -10,7 +10,6 @@
 #include "Editor.h"
 #include "MoviePipeline.h"
 #include "MovieRenderPipelineDataTypes.h"
-#include "MovieRenderPipelineConfig.h"
 #include "MoviePipelineBackbufferPass.h"
 #include "MoviePipelineImageSequenceContainer.h"
 #include "MoviePipelineShotConfig.h"
@@ -76,11 +75,18 @@ void FMovieRenderPipelineEditorModule::PerformTestPipelineRender(const TArray<FS
 	Executor->AddToRoot();
 	Executor->OnExecutorFinished().AddRaw(this, &FMovieRenderPipelineEditorModule::OnTestPipelineExecutorFinished);
 
-	TArray<UMovieRenderPipelineConfig*> Pipelines = GenerateTestPipelineConfigs(SequencePath);
-	Executor->Execute(Pipelines);
+	TArray<UMoviePipelineMasterConfig*> Pipelines = GenerateTestPipelineConfigs();
+
+	TArray<FMoviePipelineExecutorJob> Jobs;
+	for(UMoviePipelineMasterConfig* Pipeline : Pipelines)
+	{
+		Jobs.Add(FMoviePipelineExecutorJob(SequencePath, Pipeline));
+	}
+
+	Executor->Execute(Jobs);
 }
 
-void FMovieRenderPipelineEditorModule::OnTestPipelineExecutorFinished(UMoviePipelineExecutorBase* InExecutor)
+void FMovieRenderPipelineEditorModule::OnTestPipelineExecutorFinished(UMoviePipelineExecutorBase* InExecutor, bool bSuccess)
 {
 	if (Executor)
 	{

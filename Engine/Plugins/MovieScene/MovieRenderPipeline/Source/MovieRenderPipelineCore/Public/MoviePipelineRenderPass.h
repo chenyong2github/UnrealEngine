@@ -23,12 +23,6 @@ public:
 		CaptureFrameImpl(OutputFrameMetrics);
 	}
 
-
-	void GetFrameData(MoviePipeline::FOutputFrameData& OutFrameData)
-	{
-		GetFrameDataImpl(OutFrameData);
-	}
-
 	void Teardown()
 	{
 		TeardownImpl();
@@ -42,9 +36,7 @@ public:
 protected:
 	virtual void SetupImpl(const FMoviePipelineRenderPassInitSettings& InInitSettings, TSharedRef<FImagePixelPipe, ESPMode::ThreadSafe> InOutputPipe) {  }
 
-	virtual void CaptureFrameImpl(const FMoviePipelineRenderPassMetrics& OutputFrameMetrics) { }
-
-	virtual void GetFrameDataImpl(MoviePipeline::FOutputFrameData& OutFrameData) { }
+	virtual void CaptureFrameImpl(const FMoviePipelineRenderPassMetrics& OutputFrameMetrics) {}
 
 	virtual void TeardownImpl() {}
 

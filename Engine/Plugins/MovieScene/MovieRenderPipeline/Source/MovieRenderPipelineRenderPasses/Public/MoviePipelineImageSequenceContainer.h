@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "MoviePipelineOutput.h"
+#include "MoviePipelineOutputBase.h"
 #include "Async/Future.h"
 #include "MoviePipelineImageSequenceContainer.generated.h"
 
@@ -9,7 +9,7 @@
 class IImageWriteQueue;
 
 UCLASS(Blueprintable)
-class MOVIERENDERPIPELINERENDERPASSES_API UMoviePipelineImageSequenceContainerBase : public UMoviePipelineOutput
+class MOVIERENDERPIPELINERENDERPASSES_API UMoviePipelineImageSequenceContainerBase : public UMoviePipelineOutputBase
 {
 	GENERATED_BODY()
 public:
@@ -17,8 +17,7 @@ public:
 
 protected:
 	// UMovieRenderPipelineOutputContainer interface
-	virtual void OnInitializedForPipelineImpl(UMoviePipeline* InPipeline);
-	virtual void ProcessFrameImpl(TArray<MoviePipeline::FOutputFrameData> FrameData, FMoviePipelineFrameOutputState CachedOutputState, FDirectoryPath OutputDirectory) override;
+	virtual void SetupForPipelineImpl(UMoviePipeline* InPipeline);
 	virtual void BeginFinalizeImpl() override;
 	virtual bool HasFinishedProcessingImpl() override;
 	// ~UMovieRenderPipelineOutputContainer interface

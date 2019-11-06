@@ -4,7 +4,7 @@
 
 #include "IMovieRenderPipelineEditorModule.h"
 class UMoviePipelineShotConfig;
-class UMovieRenderPipelineConfig;
+class UMoviePipelineMasterConfig;
 class UMoviePipelineExecutorBase;
 
 class FMovieRenderPipelineEditorModule : public IMovieRenderPipelineEditorModule
@@ -18,12 +18,12 @@ private:
 	void RegisterSettings();
 	void UnregisterSettings();
 	void PerformTestPipelineRender(const TArray<FString>& Args);
-	void OnTestPipelineExecutorFinished(UMoviePipelineExecutorBase* InExecutor);
+	void OnTestPipelineExecutorFinished(UMoviePipelineExecutorBase* InExecutor, bool bSuccess);
 
 private:
-	TArray<UMovieRenderPipelineConfig*> GenerateTestPipelineConfigs(FSoftObjectPath InSequence);
+	TArray<UMoviePipelineMasterConfig*> GenerateTestPipelineConfigs();
 private:
 	class UMoviePipeline* ActiveMoviePipeline;
-	class UMovieRenderPipelineConfig* PipelineConfig;
+	class UMoviePipelineMasterConfig* PipelineConfig;
 	UMoviePipelineExecutorBase* Executor;
 };

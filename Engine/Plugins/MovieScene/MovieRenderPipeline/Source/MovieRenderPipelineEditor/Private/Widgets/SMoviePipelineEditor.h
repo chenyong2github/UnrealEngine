@@ -12,7 +12,7 @@ struct IMoviePipelineSettingTreeItem;
 
 class SScrollBox;
 class SMoviePipelineSettings;
-class UMoviePipelineShotConfig;
+class UMoviePipelineConfigBase;
 class IDetailsView;
 class UMoviePipelineSetting;
 
@@ -29,7 +29,7 @@ public:
 		: _MoviePipeline(nullptr)
 		{}
 
-		SLATE_ATTRIBUTE(UMoviePipelineShotConfig*, MoviePipeline)
+		SLATE_ATTRIBUTE(UMoviePipelineConfigBase*, MoviePipeline)
 
 	SLATE_END_ARGS()
 
@@ -68,8 +68,8 @@ private:
 private:
 
 	bool bRequestDetailsRefresh;
-	TAttribute<UMoviePipelineShotConfig*> MoviePipelineAttribute;
-	TWeakObjectPtr<UMoviePipelineShotConfig> CachedMoviePipeline;
+	TAttribute<UMoviePipelineConfigBase*> MoviePipelineAttribute;
+	TWeakObjectPtr<UMoviePipelineConfigBase> CachedMoviePipeline;
     
 	TSharedPtr<SMoviePipelineSettings> SettingsWidget;
 	TSharedPtr<SScrollBox> DetailsBox;

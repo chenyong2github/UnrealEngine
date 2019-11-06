@@ -44,7 +44,7 @@
 #define LOCTEXT_NAMESPACE "SMoviePipelineEditor"
 
 
-TArray<UClass*> FindRecordingSourceClasses()
+TArray<UClass*> FindMoviePipelineSettingClasses()
 {
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
@@ -168,7 +168,7 @@ PRAGMA_ENABLE_OPTIMIZATION
 
 void SMoviePipelineEditor::CheckForNewMoviePipeline()
 {
-	UMoviePipelineShotConfig* NewMoviePipeline = MoviePipelineAttribute.Get();
+	UMoviePipelineConfigBase* NewMoviePipeline = MoviePipelineAttribute.Get();
 	if (CachedMoviePipeline != NewMoviePipeline)
 	{
 		CachedMoviePipeline = NewMoviePipeline;
@@ -206,7 +206,7 @@ TSharedRef<SWidget> SMoviePipelineEditor::OnGenerateSettingsMenu()
 
 	MenuBuilder.BeginSection("Settings", LOCTEXT("SettingsMenuSection", "Available Settings"));
 	{
-		TArray<UClass*> SourceClasses = FindRecordingSourceClasses();
+		TArray<UClass*> SourceClasses = FindMoviePipelineSettingClasses();
 		Algo::SortBy(SourceClasses, &UClass::GetDisplayNameText, FText::FSortPredicate());
 
 		for (UClass* Class : SourceClasses)
@@ -281,7 +281,7 @@ void SMoviePipelineEditor::UpdateDetails()
 
 void SMoviePipelineEditor::AddSettingFromClass(TSubclassOf<UMoviePipelineSetting> SettingClass)
 {
-	UMoviePipelineShotConfig* Pipeline = MoviePipelineAttribute.Get();
+	UMoviePipelineConfigBase* Pipeline = MoviePipelineAttribute.Get();
 
 	if (*SettingClass && Pipeline)
 	{

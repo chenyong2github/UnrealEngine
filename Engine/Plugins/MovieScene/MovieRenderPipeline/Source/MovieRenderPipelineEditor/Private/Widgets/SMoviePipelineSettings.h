@@ -13,7 +13,7 @@ class ITableRow;
 class FUICommandList;
 class STableViewBase;
 class UMoviePipelineSetting;
-class UMoviePipelineShotConfig;
+class UMoviePipelineConfigBase;
 struct IMoviePipelineSettingTreeItem;
 struct FMoviePipelineSettingTreeItem;
 template<typename> class STreeView;
@@ -35,7 +35,7 @@ public:
 
 	void Construct(const FArguments& InArgs);
 
-	void SetShotConfigObject(UMoviePipelineShotConfig* InShotConfig);
+	void SetShotConfigObject(UMoviePipelineConfigBase* InShotConfig);
 
 	void GetSelectedSettings(TArray<UMoviePipelineSetting*>& OutSettings) const;
 
@@ -57,7 +57,7 @@ private:
 private:
 
 	uint32 CachedSettingsSerialNumber;
-	TWeakObjectPtr<UMoviePipelineShotConfig> WeakShotConfig;
+	TWeakObjectPtr<UMoviePipelineConfigBase> WeakShotConfig;
 
 	TArray<TSharedPtr<IMoviePipelineSettingTreeItem>> RootNodes;
 	TMap<FObjectKey, TSharedPtr<FMoviePipelineSettingTreeItem>> SettingToTreeItem;

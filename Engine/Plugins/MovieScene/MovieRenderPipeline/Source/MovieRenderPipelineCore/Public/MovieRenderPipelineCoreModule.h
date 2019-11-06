@@ -7,8 +7,9 @@
 
 // Forward Declare
 class UMoviePipelineExecutorBase;
-class UMovieRenderPipelineConfig;
+class UMoviePipelineMasterConfig;
 class ULevelSequence;
+class UMoviePipeline;
 
 namespace MoviePipelineErrorCodes
 {
@@ -32,9 +33,12 @@ public:
 private:
 	bool IsTryingToRenderMovieFromCommandLine(FString& OutSequenceAssetPath, FString& OutConfigAssetPath, FString& OutExecutorType, FString& OutPipelineType) const;
 	void InitializeCommandLineMovieRender();
-	void OnCommandLineMovieRenderCompleted(UMoviePipelineExecutorBase* InExecutor);
+
+	void OnCommandLineMovieRenderCompleted(UMoviePipelineExecutorBase* InExecutor, bool bSuccess);
+	void OnCommandLineMovieRenderErrored(UMoviePipelineExecutorBase* InExecutor, UMoviePipeline* InPipelineWithError, bool bIsFatal, FText ErrorText);
+
 	uint8 GetMovieRenderClasses(const FString& InAssetPath, const FString& InConfigAssetPath, const FString& InExecutorType, const FString& InPipelineType, 
-								ULevelSequence*& OutAsset, UMovieRenderPipelineConfig*& OutConfig, UClass*& OutExecutorClass, UClass*& OutPipelineClass) const;
+								ULevelSequence*& OutAsset, UMoviePipelineMasterConfig*& OutConfig, UClass*& OutExecutorClass, UClass*& OutPipelineClass) const;
 
 private:
 	FString MoviePipelineLocalExecutorClassType;

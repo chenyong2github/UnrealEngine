@@ -8,7 +8,7 @@
 #include "MoviePipeline.generated.h"
 
 // Forward Declares
-class UMovieRenderPipelineConfig;
+class UMoviePipelineMasterConfig;
 class ULevelSequence;
 class UMovieSceneSequencePlayer;
 class UMoviePipelineCustomTimeStep;
@@ -21,7 +21,10 @@ struct FImagePixelPipe;
 struct FMoviePipelineTimeController;
 class FMoviePipelineOutputMerger;
 
+
+
 DECLARE_MULTICAST_DELEGATE_OneParam(FMoviePipelineFinished, UMoviePipeline*);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FMoviePipelineErrored, UMoviePipeline* /*Pipeline*/, bool /*bIsFatal*/, FText /*ErrorText*/);
 
 UCLASS(Blueprintable)
 class MOVIERENDERPIPELINECORE_API UMoviePipeline : public UObject
@@ -34,14 +37,9 @@ public:
 	/** 
 	* Initialize the movie pipeline with the specified settings. This kicks off the rendering process. 
 	
-	* @param InInitSettings - Settings related to the context the pipeline is being executed in. Not configuration for the Pipeline.
-	* @param InConfig		- What settings should the Pipeline use to render with? This should be filled out completely
-	*						  before starting the pipeline. Any overrides based on command line or other should be done
-	*						  before the pipeline is started.
+	* @param InJob	- This contains settings and sequence to render this Movie Pipeline with.
 	*/
-	void Initialize(UMovieRenderPipelineConfig* InConfig);
-
-	void LoadDebugWidget();
+	void Initialize(const FMoviePipelineExecutorJob& InJob);
 
 	/** 
 	* Call to shut down the pipeline. This flushes any outstanding file writes and unregisters all delegates.
@@ -61,113 +59,147 @@ public:
 		return OnMoviePipelineFinishedDelegate;
 	}
 
-	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	FMoviePipelineShotCache GetCurrentShotSnapshot() const;
+	/**
+	* Called when there was an error during the rendering of this movie pipeline (such as missing sequence, i/o failure, etc.)
+	*/
+	FMoviePipelineErrored& OnMoviePipelineErrored()
+	{
+		return OnMoviePipelineErroredDelegate;
+	}
 
+	/**
+	* Get the Master Configuration used to render this shot. This contains the global settings for the shot, as well as per-shot
+	* configurations which can contain their own settings.
+	*/
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	FMoviePipelineShotCutCache GetCurrentCameraCutSnapshot() const;
-
-	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	FMoviePipelineFrameOutputState GetOutputStateSnapshot() const;
+	UMoviePipelineMasterConfig* GetPipelineMasterConfig() const { return CurrentJob.Configuration; }
+public:
 
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	ULevelSequence* GetTargetSequence() const { return TargetSequence; }
 
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	UMovieRenderPipelineConfig* GetPipelineConfig() const { return Config; }
+	const TArray<FMoviePipelineShotInfo>& GetShotList() const { return ShotList; }
 
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	FFrameNumber GetTotalOutputFrameCountEstimate() const;
-
-	/** 
-	* Returns an estimate based on the average time taken to render all previous frames.
-	* Will be incorrect if PlayRate tracks are in use. Will be inaccurate when different
-	* shots take significantly different amounts of time to render.
-	*
-	* @param OutTimespan: The returned estimated time left. Will be default initialized if there is no estimate.
-	* @return True if we can make a reasonable estimate, false otherwise (ie: no rendering has been done to estimate).
-	*/
-	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	bool GetRemainingTimeEstimate(FTimespan& OutTimespan) const;
-
-	const TArray<FMoviePipelineShotCache>& GetShotList() const { return ShotList; }
 	int32 GetCurrentShotIndex() const { return CurrentShotIndex; }
 
-	TSharedPtr<FImagePixelPipe, ESPMode::ThreadSafe> GetOutputPipe() const { return OutputPipe; }
+	/** 
+	* Returns the frame rate override from the Master Configuration (if any) or the Sequence frame rate if no override is specified.
+	* This should be treated as the actual output framerate of the overall Pipeline.
+	*/
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	FFrameRate GetEffectiveFrameRate() const;
 private:
 
+	/** Instantiate our Debug UI Widget and initialize it to ourself. */
+	void LoadDebugWidget();
+	
+	/** Called before the Engine ticks for the given frame. We use this to calculate delta times that the frame should use. */
 	void OnEngineTickBeginFrame();
-	void TickProducingFrames();
+	
+	/** Called after the Engine has ticked for a given frame. Everything in the world has been updated by now so we can submit things to render. */
+	void OnEngineTickEndFrame();
 
-	/** Return true if we should early out of the Tick function */
+
+	/** Runs the per-tick logic when doing the ProducingFrames state. */
+	void TickProducingFrames();
+	
+	/** Called once when first moving to the Finalize state. */
+	void BeginFinalize();
+
+	/** 
+	* Runs the per-tick logic when doing the Finalize state.
+	* @param bInForceFinish		If true, this function will not return until all Output Containers say they have finalized.
+	*/
+	void TickFinalizeOutputContainers(const bool bInForceFinish);
+	/** 
+	* Runs the per-tick logic when doing the Export state. This is spread over multiple ticks to allow non-blocking background 
+	* processes (such as extra encoding) 
+	*/
+	void TickPostFinalizeExport();
+
+	/** Return true if we should early out of the TickProducingFrames function. Decrements the remaining number of steps when false. */
 	bool DebugFrameStepPreTick();
 	/** Returns true if we are idling because of debug frame stepping. */
 	bool IsDebugFrameStepIdling() const;
 
+	/** Debugging/Information. Don't hinge any logic on this as it will get called multiple times per frame in some cases. */
 	void OnSequenceEvaluated(const UMovieSceneSequencePlayer& Player, FFrameTime CurrentTime, FFrameTime PreviousTime);
 
-	void OnEngineTickEndFrame();
-	void TickFinalizeOutputContainers(const bool bInForceFinish);
-	void PostFinalizeExport();
-	void TickPostFinalizeExport();
-	void InitializeShot(FMoviePipelineShotCache& InShot);
-	void SetupRenderingPipelineForShot(FMoviePipelineShotCache& InShot);
-	void TeardownRenderingPipelineForShot(FMoviePipelineShotCache& InShot);
+	/** Set up per-shot state for the specific shot, tearing down old state (if it exists) */
+	void InitializeShot(FMoviePipelineShotInfo& InShot);
 
-	void BeginFinalize();
-	void FlushAsyncSystems();
+	/** Initialize the rendering pipeline for the given shot. This should not get called if rendering work is still in progress for a previous shot. */
+	void SetupRenderingPipelineForShot(FMoviePipelineShotInfo& InShot);
+	/** Deinitialize the rendering pipeline for the given shot. */
+	void TeardownRenderingPipelineForShot(FMoviePipelineShotInfo& InShot);
+
+	/** Flush any async resources in the engine that need to be finalized before submitting anything to the GPU, ie: Streaming Levels and Shaders */
+	void FlushAsyncEngineSystems();
+
 	/** 
 	* Renders the next frame in the Pipeline. This updates/ticks all scene view render states
 	* and produces data. This may not result in an output frame due to multiple renders 
 	* accumulating together to produce an output. frame.
-	* Should not be called if we're idling (debug) or not initialized yet. 
+	* Should not be called if we're idling (debug), not initialized yet, or finalizing/exporting. 
 	*/
 	void RenderFrame();
+
+	/** Allow any Settings to modify the (already duplicated) sequence. This allows inserting automatic pre-roll, etc. */
+	void ModifySequenceViaExtensions(ULevelSequence* InSequence);
+
+	/** Calculate the expected amount of total work that this Movie Pipeline is expected to do. */
+	FMoviePipelineWorkInfo CalculateExpectedOutputMetrics();
 private:
-	ULevelSequence* CreateCopyOfSequence(ULevelSequence* InSequence);
+	/** Initialize a new Level Sequence Actor to evaluate our target sequence. Disables any existing Level Sequences pointed at our original sequence. */
 	void InitializeLevelSequenceActor(ULevelSequence* OriginalLevelSequence, ULevelSequence* InSequenceToApply);
 
-	/** Modifies the TargetSequence to ensure that only the specified Shot has it's associated Cinematic Shot Section enabled. */
-	void SetSoloShot(const FMoviePipelineShotCache& InShot);
-	void SetSoloCameraCut(FMoviePipelineShotCutCache& InCameraCut);
-
 	/** This converts the sequence into a Shot List and expands bounds.*/
-	TArray<FMoviePipelineShotCache> BuildShotListFromSequence(const ULevelSequence* InSequence);
+	TArray<FMoviePipelineShotInfo> BuildShotListFromSequence(const ULevelSequence* InSequence);
 
-	/* Tick Resolution Frames*/
-	FFrameNumber GetMotionBlurDuration(int32 InShotIndex) const;
-	/* Tick Resolution Frames*/
-	FFrameNumber CalculateHandleFrameDuration(const FMoviePipelineShotCache& InShot) const;
-	
-	MoviePipeline::FFrameConstantMetrics CalculateShotFrameMetrics(const FMoviePipelineShotCache& InShot) const;
+	/** 
+	* Modifies the TargetSequence to ensure that only the specified Shot has it's associated Cinematic Shot Section enabled.
+	* This way when Handle Frames are enabled and the sections are expanded, we don't end up evaluating the previous shot. 
+	*/
+	void SetSoloShot(const FMoviePipelineShotInfo& InShot);
 
-	void CalculateFrameNumbersForOutputState(const MoviePipeline::FFrameConstantMetrics& InFrameMetrics, const FMoviePipelineShotCutCache& InCameraCut, FMoviePipelineFrameOutputState& InOutOutputState) const;
+	/* Expands the specified shot (and contained camera cuts)'s ranges for the given settings. */
+	void ExpandShot(FMoviePipelineShotInfo& InShot);
 
-	/* Expands the specified shot by the specified offsets. Offsets should be in TickResolution */
-	void ExpandShot(FMoviePipelineShotCache& InShot);
+	/** Calculates lots of useful numbers used in timing based off of the current shot. These are constant for a given shot. */
+	MoviePipeline::FFrameConstantMetrics CalculateShotFrameMetrics(const FMoviePipelineShotInfo& InShot) const;
+
+	/** It can be useful to know where the data we're generating was relative to the original Timeline, so this calculates that. */
+	void CalculateFrameNumbersForOutputState(const MoviePipeline::FFrameConstantMetrics& InFrameMetrics, const FMoviePipelineCameraCutInfo& InCameraCut, FMoviePipelineFrameOutputState& InOutOutputState) const;
 
 private:
+	/** Custom TimeStep used to drive the engine while rendering. */
 	UPROPERTY(Transient, Instanced)
 	UMoviePipelineCustomTimeStep* CustomTimeStep;
 
+	/** Custom Time Controller for the Sequence Player, used to match Custom TimeStep without any floating point accumulation errors. */
 	TSharedPtr<FMoviePipelineTimeController> CustomSequenceTimeController;
 
 	/** Hold a reference to the existing custom time step (if any) so we can restore it after we're done using our custom one. */
 	UPROPERTY(Transient)
-	UEngineCustomTimeStep* CachedCustomTimeStep;
+	UEngineCustomTimeStep* CachedPrevCustomTimeStep;
 
-	UPROPERTY(Transient, BlueprintReadOnly, meta=(AllowPrivateAccess=true), Category = "Movie Render Pipeline")
+	/** This is our duplicated sequence that we're rendering. This will get modified throughout the rendering process. */
+	UPROPERTY(Transient)
 	ULevelSequence* TargetSequence;
 
+	/** The Level Sequence Actor we spawned to play our TargetSequence. */
 	UPROPERTY(Transient)
 	ALevelSequenceActor* LevelSequenceActor;
 
+	/** The Debug UI Widget that is spawned and placed on the player UI */
 	UPROPERTY(Transient)
 	UMovieRenderDebugWidget* DebugWidget;
 
 	/** A list of all of the shots we are going to render out from this sequence. */
 	UPROPERTY(Transient, BlueprintReadOnly, meta = (AllowPrivateAccess = true), Category = "Movie Render Pipeline")
-	TArray<FMoviePipelineShotCache> ShotList;
+	TArray<FMoviePipelineShotInfo> ShotList;
 
 	/** What state of the overall flow are we in? See enum for specifics. */
 	UPROPERTY(Transient, BlueprintReadOnly, meta = (AllowPrivateAccess = true), Category = "Movie Render Pipeline")
@@ -177,19 +209,24 @@ private:
 	UPROPERTY(Transient, BlueprintReadOnly, meta = (AllowPrivateAccess = true), Category = "Movie Render Pipeline")
 	int32 CurrentShotIndex;
 
-	UPROPERTY(Transient, BlueprintReadOnly, meta = (AllowPrivateAccess = true), Category = "Movie Render Pipeline")
-	FMoviePipelineFrameOutputState CachedOutputState;
-
 	/** The time (in UTC) that Initialize was called. Used to track elapsed time. */
 	UPROPERTY(Transient, BlueprintReadOnly, meta = (AllowPrivateAccess = true), Category = "Movie Render Pipeline")
 	FDateTime InitializationTime;
+
+	UPROPERTY(Transient, BlueprintReadOnly, meta = (AllowPrivateAccess = true), Category = "Movie Render Pipeline")
+	FMoviePipelineFrameOutputState CachedOutputState;
+
+	/** 
+	* Cache the overall expected work for the entire Movie Pipeline. Used to compare current progress against total for progress.
+	* Current Progress is tracked by individual shots.
+	*/
+	FMoviePipelineWorkInfo TotalExpectedWork;
 
 	/** 
 	* Have we hit the callback for the BeginFrame at least once? This solves an issue where the delegates
 	* get registered mid-frame so you end up calling EndFrame before BeginFrame which is undesirable.
 	*/
 	bool bHasRunBeginFrameOnce;
-
 	/** Should we pause the game at the end of the frame? Used to implement frame step debugger. */
 	bool bPauseAtEndOfFrame;
 
@@ -199,20 +236,21 @@ private:
 	/** Called when we have completely finished. This object will call Shutdown before this and stop ticking. */
 	FMoviePipelineFinished OnMoviePipelineFinishedDelegate;
 
+	/** Called when there is a warning/error that the user should pay attention to.*/
+	FMoviePipelineErrored OnMoviePipelineErroredDelegate;
+
+public:
 	/** This gathers all of the produced data for an output frame (which may come in async many frames later) before passing them onto the Output Containers. */
 	TSharedPtr<FMoviePipelineOutputMerger, ESPMode::ThreadSafe> OutputBuilder;
 
-	// Debug Rendering
-	TSharedPtr<FMovieRenderViewport> DummyViewport;
-	TSharedPtr<FMovieRenderViewportClient> ViewportClient;
-
-
+	// debug
+	TSharedPtr<FImagePixelPipe, ESPMode::ThreadSafe> GetOutputPipe() const { return OutputPipe; }
 	TSharedPtr<FImagePixelPipe, ESPMode::ThreadSafe> OutputPipe;
 
 private:
-	/** The overall configuration for how this Pipeline executes. Should be immutable. */
+	/** Keep track of which job we're working on. This holds our Configuration + which shots we're supposed to render from it. */
 	UPROPERTY(Transient)
-	UMovieRenderPipelineConfig* Config;
+	FMoviePipelineExecutorJob CurrentJob;
 };
 
 UCLASS()

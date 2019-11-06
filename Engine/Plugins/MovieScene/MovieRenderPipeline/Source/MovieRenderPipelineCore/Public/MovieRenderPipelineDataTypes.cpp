@@ -5,7 +5,7 @@
 #include "Sections/MovieSceneCinematicShotSection.h"
 #include "MoviePipelineAccumulationSetting.h"
 
-FString FMoviePipelineShotCache::GetDisplayName() const
+FString FMoviePipelineShotInfo::GetDisplayName() const
 {
 	if (CinematicShotSection.Get())
 	{
@@ -15,7 +15,7 @@ FString FMoviePipelineShotCache::GetDisplayName() const
 	return TEXT("Unnamed");
 }
 
-FFrameNumber FMoviePipelineShotCutCache::GetOutputFrameCountEstimate() const
+FFrameNumber FMoviePipelineCameraCutInfo::GetOutputFrameCountEstimate() const
 {
 	// TotalRange is stored in Tick Resolution, so we convert 1 frame of Frame Rate to the number of ticks.
 	FFrameNumber OneFrameInTicks = FFrameRate::TransformTime(FFrameTime(FFrameNumber(1)), CachedFrameRate, CachedTickResolution).FloorToFrame();
@@ -27,7 +27,7 @@ FFrameNumber FMoviePipelineShotCutCache::GetOutputFrameCountEstimate() const
 	return FFrameNumber(NumFrames);
 }
 
-FFrameNumber FMoviePipelineShotCutCache::GetTemporalFrameCountEstimate() const
+FFrameNumber FMoviePipelineCameraCutInfo::GetTemporalFrameCountEstimate() const
 {
 	FFrameNumber OutputEstimate = GetOutputFrameCountEstimate();
 	FFrameNumber NumRenderedSamples = OutputEstimate * NumTemporalSamples;
@@ -35,12 +35,12 @@ FFrameNumber FMoviePipelineShotCutCache::GetTemporalFrameCountEstimate() const
 	return NumRenderedSamples;
 }
 
-FFrameNumber FMoviePipelineShotCutCache::GetUtilityFrameCountEstimate() const
+FFrameNumber FMoviePipelineCameraCutInfo::GetUtilityFrameCountEstimate() const
 {
 	return FFrameNumber(NumWarmUpFrames + (bAccurateFirstFrameHistory ? 1 : 0));
 }
 
-FFrameNumber FMoviePipelineShotCutCache::GetSampleCountEstimate(const bool bIncludeWarmup, const bool bIncludeMotionBlur) const
+FFrameNumber FMoviePipelineCameraCutInfo::GetSampleCountEstimate(const bool bIncludeWarmup, const bool bIncludeMotionBlur) const
 {
 	int32 TotalSamples = 0;
 	
@@ -50,7 +50,7 @@ FFrameNumber FMoviePipelineShotCutCache::GetSampleCountEstimate(const bool bIncl
 		TotalSamples += 0;
 	}
 
-	// Motion blur only adds one frame
+	// Motion blur only adds one sample (overrides spatial samples, only executes once before first temporal sample)
 	if (bIncludeMotionBlur)
 	{
 		TotalSamples += 1;
@@ -62,7 +62,7 @@ FFrameNumber FMoviePipelineShotCutCache::GetSampleCountEstimate(const bool bIncl
 	return FFrameNumber(TotalSamples);
 }
 
-void FMoviePipelineShotCutCache::SetNextState(const EMovieRenderShotState InCurrentState)
+void FMoviePipelineCameraCutInfo::SetNextState(const EMovieRenderShotState InCurrentState)
 {
 	switch (InCurrentState)
 	{
@@ -105,4 +105,30 @@ void FMoviePipelineShotCutCache::SetNextState(const EMovieRenderShotState InCurr
 		break;
 	}
 
+}
+
+FMoviePipelineWorkInfo FMoviePipelineCameraCutInfo::GetTotalWorkEstimate() const
+{
+	FMoviePipelineWorkInfo WorkEstimate;
+
+	// Initial Range + Handle Frames
+	FFrameNumber OutputFrameCount = GetOutputFrameCountEstimate();
+	WorkEstimate.NumOutputFrames += OutputFrameCount.Value;
+
+	// Warm Up (no submission to gpu), Motion Blur
+	FFrameNumber UtilityFrameCount = GetUtilityFrameCountEstimate();
+	WorkEstimate.NumUtilityFrames += UtilityFrameCount.Value;
+
+	// OutputFrameCount * TemporalSampleCount (since each output frame gets time sliced)
+	FFrameNumber SubsampledOutputFrameCount = GetTemporalFrameCountEstimate();
+	WorkEstimate.NumOutputFramesWithSubsampling += SubsampledOutputFrameCount.Value;
+
+	// How many different samples are we submitting to the GPU?
+	FFrameNumber TotalSampleCount = GetSampleCountEstimate(true, true) * NumTiles;
+	WorkEstimate.NumSamples += TotalSampleCount.Value;
+
+	// How many images will we produce to create the high-res tile.
+	WorkEstimate.NumTiles = NumTiles;
+
+	return WorkEstimate;
 }

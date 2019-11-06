@@ -5,18 +5,18 @@
 #include "MoviePipelineGameOverrideSetting.h"
 #include "GameFramework/GameMode.h"
 #include "MoviePipelineAccumulationSetting.h"
-#include "MovieRenderPipelineConfig.h"
 #include "MoviePipelineImageSequenceContainer.h"
 #include "MoviePipelineAudioOutput.h"
 #include "Misc/Paths.h"
+#include "MoviePipelineMasterConfig.h"
+#include "MoviePipelineOutputSetting.h"
 
 UMoviePipelineShotConfig* GenerateTestShotConfig(UObject* InOwner, int32 InSampleCount,
 	int32 InShutterAngle, EMoviePipelineShutterTiming InFrameTiming, int32 InTileCount,
 	int32 InSpatialSampleCount, bool bIsUsingOverlappedTiles, float PadRatioX, float PadRatioY, float AccumulationGamma)
 {
 	UMoviePipelineShotConfig* OutConfig = NewObject<UMoviePipelineShotConfig>(InOwner);
-	UMoviePipelineBackbufferPass* DefaultPass = NewObject<UMoviePipelineBackbufferPass>(InOwner);
-	OutConfig->InputBuffers.Add(DefaultPass);
+	OutConfig->FindOrAddSetting<UMoviePipelineBackbufferPass>();
 
 	UMoviePipelineGameOverrideSetting* GamemodeOverride = OutConfig->FindOrAddSetting<UMoviePipelineGameOverrideSetting>();
 	GamemodeOverride->GameModeOverride = AGameMode::StaticClass();
@@ -35,7 +35,7 @@ UMoviePipelineShotConfig* GenerateTestShotConfig(UObject* InOwner, int32 InSampl
 	return OutConfig;
 }
 
-TArray<UMovieRenderPipelineConfig*> FMovieRenderPipelineEditorModule::GenerateTestPipelineConfigs(FSoftObjectPath InSequence)
+TArray<UMoviePipelineMasterConfig*> FMovieRenderPipelineEditorModule::GenerateTestPipelineConfigs()
 {
 	// int32 ShutterAngles[] = { 180, 360 };
 	// EMoviePipelineShutterTiming ShutterTimings[] = { EMoviePipelineShutterTiming::FrameOpen, EMoviePipelineShutterTiming::FrameCenter, EMoviePipelineShutterTiming::FrameClose };
@@ -47,7 +47,7 @@ TArray<UMovieRenderPipelineConfig*> FMovieRenderPipelineEditorModule::GenerateTe
 	FString ShutterTimingNames[] = { TEXT("FCenter") };
 	int32 TemporalSampleCounts[] = { 1 };
 
-	TArray<UMovieRenderPipelineConfig*> Configs;
+	TArray<UMoviePipelineMasterConfig*> Configs;
 
 	for (int32 ShutterAngleIndex = 0; ShutterAngleIndex < UE_ARRAY_COUNT(ShutterAngles); ShutterAngleIndex++)
 	{
@@ -58,8 +58,8 @@ TArray<UMovieRenderPipelineConfig*> FMovieRenderPipelineEditorModule::GenerateTe
 				// Build a folder string to place this particular test in.
 				FString DirectoryName = FString::Printf(TEXT("SA_%d_ST_%s_SC_%d"), ShutterAngles[ShutterAngleIndex], *ShutterTimingNames[ShutterTimingIndex], TemporalSampleCounts[TemporalSampleCountIndex]);
 
-				UMovieRenderPipelineConfig* OutPipeline = NewObject<UMovieRenderPipelineConfig>(GetTransientPackage());
-				OutPipeline->Sequence = InSequence;
+				UMoviePipelineMasterConfig* OutPipeline = NewObject<UMoviePipelineMasterConfig>(GetTransientPackage());
+				UMoviePipelineOutputSetting* OutputSetting = OutPipeline->FindOrAddSetting<UMoviePipelineOutputSetting>();
 
 				int32 SizeX = 1080;
 				int32 SizeY = 1920;
@@ -70,8 +70,8 @@ TArray<UMovieRenderPipelineConfig*> FMovieRenderPipelineEditorModule::GenerateTe
 				float PadRatioY = 0.5f;
 				float AccumulationGamma = 1.0f;
 
-				OutPipeline->OutputResolution = FIntPoint(SizeX*TileX, SizeY*TileY);
-				OutPipeline->OutputDirectory.Path = FPaths::ProjectSavedDir() / TEXT("/VideoCaptures/") / *DirectoryName;
+				OutputSetting->OutputResolution = FIntPoint(SizeX*TileX, SizeY*TileY);
+				OutputSetting->OutputDirectory.Path = FPaths::ProjectSavedDir() / TEXT("/VideoCaptures/") / *DirectoryName;
 
 				const int32 NumSpatialSamples = TestNumSamples;
 				const int32 NumTiles = TileX;
@@ -86,11 +86,7 @@ TArray<UMovieRenderPipelineConfig*> FMovieRenderPipelineEditorModule::GenerateTe
 				OutPipeline->DefaultShotConfig = DefaultConfig;
 
 				// Add some Outputs
-				UMoviePipelineImageSequenceContainerBase* ImageSequenceOutput = NewObject<UMoviePipelineImageSequenceContainerBase>(OutPipeline);
-				OutPipeline->OutputContainers.Add(ImageSequenceOutput);
-
-				UMoviePipelineAudioOutput* AudioOutput = NewObject<UMoviePipelineAudioOutput>(OutPipeline);
-				OutPipeline->OutputContainers.Add(AudioOutput);
+				OutPipeline->FindOrAddSetting<UMoviePipelineImageSequenceContainerBase>();
 
 				// Add it to our list to be processed.
 				Configs.Add(OutPipeline);

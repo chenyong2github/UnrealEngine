@@ -94,7 +94,7 @@ void SMoviePipelinePanel::Construct(const FArguments& InArgs)
 						.AutoWidth()
 						[
 							SNew(SImage)
-							.Image(FSlateIconFinder::FindIconBrushForClass(UMoviePipelineShotConfig::StaticClass()))
+							.Image(FSlateIconFinder::FindIconBrushForClass(UMoviePipelineConfigBase::StaticClass()))
 						]
 
 						+ SHorizontalBox::Slot()
@@ -183,12 +183,12 @@ void SMoviePipelinePanel::Construct(const FArguments& InArgs)
 
 PRAGMA_ENABLE_OPTIMIZATION
 
-UMoviePipelineShotConfig* SMoviePipelinePanel::AllocateTransientPreset()
+UMoviePipelineConfigBase* SMoviePipelinePanel::AllocateTransientPreset()
 {
 	static const TCHAR* PackageName = TEXT("/Temp/MoviePipeline/PendingPipeline");
 
 	// Return a cached transient if it exists
-	UMoviePipelineShotConfig* ExistingPreset = FindObject<UMoviePipelineShotConfig>(nullptr, TEXT("/Temp/MoviePipeline/PendingPipeline.PendingPipeline"));
+	UMoviePipelineConfigBase* ExistingPreset = FindObject<UMoviePipelineConfigBase>(nullptr, TEXT("/Temp/MoviePipeline/PendingPipeline.PendingPipeline"));
 	if (ExistingPreset)
 	{
 		return ExistingPreset;
@@ -200,7 +200,7 @@ UMoviePipelineShotConfig* SMoviePipelinePanel::AllocateTransientPreset()
 	NewPackage->SetFlags(RF_Transient);
 	NewPackage->AddToRoot();
 
-	UMoviePipelineShotConfig* NewPreset = NewObject<UMoviePipelineShotConfig>(NewPackage, DesiredName, RF_Transient | RF_Transactional | RF_Standalone);
+	UMoviePipelineConfigBase* NewPreset = NewObject<UMoviePipelineConfigBase>(NewPackage, DesiredName, RF_Transient | RF_Transactional | RF_Standalone);
 
 	return NewPreset;
 }
@@ -235,7 +235,7 @@ TSharedRef<SWidget> SMoviePipelinePanel::OnGeneratePresetsMenu()
 		AssetPickerConfig.bSortByPathInColumnView = false;
 
 		AssetPickerConfig.AssetShowWarningText = LOCTEXT("NoPresets_Warning", "No Presets Found");
-		AssetPickerConfig.Filter.ClassNames.Add(UMoviePipelineShotConfig::StaticClass()->GetFName());
+		AssetPickerConfig.Filter.ClassNames.Add(UMoviePipelineConfigBase::StaticClass()->GetFName());
 		// AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &SMoviePipelinePanel::OnImportPreset);
 	}
 
@@ -280,7 +280,7 @@ void SMoviePipelinePanel::AddReferencedObjects(FReferenceCollector& Collector)
 	// Collector.AddReferencedObject(RecordingLevelSequence);
 }
 
-UMoviePipelineShotConfig* SMoviePipelinePanel::GetMoviePipeline() const
+UMoviePipelineConfigBase* SMoviePipelinePanel::GetMoviePipeline() const
 {
 	return TransientPreset;
 }

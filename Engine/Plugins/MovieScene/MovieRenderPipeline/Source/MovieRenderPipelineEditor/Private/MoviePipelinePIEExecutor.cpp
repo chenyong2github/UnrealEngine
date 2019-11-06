@@ -1,17 +1,16 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "MoviePipelinePIEExecutor.h"
-#include "Settings/LevelEditorPlaySettings.h"
-#include "MovieRenderPipelineCoreModule.h"
-#include "MovieRenderPipelineConfig.h"
+#include "MoviePipelineMasterConfig.h"
 #include "MoviePipelineShotConfig.h"
-#include "MoviePipelineSeparateProcessSetting.h"
+#include "MoviePipeline.h"
+#include "MoviePipelineGameOverrideSetting.h"
+#include "MovieRenderPipelineCoreModule.h"
 #include "Framework/Application/SlateApplication.h"
+#include "MovieRenderPipelineDataTypes.h"
+#include "MovieRenderPipelineSettings.h"
 #include "Editor/EditorEngine.h"
 #include "Editor.h"
-#include "MoviePipelineGameOverrideSetting.h"
-#include "MovieRenderPipelineDataTypes.h"
-#include "MoviePipeline.h"
-#include "MovieRenderPipelineSettings.h"
+#include "Settings/LevelEditorPlaySettings.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipelinePIEExecutor"
 
@@ -26,15 +25,13 @@ FText UMoviePipelinePIEExecutor::GetWindowTitle(const int32 InConfigIndex, const
 	return WindowTitle;
 }
 
-void UMoviePipelinePIEExecutor::Start(UMovieRenderPipelineConfig* InConfig, const int32 InConfigIndex, const int32 InNumConfigs)
+void UMoviePipelinePIEExecutor::Start(const FMoviePipelineExecutorJob& InJob)
 {
-	Super::Start(InConfig, InConfigIndex, InNumConfigs);
-
-	ActiveConfig = InConfig;
+	Super::Start(InJob);
 
 	// Create a Slate window to hold our preview.
 	TSharedRef<SWindow> CustomWindow = SNew(SWindow)
-		.Title_UObject(this, &UMoviePipelinePIEExecutor::GetWindowTitle, InConfigIndex, InNumConfigs)
+		.Title_UObject(this, &UMoviePipelinePIEExecutor::GetWindowTitle, CurrentPipelineIndex, ExecutorJobs.Num())
 		.ClientSize(FVector2D(1280, 720))
 		.AutoCenter(EAutoCenter::PrimaryWorkArea)
 		.UseOSWindowBorder(true)
@@ -57,7 +54,7 @@ void UMoviePipelinePIEExecutor::Start(UMovieRenderPipelineConfig* InConfig, cons
 	Params.EditorPlaySettings = PlayInEditorSettings;
 	Params.CustomPIEWindow = CustomWindow;
 
-	UMoviePipelineGameOverrideSetting* GameOverrides = InConfig->DefaultShotConfig->FindSetting<UMoviePipelineGameOverrideSetting>();
+	UMoviePipelineGameOverrideSetting* GameOverrides = InJob.Configuration->DefaultShotConfig->FindSetting<UMoviePipelineGameOverrideSetting>();
 	if (GameOverrides)
 	{
 		Params.GameModeOverride = GameOverrides->GameModeOverride;
@@ -97,11 +94,14 @@ void UMoviePipelinePIEExecutor::OnPIEStartupFinished(bool)
 	// This Pipeline belongs to the world being created so that they have context for things they execute.
 	ActiveMoviePipeline = NewObject<UMoviePipeline>(ExecutingWorld, PipelineClass);
 	
-	ActiveMoviePipeline->Initialize(ActiveConfig);
+	ActiveMoviePipeline->Initialize(ExecutorJobs[CurrentPipelineIndex]);
 
 	// Listen for when the pipeline thinks it has finished.
 	ActiveMoviePipeline->OnMoviePipelineFinished().AddUObject(this, &UMoviePipelinePIEExecutor::OnPIEMoviePipelineFinished);
+	ActiveMoviePipeline->OnMoviePipelineErrored().AddUObject(this, &UMoviePipelinePIEExecutor::OnPipelineErrored);
 }
+
+
 
 void UMoviePipelinePIEExecutor::OnPIEMoviePipelineFinished(UMoviePipeline* InMoviePipeline)
 {
@@ -126,7 +126,6 @@ void UMoviePipelinePIEExecutor::DelayedFinishNotification()
 	// Null these out now since OnIndividualPipelineFinished might invoke something that causes a GC
 	// and we want them to go away with the GC.
 	ActiveMoviePipeline = nullptr;
-	ActiveConfig = nullptr;
 	
 	// Now that another frame has passed and we should be OK to start another PIE session, notify our owner.
 	OnIndividualPipelineFinished(MoviePipeline);

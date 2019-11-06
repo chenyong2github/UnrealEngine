@@ -4,8 +4,7 @@
 #include "MovieRenderPipelineDataTypes.h"
 #include "MoviePipelineAccumulationSetting.h"
 #include "MoviePipelineShotConfig.h"
-#include "MoviePipelineOutput.h"
-#include "MovieRenderPipelineConfig.h"
+#include "MoviePipelineOutputBase.h"
 #include "CoreGlobals.h"
 #include "Containers/Array.h"
 #include "MovieRenderPipelineCoreModule.h"
@@ -15,6 +14,7 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/WorldSettings.h"
+#include "MoviePipelineMasterConfig.h"
 
 void UMoviePipeline::TickProducingFrames()
 {
@@ -37,8 +37,8 @@ void UMoviePipeline::TickProducingFrames()
 	// on the last Tick.
 	GetWorld()->GetFirstPlayerController()->SetPause(false);
 
-	FMoviePipelineShotCache& CurrentShot = ShotList[CurrentShotIndex];
-	FMoviePipelineShotCutCache& CurrentCameraCut = CurrentShot.GetCurrentCameraCut();
+	FMoviePipelineShotInfo& CurrentShot = ShotList[CurrentShotIndex];
+	FMoviePipelineCameraCutInfo& CurrentCameraCut = CurrentShot.GetCurrentCameraCut();
 
 	// Check to see if we need to initialize a new shot. This potentially changes a lot of state.
 	if (CurrentCameraCut.State == EMovieRenderShotState::Uninitialized)
@@ -53,9 +53,6 @@ void UMoviePipeline::TickProducingFrames()
 		UE_LOG(LogMovieRenderPipeline, Log, TEXT("[%d] Initializing Camera Cut [%d/%d] in Shot (%s)."), GFrameCounter, 
 			CurrentShot.CurrentCameraCutIndex + 1, CurrentShot.CameraCuts.Num(), *CurrentShot.GetDisplayName());
 		
-		// Ensure our Camera Cut is the only one active so it will evaluate the right camera.
-		SetSoloCameraCut(CurrentCameraCut);
-
 		CurrentCameraCut.SetNextState(EMovieRenderShotState::Uninitialized);
 
 		// The shot has been initialized and the new state chosen. Jump the Sequence to the starting time.
@@ -95,7 +92,7 @@ void UMoviePipeline::TickProducingFrames()
 		CurrentCameraCut.NumWarmUpFramesRemaining--;
 
 		// Render the next frame at a reasonable frame rate to pass time in the world.
-		double FrameDeltaTime = Config->GetEffectiveFrameRate().AsInterval();
+		double FrameDeltaTime = GetEffectiveFrameRate().AsInterval();
 
 		UE_LOG(LogMovieRenderPipeline, VeryVerbose, TEXT("[%d] Shot WarmUp set engine DeltaTime to %f seconds."), GFrameCounter, FrameDeltaTime);
 		CustomTimeStep->SetCachedFrameTiming(MoviePipeline::FFrameTimeStepCache(FrameDeltaTime));
@@ -193,11 +190,7 @@ void UMoviePipeline::TickProducingFrames()
 	if (!CurrentCameraCut.bHasNotifiedFrameProductionStarted)
 	{
 		CurrentCameraCut.bHasNotifiedFrameProductionStarted = true;
-		for (UMoviePipelineOutput* Container : Config->OutputContainers)
-		{
-			// ToDo: We should name this OnRenderingStart/OnRenderingStop
-			Container->OnFrameProductionStart();
-		}
+
 	}
 
 	// Alright we're in the point where we finally want to start rendering out frames, we've finished warming up,
@@ -225,7 +218,6 @@ void UMoviePipeline::TickProducingFrames()
 		}
 
 		CachedOutputState.TemporalSampleIndex++;
-		CurrentCameraCut.CurrentFrameSamples = (CachedOutputState.TemporalSampleIndex + 1) * CurrentCameraCut.NumSpatialSamples;
 
 		if (AccumulationSettings->TemporalSampleCount == 1)
 		{
@@ -466,6 +458,8 @@ void UMoviePipeline::TickProducingFrames()
 		// The combination of shutter angle percentage, non-uniform render frame delta times and dividing by sample
 		// count produce the correct length for motion blur in all cases.
 		CachedOutputState.MotionBlurFraction = FrameMetrics.ShutterAnglePercentage / AccumulationSettings->TemporalSampleCount;
+
+		// Update our Output State with any data we need to derive based on our current time.
 		CalculateFrameNumbersForOutputState(FrameMetrics, CurrentCameraCut, CachedOutputState);
 
 		// Now that we know the delta time for the upcoming frame, we can see if this time would extend past the end of our
@@ -480,15 +474,10 @@ void UMoviePipeline::TickProducingFrames()
 			CurrentCameraCut.State = EMovieRenderShotState::Finished;
 			
 			// Compare our expected vs. actual results for logging.
+			if (CurrentCameraCut.CurrentWorkInfo != CurrentCameraCut.TotalWorkInfo)
 			{
-				FFrameNumber NumExpectedFrames = CurrentCameraCut.GetOutputFrameCountEstimate();
-				FFrameNumber NumExpectedSamples = CurrentCameraCut.GetSampleCountEstimate(/*bIncludeWarmup*/ true, /*bIncludeMotionBlur*/ true);
-
-				FFrameNumber NumFrames = CurrentCameraCut.NumFramesProduced;
-				FFrameNumber NumSamples = CurrentCameraCut.NumSamplesRendered;
-
-				UE_LOG(LogMovieRenderPipeline, Log, TEXT("\t Frames Produced: %d (Expected: %d), Samples Rendered: %d (Expected: %d)"),
-					NumFrames.Value, NumExpectedFrames.Value, NumSamples.Value, NumExpectedSamples.Value);
+				UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Mismatch in work done vs. expected work done.\nExpected: %s\nTotal: %s"),
+					*CurrentCameraCut.TotalWorkInfo.ToDisplayString(), *CurrentCameraCut.CurrentWorkInfo.ToDisplayString());
 			}
 
 			// We pause at the end too, just so that frames during finalize don't continue to trigger Sequence Eval messages.
@@ -502,7 +491,7 @@ void UMoviePipeline::TickProducingFrames()
 				CurrentShotIndex++;
 
 				// Notify our containers that the current shot has ended.
-				for (UMoviePipelineOutput* Container : Config->OutputContainers)
+				for (UMoviePipelineOutputBase* Container : GetPipelineMasterConfig()->GetOutputContainers())
 				{
 					Container->OnShotFinished(CurrentShot);
 				}
@@ -520,7 +509,7 @@ void UMoviePipeline::TickProducingFrames()
 				FCoreDelegates::OnEndFrame.RemoveAll(this);
 
 				// Reset the Custom Timestep because we don't care how long the engine takes now
-				GEngine->SetCustomTimeStep(CachedCustomTimeStep);
+				GEngine->SetCustomTimeStep(CachedPrevCustomTimeStep);
 
 				BeginFinalize();
 				return;
@@ -540,7 +529,6 @@ void UMoviePipeline::TickProducingFrames()
 		if (CachedOutputState.TemporalSampleIndex == 0)
 		{
 			CachedOutputState.OutputFrameNumber++;
-			CurrentCameraCut.NumFramesProduced++;
 		}
 		
 		// Set our time step for the next frame
@@ -553,7 +541,7 @@ void UMoviePipeline::TickProducingFrames()
 	check(false);
 }
 
-void UMoviePipeline::CalculateFrameNumbersForOutputState(const MoviePipeline::FFrameConstantMetrics& InFrameMetrics, const FMoviePipelineShotCutCache& InCameraCut, FMoviePipelineFrameOutputState& InOutOutputState) const
+void UMoviePipeline::CalculateFrameNumbersForOutputState(const MoviePipeline::FFrameConstantMetrics& InFrameMetrics, const FMoviePipelineCameraCutInfo& InCameraCut, FMoviePipelineFrameOutputState& InOutOutputState) const
 {
 	// Find the closest number on the source Sequence. This may produce duplicates when using slow-mo tracks.
 	FFrameRate SourceDisplayRate = TargetSequence->GetMovieScene()->GetDisplayRate();

@@ -4,46 +4,50 @@
 
 #define LOCTEXT_NAMESPACE "MoviePipelineLinearExecutorBase"
 
-void UMoviePipelineLinearExecutorBase::ExecuteImpl(TArray<UMovieRenderPipelineConfig*>& InPipelines)
+void UMoviePipelineLinearExecutorBase::ExecuteImpl(const TArray<FMoviePipelineExecutorJob>& InPipelines)
 {
 	if (InPipelines.Num() == 0)
 	{
 		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Executor asked to execute on empty list of pipelines."));
-		OnExecutorFinishedImpl(false);
+		OnExecutorErroredImpl(nullptr, true, LOCTEXT("EmptyPipelineError", "Executor asked to execute empty list of jobs. This was probably not intended!"));
+		OnExecutorFinishedImpl();
 		return;
 	}
 
 	// We'll process them in linear fashion and wait until each one is canceled or finishes on its own
 	// before moving onto the next one. This may be parallelizable in the future (either multiple PIE
 	// sessions, or multiple external processes) but ideally one render would maximize resource usage anyways...
-	Pipelines = InPipelines;
-
+	ExecutorJobs = InPipelines;
 	InitializationTime = FDateTime::UtcNow();
+
+	UE_LOG(LogMovieRenderPipeline, Log, TEXT("MoviePipelineLinearExecutorBase starting %d jobs."), InPipelines.Num());
 
 	StartPipelineByIndex(0);
 }
 
 void UMoviePipelineLinearExecutorBase::StartPipelineByIndex(int32 InPipelineIndex)
 {
-	check(InPipelineIndex >= 0 && InPipelineIndex < Pipelines.Num());
+	check(InPipelineIndex >= 0 && InPipelineIndex < ExecutorJobs.Num());
 	
 	CurrentPipelineIndex = InPipelineIndex;
 
-	if (!Pipelines[CurrentPipelineIndex])
+	if (!ExecutorJobs[CurrentPipelineIndex].Configuration)
 	{
 		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Found null config in list of configs to render. Aborting the pipeline processing!"));
-		OnExecutorFinishedImpl(false);
+		OnExecutorErroredImpl(nullptr, true, LOCTEXT("NullPipelineError", "Found null config in list of configs to render with. Does your config have the wrong outer?"));
+		OnExecutorFinishedImpl();
 		return;
 	}
 	
-	Start(Pipelines[CurrentPipelineIndex], CurrentPipelineIndex, Pipelines.Num());
+	UE_LOG(LogMovieRenderPipeline, Log, TEXT("MoviePipelineLinearExecutorBase starting jobs [%d/%d]"), CurrentPipelineIndex, ExecutorJobs.Num());
+	Start(ExecutorJobs[CurrentPipelineIndex]);
 }
 
 void UMoviePipelineLinearExecutorBase::OnIndividualPipelineFinished(UMoviePipeline* /* FinishedPipeline */)
 {
-	if (CurrentPipelineIndex == Pipelines.Num() - 1)
+	if (CurrentPipelineIndex == ExecutorJobs.Num() - 1)
 	{
-		OnExecutorFinishedImpl(true);
+		OnExecutorFinishedImpl();
 	}
 	else
 	{
@@ -52,11 +56,16 @@ void UMoviePipelineLinearExecutorBase::OnIndividualPipelineFinished(UMoviePipeli
 	}
 }
 
-void UMoviePipelineLinearExecutorBase::OnExecutorFinishedImpl(const bool bInSuccess)
+void UMoviePipelineLinearExecutorBase::OnPipelineErrored(UMoviePipeline* InPipeline, bool bIsFatal, FText ErrorText)
 {
-	UE_LOG(LogMovieRenderPipeline, Log, TEXT("MoviePipelineLinearExecutorBase produced %d Pipelines in %s."), Pipelines.Num(), *(FDateTime::UtcNow() - InitializationTime).ToString());
+	OnExecutorErroredImpl(InPipeline, bIsFatal, ErrorText);
+}
 
-	Super::OnExecutorFinishedImpl(bInSuccess);
+void UMoviePipelineLinearExecutorBase::OnExecutorFinishedImpl()
+{
+	UE_LOG(LogMovieRenderPipeline, Log, TEXT("MoviePipelineLinearExecutorBase finished %d jobs in %s."), ExecutorJobs.Num(), *(FDateTime::UtcNow() - InitializationTime).ToString());
+
+	Super::OnExecutorFinishedImpl();
 }
 
 #undef LOCTEXT_NAMESPACE // "MoviePipelineLinearExecutorBase"

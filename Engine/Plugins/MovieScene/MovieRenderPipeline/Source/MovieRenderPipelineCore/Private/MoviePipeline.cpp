@@ -16,16 +16,22 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "MovieRenderDebugWidget.h"
-#include "MovieRenderPipelineConfig.h"
 #include "MoviePipelineShotConfig.h"
 #include "MovieRenderPipelineDataTypes.h"
 #include "MoviePipelineRenderPass.h"
-#include "MoviePipelineOutput.h"
+#include "MoviePipelineOutputBase.h"
 #include "ShaderCompiler.h"
 #include "ImageWriteStream.h"
 #include "MoviePipelineAccumulationSetting.h"
 #include "MoviePipelineOutputBuilder.h"
 #include "DistanceFieldAtlas.h"
+#include "UObject/SoftObjectPath.h"
+#include "MoviePipelineOutputSetting.h"
+#include "MoviePipelineMasterConfig.h"
+#include "MoviePipelineOutputSetting.h"
+#include "MoviePipelineBlueprintLibrary.h"
+
+#define LOCTEXT_NAMESPACE "MoviePipeline"
 
 static TAutoConsoleVariable<int32> CVarMovieRenderPipelineFrameStepper(
 	TEXT("MovieRenderPipeline.FrameStepDebug"),
@@ -39,76 +45,95 @@ static TAutoConsoleVariable<int32> CVarMovieRenderPipelineFrameStepper(
 
 UMoviePipeline::UMoviePipeline()
 	: CustomTimeStep(nullptr)
-	, CachedCustomTimeStep(nullptr)
+	, CachedPrevCustomTimeStep(nullptr)
 	, TargetSequence(nullptr)
 	, LevelSequenceActor(nullptr)
 	, PipelineState(EMovieRenderPipelineState::Uninitialized)
 	, CurrentShotIndex(-1)
 	, bHasRunBeginFrameOnce(false)
+	, bPauseAtEndOfFrame(false)
+	, AccumulatedTickSubFrameDeltas(0.f)
 {
 	CustomTimeStep = CreateDefaultSubobject<UMoviePipelineCustomTimeStep>("MoviePipelineCustomTimeStep");
 	CustomSequenceTimeController = MakeShared<FMoviePipelineTimeController>();
+	OutputBuilder = MakeShared<FMoviePipelineOutputMerger, ESPMode::ThreadSafe>();
+
+
+	// Temp
+	OutputPipe = MakeShared<FImagePixelPipe, ESPMode::ThreadSafe>();
 }
 
-ULevelSequence* PostProcessSequence(ULevelSequence* InSequence)
-{
-	ULevelSequence* DestinationSequence = InSequence;
-
-	return DestinationSequence;
-}
 
 void ValidateSequence(ULevelSequence* InSequence)
 {
+	// ToDo: 
+	// Warn for Blueprint Streaming Levels
+	// Warn for sections that aren't extended far enough (once handle frames are taken into account)
+	// Warn for not whole frame aligned sections
 
 }
 
-void UMoviePipeline::Initialize(UMovieRenderPipelineConfig* InConfig)
+void UMoviePipeline::Initialize(const FMoviePipelineExecutorJob& InJob)
 {
 	// This function is called after the PIE world has finished initializing, but before
 	// the PIE world is ticked for the first time. We'll end up waiting for the next tick
 	// for FCoreDelegateS::OnBeginFrame to get called to actually start processing.
 	UE_LOG(LogMovieRenderPipeline, Log, TEXT("[%d] Initializing overall Movie Pipeline"), GFrameCounter);
 	
-	check(InConfig);
-	check(PipelineState == EMovieRenderPipelineState::Uninitialized);
+	if (!ensureAlwaysMsgf(InJob.Configuration, TEXT("MoviePipeline cannot be initialized with null configuration. Aborting.")))
+	{
+		OnMoviePipelineErroredDelegate.Broadcast(this, true, LOCTEXT("MissingConfiguration", "Job did not specify a configuration, movie render is aborting."));
+
+		Shutdown();
+		return;
+	}
+
+	if (!ensureAlwaysMsgf(PipelineState == EMovieRenderPipelineState::Uninitialized, TEXT("Pipeline cannot be reused. Create a new pipeline to execute a job.")))
+	{
+		OnMoviePipelineErroredDelegate.Broadcast(this, true, LOCTEXT("DontReusePipeline", "Attempted to reuse an existing Movie Pipeline. Initialize a new pipeline instead of reusing an existing one."));
+
+		Shutdown();
+		return;
+	}
 
 	// Ensure this object has the World as part of its Outer (so that it has context to spawn things)
-	check(GetWorld());
+	if (!ensureAlwaysMsgf(GetWorld(), TEXT("Pipeline does not contain the world as an outer.")))
+	{
+		OnMoviePipelineErroredDelegate.Broadcast(this, true, LOCTEXT("MissingWorld", "Could not find World in the Outer Path for Pipeline. The world must be an outer to give the Pipeline enough context to spawn things."));
 
-	Config = InConfig;
+		Shutdown();
+		return;
+	}
 
-	// Add the Config to root to ensure it doesn't go out of scope until we've shut down.
-	Config->AddToRoot();
+	CurrentJob = InJob;
 
 	// When start up we want to override the engine's Custom Timestep with our own.
 	// This gives us the ability to completely control the engine tick/delta time before the frame
 	// is started so that we don't have to always be thinking of delta times one frame ahead.
-	CachedCustomTimeStep = GEngine->GetCustomTimeStep();
+	CachedPrevCustomTimeStep = GEngine->GetCustomTimeStep();
 	GEngine->SetCustomTimeStep(CustomTimeStep);
-
-	// Duplicate the target level sequence. This reduces complexity by preventing the need to undo all
-	// changes applied to the sequence when running from the Editor. This is a medium-depth copy, we
-	// copy all sub-sequences and pointed to sequences but don't copy any actual assets.
-	ULevelSequence* SequenceAsset = LoadObject<ULevelSequence>(this, *Config->Sequence.GetAssetPathString());
-	if (!ensureAlwaysMsgf(SequenceAsset, TEXT("Failed to load Sequence Asset from specified path, aborting movie render! Path: %s"), *Config->Sequence.GetAssetPathString()))
+	
+	ULevelSequence* OriginalSequence = Cast<ULevelSequence>(InJob.Sequence.TryLoad());
+	if (!ensureAlwaysMsgf(OriginalSequence, TEXT("Failed to load Sequence Asset from specified path, aborting movie render! Attempted to load Path: %s"), *InJob.Sequence.ToString()))
 	{
+		OnMoviePipelineErroredDelegate.Broadcast(this, true, LOCTEXT("MissingSequence", "Could not load sequence asset, movie render is aborting. Check logs for additional details."));
+
 		Shutdown();
-		// ToDo: Promote this to a error that gets broadcast out.
 		return;
 	}
 
-	TargetSequence = CreateCopyOfSequence(SequenceAsset);
+	// Duplicate the target level sequence. This way modifications don't need to be undone.
+	TargetSequence = Cast<ULevelSequence>(UMoviePipelineBlueprintLibrary::DuplicateSequence(this, OriginalSequence));
 
-	// ToDo: Allow extensions to modify the sequence
+	// Initialize all of our master config settings.
+	for (UMoviePipelineSetting* Setting : GetPipelineMasterConfig()->GetSettings())
 	{
-
+		Setting->SetupForPipeline(this);
 	}
 
-	// Once the sequence has been modified by any extensions (which may have added new sub-sequences, added
-	// or removed tracks, etc.) we want to do some validation on the sequence such as adding Camera Cut tracks
-	// or other needed things we can do to smooth over the user experience. This can modify the root sequence
-	// such as adding a Cinematic Shot Section, so we re-assign our Target Sequence in case it does.
-	TargetSequence = PostProcessSequence(TargetSequence);
+	// Allow master settings to modify the sequence. This can be useful when working with dynamic content, you might
+	// want to modify things in the sequence, or modify things in the world before rendering.
+	ModifySequenceViaExtensions(TargetSequence);
 
 	// Now that we've post-processed it, we're going to run a validation pass on it. This will produce warnings
 	// for anything we can't fix that might be an issue - extending sections, etc. This should be const as this
@@ -122,7 +147,7 @@ void UMoviePipeline::Initialize(UMovieRenderPipelineConfig* InConfig)
 	// Finally, we're going to create a Level Sequence Actor in the world that has its settings configured by us.
 	// Because this callback is at the end of PIE startup (and before tick) we should be able to spawn the actor
 	// and give it a chance to tick once (where it should do nothing) before we start manually manipulating it.
-	InitializeLevelSequenceActor(SequenceAsset, TargetSequence);
+	InitializeLevelSequenceActor(OriginalSequence, TargetSequence);
 
 	// Register any additional engine callbacks needed.
 	{
@@ -137,25 +162,16 @@ void UMoviePipeline::Initialize(UMovieRenderPipelineConfig* InConfig)
 	// Construct a debug UI and bind it to this instance.
 	LoadDebugWidget();
 
-	OutputBuilder = MakeShared<FMoviePipelineOutputMerger, ESPMode::ThreadSafe>();
-
-	OutputPipe = MakeShared<FImagePixelPipe, ESPMode::ThreadSafe>();
-
-	// Loop through our Output Containers and let them do any first-frame initialization. It's important that
-	// this happens on the first frame (before we start rendering movies).
-	for (UMoviePipelineOutput* OutputContainer : Config->OutputContainers)
-	{
-		OutputContainer->OnInitializedForPipeline(this);
-	}
-
 	// Initialization is complete. This engine frame is a wash (because the tick started with a 
 	// delta time not generated by us) so we'll wait until the next engine frame to start rendering.
-	UE_LOG(LogMovieRenderPipeline, Log, TEXT("[%d] Initialized Movie Pipeline with [%d Shots]. Expected total output is %d frames."), GFrameCounter, ShotList.Num(), 0);
+	TotalExpectedWork = CalculateExpectedOutputMetrics();
 
-	// We'll get started on the next frame
-	CurrentShotIndex = 0;
 	PipelineState = EMovieRenderPipelineState::ProducingFrames;
 	InitializationTime = FDateTime::UtcNow();
+	CurrentShotIndex = 0;
+
+	UE_LOG(LogMovieRenderPipeline, Log, TEXT("[%d] Initialized Movie Pipeline with [%d Camera Cuts]. Expected Total Work: %s"),
+		GFrameCounter, TotalExpectedWork.NumCameraCuts, *TotalExpectedWork.ToDisplayString());
 }
 
 void UMoviePipeline::Shutdown()
@@ -164,8 +180,14 @@ void UMoviePipeline::Shutdown()
 	// loop where we shutdown because finish and you responded by requesting we shutdown.
 	ensure(PipelineState != EMovieRenderPipelineState::Shutdown);
 
+	// Uninitialize our master config settings.
+	for (UMoviePipelineSetting* Setting : GetPipelineMasterConfig()->GetSettings())
+	{
+		Setting->TeardownForPipeline(this);
+	}
+
 	// Restore any custom Time Step that may have been set before.
-	GEngine->SetCustomTimeStep(CachedCustomTimeStep);
+	GEngine->SetCustomTimeStep(CachedPrevCustomTimeStep);
 
 	// Ensure our delegates don't get called anymore as we're going to become null soon.
 	FCoreDelegates::OnBeginFrame.RemoveAll(this);
@@ -186,7 +208,7 @@ void UMoviePipeline::Shutdown()
 		DebugWidget = nullptr;
 	}
 
-	for (UMoviePipelineOutput* Setting : Config->OutputContainers)
+	for (UMoviePipelineOutputBase* Setting : GetPipelineMasterConfig()->GetOutputContainers())
 	{
 		Setting->OnPipelineFinished();
 	}
@@ -273,7 +295,7 @@ void UMoviePipeline::BeginFinalize()
 {
 	// Notify all of our output containers that we have finished producing and
 	// submitting all frames to them and that they should start any async flushes.
-	for (UMoviePipelineOutput* Container : Config->OutputContainers)
+	for (UMoviePipelineOutputBase* Container : GetPipelineMasterConfig()->GetOutputContainers())
 	{
 		Container->BeginFinalize();
 	}
@@ -289,7 +311,7 @@ void UMoviePipeline::TickFinalizeOutputContainers(const bool bInForceFinish)
 		bAllContainsFinishedProcessing = true;
 
 		// Ask the containers if they're all done processing.
-		for (UMoviePipelineOutput* Container : Config->OutputContainers)
+		for (UMoviePipelineOutputBase* Container : GetPipelineMasterConfig()->GetOutputContainers())
 		{
 			bAllContainsFinishedProcessing &= Container->HasFinishedProcessing();
 		}
@@ -314,7 +336,7 @@ void UMoviePipeline::TickFinalizeOutputContainers(const bool bInForceFinish)
 		return;
 	}
 
-	for (UMoviePipelineOutput* Container : Config->OutputContainers)
+	for (UMoviePipelineOutputBase* Container : GetPipelineMasterConfig()->GetOutputContainers())
 	{
 		// All containers have finished processing, final shutdown.
 		Container->Finalize();
@@ -324,14 +346,6 @@ void UMoviePipeline::TickFinalizeOutputContainers(const bool bInForceFinish)
 	// instantaneous and will complete here, but on the next tick we will check them all anyways
 	// to allow running long-running export processes (such as encoding).
 	PipelineState = EMovieRenderPipelineState::Export;
-	PostFinalizeExport();
-}
-
-void UMoviePipeline::PostFinalizeExport()
-{
-	check(PipelineState == EMovieRenderPipelineState::Export);
-	
-	// This is called once
 }
 
 void UMoviePipeline::TickPostFinalizeExport()
@@ -388,33 +402,40 @@ bool UMoviePipelineCustomTimeStep::UpdateTimeStep(UEngine* /*InEngine*/)
 	return false;
 }
 
-ULevelSequence* UMoviePipeline::CreateCopyOfSequence(ULevelSequence* InSequence)
+void UMoviePipeline::ModifySequenceViaExtensions(ULevelSequence* InSequence)
 {
-	// We perform a medium-depth copy here. The standard Duplicate Object
-	// function only performs a shallow copy which will duplicate all of the
-	// tracks and sections that belong to this sequence and do reference fix
-	// up. We don't want a deep copy (because we don't want to copy all assets)
-	// but because we are modifying the Playback Start/End on sub-sequences
-	// we need to manually copy those and fix up the references ourself.
+}
 
-	// Duplicate the sequence and change the outer to be ourself.
-	FObjectDuplicationParameters DuplicationParams(InSequence, this);
-	DuplicationParams.DestName = FName(*(InSequence->GetName() + TEXT("_Instanced")));
-	ULevelSequence* DuplicatedSequence = (ULevelSequence*)StaticDuplicateObjectEx(DuplicationParams);
+FMoviePipelineWorkInfo UMoviePipeline::CalculateExpectedOutputMetrics()
+{
+	UE_LOG(LogMovieRenderPipeline, Log, TEXT("[%d] Calculating expected output metrics..."), GFrameCounter);
 
-	// // Now that we've copied this sequence, we'll look for any camera cut sections and duplicate those.
-	// TArray<UMovieSceneCameraCutTrack*> SubTracks = DuplicatedSequence->GetMovieScene()->GetMasterTracks<UMovieSceneCameraCutTrack>();
-	// 
-	// for (const UMovieSceneCameraCutTrack* CameraCutTrack : SubTracks)
-	// {
-	// 	for (const UMovieSceneSection* Section : CameraCutTrack->GetAllSections())
-	// 	{
-	// 		UMovieSceneCameraCutSection* CameraCutSection = CastChecked<UMovieSceneCameraCutSection>(Section);
-	// 		CameraCutSection
-	// 	}
-	// }
+	// We can calculate the expected amount of work that we will be doing, unless slow-mo/timescale is used. 
+	FMoviePipelineWorkInfo ExpectedWork;
 
-	return DuplicatedSequence;
+	for (const FMoviePipelineShotInfo& Shot : GetShotList())
+	{
+		ExpectedWork.NumCameraCuts += Shot.CameraCuts.Num();
+
+		int32 NumTiles = 0;
+		UMoviePipelineAccumulationSetting* TilingSettings = Shot.ShotConfig->FindSetting<UMoviePipelineAccumulationSetting>();
+		if (TilingSettings)
+		{
+			NumTiles = TilingSettings->TileCount * TilingSettings->TileCount;
+		}
+
+		for (const FMoviePipelineCameraCutInfo& CameraCut : Shot.CameraCuts)
+		{
+			FMoviePipelineWorkInfo CameraCutWorkInfo = CameraCut.TotalWorkInfo;
+
+			ExpectedWork += CameraCut.TotalWorkInfo;
+
+			UE_LOG(LogMovieRenderPipeline, Log, TEXT("[%d] CameraCut: %d Expected Work: %s"), 
+				GFrameCounter, ExpectedWork.NumCameraCuts, *CameraCutWorkInfo.ToDisplayString());
+		}
+	}
+
+	return ExpectedWork;
 }
 
 void UMoviePipeline::InitializeLevelSequenceActor(ULevelSequence* OriginalLevelSequence, ULevelSequence* InSequenceToApply)
@@ -459,7 +480,7 @@ void UMoviePipeline::InitializeLevelSequenceActor(ULevelSequence* OriginalLevelS
 }
 
 
-FMoviePipelineShotCache CreateShotFromMovieScene(const UMovieScene* InMovieScene, const TRange<FFrameNumber>& InIntersectionRange)
+FMoviePipelineShotInfo CreateShotFromMovieScene(const UMovieScene* InMovieScene, const TRange<FFrameNumber>& InIntersectionRange)
 {
 	check(InMovieScene);
 
@@ -498,14 +519,14 @@ FMoviePipelineShotCache CreateShotFromMovieScene(const UMovieScene* InMovieScene
 		NewRange.Section = nullptr;
 	}
 
-	FMoviePipelineShotCache NewShot;
+	FMoviePipelineShotInfo NewShot;
 	NewShot.OriginalRange = InIntersectionRange;
 	NewShot.TotalOutputRange = NewShot.OriginalRange;
 
 	for (const FCameraCutRange& Range : IntersectedRanges)
 	{
 		// Generate a CameraCut for each range.
-		FMoviePipelineShotCutCache& CameraCut = NewShot.CameraCuts.AddDefaulted_GetRef();
+		FMoviePipelineCameraCutInfo& CameraCut = NewShot.CameraCuts.AddDefaulted_GetRef();
 
 		CameraCut.CameraCutSection = Range.Section; // May be nullptr.
 		CameraCut.OriginalRange = Range.Range;
@@ -515,9 +536,9 @@ FMoviePipelineShotCache CreateShotFromMovieScene(const UMovieScene* InMovieScene
 	return NewShot;
 }
 
-TArray<FMoviePipelineShotCache> UMoviePipeline::BuildShotListFromSequence(const ULevelSequence* InSequence)
+TArray<FMoviePipelineShotInfo> UMoviePipeline::BuildShotListFromSequence(const ULevelSequence* InSequence)
 {
-	TArray<FMoviePipelineShotCache> NewShotList;
+	TArray<FMoviePipelineShotInfo> NewShotList;
 	
 	// Shot Tracks take precedent over camera cuts, as settings can only be applied as granular as a shot.
 	UMovieSceneCinematicShotTrack* CinematicShotTrack = InSequence->GetMovieScene()->FindMasterTrack<UMovieSceneCinematicShotTrack>();
@@ -543,15 +564,24 @@ TArray<FMoviePipelineShotCache> UMoviePipeline::BuildShotListFromSequence(const 
 				continue;
 			}
 
+			if (CurrentJob.ShotRenderMask.Num() > 0)
+			{
+				if (!CurrentJob.ShotRenderMask.Contains(ShotSection->GetShotDisplayName()))
+				{
+					UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("Skipped adding Shot %s to Shot List due to a shot render mask being active, and this shot not being on the list."), *ShotSection->GetShotDisplayName());
+					continue;
+				}
+			}
+
 			// The Shot Section may extend past our Sequence's Playback Bounds. We intersect the two bounds to ensure that
 			// the Playback Start/Playback End of the overall sequence is respected.
 			TRange<FFrameNumber> CinematicShotSectionRange = TRange<FFrameNumber>::Intersection(ShotSection->GetRange(), InSequence->GetMovieScene()->GetPlaybackRange());
 
-			FMoviePipelineShotCache NewShot = CreateShotFromMovieScene(ShotSection->GetSequence()->GetMovieScene(), CinematicShotSectionRange);
+			FMoviePipelineShotInfo NewShot = CreateShotFromMovieScene(ShotSection->GetSequence()->GetMovieScene(), CinematicShotSectionRange);
 
 			// The first thing we do is find the appropriate configuration from the settings. Each shot can have its own config
 			// or they fall back to a default one specified for the whole pipeline.
-			NewShot.ShotConfig = Config->GetConfigForShot(ShotSection->GetShotDisplayName());
+			NewShot.ShotConfig = GetPipelineMasterConfig()->GetConfigForShot(ShotSection->GetShotDisplayName());
 			NewShot.CinematicShotSection = ShotSection;
 
 			// There should always be a shot config as the Pipeline default is returned in the event they didn't customize.
@@ -563,8 +593,8 @@ TArray<FMoviePipelineShotCache> UMoviePipeline::BuildShotListFromSequence(const 
 	else
 	{
 		// They don't have a cinematic shot track. We'll slice them up by camera cuts instead.
-		FMoviePipelineShotCache NewShot = CreateShotFromMovieScene(TargetSequence->GetMovieScene(), TargetSequence->GetMovieScene()->GetPlaybackRange());
-		NewShot.ShotConfig = Config->DefaultShotConfig;
+		FMoviePipelineShotInfo NewShot = CreateShotFromMovieScene(TargetSequence->GetMovieScene(), TargetSequence->GetMovieScene()->GetPlaybackRange());
+		NewShot.ShotConfig = GetPipelineMasterConfig()->DefaultShotConfig;
 		
 		NewShotList.Add(MoveTemp(NewShot));
 	}
@@ -574,23 +604,23 @@ TArray<FMoviePipelineShotCache> UMoviePipeline::BuildShotListFromSequence(const 
 	if (NewShotList.Num() == 0)
 	{
 		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("No Cinematic Shot Tracks found, and no Camera Cut Tracks found. Playback Range will be used but camera will render from Pawns perspective."));
-		FMoviePipelineShotCache NewShot;
-		NewShot.ShotConfig = Config->DefaultShotConfig;
+		FMoviePipelineShotInfo NewShot;
+		NewShot.ShotConfig = GetPipelineMasterConfig()->DefaultShotConfig;
 
-		FMoviePipelineShotCutCache& CameraCut = NewShot.CameraCuts.AddDefaulted_GetRef();
+		FMoviePipelineCameraCutInfo& CameraCut = NewShot.CameraCuts.AddDefaulted_GetRef();
 		CameraCut.OriginalRange = TargetSequence->GetMovieScene()->GetPlaybackRange();
 	}
 
 	// Now that we've gathered at least one or more shots with one or more cuts, we can apply settings. It's easier to
 	// debug when all of the shots are calculated up front and debug info is printed in a block instead of as it is reached.
 	int32 ShotIndex = 1;
-	for (FMoviePipelineShotCache& Shot : NewShotList)
+	for (FMoviePipelineShotInfo& Shot : NewShotList)
 	{
 		UE_LOG(LogMovieRenderPipeline, Log, TEXT("Shot %d/%d has %d Camera Cuts."), ShotIndex, NewShotList.Num(), Shot.CameraCuts.Num());
 		ShotIndex++;
 
-		Shot.NumHandleFrames = 0; // ToDo: Pull this from a config.
 		UMoviePipelineAccumulationSetting* AccumulationSettings = Shot.ShotConfig->FindOrAddSetting<UMoviePipelineAccumulationSetting>();
+		Shot.NumHandleFrames = AccumulationSettings->HandleFrameCount;
 
 		// Expand the shot to encompass handle frames. This will modify our Camera Cuts bounds.
 		ExpandShot(Shot);
@@ -601,15 +631,16 @@ TArray<FMoviePipelineShotCache> UMoviePipeline::BuildShotListFromSequence(const 
 			ShotName = Shot.CinematicShotSection->GetShotDisplayName();
 		}
 
-		for (FMoviePipelineShotCutCache& CameraCut : Shot.CameraCuts)
+		for (FMoviePipelineCameraCutInfo& CameraCut : Shot.CameraCuts)
 		{
-			CameraCut.NumWarmUpFramesRemaining = CameraCut.NumWarmUpFrames = 4; // ToDo: pull from config
-			CameraCut.bAccurateFirstFrameHistory = true; // ToDo: pull from config
+			CameraCut.NumWarmUpFramesRemaining = CameraCut.NumWarmUpFrames = AccumulationSettings->WarmUpFrameCount;
+			CameraCut.bAccurateFirstFrameHistory = true;
 			CameraCut.NumTemporalSamples = AccumulationSettings->TemporalSampleCount;
 			CameraCut.NumSpatialSamples = AccumulationSettings->SpatialSampleCount;
-			CameraCut.CachedFrameRate = Config->GetEffectiveFrameRate();
+			CameraCut.CachedFrameRate = GetEffectiveFrameRate();
 			CameraCut.CachedTickResolution = TargetSequence->GetMovieScene()->GetTickResolution();
-			
+			CameraCut.TotalWorkInfo = CameraCut.GetTotalWorkEstimate();
+
 			FString CameraName;
 			if (CameraCut.CameraCutSection.IsValid())
 			{
@@ -622,23 +653,54 @@ TArray<FMoviePipelineShotCache> UMoviePipeline::BuildShotListFromSequence(const 
 			// We want to start rendering from the first handle frame. Shutter Timing is a fixed offset from this number.
 			CameraCut.CurrentTick = CameraCut.TotalOutputRange.GetLowerBoundValue();
 		}
+
+		// We duplicate the Passes in each shot to be unique. This allows the passes to have state
+		// that persists while working on the next shot (in the event of slow-running tasks).
+		for (UMoviePipelineRenderPass* RenderPass : Shot.ShotConfig->GetRenderPasses())
+		{
+			FObjectDuplicationParameters DupParms(RenderPass, this);
+
+			UMoviePipelineRenderPass* PassCopy = (UMoviePipelineRenderPass*)StaticDuplicateObjectEx(DupParms);
+			Shot.RenderPasses.Add(PassCopy);
+		}
 	}
 
 	return NewShotList;
 }
 
-void UMoviePipeline::SetSoloCameraCut(FMoviePipelineShotCutCache& InCameraCut)
+/*void SetupForSHot(...)
 {
 
 }
 
-void UMoviePipeline::InitializeShot(FMoviePipelineShotCache& InShot)
+void TeardownForShot(...)
+{
+	// Initialize any settings specific to this shot.
+	for (UMoviePipelineSetting* Setting : InShot.ShotConfig->GetSettings())
+	{
+		// Skip any render passes. These have been manually duplicated to avoid shared state
+		// and thus have to be initialized separately.
+		if (Setting->IsA(UMoviePipelineRenderPass::StaticClass()))
+		{
+			continue;
+		}
+
+		Setting->SetupForPipeline(this);
+	}
+
+	for (UMoviePipelineRenderPass* RenderPass : InShot.RenderPasses)
+	{
+		RenderPass->SetupForPipeline(this);
+	}
+}*/
+
+void UMoviePipeline::InitializeShot(FMoviePipelineShotInfo& InShot)
 {
 	// We handle both tearing down the previous shot (if there is one) and
 	// standing up the specified shot here. This gives us a good chance to
 	// notify output containers/extensions that we're switching contexts
 	// and they can decide what to do with it (ie: split into multiple files)
-	TOptional<FMoviePipelineShotCache> PrevShot;
+	TOptional<FMoviePipelineShotInfo> PrevShot;
 	int32 NewShotIndex = ShotList.IndexOfByKey(InShot);
 	if (NewShotIndex > 0)
 	{
@@ -648,15 +710,22 @@ void UMoviePipeline::InitializeShot(FMoviePipelineShotCache& InShot)
 	// Set the new shot as the active shot. This enables the specified shot section and disables all other shot sections.
 	SetSoloShot(InShot);
 	
-	// ToDo
+	// Initialize any settings specific to this shot.
 	for (UMoviePipelineSetting* Setting : InShot.ShotConfig->GetSettings())
 	{
-		Setting->OnInitializedForPipeline(this);
+		// Skip any render passes. These have been manually duplicated to avoid shared state
+		// and thus have to be initialized separately.
+		if (Setting->IsA(UMoviePipelineRenderPass::StaticClass()))
+		{
+			continue;
+		}
+
+		Setting->SetupForPipeline(this);
 	}
 
-	for (UMoviePipelineSetting* Setting : InShot.ShotConfig->InputBuffers)
+	for (UMoviePipelineRenderPass* RenderPass : InShot.RenderPasses)
 	{
-		Setting->OnInitializedForPipeline(this);
+		RenderPass->SetupForPipeline(this);
 	}
 
 
@@ -664,10 +733,10 @@ void UMoviePipeline::InitializeShot(FMoviePipelineShotCache& InShot)
 	SetupRenderingPipelineForShot(InShot);
 }
 
-void UMoviePipeline::SetSoloShot(const FMoviePipelineShotCache& InShot)
+void UMoviePipeline::SetSoloShot(const FMoviePipelineShotInfo& InShot)
 {
 	// Iterate through the shot list and ensure all shots have been set to inactive.
-	for (FMoviePipelineShotCache& Shot : ShotList)
+	for (FMoviePipelineShotInfo& Shot : ShotList)
 	{
 		UMovieSceneCinematicShotSection* Section = Shot.CinematicShotSection.Get();
 
@@ -688,42 +757,18 @@ void UMoviePipeline::SetSoloShot(const FMoviePipelineShotCache& InShot)
 	}
 	else
 	{
-		UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("Skipped enabling a shot track due to not shot section associated with the provided shot."));
+		UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("Disabled all shot tracks and skipped enabling a shot track due to no shot section associated with the provided shot."));
 	}
 }
 
-FFrameNumber UMoviePipeline::GetMotionBlurDuration(int32 InShotIndex) const
-{
-	const FMoviePipelineShotCache& CurrentShot = ShotList[InShotIndex];
-	UMoviePipelineAccumulationSetting* AccumulationSettings = CurrentShot.ShotConfig->FindOrAddSetting<UMoviePipelineAccumulationSetting>();
-
-	const MoviePipeline::FFrameConstantMetrics FrameMetrics = CalculateShotFrameMetrics(CurrentShot);
-	
-	// We don't have data from before the first frame, at least from the common user perspective. To solve this,
-	// we can take the sample from the next frame, and then evaluate the first frame again and we will get a
-	// motion vector which is a close-enough approximation of the real motion (had there been any). While only
-	// an approximation, it is worth the trade off to be significantly more user friendly in regards to data prep.
-	return FrameMetrics.TicksPerSample.FloorToFrame();
-}
-
-FFrameNumber UMoviePipeline::CalculateHandleFrameDuration(const FMoviePipelineShotCache& InShot) const
-{
-	// Convert to Tick Resolution
-	FFrameNumber HandleFrameDuration = FFrameRate::TransformTime(FFrameTime(FFrameNumber(InShot.NumHandleFrames)),
-		TargetSequence->GetMovieScene()->GetDisplayRate(),
-		TargetSequence->GetMovieScene()->GetTickResolution()).FloorToFrame();
-
-	return HandleFrameDuration;
-}
-
-void UMoviePipeline::ExpandShot(FMoviePipelineShotCache& InShot)
+void UMoviePipeline::ExpandShot(FMoviePipelineShotInfo& InShot)
 {
 	const MoviePipeline::FFrameConstantMetrics FrameMetrics = CalculateShotFrameMetrics(InShot);
 
 	// Handle Frames will be added onto our original shot size. We track the ranges separately for counting purposes
 	// later - the actual rendering code is unaware of the handle frames. Handle Frames only apply to the shot
 	// and expand the first/last inner cut to cover this area.
-	FFrameNumber HandleFrameTicks = CalculateHandleFrameDuration(InShot);
+	FFrameNumber HandleFrameTicks = FrameMetrics.TicksPerOutputFrame.FloorToFrame().Value * InShot.NumHandleFrames;
 	InShot.TotalOutputRange = MovieScene::DilateRange(InShot.OriginalRange, -HandleFrameTicks, HandleFrameTicks);
 
 	// We'll expand the overall sequence by at least this much to ensure we don't get clamped. This is +1 frame for shutter timing overlap.
@@ -741,8 +786,8 @@ void UMoviePipeline::ExpandShot(FMoviePipelineShotCache& InShot)
 	if (InShot.CameraCuts.Num() > 0)
 	{
 		// These may be the same or they may be different.
-		FMoviePipelineShotCutCache& FirstCut = InShot.CameraCuts[0];
-		FMoviePipelineShotCutCache& LastCut = InShot.CameraCuts[InShot.CameraCuts.Num() - 1];
+		FMoviePipelineCameraCutInfo& FirstCut = InShot.CameraCuts[0];
+		FMoviePipelineCameraCutInfo& LastCut = InShot.CameraCuts[InShot.CameraCuts.Num() - 1];
 
 		FirstCut.TotalOutputRange = MovieScene::DilateRange(FirstCut.TotalOutputRange, -HandleFrameTicks, FFrameNumber(0));
 		LastCut.TotalOutputRange = MovieScene::DilateRange(LastCut.TotalOutputRange, FFrameNumber(0), HandleFrameTicks);
@@ -833,33 +878,6 @@ bool UMoviePipeline::DebugFrameStepPreTick()
 	return false;
 }
 
-FMoviePipelineShotCache UMoviePipeline::GetCurrentShotSnapshot() const
-{
-	if (CurrentShotIndex >= 0 && CurrentShotIndex < ShotList.Num())
-	{
-		return ShotList[CurrentShotIndex];
-	}
-
-	return FMoviePipelineShotCache();
-}
-
-FMoviePipelineShotCutCache UMoviePipeline::GetCurrentCameraCutSnapshot() const
-{
-	FMoviePipelineShotCache CurrentShot = GetCurrentShotSnapshot();
-	if (CurrentShot.CurrentCameraCutIndex >= 0 && CurrentShot.CurrentCameraCutIndex < CurrentShot.CameraCuts.Num())
-	{
-		return CurrentShot.GetCurrentCameraCut();
-	}
-
-	return FMoviePipelineShotCutCache();
-}
-
-
-FMoviePipelineFrameOutputState UMoviePipeline::GetOutputStateSnapshot() const
-{
-	return CachedOutputState;
-}
-
 void UMoviePipeline::LoadDebugWidget()
 {
 	FSoftClassPath DebugWidgetClassRef(TEXT("/MovieRenderPipeline/Blueprints/UI_MovieRenderPipelineScreenOverlay.UI_MovieRenderPipelineScreenOverlay_C"));
@@ -883,7 +901,7 @@ void UMoviePipeline::LoadDebugWidget()
 }
 
 
-void UMoviePipeline::FlushAsyncSystems()
+void UMoviePipeline::FlushAsyncEngineSystems()
 {
 	// Flush Level Streaming. This solves the problem where levels that are not controlled
 	// by the Sequencer Level Visibility track are marked for Async Load by a gameplay system.
@@ -896,19 +914,42 @@ void UMoviePipeline::FlushAsyncSystems()
 	}
 
 	// Now we can flush the shader compiler. ToDo: This should probably happen right before SendAllEndOfFrameUpdates() is normally called
-	if (GShaderCompilingManager && GShaderCompilingManager->GetNumRemainingJobs() > 0)
+	if (GShaderCompilingManager)
 	{
-		UE_LOG(LogMovieRenderPipeline, Log, TEXT("[%d] Waiting for %d shaders to finish compiling..."), GFrameCounter, GShaderCompilingManager->GetNumRemainingJobs());
-		GShaderCompilingManager->FinishAllCompilation();
-		UE_LOG(LogMovieRenderPipeline, Log, TEXT("[%d] Done waiting for shaders to finish."), GFrameCounter);
+		bool bDidWork = false;
+		while (GShaderCompilingManager->GetNumRemainingJobs() > 0)
+		{
+			UE_LOG(LogMovieRenderPipeline, Log, TEXT("[%d] Waiting for %d shaders to finish compiling..."), GFrameCounter, GShaderCompilingManager->GetNumRemainingJobs());
+
+			// Sleep for 1 second and then check again. This way we get an indication of progress as this works.
+			FPlatformProcess::Sleep(1.f);
+			bDidWork = true;
+		}
+
+		if (bDidWork)
+		{
+			UE_LOG(LogMovieRenderPipeline, Log, TEXT("[%d] Done waiting for shaders to finish."), GFrameCounter);
+		}
 	}
 
 	// Flush the Mesh Distance Field builder as well.
-	if (GDistanceFieldAsyncQueue && GDistanceFieldAsyncQueue->GetNumOutstandingTasks() > 0)
+	if (GDistanceFieldAsyncQueue)
 	{
-		UE_LOG(LogMovieRenderPipeline, Log, TEXT("[%d] Waiting for %d Mesh Distance Fields to finish building..."), GFrameCounter, GDistanceFieldAsyncQueue->GetNumOutstandingTasks());
-		GDistanceFieldAsyncQueue->BlockUntilAllBuildsComplete();
-		UE_LOG(LogMovieRenderPipeline, Log, TEXT("[%d] Done waiting for Mesh Distance Fields to build."), GFrameCounter);
+		bool bDidWork = false;
+		while (GDistanceFieldAsyncQueue->GetNumOutstandingTasks() > 0)
+		{
+			UE_LOG(LogMovieRenderPipeline, Log, TEXT("[%d] Waiting for %d Mesh Distance Fields to finish building..."), GFrameCounter, GDistanceFieldAsyncQueue->GetNumOutstandingTasks());
+
+			// Sleep for 1 second and then check again. This way we get an indication of progress as this works.
+			FPlatformProcess::Sleep(1.f);
+			bDidWork = true;
+		}
+
+		if (bDidWork)
+		{
+			UE_LOG(LogMovieRenderPipeline, Log, TEXT("[%d] Done waiting for Mesh Distance Fields to build."), GFrameCounter);
+		}
+
 	}
 }
 
@@ -920,11 +961,11 @@ FFrameTime FMoviePipelineTimeController::OnRequestCurrentTime(const FQualifiedFr
 	return RequestTime;
 }
 
-MoviePipeline::FFrameConstantMetrics UMoviePipeline::CalculateShotFrameMetrics(const FMoviePipelineShotCache& InShot) const
+MoviePipeline::FFrameConstantMetrics UMoviePipeline::CalculateShotFrameMetrics(const FMoviePipelineShotInfo& InShot) const
 {
 	MoviePipeline::FFrameConstantMetrics Output;
 	Output.TickResolution = TargetSequence->GetMovieScene()->GetTickResolution();
-	Output.FrameRate = Config->GetEffectiveFrameRate();
+	Output.FrameRate = GetEffectiveFrameRate();
 	Output.TicksPerOutputFrame = FFrameRate::TransformTime(FFrameTime(FFrameNumber(1)), Output.FrameRate, Output.TickResolution);
 
 	UMoviePipelineAccumulationSetting* AccumulationSettings = InShot.ShotConfig->FindOrAddSetting<UMoviePipelineAccumulationSetting>();
@@ -979,54 +1020,24 @@ MoviePipeline::FFrameConstantMetrics UMoviePipeline::CalculateShotFrameMetrics(c
 	return Output;
 }
 
-FFrameNumber UMoviePipeline::GetTotalOutputFrameCountEstimate() const
+FFrameRate UMoviePipeline::GetEffectiveFrameRate() const
 {
-	FFrameNumber EstimatedFrameCount = FFrameNumber(0);
-	
-	for (const FMoviePipelineShotCache& Shot : ShotList)
+	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	check(OutputSettings);
+
+	// Check to see if they overrode the frame rate.
+	if (OutputSettings->bUseCustomFrameRate)
 	{
-		for (const FMoviePipelineShotCutCache& CameraCut : Shot.CameraCuts)
-		{
-			EstimatedFrameCount += CameraCut.GetOutputFrameCountEstimate();
-		}
+		return OutputSettings->OutputFrameRate;
 	}
 
-	return EstimatedFrameCount;
+	// Pull it from the sequence if they didn't.
+	if (TargetSequence)
+	{
+		return TargetSequence->GetMovieScene()->GetDisplayRate();
+	}
+
+	return FFrameRate();
 }
 
-bool UMoviePipeline::GetRemainingTimeEstimate(FTimespan& OutTimespan) const
-{
-	// If they haven't produced a single frame yet, we can't give an estimate.
-	if (CachedOutputState.TotalSamplesRendered <= 0)
-	{
-		OutTimespan = FTimespan();
-		return false;
-	}
-
-	// Look at how many total samples we expect across all shots. This includes
-	// samples produced for warm-ups, motion blur fixes, and temporal/spatial samples.
-	FFrameNumber TotalExpectedSamples = FFrameNumber(0);
-
-	for (const FMoviePipelineShotCache& Shot : ShotList)
-	{
-		for (const FMoviePipelineShotCutCache& CameraCut : Shot.CameraCuts)
-		{
-			TotalExpectedSamples += CameraCut.GetSampleCountEstimate(true, true);
-		}
-	}
-
-	// Check to see how many frames we've rendered vs. our estimate.
-	int32 RenderedFrames = CachedOutputState.TotalSamplesRendered;
-	int32 TotalFrames = TotalExpectedSamples.Value;
-
-	double CompletionPercentage = FMath::Clamp(RenderedFrames / (double)TotalFrames, 0.0, 1.0);
-	FTimespan CurrentDuration = FDateTime::UtcNow() - InitializationTime;
-
-	// If it has taken us CurrentDuration to process CompletionPercentage frames, then we can get a total duration
-	// estimate by taking (CurrentDuration/CompletionPercentage) and then take that total estimate minus elapsed
-	// to get remaining. 
-	FTimespan EstimatedTotalDuration = CurrentDuration / CompletionPercentage;
-	OutTimespan = EstimatedTotalDuration - CurrentDuration;
-
-	return true;
-}
+#undef LOCTEXT_NAMESPACE // "MoviePipeline"

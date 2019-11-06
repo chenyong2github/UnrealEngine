@@ -2,6 +2,7 @@
 #pragma once
 
 #include "MoviePipelineExecutor.h"
+#include "MovieRenderPipelineDataTypes.h"
 #include "MoviePipelineLinearExecutor.generated.h"
 
 class UMoviePipeline;
@@ -26,30 +27,27 @@ public:
 	}
 
 protected:
-	virtual void ExecuteImpl(TArray<UMovieRenderPipelineConfig*>& InPipelines) override;
+	virtual void ExecuteImpl(const TArray<FMoviePipelineExecutorJob>& InPipelines) override;
 
 	virtual void StartPipelineByIndex(int32 InPipelineIndex);
-	virtual void Start(UMovieRenderPipelineConfig* InConfig, const int32 InConfigIndex, const int32 InNumConfigs) { check(InConfig); }
+	virtual void Start(const FMoviePipelineExecutorJob& InJob) {}
 
 public:
 	virtual void OnIndividualPipelineFinished(UMoviePipeline* /* FinishedPipeline */);
-	virtual void OnExecutorFinishedImpl(const bool bInSuccess);
+	virtual void OnExecutorFinishedImpl();
+	virtual void OnPipelineErrored(UMoviePipeline* InPipeline, bool bIsFatal, FText ErrorText);
 protected:
 	
 	/** List of Pipeline Configs we've been asked to execute. */
 	UPROPERTY(Transient)
-	TArray<UMovieRenderPipelineConfig*> Pipelines;
+	TArray<FMoviePipelineExecutorJob> ExecutorJobs;
 
-	/** Which Pipeline Config are we currently working on. */
-	int32 CurrentPipelineIndex;
-
-	/** Instance of the Pipeline that exists in the world that is currently processing (if any) */
+	/** A Movie Pipeline that has been spawned and is running (if any) */
 	UPROPERTY(Transient)
 	UMoviePipeline* ActiveMoviePipeline;
 
-	/** Instance of the Config we're supposed to be working on */
-	UPROPERTY(Transient)
-	UMovieRenderPipelineConfig* ActiveConfig;
+	/** Which Pipeline Config are we currently working on. */
+	int32 CurrentPipelineIndex;
 
 private:
 	/** Used to track total processing duration. */

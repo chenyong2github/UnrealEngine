@@ -5,7 +5,7 @@
 #include "MovieRenderPipelineDataTypes.h"
 #include "Engine/EngineTypes.h"
 #include "MoviePipelineSetting.h"
-#include "MoviePipelineOutput.generated.h"
+#include "MoviePipelineOutputBase.generated.h"
 
 class UMoviePipeline;
 
@@ -14,18 +14,10 @@ class UMoviePipeline;
 * i.e: image sequences, video containers, etc.
 */
 UCLASS(Blueprintable, Abstract)
-class MOVIERENDERPIPELINECORE_API UMoviePipelineOutput : public UMoviePipelineSetting
+class MOVIERENDERPIPELINECORE_API UMoviePipelineOutputBase : public UMoviePipelineSetting
 {
 	GENERATED_BODY()
 public:
-	/**
-	* Called when all data sources for a given output frame are available and need to be placed in the output stream. All input passes are
-	* given at once to make it easier to decide if they belong in separate containers or in combined containers.
-	*/
-	void ProcessFrame(TArray<MoviePipeline::FOutputFrameData> FrameData, FMoviePipelineFrameOutputState CachedOutputState, FDirectoryPath OutputDirectory)
-	{
-		ProcessFrameImpl(FrameData, CachedOutputState, OutputDirectory);
-	}
 
 	/** 
 	* Called once when all frames have been produced for the pipeline. Use this as an indicator to start flushing to disk. 
@@ -48,12 +40,12 @@ public:
 	/**
 	* This is called when a new shot starts, before warm up happens. See OnFrameProductionStart.
 	*/
-	void OnShotInitialized(const TOptional<FMoviePipelineShotCache> PrevShot, const FMoviePipelineShotCache& NewShot) { OnShotInitializedImpl(PrevShot, NewShot); }
+	void OnShotInitialized(const TOptional<FMoviePipelineShotInfo> PrevShot, const FMoviePipelineShotInfo& NewShot) { OnShotInitializedImpl(PrevShot, NewShot); }
 	
 	/**
 	* This is called when a shot ends, right after the last frame is rendered.
 	*/
-	void OnShotFinished(const FMoviePipelineShotCache& Shot) { OnShotFinishedImpl(Shot); }
+	void OnShotFinished(const FMoviePipelineShotInfo& Shot) { OnShotFinishedImpl(Shot); }
 
 	/**
 	* This is called during the Shutdown process of the Pipeline. This is after finalization.
@@ -61,24 +53,17 @@ public:
 	void OnPipelineFinished() { OnPipelineFinishedImpl(); }
 
 	/**
-	* This is called right before a shot starts producing frames, after warm up. See OnShotInitialized
-	*/
-	void OnFrameProductionStart() { OnFrameProductionStartImpl(); }
-
-	/**
 	* Called at the end of the frame, before rendering has happened for that frame.
 	*/
 	void OnPostTick() { OnPostTickImpl(); }
 
 protected:
-	virtual void OnShotInitializedImpl(const TOptional<FMoviePipelineShotCache> PrevShot, const FMoviePipelineShotCache& NewShot) {}
-	virtual void OnShotFinishedImpl(const FMoviePipelineShotCache& Shot) {}
+	virtual void OnShotInitializedImpl(const TOptional<FMoviePipelineShotInfo> PrevShot, const FMoviePipelineShotInfo& NewShot) {}
+	virtual void OnShotFinishedImpl(const FMoviePipelineShotInfo& Shot) {}
 
-	virtual void ProcessFrameImpl(TArray<MoviePipeline::FOutputFrameData> FrameData, FMoviePipelineFrameOutputState CachedOutputState, FDirectoryPath OutputDirectory) {};
 	virtual void FinalizeImpl() {}
 	virtual void BeginFinalizeImpl() {}
 	virtual bool HasFinishedProcessingImpl() { return true; }
 	virtual void OnPipelineFinishedImpl() {}
-	virtual void OnFrameProductionStartImpl() {}
 	virtual void OnPostTickImpl() {}
 };

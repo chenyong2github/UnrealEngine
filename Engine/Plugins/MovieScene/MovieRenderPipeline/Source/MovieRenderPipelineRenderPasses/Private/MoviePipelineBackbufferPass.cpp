@@ -16,7 +16,6 @@
 #include "ImageWriteStream.h"
 #include "GameFramework/PlayerController.h"
 #include "Math/Vector.h"
-#include "MovieRenderPipelineConfig.h"
 #include "Misc/FrameRate.h"
 #include "MoviePipelineAccumulationSetting.h"
 #include "MoviePipelineRenderPass.h"
@@ -88,7 +87,7 @@ void UMoviePipelineBackbufferPass::CaptureFrameImpl(const FMoviePipelineRenderPa
 	
 	// Override the Motion Blur settings since these are controlled by the movie pipeline.
 	{
-		View->FinalPostProcessSettings.MotionBlurTargetFPS = FMath::RoundToInt(GetPipeline()->GetPipelineConfig()->GetEffectiveFrameRate().AsDecimal());
+		View->FinalPostProcessSettings.MotionBlurTargetFPS = FMath::RoundToInt(GetPipeline()->GetEffectiveFrameRate().AsDecimal());
 		View->FinalPostProcessSettings.MotionBlurAmount = InPassMetrics.OutputState.MotionBlurFraction;
 		View->FinalPostProcessSettings.MotionBlurMax = 100.f;
 		View->FinalPostProcessSettings.bOverride_MotionBlurAmount = true;
@@ -197,11 +196,6 @@ void UMoviePipelineBackbufferPass::CaptureFrameImpl(const FMoviePipelineRenderPa
 	);
 }
 
-void UMoviePipelineBackbufferPass::GetFrameDataImpl(MoviePipeline::FOutputFrameData& OutFrameData)
-{
-
-}
-
 FSceneView* UMoviePipelineBackbufferPass::CalcSceneView(FSceneViewFamily* ViewFamily, const FMoviePipelineRenderPassMetrics& InPassMetrics)
 {
 	FVector ViewLocation;
@@ -209,8 +203,6 @@ FSceneView* UMoviePipelineBackbufferPass::CalcSceneView(FSceneViewFamily* ViewFa
 
 	APlayerController* LocalPlayerController = GetWorld()->GetFirstPlayerController();
 	LocalPlayerController->GetPlayerViewPoint(ViewLocation, ViewRotation);
-
-	UE_LOG(LogTemp, Log, TEXT("%d,%s"), GFrameCounter, *ViewLocation.ToString());
 
 	int32 TileSizeX = InitSettings.TileResolution.X;
 	int32 TileSizeY = InitSettings.TileResolution.Y;

@@ -9,6 +9,7 @@
 
 // Forward Declare
 class UMoviePipeline;
+class UMovieSceneSequence;
 
 UCLASS()
 class MOVIERENDERPIPELINECORE_API UMoviePipelineBlueprintLibrary : public UBlueprintFunctionLibrary
@@ -28,25 +29,60 @@ public:
 	* This will be inaccurate when PlayRate tracks are involved.
 	*/
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	static int32 GetOutputFrameCountEstimate(const FMoviePipelineShotCutCache& InCameraCut);
+	static int32 GetOutputFrameCountEstimate(const FMoviePipelineCameraCutInfo& InCameraCut);
 	
 	/**
 	* Returns the expected number of frames different frames that will be submitted for rendering. This is
 	* the number of output frames * temporal samples. This will be inaccurate when PlayRate tracks are involved.
 	*/
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	static int32 GetTemporalFrameCountEstimate(const FMoviePipelineShotCutCache& InCameraCut);
+	static int32 GetTemporalFrameCountEstimate(const FMoviePipelineCameraCutInfo& InCameraCut);
 	
 	/** 
 	* Returns misc. utility frame counts (Warm Up + MotionBlur Fix) since these are outside the ranges.
 	*/
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	static int32 GetUtilityFrameCountEstimate(const FMoviePipelineShotCutCache& InCameraCut);
+	static int32 GetUtilityFrameCountEstimate(const FMoviePipelineCameraCutInfo& InCameraCut);
 	
 	/**
 	* Returns the number of samples submitted to the GPU, optionally counting samples for the various parts.
 	* This will be inaccurate when PlayRate tracks are involved.
 	*/
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	static int32 GetSampleCountEstimate(const FMoviePipelineShotCutCache& InCameraCut, const bool bIncludeWarmup = true, const bool bIncludeMotionBlur = true);
+	static int32 GetSampleCountEstimate(const FMoviePipelineCameraCutInfo& InCameraCut, const bool bIncludeWarmup = true, const bool bIncludeMotionBlur = true);
+	
+	/**
+	* Duplicates the specified sequence using a medium depth copy. Standard duplication will only duplicate
+	* the top level Sequence (since shots and sub-sequences are other standalone assets) so this function
+	* recursively duplicates the given sequence, shot and subsequence and then fixes up the references to
+	* point to newly duplicated sequences.
+	*
+	* This does not duplicate any assets that the sequence points to outside of Shots/Subsequences.
+	*
+	* @param	Outer		- The Outer of the newly duplicated object. Leave null for TransientPackage();
+	* @param	InSequence	- The sequence to recursively duplicate.
+	* @return				- The duplicated sequence, or null if no sequence was provided to duplicate.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	static UMovieSceneSequence* DuplicateSequence(UObject* Outer, UMovieSceneSequence* InSequence);
+
+	// UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	// 	FMoviePipelineShotInfo GetCurrentShotSnapshot() const;
+	// 
+	// UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	// 	FMoviePipelineCameraCutInfo GetCurrentCameraCutSnapshot() const;
+	// 
+	// UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	// 	FMoviePipelineFrameOutputState GetOutputStateSnapshot() const;\
+
+	/**
+	* Returns an estimate based on the average time taken to render all previous frames.
+	* Will be incorrect if PlayRate tracks are in use. Will be inaccurate when different
+	* shots take significantly different amounts of time to render.
+	*
+	* @param OutTimespan: The returned estimated time left. Will be default initialized if there is no estimate.
+	* @return True if we can make a reasonable estimate, false otherwise (ie: no rendering has been done to estimate).
+	*/
+	// UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	// bool GetRemainingTimeEstimate(FTimespan& OutTimespan) const;
 };

@@ -7,12 +7,12 @@
 #include "UObject/TextProperty.h"
 #include "Internationalization/Text.h"
 #include "Containers/UnrealString.h"
-#include "MovieRenderPipelineConfig.h"
+#include "MoviePipelineMasterConfig.h"
 
 #include "MoviePipelineEditorBlueprintLibrary.generated.h"
 
 // Forward Declare
-class UMovieRenderPipelineConfig;
+class UMoviePipelineMasterConfig;
 
 UCLASS()
 class MOVIERENDERPIPELINEEDITOR_API UMoviePipelineEditorBlueprintLibrary : public UBlueprintFunctionLibrary
@@ -21,5 +21,5 @@ class MOVIERENDERPIPELINEEDITOR_API UMoviePipelineEditorBlueprintLibrary : publi
 	
 public:
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
-	static bool ExportConfigToAsset(const UMovieRenderPipelineConfig* InConfig, const FString& InPackagePath, const FString& InFileName, const bool bInSaveAsset, UMovieRenderPipelineConfig*& OutAsset, FText& OutErrorReason);
+	static bool ExportConfigToAsset(const UMoviePipelineMasterConfig* InConfig, const FString& InPackagePath, const FString& InFileName, const bool bInSaveAsset, UMoviePipelineMasterConfig*& OutAsset, FText& OutErrorReason);
 };

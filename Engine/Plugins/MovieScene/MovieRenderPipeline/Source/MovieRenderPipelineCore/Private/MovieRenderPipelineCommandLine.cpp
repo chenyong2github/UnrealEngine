@@ -7,8 +7,9 @@
 #include "MoviePipelineExecutor.h"
 #include "MoviePipeline.h"
 #include "MoviePipelineInProcessExecutor.h"
-#include "MovieRenderPipelineConfig.h"
 #include "LevelSequence.h"
+#include "MoviePipelineMasterConfig.h"
+#include "MovieRenderPipelineDataTypes.h"
 
 #if WITH_EDITOR
 //#include "Editor.h"
@@ -34,13 +35,13 @@ void FMovieRenderPipelineCoreModule::InitializeCommandLineMovieRender()
 
 	// Attempt to convert their command line arguments into the required objects.
 	ULevelSequence* LevelSequence = nullptr;
-	UMovieRenderPipelineConfig* Config = nullptr;
+	UMoviePipelineMasterConfig* MasterConfig = nullptr;
 	UClass* ExecutorClass = nullptr;
 	UClass* PipelineClass = nullptr;
 
 	uint8 ReturnCode = GetMovieRenderClasses(SequenceAssetValue, SettingsAssetValue, MoviePipelineLocalExecutorClassType, MoviePipelineClassType, 
-											 /*Out*/ LevelSequence, /*Out*/ Config, /*Out*/ ExecutorClass, /*Out*/ PipelineClass);
-	if (!ensureMsgf(LevelSequence && Config && ExecutorClass && PipelineClass, TEXT("There was a failure parsing the command line and a movie render cannot be started. Check the log for more details.")))
+											 /*Out*/ LevelSequence, /*Out*/ MasterConfig, /*Out*/ ExecutorClass, /*Out*/ PipelineClass);
+	if (!ensureMsgf(LevelSequence && MasterConfig && ExecutorClass && PipelineClass, TEXT("There was a failure parsing the command line and a movie render cannot be started. Check the log for more details.")))
 	{
 		// Take the failure return code from the detection of our command line arguments.
 		FPlatformMisc::RequestExitWithStatus(/*Force*/ false, /*ReturnCode*/ ReturnCode);
@@ -49,7 +50,7 @@ void FMovieRenderPipelineCoreModule::InitializeCommandLineMovieRender()
 	else
 	{
 		UE_LOG(LogMovieRenderPipeline, Log, TEXT("Successfully detected and loaded required movie arguments. Rendering will begin once the map is loaded."));
-		UE_LOG(LogMovieRenderPipeline, Log, TEXT("LevelSequence: %s Config: %s ExecutorClass: %s PipelineClass: %s"), *LevelSequence->GetPathName(), *Config->GetPathName(), *ExecutorClass->GetPathName(), *PipelineClass->GetPathName());
+		UE_LOG(LogMovieRenderPipeline, Log, TEXT("LevelSequence: %s Config: %s ExecutorClass: %s PipelineClass: %s"), *LevelSequence->GetPathName(), *MasterConfig->GetPathName(), *ExecutorClass->GetPathName(), *PipelineClass->GetPathName());
 	}
 
 	// By this time, we know what assets you want to render, how to process the array of assets, and what runs an individual render. First we will create an executor.
@@ -59,16 +60,16 @@ void FMovieRenderPipelineCoreModule::InitializeCommandLineMovieRender()
 	// and means we only have to add/remove one thing from the root set, everything else uses normal outer ownership.
 	ExecutorBase->AddToRoot();
 	ExecutorBase->OnExecutorFinished().AddRaw(this, &FMovieRenderPipelineCoreModule::OnCommandLineMovieRenderCompleted);
+	ExecutorBase->OnExecutorErrored().AddRaw(this, &FMovieRenderPipelineCoreModule::OnCommandLineMovieRenderErrored);
 	ExecutorBase->SetMoviePipelineClass(PipelineClass);
 
-	TArray<UMovieRenderPipelineConfig*> Pipelines;
-	Pipelines.Add(Config);
-	Config->Sequence = FSoftObjectPath(SequenceAssetValue);
+	TArray<FMoviePipelineExecutorJob> Jobs;
+	Jobs.Add(FMoviePipelineExecutorJob(SequenceAssetValue, MasterConfig));
 
-	ExecutorBase->Execute(Pipelines);
+	ExecutorBase->Execute(Jobs);
 }
 
-void FMovieRenderPipelineCoreModule::OnCommandLineMovieRenderCompleted(UMoviePipelineExecutorBase* InExecutor)
+void FMovieRenderPipelineCoreModule::OnCommandLineMovieRenderCompleted(UMoviePipelineExecutorBase* InExecutor, bool bSuccess)
 {
 	if (InExecutor)
 	{
@@ -78,6 +79,12 @@ void FMovieRenderPipelineCoreModule::OnCommandLineMovieRenderCompleted(UMoviePip
 	// Return a success code. Ideally any errors detected during rendering will return different codes.
 	FPlatformMisc::RequestExitWithStatus(/*Force*/ false, /*ReturnCode*/ 0);
 }
+
+void FMovieRenderPipelineCoreModule::OnCommandLineMovieRenderErrored(UMoviePipelineExecutorBase* InExecutor, UMoviePipeline* InPipelineWithError, bool bIsFatal, FText ErrorText)
+{
+
+}
+
 
 UClass* GetLocalExecutorClass(const FString& MoviePipelineLocalExecutorClassType, const FString ExecutorClassFormatString)
 {
@@ -158,7 +165,7 @@ bool FMovieRenderPipelineCoreModule::IsTryingToRenderMovieFromCommandLine(FStrin
 }
 
 uint8 FMovieRenderPipelineCoreModule::GetMovieRenderClasses(const FString& InSequenceAssetPath, const FString& InConfigAssetPath, const FString& InExecutorType, const FString& InPipelineType,
-	ULevelSequence*& OutSequence, UMovieRenderPipelineConfig*& OutConfig, UClass*& OutExecutorClass, UClass*& OutPipelineClass) const
+	ULevelSequence*& OutSequence, UMoviePipelineMasterConfig*& OutConfig, UClass*& OutExecutorClass, UClass*& OutPipelineClass) const
 {
 	if (!ensureMsgf(InSequenceAssetPath.Len() > 0, TEXT("GetMovieRenderClasses should not be called without an sequence asset path specified!")))
 	{
@@ -212,7 +219,7 @@ uint8 FMovieRenderPipelineCoreModule::GetMovieRenderClasses(const FString& InSeq
 	{
 		// Convert it to a soft object path and use that load to ensure it follows redirectors, etc.
 		FSoftObjectPath AssetPath = FSoftObjectPath(InConfigAssetPath);
-		OutConfig = CastChecked<UMovieRenderPipelineConfig>(AssetPath.TryLoad());
+		OutConfig = CastChecked<UMoviePipelineMasterConfig>(AssetPath.TryLoad());
 
 		if (!OutConfig)
 		{

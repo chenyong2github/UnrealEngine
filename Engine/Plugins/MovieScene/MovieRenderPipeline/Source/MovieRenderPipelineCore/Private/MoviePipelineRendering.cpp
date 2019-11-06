@@ -3,15 +3,18 @@
 #include "MoviePipeline.h"
 #include "MovieRenderPipelineCoreModule.h"
 #include "Misc/FrameRate.h"
-#include "MoviePipelineOutput.h"
-#include "MovieRenderPipelineConfig.h"
+#include "MoviePipelineOutputBase.h"
 #include "MoviePipelineAccumulationSetting.h"
 #include "MoviePipelineShotConfig.h"
 #include "MoviePipelineRenderPass.h"
 #include "MoviePipelineOutputBuilder.h"
 #include "RenderingThread.h"
+#include "MoviePipelineOutputSetting.h"
+#include "MoviePipelineConfigBase.h"
+#include "MoviePipelineMasterConfig.h"
+#include "Math/Halton.h"
 
-void UMoviePipeline::SetupRenderingPipelineForShot(FMoviePipelineShotCache& Shot)
+void UMoviePipeline::SetupRenderingPipelineForShot(FMoviePipelineShotInfo& Shot)
 {
 	/*
 	* To support tiled rendering we take the final effective resolution and divide
@@ -27,11 +30,13 @@ void UMoviePipeline::SetupRenderingPipelineForShot(FMoviePipelineShotCache& Shot
 	* RightOffset = (1925-1920-LeftOffset)
 	*/
 	UMoviePipelineAccumulationSetting* AccumulationSettings = Shot.ShotConfig->FindOrAddSetting<UMoviePipelineAccumulationSetting>();
+	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	check(OutputSettings);
 
 	FMoviePipelineRenderPassInitSettings RenderPassInitSettings;
 	RenderPassInitSettings.TileResolution = FIntPoint(
-		FMath::CeilToInt(Config->OutputResolution.X / AccumulationSettings->TileCount),
-		FMath::CeilToInt(Config->OutputResolution.Y / AccumulationSettings->TileCount));
+		FMath::CeilToInt(OutputSettings->OutputResolution.X / AccumulationSettings->TileCount),
+		FMath::CeilToInt(OutputSettings->OutputResolution.Y / AccumulationSettings->TileCount));
 	RenderPassInitSettings.TileCount = AccumulationSettings->TileCount;
 	RenderPassInitSettings.ShotConfig = Shot.ShotConfig;
 
@@ -50,42 +55,28 @@ void UMoviePipeline::SetupRenderingPipelineForShot(FMoviePipelineShotCache& Shot
 	// Code expects at least a 1x1 tile.
 	ensure(RenderPassInitSettings.TileCount > 0);
 
-	for (UMoviePipelineRenderPass* Input : Shot.ShotConfig->InputBuffers)
+	for (UMoviePipelineRenderPass* Input : Shot.RenderPasses)
 	{
 		Input->Setup(RenderPassInitSettings, OutputPipe.ToSharedRef());
 	}
 }
 
-void UMoviePipeline::TeardownRenderingPipelineForShot(FMoviePipelineShotCache& Shot)
+void UMoviePipeline::TeardownRenderingPipelineForShot(FMoviePipelineShotInfo& Shot)
 {
-	for (UMoviePipelineRenderPass* Input : Shot.ShotConfig->InputBuffers)
-	{
-		Input->Teardown();
-	}
-}
-
-float Halton(int32 Index, int32 Base)
-{
-	float Result = 0.0f;
-	float InvBase = 1.0f / Base;
-	float Fraction = InvBase;
-	while (Index > 0)
-	{
-		Result += (Index % Base) * Fraction;
-		Index /= Base;
-		Fraction *= InvBase;
-	}
-	return Result;
+	//for (UMoviePipelineRenderPass* Input : Shot.ShotConfig->InputBuffers)
+	//{
+	//	Input->Teardown();
+	//}
 }
 
 void UMoviePipeline::RenderFrame()
 {
 	// Flush built in systems before we render anything. This maximizes the likelyhood that the data is prepared for when
 	// the render thread uses it.
-	FlushAsyncSystems();
+	FlushAsyncEngineSystems();
 
-	FMoviePipelineShotCache& CurrentShot = ShotList[CurrentShotIndex];
-	FMoviePipelineShotCutCache& CurrentCameraCut = CurrentShot.GetCurrentCameraCut();
+	FMoviePipelineShotInfo& CurrentShot = ShotList[CurrentShotIndex];
+	FMoviePipelineCameraCutInfo& CurrentCameraCut = CurrentShot.GetCurrentCameraCut();
 
 	// We render a frame during motion blur fixes (but don't try to submit it for output) to allow seeding
 	// the view histories with data. We want to do this all in one tick so that the motion is correct.
@@ -100,10 +91,10 @@ void UMoviePipeline::RenderFrame()
 
 	// Allow our containers to think
 	// ToDo: Is this necessaary?
-	for (UMoviePipelineOutput* Container : Config->OutputContainers)
-	{
-		Container->OnPostTick();
-	}
+	// for (UMoviePipelineOutputBase* Container : Config->OutputContainers)
+	// {
+	// 	Container->OnPostTick();
+	// }
 	
 	// To produce a frame from the movie pipeline we may render many frames over a period of time, additively collecting the results
 	// together before submitting it for writing on the last result - this is referred to as an "output frame". The 1 (or more) samples
@@ -118,15 +109,18 @@ void UMoviePipeline::RenderFrame()
 	// In short, for each output frame, for each accumulation frame, for each tile X/Y, for each jitter, we render a pass. This setup is
 	// designed to maximize the likely hood of deterministic rendering and that different passes line up with each other.
 	UMoviePipelineAccumulationSetting* AccumulationSettings = CurrentShot.ShotConfig->FindOrAddSetting<UMoviePipelineAccumulationSetting>();
+	UMoviePipelineOutputSetting* OutputSetting = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	check(OutputSetting);
+
+
 	const int32 NumTilesX = AccumulationSettings->TileCount;
 	const int32 NumTilesY = NumTilesX;
 	const bool bIsUsingOverlappedTiles = AccumulationSettings->bIsUsingOverlappedTiles;
 
 	int32 NumSpatialSamples = AccumulationSettings->SpatialSampleCount;
 	ensure(NumTilesX > 0 && NumTilesY > 0 && NumSpatialSamples > 0);
-	bool bHasCountedSamples = false;
 
-	TArray<UMoviePipelineRenderPass*> InputBuffers = CurrentShot.ShotConfig->InputBuffers;
+	TArray<UMoviePipelineRenderPass*> InputBuffers = CurrentShot.RenderPasses;
 
 	// If this is the first sample for a new frame, we want to notify the output builder that it should expect data to accumulate for this frame.
 	if (CachedOutputState.TemporalSampleIndex == 0)
@@ -208,12 +202,6 @@ void UMoviePipeline::RenderFrame()
 				TilePixelSizeFractionY = 1.0f;
 			}
 
-			// Tell each pass to reset their spatial sampling accumulation.
-			for (UMoviePipelineRenderPass* Input : InputBuffers)
-			{
-				//Input->ResetSpatialSamplingAccumulation();
-			}
-
 			// If they're trying to seed the histories, then we'll just override the NumSpatialSamples since they're contributing towards
 			// our final target buffer which needs the history.
 			if (bIsHistoryOnlyFrame)
@@ -225,12 +213,8 @@ void UMoviePipeline::RenderFrame()
 			// spatial jitters which are accumulated together before contributing to the temporal accumulation.
 			for (int32 SpatialSample = 0; SpatialSample < NumSpatialSamples; SpatialSample++)
 			{
-				// We only want to count samples from the first tile
-				if (!bHasCountedSamples)
-				{
-					CurrentCameraCut.NumSamplesRendered++;
-					CachedOutputState.TotalSamplesRendered++;
-				}
+				// Count this as a sample rendered for the current work.
+				CurrentCameraCut.CurrentWorkInfo.NumSamples++;
 
 				float OffsetX = 0.5f;
 				float OffsetY = 0.5f; 
@@ -251,8 +235,8 @@ void UMoviePipeline::RenderFrame()
 				double FinalSubPixelShiftX = - (TileShiftX + SpatialShiftX - 0.5);
 				double FinalSubPixelShiftY = (TileShiftY + SpatialShiftY - 0.5);
 
-				int32 TileSizeX = FMath::CeilToInt(Config->OutputResolution.X / NumTilesX);
-				int32 TileSizeY = FMath::CeilToInt(Config->OutputResolution.Y / NumTilesY);
+				int32 TileSizeX = FMath::CeilToInt(OutputSetting->OutputResolution.X / NumTilesX);
+				int32 TileSizeY = FMath::CeilToInt(OutputSetting->OutputResolution.Y / NumTilesY);
 
 				// in the case of overlapped rendering, the render target size will be larger than tile size because of overlap
 				int32 PadX = bIsUsingOverlappedTiles ? int32(float(TileSizeX) * AccumulationSettings->PadRatioX) : 0;
@@ -319,32 +303,8 @@ void UMoviePipeline::RenderFrame()
 				}
 
 			}
-
-			// We only want to count samples from the first tile
-			bHasCountedSamples = true;
 		}
 	}
 	
-	// 	// Get our list of buffers that are supposed to be producing this frame
-
-	// 
-	// 	// Once all inputs have had a chance to render, we're going to flush the rendering and then
-	// 	// transfer all of the created data to the output containers in one go.
 	FlushRenderingCommands();
-	// 
-	// 	// Store all of the data generated this frame
-	TArray<MoviePipeline::FOutputFrameData> AllPassFrameData;
-	// 
-	for (UMoviePipelineRenderPass* Input : InputBuffers)
-	{
-		MoviePipeline::FOutputFrameData& OutFrameData = AllPassFrameData.Add_GetRef(MoviePipeline::FOutputFrameData());
-		Input->GetFrameData(OutFrameData);
-	}
-	// 	
-	TArray<UMoviePipelineOutput*> OutputContainers = Config->OutputContainers;
-	for (UMoviePipelineOutput* Output : OutputContainers)
-	{
-		Output->ProcessFrame(AllPassFrameData, CachedOutputState, Config->OutputDirectory);
-	}
-	// }
 }

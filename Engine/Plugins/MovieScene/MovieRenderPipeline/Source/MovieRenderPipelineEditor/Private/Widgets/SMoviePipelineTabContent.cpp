@@ -25,11 +25,11 @@ void SMoviePipelineTabContent::Construct(const FArguments& InArgs)
 
 EActiveTimerReturnType SMoviePipelineTabContent::OnActiveTimer(double InCurrentTime, float InDeltaTime)
 {
-	SetupForPipeline((UMoviePipelineShotConfig*)nullptr);
+	SetupForPipeline((UMoviePipelineConfigBase*)nullptr);
 	return EActiveTimerReturnType::Stop;
 }
 
-void SMoviePipelineTabContent::SetupForPipeline(UMoviePipelineShotConfig* BasePreset)
+void SMoviePipelineTabContent::SetupForPipeline(UMoviePipelineConfigBase* BasePreset)
 {
 	// Null out the tab content to ensure that all references have been cleaned up before constructing the new one
 	ChildSlot [ SNullWidget::NullWidget ];

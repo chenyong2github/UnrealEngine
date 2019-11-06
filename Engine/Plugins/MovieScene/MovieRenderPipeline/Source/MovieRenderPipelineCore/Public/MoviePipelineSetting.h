@@ -17,9 +17,16 @@ class MOVIERENDERPIPELINECORE_API UMoviePipelineSetting : public UObject
 		
 public:
 	/**
-	* Called when the Pipeline is initialized for the first time before the first frame is ticked.
+	* Called during setup in the relevant portion of the Movie Pipeline lifecycle.
+	* Can get called multiple times if a setting is shared between shots.
 	*/
-	void OnInitializedForPipeline(UMoviePipeline* InPipeline);
+	void SetupForPipeline(UMoviePipeline* InPipeline);
+
+	/**
+	* Called during shutdown in the relevant portion of the Movie Pipeline lifecycle.
+	* Can get called multiple times if a setting is shared between shots.
+	*/
+	void TeardownForPipeline(UMoviePipeline* InPipeline) { TeardownForPipelineImpl(InPipeline); }
 
 	// UObject Interface
 	virtual UWorld* GetWorld() const override;
@@ -28,8 +35,8 @@ public:
 protected:
 	UMoviePipeline* GetPipeline() const;
 
-
-	virtual void OnInitializedForPipelineImpl(UMoviePipeline* InPipeline) {}
+	virtual void SetupForPipelineImpl(UMoviePipeline* InPipeline) {}
+	virtual void TeardownForPipelineImpl(UMoviePipeline* InPipeline) {}
 
 public:
 #if WITH_EDITOR
