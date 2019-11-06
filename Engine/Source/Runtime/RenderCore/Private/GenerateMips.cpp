@@ -4,6 +4,7 @@
 #include "RenderGraph.h"
 #include "RenderGraphUtils.h"
 #include "RenderTargetPool.h"
+#include "ShaderPermutation.h"
 
 #define MIPSSHADER_NUMTHREADS 8
 
@@ -18,6 +19,11 @@ struct FGenerateMipsStruct
 class FGenerateMipsCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FGenerateMipsCS)
+
+public:
+	class FGenMipsSRGB : SHADER_PERMUTATION_BOOL("GENMIPS_SRGB");
+	using FPermutationDomain = TShaderPermutationDomain<FGenMipsSRGB>;
+
 	SHADER_USE_PARAMETER_STRUCT(FGenerateMipsCS, FGlobalShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -103,7 +109,11 @@ void FGenerateMips::Compute(FRHICommandListImmediate& RHIImmCmdList, FRHITexture
 	//Begin rendergraph for executing the compute shader
 	FRDGBuilder GraphBuilder(RHIImmCmdList);
 	FRDGTextureRef GraphTexture = GraphBuilder.RegisterExternalTexture(GenMipsStruct->RenderTarget, TEXT("GenerateMipsGraphTexture"));
-	TShaderMapRef<FGenerateMipsCS> ComputeShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
+
+	//Select compute shader variant (normal vs. sRGB)
+	FGenerateMipsCS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FGenerateMipsCS::FGenMipsSRGB>(!!(InTexture->GetFlags() & TexCreate_SRGB));
+	TShaderMapRef<FGenerateMipsCS> ComputeShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5), PermutationVector);
 
 	//Loop through each level of the mips that require creation and add a dispatch pass per level,.
 	for (uint8 MipLevel = 1; MipLevel < InTexture->GetNumMips(); MipLevel++)

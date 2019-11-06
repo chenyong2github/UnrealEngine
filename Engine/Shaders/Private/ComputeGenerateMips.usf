@@ -6,10 +6,15 @@
 
 #pragma once
 #include "Common.ush"
+#include "GammaCorrectionCommon.ush"
 
 float2 TexelSize;
 Texture2D MipInSRV;
+#if GENMIPS_SRGB
+RWTexture2D<half4> MipOutUAV;
+#else
 RWTexture2D<float4> MipOutUAV;
+#endif
 SamplerState MipSampler;
 
 [numthreads(8, 8, 1)]
@@ -17,7 +22,13 @@ void MainCS(uint3 DT_ID : SV_DispatchThreadID)
 {
     float2 UV = TexelSize * (DT_ID.xy + 0.5f);
 
+#if GENMIPS_SRGB
+    half4 outColor = MipInSRV.SampleLevel(MipSampler, UV, 0);
+
+    MipOutUAV[DT_ID.xy] = half4(LinearToSrgb(outColor.xyz), outColor.w);
+#else
     float4 outColor = MipInSRV.SampleLevel(MipSampler, UV, 0);
 
     MipOutUAV[DT_ID.xy] = outColor;
+#endif
 }
