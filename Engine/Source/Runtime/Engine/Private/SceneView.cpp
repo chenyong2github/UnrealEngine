@@ -2103,7 +2103,7 @@ EShaderPlatform FSceneView::GetShaderPlatform() const
 
 bool FSceneView::IsInstancedStereoPass() const
 {
-	return bIsInstancedStereoEnabled && IStereoRendering::IsAPrimaryView(*this);
+	return bIsInstancedStereoEnabled && IStereoRendering::IsStereoEyeView(*this) && IStereoRendering::IsAPrimaryView(*this);
 }
 
 void FSceneView::SetupViewRectUniformBufferParameters(FViewUniformShaderParameters& ViewUniformShaderParameters,
