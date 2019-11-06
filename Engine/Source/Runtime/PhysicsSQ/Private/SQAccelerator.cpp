@@ -136,20 +136,19 @@ struct TSQVisitor : public Chaos::ISpatialVisitor<TPayload, float>
 		//todo: check THitType is overlap
 	}
 
-	virtual bool Raycast(const Chaos::TSpatialVisitorData<TPayload>& Instance, float& CurLength) override
+	virtual bool Raycast(const Chaos::TSpatialVisitorData<TPayload>& Instance, Chaos::FQueryFastData& CurData) override
 	{
-		return Visit<ESQType::Raycast>(Instance, CurLength);
+		return Visit<ESQType::Raycast>(Instance, &CurData);
 	}
 
-	virtual bool Sweep(const Chaos::TSpatialVisitorData<TPayload>& Instance, float& CurLength) override
+	virtual bool Sweep(const Chaos::TSpatialVisitorData<TPayload>& Instance, Chaos::FQueryFastData& CurData) override
 	{
-		return Visit<ESQType::Sweep>(Instance, CurLength);
+		return Visit<ESQType::Sweep>(Instance, &CurData);
 	}
 
 	virtual bool Overlap(const Chaos::TSpatialVisitorData<TPayload>& Instance) override
 	{
-		float DummyLength;
-		return Visit<ESQType::Overlap>(Instance, DummyLength);
+		return Visit<ESQType::Overlap>(Instance, nullptr);
 	}
 
 private:
@@ -162,12 +161,12 @@ private:
 	};
 
 	template <ESQType SQ>
-	bool Visit(const Chaos::TSpatialVisitorData<TPayload>& Instance, float& CurLength)
+	bool Visit(const Chaos::TSpatialVisitorData<TPayload>& Instance, Chaos::FQueryFastData* CurData)
 	{
 #if CHAOS_DEBUG_DRAW && WITH_CHAOS
 		if (DebugParams.IsDebugQuery() && ChaosSQDrawDebugVisitorQueries)
 		{
-			DebugDraw<SQ>(Instance, CurLength);
+			DebugDraw<SQ>(Instance, CurData->CurrentLength);
 		}
 #endif
 
@@ -212,18 +211,18 @@ private:
 
 					const TVector<float, 3> DirLocal = ActorTM.InverseTransformVectorNoScale(Dir);
 					const TVector<float, 3> StartLocal = ActorTM.InverseTransformPositionNoScale(StartPoint);
-					bHit = Geom->Raycast(StartLocal, DirLocal, CurLength, /*Thickness=*/0.f, Distance, LocalPosition, LocalNormal, FaceIdx);
+					bHit = Geom->Raycast(StartLocal, DirLocal, CurData->CurrentLength, /*Thickness=*/0.f, Distance, LocalPosition, LocalNormal, FaceIdx);
 					if (bHit)
 					{
 						WorldPosition = ActorTM.TransformPositionNoScale(LocalPosition);
 						WorldNormal = ActorTM.TransformVectorNoScale(LocalNormal);
 					}
 				}
-				else if(SQ == ESQType::Sweep && CurLength > 0)
+				else if(SQ == ESQType::Sweep && CurData->CurrentLength > 0)
 				{
-					bHit = SweepQuery(*Geom, ActorTM, *QueryGeom, StartTM, Dir, CurLength, Distance, WorldPosition, WorldNormal, FaceIdx, 0.f, bComputeMTD);
+					bHit = SweepQuery(*Geom, ActorTM, *QueryGeom, StartTM, CurData->Dir, CurData->CurrentLength, Distance, WorldPosition, WorldNormal, FaceIdx, 0.f, bComputeMTD);
 				}
-				else if (SQ == ESQType::Overlap || (SQ == ESQType::Sweep && CurLength == 0))
+				else if (SQ == ESQType::Overlap || (SQ == ESQType::Sweep && CurData->CurrentLength == 0))
 				{
 					bHit = OverlapQuery(*Geom, ActorTM, *QueryGeom, StartTM, /*Thickness=*/0);
 				}
@@ -246,8 +245,8 @@ private:
 
 						if (bBlocker)
 						{
-							CurLength = Distance;
-							if (CurLength == 0 && (SQ == ESQType::Raycast || HitBuffer.WantsSingleResult()))	//raycasts always fail with distance 0, sweeps only matter if we want multi overlaps
+							CurData->SetLength(Distance);
+							if (CurData->CurrentLength == 0 && (SQ == ESQType::Raycast || HitBuffer.WantsSingleResult()))	//raycasts always fail with distance 0, sweeps only matter if we want multi overlaps
 							{
 								return false;	//initial overlap so nothing will be better than this
 							}
