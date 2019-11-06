@@ -278,7 +278,7 @@ void DIHairStrands_ComputeNodePosition(in FDIHairStrandsContext DIContext, in in
 }
 
 // Compute the node position by linear interpolation over the points
-void DIHairStrands_SmoothNodePosition(in FDIHairStrandsContext DIContext, in int NodeIndex, inout float3 OutNodePosition)
+void DIHairStrands_SmoothNodePosition(in FDIHairStrandsContext DIContext, in int NodeIndex, in float SmoothingFilter, inout float3 OutNodePosition)
 {
 	SharedNodePosition[GGroupThreadId.x] = OutNodePosition;
 	GroupMemoryBarrier();
@@ -286,7 +286,7 @@ void DIHairStrands_SmoothNodePosition(in FDIHairStrandsContext DIContext, in int
 	const int LocalIndex = (GGroupThreadId.x % DIContext.StrandSize);
 	if(LocalIndex == 0)
 	{
-		const float Beta = 0.2;
+		const float Beta = SmoothingFilter;
 		float3 DirM1 = SharedNodePosition[GGroupThreadId.x+1] - SharedNodePosition[GGroupThreadId.x];
 		float3 DirM2 = DirM1;
 
