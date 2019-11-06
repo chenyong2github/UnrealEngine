@@ -15,42 +15,13 @@
 #define MAPCTIDLINE     8
 
 #ifdef CAD_INTERFACE
-#pragma warning(push)
-#pragma warning(disable:4996) // unsafe sprintf
-#pragma warning(disable:4828) // illegal character
-#include "kernel_io/kernel_io.h"
-#include "kernel_io/kernel_io_error.h"
+#include "kernel_io/attribute_io/attribute_enum.h"
+#include "kernel_io/ct_types.h"
 #include "kernel_io/kernel_io_type.h"
-#include "kernel_io/list_io/list_io.h"
-#include "kernel_io/material_io/material_io.h"
-#include "kernel_io/object_io/asm_io/component_io/component_io.h"
-#include "kernel_io/object_io/asm_io/instance_io/instance_io.h"
-#include "kernel_io/object_io/geom_io/curve_io/cnurbs_io/cnurbs_io.h"
-#include "kernel_io/object_io/geom_io/surface_io/snurbs_io/snurbs_io.h"
-#include "kernel_io/object_io/geom_io/surface_io/surface_io.h"
-#include "kernel_io/object_io/history_io/hnode_io/hbranch_io/hbranch_io.h"
-#include "kernel_io/object_io/history_io/hnode_io/hleaf_io/hleaf_io.h"
-#include "kernel_io/object_io/history_io/solid_io/solid_io.h"
-#include "kernel_io/object_io/topo_io/body_io/body_io.h"
-#include "kernel_io/object_io/topo_io/coedge_io/coedge_io.h"
-#include "kernel_io/object_io/topo_io/face_io/face_io.h"
-#include "kernel_io/object_io/topo_io/loop_io/loop_io.h"
-#include "kernel_io/repair_io/repair_io.h"
-#pragma warning(pop)
 #endif // CAD_INTERFACE
 
 
 struct FFileStatData;
-
-enum EProcessState  // #ueent_CAD
-{
-	Unknown = 0x00,
-	UnTreated = 0x01,
-	Running = 0x02,
-	ProcessOk = 0x04,
-	ProcessFailed = 0x08,
-	FileNotFound = 0x10
-};
 
 #ifdef CAD_INTERFACE
 namespace CADLibrary
@@ -81,11 +52,21 @@ uint32 GetSize(CT_TESS_DATA_TYPE type);
 class CADINTERFACES_API FCoreTechFileParser
 {
 public:
+	enum class EProcessResult
+	{
+		Unknown,
+		Running,
+		UnTreated,
+		ProcessOk,
+		ProcessFailed,
+		FileNotFound,
+	};
+
 	FCoreTechFileParser(const FString& InCTFullPath, const FString& InCachePath, const FImportParameters& ImportParams, bool bPreferBodyData, bool bScaleUVMap);
 
 	double GetMetricUnit() const { return 0.01; }
 
-	EProcessState ProcessFile();
+	EProcessResult ProcessFile();
 
 	const TSet<FString>& GetExternalRefSet()
 	{
@@ -105,11 +86,8 @@ public:
 		return CADFile;
 	}
 
-
-
 private:
-	EProcessState ReadFileWithKernelIO();
-
+	EProcessResult ReadFileWithKernelIO();
 	bool ReadNode(CT_OBJECT_ID NodeId);
 	bool ReadInstance(CT_OBJECT_ID NodeId);
 	bool ReadComponent(CT_OBJECT_ID NodeId);

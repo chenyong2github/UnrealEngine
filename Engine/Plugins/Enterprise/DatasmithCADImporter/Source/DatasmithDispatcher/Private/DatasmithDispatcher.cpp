@@ -1,125 +1,35 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
 #include "DatasmithDispatcher.h"
 
 #include "CoreTechFileParser.h"
+#include "DatasmithDispatcherTask.h"
+#include "DatasmithDispatcherLog.h"
 
-#include "Containers/Array.h"
 #include "HAL/FileManager.h"
-#include "HAL/Thread.h"
-#include "Misc/Optional.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
+#include "Algo/Count.h"
 
+DEFINE_LOG_CATEGORY(LogDatasmithDispatcher);
 
 namespace DatasmithDispatcher
 {
 
-FDatasmithDispatcher::FDatasmithDispatcher(const FString& InCacheDir, int32 InNumberOfWorkers, TMap<FString, FString>& OutCADFileToUnrealFileMap, TMap<FString, FString>& OutCADFileToUnrealGeomMap)
-	: CADFileToUnrealFileMap(OutCADFileToUnrealFileMap)
+FDatasmithDispatcher::FDatasmithDispatcher(const CADLibrary::FImportParameters& InImportParameters, const FString& InCacheDir, int32 InNumberOfWorkers, TMap<FString, FString>& OutCADFileToUnrealFileMap, TMap<FString, FString>& OutCADFileToUnrealGeomMap)
+	: NextTaskIndex(0)
+	, CompletedTaskCount(0)
+	, CADFileToUnrealFileMap(OutCADFileToUnrealFileMap)
 	, CADFileToUnrealGeomMap(OutCADFileToUnrealGeomMap)
 	, ProcessCacheFolder(InCacheDir)
+	, ImportParameters(InImportParameters)
 	, NumberOfWorkers(InNumberOfWorkers)
-	, LastLaunchTask(0)
-	, NumOfFinishedTask(0)
 {
-	WorkerHandlerSet.Reserve(NumberOfWorkers);
-	for (int32 Index = 0; Index < NumberOfWorkers; Index++)
-	{
-		WorkerHandlerSet.Emplace(*this, ProcessCacheFolder);
-	}
-}
-
-void FDatasmithDispatcher::Init(const CADLibrary::FImportParameters& InImportParameters)
-{
-	ImportParameters = InImportParameters;
-
+	// init cache folders
 	IFileManager::Get().MakeDirectory(*FPaths::Combine(ProcessCacheFolder, TEXT("scene")), true);
 	IFileManager::Get().MakeDirectory(*FPaths::Combine(ProcessCacheFolder, TEXT("cad")), true);
 	IFileManager::Get().MakeDirectory(*FPaths::Combine(ProcessCacheFolder, TEXT("mesh")), true);
 	IFileManager::Get().MakeDirectory(*FPaths::Combine(ProcessCacheFolder, TEXT("body")), true);
-}
-
-void FDatasmithDispatcher::RunHandlers()
-{
-	WorkersRunning.Reserve(NumberOfWorkers);
-	int32 WorkerIndex = 0;
-	for (FDatasmithWorkerHandler& Handler : WorkerHandlerSet)
-	{
-		FString ProcessName = TEXT("DatasmithWorker ") + FString::FromInt(WorkerIndex);
-		WorkerIndex++;
-		WorkersRunning.Emplace(*ProcessName, [&]() { Handler.Run(); });
-	}
-}
-
-void FDatasmithDispatcher::Close()
-{
-	for (FDatasmithWorkerHandler& Handler : WorkerHandlerSet)
-	{
-		Handler.NotifyKill();
-	}
-
-	for (FThread& Process : WorkersRunning)
-	{
-		Process.Join();
-	}
-}
-
-void FDatasmithDispatcher::Clear()
-{
-	TaskPool.Empty();
-	LastLaunchTask = 0;
-	NumOfFinishedTask = 0;
-}
-
-
-void FDatasmithDispatcher::Process(bool bWithProcessor)
-{
-	if (bWithProcessor)
-	{
-		RunHandlers();  
-
-		while (!IsOver())
-		{
-			FWindowsPlatformProcess::Sleep(0.1);
-		} 
-
-		Close();
-	}
-	else
-	{
-		ProcessLocal();
-	}
-}
-
-void FDatasmithDispatcher::ProcessLocal()
-{
-#ifdef CAD_INTERFACE
-	TOptional<FTask> Task = GetTask();
-	while (Task.IsSet())
-	{
-		FString FullPath = Task->FileName;
-
-		CADLibrary::FCoreTechFileParser FileParser(FullPath, ProcessCacheFolder, ImportParameters, true, true);
-		EProcessState TaskState = FileParser.ProcessFile();
-		SetTaskState(Task->Index, TaskState);
-
-		if (TaskState == ProcessOk)
-		{
-			FString CurrentPath = FPaths::GetPath(FullPath);
-			const TSet<FString>& ExternalRefSet = FileParser.GetExternalRefSet();
-			if (ExternalRefSet.Num() > 0)
-			{
-				for (const FString& ExternalFile : ExternalRefSet)
-				{
-					AddTask(FPaths::Combine(CurrentPath, ExternalFile));
-				}
-			}
-			LinkCTFileToUnrealCacheFile(FileParser.GetFileName(), FileParser.GetSceneGraphFile(), FileParser.GetMeshFile());
-		}
-
-		Task = GetTask();
-	}
-#endif // CAD_INTERFACE
 }
 
 void FDatasmithDispatcher::AddTask(const FString& InFile)
@@ -137,50 +47,72 @@ void FDatasmithDispatcher::AddTask(const FString& InFile)
 	TaskPool[TaskIndex].Index = TaskIndex;
 }
 
-TOptional<FTask> FDatasmithDispatcher::GetTask()
+TOptional<FTask> FDatasmithDispatcher::GetNextTask()
 {
 	FScopeLock Lock(&TaskPoolCriticalSection);
 
-	if (!TaskPool.IsValidIndex(LastLaunchTask))
+	while (TaskPool.IsValidIndex(NextTaskIndex) && TaskPool[NextTaskIndex].State != ETaskState::UnTreated)
+	{
+		NextTaskIndex++;
+	}
+
+	if (!TaskPool.IsValidIndex(NextTaskIndex))
 	{
 		return TOptional<FTask>();
 	}
 
-	TaskPool[LastLaunchTask].State = Running;
-	return TaskPool[LastLaunchTask++];
+	TaskPool[NextTaskIndex].State = ETaskState::Running;
+	return TaskPool[NextTaskIndex++];
 }
 
-bool FDatasmithDispatcher::IsOver() 
-{
-	FScopeLock Lock(&TaskPoolCriticalSection);
-	return NumOfFinishedTask == TaskPool.Num();
-}
-
-void FDatasmithDispatcher::SetTessellationOptions(float InChordTolerance, float InMaxEdgeLength, float InNormalTolerance, CADLibrary::EStitchingTechnique InStitchingTechnique)
-{
-	ImportParameters.ChordTolerance = InChordTolerance;
-	ImportParameters.MaxEdgeLength = InMaxEdgeLength;
-	ImportParameters.MaxNormalAngle = InNormalTolerance;
-	ImportParameters.StitchingTechnique = InStitchingTechnique;
-}
-
-
-void FDatasmithDispatcher::SetTaskState(int32 TaskIndex, EProcessState TaskState)
+void FDatasmithDispatcher::SetTaskState(int32 TaskIndex, ETaskState TaskState)
 {
 	FScopeLock Lock(&TaskPoolCriticalSection);
 
-	if (TaskIndex < 0)
+	if (!ensure(TaskPool.IsValidIndex(TaskIndex)))
 	{
 		return;
 	}
-	if (TaskIndex < TaskPool.Num())
+
+	TaskPool[TaskIndex].State = TaskState;
+
+	if (TaskState == ETaskState::ProcessOk
+	 || TaskState == ETaskState::ProcessFailed
+	 || TaskState == ETaskState::FileNotFound)
 	{
-		TaskPool[TaskIndex].State = TaskState;
-		if (TaskState & (ProcessOk | ProcessFailed | FileNotFound))
-		{
-			NumOfFinishedTask++;
-		}
+		CompletedTaskCount++;
 	}
+
+	if (TaskState == ETaskState::UnTreated)
+	{
+		NextTaskIndex = TaskIndex;
+	}
+}
+
+void FDatasmithDispatcher::Process(bool bWithProcessor)
+{
+	if (bWithProcessor)
+	{
+		SpawnHandlers();
+
+		while (!IsOver() && GetAliveHandlerCount() > 0)
+		{
+			FWindowsPlatformProcess::Sleep(0.5);
+		}
+
+		CloseHandlers();
+	}
+
+	if (!IsOver())
+	{
+		ProcessLocal();
+	}
+}
+
+bool FDatasmithDispatcher::IsOver()
+{
+	FScopeLock Lock(&TaskPoolCriticalSection);
+	return CompletedTaskCount == TaskPool.Num();
 }
 
 void FDatasmithDispatcher::LinkCTFileToUnrealCacheFile(const FString& CTFile, const FString& UnrealSceneGraphFile, const FString& UnrealMeshFile)
@@ -196,4 +128,57 @@ void FDatasmithDispatcher::LinkCTFileToUnrealCacheFile(const FString& CTFile, co
 	}
 }
 
+void FDatasmithDispatcher::SpawnHandlers()
+{
+	WorkerHandlers.Reserve(NumberOfWorkers);
+	for (int32 Index = 0; Index < NumberOfWorkers; Index++)
+	{
+		WorkerHandlers.Emplace(*this, ProcessCacheFolder, Index);
+	}
 }
+
+int32 FDatasmithDispatcher::GetAliveHandlerCount()
+{
+	return Algo::CountIf(WorkerHandlers, [](const FDatasmithWorkerHandler& Handler) { return Handler.IsAlive(); });
+}
+
+void FDatasmithDispatcher::CloseHandlers()
+{
+	for (FDatasmithWorkerHandler& Handler : WorkerHandlers)
+	{
+		Handler.Stop();
+	}
+	WorkerHandlers.Empty();
+}
+
+void FDatasmithDispatcher::ProcessLocal()
+{
+#ifdef CAD_INTERFACE
+	while (TOptional<FTask> Task = GetNextTask())
+	{
+		FString FullPath = Task->FileName;
+
+		CADLibrary::FCoreTechFileParser FileParser(FullPath, ProcessCacheFolder, ImportParameters, true, true);
+		ETaskState ProcessResult = FileParser.ProcessFile();
+
+		ETaskState TaskState = ProcessResult;
+		SetTaskState(Task->Index, TaskState);
+
+		if (TaskState == ETaskState::ProcessOk)
+		{
+			FString CurrentPath = FPaths::GetPath(FullPath);
+			const TSet<FString>& ExternalRefSet = FileParser.GetExternalRefSet();
+			if (ExternalRefSet.Num() > 0)
+			{
+				for (const FString& ExternalFile : ExternalRefSet)
+				{
+					AddTask(FPaths::Combine(CurrentPath, ExternalFile));
+				}
+			}
+			LinkCTFileToUnrealCacheFile(FileParser.GetFileName(), FileParser.GetSceneGraphFile(), FileParser.GetMeshFile());
+		}
+	}
+#endif // CAD_INTERFACE
+}
+
+} // ns DatasmithDispatcher
