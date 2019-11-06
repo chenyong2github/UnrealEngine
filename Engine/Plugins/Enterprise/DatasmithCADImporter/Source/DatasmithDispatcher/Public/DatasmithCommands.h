@@ -1,253 +1,119 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #include "CoreMinimal.h"
 
 #include "CADOptions.h"
-#include "HAL/Runnable.h"
-#include "Misc/DateTime.h"
-#include "CoreTechFileParser.h"
+#include "DatasmithDispatcherTask.h"
 
-
-class FCoreTechFileParser;
+class FArchive;
 
 namespace DatasmithDispatcher
 {
-struct FTask
+
+enum class ECommandId : uint8
 {
-	FTask(const FString& InFile)
-	{
-		FileName = InFile;
-		State = UnTreated;
-	}
-
-	FTask()
-	{
-	}
-
-	FString FileName;
-	int32 Index = -1;
-	EProcessState State = Unknown;
-};
-
-class FDatasmithDispatcherSocket;
-class FDatasmithDispatcher;
-
-enum DatasmithCommandType
-{
+	Invalid,
 	Ping,
 	BackPing,
 	RunTask,
 	NotifyEndTask,
 	ImportParams,
+	Terminate,
 	Last
 };
 
-/**
- * Command interface
- * Serializable for Socket
- */
+
+
 class ICommand
 {
 public:
 	virtual ~ICommand() = default;
 
-	virtual void Initialize()
-	{
-	}
+	virtual ECommandId GetType() const = 0;
 
-	virtual DatasmithCommandType GetType() = 0;
+	friend void operator<<(FArchive& Ar, ICommand& C) { C.SerializeImpl(Ar); }
 
-	virtual void Write(FDatasmithDispatcherSocket&) = 0;
-	virtual void Read(FDatasmithDispatcherSocket&) = 0;
+protected:
+	virtual void SerializeImpl(FArchive&) {}
 };
 	
-/**
- * Process commands received by client listener (here GPCTClientListener)
- */
-class FDatasmithCommandManager
+
+
+// Create a new command from its type
+TSharedPtr<ICommand> CreateCommand(ECommandId CommandType);
+
+// Converts a command into a byte buffer
+void SerializeCommand(ICommand& Command, TArray<uint8>& OutBuffer);
+
+// Converts byte buffer back into a Command
+// returns nullptr in case of error
+TSharedPtr<ICommand> DeserializeCommand(const TArray<uint8>& InBuffer);
+
+
+
+class FTerminateCommand : public ICommand
 {
 public:
-	FDatasmithCommandManager(FDatasmithDispatcherSocket& CurrentSocket);
-
-	~FDatasmithCommandManager();
-
-	void Initialize();
-	void Terminate();
-
-	ICommand *GetNextCommand();
-
-private:
-	// Command map (map command type with command implementation -> for Reading)
-	TMap<DatasmithCommandType, ICommand*> CommandMap;
-
-	FDatasmithDispatcherSocket& Socket;
-	uint32 CurrentCommandeSize;
+	virtual ECommandId GetType() const override { return ECommandId::Terminate; }
 };
 
-/**
- * "Template" command. Use this command if you want to implement new ones -> this is one of the simplest possible commands
- */
-class FDatasmithPingCommand : public ICommand
+
+class FPingCommand : public ICommand
 {
 public:
-	virtual DatasmithCommandType GetType() override
-	{
-		return Ping;
-	}
-	virtual void Write(FDatasmithDispatcherSocket&) override;
-	virtual void Read(FDatasmithDispatcherSocket&) override;
-
-private:
-
+	virtual ECommandId GetType() const override { return ECommandId::Ping; }
 };
 
-class FDatasmithBackPingCommand : public ICommand
+
+class FBackPingCommand : public ICommand
 {
 public:
-	virtual DatasmithCommandType GetType() override
-	{
-		return BackPing;
-	}
-	virtual void Write(FDatasmithDispatcherSocket&) override;
-	virtual void Read(FDatasmithDispatcherSocket&) override;
-
-private:
-
+	virtual ECommandId GetType() const override { return ECommandId::BackPing; }
 };
 
-class FDatasmithRunTaskCommand : public ICommand
+
+class FRunTaskCommand : public ICommand
 {
 public:
-	FDatasmithRunTaskCommand()
-	{
-	}
+	FRunTaskCommand() = default;
+	FRunTaskCommand(const FTask& Task) : JobFilePath(Task.FileName), JobIndex(Task.Index) {}
+	virtual ECommandId GetType() const override { return ECommandId::RunTask; }
 
-	FDatasmithRunTaskCommand(const FString& InOutputFile, const int32 InJobIndex) 
-		: JobFilePath(InOutputFile)
-		, JobIndex(InJobIndex)
-	{
-	}
+protected:
+	virtual void SerializeImpl(FArchive&) override;
 
-	virtual ~FDatasmithRunTaskCommand()
-	{
-	}
-
-	const FString& GetFileToProcess() const
-	{
-		return JobFilePath;
-	}
-
-	virtual void Initialize() override
-	{
-		JobFilePath.Empty();
-		JobIndex = 0;
-	}
-
-	virtual DatasmithCommandType GetType() override
-	{
-		return RunTask;
-	}
-
-	virtual void Write(FDatasmithDispatcherSocket&) override;
-	virtual void Read(FDatasmithDispatcherSocket&) override;
-
-private:
+public:
 	FString JobFilePath;
-	int32 JobIndex;
+	int32 JobIndex = -1;
 };
 
-class FDatasmithNotifyEndTaskCommand : public ICommand
+class FCompletedTaskCommand : public ICommand
 {
 public:
-	void SetExternalReferences(const TSet<FString>& ExternalRefSet)
-	{
-		ExternalReferenceSet.Reserve(ExternalRefSet.Num());
-		for (const FString& ExternalFile : ExternalRefSet)
-		{
-			ExternalReferenceSet.Add(ExternalFile);
-		}
-	}
-	
-	const TArray<FString>& GetExternalReferences()
-	{
-		return ExternalReferenceSet;
-	}
+	virtual ECommandId GetType() const override { return ECommandId::NotifyEndTask; }
 
-	void SetProcessResult(EProcessState InProcessResult)
-	{
-		ProcessResult = InProcessResult;
-	}
+protected:
+	virtual void SerializeImpl(FArchive&) override;
 
-	EProcessState GetProcessResult()
-	{
-		return ProcessResult;
-	}
-
-	void SetSceneGraphFile(const FString& InSceneGraphFileName)
-	{
-		SceneGraphFileName = InSceneGraphFileName;
-	}
-
-	const FString& GetSceneGraphFile()
-	{
-		return SceneGraphFileName;
-	}
-
-	void SetGeomFile(const FString& InGeomFile)
-	{
-		GeomFileName = InGeomFile;
-	}
-
-	const FString& GetGeomFile()
-	{
-		return GeomFileName;
-	}
-
-	virtual void Initialize()
-	{
-		ExternalReferenceSet.Empty();
-		ProcessResult = EProcessState::UnTreated;
-	}
-
-	virtual DatasmithCommandType GetType() override
-	{
-		return NotifyEndTask;
-	}
-
-	virtual void Write(FDatasmithDispatcherSocket&) override;
-	virtual void Read(FDatasmithDispatcherSocket&) override;
-
-private:
-	TArray<FString> ExternalReferenceSet;
-	EProcessState ProcessResult;
+public:
+	TArray<FString> ExternalReferences;
 	FString SceneGraphFileName;
 	FString GeomFileName;
+	ETaskState ProcessResult = ETaskState::Unknown;
 };
 
-class FDatasmithImportParametersCommand : public ICommand
+class FImportParametersCommand : public ICommand
 {
 public:
-	virtual DatasmithCommandType GetType() override
-	{
-		return ImportParams;
-	}
-		
-	virtual void Set(const CADLibrary::FImportParameters& InImportParameters)
-	{
-		ImportParameters = InImportParameters;
-	}
+	virtual ECommandId GetType() const override { return ECommandId::ImportParams; }
 
-	virtual void Get(CADLibrary::FImportParameters& OutImportParameters)
-	{
-		OutImportParameters = ImportParameters;
-	}
+protected:
+	virtual void SerializeImpl(FArchive&) override;
 
-	virtual void Write(FDatasmithDispatcherSocket&) override;
-	virtual void Read(FDatasmithDispatcherSocket&) override;
-
-private:
+public:
 	CADLibrary::FImportParameters ImportParameters;
 };
 
-} // NS DatasmithDispatcher
+} // ns DatasmithDispatcher
