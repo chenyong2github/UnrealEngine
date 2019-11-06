@@ -212,6 +212,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		{
 			NCached::UserSettings.bSendUsageData = InParams.SendUsageData.GetValue();
 		}
+		SerializeTempCrashContextToFile();
 	});
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
