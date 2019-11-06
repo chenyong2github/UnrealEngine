@@ -29,7 +29,7 @@ namespace Chaos
 			AABBMaxChildrenInLeaf = 500;
 			AABBMaxTreeDepth = 200;
 			MaxPayloadSize = 100000;
-			IterationsPerTimeSlice = 2000;
+			IterationsPerTimeSlice = 20000;
 		}
 	} ConfigSettings;
 
@@ -60,7 +60,7 @@ namespace Chaos
 
 			for (uint16 BucketIdx = 0; BucketIdx < NumBuckets; ++BucketIdx)
 			{
-				Collection->AddSubstructure(CreateAccelerationPerBucket_Threaded(Empty, BucketIdx), BucketIdx);
+				Collection->AddSubstructure(CreateAccelerationPerBucket_Threaded(Empty, BucketIdx, true), BucketIdx);
 			}
 
 			return TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<T, d>, T, d>>(Collection);
@@ -71,7 +71,7 @@ namespace Chaos
 			return ConfigSettings.BroadphaseType >= 3 ? 3 : 1;
 		}
 
-		virtual TUniquePtr<ISpatialAcceleration<TAccelerationStructureHandle<T, d>, T, d>> CreateAccelerationPerBucket_Threaded(const TConstParticleView<TSpatialAccelerationCache<T, d>>& Particles, uint16 BucketIdx) override
+		virtual TUniquePtr<ISpatialAcceleration<TAccelerationStructureHandle<T, d>, T, d>> CreateAccelerationPerBucket_Threaded(const TConstParticleView<TSpatialAccelerationCache<T, d>>& Particles, uint16 BucketIdx, bool ForceFullBuild) override
 		{
 			switch (BucketIdx)
 			{
@@ -83,7 +83,7 @@ namespace Chaos
 				}
 				else if (ConfigSettings.BroadphaseType == 1 || ConfigSettings.BroadphaseType == 3)
 				{
-					return MakeUnique<AABBTreeType>(Particles, ConfigSettings.MaxChildrenInLeaf, ConfigSettings.MaxTreeDepth, ConfigSettings.MaxPayloadSize, ConfigSettings.IterationsPerTimeSlice);
+					return MakeUnique<AABBTreeType>(Particles, ConfigSettings.MaxChildrenInLeaf, ConfigSettings.MaxTreeDepth, ConfigSettings.MaxPayloadSize, ForceFullBuild ? 0 : ConfigSettings.IterationsPerTimeSlice);
 				}
 				else if (ConfigSettings.BroadphaseType == 4 || ConfigSettings.BroadphaseType == 2)
 				{
@@ -163,11 +163,13 @@ namespace Chaos
 		ISpatialAccelerationCollectionFactory<T, d>& InSpatialCollectionFactory
 		, const TMap<FSpatialAccelerationIdx, TUniquePtr<TSpatialAccelerationCache<T, d>>>& InSpatialAccelerationCache
 		, TUniquePtr<FAccelerationStructure>& InAccelerationStructure
-		, TUniquePtr<FAccelerationStructure>& InAccelerationStructureCopy)
+		, TUniquePtr<FAccelerationStructure>& InAccelerationStructureCopy
+		, bool InForceFullBuild)
 		: SpatialCollectionFactory(InSpatialCollectionFactory)
 		, SpatialAccelerationCache(InSpatialAccelerationCache)
 		, AccelerationStructure(InAccelerationStructure)
 		, AccelerationStructureCopy(InAccelerationStructureCopy)
+		, IsForceFullBuild(InForceFullBuild)
 	{
 	}
 
@@ -234,7 +236,7 @@ namespace Chaos
 			{
 				SCOPE_CYCLE_COUNTER(STAT_AccelerationStructureTimeSlice);
 
-				AccelerationStructure->GetSubstructure(SpatialIdx)->ProgressAsyncTimeSlicing();
+				AccelerationStructure->GetSubstructure(SpatialIdx)->ProgressAsyncTimeSlicing(IsForceFullBuild);
 
 				// is it still progressing or now complete
 				IsTimeSlicingProgressing = !AccelerationStructure->GetSubstructure(SpatialIdx)->IsAsyncTimeSlicingComplete();
@@ -257,7 +259,7 @@ namespace Chaos
 				SCOPE_CYCLE_COUNTER(STAT_CreateInitialAccelerationStructure);
 
 				auto ParticleView = MakeConstParticleView(MoveTemp(ViewsPerBucket[BucketIdx]));
-				auto NewStruct = SpatialCollectionFactory.CreateAccelerationPerBucket_Threaded(ParticleView, BucketIdx);
+				auto NewStruct = SpatialCollectionFactory.CreateAccelerationPerBucket_Threaded(ParticleView, BucketIdx, IsForceFullBuild);
 
 				// we kicked of the creation of a new structure and it's going to time-slice the work
 				if (!NewStruct->IsAsyncTimeSlicingComplete())
@@ -400,6 +402,14 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ComputeIntermediateSpatialAcceleration);
 		CHAOS_SCOPED_TIMER(ComputeIntermediateSpatialAcceleration);
+
+		bool ForceFullBuild = InternalAccelerationQueue.Num() > 1000;
+
+		if (ForceFullBuild)
+		{
+			UE_LOG(LogChaos, Warning, TEXT("ForceFullBuild"));
+		}
+
 		if (!AccelerationStructureTaskComplete)
 		{
 			//initial frame so make empty structures
@@ -438,7 +448,7 @@ namespace Chaos
 			}
 
 			// we run the task for both starting a new accel structure as well as for the timeslicing
-			AccelerationStructureTaskComplete = TGraphTask<FChaosAccelerationStructureTask>::CreateTask().ConstructAndDispatchWhenReady(*SpatialCollectionFactory, SpatialAccelerationCache, AsyncInternalAcceleration, AsyncExternalAcceleration);
+			AccelerationStructureTaskComplete = TGraphTask<FChaosAccelerationStructureTask>::CreateTask().ConstructAndDispatchWhenReady(*SpatialCollectionFactory, SpatialAccelerationCache, AsyncInternalAcceleration, AsyncExternalAcceleration, ForceFullBuild);
 		}
 		else
 		{
