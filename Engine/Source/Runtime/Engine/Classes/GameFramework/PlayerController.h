@@ -932,6 +932,14 @@ public:
 	UFUNCTION(unreliable, client, BlueprintCallable, Category="Game|Feedback")
 	void ClientPlayCameraShake(TSubclassOf<class UCameraShake> Shake, float Scale = 1.f, ECameraAnimPlaySpace::Type PlaySpace = ECameraAnimPlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
 
+	/** 
+	 * Play Camera Shake localized to a given source
+	 * @param Shake - Camera shake animation to play
+	 * @param SourceComponent - The source from which the camera shakes originates
+	 */
+	UFUNCTION(unreliable, client, BlueprintCallable, Category="Game|Feedback")
+	void ClientPlayCameraShakeFromSource(TSubclassOf<class UCameraShake> Shake, class UCameraShakeSourceComponent* SourceComponent);
+
 	/**
 	 * Play sound client-side (so only the client will hear it)
 	 * @param Sound	- Sound to play
@@ -1061,6 +1069,10 @@ public:
 	/** Stop camera shake on client.  */
 	UFUNCTION(reliable, client, BlueprintCallable, Category="Game|Feedback")
 	void ClientStopCameraShake(TSubclassOf<class UCameraShake> Shake, bool bImmediately = true);
+
+	/** Stop camera shake on client.  */
+	UFUNCTION(reliable, client, BlueprintCallable, Category="Game|Feedback")
+	void ClientStopCameraShakesFromSource(class UCameraShakeSourceComponent* SourceComponent, bool bImmediately = true);
 
 	/** 
 	 * Play a force feedback pattern on the player's controller
