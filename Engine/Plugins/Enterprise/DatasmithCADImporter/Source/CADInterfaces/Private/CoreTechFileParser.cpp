@@ -183,7 +183,7 @@ uint32 GetGeomFileHash(const uint32 InSGHash, const FImportParameters& ImportPar
 
 
 
-uint32 GetFaceTessellation(CT_OBJECT_ID FaceID, TArray<FTessellationData>& FaceTessellationSet, int32& OutRawDataSize, const float ScaleFactor)
+uint32 GetFaceTessellation(CT_OBJECT_ID FaceID, TArray<FTessellationData>& FaceTessellationSet, int32& OutRawDataSize, const FImportParameters& ImportParams)
 {
 	CT_IO_ERROR Error = IO_OK;
 
@@ -217,15 +217,15 @@ uint32 GetFaceTessellation(CT_OBJECT_ID FaceID, TArray<FTessellationData>& FaceT
 
 	int32 Index = FaceTessellationSet.Emplace();
 	FTessellationData& Tessellation = FaceTessellationSet[Index];
-	if (TexCoordArray != nullptr)
+	if (ImportParams.bScaleUVMap && TexCoordArray != nullptr)
 	{
 		switch (TexCoordType)
 		{
 		case CT_TESS_FLOAT:
-			ScaleUV<float>(FaceID, TexCoordArray, VertexCount, ScaleFactor);
+			ScaleUV<float>(FaceID, TexCoordArray, VertexCount, (float) ImportParams.ScaleFactor);
 			break;
 		case CT_TESS_DOUBLE:
-			ScaleUV<double>(FaceID, TexCoordArray, VertexCount, (double)ScaleFactor);
+			ScaleUV<double>(FaceID, TexCoordArray, VertexCount, ImportParams.ScaleFactor);
 			break;
 		}
 	}
@@ -1041,7 +1041,7 @@ uint32 GetBodiesFaceSetNum(TArray<CT_OBJECT_ID>& BodySet)
 	return size;
 }
 
-uint32 GetBodiesTessellations(TArray<CT_OBJECT_ID>& BodySet, TArray<FTessellationData>& FaceTessellationSet, TMap<uint32, uint32>& MaterialIdToMaterialHash, int32& OutRawDataSize, const float ScaleFactor)
+uint32 GetBodiesTessellations(TArray<CT_OBJECT_ID>& BodySet, TArray<FTessellationData>& FaceTessellationSet, TMap<uint32, uint32>& MaterialIdToMaterialHash, int32& OutRawDataSize, const FImportParameters& ImportParams)
 {
 	uint32 FaceSize = GetBodiesFaceSetNum(BodySet);
 
@@ -1068,7 +1068,7 @@ uint32 GetBodiesTessellations(TArray<CT_OBJECT_ID>& BodySet, TArray<FTessellatio
 		while ((FaceID = FaceList.IteratorIter()) != 0)
 		{
 			int32 FaceRawSize = 0;
-			uint32 TriangleCount = GetFaceTessellation(FaceID, FaceTessellationSet, FaceRawSize, ScaleFactor);
+			uint32 TriangleCount = GetFaceTessellation(FaceID, FaceTessellationSet, FaceRawSize, ImportParams);
 
 			if (TriangleCount == 0)
 			{
@@ -1111,10 +1111,9 @@ bool FCoreTechFileParser::ReadBody(CT_OBJECT_ID BodyId)
 	TArray<FTessellationData> FaceTessellationSet;
 
 	uint32 BodyUuId = GetStaticMeshUuid(*SceneGraphFile, BodyId);
-	double ScaleFactor = 0.1;
                 
 	int32 BodyRawDataSize = 0;
-	uint32 NbTriangles = GetBodiesTessellations(BodySet, FaceTessellationSet, MaterialIdToMaterialHashMap, BodyRawDataSize, ScaleFactor);
+	uint32 NbTriangles = GetBodiesTessellations(BodySet, FaceTessellationSet, MaterialIdToMaterialHashMap, BodyRawDataSize, ImportParameters);
 	TArray<uint8> GlobalRawData;
 
 	GlobalRawData.Reserve(BodyRawDataSize);
