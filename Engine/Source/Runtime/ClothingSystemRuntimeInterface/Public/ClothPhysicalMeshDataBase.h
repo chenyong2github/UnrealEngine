@@ -7,7 +7,7 @@
 #include "Containers/Array.h"
 #include "Containers/Map.h"
 
-#include "ClothPhysicalMeshData.generated.h"
+#include "ClothPhysicalMeshDataBase.generated.h"
 
 class UClothConfigBase;
 
