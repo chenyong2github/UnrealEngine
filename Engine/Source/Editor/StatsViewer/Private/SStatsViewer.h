@@ -131,6 +131,9 @@ private:
 	/** We just clicked the export button */
 	FReply OnExportClicked();
 
+	/** Get a valid stats page manager */
+	FStatsPageManager& GetStatsPageManager() const;
+
 private:
 
 	/** Flag to refresh the table next tick */
@@ -175,7 +178,7 @@ private:
 	/** Container for custom filters supplied by stats pages */
 	TSharedPtr< SBorder > CustomFilter;
 
-	/** The page manager that is managing our pages */
-	TSharedPtr < FStatsPageManager > StatsPageManager;
+	/** The page manager that is managing our pages. Can be invalid, in which case the global one will be used */
+	TSharedPtr < FStatsPageManager > StatsPageManagerPtr;
 };
 
