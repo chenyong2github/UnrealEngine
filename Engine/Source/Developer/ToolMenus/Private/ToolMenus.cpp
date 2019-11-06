@@ -273,7 +273,7 @@ void UToolMenus::AssembleMenuSection(UToolMenu* GeneratedMenu, const UToolMenu* 
 			}
 			else
 			{
-				if (GeneratedEntry.bAddedDuringRegister)
+				if (Block.bAddedDuringRegister)
 				{
 					RemainingBlocks.Add(GeneratedEntry);
 				}
