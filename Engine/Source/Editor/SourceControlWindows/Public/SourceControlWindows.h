@@ -36,6 +36,13 @@ class SOURCECONTROLWINDOWS_API FSourceControlWindows
 {
 public:
 	/**
+	 * Get the list of files and directories that source control should check when looking for changes.
+	 *
+	 * @param	bContentOnly	True to only include content directories.
+	 */
+	static TArray<FString> GetSourceControlLocations(const bool bContentOnly = false);
+
+	/**
 	 * Opens a user dialog to choose packages to submit.
 	 *
 	 * @param	OnCompleteDelegate	Delegate to call when this user-based operation is complete. Also see FCheckinResultInfo.
