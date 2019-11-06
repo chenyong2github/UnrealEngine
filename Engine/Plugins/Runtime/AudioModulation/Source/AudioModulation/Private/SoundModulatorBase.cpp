@@ -11,30 +11,8 @@
 
 USoundModulatorBase::USoundModulatorBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, bAutoActivate(0)
 {
 }
-
-bool USoundModulatorBase::CanAutoActivate(const ISoundModulatable* InSound) const
-{
-	if (bAutoActivate)
-	{
-		if (InSound)
-		{
-			return true;
-		}
-	}
-	else
-	{
-		if (!InSound || InSound->IsPreviewSound())
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-
 
 #if WITH_EDITOR
 void USoundModulatorBase::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
@@ -42,14 +20,6 @@ void USoundModulatorBase::PostEditChangeProperty(struct FPropertyChangedEvent& P
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	if (!PropertyChangedEvent.Property)
-	{
-		return;
-	}
-
-	// Cannot change AutoActivate while modulator is active to avoid leaking sound count anyway,
-	// so early out to avoid passing along a no-op
-	const FName Name = PropertyChangedEvent.Property->GetFName();
-	if (Name == TEXT("bAutoActivate"))
 	{
 		return;
 	}

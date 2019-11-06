@@ -664,7 +664,7 @@ public:
 	virtual ~IAudioModulation() { }
 
 	/** Calculates initial volume to determine if sound is audible using base settings data */
-	virtual float CalculateInitialVolume(const USoundModulationPluginSourceSettingsBase& InSettingsBase) const { return 1.0f; }
+	virtual float CalculateInitialVolume(const USoundModulationPluginSourceSettingsBase& InSettingsBase) { return 1.0f; }
 
 	/** Initialize the modulation plugin with the same rate and number of sources */
 	virtual void Initialize(const FAudioPluginInitializationParams& InitializationParams) { }
