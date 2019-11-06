@@ -177,6 +177,9 @@ public:
     FPhysInterface_Chaos(const AWorldSettings* Settings=nullptr);
     ~FPhysInterface_Chaos();
 
+	// Describe the interface to identify it to the caller
+	static FString GetInterfaceDescription() { return TEXT("Chaos"); }
+
     // Interface needed for interface
 	static void CreateActor(const FActorCreationParams& InParams, FPhysicsActorHandle& Handle);
 	static void ReleaseActor(FPhysicsActorHandle& InActorReference, FPhysScene* InScene = nullptr, bool bNeverDeferRelease=false);
