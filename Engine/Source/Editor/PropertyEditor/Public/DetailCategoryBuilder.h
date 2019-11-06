@@ -83,7 +83,7 @@ public:
 	 * @param Location		The location within the category where the property is shown
 	 * @return A property row for customizing the property or NULL if the property could not be found
 	 */
-	virtual IDetailPropertyRow* AddExternalObjects(const TArray<UObject*>& Objects, EPropertyLocation::Type Location = EPropertyLocation::Default) = 0;
+	virtual IDetailPropertyRow* AddExternalObjects(const TArray<UObject*>& Objects, EPropertyLocation::Type Location = EPropertyLocation::Default, const FAddPropertyParams& Params = FAddPropertyParams()) = 0;
 
 	/**
 	 * Adds an external object property that is not a property on the object(s) being customized
