@@ -1345,7 +1345,7 @@ FString UGameplayTagsManager::StaticGetCategoriesMetaFromPropertyHandle(TSharedP
 	return Categories;
 }
 
-FString UGameplayTagsManager::GetCategoriesMetaFromFunction(UFunction* ThisFunction, FName ParamName /** = NAME_None */) const
+FString UGameplayTagsManager::GetCategoriesMetaFromFunction(const UFunction* ThisFunction, FName ParamName /** = NAME_None */) const
 {
 	FString FilterString;
 	if (ThisFunction)
