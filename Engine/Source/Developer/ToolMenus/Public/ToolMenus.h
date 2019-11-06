@@ -260,6 +260,9 @@ public:
 	/** Enables adding command to open edit menu dialog to each menu */
 	void SetEditMenusMode(bool bEnable);
 
+	/* Substitute one menu for another during generate but not during find or extend */
+	void AddMenuSubstitutionDuringGenerate(const FName OriginalMenu, const FName NewMenu);
+
 	/** Displaying extension points is for debugging menus */
 	DECLARE_DELEGATE_RetVal(bool, FShouldDisplayExtensionPoints);
 	FShouldDisplayExtensionPoints ShouldDisplayExtensionPoints;
