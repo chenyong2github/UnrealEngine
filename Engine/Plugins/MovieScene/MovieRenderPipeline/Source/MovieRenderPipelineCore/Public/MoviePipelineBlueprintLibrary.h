@@ -73,7 +73,7 @@ public:
 	// 	FMoviePipelineCameraCutInfo GetCurrentCameraCutSnapshot() const;
 	// 
 	// UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	// 	FMoviePipelineFrameOutputState GetOutputStateSnapshot() const;\
+	// 	FMoviePipelineFrameOutputState GetOutputStateSnapshot() const;
 
 	/**
 	* Returns an estimate based on the average time taken to render all previous frames.
