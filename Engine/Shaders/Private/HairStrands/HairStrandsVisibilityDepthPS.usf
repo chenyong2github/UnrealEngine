@@ -12,8 +12,8 @@
 	Texture2D<uint4> CategorisationTexture;
 #else
 	Texture2DMS<float, HAIR_VISIBILITY_MAXSAMPLECOUNT> HairVisibilityDepthTexture;
-	#if PERMUTATION_COVERAGE
-		Texture2D<float> CoverageTexture;
+	#if PERMUTATION_VIEWTRANSMITTANCE
+		Texture2D<float> ViewTransmittanceTexture;
 	#endif
 #endif
 
@@ -51,8 +51,8 @@ void MainPS(
 		ValidSampleCount += bIsValid ? 1 : 0;
 	}
 
-#if PERMUTATION_COVERAGE == 1
-	if (CoverageTexture.Load(uint3(PixelCoord, 0)) < 1.0f || ValidSampleCount == 0)
+#if PERMUTATION_VIEWTRANSMITTANCE == 1
+	if ((1.0f - ViewTransmittanceTexture.Load(uint3(PixelCoord, 0))) < 1.0f || ValidSampleCount == 0)
 	{
 		discard; // If coverage is 1. we skip writting depth to match all the other passes relying on coverage==1 meaning opaque.
 	}

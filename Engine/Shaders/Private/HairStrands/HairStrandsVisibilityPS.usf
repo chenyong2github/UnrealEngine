@@ -23,7 +23,7 @@
 #define SUPPORT_MATERIAL_PROPERTY 1
 #endif
 
-#if HAIR_RENDER_MODE == RENDER_MODE_COVERAGE
+#if HAIR_RENDER_MODE == RENDER_MODE_TRANSMITTANCE
 #define SUPPORT_MATERIAL_PROPERTY 0
 #endif
 
@@ -46,11 +46,11 @@ void MainVisibility(
 	, centroid in float WorldStrandRadius : TEXCOORD8
 	, const float4 PackedVelocityA : TEXCOORD9
 	, const float4 PackedVelocityC : TEXCOORD12
-#elif HAIR_RENDER_MODE == RENDER_MODE_COVERAGE 
+#elif HAIR_RENDER_MODE == RENDER_MODE_TRANSMITTANCE 
 	, centroid in float WorldStrandRadius : TEXCOORD8
 #endif
 	  OPTIONAL_IsFrontFace
-#if HAIR_RENDER_MODE == RENDER_MODE_COVERAGE
+#if HAIR_RENDER_MODE == RENDER_MODE_TRANSMITTANCE
 	, out float OutColor0 : SV_Target0
 #elif HAIR_RENDER_MODE == RENDER_MODE_MSAA
 	, out uint4 OutColor0	: SV_Target0
@@ -82,8 +82,8 @@ void MainVisibility(
 		Coverage = StrandRealRadius / max(StrandRealRadius, PixelRadius);
 	}
 
-#if HAIR_RENDER_MODE == RENDER_MODE_COVERAGE
-	OutColor0 = Coverage;
+#if HAIR_RENDER_MODE == RENDER_MODE_TRANSMITTANCE
+	OutColor0 = saturate(1.0f - Coverage);
 #endif
 
 #if HAIR_RENDER_MODE == RENDER_MODE_MSAA || HAIR_RENDER_MODE == RENDER_MODE_PPLL
