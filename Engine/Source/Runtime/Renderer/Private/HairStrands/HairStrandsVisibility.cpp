@@ -564,7 +564,25 @@ class FHairVisibilityPrimitiveIdCompactionCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+
+	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
+	{
+		if (PermutationVector.Get<FPPLL>() > 0)
+		{
+			PermutationVector.Set<FCoverage>(0);
+		}
+		return PermutationVector;
+	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		if (PermutationVector.Get<FPPLL>() > 0 && PermutationVector.Get<FCoverage>() > 0)
+		{
+			return false;
+		}
+		return IsHairStrandsSupported(Parameters.Platform);
+	}
 };
 
 IMPLEMENT_GLOBAL_SHADER(FHairVisibilityPrimitiveIdCompactionCS, "/Engine/Private/HairStrands/HairStrandsVisibilityCompaction.usf", "MainCS", SF_Compute);
@@ -676,6 +694,7 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 	PermutationVector.Set<FHairVisibilityPrimitiveIdCompactionCS::FCoverage>(PassParameters->CoverageTexture ? 1 : 0);
 	PermutationVector.Set<FHairVisibilityPrimitiveIdCompactionCS::FMaterial>(GHairStrandsMaterialCompactionEnable ? 1 : 0);
 	PermutationVector.Set<FHairVisibilityPrimitiveIdCompactionCS::FPPLL>(bUsePPLL ? PPLLMaxRenderNodePerPixel : 0);
+	PermutationVector = FHairVisibilityPrimitiveIdCompactionCS::RemapPermutation(PermutationVector);
 
 	PassParameters->OutputResolution = Resolution;
 	PassParameters->MaxNodeCount = MaxRenderNodeCount;
@@ -1140,12 +1159,31 @@ class FHairVisibilityDepthPS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+		
+	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
+	{
+		if (PermutationVector.Get<FPPLL>() > 0)
+		{
+			PermutationVector.Set<FCoverage>(0);
+		}
+		return PermutationVector;
+	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		if (PermutationVector.Get<FPPLL>() > 0 && PermutationVector.Get<FCoverage>() > 0)
+		{
+			return false;
+		}
+		return IsHairStrandsSupported(Parameters.Platform);
+	}
 };
 
 IMPLEMENT_GLOBAL_SHADER(FHairVisibilityDepthPS, "/Engine/Private/HairStrands/HairStrandsVisibilityDepthPS.usf", "MainPS", SF_Pixel);
 
 static void AddHairVisibilityColorAndDepthPatchPass(
+	const bool bUsePPLL,
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FRDGTextureRef& VisibilityDepthTexture,
@@ -1155,6 +1193,15 @@ static void AddHairVisibilityColorAndDepthPatchPass(
 	FRDGTextureRef& OutColorTexture,
 	FRDGTextureRef& OutDepthTexture)
 {
+	if (bUsePPLL)
+	{
+		check(CategorisationTexture);
+	}
+	else
+	{
+		check(VisibilityDepthTexture);
+	}
+
 	FHairVisibilityDepthPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairVisibilityDepthPS::FParameters>();
 	Parameters->HairVisibilityDepthTexture = VisibilityDepthTexture;
 	Parameters->CategorisationTexture = CategorisationTexture;
@@ -1170,7 +1217,8 @@ static void AddHairVisibilityColorAndDepthPatchPass(
 	TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
 	FHairVisibilityDepthPS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FHairVisibilityDepthPS::FCoverage>(CoverageTexture ? 1 : 0);
-	PermutationVector.Set<FHairVisibilityDepthPS::FPPLL>(CategorisationTexture ? 1 : 0);
+	PermutationVector.Set<FHairVisibilityDepthPS::FPPLL>(bUsePPLL ? 1 : 0);
+	PermutationVector = FHairVisibilityDepthPS::RemapPermutation(PermutationVector);
 	TShaderMapRef<FHairVisibilityDepthPS> PixelShader(View.ShaderMap, PermutationVector);
 	const TShaderMap<FGlobalShaderType>* GlobalShaderMap = View.ShaderMap;
 	const FIntRect Viewport = View.ViewRect;
@@ -1260,8 +1308,9 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 			
 			const EHairVisibilityRenderMode RenderMode = GetHairVisibilityRenderMode();
 
+			// Run the coverage pass if needed (not in PPLL mode that is already a high quality render path)
 			FRDGTextureRef CoverageTexture = nullptr;
-			if (GHairStrandsCoveragePassEnable > 0)
+			if (GHairStrandsCoveragePassEnable > 0 && RenderMode != HairVisibilityRenderMode_PPLL)
 			{
 				CoverageTexture = AddHairCoveragePass(
 					GraphBuilder,
@@ -1348,6 +1397,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 				// * closest depth
 				// * unlit shading model ID 
 				AddHairVisibilityColorAndDepthPatchPass(
+					false, // bUsePPLL
 					GraphBuilder,
 					View,
 					MsaaVisibilityResources.DepthTexture,
@@ -1406,6 +1456,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 				}
 
 				AddHairVisibilityColorAndDepthPatchPass(
+					true, // bUsePPLL
 					GraphBuilder,
 					View,
 					nullptr,
