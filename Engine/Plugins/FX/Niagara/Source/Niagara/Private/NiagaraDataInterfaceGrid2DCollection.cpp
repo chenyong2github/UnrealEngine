@@ -547,6 +547,13 @@ void UNiagaraDataInterfaceGrid2DCollection::GetRawTextureSize(const UNiagaraComp
 		return;
 	}
 	
+	if (Grid2DInstanceData->Buffers.Num() <= 0)
+	{
+		SizeX = -1;
+		SizeY = -1;
+		return;
+	}
+
 	SizeX = Grid2DInstanceData->Buffers[0]->GridBuffer.Buffer->GetSizeX();
 	SizeY = Grid2DInstanceData->Buffers[0]->GridBuffer.Buffer->GetSizeY();
 }
