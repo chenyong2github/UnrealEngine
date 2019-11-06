@@ -1517,7 +1517,7 @@ struct FScalarKernelAcquireCounterIndex
 		}
 	};
 
-	template<bool SrcOpType>
+	template<uint32 SrcOpType>
 	static void ExecOptimized(FVectorVMContext& Context)
 	{
 		if (Context.IsParallelExecution())
