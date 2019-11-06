@@ -35,56 +35,59 @@ float3 UnrotateVectorByQuat(in float3 Vector, in float4 Quat)
 	return Vector - Quat.w * T + cross(Quat.xyz,T);
 }
 
-/*float4 FindQuatBetweenHelper(in float3 A, in float3 B, in float NormAB)
+float4 SlerpQuat(in float4 QuatA, in float4 QuatB, float Slerp)
+{
+	// Get cosine of angle between quats.
+	const float RawCosom = 
+		    QuatA.x * QuatB.x +
+			QuatA.y * QuatB.y +
+			QuatA.z * QuatB.z +
+			QuatA.w * QuatB.w;
+	// Unaligned quats - compensate, results in taking shorter route.
+	const float Cosom = (RawCosom >= 0.0) ? RawCosom : -RawCosom;
+	
+	float Scale0, Scale1;
+
+	if( Cosom < 0.9999f )
+	{	
+		const float Omega = acos(Cosom);
+		const float InvSin = 1.f/sin(Omega);
+		Scale0 = sin( (1.f - Slerp) * Omega ) * InvSin;
+		Scale1 = sin( Slerp * Omega ) * InvSin;
+	}
+	else
+	{
+		// Use linear interpolation.
+		Scale0 = 1.0f - Slerp;
+		Scale1 = Slerp;	
+	}
+
+	// In keeping with our flipped Cosom:
+	Scale1 = (RawCosom >= 0.0) ? Scale1 : -Scale1; 
+
+	float4 Result;
+		
+	Result.x = Scale0 * QuatA.x + Scale1 * QuatB.x;
+	Result.y = Scale0 * QuatA.y + Scale1 * QuatB.y;
+	Result.z = Scale0 * QuatA.z + Scale1 * QuatB.z;
+	Result.w = Scale0 * QuatA.w + Scale1 * QuatB.w;
+
+	return NormalizeQuat(Result);
+}
+
+float4 FindQuatBetweenHelper(in float3 A, in float3 B, in float NormAB)
 {
 	float W = NormAB + dot(A,B);
 	float4 Quat = (W>1e-6*NormAB) ? float4(A.y*B.z-A.z*B.y,A.z*B.x-A.x*B.z,A.x*B.y-A.y*B.x,W) :
 			(abs(A.x) > abs(A.y)) ? float4(-A.z,0.0,A.x,0.0) : float4(0.0,-A.z,A.y,0.0);
 
-	//float S = sqrt((NormAB + dot(A,B))*2.0);
-	//float4 Quat = float4(cross(A,B)/S,0.5*S);
 	return NormalizeQuat(Quat);
-}*/
+}
 
 float4 FindQuatBetweenInternal(in float3 An, in float3 Bn)
 {
 	float3 Cn = normalize(An+Bn);
 	return float4(cross(An,Cn),dot(An,Cn));
-}
-
-float4 FindQuatBetweenHelper(in float3 A, in float3 B, in float NormAB)
-{
-	float3 An = normalize(A);
-	float3 Bn = normalize(B);
-
-	if( dot(An,Bn) >= 0.0)
-	{
-		return NormalizeQuat(FindQuatBetweenInternal(An,Bn));
-	}
-	else
-	{
-		float3 Cn = normalize(An+Bn);
-		if(dot(Cn,Cn) != 0.0)
-		{
-			return NormalizeQuat(MultiplyQuat(FindQuatBetweenInternal(An,Cn),FindQuatBetweenInternal(Cn,Bn)));
-		}
-		else
-		{
-			float3 A2 = An * An;
-			if(A2.x <= A2.y && A2.x <= A2.z)
-			{
-				return NormalizeQuat(float4(cross(An,float3(1,0,0)),0));
-			}
-			else if(A2.y <= A2.z)
-			{
-				return NormalizeQuat(float4(cross(An,float3(0,1,0)),0));
-			}
-			else
-			{
-				return NormalizeQuat(float4(cross(An,float3(0,0,1)),0));
-			}
-		}
-	}
 }
 
 float4 FindQuatBetweenNormals(in float3 NormalA, in float3 NormalB)
