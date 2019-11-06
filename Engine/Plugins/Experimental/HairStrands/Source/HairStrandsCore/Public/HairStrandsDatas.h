@@ -16,8 +16,6 @@ struct FPackedHairVertex
 	uint8 ControlPointType : 2;
 	uint8 NormalizedRadius : 6;
 	uint8 NormalizedLength;
-
-	friend FArchive& operator<<(FArchive& Ar, FPackedHairVertex& Vertex);
 };
 
 struct FPackedHairAttributeVertex
@@ -31,8 +29,6 @@ struct FPackedHairAttributeVertex
 	uint8 IndexV;
 	uint8 Unused0;
 	uint8 Unused1;
-
-	friend FArchive& operator<<(FArchive& Ar, FPackedHairAttributeVertex& Vertex);
 };
 
 struct FHairMaterialVertex
@@ -43,8 +39,6 @@ struct FHairMaterialVertex
 	uint8 BaseColorB;
 
 	uint8 Roughness;
-
-	friend FArchive& operator<<(FArchive& Ar, FHairMaterialVertex& Vertex);
 };
 
 struct FHairInterpolation0Vertex
@@ -55,8 +49,6 @@ struct FHairInterpolation0Vertex
 
 	uint8 VertexWeight0;
 	uint8 VertexWeight1;
-
-	friend FArchive& operator<<(FArchive& Ar, FPackedHairVertex& FHairInterpolation0Vertex);
 };
 
 struct FHairInterpolation1Vertex
@@ -64,9 +56,13 @@ struct FHairInterpolation1Vertex
 	uint8 VertexIndex0;
 	uint8 VertexIndex1;
 	uint8 VertexIndex2;
-	uint8 Pad0;
 
-	friend FArchive& operator<<(FArchive& Ar, FPackedHairVertex& FHairInterpolation1Vertex);
+	uint8 VertexLerp0;
+	uint8 VertexLerp1;
+	uint8 VertexLerp2;
+
+	uint8 Pad0;
+	uint8 Pad1;
 };
 
 struct FVector4_16
@@ -131,8 +127,8 @@ struct FHairStrandsInterpolation1Format
 
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
-	static const EVertexElementType VertexElementType = VET_UByte4;
-	static const EPixelFormat Format = PF_R8G8B8A8_UINT;
+	static const EVertexElementType VertexElementType = VET_UShort4;
+	static const EPixelFormat Format = PF_R16G16B16A16_UINT;
 };
 
 struct FHairStrandsRootIndexFormat
@@ -255,6 +251,9 @@ struct HAIRSTRANDSCORE_API FHairStrandsInterpolationDatas
 
 	/** Closest vertex indices on simulation curve, ordered by closest influence */
 	TArray<FIntVector> PointsSimCurvesVertexIndex;
+
+	/** Lerp value between the closest vertex indices and the next one, ordered by closest influence */
+	TArray<FVector> PointsSimCurvesVertexLerp;
 
 	/** Weight of vertex indices on simulation curve, ordered by closest influence */
 	TArray<FVector>	PointsSimCurvesVertexWeights;
