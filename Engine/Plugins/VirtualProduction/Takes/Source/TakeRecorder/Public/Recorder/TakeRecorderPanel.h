@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Misc/FrameRate.h"
 #include "TakeRecorderPanel.generated.h"
 
 class UTakePreset;
