@@ -1,4 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
 #include "CoreTechFileParser.h"
 
 #ifdef CAD_INTERFACE
@@ -6,9 +7,7 @@
 
 #include "CADData.h"
 #include "CADOptions.h"
-#include "Containers/Array.h"
-#include "Containers/Map.h"
-#include "Containers/Queue.h"
+
 #include "CoreTechTypes.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/FileManager.h"
@@ -16,7 +15,6 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
-#define SGSIZE 100000
 #define EXTREFNUM 5000
 
 namespace CADLibrary 
@@ -644,7 +642,7 @@ void GetRawDataFileExternalRef(const FString& InRawDataFile, TSet<FString>& Exte
 	}
 }
 
-EProcessState FCoreTechFileParser::ProcessFile()
+FCoreTechFileParser::EProcessResult FCoreTechFileParser::ProcessFile()
 {
 	FileConfiguration.Empty();
 
@@ -660,7 +658,7 @@ EProcessState FCoreTechFileParser::ProcessFile()
 
 	if (!IFileManager::Get().FileExists(*FullPath))
 	{
-		return FileNotFound;
+		return EProcessResult::FileNotFound;
 	}
 
 	FFileStatData FileStatData = IFileManager::Get().GetStatData(*FullPath);
@@ -696,17 +694,14 @@ EProcessState FCoreTechFileParser::ProcessFile()
 	{
 		// The file has been yet proceed, get ExternalRef
 		GetRawDataFileExternalRef(RawDataFile, ExternalRefSet);
-		return ProcessOk;
+		return EProcessResult::ProcessOk;
 	}
 
 	// Process the file
 	return ReadFileWithKernelIO();
 }
 
-
-
-
-EProcessState FCoreTechFileParser::ReadFileWithKernelIO()
+FCoreTechFileParser::EProcessResult FCoreTechFileParser::ReadFileWithKernelIO()
 {
 	CT_IO_ERROR Result = IO_OK;
 	CT_OBJECT_ID MainId = 0;
@@ -743,7 +738,7 @@ EProcessState FCoreTechFileParser::ReadFileWithKernelIO()
 		Result = CT_KERNEL_IO::UnloadModel();
 		if (Result != IO_OK)
 		{
-			return ProcessFailed;
+			return EProcessResult::ProcessFailed;
 		}
 		Result = CT_KERNEL_IO::LoadFile(*FullPath, MainId, CTImportOption | CT_LOAD_FLAGS_LOAD_EXTERNAL_REF);
 	}
@@ -751,7 +746,7 @@ EProcessState FCoreTechFileParser::ReadFileWithKernelIO()
 	if (Result != IO_OK && Result != IO_OK_MISSING_LICENSES)
 	{
 		CT_KERNEL_IO::UnloadModel();
-		return ProcessFailed;
+		return EProcessResult::ProcessFailed;
 	}
 
 	Repair(MainId, ImportParameters.StitchingTechnique);
@@ -794,7 +789,7 @@ EProcessState FCoreTechFileParser::ReadFileWithKernelIO()
 	ReadMaterial();
 
 	// Parse the file
-	bool Ret = ReadNode(MainId);
+	bool bReadNodeSucceed = ReadNode(MainId);
 	// End of parsing
 
 	if (bNeedSaveCTFile)
@@ -807,9 +802,9 @@ EProcessState FCoreTechFileParser::ReadFileWithKernelIO()
 
 	CT_KERNEL_IO::UnloadModel();
 
-	if (!Ret)
+	if (!bReadNodeSucceed)
 	{
-		return ProcessFailed;
+		return EProcessResult::ProcessFailed;
 	}
 
 	uint32 LastLine = SceneGraphDescription.Num();
@@ -845,7 +840,7 @@ EProcessState FCoreTechFileParser::ReadFileWithKernelIO()
 	
 	ExportFileSceneGraph();
 
-	return ProcessOk;
+	return EProcessResult::ProcessOk;
 }
 
 CT_FLAGS FCoreTechFileParser::SetCoreTechImportOption(const FString& MainFileExt)

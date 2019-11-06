@@ -25,10 +25,7 @@ public:
 #ifndef CAD_LIBRARY
 	virtual void Initialize(FDatasmithTranslatorCapabilities& OutCapabilities) override { OutCapabilities.bIsEnabled = false; }
 #else
-	FDatasmithCADTranslator();
 	virtual void Initialize(FDatasmithTranslatorCapabilities& OutCapabilities) override;
-
-	virtual bool IsSourceSupported(const FDatasmithSceneSource& Source) override;
 
 	virtual bool LoadScene(TSharedRef<IDatasmithScene> OutScene) override;
 
