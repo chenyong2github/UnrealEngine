@@ -269,6 +269,18 @@ TSharedRef<FDragDropOperation> FNiagaraStackEditorWidgetsUtilities::ConstructDra
 	return DragDropOp;
 }
 
+void FNiagaraStackEditorWidgetsUtilities::HandleDragLeave(const FDragDropEvent& InDragDropEvent)
+{
+	if (InDragDropEvent.GetOperation().IsValid())
+	{
+		TSharedPtr<FDecoratedDragDropOp> DecoratedDragDropOp = InDragDropEvent.GetOperationAs<FDecoratedDragDropOp>();
+		if (DecoratedDragDropOp.IsValid())
+		{
+			DecoratedDragDropOp->ResetToDefaultToolTip();
+		}
+	}
+}
+
 TOptional<EItemDropZone> FNiagaraStackEditorWidgetsUtilities::RequestDropForStackEntry(const FDragDropEvent& InDragDropEvent, EItemDropZone InDropZone, UNiagaraStackEntry* InTargetEntry, UNiagaraStackEntry::EDropOptions DropOptions)
 {
 	TOptional<EItemDropZone> DropZone;
