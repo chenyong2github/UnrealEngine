@@ -651,6 +651,10 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 	{
 		return false;
 	}
+	if (ViewportClient->IsMovingCamera())
+	{
+		return false;
+	}
 
 	if (Event == IE_Pressed || Event == IE_Released)
 	{
@@ -800,7 +804,7 @@ bool UEdModeInteractiveToolsContext::MouseLeave(FEditorViewportClient* ViewportC
 
 bool UEdModeInteractiveToolsContext::StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
-	return false;
+	return true;
 }
 
 bool UEdModeInteractiveToolsContext::CapturedMouseMove(FEditorViewportClient* InViewportClient, FViewport* InViewport, int32 InMouseX, int32 InMouseY)
@@ -840,6 +844,9 @@ bool UEdModeInteractiveToolsContext::EndTracking(FEditorViewportClient* InViewpo
 #ifdef ENABLE_DEBUG_PRINTING
 	UE_LOG(LogTemp, Warning, TEXT("END TRACKING"));
 #endif
+
+	// unlock flight camera
+	InViewportClient->bLockFlightCamera = false;
 
 	return true;
 }
