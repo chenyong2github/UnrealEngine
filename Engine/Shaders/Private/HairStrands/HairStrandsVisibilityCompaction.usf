@@ -362,8 +362,8 @@ Texture2DMS<float4,HAIR_VISIBILITY_MAXSAMPLECOUNT> MSAA_AttributeTexture;
 Texture2DMS<float2, HAIR_VISIBILITY_MAXSAMPLECOUNT> MSAA_VelocityTexture;
 #endif
 
-#if PERMUTATION_COVERAGE == 1
-Texture2D<float> CoverageTexture;
+#if PERMUTATION_VIEWTRANSMITTANCE == 1
+Texture2D<float> ViewTransmittanceTexture;
 #endif
 
 [numthreads(TILE_PIXEL_SIZE_X, TILE_PIXEL_SIZE_Y, 1)]
@@ -489,8 +489,8 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 				OutCompactNodeCoord[StoreIndex] = (PixelCoord.x & 0xFFFF) | ((PixelCoord.y & 0xFFFF) << 16);
 			}
 
-			#if PERMUTATION_COVERAGE == 1
-			Categorization.PixelCoverage = CoverageTexture.Load(uint3(PixelCoord,0));
+			#if PERMUTATION_VIEWTRANSMITTANCE == 1
+			Categorization.PixelCoverage = 1.0f - ViewTransmittanceTexture.Load(uint3(PixelCoord,0));
 			#else
 			Categorization.PixelCoverage = SampleDesc.ValidSampleCount / float(HAIR_VISIBILITY_MAXSAMPLECOUNT);
 			#endif
