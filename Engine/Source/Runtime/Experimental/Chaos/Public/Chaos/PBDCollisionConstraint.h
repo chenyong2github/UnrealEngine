@@ -87,7 +87,7 @@ public:
 	using FRigidBodyContactConstraint = TRigidBodyContactConstraint<T, d>;
 	using FConstraintHandleID = TSymmetricPairKey<const TGeometryParticleHandle<T, d>*>;
 
-	TPBDCollisionConstraint(const TPBDRigidsSOAs<T,d>& InParticles, TArrayCollectionArray<bool>& Collided, const TArrayCollectionArray<TSerializablePtr<TChaosPhysicsMaterial<T>>>& PerParticleMaterials, const int32 PairIterations = 1, const T Thickness = (T)0);
+	TPBDCollisionConstraint(const TPBDRigidsSOAs<T,d>& InParticles, TArrayCollectionArray<bool>& Collided, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterials, const int32 PairIterations = 1, const T Thickness = (T)0);
 	virtual ~TPBDCollisionConstraint() {}
 
 	//
@@ -270,7 +270,7 @@ private:
 
 	TArray<FRigidBodyContactConstraint> Constraints;
 	TArrayCollectionArray<bool>& MCollided;
-	const TArrayCollectionArray<TSerializablePtr<TChaosPhysicsMaterial<T>>>& MPhysicsMaterials;
+	const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& MPhysicsMaterials;
 	bool bEnableVelocitySolve;
 	int32 MPairIterations;
 	T MThickness;

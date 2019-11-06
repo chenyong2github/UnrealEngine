@@ -73,7 +73,7 @@ void ConstructConstraintsImpl(TGeometryParticleHandle<T, d>* Particle0, TGeometr
 //
 
 template<typename T, int d>
-TPBDCollisionConstraint<T, d>::TPBDCollisionConstraint(const TPBDRigidsSOAs<T,d>& InParticles, TArrayCollectionArray<bool>& Collided, const TArrayCollectionArray<TSerializablePtr<TChaosPhysicsMaterial<T>>>& InPerParticleMaterials, const int32 PairIterations /*= 1*/, const T Thickness /*= (T)0*/)
+TPBDCollisionConstraint<T, d>::TPBDCollisionConstraint(const TPBDRigidsSOAs<T,d>& InParticles, TArrayCollectionArray<bool>& Collided, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& InPerParticleMaterials, const int32 PairIterations /*= 1*/, const T Thickness /*= (T)0*/)
 	: Particles(InParticles)
 	, SpatialAcceleration(nullptr)
 	, MCollided(Collided)
@@ -596,8 +596,8 @@ void TPBDCollisionConstraint<T, d>::Apply(const T Dt, FRigidBodyContactConstrain
 	const TVector<T, d>& V1 = Particle1->V();
 	const TVector<T, d>& W0 = Particle0->W();
 	const TVector<T, d>& W1 = Particle1->W();
-	TSerializablePtr<TChaosPhysicsMaterial<T>> PhysicsMaterial0 = Particle0->AuxilaryValue(MPhysicsMaterials);
-	TSerializablePtr<TChaosPhysicsMaterial<T>> PhysicsMaterial1 = Particle1->AuxilaryValue(MPhysicsMaterials);
+	TSerializablePtr<FChaosPhysicsMaterial> PhysicsMaterial0 = Particle0->AuxilaryValue(MPhysicsMaterials);
+	TSerializablePtr<FChaosPhysicsMaterial> PhysicsMaterial1 = Particle1->AuxilaryValue(MPhysicsMaterials);
 
 	TVector<T, d> VectorToPoint1 = Constraint.Location - P0;
 	TVector<T, d> VectorToPoint2 = Constraint.Location - P1;
@@ -819,8 +819,8 @@ void TPBDCollisionConstraint<T, d>::ApplyPushOut(const T Dt, FRigidBodyContactCo
 	const TVector<T, d>& V1 = PBDRigid1 ? PBDRigid1->V() : ZeroVector;
 	const TVector<T, d>& W0 = PBDRigid0 ? PBDRigid0->W() : ZeroVector;
 	const TVector<T, d>& W1 = PBDRigid1 ? PBDRigid1->W() : ZeroVector;
-	TSerializablePtr<TChaosPhysicsMaterial<T>> PhysicsMaterial0 = Particle0->AuxilaryValue(MPhysicsMaterials);
-	TSerializablePtr<TChaosPhysicsMaterial<T>> PhysicsMaterial1 = Particle1->AuxilaryValue(MPhysicsMaterials);
+	TSerializablePtr<FChaosPhysicsMaterial> PhysicsMaterial0 = Particle0->AuxilaryValue(MPhysicsMaterials);
+	TSerializablePtr<FChaosPhysicsMaterial> PhysicsMaterial1 = Particle1->AuxilaryValue(MPhysicsMaterials);
 	const bool IsTemporarilyStatic0 = IsTemporarilyStatic.Contains(Particle0);
 	const bool IsTemporarilyStatic1 = IsTemporarilyStatic.Contains(Particle1);
 

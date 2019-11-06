@@ -8,7 +8,6 @@
 #endif
 
 #include "Chaos/Array.h"
-#include "Chaos/Defines.h"
 #include "Chaos/Pair.h"
 
 #include "Containers/StaticArray.h"
