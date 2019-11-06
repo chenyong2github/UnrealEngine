@@ -328,7 +328,9 @@ static IOSAppDelegate* CachedDelegate = nil;
 	}
 	[self ToggleAudioSession:true];
 
+#if !BUILD_EMBEDDED_APP
 	[self InitIdleTimerSettings];
+#endif
 
 	bEngineInit = true;
     
