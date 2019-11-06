@@ -3,7 +3,7 @@
 #pragma once
 
 #define RENDER_MODE_MSAA 0
-#define RENDER_MODE_COVERAGE 1
+#define RENDER_MODE_TRANSMITTANCE 1
 #define RENDER_MODE_PPLL 2
 
 struct FVisibilityData
