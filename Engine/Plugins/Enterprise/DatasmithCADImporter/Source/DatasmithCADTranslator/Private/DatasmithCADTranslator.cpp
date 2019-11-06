@@ -11,10 +11,6 @@
 #include "Misc/FileHelper.h"
 
 
-FDatasmithCADTranslator::FDatasmithCADTranslator()
-{
-}
-
 void FDatasmithCADTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCapabilities)
 {
 	OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{ TEXT("CATPart"), TEXT("CATIA Part files") });
@@ -56,19 +52,15 @@ void FDatasmithCADTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCa
 	OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{ TEXT("dgn"), TEXT("MicroStation files") });
 }
 
-bool FDatasmithCADTranslator::IsSourceSupported(const FDatasmithSceneSource& Source)
-{
-	return true;
-}
-
 bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithScene)
 {
 	ImportParameters.MetricUnit = 0.001;
 	ImportParameters.ScaleFactor = 0.1;
-	ImportParameters.ChordTolerance = GetCommonTessellationOptions().ChordTolerance;
-	ImportParameters.MaxEdgeLength = GetCommonTessellationOptions().MaxEdgeLength;
-	ImportParameters.MaxNormalAngle = GetCommonTessellationOptions().NormalTolerance;
-	ImportParameters.StitchingTechnique = (CADLibrary::EStitchingTechnique) GetCommonTessellationOptions().StitchingTechnique;
+	const FDatasmithTessellationOptions& TesselationOptions = GetCommonTessellationOptions();
+	ImportParameters.ChordTolerance = TesselationOptions.ChordTolerance;
+	ImportParameters.MaxEdgeLength = TesselationOptions.MaxEdgeLength;
+	ImportParameters.MaxNormalAngle = TesselationOptions.NormalTolerance;
+	ImportParameters.StitchingTechnique = (CADLibrary::EStitchingTechnique) TesselationOptions.StitchingTechnique;
 
 	FString FileExtension = GetSource().GetSourceFileExtension();
 	if (FileExtension == TEXT("jt"))
@@ -90,14 +82,13 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 	TMap<FString, FString> CADFileToUE4FileMap;
 
 	int32 NumCores = FPlatformMisc::NumberOfCores();
-	DatasmithDispatcher::FDatasmithDispatcher Dispatcher(CachePath, NumCores, CADFileToUE4FileMap, CADFileToUE4GeomMap);
+	{
+		DatasmithDispatcher::FDatasmithDispatcher Dispatcher(ImportParameters, CachePath, NumCores, CADFileToUE4FileMap, CADFileToUE4GeomMap);
+		Dispatcher.AddTask(FPaths::ConvertRelativePathToFull(GetSource().GetSourceFile()));
 
-	Dispatcher.Init(ImportParameters);
-	Dispatcher.AddTask(FPaths::ConvertRelativePathToFull(GetSource().GetSourceFile()));
-
-	bool bEnableMultiProcess = (NumCores != 1);
-	Dispatcher.Process(false && bEnableMultiProcess);
-	Dispatcher.Clear();
+		bool bWithProcessor = true;
+		Dispatcher.Process(bWithProcessor);
+	}
 
 	FDatasmithSceneGraphBuilder SceneGraphBuilder(CADFileToUE4FileMap, MeshElementToCADBRepUuidMap,  CachePath, DatasmithScene, GetSource(), ImportParameters);
 	SceneGraphBuilder.Build();
