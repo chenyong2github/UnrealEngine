@@ -13,10 +13,6 @@
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"
 
-#define RENDER_MODE_MSAA 0
-#define RENDER_MODE_COVERAGE 1
-#define RENDER_MODE_PPLL 2
-
 #ifndef HAIR_RENDER_MODE
 #error Undefined hair render mode
 #endif

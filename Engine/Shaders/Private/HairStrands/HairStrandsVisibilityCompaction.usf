@@ -235,7 +235,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 
 		#if PERMUTATION_VELOCITY != VELOCITY_TYPE_NONE
-			const float2 Velocity = UnpackVelocity(PPLLNode.PackedVelocity) * 0.0f;	// TODO: investigate why TAA jitter is still visible. Disabled for now.
+			const float2 Velocity = UnpackVelocity(PPLLNode.PackedVelocity);
 		#endif
 		#if PERMUTATION_VELOCITY == VELOCITY_TYPE_AVG
 			AverageVelocity += Velocity;
