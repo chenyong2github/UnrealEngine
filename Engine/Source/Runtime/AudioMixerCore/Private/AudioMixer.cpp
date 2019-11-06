@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AudioMixer.h"
+#include "DSP/BufferVectorOperations.h"
 #include "HAL/RunnableThread.h"
 #include "Misc/ConfigCacheIni.h"
 #include "HAL/ThreadSafeCounter.h"
@@ -64,6 +65,13 @@ FAutoConsoleVariableRef CVarUnderrunTimeout(
 	TEXT("Amount of time to wait for the render thread to generate the next buffer before submitting an underrun buffer. \n"),
 	ECVF_Default);
 
+static float LinearGainScalarForFinalOututCVar = 1.0f;
+FAutoConsoleVariableRef LinearGainScalarForFinalOutut(
+	TEXT("au.LinearGainScalarForFinalOutut"),
+	LinearGainScalarForFinalOututCVar,
+	TEXT("Linear gain scalar applied to the final float buffer to allow for hotfixable mitigation of clipping \n")
+	TEXT("Default is 1.0f \n"),
+	ECVF_Default);
 
 namespace Audio
 {
@@ -177,17 +185,28 @@ namespace Audio
 
 		switch (DataFormat)
 		{
-			// Doesn't do anything...
 		case EAudioMixerStreamDataFormat::Float:
-			break;
+		{
+			if (!FMath::IsNearlyEqual(LinearGainScalarForFinalOututCVar, 1.0f))
+			{
+				MultiplyBufferByConstantInPlace(Buffer, LinearGainScalarForFinalOututCVar);
+			}
+			BufferRangeClampFast(Buffer, -1.0f, 1.0f);
+		}
+		break;
 
 		case EAudioMixerStreamDataFormat::Int16:
 		{
 			int16* BufferInt16 = (int16*)FormattedBuffer.GetData();
 			const int32 NumSamples = Buffer.Num();
+
+			const float ConversionScalar = LinearGainScalarForFinalOututCVar * 32767.0f;
+			MultiplyBufferByConstantInPlace(Buffer, ConversionScalar);
+			BufferRangeClampFast(Buffer, -32767.0f, 32767.0f);
+
 			for (int32 i = 0; i < NumSamples; ++i)
 			{
-				BufferInt16[i] = (int16)(Buffer[i] * 32767.0f);
+				BufferInt16[i] = (int16)Buffer[i];
 			}
 		}
 		break;
