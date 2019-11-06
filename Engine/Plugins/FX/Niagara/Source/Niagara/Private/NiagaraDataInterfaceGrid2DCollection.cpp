@@ -15,6 +15,7 @@ static const FString NumTilesName(TEXT("NumTiles_"));
 
 static const FString GridName(TEXT("Grid_"));
 static const FString OutputGridName(TEXT("OutputGrid_"));
+static const FString SamplerName(TEXT("Sampler_"));
 
 
 // Global VM function names, also used by the shaders code generation methods.
@@ -39,6 +40,8 @@ struct FNiagaraDataInterfaceParametersCS_Grid2DCollection : public FNiagaraDataI
 
 		GridParam.Bind(ParameterMap, *(GridName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
 		OutputGridParam.Bind(ParameterMap, *(OutputGridName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
+
+		SamplerParam.Bind(ParameterMap, *(SamplerName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
 	}
 
 	virtual void Serialize(FArchive& Ar)override
@@ -51,6 +54,8 @@ struct FNiagaraDataInterfaceParametersCS_Grid2DCollection : public FNiagaraDataI
 
 		Ar << GridParam;
 		Ar << OutputGridParam;		
+
+		Ar << SamplerParam;
 	}
 
 	virtual void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override
@@ -79,7 +84,8 @@ struct FNiagaraDataInterfaceParametersCS_Grid2DCollection : public FNiagaraDataI
 		SetShaderValue(RHICmdList, ComputeShaderRHI, WorldBBoxMinParam, ProxyData->WorldBBoxMin);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, WorldBBoxSizeParam, ProxyData->WorldBBoxSize);
 
-
+		FRHISamplerState *SamplerState = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		SetSamplerParameter(RHICmdList, ComputeShaderRHI, SamplerParam, SamplerState);
 
 		if (GridParam.IsBound() && ProxyData->GetCurrentData() != NULL)
 		{
@@ -112,6 +118,8 @@ private:
 
 	FShaderResourceParameter GridParam;
 	FRWShaderParameter OutputGridParam;
+
+	FShaderResourceParameter SamplerParam;
 	
 };
 
@@ -227,16 +235,12 @@ void UNiagaraDataInterfaceGrid2DCollection::GetParameterDefinitionHLSL(FNiagaraD
 		Texture2D<float> {GridName};
 		RWTexture2D<float> RW{OutputGridName};
 		int2 {NumTiles};
-
-		SamplerState {GridName}Sampler
-		{
-			Filter = MIN_MAG_MIP_LINEAR;
-			AddressU = Clamp;
-			AddressV = Clamp;
-		};
+		SamplerState {SamplerName};
+	
 	)");
 	TMap<FString, FStringFormatArg> ArgsDeclarations = {				
 		{ TEXT("GridName"),    GridName + ParamInfo.DataInterfaceHLSLSymbol },
+		{ TEXT("SamplerName"),    SamplerName + ParamInfo.DataInterfaceHLSLSymbol },
 		{ TEXT("OutputGridName"),    OutputGridName + ParamInfo.DataInterfaceHLSLSymbol },
 		{ TEXT("NumTiles"),    NumTilesName + ParamInfo.DataInterfaceHLSLSymbol },
 	};
@@ -300,12 +304,13 @@ bool UNiagaraDataInterfaceGrid2DCollection::GetFunctionHLSL(const FName& Definit
 				int TileIndexX = In_AttributeIndex % {NumTiles}.x;
 				int TileIndexY = In_AttributeIndex / {NumTiles}.x;
 				
-				Out_Val = {Grid}.SampleLevel({Grid}Sampler, float2(In_UnitX / {NumTiles}.x + 1.0*TileIndexX/{NumTiles}.x, In_UnitY / {NumTiles}.y + 1.0*TileIndexY/{NumTiles}.y), 0);
+				Out_Val = {Grid}.SampleLevel({SamplerName}, float2(In_UnitX / {NumTiles}.x + 1.0*TileIndexX/{NumTiles}.x, In_UnitY / {NumTiles}.y + 1.0*TileIndexY/{NumTiles}.y), 0);
 			}
 		)");
 		TMap<FString, FStringFormatArg> ArgsBounds = {
 			{TEXT("FunctionName"), InstanceFunctionName},
 			{TEXT("Grid"), GridName + ParamInfo.DataInterfaceHLSLSymbol},
+			{TEXT("SamplerName"),    SamplerName + ParamInfo.DataInterfaceHLSLSymbol },
 			{TEXT("NumTiles"),    NumTilesName + ParamInfo.DataInterfaceHLSLSymbol},
 		};
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
