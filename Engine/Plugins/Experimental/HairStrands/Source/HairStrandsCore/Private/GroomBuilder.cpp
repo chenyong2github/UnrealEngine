@@ -419,6 +419,8 @@ namespace HairInterpolationBuilder
 		{
 			ClosestGuides.Indices[1] = Metric.KClosestGuideIndices[RandIndex0];
 			ClosestGuides.Indices[2] = Metric.KClosestGuideIndices[RandIndex0];
+			RandIndex1 = RandIndex0;
+			RandIndex2 = RandIndex0;
 		}
 
 
@@ -771,6 +773,44 @@ namespace HairInterpolationBuilder
 		}
 	}
 
+	struct FVertexInterpolationDesc
+	{
+		uint32 Index0 = 0;
+		uint32 Index1 = 0;
+		float T = 0;
+	};
+
+	// Find the vertex along a sim curve 'SimCurveIndex', which has the same parametric distance than the render distance 'RenPointDistance'
+	static FVertexInterpolationDesc FindMatchingVertex(const float RenPointDistance, const FHairStrandsDatas& SimStrandsData, const uint32 SimCurveIndex)
+	{
+		const uint32 SimOffset = SimStrandsData.StrandsCurves.CurvesOffset[SimCurveIndex];
+
+		const float CurveLength = SimStrandsData.StrandsCurves.CurvesLength[SimCurveIndex] * SimStrandsData.StrandsCurves.MaxLength;
+
+		// Find with with vertex the vertex should be paired
+		const uint32 SimPointCount = SimStrandsData.StrandsCurves.CurvesCount[SimCurveIndex];
+		for (uint32 SimPointIndex = 0; SimPointIndex < SimPointCount-1; ++SimPointIndex)
+		{
+			const float SimPointDistance0 = SimStrandsData.StrandsPoints.PointsCoordU[SimPointIndex + SimOffset] * CurveLength;
+			const float SimPointDistance1 = SimStrandsData.StrandsPoints.PointsCoordU[SimPointIndex + SimOffset + 1] * CurveLength;
+			if (SimPointDistance0 <= RenPointDistance && RenPointDistance <= SimPointDistance1)
+			{
+				const float SegmentLength = SimPointDistance1 - SimPointDistance0;
+				FVertexInterpolationDesc Out;
+				Out.Index0 = SimPointIndex;
+				Out.Index1 = SimPointIndex+1;
+				Out.T = (RenPointDistance - SimPointDistance0) / (SegmentLength>0? SegmentLength : 1);
+				Out.T = FMath::Clamp(Out.T, 0.f, 1.f);
+				return Out;
+			}
+		}
+		FVertexInterpolationDesc Desc;
+		Desc.Index0 = SimPointCount-2;
+		Desc.Index1 = SimPointCount-1;
+		Desc.T = 1;
+		return Desc;
+	}
+
 	enum class EHairInterpolationDataQuality
 	{
 		Low,
@@ -882,55 +922,45 @@ namespace HairInterpolationBuilder
 				#if WEIGHT_METHOD == 0
 					const uint32 SimCurveIndex = ClosestGuides.Indices[KIndex];
 					const uint32 SimOffset = SimStrandsData.StrandsCurves.CurvesOffset[SimCurveIndex];
-					float PrevSimPointDistance = 0;
-					uint32 ClosestSimPointIndex = 0;
-					const uint32 SimPointCount = SimStrandsData.StrandsCurves.CurvesCount[SimCurveIndex];
-					for (uint32 SimPointIndex = 0; SimPointIndex < SimPointCount; ++SimPointIndex, ++ClosestSimPointIndex)
-					{
-						const float SimPointDistance = SimStrandsData.StrandsPoints.PointsCoordU[SimPointIndex + SimOffset] * SimStrandsData.StrandsCurves.CurvesLength[SimCurveIndex] * SimStrandsData.StrandsCurves.MaxLength;
-						if (RenPointDistance >= PrevSimPointDistance && RenPointDistance <= SimPointDistance)
-						{
-							//const float GuideDistance = Guide.Points[SimPointIndex].Distance;
-							const float D0 = FMath::Abs(PrevSimPointDistance - RenPointDistance);
-							const float D1 = FMath::Abs(SimPointDistance - RenPointDistance);
-							if (D0 > D1)
-							{
-								ClosestSimPointIndex = SimPointIndex;
-							}
-							break;
-						}
-						PrevSimPointDistance = SimPointDistance;
-					}
-					check(SimPointCount > 0);
-					ClosestSimPointIndex = FMath::Clamp(ClosestSimPointIndex, 0u, uint32(SimPointCount - 1));
+					const FVertexInterpolationDesc Desc = FindMatchingVertex(RenPointDistance, SimStrandsData, SimCurveIndex);
+					const FVector& SimPointPosition0 = SimStrandsData.StrandsPoints.PointsPosition[Desc.Index0 + SimOffset];
+					const FVector& SimPointPosition1 = SimStrandsData.StrandsPoints.PointsPosition[Desc.Index1 + SimOffset];
+					const float Weight = 1.0f / FMath::Max(MinWeightDistance, FVector::Distance(RenPointPosition, FMath::Lerp(SimPointPosition0, SimPointPosition1, Desc.T)));
 
-					const FVector& SimPointPosition = SimStrandsData.StrandsPoints.PointsPosition[ClosestSimPointIndex + SimOffset];
-					const float Weight = 1.0f / FMath::Max(MinWeightDistance, FVector::Distance(RenPointPosition, SimPointPosition));
 					InterpolationData.PointsSimCurvesIndex[PointGlobalIndex][KIndex] = SimCurveIndex;
-					InterpolationData.PointsSimCurvesVertexIndex[PointGlobalIndex][KIndex] = ClosestSimPointIndex + SimOffset;
+					InterpolationData.PointsSimCurvesVertexIndex[PointGlobalIndex][KIndex] = Desc.Index0 + SimOffset;
+					InterpolationData.PointsSimCurvesVertexLerp[PointGlobalIndex][KIndex] = Desc.T;
 					InterpolationData.PointsSimCurvesVertexWeights[PointGlobalIndex][KIndex] = Weight;
 				#endif
 
 					// Use only the root as a *constant* weight for deformation along each vertex
+					// Still compute the closest vertex (in parametric distance) to know on which vertex the offset/delta should be computed
 				#if WEIGHT_METHOD == 1
-					const uint32 SimCurveIndex = ClosestGuideIndices[KIndex];
+					const uint32 SimCurveIndex = ClosestGuides.Indices[KIndex];
 					const uint32 SimOffset = SimStrandsData.StrandsCurves.CurvesOffset[SimCurveIndex];
 					const FVector& SimRootPointPosition = SimStrandsData.StrandsPoints.PointsPosition[SimOffset];
-					const float Weight = 1.0f / FMath::Max(MinWeightDistance, FVector::Distance(RenPointPosition, SimRootPointPosition));
+					const FVector& RenRootPointPosition = RenStrandsData.StrandsPoints.PointsPosition[RenOffset];
+					const float Weight = 1.0f / FMath::Max(MinWeightDistance, FVector::Distance(RenRootPointPosition, SimRootPointPosition));
+					const FVertexInterpolationDesc Desc = FindMatchingVertex(RenPointDistance, SimStrandsData, SimCurveIndex);
+
 					InterpolationData.PointsSimCurvesIndex[PointGlobalIndex][KIndex] = SimCurveIndex;
-					InterpolationData.PointsSimCurvesVertexIndex[PointGlobalIndex][KIndex] = SimOffset;
+					InterpolationData.PointsSimCurvesVertexIndex[PointGlobalIndex][KIndex] = Desc.Index0 + SimOffset;
+					InterpolationData.PointsSimCurvesVertexLerp[PointGlobalIndex][KIndex] = Desc.T;
 					InterpolationData.PointsSimCurvesVertexWeights[PointGlobalIndex][KIndex] = Weight;
 				#endif
 
 					// Use the *same vertex index* to match guide vertex with strand vertex
 				#if WEIGHT_METHOD == 2
 					check(SimPointCount > 0);
-					const uint32 SimCurveIndex = ClosestGuideIndices[KIndex];
+					const uint32 SimCurveIndex = ClosestGuides.Indices[KIndex];
 					const uint32 SimPointIndex = FMath::Clamp(RenPointIndex, 0, SimPointCount - 1);
 					const FVector& SimPointPosition = SimStrandsData.StrandsPoints.PointsPosition[SimPointIndex + SimOffset];
 					const float Weight = 1.0f / FMath::Max(MinWeightDistance, FVector::Distance(RenPointPosition, SimPointPosition));
+					const FVertexInterpolationDesc Desc = FindMatchingVertex(RenPointDistance, SimStrandsData, SimCurveIndex);
+
 					InterpolationData.PointsSimCurvesIndex[PointGlobalIndex][KIndex] = SimCurveIndex;
-					InterpolationData.PointsSimCurvesVertexIndex[PointGlobalIndex][KIndex] = SimPointIndex + SimOffset;
+					InterpolationData.PointsSimCurvesVertexIndex[PointGlobalIndex][KIndex] = Desc.Index0 + SimOffset;
+					InterpolationData.PointsSimCurvesVertexLerp[PointGlobalIndex][KIndex] = Desc.T;
 					InterpolationData.PointsSimCurvesVertexWeights[PointGlobalIndex][KIndex] = Weight;
 				#endif
 
@@ -967,6 +997,7 @@ namespace HairInterpolationBuilder
 		{
 			const FIntVector& Indices = HairInterpolation.PointsSimCurvesVertexIndex[PointIndex];
 			const FVector& Weights = HairInterpolation.PointsSimCurvesVertexWeights[PointIndex];
+			const FVector& S = HairInterpolation.PointsSimCurvesVertexLerp[PointIndex];
 
 			FHairStrandsInterpolation0Format::Type& OutInterp0 = OutPointsInterpolation0[PointIndex];
 			OutInterp0.Index0 = LowerPart(Indices[0]);
@@ -979,7 +1010,11 @@ namespace HairInterpolationBuilder
 			OutInterp1.VertexIndex0 = UpperPart(Indices[0]);
 			OutInterp1.VertexIndex1 = UpperPart(Indices[1]);
 			OutInterp1.VertexIndex2 = UpperPart(Indices[2]);
-			OutInterp1.Pad0 = 0;
+			OutInterp1.VertexLerp0  = S[0] * 255.f;
+			OutInterp1.VertexLerp1  = S[1] * 255.f;
+			OutInterp1.VertexLerp2  = S[2] * 255.f;
+			OutInterp1.Pad0			= 0;
+			OutInterp1.Pad1			= 0;
 		}	
 	}
 }
