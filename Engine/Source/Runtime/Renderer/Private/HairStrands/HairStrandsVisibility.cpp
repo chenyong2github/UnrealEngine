@@ -1148,14 +1148,10 @@ class FHairVisibilityDepthPS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FHairVisibilityDepthPS);
 	SHADER_USE_PARAMETER_STRUCT(FHairVisibilityDepthPS, FGlobalShader);
 
-	class FViewTransmittance : SHADER_PERMUTATION_INT("PERMUTATION_VIEWTRANSMITTANCE", 2);
-	class FPPLL : SHADER_PERMUTATION_INT("PERMUTATION_PPLL", 2);
-	using FPermutationDomain = TShaderPermutationDomain<FViewTransmittance, FPPLL>;
+	using FPermutationDomain = TShaderPermutationDomain<>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairVisibilityDepthTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CategorisationTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ViewTransmittanceTexture)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -1163,20 +1159,11 @@ public:
 		
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
 	{
-		if (PermutationVector.Get<FPPLL>() > 0)
-		{
-			PermutationVector.Set<FViewTransmittance>(0);
-		}
 		return PermutationVector;
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		FPermutationDomain PermutationVector(Parameters.PermutationId);
-		if (PermutationVector.Get<FPPLL>() > 0 && PermutationVector.Get<FViewTransmittance>() > 0)
-		{
-			return false;
-		}
 		return IsHairStrandsSupported(Parameters.Platform);
 	}
 };
@@ -1184,29 +1171,15 @@ public:
 IMPLEMENT_GLOBAL_SHADER(FHairVisibilityDepthPS, "/Engine/Private/HairStrands/HairStrandsVisibilityDepthPS.usf", "MainPS", SF_Pixel);
 
 static void AddHairVisibilityColorAndDepthPatchPass(
-	const bool bUsePPLL,
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	const FRDGTextureRef& VisibilityDepthTexture,
 	const FRDGTextureRef& CategorisationTexture,
-	const FRDGTextureRef& ViewTransmittanceTexture,
 	FRDGTextureRef& OutGBufferBTexture,
 	FRDGTextureRef& OutColorTexture,
 	FRDGTextureRef& OutDepthTexture)
 {
-	if (bUsePPLL)
-	{
-		check(CategorisationTexture);
-	}
-	else
-	{
-		check(VisibilityDepthTexture);
-	}
-
 	FHairVisibilityDepthPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairVisibilityDepthPS::FParameters>();
-	Parameters->HairVisibilityDepthTexture = VisibilityDepthTexture;
 	Parameters->CategorisationTexture = CategorisationTexture;
-	Parameters->ViewTransmittanceTexture = ViewTransmittanceTexture;
 	Parameters->RenderTargets[0] = FRenderTargetBinding(OutGBufferBTexture, ERenderTargetLoadAction::ELoad);
 	Parameters->RenderTargets[1] = FRenderTargetBinding(OutColorTexture, ERenderTargetLoadAction::ELoad);
 	Parameters->RenderTargets.DepthStencil = FDepthStencilBinding(
@@ -1217,8 +1190,6 @@ static void AddHairVisibilityColorAndDepthPatchPass(
 
 	TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
 	FHairVisibilityDepthPS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FHairVisibilityDepthPS::FViewTransmittance>(ViewTransmittanceTexture ? 1 : 0);
-	PermutationVector.Set<FHairVisibilityDepthPS::FPPLL>(bUsePPLL ? 1 : 0);
 	PermutationVector = FHairVisibilityDepthPS::RemapPermutation(PermutationVector);
 	TShaderMapRef<FHairVisibilityDepthPS> PixelShader(View.ShaderMap, PermutationVector);
 	const TShaderMap<FGlobalShaderType>* GlobalShaderMap = View.ShaderMap;
@@ -1358,7 +1329,8 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 				GraphBuilder.QueueTextureExtraction(MsaaVisibilityResources.AttributeTexture, &VisibilityData.AttributeTexture);
 				GraphBuilder.QueueTextureExtraction(MsaaVisibilityResources.VelocityTexture, &VisibilityData.VelocityTexture);
 				GraphBuilder.QueueTextureExtraction(MsaaVisibilityResources.DepthTexture, &VisibilityData.DepthTexture);
-				
+
+				FRDGTextureRef CategorizationTexture;
 				{
 					FHairVisibilityPrimitiveIdCompactionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairVisibilityPrimitiveIdCompactionCS::FParameters>();
 					PassParameters->MSAA_DepthTexture = MsaaVisibilityResources.DepthTexture;
@@ -1371,7 +1343,6 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 					FRDGTextureRef CompactNodeIndex;
 					FRDGBufferRef CompactNodeData;
 					FRDGBufferRef CompactNodeCoord;
-					FRDGTextureRef CategorizationTexture;
 					FRDGBufferRef IndirectArgsBuffer;
 					AddHairVisibilityPrimitiveIdCompactionPass(
 						false, // bUsePPLL
@@ -1398,12 +1369,9 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 				// * closest depth
 				// * unlit shading model ID 
 				AddHairVisibilityColorAndDepthPatchPass(
-					false, // bUsePPLL
 					GraphBuilder,
 					View,
-					MsaaVisibilityResources.DepthTexture,
-					nullptr,
-					ViewTransmittanceTexture,
+					CategorizationTexture,
 					SceneGBufferBTexture,
 					SceneColorTexture,
 					SceneDepthTexture);
@@ -1457,12 +1425,9 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 				}
 
 				AddHairVisibilityColorAndDepthPatchPass(
-					true, // bUsePPLL
 					GraphBuilder,
 					View,
-					nullptr,
 					CategorizationTexture,
-					ViewTransmittanceTexture,
 					SceneGBufferBTexture,
 					SceneColorTexture,
 					SceneDepthTexture);
