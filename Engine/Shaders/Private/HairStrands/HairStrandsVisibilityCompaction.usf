@@ -31,10 +31,6 @@ uint MaxNodeCount;
 uint HairVisibilityMSAASampleCount;
 uint2 ResolutionOffset;
 
-#if PERMUTATION_COVERAGE == 1
-Texture2D<float> CoverageTexture;
-#endif
-
 RWTexture2D<uint> OutCompactNodeCounter;
 RWTexture2D<uint> OutCompactNodeIndex;
 RWStructuredBuffer<FNodeData> OutCompactNodeData;
@@ -46,7 +42,6 @@ RWTexture2D<uint4> OutCategorizationTexture;
 #define VELOCITY_TYPE_CLOSEST 2
 #define VELOCITY_TYPE_MAX 3
 #if PERMUTATION_VELOCITY != VELOCITY_TYPE_NONE
-	Texture2DMS<float2, HAIR_VISIBILITY_MAXSAMPLECOUNT> MSAA_VelocityTexture;
 	RWTexture2D<float2> OutVelocityTexture;
 #endif
 
@@ -257,11 +252,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		#endif		
 		}
 
-	#if PERMUTATION_COVERAGE == 1
-		Categorization.PixelCoverage = CoverageTexture.Load(uint3(PixelCoord, 0));
-	#else
 		Categorization.PixelCoverage = 1.0f - TotalTransmittance;
-	#endif
 
 	#if PERMUTATION_VELOCITY == VELOCITY_TYPE_AVG
 		OutVelocityTexture[PixelCoord] = EncodeVelocityToTexture(AverageVelocity / max(ValidVelocityCount, 1));
@@ -366,6 +357,14 @@ Texture2DMS<uint4, HAIR_VISIBILITY_MAXSAMPLECOUNT> MSAA_IDTexture;
 Texture2DMS<float, HAIR_VISIBILITY_MAXSAMPLECOUNT> MSAA_DepthTexture;
 Texture2DMS<float4,HAIR_VISIBILITY_MAXSAMPLECOUNT> MSAA_MaterialTexture;
 Texture2DMS<float4,HAIR_VISIBILITY_MAXSAMPLECOUNT> MSAA_AttributeTexture;
+
+#if PERMUTATION_VELOCITY != VELOCITY_TYPE_NONE
+Texture2DMS<float2, HAIR_VISIBILITY_MAXSAMPLECOUNT> MSAA_VelocityTexture;
+#endif
+
+#if PERMUTATION_COVERAGE == 1
+Texture2D<float> CoverageTexture;
+#endif
 
 [numthreads(TILE_PIXEL_SIZE_X, TILE_PIXEL_SIZE_Y, 1)]
 void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_DispatchThreadID)
