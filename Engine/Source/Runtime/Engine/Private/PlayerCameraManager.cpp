@@ -1271,12 +1271,21 @@ UCameraShake* APlayerCameraManager::PlayCameraShake(TSubclassOf<UCameraShake> Sh
 {
 	if (ShakeClass && CachedCameraShakeMod && (Scale > 0.0f) )
 	{
-		return CachedCameraShakeMod->AddCameraShake(ShakeClass, Scale, PlaySpace, UserPlaySpaceRot);
+		return CachedCameraShakeMod->AddCameraShake(ShakeClass, FAddCameraShakeParams(Scale, PlaySpace, UserPlaySpaceRot));
 	}
 
 	return nullptr;
 }
 
+UCameraShake* APlayerCameraManager::PlayCameraShakeFromSource(TSubclassOf<class UCameraShake> ShakeClass, class UCameraShakeSourceComponent* SourceComponent)
+{
+	if (ShakeClass && CachedCameraShakeMod)
+	{
+		return CachedCameraShakeMod->AddCameraShake(ShakeClass, FAddCameraShakeParams(1.0f, ECameraAnimPlaySpace::CameraLocal, FRotator::ZeroRotator, SourceComponent));
+	}
+
+	return nullptr;
+}
 
 void APlayerCameraManager::StopCameraShake(UCameraShake* ShakeInst, bool bImmediately)
 {
@@ -1291,6 +1300,14 @@ void APlayerCameraManager::StopAllInstancesOfCameraShake(TSubclassOf<class UCame
 	if (ShakeClass && CachedCameraShakeMod)
 	{
 		CachedCameraShakeMod->RemoveAllCameraShakesOfClass(ShakeClass, bImmediately);
+	}
+}
+
+void APlayerCameraManager::StopAllInstancesOfCameraShakeFromSource(class UCameraShakeSourceComponent* SourceComponent, bool bImmediately)
+{
+	if (SourceComponent && CachedCameraShakeMod)
+	{
+		CachedCameraShakeMod->RemoveAllCameraShakesFromSource(SourceComponent, bImmediately);
 	}
 }
 
