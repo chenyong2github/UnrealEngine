@@ -22,6 +22,7 @@ enum class EAABBQueryType
 DECLARE_CYCLE_STAT(TEXT("AABBTreeGenerateTree"), STAT_AABBTreeGenerateTree, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("AABBTreeTimeSliceSetup"), STAT_AABBTreeTimeSliceSetup, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("AABBTreeInitialTimeSlice"), STAT_AABBTreeInitialTimeSlice, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("AABBTreeProgressTimeSlice"), STAT_AABBTreeProgressTimeSlice, STATGROUP_Chaos);
 
 template <typename T, typename TQueryFastData, EAABBQueryType Query>
 struct TAABBTreeIntersectionHelper
@@ -236,8 +237,16 @@ public:
 	{
 	}
 
-	virtual void ProgressAsyncTimeSlicing() override
+	virtual void ProgressAsyncTimeSlicing(bool ForceBuildCompletion) override
 	{
+		SCOPE_CYCLE_COUNTER(STAT_AABBTreeProgressTimeSlice);
+
+		// force is to stop time slicing and complete the rest of the build now
+		if (ForceBuildCompletion)
+		{
+			MaxNumToProcess = 0;
+		}
+
 		// still has work to complete
 		if (!TimeSliceWorkToComplete.IsEmpty())
 		{
@@ -610,7 +619,6 @@ private:
 		DirtyElements.Reset();
 		PayloadToInfo.Reset();
 		NumProcessedThisSlice = 0;
-		check(MaxNumToProcess > 0);
 
 		FullBounds = TBox<T, 3>::EmptyBox();
 
@@ -683,7 +691,7 @@ private:
 		 	Nodes.AddDefaulted();	//todo: remove TBox
 		}
 
-		if (NumProcessedThisSlice >= NumToProcess)
+		if ((MaxNumToProcess > 0) && (NumProcessedThisSlice >= NumToProcess))
 		{
 			// done enough work, capture stack
 			FWorkSnapshot Store;
