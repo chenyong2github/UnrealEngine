@@ -257,6 +257,8 @@ namespace Chaos
 			return AABB.GetTypeHash();
 		}
 
+		const TAABB<T, d>& GetAABB() const { return AABB; }
+
 	private:
 		TAABB<T, d> AABB;
 	};
