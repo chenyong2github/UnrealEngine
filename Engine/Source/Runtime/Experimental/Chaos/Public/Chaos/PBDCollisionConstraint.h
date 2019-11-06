@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Chaos/ConstraintHandle.h"
+#include "Chaos/CollisionResolutionManifold.h"
 #include "Chaos/PBDCollisionTypes.h"
 #include "Chaos/PBDConstraintContainer.h"
 #include "Framework/BufferedData.h"
@@ -52,67 +53,7 @@ enum class ECollisionModifierResult
 	Disabled,	/** Collision should be disabled */
 };
 
-template<class T, int d>
-class CHAOS_API TPBDCollisionConstraintHandle : public TContainerConstraintHandle<TPBDCollisionConstraint<T, d>>
-{
-public:
-	using Base = TContainerConstraintHandle<TPBDCollisionConstraint<T, d>>;
-	using FConstraintContainer = TPBDCollisionConstraint<T, d>;
 
-	TPBDCollisionConstraintHandle();
-	TPBDCollisionConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex);
-
-	TRigidBodyContactConstraint<T, d>& GetContact();
-	const TRigidBodyContactConstraint<T, d>& GetContact() const;
-	void SetConstraintIndex(int32 IndexIn) { ConstraintIndex = IndexIn; }
-
-protected:
-	using Base::ConstraintIndex;
-	using Base::ConstraintContainer;
-};
-
-template<class T, int d>
-class CHAOS_API TPBDCollisionConstraintHistory
-{
-	typedef TPair<const FImplicitObject*, const FImplicitObject*> ImplicitPairs;
-
-public:
-	using FConstraintContainerHandle = TPBDCollisionConstraintHandle<T, d>;
-	TPBDCollisionConstraintHistory(const TVector<T, d>& InLocation, const TRotation<T, d>& InRotation, int32 InTimestamp = -INT_MAX)
-		: Timestamp(InTimestamp)
-		, Location(InLocation)
-		, Rotation(InRotation)
-	{}
-
-	const TVector<T, d>& GetLocation() { return Location; }
-	const TRotation<T, d>& GetRotation() { return Rotation; }
-
-	void AddHandle(FConstraintContainerHandle* InHandle)
-	{
-		Implicits.Add(ImplicitPairs(InHandle->GetContact().Geometry[0], InHandle->GetContact().Geometry[1]));
-		Handles.Push(InHandle);
-	}
-	void RemoveHandle(FConstraintContainerHandle* InHandle)
-	{
-		Handles.RemoveSingleSwap(InHandle);
-		Implicits.Remove(ImplicitPairs(InHandle->GetContact().Geometry[0], InHandle->GetContact().Geometry[1]));
-	}
-
-	TArray<FConstraintContainerHandle*>& GetHandles() { return Handles; }
-	const TArray<FConstraintContainerHandle*>& GetHandles() const { return Handles; }
-
-	bool ContainsShapeConnection(const FImplicitObject* Implicit0In, const FImplicitObject* Implicit1In) { return Implicits.Contains(ImplicitPairs(Implicit0In, Implicit1In)); }
-
-	int32 GetTimestamp() const { return Timestamp; }
-	void SetTimestamp(int32 InTimestamp) { Timestamp = InTimestamp; }
-
-private:
-	int32 Timestamp;
-	TVector<T, d> Location;
-	TRotation<T, d> Rotation;
-	TArray<FConstraintContainerHandle*> Handles;
-	TSet<ImplicitPairs> Implicits;
-};
 
 template<typename T, int d>
 using TRigidBodyContactConstraintsPostComputeCallback = TFunction<void()>;
@@ -141,7 +82,7 @@ public:
 	using FReal = T;
 	static const int Dimensions = d;
 	using FConstraintContainerHandle = TPBDCollisionConstraintHandle<T, d>;
-	using FConstraintHistory = TPBDCollisionConstraintHistory<T, d>;
+	using FConstraintManifold = TCollisionResolutionManifold<T, d>;
 	using FConstraintHandleAllocator = TConstraintHandleAllocator<TPBDCollisionConstraint<T, d>>;
 	using FRigidBodyContactConstraint = TRigidBodyContactConstraint<T, d>;
 	typedef TPair<TGeometryParticleHandle<T, d>*, const TGeometryParticleHandle<T, d>*> FConstraintHandleID;
@@ -338,7 +279,7 @@ private:
 	bool bEnableCollisions;
 
 	int32 LifespanCounter;
-	int32 CollisionHistoryLifespan;
+	int32 CollisionManifoldLifespan;
 	float CollisionVelocityInflation;
 
 	TRigidBodyContactConstraintsPostComputeCallback<T, d> PostComputeCallback;
@@ -348,7 +289,7 @@ private:
 	TArray<FConstraintContainerHandle*> Handles;
 	FConstraintHandleAllocator HandleAllocator;
 
-	TMap<FConstraintHandleID, FConstraintHistory*> History;
+	TMap<FConstraintHandleID, FConstraintManifold*> Manifolds;
 };
 
 extern template void TPBDCollisionConstraint<float, 3>::UpdateConstraint<ECollisionUpdateType::Any>(const float Thickness, FRigidBodyContactConstraint* Constraints, int32 NumConstraints);
