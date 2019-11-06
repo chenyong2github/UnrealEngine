@@ -47,6 +47,7 @@ namespace CADLibrary
 		EModelCoordSystem ModelCoordSys = EModelCoordSystem::ZUp_RightHanded;
 		EDisplayDataPropagationMode Propagation = EDisplayDataPropagationMode::TopDown;
 		EDisplayPreference DisplayPreference = EDisplayPreference::MaterialPrefered;
+		bool bScaleUVMap = true;
 	};
 
 	struct FMeshParameters
