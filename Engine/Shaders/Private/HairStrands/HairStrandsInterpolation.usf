@@ -66,6 +66,30 @@ RWBuffer<float4> OutRenderAttributeBuffer;
 	#error Unknown group size	
 #endif
 
+float3 ComputeStaticGeometryOffset(uint GuideIndex, float GuideVertexWeight)
+{	
+	const float3 RestGuidePoint = f16tof32(SimRestPosePositionBuffer[GuideIndex].xyz) + InSimHairPositionOffset;
+
+	const float3 DeformedGuidePoint = f16tof32(DeformedSimPositionBuffer[GuideIndex].xyz) + OutHairPositionOffset;
+	return (DeformedGuidePoint - RestGuidePoint) * GuideVertexWeight;
+}
+
+float3 ComputeDynamicGeometryOffset(
+	uint GuideIndex, 
+	float GuideVertexWeight, 
+	FHairMeshTriangle RestTriangle, 
+	FHairMeshTriangle DeformedTriangle,
+	float3 RootBarycentric)
+{
+	const float3 RestGuidePoint = f16tof32(SimRestPosePositionBuffer[GuideIndex].xyz) + InSimHairPositionOffset;
+	const float3 LocalRestGuidePoint = ToTriangle(RestGuidePoint, RootBarycentric, RestTriangle);
+
+	const float3 DeformedGuidePoint = f16tof32(DeformedSimPositionBuffer[GuideIndex].xyz) + OutHairPositionOffset;
+	const float3 LocalDeformedGuidePoint = ToTriangle(DeformedGuidePoint, RootBarycentric, DeformedTriangle);
+
+	return (LocalDeformedGuidePoint - LocalRestGuidePoint) * GuideVertexWeight;
+}
+
 [numthreads(GROUP_SIZE, 1, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
@@ -73,18 +97,23 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	if (VertexIndex < VertexCount)
 	{
 		uint3 GuideVertexIndices = 0;
+		float3 GuideVertexLerps = 0;
 		float3 GuideVertexWeights = 0;
 		#if PERMUTATION_SIMULATION == 1 || PERMUTATION_DEBUG == 1 || PERMUTATION_DEBUG == 2
 		{
 			const uint4 InterpolationData0	= Interpolation0Buffer[VertexIndex];
 			const uint4 InterpolationData1	= Interpolation1Buffer[VertexIndex];
 
-			GuideVertexIndices.x = InterpolationData0.x | (InterpolationData1.x << 16);
-			GuideVertexIndices.y = InterpolationData0.y | (InterpolationData1.y << 16);
-			GuideVertexIndices.z = InterpolationData0.z | (InterpolationData1.z << 16);
+			GuideVertexIndices.x = InterpolationData0.x | ( (InterpolationData1.x & 0xFF) << 16);
+			GuideVertexIndices.y = InterpolationData0.y | (((InterpolationData1.x >> 8) & 0xFF) << 16);
+			GuideVertexIndices.z = InterpolationData0.z | ( (InterpolationData1.y & 0xFF) << 16);
 
-			GuideVertexWeights = float3(saturate((InterpolationData0.w & 0xFF) / 255.f), saturate(((InterpolationData0.w >> 8) & 0xFF) / 255.f), 0);
+			GuideVertexWeights   = float3(saturate((InterpolationData0.w & 0xFF) / 255.f), saturate(((InterpolationData0.w >> 8) & 0xFF) / 255.f), 0);
 			GuideVertexWeights.z = saturate(1.0f - (GuideVertexWeights.x + GuideVertexWeights.y));
+
+			GuideVertexLerps.x = saturate(((InterpolationData1.y >> 8) & 0xFF)/255.f);
+			GuideVertexLerps.y = saturate(( InterpolationData1.z & 0xFF      )/255.f);
+			GuideVertexLerps.z = saturate(((InterpolationData1.z >> 8) & 0xFF)/255.f);
 		}
 		#endif
 
@@ -99,11 +128,13 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			[unroll]
 			for (uint K = 0; K < 3; ++K)
 			{
-				const uint GuideIndex = GuideVertexIndices[K];
-				const float3 RestGuidePoint	= f16tof32(SimRestPosePositionBuffer[GuideIndex].xyz) + InSimHairPositionOffset;
+				const uint GuideIndex0 = GuideVertexIndices[K];
+				const uint GuideIndex1 = GuideIndex0 + 1;
 
-				const float3 DeformedGuidePoint	= f16tof32(DeformedSimPositionBuffer[GuideIndex].xyz) + OutHairPositionOffset;
-				CurrOffset += (DeformedGuidePoint - RestGuidePoint) * GuideVertexWeights[K];
+				const float3 Offset0 = ComputeStaticGeometryOffset(GuideIndex0, GuideVertexWeights[K]);
+				const float3 Offset1 = ComputeStaticGeometryOffset(GuideIndex1, GuideVertexWeights[K]);
+
+				CurrOffset += lerp(Offset0, Offset1, GuideVertexLerps[K]);
 			}
 			#endif
 			OutRenderDeformedPositionBuffer[VertexIndex] = float4(f32tof16(ControlPoint + CurrOffset - OutHairPositionOffset), RenderRestPosePositionBuffer[VertexIndex].w);
@@ -121,19 +152,19 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			#if PERMUTATION_SIMULATION == 1
 			for (uint K = 0; K < 3; ++K)
 			{
-				const uint GuideIndex = GuideVertexIndices[K];
-				const uint RootIndex = SimVertexToRootIndexBuffer[GuideIndex];
+				const uint GuideIndex0 = GuideVertexIndices[K];
+				const uint GuideIndex1 = GuideIndex0 + 1;
+
+				const uint RootIndex = SimVertexToRootIndexBuffer[GuideIndex0];
 				const float3 RootBarycentric = DecodeBarycentrics(SimRootBarycentricBuffer[RootIndex]);
 
 				const FHairMeshTriangle RestTriangle		= GetTriangleTransformation(RootIndex, SimRestPosition0Buffer, SimRestPosition1Buffer, SimRestPosition2Buffer, SimRestPositionOffset);
 				const FHairMeshTriangle DeformedTriangle	= GetTriangleTransformation(RootIndex, SimDeformedPosition0Buffer, SimDeformedPosition1Buffer, SimDeformedPosition2Buffer, SimDeformedPositionOffset);
 
-				const float3 RestGuidePoint	= f16tof32(SimRestPosePositionBuffer[GuideIndex].xyz) + InSimHairPositionOffset;
-				const float3 LocalRestGuidePoint = ToTriangle(RestGuidePoint,RootBarycentric,RestTriangle);
+				const float3 Offset0 = ComputeDynamicGeometryOffset(GuideIndex0, GuideVertexWeights[K], RestTriangle, DeformedTriangle, RootBarycentric);
+				const float3 Offset1 = ComputeDynamicGeometryOffset(GuideIndex1, GuideVertexWeights[K], RestTriangle, DeformedTriangle, RootBarycentric);
 
-				const float3 DeformedGuidePoint	= f16tof32(DeformedSimPositionBuffer[GuideIndex].xyz) + OutHairPositionOffset;
-				const float3 LocalDeformedGuidePoint = ToTriangle(DeformedGuidePoint,RootBarycentric,DeformedTriangle);
-				CurrOffset += (LocalDeformedGuidePoint - LocalRestGuidePoint) * GuideVertexWeights[K];
+				CurrOffset += lerp(Offset0, Offset1, GuideVertexLerps[K]);
 			}
 			#endif		
 
