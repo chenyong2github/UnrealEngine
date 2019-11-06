@@ -56,7 +56,7 @@ FRemoteSessionInputChannel::~FRemoteSessionInputChannel()
 	}
 
 	// todo - is this ok? Might other things have changed the handler like we do?
-	if (DefaultHandler.IsValid())
+	if (DefaultHandler.IsValid() && FSlateApplication::IsInitialized())
 	{
 		FSlateApplication::Get().GetPlatformApplication()->SetMessageHandler(DefaultHandler.ToSharedRef());
 	}
