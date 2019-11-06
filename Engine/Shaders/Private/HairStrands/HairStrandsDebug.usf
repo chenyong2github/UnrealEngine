@@ -7,7 +7,7 @@ float2 OutputResolution;
 uint FastResolveMask;
 
 Texture2D<uint4> CategorizationTexture;
-Texture2D<float> CoverageTexture;
+Texture2D<float> ViewTransmittanceTexture;
 Texture2D<uint2> DepthStencilTexture;
 SamplerState LinearSampler;
 
