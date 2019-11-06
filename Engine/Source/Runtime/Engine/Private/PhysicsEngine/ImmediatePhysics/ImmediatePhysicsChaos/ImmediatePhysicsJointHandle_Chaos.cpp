@@ -21,6 +21,11 @@ namespace ImmediatePhysics_Chaos
 	bool ChaosImmediate_StiffnessUseMass = true;
 	FAutoConsoleVariableRef CVarStiffnessUseMass(TEXT("p.Chaos.ImmPhys.StiffnessUseMass"), ChaosImmediate_StiffnessUseMass, TEXT("Whether to use mass to scale stiffness in the conversion."));
 
+	float ChaosImmediate_JointMinProjection = 0.1f;
+	float ChaosImmediate_JointMaxProjection = 1.0f;
+	FAutoConsoleVariableRef CVarJointMinProjection(TEXT("p.Chaos.ImmPhys.JointMinProjection"), ChaosImmediate_JointMinProjection, TEXT("Joint min projection (for joints with projection disabled)."));
+	FAutoConsoleVariableRef CVarJointMaxProjection(TEXT("p.Chaos.ImmPhys.JointMaxProjection"), ChaosImmediate_JointMaxProjection, TEXT("Joint max projection (for joints with projection enabled)."));
+
 	float ChaosImmediate_DriveStiffnessSourceMin = 100.0f;
 	float ChaosImmediate_DriveStiffnessSourceMax = 2000.0f;
 	float ChaosImmediate_DriveStiffnessTargetMin = 0.1f;
@@ -116,6 +121,8 @@ namespace ImmediatePhysics_Chaos
 			FMath::DegreesToRadians(ConstraintInstance->GetAngularSwing1Limit()),
 			FMath::DegreesToRadians(ConstraintInstance->GetAngularSwing2Limit())
 		};
+		ConstraintSettings.Motion.LinearProjection = ConstraintInstance->IsProjectionEnabled() ? ChaosImmediate_JointMaxProjection : ChaosImmediate_JointMinProjection;
+		ConstraintSettings.Motion.AngularProjection = ConstraintInstance->IsProjectionEnabled() ? ChaosImmediate_JointMaxProjection : ChaosImmediate_JointMinProjection;
 		ConstraintSettings.Motion.bSoftLinearLimitsEnabled = ConstraintInstance->GetIsSoftLinearLimit();
 		ConstraintSettings.Motion.bSoftTwistLimitsEnabled = ConstraintInstance->GetIsSoftTwistLimit();
 		ConstraintSettings.Motion.bSoftSwingLimitsEnabled = ConstraintInstance->GetIsSoftSwingLimit();

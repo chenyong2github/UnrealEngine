@@ -95,6 +95,7 @@ namespace Chaos
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
+			const FReal Stiffness,
 			const int32 Index0,
 			const int32 Index1,
 			FVec3& P0,
@@ -110,6 +111,7 @@ namespace Chaos
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
+			const FReal Stiffness,
 			const int32 Index0,
 			const int32 Index1,
 			FVec3& P0,
@@ -129,6 +131,7 @@ namespace Chaos
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
+			const FReal Stiffness,
 			const int32 Index0,
 			const int32 Index1,
 			FVec3& P0,
@@ -144,6 +147,7 @@ namespace Chaos
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
+			const FReal Stiffness,
 			const int32 Index0,
 			const int32 Index1,
 			FVec3& P0,
@@ -163,6 +167,7 @@ namespace Chaos
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
+			const FReal Stiffness,
 			const int32 Index0,
 			const int32 Index1,
 			FVec3& P0,
@@ -178,6 +183,7 @@ namespace Chaos
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
+			const FReal Stiffness,
 			const int32 Index0,
 			const int32 Index1,
 			FVec3& P0,
@@ -197,6 +203,7 @@ namespace Chaos
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
+			const FReal Stiffness,
 			const int32 Index0,
 			const int32 Index1,
 			const EJointAngularConstraintIndex SwingConstraintIndex,
@@ -214,6 +221,7 @@ namespace Chaos
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
+			const FReal Stiffness,
 			const int32 Index0,
 			const int32 Index1,
 			const EJointAngularConstraintIndex SwingConstraintIndex,
@@ -280,6 +288,7 @@ namespace Chaos
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
+			const FReal Stiffness,
 			const int32 Index0,
 			const int32 Index1,
 			FVec3& P0,
@@ -289,13 +298,13 @@ namespace Chaos
 			float InvM0,
 			const FMatrix33& InvIL0,
 			float InvM1,
-			const FMatrix33& InvIL1,
-			const FReal ProjectionFactor);
+			const FMatrix33& InvIL1);
 
 		static CHAOS_API void ApplyJointTwistProjection(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
+			const FReal Stiffness,
 			const int32 Index0,
 			const int32 Index1,
 			FVec3& P0,
@@ -305,13 +314,13 @@ namespace Chaos
 			float InvM0,
 			const FMatrix33& InvIL0,
 			float InvM1,
-			const FMatrix33& InvIL1,
-			const FReal ProjectionFactor);
+			const FMatrix33& InvIL1);
 
 		static CHAOS_API void ApplyJointConeProjection(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
+			const FReal Stiffness,
 			const int32 Index0,
 			const int32 Index1,
 			FVec3& P0,
@@ -321,16 +330,17 @@ namespace Chaos
 			float InvM0,
 			const FMatrix33& InvIL0,
 			float InvM1,
-			const FMatrix33& InvIL1,
-			const FReal ProjectionFactor);
+			const FMatrix33& InvIL1);
 
 		static CHAOS_API void ApplyJointSwingProjection(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
+			const FReal Stiffness,
 			const int32 Index0,
 			const int32 Index1,
-			const EJointAngularConstraintIndex SwingConstraint,
+			const EJointAngularConstraintIndex SwingConstraintIndex,
+			const EJointAngularAxisIndex SwingAxisIndex,
 			FVec3& P0,
 			FRotation3& Q0,
 			FVec3& P1,
@@ -338,8 +348,7 @@ namespace Chaos
 			float InvM0,
 			const FMatrix33& InvIL0,
 			float InvM1,
-			const FMatrix33& InvIL1,
-			const FReal ProjectionFactor);
+			const FMatrix33& InvIL1);
 
 	};
 }
