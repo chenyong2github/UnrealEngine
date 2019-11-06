@@ -37,7 +37,7 @@ class dtPathQueue
 		/// Path find start and end location.
 		float startPos[3], endPos[3];
 		dtPolyRef startRef, endRef;
-		float maxCost;
+		float costLimit;
 		/// Result.
 		dtPolyRef* path;
 		int npath;
@@ -67,7 +67,7 @@ public:
 	void update(const int maxIters);
 	
 	dtPathQueueRef request(dtPolyRef startRef, dtPolyRef endRef,
-						   const float* startPos, const float* endPos, const float maxCost,
+						   const float* startPos, const float* endPos, const float costLimit,
 						   const dtQueryFilter* filter,
 						   TSharedPtr<dtQuerySpecialLinkFilter> linkFilter);
 	
