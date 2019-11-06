@@ -88,7 +88,7 @@ bool IStereoRendering::IsAnAdditionalPass(EStereoscopicPass Pass)
 		return GEngine->StereoRenderingDevice->DeviceIsAnAdditionalPass(Pass);
 	}
 
-	return Pass > eSSP_RIGHT_EYE;
+	return Pass > EStereoscopicPass::eSSP_RIGHT_EYE;
 }
 
 bool IStereoRendering::IsAnAdditionalView(const FSceneView& View)
@@ -98,7 +98,7 @@ bool IStereoRendering::IsAnAdditionalView(const FSceneView& View)
 		return GEngine->StereoRenderingDevice->DeviceIsAnAdditionalView(View);
 	}
 
-	return View.StereoPass > eSSP_RIGHT_EYE;
+	return View.StereoPass > EStereoscopicPass::eSSP_RIGHT_EYE;
 }
 
 bool IStereoRendering::DeviceIsAnAdditionalView(const FSceneView& View)
