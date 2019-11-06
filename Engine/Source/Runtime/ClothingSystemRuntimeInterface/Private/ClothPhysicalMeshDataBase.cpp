@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "ClothPhysicalMeshData.h"
+#include "ClothPhysicalMeshDataBase.h"
 
 UClothPhysicalMeshDataBase::UClothPhysicalMeshDataBase()
 	: NumFixedVerts(0)
