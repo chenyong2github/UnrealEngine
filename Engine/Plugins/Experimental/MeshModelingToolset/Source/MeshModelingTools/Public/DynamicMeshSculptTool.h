@@ -172,6 +172,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = TargetPlane, meta = (EditCondition = "bPropertySetEnabled == true"))
 	bool bSnapToGrid;
 
+	UPROPERTY(EditAnywhere, Category = TargetPlane, AdvancedDisplay, meta = (EditCondition = "bPropertySetEnabled == true"))
+	FVector Position;
+
 	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
 	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 };
@@ -429,9 +432,6 @@ protected:
 
 	UPROPERTY()
 	UTransformProxy* PlaneTransformProxy;
-
-	UPROPERTY()
-	FVector DrawPlaneOrigin;
 
 	/** Orientation of plane we will draw polygon on */
 	UPROPERTY()
