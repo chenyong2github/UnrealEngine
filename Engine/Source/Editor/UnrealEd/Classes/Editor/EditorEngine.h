@@ -589,10 +589,6 @@ private:
 
 public:
 
-	/** The "manager" of all the layers for the UWorld currently being edited */
-	UE_DEPRECATED(4.24, "ILayers and FLayers (GEditor->Layers) have been deprecated, use ULayersSubsystem (rather than ILayers) and GEditor->GetEditorSubsystem<ULayersSubsystem>() (rather than GEditor->Layers) instead.")
-	TSharedPtr< class ILayers >				Layers;
-
 	/** List of all viewport clients */
 	const TArray<class FEditorViewportClient*>& GetAllViewportClients() { return AllViewportClients; }
 	const TArray<class FEditorViewportClient*>& GetAllViewportClients() const { return AllViewportClients; }

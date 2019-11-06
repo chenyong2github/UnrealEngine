@@ -94,8 +94,6 @@ void FLayersBroadcast::OnEditorRefreshLayerBrowser()
 
 
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-
 void ULayersSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
@@ -1421,5 +1419,3 @@ ULayer* ULayersSubsystem::EnsureLayerExists(const FName& LayerName)
 
 	return Layer;
 }
-
-PRAGMA_ENABLE_DEPRECATION_WARNINGS

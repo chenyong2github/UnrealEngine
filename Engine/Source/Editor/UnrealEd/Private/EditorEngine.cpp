@@ -953,12 +953,6 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 
 	LoadEditorFeatureLevel();
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	// ILayers (GEditor->Layers) has been deprecated, use ULayersSubsystem (GEditor->GetEditorSubsystem<ULayersSubsystem>()) instead.
-	// We temporaily assign Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>(), but we will remove Layers in future releases.
-	Layers = MakeShareable(GetEditorSubsystem<ULayersSubsystem>(), [](ULayersSubsystem*) {});
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 
 	// Init transactioning.
 	Trans = CreateTrans();

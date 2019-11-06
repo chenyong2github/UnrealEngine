@@ -185,16 +185,6 @@ public:
 	bool GetToolTipForceFieldRect(const TSharedRef<IMenu>& InMenu, const FWidgetPath& InPathContainingMenu, FSlateRect& OutSlateRect) const;
 
 	/**
-	 * Called by the application when showing tooltips. It prevents tooltips from drawing over menu items.
-	 *
-	 * @param InMenu				A menu in the stack, used to generate the force field rect
-	 * @param PathContainingMenu	A widget path containing InMenu. This could be generated but the application has the path so it helps performance to pass it in here. 
-	 * @return						A rectangle enclosing the menu's children (created from the clipping rects in the geometry in PathContainingMenu)
-	 */
-	UE_DEPRECATED(4.24, "FSlateRect GetToolTipForceFieldRect(TSharedRef<IMenu>, const FWidgetPath&) has been deprecated to avoid bugs when no solution is found. Instead, use bool GetToolTipForceFieldRect(const TSharedRef<IMenu>&, const FWidgetPath&, FSlateRect&).")
-	FSlateRect GetToolTipForceFieldRect(TSharedRef<IMenu> InMenu, const FWidgetPath& PathContainingMenu) const;
-
-	/**
 	 * @return	Returns the window that is the parent of everything in the stack, if any. If the stack is empty, returns an invalid ptr.
 	 */
 	TSharedPtr<SWindow> GetHostWindow() const;
