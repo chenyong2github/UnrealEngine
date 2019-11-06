@@ -179,6 +179,7 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	AnalyticsAttributes.Emplace(TEXT("CurrentUserActivity"), Session.CurrentUserActivity);
 	AnalyticsAttributes.Emplace(TEXT("StartupTimestamp"), Session.StartupTimestamp.ToIso8601());
 	AnalyticsAttributes.Emplace(TEXT("AverageFPS"), Session.AverageFPS);
+	AnalyticsAttributes.Emplace(TEXT("Plugins"), PluginsString);
 
 	double SessionDuration = (Session.Timestamp - Session.StartupTimestamp).GetTotalSeconds();
 	AnalyticsAttributes.Emplace(TEXT("SessionDuration"), SessionDuration);
