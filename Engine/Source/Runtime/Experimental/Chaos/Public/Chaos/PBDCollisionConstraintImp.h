@@ -305,17 +305,17 @@ namespace Chaos
 					ensure(Handles.Num() == Constraints.Num());
 
 					FConstraintHandleID HandleID = GetConstraintHandleID(Constraints[Idx]);
-					FConstraintManifold* Manifold;
-					if (auto ValPtr = Manifolds.Find(HandleID))
+					FConstraintHistory* HistoryElement;
+					if (auto ValPtr = History.Find(HandleID))
 					{
-						Manifold = *ValPtr;
+						HistoryElement = *ValPtr;
 					}
 					else
 					{
-						Manifold = new FConstraintManifold(Constraints[Idx].Particle->X(), Constraints[Idx].Particle->R(), LifespanCounter + CollisionManifoldLifespan);
-						Manifolds.Add(HandleID, Manifold);
+						HistoryElement = new FConstraintHistory(Constraints[Idx].Particle->X(), Constraints[Idx].Particle->R(), LifespanCounter + CollisionHistoryLifespan);
+						History.Add(HandleID, HistoryElement);
 					}
-					Manifold->AddHandle(Handle);
+					HistoryElement->AddHandle(Handle);
 				}
 				LifespanCounter++;
 			}
