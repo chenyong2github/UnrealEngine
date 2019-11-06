@@ -41,7 +41,7 @@ public:
 
 	NODE_TYPE GetNodeType() { return Type; }
 
-	void GetMetaDatas(TMap<FString, FString>& MetaDataMap);
+	void GetMetaData(TMap<FString, FString>& MetaDataMap);
 	void GetChildren(TArray<int32>& Children);
 	
 	void GetNodeReference(int32& OutRefId, FString& OutExternalFile, NODE_TYPE& OutType);
@@ -122,13 +122,14 @@ public:
 	}
 
 	bool GetColor(uint32 ColorHId, FColor& Color) const;
-	bool GetMaterial(int32 MaterialId, CADLibrary::FCADMaterial& material) const;
 
-	void GetMaterialDescription(int32 LineNumber, CADLibrary::FCADMaterial& Material) const;
+	bool GetMaterial(int32 MaterialId, CADLibrary::FCADMaterial& OutMaterial) const;
 
 	void SetMaterialMaps(TMap< uint32, FColor>& MaterialUuidToColor, TMap< uint32, CADLibrary::FCADMaterial>& MaterialUuidToMaterial);
 
-protected:
+private:
+	void GetMaterialDescription(int32 LineNumber, CADLibrary::FCADMaterial& OutMaterial) const;
+
 	FString FileName;
 	TArray<FString> SceneGraphDescriptionData;
 	TMap<int32, FSceneNodeDescription> SceneNodeIdToSceneNodeDescriptionMap;
