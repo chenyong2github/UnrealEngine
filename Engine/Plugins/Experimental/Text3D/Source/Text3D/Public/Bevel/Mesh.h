@@ -20,6 +20,7 @@ struct FText3DDynamicData
 
 	TArray<int32> Indices;
 	TArray<FDynamicMeshVertex> Vertices;
+	TArray<int32> GlyphStartVertices;
 };
 
 struct FText3DMesh : public FText3DDynamicData
