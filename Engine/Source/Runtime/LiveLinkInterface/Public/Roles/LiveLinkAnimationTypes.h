@@ -28,6 +28,9 @@ public:
 	//Get skeleton's parent bones array
 	const TArray<int32>& GetBoneParents() const { return BoneParents; }
 
+	// Find skeleton root bone, which is the bone with an invalid parent bone index.
+	int32 FindRootBone() const { return BoneParents.IndexOfByPredicate([](int32 BoneParent){ return BoneParent < 0; }); }
+
 public:
 
 	// Names of each bone in the skeleton
