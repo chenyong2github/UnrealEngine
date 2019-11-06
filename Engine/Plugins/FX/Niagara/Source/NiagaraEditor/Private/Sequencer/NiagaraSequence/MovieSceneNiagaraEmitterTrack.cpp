@@ -72,6 +72,7 @@ TSharedRef<ISequencerSection> UMovieSceneNiagaraEmitterSectionBase::MakeInvalidS
 UMovieSceneNiagaraEmitterTrack::UMovieSceneNiagaraEmitterTrack(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	bSectionsWereModified = false;
 }
 
 void UMovieSceneNiagaraEmitterTrack::Initialize(FNiagaraSystemViewModel& InSystemViewModel, TSharedRef<FNiagaraEmitterHandleViewModel> InEmitterHandleViewModel, const FFrameRate& InFrameResolution)
@@ -155,19 +156,32 @@ void UMovieSceneNiagaraEmitterTrack::UpdateEmitterHandleFromTrackChange(const FF
 	}
 }
 
+bool UMovieSceneNiagaraEmitterTrack::GetSectionsWereModified() const
+{
+	return bSectionsWereModified;
+}
+
 bool UMovieSceneNiagaraEmitterTrack::HasSection(const UMovieSceneSection& Section) const
 {
 	return Sections.Contains(&Section);
 }
 
+void UMovieSceneNiagaraEmitterTrack::AddSection(UMovieSceneSection& Section)
+{
+	Sections.Add(&Section);
+	bSectionsWereModified = true;
+}
+
 void UMovieSceneNiagaraEmitterTrack::RemoveSection(UMovieSceneSection& Section)
 {
 	Sections.Remove(&Section);
+	bSectionsWereModified = true;
 }
 
 void UMovieSceneNiagaraEmitterTrack::RemoveSectionAt(int32 SectionIndex)
 {
 	Sections.RemoveAt(SectionIndex);
+	bSectionsWereModified = true;
 }
 
 bool UMovieSceneNiagaraEmitterTrack::IsEmpty() const
@@ -265,6 +279,7 @@ void UMovieSceneNiagaraEmitterTrack::CreateSections(const FFrameRate& InFrameRes
 	}
 
 	UpdateTrackFromEmitterParameterChange(InFrameResolution);
+	bSectionsWereModified = false;
 }
 
 #undef LOCTEXT_NAMESPACE

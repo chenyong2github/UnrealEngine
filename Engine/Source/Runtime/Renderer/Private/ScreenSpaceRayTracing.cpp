@@ -43,20 +43,24 @@ static TAutoConsoleVariable<int32> CVarSSRStencil(
 	TEXT(" 0 is off (default), 1 is on"),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarSSGIEnable(
+	TEXT("r.SSGI.Enable"), 0,
+	TEXT("Whether to enable SSGI (defaults to 0).\n"),
+	ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarSSGIHalfResolution(
 	TEXT("r.SSGI.HalfRes"), 0,
-	TEXT("Whether to do SSGI at half resolution.\n"),
+	TEXT("Whether to do SSGI at half resolution (defaults to 0).\n"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarSSGIQuality(
-	TEXT("r.SSGI.Quality"),
-	0,
-	TEXT("Whether to use screen space diffuse indirect and at what quality setting.\n"),
+	TEXT("r.SSGI.Quality"), 4,
+	TEXT("Quality setting to control number of ray shot with SSGI, between 1 and 4 (defaults to 4).\n"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<float> CVarSSGIMinimumLuminance(
 	TEXT("r.SSGI.MinimumLuminance"), 0.5f,
-	TEXT(""),
+	TEXT("Experimental"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 
@@ -99,6 +103,11 @@ bool ShouldRenderScreenSpaceReflections(const FViewInfo& View)
 
 bool ShouldRenderScreenSpaceDiffuseIndirect(const FViewInfo& View)
 {
+	if (CVarSSGIEnable.GetValueOnRenderThread() <= 0)
+	{
+		return false;
+	}
+
 	int Quality = CVarSSGIQuality.GetValueOnRenderThread();
 
 	if (Quality <= 0)

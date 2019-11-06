@@ -46,6 +46,7 @@ public:
 		uint32 bEditor:1;
 
 		TSubclassOf<class AGameModeBase> DefaultGameMode;
+		class UGameInstance* OwningGameInstance = nullptr;
 
 		ConstructionValues& SetCreateDefaultLighting(const bool bDefault) { bDefaultLighting = bDefault; return *this; }
 		ConstructionValues& SetLightRotation(const FRotator& Rotation) { LightRotation = Rotation; return *this; }
@@ -60,6 +61,7 @@ public:
 		ConstructionValues& SetEditor(const bool bInEditor) { bEditor = bInEditor; return *this; }
 
 		ConstructionValues& SetDefaultGameMode(TSubclassOf<class AGameModeBase> GameMode) { DefaultGameMode = GameMode; return *this; }
+		ConstructionValues& SetOwningGameInstance(class UGameInstance* InGameInstance) { OwningGameInstance = InGameInstance; return *this; }
 	};
 
 	// for physical correct light computations we multiply diffuse and specular lights by PI (see LABEL_RealEnergy)

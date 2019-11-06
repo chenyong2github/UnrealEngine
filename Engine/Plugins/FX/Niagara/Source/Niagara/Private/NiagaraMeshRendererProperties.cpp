@@ -5,6 +5,9 @@
 #include "Engine/StaticMesh.h"
 #include "NiagaraConstants.h"
 #include "NiagaraBoundsCalculatorHelper.h"
+#include "Modules/ModuleManager.h"
+
+TArray<TWeakObjectPtr<UNiagaraMeshRendererProperties>> UNiagaraMeshRendererProperties::MeshRendererPropertiesToDeferredInit;
 
 FNiagaraMeshMaterialOverride::FNiagaraMeshMaterialOverride()
 	: ExplicitMat(nullptr)
@@ -61,8 +64,15 @@ FNiagaraBoundsCalculator* UNiagaraMeshRendererProperties::CreateBoundsCalculator
 void UNiagaraMeshRendererProperties::PostInitProperties()
 {
 	Super::PostInitProperties();
+
 	if (HasAnyFlags(RF_ClassDefaultObject) == false)
 	{
+		// We can end up hitting PostInitProperties before the Niagara Module has initialized bindings this needs, mark this object for deferred init and early out.
+		if (FModuleManager::Get().IsModuleLoaded("Niagara") == false)
+		{
+			MeshRendererPropertiesToDeferredInit.Add(this);
+			return;
+		}
 		InitBindings();
 	}
 }
@@ -72,6 +82,14 @@ void UNiagaraMeshRendererProperties::InitCDOPropertiesAfterModuleStartup()
 {
 	UNiagaraMeshRendererProperties* CDO = CastChecked<UNiagaraMeshRendererProperties>(UNiagaraMeshRendererProperties::StaticClass()->GetDefaultObject());
 	CDO->InitBindings();
+
+	for (TWeakObjectPtr<UNiagaraMeshRendererProperties>& WeakMeshRendererProperties : MeshRendererPropertiesToDeferredInit)
+	{
+		if (WeakMeshRendererProperties.Get())
+		{
+			WeakMeshRendererProperties->InitBindings();
+		}
+	}
 }
 
 void UNiagaraMeshRendererProperties::InitBindings()

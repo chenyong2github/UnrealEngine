@@ -6,6 +6,7 @@
 #include "UObject/CoreOnline.h"
 #include "OnlineDelegateMacros.h"
 #include "OnlineSubsystemPackage.h"
+#include "DSP/MultithreadedPatching.h"
 
 class FVoicePacket;
 
@@ -230,6 +231,28 @@ public:
 	 * Get information about the voice state for display
 	 */
 	virtual FString GetVoiceDebugState() const = 0;
+
+	/**
+	 * This can be used to get arbitrarily tap outgoing microphone audio from local players to use elsewhere in your application. 
+	 * for information on usage, see MultithreadedPatching.h.
+	 *
+	 * @return nullptr if the VoiceEngine implementation being used does not support tapping audio output from the microphone.
+	 */
+	virtual Audio::FPatchOutputStrongPtr GetMicrophoneOutput()
+	{
+		return nullptr;
+	};
+
+
+	/**
+	 * This can be used to get arbitrarily tap incoming VOIP audio from remote players to use elsewhere in your application.
+	 * for information on usage, see MultithreadedPatching.h.
+	 * @return nullptr if the VoiceEngine implementation being used does not support tapping incoming audio.
+	 */
+	virtual Audio::FPatchOutputStrongPtr GetRemoteTalkerOutput()
+	{
+		return nullptr;
+	};
 };
 
 typedef TSharedPtr<IVoiceEngine, ESPMode::ThreadSafe> IVoiceEnginePtr;
@@ -437,6 +460,28 @@ public:
 	 * Get information about the voice state for display
 	 */
 	virtual FString GetVoiceDebugState() const = 0;
+
+	/**
+	 * This can be used to get arbitrarily tap outgoing microphone audio from local players to use elsewhere in your application.
+	 * for information on usage, see MultithreadedPatching.h.
+	 *
+	 * @return nullptr if the VoiceEngine implementation being used does not support tapping audio output from the microphone.
+	 */
+	virtual Audio::FPatchOutputStrongPtr GetMicrophoneOutput()
+	{
+		return nullptr;
+	};
+
+
+	/**
+	 * This can be used to get arbitrarily tap incoming VOIP audio from remote players to use elsewhere in your application.
+	 * for information on usage, see MultithreadedPatching.h.
+	 * @return nullptr if the VoiceEngine implementation being used does not support tapping incoming audio.
+	 */
+	virtual Audio::FPatchOutputStrongPtr GetRemoteTalkerOutput()
+	{
+		return nullptr;
+	};
 };
 
 typedef TSharedPtr<IOnlineVoice, ESPMode::ThreadSafe> IOnlineVoicePtr;

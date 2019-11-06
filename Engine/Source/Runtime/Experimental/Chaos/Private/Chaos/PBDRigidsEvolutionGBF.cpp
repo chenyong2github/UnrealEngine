@@ -90,14 +90,26 @@ void SerializeToDisk(TEvolution& Evolution)
 template <typename T, int d>
 void TPBDRigidsEvolutionGBF<T, d>::Advance(const T Dt, const T MaxStepDt, const int32 MaxSteps)
 {
-	const int32 NumSteps = FMath::Clamp(FMath::CeilToInt(Dt / MaxStepDt), 1, MaxSteps);
-	const T StepDt = Dt / (T)NumSteps;
-	for (int32 Step = 0; Step < NumSteps; ++Step)
+	// Determine how many steps we would like to take
+	int32 NumSteps = FMath::CeilToInt(Dt / MaxStepDt);
+	if (NumSteps > 0)
 	{
-		// StepFraction: how much of the remaining time this step represents, used to interpolate kinematic targets
-		// E.g., for 4 steps this will be: 1/4, 1/3, 1/2, 1
-		const float StepFraction = (T)1 / (T)(NumSteps - Step);
-		AdvanceOneTimeStep(StepDt, StepFraction);
+		// Determine the step time
+		const T StepDt = Dt / (T)NumSteps;
+
+		// Limit the number of steps
+		// NOTE: This is after step time calculation so sim will appear to slow down for large Dt
+		// but that is preferable to blowing up from a large timestep.
+		NumSteps = FMath::Clamp(NumSteps, 1, MaxSteps);
+
+		for (int32 Step = 0; Step < NumSteps; ++Step)
+		{
+			// StepFraction: how much of the remaining time this step represents, used to interpolate kinematic targets
+			// E.g., for 4 steps this will be: 1/4, 1/3, 1/2, 1
+			const float StepFraction = (T)1 / (T)(NumSteps - Step);
+		
+			AdvanceOneTimeStep(StepDt, StepFraction);
+		}
 	}
 }
 
@@ -105,6 +117,9 @@ template <typename T, int d>
 void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(const T Dt, const T StepFraction)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Evo_AdvanceOneTimeStep);
+
+	// @todo(ccaulfield): only need this when list has changed
+	ConstraintRules.StableSort();
 
 #if !UE_BUILD_SHIPPING
 	if (SerializeEvolution)
@@ -152,15 +167,15 @@ void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(const T Dt, const T StepFr
 	}
 
 	TArray<bool> SleepedIslands;
-	SleepedIslands.SetNum(ConstraintGraph.NumIslands());
+	SleepedIslands.SetNum(GetConstraintGraph().NumIslands());
 	TArray<TArray<TPBDRigidParticleHandle<T,d>*>> DisabledParticles;
-	DisabledParticles.SetNum(ConstraintGraph.NumIslands());
-	SleepedIslands.SetNum(ConstraintGraph.NumIslands());
+	DisabledParticles.SetNum(GetConstraintGraph().NumIslands());
+	SleepedIslands.SetNum(GetConstraintGraph().NumIslands());
 	if(Dt > 0)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evo_ParallelSolve);
-		PhysicsParallelFor(ConstraintGraph.NumIslands(), [&](int32 Island) {
-			const TArray<TGeometryParticleHandle<T, d>*>& IslandParticles = ConstraintGraph.GetIslandParticles(Island);
+		PhysicsParallelFor(GetConstraintGraph().NumIslands(), [&](int32 Island) {
+			const TArray<TGeometryParticleHandle<T, d>*>& IslandParticles = GetConstraintGraph().GetIslandParticles(Island);
 
 			{
 				SCOPE_CYCLE_COUNTER(STAT_Evo_ApplyConstraints);
@@ -220,16 +235,16 @@ void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(const T Dt, const T StepFr
 			}
 
 			// Turn off if not moving
-			SleepedIslands[Island] = ConstraintGraph.SleepInactive(Island, PhysicsMaterials);
+			SleepedIslands[Island] = GetConstraintGraph().SleepInactive(Island, PhysicsMaterials);
 		});
 	}
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evo_DeactivateSleep);
-		for (int32 Island = 0; Island < ConstraintGraph.NumIslands(); ++Island)
+		for (int32 Island = 0; Island < GetConstraintGraph().NumIslands(); ++Island)
 		{
 			if (SleepedIslands[Island])
 			{
-				Particles.DeactivateParticles(ConstraintGraph.GetIslandParticles(Island));
+				Particles.DeactivateParticles(GetConstraintGraph().GetIslandParticles(Island));
 			}
 			for (const auto Particle : DisabledParticles[Island])
 			{

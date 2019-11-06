@@ -389,6 +389,49 @@ void FVulkanCommandBufferManager::WaitForCmdBuffer(FVulkanCmdBuffer* CmdBuffer, 
 	CmdBuffer->RefreshFenceStatus();
 }
 
+void FVulkanCommandBufferManager::AddQueryPoolForReset(VkQueryPool QueryPool, uint32 Size)
+{
+	FScopeLock ScopeLock(&Pool.CS);
+	FQueryPoolReset QPR = { QueryPool, Size};
+	PoolResets.Add(QPR);
+}
+void FVulkanCommandBufferManager::FlushResetQueryPools()
+{
+	FScopeLock ScopeLock(&Pool.CS);
+	if(PoolResets.Num())
+	{
+		FVulkanCmdBuffer* PoolResetCommandBuffer = nullptr;
+		for (int32 Index = 0; Index < Pool.CmdBuffers.Num(); ++Index)
+		{
+			FVulkanCmdBuffer* CmdBuffer = Pool.CmdBuffers[Index];
+			CmdBuffer->RefreshFenceStatus();
+	#if VULKAN_USE_DIFFERENT_POOL_CMDBUFFERS
+			if (!CmdBuffer->bIsUploadOnly)
+	#endif
+			{
+				if (CmdBuffer->State == FVulkanCmdBuffer::EState::ReadyForBegin)
+				{
+					PoolResetCommandBuffer = CmdBuffer;
+				}
+			}
+		}
+		if (!PoolResetCommandBuffer)
+		{
+			PoolResetCommandBuffer = Pool.Create(false);
+		}
+		PoolResetCommandBuffer->Begin();
+
+		VkCommandBuffer CommandBuffer = PoolResetCommandBuffer->GetHandle();
+		for (FQueryPoolReset& QPR : PoolResets)
+		{
+			VulkanRHI::vkCmdResetQueryPool(CommandBuffer, QPR.Pool, 0, QPR.Size);
+		}
+		PoolResetCommandBuffer->End();
+		Queue->Submit(PoolResetCommandBuffer);
+		check(PoolResetCommandBuffer->State == FVulkanCmdBuffer::EState::Submitted);
+		PoolResets.Empty();
+	}
+}
 
 void FVulkanCommandBufferManager::SubmitUploadCmdBuffer(uint32 NumSignalSemaphores, VkSemaphore* SignalSemaphores)
 {
@@ -412,6 +455,7 @@ void FVulkanCommandBufferManager::SubmitUploadCmdBuffer(uint32 NumSignalSemaphor
 void FVulkanCommandBufferManager::SubmitActiveCmdBuffer(VulkanRHI::FSemaphore* SignalSemaphore)
 {
 	FScopeLock ScopeLock(&Pool.CS);
+	FlushResetQueryPools();
 	check(!UploadCmdBuffer);
 	check(ActiveCmdBuffer);
 	if (!ActiveCmdBuffer->IsSubmitted() && ActiveCmdBuffer->HasBegun())

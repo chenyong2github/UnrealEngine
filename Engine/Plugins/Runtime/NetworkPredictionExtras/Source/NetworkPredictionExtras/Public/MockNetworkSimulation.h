@@ -166,7 +166,7 @@ public:
 
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	
-	virtual INetworkSimulationModel* InstantiateNetworkSimulation() override;
+	virtual INetworkedSimulationModel* InstantiateNetworkedSimulation() override;
 	
 public:
 
@@ -180,5 +180,5 @@ public:
 	// Mock representation of "syncing' to the sync state in the network sim.
 	float MockValue = 1000.f;
 
-	TUniquePtr<FMockNetworkSimulation> MockNetworkSimulation;
+	FMockNetworkSimulation* MockNetworkSimulation = nullptr;
 };

@@ -3,40 +3,35 @@
 
 #include "Chaos/ParticleHandle.h"
 
-// @todo(ccaulfield): can we get rid of this now?
+// @todo(ccaulfield): move level/shock system out of coloring
 #define USE_CONTACT_LEVELS 1
 
 namespace Chaos
 {
-	template<typename T, int d>
-	class TPBDConstraintGraph;
-
-	template<typename T, int d>
-	class TConstraintHandle;
+	class FPBDConstraintGraph;
+	class FConstraintHandle;
 
 	/**
 	 * Generates color information for a single constraint rule in a connection graph.
 	 * Edges with the same color are non-interacting and can safely be processed in parallel.
 	 */
-	template<typename T, int d>
-	class CHAOS_API TPBDConstraintColor
+	class CHAOS_API FPBDConstraintColor
 	{
 	public:
-		typedef TPBDConstraintGraph<T, d> FConstraintGraph;
 		typedef TSet<int32> FColorSet;
-		typedef TArray<TConstraintHandle<T, d>*> FConstraintList;
+		typedef TArray<FConstraintHandle*> FConstraintList;
 		typedef TMap<int32, FConstraintList> FColorToConstraintListMap;
 		typedef TArray<FColorToConstraintListMap> FLevelToColorToConstraintListMap;
 
 		/**
 		 * Initialize the color structures based on the connectivity graph (i.e., reset all color-related node, edge and island data).
 		 */
-		void InitializeColor(const FConstraintGraph& ConstraintGraph);
+		void InitializeColor(const FPBDConstraintGraph& ConstraintGraph);
 
 		/**
 		 * Calculate the color information for the specified island.
 		 */
-		void ComputeColor(const int32 Island, const FConstraintGraph& ConstraintGraph, uint32 ContainerId);
+		void ComputeColor(const int32 Island, const FPBDConstraintGraph& ConstraintGraph, uint32 ContainerId);
 
 		/**
 		 * Get the Level-Color-ConstraintList map for the specified island.
@@ -54,8 +49,8 @@ namespace Chaos
 		int GetIslandMaxLevel(int32 Island) const;
 
 	private:
-		void ComputeContactGraph(const int32 Island, const FConstraintGraph& ConstraintGraph, uint32 ContainerId);
-		void ComputeIslandColoring(const int32 Island, const FConstraintGraph& ConstraintGraph, uint32 ContainerId);
+		void ComputeContactGraph(const int32 Island, const FPBDConstraintGraph& ConstraintGraph, uint32 ContainerId);
+		void ComputeIslandColoring(const int32 Island, const FPBDConstraintGraph& ConstraintGraph, uint32 ContainerId);
 
 		struct FGraphNodeColor
 		{

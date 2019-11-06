@@ -392,11 +392,13 @@ namespace HairInterpolationBuilder
 	};
 
 	// Randomize influence guide to break interpolation coherence, and create a more random/natural pattern
-	static void SelectFinalGuides(FClosestGuides& ClosestGuides, FRandomStream& Random, const FMetrics& Metric)
+	static void SelectFinalGuides(
+		FClosestGuides& ClosestGuides, 
+		FRandomStream& Random, 
+		const FMetrics& Metric, 
+		const bool bRandomizeInterpolation, 
+		const bool bUseUniqueGuide)
 	{
-		const static bool bRandomizeInterpolation = false;
-		const static bool bUseUniqueGuide = false;
-
 		uint32 RandIndex0 = 0;
 		uint32 RandIndex1 = 1;
 		uint32 RandIndex2 = 2;
@@ -419,6 +421,8 @@ namespace HairInterpolationBuilder
 		{
 			ClosestGuides.Indices[1] = Metric.KClosestGuideIndices[RandIndex0];
 			ClosestGuides.Indices[2] = Metric.KClosestGuideIndices[RandIndex0];
+			RandIndex1 = RandIndex0;
+			RandIndex2 = RandIndex0;
 		}
 
 
@@ -571,6 +575,8 @@ namespace HairInterpolationBuilder
 			const TArray<FHairRoot>& SimRoots,
 			const FHairStrandsDatas& RenStrandsData,
 			const FHairStrandsDatas& SimStrandsData,
+			const bool bRandomized,
+			const bool bUnique,
 			FRandomStream& Random) const
 		{
 			const FHairRoot& RenRoot = RenRoots[RenCurveIndex];
@@ -624,7 +630,7 @@ namespace HairInterpolationBuilder
 
 			// If no valid guide have been found, switch to a simpler metric
 			FClosestGuides ClosestGuides;
-			SelectFinalGuides(ClosestGuides, Random, Metrics);
+			SelectFinalGuides(ClosestGuides, Random, Metrics, bRandomized, bUnique);
 
 			check(ClosestGuides.Indices[0] >= 0);
 			check(ClosestGuides.Indices[1] >= 0);
@@ -640,6 +646,8 @@ namespace HairInterpolationBuilder
 			const TArray<FHairRoot>& SimRoots,
 			const FHairStrandsDatas& RenStrandsData,
 			const FHairStrandsDatas& SimStrandsData,
+			const bool bRandomized,
+			const bool bUnique,
 			FRandomStream& Random) const 
 		{
 			const FHairRoot& RenRoot = RenRoots[RenCurveIndex];
@@ -697,10 +705,10 @@ namespace HairInterpolationBuilder
 
 			// If no valid guide have been found, switch to a simpler metric
 			FClosestGuides ClosestGuides;
-			SelectFinalGuides(ClosestGuides, Random, Metrics0);
+			SelectFinalGuides(ClosestGuides, Random, Metrics0, bRandomized, bUnique);
 			if (ClosestGuides.Indices[0] == -1)
 			{
-				SelectFinalGuides(ClosestGuides, Random, Metrics1);
+				SelectFinalGuides(ClosestGuides, Random, Metrics1, bRandomized, bUnique);
 			}
 
 			check(ClosestGuides.Indices[0] >= 0);
@@ -717,6 +725,8 @@ namespace HairInterpolationBuilder
 		const TArray<FHairRoot>& SimRoots,
 		const FHairStrandsDatas& RenStrandsData,
 		const FHairStrandsDatas& SimStrandsData,
+		const bool bRandomized,
+		const bool bUnique,
 		FRandomStream& Random)
 	{
 		FMetrics Metrics;
@@ -733,7 +743,7 @@ namespace HairInterpolationBuilder
 		}
 			
 		FClosestGuides ClosestGuides;
-		SelectFinalGuides(ClosestGuides, Random, Metrics);
+		SelectFinalGuides(ClosestGuides, Random, Metrics, bRandomized, bUnique);
 
 		check(ClosestGuides.Indices[0] >= 0);
 		check(ClosestGuides.Indices[1] >= 0);
@@ -771,18 +781,71 @@ namespace HairInterpolationBuilder
 		}
 	}
 
-	enum class EHairInterpolationDataQuality
+	struct FVertexInterpolationDesc
+	{
+		uint32 Index0 = 0;
+		uint32 Index1 = 0;
+		float T = 0;
+	};
+
+	// Find the vertex along a sim curve 'SimCurveIndex', which has the same parametric distance than the render distance 'RenPointDistance'
+	static FVertexInterpolationDesc FindMatchingVertex(const float RenPointDistance, const FHairStrandsDatas& SimStrandsData, const uint32 SimCurveIndex)
+	{
+		const uint32 SimOffset = SimStrandsData.StrandsCurves.CurvesOffset[SimCurveIndex];
+
+		const float CurveLength = SimStrandsData.StrandsCurves.CurvesLength[SimCurveIndex] * SimStrandsData.StrandsCurves.MaxLength;
+
+		// Find with with vertex the vertex should be paired
+		const uint32 SimPointCount = SimStrandsData.StrandsCurves.CurvesCount[SimCurveIndex];
+		for (uint32 SimPointIndex = 0; SimPointIndex < SimPointCount-1; ++SimPointIndex)
+		{
+			const float SimPointDistance0 = SimStrandsData.StrandsPoints.PointsCoordU[SimPointIndex + SimOffset] * CurveLength;
+			const float SimPointDistance1 = SimStrandsData.StrandsPoints.PointsCoordU[SimPointIndex + SimOffset + 1] * CurveLength;
+			if (SimPointDistance0 <= RenPointDistance && RenPointDistance <= SimPointDistance1)
+			{
+				const float SegmentLength = SimPointDistance1 - SimPointDistance0;
+				FVertexInterpolationDesc Out;
+				Out.Index0 = SimPointIndex;
+				Out.Index1 = SimPointIndex+1;
+				Out.T = (RenPointDistance - SimPointDistance0) / (SegmentLength>0? SegmentLength : 1);
+				Out.T = FMath::Clamp(Out.T, 0.f, 1.f);
+				return Out;
+			}
+		}
+		FVertexInterpolationDesc Desc;
+		Desc.Index0 = SimPointCount-2;
+		Desc.Index1 = SimPointCount-1;
+		Desc.T = 1;
+		return Desc;
+	}
+
+	enum class EHairInterpolationWeightMethod : uint8
+	{
+		ParametricDistance,
+		RootDistance,
+		VertexIndex
+	};
+
+	enum class EHairInterpolationDataQuality : uint8
 	{
 		Low,
 		Medium,
 		High
 	};
 
+	struct FHairInterpolationSettings
+	{
+		EHairInterpolationDataQuality Quality		= EHairInterpolationDataQuality::High;
+		EHairInterpolationWeightMethod WeightMethod = EHairInterpolationWeightMethod::ParametricDistance;
+		bool bRandomizedGuides						= false;
+		bool bUseUniqueGuide						= false;
+	};
+
 	static void BuildInterpolationData(
 		FHairStrandsInterpolationDatas& InterpolationData,
 		const FHairStrandsDatas& SimStrandsData,
 		const FHairStrandsDatas& RenStrandsData,
-		const EHairInterpolationDataQuality Quality)
+		const FHairInterpolationSettings& Settings)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(HairInterpolationBuilder::BuildInterpolationData);
 
@@ -801,7 +864,7 @@ namespace HairInterpolationBuilder
 			ExtractRoots(RenStrandsData, RenRoots, RenMinBound, RenMaxBound);
 			ExtractRoots(SimStrandsData, SimRoots, SimMinBound, SimMaxBound);
 
-			if (Quality == EHairInterpolationDataQuality::Low || Quality == EHairInterpolationDataQuality::Medium)
+			if (Settings.Quality == EHairInterpolationDataQuality::Low || Settings.Quality == EHairInterpolationDataQuality::Medium)
 			{
 				// Build a conservative bound, to insure all queries will fall 
 				// into the grid volume.
@@ -825,7 +888,7 @@ namespace HairInterpolationBuilder
 
 		ParallelFor(RenCurveCount, 
 		[
-			Quality,
+			Settings,
 			RenCurveCount, &RenRoots, &RenStrandsData,
 			SimCurveCount, &SimRoots, &SimStrandsData, 
 			&RootsGrid,
@@ -850,17 +913,17 @@ namespace HairInterpolationBuilder
 			const FHairRoot& StrandRoot = RenRoots[RenCurveIndex];
 
 			FClosestGuides ClosestGuides;
-			if (Quality == EHairInterpolationDataQuality::Low)
+			if (Settings.Quality == EHairInterpolationDataQuality::Low)
 			{
-				ClosestGuides = RootsGrid.FindClosestRoots(RenCurveIndex, RenRoots, SimRoots, RenStrandsData, SimStrandsData, Random);
+				ClosestGuides = RootsGrid.FindClosestRoots(RenCurveIndex, RenRoots, SimRoots, RenStrandsData, SimStrandsData, Settings.bRandomizedGuides, Settings.bUseUniqueGuide, Random);
 			}
-			else if (Quality == EHairInterpolationDataQuality::Medium)
+			else if (Settings.Quality == EHairInterpolationDataQuality::Medium)
 			{
-				ClosestGuides = RootsGrid.FindBestClosestRoots(RenCurveIndex, RenRoots, SimRoots, RenStrandsData, SimStrandsData, Random);
+				ClosestGuides = RootsGrid.FindBestClosestRoots(RenCurveIndex, RenRoots, SimRoots, RenStrandsData, SimStrandsData, Settings.bRandomizedGuides, Settings.bUseUniqueGuide, Random);
 			}
-			else // (Quality == EHairInterpolationDataQuality::High)
+			else // (Settings.Quality == EHairInterpolationDataQuality::High)
 			{
-				ClosestGuides = FindBestRoots(RenCurveIndex, RenRoots, SimRoots, RenStrandsData, SimStrandsData, Random);
+				ClosestGuides = FindBestRoots(RenCurveIndex, RenRoots, SimRoots, RenStrandsData, SimStrandsData, Settings.bRandomizedGuides, Settings.bUseUniqueGuide, Random);
 			}
 
 			const uint32 RendPointCount	= RenStrandsData.StrandsCurves.CurvesCount[RenCurveIndex];
@@ -875,66 +938,56 @@ namespace HairInterpolationBuilder
 				float TotalWeight = 0;
 				for (uint32 KIndex = 0; KIndex < FClosestGuides::Count; ++KIndex)
 				{
-
-				#define WEIGHT_METHOD 0
-
 					// Find the closest vertex on the guide which matches the strand vertex distance along its curve
-				#if WEIGHT_METHOD == 0
-					const uint32 SimCurveIndex = ClosestGuides.Indices[KIndex];
-					const uint32 SimOffset = SimStrandsData.StrandsCurves.CurvesOffset[SimCurveIndex];
-					float PrevSimPointDistance = 0;
-					uint32 ClosestSimPointIndex = 0;
-					const uint32 SimPointCount = SimStrandsData.StrandsCurves.CurvesCount[SimCurveIndex];
-					for (uint32 SimPointIndex = 0; SimPointIndex < SimPointCount; ++SimPointIndex, ++ClosestSimPointIndex)
+					if (Settings.WeightMethod == EHairInterpolationWeightMethod::ParametricDistance)
 					{
-						const float SimPointDistance = SimStrandsData.StrandsPoints.PointsCoordU[SimPointIndex + SimOffset] * SimStrandsData.StrandsCurves.CurvesLength[SimCurveIndex] * SimStrandsData.StrandsCurves.MaxLength;
-						if (RenPointDistance >= PrevSimPointDistance && RenPointDistance <= SimPointDistance)
-						{
-							//const float GuideDistance = Guide.Points[SimPointIndex].Distance;
-							const float D0 = FMath::Abs(PrevSimPointDistance - RenPointDistance);
-							const float D1 = FMath::Abs(SimPointDistance - RenPointDistance);
-							if (D0 > D1)
-							{
-								ClosestSimPointIndex = SimPointIndex;
-							}
-							break;
-						}
-						PrevSimPointDistance = SimPointDistance;
-					}
-					check(SimPointCount > 0);
-					ClosestSimPointIndex = FMath::Clamp(ClosestSimPointIndex, 0u, uint32(SimPointCount - 1));
+						const uint32 SimCurveIndex = ClosestGuides.Indices[KIndex];
+						const uint32 SimOffset = SimStrandsData.StrandsCurves.CurvesOffset[SimCurveIndex];
+						const FVertexInterpolationDesc Desc = FindMatchingVertex(RenPointDistance, SimStrandsData, SimCurveIndex);
+						const FVector& SimPointPosition0 = SimStrandsData.StrandsPoints.PointsPosition[Desc.Index0 + SimOffset];
+						const FVector& SimPointPosition1 = SimStrandsData.StrandsPoints.PointsPosition[Desc.Index1 + SimOffset];
+						const float Weight = 1.0f / FMath::Max(MinWeightDistance, FVector::Distance(RenPointPosition, FMath::Lerp(SimPointPosition0, SimPointPosition1, Desc.T)));
 
-					const FVector& SimPointPosition = SimStrandsData.StrandsPoints.PointsPosition[ClosestSimPointIndex + SimOffset];
-					const float Weight = 1.0f / FMath::Max(MinWeightDistance, FVector::Distance(RenPointPosition, SimPointPosition));
-					InterpolationData.PointsSimCurvesIndex[PointGlobalIndex][KIndex] = SimCurveIndex;
-					InterpolationData.PointsSimCurvesVertexIndex[PointGlobalIndex][KIndex] = ClosestSimPointIndex + SimOffset;
-					InterpolationData.PointsSimCurvesVertexWeights[PointGlobalIndex][KIndex] = Weight;
-				#endif
+						InterpolationData.PointsSimCurvesIndex[PointGlobalIndex][KIndex] = SimCurveIndex;
+						InterpolationData.PointsSimCurvesVertexIndex[PointGlobalIndex][KIndex] = Desc.Index0 + SimOffset;
+						InterpolationData.PointsSimCurvesVertexLerp[PointGlobalIndex][KIndex] = Desc.T;
+						InterpolationData.PointsSimCurvesVertexWeights[PointGlobalIndex][KIndex] = Weight;
+					}
 
 					// Use only the root as a *constant* weight for deformation along each vertex
-				#if WEIGHT_METHOD == 1
-					const uint32 SimCurveIndex = ClosestGuideIndices[KIndex];
-					const uint32 SimOffset = SimStrandsData.StrandsCurves.CurvesOffset[SimCurveIndex];
-					const FVector& SimRootPointPosition = SimStrandsData.StrandsPoints.PointsPosition[SimOffset];
-					const float Weight = 1.0f / FMath::Max(MinWeightDistance, FVector::Distance(RenPointPosition, SimRootPointPosition));
-					InterpolationData.PointsSimCurvesIndex[PointGlobalIndex][KIndex] = SimCurveIndex;
-					InterpolationData.PointsSimCurvesVertexIndex[PointGlobalIndex][KIndex] = SimOffset;
-					InterpolationData.PointsSimCurvesVertexWeights[PointGlobalIndex][KIndex] = Weight;
-				#endif
+					// Still compute the closest vertex (in parametric distance) to know on which vertex the offset/delta should be computed
+					if (Settings.WeightMethod == EHairInterpolationWeightMethod::RootDistance)
+					{
+						const uint32 SimCurveIndex = ClosestGuides.Indices[KIndex];
+						const uint32 SimOffset = SimStrandsData.StrandsCurves.CurvesOffset[SimCurveIndex];
+						const FVector& SimRootPointPosition = SimStrandsData.StrandsPoints.PointsPosition[SimOffset];
+						const FVector& RenRootPointPosition = RenStrandsData.StrandsPoints.PointsPosition[RenOffset];
+						const float Weight = 1.0f / FMath::Max(MinWeightDistance, FVector::Distance(RenRootPointPosition, SimRootPointPosition));
+						const FVertexInterpolationDesc Desc = FindMatchingVertex(RenPointDistance, SimStrandsData, SimCurveIndex);
+
+						InterpolationData.PointsSimCurvesIndex[PointGlobalIndex][KIndex] = SimCurveIndex;
+						InterpolationData.PointsSimCurvesVertexIndex[PointGlobalIndex][KIndex] = Desc.Index0 + SimOffset;
+						InterpolationData.PointsSimCurvesVertexLerp[PointGlobalIndex][KIndex] = Desc.T;
+						InterpolationData.PointsSimCurvesVertexWeights[PointGlobalIndex][KIndex] = Weight;
+					}
 
 					// Use the *same vertex index* to match guide vertex with strand vertex
-				#if WEIGHT_METHOD == 2
-					check(SimPointCount > 0);
-					const uint32 SimCurveIndex = ClosestGuideIndices[KIndex];
-					const uint32 SimPointIndex = FMath::Clamp(RenPointIndex, 0, SimPointCount - 1);
-					const FVector& SimPointPosition = SimStrandsData.StrandsPoints.PointsPosition[SimPointIndex + SimOffset];
-					const float Weight = 1.0f / FMath::Max(MinWeightDistance, FVector::Distance(RenPointPosition, SimPointPosition));
-					InterpolationData.PointsSimCurvesIndex[PointGlobalIndex][KIndex] = SimCurveIndex;
-					InterpolationData.PointsSimCurvesVertexIndex[PointGlobalIndex][KIndex] = SimPointIndex + SimOffset;
-					InterpolationData.PointsSimCurvesVertexWeights[PointGlobalIndex][KIndex] = Weight;
-				#endif
+					if (Settings.WeightMethod == EHairInterpolationWeightMethod::VertexIndex)
+					{
+						const uint32 SimCurveIndex = ClosestGuides.Indices[KIndex];
+						const uint32 SimOffset = SimStrandsData.StrandsCurves.CurvesOffset[SimCurveIndex];
+						const uint32 SimPointCount = SimStrandsData.StrandsCurves.CurvesCount[SimCurveIndex];
+						const uint32 SimPointIndex = FMath::Clamp(RenPointIndex, 0u, SimPointCount - 1);
+						const FVector& SimPointPosition = SimStrandsData.StrandsPoints.PointsPosition[SimPointIndex + SimOffset];
+						const float Weight = 1.0f / FMath::Max(MinWeightDistance, FVector::Distance(RenPointPosition, SimPointPosition));
 
-					TotalWeight += Weight;
+						InterpolationData.PointsSimCurvesIndex[PointGlobalIndex][KIndex] = SimCurveIndex;
+						InterpolationData.PointsSimCurvesVertexIndex[PointGlobalIndex][KIndex] = SimPointIndex + SimOffset;
+						InterpolationData.PointsSimCurvesVertexLerp[PointGlobalIndex][KIndex] = 1;
+						InterpolationData.PointsSimCurvesVertexWeights[PointGlobalIndex][KIndex] = Weight;
+					}
+
+					TotalWeight += InterpolationData.PointsSimCurvesVertexWeights[PointGlobalIndex][KIndex];
 				}
 
 				for (int32 KIndex = 0; KIndex < FClosestGuides::Count; ++KIndex)
@@ -967,6 +1020,7 @@ namespace HairInterpolationBuilder
 		{
 			const FIntVector& Indices = HairInterpolation.PointsSimCurvesVertexIndex[PointIndex];
 			const FVector& Weights = HairInterpolation.PointsSimCurvesVertexWeights[PointIndex];
+			const FVector& S = HairInterpolation.PointsSimCurvesVertexLerp[PointIndex];
 
 			FHairStrandsInterpolation0Format::Type& OutInterp0 = OutPointsInterpolation0[PointIndex];
 			OutInterp0.Index0 = LowerPart(Indices[0]);
@@ -979,7 +1033,11 @@ namespace HairInterpolationBuilder
 			OutInterp1.VertexIndex0 = UpperPart(Indices[0]);
 			OutInterp1.VertexIndex1 = UpperPart(Indices[1]);
 			OutInterp1.VertexIndex2 = UpperPart(Indices[2]);
-			OutInterp1.Pad0 = 0;
+			OutInterp1.VertexLerp0  = S[0] * 255.f;
+			OutInterp1.VertexLerp1  = S[1] * 255.f;
+			OutInterp1.VertexLerp2  = S[2] * 255.f;
+			OutInterp1.Pad0			= 0;
+			OutInterp1.Pad1			= 0;
 		}	
 	}
 }
@@ -1186,14 +1244,14 @@ bool FGroomBuilder::BuildGroom(const FHairDescription& HairDescription, const FG
 		GroomAsset->HairGroupsData.Add(MoveTemp(GroupData));
 	}
 
-	BuildData(GroomAsset, uint8(BuildSettings.InterpolationQuality));
+	BuildData(GroomAsset, uint8(BuildSettings.InterpolationQuality), uint8(BuildSettings.InterpolationDistance), BuildSettings.bRandomizeGuide, BuildSettings.bUseUniqueGuide);
 
 	GroomAsset->InitResource();
 
 	return true;
 }
 
-void FGroomBuilder::BuildData(UGroomAsset* GroomAsset, uint8 QualityLevel)
+void FGroomBuilder::BuildData(UGroomAsset* GroomAsset, uint8 QualityLevel, uint8 WeightMethod, bool bRandomize, bool bUnique)
 {
 	if (!GroomAsset)
 	{
@@ -1227,14 +1285,22 @@ void FGroomBuilder::BuildData(UGroomAsset* GroomAsset, uint8 QualityLevel)
 		FHairStrandsInterpolationDatas& HairInterpolationData = GroupData.HairInterpolationData;
 
 		// Build InterpolationData from render and simulation HairStrandsDatas
-		HairInterpolationBuilder::EHairInterpolationDataQuality InterpolationQuality = HairInterpolationBuilder::EHairInterpolationDataQuality::High;
+		HairInterpolationBuilder::FHairInterpolationSettings Settings;
+		Settings.bRandomizedGuides = bRandomize;
+		Settings.bUseUniqueGuide = bUnique;
+		switch (WeightMethod)
+		{
+			case 0: Settings.WeightMethod = HairInterpolationBuilder::EHairInterpolationWeightMethod::ParametricDistance; break;
+			case 1: Settings.WeightMethod = HairInterpolationBuilder::EHairInterpolationWeightMethod::RootDistance; break;
+			case 2: Settings.WeightMethod = HairInterpolationBuilder::EHairInterpolationWeightMethod::VertexIndex; break;
+		}
 		switch (QualityLevel)
 		{
-			case 0: InterpolationQuality = HairInterpolationBuilder::EHairInterpolationDataQuality::Low; break;
-			case 1: InterpolationQuality = HairInterpolationBuilder::EHairInterpolationDataQuality::Medium; break;
-			case 2: InterpolationQuality = HairInterpolationBuilder::EHairInterpolationDataQuality::High; break;
+			case 0: Settings.Quality = HairInterpolationBuilder::EHairInterpolationDataQuality::Low; break;
+			case 1: Settings.Quality = HairInterpolationBuilder::EHairInterpolationDataQuality::Medium; break;
+			case 2: Settings.Quality = HairInterpolationBuilder::EHairInterpolationDataQuality::High; break;
 		}
-		HairInterpolationBuilder::BuildInterpolationData(HairInterpolationData, HairSimulationData, HairRenderData, InterpolationQuality);
+		HairInterpolationBuilder::BuildInterpolationData(HairInterpolationData, HairSimulationData, HairRenderData, Settings);
 
 		// Build Rendering data for InterpolationData
 		HairInterpolationBuilder::BuildRenderData(HairInterpolationData);

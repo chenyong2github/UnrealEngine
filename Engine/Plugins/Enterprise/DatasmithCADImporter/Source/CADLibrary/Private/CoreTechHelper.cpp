@@ -46,7 +46,7 @@ struct FVertexData
 		VertexID = FVertexID::Invalid;
 	}
 };
-	
+
 struct FCompareVertexZ
 {
 	FORCEINLINE bool operator()(FVertexData const& A, FVertexData const& B) const { return A.Z < B.Z; }
@@ -335,7 +335,7 @@ bool FillMesh(const FMeshParameters& MeshParameters, const FImportParameters& Im
 				}
 			}
 
-			if (!Tessellation.TexCoordArray.Num()) 
+			if (Tessellation.TexCoordArray.Num())
 			{
 				for (int32 IndexFace = 0; IndexFace < CTFaceIndex.Num(); IndexFace += 3)
 				{
@@ -402,7 +402,7 @@ bool ConvertCTBodySetToMeshDescription(const FImportParameters& ImportParams, co
 	TMap<uint32, uint32> MaterialIdToMaterialHash;
 
 	int32 BodyRawSize = 0;
-	uint32 TriangleCount = GetBodiesTessellations(BodySet, (TArray<FTessellationData>&) FaceTessellationSet, MaterialIdToMaterialHash, BodyRawSize, ImportParams.ScaleFactor);
+	uint32 TriangleCount = GetBodiesTessellations(BodySet, (TArray<FTessellationData>&) FaceTessellationSet, MaterialIdToMaterialHash, BodyRawSize, ImportParams);
 
 	return ConvertCTBodySetToMeshDescription(ImportParams, MeshParameters, TriangleCount, FaceTessellationSet, MaterialIdToMaterialHash, MeshDescription);
 }
@@ -471,13 +471,13 @@ void ScaleUV(CT_OBJECT_ID FaceID, FTessellationData& Tessellation, UVType Scale)
 	PuMin = PvMin = HUGE_VALF;
 	PuMax = PvMax = -HUGE_VALF;
 
-	// fast UV min max 
+	// fast UV min max
 	CT_FACE_IO::AskUVminmax(FaceID, PuMin, PuMax, PvMin, PvMax);
 
 	const uint32 NbIsoCurves = 7;
 
 	// Compute Point grid on the restricted surface defined by [PuMin, PuMax], [PvMin, PvMax]
-	CT_OBJECT_ID SurfaceID; 
+	CT_OBJECT_ID SurfaceID;
 	CT_ORIENTATION Orientation;
 	CT_FACE_IO::AskSurface(FaceID, SurfaceID, Orientation);
 
@@ -612,7 +612,7 @@ void SetFaceMainMaterial(FObjectDisplayDataId& InFaceMaterial, FObjectDisplayDat
 		{
 			MaterialHash = *MHash;
 		}
-		else 
+		else
 		{
 			MaterialHash = BuildMaterialHash(InBodyMaterial.MaterialId);
 		}
@@ -644,9 +644,10 @@ TSharedPtr<IDatasmithUEPbrMaterialElement> CreateDefaultUEPbrMaterial()
 
 	FLinearColor LinearColor = FLinearColor::FromPow22Color(FColor(200, 200, 200, 255));
 	IDatasmithMaterialExpressionColor* ColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
-	ColorExpression->SetName(TEXT("Diffuse Color"));
+	ColorExpression->SetName(TEXT("Base Color"));
 	ColorExpression->GetColor() = LinearColor;
 	MaterialElement->GetBaseColor().SetExpression(ColorExpression);
+	MaterialElement->SetParentLabel(TEXT("M_CAD_Material"));
 
 	return MaterialElement;
 }
@@ -663,7 +664,7 @@ TSharedPtr<IDatasmithUEPbrMaterialElement> CreateUEPbrMaterialFromColor(const FC
 	FLinearColor LinearColor = FLinearColor::FromPow22Color(InColor);
 
 	IDatasmithMaterialExpressionColor* ColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
-	ColorExpression->SetName(TEXT("Diffuse Color"));
+	ColorExpression->SetName(TEXT("Base Color"));
 	ColorExpression->GetColor() = LinearColor;
 
 	MaterialElement->GetBaseColor().SetExpression(ColorExpression);
@@ -677,11 +678,11 @@ TSharedPtr<IDatasmithUEPbrMaterialElement> CreateUEPbrMaterialFromColor(const FC
 		Scalar->SetName(TEXT("Opacity Level"));
 
 		MaterialElement->GetOpacity().SetExpression(Scalar);
-		MaterialElement->SetParentLabel(TEXT("CAD Transparent Color"));
+		MaterialElement->SetParentLabel(TEXT("M_CAD_Transparent_Material"));
 	}
 	else
 	{
-		MaterialElement->SetParentLabel(TEXT("CAD Color"));
+		MaterialElement->SetParentLabel(TEXT("M_CAD_Material"));
 	}
 
 	return MaterialElement;
@@ -706,7 +707,7 @@ TSharedPtr<IDatasmithUEPbrMaterialElement> CreateUEPbrMaterialFromMaterial(FCADM
 		FLinearColor LinearColor = FLinearColor::FromPow22Color(InMaterial.Diffuse);
 
 		IDatasmithMaterialExpressionColor* ColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
-		ColorExpression->SetName(TEXT("Diffuse Color"));
+		ColorExpression->SetName(TEXT("Base Color"));
 		ColorExpression->GetColor() = LinearColor;
 
 		MaterialElement->GetBaseColor().SetExpression(ColorExpression);
@@ -719,40 +720,11 @@ TSharedPtr<IDatasmithUEPbrMaterialElement> CreateUEPbrMaterialFromMaterial(FCADM
 		Scalar->GetScalar() = InMaterial.Transparency;
 		Scalar->SetName(TEXT("Opacity Level"));
 		MaterialElement->GetOpacity().SetExpression(Scalar);
-		MaterialElement->SetParentLabel(TEXT("CAD Transparent Material"));
+		MaterialElement->SetParentLabel(TEXT("M_CAD_Transparent_Material"));
 	}
-	else 
+	else
 	{
-		MaterialElement->SetParentLabel(TEXT("CAD Material"));
-	}
-
-	// Set a Emissive color 
-	if (MaterialElement->GetSpecular().GetExpression() == nullptr)
-	{
-		FLinearColor LinearColor = FLinearColor::FromPow22Color(InMaterial.Specular);
-
-		IDatasmithMaterialExpressionColor* ColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
-		ColorExpression->SetName(TEXT("Specular Color"));
-		ColorExpression->GetColor() = LinearColor;
-
-		MaterialElement->GetSpecular().SetExpression(ColorExpression);
-	}
-
-	// Simple conversion of shininess and reflectivity to PBR roughness and metallic values; model could be improved to properly blend the values
-	if (!FMath::IsNearlyZero(InMaterial.Shininess))
-	{
-		IDatasmithMaterialExpressionScalar* RoughnessScalar = static_cast<IDatasmithMaterialExpressionScalar*>(MaterialElement->AddMaterialExpression(EDatasmithMaterialExpressionType::ConstantScalar));
-		RoughnessScalar->GetScalar() = 1.f - InMaterial.Shininess;
-		RoughnessScalar->SetName(TEXT("Roughness Level"));
-		MaterialElement->GetRoughness().SetExpression(RoughnessScalar);
-	}
-
-	if (!FMath::IsNearlyZero(InMaterial.Reflexion))
-	{
-		IDatasmithMaterialExpressionScalar* Scalar = static_cast<IDatasmithMaterialExpressionScalar*>(MaterialElement->AddMaterialExpression(EDatasmithMaterialExpressionType::ConstantScalar));
-		Scalar->GetScalar() = InMaterial.Reflexion;
-		Scalar->SetName(TEXT("Reflexion Level"));
-		MaterialElement->GetMetallic().SetExpression(Scalar);
+		MaterialElement->SetParentLabel(TEXT("M_CAD_Material"));
 	}
 
 	return MaterialElement;
@@ -788,6 +760,37 @@ uint32 GetSize(CT_TESS_DATA_TYPE type)
 	return 0;
 }
 
+// Adapt the parameters to try and make sure a valid tessellation can be generated for the object
+FImportParameters GetAdjustedTessellationParameters(CT_OBJECT_ID MainObjectId, const FImportParameters& ImportParams)
+{
+	FImportParameters Result = ImportParams;
+
+	CT_COORDINATE Min;
+	CT_COORDINATE Max;
+	if (CT_OBJECT_IO::ComputeMinmax(MainObjectId, Min, Max) == CT_IO_ERROR::IO_OK)
+	{
+		double BBSizeMm = (FMath::Abs(Max.xyz[0] - Min.xyz[0]) +
+					       FMath::Abs(Max.xyz[1] - Min.xyz[1]) +
+					       FMath::Abs(Max.xyz[2] - Min.xyz[2])) / 3.0;
+
+		// Heuristic to force smaller tessellation options if the bounding box of the object is small
+		if (BBSizeMm > 0.0 && BBSizeMm < 5.0)
+		{
+			const double ClampedMaxEdgeLength = BBSizeMm / 5.0;
+
+			// Mirror some of the conversions that will happen in SetCoreTechTessellationState
+			if (Result.MaxEdgeLength < SMALL_NUMBER)
+			{
+				Result.MaxEdgeLength = DBL_MAX;
+			}
+			Result.MaxEdgeLength = (Result.MaxEdgeLength / Result.ScaleFactor < ClampedMaxEdgeLength) ?
+									Result.MaxEdgeLength : ClampedMaxEdgeLength * Result.ScaleFactor;
+		}
+	}
+
+	return Result;
+}
+
 CT_IO_ERROR Tessellate(CT_OBJECT_ID MainObjectId, const FImportParameters& ImportParams, FMeshDescription& MeshDesc, FMeshParameters& MeshParameters)
 {
 	CheckedCTError Result;
@@ -797,7 +800,9 @@ CT_IO_ERROR Tessellate(CT_OBJECT_ID MainObjectId, const FImportParameters& Impor
 	if (!Result)
 		return Result;
 
-	SetCoreTechTessellationState(ImportParams);
+	FImportParameters FixedParams = GetAdjustedTessellationParameters(MainObjectId, ImportParams);
+
+	SetCoreTechTessellationState(FixedParams);
 
 	TArray<FTessellationData> FaceTessellations;
 	TArray<uint32> FaceColors;

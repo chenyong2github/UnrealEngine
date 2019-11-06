@@ -60,7 +60,7 @@ namespace UnrealBuildTool.Rules
 			}
 
 			// Itoo ForestPack/RailClone API
-			string ItooInterfaceLocation = Path.Combine(ModuleDirectory, "NotForLicensees", "ThirdParty", "Itoo");
+			string ItooInterfaceLocation = Path.Combine(ModuleDirectory, "ThirdParty", "Itoo");
 			bool bWithItooInterface = Directory.Exists(ItooInterfaceLocation);
 			PublicDefinitions.Add("WITH_ITOO_INTERFACE=" + (bWithItooInterface ? "1" : "0"));
 			if (bWithItooInterface)

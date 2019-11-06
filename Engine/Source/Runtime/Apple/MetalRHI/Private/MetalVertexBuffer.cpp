@@ -654,6 +654,7 @@ struct FMetalRHICommandInitialiseBuffer : public FRHICommand<FMetalRHICommandIni
 			if (Buffer->CPUBuffer)
 			{
 				SafeReleaseMetalBuffer(Buffer->CPUBuffer);
+				Buffer->CPUBuffer = nil;
 			}
 			else
 			{
@@ -797,6 +798,7 @@ FMetalStagingBuffer::~FMetalStagingBuffer()
 	if (ShadowBuffer)
 	{
 		SafeReleaseMetalBuffer(ShadowBuffer);
+		ShadowBuffer = nil;
 	}
 }
 

@@ -154,7 +154,7 @@ bool FOnlineIdentityFacebook::Login(int32 LocalUserNum, const FOnlineAccountCred
 					[Permissions addObject: ScopeStr];
 				}
 
-				[loginManager logInWithReadPermissions:Permissions
+				[loginManager logInWithPermissions:Permissions
 					fromViewController:nil
 					handler: ^(FBSDKLoginManagerLoginResult* result, NSError* error)
 					{

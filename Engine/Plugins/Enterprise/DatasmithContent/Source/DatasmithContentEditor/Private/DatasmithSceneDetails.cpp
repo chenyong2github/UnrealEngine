@@ -203,7 +203,7 @@ FReply FDatasmithSceneDetails::OnSelectFile()
 	if ( bOpened && OpenedFiles.Num() > 0 )
 	{
 		FString& OpenedFile = OpenedFiles[0];
-		FEditorDirectories::Get().SetLastDirectory( ELastDirectory::GENERIC_IMPORT, OpenedFile );
+		FEditorDirectories::Get().SetLastDirectory( ELastDirectory::GENERIC_IMPORT, FPaths::GetPath(OpenedFile) );
 
 		FString Extension = FPaths::GetExtension( OpenedFile );
 

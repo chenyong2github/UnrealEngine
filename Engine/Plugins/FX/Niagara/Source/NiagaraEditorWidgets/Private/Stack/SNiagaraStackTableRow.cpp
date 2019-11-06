@@ -47,7 +47,9 @@ void SNiagaraStackTableRow::Construct(const FArguments& InArgs, UNiagaraStackVie
 
 	ConstructInternal(
 		STableRow<UNiagaraStackEntry*>::FArguments()
+			.Style(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.TableViewRow")
 			.OnDragDetected(InArgs._OnDragDetected)
+			.OnDragLeave(InArgs._OnDragLeave)
 			.OnCanAcceptDrop(InArgs._OnCanAcceptDrop)
 			.OnAcceptDrop(InArgs._OnAcceptDrop)
 		, OwnerTree.ToSharedRef());

@@ -575,6 +575,7 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER(FMatrix, SVPositionToTranslatedWorld) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FMatrix, ScreenToWorld) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FMatrix, ScreenToTranslatedWorld) \
+	VIEW_UNIFORM_BUFFER_MEMBER(FMatrix, MobileMultiviewShadowTransform) \
 	VIEW_UNIFORM_BUFFER_MEMBER_EX(FVector, ViewForward, EShaderPrecisionModifier::Half) \
 	VIEW_UNIFORM_BUFFER_MEMBER_EX(FVector, ViewUp, EShaderPrecisionModifier::Half) \
 	VIEW_UNIFORM_BUFFER_MEMBER_EX(FVector, ViewRight, EShaderPrecisionModifier::Half) \
@@ -1229,7 +1230,7 @@ public:
 	EShaderPlatform GetShaderPlatform() const;
 
 	/** True if the view should render as an instanced stereo pass */
-	bool IsInstancedStereoPass() const { return bIsInstancedStereoEnabled && StereoPass == eSSP_LEFT_EYE; }
+	bool IsInstancedStereoPass() const;
 
 	/** Sets up the view rect parameters in the view's uniform shader parameters */
 	void SetupViewRectUniformBufferParameters(FViewUniformShaderParameters& ViewUniformShaderParameters, 
@@ -1391,6 +1392,7 @@ public:
 		,	DeltaWorldTime(0.0f)
 		,	CurrentRealTime(0.0f)
 		,	GammaCorrection(1.0f)
+		,	bAdditionalViewFamily(false)
 		,	bRealtimeUpdate(false)
 		,	bDeferClear(false)
 		,	bResolveScene(true)			
@@ -1435,6 +1437,9 @@ public:
 		/** Gamma correction used when rendering this family. Default is 1.0 */
 		float GammaCorrection;
 
+		/** Indicates whether the view family is additional. */
+		uint32 bAdditionalViewFamily : 1;
+
 		/** Indicates whether the view family is updated in real-time. */
 		uint32 bRealtimeUpdate:1;
 		
@@ -1449,7 +1454,10 @@ public:
 
 		/** Set the world time ,difference between the last world time and CurrentWorldTime and current real time. */
 		ConstructionValues& SetWorldTimes(const float InCurrentWorldTime,const float InDeltaWorldTime,const float InCurrentRealTime) { CurrentWorldTime = InCurrentWorldTime; DeltaWorldTime = InDeltaWorldTime; CurrentRealTime = InCurrentRealTime;bTimesSet = true;return *this; }
-		
+
+		/** Set  whether the view family is additional. */
+		ConstructionValues& SetAdditionalViewFamily(const bool Value) { bAdditionalViewFamily = Value; return *this; }
+
 		/** Set  whether the view family is updated in real-time. */
 		ConstructionValues& SetRealtimeUpdate(const bool Value) { bRealtimeUpdate = Value; return *this; }
 		
@@ -1492,6 +1500,9 @@ public:
 
 	/** Copy from main thread GFrameNumber to be accessible on render thread side. UINT_MAX before CreateSceneRenderer() or BeginRenderingViewFamily() was called */
 	uint32 FrameNumber;
+
+	/** Indicates this view family is an additional one. */
+	bool bAdditionalViewFamily;
 
 	/** Indicates whether the view family is updated in realtime. */
 	bool bRealtimeUpdate;

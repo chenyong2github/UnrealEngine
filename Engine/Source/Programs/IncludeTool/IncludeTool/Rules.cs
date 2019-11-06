@@ -389,8 +389,6 @@ namespace IncludeTool
 		/// </summary>
 		static readonly HashSet<string> AllowMultipleFragmentFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 		{
-			"/Engine/Source/Runtime/CoreUObject/Public/UObject/UObjectBaseUtility.h",
-			"/Engine/Source/Runtime/CoreUObject/Public/UObject/Class.h",
 			"/Engine/Source/Runtime/Sockets/Private/BSDSockets/SocketSubsystemBSD.h",
 			"/Engine/Source/Runtime/Sockets/Private/BSDSockets/SocketsBSD.h",
 			"/Engine/Plugins/Runtime/PacketHandlers/CompressionComponents/Oodle/Source/OodleHandlerComponent/Public/OodleHandlerComponent.h",

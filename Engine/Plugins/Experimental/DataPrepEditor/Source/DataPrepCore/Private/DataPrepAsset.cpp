@@ -119,6 +119,26 @@ void UDataprepAsset::PostLoad()
 	}
 }
 
+bool UDataprepAsset::Rename(const TCHAR* NewName/* =nullptr */, UObject* NewOuter/* =nullptr */, ERenameFlags Flags/* =REN_None */)
+{
+	bool bWasRename = Super::Rename( NewName, NewOuter, Flags );
+	if ( bWasRename )
+	{
+		if ( Parameterization )
+		{
+			bWasRename &= Parameterization->OnAssetRename( Flags );
+		}
+
+		if ( DataprepRecipeBP && bWasRename )
+		{
+			// There shouldn't be a blueprint depending on us. Should be ok to just rename the generated class
+			bWasRename &= DataprepRecipeBP->RenameGeneratedClasses( NewName, NewOuter, Flags );
+		}
+	}
+
+	return bWasRename;
+}
+
 bool UDataprepAsset::CreateBlueprint()
 {
 	// Begin: Temp code for the nodes development

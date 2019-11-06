@@ -38,6 +38,7 @@ public:
 
 	// UObject interface
 	virtual void PostLoad() override;
+	virtual bool Rename(const TCHAR* NewName/* =nullptr */, UObject* NewOuter/* =nullptr */, ERenameFlags Flags/* =REN_None */) override;
 	// End of UObject interface
 
 	// UDataprepAssetInterface interface

@@ -35,6 +35,9 @@
 
 #include "Render\Device\IDisplayClusterRenderDevice.h"
 
+#include "DisplayClusterEnums.h"
+#include "DisplayClusterGlobals.h"
+
 
 //DECLARE_CYCLE_STAT(TEXT("UI Drawing Time"), STAT_UIDrawingTime, STATGROUP_UI);
 
@@ -145,7 +148,7 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 		if (GEngine->StereoRenderingDevice.IsValid())
 		{
 			NumFamilies = GEngine->StereoRenderingDevice->GetDesiredNumberOfViews(bStereoRendering);
-			nDisplay = true;
+			nDisplay = (GDisplayCluster->GetOperationMode() == EDisplayClusterOperationMode::Cluster);
 		}
 	}
 
@@ -170,7 +173,8 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 			InViewport,
 			MyWorld->Scene,
 			EngineShowFlags)
-			.SetRealtimeUpdate(true));
+			.SetRealtimeUpdate(true)
+			.SetAdditionalViewFamily(viewFamily > 0));
 
 #if WITH_EDITOR
 		if (GIsEditor)

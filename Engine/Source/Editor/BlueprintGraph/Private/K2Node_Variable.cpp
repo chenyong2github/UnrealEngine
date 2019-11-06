@@ -54,10 +54,10 @@ void UK2Node_Variable::Serialize(FArchive& Ar)
 	}
 }
 
-void UK2Node_Variable::SetFromProperty(const UProperty* Property, bool bSelfContext)
+void UK2Node_Variable::SetFromProperty(const UProperty* Property, bool bSelfContext, UClass* OwnerClass)
 {
 	SelfContextInfo = bSelfContext ? ESelfContextInfo::Unspecified : ESelfContextInfo::NotSelfContext;
-	VariableReference.SetFromField<UProperty>(Property, bSelfContext);
+	VariableReference.SetFromField<UProperty>(Property, bSelfContext, OwnerClass);
 }
 
 bool UK2Node_Variable::CreatePinForVariable(EEdGraphPinDirection Direction, FName InPinName/* = NAME_None */)
@@ -111,7 +111,7 @@ void UK2Node_Variable::CreatePinForSelf()
 	if (!K2Schema->FindSelfPin(*this, EGPD_Input))
 	{
 		// Do not create a self pin for locally scoped variables or sparse class data
-		if (!VariableReference.IsLocalScope() && !VariableReference.IsSparseClassData(GetBlueprintClassFromNode()))
+		if (!VariableReference.IsLocalScope())
 		{
 			bool bSelfTarget = VariableReference.IsSelfContext() && (ESelfContextInfo::NotSelfContext != SelfContextInfo);
 			UClass* MemberParentClass = VariableReference.GetMemberParentClass(GetBlueprintClassFromNode());
@@ -121,10 +121,10 @@ void UK2Node_Variable::CreatePinForSelf()
 
 			if (VariableProperty)
 			{
-				UClass* PropertyClass = CastChecked<UClass>(VariableProperty->GetOuter());
+				UClass* PropertyClass = Cast<UClass>(VariableProperty->GetOuter());
 
 				// Fix up target class if it's not correct, this fixes cases where variables have moved within the hierarchy
-				if (PropertyClass != TargetClass)
+				if (PropertyClass && PropertyClass != TargetClass)
 				{
 					TargetClass = PropertyClass;
 				}
@@ -134,9 +134,13 @@ void UK2Node_Variable::CreatePinForSelf()
 			// so if the node is from a Macro Blueprint, it will hook up as self in any placed Blueprint
 			if (bSelfTarget)
 			{
-				if(UProperty* Property = VariableReference.ResolveMember<UProperty>(GetBlueprintClassFromNode()))
+				if (UProperty* Property = VariableReference.ResolveMember<UProperty>(GetBlueprintClassFromNode()))
 				{
-					TargetClass = Property->GetOwnerClass()->GetAuthoritativeClass();
+					UClass* OwnerClass = Property->GetOwnerClass();
+					if (OwnerClass)
+					{
+						TargetClass = OwnerClass->GetAuthoritativeClass();
+					}
 				}
 				else if (GetBlueprint()->SkeletonGeneratedClass)
 				{
@@ -379,7 +383,9 @@ UProperty* UK2Node_Variable::GetPropertyForVariable_Internal(UClass* OwningClass
 
 	// Look in the sparse class data first
 	UProperty* VariableProperty = nullptr;
-	UScriptStruct* SparseClassDataStruct = OwningClass ? OwningClass->GetSparseClassDataStruct() : nullptr;
+	// TODO: move some of this into MemberReference::ResolveMember if possible
+	UClass* Scope = VariableReference.GetScope(OwningClass);
+	UScriptStruct* SparseClassDataStruct = Scope ? Scope->GetSparseClassDataStruct() : nullptr;
 	if (SparseClassDataStruct)
 	{
 		VariableProperty = FindField<UProperty>(SparseClassDataStruct, VarName);

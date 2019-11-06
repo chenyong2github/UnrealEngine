@@ -164,8 +164,8 @@ public:
 	DECLARE_DELEGATE_TwoParams(FProduceMockAbilityInput, const FNetworkSimTime /*SimTime*/, FMockAbilityInputCmd& /*Cmd*/)
 	FProduceMockAbilityInput ProduceInputDelegate;
 
-	TNetworkSimStateAccessor<FMockAbilitySyncState> MovementSyncState;
-	TNetworkSimStateAccessor<FMockAbilityAuxstate> MovementAuxState;
+	TNetSimStateAccessor<FMockAbilitySyncState> AbilitySyncState;
+	TNetSimStateAccessor<FMockAbilityAuxstate> AbilityAuxState;
 
 	// IMockFlyingAbilitySystemDriver
 	FString GetDebugName() const override;
@@ -186,9 +186,74 @@ public:
 	virtual void NotifyBlinkStartup() override;
 	virtual void NotifyBlinkFinished() override;
 
+	// -------------------------------------------------------------------------------------
+	//	Ability State and Notifications
+	//		-This allows user code/blueprints to respond to state changes.
+	//		-These values always reflect the latest simulation state
+	//		-StateChange events are just that: when the state changes. They are not emitted from the sim themselves.
+	//			-This means they "work" for interpolated simulations and are resilient to packet loss and crazy network conditions
+	//			-That said, its "latest" only. There is NO guarantee that you will receive every state transition
+	//
+	// -------------------------------------------------------------------------------------
+
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMockAbilityNotifyStateChange, bool, bNewStateValue);
+
+	// Notifies when Sprint state changes
+	UPROPERTY(BlueprintAssignable, Category="Mock AbilitySystem")
+	FMockAbilityNotifyStateChange OnSprintStateChange;
+
+	// Notifies when Dash state changes
+	UPROPERTY(BlueprintAssignable, Category="Mock AbilitySystem")
+	FMockAbilityNotifyStateChange OnDashStateChange;
+
+	// Notifies when Blink Changes
+	UPROPERTY(BlueprintAssignable, Category="Mock AbilitySystem")
+	FMockAbilityNotifyStateChange OnBlinkStateChange;
+
+	// Are we currently in the sprinting state
+	UFUNCTION(BlueprintCallable, Category="Mock AbilitySystem")
+	bool IsSprinting() const { return bIsSprinting; }
+
+	// Are we currently in the dashing state
+	UFUNCTION(BlueprintCallable, Category="Mock AbilitySystem")
+	bool IsDashing() const { return bIsDashing; }
+
+	// Are we currently in the blinking (startup) state
+	UFUNCTION(BlueprintCallable, Category="Mock AbilitySystem")
+	bool IsBlinking() const { return bIsBlinking; }
+
+private:
+	
+	// Local cached values for detecting state changes from the sim in ::FinalizeFrame
+	// Its tempting to think ::FinalizeFrame could pass in the previous frames values but this could
+	// not be reliable if buffer sizes are small and network conditions etc - you may not always know
+	// what was the "last finalized frame" or even have it in the buffers anymore.
+	bool bIsSprinting = false;
+	bool bIsDashing = false;
+	bool bIsBlinking = false;
+
 protected:
 
 	// Network Prediction
-	virtual INetworkSimulationModel* InstantiateNetworkSimulation() override;
-	TUniquePtr<FMockAbilitySimulation> MockAbilitySimulation;
+	virtual INetworkedSimulationModel* InstantiateNetworkedSimulation() override;
+	FMockAbilitySimulation* MockAbilitySimulation = nullptr;
+
+	template<typename TSimulation>
+	void InitMockAbilitySimulation(TSimulation* Simulation, FMockAbilitySyncState& InitialSyncState, FMockAbilityAuxstate& InitialAuxState)
+	{
+		check(MockAbilitySimulation == nullptr);
+		MockAbilitySimulation = Simulation;
+		MockAbilitySimulation->EventHandler = this;
+
+		InitFlyingMovementSimulation(Simulation, InitialSyncState, InitialAuxState);
+	}
+
+	template<typename TNetSimModel>
+	void InitMockAbilityNetSimModel(TNetSimModel* Model)
+	{
+		AbilitySyncState.Bind(Model);
+		MovementAuxState.Bind(Model);
+
+		InitFlyingMovementNetSimModel(Model);
+	}
 };

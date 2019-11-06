@@ -50,8 +50,12 @@ class NullLogger {
   }
 };
 
+#if !defined(__clang__)
+__pragma(warning(disable: 4100))
+#endif
 
 #define DISABLE_CHECKS 1
+#define INCLUDE_UNUSED_CODE 0
 
 #if DISABLE_CHECKS
 #define DCHECK(expr) 

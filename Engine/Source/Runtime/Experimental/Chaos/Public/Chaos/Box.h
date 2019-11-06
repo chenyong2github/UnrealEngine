@@ -11,17 +11,17 @@
 namespace Chaos
 {
 	template<class T, int d>
-	class TBox final : public TImplicitObject<T, d>
+	class TBox final : public FImplicitObject
 	{
 	public:
-		using TImplicitObject<T, d>::SignedDistance;
-		using TImplicitObject<T, d>::GetTypeName;
+		using FImplicitObject::SignedDistance;
+		using FImplicitObject::GetTypeName;
 
 		// This should never be used outside of creating a default for arrays
 		FORCEINLINE TBox()
-		    : TImplicitObject<T, d>(EImplicitObject::FiniteConvex, ImplicitObjectType::Box){};
+		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::Box){};
 		FORCEINLINE TBox(const TVector<T, d>& Min, const TVector<T, d>& Max)
-		    : TImplicitObject<T, d>(EImplicitObject::FiniteConvex, ImplicitObjectType::Box)
+		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::Box)
 			, AABB(Min, Max)
 		{
 			//todo: turn back on
@@ -32,19 +32,19 @@ namespace Chaos
 		}
 
 		FORCEINLINE TBox(const TBox<T, d>& Other)
-		    : TImplicitObject<T, d>(EImplicitObject::FiniteConvex, ImplicitObjectType::Box)
+		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::Box)
 			, AABB(Other.AABB)
 		{
 		}
 
 		FORCEINLINE TBox(const TAABB<T, d>& AABB)
-		    : TImplicitObject<T, d>(EImplicitObject::FiniteConvex, ImplicitObjectType::Box)
+		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::Box)
 			, AABB(AABB)
 		{
 		}
 
 		FORCEINLINE TBox(TBox<T, d>&& Other)
-		    : TImplicitObject<T, d>(EImplicitObject::FiniteConvex, ImplicitObjectType::Box)
+		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::Box)
 		    , AABB(MoveTemp(Other.AABB))
 		{
 		}
@@ -73,9 +73,9 @@ namespace Chaos
 
 		virtual ~TBox() {}
 
-		virtual TUniquePtr<TImplicitObject<T, d>> Copy() const override
+		virtual TUniquePtr<FImplicitObject> Copy() const override
 		{
-			return TUniquePtr<TImplicitObject<T, d>>(new TBox<T,d>(*this));
+			return TUniquePtr<FImplicitObject>(new TBox<T,d>(*this));
 		}
 
 		/**
@@ -120,7 +120,7 @@ namespace Chaos
 			return AABB.Contains(Point, Tolerance);
 		}
 
-		FORCEINLINE static EImplicitObjectType StaticType() { return ImplicitObjectType::Box; }
+		FORCEINLINE static constexpr EImplicitObjectType StaticType() { return ImplicitObjectType::Box; }
 
 		const TBox<T, d>& BoundingBox() const { return *this; }
 
@@ -156,9 +156,16 @@ namespace Chaos
 			return AABB.FindGeometryOpposingNormal(DenormDir, FaceIndex, OriginalNormal);
 		}
 
-		virtual TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const override
+		FORCEINLINE T GetMargin() const { return 0; }
+
+		FORCEINLINE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const
 		{
 			return AABB.Support(Direction, Thickness);
+		}
+
+		FORCEINLINE TVector<T, d> Support2(const TVector<T, d>& Direction) const
+		{
+			return AABB.Support2(Direction);
 		}
 
 		FORCEINLINE void GrowToInclude(const TVector<T, d>& V)
@@ -230,7 +237,7 @@ namespace Chaos
 
 		FORCEINLINE void SerializeImp(FArchive& Ar)
 		{
-			TImplicitObject<T, d>::SerializeImp(Ar);
+			FImplicitObject::SerializeImp(Ar);
 			AABB.Serialize(Ar);
 		}
 
@@ -249,6 +256,8 @@ namespace Chaos
 		{
 			return AABB.GetTypeHash();
 		}
+
+		const TAABB<T, d>& GetAABB() const { return AABB; }
 
 	private:
 		TAABB<T, d> AABB;

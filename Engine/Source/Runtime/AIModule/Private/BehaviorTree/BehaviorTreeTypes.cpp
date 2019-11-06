@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "BehaviorTree/BehaviorTreeTypes.h"
+#include "BehaviorTree/BehaviorTree.h"
 #include "GameFramework/Actor.h"
 #include "BehaviorTree/BTDecorator.h"
 #include "BehaviorTree/BTService.h"
@@ -463,7 +464,7 @@ FString UBehaviorTreeTypes::DescribeNodeUpdateMode(EBTNodeUpdateMode::Type Updat
 
 FString UBehaviorTreeTypes::DescribeNodeHelper(const UBTNode* Node)
 {
-	return Node ? FString::Printf(TEXT("%s[%d]"), *Node->GetNodeName(), Node->GetExecutionIndex()) : FString();
+	return Node ? FString::Printf(TEXT("%s::%s[%d]"), *GetNameSafe(Node->GetTreeAsset()), *Node->GetNodeName(), Node->GetExecutionIndex()) : FString();
 }
 
 FString UBehaviorTreeTypes::GetShortTypeName(const UObject* Ob)

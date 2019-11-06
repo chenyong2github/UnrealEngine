@@ -23,6 +23,7 @@
 #include "SGraphPin.h"
 #include "KismetPins/SGraphPinVector4.h"
 #include "KismetPins/SGraphPinNum.h"
+#include "KismetPins/SGraphPinExec.h"
 #include "KismetPins/SGraphPinInteger.h"
 #include "KismetPins/SGraphPinVector.h"
 #include "KismetPins/SGraphPinVector2D.h"
@@ -70,6 +71,7 @@
 #include "NiagaraTypes.h"
 #include "NiagaraSystemFactoryNew.h"
 #include "NiagaraSystemEditorData.h"
+#include "NiagaraEditorCommands.h"
 
 #include "MovieScene/Parameters/MovieSceneNiagaraBoolParameterTrack.h"
 #include "MovieScene/Parameters/MovieSceneNiagaraFloatParameterTrack.h"
@@ -113,6 +115,14 @@ const FName FNiagaraEditorModule::NiagaraEditorAppIdentifier( TEXT( "NiagaraEdit
 const FLinearColor FNiagaraEditorModule::WorldCentricTabColorScale(0.0f, 0.0f, 0.2f, 0.5f);
 
 EAssetTypeCategories::Type FNiagaraEditorModule::NiagaraAssetCategory;
+
+int32 GbShowFastPathOptions = 0;
+static FAutoConsoleVariableRef CVarShowFastPathOptions(
+	TEXT("fx.Niagara.ShowFastPathOptions"),
+	GbShowFastPathOptions,
+	TEXT("If > 0 the experimental fast path options will be shown in the system and emitter properties in the niagara system editor.\n"),
+	ECVF_Default
+);
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -682,6 +692,10 @@ void FNiagaraEditorModule::StartupModule()
 	GraphPanelPinFactory->RegisterMiscSubCategoryPin(UNiagaraNodeWithDynamicPins::AddPinSubCategory, FNiagaraScriptGraphPanelPinFactory::FCreateGraphPin::CreateLambda(
 		[](UEdGraphPin* GraphPin) -> TSharedRef<SGraphPin> { return SNew(SNiagaraGraphPinAdd, GraphPin); }));
 
+	GraphPanelPinFactory->RegisterTypePin(FNiagaraTypeDefinition::GetParameterMapStruct(), FNiagaraScriptGraphPanelPinFactory::FCreateGraphPin::CreateLambda(
+		[](UEdGraphPin* GraphPin) -> TSharedRef<SGraphPin> { return SNew(SGraphPinExec, GraphPin); }));
+
+
 	EnumTypeUtilities = MakeShareable(new FNiagaraEditorEnumTypeUtilities());
 	RegisterTypeUtilities(FNiagaraTypeDefinition::GetFloatDef(), MakeShareable(new FNiagaraEditorFloatTypeUtilities()));
 	RegisterTypeUtilities(FNiagaraTypeDefinition::GetIntDef(), MakeShareable(new FNiagaraEditorIntegerTypeUtilities()));
@@ -1033,6 +1047,11 @@ const FNiagaraEditorCommands& FNiagaraEditorModule::Commands()
 TSharedPtr<FNiagaraSystemViewModel> FNiagaraEditorModule::GetExistingViewModelForSystem(UNiagaraSystem* InSystem)
 {
 	return FNiagaraSystemViewModel::GetExistingViewModelForObject(InSystem);
+}
+
+const FNiagaraEditorCommands& FNiagaraEditorModule::GetCommands() const
+{
+	return FNiagaraEditorCommands::Get();
 }
 
 void FNiagaraEditorModule::RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)

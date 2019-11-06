@@ -1,28 +1,34 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
-#include "Chaos/Vector.h"
 #include "Box.h"
 #include "Chaos/ParticleHandleFwd.h"
+#include "Chaos/PBDConstraintContainer.h"
+#include "Chaos/Vector.h"
 
 class UPhysicalMaterial;
 
 namespace Chaos
 {
+
+	template<typename T, int d>
+	class TPBDCollisionConstraint;
+
 /**/
 // @todo(ccaulfield): should these be held SOA style in the PBDCollisionConstraint?
 template<class T, int d>
 struct TRigidBodyContactConstraint
 {
-	TRigidBodyContactConstraint() : AccumulatedImpulse(0.f), bDisabled(false), Lifespan(0) {}
+	TRigidBodyContactConstraint() : bDisabled(false), Normal(0), AccumulatedImpulse(0.f) {}
 	TGeometryParticleHandle<T, d>* Particle;
 	TGeometryParticleHandle<T, d>* Levelset;
-	TVector<T, d> Normal;
-	TVector<T, d> Location;
-	T Phi;
-	TVector<T, d> AccumulatedImpulse;
+	const FImplicitObject* Geometry[2];
 
 	bool bDisabled;
-	int32 Lifespan;
+	TVector<T, d> Normal;
+	TVector<T, d> Location;
+	TVector<T, d> LocalLocation;
+	T Phi;
+	TVector<T, d> AccumulatedImpulse;
 
 	FString ToString() const
 	{
@@ -41,6 +47,45 @@ struct TRigidBodyContactConstraintPGS
 	TArray<T> Phi;
 	TVector<T, d> AccumulatedImpulse;
 };
+
+
+template<class T, int d>
+class CHAOS_API TPBDCollisionConstraintHandle : public TContainerConstraintHandle<TPBDCollisionConstraint<T, d>>
+{
+public:
+	using Base = TContainerConstraintHandle<TPBDCollisionConstraint<T, d>>;
+	using FConstraintContainer = TPBDCollisionConstraint<T, d>;
+
+	TPBDCollisionConstraintHandle() 
+	{}
+	
+	TPBDCollisionConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) 
+		: TContainerConstraintHandle<TPBDCollisionConstraint<T, d>>(InConstraintContainer, InConstraintIndex)
+	{
+	}
+
+	TRigidBodyContactConstraint<T, d>& GetContact()
+	{
+		return ConstraintContainer->Constraints[ConstraintIndex];
+	}
+
+	const TRigidBodyContactConstraint<T, d>& GetContact() const
+	{
+		return ConstraintContainer->Constraints[ConstraintIndex];
+	}
+
+	void SetConstraintIndex(int32 IndexIn) 
+	{ 
+		ConstraintIndex = IndexIn; 
+	}
+
+protected:
+	using Base::ConstraintIndex;
+	using Base::ConstraintContainer;
+
+
+};
+
 
 /**
  * Collision event data stored for use by other systems (e.g. Niagara, gameplay events)

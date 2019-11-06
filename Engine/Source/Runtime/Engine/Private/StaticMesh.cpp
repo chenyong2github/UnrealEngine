@@ -1069,6 +1069,7 @@ void FStaticMeshLODResources::ConditionalForce16BitIndexBuffer(EShaderPlatform M
 {
 	// Initialize the vertex and index buffers.
 	// All platforms supporting Metal also support 32-bit indices.
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (IsES2Platform(MaxShaderPlatform) && !IsMetalPlatform(MaxShaderPlatform))
 	{
 		if (IndexBuffer.Is32Bit())
@@ -1080,6 +1081,7 @@ void FStaticMeshLODResources::ConditionalForce16BitIndexBuffer(EShaderPlatform M
 			UE_LOG(LogStaticMesh, Warning, TEXT("[%s] Mesh has more that 65535 vertices, incompatible with mobile; forcing 16-bit (will probably cause rendering issues)."), *Parent->GetName());
 		}
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 template <bool bIncrement>
@@ -4303,9 +4305,14 @@ void UStaticMesh::CacheDerivedData()
 
 	if (RenderData)
 	{
-		// Finish any previous async builds before modifying RenderData
-		// This can happen during import as the mesh is rebuilt redundantly
-		GDistanceFieldAsyncQueue->BlockUntilBuildComplete(this, true);
+		// This is the responsability of the caller to ensure this has been called
+		// on the main thread when calling CacheDerivedData() from another thread.
+		if (IsInGameThread())
+		{
+			// Finish any previous async builds before modifying RenderData
+			// This can happen during import as the mesh is rebuilt redundantly
+			GDistanceFieldAsyncQueue->BlockUntilBuildComplete(this, true);
+		}
 
 		for (int32 LODIndex = 0; LODIndex < RenderData->LODResources.Num(); ++LODIndex)
 		{

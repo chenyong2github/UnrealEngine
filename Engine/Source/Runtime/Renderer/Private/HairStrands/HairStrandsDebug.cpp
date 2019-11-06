@@ -22,6 +22,7 @@
 #include "RenderTargetTemp.h"
 #include "CanvasTypes.h"
 #include "ShaderPrintParameters.h"
+#include "RenderGraphUtils.h"
 
 static int32 GDeepShadowDebugIndex = 0;
 static float GDeepShadowDebugScale = 20;
@@ -70,11 +71,30 @@ static FAutoConsoleVariableRef CVarHairDebugMeshProjection_Sim_HairRestFrames(		
 static FAutoConsoleVariableRef CVarHairDebugMeshProjection_Sim_HairDeformedTriangles(		TEXT("r.HairStrands.MeshProjection.Sim.DebugHairDeformedTriangles"),	GHairDebugMeshProjection_Sim_HairDeformedTriangles, TEXT("Render debug mes projection"));
 static FAutoConsoleVariableRef CVarHairDebugMeshProjection_Sim_HairDeformedFrames(			TEXT("r.HairStrands.MeshProjection.Sim.DebugHairDeformedFrames"),		GHairDebugMeshProjection_Sim_HairDeformedFrames, TEXT("Render debug mes projection"));
 
+static int32 GHairStrandsDebugPPLL = 0;
+static FAutoConsoleVariableRef CVarHairStrandsDebugPPLL(									TEXT("r.HairStrands.DebugPPLL"),										GHairStrandsDebugPPLL, TEXT("Draw debug per pixel light list rendering."));
 
 // Helper functions for accessing interpolation data for debug purpose.
 // Definitions is in HairStrandsInterface.cpp
 void GetGroomInterpolationData(const EWorldType::Type WorldType, FHairStrandsProjectionMeshData& OutGeometries);
 void GetGroomInterpolationData(const EWorldType::Type WorldType, const bool bRenderData, FHairStrandsProjectionHairData& OutHairData, TArray<int32>& OutLODIndices);
+
+static int32 GHairStrandsCull = 0;
+static int32 GHairStrandsCullIndex = -1;
+static int32 GHairStrandsUpdateCullIndex = 0;
+static float GHairStrandsCullNormalizedIndex = -1;
+static FAutoConsoleVariableRef CVarHairStrandsCull			(TEXT("r.HairStrands.Cull"), GHairStrandsCull, TEXT("Cull hair strands (0:disabled, 1: render cull, 2: sim cull)."));
+static FAutoConsoleVariableRef CVarHairStrandsCullIndex		(TEXT("r.HairStrands.Cull.Index"), GHairStrandsCullIndex, TEXT("Hair strands index to be kept. Other will be culled."));
+static FAutoConsoleVariableRef CVarHairStrandsUpdateCullIndex(TEXT("r.HairStrands.Cull.Update"), GHairStrandsUpdateCullIndex, TEXT("Update the guide index to be kept using mouse position for fast selection."));
+
+FHairCullInfo GetHairStrandsCullInfo()
+{
+	FHairCullInfo Out;
+	Out.CullMode		= GHairStrandsCull == 1 ? EHairCullMode::Render : (GHairStrandsCull == 2 ? EHairCullMode::Sim : EHairCullMode::None);
+	Out.ExplicitIndex	= GHairStrandsCullIndex >= 0 ? GHairStrandsCullIndex : -1;
+	Out.NormalizedIndex = GHairStrandsCullNormalizedIndex;
+	return Out;
+}
 
 enum class EHairDebugMode : uint8
 {
@@ -1014,6 +1034,46 @@ const TCHAR* ToString(EWorldType::Type Type)
 	}
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FHairVisibilityDebugPPLLCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FHairVisibilityDebugPPLLCS);
+	SHADER_USE_PARAMETER_STRUCT(FHairVisibilityDebugPPLLCS, FGlobalShader);
+
+	using FPermutationDomain = TShaderPermutationDomain<>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER(float, PPLLMeanListElementCountPerPixel)
+		SHADER_PARAMETER(float, PPLLMaxTotalListElementCount)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PPLLCounter)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PPLLNodeIndex)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, PPLLNodeData)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(Texture2D, SceneColorTextureUAV)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
+	END_SHADER_PARAMETER_STRUCT()
+
+		static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
+	{
+		return PermutationVector;
+	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsHairStrandsSupported(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("DEBUG_PPLL_PS"), 1);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FHairVisibilityDebugPPLLCS, "/Engine/Private/HairStrands/HairStrandsVisibilityPPLLDebug.usf", "VisibilityDebugPPLLCS", SF_Compute);
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 void RenderHairStrandsDebugInfo(FRHICommandListImmediate& RHICmdList, TArray<FViewInfo>& Views, const FHairStrandsDatas* HairDatas)
 {
 	const float YStep = 14;
@@ -1021,6 +1081,14 @@ void RenderHairStrandsDebugInfo(FRHICommandListImmediate& RHICmdList, TArray<FVi
 
 	if (Views.Num() == 0)
 		return;
+
+	if (GHairStrandsUpdateCullIndex)
+	{
+		const FViewInfo& View = Views[0];
+		const float TotalPixelCount = View.ViewRect.Width() * View.ViewRect.Height();
+		const float Index = View.CursorPos.X + View.CursorPos.Y * View.ViewRect.Width();
+		GHairStrandsCullNormalizedIndex = Index / TotalPixelCount;
+	}
 
 	// Only render debug information for the main view
 	const uint32 ViewIndex = 0;
@@ -1344,6 +1412,36 @@ void RenderHairStrandsDebugInfo(FRHICommandListImmediate& RHICmdList, TArray<FVi
 			}
 		}
 		GraphBuilder.Execute();
+	}
+
+	if (ViewIndex < uint32(HairDatas->HairVisibilityViews.HairDatas.Num()))
+	{
+		const FHairStrandsVisibilityData& VisibilityData = HairDatas->HairVisibilityViews.HairDatas[ViewIndex];
+		if (GHairStrandsDebugPPLL && VisibilityData.PPLLNodeCounterTexture) // Check if PPLL rendering is used and its debug view is enabled.
+		{
+			FRDGBuilder GraphBuilder(RHICmdList);
+			FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneTargets.GetSceneColor(), TEXT("SceneColorTexture"));
+			FRDGTextureRef PPLLNodeCounterTexture = GraphBuilder.RegisterExternalTexture(VisibilityData.PPLLNodeCounterTexture, TEXT("PPLLNodeCounterTexture"));
+			FRDGTextureRef PPLLNodeIndexTexture = GraphBuilder.RegisterExternalTexture(VisibilityData.PPLLNodeIndexTexture, TEXT("PPLLNodeIndexTexture"));
+			FRDGBufferRef  PPLLNodeDataBuffer = GraphBuilder.RegisterExternalBuffer(VisibilityData.PPLLNodeDataBuffer, TEXT("PPLLNodeDataBuffer"));
+
+			FHairVisibilityDebugPPLLCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairVisibilityDebugPPLLCS::FParameters>();
+			PassParameters->PPLLMeanListElementCountPerPixel = float(GetPPLLMeanListElementCountPerPixel());
+			PassParameters->PPLLMaxTotalListElementCount = float(GetPPLLMaxTotalListElementCount(VisibilityData.PPLLNodeIndexTexture->GetDesc().Extent));
+			PassParameters->PPLLCounter = PPLLNodeCounterTexture;
+			PassParameters->PPLLNodeIndex = PPLLNodeIndexTexture;
+			PassParameters->PPLLNodeData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(PPLLNodeDataBuffer));
+			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+			PassParameters->SceneColorTextureUAV = GraphBuilder.CreateUAV(SceneColorTexture);
+			ShaderPrint::SetParameters(View, PassParameters->ShaderPrintParameters);
+
+			FHairVisibilityDebugPPLLCS::FPermutationDomain PermutationVector;
+			TShaderMapRef<FHairVisibilityDebugPPLLCS> ComputeShader(View.ShaderMap, PermutationVector);
+			FIntVector TextureSize = SceneColorTexture->Desc.GetSize(); TextureSize.Z = 1;
+			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairPPLLDebug"), *ComputeShader, PassParameters,
+				FIntVector::DivideAndRoundUp(TextureSize, FIntVector(8, 8, 1)));
+			GraphBuilder.Execute();
+		}
 	}
 
 	// Text

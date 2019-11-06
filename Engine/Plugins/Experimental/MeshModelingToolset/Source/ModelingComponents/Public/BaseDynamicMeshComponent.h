@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Components/MeshComponent.h"
+#include "InteractiveToolObjects.h"
 #include "Changes/MeshVertexChange.h"
 #include "Changes/MeshChange.h"
 
@@ -40,7 +41,7 @@ enum class EDynamicMeshTangentCalcType : uint8
  * Currently no functionality lives here, only some interface functions are defined that various subclasses implement.
  */
 UCLASS(hidecategories = (LOD, Physics, Collision), editinlinenew, ClassGroup = Rendering)
-class MODELINGCOMPONENTS_API UBaseDynamicMeshComponent : public UMeshComponent, public IMeshVertexCommandChangeTarget, public IMeshCommandChangeTarget
+class MODELINGCOMPONENTS_API UBaseDynamicMeshComponent : public UMeshComponent, public IToolFrameworkComponent, public IMeshVertexCommandChangeTarget, public IMeshCommandChangeTarget
 {
 	GENERATED_UCLASS_BODY()
 

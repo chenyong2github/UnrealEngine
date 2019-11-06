@@ -163,6 +163,9 @@ FDatasmithImportContext::FDatasmithImportContext(const FString& FileName, bool b
 		{
 			ImportOptions.Add(Option.Get());
 		}
+
+		// Temporarily give Rhino translator access to BaseOptions (JIRA UE-81278)
+		AdditionalImportOptions.Add(Options);
 	}
 }
 

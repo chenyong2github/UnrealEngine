@@ -21,7 +21,7 @@ const TCHAR* FChaosDerivedDataCooker::GetPluginName() const
 
 const TCHAR* FChaosDerivedDataCooker::GetVersionString() const
 {
-	return TEXT("EF20258F42C54D658B5BEE64EB779C6A");
+	return TEXT("40C102F05B01482DB74F98FE0F6C4166");
 }
 
 FString FChaosDerivedDataCooker::GetPluginSpecificCacheKeySuffix() const
@@ -144,16 +144,15 @@ void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::TTria
 
 template void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::TTriangleMeshImplicitObject<float>>>& OutTriangleMeshes, const FCookBodySetupInfo& InParams);
 //#BGTODO When it's possible to build with doubles, re-enable this. (Currently at least TRigidTransform cannot build with double precision because we don't have a base transform implementation using them)
-//template void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::TImplicitObject<float, 3>>>& OutTriangleMeshes, const FCookBodySetupInfo& InParams);
+//template void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::FImplicitObject>>& OutTriangleMeshes, const FCookBodySetupInfo& InParams);
 
-template<typename Precision>
-void FChaosDerivedDataCooker::BuildConvexMeshes(TArray<TUniquePtr<Chaos::TImplicitObject<Precision, 3>>>& OutConvexMeshes, const FCookBodySetupInfo& InParams)
+void FChaosDerivedDataCooker::BuildConvexMeshes(TArray<TUniquePtr<Chaos::FImplicitObject>>& OutConvexMeshes, const FCookBodySetupInfo& InParams)
 {
-	auto BuildConvexFromVerts = [](TArray<TUniquePtr<Chaos::TImplicitObject<Precision, 3>>>& OutConvexes, const TArray<TArray<FVector>>& InMeshVerts, const bool bMirrored)
+	auto BuildConvexFromVerts = [](TArray<TUniquePtr<Chaos::FImplicitObject>>& OutConvexes, const TArray<TArray<FVector>>& InMeshVerts, const bool bMirrored)
 	{
 		for(const TArray<FVector>& HullVerts : InMeshVerts)
 		{
-			Chaos::TParticles<Precision, 3> ConvexParticles;
+			Chaos::TParticles<Chaos::FReal, 3> ConvexParticles;
 
 			const int32 NumHullVerts = HullVerts.Num();
 
@@ -165,7 +164,7 @@ void FChaosDerivedDataCooker::BuildConvexMeshes(TArray<TUniquePtr<Chaos::TImplic
 				ConvexParticles.X(VertIndex) = FVector(bMirrored ? -HullVert.X : HullVert.X, HullVert.Y, HullVert.Z);
 			}
 
-			OutConvexes.Emplace(new Chaos::TConvex<Precision, 3>(ConvexParticles));
+			OutConvexes.Emplace(new Chaos::TConvex<Chaos::FReal, 3>(ConvexParticles));
 		}
 	};
 
@@ -181,12 +180,8 @@ void FChaosDerivedDataCooker::BuildConvexMeshes(TArray<TUniquePtr<Chaos::TImplic
 
 }
 
-template void FChaosDerivedDataCooker::BuildConvexMeshes(TArray<TUniquePtr<Chaos::TImplicitObject<float, 3>>>& OutConvexMeshes, const FCookBodySetupInfo& InParams);
-//#BGTODO When it's possible to build with doubles, re-enable this. (Currently at least TRigidTransform cannot build with double precision because we don't have a base transform implementation using them)
-//template void FChaosDerivedDataCooker::BuildConvexMeshes(TArray<Chaos::TCollisionConvexMesh<double>>& OutTriangleMeshes, const FCookBodySetupInfo& InParams);
-
 template<typename Precision>
-void BuildSimpleShapes(TArray<TUniquePtr<Chaos::TImplicitObject<Precision, 3>>>& OutImplicits, UBodySetup* InSetup)
+void BuildSimpleShapes(TArray<TUniquePtr<Chaos::FImplicitObject>>& OutImplicits, UBodySetup* InSetup)
 {
 	check(InSetup);
 
@@ -222,7 +217,7 @@ void BuildSimpleShapes(TArray<TUniquePtr<Chaos::TImplicitObject<Precision, 3>>>&
 template<typename Precision>
 void FChaosDerivedDataCooker::BuildInternal(Chaos::FChaosArchive& Ar, FCookBodySetupInfo& InInfo)
 {
-	TArray<TUniquePtr<Chaos::TImplicitObject<Precision, 3>>> SimpleImplicits;
+	TArray<TUniquePtr<Chaos::FImplicitObject>> SimpleImplicits;
 	TArray<TUniquePtr<Chaos::TTriangleMeshImplicitObject<Precision>>> ComplexImplicits;
 
 	//BuildSimpleShapes(SimpleImplicits, Setup);

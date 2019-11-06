@@ -68,8 +68,6 @@ void FCADSceneGraphDescriptionFile::GetMaterialDescription(int32 LineNumber, CAD
 	OutSpecular[0] = OutSpecular[1] = OutSpecular[2] = 255;
 	OutShininess = OutReflexion = 0;
 	OutTransparency = 255;
-	OutMaterialName = TEXT("");
-	OutTextureName = TEXT("");
 
 	const FString& MaterialLine1 = GetString(LineNumber);
 	FString MaterialIdStr;
@@ -146,6 +144,11 @@ void FCADSceneGraphDescriptionFile::ReadFile()
 	TArray<FString> HeaderCTIdSplit;
 	SceneGraphDescriptionData[Line].ParseIntoArray(HeaderCTIdSplit, TEXT(" "));
 
+	if (HeaderCTIdSplit.Num() % 2 != 0)
+	{
+		return;
+	}
+
 	for (int32 index = 0; index < HeaderCTIdSplit.Num(); index += 2)
 	{
 		SceneNodeIdToSceneNodeDescriptionMap.Emplace(FCString::Atoi(*HeaderCTIdSplit[index]), FSceneNodeDescription(*this, FCString::Atoi(*HeaderCTIdSplit[index + 1])));
@@ -184,7 +187,6 @@ void FCADSceneGraphDescriptionFile::ReadFile()
 			MaterialString = SceneGraphDescriptionData[Line];
 		}
 	}
-
 }
 
 void FCADSceneGraphDescriptionFile::SetMaterialMaps(TMap< uint32, FColor>& MaterialUuidToColor, TMap< uint32, CADLibrary::FCADMaterial>& MaterialUuidToMaterial)
@@ -201,11 +203,10 @@ void FCADSceneGraphDescriptionFile::SetMaterialMaps(TMap< uint32, FColor>& Mater
 	}
 }
 
-
-void FSceneNodeDescription::GetMetaDatas(TMap<FString, FString>& MetaDataMap)
+void FSceneNodeDescription::GetMetaData(TMap<FString, FString>& MetaDataMap)
 {
 	const FString& RawDataString = SceneGraphDescription.GetString(Line+1);
-	if (RawDataString.GetCharArray()[0] != L'M')
+	if (RawDataString[0] != L'M')
 	{
 		return;
 	}
@@ -246,11 +247,11 @@ void FSceneNodeDescription::GetChildren(TArray<int32>& Children)
 	if(EndMeta == -1)
 	{
 		TMap<FString, FString> TempMap;
-		GetMetaDatas(TempMap);
+		GetMetaData(TempMap);
 	}
 
 	const FString& DescriptionString = SceneGraphDescription.GetString(EndMeta);
-	if (DescriptionString.GetCharArray()[0] != L'c')
+	if (DescriptionString[0] != L'c')
 	{
 		return;
 	}
@@ -276,7 +277,7 @@ void FSceneNodeDescription::GetNodeReference(int32& RefId, FString& ExternalFile
 	if (EndMeta == -1)
 	{
 		TMap<FString, FString> TempMap;
-		GetMetaDatas(TempMap);
+		GetMetaData(TempMap);
 	}
 
 	const FString& DescriptionString = SceneGraphDescription.GetString(EndMeta + 1);
@@ -351,7 +352,7 @@ void FSceneNodeDescription::SetNodeType()
 	else
 	{
 		const FString& RawDataString = SceneGraphDescription.GetString(Line);
-		switch (RawDataString.GetCharArray()[0])
+		switch (RawDataString[0])
 		{
 		case L'C':
 			Type = COMPONENT;
@@ -478,22 +479,20 @@ TSharedPtr< IDatasmithActorElement >  FDatasmithSceneGraphBuilder::BuildNode(FSc
 
 	case BODY:
 		return BuildBody(Node, ParentData);
+
 	default:
 		return TSharedPtr< IDatasmithActorElement >();
 	}
-
-	return TSharedPtr< IDatasmithActorElement >();
 }
 
 TSharedPtr< IDatasmithActorElement >  FDatasmithSceneGraphBuilder::BuildInstance(FSceneNodeDescription& Node, ActorData& ParentData)
 {
 	TMap<FString, FString> InstanceNodeMetaDataMap;
 	TMap<FString, FString> ReferenceNodeMetaDataMap;
-	Node.GetMetaDatas(InstanceNodeMetaDataMap);
+	Node.GetMetaData(InstanceNodeMetaDataMap);
 
-	FString ActorUUID = TEXT("");
-	FString ActorLabel = TEXT("");
-
+	FString ActorUUID;
+	FString ActorLabel;
 	GetNodeUUIDAndName(InstanceNodeMetaDataMap, ReferenceNodeMetaDataMap, ParentData.Uuid, ActorUUID, ActorLabel);
 
 	int32 RefId; 
@@ -532,7 +531,7 @@ TSharedPtr< IDatasmithActorElement >  FDatasmithSceneGraphBuilder::BuildInstance
 
 	if (ComponentNode)
 	{
-		ComponentNode->GetMetaDatas(ReferenceNodeMetaDataMap);
+		ComponentNode->GetMetaData(ReferenceNodeMetaDataMap);
 	}
 
 	TSharedPtr< IDatasmithActorElement > Actor = CreateActor(*ActorUUID, *ActorLabel);
@@ -638,7 +637,7 @@ TSharedPtr< IDatasmithActorElement > FDatasmithSceneGraphBuilder::BuildComponent
 {
 	TMap<FString, FString> InstanceNodeMetaDataMap;
 	TMap<FString, FString> ReferenceNodeMetaDataMap;
-	Node.GetMetaDatas(ReferenceNodeMetaDataMap);
+	Node.GetMetaData(ReferenceNodeMetaDataMap);
 
 	FString ActorUUID = TEXT("");
 	FString ActorLabel = TEXT("");
@@ -665,7 +664,7 @@ TSharedPtr< IDatasmithActorElement > FDatasmithSceneGraphBuilder::BuildBody(FSce
 {
 	TMap<FString, FString> InstanceNodeMetaDataMap;
 	TMap<FString, FString> BodyNodeMetaDataMap;
-	Node.GetMetaDatas(BodyNodeMetaDataMap);
+	Node.GetMetaData(BodyNodeMetaDataMap);
 	
 	FString BodyUUID = TEXT("");
 	FString BodyLabel = TEXT("");
@@ -851,7 +850,7 @@ void FDatasmithSceneGraphBuilder::AddMetaData(TSharedPtr< IDatasmithActorElement
 
 	for (auto& Attribute : ReferenceNodeAttributeSetMap)
 	{
-		if (UnwantedAttributes.Contains(*Attribute.Key))
+		if (UnwantedAttributes.Contains(Attribute.Key))
 		{
 			continue;
 		}

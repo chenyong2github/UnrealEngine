@@ -120,10 +120,13 @@ void FMacConsoleOutputDevice::DestroyConsole()
 		FMacConsoleWindow* ConsoleWindow = ConsoleHandle;
 		ConsoleHandle = nullptr; // Stop further serialization as soon as possible
 
-		do
+		if ([NSThread isGameThread])
 		{
-			FMacPlatformApplicationMisc::PumpMessages( true );
-		} while(OutstandingTasks);
+			do
+			{
+				FMacPlatformApplicationMisc::PumpMessages( true );
+			} while(OutstandingTasks);
+		}
 
 		MainThreadCall(^{
 			SCOPED_AUTORELEASE_POOL;

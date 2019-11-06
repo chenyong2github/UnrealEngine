@@ -888,6 +888,7 @@ void UDataprepParameterization::PostLoad()
 			BindingsContainer = NewObject<UDataprepParameterizationBindings>(this, NAME_None, RF_Transactional);
 		}
 
+		// ueent_hotfix revisit this code has renaming a object while a linker is active is dangerous (this was put here so that the duplicate object would work properly)
 		PrepareCustomClassForNewClassGeneration();
 		UClass* OldClass = CustomContainerClass;
 		CustomContainerClass = nullptr;
@@ -949,6 +950,8 @@ bool UDataprepParameterization::BindObjectProperty(UDataprepParameterizableObjec
 {
 	if ( Object && FDataprepParameterizationUtils::IsPropertyChainValid( PropertyChain ) && !Name.IsNone() )
 	{
+		Modify();
+
 		TSharedRef<FDataprepParameterizationBinding> Binding = MakeShared<FDataprepParameterizationBinding>( Object, PropertyChain );
 		void* AddressOfTheValueFromBinding;
 
@@ -983,7 +986,6 @@ bool UDataprepParameterization::BindObjectProperty(UDataprepParameterizableObjec
 					DataprepParameterization::PopulateValueTypeValidationData( PropertyFromParameterization, ValueTypeValidationData );
 					if ( ValueTypeValidationData == Binding->ValueTypeValidationData )
 					{
-						Modify();
 						BindingsContainer->Add( Binding, Name, BindingsToRemove );
 						bBindingWasAdded = true;
 					}
@@ -991,8 +993,6 @@ bool UDataprepParameterization::BindObjectProperty(UDataprepParameterizableObjec
 			}
 			else
 			{
-				Modify();
-
 				BindingsContainer->Add( Binding, Name, BindingsToRemove );
 			
 				UProperty* PropertyFromBinding = PropertyChain.Last().CachedProperty.Get();
@@ -1288,11 +1288,12 @@ void UDataprepParameterization::PrepareCustomClassForNewClassGeneration()
 {
 	if ( CustomContainerClass )
 	{
-		const FString OldClassName = MakeUniqueObjectName( CustomContainerClass->GetOuter(), CustomContainerClass->GetClass(), *FString::Printf(TEXT("%s_REINST"), *CustomContainerClass->GetName()) ).ToString();
+		const FString OldClassName = MakeUniqueObjectName( GetTransientPackage(), CustomContainerClass->GetClass(), *FString::Printf(TEXT("%s_REINST"), *CustomContainerClass->GetName()) ).ToString();
 		CustomContainerClass->ClassFlags |= CLASS_NewerVersionExists;
-		CustomContainerClass->SetFlags( RF_NewerVersionExists );
 		CustomContainerClass->ClearFlags( RF_Public | RF_Standalone );
-		CustomContainerClass->Rename( *OldClassName, nullptr, REN_DontCreateRedirectors | REN_DoNotDirty);
+		CustomContainerClass->Rename( *OldClassName, GetTransientPackage(), REN_DontCreateRedirectors | REN_DoNotDirty );
+		CustomContainerClass->SetFlags( RF_Transient | RF_NewerVersionExists );
+		CustomContainerClass->GetDefaultObject()->SetFlags( RF_Transient | RF_NewerVersionExists );
 	}
 }
 
@@ -1435,6 +1436,7 @@ void UDataprepParameterization::PushParametrizationValueToBindings(FName Paramet
 
 				if ( bClassNeedUpdate )
 				{
+					Modify();
 					UpdateClass();
 				}
 
@@ -1456,6 +1458,17 @@ bool UDataprepParameterization::RemoveBinding(const TSharedRef<FDataprepParamete
 		NameToParameterizationProperty.Remove(ParameterOfRemovedBinding);
 	}
 	return !ParameterOfRemovedBinding.IsNone();
+}
+
+bool UDataprepParameterization::OnAssetRename(ERenameFlags Flags)
+{
+	if ( CustomContainerClass )
+	{
+		const FString NewClassName = MakeUniqueObjectName( GetOutermost(), CustomContainerClass->GetClass(), *CustomContainerClass->GetName() ).ToString();
+		return CustomContainerClass->Rename( *NewClassName, GetOutermost(), Flags );
+	}
+
+	return true;
 }
 
 const FName UDataprepParameterization::MetadataClassGeneratorName( TEXT("DataprepCustomParameterizationGenerator") );
@@ -1555,7 +1568,7 @@ void UDataprepParameterizationInstance::LoadParameterization()
 
 	if ( !SourceParameterization->CustomContainerClass )
 	{
-		SourceParameterization->LoadParameterization();
+		SourceParameterization->ConditionalPostLoad();
 	}
 
 	if ( !ParameterizationInstance )

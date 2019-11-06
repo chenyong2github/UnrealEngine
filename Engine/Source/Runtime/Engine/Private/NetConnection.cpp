@@ -176,7 +176,8 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 
 ,	StatPeriod			( 1.f  )
 ,	AvgLag				( 9999 )
-
+,   BestLag				( 9999 )
+,   BestLagAcc			( 9999 )
 ,	LagAcc				( 9999 )
 ,	LagCount			( 0 )
 ,	LastTime			( 0 )
@@ -2942,6 +2943,7 @@ void UNetConnection::Tick()
 		{
 			AvgLag = LagAcc/LagCount;
 		}
+		BestLag = AvgLag;
 
 		InBytesPerSecond = FMath::TruncToInt(static_cast<float>(InBytes) / RealTime);
 		OutBytesPerSecond = FMath::TruncToInt(static_cast<float>(OutBytes) / RealTime);
@@ -3746,7 +3748,21 @@ void UNetConnection::SendChallengeControlMessage(const FEncryptionKeyResponse& R
 	{
 		if (Response.Response == EEncryptionResponse::Success)
 		{
-			EnableEncryptionServer(Response.EncryptionData);
+			// handle deprecated path where only the key is set
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			if ((Response.EncryptionKey.Num() > 0) && (Response.EncryptionData.Key.Num() == 0))
+			{
+				FEncryptionData ResponseData = Response.EncryptionData;
+				ResponseData.Key = Response.EncryptionKey;
+
+				EnableEncryptionServer(ResponseData);
+			}
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			else
+			{
+				EnableEncryptionServer(Response.EncryptionData);
+			}
+
 			SendChallengeControlMessage();
 		}
 		else

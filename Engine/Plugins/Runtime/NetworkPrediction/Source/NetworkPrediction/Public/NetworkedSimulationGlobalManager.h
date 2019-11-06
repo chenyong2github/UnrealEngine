@@ -52,8 +52,8 @@ public:
 	virtual void Deinitialize() override;
 
 	// Netsim Register/Unregister
-	void RegisterModel(INetworkSimulationModel* Model, AActor* OwningActor);
-	void UnregisterModel(INetworkSimulationModel* Model, AActor* OwningActor);
+	void RegisterModel(INetworkedSimulationModel* Model, AActor* OwningActor);
+	void UnregisterModel(INetworkedSimulationModel* Model, AActor* OwningActor);
 
 	// Delegate for auto proxies to register with to send their server RPC
 	DECLARE_MULTICAST_DELEGATE_OneParam(FTickServerRPC, float /*RealTime DeltaSeconds*/)
@@ -70,10 +70,10 @@ private:
 	{
 		struct FItem
 		{
-			FItem(INetworkSimulationModel* InSim, AActor* InActor) : Simulation(InSim), OwningActor(InActor) { }
-			bool operator == (const INetworkSimulationModel* InSim) const { return Simulation == InSim; }
+			FItem(INetworkedSimulationModel* InSim, AActor* InActor) : Simulation(InSim), OwningActor(InActor) { }
+			bool operator == (const INetworkedSimulationModel* InSim) const { return Simulation == InSim; }
 
-			INetworkSimulationModel* Simulation;
+			INetworkedSimulationModel* Simulation;
 			AActor* OwningActor;
 		};
 

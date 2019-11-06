@@ -366,8 +366,9 @@ void NiagaraEmitterInstanceBatcher::ResizeBuffersAndGatherResources(FOverlappabl
 			//We must assume all particles survive when allocating here. 
 			//If this is not true, the read back in ResolveDatasetWrites will shrink the buffers.
 			const uint32 RequiredInstances = FMath::Max(PrevNumInstances, NewNumInstances);
+			const uint32 AllocatedInstances = FMath::Max(RequiredInstances, Instance.SpawnInfo.MaxParticleCount);
 
-			DestinationData.AllocateGPU(RequiredInstances + 1, GPUInstanceCounterManager, RHICmdList);
+			DestinationData.AllocateGPU(AllocatedInstances + 1, GPUInstanceCounterManager, RHICmdList);
 			DestinationData.SetNumInstances(RequiredInstances);
 
 			if ( Shader->FloatInputBufferParam.IsBound() )
@@ -538,7 +539,7 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList &RHICmdList, FRHI
 			{
 				continue;
 			}
-			else if (GNiagaraAllowTickBeforeRender && ComputeShader->ViewUniformBufferParam.IsBound() != (ViewUniformBuffer != nullptr))
+			else if (GNiagaraAllowTickBeforeRender && (ComputeShader->ViewUniformBufferParam.IsBound() || Tick.bRequiredDistanceFieldData) != (ViewUniformBuffer != nullptr))
 			{   // When allowing tick before render, skip this emitter if it is not in the right pass.
 				continue;
 			}

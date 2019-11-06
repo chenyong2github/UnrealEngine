@@ -10,6 +10,7 @@
 #include "Misc/Paths.h"
 #include "Misc/RuntimeErrors.h"
 #include "UObject/GCObject.h"
+#include "UObject/PropertyAccessUtil.h"
 #include "EngineGlobals.h"
 #include "Components/ActorComponent.h"
 #include "TimerManager.h"
@@ -40,9 +41,27 @@
 //////////////////////////////////////////////////////////////////////////
 // UKismetSystemLibrary
 
+#define LOCTEXT_NAMESPACE "UKismetSystemLibrary"
+
+const FName PropertyGetFailedWarning = FName("PropertyGetFailedWarning");
+const FName PropertySetFailedWarning = FName("PropertySetFailedWarning");
+
 UKismetSystemLibrary::UKismetSystemLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	FBlueprintSupport::RegisterBlueprintWarning(
+		FBlueprintWarningDeclaration(
+			PropertyGetFailedWarning,
+			LOCTEXT("PropertyGetFailedWarning", "Property Get Failed")
+		)
+	);
+
+	FBlueprintSupport::RegisterBlueprintWarning(
+		FBlueprintWarningDeclaration(
+			PropertySetFailedWarning,
+			LOCTEXT("PropertySetFailedWarning", "Property Set Failed")
+		)
+	);
 }
 
 void UKismetSystemLibrary::StackTraceImpl(const FFrame& StackFrame)
@@ -2642,6 +2661,190 @@ bool UKismetSystemLibrary::IsUnattended()
 	return FApp::IsUnattended();
 }
 
+#if WITH_EDITOR
+
+bool UKismetSystemLibrary::GetEditorProperty(UObject* Object, const FName PropertyName, int32& OutValuePtr)
+{
+	// We should never hit this! Stubbed to avoid NoExport on the class.
+	check(0);
+	return false;
+}
+
+bool UKismetSystemLibrary::Generic_GetEditorProperty(const UObject* Object, const UProperty* Property, void* ValuePtr)
+{
+	const EPropertyAccessResultFlags AccessResult = PropertyAccessUtil::GetPropertyValue_Object(Property, Object, ValuePtr, INDEX_NONE);
+
+	if (EnumHasAnyFlags(AccessResult, EPropertyAccessResultFlags::PermissionDenied))
+	{
+		if (EnumHasAnyFlags(AccessResult, EPropertyAccessResultFlags::AccessProtected))
+		{
+			FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Property '%s' on '%s' (%s) is protected and cannot be read"), *Property->GetName(), *Object->GetPathName(), *Object->GetClass()->GetName()), ELogVerbosity::Warning, PropertyGetFailedWarning);
+			return false;
+		}
+
+		FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Property '%s' on '%s' (%s) cannot be read"), *Property->GetName(), *Object->GetPathName(), *Object->GetClass()->GetName()), ELogVerbosity::Warning, PropertyGetFailedWarning);
+		return false;
+	}
+
+	if (EnumHasAnyFlags(AccessResult, EPropertyAccessResultFlags::ConversionFailed))
+	{
+		FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Property '%s' on '%s' (%s) tried to read into a property value of the incorrect type"), *Property->GetName(), *Object->GetPathName(), *Object->GetClass()->GetName()), ELogVerbosity::Warning, PropertyGetFailedWarning);
+		return false;
+	}
+
+	return true;
+}
+
+DEFINE_FUNCTION(UKismetSystemLibrary::execGetEditorProperty)
+{
+	P_GET_OBJECT(UObject, Object);
+	P_GET_PROPERTY(UNameProperty, PropertyName);
+
+	Stack.StepCompiledIn<UProperty>(nullptr);
+	const UProperty* ValueProp = Stack.MostRecentProperty;
+	void* ValuePtr = Stack.MostRecentPropertyAddress;
+
+	P_FINISH;
+
+	if (!ValueProp || !ValuePtr)
+	{
+		FBlueprintExceptionInfo ExceptionInfo(
+			EBlueprintExceptionType::AccessViolation,
+			LOCTEXT("GetEditorProperty_MissingOutputProperty", "Failed to resolve the output parameter for GetEditorProperty.")
+		);
+		FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);
+	}
+
+	if (!Object)
+	{
+		FBlueprintExceptionInfo ExceptionInfo(
+			EBlueprintExceptionType::AccessViolation, 
+			LOCTEXT("GetEditorProperty_AccessNone", "Accessed None attempting to call GetEditorProperty.")
+		);
+		FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);
+	}
+
+	bool bResult = false;
+
+	if (Object)
+	{
+		const UProperty* ObjectProp = PropertyAccessUtil::FindPropertyByName(PropertyName, Object->GetClass());
+		if (ObjectProp && ObjectProp->GetClass() == ValueProp->GetClass()) // Compare the classes as these must be an *exact* match as the read is low-level and without property coercion
+		{
+			P_NATIVE_BEGIN;
+			bResult = Generic_GetEditorProperty(Object, ObjectProp, ValuePtr);
+			P_NATIVE_END;
+		}
+		else
+		{
+			FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Property '%s' on '%s' (%s) was missing or didn't match the output value type (%s)"), *PropertyName.ToString(), *Object->GetPathName(), *Object->GetClass()->GetName(), *ValueProp->GetClass()->GetName()), ELogVerbosity::Warning, PropertyGetFailedWarning);
+		}
+	}
+
+	*(bool*)RESULT_PARAM = bResult;
+}
+
+bool UKismetSystemLibrary::SetEditorProperty(UObject* Object, const FName PropertyName, const int32& OutValuePtr)
+{
+	// We should never hit this! Stubbed to avoid NoExport on the class.
+	check(0);
+	return false;
+}
+
+bool UKismetSystemLibrary::Generic_SetEditorProperty(UObject* Object, const UProperty* Property, const void* ValuePtr)
+{
+	const EPropertyAccessResultFlags AccessResult = PropertyAccessUtil::SetPropertyValue_Object(Property, Object, ValuePtr, INDEX_NONE, PropertyAccessUtil::EditorReadOnlyFlags);
+
+	if (EnumHasAnyFlags(AccessResult, EPropertyAccessResultFlags::PermissionDenied))
+	{
+		if (EnumHasAnyFlags(AccessResult, EPropertyAccessResultFlags::AccessProtected))
+		{
+			FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Property '%s' on '%s' (%s) is protected and cannot be set"), *Property->GetName(), *Object->GetPathName(), *Object->GetClass()->GetName()), ELogVerbosity::Warning, PropertySetFailedWarning);
+			return false;
+		}
+
+		if (EnumHasAnyFlags(AccessResult, EPropertyAccessResultFlags::CannotEditTemplate))
+		{
+			FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Property '%s' on '%s' (%s) cannot be edited on templates"), *Property->GetName(), *Object->GetPathName(), *Object->GetClass()->GetName()), ELogVerbosity::Warning, PropertySetFailedWarning);
+			return false;
+		}
+
+		if (EnumHasAnyFlags(AccessResult, EPropertyAccessResultFlags::CannotEditInstance))
+		{
+			FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Property '%s' on '%s' (%s) cannot be edited on instances"), *Property->GetName(), *Object->GetPathName(), *Object->GetClass()->GetName()), ELogVerbosity::Warning, PropertySetFailedWarning);
+			return false;
+		}
+
+		if (EnumHasAnyFlags(AccessResult, EPropertyAccessResultFlags::ReadOnly))
+		{
+			FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Property '%s' on '%s' (%s) is read-only and cannot be set"), *Property->GetName(), *Object->GetPathName(), *Object->GetClass()->GetName()), ELogVerbosity::Warning, PropertySetFailedWarning);
+			return false;
+		}
+
+		FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Property '%s' on '%s' (%s) cannot be read"), *Property->GetName(), *Object->GetPathName(), *Object->GetClass()->GetName()), ELogVerbosity::Warning, PropertySetFailedWarning);
+		return false;
+	}
+
+	if (EnumHasAnyFlags(AccessResult, EPropertyAccessResultFlags::ConversionFailed))
+	{
+		FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Property '%s' on '%s' (%s) tried to write into a property value of the incorrect type"), *Property->GetName(), *Object->GetPathName(), *Object->GetClass()->GetName()), ELogVerbosity::Warning, PropertySetFailedWarning);
+		return false;
+	}
+
+	return true;
+}
+
+DEFINE_FUNCTION(UKismetSystemLibrary::execSetEditorProperty)
+{
+	P_GET_OBJECT(UObject, Object);
+	P_GET_PROPERTY(UNameProperty, PropertyName);
+
+	Stack.StepCompiledIn<UProperty>(nullptr);
+	const UProperty* ValueProp = Stack.MostRecentProperty;
+	const void* ValuePtr = Stack.MostRecentPropertyAddress;
+
+	P_FINISH;
+
+	if (!ValueProp || !ValuePtr)
+	{
+		FBlueprintExceptionInfo ExceptionInfo(
+			EBlueprintExceptionType::AccessViolation,
+			LOCTEXT("SetEditorProperty_MissingOutputProperty", "Failed to resolve the output parameter for SetEditorProperty.")
+		);
+		FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);
+	}
+
+	if (!Object)
+	{
+		FBlueprintExceptionInfo ExceptionInfo(
+			EBlueprintExceptionType::AccessViolation, 
+			LOCTEXT("SetEditorProperty_AccessNone", "Accessed None attempting to call SetEditorProperty.")
+		);
+		FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);
+	}
+
+	bool bResult = false;
+
+	if (Object)
+	{
+		const UProperty* ObjectProp = PropertyAccessUtil::FindPropertyByName(PropertyName, Object->GetClass());
+		if (ObjectProp && ObjectProp->GetClass() == ValueProp->GetClass()) // Compare the classes as these must be an *exact* match as the read is low-level and without property coercion
+		{
+			P_NATIVE_BEGIN;
+			bResult = Generic_SetEditorProperty(Object, ObjectProp, ValuePtr);
+			P_NATIVE_END;
+		}
+		else
+		{
+			FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Property '%s' on '%s' (%s) was missing or didn't match the output value type (%s)"), *PropertyName.ToString(), *Object->GetPathName(), *Object->GetClass()->GetName(), *ValueProp->GetClass()->GetName()), ELogVerbosity::Warning, PropertySetFailedWarning);
+		}
+	}
+
+	*(bool*)RESULT_PARAM = bResult;
+}
+
+#endif	// WITH_EDITOR
+
 int32 UKismetSystemLibrary::BeginTransaction(const FString& Context, FText Description, UObject* PrimaryObject)
 {
 #if WITH_EDITOR
@@ -2867,3 +3070,5 @@ void UKismetSystemLibrary::GetPrimaryAssetsWithBundleState(const TArray<FName>& 
 		Manager->GetPrimaryAssetsWithBundleState(OutPrimaryAssetIdList, ValidTypes, RequiredBundles, ExcludedBundles, bForceCurrentState);
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

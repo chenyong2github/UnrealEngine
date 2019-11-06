@@ -10,6 +10,8 @@
 #include "Framework/SlateDelegates.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STreeView.h"
 
 class SEditableTextBox;
 class SGridPanel;
@@ -59,6 +61,37 @@ struct FDataprepDetailsViewColumnSizeData
 	void SetColumnWidth(float InWidth) { OnWidthChanged.ExecuteIfBound(InWidth); }
 };
 
+enum class EDataprepCategory 
+{ 
+	Producers, 
+	Consumers, 
+	Parameterization 
+};
+
+typedef STreeView< TSharedRef<EDataprepCategory> > SDataprepCategoryTree;
+
+class SDataprepCategoryWidget : public STableRow< TSharedPtr< EDataprepCategory > >
+{
+public:
+
+	SLATE_BEGIN_ARGS(SDataprepCategoryWidget) {}
+	SLATE_ARGUMENT(TSharedPtr< FDataprepDetailsViewColumnSizeData >, ColumnSizeData)
+	SLATE_ARGUMENT(FText, Title)
+	SLATE_ARGUMENT(TSharedPtr< SWidget >, TitleDetail)
+	SLATE_END_ARGS()
+
+	void Construct( const FArguments& InArgs, TSharedRef< SWidget > InContent, const TSharedRef<STableViewBase>& InOwnerTableView );
+
+	virtual int32 DoesItemHaveChildren() const override { return 1; }
+	virtual bool IsItemExpanded() const override { return bIsExpanded; }
+	virtual void ToggleExpansion() override;
+
+	const FSlateBrush* GetBackgroundImage() const;
+private:
+	bool bIsExpanded = true;
+	TSharedPtr< SWidget > CategoryContent;
+};
+
 class SDataprepConsumerWidget : public SCompoundWidget
 {
 public:
@@ -70,8 +103,9 @@ public:
 	SLATE_ARGUMENT(UDataprepContentConsumer*, DataprepConsumer)
 	SLATE_END_ARGS()
 
-public:
-	void Construct(const FArguments& InArgs );
+	void Construct( const FArguments& InArgs );
+
+	virtual ~SDataprepConsumerWidget();
 
 	/** Update DataprepConsumerPtr and content folder's and level name's text boxes */
 	void SetDataprepConsumer( UDataprepContentConsumer* DataprepConsumer );
@@ -115,6 +149,8 @@ private:
 	TSharedPtr< FDataprepDetailsViewColumnSizeData > ColumnSizeData;
 	/** Relative width to control splitters. */
 	float ColumnWidth;
+
+	FDelegateHandle OnConsumerChangedHandle;
 };
 
 class SDataprepDetailsView : public SCompoundWidget, public FGCObject
@@ -197,6 +233,8 @@ private:
 
 	void OnDataprepParameterizationStatusForObjectsChanged(const TSet<UObject*>* Objects);
 
+	void OnObjectTransacted(UObject* Object, const class FTransactionObjectEvent& TransactionObjectEvent);
+
 private:
 	/** Row generator applied on detailed object */
 	TSharedPtr< class IPropertyRowGenerator > Generator;
@@ -213,8 +251,11 @@ private:
 	/** Delegate handle to track property changes on array properties */
 	FDelegateHandle OnPropertyChangedHandle;
 
-	/** Delegate to track new object after a re-instancing process */
+	/** Delegate handle to track new object after a re-instancing process */
 	FDelegateHandle OnObjectReplacedHandle;
+
+	/** Delegate handle to track when a object was transacted */
+	FDelegateHandle OnObjectTransactedHandle;
 
 	/** Relative width to control splitters. */
 	float ColumnWidth;

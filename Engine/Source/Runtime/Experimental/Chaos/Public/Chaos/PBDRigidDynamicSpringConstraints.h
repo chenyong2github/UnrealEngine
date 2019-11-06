@@ -27,14 +27,14 @@ namespace Chaos
 	};
 
 	template<class T, int d>
-	class CHAOS_API TPBDRigidDynamicSpringConstraints : public TPBDConstraintContainer<T, d>
+	class CHAOS_API TPBDRigidDynamicSpringConstraints : public FPBDConstraintContainer
 	{
 	public:
-		using Base = TPBDConstraintContainer<T, d>;
+		using Base = FPBDConstraintContainer;
 		using FConstrainedParticlePair = TVector<TGeometryParticleHandle<T, d>*, 2>;
 		using FReal = T;
 		static const int Dimensions = d;
-		using FConstraintHandle = TPBDRigidDynamicSpringConstraintHandle<FReal, Dimensions>;
+		using FConstraintContainerHandle = TPBDRigidDynamicSpringConstraintHandle<FReal, Dimensions>;
 		using FConstraintHandleAllocator = TConstraintHandleAllocator<TPBDRigidDynamicSpringConstraints<FReal, Dimensions>>;
 
 		TPBDRigidDynamicSpringConstraints(const T InStiffness = (T)1)
@@ -76,7 +76,7 @@ namespace Chaos
 		 * Add a constraint initialized from current world-space particle positions.
 		 * You would use this method when your objects are already positioned in the world.
 		 */
-		FConstraintHandle* AddConstraint(const FConstrainedParticlePair& InConstrainedParticles)
+		FConstraintContainerHandle* AddConstraint(const FConstrainedParticlePair& InConstrainedParticles)
 		{
 			Handles.Add(HandleAllocator.AllocHandle(this, Handles.Num()));
 			Constraints.Add(InConstrainedParticles);
@@ -90,7 +90,7 @@ namespace Chaos
 		 */
 		void RemoveConstraint(int ConstraintIndex)
 		{
-			FConstraintHandle* ConstraintHandle = Handles[ConstraintIndex];
+			FConstraintContainerHandle* ConstraintHandle = Handles[ConstraintIndex];
 			if (ConstraintHandle != nullptr)
 			{
 				// Release the handle for the freed constraint
@@ -137,12 +137,12 @@ namespace Chaos
 		// Constraint API
 		//
 
-		const FConstraintHandle* GetConstraintHandle(int32 ConstraintIndex) const
+		const FConstraintContainerHandle* GetConstraintHandle(int32 ConstraintIndex) const
 		{
 			return Handles[ConstraintIndex];
 		}
 
-		FConstraintHandle* GetConstraintHandle(int32 ConstraintIndex)
+		FConstraintContainerHandle* GetConstraintHandle(int32 ConstraintIndex)
 		{
 			return Handles[ConstraintIndex];
 		}
@@ -162,17 +162,17 @@ namespace Chaos
 
 		void UpdatePositionBasedState(const T Dt);
 
-		void Apply(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
+		void Apply(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
 		{
-			for (FConstraintHandle* ConstraintHandle : InConstraintHandles)
+			for (FConstraintContainerHandle* ConstraintHandle : InConstraintHandles)
 			{
 				ApplySingle(Dt, ConstraintHandle->GetConstraintIndex());
 			}
 		}
 
-		// @todo(ccaulfield): remove  this
-		void ApplyPushOut(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles)
+		bool ApplyPushOut(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
 		{
+			return false;
 		}
 
 	protected:
@@ -191,7 +191,7 @@ namespace Chaos
 		int32 MaxSprings;
 		T Stiffness;
 
-		TArray<FConstraintHandle*> Handles;
+		TArray<FConstraintContainerHandle*> Handles;
 		FConstraintHandleAllocator HandleAllocator;
 	};
 }

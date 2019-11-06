@@ -114,8 +114,10 @@ class BufferUnpartitioner {
   size_t GetBufferTemplated(BufferType buffer, size_t num_channels,
                             size_t num_frames);
 
+#if !DISABLE_CHECKS
   // Number of channels in output buffers.
   const size_t num_channels_;
+#endif
 
   // Number of frames per buffer in output buffers.
   const size_t frames_per_buffer_;

@@ -28,12 +28,6 @@ void UDisplayClusterSceneComponentSyncParent::TickComponent( float DeltaTime, EL
 	// ...
 }
 
-void UDisplayClusterSceneComponentSyncParent::DestroyComponent(bool bPromoteChildren)
-{
-	Super::DestroyComponent(bPromoteChildren);
-}
-
-
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterClusterSyncObject

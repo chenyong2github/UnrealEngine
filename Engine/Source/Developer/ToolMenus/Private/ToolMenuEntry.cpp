@@ -15,7 +15,8 @@ FToolMenuEntry::FToolMenuEntry() :
 	Type(EMultiBlockType::None),
 	UserInterfaceActionType(EUserInterfaceActionType::Button),
 	bShouldCloseWindowAfterMenuSelection(true),
-	ScriptObject(nullptr)
+	ScriptObject(nullptr),
+	bAddedDuringRegister(false)
 {
 }
 
@@ -25,7 +26,8 @@ FToolMenuEntry::FToolMenuEntry(const FToolMenuOwner InOwner, const FName InName,
 	Type(InType),
 	UserInterfaceActionType(EUserInterfaceActionType::Button),
 	bShouldCloseWindowAfterMenuSelection(true),
-	ScriptObject(nullptr)
+	ScriptObject(nullptr),
+	bAddedDuringRegister(false)
 {
 }
 

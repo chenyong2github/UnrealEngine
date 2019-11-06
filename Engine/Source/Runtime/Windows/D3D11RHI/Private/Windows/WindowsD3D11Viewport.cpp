@@ -13,12 +13,9 @@
 
 #include "dxgi1_6.h"
 
-#ifndef DXGI_PRESENT_ALLOW_TEARING
-#define DXGI_PRESENT_ALLOW_TEARING          0x00000200UL
+#ifndef DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
 #define DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING  2048
 #endif
-
-
 
 static bool GSwapFlagsInitialized = false;
 static DXGI_SWAP_EFFECT GSwapEffect = DXGI_SWAP_EFFECT_DISCARD;

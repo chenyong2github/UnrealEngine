@@ -34,7 +34,7 @@ class TPBDCollisionConstraintPGS
 	void ComputeConstraints(const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices, const T Dt);
 
 	void Apply(TPBDRigidParticles<T, d>& InParticles, const T Dt, const TArray<int32>& InConstraintIndices);
-	void ApplyPushOut(TPBDRigidParticles<T, d>& InParticles, const T Dt, const TArray<int32>& InConstraintIndices);
+	bool ApplyPushOut(TPBDRigidParticles<T, d>& InParticles, const T Dt, const TArray<int32>& InConstraintIndices);
 	template<class T_PARTICLES> void Solve(T_PARTICLES& InParticles, const T Dt, const TArray<int32>& InConstraintIndices);
 
 	void RemoveConstraints(const TSet<uint32>& RemovedParticles);

@@ -86,6 +86,9 @@ public:
 	/** Load core modules. */
 	bool LoadCoreModules();
 
+	/** Clean up PreInit context. */
+	void CleanupPreInitContext();
+
 #if WITH_ENGINE
 	
 	/** Load all core modules needed at startup time. */

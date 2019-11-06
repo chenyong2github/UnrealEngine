@@ -24,6 +24,7 @@ class FNiagaraCompileRequestDataBase;
 class UMovieSceneNiagaraParameterTrack;
 struct IConsoleCommand;
 class INiagaraEditorOnlyDataUtilities;
+class FNiagaraEditorCommands;
 
 DECLARE_STATS_GROUP(TEXT("Niagara Editor"), STATGROUP_NiagaraEditor, STATCAT_Advanced);
 
@@ -36,6 +37,8 @@ public:
 	virtual TSharedRef<SWidget> CreateStackIssueIcon(UNiagaraStackViewModel& StackViewModel, UNiagaraStackEntry& StackEntry) const = 0;
 	virtual FLinearColor GetColorForExecutionCategory(FName ExecutionCategory) const = 0;
 };
+
+extern int32 GbShowFastPathOptions;
 
 /** Niagara Editor module */
 class FNiagaraEditorModule : public IModuleInterface,
@@ -100,6 +103,8 @@ public:
 	FOnCheckScriptToolkitsShouldFocusGraphElement& GetOnScriptToolkitsShouldFocusGraphElement() { return OnCheckScriptToolkitsShouldFocusGraphElement; };
 
 	NIAGARAEDITOR_API TSharedPtr<FNiagaraSystemViewModel> GetExistingViewModelForSystem(UNiagaraSystem* InSystem);
+
+	NIAGARAEDITOR_API const FNiagaraEditorCommands& GetCommands() const;
 
 private:
 	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action);

@@ -95,8 +95,11 @@ TArray<UWMRARPin*> FHoloLensARSystem::LoadWMRAnchorStoreARPins()
 	TSharedPtr<FARSupportInterface, ESPMode::ThreadSafe> ARSupportInterface = TrackingSystem->GetARCompositionComponent();
 	for (FString& AnchorId : AnchorIds)
 	{
+		FTransform Transform;
+		const bool bTracked = WMRGetAnchorTransform(*AnchorId, Transform);
+
 		UWMRARPin* NewPin = NewObject<UWMRARPin>();
-		NewPin->InitARPin(ARSupportInterface.ToSharedRef(), nullptr, FTransform::Identity, nullptr, FName(*AnchorId));
+		NewPin->InitARPin(ARSupportInterface.ToSharedRef(), nullptr, Transform, nullptr, FName(*AnchorId));
 
 		AnchorIdToPinMap.Add(AnchorId, NewPin);
 		NewPin->SetAnchorId(AnchorId);
@@ -104,6 +107,8 @@ TArray<UWMRARPin*> FHoloLensARSystem::LoadWMRAnchorStoreARPins()
 
 		Pins.Add(NewPin);
 		LoadedPins.Add(NewPin);
+
+		NewPin->OnTrackingStateChanged(bTracked ? EARTrackingState::Tracking : EARTrackingState::NotTracking);
 	}
 
 	return LoadedPins;

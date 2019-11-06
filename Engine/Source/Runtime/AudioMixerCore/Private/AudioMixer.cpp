@@ -57,7 +57,7 @@ FAutoConsoleVariableRef CVarOverrunTimeout(
 	TEXT("Amount of time to wait for the render thread to time out before swapping to the null device. \n"),
 	ECVF_Default);
 
-static int32 UnderrunTimeoutCVar = 0;
+static int32 UnderrunTimeoutCVar = 5;
 FAutoConsoleVariableRef CVarUnderrunTimeout(
 	TEXT("au.UnderrunTimeoutMSec"),
 	UnderrunTimeoutCVar,
@@ -131,6 +131,7 @@ namespace Audio
 			IsReadyEvent = nullptr;
 		}
 	}
+
 
 	void FOutputBuffer::Init(IAudioMixer* InAudioMixer, const int32 InNumSamples, const EAudioMixerStreamDataFormat::Type InDataFormat)
 	{
@@ -239,6 +240,7 @@ namespace Audio
 			IsReadyEvent->Reset();
 		}
 	}
+
 
 	void FOutputBuffer::Reset(const int32 InNewNumSamples)
 	{

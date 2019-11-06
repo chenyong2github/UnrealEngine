@@ -996,6 +996,7 @@ void OPENGLDRV_API GLSLToDeviceCompatibleGLSL(FAnsiCharArray& GlslCodeOriginal, 
 	if (Capabilities.TargetPlatform == EOpenGLShaderTargetPlatform::OGLSTP_Android || Capabilities.TargetPlatform == EOpenGLShaderTargetPlatform::OGLSTP_HTML5)
 	{
 		bNeedsExtDrawInstancedDefine = !bES31;
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (bES31)
 		{
 			// @todo Lumin hack: This is needed for AEP on Lumin, so that some shaders compile that need version 320
@@ -1022,7 +1023,7 @@ void OPENGLDRV_API GLSLToDeviceCompatibleGLSL(FAnsiCharArray& GlslCodeOriginal, 
 			}
 			ReplaceCString(GlslCodeOriginal, "#version 100", "");
 		}
-
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	else if (Capabilities.TargetPlatform == EOpenGLShaderTargetPlatform::OGLSTP_iOS)
 	{
@@ -1178,6 +1179,7 @@ void OPENGLDRV_API GLSLToDeviceCompatibleGLSL(FAnsiCharArray& GlslCodeOriginal, 
 			}
 		}
 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (IsES2Platform(Capabilities.MaxRHIShaderPlatform) && !bES31)
 		{
 			const ANSICHAR * EncodeModeDefine = nullptr;
@@ -1366,6 +1368,7 @@ void OPENGLDRV_API GLSLToDeviceCompatibleGLSL(FAnsiCharArray& GlslCodeOriginal, 
 				}
 			}
 		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	else if (Capabilities.TargetPlatform == EOpenGLShaderTargetPlatform::OGLSTP_HTML5)
 	{

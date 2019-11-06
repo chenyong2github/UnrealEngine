@@ -68,6 +68,7 @@ public:
 	FNiagaraDataSet& GetData()const { return *ParticleDataSet; }
 
 	FORCEINLINE bool IsDisabled()const { return ExecutionState == ENiagaraExecutionState::Disabled; }
+	FORCEINLINE bool IsInactive()const { return ExecutionState == ENiagaraExecutionState::Inactive; }
 	FORCEINLINE bool IsComplete()const { return ExecutionState == ENiagaraExecutionState::Complete || ExecutionState == ENiagaraExecutionState::Disabled; }
 
 	/** Create a new NiagaraRenderer. The old renderer is not immediately deleted, but instead put in the ToBeRemoved list.*/
@@ -151,8 +152,6 @@ private:
 
 	/* The age of the emitter*/
 	float Age;
-	/* how many loops this emitter has gone through */
-	uint32 Loops;
 
 	int32 TickCount;
 
@@ -167,6 +166,8 @@ private:
 	ENiagaraExecutionState ExecutionState;
 	/* Emitter bounds */
 	FBox CachedBounds;
+
+	uint32 MaxRuntimeAllocation;
 
 	/** Array of all spawn info driven by our owning emitter script. */
 	TArray<FNiagaraSpawnInfo> SpawnInfos;
@@ -235,6 +236,10 @@ private:
 	/** Data required for handling events. */
 	TArray<FNiagaraEventHandlingInfo> EventHandlingInfo;
 	int32 EventSpawnTotal;
+
+	int32 MaxAllocationCount;
+	int32 MinOverallocation;
+	int32 ReallocationCount;
 
 	/** Optional list of bounds calculators. */
 	TArray<TUniquePtr<FNiagaraBoundsCalculator>, TInlineAllocator<1>> BoundsCalculators;

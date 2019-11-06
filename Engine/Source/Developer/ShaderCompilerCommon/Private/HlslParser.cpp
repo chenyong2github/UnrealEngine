@@ -266,7 +266,7 @@ namespace CrossCompiler
 			if (Scanner.MatchToken(EHlslToken::Lower))
 			{
 				AST::FTypeSpecifier* ElementTypeSpecifier = nullptr;
-				auto Result = ParseGeneralType(Scanner, ETF_BUILTIN_NUMERIC | ETF_USER_TYPES, SymbolScope, Allocator, &ElementTypeSpecifier);
+				auto Result = ParseGeneralType(Scanner, ETF_BUILTIN_NUMERIC | ETF_USER_TYPES | ETF_UNORM, SymbolScope, Allocator, &ElementTypeSpecifier);
 				if (Result != EParseResult::Matched)
 				{
 					Scanner.SourceError(TEXT("Expected type!"));
@@ -363,7 +363,7 @@ namespace CrossCompiler
 		return EParseResult::NotMatched;
 	}
 
-	EParseResult ParseDeclarationStorageQualifiers(FHlslScanner& Scanner, int32 TypeFlags, int32 DeclarationFlags, bool& bOutPrimitiveFound, AST::FTypeQualifier* Qualifier)
+	EParseResult ParseDeclarationStorageQualifiers(FHlslScanner& Scanner, int32 TypeFlags, int32 DeclarationFlags, bool& bOutPrimitiveFound, FLinearAllocator* Allocator, AST::FTypeQualifier* Qualifier)
 	{
 		bOutPrimitiveFound = false;
 		int32 StaticFound = 0;
@@ -396,6 +396,7 @@ namespace CrossCompiler
 					Token->String == TEXT("triangleadj"))
 				{
 					Scanner.Advance();
+					Qualifier->PrimitiveType = Allocator->Strdup(Token->String);
 					++PrimitiveFound;
 				}
 			}
@@ -603,7 +604,7 @@ namespace CrossCompiler
 		auto OriginalToken = Scanner.GetCurrentTokenIndex();
 		bool bPrimitiveFound = false;
 		auto* FullType = new(Allocator) AST::FFullySpecifiedType(Allocator, Scanner.GetCurrentToken()->SourceInfo);
-		auto ParseResult = ParseDeclarationStorageQualifiers(Scanner, TypeFlags, DeclarationFlags, bPrimitiveFound, &FullType->Qualifier);
+		auto ParseResult = ParseDeclarationStorageQualifiers(Scanner, TypeFlags, DeclarationFlags, bPrimitiveFound, Allocator, &FullType->Qualifier);
 		if (ParseResult == EParseResult::Error)
 		{
 			return ParseResultError();
@@ -1131,9 +1132,22 @@ Done:
 	{
 		const auto* CurrentToken = Parser.Scanner.GetCurrentToken();
 
+		// Inline could be used but will be ignored per the hlsl spec. If found then this HAS to be a function.
+		bool bFoundInline = Parser.Scanner.MatchToken(EHlslToken::Inline);
+
 		AST::FFunction* Function = nullptr;
 		EParseResult Result = ParseFunctionDeclarator(Parser, Allocator, &Function);
-		if (Result == EParseResult::NotMatched || Result == EParseResult::Error)
+		if (Result == EParseResult::NotMatched)
+		{
+			if (bFoundInline)
+			{
+				Parser.Scanner.SourceError(TEXT("Function declaration expected ('inline' keyword found)"));
+				return EParseResult::Error;
+			}
+
+			return EParseResult::NotMatched;
+		}
+		else if( Result == EParseResult::Error)
 		{
 			return Result;
 		}
@@ -1141,6 +1155,7 @@ Done:
 		if (Parser.Scanner.MatchToken(EHlslToken::Semicolon))
 		{
 			// Forward declaration
+			Function->bIsDefinition = true;
 			*OutFunction = Function;
 			return EParseResult::Matched;
 		}
@@ -1741,6 +1756,39 @@ Done:
 		return ParseResultError();
 	}
 
+	EParseResult ParseTypedef(FHlslParser& Parser, FLinearAllocator* Allocator, AST::FNode** OutNode)
+	{
+		if (!Parser.Scanner.MatchToken(EHlslToken::Typedef))
+		{
+			return EParseResult::NotMatched;
+		}
+
+		EParseResult Result = ParseGlobalVariableDeclaration(Parser, Allocator, OutNode);
+		if (Result == EParseResult::Matched)
+		{
+			if (*OutNode)
+			{
+				CrossCompiler::AST::FDeclaratorList* DeclList = (*OutNode)->AsDeclaratorList();
+				if (DeclList)
+				{
+					DeclList->bTypedef = true;
+				}
+				else
+				{
+					Parser.Scanner.SourceError(TEXT("Internal error parsing typedef declarator list"));
+					return EParseResult::Error;
+				}
+			}
+			else
+			{
+				Parser.Scanner.SourceError(TEXT("Internal error parsing typedef with null node"));
+				return EParseResult::Error;
+			}
+		}
+
+		return EParseResult::Matched;
+	}
+
 	EParseResult TryTranslationUnit(FHlslParser& Parser, FLinearAllocator* Allocator, AST::FNode** OutNode)
 	{
 		if (MatchPragma(Parser, Allocator, OutNode))
@@ -1786,7 +1834,13 @@ Done:
 			return ParseResultError();
 		}
 		
-		auto Result = ParseFunctionDeclaration(Parser, Allocator, Attributes, OutNode);
+		auto Result = ParseTypedef(Parser, Allocator, OutNode);
+		if (Result == EParseResult::Error || Result == EParseResult::Matched)
+		{
+			return Result;
+		}
+
+		Result = ParseFunctionDeclaration(Parser, Allocator, Attributes, OutNode);
 		if (Result == EParseResult::Error || Result == EParseResult::Matched)
 		{
 			return Result;

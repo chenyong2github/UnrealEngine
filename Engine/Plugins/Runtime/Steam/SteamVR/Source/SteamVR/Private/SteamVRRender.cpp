@@ -72,7 +72,7 @@ bool FSteamVRHMD::IsActiveThisFrame(class FViewport* InViewport) const
 static void DrawOcclusionMesh(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass, const FHMDViewMesh MeshAssets[])
 {
 	check(IsInRenderingThread());
-	check(GEngine->StereoRenderingDevice->IsStereoEyePass(StereoPass));
+	check(GEngine->StereoRenderingDevice->DeviceIsStereoEyePass(StereoPass));
 
 	const uint32 MeshIndex = GEngine->StereoRenderingDevice->GetViewIndexForPass(StereoPass);
 	const FHMDViewMesh& Mesh = MeshAssets[MeshIndex];

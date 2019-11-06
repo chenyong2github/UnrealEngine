@@ -86,12 +86,12 @@ struct FLandscapeTextureDataInfo
 		return MipInfo[MipNum].MipData;
 	}
 
-	int32 GetMipSizeX(int32 MipNum)
+	int32 GetMipSizeX(int32 MipNum) const
 	{
 		return FMath::Max(Texture->Source.GetSizeX() >> MipNum, 1);
 	}
 
-	int32 GetMipSizeY(int32 MipNum)
+	int32 GetMipSizeY(int32 MipNum) const
 	{
 		return FMath::Max(Texture->Source.GetSizeY() >> MipNum, 1);
 	}
@@ -118,8 +118,10 @@ struct LANDSCAPE_API FLandscapeTextureDataInterface
 	// Texture bulk operations for weightmap reallocation
 	void CopyTextureChannel(UTexture2D* Dest, int32 DestChannel, UTexture2D* Src, int32 SrcChannel);
 	void ZeroTextureChannel(UTexture2D* Dest, int32 DestChannel);
+	void CopyTextureFromHeightmap(UTexture2D* Dest, ULandscapeComponent* Comp, int32 MipIndex);
 	void CopyTextureFromHeightmap(UTexture2D* Dest, int32 DestChannel, ULandscapeComponent* Comp, int32 SrcChannel);
 	void CopyTextureFromWeightmap(UTexture2D* Dest, int32 DestChannel, ULandscapeComponent* Comp, ULandscapeLayerInfoObject* LayerInfo);
+	void CopyTextureFromWeightmap(UTexture2D* Dest, int32 DestChannel, ULandscapeComponent* Comp, ULandscapeLayerInfoObject* LayerInfo, int32 MipIndex);
 
 	template<typename TData>
 	void SetTextureValueTempl(UTexture2D* Dest, TData Value);
@@ -131,6 +133,8 @@ struct LANDSCAPE_API FLandscapeTextureDataInterface
 	bool EqualTextureValue(UTexture2D* Src, FColor Value);
 
 private:
+	void CopyTextureFromWeightmap(FLandscapeTextureDataInfo* DestDataInfo, int32 DestChannel, ULandscapeComponent* Comp, ULandscapeLayerInfoObject* LayerInfo, int32 MipIndex);
+
 	TMap<UTexture2D*, FLandscapeTextureDataInfo*> TextureDataMap;
 	bool bUploadTextureChangesToGPU;
 	bool bShouldDirtyPackage;

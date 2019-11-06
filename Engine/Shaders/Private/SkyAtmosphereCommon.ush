@@ -156,17 +156,19 @@ void SkyViewLutParamsToUv(
 	UV = FromUnitToSubUvs(UV, SkyViewLutSizeAndInvSize);
 }
 
-float3x3 GetSkyViewLutReferential(in float3 WorldPos, in float3 ViewForward)
+float3x3 GetSkyViewLutReferential(in float3 WorldPos, in float3 ViewForward, in float3 ViewRight)
 {
 	float3	Up = normalize(WorldPos);
 	float3	Forward = ViewForward;		// This can make texel visible when the camera is rotating. Use constant worl direction instead?
 	float3	Left = normalize(cross(Forward, Up));
+	if (abs(dot(Forward, Up)) > 0.99f)
+	{
+		Left = -ViewRight;
+	}
 	Forward = normalize(cross(Up, Left));
 	float3x3 LocalReferencial = transpose(float3x3(Forward, Left, Up));
 	return LocalReferencial;
 }
-
-
 
 float3 GetLightDiskLuminance(
 	float3 WorldPos, float3 WorldDir, float BottomRadius, float TopRadius,

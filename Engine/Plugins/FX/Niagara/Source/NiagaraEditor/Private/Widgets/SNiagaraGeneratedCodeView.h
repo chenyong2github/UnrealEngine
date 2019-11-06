@@ -9,7 +9,6 @@
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STreeView.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
-#include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "TickableEditorObject.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "NiagaraDataSet.h"
@@ -62,7 +61,7 @@ protected:
 
 	void SetSearchMofN();
 
-	void SystemSelectionChanged(UNiagaraSystemSelectionViewModel::ESelectionChangeSource SelectionChangeSource);
+	void SystemSelectionChanged();
 	void OnTabChanged(uint32 Tab);
 	bool GetTabCheckedState(uint32 Tab) const;
 	EVisibility GetViewVisibility(uint32 Tab) const;

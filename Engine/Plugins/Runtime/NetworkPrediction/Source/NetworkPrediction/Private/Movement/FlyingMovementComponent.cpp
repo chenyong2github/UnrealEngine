@@ -38,6 +38,8 @@ static FAutoConsoleVariableRef CVarRequestMispredict(TEXT("fp.RequestMispredict"
 	RequestMispredict, TEXT("Causes a misprediction by inserting random value into stream on authority side"), ECVF_Default);
 }
 
+float UFlyingMovementComponent::GetDefaultMaxSpeed() { return FlyingMovementCVars::MaxSpeed; }
+
 // ----------------------------------------------------------------------------------------------------------
 //	UFlyingMovementComponent setup/init
 // ----------------------------------------------------------------------------------------------------------
@@ -51,29 +53,18 @@ UFlyingMovementComponent::UFlyingMovementComponent()
 //	Core Network Prediction functions
 // ----------------------------------------------------------------------------------------------------------
 
-INetworkSimulationModel* UFlyingMovementComponent::InstantiateNetworkSimulation()
+INetworkedSimulationModel* UFlyingMovementComponent::InstantiateNetworkedSimulation()
 {
-	check(UpdatedComponent);
-
-	// Create the simulation
-	MovementSimulation.Reset(new FlyingMovement::FMovementSimulation());
-	MovementSimulation->UpdatedComponent = UpdatedComponent;
-	MovementSimulation->UpdatedPrimitive = UpdatedPrimitive;
-	
-	// Initial states
+	// The Simulation
 	FlyingMovement::FMoveState InitialSyncState;
-	InitialSyncState.Location = UpdatedComponent->GetComponentLocation();
-	InitialSyncState.Rotation = UpdatedComponent->GetComponentQuat().Rotator();	
-
 	FlyingMovement::FAuxState InitialAuxState;
-	InitialAuxState.MaxSpeed = FlyingMovementCVars::MaxSpeed;
 
-	// The NetworkModel
-	auto NewModel = new FlyingMovement::FMovementSystem<0>(MovementSimulation.Get(), this, InitialSyncState, InitialAuxState);
+	InitFlyingMovementSimulation(new FlyingMovement::FMovementSimulation(), InitialSyncState, InitialAuxState);
 
-	// Accessors to the latest sync/aux state
-	MovementSyncState.Init(NewModel);
-	MovementAuxState.Init(NewModel);
+	// The Model
+	auto NewModel = new FlyingMovement::FMovementSystem<0>(MovementSimulation, this, InitialSyncState, InitialAuxState);
+	InitFlyingMovementNetSimModel(NewModel);
+	
 	return NewModel;
 }
 
@@ -148,7 +139,7 @@ void UFlyingMovementComponent::FinalizeFrame(const FlyingMovement::FMoveState& S
 
 FString UFlyingMovementComponent::GetDebugName() const
 {
-	return FString::Printf(TEXT("FlyingMovement. %s. %s"), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwnerRole()), *GetName());
+	return FString::Printf(TEXT("FlyingMovement. %s. %s"), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwnerRole()), *GetPathName());
 }
 
 const AActor* UFlyingMovementComponent::GetVLogOwner() const
