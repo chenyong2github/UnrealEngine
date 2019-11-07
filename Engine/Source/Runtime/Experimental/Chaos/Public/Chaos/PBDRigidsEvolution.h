@@ -199,7 +199,7 @@ struct CHAOS_API ISpatialAccelerationCollectionFactory
 	virtual TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<T, d>, T, d>> CreateEmptyCollection() = 0;
 
 	//Chaos creates new acceleration structures per bucket. Factory can change underlying type at runtime as well as number of buckets to AB test
-	virtual TUniquePtr<ISpatialAcceleration<TAccelerationStructureHandle<T, d>, T, d>> CreateAccelerationPerBucket_Threaded(const TConstParticleView<TSpatialAccelerationCache<T, d>>& Particles, uint16 BucketIdx) = 0;
+	virtual TUniquePtr<ISpatialAcceleration<TAccelerationStructureHandle<T, d>, T, d>> CreateAccelerationPerBucket_Threaded(const TConstParticleView<TSpatialAccelerationCache<T, d>>& Particles, uint16 BucketIdx, bool ForceFullBuild) = 0;
 
 	//Mask indicating which bucket is active. Spatial indices in inactive buckets fallback to bucket 0. Bit 0 indicates bucket 0 is active, Bit 1 indicates bucket 1 is active, etc...
 	virtual uint8 GetActiveBucketsMask() const = 0;
@@ -219,7 +219,7 @@ class TPBDRigidsEvolutionBase
 	typedef TFunction<void(const TParticleView<TPBDRigidParticles<T, d>>&, const T)> FUpdatePositionRule;
 	typedef TFunction<void(TPBDRigidParticles<T, d>&, const T, const T, const int32)> FKinematicUpdateRule;
 
-	CHAOS_API TPBDRigidsEvolutionBase(TPBDRigidsSOAs<T, d>& InParticles, int32 InNumIterations = 1);
+	CHAOS_API TPBDRigidsEvolutionBase(TPBDRigidsSOAs<T, d>& InParticles, int32 InNumIterations = 1, int32 InNumPushOutIterations = 1);
 	CHAOS_API virtual ~TPBDRigidsEvolutionBase();
 
 	CHAOS_API TArray<TGeometryParticleHandle<T, d>*> CreateStaticParticles(int32 NumParticles, const TGeometryParticleParameters<T, d>& Params = TGeometryParticleParameters<T, d>())
@@ -272,10 +272,7 @@ class TPBDRigidsEvolutionBase
 	CHAOS_API TPBDRigidsSOAs<T,d>& GetParticles() { return Particles; }
 	CHAOS_API const TPBDRigidsSOAs<T, d>& GetParticles() const { return Particles; }
 
-	typedef TPBDConstraintGraph<T, d> FConstraintGraph;
-	typedef TPBDConstraintGraphRule<T, d> FConstraintRule;
-
-	CHAOS_API void AddConstraintRule(FConstraintRule* ConstraintRule)
+	CHAOS_API void AddConstraintRule(FPBDConstraintGraphRule* ConstraintRule)
 	{
 		uint32 ContainerId = (uint32)ConstraintRules.Num();
 		ConstraintRules.Add(ConstraintRule);
@@ -285,6 +282,11 @@ class TPBDRigidsEvolutionBase
 	CHAOS_API void SetNumIterations(int32 InNumIterations)
 	{
 		NumIterations = InNumIterations;
+	}
+
+	CHAOS_API void SetNumPushOutIterations(int32 InNumIterations)
+	{
+		NumPushOutIterations = InNumIterations;
 	}
 
 	CHAOS_API void EnableParticle(TGeometryParticleHandle<T,d>* Particle, const TGeometryParticleHandle<T, d>* ParentParticle)
@@ -359,7 +361,7 @@ class TPBDRigidsEvolutionBase
 	// @todo(ccaulfield): Remove the uint version
 	CHAOS_API void RemoveConstraints(const TSet<TGeometryParticleHandle<T, d>*>& RemovedParticles)
 	{
-		for (FConstraintRule* ConstraintRule : ConstraintRules)
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
 			ConstraintRule->RemoveConstraints(RemovedParticles);
 		}
@@ -383,14 +385,14 @@ class TPBDRigidsEvolutionBase
 	{
 		ConstraintGraph.InitializeGraph(Particles.GetNonDisabledView());
 
-		for (FConstraintRule* ConstraintRule : ConstraintRules)
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
 			ConstraintRule->AddToGraph();
 		}
 
 		ConstraintGraph.ResetIslands(Particles.GetNonDisabledDynamicView());
 
-		for (FConstraintRule* ConstraintRule : ConstraintRules)
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
 			ConstraintRule->InitializeAccelerationStructures();
 		}
@@ -398,7 +400,7 @@ class TPBDRigidsEvolutionBase
 
 	void UpdateAccelerationStructures(int32 Island)
 	{
-		for (FConstraintRule* ConstraintRule : ConstraintRules)
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
 			ConstraintRule->UpdateAccelerationStructures(Island);
 		}
@@ -406,14 +408,15 @@ class TPBDRigidsEvolutionBase
 
 	void ApplyConstraints(const T Dt, int32 Island)
 	{
-		for (FConstraintRule* ConstraintRule : ConstraintRules)
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
 			ConstraintRule->UpdateAccelerationStructures(Island);
 		}
 
+		// @todo(ccaulfield): track whether we are sufficiently solved and can early-out
 		for (int i = 0; i < NumIterations; ++i)
 		{
-			for (FConstraintRule* ConstraintRule : ConstraintRules)
+			for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 			{
 				ConstraintRule->ApplyConstraints(Dt, Island, i, NumIterations);
 			}
@@ -500,13 +503,16 @@ class TPBDRigidsEvolutionBase
 	const auto& GetRigidClustering() const { return Clustering; }
 	auto& GetRigidClustering() { return Clustering; }
 
+	CHAOS_API const FPBDConstraintGraph& GetConstraintGraph() const { return ConstraintGraph; }
+	CHAOS_API FPBDConstraintGraph& GetConstraintGraph() { return ConstraintGraph; }
+
 	void Serialize(FChaosArchive& Ar);
 
 protected:
 	int32 NumConstraints() const
 	{
 		int32 NumConstraints = 0;
-		for (const FConstraintRule* ConstraintRule : ConstraintRules)
+		for (const FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
 			NumConstraints += ConstraintRule->NumConstraints();
 		}
@@ -538,7 +544,7 @@ protected:
 
 	void UpdateConstraintPositionBasedState(T Dt)
 	{
-		for (FConstraintRule* ConstraintRule : ConstraintRules)
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
 			ConstraintRule->UpdatePositionBasedState(Dt);
 		}
@@ -548,7 +554,7 @@ protected:
 	{
 		ConstraintGraph.InitializeGraph(Particles.GetNonDisabledView());
 
-		for (FConstraintRule* ConstraintRule : ConstraintRules)
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
 			ConstraintRule->AddToGraph();
 		}
@@ -558,7 +564,7 @@ protected:
 	{
 		ConstraintGraph.UpdateIslands(Particles.GetNonDisabledDynamicView(), Particles);
 
-		for (FConstraintRule* ConstraintRule : ConstraintRules)
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
 			ConstraintRule->InitializeAccelerationStructures();
 		}
@@ -571,9 +577,17 @@ protected:
 
 	void ApplyPushOut(const T Dt, int32 Island)
 	{
-		for (FConstraintRule* ConstraintRule : ConstraintRules)
+		bool bNeedsAnotherIteration = true;
+		for (int32 It = 0; bNeedsAnotherIteration && (It < NumPushOutIterations); ++It)
 		{
-			ConstraintRule->ApplyPushOut(Dt, Island);
+			bNeedsAnotherIteration = false;
+			for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+			{
+				if (ConstraintRule->ApplyPushOut(Dt, Island, It, NumPushOutIterations))
+				{
+					bNeedsAnotherIteration = true;
+				}
+			}
 		}
 	}
 
@@ -589,8 +603,8 @@ protected:
 	FUpdateVelocityRule ParticleUpdateVelocity;
 	FUpdatePositionRule ParticleUpdatePosition;
 	FKinematicUpdateRule KinematicUpdate;
-	TArray<FConstraintRule*> ConstraintRules;
-	FConstraintGraph ConstraintGraph;
+	TArray<FPBDConstraintGraphRule*> ConstraintRules;
+	FPBDConstraintGraph ConstraintGraph;
 	TArrayCollectionArray<TSerializablePtr<TChaosPhysicsMaterial<T>>> PhysicsMaterials;
 	TArrayCollectionArray<TUniquePtr<TChaosPhysicsMaterial<T>>> PerParticlePhysicsMaterials;
 	TArrayCollectionArray<int32> ParticleDisableCount;
@@ -667,7 +681,8 @@ protected:
 		FChaosAccelerationStructureTask(ISpatialAccelerationCollectionFactory<T,d>& InSpatialCollectionFactory
 			, const TMap<FSpatialAccelerationIdx, TUniquePtr<TSpatialAccelerationCache<T,d>>>& InSpatialAccelerationCache
 			, TUniquePtr<FAccelerationStructure>& InAccelerationStructure
-			, TUniquePtr<FAccelerationStructure>& InAccelerationStructureCopy);
+			, TUniquePtr<FAccelerationStructure>& InAccelerationStructureCopy
+			, bool InForceFullBuild);
 		static FORCEINLINE TStatId GetStatId();
 		static FORCEINLINE ENamedThreads::Type GetDesiredThread();
 		static FORCEINLINE ESubsequentsMode::Type GetSubsequentsMode();
@@ -677,10 +692,12 @@ protected:
 		const TMap<FSpatialAccelerationIdx, TUniquePtr<TSpatialAccelerationCache<T, d>>>& SpatialAccelerationCache;
 		TUniquePtr<FAccelerationStructure>& AccelerationStructure;
 		TUniquePtr<FAccelerationStructure>& AccelerationStructureCopy;
+		bool IsForceFullBuild;
 	};
 	FGraphEventRef AccelerationStructureTaskComplete;
 
 	int32 NumIterations;
+	int32 NumPushOutIterations;
 	TUniquePtr<ISpatialAccelerationCollectionFactory<T, d>> SpatialCollectionFactory;
 };
 

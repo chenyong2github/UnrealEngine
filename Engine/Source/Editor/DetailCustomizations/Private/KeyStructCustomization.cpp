@@ -38,6 +38,7 @@ void FKeyStructCustomization::CustomizeHeader( TSharedRef<class IPropertyHandle>
 		.OnKeyChanged(this, &FKeyStructCustomization::OnKeyChanged)
 		.Font(StructCustomizationUtils.GetRegularFont())
 		.AllowClear(!StructPropertyHandle->GetProperty()->HasAnyPropertyFlags(CPF_NoClear))
+		.FilterBlueprintBindable(false)
 	];
 }
 

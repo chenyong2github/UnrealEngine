@@ -89,7 +89,11 @@ void FirFilter::Process(const AudioBuffer::Channel& input,
   // other to store data that needed to be copied as it straddled a four float
   // boundary.
   SimdVector input_use;
+
+#if defined(SIMD_SSE)
   SimdVector input_split;
+#endif
+
   for (size_t input_position = num_filter_chunks_;
        input_position < num_input_chunks + num_filter_chunks_;
        ++input_position) {

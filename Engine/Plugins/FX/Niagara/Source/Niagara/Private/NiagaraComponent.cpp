@@ -323,7 +323,7 @@ void FNiagaraSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>&
 	for (int32 RendererIdx : RendererDrawOrder)
 	{
 		FNiagaraRenderer* Renderer = EmitterRenderers[RendererIdx];
-		if (Renderer && (Renderer->GetSimTarget() == ENiagaraSimTarget::CPUSim || ViewFamily.GetFeatureLevel() == ERHIFeatureLevel::SM5))
+		if (Renderer && (Renderer->GetSimTarget() == ENiagaraSimTarget::CPUSim || ViewFamily.GetFeatureLevel() >= ERHIFeatureLevel::ES3_1))
 		{
 			Renderer->GetDynamicMeshElements(Views, ViewFamily, VisibilityMap, Collector, this);
 		}
@@ -701,10 +701,12 @@ void UNiagaraComponent::Activate(bool bReset /* = false */)
 {
 	bAwaitingActivationDueToNotReady = false;
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (IsES2Platform(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]))
 	{
 		GbSuppressNiagaraSystems = 1;
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (GbSuppressNiagaraSystems != 0)
 	{

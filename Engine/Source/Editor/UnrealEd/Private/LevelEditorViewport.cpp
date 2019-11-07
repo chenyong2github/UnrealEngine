@@ -2766,27 +2766,31 @@ bool FLevelEditorViewportClient::InputKey(FViewport* InViewport, int32 Controlle
 			{
 				FText TrackingDescription = FText::Format(LOCTEXT("RotatationShortcut", "Rotate Atmosphere Light {0}"), LightIndex);
 				TrackingTransaction.Begin(TrackingDescription, SelectedSunLight->GetOwner());
+				SetRealtime(true, true); // The first time, save that setting for RestoreRealtime
 			}
 			bCurrentUserControl = true;
 			UserIsControllingAtmosphericLightTimer = 3.0f; // Keep the widget open for a few seconds even when not tweaking the sun light
 		}
 	};
-	bool bCtrlLPressed = InputState.IsCtrlButtonPressed() && Key == EKeys::L;
-	if (bCtrlLPressed && InputState.IsShiftButtonPressed())
+
+
+	bool bCmdCtrlLPressed = (InputState.IsCommandButtonPressed() || InputState.IsCtrlButtonPressed()) && Key == EKeys::L;
+	if (bCmdCtrlLPressed && InputState.IsShiftButtonPressed())
 	{
 		ProcessAtmosphericLightShortcut(1, bUserIsControllingAtmosphericLight1);
 		return true;
 	}
-	if (bCtrlLPressed)
+	if (bCmdCtrlLPressed)
 	{
 		ProcessAtmosphericLightShortcut(0, bUserIsControllingAtmosphericLight0);
 		return true;
 	}
 	if (bUserIsControllingAtmosphericLight0 || bUserIsControllingAtmosphericLight1)
 	{
-		TrackingTransaction.End();
+		TrackingTransaction.End();					// End undo/redo translation
+		RestoreRealtime(true);						// Restore previous real-time state
 	}
-	bUserIsControllingAtmosphericLight0 = false;
+	bUserIsControllingAtmosphericLight0 = false;	// Disable all atmospheric light controls
 	bUserIsControllingAtmosphericLight1 = false;
 
 	bool bHandled = FEditorViewportClient::InputKey(InViewport,ControllerId,Key,Event,AmountDepressed,bGamepad);
@@ -3462,7 +3466,7 @@ void FLevelEditorViewportClient::MoveLockedActorToCamera()
 			TOptional<FRotator> PreviousRotator;
 			if (ActiveActorLockComponent)
 			{
-				PreviousRotator = ActiveActorLockComponent->RelativeRotation;
+				PreviousRotator = ActiveActorLockComponent->GetRelativeRotation();
 			}
 
 			// If we're locked to a camera then we're reflecting the camera view and not the actor position. We need to reflect that delta when we reposition the piloted actor
@@ -3488,7 +3492,7 @@ void FLevelEditorViewportClient::MoveLockedActorToCamera()
 				FRotator ActorRotWind, ActorRotRem;
 				Rot.GetWindingAndRemainder(ActorRotWind, ActorRotRem);
 				const FQuat ActorQ = ActorRotRem.Quaternion();
-				const FQuat ResultQ = ActiveActorLockComponent->RelativeRotation.Quaternion();
+				const FQuat ResultQ = ActiveActorLockComponent->GetRelativeRotation().Quaternion();
 				FRotator NewActorRotRem = FRotator(ResultQ);
 				ActorRotRem.SetClosestToMe(NewActorRotRem);
 				FRotator DeltaRot = NewActorRotRem - ActorRotRem;

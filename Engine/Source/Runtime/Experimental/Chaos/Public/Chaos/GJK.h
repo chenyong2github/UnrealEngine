@@ -376,7 +376,7 @@ namespace Chaos
 		TVector<T, 3> V = -InitialDir;
 		FSimplex SimplexIDs;
 		TVector<T, 3> Simplex[4];
-		T Barycentric[4];
+		T Barycentric[4] = { -1,-1,-1,-1 };	//not needed, but compiler warns
 		const TRotation<T, 3> AToBRotation = BToATM.GetRotation().Inverse();
 		bool bTerminate;
 		bool bNearZero = false;
@@ -450,7 +450,7 @@ namespace Chaos
 		TVector<T, 3> As[4] = { TVector<T,3>(0), TVector<T,3>(0), TVector<T,3>(0), TVector<T,3>(0) };
 		TVector<T, 3> Bs[4] = { TVector<T,3>(0), TVector<T,3>(0), TVector<T,3>(0), TVector<T,3>(0) };
 
-		T Barycentric[4];
+		T Barycentric[4] = { -1,-1,-1,-1 };	//not needed, but compiler warns
 
 		FSimplex SimplexIDs;
 		const TRotation<T, 3> BToARotation = StartTM.GetRotation();
@@ -578,18 +578,20 @@ namespace Chaos
 
 	template <typename T, typename TGeometryA, typename TGeometryB>
 	bool GJKRaycast2(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& RayDir, const T RayLength,
-		T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, const T ThicknessA = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T ThicknessB = 0)
+		T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, const T GivenThicknessA = 0, bool bComputeMTD = false, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T GivenThicknessB = 0)
 	{
 		ensure(FMath::IsNearlyEqual(RayDir.SizeSquared(), 1, KINDA_SMALL_NUMBER));
 		ensure(RayLength > 0);
-		check(A.IsConvex() && B.IsConvex());
+		const T ThicknessA = A.GetMargin();
+		const T ThicknessB = B.GetMargin();
+
 		const TVector<T, 3> StartPoint = StartTM.GetLocation();
 
 		TVector<T, 3> Simplex[4] = { TVector<T,3>(0), TVector<T,3>(0), TVector<T,3>(0), TVector<T,3>(0) };
 		TVector<T, 3> As[4] = { TVector<T,3>(0), TVector<T,3>(0), TVector<T,3>(0), TVector<T,3>(0) };
 		TVector<T, 3> Bs[4] = { TVector<T,3>(0), TVector<T,3>(0), TVector<T,3>(0), TVector<T,3>(0) };
 
-		T Barycentric[4];
+		T Barycentric[4] = { -1,-1,-1,-1 };	//not needed, but compiler warns
 		const T Inflation = ThicknessA + ThicknessB;
 		const T Inflation2 = Inflation*Inflation + 1e-6;
 
@@ -686,7 +688,6 @@ namespace Chaos
 		if (Lambda > 0)
 		{
 			OutNormal = Normal;
-			TVector<T, 3> ClosestA(0);
 			TVector<T, 3> ClosestB(0);
 
 			for (int i = 0; i < SimplexIDs.NumVerts; ++i)
@@ -696,6 +697,35 @@ namespace Chaos
 			const TVector<T, 3> ClosestLocal = ClosestB - OutNormal * ThicknessB;
 
 			OutPosition = StartPoint + RayDir * Lambda + ClosestLocal;
+		}
+		else if (bComputeMTD)
+		{
+			if (InGJKPreDist2)
+			{
+				OutNormal = Normal;
+				TVector<T, 3> ClosestA(0);
+				TVector<T, 3> ClosestB(0);
+
+				for (int i = 0; i < SimplexIDs.NumVerts; ++i)
+				{
+					ClosestA += As[i] * Barycentric[i];
+					ClosestB += Bs[i] * Barycentric[i];
+				}
+
+				const T InGJKPreDist = FMath::Sqrt(InGJKPreDist2);
+				OutNormal = (ClosestA - ClosestB).GetUnsafeNormal();	//question: should we just use InGJKPreDist2?
+				const TVector<T, 3> ClosestLocal = ClosestB - OutNormal * ThicknessB;
+
+				OutPosition = StartPoint + ClosestLocal;
+				OutTime = InGJKPreDist - ThicknessA - ThicknessB;
+			}
+			else
+			{
+				ensure(false);	//todo: use EPA
+				OutTime = 0;
+				OutPosition = TVector<T, 3>(0);
+				OutNormal = { 0,0,1 };
+			}
 		}
 
 		return true;
@@ -730,13 +760,13 @@ namespace Chaos
 
 	// Overloads for geometry types which don't have centroids.
 	template <typename T, typename TGeometryB>
-	TVector<T, 3> GJKDistanceInitialV(const TImplicitObject<T, 3>& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM)
+	TVector<T, 3> GJKDistanceInitialV(const FImplicitObject& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM)
 	{
 		return -BToATM.GetTranslation();
 	}
 
 	template <typename T, typename TGeometryA>
-	TVector<T, 3> GJKDistanceInitialV(TGeometryA A, const TImplicitObject<T, 3>& B, const TRigidTransform<T, 3>& BToATM)
+	TVector<T, 3> GJKDistanceInitialV(TGeometryA A, const FImplicitObject& B, const TRigidTransform<T, 3>& BToATM)
 	{
 		return -BToATM.GetTranslation();
 	}
@@ -867,7 +897,10 @@ namespace Chaos
 		if (GJKDistance(A, Segment, BToATM, SegmentDistance, OutPositionA, PositionBInB, Epsilon, MaxIts))
 		{
 			OutPositionB = BToATM.TransformPosition(PositionBInB);
-			OutNormal = (OutPositionB - OutPositionA) / SegmentDistance; // I think this is safe, if GJKDistance returned true...
+			OutNormal
+				= ensure(SegmentDistance > TNumericLimits<T>::Min())
+				? (OutPositionB - OutPositionA) / SegmentDistance
+				: TVector<T, 3>(0.f, 0.f, 1.f);
 			OutPositionB -= OutNormal * MarginB;
 			OutDistance = SegmentDistance - MarginB;
 
@@ -895,65 +928,4 @@ namespace Chaos
 		return false;
 	}
 
-	/** Approximate the collision point using Core Shape Reduction.
-	 @A The first geometry
-	 @ATM The transform of the first geometry
-	 @B The second geometry
-	 @BTM The transform of the second geometry
-	 @OutLocation The collision point.
-	 @OutPhi The depth along the normal. (FLT_MAX if failed)
-	 @OutNormal The impact normal (in A's world space)
-	 */
-	template<typename T, int d, typename TGeometryA, typename TGeometryB>
-	void GJKCoreShapeIntersection(const TGeometryA& A, const TRigidTransform<T, d>& ATM, const TGeometryB& B, const TRigidTransform<T, d>& BTM,
-		TVector<T, d> & OutLocation, T & OutPhi, TVector<T, d> & OutNormal, const T Thickness = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0))
-	{
-		OutPhi = FLT_MAX;
-		check(A.IsConvex() && B.IsConvex());
-		TRigidTransform<T, d> BToATM = BTM.GetRelativeTransform(ATM);
-		TVector<T, d> ABVector = -BToATM.GetTranslation();
-
-		//
-		// Guess an initial thickness that will separate the bodies, then iterate until they are separated
-		//
-		T MinBoxMin = FMath::Min(A.BoundingBox().Extents().Min(), B.BoundingBox().Extents().Min());
-		T MinLocalThickness = -MinBoxMin;
-		T Delta = MinBoxMin / 20.; // reduce by delta at each step
-		T LocalThickness = 0.0;
-		while (GJKIntersection<T>(A, B, BToATM, LocalThickness, InitialDir, LocalThickness))
-		{
-			LocalThickness -= Delta;
-			if (LocalThickness < MinLocalThickness)
-			{
-				return;
-			}
-		}
-		LocalThickness *= 1.05; // corner case when equal.
-
-		//
-		// Measure the separation distance from a raycast, then remove the LocalThickness.
-		//
-		auto Calculate = [&](const TVector<T, d>& InRay, TVector<T, d> & Location, T & Phi, TVector<T, d> & Normal)
-		{
-			T RayTime = FLT_MAX;
-			TVector<T, d> RayPosition, RayNormal, InRayNormal = InRay.GetSafeNormal();
-			if (GJKRaycast(A, B, BToATM, InRayNormal, (T)InRay.Size(), RayTime, RayPosition, RayNormal, LocalThickness, InitialDir, LocalThickness))
-			{
-				// Note: Initial overlaps in GJKRaycast cannot set a contact position/normal. It sets RayTime = 0 in this case.
-				if (RayTime > 0)
-				{
-					Location = ATM.TransformPosition(RayPosition + RayNormal * (-LocalThickness));
-					Normal = -ATM.TransformVector(RayNormal);
-
-					// @todo: Remove PhiWithNormal call
-					TVector<T, d> TmpNormal;
-					Phi = B.PhiWithNormal(BTM.InverseTransformPosition(Location), TmpNormal);
-					return true;
-				}
-			}
-			return false;
-		};
-
-		Calculate(ABVector, OutLocation, OutPhi, OutNormal);
-	}
 }

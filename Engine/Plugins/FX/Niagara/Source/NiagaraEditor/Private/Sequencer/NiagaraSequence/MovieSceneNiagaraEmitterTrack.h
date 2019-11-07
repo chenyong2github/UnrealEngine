@@ -70,9 +70,12 @@ public:
 
 	void UpdateEmitterHandleFromTrackChange(const FFrameRate& InFrameResolution);
 
+	bool GetSectionsWereModified() const;
+
 	//~ UMovieSceneTrack interface
 	virtual void RemoveAllAnimationData() override { }
 	virtual bool HasSection(const UMovieSceneSection& Section) const override;
+	virtual void AddSection(UMovieSceneSection& Section) override;
 	virtual void RemoveSection(UMovieSceneSection& Section) override;
 	virtual void RemoveSectionAt(int32 SectionIndex) override;
 	virtual bool IsEmpty() const override;
@@ -97,6 +100,9 @@ private:
 
 	UPROPERTY()
 	TArray<UMovieSceneSection*> Sections;
+
+	UPROPERTY()
+	bool bSectionsWereModified;
 
 	// Used for detecting copy/paste 
 	UPROPERTY()

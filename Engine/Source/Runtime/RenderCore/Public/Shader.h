@@ -1863,6 +1863,9 @@ public:
 	};
 	
 	static void CookPipeline(FShaderPipeline* Pipeline);
+
+	/** Saves stable keys for the shaders in the pipeline */
+	void SaveShaderStableKeys(EShaderPlatform TargetShaderPlatform, const struct FStableShaderKeyAndValue& SaveKeyVal);
 };
 
 inline bool operator<(const FShaderPipeline& Lhs, const FShaderPipeline& Rhs)

@@ -73,7 +73,7 @@ void FMockAbilitySimulation::SimulationTick(const TNetSimTimeStep& TimeStep, con
 	//	Blink
 	// -------------------------------------------------------------------------
 
-	static float BlinkCost = 75.f;
+	static float BlinkCost = 25.f;
 	static int16 BlinkWarmupMS = 750; 
 
 	const bool bBlinkActivate = (Input.Cmd.bBlinkPressed && Input.Sync.Stamina > BlinkCost && bAllowNewActivations);
@@ -130,7 +130,7 @@ void FMockAbilitySimulation::SimulationTick(const TNetSimTimeStep& TimeStep, con
 	//	-Movement input is synthesized while in dash state. That is, we force forward movement and ignore what was actually fed into the simulation (move input only)
 	// -------------------------------------------------------------------------
 
-	static float DashCost = 75.f;
+	static float DashCost = 25.f;
 	static int16 DashDurationMS = 500;
 	
 	const bool bDashActivate = (Input.Cmd.bDashPressed && Input.Sync.Stamina > DashCost && bAllowNewActivations);
@@ -228,27 +228,19 @@ UMockFlyingAbilityComponent::UMockFlyingAbilityComponent()
 
 }
 
-INetworkSimulationModel* UMockFlyingAbilityComponent::InstantiateNetworkSimulation()
+INetworkedSimulationModel* UMockFlyingAbilityComponent::InstantiateNetworkedSimulation()
 {
 	check(UpdatedComponent);
-	
-	// FIXME: init sim helper on super?
-	MockAbilitySimulation.Reset(new FMockAbilitySimulation());
-	MockAbilitySimulation->UpdatedComponent = UpdatedComponent;
-	MockAbilitySimulation->UpdatedPrimitive = UpdatedPrimitive;
-	MockAbilitySimulation->EventHandler = this;
-	
+
+	// Simulation
 	FMockAbilitySyncState InitialSyncState;
-	InitialSyncState.Location = UpdatedComponent->GetComponentLocation();
-	InitialSyncState.Rotation = UpdatedComponent->GetComponentQuat().Rotator();	
-
 	FMockAbilityAuxstate InitialAuxState;
-	InitialAuxState.MaxSpeed = MockAbilityCVars::DefaultMaxSpeed();
+	InitMockAbilitySimulation(new FMockAbilitySimulation(), InitialSyncState, InitialAuxState);
 
-	auto NewModel = new FMockAbilitySystem<0>(MockAbilitySimulation.Get(), this, InitialSyncState, InitialAuxState);
+	// Model
+	auto NewModel = new FMockAbilitySystem<0>( MockAbilitySimulation, this, InitialSyncState, InitialAuxState);
+	InitMockAbilityNetSimModel(NewModel);
 
-	MovementSyncState.Init(NewModel);
-	MovementAuxState.Init(NewModel);
 	return NewModel;
 }
 
@@ -261,6 +253,26 @@ void UMockFlyingAbilityComponent::ProduceInput(const FNetworkSimTime SimTime, FM
 void UMockFlyingAbilityComponent::FinalizeFrame(const FMockAbilitySyncState& SyncState, const FMockAbilityAuxstate& AuxState)
 {
 	Super::FinalizeFrame(SyncState, AuxState);
+
+	if (AuxState.bIsSprinting != bIsSprinting)
+	{
+		bIsSprinting = AuxState.bIsSprinting;
+		OnSprintStateChange.Broadcast(AuxState.bIsSprinting);
+	}
+
+	const bool bLocalIsDashing = (AuxState.DashTimeLeft > 0);
+	if (bLocalIsDashing != bIsDashing)
+	{
+		bIsDashing = bLocalIsDashing;
+		OnDashStateChange.Broadcast(bIsDashing);
+	}
+
+	const bool bLocalIsBlinking = (AuxState.BlinkWarmupLeft > 0);
+	if (bLocalIsBlinking != bIsBlinking)
+	{
+		bIsBlinking = bLocalIsBlinking;
+		OnBlinkStateChange.Broadcast(bLocalIsBlinking);
+	}
 }
 
 FString UMockFlyingAbilityComponent::GetDebugName() const
@@ -280,24 +292,24 @@ void UMockFlyingAbilityComponent::VisualLog(const FMockAbilityInputCmd* Input, c
 
 // ---------------------------------------------------------------------------------
 
-void UMockFlyingAbilityComponent::NotifySprint(bool bIsSprinting)
+void UMockFlyingAbilityComponent::NotifySprint(bool bNewIsSprinting)
 {
 	if (GetNetMode() == NM_DedicatedServer)
 	{
 		return;
 	}
 
-	UE_LOG(LogTemp, Display, TEXT("Sprint: %d"), bIsSprinting);
+	//UE_LOG(LogTemp, Display, TEXT("Sprint: %d"), bNewIsSprinting);
 }
 
-void UMockFlyingAbilityComponent::NotifyDash(bool bIsDashing)
+void UMockFlyingAbilityComponent::NotifyDash(bool bNewIsDashing)
 {
 	if (GetNetMode() == NM_DedicatedServer)
 	{
 		return;
 	}
 
-	UE_LOG(LogTemp, Display, TEXT("Dash: %d"), bIsDashing);
+	//UE_LOG(LogTemp, Display, TEXT("Dash: %d"), bNewIsDashing);
 }
 
 void UMockFlyingAbilityComponent::NotifyBlinkStartup()
@@ -307,7 +319,7 @@ void UMockFlyingAbilityComponent::NotifyBlinkStartup()
 		return;
 	}
 
-	UE_LOG(LogTemp, Display, TEXT("Blink Startup"));
+	//UE_LOG(LogTemp, Display, TEXT("Blink Startup"));
 }
 
 void UMockFlyingAbilityComponent::NotifyBlinkFinished()
@@ -317,5 +329,6 @@ void UMockFlyingAbilityComponent::NotifyBlinkFinished()
 		return;
 	}
 
-	UE_LOG(LogTemp, Display, TEXT("Blink Finished"));
+	//UE_LOG(LogTemp, Display, TEXT("Blink Finished"));
 }
+

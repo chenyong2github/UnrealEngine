@@ -930,7 +930,10 @@ void UDrawPolygonTool::SetDrawPlaneFromWorldPos(const FVector& Position, const F
 
 	SnapEngine.Plane = FFrame3d((FVector3d)DrawPlane.Origin, (FQuaterniond)DrawPlane.Rotation);
 
-	PlaneTransformGizmo->SetNewGizmoTransform(FTransform(DrawPlaneOrientation, DrawPlaneOrigin));
+	if (PlaneTransformGizmo != nullptr)
+	{
+		PlaneTransformGizmo->SetNewGizmoTransform(FTransform(DrawPlaneOrientation, DrawPlaneOrigin));
+	}
 }
 
 
@@ -946,11 +949,13 @@ void UDrawPolygonTool::UpdateShowGizmoState(bool bNewVisibility)
 	if (bNewVisibility == false)
 	{
 		GetToolManager()->GetPairedGizmoManager()->DestroyAllGizmosByOwner(this);
+		PlaneTransformGizmo = nullptr;
 	}
 	else
 	{
 		PlaneTransformGizmo = GetToolManager()->GetPairedGizmoManager()->Create3AxisTransformGizmo(this);
 		PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy, GetToolManager());
+		PlaneTransformGizmo->SetNewGizmoTransform(FTransform(DrawPlaneOrientation, DrawPlaneOrigin));
 	}
 }
 

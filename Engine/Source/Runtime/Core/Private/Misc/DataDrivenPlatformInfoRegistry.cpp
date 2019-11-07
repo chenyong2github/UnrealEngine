@@ -91,6 +91,7 @@ const TMap<FString, FDataDrivenPlatformInfoRegistry::FPlatformInfo>& FDataDriven
 				FDataDrivenPlatformInfoRegistry::FPlatformInfo& Info = DataDrivenPlatforms.Add(PlatformName, FDataDrivenPlatformInfoRegistry::FPlatformInfo());
 				IniFile.GetBool(TEXT("DataDrivenPlatformInfo"), TEXT("bIsConfidential"), Info.bIsConfidential);
 				IniFile.GetBool(TEXT("DataDrivenPlatformInfo"), TEXT("bRestrictLocalization"), Info.bRestrictLocalization);
+				IniFile.GetArray(TEXT("DataDrivenPlatformInfo"), TEXT("AdditionalRestrictedFolders"), Info.AdditionalRestrictedFolders);
 
 				// get the parent to build list later
 				FString IniParent;

@@ -9,7 +9,7 @@
 
 namespace ChaosInterface
 {
-	ECollisionShapeType GetImplicitType(const Chaos::TImplicitObject<float, 3>& InGeometry)
+	ECollisionShapeType GetImplicitType(const Chaos::FImplicitObject& InGeometry)
 	{
 		switch (Chaos::GetInnerType(InGeometry.GetType()))
 		{

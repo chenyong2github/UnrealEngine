@@ -10,6 +10,21 @@ static int16 DebugBuffer[2048];
 
 #define DEBUG_NOISE 0
 
+static int32 DefaultPatchBufferSizeCVar = 4096;
+FAutoConsoleVariableRef CVarDefaultPatchBufferSize(
+	TEXT("voice.DefaultPatchBufferSize"),
+	DefaultPatchBufferSizeCVar,
+	TEXT("Changes the amount of audio we buffer for VOIP patching, in samples.\n"),
+	ECVF_Default);
+
+static int32 DefaultPatchGainCVar = 1.0f;
+FAutoConsoleVariableRef CVarDefaultPatchGain(
+	TEXT("voice.DefaultPatchGain"),
+	DefaultPatchGainCVar,
+	TEXT("Changes the default gain of audio patches, in samples.\n"),
+	ECVF_Default);
+
+
 bool UVoipListenerSynthComponent::Init(int32& SampleRate)
 {
 	NumChannels = 1;
@@ -41,6 +56,14 @@ int32 UVoipListenerSynthComponent::OnGenerateAudio(float* OutAudio, int32 NumSam
 		OutAudio[Index] = 0.5 * OutAudio[Index] + 0.5 * FMath::FRand();
 	}
 #endif
+
+	// Push audio to the patch splitter.
+	if (ExternalSend.IsOutputStillActive())
+	{
+		ExternalSend.PushAudio(OutAudio, NumSamples);
+	}
+	
+
 	return NumSamples;
 }
 
@@ -89,6 +112,11 @@ void UVoipListenerSynthComponent::SubmitPacket(void* InBuffer, int32 NumBytes, i
 	{
 		UE_LOG(LogTemp, Error, TEXT("SubmitPacket called before OpenPacketStream was."));
 	}
+}
+
+void UVoipListenerSynthComponent::ConnectToSplitter(Audio::FPatchMixerSplitter& InSplitter)
+{
+	ExternalSend = InSplitter.AddNewInput(DefaultPatchBufferSizeCVar, DefaultPatchGainCVar);
 }
 
 bool UVoipListenerSynthComponent::IsIdling()

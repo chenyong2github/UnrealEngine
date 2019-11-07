@@ -61,6 +61,7 @@ class ReflectionKernel {
     CHECK(scattering_coefficient_ >= 0.0f && scattering_coefficient_ <= 1.0f);
   }
 
+#if INCLUDE_UNUSED_CODE
   // Reflects a ray.
   //
   // @param incident_ray Incident (incoming) ray.
@@ -89,6 +90,7 @@ class ReflectionKernel {
                           const Eigen::Vector3f& listener_position,
                           float* direction_pdf,
                           AcousticRay* diffuse_rain_ray) const;
+#endif
 
  private:
   std::array<float, kNumReverbOctaveBands> reflection_coefficients_;

@@ -1742,8 +1742,10 @@ void UActorComponent::SetIsReplicated(bool bShouldReplicate)
 
 		if (GetComponentClassCanReplicate())
 		{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			bReplicates = bShouldReplicate;
 			// MARK_PROPERTY_DIRTY_FROM_NAME(UActorComponent, bReplicates, this);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			if (AActor* MyOwner = GetOwner())
 			{
@@ -1790,8 +1792,10 @@ void UActorComponent::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & 
 		BPClass->GetLifetimeBlueprintReplicationList(OutLifetimeProps);
 	}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	DOREPLIFETIME( UActorComponent, bIsActive );
 	DOREPLIFETIME( UActorComponent, bReplicates );
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UActorComponent::OnRep_IsActive()
@@ -1955,8 +1959,10 @@ void UActorComponent::SetIsReplicatedByDefault(const bool bNewReplicates)
 	// Don't bother checking parent here.
 	if (LIKELY(NeedsInitialization()))
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		bReplicates = bNewReplicates;
 		// MARK_PROPERTY_DIRTY_FROM_NAME(UActorComponent, bReplicates, this);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	else
 	{
@@ -1967,8 +1973,10 @@ void UActorComponent::SetIsReplicatedByDefault(const bool bNewReplicates)
 
 void UActorComponent::SetActiveFlag(const bool bNewIsActive)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bIsActive = bNewIsActive;
 	// MARK_PROPERTY_DIRTY_FROM_NAME(UActorComponent, bIsActive, this);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 bool UActorComponent::OwnerNeedsInitialization() const

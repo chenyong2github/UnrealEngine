@@ -3985,6 +3985,9 @@ void UClass::SerializeSparseClassData(UObject* Object, FStructuredArchive::FSlot
 	// tell the archive that it's allowed to load data for transient properties
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
 
+	// make sure we always have sparse class a sparse class data struct to read from/write to
+	GetOrCreateSparseClassData();
+
 	if (((UnderlyingArchive.IsLoading() || UnderlyingArchive.IsSaving()) && !UnderlyingArchive.WantBinaryPropertySerialization()))
 	{
 		// class default objects do not always have a vtable when saved

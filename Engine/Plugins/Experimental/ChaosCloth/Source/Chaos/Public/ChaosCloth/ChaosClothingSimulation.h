@@ -34,6 +34,9 @@ namespace Chaos
 		ClothingSimulation();
 		virtual ~ClothingSimulation();
 
+		// Set the animation drive stiffness for all actors
+		void SetAnimDriveSpringStiffness(float InStiffness);
+
 #if WITH_EDITOR
 		// FGCObject interface
 		void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -93,6 +96,11 @@ namespace Chaos
 		// Assets
 		TArray<UClothingAssetCommon*> Assets;
 		UChaosClothSharedSimConfig* ClothSharedSimConfig;
+
+		// Cloth Interaction Parameters
+		// These simulation parameters can be changed through blueprints
+		// They will only be updated when the simulation is not running (so are safe to use on any cloth thread)
+		TArray<float> AnimDriveSpringStiffness; // One for every Asset
 
 		// Collision Data
 		FClothCollisionData ExtractedCollisions;  // Collisions extracted from the referenced physics asset

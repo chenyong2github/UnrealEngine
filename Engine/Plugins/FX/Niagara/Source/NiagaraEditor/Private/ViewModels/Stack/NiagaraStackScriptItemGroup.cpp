@@ -3,6 +3,7 @@
 #include "ViewModels/Stack/NiagaraStackScriptItemGroup.h"
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "NiagaraScriptViewModel.h"
 #include "NiagaraScriptGraphViewModel.h"
@@ -698,7 +699,8 @@ TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackScriptItemGroup
 	if (DropRequest.DropOptions != UNiagaraStackEntry::EDropOptions::Overview)
 	{
 		// Only allow dropping in the overview stacks.
-		return FDropRequestResponse(TOptional<EItemDropZone>(), LOCTEXT("CantDropParameterOnStack", "Parameters can only be dropped onto 'Set Variables' modules in the selection view."));
+		return FDropRequestResponse(TOptional<EItemDropZone>(), LOCTEXT("CantDropParameterOnStack", 
+			"Parameters can only be dropped onto 'Set Variables' modules, or correctly\ntyped inputs in the selection view.  If you want to add a new 'Set Variables' module for\n this parameter, you can drop it into one of the nodes in the System Overview graph."));
 	}
 	if (ParameterAction.IsValid())
 	{
@@ -825,6 +827,9 @@ TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackScriptItemGroup
 
 void UNiagaraStackScriptItemGroup::ItemAdded(UNiagaraNodeFunctionCall* AddedModule)
 {
+	TArray<const UObject*> DisplayedObjectsToSelect;
+	DisplayedObjectsToSelect.Add(AddedModule);
+	GetSystemViewModel()->GetSelectionViewModel()->AddEntriesToSelectionByDisplayedObjectsDeferred(DisplayedObjectsToSelect);
 	RefreshChildren();
 }
 

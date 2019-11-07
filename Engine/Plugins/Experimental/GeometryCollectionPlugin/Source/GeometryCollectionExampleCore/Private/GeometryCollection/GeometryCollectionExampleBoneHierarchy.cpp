@@ -29,7 +29,7 @@ namespace GeometryCollectionExample
 		const TArray<Chaos::TVector<float,3>> *Points = Group1->BuildSamplePoints(1.0, 1, 1000);
 		check(Points);
 		check(Points->Num());
-		Chaos::TImplicitObject<float, 3> *Implicit = Group1->BuildSimImplicitObject();
+		Chaos::FImplicitObject *Implicit = Group1->BuildSimImplicitObject();
 		AllOnSurface(Implicit, *Points);
 	}
 	void TestSphere2(
@@ -50,7 +50,7 @@ namespace GeometryCollectionExample
 		const TArray<Chaos::TVector<float,3>> *Points = Group1->BuildSamplePoints(1.0, 1, 1000);
 		check(Points);
 		check(Points->Num());
-		Chaos::TImplicitObject<float, 3> *Implicit = Group1->BuildSimImplicitObject();
+		Chaos::FImplicitObject *Implicit = Group1->BuildSimImplicitObject();
 		AllOnSurface(Implicit, *Points);
 	}
 

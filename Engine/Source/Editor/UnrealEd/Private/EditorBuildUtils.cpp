@@ -315,7 +315,7 @@ bool FEditorBuildUtils::EditorBuild( UWorld* InWorld, FName Id, const bool bAllo
 		BuildProgressWidget.Pin()->SetBuildType(BuildType);
 	}
 
-	bool bShouldMapCheck = true;
+	bool bShouldMapCheck = !FParse::Param(FCommandLine::Get(), TEXT("SkipMapCheck"));
 	if (Id == FBuildOptions::BuildGeometry)
 	{
 		// We can't set the busy cursor for all windows, because lighting

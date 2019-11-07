@@ -49,6 +49,7 @@
 #include "Widgets/SNullWidget.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Text/STextBlock.h"
+#include "UObject/UObjectGlobals.h"
 
 #define LOCTEXT_NAMESPACE "DataprepSlateHelper"
 
@@ -95,6 +96,100 @@ namespace DataprepWidgetUtils
 			]
 		];
 	}
+}
+
+void SDataprepCategoryWidget::ToggleExpansion()
+{
+	bIsExpanded = !bIsExpanded;
+	CategoryContent->SetVisibility(bIsExpanded ? EVisibility::Visible : EVisibility::Collapsed);
+}
+
+const FSlateBrush* SDataprepCategoryWidget::GetBackgroundImage() const
+{
+	if (IsHovered())
+	{
+		return bIsExpanded ? FEditorStyle::GetBrush("DetailsView.CategoryTop_Hovered") : FEditorStyle::GetBrush("DetailsView.CollapsedCategory_Hovered");
+	} 
+	else
+	{
+		return bIsExpanded ? FEditorStyle::GetBrush("DetailsView.CategoryTop") : FEditorStyle::GetBrush("DetailsView.CollapsedCategory");
+	}
+}
+
+void SDataprepCategoryWidget::Construct( const FArguments& InArgs, TSharedRef< SWidget > InContent, const TSharedRef<STableViewBase>& InOwnerTableView )
+{
+	const float MyContentTopPadding = 2.0f;
+	const float MyContentBottomPadding = 2.0f;
+
+	const float ChildSlotPadding = 2.0f;
+	const float BorderVerticalPadding = 3.0f;
+
+	CategoryContent = InContent;
+
+	TSharedPtr<SWidget> TitleDetail = InArgs._TitleDetail;
+	if( !TitleDetail.IsValid() )
+	{
+		TitleDetail = SNullWidget::NullWidget;
+	}
+
+	TSharedPtr<SHorizontalBox> TitleHeader = SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.VAlign( VAlign_Center )
+		.Padding( 2.0f, MyContentTopPadding, 2.0f, MyContentBottomPadding )
+		.AutoWidth()
+		[
+			SNew( SExpanderArrow, SharedThis(this) )
+		]
+		+ SHorizontalBox::Slot()
+		.VAlign( VAlign_Center )
+		.AutoWidth()
+		.Padding( 0.0f, 8.0f )
+		[
+			SNew(STextBlock)
+			.Text( InArgs._Title )
+			.Font( FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle") )
+			.ShadowOffset( FVector2D( 1.0f, 1.0f ) )
+		];
+
+	ChildSlot
+	[
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SNew( SBorder )
+			.BorderImage( this, &SDataprepCategoryWidget::GetBackgroundImage )
+			.Padding( FMargin( 0.0f, BorderVerticalPadding, 16.0f, BorderVerticalPadding ) )
+			.BorderBackgroundColor( FLinearColor( .6, .6, .6, 1.0f ) )
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.FillWidth( 0.5f )
+				.HAlign( EHorizontalAlignment::HAlign_Left )
+				[
+					TitleHeader.ToSharedRef()
+				]
+				+ SHorizontalBox::Slot()
+				.FillWidth( 0.5f )
+				.HAlign( EHorizontalAlignment::HAlign_Right )
+				[
+					TitleDetail.ToSharedRef()
+				]
+			]
+		]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			CategoryContent.ToSharedRef()
+		]
+	];
+
+	STableRow< TSharedPtr< EDataprepCategory > >::ConstructInternal(
+		STableRow::FArguments()
+		.Style( FEditorStyle::Get(), "DetailsView.TreeView.TableRow" )
+		.ShowSelection( false ),
+		InOwnerTableView
+	);
 }
 
 void SDataprepConsumerWidget::OnLevelNameChanged( const FText &NewLevelName, ETextCommit::Type CommitType )
@@ -183,12 +278,12 @@ void SDataprepConsumerWidget::SetDataprepConsumer(UDataprepContentConsumer* InDa
 	{
 		if(DataprepConsumerPtr.IsValid())
 		{
-			DataprepConsumerPtr->GetOnChanged().RemoveAll( this );
+			DataprepConsumerPtr->GetOnChanged().Remove( OnConsumerChangedHandle );
 		}
 
 		DataprepConsumerPtr = InDataprepConsumer;
 
-		InDataprepConsumer->GetOnChanged().AddRaw( this, &SDataprepConsumerWidget::OnConsumerChanged );
+		OnConsumerChangedHandle = InDataprepConsumer->GetOnChanged().AddSP( this, &SDataprepConsumerWidget::OnConsumerChanged );
 
 		OnConsumerChanged();
 	}
@@ -219,6 +314,14 @@ void SDataprepConsumerWidget::Construct(const FArguments& InArgs )
 	if(InArgs._DataprepConsumer)
 	{
 		SetDataprepConsumer( InArgs._DataprepConsumer );
+	}
+}
+
+SDataprepConsumerWidget::~SDataprepConsumerWidget()
+{
+	if ( UDataprepContentConsumer* DataprepConsumer = DataprepConsumerPtr.Get() )
+	{
+		DataprepConsumer->GetOnChanged().Remove( OnConsumerChangedHandle );
 	}
 }
 
@@ -588,6 +691,15 @@ void SDataprepDetailsView::OnDataprepParameterizationStatusForObjectsChanged(con
 	}
 }
 
+void SDataprepDetailsView::OnObjectTransacted(UObject* Object, const class FTransactionObjectEvent& TransactionObjectEvent)
+{
+	// Hack to support refresh the parameterization display of a dataprep instance
+	if ( Object == DetailedObject || ( DetailedObject && DetailedObject->GetOuter() == Object ) )
+	{
+		ForceRefresh();
+	}
+}
+
 void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode > >& DetailTree, int32& Index, float LeftPadding, const FDataprepParameterizationContext& InParameterizationContext)
 {
 	auto IsDetailNodeDisplayable = []( const TSharedPtr< IPropertyHandle >& PropertyHandle)
@@ -786,6 +898,7 @@ void SDataprepDetailsView::Construct(const FArguments& InArgs)
 	if ( GEditor )
 	{
 		OnObjectReplacedHandle = GEditor->OnObjectsReplaced().AddSP(this, &SDataprepDetailsView::OnObjectReplaced);
+		OnObjectTransactedHandle = FCoreUObjectDelegates::OnObjectTransacted.AddSP( this, &SDataprepDetailsView::OnObjectTransacted );
 	}
 
 	Construct();
@@ -863,6 +976,7 @@ SDataprepDetailsView::~SDataprepDetailsView()
 	if ( GEditor )
 	{
 		GEditor->OnObjectsReplaced().Remove( OnObjectReplacedHandle );
+		FCoreUObjectDelegates::OnObjectTransacted.Remove( OnObjectTransactedHandle );
 	}
 
 	if ( UDataprepAsset* DataprepAsset = DataprepAssetForParameterization.Get() )

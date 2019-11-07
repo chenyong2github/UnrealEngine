@@ -24,7 +24,7 @@
 		{
 		  "Name": "Niagara",
 		  "Type": "Runtime",
-		  "LoadingPhase": "Default"
+		  "LoadingPhase": "PreDefault"
 		},
 		{
 			"Name" : "NiagaraAnimNotifies",
@@ -44,12 +44,12 @@
 		{
 			"Name" : "NiagaraEditor",
 			"Type" : "Editor",
-			"LoadingPhase" : "PostDefault"
+			"LoadingPhase" : "Default"
 		},
 		{
 			"Name" : "NiagaraEditorWidgets",
 			"Type" : "Editor",
-			"LoadingPhase" : "PostDefault"
+			"LoadingPhase" : "Default"
 		}
 	] 
 }

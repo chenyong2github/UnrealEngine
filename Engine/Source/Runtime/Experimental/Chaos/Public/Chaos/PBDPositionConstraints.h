@@ -27,13 +27,13 @@ namespace Chaos
 	};
 
 	template<class T, int d>
-	class TPBDPositionConstraints : public TPBDConstraintContainer<T, d>
+	class TPBDPositionConstraints : public FPBDConstraintContainer
 	{
 	public:
-		using Base = TPBDConstraintContainer<T, d>;
+		using Base = FPBDConstraintContainer;
 		using FReal = T;
 		static const int Dimensions = d;
-		using FConstraintHandle = TPBDPositionConstraintHandle<FReal, Dimensions>;
+		using FConstraintContainerHandle = TPBDPositionConstraintHandle<FReal, Dimensions>;
 		using FConstraintHandleAllocator = TConstraintHandleAllocator<TPBDPositionConstraints<FReal, Dimensions>>;
 
 		TPBDPositionConstraints(const T InStiffness = (T)1)
@@ -71,7 +71,7 @@ namespace Chaos
 		/**
 		 * Add a constraint.
 		 */
-		FConstraintHandle* AddConstraint(TPBDRigidParticleHandle<T, d>* Particle, const TVector<T, d>& Position)
+		FConstraintContainerHandle* AddConstraint(TPBDRigidParticleHandle<T, d>* Particle, const TVector<T, d>& Position)
 		{
 			int32 NewIndex = Targets.Num();
 			Targets.Add(Position);
@@ -85,7 +85,7 @@ namespace Chaos
 		 */
 		void RemoveConstraint(int ConstraintIndex)
 		{
-			FConstraintHandle* ConstraintHandle = Handles[ConstraintIndex];
+			FConstraintContainerHandle* ConstraintHandle = Handles[ConstraintIndex];
 			if (ConstraintHandle != nullptr)
 			{
 				// Release the handle for the freed constraint
@@ -115,12 +115,12 @@ namespace Chaos
 		// Constraint API
 		//
 
-		const FConstraintHandle* GetConstraintHandle(int32 ConstraintIndex) const
+		const FConstraintContainerHandle* GetConstraintHandle(int32 ConstraintIndex) const
 		{
 			return Handles[ConstraintIndex];
 		}
 
-		FConstraintHandle* GetConstraintHandle(int32 ConstraintIndex)
+		FConstraintContainerHandle* GetConstraintHandle(int32 ConstraintIndex)
 		{
 			return Handles[ConstraintIndex];
 		}
@@ -156,16 +156,17 @@ namespace Chaos
 		{
 		}
 
-		void Apply(const T Dt, const TArray<FConstraintHandle*>& ConstraintHandles, const int32 It, const int32 NumIts) const
+		void Apply(const T Dt, const TArray<FConstraintContainerHandle*>& ConstraintHandles, const int32 It, const int32 NumIts) const
 		{
-			for (FConstraintHandle* ConstraintHandle : ConstraintHandles)
+			for (FConstraintContainerHandle* ConstraintHandle : ConstraintHandles)
 			{
 				ApplySingle(Dt, ConstraintHandle->GetConstraintIndex());
 			}
 		}
 
-		void ApplyPushOut(const T Dt, const TArray<FConstraintHandle*>& InConstraintIndices) const
+		bool ApplyPushOut(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintIndices, const int32 It, const int32 NumIts) const
 		{
+			return false;
 		}
 
 	protected:
@@ -188,7 +189,7 @@ namespace Chaos
 		TArray<TPBDRigidParticleHandle<T,d>*> ConstrainedParticles;
 		T Stiffness;
 
-		TArray<FConstraintHandle*> Handles;
+		TArray<FConstraintContainerHandle*> Handles;
 		FConstraintHandleAllocator HandleAllocator;
 	};
 }

@@ -7,7 +7,7 @@
 
 FSkeletalMeshPhysicsProxy::FSkeletalMeshPhysicsProxy(UObject* InOwner, const FInitFunc& InInitFunc)
 	: Base(InOwner)
-	, JointConstraints(Chaos::TPBDJointSolverSettings<float, 3>())
+	, JointConstraints(Chaos::FPBDJointSolverSettings())
 	, JointConstraintsRule(JointConstraints)
 	, NextInputProducerBuffer(nullptr)
 	, CurrentOutputConsumerBuffer(nullptr)
@@ -152,13 +152,13 @@ void FSkeletalMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particle
 			//Chaos::TTriangleMesh<T> TriMesh = Chaos::TTriangleMesh<T>::GetConvexHullFromParticles(
 			//	TArrayView<const Chaos::TVector<T, 3>>(SamplePoints));
 
-			TUniquePtr<Chaos::TImplicitObject<float, 3>> ImplicitObject(Group->BuildSimImplicitObject());
+			TUniquePtr<Chaos::FImplicitObject> ImplicitObject(Group->BuildSimImplicitObject());
 			check(ImplicitObject);
 
 			if (SamplePoints)
 			{
 				auto PointVolumeRegistrationCheck = 
-					[&](const TArray<Chaos::TVector<float, 3>> &InSamplePoints, const Chaos::TImplicitObject<float, 3> &InImplicitObject, const float InTolerance) -> bool
+					[&](const TArray<Chaos::TVector<float, 3>> &InSamplePoints, const Chaos::FImplicitObject &InImplicitObject, const float InTolerance) -> bool
 					{
 						for (int32 i = 0; i < InSamplePoints.Num(); i++)
 						{

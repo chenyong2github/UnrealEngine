@@ -214,4 +214,7 @@ public:
 
 protected:
 	void InitBindings();
+
+private: 
+	static TArray<TWeakObjectPtr<UNiagaraRibbonRendererProperties>> RibbonRendererPropertiesToDeferredInit;
 };

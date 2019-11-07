@@ -1382,7 +1382,7 @@ void UEditorEngine::PlayStandaloneLocalPc(FString MapNameOverride, FIntPoint* Wi
 		}
 		else
 		{
-			AdditionalParameters += TEXT(" -featureleveles2");
+			AdditionalParameters += TEXT(" -featureleveles31");
 		}
 
 		if (IsOpenGLPlatform(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]))

@@ -4,6 +4,7 @@
 #include "NiagaraSystemEditorData.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "ViewModels/Stack/NiagaraStackItemGroup.h"
 #include "ViewModels/Stack/NiagaraStackItem.h"
@@ -37,6 +38,7 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 	SLATE_BEGIN_ARGS(SNiagaraSystemOverviewEntryListRow) {}
 		SLATE_ATTRIBUTE(EVisibility, IssueIconVisibility)
 		SLATE_EVENT(FOnDragDetected, OnDragDetected)
+		SLATE_EVENT(FOnTableRowDragLeave, OnDragLeave)
 		SLATE_EVENT(FOnCanAcceptDrop, OnCanAcceptDrop)
 		SLATE_EVENT(FOnAcceptDrop, OnAcceptDrop)
 		SLATE_DEFAULT_SLOT(FArguments, Content);
@@ -86,6 +88,7 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 		STableRow<UNiagaraStackEntry*>::Construct(STableRow<UNiagaraStackEntry*>::FArguments()
 			.Style(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.SystemOverview.TableViewRow")
 			.OnDragDetected(InArgs._OnDragDetected)
+			.OnDragLeave(InArgs._OnDragLeave)
 			.OnCanAcceptDrop(InArgs._OnCanAcceptDrop)
 			.OnAcceptDrop(InArgs._OnAcceptDrop)
 		[
@@ -223,7 +226,7 @@ void SNiagaraOverviewStack::Construct(const FArguments& InArgs, UNiagaraStackVie
 
 	StackViewModel = &InStackViewModel;
 	OverviewSelectionViewModel = &InOverviewSelectionViewModel;
-	OverviewSelectionViewModel->OnSelectionChanged().AddSP(this, &SNiagaraOverviewStack::SystemSelectionChanged);
+	OverviewSelectionViewModel->OnEntrySelectionChanged().AddSP(this, &SNiagaraOverviewStack::SystemSelectionChanged);
 
 	ChildSlot
 	[
@@ -239,6 +242,7 @@ void SNiagaraOverviewStack::Construct(const FArguments& InArgs, UNiagaraStackVie
 		
 	bRefreshEntryListPending = true;
 	RefreshEntryList();
+	SystemSelectionChanged();
 }
 
 SNiagaraOverviewStack::~SNiagaraOverviewStack()
@@ -246,6 +250,11 @@ SNiagaraOverviewStack::~SNiagaraOverviewStack()
 	if (StackViewModel != nullptr)
 	{
 		StackViewModel->OnStructureChanged().RemoveAll(this);
+	}
+
+	if (OverviewSelectionViewModel != nullptr)
+	{
+		OverviewSelectionViewModel->OnEntrySelectionChanged().RemoveAll(this);
 	}
 }
 
@@ -278,7 +287,9 @@ void SNiagaraOverviewStack::DeleteSelectedEntries()
 {
 	bool bIncompleteDelete = false;
 	TArray<UNiagaraStackItem*> ItemsToDelete;
-	for (UNiagaraStackEntry* SelectedEntry : OverviewSelectionViewModel->GetSelectedEntries())
+	TArray<UNiagaraStackEntry*> SelectedEntries;
+	OverviewSelectionViewModel->GetSelectedEntries(SelectedEntries);
+	for (UNiagaraStackEntry* SelectedEntry : SelectedEntries)
 	{
 		UNiagaraStackItem* SelectedItem = Cast<UNiagaraStackItem>(SelectedEntry);
 		if (SelectedItem != nullptr)
@@ -443,6 +454,7 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 
 	return SNew(SNiagaraSystemOverviewEntryListRow, StackViewModel, Item, OwnerTable)
 		.OnDragDetected(this, &SNiagaraOverviewStack::OnRowDragDetected, TWeakObjectPtr<UNiagaraStackEntry>(Item))
+		.OnDragLeave(this, &SNiagaraOverviewStack::OnRowDragLeave)
 		.OnCanAcceptDrop(this, &SNiagaraOverviewStack::OnRowCanAcceptDrop)
 		.OnAcceptDrop(this, &SNiagaraOverviewStack::OnRowAcceptDrop)
 		.IssueIconVisibility(this, &SNiagaraOverviewStack::GetIssueIconVisibility)
@@ -475,7 +487,7 @@ void SNiagaraOverviewStack::OnSelectionChanged(UNiagaraStackEntry* InNewSelectio
 		}
 
 		bool bClearCurrentSelection = FSlateApplication::Get().GetModifierKeys().IsControlDown() == false;
-		OverviewSelectionViewModel->UpdateSelectionFromEntries(SelectedEntries, DeselectedEntries, bClearCurrentSelection);
+		OverviewSelectionViewModel->UpdateSelectedEntries(SelectedEntries, DeselectedEntries, bClearCurrentSelection);
 
 		PreviousSelection.Empty();
 		for (UNiagaraStackEntry* SelectedEntry : SelectedEntries)
@@ -485,7 +497,7 @@ void SNiagaraOverviewStack::OnSelectionChanged(UNiagaraStackEntry* InNewSelectio
 	}
 }
 
-void SNiagaraOverviewStack::SystemSelectionChanged(UNiagaraSystemSelectionViewModel::ESelectionChangeSource SelectionChangeSource)
+void SNiagaraOverviewStack::SystemSelectionChanged()
 {
 	if (bUpdatingOverviewSelectionFromStackSelection == false)
 	{
@@ -493,7 +505,8 @@ void SNiagaraOverviewStack::SystemSelectionChanged(UNiagaraSystemSelectionViewMo
 
 		TArray<UNiagaraStackEntry*> SelectedListViewStackEntries;
 		EntryListView->GetSelectedItems(SelectedListViewStackEntries);
-		TArray<UNiagaraStackEntry*> SelectedOverviewEntries = OverviewSelectionViewModel->GetSelectedEntries();
+		TArray<UNiagaraStackEntry*> SelectedOverviewEntries;
+		OverviewSelectionViewModel->GetSelectedEntries(SelectedOverviewEntries);
 
 		TArray<UNiagaraStackEntry*> EntriesToDeselect;
 		for (UNiagaraStackEntry* SelectedListViewStackEntry : SelectedListViewStackEntries)
@@ -531,11 +544,17 @@ FReply SNiagaraOverviewStack::OnRowDragDetected(const FGeometry& InGeometry, con
 	UNiagaraStackEntry* StackEntry = InStackEntryWeak.Get();
 	if (StackEntry != nullptr && StackEntry->CanDrag())
 	{
-		TArray<UNiagaraStackEntry*> EntriesToDrag = StackEntry->GetSystemViewModel()->GetSelectionViewModel()->GetSelectedEntries();
+		TArray<UNiagaraStackEntry*> EntriesToDrag;
+		StackEntry->GetSystemViewModel()->GetSelectionViewModel()->GetSelectedEntries(EntriesToDrag);
 		EntriesToDrag.AddUnique(StackEntry);
 		return FReply::Handled().BeginDragDrop(FNiagaraStackEditorWidgetsUtilities::ConstructDragDropOperationForStackEntries(EntriesToDrag));
 	}
 	return FReply::Unhandled();
+}
+
+void SNiagaraOverviewStack::OnRowDragLeave(const FDragDropEvent& InDragDropEvent)
+{
+	FNiagaraStackEditorWidgetsUtilities::HandleDragLeave(InDragDropEvent);
 }
 
 TOptional<EItemDropZone> SNiagaraOverviewStack::OnRowCanAcceptDrop(const FDragDropEvent& InDragDropEvent, EItemDropZone InDropZone, UNiagaraStackEntry* InTargetEntry)

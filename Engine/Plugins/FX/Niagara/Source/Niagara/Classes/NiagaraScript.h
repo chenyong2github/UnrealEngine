@@ -225,6 +225,10 @@ public:
 	UPROPERTY()
 	TArray<uint8> ByteCode;
 
+	/** Runtime optimized byte code, specific to the system we are running on, currently can not be serialized */
+	UPROPERTY(transient)
+	TArray<uint8> OptimizedByteCode;
+
 	/** Number of temp registers used by this script. */
 	UPROPERTY()
 	int32 NumTempRegisters;

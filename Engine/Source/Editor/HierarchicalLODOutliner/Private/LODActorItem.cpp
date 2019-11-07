@@ -38,7 +38,7 @@ void HLODOutliner::FLODActorItem::GenerateContextMenu(UToolMenu* Menu, SHLODOutl
 		Section.AddMenuEntry("BuildLODActorMesh", LOCTEXT("BuildLODActorMesh", "Build Proxy Mesh"), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(&Outliner, &SHLODOutliner::BuildLODActor)));
 	}
 	else
-	{		
+	{
 		Section.AddMenuEntry("ForceView", LOCTEXT("ForceView", "ForceView"), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(&Outliner, &SHLODOutliner::ForceViewLODActor)));
 		Section.AddMenuEntry("RebuildLODActorMesh", LOCTEXT("RebuildLODActorMesh", "Rebuild Proxy Mesh"), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(&Outliner, &SHLODOutliner::RebuildLODActor)));
 	}

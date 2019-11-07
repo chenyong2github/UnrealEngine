@@ -232,9 +232,9 @@ struct TReplicator_Single : public TBase
 	}
 };
 
-/** Helper that writes a new input cmd to the input buffer, at given Frame (usually the sim's PendingFrame). If frame doesn't exist, ProduceInput is called on the driver. */
+/** Helper that writes a new input cmd to the input buffer, at given Frame (usually the sim's PendingFrame). If frame doesn't exist, ProduceInput is called on the driver if bProduceInputViaDriver=true, otherwise the input cmd will be initialized from the previous input cmd. */
 template<typename TDriver, typename TBufferTypes>
-void GenerateLocalInputCmdAtFrame(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, const FNetworkSimTime& DeltaSimTime, int32 Frame)
+void GenerateLocalInputCmdAtFrame(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, const FNetworkSimTime& DeltaSimTime, int32 Frame, bool bProduceInputViaDriver=true)
 {
 	using TInputCmd = typename TBufferTypes::TInputCmd;
 	if (TInputCmd* InputCmd = Buffers.Input[Frame])
@@ -243,23 +243,25 @@ void GenerateLocalInputCmdAtFrame(TDriver* Driver, TNetworkSimBufferContainer<TB
 	}
 	else
 	{
-		InputCmd = Buffers.Input.WriteFrame(Frame);
-		*InputCmd = TInputCmd();
+		InputCmd = Buffers.Input.WriteFrameInitializedFromHead(Frame);
 		InputCmd->SetFrameDeltaTime(DeltaSimTime);
-		Driver->ProduceInput(DeltaSimTime, *InputCmd);
+		if (bProduceInputViaDriver)
+		{
+			Driver->ProduceInput(DeltaSimTime, *InputCmd);
+		}
 	}
 }
 
 /** Helper to generate a local input cmd if we have simulation time to spend and advance the simulation's MaxAllowedFrame so that it can be processed. */
 template<typename TDriver, typename TBufferTypes, typename TTickSettings>
-void TryGenerateLocalInput(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTicker<TTickSettings>& Ticker)
+void TryGenerateLocalInput(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTicker<TTickSettings>& Ticker, bool bProduceInputViaDriver=true)
 {
 	using TInputCmd = typename TBufferTypes::TInputCmd;
 
 	FNetworkSimTime DeltaSimTime = Ticker.GetRemainingAllowedSimulationTime();
 	if (DeltaSimTime.IsPositive())
 	{
-		GenerateLocalInputCmdAtFrame(Driver, Buffers, DeltaSimTime, Ticker.PendingFrame);
+		GenerateLocalInputCmdAtFrame(Driver, Buffers, DeltaSimTime, Ticker.PendingFrame, bProduceInputViaDriver);
 		Ticker.MaxAllowedFrame = Ticker.PendingFrame;
 	}
 }
@@ -301,7 +303,9 @@ struct TReplicator_Server : public TBase
 	}
 };
 
-/** Simulated: "non locally controlled" simulations. We support "Simulation Extrapolation" here (using the sim to fake inputs to advance the sim)  */
+// Simulated: "non locally controlled" simulations. We support "Simulation Extrapolation" here (using the sim to fake inputs to advance the sim)
+//	-TODO: this is replicating Input/Sync/Aux which is required to do accurate Simulation Extrapolation. For interpolated simulated proxies, we can skip the input and possibly the aux.
+//	More settings/config options would be nice here
 template<typename TBufferTypes, typename TTickSettings, typename TBase=TReplicatorEmpty<TBufferTypes, TTickSettings>>
 struct TReplicator_Simulated : public TBase
 {
@@ -310,7 +314,7 @@ struct TReplicator_Simulated : public TBase
 	using TAuxState = typename TBufferTypes::TAuxState;
 
 	// Parent Simulation. If this is set, this simulation will forward predict in sync with this parent sim. The parent sim should be an autonomous proxy driven simulation
-	INetworkSimulationModel* ParentSimulation = nullptr;
+	INetworkedSimulationModel* ParentSimulation = nullptr;
 
 	// Instance flag for enabling simulated extrapolation
 	bool bAllowSimulatedExtrapolation = true;
@@ -352,14 +356,22 @@ struct TReplicator_Simulated : public TBase
 		LastSerializedSimulationTime.NetSerialize(P.Ar);
 
 		// Serialize latest element
+		TInputCmd* InputCmd = nullptr;
 		TSyncState* SyncState = nullptr;
 		TAuxState* AuxState = nullptr;
 		
 		if (Ar.IsSaving())
 		{
+			const int32 Frame = Buffers.Sync.HeadFrame();
+
+			InputCmd = Buffers.Input.HeadElement();
+			if (!InputCmd)
+			{
+				InputCmd = &LastSerializedInputCmd;
+			}
 			SyncState = Buffers.Sync.HeadElement();
-			AuxState = Buffers.Aux.HeadElement();
-			check(SyncState && AuxState	); // We should not be here if the buffer is empty. Want to avoid serializing an "empty" flag at the top here.
+			AuxState = Buffers.Aux[Frame];
+			check(InputCmd && SyncState && AuxState	); // We should not be here if the buffer is empty. Want to avoid serializing an "empty" flag at the top here.
 		}
 		else
 		{
@@ -406,6 +418,7 @@ struct TReplicator_Simulated : public TBase
 			check(DestinationFrame != INDEX_NONE);
 
 			// "Finalize" our buffers and time keeping such that we serialize the latest state from the server in the right spot
+			InputCmd = Buffers.Input.WriteFrame(DestinationFrame);
 			SyncState = Buffers.Sync.WriteFrame(DestinationFrame);
 			AuxState = Buffers.Aux.WriteFrame(DestinationFrame);
 			Buffers.Input.WriteFrame(DestinationFrame);
@@ -424,11 +437,13 @@ struct TReplicator_Simulated : public TBase
 		}
 
 		check(SyncState && AuxState);
+		InputCmd->NetSerialize(Ar);
 		SyncState->NetSerialize(Ar);
 		AuxState->NetSerialize(Ar);
 
 		if (Ar.IsLoading())
 		{
+			LastSerializedInputCmd = *InputCmd;
 			LastSerializedSyncState = *SyncState;
 			LastSerializedAuxState = *AuxState;
 		}
@@ -444,7 +459,7 @@ struct TReplicator_Simulated : public TBase
 
 		check(Ticker.GetTotalProcessedSimulationTime() <= Ticker.GetTotalAllowedSimulationTime());
 
-		if (bAllowSimulatedExtrapolation && ParentSimulation == nullptr && NetworkSimulationModelCVars::EnableSimulatedExtrapolation() && NetworkSimulationModelCVars::EnableSimulatedReconcile())
+		if (GetSimulatedUpdateMode() == ESimulatedUpdateMode::Extrapolate && NetworkSimulationModelCVars::EnableSimulatedReconcile())
 		{
 			// Simulated Reconcile requires the input buffer to be kept up to date with the Sync buffer
 			// Generate a new, fake, command since we just added a new sync state to head
@@ -469,25 +484,27 @@ struct TReplicator_Simulated : public TBase
 	void PreSimTick(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTicker<TTickSettings>& Ticker, const FNetSimTickParameters& TickParameters)
 	{
 		// Tick if we are dependent simulation or extrapolation is enabled
-		if (ParentSimulation || (bAllowSimulatedExtrapolation && NetworkSimulationModelCVars::EnableSimulatedExtrapolation()))
+		if (ParentSimulation || (GetSimulatedUpdateMode() == ESimulatedUpdateMode::Extrapolate))
 		{
 			// Don't start this simulation until you've gotten at least one update from the server
 			if (Ticker.GetTotalProcessedSimulationTime().IsPositive())
 			{
 				Ticker.GiveSimulationTime(TickParameters.LocalDeltaTimeSeconds);
 			}
-
-			if (TickParameters.bGenerateLocalInputCmds)
-			{
-				TryGenerateLocalInput(Driver, Buffers, Ticker);
-			}
+			
+			// Generate local input if we are ready to tick. Note that we pass false so we won't call into the Driver to produce the input, we will use the last serialized InputCmd's values
+			TryGenerateLocalInput(Driver, Buffers, Ticker, false);
 		}
 	}
 
 	template<typename TDriver>
 	void PostSimTick(TDriver* Driver, const TNetworkSimBufferContainer<TBufferTypes>& Buffers, const TSimulationTicker<TTickSettings>& Ticker, const FNetSimTickParameters& TickParameters)
 	{
-		if (bAllowSimulatedExtrapolation || ParentSimulation)
+		if (GetSimulatedUpdateMode() == ESimulatedUpdateMode::Interpolate)
+		{
+			Interpolator.template PostSimTick<TDriver>(Driver, Buffers, Ticker, TickParameters);
+		}
+		else
 		{
 			// Sync to latest frame if there is any
 			if (Buffers.Sync.Num() > 0)
@@ -495,10 +512,6 @@ struct TReplicator_Simulated : public TBase
 				Driver->FinalizeFrame(*Buffers.Sync.HeadElement(), *Buffers.Aux.HeadElement());
 			}
 			
-		}
-		else
-		{
-			Interpolator.template PostSimTick<TDriver>(Driver, Buffers, Ticker, TickParameters);
 		}
 	}
 
@@ -579,8 +592,11 @@ private:
 	
 	FNetworkSimTime ReconcileSimulationTime;
 	FNetworkSimTime LastSerializedSimulationTime;
+	
+	TInputCmd LastSerializedInputCmd;
 	TSyncState LastSerializedSyncState;
 	TAuxState LastSerializedAuxState;	// Temp? This should be conditional or optional. We want to support not replicating the aux state to simulated proxies
+
 };
 
 
@@ -596,7 +612,7 @@ struct TReplicator_Autonomous : public TBase
 	bool IsReconcileFaultDetected() const { return bReconcileFaultDetected; }
 	const FNetworkSimTime& GetLastSerializedSimTime() const { return SerializedTime; }
 
-	TArray<INetworkSimulationModel*> DependentSimulations;
+	TArray<INetworkedSimulationModel*> DependentSimulations;
 	bool bDependentSimulationNeedsReconcile = false;
 
 	int32 GetProxyDirtyCount(TNetworkSimBufferContainer<TBufferTypes>& Buffers) const
@@ -719,7 +735,7 @@ struct TReplicator_Autonomous : public TBase
 		}
 
 		// Tell dependent simulations to rollback
-		for (INetworkSimulationModel* DependentSim : DependentSimulations)
+		for (INetworkedSimulationModel* DependentSim : DependentSimulations)
 		{
 			DependentSim->BeginRollback(RollbackDeltaTime, SerializedFrame);
 		}
@@ -765,7 +781,7 @@ struct TReplicator_Autonomous : public TBase
 			}
 
 			// Tell dependent simulations to advance
-			for (INetworkSimulationModel* DependentSim : DependentSimulations)
+			for (INetworkedSimulationModel* DependentSim : DependentSimulations)
 			{
 				DependentSim->StepRollback(ResimulateCmd->GetFrameDeltaTime(), Frame, (Frame == LastFrameToProcess));
 			}

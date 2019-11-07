@@ -696,25 +696,25 @@ int32 UKismetMathLibrary::FTrunc(float A)
 KISMET_MATH_FORCEINLINE
 int64 UKismetMathLibrary::Round64(float A)
 {
-	return (int64)FMath::RoundToInt(A);
+	return (int64)FMath::RoundToFloat(A);
 }
 
 KISMET_MATH_FORCEINLINE
 int64 UKismetMathLibrary::FFloor64(float A)
 {
-	return (int64)FMath::FloorToInt(A);
+	return (int64)FMath::FloorToFloat(A);
 }
 
 KISMET_MATH_FORCEINLINE
 int64 UKismetMathLibrary::FTrunc64(float A)
 {
-	return (int64)FMath::TruncToInt(A);
+	return (int64)FMath::TruncToFloat(A);
 }
 
 KISMET_MATH_FORCEINLINE
 int64 UKismetMathLibrary::FCeil64(float A)
 {
-	return (int64)FMath::CeilToInt(A);
+	return (int64)FMath::CeilToFloat(A);
 }
 
 KISMET_MATH_FORCEINLINE

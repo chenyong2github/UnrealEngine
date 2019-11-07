@@ -292,6 +292,9 @@ bool InitGamePhys()
 	
 #endif // WITH_PHYSX
 
+	// Message to the log that physics is initialised and which interface we are using.
+	UE_LOG(LogInit, Log, TEXT("Physics initialised using underlying interface: %s"), *FPhysicsInterface::GetInterfaceDescription());
+
 	return true;
 }
 

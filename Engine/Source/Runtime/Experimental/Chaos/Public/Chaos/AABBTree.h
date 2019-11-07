@@ -22,42 +22,43 @@ enum class EAABBQueryType
 DECLARE_CYCLE_STAT(TEXT("AABBTreeGenerateTree"), STAT_AABBTreeGenerateTree, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("AABBTreeTimeSliceSetup"), STAT_AABBTreeTimeSliceSetup, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("AABBTreeInitialTimeSlice"), STAT_AABBTreeInitialTimeSlice, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("AABBTreeProgressTimeSlice"), STAT_AABBTreeProgressTimeSlice, STATGROUP_Chaos);
 
-template <typename T, EAABBQueryType Query>
+template <typename T, typename TQueryFastData, EAABBQueryType Query>
 struct TAABBTreeIntersectionHelper
 {
-	static bool Intersects(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const TVector<T, 3>& InvDir, const bool* bParallel,
-		T& CurrentLength, T& InvCurrentLength, T& TOI, TVector<T, 3>& OutPosition,
-		const TBox<T, 3>& Bounds, const TBox<T, 3>& QueryBounds, const TVector<T, 3>& QueryHalfExtents);
-};
-
-template <typename T>
-struct TAABBTreeIntersectionHelper<T, EAABBQueryType::Raycast>
-{
-	FORCEINLINE_DEBUGGABLE static bool Intersects(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const TVector<T, 3>& InvDir, const bool* bParallel,
-		T& CurrentLength, T& InvCurrentLength, T& TOI, TVector<T, 3>& OutPosition,
+	static bool Intersects(const TVector<T, 3>& Start, TQueryFastData& QueryFastData, T& TOI, TVector<T, 3>& OutPosition,
 		const TBox<T, 3>& Bounds, const TBox<T, 3>& QueryBounds, const TVector<T, 3>& QueryHalfExtents)
 	{
-		return TBox<T, 3>::RaycastFast(Bounds.Min(), Bounds.Max(), Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, TOI, OutPosition);
+		check(false);
+		return true;
+	}
+};
+
+template<>
+struct TAABBTreeIntersectionHelper<FReal, FQueryFastData, EAABBQueryType::Raycast>
+{
+	FORCEINLINE_DEBUGGABLE static bool Intersects(const FVec3& Start, FQueryFastData& QueryFastData, FReal& TOI, FVec3& OutPosition,
+		const TBox<FReal, 3>& Bounds, const TBox<FReal, 3>& QueryBounds, const TVector<FReal, 3>& QueryHalfExtents)
+	{
+		return TBox<FReal, 3>::RaycastFast(Bounds.Min(), Bounds.Max(), Start, QueryFastData.Dir, QueryFastData.InvDir, QueryFastData.bParallel, QueryFastData.CurrentLength, QueryFastData.InvCurrentLength, TOI, OutPosition);
 	}
 };
 
 template <typename T>
-struct TAABBTreeIntersectionHelper<T, EAABBQueryType::Sweep>
+struct TAABBTreeIntersectionHelper<T, FQueryFastData, EAABBQueryType::Sweep>
 {
-	FORCEINLINE_DEBUGGABLE static bool Intersects(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const TVector<T, 3>& InvDir, const bool* bParallel,
-		T& CurrentLength, T& InvCurrentLength, T& TOI, TVector<T, 3>& OutPosition,
-		const TBox<T, 3>& Bounds, const TBox<T, 3>& QueryBounds, const TVector<T, 3>& QueryHalfExtents)
+	FORCEINLINE_DEBUGGABLE static bool Intersects(const TVector<T, 3>& Start, FQueryFastData& QueryFastData,
+		T& TOI, TVector<T, 3>& OutPosition, const TBox<T, 3>& Bounds, const TBox<T, 3>& QueryBounds, const TVector<T, 3>& QueryHalfExtents)
 	{
-		return TBox<T, 3>::RaycastFast(Bounds.Min() - QueryHalfExtents, Bounds.Max() + QueryHalfExtents, Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, TOI, OutPosition);
+		return TBox<T, 3>::RaycastFast(Bounds.Min() - QueryHalfExtents, Bounds.Max() + QueryHalfExtents, Start, QueryFastData.Dir, QueryFastData.InvDir, QueryFastData.bParallel, QueryFastData.CurrentLength, QueryFastData.InvCurrentLength, TOI, OutPosition);
 	}
 };
 
 template <typename T>
-struct TAABBTreeIntersectionHelper<T, EAABBQueryType::Overlap>
+struct TAABBTreeIntersectionHelper<T, FQueryFastDataVoid, EAABBQueryType::Overlap>
 {
-	FORCEINLINE_DEBUGGABLE static bool Intersects(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const TVector<T, 3>& InvDir, const bool* bParallel,
-		T& CurrentLength, T& InvCurrentLength, T& TOI, TVector<T, 3>& OutPosition,
+	FORCEINLINE_DEBUGGABLE static bool Intersects(const TVector<T, 3>& Start, FQueryFastDataVoid& QueryFastData, T& TOI, TVector<T, 3>& OutPosition,
 		const TBox<T, 3>& Bounds, const TBox<T, 3>& QueryBounds, const TVector<T, 3>& QueryHalfExtents)
 	{
 		return QueryBounds.Intersects(Bounds);
@@ -74,16 +75,16 @@ struct TAABBTreeLeafArray
 	{
 	}
 
-	template <typename TSQVisitor>
-	bool RaycastFast(const TVector<T,3>& Start, const TVector<T,3>& Dir, const TVector<T,3>& InvDir, const bool* bParallel, T& CurrentLength, T& InvCurrentLength, TSQVisitor& Visitor) const
+	template <typename TSQVisitor, typename TQueryFastData>
+	bool RaycastFast(const TVector<T,3>& Start, TQueryFastData& QueryFastData, TSQVisitor& Visitor) const
 	{
-		return RaycastSweepImp</*bSweep=*/false>(Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, TVector<T,3>(), Visitor);
+		return RaycastSweepImp</*bSweep=*/false>(Start, QueryFastData, TVector<T,3>(), Visitor);
 	}
 
-	template <typename TSQVisitor>
-	bool SweepFast(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const TVector<T, 3>& InvDir, const bool* bParallel, T& CurrentLength, T& InvCurrentLength, const TVector<T,3>& QueryHalfExtents, TSQVisitor& Visitor) const
+	template <typename TSQVisitor, typename TQueryFastData>
+	bool SweepFast(const TVector<T, 3>& Start, TQueryFastData& QueryFastData, const TVector<T,3>& QueryHalfExtents, TSQVisitor& Visitor) const
 	{
-		return RaycastSweepImp</*bSweep=*/true>(Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, QueryHalfExtents, Visitor);
+		return RaycastSweepImp</*bSweep=*/true>(Start, QueryFastData, QueryHalfExtents, Visitor);
 	}
 
 	template <typename TSQVisitor>
@@ -104,24 +105,22 @@ struct TAABBTreeLeafArray
 		return true;
 	}
 
-	template <bool bSweep, typename TSQVisitor>
-	bool RaycastSweepImp(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const TVector<T, 3>& InvDir, const bool* bParallel, T& CurrentLength, T& InvCurrentLength, const TVector<T, 3>& QueryHalfExtents, TSQVisitor& Visitor) const
+	template <bool bSweep, typename TQueryFastData, typename TSQVisitor>
+	bool RaycastSweepImp(const TVector<T, 3>& Start, TQueryFastData& QueryFastData, const TVector<T, 3>& QueryHalfExtents, TSQVisitor& Visitor) const
 	{
 		TVector<T, 3> TmpPosition;
 		T TOI;
 		for (const auto& Elem : Elems)
 		{
 			const auto& InstanceBounds = Elem.Bounds;
-			if (TAABBTreeIntersectionHelper<T, bSweep ? EAABBQueryType::Sweep : EAABBQueryType::Raycast>::Intersects(Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength,
-				TOI, TmpPosition, InstanceBounds, TBox<T,3>(), QueryHalfExtents))
+			if (TAABBTreeIntersectionHelper<T, TQueryFastData, bSweep ? EAABBQueryType::Sweep : EAABBQueryType::Raycast>::Intersects(Start, QueryFastData, TOI, TmpPosition, InstanceBounds, TBox<T,3>(), QueryHalfExtents))
 			{
 				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
-				const bool bContinue = (bSweep && Visitor.VisitSweep(VisitData, CurrentLength)) || (!bSweep &&  Visitor.VisitRaycast(VisitData, CurrentLength));
+				const bool bContinue = (bSweep && Visitor.VisitSweep(VisitData, QueryFastData)) || (!bSweep &&  Visitor.VisitRaycast(VisitData, QueryFastData));
 				if (!bContinue)
 				{
 					return false;
 				}
-				InvCurrentLength = 1 / CurrentLength;
 			}
 		}
 
@@ -226,7 +225,7 @@ public:
 	static constexpr T DefaultMaxPayloadBounds = 100000;
 	static constexpr int32 DefaultMaxChildrenInLeaf = 12;
 	static constexpr int32 DefaultMaxTreeDepth = 16;
-	static constexpr int32 DefaultMaxNumToProcess = 4000;
+	static constexpr int32 DefaultMaxNumToProcess = 4000000;
 	static constexpr ESpatialAcceleration StaticType = TIsSame<TAABBTreeLeafArray<TPayloadType, T>, TLeafType>::Value ? ESpatialAcceleration::AABBTree : 
 		(TIsSame<TBoundingVolume<TPayloadType, T, 3>, TLeafType>::Value ? ESpatialAcceleration::AABBTreeBV : ESpatialAcceleration::Unknown);
 	TAABBTree()
@@ -238,8 +237,16 @@ public:
 	{
 	}
 
-	virtual void ProgressAsyncTimeSlicing() override
+	virtual void ProgressAsyncTimeSlicing(bool ForceBuildCompletion) override
 	{
+		SCOPE_CYCLE_COUNTER(STAT_AABBTreeProgressTimeSlice);
+
+		// force is to stop time slicing and complete the rest of the build now
+		if (ForceBuildCompletion)
+		{
+			MaxNumToProcess = 0;
+		}
+
 		// still has work to complete
 		if (!TimeSliceWorkToComplete.IsEmpty())
 		{
@@ -276,6 +283,14 @@ public:
 
 	}
 
+	template <typename ParticleView>
+	void Reinitialize(const ParticleView& Particles)
+	{
+		GenerateTree(Particles);
+	}
+
+	virtual TArray<TPayloadType> FindAllIntersections(const TBox<T, 3>& Box) const override { return FindAllIntersectionsImp(Box); }
+
 	bool DumpTreeToLog(int32 NodeIdx, int32 ParentNode, TBox<T,3>& Bounds)
 	{
 		if (Nodes[NodeIdx].bLeaf)
@@ -307,25 +322,14 @@ public:
 	template <typename SQVisitor>
 	void Raycast(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const T Length, SQVisitor& Visitor) const
 	{
-		ensure(Length);
-		T CurLength = Length;
-		bool bParallel[3];
-		TVector<T, 3> InvDir;
-
-		T InvLength = 1 / Length;
-		for (int Axis = 0; Axis < 3; ++Axis)
-		{
-			bParallel[Axis] = Dir[Axis] == 0;
-			InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
-		}
-
-		QueryImp<EAABBQueryType::Raycast>(Start, Dir, InvDir, bParallel, CurLength, InvLength, TVector<T,3>(), TBox<T,3>(), Visitor);
+		FQueryFastData QueryFastData(Dir, Length);
+		QueryImp<EAABBQueryType::Raycast>(Start, QueryFastData, TVector<T,3>(), TBox<T,3>(), Visitor);
 	}
 
 	template <typename SQVisitor>
-	bool RaycastFast(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const TVector<T,3>& InvDir, const bool* bParallel, T& CurLength, T& InvLength, SQVisitor& Visitor) const
+	bool RaycastFast(const TVector<T, 3>& Start, FQueryFastData& CurData, SQVisitor& Visitor) const
 	{
-		return QueryImp<EAABBQueryType::Raycast>(Start, Dir, InvDir, bParallel, CurLength, InvLength, TVector<T, 3>(), TBox<T, 3>(), Visitor);
+		return QueryImp<EAABBQueryType::Raycast>(Start, CurData, TVector<T, 3>(), TBox<T, 3>(), Visitor);
 	}
 
 	void Sweep(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const T Length, const TVector<T, 3> QueryHalfExtents, ISpatialVisitor<TPayloadType, T>& Visitor) const override
@@ -337,25 +341,14 @@ public:
 	template <typename SQVisitor>
 	void Sweep(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const T Length, const TVector<T, 3> QueryHalfExtents, SQVisitor& Visitor) const
 	{
-		bool bParallel[3];
-		TVector<T, 3> InvDir;
-
-		ensure(Length);
-		T CurLength = Length;
-		T InvLength = 1 / Length;
-		for (int Axis = 0; Axis < 3; ++Axis)
-		{
-			bParallel[Axis] = Dir[Axis] == 0;
-			InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
-		}
-
-		QueryImp<EAABBQueryType::Sweep>(Start, Dir, InvDir, bParallel, CurLength, InvLength, QueryHalfExtents, TBox<T, 3>(), Visitor);
+		FQueryFastData QueryFastData(Dir, Length);
+		QueryImp<EAABBQueryType::Sweep>(Start, QueryFastData, QueryHalfExtents, TBox<T, 3>(), Visitor);
 	}
 
 	template <typename SQVisitor>
-	bool SweepFast(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const TVector<T,3>& InvDir, const bool* bParallel, T& CurLength, T& InvLength, const TVector<T, 3> QueryHalfExtents, SQVisitor& Visitor) const
+	bool SweepFast(const TVector<T, 3>& Start, FQueryFastData& CurData, const TVector<T, 3> QueryHalfExtents, SQVisitor& Visitor) const
 	{
-		return QueryImp<EAABBQueryType::Sweep>(Start, Dir, InvDir, bParallel, CurLength, InvLength, QueryHalfExtents, TBox<T, 3>(), Visitor);
+		return QueryImp<EAABBQueryType::Sweep>(Start,CurData, QueryHalfExtents, TBox<T, 3>(), Visitor);
 	}
 
 	void Overlap(const TBox<T, 3>& QueryBounds, ISpatialVisitor<TPayloadType, T>& Visitor) const override
@@ -374,11 +367,8 @@ public:
 	bool OverlapFast(const TBox<T, 3>& QueryBounds, SQVisitor& Visitor) const
 	{
 		//dummy variables to reuse templated path
-		T Length;
-		T InvLength;
-		TVector<T, 3> InvDir;
-		bool bParallel;
-		return QueryImp<EAABBQueryType::Overlap>(TVector<T, 3>(), TVector<T, 3>(), InvDir, &bParallel, Length, InvLength, TVector<T, 3>(), QueryBounds, Visitor);
+		FQueryFastDataVoid VoidData;
+		return QueryImp<EAABBQueryType::Overlap>(TVector<T, 3>(), VoidData, TVector<T, 3>(), QueryBounds, Visitor);
 	}
 
 	virtual void RemoveElement(const TPayloadType& Payload)
@@ -503,8 +493,8 @@ private:
 	using FElement = TPayloadBoundsElement<TPayloadType, T>;
 	using FNode = TAABBTreeNode<T>;
 
-	template <EAABBQueryType Query, typename SQVisitor>
-	bool QueryImp(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const TVector<T,3>& InvDir, const bool* bParallel, T& CurrentLength, T& InvCurrentLength, const TVector<T, 3> QueryHalfExtents, const TBox<T,3>& QueryBounds, SQVisitor& Visitor) const
+	template <EAABBQueryType Query, typename TQueryFastData, typename SQVisitor>
+	bool QueryImp(const TVector<T, 3>& Start, TQueryFastData& CurData, const TVector<T, 3> QueryHalfExtents, const TBox<T,3>& QueryBounds, SQVisitor& Visitor) const
 	{
 		TVector<T, 3> TmpPosition;
 		T TOI = 0;
@@ -512,8 +502,7 @@ private:
 		for (const auto& Elem : GlobalPayloads)
 		{
 			const auto& InstanceBounds = Elem.Bounds;
-			if (TAABBTreeIntersectionHelper<T, Query>::Intersects(Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength,
-				TOI, TmpPosition, InstanceBounds, QueryBounds, QueryHalfExtents))
+			if (TAABBTreeIntersectionHelper<T, TQueryFastData, Query>::Intersects(Start, CurData, TOI, TmpPosition, InstanceBounds, QueryBounds, QueryHalfExtents))
 			{
 				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true);
 				bool bContinue;
@@ -523,17 +512,12 @@ private:
 				}
 				else
 				{
-					bContinue = Query == EAABBQueryType::Sweep ? Visitor.VisitSweep(VisitData, CurrentLength) : Visitor.VisitRaycast(VisitData, CurrentLength);
+					bContinue = Query == EAABBQueryType::Sweep ? Visitor.VisitSweep(VisitData, CurData) : Visitor.VisitRaycast(VisitData, CurData);
 				}
 
 				if (!bContinue)
 				{
 					return false;
-				}
-
-				if (Query != EAABBQueryType::Overlap)
-				{
-					InvCurrentLength = 1 / CurrentLength;
 				}
 			}
 		}
@@ -541,8 +525,7 @@ private:
 		for (const auto& Elem : DirtyElements)
 		{
 			const auto& InstanceBounds = Elem.Bounds;
-			if(TAABBTreeIntersectionHelper<T, Query>::Intersects(Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength,
-				TOI, TmpPosition, InstanceBounds, QueryBounds, QueryHalfExtents))
+			if(TAABBTreeIntersectionHelper<T, TQueryFastData, Query>::Intersects(Start, CurData, TOI, TmpPosition, InstanceBounds, QueryBounds, QueryHalfExtents))
 			{
 				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
 				
@@ -553,17 +536,12 @@ private:
 				}
 				else
 				{
-					bContinue = Query == EAABBQueryType::Sweep ? Visitor.VisitSweep(VisitData, CurrentLength) : Visitor.VisitRaycast(VisitData, CurrentLength);
+					bContinue = Query == EAABBQueryType::Sweep ? Visitor.VisitSweep(VisitData, CurData) : Visitor.VisitRaycast(VisitData, CurData);
 				}
 				
 				if (!bContinue)
 				{
 					return false;
-				}
-
-				if (Query != EAABBQueryType::Overlap)
-				{
-					InvCurrentLength = 1 / CurrentLength;
 				}
 			}
 		}
@@ -581,7 +559,7 @@ private:
 			const FNodeQueueEntry NodeEntry = NodeStack.Pop(false);
 			if (Query != EAABBQueryType::Overlap)
 			{
-				if (NodeEntry.TOI > CurrentLength)
+				if (NodeEntry.TOI > CurData.CurrentLength)
 				{
 					continue;
 				}
@@ -600,12 +578,12 @@ private:
 				}
 				else if (Query == EAABBQueryType::Sweep)
 				{
-					if (Leaf.SweepFast(Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, QueryHalfExtents, Visitor) == false)
+					if (Leaf.SweepFast(Start, CurData, QueryHalfExtents, Visitor) == false)
 					{
 						return false;
 					}
 				}
-				else if (Leaf.RaycastFast(Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, Visitor) == false)
+				else if (Leaf.RaycastFast(Start, CurData, Visitor) == false)
 				{
 					return false;
 				}
@@ -615,8 +593,7 @@ private:
 				int32 Idx = 0;
 				for (const TBox<T, 3>& AABB : Node.ChildrenBounds)
 				{
-					if(TAABBTreeIntersectionHelper<T, Query>::Intersects(Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength,
-						TOI, TmpPosition, AABB, QueryBounds, QueryHalfExtents))
+					if(TAABBTreeIntersectionHelper<T, TQueryFastData, Query>::Intersects(Start, CurData, TOI, TmpPosition, AABB, QueryBounds, QueryHalfExtents))
 					{
 						NodeStack.Add(FNodeQueueEntry{ Node.ChildrenNodes[Idx], TOI });
 					}
@@ -642,7 +619,6 @@ private:
 		DirtyElements.Reset();
 		PayloadToInfo.Reset();
 		NumProcessedThisSlice = 0;
-		check(MaxNumToProcess > 0);
 
 		FullBounds = TBox<T, 3>::EmptyBox();
 
@@ -715,7 +691,7 @@ private:
 		 	Nodes.AddDefaulted();	//todo: remove TBox
 		}
 
-		if (NumProcessedThisSlice >= NumToProcess)
+		if ((MaxNumToProcess > 0) && (NumProcessedThisSlice >= NumToProcess))
 		{
 			// done enough work, capture stack
 			FWorkSnapshot Store;
@@ -835,6 +811,36 @@ private:
 		return; // keep working
 	}
 
+	TArray<TPayloadType> FindAllIntersectionsImp(const TBox<T, 3>& Intersection) const
+	{
+		struct FSimpleVisitor
+		{
+			FSimpleVisitor(TArray<TPayloadType>& InResults) : CollectedResults(InResults) {}
+			bool VisitOverlap(const TSpatialVisitorData<TPayloadType>& Instance)
+			{
+				CollectedResults.Add(Instance.Payload);
+				return true;
+			}
+			bool VisitSweep(const TSpatialVisitorData<TPayloadType>& Instance, FQueryFastData& CurData)
+			{
+				check(false);
+				return true;
+			}
+			bool VisitRaycast(const TSpatialVisitorData<TPayloadType>& Instance, FQueryFastData& CurData)
+			{
+				check(false);
+				return true;
+			}
+			TArray<TPayloadType>& CollectedResults;
+		};
+
+		TArray<TPayloadType> Results;
+		FSimpleVisitor Collector(Results);
+		Overlap(Intersection, Collector);
+
+		return Results;
+	}
+
 
 	TAABBTree(const TAABBTree<TPayloadType, TLeafType, T>& Other)
 		: ISpatialAcceleration<TPayloadType, T, 3>(StaticType)
@@ -880,8 +886,7 @@ private:
 template<typename TPayloadType, typename TLeafType, class T>
 FArchive& operator<<(FChaosArchive& Ar, TAABBTree<TPayloadType, TLeafType, T>& AABBTree)
 {
-	check(false);
-	//AABBTree.Serialize(Ar);
+	AABBTree.Serialize(Ar);
 	return Ar;
 }
 

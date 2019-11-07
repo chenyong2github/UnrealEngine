@@ -3907,7 +3907,7 @@ bool UWorld::SetGameMode(const FURL& InURL)
 {
 	if( IsServer() && !AuthorityGameMode )
 	{
-		AuthorityGameMode = GetGameInstance()->CreateGameModeForURL(InURL);
+		AuthorityGameMode = GetGameInstance()->CreateGameModeForURL(InURL, this);
 		if( AuthorityGameMode != NULL )
 		{
 			return true;

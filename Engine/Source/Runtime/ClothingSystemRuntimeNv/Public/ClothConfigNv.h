@@ -2,7 +2,7 @@
 #pragma once
 
 #include "Engine/SkeletalMesh.h"
-#include "ClothConfig.h"
+#include "ClothConfigBase.h"
 #include "ClothConfigNv.generated.h"
 
 namespace nvidia

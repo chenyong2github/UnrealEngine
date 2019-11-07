@@ -82,7 +82,7 @@ ECollisionShapeType GetGeometryType(const Chaos::TPerShapeData<float, 3>& Shape)
 	return GetType(*Shape.Geometry);
 }
 
-const Chaos::TImplicitObject<float, 3>& FPhysicsShapeReference_Chaos::GetGeometry() const
+const Chaos::FImplicitObject& FPhysicsShapeReference_Chaos::GetGeometry() const
 {
 	check(IsValid()); return *Shape->Geometry;
 }
@@ -1075,7 +1075,7 @@ const FBodyInstance* FPhysInterface_Chaos::ShapeToOriginalBodyInstance(const FBo
 
 void FPhysInterface_Chaos::AddGeometry(FPhysicsActorHandle& InActor, const FGeometryAddParams& InParams, TArray<FPhysicsShapeHandle>* OutOptShapes)
 {
-	TArray<TUniquePtr<Chaos::TImplicitObject<float, 3>>> Geoms;
+	TArray<TUniquePtr<Chaos::FImplicitObject>> Geoms;
 	Chaos::TShapesArray<float, 3> Shapes;
 	ChaosInterface::CreateGeometry(InParams, Geoms, Shapes);
 
@@ -1121,7 +1121,7 @@ ECollisionShapeType FPhysicsGeometryCollection_Chaos::GetType() const
 	return GetImplicitType(Geom);
 }
 
-const Chaos::TImplicitObject<float, 3>& FPhysicsGeometryCollection_Chaos::GetGeometry() const
+const Chaos::FImplicitObject& FPhysicsGeometryCollection_Chaos::GetGeometry() const
 {
 	return Geom;
 }
@@ -1243,7 +1243,7 @@ void CalculateMassPropertiesOfImplicitType(
 	TArray< Chaos::TMassProperties<float, 3> > & MassProperties,
 	float & TotalMass,
 	const Chaos::TRigidTransform<float, 3> & WorldTransform,
-	const Chaos::TImplicitObject<float, 3>* ImplicitObject, 
+	const Chaos::FImplicitObject* ImplicitObject, 
 	float InDensityKGPerCM)
 {
 	// WIP
@@ -1374,7 +1374,7 @@ void CalculateMassPropertiesOfImplicitType(
 		{
 			const Chaos::TImplicitObjectUnion<float,3> * ImplicitUnion = ImplicitObject->template GetObject<Chaos::TImplicitObjectUnion<float,3>>();
 
-			for (const TUniquePtr < Chaos::TImplicitObject<float,3> > & ImplicitSubObject : ImplicitUnion->GetObjects())
+			for (const TUniquePtr < Chaos::FImplicitObject > & ImplicitSubObject : ImplicitUnion->GetObjects())
 			{
 				CalculateMassPropertiesOfImplicitType(MassProperties, TotalMass, WorldTransform, ImplicitSubObject.Get(), InDensityKGPerCM);
 			}
@@ -1396,7 +1396,7 @@ void FPhysInterface_Chaos::CalculateMassPropertiesFromShapeCollection(physx::PxM
 	{
 		if (const Chaos::TPerShapeData<float, 3>* Shape = ShapeHandle.Shape)
 		{
-			if (const Chaos::TImplicitObject<float, 3> * ImplicitObject = Shape->Geometry.Get())
+			if (const Chaos::FImplicitObject * ImplicitObject = Shape->Geometry.Get())
 			{
 				FTransform WorldTransform(ShapeHandle.ActorRef->R(), ShapeHandle.ActorRef->X());
 				CalculateMassPropertiesOfImplicitType(MassProperties, TotalMass, WorldTransform, ImplicitObject, InDensityKGPerCM);
@@ -1583,7 +1583,7 @@ bool FPhysInterface_Chaos::Sweep_Geom(FHitResult& OutHit, const FBodyInstance* I
 							Chaos::TVector<float, 3> WorldPosition;
 							Chaos::TVector<float, 3> WorldNormal;
 							int32 FaceIdx;
-							if(Chaos::SweepQuery<float, 3>(*Shape->Geometry, ActorTM, ShapeAdapter.GetGeometry(), StartTM, Dir, DeltaMag, Hit.Distance, WorldPosition, WorldNormal, FaceIdx, 0.f, false))
+							if (Chaos::CastHelper(ShapeAdapter.GetGeometry(), [&](const auto& Downcast) { return Chaos::SweepQuery(*Shape->Geometry, ActorTM, Downcast, StartTM, Dir, DeltaMag, Hit.Distance, WorldPosition, WorldNormal, FaceIdx, 0.f, false); }))
 							{
 								// we just like to make sure if the hit is made
 								FCollisionFilterData QueryFilter;
@@ -1614,7 +1614,7 @@ bool FPhysInterface_Chaos::Sweep_Geom(FHitResult& OutHit, const FBodyInstance* I
 	return bSweepHit;
 }
 
-bool Overlap_GeomInternal(const FBodyInstance* InInstance, const Chaos::TImplicitObject<float, 3>& InGeom, const FTransform& GeomTransform, FMTDResult* OutOptResult)
+bool Overlap_GeomInternal(const FBodyInstance* InInstance, const Chaos::FImplicitObject& InGeom, const FTransform& GeomTransform, FMTDResult* OutOptResult)
 {
 	const FBodyInstance* TargetInstance = InInstance->WeldParent ? InInstance->WeldParent : InInstance;
 	Chaos::TGeometryParticle<float, 3>* RigidBody = TargetInstance->ActorHandle;
@@ -1666,7 +1666,7 @@ bool Overlap_GeomInternal(const FBodyInstance* InInstance, const Chaos::TImplici
 			}
 			//else	//todo: don't bother with this once MTD is implemented
 			{
-				if(Chaos::OverlapQuery<float, 3>(*Shape->Geometry, ActorTM, InGeom, GeomTransform))
+				if (Chaos::CastHelper(InGeom, [&](const auto& Downcast) { return Chaos::OverlapQuery(*Shape->Geometry, ActorTM, Downcast, GeomTransform); }))
 				{
 					return true;
 				}

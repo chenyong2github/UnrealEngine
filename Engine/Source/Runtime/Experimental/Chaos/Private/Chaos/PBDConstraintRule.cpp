@@ -11,10 +11,9 @@
 
 namespace Chaos
 {
-	template class TPBDConstraintRule<float, 3>;
-	template class TPBDConstraintColorRule<TPBDCollisionConstraint<float, 3>, float, 3>;
-	template class TPBDConstraintIslandRule<TPBD6DJointConstraints<float, 3>, float, 3>;
-	template class TPBDConstraintIslandRule<TPBDJointConstraints<float, 3>, float, 3>;
-	template class TPBDConstraintIslandRule<TPBDPositionConstraints<float, 3>, float, 3>;
-	template class TPBDConstraintIslandRule<TPBDRigidDynamicSpringConstraints<float, 3>, float, 3>;
+	template class TPBDConstraintColorRule<TPBDCollisionConstraint<float, 3>>;
+	template class TPBDConstraintIslandRule<FPBD6DJointConstraints>;
+	template class TPBDConstraintIslandRule<FPBDJointConstraints>;
+	template class TPBDConstraintIslandRule<TPBDPositionConstraints<float, 3>>;
+	template class TPBDConstraintIslandRule<TPBDRigidDynamicSpringConstraints<float, 3>>;
 }

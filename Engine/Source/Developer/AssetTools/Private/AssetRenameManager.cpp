@@ -892,15 +892,26 @@ struct FSoftObjectPathRenameSerializer : public FArchiveUObject
 		return bFoundReference; 
 	}
 
-	FSoftObjectPathRenameSerializer(const TMap<FSoftObjectPath, FSoftObjectPath>& InRedirectorMap, bool bInCheckOnly, TMap<FSoftObjectPath, TSet<FWeakObjectPtr>>* InCachedObjectPaths)
+	FSoftObjectPathRenameSerializer(const TMap<FSoftObjectPath, FSoftObjectPath>& InRedirectorMap, bool bInCheckOnly, TMap<FSoftObjectPath, TSet<FWeakObjectPtr>>* InCachedObjectPaths, const FName InPackageName = NAME_None)
 		: RedirectorMap(InRedirectorMap)
 		, CachedObjectPaths(InCachedObjectPaths)
 		, CurrentObject(nullptr)
+		, PackageName(InPackageName)
 		, bSearchOnly(bInCheckOnly)
 		, bFoundReference(false)
 	{
+		if (InCachedObjectPaths)
+		{
+			DirtyDelegateHandle = UPackage::PackageMarkedDirtyEvent.AddRaw(this, &FSoftObjectPathRenameSerializer::OnMarkPackageDirty);
+		}
+
 		// Mark it as saving to correctly process all references
 		this->SetIsSaving(true);
+	}
+
+	virtual ~FSoftObjectPathRenameSerializer()
+	{
+		UPackage::PackageMarkedDirtyEvent.Remove(DirtyDelegateHandle);
 	}
 
 	virtual bool ShouldSkipProperty(const UProperty* InProperty) const override
@@ -997,10 +1008,22 @@ struct FSoftObjectPathRenameSerializer : public FArchiveUObject
 		return *this;
 	}
 
+	void OnMarkPackageDirty(UPackage* Pkg, bool bWasDirty)
+	{
+		UPackage::PackageMarkedDirtyEvent.Remove(DirtyDelegateHandle);
+
+		if (CachedObjectPaths && Pkg && Pkg->GetFName() == PackageName)
+		{
+			UE_LOG(LogAssetTools, VeryVerbose, TEXT("Performance: Package unexpectedly modified during serialization by FSoftObjectPathRenameSerializer: %s"), *Pkg->GetFullName());
+		}
+	}
+
 private:
 	const TMap<FSoftObjectPath, FSoftObjectPath>& RedirectorMap;
 	TMap<FSoftObjectPath, TSet<FWeakObjectPtr>>* CachedObjectPaths;
+	FDelegateHandle DirtyDelegateHandle;
 	UObject* CurrentObject;
+	FName PackageName;
 	bool bSearchOnly;
 	bool bFoundReference;
 
@@ -1072,8 +1095,6 @@ bool FAssetRenameManager::CheckPackageForSoftObjectReferences(UPackage* Package,
 
 	if (CachedReferences == nullptr)
 	{
-		CachedReferences = &CachedSoftReferences.Add(Package->GetFName());
-
 		// Bind to dirty callback if we aren't already
 		if (!DirtyDelegateHandle.IsValid())
 		{
@@ -1082,7 +1103,8 @@ bool FAssetRenameManager::CheckPackageForSoftObjectReferences(UPackage* Package,
 
 		//Extract all objects soft references along with their referencer and cache them to avoid having to serialize again
 		TMap<FSoftObjectPath, FSoftObjectPath> EmptyMap;
-		FSoftObjectPathRenameSerializer CheckSerializer(EmptyMap, true, &CachedReferences->Map);
+		TMap<FSoftObjectPath, TSet<FWeakObjectPtr>> MapForCache;
+		FSoftObjectPathRenameSerializer CheckSerializer(EmptyMap, true, &MapForCache, Package->GetFName());
 
 		TArray<UObject*> ObjectsInPackage;
 		GetObjectsWithOuter(Package, ObjectsInPackage);
@@ -1097,6 +1119,9 @@ bool FAssetRenameManager::CheckPackageForSoftObjectReferences(UPackage* Package,
 			CheckSerializer.StartSerializingObject(Object);
 			Object->Serialize(CheckSerializer);
 		}
+
+		CachedReferences = &CachedSoftReferences.Add(Package->GetFName());
+		CachedReferences->Map = MoveTemp(MapForCache);
 
 		CachedReferences->Map.GenerateKeyArray(CachedReferences->Keys);
 		

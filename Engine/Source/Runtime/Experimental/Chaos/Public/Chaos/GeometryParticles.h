@@ -31,7 +31,7 @@ namespace Chaos
 		FCollisionFilterData QueryData;
 		FCollisionFilterData SimData;
 		void* UserData;
-		TSerializablePtr<TImplicitObject<T, d>> Geometry;
+		TSerializablePtr<FImplicitObject> Geometry;
 		
 
 		static TPerShapeData<T, d>* SerializationFactory(FChaosArchive& Ar, TPerShapeData<T, d>*);
@@ -53,9 +53,9 @@ namespace Chaos
 	using TShapesArray = TArray<TUniquePtr<TPerShapeData<T, d>>, TInlineAllocator<1>>;
 
 	template <typename T, int d>
-	void UpdateShapesArrayFromGeometry(TShapesArray<T, d>& ShapesArray, TSerializablePtr<TImplicitObject<T, d>> Geometry);
+	void UpdateShapesArrayFromGeometry(TShapesArray<T, d>& ShapesArray, TSerializablePtr<FImplicitObject> Geometry);
 
-	extern template void CHAOS_API UpdateShapesArrayFromGeometry(TShapesArray<float, 3>& ShapesArray, TSerializablePtr<TImplicitObject<float, 3>> Geometry);
+	extern template void CHAOS_API UpdateShapesArrayFromGeometry(TShapesArray<float, 3>& ShapesArray, TSerializablePtr<FImplicitObject> Geometry);
 
 #if CHAOS_DETERMINISTIC
 	using FParticleID = int32;	//Used to break ties when determinism is needed. Should not be used for anything else
@@ -176,11 +176,11 @@ namespace Chaos
 		CHAOS_API const TRotation<T, d>& R(const int32 Index) const { return MR[Index]; }
 		CHAOS_API TRotation<T, d>& R(const int32 Index) { return MR[Index]; }
 
-		CHAOS_API TSerializablePtr<TImplicitObject<T, d>> Geometry(const int32 Index) const { return MGeometry[Index]; }
+		CHAOS_API TSerializablePtr<FImplicitObject> Geometry(const int32 Index) const { return MGeometry[Index]; }
 
-		CHAOS_API const TUniquePtr<TImplicitObject<T, d>>& DynamicGeometry(const int32 Index) const { return MDynamicGeometry[Index]; }
+		CHAOS_API const TUniquePtr<FImplicitObject>& DynamicGeometry(const int32 Index) const { return MDynamicGeometry[Index]; }
 
-		const TSharedPtr<TImplicitObject<T, d>, ESPMode::ThreadSafe>& SharedGeometry(const int32 Index) const { return MSharedGeometry[Index]; }
+		const TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>& SharedGeometry(const int32 Index) const { return MSharedGeometry[Index]; }
 
 		const TShapesArray<T, d>& ShapesArray(const int32 Index) const { return MShapesArray[Index]; }
 
@@ -189,7 +189,7 @@ namespace Chaos
 		CHAOS_API FParticleID& ParticleID(const int32 Idx) { return MParticleIDs[Idx]; }
 #endif
 
-		CHAOS_API void SetDynamicGeometry(const int32 Index, TUniquePtr<TImplicitObject<T, d>>&& InUnique)
+		CHAOS_API void SetDynamicGeometry(const int32 Index, TUniquePtr<FImplicitObject>&& InUnique)
 		{
 			check(!SharedGeometry(Index));	// If shared geometry exists we should not be setting dynamic geometry on top
 			MGeometry[Index] = MakeSerializable(InUnique);
@@ -197,7 +197,7 @@ namespace Chaos
 			UpdateShapesArray(Index);
 		}
 
-		CHAOS_API void SetSharedGeometry(const int32 Index, TSharedPtr<TImplicitObject<T, d>, ESPMode::ThreadSafe> InShared)
+		CHAOS_API void SetSharedGeometry(const int32 Index, TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> InShared)
 		{
 			check(!DynamicGeometry(Index));	// If dynamic geometry exists we should not be setting shared geometry on top
 			MGeometry[Index] = MakeSerializable(InShared);
@@ -205,7 +205,7 @@ namespace Chaos
 			UpdateShapesArray(Index);
 		}
 		
-		CHAOS_API void SetGeometry(const int32 Index, TSerializablePtr<TImplicitObject<T, d>> InGeometry)
+		CHAOS_API void SetGeometry(const int32 Index, TSerializablePtr<FImplicitObject> InGeometry)
 		{
 			check(!DynamicGeometry(Index));
 			check(!SharedGeometry(Index));
@@ -253,7 +253,7 @@ namespace Chaos
 			return MWorldSpaceInflatedBounds[Index];
 		}
 
-		const TArray<TSerializablePtr<TImplicitObject<T, d>>>& GetAllGeometry() const { return MGeometry; }
+		const TArray<TSerializablePtr<FImplicitObject>>& GetAllGeometry() const { return MGeometry; }
 
 		typedef TGeometryParticleHandle<T, d> THandleType;
 		CHAOS_API THandleType* Handle(int32 Index) const { return const_cast<THandleType*>(MGeometryParticleHandle[Index].Get()); }
@@ -324,13 +324,13 @@ namespace Chaos
 		TArrayCollectionArray<TRotation<T, d>> MR;
 		// MGeometry contains raw ptrs to every entry in both MSharedGeometry and MDynamicGeometry.
 		// It may also contain raw ptrs to geometry which is managed outside of Chaos.
-		TArrayCollectionArray<TSerializablePtr<TImplicitObject<T, d>>> MGeometry;
+		TArrayCollectionArray<TSerializablePtr<FImplicitObject>> MGeometry;
 		// MSharedGeometry entries are owned by the solver, shared between *representations* of a particle.
 		// This is NOT for sharing geometry resources between particle's A and B, this is for sharing the
 		// geometry between particle A's various representations.
-		TArrayCollectionArray<TSharedPtr<TImplicitObject<T, d>, ESPMode::ThreadSafe>> MSharedGeometry;
+		TArrayCollectionArray<TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>> MSharedGeometry;
 		// MDynamicGeometry entries are used for geo which is by the evolution. It is not set from the game side.
-		TArrayCollectionArray<TUniquePtr<TImplicitObject<T, d>>> MDynamicGeometry;
+		TArrayCollectionArray<TUniquePtr<FImplicitObject>> MDynamicGeometry;
 		TArrayCollectionArray<TSerializablePtr<TGeometryParticleHandle<T, d>>> MGeometryParticleHandle;
 		TArrayCollectionArray<TGeometryParticle<T, d>*> MGeometryParticle;
 		TArrayCollectionArray<TShapesArray<T,d>> MShapesArray;

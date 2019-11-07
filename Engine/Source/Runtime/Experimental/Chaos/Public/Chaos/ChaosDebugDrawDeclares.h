@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/Core.h"
 #include "Chaos/Declares.h"
 #include "Chaos/GeometryParticlesfwd.h"
 #include "Misc/Build.h"
@@ -11,14 +12,11 @@
 
 namespace Chaos
 {
-	template<typename T, int d>
-	class TConstraintHandle;
+	class FConstraintHandle;
 
-	template<typename T, int d>
-	class TPBD6DJointConstraintHandle;
+	class FPBD6DJointConstraintHandle;
 
-	template<typename T, int d>
-	class TPBD6DJointConstraints;
+	class FPBD6DJointConstraints;
 
 	template<typename T, int d>
 	class TPBDCollisionConstraint;
@@ -26,23 +24,7 @@ namespace Chaos
 	template<typename T, int d>
 	class TPBDCollisionConstraintHandle;
 
-	template<typename T, int d>
-	class TPBDJointConstraintHandle;
+	class FPBDJointConstraintHandle;
 
-	template<typename T, int d>
-	class TPBDJointConstraints;
-
-	template<typename T, int d>
-	class TRigidTransform;
-
-
-
-	template<typename T, int m, int n>
-	class PMatrix;
-
-	template<typename T, int d>
-	class TRotation;
-
-	template<typename T, int d>
-	class TVector;
+	class FPBDJointConstraints;
 }

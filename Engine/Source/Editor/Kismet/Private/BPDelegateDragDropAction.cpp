@@ -46,10 +46,10 @@ void FKismetDelegateDragDropAction::AssignEvent(FNodeConstructionParams Params)
 	check(Params.Graph && Params.Property);
 	const UMulticastDelegateProperty* MulticastDelegateProperty = Cast<const UMulticastDelegateProperty>(Params.Property);
 	const UFunction* SignatureFunction = MulticastDelegateProperty ? MulticastDelegateProperty->SignatureFunction : NULL;
-	if(SignatureFunction)
+	if (SignatureFunction)
 	{
 		UK2Node_AddDelegate* TemplateNode = NewObject<UK2Node_AddDelegate>();
-		TemplateNode->SetFromProperty(Params.Property, Params.bSelfContext);
+		TemplateNode->SetFromProperty(Params.Property, Params.bSelfContext, Params.Property->GetOwnerClass());
 		FEdGraphSchemaAction_K2AssignDelegate::AssignDelegate(TemplateNode, Params.Graph, NULL, Params.GraphPosition, true);
 		Params.AnalyticCallback.ExecuteIfBound();
 	}

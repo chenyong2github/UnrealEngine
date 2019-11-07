@@ -705,42 +705,34 @@ bool UObject::CanCreateInCurrentContext(UObject* Template)
 
 void UObject::GetArchetypeInstances( TArray<UObject*>& Instances )
 {
-	Instances.Empty();
+	Instances.Reset();
 
 	if ( HasAnyFlags(RF_ArchetypeObject|RF_ClassDefaultObject) )
 	{
-		// we need to evaluate CDOs as well, but nothing pending kill
-		TArray<UObject*> IterObjects;
-		{
-			const bool bIncludeNestedObjects = true;
-			GetObjectsOfClass(GetClass(), IterObjects, bIncludeNestedObjects, RF_NoFlags, EInternalObjectFlags::PendingKill);
-		}
 
 		// if this object is the class default object, any object of the same class (or derived classes) could potentially be affected
 		if ( !HasAnyFlags(RF_ArchetypeObject) )
 		{
-			Instances.Reserve(IterObjects.Num()-1);
-			for (UObject* It : IterObjects)
+			const bool bIncludeNestedObjects = true;
+			ForEachObjectOfClass(GetClass(), [this, &Instances](UObject* Obj)
 			{
-				UObject* Obj = It;
-				if ( Obj != this )
+				if (Obj != this)
 				{
 					Instances.Add(Obj);
 				}
-			}
+			}, bIncludeNestedObjects, RF_NoFlags, EInternalObjectFlags::PendingKill); // we need to evaluate CDOs as well, but nothing pending kill
 		}
 		else
 		{
-			for (UObject* It : IterObjects)
+			const bool bIncludeNestedObjects = true;
+			ForEachObjectOfClass(GetClass(), [this, &Instances](UObject* Obj)
 			{
-				UObject* Obj = It;
-				
-				// if this object is the correct type and its archetype is this object, add it to the list
-				if ( Obj && Obj != this && Obj->IsBasedOnArchetype(this) )
+				if (Obj != this && Obj->IsBasedOnArchetype(this))
 				{
 					Instances.Add(Obj);
 				}
-			}
+			}, bIncludeNestedObjects, RF_NoFlags, EInternalObjectFlags::PendingKill); // we need to evaluate CDOs as well, but nothing pending kill
+
 		}
 	}
 }
@@ -1319,6 +1311,28 @@ void UObject::Serialize(FStructuredArchive::FRecord Record)
 					bool bDifferentOuter = LoadOuter != GetOuter();
 					if ( bDifferentName == true || bDifferentOuter == true )
 					{
+						// Clear the name for use by this:
+						UObject* Collision = StaticFindObjectFast(UObject::StaticClass(), LoadOuter, LoadName);
+						if(Collision && Collision != this)
+						{
+							FName NewNameForCollision = MakeUniqueObjectName(LoadOuter, Collision->GetClass(), LoadName);
+							checkf( StaticFindObjectFast(UObject::StaticClass(), LoadOuter, NewNameForCollision) == nullptr,
+								TEXT("Failed to MakeUniqueObjectName for object colliding with transaction buffer state: %s %s"),
+								*LoadName.ToString(),
+								*NewNameForCollision.ToString()
+							);
+							Collision->LowLevelRename(NewNameForCollision,LoadOuter);
+#if DO_CHECK
+							UObject* SubsequentCollision = StaticFindObjectFast(UObject::StaticClass(), LoadOuter, LoadName);
+							checkf( SubsequentCollision == nullptr,
+								TEXT("Multiple name collisions detected in the transaction buffer: %x %x with name %s"),
+								Collision,
+								SubsequentCollision,
+								*LoadName.ToString()
+							);
+#endif
+						}
+						
 						LowLevelRename(LoadName,LoadOuter);
 					}
 				}

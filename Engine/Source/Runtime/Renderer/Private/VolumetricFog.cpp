@@ -312,7 +312,8 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, PhaseG, FogInfo.VolumetricFogScatteringDistribution);
 		SetShaderValue(RHICmdList, ShaderRHI, InverseSquaredLightDistanceBiasScale, GInverseSquaredLightDistanceBiasScale);
 
-		VolumeShadowingParameters.Set(RHICmdList, ShaderRHI, View, LightSceneInfo, ShadowMap, 0, bDynamicallyShadowed);
+		// Pass -1 to InnerSplitIndex to avoid doing unecessary and uninitialized shadow cascade calculations for local lights 
+		VolumeShadowingParameters.Set(RHICmdList, ShaderRHI, View, LightSceneInfo, ShadowMap, -1, bDynamicallyShadowed);
 	}
 
 	virtual bool Serialize(FArchive& Ar) override
@@ -383,6 +384,16 @@ FIntPoint CalculateVolumetricFogBoundsForLight(const FSphere& LightBounds, const
 	VolumeZBounds.Y = FMath::Clamp(FurthestSliceIndexUnclamped, 0, VolumetricFogGridSize.Z - 1);
 
 	return VolumeZBounds;
+}
+
+static bool OverrideDirectionalLightInScatteringUsingHeightFog(const FViewInfo& View, const FExponentialHeightFogSceneInfo& FogInfo)
+{
+	return FogInfo.bOverrideLightColorsWithFogInscatteringColors && View.bUseDirectionalInscattering && !View.FogInscatteringColorCubemap;
+}
+
+static bool OverrideSkyLightInScatteringUsingHeightFog(const FViewInfo& View, const FExponentialHeightFogSceneInfo& FogInfo)
+{
+	return FogInfo.bOverrideLightColorsWithFogInscatteringColors;
 }
 
 /**  */
@@ -692,8 +703,11 @@ public:
 
 		SetShaderValue(RHICmdList, ShaderRHI, PhaseG, FogInfo.VolumetricFogScatteringDistribution);
 		SetShaderValue(RHICmdList, ShaderRHI, InverseSquaredLightDistanceBiasScale, GInverseSquaredLightDistanceBiasScale);
-		SetShaderValue(RHICmdList, ShaderRHI, UseHeightFogColors, FogInfo.bOverrideLightColorsWithFogInscatteringColors ? 1.0f : 0.0f);
 		SetShaderValue(RHICmdList, ShaderRHI, UseDirectionalLightShadowing, bUseDirectionalLightShadowing ? 1.0f : 0.0f);
+
+		SetShaderValue(RHICmdList, ShaderRHI, UseHeightFogColors, FVector2D(
+			OverrideDirectionalLightInScatteringUsingHeightFog(View, FogInfo) ? 1.0f : 0.0f,
+			OverrideSkyLightInScatteringUsingHeightFog(View, FogInfo) ? 1.0f : 0.0f ));
 
 		AOParameters.Set(RHICmdList, ShaderRHI, AOParameterData);
 		GlobalDistanceFieldParameters.Set(RHICmdList, ShaderRHI, View.GlobalDistanceFieldInfo.ParameterData);
@@ -902,8 +916,7 @@ void SetupVolumetricFogGlobalData(const FViewInfo& View, FVolumetricFogGlobalDat
 	Parameters.HeightFogInscatteringColor = View.ExponentialFogColor;
 
 	Parameters.HeightFogDirectionalLightInscatteringColor = FVector::ZeroVector;
-
-	if (View.bUseDirectionalInscattering && !View.FogInscatteringColorCubemap)
+	if (OverrideDirectionalLightInScatteringUsingHeightFog(View, FogInfo))
 	{
 		Parameters.HeightFogDirectionalLightInscatteringColor = FVector(View.DirectionalInscatteringColor);
 	}

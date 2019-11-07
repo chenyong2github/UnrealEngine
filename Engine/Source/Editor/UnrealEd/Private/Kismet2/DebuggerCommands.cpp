@@ -69,6 +69,8 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
+#include "ToolMenus.h"
+#include "SBlueprintEditorToolbar.h"
 
 #define LOCTEXT_NAMESPACE "DebuggerCommands"
 
@@ -331,7 +333,7 @@ void FPlayWorldCommands::RegisterCommands()
 	UI_COMMAND( PlayInViewport, "Selected Viewport", "Play this level in the active level editor viewport", EUserInterfaceActionType::Check, FInputChord() );
 	UI_COMMAND( PlayInEditorFloating, "New Editor Window (PIE)", "Play this level in a new window", EUserInterfaceActionType::Check, FInputChord() );
 	UI_COMMAND( PlayInVR, "VR Preview", "Play this level in VR", EUserInterfaceActionType::Check, FInputChord() );
-	UI_COMMAND( PlayInMobilePreview, "Mobile Preview ES2 (PIE)", "Play this level as a mobile device preview in ES2 mode (runs in its own process)", EUserInterfaceActionType::Check, FInputChord());
+	UI_COMMAND( PlayInMobilePreview, "Mobile Preview ES3.1 (PIE)", "Play this level as a mobile device preview in ES3.1 mode (runs in its own process)", EUserInterfaceActionType::Check, FInputChord());
 	UI_COMMAND( PlayInVulkanPreview, "Vulkan Mobile Preview (PIE)", "Play this level using mobile Vulkan rendering (runs in its own process)", EUserInterfaceActionType::Check, FInputChord() );
 	UI_COMMAND( PlayInNewProcess, "Standalone Game", "Play this level in a new window that runs in its own process", EUserInterfaceActionType::Check, FInputChord() );
 	UI_COMMAND( PlayInCameraLocation, "Current Camera Location", "Spawn the player at the current camera location", EUserInterfaceActionType::RadioButton, FInputChord() );
@@ -612,86 +614,92 @@ void FPlayWorldCommands::AddPIEPreviewDeviceActions(const FPlayWorldCommands &Co
 	}
 }
 
-void FPlayWorldCommands::BuildToolbar( FToolBarBuilder& ToolbarBuilder, bool bIncludeLaunchButtonAndOptions )
+void FPlayWorldCommands::BuildToolbar(FToolMenuSection& InSection, bool bIncludeLaunchButtonAndOptions)
 {
 	// Play
-	ToolbarBuilder.AddToolBarButton( 
-		FPlayWorldCommands::Get().RepeatLastPlay, 
-		NAME_None, 
+	InSection.AddEntry(FToolMenuEntry::InitToolBarButton(
+		FPlayWorldCommands::Get().RepeatLastPlay,
 		LOCTEXT("RepeatLastPlay", "Play"),
 		TAttribute< FText >::Create( TAttribute< FText >::FGetter::CreateStatic( &FInternalPlayWorldCommandCallbacks::GetRepeatLastPlayToolTip ) ),
-		TAttribute< FSlateIcon >::Create( TAttribute< FSlateIcon >::FGetter::CreateStatic( &FInternalPlayWorldCommandCallbacks::GetRepeatLastPlayIcon ) ),
+		TAttribute< FSlateIcon >::Create(TAttribute< FSlateIcon >::FGetter::CreateStatic(&FInternalPlayWorldCommandCallbacks::GetRepeatLastPlayIcon)),
 		FName(TEXT("LevelToolbarPlay"))
-	);
+	));
 
 	// Play combo box
 	FUIAction SpecialPIEOptionsMenuAction;
-	SpecialPIEOptionsMenuAction.IsActionVisibleDelegate = FIsActionButtonVisible::CreateStatic( &FInternalPlayWorldCommandCallbacks::CanShowNonPlayWorldOnlyActions );
+	SpecialPIEOptionsMenuAction.IsActionVisibleDelegate = FIsActionButtonVisible::CreateStatic(&FInternalPlayWorldCommandCallbacks::CanShowNonPlayWorldOnlyActions);
 
-	ToolbarBuilder.AddComboButton(
+	InSection.AddEntry(FToolMenuEntry::InitComboButton(
+		"PlayCombo",
 		SpecialPIEOptionsMenuAction,
 		FOnGetContent::CreateStatic( &GeneratePlayMenuContent, GlobalPlayWorldActions.ToSharedRef() ),
 		LOCTEXT( "PlayCombo_Label", "Active Play Mode" ),
 		LOCTEXT( "PIEComboToolTip", "Change Play Mode and Play Settings" ),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.RepeatLastPlay"),
 		true
-	);
+	));
 
-	if (bIncludeLaunchButtonAndOptions && GetDefault<UEditorStyleSettings>()->bShowLaunchMenus)
+	if (bIncludeLaunchButtonAndOptions)
 	{
-		// Launch
-		ToolbarBuilder.AddToolBarButton( 
-			FPlayWorldCommands::Get().RepeatLastLaunch, 
-			NAME_None, 
-			LOCTEXT("RepeatLastLaunch", "Launch"),
-			TAttribute< FText >::Create( TAttribute< FText >::FGetter::CreateStatic( &FInternalPlayWorldCommandCallbacks::GetRepeatLastLaunchToolTip ) ),
-			TAttribute< FSlateIcon >::Create( TAttribute< FSlateIcon >::FGetter::CreateStatic( &FInternalPlayWorldCommandCallbacks::GetRepeatLastLaunchIcon ) ),
-			FName(TEXT("RepeatLastLaunch"))
-		);
+		InSection.AddDynamicEntry("LaunchButtons", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InDynamicSection)
+		{
+			if (GetDefault<UEditorStyleSettings>()->bShowLaunchMenus)
+			{
+				// Launch
+				InDynamicSection.AddEntry(FToolMenuEntry::InitToolBarButton(
+					FPlayWorldCommands::Get().RepeatLastLaunch,
+					LOCTEXT("RepeatLastLaunch", "Launch"),
+					TAttribute< FText >::Create(TAttribute< FText >::FGetter::CreateStatic(&FInternalPlayWorldCommandCallbacks::GetRepeatLastLaunchToolTip)),
+					TAttribute< FSlateIcon >::Create(TAttribute< FSlateIcon >::FGetter::CreateStatic(&FInternalPlayWorldCommandCallbacks::GetRepeatLastLaunchIcon)),
+					FName(TEXT("RepeatLastLaunch"))
+				));
 
-		// Launch combo box
-		FUIAction LaunchMenuAction;
-		LaunchMenuAction.IsActionVisibleDelegate = FIsActionButtonVisible::CreateStatic( &FInternalPlayWorldCommandCallbacks::CanShowNonPlayWorldOnlyActions );
+				// Launch combo box
+				FUIAction LaunchMenuAction;
+				LaunchMenuAction.IsActionVisibleDelegate = FIsActionButtonVisible::CreateStatic(&FInternalPlayWorldCommandCallbacks::CanShowNonPlayWorldOnlyActions);
 
-		ToolbarBuilder.AddComboButton(
-			LaunchMenuAction,
-			FOnGetContent::CreateStatic( &GenerateLaunchMenuContent, GlobalPlayWorldActions.ToSharedRef() ),
-			LOCTEXT( "LaunchCombo_Label", "Launch Options" ),
-			LOCTEXT( "PODComboToolTip", "Options for launching on a device" ),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.RepeatLastLaunch"),
-			true
-		);
+				InDynamicSection.AddEntry(FToolMenuEntry::InitComboButton(
+					"LaunchCombo",
+					LaunchMenuAction,
+					FOnGetContent::CreateStatic(&GenerateLaunchMenuContent, GlobalPlayWorldActions.ToSharedRef()),
+					LOCTEXT("LaunchCombo_Label", "Launch Options"),
+					LOCTEXT("PODComboToolTip", "Options for launching on a device"),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.RepeatLastLaunch"),
+					true
+				));
+			}
+		}));
 	}
 
 	// Resume/pause toggle (only one will be visible, and only in PIE/SIE)
-	ToolbarBuilder.AddToolBarButton(FPlayWorldCommands::Get().ResumePlaySession, NAME_None, TAttribute<FText>(),
+	InSection.AddEntry(FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().ResumePlaySession, TAttribute<FText>(),
 		TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateStatic(&FInternalPlayWorldCommandCallbacks::GetResumePlaySessionToolTip)),
 		TAttribute<FSlateIcon>::Create(TAttribute<FSlateIcon>::FGetter::CreateStatic(&FInternalPlayWorldCommandCallbacks::GetResumePlaySessionImage)),
 		FName(TEXT("ResumePlaySession"))
-	);
+	));
 
-	ToolbarBuilder.AddToolBarButton(FPlayWorldCommands::Get().PausePlaySession, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("PausePlaySession")));
-	ToolbarBuilder.AddToolBarButton(FPlayWorldCommands::Get().SingleFrameAdvance, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("SingleFrameAdvance")));
+	InSection.AddEntry(FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().PausePlaySession, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("PausePlaySession"))));
+	InSection.AddEntry(FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().SingleFrameAdvance, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("SingleFrameAdvance"))));
 
 	// Stop
-	ToolbarBuilder.AddToolBarButton(FPlayWorldCommands::Get().StopPlaySession, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("StopPlaySession")));
+	InSection.AddEntry(FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().StopPlaySession, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("StopPlaySession"))));
 
 	// Late Join
-	ToolbarBuilder.AddToolBarButton(FPlayWorldCommands::Get().LateJoinSession, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("LateJoinSession")));
+	InSection.AddEntry(FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().LateJoinSession, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("LateJoinSession"))));
 
 	// Eject/possess toggle
-	ToolbarBuilder.AddToolBarButton(FPlayWorldCommands::Get().PossessEjectPlayer, NAME_None, 
+	InSection.AddEntry(FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().PossessEjectPlayer,
 		TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateStatic(&FInternalPlayWorldCommandCallbacks::GetPossessEjectLabel)),
 		TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateStatic(&FInternalPlayWorldCommandCallbacks::GetPossessEjectTooltip)),
 		TAttribute<FSlateIcon>::Create(TAttribute<FSlateIcon>::FGetter::CreateStatic(&FInternalPlayWorldCommandCallbacks::GetPossessEjectImage)),
 		FName(TEXT("PossessEjectPlayer"))
-	);
+	));
 
 	// Single-stepping only buttons
-	ToolbarBuilder.AddToolBarButton(FPlayWorldCommands::Get().ShowCurrentStatement, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("ShowCurrentStatement")));
-	ToolbarBuilder.AddToolBarButton(FPlayWorldCommands::Get().StepInto, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("StepInto")));
-	ToolbarBuilder.AddToolBarButton(FPlayWorldCommands::Get().StepOver, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("StepOver")));
-	ToolbarBuilder.AddToolBarButton(FPlayWorldCommands::Get().StepOut, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("StepOut")));
+	InSection.AddEntry(FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().ShowCurrentStatement, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("ShowCurrentStatement"))));
+	InSection.AddEntry(FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().StepInto, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("StepInto"))));
+	InSection.AddEntry(FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().StepOver, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("StepOver"))));
+	InSection.AddEntry(FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().StepOut, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("StepOut"))));
 }
 
 // function will enumerate available Android devices that can export their profile to a json file
@@ -827,11 +835,11 @@ TSharedRef< SWidget > FPlayWorldCommands::GeneratePlayMenuContent( TSharedRef<FU
 
 	struct FLocal
 	{
-		static void AddPlayModeMenuEntry( FMenuBuilder& MenuBuilder, EPlayModeType PlayMode )
+		static void AddPlayModeMenuEntry(FMenuBuilder& MenuBuilder, EPlayModeType PlayMode)
 		{
 			TSharedPtr<FUICommandInfo> PlayModeCommand;
 
-			switch(PlayMode)
+			switch (PlayMode)
 			{
 			case PlayMode_InEditorFloating:
 				PlayModeCommand = FPlayWorldCommands::Get().PlayInEditorFloating;

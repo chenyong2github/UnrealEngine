@@ -27,6 +27,8 @@ UMovieSceneTrack::UMovieSceneTrack(const FObjectInitializer& InInitializer)
 
 void UMovieSceneTrack::PostInitProperties()
 {
+	SetFlags(RF_Transactional);
+
 	// Propagate sub object flags from our outer (movie scene) to ourselves. This is required for tracks that are stored on blueprints (archetypes) so that they can be referenced in worlds.
 	if (GetOuter()->HasAnyFlags(RF_ClassDefaultObject|RF_ArchetypeObject))
 	{

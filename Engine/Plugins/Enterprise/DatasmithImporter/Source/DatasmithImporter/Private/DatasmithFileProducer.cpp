@@ -101,6 +101,13 @@ bool UDatasmithFileProducer::Initialize()
 		return false;
 	}
 
+	// Check file exists
+	if(!FPaths::FileExists( FilePath ))
+	{
+		LogError( FText::Format( LOCTEXT( "DatasmithFileProducer_NotFound", "File {0} does not exist." ), FText::FromString( FilePath ) ) );
+		return false;
+	}
+
 	UPackage* TransientPackage = NewObject< UPackage >( nullptr, *FPaths::Combine( Context.RootPackagePtr->GetPathName(), *GetName() ), RF_Transient );
 	TransientPackage->FullyLoad();
 
@@ -408,7 +415,11 @@ void UDatasmithFileProducer::PreventNameCollision()
 		{
 			if( UObject* Object = Assets[Index].Get() )
 			{
-				PathsToDelete.Add( FPaths::GetPath( Object->GetOutermost()->GetName() ) );
+				// Ensure object's package is transient and not public
+				Object->GetOutermost()->ClearFlags( RF_Public );
+				Object->GetOutermost()->SetFlags( RF_Transient );
+
+				PathsToDelete.Add( Object->GetOutermost()->GetPathName() );
 
 				if( Cast<UStaticMesh>( Object ) != nullptr )
 				{
@@ -777,39 +788,42 @@ void UDatasmithDirProducer::PostInitProperties()
 {
 	UDataprepContentProducer::PostInitProperties();
 
-	if( !HasAnyFlags(RF_ClassDefaultObject | RF_NeedLoad) )
+	if( !HasAnyFlags( RF_ClassDefaultObject | RF_WasLoaded | RF_Transient ) )
 	{
 		FolderPath = FDatasmithFileProducerUtils::SelectDirectory();
+		UpdateName();
 	}
 }
 
 void UDatasmithDirProducer::SetFolderName( const FString& InFolderName )
 {
-	Modify();
-
-	FolderPath = FPaths::ConvertRelativePathToFull( InFolderName );
-
-	FString BaseName = FPaths::IsDrive( InFolderName ) ? TEXT("RootDir") : FPaths::GetBaseFilename( InFolderName );
-
-	if ( Rename( *BaseName, nullptr, REN_Test ) )
+	if(!InFolderName.IsEmpty())
 	{
-		Rename( *BaseName, nullptr, REN_DontCreateRedirectors | REN_NonTransactional );
+		Modify();
+
+		FolderPath = FPaths::ConvertRelativePathToFull( InFolderName );
+
+		UpdateName();
+
+		OnChanged.Broadcast(this);
 	}
-	else
+}
+
+void UDatasmithDirProducer::UpdateName()
+{
+	if(!FolderPath.IsEmpty())
 	{
-		bool bFoundName = false;
-		for (int32 NameIndex = 1; !bFoundName; ++NameIndex)
+		FString BaseName = FPaths::IsDrive( FolderPath ) ? (FolderPath.Left(1) + TEXT("_Drive")) : (FPaths::GetBaseFilename( FolderPath ) + TEXT("_Dir"));
+
+		// Rename producer to name of file
+		FString CleanName = ObjectTools::SanitizeObjectName( BaseName );
+		if ( !Rename( *CleanName, nullptr, REN_Test ) )
 		{
-			const FString NewName = FString::Printf(TEXT("%s_%d"), *BaseName, NameIndex);
-			if( Rename( *NewName, nullptr, REN_Test ) )
-			{
-				Rename( *NewName, nullptr, REN_DontCreateRedirectors | REN_NonTransactional );
-				bFoundName = true;
-			}
+			CleanName = MakeUniqueObjectName( GetOuter(), GetClass(), *CleanName ).ToString();
 		}
-	}
 
-	OnChanged.Broadcast(this);
+		Rename( *CleanName, nullptr, REN_DontCreateRedirectors | REN_NonTransactional );
+	}
 }
 
 bool UDatasmithDirProducer::Supersede(const UDataprepContentProducer* OtherProducer) const
@@ -1356,7 +1370,7 @@ FString FDatasmithFileProducerUtils::SelectFileToImport()
 	if ( bOpened && OpenedFiles.Num() > 0 )
 	{
 		const FString& OpenedFile = OpenedFiles[0];
-		FEditorDirectories::Get().SetLastDirectory( ELastDirectory::GENERIC_IMPORT, OpenedFile );
+		FEditorDirectories::Get().SetLastDirectory( ELastDirectory::GENERIC_IMPORT, FPaths::GetPath(OpenedFile) );
 
 		return FPaths::ConvertRelativePathToFull( OpenedFile );
 	}

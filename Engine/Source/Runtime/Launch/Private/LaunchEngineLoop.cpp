@@ -3308,6 +3308,11 @@ bool FEngineLoop::LoadCoreModules()
 }
 
 
+void FEngineLoop::CleanupPreInitContext()
+{
+	PreInitContext.Cleanup();
+}
+
 void FEngineLoop::LoadPreInitModules()
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Loading PreInit Modules"), STAT_PreInitModules, STATGROUP_LoadTime);
@@ -3877,6 +3882,7 @@ void FEngineLoop::Exit()
 	FModuleManager::Get().UnloadModule("AssetTools", true);
 
 #endif // WITH_EDITOR
+	FModuleManager::Get().UnloadModule("WorldBrowser", true);
 	FModuleManager::Get().UnloadModule("AssetRegistry", true);
 
 #if !PLATFORM_ANDROID || PLATFORM_LUMIN 	// AppPreExit doesn't work on Android

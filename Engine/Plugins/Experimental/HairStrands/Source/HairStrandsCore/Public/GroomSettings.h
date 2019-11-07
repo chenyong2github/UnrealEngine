@@ -25,16 +25,20 @@ struct HAIRSTRANDSCORE_API FGroomConversionSettings
 	FVector Scale;
 };
 
-/**
- * Specifies the overal rendering/shading model for a material
- * @warning Check UMaterialInstance::Serialize if changed!
- */
 UENUM()
 enum class EGroomInterpolationQuality : uint8
 {
 	Low		UMETA(DisplayName = "Low",		ToolTip = "Build interpolation data based on nearst neighbor search. Low quality interpolation data, but fast to build (takes a few minutes)"),
 	Medium	UMETA(DisplayName = "Medium",	ToolTip = "Build interpolation data using curve shape matching search but within a limited spatial range. This is a tradeoff between Low and high quality in term of quality & build time (can takes several dozen of minutes)"),
 	High	UMETA(DisplayName = "High",		ToolTip = "Build interpolation data using curve shape matching search. This result in high quality interpolation data, but is relatively slow to build (can takes several dozen of minutes)"),
+};
+
+UENUM()
+enum class EGroomInterpolationWeight : uint8
+{
+	Parametric	UMETA(DisplayName = "Parametric", ToolTip = "Build interpolation data based on curve parametric distance"),
+	Root		UMETA(DisplayName = "Root", ToolTip = "Build interpolation data based on distance between guide's root and strands's root"),
+	Index		UMETA(DisplayName = "Index", ToolTip = "Build interpolation data based on guide and strands vertex indices"),
 };
 
 USTRUCT(BlueprintType)
@@ -46,6 +50,9 @@ struct HAIRSTRANDSCORE_API FGroomBuildSettings
 		: bOverrideGuides(false)
 		, HairToGuideDensity(0.1f)
 		, InterpolationQuality(EGroomInterpolationQuality::High)
+		, InterpolationDistance(EGroomInterpolationWeight::Parametric)
+		, bRandomizeGuide(false)
+		, bUseUniqueGuide(false)
 	{}
 
 	/** Flag to override the imported guides with generated guides. */
@@ -59,4 +66,16 @@ struct HAIRSTRANDSCORE_API FGroomBuildSettings
 	/** Interpolation data quality. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuildSettings")
 	EGroomInterpolationQuality InterpolationQuality;
+
+	/** Interpolation distance metric. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuildSettings")
+	EGroomInterpolationWeight InterpolationDistance;
+
+	/** Randomize which guides affect a given hair strand. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuildSettings")
+	bool bRandomizeGuide;
+
+	/** Force a hair strand to be affected by a unique guide. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuildSettings")
+	bool bUseUniqueGuide;
 };

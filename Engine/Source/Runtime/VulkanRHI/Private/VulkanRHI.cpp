@@ -30,6 +30,9 @@ TAtomic<uint64> GVulkanImageViewHandleIdCounter{ 0 };
 TAtomic<uint64> GVulkanSamplerHandleIdCounter{ 0 };
 TAtomic<uint64> GVulkanDSetLayoutHandleIdCounter{ 0 };
 
+
+FVulkanCommandBufferManager* GVulkanCommandBufferManager = nullptr;
+
 #if VULKAN_ENABLE_DESKTOP_HMD_SUPPORT
 #include "Runtime/HeadMountedDisplay/Public/IHeadMountedDisplayModule.h"
 #endif
@@ -122,10 +125,11 @@ FVulkanCommandListContext::FVulkanCommandListContext(FVulkanDynamicRHI* InRHI, F
 	, GpuProfiler(this, InDevice)
 {
 	FrameTiming = new FVulkanGPUTiming(this, InDevice);
-	FrameTiming->Initialize();
 
 	// Create CommandBufferManager, contain all active buffers
 	CommandBufferManager = new FVulkanCommandBufferManager(InDevice, this);
+	GVulkanCommandBufferManager = CommandBufferManager;
+	FrameTiming->Initialize();
 	if (IsImmediate())
 	{
 		// Insert the Begin frame timestamp query. On EndDrawingViewport() we'll insert the End and immediately after a new Begin()
@@ -156,6 +160,7 @@ FVulkanCommandListContext::~FVulkanCommandListContext()
 	check(CommandBufferManager != nullptr);
 	delete CommandBufferManager;
 	CommandBufferManager = nullptr;
+	GVulkanCommandBufferManager = nullptr;
 
 	TransitionAndLayoutManager.Destroy(*Device, Immediate ? &TransitionAndLayoutManager : nullptr);
 

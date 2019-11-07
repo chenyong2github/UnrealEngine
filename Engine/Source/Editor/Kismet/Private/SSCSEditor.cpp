@@ -2939,7 +2939,7 @@ void SSCS_RowWidget::OnMakeNewRootDropAction(FSCSEditorTreeNodePtrType DroppedNo
 		check(bWasDefaultSceneRoot || SceneRootNodePtr->CanReparent());
 
 		// Remove the current scene root node from the SCS context
-		Blueprint->SimpleConstructionScript->RemoveNode(SceneRootNodePtr->GetSCSNode());
+		Blueprint->SimpleConstructionScript->RemoveNode(SceneRootNodePtr->GetSCSNode(), /*bValidateSceneRootNodes=*/false);
 
 		// Save old root node
 		OldSceneRootNodePtr = SceneRootNodePtr;
@@ -5942,6 +5942,22 @@ void SSCSEditor::RemoveComponentNode(FSCSEditorTreeNodePtrType InNodePtr)
 				SCS_Node->ComponentTemplate->Modify();
 				SCS_Node->ComponentTemplate->Rename(*RemovedName, /*NewOuter =*/nullptr, REN_DontCreateRedirectors);
 
+				TArray<UObject*> ArchetypeInstances;
+				auto DestroyArchetypeInstances = [&ArchetypeInstances, &RemovedName](UActorComponent* ComponentTemplate)
+				{
+					ComponentTemplate->GetArchetypeInstances(ArchetypeInstances);
+					for (UObject* ArchetypeInstance : ArchetypeInstances)
+					{
+						if (!ArchetypeInstance->HasAllFlags(RF_ArchetypeObject | RF_InheritableComponentTemplate))
+						{
+							CastChecked<UActorComponent>(ArchetypeInstance)->DestroyComponent();
+							ArchetypeInstance->Rename(*RemovedName, nullptr, REN_DontCreateRedirectors);
+						}
+					}
+				};
+
+				DestroyArchetypeInstances(SCS_Node->ComponentTemplate);
+				
 				if (Blueprint)
 				{
 					// Children need to have their inherited component template instance of the component renamed out of the way as well
@@ -5956,6 +5972,8 @@ void SSCSEditor::RemoveComponentNode(FSCSEditorTreeNodePtrType InNodePtr)
 						{
 							Component->Modify();
 							Component->Rename(*RemovedName, /*NewOuter =*/nullptr, REN_DontCreateRedirectors);
+
+							DestroyArchetypeInstances(Component);
 						}
 					}
 				}
