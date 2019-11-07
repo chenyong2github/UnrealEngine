@@ -1285,7 +1285,7 @@ void LogHashMemoryOverheadStatistics(FOutputDevice& Ar, const bool bShowIndividu
 		}
 		if (bShowIndividualStats)
 		{
-			Ar.Logf(TEXT("Memory used for UObject Hash: %lld bytes."), Size);
+			Ar.Logf(TEXT("Memory used by UObject Hash: %lld bytes."), Size);
 		}
 		TotalSize += Size;
 	}
@@ -1294,7 +1294,7 @@ void LogHashMemoryOverheadStatistics(FOutputDevice& Ar, const bool bShowIndividu
 		int64 Size = HashTables.HashOuter.GetAllocatedSize();
 		if (bShowIndividualStats)
 		{
-			Ar.Logf(TEXT("Memory used for UObject Outer Hash: %lld bytes."), Size);
+			Ar.Logf(TEXT("Memory used by UObject Outer Hash: %lld bytes."), Size);
 		}
 		TotalSize += Size;
 	}
@@ -1307,7 +1307,7 @@ void LogHashMemoryOverheadStatistics(FOutputDevice& Ar, const bool bShowIndividu
 		}
 		if (bShowIndividualStats)
 		{
-			Ar.Logf(TEXT("Memory used for UObject Outer Map: %lld bytes."), Size);
+			Ar.Logf(TEXT("Memory used by UObject Outer Map: %lld bytes."), Size);
 		}
 		TotalSize += Size;
 	}
@@ -1320,7 +1320,7 @@ void LogHashMemoryOverheadStatistics(FOutputDevice& Ar, const bool bShowIndividu
 		}
 		if (bShowIndividualStats)
 		{
-			Ar.Logf(TEXT("Memory used for UClass To UObject List Map: %lld bytes."), Size);
+			Ar.Logf(TEXT("Memory used by UClass To UObject List Map: %lld bytes."), Size);
 		}
 		TotalSize += Size;
 	}
@@ -1333,11 +1333,20 @@ void LogHashMemoryOverheadStatistics(FOutputDevice& Ar, const bool bShowIndividu
 		}
 		if (bShowIndividualStats)
 		{
-			Ar.Logf(TEXT("Memory used for UClass To Child UClass List Map: %lld bytes."), Size);
+			Ar.Logf(TEXT("Memory used by UClass To Child UClass List Map: %lld bytes."), Size);
 		}
 		TotalSize += Size;
 	}
 
-	Ar.Logf(TEXT("Total memory allocated for Object hash tables and maps: %lld bytes (%.2f MB)."), TotalSize, (double)TotalSize / 1024.0 / 1024.0);
+    {
+        int64 Size = GUObjectArray.GetAllocatedSize();
+        if (bShowIndividualStats)
+        {
+            Ar.Logf(TEXT("Memory used by UObjectArray: %lld bytes."), Size);
+        }
+        TotalSize += Size;
+    }
+    
+	Ar.Logf(TEXT("Total memory allocated by Object hash tables and maps: %lld bytes (%.2f MB)."), TotalSize, (double)TotalSize / 1024.0 / 1024.0);
 	Ar.Logf(TEXT(""));
 }
