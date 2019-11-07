@@ -5,6 +5,7 @@
 #include "Async/MappedFileHandle.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/FileManager.h"
+#include "HAL/PlatformFilemanager.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
 #include "Misc/CString.h"
@@ -16,6 +17,7 @@
 #include "Misc/LazySingleton.h"
 #include "Misc/CoreDelegates.h"
 #include "Trace/Trace.h"
+#include "Misc/Crc.h"
 
 #define IODISPATCHER_TRACE_ENABLED !UE_BUILD_SHIPPING
 
@@ -25,6 +27,9 @@ const FIoChunkId FIoChunkId::InvalidChunkId = FIoChunkId::CreateEmptyId();
 
 #if !defined(PLATFORM_IMPLEMENTS_IO)
 //////////////////////////////////////////////////////////////////////////
+
+TUniquePtr<FIoDispatcher> GIoDispatcher;
+FIoStoreEnvironment GIoStoreEnvironment;
 
 UE_TRACE_EVENT_BEGIN(IoDispatcher, BatchIssued, Always)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
@@ -150,18 +155,20 @@ public:
 	{
 	}
 
-	FIoStatus Open(FStringView UniqueId);
+	FIoStatus Initialize(FStringView UniqueId);
 
-	TIoStatusOr<FIoBuffer> Lookup(const FIoChunkId& ChunkId)
+	TIoStatusOr<FIoBuffer> Lookup(const FIoChunkId& ChunkId, FIoReadOptions Options)
 	{
-		const FIoStoreTocEntry* Entry = Toc.Find(ChunkId);
-
-		if (!Entry)
+		if (const FIoStoreTocEntry* Entry = Toc.Find(ChunkId))
 		{
-			return FIoStatus(EIoErrorCode::NotFound);
+			return FIoBuffer(FIoBuffer::Wrap, MappedRegion->GetMappedPtr() + Entry->GetOffset(), Entry->GetLength());
+		}
+		else if (FFileChunkHandle* FileChunk = FileChunkHandles.Find(ChunkId))
+		{
+			return FIoBuffer(FIoBuffer::Wrap, FileChunk->MappedRegion->GetMappedPtr() + Options.GetOffset(), Options.GetSize());
 		}
 
-		return FIoBuffer(FIoBuffer::Wrap, MappedRegion->GetMappedPtr() + Entry->GetOffset(), Entry->GetLength());
+		return FIoStatus(EIoErrorCode::NotFound);
 	}
 
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const
@@ -178,18 +185,49 @@ public:
 		}
 	}
 
+	void SetUniqueId(FStringView InUniqueId)
+	{
+		UniqueId = InUniqueId.ToString();
+	}
+
+	TIoStatusOr<FIoChunkId> OpenFileChunk(FStringView Filename);
+	FIoStatus CloseFileChunk(const FIoChunkId& FileChunkId);
+
 private:
+	struct FFileChunkHandle
+	{
+		TUniquePtr<IMappedFileHandle> Handle;
+		TUniquePtr<IMappedFileRegion> MappedRegion;
+	};
+
+	FIoChunkId GetFileChunkId(FStringView Filename)
+	{
+		check(Filename.Data() && Filename.Len());
+
+		uint32 Hash = FCrc::MemCrc32(Filename.Data(), Filename.Len());
+
+		uint8 Data[12] = {0};
+		*reinterpret_cast<uint32*>(&Data[0]) = Hash;
+		*reinterpret_cast<uint8*>(&Data[10]) = 255; // i.e EChunkType::LooseFile;
+
+		FIoChunkId FileChunkId;
+		FileChunkId.Set(Data, 12);
+
+		return FileChunkId;
+	}
+
 	FIoStoreEnvironment&				Environment;
 	FString								UniqueId;
 	TMap<FIoChunkId, FIoStoreTocEntry>	Toc;
 	TUniquePtr<IFileHandle>				ContainerFileHandle;
 	TUniquePtr<IMappedFileHandle>		ContainerMappedFileHandle;
 	TUniquePtr<IMappedFileRegion>		MappedRegion;
+	TMap<FIoChunkId, FFileChunkHandle>	FileChunkHandles;
 };
 
-FIoStatus FIoStoreReaderImpl::Open(FStringView InUniqueId)
+FIoStatus FIoStoreReaderImpl::Initialize(FStringView InUniqueId)
 {
-	IPlatformFile& Ipf = IPlatformFile::GetPlatformPhysical();
+	IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();
 
 	UniqueId = InUniqueId.ToString();
 
@@ -281,6 +319,48 @@ FIoStatus FIoStoreReaderImpl::Open(FStringView InUniqueId)
 	return FIoStatus::Ok;
 }
 
+TIoStatusOr<FIoChunkId>
+FIoStoreReaderImpl::OpenFileChunk(FStringView Filename)
+{
+	FIoChunkId FileChunkId = GetFileChunkId(Filename);
+
+	if (FileChunkHandles.Contains(FileChunkId))
+	{
+		return FileChunkId;
+	}
+
+	IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();
+
+	TUniquePtr<IMappedFileHandle> FileHandle;
+	FileHandle.Reset(Ipf.OpenMapped(Filename.Data()));
+
+	if (!FileHandle)
+	{
+		return FIoStatus(EIoErrorCode::FileNotOpen);
+	}
+
+	TUniquePtr<IMappedFileRegion> MappedFileRegion;
+	MappedFileRegion.Reset(FileHandle->MapRegion());
+
+	if (!MappedFileRegion)
+	{
+		return FIoStatus(EIoErrorCode::FileNotOpen);
+	}
+
+	FFileChunkHandle& FileChunk = FileChunkHandles.Add(FileChunkId);
+	FileChunk.Handle = MoveTemp(FileHandle);
+	FileChunk.MappedRegion = MoveTemp(MappedFileRegion);
+
+	return FileChunkId;
+}
+
+FIoStatus
+FIoStoreReaderImpl::CloseFileChunk(const FIoChunkId& FileChunkId)
+{
+	const uint32 NumRemoved = FileChunkHandles.Remove(FileChunkId);
+	return NumRemoved ? FIoStatus::Ok : FIoStatus(EIoErrorCode::FileNotOpen);
+}
+
 FIoStoreReader::FIoStoreReader(FIoStoreEnvironment& Environment)
 :	Impl(new FIoStoreReaderImpl(Environment))
 {
@@ -294,7 +374,7 @@ FIoStoreReader::~FIoStoreReader()
 FIoStatus 
 FIoStoreReader::Initialize(FStringView UniqueId)
 {
-	return Impl->Open(UniqueId);
+	return Impl->Initialize(UniqueId);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -335,11 +415,11 @@ public:
 		IoStores.Remove(IoStore);
 	}
 
-	TIoStatusOr<FIoBuffer> Resolve(FIoChunkId& ChunkId)
+	TIoStatusOr<FIoBuffer> Resolve(FIoChunkId& ChunkId, FIoReadOptions Options)
 	{
 		for (const auto& IoStore : IoStores)
 		{
-			TIoStatusOr<FIoBuffer> Result = IoStore->Impl->Lookup(ChunkId);
+			TIoStatusOr<FIoBuffer> Result = IoStore->Impl->Lookup(ChunkId, Options);
 
 			if (Result.IsOk())
 			{
@@ -384,6 +464,11 @@ public:
 			RequestAllocator.Trim();
 			BatchAllocator.Trim();
 		});
+
+		LooseFileReader = new FIoStoreReader(GIoStoreEnvironment);
+		LooseFileReader->Impl->SetUniqueId(TEXT("LooseFiles"));
+
+		Mount(LooseFileReader);
 	}
 
 	FIoRequestImpl* AllocRequest(const FIoChunkId& ChunkId, FIoReadOptions Options, uint64 UserData = 0)
@@ -469,7 +554,7 @@ public:
 		uint64 TotalBatchSize = 0;
 		IterateBatch(Batch, [this, &TotalBatchSize](FIoRequestImpl* Request)
 		{
-			Request->Result = IoStore->Resolve(Request->ChunkId);
+			Request->Result = IoStore->Resolve(Request->ChunkId, Request->Options);
 
 #if IODISPATCHER_TRACE_ENABLED
 			TotalBatchSize += Request->Result.ValueOrDie().DataSize();
@@ -508,6 +593,16 @@ public:
 		IoStore->Unmount(IoStoreReader);
 	}
 
+	TIoStatusOr<FIoChunkId> OpenFileChunk(FStringView Filename)
+	{
+		return LooseFileReader->Impl->OpenFileChunk(Filename);
+	}
+
+	FIoStatus CloseFileChunk(const FIoChunkId& FileChunkId)
+	{
+		return LooseFileReader->Impl->CloseFileChunk(FileChunkId);
+	}
+
 private:
 	using FRequestAllocator		= TBlockAllocator<FIoRequestImpl, 4096>;
 	using FBatchAllocator		= TBlockAllocator<FIoBatchImpl, 4096>;
@@ -515,6 +610,7 @@ private:
 	TRefCountPtr<FIoStoreImpl>	IoStore;
 	FRequestAllocator			RequestAllocator;
 	FBatchAllocator				BatchAllocator;
+	FIoStoreReader*				LooseFileReader = nullptr;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -553,11 +649,50 @@ FIoDispatcher::FreeBatch(FIoBatch Batch)
 	Impl->FreeBatch(Batch.Impl);
 }
 
+TIoStatusOr<FIoChunkId>
+FIoDispatcher::OpenFileChunk(FStringView Filename)
+{
+	return Impl->OpenFileChunk(Filename);
+}
+
+FIoStatus
+FIoDispatcher::CloseFileChunk(const FIoChunkId& FileChunkId)
+{
+	return Impl->CloseFileChunk(FileChunkId);
+}
+
 // Polling methods
 TIoStatusOr<uint64>	
 FIoDispatcher::GetSizeForChunk(const FIoChunkId& ChunkId) const
 {
 	return Impl->GetSizeForChunk(ChunkId);
+}
+
+FIoStatus
+FIoDispatcher::Initialize(const FString& Directory)
+{
+	GIoStoreEnvironment.InitializeFileEnvironment(Directory);
+	GIoDispatcher = MakeUnique<FIoDispatcher>();
+
+	return EIoErrorCode::Ok;
+}
+
+void
+FIoDispatcher::Shutdown()
+{
+	GIoDispatcher.Reset();
+}
+
+FIoDispatcher&
+FIoDispatcher::Get()
+{
+	return *GIoDispatcher;
+}
+
+FIoStoreEnvironment&
+FIoDispatcher::GetEnvironment()
+{
+	return GIoStoreEnvironment;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -570,13 +705,13 @@ FIoBatch::FIoBatch(FIoDispatcherImpl* InDispatcher, FIoBatchImpl* InImpl)
 }
 
 FIoRequest
-FIoBatch::Read(const FIoChunkId& ChunkId, FIoReadOptions Options)
+FIoBatch::Read(const FIoChunkId& ChunkId, FIoReadOptions Options, uint64 UserData)
 {
-	return FIoRequest(Dispatcher->AllocRequest(Impl, ChunkId, Options));
+	return FIoRequest(Dispatcher->AllocRequest(Impl, ChunkId, Options, UserData));
 }
 
 void 
-FIoBatch::ForEachRequest(TFunction<bool(FIoRequest&)> Callback)
+FIoBatch::ForEachRequest(TFunction<bool(FIoRequest&)>&& Callback)
 {
 	Dispatcher->IterateBatch(Impl, [&](FIoRequestImpl* InRequest) {
 		FIoRequest Request(InRequest);
@@ -633,6 +768,12 @@ const TIoStatusOr<FIoBuffer>&
 FIoRequest::GetResult() const
 {
 	return Impl->Result;
+}
+
+uint64
+FIoRequest::GetUserData() const
+{
+	return Impl->UserData;
 }
 
 //////////////////////////////////////////////////////////////////////////

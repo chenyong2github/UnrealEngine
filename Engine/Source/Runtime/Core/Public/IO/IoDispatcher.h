@@ -577,6 +577,12 @@ class FIoReadOptions
 {
 public:
 	FIoReadOptions() = default;
+
+	FIoReadOptions(uint64 InOffset, uint32 InSize)
+		: RequestedOffset(InOffset)
+		, RequestedSize(InSize)
+	{ }
+
 	~FIoReadOptions() = default;
 
 	void SetRange(uint64 Offset, uint32 Size)
@@ -593,6 +599,16 @@ public:
 	void ForGPU()
 	{
 		Flags |= EFlags::GPUMemory;
+	}
+
+	uint64 GetOffset() const
+	{
+		return RequestedOffset;
+	}
+
+	uint32 GetSize() const
+	{
+		return RequestedSize;
 	}
 
 private:
@@ -624,6 +640,7 @@ public:
 	CORE_API FIoBuffer						GetChunk();
 	CORE_API const FIoChunkId&				GetChunkId() const;
 	CORE_API const TIoStatusOr<FIoBuffer>&	GetResult() const;
+	CORE_API uint64							GetUserData() const;
 
 private:
 	FIoRequestImpl* Impl = nullptr;
@@ -650,9 +667,9 @@ class FIoBatch
 	FIoBatch(FIoDispatcherImpl* InDispatcher, FIoBatchImpl* InImpl);
 
 public:
-	CORE_API FIoRequest Read(const FIoChunkId& Chunk, FIoReadOptions Options);
+	CORE_API FIoRequest Read(const FIoChunkId& Chunk, FIoReadOptions Options, uint64 UserData = 0);
 
-	CORE_API void ForEachRequest(TFunction<bool(FIoRequest&)> Callback);
+	CORE_API void ForEachRequest(TFunction<bool(FIoRequest&)>&& Callback);
 
 	CORE_API void Issue();
 	CORE_API void Wait();
@@ -681,8 +698,16 @@ public:
 	// Polling methods
 	CORE_API TIoStatusOr<uint64>	GetSizeForChunk(const FIoChunkId& ChunkId) const;
 
+	CORE_API TIoStatusOr<FIoChunkId>	OpenFileChunk(FStringView Filename);
+	CORE_API FIoStatus					CloseFileChunk(const FIoChunkId& FileChunkId);
+
 	FIoDispatcher(const FIoDispatcher&) = default;
 	FIoDispatcher& operator=(const FIoDispatcher&) = delete;
+
+	static CORE_API FIoStatus Initialize(const FString& Directory);
+	static CORE_API void Shutdown();
+	static CORE_API FIoDispatcher& Get();
+	static CORE_API class FIoStoreEnvironment& GetEnvironment();
 
 private:
 	FIoDispatcherImpl* Impl = nullptr;

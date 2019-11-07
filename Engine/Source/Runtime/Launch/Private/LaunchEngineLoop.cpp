@@ -59,6 +59,7 @@
 
 #if !(IS_PROGRAM || WITH_EDITOR)
 #include "IPlatformFilePak.h"
+#include "IO/IoDispatcher.h"
 #endif
 
 #if WITH_COREUOBJECT
@@ -1436,6 +1437,14 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		SCOPED_BOOT_TIMING("IFileManager::Get().ProcessCommandLineOptions");
 		IFileManager::Get().ProcessCommandLineOptions();
 	}
+
+#if !(IS_PROGRAM || WITH_EDITOR)
+	// Initialize I/O dispatcher when using the new package loader
+	if (FParse::Param(FCommandLine::Get(), TEXT("zenloader")))
+	{
+		FIoDispatcher::Initialize(FPaths::ProjectDir());
+	}
+#endif
 
 	if (GIsGameAgnosticExe)
 	{
