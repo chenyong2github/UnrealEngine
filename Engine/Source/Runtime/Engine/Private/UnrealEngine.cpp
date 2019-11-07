@@ -7838,6 +7838,12 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 		LogHashOuterStatistics(Ar, bShowHashBucketCollisionInfo);
 		return true;
 	}
+	else if (FParse::Command(&Cmd, TEXT("OVERHEAD")))
+	{
+		const bool bShowIndividualStats = FParse::Param(Cmd, TEXT("DETAILED"));
+		LogHashMemoryOverheadStatistics(Ar, bShowIndividualStats);
+		return true;
+	}
 #endif
 	else
 	{
