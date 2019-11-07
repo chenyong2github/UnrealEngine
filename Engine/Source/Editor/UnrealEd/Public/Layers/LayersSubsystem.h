@@ -14,6 +14,7 @@ class UEditorEngine;
 class ULayer;
 class ULevel;
 class UWorld;
+template< typename TItemType > class IFilter;
 
 namespace ELayersAction
 {
