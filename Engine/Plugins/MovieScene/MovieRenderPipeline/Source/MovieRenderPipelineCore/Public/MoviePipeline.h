@@ -20,6 +20,7 @@ class FMovieRenderViewportClient;
 struct FImagePixelPipe;
 struct FMoviePipelineTimeController;
 class FMoviePipelineOutputMerger;
+class IImageWriteQueue;
 
 
 
@@ -90,6 +91,10 @@ public:
 	*/
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	FFrameRate GetEffectiveFrameRate() const;
+
+public:
+	void OnFrameCompletelyRendered(FMoviePipelineMergerOutputFrame&& OutputFrame);
+	void OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample);
 private:
 
 	/** Instantiate our Debug UI Widget and initialize it to ourself. */
@@ -242,6 +247,9 @@ private:
 public:
 	/** This gathers all of the produced data for an output frame (which may come in async many frames later) before passing them onto the Output Containers. */
 	TSharedPtr<FMoviePipelineOutputMerger, ESPMode::ThreadSafe> OutputBuilder;
+
+	/** A debug image sequence writer in the event they want to dump every sample generated on its own. */
+	IImageWriteQueue* ImageWriteQueue;
 
 	// debug
 	TSharedPtr<FImagePixelPipe, ESPMode::ThreadSafe> GetOutputPipe() const { return OutputPipe; }

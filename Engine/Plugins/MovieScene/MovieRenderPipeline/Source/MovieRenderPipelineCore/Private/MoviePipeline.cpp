@@ -30,6 +30,7 @@
 #include "MoviePipelineMasterConfig.h"
 #include "MoviePipelineOutputSetting.h"
 #include "MoviePipelineBlueprintLibrary.h"
+#include "ImageWriteQueue.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipeline"
 
@@ -56,8 +57,9 @@ UMoviePipeline::UMoviePipeline()
 {
 	CustomTimeStep = CreateDefaultSubobject<UMoviePipelineCustomTimeStep>("MoviePipelineCustomTimeStep");
 	CustomSequenceTimeController = MakeShared<FMoviePipelineTimeController>();
-	OutputBuilder = MakeShared<FMoviePipelineOutputMerger, ESPMode::ThreadSafe>();
+	OutputBuilder = MakeShared<FMoviePipelineOutputMerger, ESPMode::ThreadSafe>(this);
 
+	ImageWriteQueue = &FModuleManager::Get().LoadModuleChecked<IImageWriteQueueModule>("ImageWriteQueue").GetWriteQueue();
 
 	// Temp
 	OutputPipe = MakeShared<FImagePixelPipe, ESPMode::ThreadSafe>();
@@ -653,16 +655,6 @@ TArray<FMoviePipelineShotInfo> UMoviePipeline::BuildShotListFromSequence(const U
 			// We want to start rendering from the first handle frame. Shutter Timing is a fixed offset from this number.
 			CameraCut.CurrentTick = CameraCut.TotalOutputRange.GetLowerBoundValue();
 		}
-
-		// We duplicate the Passes in each shot to be unique. This allows the passes to have state
-		// that persists while working on the next shot (in the event of slow-running tasks).
-		for (UMoviePipelineRenderPass* RenderPass : Shot.ShotConfig->GetRenderPasses())
-		{
-			FObjectDuplicationParameters DupParms(RenderPass, this);
-
-			UMoviePipelineRenderPass* PassCopy = (UMoviePipelineRenderPass*)StaticDuplicateObjectEx(DupParms);
-			Shot.RenderPasses.Add(PassCopy);
-		}
 	}
 
 	return NewShotList;
@@ -713,21 +705,8 @@ void UMoviePipeline::InitializeShot(FMoviePipelineShotInfo& InShot)
 	// Initialize any settings specific to this shot.
 	for (UMoviePipelineSetting* Setting : InShot.ShotConfig->GetSettings())
 	{
-		// Skip any render passes. These have been manually duplicated to avoid shared state
-		// and thus have to be initialized separately.
-		if (Setting->IsA(UMoviePipelineRenderPass::StaticClass()))
-		{
-			continue;
-		}
-
 		Setting->SetupForPipeline(this);
 	}
-
-	for (UMoviePipelineRenderPass* RenderPass : InShot.RenderPasses)
-	{
-		RenderPass->SetupForPipeline(this);
-	}
-
 
 	// Setup required rendering architecture for all passes in this shot.
 	SetupRenderingPipelineForShot(InShot);

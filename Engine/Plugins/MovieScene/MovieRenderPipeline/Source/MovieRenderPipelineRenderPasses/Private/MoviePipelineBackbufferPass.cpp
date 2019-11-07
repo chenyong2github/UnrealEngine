@@ -22,28 +22,44 @@
 #include "MoviePipelineShotConfig.h"
 #include "MoviePipelineSetting.h"
 #include "MoviePipeline.h"
+#include "MoviePipelineOutputBuilder.h"
+#include "MovieRenderTileImage.h"
+#include "Async/Async.h"
+#include "MovieRenderPipelineCoreModule.h"
+#include "MovieRenderOverlappedImage.h"
 
-
-void UMoviePipelineBackbufferPass::SetupImpl(const FMoviePipelineRenderPassInitSettings& InInitSettings, TSharedRef<FImagePixelPipe, ESPMode::ThreadSafe> InOutputPipe)
+namespace MoviePipeline
 {
-	OutputPipe = InOutputPipe;
+	struct FSampleRenderThreadParams
+	{
+		FMoviePipelineRenderPassMetrics PassMetrics;
+		FRenderTarget* CanvasRenderTarget;
+		TSharedPtr<FImageOverlappedAccumulator, ESPMode::ThreadSafe> ImageAccumulator;
+		TSharedPtr<FMoviePipelineOutputMerger, ESPMode::ThreadSafe> OutputMerger;
+		bool bWriteTiles;
+	};
+}
 
+// Forward Declares
+static void ReadAndAccumulateSample_RenderThread(FRHICommandListImmediate &RHICmdList, const MoviePipeline::FSampleRenderThreadParams& InParams);
+
+void UMoviePipelineBackbufferPass::SetupImpl(const FMoviePipelineRenderPassInitSettings& InInitSettings)
+{
 	TileRenderTarget = NewObject<UTextureRenderTarget2D>(this);
 	TileRenderTarget->ClearColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
-	// Initialize to the tile size (not final size) and use a 16 bit back buffer to avoid precision issues
-			// when accumulating later.
+	// Initialize to the tile size (not final size) and use a 16 bit back buffer to avoid precision issues when accumulating later
 
 	int32 TargetSizeX = InInitSettings.TileResolution.X;
 	int32 TargetSizeY = InInitSettings.TileResolution.Y;
 /*
 	*/
 	TileRenderTarget->InitCustomFormat(TargetSizeX, TargetSizeY, EPixelFormat::PF_A16B16G16R16, false);
-
 	// Create a Render Target to hold our back buffer.
 	ViewState.Allocate();
-}
 
+	ImageTileAccumulator = MakeShared<FImageOverlappedAccumulator, ESPMode::ThreadSafe>();
+}
 
 void UMoviePipelineBackbufferPass::TeardownImpl()
 {
@@ -52,9 +68,8 @@ void UMoviePipelineBackbufferPass::TeardownImpl()
 
 void UMoviePipelineBackbufferPass::GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses)
 {
-	ExpectedRenderPasses.Add(FName("Backbuffer"));
+	ExpectedRenderPasses.Add(FMoviePipelinePassIdentifier(TEXT("Backbuffer")));
 }
-
 
 void UMoviePipelineBackbufferPass::CaptureFrameImpl(const FMoviePipelineRenderPassMetrics& InPassMetrics)
 {
@@ -62,10 +77,8 @@ void UMoviePipelineBackbufferPass::CaptureFrameImpl(const FMoviePipelineRenderPa
 	float RealTimeSeconds = InPassMetrics.OutputState.WorldSeconds;
 	float DeltaTimeSeconds = InPassMetrics.OutputState.FrameDeltaTime;
 
-	// Reuse the common RenderTarget
-	UTextureRenderTarget2D* RenderTarget = TileRenderTarget;
+	FEngineShowFlags ShowFlags = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);
 
-	FEngineShowFlags ShowFlags(EShowFlagInitMode::ESFIM_Game);
 	if (InPassMetrics.bIsUsingOverlappedTiles)
 	{
 		// Disable these for now
@@ -74,7 +87,7 @@ void UMoviePipelineBackbufferPass::CaptureFrameImpl(const FMoviePipelineRenderPa
 	}
 
 	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
-		RenderTarget->GameThread_GetRenderTargetResource(),
+		TileRenderTarget->GameThread_GetRenderTargetResource(),
 		GetWorld()->Scene,
 		ShowFlags)
 		.SetWorldTimes(TimeSeconds, DeltaTimeSeconds, RealTimeSeconds)
@@ -124,76 +137,36 @@ void UMoviePipelineBackbufferPass::CaptureFrameImpl(const FMoviePipelineRenderPa
 	{
 		View->bCameraCut = true;
 	}
-	
+
 	// Pause the view family on renders after the first one. This prevents motion blur/view matrices from being
 	// updated
 	ViewFamily.bWorldIsPaused = InPassMetrics.SpatialJitterIndex != InPassMetrics.NumSpatialJitters - 1;
 
-	FCanvas Canvas = FCanvas(RenderTarget->GameThread_GetRenderTargetResource(), nullptr, GetWorld(), ERHIFeatureLevel::SM5, FCanvas::CDM_DeferDrawing, 1.0f);
+	FCanvas Canvas = FCanvas(TileRenderTarget->GameThread_GetRenderTargetResource(), nullptr, GetWorld(), ERHIFeatureLevel::SM5, FCanvas::CDM_DeferDrawing, 1.0f);
 
 
 	// Draw the world into this View Family
 	GetRendererModule().BeginRenderingViewFamily(&Canvas, &ViewFamily);
 
 	FRenderTarget* CanvasRenderTarget = Canvas.GetRenderTarget();
-	TSharedPtr<FImagePixelPipe, ESPMode::ThreadSafe> LocalOutputPipe = OutputPipe;
-	
-	ENQUEUE_RENDER_COMMAND(CanvasRenderTargetResolveCommand)(
-		[CanvasRenderTarget, InPassMetrics, LocalOutputPipe](FRHICommandListImmediate& RHICmdList)
+	TSharedPtr<FMoviePipelineOutputMerger, ESPMode::ThreadSafe> OutputMerger = GetPipeline()->OutputBuilder;
+	TSharedPtr<FImageOverlappedAccumulator, ESPMode::ThreadSafe> LocalImageTileAccumulator = ImageTileAccumulator;
+
+	MoviePipeline::FSampleRenderThreadParams AccumulationParams;
 	{
-		// If they only needed this frame for the history, we don't actually care about trying to output it,
-		// so we can skip the copy and pushing to output.
-		if (InPassMetrics.bIsHistoryOnlyFrame)
-		{
-			return;
-		}
-
-		FReadSurfaceDataFlags ReadDataFlags;
-		ReadDataFlags.SetLinearToGamma(false);
-
-		FIntRect SourceRect = FIntRect(0, 0, CanvasRenderTarget->GetSizeXY().X, CanvasRenderTarget->GetSizeXY().Y);
-
-		// Build our metadata to associate with this frame.
-		TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> FrameData = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
-		FrameData->OutputState = InPassMetrics.OutputState;
-		FrameData->PassName = TEXT("Backbuffer");
-		FrameData->TileIndexX = InPassMetrics.TileIndexX;
-		FrameData->TileIndexY = InPassMetrics.TileIndexY;
-		FrameData->TileSizeX = SourceRect.Width();
-		FrameData->TileSizeY = SourceRect.Height();
-		FrameData->NumTilesX = InPassMetrics.NumTilesX;
-		FrameData->NumTilesY = InPassMetrics.NumTilesY;
-		FrameData->SpatialShift = InPassMetrics.SpatialShift;
-		FrameData->SpatialJitterIndex = InPassMetrics.SpatialJitterIndex;
-		FrameData->NumSpatialJitters = InPassMetrics.NumSpatialJitters;
-		FrameData->TemporalJitterIndex = InPassMetrics.TemporalJitterIndex;
-		FrameData->NumTemporalJitters = InPassMetrics.NumTemporalJitters;
-		FrameData->JitterOffsetX = InPassMetrics.JitterOffsetX;
-		FrameData->JitterOffsetY = InPassMetrics.JitterOffsetY;
-		FrameData->bIsUsingOverlappedTiles = InPassMetrics.bIsUsingOverlappedTiles;
-
-		FrameData->AccumulationGamma = InPassMetrics.AccumulationGamma;
-
-		FrameData->OverlappedOffsetX = InPassMetrics.OverlappedOffsetX;
-		FrameData->OverlappedOffsetY = InPassMetrics.OverlappedOffsetY;
-		FrameData->OverlappedSizeX = InPassMetrics.OverlappedSizeX;
-		FrameData->OverlappedSizeY = InPassMetrics.OverlappedSizeY;
-		FrameData->OverlappedPadX = InPassMetrics.OverlappedPadX;
-		FrameData->OverlappedPadY = InPassMetrics.OverlappedPadY;
-		FrameData->OverlappedSubpixelShift = InPassMetrics.OverlappedSubpixelShift;
-
-		TUniquePtr<TImagePixelData<FColor>> PixelData = MakeUnique<TImagePixelData<FColor>>(SourceRect.Size(), FrameData);
-		RHICmdList.ReadSurfaceData(CanvasRenderTarget->GetRenderTargetTexture(), SourceRect, PixelData->Pixels, ReadDataFlags);
-
-		check(PixelData->IsDataWellFormed());
-
-		const bool bIsOutputFrame = true;
-		if (bIsOutputFrame)
-		{
-			LocalOutputPipe->Push(MoveTemp(PixelData));
-		}
+		AccumulationParams.bWriteTiles = true;
+		AccumulationParams.CanvasRenderTarget = CanvasRenderTarget;
+		AccumulationParams.OutputMerger = GetPipeline()->OutputBuilder;
+		AccumulationParams.ImageAccumulator = ImageTileAccumulator;
+		AccumulationParams.PassMetrics = InPassMetrics;
 	}
-	);
+
+	ENQUEUE_RENDER_COMMAND(CanvasRenderTargetResolveCommand)(
+		[AccumulationParams](FRHICommandListImmediate& RHICmdList)
+	{
+		UE_LOG(LogMovieRenderPipeline, Log, TEXT("Rendered Tile: %d Sample: %d"), AccumulationParams.PassMetrics.TileIndex, AccumulationParams.PassMetrics.SpatialJitterIndex);
+		ReadAndAccumulateSample_RenderThread(RHICmdList, AccumulationParams);
+	});
 }
 
 FSceneView* UMoviePipelineBackbufferPass::CalcSceneView(FSceneViewFamily* ViewFamily, const FMoviePipelineRenderPassMetrics& InPassMetrics)
@@ -324,4 +297,125 @@ FSceneView* UMoviePipelineBackbufferPass::CalcSceneView(FSceneViewFamily* ViewFa
 	View->EndFinalPostprocessSettings(ViewInitOptions);
 
 	return View;
+}
+
+void ReadAndAccumulateSample_RenderThread(FRHICommandListImmediate &RHICmdList, const MoviePipeline::FSampleRenderThreadParams& InParams)
+{
+	check(IsInRenderingThread());
+
+	// If they only needed this frame for the history, we don't actually care about trying to output it,
+	// so we can skip the copy and pushing to output.
+	if (InParams.PassMetrics.bIsHistoryOnlyFrame)
+	{
+		return;
+	}
+
+	FReadSurfaceDataFlags ReadDataFlags;
+	ReadDataFlags.SetLinearToGamma(false);
+
+	FIntRect SourceRect = FIntRect(0, 0, InParams.CanvasRenderTarget->GetSizeXY().X, InParams.CanvasRenderTarget->GetSizeXY().Y);
+
+	// Build our metadata to associate with this frame.
+	TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> FrameData = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
+	FrameData->OutputState = InParams.PassMetrics.OutputState;
+	FrameData->PassIdentifier = FMoviePipelinePassIdentifier(TEXT("Backbuffer"));
+	FrameData->TileIndexX = InParams.PassMetrics.TileIndexX;
+	FrameData->TileIndexY = InParams.PassMetrics.TileIndexY;
+	FrameData->TileSizeX = SourceRect.Width();
+	FrameData->TileSizeY = SourceRect.Height();
+	FrameData->NumTilesX = InParams.PassMetrics.NumTilesX;
+	FrameData->NumTilesY = InParams.PassMetrics.NumTilesY;
+	FrameData->SpatialShift = InParams.PassMetrics.SpatialShift;
+	FrameData->SpatialJitterIndex = InParams.PassMetrics.SpatialJitterIndex;
+	FrameData->NumSpatialJitters = InParams.PassMetrics.NumSpatialJitters;
+	FrameData->TemporalJitterIndex = InParams.PassMetrics.TemporalJitterIndex;
+	FrameData->NumTemporalJitters = InParams.PassMetrics.NumTemporalJitters;
+	FrameData->JitterOffsetX = InParams.PassMetrics.JitterOffsetX;
+	FrameData->JitterOffsetY = InParams.PassMetrics.JitterOffsetY;
+	FrameData->bIsUsingOverlappedTiles = InParams.PassMetrics.bIsUsingOverlappedTiles;
+
+	FrameData->AccumulationGamma = InParams.PassMetrics.AccumulationGamma;
+
+	FrameData->OverlappedOffsetX = InParams.PassMetrics.OverlappedOffsetX;
+	FrameData->OverlappedOffsetY = InParams.PassMetrics.OverlappedOffsetY;
+	FrameData->OverlappedSizeX = InParams.PassMetrics.OverlappedSizeX;
+	FrameData->OverlappedSizeY = InParams.PassMetrics.OverlappedSizeY;
+	FrameData->OverlappedPadX = InParams.PassMetrics.OverlappedPadX;
+	FrameData->OverlappedPadY = InParams.PassMetrics.OverlappedPadY;
+	FrameData->OverlappedSubpixelShift = InParams.PassMetrics.OverlappedSubpixelShift;
+
+	// Read the data back to the CPU
+	TUniquePtr<TImagePixelData<FColor>> PixelData = MakeUnique<TImagePixelData<FColor>>(SourceRect.Size(), FrameData);
+	RHICmdList.ReadSurfaceData(InParams.CanvasRenderTarget->GetRenderTargetTexture(), SourceRect, PixelData->Pixels, ReadDataFlags);
+
+	check(PixelData->IsDataWellFormed());
+
+	const bool bWriteTiles = true;
+	
+	// Writing tiles can be useful for debug reasons. These get passed onto the output every frame.
+	if (bWriteTiles)
+	{
+		// Send the data to the Output Builder. This has to be a copy of the pixel data from the GPU, since
+		// it enqueues it onto the game thread and won't be read/sent to write to disk for another frame. 
+		// The extra copy is unfortunate, but is only the size of a single sample (ie: 1920x1080 -> 17mb)
+		TUniquePtr<FImagePixelData> SampleData = PixelData->Copy();
+		InParams.OutputMerger->OnSingleSampleDataAvailable_AnyThread(MoveTemp(SampleData));
+	}
+
+	// For the first sample in a new output, we allocate memory
+	if (FrameData->IsFirstTile() && FrameData->IsFirstTemporalSample())
+	{
+		InParams.ImageAccumulator->InitMemory(FIntPoint(FrameData->OverlappedSizeX * FrameData->NumTilesX, FrameData->OverlappedSizeY * FrameData->NumTilesY), 3);
+		InParams.ImageAccumulator->ZeroPlanes();
+		InParams.ImageAccumulator->AccumulationGamma = FrameData->AccumulationGamma;
+	}
+
+	// Accumulate the new sample to our target
+	{
+		const double AccumulateBeginTime = FPlatformTime::Seconds();
+
+		FIntPoint RawSize = PixelData->GetSize();
+
+		check(FrameData->OverlappedSizeX + 2 * FrameData->OverlappedPadX == RawSize.X);
+		check(FrameData->OverlappedSizeY + 2 * FrameData->OverlappedPadY == RawSize.Y);
+
+		InParams.ImageAccumulator->AccumulatePixelData(*PixelData.Get(), FIntPoint(FrameData->OverlappedOffsetX, FrameData->OverlappedOffsetY), FrameData->OverlappedSubpixelShift);
+
+		const double AccumulateEndTime = FPlatformTime::Seconds();
+		const float ElapsedMs = float((AccumulateEndTime - AccumulateBeginTime)*1000.0f);
+	
+		UE_LOG(LogMovieRenderPipeline, Log, TEXT("Accumulation time: %8.2fms"), ElapsedMs);
+
+	}
+
+	if (FrameData->IsLastTile() && FrameData->IsLastTemporalSample())
+	{
+		int32 FullSizeX = InParams.ImageAccumulator->PlaneSize.X;
+		int32 FullSizeY = InParams.ImageAccumulator->PlaneSize.Y;
+
+		// Now that a tile is fully built and accumulated we can notify the output builder that the
+		// data is ready so it can pass that onto the output containers (if needed).
+		static bool bFullLinearColor = false; // Make this an option. For now, if it's linear, write EXR. Otherwise PNGs for 8bit.
+		if (bFullLinearColor)
+		{
+			// 32 bit FLinearColor
+			TUniquePtr<TImagePixelData<FLinearColor> > FinalPixelData = MakeUnique<TImagePixelData<FLinearColor>>(FIntPoint(FullSizeX, FullSizeY), FrameData);
+			InParams.ImageAccumulator->FetchFinalPixelDataLinearColor(FinalPixelData->Pixels);
+
+			// Send the data to the Output Builder
+			InParams.OutputMerger->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(FinalPixelData));
+		}
+		else
+		{
+			// 8bit FColors
+			TUniquePtr<TImagePixelData<FColor>> FinalPixelData = MakeUnique<TImagePixelData<FColor>>(FIntPoint(FullSizeX, FullSizeY), FrameData);
+			InParams.ImageAccumulator->FetchFinalPixelDataByte(FinalPixelData->Pixels);
+
+			// Send the data to the Output Builder
+			InParams.OutputMerger->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(FinalPixelData));
+		}
+
+		// Free the memory in the accumulator.
+		InParams.ImageAccumulator->Reset();
+	}
 }

@@ -15,6 +15,8 @@ class MOVIERENDERPIPELINERENDERPASSES_API UMoviePipelineImageSequenceContainerBa
 public:
 	UMoviePipelineImageSequenceContainerBase();
 
+	virtual void OnRecieveImageDataImpl(FMoviePipelineMergerOutputFrame* InMergedOutputFrame) override;
+
 protected:
 	// UMovieRenderPipelineOutputContainer interface
 	virtual void SetupForPipelineImpl(UMoviePipeline* InPipeline);
@@ -27,4 +29,6 @@ private:
 
 	/** A fence to keep track of when the Image Write queue has fully flushed. */
 	TFuture<void> FinalizeFence;
+
+	FString OutputDirectory;
 };

@@ -57,6 +57,7 @@ public:
 	*/
 	void OnPostTick() { OnPostTickImpl(); }
 
+	virtual void OnRecieveImageDataImpl(FMoviePipelineMergerOutputFrame* InMergedOutputFrame) {}
 protected:
 	virtual void OnShotInitializedImpl(const TOptional<FMoviePipelineShotInfo> PrevShot, const FMoviePipelineShotInfo& NewShot) {}
 	virtual void OnShotFinishedImpl(const FMoviePipelineShotInfo& Shot) {}

@@ -13,6 +13,8 @@
 #include "MoviePipelineConfigBase.h"
 #include "MoviePipelineMasterConfig.h"
 #include "Math/Halton.h"
+#include "ImageWriteTask.h"
+#include "ImageWriteQueue.h"
 
 void UMoviePipeline::SetupRenderingPipelineForShot(FMoviePipelineShotInfo& Shot)
 {
@@ -55,18 +57,18 @@ void UMoviePipeline::SetupRenderingPipelineForShot(FMoviePipelineShotInfo& Shot)
 	// Code expects at least a 1x1 tile.
 	ensure(RenderPassInitSettings.TileCount > 0);
 
-	for (UMoviePipelineRenderPass* Input : Shot.RenderPasses)
+	for (UMoviePipelineRenderPass* Input : Shot.ShotConfig->GetRenderPasses())
 	{
-		Input->Setup(RenderPassInitSettings, OutputPipe.ToSharedRef());
+		Input->Setup(RenderPassInitSettings);
 	}
 }
 
 void UMoviePipeline::TeardownRenderingPipelineForShot(FMoviePipelineShotInfo& Shot)
 {
-	//for (UMoviePipelineRenderPass* Input : Shot.ShotConfig->InputBuffers)
-	//{
-	//	Input->Teardown();
-	//}
+	for (UMoviePipelineRenderPass* Input : Shot.ShotConfig->GetRenderPasses())
+	{
+		Input->Teardown();
+	}
 }
 
 void UMoviePipeline::RenderFrame()
@@ -120,7 +122,7 @@ void UMoviePipeline::RenderFrame()
 	int32 NumSpatialSamples = AccumulationSettings->SpatialSampleCount;
 	ensure(NumTilesX > 0 && NumTilesY > 0 && NumSpatialSamples > 0);
 
-	TArray<UMoviePipelineRenderPass*> InputBuffers = CurrentShot.RenderPasses;
+	TArray<UMoviePipelineRenderPass*> InputBuffers = CurrentShot.ShotConfig->GetRenderPasses();
 
 	// If this is the first sample for a new frame, we want to notify the output builder that it should expect data to accumulate for this frame.
 	if (CachedOutputState.TemporalSampleIndex == 0)
@@ -306,5 +308,48 @@ void UMoviePipeline::RenderFrame()
 		}
 	}
 	
+	// UE_LOG(LogMovieRenderPipeline, Warning, TEXT("[%d] Pre-FlushRenderingCommands"), GFrameCounter);
 	FlushRenderingCommands();
+	// UE_LOG(LogMovieRenderPipeline, Warning, TEXT("[%d] Post-FlushRenderingCommands"), GFrameCounter);
+
+}
+
+void UMoviePipeline::OnFrameCompletelyRendered(FMoviePipelineMergerOutputFrame&& OutputFrame)
+{
+	UE_LOG(LogMovieRenderPipeline, Warning, TEXT("[%d] Data required for output available! Frame: %d"), GFrameCounter, OutputFrame.FrameOutputState.OutputFrameNumber);
+
+	for (UMoviePipelineOutputBase* OutputContainer : GetPipelineMasterConfig()->GetOutputContainers())
+	{
+		OutputContainer->OnRecieveImageDataImpl(&OutputFrame);
+	}
+}
+
+void UMoviePipeline::OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample)
+{
+	FImagePixelDataPayload* Payload = OutputSample->GetPayload< FImagePixelDataPayload>();
+	check(Payload);
+
+	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	check(OutputSettings);
+
+	TUniquePtr<FImageWriteTask> TileImageTask = MakeUnique<FImageWriteTask>();
+
+	// Fill alpha for now 
+	TileImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FColor>(255));
+
+	// JPEG output
+	TileImageTask->Format = EImageFormat::JPEG;
+	TileImageTask->CompressionQuality = 100;
+
+	FString OutputName = FString::Printf(TEXT("/%s_SS_%d_TS_%d_TileX_%d_TileY_%d.%d.jpeg"),
+		*Payload->PassIdentifier.Name, Payload->SpatialJitterIndex, Payload->TemporalJitterIndex,
+		Payload->TileIndexX, Payload->TileIndexY, Payload->OutputState.OutputFrameNumber);
+
+	FString OutputDirectory = OutputSettings->OutputDirectory.Path;
+	FString OutputPath = OutputDirectory + OutputName;
+	TileImageTask->Filename = OutputPath;
+
+	// Duplicate the data so that the Image Task can own it.
+	TileImageTask->PixelData = MoveTemp(OutputSample);
+	ImageWriteQueue->Enqueue(MoveTemp(TileImageTask));
 }

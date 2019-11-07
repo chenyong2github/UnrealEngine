@@ -17,6 +17,7 @@ class UMoviePipelineMasterConfig;
 class UMoviePipelineShotConfig;
 class UMovieSceneCameraCutSection;
 class UMoviePipelineRenderPass;
+struct FImagePixelData;
 
 
 /**
@@ -72,12 +73,31 @@ enum class EMovieRenderShotState : uint8
 
 struct FMoviePipelinePassIdentifier
 {
-	FMoviePipelinePassIdentifier(const FName& InPassName)
+	FMoviePipelinePassIdentifier()
+	{}
+
+	FMoviePipelinePassIdentifier(const FString& InPassName)
 		: Name(InPassName)
 	{
 	}
 
-	FName Name;
+	bool operator == (const FMoviePipelinePassIdentifier& InRHS) const
+	{
+		return Name == InRHS.Name;
+	}
+
+	bool operator != (const FMoviePipelinePassIdentifier& InRHS) const
+	{
+		return !(*this == InRHS);
+	}
+
+	friend uint32 GetTypeHash(FMoviePipelinePassIdentifier OutputState)
+	{
+		return GetTypeHash(OutputState.Name);
+	}
+
+public:
+	FString Name;
 };
 
 namespace MoviePipeline
@@ -410,7 +430,10 @@ public:
 	/** The range for this shot including handle frames that will be rendered. */
 	TRange<FFrameNumber> TotalOutputRange;
 
+	/** The range of time that represents the handle frames (if any) before the shot. */
 	TRange<FFrameNumber> HandleFrameRangeStart;
+
+	/** The range of time that represents the handle frames (if any) after the shot. */
 	TRange<FFrameNumber> HandleFrameRangeEnd;
 	
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Movie Render Pipeline")
@@ -424,14 +447,6 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
 	int32 CurrentCameraCutIndex;
-
-	/** 
-	* An array of the Render Passes for this particular shot. These are duplicated out of the settings
-	* so that they can have their own state per shot that overlaps with other in progress shots. This
-	* is useful for long running async tasks.
-	*/
-	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
-	TArray<UMoviePipelineRenderPass*> RenderPasses;
 
 	FMoviePipelineCameraCutInfo& GetCurrentCameraCut()
 	{
@@ -668,7 +683,31 @@ struct FImagePixelDataPayload : IImagePixelDataPayload
 	FVector2D OverlappedSubpixelShift;
 
 
-	FString PassName;
+	FMoviePipelinePassIdentifier PassIdentifier;
+
+	/** Is this the first tile of an image and we should start accumulating? */
+	FORCEINLINE bool IsFirstTile() const
+	{
+		return TileIndexX == 0 && TileIndexY == 0 && SpatialJitterIndex == 0;
+	}
+
+	/** Is this the last tile of an image and we should finish accumulating? */
+	FORCEINLINE bool IsLastTile() const
+	{
+		return TileIndexX == NumTilesX - 1 &&
+			   TileIndexY == NumTilesY - 1 &&
+			   SpatialJitterIndex == NumSpatialJitters - 1;
+	}
+
+	FORCEINLINE bool IsFirstTemporalSample() const
+	{
+		return TemporalJitterIndex == 0;
+	}
+
+	FORCEINLINE bool IsLastTemporalSample() const
+	{
+		return TemporalJitterIndex == NumTemporalJitters - 1;
+	}
 };
 
 /**
@@ -702,4 +741,39 @@ public:
 	/** Which shots (by name) should this job render out of the given sequence? Leave empty to render whole sequence. */
 	UPROPERTY(BlueprintReadWrite, Category = "Movie Render Pipeline")
 	TArray<FString> ShotRenderMask;
+};
+
+
+struct MOVIERENDERPIPELINECORE_API FMoviePipelineMergerOutputFrame
+{
+public:
+	FMoviePipelineMergerOutputFrame() {}
+	virtual ~FMoviePipelineMergerOutputFrame() {};
+
+	FMoviePipelineMergerOutputFrame& operator=(FMoviePipelineMergerOutputFrame&& InOther)
+	{
+		FrameOutputState = InOther.FrameOutputState;
+		ExpectedRenderPasses = InOther.ExpectedRenderPasses;
+		ImageOutputData = MoveTemp(InOther.ImageOutputData);
+	
+		return *this;
+	}
+	FMoviePipelineMergerOutputFrame(FMoviePipelineMergerOutputFrame&& InOther)
+		: FrameOutputState(InOther.FrameOutputState)
+		, ExpectedRenderPasses(InOther.ExpectedRenderPasses)
+		, ImageOutputData(MoveTemp(InOther.ImageOutputData))
+	{
+	}
+
+private:
+	// Explicitly delete copy operators since we own unique data.
+	// void operator=(const FMoviePipelineMergerOutputFrame&);
+	// FMoviePipelineMergerOutputFrame(const FMoviePipelineMergerOutputFrame&);
+
+public:
+	FMoviePipelineFrameOutputState FrameOutputState;
+
+	TArray<FMoviePipelinePassIdentifier> ExpectedRenderPasses;
+
+	TMap<FMoviePipelinePassIdentifier, TUniquePtr<FImagePixelData>> ImageOutputData;
 };

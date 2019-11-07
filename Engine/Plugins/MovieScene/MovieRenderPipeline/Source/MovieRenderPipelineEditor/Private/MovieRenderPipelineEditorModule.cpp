@@ -65,7 +65,7 @@ void FMovieRenderPipelineEditorModule::PerformTestPipelineRender(const TArray<FS
 		return;
 	}
 
-	FSoftObjectPath SequencePath = FSoftObjectPath(Args[0]);
+	FSoftObjectPath SequencePath = FSoftObjectPath(FPackageName::ExportTextPathToObjectPath(Args[0]));
 
 	const UMovieRenderPipelineProjectSettings* ProjectSettings = GetDefault<UMovieRenderPipelineProjectSettings>();
 	TSubclassOf<UMoviePipelineExecutorBase> ExecutorClass = ProjectSettings->DefaultLocalExecutor;

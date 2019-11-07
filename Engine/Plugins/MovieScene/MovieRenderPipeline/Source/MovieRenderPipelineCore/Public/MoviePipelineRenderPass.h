@@ -12,10 +12,10 @@ class MOVIERENDERPIPELINECORE_API UMoviePipelineRenderPass : public UMoviePipeli
 {
 	GENERATED_BODY()
 public:
-	void Setup(const FMoviePipelineRenderPassInitSettings& InInitSettings, TSharedRef<FImagePixelPipe, ESPMode::ThreadSafe> InOutputPipe)
+	void Setup(const FMoviePipelineRenderPassInitSettings& InInitSettings)
 	{
 		InitSettings = InInitSettings;
-		SetupImpl(InInitSettings, InOutputPipe);
+		SetupImpl(InInitSettings);
 	}
 
 	void CaptureFrame(const FMoviePipelineRenderPassMetrics& OutputFrameMetrics)
@@ -34,7 +34,7 @@ public:
 	}
 
 protected:
-	virtual void SetupImpl(const FMoviePipelineRenderPassInitSettings& InInitSettings, TSharedRef<FImagePixelPipe, ESPMode::ThreadSafe> InOutputPipe) {  }
+	virtual void SetupImpl(const FMoviePipelineRenderPassInitSettings& InInitSettings) {}
 
 	virtual void CaptureFrameImpl(const FMoviePipelineRenderPassMetrics& OutputFrameMetrics) {}
 
