@@ -528,13 +528,16 @@ public:
 	/** Set vertex position */
 	inline void SetVertex(int VertexID, const FVector3d& vNewPos)
 	{
-		check(VectorUtil::IsFinite(vNewPos));
+		checkSlow(VectorUtil::IsFinite(vNewPos));
 		check(IsVertex(VertexID));
-		int i = 3 * VertexID;
-		Vertices[i] = vNewPos.X;
-		Vertices[i + 1] = vNewPos.Y;
-		Vertices[i + 2] = vNewPos.Z;
-		UpdateTimeStamp(true, false);
+		if (VectorUtil::IsFinite(vNewPos))
+		{
+			int i = 3 * VertexID;
+			Vertices[i] = vNewPos.X;
+			Vertices[i + 1] = vNewPos.Y;
+			Vertices[i + 2] = vNewPos.Z;
+			UpdateTimeStamp(true, false);
+		}
 	}
 
 	/** Get extended vertex information */
