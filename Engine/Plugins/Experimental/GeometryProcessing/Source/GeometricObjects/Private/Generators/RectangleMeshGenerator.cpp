@@ -139,8 +139,9 @@ FMeshShapeGenerator& FRoundedRectangleMeshGenerator::Generate()
 		Normals[VertIdx] = Normal;
 	}
 
-	float TotWidth = Radius * 2 + Width;
-	float TotHeight = Radius * 2 + Height;
+	float TotWidth = FMathf::Max(FMathf::ZeroTolerance, Radius * 2 + Width);
+	float TotHeight = FMathf::Max(FMathf::ZeroTolerance, Radius * 2 + Height);
+	
 
 	// corner vertices
 	FVector3d v00 = MakeVertex(-TotWidth / 2.0f, -TotHeight / 2.0f);
