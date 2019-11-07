@@ -18,6 +18,8 @@
 #include "BonePose.h"
 #include "ContentStreaming.h"
 
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);
+
 DECLARE_CYCLE_STAT(TEXT("AnimStreamable GetAnimationPose"), STAT_AnimStreamable_GetAnimationPose, STATGROUP_Anim);
 
 // This is a version string for the streaming anim chunk logic
