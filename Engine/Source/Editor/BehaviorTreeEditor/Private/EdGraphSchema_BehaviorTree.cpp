@@ -20,6 +20,7 @@
 #include "BehaviorTreeGraphNode_Task.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ToolMenus.h"
+#include "ObjectEditorUtils.h"
 #include "BehaviorTreeEditorModule.h"
 #include "IBehaviorTreeEditor.h"
 #include "BehaviorTreeDebugger.h"
@@ -72,7 +73,7 @@ void UEdGraphSchema_BehaviorTree::GetGraphNodeContextActions(FGraphContextMenuBu
 
 	if (SubNodeFlags == ESubNode::Decorator)
 	{
-		const FText& Category = UBehaviorTreeGraphNode_CompositeDecorator::StaticClass()->GetMetaDataText(TEXT("Category"), TEXT("UObjectCategory"), UBehaviorTreeGraphNode_CompositeDecorator::StaticClass()->GetFullGroupName(false));
+		const FText Category = FObjectEditorUtils::GetCategoryText(UBehaviorTreeGraphNode_CompositeDecorator::StaticClass());
 		UEdGraph* Graph = (UEdGraph*)ContextMenuBuilder.CurrentGraph;
 		UBehaviorTreeGraphNode_CompositeDecorator* OpNode = NewObject<UBehaviorTreeGraphNode_CompositeDecorator>(Graph);
 		TSharedPtr<FAISchemaAction_NewSubNode> AddOpAction = UAIGraphSchema::AddNewSubNodeAction(ContextMenuBuilder, Category, FText::FromString(OpNode->GetNodeTypeDescription()), FText::GetEmpty());
