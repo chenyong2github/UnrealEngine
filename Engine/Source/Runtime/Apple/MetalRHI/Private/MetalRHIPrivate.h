@@ -28,6 +28,7 @@ extern bool GIsMetalInitialized;
 // Requirement for vertex buffer offset field
 #if PLATFORM_MAC
 const uint32 BufferOffsetAlignment = 256;
+const uint32 BufferBackedLinearTextureOffsetAlignment = 1024;
 #else
 const uint32 BufferOffsetAlignment = 16;
 const uint32 BufferBackedLinearTextureOffsetAlignment = 64;
