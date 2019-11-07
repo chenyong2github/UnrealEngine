@@ -282,6 +282,12 @@ namespace UnrealBuildTool
 		public bool bBuildAllModules = false;
 
 		/// <summary>
+		/// Additional plugins that are built for this target type but not enabled.
+		/// </summary>
+		[CommandLine("-BuildPlugin=", ListSeparator = '+')]
+		public List<string> BuildPlugins = new List<string>();
+
+		/// <summary>
 		/// A list of additional plugins which need to be included in this target. This allows referencing non-optional plugin modules
 		/// which cannot be disabled, and allows building against specific modules in program targets which do not fit the categories
 		/// in ModuleHostType.
@@ -1852,6 +1858,11 @@ namespace UnrealBuildTool
 		public IEnumerable<string> DisablePlugins
 		{
 			get { return Inner.DisablePlugins; }
+		}
+
+		public IEnumerable<string> BuildPlugins
+		{
+			get { return Inner.BuildPlugins; }
 		}
 
 		public string PakSigningKeysFile
