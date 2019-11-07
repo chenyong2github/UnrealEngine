@@ -7,10 +7,12 @@
 
 #include "LayersSubsystem.generated.h"
 
+class AActor;
 class FLayersBroadcast;
 class FLevelEditorViewportClient;
 class UEditorEngine;
 class ULayer;
+class ULevel;
 class UWorld;
 
 namespace ELayersAction
