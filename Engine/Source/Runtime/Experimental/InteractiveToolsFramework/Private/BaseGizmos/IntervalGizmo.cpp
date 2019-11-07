@@ -430,3 +430,5 @@ UGizmoAxisIntervalParameterSource* UGizmoAxisIntervalParameterSource::Construct(
 
 	return NewSource;
 }
+
+#undef LOCTEXT_NAMESPACE
