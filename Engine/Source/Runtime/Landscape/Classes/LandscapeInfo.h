@@ -245,6 +245,9 @@ public:
 	/** Will clear all component dirty data */
 	LANDSCAPE_API void ClearDirtyData();
 
+	/** Will call UpdateAllComponentMaterialInstances on all LandscapeProxies */
+	LANDSCAPE_API void UpdateAllComponentMaterialInstances();
+
 	/** Moves Components to target level. Creates ALandscapeProxy if needed. */
 	LANDSCAPE_API ALandscapeProxy* MoveComponentsToLevel(const TArray<ULandscapeComponent*>& InComponents, ULevel* TargetLevel);
 
