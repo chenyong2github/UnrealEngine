@@ -12,11 +12,23 @@ namespace FObjectEditorUtils
 
 	FText GetCategoryText( const UField* InField )
 	{
-		static const FName NAME_Category(TEXT("Category"));
-		if (InField && InField->HasMetaData(NAME_Category))
+		static const FTextKey CategoryLocalizationNamespace = TEXT("UObjectCategory");
+		static const FName CategoryMetaDataKey = TEXT("Category");
+
+		if (InField)
 		{
-			return InField->GetMetaDataText(NAME_Category, TEXT("UObjectCategory"), InField->GetFullGroupName(false));
+			const FString& NativeCategory = InField->GetMetaData(CategoryMetaDataKey);
+			if (!NativeCategory.IsEmpty())
+			{
+				FText LocalizedCategory;
+				if (!FText::FindText(CategoryLocalizationNamespace, NativeCategory, /*OUT*/LocalizedCategory, &NativeCategory))
+				{
+					LocalizedCategory = FText::AsCultureInvariant(NativeCategory);
+				}
+				return LocalizedCategory;
+			}
 		}
+
 		return FText::GetEmpty();
 	}
 

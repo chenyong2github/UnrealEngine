@@ -181,20 +181,6 @@ namespace DetailLayoutHelpers
 
 							// Add a property to the default category
 							FDetailCategoryImpl& CategoryImpl = DetailLayout.DefaultCategory(CategoryName);
-							{
-								FText CategoryDisplayName = CategoryImpl.GetDisplayName();
-								if (CategoryDisplayName.IsEmpty() || CategoryDisplayName.IsCultureInvariant())
-								{
-									CategoryDisplayName = FObjectEditorUtils::GetCategoryText(Property);
-
-									// Category names in English are typically gathered in their non-pretty form (eg "UserInterface" rather than "User Interface"), so skip 
-									// applying the localized variant if the text matches the raw category name, as in this case the pretty printer will do a better job
-									if (!CategoryName.ToString().Equals(CategoryDisplayName.ToString(), ESearchCase::CaseSensitive))
-									{
-										CategoryImpl.SetDisplayName(CategoryName, CategoryDisplayName);
-									}
-								}
-							}
 							CategoryImpl.AddPropertyNode(ChildNodePtr.ToSharedRef(), InstanceName);
 						}
 
