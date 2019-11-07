@@ -666,7 +666,7 @@ public:
 				{
 					FScopeLock ScopeLock(&ReadRequestLock);
 					CodeNumRefs = Entry->NumRefs++;
-					bIsLoaded = Entry->LoadedCode.Num();
+					bIsLoaded = Entry->LoadedCode.Num() > 0;
 					if (!bIsLoaded)
 					{
 						Entry->LoadedCode.SetNumUninitialized(Entry->Size);
