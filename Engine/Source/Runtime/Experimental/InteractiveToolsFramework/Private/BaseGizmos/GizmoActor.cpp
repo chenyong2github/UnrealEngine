@@ -5,6 +5,7 @@
 #include "BaseGizmos/GizmoArrowComponent.h"
 #include "BaseGizmos/GizmoRectangleComponent.h"
 #include "BaseGizmos/GizmoCircleComponent.h"
+#include "BaseGizmos/GizmoLineHandleComponent.h"
 
 #include "Components/PrimitiveComponent.h"
 #include "Engine/World.h"
@@ -27,13 +28,14 @@ AGizmoActor::AGizmoActor()
 
 UGizmoArrowComponent* AGizmoActor::AddDefaultArrowComponent(
 	UWorld* World, AActor* Actor,
-	const FLinearColor& Color, const FVector& LocalDirection)
+	const FLinearColor& Color, const FVector& LocalDirection, const float Length)
 {
 	UGizmoArrowComponent* NewArrow = NewObject<UGizmoArrowComponent>(Actor);
 	Actor->AddInstanceComponent(NewArrow);
 	NewArrow->AttachToComponent(Actor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 	NewArrow->Direction = LocalDirection;
 	NewArrow->Color = Color;
+	NewArrow->Length = Length;
 	NewArrow->RegisterComponent();
 	return NewArrow;
 }
@@ -68,6 +70,21 @@ UGizmoCircleComponent* AGizmoActor::AddDefaultCircleComponent(
 	return NewCircle;
 }
 
-
+UGizmoLineHandleComponent* AGizmoActor::AddDefaultLineHandleComponent(
+	UWorld* World, AActor* Actor,
+	const FLinearColor& Color, const FVector& HandleNormal, const FVector& LocalDirection,
+    const float Length, const bool bImageScale)
+{
+	UGizmoLineHandleComponent* LineHandle = NewObject<UGizmoLineHandleComponent>(Actor);
+	Actor->AddInstanceComponent(LineHandle);
+	LineHandle->AttachToComponent(Actor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+	LineHandle->Normal = HandleNormal;
+	LineHandle->Direction = LocalDirection;
+	LineHandle->Length = Length;
+	LineHandle->bImageScale = bImageScale;
+	LineHandle->Color = Color;
+	LineHandle->RegisterComponent();
+	return LineHandle;
+}
 
 #undef LOCTEXT_NAMESPACE
