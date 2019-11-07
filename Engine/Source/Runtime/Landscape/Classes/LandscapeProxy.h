@@ -878,6 +878,8 @@ public:
 	LANDSCAPE_API FTransform LandscapeActorToWorld() const;
 
 #if WITH_EDITOR
+	LANDSCAPE_API void CreateSplineComponent(const FVector& Scale3D);
+
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditImport() override;
 	//~ End UObject Interface
