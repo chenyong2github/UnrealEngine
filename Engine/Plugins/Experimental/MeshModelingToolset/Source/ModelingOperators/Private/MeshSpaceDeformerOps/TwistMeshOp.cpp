@@ -5,34 +5,66 @@
 //Twists along the Z axis
 void FTwistMeshOp::CalculateResult(FProgressCancel* Progress)
 {
-	FMatrix3d Rotate{FVector3d{0,1,0}, FVector3d{0,0,1}, FVector3d{1,0,0}, false};
-	FMatrix3d ToOpSpace = Rotate * ObjectSpaceToOpSpace;
+	float Det = ObjectToGizmo.Determinant();
 
-	const FVector3d O = ToOpSpace * AxisOriginObjectSpace;
-	const double& Z0 = O.Z;
-	const double ZMin = Z0 + LowerBoundsInterval * AxesHalfLengths[2];
-	const double ZMax = Z0 + UpperBoundsInterval * AxesHalfLengths[2];
+	// Check if the transform is nearly singular
+	// this could happen if the scale on the object to world transform has a very small component.
+	if (FMath::Abs(Det) < 1.e-4)
+	{
+		return;
+	}
 
-	const double ToRadians = 0.017453292519943295;
-	const double ThetaRadians = ToRadians * GetModifierValue();
+	FMatrix GizmoToObject = ObjectToGizmo.Inverse();
 
-	FMatrix3d FromOpSpace = ToOpSpace.Inverse();
+
+	const double ZMin = -LowerBoundsInterval * AxesHalfLength;
+	const double ZMax =  UpperBoundsInterval * AxesHalfLength;
+
+
+	const double DegreesToRadians = 0.017453292519943295769236907684886; // Pi / 180
+	const double ThetaRadians = DegreesToRadians * GetModifierValue();
+
 	for (int VertexID : TargetMesh->VertexIndicesItr())
 	{
-		const FVector3d& OriginalPositionObjectSpace = OriginalPositions[VertexID];
 
-		const FVector3d Pos = ToOpSpace * (OriginalPositionObjectSpace);
+		const FVector3d SrcPos = TargetMesh->GetVertex(VertexID);
+		const double SrcPos4[4] = { SrcPos[0], SrcPos[1], SrcPos[2], 1.0 };
 
-		double T = FMath::Clamp(( ZMax - Pos.Z ) / ( ZMax - ZMin ), 0.0, 1.0);
+		// Position in gizmo space
+		double GizmoPos4[4] = { 0., 0., 0., 0. };
+		for (int i = 0; i < 4; ++i)
+		{
+			for (int j = 0; j < 4; ++j)
+			{
+				GizmoPos4[i] += ObjectToGizmo.M[i][j] * SrcPos4[j];
+			}
+		}
+
+		double T = FMath::Clamp( (GizmoPos4[2] - ZMin) / ( ZMax - ZMin ), 0.0, 1.0) - 0.5;
 		double Theta = ThetaRadians * T;
 
 		const double C0 = FMath::Cos(Theta);
 		const double S0 = FMath::Sin(Theta);
+		
+		// apply 2d rotation.
+		const double X =  C0 * GizmoPos4[0]  + S0 * GizmoPos4[1];
+		const double Y = -S0 * GizmoPos4[0]  + C0 * GizmoPos4[1];
+		
+		GizmoPos4[0] = X;
+		GizmoPos4[1] = Y;
 
-		double X = Pos.X * C0 + Pos.Y * S0;
-		double Y = Pos.X * (-S0) + Pos.Y * C0;
-		double Z = Pos.Z;
+		// Position in Obj Space
+		double DstPos4[4] = { 0., 0., 0., 0. };
+		for (int i = 0; i < 4; ++i)
+		{
+			for (int j = 0; j < 4; ++j)
+			{
+				DstPos4[i] += GizmoToObject.M[i][j] * GizmoPos4[j];
+			}
+		}
 
-		TargetMesh->SetVertex(VertexID, FromOpSpace * FVector3d{ X,Y,Z });
+		// set the position
+		TargetMesh->SetVertex(VertexID, FVector3d(DstPos4[0], DstPos4[1], DstPos4[2]));
+		
 	}
 }

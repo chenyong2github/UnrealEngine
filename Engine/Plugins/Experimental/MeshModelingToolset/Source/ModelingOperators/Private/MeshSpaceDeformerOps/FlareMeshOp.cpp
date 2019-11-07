@@ -33,29 +33,60 @@ double  inverseSinerp(const T& valueBetween, const T& value1, const T& value2)
 //Flares along the Z axis
 void FFlareMeshOp::CalculateResult(FProgressCancel* Progress)
 {
-	FMatrix3d Rotate{ FVector3d{0,1,0}, FVector3d{0,0,1}, FVector3d{1,0,0}, false };
-	FMatrix3d ToOpSpace = Rotate * ObjectSpaceToOpSpace;
 
-	const FVector3d O = ToOpSpace * AxisOriginObjectSpace;
-	const double& Z0 = O.Z;
-	const double ZMin = Z0 + LowerBoundsInterval * AxesHalfLengths[2];
-	const double ZMax = Z0 + UpperBoundsInterval * AxesHalfLengths[2];
+	float Det = ObjectToGizmo.Determinant();
 
-	FMatrix3d FromOpSpace = ToOpSpace.Inverse();
+	// Check if the transform is nearly singular
+	// this could happen if the scale on the object to world transform has a very small component.
+	if (FMath::Abs(Det) < 1.e-4)
+	{
+		return;
+	}
+
+	FMatrix GizmoToObject = ObjectToGizmo.Inverse();
+
+	const double ZMin = -LowerBoundsInterval * AxesHalfLength;
+	const double ZMax =  UpperBoundsInterval * AxesHalfLength;
+
 	for (int VertexID : TargetMesh->VertexIndicesItr())
 	{
-		const FVector3d& OriginalPositionObjectSpace = OriginalPositions[VertexID];
+		
+		const FVector3d SrcPos = TargetMesh->GetVertex(VertexID);
 
-		const FVector3d Pos = ToOpSpace * (OriginalPositionObjectSpace);
+		const double SrcPos4[4] = { SrcPos[0], SrcPos[1], SrcPos[2], 1.0 };
 
-		double T = FMath::Clamp(FMath::Abs((Z0 - Pos.Z)) / (ZMax - ZMin) * 0.5, 0.0, 1.0);
-		double R = coserp((1.0-T), 1.0, GetModifierValue());
+		// Position in gizmo space
+		double GizmoPos4[4] = { 0., 0., 0., 0. };
+		for (int i = 0; i < 4; ++i)
+		{
+			for (int j = 0; j < 4; ++j)
+			{
+				GizmoPos4[i] += ObjectToGizmo.M[i][j] * SrcPos4[j];
+			}
+		}
 
-		double X = Pos.X * R;
-		double Y = Pos.Y * R;
-		double Z = Pos.Z;
+		
+		// Parameterize curve between ZMin and ZMax to go between 0, 1
+		double T = FMath::Clamp( (GizmoPos4[2]- ZMin) / (ZMax - ZMin), 0.0, 1.0);
 
-		TargetMesh->SetVertex(VertexID, FromOpSpace * (FVector3d{ X,Y,Z }));
+		double R = 1. + FMath::Sin(PI * T) * (ModifierPercent / 100.f);
+
+		// 2d scale x,y values.
+		GizmoPos4[0] *= R;
+		GizmoPos4[1] *= R;
+
+
+		double DstPos4[4] = { 0., 0., 0., 0. };
+		for (int i = 0; i < 4; ++i)
+		{
+			for (int j = 0; j < 4; ++j)
+			{
+				DstPos4[i] += GizmoToObject.M[i][j] * GizmoPos4[j];
+			}
+		}
+
+		// set the position
+		TargetMesh->SetVertex(VertexID, FVector3d(DstPos4[0], DstPos4[1], DstPos4[2]));
 	}
 
 }
