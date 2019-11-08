@@ -3,12 +3,13 @@
 #pragma once
 
 #include "Containers/Array.h"
-#include "DataStream.h"
 #include "Trace/Analysis.h"
 #include "Trace/Analyzer.h"
 
 namespace Trace
 {
+
+class FStreamReader;
 
 ////////////////////////////////////////////////////////////////////////////////
 class FAnalysisEngine
@@ -19,7 +20,7 @@ public:
 	struct				FEventDataInfo;
 						FAnalysisEngine(TArray<IAnalyzer*>&& InAnalyzers);
 						~FAnalysisEngine();
-	bool				OnData(FStreamReader::FData& Data);
+	bool				OnData(FStreamReader& Reader);
 
 private:
 	typedef bool (FAnalysisEngine::*ProtocolHandlerType)();
@@ -40,7 +41,7 @@ private:
 	void				OnNewEventInternal(const FOnEventContext& Context);
 	void				OnNewEventProtocol0(FDispatchBuilder& Builder, const void* EventData);
 
-	bool				EstablishTransport(FStreamReader::FData& Data);
+	bool				EstablishTransport(FStreamReader& Reader);
 	bool				OnDataProtocol0();
 	bool				AddDispatch(FDispatch* Dispatch);
 	template <typename ImplType>

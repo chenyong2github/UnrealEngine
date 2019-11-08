@@ -4,11 +4,12 @@
 #include "Containers/ArrayView.h"
 #include "CoreGlobals.h"
 #include "HAL/UnrealMemory.h"
+#include "StreamReader.h"
 #include "Trace/Analysis.h"
 #include "Trace/Analyzer.h"
 #include "Trace/Detail/Protocol.h"
-#include "Transport/Transport.h"
 #include "Transport/PacketTransport.h"
+#include "Transport/Transport.h"
 
 namespace Trace
 {
@@ -629,12 +630,12 @@ void FAnalysisEngine::OnNewEventProtocol0(FDispatchBuilder& Builder, const void*
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool FAnalysisEngine::EstablishTransport(FStreamReader::FData& Data)
+bool FAnalysisEngine::EstablishTransport(FStreamReader& Reader)
 {
 	const struct {
 		uint8 TransportVersion;
 		uint8 ProtocolVersion;
-	}* Header = decltype(Header)(Data.GetPointer(sizeof(*Header)));
+	}* Header = decltype(Header)(Reader.GetPointer(sizeof(*Header)));
 	if (Header == nullptr)
 	{
 		return false;
@@ -644,7 +645,7 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader::FData& Data)
 	// used to validate a inbound socket connection and then discarded.
 	if (Header->TransportVersion == 'E' || Header->TransportVersion == 'T')
 	{
-		const uint32* Magic = (const uint32*)(Data.GetPointer(sizeof(*Magic)));
+		const uint32* Magic = (const uint32*)(Reader.GetPointer(sizeof(*Magic)));
 		if (*Magic == 'ECRT')
 		{
 			// Source is big-endian which we don't currently support
@@ -653,8 +654,8 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader::FData& Data)
 
 		if (*Magic == 'TRCE')
 		{
-			Data.Advance(sizeof(*Magic));
-			return EstablishTransport(Data);
+			Reader.Advance(sizeof(*Magic));
+			return EstablishTransport(Reader);
 		}
 
 		return false;
@@ -684,28 +685,28 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader::FData& Data)
 		return false;
 	}
 
-	Data.Advance(sizeof(*Header));
+	Reader.Advance(sizeof(*Header));
 	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool FAnalysisEngine::OnData(FStreamReader::FData& Data)
+bool FAnalysisEngine::OnData(FStreamReader& Reader)
 {
 	if (Transport == nullptr)
 	{
 		// Ensure we've a reasonable amount of data to establish the transport with
-		if (Data.GetPointer(32) == nullptr)
+		if (Reader.GetPointer(32) == nullptr)
 		{
 			return true;
 		}
 
-		if (!EstablishTransport(Data))
+		if (!EstablishTransport(Reader))
 		{
 			return false;
 		}
 	}
 
-	Transport->SetSource(Data);
+	Transport->SetReader(Reader);
 	bool bRet = (this->*ProtocolHandler)();
 
 	// If there's no analyzers left we might as well not continue

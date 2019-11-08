@@ -4,6 +4,7 @@
 #include "HAL/Event.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/RunnableThread.h"
+#include "StreamReader.h"
 #include "Templates/UnrealTemplate.h"
 #include "Trace/Analysis.h"
 
@@ -32,16 +33,18 @@ FAnalysisProcessor::FImpl::~FImpl()
 ////////////////////////////////////////////////////////////////////////////////
 uint32 FAnalysisProcessor::FImpl::Run()
 {
-	for (FStreamReader Reader(DataStream); FStreamReader::FData* Data = Reader.Read();)
+	FStreamReaderDetail Reader(DataStream);
+
+	while (!StopEvent->Wait(0, true))
 	{
-		if (StopEvent->Wait(0, true))
+		UnpausedEvent->Wait();
+
+		if (!Reader.Read())
 		{
 			break;
 		}
 
-		UnpausedEvent->Wait();
-
-		if (!AnalysisEngine.OnData(*Data))
+		if (!AnalysisEngine.OnData(Reader))
 		{
 			break;
 		}
