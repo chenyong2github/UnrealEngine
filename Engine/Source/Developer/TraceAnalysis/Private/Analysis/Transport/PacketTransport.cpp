@@ -136,7 +136,6 @@ bool FPacketTransport::GetNextBatch()
 		Node->Next = PendingList;
 		PendingList = Node;
 
-#if 0
 		bool bEncoded = (PacketBase->Serial != PacketSerial);
 		if (bEncoded)
 		{
@@ -156,7 +155,6 @@ bool FPacketTransport::GetNextBatch()
 			);
 		}
 		else
-#endif // 0
 		{
 			struct FPacketRaw
 				: public FPacketBase

@@ -441,35 +441,40 @@ static void Writer_ConsumeEvents()
 			uint16 PacketSize;
 		};
 
-#if 0
-		struct FPacketEncoded
-			: public FPacketBase
+		// Smaller buffers usually aren't redundant enough to benefit from being
+		// compressed. They often end up being larger.
+		if (Size > 384)
 		{
-			uint16	DecodedSize;
-		};
+			struct FPacketEncoded
+				: public FPacketBase
+			{
+				uint16	DecodedSize;
+			};
 
-		struct FPacket
-			: public FPacketEncoded
+			struct FPacket
+				: public FPacketEncoded
+			{
+				uint8 Data[GPoolBlockSize + 64];
+			};
+
+			FPacket Packet;
+			Packet.Serial = 0x8000;
+			Packet.DecodedSize = uint16(Size);
+			Packet.PacketSize = Encode(Data, Packet.DecodedSize, Packet.Data, sizeof(Packet.Data));
+			Packet.PacketSize += sizeof(FPacketEncoded);
+
+			Data = (uint8*)&Packet;
+			Size = Packet.PacketSize;
+		}
+		else
 		{
-			uint8 Data[GPoolBlockSize + 64];
-		};
-
-		FPacket Packet;
-		Packet.Serial = 0x8000;
-		Packet.DecodedSize = uint16(Size);
-		Packet.PacketSize = Encode(Data, Packet.DecodedSize, Packet.Data, sizeof(Packet.Data));
-		Packet.PacketSize += sizeof(FPacketEncoded);
-
-		Data = (uint8*)&Packet;
-		Size = Packet.PacketSize;
-#else
-		static_assert(sizeof(FPacketBase) == sizeof(uint32), "");
-		Data -= sizeof(FPacketBase);
-		Size += sizeof(FPacketBase);
-		auto* Packet = (FPacketBase*)Data;
-		Packet->Serial = 0;
-		Packet->PacketSize = uint16(Size);
-#endif
+			static_assert(sizeof(FPacketBase) == sizeof(uint32), "");
+			Data -= sizeof(FPacketBase);
+			Size += sizeof(FPacketBase);
+			auto* Packet = (FPacketBase*)Data;
+			Packet->Serial = 0;
+			Packet->PacketSize = uint16(Size);
+		}
 
 		if (GDataState == EDataState::Sending)
 		{
