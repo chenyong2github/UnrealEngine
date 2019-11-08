@@ -7,6 +7,8 @@
 
 #include "DisplayCluster/Private/IPDisplayCluster.h"
 
+#include "Editor.h"
+
 
 void UDisplayClusterEditorEngine::Init(IEngineLoop* InEngineLoop)
 {
