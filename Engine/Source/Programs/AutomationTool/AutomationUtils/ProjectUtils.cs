@@ -202,7 +202,7 @@ namespace AutomationTool
 			ProjectDescriptor Project = ProjectDescriptor.FromFile(RawProjectPath);
 
 			// find if there are any plugins enabled or disabled which differ from the default
-			List<PluginInfo> Plugins = UnrealBuildTool.Plugins.ReadAvailablePlugins(CommandUtils.EngineDirectory, RawProjectPath, Project.AdditionalPluginDirectories);
+			List<PluginInfo> Plugins = UnrealBuildTool.Plugins.ReadAvailablePlugins(CommandUtils.EngineDirectory, DirectoryReference.FromFile(RawProjectPath), Project.AdditionalPluginDirectories);
 			foreach (PluginInfo Plugin in Plugins)
 			{
 				bool bPluginEnabledForTarget = UnrealBuildTool.Plugins.IsPluginCompiledForTarget(Plugin, Project, Platform, Configuration, TargetType, bRequiresCookedData);
