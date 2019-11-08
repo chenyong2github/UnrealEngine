@@ -429,7 +429,7 @@ void FImageOverlappedAccumulator::AccumulatePixelData(const FImagePixelData& InP
 	int32 RawBitDepth = InPixelData.GetBitDepth();
 	FIntPoint RawSize = InPixelData.GetSize();
 
-	int32 SizeInBytes = 0;
+	int64 SizeInBytes = 0;
 	const void* SrcRawDataPtr = nullptr;
 
 	bool IsFetchOk = InPixelData.GetRawData(SrcRawDataPtr, SizeInBytes);
@@ -563,10 +563,36 @@ void FImageOverlappedAccumulator::AccumulatePixelData(const FImagePixelData& InP
 			for (int ChanIter = 0; ChanIter < NumChannels; ChanIter++)
 			{
 				float* DstData = RawData[ChanIter].GetData();
+
 				int32 DstSize = RawSize.X * RawSize.Y;
-				for (int32 Iter = 0; Iter < DstSize; Iter++)
+
+				static bool EnableVectorizedPow = true;
+				if (EnableVectorizedPow)
 				{
-					DstData[Iter] = FMath::Pow(DstData[Iter], Gamma);
+					int32 VectorGroups = DstSize / 4;
+					int32 VectorExtra = DstSize - 4 * VectorGroups;
+					
+					VectorRegister PowExponent = VectorSetFloat1(Gamma);
+
+					for (int32 Iter = 0; Iter < VectorGroups; Iter++)
+					{
+						VectorRegister Value = VectorLoad(&DstData[4*Iter]);
+						Value = VectorPow(Value, PowExponent);
+						VectorStore(Value, &DstData[4*Iter]);
+					}
+
+					for (int32 Iter = 0; Iter < VectorExtra; Iter++)
+					{
+						int32 Index = 4 * VectorGroups + Iter;
+						DstData[Index] = FMath::Pow(DstData[Index], Gamma);
+					}
+				}
+				else
+				{
+					for (int32 Iter = 0; Iter < DstSize; Iter++)
+					{
+						DstData[Iter] = FMath::Pow(DstData[Iter], Gamma);
+					}
 				}
 			}
 		} 
@@ -665,7 +691,7 @@ void FImageOverlappedAccumulator::FetchFullImageValue(float Rgba[4], int32 FullX
 	}
 }
 
-void FImageOverlappedAccumulator::FetchFinalPixelDataByte(TArray<FColor> & OutPixelData) const
+void FImageOverlappedAccumulator::FetchFinalPixelDataByte(TArray64<FColor> & OutPixelData) const
 {
 	int32 FullSizeX = PlaneSize.X;
 	int32 FullSizeY = PlaneSize.Y;
@@ -687,7 +713,7 @@ void FImageOverlappedAccumulator::FetchFinalPixelDataByte(TArray<FColor> & OutPi
 	}
 }
 
-void FImageOverlappedAccumulator::FetchFinalPixelDataLinearColor(TArray<FLinearColor> & OutPixelData) const
+void FImageOverlappedAccumulator::FetchFinalPixelDataLinearColor(TArray64<FLinearColor> & OutPixelData) const
 {
 	int32 FullSizeX = PlaneSize.X;
 	int32 FullSizeY = PlaneSize.Y;

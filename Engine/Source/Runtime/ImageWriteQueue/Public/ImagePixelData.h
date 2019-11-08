@@ -75,7 +75,7 @@ struct FImagePixelData
 	bool IsDataWellFormed() const
 	{
 		const void* RawPtr    = nullptr;
-		int32       SizeBytes = 0;
+		int64       SizeBytes = 0;
 
 		return GetRawData(RawPtr, SizeBytes);
 	}
@@ -83,10 +83,10 @@ struct FImagePixelData
 	/**
 	 * Get the data and its size only if it is well formed
 	 */
-	bool GetRawData(const void*& OutRawData, int32& OutSizeBytes) const
+	bool GetRawData(const void*& OutRawData, int64& OutSizeBytes) const
 	{
 		const void* RawPtr    = nullptr;
-		int32       SizeBytes = 0;
+		int64       SizeBytes = 0;
 
 		RetrieveData(RawPtr, SizeBytes);
 
@@ -138,7 +138,7 @@ private:
 	/**
 	 * Retrieve the raw pixel data
 	 */
-	virtual void RetrieveData(const void*& OutDataPtr, int32& OutSizeBytes) const = 0;
+	virtual void RetrieveData(const void*& OutDataPtr, int64& OutSizeBytes) const = 0;
 	virtual TUniquePtr<FImagePixelData> Copy() const = 0;
 	virtual TUniquePtr<FImagePixelData> Move() = 0;
 
@@ -167,13 +167,13 @@ private:
 template<typename PixelType>
 struct TImagePixelData : FImagePixelData
 {
-	TArray<PixelType> Pixels;
+	TArray64<PixelType> Pixels;
 
 	TImagePixelData(const FIntPoint& InSize)
 		: FImagePixelData(InSize, TImagePixelDataTraits<PixelType>::PixelType, TImagePixelDataTraits<PixelType>::PixelLayout, TImagePixelDataTraits<PixelType>::BitDepth, TImagePixelDataTraits<PixelType>::NumChannels, nullptr)
 	{}
 
-	TImagePixelData(const FIntPoint& InSize, TArray<PixelType>&& InPixels)
+	TImagePixelData(const FIntPoint& InSize, TArray64<PixelType>&& InPixels)
 		: FImagePixelData(InSize, TImagePixelDataTraits<PixelType>::PixelType, TImagePixelDataTraits<PixelType>::PixelLayout, TImagePixelDataTraits<PixelType>::BitDepth, TImagePixelDataTraits<PixelType>::NumChannels, nullptr)
 		, Pixels(MoveTemp(InPixels))
 	{}
@@ -182,7 +182,7 @@ struct TImagePixelData : FImagePixelData
 		: FImagePixelData(InSize, TImagePixelDataTraits<PixelType>::PixelType, TImagePixelDataTraits<PixelType>::PixelLayout, TImagePixelDataTraits<PixelType>::BitDepth, TImagePixelDataTraits<PixelType>::NumChannels, InPayload)
 	{}
 
-	TImagePixelData(const FIntPoint& InSize, TArray<PixelType>&& InPixels, FImagePixelPayloadPtr InPayload)
+	TImagePixelData(const FIntPoint& InSize, TArray64<PixelType>&& InPixels, FImagePixelPayloadPtr InPayload)
 		: FImagePixelData(InSize, TImagePixelDataTraits<PixelType>::PixelType, TImagePixelDataTraits<PixelType>::PixelLayout, TImagePixelDataTraits<PixelType>::BitDepth, TImagePixelDataTraits<PixelType>::NumChannels, InPayload)
 		, Pixels(MoveTemp(InPixels))
 	{}
@@ -197,7 +197,7 @@ struct TImagePixelData : FImagePixelData
 		return MakeUnique<TImagePixelData<PixelType>>(*this);
 	}
 
-	virtual void RetrieveData(const void*& OutDataPtr, int32& OutSizeBytes) const override
+	virtual void RetrieveData(const void*& OutDataPtr, int64& OutSizeBytes) const override
 	{
 		OutDataPtr = static_cast<const void*>(&Pixels[0]);
 		OutSizeBytes = Pixels.Num() * sizeof(PixelType);

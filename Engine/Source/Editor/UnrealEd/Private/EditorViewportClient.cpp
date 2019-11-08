@@ -5332,13 +5332,16 @@ void FEditorViewportClient::TakeScreenshot(FViewport* InViewport, bool bInValida
 
 	{
 		// Read the contents of the viewport into an array.
-		TUniquePtr<TImagePixelData<FColor>> PixelData = MakeUnique<TImagePixelData<FColor>>(InViewport->GetSizeXY());
-		if( !InViewport->ReadPixels(PixelData->Pixels) )
+		TArray<FColor> RawPixels;
+		RawPixels.SetNum(InViewport->GetSizeXY().X * InViewport->GetSizeXY().Y);
+		if( !InViewport->ReadPixels(RawPixels) )
 		{
 			// Failed to read the image from the viewport
 			SaveMessagePtr->SetText(NSLOCTEXT( "UnrealEd", "ScreenshotFailedViewport", "Screenshot failed, unable to read image from viewport" ));
 			return;
 		}
+
+		TUniquePtr<TImagePixelData<FColor>> PixelData = MakeUnique<TImagePixelData<FColor>>(InViewport->GetSizeXY(), TArray64<FColor>(MoveTemp(RawPixels)));
 
 		check(PixelData->IsDataWellFormed());
 		ImageTask->PixelData = MoveTemp(PixelData);
@@ -5546,7 +5549,7 @@ bool FEditorViewportClient::ProcessScreenShots(FViewport* InViewport)
 			}
 
 			TUniquePtr<FImageWriteTask> ImageTask = MakeUnique<FImageWriteTask>();
-			ImageTask->PixelData = MakeUnique<TImagePixelData<FColor>>(BitmapSize, MoveTemp(Bitmap));
+			ImageTask->PixelData = MakeUnique<TImagePixelData<FColor>>(BitmapSize, TArray64<FColor>(MoveTemp(Bitmap)));
 
 			// Set full alpha on the bitmap
 			if (!bWriteAlpha)

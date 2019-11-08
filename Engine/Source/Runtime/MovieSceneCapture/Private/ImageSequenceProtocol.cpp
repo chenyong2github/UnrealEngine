@@ -122,7 +122,7 @@ void UImageSequenceProtocol::ProcessFrame(FCapturedFrameData Frame)
 	TUniquePtr<FImageWriteTask> ImageTask = MakeUnique<FImageWriteTask>();
 
 	// Move the color buffer into a raw image data container that we can pass to the write queue
-	ImageTask->PixelData = MakeUnique<TImagePixelData<FColor>>(Frame.BufferSize, MoveTemp(Frame.ColorBuffer));
+	ImageTask->PixelData = MakeUnique<TImagePixelData<FColor>>(Frame.BufferSize, TArray64<FColor>(MoveTemp(Frame.ColorBuffer)));
 	if (Format == EImageFormat::PNG)
 	{
 		// Always write full alpha for PNGs

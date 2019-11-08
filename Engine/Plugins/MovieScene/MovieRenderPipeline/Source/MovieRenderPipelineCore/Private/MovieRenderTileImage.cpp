@@ -279,7 +279,7 @@ void FImageTileAccumulator::AccumulatePixelData(const FImagePixelData& InPixelDa
 	int32 RawBitDepth = InPixelData.GetBitDepth();
 	FIntPoint RawSize = InPixelData.GetSize();
 
-	int32 SizeInBytes = 0;
+	int64 SizeInBytes = 0;
 	const void* SrcRawDataPtr = nullptr;
 
 	bool IsFetchOk = InPixelData.GetRawData(SrcRawDataPtr, SizeInBytes);
@@ -483,7 +483,7 @@ void FImageTileAccumulator::FetchFinalPlaneScale(TArray<float>& PlaneScale) cons
 	}
 }
 
-void FImageTileAccumulator::FetchFinalPixelDataByte(TArray<FColor> & OutPixelData) const
+void FImageTileAccumulator::FetchFinalPixelDataByte(TArray64<FColor> & OutPixelData) const
 {
 	int32 FullSizeX = TileSizeX * NumTilesX;
 	int32 FullSizeY = TileSizeY * NumTilesY;
@@ -508,7 +508,7 @@ void FImageTileAccumulator::FetchFinalPixelDataByte(TArray<FColor> & OutPixelDat
 	}
 }
 
-void FImageTileAccumulator::FetchFinalPixelDataLinearColor(TArray<FLinearColor> & OutPixelData) const
+void FImageTileAccumulator::FetchFinalPixelDataLinearColor(TArray64<FLinearColor> & OutPixelData) const
 {
 	int32 FullSizeX = TileSizeX * NumTilesX;
 	int32 FullSizeY = TileSizeY * NumTilesY;

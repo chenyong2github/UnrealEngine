@@ -345,8 +345,11 @@ void ReadAndAccumulateSample_RenderThread(FRHICommandListImmediate &RHICmdList, 
 	FrameData->OverlappedSubpixelShift = InParams.PassMetrics.OverlappedSubpixelShift;
 
 	// Read the data back to the CPU
-	TUniquePtr<TImagePixelData<FColor>> PixelData = MakeUnique<TImagePixelData<FColor>>(SourceRect.Size(), FrameData);
-	RHICmdList.ReadSurfaceData(InParams.CanvasRenderTarget->GetRenderTargetTexture(), SourceRect, PixelData->Pixels, ReadDataFlags);
+	TArray<FColor> RawPixels;
+	RawPixels.SetNum(SourceRect.Width() * SourceRect.Height());
+
+	RHICmdList.ReadSurfaceData(InParams.CanvasRenderTarget->GetRenderTargetTexture(), SourceRect, RawPixels, ReadDataFlags);
+	TUniquePtr<TImagePixelData<FColor>> PixelData = MakeUnique<TImagePixelData<FColor>>(SourceRect.Size(), TArray64<FColor>(MoveTemp(RawPixels)), FrameData);
 
 	check(PixelData->IsDataWellFormed());
 

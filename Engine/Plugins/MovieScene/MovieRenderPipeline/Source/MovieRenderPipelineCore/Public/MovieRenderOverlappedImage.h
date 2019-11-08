@@ -151,14 +151,14 @@ public:
 	 * 
 	 * @param FImagePixelData - Finished pixel data.
 	 */
-	void FetchFinalPixelDataByte(TArray<FColor>& OutPixelData) const;
+	void FetchFinalPixelDataByte(TArray64<FColor>& OutPixelData) const;
 
 	/**
 	 * After accumulation is finished, fetch the final image as linear colors
 	 * 
 	 * @param FImagePixelData - Finished pixel data.
 	 */
-	void FetchFinalPixelDataLinearColor(TArray<FLinearColor>& OutPixelData) const;
+	void FetchFinalPixelDataLinearColor(TArray64<FLinearColor>& OutPixelData) const;
 
 	/**
 	 * Grab a single pixel from the full res tile and scale it by the appropriate Scale value.

@@ -115,7 +115,7 @@ void UUserDefinedCaptureProtocol::TickImpl()
 		for (FCapturedFrameData& Frame : CapturedFrames)
 		{
 			// Steal the frame and make it shareable
-			FCapturedPixels CapturedPixels { MakeShared<TImagePixelData<FColor>, ESPMode::ThreadSafe>( Frame.BufferSize, MoveTemp(Frame.ColorBuffer) ) };
+			FCapturedPixels CapturedPixels { MakeShared<TImagePixelData<FColor>, ESPMode::ThreadSafe>( Frame.BufferSize, TArray64<FColor>(MoveTemp(Frame.ColorBuffer) ) ) };
 			FFrameMetrics   CapturedMetrics = static_cast<FCaptureProtocolFrameData*>(Frame.Payload.Get())->Metrics;
 
 			// Call the handler
