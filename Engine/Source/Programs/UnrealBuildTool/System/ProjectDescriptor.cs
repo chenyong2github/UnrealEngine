@@ -81,9 +81,14 @@ namespace UnrealBuildTool
 		public PluginReferenceDescriptor[] Plugins;
 
 		/// <summary>
-        /// List of additional plugin directories to scan for available plugins
+		/// Array of additional root directories
 		/// </summary>
-        public string[] AdditionalPluginDirectories;
+		public string[] AdditionalRootDirectories;
+
+		/// <summary>
+		/// List of additional plugin directories to scan for available plugins
+		/// </summary>
+		public string[] AdditionalPluginDirectories;
 
 		/// <summary>
 		/// Array of platforms that this project is targeting
@@ -160,14 +165,17 @@ namespace UnrealBuildTool
 				Plugins = Array.ConvertAll(PluginsArray, x => PluginReferenceDescriptor.FromJsonObject(x));
 			}
 
+			// Read the additional root directories
+			RawObject.TryGetStringArrayField("AdditionalRootDirectories", out AdditionalRootDirectories);
+
 			// Read the additional plugin directories
-            RawObject.TryGetStringArrayField("AdditionalPluginDirectories", out AdditionalPluginDirectories);
+			RawObject.TryGetStringArrayField("AdditionalPluginDirectories", out AdditionalPluginDirectories);
 
-            // Read the target platforms
-            RawObject.TryGetStringArrayField("TargetPlatforms", out TargetPlatforms);
+			// Read the target platforms
+			RawObject.TryGetStringArrayField("TargetPlatforms", out TargetPlatforms);
 
-            // Get the sample name hash
-            RawObject.TryGetUnsignedIntegerField("EpicSampleNameHash", out EpicSampleNameHash);
+			// Get the sample name hash
+			RawObject.TryGetUnsignedIntegerField("EpicSampleNameHash", out EpicSampleNameHash);
 
 			// Read the pre and post-build steps
 			CustomBuildSteps.TryRead(RawObject, "PreBuildSteps", out PreBuildSteps);
@@ -197,6 +205,25 @@ namespace UnrealBuildTool
 			catch (JsonParseException ParseException)
 			{
 				throw new JsonParseException("{0} (in {1})", ParseException.Message, FileName);
+			}
+		}
+
+		/// <summary>
+		/// If the descriptor has either additional plugin directories or additional root directories
+		/// then it is considered to have additional paths.  The additional paths will be relative
+		/// to the provided directory.
+		/// </summary>
+		/// <param name="RootDirectories">The directory set to add the paths too.</param>
+		/// <param name="ProjectDir">The directory which is used to setup the additional paths</param>
+		public void AddAdditionalPaths(List<DirectoryReference> RootDirectories, DirectoryReference ProjectDir)
+		{
+			if (AdditionalPluginDirectories != null)
+			{
+				RootDirectories.AddRange(AdditionalPluginDirectories.Select(x => DirectoryReference.Combine(ProjectDir, x)));
+			}
+			if (AdditionalRootDirectories != null)
+			{
+				RootDirectories.AddRange(AdditionalRootDirectories.Select(x => DirectoryReference.Combine(ProjectDir, x)));
 			}
 		}
 
@@ -236,6 +263,12 @@ namespace UnrealBuildTool
 
 			// Write the plugin list
 			PluginReferenceDescriptor.WriteArray(Writer, "Plugins", Plugins);
+
+			// Write the custom module roots
+			if(AdditionalRootDirectories != null && AdditionalRootDirectories.Length > 0)
+			{
+				Writer.WriteStringArrayField("AdditionalRootDirectories", AdditionalRootDirectories);
+			}
 
 			// Write out the additional plugin directories to scan
 			if(AdditionalPluginDirectories != null && AdditionalPluginDirectories.Length > 0)

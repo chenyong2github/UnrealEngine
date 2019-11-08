@@ -87,9 +87,14 @@ namespace UnrealBuildTool
 		private readonly FileReference ProjectFile;
 
 		/// <summary>
-		/// The directory containing the project being built.
+		/// The project descriptor for the project being built.
 		/// </summary>
-		private readonly DirectoryReference ProjectDirectory;
+		private readonly ProjectDescriptor ProjectDescriptor;
+
+		/// <summary>
+		/// A set of directories containing additional paths to be built.
+		/// </summary>
+		private readonly List<DirectoryReference> AdditionalPaths;
 
 		/// <summary>
 		/// The base directory on the remote machine
@@ -127,7 +132,16 @@ namespace UnrealBuildTool
 			this.RsyncExe = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Extras", "ThirdPartyNotUE", "DeltaCopy", "Binaries", "Rsync.exe");
 			this.SshExe = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Extras", "ThirdPartyNotUE", "DeltaCopy", "Binaries", "Ssh.exe");
 			this.ProjectFile = ProjectFile;
-			this.ProjectDirectory = DirectoryReference.FromFile(ProjectFile);
+			if (ProjectFile != null)
+			{
+				this.ProjectDescriptor = ProjectDescriptor.FromFile(ProjectFile);
+				this.AdditionalPaths = new List<DirectoryReference>();
+				this.ProjectDescriptor.AddAdditionalPaths(this.AdditionalPaths, ProjectFile.Directory);
+				if (this.AdditionalPaths.Count == 0)
+				{
+					this.AdditionalPaths = null;
+				}
+			}
 
 			// Apply settings from the XML file
 			XmlConfig.ApplyTo(this);
@@ -269,6 +283,17 @@ namespace UnrealBuildTool
 			if(ProjectFile != null && !ProjectFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
 			{
 				Mappings.Add(new RemoteMapping(ProjectFile.Directory, GetRemotePath(ProjectFile.Directory)));
+			}
+			if (AdditionalPaths != null && ProjectFile != null)
+			{
+				foreach (DirectoryReference AdditionalPath in AdditionalPaths)
+				{
+					if (!AdditionalPath.IsUnderDirectory(UnrealBuildTool.EngineDirectory) &&
+						!AdditionalPath.IsUnderDirectory(ProjectFile.Directory))
+					{
+						Mappings.Add(new RemoteMapping(AdditionalPath, GetRemotePath(AdditionalPath)));
+					}
+				}
 			}
 		}
 
@@ -899,15 +924,33 @@ namespace UnrealBuildTool
 			{
 				List<FileReference> ProjectFilters = new List<FileReference>();
 
-				FileReference CustomProjectFilter = FileReference.Combine(ProjectDir, "Build", "Rsync", "RsyncProject.txt");
-				if(FileReference.Exists(CustomProjectFilter))
+				FileReference CustomFilter = FileReference.Combine(ProjectDir, "Build", "Rsync", "RsyncProject.txt");
+				if (FileReference.Exists(CustomFilter))
 				{
-					ProjectFilters.Add(CustomProjectFilter);
+					ProjectFilters.Add(CustomFilter);
 				}
 				ProjectFilters.Add(FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "Rsync", "RsyncProject.txt"));
 
 				Log.TraceInformation("[Remote] Uploading project files...");
 				UploadDirectory(ProjectDir, GetRemotePath(ProjectDir), ProjectFilters);
+			}
+
+			if (AdditionalPaths != null)
+			{
+				foreach (DirectoryReference AdditionalPath in AdditionalPaths)
+				{
+					List<FileReference> CustomFilters = new List<FileReference>();
+
+					FileReference CustomFilter = FileReference.Combine(AdditionalPath, "Build", "Rsync", "RsyncProject.txt");
+					if (FileReference.Exists(CustomFilter))
+					{
+						CustomFilters.Add(CustomFilter);
+					}
+					CustomFilters.Add(FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "Rsync", "RsyncProject.txt"));
+
+					Log.TraceInformation(string.Format("[Remote] Uploading additional path files [{0}]...", AdditionalPath.FullName));
+					UploadDirectory(AdditionalPath, GetRemotePath(AdditionalPath), CustomFilters);
+				}
 			}
 
 			Execute("/", String.Format("rm -rf {0}/Intermediate/IOS/*.plist", GetRemotePath(UnrealBuildTool.EngineDirectory)));

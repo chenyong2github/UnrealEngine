@@ -1872,14 +1872,26 @@ namespace UnrealBuildTool
 			if(!Rules.bDisableLinking)
 			{
 				// Check the distribution level of all binaries based on the dependencies they have
-				if(ProjectFile == null && !Rules.bLegalToDistributeBinary)
+				if (ProjectFile == null && !Rules.bLegalToDistributeBinary)
 				{
+					List<DirectoryReference> RootDirectories = new List<DirectoryReference>();
+					RootDirectories.Add(UnrealBuildTool.EngineDirectory);
+					if (ProjectFile != null)
+					{
+						DirectoryReference ProjectDir = DirectoryReference.FromFile(ProjectFile);
+						RootDirectories.Add(ProjectDir);
+						if (ProjectDescriptor != null)
+						{
+							ProjectDescriptor.AddAdditionalPaths(RootDirectories, ProjectDir);
+						}
+					}
+
 					Dictionary<UEBuildModule, Dictionary<RestrictedFolder, DirectoryReference>> ModuleRestrictedFolderCache = new Dictionary<UEBuildModule, Dictionary<RestrictedFolder, DirectoryReference>>();
 
 					bool bResult = true;
 					foreach (UEBuildBinary Binary in Binaries)
 					{
-						bResult &= Binary.CheckRestrictedFolders(DirectoryReference.FromFile(ProjectFile), ModuleRestrictedFolderCache);
+						bResult &= Binary.CheckRestrictedFolders(RootDirectories, ModuleRestrictedFolderCache);
 					}
 					foreach(KeyValuePair<FileReference, FileReference> Pair in RuntimeDependencyTargetFileToSourceFile)
 					{

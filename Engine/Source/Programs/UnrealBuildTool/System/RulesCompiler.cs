@@ -460,7 +460,6 @@ namespace UnrealBuildTool
 					AddEngineModuleRulesWithContext(SourceDirectory, "Editor", DefaultModuleContext, UHTModuleType.EngineEditor, ModuleFileToContext);
 					AddEngineModuleRulesWithContext(SourceDirectory, "ThirdParty", DefaultModuleContext, UHTModuleType.EngineThirdParty, ModuleFileToContext);
 				}
-
 			}
 			// Add all the plugin modules too (don't need to loop over RootDirectories since the plugins come in already found
 			using (Timeline.ScopeEvent("Finding plugin modules"))
@@ -546,6 +545,18 @@ namespace UnrealBuildTool
 				// gather modules from project and platforms
 				Dictionary<FileReference, ModuleRulesContext> ModuleFiles = new Dictionary<FileReference, ModuleRulesContext>();
 				List<FileReference> TargetFiles = new List<FileReference>();
+
+				if (Project.AdditionalRootDirectories != null)
+				{
+					foreach (string AdditionalRootDirectory in Project.AdditionalRootDirectories)
+					{
+						DirectoryReference AdditionalModuleRootDirectory = DirectoryReference.Combine(MainProjectDirectory, AdditionalRootDirectory);
+						if (DirectoryReference.Exists(AdditionalModuleRootDirectory))
+						{
+							AddModuleRulesWithContext(AdditionalModuleRootDirectory, DefaultModuleContext, ModuleFiles);
+						}
+					}
+				}
 
 				// Find all the rules/plugins under the project source directories
 				foreach (DirectoryReference ProjectDirectory in UnrealBuildTool.GetAllProjectDirectories(ProjectFileName))
