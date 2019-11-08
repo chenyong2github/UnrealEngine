@@ -109,17 +109,26 @@ void FMeshMergeHelpers::ExtractSections(const USkeletalMeshComponent* Component,
 
 	TArray<FName> MaterialSlotNames = Component->GetMaterialSlotNames();
 
+	const FSkeletalMeshLODInfo* LODInfoPtr = Component->SkeletalMesh->GetLODInfo(LODIndex);
+	check(LODInfoPtr);
 	const FSkeletalMeshLODModel& Model = Resource->LODModels[LODIndex];
-	for (const FSkelMeshSection& MeshSection : Model.Sections)
+	for (int32 SectionIndex = 0; SectionIndex < Model.Sections.Num(); ++SectionIndex)
 	{
+		const FSkelMeshSection& MeshSection = Model.Sections[SectionIndex];
 		// Retrieve material for this section
-		UMaterialInterface* StoredMaterial = Component->GetMaterial(MeshSection.MaterialIndex);
+		int32 MaterialIndex = MeshSection.MaterialIndex;
+		if (LODInfoPtr->LODMaterialMap.IsValidIndex(SectionIndex) && LODInfoPtr->LODMaterialMap[SectionIndex] != INDEX_NONE)
+		{
+			MaterialIndex = LODInfoPtr->LODMaterialMap[SectionIndex];
+		}
+		
+		UMaterialInterface* StoredMaterial = Component->GetMaterial(MaterialIndex);
 		// Make sure the resource actual exists, otherwise use default material
 		StoredMaterial = (StoredMaterial != nullptr) && StoredMaterial->GetMaterialResource(GMaxRHIFeatureLevel) ? StoredMaterial : DefaultMaterial;
 
 		FSectionInfo SectionInfo;
 		SectionInfo.Material = StoredMaterial;
-		SectionInfo.MaterialSlotName = MaterialSlotNames.IsValidIndex(MeshSection.MaterialIndex) ? MaterialSlotNames[MeshSection.MaterialIndex] : NAME_None;
+		SectionInfo.MaterialSlotName = MaterialSlotNames.IsValidIndex(MaterialIndex) ? MaterialSlotNames[MaterialIndex] : NAME_None;
 
 		if (MeshSection.bCastShadow && Component->CastShadow)
 		{
@@ -309,16 +318,15 @@ void FMeshMergeHelpers::RetrieveMesh(USkeletalMeshComponent* SkeletalMeshCompone
 			const int32 NumWedges = SkelMeshSection.NumTriangles * 3;
 
 			//Create the polygon group ID
-			int32 SectionMaterialIndex = SkelMeshSection.MaterialIndex;
-			int32 MaterialIndex = SectionMaterialIndex;
-			// use the remapping of material indices for all LODs besides the base LOD 
-			if (LODIndex > 0 && SrcLODInfo.LODMaterialMap.IsValidIndex(SkelMeshSection.MaterialIndex))
+			int32 MaterialIndex = SkelMeshSection.MaterialIndex;
+			// use the remapping of material indices if there is a valid value
+			if (SrcLODInfo.LODMaterialMap.IsValidIndex(SectionIndex) && SrcLODInfo.LODMaterialMap[SectionIndex] != INDEX_NONE)
 			{
-				MaterialIndex = FMath::Clamp<int32>(SrcLODInfo.LODMaterialMap[SkelMeshSection.MaterialIndex], 0, SkeletalMeshComponent->SkeletalMesh->Materials.Num());
+				MaterialIndex = FMath::Clamp<int32>(SrcLODInfo.LODMaterialMap[SectionIndex], 0, SkeletalMeshComponent->SkeletalMesh->Materials.Num());
 			}
 
 			FName ImportedMaterialSlotName = SkeletalMeshComponent->SkeletalMesh->Materials[MaterialIndex].ImportedMaterialSlotName;
-			const FPolygonGroupID SectionPolygonGroupID(SectionMaterialIndex);
+			const FPolygonGroupID SectionPolygonGroupID(SectionIndex);
 			if (!RawMesh.IsPolygonGroupValid(SectionPolygonGroupID))
 			{
 				RawMesh.CreatePolygonGroupWithID(SectionPolygonGroupID);
@@ -1346,6 +1354,15 @@ void FMeshMergeHelpers::MergeImpostersToRawMesh(TArray<const UStaticMeshComponen
 				UVTwo.X = ActorPosition.Z;
 				UVTwo.Y = FMath::Abs(ActorToWorld.GetScale3D().X);
 				VertexInstanceUVs.Set(VertexInstanceID, UVTwoIndex, UVTwo);
+			}
+		}
+		else if (!InPivot.IsZero())
+		{
+			// Apply pivot offset if non null
+			TVertexAttributesRef<FVector> ImposterMeshVertexPositions = ImposterMesh.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+			for (FVertexID VertexID : ImposterMesh.Vertices().GetElementIDs())
+			{
+				ImposterMeshVertexPositions[VertexID] -= InPivot;
 			}
 		}
 

@@ -417,6 +417,7 @@ void FMeshMergeUtilities::BakeMaterialsForComponent(TArray<TWeakObjectPtr<UObjec
 			int32 SetIndex = Adapter->GetMaterialIndex(LODIndex, Pair.Key);
 			if (!NonReplaceMaterialIndices.Contains(SetIndex))
 			{
+				//TODO (Bug), need to pass the material data MaterialSlotName and ImportedMaterialSlotName. We loose all this data when baking material on skeletalmesh
 				Adapter->SetMaterial(SetIndex, NewMaterials[Pair.Value]);
 			}
 			else
