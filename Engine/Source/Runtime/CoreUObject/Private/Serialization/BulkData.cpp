@@ -1333,7 +1333,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 							FIoChunkId InvalidChunkId = FIoChunkId::InvalidChunkId;
 							Ar << InvalidChunkId;
 
-							check((SavedDupeBulkDataFlagsPos& BULKDATA_CookedForIoDispatcher) != 0); // Validate that the BULKDATA_CookedForIoDispatcher flag was already set
+							check((SavedDupeBulkDataFlags& BULKDATA_CookedForIoDispatcher) != 0); // Validate that the BULKDATA_CookedForIoDispatcher flag was already set
 						}
 					}
 
