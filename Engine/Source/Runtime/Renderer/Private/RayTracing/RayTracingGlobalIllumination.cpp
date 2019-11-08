@@ -159,7 +159,7 @@ void SetupLightParameters(
 	FVector SkyLightColor = FVector(0.0f, 0.0f, 0.0f);
 	if (SkyLight && SkyLight->bAffectGlobalIllumination)
 	{
-		SkyLightColor = FVector(1.0f);
+		SkyLightColor = FVector(SkyLight->GetEffectiveLightColor());
 	}
 
 	// Prepend SkyLight to light buffer
