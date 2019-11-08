@@ -742,7 +742,7 @@ namespace UnrealBuildTool
 			
 			// @todo: look also in Project/Build/Frameworks directory!
 			ProjectDescriptor Project = ProjectDescriptor.FromFile(UProjectPath);
-			List<PluginInfo> AvailablePlugins = Plugins.ReadAvailablePlugins(UnrealBuildTool.EngineDirectory, UProjectPath, Project.AdditionalPluginDirectories);
+			List<PluginInfo> AvailablePlugins = Plugins.ReadAvailablePlugins(UnrealBuildTool.EngineDirectory, DirectoryReference.FromFile(UProjectPath), Project.AdditionalPluginDirectories);
 
 			// look in each plugin for frameworks
 			// @todo: Cache this kind of things since every target will re-do this work!

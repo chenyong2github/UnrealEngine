@@ -546,20 +546,15 @@ namespace UnrealBuildTool
 				Dictionary<FileReference, ModuleRulesContext> ModuleFiles = new Dictionary<FileReference, ModuleRulesContext>();
 				List<FileReference> TargetFiles = new List<FileReference>();
 
+				// Find all the project directories
+				List<DirectoryReference> ProjectDirectories = new List<DirectoryReference>(UnrealBuildTool.GetAllProjectDirectories(ProjectFileName));
 				if (Project.AdditionalRootDirectories != null)
 				{
-					foreach (string AdditionalRootDirectory in Project.AdditionalRootDirectories)
-					{
-						DirectoryReference AdditionalModuleRootDirectory = DirectoryReference.Combine(MainProjectDirectory, AdditionalRootDirectory);
-						if (DirectoryReference.Exists(AdditionalModuleRootDirectory))
-						{
-							AddModuleRulesWithContext(AdditionalModuleRootDirectory, DefaultModuleContext, ModuleFiles);
-						}
-					}
+					ProjectDirectories.AddRange(Project.AdditionalRootDirectories);
 				}
 
 				// Find all the rules/plugins under the project source directories
-				foreach (DirectoryReference ProjectDirectory in UnrealBuildTool.GetAllProjectDirectories(ProjectFileName))
+				foreach (DirectoryReference ProjectDirectory in ProjectDirectories)
 				{
 					DirectoryReference ProjectSourceDirectory = DirectoryReference.Combine(ProjectDirectory, "Source");
 
@@ -574,12 +569,11 @@ namespace UnrealBuildTool
 				// Add the project's additional plugin directories plugins too
 				if (Project.AdditionalPluginDirectories != null)
 				{
-					foreach (string AdditionalPluginDirectory in Project.AdditionalPluginDirectories)
+					foreach (DirectoryReference AdditionalPluginDirectory in Project.AdditionalPluginDirectories)
 					{
-						ProjectPlugins.AddRange(Plugins.ReadAdditionalPlugins(MainProjectDirectory, AdditionalPluginDirectory));
+						ProjectPlugins.AddRange(Plugins.ReadAdditionalPlugins(AdditionalPluginDirectory));
 					}
 				}
-
 
 				// Find all the plugin module rules
 				FindModuleRulesForPlugins(ProjectPlugins, DefaultModuleContext, ModuleFiles);

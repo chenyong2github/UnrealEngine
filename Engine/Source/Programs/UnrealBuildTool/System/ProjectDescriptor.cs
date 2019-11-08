@@ -83,12 +83,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Array of additional root directories
 		/// </summary>
-		public string[] AdditionalRootDirectories;
+		public List<DirectoryReference> AdditionalRootDirectories = new List<DirectoryReference>();
 
 		/// <summary>
 		/// List of additional plugin directories to scan for available plugins
 		/// </summary>
-		public string[] AdditionalPluginDirectories;
+		public List<DirectoryReference> AdditionalPluginDirectories = new List<DirectoryReference>();
 
 		/// <summary>
 		/// Array of platforms that this project is targeting
@@ -128,7 +128,8 @@ namespace UnrealBuildTool
 		/// Constructor
 		/// </summary>
 		/// <param name="RawObject">Raw JSON object to parse</param>
-		public ProjectDescriptor(JsonObject RawObject)
+		/// <param name="BaseDir">Base directory for resolving relative paths</param>
+		public ProjectDescriptor(JsonObject RawObject, DirectoryReference BaseDir)
 		{
 			// Read the version
 			if (!RawObject.TryGetIntegerField("FileVersion", out FileVersion))
@@ -166,10 +167,18 @@ namespace UnrealBuildTool
 			}
 
 			// Read the additional root directories
-			RawObject.TryGetStringArrayField("AdditionalRootDirectories", out AdditionalRootDirectories);
+			string[] RootDirectoryStrings;
+			if (RawObject.TryGetStringArrayField("AdditionalRootDirectories", out RootDirectoryStrings))
+			{
+				AdditionalRootDirectories.AddRange(RootDirectoryStrings.Select(x => DirectoryReference.Combine(BaseDir, x)));
+			}
 
 			// Read the additional plugin directories
-			RawObject.TryGetStringArrayField("AdditionalPluginDirectories", out AdditionalPluginDirectories);
+			string[] PluginDirectoryStrings;
+			if (RawObject.TryGetStringArrayField("AdditionalPluginDirectories", out PluginDirectoryStrings))
+			{
+				AdditionalPluginDirectories.AddRange(PluginDirectoryStrings.Select(x => DirectoryReference.Combine(BaseDir, x)));
+			}
 
 			// Read the target platforms
 			RawObject.TryGetStringArrayField("TargetPlatforms", out TargetPlatforms);
@@ -192,7 +201,7 @@ namespace UnrealBuildTool
 			JsonObject RawObject = JsonObject.Read(FileName);
 			try
 			{
-				ProjectDescriptor Descriptor = new ProjectDescriptor(RawObject);
+				ProjectDescriptor Descriptor = new ProjectDescriptor(RawObject, FileName.Directory);
 				if(Descriptor.Modules != null)
 				{
 					foreach (ModuleDescriptor Module in Descriptor.Modules)
@@ -217,26 +226,20 @@ namespace UnrealBuildTool
 		/// <param name="ProjectDir">The directory which is used to setup the additional paths</param>
 		public void AddAdditionalPaths(List<DirectoryReference> RootDirectories, DirectoryReference ProjectDir)
 		{
-			if (AdditionalPluginDirectories != null)
-			{
-				RootDirectories.AddRange(AdditionalPluginDirectories.Select(x => DirectoryReference.Combine(ProjectDir, x)));
-			}
-			if (AdditionalRootDirectories != null)
-			{
-				RootDirectories.AddRange(AdditionalRootDirectories.Select(x => DirectoryReference.Combine(ProjectDir, x)));
-			}
+			RootDirectories.AddRange(AdditionalRootDirectories);
+			RootDirectories.AddRange(AdditionalPluginDirectories);
 		}
 
 		/// <summary>
 		/// Saves the descriptor to disk
 		/// </summary>
 		/// <param name="FileName">The filename to write to</param>
-		public void Save(string FileName)
+		public void Save(FileReference FileName)
 		{
 			using (JsonWriter Writer = new JsonWriter(FileName))
 			{
 				Writer.WriteObjectStart();
-				Write(Writer);
+				Write(Writer, FileName.Directory);
 				Writer.WriteObjectEnd();
 			}
 		}
@@ -245,7 +248,8 @@ namespace UnrealBuildTool
 		/// Writes the plugin descriptor to an existing Json writer
 		/// </summary>
 		/// <param name="Writer">The writer to receive plugin data</param>
-		public void Write(JsonWriter Writer)
+		/// <param name="BaseDir">Base directory to save paths relative to</param>
+		public void Write(JsonWriter Writer, DirectoryReference BaseDir)
 		{
 			Writer.WriteValue("FileVersion", (int)ProjectDescriptorVersion.Latest);
 			Writer.WriteValue("EngineAssociation", EngineAssociation);
@@ -265,15 +269,15 @@ namespace UnrealBuildTool
 			PluginReferenceDescriptor.WriteArray(Writer, "Plugins", Plugins);
 
 			// Write the custom module roots
-			if(AdditionalRootDirectories != null && AdditionalRootDirectories.Length > 0)
+			if(AdditionalRootDirectories.Count > 0)
 			{
-				Writer.WriteStringArrayField("AdditionalRootDirectories", AdditionalRootDirectories);
+				Writer.WriteStringArrayField("AdditionalRootDirectories", AdditionalRootDirectories.Select(x => x.MakeRelativeTo(BaseDir).Replace(Path.DirectorySeparatorChar, '/')));
 			}
 
 			// Write out the additional plugin directories to scan
-			if(AdditionalPluginDirectories != null && AdditionalPluginDirectories.Length > 0)
+			if(AdditionalPluginDirectories.Count > 0)
 			{
-				Writer.WriteStringArrayField("AdditionalPluginDirectories", AdditionalPluginDirectories);
+				Writer.WriteStringArrayField("AdditionalPluginDirectories", AdditionalPluginDirectories.Select(x => x.MakeRelativeTo(BaseDir).Replace(Path.DirectorySeparatorChar, '/')));
 			}
 
 			// Write the target platforms
