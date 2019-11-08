@@ -114,18 +114,36 @@ int32 UGatherTextFromMetaDataCommandlet::Main( const FString& Params )
 			TArray<FString> FieldTypeStrs;
 			GetStringArrayFromConfig(*SectionName, InConfigKey, FieldTypeStrs, GatherTextConfigPath);
 
+			TArray<const UClass*> AllFieldTypes;
+			AllFieldTypes.Add(UField::StaticClass());
+			GetDerivedClasses(UField::StaticClass(), (TArray<UClass*>&)AllFieldTypes);
+
 			for (const FString& FieldTypeStr : FieldTypeStrs)
 			{
-				const UClass* FieldType = FindObject<UClass>(ANY_PACKAGE, *FieldTypeStr);
-				if (!FieldType)
+				const bool bIsWildcard = FieldTypeStr.GetCharArray().Contains(TEXT('*')) || FieldTypeStr.GetCharArray().Contains(TEXT('?'));
+				if (bIsWildcard)
 				{
-					UE_LOG(LogGatherTextFromMetaDataCommandlet, Warning, TEXT("Field Type %s was not found (from %s in section %s). Did you forget a ModulesToPreload entry?"), *FieldTypeStr, InConfigKey, *SectionName);
-					continue;
+					for (const UClass* FieldType : AllFieldTypes)
+					{
+						if (FieldType->GetName().MatchesWildcard(FieldTypeStr))
+						{
+							OutFieldTypes.Add(FieldType);
+						}
+					}
 				}
+				else
+				{
+					const UClass* FieldType = FindObject<UClass>(ANY_PACKAGE, *FieldTypeStr);
+					if (!FieldType)
+					{
+						UE_LOG(LogGatherTextFromMetaDataCommandlet, Warning, TEXT("Field Type %s was not found (from %s in section %s). Did you forget a ModulesToPreload entry?"), *FieldTypeStr, InConfigKey, *SectionName);
+						continue;
+					}
 
-				check(FieldType->IsChildOf<UField>());
-				OutFieldTypes.Add(FieldType);
-				GetDerivedClasses(FieldType, (TArray<UClass*>&)OutFieldTypes);
+					check(FieldType->IsChildOf<UField>());
+					OutFieldTypes.Add(FieldType);
+					GetDerivedClasses(FieldType, (TArray<UClass*>&)OutFieldTypes);
+				}
 			}
 		};
 
@@ -140,19 +158,37 @@ int32 UGatherTextFromMetaDataCommandlet::Main( const FString& Params )
 			TArray<FString> FieldOwnerTypeStrs;
 			GetStringArrayFromConfig(*SectionName, InConfigKey, FieldOwnerTypeStrs, GatherTextConfigPath);
 
+			TArray<const UStruct*> AllFieldOwnerTypes;
+			GetObjectsOfClass(UClass::StaticClass(), (TArray<UObject*>&)AllFieldOwnerTypes, false);
+			GetObjectsOfClass(UScriptStruct::StaticClass(), (TArray<UObject*>&)AllFieldOwnerTypes, false);
+
 			for (const FString& FieldOwnerTypeStr : FieldOwnerTypeStrs)
 			{
-				const UStruct* FieldOwnerType = FindObject<UStruct>(ANY_PACKAGE, *FieldOwnerTypeStr);
-				if (!FieldOwnerType)
+				const bool bIsWildcard = FieldOwnerTypeStr.GetCharArray().Contains(TEXT('*')) || FieldOwnerTypeStr.GetCharArray().Contains(TEXT('?'));
+				if (bIsWildcard)
 				{
-					UE_LOG(LogGatherTextFromMetaDataCommandlet, Warning, TEXT("Field Owner Type %s was not found (from %s in section %s). Did you forget a ModulesToPreload entry?"), *FieldOwnerTypeStr, InConfigKey, *SectionName);
-					continue;
+					for (const UStruct* FieldOwnerType : AllFieldOwnerTypes)
+					{
+						if (FieldOwnerType->GetName().MatchesWildcard(FieldOwnerTypeStr))
+						{
+							OutFieldOwnerTypes.Add(FieldOwnerType);
+						}
+					}
 				}
-
-				OutFieldOwnerTypes.Add(FieldOwnerType);
-				if (const UClass* FieldOwnerClass = Cast<UClass>(FieldOwnerType))
+				else
 				{
-					GetDerivedClasses(FieldOwnerClass, (TArray<UClass*>&)OutFieldOwnerTypes);
+					const UStruct* FieldOwnerType = FindObject<UStruct>(ANY_PACKAGE, *FieldOwnerTypeStr);
+					if (!FieldOwnerType)
+					{
+						UE_LOG(LogGatherTextFromMetaDataCommandlet, Warning, TEXT("Field Owner Type %s was not found (from %s in section %s). Did you forget a ModulesToPreload entry?"), *FieldOwnerTypeStr, InConfigKey, *SectionName);
+						continue;
+					}
+
+					OutFieldOwnerTypes.Add(FieldOwnerType);
+					if (const UClass* FieldOwnerClass = Cast<UClass>(FieldOwnerType))
+					{
+						GetDerivedClasses(FieldOwnerClass, (TArray<UClass*>&)OutFieldOwnerTypes);
+					}
 				}
 			}
 		};
@@ -248,11 +284,12 @@ void UGatherTextFromMetaDataCommandlet::GatherTextFromUObject(UField* const Fiel
 				{
 					PatternArguments.Add( TEXT("MetaDataValue"), FText::FromString(MetaDataValue) );
 
+					const UStruct* FieldOwnerType = Field->GetOwnerStruct();
 					const FString Namespace = Arguments.OutputNamespaces[i];
 					FLocItem LocItem(MetaDataValue);
 					FManifestContext Context;
 					Context.Key = FText::Format(Arguments.OutputKeys[i], PatternArguments).ToString();
-					Context.SourceLocation = FString::Printf(TEXT("From metadata for key %s of member %s in %s"), *Arguments.InputKeys[i], *Field->GetName(), *Field->GetFullGroupName(true));
+					Context.SourceLocation = FString::Printf(TEXT("From metadata for key %s of member %s in %s (type: %s, owner: %s)"), *Arguments.InputKeys[i], *Field->GetName(), *Field->GetFullGroupName(true), *Field->GetClass()->GetName(), FieldOwnerType ? *FieldOwnerType->GetName() : TEXT("<null>"));
 					Context.PlatformName = InPlatformName;
 					GatherManifestHelper->AddSourceText(Namespace, LocItem, Context);
 				}
