@@ -1087,7 +1087,6 @@ void UObjectBaseInit()
 		bool bIsCookOnTheFly = FParse::Value(FCommandLine::Get(), TEXT("-filehostip="), Value);
 		if (bIsCookOnTheFly)
 		{
-			extern int32 GCreateGCClusters;
 			GCreateGCClusters = false;
 		}
 		else

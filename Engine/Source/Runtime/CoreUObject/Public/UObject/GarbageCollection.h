@@ -451,7 +451,7 @@ public:
 	~FGCScopeGuard();
 };
 
-template <bool bParallel> class FGCReferenceProcessor;
+template <bool bParallel, bool bWithClusters> class FGCReferenceProcessor;
 
 /** Struct to hold the objects to serialize array and the list of weak references. This is allocated by ArrayPool */
 struct FGCArrayStruct
@@ -463,16 +463,16 @@ struct FGCArrayStruct
 /**
 * Specialized FReferenceCollector that uses FGCReferenceProcessor to mark objects as reachable.
 */
-template <bool bParallel>
+template <bool bParallel, bool bWithClusters>
 class FGCCollector : public FReferenceCollector
 {
-	FGCReferenceProcessor<bParallel>& ReferenceProcessor;
+	FGCReferenceProcessor<bParallel, bWithClusters>& ReferenceProcessor;
 	FGCArrayStruct& ObjectArrayStruct;
 	bool bAllowEliminatingReferences;
 
 public:
 
-	FGCCollector(FGCReferenceProcessor<bParallel>& InProcessor, FGCArrayStruct& InObjectArrayStruct);
+	FGCCollector(FGCReferenceProcessor<bParallel, bWithClusters>& InProcessor, FGCArrayStruct& InObjectArrayStruct);
 
 	virtual void HandleObjectReference(UObject*& InObject, const UObject* InReferencingObject, const UProperty* InReferencingProperty) override;
 
@@ -510,6 +510,6 @@ class FGarbageCollectionTracer
 public:
 	virtual ~FGarbageCollectionTracer() {}
 
-	virtual void PerformReachabilityAnalysisOnObjects(FGCArrayStruct* ArrayStruct, bool bForceSingleThreaded) = 0;
+	virtual void PerformReachabilityAnalysisOnObjects(FGCArrayStruct* ArrayStruct, bool bForceSingleThreaded, bool bWithClusters) = 0;
 
 };

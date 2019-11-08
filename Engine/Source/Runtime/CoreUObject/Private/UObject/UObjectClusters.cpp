@@ -29,6 +29,14 @@ static FAutoConsoleVariableRef CCreateGCClusters(
 	ECVF_Default
 	);
 
+int32 GAssetClustreringEnabled = 1;
+static FAutoConsoleVariableRef CVarAssetClustreringEnabled(
+	TEXT("gc.AssetClustreringEnabled"),
+	GAssetClustreringEnabled,
+	TEXT("If true, the engine will attempt to create clusters from asset files."),
+	ECVF_Default
+);
+
 int32 GMinGCClusterSize = 5;
 static FAutoConsoleVariableRef CMinGCClusterSize(
 	TEXT("gc.MinGCClusterSize"),
@@ -713,7 +721,7 @@ public:
 /** Looks through objects loaded with a package and creates clusters from them */
 void CreateClustersFromPackage(FLinkerLoad* PackageLinker, TArray<UObject*>& OutClusterObjects)
 {	
-	if (FPlatformProperties::RequiresCookedData() && !GIsInitialLoad && GCreateGCClusters && !GUObjectArray.IsOpenForDisregardForGC() && GUObjectArray.DisregardForGCEnabled() )
+	if (FPlatformProperties::RequiresCookedData() && !GIsInitialLoad && GCreateGCClusters && GAssetClustreringEnabled && !GUObjectArray.IsOpenForDisregardForGC() && GUObjectArray.DisregardForGCEnabled() )
 	{
 		check(PackageLinker);
 
@@ -784,6 +792,8 @@ bool UObjectBaseUtility::CanBeInCluster() const
 
 void UObjectBaseUtility::CreateCluster()
 {
+	check(GCreateGCClusters);
+
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UObjectBaseUtility::CreateCluster"), STAT_FArchiveRealtimeGC_CreateCluster, STATGROUP_GC);
 
 	FUObjectItem* RootItem = GUObjectArray.IndexToObject(InternalIndex);
