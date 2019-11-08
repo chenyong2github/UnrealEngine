@@ -14,9 +14,6 @@ extern const FName PrestreamPackageClassNameLoad;
 /** Returns true if we're inside a FGCScopeLock */
 extern bool IsGarbageCollectionLocked();
 
-/** Returns true if GC wants to run */
-extern bool IsGarbageCollectionWaiting();
-
 bool IsFullyLoadedObj(UObject* Obj);
 
 bool IsNativeCodePackage(UPackage* Package);

@@ -179,8 +179,8 @@ public:
 	}
 
 	/** True if GC wants to run on the game thread but is maybe blocked by some other thread */
-	bool IsGCWaiting() const
+	FORCEINLINE bool IsGCWaiting() const
 	{
-		return GCWantsToRunCounter.GetValue() > 0;
+		return !!GCWantsToRunCounter.GetValue();
 	}
 };

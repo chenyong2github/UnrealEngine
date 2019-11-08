@@ -141,11 +141,6 @@ bool IsGarbageCollectionLocked()
 	return FGCCSyncObject::Get().IsAsyncLocked();
 }
 
-bool IsGarbageCollectionWaiting()
-{
-	return FGCCSyncObject::Get().IsGCWaiting();
-}
-
 // Minimum number of objects to spawn a GC sub-task for
 static int32 GMinDesiredObjectsPerSubTask = 128;
 static FAutoConsoleVariableRef CVarMinDesiredObjectsPerSubTask(

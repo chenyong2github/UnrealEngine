@@ -36,7 +36,7 @@
 #include "Blueprint/BlueprintSupport.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "ProfilingDebugging/CsvProfiler.h"
-#include "UObject/GCScopeLock.h"
+#include "UObject/GarbageCollectionInternal.h"
 #include "ProfilingDebugging/MiscTrace.h"
 #include "Serialization/LoadTimeTracePrivate.h"
 #include "ProfilingDebugging/CountersTrace.h"

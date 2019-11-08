@@ -41,7 +41,7 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/LowLevelMemStats.h"
 #include "ProfilingDebugging/CsvProfiler.h"
-#include "UObject/GCScopeLock.h"
+#include "UObject/GarbageCollectionInternal.h"
 #include "ProfilingDebugging/MiscTrace.h"
 #include "Serialization/LoadTimeTracePrivate.h"
 
@@ -105,9 +105,6 @@ static FName StaticGetNativeClassName(UClass* InClass)
 
 /** Returns true if we're inside a FGCScopeLock */
 bool IsGarbageCollectionLocked();
-
-/** Returns true if GC wants to run */
-bool IsGarbageCollectionWaiting();
 
 /** Global request ID counter */
 static FThreadSafeCounter GPackageRequestID;
