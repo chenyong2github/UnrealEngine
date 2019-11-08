@@ -8699,7 +8699,7 @@ void FBlueprintEditor::RestoreEditedObjectState()
 							if (OuterObject->IsA<UBlueprint>())
 							{
 								// reached up to the blueprint for the graph, we are done climbing the tree
-								OpenCause = FDocumentTracker::OpenNewDocument;
+								OpenCause = FDocumentTracker::RestorePreviousDocument;
 								break;
 							}
 							else if(UEdGraph* OuterGraph = Cast<UEdGraph>(OuterObject))
