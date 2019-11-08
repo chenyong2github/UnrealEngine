@@ -147,7 +147,7 @@ struct FMaxPackageSummarySize
 /**
  * Async loading thread. Preloads/serializes packages on async loading thread. Postloads objects on the game thread.
  */
-class FAsyncLoadingThread : public FRunnable, public IAsyncPackageLoader
+class FAsyncLoadingThread final : public FRunnable, public IAsyncPackageLoader
 {
 	/** Structure that holds the async loading thread ini settings */
 	struct FAsyncLoadingThreadSettings
@@ -388,10 +388,14 @@ public:
 	}
 
 	/** Returns true if async loading is suspended */
-	FORCEINLINE bool IsAsyncLoadingSuspended() override
+	FORCEINLINE bool IsAsyncLoadingSuspendedInternal() const
 	{
-		FPlatformMisc::MemoryBarrier();
-		return IsLoadingSuspended.GetValue() != 0;
+		return !!IsLoadingSuspended.GetValue();
+	}
+
+	virtual bool IsAsyncLoadingSuspended() override
+	{
+		return IsAsyncLoadingSuspendedInternal();
 	}
 
 	FORCEINLINE int32 GetAsyncLoadingSuspendedCount()
@@ -403,7 +407,6 @@ public:
 	/** Returns the number of async packages that are currently being processed */
 	FORCEINLINE int32 GetNumAsyncPackages() override
 	{
-		FPlatformMisc::MemoryBarrier();
 		return ExistingAsyncPackagesCounter.GetValue();
 	}
 
