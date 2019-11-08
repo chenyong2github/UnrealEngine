@@ -365,7 +365,7 @@ void UBlueprintGeneratedClass::SerializeDefaultObject(UObject* Object, FStructur
 	{
 		if (Object->GetSparseClassDataStruct())
 		{
-			SerializeSparseClassData(Object, FStructuredArchiveFromArchive(UnderlyingArchive).GetSlot());
+			SerializeSparseClassData(FStructuredArchiveFromArchive(UnderlyingArchive).GetSlot());
 		}
 	}
 }
