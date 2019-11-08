@@ -2,7 +2,6 @@
 #pragma once
 
 #include "Chaos/ConstraintHandle.h"
-#include "Chaos/CollisionResolutionManifold.h"
 #include "Chaos/PBDCollisionTypes.h"
 #include "Chaos/PBDConstraintContainer.h"
 #include "Framework/BufferedData.h"

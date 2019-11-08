@@ -1,7 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/CollisionResolutionManifold.h"
 #include "Chaos/Convex.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDCollisionTypes.h"
