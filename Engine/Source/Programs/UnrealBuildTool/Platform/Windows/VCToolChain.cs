@@ -141,9 +141,6 @@ namespace UnrealBuildTool
 
 		void AppendCLArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
-			// NOTE: Uncommenting this line will print includes as they are encountered by the preprocessor.  This can help with diagnosing include order problems.
-			//Arguments.Add("/showIncludes");
-
 			// Suppress generation of object code for unreferenced inline functions. Enabling this option is more standards compliant, and causes a big reduction
 			// in object file sizes (and link times) due to the amount of stuff we inline.
 			Arguments.Add("/Zc:inline");
@@ -1208,6 +1205,11 @@ namespace UnrealBuildTool
 				Action ParseTimingInfoAction = GenerateParseTimingInfoAction(SourceFile, CompileAction, Result);
 				Actions.Add(ParseTimingInfoAction);
 				CommandArguments.Add(string.Format("-timing={0}", Utils.MakePathSafeToUseWithCommandLine(CompileAction.TimingFile.Location)));
+			}
+
+			if (Target.WindowsPlatform.bShowIncludes)
+			{
+				CommandArguments.Add("-showincludes");
 			}
 
 			CommandArguments.Add(String.Format("-compiler={0}", Utils.MakePathSafeToUseWithCommandLine(CompileAction.CommandPath)));
