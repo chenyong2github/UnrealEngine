@@ -19,7 +19,7 @@ struct DISPLAYCLUSTER_API FDisplayClusterConfigBase : public IDisplayClusterStri
 	{ return FString("[]"); }
 
 	// Currently no need to serialize the data
-	virtual FString SerializeToString() const override final
+	virtual FString SerializeToString() const override
 	{ return FString(); }
 
 	// Deserialization from config file
