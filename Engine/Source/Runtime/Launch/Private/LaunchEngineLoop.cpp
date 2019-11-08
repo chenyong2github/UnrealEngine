@@ -2128,6 +2128,23 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		InitializeStdOutDevice();
 	}
 
+	bool bIsCook = bHasCommandletToken && (Token == TEXT("cookcommandlet"));
+#if WITH_EDITOR
+	{
+		if (bIsCook)
+		{
+			// Target platform manager can only be initialized successfully after 
+			ITargetPlatformManagerModule* TargetPlatformManager = GetTargetPlatformManager(false);
+			FString InitErrors;
+			if (TargetPlatformManager && TargetPlatformManager->HasInitErrors(&InitErrors))
+			{
+				RequestEngineExit(InitErrors);
+				return 1;
+			}
+		}
+	}
+#endif
+
 	{
 		SCOPED_BOOT_TIMING("IPlatformFeaturesModule::Get()");
 		// allow the platform to start up any features it may need
@@ -2313,8 +2330,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	}
 
 
-	FString Commandline = FCommandLine::Get();
-	bool bEnableShaderCompile = !FParse::Param(*Commandline, TEXT("NoShaderCompile"));
+	bool bEnableShaderCompile = !FParse::Param(FCommandLine::Get(), TEXT("NoShaderCompile"));
 
 	if (bEnableShaderCompile && !FPlatformProperties::RequiresCookedData())
 	{
@@ -2349,8 +2365,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		// hack: don't load global shaders if we are cooking we will load the shaders for the correct platform later
 		if (bEnableShaderCompile &&
 			!IsRunningDedicatedServer() &&
-			Commandline.Contains(TEXT("cookcommandlet")) == false &&
-			Commandline.Contains(TEXT("run=cook")) == false)
+			!bIsCook)
 			// if (FParse::Param(FCommandLine::Get(), TEXT("Multiprocess")) == false)
 		{
 			LLM_SCOPE(ELLMTag::Shaders);
@@ -5095,7 +5110,7 @@ bool FEngineLoop::AppInit( )
 		// Find the editor target
 		FString EditorTargetFileName;
 		for (const FTargetInfo& Target : FDesktopPlatformModule::Get()->GetTargetsForProject(FPaths::GetProjectFilePath()))
-	{
+		{
 			if (Target.Type == EBuildTargetType::Editor)
 			{
 				// Read the editor target receipt
