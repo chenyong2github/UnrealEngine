@@ -1226,6 +1226,12 @@ namespace UnrealBuildTool
 			return false;
 		}
 
+		static string[] InstallDirRoots = {
+			"HKEY_CURRENT_USER\\SOFTWARE\\",
+			"HKEY_LOCAL_MACHINE\\SOFTWARE\\",
+			"HKEY_CURRENT_USER\\SOFTWARE\\Wow6432Node\\",
+			"HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\"};
+
 		/// <summary>
 		/// Reads an install directory for a 32-bit program from a registry key. This checks for per-user and machine wide settings, and under the Wow64 virtual keys (HKCU\SOFTWARE, HKLM\SOFTWARE, HKCU\SOFTWARE\Wow6432Node, HKLM\SOFTWARE\Wow6432Node).
 		/// </summary>
@@ -1235,23 +1241,88 @@ namespace UnrealBuildTool
 		/// <returns>True if the key was read, false otherwise.</returns>
 		static bool TryReadInstallDirRegistryKey32(string KeySuffix, string ValueName, out DirectoryReference InstallDir)
 		{
-			if (TryReadDirRegistryKey("HKEY_CURRENT_USER\\SOFTWARE\\" + KeySuffix, ValueName, out InstallDir))
+			foreach (string Root in InstallDirRoots)
 			{
-				return true;
+				if (TryReadDirRegistryKey(Root + KeySuffix, ValueName, out InstallDir))
+				{
+					return true;
+				}
 			}
-			if (TryReadDirRegistryKey("HKEY_LOCAL_MACHINE\\SOFTWARE\\" + KeySuffix, ValueName, out InstallDir))
-			{
-				return true;
-			}
-			if (TryReadDirRegistryKey("HKEY_CURRENT_USER\\SOFTWARE\\Wow6432Node\\" + KeySuffix, ValueName, out InstallDir))
-			{
-				return true;
-			}
-			if (TryReadDirRegistryKey("HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\" + KeySuffix, ValueName, out InstallDir))
-			{
-				return true;
-			}
+			InstallDir = null;
 			return false;
+		}
+
+		/// <summary>
+		/// For each root location relevant to install dirs, look for the given key and add its subkeys to the set of subkeys to return.
+		/// This checks for per-user and machine wide settings, and under the Wow64 virtual keys (HKCU\SOFTWARE, HKLM\SOFTWARE, HKCU\SOFTWARE\Wow6432Node, HKLM\SOFTWARE\Wow6432Node).
+		/// </summary>
+		/// <param name="KeyName">The subkey to look for under each root location</param>
+		/// <returns>A list of unique subkeys found under any of the existing subkeys</returns>
+		static string[] ReadInstallDirSubKeys32(string KeyName)
+		{
+			HashSet<string> AllSubKeys = new HashSet<string>(StringComparer.Ordinal);
+			foreach (string Root in InstallDirRoots)
+			{
+				RegistryKey Key = OpenRegistryKey(Root + KeyName);
+				if (Key != null)
+				{
+					try
+					{
+						foreach (string SubKey in Key.GetSubKeyNames())
+						{
+							AllSubKeys.Add(SubKey);
+						}
+					}
+					catch (Exception) // UnauthorizedAccessException, SecurityException, IOException
+					{
+					}
+					finally
+					{
+						Key.Dispose();
+					}
+				}
+			}
+			return AllSubKeys.ToArray();
+		}
+
+		/// <summary>
+		/// Opens the given registry key using the same syntax for the key as Registry.GetValue
+		/// Returns either null or a RegistryKey.  If a RegistryKey is returned, the caller is responsible for calling .Dispose on the returned key.
+		/// </summary>
+		/// <param name="KeyName">Path to the key, e.g. HKEY_LOCAL_MACHINE\Software</param>
+		/// <returns>A RegistryKey, or null</returns>
+		static RegistryKey OpenRegistryKey(string KeyName)
+		{
+			string SubKey = null;
+			RegistryKey RootKey = null;
+			if (KeyName.StartsWith("HKEY_CURRENT_USER\\"))
+			{
+				SubKey = KeyName.Substring("HKEY_CURRENT_USER\\".Length);
+				RootKey = Registry.CurrentUser;
+			}
+			else if (KeyName.StartsWith("HKEY_LOCAL_MACHINE"))
+			{
+				SubKey = KeyName.Substring("HKEY_LOCAL_MACHINE\\".Length);
+				RootKey = Registry.LocalMachine;
+			}
+			else
+			{
+				throw new NotImplementedException($"Unrecognized root key in {KeyName}");
+			}
+			if (string.IsNullOrEmpty(SubKey))
+			{
+				// We can not support returning a root key, because our contract is that the caller must call Dispose, and Dispose should not be called on one of the root keys
+				throw new ArgumentException($"Invalid attempt to open root key {KeyName}");
+			}
+			try
+			{
+				return RootKey.OpenSubKey(SubKey);
+			}
+			catch (System.Security.SecurityException)
+			{
+				return null;
+			}
+
 		}
 
 		/// <summary>
@@ -1639,9 +1710,44 @@ namespace UnrealBuildTool
 				}
 			}
 
-			return TryReadInstallDirRegistryKey32("Microsoft\\Microsoft SDKs\\NETFXSDK\\4.6", "KitsInstallationFolder", out OutInstallDir) ||
-			       TryReadInstallDirRegistryKey32("Microsoft\\Microsoft SDKs\\NETFXSDK\\4.6.1", "KitsInstallationFolder", out OutInstallDir) ||
-				   TryReadInstallDirRegistryKey32("Microsoft\\Microsoft SDKs\\NETFXSDK\\4.6.2", "KitsInstallationFolder", out OutInstallDir);
+			string NetFxSDKKeyName = "Microsoft\\Microsoft SDKs\\NETFXSDK";
+			string[] PreferredVersions = new string[] { "4.6.2", "4.6.1", "4.6" };
+			foreach (string PreferredVersion in PreferredVersions)
+			{
+				if (TryReadInstallDirRegistryKey32(NetFxSDKKeyName + "\\" + PreferredVersion, "KitsInstallationFolder", out OutInstallDir))
+				{
+					return true;
+				}
+			}
+
+			// If we didn't find one of our preferred versions for NetFXSDK, use the max version present on the system
+			Version MaxVersion = null;
+			string MaxVersionString = null;
+			foreach (string ExistingVersionString in ReadInstallDirSubKeys32(NetFxSDKKeyName))
+			{
+				Version ExistingVersion;
+				try
+				{
+					ExistingVersion = new Version(ExistingVersionString);
+				}
+				catch (Exception)
+				{
+					continue;
+				}
+				if (MaxVersion == null || ExistingVersion.CompareTo(MaxVersion) > 0)
+				{
+					MaxVersion = ExistingVersion;
+					MaxVersionString = ExistingVersionString;
+				}
+			}
+
+			if (MaxVersionString != null)
+			{
+				return TryReadInstallDirRegistryKey32(NetFxSDKKeyName + "\\" + MaxVersionString, "KitsInstallationFolder", out OutInstallDir);
+			}
+
+			OutInstallDir = null;
+			return false;
 		}
 
 		/// <summary>
