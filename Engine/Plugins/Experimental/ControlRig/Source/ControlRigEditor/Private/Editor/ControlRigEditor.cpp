@@ -573,6 +573,8 @@ UBlueprint* FControlRigEditor::GetBlueprintObj() const
 void FControlRigEditor::SetDetailObjects(const TArray<UObject*>& InObjects)
 {
 	RigElementInDetailPanel = FRigElementKey();
+	SKismetInspector::FShowDetailsOptions Options;
+	Options.bForceRefresh = true;
 	Inspector->ShowDetailsForObjects(InObjects);
 }
 
