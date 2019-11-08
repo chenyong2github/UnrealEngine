@@ -585,6 +585,46 @@ namespace AutomationTool
 		}
 
 		/// <summary>
+		/// Export the build graph to a Json file for parsing by Horde
+		/// </summary>
+		/// <param name="File">Output file to write</param>
+		public void ExportForHorde(FileReference File)
+		{
+			DirectoryReference.CreateDirectory(File.Directory);
+			using (JsonWriter JsonWriter = new JsonWriter(File.FullName))
+			{
+				JsonWriter.WriteArrayStart();
+				foreach (Agent Agent in Agents)
+				{
+					foreach (Node Node in Agent.Nodes)
+					{
+						JsonWriter.WriteObjectStart();
+						JsonWriter.WriteValue("Name", Node.Name);
+						JsonWriter.WriteValue("Group", Agent.Name);
+						JsonWriter.WriteValue("RunEarly", Node.bRunEarly);
+						JsonWriter.WriteValue("Exclusive", true);
+
+						JsonWriter.WriteArrayStart("InputDependencies");
+						foreach (string InputDependency in Node.GetDirectInputDependencies().Select(x => x.Name))
+						{
+							JsonWriter.WriteValue(InputDependency);
+						}
+						JsonWriter.WriteArrayEnd();
+
+						JsonWriter.WriteArrayStart("OrderDependencies");
+						foreach (string OrderDependency in Node.GetDirectOrderDependencies().Select(x => x.Name))
+						{
+							JsonWriter.WriteValue(OrderDependency);
+						}
+						JsonWriter.WriteArrayEnd();
+						JsonWriter.WriteObjectEnd();
+					}
+				}
+				JsonWriter.WriteArrayEnd();
+			}
+		}
+
+		/// <summary>
 		/// Print the contents of the graph
 		/// </summary>
 		/// <param name="CompletedNodes">Set of nodes which are already complete</param>

@@ -63,6 +63,7 @@ namespace AutomationTool
 	[Help("SkipTargetsWithoutTokens", "Excludes targets which we can't acquire tokens for, rather than failing")]
 	[Help("Preprocess=<FileName>", "Writes the preprocessed graph to the given file")]
 	[Help("Export=<FileName>", "Exports a JSON file containing the preprocessed build graph, for use as part of a build system")]
+	[Help("HordeExport=<FileName>", "Exports a JSON file containing the full build graph for use by Horde.")]
 	[Help("PublicTasksOnly", "Only include built-in tasks in the schema, excluding any other UAT modules")]
 	[Help("SharedStorageDir=<DirName>", "Sets the directory to use to transfer build products between agents in a build farm")]
 	[Help("SingleNode=<Name>", "Run only the given node. Intended for use on a build system after running with -Export.")]
@@ -81,6 +82,7 @@ namespace AutomationTool
 			string SchemaFileName = ParseParamValue("Schema", null);
 			string ImportSchemaFileName = ParseParamValue("ImportSchema", null);
 			string ExportFileName = ParseParamValue("Export", null);
+			string HordeExportFileName = ParseParamValue("HordeExport", null);
 			string PreprocessedFileName = ParseParamValue("Preprocess", null);
 			string SharedStorageDir = ParseParamValue("SharedStorageDir", null);
 			string SingleNodeName = ParseParamValue("SingleNode", null);
@@ -220,6 +222,12 @@ namespace AutomationTool
 			if(!ScriptReader.TryRead(new FileReference(ScriptFileName), Arguments, DefaultProperties, PreprocessedFileName != null, Schema, out Graph))
 			{
 				return ExitCode.Error_Unknown;
+			}
+
+			// Export the graph for Horde
+			if(HordeExportFileName != null)
+			{
+				Graph.ExportForHorde(new FileReference(HordeExportFileName));
 			}
 
 			// Create the temp storage handler
