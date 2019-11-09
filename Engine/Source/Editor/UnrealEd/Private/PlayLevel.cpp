@@ -3029,6 +3029,17 @@ TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequest
 				if (OwningEditorEngine.IsValid())
 				{
 					OwningEditorEngine->StoreWindowSizeAndPositionForInstanceIndex(InInstanceIndex, WindowSize, WindowPosition);
+					// Update the position of the first PIE window (that also updates its displayed value in "Editor Preferences" --> "Level Editor" --> "Play" --> "New Window Position")
+					if (InInstanceIndex == 0)
+					{
+						ULevelEditorPlaySettings* LevelEditorPlaySettings = GetMutableDefault<ULevelEditorPlaySettings>();
+						// Only update if "Always center window to screen" is disabled
+						if (LevelEditorPlaySettings && !LevelEditorPlaySettings->CenterNewWindow)
+						{
+							// Update the value
+							LevelEditorPlaySettings->NewWindowPosition = WindowPosition;
+						}
+					}
 				}
 
 				// Route the callback
