@@ -134,7 +134,7 @@ public:
 	/**
 	 * Set the triangle color function for rendering / render data construction
 	 */
-	void SetTriangleColorFunction(TFunction<FColor(int)> TriangleColorFunc, ERenderUpdateMode UpdateMode = ERenderUpdateMode::FullUpdate);
+	void SetTriangleColorFunction(TFunction<FColor(const FDynamicMesh3*, int)> TriangleColorFunc, ERenderUpdateMode UpdateMode = ERenderUpdateMode::FullUpdate);
 
 	/**
 	 * Clear the triangle color function for rendering / render data construction

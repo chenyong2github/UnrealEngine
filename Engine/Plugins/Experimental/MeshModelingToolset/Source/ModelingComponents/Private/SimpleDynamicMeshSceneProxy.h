@@ -43,7 +43,7 @@ public:
 
 
 	bool bUsePerTriangleColor = false;
-	TFunction<FColor(int)> PerTriangleColorFunc;
+	TFunction<FColor(const FDynamicMesh3*, int)> PerTriangleColorFunc;
 
 
 	FSimpleDynamicMeshSceneProxy(USimpleDynamicMeshComponent* Component)
@@ -194,7 +194,7 @@ public:
 			FColor TriColor = ConstantVertexColor;
 			if (bUsePerTriangleColor && PerTriangleColorFunc)
 			{
-				TriColor = PerTriangleColorFunc(TriangleID);
+				TriColor = PerTriangleColorFunc(Mesh, TriangleID);
 				bHaveColors = false;
 			}
 
@@ -272,7 +272,7 @@ protected:
 			FColor TriColor = ConstantVertexColor;
 			if (bUsePerTriangleColor && PerTriangleColorFunc)
 			{
-				TriColor = PerTriangleColorFunc(TriangleID);
+				TriColor = PerTriangleColorFunc(Mesh, TriangleID);
 				bHaveColors = false;
 			}
 

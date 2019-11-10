@@ -275,7 +275,7 @@ FPrimitiveSceneProxy* UOctreeDynamicMeshComponent::CreateSceneProxy()
 		if (TriangleColorFunc != nullptr)
 		{
 			CurrentProxy->bUsePerTriangleColor = true;
-			CurrentProxy->PerTriangleColorFunc = [this](int TriangleID) { return GetTriangleColor(TriangleID); };
+			CurrentProxy->PerTriangleColorFunc = [this](const FDynamicMesh3* Mesh, int TriangleID) { return GetTriangleColor(TriangleID); };
 		}
 
 
@@ -327,7 +327,7 @@ FColor UOctreeDynamicMeshComponent::GetTriangleColor(int TriangleID)
 {
 	if (TriangleColorFunc != nullptr)
 	{
-		return TriangleColorFunc(TriangleID);
+		return TriangleColorFunc(Mesh.Get(), TriangleID);
 	}
 	else
 	{

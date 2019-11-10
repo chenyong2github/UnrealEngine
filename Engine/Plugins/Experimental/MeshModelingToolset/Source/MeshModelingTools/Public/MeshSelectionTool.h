@@ -40,7 +40,8 @@ enum class EMeshSelectionToolActions
 
 	DeleteSelected,
 	SeparateSelected,
-	FlipSelected
+	FlipSelected,
+	CreateGroup
 };
 
 
@@ -109,22 +110,28 @@ class MESHMODELINGTOOLS_API UMeshSelectionMeshEditActions : public UMeshSelectio
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Delete"))
+	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Delete", DisplayPriority = 1))
 	void DeleteTriangles()
 	{
 		PostAction(EMeshSelectionToolActions::DeleteSelected);
 	}
 
-	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Separate"))
+	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Separate", DisplayPriority = 2))
 	void SeparateTriangles() 
 	{
 		PostAction(EMeshSelectionToolActions::SeparateSelected);
 	}
 
-	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Flip Orientations"))
-		void FlipOrientations() 
+	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Flip Normals", DisplayPriority = 3))
+	void FlipNormals() 
 	{
 		PostAction(EMeshSelectionToolActions::FlipSelected);
+	}
+
+	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Create Polygroup", DisplayPriority = 4))
+	void CreatePolygroup()
+	{
+		PostAction(EMeshSelectionToolActions::CreateGroup);
 	}
 };
 
@@ -182,6 +189,10 @@ public:
 	/** Toggle drawing of wireframe overlay on/off [Alt+W] */
 	UPROPERTY(EditAnywhere, Category = Selection)
 	bool bShowWireframe = true;
+
+	/** Toggle drawing of groups */
+	UPROPERTY(EditAnywhere, Category = Selection)
+	bool bShowPolygroups = false;
 
 	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
 	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
@@ -255,6 +266,7 @@ protected:
 	EMeshSelectionElementType SelectionType = EMeshSelectionElementType::Face;
 
 	TValueWatcher<bool> ShowWireframeWatcher;
+	TValueWatcher<bool> ShowGroupsWatcher;
 
 
 	bool bInRemoveStroke = false;
@@ -300,6 +312,7 @@ protected:
 	void DeleteSelectedTriangles();
 	void SeparateSelectedTriangles();
 	void FlipSelectedTriangles();
+	void AssignNewGroupToSelectedTriangles();
 
 	bool bHaveModifiedMesh = false;
 };

@@ -8,6 +8,8 @@
 #include "DynamicMeshChangeTracker.h"
 #include "Changes/ToolCommandChangeSequence.h"
 #include "Changes/MeshChange.h"
+#include "Util/ColorConstants.h"
+#include "Selections/MeshConnectedComponents.h"
 #include "MeshIndexUtil.h"
 #include "AssetGenerationUtil.h"
 #include "ToolSetupUtil.h"
@@ -46,6 +48,7 @@ void UMeshSelectionToolProperties::SaveProperties(UInteractiveTool* SaveFromTool
 	PropertyCache->bVolumetricBrush = this->bVolumetricBrush;
 	PropertyCache->bHitBackFaces = this->bHitBackFaces;
 	PropertyCache->bShowWireframe = this->bShowWireframe;
+	PropertyCache->bShowPolygroups = this->bShowPolygroups;
 }
 
 void UMeshSelectionToolProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
@@ -56,6 +59,7 @@ void UMeshSelectionToolProperties::RestoreProperties(UInteractiveTool* RestoreTo
 	this->bVolumetricBrush = PropertyCache->bVolumetricBrush;
 	this->bHitBackFaces = PropertyCache->bHitBackFaces;
 	this->bShowWireframe = PropertyCache->bShowWireframe;
+	this->bShowPolygroups = PropertyCache->bShowPolygroups;
 }
 
 
@@ -123,6 +127,10 @@ void UMeshSelectionTool::Setup()
 	ShowWireframeWatcher.Initialize(
 		[this]() { return SelectionProps->bShowWireframe; },
 		[this](bool bNewValue) { PreviewMesh->EnableWireframe(bNewValue); }, false);
+
+	ShowGroupsWatcher.Initialize(
+		[this]() { return SelectionProps->bShowPolygroups; },
+		[this](bool bNewValue) { UpdateVisualization(); }, false);
 }
 
 
@@ -282,37 +290,6 @@ void UMeshSelectionTool::CalculateVertexROI(const FBrushStampData& Stamp, TArray
 
 
 
-static void GrowToConnectedTriangles(const TArray<int>& TriangleROI, TArray<int>& GrowROI, const FDynamicMesh3* Mesh,
-	TArray<int32>& QueueBuffer, TSet<int32>& DoneBuffer,
-	TFunctionRef<bool(int32, int32)> CanGrowPredicate = [](int32, int32) { return true; }
-	)
-{
-	QueueBuffer.Reset(); QueueBuffer.Insert(TriangleROI, 0);
-	DoneBuffer.Reset(); DoneBuffer.Append(TriangleROI);
-	//TArray<int32> Queue(TriangleROI);
-	//TSet<int32> Done(TriangleROI);
-
-	while (QueueBuffer.Num() > 0)
-	{
-		int32 CurTri = QueueBuffer.Pop(false);
-		GrowROI.Add(CurTri);
-
-		FIndex3i NbrTris = Mesh->GetTriNeighbourTris(CurTri);
-		for (int j = 0; j < 3; ++j)
-		{
-			int32 tid = NbrTris[j];
-			if (tid != FDynamicMesh3::InvalidID && DoneBuffer.Contains(tid) == false && CanGrowPredicate(CurTri, tid))
-			{
-				QueueBuffer.Add(tid);
-				DoneBuffer.Add(tid);
-			}
-		}
-	}
-
-}
-
-
-
 void UMeshSelectionTool::CalculateTriangleROI(const FBrushStampData& Stamp, TArray<int>& TriangleROI)
 {
 	FTransform Transform = ComponentTarget->GetWorldTransform();
@@ -346,7 +323,7 @@ void UMeshSelectionTool::CalculateTriangleROI(const FBrushStampData& Stamp, TArr
 	{
 		TArray<int32> StartROI;
 		StartROI.Add(Stamp.HitResult.FaceIndex);
-		GrowToConnectedTriangles(StartROI, TriangleROI, Mesh, TemporaryBuffer, TemporarySet,
+		FMeshConnectedComponents::GrowToConnectedTriangles(Mesh, StartROI, TriangleROI,  &TemporaryBuffer, &TemporarySet,
 			[Mesh, RadiusSqr, StampPosLocal](int t1, int t2) { return (Mesh->GetTriCentroid(t2) - StampPosLocal).SquaredLength() < RadiusSqr; });
 
 	}
@@ -416,12 +393,12 @@ void UMeshSelectionTool::UpdateFaceSelection(const FBrushStampData& Stamp, const
 	TArray<int> LocalROI;
 	if (SelectionProps->SelectionMode == EMeshSelectionToolPrimaryMode::AllConnected)
 	{
-		GrowToConnectedTriangles(TriangleROI, LocalROI, Mesh, TemporaryBuffer, TemporarySet);
+		FMeshConnectedComponents::GrowToConnectedTriangles(Mesh, TriangleROI, LocalROI, &TemporaryBuffer, &TemporarySet);
 		UseROI = &LocalROI;
 	}
 	else if (SelectionProps->SelectionMode == EMeshSelectionToolPrimaryMode::AllInGroup)
 	{
-		GrowToConnectedTriangles(TriangleROI, LocalROI, Mesh, TemporaryBuffer, TemporarySet,
+		FMeshConnectedComponents::GrowToConnectedTriangles(Mesh, TriangleROI, LocalROI, &TemporaryBuffer, &TemporarySet,
 			[Mesh](int t1, int t2) { return Mesh->GetTriangleGroup(t1) == Mesh->GetTriangleGroup(t2); } );
 		UseROI = &LocalROI;
 	}
@@ -431,7 +408,7 @@ void UMeshSelectionTool::UpdateFaceSelection(const FBrushStampData& Stamp, const
 		StartROI.Add(Stamp.HitResult.FaceIndex);
 		FVector3d StartNormal = Mesh->GetTriNormal(StartROI[0]);
 		int AngleTol = SelectionProps->AngleTolerance;
-		GrowToConnectedTriangles(StartROI, LocalROI, Mesh, TemporaryBuffer, TemporarySet,
+		FMeshConnectedComponents::GrowToConnectedTriangles(Mesh, StartROI, LocalROI, &TemporaryBuffer, &TemporarySet,
 			[Mesh, AngleTol, StartNormal](int t1, int t2) { return Mesh->GetTriNormal(t2).AngleD(StartNormal) < AngleTol; });
 		UseROI = &LocalROI;
 	}
@@ -442,7 +419,7 @@ void UMeshSelectionTool::UpdateFaceSelection(const FBrushStampData& Stamp, const
 		StartROI.Add(Stamp.HitResult.FaceIndex);
 		FVector3d StartNormal = Mesh->GetTriNormal(StartROI[0]);
 		int AngleTol = SelectionProps->AngleTolerance;
-		GrowToConnectedTriangles(StartROI, LocalROI, Mesh, TemporaryBuffer, TemporarySet,
+		FMeshConnectedComponents::GrowToConnectedTriangles(Mesh, StartROI, LocalROI, &TemporaryBuffer, &TemporarySet,
 			[Mesh, AngleTol, StartNormal, &BrushROI](int t1, int t2) { return BrushROI.Contains(t2) && Mesh->GetTriNormal(t2).AngleD(StartNormal) < AngleTol; });
 		UseROI = &LocalROI;
 	}
@@ -532,22 +509,22 @@ void UMeshSelectionTool::UpdateVisualization()
 {
 	if (SelectionType == EMeshSelectionElementType::Face)
 	{
-		PreviewMesh->SetTriangleColorFunction([this](int TriangleID)
+		if (SelectionProps->bShowPolygroups)
 		{
-			return SelectedTriangles[TriangleID] ? FColor::Red : FColor::White;
-		}, UPreviewMesh::ERenderUpdateMode::FullUpdate);
+			PreviewMesh->SetTriangleColorFunction([this](const FDynamicMesh3* Mesh, int TriangleID)
+			{
+				return SelectedTriangles[TriangleID] ? LinearColors::VideoRed3b() : LinearColors::SelectFColor(Mesh->GetTriangleGroup(TriangleID));
 
-		//bool bIsFirst = (! BaseMeshComponent->TriangleColorFunc);
-		//BaseMeshComponent->TriangleColorFunc =
-		//if (bIsFirst)
-		//{
-		//	BaseMeshComponent->NotifyMeshUpdated();
-		//}
-		//else
-		//{
-		//	BaseMeshComponent->NotifyMeshUpdated();
-		//	//BaseMeshComponent->FastNotifyColorsUpdated();
-		//}
+			}, UPreviewMesh::ERenderUpdateMode::FullUpdate);
+		}
+		else
+		{
+			PreviewMesh->SetTriangleColorFunction([this](const FDynamicMesh3* Mesh, int TriangleID)
+			{
+				return SelectedTriangles[TriangleID] ? LinearColors::VideoRed3b() : LinearColors::VideoWhite3b();
+
+			}, UPreviewMesh::ERenderUpdateMode::FullUpdate);
+		}
 	}
 	else
 	{
@@ -588,6 +565,7 @@ void UMeshSelectionTool::Tick(float DeltaTime)
 	UDynamicMeshBrushTool::Tick(DeltaTime);
 
 	ShowWireframeWatcher.CheckAndUpdate();
+	ShowGroupsWatcher.CheckAndUpdate();
 
 	if (bStampPending)
 	{
@@ -687,6 +665,10 @@ void UMeshSelectionTool::ApplyAction(EMeshSelectionToolActions ActionType)
 
 		case EMeshSelectionToolActions::FlipSelected:
 			FlipSelectedTriangles();
+			break;
+
+		case EMeshSelectionToolActions::CreateGroup:
+			AssignNewGroupToSelectedTriangles();
 			break;
 	}
 }
@@ -993,7 +975,17 @@ void UMeshSelectionTool::FlipSelectedTriangles()
 
 	TUniquePtr<FToolCommandChangeSequence> ChangeSeq = MakeUnique<FToolCommandChangeSequence>();
 
-	// invert triangles and emit triangles change
+	// clear current selection
+	BeginChange(false);
+	for (int tid : SelectedFaces)
+	{
+		ActiveSelectionChange->Add(tid);
+	}
+	Selection->RemoveIndices(EMeshSelectionElementType::Face, SelectedFaces);
+	TUniquePtr<FMeshSelectionChange> SelectionChange = EndChange();
+	ChangeSeq->AppendChange(Selection, MoveTemp(SelectionChange));
+
+	// flip normals
 	TUniquePtr<FMeshChange> MeshChange = PreviewMesh->TrackedEditMesh(
 		[&SelectedFaces](FDynamicMesh3& Mesh, FDynamicMeshChangeTracker& ChangeTracker)
 	{
@@ -1012,6 +1004,56 @@ void UMeshSelectionTool::FlipSelectedTriangles()
 	bHaveModifiedMesh = true;
 }
 
+
+void UMeshSelectionTool::AssignNewGroupToSelectedTriangles()
+{
+	check(SelectionType == EMeshSelectionElementType::Face);
+	TArray<int32> SelectedFaces = Selection->GetElements(EMeshSelectionElementType::Face);
+	if (SelectedFaces.Num() == 0)
+	{
+		return;
+	}
+
+	TUniquePtr<FToolCommandChangeSequence> ChangeSeq = MakeUnique<FToolCommandChangeSequence>();
+
+	// clear current selection
+	BeginChange(false);
+	for (int tid : SelectedFaces)
+	{
+		ActiveSelectionChange->Add(tid);
+	}
+	Selection->RemoveIndices(EMeshSelectionElementType::Face, SelectedFaces);
+	TUniquePtr<FMeshSelectionChange> SelectionChange = EndChange();
+	ChangeSeq->AppendChange(Selection, MoveTemp(SelectionChange));
+
+	// assign new groups to triangles
+	// note: using an FMeshChange is kind of overkill here
+	TUniquePtr<FMeshChange> MeshChange = PreviewMesh->TrackedEditMesh(
+		[&SelectedFaces](FDynamicMesh3& Mesh, FDynamicMeshChangeTracker& ChangeTracker)
+	{
+		// each component gets its own group id
+		FMeshConnectedComponents Components(&Mesh);
+		Components.FindConnectedTriangles(SelectedFaces);
+
+		for (FMeshConnectedComponents::FComponent& Component : Components)
+		{
+			int NewGroupID = Mesh.AllocateTriangleGroup();
+			for (int tid : Component.Indices)
+			{
+				ChangeTracker.SaveTriangle(tid, true);
+				Mesh.SetTriangleGroup(tid, NewGroupID);
+			}
+		}
+	});
+	ChangeSeq->AppendChange(PreviewMesh, MoveTemp(MeshChange));
+
+	// emit combined change sequence
+	GetToolManager()->EmitObjectChange(this, MoveTemp(ChangeSeq), LOCTEXT("MeshSelectionToolCreateGroup", "Create Polygroup"));
+
+	OnExternalSelectionChange();
+	bHaveModifiedMesh = true;
+
+}
 
 
 

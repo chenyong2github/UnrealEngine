@@ -121,7 +121,7 @@ public:
 
 
 
-	TFunction<FColor(int)> TriangleColorFunc = nullptr;
+	TFunction<FColor(const FDynamicMesh3*, int)> TriangleColorFunc = nullptr;
 	void FastNotifyColorsUpdated();
 
 	void FastNotifyPositionsUpdated();
@@ -148,7 +148,7 @@ private:
 	bool bTangentsValid = false;
 	FMeshTangentsf Tangents;
 	
-	FColor GetTriangleColor(int TriangleID);
+	FColor GetTriangleColor(const FDynamicMesh3* Mesh, int TriangleID);
 
 	//friend class FCustomMeshSceneProxy;
 };

@@ -111,7 +111,7 @@ public:
 	UPROPERTY()
 	bool bExplicitShowWireframe = false;
 
-	TFunction<FColor(int)> TriangleColorFunc = nullptr;
+	TFunction<FColor(const FDynamicMesh3*, int)> TriangleColorFunc = nullptr;
 
 private:
 

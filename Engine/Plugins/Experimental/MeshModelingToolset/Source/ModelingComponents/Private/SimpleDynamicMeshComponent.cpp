@@ -195,7 +195,7 @@ FPrimitiveSceneProxy* USimpleDynamicMeshComponent::CreateSceneProxy()
 		if (TriangleColorFunc)
 		{
 			CurrentProxy->bUsePerTriangleColor = true;
-			CurrentProxy->PerTriangleColorFunc = [this](int TriangleID) { return GetTriangleColor(TriangleID); };
+			CurrentProxy->PerTriangleColorFunc = [this](const FDynamicMesh3* MeshIn, int TriangleID) { return GetTriangleColor(MeshIn, TriangleID); };
 		}
 
 		CurrentProxy->Initialize();
@@ -209,11 +209,11 @@ int32 USimpleDynamicMeshComponent::GetNumMaterials() const
 }
 
 
-FColor USimpleDynamicMeshComponent::GetTriangleColor(int TriangleID)
+FColor USimpleDynamicMeshComponent::GetTriangleColor(const FDynamicMesh3* MeshIn, int TriangleID)
 {
 	if (TriangleColorFunc)
 	{
-		return TriangleColorFunc(TriangleID);
+		return TriangleColorFunc(MeshIn, TriangleID);
 	}
 	else
 	{

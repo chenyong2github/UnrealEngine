@@ -293,7 +293,7 @@ void UPreviewMesh::Bake(FMeshDescription* MeshDescription, bool bHaveModifiedTop
 	DynamicMeshComponent->Bake(MeshDescription, bHaveModifiedToplogy);
 }
 
-void UPreviewMesh::SetTriangleColorFunction(TFunction<FColor(int)> TriangleColorFunc, ERenderUpdateMode UpdateMode)
+void UPreviewMesh::SetTriangleColorFunction(TFunction<FColor(const FDynamicMesh3*, int)> TriangleColorFunc, ERenderUpdateMode UpdateMode)
 {
 	DynamicMeshComponent->TriangleColorFunc = TriangleColorFunc;
 	if (UpdateMode == ERenderUpdateMode::FastUpdate)

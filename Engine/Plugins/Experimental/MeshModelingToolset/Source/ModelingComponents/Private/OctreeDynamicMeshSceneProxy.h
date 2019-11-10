@@ -142,7 +142,7 @@ public:
 
 
 	bool bUsePerTriangleColor = false;
-	TFunction<FColor(int)> PerTriangleColorFunc = nullptr;
+	TFunction<FColor(const FDynamicMesh3*, int)> PerTriangleColorFunc = nullptr;
 
 
 	FOctreeDynamicMeshSceneProxy(UOctreeDynamicMeshComponent* Component)
@@ -366,7 +366,7 @@ protected:
 			FColor TriColor = ConstantVertexColor;
 			if (bUsePerTriangleColor && PerTriangleColorFunc != nullptr)
 			{
-				TriColor = PerTriangleColorFunc(TriangleID);
+				TriColor = PerTriangleColorFunc(Mesh, TriangleID);
 				bHaveColors = false;
 			}
 
