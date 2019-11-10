@@ -45,8 +45,6 @@ namespace Audio
 
 		void HandleOnBufferEnd(uint8* InOutputBuffer, int32 InOutputBufferLength);
 
-		virtual FString GetCurrentDeviceName() const;
-
 	protected:
 		FCriticalSection OutputBufferMutex;
 
