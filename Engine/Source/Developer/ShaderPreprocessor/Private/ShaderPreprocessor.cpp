@@ -227,6 +227,7 @@ bool PreprocessShader(
 		check(CheckVirtualShaderFilePath(ShaderInput.VirtualSourceFilePath));
 	}
 
+	int32 Result = 0;
 	FString McppOutput, McppErrors;
 
 	static FCriticalSection McppCriticalSection;
@@ -263,7 +264,7 @@ bool PreprocessShader(
 		ANSICHAR* McppOutAnsi = NULL;
 		ANSICHAR* McppErrAnsi = NULL;
 
-		int32 Result = mcpp_run(
+		Result = mcpp_run(
 			McppOptionsANSI.GetData(),
 			McppOptionsANSI.Num(),
 			TCHAR_TO_ANSI(*ShaderInput.VirtualSourceFilePath),
@@ -271,8 +272,6 @@ bool PreprocessShader(
 			&McppErrAnsi,
 			FileLoader.GetMcppInterface()
 		);
-
-		checkf(Result==0, TEXT("PreprocessShader - mcpp_run failed with error code %d"), Result);
 
 		McppOutput = McppOutAnsi;
 		McppErrors = McppErrAnsi;
@@ -282,6 +281,8 @@ bool PreprocessShader(
 	{
 		return false;
 	}
+
+	checkf(Result==0, TEXT("PreprocessShader - mcpp_run failed with error code %d"), Result);
 
 	// List the defines used for compilation in the preprocessed shaders, especially to know witch permutation vector this shader is.
 	if (bShaderDumpDefinesAsCommentedCode)
