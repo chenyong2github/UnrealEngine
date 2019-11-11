@@ -15,6 +15,7 @@
 #include "Drawing/MeshDebugDrawing.h"
 #include "PreviewMesh.h"
 #include "ToolSetupUtil.h"
+#include "ToolSceneQueriesUtil.h"
 
 #include "Changes/MeshVertexChange.h"
 #include "Changes/MeshChange.h"
@@ -2040,14 +2041,10 @@ void UDynamicMeshSculptTool::UpdateFixedSculptPlanePosition(const FVector& Posit
 
 	if (GizmoProperties->bSnapToGrid)
 	{
-		FSceneSnapQueryRequest Request;
-		Request.RequestType = ESceneSnapQueryType::Position;
-		Request.TargetTypes = ESceneSnapQueryTargetType::Grid;
-		Request.Position = GizmoProperties->Position;
-		TArray<FSceneSnapQueryResult> Results;
-		if (GetToolManager()->GetContextQueriesAPI()->ExecuteSceneSnapQuery(Request, Results) && Results.Num() > 0)
+		FVector3d GridSnapPos;
+		if (ToolSceneQueriesUtil::FindWorldGridSnapPoint(this, GizmoProperties->Position, GridSnapPos))
 		{
-			GizmoProperties->Position = Results[0].Position;
+			GizmoProperties->Position = GridSnapPos;
 		}
 	}
 }

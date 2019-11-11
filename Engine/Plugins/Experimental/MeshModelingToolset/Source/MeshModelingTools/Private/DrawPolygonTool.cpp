@@ -51,6 +51,7 @@
  */
 constexpr int StartPointSnapID = FPointPlanarSnapSolver::BaseExternalPointID + 1;
 constexpr int CurrentSceneSnapID = FPointPlanarSnapSolver::BaseExternalPointID + 2;
+constexpr int CurrentGridSnapID = FPointPlanarSnapSolver::BaseExternalPointID + 3;
 
 bool UDrawPolygonToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
@@ -101,6 +102,7 @@ void UDrawPolygonToolSnapProperties::SaveProperties(UInteractiveTool* SaveFromTo
 {
 	UDrawPolygonToolSnapProperties* PropertyCache = GetPropertyCache<UDrawPolygonToolSnapProperties>();
 	PropertyCache->bEnableSnapping = this->bEnableSnapping;
+	PropertyCache->bSnapToWorldGrid = this->bSnapToWorldGrid;
 	PropertyCache->bSnapToVertices = this->bSnapToVertices;
 	PropertyCache->bSnapToEdges = this->bSnapToEdges;
 	PropertyCache->bSnapToAngles = this->bSnapToAngles;
@@ -114,6 +116,7 @@ void UDrawPolygonToolSnapProperties::RestoreProperties(UInteractiveTool* Restore
 {
 	UDrawPolygonToolSnapProperties* PropertyCache = GetPropertyCache<UDrawPolygonToolSnapProperties>();
 	this->bEnableSnapping = PropertyCache->bEnableSnapping;
+	this->bSnapToWorldGrid = PropertyCache->bSnapToWorldGrid;
 	this->bSnapToVertices = PropertyCache->bSnapToVertices;
 	this->bSnapToEdges = PropertyCache->bSnapToEdges;
 	this->bSnapToAngles = PropertyCache->bSnapToAngles;
@@ -378,6 +381,11 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 					SnapHighlightColor, SDPG_Foreground, 1.0f, 0.0f, true);
 			}
 		}
+		else if (SnapEngine.GetActiveSnapTargetID() == CurrentGridSnapID)
+		{
+			DrawCircle(PDI, (FVector)LastGridSnapPoint, CameraState.Right(), CameraState.Up(),
+				SnapHighlightColor, ElementSize, 4, SDPG_Foreground, 1.0f, 0.0f, true);
+		}
 
 		if (SnapEngine.HaveActiveSnapLine())
 		{
@@ -399,7 +407,6 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 			}
 		}
 	}
-
 
 	if (bHaveSurfaceHit)
 	{
@@ -543,7 +550,6 @@ bool UDrawPolygonTool::FindDrawPlaneHitPoint(const FInputDeviceRay& ClickPos, FV
 	}
 
 	// if we found a scene snap point, add to snap set
-	FVector3d SnapPos;
 	if (bIgnoreSnappingToggle || SnapProperties->bEnableSnapping == false)
 	{
 		SnapEngine.ResetActiveSnap();
@@ -551,9 +557,25 @@ bool UDrawPolygonTool::FindDrawPlaneHitPoint(const FInputDeviceRay& ClickPos, FV
 	}
 	else 
 	{
-		if (ToolSceneQueriesUtil::FindSceneSnapPoint(this, HitPos, SnapPos, SnapProperties->bSnapToVertices, SnapProperties->bSnapToEdges, 0, &LastSnapGeometry))
+		if (SnapProperties->bSnapToWorldGrid)
 		{
-			SnapEngine.AddPointTarget(SnapPos, CurrentSceneSnapID, SnapEngine.MinInternalPriority()-1 );
+			FVector3d WorldGridSnapPos;
+			if (ToolSceneQueriesUtil::FindWorldGridSnapPoint(this, HitPos, WorldGridSnapPos))
+			{
+				WorldGridSnapPos = Frame.ToPlane(WorldGridSnapPos, 2);
+				SnapEngine.AddPointTarget(WorldGridSnapPos, CurrentGridSnapID, 
+					FBasePositionSnapSolver3::FCustomMetric::Replace(999), SnapEngine.MinInternalPriority() - 5);
+				LastGridSnapPoint = WorldGridSnapPos;
+			}
+		}
+
+		if (SnapProperties->bSnapToVertices || SnapProperties->bSnapToEdges)
+		{
+			FVector3d SceneSnapPos;
+			if (ToolSceneQueriesUtil::FindSceneSnapPoint(this, HitPos, SceneSnapPos, SnapProperties->bSnapToVertices, SnapProperties->bSnapToEdges, 0, &LastSnapGeometry))
+			{
+				SnapEngine.AddPointTarget(SceneSnapPos, CurrentSceneSnapID, SnapEngine.MinInternalPriority() - 10);
+			}
 		}
 
 		TArray<FVector>& HistoryPoints = (bInFixedPolygonMode) ? FixedPolygonClickPoints : PolygonVertices;
@@ -569,6 +591,7 @@ bool UDrawPolygonTool::FindDrawPlaneHitPoint(const FInputDeviceRay& ClickPos, FV
 
 	// remove scene snap point
 	SnapEngine.RemovePointTargetsByID(CurrentSceneSnapID);
+	SnapEngine.RemovePointTargetsByID(CurrentGridSnapID);
 
 	if (SnapEngine.HaveActiveSnap())
 	{
@@ -977,6 +1000,17 @@ float UDrawPolygonTool::FindInteractiveHeightDistance(const FInputDeviceRay& Cli
 
 	if (NearestHitDist < TNumericLimits<float>::Max())
 	{
+		if ( bIgnoreSnappingToggle == false && SnapProperties->bEnableSnapping && SnapProperties->bSnapToWorldGrid )
+		{
+			FVector3d GridPosWorld;
+			if (ToolSceneQueriesUtil::FindWorldGridSnapPoint(this, (FVector3d)NearestHitFrameWorld.Origin, GridPosWorld))
+			{
+				NearestHitFrameWorld.Origin = (FVector3f)GridPosWorld;
+				FVector3d LocalPos = PreviewHeightFrame.ToFramePoint((FVector3d)NearestHitFrameWorld.Origin);
+				NearestHitHeight = (float)LocalPos.Z;
+			}
+		}
+
 		this->HitPosFrameWorld = NearestHitFrameWorld;
 		return NearestHitHeight;
 	}
@@ -1011,7 +1045,18 @@ void UDrawPolygonTool::SetDrawPlaneFromWorldPos(const FVector& Position, const F
 void UDrawPolygonTool::PlaneTransformChanged(UTransformProxy* Proxy, FTransform Transform)
 {
 	DrawPlaneOrientation = Transform.GetRotation();
+	
 	DrawPlaneOrigin = Transform.GetLocation();
+
+	if (bIgnoreSnappingToggle == false && SnapProperties->bEnableSnapping && SnapProperties->bSnapToWorldGrid)
+	{
+		FVector3d GridSnapPos;
+		if (ToolSceneQueriesUtil::FindWorldGridSnapPoint(this, DrawPlaneOrigin, GridSnapPos))
+		{
+			DrawPlaneOrigin = GridSnapPos;
+		}
+	}
+
 	SnapEngine.Plane = FFrame3d((FVector3d)DrawPlaneOrigin, (FQuaterniond)DrawPlaneOrientation);
 }
 

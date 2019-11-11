@@ -51,6 +51,8 @@ UPolyEditTransformProperties::UPolyEditTransformProperties()
 	bSelectVertices = true;
 	bSelectFaces = true;
 	bSelectEdges = true;
+	bShowWireframe = false;
+	bSnapToWorldGrid = false;
 	PolygonMode = EPolygonGroupMode::KeepInputPolygons;
 	PolygonGroupingAngleThreshold = .5;
 }
@@ -1265,10 +1267,21 @@ void UEditMeshPolygonsTool::ComputeUpdate_Translate()
 	const bool bIsLaplacian = (DeformationStrategy == EGroupTopologyDeformationStrategy::Laplacian);
 	FGroupTopologyDeformer& SelectedDeformer = (bIsLaplacian) ? LaplacianDeformer : LinearDeformer;
 
+	TFunction<FVector3d(const FVector3d&)> PointConstraintFunc = nullptr;
+	if (TransformProps->bSnapToWorldGrid 
+		&& GetToolManager()->GetContextQueriesAPI()->GetCurrentCoordinateSystem() == EToolContextCoordinateSystem::World)
+	{
+		PointConstraintFunc = [&](const FVector3d& Pos)
+		{
+			FVector3d GridSnapPos;
+			return ToolSceneQueriesUtil::FindWorldGridSnapPoint(this, Pos, GridSnapPos) ? GridSnapPos : Pos;
+		};
+	}
+
 	FTransform Transform = ComponentTarget->GetWorldTransform();
 	FVector NewHitPosWorld = LastHitPosWorld;
 	FVector3d SnappedPoint;
-	if (QuickAxisTranslater.UpdateSnap(UpdateRay, SnappedPoint))
+	if (QuickAxisTranslater.UpdateSnap(UpdateRay, SnappedPoint, PointConstraintFunc))
 	{
 		NewHitPosWorld = SnappedPoint;
 	}
@@ -1386,7 +1399,7 @@ void UEditMeshPolygonsTool::Render(IToolsContextRenderAPI* RenderAPI)
 	GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraState);
 	GetActiveQuickTransformer()->UpdateCameraState(CameraState);
 
-	DynamicMeshComponent->bExplicitShowWireframe = TransformProps->bWireframe;
+	DynamicMeshComponent->bExplicitShowWireframe = TransformProps->bShowWireframe;
 	FDynamicMesh3* TargetMesh = DynamicMeshComponent->GetMesh();
 
 	PolyEdgesRenderer.BeginFrame(RenderAPI, CameraState);

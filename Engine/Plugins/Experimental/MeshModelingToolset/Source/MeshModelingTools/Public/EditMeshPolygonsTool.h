@@ -123,8 +123,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bSelectVertices;
 
-	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "Show Triangle Mesh Wireframe"))
-	bool bWireframe;
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bShowWireframe;
+
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bSnapToWorldGrid;
 
 	UPROPERTY(EditAnywhere, Category = Options)
 	EPolygonGroupMode PolygonMode;

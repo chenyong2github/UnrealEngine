@@ -200,8 +200,6 @@ bool UPreviewMesh::FindRayIntersection(const FRay3d& WorldRay, FHitResult& HitOu
 			FIntrRay3Triangle3d Query(LocalRay, Triangle);
 			Query.Find();
 
-			//auto Query = MeshQueries::RayTriangleIntersection(UseMesh, HitTID, LocalRay);
-
 			HitOut.FaceIndex = HitTriID;
 			HitOut.Distance = Query.RayParameter;
 			HitOut.Normal = Transform.TransformVectorNoScale(UseMesh->GetTriNormal(HitTriID));
