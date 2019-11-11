@@ -484,6 +484,12 @@ namespace Chaos
 		TVector<T, d> MMin, MMax;
 	};
 
+	FORCEINLINE FChaosArchive& operator<<(FChaosArchive& Ar, TAABB<FReal, 3>& AABB)
+	{
+		AABB.Serialize(Ar);
+		return Ar;
+	}
+
 	template<typename T>
 	struct TAABBSpecializeSamplingHelper<T, 2>
 	{
