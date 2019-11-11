@@ -12,6 +12,8 @@ struct FMath;
 // We require SSE2
 #include <emmintrin.h>
 
+#include "Math/sse_mathfun.h"
+
 // We suppress static analysis warnings for the cast from (double*) to (float*) in VectorLoadFloat2 below:
 // -V:VectorLoadFloat2:615
 
@@ -496,11 +498,15 @@ FORCEINLINE VectorRegister VectorCross( const VectorRegister& Vec1, const Vector
  */
 FORCEINLINE VectorRegister VectorPow( const VectorRegister& Base, const VectorRegister& Exponent )
 {
-	//@TODO: Optimize
+	// using SseMath library
+	return SseMath_exp_ps(_mm_mul_ps(SseMath_log_ps(Base), Exponent));
+/*
+	// old version, keeping for reference in case something breaks and we need to debug it.
 	union { VectorRegister v; float f[4]; } B, E;
 	B.v = Base;
 	E.v = Exponent;
 	return _mm_setr_ps( powf(B.f[0], E.f[0]), powf(B.f[1], E.f[1]), powf(B.f[2], E.f[2]), powf(B.f[3], E.f[3]) );
+*/
 }
 
 /**
