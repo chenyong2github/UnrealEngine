@@ -1,10 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "CoreTypes.h"
-
-#define LZ4_DISABLE_DEPRECATE_WARNINGS
 #include "Lz4/lz4.h"
-#undef LZ4_DISABLE_DEPRECATE_WARNINGS
 
 namespace Trace {
 namespace Private {

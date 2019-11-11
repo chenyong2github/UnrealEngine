@@ -10,5 +10,6 @@ public class TraceLog : ModuleRules
 	{
 		bRequiresImplementModule = false;
 		PublicIncludePathModuleNames.Add("Core");
+		PrivateDefinitions.Add("LZ4_DISABLE_DEPRECATE_WARNINGS");
     }
 }
