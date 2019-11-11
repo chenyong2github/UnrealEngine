@@ -704,6 +704,7 @@ public:
 	FIoDispatcher(const FIoDispatcher&) = default;
 	FIoDispatcher& operator=(const FIoDispatcher&) = delete;
 
+	static CORE_API bool IsInitialized();
 	static CORE_API FIoStatus Initialize(const FString& Directory);
 	static CORE_API void Shutdown();
 	static CORE_API FIoDispatcher& Get();

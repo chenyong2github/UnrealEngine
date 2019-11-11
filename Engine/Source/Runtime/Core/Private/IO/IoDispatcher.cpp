@@ -668,6 +668,12 @@ FIoDispatcher::GetSizeForChunk(const FIoChunkId& ChunkId) const
 	return Impl->GetSizeForChunk(ChunkId);
 }
 
+bool
+FIoDispatcher::IsInitialized()
+{
+	return GIoDispatcher.IsValid();
+}
+
 FIoStatus
 FIoDispatcher::Initialize(const FString& Directory)
 {

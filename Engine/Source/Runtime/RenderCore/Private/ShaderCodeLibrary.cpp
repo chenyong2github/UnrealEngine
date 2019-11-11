@@ -552,7 +552,10 @@ public:
 			UE_LOG(LogShaderLibrary, Display, TEXT("Using %s for material shader code. Total %d unique shaders."), *DestFilePath, Shaders.Num());
 
 #if RHI_IO_DISPATCHER
-			LibraryChunkId = FIoDispatcher::Get().OpenFileChunk(DestFilePath).ValueOrDie();
+			if (FIoDispatcher::IsInitialized())
+			{
+				LibraryChunkId = FIoDispatcher::Get().OpenFileChunk(DestFilePath).ValueOrDie();
+			}
 #endif
 		}
 	}
