@@ -2844,11 +2844,11 @@ public:
 	/** 
 	 * Launch a new process with settings pulled from the specified parameters.
 	 * @param InParams 				Shared parameters to launch with.
-	 * @param InInstanceNum 		Which instance index is this? Used to do load settins per-instance if needed.
-	 * @param bIsHost				Is this instance a host (either dedicated or listen).
-	 * @param bIsDedicatedServer 	Is this instance a dedicated server? If true, implies bIsHost.
+	 * @param InInstanceNum 		Which instance index is this? Used to do load settings per-instance if needed.
+	 * @param NetMode				What net mode should this process launch under?
+	 * @param bIsDedicatedServer 	Is this instance a dedicated server? Overrides NetMode.
 	 */
-	virtual void LaunchNewProcess(const FRequestPlaySessionParams& InParams, const int32 InInstanceNum, bool bIsHost, bool bIsDedicatedServer);
+	virtual void LaunchNewProcess(const FRequestPlaySessionParams& InParams, const int32 InInstanceNum, EPlayNetMode NetMode, bool bIsDedicatedServer);
 
 	// This chunk is used for Play In New Process
 protected:

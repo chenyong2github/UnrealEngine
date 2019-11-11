@@ -1695,8 +1695,7 @@ void UEditorEngine::CreateNewPlayInEditorInstance(FRequestPlaySessionParams &InR
 		}
 
 		const bool bIsDedicatedServer = false;
-		const bool bIsHost = false;
-		LaunchNewProcess(InRequestParams, PlayInEditorSessionInfo->NumClientInstancesCreated, bIsHost, bIsDedicatedServer);
+		LaunchNewProcess(InRequestParams, PlayInEditorSessionInfo->NumClientInstancesCreated, InNetMode, bIsDedicatedServer);
 		PlayInEditorSessionInfo->NumClientInstancesCreated++;
 	}
 	else
@@ -2569,7 +2568,7 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 				const bool bIsDedicatedServer = true;
 				const bool bIsHost = true;
 				const int32 InstanceIndex = 0;
-				LaunchNewProcess(InRequestParams, InstanceIndex, bIsHost, bIsDedicatedServer);
+				LaunchNewProcess(InRequestParams, InstanceIndex, EPlayNetMode::PIE_ListenServer, bIsDedicatedServer);
 
 				PlayInEditorSessionInfo->bServerWasLaunched = true;
 			}
