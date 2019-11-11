@@ -251,7 +251,7 @@ static int      prescan( const DEFBUF * defp, const char ** arglist
 static char *   catenate( const DEFBUF * defp, const char ** arglist
         , char * out, char * out_end, char ** token_p);
                 /* Catenate tokens                  */
-static const char * remove_magics( const char * argp, int from_last);
+static char *   remove_magics( const char * argp, int from_last);
                 /* Remove pair of magic characters  */
 #if DEBUG_MACRO_ANN
 static void     chk_symmetry( char *  start_id, char *  end_id, size_t  len);
@@ -710,7 +710,8 @@ static char *   replace(
         } else {
             m_inf->locs.start_col = m_inf->locs.start_line = 0L;
         }
-        m_inf->args = m_inf->loc_args = NULL;       /* Default args */
+        m_inf->args = NULL;
+        m_inf->loc_args = NULL;       /* Default args */
         for (num = 1, recurs = 0; num < m_num; num++)
             if (mac_inf[ num].defp == defp)
                 recurs++;           /* Recursively nested macro     */
@@ -1233,7 +1234,7 @@ static char *   catenate(
     return  out;
 }
 
-static const char *     remove_magics(
+static char *     remove_magics(
     const char *    argp,       /* The argument list    */
     int     from_last           /* token is the last or first?  */
 )
@@ -1251,7 +1252,7 @@ static const char *     remove_magics(
     char ** mac_loc;
     char ** arg_loc;
     char *  mgc_index;
-    size_t  max_magics;
+    int     max_magics;
     int     mac_n, arg_n, ind, n;
     char *  first = NULL;
     char *  last = NULL;
@@ -1748,7 +1749,6 @@ static char *   substitute(
  */
 {
     char *  out_start = out;
-    const char *    arg;
     int     c;
     int     gvar_arg;   /* gvar_arg'th argument is GCC variable argument    */
 

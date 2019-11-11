@@ -247,7 +247,7 @@ typedef struct fileinfo {
         int             sys_header; /* System header file or not    */
         int             include_opt;        /* Specified by -include option */
         const char **   dirp;       /* Include directory the file resides   */
-        const char *    src_dir;    /* Directory of source file     */
+        char *          src_dir;    /* Directory of source file     */
         const char *    real_fname; /* Real file name               */
         const char *    full_fname; /* Real full path list          */
         char *          filename;   /* File/macro name (maybe changed)      */
@@ -394,7 +394,7 @@ extern int      bsl_need_escape;/* '\\' in mbchar should be escaped */
 extern int      mcpp_debug;         /* Class of debug information   */
 extern long     in_asm;             /* In #asm - #endasm block      */
 extern jmp_buf  error_exit;         /* Exit on fatal error          */
-extern char *   cur_fullname;       /* Full name of current source  */
+extern const char * cur_fullname;   /* Full name of current source  */
 extern short *  char_type;          /* Character classifier         */
 extern char *   workp;              /* Free space in work[]         */
 extern char * const     work_end;   /* End of work[] buffer         */
@@ -455,7 +455,7 @@ extern void     mb_init( void);
                 /* Initialize mbchar variables  */
 extern uexpr_t  mb_eval( char ** seq_pp);
                 /* Evaluate mbchar in #if       */
-extern int      last_is_mbchar( const char * in, int len);
+extern int      last_is_mbchar( const char * in, size_t len);
                 /* The line ends with MBCHAR ?  */
 
 /* support.c    */
