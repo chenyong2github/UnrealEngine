@@ -98,7 +98,8 @@ void FQuickAxisRotator::UpdateSnapAxes()
 	FFrame3d RotZFrame(AxisFrameWorld.Origin, AxisFrameWorld.GetAxis(2));
 	MoveAxisSolver.AddCircleTarget(FCircle3d(RotZFrame, UseRadius), RotateZSnapID, 100);
 
-	MoveAxisSolver.AddPointTarget(AxisFrameWorld.Origin, RotateOriginSnapID, 50, 0.5*ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD());
+	MoveAxisSolver.AddPointTarget(AxisFrameWorld.Origin, RotateOriginSnapID,
+		FRaySpatialSnapSolver::FCustomMetric::Replace(0.5*ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD()), 50);
 }
 
 

@@ -133,3 +133,20 @@ bool ToolSceneQueriesUtil::FindSceneSnapPoint(const UInteractiveTool* Tool, cons
 	}
 	return false;
 }
+
+
+bool ToolSceneQueriesUtil::FindWorldGridSnapPoint(const UInteractiveTool* Tool, const FVector3d& Point, FVector3d& GridSnapPointOut)
+{
+	IToolsContextQueriesAPI* QueryAPI = Tool->GetToolManager()->GetContextQueriesAPI();
+	FSceneSnapQueryRequest Request;
+	Request.RequestType = ESceneSnapQueryType::Position;
+	Request.TargetTypes = ESceneSnapQueryTargetType::Grid;
+	Request.Position = Point;
+	TArray<FSceneSnapQueryResult> Results;
+	if ( QueryAPI->ExecuteSceneSnapQuery(Request, Results) )
+	{
+		GridSnapPointOut = Results[0].Position;
+		return true;
+	};
+	return false;
+}
