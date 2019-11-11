@@ -35,7 +35,14 @@ public:
 	void ClearData();
 
 	CheckedCTError SaveBrep(const FString& FilePath);
-	CheckedCTError TopoFixes();
+
+
+	/**
+ 	 * This function calls, according to the chosen EStitchingTechnique, Kernel_io CT_REPAIR_IO::Sew or CT_REPAIR_IO::Heal. In case of sew, the used tolerance is 100x the geometric tolerance (SewingToleranceFactor = 100). 
+	 * With the case of UE-83379, Alias file, this value is too big (biggest than the geometric features. So Kernel_io hangs during the sew process... In the wait of more test, 100x is still the value used for CAD import except for Alias where the value of the SewingToleranceFactor is set to 1x
+	 * @param SewingToleranceFactor Factor apply to the tolerance 3D to define the sewing tolerance. 
+	 */
+	CheckedCTError TopoFixes(double SewingToleranceFactor = 100);
 
 	/**
 	 * In case of patch with cyclic boundary, a process has to be done by kernel_IO

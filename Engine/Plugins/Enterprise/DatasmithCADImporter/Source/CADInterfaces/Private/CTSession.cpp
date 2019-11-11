@@ -36,9 +36,9 @@ namespace CADLibrary
 		return CTKIO_CleanBody(MainObjectId);
 	}
 
-	CheckedCTError CTSession::TopoFixes()
+	CheckedCTError CTSession::TopoFixes(double SewingToleranceFactor)
 	{
-		return CADLibrary::Repair(MainObjectId, ImportParams.StitchingTechnique);
+		return CADLibrary::Repair(MainObjectId, ImportParams.StitchingTechnique, SewingToleranceFactor);
 	}
 
 	void CheckedCTError::Validate()
