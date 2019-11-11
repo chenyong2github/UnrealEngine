@@ -574,6 +574,16 @@ void UEditorEngine::EndPlayMap()
 			{
 				PlaySettingsConfig->MultipleInstancePositions.Add(PlayInEditorSessionInfo->CachedWindowInfo[WindowIndex].Position);
 			}
+
+			// Update the position where the first PIE window will be opened (this also updates its displayed value in "Editor Preferences" --> "Level Editor" --> "Play" --> "New Window Position")
+			if (WindowIndex == 0)
+			{
+				// Only update it if "Always center window to screen" is disabled
+				if (PlaySettingsConfig && !PlaySettingsConfig->CenterNewWindow)
+				{
+					PlaySettingsConfig->NewWindowPosition = PlaySettingsConfig->MultipleInstancePositions[WindowIndex];
+				}
+			}
 		}
 
 		PlaySettingsConfig->PostEditChange();
@@ -3029,17 +3039,6 @@ TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequest
 				if (OwningEditorEngine.IsValid())
 				{
 					OwningEditorEngine->StoreWindowSizeAndPositionForInstanceIndex(InInstanceIndex, WindowSize, WindowPosition);
-					// Update the position of the first PIE window (that also updates its displayed value in "Editor Preferences" --> "Level Editor" --> "Play" --> "New Window Position")
-					if (InInstanceIndex == 0)
-					{
-						ULevelEditorPlaySettings* LevelEditorPlaySettings = GetMutableDefault<ULevelEditorPlaySettings>();
-						// Only update if "Always center window to screen" is disabled
-						if (LevelEditorPlaySettings && !LevelEditorPlaySettings->CenterNewWindow)
-						{
-							// Update the value
-							LevelEditorPlaySettings->NewWindowPosition = WindowPosition;
-						}
-					}
 				}
 
 				// Route the callback
