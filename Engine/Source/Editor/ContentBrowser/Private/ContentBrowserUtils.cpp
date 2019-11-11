@@ -1300,8 +1300,8 @@ bool ContentBrowserUtils::IsValidFolderName(const FString& FolderName, FText& Re
 
 	if ( FolderName.Len() > FPlatformMisc::GetMaxPathLength() )
 	{
-		Reason = FText::Format( LOCTEXT("InvalidFolderName_TooLongForCooking", "Filename '{0}' is too long; this may interfere with cooking for consoles. Unreal filenames should be no longer than {1} characters." ),
-			FText::FromString(FolderName), FText::AsNumber(FPlatformMisc::GetMaxPathLength()) );
+		Reason = FText::Format( LOCTEXT("InvalidFolderName_TooLongForCooking", "Filename is too long ({0} characters); this may interfere with cooking for consoles. Unreal filenames should be no longer than {1} characters. Filename value: {2}" ),
+			FText::AsNumber(FolderName.Len()), FText::AsNumber(FPlatformMisc::GetMaxPathLength()), FText::FromString(FolderName) );
 		return false;
 	}
 
@@ -1921,12 +1921,12 @@ bool ContentBrowserUtils::IsValidPackageForCooking(const FString& PackageName, F
 		if (FEngineBuildSettings::IsInternalBuild())
 		{
 			// The projected length of the path for cooking is too long
-			OutErrorMessage = FText::Format(LOCTEXT("AssetCookingPathTooLongForBuildMachine", "The path to the asset is too long '{0}' for cooking by the build machines, the maximum is '{1}'\nPlease choose a shorter name for the asset or create it in a shallower folder structure with shorter folder names."), FText::AsNumber(AbsoluteCookPathToAssetLength), FText::AsNumber(MaxCookPathLen));
+			OutErrorMessage = FText::Format(LOCTEXT("AssetCookingPathTooLongForBuildMachine", "The path to the asset is too long ({0} characters) for cooking by the build machines, the maximum is {1}.\nPlease choose a shorter name for the asset or create it in a shallower folder structure with shorter folder names."), FText::AsNumber(AbsoluteCookPathToAssetLength), FText::AsNumber(MaxCookPathLen));
 		}
 		else
 		{
 			// The projected length of the path for cooking is too long
-			OutErrorMessage = FText::Format(LOCTEXT("AssetCookingPathTooLong", "The path to the asset is too long '{0}', the maximum for cooking is '{1}'\nPlease choose a shorter name for the asset or create it in a shallower folder structure with shorter folder names."), FText::AsNumber(AbsoluteCookPathToAssetLength), FText::AsNumber(MaxCookPathLen));
+			OutErrorMessage = FText::Format(LOCTEXT("AssetCookingPathTooLong", "The path to the asset is too long ({0} characters), the maximum for cooking is {1}.\nPlease choose a shorter name for the asset or create it in a shallower folder structure with shorter folder names."), FText::AsNumber(AbsoluteCookPathToAssetLength), FText::AsNumber(MaxCookPathLen));
 		}
 
 		// Return false to indicate that the user should enter a new name
