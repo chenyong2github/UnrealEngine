@@ -331,7 +331,7 @@ void FSessionService::UpdateSessionContext(FStoreSessionHandle StoreHandle, FSes
 	{
 		virtual int32 Read(void* Data, uint32 Size) override
 		{
-			if (BytesRead >= 8192)
+			if (BytesRead >= 32768)
 			{
 				return 0;
 			}
