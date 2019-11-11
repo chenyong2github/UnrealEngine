@@ -150,7 +150,6 @@ public:
 	void SetTessellationOptions(const FDatasmithTessellationOptions& Options);
 	void SetOutputPath(const FString& Path) { OutputPath = Path; }
 
-	//double GetMetricUnit() const { return LocalSession->GetImportParameters().MetricUnit; }
 	CADLibrary::FImportParameters& GetImportParameters()
 	{
 		return LocalSession->GetImportParameters();
@@ -193,7 +192,6 @@ private:
 
  	TOptional< FMeshDescription > ImportMesh(AlMesh& Mesh, CADLibrary::FMeshParameters& MeshParameters);
 
-	void CreateAlCommonMaterial(AlShader *Shader, TSharedRef<IDatasmithUEPbrMaterialElement> MaterialElement);
 	void AddAlBlinnParameters(AlShader *Shader, TSharedRef<IDatasmithUEPbrMaterialElement> MaterialElement);
 	void AddAlLambertParameters(AlShader *Shader, TSharedRef<IDatasmithUEPbrMaterialElement> MaterialElement);
 	void AddAlLightSourceParameters(AlShader *Shader, TSharedRef<IDatasmithUEPbrMaterialElement> MaterialElement);
@@ -1820,9 +1818,17 @@ TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(A
 
 	FString Filename = DagNode.name();
 
+	EAliasObjectReference ObjectReference = EAliasObjectReference::LocalReference;
+
+	if (MeshParameters.bIsSymmetric)
+	{
+		// All actors of a Alias symmetric layer are defined in the world Reference i.e. they have identity transform. So Mesh actor has to be defined in the world reference. 
+		ObjectReference = EAliasObjectReference::WorldReference;
+	}
+
 	TArray<AlDagNode*> DagNodeSet;
 	DagNodeSet.Add(&DagNode);
-	Result = LocalSession->AddBRep(DagNodeSet, MeshParameters.bIsSymmetric);
+	Result = LocalSession->AddBRep(DagNodeSet, ObjectReference);
 
 	Filename += TEXT(".ct");
 
@@ -1847,7 +1853,19 @@ TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(T
 
 	LocalSession->ClearData();
 
-	Result = LocalSession->AddBRep(Body->ShellSet, MeshParameters.bIsSymmetric);
+	EAliasObjectReference ObjectReference = EAliasObjectReference::LocalReference;
+	if (MeshParameters.bIsSymmetric)
+	{
+		// All actors of a Alias symmetric layer are defined in the world Reference i.e. they have identity transform. So Mesh actor has to be defined in the world reference. 
+		ObjectReference = EAliasObjectReference::WorldReference;
+	}
+	else if (GetImportParameters().StitchingTechnique == StitchingSew)
+	{
+		// In the case of StitchingSew, AlDagNode children of a GroupNode are merged together. To be merged, they have to be defined in the reference of parent GroupNode.
+		ObjectReference = EAliasObjectReference::ParentReference;
+	}
+
+	Result = LocalSession->AddBRep(Body->ShellSet, ObjectReference);
 
 	FString Filename = Body->Label + TEXT(".ct");
 
