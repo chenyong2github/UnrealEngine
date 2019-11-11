@@ -411,7 +411,7 @@ private:
 	>
 	static FORCEINLINE void MoveAllocatorToEmpty(FromArrayType& FromArray, ToArrayType& ToArray)
 	{
-		ToArray.AllocatorInstance.MoveToEmptyFromOtherAllocator<typename FromArrayType::Allocator>(FromArray.AllocatorInstance);
+		ToArray.AllocatorInstance.template MoveToEmptyFromOtherAllocator<typename FromArrayType::Allocator>(FromArray.AllocatorInstance);
 	}
 
 	template <
@@ -442,7 +442,7 @@ private:
 #if PLATFORM_COMPILER_HAS_IF_CONSTEXPR
 		if constexpr (TCanMoveBetweenAllocators<FromAllocatorType, ToAllocatorType>::Value)
 		{
-			ToArray.AllocatorInstance.MoveToEmptyFromOtherAllocator<FromAllocatorType>(FromArray.AllocatorInstance);
+			ToArray.AllocatorInstance.template MoveToEmptyFromOtherAllocator<FromAllocatorType>(FromArray.AllocatorInstance);
 		}
 		else
 		{
