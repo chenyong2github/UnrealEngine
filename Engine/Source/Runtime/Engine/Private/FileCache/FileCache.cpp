@@ -25,14 +25,12 @@ DEFINE_LOG_CATEGORY_STATIC(LogStreamingFileCache, Log, All);
 
 static const int CacheLineSize = 64 * 1024;
 
-#define NUM_CACHE_BLOCKS 512
-
-static int32 MaxNumLiveRequests = 32;
-static FAutoConsoleVariableRef CVarNumLiveRequests(
-	TEXT("sfc.MaxNumLiveRequests"),
-	MaxNumLiveRequests,
-	TEXT("Number of read request that can be in flight. default 32\n")
-	, ECVF_Default
+static int32 GNumFileCacheBlocks = 256;
+static FAutoConsoleVariableRef CVarNumFileCacheBlocks(
+	TEXT("fc.NumFileCacheBlocks"),
+	GNumFileCacheBlocks,
+	TEXT("Number of blocks in the global file cache object\n"),
+	ECVF_RenderThreadSafe
 );
 
 // 
@@ -171,12 +169,13 @@ public:
 	// allocated with an extra dummy entry at index0 for linked list head
 	TArray<FSlotInfo> SlotInfo;
 	uint8* Memory;
+	int32 SizeInBytes;
 	int32 NumFreeSlots;
 };
 
 static FFileCache &GetCache()
 {
-	static FFileCache TheCache(NUM_CACHE_BLOCKS);
+	static FFileCache TheCache(GNumFileCacheBlocks);
 	return TheCache;
 }
 
@@ -247,9 +246,9 @@ private:
 FFileCache::FFileCache(int32 NumSlots)
 	: EvictFileCacheCommand(TEXT("r.VT.EvictFileCache"), TEXT("Evict all the file caches in the VT system."),
 		FConsoleCommandDelegate::CreateRaw(this, &FFileCache::EvictFileCacheFromConsole))
+	, SizeInBytes(NumSlots * CacheSlotID::BlockSize)
 	, NumFreeSlots(NumSlots)
 {
-	const int32 SizeInBytes = NumSlots * CacheSlotID::BlockSize;
 	Memory = (uint8*)FMemory::Malloc(SizeInBytes);
 
 	SlotInfo.AddUninitialized(NumSlots + 1);
@@ -640,4 +639,9 @@ IFileCacheHandle* IFileCacheHandle::CreateFileCacheHandle(const TCHAR* InFileNam
 	}
 
 	return new FFileCacheHandle(FileHandle);
+}
+
+uint32 IFileCacheHandle::GetFileCacheSize()
+{
+	return GetCache().SizeInBytes;
 }

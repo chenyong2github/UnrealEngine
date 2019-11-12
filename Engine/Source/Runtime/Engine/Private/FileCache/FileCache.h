@@ -24,6 +24,9 @@ public:
 	static IFileCacheHandle *CreateFileCacheHandle(const TCHAR* InFileName);
 	virtual ~IFileCacheHandle() {};
 
+	/** Return size of underlying file cache in bytes. */
+	static uint32 GetFileCacheSize();
+
 	/**
 	 * Read a byte range form the file. This can be a high-throughput operation and done lots of times for small reads.
 	 * The system will handle this efficiently.
