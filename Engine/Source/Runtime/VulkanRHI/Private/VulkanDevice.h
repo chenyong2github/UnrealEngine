@@ -18,6 +18,14 @@ class FVulkanOcclusionQueryPool;
 class FOLDVulkanQueryPool;
 #endif
 
+#define VULKAN_USE_DEBUG_NAMES 0
+
+#ifdef VULKAN_USE_DEBUG_NAMES
+#define VULKAN_SET_DEBUG_NAME(Device, Type, Handle, Format, ...) Device.VulkanSetObjectName(Type, (uint64)Handle, *FString::Printf(Format, __VA_ARGS__))
+#else
+#define VULKAN_SET_DEBUG_NAME(Device, Type, Handle, Format, ...) do{}while(0)
+#endif
+
 struct FOptionalVulkanDeviceExtensions
 {
 	union
@@ -301,7 +309,7 @@ public:
 
 	FVulkanCommandListContext* AcquireDeferredContext();
 	void ReleaseDeferredContext(FVulkanCommandListContext* InContext);
-
+	void VulkanSetObjectName(VkObjectType Type, uint64_t Handle, const TCHAR* Name);
 	inline const FOptionalVulkanDeviceExtensions& GetOptionalExtensions() const
 	{
 		return OptionalDeviceExtensions;
@@ -430,11 +438,11 @@ private:
 		PFN_vkCmdDebugMarkerBeginEXT		CmdBegin = nullptr;
 		PFN_vkCmdDebugMarkerEndEXT			CmdEnd = nullptr;
 		PFN_vkDebugMarkerSetObjectNameEXT	CmdSetObjectName = nullptr;
+		PFN_vkSetDebugUtilsObjectNameEXT	SetDebugName = nullptr;
 
 #if 0//VULKAN_SUPPORTS_DEBUG_UTILS
 		PFN_vkCmdBeginDebugUtilsLabelEXT	CmdBeginDebugLabel = nullptr;
 		PFN_vkCmdEndDebugUtilsLabelEXT		CmdEndDebugLabel = nullptr;
-		PFN_vkSetDebugUtilsObjectNameEXT	SetDebugName = nullptr;
 #endif
 	} DebugMarkers;
 	friend class FVulkanCommandListContext;
