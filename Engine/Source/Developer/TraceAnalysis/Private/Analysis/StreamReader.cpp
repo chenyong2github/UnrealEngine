@@ -2,6 +2,7 @@
 
 #include "StreamReader.h"
 #include "DataStream.h"
+#include "HAL/UnrealMemory.h"
 
 namespace Trace
 {
@@ -30,13 +31,13 @@ void FStreamReader::Advance(uint32 Size)
 FStreamReaderDetail::FStreamReaderDetail(IInDataStream& InDataStream)
 : DataStream(InDataStream)
 {
-	Buffer = new uint8[BufferSize];
+	Buffer = (uint8*)FMemory::Malloc(BufferSize);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 FStreamReaderDetail::~FStreamReaderDetail()
 {
-	delete[] Buffer;
+	FMemory::Free(Buffer);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
