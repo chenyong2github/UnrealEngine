@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "BulkDataBuffer.h"
 #include "Async/AsyncFileHandle.h"
 #include "IO/IoDispatcher.h"
 
@@ -74,6 +75,13 @@ public:
 	bool IsLocked() const;
 
 	void* Realloc(int64 InElementCount);
+
+	/**
+	 * Retrieves a copy of the bulk data.
+	 *
+	 * @param Dest [in/out] Pointer to pointer going to hold copy, can point to nullptr in which case memory is allocated
+	 * @param bDiscardInternalCopy Whether to discard/ free the potentially internally allocated copy of the data
+	 */
 	void GetCopy(void** Dest, bool bDiscardInternalCopy);
 
 	int64 GetBulkDataSize() const;
@@ -168,9 +176,24 @@ public:
 		FBulkDataBase::Serialize(Ar, Owner, Index, bAttemptFileMapping, sizeof(ElementType));
 	}
 
+	/**
+	 * Returns the number of elements held by the BulkData object.
+	 *
+	 * @return Number of elements.
+	 */
+	int64 GetElementCount() const 
+	{ 
+		return GetBulkDataSize() / GetElementSize(); 
+	}
+
+	/**
+	 * Returns size in bytes of single element.
+	 *
+	 * @return The size of the element.
+	 */
 	int32 GetElementSize() const
-	{
-		return sizeof(ElementType);
+	{ 
+		return sizeof(ElementType); 
 	}
 
 	ElementType* Lock(uint32 LockFlags)
@@ -186,6 +209,29 @@ public:
 	ElementType* Realloc(int64 InElementCount)
 	{
 		return (ElementType*)FBulkDataBase::Realloc(InElementCount);
+	}
+
+	/**
+	 * Returns a copy encapsulated by a FBulkDataBuffer.
+	 *
+	 * @param RequestedElementCount If set to greater than 0, the returned FBulkDataBuffer will be limited to
+	 * this number of elements. This will give an error if larger than the actual number of elements in the BulkData object.
+	 * @param bDiscardInternalCopy If true then the BulkData object will free it's internal buffer once called.
+	 *
+	 * @return A FBulkDataBuffer that owns a copy of the BulkData, this might be a subset of the data depending on the value of RequestedSize.
+	 */
+	FBulkDataBuffer<ElementType> GetCopyAsBuffer(int64 RequestedElementCount, bool bDiscardInternalCopy)
+	{
+		const int64 MaxElementCount = GetElementCount();
+
+		check(RequestedElementCount <= MaxElementCount);
+
+		ElementType* Ptr = nullptr;
+		GetCopy((void**)& Ptr, bDiscardInternalCopy);
+
+		const int64 BufferSize = (RequestedElementCount > 0 ? RequestedElementCount : MaxElementCount);
+
+		return FBulkDataBuffer<ElementType>(Ptr, BufferSize);
 	}
 };
 

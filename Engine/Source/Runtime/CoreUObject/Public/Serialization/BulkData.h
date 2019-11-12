@@ -572,6 +572,18 @@ public:
 	void GetCopy( void** Dest, bool bDiscardInternalCopy = true );
 
 	/**
+	 * Returns a copy encapsulated by a FBulkDataBuffer.
+	 *
+	 * @param RequestedElementCount If set to greater than 0, the returned FBulkDataBuffer will be limited to
+	 * this number of elements. This will give an error if larger than the actual number of elements in the BulkData object.
+	 * @param bDiscardInternalCopy If true then the BulkData object will free it's internal buffer once called.
+	 *
+	 * @return A FBulkDataBuffer that owns a copy of the BulkData, this might be a subset of the data depending on the value of RequestedSize.
+	 */
+	template<typename ElementType>
+	FBulkDataBuffer<ElementType> GetCopyAsBuffer(int64 RequestedElementCount, bool bDiscardInternalCopy);
+
+	/**
 	 * Locks the bulk data and returns a pointer to it.
 	 *
 	 * @param	LockFlags	Flags determining lock behavior
@@ -845,7 +857,20 @@ protected:
 #endif // WITH_EDITOR
 };
 
+template<typename ElementType>
+FBulkDataBuffer<ElementType> FUntypedBulkData::GetCopyAsBuffer(int64 RequestedElementCount, bool bDiscardInternalCopy)
+{
+	const int64 MaxElementCount = GetElementCount();
 
+	check(RequestedElementCount <= MaxElementCount);
+
+	ElementType* Ptr = nullptr;
+	GetCopy((void**)& Ptr, bDiscardInternalCopy);
+
+	const int64 BufferSize = (RequestedElementCount > 0 ? RequestedElementCount : MaxElementCount);
+
+	return FBulkDataBuffer<ElementType>(Ptr, BufferSize);
+}
 /*-----------------------------------------------------------------------------
 	uint8 version of bulk data.
 -----------------------------------------------------------------------------*/
@@ -867,6 +892,17 @@ struct COREUOBJECT_API FByteBulkDataOld : public FUntypedBulkData
 	 * @param ElementIndex	Element index to serialize
 	 */
 	virtual void SerializeElement( FArchive& Ar, void* Data, int64 ElementIndex );
+
+	/**
+	 * Returns a copy encapsulated by a FBulkDataBuffer.
+	 *
+	 * @param RequestedElementCount If set to greater than 0, the returned FBulkDataBuffer will be limited to
+	 * this number of elements. This will give an error if larger than the actual number of elements in the BulkData object.
+	 * @param bDiscardInternalCopy If true then the BulkData object will free it's internal buffer once called.
+	 *
+	 * @return A FBulkDataBuffer that owns a copy of the BulkData, this might be a subset of the data depending on the value of RequestedSize.
+	 */
+	FBulkDataBuffer<uint8> GetCopyAsBuffer(int64 RequestedElementCount, bool bDiscardInternalCopy) { return FUntypedBulkData::GetCopyAsBuffer<uint8>(RequestedElementCount, bDiscardInternalCopy); }
 };
 
 /*-----------------------------------------------------------------------------
@@ -890,6 +926,17 @@ struct COREUOBJECT_API FWordBulkDataOld : public FUntypedBulkData
 	 * @param ElementIndex	Element index to serialize
 	 */
 	virtual void SerializeElement( FArchive& Ar, void* Data, int64 ElementIndex );
+
+	/**
+	 * Returns a copy encapsulated by a FBulkDataBuffer.
+	 *
+	 * @param RequestedElementCount If set to greater than 0, the returned FBulkDataBuffer will be limited to
+	 * this number of elements. This will give an error if larger than the actual number of elements in the BulkData object.
+	 * @param bDiscardInternalCopy If true then the BulkData object will free it's internal buffer once called.
+	 *
+	 * @return A FBulkDataBuffer that owns a copy of the BulkData, this might be a subset of the data depending on the value of RequestedSize.
+	 */
+	FBulkDataBuffer<uint16> GetCopyAsBuffer(int64 RequestedElementCount, bool bDiscardInternalCopy) { return FUntypedBulkData::GetCopyAsBuffer<uint16>(RequestedElementCount, bDiscardInternalCopy); }
 };
 
 /*-----------------------------------------------------------------------------
@@ -913,6 +960,17 @@ struct COREUOBJECT_API FIntBulkDataOld : public FUntypedBulkData
 	 * @param ElementIndex	Element index to serialize
 	 */
 	virtual void SerializeElement( FArchive& Ar, void* Data, int64 ElementIndex );
+
+	/**
+	 * Returns a copy encapsulated by a FBulkDataBuffer.
+	 *
+	 * @param RequestedElementCount If set to greater than 0, the returned FBulkDataBuffer will be limited to
+	 * this number of elements. This will give an error if larger than the actual number of elements in the BulkData object.
+	 * @param bDiscardInternalCopy If true then the BulkData object will free it's internal buffer once called.
+	 *
+	 * @return A FBulkDataBuffer that owns a copy of the BulkData, this might be a subset of the data depending on the value of RequestedSize.
+	 */
+	FBulkDataBuffer<int32> GetCopyAsBuffer(int64 RequestedElementCount, bool bDiscardInternalCopy) { return FUntypedBulkData::GetCopyAsBuffer<int32>(RequestedElementCount, bDiscardInternalCopy); }
 };
 
 /*-----------------------------------------------------------------------------
@@ -936,6 +994,17 @@ struct COREUOBJECT_API FFloatBulkDataOld : public FUntypedBulkData
 	 * @param ElementIndex	Element index to serialize
 	 */
 	virtual void SerializeElement( FArchive& Ar, void* Data, int64 ElementIndex );
+
+	/**
+	 * Returns a copy encapsulated by a FBulkDataBuffer.
+	 *
+	 * @param RequestedElementCount If set to greater than 0, the returned FBulkDataBuffer will be limited to
+	 * this number of elements. This will give an error if larger than the actual number of elements in the BulkData object.
+	 * @param bDiscardInternalCopy If true then the BulkData object will free it's internal buffer once called.
+	 *
+	 * @return A FBulkDataBuffer that owns a copy of the BulkData, this might be a subset of the data depending on the value of RequestedSize.
+	 */
+	FBulkDataBuffer<float> GetCopyAsBuffer(int64 RequestedElementCount, bool bDiscardInternalCopy) { return FUntypedBulkData::GetCopyAsBuffer<float>(RequestedElementCount, bDiscardInternalCopy); }
 };
 
 // Switch between the old and new types based on USE_NEW_BULKDATA
