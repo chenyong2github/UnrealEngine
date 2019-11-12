@@ -101,21 +101,26 @@ FPhysInterface_Chaos::~FPhysInterface_Chaos()
 void FPhysInterface_Chaos::CreateActor(const FActorCreationParams& InParams, FPhysicsActorHandle& Handle)
 {
 	LLM_SCOPE(ELLMTag::Chaos);
-
-	// Create the new particle
+	
+	// Set object state based on the requested particle type
 	if (InParams.bStatic)
 	{
-		Handle = Chaos::TGeometryParticle<float, 3>::CreateParticle().Release();	//todo: should BodyInstance use a unique ptr to manage this memory?
-	}
-	else if (InParams.BodyInstance && InParams.BodyInstance->ShouldInstanceSimulatingPhysics())
-	{
-		TUniquePtr<Chaos::TPBDRigidParticle<float, 3>> RigidHandle = Chaos::TPBDRigidParticle<float, 3>::CreateParticle();
-		RigidHandle->SetGravityEnabled(InParams.bEnableGravity);
-		Handle = RigidHandle.Release();	//todo: should BodyInstance use a unique ptr to manage this memory?
+		Handle = Chaos::TGeometryParticle<float, 3>::CreateParticle().Release();
 	}
 	else
 	{
-		Handle = Chaos::TKinematicGeometryParticle<float, 3>::CreateParticle().Release(); //todo: should BodyInstance use a unique ptr to manage this memory?
+		// Create an underlying dynamic particle
+		Chaos::TPBDRigidParticle<float, 3>* RigidHandle = Chaos::TPBDRigidParticle<float, 3>::CreateParticle().Release(); //todo: should BodyInstance use a unique ptr to manage this memory?
+		Handle = RigidHandle;
+		RigidHandle->SetGravityEnabled(InParams.bEnableGravity);
+		if (InParams.BodyInstance && InParams.BodyInstance->ShouldInstanceSimulatingPhysics())
+		{
+			RigidHandle->SetObjectState(Chaos::EObjectStateType::Dynamic);
+		}
+		else
+		{
+			RigidHandle->SetObjectState(Chaos::EObjectStateType::Kinematic);
+		}
 	}
 
 	// Set up the new particle's game-thread data. This will be sent to physics-thread when
@@ -294,7 +299,18 @@ void FPhysInterface_Chaos::WakeUp_AssumesLocked(const FPhysicsActorHandle& InAct
 
 void FPhysInterface_Chaos::SetIsKinematic_AssumesLocked(const FPhysicsActorHandle& InActorReference, bool bIsKinematic)
 {
-	// #todo : Implement
+	if (Chaos::TPBDRigidParticle<float, 3>* Particle = InActorReference->AsDynamic())
+	{
+		const Chaos::EObjectStateType NewState
+			= bIsKinematic
+			? Chaos::EObjectStateType::Kinematic
+			: Chaos::EObjectStateType::Dynamic;
+		Particle->SetObjectState(NewState);
+	}
+	else
+	{
+		ensureMsgf(false, TEXT("Can only set kinematic state of underlying dynamic particles"));
+	}
 }
 
 void FPhysInterface_Chaos::SetCcdEnabled_AssumesLocked(const FPhysicsActorHandle& InActorReference, bool bIsCcdEnabled)
