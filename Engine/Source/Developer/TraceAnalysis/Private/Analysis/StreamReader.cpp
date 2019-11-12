@@ -46,7 +46,7 @@ bool FStreamReaderDetail::Read()
 	int32 Remaining = int32(UPTRINT(End - Cursor));
 	if (Remaining != 0)
 	{
-		memcpy(Buffer, Cursor, Remaining);
+		memmove(Buffer, Cursor, Remaining);
 	}
 
 	uint8* Dest = Buffer + Remaining;
