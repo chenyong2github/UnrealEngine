@@ -49,6 +49,7 @@
 
 #include "NiagaraEditorSettings.h"
 #include "NiagaraNodeStaticSwitch.h"
+#include "NiagaraScriptVariable.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraCompiler"
 
@@ -454,7 +455,7 @@ void FHlslNiagaraTranslator::BuildMissingDefaults()
 			const UEdGraphPin* DefaultPin = UniqueVarToDefaultPin.FindChecked(Var);
 			bool bWriteToParamMapEntries = UniqueVarToWriteToParamMap.FindChecked(Var);
 			int32 OutputChunkId = INDEX_NONE;
-			HandleParameterRead(ActiveStageIdx, Var, DefaultPin, DefaultPin != nullptr ? Cast<UNiagaraNode>(DefaultPin->GetOwningNode()) : nullptr, OutputChunkId, !bWriteToParamMapEntries);
+			HandleParameterRead(ActiveStageIdx, Var, DefaultPin, DefaultPin != nullptr ? Cast<UNiagaraNode>(DefaultPin->GetOwningNode()) : nullptr, OutputChunkId, nullptr, !bWriteToParamMapEntries);
 		}
 
 		DeferredVariablesMissingDefault.Empty();
@@ -3149,7 +3150,7 @@ void FHlslNiagaraTranslator::InitializeParameterMapDefaults(int32 ParamMapHistor
 			// During the initial pass, only support constants for the default pin.
 			if (!FNiagaraParameterMapHistory::IsInitialValue(Var) && (DefaultPin == nullptr || DefaultPin->LinkedTo.Num() == 0))
 			{
-				HandleParameterRead(ParamMapHistoryIdx, Var, DefaultPin, DefaultPin != nullptr ? Cast<UNiagaraNode>(DefaultPin->GetOwningNode()) : nullptr, OutputChunkId, !bWriteToParamMapEntries);
+				HandleParameterRead(ParamMapHistoryIdx, Var, DefaultPin, DefaultPin != nullptr ? Cast<UNiagaraNode>(DefaultPin->GetOwningNode()) : nullptr, OutputChunkId, nullptr, !bWriteToParamMapEntries);
 				UniqueVarToChunk.Add(Var, OutputChunkId);
 			}
 			else if (FNiagaraParameterMapHistory::IsInitialValue(Var))
@@ -3903,12 +3904,106 @@ void FHlslNiagaraTranslator::ParameterMapGet(UNiagaraNodeParameterMapGet* GetNod
 				OutputTypeDefinition.IsDataInterface() == false;
 			FNiagaraVariable Var = Schema->PinToNiagaraVariable(OutputPins[i], bNeedsValue);
 
-			HandleParameterRead(ParamMapHistoryIdx, Var, GetNode->GetDefaultPin(OutputPins[i]), GetNode, Outputs[i]);
+			UNiagaraGraph* SourceGraph = GetNode->GetNiagaraGraph();
+			UNiagaraScriptVariable* Variable = SourceGraph->GetScriptVariable(Var);
+
+			bool bFoundBinding = false;
+			if (Var.GetName().ToString().Contains(TEXT("Module.")))
+			{
+				if (Variable && Variable->DefaultMode == ENiagaraDefaultMode::Binding)
+				{
+					FNiagaraScriptVariableBinding Bind = Variable->DefaultBinding;
+					if (Bind.IsValid())
+					{
+						int LastSetChunkIdx = INDEX_NONE;
+						for (auto& UniqueVar : UniqueVarToChunk)
+						{
+							if (UniqueVar.Key.IsEquivalent(FNiagaraVariable(Var.GetType(), Var.GetName())))
+							{
+								LastSetChunkIdx = UniqueVar.Value;
+								break;
+							}
+						}
+
+						Var = ActiveHistoryForFunctionCalls.ResolveAliases(Var);
+
+						if (LastSetChunkIdx == INDEX_NONE)
+						{
+							for (auto HistoryVariable : ParamMapHistories[ParamMapHistoryIdx].Variables)
+							{
+								if (HistoryVariable.IsEquivalent(FNiagaraVariable(Var.GetType(), Bind.GetName())))
+								{
+									FString SanitizedName = GetParameterMapInstanceName(ActiveStageIdx) + TEXT(".") + GetSanitizedSymbolName(Var.GetName().ToString());
+									LastSetChunkIdx = AddSourceChunk(SanitizedName, Var.GetType());
+									break;
+								}
+							}
+						}
+
+						if (LastSetChunkIdx == INDEX_NONE)
+						{
+							FString SanitizedName = GetParameterMapInstanceName(ActiveStageIdx) + TEXT(".") + GetSanitizedSymbolName(Var.GetName().ToString());
+							LastSetChunkIdx = CodeChunks.IndexOfByPredicate(
+								[&](const FNiagaraCodeChunk& Chunk)
+								{
+									return Chunk.Mode == ENiagaraCodeChunkMode::Source && Chunk.SymbolName == SanitizedName && Chunk.Type == Var.GetType();
+								}
+							);
+						}
+
+						if (LastSetChunkIdx == INDEX_NONE)
+						{
+							FString SanitizedName = GetParameterMapInstanceName(ActiveStageIdx) + TEXT(".") + GetSanitizedSymbolName(Var.GetName().ToString());
+							LastSetChunkIdx = CodeChunks.IndexOfByPredicate(
+								[&](const FNiagaraCodeChunk& Chunk)
+								{
+									return Chunk.Mode == ENiagaraCodeChunkMode::Body && Chunk.SymbolName == SanitizedName && Chunk.Type == Var.GetType();
+								}
+							);
+						}
+
+						if (LastSetChunkIdx != INDEX_NONE && Var.GetType().GetClass() == nullptr)
+						{
+							int32 VarIdx = ParamMapHistories[ParamMapHistoryIdx].FindVariableByName(Var.GetName());
+							if (VarIdx != INDEX_NONE && VarIdx < ParamMapSetVariablesToChunks[ParamMapHistoryIdx].Num())
+							{
+								ParamMapSetVariablesToChunks[ParamMapHistoryIdx][VarIdx] = LastSetChunkIdx;
+								Outputs[i] = LastSetChunkIdx;
+								ParamMapDefinedAttributesToNamespaceVars.FindOrAdd(Var.GetName()) = Var;
+							}
+							
+							bFoundBinding = true;
+						}
+						else
+						{
+							int Out;
+							if (ParameterMapRegisterExternalConstantNamespaceVariable(FNiagaraVariable(Var.GetType(), Bind.GetName()), GetNode, ActiveStageIdx, Out, GetNode->GetDefaultPin(OutputPins[i])))
+							{
+								LastSetChunkIdx = Out;
+								int32 VarIdx = ParamMapHistories[ParamMapHistoryIdx].FindVariableByName(Var.GetName());
+								if (VarIdx != INDEX_NONE && VarIdx < ParamMapSetVariablesToChunks[ParamMapHistoryIdx].Num())
+								{
+									ParamMapSetVariablesToChunks[ParamMapHistoryIdx][VarIdx] = LastSetChunkIdx;
+									Outputs[i] = LastSetChunkIdx;
+									ParamMapDefinedAttributesToNamespaceVars.FindOrAdd(Var.GetName()) = Var;
+								}
+
+								bFoundBinding = true;
+							}
+						}
+					}
+				}
+			}
+
+			if (!bFoundBinding)
+			{
+				HandleParameterRead(ParamMapHistoryIdx, Var, GetNode->GetDefaultPin(OutputPins[i]), GetNode, Outputs[i], nullptr);
+			}
 		}
 	}
 }
 
-void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const FNiagaraVariable& InVar, const UEdGraphPin* DefaultPin, UNiagaraNode* ErrorNode, int32& OutputChunkId, bool bTreatAsUnknownParameterMap)
+void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const FNiagaraVariable& InVar, const UEdGraphPin* DefaultPin, UNiagaraNode* ErrorNode, int32& OutputChunkId, UNiagaraScriptVariable* Variable, bool bTreatAsUnknownParameterMap)
 {
 	FString ParameterMapInstanceName = GetParameterMapInstanceName(ParamMapHistoryIdx);
 	FNiagaraVariable Var = InVar;
@@ -3918,9 +4013,6 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 	}
 
 	// If this is a System parameter, just wire in the system appropriate system attribute.
-	FString VarName = Var.GetName().ToString();
-	FString SymbolName = GetSanitizedSymbolName(VarName);
-
 	bool bIsPerInstanceAttribute = false;
 	bool bIsCandidateForRapidIteration = false;
 	const UEdGraphPin* InputPin = DefaultPin;
@@ -3948,7 +4040,12 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 	}
 	else if (FNiagaraParameterMapHistory::IsAliasedModuleParameter(Var) && ActiveHistoryForFunctionCalls.InTopLevelFunctionCall(CompileOptions.TargetUsage))
 	{
-		if (InputPin != nullptr && InputPin->LinkedTo.Num() == 0 && Var.GetType() != FNiagaraTypeDefinition::GetBoolDef() && !Var.GetType().IsEnum() && !Var.GetType().IsDataInterface())
+		if (Variable && Variable->DefaultMode == ENiagaraDefaultMode::Binding && Variable->DefaultBinding.IsValid())
+		{
+			bIsCandidateForRapidIteration = false;
+			
+		}
+		else if (InputPin != nullptr && InputPin->LinkedTo.Num() == 0 && Var.GetType() != FNiagaraTypeDefinition::GetBoolDef() && !Var.GetType().IsEnum() && !Var.GetType().IsDataInterface())
 		{
 			bIsCandidateForRapidIteration = true;
 		}
@@ -4111,8 +4208,79 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 
 		if (LastSetChunkIdx == INDEX_NONE && !bIgnoreDefaultValue)
 		{
-			// Default was found, trace back its inputs.
-			if (InputPin != nullptr)
+			if (Variable && Variable->DefaultMode == ENiagaraDefaultMode::Binding && Variable->DefaultBinding.IsValid())
+			{
+				bool bMatchingNames = false;
+				bool bIsCorrectType = false;
+				FNiagaraVariable FoundVar;
+				for (auto& UniqueVar : UniqueVars)
+				{
+					if (Variable->DefaultBinding.GetName() == UniqueVar.GetName())
+					{
+						bMatchingNames = true;
+						bIsCorrectType = Variable->Variable.GetType() == UniqueVar.GetType();
+						FoundVar = UniqueVar;
+						break;
+					}
+				}
+
+				if (!bMatchingNames)
+				{
+					for (auto& EngineConstant : FNiagaraConstants::GetEngineConstants())
+					{
+						if (Variable->DefaultBinding.GetName() == EngineConstant.GetName())
+						{
+							bMatchingNames = true;
+							bIsCorrectType = Variable->Variable.GetType() == EngineConstant.GetType();
+							FoundVar = EngineConstant;
+							break;
+						}
+					}
+
+					for (auto& TranslatorConstant : FNiagaraConstants::GetTranslatorConstants())
+					{
+						if (Variable->DefaultBinding.GetName() == TranslatorConstant.GetName())
+						{
+							bMatchingNames = true;
+							bIsCorrectType = Variable->Variable.GetType() == TranslatorConstant.GetType();
+							FoundVar = TranslatorConstant;
+							break;
+						}
+					}
+				}
+
+				if (bMatchingNames && bIsCorrectType)
+				{
+					for (auto& UniqueVar : UniqueVarToChunk)
+					{
+						if (UniqueVar.Key.IsEquivalent(FNiagaraVariable(Variable->Variable.GetType(), Variable->DefaultBinding.GetName())))
+						{
+							LastSetChunkIdx = UniqueVar.Value;
+							break;
+						}
+					}
+
+				}
+				else
+				{
+					if (!bMatchingNames)
+					{
+						Error(FText::Format(LOCTEXT("CannotFindBinding", "The module input {0} is bound to {1}, but {1} is not yet defined. Make sure {1} is defined prior to this module call."),
+							FText::FromName(Var.GetName()), 
+							FText::FromName(Variable->DefaultBinding.GetName())), ErrorNode, nullptr);
+					}
+					else
+					{
+						Error(FText::Format(LOCTEXT("IncorrectBindingType", "The type of module input {0} ({1}) does not match the type of the bound parameter {2} ({3}). This module expects {2} to be of type {1}."),
+							FText::FromName(Var.GetName()),
+							Var.GetType().GetNameText(),
+							FText::FromName(Variable->DefaultBinding.GetName()),
+							FoundVar.GetType().GetNameText()), ErrorNode, nullptr);
+					}
+					
+				}
+			}
+			else if (InputPin != nullptr) // Default was found, trace back its inputs.
 			{
 				// Check to see if there are any overrides passed in to the translator. This allows us to bake in rapid iteration variables for performance.
 				if (InputPin->LinkedTo.Num() == 0 && bIsCandidateForRapidIteration && !TranslationOptions.bParameterRapidIteration)
@@ -5060,8 +5228,70 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 									if (LastSetChunkIdx == INDEX_NONE)
 									{
 										const UEdGraphPin* DefaultPin = History.GetDefaultValuePin(VarIdx);
-										HandleParameterRead(ActiveStageIdx, AliasedVar, DefaultPin, ParamNode, LastSetChunkIdx);
+										UNiagaraScriptVariable* ScriptVariable = SourceGraph->GetScriptVariable(AliasedVar);
 
+										bool bFoundBinding = false;
+										if (AliasedVar.GetName().ToString().Contains(TEXT("Module.")))
+										{
+											
+											if (ScriptVariable->DefaultMode == ENiagaraDefaultMode::Binding)
+											{
+												FNiagaraScriptVariableBinding Bind = ScriptVariable->DefaultBinding;
+												if (Bind.IsValid())
+												{
+													for (auto& UniqueVar : UniqueVarToChunk)
+													{
+														if (UniqueVar.Key.IsEquivalent(FNiagaraVariable(Var.GetType(), Bind.GetName())))
+														{
+															LastSetChunkIdx = UniqueVar.Value;
+															break;
+														}
+													}
+													
+													if (LastSetChunkIdx == INDEX_NONE)
+													{
+														for (auto HistoryVariable : History.Variables)
+														{
+															if (HistoryVariable.IsEquivalent(FNiagaraVariable(Var.GetType(), Bind.GetName())))
+															{
+																FString SanitizedName = GetParameterMapInstanceName(ActiveStageIdx) + TEXT(".") + GetSanitizedSymbolName(Bind.GetName().ToString());
+																LastSetChunkIdx = AddSourceChunk(SanitizedName, Var.GetType());
+																break;
+															}
+														}
+													}
+
+													if (LastSetChunkIdx != INDEX_NONE && Var.GetType().GetClass() == nullptr)
+													{
+														FString SanitizedName = GetParameterMapInstanceName(ActiveStageIdx) + TEXT(".") + GetSanitizedSymbolName(Var.GetName().ToString());
+
+														AddBodyChunk(SanitizedName, TEXT("{0}"), Var.GetType(), LastSetChunkIdx, false);
+														LastSetChunkIdx = AddSourceChunk(SanitizedName, Var.GetType());
+														ParamMapDefinedAttributesToNamespaceVars.FindOrAdd(Var.GetName()) = Var;
+														bFoundBinding = true;
+													}
+													else
+													{
+														int Out;
+														if (ParameterMapRegisterExternalConstantNamespaceVariable(FNiagaraVariable(Var.GetType(), Bind.GetName()), ParamNode, ActiveStageIdx, Out, nullptr))
+														{
+															FString SanitizedName = GetParameterMapInstanceName(ActiveStageIdx) + TEXT(".") + GetSanitizedSymbolName(Var.GetName().ToString());
+
+															AddBodyChunk(SanitizedName, TEXT("{0}"), Var.GetType(), Out, false);
+															LastSetChunkIdx = AddSourceChunk(SanitizedName, Var.GetType());
+															ParamMapDefinedAttributesToNamespaceVars.FindOrAdd(Var.GetName()) = Var;
+															bFoundBinding = true;
+														}
+													}
+												}
+											}
+										}
+									
+										if (!bFoundBinding)
+										{
+											HandleParameterRead(ActiveStageIdx, AliasedVar, DefaultPin, ParamNode, LastSetChunkIdx, ScriptVariable);
+										}
+										
 										// If this variable was in the pending defaults list, go ahead and remove it
 										// as we added it before first use...
 										if (DeferredVariablesMissingDefault.Contains(Var))
