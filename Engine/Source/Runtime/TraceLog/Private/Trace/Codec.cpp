@@ -1,7 +1,10 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "CoreTypes.h"
-#include "Lz4/lz4.h"
+
+extern "C" {
+#include "ThirdParty/LZ4/lz4.c"
+} // extern "C"
 
 namespace Trace {
 namespace Private {
