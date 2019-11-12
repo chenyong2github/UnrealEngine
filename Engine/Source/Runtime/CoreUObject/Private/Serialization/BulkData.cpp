@@ -1097,6 +1097,12 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 
 						Ar << BulkDataOffsetInFile;
 						BulkDataOffsetInFile += OffsetInFileFixup;
+
+						if ((BulkDataFlags & BULKDATA_CookedForIoDispatcher) != 0)
+						{
+							FIoChunkId DummyChunkID;
+							Ar << DummyChunkID;
+						}
 					}
 					else
 					{
@@ -1117,6 +1123,12 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 
 						int64 DummyBulkDataOffsetInFile;
 						Ar << DummyBulkDataOffsetInFile;
+
+						if ((BulkDataFlags & BULKDATA_CookedForIoDispatcher) != 0)
+						{
+							FIoChunkId DummyChunkID;
+							Ar << DummyChunkID;
+						}
 
 						Filename = FPaths::ChangeExtension(Filename, TEXT(".ubulk"));
 					}
