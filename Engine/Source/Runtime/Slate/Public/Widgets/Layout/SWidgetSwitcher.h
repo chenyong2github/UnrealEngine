@@ -156,6 +156,8 @@ protected:
 	virtual bool ComputeVolatility() const override { return WidgetIndex.IsBound(); }
 	const FSlot* GetActiveSlot() const;
 
+	TPanelChildren<FSlot>& GetTypedChildren() { return AllChildren; }
+
 private:
 
 	/** Holds the desired widget index */
