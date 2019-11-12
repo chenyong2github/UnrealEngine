@@ -36,7 +36,7 @@ public:
 		, bForceNonMetal(false)
 		, bForceDisableLMDirectionality(false)
 		, bForceLQReflections(false)
-		, bForceNotUsePreintegratedGF(false)
+		, bForceDisablePreintegratedGF(false)
 		, bDisableMaterialNormalCalculation(false)
 		, MobileCSMQuality(EMobileCSMQuality::PCF_2x2)
 	{
@@ -61,7 +61,7 @@ public:
 	bool bForceLQReflections;
 
 	UPROPERTY(EditAnywhere, Config, Meta = (DisplayName = "Force not use preintegrated GF for simple IBL"), Category = "Quality")
-	bool bForceNotUsePreintegratedGF;
+	bool bForceDisablePreintegratedGF;
 
 	UPROPERTY(EditAnywhere, Config, Meta = (DisplayName = "Disable material normal calculation"), Category = "Quality")
 	bool bDisableMaterialNormalCalculation;
