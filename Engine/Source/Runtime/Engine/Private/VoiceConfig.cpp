@@ -21,6 +21,14 @@ static TAutoConsoleVariable<float> CVarVoiceSilenceDetectionThreshold(TEXT("voic
 	TEXT("Threshold to be set for the VOIP microphone's silence detection algorithm.\n"),	
 	ECVF_Default);
 
+static int32 NumVoiceChannelsCvar = 1;
+FAutoConsoleVariableRef CVarNumVoiceChannels(
+	TEXT("voice.NumChannels"),
+	NumVoiceChannelsCvar,
+	TEXT("Default number of channels to capture from mic input, encode to Opus, and output. Can be set to 1 or 2.\n")
+	TEXT("Value: Number of channels to use for VOIP input and output."),
+	ECVF_Default);
+
 int32 UVOIPStatics::GetVoiceSampleRate()
 {
 #if PLATFORM_UNIX
@@ -59,6 +67,11 @@ int32 UVOIPStatics::GetVoiceSampleRate()
 	// If we've made it here, we couldn't find a specified sample rate from properties.
 	return SampleRate = (int32) EVoiceSampleRate::Low16000Hz;
 #endif
+}
+
+int32 UVOIPStatics::GetVoiceNumChannels()
+{
+	return FMath::Clamp<int32>(NumVoiceChannelsCvar, 1, 2);
 }
 
 uint32 UVOIPStatics::GetMaxVoiceDataSize()
