@@ -28,17 +28,21 @@ bool FVulkanWindowsPlatform::LoadVulkanLibrary()
 #if VULKAN_HAS_DEBUGGING_ENABLED
 	if (GValidationCvar->GetInt() > 0)
 	{
-		const FString PreviousEnvVar = FPlatformMisc::GetEnvironmentVariable(TEXT("VK_LAYER_PATH"));
-		if (PreviousEnvVar.IsEmpty())
+		const bool bUseSDK = FParse::Param(FCommandLine::Get(), TEXT("vulkansdk"));
+		if (!bUseSDK)
 		{
-			// Change behavior of loading Vulkan layers by setting environment variable "VK_LAYER_PATH" to UE4 specific directory
-			FString VulkanLayerPath = FPaths::EngineDir();
+			const FString PreviousEnvVar = FPlatformMisc::GetEnvironmentVariable(TEXT("VK_LAYER_PATH"));
+			if (PreviousEnvVar.IsEmpty())
+			{
+				// Change behavior of loading Vulkan layers by setting environment variable "VK_LAYER_PATH" to UE4 specific directory
+				FString VulkanLayerPath = FPaths::EngineDir();
 #if PLATFORM_64BITS
-			VulkanLayerPath.Append(TEXT("Binaries/ThirdParty/Windows/Vulkan/Win64"));
+				VulkanLayerPath.Append(TEXT("Binaries/ThirdParty/Windows/Vulkan/Win64"));
 #else
-			VulkanLayerPath.Append(TEXT("Binaries/ThirdParty/Windows/Vulkan/Win32"));
+				VulkanLayerPath.Append(TEXT("Binaries/ThirdParty/Windows/Vulkan/Win32"));
 #endif
-			FPlatformMisc::SetEnvironmentVar(TEXT("VK_LAYER_PATH"), *VulkanLayerPath);
+				FPlatformMisc::SetEnvironmentVar(TEXT("VK_LAYER_PATH"), *VulkanLayerPath);
+			}
 		}
 	}
 #endif // VULKAN_HAS_DEBUGGING_ENABLED

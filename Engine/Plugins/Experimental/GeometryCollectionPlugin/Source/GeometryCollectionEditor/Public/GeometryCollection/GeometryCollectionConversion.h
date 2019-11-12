@@ -33,4 +33,21 @@ public:
 	*/
 	static void AppendSkeletalMesh(const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent *SkeletalMeshComponent, const FTransform & SkeletalMeshTransform, UGeometryCollection * GeometryCollection, bool ReindexMaterials = true);
 
+	/**
+	*  Command invoked from "GeometryCollection.CreatGeometryCollection", uses the selected Actors to create a GeometryCollection Asset
+	*  @param World
+	*/
+	static void CreateGeometryCollectionCommand(UWorld * World);
+
+	/**
+	*  Command invoked from "GeometryCollection.CreateFromSelectedActors", uses the selected Actors to create a GeometryCollection Asset
+	*  @param World
+	*/
+	static void CreateFromSelectedActorsCommand(UWorld * World);
+
+	/**
+	*  Command invoked from "GeometryCollection.CreateFromSelectedAssets", uses the selected Assets to create a GeometryCollection Asset
+	*  @param World
+	*/
+	static void CreateFromSelectedAssetsCommand(UWorld * World);
 };

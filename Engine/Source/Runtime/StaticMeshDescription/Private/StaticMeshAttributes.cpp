@@ -52,3 +52,11 @@ void FStaticMeshAttributes::Register()
 	// Call super class
 	FMeshAttributes::Register();
 }
+
+
+void FStaticMeshAttributes::RegisterPolygonNormalAndTangentAttributes()
+{
+	MeshDescription.PolygonAttributes().RegisterAttribute<FVector>(MeshAttribute::Polygon::Normal, 1, FVector::ZeroVector, EMeshAttributeFlags::Transient);
+	MeshDescription.PolygonAttributes().RegisterAttribute<FVector>(MeshAttribute::Polygon::Tangent, 1, FVector::ZeroVector, EMeshAttributeFlags::Transient);
+	MeshDescription.PolygonAttributes().RegisterAttribute<FVector>(MeshAttribute::Polygon::Binormal, 1, FVector::ZeroVector, EMeshAttributeFlags::Transient);
+}

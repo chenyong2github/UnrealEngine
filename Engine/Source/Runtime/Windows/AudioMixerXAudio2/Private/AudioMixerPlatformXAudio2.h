@@ -53,6 +53,7 @@ namespace Audio
 		virtual bool GetNumOutputDevices(uint32& OutNumOutputDevices) override;
 		virtual bool GetOutputDeviceInfo(const uint32 InDeviceIndex, FAudioPlatformDeviceInfo& OutInfo) override;
 		virtual bool GetDefaultOutputDeviceIndex(uint32& OutDefaultDeviceIndex) const override;
+		virtual int32 GetIndexForDevice(const FString& InDeviceName) override;
 		virtual bool OpenAudioStream(const FAudioMixerOpenStreamParams& Params) override;
 		virtual bool CloseAudioStream() override;
 		virtual bool StartAudioStream() override;

@@ -91,7 +91,7 @@ struct FSoundClassProperties
 	/** Distance scale to apply to sounds that play with this sound class. Sounds will have their attenuation distance scaled by this amount. Allows adjusting attenuation settings dynamically. **/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SoundClassProperties)
 	float AttenuationDistanceScale;
-	
+
 	/** Lowpass filter frequency */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SoundClassProperties)
 	float LowPassFilterFrequency;
@@ -192,11 +192,10 @@ struct FSoundClassProperties
 		, ParentAttenuationScale(1.0f)
 		{
 		}
-	
+
 private:
 	FDynamicParameter AttenuationScaleParam;
-	float ParentAttenuationScale;
-
+	float ParentAttenuationScale;	
 };
 
 /**

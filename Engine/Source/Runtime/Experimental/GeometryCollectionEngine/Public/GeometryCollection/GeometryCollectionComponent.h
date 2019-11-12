@@ -506,7 +506,8 @@ public:
 #endif  // #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 	/**/
-	const TManagedArray<int32>& GetRigidBodyIdArray() const { return RigidBodyIds; }
+	//const TManagedArray<int32>& GetRigidBodyIdArray() const { return RigidBodyIds; }
+	const TManagedArray<FGuid>& GetRigidBodyGuidArray() const { return RestCollection->GetGeometryCollection()->GetAttribute<FGuid>(FName("GUID"), FGeometryCollection::TransformGroup); }
 	const TArray<bool>& GetDisabledFlags() const { return DisabledFlags; }
 
 	virtual void OnCreatePhysicsState() override;
@@ -515,7 +516,7 @@ public:
 	virtual bool HasValidPhysicsState() const override;
 
 	// Mirrored from the proxy on a sync
-	TManagedArray<int32> RigidBodyIds;
+	//TManagedArray<int32> RigidBodyIds;
 	TArray<bool> DisabledFlags;
 	int32 BaseRigidBodyIndex;
 	int32 NumParticlesAdded;
@@ -607,7 +608,7 @@ private:
 	TArray<bool> EventsPlayed;
 
 	//@todo(mlentine): Don't have one per geo collection
-	TUniquePtr<Chaos::TChaosPhysicsMaterial<float>> ChaosMaterial;
+	TUniquePtr<Chaos::FChaosPhysicsMaterial> ChaosMaterial;
 
 	FGeometryCollectionPhysicsProxy* PhysicsProxy;
 	TUniquePtr<FGeometryDynamicCollection> DynamicCollection;

@@ -57,6 +57,7 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("Anim Instance Spawn Time"), STAT_AnimSpawnTime, 
 DEFINE_STAT(STAT_AnimSpawnTime);
 DEFINE_STAT(STAT_PostAnimEvaluation);
 
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 
 FAutoConsoleTaskPriority CPrio_ParallelAnimationEvaluationTask(
@@ -515,7 +516,7 @@ void USkeletalMeshComponent::OnRegister()
 
 	// Ensure we have an empty list of linked instances on registration. Ready for the initialization below 
 	// to correctly populate that list.
-	LinkedInstances.Reset();
+	ResetLinkedAnimInstances();
 
 	// We force an initialization here because we're in one of two cases.
 	// 1) First register, no spawned instance, need to initialize
@@ -571,7 +572,7 @@ void USkeletalMeshComponent::OnUnregister()
 	{
 		LinkedInstance->UninitializeAnimation();
 	}
-	LinkedInstances.Reset();
+	ResetLinkedAnimInstances();
 
 	if(PostProcessAnimInstance)
 	{
@@ -606,6 +607,7 @@ void USkeletalMeshComponent::OnUnregister()
 
 void USkeletalMeshComponent::InitAnim(bool bForceReinit)
 {
+	CSV_SCOPED_TIMING_STAT(Animation, InitAnim);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_SkelMeshComp_InitAnim);
 	LLM_SCOPE(ELLMTag::Animation);
 
@@ -703,7 +705,7 @@ bool USkeletalMeshComponent::InitializeAnimScriptInstance(bool bForceReinit, boo
 			if (AnimScriptInstance)
 			{
 				// If we have any linked instances left we need to clear them out now, we're about to have a new master instance
-				LinkedInstances.Empty();
+				ResetLinkedAnimInstances();
 
 				AnimScriptInstance->InitializeAnimation(bInDeferRootNodeInitialization);
 				bInitializedMainInstance = true;
@@ -820,7 +822,7 @@ void USkeletalMeshComponent::ClearAnimScriptInstance()
 		AnimScriptInstance->EndNotifyStates();
 	}
 	AnimScriptInstance = nullptr;
-	LinkedInstances.Empty();
+	ResetLinkedAnimInstances();
 }
 
 
@@ -1012,10 +1014,13 @@ void USkeletalMeshComponent::TickAnimation(float DeltaTime, bool bNeedsValidRoot
 
 		// We update linked instances first incase we're using either root motion or non-threaded update.
 		// This ensures that we go through the pre update process and initialize the proxies correctly.
-		for(UAnimInstance* LinkedInstance : LinkedInstances)
+		if (LinkedAnimationEvaluationOrder == ELinkedAnimationUpdateOrder::UpdateAnimationBeforeAnimScriptInstance)
 		{
-			// Sub anim instances are always forced to do a parallel update 
-			LinkedInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, false, UAnimInstance::EUpdateAnimationFlag::ForceParallelUpdate);
+			for (UAnimInstance* LinkedInstance : LinkedInstances)
+			{
+				// Sub anim instances are always forced to do a parallel update 
+				LinkedInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, false, UAnimInstance::EUpdateAnimationFlag::ForceParallelUpdate);
+			}
 		}
 
 		if (AnimScriptInstance != nullptr)
@@ -1023,6 +1028,16 @@ void USkeletalMeshComponent::TickAnimation(float DeltaTime, bool bNeedsValidRoot
 			// Tick the animation
 			AnimScriptInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, bNeedsValidRootMotion);
 		}
+
+		if (LinkedAnimationEvaluationOrder == ELinkedAnimationUpdateOrder::UpdateAnimationAfterAnimScriptInstance)
+		{
+			for (UAnimInstance* LinkedInstance : LinkedInstances)
+			{
+				// Sub anim instances are always forced to do a parallel update 
+				LinkedInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, false, UAnimInstance::EUpdateAnimationFlag::ForceParallelUpdate);
+			}
+		}
+
 
 		if(ShouldUpdatePostProcessInstance())
 		{
@@ -1802,6 +1817,7 @@ void USkeletalMeshComponent::PerformAnimationEvaluation(const USkeletalMesh* InS
 
 void USkeletalMeshComponent::PerformAnimationProcessing(const USkeletalMesh* InSkeletalMesh, UAnimInstance* InAnimInstance, bool bInDoEvaluation, TArray<FTransform>& OutSpaceBases, TArray<FTransform>& OutBoneSpaceTransforms, FVector& OutRootBoneTranslation, FBlendedHeapCurve& OutCurve)
 {
+	CSV_SCOPED_TIMING_STAT(Animation, WorkerThreadTickTime);
 	ANIM_MT_SCOPE_CYCLE_COUNTER(PerformAnimEvaluation, !IsInGameThread());
 
 	// Can't do anything without a SkeletalMesh
@@ -2720,6 +2736,19 @@ UAnimInstance* USkeletalMeshComponent::GetAnimInstance() const
 UAnimInstance* USkeletalMeshComponent::GetPostProcessInstance() const
 {
 	return PostProcessAnimInstance;
+}
+
+void USkeletalMeshComponent::ResetLinkedAnimInstances()
+{
+	for(UAnimInstance* LinkedInstance : LinkedInstances)
+	{
+		if(LinkedInstance)
+		{
+			LinkedInstance->MarkPendingKill();
+			LinkedInstance = nullptr;
+		}
+	}
+	LinkedInstances.Reset();
 }
 
 UAnimInstance* USkeletalMeshComponent::GetLinkedAnimGraphInstanceByTag(FName InName) const

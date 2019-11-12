@@ -27,7 +27,7 @@ void UDisplayClusterSceneComponentSync::BeginPlay()
 	}
 
 	// Generate unique sync id
-	SyncId = GetSyncId();
+	SyncId = GenerateSyncId();
 
 	GameMgr = GDisplayCluster->GetPrivateGameMgr();
 	if (GameMgr && GameMgr->IsDisplayClusterActive())
@@ -80,15 +80,15 @@ bool UDisplayClusterSceneComponentSync::IsActive() const
 	return !this->IsPendingKill();
 }
 
-FString UDisplayClusterSceneComponentSync::GetSyncId() const
-{
-	return FString::Printf(TEXT("S_%s"), *GetOwner()->GetName());
-}
-
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterStringSerializable
 //////////////////////////////////////////////////////////////////////////////////////////////
+FString UDisplayClusterSceneComponentSync::GenerateSyncId()
+{
+	return FString::Printf(TEXT("S_%s"), *GetOwner()->GetName());
+}
+
 FString UDisplayClusterSceneComponentSync::SerializeToString() const
 {
 	return GetSyncTransform().ToString();

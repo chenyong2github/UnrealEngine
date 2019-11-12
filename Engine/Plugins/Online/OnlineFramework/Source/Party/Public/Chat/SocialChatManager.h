@@ -134,6 +134,8 @@ protected:
 
 	void OnGroupUpdated(const FUniqueNetId& GroupId);
 
+	bool IsUniqueIdOfOwner(const FUniqueNetId& LocalUserId) const;
+
 	// END KIAROS GROUP MANAGEMENT
 	//----------------------------------------------------------------------
 

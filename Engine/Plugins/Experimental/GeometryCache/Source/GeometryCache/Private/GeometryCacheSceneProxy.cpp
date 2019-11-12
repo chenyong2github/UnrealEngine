@@ -504,6 +504,7 @@ void FGeometryCacheSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterial
 			CreateMeshBatch(TrackProxy, BatchInfo, UserDataWrapper, DynamicPrimitiveUniformBuffer, MeshBatch);
 
 			MeshBatch.MaterialRenderProxy = TrackProxy->Materials[SegmentIndex]->GetRenderProxy();
+			MeshBatch.CastRayTracedShadow = IsShadowCast(Context.ReferenceView);
 
 			RayTracingInstance.Materials.Add(MeshBatch);
 		}

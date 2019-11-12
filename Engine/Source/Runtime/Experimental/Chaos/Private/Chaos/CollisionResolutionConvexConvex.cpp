@@ -2,6 +2,7 @@
 
 #include "Chaos/CollisionResolutionConvexConvex.h"
 #include "Chaos/ImplicitObjectScaled.h"
+#include "Chaos/ImplicitObjectTransformed.h"
 
 namespace Chaos
 {
@@ -11,25 +12,16 @@ namespace Chaos
 		FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1,
 		const FImplicitObject* Implicit0, const FImplicitObject* Implicit1,
 		const float Thickness,
-		TArray<FRigidBodyContactConstraint>& ConstraintBuffer,
-		FCollisionResolutionManifold* Manifold,
-		float ManifoldScale, int32 ManifoldSamples)
+		FRigidBodyContactConstraint& Constraint)
 	{
-		if (Manifold)
+		if (Constraint.ContainsManifold(Implicit0, Implicit1))
 		{
-			if (Manifold->ContainsShapeConnection(Implicit0, Implicit1))
-			{
-				return;
-			}
+			return;
 		}
 
-		TRigidBodyContactConstraint<T, d> Constraint;
-		Constraint.Particle = Particle0;
-		Constraint.Levelset = Particle1;
-		Constraint.Geometry[0] = Implicit0;
-		Constraint.Geometry[1] = Implicit1;
-
-		ConstraintBuffer.Add(Constraint);
+		Constraint.Particle[0] = Particle0;
+		Constraint.Particle[1] = Particle1;
+		Constraint.AddManifold(Implicit0, Implicit1);
 	}
 
 	template<class T, int d>
@@ -37,54 +29,55 @@ namespace Chaos
 		const FImplicitObject& A, const FRigidTransform& ATM,
 		const FImplicitObject& B, FRigidTransform BTM,
 		float Thickness,
-		FRigidBodyContactConstraint* Constraints, int32 NumConstraints,
-		FCollisionResolutionManifold* Manifold,
-		float ManifoldScale, int32 ManifoldSamples)
+		FRigidBodyContactConstraint& Constraint)
 	{
-		ensure(NumConstraints);
+		TRigidTransform<T, d> BToATM = BTM.GetRelativeTransform(ATM);
 
-		if (ensure(IsScaled(A.GetType()) && IsScaled(B.GetType())))
+		if (ensure(GetInnerType(A.GetType()) == ImplicitObjectType::Convex && GetInnerType(B.GetType()) == ImplicitObjectType::Convex))
 		{
-			TRigidTransform<T, d> BToATM = BTM.GetRelativeTransform(ATM);
+			const TConvex<T, d>* AObject = nullptr;
+			const TConvex<T, d>* BObject = nullptr;
 
-			if (ensure(GetInnerType(A.GetType()) == ImplicitObjectType::Convex && GetInnerType(B.GetType()) == ImplicitObjectType::Convex))
+			if (IsScaled(A.GetType()) && IsScaled(B.GetType()))
 			{
-				const TConvex<T, d>* AObject = static_cast<const TConvex<T, d>*>(static_cast<const TImplicitObjectScaled<TConvex<T, d>>&>(A).Object().Get());
-				const TConvex<T, d>* BObject = static_cast<const TConvex<T, d>*>(static_cast<const TImplicitObjectScaled<TConvex<T, d>>&>(B).Object().Get());
-				if (AObject && BObject)
+				AObject = static_cast<const TConvex<T, d>*>(static_cast<const TImplicitObjectScaled<TConvex<T, d>>&>(A).Object().Get());
+				BObject = static_cast<const TConvex<T, d>*>(static_cast<const TImplicitObjectScaled<TConvex<T, d>>&>(B).Object().Get());
+			}
+			else if (A.GetType() == ImplicitObjectType::Transformed && B.GetType() == ImplicitObjectType::Transformed)
+			{
+				AObject = static_cast<const TConvex<T, d>*>(static_cast<const TImplicitObjectTransformed<T, d>&>(A).Object().Get());
+				BObject = static_cast<const TConvex<T, d>*>(static_cast<const TImplicitObjectTransformed<T, d>&>(B).Object().Get());
+			}
+
+			if (AObject && BObject)
+			{
+				const TParticles<T, d>& SurfaceParticles = AObject->GetSurfaceParticles();
+
+				Constraint.SetDisabled(true);
+
+				if (GJKIntersection(*AObject, *BObject, BToATM, Thickness))
 				{
-					const TParticles<T, d>& SurfaceParticles = AObject->GetSurfaceParticles();
+					TRigidTransform<T, d> AToBTM = ATM.GetRelativeTransform(BTM);
 
-					for (int32 Idx = 0; Idx < NumConstraints; Idx++)
+					T Phi;
+					TVector<T, d> Normal;
+					for (int32 Idx = 0; Idx < (int32)SurfaceParticles.Size(); Idx++)
 					{
-						Constraints[Idx].bDisabled = true;
-					}
-
-					if (GJKIntersection(*AObject, *BObject, BToATM, Thickness))
-					{
-						TRigidTransform<T, d> AToBTM = ATM.GetRelativeTransform(BTM);
-
-						T Phi;
-						TVector<T, d> Normal;
-						for (int32 Idx = 0; Idx < (int32)SurfaceParticles.Size(); Idx++)
+						Phi = BObject->PhiWithNormal(AToBTM.TransformPosition(SurfaceParticles.X(Idx)), Normal);
+						if (Phi < Constraint.GetPhi())
 						{
-							Phi = BObject->PhiWithNormal(AToBTM.TransformPosition(SurfaceParticles.X(Idx)), Normal);
-							if (Phi< Constraints[0].Phi)
-							{
-								Constraints[0].Phi = Phi;
-								Constraints[0].Location = ATM.TransformPosition(SurfaceParticles.X(Idx));
-								Constraints[0].Normal = BTM.TransformVector(Normal);
-							}
+							Constraint.SetPhi(Phi);
+							Constraint.SetLocation(ATM.TransformPosition(SurfaceParticles.X(Idx)));
+							Constraint.SetNormal(BTM.TransformVector(Normal));
 						}
-						return;
 					}
 					return;
 				}
+				return;
 			}
 		}
 
 		ensureMsgf(false, TEXT("Unsupported convex to convex constraint."));
-
 	}
 
 	template class CollisionResolutionConvexConvex<float, 3>;

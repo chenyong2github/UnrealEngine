@@ -154,6 +154,8 @@ public:
 	bool ModifySplines(bool bAlwaysMarkDirty = true);
 
 #if WITH_EDITOR
+	bool HasAnyControlPointsOrSegments() const { return ControlPoints.Num() > 0 || Segments.Num() > 0; }
+
 	virtual void ShowSplineEditorMesh(bool bShow);
 
 	// Rebuilds all spline points and meshes for all spline control points and segments in this splines component
@@ -226,6 +228,7 @@ public:
 	friend class FLandscapeSplinesSceneProxy;
 	friend class ULandscapeSplineControlPoint;
 	friend class ULandscapeSplineSegment;
+	friend class ULandscapeInfo;
 #if WITH_EDITOR
 	// TODO - move this out of ULandscapeInfo
 	friend bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* Landscape, TSet<ULandscapeComponent*>* OutModifiedComponents, bool bMarkPackageDirty);

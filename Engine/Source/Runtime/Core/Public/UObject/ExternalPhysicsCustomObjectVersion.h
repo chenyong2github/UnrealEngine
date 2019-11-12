@@ -50,6 +50,18 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 
 		// Trimeshes serialize AABBTree
 		TrimeshSerializesAABBTree,
+		
+		// Adds Serialization of HashResult, and separates delete/update TAccelerationStructureHandle in FPendingSpatialData
+		SerializeHashResult,
+
+		// Only serialize internal acceleration structure queue and acceleration structure. No external/Async queues.
+		FlushEvolutionInternalAccelerationQueue,
+
+		// Serialize world space bounds of TPerShapeData
+		SerializeShapeWorldSpaceBounds,
+
+		// Add an SOA which contains particles with full dynamic data but which are in the kinematic object state.
+		AddDynamicKinematicSOA,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

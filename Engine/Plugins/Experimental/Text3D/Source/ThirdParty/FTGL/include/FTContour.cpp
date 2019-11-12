@@ -31,7 +31,7 @@
 
 #include <math.h>
 
-static const unsigned int BEZIER_STEPS = 5;
+static const unsigned int BEZIER_STEPS = 10;
 
 
 void FTContour::AddPoint(FTPoint point)

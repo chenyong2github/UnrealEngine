@@ -1423,7 +1423,7 @@ dtStatus dtNavMeshQuery::queryPolygons(const float* center, const float* extents
 ///
 dtStatus dtNavMeshQuery::findPath(dtPolyRef startRef, dtPolyRef endRef,
 								  const float* startPos, const float* endPos,
-								  const float maxCost, const dtQueryFilter* filter, //@UE4
+								  const float costLimit, const dtQueryFilter* filter, //@UE4
 								  dtQueryResult& result, float* totalCost) const
 {
 	dtAssert(m_nav);
@@ -1594,7 +1594,7 @@ dtStatus dtNavMeshQuery::findPath(dtPolyRef startRef, dtPolyRef endRef,
 			if (curCost == DT_UNWALKABLE_POLY_COST)
 				continue;
 
-			if (total > maxCost) //@UE4
+			if (total > costLimit) //@UE4
 				continue;
 
 			// Add or update the node.
@@ -1833,7 +1833,7 @@ dtStatus dtNavMeshQuery::testClusterPath(dtPolyRef startRef, dtPolyRef endRef) c
 /// path query.
 ///
 dtStatus dtNavMeshQuery::initSlicedFindPath(dtPolyRef startRef, dtPolyRef endRef,
-											const float* startPos, const float* endPos, const float maxCost, //@UE4
+											const float* startPos, const float* endPos, const float costLimit, //@UE4
 											const dtQueryFilter* filter)
 {
 	dtAssert(m_nav);
@@ -1847,7 +1847,7 @@ dtStatus dtNavMeshQuery::initSlicedFindPath(dtPolyRef startRef, dtPolyRef endRef
 	m_query.endRef = endRef;
 	dtVcopy(m_query.startPos, startPos);
 	dtVcopy(m_query.endPos, endPos);
-	m_query.maxCost = maxCost; //@UE4
+	m_query.costLimit = costLimit; //@UE4
 	m_query.filter = filter;
 	
 	if (!startRef || !endRef)
@@ -2047,7 +2047,7 @@ dtStatus dtNavMeshQuery::updateSlicedFindPath(const int maxIter, int* doneIters)
 			if (curCost == DT_UNWALKABLE_POLY_COST) //@UE4
 				continue;
 
-			if (total > m_query.maxCost) //@UE4
+			if (total > m_query.costLimit) //@UE4
 				continue;
 			
 			// Add or update the node.

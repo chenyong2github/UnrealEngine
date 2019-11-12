@@ -847,7 +847,21 @@ static bool CheckSingleJob(FShaderCompileJob* SingleJob, const TArray<FMaterial*
 	{
 		for (int32 ErrorIndex = 0; ErrorIndex < SingleJob->Output.Errors.Num(); ErrorIndex++)
 		{
-			Errors.AddUnique(SingleJob->Output.Errors[ErrorIndex].GetErrorString());
+			const FShaderCompilerError& InError = SingleJob->Output.Errors[ErrorIndex];
+			if (InError.HasLineMarker())
+			{
+				// Append highlighted line and its marker to the same error message with line terminators
+				// to get a similar multiline error output as with DXC
+				Errors.AddUnique(
+					InError.GetErrorString() + LINE_TERMINATOR +
+					TEXT("\t") + InError.HighlightedLine + LINE_TERMINATOR +
+					TEXT("\t") + InError.HighlightedLineMarker
+				);
+			}
+			else
+			{
+				Errors.AddUnique(InError.GetErrorString());
+			}
 		}
 	}
 
@@ -2103,7 +2117,7 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 								FString ErrorMessage = Errors[ErrorIndex];
 								// Work around build machine string matching heuristics that will cause a cook to fail
 								ErrorMessage.ReplaceInline(TEXT("error "), TEXT("err0r "), ESearchCase::CaseSensitive);
-								UE_LOG(LogShaderCompilers, Display, TEXT("	%s"), *ErrorMessage);
+								UE_LOG(LogShaderCompilers, Display, TEXT("%s"), *ErrorMessage);
 							}
 						}
 						else

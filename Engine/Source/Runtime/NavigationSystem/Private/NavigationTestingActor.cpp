@@ -41,7 +41,8 @@ ANavigationTestingActor::ANavigationTestingActor(const FObjectInitializer& Objec
 	bIsEditorOnlyActor = true;
 	NavAgentProps.AgentRadius = 34.f;
 	NavAgentProps.AgentHeight = 144.f;
-	MaxCostFactor = FLT_MAX;
+	CostLimitFactor = FLT_MAX;
+	MinimumCostLimit = 0.f;
 	ShowStepIndex = -1;
 	bShowNodePool = true;
 	bShowBestPath = true;
@@ -429,10 +430,10 @@ void ANavigationTestingActor::SearchPathTo(ANavigationTestingActor* Goal)
 		Query.QueryFilter = NavigationFilterCopy;
 	}
 	
-	//Apply max cost factor
+	//Apply cost limit factor
 	FSharedConstNavQueryFilter NavQueryFilter = Query.QueryFilter ? Query.QueryFilter : NavData->GetDefaultQueryFilter();
 	const float HeuristicScale = NavQueryFilter->GetHeuristicScale();
-	Query.MaxCost = Query.ComputeMaxCostFromHeuristic(Query.StartLocation, Query.EndLocation, HeuristicScale, MaxCostFactor);
+	Query.CostLimit = Query.ComputeCostLimitFromHeuristic(Query.StartLocation, Query.EndLocation, HeuristicScale, CostLimitFactor, MinimumCostLimit);
 
 	EPathFindingMode::Type Mode = bUseHierarchicalPathfinding ? EPathFindingMode::Hierarchical : EPathFindingMode::Regular;
 	FPathFindingResult Result = NavSys->FindPathSync(NavAgentProps, Query, Mode);

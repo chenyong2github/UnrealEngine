@@ -312,8 +312,7 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, PhaseG, FogInfo.VolumetricFogScatteringDistribution);
 		SetShaderValue(RHICmdList, ShaderRHI, InverseSquaredLightDistanceBiasScale, GInverseSquaredLightDistanceBiasScale);
 
-		// Pass -1 to InnerSplitIndex to avoid doing unecessary and uninitialized shadow cascade calculations for local lights 
-		VolumeShadowingParameters.Set(RHICmdList, ShaderRHI, View, LightSceneInfo, ShadowMap, -1, bDynamicallyShadowed);
+		VolumeShadowingParameters.Set(RHICmdList, ShaderRHI, View, LightSceneInfo, ShadowMap, INDEX_NONE, bDynamicallyShadowed);
 	}
 
 	virtual bool Serialize(FArchive& Ar) override
@@ -1162,6 +1161,7 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRHICommandListImmediat
 						? View.ViewState->LightScatteringHistory->GetRenderTargetItem().ShaderResourceTexture
 						: GBlackVolumeTexture->TextureRHI;
 
+					RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, LightScatteringHistoryTexture);
 					ComputeShader->SetParameters(RHICmdList, View, IntegrationData, FogInfo, LightScatteringHistoryTexture, bUseDirectionalLightShadowing, LightFunctionWorldToShadow);
 
 					SetShaderParameters(RHICmdList, ComputeShader, ComputeShader->GetComputeShader(), *PassParameters);

@@ -57,7 +57,10 @@ void FOpenGLGPUProfiler::PopEvent()
 
 }
 
-
+bool FOpenGLDynamicRHI::RHIRequiresComputeGenerateMips() const
+{
+	return !FOpenGL::SupportsGenerateMipmap();
+};
 
 void FOpenGLGPUProfiler::BeginFrame(FOpenGLDynamicRHI* InRHI)
 {

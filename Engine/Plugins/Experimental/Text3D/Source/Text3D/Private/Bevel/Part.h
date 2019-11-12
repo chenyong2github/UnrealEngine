@@ -10,6 +10,8 @@ struct FPart final
 {
 	static const float CosMaxAngle;
 
+	FPart();
+
 
 	/** Previous part. */
 	FPart* Prev;
@@ -55,7 +57,7 @@ struct FPart final
 
 	void ResetDoneExpand();
 	void ComputeTangentX();
-	void ComputeNormalAndSmooth();
+	bool ComputeNormalAndSmooth();
 
 	void ResetInitialPosition();
 	void ComputeInitialPosition();

@@ -195,12 +195,6 @@ static TAutoConsoleVariable<int32> CVarViewRectUseScreenBottom(
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<float> CVarConstantWaterDepth(
-	TEXT("r.Water.ConstantWaterDepth"),
-	-1.0f,
-	TEXT("Setting this to a negative value means disabled and reading from scene depth texture. Specified in unreal units."),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
-
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 static TAutoConsoleVariable<float> CVarGeneralPurposeTweak(
 	TEXT("r.GeneralPurposeTweak"),
@@ -1504,8 +1498,6 @@ void FViewInfo::SetupUniformBufferParameters(
 		ViewUniformShaderParameters.GeneralPurposeTweak = Value;
 	}
 
-	ViewUniformShaderParameters.ConstantWaterDepth = CVarConstantWaterDepth.GetValueOnRenderThread();
-
 	ViewUniformShaderParameters.DemosaicVposOffset = 0.0f;
 	{
 		ViewUniformShaderParameters.DemosaicVposOffset = CVarDemosaicVposOffset.GetValueOnRenderThread();
@@ -1562,12 +1554,16 @@ void FViewInfo::SetupUniformBufferParameters(
 			SkyLight->bCastShadows 
 			&& SkyLight->bWantsStaticShadowing;
 
-		ViewUniformShaderParameters.SkyLightParameters = bApplyPrecomputedBentNormalShadowing ? 1 : 0;
+		ViewUniformShaderParameters.SkyLightApplyPrecomputedBentNormalShadowingFlag = bApplyPrecomputedBentNormalShadowing ? 1.0f : 0.0f;
+		ViewUniformShaderParameters.SkyLightAffectReflectionFlag = SkyLight->bAffectReflection ? 1.0f : 0.0f;
+		ViewUniformShaderParameters.SkyLightAffectGlobalIlluminationFlag = SkyLight->bAffectGlobalIllumination ? 1.0f : 0.0f;
 	}
 	else
 	{
 		ViewUniformShaderParameters.SkyLightColor = FLinearColor::Black;
-		ViewUniformShaderParameters.SkyLightParameters = 0;
+		ViewUniformShaderParameters.SkyLightApplyPrecomputedBentNormalShadowingFlag = 0.0f;
+		ViewUniformShaderParameters.SkyLightAffectReflectionFlag = 0.0f;
+		ViewUniformShaderParameters.SkyLightAffectGlobalIlluminationFlag = 0.0f;
 	}
 
 	// Make sure there's no padding since we're going to cast to FVector4*

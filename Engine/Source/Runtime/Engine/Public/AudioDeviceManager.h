@@ -68,6 +68,11 @@ public:
 		FCreateAudioDeviceResults();
 	};
 
+	/**
+	 * returns the currently used audio device module for this platform.
+	 * returns nullptr if Initialize() has not been called yet.
+	 */
+	IAudioDeviceModule* GetAudioDeviceModule();
 
 	/**
 	* Creates and audio device instance internally and returns a

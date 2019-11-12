@@ -1831,10 +1831,10 @@ private:
 		 */
 		int32 Find(TSharedPtr<IInputProcessor> InputProcessor) const;
 
-
 	private:
+		bool PreProcessInput(TFunctionRef<bool(IInputProcessor&)> InputProcessFunc);
 
-		bool PreProcessInput(TFunctionRef<bool(TSharedPtr<IInputProcessor>)> ToRun);
+		void AddInternal(TSharedPtr<IInputProcessor> InputProcessor, const int32 Index);
 
 		/** The list of input pre-processors. */
 		TArray<TSharedPtr<IInputProcessor>> InputPreProcessorList;
@@ -1844,6 +1844,9 @@ private:
 
 		/** A list of pre-processors to remove if we are iterating them while removal is requested. */
 		TArray<TSharedPtr<IInputProcessor>> ProcessorsPendingRemoval;
+
+		/** A list of pre-processors to add if we are iterating them while addition is requested. */
+		TMap<TSharedPtr<IInputProcessor>, int32> ProcessorsPendingAddition;
 	};
 
 	/** A list of input pre-processors, gets an opportunity to parse input before anything else. */

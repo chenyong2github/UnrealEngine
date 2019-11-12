@@ -3061,6 +3061,16 @@ namespace UnrealBuildTool
 			// Create the list of enabled plugins
 			EnabledPlugins = new List<UEBuildPlugin>(NameToInstance.Values);
 
+			// Configure plugins explicitly built but not enabled via target settings
+			foreach (string PluginName in Rules.BuildPlugins)
+			{
+				if (ReferencedNames.Add(PluginName))
+				{
+					PluginReferenceDescriptor PluginReference = new PluginReferenceDescriptor(PluginName, null, true);
+					AddPlugin(PluginReference, "target settings", ExcludeFolders, NameToInstance, NameToInfo);
+				}
+			}
+
 			// Set the list of plugins that should be built
 			BuildPlugins = new List<UEBuildPlugin>(NameToInstance.Values);
 		}

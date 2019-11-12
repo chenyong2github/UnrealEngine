@@ -1390,7 +1390,7 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 					case SP_METAL_MACES2:
                 	case SP_OPENGL_ES2_WEBGL:
 					{
-						return FSlateIcon(FEditorStyle::GetStyleSetName(), GEditor->IsFeatureLevelPreviewActive() ? "LevelEditor.PreviewMode.HTML5.Enabled" : "LevelEditor.PreviewMode.HTML5.Disabled");
+						return FSlateIcon(FEditorStyle::GetStyleSetName(), GEditor->IsFeatureLevelPreviewActive() ? "LevelEditor.PreviewMode.AndroidES2.Enabled" : "LevelEditor.PreviewMode.AndroidES2.Disabled");
 					}
 				}
 				switch (GEditor->PreviewPlatform.PreviewFeatureLevel)
@@ -1902,9 +1902,6 @@ static void MakeShaderModelPreviewMenu( UToolMenu* InMenu )
 	{
 		Section.AddMenuEntry(FLevelEditorCommands::Get().PreviewPlatformOverride_IOSMetalES31);
 	}
-
-	// HTML5
-	Section.AddMenuEntry(FLevelEditorCommands::Get().PreviewPlatformOverride_HTML5);
 
 #undef LOCTEXT_NAMESPACE
 }

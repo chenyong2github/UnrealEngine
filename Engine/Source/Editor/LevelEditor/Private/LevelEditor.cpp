@@ -1777,12 +1777,6 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 		FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsPreviewPlatformChecked, FPreviewPlatformInfo(ERHIFeatureLevel::SM5, NAME_None)));
 
 	ActionList.MapAction(
-		Commands.PreviewPlatformOverride_HTML5,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SetPreviewPlatform, FPreviewPlatformInfo(ERHIFeatureLevel::ES2, NAME_None, true)),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsPreviewPlatformChecked, FPreviewPlatformInfo(ERHIFeatureLevel::ES2, NAME_None)));
-
-	ActionList.MapAction(
 		Commands.PreviewPlatformOverride_AndroidGLES2,
 		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SetPreviewPlatform, FPreviewPlatformInfo(ERHIFeatureLevel::ES2, LegacyShaderPlatformToShaderFormat(SP_OPENGL_ES2_ANDROID), true)),
 		FCanExecuteAction(),

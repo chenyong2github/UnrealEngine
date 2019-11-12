@@ -259,8 +259,8 @@ void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(const T Dt, const T StepFr
 }
 
 template <typename T, int d>
-TPBDRigidsEvolutionGBF<T, d>::TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<T, d>& InParticles, int32 InNumIterations)
-	: Base(InParticles, InNumIterations)
+TPBDRigidsEvolutionGBF<T, d>::TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<T, d>& InParticles, int32 InNumIterations, bool InIsSingleThreaded)
+	: Base(InParticles, InNumIterations, 1, InIsSingleThreaded)
 	, CollisionConstraints(InParticles, Collided, PhysicsMaterials, DefaultNumPushOutPairIterations)
 	, CollisionRule(CollisionConstraints, DefaultNumPushOutIterations)
 	, PostIntegrateCallback(nullptr)

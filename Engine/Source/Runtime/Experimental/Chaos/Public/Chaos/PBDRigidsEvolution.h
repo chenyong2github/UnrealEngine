@@ -14,6 +14,10 @@
 #include "Chaos/PBDRigidsSOAs.h"
 #include "Chaos/ISpatialAccelerationCollection.h"
 
+
+// Declaring so it can be friended for tests.
+namespace ChaosTest { void TestPendingSpatialDataHandlePointerConflict(); } 
+
 namespace Chaos
 {
 template<class T, int d> class TPBDRigidsEvolutionGBF;
@@ -219,7 +223,9 @@ class TPBDRigidsEvolutionBase
 	typedef TFunction<void(const TParticleView<TPBDRigidParticles<T, d>>&, const T)> FUpdatePositionRule;
 	typedef TFunction<void(TPBDRigidParticles<T, d>&, const T, const T, const int32)> FKinematicUpdateRule;
 
-	CHAOS_API TPBDRigidsEvolutionBase(TPBDRigidsSOAs<T, d>& InParticles, int32 InNumIterations = 1, int32 InNumPushOutIterations = 1);
+	friend void ChaosTest::TestPendingSpatialDataHandlePointerConflict();
+
+	CHAOS_API TPBDRigidsEvolutionBase(TPBDRigidsSOAs<T, d>& InParticles, int32 InNumIterations = 1, int32 InNumPushOutIterations = 1, bool InIsSingleThreaded = false);
 	CHAOS_API virtual ~TPBDRigidsEvolutionBase();
 
 	CHAOS_API TArray<TGeometryParticleHandle<T, d>*> CreateStaticParticles(int32 NumParticles, const TGeometryParticleParameters<T, d>& Params = TGeometryParticleParameters<T, d>())
@@ -309,16 +315,19 @@ class TPBDRigidsEvolutionBase
 	FORCEINLINE_DEBUGGABLE void DirtyParticle(TGeometryParticleHandleImp<T, d, bPersistent>& Particle)
 	{
 		FPendingSpatialData& SpatialData = InternalAccelerationQueue.FindOrAdd(Particle.Handle());
-		SpatialData.AccelerationHandle = TAccelerationStructureHandle<T,d>(Particle);
+		SpatialData.UpdateAccelerationHandle = TAccelerationStructureHandle<T,d>(Particle);
 		SpatialData.bUpdate = true;
 		SpatialData.UpdatedSpatialIdx = Particle.SpatialIdx();
 
 		auto& AsyncSpatialData = AsyncAccelerationQueue.FindOrAdd(Particle.Handle());
-		AsyncSpatialData.AccelerationHandle = TAccelerationStructureHandle<T, d>(Particle);
+		AsyncSpatialData.UpdateAccelerationHandle = TAccelerationStructureHandle<T, d>(Particle);
 		AsyncSpatialData.bUpdate = true;
 		AsyncSpatialData.UpdatedSpatialIdx = Particle.SpatialIdx();
-		//question: is it safe to reuse for external? Should probably avoid it
-		ExternalAccelerationQueue.FindOrAdd(Particle.Handle()) = SpatialData;
+
+		auto& ExternalSpatialData = ExternalAccelerationQueue.FindOrAdd(Particle.Handle());
+		ExternalSpatialData.UpdateAccelerationHandle = TAccelerationStructureHandle<T, d>(Particle);
+		ExternalSpatialData.bUpdate = true;
+		ExternalSpatialData.UpdatedSpatialIdx = Particle.SpatialIdx();
 	}
 
 	void DestroyParticle(TGeometryParticleHandle<T, d>* Particle)
@@ -333,6 +342,12 @@ class TPBDRigidsEvolutionBase
 	{
 		ConstraintGraph.AddParticle(ParticleAdded);
 		DirtyParticle(*ParticleAdded);
+	}
+
+	CHAOS_API void SetParticleObjectState(TPBDRigidParticleHandle<T, d>* Particle, EObjectStateType ObjectState)
+	{
+		Particle->SetObjectStateLowLevel(ObjectState);
+		Particles.SetDynamicParticleSOA(Particle);
 	}
 
 	CHAOS_API void DisableParticles(const TSet<TGeometryParticleHandle<T,d>*>& InParticles)
@@ -371,8 +386,8 @@ class TPBDRigidsEvolutionBase
 	const auto& GetActiveClusteredArray() const { return Particles.GetActiveClusteredArray(); }
 	const auto& GetNonDisabledClusteredArray() const { return Particles.GetNonDisabledClusteredArray(); }
 
-	CHAOS_API TSerializablePtr<TChaosPhysicsMaterial<T>> GetPhysicsMaterial(const TGeometryParticleHandle<T, d>* Particle) const { return Particle->AuxilaryValue(PhysicsMaterials); }
-	CHAOS_API void SetPhysicsMaterial(TGeometryParticleHandle<T,d>* Particle, TSerializablePtr<TChaosPhysicsMaterial<T>> InMaterial)
+	CHAOS_API TSerializablePtr<FChaosPhysicsMaterial> GetPhysicsMaterial(const TGeometryParticleHandle<T, d>* Particle) const { return Particle->AuxilaryValue(PhysicsMaterials); }
+	CHAOS_API void SetPhysicsMaterial(TGeometryParticleHandle<T,d>* Particle, TSerializablePtr<FChaosPhysicsMaterial> InMaterial)
 	{
 		check(!Particle->AuxilaryValue(PerParticlePhysicsMaterials)); //shouldn't be setting non unique material if a unique one already exists
 		Particle->AuxilaryValue(PhysicsMaterials) = InMaterial;
@@ -524,7 +539,7 @@ protected:
 	{
 		auto Particle = ParticleHandle.Handle();
 		FPendingSpatialData& AsyncSpatialData = AsyncAccelerationQueue.FindOrAdd(Particle);
-		AsyncSpatialData.AccelerationHandle = TAccelerationStructureHandle<T, d>(ParticleHandle);
+
 		if (!AsyncSpatialData.bDelete)
 		{
 			//There are three cases to consider:
@@ -532,14 +547,20 @@ protected:
 			//Delete followed by any number deletes and updates and finally an update, in that case we must delete the first particle and add the final (so use first index for delete)
 			//Delete followed by multiple updates and or deletes and a final delete. In that case we still only delete the first particle since the final delete is not really needed (add will be cancelled)
 			AsyncSpatialData.DeletedSpatialIdx = ParticleHandle.SpatialIdx();
+
+			// We cannot overwrite this handle if delete is already pending. (If delete is pending, that means this is the third case, cancelling update is sufficient),
+			AsyncSpatialData.DeleteAccelerationHandle = TAccelerationStructureHandle<T, d>(ParticleHandle);
 		}
-		AsyncSpatialData.bUpdate = false;	//don't bother updating since deleting anyway
+
+		AsyncSpatialData.bUpdate = false;
 		AsyncSpatialData.bDelete = true;
+
+		// Delete data should match async, and update is not set, so this operation should be safe.
 		ExternalAccelerationQueue.FindOrAdd(Particle) = AsyncSpatialData;
 
 		//remove particle immediately for intermediate structure
 		InternalAccelerationQueue.Remove(Particle);
-		InternalAcceleration->RemoveElementFrom(AsyncSpatialData.AccelerationHandle, AsyncSpatialData.DeletedSpatialIdx);	//even though we remove immediately, future adds are still pending
+		InternalAcceleration->RemoveElementFrom(AsyncSpatialData.DeleteAccelerationHandle, AsyncSpatialData.DeletedSpatialIdx);	//even though we remove immediately, future adds are still pending
 	}
 
 	void UpdateConstraintPositionBasedState(T Dt)
@@ -605,8 +626,8 @@ protected:
 	FKinematicUpdateRule KinematicUpdate;
 	TArray<FPBDConstraintGraphRule*> ConstraintRules;
 	FPBDConstraintGraph ConstraintGraph;
-	TArrayCollectionArray<TSerializablePtr<TChaosPhysicsMaterial<T>>> PhysicsMaterials;
-	TArrayCollectionArray<TUniquePtr<TChaosPhysicsMaterial<T>>> PerParticlePhysicsMaterials;
+	TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>> PhysicsMaterials;
+	TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>> PerParticlePhysicsMaterials;
 	TArrayCollectionArray<int32> ParticleDisableCount;
 	TArrayCollectionArray<bool> Collided;
 
@@ -616,13 +637,15 @@ protected:
 	TUniquePtr<FAccelerationStructure> AsyncExternalAcceleration;
 	TUniquePtr<FAccelerationStructure> ScratchExternalAcceleration;
 	bool bExternalReady;
+	bool bIsSingleThreaded;
 
 	TPBDRigidClustering<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d> Clustering;
 
 	/** Used for updating intermediate spatial structures when they are finished */
 	struct FPendingSpatialData
 	{
-		TAccelerationStructureHandle<T, d> AccelerationHandle;
+		TAccelerationStructureHandle<T, d> UpdateAccelerationHandle;
+		TAccelerationStructureHandle<T, d> DeleteAccelerationHandle;
 		FSpatialAccelerationIdx UpdatedSpatialIdx;
 		FSpatialAccelerationIdx DeletedSpatialIdx;	//need both updated and deleted in case memory is reused but a different idx is neede
 		bool bUpdate;
@@ -635,7 +658,18 @@ protected:
 
 		void Serialize(FChaosArchive& Ar)
 		{
-			Ar << AccelerationHandle;
+			Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializeHashResult)
+			{
+				Ar << UpdateAccelerationHandle;
+				Ar << DeleteAccelerationHandle;
+			}
+			else
+			{
+				Ar << UpdateAccelerationHandle;
+				DeleteAccelerationHandle = UpdateAccelerationHandle;
+			}
+
 			Ar << bUpdate;
 			Ar << bDelete;
 
@@ -673,7 +707,7 @@ protected:
 
 	TMap<FSpatialAccelerationIdx, TUniquePtr<TSpatialAccelerationCache<T, d>>> SpatialAccelerationCache;
 
-	FORCEINLINE_DEBUGGABLE void ApplyParticlePendingData(TGeometryParticleHandle<T, d>* Particle, const FPendingSpatialData& PendingData, FAccelerationStructure& SpatialAcceleration, bool bUpdateCache);
+	FORCEINLINE_DEBUGGABLE void ApplyParticlePendingData(const FPendingSpatialData& PendingData, FAccelerationStructure& SpatialAcceleration, bool bUpdateCache);
 
 	class FChaosAccelerationStructureTask
 	{
@@ -682,7 +716,8 @@ protected:
 			, const TMap<FSpatialAccelerationIdx, TUniquePtr<TSpatialAccelerationCache<T,d>>>& InSpatialAccelerationCache
 			, TUniquePtr<FAccelerationStructure>& InAccelerationStructure
 			, TUniquePtr<FAccelerationStructure>& InAccelerationStructureCopy
-			, bool InForceFullBuild);
+			, bool InForceFullBuild
+			, bool InIsSingleThreaded);
 		static FORCEINLINE TStatId GetStatId();
 		static FORCEINLINE ENamedThreads::Type GetDesiredThread();
 		static FORCEINLINE ESubsequentsMode::Type GetSubsequentsMode();
@@ -693,6 +728,7 @@ protected:
 		TUniquePtr<FAccelerationStructure>& AccelerationStructure;
 		TUniquePtr<FAccelerationStructure>& AccelerationStructureCopy;
 		bool IsForceFullBuild;
+		bool bIsSingleThreaded;
 	};
 	FGraphEventRef AccelerationStructureTaskComplete;
 

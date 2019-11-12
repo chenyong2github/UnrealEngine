@@ -20,4 +20,8 @@ namespace Chaos
 	using FMatrix33 = PMatrix<FReal, 3, 3>;
 	using FRigidTransform3 = TRigidTransform<FReal, 3>;
 	using FRotation3 = TRotation<FReal, 3>;
+
+
+	template <typename T>
+	using TVec3 = TVector<T, 3>;
 }

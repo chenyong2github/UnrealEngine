@@ -337,6 +337,11 @@ void FAudioThumbnail::GenerateWaveformPreview(TArray<uint8>& OutData, TRange<flo
 	const int32 TrueDrawOffsetPx = FMath::Max(FMath::RoundToInt((DrawRange.GetLowerBoundValue() - SectionStartTime) / DisplayScale), 0);
 	const int32 LastTrueSample = -2.f*SmoothingAmount + FMath::TruncToInt(TrueRangeSize / DisplayScale);
 
+	if (LastTrueSample <= 0)
+	{
+		return;
+	}
+
 	DrawRange = AudioTrueRange;
 
 	float DrawRangeSize = DrawRange.Size<float>();
@@ -719,7 +724,7 @@ int32 FAudioSection::OnPaintSection( FSequencerSectionPainter& Painter ) const
 	}
 
 	FFrameRate TickResolution = TimeToPixelConverter.GetTickResolution();
-	float AudioDuration = AudioSection->GetSound()->GetDuration();
+	float AudioDuration = DeriveUnloopedDuration(AudioSection);
 
 	// Add lines where the animation starts and ends/loops
 	const float SeqLength = AudioDuration - TickResolution.AsSeconds(AudioSection->GetStartOffset());

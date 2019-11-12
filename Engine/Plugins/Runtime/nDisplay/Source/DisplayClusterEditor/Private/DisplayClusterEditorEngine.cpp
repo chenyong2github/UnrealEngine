@@ -7,7 +7,10 @@
 
 #include "DisplayCluster/Private/IPDisplayCluster.h"
 
+#include "Engine/LevelStreaming.h"
+
 #include "Editor.h"
+
 
 void UDisplayClusterEditorEngine::Init(IEngineLoop* InEngineLoop)
 {
@@ -45,31 +48,57 @@ void UDisplayClusterEditorEngine::PreExit()
 	Super::PreExit();
 }
 
-void UDisplayClusterEditorEngine::PlayInEditor(UWorld* InWorld, bool bInSimulateInEditor, FPlayInEditorOverrides Overrides)
+UDisplayClusterRootComponent* UDisplayClusterEditorEngine::FindDisplayClusterRootComponent(UWorld* InWorld)
 {
-	UE_LOG(LogDisplayClusterEditorEngine, VeryVerbose, TEXT("UDisplayClusterEditorEngine::PlayInEditor"));
-
-	// Find nDisplay root
-	UDisplayClusterRootComponent* RootComponent = nullptr;
-	for (AActor* Actor : InWorld->PersistentLevel->Actors)
+	for (AActor* const Actor : InWorld->PersistentLevel->Actors)
 	{
 		if (Actor && !Actor->IsPendingKill())
 		{
-			RootComponent = Actor->FindComponentByClass<UDisplayClusterRootComponent>();
+			UDisplayClusterRootComponent* RootComponent = Actor->FindComponentByClass<UDisplayClusterRootComponent>();
 			if (RootComponent && !RootComponent->IsPendingKill())
 			{
 				UE_LOG(LogDisplayClusterEditorEngine, Log, TEXT("Found root component - %s"), *RootComponent->GetName());
-				break;
-			}
-			else
-			{
-				RootComponent = nullptr;
+				return RootComponent;
 			}
 		}
 	}
 
+	return nullptr;
+}
+
+void UDisplayClusterEditorEngine::PlayInEditor(UWorld* InWorld, bool bInSimulateInEditor, FPlayInEditorOverrides Overrides)
+{
+	UE_LOG(LogDisplayClusterEditorEngine, VeryVerbose, TEXT("UDisplayClusterEditorEngine::PlayInEditor"));
+
 	if (DisplayClusterModule)
 	{
+		// Find nDisplay root
+		UDisplayClusterRootComponent* RootComponent = FindDisplayClusterRootComponent(InWorld);
+		if (!RootComponent)
+		{
+			//Also search inside streamed levels:
+			const TArray<ULevelStreaming*>& StreamingLevels = InWorld->GetStreamingLevels();
+			for (ULevelStreaming* StreamingLevel : StreamingLevels)
+			{
+				switch (StreamingLevel->GetCurrentState())
+				{
+					case ULevelStreaming::ECurrentState::LoadedVisible:
+					{
+						// Parse only in loaded sub-levels
+						const TSoftObjectPtr<UWorld>& SubWorldAsset = StreamingLevel->GetWorldAsset();
+						RootComponent = FindDisplayClusterRootComponent(SubWorldAsset.Get());
+						if (RootComponent)
+						{
+							break;
+						}
+					}
+
+					default:
+						break;
+				}
+			}
+		}
+
 		// If we found a root component, start DisplayCluster PIE session
 		if (RootComponent)
 		{

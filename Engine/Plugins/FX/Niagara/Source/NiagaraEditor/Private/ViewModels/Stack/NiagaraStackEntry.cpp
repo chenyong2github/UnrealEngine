@@ -329,6 +329,11 @@ UNiagaraStackEntry::FOnRequestFullRefresh& UNiagaraStackEntry::OnRequestFullRefr
 	return RequestFullRefreshDelegate;
 }
 
+const UNiagaraStackEntry::FOnRequestFullRefresh& UNiagaraStackEntry::OnRequestFullRefreshDeferred() const
+{
+	return RequestFullRefreshDeferredDelegate;
+}
+
 UNiagaraStackEntry::FOnRequestFullRefresh& UNiagaraStackEntry::OnRequestFullRefreshDeferred()
 {
 	return RequestFullRefreshDeferredDelegate;

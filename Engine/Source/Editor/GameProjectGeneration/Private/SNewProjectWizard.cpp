@@ -721,7 +721,7 @@ EVisibility SNewProjectWizard::GetNameAndLocationErrorLabelVisibility() const
 
 FText SNewProjectWizard::GetNameAndLocationErrorLabelText() const
 {
-	if ( !bLastNameAndLocationValidityCheckSuccessful )
+	if (!bLastNameAndLocationValidityCheckSuccessful)
 	{
 		return LastNameAndLocationValidityErrorText;
 	}
@@ -1151,7 +1151,7 @@ bool SNewProjectWizard::CreateProject(const FString& ProjectFile)
 		CreatedProjectPath.AppendChar('/');
 	}
 
-	auto* Settings = GetMutableDefault<UEditorSettings>();
+	UEditorSettings* Settings = GetMutableDefault<UEditorSettings>();
 	Settings->CreatedProjectPaths.Remove(CreatedProjectPath);
 	Settings->CreatedProjectPaths.Insert(CreatedProjectPath, 0);
 	Settings->bCopyStarterContentPreference = bCopyStarterContent;
@@ -1363,12 +1363,12 @@ TSharedRef<SWidget> SNewProjectWizard::CreateProjectSettingsPage()
 	+ SOverlay::Slot()
 	.HAlign(HAlign_Left)
 	.VAlign(VAlign_Bottom)
-	.Padding( 8 )
+	.Padding(0, 0, 0, 82) // manually sized to be above the project location box
 	[
 		SNew(SBorder)
 		.Visibility(this, &SNewProjectWizard::GetGlobalErrorLabelVisibility)
 		.BorderImage(FEditorStyle::GetBrush("GameProjectDialog.ErrorLabelBorder"))
-		.Padding( 8 )
+		.Padding(4)
 		[
 			SNew(SHorizontalBox)
 						
@@ -1421,12 +1421,11 @@ TSharedRef<SWidget> SNewProjectWizard::CreateProjectSettingsPage()
 	+SOverlay::Slot()
 	.HAlign(HAlign_Left)
 	.VAlign(VAlign_Bottom)
-	.Padding( 8 )
 	[
 		SNew(SBorder)
 		.BorderImage(FEditorStyle::GetBrush("GameProjectDialog.ErrorLabelBorder"))
 		.Visibility(this, &SNewProjectWizard::GetNameAndLocationErrorLabelVisibility)
-		.Padding(8)
+		.Padding(4)
 		[
 			SNew(SHorizontalBox)
 					
@@ -1441,10 +1440,9 @@ TSharedRef<SWidget> SNewProjectWizard::CreateProjectSettingsPage()
 
 			+SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
-			.AutoWidth()
+			.FillWidth(1.0f)
 			[
 				SNew(STextBlock)
-				.AutoWrapText(true)
 				.Text(this, &SNewProjectWizard::GetNameAndLocationErrorLabelText)
 				.TextStyle(FEditorStyle::Get(), "GameProjectDialog.ErrorLabelFont")
 			]
@@ -1600,6 +1598,13 @@ TSharedRef<SWidget> SNewProjectWizard::MakeProjectSettingsOptionsBox()
 
 		TSharedRef<SWidget> Enum = SNew(SOverlay)
 			+ SOverlay::Slot()
+			[
+				SNew(SDecoratedEnumCombo<int32>, MoveTemp(StarterContentOptions))
+				.SelectedEnum(this, &SNewProjectWizard::GetCopyStarterContentIndex)
+				.OnEnumChanged(this, &SNewProjectWizard::OnSetCopyStarterContent)
+				.Orientation(Orient_Vertical)
+			]
+			+ SOverlay::Slot()
 			.HAlign(HAlign_Right)
 			.VAlign(VAlign_Top)
 			.Padding(4)
@@ -1609,13 +1614,6 @@ TSharedRef<SWidget> SNewProjectWizard::MakeProjectSettingsOptionsBox()
 				.Image(FEditorStyle::GetBrush("Icons.Warning"))
 				.ToolTipText(this, &SNewProjectWizard::GetStarterContentWarningTooltip)
 				.Visibility(this, &SNewProjectWizard::GetStarterContentWarningVisibility)
-			]
-			+ SOverlay::Slot()
-			[
-				SNew(SDecoratedEnumCombo<int32>, MoveTemp(StarterContentOptions))
-				.SelectedEnum(this, &SNewProjectWizard::GetCopyStarterContentIndex)
-				.OnEnumChanged(this, &SNewProjectWizard::OnSetCopyStarterContent)
-				.Orientation(Orient_Vertical)
 			];
 
 		TSharedRef<SRichTextBlock> Description =
@@ -1627,6 +1625,7 @@ TSharedRef<SWidget> SNewProjectWizard::MakeProjectSettingsOptionsBox()
 		AddToProjectSettingsGrid(GridPanel, Enum, Description, CurrentSlot);
 	}
 
+#if 0 // @todo: XR settings cannot be shown at the moment as the setting causes issues with binary builds.
 	if (!HiddenSettings.Contains(ETemplateSetting::XR))
 	{
 		TArray<SDecoratedEnumCombo<int32>::FComboOption> VirtualRealityOptions;
@@ -1651,6 +1650,7 @@ TSharedRef<SWidget> SNewProjectWizard::MakeProjectSettingsOptionsBox()
 
 		AddToProjectSettingsGrid(GridPanel, Enum, Description, CurrentSlot);
 	}
+#endif 
 
 	if (!HiddenSettings.Contains(ETemplateSetting::Raytracing))
 	{

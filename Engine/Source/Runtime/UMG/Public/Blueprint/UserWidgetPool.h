@@ -91,7 +91,7 @@ private:
 	template <typename UserWidgetT = UUserWidget>
 	UserWidgetT* AddActiveWidgetInternal(TSubclassOf<UserWidgetT> WidgetClass, WidgetConstructFunc ConstructWidgetFunc)
 	{
-		if (!ensure(IsInitialized()))
+		if (!ensure(IsInitialized()) || !WidgetClass)
 		{
 			return nullptr;
 		}

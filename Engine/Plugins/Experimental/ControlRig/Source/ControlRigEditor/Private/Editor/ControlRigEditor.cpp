@@ -208,8 +208,12 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 
 	// Activate our edit mode
 //	GetAssetEditorModeManager()->SetToolkitHost(GetToolkitHost());
-	GetAssetEditorModeManager()->SetDefaultMode(FControlRigEditorEditMode::ModeName);
-	GetAssetEditorModeManager()->ActivateMode(FControlRigEditorEditMode::ModeName);
+	if (GetAssetEditorModeManager() != nullptr)
+	{
+		GetAssetEditorModeManager()->SetDefaultMode(FControlRigEditorEditMode::ModeName);
+		GetAssetEditorModeManager()->ActivateMode(FControlRigEditorEditMode::ModeName);
+	}
+
 	if (FControlRigEditMode* EditMode = GetEditMode())
 	{
 		EditMode->OnGetRigElementTransform() = FOnGetRigElementTransform::CreateSP(this, &FControlRigEditor::GetRigElementTransform);
@@ -569,6 +573,8 @@ UBlueprint* FControlRigEditor::GetBlueprintObj() const
 void FControlRigEditor::SetDetailObjects(const TArray<UObject*>& InObjects)
 {
 	RigElementInDetailPanel = FRigElementKey();
+	SKismetInspector::FShowDetailsOptions Options;
+	Options.bForceRefresh = true;
 	Inspector->ShowDetailsForObjects(InObjects);
 }
 
@@ -1516,7 +1522,7 @@ void FControlRigEditor::UpdateControlRig()
 
 			// initialize is moved post reinstance
 			FInputBlendPose Filter;
-			AnimInstance->UpdateControlRig(ControlRig, 0, false, false, Filter, 1.0f, bExecutionControlRig, bExecutionControlRig);
+			AnimInstance->UpdateControlRig(ControlRig, 0, false, false, Filter, 1.0f, true, bExecutionControlRig);
 			AnimInstance->RecalcRequiredBones();
 
 			// since rig has changed, rebuild draw skeleton
@@ -1984,6 +1990,16 @@ void FControlRigEditor::OnControlUISettingChanged(FRigHierarchyContainer* Contai
 {
 	OnHierarchyChanged();
 }
+
+FControlRigEditorEditMode* FControlRigEditor::GetEditMode() const
+{
+	if (GetAssetEditorModeManager() == nullptr)
+	{
+		return nullptr;
+	}
+	return static_cast<FControlRigEditorEditMode*>(GetAssetEditorModeManager()->GetActiveMode(FControlRigEditorEditMode::ModeName));
+}
+
 
 void FControlRigEditor::OnCurveContainerChanged()
 {

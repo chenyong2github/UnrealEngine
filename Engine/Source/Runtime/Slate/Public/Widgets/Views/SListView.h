@@ -97,6 +97,7 @@ public:
 		, _OnItemToString_Debug()
 		, _OnEnteredBadState()
 		{
+			this->_Clipping = EWidgetClipping::ClipToBounds;
 		}
 
 		SLATE_EVENT( FOnGenerateRow, OnGenerateRow )

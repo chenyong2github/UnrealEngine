@@ -146,6 +146,12 @@ namespace ChaosInterface
 			NewShape->Geometry = InGeom;
 			NewShape->QueryData = bComplexShape ? InParams.CollisionData.CollisionFilterData.QueryComplexFilter : InParams.CollisionData.CollisionFilterData.QuerySimpleFilter;
 			NewShape->SimData = InParams.CollisionData.CollisionFilterData.SimFilter;
+
+			if (InGeom->HasBoundingBox())
+			{
+				NewShape->WorldSpaceInflatedShapeBounds = InGeom->BoundingBox().GetAABB().TransformedAABB(InParams.WorldTransform);
+			}
+
 			return NewShape;
 		};
 

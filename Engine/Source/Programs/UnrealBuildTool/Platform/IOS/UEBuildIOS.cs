@@ -160,7 +160,7 @@ namespace UnrealBuildTool
 
 		public float RuntimeVersion
 		{
-			get { return float.Parse(Inner.ProjectSettings.RuntimeVersion); }
+			get { return float.Parse(Inner.ProjectSettings.RuntimeVersion, System.Globalization.CultureInfo.InvariantCulture); }
 		}
 		
 #if !__MonoCS__

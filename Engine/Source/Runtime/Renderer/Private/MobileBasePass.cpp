@@ -306,7 +306,9 @@ ELightMapPolicyType MobileBasePass::SelectMeshLightmapPolicy(
 				// Static objects with lightmap type set to ForceVolumetric also need to get GI from ILC
 				|| LightMapInteraction.GetType() == LMIT_GlobalVolume)
 			// if there is no valid ILC data, skip SH calculation by using Movable Directional Light permutation.
-			&& (IndirectLightingCacheAllocation && IndirectLightingCacheAllocation->IsValid())
+			&& ((IndirectLightingCacheAllocation && IndirectLightingCacheAllocation->IsValid())
+				// if there is no valid VLM data, skip SH calculation by using Movable Directional Light permutation.
+				|| (Scene && Scene->VolumetricLightmapSceneData.HasData()))
 			// Use the indirect lighting cache shaders if the object does not turn off ILC 
 			&& bPrimitiveUsesILC)
 		{
@@ -619,7 +621,7 @@ void FMobileBasePassMeshProcessor::Process(
 	
 	//The stationary skylight contribution has been added to the LowQuality Lightmap for StaticMeshActor on mobile, so we should skip the sky light spherical harmonic contribution for it.
 	//Enable skylight if LowQualityLightmaps is disabled or the Lightmap has not been built.
-	bool bEnableSkyLight = ShadingModels.IsLit() && Scene && Scene->ShouldRenderSkylightInBasePass(BlendMode) && !(FReadOnlyCVARCache::Get().bAllowStaticLighting && FReadOnlyCVARCache::Get().bEnableLowQualityLightmaps && PrimitiveSceneProxy && PrimitiveSceneProxy->IsStatic() && MeshBatch.LCI && MeshBatch.LCI->GetLightMapInteraction(FeatureLevel).GetType() == LMIT_Texture);
+	bool bEnableSkyLight = ShadingModels.IsLit() && Scene && Scene->ShouldRenderSkylightInBasePass(BlendMode) && !(FReadOnlyCVARCache::Get().bAllowStaticLighting && FReadOnlyCVARCache::Get().bEnableLowQualityLightmaps && PrimitiveSceneProxy && PrimitiveSceneProxy->IsStatic() && MeshBatch.LCI && MeshBatch.LCI->GetLightMapInteraction(FeatureLevel).GetType() == LMIT_Texture && !MaterialResource.IsTwoSided());
 	int32 NumMovablePointLights = MobileBasePass::CalcNumMovablePointLights(MaterialResource, PrimitiveSceneProxy);
 
 	MobileBasePass::GetShaders(

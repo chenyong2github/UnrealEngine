@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Misc/FrameRate.h"
 #include "TakeRecorderPanel.generated.h"
 
 class UTakePreset;
@@ -82,6 +83,13 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Take Recorder|Panel")
 	UTakeMetaData* GetTakeMetaData() const;
+
+
+	/**
+	 * Access the frame rate for this take
+	 */
+	UFUNCTION(BlueprintCallable, Category="Take Recorder|Panel")
+	FFrameRate GetFrameRate() const;
 
 
 	/**

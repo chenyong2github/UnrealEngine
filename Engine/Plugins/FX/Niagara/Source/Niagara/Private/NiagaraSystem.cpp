@@ -202,6 +202,11 @@ void UNiagaraSystem::Serialize(FArchive& Ar)
 		}
 		Ar << EmitterCompiledDataNum;
 
+		if (Ar.IsLoading())
+		{
+			// Clear out EmitterCompiledData when loading or else we will end up with duplicate entries. 
+			EmitterCompiledData.Reset();
+		}
 		for (int32 EmitterIndex = 0; EmitterIndex < EmitterCompiledDataNum; ++EmitterIndex)
 		{
 			if (Ar.IsLoading())

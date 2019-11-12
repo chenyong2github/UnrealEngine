@@ -581,6 +581,12 @@ namespace UnrealBuildTool
 
 			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
 			{
+				// Enable codeview ghash for faster lld links
+				if (WindowsPlatform.bAllowClangLinker)
+				{
+					Arguments.Add("-gcodeview-ghash");
+				}
+
 				// Disable specific warnings that cause problems with Clang
 				// NOTE: These must appear after we set the MSVC warning level
 
@@ -669,9 +675,6 @@ namespace UnrealBuildTool
 		{
 			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang && WindowsPlatform.bAllowClangLinker)
 			{
-				// This tells LLD to run in "Windows emulation" mode, meaning that it will accept MSVC Link arguments
-				Arguments.Add("-flavor link");
-
 				// @todo clang: The following static libraries aren't linking correctly with Clang:
 				//		tbbmalloc.lib, zlib_64.lib, libpng_64.lib, freetype2412MT.lib, IlmImf.lib
 				//		LLD: Assertion failed: result.size() == 1, file ..\tools\lld\lib\ReaderWriter\FileArchive.cpp, line 71
@@ -696,9 +699,26 @@ namespace UnrealBuildTool
 				Arguments.Add("/DEBUG");
 
 				// Allow partial PDBs for faster linking
-				if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2015_DEPRECATED && LinkEnvironment.bUseFastPDBLinking)
+				if (LinkEnvironment.bUseFastPDBLinking)
 				{
-					Arguments[Arguments.Count - 1] += ":FASTLINK";
+					switch (Target.WindowsPlatform.Compiler)
+					{
+						case WindowsCompiler.Default:
+							break;
+						case WindowsCompiler.Clang:
+							if (WindowsPlatform.bAllowClangLinker)
+							{
+								Arguments[Arguments.Count - 1] += ":GHASH";
+							}
+							break;
+						case WindowsCompiler.Intel:
+							break;
+						case WindowsCompiler.VisualStudio2015_DEPRECATED:
+						case WindowsCompiler.VisualStudio2017:
+						case WindowsCompiler.VisualStudio2019:
+							Arguments[Arguments.Count - 1] += ":FASTLINK";
+							break;
+					}
 				}
 			}
 
@@ -836,7 +856,7 @@ namespace UnrealBuildTool
 
 			// Suppress warnings about missing PDB files for statically linked libraries.  We often don't want to distribute
 			// PDB files for these libraries.
-			Arguments.Add("/ignore:4099");		// warning LNK4099: PDB '<file>' was not found with '<file>'
+			Arguments.Add("/ignore:4099");      // warning LNK4099: PDB '<file>' was not found with '<file>'
 		}
 
 		void AppendLibArguments(LinkEnvironment LinkEnvironment, List<string> Arguments)
@@ -1119,7 +1139,6 @@ namespace UnrealBuildTool
 				string[] AdditionalArguments = String.IsNullOrEmpty(CompileEnvironment.AdditionalArguments)? new string[0] : new string[] { CompileEnvironment.AdditionalArguments };
 
 				if (!ProjectFileGenerator.bGenerateProjectFiles
-					&& Target.WindowsPlatform.Compiler != WindowsCompiler.Clang
 					&& CompileAction.ProducedItems.Count > 0)
 				{
 					FileItem TargetFile = CompileAction.ProducedItems[0];

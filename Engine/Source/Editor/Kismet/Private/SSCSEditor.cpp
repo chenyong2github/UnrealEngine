@@ -6313,24 +6313,31 @@ bool SSCSEditor::CanRenameComponent() const
 	return IsEditingAllowed() && SCSTreeWidget->GetSelectedItems().Num() == 1 && SCSTreeWidget->GetSelectedItems()[0]->CanRename();
 }
 
-void SSCSEditor::GetCollapsedNodes(const FSCSEditorTreeNodePtrType& InNodePtr, TSet<FSCSEditorTreeNodePtrType>& OutCollapsedNodes) const
+void SSCSEditor::DepthFirstTraversal(const FSCSEditorTreeNodePtrType& InNodePtr, TSet<FSCSEditorTreeNodePtrType>& OutVisitedNodes, const TFunctionRef<void(const FSCSEditorTreeNodePtrType&)> InFunction) const
 {
-	if(InNodePtr.IsValid())
+	if (InNodePtr.IsValid()
+		&& ensureMsgf(!OutVisitedNodes.Contains(InNodePtr), TEXT("Already visited node: %s (Parent: %s)"), *InNodePtr->GetDisplayString(), InNodePtr->GetParent().IsValid() ? *InNodePtr->GetParent()->GetDisplayString() : TEXT("NULL")))
 	{
-		const TArray<FSCSEditorTreeNodePtrType>& Children = InNodePtr->GetChildren();
-		if(Children.Num() > 0)
-		{
-			if(!SCSTreeWidget->IsItemExpanded(InNodePtr))
-			{
-				OutCollapsedNodes.Add(InNodePtr);
-			}
+		InFunction(InNodePtr);
+		OutVisitedNodes.Add(InNodePtr);
 
-			for(int32 i = 0; i < Children.Num(); ++i)
-			{
-				GetCollapsedNodes(Children[i], OutCollapsedNodes);
-			}
+		for (const FSCSEditorTreeNodePtrType& Child : InNodePtr->GetChildren())
+		{
+			DepthFirstTraversal(Child, OutVisitedNodes, InFunction);
 		}
 	}
+}
+
+void SSCSEditor::GetCollapsedNodes(const FSCSEditorTreeNodePtrType& InNodePtr, TSet<FSCSEditorTreeNodePtrType>& OutCollapsedNodes) const
+{
+	TSet<FSCSEditorTreeNodePtrType> VisitedNodes;
+	DepthFirstTraversal(InNodePtr, VisitedNodes, [SCSTreeWidget = this->SCSTreeWidget, &OutCollapsedNodes](const FSCSEditorTreeNodePtrType& InNodePtr)
+	{
+		if (InNodePtr->GetChildren().Num() > 0 && !SCSTreeWidget->IsItemExpanded(InNodePtr))
+		{
+			OutCollapsedNodes.Add(InNodePtr);
+		}
+	});
 }
 
 EVisibility SSCSEditor::GetPromoteToBlueprintButtonVisibility() const

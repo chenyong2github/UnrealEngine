@@ -524,8 +524,8 @@ bool dtPathCorridor::optimizePathTopology(dtNavMeshQuery* navquery, const dtQuer
 	
 	dtPolyRef res[MAX_RES];
 	int nres = 0;
-	const float maxCost = FLT_MAX; //@UE4
-	navquery->initSlicedFindPath(m_path[0], m_path[m_npath-1], m_pos, m_target, maxCost, filter); //@UE4
+	const float costLimit = FLT_MAX; //@UE4
+	navquery->initSlicedFindPath(m_path[0], m_path[m_npath-1], m_pos, m_target, costLimit, filter); //@UE4
 	navquery->updateSlicedFindPath(MAX_ITER, 0);
 	dtStatus status = navquery->finalizeSlicedFindPathPartial(m_path, m_npath, res, &nres, MAX_RES);
 	

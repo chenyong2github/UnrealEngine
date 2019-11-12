@@ -40,4 +40,5 @@ public:
 
 private:
 	FDisplayClusterConfigSceneNode Config;
+	FString SyncId;
 };

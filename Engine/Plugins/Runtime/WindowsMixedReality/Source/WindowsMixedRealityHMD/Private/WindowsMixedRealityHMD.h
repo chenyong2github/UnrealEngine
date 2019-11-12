@@ -126,6 +126,11 @@ namespace WindowsMixedReality
 		virtual bool HasVisibleAreaMesh() const override;
 		virtual void DrawVisibleAreaMesh_RenderThread(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const override;
 
+		// Spectator screen Hooks.
+		virtual FIntRect GetFullFlatEyeRect_RenderThread(FTexture2DRHIRef EyeTexture) const override;
+		// Helper to copy one render target into another for spectator screen display
+		virtual void CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, FIntRect SrcRect, FRHITexture2D* DstTexture, FIntRect DstRect, bool bClearBlack, bool bNoAlpha) const override;
+
 		/** ISceneViewExtension interface */
 		virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override;
 		virtual void SetupView(
@@ -333,6 +338,9 @@ namespace WindowsMixedReality
 			return new SpeechRecognizerInterop();
 		}
 #endif
+
+	private:
+		void CreateSpectatorScreenController();
 	};
 }
 

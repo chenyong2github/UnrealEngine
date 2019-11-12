@@ -102,6 +102,16 @@ UTakeMetaData* UTakeRecorderPanel::GetTakeMetaData() const
 	return WeakTabContent.Pin()->GetTakeMetaData();
 }
 
+FFrameRate UTakeRecorderPanel::GetFrameRate() const
+{
+	if (!ValidateTabContent())
+	{
+		return FFrameRate();
+	}
+
+	return WeakTabContent.Pin()->GetFrameRate();
+}
+
 UTakeRecorderSources* UTakeRecorderPanel::GetSources() const
 {
 	if (!ValidateTabContent())

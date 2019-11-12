@@ -270,4 +270,5 @@ public:
 #endif // WITH_EDITOR
 
 	friend class FLandscapeToolSplines;
+	friend class ULandscapeInfo;
 };

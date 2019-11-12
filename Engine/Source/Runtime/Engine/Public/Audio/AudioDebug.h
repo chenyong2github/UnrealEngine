@@ -45,7 +45,7 @@ public:
 
 	static void DrawDebugInfo(const FSoundSource& SoundSource);
 	static void DrawDebugInfo(const FActiveSound& ActiveSound, const TArray<FWaveInstance*>& ThisSoundsWaveInstances, const float DeltaTime);
-	static void DrawDebugInfo(UWorld& World, const TArray<FListener>& Listeners, FVector& ListenerTransformOverride, bool bUseListenerTransformOverride);
+	static void DrawDebugInfo(UWorld& World, const TArray<FListener>& Listeners);
 	static void DrawDebugInfo(const FAudioVirtualLoop& VirtualLoop);
 	static bool PostStatModulatorHelp(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream);
 	static int32 RenderStatCues(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation);
@@ -69,7 +69,12 @@ public:
 
 	bool IsVisualizeDebug3dEnabled() const;
 	void ToggleVisualizeDebug3dEnabled();
-		
+
+#if WITH_EDITOR
+	static void OnBeginPIE();
+	static void OnEndPIE();
+#endif // WITH_EDITOR
+
 	// Evaluate Mute/Solos
 	void QuerySoloMuteSoundClass(const FString& Name, bool& bOutIsSoloed, bool& bOutIsMuted, FString& OutReason ) const;
 	void QuerySoloMuteSoundWave(const FString& Name, bool& bOutIsSoloed, bool& bOutIsMuted, FString& OutReason) const;

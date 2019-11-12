@@ -407,6 +407,9 @@ protected:
 	/** The layout and scroll orientation of the list */
 	EOrientation Orientation = Orient_Vertical;
 
+	/** Passing over the clipping to SListPanel */
+	virtual void OnClippingChanged() override;
+
 protected:
 
 	/** Check whether the current state of the table warrants inertial scroll by the specified amount */
