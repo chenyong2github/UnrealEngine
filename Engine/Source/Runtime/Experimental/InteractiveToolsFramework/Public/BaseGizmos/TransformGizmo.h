@@ -230,6 +230,12 @@ public:
 	 */
 	virtual void SetNewGizmoTransform(const FTransform& NewTransform);
 
+	/**
+	 * If true, then when using world frame, Axis and Plane translation snap to the world grid via the ContextQueriesAPI (in PositionSnapFunction)
+	 */
+	UPROPERTY()
+	bool bSnapToWorldGrid = false;
+
 
 protected:
 	TSharedPtr<FTransformGizmoActorFactory> GizmoActorBuilder;
@@ -294,5 +300,9 @@ protected:
 		IGizmoAxisSource* AxisSource,
 		IGizmoTransformSource* TransformSource,
 		IGizmoStateTarget* StateTarget);
+
+
+	// Axis and Plane TransformSources use this function to execute worldgrid snap queries
+	bool PositionSnapFunction(const FVector& WorldPosition, FVector& SnappedPositionOut);
 };
 

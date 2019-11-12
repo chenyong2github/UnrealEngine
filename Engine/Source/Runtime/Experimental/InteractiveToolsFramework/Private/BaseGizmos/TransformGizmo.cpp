@@ -355,7 +355,9 @@ UInteractiveGizmo* UTransformGizmo::AddAxisTranslationGizmo(
 	TranslateGizmo->AxisSource = Cast<UObject>(AxisSource);
 
 	// parameter source maps axis-parameter-change to translation of TransformSource's transform
-	TranslateGizmo->ParameterSource = UGizmoAxisTranslationParameterSource::Construct(AxisSource, TransformSource, this);
+	UGizmoAxisTranslationParameterSource* ParamSource = UGizmoAxisTranslationParameterSource::Construct(AxisSource, TransformSource, this);
+	ParamSource->PositionConstraintFunction = [this](const FVector& Pos, FVector& Snapped) { return PositionSnapFunction(Pos, Snapped); };
+	TranslateGizmo->ParameterSource = ParamSource;
 
 	// sub-component provides hit target
 	UGizmoComponentHitTarget* HitTarget = UGizmoComponentHitTarget::Construct(AxisComponent, this);
@@ -388,7 +390,9 @@ UInteractiveGizmo* UTransformGizmo::AddPlaneTranslationGizmo(
 	TranslateGizmo->AxisSource = Cast<UObject>(AxisSource);
 
 	// parameter source maps axis-parameter-change to translation of TransformSource's transform
-	TranslateGizmo->ParameterSource = UGizmoPlaneTranslationParameterSource::Construct(AxisSource, TransformSource, this);
+	UGizmoPlaneTranslationParameterSource* ParamSource = UGizmoPlaneTranslationParameterSource::Construct(AxisSource, TransformSource, this);
+	ParamSource->PositionConstraintFunction = [this](const FVector& Pos, FVector& Snapped) { return PositionSnapFunction(Pos, Snapped); };
+	TranslateGizmo->ParameterSource = ParamSource;
 
 	// sub-component provides hit target
 	UGizmoComponentHitTarget* HitTarget = UGizmoComponentHitTarget::Construct(AxisComponent, this);
@@ -461,6 +465,38 @@ void UTransformGizmo::ClearActiveTarget()
 	ActiveTarget = nullptr;
 }
 
+
+
+
+bool UTransformGizmo::PositionSnapFunction(const FVector& WorldPosition, FVector& SnappedPositionOut)
+{
+	SnappedPositionOut = WorldPosition;
+
+	// only snap if we want snapping obvs
+	if (bSnapToWorldGrid == false)
+	{
+		return false;
+	}
+
+	// only snap to world grid when using world axes
+	if (GetGizmoManager()->GetContextQueriesAPI()->GetCurrentCoordinateSystem() != EToolContextCoordinateSystem::World)
+	{
+		return false;
+	}
+
+	FSceneSnapQueryRequest Request;
+	Request.RequestType = ESceneSnapQueryType::Position;
+	Request.TargetTypes = ESceneSnapQueryTargetType::Grid;
+	Request.Position = WorldPosition;
+	TArray<FSceneSnapQueryResult> Results;
+	if (GetGizmoManager()->GetContextQueriesAPI()->ExecuteSceneSnapQuery(Request, Results))
+	{
+		SnappedPositionOut = Results[0].Position;
+		return true;
+	};
+	
+	return false;
+}
 
 
 #undef LOCTEXT_NAMESPACE
