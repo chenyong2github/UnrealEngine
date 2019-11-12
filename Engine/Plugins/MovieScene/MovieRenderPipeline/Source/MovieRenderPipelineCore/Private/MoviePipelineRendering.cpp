@@ -15,6 +15,8 @@
 #include "Math/Halton.h"
 #include "ImageWriteTask.h"
 #include "ImageWriteQueue.h"
+#include "Engine/World.h"
+#include "GameFramework/PlayerController.h"
 
 void UMoviePipeline::SetupRenderingPipelineForShot(FMoviePipelineShotInfo& Shot)
 {
@@ -121,6 +123,19 @@ void UMoviePipeline::RenderFrame()
 
 	int32 NumSpatialSamples = AccumulationSettings->SpatialSampleCount;
 	ensure(NumTilesX > 0 && NumTilesY > 0 && NumSpatialSamples > 0);
+
+	FrameInfo.PrevViewLocation = FrameInfo.CurrViewLocation;
+	FrameInfo.PrevViewRotation = FrameInfo.CurrViewRotation;
+
+	APlayerController* LocalPlayerController = GetWorld()->GetFirstPlayerController();
+	LocalPlayerController->GetPlayerViewPoint(FrameInfo.CurrViewLocation, FrameInfo.CurrViewRotation);
+
+	// if it is the first frame, then motion blur is disabled, and we just use the current frame camera position/rotation
+	if (bIsHistoryOnlyFrame)
+	{
+		FrameInfo.PrevViewLocation = FrameInfo.CurrViewLocation;
+		FrameInfo.PrevViewRotation = FrameInfo.CurrViewRotation;
+	}
 
 	TArray<UMoviePipelineRenderPass*> InputBuffers = CurrentShot.ShotConfig->GetRenderPasses();
 
@@ -285,6 +300,9 @@ void UMoviePipeline::RenderFrame()
 					FrameMetrics.OverlappedPadY = 0;
 					FrameMetrics.OverlappedSubpixelShift = FVector2D(0.0f,0.0f);
 				}
+
+				FrameMetrics.FrameInfo = FrameInfo;
+
 				// Finally, we can ask each pass to render. Passes have already been initialized knowing how many tiles they're broken into
 				for (UMoviePipelineRenderPass* Input : InputBuffers)
 				{

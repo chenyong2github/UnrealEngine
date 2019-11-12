@@ -244,6 +244,12 @@ private:
 	/** Called when there is a warning/error that the user should pay attention to.*/
 	FMoviePipelineErrored OnMoviePipelineErroredDelegate;
 
+	/**
+	 * We have to apply camera motion vectors manually. So we keep the current and previous fram'es camera view and rotation.
+	 * Then we render a sequence of the same movement, and update after running the game sim.
+	 **/
+	MoviePipeline::FMoviePipelineFrameInfo FrameInfo;
+
 public:
 	/** This gathers all of the produced data for an output frame (which may come in async many frames later) before passing them onto the Output Containers. */
 	TSharedPtr<FMoviePipelineOutputMerger, ESPMode::ThreadSafe> OutputBuilder;

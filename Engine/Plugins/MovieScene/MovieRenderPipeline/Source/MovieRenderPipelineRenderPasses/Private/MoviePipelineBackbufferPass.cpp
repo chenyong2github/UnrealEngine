@@ -81,9 +81,9 @@ void UMoviePipelineBackbufferPass::CaptureFrameImpl(const FMoviePipelineRenderPa
 
 	if (InPassMetrics.bIsUsingOverlappedTiles)
 	{
-		// Disable these for now
+		// We can actually keep these enabled for now
 		//ShowFlags.SetDepthOfField(false);
-		ShowFlags.SetMotionBlur(false);
+		//ShowFlags.SetMotionBlur(false);
 	}
 
 	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
@@ -94,6 +94,14 @@ void UMoviePipelineBackbufferPass::CaptureFrameImpl(const FMoviePipelineRenderPa
 		.SetRealtimeUpdate(true));
 
 	ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, 1.0f, false));
+
+
+	FVector ViewLocation;
+	FRotator ViewRotation;
+
+	//APlayerController* LocalPlayerController = GetWorld()->GetFirstPlayerController();
+	//LocalPlayerController->GetPlayerViewPoint(ViewLocation, ViewRotation);
+
 	// View is added as a child of the ViewFamily
 	FSceneView* View = CalcSceneView(&ViewFamily, InPassMetrics);
 	ViewFamily.FrameNumber += InPassMetrics.SpatialJitterIndex;
@@ -138,9 +146,8 @@ void UMoviePipelineBackbufferPass::CaptureFrameImpl(const FMoviePipelineRenderPa
 		View->bCameraCut = true;
 	}
 
-	// Pause the view family on renders after the first one. This prevents motion blur/view matrices from being
-	// updated
-	ViewFamily.bWorldIsPaused = InPassMetrics.SpatialJitterIndex != InPassMetrics.NumSpatialJitters - 1;
+	// The world is always paused, but we are setting the motion blur and view matrices manually
+	ViewFamily.bWorldIsPaused = true;
 
 	FCanvas Canvas = FCanvas(TileRenderTarget->GameThread_GetRenderTargetResource(), nullptr, GetWorld(), ERHIFeatureLevel::SM5, FCanvas::CDM_DeferDrawing, 1.0f);
 
@@ -171,20 +178,16 @@ void UMoviePipelineBackbufferPass::CaptureFrameImpl(const FMoviePipelineRenderPa
 
 FSceneView* UMoviePipelineBackbufferPass::CalcSceneView(FSceneViewFamily* ViewFamily, const FMoviePipelineRenderPassMetrics& InPassMetrics)
 {
-	FVector ViewLocation;
-	FRotator ViewRotation;
-
 	APlayerController* LocalPlayerController = GetWorld()->GetFirstPlayerController();
-	LocalPlayerController->GetPlayerViewPoint(ViewLocation, ViewRotation);
 
 	int32 TileSizeX = InitSettings.TileResolution.X;
 	int32 TileSizeY = InitSettings.TileResolution.Y;
 
 	FSceneViewInitOptions ViewInitOptions;
 	ViewInitOptions.ViewFamily = ViewFamily;
-	ViewInitOptions.ViewOrigin = ViewLocation;
+	ViewInitOptions.ViewOrigin = InPassMetrics.FrameInfo.CurrViewLocation;
 	ViewInitOptions.SetViewRectangle(FIntRect(FIntPoint(0, 0), FIntPoint(TileSizeX, TileSizeY)));
-	ViewInitOptions.ViewRotationMatrix = FInverseRotationMatrix(ViewRotation);
+	ViewInitOptions.ViewRotationMatrix = FInverseRotationMatrix(InPassMetrics.FrameInfo.CurrViewRotation);
 
 	// Rotate the view 90 degrees (reason: unknown)
 	ViewInitOptions.ViewRotationMatrix = ViewInitOptions.ViewRotationMatrix * FMatrix(
@@ -273,8 +276,9 @@ FSceneView* UMoviePipelineBackbufferPass::CalcSceneView(FSceneViewFamily* ViewFa
 
 	FSceneView* View = new FSceneView(ViewInitOptions);
 	ViewFamily->Views.Add(View);
-	View->ViewLocation = ViewLocation;
-	View->ViewRotation = ViewRotation;
+	View->ViewLocation = InPassMetrics.FrameInfo.CurrViewLocation;
+	View->ViewRotation = InPassMetrics.FrameInfo.CurrViewRotation;
+	View->PreviousViewTransform = FTransform(InPassMetrics.FrameInfo.PrevViewRotation,InPassMetrics.FrameInfo.PrevViewLocation);
 	View->StartFinalPostprocessSettings(View->ViewLocation);
 
 	// CameraAnim override
@@ -291,7 +295,6 @@ FSceneView* UMoviePipelineBackbufferPass::CalcSceneView(FSceneViewFamily* ViewFa
 		}
 
 		View->OverridePostProcessSettings(ViewInfo.PostProcessSettings, ViewInfo.PostProcessBlendWeight);
-
 	}
 
 	View->EndFinalPostprocessSettings(ViewInitOptions);

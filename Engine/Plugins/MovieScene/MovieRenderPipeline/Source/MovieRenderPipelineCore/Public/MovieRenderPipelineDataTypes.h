@@ -103,6 +103,33 @@ public:
 namespace MoviePipeline
 {
 	/**
+	* Frame info needed for creating the FSceneView for each tile.
+	*/
+	struct FMoviePipelineFrameInfo
+	{
+	public:
+		FMoviePipelineFrameInfo() {}
+		virtual ~FMoviePipelineFrameInfo() {};
+
+		/**
+		 * We have to apply camera motion vectors manually. So we keep the current and previous fram'es camera view and rotation.
+		 * Then we render a sequence of the same movement, and update after running the game sim.
+		 **/
+
+		/** Current frame camera view location **/
+		FVector CurrViewLocation;
+
+		/** Current frame camera view rotation **/
+		FRotator CurrViewRotation;
+
+		/** Previous frame camera view location **/
+		FVector PrevViewLocation;
+
+		/** Previous frame camera view rotation **/
+		FRotator PrevViewRotation;
+	};
+
+	/**
 	* Utility function for the Pipeline to calculate the time metrics for the current
 	* frame that can then be used by the custom time step to avoid custom time logic.
 	*/
@@ -650,6 +677,9 @@ public:
 	int32 OverlappedPadX;
 	int32 OverlappedPadY;
 	FVector2D OverlappedSubpixelShift;
+
+
+	MoviePipeline::FMoviePipelineFrameInfo FrameInfo;
 };
 
 struct FImagePixelDataPayload : IImagePixelDataPayload
@@ -742,7 +772,6 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Movie Render Pipeline")
 	TArray<FString> ShotRenderMask;
 };
-
 
 struct MOVIERENDERPIPELINECORE_API FMoviePipelineMergerOutputFrame
 {
