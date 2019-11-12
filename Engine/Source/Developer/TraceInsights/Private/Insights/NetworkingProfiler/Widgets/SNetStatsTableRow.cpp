@@ -145,7 +145,7 @@ const FSlateBrush* SNetStatsTableRow::GetOutlineBrush(const FName ColumnId) cons
 	{
 		Brush = FEditorStyle::GetBrush("Profiler.EventGraph.Border.L");
 	}
-	else if(Result == HAlign_Right)
+	else if (Result == HAlign_Right)
 	{
 		Brush = FEditorStyle::GetBrush("Profiler.EventGraph.Border.R");
 	}

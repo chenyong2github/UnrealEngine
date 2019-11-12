@@ -1648,10 +1648,7 @@ void TTimeCalculationHelper<double>::EnumerateValues(uint32 CounterId, const Tra
 
 	Counter.EnumerateFloatValues(IntervalStartTime, IntervalEndTime, false, [this, &StatsEx, Callback](double Time, double Value)
 	{
-		if (Time >= IntervalStartTime && Time < IntervalEndTime)
-		{
-			Callback(StatsEx, Value);
-		}
+		Callback(StatsEx, Value);
 	});
 }
 
@@ -1673,10 +1670,7 @@ void TTimeCalculationHelper<int64>::EnumerateValues(uint32 CounterId, const Trac
 
 	Counter.EnumerateValues(IntervalStartTime, IntervalEndTime, false, [this, &StatsEx, Callback](double Time, int64 Value)
 	{
-		if (Time >= IntervalStartTime && Time < IntervalEndTime)
-		{
-			Callback(StatsEx, Value);
-		}
+		Callback(StatsEx, Value);
 	});
 }
 

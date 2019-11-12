@@ -27,7 +27,7 @@ public class TraceInsights : ModuleRules
 				"TraceServices",
 				"DesktopPlatform",
 				"WorkspaceMenuStructure",
-            }
+			}
 		);
 
 		if (Target.bBuildEditor)

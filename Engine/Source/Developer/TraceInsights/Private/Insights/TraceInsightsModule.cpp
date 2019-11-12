@@ -9,7 +9,6 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Framework/Docking/LayoutService.h"
 #include "Widgets/SWidget.h"
-#include "Widgets/Text/STextBlock.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 
@@ -169,7 +168,7 @@ void FTraceInsightsModule::StartupModule()
 #endif
 
 #if WITH_EDITOR
-	// In editor, load the layout and display it here. In the standalone tool this is done in UserInterfaceCommand
+	// In editor, load the layout and display it here. In the standalone tool this is done in UserInterfaceCommand.
 	TSharedRef<FTabManager::FLayout> DefaultLayout = FTabManager::NewLayout("UnrealInsightsLayout_v1.0");
 	OnNewLayout(DefaultLayout);
 	PersistentLayout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni, DefaultLayout);
@@ -228,9 +227,9 @@ void FTraceInsightsModule::ShutdownModule()
 #if WITH_EDITOR
 void FTraceInsightsModule::HandleExit()
 {
-	// In editor, as module lifetimes are different, we need to shut down the recorder service before 
-	// threads get killed in the shutdown process otherwise we will hand forever waiting on the recorder server
-	if(TraceSessionService.IsValid())
+	// In editor, as module lifetimes are different, we need to shut down the recorder service before
+	// threads get killed in the shutdown process otherwise we will hang forever waiting on the recorder server
+	if (TraceSessionService.IsValid())
 	{
 		TraceSessionService->StopRecorderServer();
 	}
@@ -249,7 +248,7 @@ void FTraceInsightsModule::OnNewLayout(TSharedRef<FTabManager::FLayout> NewLayou
 		(
 			FTabManager::NewStack()
 #if WITH_EDITOR
-			// In editor we default to all tabs closed
+			// In editor, we default to all tabs closed.
 			->AddTab(FInsightsManagerTabs::StartPageTabId, ETabState::ClosedTab)
 #else
 			->AddTab(FInsightsManagerTabs::StartPageTabId, ETabState::OpenedTab)

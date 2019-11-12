@@ -1197,12 +1197,12 @@ TSharedRef<SWidget> STableTreeView::GetGroupingCrumbMenuContent(const TSharedPtr
 	MenuBuilder.BeginSection("InsertOrAdd");
 	{
 		const FText AddGroupingText = (CrumbGroupingDepth == CurrentGroupings.Num() - 1) ? // after last one
-			LOCTEXT("AddGrouping_Section", "Add Grouping...") :
-			LOCTEXT("InsertGrouping_Section", "Insert Grouping...");
+			LOCTEXT("GroupingMenu_Add", "Add Grouping...") :
+			LOCTEXT("GroupingMenu_Insert", "Insert Grouping...");
 		MenuBuilder.AddSubMenu
 		(
 			AddGroupingText,
-			LOCTEXT("GroupingMenu_Add_Desc", "Add or insert new grouping."),
+			LOCTEXT("GroupingMenu_AddOrInsert_Desc", "Add or insert new grouping."),
 			FNewMenuDelegate::CreateSP(this, &STableTreeView::BuildGroupingSubMenu_Add, CrumbGrouping),
 			false,
 			FSlateIcon()
@@ -1216,8 +1216,8 @@ TSharedRef<SWidget> STableTreeView::GetGroupingCrumbMenuContent(const TSharedPtr
 		{
 			MenuBuilder.AddSubMenu
 			(
-				LOCTEXT("ChangeGrouping_Section", "Change To..."),
-				LOCTEXT("ChangeGrouping_Desc", "Change selected grouping."),
+				LOCTEXT("GroupingMenu_Change", "Change To..."),
+				LOCTEXT("GroupingMenu_Change_Desc", "Change selected grouping."),
 				FNewMenuDelegate::CreateSP(this, &STableTreeView::BuildGroupingSubMenu_Change, CrumbGrouping),
 				false,
 				FSlateIcon()

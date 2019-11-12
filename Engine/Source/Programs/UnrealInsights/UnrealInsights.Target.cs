@@ -14,7 +14,6 @@ public class UnrealInsightsTarget : TargetRules
 		LaunchModuleName = "UnrealInsights";
 		ExtraModuleNames.Add("EditorStyle");
 
-		bBuildDeveloperTools = false;
 		bCompileAgainstEngine = false;
 		bCompileAgainstCoreUObject = true;
 		bForceBuildTargetPlatforms = true;
