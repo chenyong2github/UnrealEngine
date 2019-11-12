@@ -521,6 +521,9 @@ protected:
 	// Sorts pending build tiles by proximity to player, so tiles closer to player will get generated first
 	virtual void SortPendingBuildTiles();
 
+	// Get seed locations used for sorting pending build tiles. Tiles closer to these locations will be prioritized first.
+	virtual void GetSeedLocations(UWorld& World, TArray<FVector2D>& OutSeedLocations) const;
+
 	/** Instantiates dtNavMesh and configures it for tiles generation. Returns false if failed */
 	bool ConstructTiledNavMesh();
 
