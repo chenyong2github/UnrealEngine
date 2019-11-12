@@ -35,6 +35,7 @@
 #include "Physics/PhysicsFiltering.h"
 #include "Collision/CollisionConversions.h"
 #include "PhysicsInterfaceUtilsCore.h"
+#include "Components/SkeletalMeshComponent.h"
 
 #if WITH_PHYSX
 #include "geometry/PxConvexMesh.h"

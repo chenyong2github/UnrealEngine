@@ -28,6 +28,7 @@
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Algo/Sort.h"
 #include "ScopedTransaction.h"
+#include "Features/IModularFeatures.h"
 
 #define LOCTEXT_NAMESPACE "PreviewSceneCustomizations"
 
