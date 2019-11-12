@@ -71,11 +71,33 @@ static int32 GUnrechableObjectIndex = 0;
 /** Helpful constant for determining how many token slots we need to store a pointer **/
 static const uint32 GNumTokensPerPointer = sizeof(void*) / sizeof(uint32); //-V514
 
-FThreadSafeBool& FGCScopeLock::GetGarbageCollectingFlag()
+FThreadSafeBool GIsGarbageCollecting(false);
+
+/** Locks all UObject hash tables when performing GC */
+class FGCScopeLock
 {
-	static FThreadSafeBool IsGarbageCollecting(false);
-	return IsGarbageCollecting;
-}
+	/** Previous value of the GetGarbageCollectingFlag() */
+	bool bPreviousGabageCollectingFlagValue;
+public:
+
+	/**
+	 * We're storing the value of GetGarbageCollectingFlag in the constructor, it's safe as only
+	 * one thread is ever going to be setting it and calling this code - the game thread.
+	 **/
+	FORCEINLINE FGCScopeLock()
+		: bPreviousGabageCollectingFlagValue(GIsGarbageCollecting)
+	{
+		void LockUObjectHashTables();
+		LockUObjectHashTables();
+		GIsGarbageCollecting = true;
+	}
+	FORCEINLINE ~FGCScopeLock()
+	{
+		GIsGarbageCollecting = bPreviousGabageCollectingFlagValue;
+		void UnlockUObjectHashTables();
+		UnlockUObjectHashTables();
+	}
+};
 
 FGCCSyncObject::FGCCSyncObject()
 {
@@ -129,11 +151,6 @@ FGCScopeGuard::FGCScopeGuard()
 FGCScopeGuard::~FGCScopeGuard()
 {
 	FGCCSyncObject::Get().UnlockAsync();
-}
-
-bool IsGarbageCollecting()
-{
-	return FGCScopeLock::GetGarbageCollectingFlag();
 }
 
 bool IsGarbageCollectionLocked()

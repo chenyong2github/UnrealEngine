@@ -424,11 +424,6 @@ COREUOBJECT_API bool IsEventDrivenLoaderEnabled();
 COREUOBJECT_API float GetAsyncLoadPercentage( const FName& PackageName );
 
 /**
-* Whether we are inside garbage collection
-*/
-COREUOBJECT_API bool IsGarbageCollecting();
-
-/**
 * Whether we are running on the Garbage Collector Thread
 */
 COREUOBJECT_API bool IsInGarbageCollectorThread();

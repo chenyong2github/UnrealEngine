@@ -10,6 +10,7 @@
 #include "Stats/Stats.h"
 #include "UObject/UObjectGlobals.h"
 #include "Serialization/ArchiveUObject.h"
+#include "HAL/ThreadSafeBool.h"
 
 /** Context sensitive keep flags for garbage collection */
 #define GARBAGE_COLLECTION_KEEPFLAGS	(GIsEditor ? RF_Standalone : RF_NoFlags)
@@ -513,3 +514,14 @@ public:
 	virtual void PerformReachabilityAnalysisOnObjects(FGCArrayStruct* ArrayStruct, bool bForceSingleThreaded, bool bWithClusters) = 0;
 
 };
+
+/** True if Garbage Collection is running. Use IsGarbageCollecting() functio n instead of using this variable directly */
+extern COREUOBJECT_API FThreadSafeBool GIsGarbageCollecting;
+
+/**
+* Whether we are inside garbage collection
+*/
+FORCEINLINE bool IsGarbageCollecting()
+{
+	return GIsGarbageCollecting;
+}
