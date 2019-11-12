@@ -523,6 +523,21 @@ public:
 		BatchAllocator.Destroy(Batch);
 	}
 
+	void ReadWithCallback(const FIoChunkId& Chunk, const FIoReadOptions& Options, TFunction<void(TIoStatusOr<FIoBuffer>)>&& Callback)
+	{
+		FIoRequestImpl* Request = AllocRequest(Chunk, Options);
+		Request->Result = IoStore->Resolve(Request->ChunkId, Request->Options);
+		if (Request->Result.IsOk())
+		{
+			Callback(Request->Result.ConsumeValueOrDie());
+		}
+		else
+		{
+			Callback(TIoStatusOr<FIoBuffer>(Request->Result.Status()));
+		}
+		FreeRequest(Request);
+	}
+
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const
 	{
 		return IoStore->GetSizeForChunk(ChunkId);
@@ -649,6 +664,12 @@ FIoDispatcher::FreeBatch(FIoBatch Batch)
 	Impl->FreeBatch(Batch.Impl);
 }
 
+void
+FIoDispatcher::ReadWithCallback(const FIoChunkId& Chunk, const FIoReadOptions& Options, TFunction<void(TIoStatusOr<FIoBuffer>)>&& Callback)
+{
+	Impl->ReadWithCallback(Chunk, Options, MoveTemp(Callback));
+}
+
 TIoStatusOr<FIoChunkId>
 FIoDispatcher::OpenFileChunk(FStringView Filename)
 {
@@ -758,19 +779,13 @@ FIoRequest::Status() const
 	return Impl->Result.Status();
 }
 
-FIoBuffer	
-FIoRequest::GetChunk()
-{
-	return Impl->Result.ValueOrDie();
-}
-
 const FIoChunkId&
 FIoRequest::GetChunkId() const
 {
 	return Impl->ChunkId;
 }
 
-const TIoStatusOr<FIoBuffer>&
+TIoStatusOr<FIoBuffer>
 FIoRequest::GetResult() const
 {
 	return Impl->Result;
@@ -780,287 +795,6 @@ uint64
 FIoRequest::GetUserData() const
 {
 	return Impl->UserData;
-}
-
-//////////////////////////////////////////////////////////////////////////
-
-class FIoQueueImpl
-	: private FRunnable
-{
-public:
-	FIoQueueImpl(FIoDispatcherImpl& InDispatcher, FIoQueue::FBatchReadyCallback&& InBatchReadyCallback)
-		: Dispatcher(InDispatcher)
-		, BatchReadyCallback(Forward<FIoQueue::FBatchReadyCallback>(InBatchReadyCallback))
-	{
-		WakeUpEvent = FGenericPlatformProcess::GetSynchEventFromPool(true);
-		Thread = FRunnableThread::Create(this, TEXT("IoQueueThread"), 0, TPri_Normal);
-	}
-
-	~FIoQueueImpl()
-	{
-		Stop();
-		Thread->Kill(true);
-		Thread = nullptr;
-		FPlatformProcess::ReturnSynchEventToPool(WakeUpEvent);
-	}
-
-	void Enqueue(const FIoChunkId& ChunkId, FIoReadOptions ReadOptions, uint64 UserData, bool bDeferBatch)
-	{
-		FIoRequestImpl* Request = Dispatcher.AllocRequest(ChunkId, ReadOptions, UserData);
-		check(Request->NextRequest == nullptr);
-
-		{
-			// TODO: CAS
-			FScopeLock _(&QueuedLock);
-
-			Request->NextRequest	= FirstQueuedRequest;
-			FirstQueuedRequest		= Request;
-		}
-
-		if (!bDeferBatch)
-		{
-			IssueBatch();
-		}
-	
-		{
-			FScopeLock _(&NumPendingLock);
-
-			if (0 == NumPending++)
-			{
-				WakeUpEvent->Trigger();
-			}
-		}
-	}
-
-	bool Dequeue(FIoChunkId& ChunkId, TIoStatusOr<FIoBuffer>& Result, uint64& UserData)
-	{
-		FIoRequestImpl* CompletedRequest = nullptr;
-		{
-			// TODO: CAS
-			FScopeLock _(&CompletedLock);
-			
-			CompletedRequest		= FirstCompletedRequest;
-			FirstCompletedRequest	= CompletedRequest ? CompletedRequest->NextRequest : FirstCompletedRequest;
-		}
-
-		if (CompletedRequest)
-		{
-			ChunkId		= CompletedRequest->ChunkId;
-			Result		= CompletedRequest->Result;
-			UserData	= CompletedRequest->UserData;
-
-			Dispatcher.FreeRequest(CompletedRequest);
-
-			{
-				FScopeLock _(&NumPendingLock);
-
-				if (0 == --NumPending)
-				{
-					check(NumPending >= 0);
-					WakeUpEvent->Reset();
-				}
-			}
-
-			return true;
-		}
-
-		return false;
-	}
-
-	void IssueBatch()
-	{
-		FIoRequestImpl* QueuedRequests = nullptr;
-		{
-			// TODO: CAS
-			FScopeLock _(&QueuedLock);
-
-			QueuedRequests 		= FirstQueuedRequest;
-			FirstQueuedRequest	= nullptr;
-		}
-
-		if (QueuedRequests)
-		{
-			FIoBatchImpl* NewBatch = Dispatcher.AllocBatch(QueuedRequests);
-			{
-				// TODO: CAS
-				FScopeLock _(&PendingLock);
-
-				NewBatch->NextBatch	= FirstPendingBatch;
-				FirstPendingBatch	= NewBatch;
-			}
-		}
-	}
-
-	bool IsEmpty() const
-	{
-		FScopeLock _(&NumPendingLock);
-		return NumPending == 0;
-	}
-
-private:
-	
-	uint32 Run() override
-	{
-		bIsRunning = true;
-
-		FBatchQueue IssuedBatches;
-
-		while (bIsRunning)
-		{
-			if (!bIsRunning)
-			{
-				break;
-			}
-
-			// Dispatch pending batch
-			{
-				FIoBatchImpl* PendingBatch = nullptr;
-				{
-					// TODO: CAS
-					FScopeLock _(&PendingLock);
-
-					PendingBatch		= FirstPendingBatch;
-					FirstPendingBatch	= PendingBatch ? PendingBatch->NextBatch : nullptr;
-				}
-
-				if (PendingBatch)
-				{
-					PendingBatch->NextBatch = nullptr;
-					
-					Dispatcher.IssueBatch(PendingBatch);
-					Enqueue(PendingBatch, IssuedBatches);
-				}
-			}
-
-			// Process issued batches
-			if (FIoBatchImpl* IssuedBatch = Peek(IssuedBatches))
-			{
-				if (Dispatcher.IsBatchReady(IssuedBatch))
-				{
-					Dequeue(IssuedBatches);
-
-					FIoRequestImpl* Request = IssuedBatch->FirstRequest;
-					while (Request)
-					{
-						FIoRequestImpl* CompletedRequest	= Request;
-						Request								= Request->NextRequest;
-						
-						{
-							// TODO: CAS
-							FScopeLock _(&CompletedLock);
-
-							CompletedRequest->NextRequest	= FirstCompletedRequest;
-							FirstCompletedRequest			= CompletedRequest;
-						}
-					}
-
-					BatchReadyCallback();
-
-					IssuedBatch->FirstRequest = nullptr;
-					Dispatcher.FreeBatch(IssuedBatch);
-				}
-			}
-			else
-			{
-				WakeUpEvent->Wait();
-			}
-		}
-
-		return 0;
-	}
-
-	void Stop() override
-	{
-		if (bIsRunning)
-		{
-			bIsRunning = false;
-			WakeUpEvent->Trigger();
-		}
-	}
-
-	struct FBatchQueue
-	{
-		FIoBatchImpl* Head = nullptr;
-		FIoBatchImpl* Tail = nullptr;
-	};
-
-	void Enqueue(FIoBatchImpl* Batch, FBatchQueue& Batches)
-	{
-		if (Batches.Tail == nullptr)
-		{
-			Batches.Head = Batches.Tail	= Batch;
-		}
-		else
-		{
-			Batches.Tail->NextBatch	= Batch;
-			Batches.Tail			= Batch;
-		}
-	}
-
-	FIoBatchImpl* Dequeue(FBatchQueue& Batches)
-	{
-		if (FIoBatchImpl* Batch = Batches.Head)
-		{
-			Batches.Head		= Batch->NextBatch;
-			Batches.Tail		= Batches.Head == nullptr ? nullptr : Batches.Tail;
-			Batch->NextBatch	= nullptr;
-
-			return Batch;
-		}
-		
-		return nullptr;
-	}
-
-	FIoBatchImpl* Peek(FBatchQueue& Queue)
-	{
-		return Queue.Head;
-	}
-
-	FIoDispatcherImpl&				Dispatcher;
-	FIoQueue::FBatchReadyCallback	BatchReadyCallback;
-	FRunnableThread*				Thread					= nullptr;
-	FEvent*							WakeUpEvent				= nullptr;
-	bool							bIsRunning				= false;
-	FIoRequestImpl*					FirstQueuedRequest		= nullptr;
-	FIoBatchImpl*					FirstPendingBatch		= nullptr;
-	FIoRequestImpl*					FirstCompletedRequest	= nullptr;
-	int32							NumPending				= 0;
-	FCriticalSection				QueuedLock;
-	FCriticalSection				PendingLock;
-	FCriticalSection				CompletedLock;
-	mutable FCriticalSection		NumPendingLock;
-};
-
-//////////////////////////////////////////////////////////////////////////
-FIoQueue::FIoQueue(FIoDispatcher& IoDispatcher, FBatchReadyCallback BatchReadyCallback)
-: Impl(new FIoQueueImpl(*IoDispatcher.Impl, MoveTemp(BatchReadyCallback)))
-{ 
-}
-
-FIoQueue::~FIoQueue() = default;
-
-void
-FIoQueue::Enqueue(const FIoChunkId& ChunkId, FIoReadOptions ReadOptions, uint64 UserData, bool bDeferBatch)
-{
-	Impl->Enqueue(ChunkId, ReadOptions, UserData, bDeferBatch);
-}
-
-bool
-FIoQueue::Dequeue(FIoChunkId& ChunkId, TIoStatusOr<FIoBuffer>& Result, uint64& UserData)
-{
-	return Impl->Dequeue(ChunkId, Result, UserData);
-}
-
-void
-FIoQueue::IssueBatch()
-{
-	return Impl->IssueBatch();
-}
-
-bool
-FIoQueue::IsEmpty() const
-{
-	return Impl->IsEmpty();
 }
 
 #endif // PLATFORM_IMPLEMENTS_IO

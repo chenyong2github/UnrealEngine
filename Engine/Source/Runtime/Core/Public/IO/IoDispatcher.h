@@ -25,7 +25,6 @@ class FIoDispatcher;
 class FIoStoreReader;
 class FIoStoreWriter;
 
-class FIoQueueImpl;
 class FIoRequestImpl;
 class FIoBatchImpl;
 class FIoDispatcherImpl;
@@ -637,9 +636,8 @@ public:
 
 	CORE_API bool							IsOk() const;
 	CORE_API FIoStatus						Status() const;
-	CORE_API FIoBuffer						GetChunk();
 	CORE_API const FIoChunkId&				GetChunkId() const;
-	CORE_API const TIoStatusOr<FIoBuffer>&	GetResult() const;
+	CORE_API TIoStatusOr<FIoBuffer>			GetResult() const;
 	CORE_API uint64							GetUserData() const;
 
 private:
@@ -694,6 +692,8 @@ public:
 
 	CORE_API FIoBatch				NewBatch();
 	CORE_API void					FreeBatch(FIoBatch Batch);
+
+	CORE_API void					ReadWithCallback(const FIoChunkId& Chunk, const FIoReadOptions& Options, TFunction<void(TIoStatusOr<FIoBuffer>)>&& Callback);
 
 	// Polling methods
 	CORE_API TIoStatusOr<uint64>	GetSizeForChunk(const FIoChunkId& ChunkId) const;
@@ -787,23 +787,3 @@ private:
 
 //////////////////////////////////////////////////////////////////////////
 
-class FIoQueue
-{
-public:
-	using FBatchReadyCallback = TFunction<void()>;
-
-	CORE_API		FIoQueue(FIoDispatcher& IoDispatcher, FBatchReadyCallback BatchReadyCallback);
-	CORE_API		~FIoQueue();
-
-					FIoQueue(const FIoQueue&) = delete;
-					FIoQueue(FIoQueue&&) = delete;
-					FIoQueue& operator=(const FIoQueue&) = delete;
-					FIoQueue& operator=(FIoQueue&&) = delete;
-
-	CORE_API void	Enqueue(const FIoChunkId& ChunkId, FIoReadOptions ReadOptions, uint64 UserData, bool bDeferBatch = false);
-	CORE_API bool	Dequeue(FIoChunkId& ChunkId, TIoStatusOr<FIoBuffer>& Result, uint64& UserData);
-	CORE_API void	IssueBatch();
-	CORE_API bool	IsEmpty() const;
-private:
-	TUniquePtr<FIoQueueImpl> Impl;
-};
