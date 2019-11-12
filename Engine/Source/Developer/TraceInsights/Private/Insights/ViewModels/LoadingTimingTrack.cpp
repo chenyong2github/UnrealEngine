@@ -95,12 +95,14 @@ void FLoadingSharedState::SetColorSchema(int32 Schema)
 
 void FLoadingTimingTrack::InitTooltip(FTooltipDrawState& Tooltip, const FTimingEvent& HoveredTimingEvent) const
 {
-	auto MatchDepth = [&HoveredTimingEvent](double, double, uint32 InDepth)
+	auto MatchEvent = [&HoveredTimingEvent](double InStartTime, double InEndTime, uint32 InDepth)
 	{ 
-		return InDepth == HoveredTimingEvent.Depth; 
+		return InDepth == HoveredTimingEvent.Depth
+			&& InStartTime == HoveredTimingEvent.StartTime
+			&& InEndTime == HoveredTimingEvent.EndTime;
 	};
 
-	FTimingEventSearchParameters SearchParameters(HoveredTimingEvent.StartTime, HoveredTimingEvent.EndTime, ETimingEventSearchFlags::StopAtFirstMatch, MatchDepth);
+	FTimingEventSearchParameters SearchParameters(HoveredTimingEvent.StartTime, HoveredTimingEvent.EndTime, ETimingEventSearchFlags::StopAtFirstMatch, MatchEvent);
 	FindLoadTimeProfilerCpuEvent(SearchParameters, [this, &Tooltip, &HoveredTimingEvent](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const Trace::FLoadTimeProfilerCpuEvent& InFoundEvent)
 	{
 		Tooltip.ResetContent();

@@ -70,7 +70,7 @@ void FThreadTimingTrack::DrawSelectedEventInfo(const FTimingEvent& SelectedTimin
 	FindTimingProfilerEvent(SelectedTimingEvent, [&SelectedTimingEvent, &Font, &Viewport, &DrawContext, &WhiteBrush](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const Trace::FTimingProfilerEvent& InFoundEvent)
 	{	
 		const FTimerNodePtr TimerNodePtr = FTimingProfilerManager::Get()->GetTimerNode(InFoundEvent.TimerIndex);
-		if(TimerNodePtr.IsValid())
+		if (TimerNodePtr.IsValid())
 		{
 			FString Str = FString::Printf(TEXT("%s (Incl.: %s, Excl.: %s)"),
 				TimerNodePtr ? *(TimerNodePtr->GetName().ToString()) : TEXT("N/A"),
@@ -330,9 +330,11 @@ void FThreadTimingTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 
 bool FThreadTimingTrack::FindTimingProfilerEvent(const FTimingEvent& InTimingEvent, TFunctionRef<void(double, double, uint32, const Trace::FTimingProfilerEvent&)> InFoundPredicate) const
 {
-	auto MatchDepth = [&InTimingEvent](double, double, uint32 InDepth)
+	auto MatchDepth = [&InTimingEvent](double InStartTime, double InEndTime, uint32 InDepth)
 	{ 
-		return InDepth == InTimingEvent.Depth; 
+		return InDepth == InTimingEvent.Depth
+			&& InStartTime == InTimingEvent.StartTime
+			&& InEndTime == InTimingEvent.EndTime;
 	};
 
 	FTimingEventSearchParameters SearchParameters(InTimingEvent.StartTime, InTimingEvent.EndTime, ETimingEventSearchFlags::StopAtFirstMatch, MatchDepth);
