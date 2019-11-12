@@ -307,6 +307,17 @@ void FPhysTestSerializer::CreateChaosData()
 					GTParticle->SetGeometry(MakeUnique<TImplicitObjectUnion<float, 3>>(MoveTemp(Geoms)));
 					Particle->SetGeometry(GTParticle->Geometry());
 				}
+
+				// Fixup bounds
+				auto Geom = GTParticle->Geometry();
+				if (Geom->HasBoundingBox())
+				{
+					auto& ShapeArray = GTParticle->ShapesArray();
+					for (auto& Shape : ShapeArray)
+					{
+						Shape->WorldSpaceInflatedShapeBounds = Geom->BoundingBox().GetAABB().TransformedAABB(TRigidTransform<FReal, 3>(Particle->X(), Particle->R()));
+					}
+				}
 			}
 
 			int32 ShapeIdx = 0;

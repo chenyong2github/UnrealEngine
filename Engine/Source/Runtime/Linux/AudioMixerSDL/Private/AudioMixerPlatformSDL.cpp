@@ -251,11 +251,6 @@ namespace Audio
 		return true;
 	}
 
-	FString FMixerPlatformSDL::GetCurrentDeviceName() const
-	{
-		return {};
-	}
-
 	bool FMixerPlatformSDL::CloseAudioStream()
 	{
 		if (AudioStreamInfo.StreamState == EAudioOutputStreamState::Closed)

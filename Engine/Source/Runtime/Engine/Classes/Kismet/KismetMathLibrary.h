@@ -86,6 +86,26 @@ namespace ELerpInterpolationMode
 	};
 }
 
+/** Possible columns for an FMatrix */
+UENUM(BlueprintType)
+namespace EMatrixColumns
+{
+	enum Type
+	{
+		/** First Column. */
+		First,
+
+		/** Second Column. */
+		Second,
+
+		/** Third Column. */
+		Third,
+
+		/** Fourth Column. */
+		Fourth
+	};
+}
+
 USTRUCT(BlueprintType)
 struct ENGINE_API FFloatSpringState
 {
@@ -2200,6 +2220,239 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Origin (Matrix)", ScriptMethod = "GetOrigin"), Category = "Math|Matrix")
 	static FVector Matrix_GetOrigin(const FMatrix& InMatrix);
 
+	// Identity matrix
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Identity (Matrix)", ScriptConstant = "Identity", ScriptConstantHost = "Matrix"), Category = "Math|Matrix")
+	static FMatrix Matrix_Identity();
+
+	/**
+	 * Gets the result of multiplying a Matrix to this.
+	 *
+	 * @param Other The matrix to multiply this by.
+	 * @return The result of multiplication.
+	 */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Matrix * Matrix", CompactNodeTitle = "*", ScriptMethod = "Multiply", ScriptOperator = "*;*=", Keywords = "* multiply"), Category = "Math|Matrix")
+	static FMatrix Multiply_MatrixMatrix (const FMatrix& A, const FMatrix& B);
+
+	/**
+	 * Gets the result of adding a matrix to this.
+	 *
+	 * @param Other The Matrix to add.
+	 * @return The result of addition.
+	 */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Matrix + Matrix", CompactNodeTitle = "+", ScriptMethod = "Add", ScriptOperator = "+;+=", Keywords = "+ add plus", CommutativeAssociativeBinaryOperator = "true"), Category = "Math|Matrix")
+	static FMatrix Add_MatrixMatrix (const FMatrix& A, const FMatrix& B);
+
+	/**
+	  * This isn't applying SCALE, just multiplying the value to all members - i.e. weighting
+	  */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Matrix * Float", CompactNodeTitle = "*", ScriptMethod = "MultiplyFloat", ScriptOperator = "*;*=", Keywords = "* multiply"), Category = "Math|Matrix")
+	static FMatrix Multiply_MatrixFloat (const FMatrix& A, float B);
+
+	/**
+	 * Checks whether another Matrix is equal to this, within specified tolerance.
+	 *
+	 * @param Other The other Matrix.
+	 * @param Tolerance Error Tolerance.
+	 * @return true if two Matrix are equal, within specified tolerance, otherwise false.
+	 */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Equal (Matrix)", CompactNodeTitle = "==", ScriptMethod = "Equals", ScriptOperator = "==", Keywords = "== equal"), Category = "Math|Matrix")
+	static bool EqualEqual_MatrixMatrix(const FMatrix& A, const FMatrix& B, float Tolerance = 1.e-4f);
+
+	/**
+	 * Checks whether another Matrix is not equal to this, within specified tolerance.
+	 *
+	 * @param Other The other Matrix.
+	 * @return true if two Matrix are not equal, within specified tolerance, otherwise false.
+	 */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Not Equal (Matrix)", CompactNodeTitle = "!=", ScriptMethod = "NotEqual", ScriptOperator = "!=", Keywords = "!= not equal"), Category = "Math|Matrix")
+	static bool NotEqual_MatrixMatrix(const FMatrix& A, const FMatrix& B, float Tolerance = 1.e-4f);
+
+	// Homogeneous transform.
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Transform Vector4 (Matrix)", ScriptMethod = "TransformVector4"), Category = "Math|Matrix")
+	static FVector4 Matrix_TransformVector4(const FMatrix& M, FVector4 V);
+
+	/** Transform a location - will take into account translation part of the FMatrix. */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Transform Position (Matrix)", ScriptMethod = "TransformPosition"), Category = "Math|Matrix")
+	static FVector4 Matrix_TransformPosition(const FMatrix& M, FVector V);
+
+	/** Inverts the matrix and then transforms V - correctly handles scaling in this matrix. */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Inverse Transform Position (Matrix)", ScriptMethod = "InverseTransformPosition"), Category = "Math|Matrix")
+	static FVector Matrix_InverseTransformPosition(const FMatrix& M, FVector V);
+
+	/**
+	 *	Transform a direction vector - will not take into account translation part of the FMatrix.
+	 *	If you want to transform a surface normal (or plane) and correctly account for non-uniform scaling you should use TransformByUsingAdjointT.
+	 */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Transform Vector (Matrix)", ScriptMethod = "TransformVector"), Category = "Math|Matrix")
+	static FVector4 Matrix_TransformVector(const FMatrix& M, FVector V);
+
+	/**
+	 *	Transform a direction vector by the inverse of this matrix - will not take into account translation part.
+	 *	If you want to transform a surface normal (or plane) and correctly account for non-uniform scaling you should use TransformByUsingAdjointT with adjoint of matrix inverse.
+	 */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Inverse Transform Vector (Matrix)", ScriptMethod = "InverseTransformVector"), Category = "Math|Matrix")
+	static FVector Matrix_InverseTransformVector(const FMatrix& M, FVector V);
+
+	// Transpose.
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Transposed (Matrix)", ScriptMethod = "GetTransposed"), Category = "Math|Matrix")
+	static FMatrix Matrix_GetTransposed(const FMatrix& M);
+
+	// @return determinant of this matrix.
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Determinant (Matrix)", ScriptMethod = "GetDeterminant"), Category = "Math|Matrix")
+	static float Matrix_GetDeterminant(const FMatrix& M);
+
+	/** @return the determinant of rotation 3x3 matrix */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Rotation Determinant (Matrix)", ScriptMethod = "GetRotDeterminant"), Category = "Math|Matrix")
+	static float Matrix_GetRotDeterminant(const FMatrix& M);
+
+	/** Fast path, and handles nil matrices. */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "GetInverse (Matrix)", ScriptMethod = "GetInverse"), Category = "Math|Matrix")
+	static FMatrix Matrix_GetInverse(const FMatrix& M);
+
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Transpose Adjoint (Matrix)", ScriptMethod = "GetTransposeAdjoint"), Category = "Math|Matrix")
+	static FMatrix Matrix_GetTransposeAdjoint(const FMatrix& M);
+
+	// Remove any scaling from this matrix (ie magnitude of each row is 1) with error Tolerance
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Remove Scaling (Matrix)", ScriptMethod = "RemoveScaling"), Category = "Math|Matrix")
+	static void Matrix_RemoveScaling(UPARAM(Ref) FMatrix& M, float Tolerance = 1.e-8f);
+
+	// Returns matrix after RemoveScaling with error Tolerance
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Matrix Without Scale (Matrix)", ScriptMethod = "GetMatrixWithoutScale"), Category = "Math|Matrix")
+	static FMatrix Matrix_GetMatrixWithoutScale(const FMatrix& M, float Tolerance = 1.e-8f);
+
+	/** return a 3D scale vector calculated from this matrix (where each component is the magnitude of a row vector) with error Tolerance. */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Scale Vector (Matrix)", ScriptMethod = "GetScaleVector"), Category = "Math|Matrix")
+	static FVector Matrix_GetScaleVector(const FMatrix& M, float Tolerance = 1.e-8f);
+
+	// Remove any translation from this matrix
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Remove Translation (Matrix)", ScriptMethod = "RemoveTranslation"), Category = "Math|Matrix")
+	static FMatrix Matrix_RemoveTranslation(const FMatrix& M);
+
+	/** Returns a matrix with an additional translation concatenated. */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Concatenate Translation (Matrix)", ScriptMethod = "ConcatenateTranslation"), Category = "Math|Matrix")
+	static FMatrix Matrix_ConcatenateTranslation(const FMatrix& M, FVector Translation);
+
+	/** Returns true if any element of this matrix is NaN */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Contains NaN (Matrix)", ScriptMethod = "ContainsNaN"), Category = "Math|Matrix")
+	static bool Matrix_ContainsNaN(const FMatrix& M);
+
+	/** Scale the translation part of the matrix by the supplied vector. */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Scale Translation (Matrix)", ScriptMethod = "ScaleTranslation"), Category = "Math|Matrix")
+	static FMatrix Matrix_ScaleTranslation(const FMatrix& M, FVector Scale3D);
+
+	/** @return the maximum magnitude of any row of the matrix. */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Maximum Axis Scale (Matrix)", ScriptMethod = "GetMaximumAxisScale"), Category = "Math|Matrix")
+	static float Matrix_GetMaximumAxisScale(const FMatrix& M);
+
+	/** Apply Scale to this matrix **/
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Apply Scale (Matrix)", ScriptMethod = "ApplyScale"), Category = "Math|Matrix")
+	static FMatrix Matrix_ApplyScale(const FMatrix& M, float Scale);
+
+	/**
+	 * get axis of this matrix scaled by the scale of the matrix
+	 *
+	 * @param i index into the axis of the matrix
+	 * @ return vector of the axis
+	 */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Scaled Axis (Matrix)", ScriptMethod = "GetScaledAxis"), Category = "Math|Matrix")
+	static FVector Matrix_GetScaledAxis(const FMatrix& M, TEnumAsByte<EAxis::Type> Axis);
+
+	/**
+	 * get axes of this matrix scaled by the scale of the matrix
+	 *
+	 * @param X axes returned to this param
+	 * @param Y axes returned to this param
+	 * @param Z axes returned to this param
+	 */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Scaled Axes (Matrix)", ScriptMethod = "GetScaledAxes"), Category = "Math|Matrix")
+	static void Matrix_GetScaledAxes(const FMatrix& M, FVector &X, FVector &Y, FVector &Z);
+
+	/**
+	 * get unit length axis of this matrix
+	 *
+	 * @param i index into the axis of the matrix
+	 * @return vector of the axis
+	 */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Unit Axis (Matrix)", ScriptMethod = "GetUnitAxis"), Category = "Math|Matrix")
+	static FVector Matrix_GetUnitAxis(const FMatrix& M, TEnumAsByte<EAxis::Type> Axis);
+
+	/**
+	 * get unit length axes of this matrix
+	 *
+	 * @param X axes returned to this param
+	 * @param Y axes returned to this param
+	 * @param Z axes returned to this param
+	 */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Unit Axes (Matrix)", ScriptMethod = "GetUnitAxes"), Category = "Math|Matrix")
+	static void Matrix_GetUnitAxes(const FMatrix& M, FVector &X, FVector &Y, FVector &Z);
+
+	/**
+	 * set an axis of this matrix
+	 *
+	 * @param i index into the axis of the matrix
+	 * @param Axis vector of the axis
+	 */
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Axis (Matrix)", ScriptMethod = "SetAxis"), Category = "Math|Matrix")
+	static void Matrix_SetAxis(UPARAM(Ref) FMatrix& M, TEnumAsByte<EAxis::Type> Axis, FVector AxisVector);
+
+	// Set the origin of the coordinate system to the given vector
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Origin (Matrix)", ScriptMethod = "SetOrigin"), Category = "Math|Matrix")
+	static void Matrix_SetOrigin(UPARAM(Ref) FMatrix& M, FVector NewOrigin);
+
+	/**
+	 * get a column of this matrix
+	 *
+	 * @param i index into the column of the matrix
+	 * @return vector of the column
+	 */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Column (Matrix)", ScriptMethod = "GetColumn"), Category = "Math|Matrix")
+	static FVector Matrix_GetColumn(const FMatrix& M, TEnumAsByte<EMatrixColumns::Type> Column);
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Column (Matrix)", ScriptMethod = "SetColumn"), Category = "Math|Matrix")
+	static void Matrix_SetColumn(UPARAM(Ref) FMatrix& M, TEnumAsByte<EMatrixColumns::Type> Column, FVector Value);
+
+	/** @return rotator representation of this matrix */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Rotator (Matrix)", ScriptMethod = "GetRotator"), Category = "Math|Matrix")
+	static FRotator Matrix_GetRotator(const FMatrix& M);
+
+	/**
+	 * Transform a rotation matrix into a quaternion.
+	 *
+	 * @warning rotation part will need to be unit length for this to be right!
+	 */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "To Quat (Matrix)", ScriptMethod = "ToQuat"), Category = "Math|Matrix")
+	static FQuat Matrix_ToQuat(const FMatrix& M);
+
+	// Frustum plane extraction.
+	/** @param OutPlane the near plane of the Frustum of this matrix */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Frustum Near Plane (Matrix)", ScriptMethod = "GetFrustumNearPlane"), Category = "Math|Matrix")
+	static bool Matrix_GetFrustumNearPlane(const FMatrix& M, FPlane& OutPlane);
+
+	/** @param OutPlane the far plane of the Frustum of this matrix */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Frustum Far Plane (Matrix)", ScriptMethod = "GetFrustumFarPlane"), Category = "Math|Matrix")
+	static bool Matrix_GetFrustumFarPlane(const FMatrix& M, FPlane& OutPlane);
+
+	/** @param OutPlane the left plane of the Frustum of this matrix */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Frustum Left Plane (Matrix)", ScriptMethod = "GetFrustumLeftPlane"), Category = "Math|Matrix")
+	static bool Matrix_GetFrustumLeftPlane(const FMatrix& M, FPlane& OutPlane);
+
+	/** @param OutPlane the right plane of the Frustum of this matrix */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Frustum Right Plane (Matrix)", ScriptMethod = "GetFrustumRightPlane"), Category = "Math|Matrix")
+	static bool Matrix_GetFrustumRightPlane(const FMatrix& M, FPlane& OutPlane);
+
+	/** @param OutPlane the top plane of the Frustum of this matrix */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Frustum Top Plane (Matrix)", ScriptMethod = "GetFrustumTopPlane"), Category = "Math|Matrix")
+	static bool Matrix_GetFrustumTopPlane(const FMatrix& M, FPlane& OutPlane);
+
+	/** @param OutPlane the bottom plane of the Frustum of this matrix */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Frustum Bottom Plane (Matrix)", ScriptMethod = "GetFrustumBottomPlane"), Category = "Math|Matrix")
+	static bool Matrix_GetFrustumBottomPlane(const FMatrix& M, FPlane& OutPlane);
+
+	/**
+	 * Utility for mirroring this transform across a certain plane, and flipping one of the axis as well.
+	 */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Mirror (Matrix)", ScriptMethod = "Mirror"), Category = "Math|Matrix")
+	static FMatrix Matrix_Mirror(const FMatrix& M, TEnumAsByte<EAxis::Type> MirrorAxis, TEnumAsByte<EAxis::Type> FlipAxis);
 
 	//
 	// Quat constants - exposed for scripting
@@ -3269,6 +3522,10 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	/** Calculates the determinant of the transform (converts to FMatrix internally) */
 	UFUNCTION(BlueprintPure, Category="Math|Transform", meta = (DisplayName = "Determinant", ScriptMethod = "Determinant"))
 	static float Transform_Determinant(const FTransform& Transform);
+
+	/** Convert a Transform to a Matrix with scale */
+	UFUNCTION(BlueprintPure, Category="Math|Transform", meta = (DisplayName = "To Matrix (Transform)", ScriptMethod = "ToMatrix", CompactNodeTitle = "->", Keywords = "cast convert", BlueprintAutocast))
+	static FMatrix Conv_TransformToMatrix(const FTransform& Transform);
 
 
 	//

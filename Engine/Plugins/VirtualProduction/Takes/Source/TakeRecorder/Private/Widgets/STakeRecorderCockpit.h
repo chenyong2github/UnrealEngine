@@ -39,6 +39,8 @@ public:
 		return TakeMetaData;
 	}
 
+	FFrameRate GetFrameRate() const;
+
 	bool Reviewing() const;
 
 	bool Recording() const;

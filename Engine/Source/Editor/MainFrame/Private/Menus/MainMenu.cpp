@@ -256,7 +256,7 @@ void FMainMenu::RegisterWindowMenu()
 		Section.AddEntry(FToolMenuEntry::InitSubMenu(
 			"LoadLayout",
 			NSLOCTEXT("LayoutMenu", "LayoutLoadHeader", "Load Layout"),
-			NSLOCTEXT("LayoutMenu", "LoadLayoutsSubMenu_ToolTip", "Load a layout configuration from disk. If PIE is running, most options will be disabled"),
+			NSLOCTEXT("LayoutMenu", "LoadLayoutsSubMenu_ToolTip", "Load a layout configuration from disk"),
 			FNewToolMenuDelegate::CreateStatic(&FLayoutsMenuLoad::MakeLoadLayoutsMenu)
 		));
 		// Save and Remove Layout
@@ -460,26 +460,28 @@ void FMainMenu::RegisterFileProjectMenu()
 	);
 	*/
 
-	FString SolutionPath;
-	if (FSourceCodeNavigation::DoesModuleSolutionExist())
+	Section.AddDynamicEntry("CodeProject", FNewToolMenuSectionDelegate::CreateLambda([ShortIDEName](FToolMenuSection& InSection)
 	{
-		Section.AddMenuEntry( FMainFrameCommands::Get().RefreshCodeProject,
-			FText::Format(LOCTEXT("RefreshCodeProjectLabel", "Refresh {0} Project"), ShortIDEName),
-			FText::Format(LOCTEXT("RefreshCodeProjectTooltip", "Refreshes your C++ code project in {0}."), ShortIDEName)
-		);
+		if (FSourceCodeNavigation::DoesModuleSolutionExist())
+		{
+			InSection.AddMenuEntry( FMainFrameCommands::Get().RefreshCodeProject,
+				FText::Format(LOCTEXT("RefreshCodeProjectLabel", "Refresh {0} Project"), ShortIDEName),
+				FText::Format(LOCTEXT("RefreshCodeProjectTooltip", "Refreshes your C++ code project in {0}."), ShortIDEName)
+			);
+		}
+		else
+		{
+			InSection.AddMenuEntry( FMainFrameCommands::Get().RefreshCodeProject,
+				FText::Format(LOCTEXT("GenerateCodeProjectLabel", "Generate {0} Project"), ShortIDEName),
+				FText::Format(LOCTEXT("GenerateCodeProjectTooltip", "Generates your C++ code project in {0}."), ShortIDEName)
+			);
+		}
+	}));
 
-		Section.AddMenuEntry( FMainFrameCommands::Get().OpenIDE,
-			FText::Format(LOCTEXT("OpenIDELabel", "Open {0}"), ShortIDEName),
-			FText::Format(LOCTEXT("OpenIDETooltip", "Opens your C++ code in {0}."), ShortIDEName)
-		);
-	}
-	else
-	{
-		Section.AddMenuEntry( FMainFrameCommands::Get().RefreshCodeProject,
-			FText::Format(LOCTEXT("GenerateCodeProjectLabel", "Generate {0} Project"), ShortIDEName),
-			FText::Format(LOCTEXT("GenerateCodeProjectTooltip", "Generates your C++ code project in {0}."), ShortIDEName)
-		);
-	}
+	Section.AddMenuEntry( FMainFrameCommands::Get().OpenIDE,
+		FText::Format(LOCTEXT("OpenIDELabel", "Open {0}"), ShortIDEName),
+		FText::Format(LOCTEXT("OpenIDETooltip", "Opens your C++ code in {0}."), ShortIDEName)
+	);
 
 	Section.AddDynamicEntry("CookContentForPlatform", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 	{

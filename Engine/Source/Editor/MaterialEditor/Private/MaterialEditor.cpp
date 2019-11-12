@@ -3012,6 +3012,11 @@ void FMaterialEditor::OnConvertObjects()
 		{
 			GraphEditor->SetNodeSelection(*NodeIter, true);
 		}
+
+		if (MaterialEditorInstance != nullptr)
+		{
+			MaterialParametersOverviewWidget->UpdateEditorInstance(MaterialEditorInstance);
+		}
 	}
 }
 

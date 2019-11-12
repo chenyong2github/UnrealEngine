@@ -58,6 +58,7 @@
 
 DECLARE_CYCLE_STAT(TEXT("CreateClothing"), STAT_CreateClothing, STATGROUP_Physics);
 
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 
 TAutoConsoleVariable<int32> CVarEnableClothPhysics(TEXT("p.ClothPhysics"), 1, TEXT("If 1, physics cloth will be used for simulation."));
@@ -633,23 +634,41 @@ void USkeletalMeshComponent::InstantiatePhysicsAsset(const UPhysicsAsset& PhysAs
 	InstantiatePhysicsAsset_Internal(PhysAsset, Scale3D, OutBodies, OutConstraints, BoneTMCallable, PhysScene, OwningComponent, UseRootBodyIndex, UseAggregate);
 }
 
-void USkeletalMeshComponent::InstantiatePhysicsAssetRefPose(const UPhysicsAsset& PhysAsset, const FVector& Scale3D, TArray<FBodyInstance*>& OutBodies, TArray<FConstraintInstance*>& OutConstraints, FPhysScene* PhysScene /*= nullptr*/, USkeletalMeshComponent* OwningComponent /*= nullptr*/, int32 UseRootBodyIndex /*= INDEX_NONE*/, const FPhysicsAggregateHandle& UseAggregate) const
+void USkeletalMeshComponent::InstantiatePhysicsAssetRefPose(const UPhysicsAsset& PhysAsset, const FVector& Scale3D, TArray<FBodyInstance*>& OutBodies, TArray<FConstraintInstance*>& OutConstraints, FPhysScene* PhysScene /*= nullptr*/, USkeletalMeshComponent* OwningComponent /*= nullptr*/, int32 UseRootBodyIndex /*= INDEX_NONE*/, const FPhysicsAggregateHandle& UseAggregate, bool bCreateBodiesInRefPose) const
 {
 	if(SkeletalMesh)
 	{
-		// @todo(ccaulfield): check perf here against uncached version: FAnimationRuntime::GetComponentSpaceTransform for RBAN scenarios
 		const FReferenceSkeleton& RefSkeleton = SkeletalMesh->RefSkeleton;
-		TArray<FTransform> CachedTransforms;
-		TArray<bool> CachedTransformReady;
-		CachedTransforms.SetNumUninitialized(RefSkeleton.GetRefBonePose().Num());
-		CachedTransformReady.SetNumZeroed(RefSkeleton.GetRefBonePose().Num());
 
-		auto BoneTMCallable = [&](int32 BoneIndex)
+		if (bCreateBodiesInRefPose)
 		{
-			return FAnimationRuntime::GetComponentSpaceTransformWithCache(RefSkeleton, RefSkeleton.GetRefBonePose(), BoneIndex, CachedTransforms, CachedTransformReady);
-		};
+			// Create the bodies posed in component-space with the ref pose
+			TArray<FTransform> CachedTransforms;
+			TArray<bool> CachedTransformReady;
+			CachedTransforms.SetNumUninitialized(RefSkeleton.GetRefBonePose().Num());
+			CachedTransformReady.SetNumZeroed(RefSkeleton.GetRefBonePose().Num());
 
-		InstantiatePhysicsAsset_Internal(PhysAsset, Scale3D, OutBodies, OutConstraints, BoneTMCallable, PhysScene, OwningComponent, UseRootBodyIndex, UseAggregate);
+			auto BoneTMCallable = [&](int32 BoneIndex)
+			{
+				return FAnimationRuntime::GetComponentSpaceTransformWithCache(RefSkeleton, RefSkeleton.GetRefBonePose(), BoneIndex, CachedTransforms, CachedTransformReady);
+			};
+
+			InstantiatePhysicsAsset_Internal(PhysAsset, Scale3D, OutBodies, OutConstraints, BoneTMCallable, PhysScene, OwningComponent, UseRootBodyIndex, UseAggregate);
+		}
+		else
+		{
+			// Create the bodies with each body in its local ref pose (all bodies will be on top of each other close to the origin, but should still have the correct scale)
+			auto BoneTMCallable = [&](int32 BoneIndex)
+			{
+				if (RefSkeleton.IsValidIndex(BoneIndex))
+				{
+					return RefSkeleton.GetRefBonePose()[BoneIndex];
+				}
+				return FTransform::Identity;
+			};;
+
+			InstantiatePhysicsAsset_Internal(PhysAsset, Scale3D, OutBodies, OutConstraints, BoneTMCallable, PhysScene, OwningComponent, UseRootBodyIndex, UseAggregate);
+		}
 	}
 }
 
@@ -2327,6 +2346,8 @@ void USkeletalMeshComponent::AddClothingBounds(FBoxSphereBounds& InOutBounds, co
 
 void USkeletalMeshComponent::RecreateClothingActors()
 {
+	CSV_SCOPED_TIMING_STAT(Animation, ClothInit);
+
 	ReleaseAllClothingResources();
 
 	if(SkeletalMesh == nullptr || !IsRegistered())

@@ -438,20 +438,35 @@ void UNiagaraDataInterfaceGrid2DCollection::DestroyPerInstanceData(void* PerInst
 }
 
 UFUNCTION(BlueprintCallable, Category = Niagara)
-void UNiagaraDataInterfaceGrid2DCollection::FillTexture2D(const UNiagaraComponent *Component, UTextureRenderTarget2D *Dest, int AttributeIndex)
+bool UNiagaraDataInterfaceGrid2DCollection::FillTexture2D(const UNiagaraComponent *Component, UTextureRenderTarget2D *Dest, int AttributeIndex)
 {
 	FNiagaraDataInterfaceProxyGrid2DCollection* TProxy = GetProxyAs<FNiagaraDataInterfaceProxyGrid2DCollection>();
 
 	if (!Component)
 	{
-		return;
+		return false;
 	}
 
 	FNiagaraSystemInstance *SystemInstance = Component->GetSystemInstance();
 	if (!SystemInstance)
 	{
-		return;
+		return false;
 	}
+
+	// check valid attribute index
+	if (AttributeIndex < 0 || AttributeIndex >=NumAttributes)
+	{
+		return false;
+	}
+
+	// check dest size and type needs to be float
+	// #todo(dmp): don't hardcode float since we might do other stuff in the future
+	EPixelFormat RequiredTye = PF_R32_FLOAT;
+	if (Dest->SizeX != NumCellsX || Dest->SizeY != NumCellsY || Dest->GetFormat() != RequiredTye)
+	{
+		return false;
+	}
+
 	FNiagaraSystemInstanceID InstanceID = SystemInstance->GetId();
 
 	ENQUEUE_RENDER_COMMAND(FUpdateDIColorCurve)(
@@ -473,10 +488,12 @@ void UNiagaraDataInterfaceGrid2DCollection::FillTexture2D(const UNiagaraComponen
 			RHICmdList.CopyTexture(Grid2DInstanceData->CurrentData->GridBuffer.Buffer, Dest->Resource->TextureRHI, CopyInfo);
 		}
 	});
+
+	return true;
 }
 
 UFUNCTION(BlueprintCallable, Category = Niagara)
-void UNiagaraDataInterfaceGrid2DCollection::FillRawTexture2D(const UNiagaraComponent *Component, UTextureRenderTarget2D *Dest, int &TilesX, int &TilesY)
+bool UNiagaraDataInterfaceGrid2DCollection::FillRawTexture2D(const UNiagaraComponent *Component, UTextureRenderTarget2D *Dest, int &TilesX, int &TilesY)
 {
 	FNiagaraDataInterfaceProxyGrid2DCollection* TProxy = GetProxyAs<FNiagaraDataInterfaceProxyGrid2DCollection>();
 
@@ -484,7 +501,7 @@ void UNiagaraDataInterfaceGrid2DCollection::FillRawTexture2D(const UNiagaraCompo
 	{
 		TilesX = -1;
 		TilesY = -1;
-		return;
+		return false;
 	}
 
 	FNiagaraSystemInstance *SystemInstance = Component->GetSystemInstance();
@@ -492,35 +509,44 @@ void UNiagaraDataInterfaceGrid2DCollection::FillRawTexture2D(const UNiagaraCompo
 	{
 		TilesX = -1;
 		TilesY = -1;
-		return;
+		return false;
 	}
 	FNiagaraSystemInstanceID InstanceID = SystemInstance->GetId();
-
+	
+	Grid2DCollectionRWInstanceData* Grid2DInstanceData = TProxy->SystemInstancesToProxyData.Find(InstanceID);
+	if (!Grid2DInstanceData)
 	{
-		Grid2DCollectionRWInstanceData* Grid2DInstanceData = TProxy->SystemInstancesToProxyData.Find(InstanceID);
-		if (!Grid2DInstanceData)
-		{
-			TilesX = -1;
-			TilesY = -1;
-			return;
-		}
-
-		TilesX = Grid2DInstanceData->NumTilesX;
-		TilesY = Grid2DInstanceData->NumTilesY;
+		TilesX = -1;
+		TilesY = -1;
+		return false;
 	}
 
+	TilesX = Grid2DInstanceData->NumTilesX;
+	TilesY = Grid2DInstanceData->NumTilesY;	
+
+	// check dest size and type needs to be float
+	// #todo(dmp): don't hardcode float since we might do other stuff in the future
+	EPixelFormat RequiredTye = PF_R32_FLOAT;
+	if (Dest->SizeX != NumCellsX * TilesX || Dest->SizeY != NumCellsY * TilesY || Dest->GetFormat() != RequiredTye)
+	{
+		return false;
+	}
+
+	// #todo(dmp): pass grid2dinstancedata through?
 	ENQUEUE_RENDER_COMMAND(FUpdateDIColorCurve)(
 		[Dest, TProxy, InstanceID](FRHICommandListImmediate& RHICmdList)
 	{
-		Grid2DCollectionRWInstanceData* Grid2DInstanceData = TProxy->SystemInstancesToProxyData.Find(InstanceID);
+		Grid2DCollectionRWInstanceData* Grid2DInstanceDataTmp = TProxy->SystemInstancesToProxyData.Find(InstanceID);
 
-		if (Dest && Dest->Resource && Grid2DInstanceData && Grid2DInstanceData->CurrentData)
+		if (Dest && Dest->Resource && Grid2DInstanceDataTmp && Grid2DInstanceDataTmp->CurrentData)
 		{
 			
 			FRHICopyTextureInfo CopyInfo;
-			RHICmdList.CopyTexture(Grid2DInstanceData->CurrentData->GridBuffer.Buffer, Dest->Resource->TextureRHI, CopyInfo);
+			RHICmdList.CopyTexture(Grid2DInstanceDataTmp->CurrentData->GridBuffer.Buffer, Dest->Resource->TextureRHI, CopyInfo);
 		}
 	});
+
+	return true;
 }
 
 UFUNCTION(BlueprintCallable, Category = Niagara)
@@ -644,7 +670,7 @@ void FNiagaraDataInterfaceProxyGrid2DCollection::PreStage(FRHICommandList& RHICm
 		// we start.  If a user wants to access data from the previous stage, then they can read from the current data.
 
 		// #todo(dmp): we might want to expose an option where we have buffers that are write only and need a clear (ie: no buffering like the neighbor grid).  They would be considered transient perhaps?  It'd be more
-		// memory efficient since it would theoretically not require any double buffering.
+		// memory efficient since it would theoretically not require any double buffering.		
 		if (!Context.IsIterationStage)
 		{
 			ClearUAV(RHICmdList, ProxyData->DestinationData->GridBuffer, FLinearColor(0, 0, 0, 0));

@@ -12,6 +12,7 @@
 #pragma warning(push)
 #pragma warning(disable:4996) // unsafe sprintf
 #pragma warning(disable:4828) // illegal character
+#include "kernel_io/convert_io/convert_io.h"
 #include "kernel_io/kernel_io.h"
 #include "kernel_io/kernel_io_error.h"
 #include "kernel_io/kernel_io_type.h"
@@ -48,7 +49,8 @@ namespace CADLibrary
 	};
 
 	/**
-	 * Mandatory: Kernel_IO has to be initialize with the final MetricUnit, set function doesn`t work
+	 * Mandatory: Kernel_IO has to be initialize with the final MetricUnit, set function doesn't work
+	 * This methode set Tolerance to 0.00001 m whether 0.01 mm
 	 * @param MetricUnit: Length unit express in meter
 	 */
 	CADINTERFACES_API CT_IO_ERROR CTKIO_InitializeKernel(double MetricUnit);
@@ -98,6 +100,12 @@ namespace CADLibrary
 		const TCHAR*  string_option = TEXT("")               
 	);
 
+	/**
+	 * In case of patch with cyclic boundary, a process has to be done by kernel_IO
+	 * @param MainObjectId: Body to process
+	 */
+	CADINTERFACES_API CT_IO_ERROR CTKIO_CleanBody(CT_OBJECT_ID MainObjectId);
+
 	CADINTERFACES_API CT_IO_ERROR CTKIO_SaveFile
 	(
 		CT_LIST_IO&        objects_list_to_save,
@@ -106,7 +114,12 @@ namespace CADLibrary
 		const CT_OBJECT_ID coordsystem = 0      
 	);
 
-	CADINTERFACES_API CT_IO_ERROR Repair(CT_OBJECT_ID MainObjectID, EStitchingTechnique StitchingTechnique);
+	/**
+	 * This function calls, according to the chosen EStitchingTechnique, Kernel_io CT_REPAIR_IO::Sew or CT_REPAIR_IO::Heal. In case of sew, the used tolerance is 100x the geometric tolerance (SewingToleranceFactor = 100).
+	 * With the case of UE-83379, Alias file, this value is too big (biggest than the geometric features. So Kernel_io hangs during the sew process... In the wait of more test, 100x is still the value used for CAD import except for Alias where the value of the SewingToleranceFactor is set to 1x
+	 * @param SewingToleranceFactor Factor apply to the tolerance 3D to define the sewing tolerance.
+	 */
+	CADINTERFACES_API CT_IO_ERROR Repair(CT_OBJECT_ID MainObjectID, EStitchingTechnique StitchingTechnique, CT_DOUBLE SewingToleranceFactor = 100.);
 	CADINTERFACES_API CT_IO_ERROR SetCoreTechTessellationState(const FImportParameters& ImportParams);
 
 
@@ -133,7 +146,7 @@ namespace CADLibrary
 		 * Make sure CT is initialized, and a main object is ready.
 		 * Handle input file unit and an output unit
 		 * @param FileMetricUnit number of meters per file unit.
-		 * eg. For a file in inches, arg should be 0.0254
+		 * e.g. For a file in inches, arg should be 0.0254
 		 */
 		CoreTechSessionBase(const TCHAR* Owner, double Unit);
 		bool IsSessionValid() { return Owner != nullptr && MainObjectId != 0; }

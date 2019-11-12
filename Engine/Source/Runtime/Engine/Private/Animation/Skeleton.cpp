@@ -514,6 +514,10 @@ int32 USkeleton::BuildLinkup(const USkeletalMesh* InSkelMesh)
 			// Fix missing bone.
 			SkeletonBoneIndex = SkeletonRefSkel.FindBoneIndex(MeshBoneName);
 		}
+#else
+		// If we're not in editor, we still want to know which skeleton is missing a bone.
+		ensureMsgf(SkeletonBoneIndex != INDEX_NONE, TEXT("USkeleton::BuildLinkup: The Skeleton %s, is missing bones that SkeletalMesh %s needs. MeshBoneName %s"),
+				*GetNameSafe(this), *GetNameSafe(InSkelMesh), *MeshBoneName.ToString());
 #endif
 
 		NewMeshLinkup.MeshToSkeletonTable[MeshBoneIndex] = SkeletonBoneIndex;

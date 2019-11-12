@@ -44,7 +44,7 @@ public:
 
 private:
 	/** Called when we are about to rename a virtual bone */
-	void OnVirtualBoneNameEditing(const FText& OriginalText);
+	void OnVirtualBoneNameEditing();
 
 	/** Called when user is renaming this bone to verify the name **/
 	bool OnVerifyBoneNameChanged(const FText& InText, FText& OutErrorMessage);

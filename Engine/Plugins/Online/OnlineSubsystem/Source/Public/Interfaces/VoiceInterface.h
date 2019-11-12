@@ -253,6 +253,32 @@ public:
 	{
 		return nullptr;
 	};
+
+	/**
+	 * This can be used to patch incoming audio to a different audio device.
+	 * @param InDeviceName- name of the device to patch to.
+	 * @param bMuteInGameOutput- if set to true, the audio going out to the game will be muted.
+	 */
+	virtual bool PatchRemoteTalkerOutputToEndpoint(const FString& InDeviceName, bool bMuteInGameOutput = true)
+	{
+		return false;
+	}
+	
+	/**
+	 * This can be used to patch outgoing audio to a different audio device.
+	 * @param InDeviceName- name of the device to patch to.
+	 */
+	virtual bool PatchLocalTalkerOutputToEndpoint(const FString& InDeviceName)
+	{
+		return false;
+	}
+
+	/**
+	 * When called, disconnects all additional audio endpoints we patched to using PatchVoiceOutputToDevice().
+	 */
+	virtual void DisconnectAllEndpoints()
+	{
+	}
 };
 
 typedef TSharedPtr<IVoiceEngine, ESPMode::ThreadSafe> IVoiceEnginePtr;
@@ -482,6 +508,33 @@ public:
 	{
 		return nullptr;
 	};
+
+	/**
+	 * This can be used to patch incoming audio to a different audio device.
+	 * @param InDeviceName- name of the device to patch to.
+	 * @param bMuteInGameOutput- if set to true, the audio going out to the game will be muted.
+	 */
+	virtual bool PatchRemoteTalkerOutputToEndpoint(const FString& InDeviceName, bool bMuteInGameOutput = true)
+	{
+		return false;
+	}
+
+	/**
+	 * This can be used to patch outgoing audio to a different audio device.
+	 * @param InDeviceName- name of the device to patch to.
+	 */
+	virtual bool PatchLocalTalkerOutputToEndpoint(const FString& InDeviceName)
+	{
+		return false;
+	}
+
+
+	/**
+	 * When called, disconnects all additional audio endpoints we patched to using PatchRemoteTalkerOutputToEndpoint().
+	 */
+	virtual void DisconnectAllEndpoints()
+	{
+	}
 };
 
 typedef TSharedPtr<IOnlineVoice, ESPMode::ThreadSafe> IOnlineVoicePtr;

@@ -64,8 +64,6 @@ void FDynamicMeshToMeshDescription::Update(const FDynamicMesh3* MeshIn, FMeshDes
 void FDynamicMeshToMeshDescription::UpdateAttributes(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut, bool bUpdateNormals, bool bUpdateUVs)
 {
 	check(MeshIn->IsCompactV());
-	check(MeshIn->VertexCount() == MeshOut.Vertices().Num());
-	check(MeshIn->TriangleCount() == MeshOut.Triangles().Num())
 
 	if (bUpdateNormals)
 	{
@@ -77,10 +75,12 @@ void FDynamicMeshToMeshDescription::UpdateAttributes(const FDynamicMesh3* MeshIn
 			const FDynamicMeshNormalOverlay* Overlay = MeshIn->HasAttributes() ? MeshIn->Attributes()->PrimaryNormals() : nullptr;
 			if (Overlay)
 			{
+				check(MeshIn->TriangleCount() == MeshOut.Triangles().Num())
 				DynamicMeshToMeshDescriptionConversionHelper::SetAttributesFromOverlay(MeshIn, MeshOut, InstanceAttrib, Overlay);
 			}
 			else
 			{
+				check(MeshIn->VertexCount() == MeshOut.Vertices().Num());
 				for (int VertID : MeshIn->VertexIndicesItr())
 				{
 					FVector Normal = (FVector)MeshIn->GetVertexNormal(VertID);

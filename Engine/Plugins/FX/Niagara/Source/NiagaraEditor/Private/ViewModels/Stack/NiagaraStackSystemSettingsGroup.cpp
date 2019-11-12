@@ -84,17 +84,12 @@ public:
 	virtual void ExecuteAddAction(TSharedRef<INiagaraStackItemGroupAddAction> AddAction, int32 TargetIndex) override
 	{
 		TSharedRef<FParameterStoreGroupAddAction> ParameterAddAction = StaticCastSharedRef<FParameterStoreGroupAddAction>(AddAction);
-
-		FScopedTransaction AddTransaction(LOCTEXT("AddParameter", "Add Parameter"));
-		ParameterStoreOwner.Modify();
-
-		FNiagaraVariable ParameterVariable = ParameterAddAction->GetNewParameterVariable();
-		FNiagaraEditorUtilities::ResetVariableToDefaultValue(ParameterVariable);
-
-		ParameterStore.AddParameter(ParameterVariable);
-		StackEditorData.SetModuleInputIsRenamePending(ParameterVariable.GetName().ToString(), true);
-
-		OnItemAdded.ExecuteIfBound(ParameterVariable);
+		FNiagaraVariable NewParameterVariable = ParameterAddAction->GetNewParameterVariable();
+		bool bSuccess = FNiagaraEditorUtilities::AddParameter(NewParameterVariable, ParameterStore, ParameterStoreOwner, StackEditorData);
+		if (bSuccess)
+		{
+			OnItemAdded.ExecuteIfBound(NewParameterVariable);
+		}
 	}
 
 private:
@@ -183,7 +178,11 @@ void UNiagaraStackParameterStoreItem::RefreshChildrenInternal(const TArray<UNiag
 		for (FNiagaraVariable& Var : Variables)
 		{
 			UNiagaraStackParameterStoreEntry* ValueObjectEntry = FindCurrentChildOfTypeByPredicate<UNiagaraStackParameterStoreEntry>(CurrentChildren,
-				[=](UNiagaraStackParameterStoreEntry* CurrentEntry) { return CurrentEntry->GetDisplayName().ToString() == Var.GetName().ToString(); });
+				[=](UNiagaraStackParameterStoreEntry* CurrentEntry) { 
+				bool bSameName = CurrentEntry->GetDisplayName().ToString() == Var.GetName().ToString();
+				bool bSameType = CurrentEntry->GetInputType() == Var.GetType();
+				return bSameName && bSameType;
+			});
 
 			if (ValueObjectEntry == nullptr)
 			{

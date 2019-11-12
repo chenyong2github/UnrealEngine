@@ -33,7 +33,13 @@ public:
 	/**
 	* Called on a scene start to allow a rendering device to initialize any world related content
 	*/
-	virtual void InitializeWorldContent(UWorld* World)
+	virtual void StartScene(UWorld* World)
+	{ }
+
+	/**
+	* Called before unload current level
+	*/
+	virtual void EndScene()
 	{ }
 
 	/**

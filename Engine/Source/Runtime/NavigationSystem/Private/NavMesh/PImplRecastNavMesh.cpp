@@ -788,7 +788,7 @@ ENavigationQueryResult::Type FPImplRecastNavMesh::FindPath(const FVector& StartL
 }
 
 // @TODONAV
-ENavigationQueryResult::Type FPImplRecastNavMesh::FindPath(const FVector& StartLoc, const FVector& EndLoc, const float MaxCost, FNavMeshPath& Path, const FNavigationQueryFilter& InQueryFilter, const UObject* Owner) const
+ENavigationQueryResult::Type FPImplRecastNavMesh::FindPath(const FVector& StartLoc, const FVector& EndLoc, const float CostLimit, FNavMeshPath& Path, const FNavigationQueryFilter& InQueryFilter, const UObject* Owner) const
 {
 	// temporarily disabling this check due to it causing too much "crashes"
 	// @todo but it needs to be back at some point since it realy checks for a buggy setup
@@ -826,7 +826,7 @@ ENavigationQueryResult::Type FPImplRecastNavMesh::FindPath(const FVector& StartL
 
 	// get path corridor
 	dtQueryResult PathResult;
-	const dtStatus FindPathStatus = NavQuery.findPath(StartPolyID, EndPolyID, &RecastStartPos.X, &RecastEndPos.X, MaxCost, QueryFilter, PathResult, 0);
+	const dtStatus FindPathStatus = NavQuery.findPath(StartPolyID, EndPolyID, &RecastStartPos.X, &RecastEndPos.X, CostLimit, QueryFilter, PathResult, 0);
 
 	// check for special case, where path has not been found, and starting polygon
 	// was the one closest to the target
@@ -897,9 +897,9 @@ ENavigationQueryResult::Type FPImplRecastNavMesh::TestPath(const FVector& StartL
 
 	// get path corridor
 	dtQueryResult PathResult;
-	const float MaxCost = FLT_MAX;
+	const float CostLimit = FLT_MAX;
 	const dtStatus FindPathStatus = NavQuery.findPath(StartPolyID, EndPolyID,
-		&RecastStartPos.X, &RecastEndPos.X, MaxCost, QueryFilter, PathResult, 0);
+		&RecastStartPos.X, &RecastEndPos.X, CostLimit, QueryFilter, PathResult, 0);
 
 	if (NumVisitedNodes)
 	{
@@ -1277,7 +1277,7 @@ static void StorePathfindingDebugStep(const dtNavMeshQuery& NavQuery, const dtNa
 	}
 }
 
-int32 FPImplRecastNavMesh::DebugPathfinding(const FVector& StartLoc, const FVector& EndLoc, const float MaxCost, const FNavigationQueryFilter& Filter, const UObject* Owner, TArray<FRecastDebugPathfindingData>& Steps)
+int32 FPImplRecastNavMesh::DebugPathfinding(const FVector& StartLoc, const FVector& EndLoc, const float CostLimit, const FNavigationQueryFilter& Filter, const UObject* Owner, TArray<FRecastDebugPathfindingData>& Steps)
 {
 	int32 NumSteps = 0;
 
@@ -1299,7 +1299,7 @@ int32 FPImplRecastNavMesh::DebugPathfinding(const FVector& StartLoc, const FVect
 		return NumSteps;
 	}
 
-	dtStatus status = NavQuery.initSlicedFindPath(StartPolyID, EndPolyID, &RecastStartPos.X, &RecastEndPos.X, MaxCost, QueryFilter);
+	dtStatus status = NavQuery.initSlicedFindPath(StartPolyID, EndPolyID, &RecastStartPos.X, &RecastEndPos.X, CostLimit, QueryFilter);
 	while (dtStatusInProgress(status))
 	{
 		StorePathfindingDebugStep(NavQuery, DetourNavMesh, Steps);

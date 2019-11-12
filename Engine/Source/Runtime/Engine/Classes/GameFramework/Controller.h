@@ -227,6 +227,13 @@ public:
 	/** Getter for Pawn */
 	FORCEINLINE APawn* GetPawn() const { return Pawn; }
 
+	/** Templated version of GetPawn, will return nullptr if cast fails */
+	template<class T>
+	T* GetPawn() const
+	{
+		return Cast<T>(Pawn);
+	}
+
 	/** Getter for Character */
 	FORCEINLINE ACharacter* GetCharacter() const { return Character; }
 

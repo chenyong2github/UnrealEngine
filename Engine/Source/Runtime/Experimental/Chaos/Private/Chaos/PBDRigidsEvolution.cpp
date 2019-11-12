@@ -29,7 +29,7 @@ namespace Chaos
 			AABBMaxChildrenInLeaf = 500;
 			AABBMaxTreeDepth = 200;
 			MaxPayloadSize = 100000;
-			IterationsPerTimeSlice = 20000;
+			IterationsPerTimeSlice = 40000;
 		}
 	} ConfigSettings;
 
@@ -118,9 +118,10 @@ namespace Chaos
 	};
 
 	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
-	TPBDRigidsEvolutionBase<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::TPBDRigidsEvolutionBase(TPBDRigidsSOAs<T, d>& InParticles, int32 InNumIterations, int32 InNumPushOutIterations)
+	TPBDRigidsEvolutionBase<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::TPBDRigidsEvolutionBase(TPBDRigidsSOAs<T, d>& InParticles, int32 InNumIterations, int32 InNumPushOutIterations, bool InIsSingleThreaded)
 		: Particles(InParticles)
 		, bExternalReady(false)
+		, bIsSingleThreaded(InIsSingleThreaded)
 		, Clustering(static_cast<FPBDRigidsEvolution&>(*this), Particles.GetClusteredParticles())
 		, NumIterations(InNumIterations)
 		, NumPushOutIterations(InNumPushOutIterations)
@@ -164,12 +165,14 @@ namespace Chaos
 		, const TMap<FSpatialAccelerationIdx, TUniquePtr<TSpatialAccelerationCache<T, d>>>& InSpatialAccelerationCache
 		, TUniquePtr<FAccelerationStructure>& InAccelerationStructure
 		, TUniquePtr<FAccelerationStructure>& InAccelerationStructureCopy
-		, bool InForceFullBuild)
+		, bool InForceFullBuild
+		, bool InIsSingleThreaded)
 		: SpatialCollectionFactory(InSpatialCollectionFactory)
 		, SpatialAccelerationCache(InSpatialAccelerationCache)
 		, AccelerationStructure(InAccelerationStructure)
 		, AccelerationStructureCopy(InAccelerationStructureCopy)
 		, IsForceFullBuild(InForceFullBuild)
+		, bIsSingleThreaded(InIsSingleThreaded)
 	{
 	}
 
@@ -274,16 +277,20 @@ namespace Chaos
 
 		AccelerationStructure->SetAllAsyncTrasksComplete(!IsTimeSlicingProgressing);
 
+		// If it's not progressing then it is finished so we can perform the final copy if required
 		if (!IsTimeSlicingProgressing)
 		{
+			if (!bIsSingleThreaded)
+			{
 			// This operation is slow!
 			SCOPE_CYCLE_COUNTER(STAT_CopyAccelerationStructure);
 			AccelerationStructureCopy = AsUniqueSpatialAccelerationChecked<FAccelerationStructure>(AccelerationStructure->Copy());
 		}
 	}
+	}
 
 	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
-	void TPBDRigidsEvolutionBase<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::ApplyParticlePendingData(TGeometryParticleHandle<T, d>* Particle, const FPendingSpatialData& SpatialData, FAccelerationStructure& AccelerationStructure, bool bUpdateCache)
+	void TPBDRigidsEvolutionBase<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::ApplyParticlePendingData(const FPendingSpatialData& SpatialData, FAccelerationStructure& AccelerationStructure, bool bUpdateCache)
 	{
 		//Note: we collapsed several update delete events into one struct. If memory is reused this can lead to problems
 		//Luckily there are only 3 states we care about:
@@ -294,11 +301,12 @@ namespace Chaos
 
 		if (SpatialData.bDelete)
 		{
-			AccelerationStructure.RemoveElementFrom(SpatialData.AccelerationHandle, SpatialData.DeletedSpatialIdx);
+			AccelerationStructure.RemoveElementFrom(SpatialData.DeleteAccelerationHandle, SpatialData.DeletedSpatialIdx);
+			TGeometryParticleHandle<T, d>* DeleteParticle = SpatialData.DeleteAccelerationHandle.GetGeometryParticleHandle_PhysicsThread();
 
 			if (bUpdateCache)
 			{
-				if (uint32* InnerIdxPtr = ParticleToCacheInnerIdx.Find(Particle))
+				if (uint32* InnerIdxPtr = ParticleToCacheInnerIdx.Find(DeleteParticle))
 				{
 					const auto SpatialIdx = SpatialData.DeletedSpatialIdx;
 					TSpatialAccelerationCache<T, d>& Cache = *SpatialAccelerationCache.FindChecked(SpatialIdx);	//can't delete from cache that doesn't exist
@@ -310,14 +318,17 @@ namespace Chaos
 					}
 
 					Cache.DestroyElement(CacheInnerIdx);
-					ParticleToCacheInnerIdx.Remove(Particle);
+					ParticleToCacheInnerIdx.Remove(DeleteParticle);
 				}
 			}
 		}
 
 		if (SpatialData.bUpdate)
 		{
-			AccelerationStructure.UpdateElementIn(Particle, Particle->WorldSpaceInflatedBounds(), Particle->HasBounds(), SpatialData.UpdatedSpatialIdx);
+
+			TGeometryParticleHandle<T, d>* UpdateParticle = SpatialData.UpdateAccelerationHandle.GetGeometryParticleHandle_PhysicsThread();
+
+			AccelerationStructure.UpdateElementIn(UpdateParticle, UpdateParticle->WorldSpaceInflatedBounds(), UpdateParticle->HasBounds(), SpatialData.UpdatedSpatialIdx);
 
 			if (bUpdateCache)
 			{
@@ -331,7 +342,7 @@ namespace Chaos
 
 				//make sure in mapping
 				uint32 CacheInnerIdx;
-				if (uint32* CacheInnerIdxPtr = ParticleToCacheInnerIdx.Find(Particle))
+				if (uint32* CacheInnerIdxPtr = ParticleToCacheInnerIdx.Find(UpdateParticle))
 				{
 					CacheInnerIdx = *CacheInnerIdxPtr;
 				}
@@ -339,13 +350,13 @@ namespace Chaos
 				{
 					CacheInnerIdx = Cache.Size();
 					Cache.AddElements(1);
-					ParticleToCacheInnerIdx.Add(Particle, CacheInnerIdx);
+					ParticleToCacheInnerIdx.Add(UpdateParticle, CacheInnerIdx);
 				}
 
 				//update cache entry
-				Cache.HasBounds(CacheInnerIdx) = Particle->HasBounds();
-				Cache.Bounds(CacheInnerIdx) = Particle->WorldSpaceInflatedBounds();
-				Cache.Payload(CacheInnerIdx) = SpatialData.AccelerationHandle;
+				Cache.HasBounds(CacheInnerIdx) = UpdateParticle->HasBounds();
+				Cache.Bounds(CacheInnerIdx) = UpdateParticle->WorldSpaceInflatedBounds();
+				Cache.Payload(CacheInnerIdx) = SpatialData.UpdateAccelerationHandle;
 			}
 		}
 	}
@@ -355,7 +366,7 @@ namespace Chaos
 	{
 		for (auto Itr : InternalAccelerationQueue)
 		{
-			ApplyParticlePendingData(Itr.Key, Itr.Value, *InternalAcceleration, false);
+			ApplyParticlePendingData(Itr.Value, *InternalAcceleration, false);
 		}
 		InternalAccelerationQueue.Empty();
 	}
@@ -365,8 +376,11 @@ namespace Chaos
 	{
 		for (auto Itr : AsyncAccelerationQueue)
 		{
-			ApplyParticlePendingData(Itr.Key, Itr.Value, *AsyncInternalAcceleration, true); //only the first queue needs to update the cached acceleration
-			ApplyParticlePendingData(Itr.Key, Itr.Value, *AsyncExternalAcceleration, false);
+			ApplyParticlePendingData(Itr.Value, *AsyncInternalAcceleration, true); //only the first queue needs to update the cached acceleration
+			if (!bIsSingleThreaded)
+			{
+			ApplyParticlePendingData(Itr.Value, *AsyncExternalAcceleration, false);
+		}
 		}
 		AsyncAccelerationQueue.Empty();
 
@@ -380,7 +394,7 @@ namespace Chaos
 	{
 		for (auto Itr : ExternalAccelerationQueue)
 		{
-			ApplyParticlePendingData(Itr.Key, Itr.Value, Acceleration, false);
+			ApplyParticlePendingData(Itr.Value, Acceleration, false);
 		}
 		ExternalAccelerationQueue.Empty();
 	}
@@ -405,22 +419,24 @@ namespace Chaos
 
 		bool ForceFullBuild = InternalAccelerationQueue.Num() > 1000;
 
-		if (ForceFullBuild)
-		{
-			UE_LOG(LogChaos, Warning, TEXT("ForceFullBuild"));
-		}
-
 		if (!AccelerationStructureTaskComplete)
 		{
 			//initial frame so make empty structures
 
 			InternalAcceleration = TUniquePtr<FAccelerationStructure>(SpatialCollectionFactory->CreateEmptyCollection());
-			ScratchExternalAcceleration = TUniquePtr<FAccelerationStructure>(SpatialCollectionFactory->CreateEmptyCollection());
 			AsyncInternalAcceleration = TUniquePtr<FAccelerationStructure>(SpatialCollectionFactory->CreateEmptyCollection());
+			if (!bIsSingleThreaded)
+			{
+			ScratchExternalAcceleration = TUniquePtr<FAccelerationStructure>(SpatialCollectionFactory->CreateEmptyCollection());
 			AsyncExternalAcceleration = TUniquePtr<FAccelerationStructure>(SpatialCollectionFactory->CreateEmptyCollection());
+			}
 			FlushInternalAccelerationQueue();
+
+			if (!bIsSingleThreaded)
+			{
 			FlushExternalAccelerationQueue(*ScratchExternalAcceleration);
 			bExternalReady = true;
+		}
 		}
 
 		if (bBlock)
@@ -443,12 +459,18 @@ namespace Chaos
 
 				//swap acceleration structure for new one
 				std::swap(InternalAcceleration, AsyncInternalAcceleration);	//swap to avoid free on sync part as this can be expensive
+
+				if (!bIsSingleThreaded)
+				{
 				std::swap(ScratchExternalAcceleration, AsyncExternalAcceleration);
+				}
 				bExternalReady = true;
 			}
 
 			// we run the task for both starting a new accel structure as well as for the timeslicing
-			AccelerationStructureTaskComplete = TGraphTask<FChaosAccelerationStructureTask>::CreateTask().ConstructAndDispatchWhenReady(*SpatialCollectionFactory, SpatialAccelerationCache, AsyncInternalAcceleration, AsyncExternalAcceleration, ForceFullBuild);
+			// we run the task for both starting a new accel structure as well as for the timeslicing
+			AccelerationStructureTaskComplete = TGraphTask<FChaosAccelerationStructureTask>::CreateTask().ConstructAndDispatchWhenReady(*SpatialCollectionFactory, SpatialAccelerationCache, AsyncInternalAcceleration, AsyncExternalAcceleration, ForceFullBuild, bIsSingleThreaded);
+
 		}
 		else
 		{
@@ -460,6 +482,9 @@ namespace Chaos
 	void TPBDRigidsEvolutionBase<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::UpdateExternalAccelerationStructure(TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<T, d>, T, d>>& StructToUpdate)
 	{
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("CreateExternalAccelerationStructure"), STAT_CreateExternalAccelerationStructure, STATGROUP_Physics);
+
+		check(!bIsSingleThreaded);
+
 		if (bExternalReady)
 		{
 			std::swap(StructToUpdate, ScratchExternalAcceleration);
@@ -521,6 +546,11 @@ namespace Chaos
 
 		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializeEvolutionBV)
 		{
+			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::FlushEvolutionInternalAccelerationQueue)
+			{
+				FlushInternalAccelerationQueue();
+			}
+
 			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::SerializeMultiStructures)
 			{
 				//old path assumes single sub-structure
@@ -542,9 +572,12 @@ namespace Chaos
 				SpatialCollectionFactory->Serialize(InternalAcceleration, Ar);
 			}
 
-			SerializePendingMap(Ar, InternalAccelerationQueue);
-			SerializePendingMap(Ar, AsyncAccelerationQueue);
-			SerializePendingMap(Ar, ExternalAccelerationQueue);
+			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::FlushEvolutionInternalAccelerationQueue)
+			{
+				SerializePendingMap(Ar, InternalAccelerationQueue);
+				SerializePendingMap(Ar, AsyncAccelerationQueue);
+				SerializePendingMap(Ar, ExternalAccelerationQueue);
+			}
 
 			ScratchExternalAcceleration = AsUniqueSpatialAccelerationChecked<FAccelerationStructure>(InternalAcceleration->Copy());
 		}

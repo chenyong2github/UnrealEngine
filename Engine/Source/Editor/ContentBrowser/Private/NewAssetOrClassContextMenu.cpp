@@ -23,6 +23,7 @@
 #include "Widgets/SToolTip.h"
 #include "IDocumentation.h"
 #include "ClassIconFinder.h"
+#include "AssetToolsModule.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -59,23 +60,17 @@ void FCategorySubMenuItem::SortSubMenus(FCategorySubMenuItem* SubMenu)
 TArray<FFactoryItem> FindFactoriesInCategory(EAssetTypeCategories::Type AssetTypeCategory)
 {
 	TArray<FFactoryItem> FactoriesInThisCategory;
-	for (TObjectIterator<UClass> It; It; ++It)
-	{
-		UClass* Class = *It;
-		if (Class->IsChildOf(UFactory::StaticClass()) && !Class->HasAnyClassFlags(CLASS_Abstract))
-		{
-			UFactory* Factory = Class->GetDefaultObject<UFactory>();
-			if (Factory->ShouldShowInNewMenu() && ensure(!Factory->GetDisplayName().IsEmpty()))
+
+	const IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+	TArray<UFactory*> Factories = AssetTools.GetNewAssetFactories();
+	for (UFactory* Factory : Factories)
 			{
 				uint32 FactoryCategories = Factory->GetMenuCategories();
-
 				if (FactoryCategories & AssetTypeCategory)
 				{
 					new(FactoriesInThisCategory)FFactoryItem(Factory, Factory->GetDisplayName());
 				}
 			}
-		}
-	}
 
 	return FactoriesInThisCategory;
 }

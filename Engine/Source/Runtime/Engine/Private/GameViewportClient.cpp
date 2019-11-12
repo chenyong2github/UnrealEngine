@@ -1334,11 +1334,11 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 								FVector OverrideAttenuation;
 								if (PlayerController->GetAudioListenerAttenuationOverridePosition(OverrideAttenuation))
 								{
-									AudioDevice->SetListenerAttenuationOverride(OverrideAttenuation);
+									AudioDevice->SetListenerAttenuationOverride(ViewportIndex, OverrideAttenuation);
 								}
 								else
 								{
-									AudioDevice->ClearListenerAttenuationOverride();
+									AudioDevice->ClearListenerAttenuationOverride(ViewportIndex);
 								}
 							}
 						}

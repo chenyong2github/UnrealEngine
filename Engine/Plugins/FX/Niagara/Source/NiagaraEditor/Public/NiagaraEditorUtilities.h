@@ -27,6 +27,7 @@ class UNiagaraNode;
 class UEdGraphSchema_Niagara;
 class UEdGraphPin;
 class FCompileConstantResolver;
+class UNiagaraStackEditorData;
 
 namespace FNiagaraEditorUtilities
 {
@@ -199,4 +200,14 @@ namespace FNiagaraEditorUtilities
 
 
 	bool VerifyNameChangeForInputOrOutputNode(const UNiagaraNode& NodeBeingChanged, FName OldName, FName NewName, FText& OutErrorMessage);
+
+	/**
+	 * Adds a new Parameter to a target ParameterStore with an undo/redo transaction and name collision handling.
+	 * @param NewParameterVariable The FNiagaraVariable to be added to TargetParameterStore. MUST be a unique object, do not pass an existing reference.
+	 * @param TargetParameterStore The ParameterStore to receive NewVariable.
+	 * @param ParameterStoreOwner The UObject to call Modify() on for the undo/redo transaction of adding NewVariable.
+	 * @param StackEditorData The editor data used to mark the newly added FNiagaraVariable in the Stack for renaming.
+	 * @returns Bool for whether adding the parameter succeeded.
+	 */
+	bool AddParameter(FNiagaraVariable& NewParameterVariable, FNiagaraParameterStore& TargetParameterStore, UObject& ParameterStoreOwner, UNiagaraStackEditorData& StackEditorData);
 };

@@ -69,13 +69,13 @@ namespace Chaos
 
 					// Since Clustered GCs can be unioned the particleIndex representing the union 
 					// is not associated with a PhysicsProxy
-					if(Constraint.Particle->Handle()->GTGeometryParticle()->Proxy != nullptr)
+					if(Constraint.Particle[0]->Handle()->GTGeometryParticle()->Proxy != nullptr)
 
 					{
-						if(ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.Phi)))
+						if(ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.GetPhi())))
 						{
-							TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle;
-							TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Levelset;
+							TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
+							TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];
 							TKinematicGeometryParticleHandle<float, 3>* Body0 = Particle0->AsKinematic();
 
 							// presently when a rigidbody or kinematic hits static geometry then Body1 is null
@@ -83,8 +83,8 @@ namespace Chaos
 
 							if(!Constraint.AccumulatedImpulse.IsZero() && Body0)
 							{
-								if(ensure(!Constraint.Location.ContainsNaN() &&
-									!Constraint.Normal.ContainsNaN()) &&
+								if(ensure(!Constraint.GetLocation().ContainsNaN() &&
+									!Constraint.GetNormal().ContainsNaN()) &&
 									!Body0->V().ContainsNaN() &&
 									!Body0->W().ContainsNaN() &&
 									(Body1 == nullptr || ((!Body1->V().ContainsNaN()) && !Body1->W().ContainsNaN())))
@@ -105,14 +105,14 @@ namespace Chaos
 					{
 						Chaos::TPBDCollisionConstraint<float, 3>::FRigidBodyContactConstraint const& Constraint = AllConstraintsArray[ValidCollisionIndices[IdxCollision]];
 
-						TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle;
-						TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Levelset;
+						TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
+						TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];
 
 						TCollisionData<float, 3> Data;
-						Data.Location = Constraint.Location;
+						Data.Location = Constraint.GetLocation();
 						Data.AccumulatedImpulse = Constraint.AccumulatedImpulse;
-						Data.Normal = Constraint.Normal;
-						Data.PenetrationDepth = Constraint.Phi;
+						Data.Normal = Constraint.GetNormal();
+						Data.PenetrationDepth = Constraint.GetPhi();
 						Data.Particle = Particle0->Handle()->GTGeometryParticle();
 						Data.Levelset = Particle1->Handle()->GTGeometryParticle();
 

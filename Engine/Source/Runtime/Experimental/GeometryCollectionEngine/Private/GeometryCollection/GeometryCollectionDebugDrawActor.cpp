@@ -113,6 +113,7 @@ namespace GeometryCollectionDebugDrawActorCVars
 	// Console variables, also exposed as settings in this actor
 	static TAutoConsoleVariable<FString> SelectedRigidBodySolver (TEXT("p.gc.SelectedRigidBodySolver" ), GeometryCollectionDebugDrawActorConstants::SelectedRigidBodySolverDefault , TEXT("Geometry Collection debug draw, visualize debug informations for the selected rigid body solver.\nDefault = None"), ECVF_Cheat);
 	static TAutoConsoleVariable<int32  > SelectedRigidBodyId     (TEXT("p.gc.SelectedRigidBodyId"     ), GeometryCollectionDebugDrawActorConstants::SelectedRigidBodyIdDefault     , TEXT("Geometry Collection debug draw, visualize debug informations for the selected rigid body ids.\nDefault = -1"), ECVF_Cheat);
+	//static TAutoConsoleVariable<FGuid  > SelectedRigidBodyId     (TEXT("p.gc.SelectedRigidBodyId"     ), GeometryCollectionDebugDrawActorConstants::SelectedRigidBodyIdDefault     , TEXT("Geometry Collection debug draw, visualize debug informations for the selected rigid body ids.\nDefault = 0:0:0:0"), ECVF_Cheat);
 	static TAutoConsoleVariable<int32  > DebugDrawWholeCollection(TEXT("p.gc.DebugDrawWholeCollection"), GeometryCollectionDebugDrawActorConstants::DebugDrawWholeCollectionDefault, TEXT("Geometry Collection debug draw, show debug visualization for the rest of the geometry collection related to the current rigid body id selection.\nDefault = 0"), ECVF_Cheat);
 	static TAutoConsoleVariable<int32  > DebugDrawHierarchy      (TEXT("p.gc.DebugDrawHierarchy"      ), GeometryCollectionDebugDrawActorConstants::DebugDrawHierarchyDefault      , TEXT("Geometry Collection debug draw, show debug visualization for the top level node rather than the bottom leaf nodes of a cluster's hierarchy..\nDefault = 0"), ECVF_Cheat);
 	static TAutoConsoleVariable<int32  > DebugDrawClustering     (TEXT("p.gc.DebugDrawClustering"     ), GeometryCollectionDebugDrawActorConstants::DebugDrawClusteringDefault     , TEXT("Geometry Collection debug draw, show debug visualization for all clustered children associated to the current rigid body id selection.\nDefault = 0"), ECVF_Cheat);
@@ -334,6 +335,7 @@ void AGeometryCollectionDebugDrawActor::Tick(float DeltaSeconds)
 #if GEOMETRYCOLLECTION_DEBUG_DRAW
 	// Check badly synced collections in case it is still looking for an id match
 	if (World && SelectedRigidBody.Id != INDEX_NONE && !SelectedRigidBody.GeometryCollection)
+	//if (World && SelectedRigidBody.Id.IsValid() && !SelectedRigidBody.GeometryCollection)
 	{
 #if TODO_REIMPLEMENT_GET_RIGID_PARTICLES
 		// Check the id is within the selected solver range
@@ -399,6 +401,7 @@ void AGeometryCollectionDebugDrawActor::PostLoad()
 
 	GeometryCollectionDebugDrawActorCVars::SelectedRigidBodySolver ->Set(*SelectedRigidBody.GetSolverName(), SetBy);
 	GeometryCollectionDebugDrawActorCVars::SelectedRigidBodyId     ->Set( SelectedRigidBody.Id             , SetBy);
+	//GeometryCollectionDebugDrawActorCVars::SelectedRigidBodyId     ->Set(*SelectedRigidBody.Id.ToString()  , SetBy);
 	GeometryCollectionDebugDrawActorCVars::DebugDrawWholeCollection->Set(int32(bDebugDrawWholeCollection  ), SetBy);
 	GeometryCollectionDebugDrawActorCVars::DebugDrawHierarchy      ->Set(int32(bDebugDrawHierarchy        ), SetBy);
 	GeometryCollectionDebugDrawActorCVars::DebugDrawClustering     ->Set(int32(bDebugDrawClustering       ), SetBy);
@@ -584,8 +587,10 @@ void AGeometryCollectionDebugDrawActor::PostEditChangeProperty(FPropertyChangedE
 
 	if      (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, SelectedRigidBody        )) { GeometryCollectionDebugDrawActorCVars::SelectedRigidBodySolver ->Set(*SelectedRigidBody.GetSolverName(), SetBy);
 																													  GeometryCollectionDebugDrawActorCVars::SelectedRigidBodyId     ->Set( SelectedRigidBody.Id             , SetBy); }
+//																													  GeometryCollectionDebugDrawActorCVars::SelectedRigidBodyId     ->Set(*SelectedRigidBody.Id.ToString()  , SetBy); }
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FGeometryCollectionDebugDrawActorSelectedRigidBody, Solver  )) { GeometryCollectionDebugDrawActorCVars::SelectedRigidBodySolver ->Set(*SelectedRigidBody.GetSolverName(), SetBy); }
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FGeometryCollectionDebugDrawActorSelectedRigidBody, Id      )) { GeometryCollectionDebugDrawActorCVars::SelectedRigidBodyId     ->Set( SelectedRigidBody.Id             , SetBy); }
+//	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FGeometryCollectionDebugDrawActorSelectedRigidBody, Id      )) { GeometryCollectionDebugDrawActorCVars::SelectedRigidBodyId     ->Set(*SelectedRigidBody.Id.ToString()  , SetBy); }
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bDebugDrawWholeCollection)) { GeometryCollectionDebugDrawActorCVars::DebugDrawWholeCollection->Set(int32(bDebugDrawWholeCollection  ), SetBy); }
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bDebugDrawHierarchy      )) { GeometryCollectionDebugDrawActorCVars::DebugDrawHierarchy      ->Set(int32(bDebugDrawHierarchy        ), SetBy); }
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bDebugDrawClustering     )) { GeometryCollectionDebugDrawActorCVars::DebugDrawClustering     ->Set(int32(bDebugDrawClustering       ), SetBy); bForceVisibilityUpdate = true; }
@@ -639,7 +644,8 @@ bool AGeometryCollectionDebugDrawActor::CanEditChange(const UProperty* InPropert
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bDebugDrawWholeCollection) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowSingleFace))
 	{
-		return SelectedRigidBody.Id != -1;
+		return SelectedRigidBody.Id != INDEX_NONE;
+		//return SelectedRigidBody.Id.IsValid();
 	}
 	return Super::CanEditChange(InProperty);
 }
@@ -1993,7 +1999,8 @@ FTransform AGeometryCollectionDebugDrawActor::GetParticleTransformNoChecks(const
 	return FTransform(Rotation, Translation);
 }
 
-void AGeometryCollectionDebugDrawActor::DrawRigidBodiesId(const UGeometryCollectionComponent* GeometryCollectionComponent, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray, const FColor& Color)
+//void AGeometryCollectionDebugDrawActor::DrawRigidBodiesId(const UGeometryCollectionComponent* GeometryCollectionComponent, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray, const FColor& Color)
+void AGeometryCollectionDebugDrawActor::DrawRigidBodiesId(const UGeometryCollectionComponent* GeometryCollectionComponent, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<FGuid>& RigidBodyIdArray, const FColor& Color)
 {
 #if ENABLE_DRAW_DEBUG
 	check(GeometryCollectionComponent);
@@ -2034,7 +2041,8 @@ void AGeometryCollectionDebugDrawActor::DrawRigidBodiesId(const UGeometryCollect
 #endif  // #if ENABLE_DRAW_DEBUG
 }
 
-void AGeometryCollectionDebugDrawActor::DrawRigidBodyId(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray, const FColor& Color)
+//void AGeometryCollectionDebugDrawActor::DrawRigidBodyId(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray, const FColor& Color)
+void AGeometryCollectionDebugDrawActor::DrawRigidBodyId(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<FGuid>& RigidBodyIdArray, const FColor& Color)
 {
 #if ENABLE_DRAW_DEBUG
 	check(GeometryCollectionComponent);
@@ -2066,10 +2074,12 @@ void AGeometryCollectionDebugDrawActor::DrawRigidBodyId(const UGeometryCollectio
 #endif  // #if ENABLE_DRAW_DEBUG
 }
 
-void AGeometryCollectionDebugDrawActor::DrawRigidBodyIdNoChecks(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray, const FColor& Color)
+//void AGeometryCollectionDebugDrawActor::DrawRigidBodyIdNoChecks(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray, const FColor& Color)
+void AGeometryCollectionDebugDrawActor::DrawRigidBodyIdNoChecks(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<FGuid>& RigidBodyIdArray, const FColor& Color)
 {
 #if ENABLE_DRAW_DEBUG
-	const int32 RigidBodyId = RigidBodyIdArray[TransformIndex];
+	//const int32 RigidBodyId = RigidBodyIdArray[TransformIndex];
+	const FGuid& RigidBodyId = RigidBodyIdArray[TransformIndex];
 
 	// Retrieve particle transform
 	const FTransform Transform = GetParticleTransformNoChecks(GeometryCollectionComponent, TransformIndex, ParticlesData);
@@ -2081,7 +2091,8 @@ void AGeometryCollectionDebugDrawActor::DrawRigidBodyIdNoChecks(const UGeometryC
 	const FColor& DisabledColor = bIsDisabled ? FColor::Silver: Color;
 
 	// Draw rigid body id
-	const FString Text = FString::Printf(TEXT("%d"), RigidBodyId);
+	//const FString Text = FString::Printf(TEXT("%d"), RigidBodyId);
+	const FString Text = RigidBodyId.ToString();
 	AddDebugText(Text, Position, DisabledColor, TextScale, bTextShadow);
 #endif  // #if ENABLE_DRAW_DEBUG
 }
@@ -2556,7 +2567,8 @@ void AGeometryCollectionDebugDrawActor::DrawRigidBodyInfoNoChecks(const UGeometr
 #endif  // #if ENABLE_DRAW_DEBUG
 }
 
-void AGeometryCollectionDebugDrawActor::DrawConnectivityEdges(const UGeometryCollectionComponent* GeometryCollectionComponent, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray)
+//void AGeometryCollectionDebugDrawActor::DrawConnectivityEdges(const UGeometryCollectionComponent* GeometryCollectionComponent, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray)
+void AGeometryCollectionDebugDrawActor::DrawConnectivityEdges(const UGeometryCollectionComponent* GeometryCollectionComponent, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<FGuid>& RigidBodyIdArray)
 {
 #if ENABLE_DRAW_DEBUG
 	check(GeometryCollectionComponent);
@@ -2591,7 +2603,8 @@ void AGeometryCollectionDebugDrawActor::DrawConnectivityEdges(const UGeometryCol
 #endif  // #if ENABLE_DRAW_DEBUG
 }
 
-void AGeometryCollectionDebugDrawActor::DrawConnectivityEdges(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray, FColor HSVColor)
+//void AGeometryCollectionDebugDrawActor::DrawConnectivityEdges(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray, FColor HSVColor)
+void AGeometryCollectionDebugDrawActor::DrawConnectivityEdges(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<FGuid>& RigidBodyIdArray, FColor HSVColor)
 {
 #if ENABLE_DRAW_DEBUG
 	check(GeometryCollectionComponent);
@@ -2631,9 +2644,11 @@ void AGeometryCollectionDebugDrawActor::DrawConnectivityEdges(const UGeometryCol
 #endif  // #if ENABLE_DRAW_DEBUG
 }
 
-void AGeometryCollectionDebugDrawActor::DrawConnectivityEdgesNoChecks(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray, const FColor& Color)
+//void AGeometryCollectionDebugDrawActor::DrawConnectivityEdgesNoChecks(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray, const FColor& Color)
+void AGeometryCollectionDebugDrawActor::DrawConnectivityEdgesNoChecks(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<FGuid>& RigidBodyIdArray, const FColor& Color)
 {
 #if ENABLE_DRAW_DEBUG
+#if TODO_REIMPLEMENT_RIGID_CLUSTERING
 	const UWorld* const World = GetWorld();
 
 	// Get parent index
@@ -2692,6 +2707,7 @@ void AGeometryCollectionDebugDrawActor::DrawConnectivityEdgesNoChecks(const UGeo
 			bNeedsDebugLinesFlush = true;
 		}
 	}
+#endif // TODO_REIMPLEMENT_RIGID_CLUSTERING
 #endif  // #if ENABLE_DRAW_DEBUG
 }
 

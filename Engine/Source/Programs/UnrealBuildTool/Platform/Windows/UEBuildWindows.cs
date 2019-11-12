@@ -555,7 +555,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The default compiler version to be used, if installed. 
 		/// </summary>
-		static readonly VersionNumber DefaultClangToolChainVersion = VersionNumber.Parse("8.0.0");
+		static readonly VersionNumber DefaultClangToolChainVersion = VersionNumber.Parse("9.0.0");
 
 		/// <summary>
 		/// The compiler toolchains to be used if installed, the first installed in the list will be used.
@@ -597,12 +597,12 @@ namespace UnrealBuildTool
 		private static IReadOnlyDictionary<VersionNumber, DirectoryReference> CachedUniversalCrtDirs;
 
 		/// <summary>
-		/// True if we should use the Clang linker (LLD) when bCompileWithClang is enabled, otherwise we use the MSVC linker
+		/// True if we should use the Clang linker (LLD) when we are compiling with Clang, otherwise we use the MSVC linker
 		/// </summary>
 		public static readonly bool bAllowClangLinker = false;
 
 		/// <summary>
-		/// True if we should use the Intel linker (xilink) when bCompileWithICL is enabled, otherwise we use the MSVC linker
+		/// True if we should use the Intel linker (xilink) when we are compiling with ICL, otherwise we use the MSVC linker
 		/// </summary>
 		public static readonly bool bAllowICLLinker = true;
 
@@ -1147,6 +1147,37 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Checks if a given Visual C++ toolchain version is compatible with UE4
+		/// </summary>
+		/// <param name="Version">The version number to check</param>
+		/// <returns>True if the toolchain is compatible with UE4</returns>
+		static bool IsCompatibleVisualCppToolChain(VersionNumber Version)
+		{
+			string Message;
+			return IsCompatibleVisualCppToolChain(Version, out Message);
+		}
+
+		/// <summary>
+		/// Checks if a given Visual C++ toolchain version is compatible with UE4
+		/// </summary>
+		/// <param name="Version">The version number to check</param>
+		/// <param name="Message">Receives a message describing why the toolchain is not compatible</param>
+		/// <returns>True if the toolchain is compatible with UE4</returns>
+		static bool IsCompatibleVisualCppToolChain(VersionNumber Version, out string Message)
+		{
+			if (Version >= new VersionNumber(14, 23) && Version < new VersionNumber(14, 24))
+			{
+				Message = String.Format("The Visual C++ 14.23 toolchain is known to have code-generation issues with UE4. Please install an earlier or later toolchain from the Visual Studio installer. See here for more information: https://developercommunity.visualstudio.com/content/problem/734585/msvc-142328019-compilation-bug.html");
+				return false;
+			}
+			else
+			{
+				Message = null;
+				return true;
+			}
+		}
+
+		/// <summary>
 		/// Determines the directory containing the MSVC toolchain
 		/// </summary>
 		/// <param name="Compiler">Major version of the compiler to use</param>
@@ -1165,7 +1196,7 @@ namespace UnrealBuildTool
 			{
 				if(String.Compare(CompilerVersion, "Latest", StringComparison.InvariantCultureIgnoreCase) == 0 && ToolChainVersionToDir.Count > 0)
 				{
-					ToolChainVersion = ToolChainVersionToDir.OrderBy(x => Has64BitToolChain(x.Value)).ThenBy(x => x.Key).Last().Key;
+					ToolChainVersion = ToolChainVersionToDir.OrderBy(x => IsCompatibleVisualCppToolChain(x.Key)).ThenBy(x => Has64BitToolChain(x.Value)).ThenBy(x => x.Key).Last().Key;
 				}
 				else if(!VersionNumber.TryParse(CompilerVersion, out ToolChainVersion))
 				{
@@ -1197,8 +1228,15 @@ namespace UnrealBuildTool
 				// if we failed to find any of our preferred toolchains we pick the newest (highest version number)
 				if (ToolChainVersion == null && ToolChainVersionToDir.Count > 0)
 				{
-					ToolChainVersion = ToolChainVersionToDir.OrderBy(x => Has64BitToolChain(x.Value)).ThenBy(x => x.Key).Last().Key;
+					ToolChainVersion = ToolChainVersionToDir.OrderBy(x => IsCompatibleVisualCppToolChain(x.Key)).ThenBy(x => Has64BitToolChain(x.Value)).ThenBy(x => x.Key).Last().Key;
 				}
+			}
+
+			// Check it's valid
+			string Message;
+			if (ToolChainVersion != null && !IsCompatibleVisualCppToolChain(ToolChainVersion, out Message))
+			{
+				throw new BuildException(Message);
 			}
 
 			// Get the actual directory for this version

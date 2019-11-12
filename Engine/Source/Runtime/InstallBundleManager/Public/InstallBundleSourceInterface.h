@@ -45,6 +45,9 @@ public:
 	// Returns the result of the last initialization attempt
 	virtual EInstallBundleManagerInitResult GetLastInitResult() const = 0;
 
+	// Returns content version in a "<BuildVersion>-<Platform>" format
+	virtual FString GetContentVersion() const = 0;
+
 	// Gets the state of content on disk
 	// BundleNames contains all dependencies and has been deduped
 	virtual void GetContentState(TArrayView<FName> BundleNames, EInstallBundleGetContentStateFlags Flags, FInstallBundleGetContentStateDelegate Callback) = 0;

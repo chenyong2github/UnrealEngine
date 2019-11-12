@@ -133,44 +133,59 @@ void FSoundHPFModulationPatch::Clamp()
 }
 #endif // WITH_EDITOR
 
-void FSoundVolumeModulationPatch::GenerateProxies(TArray<AudioModulation::FModulationInputProxy>& InputProxies) const
+TArray<const FSoundModulationInputBase*> FSoundVolumeModulationPatch::GetInputs() const
 {
+	TArray<const FSoundModulationInputBase*> OutInputs;
 	for (const FSoundVolumeModulationInput& Input : Inputs)
 	{
-		InputProxies.Emplace_GetRef(Input);
+		OutInputs.Add(static_cast<const FSoundModulationInputBase*>(&Input));
 	}
+
+	return OutInputs;
 }
 
-void FSoundPitchModulationPatch::GenerateProxies(TArray<AudioModulation::FModulationInputProxy>& InputProxies) const
+TArray<const FSoundModulationInputBase*> FSoundPitchModulationPatch::GetInputs() const
 {
+	TArray<const FSoundModulationInputBase*> OutInputs;
 	for (const FSoundPitchModulationInput& Input : Inputs)
 	{
-		InputProxies.Emplace_GetRef(Input);
+		OutInputs.Add(static_cast<const FSoundModulationInputBase*>(&Input));
 	}
+
+	return OutInputs;
 }
 
-void FSoundHPFModulationPatch::GenerateProxies(TArray<AudioModulation::FModulationInputProxy>& InputProxies) const
+TArray<const FSoundModulationInputBase*> FSoundLPFModulationPatch::GetInputs() const
 {
-	for (const FSoundHPFModulationInput& Input : Inputs)
-	{
-		InputProxies.Emplace_GetRef(Input);
-	}
-}
-
-void FSoundLPFModulationPatch::GenerateProxies(TArray<AudioModulation::FModulationInputProxy>& InputProxies) const
-{
+	TArray<const FSoundModulationInputBase*> OutInputs;
 	for (const FSoundLPFModulationInput& Input : Inputs)
 	{
-		InputProxies.Emplace_GetRef(Input);
+		OutInputs.Add(static_cast<const FSoundModulationInputBase*>(&Input));
 	}
+
+	return OutInputs;
 }
 
-void FSoundControlModulationPatch::GenerateProxies(TArray<AudioModulation::FModulationInputProxy>& InputProxies) const
+TArray<const FSoundModulationInputBase*> FSoundHPFModulationPatch::GetInputs() const
 {
+	TArray<const FSoundModulationInputBase*> OutInputs;
+	for (const FSoundHPFModulationInput& Input : Inputs)
+	{
+		OutInputs.Add(static_cast<const FSoundModulationInputBase*>(&Input));
+	}
+
+	return OutInputs;
+}
+
+TArray<const FSoundModulationInputBase*> FSoundControlModulationPatch::GetInputs() const
+{
+	TArray<const FSoundModulationInputBase*> OutInputs;
 	for (const FSoundControlModulationInput& Input : Inputs)
 	{
-		InputProxies.Emplace_GetRef(Input);
+		OutInputs.Add(static_cast<const FSoundModulationInputBase*>(&Input));
 	}
+
+	return OutInputs;
 }
 
 FSoundModulationOutput::FSoundModulationOutput()
@@ -222,19 +237,22 @@ FSoundModulationPatchBase::FSoundModulationPatchBase()
 namespace AudioModulation
 {
 	FModulationInputProxy::FModulationInputProxy()
-		: BusId(InvalidBusId)
-		, bSampleAndHold(0)
+		: bSampleAndHold(0)
 	{
 	}
 
-	FModulationInputProxy::FModulationInputProxy(const FSoundModulationInputBase& Input)
-		: BusId(InvalidBusId)
-		, Transform(Input.Transform)
+	FModulationInputProxy::FModulationInputProxy(const FSoundModulationInputBase& Input, FReferencedProxies& OutRefProxies)
+		: Transform(Input.Transform)
 		, bSampleAndHold(Input.bSampleAndHold)
 	{
 		if (const USoundControlBusBase* Bus = Input.GetBus())
 		{
-			BusId = static_cast<AudioModulation::FBusId>(Bus->GetUniqueID());
+			FReferencedProxies* RefProxies = &OutRefProxies;
+			auto OnCreate = [RefProxies, Bus](FControlBusProxy& NewProxy)
+			{
+				NewProxy.InitLFOs(*Bus, RefProxies->LFOs);
+			};
+			BusHandle = FBusHandle::Create(*Bus, OutRefProxies.Buses, OnCreate);
 		}
 	}
 
@@ -259,12 +277,16 @@ namespace AudioModulation
 	{
 	}
 
-	FModulationPatchProxy::FModulationPatchProxy(const FSoundModulationPatchBase& Patch)
+	FModulationPatchProxy::FModulationPatchProxy(const FSoundModulationPatchBase& Patch, FReferencedProxies& OutRefProxies)
 		: DefaultInputValue(Patch.DefaultInputValue)
 		, bBypass(Patch.bBypass)
 		, OutputProxy(*Patch.GetOutput())
 	{
-		Patch.GenerateProxies(InputProxies);
+		TArray<const FSoundModulationInputBase*> Inputs = Patch.GetInputs();
+		for (const FSoundModulationInputBase* Input : Inputs)
+		{
+			InputProxies.Emplace_GetRef(*Input, OutRefProxies);
+		}
 	}
 
 	FModulationSettingsProxy::FModulationSettingsProxy()
@@ -284,23 +306,23 @@ namespace AudioModulation
 		Highpass.OutputProxy.Operator = ESoundModulatorOperator::Max;
 	}
 
-	FModulationSettingsProxy::FModulationSettingsProxy(const USoundModulationSettings& Settings)
+	FModulationSettingsProxy::FModulationSettingsProxy(const USoundModulationSettings& Settings, FReferencedProxies& OutRefProxies)
 		: TModulatorProxyBase<uint32>(Settings.GetName(), Settings.GetUniqueID())
-		, Volume(Settings.Volume)
-		, Pitch(Settings.Pitch)
-		, Lowpass(Settings.Lowpass)
-		, Highpass(Settings.Highpass)
+		, Volume(Settings.Volume, OutRefProxies)
+		, Pitch(Settings.Pitch, OutRefProxies)
+		, Lowpass(Settings.Lowpass, OutRefProxies)
+		, Highpass(Settings.Highpass, OutRefProxies)
 	{
 		for (const FSoundControlModulationPatch& Patch : Settings.Controls)
 		{
-			Controls.Add(Patch.Control, Patch);
+			Controls.Add(Patch.Control, FModulationPatchProxy(Patch, OutRefProxies));
 		}
 
 		for (const USoundControlBusMix* Mix : Settings.Mixes)
 		{
 			if (Mix)
 			{
-				Mixes.Add(static_cast<FBusMixId>(Mix->GetUniqueID()));
+				Mixes.Add(FBusMixHandle::Create(*Mix, OutRefProxies.BusMixes));
 			}
 		}
 	}

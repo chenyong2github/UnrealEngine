@@ -689,12 +689,6 @@ public:
 
 		for (TObjectIterator<UStaticMeshComponent> It; It; ++It)
 		{
-			// First, flush all deferred render updates, as they may depend on InStaticMesh.
-			if (It->IsRenderStateDirty() && It->IsRegistered() && !It->IsTemplate() && !It->IsPendingKill())
-			{
-				It->DoDeferredRenderUpdates_Concurrent();
-			}
-
 			UStaticMesh* StaticMesh = It->GetStaticMesh();
 
 			if (StaticMeshComponents.Contains(StaticMesh))
@@ -708,6 +702,11 @@ public:
 					StaticMeshComponents[StaticMesh].Add(*It);
 					Scenes.Add(It->GetScene());
 				}
+			}
+			// Recreate dirty render state, if needed, only for components not using the static mesh we currently have released resources for.
+			else if (It->IsRenderStateDirty() && It->IsRegistered() && !It->IsTemplate() && !It->IsPendingKill())
+			{
+				It->DoDeferredRenderUpdates_Concurrent();
 			}
 		}
 
@@ -1533,8 +1532,8 @@ private:
 	{
 		FVector4* ElementData = reinterpret_cast<FVector4*>(InstanceOriginDataPtr);
 		uint32 CurrentSize = InstanceOriginData->Num() * InstanceOriginData->GetStride();
-		check((void*)((&ElementData[InstanceIndex]) + 1) <= (void*)(InstanceOriginDataPtr + CurrentSize));
-		check((void*)((&ElementData[InstanceIndex]) + 0) >= (void*)(InstanceOriginDataPtr));
+		checkf((void*)((&ElementData[InstanceIndex]) + 1) <= (void*)(InstanceOriginDataPtr + CurrentSize), TEXT("OOB Instance Set Under: %i, %u, %p, %p"), InstanceIndex, CurrentSize, &ElementData, InstanceOriginDataPtr);
+		checkf((void*)((&ElementData[InstanceIndex]) + 0) >= (void*)(InstanceOriginDataPtr), TEXT("OOB Instance Set: %i, %u, %p, %p"), InstanceIndex, CurrentSize, &ElementData, InstanceOriginDataPtr);
 
 		ElementData[InstanceIndex] = Origin;
 	}

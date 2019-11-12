@@ -17,11 +17,18 @@ FAutoConsoleVariableRef CVarDefaultPatchBufferSize(
 	TEXT("Changes the amount of audio we buffer for VOIP patching, in samples.\n"),
 	ECVF_Default);
 
-static int32 DefaultPatchGainCVar = 1.0f;
+static float DefaultPatchGainCVar = 1.0f;
 FAutoConsoleVariableRef CVarDefaultPatchGain(
 	TEXT("voice.DefaultPatchGain"),
 	DefaultPatchGainCVar,
 	TEXT("Changes the default gain of audio patches, in samples.\n"),
+	ECVF_Default);
+
+static int32 MuteAudioEngineOutputCVar = 0;
+FAutoConsoleVariableRef CVarMuteAudioEngineOutput(
+	TEXT("voice.MuteAudioEngineOutput"),
+	MuteAudioEngineOutputCVar,
+	TEXT("When set to a nonzero value, the output for the audio engine will be muted..\n"),
 	ECVF_Default);
 
 
@@ -63,6 +70,10 @@ int32 UVoipListenerSynthComponent::OnGenerateAudio(float* OutAudio, int32 NumSam
 		ExternalSend.PushAudio(OutAudio, NumSamples);
 	}
 	
+	if (MuteAudioEngineOutputCVar)
+	{
+		FMemory::Memzero(OutAudio, NumSamples * sizeof(float));
+	}
 
 	return NumSamples;
 }

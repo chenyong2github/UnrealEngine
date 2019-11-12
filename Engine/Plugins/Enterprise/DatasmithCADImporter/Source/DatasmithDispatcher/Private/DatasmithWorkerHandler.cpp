@@ -2,6 +2,7 @@
 #include "DatasmithWorkerHandler.h"
 
 #include "DatasmithDispatcher.h"
+#include "DatasmithDispatcherConfig.h"
 #include "DatasmithDispatcherLog.h"
 #include "DatasmithCommands.h"
 
@@ -16,15 +17,23 @@ namespace DatasmithDispatcher
 
 static FString GetWorkerExecutablePath()
 {
-	FString ProcessorPath = FPaths::Combine(FPaths::EnginePluginsDir(), TEXT("Enterprise/DatasmithCADImporter/Binaries"));
+	static FString ProcessorPath = [&]()
+	{
+		FString Path = FPaths::Combine(FPaths::EnginePluginsDir(), TEXT("Enterprise/DatasmithCADImporter/Binaries"));
 
 #if PLATFORM_MAC
-	ProcessorPath = FPaths::Combine(ProcessorPath, TEXT("Mac/DatasmithCADWorker"));
+		Path = FPaths::Combine(Path, TEXT("Mac/DatasmithCADWorker"));
 #elif PLATFORM_LINUX
-	ProcessorPath = FPaths::Combine(ProcessorPath, TEXT("Linux/DatasmithCADWorker"));
+		Path = FPaths::Combine(Path, TEXT("Linux/DatasmithCADWorker"));
 #elif PLATFORM_WINDOWS
-	ProcessorPath = FPaths::Combine(ProcessorPath, TEXT("Win64/DatasmithCADWorker.exe"));
+		Path = FPaths::Combine(Path, TEXT("Win64/DatasmithCADWorker.exe"));
 #endif
+		if (!FPaths::FileExists(Path))
+		{
+			UE_LOG(LogDatasmithDispatcher, Warning, TEXT("CADWorker executable not found. Expected location: %s"), *FPaths::ConvertRelativePathToFull(ProcessorPath));
+		}
+		return Path;
+	}();
 
 	return ProcessorPath;
 }
@@ -36,7 +45,6 @@ FDatasmithWorkerHandler::FDatasmithWorkerHandler(FDatasmithDispatcher& InDispatc
 	, CachePath(InCachePath)
 	, bShouldTerminate(false)
 {
-	CommandIO.SetNetworkInterface(&NetworkInterface);
 	ThreadName = FString(TEXT("DatasmithWorkerHandler_")) + FString::FromInt(Id);
 	IOThread = FThread(*ThreadName, [this]() { Run(); } );
 }
@@ -49,7 +57,7 @@ FDatasmithWorkerHandler::~FDatasmithWorkerHandler()
 void FDatasmithWorkerHandler::StartWorkerProcess()
 {
 	ensure(ErrorState == EWorkerErrorState::Ok);
-	static const FString ProcessorPath = GetWorkerExecutablePath();
+	FString ProcessorPath = GetWorkerExecutablePath();
 	if (FPaths::FileExists(ProcessorPath))
 	{
 		int32 ListenPort = NetworkInterface.GetListeningPort();
@@ -63,7 +71,7 @@ void FDatasmithWorkerHandler::StartWorkerProcess()
 		CommandToProcess += TEXT(" -ServerPID ") + FString::FromInt(FPlatformProcess::GetCurrentProcessId());
 		CommandToProcess += TEXT(" -ServerPort ") + FString::FromInt(ListenPort);
 		CommandToProcess += TEXT(" -CacheDir \"") + CachePath + TEXT('"');
-		UE_LOG(LogDatasmithDispatcher, Display, TEXT("CommandToProcess: %s"), *CommandToProcess);
+		UE_LOG(LogDatasmithDispatcher, Verbose, TEXT("CommandToProcess: %s"), *CommandToProcess);
 
 		uint32 WorkerProcessId = 0;
 		WorkerHandle = FPlatformProcess::CreateProc(*ProcessorPath, *CommandToProcess, true, false, false, &WorkerProcessId, 0, nullptr, nullptr);
@@ -92,18 +100,12 @@ void FDatasmithWorkerHandler::ValidateConnection()
 	}
 }
 
-// void FDatasmithWorkerHandler::RestartProcessor()
-// {
-// 	FPlatformProcess::TerminateProc(WorkerHandle, true);
-// 	StartWorker();
-// }
-
 void FDatasmithWorkerHandler::Run()
 {
 	WorkerState = EWorkerState::Uninitialized;
 	RunInternal();
-	UE_CLOG(ErrorState != EWorkerErrorState::Ok, LogDatasmithDispatcher, Error, TEXT("ErrorState != OK on exit (%d)"), uint32(ErrorState));
 	WorkerState = EWorkerState::Terminated;
+	UE_CLOG(ErrorState != EWorkerErrorState::Ok, LogDatasmithDispatcher, Warning, TEXT("Handler ended with error: %s"), EWorkerErrorStateAsString(ErrorState));
 }
 
 void FDatasmithWorkerHandler::RunInternal()
@@ -126,10 +128,13 @@ void FDatasmithWorkerHandler::RunInternal()
 
 				// The Accept() call on the server blocks until a connection is initiated from a client
 				static const FString SocketDescription = TEXT("DatasmithWorkerHandler");
-				double AcceptTimeout_s = 300;
-				if (!NetworkInterface.Accept(SocketDescription, AcceptTimeout_s))
+				if (!NetworkInterface.Accept(SocketDescription, Config::AcceptTimeout_s))
 				{
 					ErrorState = EWorkerErrorState::ConnectionFailed_NoClient;
+				}
+				else
+				{
+					CommandIO.SetNetworkInterface(&NetworkInterface);
 				}
 
 				if (ErrorState != EWorkerErrorState::Ok)
@@ -144,22 +149,6 @@ void FDatasmithWorkerHandler::RunInternal()
 
 			case EWorkerState::Idle:
 			{
-// 				// Verify connection
-// 				if (!ClientSocketWrapper.IsConnected() || !ClientSocketWrapper.CanWrite())
-// 				{
-// 					ErrorState = EWorkerErrorState::ConnectionLost;
-// 					if (CurrentTask.IsSet())
-// 					{
-// 						Dispatcher.SetTaskState(CurrentTask->Index, ETaskState::ProcessFailed);
-// 						CurrentTask.Reset();
-// 					}
-//
-// 					// Restart processor
-// 					FPlatformProcess::TerminateProc(WorkerHandle, true);
-// 					WorkerState = EWorkerState::Uninitialized;
-// 						// RestartProcessor();
-// 				}
-
 				// Fetch a new task
 				ensureMsgf(CurrentTask.IsSet() == false, TEXT("We should not have a current task when fetching a new one"));
 				CurrentTask = Dispatcher.GetNextTask();
@@ -168,10 +157,9 @@ void FDatasmithWorkerHandler::RunInternal()
 				{
 					FRunTaskCommand NewTask(CurrentTask.GetValue());
 
-					double SendTimeout_s = 3.0;
-					if (CommandIO.SendCommand(NewTask, SendTimeout_s))
+					if (CommandIO.SendCommand(NewTask, Config::SendCommandTimeout_s))
 					{
-						UE_LOG(LogDatasmithDispatcher, Display, TEXT("New task command sent"));
+						UE_LOG(LogDatasmithDispatcher, Verbose, TEXT("New task command sent"));
 						WorkerState = EWorkerState::Processing;
 					}
 					else
@@ -186,7 +174,7 @@ void FDatasmithWorkerHandler::RunInternal()
 				}
 				else if (bShouldTerminate)
 				{
-					UE_LOG(LogDatasmithDispatcher, Display, TEXT("Exit loop gracefully"));
+					UE_LOG(LogDatasmithDispatcher, Verbose, TEXT("Exit loop gracefully"));
 					WorkerState = EWorkerState::Closing;
 				}
 				else
@@ -194,7 +182,7 @@ void FDatasmithWorkerHandler::RunInternal()
 					ValidateConnection();
 
 					// consume
-					if (TSharedPtr<ICommand> Command = CommandIO.GetNextCommand(0.1))
+					if (TSharedPtr<ICommand> Command = CommandIO.GetNextCommand(Config::IdleLoopDelay))
 					{
 						ProcessCommand(*Command);
 					}
@@ -205,7 +193,7 @@ void FDatasmithWorkerHandler::RunInternal()
 
 			case EWorkerState::Processing:
 			{
-				if (TSharedPtr<ICommand> Command = CommandIO.GetNextCommand(0.5))
+				if (TSharedPtr<ICommand> Command = CommandIO.GetNextCommand(Config::ProcessingLoopDelay))
 				{
 					ProcessCommand(*Command);
 
@@ -220,48 +208,40 @@ void FDatasmithWorkerHandler::RunInternal()
 					ValidateConnection();
 					if (ErrorState == EWorkerErrorState::WorkerProcess_Lost)
 					{
-						WorkerState = EWorkerState::Restarting;
+						if (CurrentTask.IsSet())
+						{
+							Dispatcher.SetTaskState(CurrentTask->Index, ETaskState::ProcessFailed);
+							CurrentTask.Reset();
+						}
+
+						WorkerState = EWorkerState::Closing;
 					}
 				}
-				break;
-			}
-
-			case EWorkerState::Restarting:
-			{
-				// TODO:
-				// close the network interface but fetch all data before
-				// StartWorkerProcess();
-				// reconnect network (Accept...)
-
-				WorkerState = EWorkerState::Closing; // Not implemented yet
 				break;
 			}
 
 			case EWorkerState::Closing:
 			{
 				// try to close the process gracefully
-				bool CloseByCommand = NetworkInterface.IsValid() &&
-					(!WorkerHandle.IsValid() || FPlatformProcess::IsProcRunning(WorkerHandle));
-
-				if (CloseByCommand)
-				{
-					FTerminateCommand Terminate;
-					CommandIO.SendCommand(Terminate, 0);
-				}
-
 				if (WorkerHandle.IsValid())
 				{
-					int32 CloseTimeout_s = CloseByCommand ? 1 : 0;
+					bool CloseByCommand = Config::CloseProcessByCommand && CommandIO.IsValid() && FPlatformProcess::IsProcRunning(WorkerHandle);
 
 					bool bClosed = false;
-					for (int32 i = 0; i < 10 * CloseTimeout_s; ++i)
+					if (CloseByCommand)
 					{
-						if (!FPlatformProcess::IsProcRunning(WorkerHandle))
+						FTerminateCommand Terminate;
+						CommandIO.SendCommand(Terminate, 0);
+
+						for (int32 i = 0; i < int32(10. * Config::TerminateTimeout_s); ++i)
 						{
-							bClosed = true;
-							break;
+							if (!FPlatformProcess::IsProcRunning(WorkerHandle))
+							{
+								bClosed = true;
+								break;
+							}
+							FPlatformProcess::Sleep(0.1);
 						}
-						FPlatformProcess::Sleep(0.1);
 					}
 
 					if (!bClosed)
@@ -270,9 +250,8 @@ void FDatasmithWorkerHandler::RunInternal()
 					}
 				}
 
-				CommandIO.Disconnect(0);
-
 				// Process commands still in input queue
+				CommandIO.Disconnect(0);
 				while (TSharedPtr<ICommand> Command = CommandIO.GetNextCommand(0))
 				{
 					ProcessCommand(*Command);
@@ -290,7 +269,6 @@ void FDatasmithWorkerHandler::RunInternal()
 	}
 }
 
-
 void FDatasmithWorkerHandler::Stop()
 {
 	bShouldTerminate = true;
@@ -299,6 +277,14 @@ void FDatasmithWorkerHandler::Stop()
 bool FDatasmithWorkerHandler::IsAlive() const
 {
 	return WorkerState != EWorkerState::Terminated;
+}
+
+bool FDatasmithWorkerHandler::IsRestartable() const
+{
+	return !IsAlive() && (
+		ErrorState == EWorkerErrorState::WorkerProcess_Lost ||
+		ErrorState == EWorkerErrorState::ConnectionLost
+	);
 }
 
 void FDatasmithWorkerHandler::ProcessCommand(ICommand& Command)
@@ -341,4 +327,20 @@ void FDatasmithWorkerHandler::ProcessCommand(FCompletedTaskCommand& CompletedTas
 	Dispatcher.LinkCTFileToUnrealCacheFile(CurrentFileName, CompletedTaskCommand.SceneGraphFileName, CompletedTaskCommand.GeomFileName);
 	CurrentTask.Reset();
 }
+
+const TCHAR* FDatasmithWorkerHandler::EWorkerErrorStateAsString(EWorkerErrorState Error)
+{
+	switch (Error)
+	{
+		case EWorkerErrorState::Ok: return TEXT("Ok");
+		case EWorkerErrorState::ConnectionFailed_NotBound: return TEXT("Connection failed (socket not bound)");
+		case EWorkerErrorState::ConnectionFailed_NoClient: return TEXT("Connection failed (No connection from client)");
+		case EWorkerErrorState::ConnectionLost: return TEXT("Connection lost");
+		case EWorkerErrorState::ConnectionLost_SendFailed: return TEXT("Connection lost (send failed)");
+		case EWorkerErrorState::WorkerProcess_CantCreate: return TEXT("Worker process issue (cannot create worker process)");
+		case EWorkerErrorState::WorkerProcess_Lost: return TEXT("Worker process issue (worker lost)");
+		default: return TEXT("unknown");
+	}
+}
+
 } // ns DatasmithDispatcher

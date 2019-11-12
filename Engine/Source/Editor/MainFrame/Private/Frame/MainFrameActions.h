@@ -227,6 +227,9 @@ public:
 	/** Opens an IDE to edit c++ code */
 	static void OpenIDE();
 
+	/** Determines whether we can open the IDE to edit c++ code */
+	static bool CanOpenIDE();
+
 	/** Zips up the project */
 	static void ZipUpProject();
 

@@ -718,6 +718,7 @@ UNiagaraNodeParameterMapSet& FNiagaraStackGraphUtilities::GetOrCreateStackFuncti
 	if (OverrideNode == nullptr)
 	{
 		UEdGraph* Graph = StackFunctionCall.GetGraph();
+		Graph->Modify();
 		FGraphNodeCreator<UNiagaraNodeParameterMapSet> ParameterMapSetNodeCreator(*Graph);
 		OverrideNode = ParameterMapSetNodeCreator.CreateNode();
 		ParameterMapSetNodeCreator.Finalize();
@@ -877,6 +878,7 @@ void FNiagaraStackGraphUtilities::SetLinkedValueHandleForFunctionInput(UEdGraphP
 
 	UNiagaraNodeParameterMapSet* OverrideNode = CastChecked<UNiagaraNodeParameterMapSet>(OverridePin.GetOwningNode());
 	UEdGraph* Graph = OverrideNode->GetGraph();
+	Graph->Modify();
 	FGraphNodeCreator<UNiagaraNodeParameterMapGet> GetNodeCreator(*Graph);
 	UNiagaraNodeParameterMapGet* GetNode = GetNodeCreator.CreateNode();
 	GetNodeCreator.Finalize();
@@ -908,6 +910,7 @@ void FNiagaraStackGraphUtilities::SetDataValueObjectForFunctionInput(UEdGraphPin
 
 	UNiagaraNodeParameterMapSet* OverrideNode = CastChecked<UNiagaraNodeParameterMapSet>(OverridePin.GetOwningNode());
 	UEdGraph* Graph = OverrideNode->GetGraph();
+	Graph->Modify();
 	FGraphNodeCreator<UNiagaraNodeInput> InputNodeCreator(*Graph);
 	UNiagaraNodeInput* InputNode = InputNodeCreator.CreateNode();
 	FNiagaraEditorUtilities::InitializeParameterInputNode(*InputNode, FNiagaraTypeDefinition(DataObjectType), CastChecked<UNiagaraGraph>(Graph), *DataObjectName);
@@ -930,6 +933,7 @@ void FNiagaraStackGraphUtilities::SetDynamicInputForFunctionInput(UEdGraphPin& O
 
 	UNiagaraNodeParameterMapSet* OverrideNode = CastChecked<UNiagaraNodeParameterMapSet>(OverridePin.GetOwningNode());
 	UEdGraph* Graph = OverrideNode->GetGraph();
+	Graph->Modify();
 	FGraphNodeCreator<UNiagaraNodeFunctionCall> FunctionCallNodeCreator(*Graph);
 	UNiagaraNodeFunctionCall* FunctionCallNode = FunctionCallNodeCreator.CreateNode();
 	FunctionCallNode->FunctionScript = DynamicInput;
@@ -983,6 +987,7 @@ void FNiagaraStackGraphUtilities::SetCustomExpressionForFunctionInput(UEdGraphPi
 	UEdGraph* Graph = OverrideNode->GetGraph();
 	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(OverrideNode->GetSchema());
 
+	Graph->Modify();
 	FGraphNodeCreator<UNiagaraNodeCustomHlsl> FunctionCallNodeCreator(*Graph);
 	UNiagaraNodeCustomHlsl* FunctionCallNode = FunctionCallNodeCreator.CreateNode();
 	FunctionCallNode->InitAsCustomHlslDynamicInput(Schema->PinToTypeDefinition(&OverridePin));
@@ -2130,6 +2135,7 @@ void FNiagaraStackGraphUtilities::RebuildEmitterNodes(UNiagaraSystem& System)
 	{
 		return;
 	}
+	SystemGraph->Modify();
 
 	TArray<UNiagaraNodeEmitter*> CurrentEmitterNodes;
 	SystemGraph->GetNodesOfClass<UNiagaraNodeEmitter>(CurrentEmitterNodes);

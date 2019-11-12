@@ -9,6 +9,25 @@
 #include "LiveLinkMessageBusSource.h"
 #include "MessageEndpointBuilder.h"
 
+
+namespace LiveLinkMessageBusHelper
+{
+	double CalculateProviderMachineOffset(double SourceMachinePlatformSeconds, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
+	{
+		const FDateTime Now = FDateTime::UtcNow();
+		const double MyMachineSeconds = FPlatformTime::Seconds();
+		const FTimespan Latency = Now - Context->GetTimeSent();
+		double MachineTimeOffset = 0.0f;
+		if (SourceMachinePlatformSeconds >= 0.0)
+		{
+			MachineTimeOffset = MyMachineSeconds - SourceMachinePlatformSeconds - Latency.GetTotalSeconds();
+		}
+
+		return MachineTimeOffset;
+	}
+}
+
+
 ULiveLinkMessageBusFinder::ULiveLinkMessageBusFinder()
 	: MessageEndpoint(nullptr)
 {
@@ -58,7 +77,9 @@ void ULiveLinkMessageBusFinder::HandlePongMessage(const FLiveLinkPongMessage& Me
 	if (Message.PollRequest == CurrentPollRequest)
 	{
 		FScopeLock ScopedLock(&PollDataCriticalSection);
-		PollData.Add(FProviderPollResult(Context->GetSender(), Message.ProviderName, Message.MachineName));
+		
+		const double MachineTimeOffset = LiveLinkMessageBusHelper::CalculateProviderMachineOffset(Message.CreationPlatformTime, Context);
+		PollData.Add(FProviderPollResult(Context->GetSender(), Message.ProviderName, Message.MachineName, MachineTimeOffset));
 	}
 };
 
@@ -69,7 +90,7 @@ void ULiveLinkMessageBusFinder::ConnectToProvider(UPARAM(ref) FProviderPollResul
 	if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
 	{
 		ILiveLinkClient* LiveLinkClient = &ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
-		TSharedPtr<FLiveLinkMessageBusSource> NewSource = MakeShared<FLiveLinkMessageBusSource>(FText::FromString(Provider.Name), FText::FromString(Provider.MachineName), Provider.Address);
+		TSharedPtr<FLiveLinkMessageBusSource> NewSource = MakeShared<FLiveLinkMessageBusSource>(FText::FromString(Provider.Name), FText::FromString(Provider.MachineName), Provider.Address, Provider.MachineTimeOffset);
 		LiveLinkClient->AddSource(NewSource);
 		SourceHandle.SetSourcePointer(NewSource);
 	}
@@ -83,3 +104,5 @@ ULiveLinkMessageBusFinder* ULiveLinkMessageBusFinder::ConstructMessageBusFinder(
 {
 	return NewObject<ULiveLinkMessageBusFinder>();
 }
+
+

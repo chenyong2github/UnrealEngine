@@ -9,6 +9,9 @@
 
 namespace InstallBundleUtil
 {
+	// Returns the app version in the same format as BPS versions
+	INSTALLBUNDLEMANAGER_API FString GetAppVersion();
+
 	INSTALLBUNDLEMANAGER_API bool HasInternetConnection(ENetworkConnectionType ConnectionType);
 
 	INSTALLBUNDLEMANAGER_API bool StateSignifiesNeedsInstall(EBundleState StateIn);

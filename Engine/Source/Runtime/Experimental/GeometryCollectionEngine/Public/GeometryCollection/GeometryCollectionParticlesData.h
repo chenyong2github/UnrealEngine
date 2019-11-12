@@ -78,7 +78,8 @@ public:
 	bool RequestSyncedData(EGeometryCollectionParticlesData Data) const { SetDataSyncFlag(Data); return HasSyncedData(Data); }
 
 	/** Copy the data of the specified set of particles/rigid body ids to this object. */
-	void Sync(const Chaos::FPhysicsSolver* Solver, const TManagedArray<int32>& RigidBodyIds);
+	//void Sync(const Chaos::FPhysicsSolver* Solver, const TManagedArray<int32>& RigidBodyIds);
+	void Sync(const Chaos::FPhysicsSolver* Solver, const TManagedArray<FGuid>& RigidBodyIds);
 
 	const Chaos::TVector<T, d>               & GetX                     (int32 Index) const { check(HasSyncedData(EGeometryCollectionParticlesData::X                     )); return BufferedData.GetGameDataForRead().X                     [Index]; }
 	const Chaos::TRotation<T, d>             & GetR                     (int32 Index) const { check(HasSyncedData(EGeometryCollectionParticlesData::R                     )); return BufferedData.GetGameDataForRead().R                     [Index]; }
@@ -165,7 +166,7 @@ private:
 		void Reset(EGeometryCollectionParticlesData Data);
 
 		/** Copy the specified particle information for the specified range of rigid body id. */
-		void Copy(EGeometryCollectionParticlesData Data, const Chaos::FPhysicsSolver* Solver, const TManagedArray<int32>& RigidBodyIds);
+		void Copy(EGeometryCollectionParticlesData Data, const Chaos::FPhysicsSolver* Solver, const TManagedArray<FGuid>& RigidBodyIds);
 
 		/** Return a string with the entire set of value for the synced data of the specified particle. */
 		FString ToString(int32 Index, const TCHAR* Separator) const;
