@@ -1273,73 +1273,73 @@ public:
 
 public:
 
-	void TestEqual(const TCHAR* What, int32 Actual, int32 Expected);
-	void TestEqual(const TCHAR* What, int64 Actual, int64 Expected);
-	void TestEqual(const TCHAR* What, float Actual, float Expected, float Tolerance = KINDA_SMALL_NUMBER);
-	void TestEqual(const TCHAR* What, double Actual, double Expected, double Tolerance = KINDA_SMALL_NUMBER);
-	void TestEqual(const TCHAR* What, FVector Actual, FVector Expected, float Tolerance = KINDA_SMALL_NUMBER);
-	void TestEqual(const TCHAR* What, FColor Actual, FColor Expected);
-	void TestEqual(const TCHAR* What, const TCHAR* Actual, const TCHAR* Expected);
-	void TestEqualInsensitive(const TCHAR* What, const TCHAR* Actual, const TCHAR* Expected);
+	bool TestEqual(const TCHAR* What, int32 Actual, int32 Expected);
+	bool TestEqual(const TCHAR* What, int64 Actual, int64 Expected);
+	bool TestEqual(const TCHAR* What, float Actual, float Expected, float Tolerance = KINDA_SMALL_NUMBER);
+	bool TestEqual(const TCHAR* What, double Actual, double Expected, double Tolerance = KINDA_SMALL_NUMBER);
+	bool TestEqual(const TCHAR* What, FVector Actual, FVector Expected, float Tolerance = KINDA_SMALL_NUMBER);
+	bool TestEqual(const TCHAR* What, FColor Actual, FColor Expected);
+	bool TestEqual(const TCHAR* What, const TCHAR* Actual, const TCHAR* Expected);
+	bool TestEqualInsensitive(const TCHAR* What, const TCHAR* Actual, const TCHAR* Expected);
 
-	void TestEqual(const FString& What, int32 Actual, int32 Expected)
+	bool TestEqual(const FString& What, int32 Actual, int32 Expected)
 	{
-		TestEqual(*What, Actual, Expected);
+		return TestEqual(*What, Actual, Expected);
 	}
 
-	void TestEqual(const FString& What, float Actual, float Expected, float Tolerance = KINDA_SMALL_NUMBER)
+	bool TestEqual(const FString& What, float Actual, float Expected, float Tolerance = KINDA_SMALL_NUMBER)
 	{
-		TestEqual(*What, Actual, Expected, Tolerance);
+		return TestEqual(*What, Actual, Expected, Tolerance);
 	}
 
-	void TestEqual(const FString& What, double Actual, double Expected, double Tolerance = KINDA_SMALL_NUMBER)
+	bool TestEqual(const FString& What, double Actual, double Expected, double Tolerance = KINDA_SMALL_NUMBER)
 	{
-		TestEqual(*What, Actual, Expected, Tolerance);
+		return TestEqual(*What, Actual, Expected, Tolerance);
 	}
 
-	void TestEqual(const FString& What, FVector Actual, FVector Expected, float Tolerance = KINDA_SMALL_NUMBER)
+	bool TestEqual(const FString& What, FVector Actual, FVector Expected, float Tolerance = KINDA_SMALL_NUMBER)
 	{
-		TestEqual(*What, Actual, Expected, Tolerance);
+		return TestEqual(*What, Actual, Expected, Tolerance);
 	}
 
-	void TestEqual(const FString& What, FColor Actual, FColor Expected)
+	bool TestEqual(const FString& What, FColor Actual, FColor Expected)
 	{
-		TestEqual(*What, Actual, Expected);
+		return TestEqual(*What, Actual, Expected);
 	}
 
-	void TestEqual(const FString& What, const TCHAR* Actual, const TCHAR* Expected)
+	bool TestEqual(const FString& What, const TCHAR* Actual, const TCHAR* Expected)
 	{
-		TestEqual(*What, Actual, Expected);
+		return TestEqual(*What, Actual, Expected);
 	}
 
-	void TestEqual(const TCHAR* What, const FString& Actual, const TCHAR* Expected)
+	bool TestEqual(const TCHAR* What, const FString& Actual, const TCHAR* Expected)
 	{
-		TestEqualInsensitive(What, *Actual, Expected);
+		return TestEqualInsensitive(What, *Actual, Expected);
 	}
 
-	void TestEqual(const FString& What, const FString& Actual, const TCHAR* Expected)
+	bool TestEqual(const FString& What, const FString& Actual, const TCHAR* Expected)
 	{
-		TestEqualInsensitive(*What, *Actual, Expected);
+		return TestEqualInsensitive(*What, *Actual, Expected);
 	}
 
-	void TestEqual(const TCHAR* What, const TCHAR* Actual, const FString& Expected)
+	bool TestEqual(const TCHAR* What, const TCHAR* Actual, const FString& Expected)
 	{
-		TestEqualInsensitive(What, Actual, *Expected);
+		return TestEqualInsensitive(What, Actual, *Expected);
 	}
 
-	void TestEqual(const FString& What, const TCHAR* Actual, const FString& Expected)
+	bool TestEqual(const FString& What, const TCHAR* Actual, const FString& Expected)
 	{
-		TestEqualInsensitive(*What, Actual, *Expected);
+		return TestEqualInsensitive(*What, Actual, *Expected);
 	}
 
-	void TestEqual(const TCHAR* What, const FString& Actual, const FString& Expected)
+	bool TestEqual(const TCHAR* What, const FString& Actual, const FString& Expected)
 	{
-		TestEqualInsensitive(What, *Actual, *Expected);
+		return TestEqualInsensitive(What, *Actual, *Expected);
 	}
 
-	void TestEqual(const FString& What, const FString& Actual, const FString& Expected)
+	bool TestEqual(const FString& What, const FString& Actual, const FString& Expected)
 	{
-		TestEqualInsensitive(*What, *Actual, *Expected);
+		return TestEqualInsensitive(*What, *Actual, *Expected);
 	}
 
 	/**
@@ -1352,18 +1352,20 @@ public:
 	 * @see TestNotEqual
 	 */
 	template<typename ValueType> 
-	void TestEqual(const TCHAR* What, const ValueType& Actual, const ValueType& Expected)
+	bool TestEqual(const TCHAR* What, const ValueType& Actual, const ValueType& Expected)
 	{
 		if (Actual != Expected)
 		{
 			AddError(FString::Printf(TEXT("%s: The two values are not equal."), What), 1);
+			return false;
 		}
+		return true;
 	}
 
 	template<typename ValueType>
-	void TestEqual(const FString& What, const ValueType& Actual, const ValueType& Expected)
+	bool TestEqual(const FString& What, const ValueType& Actual, const ValueType& Expected)
 	{
-		TestEqual(*What, Actual, Expected);
+		return TestEqual(*What, Actual, Expected);
 	}
 
 
@@ -1375,11 +1377,11 @@ public:
 	 *
 	 * @see TestFalse
 	 */
-	void TestFalse(const TCHAR* What, bool Value);
+	bool TestFalse(const TCHAR* What, bool Value);
 
-	void TestFalse(const FString& What, bool Value)
+	bool TestFalse(const FString& What, bool Value)
 	{
-		TestFalse(*What, Value);
+		return TestFalse(*What, Value);
 	}
 
 	/**
@@ -1390,17 +1392,19 @@ public:
 	 *
 	 * @see TestValid
 	 */
-	template<typename ValueType> void TestInvalid(const TCHAR* Description, const TSharedPtr<ValueType>& SharedPointer)
+	template<typename ValueType> bool TestInvalid(const TCHAR* Description, const TSharedPtr<ValueType>& SharedPointer)
 	{
 		if (SharedPointer.IsValid())
 		{
 			AddError(FString::Printf(TEXT("%s: The shared pointer is valid."), Description), 1);
+			return false;
 		}
+		return true;
 	}
 
-	template<typename ValueType> void TestInvalid(const FString& Description, const TSharedPtr<ValueType>& SharedPointer)
+	template<typename ValueType> bool TestInvalid(const FString& Description, const TSharedPtr<ValueType>& SharedPointer)
 	{
-		TestInvalid(*Description, SharedPointer);
+		return TestInvalid(*Description, SharedPointer);
 	}
 
 	/**
@@ -1412,17 +1416,19 @@ public:
 	 *
 	 * @see TestEqual
 	 */
-	template<typename ValueType> void TestNotEqual(const TCHAR* Description, const ValueType& Actual, const ValueType& Expected)
+	template<typename ValueType> bool TestNotEqual(const TCHAR* Description, const ValueType& Actual, const ValueType& Expected)
 	{
 		if (Actual == Expected)
 		{
 			AddError(FString::Printf(TEXT("%s: The two values are equal."), Description), 1);
+			return false;
 		}
+		return true;
 	}
 
-	template<typename ValueType> void TestNotEqual(const FString& Description, const ValueType& Actual, const ValueType& Expected)
+	template<typename ValueType> bool TestNotEqual(const FString& Description, const ValueType& Actual, const ValueType& Expected)
 	{
-		TestNotEqual(*Description, Actual, Expected);
+		return TestNotEqual(*Description, Actual, Expected);
 	}
 
 	/**
@@ -1433,17 +1439,19 @@ public:
 	 *
 	 * @see TestNull
 	 */
-	template<typename ValueType> void TestNotNull(const TCHAR* What, ValueType* Pointer)
+	template<typename ValueType> bool TestNotNull(const TCHAR* What, ValueType* Pointer)
 	{
 		if (Pointer == nullptr)
 		{
 			AddError(FString::Printf(TEXT("Expected '%s' to be not null."), What), 1);
+			return false;
 		}
+		return true;
 	}
 
-	template<typename ValueType> void TestNotNull(const FString& What, ValueType* Pointer)
+	template<typename ValueType> bool TestNotNull(const FString& What, ValueType* Pointer)
 	{
-		TestNotNull(*What, Pointer);
+		return TestNotNull(*What, Pointer);
 	}
 
 	/**
@@ -1455,17 +1463,19 @@ public:
 	 *
 	 * @see TestSame
 	 */
-	template<typename ValueType> void TestNotSame(const TCHAR* Description, const ValueType& Actual, const ValueType& Expected)
+	template<typename ValueType> bool TestNotSame(const TCHAR* Description, const ValueType& Actual, const ValueType& Expected)
 	{
 		if (&Actual == &Expected)
 		{
 			AddError(FString::Printf(TEXT("%s: The two values are the same."), Description), 1);
+			return false;
 		}
+		return true;
 	}
 
-	template<typename ValueType> void TestNotSame(const FString& Description, const ValueType& Actual, const ValueType& Expected)
+	template<typename ValueType> bool TestNotSame(const FString& Description, const ValueType& Actual, const ValueType& Expected)
 	{
-		TestNotSame(*Description, Actual, Expected);
+		return TestNotSame(*Description, Actual, Expected);
 	}
 
 	/**
@@ -1476,11 +1486,11 @@ public:
 	 *
 	 * @see TestNotNull
 	 */
-	void TestNull(const TCHAR* What, const void* Pointer);
+	bool TestNull(const TCHAR* What, const void* Pointer);
 
-	void TestNull(const FString& What, const void* Pointer)
+	bool TestNull(const FString& What, const void* Pointer)
 	{
-		TestNull(*What, Pointer);
+		return TestNull(*What, Pointer);
 	}
 
 	/**
@@ -1492,17 +1502,19 @@ public:
 	 *
 	 * @see TestNotSame
 	 */
-	template<typename ValueType> void TestSame(const TCHAR* Description, const ValueType& Actual, const ValueType& Expected)
+	template<typename ValueType> bool TestSame(const TCHAR* Description, const ValueType& Actual, const ValueType& Expected)
 	{
 		if (&Actual != &Expected)
 		{
 			AddError(FString::Printf(TEXT("%s: The two values are not the same."), Description), 1);
+			return false;
 		}
+		return true;
 	}
 
-	template<typename ValueType> void TestSame(const FString& Description, const ValueType& Actual, const ValueType& Expected)
+	template<typename ValueType> bool TestSame(const FString& Description, const ValueType& Actual, const ValueType& Expected)
 	{
-		TestSame(*Description, Actual, Expected);
+		return TestSame(*Description, Actual, Expected);
 	}
 
 	/**
@@ -1513,11 +1525,11 @@ public:
 	 *
 	 * @see TestFalse
 	 */
-	void TestTrue(const TCHAR* What, bool Value);
+	bool TestTrue(const TCHAR* What, bool Value);
 
-	void TestTrue(const FString& What, bool Value)
+	bool TestTrue(const FString& What, bool Value)
 	{
-		TestTrue(*What, Value);
+		return TestTrue(*What, Value);
 	}
 
 	/** Macro version of above, uses the passed in expression as the description as well */
@@ -1531,17 +1543,19 @@ public:
 	 *
 	 * @see TestInvalid
 	 */
-	template<typename ValueType> void TestValid(const TCHAR* Description, const TSharedPtr<ValueType>& SharedPointer)
+	template<typename ValueType> bool TestValid(const TCHAR* Description, const TSharedPtr<ValueType>& SharedPointer)
 	{
 		if (!SharedPointer.IsValid())
 		{
 			AddError(FString::Printf(TEXT("%s: The shared pointer is not valid."), Description), 1);
+			return false;
 		}
+		return true;
 	}
 
-	template<typename ValueType> void TestValid(const FString& Description, const TSharedPtr<ValueType>& SharedPointer)
+	template<typename ValueType> bool TestValid(const FString& Description, const TSharedPtr<ValueType>& SharedPointer)
 	{
-		TestValid(*Description, SharedPointer);
+		return TestValid(*Description, SharedPointer);
 	}
 
 protected:
@@ -3081,6 +3095,99 @@ public: \
 	//	END_COMPLEX_AUTOMATION_TEST_PRIVATE(TClass, TBaseClass, PrettyName, TFlags, __FILE__, __LINE__)
 #endif // #if WITH_AUTOMATION_WORKER
 
+
+/**
+ * Macros to make it easy to test state with one-liners: they will run the appropriate
+ * test method and, if the test fail, with execute `return false;`, which (if placed in
+ * the main test case method) will stop the test immediately.
+ *
+ * The error logging is already handled by the test method being called.
+ *
+ * As a result, you can easily test things that, if wrong, would potentially crash the test:
+ *
+ *		bool FMyEasyTest::RunTest(const FString& Parameters)
+ *		{
+ *			TArray<float> Data = GetSomeData();
+ *			int32 Index = GetSomeIndex();
+ *			UTEST_TRUE("Check valid index", Index < Data.Num());
+ *			float DataItem = Data[Index];   // Won't crash, the test exited on the previous 
+ *										    // line if index was invalid.
+ *			UTEST_TRUE("Check valid item", DataItem > 0.f);
+ *		}
+ *
+ */
+
+#define UTEST_EQUAL(What, Actual, Expected)\
+	if (!TestEqual(What, Actual, Expected))\
+	{\
+		return false;\
+	}
+
+#define UTEST_EQUAL_TOLERANCE(What, Actual, Expected, Tolerance)\
+	if (!TestEqual(What, Actual, Expected, Tolerance))\
+	{\
+		return false;\
+	}
+
+#define UTEST_EQUAL_INSENSITIVE(What, Actual, Expected)\
+	if (!TestEqualInsensitive(What, Actual, Expected))\
+	{\
+		return false;\
+	}
+
+#define UTEST_NOT_EQUAL(What, Actual, Expected)\
+	if (!TestNotEqual(What, Actual, Expected))\
+	{\
+		return false;\
+	}
+
+#define UTEST_SAME(What, Actual, Expected)\
+	if (!TestSame(What, Actual, Expected))\
+	{\
+		return false;\
+	}
+
+#define UTEST_NOT_SAME(What, Actual, Expected)\
+	if (!TestNotSame(What, Actual, Expected))\
+	{\
+		return false;\
+	}
+
+#define UTEST_TRUE(What, Value)\
+	if (!TestTrue(What, Value))\
+	{\
+		return false;\
+	}
+
+#define UTEST_FALSE(What, Value)\
+	if (!TestFalse(What, Value))\
+	{\
+		return false;\
+	}
+
+#define UTEST_VALID(What, SharedPointer)\
+	if (!TestValid(What, SharedPointer))\
+	{\
+		return false;\
+	}
+
+#define UTEST_INVALID(What, SharedPointer)\
+	if (!TestInvalid(What, SharedPointer))\
+	{\
+		return false;\
+	}
+
+#define UTEST_NULL(What, Pointer)\
+	if (!TestNull(What, Pointer))\
+	{\
+		return false;\
+	}
+
+#define UTEST_NOT_NULL(What, Pointer)\
+	if (!TestNotNull(What, Pointer))\
+	{\
+		return false;\
+	}
 
 //////////////////////////////////////////////////////////////////////////
 // Basic Latent Commands

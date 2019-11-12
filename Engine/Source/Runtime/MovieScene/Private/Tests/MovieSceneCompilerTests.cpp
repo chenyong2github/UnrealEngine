@@ -333,21 +333,6 @@ bool FMovieSceneCompilerEmptySpaceOnTheFlyTest::RunTest(const FString& Parameter
 }
 
 
-#define _TEST_ASSERT(cond, msgfmt, ...)\
-	if (!ensure((cond)))\
-	{\
-		AddError(FString::Printf(TEXT(msgfmt), __VA_ARGS__));\
-		return false;\
-	}
-
-// This should use TestEqual methods on the test if those methods actually returned the true/false outcome...
-#define _TEST_ASSERT_EQUAL(actual, expected)\
-	if (!ensure(actual == expected))\
-	{\
-		AddError(FString::Printf(TEXT("Expected '%s' but actual value was '%s'."), *LexToString(expected), *LexToString(actual)));\
-		return false;\
-	}
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMovieSceneCompilerSubSequencesTest, "System.Engine.Sequencer.Compiler.SubSequences", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FMovieSceneCompilerSubSequencesTest::RunTest(const FString& Parameters)
 {
@@ -405,16 +390,13 @@ bool FMovieSceneCompilerSubSequencesTest::RunTest(const FString& Parameters)
 		FMovieSceneCompiler::Compile(*RootSequence, Store);
 
 		const FMovieSceneEvaluationTemplate& RootTemplate = Store.AccessTemplate(*RootSequence);
-		_TEST_ASSERT_EQUAL(RootTemplate.EvaluationField.GetRanges().Num(), 3);
-		_TEST_ASSERT_EQUAL(RootTemplate.EvaluationField.GetRange(1), TRange<FFrameNumber>(0, 60));
+		UTEST_EQUAL("Ranges count", RootTemplate.EvaluationField.GetRanges().Num(), 3);
+		UTEST_EQUAL("First range", RootTemplate.EvaluationField.GetRange(1), TRange<FFrameNumber>(0, 60));
 		const FMovieSceneEvaluationGroup& EvalGroup = RootTemplate.EvaluationField.GetGroup(1);
-		_TEST_ASSERT_EQUAL(EvalGroup.SegmentPtrLUT[0].SequenceID, Shot1SequenceID);
+		UTEST_EQUAL("Sequence ID", EvalGroup.SegmentPtrLUT[0].SequenceID, Shot1SequenceID);
 	}
 
 	return true;
 }
-
-#undef _TEST_ASSERT
-#undef _TEST_ASSERT_EQUAL
 
 #endif // WITH_DEV_AUTOMATION_TESTS
