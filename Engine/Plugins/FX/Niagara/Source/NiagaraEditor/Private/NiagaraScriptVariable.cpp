@@ -1,11 +1,9 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraScriptVariable.h"
-#include "NiagaraCommon.h"
 
 UNiagaraScriptVariable::UNiagaraScriptVariable(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, DefaultMode(ENiagaraDefaultMode::Value)
 {
 	
 }
