@@ -1721,7 +1721,8 @@ bool ContentBrowserUtils::IsValidObjectPathForCreate(const FString& ObjectPath, 
 	if ( ObjectPath.Len() > NAME_SIZE )
 	{
 		// This asset already exists at this location, inform the user and continue
-		OutErrorMessage = LOCTEXT("AssetNameTooLong", "This asset name is too long. Please choose a shorter name.");
+		OutErrorMessage = FText::Format(LOCTEXT("AssetNameTooLong", "This asset name is too long ({0} characters), the maximum is {1}. Please choose a shorter name. Asset name: {2}"),
+			FText::AsNumber(ObjectPath.Len()), FText::AsNumber(NAME_SIZE), FText::FromString(ObjectPath));
 		// Return false to indicate that the user should enter a new name
 		return false;
 	}
@@ -1740,8 +1741,8 @@ bool ContentBrowserUtils::IsValidObjectPathForCreate(const FString& ObjectPath, 
 	{
 		// The full path for the asset is too long
 		OutErrorMessage = FText::Format(LOCTEXT("ObjectPathTooLong",
-			"The object path for the asset is too long, the maximum is '{0}'. \nPlease choose a shorter name for the asset or create it in a shallower folder structure."),
-			FText::AsNumber((FPlatformMisc::GetMaxPathLength() - MAX_CLASS_NAME_LENGTH)));
+			"The object path for the asset is too long ({0} characters), the maximum is {1}. \nPlease choose a shorter name for the asset or create it in a shallower folder structure. Asset name: {2}"),
+			FText::AsNumber(ObjectPath.Len()), FText::AsNumber((FPlatformMisc::GetMaxPathLength() - MAX_CLASS_NAME_LENGTH)), FText::FromString(ObjectPath));
 		// Return false to indicate that the user should enter a new name
 		return false;
 	}
@@ -1749,9 +1750,9 @@ bool ContentBrowserUtils::IsValidObjectPathForCreate(const FString& ObjectPath, 
 	if (FullPath.Len() > CVarMaxFullPathLength->GetValueOnGameThread())
 	{
 		// The full path for the asset is too long
-		OutErrorMessage = FText::Format( LOCTEXT("AssetPathTooLong", 
-			"The absolute file path for the asset is too long, the maximum is '{0}'. \nPlease choose a shorter name for the asset or create it in a shallower folder structure."), 
-			FText::AsNumber(CVarMaxFullPathLength->GetValueOnGameThread()));
+		OutErrorMessage = FText::Format( LOCTEXT("AssetPathTooLong",
+			"The absolute file path for the asset is too long ({0} characters), the maximum is {1}. \nPlease choose a shorter name for the asset or create it in a shallower folder structure. Absolute path: {2}"),
+			FText::AsNumber(FullPath.Len()), FText::AsNumber(CVarMaxFullPathLength->GetValueOnGameThread()), FText::FromString(FullPath));
 		// Return false to indicate that the user should enter a new name
 		return false;
 	}
@@ -1921,12 +1922,16 @@ bool ContentBrowserUtils::IsValidPackageForCooking(const FString& PackageName, F
 		if (FEngineBuildSettings::IsInternalBuild())
 		{
 			// The projected length of the path for cooking is too long
-			OutErrorMessage = FText::Format(LOCTEXT("AssetCookingPathTooLongForBuildMachine", "The path to the asset is too long ({0} characters) for cooking by the build machines, the maximum is {1}.\nPlease choose a shorter name for the asset or create it in a shallower folder structure with shorter folder names."), FText::AsNumber(AbsoluteCookPathToAssetLength), FText::AsNumber(MaxCookPathLen));
+			OutErrorMessage = FText::Format(LOCTEXT("AssetCookingPathTooLongForBuildMachine",
+				"The path to the asset is too long ({0} characters) for cooking by the build machines, the maximum is {1}.\nPlease choose a shorter name for the asset or create it in a shallower folder structure with shorter folder names."),
+				FText::AsNumber(AbsoluteCookPathToAssetLength), FText::AsNumber(MaxCookPathLen));
 		}
 		else
 		{
 			// The projected length of the path for cooking is too long
-			OutErrorMessage = FText::Format(LOCTEXT("AssetCookingPathTooLong", "The path to the asset is too long ({0} characters), the maximum for cooking is {1}.\nPlease choose a shorter name for the asset or create it in a shallower folder structure with shorter folder names."), FText::AsNumber(AbsoluteCookPathToAssetLength), FText::AsNumber(MaxCookPathLen));
+			OutErrorMessage = FText::Format(LOCTEXT("AssetCookingPathTooLong",
+				"The path to the asset is too long ({0} characters), the maximum for cooking is {1}.\nPlease choose a shorter name for the asset or create it in a shallower folder structure with shorter folder names."),
+				FText::AsNumber(AbsoluteCookPathToAssetLength), FText::AsNumber(MaxCookPathLen));
 		}
 
 		// Return false to indicate that the user should enter a new name
