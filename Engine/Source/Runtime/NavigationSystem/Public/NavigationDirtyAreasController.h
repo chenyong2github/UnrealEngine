@@ -27,6 +27,9 @@ struct NAVIGATIONSYSTEM_API FNavigationDirtyAreasController
 
 	void Reset();
 	
+	/** sets cumulative time to at least one cycle so next tick will rebuild dirty areas */
+	void ForceRebuildOnNextTick();
+
 	void Tick(float DeltaSeconds, const TArray<ANavigationData*>& NavDataSet, bool bForceRebuilding = false);
 	void AddArea(const FBox& NewArea, int32 Flags);
 	
