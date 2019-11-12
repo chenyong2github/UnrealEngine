@@ -19,6 +19,7 @@ public:
 protected:
 	const uint8*		Cursor = nullptr;
 	const uint8*		End = nullptr;
+	mutable uint32		LastRequestedSize = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -31,9 +32,9 @@ public:
 	bool				Read();
 
 private:
-	static const uint32	BufferSize = 1 << 18;
 	IInDataStream&		DataStream;
 	uint8*				Buffer;
+	uint32				BufferSize;
 };
 
 } // namespace Trace
