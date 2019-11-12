@@ -60,6 +60,11 @@ protected:
 	/** properties that should be copied */
 	TArray<UProperty*> PropertyData;
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = Description)
+	FString CustomDescription;
+#endif // WITH_EDITORONLY_DATA
+
 	/** show detailed information about properties */
 	UPROPERTY(EditInstanceOnly, Category=Description)
 	uint32 bShowPropertyDetails : 1;
