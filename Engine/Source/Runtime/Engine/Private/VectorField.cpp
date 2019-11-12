@@ -286,9 +286,9 @@ void UVectorFieldStatic::InitResource()
 	check(!Resource);
 
 	// Loads and copies the bulk data into CPUData if bAllowCPUAccess is set, otherwise clear CPUData. 
-	UpdateCPUData();
+	UpdateCPUData(false);
 
-	Resource = new FVectorFieldStaticResource(this);
+	Resource = new FVectorFieldStaticResource(this); // Will discard the contents of SourceData
 	Resource->AddRef(); // Increment refcount because of UVectorFieldStatic::Resource is not a TRefCountPtr.
 
 	BeginInitResource(Resource);
@@ -300,21 +300,21 @@ void UVectorFieldStatic::UpdateResource()
 	check(Resource);
 
 	// Loads and copies the bulk data into CPUData if bAllowCPUAccess is set, otherwise clears CPUData. 
-	UpdateCPUData();
+	UpdateCPUData(false);
 
 	FVectorFieldStaticResource* StaticResource = (FVectorFieldStaticResource*)Resource;
-	StaticResource->UpdateResource(this);
+	StaticResource->UpdateResource(this); // Will discard the contents of SourceData
 }
 
 #if WITH_EDITOR
 ENGINE_API void UVectorFieldStatic::SetCPUAccessEnabled()
 {
 	bAllowCPUAccess = true;
-	UpdateCPUData();
+	UpdateCPUData(true);
 }
 #endif // WITH_EDITOR
 
-void UVectorFieldStatic::UpdateCPUData()
+void UVectorFieldStatic::UpdateCPUData(bool bDiscardData)
 {
 	if (bAllowCPUAccess)
 	{
@@ -322,7 +322,7 @@ void UVectorFieldStatic::UpdateCPUData()
 		// If the data is already loaded it makes a copy and discards the old content,
 		// otherwise it simply loads the data directly from file into the pointer after allocating.
 		FFloat16Color *Ptr = nullptr;
-		SourceData.GetCopy((void**)&Ptr, /* bDiscardInternalCopy */ true);
+		SourceData.GetCopy((void**)&Ptr, bDiscardData);
 
 		// Make sure the data is actually valid. 
 		if (!ensure(Ptr))
@@ -340,7 +340,7 @@ void UVectorFieldStatic::UpdateCPUData()
 		}
 
 		// GetCopy should free/unload the data.
-		if (SourceData.IsBulkDataLoaded())
+		if (bDiscardData && SourceData.IsBulkDataLoaded())
 		{
 			// NOTE(mv): This assertion will fail in the case where the bulk data is still available even though the bDiscardInternalCopy
 			//           flag is toggled when FUntypedBulkData::CanLoadFromDisk() also fail. This happens when the user tries to allow 
