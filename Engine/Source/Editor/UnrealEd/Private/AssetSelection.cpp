@@ -49,6 +49,7 @@
 #include "Engine/LevelBounds.h"
 #include "SourceControlHelpers.h"
 #include "ISourceControlModule.h"
+#include "ISourceControlProvider.h"
 #include "Misc/MessageDialog.h"
 
 
