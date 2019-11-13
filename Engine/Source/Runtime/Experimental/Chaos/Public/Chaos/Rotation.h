@@ -7,6 +7,7 @@
 #include <cmath>
 #if !COMPILE_WITHOUT_UNREAL_SUPPORT
 #include "Math/Quat.h"
+#include "Math/RotationMatrix.h"
 #else
 #include <array>
 
