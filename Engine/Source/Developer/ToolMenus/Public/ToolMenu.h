@@ -62,6 +62,9 @@ public:
 	/** returns "SubMenuC.SubMenuD" for menu "ModuleA.MenuB.SubMenuC.SubMenuD" */
 	FString GetSubMenuNamePath() const;
 
+	/* Set support for extenders */
+	void SetExtendersEnabled(bool bEnabled);
+
 	//~ Begin UToolMenuBase Interface
 	virtual bool IsEditing() const override;
 	virtual FName GetSectionName(const FName InEntryName) const override;
@@ -164,6 +167,7 @@ private:
 
 	bool bRegistered;
 	bool bIsRegistering;
+	bool bExtendersEnabled;
 
 	const ISlateStyle* StyleSet;
 

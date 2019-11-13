@@ -263,6 +263,9 @@ public:
 	/* Substitute one menu for another during generate but not during find or extend */
 	void AddMenuSubstitutionDuringGenerate(const FName OriginalMenu, const FName NewMenu);
 
+	/* Remove substitute one menu for another during generate */
+	void RemoveSubstitutionDuringGenerate(const FName InMenu);
+
 	/** Displaying extension points is for debugging menus */
 	DECLARE_DELEGATE_RetVal(bool, FShouldDisplayExtensionPoints);
 	FShouldDisplayExtensionPoints ShouldDisplayExtensionPoints;
