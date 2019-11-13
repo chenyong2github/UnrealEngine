@@ -21,6 +21,7 @@
 #include "Components/TimelineComponent.h"
 #include "Engine/TimelineTemplate.h"
 #include "Engine/UserDefinedStruct.h"
+#include "Blueprint/BlueprintExtension.h"
 #include "EdGraphUtilities.h"
 #include "K2Node_CallFunction.h"
 #include "K2Node_Composite.h"
@@ -3841,10 +3842,11 @@ void FKismetCompilerContext::CreateFunctionList()
 	{
 		BP_SCOPED_COMPILER_EVENT_STAT(EKismetCompilerStats_GenerateFunctionGraphs);
 
-		// Broadcast the blueprint's function generation event to ensure that any function generators are run right before we create the function list for the class layout
-		FGenerateBlueprintFunctionParams Params;
-		Params.CompilerContext = this;
-		Blueprint->GenerateFunctionGraphsEvent.Broadcast(Params);
+		// Allow blueprint extensions for the blueprint to generate function graphs
+		for (UBlueprintExtension* Extension : Blueprint->Extensions)
+		{
+			Extension->GenerateFunctionGraphs(this);
+		}
 	}
 
 	BP_SCOPED_COMPILER_EVENT_STAT(EKismetCompilerStats_CreateFunctionList);
