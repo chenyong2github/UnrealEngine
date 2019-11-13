@@ -309,16 +309,19 @@ class TPBDRigidsEvolutionBase
 	FORCEINLINE_DEBUGGABLE void DirtyParticle(TGeometryParticleHandleImp<T, d, bPersistent>& Particle)
 	{
 		FPendingSpatialData& SpatialData = InternalAccelerationQueue.FindOrAdd(Particle.Handle());
-		SpatialData.AccelerationHandle = TAccelerationStructureHandle<T,d>(Particle);
+		SpatialData.UpdateAccelerationHandle = TAccelerationStructureHandle<T,d>(Particle);
 		SpatialData.bUpdate = true;
 		SpatialData.UpdatedSpatialIdx = Particle.SpatialIdx();
 
 		auto& AsyncSpatialData = AsyncAccelerationQueue.FindOrAdd(Particle.Handle());
-		AsyncSpatialData.AccelerationHandle = TAccelerationStructureHandle<T, d>(Particle);
+		AsyncSpatialData.UpdateAccelerationHandle = TAccelerationStructureHandle<T, d>(Particle);
 		AsyncSpatialData.bUpdate = true;
 		AsyncSpatialData.UpdatedSpatialIdx = Particle.SpatialIdx();
-		//question: is it safe to reuse for external? Should probably avoid it
-		ExternalAccelerationQueue.FindOrAdd(Particle.Handle()) = SpatialData;
+
+		auto& ExternalSpatialData = ExternalAccelerationQueue.FindOrAdd(Particle.Handle());
+		ExternalSpatialData.UpdateAccelerationHandle = TAccelerationStructureHandle<T, d>(Particle);
+		ExternalSpatialData.bUpdate = true;
+		ExternalSpatialData.UpdatedSpatialIdx = Particle.SpatialIdx();
 	}
 
 	void DestroyParticle(TGeometryParticleHandle<T, d>* Particle)
@@ -524,7 +527,7 @@ protected:
 	{
 		auto Particle = ParticleHandle.Handle();
 		FPendingSpatialData& AsyncSpatialData = AsyncAccelerationQueue.FindOrAdd(Particle);
-		AsyncSpatialData.AccelerationHandle = TAccelerationStructureHandle<T, d>(ParticleHandle);
+
 		if (!AsyncSpatialData.bDelete)
 		{
 			//There are three cases to consider:
@@ -532,14 +535,20 @@ protected:
 			//Delete followed by any number deletes and updates and finally an update, in that case we must delete the first particle and add the final (so use first index for delete)
 			//Delete followed by multiple updates and or deletes and a final delete. In that case we still only delete the first particle since the final delete is not really needed (add will be cancelled)
 			AsyncSpatialData.DeletedSpatialIdx = ParticleHandle.SpatialIdx();
+
+			// We cannot overwrite this handle if delete is already pending. (If delete is pending, that means this is the third case, cancelling update is sufficient),
+			AsyncSpatialData.DeleteAccelerationHandle = TAccelerationStructureHandle<T, d>(ParticleHandle);
 		}
-		AsyncSpatialData.bUpdate = false;	//don't bother updating since deleting anyway
+
+		AsyncSpatialData.bUpdate = false;
 		AsyncSpatialData.bDelete = true;
+
+		// Delete data should match async, and update is not set, so this operation should be safe.
 		ExternalAccelerationQueue.FindOrAdd(Particle) = AsyncSpatialData;
 
 		//remove particle immediately for intermediate structure
 		InternalAccelerationQueue.Remove(Particle);
-		InternalAcceleration->RemoveElementFrom(AsyncSpatialData.AccelerationHandle, AsyncSpatialData.DeletedSpatialIdx);	//even though we remove immediately, future adds are still pending
+		InternalAcceleration->RemoveElementFrom(AsyncSpatialData.DeleteAccelerationHandle, AsyncSpatialData.DeletedSpatialIdx);	//even though we remove immediately, future adds are still pending
 	}
 
 	void UpdateConstraintPositionBasedState(T Dt)
@@ -622,7 +631,8 @@ protected:
 	/** Used for updating intermediate spatial structures when they are finished */
 	struct FPendingSpatialData
 	{
-		TAccelerationStructureHandle<T, d> AccelerationHandle;
+		TAccelerationStructureHandle<T, d> UpdateAccelerationHandle;
+		TAccelerationStructureHandle<T, d> DeleteAccelerationHandle;
 		FSpatialAccelerationIdx UpdatedSpatialIdx;
 		FSpatialAccelerationIdx DeletedSpatialIdx;	//need both updated and deleted in case memory is reused but a different idx is neede
 		bool bUpdate;
@@ -635,7 +645,18 @@ protected:
 
 		void Serialize(FChaosArchive& Ar)
 		{
-			Ar << AccelerationHandle;
+			Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializeHashResult)
+			{
+				Ar << UpdateAccelerationHandle;
+				Ar << DeleteAccelerationHandle;
+			}
+			else
+			{
+				Ar << UpdateAccelerationHandle;
+				DeleteAccelerationHandle = UpdateAccelerationHandle;
+			}
+
 			Ar << bUpdate;
 			Ar << bDelete;
 
@@ -673,7 +694,7 @@ protected:
 
 	TMap<FSpatialAccelerationIdx, TUniquePtr<TSpatialAccelerationCache<T, d>>> SpatialAccelerationCache;
 
-	FORCEINLINE_DEBUGGABLE void ApplyParticlePendingData(TGeometryParticleHandle<T, d>* Particle, const FPendingSpatialData& PendingData, FAccelerationStructure& SpatialAcceleration, bool bUpdateCache);
+	FORCEINLINE_DEBUGGABLE void ApplyParticlePendingData(const FPendingSpatialData& PendingData, FAccelerationStructure& SpatialAcceleration, bool bUpdateCache);
 
 	class FChaosAccelerationStructureTask
 	{
