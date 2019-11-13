@@ -52,7 +52,7 @@ namespace Chaos
 		int32 NumberOfCellsXYZ = NumberOfCellsX * NumberOfCellsY * NumberOfCellsZ;
 		for (int32 IdxConstraint = 0; IdxConstraint < ConstraintsArray.Num(); ++IdxConstraint)
 		{
-			FVector Location = (FVector)ConstraintsArray[IdxConstraint].Location - BoundingBox.Min + FVector(0.5f * CellSize);
+			FVector Location = (FVector)ConstraintsArray[IdxConstraint].GetLocation() - BoundingBox.Min + FVector(0.5f * CellSize);
 			int32 HashTableIdx = (int32)(Location.X * CellSizeInv) +
 								 (int32)(Location.Y * CellSizeInv) * NumberOfCellsX +
 								 (int32)(Location.Z * CellSizeInv) * NumberOfCellsXY;

@@ -1758,7 +1758,7 @@ namespace Chaos
 	template<class T, int d>
 	TVector<T, d> GetContactLocation(const TRigidBodyContactConstraint<T, d>& Contact)
 	{
-		return Contact.Location;
+		return Contact.GetLocation();
 	}
 
 	template<class T, int d>
