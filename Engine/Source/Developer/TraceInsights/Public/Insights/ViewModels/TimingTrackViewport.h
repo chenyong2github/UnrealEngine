@@ -4,7 +4,57 @@
 
 #include "CoreMinimal.h"
 
+// Insights
+#include "Insights/ViewModels/TimingViewLayout.h"
+
 class SScrollBar;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+enum class ETimingTrackViewportDirtyFlags : uint32
+{
+	None = 0,
+
+	//////////////////////////////////////////////////
+	// Horizontal viewport flags
+
+	/** Width has changed. */
+	HSizeChanged = (1 << 0),
+
+	/** StartTime has changed. */
+	HPositionChanged = (1 << 1),
+
+	/** ScaleX has changed. */
+	HScaleChanged = (1 << 2),
+
+	/** Intersection between valid session time ([StartSessionTime - EndSessionTime) interval) and viewport time ([StartTime - EndTime) interval) has changed. */
+	HClippedSessionTimeChanged = (1 << 3),
+
+	/** Misc horizontal viewport invalidation flag. */
+	HInvalidated = (1 << 4),
+
+	//////////////////////////////////////////////////
+	// Vertical viewport flags
+
+	/** Height has changed. */
+	VSizeChanged = (1 << 5),
+
+	/** ScrollPosY has changed. */
+	VPositionChanged = (1 << 6),
+
+	/** Layout has changed. */
+	VLayoutChanged = (1 << 7),
+
+	/** Misc vertical viewport invalidation flag. */
+	VInvalidated = (1 << 8),
+
+	//////////////////////////////////////////////////
+
+	AllHorizontal = HSizeChanged | HPositionChanged | HScaleChanged | HClippedSessionTimeChanged | HInvalidated,
+	AllVertical = VSizeChanged | VPositionChanged | VLayoutChanged | VInvalidated,
+	All = AllHorizontal | AllVertical
+};
+ENUM_CLASS_FLAGS(ETimingTrackViewportDirtyFlags);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -32,8 +82,12 @@ public:
 		ScaleX = (5 * 20) / 5.0; // 5s between major tick marks
 
 		TopOffset = 0.0f;
+		BottomOffset = 0.0f;
 		ScrollHeight = 1.0f;
 		ScrollPosY = 0.0f;
+		Layout.ForceNormalMode();
+
+		DirtyFlags = ETimingTrackViewportDirtyFlags::All;
 	}
 
 	/** Width of viewport, in pixels. [px] */
@@ -127,12 +181,17 @@ public:
 	//////////////////////////////////////////////////
 	// Vertical axis
 
-	/** Top offset (to allow the time ruller to be visible), in pixels. [px] */
+	/** Top offset (total height of the visible top docked tracks), in pixels. [px] */
 	float GetTopOffset() const { return TopOffset; }
-
 	void SetTopOffset(float InTopOffset) { TopOffset = InTopOffset; }
+	
+	/** Bottom offset (total height of the visible bottom docked tracks), in pixels. [px] */
+	float GetBottomOffset() const { return BottomOffset; }
+	void SetBottomOffset(float InBottomOffset) { BottomOffset = InBottomOffset; }
 
-	/** Height of the vertical scrollable area, in pixels. [px] */
+	float GetScrollableAreaHeight() const { return Height - TopOffset - BottomOffset; }
+
+	/** Height of the vertical (virtual) scrollable area, in pixels. [px] */
 	float GetScrollHeight() const { return ScrollHeight; }
 	void SetScrollHeight(const float InScrollHeight) { ScrollHeight = InScrollHeight; }
 
@@ -141,6 +200,30 @@ public:
 	void SetScrollPosY(const float InScrollPosY) { ScrollPosY = InScrollPosY; }
 
 	float GetViewportY(const float Y) const { return TopOffset + Y - ScrollPosY; }
+
+	const FTimingViewLayout& GetLayout() const { return Layout; }
+	void UpdateLayout();
+
+	void SwitchLayoutCompactMode()
+	{
+		Layout.bIsCompactMode = !Layout.bIsCompactMode;
+		AddDirtyFlags(ETimingTrackViewportDirtyFlags::VLayoutChanged);
+	}
+
+	void ToggleLayoutMinTrackHeight()
+	{
+		if (Layout.TargetMinTimelineH == 0.0f)
+		{
+			Layout.TargetMinTimelineH = FTimingViewLayout::RealMinTimelineH;
+		}
+		else
+		{
+			Layout.TargetMinTimelineH = 0.0f;
+		}
+
+		Layout.MinTimelineH = Layout.TargetMinTimelineH; // no layout animation
+		AddDirtyFlags(ETimingTrackViewportDirtyFlags::VLayoutChanged);
+	}
 
 	//////////////////////////////////////////////////
 
@@ -151,6 +234,14 @@ public:
 	void UpdateScrollBarY(TSharedPtr<SScrollBar> ScrollBar) const;
 
 	//////////////////////////////////////////////////
+
+	ETimingTrackViewportDirtyFlags GetDirtyFlags() const { return DirtyFlags; }
+	bool IsDirty() const { return DirtyFlags != ETimingTrackViewportDirtyFlags::None; }
+	bool IsDirty(ETimingTrackViewportDirtyFlags InDirtyFlags) const { return EnumHasAnyFlags(DirtyFlags, InDirtyFlags); }
+	bool IsHorizontalViewportDirty() const { return EnumHasAnyFlags(DirtyFlags, ETimingTrackViewportDirtyFlags::AllHorizontal); }
+	bool IsVerticalViewportDirty() const { return EnumHasAnyFlags(DirtyFlags, ETimingTrackViewportDirtyFlags::AllVertical); }
+	void AddDirtyFlags(ETimingTrackViewportDirtyFlags InFlags) { DirtyFlags |= InFlags; }
+	void ResetDirtyFlags() { DirtyFlags = ETimingTrackViewportDirtyFlags::None; }
 
 private:
 	float Width; // width of viewport, in pixels; [px]
@@ -166,9 +257,13 @@ private:
 	double MaxScaleX; // max scale factor; [px/s]
 	double ScaleX; // scale factor between seconds and pixels; [px/s]
 
-	float TopOffset; // top offset (to allow the time ruller to be visible), in pixels; [px]
+	float TopOffset; // top offset, in pixels; [px]
+	float BottomOffset; // bottom offset, in pixels; [px]
 	float ScrollHeight; // height of the vertical scrollable area, in pixels; [px]
 	float ScrollPosY; // current vertical scroll position, in pixels; [px]
+	FTimingViewLayout Layout;
+
+	ETimingTrackViewportDirtyFlags DirtyFlags;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

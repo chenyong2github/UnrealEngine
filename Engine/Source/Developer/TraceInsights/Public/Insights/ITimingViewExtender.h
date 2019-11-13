@@ -14,7 +14,7 @@ namespace Insights
 class ITimingViewSession;
 extern TRACEINSIGHTS_API const FName TimingViewExtenderFeatureName;
 
-class ITimingViewExtender : public IModularFeature
+class TRACEINSIGHTS_API ITimingViewExtender : public IModularFeature
 {
 public:
 	virtual ~ITimingViewExtender() = default;
@@ -25,7 +25,7 @@ public:
 	/** Called to clear out any data at the end of the timing view session */
 	virtual void OnEndSession(ITimingViewSession& InSession) = 0;
 
-	/** Called each frame. If any new tracks are created they can be added via ITimingViewSession::AddTimingEventsTrack() */
+	/** Called each frame. If any new tracks are created they can be added via ITimingViewSession::Add*Track() */
 	virtual void Tick(ITimingViewSession& InSession, const Trace::IAnalysisSession& InAnalysisSession) = 0;
 
 	/** Extension hook for the 'quick filter' menu */
@@ -35,4 +35,4 @@ public:
 	virtual void OnTracksChanged(ITimingViewSession& InSession, int32& InOutOrder) = 0;
 };
 
-}
+} // namespace Insights

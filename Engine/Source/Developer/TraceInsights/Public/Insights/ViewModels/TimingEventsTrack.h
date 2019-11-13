@@ -7,88 +7,37 @@
 // Insights
 #include "Insights/ViewModels/BaseTimingTrack.h"
 
-struct FDrawContext;
-struct FSlateBrush;
-struct FSlateFontInfo;
-struct FTimingEvent;
-class FTimingTrackViewport;
-struct FTimingViewTooltip;
-class ITimingViewDrawHelper;
-class FTooltipDrawState;
-namespace Trace { class IAnalysisSession; }
-class FTimingEventSearchParameters;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-struct TRACEINSIGHTS_API FTimingEventsTrackLayout
-{
-	static constexpr float RealMinTimelineH = 13.0f;
-
-	static constexpr float NormalLayoutEventH = 14.0f;
-	static constexpr float NormalLayoutEventDY = 2.0f;
-	static constexpr float NormalLayoutTimelineDY = 14.0f;
-	static constexpr float NormalLayoutMinTimelineH = 0.0f;
-
-	static constexpr float CompactLayoutEventH = 2.0f;
-	static constexpr float CompactLayoutEventDY = 1.0f;
-	static constexpr float CompactLayoutTimelineDY = 3.0f;
-	static constexpr float CompactLayoutMinTimelineH = 0.0f;
-
-	//////////////////////////////////////////////////
-
-	bool bIsCompactMode;
-
-	float EventH; // height of a timing event, in Slate units
-	float EventDY; // vertical distance between two timing event sub-tracks, in Slate units
-	float TimelineDY; // space at top and bottom of each timeline, in Slate units
-	float MinTimelineH;
-	float TargetMinTimelineH;
-
-	//////////////////////////////////////////////////
-
-	float GetLaneY(uint32 Depth) const { return 1.0f + TimelineDY + Depth * (EventDY + EventH); }
-
-	void ForceNormalMode();
-	void ForceCompactMode();
-	void Update();
-};
+struct FTimingEventsTrackDrawState;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class TRACEINSIGHTS_API FTimingEventsTrack : public FBaseTimingTrack
 {
 public:
-	explicit FTimingEventsTrack(uint64 InTrackId, const FName& InType, const FName& InSubType, const FString& InName);
+	explicit FTimingEventsTrack(const FName& InType, const FName& InSubType, const FString& InName);
 	virtual ~FTimingEventsTrack();
 
-	int32 GetDepth() const { return NumLanes - 1; }
 	int32 GetNumLanes() const { return NumLanes; }
-	void SetDepth(int32 InDepth) { NumLanes = InDepth + 1; }
+	void SetNumLanes(int32 InNumLanes) { NumLanes = InNumLanes; }
+
+	//////////////////////////////////////////////////
+	// FBaseTimingTrack
 
 	virtual void Reset() override;
-	virtual void UpdateHoveredState(float MX, float MY, const FTimingTrackViewport& Viewport);
+	virtual void PostUpdate(const ITimingTrackUpdateContext& Context) override;
 
-	virtual void Draw(ITimingViewDrawHelper& Helper) const = 0;
-	virtual void DrawSelectedEventInfo(const FTimingEvent& SelectedTimingEvent, const FTimingTrackViewport& Viewport, const FDrawContext& DrawContext, const FSlateBrush* WhiteBrush, const FSlateFontInfo& Font) const {}
-	virtual void InitTooltip(FTooltipDrawState& Tooltip, const FTimingEvent& HoveredTimingEvent) const {}
+	virtual void DrawEvent(const ITimingTrackDrawContext& Context, const ITimingEvent& InTimingEvent, EDrawEventMode InDrawMode) const override;
 
-	virtual bool SearchTimingEvent(const FTimingEventSearchParameters& InSearchParameters, FTimingEvent& InOutTimingEvent) const { return false; }
-	virtual void ComputeTimingEventStats(FTimingEvent& InOutTimingEvent) const {}
+	virtual const TSharedPtr<const ITimingEvent> GetEvent(float InPosX, float InPosY, const FTimingTrackViewport& Viewport) const override;
 
-	// Called back from the timing view when an event is selected
-	virtual void OnEventSelected(const FTimingEvent& SelectedTimingEvent) const {}
+	//////////////////////////////////////////////////
 
-	// Called back from the timing view when a selected event is copied to the clipboard with Ctrl+C
-	virtual void OnClipboardCopyEvent(const FTimingEvent& SelectedTimingEvent) const {}
+protected:
+	void UpdateTrackHeight(const ITimingTrackUpdateContext& Context);
 
 private:
 	int32 NumLanes; // number of lanes (sub-tracks)
-
-	// TODO: Cached OnPaint state.
-	//TArray<FEventBoxInfo> Boxes;
-	//TArray<FEventBoxInfo> MergedBorderBoxes;
-	//TArray<FEventBoxInfo> Borders;
-	//TArray<FTextInfo> Texts;
+	TSharedPtr<FTimingEventsTrackDrawState> DrawState;
 
 public:
 	static bool bUseDownSampling;

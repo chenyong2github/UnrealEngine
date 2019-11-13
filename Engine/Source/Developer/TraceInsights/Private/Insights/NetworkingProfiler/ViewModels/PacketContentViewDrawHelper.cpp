@@ -86,10 +86,10 @@ void FPacketContentViewDrawStateBuilder::AddEvent(const Trace::FNetProfilerConte
 	constexpr float EventDY = 2.0f;
 
 	const float EventY = Y0 + (EventH + EventDY) * Depth;
-	if (EventY < -EventH || EventY > Viewport.GetHeight())
-	{
-		return;
-	}
+	//if (EventY < -EventH || EventY > Viewport.GetHeight())
+	//{
+	//	return;
+	//}
 
 	// Ensure we have enough slots in array. See LastEventX2[Depth] usage.
 	while (LastEventX2.Num() <= Depth)
@@ -161,10 +161,7 @@ void FPacketContentViewDrawStateBuilder::AddEvent(const Trace::FNetProfilerConte
 		DrawBox.Y = EventY;
 		DrawBox.W = EventW;
 		DrawBox.H = EventH;
-		DrawBox.Color.R = EventColorFill.R * BorderColorFactor;
-		DrawBox.Color.G = EventColorFill.G * BorderColorFactor;
-		DrawBox.Color.B = EventColorFill.B * BorderColorFactor;
-		DrawBox.Color.A = 1.0f;
+		DrawBox.Color = FLinearColor(EventColorFill.R * BorderColorFactor, EventColorFill.G * BorderColorFactor, EventColorFill.B * BorderColorFactor, EventColorFill.A);
 	}
 	else // 1px or 2px boxes
 	{
@@ -191,12 +188,12 @@ void FPacketContentViewDrawStateBuilder::AddEvent(const Trace::FNetProfilerConte
 			Box.X1 = EventX1;
 			Box.X2 = EventX2;
 			Box.Color = Color;
-			Box.LinearColor = FLinearColor(EventColorFill.R * BorderColorFactor, EventColorFill.G * BorderColorFactor, EventColorFill.B * BorderColorFactor, 1.0f);
+			Box.LinearColor = FLinearColor(EventColorFill.R * BorderColorFactor, EventColorFill.G * BorderColorFactor, EventColorFill.B * BorderColorFactor, EventColorFill.A);
 		}
 	}
 
 	// Draw the name of the event.
-	if (EventW > 8.0f && EventH > 10.0f)
+	if (EventW > 8.0f)
 	{
 		FString Name = EventName ? EventName : TEXT("?");
 		if (EventW > Name.Len() * 2.0f + 48.0f)
@@ -363,11 +360,14 @@ void FPacketContentViewDrawHelper::Draw(const FPacketContentViewDrawState& DrawS
 	DrawContext.LayerId++;
 
 	// Draw texts.
-	for (const FPacketContentViewDrawState::FText& Text : DrawState.Texts)
+	//if (EventH > 10.0f)
 	{
-		DrawContext.DrawText(Text.X, Text.Y, Text.Text, EventFont, Text.bWhite ? FLinearColor::White : FLinearColor::Black);
+		for (const FPacketContentViewDrawState::FText& Text : DrawState.Texts)
+		{
+			DrawContext.DrawText(Text.X, Text.Y, Text.Text, EventFont, Text.bWhite ? FLinearColor::White : FLinearColor::Black);
+		}
+		DrawContext.LayerId++;
 	}
-	DrawContext.LayerId++;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

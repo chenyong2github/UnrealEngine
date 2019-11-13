@@ -1,0 +1,163 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+
+// Insights
+#include "Insights/ViewModels/GraphTrackEvent.h"
+
+class FTimingTrackViewport;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class TRACEINSIGHTS_API FGraphSeries
+{
+	friend class FGraphTrack;
+	friend class FGraphTrackBuilder;
+
+public:
+	struct FBox
+	{
+		float X;
+		float W;
+		float Y;
+	};
+
+public:
+	FGraphSeries();
+	virtual ~FGraphSeries();
+
+	const FText& GetName() const { return Name; }
+	void SetName(const TCHAR* InName) { Name = FText::FromString(InName); }
+	void SetName(const FString& InName) { Name = FText::FromString(InName); }
+	void SetName(const FText& InName) { Name = InName; }
+
+	const FText& GetDescription() const { return Description; }
+	void SetDescription(const TCHAR* InDescription) { Description = FText::FromString(InDescription); }
+	void SetDescription(const FString& InDescription) { Description = FText::FromString(InDescription); }
+	void SetDescription(const FText& InDescription) { Description = InDescription; }
+
+	bool IsVisible() const { return bIsVisible; }
+	void SetVisibility(bool bOnOff) { bIsVisible = bOnOff; }
+
+	bool IsDirty() const { return bIsDirty; }
+	void SetDirtyFlag() { bIsDirty = true; }
+	void ClearDirtyFlag() { bIsDirty = false; }
+
+	const FLinearColor& GetColor() const { return Color; }
+	const FLinearColor& GetBorderColor() const { return BorderColor; }
+
+	void SetColor(FLinearColor InColor, FLinearColor InBorderColor)
+	{
+		Color = InColor;
+		BorderColor = InBorderColor;
+	}
+
+	/**
+	 * @return Y position (in viewport local space) of the baseline (with Value == 0); in pixels (Slate units).
+	 * Y == 0 at the top of the graph track, positive values are downward.
+	 */
+	double GetBaselineY() const { return BaselineY; }
+	void SetBaselineY(const double InBaselineY) { BaselineY = InBaselineY; }
+
+	/**
+	 * @return The scale between Value units and viewport units; in pixels (Slate units) / Value unit.
+	 */
+	double GetScaleY() const { return ScaleY; }
+	void SetScaleY(const double InScaleY) { ScaleY = InScaleY; }
+
+	/**
+	 * @param Value a value; in Value units
+	 * @return Y position (in viewport local space) for a Value; in pixels (Slate units).
+	 * Y == 0 at the top of the graph track, positive values are downward.
+	 */
+	float GetYForValue(double Value) const
+	{
+		return static_cast<float>(BaselineY - Value * ScaleY);
+	}
+
+	float GetRoundedYForValue(double Value) const
+	{
+		return FMath::RoundToFloat(FMath::Clamp<float>(GetYForValue(Value), -FLT_MAX, FLT_MAX));
+	}
+
+	/**
+	 * @param Y a Y position (in viewport local space); in pixels (Slate units).
+	 * @return Value for specified Y position.
+	 */
+	double GetValueForY(float Y) const
+	{
+		return (BaselineY - static_cast<double>(Y)) / ScaleY;
+	}
+
+	bool IsAutoZoomEnabled() const { return bAutoZoom; }
+	void EnableAutoZoom() { bAutoZoom = true; }
+
+	/** Target low value of auto zoom interval (corresponding to bottom of the track) */
+	double GetTargetAutoZoomLowValue() const { return TargetAutoZoomLowValue; }
+	/** Target high value of auto zoom interval (corresponding to top of the track) */
+	double GetTargetAutoZoomHighValue() const { return TargetAutoZoomHighValue; }
+	void SetTargetAutoZoomRange(double LowValue, double HighValue) { TargetAutoZoomLowValue = LowValue; TargetAutoZoomHighValue = HighValue; }
+
+	/** Current auto zoom low value */
+	double GetAutoZoomLowValue() const { return AutoZoomLowValue; }
+	/** Current auto zoom high value */
+	double GetAutoZoomHighValue() const { return AutoZoomHighValue; }
+	void SetAutoZoomRange(double LowValue, double HighValue) { AutoZoomLowValue = LowValue; AutoZoomHighValue = HighValue; }
+
+	/**
+	 * Compute BaselineY and ScaleY so the [Low, High] Value range will correspond to [Top, Bottom] Y position range.
+	 * GetYForValue(InHighValue) == InTopY
+	 * GetYForValue(InLowValue) == InBottomY
+	 */
+	void ComputeBaselineAndScale(const double InLowValue, const double InHighValue, const float InTopY, const float InBottomY, double& OutBaselineY, double& OutScaleY) const
+	{
+		ensure(InLowValue < InHighValue);
+		ensure(InTopY < InBottomY);
+		const double InvRange = 1.0 / (InHighValue - InLowValue);
+		OutScaleY = static_cast<double>(InBottomY - InTopY) * InvRange;
+		//OutBaselineY = (InHighValue * static_cast<double>(InBottomY) - InLowValue * static_cast<double>(InTopY)) * InvRange;
+		OutBaselineY = static_cast<double>(InTopY) + InHighValue * OutScaleY;
+	}
+
+	/**
+	 * @param X The horizontal coordinate of the point tested; in Slate pixels (local graph coordinates)
+	 * @param Y The vertical coordinate of the point tested; in Slate pixels (local graph coordinates)
+	 * @param Viewport The timing viewport used to transform time in local graph coordinates
+	 * @param bCheckLine If needs to check the bounding box of the horizontal line (determined by duration of event and value) or only the bounding box of the visual point
+	 * @param bCheckBox If needs to check the bounding box of the entire visual box (determined by duration of event, value and baseline)
+	 * @return A pointer to an Event located at (X, Y) coordinates, if any; nullptr if no event is located at respective coordinates
+	 * The returned pointer is valid only temporary until next Reset() or next usage of FGraphTrackBuilder for this series/track.
+	 */
+	const FGraphSeriesEvent* GetEvent(const float PosX, const float PosY, const FTimingTrackViewport& Viewport, bool bCheckLine, bool bCheckBox) const;
+
+	virtual FString FormatValue(double Value) const;
+
+private:
+	FText Name;
+	FText Description;
+
+	bool bIsVisible;
+	bool bIsDirty;
+
+	bool bAutoZoom;
+	double TargetAutoZoomLowValue; // target low value of auto zoom interval (corresponding to bottom of the track)
+	double TargetAutoZoomHighValue; // target high value of auto zoom interval (corresponding to top of the track)
+	double AutoZoomLowValue; // current auto zoom low value
+	double AutoZoomHighValue; // current auto zoom high value
+
+	double BaselineY; // Y position (in viewport local space) of the baseline (with Value == 0); in pixels (Slate units)
+	double ScaleY; // scale between Value units and viewport units; in pixels (Slate units) / Value unit
+
+	FLinearColor Color;
+	FLinearColor BorderColor;
+
+protected:
+	TArray<FGraphSeriesEvent> Events; // reduced list of events; used to identify an event at a certain screen position (ex.: the event hovered by mouse)
+	TArray<FVector2D> Points; // reduced list of points; for drawing points
+	TArray<FVector2D> LinePoints; // reduced list of points; for drawing the connected line and filled polygon
+	TArray<FBox> Boxes; // reduced list of boxes; for drawing boxes
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -818,17 +818,12 @@ void STimersView::TreeView_OnMouseButtonDoubleClick(FTimerNodePtr TimerNodePtr)
 	}
 	else
 	{
-		//im:TODO: const bool bIsTracked = FTimingProfilerManager::Get()->IsTimerTracked(TimerNodePtr->GetId());
-	//	if (!bIsTracked)
-	//	{
-	//		// Add a new graph series.
-	//		FTimingProfilerManager::Get()->TrackTimer(TimerNodePtr->GetId());
-	//	}
-	//	else
-	//	{
-	//		// Remove the corresponding graph series.
-	//		FTimingProfilerManager::Get()->UntrackTimer(TimerNodePtr->GetId());
-	//	}
+		TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
+		TSharedPtr<STimingView> TimingView = Wnd.IsValid() ? Wnd->GetTimingView() : nullptr;
+		if (TimingView.IsValid())
+		{
+			TimingView->SetHighlightedEventTypeId(TimerNodePtr->GetId());
+		}
 	}
 }
 

@@ -103,11 +103,6 @@ public:
 	void SetFramesTrackVisible(const bool bIsVisible) { bIsFramesTrackVisible = bIsVisible; }
 	void ShowHideFramesTrack(const bool bIsVisible);
 
-	/** @return true, if Graph Track is visible */
-	const bool IsGraphTrackVisible() const { return bIsGraphTrackVisible; }
-	void SetGraphTrackVisible(const bool bIsVisible) { bIsGraphTrackVisible = bIsVisible; }
-	void ShowHideGraphTrack(const bool bIsVisible);
-
 	/** @return true, if Timing View is visible */
 	const bool IsTimingViewVisible() const { return bIsTimingViewVisible; }
 	void SetTimingViewVisible(const bool bIsVisible) { bIsTimingViewVisible = bIsVisible; }

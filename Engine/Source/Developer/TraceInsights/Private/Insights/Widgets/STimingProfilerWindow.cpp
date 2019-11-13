@@ -27,7 +27,6 @@
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/Version.h"
 #include "Insights/Widgets/SFrameTrack.h"
-#include "Insights/Widgets/SGraphTrack.h"
 #include "Insights/Widgets/SInsightsSettings.h"
 #include "Insights/Widgets/SLogView.h"
 #include "Insights/Widgets/SStatsView.h"
@@ -44,7 +43,6 @@
 
 const FName FTimingProfilerTabs::ToolbarID(TEXT("Toolbar"));
 const FName FTimingProfilerTabs::FramesTrackID(TEXT("Frames"));
-const FName FTimingProfilerTabs::GraphTrackID(TEXT("Graph"));
 const FName FTimingProfilerTabs::TimingViewID(TEXT("TimingView"));
 const FName FTimingProfilerTabs::TimersID(TEXT("Timers"));
 const FName FTimingProfilerTabs::CallersID(TEXT("Callers"));
@@ -78,11 +76,6 @@ void STimingProfilerWindow::Reset()
 	if (FrameTrack)
 	{
 		FrameTrack->Reset();
-	}
-
-	if (GraphTrack)
-	{
-		GraphTrack->Reset();
 	}
 
 	if (TimingView)
@@ -164,32 +157,6 @@ void STimingProfilerWindow::OnFramesTrackTabClosed(TSharedRef<SDockTab> TabBeing
 {
 	FTimingProfilerManager::Get()->SetFramesTrackVisible(false);
 	FrameTrack = nullptr;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_GraphTrack(const FSpawnTabArgs& Args)
-{
-	FTimingProfilerManager::Get()->SetGraphTrackVisible(true);
-
-	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
-		.ShouldAutosize(false)
-		.TabRole(ETabRole::PanelTab)
-		[
-			SAssignNew(GraphTrack, SGraphTrack)
-		];
-
-	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &STimingProfilerWindow::OnGraphTrackTabClosed));
-
-	return DockTab;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimingProfilerWindow::OnGraphTrackTabClosed(TSharedRef<SDockTab> TabBeingClosed)
-{
-	FTimingProfilerManager::Get()->SetGraphTrackVisible(false);
-	GraphTrack = nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -366,11 +333,6 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "FramesTrack.Icon.Small"))
 		.SetGroup(AppMenuGroup);
 
-	TabManager->RegisterTabSpawner(FTimingProfilerTabs::GraphTrackID, FOnSpawnTab::CreateRaw(this, &STimingProfilerWindow::SpawnTab_GraphTrack))
-		.SetDisplayName(LOCTEXT("GraphTrackTabTitle", "Graph"))
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "GraphTrack.Icon.Small"))
-		.SetGroup(AppMenuGroup);
-
 	TabManager->RegisterTabSpawner(FTimingProfilerTabs::TimingViewID, FOnSpawnTab::CreateRaw(this, &STimingProfilerWindow::SpawnTab_TimingView))
 		.SetDisplayName(LOCTEXT("TimingViewTabTitle", "Timing View"))
 		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "TimingView.Icon.Small"))
@@ -432,13 +394,6 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 						->SetSizeCoefficient(0.1f)
 						->SetHideTabWell(true)
 						->AddTab(FTimingProfilerTabs::FramesTrackID, TimingProfilerManager->IsFramesTrackVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
-					)
-					->Split
-					(
-						FTabManager::NewStack()
-						->SetSizeCoefficient(0.2f)
-						->SetHideTabWell(true)
-						->AddTab(FTimingProfilerTabs::GraphTrackID, TimingProfilerManager->IsGraphTrackVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
 					)
 					->Split
 					(

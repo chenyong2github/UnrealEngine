@@ -3,15 +3,74 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "TraceServices/Model/LoadTimeProfiler.h"
-#include "TimingEventSearch.h"
 
-class FTimingEventsTrack;
+// Insights
+#include "Insights/ViewModels/ITimingEvent.h"
+#include "Insights/ViewModels/TimingEventSearch.h"
 
-struct FTimingEvent
+class FBaseTimingTrack;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class TRACEINSIGHTS_API FTimingEvent : public ITimingEvent
 {
+public:
+	FTimingEvent(const TSharedRef<const FBaseTimingTrack> InTrack, double InStartTime, double InEndTime, uint32 InDepth)
+		: Track(InTrack)
+		, StartTime(InStartTime)
+		, EndTime(InEndTime)
+		, ExclusiveTime(0.0)
+		, Depth(InDepth)
+	{}
+
+	virtual ~FTimingEvent() {}
+
+	FTimingEvent(const FTimingEvent&) = default;
+	FTimingEvent& operator=(const FTimingEvent&) = default;
+
+	FTimingEvent(FTimingEvent&&) = default;
+	FTimingEvent& operator=(FTimingEvent&&) = default;
+
+	//////////////////////////////////////////////////
+	// ITimingEvent interface
+
+	virtual const FName& GetTypeName() const override { return FTimingEvent::TypeName; }
+
+	virtual const TSharedRef<const FBaseTimingTrack> GetTrack() const override { return Track; }
+
+	virtual uint32 GetDepth() const override { return Depth; }
+
+	virtual double GetStartTime() const override { return StartTime; }
+	virtual double GetEndTime() const override { return EndTime; }
+	virtual double GetDuration() const override { return EndTime - StartTime; }
+
+	virtual bool Equals(const ITimingEvent& Other) const override
+	{
+		if (GetTypeName() != Other.GetTypeName())
+		{
+			return false;
+		}
+
+		const FTimingEvent& OtherTimingEvent = static_cast<const FTimingEvent&>(Other);
+		return Track == Other.GetTrack()
+			&& Depth == OtherTimingEvent.GetDepth()
+			&& StartTime == OtherTimingEvent.GetStartTime()
+			&& EndTime == OtherTimingEvent.GetEndTime();
+	}
+
+	//////////////////////////////////////////////////
+
+	FTimingEventSearchHandle& GetSearchHandle() const { return SearchHandle; }
+
+	double GetExclusiveTime() const { return ExclusiveTime; }
+	void SetExclusiveTime(double InExclusiveTime) { ExclusiveTime = InExclusiveTime; }
+
+	static const FName& GetStaticTypeName() { return FTimingEvent::TypeName; }
+	static bool CheckTypeName(const ITimingEvent& Event) { return Event.GetTypeName() == FTimingEvent::TypeName; }
+
+private:
 	// The track this timing event is contained within
-	const FTimingEventsTrack* Track;
+	TSharedRef<const FBaseTimingTrack> Track;
 
 	// Handle to a previous search, used to accelerate access to underlying event data
 	mutable FTimingEventSearchHandle SearchHandle;
@@ -28,54 +87,7 @@ struct FTimingEvent
 	// The depth of the event
 	uint32 Depth;
 
-	FTimingEvent()
-		: Track(nullptr)
-		, StartTime(0.0)
-		, EndTime(-1.0)
-		, ExclusiveTime(0.0)
-		, Depth(0)
-	{
-	}
-
-	FTimingEvent(const FTimingEventsTrack* InTrack, double InStartTime, double InEndTime, uint32 InDepth)
-		: Track(InTrack)
-		, StartTime(InStartTime)
-		, EndTime(InEndTime)
-		, ExclusiveTime(0.0)
-		, Depth(InDepth)
-	{}
-
-	FTimingEvent(const FTimingEvent&) = default;
-	FTimingEvent& operator=(const FTimingEvent&) = default;
-
-	FTimingEvent(FTimingEvent&&) = default;
-	FTimingEvent& operator=(FTimingEvent&&) = default;
-
-	void Reset()
-	{
-		Track = nullptr;
-		StartTime = 0.0;
-		EndTime = -1.0;
-		ExclusiveTime = 0.0;
-		Depth = 0;
-	}
-
-	bool IsValidTrack() const { return Track != nullptr; }
-
-	bool IsValid() const { return Track != nullptr && StartTime <= EndTime; }
-
-	double Duration() const { return EndTime - StartTime; }
-
-	bool Equals(const FTimingEvent& Other) const
-	{
-		return Track == Other.Track
-			&& Depth == Other.Depth
-			&& StartTime == Other.StartTime
-			&& EndTime == Other.EndTime;
-	}
-
-	static bool AreEquals(const FTimingEvent& A, const FTimingEvent& B)
-	{
-		return A.Equals(B);
-	}
+	static const FName TypeName;
 };
+
+////////////////////////////////////////////////////////////////////////////////////////////////////

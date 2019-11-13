@@ -5,13 +5,16 @@
 #include "CoreMinimal.h"
 
 // Insights
+#include "Insights/ITimingViewExtender.h"
 #include "Insights/ViewModels/TimingEventsTrack.h"
+#include "Insights/ViewModels/TimingViewDrawHelper.h"
 
 class FTimingEventSearchParameters;
+class STimingView;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FFileActivitySharedState
+class FFileActivitySharedState : public Insights::ITimingViewExtender, public TSharedFromThis<FFileActivitySharedState>
 {
 	friend class FOverviewFileActivityTimingTrack;
 	friend class FDetailedFileActivityTimingTrack;
@@ -39,22 +42,36 @@ public:
 	};
 
 public:
-	FFileActivitySharedState() {}
+	explicit FFileActivitySharedState(STimingView* InTimingView) : TimingView(InTimingView) {}
+	virtual ~FFileActivitySharedState() = default;
+
+	// ITimingViewExtender
+	virtual void OnBeginSession(Insights::ITimingViewSession& InSession) override;
+	virtual void OnEndSession(Insights::ITimingViewSession& InSession) override;
+	virtual void Tick(Insights::ITimingViewSession& InSession, const Trace::IAnalysisSession& InAnalysisSession) override;
+	virtual void ExtendFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder) override;
+	virtual void OnTracksChanged(Insights::ITimingViewSession& InSession, int32& InOutOrder) override;
 
 	const TArray<FIoTimingEvent>& GetAllEvents() const { return AllIoEvents; }
 
-	~FFileActivitySharedState() {}
-
-	void Reset();
-	void Update();
-
 	void RequestUpdate() { bForceIoEventsUpdate = true; }
 	void ToggleMergeLanes() { bMergeIoLanes = !bMergeIoLanes; }
-	void ToggleBackgroundEvents() { bShowFileActivityBackgroundEvents = !bShowFileActivityBackgroundEvents; }
+	void ToggleBackgroundEvents();
+
+	void ShowHideAllIoTracks() { ShowHideAllIoTracks_Execute(); }
 
 private:
-	bool bForceIoEventsUpdate;
+	bool ShowHideAllIoTracks_IsChecked() const;
+	void ShowHideAllIoTracks_Execute();
 
+private:
+	STimingView* TimingView;
+
+	TSharedPtr<FTimingEventsTrack> IoOverviewTrack;
+	TSharedPtr<FTimingEventsTrack> IoActivityTrack;
+
+	bool bShowHideAllIoTracks;
+	bool bForceIoEventsUpdate;
 	bool bMergeIoLanes;
 	bool bShowFileActivityBackgroundEvents;
 
@@ -70,20 +87,21 @@ private:
 class FFileActivityTimingTrack : public FTimingEventsTrack
 {
 public:
-	explicit FFileActivityTimingTrack(uint64 InTrackId, const FName SubType, const FString& InName, TSharedPtr<FFileActivitySharedState> InState)
-		: FTimingEventsTrack(InTrackId, FName(TEXT("FileActivity")), SubType, InName)
-		, State(InState)
+	explicit FFileActivityTimingTrack(FFileActivitySharedState& InSharedState, const FName SubType, const FString& InName)
+		: FTimingEventsTrack(FName(TEXT("FileActivity")), SubType, InName)
+		, SharedState(InSharedState)
 	{
 	}
 	virtual ~FFileActivityTimingTrack() {}
 
-	virtual void InitTooltip(FTooltipDrawState& Tooltip, const FTimingEvent& HoveredTimingEvent) const override;
+	virtual void InitTooltip(FTooltipDrawState& InOutTooltip, const ITimingEvent& InTooltipEvent) const override;
 
 protected:
 	bool FindIoTimingEvent(const FTimingEventSearchParameters& InParameters, bool bIgnoreEventDepth, TFunctionRef<void(double, double, uint32, const FFileActivitySharedState::FIoTimingEvent&)> InFoundPredicate) const;
 
 protected:
-	TSharedPtr<FFileActivitySharedState> State;
+	FFileActivitySharedState& SharedState;
+	FTimingEventsTrackDrawState DrawState;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -91,13 +109,14 @@ protected:
 class FOverviewFileActivityTimingTrack : public FFileActivityTimingTrack
 {
 public:
-	explicit FOverviewFileActivityTimingTrack(uint64 InTrackId, TSharedPtr<FFileActivitySharedState> InState)
-		: FFileActivityTimingTrack(InTrackId, FName(TEXT("Overview")), TEXT("I/O Overview"), InState)
+	explicit FOverviewFileActivityTimingTrack(FFileActivitySharedState& InSharedState)
+		: FFileActivityTimingTrack(InSharedState, FName(TEXT("Overview")), TEXT("I/O Overview"))
 	{
 	}
 
-	virtual void Draw(ITimingViewDrawHelper& Helper) const override;
-	virtual bool SearchTimingEvent(const FTimingEventSearchParameters& InSearchParameters,  FTimingEvent& InOutTimingEvent) const override;
+	virtual void PreUpdate(const ITimingTrackUpdateContext& Context) override;
+	virtual void Draw(const ITimingTrackDrawContext& Context) const override;
+	virtual const TSharedPtr<const ITimingEvent> SearchEvent(const FTimingEventSearchParameters& InSearchParameters) const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -105,13 +124,14 @@ public:
 class FDetailedFileActivityTimingTrack : public FFileActivityTimingTrack
 {
 public:
-	explicit FDetailedFileActivityTimingTrack(uint64 InTrackId, TSharedPtr<FFileActivitySharedState> InState)
-		: FFileActivityTimingTrack(InTrackId, FName(TEXT("Detailed")), TEXT("I/O Activity"), InState)
+	explicit FDetailedFileActivityTimingTrack(FFileActivitySharedState& InSharedState)
+		: FFileActivityTimingTrack(InSharedState, FName(TEXT("Detailed")), TEXT("I/O Activity"))
 	{
 	}
 
-	virtual void Draw(ITimingViewDrawHelper& Helper) const override;
-	virtual bool SearchTimingEvent(const FTimingEventSearchParameters& InSearchParameters, FTimingEvent& InOutTimingEvent) const override;
+	virtual void PreUpdate(const ITimingTrackUpdateContext& Context) override;
+	virtual void Draw(const ITimingTrackDrawContext& Context) const override;
+	virtual const TSharedPtr<const ITimingEvent> SearchEvent(const FTimingEventSearchParameters& InSearchParameters) const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

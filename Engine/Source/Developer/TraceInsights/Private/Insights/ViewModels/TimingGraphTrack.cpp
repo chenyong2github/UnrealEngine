@@ -11,6 +11,7 @@
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/TimingProfilerManager.h"
+#include "Insights/ViewModels/GraphTrackBuilder.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
 
 #define LOCTEXT_NAMESPACE "GraphTrack"
@@ -54,8 +55,8 @@ FString FTimingGraphSeries::FormatValue(double Value) const
 // FTimingGraphTrack
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FTimingGraphTrack::FTimingGraphTrack(uint64 InTrackId)
-	: FGraphTrack(InTrackId)
+FTimingGraphTrack::FTimingGraphTrack()
+	: FGraphTrack(FName(TEXT("Random")))
 {
 	bDrawPoints = true;
 	bDrawPointsWithBorder = true;
@@ -172,11 +173,11 @@ FTimingGraphTrack::~FTimingGraphTrack()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimingGraphTrack::Update(const FTimingTrackViewport& Viewport)
+void FTimingGraphTrack::Update(const ITimingTrackUpdateContext& Context)
 {
-	FGraphTrack::Update(Viewport);
+	FGraphTrack::Update(Context);
 
-	const bool bIsEntireGraphTrackDirty = IsDirty();
+	const bool bIsEntireGraphTrackDirty = IsDirty() || Context.GetViewport().IsHorizontalViewportDirty();
 	bool bNeedsUpdate = bIsEntireGraphTrackDirty;
 
 	if (!bNeedsUpdate)
@@ -197,6 +198,8 @@ void FTimingGraphTrack::Update(const FTimingTrackViewport& Viewport)
 		ClearDirtyFlag();
 
 		NumAddedEvents = 0;
+
+		const FTimingTrackViewport& Viewport = Context.GetViewport();
 
 		for (TSharedPtr<FGraphSeries>& Series : AllSeries)
 		{
