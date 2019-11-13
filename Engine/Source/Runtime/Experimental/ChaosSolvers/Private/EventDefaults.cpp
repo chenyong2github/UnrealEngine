@@ -72,7 +72,7 @@ namespace Chaos
 					if(Constraint.Particle->Handle()->GTGeometryParticle()->Proxy != nullptr)
 
 					{
-						if(ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.Phi)))
+						if(ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.GetPhi())))
 						{
 							TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle;
 							TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Levelset;
@@ -83,8 +83,8 @@ namespace Chaos
 
 							if(!Constraint.AccumulatedImpulse.IsZero() && Body0)
 							{
-								if(ensure(!Constraint.Location.ContainsNaN() &&
-									!Constraint.Normal.ContainsNaN()) &&
+								if(ensure(!Constraint.GetLocation().ContainsNaN() &&
+									!Constraint.GetNormal().ContainsNaN()) &&
 									!Body0->V().ContainsNaN() &&
 									!Body0->W().ContainsNaN() &&
 									(Body1 == nullptr || ((!Body1->V().ContainsNaN()) && !Body1->W().ContainsNaN())))
@@ -109,10 +109,10 @@ namespace Chaos
 						TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Levelset;
 
 						TCollisionData<float, 3> Data;
-						Data.Location = Constraint.Location;
+						Data.Location = Constraint.GetLocation();
 						Data.AccumulatedImpulse = Constraint.AccumulatedImpulse;
-						Data.Normal = Constraint.Normal;
-						Data.PenetrationDepth = Constraint.Phi;
+						Data.Normal = Constraint.GetNormal();
+						Data.PenetrationDepth = Constraint.GetPhi();
 						Data.Particle = Particle0->Handle()->GTGeometryParticle();
 						Data.Levelset = Particle1->Handle()->GTGeometryParticle();
 
