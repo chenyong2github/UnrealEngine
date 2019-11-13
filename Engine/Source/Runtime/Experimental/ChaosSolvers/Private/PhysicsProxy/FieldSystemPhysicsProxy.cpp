@@ -457,10 +457,10 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPhysicsSolve
 						for (const ContextIndex Index : IndicesArray)
 						{
 							const SolverObjectWrapper& ParticleObjectWrapper = SolverObjectMapping[Index.Result];
-							TSerializablePtr<Chaos::TChaosPhysicsMaterial<float>> Material = CurrentSolver->GetPhysicsMaterial(Index.Result);
+							TSerializablePtr<Chaos::FChaosPhysicsMaterial> Material = CurrentSolver->GetPhysicsMaterial(Index.Result);
 							if (ensure(Material) && ParticleObjectWrapper.SolverObject)
 							{
-								const TUniquePtr<Chaos::TChaosPhysicsMaterial<float>>& InstanceMaterial = CurrentSolver->GetPerParticlePhysicsMaterial(Index.Result);
+								const TUniquePtr<Chaos::FChaosPhysicsMaterial>& InstanceMaterial = CurrentSolver->GetPerParticlePhysicsMaterial(Index.Result);
 								if (InstanceMaterial)
 								{
 									Results[Index.Result] = InstanceMaterial->SleepingLinearThreshold;
@@ -483,7 +483,7 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPhysicsSolve
 						{
 							const int32 i = Index.Result;
 							const PhysicsProxyWrapper& ParticleObjectWrapper = PhysicsProxyMapping[i];
-							TSerializablePtr<TChaosPhysicsMaterial<float>> Material = CurrentSolver->GetPhysicsMaterial(i);
+							TSerializablePtr<FChaosPhysicsMaterial> Material = CurrentSolver->GetPhysicsMaterial(i);
 							if (!ensure(Material) || !ParticleObjectWrapper.PhysicsProxy)	//question: do we actually need to check for solver object?
 							{
 								continue;
@@ -495,9 +495,9 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPhysicsSolve
 								if (Results[i] != Material->SleepingLinearThreshold)
 								{
 									// value changed from shared material, make unique material.
-									TUniquePtr<Chaos::TChaosPhysicsMaterial<float>> NewMaterial = MakeUnique< Chaos::TChaosPhysicsMaterial<float>>(*Material);
+									TUniquePtr<Chaos::FChaosPhysicsMaterial> NewMaterial = MakeUnique< Chaos::FChaosPhysicsMaterial>(*Material);
 									CurrentSolver->SetPerParticlePhysicsMaterial(Index.Result, MoveTemp(NewMaterial));
-									const TUniquePtr<TChaosPhysicsMaterial<float>>& InstanceMaterial = CurrentSolver->GetPerParticlePhysicsMaterial(i);
+									const TUniquePtr<FChaosPhysicsMaterial>& InstanceMaterial = CurrentSolver->GetPerParticlePhysicsMaterial(i);
 
 									InstanceMaterial->SleepingLinearThreshold = Results[i];
 									InstanceMaterial->SleepingAngularThreshold = Results[i];
@@ -505,7 +505,7 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPhysicsSolve
 							}
 							else
 							{
-								const TUniquePtr<TChaosPhysicsMaterial<float>>& InstanceMaterial = CurrentSolver->GetPerParticlePhysicsMaterial(i);
+								const TUniquePtr<FChaosPhysicsMaterial>& InstanceMaterial = CurrentSolver->GetPerParticlePhysicsMaterial(i);
 
 								if (InstanceMaterial->SleepingLinearThreshold != Results[i])
 								{
@@ -548,10 +548,10 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPhysicsSolve
 						for (const ContextIndex Index : IndicesArray)
 						{
 							const SolverObjectWrapper& ParticleObjectWrapper = SolverObjectMapping[Index.Result];
-							TSerializablePtr<Chaos::TChaosPhysicsMaterial<float>> Material = CurrentSolver->GetPhysicsMaterial(Index.Result);
+							TSerializablePtr<Chaos::FChaosPhysicsMaterial> Material = CurrentSolver->GetPhysicsMaterial(Index.Result);
 							if (ensure(Material) && ParticleObjectWrapper.SolverObject)
 							{
-								const TUniquePtr<Chaos::TChaosPhysicsMaterial<float>>& InstanceMaterial = CurrentSolver->GetPerParticlePhysicsMaterial(Index.Result);
+								const TUniquePtr<Chaos::FChaosPhysicsMaterial>& InstanceMaterial = CurrentSolver->GetPerParticlePhysicsMaterial(Index.Result);
 								if (InstanceMaterial)
 								{
 									Results[Index.Result] = InstanceMaterial->DisabledLinearThreshold;
@@ -574,7 +574,7 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPhysicsSolve
 						{
 							const int32 i = Index.Result;
 							const PhysicsProxyWrapper& ParticleObjectWrapper = PhysicsProxyMapping[i];
-							TSerializablePtr<Chaos::TChaosPhysicsMaterial<float>> Material = CurrentSolver->GetPhysicsMaterial(i);
+							TSerializablePtr<Chaos::FChaosPhysicsMaterial> Material = CurrentSolver->GetPhysicsMaterial(i);
 							if (!ensure(Material) || !ParticleObjectWrapper.PhysicsProxy)	//question: do we actually need to check for solver object?
 							{
 								continue;
@@ -586,9 +586,9 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPhysicsSolve
 								if (Results[i] != Material->DisabledLinearThreshold)
 								{
 									// value changed from shared material, make unique material.
-									TUniquePtr<Chaos::TChaosPhysicsMaterial<float>> NewMaterial = MakeUnique< Chaos::TChaosPhysicsMaterial<float>>(*Material);
+									TUniquePtr<Chaos::FChaosPhysicsMaterial> NewMaterial = MakeUnique< Chaos::FChaosPhysicsMaterial>(*Material);
 									CurrentSolver->SetPerParticlePhysicsMaterial(Index.Result, MoveTemp(NewMaterial));
-									const TUniquePtr<TChaosPhysicsMaterial<float>>& InstanceMaterial = CurrentSolver->GetPerParticlePhysicsMaterial(i);
+									const TUniquePtr<FChaosPhysicsMaterial>& InstanceMaterial = CurrentSolver->GetPerParticlePhysicsMaterial(i);
 
 									InstanceMaterial->DisabledLinearThreshold = Results[i];
 									InstanceMaterial->DisabledAngularThreshold = Results[i];
@@ -596,7 +596,7 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPhysicsSolve
 							}
 							else
 							{
-								const TUniquePtr<TChaosPhysicsMaterial<float>>& InstanceMaterial = CurrentSolver->GetPerParticlePhysicsMaterial(i);
+								const TUniquePtr<FChaosPhysicsMaterial>& InstanceMaterial = CurrentSolver->GetPerParticlePhysicsMaterial(i);
 
 								if (InstanceMaterial->DisabledLinearThreshold != Results[i])
 								{

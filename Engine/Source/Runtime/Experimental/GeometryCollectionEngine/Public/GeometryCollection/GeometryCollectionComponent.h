@@ -607,7 +607,7 @@ private:
 	TArray<bool> EventsPlayed;
 
 	//@todo(mlentine): Don't have one per geo collection
-	TUniquePtr<Chaos::TChaosPhysicsMaterial<float>> ChaosMaterial;
+	TUniquePtr<Chaos::FChaosPhysicsMaterial> ChaosMaterial;
 
 	FGeometryCollectionPhysicsProxy* PhysicsProxy;
 	TUniquePtr<FGeometryDynamicCollection> DynamicCollection;

@@ -506,7 +506,7 @@ void FPBDConstraintGraph::ComputeIsland(const int32 InNode, const int32 Island, 
 }
 
 
-bool FPBDConstraintGraph::SleepInactive(const int32 Island, const TArrayCollectionArray<TSerializablePtr<TChaosPhysicsMaterial<FReal>>>& PerParticleMaterialAttributes)
+bool FPBDConstraintGraph::SleepInactive(const int32 Island, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterialAttributes)
 {
 	// @todo(ccaulfield): should be able to eliminate this when island is already sleeping
 
@@ -535,7 +535,7 @@ bool FPBDConstraintGraph::SleepInactive(const int32 Island, const TArrayCollecti
 			M += PBDRigid->M();
 			V += PBDRigid->V() * PBDRigid->M();
 
-			if (TSerializablePtr<TChaosPhysicsMaterial<FReal>> PhysicsMaterial = Particle->AuxilaryValue(PerParticleMaterialAttributes))
+			if (TSerializablePtr<FChaosPhysicsMaterial> PhysicsMaterial = Particle->AuxilaryValue(PerParticleMaterialAttributes))
 			{
 				LinearSleepingThreshold = FMath::Min(LinearSleepingThreshold, PhysicsMaterial->SleepingLinearThreshold);
 				AngularSleepingThreshold = FMath::Min(AngularSleepingThreshold, PhysicsMaterial->SleepingAngularThreshold);
