@@ -781,8 +781,10 @@ TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackScriptItemGroup
 		FNiagaraStackGraphUtilities::RelayoutGraph(*TargetGraph);
 		TargetGraph->NotifyGraphNeedsRecompile();
 		GetSystemViewModel()->GetSelectionViewModel()->AddEntryToSelectionByDisplayedObjectDeferred(MovedModule);
-		RefreshChildren();
 	}
+
+	SourceModuleItem->OnRequestFullRefreshDeferred().Broadcast();
+	TargetChild.OnRequestFullRefreshDeferred().Broadcast();
 	return FDropRequestResponse(DropRequest.DropZone);
 }
 
