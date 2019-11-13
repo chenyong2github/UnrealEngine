@@ -685,12 +685,6 @@ public:
 
 		for (TObjectIterator<UStaticMeshComponent> It; It; ++It)
 		{
-			// First, flush all deferred render updates, as they may depend on InStaticMesh.
-			if (It->IsRenderStateDirty() && It->IsRegistered() && !It->IsTemplate() && !It->IsPendingKill())
-			{
-				It->DoDeferredRenderUpdates_Concurrent();
-			}
-
 			UStaticMesh* StaticMesh = It->GetStaticMesh();
 
 			if (StaticMeshComponents.Contains(StaticMesh))
@@ -704,6 +698,11 @@ public:
 					StaticMeshComponents[StaticMesh].Add(*It);
 					Scenes.Add(It->GetScene());
 				}
+			}
+			// Recreate dirty render state, if needed, only for components not using the static mesh we currently have released resources for.
+			else if (It->IsRenderStateDirty() && It->IsRegistered() && !It->IsTemplate() && !It->IsPendingKill())
+			{
+				It->DoDeferredRenderUpdates_Concurrent();
 			}
 		}
 
