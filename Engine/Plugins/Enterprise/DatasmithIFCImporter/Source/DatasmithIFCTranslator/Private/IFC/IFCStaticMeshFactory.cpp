@@ -63,7 +63,7 @@ namespace IFC
 		{
 			const FVertexID& VertexID = MeshDescription->CreateVertex();
 			VertexPositions[VertexID].X = InObject->facesVertices[(I * (InObject->vertexElementSize / sizeof(float))) + 0];
-			// mirror around Y axis 
+			// Flip Y to keep mesh looking the same as the coordinate system changes from RH -> LH
 			VertexPositions[VertexID].Y = - InObject->facesVertices[(I * (InObject->vertexElementSize / sizeof(float))) + 1];
 			VertexPositions[VertexID].Z = InObject->facesVertices[(I * (InObject->vertexElementSize / sizeof(float))) + 2];
 			VertexPositions[VertexID] *= ImportUniformScale;
@@ -83,6 +83,9 @@ namespace IFC
 
 		bool bMeshUsesEmptyMaterial = false;
 		bool bDidGenerateTexCoords = false;
+
+		FTransform WorldToObject = InObject->Transform.Inverse();
+
 		for (int32 Index = 0; Index < InObject->TrianglesArray.Num(); ++Index)
 		{
 			const IFC::FPolygon* IFCPolygon = &InObject->TrianglesArray[Index];
@@ -106,7 +109,10 @@ namespace IFC
 				VertexIDs.Add(VertexID);
 
 				const float* Vertex = &(InObject->facesVertices[(VertexIndex * (InObject->vertexElementSize / sizeof(float)))]);
-				VertexInstanceNormals.Set(VertexInstanceID, FVector(Vertex[3], Vertex[4], Vertex[5]));
+
+				// Flip Y to go from RH -> LH
+				FVector Normal = WorldToObject.TransformVector(FVector(Vertex[3], -Vertex[4], Vertex[5]));
+				VertexInstanceNormals.Set(VertexInstanceID, Normal.GetSafeNormal());
 			}
 
 			bool bIsWrong = false;
