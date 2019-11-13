@@ -44,7 +44,19 @@ namespace UnrealBuildTool.Rules
                 }
             );
 
-            PublicDelayLoadDLLs.Add("AxFDecoding.dll");
+            if (Target.Platform == UnrealTargetPlatform.Win64)
+            {
+                PublicDelayLoadDLLs.Add("AxFDecoding.dll");
+				string ModulePath = Path.Combine(EngineDirectory, "Plugins/Enterprise/AxFImporter/Binaries/ThirdParty/AxF", Target.Platform.ToString(), "AxFDecoding.dll");
+				if (!File.Exists(ModulePath))
+                {
+					string Err = string.Format("AxF Decoding dll '{0}' not found.", ModulePath);
+					System.Console.WriteLine(Err);
+					throw new BuildException(Err);
+                }
+                RuntimeDependencies.Add(ModulePath);
+            }
+
 
             if (Directory.Exists(ThirdPartyPath))
             {
