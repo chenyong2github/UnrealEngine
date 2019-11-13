@@ -125,6 +125,14 @@ private:
 	int32 Generation;
 
 	bool bInitialized;
+
+	/** Number of pixel used in atlas distance field */
+	uint32 AllocatedPixels;
+
+	/** Max position used in distance field */
+	uint32 MaxUsedAtlasX;
+	uint32 MaxUsedAtlasY;
+	uint32 MaxUsedAtlasZ;
 };
 
 extern ENGINE_API TGlobalResource<FDistanceFieldVolumeTextureAtlas> GDistanceFieldVolumeTextureAtlas;
