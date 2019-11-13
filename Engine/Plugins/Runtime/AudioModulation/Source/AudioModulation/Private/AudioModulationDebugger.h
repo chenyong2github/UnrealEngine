@@ -13,15 +13,49 @@
 
 namespace AudioModulation
 {
+	// Forward Declarations
+	struct FReferencedProxies;
+
+	struct FControlBusMixChannelDebugInfo
+	{
+		float TargetValue;
+		float CurrentValue;
+	};
+
+	struct FControlBusMixDebugInfo
+	{
+		FString Name;
+		uint32 Id;
+		uint32 RefCount;
+
+		TMap<uint32, FControlBusMixChannelDebugInfo> Channels;
+	};
+
+	struct FControlBusDebugInfo
+	{
+		FString Name;
+		float DefaultValue;
+		float LFOValue;
+		float MixValue;
+		float Value;
+		FVector2D Range;
+		uint32 Id;
+		uint32 RefCount;
+	};
+
+	struct FLFODebugInfo
+	{
+		FString Name;
+		float Value;
+		uint32 RefCount;
+	};
+
 	class FAudioModulationDebugger
 	{
 	public:
 		FAudioModulationDebugger();
 
-		void UpdateDebugData(
-			const BusProxyMap&    ActiveBuses,
-			const BusMixProxyMap& ActiveMixes,
-			const LFOProxyMap&    ActiveLFOs);
+		void UpdateDebugData(const FReferencedProxies& RefProxies);
 		bool OnPostHelp(FCommonViewportClient& ViewportClient, const TCHAR* Stream);
 		int32 OnRenderStat(FCanvas& Canvas, int32 X, int32 Y, const UFont& Font);
 		bool OnToggleStat(FCommonViewportClient& ViewportClient, const TCHAR* Stream);
@@ -31,9 +65,9 @@ namespace AudioModulation
 		uint8 bShowRenderStatLFO : 1;
 		uint8 bShowRenderStatMix : 1;
 
-		TArray<FControlBusProxy>    FilteredBuses;
-		TArray<FModulatorLFOProxy>    FilteredLFOs;
-		TArray<FModulatorBusMixProxy> FilteredMixes;
+		TArray<FControlBusDebugInfo>    FilteredBuses;
+		TArray<FLFODebugInfo>           FilteredLFOs;
+		TArray<FControlBusMixDebugInfo> FilteredMixes;
 
 		FString BusStringFilter;
 		FString LFOStringFilter;
