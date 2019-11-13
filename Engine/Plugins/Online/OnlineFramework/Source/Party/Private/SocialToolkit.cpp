@@ -790,11 +790,11 @@ void USocialToolkit::HandleQueryPrimaryUserIdMappingComplete(bool bWasSuccessful
 {
 	if (!IdentifiedUserId.IsValid())
 	{
-		OnSendFriendInviteComplete(IdentifiedUserId, false, FriendInviteFailureReason::InviteFailReason_NotFound);
+		OnSendFriendInviteComplete(IdentifiedUserId, DisplayName, false, FriendInviteFailureReason::InviteFailReason_NotFound);
 	}
 	else if (RequestingUserId == IdentifiedUserId)
 	{
-		OnSendFriendInviteComplete(IdentifiedUserId, false, FriendInviteFailureReason::InviteFailReason_AddingSelfFail);
+		OnSendFriendInviteComplete(IdentifiedUserId, DisplayName, false, FriendInviteFailureReason::InviteFailReason_AddingSelfFail);
 	}
 	else
 	{
@@ -803,11 +803,11 @@ void USocialToolkit::HandleQueryPrimaryUserIdMappingComplete(bool bWasSuccessful
 			{
 				if (SocialUser.IsBlocked())
 				{
-					OnSendFriendInviteComplete(*SocialUser.GetUserId(ESocialSubsystem::Primary), false, FriendInviteFailureReason::InviteFailReason_AddingBlockedFail);
+					OnSendFriendInviteComplete(*SocialUser.GetUserId(ESocialSubsystem::Primary), DisplayName, false, FriendInviteFailureReason::InviteFailReason_AddingBlockedFail);
 				}
 				else if (SocialUser.IsFriend(ESocialSubsystem::Primary))
 				{
-					OnSendFriendInviteComplete(*SocialUser.GetUserId(ESocialSubsystem::Primary), false, FriendInviteFailureReason::InviteFailReason_AlreadyFriends);
+					OnSendFriendInviteComplete(*SocialUser.GetUserId(ESocialSubsystem::Primary), DisplayName, false, FriendInviteFailureReason::InviteFailReason_AlreadyFriends);
 				}
 				else
 				{
@@ -888,7 +888,7 @@ void USocialToolkit::HandleFriendInviteSent(int32 LocalUserNum, bool bWasSuccess
 				}
 			});
 	}
-	OnSendFriendInviteComplete(InvitedUserId, bWasSuccessful, ErrorStr);
+	OnSendFriendInviteComplete(InvitedUserId, DisplayName, bWasSuccessful, ErrorStr);
 }
 
 void USocialToolkit::HandleFriendRemoved(const FUniqueNetId& LocalUserId, const FUniqueNetId& FriendId, ESocialSubsystem SubsystemType)
