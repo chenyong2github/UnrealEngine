@@ -267,6 +267,8 @@ public:
 
 	FOnRequestFullRefresh& OnRequestFullRefresh();
 
+	const FOnRequestFullRefresh& OnRequestFullRefreshDeferred() const;
+
 	FOnRequestFullRefresh& OnRequestFullRefreshDeferred();
 
 	void RefreshChildren();
