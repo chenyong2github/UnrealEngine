@@ -897,7 +897,7 @@ bool FMatineeImportTools::CopyInterpEventTrack( UInterpTrackEvent* MatineeEventT
 			if (SequenceDirectorBP)
 			{
 				SequenceDirectorBP->Modify();
-				SequenceDirectorBP->GenerateFunctionGraphsEvent.AddUniqueDynamic(Section, &UMovieSceneEventSectionBase::HandleGenerateEntryPoints);
+				FMovieSceneEventUtils::BindEventSectionToBlueprint(Section, SequenceDirectorBP);
 			}
 
 			TRange<FFrameNumber> KeyRange = TRange<FFrameNumber>::Empty();
