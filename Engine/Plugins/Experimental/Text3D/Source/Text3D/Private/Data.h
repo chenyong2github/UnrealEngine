@@ -16,15 +16,16 @@ class FData final
 public:
 	/**
 	 * Contructor.
-	 * @param MeshesIn - Documented in Bevel.h.
-	 * @param ExpandTotalIn - Documented in BevelLinear.h.
-	 * @param HorizontalOffsetIn - Documented in Bevel.h.
-	 * @param VerticalOffsetIn - Documented in Bevel.h.
+	 * @param MeshesIn - Vertices and indices to which bevel should be added (contains front cap).
+	 * @param ExpandTotalIn - Total expand value (for all ArcSegments from Bevel.cpp).
 	 * @param FontInverseScaleIn - Documented in Bevel.h.
 	 * @param ScaleIn - Documented in Bevel.h.
 	 */
-	FData(TText3DMeshList* MeshesIn, const float ExpandTotalIn, const float HorizontalOffsetIn, const float VerticalOffsetIn, const float FontInverseScaleIn, const FVector& ScaleIn);
+	FData(TSharedPtr<TText3DMeshList> MeshesIn, const float ExpandTotalIn, const float FontInverseScaleIn, const FVector& ScaleIn);
 
+
+	void SetHorizontalOffset(const float HorizontalOffsetIn);
+	void SetVerticalOffset(const float VertricalOffsetIn);
 
 	/**
 	 * Set offset once instead of specifying it for every vertex.
@@ -35,7 +36,8 @@ public:
 	void SetMaxBevelTarget();
 
 	int32 AddVertices(const int32 Count);
-	void AddVertex(const FPart* const Point, const FVector2D TangentX, const FVector& TangentZ);
+	void AddVertex(const FPart* const Point, const FVector2D TangentX, const FVector& TangentZ, const FVector2D TextureCoordinates = {0, 0});
+	void AddVertex(const FVector2D Position, const FVector2D TangentX, const FVector& TangentZ, const FVector2D TextureCoordinates = {0, 0});
 
 	void AddTriangles(const int32 Count);
 	void AddTriangle(const int32 A, const int32 B, const int32 C);
@@ -53,13 +55,15 @@ public:
 
 	float GetExpandTarget() const;
 
+	void ResetDoneExtrude();
 	void IncreaseDoneExtrude();
+
 	void SetNormals(FVector2D Start, FVector2D End);
-	FVector ComputeTangentZ(FPart* const Edge, float DoneExpand);
+	FVector ComputeTangentZ(const FPart* const Edge, const float DoneExpand);
 	void SetCurrentMesh(EText3DMeshType Type);
 
 private:
-	TText3DMeshList* Meshes;
+	TSharedPtr<TText3DMeshList> Meshes;
 	FText3DDynamicData* CurrentMesh;
 
 	const float ExpandTotal;
@@ -67,8 +71,8 @@ private:
 	float Extrude;
 	float Expand;
 
-	const float HorizontalOffset;
-	const float VerticalOffset;
+	float HorizontalOffset;
+	float VerticalOffset;
 
 	const float FontInverseScale;
 	const FVector Scale;
