@@ -515,7 +515,7 @@ void USkeletalMeshComponent::OnRegister()
 
 	// Ensure we have an empty list of linked instances on registration. Ready for the initialization below 
 	// to correctly populate that list.
-	LinkedInstances.Reset();
+	ResetLinkedAnimInstances();
 
 	// We force an initialization here because we're in one of two cases.
 	// 1) First register, no spawned instance, need to initialize
@@ -571,7 +571,7 @@ void USkeletalMeshComponent::OnUnregister()
 	{
 		LinkedInstance->UninitializeAnimation();
 	}
-	LinkedInstances.Reset();
+	ResetLinkedAnimInstances();
 
 	if(PostProcessAnimInstance)
 	{
@@ -703,7 +703,7 @@ bool USkeletalMeshComponent::InitializeAnimScriptInstance(bool bForceReinit, boo
 			if (AnimScriptInstance)
 			{
 				// If we have any linked instances left we need to clear them out now, we're about to have a new master instance
-				LinkedInstances.Empty();
+				ResetLinkedAnimInstances();
 
 				AnimScriptInstance->InitializeAnimation(bInDeferRootNodeInitialization);
 				bInitializedMainInstance = true;
@@ -820,7 +820,7 @@ void USkeletalMeshComponent::ClearAnimScriptInstance()
 		AnimScriptInstance->EndNotifyStates();
 	}
 	AnimScriptInstance = nullptr;
-	LinkedInstances.Empty();
+	ResetLinkedAnimInstances();
 }
 
 
@@ -2720,6 +2720,19 @@ UAnimInstance* USkeletalMeshComponent::GetAnimInstance() const
 UAnimInstance* USkeletalMeshComponent::GetPostProcessInstance() const
 {
 	return PostProcessAnimInstance;
+}
+
+void USkeletalMeshComponent::ResetLinkedAnimInstances()
+{
+	for(UAnimInstance* LinkedInstance : LinkedInstances)
+	{
+		if(LinkedInstance)
+		{
+			LinkedInstance->MarkPendingKill();
+			LinkedInstance = nullptr;
+		}
+	}
+	LinkedInstances.Reset();
 }
 
 UAnimInstance* USkeletalMeshComponent::GetLinkedAnimGraphInstanceByTag(FName InName) const
