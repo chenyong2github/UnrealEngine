@@ -167,6 +167,19 @@ private:
 	bool ShouldGenerateCluster(AActor* Actor, const bool bPreviewBuild, const int32 HLODLevelIndex);
 	
 	/**
+	* if criteria matches, creates new LODActor and replace current Actors with that. We don't need
+	* this clears previous actors and sets to this new actor
+	* this is required when new LOD is created from these actors, this will be replaced
+	* to save memory and to reduce memory increase during this process, we discard previous actors and replace with this actor
+	*
+	* @param InLevel - Level for which currently the HLODs are being build
+	* @param LODIdx - LOD index to build
+	* @param bCreateMeshes - Whether or not the new StaticMeshes should be created
+	* @return ALODActor*
+	*/
+	ALODActor* CreateLODActor(const FLODCluster& InCluster, ULevel* InLevel, const int32 LODIdx, const bool bCreateMeshes);
+
+	/**
 	* Deletes LOD actors from the world	
 	*
 	* @param InLevel - Level to delete the actors from
@@ -174,6 +187,17 @@ private:
 	* @return void
 	*/
 	void DeleteLODActors(ULevel* InLevel);
+
+	/**
+	 * Create a temporary level in which we'll spawn newly created LODActor.
+	 * This is to avoid dirtying the main level when no changes are detected.
+	 */
+	void CreateTempLODActorLevel(ULevel* InLevel);
+
+	/**
+	 * Delete the temporary LODActor level.
+	 */
+	void ApplyClusteringChanges(ULevel* InLevel);
 
 	/** Array of LOD Clusters - this is only valid within scope since mem stack allocator */
 	TArray<FLODCluster, TMemStackAllocator<>> Clusters;
@@ -194,4 +218,13 @@ private:
 	TArray<AActor*> ValidStaticMeshActorsInLevel;
 	/** Actors which were rejected from the previous HLOD level(s) */
 	TArray<AActor*> RejectedActorsInLevel;
+
+	/** Temporary LODActor levels */
+	ULevel* TempLevel;
+
+	/** Previous LODActors found in level */
+	TArray<ALODActor*> OldLODActors;
+
+	/** Newly spawned LODActors from cluster(s) rebuilding */
+	TArray<ALODActor*> NewLODActors;
 };
