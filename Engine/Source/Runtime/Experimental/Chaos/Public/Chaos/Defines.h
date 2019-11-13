@@ -10,13 +10,13 @@
 #endif
 #include "Serializable.h"
 
+#include "Chaos/Core.h"
+
 #if COMPILE_WITHOUT_UNREAL_SUPPORT
 #define PI 3.14159
 #define check(condition)
 typedef int32_t int32;
 #endif
-
-#include "Chaos/Core.h"
 
 namespace Chaos
 {
