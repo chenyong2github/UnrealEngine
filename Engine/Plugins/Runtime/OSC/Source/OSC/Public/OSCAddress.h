@@ -52,14 +52,20 @@ public:
 	  */
 	bool Matches(const FOSCAddress& InAddress) const;
 
-	/** Pushes container onto address' ordered array of containers */
+	/** Pushes container onto end of address' ordered array of containers */
 	void PushContainer(const FString& InContainer);
+
+	/** Pushes containers onto end of address' ordered array of containers */
+	void PushContainers(const TArray<FString>& InContainers);
 
 	/** Pops container from ordered array of containers */
 	FString PopContainer();
 
+	/** Pops containers off end of address' ordered array of containers */
+	TArray<FString> PopContainers(int32 InNumContainers);
+
 	/** Clears ordered array of containers */
-	void ClearContainers(const FString& InContainer);
+	void ClearContainers();
 
 	/** Get method name of address */
 	const FString& GetMethod() const;
