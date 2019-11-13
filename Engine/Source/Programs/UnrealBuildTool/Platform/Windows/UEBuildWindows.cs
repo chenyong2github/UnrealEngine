@@ -555,7 +555,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The default compiler version to be used, if installed. 
 		/// </summary>
-		static readonly VersionNumber DefaultClangToolChainVersion = VersionNumber.Parse("8.0.0");
+		static readonly VersionNumber DefaultClangToolChainVersion = VersionNumber.Parse("9.0.0");
 
 		/// <summary>
 		/// The compiler toolchains to be used if installed, the first installed in the list will be used.

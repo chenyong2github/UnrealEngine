@@ -290,13 +290,13 @@ namespace UnrealBuildTool
 			// If we were asked to use Clang, then we'll redirect the path to the compiler to the LLVM installation directory
 			if (Compiler == WindowsCompiler.Clang && WindowsPlatform.bAllowClangLinker)
 			{
-				FileReference LinkerPath = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFiles), "LLVM", "bin", "lld.exe");
+				FileReference LinkerPath = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFiles), "LLVM", "bin", "lld-link.exe");
 				if (FileReference.Exists(LinkerPath))
 				{
 					return LinkerPath;
 				}
 
-				FileReference LinkerPathX86 = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFilesX86), "LLVM", "bin", "lld.exe");
+				FileReference LinkerPathX86 = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFilesX86), "LLVM", "bin", "lld-link.exe");
 				if (FileReference.Exists(LinkerPathX86))
 				{
 					return LinkerPathX86;
@@ -509,8 +509,15 @@ namespace UnrealBuildTool
 			DirectoryReference SelectedToolChainDir;
 			if(Compiler == WindowsCompiler.Clang || Compiler == WindowsCompiler.Intel)
 			{
-				ToolChain = WindowsCompiler.VisualStudio2017;
-				if(!WindowsPlatform.TryGetToolChainDir(ToolChain, null, out SelectedToolChainVersion, out SelectedToolChainDir))
+				if (WindowsPlatform.TryGetToolChainDir(WindowsCompiler.VisualStudio2019, null, out SelectedToolChainVersion, out SelectedToolChainDir))
+				{
+					ToolChain = WindowsCompiler.VisualStudio2019;
+				}
+				else if (WindowsPlatform.TryGetToolChainDir(WindowsCompiler.VisualStudio2017, null, out SelectedToolChainVersion, out SelectedToolChainDir))
+				{
+					ToolChain = WindowsCompiler.VisualStudio2017;
+				}
+				else
 				{
 					throw new BuildException("{0}{1} must be installed in order to build this target.", WindowsPlatform.GetCompilerName(Compiler), String.IsNullOrEmpty(CompilerVersion)? "" : String.Format(" ({0})", CompilerVersion));
 				}
