@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "AudioDefines.h"
+#include "AudioDynamicParameter.h"
 #if WITH_EDITOR
 #include "EdGraph/EdGraph.h"
 #endif
@@ -87,6 +88,10 @@ struct FSoundClassProperties
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=SoundClassProperties)
 	float Pitch;
 
+	/** Distance scale to apply to sounds that play with this sound class. Sounds will have their attenuation distance scaled by this amount. Allows adjusting attenuation settings dynamically. **/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SoundClassProperties)
+	float AttenuationDistanceScale;
+
 	/** Lowpass filter frequency */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SoundClassProperties)
 	float LowPassFilterFrequency;
@@ -151,9 +156,22 @@ struct FSoundClassProperties
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SoundClassProperties, meta = (DisplayName = "Loading Behavior Override"))
 	ESoundWaveLoadingBehavior LoadingBehavior;
 
+	// Sets the attenuation scale of the sound class in the given amount of time
+	void SetAttenuationDistanceScale(float InAttenuationDistanceScale, float InTime);
+
+	// Sets the parent's attenuation scale
+	void SetParentAttenuationDistanceScale(float InAttenuationDistanceScale);
+
+	// Returns the current attenuation scale
+	float GetAttenuationDistanceScale() const;
+
+	// Updates any dynamic sound class properties
+	void UpdateSoundClassProperties(float DeltaTime);
+
 	FSoundClassProperties()
 		: Volume(1.0f)
 		, Pitch(1.0f)
+		, AttenuationDistanceScale(1.0f)
 		, LowPassFilterFrequency(MAX_FILTER_FREQUENCY)
 		, StereoBleed(0.25f)
 		, LFEBleed(0.5f)
@@ -170,9 +188,14 @@ struct FSoundClassProperties
 		, bApplyAmbientVolumes(false)
 		, OutputTarget(EAudioOutputTarget::Speaker)
 		, LoadingBehavior(ESoundWaveLoadingBehavior::Inherited)
+		, AttenuationScaleParam(AttenuationDistanceScale)
+		, ParentAttenuationScale(1.0f)
 		{
 		}
-	
+
+private:
+	FDynamicParameter AttenuationScaleParam;
+	float ParentAttenuationScale;	
 };
 
 /**
