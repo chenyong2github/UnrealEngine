@@ -2512,13 +2512,15 @@ static char *   norm_path(
         /* Symbolic link check of directories are required  */
         deref_syml( slbuf1, slbuf2, slbuf1);
     } else if (fname) {                             /* Regular file */
+        ssize_t readlink_bytes = 0;
+
         len = strlen( slbuf1);
         strcat( slbuf1, fname);
         deref_syml( slbuf1, slbuf2, slbuf1 + len);
                                 /* Symbolic link check of directory */
-        if ((len = readlink( slbuf1, slbuf2, PATHMAX)) > 0) {
+        if ((readlink_bytes = readlink( slbuf1, slbuf2, PATHMAX)) > 0) {
             /* Dereference symbolic linked file (not directory) */
-            *(slbuf2 + len) = EOS;
+            *(slbuf2 + readlink_bytes) = EOS;
             cp1 = slbuf1;
             if (slbuf2[ 0] != PATH_DELIM) {     /* Relative path    */
                 cp2 = strrchr( slbuf1, PATH_DELIM);
@@ -2687,7 +2689,7 @@ static void     deref_syml(
 /* Dereference symbolic linked directory    */
 {
     char *      cp2;
-    int         len;                /* Should be int, not size_t    */
+    int         len;                /* Should be int, not size_t because of readlink */
 
     while ((chk_start = strchr( chk_start, PATH_DELIM)) != NULL) {
         *chk_start = EOS;
