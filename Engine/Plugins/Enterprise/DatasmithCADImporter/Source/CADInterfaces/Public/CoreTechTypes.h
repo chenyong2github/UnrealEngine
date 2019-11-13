@@ -12,6 +12,7 @@
 #pragma warning(push)
 #pragma warning(disable:4996) // unsafe sprintf
 #pragma warning(disable:4828) // illegal character
+#include "kernel_io/convert_io/convert_io.h"
 #include "kernel_io/kernel_io.h"
 #include "kernel_io/kernel_io_error.h"
 #include "kernel_io/kernel_io_type.h"
@@ -48,7 +49,7 @@ namespace CADLibrary
 	};
 
 	/**
-	 * Mandatory: Kernel_IO has to be initialize with the final MetricUnit, set function doesn`t work
+	 * Mandatory: Kernel_IO has to be initialize with the final MetricUnit, set function doesn't work
 	 * @param MetricUnit: Length unit express in meter
 	 */
 	CADINTERFACES_API CT_IO_ERROR CTKIO_InitializeKernel(double MetricUnit);
@@ -98,6 +99,12 @@ namespace CADLibrary
 		const TCHAR*  string_option = TEXT("")               
 	);
 
+	/**
+	 * In case of patch with cyclic boundary, a process has to be done by kernel_IO
+	 * @param MainObjectId: Body to process
+	 */
+	CADINTERFACES_API CT_IO_ERROR CTKIO_CleanBody(CT_OBJECT_ID MainObjectId);
+
 	CADINTERFACES_API CT_IO_ERROR CTKIO_SaveFile
 	(
 		CT_LIST_IO&        objects_list_to_save,
@@ -133,7 +140,7 @@ namespace CADLibrary
 		 * Make sure CT is initialized, and a main object is ready.
 		 * Handle input file unit and an output unit
 		 * @param FileMetricUnit number of meters per file unit.
-		 * eg. For a file in inches, arg should be 0.0254
+		 * e.g. For a file in inches, arg should be 0.0254
 		 */
 		CoreTechSessionBase(const TCHAR* Owner, double Unit);
 		bool IsSessionValid() { return Owner != nullptr && MainObjectId != 0; }

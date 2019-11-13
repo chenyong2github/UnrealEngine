@@ -2839,10 +2839,17 @@ bool FOpenNurbsTranslatorImpl::TranslateBRep(ON_Brep* Brep, const ON_3dmObjectAt
 
 	LocalSession->ClearData();
 
-	Result = LocalSession->AddBRep(*Brep);
+	bool bBRepHasLoopNonManifold = false;
+	Result = LocalSession->AddBRep(*Brep, bBRepHasLoopNonManifold);
 
 	FString Filename = FString::Printf(TEXT("%s.ct"), *Name);
 	FString FilePath = FPaths::Combine(OutputPath, Filename);
+
+	if(bBRepHasLoopNonManifold)
+	{
+		LocalSession->CleanBRep();
+	}
+
 	Result = LocalSession->SaveBrep(FilePath);
 	if (Result)
 	{
