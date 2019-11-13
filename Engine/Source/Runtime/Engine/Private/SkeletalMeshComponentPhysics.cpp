@@ -634,23 +634,41 @@ void USkeletalMeshComponent::InstantiatePhysicsAsset(const UPhysicsAsset& PhysAs
 	InstantiatePhysicsAsset_Internal(PhysAsset, Scale3D, OutBodies, OutConstraints, BoneTMCallable, PhysScene, OwningComponent, UseRootBodyIndex, UseAggregate);
 }
 
-void USkeletalMeshComponent::InstantiatePhysicsAssetRefPose(const UPhysicsAsset& PhysAsset, const FVector& Scale3D, TArray<FBodyInstance*>& OutBodies, TArray<FConstraintInstance*>& OutConstraints, FPhysScene* PhysScene /*= nullptr*/, USkeletalMeshComponent* OwningComponent /*= nullptr*/, int32 UseRootBodyIndex /*= INDEX_NONE*/, const FPhysicsAggregateHandle& UseAggregate) const
+void USkeletalMeshComponent::InstantiatePhysicsAssetRefPose(const UPhysicsAsset& PhysAsset, const FVector& Scale3D, TArray<FBodyInstance*>& OutBodies, TArray<FConstraintInstance*>& OutConstraints, FPhysScene* PhysScene /*= nullptr*/, USkeletalMeshComponent* OwningComponent /*= nullptr*/, int32 UseRootBodyIndex /*= INDEX_NONE*/, const FPhysicsAggregateHandle& UseAggregate, bool bCreateBodiesInRefPose) const
 {
 	if(SkeletalMesh)
 	{
-		// @todo(ccaulfield): check perf here against uncached version: FAnimationRuntime::GetComponentSpaceTransform for RBAN scenarios
 		const FReferenceSkeleton& RefSkeleton = SkeletalMesh->RefSkeleton;
-		TArray<FTransform> CachedTransforms;
-		TArray<bool> CachedTransformReady;
-		CachedTransforms.SetNumUninitialized(RefSkeleton.GetRefBonePose().Num());
-		CachedTransformReady.SetNumZeroed(RefSkeleton.GetRefBonePose().Num());
 
-		auto BoneTMCallable = [&](int32 BoneIndex)
+		if (bCreateBodiesInRefPose)
 		{
-			return FAnimationRuntime::GetComponentSpaceTransformWithCache(RefSkeleton, RefSkeleton.GetRefBonePose(), BoneIndex, CachedTransforms, CachedTransformReady);
-		};
+			// Create the bodies posed in component-space with the ref pose
+			TArray<FTransform> CachedTransforms;
+			TArray<bool> CachedTransformReady;
+			CachedTransforms.SetNumUninitialized(RefSkeleton.GetRefBonePose().Num());
+			CachedTransformReady.SetNumZeroed(RefSkeleton.GetRefBonePose().Num());
 
-		InstantiatePhysicsAsset_Internal(PhysAsset, Scale3D, OutBodies, OutConstraints, BoneTMCallable, PhysScene, OwningComponent, UseRootBodyIndex, UseAggregate);
+			auto BoneTMCallable = [&](int32 BoneIndex)
+			{
+				return FAnimationRuntime::GetComponentSpaceTransformWithCache(RefSkeleton, RefSkeleton.GetRefBonePose(), BoneIndex, CachedTransforms, CachedTransformReady);
+			};
+
+			InstantiatePhysicsAsset_Internal(PhysAsset, Scale3D, OutBodies, OutConstraints, BoneTMCallable, PhysScene, OwningComponent, UseRootBodyIndex, UseAggregate);
+		}
+		else
+		{
+			// Create the bodies with each body in its local ref pose (all bodies will be on top of each other close to the origin, but should still have the correct scale)
+			auto BoneTMCallable = [&](int32 BoneIndex)
+			{
+				if (RefSkeleton.IsValidIndex(BoneIndex))
+				{
+					return RefSkeleton.GetRefBonePose()[BoneIndex];
+				}
+				return FTransform::Identity;
+			};;
+
+			InstantiatePhysicsAsset_Internal(PhysAsset, Scale3D, OutBodies, OutConstraints, BoneTMCallable, PhysScene, OwningComponent, UseRootBodyIndex, UseAggregate);
+		}
 	}
 }
 
