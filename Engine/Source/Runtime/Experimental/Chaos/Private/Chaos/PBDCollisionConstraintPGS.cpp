@@ -73,7 +73,7 @@ TRigidTransform<T, d> GetTransformPGS(const TPBDRigidParticles<T, d>& InParticle
 }
 
 template<class T, int d>
-TPBDCollisionConstraintPGS<T, d>::TPBDCollisionConstraintPGS(TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices, TArrayCollectionArray<bool>& Collided, TArrayCollectionArray<TSerializablePtr<TChaosPhysicsMaterial<T>>>& InPhysicsMaterials, const T Thickness /*= (T)0*/)
+TPBDCollisionConstraintPGS<T, d>::TPBDCollisionConstraintPGS(TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices, TArrayCollectionArray<bool>& Collided, TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& InPhysicsMaterials, const T Thickness /*= (T)0*/)
     : MCollided(Collided), MPhysicsMaterials(InPhysicsMaterials), MThickness(Thickness), Tolerance(KINDA_SMALL_NUMBER), MaxIterations(10), bUseCCD(false)
 {
 }
