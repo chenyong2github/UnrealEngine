@@ -50,6 +50,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 
 		// Trimeshes serialize AABBTree
 		TrimeshSerializesAABBTree,
+		
+		// Adds Serialization of HashResult, and separates delete/update TAccelerationStructureHandle in FPendingSpatialData
+		SerializeHashResult,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
