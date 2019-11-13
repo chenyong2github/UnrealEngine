@@ -15,6 +15,22 @@ namespace Chaos
 	class TPBDCollisionConstraint;
 
 
+	/** Specifies the type of work we should do*/
+	enum class CHAOS_API ECollisionUpdateType
+	{
+		Any,	//stop if we have at least one deep penetration. Does not compute location or normal
+		Deepest	//find the deepest penetration. Compute location and normal
+	};
+
+	/** Return value of the collision modification callback */
+	enum class CHAOS_API ECollisionModifierResult
+	{
+		Unchanged,	/** No change to the collision */
+		Modified,	/** Modified the collision, but want it to remain enabled */
+		Disabled,	/** Collision should be disabled */
+	};
+
+
 	/*
 	*
 	*  Contact manifold stored in the local space of the
@@ -73,7 +89,7 @@ namespace Chaos
 
 		//API
 		void ResetPhi(T InPhi) { SetPhi(InPhi); }
-		bool ContainsManifold(const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr) const { return (A==nullptr&&B==nullptr)?(ShapeManifold.Implicit[0] != nullptr && ShapeManifold.Implicit[1] != nullptr):(ShapeManifold.Implicit[0]==A && ShapeManifold.Implicit[1]==B); }
+		bool ContainsManifold(const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr) const { return (A == nullptr&&B == nullptr) ? (ShapeManifold.Implicit[0] != nullptr && ShapeManifold.Implicit[1] != nullptr) : (ShapeManifold.Implicit[0] == A && ShapeManifold.Implicit[1] == B); }
 
 		void SetDisabled(bool bInDisabled, const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr) { ShapeManifold.Manifold.bDisabled = bInDisabled; }
 		TVector<T, d> GetDisabled(const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr) const { return ShapeManifold.Manifold.bDisabled; }
@@ -82,7 +98,7 @@ namespace Chaos
 		void SetNormal(const TVector<T, d> & InNormal, const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr) { ShapeManifold.Manifold.Normal = InNormal; }
 		TVector<T, d> GetNormal(const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr) const { return ShapeManifold.Manifold.Normal; }
 
-		void SetLocation(const TVector<T, d> & InLocation, const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr, int32 Index=0) { ShapeManifold.Manifold.Location = InLocation; }
+		void SetLocation(const TVector<T, d> & InLocation, const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr, int32 Index = 0) { ShapeManifold.Manifold.Location = InLocation; }
 		TVector<T, d> GetLocation(const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr) const { return ShapeManifold.Manifold.Location; }
 
 		void SetPhi(T InPhi, const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr, int32 Index = 0) { ShapeManifold.Manifold.Phi = InPhi; }
