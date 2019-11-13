@@ -43,11 +43,6 @@ public:
 			// A generate mips pass requires both read / write access to the same texture for barriers to work correctly.
 			if (bIsGenerateMips)
 			{
-				const bool bReadWithoutWrite = TextureAccess.IsAnyRead() && !TextureAccess.IsAnyWrite();
-				ensureMsgf(!bReadWithoutWrite,
-					TEXT("Attempting to use texture '%s' for read but not write access in pass '%s' which is marked with 'GenerateMips'. This kind of pass only supports textures for simultaneous read and write."),
-					Texture->Name, Pass.GetName());
-
 				const bool bWriteWithoutRead = TextureAccess.IsAnyWrite() && !TextureAccess.IsAnyRead();
 				ensureMsgf(!bWriteWithoutRead,
 					TEXT("Attempting to use texture '%s' for write but not read access in pass '%s' which is marked with 'GenerateMips'. This kind of pass only supports textures for simultaneous read and write."),
