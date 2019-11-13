@@ -653,17 +653,22 @@ FReply STakeRecorderCockpit::SetFrameRate()
 	return FReply::Unhandled();
 }
 
-FText STakeRecorderCockpit::GetFrameRateText() const
+FFrameRate STakeRecorderCockpit::GetFrameRate() const
 {
 	// If not recorded, return app timecode frame rate
 	if (TakeMetaData->GetTimestamp() == FDateTime(0))
 	{
-		return FApp::GetTimecodeFrameRate().ToPrettyText();
+		return FApp::GetTimecodeFrameRate();
 	}
 	else
 	{
-		return TakeMetaData->GetFrameRate().ToPrettyText();
+		return TakeMetaData->GetFrameRate();
 	}
+}
+
+FText STakeRecorderCockpit::GetFrameRateText() const
+{
+	return GetFrameRate().ToPrettyText();
 }
 
 FText STakeRecorderCockpit::GetFrameRateTooltipText() const
