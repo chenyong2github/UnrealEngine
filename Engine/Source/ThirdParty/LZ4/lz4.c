@@ -1621,7 +1621,9 @@ typedef enum { decode_full_block = 0, partial_decode = 1 } earlyEnd_directive;
  * initial_check - check ip >= lencheck before start of loop.  Returns initial_error if so.
  * error (output) - error code.  Should be set to 0 before call.
  */
-typedef enum { loop_error = -2, initial_error = -1, ok = 0 } variable_length_error;
+// BEGIN EPIC MOD : The 'ok' identifier collides with symbols in the MacOS SDK
+typedef enum { loop_error = -2, initial_error = -1, length_ok = 0 } variable_length_error;
+// END EPIC MOD
 LZ4_FORCE_INLINE unsigned
 read_variable_length(const BYTE**ip, const BYTE* lencheck, int loop_check, int initial_check, variable_length_error* error)
 {
@@ -1721,7 +1723,9 @@ LZ4_decompress_generic(
 
             /* decode literal length */
             if (length == RUN_MASK) {
-                variable_length_error error = ok;
+// BEGIN EPIC MOD : The 'ok' identifier collides with symbols in the MacOS SDK
+                variable_length_error error = length_ok;
+// END EPIC MOD
                 length += read_variable_length(&ip, iend-RUN_MASK, endOnInput, endOnInput, &error);
                 if (error == initial_error) { goto _output_error; }
                 if ((safeDecode) && unlikely((uptrval)(op)+length<(uptrval)(op))) { goto _output_error; } /* overflow detection */
@@ -1765,10 +1769,14 @@ LZ4_decompress_generic(
             length = token & ML_MASK;
 
             if (length == ML_MASK) {
-              variable_length_error error = ok;
+// BEGIN EPIC MOD : The 'ok' identifier collides with symbols in the MacOS SDK
+              variable_length_error error = length_ok;
+// END EPIC MOD
               if ((checkOffset) && (unlikely(match + dictSize < lowPrefix))) { goto _output_error; } /* Error : offset outside buffers */
               length += read_variable_length(&ip, iend - LASTLITERALS + 1, endOnInput, 0, &error);
-              if (error != ok) { goto _output_error; }
+// BEGIN EPIC MOD : The 'ok' identifier collides with symbols in the MacOS SDK
+              if (error != length_ok) { goto _output_error; }
+// END EPIC MOD
                 if ((safeDecode) && unlikely((uptrval)(op)+length<(uptrval)op)) { goto _output_error; } /* overflow detection */
                 length += MINMATCH;
                 if (op + length >= oend - FASTLOOP_SAFE_DISTANCE) {
@@ -1890,7 +1898,9 @@ LZ4_decompress_generic(
 
             /* decode literal length */
             if (length == RUN_MASK) {
-                variable_length_error error = ok;
+// BEGIN EPIC MOD : The 'ok' identifier collides with symbols in the MacOS SDK
+                variable_length_error error = length_ok;
+// END EPIC MOD
                 length += read_variable_length(&ip, iend-RUN_MASK, endOnInput, endOnInput, &error);
                 if (error == initial_error) { goto _output_error; }
                 if ((safeDecode) && unlikely((uptrval)(op)+length<(uptrval)(op))) { goto _output_error; } /* overflow detection */
@@ -1964,9 +1974,13 @@ LZ4_decompress_generic(
 
     _copy_match:
             if (length == ML_MASK) {
-              variable_length_error error = ok;
+// BEGIN EPIC MOD : The 'ok' identifier collides with symbols in the MacOS SDK
+              variable_length_error error = length_ok;
+// END EPIC MOD
               length += read_variable_length(&ip, iend - LASTLITERALS + 1, endOnInput, 0, &error);
-              if (error != ok) goto _output_error;
+// BEGIN EPIC MOD : The 'ok' identifier collides with symbols in the MacOS SDK
+              if (error != length_ok) goto _output_error;
+// END EPIC MOD
                 if ((safeDecode) && unlikely((uptrval)(op)+length<(uptrval)op)) goto _output_error;   /* overflow detection */
             }
             length += MINMATCH;
