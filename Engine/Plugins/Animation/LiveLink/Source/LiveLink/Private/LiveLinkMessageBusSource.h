@@ -20,12 +20,13 @@ class LIVELINK_API FLiveLinkMessageBusSource : public ILiveLinkSource
 {
 public:
 
-	FLiveLinkMessageBusSource(const FText& InSourceType, const FText& InSourceMachineName, const FMessageAddress& InConnectionAddress)
+	FLiveLinkMessageBusSource(const FText& InSourceType, const FText& InSourceMachineName, const FMessageAddress& InConnectionAddress, double InMachineTimeOffset)
 		: ConnectionAddress(InConnectionAddress)
 		, SourceType(InSourceType)
 		, SourceMachineName(InSourceMachineName)
 		, ConnectionLastActive(0.0)
 		, bIsValid(false)
+		, MachineTimeOffset(InMachineTimeOffset)
 	{}
 
 	virtual void ReceiveClient(ILiveLinkClient* InClient, FGuid InSourceGuid) override;
@@ -79,4 +80,7 @@ private:
 
 	// Critical section to allow for threadsafe updating of the connection time
 	FCriticalSection ConnectionLastActiveSection;
+
+	// Offset between sender's machine engine time and receiver's machine engine time
+	double MachineTimeOffset;
 };
