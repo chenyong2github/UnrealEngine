@@ -2,6 +2,7 @@
 
 
 #include "Bevel.h"
+#include "Data.h"
 #include "Bevel/BevelLinear.h"
 #include "Bevel/BevelType.h"
 #include "Bevel/Part.h"
@@ -12,10 +13,9 @@
 class FTVectoriser;
 
 
-void BevelContours(const FTVectoriser& Vectoriser, TText3DMeshList* MeshesIn, const float Extrude, const float Bevel, const float HorizontalOffset, const float VerticalOffset, const float FontInverseScale, const FVector& Scale, EText3DBevelType Type, const int32 HalfCircleSegments, const int32 IterationsIn, const bool bHidePreviousIn, const int32 MarkedVertex, const int32 Segments, const int32 VisibleFaceIn)
+void BevelContours(const TSharedPtr<FData> Data, const FTVectoriser& Vectoriser, const float Extrude, const float Bevel, EText3DBevelType Type, const int32 HalfCircleSegments, const int32 IterationsIn, const bool bHidePreviousIn, const int32 MarkedVertex, const int32 Segments, const int32 VisibleFaceIn)
 {
-	FBevelLinear BevelLinear(MeshesIn, Bevel, HorizontalOffset, VerticalOffset, FontInverseScale, Scale, Vectoriser, IterationsIn, bHidePreviousIn, Segments, VisibleFaceIn);
-	FData* Data = BevelLinear.GetData();
+	FBevelLinear BevelLinear(Data, Vectoriser, IterationsIn, bHidePreviousIn, Segments, VisibleFaceIn);
 
 	if (Bevel > 0)
 	{
@@ -97,8 +97,7 @@ void BevelContours(const FTVectoriser& Vectoriser, TText3DMeshList* MeshesIn, co
 	if (Bevel < Extrude / 2)
 	{
 		Data->SetCurrentMesh(EText3DMeshType::Extrude);
-		const FVector2D Normal(1, 0);
-		BevelLinear.BevelContours(Extrude - Bevel * 2, 0, Normal, Normal, false, MarkedVertex);
+		BevelLinear.CreateExtrudeMesh(Extrude - (Bevel * 2.0f));
 	}
 #else
 	if (Extrude > Bevel)
