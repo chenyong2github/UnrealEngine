@@ -117,8 +117,8 @@ private:
 	TArray<class UActorComponent*> Components;
 
 protected:
-	class UWorld* PreviewWorld;
-	class ULineBatchComponent* LineBatcher;
+	class UWorld* PreviewWorld = nullptr;
+	class ULineBatchComponent* LineBatcher = nullptr;
 
 	/** This controls whether or not all mip levels of textures used by UMeshComponents added to this preview window should be loaded and remain loaded. */
 	bool bForceAllUsedMipsResident;
