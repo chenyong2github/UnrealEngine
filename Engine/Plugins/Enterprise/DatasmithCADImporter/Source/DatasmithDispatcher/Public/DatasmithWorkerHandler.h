@@ -25,7 +25,6 @@ class FDatasmithWorkerHandler
 		Uninitialized,
 		Idle, // Initialized, available for processing
 		Processing, // Currently processing a task
-		Restarting, // can occur when a processing is aborted.
 		Closing, // in the process of terminating
 		Terminated, // aka. Not Alive
 	};
@@ -47,6 +46,7 @@ public:
 
 	void Run();
 	bool IsAlive() const;
+	bool IsRestartable() const;
 	void Stop();
 
 private:
@@ -59,6 +59,7 @@ private:
 	void ProcessCommand(ICommand& Command);
 	void ProcessCommand(FPingCommand& PingCommand);
 	void ProcessCommand(FCompletedTaskCommand& RunTaskCommand);
+	const TCHAR* EWorkerErrorStateAsString(EWorkerErrorState e);
 
 private:
 	FDatasmithDispatcher& Dispatcher;
@@ -68,7 +69,6 @@ private:
 	FCommandQueue CommandIO;
 	FThread IOThread;
 	FString ThreadName;
-	// FEvent* todo;
 
 	// External process
 	FProcHandle WorkerHandle;

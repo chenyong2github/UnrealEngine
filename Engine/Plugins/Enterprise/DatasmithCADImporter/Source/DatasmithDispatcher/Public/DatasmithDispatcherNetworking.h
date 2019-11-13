@@ -71,11 +71,10 @@ protected:
 	FSocket* ConnectedSocket = nullptr;
 	SocketErrorCode ConnectedSocketError = SocketErrorCode::NoError;
 
-	bool bReadError = false;
 	FMessage IncommingMessage;
 
+	bool bReadError = false;
 	bool bWriteError = false;
-// 	TArray<uint8> IncompleteCommandBufferOut;
 };
 
 
@@ -115,7 +114,7 @@ public:
 
 	bool IsValid() { return NetworkInterface ? NetworkInterface->IsValid() : true;}
 
-	bool Disconnect(double Timeout_s);
+	void Disconnect(double Timeout_s);
 
 private:
 	bool Poll(double Timeout_s);
