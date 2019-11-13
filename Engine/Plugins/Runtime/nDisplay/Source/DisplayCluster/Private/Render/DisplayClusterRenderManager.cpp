@@ -140,7 +140,7 @@ bool FDisplayClusterRenderManager::StartScene(UWorld* InWorld)
 
 	if (RenderDevicePtr)
 	{
-		RenderDevicePtr->InitializeWorldContent(InWorld);
+		RenderDevicePtr->StartScene(InWorld);
 	}
 
 	return true;
@@ -149,6 +149,11 @@ bool FDisplayClusterRenderManager::StartScene(UWorld* InWorld)
 void FDisplayClusterRenderManager::EndScene()
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
+
+	if (RenderDevicePtr)
+	{
+		RenderDevicePtr->EndScene();
+	}
 }
 
 void FDisplayClusterRenderManager::PreTick(float DeltaSeconds)
