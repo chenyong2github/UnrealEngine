@@ -14,7 +14,6 @@ static TAutoConsoleVariable<int32> CVarDrawSpritesAsTwoSided(TEXT("r.Paper2D.Dra
 
 DECLARE_CYCLE_STAT(TEXT("Get Batch Mesh"), STAT_PaperRender_GetBatchMesh, STATGROUP_Paper2D);
 DECLARE_CYCLE_STAT(TEXT("Get New Batch Meshes"), STAT_PaperRender_GetNewBatchMeshes, STATGROUP_Paper2D);
-DECLARE_CYCLE_STAT(TEXT("Convert Batches"), STAT_PaperRender_ConvertBatches, STATGROUP_Paper2D);
 DECLARE_CYCLE_STAT(TEXT("SpriteProxy GDME"), STAT_PaperRenderSceneProxy_GetDynamicMeshElements, STATGROUP_Paper2D);
 
 FPackedNormal FPaperSpriteTangents::PackedNormalX(FVector(1.0f, 0.0f, 0.0f));
@@ -277,15 +276,16 @@ void FPaperRenderSceneProxy::GetNewBatchMeshes(const FSceneView* View, int32 Vie
 
 	if (Vertices.Num())
 	{
+		FDynamicMeshBuilder DynamicMeshBuilder(View->GetFeatureLevel());
+		DynamicMeshBuilder.AddVertices(Vertices);
+		DynamicMeshBuilder.ReserveTriangles(Vertices.Num() / 3);
+		for (int32 i = 0; i < Vertices.Num(); i += 3)
+		{
+			DynamicMeshBuilder.AddTriangle(i, i + 1, i + 2);
+		}
+
 		for (const FSpriteRenderSection& Batch : BatchedSections)
 		{
-			FDynamicMeshBuilder DynamicMeshBuilder(View->GetFeatureLevel());
-
-			for (int32 i = Batch.VertexOffset; i < Batch.VertexOffset + Batch.NumVertices; ++i)
-			{
-				DynamicMeshBuilder.AddVertex(Vertices[i]);
-			}
-
 			if (Batch.IsValid())
 			{
 				FMaterialRenderProxy* ParentMaterialProxy = Batch.Material->GetRenderProxy();
@@ -320,8 +320,10 @@ void FPaperRenderSceneProxy::GetNewBatchMeshes(const FSceneView* View, int32 Vie
 				Settings.CastShadow = bCastShadow;
 				Settings.bDisableBackfaceCulling = bDrawTwoSided;
 
-
-				DynamicMeshBuilder.GetMesh(GetLocalToWorld(), TextureOverrideMaterialProxy, DPG, Settings, nullptr, ViewIndex, Collector);
+				FDynamicMeshDrawOffset DrawOffset;
+				DrawOffset.FirstIndex = Batch.VertexOffset;
+				DrawOffset.NumPrimitives = Batch.NumVertices / 3;
+				DynamicMeshBuilder.GetMesh(GetLocalToWorld(), TextureOverrideMaterialProxy, DPG, Settings, &DrawOffset, ViewIndex, Collector);
 			}
 		}
 	}
@@ -516,25 +518,3 @@ void FPaperRenderSceneProxy::SetTransientTextureOverride_RenderThread(const UTex
 	}
 }
 #endif
-
-void FPaperRenderSceneProxy::ConvertBatchesToNewStyle(TArray<FSpriteDrawCallRecord>& SourceBatches)
-{
-	SCOPE_CYCLE_COUNTER(STAT_PaperRender_ConvertBatches);
-
-	Vertices.Reset();
-	BatchedSections.Reset();
-
-	for (const FSpriteDrawCallRecord& SourceBatch : SourceBatches)
-	{
-		if (SourceBatch.IsValid())
-		{
-			FSpriteRenderSection& DestBatch = *new (BatchedSections) FSpriteRenderSection();
-
-			DestBatch.BaseTexture = SourceBatch.BaseTexture;
-			DestBatch.AdditionalTextures = SourceBatch.AdditionalTextures;
-			DestBatch.Material = Material;
-
-			DestBatch.AddTriangles(SourceBatch, Vertices);
-		}
-	}
-}
