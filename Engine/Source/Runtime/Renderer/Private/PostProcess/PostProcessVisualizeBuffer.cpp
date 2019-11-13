@@ -337,10 +337,11 @@ FScreenPassTexture AddVisualizeGBufferOverviewPass(
 	const FViewInfo& View,
 	const FVisualizeGBufferOverviewInputs& Inputs)
 {
-	check(Inputs.SceneColor.IsValid());
-	check(Inputs.bDumpToFile || Inputs.bOverview);
-
 	const FFinalPostProcessSettings& PostProcessSettings = View.FinalPostProcessSettings;
+
+	check(Inputs.SceneColor.IsValid());
+	check(Inputs.bDumpToFile || Inputs.bOverview || PostProcessSettings.BufferVisualizationPipes.Num() > 0);
+
 
 	FScreenPassTexture Output;
 	const EPixelFormat OutputFormat = Inputs.bOutputInHDR ? PF_FloatRGBA : PF_Unknown;
