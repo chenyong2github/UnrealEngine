@@ -28,6 +28,12 @@ typedef FMacErrorReport FPlatformErrorReport;
 
 typedef FIOSErrorReport FPlatformErrorReport;
 
+#elif PLATFORM_ANDROID
+
+#include "Android/AndroidErrorReport.h"
+
+typedef FAndroidErrorReport FPlatformErrorReport;
+
 #else
 
 typedef FGenericErrorReport FPlatformErrorReport;

@@ -124,7 +124,8 @@ public class Core : ModuleRules
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
 				"cxademangle",
-				"zlib"
+				"zlib",
+				"libunwind"
 				);
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))

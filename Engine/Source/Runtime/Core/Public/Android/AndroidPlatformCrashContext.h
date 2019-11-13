@@ -3,6 +3,7 @@
 #pragma once
 
 #include "GenericPlatform/GenericPlatformCrashContext.h"
+#include "Containers/Map.h"
 
 struct CORE_API FAndroidCrashContext : public FGenericCrashContext
 {
@@ -15,13 +16,7 @@ struct CORE_API FAndroidCrashContext : public FGenericCrashContext
 	/** Thread context */
 	void* Context;
 
-	FAndroidCrashContext(ECrashContextType InType, const TCHAR* InErrorMessage)
-		:	FGenericCrashContext(InType, InErrorMessage)
-		,	Signal(0)
-		,	Info(NULL)
-		,	Context(NULL)
-	{
-	}
+	FAndroidCrashContext(ECrashContextType InType, const TCHAR* InErrorMessage);
 
 	~FAndroidCrashContext()
 	{
@@ -40,6 +35,27 @@ struct CORE_API FAndroidCrashContext : public FGenericCrashContext
 		Info = InInfo;
 		Context = InContext;
 	}
+
+	virtual void GetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames, TArray<FCrashStackFrame>& OutCallStack) override;
+	virtual void AddPlatformSpecificProperties() const override;
+
+	void CaptureCrashInfo();
+	void StoreCrashInfo() const;
+
+	static const int32 CrashReportMaxPathSize = 512;
+
+	static void Initialize();
+	static const FString GetCrashDirectoryName();
+	static void GetCrashDirectoryName(char(&DirectoryNameOUT)[CrashReportMaxPathSize]);
+
+	void AddAndroidCrashProperty(const FString& Key, const FString& Value);
+
+	// generate an absolute path to a crash report folder.
+	static void GenerateReportDirectoryName(char(&DirectoryNameOUT)[CrashReportMaxPathSize]);
+
+private:
+	TMap<FString, FString> AdditionalProperties;
+
 };
 
 typedef FAndroidCrashContext FPlatformCrashContext;
