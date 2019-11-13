@@ -37,7 +37,8 @@ public:
 	// IDisplayClusterStereoDevice
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual bool Initialize() override;
-	virtual void InitializeWorldContent(UWorld* InWorld) override;
+	virtual void StartScene(UWorld* InWorld) override;
+	virtual void EndScene() override;
 	virtual void SetViewportCamera(const FString& InCameraId = FString(), const FString& InViewportId = FString()) override;
 	virtual void SetStartPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& StartPostProcessingSettings) override;
 	virtual void SetOverridePostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& OverridePostProcessingSettings, float BlendWeight = 1.0f) override;
@@ -156,6 +157,8 @@ protected:
 	uint32 ViewsAmountPerViewport = 0;
 	// UE4 main viewport
 	FViewport* MainViewport = nullptr;
+
+	bool bIsSceneOpen = false;
 
 	// Per-eye regions
 	FIntRect EyeRegions[2];
