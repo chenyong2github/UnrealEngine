@@ -795,6 +795,9 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TArray<UAnimInstance*>& GetLinkedAnimInstances() { return LinkedInstances; }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+	/** Clear the linked anim instances and mark them pending kill */
+	void ResetLinkedAnimInstances();
+
 public:
 	UE_DEPRECATED(4.23, "This function is deprecated. Please use GetLinkedAnimGraphInstanceByTag")
 	UAnimInstance* GetSubInstanceByName(FName InTag) const { return GetLinkedAnimGraphInstanceByTag(InTag); }
