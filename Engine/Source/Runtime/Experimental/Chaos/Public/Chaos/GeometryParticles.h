@@ -332,7 +332,7 @@ namespace Chaos
 			{
 				for (const auto& Particle : MGeometryParticle)
 				{
-					MHashResult.Add(FMath::RandHelper(TNumericLimits<uint32>::Max()));
+					SerializeHashResultHelper(Ar, Particle);
 				}
 			}
 			else
@@ -375,6 +375,7 @@ namespace Chaos
 		friend class TGeometryParticlesImp;
 
 		CHAOS_API void SerializeGeometryParticleHelper(FChaosArchive& Ar, TGeometryParticlesImp<T, d, EGeometryParticlesSimType::RigidBodySim>* GeometryParticles);
+		CHAOS_API void SerializeHashResultHelper(FChaosArchive& Ar, TGeometryParticle<T, d>* Particle);
 		
 		void SerializeGeometryParticleHelper(FChaosArchive& Ar, TGeometryParticlesImp<T, d, EGeometryParticlesSimType::Other>* GeometryParticles)
 		{
