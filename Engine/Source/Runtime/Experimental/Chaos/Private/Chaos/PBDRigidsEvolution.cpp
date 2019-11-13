@@ -283,7 +283,7 @@ namespace Chaos
 	}
 
 	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
-	void TPBDRigidsEvolutionBase<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::ApplyParticlePendingData(TGeometryParticleHandle<T, d>* Particle, const FPendingSpatialData& SpatialData, FAccelerationStructure& AccelerationStructure, bool bUpdateCache)
+	void TPBDRigidsEvolutionBase<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::ApplyParticlePendingData(const FPendingSpatialData& SpatialData, FAccelerationStructure& AccelerationStructure, bool bUpdateCache)
 	{
 		//Note: we collapsed several update delete events into one struct. If memory is reused this can lead to problems
 		//Luckily there are only 3 states we care about:
@@ -294,11 +294,12 @@ namespace Chaos
 
 		if (SpatialData.bDelete)
 		{
-			AccelerationStructure.RemoveElementFrom(SpatialData.AccelerationHandle, SpatialData.DeletedSpatialIdx);
+			AccelerationStructure.RemoveElementFrom(SpatialData.DeleteAccelerationHandle, SpatialData.DeletedSpatialIdx);
+			TGeometryParticleHandle<T, d>* DeleteParticle = SpatialData.DeleteAccelerationHandle.GetGeometryParticleHandle_PhysicsThread();
 
 			if (bUpdateCache)
 			{
-				if (uint32* InnerIdxPtr = ParticleToCacheInnerIdx.Find(Particle))
+				if (uint32* InnerIdxPtr = ParticleToCacheInnerIdx.Find(DeleteParticle))
 				{
 					const auto SpatialIdx = SpatialData.DeletedSpatialIdx;
 					TSpatialAccelerationCache<T, d>& Cache = *SpatialAccelerationCache.FindChecked(SpatialIdx);	//can't delete from cache that doesn't exist
@@ -310,14 +311,17 @@ namespace Chaos
 					}
 
 					Cache.DestroyElement(CacheInnerIdx);
-					ParticleToCacheInnerIdx.Remove(Particle);
+					ParticleToCacheInnerIdx.Remove(DeleteParticle);
 				}
 			}
 		}
 
 		if (SpatialData.bUpdate)
 		{
-			AccelerationStructure.UpdateElementIn(Particle, Particle->WorldSpaceInflatedBounds(), Particle->HasBounds(), SpatialData.UpdatedSpatialIdx);
+
+			TGeometryParticleHandle<T, d>* UpdateParticle = SpatialData.UpdateAccelerationHandle.GetGeometryParticleHandle_PhysicsThread();
+
+			AccelerationStructure.UpdateElementIn(UpdateParticle, UpdateParticle->WorldSpaceInflatedBounds(), UpdateParticle->HasBounds(), SpatialData.UpdatedSpatialIdx);
 
 			if (bUpdateCache)
 			{
@@ -331,7 +335,7 @@ namespace Chaos
 
 				//make sure in mapping
 				uint32 CacheInnerIdx;
-				if (uint32* CacheInnerIdxPtr = ParticleToCacheInnerIdx.Find(Particle))
+				if (uint32* CacheInnerIdxPtr = ParticleToCacheInnerIdx.Find(UpdateParticle))
 				{
 					CacheInnerIdx = *CacheInnerIdxPtr;
 				}
@@ -339,13 +343,13 @@ namespace Chaos
 				{
 					CacheInnerIdx = Cache.Size();
 					Cache.AddElements(1);
-					ParticleToCacheInnerIdx.Add(Particle, CacheInnerIdx);
+					ParticleToCacheInnerIdx.Add(UpdateParticle, CacheInnerIdx);
 				}
 
 				//update cache entry
-				Cache.HasBounds(CacheInnerIdx) = Particle->HasBounds();
-				Cache.Bounds(CacheInnerIdx) = Particle->WorldSpaceInflatedBounds();
-				Cache.Payload(CacheInnerIdx) = SpatialData.AccelerationHandle;
+				Cache.HasBounds(CacheInnerIdx) = UpdateParticle->HasBounds();
+				Cache.Bounds(CacheInnerIdx) = UpdateParticle->WorldSpaceInflatedBounds();
+				Cache.Payload(CacheInnerIdx) = SpatialData.UpdateAccelerationHandle;
 			}
 		}
 	}
@@ -355,7 +359,7 @@ namespace Chaos
 	{
 		for (auto Itr : InternalAccelerationQueue)
 		{
-			ApplyParticlePendingData(Itr.Key, Itr.Value, *InternalAcceleration, false);
+			ApplyParticlePendingData(Itr.Value, *InternalAcceleration, false);
 		}
 		InternalAccelerationQueue.Empty();
 	}
@@ -365,8 +369,8 @@ namespace Chaos
 	{
 		for (auto Itr : AsyncAccelerationQueue)
 		{
-			ApplyParticlePendingData(Itr.Key, Itr.Value, *AsyncInternalAcceleration, true); //only the first queue needs to update the cached acceleration
-			ApplyParticlePendingData(Itr.Key, Itr.Value, *AsyncExternalAcceleration, false);
+			ApplyParticlePendingData(Itr.Value, *AsyncInternalAcceleration, true); //only the first queue needs to update the cached acceleration
+			ApplyParticlePendingData(Itr.Value, *AsyncExternalAcceleration, false);
 		}
 		AsyncAccelerationQueue.Empty();
 
@@ -380,7 +384,7 @@ namespace Chaos
 	{
 		for (auto Itr : ExternalAccelerationQueue)
 		{
-			ApplyParticlePendingData(Itr.Key, Itr.Value, Acceleration, false);
+			ApplyParticlePendingData(Itr.Value, Acceleration, false);
 		}
 		ExternalAccelerationQueue.Empty();
 	}
