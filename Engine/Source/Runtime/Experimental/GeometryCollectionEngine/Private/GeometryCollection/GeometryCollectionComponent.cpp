@@ -141,7 +141,7 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 	GlobalNavMeshInvalidationCounter += 3;
 	NavmeshInvalidationTimeSliceIndex = GlobalNavMeshInvalidationCounter;
 
-	ChaosMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<float>>();
+	ChaosMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
 
 	WorldBounds = FBoxSphereBounds(FBox(ForceInit));	
 
