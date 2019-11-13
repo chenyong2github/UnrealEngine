@@ -2377,6 +2377,19 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// Resolve the scene color for post processing.
 	ResolveSceneColor(RHICmdList);
 
+	// Keep scene color and depth for next frame screen space ray tracing.
+	{
+		for (const FViewInfo& View : Views)
+		{
+			if (ShouldKeepBleedFreeSceneColor(View))
+			{
+				FSceneViewState* ViewState = View.ViewState;
+				ViewState->PrevFrameViewInfo.DepthBuffer = SceneContext.SceneDepthZ;
+				ViewState->PrevFrameViewInfo.ScreenSpaceRayTracingInput = SceneContext.GetSceneColor();
+			}
+		}
+	}
+
 	GetRendererModule().RenderPostResolvedSceneColorExtension(RHICmdList, SceneContext);
 
 	CopySceneCaptureComponentToTarget(RHICmdList);

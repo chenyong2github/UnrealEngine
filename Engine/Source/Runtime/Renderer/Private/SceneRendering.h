@@ -786,6 +786,9 @@ struct FPreviousViewInfo
 	// DeviceZ as float16, and normal in view space.
 	TRefCountPtr<IPooledRenderTarget> CompressedDepthViewNormal;
 
+	// Bleed free scene color to use for screen space ray tracing.
+	TRefCountPtr<IPooledRenderTarget> ScreenSpaceRayTracingInput;
+
 	// Temporal AA result of last frame
 	FTemporalAAHistory TemporalAAHistory;
 
