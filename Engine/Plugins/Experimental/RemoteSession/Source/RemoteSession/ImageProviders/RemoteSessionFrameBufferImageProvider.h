@@ -56,4 +56,7 @@ protected:
 
 	/** Holds a reference to the scene viewport */
 	TWeakPtr<FSceneViewport> SceneViewport;
+
+	/** Holds a reference to the SceneViewport SWindow */
+	TWeakPtr<SWindow> SceneViewportWindow;
 };
