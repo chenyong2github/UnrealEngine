@@ -1004,6 +1004,33 @@ void ContentBrowserUtils::CopyAssetReferencesToClipboard(const TArray<FAssetData
 	FPlatformApplicationMisc::ClipboardCopy( *ClipboardText );
 }
 
+void ContentBrowserUtils::CopyFilePathsToClipboard(const TArray<FAssetData>& AssetsToCopy)
+{
+	FString ClipboardText;
+	for (const FAssetData& Asset : AssetsToCopy)
+	{
+		if (ClipboardText.Len() > 0)
+		{
+			ClipboardText += LINE_TERMINATOR;
+		}
+		FString PackageFileName;
+		FString PackageFile;
+		if (FPackageName::TryConvertLongPackageNameToFilename(Asset.PackageName.ToString(), PackageFileName) &&
+			FPackageName::FindPackageFileWithoutExtension(PackageFileName, PackageFile))
+		{
+			ClipboardText += FPaths::ConvertRelativePathToFull(PackageFile);
+		}
+		else
+		{
+			// Add a message for when a user tries to copy the path to a file that doesn't exist on disk of the form
+			// <AssetName>: No file on disk
+			ClipboardText += Asset.AssetName.ToString() + FString(": No file on disk");
+		}
+	}
+
+	FPlatformApplicationMisc::ClipboardCopy(*ClipboardText);
+}
+
 void ContentBrowserUtils::CaptureThumbnailFromViewport(FViewport* InViewport, const TArray<FAssetData>& InAssetsToAssign)
 {
 	//capture the thumbnail
