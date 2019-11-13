@@ -85,6 +85,13 @@ public:
 
 
 	/**
+	 * Access the frame rate for this take
+	 */
+	UFUNCTION(BlueprintCallable, Category="Take Recorder|Panel")
+	FFrameRate GetFrameRate() const;
+
+
+	/**
 	 * Access the sources that are to be (or were) used for recording this take
 	 */
 	UFUNCTION(BlueprintCallable, Category="Take Recorder|Panel")
