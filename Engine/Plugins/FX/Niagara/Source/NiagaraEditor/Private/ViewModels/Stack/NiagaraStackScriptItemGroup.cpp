@@ -829,9 +829,8 @@ TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackScriptItemGroup
 
 void UNiagaraStackScriptItemGroup::ItemAdded(UNiagaraNodeFunctionCall* AddedModule)
 {
-	TArray<const UObject*> DisplayedObjectsToSelect;
-	DisplayedObjectsToSelect.Add(AddedModule);
-	GetSystemViewModel()->GetSelectionViewModel()->AddEntriesToSelectionByDisplayedObjectsDeferred(DisplayedObjectsToSelect);
+	GetSystemViewModel()->GetSelectionViewModel()->EmptySelection();
+	GetSystemViewModel()->GetSelectionViewModel()->AddEntryToSelectionByDisplayedObjectDeferred(AddedModule);
 	RefreshChildren();
 }
 
