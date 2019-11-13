@@ -97,6 +97,7 @@ namespace Chaos
 			TArrayCollection::AddArray(&MWorldSpaceInflatedBounds);
 			TArrayCollection::AddArray(&MHasBounds);
 			TArrayCollection::AddArray(&MSpatialIdx);
+			TArrayCollection::AddArray(&MHashResult);
 
 			if (IsRigidBodySim())
 			{
@@ -119,6 +120,7 @@ namespace Chaos
 			, MWorldSpaceInflatedBounds(MoveTemp(Other.MWorldSpaceInflatedBounds))
 			, MHasBounds(MoveTemp(Other.MHasBounds))
 			, MSpatialIdx(MoveTemp(Other.MSpatialIdx))
+			, MHashResult(MoveTemp(Other.MHashResult))
 #if CHAOS_DETERMINISTIC
 			, MParticleIDs(MoveTemp(Other.MParticleIDs))
 #endif
@@ -133,6 +135,7 @@ namespace Chaos
 			TArrayCollection::AddArray(&MWorldSpaceInflatedBounds);
 			TArrayCollection::AddArray(&MHasBounds);
 			TArrayCollection::AddArray(&MSpatialIdx);
+			TArrayCollection::AddArray(&MHashResult);
 #if CHAOS_DETERMINISTIC
 			TArrayCollection::AddArray(&MParticleIDs);
 #endif
@@ -159,6 +162,7 @@ namespace Chaos
 			TArrayCollection::AddArray(&MWorldSpaceInflatedBounds);
 			TArrayCollection::AddArray(&MHasBounds);
 			TArrayCollection::AddArray(&MSpatialIdx);
+			TArrayCollection::AddArray(&MHashResult);
 #if CHAOS_DETERMINISTIC
 			TArrayCollection::AddArray(&MParticleIDs);
 #endif
@@ -243,6 +247,16 @@ namespace Chaos
 			return MSpatialIdx[Index];
 		}
 
+		uint32 HashResultLowLevel(const int32 Index) const
+		{
+			return MHashResult[Index];
+		}
+
+		uint32& HashResultLowLevel(const int32 Index)
+		{
+			return MHashResult[Index];
+		}
+
 		CHAOS_API const TBox<T, d>& WorldSpaceInflatedBounds(const int32 Index) const
 		{
 			return MWorldSpaceInflatedBounds[Index];
@@ -313,6 +327,18 @@ namespace Chaos
 			{
 				Ar << MSpatialIdx;
 			}
+
+			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::SerializeHashResult)
+			{
+				for (const auto& Particle : MGeometryParticle)
+				{
+					MHashResult.Add(FMath::RandHelper(TNumericLimits<uint32>::Max()));
+				}
+			}
+			else
+			{
+				Ar << MHashResult;
+			}
 		}
 
 		CHAOS_API EParticleType ParticleType() const { return MParticleType; }
@@ -338,6 +364,7 @@ namespace Chaos
 		TArrayCollectionArray<TBox<T, d>> MWorldSpaceInflatedBounds;
 		TArrayCollectionArray<bool> MHasBounds;
 		TArrayCollectionArray<FSpatialAccelerationIdx> MSpatialIdx;
+		TArrayCollectionArray<uint32> MHashResult;
 
 		void UpdateShapesArray(const int32 Index)
 		{
@@ -348,6 +375,7 @@ namespace Chaos
 		friend class TGeometryParticlesImp;
 
 		CHAOS_API void SerializeGeometryParticleHelper(FChaosArchive& Ar, TGeometryParticlesImp<T, d, EGeometryParticlesSimType::RigidBodySim>* GeometryParticles);
+		//CHAOS_API void SerializeHashResultHelper(FChaosArchive& Ar, TGeometryParticle<T, d>* Particle);
 		
 		void SerializeGeometryParticleHelper(FChaosArchive& Ar, TGeometryParticlesImp<T, d, EGeometryParticlesSimType::Other>* GeometryParticles)
 		{
