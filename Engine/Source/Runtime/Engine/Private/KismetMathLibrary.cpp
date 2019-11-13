@@ -575,6 +575,11 @@ float UKismetMathLibrary::Transform_Determinant(const FTransform& Transform)
 	return Transform.ToMatrixWithScale().Determinant();
 }
 
+FMatrix UKismetMathLibrary::Conv_TransformToMatrix(const FTransform& Tranform)
+{
+	return Tranform.ToMatrixWithScale();
+}
+
 bool UKismetMathLibrary::ClassIsChildOf(TSubclassOf<class UObject> TestClass, TSubclassOf<class UObject> ParentClass)
 {
 	return ((*ParentClass != NULL) && (*TestClass != NULL)) ? (*TestClass)->IsChildOf(*ParentClass) : false;
