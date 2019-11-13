@@ -77,6 +77,11 @@ protected:
 	void OnColorPickerCancelled(FLinearColor OriginalColor);
 
 	/**
+	 * Called when the color picker window is clsoed
+	 */
+	void OnColorPickerWindowClosed(const TSharedRef<SWindow>& Window);
+
+	/**
 	 * Called when the user enters an interactive color change (dragging something in the picker)
 	 */
 	void OnColorPickerInteractiveBegin();
