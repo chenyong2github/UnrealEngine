@@ -664,6 +664,13 @@ void UNiagaraStackViewModel::RefreshTopLevelViewModels()
 	RootEntry->GetUnfilteredChildren(RootChildren);
 	for (UNiagaraStackEntry* RootChild : RootChildren)
 	{
+		if (RootChild->IsFinalized())
+		{
+			// It's possible for this to run when a system or emitter stack view model has updated it's children, but
+			// before the selection view model with the top level view models has refreshed and removed the finalized
+			// children in the selection so we need to guard against that here.
+			continue;
+		}
 		TSharedPtr<FTopLevelViewModel> TopLevelViewModel;
 		if (RootChild->GetEmitterViewModel().IsValid())
 		{
