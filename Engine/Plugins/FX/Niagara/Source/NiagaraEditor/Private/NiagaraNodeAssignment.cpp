@@ -355,6 +355,7 @@ void UNiagaraNodeAssignment::InitializeScript(UNiagaraScript* NewScript)
 			CreatedGraph = NewObject<UNiagaraGraph>(Source, NAME_None, RF_Transactional);
 			Source->NodeGraph = CreatedGraph;
 		}
+		CreatedGraph->Modify();
 		
 		TArray<UNiagaraNodeInput*> InputNodes;
 		CreatedGraph->FindInputNodes(InputNodes);
