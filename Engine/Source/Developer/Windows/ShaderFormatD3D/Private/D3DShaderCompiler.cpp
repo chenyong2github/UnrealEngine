@@ -1046,6 +1046,7 @@ static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const 
 		if (Input.bGenerateDirectCompileFile)
 		{
 			FFileHelper::SaveStringToFile(CreateShaderCompilerWorkerDirectCommandLine(Input), *(Input.DumpDebugInfoPath / TEXT("DirectCompile.txt")));
+			FFileHelper::SaveStringToFile(Input.DebugDescription, *(Input.DumpDebugInfoPath / TEXT("permutation_info.txt")));
 		}
 	}
 

@@ -62,6 +62,8 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Misc/HotReloadInterface.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Editor/StatsViewer/Public/IStatsViewer.h"
+#include "Editor/StatsViewer/Public/StatsViewerModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
 
@@ -307,6 +309,7 @@ public:
 	virtual void OpenReferenceViewerUI(const TArray<FName> SelectedPackages, const FReferenceViewerParams ReferenceViewerParams = FReferenceViewerParams()) override;
 	virtual void OpenSizeMapUI(TArray<FAssetIdentifier> SelectedIdentifiers) override;
 	virtual void OpenSizeMapUI(TArray<FName> SelectedPackages) override;	
+	virtual void OpenShaderCookStatistics(TArray<FName> SelectedIdentifiers) override;
 	virtual bool GetStringValueForCustomColumn(const FAssetData& AssetData, FName ColumnName, FString& OutValue) override;
 	virtual bool GetDisplayTextForCustomColumn(const FAssetData& AssetData, FName ColumnName, FText& OutValue) override;
 	virtual bool GetIntegerValueForCustomColumn(const FAssetData& AssetData, FName ColumnName, int64& OutValue) override;
@@ -569,6 +572,7 @@ void FAssetManagerEditorModule::ShutdownModule()
 		CommandList->UnmapAction(FAssetManagerEditorCommands::Get().ViewReferences);
 		CommandList->UnmapAction(FAssetManagerEditorCommands::Get().ViewSizeMap);
 		CommandList->UnmapAction(FAssetManagerEditorCommands::Get().ViewAssetAudit);
+		CommandList->UnmapAction(FAssetManagerEditorCommands::Get().ViewShaderCookStatistics);
 
 		TArray<FLevelEditorModule::FLevelViewportMenuExtender_SelectedActors>& LevelEditorMenuExtenderDelegates = LevelEditorModule.GetAllLevelViewportContextMenuExtenders();
 		LevelEditorMenuExtenderDelegates.RemoveAll([this](const FLevelEditorModule::FLevelViewportMenuExtender_SelectedActors& Delegate) { return Delegate.GetHandle() == LevelEditorExtenderDelegateHandle; });
@@ -725,6 +729,41 @@ void FAssetManagerEditorModule::OpenSizeMapUI(TArray<FAssetIdentifier> SelectedI
 	}
 }
 
+void FAssetManagerEditorModule::OpenShaderCookStatistics(TArray<FName> SelectedPackages)
+{
+	FString SubPath;
+	FString CommonSubPath = "";
+	if(SelectedPackages.Num())
+	{
+		//Find the common path
+		FString CommonPath = SelectedPackages[0].ToString();
+		uint32 CommonIdentical = CommonPath.Len();
+		for (FName Name : SelectedPackages)
+		{
+			FString Path = Name.ToString();
+			uint32 Identical = 0;
+			uint32 NumCharacters = FMath::Min((uint32)Path.Len(), CommonIdentical);
+			for(Identical = 0; Identical < NumCharacters; ++Identical)
+			{
+				if(CommonPath[Identical] != Path[Identical])
+				{
+					break;
+				}
+			}
+			CommonIdentical = FMath::Min(Identical, CommonIdentical);
+		}
+		CommonSubPath = CommonPath.Left(CommonIdentical);
+	}
+	static const FName LevelEditorModuleName("LevelEditor");
+	static const FName LevelEditorStatsViewerTab("LevelEditorStatsViewer");
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(LevelEditorModuleName);
+	TSharedPtr<FTabManager> TabManager = LevelEditorModule.GetLevelEditorTabManager();
+	TSharedRef<SDockTab> Tab = TabManager->InvokeTab(LevelEditorStatsViewerTab);
+	TSharedRef<SWidget> Content = Tab->GetContent();
+	IStatsViewer* StatsView = (IStatsViewer*)&*Content;
+	StatsView->SwitchAndFilterPage(EStatsPage::ShaderCookerStats, CommonSubPath, FString("Path"));
+}
+
 void FAssetManagerEditorModule::GetAssetDataInPaths(const TArray<FString>& Paths, TArray<FAssetData>& OutAssetData)
 {
 	// Form a filter from the paths
@@ -787,6 +826,7 @@ void FAssetManagerEditorModule::CreateAssetContextMenu(FMenuBuilder& MenuBuilder
 	MenuBuilder.AddMenuEntry(FAssetManagerEditorCommands::Get().ViewReferences);
 	MenuBuilder.AddMenuEntry(FAssetManagerEditorCommands::Get().ViewSizeMap);
 	MenuBuilder.AddMenuEntry(FAssetManagerEditorCommands::Get().ViewAssetAudit);
+	MenuBuilder.AddMenuEntry(FAssetManagerEditorCommands::Get().ViewShaderCookStatistics);
 }
 
 void FAssetManagerEditorModule::OnExtendContentBrowserCommands(TSharedRef<FUICommandList> CommandList, FOnContentBrowserGetSelection GetSelectionDelegate)
@@ -804,6 +844,14 @@ void FAssetManagerEditorModule::OnExtendContentBrowserCommands(TSharedRef<FUICom
 		{
 			OpenSizeMapUI(GetContentBrowserSelectedAssetPackages(GetSelectionDelegate));
 		})
+	);
+
+
+	CommandList->MapAction(FAssetManagerEditorCommands::Get().ViewShaderCookStatistics,
+		FExecuteAction::CreateLambda([this, GetSelectionDelegate]
+	{
+		OpenShaderCookStatistics(GetContentBrowserSelectedAssetPackages(GetSelectionDelegate));
+	})
 	);
 
 	CommandList->MapAction(FAssetManagerEditorCommands::Get().ViewAssetAudit,
@@ -831,6 +879,16 @@ void FAssetManagerEditorModule::OnExtendLevelEditorCommands(TSharedRef<FUIComman
 		}),
 		FCanExecuteAction::CreateRaw(this, &FAssetManagerEditorModule::AreLevelEditorPackagesSelected)
 	);
+
+	CommandList->MapAction(FAssetManagerEditorCommands::Get().ViewShaderCookStatistics,
+		FExecuteAction::CreateLambda([this]
+		{
+			OpenShaderCookStatistics(GetLevelEditorSelectedAssetPackages());
+		}),
+		FCanExecuteAction::CreateRaw(this, &FAssetManagerEditorModule::AreLevelEditorPackagesSelected)
+	);
+
+
 
 	CommandList->MapAction(FAssetManagerEditorCommands::Get().ViewAssetAudit,
 		FExecuteAction::CreateLambda([this]
@@ -890,6 +948,10 @@ TSharedRef<FExtender> FAssetManagerEditorModule::OnExtendAssetEditor(const TShar
 		CommandList->MapAction(
 			FAssetManagerEditorCommands::Get().ViewSizeMap,
 			FExecuteAction::CreateRaw(this, &FAssetManagerEditorModule::OpenSizeMapUI, PackageNames));
+
+		CommandList->MapAction(
+			FAssetManagerEditorCommands::Get().ViewShaderCookStatistics,
+			FExecuteAction::CreateRaw(this, &FAssetManagerEditorModule::OpenShaderCookStatistics, PackageNames));
 
 		CommandList->MapAction(
 			FAssetManagerEditorCommands::Get().ViewAssetAudit,

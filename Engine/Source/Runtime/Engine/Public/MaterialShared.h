@@ -1011,6 +1011,10 @@ public:
 	/** Builds a list of the shader pipelines in a shader map. */
 	ENGINE_API void GetShaderPipelineList(TArray<FShaderPipeline*>& OutShaderPipelines) const;
 
+
+	/** Number of Shaders in Shadermap */
+	ENGINE_API uint32 GetShaderNum() const;
+
 	/** Registers a material shader map in the global map so it can be used by materials. */
 	void Register(EShaderPlatform InShaderPlatform);
 
@@ -1073,6 +1077,7 @@ public:
 #if ALLOW_SHADERMAP_DEBUG_DATA
 			+ FriendlyName.GetAllocatedSize()
 			+ DebugDescription.GetAllocatedSize()
+			+ MaterialPath.GetAllocatedSize()
 #endif
 		;
 	}
@@ -1091,9 +1096,11 @@ public:
 #if ALLOW_SHADERMAP_DEBUG_DATA
 	const FString& GetFriendlyName() const { return FriendlyName; }
 	const FString& GetDebugDescription() const { return DebugDescription; }
+	void SetMaterialPath(FString Path){ MaterialPath = Path;}
 #else
 	const FString& GetFriendlyName() const { static FString T; return T; }
 	const FString& GetDebugDescription() const { static FString T; return T; }
+	void SetMaterialPath(FString Path) { }
 #endif
 	bool RequiresSceneColorCopy() const { return MaterialCompilationOutput.RequiresSceneColorCopy(); }
 	bool NeedsSceneTextures() const { return MaterialCompilationOutput.bNeedsSceneTextures; }
@@ -1171,6 +1178,7 @@ private:
 #if ALLOW_SHADERMAP_DEBUG_DATA
 	/** The material's user friendly name, typically the object name. */
 	FString FriendlyName;
+	FString MaterialPath;
 #endif
 
 	/** The static parameter set that this shader map was compiled with */

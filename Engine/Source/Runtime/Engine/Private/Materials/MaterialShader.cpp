@@ -1616,7 +1616,7 @@ void FMaterialShaderMap::Compile(
 			const bool bRecreateComponentRenderStateOnCompletion = Material->IsPersistent();
 
 			// Note: using Material->IsPersistent() to detect whether this is a preview material which should have higher priority over background compiling
-			GShaderCompilingManager->AddJobs(NewJobs, bSynchronousCompile || !Material->IsPersistent(), bRecreateComponentRenderStateOnCompletion);
+			GShaderCompilingManager->AddJobs(NewJobs, bSynchronousCompile || !Material->IsPersistent(), bRecreateComponentRenderStateOnCompletion, Material->GetBaseMaterialPathName(), GetDebugDescription());
   
 			// Compile the shaders for this shader map now if the material is not deferring and deferred compiles are not enabled globally
 			if (bSynchronousCompile)
@@ -2145,6 +2145,16 @@ void FMaterialShaderMap::GetShaderPipelineList(TArray<FShaderPipeline*>& OutShad
 	}
 }
 
+uint32 FMaterialShaderMap::GetShaderNum() const
+{
+	uint32 Count = Shaders.Num();
+	for (int32 Index = 0; Index < MeshShaderMaps.Num(); Index++)
+	{
+		Count += MeshShaderMaps[Index].GetShaderNum();
+	}
+	return Count;
+}
+
 /**
  * Registers a material shader map in the global map so it can be used by materials.
  */
@@ -2276,6 +2286,11 @@ FMaterialShaderMap::~FMaterialShaderMap()
 	check(bDeletedThroughDeferredCleanup);
 	check(!bRegistered);
 #if ALLOW_SHADERMAP_DEBUG_DATA
+	if(GShaderCompilerStats != 0)
+	{
+		FString Path = !MaterialPath.IsEmpty() ? MaterialPath : GetFriendlyName();
+		GShaderCompilerStats->RegisterCookedShaders(GetShaderNum(), Platform, Path, GetDebugDescription());
+	}
 	AllMaterialShaderMaps.RemoveSwap(this);
 #endif
 }
@@ -2367,8 +2382,10 @@ void FMaterialShaderMap::Serialize(FArchive& Ar, bool bInlineShaderResources, bo
 
 #if ALLOW_SHADERMAP_DEBUG_DATA
 	Ar << FriendlyName;
+	Ar << MaterialPath;
 #else
 	FString TempString;
+	Ar << TempString;
 	Ar << TempString;
 #endif
 

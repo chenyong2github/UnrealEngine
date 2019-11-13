@@ -196,4 +196,8 @@ public:
 	/** Spawns size map with selected packages */
 	virtual void OpenSizeMapUI(TArray<FAssetIdentifier> SelectedIdentifiers) = 0;
 	virtual void OpenSizeMapUI(TArray<FName> SelectedPackages) = 0;
+
+
+	/** Open the Shader cook stats */
+	virtual void OpenShaderCookStatistics(TArray<FName> SelectedIdentifiers) = 0;
 };

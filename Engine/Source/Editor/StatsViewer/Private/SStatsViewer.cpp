@@ -590,6 +590,45 @@ int32 SStatsViewer::GetObjectSetIndex() const
 	return CurrentObjectSetIndex;
 }
 
+void SStatsViewer::SwitchAndFilterPage(int32 Page, FString FilterValue, FString FilterProperty)
+{
+	FStatsPageManager& Manager = FStatsPageManager::Get();
+	if(Page < Manager.NumPages())
+	{
+		TSharedRef<IStatsPage> StatsPage = FStatsPageManager::Get().GetPage(Page);
+		SetDisplayedStats(StatsPage);
+
+		int32 FilterIndex = -1;
+		if(FilterProperty.Len())
+		{
+			int32 ColumnIndex = 0;
+			for (TFieldIterator<UProperty> PropertyIter( CurrentStats->GetEntryClass(), EFieldIteratorFlags::IncludeSuper ); PropertyIter; ++PropertyIter )
+			{
+				TWeakObjectPtr< UProperty > Property = *PropertyIter;
+				if( Property->HasAnyPropertyFlags(CPF_AssetRegistrySearchable) )
+				{
+					FString FilterName = Property->GetDisplayNameText().ToString();
+					if( FilterName.Len() == 0 )
+					{
+						FilterName = UEditorEngine::GetFriendlyName(Property.Get());
+					}
+					if(FilterName.Compare(FilterProperty, ESearchCase::IgnoreCase) == 0)
+					{
+						FilterIndex = ColumnIndex;
+						break;
+					}
+					ColumnIndex++;
+				}
+			}
+		}
+		if(FilterIndex >= FilterIndex)
+		{
+			FilterTextBoxWidget->SetText(FText::FromString(FilterValue));
+			SetSearchFilter(FilterIndex);
+		}
+		Refresh();
+	}
+}
 void SStatsViewer::OnFilterTextChanged( const FText& InFilterText )
 {
 	FilterText = InFilterText.ToString();
