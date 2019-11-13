@@ -46,7 +46,10 @@ bool FPlanarHoleFiller::Fill(int GroupID)
 			{
 				bAddedAll = false;
 			}
-			NewTriangles.Add(NewTID);
+			else
+			{
+				NewTriangles.Add(NewTID);
+			}
 		}
 	}
 	
