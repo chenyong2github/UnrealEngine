@@ -15,7 +15,6 @@
 #include "Insights/ITimingViewSession.h"
 #include "Insights/ViewModels/TimingEvent.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
-#include "Insights/ViewModels/TimingViewDrawHelper.h"
 #include "Insights/ViewModels/TooltipDrawState.h"
 #include "Insights/ViewModels/TimingEventSearch.h"
 #include "Insights/Widgets/STimingView.h"
@@ -226,6 +225,46 @@ void FLoadingSharedState::SetColorSchema(int32 Schema)
 // FLoadingTimingTrack
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FLoadingTimingTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context)
+{
+	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session.IsValid() && Trace::ReadLoadTimeProfilerProvider(*Session.Get()))
+	{
+		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+
+		const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(*Session.Get());
+
+		const FTimingTrackViewport& Viewport = Context.GetViewport();
+
+		LoadTimeProfilerProvider.ReadTimeline(TimelineIndex, [this, &Builder, &Viewport](const Trace::ILoadTimeProfilerProvider::CpuTimeline& Timeline)
+		{
+			if (FTimingEventsTrack::bUseDownSampling)
+			{
+				const double SecondsPerPixel = 1.0 / Viewport.GetScaleX();
+				Timeline.EnumerateEventsDownSampled(Viewport.GetStartTime(), Viewport.GetEndTime(), SecondsPerPixel, [this, &Builder](double StartTime, double EndTime, uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event)
+				{
+					const TCHAR* Name = SharedState.GetEventName(Depth, Event);
+					const uint64 Type = static_cast<uint64>(Event.EventType);
+					const uint32 Color = 0;
+					Builder.AddEvent(StartTime, EndTime, Depth, Name, Type, Color);
+				});
+			}
+			else
+			{
+				Timeline.EnumerateEvents(Viewport.GetStartTime(), Viewport.GetEndTime(), [this, &Builder](double StartTime, double EndTime, uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event)
+				{
+					const TCHAR* Name = SharedState.GetEventName(Depth, Event);
+					const uint64 Type = static_cast<uint64>(Event.EventType);
+					const uint32 Color = 0;
+					Builder.AddEvent(StartTime, EndTime, Depth, Name, Type, Color);
+				});
+			}
+		});
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FLoadingTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITimingEvent& InTooltipEvent) const
 {
 	if (InTooltipEvent.CheckTrack(this) && FTimingEvent::CheckTypeName(InTooltipEvent))
@@ -270,65 +309,6 @@ void FLoadingTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITi
 			InOutTooltip.UpdateLayout();
 		});
 	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FLoadingTimingTrack::PreUpdate(const ITimingTrackUpdateContext& Context)
-{
-	if (IsDirty() || Context.GetViewport().IsHorizontalViewportDirty())
-	{
-		ClearDirtyFlag();
-
-		FTimingEventsTrackDrawStateBuilder Builder(DrawState, Context.GetViewport());
-
-		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-		if (Trace::ReadLoadTimeProfilerProvider(*Session.Get()))
-		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-
-			const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(*Session.Get());
-
-			LoadTimeProfilerProvider.ReadTimeline(TimelineIndex, [this, &Builder](const Trace::ILoadTimeProfilerProvider::CpuTimeline& Timeline)
-			{
-				const FTimingTrackViewport& Viewport = Builder.GetViewport();
-				if (FTimingEventsTrack::bUseDownSampling)
-				{
-					const double SecondsPerPixel = 1.0 / Viewport.GetScaleX();
-					Timeline.EnumerateEventsDownSampled(Viewport.GetStartTime(), Viewport.GetEndTime(), SecondsPerPixel, [this, &Builder](double StartTime, double EndTime, uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event)
-					{
-						const TCHAR* Name = SharedState.GetEventName(Depth, Event);
-						const uint64 Type = static_cast<uint64>(Event.EventType);
-						const uint32 Color = 0;
-						Builder.AddEvent(StartTime, EndTime, Depth, Name, Type, Color);
-					});
-				}
-				else
-				{
-					Timeline.EnumerateEvents(Viewport.GetStartTime(), Viewport.GetEndTime(), [this, &Builder](double StartTime, double EndTime, uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event)
-					{
-						const TCHAR* Name = SharedState.GetEventName(Depth, Event);
-						const uint64 Type = static_cast<uint64>(Event.EventType);
-						const uint32 Color = 0;
-						Builder.AddEvent(StartTime, EndTime, Depth, Name, Type, Color);
-					});
-				}
-			});
-		}
-
-		Builder.Flush();
-		SetNumLanes(Builder.GetMaxDepth() + 1);
-	}
-
-	UpdateTrackHeight(Context);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FLoadingTimingTrack::Draw(const ITimingTrackDrawContext& Context) const
-{
-	const FTimingViewDrawHelper& Helper = Context.GetHelper();
-	Helper.DrawEventsTrack(DrawState, *this);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

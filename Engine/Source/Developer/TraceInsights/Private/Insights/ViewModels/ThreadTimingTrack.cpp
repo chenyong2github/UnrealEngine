@@ -384,64 +384,45 @@ void FThreadTimingSharedState::OnTracksChanged(Insights::ITimingViewSession& InS
 // FThreadTimingTrack
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FThreadTimingTrack::PreUpdate(const ITimingTrackUpdateContext& Context)
+void FThreadTimingTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context)
 {
-	if (IsDirty() || Context.GetViewport().IsHorizontalViewportDirty())
+	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session.IsValid() && Trace::ReadTimingProfilerProvider(*Session.Get()))
 	{
-		ClearDirtyFlag();
+		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		FTimingEventsTrackDrawStateBuilder Builder(GetDrawState(), Context.GetViewport());
+		const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
 
-		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-		if (Session.IsValid() && Trace::ReadTimingProfilerProvider(*Session.Get()))
+		const FTimingTrackViewport& Viewport = Context.GetViewport();
+
+		TimingProfilerProvider.ReadTimers([this, &Builder, &Viewport, &TimingProfilerProvider](const Trace::FTimingProfilerTimer* Timers, uint64 TimersCount)
 		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-
-			const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
-
-			TimingProfilerProvider.ReadTimers([this, &Builder, &TimingProfilerProvider](const Trace::FTimingProfilerTimer* Timers, uint64 TimersCount)
+			TimingProfilerProvider.ReadTimeline(TimelineIndex, [this, &Builder, &Viewport, Timers](const Trace::ITimingProfilerProvider::Timeline& Timeline)
 			{
-				TimingProfilerProvider.ReadTimeline(TimelineIndex, [this, &Builder, Timers](const Trace::ITimingProfilerProvider::Timeline& Timeline)
+				if (FTimingEventsTrack::bUseDownSampling)
 				{
-					const FTimingTrackViewport& Viewport = Builder.GetViewport();
-					if (FTimingEventsTrack::bUseDownSampling)
-					{
-						const double SecondsPerPixel = 1.0 / Viewport.GetScaleX();
-						Timeline.EnumerateEventsDownSampled(Viewport.GetStartTime(), Viewport.GetEndTime(), SecondsPerPixel,
-							[this, &Builder, Timers](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
-							{
-								const uint64 Type = Timers[Event.TimerIndex].Id;
-								const uint32 Color = 0;
-								Builder.AddEvent(StartTime, EndTime, Depth, Timers[Event.TimerIndex].Name, Type, Color);
-							});
-					}
-					else
-					{
-						Timeline.EnumerateEvents(Viewport.GetStartTime(), Viewport.GetEndTime(),
-							[this, &Builder, Timers](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
-							{
-								const uint64 Type = Timers[Event.TimerIndex].Id;
-								const uint32 Color = 0;
-								Builder.AddEvent(StartTime, EndTime, Depth, Timers[Event.TimerIndex].Name, Type, Color);
-							});
-					}
-				});
+					const double SecondsPerPixel = 1.0 / Viewport.GetScaleX();
+					Timeline.EnumerateEventsDownSampled(Viewport.GetStartTime(), Viewport.GetEndTime(), SecondsPerPixel,
+						[this, &Builder, Timers](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
+						{
+							const uint64 Type = Timers[Event.TimerIndex].Id;
+							const uint32 Color = 0;
+							Builder.AddEvent(StartTime, EndTime, Depth, Timers[Event.TimerIndex].Name, Type, Color);
+						});
+				}
+				else
+				{
+					Timeline.EnumerateEvents(Viewport.GetStartTime(), Viewport.GetEndTime(),
+						[this, &Builder, Timers](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
+						{
+							const uint64 Type = Timers[Event.TimerIndex].Id;
+							const uint32 Color = 0;
+							Builder.AddEvent(StartTime, EndTime, Depth, Timers[Event.TimerIndex].Name, Type, Color);
+						});
+				}
 			});
-		}
-
-		Builder.Flush();
-		SetNumLanes(Builder.GetMaxDepth() + 1);
+		});
 	}
-
-	UpdateTrackHeight(Context);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FThreadTimingTrack::Draw(const ITimingTrackDrawContext& Context) const
-{
-	const FTimingViewDrawHelper& Helper = Context.GetHelper();
-	Helper.DrawEventsTrack(DrawState, *this);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

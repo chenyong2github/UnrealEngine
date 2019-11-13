@@ -8,7 +8,6 @@
 // Insights
 #include "Insights/ITimingViewExtender.h"
 #include "Insights/ViewModels/TimingEventsTrack.h"
-#include "Insights/ViewModels/TimingViewDrawHelper.h"
 
 class FTimingEventSearchParameters;
 class STimingView;
@@ -76,9 +75,10 @@ public:
 	}
 	virtual ~FLoadingTimingTrack() {}
 
+	virtual void BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;
+
 	virtual void InitTooltip(FTooltipDrawState& InOutTooltip, const ITimingEvent& InTooltipEvent) const override;
-	virtual void PreUpdate(const ITimingTrackUpdateContext& Context) override;
-	virtual void Draw(const ITimingTrackDrawContext& Context) const override;
+
 	virtual const TSharedPtr<const ITimingEvent> SearchEvent(const FTimingEventSearchParameters& InSearchParameters) const override;
 
 protected:
@@ -88,7 +88,6 @@ protected:
 protected:
 	FLoadingSharedState& SharedState;
 	uint32 TimelineIndex;
-	FTimingEventsTrackDrawState DrawState;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

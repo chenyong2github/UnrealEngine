@@ -3,19 +3,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Fonts/SlateFontInfo.h"
 #include "TraceServices/Model/TimingProfiler.h"
 
 // Insights
 #include "Insights/ITimingViewExtender.h"
 #include "Insights/ViewModels/TimingEventSearch.h" // for TTimingEventSearchCache
 #include "Insights/ViewModels/TimingEventsTrack.h"
-#include "Insights/ViewModels/TimingViewDrawHelper.h" // for FTimingEventsTrackDrawState
 
 class FTimingEvent;
 class FTimingEventSearchParameters;
 class FGpuTimingTrack;
 class FCpuTimingTrack;
 class STimingView;
+struct FSlateBrush;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -107,9 +108,8 @@ public:
 	uint32 GetThreadId() const { return ThreadId; }
 	//void SetThreadId(uint32 InThreadId) { ThreadId = InThreadId; }
 
-	virtual void PreUpdate(const ITimingTrackUpdateContext& Context) override;
+	virtual void BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;
 
-	virtual void Draw(const ITimingTrackDrawContext& Context) const override;
 	virtual void PostDraw(const ITimingTrackDrawContext& Context) const override;
 
 	virtual void InitTooltip(FTooltipDrawState& InOutTooltip, const ITimingEvent& InTooltipEvent) const override;
@@ -120,9 +120,6 @@ public:
 	virtual void OnEventSelected(const ITimingEvent& InSelectedEvent) const override;
 	virtual void OnClipboardCopyEvent(const ITimingEvent& InSelectedEvent) const override;
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
-
-protected:
-	FTimingEventsTrackDrawState& GetDrawState() { return DrawState; }
 
 private:
 	void DrawSelectedEventInfo(const FTimingEvent& SelectedEvent, const FTimingTrackViewport& Viewport, const FDrawContext& DrawContext, const FSlateBrush* WhiteBrush, const FSlateFontInfo& Font) const;
@@ -142,8 +139,6 @@ private:
 	const TCHAR* GroupName;
 	uint32 TimelineIndex;
 	uint32 ThreadId;
-
-	FTimingEventsTrackDrawState DrawState;
 
 	// Search cache
 	mutable TTimingEventSearchCache<Trace::FTimingProfilerEvent> SearchCache;

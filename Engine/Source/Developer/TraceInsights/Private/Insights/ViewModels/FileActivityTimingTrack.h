@@ -7,7 +7,6 @@
 // Insights
 #include "Insights/ITimingViewExtender.h"
 #include "Insights/ViewModels/TimingEventsTrack.h"
-#include "Insights/ViewModels/TimingViewDrawHelper.h"
 
 class FTimingEventSearchParameters;
 class STimingView;
@@ -101,7 +100,6 @@ protected:
 
 protected:
 	FFileActivitySharedState& SharedState;
-	FTimingEventsTrackDrawState DrawState;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -114,8 +112,7 @@ public:
 	{
 	}
 
-	virtual void PreUpdate(const ITimingTrackUpdateContext& Context) override;
-	virtual void Draw(const ITimingTrackDrawContext& Context) const override;
+	virtual void BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;
 	virtual const TSharedPtr<const ITimingEvent> SearchEvent(const FTimingEventSearchParameters& InSearchParameters) const override;
 };
 
@@ -129,8 +126,7 @@ public:
 	{
 	}
 
-	virtual void PreUpdate(const ITimingTrackUpdateContext& Context) override;
-	virtual void Draw(const ITimingTrackDrawContext& Context) const override;
+	virtual void BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;
 	virtual const TSharedPtr<const ITimingEvent> SearchEvent(const FTimingEventSearchParameters& InSearchParameters) const override;
 };
 

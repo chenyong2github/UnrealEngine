@@ -19,7 +19,7 @@ bool FTimingEventsTrack::bUseDownSampling = true;
 FTimingEventsTrack::FTimingEventsTrack(const FName& InType, const FName& InSubType, const FString& InName)
 	: FBaseTimingTrack(InType, InSubType, InName)
 	, NumLanes(0)
-	, DrawState(MakeShareable(new FTimingEventsTrackDrawState()))
+	, DrawState(MakeShared<FTimingEventsTrackDrawState>())
 {
 }
 
@@ -37,6 +37,63 @@ void FTimingEventsTrack::Reset()
 
 	NumLanes = 0;
 	DrawState->Reset();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingEventsTrack::PreUpdate(const ITimingTrackUpdateContext& Context)
+{
+	if (IsDirty() || Context.GetViewport().IsHorizontalViewportDirty())
+	{
+		ClearDirtyFlag();
+
+		FTimingEventsTrackDrawStateBuilder Builder(*DrawState, Context.GetViewport());
+
+		BuildDrawState(Builder, Context);
+
+		Builder.Flush();
+
+		SetNumLanes(Builder.GetMaxDepth() + 1);
+	}
+
+	UpdateTrackHeight(Context);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingEventsTrack::UpdateTrackHeight(const ITimingTrackUpdateContext& Context)
+{
+	const FTimingTrackViewport& Viewport = Context.GetViewport();
+
+	const float CurrentTrackHeight = GetHeight();
+	const float DesiredTrackHeight = Viewport.GetLayout().ComputeTrackHeight(NumLanes);
+
+	if (CurrentTrackHeight < DesiredTrackHeight)
+	{
+		float NewTrackHeight;
+		if (Viewport.IsDirty(ETimingTrackViewportDirtyFlags::VLayoutChanged))
+		{
+			NewTrackHeight = DesiredTrackHeight;
+		}
+		else
+		{
+			NewTrackHeight = FMath::CeilToFloat(CurrentTrackHeight * 0.9f + DesiredTrackHeight * 0.1f);
+		}
+		SetHeight(NewTrackHeight);
+	}
+	else if (CurrentTrackHeight > DesiredTrackHeight)
+	{
+		float NewTrackHeight;
+		if (Viewport.IsDirty(ETimingTrackViewportDirtyFlags::VLayoutChanged))
+		{
+			NewTrackHeight = DesiredTrackHeight;
+		}
+		else
+		{
+			NewTrackHeight = FMath::FloorToFloat(CurrentTrackHeight * 0.9f + DesiredTrackHeight * 0.1f);
+		}
+		SetHeight(NewTrackHeight);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -60,6 +117,14 @@ void FTimingEventsTrack::PostUpdate(const ITimingTrackUpdateContext& Context)
 	{
 		SetHoveredState(false);
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingEventsTrack::Draw(const ITimingTrackDrawContext& Context) const
+{
+	const FTimingViewDrawHelper& Helper = Context.GetHelper();
+	Helper.DrawEventsTrack(*DrawState, *this);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -101,43 +166,6 @@ const TSharedPtr<const ITimingEvent> FTimingEventsTrack::GetEvent(float InPosX, 
 	}
 
 	return nullptr;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FTimingEventsTrack::UpdateTrackHeight(const ITimingTrackUpdateContext& Context)
-{
-	const FTimingTrackViewport& Viewport = Context.GetViewport();
-
-	const float CurrentTrackHeight = GetHeight();
-	const float DesiredTrackHeight = Viewport.GetLayout().ComputeTrackHeight(NumLanes);
-
-	if (CurrentTrackHeight < DesiredTrackHeight)
-	{
-		float NewTrackHeight;
-		if (Viewport.IsDirty(ETimingTrackViewportDirtyFlags::VLayoutChanged))
-		{
-			NewTrackHeight = DesiredTrackHeight;
-		}
-		else
-		{
-			NewTrackHeight = FMath::CeilToFloat(CurrentTrackHeight * 0.9f + DesiredTrackHeight * 0.1f);
-		}
-		SetHeight(NewTrackHeight);
-	}
-	else if (CurrentTrackHeight > DesiredTrackHeight)
-	{
-		float NewTrackHeight;
-		if (Viewport.IsDirty(ETimingTrackViewportDirtyFlags::VLayoutChanged))
-		{
-			NewTrackHeight = DesiredTrackHeight;
-		}
-		else
-		{
-			NewTrackHeight = FMath::FloorToFloat(CurrentTrackHeight * 0.9f + DesiredTrackHeight * 0.1f);
-		}
-		SetHeight(NewTrackHeight);
-	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

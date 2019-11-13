@@ -6,6 +6,9 @@
 #include "Fonts/SlateFontInfo.h"
 #include "Math/Color.h"
 
+// Insights
+#include "Insights/ViewModels/TimingEventsTrack.h"
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct FSlateBrush;
@@ -81,7 +84,7 @@ struct FTimingEventsTrackDrawState
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FTimingEventsTrackDrawStateBuilder
+class FTimingEventsTrackDrawStateBuilder : public ITimingEventsTrackDrawStateBuilder
 {
 private:
 	struct FBoxData
@@ -97,6 +100,7 @@ private:
 
 public:
 	explicit FTimingEventsTrackDrawStateBuilder(FTimingEventsTrackDrawState& InState, const FTimingTrackViewport& InViewport);
+	virtual ~FTimingEventsTrackDrawStateBuilder() {}
 
 	/**
 	 * Non-copyable
@@ -106,7 +110,7 @@ public:
 
 	const FTimingTrackViewport& GetViewport() const { return Viewport; }
 
-	void AddEvent(double InEventStartTime, double InEventEndTime, uint32 InEventDepth, const TCHAR* InEventName, uint64 InEventType, uint32 InEventColor);
+	virtual void AddEvent(double InEventStartTime, double InEventEndTime, uint32 InEventDepth, const TCHAR* InEventName, uint64 InEventType, uint32 InEventColor) override;
 	void Flush();
 
 	int32 GetMaxDepth() const { return MaxDepth; }
