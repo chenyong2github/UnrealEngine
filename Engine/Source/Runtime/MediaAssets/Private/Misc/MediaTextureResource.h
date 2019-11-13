@@ -39,9 +39,10 @@ public:
 	 * @param InOWnerSize Reference to the size in bytes of the texture that owns this resource (will be updated by resource).
 	 * @param InClearColor The initial clear color.
 	 * @param InTextureGuid The initial external texture GUID.
+	 * @param bEnableGenMips If true mips generation will be enabled (possibly optimizing for NumMips == 1 case)
 	 * @param InNumMips The initial number of mips to be generated for the output texture
 	 */
-	FMediaTextureResource(UMediaTexture& InOwner, FIntPoint& InOwnerDim, SIZE_T& InOwnerSize, FLinearColor InClearColor, FGuid InTextureGuid, uint8 InNumMips);
+	FMediaTextureResource(UMediaTexture& InOwner, FIntPoint& InOwnerDim, SIZE_T& InOwnerSize, FLinearColor InClearColor, FGuid InTextureGuid, bool bEnableGenMips, uint8 InNumMips);
 
 	/** Virtual destructor. */
 	virtual ~FMediaTextureResource() { }
@@ -135,7 +136,7 @@ protected:
 	 * @param Number of mips
 	 * @see ConvertSample
 	 */
-	void CopySample(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample, const FLinearColor& ClearColor, bool SrgbOutput, uint8 InNumMips);
+	void CopySample(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample, const FLinearColor& ClearColor, bool SrgbOutput, uint8 InNumMips, const FGuid & TextureGUID);
 
 	/** Calculates the current resource size and notifies the owner texture. */
 	void UpdateResourceSize();
@@ -162,6 +163,9 @@ protected:
 	/** Setup sampler state from owner's settings as needed */
 	void SetupSampler();
 
+	/** Copy to local buffer from external texture */
+	void CopyFromExternalTexture(const TSharedPtr <IMediaTextureSample, ESPMode::ThreadSafe>& Sample, const FGuid & TextureGUID);
+
 private:
 
 	// Class to maintain a reference to a IMediaTextureSample instance as long  as needed by RHI
@@ -176,6 +180,8 @@ private:
 		TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> MediaSample;
 	};
 
+	/** Platform uses GL/ES ImageExternal */
+	bool bUsesImageExternal;
 
 	/** Whether the texture has been cleared. */
 	bool Cleared;
@@ -200,6 +206,9 @@ private:
 
 	/** Reference to the owner's texture size field. */
 	SIZE_T& OwnerSize;
+
+	/** Enable mips generation */
+	bool bEnableGenMips;
 
 	/** Current number of mips to be generated as output */
 	uint8 CurrentNumMips;
