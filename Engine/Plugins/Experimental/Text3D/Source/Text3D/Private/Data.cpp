@@ -1,24 +1,44 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 
-#include "Bevel/Data.h"
+#include "Data.h"
 #include "Bevel/Part.h"
 
 
-FData::FData(TText3DMeshList* MeshesIn, const float ExpandTotalIn, const float HorizontalOffsetIn, const float VerticalOffsetIn, const float FontInverseScaleIn, const FVector& ScaleIn)
+FData::FData(TSharedPtr<TText3DMeshList> MeshesIn, const float ExpandTotalIn, const float FontInverseScaleIn, const FVector& ScaleIn)
 	: Meshes(MeshesIn)
 
 	, ExpandTotal(ExpandTotalIn / FontInverseScaleIn)
 
-	, HorizontalOffset(HorizontalOffsetIn)
-	, VerticalOffset(VerticalOffsetIn)
-
 	, FontInverseScale(FontInverseScaleIn)
 	, Scale(ScaleIn)
-
-    , DoneExtrude(0)
 {
+	check(Meshes.Get());
+	CurrentMesh = nullptr;
+	Extrude = 0.0f;
+	Expand = 0.0f;
+	HorizontalOffset = 0.0f;
+	VerticalOffset = 0.0f;
 
+	CurrentExtrudeHeight = 0.0f;
+	ExpandTarget = 0.0f;
+	DoneExtrude = 0.0f;
+
+	VertexCountBeforeAdd = 0;
+	AddVertexIndex = 0;
+
+	IndicesCountBeforeAdd = 0;
+	AddTriangleIndex = 0;
+}
+
+void FData::SetHorizontalOffset(const float HorizontalOffsetIn)
+{
+	HorizontalOffset = HorizontalOffsetIn;
+}
+
+void FData::SetVerticalOffset(const float VerticalOffsetIn)
+{
+	VerticalOffset = VerticalOffsetIn;
 }
 
 void FData::SetExpandTarget(const float ExpandTargetIn)
@@ -41,18 +61,29 @@ void FData::SetMaxBevelTarget()
 
 int32 FData::AddVertices(const int32 Count)
 {
+	check(CurrentMesh);
+
 	VertexCountBeforeAdd = CurrentMesh->Vertices.AddUninitialized(Count);
 	AddVertexIndex = 0;
 	return VertexCountBeforeAdd;
 }
 
-void FData::AddVertex(const FPart* const Point, const FVector2D TangentX, const FVector& TangentZ)
+void FData::AddVertex(const FPart* const Point, const FVector2D TangentX, const FVector& TangentZ, const FVector2D TextureCoordinates)
 {
-	CurrentMesh->Vertices[VertexCountBeforeAdd + AddVertexIndex++] = { GetVector(Point->Position, DoneExtrude + CurrentExtrudeHeight), FVector(0, TangentX.X, TangentX.Y), FVector(TangentZ.Z, TangentZ.X, TangentZ.Y), FVector2D(0, 0), FColor(255, 255, 255) };
+	AddVertex(Point->Position, TangentX, TangentZ, TextureCoordinates);
+}
+
+void FData::AddVertex(const FVector2D Position, const FVector2D TangentX, const FVector& TangentZ, const FVector2D TextureCoordinates)
+{
+	check(CurrentMesh);
+
+	CurrentMesh->Vertices[VertexCountBeforeAdd + AddVertexIndex++] = { GetVector(Position, DoneExtrude + CurrentExtrudeHeight), FVector(0, TangentX.X, TangentX.Y), FVector(TangentZ.Z, TangentZ.X, TangentZ.Y), TextureCoordinates, FColor(255, 255, 255) };
 }
 
 void FData::AddTriangles(const int32 Count)
 {
+	check(CurrentMesh);
+
 	if (Count > 0)
 	{
 		IndicesCountBeforeAdd = CurrentMesh->Indices.AddUninitialized(Count * 3);
@@ -62,14 +93,11 @@ void FData::AddTriangles(const int32 Count)
 
 void FData::AddTriangle(const int32 A, const int32 B, const int32 C)
 {
-	auto AddIndex = [this](const int32 Index)
-	{
-		CurrentMesh->Indices[IndicesCountBeforeAdd + AddTriangleIndex++] = Index;
-	};
+	check(CurrentMesh);
 
-	AddIndex(A);
-	AddIndex(B);
-	AddIndex(C);
+	CurrentMesh->Indices[IndicesCountBeforeAdd + AddTriangleIndex++] = A;
+	CurrentMesh->Indices[IndicesCountBeforeAdd + AddTriangleIndex++] = B;
+	CurrentMesh->Indices[IndicesCountBeforeAdd + AddTriangleIndex++] = C;
 }
 
 float FData::GetExpandTotal() const
@@ -107,6 +135,11 @@ float FData::GetExpandTarget() const
 	return ExpandTarget;
 }
 
+void FData::ResetDoneExtrude()
+{
+	DoneExtrude = 0;
+}
+
 void FData::IncreaseDoneExtrude()
 {
 	DoneExtrude += Extrude;
@@ -118,7 +151,7 @@ void FData::SetNormals(FVector2D Start, FVector2D End)
 	NormalEnd = End;
 }
 
-FVector FData::ComputeTangentZ(FPart* const Edge, float DoneExpand)
+FVector FData::ComputeTangentZ(const FPart* const Edge, const float DoneExpand)
 {
 	const FVector2D TangentX = Edge->TangentX;
 
@@ -130,7 +163,10 @@ FVector FData::ComputeTangentZ(FPart* const Edge, float DoneExpand)
 
 void FData::SetCurrentMesh(EText3DMeshType Type)
 {
-	CurrentMesh = &((*Meshes)[static_cast<int32>(Type)]);
+	CurrentMesh = &((*Meshes.Get())[static_cast<int32>(Type)]);
+
+	check(CurrentMesh);
+	CurrentMesh->GlyphStartVertices.Add(CurrentMesh->Vertices.Num());
 }
 
 FVector FData::GetVector(const FVector2D Position, const float Height) const

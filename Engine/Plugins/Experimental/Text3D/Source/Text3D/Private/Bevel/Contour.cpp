@@ -3,10 +3,10 @@
 
 #include "Bevel/Contour.h"
 #include "Bevel/BevelLinear.h"
-#include "Bevel/Data.h"
 #include "Bevel/Intersection.h"
 #include "Bevel/Part.h"
 #include "Bevel/Util.h"
+#include "Data.h"
 
 
 FContour::FContour(FBevelLinear* const BevelIn)
