@@ -43,6 +43,14 @@ FRemoteSessionFrameBufferImageProvider::FRemoteSessionFrameBufferImageProvider(T
 
 FRemoteSessionFrameBufferImageProvider::~FRemoteSessionFrameBufferImageProvider()
 {
+	if (TSharedPtr<FSceneViewport> PreviousSceneViewportPinned = SceneViewport.Pin())
+	{
+		PreviousSceneViewportPinned->SetOnSceneViewportResizeDel(FOnSceneViewportResize());
+	}
+	if (TSharedPtr<SWindow> SceneViewportWindowPin = SceneViewportWindow.Pin())
+	{
+		SceneViewportWindowPin->GetOnWindowClosedEvent().RemoveAll(this);
+	}
 	ReleaseFrameGrabber();
 }
 
@@ -70,17 +78,19 @@ void FRemoteSessionFrameBufferImageProvider::SetCaptureViewport(TSharedRef<FScen
 	{
 		if (TSharedPtr<FSceneViewport> PreviousSceneViewportPinned = SceneViewport.Pin())
 		{
-			if (TSharedPtr<SWindow> Window = Viewport->FindWindow())
-			{
-				Window->GetOnWindowClosedEvent().RemoveAll(this);
-			}
 			PreviousSceneViewportPinned->SetOnSceneViewportResizeDel(FOnSceneViewportResize());
 		}
+		if (TSharedPtr<SWindow> SceneViewportWindowPin = SceneViewportWindow.Pin())
+		{
+			SceneViewportWindowPin->GetOnWindowClosedEvent().RemoveAll(this);
+		}
 
+		SceneViewportWindow.Reset();
 		SceneViewport = Viewport;
 
 		if (TSharedPtr<SWindow> Window = Viewport->FindWindow())
 		{
+			SceneViewportWindow = Window;
 			Window->GetOnWindowClosedEvent().AddRaw(this, &FRemoteSessionFrameBufferImageProvider::OnWindowClosedEvent);
 		}
 
