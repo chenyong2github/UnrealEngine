@@ -288,6 +288,7 @@ FSceneView* UMoviePipelineBackbufferPass::CalcSceneView(FSceneViewFamily* ViewFa
 	View->ViewRotation = InPassMetrics.FrameInfo.CurrViewRotation;
 	View->PreviousViewTransform = FTransform(InPassMetrics.FrameInfo.PrevViewRotation,InPassMetrics.FrameInfo.PrevViewLocation);
 	View->StartFinalPostprocessSettings(View->ViewLocation);
+	View->OverrideFrameIndexValue = InPassMetrics.SpatialJitterIndex;
 
 	// CameraAnim override
 	if (LocalPlayerController->PlayerCameraManager)
