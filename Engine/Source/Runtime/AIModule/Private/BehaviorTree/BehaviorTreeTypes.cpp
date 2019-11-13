@@ -282,9 +282,13 @@ void FBehaviorTreeSearchData::Reset()
 {
 	PendingUpdates.Reset();
 	PendingNotifies.Reset();
+	SearchRootNode = FBTNodeIndex();
 	SearchStart = FBTNodeIndex();
 	SearchEnd = FBTNodeIndex();
 	RollbackInstanceIdx = INDEX_NONE;
+	DeactivatedBranchStartIndex = INDEX_NONE;
+	DeactivatedBranchEndIndex = INDEX_NONE;
+	bFilterOutRequestFromDeactivatedBranch = false;
 	bSearchInProgress = false;
 	bPostponeSearch = false;
 	bPreserveActiveNodeMemoryOnRollback = false;
