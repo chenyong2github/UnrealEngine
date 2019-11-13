@@ -54,6 +54,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 		// Adds Serialization of HashResult, and separates delete/update TAccelerationStructureHandle in FPendingSpatialData
 		SerializeHashResult,
 
+		// Only serialize internal acceleration structure queue and acceleration structure. No external/Async queues.
+		FlushEvolutionInternalAccelerationQueue,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
