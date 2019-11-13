@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "PixelStreamingPrivate.h"
 #include "Components/ActorComponent.h"
 #include "PixelStreamerInputComponent.generated.h"
 
