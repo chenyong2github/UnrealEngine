@@ -1,5 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#include "/Engine/Public/Platform.ush"
+
+
 uint ClearValue;
 void ClearPS(out uint4 OutColor : SV_Target0)
 {
