@@ -1726,7 +1726,7 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 				if (InLevel && InLevel->MapBuildData && (bShouldBuildLighting || bShouldBuildHLOD || bShouldBuildReflectionCaptures) )
 				{
 					UPackage* MapBuildDataPackage = InLevel->MapBuildData->GetOutermost();
-					if (MapBuildDataPackage != InLevel->GetOutermost())
+					if (MapBuildDataPackage != InLevel->GetOutermost() && MapBuildDataPackage->IsDirty())
 					{
 						CheckoutAndSavePackage(MapBuildDataPackage, CheckedOutPackagesFilenames);
 					}
