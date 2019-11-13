@@ -48,6 +48,15 @@ void UDisplayClusterRootComponent::BeginPlay()
 	if (OperationMode == EDisplayClusterOperationMode::Cluster ||
 		OperationMode == EDisplayClusterOperationMode::Editor)
 	{
+		// Read native input synchronization settings
+		IPDisplayClusterConfigManager* const ConfigMgr = GDisplayCluster->GetPrivateConfigMgr();
+		if (ConfigMgr)
+		{
+			FDisplayClusterConfigGeneral CfgGeneral = ConfigMgr->GetConfigGeneral();
+			NativeInputSyncPolicy = CfgGeneral.NativeInputSyncPolicy;
+			UE_LOG(LogDisplayClusterGame, Log, TEXT("Native input sync policy: %d"), NativeInputSyncPolicy);
+		}
+
 		// Build nDisplay hierarchy
 		InitializeHierarchy();
 
@@ -112,21 +121,25 @@ bool UDisplayClusterRootComponent::InitializeHierarchy()
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterGame);
 
-	// Add replication components
-	const TSet<UActorComponent*> ActorComponents = GetOwner()->GetComponents();
-	int CompIdx = 0;
-	for (UActorComponent* Component : ActorComponents)
+	// Use sync components if no native input synchronization activated
+	if (NativeInputSyncPolicy == 0)
 	{
-		USceneComponent* const SceneComp = Cast<USceneComponent>(Component);
-		if (SceneComp)
+		// Add replication components
+		const TSet<UActorComponent*> ActorComponents = GetOwner()->GetComponents();
+		int CompIdx = 0;
+		for (UActorComponent* Component : ActorComponents)
 		{
-			const FString CompName = FString::Printf(TEXT("sync_comp_%d"), CompIdx++);
-
-			UDisplayClusterSceneComponentSyncParent* NewSyncComp = NewObject<UDisplayClusterSceneComponentSyncParent>(Component->GetOwner(), FName(*CompName));
-			if (NewSyncComp)
+			USceneComponent* const SceneComp = Cast<USceneComponent>(Component);
+			if (SceneComp)
 			{
-				NewSyncComp->AttachToComponent(SceneComp, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
-				NewSyncComp->RegisterComponent();
+				const FString CompName = FString::Printf(TEXT("sync_comp_%d"), CompIdx++);
+
+				UDisplayClusterSceneComponentSyncParent* NewSyncComp = NewObject<UDisplayClusterSceneComponentSyncParent>(Component->GetOwner(), FName(*CompName));
+				if (NewSyncComp)
+				{
+					NewSyncComp->AttachToComponent(SceneComp, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
+					NewSyncComp->RegisterComponent();
+				}
 			}
 		}
 	}
@@ -164,22 +177,17 @@ bool UDisplayClusterRootComponent::InitializeHierarchy()
 
 bool UDisplayClusterRootComponent::InitializeExtra()
 {
-	// Read native input synchronization settings
-	IPDisplayClusterConfigManager* const ConfigMgr = GDisplayCluster->GetPrivateConfigMgr();
-	if (ConfigMgr)
+	EDisplayClusterOperationMode OpMode = GDisplayCluster->GetOperationMode();
+	if (OpMode == EDisplayClusterOperationMode::Cluster)
 	{
-		FDisplayClusterConfigGeneral CfgGeneral = ConfigMgr->GetConfigGeneral();
-		NativeInputSyncPolicy = CfgGeneral.NativeInputSyncPolicy;
-		UE_LOG(LogDisplayClusterGame, Log, TEXT("Native input sync policy: %d"), NativeInputSyncPolicy);
-	}
-
-	// Optionally activate native input synchronization
-	if (NativeInputSyncPolicy == 1)
-	{
-		APlayerController* const PlayerController = GetWorld()->GetFirstPlayerController();
-		if (PlayerController)
+		// Optionally activate native input synchronization
+		if (NativeInputSyncPolicy == 1)
 		{
-			PlayerController->PlayerInput = NewObject<UDisplayClusterPlayerInput>(PlayerController);
+			APlayerController* const PlayerController = GetWorld()->GetFirstPlayerController();
+			if (PlayerController)
+			{
+				PlayerController->PlayerInput = NewObject<UDisplayClusterPlayerInput>(PlayerController);
+			}
 		}
 	}
 
