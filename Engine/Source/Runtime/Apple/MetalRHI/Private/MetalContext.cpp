@@ -349,6 +349,7 @@ FMetalDeviceContext::FMetalDeviceContext(mtlpp::Device MetalDevice, uint32 InDev
 , ActiveContexts(1)
 , ActiveParallelContexts(0)
 , PSOManager(0)
+, DeviceFrameIndex(0)
 {
 	CommandQueue.SetRuntimeDebuggingLevel(GMetalRuntimeDebugLevel);
 	
@@ -418,6 +419,9 @@ void FMetalDeviceContext::BeginFrame()
 	
 	// Wait for the frame semaphore on the immediate context.
 	dispatch_semaphore_wait(CommandBufferSemaphore, DISPATCH_TIME_FOREVER);
+	
+	// Bump the frame counter.
+	DeviceFrameIndex++;
 }
 
 #if METAL_DEBUG_OPTIONS
