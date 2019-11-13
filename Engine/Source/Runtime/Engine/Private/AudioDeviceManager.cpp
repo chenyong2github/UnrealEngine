@@ -253,6 +253,11 @@ bool FAudioDeviceManager::IsUsingAudioMixer() const
 	return bUsingAudioMixer;
 }
 
+IAudioDeviceModule* FAudioDeviceManager::GetAudioDeviceModule()
+{
+	return AudioDeviceModule;
+}
+
 bool FAudioDeviceManager::Initialize()
 {
 	if (LoadDefaultAudioDeviceModule())
