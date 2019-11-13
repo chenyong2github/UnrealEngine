@@ -542,7 +542,7 @@ private:
 		FViewInfo& View,
 		int32 UpscaleFactor,
 		FRDGBufferRef& GatherPointsBuffer,
-		FIntPoint& GatherPointsResolution);
+		FIntVector& GatherPointsResolution);
 
 	void RenderRayTracingGlobalIlluminationFinalGather(
 		FRDGBuilder& GraphBuilder,
