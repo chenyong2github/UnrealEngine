@@ -1520,7 +1520,7 @@ static void InjectTranslucentLightArray(FRHICommandListImmediate& RHICmdList, co
 						{
 							// no shadows
 							SetInjectionShader<LightType_Directional, false>(RHICmdList, GraphicsPSOInit, View, InjectionData.LightFunctionMaterialProxy, LightSceneInfo,
-								InjectionData.ProjectedShadowInfo, -1, VolumeCascadeIndex,
+								InjectionData.ProjectedShadowInfo, INDEX_NONE, VolumeCascadeIndex,
 								*VertexShader, *GeometryShader, InjectionData.bApplyLightFunction, false);
 						}
 					}
@@ -1534,13 +1534,13 @@ static void InjectTranslucentLightArray(FRHICommandListImmediate& RHICmdList, co
 						if (InjectionData.ProjectedShadowInfo)
 						{
 							SetInjectionShader<LightType_Point, true>(RHICmdList, GraphicsPSOInit, View, InjectionData.LightFunctionMaterialProxy, LightSceneInfo,
-								InjectionData.ProjectedShadowInfo, -1, VolumeCascadeIndex,
+								InjectionData.ProjectedShadowInfo, INDEX_NONE, VolumeCascadeIndex,
 								*VertexShader, *GeometryShader, InjectionData.bApplyLightFunction, bInverseSquared);
 						}
 						else
 						{
 							SetInjectionShader<LightType_Point, false>(RHICmdList, GraphicsPSOInit, View, InjectionData.LightFunctionMaterialProxy, LightSceneInfo,
-								InjectionData.ProjectedShadowInfo, -1, VolumeCascadeIndex,
+								InjectionData.ProjectedShadowInfo, INDEX_NONE, VolumeCascadeIndex,
 								*VertexShader, *GeometryShader, InjectionData.bApplyLightFunction, bInverseSquared);
 						}
 					}
