@@ -86,6 +86,7 @@ struct FInstallBundleRequestResultInfo
 	FName BundleName;
 	EInstallBundleResult Result = EInstallBundleResult::OK;
 	bool bIsStartup = false;
+	bool bContentWasInstalled = false;
 
 	// Currently, these just forward BPT Error info
 	FText OptionalErrorText;
