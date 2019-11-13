@@ -35,14 +35,6 @@ bool IsNeeValidMaterial(FMaterialClosestHitPayload Payload)
 	{
 		return false;
 	}
-	else if (IsDefaultLitMaterial(Payload))
-	{
-		return true;
-	}
-	else if (IsClearCoatMaterial(Payload))
-	{
-		return true;
-	}
 	else if (IsPureSpecularTransmission(Payload))
 	{
 		return false;
