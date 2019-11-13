@@ -597,6 +597,23 @@ void UToolMenus::ApplyCustomization(UToolMenu* GeneratedMenu)
 		}
 	}
 
+	// Hide items based on whitelist
+	if (CustomizedMenu.WhitelistEntries.Num() > 0)
+	{
+		for (int32 SectionIndex = 0; SectionIndex < NewSections.Num(); ++SectionIndex)
+		{
+			FToolMenuSection& Section = NewSections[SectionIndex];
+			for (int32 i = 0; i < Section.Blocks.Num(); ++i)
+			{
+				if (!CustomizedMenu.IsEntryWhitelisted(Section.Blocks[i].Name))
+				{
+					Section.Blocks.RemoveAt(i);
+					--i;
+				}
+			}
+		}
+	}
+
 	// Hide sections and entries
 	if (!GeneratedMenu->IsEditing())
 	{
@@ -1419,6 +1436,11 @@ UToolMenu* UToolMenus::GenerateMenuOrSubMenuForEdit(const UToolMenu* InMenu)
 	}
 
 	return nullptr;
+}
+
+void UToolMenus::AddMenuSubstitutionDuringGenerate(const FName OriginalMenu, const FName NewMenu)
+{
+	MenuSubstitutionsDuringGenerate.Add(OriginalMenu, NewMenu);
 }
 
 UToolMenu* UToolMenus::GenerateMenu(const FName Name, const FToolMenuContext& InMenuContext)
