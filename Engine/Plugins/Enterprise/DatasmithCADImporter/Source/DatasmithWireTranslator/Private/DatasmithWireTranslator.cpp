@@ -1224,7 +1224,7 @@ bool FWireTranslatorImpl::GetShader()
 		FString ShaderName = Shader->name();
 		FString ShaderModelName = Shader->shadingModel();
 
-		uint32 ShaderUUID = fabs((int32)GetTypeHash(*ShaderName));
+		uint32 ShaderUUID = fabs((float)(int32)GetTypeHash(*ShaderName));
 
 		TSharedRef<IDatasmithUEPbrMaterialElement> MaterialElement = FDatasmithSceneFactory::CreateUEPbrMaterial(*ShaderName);
 
