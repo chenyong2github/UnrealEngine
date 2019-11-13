@@ -90,4 +90,7 @@ protected:
 	void RefreshDataOutputPinType();
 
 	TSubclassOf<ULiveLinkRole> GetDefaultRolePinValue() const;
+
+	/** Verify if selected role class is valid for evaluation */
+	bool IsRoleValidForEvaluation(TSubclassOf<ULiveLinkRole> InRoleClass) const;
 };
