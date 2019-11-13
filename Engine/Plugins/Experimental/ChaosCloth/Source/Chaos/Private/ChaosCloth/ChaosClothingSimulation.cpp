@@ -1198,6 +1198,16 @@ void ClothingSimulation::SetAnimDriveSpringStiffness(float InStiffness)
 	}
 }
 
+void ClothingSimulation::SetGravityOverride(const TVector<float, 3>& InGravityOverride) 
+{
+	Evolution->GetGravityForces().SetAcceleration(InGravityOverride);
+}
+
+void ClothingSimulation::DisableGravityOverride()
+{
+	Evolution->GetGravityForces().SetAcceleration(ClothSharedSimConfig->Gravity);
+}
+
 #if WITH_EDITOR
 void ClothingSimulation::AddReferencedObjects(FReferenceCollector& Collector)
 {
