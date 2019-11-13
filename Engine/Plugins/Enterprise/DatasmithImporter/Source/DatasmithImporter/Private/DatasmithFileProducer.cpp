@@ -739,11 +739,6 @@ bool UDatasmithDirProducer::Initialize()
 		return false;
 	}
 
-	UPackage* TransientPackage = NewObject< UPackage >( nullptr, *FPaths::Combine( Context.RootPackagePtr->GetPathName(), *GetName() ), RF_Transient );
-	TransientPackage->FullyLoad();
-
-	Context.SetRootPackage( TransientPackage );
-
 	FileProducer = TStrongObjectPtr< UDatasmithFileProducer >( NewObject< UDatasmithFileProducer >( GetTransientPackage(), NAME_None, RF_Transient ) );
 
 	return true;
@@ -759,6 +754,13 @@ bool UDatasmithDirProducer::Execute(TArray< TWeakObjectPtr< UObject > >& OutAsse
 
 	FDataprepWorkReporter Task( Context.ProgressReporterPtr, LOCTEXT( "DatasmithFileProducer_LoadingFromDirectory", "Loading files from directory ..." ), (float)FilesToProcess.Num(), 1.0f );
 
+	// Cache context's package
+	UPackage* CachedPackage = Context.RootPackagePtr.Get();
+
+	FString RootPath = FPaths::Combine( Context.RootPackagePtr->GetPathName(), *GetName() );
+	UPackage* RootTransientPackage = NewObject< UPackage >( nullptr, *RootPath, RF_Transient );
+	RootTransientPackage->FullyLoad();
+
 	for( const FString& FileName : FilesToProcess )
 	{
 		if ( IsCancelled() )
@@ -766,7 +768,21 @@ bool UDatasmithDirProducer::Execute(TArray< TWeakObjectPtr< UObject > >& OutAsse
 			break;
 		}
 
+		// Import content of file into the proper content folder to avoid name collision
+		UPackage* TransientPackage = RootTransientPackage;
+		FString FilePath = FPaths::GetPath( FileName );
+		if(FilePath != FolderPath)
+		{
+			FString SubFolder = FilePath.Right(FilePath.Len() - FolderPath.Len() - 1 /* Remove leading '/' */);
+			TransientPackage = NewObject< UPackage >( nullptr, *FPaths::Combine( RootPath, SubFolder ), RF_Transient );
+			TransientPackage->FullyLoad();
+		}
+
+		Context.SetRootPackage( TransientPackage );
+
+		// Update file producer's filename
 		FileProducer->FilePath =  FPaths::ConvertRelativePathToFull( FileName );
+		FileProducer->UpdateName();
 
 		Task.ReportNextStep( FText::Format( LOCTEXT( "DatasmithFileProducer_LoadingFile", "Loading {0} ..."), FText::FromString( FileName ) ) );
 
@@ -776,6 +792,9 @@ bool UDatasmithDirProducer::Execute(TArray< TWeakObjectPtr< UObject > >& OutAsse
 			LogError( ErrorReport );
 		}
 	}
+
+	// Restore context's package
+	Context.SetRootPackage( CachedPackage );
 
 	return !IsCancelled();
 }
