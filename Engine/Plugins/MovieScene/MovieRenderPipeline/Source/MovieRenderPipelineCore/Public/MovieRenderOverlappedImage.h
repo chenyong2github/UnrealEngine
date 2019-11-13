@@ -149,14 +149,21 @@ public:
 	 * So fetching as LinearColor would create a 16GB intermediary image, so it's worth having an option to fetch
 	 * straight to FColors.
 	 * 
-	 * @param FImagePixelData - Finished pixel data.
+	 * @param OutPixelData - Finished pixel data.
 	 */
 	void FetchFinalPixelDataByte(TArray64<FColor>& OutPixelData) const;
 
 	/**
 	 * After accumulation is finished, fetch the final image as linear colors
 	 * 
-	 * @param FImagePixelData - Finished pixel data.
+	 * @param OutPixelData - Finished pixel data.
+	 */
+	void FetchFinalPixelDataHalfFloat(TArray64<FFloat16Color>& OutPixelData) const;
+
+	/**
+	 * After accumulation is finished, fetch the final image as linear colors
+	 * 
+	 * @param OutPixelData - Finished pixel data.
 	 */
 	void FetchFinalPixelDataLinearColor(TArray64<FLinearColor>& OutPixelData) const;
 

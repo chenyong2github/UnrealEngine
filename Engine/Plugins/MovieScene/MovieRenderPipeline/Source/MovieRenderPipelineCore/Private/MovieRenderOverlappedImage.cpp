@@ -713,6 +713,28 @@ void FImageOverlappedAccumulator::FetchFinalPixelDataByte(TArray64<FColor> & Out
 	}
 }
 
+void FImageOverlappedAccumulator::FetchFinalPixelDataHalfFloat(TArray64<FFloat16Color>& OutPixelData) const
+{
+	int32 FullSizeX = PlaneSize.X;
+	int32 FullSizeY = PlaneSize.Y;
+	OutPixelData.SetNumUninitialized(FullSizeX * FullSizeY);
+
+	for (int32 FullY = 0L; FullY < FullSizeY; FullY++)
+	{
+		for (int32 FullX = 0L; FullX < FullSizeX; FullX++)
+		{
+			float Rgba[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+
+			FetchFullImageValue(Rgba, FullX, FullY);
+			FLinearColor Color = FLinearColor(Rgba[0],Rgba[1],Rgba[2],Rgba[3]);
+
+			// be careful with this index, make sure to use 64bit math, not 32bit
+			int64 DstIndex = int64(FullY) * int64(FullSizeX) + int64(FullX);
+			OutPixelData[DstIndex] = FFloat16Color(Color);
+		}
+	}
+}
+
 void FImageOverlappedAccumulator::FetchFinalPixelDataLinearColor(TArray64<FLinearColor> & OutPixelData) const
 {
 	int32 FullSizeX = PlaneSize.X;
