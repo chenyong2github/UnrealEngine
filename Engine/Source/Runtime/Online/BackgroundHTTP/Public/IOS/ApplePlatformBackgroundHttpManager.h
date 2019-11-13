@@ -8,7 +8,11 @@
 #include "Interfaces/IBackgroundHttpRequest.h"
 #include "IOS/ApplePlatformBackgroundHttpRequest.h"
 
+#include "IOS/IOSBackgroundURLSessionHandler.h"
+
 typedef TWeakPtr<FApplePlatformBackgroundHttpRequest,ESPMode::ThreadSafe> FBackgroundHttpURLMappedRequestPtr;
+
+DECLARE_DELEGATE(FIOSBackgroundHttpPostSessionWorkCallback);
 
 /**
  * Manages Background Http request that are currently being processed if we are on an Apple Platform
@@ -74,18 +78,18 @@ private:
 
     //These are used internally to pause/resume things at the task level
 	void PauseAllActiveTasks();
-	void ResumeAllTasksWithoutPausedRequests();
+	void ResumeTasksForBackgrounding(FIOSBackgroundHttpPostSessionWorkCallback Callback = FIOSBackgroundHttpPostSessionWorkCallback());
+	bool ResumeDownloadTaskForBackgroundingIfAppropriate(NSURLSessionDownloadTask* DownloadTask, EBackgroundHTTPPriority LowestPriorityToQueue);
 
     void PauseAllUnassociatedTasks();
     void UnpauseAllUnassociatedTasks();
     
     void TickRequests(float DeltaTime);
-    void TickTasks(float DeltaTime);
     void TickUnassociatedTasks(float DeltaTime);
     
     void StartRequest(FAppleBackgroundHttpRequestPtr Request);
 	void FinishRequest(FAppleBackgroundHttpRequestPtr Request);
-	void RetryRequest(FAppleBackgroundHttpRequestPtr Request, bool bShouldIncreaseRetryCount, bool bShouldStartImmediately, NSData* RetryData);
+	void RetryRequest(FAppleBackgroundHttpRequestPtr Request, bool bShouldIncreaseRetryCount, NSData* RetryData);
     void RemoveSessionTasksForRequest(FAppleBackgroundHttpRequestPtr Request);
     bool GenerateURLMapEntriesForRequest(FAppleBackgroundHttpRequestPtr Request);
     void RemoveURLMapEntriesForRequest(FAppleBackgroundHttpRequestPtr Request);
@@ -99,7 +103,7 @@ private:
 	void OnTask_DidFinishDownloadingToURL(NSURLSessionDownloadTask* Task, NSError* Error, const FString& TempFilePath);
 	void OnTask_DidWriteData(NSURLSessionDownloadTask* Task, int64_t BytesWrittenSinceLastCall, int64_t TotalBytesWritten, int64_t TotalBytesExpectedToWrite);
 	void OnTask_DidCompleteWithError(NSURLSessionTask* Task, NSError* Error);
-	void OnSession_SessionDidFinishAllEvents(NSURLSession* Session);
+	void OnSession_SessionDidFinishAllEvents(NSURLSession* Session, FIOSBackgroundDownloadCoreDelegates::FIOSBackgroundDownload_DelayedBackgroundURLSessionCompleteHandler Callback);
 
 	FDelegateHandle OnApp_EnteringForegroundHandle;
 	FDelegateHandle OnApp_EnteringBackgroundHandle;

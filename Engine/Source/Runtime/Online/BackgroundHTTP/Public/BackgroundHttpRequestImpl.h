@@ -35,7 +35,9 @@ public:
 	virtual const FString& GetRequestID() const override;
 	virtual void SetRequestID(const FString& NewRequestID) override;
 	virtual bool HandleDelayedProcess() override;
-
+	virtual EBackgroundHTTPPriority GetRequestPriority() const override;
+	virtual void SetRequestPriority(EBackgroundHTTPPriority NewPriority) override;
+	
 	virtual void NotifyNotificationObjectOfComplete(bool bWasSuccess);
 protected:
 	TSharedPtr<FBackgroundHttpNotificationObject, ESPMode::ThreadSafe> DownloadCompleteNotificationObject;
@@ -43,7 +45,8 @@ protected:
 	TArray<FString> URLList;
 	FString RequestID;
 	int NumberOfTotalRetries;
-
+	EBackgroundHTTPPriority RequestPriority;
+	
 	FBackgroundHttpRequestCompleteDelegate HttpRequestCompleteDelegate;
 	FBackgroundHttpProgressUpdateDelegate HttpProgressUpdateDelegate;
 };
