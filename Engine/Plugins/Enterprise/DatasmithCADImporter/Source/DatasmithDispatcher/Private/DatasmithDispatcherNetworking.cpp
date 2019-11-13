@@ -34,7 +34,7 @@ bool FNetworkNode::SendMessage(const TArray<uint8>& Message, double Timeout_s)
 
 	if (ConnectedSocket == nullptr)
 	{
-		UE_LOG(LogDatasmithDispatcher, Error, TEXT("null socket, can't write"));
+		UE_LOG(LogDatasmithDispatcher, Error, TEXT("node not connected, can't write"));
 		return false;
 	}
 
@@ -54,28 +54,10 @@ bool FNetworkNode::SendMessage(const TArray<uint8>& Message, double Timeout_s)
 
 	ConnectedSocket->SetNonBlocking(false);
 
-	{ // Send the header
-		FMessageHeader Header;
-		Header.ByteSize = Message.Num();
-
-		TArray<uint8> HeaderBuffer;
-		FMemoryWriter ArWriter(HeaderBuffer);
-		ArWriter << Header;
-
-		int32 ByteSent = -1;
-		bool bSendSucceed = ConnectedSocket->Send(HeaderBuffer.GetData(), HeaderBuffer.Num(), ByteSent);
-
-		if (!bSendSucceed || HeaderBuffer.Num() != ByteSent)
-		{
-			UE_LOG(LogDatasmithDispatcher, Error, TEXT("can't write header on socket"));
-			bWriteError = true;
-			return false;
-		}
-	}
-
-	{ // Send the content
-		const uint8* Data = Message.GetData();
-		uint32 BufferSize = Message.Num();
+	auto SendBuffer = [&](const TArray<uint8>& Buffer) -> bool
+	{
+		uint32 BufferSize = Buffer.Num();
+		const uint8* Data = Buffer.GetData();
 
 		uint32 TotalByteSent = 0;
 		bool bSendSucceed = true;
@@ -85,13 +67,30 @@ bool FNetworkNode::SendMessage(const TArray<uint8>& Message, double Timeout_s)
 			bSendSucceed &= ConnectedSocket->Send(Data + TotalByteSent, BufferSize - TotalByteSent, BytesSent);
 			TotalByteSent += (uint32) BytesSent;
 		}
+		return bSendSucceed && TotalByteSent == BufferSize;
+	};
 
-		if (!bSendSucceed)
-		{
-			UE_LOG(LogDatasmithDispatcher, Error, TEXT("can't write content on socket"));
-			bWriteError = true;
-			return false;
-		}
+	// Send the header
+	TArray<uint8> HeaderBuffer;
+	FMemoryWriter ArWriter(HeaderBuffer);
+
+	FMessageHeader Header;
+	Header.ByteSize = Message.Num();
+	ArWriter << Header;
+
+	if (!SendBuffer(HeaderBuffer))
+	{
+		UE_LOG(LogDatasmithDispatcher, Error, TEXT("can't write header on socket"));
+		bWriteError = true;
+		return false;
+	}
+
+	// Send the content
+	if (!SendBuffer(Message))
+	{
+		UE_LOG(LogDatasmithDispatcher, Error, TEXT("can't write content on socket"));
+		bWriteError = true;
+		return false;
 	}
 
 	return true;
@@ -102,6 +101,12 @@ bool FNetworkNode::ReceiveMessage(TArray<uint8>& OutMessage, double Timeout_s)
 	if (bReadError)
 	{
 		UE_LOG(LogDatasmithDispatcher, Error, TEXT("ReadError flag raised, can't read"));
+		return false;
+	}
+
+	if (ConnectedSocket == nullptr)
+	{
+		UE_LOG(LogDatasmithDispatcher, Error, TEXT("node not connected, can't read"));
 		return false;
 	}
 
@@ -153,7 +158,6 @@ bool FNetworkNode::ReceiveMessage(TArray<uint8>& OutMessage, double Timeout_s)
 		}
 
 		IncommingMessage.Content.Reserve(IncommingMessage.Header.ByteSize);
-		UE_LOG(LogDatasmithDispatcher, Display, TEXT("Parsed header ok"));
 	}
 
 	// fill the message with available data
@@ -307,7 +311,7 @@ bool FNetworkClientNode::Connect(const FString& Description, int32 ServerPort, d
 	{
 		if (ConnectedSocket->Connect(*InternetAddress))
 		{
-			UE_LOG(LogDatasmithDispatcher, Display, TEXT("Is connected"));
+			UE_LOG(LogDatasmithDispatcher, Verbose, TEXT("Client Node is connected"));
 			return true;
 		}
 	}
@@ -342,16 +346,15 @@ bool FCommandQueue::SendCommand(ICommand& Commmand, double Timeout_s)
 	return NetworkInterface && NetworkInterface->SendMessage(CommandBuffer, Timeout_s);
 }
 
-bool FCommandQueue::Disconnect(double Timeout_s)
+void FCommandQueue::Disconnect(double Timeout_s)
 {
-	// consume all available commands
+	// consume all available commands before closing the connection
 	while (Poll(Timeout_s))
 	{
 		Timeout_s = 0;
 	}
 
-	// close the network interface
-	return true;
+	NetworkInterface = nullptr;
 }
 
 bool FCommandQueue::Poll(double Timeout_s)

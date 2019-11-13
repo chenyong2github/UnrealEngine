@@ -29,6 +29,7 @@ public:
 
 private:
 	void SpawnHandlers();
+	int32 GetNextWorkerId();
 	int32 GetAliveHandlerCount();
 	void CloseHandlers();
 
@@ -49,6 +50,7 @@ private:
 
 	// Workers
 	int32 NumberOfWorkers;
+	int32 NextWorkerId;
 	TArray<FDatasmithWorkerHandler> WorkerHandlers;
 };
 
