@@ -30,6 +30,10 @@ private:
 #if SUPPORTS_ARKIT_1_5
 	virtual TArray<FARVideoFormat> ToARConfiguration() override;
 #endif
+
+#if SUPPORTS_ARKIT_3_0
+	virtual bool IsARFrameSemanticsSupported(ARFrameSemantics InSemantics) const override;
+#endif
 	// ~IAppleARKitFaceSupport
 
 	/** Publishes the remote publisher and the file writer if present */
