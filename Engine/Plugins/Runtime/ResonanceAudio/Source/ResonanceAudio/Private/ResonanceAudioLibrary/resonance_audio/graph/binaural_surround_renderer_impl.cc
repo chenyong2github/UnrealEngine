@@ -162,9 +162,9 @@ size_t BinauralSurroundRendererImpl::GetExpectedNumChannelsFromSurroundFormat(
       return kNumThirdOrderAmbisonicChannels + kNumStereoChannels;
     default:
       LOG(FATAL) << "Undefined surround format mode";
-      return false;
       break;
   }
+
   return 0;
 }
 
