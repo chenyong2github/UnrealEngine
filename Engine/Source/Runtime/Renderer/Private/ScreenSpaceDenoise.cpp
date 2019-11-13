@@ -706,6 +706,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSSDCommonParameters, )
 	SHADER_PARAMETER(FIntPoint, ViewportMin)
 	SHADER_PARAMETER(FIntPoint, ViewportMax)
 	SHADER_PARAMETER(FVector4, ThreadIdToBufferUV)
+	SHADER_PARAMETER(FVector4, BufferSizeAndInvSize)
 	SHADER_PARAMETER(FVector4, BufferBilinearUVMinMax)
 	SHADER_PARAMETER(FVector2D, BufferUVToOutputPixelPosition)
 	SHADER_PARAMETER(float, WorldDepthToPixelWorldRadius)
@@ -1392,6 +1393,11 @@ static void DenoiseSignalAtConstantPixelDensity(
 	{
 		CommonParameters.ViewportMin = Viewport.Min;
 		CommonParameters.ViewportMax = Viewport.Max;
+		CommonParameters.BufferSizeAndInvSize = FVector4(
+			float(BufferExtent.X),
+			float(BufferExtent.Y),
+			1.0f / float(BufferExtent.X),
+			1.0f / float(BufferExtent.Y));
 		CommonParameters.BufferBilinearUVMinMax = FVector4(
 			float(Viewport.Min.X + 0.5f) / float(BufferExtent.X),
 			float(Viewport.Min.Y + 0.5f) / float(BufferExtent.Y),
