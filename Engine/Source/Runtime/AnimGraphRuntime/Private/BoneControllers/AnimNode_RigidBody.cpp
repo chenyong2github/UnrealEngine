@@ -658,15 +658,22 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 		TotalMass = 0.f;
 
 		// Instantiate a FBodyInstance/FConstraintInstance set that will be cloned into the Immediate Physics sim.
+		// NOTE: We do not have a skeleton at the moment, so we have to use the ref pose
 		TArray<FBodyInstance*> HighLevelBodyInstances;
 		TArray<FConstraintInstance*> HighLevelConstraintInstances;
-#if WITH_CHAOS
+
 		// Chaos relies on the initial pose to set up constraint positions
-		SkeletalMeshComp->InstantiatePhysicsAssetRefPose(*UsePhysicsAsset, SimulationSpace == ESimulationSpace::WorldSpace ? SkeletalMeshComp->GetComponentToWorld().GetScale3D() : FVector(1.f), HighLevelBodyInstances, HighLevelConstraintInstances);
-#else
-		// PhysX sets up constraints each tick
-		SkeletalMeshComp->InstantiatePhysicsAsset(*UsePhysicsAsset, SimulationSpace == ESimulationSpace::WorldSpace ? SkeletalMeshComp->GetComponentToWorld().GetScale3D() : FVector(1.f), HighLevelBodyInstances, HighLevelConstraintInstances);
-#endif
+		bool bCreateBodiesInRefPose = (WITH_CHAOS != 0);
+		SkeletalMeshComp->InstantiatePhysicsAssetRefPose(
+			*UsePhysicsAsset, 
+			SimulationSpace == ESimulationSpace::WorldSpace ? SkeletalMeshComp->GetComponentToWorld().GetScale3D() : FVector(1.f), 
+			HighLevelBodyInstances, 
+			HighLevelConstraintInstances, 
+			nullptr, 
+			nullptr, 
+			INDEX_NONE, 
+			FPhysicsAggregateHandle(),
+			bCreateBodiesInRefPose);
 
 		TMap<FName, ImmediatePhysics::FActorHandle*> NamesToHandles;
 		TArray<ImmediatePhysics::FActorHandle*> IgnoreCollisionActors;
