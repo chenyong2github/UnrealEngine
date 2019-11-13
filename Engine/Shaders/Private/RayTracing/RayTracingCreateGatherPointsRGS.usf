@@ -69,9 +69,8 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsRGS)
 	for (uint Index = 0; Index < SamplesPerPixel; ++Index)
 	{
 		uint SampleIndexOffset = SampleIndex + Index;
-		RWGatherPointsBuffer[GatherPointsIndex].CreationPoint[SampleIndexOffset] = 0.0;
-		RWGatherPointsBuffer[GatherPointsIndex].Position[SampleIndexOffset] = 0.0;
-		RWGatherPointsBuffer[GatherPointsIndex].Irradiance[SampleIndexOffset] = 0.0;
+		FGatherSample GatherSample = (FGatherSample)0.0;
+		WriteGatherSample(RWGatherPointsBuffer, GatherPointsIndex, SampleIndexOffset, GatherPointsResolution.x * GatherPointsResolution.y, GatherSample);
 	}
 #endif
 	// Get G-Buffer surface data
@@ -243,8 +242,10 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsRGS)
 			}
 		}
 
-		RWGatherPointsBuffer[GatherPointsIndex].CreationPoint[SampleIndexOffset] = WorldPosition;
-		RWGatherPointsBuffer[GatherPointsIndex].Position[SampleIndexOffset] = Position;
-		RWGatherPointsBuffer[GatherPointsIndex].Irradiance[SampleIndexOffset] = Irradiance;
+		FGatherSample GatherSample = (FGatherSample)0.0;
+		GatherSample.CreationPoint = WorldPosition;
+		GatherSample.Position = Position;
+		GatherSample.Irradiance = Irradiance;
+		WriteGatherSample(RWGatherPointsBuffer, GatherPointsIndex, SampleIndexOffset, GatherPointsResolution.x * GatherPointsResolution.y, GatherSample);
 	}
 }

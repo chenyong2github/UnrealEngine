@@ -88,7 +88,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 	// Define rejection criteria and evaluate
 	bool bShouldReject[16];
 	FRejectionCriteria RejectionCriteria = CreateRejectionCriteria(WorldPosition, FinalGatherDistance);
-	CreateRejectionMask(RejectionCriteria, GatherPointsBuffer[GatherPointsIndex], SamplesPerPixel, bShouldReject);
+	CreateRejectionMask(RejectionCriteria, GatherPointsBuffer, GatherPointsIndex, 0, GatherPointsResolution.x * GatherPointsResolution.y, SamplesPerPixel, bShouldReject);
 
 	float3 ExitantRadiance = 0.0;
 	float HitDistance = 1.0e7;
@@ -103,8 +103,9 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 		}
 		ValidSamplesPerPixel++;
 
-		float3 GPPosition = GatherPointsBuffer[GatherPointsIndex].Position[LocalSampleIndex];
-		float3 GPIrradiance = GatherPointsBuffer[GatherPointsIndex].Irradiance[LocalSampleIndex];
+		FGatherSample GatherSample = ReadGatherSample(GatherPointsBuffer, GatherPointsIndex, LocalSampleIndex, GatherPointsResolution.x * GatherPointsResolution.y);
+		float3 GPPosition = GatherSample.Position;
+		float3 GPIrradiance = GatherSample.Irradiance;
 
 		// Initialize throughput based on BRDF
 		half3 N = WorldNormal;
