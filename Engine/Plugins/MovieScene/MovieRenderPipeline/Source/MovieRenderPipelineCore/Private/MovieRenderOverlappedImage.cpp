@@ -77,19 +77,19 @@ void FImageOverlappedPlane::AccumulateSinglePlane(const TArray64<float>& InRawDa
 			// Given a position on the current tile (x,y), we apply the sum of the 4 points (x+0,y+0), (x+1,y+0), (x+0,y+1), (x+1,y+1) to the destination index.
 			// So in reverse, given a destination position, our source sample positions are (x-1,y-1), (x+0,y-1), (x-1,y+0), (x+0,y+0).
 			// That's why we make sure to start at a minimum of index 1, instead of 0.
-			for (int CurrY = 1; CurrY < InSize.Y; CurrY++)
+			for (int32 CurrY = 1; CurrY < InSize.Y; CurrY++)
 			{
-				for (int CurrX = 1; CurrX < InSize.X; CurrX++)
+				for (int32 CurrX = 1; CurrX < InSize.X; CurrX++)
 				{
-					int DstY = StartY + CurrY;// +OffsetY;
-					int DstX = StartX + CurrX;// +OffsetX;
+					int32 DstY = StartY + CurrY;// +OffsetY;
+					int32 DstX = StartX + CurrX;// +OffsetX;
 
 					if (DstX >= 0 && DstY >= 0 &&
 						DstX < Size.X && DstY < Size.Y)
 					{
-						for (int OffsetY = 0; OffsetY < 2; OffsetY++)
+						for (int32 OffsetY = 0; OffsetY < 2; OffsetY++)
 						{
-							for (int OffsetX = 0; OffsetX < 2; OffsetX++)
+							for (int32 OffsetX = 0; OffsetX < 2; OffsetX++)
 							{
 								float Val = InRawData[(CurrY - 1 + OffsetY) * InSize.X + (CurrX - 1 + OffsetX)];
 								float BaseWeight = InWeightData[(CurrY - 1 + OffsetY) * InSize.X + (CurrX - 1 + OffsetX)];
@@ -106,19 +106,19 @@ void FImageOverlappedPlane::AccumulateSinglePlane(const TArray64<float>& InRawDa
 		else
 		{
 			// Slow, reference version. This is the main one.
-			for (int CurrY = 0; CurrY < InSize.Y; CurrY++)
+			for (int32 CurrY = 0; CurrY < InSize.Y; CurrY++)
 			{
-				for (int CurrX = 0; CurrX < InSize.X; CurrX++)
+				for (int32 CurrX = 0; CurrX < InSize.X; CurrX++)
 				{
 					float Val = InRawData[CurrY * InSize.X + CurrX];
 					float BaseWeight = InWeightData[CurrY * InSize.X + CurrX];
 
-					for (int OffsetY = 0; OffsetY < 2; OffsetY++)
+					for (int32 OffsetY = 0; OffsetY < 2; OffsetY++)
 					{
-						for (int OffsetX = 0; OffsetX < 2; OffsetX++)
+						for (int32 OffsetX = 0; OffsetX < 2; OffsetX++)
 						{
-							int DstY = StartY + CurrY + OffsetY;
-							int DstX = StartX + CurrX + OffsetX;
+							int32 DstY = StartY + CurrY + OffsetY;
+							int32 DstX = StartX + CurrX + OffsetX;
 
 							float Weight = BaseWeight * PixelWeight[OffsetY][OffsetX];
 
@@ -279,7 +279,7 @@ void FImageOverlappedPlane::AccumulateSinglePlane(const TArray64<float>& InRawDa
 	}
 }
 
-void FImageOverlappedAccumulator::InitMemory(FIntPoint InPlaneSize, int InNumChannels)
+void FImageOverlappedAccumulator::InitMemory(FIntPoint InPlaneSize, int32 InNumChannels)
 {
 	PlaneSize.X = InPlaneSize.X;
 	PlaneSize.Y = InPlaneSize.Y;
@@ -287,7 +287,7 @@ void FImageOverlappedAccumulator::InitMemory(FIntPoint InPlaneSize, int InNumCha
 
 	ChannelPlanes.SetNum(NumChannels);
 
-	for (int Channel = 0; Channel < NumChannels; Channel++)
+	for (int32 Channel = 0; Channel < NumChannels; Channel++)
 	{
 		ChannelPlanes[Channel].Init(PlaneSize);
 	}
@@ -303,7 +303,7 @@ void FImageOverlappedAccumulator::ZeroPlanes()
 {
 	check(ChannelPlanes.Num() == NumChannels);
 
-	for (int Channel = 0; Channel < NumChannels; Channel++)
+	for (int32 Channel = 0; Channel < NumChannels; Channel++)
 	{
 		ChannelPlanes[Channel].ZeroPlane();
 	}
@@ -336,9 +336,9 @@ void FImageOverlappedAccumulator::GenerateTileWeight(TArray64<float>& OutWeights
 	float ScaleX = 1.0f / (float(Size.X / 2) * .75f);
 	float ScaleY = 1.0f / (float(Size.Y / 2) * .75f);
 
-	for (int PixY = 0; PixY < Size.Y; PixY++)
+	for (int32 PixY = 0; PixY < Size.Y; PixY++)
 	{
-		for (int PixX = 0; PixX < Size.X; PixX++)
+		for (int32 PixX = 0; PixX < Size.X; PixX++)
 		{
 			float Y = float(PixY) + .5f;
 			float X = float(PixX) + .5f;
@@ -560,7 +560,7 @@ void FImageOverlappedAccumulator::AccumulatePixelData(const FImagePixelData& InP
 			// Unfortunately, we don't have an SSE optimized pow function. This function is quite slow (about 30-40ms).
 			float Gamma = AccumulationGamma;
 
-			for (int ChanIter = 0; ChanIter < NumChannels; ChanIter++)
+			for (int32 ChanIter = 0; ChanIter < NumChannels; ChanIter++)
 			{
 				float* DstData = RawData[ChanIter].GetData();
 

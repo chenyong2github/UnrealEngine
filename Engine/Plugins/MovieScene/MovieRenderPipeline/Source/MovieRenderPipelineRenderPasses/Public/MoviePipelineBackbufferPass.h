@@ -22,19 +22,6 @@ class MOVIERENDERPIPELINERENDERPASSES_API UMoviePipelineBackbufferPass : public 
 
 protected:
 
-	virtual void SetupImpl(const FMoviePipelineRenderPassInitSettings& InInitSettings) override;
-	virtual void TeardownImpl() override;
-	virtual void CaptureFrameImpl(const FMoviePipelineRenderPassMetrics& OutputFrameMetrics) override;
-	virtual void GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses) override;
-
-	FSceneView* CalcSceneView(FSceneViewFamily* ViewFamily, const FMoviePipelineRenderPassMetrics& InPassMetrics);
-
 private:
-	FSceneViewStateReference ViewState;
-
-
-	UPROPERTY(Transient)
-	UTextureRenderTarget2D* TileRenderTarget;
-
-	TSharedPtr<FImageOverlappedAccumulator, ESPMode::ThreadSafe> ImageTileAccumulator;
+	
 };

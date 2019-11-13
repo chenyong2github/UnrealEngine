@@ -14,11 +14,7 @@ public:
 	UMoviePipelineAccumulationSetting()
 		: TemporalSampleCount(1)
 		, CameraShutterAngle(180)
-		, TileCount(1)
 		, SpatialSampleCount(1)
-		, bIsUsingOverlappedTiles(false)
-		, PadRatioX(.50f)
-		, PadRatioY(.50f)
 		, AccumulationGamma(1.f)
 	{
 	}
@@ -47,25 +43,6 @@ public:
 	int32 CameraShutterAngle;
 
 	/**
-	* How many tiles should the resulting movie render be broken into? A tile should be no larger than
-	* the maximum texture resolution supported by your graphics card (likely 16k), so NumTiles should be
-	* ceil(Width/MaxTextureSize). More tiles mean more individual passes over the whole scene at a smaller
-	* resolution which may help with gpu timeouts. Requires at least 1 tile. Tiling is applied evenly to
-	* both X and Y (to make final interlacing more straightforward).
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 1, ClampMin = 1), Category = "Movie Pipeline")
-	int32 TileCount;
-
-	/**
-	* This bias encourages the engine to use a higher detail texture when it would normally use a lower detail
-	* texture due to the size of the texture on screen. A more negative number means overall sharper images
-	* (up to the detail resolution of your texture). Too much sharpness will cause visual grain/noise in the
-	* resulting image, but this can be mitigated with more spatial samples.
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = -1, UIMax = 0), Category = "Movie Pipeline")
-	float TextureSharpnessBias;
-
-	/**
 	* How many frames should we accumulate together before contributing to one overall sample. This lets you
 	* increase the anti-aliasing quality of an sample, or have high quality anti-aliasing if you don't want
 	* any motion blur due to accumulation over time in SampleCount.
@@ -80,15 +57,10 @@ public:
 	int32 WarmUpFrameCount;
 
 	/**
-	* 
+	* For advanced users, the gamma space to apply accumulation in. During accumulation, pow(x,AccumulationGamma) 
+	* is applied and pow(x,1/AccumulationGamma) is applied after accumulation is finished
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 1, ClampMin = 1), Category = "Movie Pipeline")
-	bool bIsUsingOverlappedTiles;
-
-	float PadRatioX;
-	float PadRatioY;
 	float AccumulationGamma;
-
 
 	/**
 	* Shutter Timing allows you to bias the timing of your shutter angle to either be before, during, or after

@@ -12,15 +12,9 @@ class MOVIERENDERPIPELINECORE_API UMoviePipelineRenderPass : public UMoviePipeli
 {
 	GENERATED_BODY()
 public:
-	void Setup(const FMoviePipelineRenderPassInitSettings& InInitSettings)
+	void Setup(TArray<TSharedPtr<MoviePipeline::FMoviePipelineEnginePass>>& InEnginePasses)
 	{
-		InitSettings = InInitSettings;
-		SetupImpl(InInitSettings);
-	}
-
-	void CaptureFrame(const FMoviePipelineRenderPassMetrics& OutputFrameMetrics)
-	{
-		CaptureFrameImpl(OutputFrameMetrics);
+		SetupImpl(InEnginePasses);
 	}
 
 	void Teardown()
@@ -28,21 +22,25 @@ public:
 		TeardownImpl();
 	}
 
+	/** An array of identifiers for the output buffers expected as a result of this render pass. */
 	void GatherOutputPasses(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses)
 	{
 		GatherOutputPassesImpl(ExpectedRenderPasses);
 	}
 
-protected:
-	virtual void SetupImpl(const FMoviePipelineRenderPassInitSettings& InInitSettings) {}
+	/** The required engine passes this pass needs to operate. */
+	void GetRequiredEnginePasses(TSet<FMoviePipelinePassIdentifier>& RequiredEnginePasses)
+	{
+		GetRequiredEnginePassesImpl(RequiredEnginePasses);
+	}
 
-	virtual void CaptureFrameImpl(const FMoviePipelineRenderPassMetrics& OutputFrameMetrics) {}
+
+protected:
+	virtual void GetRequiredEnginePassesImpl(TSet<FMoviePipelinePassIdentifier>& RequiredEnginePasses) {}
+
+	virtual void SetupImpl(TArray<TSharedPtr<MoviePipeline::FMoviePipelineEnginePass>>& InEnginePasses) {}
 
 	virtual void TeardownImpl() {}
 
 	virtual void GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses) {}
-		
-protected:
-	UPROPERTY()
-	FMoviePipelineRenderPassInitSettings InitSettings;
 };

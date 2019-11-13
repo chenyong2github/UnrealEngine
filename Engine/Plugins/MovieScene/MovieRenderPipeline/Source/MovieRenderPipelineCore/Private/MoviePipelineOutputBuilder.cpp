@@ -27,48 +27,45 @@ FMoviePipelineMergerOutputFrame& FMoviePipelineOutputMerger::QueueOutputFrame_Ga
 	return NewFrame;
 }
 
-void FMoviePipelineOutputMerger::OnSingleSampleDataAvailable_AnyThread(TUniquePtr<FImagePixelData>&& InData)
+void FMoviePipelineOutputMerger::OnSingleSampleDataAvailable_AnyThread(TUniquePtr<FImagePixelData>&& InData, const TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> InFrameData)
 {
 	// This is to support outputting individual samples (skipping accumulation) for debug reasons,
 	// or because you want to post-process them yourself. We just forward this directly on for output to disk.
 
 	TWeakObjectPtr<UMoviePipeline> LocalWeakPipeline = WeakMoviePipeline;
 
-	AsyncTask(ENamedThreads::GameThread, [LocalData = MoveTemp(InData), LocalWeakPipeline]() mutable
+	AsyncTask(ENamedThreads::GameThread, [LocalData = MoveTemp(InData), InFrameData, LocalWeakPipeline]() mutable
 	{
 		if (ensureAlwaysMsgf(LocalWeakPipeline.IsValid(), TEXT("A memory lifespan issue has left an output builder alive without an owning Movie Pipeline.")))
 		{
-			LocalWeakPipeline->OnSampleRendered(MoveTemp(LocalData));
+			LocalWeakPipeline->OnSampleRendered(MoveTemp(LocalData), InFrameData);
 		}
 	}
 	);
 }
 
-void FMoviePipelineOutputMerger::OnCompleteRenderPassDataAvailable_AnyThread(TUniquePtr<FImagePixelData>&& InData)
+void FMoviePipelineOutputMerger::OnCompleteRenderPassDataAvailable_AnyThread(TUniquePtr<FImagePixelData>&& InData, const TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> InFrameData)
 {
 	// Lock the ActiveData when we're updating what data has been gathered.
 	FScopeLock ScopeLock(&ActiveDataMutex);
 
-	FImagePixelDataPayload* Payload = InData->GetPayload<FImagePixelDataPayload>();
-	check(Payload);
-
 	// See if we can find the frame this data is for. This should always be valid, if it's not
 	// valid it means they either forgot to declare they were going to produce it, or this is
 	// coming in after the system already thinks it's finished that frame.
-	FMoviePipelineMergerOutputFrame* OutputFrame = ActiveData.Find(Payload->OutputState);
+	FMoviePipelineMergerOutputFrame* OutputFrame = ActiveData.Find(InFrameData->OutputState);
 	if (!ensureAlwaysMsgf(OutputFrame, TEXT("Recieved data for unknown frame. Frame was either already processed or not queued yet!")))
 	{
 		return;
 	}
 
 	// Ensure this pass is expected as well...
-	if (!ensureAlwaysMsgf(OutputFrame->ExpectedRenderPasses.Contains(Payload->PassIdentifier), TEXT("Recieved data for unexpected render pass: %s"), *Payload->PassIdentifier.Name))
+	if (!ensureAlwaysMsgf(OutputFrame->ExpectedRenderPasses.Contains(InFrameData->PassIdentifier), TEXT("Recieved data for unexpected render pass: %s"), *InFrameData->PassIdentifier.Name))
 	{
 		return;
 	}
 
 	// If this data was expected and this frame is still in progress, pass the data to the frame.
-	OutputFrame->ImageOutputData.FindOrAdd(Payload->PassIdentifier) = MoveTemp(InData);
+	OutputFrame->ImageOutputData.FindOrAdd(InFrameData->PassIdentifier) = MoveTemp(InData);
 
 	// Check to see if this was the last piece of data needed for this frame.
 	int32 TotalPasses = OutputFrame->ExpectedRenderPasses.Num();
@@ -78,16 +75,16 @@ void FMoviePipelineOutputMerger::OnCompleteRenderPassDataAvailable_AnyThread(TUn
 	{
 		// Transfer ownership from the map to here;
 		FMoviePipelineMergerOutputFrame FinalFrame;
-		ActiveData.RemoveAndCopyValue(Payload->OutputState, FinalFrame);
+		ActiveData.RemoveAndCopyValue(InFrameData->OutputState, FinalFrame);
 
 		// Notify the Movie Pipeline that this frame has been completed and can be forwarded to the output containers.
 		TWeakObjectPtr<UMoviePipeline> LocalWeakPipeline = WeakMoviePipeline;
 
-		AsyncTask(ENamedThreads::GameThread, [LocalFinalFrame = MoveTemp(FinalFrame), LocalWeakPipeline]() mutable
+		AsyncTask(ENamedThreads::GameThread, [LocalFinalFrame = MoveTemp(FinalFrame), InFrameData, LocalWeakPipeline]() mutable
 		{
 			if (ensureAlwaysMsgf(LocalWeakPipeline.IsValid(), TEXT("A memory lifespan issue has left an output builder alive without an owning Movie Pipeline.")))
 			{
-				LocalWeakPipeline->OnFrameCompletelyRendered(MoveTemp(LocalFinalFrame));
+				LocalWeakPipeline->OnFrameCompletelyRendered(MoveTemp(LocalFinalFrame), InFrameData);
 			}
 		}
 		);

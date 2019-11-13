@@ -74,6 +74,12 @@ public:
 	*/
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	UMoviePipelineMasterConfig* GetPipelineMasterConfig() const { return CurrentJob.Configuration; }
+
+	/**
+	* Get the shot config that is being used to render the current shot.
+	*/
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	UMoviePipelineShotConfig* GetPipelineCurrentShotConfig() const;
 public:
 
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
@@ -93,8 +99,8 @@ public:
 	FFrameRate GetEffectiveFrameRate() const;
 
 public:
-	void OnFrameCompletelyRendered(FMoviePipelineMergerOutputFrame&& OutputFrame);
-	void OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample);
+	void OnFrameCompletelyRendered(FMoviePipelineMergerOutputFrame&& OutputFrame, const TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> InFrameData);
+	void OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample, const TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> InFrameData);
 private:
 
 	/** Instantiate our Debug UI Widget and initialize it to ourself. */
@@ -251,15 +257,14 @@ private:
 	MoviePipeline::FMoviePipelineFrameInfo FrameInfo;
 
 public:
+	/** A list of engine passes which need to be run each frame to generate required content for all the movie render passes. */
+	TArray<TSharedPtr<MoviePipeline::FMoviePipelineEnginePass>> ActiveRenderPasses;
+
 	/** This gathers all of the produced data for an output frame (which may come in async many frames later) before passing them onto the Output Containers. */
 	TSharedPtr<FMoviePipelineOutputMerger, ESPMode::ThreadSafe> OutputBuilder;
 
 	/** A debug image sequence writer in the event they want to dump every sample generated on its own. */
 	IImageWriteQueue* ImageWriteQueue;
-
-	// debug
-	TSharedPtr<FImagePixelPipe, ESPMode::ThreadSafe> GetOutputPipe() const { return OutputPipe; }
-	TSharedPtr<FImagePixelPipe, ESPMode::ThreadSafe> OutputPipe;
 
 private:
 	/** Keep track of which job we're working on. This holds our Configuration + which shots we're supposed to render from it. */

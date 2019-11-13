@@ -4,6 +4,7 @@
 #include "Modules/ModuleInterface.h"
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
+#include "MovieRenderPipelineDataTypes.h"
 
 void FMovieRenderPipelineCoreModule::StartupModule()
 {
@@ -18,6 +19,19 @@ void FMovieRenderPipelineCoreModule::StartupModule()
 
 void FMovieRenderPipelineCoreModule::ShutdownModule()
 {
+}
+
+FDelegateHandle FMovieRenderPipelineCoreModule::RegisterEngineRenderPass(FOnCreateEngineRenderPass InOnCreateEngineRenderPass)
+{
+	EngineRenderPassDelegates.Add(InOnCreateEngineRenderPass);
+	FDelegateHandle Handle = EngineRenderPassDelegates.Last().GetHandle();
+
+	return Handle;
+}
+
+void FMovieRenderPipelineCoreModule::UnregisterEngineRenderPass(FDelegateHandle InHandle)
+{
+	EngineRenderPassDelegates.RemoveAll([=](const FOnCreateEngineRenderPass& Delegate) { return Delegate.GetHandle() == InHandle; });
 }
 
 IMPLEMENT_MODULE(FMovieRenderPipelineCoreModule, MovieRenderPipelineCore);

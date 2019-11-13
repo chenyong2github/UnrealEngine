@@ -92,7 +92,7 @@ public:
 	 * @param InNumTilesY - Num vertical tiles.
 	 * @param InNumChannels - Num Channels.
 	 */
-	void InitMemory(FIntPoint InPlaneSize, int InNumChannels);
+	void InitMemory(FIntPoint InPlaneSize, int32 InNumChannels);
 
 	/**
 	 * Initializes memory.

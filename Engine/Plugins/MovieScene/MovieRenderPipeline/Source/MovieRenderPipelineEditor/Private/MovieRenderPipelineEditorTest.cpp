@@ -10,13 +10,15 @@
 #include "Misc/Paths.h"
 #include "MoviePipelineMasterConfig.h"
 #include "MoviePipelineOutputSetting.h"
+#include "MoviePipelineHighResSetting.h"
+#include "MoviePipelineDeferredPasses.h"
 
 UMoviePipelineShotConfig* GenerateTestShotConfig(UObject* InOwner, int32 InSampleCount,
 	int32 InShutterAngle, EMoviePipelineShutterTiming InFrameTiming, int32 InTileCount,
 	int32 InSpatialSampleCount, bool bIsUsingOverlappedTiles, float PadRatioX, float PadRatioY, float AccumulationGamma)
 {
 	UMoviePipelineShotConfig* OutConfig = NewObject<UMoviePipelineShotConfig>(InOwner);
-	OutConfig->FindOrAddSetting<UMoviePipelineBackbufferPass>();
+	OutConfig->FindOrAddSetting<UMoviePipelineDeferredPassBase>();
 
 	UMoviePipelineGameOverrideSetting* GamemodeOverride = OutConfig->FindOrAddSetting<UMoviePipelineGameOverrideSetting>();
 	GamemodeOverride->GameModeOverride = AGameMode::StaticClass();
@@ -24,13 +26,17 @@ UMoviePipelineShotConfig* GenerateTestShotConfig(UObject* InOwner, int32 InSampl
 	UMoviePipelineAccumulationSetting* Accumulation = OutConfig->FindOrAddSetting< UMoviePipelineAccumulationSetting>();
 	Accumulation->TemporalSampleCount = InSampleCount;
 	Accumulation->CameraShutterAngle = InShutterAngle;
-	Accumulation->TileCount = InTileCount;
 	Accumulation->ShutterTiming = InFrameTiming;
 	Accumulation->SpatialSampleCount = InSpatialSampleCount;
-	Accumulation->bIsUsingOverlappedTiles = bIsUsingOverlappedTiles;
-	Accumulation->PadRatioX = PadRatioX;
-	Accumulation->PadRatioY = PadRatioY;
 	Accumulation->AccumulationGamma = AccumulationGamma;
+
+	if (InTileCount > 1)
+	{
+		UMoviePipelineHighResSetting* HighRes = OutConfig->FindOrAddSetting<UMoviePipelineHighResSetting>();
+		HighRes->TileCount = InTileCount;
+		HighRes->bIsUsingOverlappedTiles = bIsUsingOverlappedTiles;
+		HighRes->OverlapPercentage = PadRatioX;
+	}
 
 	return OutConfig;
 }
@@ -63,8 +69,8 @@ TArray<UMoviePipelineMasterConfig*> FMovieRenderPipelineEditorModule::GenerateTe
 
 				int32 SizeX = 1920;
 				int32 SizeY = 1080;
-				int32 TileX = 2;
-				int32 TileY = 2;
+				int32 TileX = 1;
+				int32 TileY = 1;
 				int32 TestNumSamples = 2;
 				float PadRatioX = 0.5f;
 				float PadRatioY = 0.5f;

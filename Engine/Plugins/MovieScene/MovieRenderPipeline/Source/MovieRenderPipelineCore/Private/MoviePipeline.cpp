@@ -31,6 +31,7 @@
 #include "MoviePipelineOutputSetting.h"
 #include "MoviePipelineBlueprintLibrary.h"
 #include "ImageWriteQueue.h"
+#include "MoviePipelineHighResSetting.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipeline"
 
@@ -60,9 +61,6 @@ UMoviePipeline::UMoviePipeline()
 	OutputBuilder = MakeShared<FMoviePipelineOutputMerger, ESPMode::ThreadSafe>(this);
 
 	ImageWriteQueue = &FModuleManager::Get().LoadModuleChecked<IImageWriteQueueModule>("ImageWriteQueue").GetWriteQueue();
-
-	// Temp
-	OutputPipe = MakeShared<FImagePixelPipe, ESPMode::ThreadSafe>();
 }
 
 
@@ -420,10 +418,10 @@ FMoviePipelineWorkInfo UMoviePipeline::CalculateExpectedOutputMetrics()
 		ExpectedWork.NumCameraCuts += Shot.CameraCuts.Num();
 
 		int32 NumTiles = 0;
-		UMoviePipelineAccumulationSetting* TilingSettings = Shot.ShotConfig->FindSetting<UMoviePipelineAccumulationSetting>();
-		if (TilingSettings)
+		UMoviePipelineHighResSetting* HighResSettings = Shot.ShotConfig->FindSetting<UMoviePipelineHighResSetting>();
+		if (HighResSettings)
 		{
-			NumTiles = TilingSettings->TileCount * TilingSettings->TileCount;
+			NumTiles = HighResSettings->TileCount * HighResSettings->TileCount;
 		}
 
 		for (const FMoviePipelineCameraCutInfo& CameraCut : Shot.CameraCuts)
@@ -1017,6 +1015,11 @@ FFrameRate UMoviePipeline::GetEffectiveFrameRate() const
 	}
 
 	return FFrameRate();
+}
+
+UMoviePipelineShotConfig* UMoviePipeline::GetPipelineCurrentShotConfig() const
+{
+	return ShotList[CurrentShotIndex].ShotConfig;
 }
 
 #undef LOCTEXT_NAMESPACE // "MoviePipeline"

@@ -4,6 +4,7 @@
 #include "MovieRenderPipelineCoreModule.h"
 #include "Sections/MovieSceneCinematicShotSection.h"
 #include "MoviePipelineAccumulationSetting.h"
+#include "MoviePipeline.h"
 
 FString FMoviePipelineShotInfo::GetDisplayName() const
 {
@@ -124,11 +125,19 @@ FMoviePipelineWorkInfo FMoviePipelineCameraCutInfo::GetTotalWorkEstimate() const
 	WorkEstimate.NumOutputFramesWithSubsampling += SubsampledOutputFrameCount.Value;
 
 	// How many different samples are we submitting to the GPU?
-	FFrameNumber TotalSampleCount = GetSampleCountEstimate(true, true) * NumTiles;
+	FFrameNumber TotalSampleCount = GetSampleCountEstimate(true, true) * NumTiles.X * NumTiles.Y;
 	WorkEstimate.NumSamples += TotalSampleCount.Value;
 
 	// How many images will we produce to create the high-res tile.
-	WorkEstimate.NumTiles = NumTiles;
+	WorkEstimate.NumTiles = NumTiles.X * NumTiles.Y;
 
 	return WorkEstimate;
+}
+
+namespace MoviePipeline
+{
+	UMoviePipeline* FMoviePipelineEnginePass::GetPipeline() const
+	{
+		return OwningPipeline.Get();
+	}
 }

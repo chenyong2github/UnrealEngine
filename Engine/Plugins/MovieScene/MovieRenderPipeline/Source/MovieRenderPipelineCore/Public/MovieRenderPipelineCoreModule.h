@@ -11,6 +11,8 @@ class UMoviePipelineMasterConfig;
 class ULevelSequence;
 class UMoviePipeline;
 
+namespace MoviePipeline { struct FMoviePipelineEnginePass; }
+
 namespace MoviePipelineErrorCodes
 {
 	/** Everything completed as expected or we (unfortunately) couldn't detect the error. */
@@ -23,13 +25,22 @@ namespace MoviePipelineErrorCodes
 	constexpr uint8 NoConfig = 3;
 
 }
+/** A delegate which will create an engine render pass for the Curve Editor. This declares a new engine pass which multiple Pipeline Render Passes can share to reduce re-renders. */
+DECLARE_DELEGATE_RetVal(TSharedRef<MoviePipeline::FMoviePipelineEnginePass>, FOnCreateEngineRenderPass);
 
-class FMovieRenderPipelineCoreModule : public IModuleInterface
+class MOVIERENDERPIPELINECORE_API FMovieRenderPipelineCoreModule : public IModuleInterface
 {
 public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
+	void UnregisterEngineRenderPass(FDelegateHandle InHandle);
+	FDelegateHandle RegisterEngineRenderPass(FOnCreateEngineRenderPass InOnCreateEngineRenderPass);
+
+	TArrayView<const FOnCreateEngineRenderPass> GetEngineRenderPasses() const
+	{
+		return EngineRenderPassDelegates;
+	}
 private:
 	bool IsTryingToRenderMovieFromCommandLine(FString& OutSequenceAssetPath, FString& OutConfigAssetPath, FString& OutExecutorType, FString& OutPipelineType) const;
 	void InitializeCommandLineMovieRender();
@@ -39,6 +50,12 @@ private:
 
 	uint8 GetMovieRenderClasses(const FString& InAssetPath, const FString& InConfigAssetPath, const FString& InExecutorType, const FString& InPipelineType, 
 								ULevelSequence*& OutAsset, UMoviePipelineMasterConfig*& OutConfig, UClass*& OutExecutorClass, UClass*& OutPipelineClass) const;
+
+private:
+	TSharedRef<struct MoviePipeline::FMoviePipelineEnginePass> CreateDeferredEnginePass();
+	FDelegateHandle DeferredEnginePassHandle;
+private:
+	TArray<FOnCreateEngineRenderPass> EngineRenderPassDelegates;
 
 private:
 	FString MoviePipelineLocalExecutorClassType;

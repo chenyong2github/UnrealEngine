@@ -18,6 +18,10 @@ class UMoviePipelineShotConfig;
 class UMovieSceneCameraCutSection;
 class UMoviePipelineRenderPass;
 struct FImagePixelData;
+struct FImageOverlappedAccumulator;
+class FMoviePipelineOutputMerger;
+class FRenderTarget;
+class UMoviePipeline;
 
 
 /**
@@ -293,7 +297,7 @@ public:
 		, bAccurateFirstFrameHistory(true)
 		, NumTemporalSamples(0)
 		, NumSpatialSamples(0)
-		, NumTiles(0)
+		, NumTiles(0, 0)
 		, State(EMovieRenderShotState::Uninitialized)
 		, CurrentTick(FFrameNumber(0))
 		, bHasEvaluatedMotionBlurFrame(false)
@@ -360,7 +364,7 @@ public:
 
 	/** How many image tiles are going to be rendered per temporal frame. */
 	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
-	int32 NumTiles;
+	FIntPoint NumTiles;
 
 	/** Display name for UI Purposes. */
 	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
@@ -618,125 +622,173 @@ public:
 	}
 };
 
-USTRUCT(BlueprintType)
-struct FMoviePipelineRenderPassInitSettings
-{
-	GENERATED_BODY()
-public:
-	FMoviePipelineRenderPassInitSettings()
-		: ShotConfig(nullptr)
-		, TileResolution(0, 0)
-		, TileCount(0)
-	{
-	}
-
-public:
-	/** The config associated with the shot currently being rendered. */
-	UPROPERTY()
-	UMoviePipelineShotConfig* ShotConfig;
-
-	// These are derived out of other settings and cached directly to needing to re-derive values.
-	
-	/** The back buffer should match this setting and not the final output resolution.*/
-	FIntPoint TileResolution;
-	
-	/** How many tiles (in each direction) are we rendering with. */
-	int32 TileCount;
-};
-
-USTRUCT(BlueprintType)
+/**
+* These parameters define a single sample that a render pass should render with.
+*/
 struct FMoviePipelineRenderPassMetrics
 {
-	GENERATED_BODY()
-
 public:
-	FVector2D SpatialShift;
-	int32 TileIndex;
-	int32 TileIndexX;
-	int32 TileIndexY;
-	int32 NumTilesX;
-	int32 NumTilesY;
-	FMoviePipelineFrameOutputState OutputState;
+	/** How many tiles on X and Y are there total. */
+	FIntPoint TileCounts;
+
+	/** Of the TileCount, which X/Y Tile is this sample for. */
+	FIntPoint TileIndexes;
+
+	/** Get a 0-(TileCount-1) version of TileIndex. */
+	FORCEINLINE int32 GetTileIndex() const
+	{
+		return (TileIndexes.Y * TileCounts.Y) + TileIndexes.X;
+	}
+
+	FORCEINLINE int32 GetTileCount() const
+	{
+		return (TileCounts.X & TileCounts.Y);
+	}
+
+	/** How big is the back buffer for this sample? Pre-set when setup, here for convenience. */
+	FIntPoint BackbufferSize;
+
+	/** If true, we will discard this sample after rendering. Used to get history set up correctly. */
 	bool bIsHistoryOnlyFrame;
-	int32 SpatialJitterIndex;
-	int32 NumSpatialJitters;
 
-	int32 TemporalJitterIndex;
-	int32 NumTemporalJitters;
+	/** How many spatial jitters will there be total for this particular temporal accumulation frame? */
+	int32 SpatialSampleCount;
+	
+	/** Of the SpatialSampleCount, which index is this? */
+	int32 SpatialSampleIndex;
 
-	float JitterOffsetX;
-	float JitterOffsetY;
+	/** How many temporal jitters will there be total for this particular output frame? */
+	int32 TemporalSampleCount;
 
+	/** Of the TemporalSampleCount, which index is this? */
+	int32 TemporalSampleIndex;
+
+	/** Should we use the Overlapped Tiles method of doing high res screen shots? */
+	bool bIsUsingOverlappedTiles;
+
+	/** How many pixels are we overlapping with adjacent tiles (on each side) */
+	FIntPoint OverlappedPad;
+
+	/** How much is this sample offset, taking padding into account. */
+	FIntPoint OverlappedOffset;
+
+	/** 
+	* The gamma space to apply accumulation in. During accumulation, pow(x,AccumulationGamma) is applied
+	* and pow(x,1/AccumulationGamma) is applied after accumulation is finished. 1.0 means no change."
+	*/
 	float AccumulationGamma;
 
-	bool bIsUsingOverlappedTiles;
-	int32 OverlappedOffsetX;
-	int32 OverlappedOffsetY;
-	int32 OverlappedSizeX;
-	int32 OverlappedSizeY;
-	int32 OverlappedPadX;
-	int32 OverlappedPadY;
+	/**
+	* The amount of screen-space shift used to replace TAA Projection Jitter, modified for each spatial sample
+	* of the render.
+	*/
+	FVector2D SpatialShift;
+
+	FMoviePipelineFrameOutputState OutputState;
+
 	FVector2D OverlappedSubpixelShift;
 
 
 	MoviePipeline::FMoviePipelineFrameInfo FrameInfo;
 };
 
-struct FImagePixelDataPayload : IImagePixelDataPayload
+namespace MoviePipeline
+{
+	struct FMoviePipelineRenderPassInitSettings
+	{
+	public:
+		FMoviePipelineRenderPassInitSettings()
+			: BackbufferResolution(0, 0)
+			, TileCount(0, 0)
+		{
+		}
+
+	public:
+		/** This takes into account any padding needed for tiled rendering overlap. Different than the output resolution of the final image. */
+		FIntPoint BackbufferResolution;
+
+		/** How many tiles (in each direction) are we rendering with. */
+		FIntPoint TileCount;
+	};
+
+	struct MOVIERENDERPIPELINECORE_API FMoviePipelineEnginePass
+	{
+		FMoviePipelineEnginePass(const FMoviePipelinePassIdentifier& InPassIdentifier)
+			: PassIdentifier(InPassIdentifier)
+		{
+		}
+
+		virtual ~FMoviePipelineEnginePass()
+		{}
+
+
+		virtual void Setup(TWeakObjectPtr<UMoviePipeline> InOwningPipeline, const FMoviePipelineRenderPassInitSettings& InInitSettings)
+		{
+			OwningPipeline = InOwningPipeline;
+			InitSettings = InInitSettings;
+		}
+
+		virtual void RenderSample_GameThread(const FMoviePipelineRenderPassMetrics& InSampleState)
+		{
+		}
+
+		virtual void Teardown()
+		{
+		}
+
+	protected:
+		UMoviePipeline* GetPipeline() const;
+
+	public:
+		/** A unique name for this engine pass. This is how an individual output pass specifies what data source it wants. */
+		FMoviePipelinePassIdentifier PassIdentifier;
+
+	protected:
+		FMoviePipelineRenderPassInitSettings InitSettings;
+
+	private:
+		TWeakObjectPtr<UMoviePipeline> OwningPipeline;
+	};
+
+	struct FSampleRenderThreadParams
+	{
+		FMoviePipelineRenderPassMetrics SampleState;
+		TSharedPtr<FImageOverlappedAccumulator, ESPMode::ThreadSafe> ImageAccumulator;
+		TSharedPtr<FMoviePipelineOutputMerger, ESPMode::ThreadSafe> OutputMerger;
+		bool bWriteTiles;
+		FMoviePipelinePassIdentifier PassIdentifier;
+	};
+}
+
+struct FImagePixelDataPayload : IImagePixelDataPayload, public TSharedFromThis<FImagePixelDataPayload>
 {
 	FMoviePipelineFrameOutputState OutputState;
-	FVector2D SpatialShift;
-	int32 TileIndexX;
-	int32 TileIndexY;
-	int32 TileSizeX;
-	int32 TileSizeY;
-	int32 NumTilesX;
-	int32 NumTilesY;
-	int32 SpatialJitterIndex;
-	int32 NumSpatialJitters;
-
-	int32 TemporalJitterIndex;
-	int32 NumTemporalJitters;
-
-	float JitterOffsetX;
-	float JitterOffsetY;
-
-	float AccumulationGamma;
-
-	bool bIsUsingOverlappedTiles;
-	int32 OverlappedOffsetX;
-	int32 OverlappedOffsetY;
-	int32 OverlappedSizeX;
-	int32 OverlappedSizeY;
-	int32 OverlappedPadX;
-	int32 OverlappedPadY;
-	FVector2D OverlappedSubpixelShift;
-
+	FMoviePipelineRenderPassMetrics SampleState;
 
 	FMoviePipelinePassIdentifier PassIdentifier;
 
 	/** Is this the first tile of an image and we should start accumulating? */
 	FORCEINLINE bool IsFirstTile() const
 	{
-		return TileIndexX == 0 && TileIndexY == 0 && SpatialJitterIndex == 0;
+		return SampleState.TileIndexes.X == 0 && SampleState.TileIndexes.Y == 0 && SampleState.SpatialSampleIndex == 0;
 	}
 
 	/** Is this the last tile of an image and we should finish accumulating? */
 	FORCEINLINE bool IsLastTile() const
 	{
-		return TileIndexX == NumTilesX - 1 &&
-			   TileIndexY == NumTilesY - 1 &&
-			   SpatialJitterIndex == NumSpatialJitters - 1;
+		return SampleState.TileIndexes.X == SampleState.TileCounts.X - 1 &&
+			   SampleState.TileIndexes.Y == SampleState.TileCounts.Y - 1 &&
+			   SampleState.SpatialSampleIndex == SampleState.SpatialSampleCount - 1;
 	}
 
 	FORCEINLINE bool IsFirstTemporalSample() const
 	{
-		return TemporalJitterIndex == 0;
+		return SampleState.TemporalSampleIndex == 0;
 	}
 
 	FORCEINLINE bool IsLastTemporalSample() const
 	{
-		return TemporalJitterIndex == NumTemporalJitters - 1;
+		return SampleState.TemporalSampleIndex == SampleState.TemporalSampleCount - 1;
 	}
 };
 

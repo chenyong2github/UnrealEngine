@@ -49,13 +49,32 @@ void UMoviePipelineImageSequenceContainerBase::OnRecieveImageDataImpl(FMoviePipe
 		TUniquePtr<FImageWriteTask> TileImageTask = MakeUnique<FImageWriteTask>();
 
 		// Fill alpha for now 
-		TileImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FColor>(255));
+		switch (RenderPassData.Value->GetType())
+		{
+		case EImagePixelType::Color:
+		{
+			TileImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FColor>(255));
+			break;
+		}
+		case EImagePixelType::Float16:
+		{
+
+			break;
+		}
+		case EImagePixelType::Float32:
+		{
+			TileImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FLinearColor>(255));
+			break;
+		}
+		default:
+			check(false);
+		}
 
 		// JPEG output
-		TileImageTask->Format = EImageFormat::JPEG;
+		TileImageTask->Format = EImageFormat::EXR;
 		TileImageTask->CompressionQuality = 100;
 
-		FString OutputName = FString::Printf(TEXT("/%s.%d.jpeg"),
+		FString OutputName = FString::Printf(TEXT("/%s.%d.exr"),
 			*RenderPassData.Key.Name, InMergedOutputFrame->FrameOutputState.OutputFrameNumber);
 
 		FString OutputPath = OutputDirectory + OutputName;

@@ -17,6 +17,10 @@
 #include "ImageWriteQueue.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
+#include "MoviePipelineHighResSetting.h"
+#include "Modules/ModuleManager.h"
+
+#define LOCTEXT_NAMESPACE "MoviePipeline"
 
 void UMoviePipeline::SetupRenderingPipelineForShot(FMoviePipelineShotInfo& Shot)
 {
@@ -37,32 +41,82 @@ void UMoviePipeline::SetupRenderingPipelineForShot(FMoviePipelineShotInfo& Shot)
 	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	check(OutputSettings);
 
-	FMoviePipelineRenderPassInitSettings RenderPassInitSettings;
-	RenderPassInitSettings.TileResolution = FIntPoint(
-		FMath::CeilToInt(OutputSettings->OutputResolution.X / AccumulationSettings->TileCount),
-		FMath::CeilToInt(OutputSettings->OutputResolution.Y / AccumulationSettings->TileCount));
-	RenderPassInitSettings.TileCount = AccumulationSettings->TileCount;
-	RenderPassInitSettings.ShotConfig = Shot.ShotConfig;
-
-	if (AccumulationSettings->bIsUsingOverlappedTiles)
+	FIntPoint BackbufferResolution = OutputSettings->OutputResolution;
+	FIntPoint BackbufferTileCount = FIntPoint(1, 1);
+	
+	UMoviePipelineHighResSetting* HighResSettings = Shot.ShotConfig->FindSetting<UMoviePipelineHighResSetting>();
+	if (HighResSettings)
 	{
-		// this code is duplicated in a few places, we should clean this up
+		// Figure out how big each sub-region (tile) is.
+		BackbufferResolution = FIntPoint(
+			FMath::CeilToInt(BackbufferResolution.X / HighResSettings->TileCount),
+			FMath::CeilToInt(BackbufferResolution.Y / HighResSettings->TileCount));
 
-		int32 OverlappedPadX = int32(float(RenderPassInitSettings.TileResolution.X) * AccumulationSettings->PadRatioX);
-		int32 OverlappedPadY = int32(float(RenderPassInitSettings.TileResolution.Y) * AccumulationSettings->PadRatioY);
-		RenderPassInitSettings.TileResolution.X += 2 * OverlappedPadX;
-		RenderPassInitSettings.TileResolution.Y += 2 * OverlappedPadY;
+		// Then increase each sub-region by the overlap amount.
+		if (HighResSettings->bIsUsingOverlappedTiles)
+		{
+			BackbufferResolution = HighResSettings->CalculatePaddedBackbufferSize(BackbufferResolution);
+		}
+
+		// Note how many tiles we wish to render with.
+		BackbufferTileCount = FIntPoint(HighResSettings->TileCount, HighResSettings->TileCount);
 	}
 
-
+	// Initialize our render pass. This is a copy of the settings to make this less coupled to the Settings UI.
+	MoviePipeline::FMoviePipelineRenderPassInitSettings RenderPassInitSettings;
+	RenderPassInitSettings.BackbufferResolution = BackbufferResolution;
+	RenderPassInitSettings.TileCount = BackbufferTileCount;
 
 	// Code expects at least a 1x1 tile.
-	ensure(RenderPassInitSettings.TileCount > 0);
+	ensure(RenderPassInitSettings.TileCount.X > 0 && RenderPassInitSettings.TileCount.Y > 0);
+
+	// Now we need to look at all of the desired passes and find a unique set of actual engine passes that need
+	// to be rendered. This allows us to have multiple passes that re-use one render from the engine for efficiency.
+	TSet<FMoviePipelinePassIdentifier> RequiredEnginePasses;
 
 	for (UMoviePipelineRenderPass* Input : Shot.ShotConfig->GetRenderPasses())
 	{
-		Input->Setup(RenderPassInitSettings);
+		Input->GetRequiredEnginePasses(RequiredEnginePasses);
 	}
+
+	// There shouldn't be any render passes active from previous shots by now. The system should have flushed/stalled between
+	// them to complete using resources before switching passes.
+	check(ActiveRenderPasses.Num() == 0);
+
+
+	// Instantiate a new instance of every engine render pass we know how to use.
+	TArray<TSharedPtr<MoviePipeline::FMoviePipelineEnginePass>> RenderPasses;
+
+	FMovieRenderPipelineCoreModule& CoreModule = FModuleManager::Get().LoadModuleChecked<FMovieRenderPipelineCoreModule>("MovieRenderPipelineCore");
+	for (const FOnCreateEngineRenderPass& PassCreationDelegate : CoreModule.GetEngineRenderPasses())
+	{
+		TSharedRef<MoviePipeline::FMoviePipelineEnginePass> PassInstance = PassCreationDelegate.Execute();
+		if (RequiredEnginePasses.Contains(PassInstance->PassIdentifier))
+		{
+			ActiveRenderPasses.Add(PassInstance);
+			RequiredEnginePasses.Remove(PassInstance->PassIdentifier);
+		}
+	}
+
+	for(const FMoviePipelinePassIdentifier& RemainingPass : RequiredEnginePasses)
+	{
+		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Pass \"%d\" was listed as a required engine render pass but was not found. Did you forget to register it with the module?"), *RemainingPass.Name);
+		OnMoviePipelineErrored().Broadcast(this, true, LOCTEXT("MissingEnginePass", "A Render Pass specified an invalid Pass Identifier. Aborting Render. Check the log for more information."));
+	}
+
+	// Initialize each of the engine render passes.
+	for (TSharedPtr<MoviePipeline::FMoviePipelineEnginePass> EnginePass : ActiveRenderPasses)
+	{
+		EnginePass->Setup(MakeWeakObjectPtr(this), RenderPassInitSettings);
+	}
+
+	// We can now initialize the output passes and provide them a reference to the engine passes to get data from.
+	for (UMoviePipelineRenderPass* RenderPass : Shot.ShotConfig->GetRenderPasses())
+	{
+		RenderPass->Setup(ActiveRenderPasses);
+	}
+
+	UE_LOG(LogMovieRenderPipeline, Log, TEXT("Finished setting up rendering for shot. Shot has %d Engine Passes and %d Output Passes."), ActiveRenderPasses.Num(), Shot.ShotConfig->GetRenderPasses().Num());
 }
 
 void UMoviePipeline::TeardownRenderingPipelineForShot(FMoviePipelineShotInfo& Shot)
@@ -92,13 +146,6 @@ void UMoviePipeline::RenderFrame()
 		UE_LOG(LogMovieRenderPipeline, VeryVerbose, TEXT("[%d] Skipping RenderFrame() call due to state being ineligable for rendering. State: %d"), GFrameCounter, CurrentCameraCut.State);
 		return;
 	}
-
-	// Allow our containers to think
-	// ToDo: Is this necessaary?
-	// for (UMoviePipelineOutputBase* Container : Config->OutputContainers)
-	// {
-	// 	Container->OnPostTick();
-	// }
 	
 	// To produce a frame from the movie pipeline we may render many frames over a period of time, additively collecting the results
 	// together before submitting it for writing on the last result - this is referred to as an "output frame". The 1 (or more) samples
@@ -113,16 +160,23 @@ void UMoviePipeline::RenderFrame()
 	// In short, for each output frame, for each accumulation frame, for each tile X/Y, for each jitter, we render a pass. This setup is
 	// designed to maximize the likely hood of deterministic rendering and that different passes line up with each other.
 	UMoviePipelineAccumulationSetting* AccumulationSettings = CurrentShot.ShotConfig->FindOrAddSetting<UMoviePipelineAccumulationSetting>();
-	UMoviePipelineOutputSetting* OutputSetting = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
-	check(OutputSetting);
+	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	check(OutputSettings);
 
+	FIntPoint TileCount = FIntPoint(1, 1);
+	FIntPoint OutputResolution = OutputSettings->OutputResolution;
 
-	const int32 NumTilesX = AccumulationSettings->TileCount;
-	const int32 NumTilesY = NumTilesX;
-	const bool bIsUsingOverlappedTiles = AccumulationSettings->bIsUsingOverlappedTiles;
+	bool bIsUsingOverlappedTiles = false;
+
+	UMoviePipelineHighResSetting* HighResSettings = CurrentShot.ShotConfig->FindSetting<UMoviePipelineHighResSetting>();
+	if (HighResSettings)
+	{
+		TileCount = FIntPoint(HighResSettings->TileCount, HighResSettings->TileCount);
+		bIsUsingOverlappedTiles = HighResSettings->bIsUsingOverlappedTiles;
+	}
 
 	int32 NumSpatialSamples = AccumulationSettings->SpatialSampleCount;
-	ensure(NumTilesX > 0 && NumTilesY > 0 && NumSpatialSamples > 0);
+	ensure(TileCount.X > 0 && TileCount .Y> 0 && NumSpatialSamples > 0);
 
 	FrameInfo.PrevViewLocation = FrameInfo.CurrViewLocation;
 	FrameInfo.PrevViewRotation = FrameInfo.CurrViewRotation;
@@ -152,10 +206,9 @@ void UMoviePipeline::RenderFrame()
 		}
 	}
 
-	// Each render has been initialized with ResX/NumTiles, ResY/NumTiles already to know how big each resulting render target should be.
-	for (int32 TileY = 0; TileY < NumTilesY; TileY++)
+	for (int32 TileY = 0; TileY < TileCount.Y; TileY++)
 	{
-		for (int32 TileX = 0; TileX < NumTilesX; TileX++)
+		for (int32 TileX = 0; TileX < TileCount.X; TileX++)
 		{
 			/*
 			* Two different features need to move the viewport and need to work in combination with each other.
@@ -171,7 +224,7 @@ void UMoviePipeline::RenderFrame()
 			* Single-frame anti-aliasing works in a similar way, by shifting the view by less than a pixel for each
 			* sample in the anti-aliasing. While the high-resolution rendering is a specific grid pattern, the
 			* anti-aliasing uses a more nuanced technique for picking offsets. It uses a deterministic Halton
-			* sequence to pick the offset, weighted by a guassian curve to mostly focus on samples around the
+			* sequence to pick the offset, weighted by a Gaussian curve to mostly focus on samples around the
 			* center, but occasionally picking an offset which would be a sample outside of it's current sub-pixel.
 			*
 			* In the example below we're looking at one render target pixel, split into a 2x2 tiling. To gain
@@ -205,10 +258,10 @@ void UMoviePipeline::RenderFrame()
 			// 'quadrant' we need to take our current tile index and multiply it by the size of each tile, so
 			// for the top right quadrant (in above example) size=(1/2), offset=(size*1). Finally we add half
 			// of the size to put us in the center of that pixel.
-			double TilePixelSizeFractionX = 1.0 / NumTilesX;
-			double TilePixelSizeFractionY = 1.0 / NumTilesY;
-			double TileShiftX = (TilePixelSizeFractionX * TileX) + (TilePixelSizeFractionX / 2.0);
-			double TileShiftY = (TilePixelSizeFractionY * TileY) + (TilePixelSizeFractionY / 2.0);
+			double TilePixelSizeFractionX;
+			double TilePixelSizeFractionY; 
+			double TileShiftX; 
+			double TileShiftY;
 
 			if (bIsUsingOverlappedTiles)
 			{
@@ -218,16 +271,23 @@ void UMoviePipeline::RenderFrame()
 				TilePixelSizeFractionX = 1.0f;
 				TilePixelSizeFractionY = 1.0f;
 			}
+			else
+			{
+				// Legacy interleaving
+				TilePixelSizeFractionX = 1.0 / TileCount.X;
+				TilePixelSizeFractionY = 1.0 / TileCount.Y;
+				TileShiftX = (TilePixelSizeFractionX * TileX) + (TilePixelSizeFractionX / 2.0);
+				TileShiftY = (TilePixelSizeFractionY * TileY) + (TilePixelSizeFractionY / 2.0);
+			}
 
-			// If they're trying to seed the histories, then we'll just override the NumSpatialSamples since they're contributing towards
-			// our final target buffer which needs the history.
+			// If they're trying to seed the histories, then we'll just override the NumSpatialSamples since they don't need all samples as
+			// this isn't output.
 			if (bIsHistoryOnlyFrame)
 			{
 				NumSpatialSamples = 1;
 			}
 
-			// Now we want to render a user-configured number of jitters to come up with the final output for this tile. These are considered
-			// spatial jitters which are accumulated together before contributing to the temporal accumulation.
+			// Now we want to render a user-configured number of spatial jitters to come up with the final output for this tile. 
 			for (int32 SpatialSample = 0; SpatialSample < NumSpatialSamples; SpatialSample++)
 			{
 				// Count this as a sample rendered for the current work.
@@ -236,9 +296,9 @@ void UMoviePipeline::RenderFrame()
 				float OffsetX = 0.5f;
 				float OffsetY = 0.5f; 
 
-				// CachedOutputState.TemporalSampleIndex is -1 on the first frame for motion blur, so ignore jitter on this frame.
+				// Only jitter when required, as jitter requires TAA to be off. 
 				// Also, we want jitter if either time samples or spatial samples are > 1, otherwise not.
-				if (CachedOutputState.TemporalSampleIndex >= 0 &&
+				if (!bIsHistoryOnlyFrame &&
 					(AccumulationSettings->SpatialSampleCount > 1 || AccumulationSettings->TemporalSampleCount > 1))
 				{
 					OffsetX = Halton((SpatialSample + 1) + (CachedOutputState.TemporalSampleIndex * NumSpatialSamples), 2);
@@ -252,76 +312,55 @@ void UMoviePipeline::RenderFrame()
 				double FinalSubPixelShiftX = - (TileShiftX + SpatialShiftX - 0.5);
 				double FinalSubPixelShiftY = (TileShiftY + SpatialShiftY - 0.5);
 
-				int32 TileSizeX = FMath::CeilToInt(OutputSetting->OutputResolution.X / NumTilesX);
-				int32 TileSizeY = FMath::CeilToInt(OutputSetting->OutputResolution.Y / NumTilesY);
-
-				// in the case of overlapped rendering, the render target size will be larger than tile size because of overlap
-				int32 PadX = bIsUsingOverlappedTiles ? int32(float(TileSizeX) * AccumulationSettings->PadRatioX) : 0;
-				int32 PadY = bIsUsingOverlappedTiles ? int32(float(TileSizeY) * AccumulationSettings->PadRatioY) : 0;
-
-				int TargetSizeX = TileSizeX + 2 * PadX;
-				int TargetSizeY = TileSizeY + 2 * PadY;
-
-				FMoviePipelineRenderPassMetrics FrameMetrics;
-				FrameMetrics.OutputState = CachedOutputState;
-				FrameMetrics.TileIndex = (TileY * NumTilesY) + TileX;
-				FrameMetrics.SpatialShift = FVector2D((float)( FinalSubPixelShiftX) * 2.0f / TargetSizeX, (float)FinalSubPixelShiftY * 2.0f / TargetSizeX);
-				FrameMetrics.TileIndexX = TileX;
-				FrameMetrics.TileIndexY = TileY;
-				FrameMetrics.NumTilesX = NumTilesX;
-				FrameMetrics.NumTilesY = NumTilesY;
-				FrameMetrics.bIsHistoryOnlyFrame = bIsHistoryOnlyFrame;
-				FrameMetrics.SpatialJitterIndex = SpatialSample;
-				FrameMetrics.NumSpatialJitters = NumSpatialSamples;
-				FrameMetrics.TemporalJitterIndex = CachedOutputState.TemporalSampleIndex;
-				FrameMetrics.NumTemporalJitters = AccumulationSettings->TemporalSampleCount;
-				FrameMetrics.AccumulationGamma = AccumulationSettings->AccumulationGamma;
-				FrameMetrics.JitterOffsetX = 1.0f - OffsetX; // reversing to match FinalSubPixelShiftX
-				FrameMetrics.JitterOffsetY = OffsetY;
-				FrameMetrics.bIsUsingOverlappedTiles = bIsUsingOverlappedTiles;
-
+				FIntPoint BackbufferResolution;
 				if (bIsUsingOverlappedTiles)
 				{
-					FrameMetrics.OverlappedPadX = int32(float(TileSizeX) * AccumulationSettings->PadRatioX);
-					FrameMetrics.OverlappedPadY = int32(float(TileSizeY) * AccumulationSettings->PadRatioY);
-					FrameMetrics.OverlappedOffsetX = TileX * TileSizeX - FrameMetrics.OverlappedPadX;
-					FrameMetrics.OverlappedOffsetY = TileY * TileSizeY - FrameMetrics.OverlappedPadY;
-					FrameMetrics.OverlappedSizeX = TileSizeX;
-					FrameMetrics.OverlappedSizeY = TileSizeY;
-					FrameMetrics.OverlappedSubpixelShift = FVector2D(1.0f - OffsetX,OffsetY);
+					BackbufferResolution = HighResSettings->CalculatePaddedBackbufferSize(BackbufferResolution);
 				}
 				else
 				{
-					FrameMetrics.OverlappedOffsetX = 0;
-					FrameMetrics.OverlappedOffsetY = 0;
-					FrameMetrics.OverlappedSizeX = 0;
-					FrameMetrics.OverlappedSizeY = 0;
-					FrameMetrics.OverlappedPadX = 0;
-					FrameMetrics.OverlappedPadY = 0;
-					FrameMetrics.OverlappedSubpixelShift = FVector2D(0.0f,0.0f);
+					// Legacy interleaving
+					BackbufferResolution.X = FMath::CeilToInt(OutputResolution.X / TileCount.X);
+					BackbufferResolution.Y = FMath::CeilToInt(OutputResolution.Y / TileCount.Y);
 				}
 
-				FrameMetrics.FrameInfo = FrameInfo;
+				// We take all of the information needed to render a single sample and package it into a struct.
+				FMoviePipelineRenderPassMetrics SampleState;
+				SampleState.OutputState = CachedOutputState;
+				SampleState.SpatialShift = FVector2D((float)( FinalSubPixelShiftX) * 2.0f / BackbufferResolution.X, (float)FinalSubPixelShiftY * 2.0f / BackbufferResolution.X);
+				SampleState.TileIndexes = FIntPoint(TileX, TileY);
+				SampleState.TileCounts = TileCount;
+				SampleState.bIsHistoryOnlyFrame = bIsHistoryOnlyFrame;
+				SampleState.SpatialSampleIndex = SpatialSample;
+				SampleState.SpatialSampleCount = NumSpatialSamples;
+				SampleState.TemporalSampleIndex = CachedOutputState.TemporalSampleIndex;
+				SampleState.TemporalSampleCount = AccumulationSettings->TemporalSampleCount;
+				SampleState.AccumulationGamma = AccumulationSettings->AccumulationGamma;
+				SampleState.bIsUsingOverlappedTiles = bIsUsingOverlappedTiles;
+				SampleState.BackbufferSize = BackbufferResolution;
+				SampleState.FrameInfo = FrameInfo;
 
-				// Finally, we can ask each pass to render. Passes have already been initialized knowing how many tiles they're broken into
-				for (UMoviePipelineRenderPass* Input : InputBuffers)
+				if (bIsUsingOverlappedTiles)
 				{
-					// Our Cached Output state has the expected output for this frame.
-					Input->CaptureFrame(FrameMetrics);
-
-					// If we needed to see each individual jittered image, we would need to
-					// enqueue a copy of the pass's render target here. ToDo:
-
-					// We can calculate the influence of the results of this pass before accumulating
-					// If we are accumulating to a dedicated target for sub-frame jitter results, then
-					// the influence of this pass is simply AccumTarget += ThisResult * (1/NumSpatialSamples);
-					// However, to minimize memory usage we want to use a single accumulation target for
-					// each pass on each tile. To simulate a camera shutter, different temporal sample frames
-					// may have different weights (ie: the first and last sample may be slightly darker), and
-					// in this case the influence of this pass is:
-					// AccumTarget += (ThisResult * (1/NumSpatialSamples)) * GetWeightForTemporalSample(CachedOutputState.SubFrameIndex);
+					SampleState.OverlappedPad = FIntPoint(FMath::CeilToInt(BackbufferResolution.X * HighResSettings->OverlapPercentage), 
+														   FMath::CeilToInt(BackbufferResolution.Y * HighResSettings->OverlapPercentage));
+					SampleState.OverlappedOffset = FIntPoint(TileX * BackbufferResolution.X - SampleState.OverlappedPad.X, 
+															  TileY * BackbufferResolution.Y - SampleState.OverlappedPad.Y);
+					SampleState.OverlappedSubpixelShift = FVector2D(1.0f - OffsetX,OffsetY);
+				}
+				else
+				{
+					SampleState.OverlappedOffset = FIntPoint(0,0);
+					SampleState.OverlappedPad = FIntPoint(0, 0);
+					SampleState.OverlappedSubpixelShift = FVector2D(0.0f,0.0f);
 				}
 
+				// Now we can request that all of the engine passes render. The individual render passes should have already registered delegates
+				// to receive data when the engine render pass is run, so no need to run them.
+				for (TSharedPtr<MoviePipeline::FMoviePipelineEnginePass> EnginePass : ActiveRenderPasses)
+				{
+					EnginePass->RenderSample_GameThread(SampleState);
+				}
 			}
 		}
 	}
@@ -329,39 +368,54 @@ void UMoviePipeline::RenderFrame()
 	// UE_LOG(LogMovieRenderPipeline, Warning, TEXT("[%d] Pre-FlushRenderingCommands"), GFrameCounter);
 	FlushRenderingCommands();
 	// UE_LOG(LogMovieRenderPipeline, Warning, TEXT("[%d] Post-FlushRenderingCommands"), GFrameCounter);
-
 }
 
-void UMoviePipeline::OnFrameCompletelyRendered(FMoviePipelineMergerOutputFrame&& OutputFrame)
+void UMoviePipeline::OnFrameCompletelyRendered(FMoviePipelineMergerOutputFrame&& OutputFrame, const TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> InFrameData)
 {
 	UE_LOG(LogMovieRenderPipeline, Warning, TEXT("[%d] Data required for output available! Frame: %d"), GFrameCounter, OutputFrame.FrameOutputState.OutputFrameNumber);
-
+	
 	for (UMoviePipelineOutputBase* OutputContainer : GetPipelineMasterConfig()->GetOutputContainers())
 	{
 		OutputContainer->OnRecieveImageDataImpl(&OutputFrame);
 	}
 }
 
-void UMoviePipeline::OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample)
+void UMoviePipeline::OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample, const TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> InFrameData)
 {
-	FImagePixelDataPayload* Payload = OutputSample->GetPayload< FImagePixelDataPayload>();
-	check(Payload);
-
 	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	check(OutputSettings);
 
 	TUniquePtr<FImageWriteTask> TileImageTask = MakeUnique<FImageWriteTask>();
 
 	// Fill alpha for now 
-	TileImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FColor>(255));
+	switch (OutputSample->GetType())
+	{
+		case EImagePixelType::Color:
+		{
+			TileImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FColor>(255));
+			break;
+		}
+		case EImagePixelType::Float16:
+		{
+
+			break;
+		}
+		case EImagePixelType::Float32:
+		{
+			TileImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FLinearColor>(255));
+			break;
+		}
+		default:
+			check(false);
+	}
 
 	// JPEG output
-	TileImageTask->Format = EImageFormat::JPEG;
+	TileImageTask->Format = EImageFormat::EXR;
 	TileImageTask->CompressionQuality = 100;
 
 	FString OutputName = FString::Printf(TEXT("/%s_SS_%d_TS_%d_TileX_%d_TileY_%d.%d.jpeg"),
-		*Payload->PassIdentifier.Name, Payload->SpatialJitterIndex, Payload->TemporalJitterIndex,
-		Payload->TileIndexX, Payload->TileIndexY, Payload->OutputState.OutputFrameNumber);
+		*InFrameData->PassIdentifier.Name, InFrameData->SampleState.SpatialSampleIndex, InFrameData->SampleState.TemporalSampleIndex,
+		InFrameData->SampleState.TileIndexes.X, InFrameData->SampleState.TileIndexes.Y, InFrameData->OutputState.OutputFrameNumber);
 
 	FString OutputDirectory = OutputSettings->OutputDirectory.Path;
 	FString OutputPath = OutputDirectory + OutputName;
@@ -371,3 +425,5 @@ void UMoviePipeline::OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample
 	TileImageTask->PixelData = MoveTemp(OutputSample);
 	ImageWriteQueue->Enqueue(MoveTemp(TileImageTask));
 }
+
+#undef LOCTEXT_NAMESPACE // "MoviePipeline"
