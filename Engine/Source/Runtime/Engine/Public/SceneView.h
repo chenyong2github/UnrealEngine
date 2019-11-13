@@ -1032,6 +1032,9 @@ public:
 	/** Translucent sort mode */
 	TEnumAsByte<ETranslucentSortPolicy::Type> TranslucentSortPolicy;
 	
+	/** The frame index to override, useful for keeping determinism when rendering sequences. **/
+	TOptional<uint32> OverrideFrameIndexValue;
+
 #if WITH_EDITOR
 	/** The set of (the first 64) groups' visibility info for this view */
 	uint64 EditorViewBitflag;

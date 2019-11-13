@@ -3114,6 +3114,11 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 			{
 				ViewState->FrameIndex++;
 			}
+
+			if (View.OverrideFrameIndexValue.IsSet())
+			{
+				ViewState->FrameIndex = View.OverrideFrameIndexValue.GetValue();
+			}
 		}
 		
 		// Subpixel jitter for temporal AA
