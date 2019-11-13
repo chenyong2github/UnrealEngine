@@ -306,7 +306,7 @@ void FPreviewSceneDescriptionCustomization::CustomizeDetails(IDetailLayoutBuilde
 		for (const auto& ClassProvider : ClassProviders)
 		{
 			// Populate cloth factory list
-			ClothSimulationFactoryList.Add(MakeShared<TSubclassOf<class UClothingSimulationFactory>>(ClassProvider->GetDefaultSimulationFactoryClass()));
+			ClothSimulationFactoryList.Add(MakeShared<TSubclassOf<class UClothingSimulationFactory>>(ClassProvider->GetClothingSimulationFactoryClass()));
 		}
 
 		DetailBuilder.EditCategory("Physics")
