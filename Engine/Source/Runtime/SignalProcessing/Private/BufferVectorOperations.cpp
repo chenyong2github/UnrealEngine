@@ -35,6 +35,38 @@ namespace Audio
 		}
 	}
 
+	/* Clamps values in the buffer to be between InMinValue and InMaxValue */
+	void BufferRangeClampFast(AlignedFloatBuffer& InOutBuffer, float InMinValue, float InMaxValue)
+	{
+		return BufferRangeClampFast(InOutBuffer.GetData(), InOutBuffer.Num(), InMinValue, InMaxValue);
+	}
+
+	/* Clamps values in the buffer to be between InMinValue and InMaxValue */
+	void BufferRangeClampFast(float* RESTRICT InOutBuffer, const int32 InNum, float InMinValue, float InMaxValue)
+	{
+		checkf(InNum >= 4, TEXT("Buffer must have atleast 4 elements."));
+		checkf(0 == (InNum % 4), TEXT("Buffer length be a multiple of 4."));
+		checkf(IsAligned<float*>(InOutBuffer, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
+
+		const VectorRegister VMinVal = MakeVectorRegister(InMinValue, InMinValue, InMinValue, InMinValue);
+		const VectorRegister VMaxVal = MakeVectorRegister(InMaxValue, InMaxValue, InMaxValue, InMaxValue);
+
+		for (int32 i = 0; i < InNum; i += 4)
+		{
+			VectorRegister VInOut = VectorLoadAligned(&InOutBuffer[i]);
+
+			// Create masks to flag elements outside of range.
+			VectorRegister MinMask = VectorCompareLT(VInOut, VMinVal);
+			VectorRegister MaxMask = VectorCompareGT(VInOut, VMaxVal);
+
+			// Choose between range extremes or original number based on masks.
+			VInOut = VectorSelect(MinMask, VMinVal, VInOut);
+			VInOut = VectorSelect(MaxMask, VMaxVal, VInOut);
+
+			VectorStoreAligned(VInOut, &InOutBuffer[i]);
+		}
+	}
+
 	void BufferMultiplyByConstant(const AlignedFloatBuffer& InFloatBuffer, float InValue, AlignedFloatBuffer& OutFloatBuffer)
 	{
 		check(InFloatBuffer.Num() >= 4);
