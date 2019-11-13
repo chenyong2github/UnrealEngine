@@ -270,36 +270,16 @@ static void GetTangentsAndNormals(FMeshDescription& MeshDescription,
 }
 
 
-
-void FStaticMeshOperations::ComputePolygonTangentsAndNormals(FMeshDescription& MeshDescription, TArrayView<const FPolygonID> PolygonIDs, float ComparisonThreshold)
+static void RemovePolygonsAndCompact(FMeshDescription& MeshDescription, const TArray<FPolygonID>& PolygonsToRemove)
 {
-	FStaticMeshAttributes Attributes(MeshDescription);
-	TVertexAttributesRef<const FVector> VertexPositions = Attributes.GetVertexPositions();
-	TVertexInstanceAttributesRef<const FVector2D> VertexUVs = Attributes.GetVertexInstanceUVs();
-	TPolygonAttributesRef<FVector> PolygonNormals = Attributes.GetPolygonNormals();
-	TPolygonAttributesRef<FVector> PolygonTangents = Attributes.GetPolygonTangents();
-	TPolygonAttributesRef<FVector> PolygonBinormals = Attributes.GetPolygonBinormals();
-	TPolygonAttributesRef<FVector> PolygonCenters = Attributes.GetPolygonCenters();
-
-	TArray<FPolygonID> DegeneratePolygonIDs;
-	for (const FPolygonID PolygonID : PolygonIDs)
-	{
-		if (!GetPolygonTangentsAndNormals(MeshDescription, PolygonID, ComparisonThreshold, VertexPositions, VertexUVs, PolygonNormals, PolygonTangents, PolygonBinormals, PolygonCenters))
-		{
-			DegeneratePolygonIDs.Add(PolygonID);
-		}
-	}
-
-	// Remove degenerated polygons
-	// Delete the degenerated polygons. The array is filled only if the remove degenerated option is turned on.
-	if (DegeneratePolygonIDs.Num() > 0)
+	if (PolygonsToRemove.Num() > 0)
 	{
 		TArray<FEdgeID> OrphanedEdges;
 		TArray<FVertexInstanceID> OrphanedVertexInstances;
 		TArray<FPolygonGroupID> OrphanedPolygonGroups;
 		TArray<FVertexID> OrphanedVertices;
 
-		for (FPolygonID PolygonID : DegeneratePolygonIDs)
+		for (FPolygonID PolygonID : PolygonsToRemove)
 		{
 			MeshDescription.DeletePolygon(PolygonID, &OrphanedEdges, &OrphanedVertexInstances, &OrphanedPolygonGroups);
 		}
@@ -325,22 +305,60 @@ void FStaticMeshOperations::ComputePolygonTangentsAndNormals(FMeshDescription& M
 	}
 }
 
-void FStaticMeshOperations::ComputePolygonTangentsAndNormals(FMeshDescription& MeshDescription, float ComparisonThreshold)
-{
-	TArray<FPolygonID> PolygonsToComputeNTBs;
-	PolygonsToComputeNTBs.Reserve(MeshDescription.Polygons().Num());
 
-	for (const FPolygonID PolygonID : MeshDescription.Polygons().GetElementIDs())
+void FStaticMeshOperations::ComputePolygonTangentsAndNormals(FMeshDescription& MeshDescription, TArrayView<const FPolygonID> PolygonIDs, float ComparisonThreshold)
+{
+	FStaticMeshAttributes Attributes(MeshDescription);
+	Attributes.RegisterPolygonNormalAndTangentAttributes();
+	TVertexAttributesRef<const FVector> VertexPositions = Attributes.GetVertexPositions();
+	TVertexInstanceAttributesRef<const FVector2D> VertexUVs = Attributes.GetVertexInstanceUVs();
+	TPolygonAttributesRef<FVector> PolygonNormals = Attributes.GetPolygonNormals();
+	TPolygonAttributesRef<FVector> PolygonTangents = Attributes.GetPolygonTangents();
+	TPolygonAttributesRef<FVector> PolygonBinormals = Attributes.GetPolygonBinormals();
+	TPolygonAttributesRef<FVector> PolygonCenters = Attributes.GetPolygonCenters();
+
+	TArray<FPolygonID> DegeneratePolygonIDs;
+	for (const FPolygonID PolygonID : PolygonIDs)
 	{
-		PolygonsToComputeNTBs.Add(PolygonID);
+		if (!GetPolygonTangentsAndNormals(MeshDescription, PolygonID, ComparisonThreshold, VertexPositions, VertexUVs, PolygonNormals, PolygonTangents, PolygonBinormals, PolygonCenters))
+		{
+			DegeneratePolygonIDs.Add(PolygonID);
+		}
 	}
 
-	ComputePolygonTangentsAndNormals(MeshDescription, PolygonsToComputeNTBs, ComparisonThreshold);
+	// Remove degenerated polygons
+	RemovePolygonsAndCompact(MeshDescription, DegeneratePolygonIDs);
 }
+
+void FStaticMeshOperations::ComputePolygonTangentsAndNormals(FMeshDescription& MeshDescription, float ComparisonThreshold)
+{
+	FStaticMeshAttributes Attributes(MeshDescription);
+	Attributes.RegisterPolygonNormalAndTangentAttributes();
+	TVertexAttributesRef<const FVector> VertexPositions = Attributes.GetVertexPositions();
+	TVertexInstanceAttributesRef<const FVector2D> VertexUVs = Attributes.GetVertexInstanceUVs();
+	TPolygonAttributesRef<FVector> PolygonNormals = Attributes.GetPolygonNormals();
+	TPolygonAttributesRef<FVector> PolygonTangents = Attributes.GetPolygonTangents();
+	TPolygonAttributesRef<FVector> PolygonBinormals = Attributes.GetPolygonBinormals();
+	TPolygonAttributesRef<FVector> PolygonCenters = Attributes.GetPolygonCenters();
+
+	TArray<FPolygonID> DegeneratePolygonIDs;
+	for (const FPolygonID PolygonID : MeshDescription.Polygons().GetElementIDs())
+	{
+		if (!GetPolygonTangentsAndNormals(MeshDescription, PolygonID, ComparisonThreshold, VertexPositions, VertexUVs, PolygonNormals, PolygonTangents, PolygonBinormals, PolygonCenters))
+		{
+			DegeneratePolygonIDs.Add(PolygonID);
+		}
+	}
+
+	// Remove degenerated polygons
+	RemovePolygonsAndCompact(MeshDescription, DegeneratePolygonIDs);
+}
+
 
 void FStaticMeshOperations::ComputeTangentsAndNormals(FMeshDescription& MeshDescription, TArrayView<const FVertexInstanceID> VertexInstanceIDs, EComputeNTBsFlags ComputeNTBsOptions)
 {
 	FStaticMeshAttributes Attributes(MeshDescription);
+	Attributes.RegisterPolygonNormalAndTangentAttributes();
 	TPolygonAttributesRef<const FVector> PolygonNormals = Attributes.GetPolygonNormals();
 	TPolygonAttributesRef<const FVector> PolygonTangents = Attributes.GetPolygonTangents();
 	TPolygonAttributesRef<const FVector> PolygonBinormals = Attributes.GetPolygonBinormals();
@@ -354,9 +372,11 @@ void FStaticMeshOperations::ComputeTangentsAndNormals(FMeshDescription& MeshDesc
 	}
 }
 
+
 void FStaticMeshOperations::ComputeTangentsAndNormals(FMeshDescription& MeshDescription, EComputeNTBsFlags ComputeNTBsOptions)
 {
 	FStaticMeshAttributes Attributes(MeshDescription);
+	Attributes.RegisterPolygonNormalAndTangentAttributes();
 	TPolygonAttributesRef<const FVector> PolygonNormals = Attributes.GetPolygonNormals();
 	TPolygonAttributesRef<const FVector> PolygonTangents = Attributes.GetPolygonTangents();
 	TPolygonAttributesRef<const FVector> PolygonBinormals = Attributes.GetPolygonBinormals();
