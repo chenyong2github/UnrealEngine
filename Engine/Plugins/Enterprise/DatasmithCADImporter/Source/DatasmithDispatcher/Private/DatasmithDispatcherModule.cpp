@@ -1,6 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "DatasmithDispatcherModule.h"
 
+#include "DatasmithDispatcherLog.h"
+
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
@@ -8,6 +10,7 @@
 
 #define LOCTEXT_NAMESPACE "FDatasmithDispatcherModule"
 
+DEFINE_LOG_CATEGORY(LogDatasmithDispatcher);
 
 FDatasmithDispatcherModule& FDatasmithDispatcherModule::Get()
 {

@@ -3,15 +3,15 @@
 #include "DatasmithDispatcher.h"
 
 #include "CoreTechFileParser.h"
-#include "DatasmithDispatcherTask.h"
+#include "DatasmithDispatcherConfig.h"
 #include "DatasmithDispatcherLog.h"
+#include "DatasmithDispatcherTask.h"
 
+#include "Algo/Count.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
-#include "Algo/Count.h"
 
-DEFINE_LOG_CATEGORY(LogDatasmithDispatcher);
 
 namespace DatasmithDispatcher
 {
@@ -24,6 +24,7 @@ FDatasmithDispatcher::FDatasmithDispatcher(const CADLibrary::FImportParameters& 
 	, ProcessCacheFolder(InCacheDir)
 	, ImportParameters(InImportParameters)
 	, NumberOfWorkers(InNumberOfWorkers)
+	, NextWorkerId(0)
 {
 	// init cache folders
 	IFileManager::Get().MakeDirectory(*FPaths::Combine(ProcessCacheFolder, TEXT("scene")), true);
@@ -67,26 +68,36 @@ TOptional<FTask> FDatasmithDispatcher::GetNextTask()
 
 void FDatasmithDispatcher::SetTaskState(int32 TaskIndex, ETaskState TaskState)
 {
-	FScopeLock Lock(&TaskPoolCriticalSection);
-
-	if (!ensure(TaskPool.IsValidIndex(TaskIndex)))
+	FString Filename;
 	{
-		return;
+		FScopeLock Lock(&TaskPoolCriticalSection);
+
+		if (!ensure(TaskPool.IsValidIndex(TaskIndex)))
+		{
+			return;
+		}
+
+		FTask& Task = TaskPool[TaskIndex];
+		Task.State = TaskState;
+		Filename = Task.FileName;
+
+		if (TaskState == ETaskState::ProcessOk
+		 || TaskState == ETaskState::ProcessFailed
+		 || TaskState == ETaskState::FileNotFound)
+		{
+			CompletedTaskCount++;
+		}
+
+		if (TaskState == ETaskState::UnTreated)
+		{
+			NextTaskIndex = TaskIndex;
+		}
 	}
 
-	TaskPool[TaskIndex].State = TaskState;
-
-	if (TaskState == ETaskState::ProcessOk
-	 || TaskState == ETaskState::ProcessFailed
-	 || TaskState == ETaskState::FileNotFound)
-	{
-		CompletedTaskCount++;
-	}
-
-	if (TaskState == ETaskState::UnTreated)
-	{
-		NextTaskIndex = TaskIndex;
-	}
+	UE_CLOG(TaskState == ETaskState::ProcessOk, LogDatasmithDispatcher, Verbose, TEXT("File processed: %s"), *Filename);
+	UE_CLOG(TaskState == ETaskState::UnTreated, LogDatasmithDispatcher, Warning, TEXT("File resubmitted: %s"), *Filename);
+	UE_CLOG(TaskState == ETaskState::ProcessFailed, LogDatasmithDispatcher, Error, TEXT("File processing failure: %s"), *Filename);
+	UE_CLOG(TaskState == ETaskState::FileNotFound, LogDatasmithDispatcher, Warning, TEXT("file not found: %s"), *Filename);
 }
 
 void FDatasmithDispatcher::Process(bool bWithProcessor)
@@ -95,9 +106,38 @@ void FDatasmithDispatcher::Process(bool bWithProcessor)
 	{
 		SpawnHandlers();
 
-		while (!IsOver() && GetAliveHandlerCount() > 0)
+		bool bLogRestartError = true;
+		while (!IsOver())
 		{
-			FWindowsPlatformProcess::Sleep(0.5);
+			bool bHasAliveWorker = false;
+			for (FDatasmithWorkerHandler& Handler : WorkerHandlers)
+			{
+				// replace dead workers
+				if (Handler.IsRestartable())
+				{
+					int32 WorkerId = GetNextWorkerId();
+					if (WorkerId < NumberOfWorkers + Config::MaxRestartAllowed)
+					{
+						Handler.~FDatasmithWorkerHandler();
+						new (&Handler) FDatasmithWorkerHandler(*this, ProcessCacheFolder, WorkerId);
+						UE_LOG(LogDatasmithDispatcher, Warning, TEXT("Restarting worker (new worker: %d)"), WorkerId);
+					}
+					else if (bLogRestartError)
+					{
+						bLogRestartError = false;
+						UE_LOG(LogDatasmithDispatcher, Warning, TEXT("Worker not restarted (Limit reached)"));
+					}
+				}
+
+				bHasAliveWorker = bHasAliveWorker || Handler.IsAlive();
+			}
+
+			if (!bHasAliveWorker)
+			{
+				break;
+			}
+
+			FWindowsPlatformProcess::Sleep(0.1);
 		}
 
 		CloseHandlers();
@@ -105,7 +145,12 @@ void FDatasmithDispatcher::Process(bool bWithProcessor)
 
 	if (!IsOver())
 	{
+		UE_LOG(LogDatasmithDispatcher, Warning, TEXT("Begin local processing. (Multi Process failed to consume all the tasks)"));
 		ProcessLocal();
+	}
+	else
+	{
+		UE_LOG(LogDatasmithDispatcher, Display, TEXT("Multi Process ended and consumed all the tasks"));
 	}
 }
 
@@ -128,12 +173,17 @@ void FDatasmithDispatcher::LinkCTFileToUnrealCacheFile(const FString& CTFile, co
 	}
 }
 
+int32 FDatasmithDispatcher::GetNextWorkerId()
+{
+	return NextWorkerId++;
+}
+
 void FDatasmithDispatcher::SpawnHandlers()
 {
 	WorkerHandlers.Reserve(NumberOfWorkers);
 	for (int32 Index = 0; Index < NumberOfWorkers; Index++)
 	{
-		WorkerHandlers.Emplace(*this, ProcessCacheFolder, Index);
+		WorkerHandlers.Emplace(*this, ProcessCacheFolder, GetNextWorkerId());
 	}
 }
 
