@@ -634,11 +634,20 @@ void Main(
 		#if ENABLE_SKY_LIGHT
 			//@mw todo
 			// TODO: Also need to do specular.
-			float3 SkyDiffuseLighting = GetSkySHDiffuseSimple(MaterialParameters.WorldNormal);
+#if MATERIAL_TWO_SIDED && LQ_TEXTURE_LIGHTMAP
+			if (NoL == 0)
+			{
+#endif
+			half3 SkyDiffuseLighting = GetSkySHDiffuseSimple(MaterialParameters.WorldNormal);
+
 		#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 			WaterDiffuseIndirectLuminance += SkyDiffuseLighting;
 		#endif
-			Color += SkyDiffuseLighting * ResolvedView.SkyLightColor.rgb * DiffuseColor * MaterialAO;
+			Color += SkyDiffuseLighting * half3(ResolvedView.SkyLightColor.rgb) * DiffuseColor * MaterialAO;
+#if MATERIAL_TWO_SIDED && LQ_TEXTURE_LIGHTMAP
+			
+			}
+#endif
 		#endif
 
 		#if MAX_DYNAMIC_POINT_LIGHTS > 0 && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
