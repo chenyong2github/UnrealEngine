@@ -19,6 +19,7 @@
 #include "GameFramework/PlayerController.h"
 #include "MoviePipelineHighResSetting.h"
 #include "Modules/ModuleManager.h"
+#include "MoviePipelineCameraSetting.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipeline"
 
@@ -160,6 +161,7 @@ void UMoviePipeline::RenderFrame()
 	// In short, for each output frame, for each accumulation frame, for each tile X/Y, for each jitter, we render a pass. This setup is
 	// designed to maximize the likely hood of deterministic rendering and that different passes line up with each other.
 	UMoviePipelineAccumulationSetting* AccumulationSettings = CurrentShot.ShotConfig->FindOrAddSetting<UMoviePipelineAccumulationSetting>();
+	UMoviePipelineCameraSetting* CameraSettings = GetPipelineMasterConfig()->FindOrAddSetting<UMoviePipelineCameraSetting>();
 	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	check(OutputSettings);
 
@@ -299,7 +301,7 @@ void UMoviePipeline::RenderFrame()
 				// Only jitter when required, as jitter requires TAA to be off. 
 				// Also, we want jitter if either time samples or spatial samples are > 1, otherwise not.
 				if (!bIsHistoryOnlyFrame &&
-					(AccumulationSettings->SpatialSampleCount > 1 || AccumulationSettings->TemporalSampleCount > 1))
+					(AccumulationSettings->SpatialSampleCount > 1 || CameraSettings->TemporalSampleCount > 1))
 				{
 					OffsetX = Halton((SpatialSample + 1) + (CachedOutputState.TemporalSampleIndex * NumSpatialSamples), 2);
 					OffsetY = Halton((SpatialSample + 1) + (CachedOutputState.TemporalSampleIndex * NumSpatialSamples), 3);
@@ -334,7 +336,7 @@ void UMoviePipeline::RenderFrame()
 				SampleState.SpatialSampleIndex = SpatialSample;
 				SampleState.SpatialSampleCount = NumSpatialSamples;
 				SampleState.TemporalSampleIndex = CachedOutputState.TemporalSampleIndex;
-				SampleState.TemporalSampleCount = AccumulationSettings->TemporalSampleCount;
+				SampleState.TemporalSampleCount = CameraSettings->TemporalSampleCount;
 				SampleState.AccumulationGamma = AccumulationSettings->AccumulationGamma;
 				SampleState.bIsUsingOverlappedTiles = bIsUsingOverlappedTiles;
 				SampleState.BackbufferSize = BackbufferResolution;

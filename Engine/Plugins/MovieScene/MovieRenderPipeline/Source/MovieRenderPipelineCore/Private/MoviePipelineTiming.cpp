@@ -15,6 +15,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/WorldSettings.h"
 #include "MoviePipelineMasterConfig.h"
+#include "MoviePipelineCameraSetting.h"
 
 void UMoviePipeline::TickProducingFrames()
 {
@@ -126,8 +127,8 @@ void UMoviePipeline::TickProducingFrames()
 		FFrameTime TicksToEndOfPreviousFrame;
 		float WorldTimeDilation = GetWorld()->GetWorldSettings()->GetEffectiveTimeDilation();
 
-		UMoviePipelineAccumulationSetting* AccumulationSettings = CurrentShot.ShotConfig->FindOrAddSetting<UMoviePipelineAccumulationSetting>();
-		if (AccumulationSettings->TemporalSampleCount == 1)
+		UMoviePipelineCameraSetting* CameraSettings = CurrentShot.ShotConfig->FindOrAddSetting<UMoviePipelineCameraSetting>();
+		if (CameraSettings->TemporalSampleCount == 1)
 		{
 			TicksToEndOfPreviousFrame = FrameMetrics.TicksPerOutputFrame;
 		}
@@ -208,18 +209,20 @@ void UMoviePipeline::TickProducingFrames()
 		UMoviePipelineAccumulationSetting* AccumulationSettings = CurrentShot.ShotConfig->FindOrAddSetting<UMoviePipelineAccumulationSetting>();
 		check(AccumulationSettings);
 
+		UMoviePipelineCameraSetting* CameraSettings = CurrentShot.ShotConfig->FindOrAddSetting<UMoviePipelineCameraSetting>();
+
 		// If we've rendered the last sample and wrapped around, then we're going to be
 		// working on the next output frame for this frame. Since OutputFrameNumber gets
 		// initialized to -1, this is ok on the very first frame of rendering as it pushes
 		// us to be working on outputting frame zero.
-		if (CachedOutputState.TemporalSampleIndex >= AccumulationSettings->TemporalSampleCount - 1)
+		if (CachedOutputState.TemporalSampleIndex >= CameraSettings->TemporalSampleCount - 1)
 		{
 			CachedOutputState.TemporalSampleIndex = -1;
 		}
 
 		CachedOutputState.TemporalSampleIndex++;
 
-		if (AccumulationSettings->TemporalSampleCount == 1)
+		if (CameraSettings->TemporalSampleCount == 1)
 		{
 			// It should always be zero when using no sub-sampling.
 			check(CachedOutputState.TemporalSampleIndex == 0);
@@ -336,8 +339,8 @@ void UMoviePipeline::TickProducingFrames()
 
 			
 			// Shouldn't be in this else branch if they don't have an Accumulation Setting for this shot.
-			check(AccumulationSettings);
-			check(AccumulationSettings->TemporalSampleCount > 1);
+			check(CameraSettings);
+			check(CameraSettings->TemporalSampleCount > 1);
 				
 			const bool bFirstFrame = CachedOutputState.TemporalSampleIndex == 0;
 			if (bFirstFrame)
@@ -457,7 +460,7 @@ void UMoviePipeline::TickProducingFrames()
 
 		// The combination of shutter angle percentage, non-uniform render frame delta times and dividing by sample
 		// count produce the correct length for motion blur in all cases.
-		CachedOutputState.MotionBlurFraction = FrameMetrics.ShutterAnglePercentage / AccumulationSettings->TemporalSampleCount;
+		CachedOutputState.MotionBlurFraction = FrameMetrics.ShutterAnglePercentage / CameraSettings->TemporalSampleCount;
 
 		// Update our Output State with any data we need to derive based on our current time.
 		CalculateFrameNumbersForOutputState(FrameMetrics, CurrentCameraCut, CachedOutputState);

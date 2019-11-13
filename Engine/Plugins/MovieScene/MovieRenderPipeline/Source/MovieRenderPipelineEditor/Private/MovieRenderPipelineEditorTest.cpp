@@ -12,6 +12,7 @@
 #include "MoviePipelineOutputSetting.h"
 #include "MoviePipelineHighResSetting.h"
 #include "MoviePipelineDeferredPasses.h"
+#include "MoviePipelineCameraSetting.h"
 
 UMoviePipelineShotConfig* GenerateTestShotConfig(UObject* InOwner, int32 InSampleCount,
 	int32 InShutterAngle, EMoviePipelineShutterTiming InFrameTiming, int32 InTileCount,
@@ -24,11 +25,17 @@ UMoviePipelineShotConfig* GenerateTestShotConfig(UObject* InOwner, int32 InSampl
 	GamemodeOverride->GameModeOverride = AGameMode::StaticClass();
 
 	UMoviePipelineAccumulationSetting* Accumulation = OutConfig->FindOrAddSetting< UMoviePipelineAccumulationSetting>();
-	Accumulation->TemporalSampleCount = InSampleCount;
-	Accumulation->CameraShutterAngle = InShutterAngle;
-	Accumulation->ShutterTiming = InFrameTiming;
 	Accumulation->SpatialSampleCount = InSpatialSampleCount;
 	Accumulation->AccumulationGamma = AccumulationGamma;
+
+	{
+		UMoviePipelineCameraSetting* CameraSetting = OutConfig->FindOrAddSetting<UMoviePipelineCameraSetting>();
+		CameraSetting->TemporalSampleCount = InSampleCount;
+		CameraSetting->CameraShutterAngle = InShutterAngle;
+		CameraSetting->ShutterTiming = InFrameTiming;
+		CameraSetting->bManualExposure = true;
+		CameraSetting->ExposureCompensation = 8;
+	}
 
 	if (InTileCount > 1)
 	{

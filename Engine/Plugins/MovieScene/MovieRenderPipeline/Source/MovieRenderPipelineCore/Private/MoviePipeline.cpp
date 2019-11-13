@@ -32,6 +32,7 @@
 #include "MoviePipelineBlueprintLibrary.h"
 #include "ImageWriteQueue.h"
 #include "MoviePipelineHighResSetting.h"
+#include "MoviePipelineCameraSetting.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipeline"
 
@@ -622,6 +623,9 @@ TArray<FMoviePipelineShotInfo> UMoviePipeline::BuildShotListFromSequence(const U
 		UMoviePipelineAccumulationSetting* AccumulationSettings = Shot.ShotConfig->FindOrAddSetting<UMoviePipelineAccumulationSetting>();
 		Shot.NumHandleFrames = AccumulationSettings->HandleFrameCount;
 
+		UMoviePipelineCameraSetting* CameraSettings = Shot.ShotConfig->FindOrAddSetting<UMoviePipelineCameraSetting>();
+
+
 		// Expand the shot to encompass handle frames. This will modify our Camera Cuts bounds.
 		ExpandShot(Shot);
 
@@ -635,7 +639,7 @@ TArray<FMoviePipelineShotInfo> UMoviePipeline::BuildShotListFromSequence(const U
 		{
 			CameraCut.NumWarmUpFramesRemaining = CameraCut.NumWarmUpFrames = AccumulationSettings->WarmUpFrameCount;
 			CameraCut.bAccurateFirstFrameHistory = true;
-			CameraCut.NumTemporalSamples = AccumulationSettings->TemporalSampleCount;
+			CameraCut.NumTemporalSamples = CameraSettings->TemporalSampleCount;
 			CameraCut.NumSpatialSamples = AccumulationSettings->SpatialSampleCount;
 			CameraCut.CachedFrameRate = GetEffectiveFrameRate();
 			CameraCut.CachedTickResolution = TargetSequence->GetMovieScene()->GetTickResolution();
@@ -945,10 +949,10 @@ MoviePipeline::FFrameConstantMetrics UMoviePipeline::CalculateShotFrameMetrics(c
 	Output.FrameRate = GetEffectiveFrameRate();
 	Output.TicksPerOutputFrame = FFrameRate::TransformTime(FFrameTime(FFrameNumber(1)), Output.FrameRate, Output.TickResolution);
 
-	UMoviePipelineAccumulationSetting* AccumulationSettings = InShot.ShotConfig->FindOrAddSetting<UMoviePipelineAccumulationSetting>();
+	UMoviePipelineCameraSetting* CameraSettings = InShot.ShotConfig->FindOrAddSetting<UMoviePipelineCameraSetting>();
 
 	// (CameraShutterAngle/360) gives us the fraction-of-the-output-frame the accumulation frames should cover.
-	Output.ShutterAnglePercentage = AccumulationSettings->CameraShutterAngle / 360.0;
+	Output.ShutterAnglePercentage = CameraSettings->CameraShutterAngle / 360.0;
 
 	{
 		/*
@@ -967,14 +971,14 @@ MoviePipeline::FFrameConstantMetrics UMoviePipeline::CalculateShotFrameMetrics(c
 		Output.TicksWhileShutterOpen = Output.TicksPerOutputFrame * Output.ShutterAnglePercentage;
 
 		// Divide that amongst all of our accumulation sample frames.
-		Output.TicksPerSample = Output.TicksWhileShutterOpen / AccumulationSettings->TemporalSampleCount;
+		Output.TicksPerSample = Output.TicksWhileShutterOpen / CameraSettings->TemporalSampleCount;
 	}
 
-	Output.ShutterClosedFraction = (360 - AccumulationSettings->CameraShutterAngle) / 360.0;
+	Output.ShutterClosedFraction = (360 - CameraSettings->CameraShutterAngle) / 360.0;
 	Output.TicksWhileShutterClosed = Output.TicksPerOutputFrame * Output.ShutterClosedFraction;
 
 	// Shutter Offset
-	switch (AccumulationSettings->ShutterTiming)
+	switch (CameraSettings->ShutterTiming)
 	{
 		// Subtract the entire time the shutter is open.
 	case EMoviePipelineShutterTiming::FrameClose:

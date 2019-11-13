@@ -23,6 +23,8 @@
 #include "BufferVisualizationData.h"
 #include "Containers/Array.h"
 #include "FinalPostProcessSettings.h"
+#include "Materials/Material.h"
+#include "MoviePipelineCameraSetting.h"
 
 namespace MoviePipeline
 {
@@ -100,12 +102,22 @@ namespace MoviePipeline
 			View->FinalPostProcessSettings.bOverride_MotionBlurMax = true;
 		}
 
-		// Autoexposure is not allowed
-		if (View->FinalPostProcessSettings.AutoExposureMethod != EAutoExposureMethod::AEM_Manual)
-		{
-			UE_LOG(LogMovieRenderPipeline, Log, TEXT("AutoExposure Method should always be Manual."));
+		UMoviePipelineCameraSetting* CameraSettings = GetPipeline()->GetPipelineCurrentShotConfig()->FindSetting<UMoviePipelineCameraSetting>();
+		UMoviePipelineHighResSetting* HighResSettings = GetPipeline()->GetPipelineCurrentShotConfig()->FindSetting<UMoviePipelineHighResSetting>();
 
-			View->FinalPostProcessSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
+		if(CameraSettings)
+		{
+			if (CameraSettings->bManualExposure)
+			{
+				View->FinalPostProcessSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
+				View->FinalPostProcessSettings.AutoExposureBias = CameraSettings->ExposureCompensation;
+			}
+			else if (HighResSettings && (HighResSettings->TileCount > 1) && (View->FinalPostProcessSettings.AutoExposureMethod != EAutoExposureMethod::AEM_Manual))
+			{
+				// Autoexposure is not allowed
+				UE_LOG(LogMovieRenderPipeline, Warning, TEXT("AutoExposure Method should always be Manual."));
+				View->FinalPostProcessSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
+			}
 		}
 
 		const bool bCanUseAA = InSampleState.SpatialSampleCount == 1 && 
@@ -130,7 +142,6 @@ namespace MoviePipeline
 
 			// Add an additional bias per user settings. This allows them to choose to make the textures sharper if it
 			// looks better with their particular settings.
-			UMoviePipelineHighResSetting* HighResSettings = GetPipeline()->GetPipelineCurrentShotConfig()->FindSetting<UMoviePipelineHighResSetting>();
 			if (HighResSettings)
 			{
 				View->MaterialTextureMipBias += HighResSettings->TextureSharpnessBias;
