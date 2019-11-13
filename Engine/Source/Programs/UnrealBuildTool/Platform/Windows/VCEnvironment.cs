@@ -458,6 +458,10 @@ namespace UnrealBuildTool
 				IncludePaths.Add(DirectoryReference.Combine(NetFxSdkDir, "include", "um"));
 				LibraryPaths.Add(DirectoryReference.Combine(NetFxSdkDir, "lib", "um", ArchFolder));
 			}
+			else
+			{
+				throw new BuildException("Could not find NetFxSDK install dir; this will prevent SwarmInterface from installing.  Install a version of .NET Framework SDK at 4.6.0 or higher.");
+			}
 
 			// Add the Windows SDK paths
 			if (WindowsSdkVersion >= new VersionNumber(10))
