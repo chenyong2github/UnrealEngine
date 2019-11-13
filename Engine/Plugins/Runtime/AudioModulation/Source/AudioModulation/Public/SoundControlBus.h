@@ -33,14 +33,18 @@ class USoundControlBusBase : public USoundModulatorBase
 	GENERATED_UCLASS_BODY()
 
 public:
+	/** If true, bypasses control bus from being mixed. */
+	UPROPERTY(EditAnywhere, Category = General, BlueprintReadWrite)
+	bool bBypass;
+
 #if WITH_EDITORONLY_DATA
 	/** If true, Address field is used in place of object name for address used when applying mix changes using filtering. */
-	UPROPERTY(EditAnywhere, Category = General, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, Category = Mix, BlueprintReadWrite)
 	bool bOverrideAddress;
 #endif // WITH_EDITORONLY_DATA
 
 	/** Address to use when applying mix changes. */
-	UPROPERTY(EditAnywhere, Category = General, BlueprintReadWrite, meta = (EditCondition = "bOverrideAddress"))
+	UPROPERTY(EditAnywhere, Category = Mix, BlueprintReadWrite, meta = (EditCondition = "bOverrideAddress"))
 	FString Address;
 
 	/** Default value of modulator (when no mix is applied). */
