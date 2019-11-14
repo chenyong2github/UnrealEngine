@@ -10,7 +10,6 @@
 #include "Math/Vector.h"
 #include "Math/Vector2D.h"
 #include "Math/Box.h"
-#include "Chaos/ImplicitObject.h"
 #include "Chaos/BVHParticles.h"
 
 inline FArchive& operator<<(FArchive& Ar, TArray<FVector>*& ValueIn)
