@@ -23,6 +23,7 @@
 #include "HardwareInfo.h"
 #include "Runtime/HeadMountedDisplay/Public/IHeadMountedDisplayModule.h"
 #include "GenericPlatform/GenericPlatformDriver.h"			// FGPUDriverInfo
+#include "RHIValidation.h"
 
 #include "ShaderCompiler.h"
 
@@ -34,6 +35,8 @@ extern bool D3D12RHI_ShouldCreateWithD3DDebug();
 extern bool D3D12RHI_ShouldCreateWithWarp();
 extern bool D3D12RHI_ShouldAllowAsyncResourceCreation();
 extern bool D3D12RHI_ShouldForceCompatibility();
+
+FD3D12DynamicRHI* GD3D12RHI = nullptr;
 
 #if NV_AFTERMATH
 // Disabled by default since introduces stalls between render and driver threads
@@ -462,7 +465,21 @@ FDynamicRHI* FD3D12DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedF
 		GMaxRHIShaderPlatform = SP_PCD3D_SM5;
 	}
 
-	return new FD3D12DynamicRHI(ChosenAdapters);
+	GD3D12RHI = new FD3D12DynamicRHI(ChosenAdapters);
+#if ENABLE_RHI_VALIDATION
+	if (FParse::Param(FCommandLine::Get(), TEXT("RHIValidation")))
+	{
+		GValidationRHI = new FValidationRHI(GD3D12RHI);
+	}
+	else
+	{
+		check(!GValidationRHI);
+	}
+
+	return GValidationRHI ? (FDynamicRHI*)GValidationRHI : (FDynamicRHI*)GD3D12RHI;
+#else
+	return GD3D12RHI;
+#endif
 }
 
 void FD3D12DynamicRHIModule::StartupModule()
@@ -692,7 +709,7 @@ void FD3D12DynamicRHI::Init()
 
 	GSupportsDepthBoundsTest = SupportsDepthBoundsTest(this);
 
-	GRHICommandList.GetImmediateCommandList().SetContext(GDynamicRHI->RHIGetDefaultContext());
+	GRHICommandList.GetImmediateCommandList().SetContext(GetDynamicRHI<FD3D12DynamicRHI>()->RHIGetDefaultContext());
 	GRHICommandList.GetImmediateCommandList().SetGPUMask(FRHIGPUMask::All());
 	GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(GDynamicRHI->RHIGetDefaultAsyncComputeContext());
 	GRHICommandList.GetImmediateAsyncComputeCommandList().SetGPUMask(FRHIGPUMask::All());
