@@ -4067,6 +4067,14 @@ void UClass::Serialize( FArchive& Ar )
 		}
 	}
 
+	if (!Ar.IsLoading() && !Ar.IsSaving())
+	{
+		if (GetSparseClassDataStruct() != nullptr)
+		{
+			SerializeSparseClassData(FStructuredArchiveFromArchive(Ar).GetSlot());
+		}
+	}
+
 	// mark the archive we that we are no longer serializing defaults
 	Ar.StopSerializingDefaults();
 
@@ -4142,7 +4150,7 @@ void UClass::SerializeDefaultObject(UObject* Object, FStructuredArchive::FSlot S
 	UnderlyingArchive.StopSerializingDefaults();
 }
 
-void UClass::SerializeSparseClassData(UObject* Object, FStructuredArchive::FSlot Slot)
+void UClass::SerializeSparseClassData(FStructuredArchive::FSlot Slot)
 {
 	if (!SparseClassDataStruct)
 	{
