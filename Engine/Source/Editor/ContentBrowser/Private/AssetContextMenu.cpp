@@ -276,6 +276,9 @@ void FAssetContextMenu::AddMenuOptions(UToolMenu* InMenu)
 	// Add reference options
 	AddReferenceMenuOptions(InMenu);
 
+	// Add copy full path options
+	AddCopyFilePathMenuOptions(InMenu);
+
 	// Add collection options
 	AddCollectionMenuOptions(InMenu);
 
@@ -1281,6 +1284,22 @@ bool FAssetContextMenu::AddReferenceMenuOptions(UToolMenu* Menu)
 			FSlateIcon(),
 			FUIAction( FExecuteAction::CreateSP( this, &FAssetContextMenu::ExecuteCopyReference ) )
 			);
+	}
+
+	return true;
+}
+
+bool FAssetContextMenu::AddCopyFilePathMenuOptions(UToolMenu* Menu)
+{
+	FToolMenuSection& Section = Menu->AddSection("AssetContextReferences", LOCTEXT("ReferencesMenuHeading", "References"));
+	{
+		Section.AddMenuEntry(
+			"CopyFilePath",
+			LOCTEXT("CopyFilePath", "Copy File Path"),
+			LOCTEXT("CopyFilePathTooltip", "Copies the file paths on disk for the selected assets to the clipboard."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &FAssetContextMenu::ExecuteCopyFilePath))
+		);
 	}
 
 	return true;
@@ -2522,6 +2541,11 @@ void FAssetContextMenu::ExecuteGoToDocsForAsset(UClass* SelectedClass, const FSt
 void FAssetContextMenu::ExecuteCopyReference()
 {
 	ContentBrowserUtils::CopyAssetReferencesToClipboard(SelectedAssets);
+}
+
+void FAssetContextMenu::ExecuteCopyFilePath()
+{
+	ContentBrowserUtils::CopyFilePathsToClipboard(SelectedAssets);
 }
 
 void FAssetContextMenu::ExecuteCopyTextToClipboard(FString InText)
