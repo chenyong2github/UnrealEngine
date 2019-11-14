@@ -83,6 +83,7 @@ void SetShaderValueOnContext(
 
 /** Specialization of the above for C++ bool type. */
 template<typename ShaderRHIParamRef>
+UE_DEPRECATED(4.24, "Please use integer values for boolean shader parameters instead.")
 void SetShaderValue(
 	FRHICommandList& RHICmdList, 
 	const ShaderRHIParamRef& Shader,
@@ -97,6 +98,7 @@ void SetShaderValue(
 
 /** Specialization of the above for C++ bool type. */
 template<typename ShaderRHIParamRef>
+UE_DEPRECATED(4.24, "Please use integer values for boolean shader parameters instead.")
 void SetShaderValue(
 	FRHIAsyncComputeCommandList& RHICmdList,
 	const ShaderRHIParamRef& Shader,
@@ -111,6 +113,7 @@ void SetShaderValue(
 
 /** Specialization of the above for C++ bool type. */
 template<typename ShaderRHIParamRef>
+UE_DEPRECATED(4.24, "Please use integer values for boolean shader parameters instead.")
 void SetShaderValue(
 	FRHICommandListImmediate& RHICmdList,
 	const ShaderRHIParamRef& Shader,
@@ -174,6 +177,7 @@ void SetShaderValueArray(
 /**
  * Sets the value of a pixel shader bool parameter.
  */
+UE_DEPRECATED(4.24, "Please use integer values for boolean shader parameters instead.")
 inline void SetPixelShaderBool(
 	FRHICommandList& RHICmdList, 
 	FRHIPixelShader* PixelShader,
