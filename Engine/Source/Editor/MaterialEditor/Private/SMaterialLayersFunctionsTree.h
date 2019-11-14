@@ -73,6 +73,7 @@ public:
 	}
 
 	FReply OnLayerDrop(const FDragDropEvent& DragDropEvent);
+	void OnOverrideParameter(bool NewValue, class UDEditorParameterValue* Parameter);
 	/**
 	* Construct the widget
 	*
