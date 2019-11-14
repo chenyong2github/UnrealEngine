@@ -1573,7 +1573,7 @@ bool FSteamVRHMD::NeedReAllocateViewportRenderTarget(const FViewport& Viewport)
 
 bool FSteamVRHMD::NeedReAllocateDepthTexture(const TRefCountPtr<struct IPooledRenderTarget> & DepthTarget)
 {
-	check(IsInGameThread());
+	check(IsInRenderingThread());
 
 	// Check the dimensions of the currently stored depth swapchain vs the current rendering swapchain.
 	if (pBridge->GetSwapChain()->GetTexture2D()->GetSizeX() != pBridge->GetDepthSwapChain()->GetTexture2D()->GetSizeX() ||
