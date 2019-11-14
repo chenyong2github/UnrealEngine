@@ -2234,7 +2234,7 @@ bool UHierarchicalInstancedStaticMeshComponent::UpdateInstanceTransform(int32 In
 		bConcurrentChanges = true;
 	}
 
-	int32 RenderIndex = InstanceReorderTable.IsValidIndex(InstanceIndex) ? InstanceReorderTable[InstanceIndex] : InstanceIndex;
+	const int32 RenderIndex = GetRenderIndex(InstanceIndex);
 	const FMatrix OldTransform = PerInstanceSMData[InstanceIndex].Transform;
 	const FTransform NewLocalTransform = bWorldSpace ? NewInstanceTransform.GetRelativeTransform(GetComponentTransform()) : NewInstanceTransform;
 	const FVector NewLocalLocation = NewLocalTransform.GetTranslation();
@@ -2391,8 +2391,7 @@ void UHierarchicalInstancedStaticMeshComponent::ClearInstances()
 
 		for (int32 Index = 0; Index < NumInstances; ++Index)
 		{
-			int32 RenderIndex = InstanceReorderTable.IsValidIndex(Index) ? InstanceReorderTable[Index] : Index;
-
+			const int32 RenderIndex = GetRenderIndex(Index);
 			if (RenderIndex == INDEX_NONE) 
 			{
 				// could be skipped by density settings
@@ -2896,7 +2895,7 @@ void UHierarchicalInstancedStaticMeshComponent::PropagateLightingScenarioChange(
 			{
 				for (int32 InstanceIndex = 0; InstanceIndex < PerInstanceSMData.Num(); ++InstanceIndex)
 				{
-					int32 RenderIndex = InstanceReorderTable.IsValidIndex(InstanceIndex) ? InstanceReorderTable[InstanceIndex] : InstanceIndex;
+					const int32 RenderIndex = GetRenderIndex(InstanceIndex);
 					if (RenderIndex != INDEX_NONE)
 					{
 						InstanceUpdateCmdBuffer.SetLightMapData(RenderIndex, MeshMapBuildData->PerInstanceLightmapData[InstanceIndex].LightmapUVBias);
