@@ -998,7 +998,7 @@ void UGroomComponent::PostLoad()
 
 
 #if WITH_EDITOR
-	if (!bIsGroomAssetCallbackRegistered)
+	if (GroomAsset && !bIsGroomAssetCallbackRegistered)
 	{
 		GroomAsset->GetOnGroomAssetChanged().AddUObject(this, &UGroomComponent::Invalidate);
 		bIsGroomAssetCallbackRegistered = true;
