@@ -10,6 +10,7 @@
 #include "MovieSceneSequence.h"
 #include "Sections/MovieSceneEventSectionBase.h"
 #include "Tracks/MovieSceneEventTrack.h"
+#include "MovieSceneEventBlueprintExtension.h"
 
 #include "ScopedTransaction.h"
 
@@ -108,7 +109,7 @@ UK2Node_CustomEvent* FMovieSceneEventUtils::BindNewUserFacingEvent(FMovieSceneEv
 	Blueprint->Modify();
 
 	// Ensure the section is bound to the blueprint function generation event
-	Blueprint->GenerateFunctionGraphsEvent.AddUniqueDynamic(EventSection, &UMovieSceneEventSectionBase::HandleGenerateEntryPoints);
+	FMovieSceneEventUtils::BindEventSectionToBlueprint(EventSection, Blueprint);
 
 	// Create the new user-facing event node
 	FMovieSceneEventEndpointParameters Params = FMovieSceneEventEndpointParameters::Generate(Track);
@@ -441,6 +442,25 @@ UK2Node_FunctionEntry* FMovieSceneEventUtils::GenerateEntryPoint(UMovieSceneEven
 	}
 
 	return FunctionEntry;
+}
+
+void FMovieSceneEventUtils::BindEventSectionToBlueprint(UMovieSceneEventSectionBase* EventSection, UBlueprint* DirectorBP)
+{
+	check(EventSection && DirectorBP);
+
+	for (UBlueprintExtension* Extension : DirectorBP->Extensions)
+	{
+		UMovieSceneEventBlueprintExtension* EventExtension = Cast<UMovieSceneEventBlueprintExtension>(Extension);
+		if (EventExtension)
+		{
+			EventExtension->Add(EventSection);
+			return;
+		}
+	}
+
+	UMovieSceneEventBlueprintExtension* EventExtension = NewObject<UMovieSceneEventBlueprintExtension>(DirectorBP);
+	EventExtension->Add(EventSection);
+	DirectorBP->Extensions.Add(EventExtension);
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -218,7 +218,6 @@ public class UnrealEd : ModuleRules
 				"DeviceManager",
 				"SettingsEditor",
 				"SessionFrontend",
-				"Sequencer",
 				"StringTableEditor",
 				"FoliageEdit",
 				"ImageWrapper",
