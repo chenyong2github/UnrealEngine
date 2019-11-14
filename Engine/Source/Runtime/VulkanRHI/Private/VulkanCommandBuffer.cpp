@@ -170,7 +170,7 @@ void FVulkanCmdBuffer::End()
 		uint64 Index = Query.Index;
 		VkBuffer BufferHandle = Query.BufferHandle;
 		VkQueryPool PoolHandle = Query.PoolHandle;
-		VulkanRHI::vkCmdCopyQueryPoolResults(GetHandle(), PoolHandle, Index, Query.Count, BufferHandle, sizeof(uint64) * Index, sizeof(uint64), VK_QUERY_RESULT_64_BIT);
+		VulkanRHI::vkCmdCopyQueryPoolResults(GetHandle(), PoolHandle, Index, Query.Count, BufferHandle, sizeof(uint64) * Index, sizeof(uint64), VK_QUERY_RESULT_64_BIT|VK_QUERY_RESULT_WAIT_BIT);
 		VulkanRHI::vkCmdResetQueryPool(GetHandle(), PoolHandle, Index, Query.Count);
 	}
 

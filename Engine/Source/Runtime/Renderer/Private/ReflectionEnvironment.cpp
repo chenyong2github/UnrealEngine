@@ -289,6 +289,56 @@ TUniformBufferRef<FReflectionUniformParameters> CreateReflectionUniformBuffer(co
 	return CreateUniformBufferImmediate(ReflectionStruct, Usage);
 }
 
+void ClearCubeArray(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& CubeArray)
+{
+	const FPooledRenderTargetDesc& Desc = CubeArray.GetReference()->GetDesc();
+	int32 NumMips = Desc.NumMips;
+	int32 CubemapSize = Desc.Extent.X;
+	int32 NumCaptures = Desc.ArraySize;
+	TRefCountPtr<IPooledRenderTarget> TempCube;
+
+	uint32 CubeTexFlags = TexCreate_TargetArraySlicesIndependently;
+	FPooledRenderTargetDesc Desc2(FPooledRenderTargetDesc::CreateCubemapDesc(CubemapSize, Desc.Format, FClearValueBinding(FLinearColor(0, 0, 0, 0)), CubeTexFlags, TexCreate_RenderTargetable, false, 1, NumMips));
+	GRenderTargetPool.FindFreeElement(RHICmdList, Desc2, TempCube, TEXT("TempCube"), true, ERenderTargetTransience::Transient);
+
+	FSceneRenderTargetItem& RT0 = TempCube->GetRenderTargetItem();
+	{
+		SCOPED_DRAW_EVENT(RHICmdList, ClearCubeArray);
+
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, RT0.TargetableTexture);
+
+		for (int32 MipIndex = 0; MipIndex < NumMips; MipIndex++)
+		{
+			for (int32 CubeFace = 0; CubeFace < CubeFace_MAX; CubeFace++)
+			{
+				FRHIRenderPassInfo RPInfo(RT0.TargetableTexture, ERenderTargetActions::Clear_Store, nullptr, MipIndex, CubeFace);
+
+				RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearCubeFace"));
+				RHICmdList.EndRenderPass();
+			}
+		}
+
+		FResolveParams ResolveParams(FResolveRect(), CubeFace_PosX, -1, -1, -1);
+		RHICmdList.CopyToResolveTarget(RT0.TargetableTexture, RT0.TargetableTexture, ResolveParams);
+
+		FSceneRenderTargetItem& DestCube = CubeArray.GetReference()->GetRenderTargetItem();
+
+		// GPU copy back to the scene's texture array, which is not a render target
+		for (int32 CaptureIndex = 0; CaptureIndex < NumCaptures; CaptureIndex++)
+		{
+			for (int32 MipIndex = 0; MipIndex < NumMips; MipIndex++)
+			{
+				for (int32 CubeFace = 0; CubeFace < CubeFace_MAX; CubeFace++)
+				{
+					RHICmdList.CopyToResolveTarget(RT0.TargetableTexture, DestCube.ShaderResourceTexture, FResolveParams(FResolveRect(), (ECubeFace)CubeFace, MipIndex, 0, CaptureIndex));
+				}
+			}
+		}
+	}
+}
+
+
+
 void FReflectionEnvironmentCubemapArray::InitDynamicRHI()
 {
 	if (GetFeatureLevel() >= ERHIFeatureLevel::SM5)
@@ -318,6 +368,10 @@ void FReflectionEnvironmentCubemapArray::InitDynamicRHI()
 
 		// Allocate TextureCubeArray for the scene's reflection captures
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ReflectionEnvs, TEXT("ReflectionEnvs"));
+		if(MaxCubemaps == 1)
+		{
+			ClearCubeArray(RHICmdList, ReflectionEnvs); // When rounded up to two cubemaps, we need to clear all , to avoid validation problems, which happen because we don't fill out the final cube
+		}
 	}
 }
 
