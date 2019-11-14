@@ -502,8 +502,15 @@ namespace AudioModulation
 				if (LFOPtr.IsValid())
 				{
 					const USoundBusModulatorLFO& LFO = *LFOPtr.Get();
-					FLFOHandle LFOHandle = FLFOHandle::Create(LFO, RefProxies.LFOs);
-					LFOHandle.FindProxy() = LFO;
+					FLFOHandle LFOHandle = FLFOHandle::Get(LFO, RefProxies.LFOs);
+					if (LFOHandle.IsValid())
+					{
+						LFOHandle.FindProxy() = LFO;
+					}
+					else
+					{
+						UE_LOG(LogAudioModulation, Verbose, TEXT("Update to '%s' Ignored: LFO is inactive."), *LFO.GetName());
+					}
 				}
 			});
 		}
@@ -516,10 +523,17 @@ namespace AudioModulation
 				if (BusPtr.IsValid())
 				{
 					const USoundControlBusBase* Bus = BusPtr.Get();
-					FBusHandle BusHandle = FBusHandle::Create(*Bus, RefProxies.Buses);
-					FControlBusProxy& Proxy = BusHandle.FindProxy();
-					Proxy = *Bus;
-					Proxy.InitLFOs(*Bus, RefProxies.LFOs);
+					FBusHandle BusHandle = FBusHandle::Get(*Bus, RefProxies.Buses);
+					if (BusHandle.IsValid())
+					{
+						FControlBusProxy& Proxy = BusHandle.FindProxy();
+						Proxy = *Bus;
+						Proxy.InitLFOs(*Bus, RefProxies.LFOs);
+					}
+					else
+					{
+						UE_LOG(LogAudioModulation, Verbose, TEXT("Update to '%s' Ignored: Control Bus is inactive."), *Bus->GetName());
+					}
 				}
 			});
 		}
@@ -532,8 +546,15 @@ namespace AudioModulation
 				if (BusMixPtr.IsValid())
 				{
 					const USoundControlBusMix& Mix = *BusMixPtr.Get();
-					FBusMixHandle BusMixHandle = FBusMixHandle::Create(Mix, RefProxies.BusMixes);
-					BusMixHandle.FindProxy() = Mix;
+					FBusMixHandle BusMixHandle = FBusMixHandle::Get(Mix, RefProxies.BusMixes);
+					if (BusMixHandle.IsValid())
+					{
+						BusMixHandle.FindProxy() = Mix;
+					}
+					else
+					{
+						UE_LOG(LogAudioModulation, Verbose, TEXT("Update to '%s' Ignored: Control Bus Mix is inactive."), *Mix.GetName());
+					}
 				}
 			});
 		}
