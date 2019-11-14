@@ -888,14 +888,16 @@ private:
 	{
 		check(Item);
 
-		FString Suffix;
+		bool bNoRegister = false;
 		if (UClass* ItemClass = Cast<UClass>(Item))
 		{
 			if (!bRequiresValidObject && !ItemClass->HasAllClassFlags(CLASS_Intrinsic))
 			{
-				Suffix = TEXT("_NoRegister");
+				bNoRegister = true;
 			}
 		}
+
+		const TCHAR* Suffix = (bNoRegister ? TEXT("_NoRegister") : TEXT(""));
 
 		FString Result;
 		for (UObject* Outer = Item; Outer; Outer = Outer->GetOuter())
@@ -907,8 +909,8 @@ private:
 
 			if (Cast<UClass>(Outer) || Cast<UScriptStruct>(Outer))
 			{
-				FString OuterName = NameLookupCPP.GetNameCPP(Cast<UStruct>(Outer));
-				Result = OuterName + Result;
+				const TCHAR* OuterName = NameLookupCPP.GetNameCPP(Cast<UStruct>(Outer));
+				Result = FString::Printf(TEXT("%s%s"), OuterName, *Result);
 
 				// Structs can also have UPackage outer.
 				if (Cast<UClass>(Outer) || Cast<UPackage>(Outer->GetOuter()))
@@ -928,8 +930,8 @@ private:
 			Result = FPackageName::GetShortName(Result);
 		}
 
-		FString ClassString = NameLookupCPP.GetNameCPP(Item->GetClass());
-		return FString(TEXT("Z_Construct_")) + ClassString + TEXT("_") + Result + Suffix + TEXT("()");
+		const TCHAR* ClassString = NameLookupCPP.GetNameCPP(Item->GetClass());
+		return FString::Printf(TEXT("Z_Construct_%s_%s%s()"), ClassString, *Result, Suffix);
 	}
 };
 
@@ -1948,9 +1950,9 @@ static TArray<UScriptStruct*> FindNoExportStructs(UStruct* Start)
 
 FString FNativeClassHeaderGenerator::GetPackageSingletonName(const UPackage* InPackage)
 {
-	static FString ClassString = NameLookupCPP.GetNameCPP(UPackage::StaticClass());
+	const TCHAR* ClassString = NameLookupCPP.GetNameCPP(UPackage::StaticClass());
 
-	FString Result = TEXT("Z_Construct_") + ClassString + TEXT("_") + InPackage->GetName().Replace(TEXT("/"), TEXT("_")) + TEXT("()");
+	FString Result = FString::Printf(TEXT("Z_Construct_%s_%s()"), ClassString, *InPackage->GetName().Replace(TEXT("/"), TEXT("_")));
 
 	if (UniqueCrossModuleReferences)
 	{
@@ -2751,7 +2753,7 @@ static FString PrivatePropertiesOffsetGetters(const UStruct* Struct, const FStri
 	FUHTStringBuilder Result;
 	for (const UProperty* Property : TFieldRange<UProperty>(Struct, EFieldIteratorFlags::ExcludeSuper))
 	{
-		if (Property && Property->HasAnyPropertyFlags(CPF_NativeAccessSpecifierPrivate | CPF_NativeAccessSpecifierProtected) && !Property->HasAnyPropertyFlags(CPF_EditorOnly))
+		if (Property && Property->HasAnyPropertyFlags(CPF_BlueprintVisible) && Property->HasAnyPropertyFlags(CPF_NativeAccessSpecifierPrivate | CPF_NativeAccessSpecifierProtected) && !Property->HasAnyPropertyFlags(CPF_EditorOnly))
 		{
 			const UBoolProperty* BoolProperty = Cast<const UBoolProperty>(Property);
 			if (BoolProperty && !BoolProperty->IsNativeBool()) // if it's a bitfield
@@ -4540,7 +4542,7 @@ void FNativeClassHeaderGenerator::ExportNativeFunctionHeader(
 	FString FunctionName;
 	if (FunctionHeaderStyle == EExportFunctionHeaderStyle::Definition)
 	{
-		FunctionName = FString(NameLookupCPP.GetNameCPP(CastChecked<UClass>(Function->GetOuter()), bIsInterface || FunctionType == EExportFunctionType::Interface)) + TEXT("::");
+		FunctionName = FString::Printf(TEXT("%s::"), NameLookupCPP.GetNameCPP(CastChecked<UClass>(Function->GetOuter()), bIsInterface || FunctionType == EExportFunctionType::Interface));
 	}
 
 	if (FunctionType == EExportFunctionType::Interface)
@@ -4896,7 +4898,7 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 	FNativeFunctionStringBuilder RuntimeStringBuilders;
 	FNativeFunctionStringBuilder EditorStringBuilders;
 
-	FString ClassName = Class->GetName();
+	const TCHAR* ClassCPPName = NameLookupCPP.GetNameCPP(Class, Class->HasAnyClassFlags(CLASS_Interface));
 
 	ClassDefinitionRange ClassRange;
 	if (ClassDefinitionRanges.Contains(Class))
@@ -5057,8 +5059,7 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 			// Versions that skip function autodeclaration throw an error when a function is missing.
 			if (ClassRange.bHasGeneratedBody && (SourceFile.GetGeneratedCodeVersionForStruct(Class) > EGeneratedCodeVersion::V1))
 			{
-				FString Name = Class->HasAnyClassFlags(CLASS_Interface) ? TEXT("I") + ClassName : FString(NameLookupCPP.GetNameCPP(Class));
-				CheckRPCFunctions(FunctionData, *Name, ImplementationPosition, ValidatePosition, SourceFile);
+				CheckRPCFunctions(FunctionData, ClassCPPName, ImplementationPosition, ValidatePosition, SourceFile);
 			}
 		}
 

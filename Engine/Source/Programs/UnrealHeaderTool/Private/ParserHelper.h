@@ -1828,9 +1828,9 @@ struct FNameLookupCPP
 			delete [] Name;
 		}
 	
-		for (TArray<TCHAR*>::TIterator It(InterfaceAllocations); It; ++It)
+		for (TMap<UStruct*, TCHAR*>::TIterator It(InterfaceNameMap); It; ++It)
 		{
-			TCHAR* Name = *It;
+			TCHAR* Name = It.Value();
 			delete [] Name;
 		}
 	}
@@ -1851,7 +1851,7 @@ struct FNameLookupCPP
 private:
 	/** Map of UStruct pointers to C++ names */
 	TMap<UStruct*,TCHAR*> StructNameMap;
-	TArray<TCHAR*> InterfaceAllocations;
+	TMap<UStruct*, TCHAR*> InterfaceNameMap;
 
 	FUnrealSourceFile* UnrealSourceFile;
 };
