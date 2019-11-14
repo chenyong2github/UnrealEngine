@@ -2,7 +2,7 @@
 
 #include "MovieSceneEventBlueprintExtension.h"
 #include "MovieSceneEventUtils.h"
-#include "Sections/MoviesceneEventSectionBase.h"
+#include "Sections/MovieSceneEventSectionBase.h"
 #include "K2Node_FunctionEntry.h"
 #include "KismetCompiler.h"
 #include "Engine/Blueprint.h"
