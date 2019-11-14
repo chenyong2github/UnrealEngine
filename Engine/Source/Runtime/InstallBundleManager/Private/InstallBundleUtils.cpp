@@ -2,9 +2,15 @@
 
 #include "InstallBundleUtils.h"
 #include "InstallBundleManagerPrivatePCH.h"
+#include "Misc/App.h"
 
 namespace InstallBundleUtil
 {
+	INSTALLBUNDLEMANAGER_API FString GetAppVersion()
+	{
+		return FString::Printf(TEXT("%s-%s"), FApp::GetBuildVersion(), ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()));
+	}
+
 	bool HasInternetConnection(ENetworkConnectionType ConnectionType)
 	{
 		return ConnectionType != ENetworkConnectionType::AirplaneMode
