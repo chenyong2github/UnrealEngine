@@ -1526,8 +1526,15 @@ static expr_t   eval_unsigned(
     case OP_EOE:
     case OP_PLU:    v1 = v1u;           break;
     case OP_NEG:
-        v1 = -v1u;
-        if (v1u)
+#ifdef _MSC_VER
+#	pragma warning(push)
+#	pragma warning(disable : 4146)
+#endif
+		v1 = -v1u;
+#ifdef _MSC_VER
+#	pragma warning(pop)
+#endif
+		if (v1u)
             overflow( op_name, valpp, TRUE);
         break;
     case OP_COM:    v1 = ~v1u;          break;
