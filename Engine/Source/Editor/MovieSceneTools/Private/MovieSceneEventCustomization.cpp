@@ -1233,7 +1233,7 @@ void FMovieSceneEventCustomization::SetEventEndpoint(UK2Node* NewEndpoint, UEdGr
 			BaseEventSection->Modify();
 			if (Blueprint)
 			{
-				Blueprint->GenerateFunctionGraphsEvent.AddUniqueDynamic(BaseEventSection, &UMovieSceneEventSectionBase::HandleGenerateEntryPoints);
+				FMovieSceneEventUtils::BindEventSectionToBlueprint(BaseEventSection, Blueprint);
 			}
 		}
 	}
@@ -1395,7 +1395,7 @@ void FMovieSceneEventCustomization::CreateEventEndpoint()
 			for (const TPair<UMovieSceneEventSectionBase*, FSectionData>& SectionPair : TrackPair.Value.Sections)
 			{
 				SectionPair.Key->Modify();
-				SequenceDirectorBP->GenerateFunctionGraphsEvent.AddUniqueDynamic(SectionPair.Key, &UMovieSceneEventSectionBase::HandleGenerateEntryPoints);
+				FMovieSceneEventUtils::BindEventSectionToBlueprint(SectionPair.Key, SequenceDirectorBP);
 
 				for (FMovieSceneEvent* EntryPoint : SectionPair.Value.EntryPoints)
 				{
