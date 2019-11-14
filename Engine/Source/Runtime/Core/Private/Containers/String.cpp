@@ -81,12 +81,12 @@ namespace UE4String_Private
 			}
 
 			--TargetLength;
+			--WildcardLength;
+
 			if (TargetLength == 0)
 			{
-				return false;
+				break;
 			}
-
-			--WildcardLength;
 		}
 
 		// Match * against anything and ? against single (and zero?) chars
