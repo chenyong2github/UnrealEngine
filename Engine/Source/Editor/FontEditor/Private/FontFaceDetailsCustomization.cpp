@@ -80,7 +80,7 @@ FText FFontFaceDetailsCustomization::GetFontDisplayName() const
 {
 	if (ObjectsBeingEdited.Num() == 1)
 	{
-		const UFontFace* FontFace = CastChecked<UFontFace>(ObjectsBeingEdited[0].Get());
+		const UFontFace* FontFace = Cast<UFontFace>(ObjectsBeingEdited[0].Get());
 		if (FontFace && !FontFace->SourceFilename.IsEmpty())
 		{
 			return FText::FromString(FPaths::GetCleanFilename(FontFace->SourceFilename));
@@ -94,7 +94,7 @@ FText FFontFaceDetailsCustomization::GetFontDisplayToolTip() const
 {
 	if (ObjectsBeingEdited.Num() == 1)
 	{
-		const UFontFace* FontFace = CastChecked<UFontFace>(ObjectsBeingEdited[0].Get());
+		const UFontFace* FontFace = Cast<UFontFace>(ObjectsBeingEdited[0].Get());
 		if (FontFace && !FontFace->SourceFilename.IsEmpty())
 		{
 			return FText::FromString(FontFace->SourceFilename);
@@ -139,7 +139,7 @@ void FFontFaceDetailsCustomization::OnFontPathPicked(const FString& InNewFontFil
 
 	for (const TWeakObjectPtr<UObject>& ObjectBeingEdited : ObjectsBeingEdited)
 	{
-		UFontFace* FontFace = CastChecked<UFontFace>(ObjectBeingEdited.Get());
+		UFontFace* FontFace = Cast<UFontFace>(ObjectBeingEdited.Get());
 		if (FontFace)
 		{
 			FontFace->Modify();
