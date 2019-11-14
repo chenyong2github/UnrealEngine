@@ -184,6 +184,7 @@ public class UnrealEd : ModuleRules
 				"ScriptDisassembler",
 				"ToolMenus",
 				"FreeImage",
+				"IoStoreUtilities",
             }
 		);
 

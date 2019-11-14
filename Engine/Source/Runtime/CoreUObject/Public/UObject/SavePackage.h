@@ -83,8 +83,9 @@ class FPackageStoreBulkDataManifest : public IBulkDataManifest
 {
 public:
 	COREUOBJECT_API FPackageStoreBulkDataManifest(const FString& InRootPath);
+	COREUOBJECT_API virtual ~FPackageStoreBulkDataManifest() = default;
 
-	bool Load();
+	bool COREUOBJECT_API Load();
 	virtual void Save() override;
 	
 	const FString& GetFilename() const { return Filename; }
@@ -106,7 +107,7 @@ public:
 		TArray<BulkDataDesc> Data;
 	};
 
-	const PackageDesc* Find(const FString& PackageName) const;
+	COREUOBJECT_API const PackageDesc* Find(const FString& PackageName) const;
 
 private:
 	virtual void AddFileAccess(const FString& PackageFilename, uint16 InIndex, uint64 InOffset, uint64 InSize) override;

@@ -1744,6 +1744,21 @@ public partial class Project : CommandUtils
 				}
 			}
 
+			// Filter I/O store container files
+			if (Src.HasExtension(".namemap") ||
+				Src.HasExtension(".ucas") ||
+				Src.HasExtension(".utoc") ||
+				Src.HasExtension(".ubulkmanifest") ||
+				Src.HasExtension(".uglimport") ||
+				Src.HasExtension(".unamemap") ||
+				Src.HasExtension(".uscriptarc") ||
+				Src.HasExtension(".uslimport") ||
+				Src.HasExtension(".ustoretoc"))
+			{
+				LogInformation("Excluding {0}", Src);
+				continue;
+			}
+
 			// Do a filtered copy of all ini files to allow stripping of values that we don't want to distribute
 			if (Src.HasExtension(".ini"))
 			{
@@ -2780,6 +2795,16 @@ public partial class Project : CommandUtils
 		return TmpPackagingPath;
 	}
 
+	private static bool ShouldCreateIoStoreContainerFiles(ProjectParams Params, DeploymentContext SC)
+	{
+		if (Params.CookOnTheFly || Params.NoClient)
+		{
+			return false;
+		}
+
+		return Params.IoStore;
+	}
+
 	private static bool ShouldCreatePak(ProjectParams Params, DeploymentContext SC)
 	{
 		if (Params.CookOnTheFly)
@@ -2897,6 +2922,21 @@ public partial class Project : CommandUtils
 
 	public static void ApplyStagingManifest(ProjectParams Params, DeploymentContext SC)
 	{
+		if (ShouldCreateIoStoreContainerFiles(Params, SC))
+		{
+			foreach (var ClientPlatform in Params.ClientTargetPlatforms)
+			{
+				TargetPlatformDescriptor DataPlatformDesc = Params.GetCookedDataPlatformForClientTarget(ClientPlatform);
+				String TargetPlatformName = Platform.Platforms[DataPlatformDesc].GetCookPlatform(false, Params.Client);
+
+				DirectoryReference OutputDirectory = DirectoryReference.Combine(SC.RuntimeRootDir, SC.RelativeProjectRootForStage.Name);
+
+				String CommandletParams = String.Format("-TargetPlatform={0} -OutputDirectory={1}", TargetPlatformName, OutputDirectory.FullName);
+
+				RunCommandlet(SC.RawProjectPath, Params.UE4Exe, "IoStore", CommandletParams);
+			}
+		}
+
 		if (ShouldCreatePak(Params, SC))
 		{
 			if (SC.CrashReporterUFSFiles.Count > 0)
