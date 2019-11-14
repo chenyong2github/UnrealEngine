@@ -584,10 +584,17 @@ namespace DatasmithImporterImpl
 		{
 			if ( ImportSceneActor )
 			{
-				for ( const auto& Pair : ImportSceneActor->RelatedActors )
+
+				TArray< TSoftObjectPtr< AActor > > RelatedActors;
+				ImportSceneActor->RelatedActors.GenerateValueArray( RelatedActors );
+
+				ImportSceneActor->Scene = nullptr;
+				ImportSceneActor->RelatedActors.Empty();
+
+				while(RelatedActors.Num() > 0)
 				{
-					AActor* RelatedActor = Pair.Value.Get();
-					if ( RelatedActor )
+					TSoftObjectPtr< AActor > ActorPtr = RelatedActors.Pop(false);
+					if(AActor* RelatedActor = ActorPtr.Get())
 					{
 						FDatasmithImporterUtils::DeleteActor( *RelatedActor );
 					}
