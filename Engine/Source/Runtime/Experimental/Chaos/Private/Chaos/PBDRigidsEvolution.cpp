@@ -118,9 +118,10 @@ namespace Chaos
 	};
 
 	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
-	TPBDRigidsEvolutionBase<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::TPBDRigidsEvolutionBase(TPBDRigidsSOAs<T, d>& InParticles, int32 InNumIterations, int32 InNumPushOutIterations)
+	TPBDRigidsEvolutionBase<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::TPBDRigidsEvolutionBase(TPBDRigidsSOAs<T, d>& InParticles, int32 InNumIterations, int32 InNumPushOutIterations, bool InIsSingleThreaded)
 		: Particles(InParticles)
 		, bExternalReady(false)
+		, bIsSingleThreaded(InIsSingleThreaded)
 		, Clustering(static_cast<FPBDRigidsEvolution&>(*this), Particles.GetClusteredParticles())
 		, NumIterations(InNumIterations)
 		, NumPushOutIterations(InNumPushOutIterations)
@@ -164,12 +165,14 @@ namespace Chaos
 		, const TMap<FSpatialAccelerationIdx, TUniquePtr<TSpatialAccelerationCache<T, d>>>& InSpatialAccelerationCache
 		, TUniquePtr<FAccelerationStructure>& InAccelerationStructure
 		, TUniquePtr<FAccelerationStructure>& InAccelerationStructureCopy
-		, bool InForceFullBuild)
+		, bool InForceFullBuild
+		, bool InIsSingleThreaded)
 		: SpatialCollectionFactory(InSpatialCollectionFactory)
 		, SpatialAccelerationCache(InSpatialAccelerationCache)
 		, AccelerationStructure(InAccelerationStructure)
 		, AccelerationStructureCopy(InAccelerationStructureCopy)
 		, IsForceFullBuild(InForceFullBuild)
+		, bIsSingleThreaded(InIsSingleThreaded)
 	{
 	}
 
@@ -274,12 +277,16 @@ namespace Chaos
 
 		AccelerationStructure->SetAllAsyncTrasksComplete(!IsTimeSlicingProgressing);
 
+		// If it's not progressing then it is finished so we can perform the final copy if required
 		if (!IsTimeSlicingProgressing)
 		{
+			if (!bIsSingleThreaded)
+			{
 			// This operation is slow!
 			SCOPE_CYCLE_COUNTER(STAT_CopyAccelerationStructure);
 			AccelerationStructureCopy = AsUniqueSpatialAccelerationChecked<FAccelerationStructure>(AccelerationStructure->Copy());
 		}
+	}
 	}
 
 	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
@@ -370,7 +377,10 @@ namespace Chaos
 		for (auto Itr : AsyncAccelerationQueue)
 		{
 			ApplyParticlePendingData(Itr.Value, *AsyncInternalAcceleration, true); //only the first queue needs to update the cached acceleration
+			if (!bIsSingleThreaded)
+			{
 			ApplyParticlePendingData(Itr.Value, *AsyncExternalAcceleration, false);
+		}
 		}
 		AsyncAccelerationQueue.Empty();
 
@@ -414,12 +424,19 @@ namespace Chaos
 			//initial frame so make empty structures
 
 			InternalAcceleration = TUniquePtr<FAccelerationStructure>(SpatialCollectionFactory->CreateEmptyCollection());
-			ScratchExternalAcceleration = TUniquePtr<FAccelerationStructure>(SpatialCollectionFactory->CreateEmptyCollection());
 			AsyncInternalAcceleration = TUniquePtr<FAccelerationStructure>(SpatialCollectionFactory->CreateEmptyCollection());
+			if (!bIsSingleThreaded)
+			{
+			ScratchExternalAcceleration = TUniquePtr<FAccelerationStructure>(SpatialCollectionFactory->CreateEmptyCollection());
 			AsyncExternalAcceleration = TUniquePtr<FAccelerationStructure>(SpatialCollectionFactory->CreateEmptyCollection());
+			}
 			FlushInternalAccelerationQueue();
+
+			if (!bIsSingleThreaded)
+			{
 			FlushExternalAccelerationQueue(*ScratchExternalAcceleration);
 			bExternalReady = true;
+		}
 		}
 
 		if (bBlock)
@@ -442,12 +459,18 @@ namespace Chaos
 
 				//swap acceleration structure for new one
 				std::swap(InternalAcceleration, AsyncInternalAcceleration);	//swap to avoid free on sync part as this can be expensive
+
+				if (!bIsSingleThreaded)
+				{
 				std::swap(ScratchExternalAcceleration, AsyncExternalAcceleration);
+				}
 				bExternalReady = true;
 			}
 
 			// we run the task for both starting a new accel structure as well as for the timeslicing
-			AccelerationStructureTaskComplete = TGraphTask<FChaosAccelerationStructureTask>::CreateTask().ConstructAndDispatchWhenReady(*SpatialCollectionFactory, SpatialAccelerationCache, AsyncInternalAcceleration, AsyncExternalAcceleration, ForceFullBuild);
+			// we run the task for both starting a new accel structure as well as for the timeslicing
+			AccelerationStructureTaskComplete = TGraphTask<FChaosAccelerationStructureTask>::CreateTask().ConstructAndDispatchWhenReady(*SpatialCollectionFactory, SpatialAccelerationCache, AsyncInternalAcceleration, AsyncExternalAcceleration, ForceFullBuild, bIsSingleThreaded);
+
 		}
 		else
 		{
@@ -459,6 +482,9 @@ namespace Chaos
 	void TPBDRigidsEvolutionBase<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::UpdateExternalAccelerationStructure(TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<T, d>, T, d>>& StructToUpdate)
 	{
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("CreateExternalAccelerationStructure"), STAT_CreateExternalAccelerationStructure, STATGROUP_Physics);
+
+		check(!bIsSingleThreaded);
+
 		if (bExternalReady)
 		{
 			std::swap(StructToUpdate, ScratchExternalAcceleration);
