@@ -311,10 +311,51 @@ void FDatasmithImporterUtils::DeleteActor( AActor& Actor )
 			}
 		}
 
+		// Clean up all references to external assets within the actor and its components since those will be deleted later
+		// #ueent_remark: Underlying question why the actor and its components are still reachable after being 'deleted'
+		{
+			struct FObjectExternalReferenceCleaner : public FArchiveUObject
+			{
+				FObjectExternalReferenceCleaner()	{}
+
+				virtual FArchive& operator<<(UObject*& ObjRef) override
+				{
+					if(ObjRef != nullptr)
+					{
+						// Set to null any pointer to an external asset
+						if( ObjRef->HasAnyFlags( RF_Standalone | RF_Public ) )
+						{
+							ObjRef = nullptr;
+						}
+					}
+
+					return *this;
+				}
+			};
+
+			TArray< UObject* > SubObjectsArray;
+			GetObjectsWithOuter( &Actor, SubObjectsArray, /*bIncludeNestedObjects = */ true );
+
+			for(UObject* SubObject : SubObjectsArray)
+			{
+				if(SubObject)
+				{
+					FObjectExternalReferenceCleaner Ar;
+					SubObject->Serialize(Ar);
+				}
+			}
+
+			{
+				FObjectExternalReferenceCleaner Ar;
+				Actor.Serialize(Ar);
+			}
+		}
+
+		// Actually delete the actor
 		ActorWorld->EditorDestroyActor( &Actor, true );
 
-		// Move the actor outside it's so it's object name can be use
-		Actor.UObject::Rename( nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders );
+		// Move the actor to the transient package so its object name can be use
+		Actor.UObject::Rename( *(Actor.GetName() + TEXT("_DELETED")), GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders );
 	}
 }
 
