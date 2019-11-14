@@ -28,6 +28,7 @@
 #endif
 
 #if HAIR_RENDER_MODE == RENDER_MODE_PPLL 
+uint HairVisibilityPass_MaxPPLLNodeCount;
 RWTexture2D<uint> PPLLCounter;
 RWTexture2D<uint> PPLLNodeIndex;
 RWStructuredBuffer<FPPLLNodeData> PPLLNodes;
@@ -143,7 +144,7 @@ void MainVisibility(
 	uint NodeIndex;
 	InterlockedAdd(PPLLCounter[uint2(0, 0)], 1, NodeIndex);
 
-	if (NodeIndex < VisibilityPassGlobalParameters.MaxPPLLNodeCount)
+	if (NodeIndex < HairVisibilityPass_MaxPPLLNodeCount)
 	{
 		// If we can append new node, add it and make it point to the node previously in head of list
 		uint NextNodeIndex;
