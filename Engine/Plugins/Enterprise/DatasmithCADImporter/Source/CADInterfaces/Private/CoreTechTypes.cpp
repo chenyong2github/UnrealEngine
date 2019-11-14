@@ -92,21 +92,20 @@ namespace CADLibrary
 		return CT_KERNEL_IO::AskTesselationParameters(max_face_sag, max_face_length, max_face_angle, max_curve_sag, max_curve_length, max_curve_angle, high_quality, vertex_type, normal_type, texture_type);
 	}
 
-	CT_IO_ERROR Repair(CT_OBJECT_ID MainObjectID, EStitchingTechnique StitchingTechnique)
+	CT_IO_ERROR Repair(CT_OBJECT_ID MainObjectID, EStitchingTechnique StitchingTechnique, CT_DOUBLE SewingToleranceFactor)
 	{
 		switch (StitchingTechnique)
 		{
 		case EStitchingTechnique::StitchingSew:
 		{
 			// Sew disconnected faces back together
-			CT_UINT32 SewingToleranceFactor = 100; // factor of 'tolerance' value
 			return CT_REPAIR_IO::Sew(MainObjectID, SewingToleranceFactor, CT_SEW_CREATE_BODIES_BY_TOPOLOGY);
 		}
 
 		case EStitchingTechnique::StitchingHeal:
 		{
 			// Heal disconnected faces back together
-			CT_UINT32 StitchingToleranceFactor = 100; // topo only if deformation=0, factor of 'tolerance' value
+			CT_UINT32 StitchingToleranceFactor = 0; // topo only if deformation=0, factor of 'tolerance' value
 			CT_LOGICAL   OnlyVisible = CT_TRUE;
 			CT_LOGICAL   MergeBeforeHealing = CT_FALSE;
 			CT_LOGICAL   RemoveTinyObjects = CT_TRUE;

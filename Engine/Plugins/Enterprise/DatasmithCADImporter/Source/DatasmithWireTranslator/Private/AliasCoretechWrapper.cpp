@@ -106,7 +106,7 @@ namespace AliasToCoreTechUtils
 CT_IO_ERROR FAliasCoretechWrapper::Tessellate(FMeshDescription& Mesh, FMeshParameters& MeshParameters)
 {
 	// Apply stitching if applicable
-	TopoFixes();
+	TopoFixes(1.);
 
 	// Perform tessellation
 	return CADLibrary::Tessellate(MainObjectId, ImportParams, Mesh, MeshParameters);
