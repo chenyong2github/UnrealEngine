@@ -4341,7 +4341,7 @@ namespace UnrealGameSync
 					else if(ChangeType == LatestChangeType.Starred)
 					{
 						EventSummary Summary = EventMonitor.GetSummaryForChange(Change.Number);
-						if(((Summary != null && Summary.LastStarReview != null) || PromotedChangeNumbers.Contains(Change.Number)) && CanSyncChange(Change.Number))
+						if(((Summary != null && Summary.LastStarReview != null && Summary.LastStarReview.Type == EventType.Starred) || PromotedChangeNumbers.Contains(Change.Number)) && CanSyncChange(Change.Number))
 						{
 							ChangeNumber = FindNewestGoodContentChange(Change.Number);
 							return true;
