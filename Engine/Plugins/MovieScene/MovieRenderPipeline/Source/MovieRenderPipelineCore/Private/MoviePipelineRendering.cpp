@@ -314,9 +314,19 @@ void UMoviePipeline::RenderFrame()
 				double FinalSubPixelShiftX = - (TileShiftX + SpatialShiftX - 0.5);
 				double FinalSubPixelShiftY = (TileShiftY + SpatialShiftY - 0.5);
 
-				FIntPoint BackbufferResolution;
+				FIntPoint BackbufferResolution = OutputSettings->OutputResolution;
+				FIntPoint TileResolution = BackbufferResolution;
+
 				if (bIsUsingOverlappedTiles)
 				{
+					BackbufferResolution = FIntPoint(
+						FMath::CeilToInt(BackbufferResolution.X / HighResSettings->TileCount),
+						FMath::CeilToInt(BackbufferResolution.Y / HighResSettings->TileCount));
+
+					// Cache tile resolution before we add padding.
+					TileResolution = BackbufferResolution;
+
+					// Apply size padding.
 					BackbufferResolution = HighResSettings->CalculatePaddedBackbufferSize(BackbufferResolution);
 				}
 				else
@@ -324,6 +334,9 @@ void UMoviePipeline::RenderFrame()
 					// Legacy interleaving
 					BackbufferResolution.X = FMath::CeilToInt(OutputResolution.X / TileCount.X);
 					BackbufferResolution.Y = FMath::CeilToInt(OutputResolution.Y / TileCount.Y);
+
+					// No padding is used when interleaving
+					TileResolution = BackbufferResolution;
 				}
 
 				// We take all of the information needed to render a single sample and package it into a struct.
@@ -340,14 +353,15 @@ void UMoviePipeline::RenderFrame()
 				SampleState.AccumulationGamma = AccumulationSettings->AccumulationGamma;
 				SampleState.bIsUsingOverlappedTiles = bIsUsingOverlappedTiles;
 				SampleState.BackbufferSize = BackbufferResolution;
+				SampleState.TileSize = TileResolution;
 				SampleState.FrameInfo = FrameInfo;
 
 				if (bIsUsingOverlappedTiles)
 				{
-					SampleState.OverlappedPad = FIntPoint(FMath::CeilToInt(BackbufferResolution.X * HighResSettings->OverlapPercentage), 
-														   FMath::CeilToInt(BackbufferResolution.Y * HighResSettings->OverlapPercentage));
-					SampleState.OverlappedOffset = FIntPoint(TileX * BackbufferResolution.X - SampleState.OverlappedPad.X, 
-															  TileY * BackbufferResolution.Y - SampleState.OverlappedPad.Y);
+					SampleState.OverlappedPad = FIntPoint(FMath::CeilToInt(TileResolution.X * HighResSettings->OverlapPercentage), 
+														   FMath::CeilToInt(TileResolution.Y * HighResSettings->OverlapPercentage));
+					SampleState.OverlappedOffset = FIntPoint(TileX * TileResolution.X - SampleState.OverlappedPad.X,
+															  TileY * TileResolution.Y - SampleState.OverlappedPad.Y);
 					SampleState.OverlappedSubpixelShift = FVector2D(1.0f - OffsetX,OffsetY);
 				}
 				else

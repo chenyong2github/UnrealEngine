@@ -505,7 +505,7 @@ namespace MoviePipeline
 		// For the first sample in a new output, we allocate memory
 		if (InFrameData->IsFirstTile() && InFrameData->IsFirstTemporalSample())
 		{
-			InParams.ImageAccumulator->InitMemory(FIntPoint(InFrameData->SampleState.BackbufferSize.X * InFrameData->SampleState.TileCounts.X, InFrameData->SampleState.BackbufferSize.Y * InFrameData->SampleState.TileCounts.Y), 3);
+			InParams.ImageAccumulator->InitMemory(FIntPoint(InFrameData->SampleState.TileSize.X * InFrameData->SampleState.TileCounts.X, InFrameData->SampleState.TileSize.Y * InFrameData->SampleState.TileCounts.Y), 3);
 			InParams.ImageAccumulator->ZeroPlanes();
 			InParams.ImageAccumulator->AccumulationGamma = InFrameData->SampleState.AccumulationGamma;
 		}
@@ -516,8 +516,8 @@ namespace MoviePipeline
 
 			FIntPoint RawSize = InPixelData->GetSize();
 
-			check(InFrameData->SampleState.BackbufferSize.X + 2 * InFrameData->SampleState.OverlappedPad.X == RawSize.X);
-			check(InFrameData->SampleState.BackbufferSize.Y + 2 * InFrameData->SampleState.OverlappedPad.Y == RawSize.Y);
+			check(InFrameData->SampleState.TileSize.X + 2 * InFrameData->SampleState.OverlappedPad.X == RawSize.X);
+			check(InFrameData->SampleState.TileSize.Y + 2 * InFrameData->SampleState.OverlappedPad.Y == RawSize.Y);
 
 			InParams.ImageAccumulator->AccumulatePixelData(*InPixelData.Get(), InFrameData->SampleState.OverlappedOffset, InFrameData->SampleState.OverlappedSubpixelShift);
 

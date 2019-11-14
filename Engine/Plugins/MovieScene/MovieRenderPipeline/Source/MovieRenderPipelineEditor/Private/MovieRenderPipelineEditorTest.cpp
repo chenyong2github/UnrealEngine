@@ -74,10 +74,10 @@ TArray<UMoviePipelineMasterConfig*> FMovieRenderPipelineEditorModule::GenerateTe
 				UMoviePipelineMasterConfig* OutPipeline = NewObject<UMoviePipelineMasterConfig>(GetTransientPackage());
 				UMoviePipelineOutputSetting* OutputSetting = OutPipeline->FindOrAddSetting<UMoviePipelineOutputSetting>();
 
-				int32 SizeX = 1920;
-				int32 SizeY = 1080;
-				int32 TileX = 1;
-				int32 TileY = 1;
+				int32 SizeX = 1920/4;
+				int32 SizeY = 1080/4;
+				int32 TileX = 4;
+				int32 TileY = 4;
 				int32 TestNumSamples = 2;
 				float PadRatioX = 0.5f;
 				float PadRatioY = 0.5f;
