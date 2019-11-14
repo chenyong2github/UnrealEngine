@@ -189,16 +189,9 @@ private:
 
 			if (bTestShapeBounds)
 			{
-				TAABB<FReal, 3> InflatedWorldBounds;
-				if (SQ == ESQType::Raycast)
-				{
-					InflatedWorldBounds = Shape->WorldSpaceInflatedShapeBounds;
-				}
-				else
-				{
-					InflatedWorldBounds = TAABB<FReal, 3>(Shape->WorldSpaceInflatedShapeBounds.Min() - HalfExtents, Shape->WorldSpaceInflatedShapeBounds.Max() + HalfExtents);
-				}
-
+				const auto& GeomBounds = Geom->BoundingBox();
+				auto InflatedWorldBounds = SQ == ESQType::Raycast ? GeomBounds.GetAABB().TransformedAABB(ActorTM) :
+					TAABB<FReal, 3>(GeomBounds.Min() - HalfExtents, GeomBounds.Max() + HalfExtents).TransformedAABB(ActorTM);
 				if (SQ != ESQType::Overlap)
 				{
 					//todo: use fast raycast
