@@ -149,14 +149,21 @@ bool FDisplayClusterDeviceBase::Initialize()
 	return true;
 }
 
-void FDisplayClusterDeviceBase::InitializeWorldContent(UWorld* InWorld)
+void FDisplayClusterDeviceBase::StartScene(UWorld* InWorld)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
+
+	bIsSceneOpen = true;
 
 	for (FDisplayClusterRenderViewport& Viewport : RenderViewports)
 	{
 		Viewport.GetProjectionPolicy()->StartScene(InWorld);
 	}
+}
+
+void FDisplayClusterDeviceBase::EndScene()
+{
+	bIsSceneOpen = false;
 }
 
 void FDisplayClusterDeviceBase::SetViewportCamera(const FString& InCameraId /* = FString() */, const FString& InViewportId /* = FString() */)
@@ -345,6 +352,11 @@ void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const enum EStereoscop
 	UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("OLD ViewLoc: %s, ViewRot: %s"), *ViewLocation.ToString(), *ViewRotation.ToString());
 	UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("WorldToMeters: %f"), WorldToMeters);
 
+	if (!bIsSceneOpen)
+	{
+		return;
+	}
+
 	// Get current viewport
 	const int CurrentViewportIndex = DecodeViewportIndex(StereoPassType);
 	check(int32(CurrentViewportIndex) < RenderViewports.Num());
@@ -449,9 +461,12 @@ FMatrix FDisplayClusterDeviceBase::GetStereoProjectionMatrix(const enum EStereos
 	FDisplayClusterRenderViewContext& ViewContext = Viewport.GetContext(ViewIndex);
 
 	FMatrix PrjMatrix = FMatrix::Identity;
-	if (!Viewport.GetProjectionPolicy()->GetProjectionMatrix(ViewIndex, PrjMatrix))
+	if (bIsSceneOpen)
 	{
-		UE_LOG(LogDisplayClusterRender, Warning, TEXT("Got invalid projection matrix: Viewport %s(%d), ViewIdx: %d"), *Viewport.GetId(), CurrentViewportIndex, int(ViewIndex));
+		if (!Viewport.GetProjectionPolicy()->GetProjectionMatrix(ViewIndex, PrjMatrix))
+		{
+			UE_LOG(LogDisplayClusterRender, Warning, TEXT("Got invalid projection matrix: Viewport %s(%d), ViewIdx: %d"), *Viewport.GetId(), CurrentViewportIndex, int(ViewIndex));
+		}
 	}
 
 	return PrjMatrix;
