@@ -94,13 +94,29 @@ namespace Gauntlet
 		/// <summary>
 		/// Used to track how much of our log has been written out
 		/// </summary>
-		private int LastLogCount ;
+		private int LastLogCount;
 
 		private int CurrentPass;
 
 		private int NumPasses;
 
 		static protected DateTime SessionStartTime = DateTime.MinValue;
+
+		/// <summary>
+		/// Standard semantic versioning for tests. Should be overwritten within individual tests, and individual test maintainers
+		/// are responsible for updating their own versions. See https://semver.org/ for more info on maintaining semantic versions.
+		/// </summary>
+		protected int TestVersionMajor = 1;
+
+		protected int TestVersionMinor = 0;
+
+		protected int TestVersionFix = 0;
+
+		/// <summary>
+		/// Get fully assembled version string.
+		/// </summary>
+		/// <returns>The version of this test in Major.Minor.Fix format.</returns>
+		public string TestVersion { get { return string.Format("{0}.{1}.{2}", TestVersionMajor, TestVersionMinor, TestVersionFix); } }
 
 		/// <summary>
 		/// Path to the directory that logs and other artifacts are copied to after the test run.
