@@ -29,7 +29,7 @@ namespace Chaos
 			AABBMaxChildrenInLeaf = 500;
 			AABBMaxTreeDepth = 200;
 			MaxPayloadSize = 100000;
-			IterationsPerTimeSlice = 20000;
+			IterationsPerTimeSlice = 40000;
 		}
 	} ConfigSettings;
 
@@ -408,11 +408,6 @@ namespace Chaos
 		CHAOS_SCOPED_TIMER(ComputeIntermediateSpatialAcceleration);
 
 		bool ForceFullBuild = InternalAccelerationQueue.Num() > 1000;
-
-		if (ForceFullBuild)
-		{
-			UE_LOG(LogChaos, Warning, TEXT("ForceFullBuild"));
-		}
 
 		if (!AccelerationStructureTaskComplete)
 		{
