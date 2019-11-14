@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#include "UObject/WeakObjectPtr.h"
 #include "Misc/Guid.h"
 
 #include "LandscapeInfoMap.generated.h"
@@ -24,8 +25,7 @@ public:
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
 	TMap<FGuid, ULandscapeInfo*> Map;
-	UWorld* World;
-
+	TWeakObjectPtr<UWorld> World;
 
 	/**
 	* Gets landscape-specific data for given world.
