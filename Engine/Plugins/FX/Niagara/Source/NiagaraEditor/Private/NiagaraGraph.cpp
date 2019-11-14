@@ -936,6 +936,15 @@ bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName New
 	{
 		if (!bFromStaticSwitch || (bFromStaticSwitch && NumReferences <= 1))
 		{
+			// Rename all the bindings that point to the old parameter 
+			for (auto It : VariableToScriptVariable)
+			{
+				UNiagaraScriptVariable* Variable = It.Value;
+				if (Variable && Variable->DefaultBinding.GetName() == Parameter.GetName())
+				{
+					Variable->DefaultBinding.SetName(NewParameter.GetName());
+				}
+			}
 			VariableToScriptVariable.Remove(Parameter);
 		}
 	}
@@ -1528,6 +1537,18 @@ void UNiagaraGraph::RefreshParameterReferences() const
 		}
 	}
 
+	// Add reference to all variables that are default bound to
+	for (auto It = VariableToScriptVariable.CreateConstIterator(); It; ++It)
+	{
+		UNiagaraScriptVariable* Variable = It.Value();
+		if (Variable->DefaultMode != ENiagaraDefaultMode::Binding || !Variable->DefaultBinding.IsValid())
+		{
+			continue;
+		}
+
+		AddBindingParameterReference(FNiagaraVariable(Variable->Variable.GetType(), Variable->DefaultBinding.GetName()));
+	}
+
 	// If there were any previous parameters which didn't have any references added, remove them here.
 	for (const FNiagaraVariable& UnreferencedParameterToRemove : CandidateUnreferencedParametersToRemove)
 	{
@@ -1550,11 +1571,10 @@ void UNiagaraGraph::RefreshParameterReferences() const
 	for (auto& ParameterToReferences : ParameterToReferencesMap)
 	{
 		UNiagaraScriptVariable* Variable = GetScriptVariable(ParameterToReferences.Key);
-		if (Variable)
+		if (!Variable)
 		{
-			continue;
+			AddMissingScriptVariable(ParameterToReferences.Key);
 		}
-		AddMissingScriptVariable(ParameterToReferences.Key);
 	}
 	
 	static const auto UseShaderStagesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.UseShaderStages"));
