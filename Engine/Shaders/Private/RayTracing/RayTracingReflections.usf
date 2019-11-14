@@ -132,8 +132,10 @@ float3 GenerateReflectionDirection(inout RandomSequence RandSequence, uint2 Disp
 		if (BounceIndex == 0 && SamplePerPixel == 1 && RetryCount == 0 && SampleMode == SAMPLE_PHASE_MONOLITHIC)
 		{
 			E = Rand1SPPDenoiserInput(DispatchThreadId);
-			E.y *= 1 - GGX_IMPORTANT_SAMPLE_BIAS;
+			//E.y *= 1 - GGX_IMPORTANT_SAMPLE_BIAS;
 		}
+		
+		E.y *= 1 - GGX_IMPORTANT_SAMPLE_BIAS;
 
 		outDirection = GenerateReflectedRayDirection(IncidentDirection, WorldNormal, Roughness, E);
 	} while (dot(WorldNormal, outDirection) < 0.0 && ++RetryCount < 16);
