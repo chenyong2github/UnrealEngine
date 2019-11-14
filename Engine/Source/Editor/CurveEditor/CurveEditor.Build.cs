@@ -8,7 +8,8 @@ public class CurveEditor : ModuleRules
 	{
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
-				"Core",
+                "ApplicationCore",
+                "Core",
 				"CoreUObject",
 				"Engine",
 				"EditorStyle",

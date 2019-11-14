@@ -5,14 +5,18 @@
 #include "CoreTypes.h"
 #include "CurveEditorTypes.h"
 #include "Curves/RichCurve.h"
+#include "CurveDataAbstraction.generated.h"
 
 struct FSlateBrush;
 
 /**
  * Generic key position information for a key on a curve
  */
+USTRUCT()
 struct FKeyPosition
 {
+	GENERATED_BODY()
+
 	FKeyPosition()
 		: InputValue(0.0), OutputValue(0.0)
 	{}
@@ -22,16 +26,22 @@ struct FKeyPosition
 	{}
 
 	/** The key's input (x-axis) position (i.e. it's time) */
+	UPROPERTY()
 	double InputValue;
+
 	/** The key's output (t-axis) position (i.e. it's value) */
+	UPROPERTY()
 	double OutputValue;
 };
 
 /**
  * Extended attributes that the curve editor understands
  */
+USTRUCT()
 struct FKeyAttributes
 {
+	GENERATED_BODY()
+		
 	FKeyAttributes()
 	{
 		bHasArriveTangent = 0;
@@ -133,33 +143,47 @@ struct FKeyAttributes
 private:
 
 	/** True if this key supports entry tangents */
+	UPROPERTY()
 	uint8 bHasArriveTangent : 1;
 	/** True if this key supports exit tangents */
+	UPROPERTY()
 	uint8 bHasLeaveTangent : 1;
 	/** True if this key supports interpolation modes */
+	UPROPERTY()
 	uint8 bHasInterpMode : 1;
 	/** True if this key supports tangent modes */
+	UPROPERTY()
 	uint8 bHasTangentMode : 1;
 	/** True if this key supports tangent modes */
+	UPROPERTY()
 	uint8 bHasTangentWeightMode : 1;
 	/** True if this key supports entry tangents weights*/
+	UPROPERTY()
 	uint8 bHasArriveTangentWeight : 1;
 	/** True if this key supports exit tangents weights*/
+	UPROPERTY()
 	uint8 bHasLeaveTangentWeight : 1;
 
 	/** This key's entry tangent, if bHasArriveTangent */
+	UPROPERTY()
 	float ArriveTangent;
 	/** This key's exit tangent, if bHasLeaveTangent */
+	UPROPERTY()
 	float LeaveTangent;
 	/** This key's interpolation mode, if bHasInterpMode */
-	ERichCurveInterpMode InterpMode;
+	UPROPERTY()
+	TEnumAsByte<ERichCurveInterpMode> InterpMode;
 	/** This key's tangent mode, if bHasTangentMode */
-	ERichCurveTangentMode TangentMode;
+	UPROPERTY()
+	TEnumAsByte<ERichCurveTangentMode> TangentMode;
 	/** This key's tangent weight mode, if bHasTangentWeightMode */
-	ERichCurveTangentWeightMode TangentWeightMode;
+	UPROPERTY()
+	TEnumAsByte<ERichCurveTangentWeightMode> TangentWeightMode;
 	/** This key's entry tangent weight, if bHasArriveTangentWeight */
+	UPROPERTY()
 	float ArriveTangentWeight;
 	/** This key's exit tangent weight, if bHasLeaveTangentWeight */
+	UPROPERTY()
 	float LeaveTangentWeight;
 
 };
