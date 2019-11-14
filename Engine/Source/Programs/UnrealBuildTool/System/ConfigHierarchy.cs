@@ -817,6 +817,68 @@ namespace UnrealBuildTool
 			return PersonalConfigFolder;
 		}
 
+		private static string GetLayerPath(ConfigLayer Layer, string PlatformExtensionName, string IniPlatformName, DirectoryReference ProjectDir, string BaseIniName,
+			out bool bHasPlatformTag, out bool bHasProjectTag, out bool bHasExpansionTag)
+		{
+			// cache some platform extension information that can be used inside the loops
+			string PlatformExtensionEngineConfigDir = DirectoryReference.Combine(UnrealBuildTool.EnginePlatformExtensionsDirectory, PlatformExtensionName).FullName;
+			string PlatformExtensionProjectConfigDir = ProjectDir != null ? DirectoryReference.Combine(UnrealBuildTool.ProjectPlatformExtensionsDirectory(ProjectDir), PlatformExtensionName).FullName : null;
+			bool bHasPlatformExtensionEngineConfigDir = Directory.Exists(PlatformExtensionEngineConfigDir);
+			bool bHasPlatformExtensionProjectConfigDir = PlatformExtensionProjectConfigDir != null && Directory.Exists(PlatformExtensionProjectConfigDir);
+
+			bHasPlatformTag = Layer.Path.Contains("{PLATFORM}");
+			bHasProjectTag = Layer.Path.Contains("{PROJECT}");
+			bHasExpansionTag = Layer.Path.Contains("{ED}") || Layer.Path.Contains("{EF}");
+			bool bHasUserTag = Layer.Path.Contains("{USER}");
+
+			// skip platform layers if we are "platform-less", or user layers without a user dir
+			if ((bHasPlatformTag && IniPlatformName == "None") ||
+				(bHasProjectTag && ProjectDir == null) ||
+				(bHasUserTag && GetUserDir() == null))
+			{
+				return null;
+			}
+
+			// basic replacements
+			string LayerPath;
+			// you can only have PROJECT or ENGINE, not both
+			if (bHasProjectTag)
+			{
+				if (bHasPlatformTag && bHasPlatformExtensionProjectConfigDir)
+				{
+					LayerPath = Layer.ExtProjectPath.Replace("{EXTPROJECT}", PlatformExtensionProjectConfigDir);
+				}
+				else
+				{
+					LayerPath = Layer.Path.Replace("{PROJECT}", ProjectDir.FullName);
+				}
+			}
+			else
+			{
+				if (bHasPlatformTag && bHasPlatformExtensionEngineConfigDir)
+				{
+					LayerPath = Layer.ExtEnginePath.Replace("{EXTENGINE}", PlatformExtensionEngineConfigDir);
+				}
+				else
+				{
+					LayerPath = Layer.Path.Replace("{ENGINE}", UnrealBuildTool.EngineDirectory.FullName);
+				}
+			}
+			LayerPath = LayerPath.Replace("{TYPE}", BaseIniName);
+			LayerPath = LayerPath.Replace("{USERSETTINGS}", Utils.GetUserSettingDirectory().FullName);
+			LayerPath = LayerPath.Replace("{USER}", GetUserDir());
+
+			return LayerPath;
+		}
+
+		private static string GetExpansionPath(ConfigLayerExpansion Expansion, string LayerPath)
+		{
+			string ExpansionPath = LayerPath.Replace("{ED}", Expansion.DirectoryPrefix);
+			ExpansionPath = ExpansionPath.Replace("{EF}", Expansion.FilePrefix);
+
+			return ExpansionPath;
+		}
+
 		/// <summary>
 		/// Returns a list of INI filenames for the given project
 		/// </summary>
@@ -825,57 +887,16 @@ namespace UnrealBuildTool
 			string BaseIniName = Enum.GetName(typeof(ConfigHierarchyType), Type);
 			string PlatformName = GetIniPlatformName(Platform);
 
-			// cache some platform extension information that can be used inside the loops
-			string PlatformExtensionEngineConfigDir = DirectoryReference.Combine(UnrealBuildTool.EnginePlatformExtensionsDirectory, Platform.ToString()).FullName;
-			string PlatformExtensionProjectConfigDir = ProjectDir != null ? DirectoryReference.Combine(UnrealBuildTool.ProjectPlatformExtensionsDirectory(ProjectDir), Platform.ToString()).FullName : null;
-			bool bHasPlatformExtensionEngineConfigDir = Directory.Exists(PlatformExtensionEngineConfigDir);
-			bool bHasPlatformExtensionProjectConfigDir = PlatformExtensionProjectConfigDir != null && Directory.Exists(PlatformExtensionProjectConfigDir);
-
-
 			foreach (ConfigLayer Layer in ConfigLayers)
 			{
-				bool bHasPlatformTag = Layer.Path.Contains("{PLATFORM}");
-				bool bHasProjectTag = Layer.Path.Contains("{PROJECT}");
-				bool bHasExpansionTag = Layer.Path.Contains("{ED}") || Layer.Path.Contains("{EF}");
-				bool bHasUserTag = Layer.Path.Contains("{USER}");
+				bool bHasPlatformTag, bHasProjectTag, bHasExpansionTag;
+				string LayerPath = GetLayerPath(Layer, Platform.ToString(), PlatformName, ProjectDir, BaseIniName, out bHasPlatformTag, out bHasProjectTag, out bHasExpansionTag);
 
-				// skip platform layers if we are "platform-less", or user layers without a user dir
-				if (bHasPlatformTag && Platform == null ||
-					bHasProjectTag && ProjectDir == null ||
-					bHasUserTag && GetUserDir() == null)
+				// skip the layer if we aren't going to use it
+				if (LayerPath == null)
 				{
 					continue;
 				}
-
-				// basic replacements
-				string LayerPath;
-				// you can only have PROJECT or ENGINE, not both
-				if (bHasProjectTag)
-				{
-					if (bHasPlatformTag && bHasPlatformExtensionProjectConfigDir)
-					{
-						LayerPath = Layer.ExtProjectPath.Replace("{EXTPROJECT}", PlatformExtensionProjectConfigDir);
-					}
-					else
-					{
-						LayerPath = Layer.Path.Replace("{PROJECT}", ProjectDir.FullName);
-					}
-				}
-				else
-				{
-					if (bHasPlatformTag && bHasPlatformExtensionEngineConfigDir)
-					{
-						LayerPath = Layer.ExtEnginePath.Replace("{EXTENGINE}", PlatformExtensionEngineConfigDir);
-					}
-					else
-					{
-						LayerPath = Layer.Path.Replace("{ENGINE}", UnrealBuildTool.EngineDirectory.FullName);
-					}
-				}
-				LayerPath = LayerPath.Replace("{TYPE}", BaseIniName);
-				LayerPath = LayerPath.Replace("{USERSETTINGS}", Utils.GetUserSettingDirectory().FullName);
-				if (bHasUserTag) LayerPath = LayerPath.Replace("{USER}", GetUserDir());
-
 
 				// handle expansion (and platform - the C++ code will validate that only expansion layers have platforms)
 				if (bHasExpansionTag)
@@ -883,8 +904,7 @@ namespace UnrealBuildTool
 					foreach (ConfigLayerExpansion Expansion in ConfigLayerExpansions)
 					{
 						// expansion replacements
-						string ExpansionPath = LayerPath.Replace("{ED}", Expansion.DirectoryPrefix);
-						ExpansionPath = ExpansionPath.Replace("{EF}", Expansion.FilePrefix);
+						string ExpansionPath = GetExpansionPath(Expansion, LayerPath);
 
 						// now go up the ini parent chain
 						if (bHasPlatformTag)
@@ -895,7 +915,13 @@ namespace UnrealBuildTool
 								// the IniParentChain
 								foreach (string ParentPlatform in Info.IniParentChain)
 								{
-									yield return new FileReference(ExpansionPath.Replace("{PLATFORM}", ParentPlatform));
+									// @note: We are using the ParentPlatform as both PlatformExtensionName _and_ IniPlatformName. This is because the parent
+									// may not even exist as a UnrealTargetPlatform, and all we have is a string to look up, and it would just get the same
+									// string back, if we did look it up. This could become an issue if Win64 becomes a PlatformExtension, and wants to have 
+									// a parent Platform, of ... something. This is likely to never be an issue, but leaving this note here just in case.
+									string LocalLayerPath = GetLayerPath(Layer, ParentPlatform, ParentPlatform, ProjectDir, BaseIniName, out bHasPlatformTag, out bHasProjectTag, out bHasExpansionTag);
+									string LocalExpansionPath = GetExpansionPath(Expansion, LocalLayerPath);
+									yield return new FileReference(LocalExpansionPath.Replace("{PLATFORM}", ParentPlatform));
 								}
 							}
 							// always yield the active platform last 
