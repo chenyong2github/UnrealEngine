@@ -349,12 +349,13 @@ void FTimingViewDrawHelper::DrawBackground() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimingViewDrawHelper::DrawEventsTrack(const FTimingEventsTrackDrawState& DrawState, const FTimingEventsTrack& Track) const
+void FTimingViewDrawHelper::DrawEvents(const FTimingEventsTrackDrawState& DrawState, const FTimingEventsTrack& Track, const float OffsetY) const
 {
 	const float TrackY = Track.GetPosY();
+	const float TrackH = Track.GetHeight();
 
-	if (Track.GetHeight() > 0.0f &&
-		TrackY + Track.GetHeight() > Viewport.GetTopOffset() &&
+	if (TrackH > 0.0f &&
+		TrackY + TrackH > Viewport.GetTopOffset() &&
 		TrackY < Viewport.GetHeight() - Viewport.GetBottomOffset())
 	{
 		const FTimingViewLayout& Layout = Viewport.GetLayout();
@@ -362,10 +363,10 @@ void FTimingViewDrawHelper::DrawEventsTrack(const FTimingEventsTrackDrawState& D
 		NumEvents += DrawState.GetNumEvents();
 		NumMergedBoxes += DrawState.GetNumMergedBoxes();
 
-		const float TopLaneY = TrackY + 1.0f + Layout.TimelineDY; // +1.0f is for horizontal line between timelines
+		const float TopLaneY = TrackY + OffsetY + Layout.TimelineDY;
 
-		// Draw filled boxes.
-		//if (Layout.EventH > 2.0f)
+		// Draw filled boxes (merged borders).
+		//if (Layout.EventH > 0.0f)
 		{
 			const int32 EventFillLayerId = ReservedLayerId + ToInt32(EDrawLayer::EventFill);
 			const float EventFillH = Layout.EventH;
@@ -377,7 +378,7 @@ void FTimingViewDrawHelper::DrawEventsTrack(const FTimingEventsTrackDrawState& D
 			NumDrawBoxes += DrawState.Boxes.Num();
 		}
 
-		// Draw merged borders.
+		// Draw filled boxes (event inside area).
 		if (Layout.EventH > 2.0f)
 		{
 			const int32 EventFillLayerId = ReservedLayerId + ToInt32(EDrawLayer::EventFill);
@@ -414,13 +415,26 @@ void FTimingViewDrawHelper::DrawEventsTrack(const FTimingEventsTrackDrawState& D
 			}
 			NumDrawTexts += DrawState.Texts.Num();
 		}
+	}
+}
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingViewDrawHelper::DrawTrackHeader(const FTimingEventsTrack& Track) const
+{
+	const float TrackY = Track.GetPosY();
+	const float TrackH = Track.GetHeight();
+
+	if (TrackH > 0.0f &&
+		TrackY + TrackH > Viewport.GetTopOffset() &&
+		TrackY < Viewport.GetHeight() - Viewport.GetBottomOffset())
+	{
 		// Draw a horizontal line between timelines (top line of a track).
 		const int32 HeaderLayerId = ReservedLayerId + ToInt32(EDrawLayer::HeaderBackground);
 		DrawContext.DrawBox(HeaderLayerId, 0.0f, TrackY, Viewport.GetWidth(), 1.0f, WhiteBrush, EdgeColor);
 
 		// Draw header with name of timeline.
-		if (Track.GetHeight() > 4.0f)
+		if (TrackH > 4.0f)
 		{
 			const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 			float NameWidth = FontMeasureService->Measure(Track.GetName(), EventFont).X;

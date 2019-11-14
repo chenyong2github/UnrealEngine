@@ -168,7 +168,11 @@ public:
 	void DrawBackground() const;
 
 	void BeginDrawTracks() const;
-	void DrawEventsTrack(const FTimingEventsTrackDrawState& DrawState, const FTimingEventsTrack& Track) const;
+	// OffsetY = 1.0f is for the top horizontal line (which separates the timelines) added by DrawTrackHeader.
+	void DrawEvents(const FTimingEventsTrackDrawState& DrawState, const FTimingEventsTrack& Track, const float OffsetY = 1.0f) const;
+	int32 GetHeaderBackgroundLayerId() const { return ReservedLayerId + ToInt32(EDrawLayer::HeaderBackground); }
+	int32 GetHeaderTextLayerId() const { return ReservedLayerId + ToInt32(EDrawLayer::HeaderText); }
+	void DrawTrackHeader(const FTimingEventsTrack& Track) const;
 	void EndDrawTracks() const;
 
 	void DrawTimingEventHighlight(double StartTime, double EndTime, float Y, EDrawEventMode Mode) const;

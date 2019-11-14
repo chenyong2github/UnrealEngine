@@ -48,6 +48,12 @@ protected:
 
 	void UpdateTrackHeight(const ITimingTrackUpdateContext& Context);
 
+	void DrawEvents(const ITimingTrackDrawContext& Context, const float OffsetY = 1.0f) const;
+	void DrawHeader(const ITimingTrackDrawContext& Context) const;
+
+	int32 GetHeaderBackgroundLayerId(const ITimingTrackDrawContext& Context) const;
+	int32 GetHeaderTextLayerId(const ITimingTrackDrawContext& Context) const;
+
 private:
 	int32 NumLanes; // number of lanes (sub-tracks)
 	TSharedRef<struct FTimingEventsTrackDrawState> DrawState;

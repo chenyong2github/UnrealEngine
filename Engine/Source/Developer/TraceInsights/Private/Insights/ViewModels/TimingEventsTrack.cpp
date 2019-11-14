@@ -109,7 +109,7 @@ void FTimingEventsTrack::PostUpdate(const ITimingTrackUpdateContext& Context)
 	if (MouseY >= GetPosY() && MouseY < GetPosY() + GetHeight())
 	{
 		SetHoveredState(true);
-		
+
 		const float MouseX = Context.GetMousePosition().X;
 		SetHeaderHoveredState(MouseX < HeaderWidth && MouseY < GetPosY() + HeaderHeight);
 	}
@@ -124,7 +124,40 @@ void FTimingEventsTrack::PostUpdate(const ITimingTrackUpdateContext& Context)
 void FTimingEventsTrack::Draw(const ITimingTrackDrawContext& Context) const
 {
 	const FTimingViewDrawHelper& Helper = Context.GetHelper();
-	Helper.DrawEventsTrack(*DrawState, *this);
+	Helper.DrawEvents(*DrawState, *this);
+	Helper.DrawTrackHeader(*this);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingEventsTrack::DrawEvents(const ITimingTrackDrawContext& Context, const float OffsetY) const
+{
+	const FTimingViewDrawHelper& Helper = Context.GetHelper();
+	Helper.DrawEvents(*DrawState, *this, OffsetY);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int32 FTimingEventsTrack::GetHeaderBackgroundLayerId(const ITimingTrackDrawContext& Context) const
+{
+	const FTimingViewDrawHelper& Helper = Context.GetHelper();
+	return Helper.GetHeaderBackgroundLayerId();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int32 FTimingEventsTrack::GetHeaderTextLayerId(const ITimingTrackDrawContext& Context) const
+{
+	const FTimingViewDrawHelper& Helper = Context.GetHelper();
+	return Helper.GetHeaderTextLayerId();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingEventsTrack::DrawHeader(const ITimingTrackDrawContext& Context) const
+{
+	const FTimingViewDrawHelper& Helper = Context.GetHelper();
+	Helper.DrawTrackHeader(*this);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
