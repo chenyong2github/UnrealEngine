@@ -1039,6 +1039,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category="HUD")
 	AHUD* GetHUD() const;
 
+	/** Templated version of GetHUD, will return nullptr if cast fails */
+	template<class T>
+	T* GetHUD() const
+	{
+		return Cast<T>(MyHUD);
+	}
+
 	/**
 	 * Sets the Widget for the Mouse Cursor to display 
 	 * @param Cursor - the cursor to set the widget for
