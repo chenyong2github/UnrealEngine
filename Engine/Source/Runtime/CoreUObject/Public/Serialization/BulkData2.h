@@ -49,8 +49,8 @@ public:
 	static void SetIODispatcher(FIoDispatcher* InIoDispatcher) { IoDispatcher = InIoDispatcher; }
 
 public:
-	using FileToken = uint64;
-	static constexpr FileToken InvalidToken = 0;
+	using FileToken = int32;
+	static constexpr FileToken InvalidToken = INDEX_NONE;
 
 	FBulkDataBase(const FBulkDataBase& Other) { *this = Other; }
 	FBulkDataBase(FBulkDataBase&& Other);
