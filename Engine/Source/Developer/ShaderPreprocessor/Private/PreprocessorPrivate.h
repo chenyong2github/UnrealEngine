@@ -68,7 +68,7 @@ static bool ParseMcppErrors(TArray<FShaderCompilerError>& OutErrors, TArray<FStr
 			const FString& Line = Lines[LineIndex];
 			int32 SepIndex1 = Line.Find(TEXT(":"), ESearchCase::CaseSensitive, ESearchDir::FromStart, 2);
 			int32 SepIndex2 = Line.Find(TEXT(":"), ESearchCase::CaseSensitive, ESearchDir::FromStart, SepIndex1 + 1);
-			if (SepIndex1 != INDEX_NONE && SepIndex2 != INDEX_NONE)
+			if (SepIndex1 != INDEX_NONE && SepIndex2 != INDEX_NONE && SepIndex1 < SepIndex2)
 			{
 				FString Filename = Line.Left(SepIndex1);
 				FString LineNumStr = Line.Mid(SepIndex1 + 1, SepIndex2 - SepIndex1 - 1);
@@ -110,7 +110,20 @@ static bool ParseMcppErrors(TArray<FShaderCompilerError>& OutErrors, TArray<FStr
 							break;
 					}
 				}
-
+				else
+				{
+					// Presume message is an error
+					FShaderCompilerError* CompilerError = new(OutErrors) FShaderCompilerError;
+					CompilerError->StrippedErrorMessage = Line;
+					bSuccess = false;
+				}
+			}
+			else
+			{
+				// Presume message is an error
+				FShaderCompilerError* CompilerError = new(OutErrors) FShaderCompilerError;
+				CompilerError->StrippedErrorMessage = Line;
+				bSuccess = false;
 			}
 		}
 	}
