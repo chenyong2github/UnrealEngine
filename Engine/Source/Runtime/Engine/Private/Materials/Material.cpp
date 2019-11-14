@@ -1073,10 +1073,6 @@ void UMaterial::GetUsedTexturesAndIndices(TArray<UTexture*>& OutTextures, TArray
 
 					if (Texture)
 					{
-						if (TypeIndex == 2) 
-						{
-							UE_LOG(LogTexture, Warning, TEXT("adsf"));
-						}
 						int32 InsertIndex = OutTextures.AddUnique(Texture);
 						if (InsertIndex >= OutIndices.Num())
 						{
