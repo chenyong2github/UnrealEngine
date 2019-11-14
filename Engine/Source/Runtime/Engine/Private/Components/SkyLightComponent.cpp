@@ -174,6 +174,8 @@ FSkyLightSceneProxy::FSkyLightSceneProxy(const USkyLightComponent* InLightCompon
 	, bHasStaticLighting(InLightComponent->HasStaticLighting())
 	, bCastVolumetricShadow(InLightComponent->bCastVolumetricShadow)
 	, bCastRayTracedShadow(InLightComponent->bCastRaytracedShadow)
+	, bAffectReflection(InLightComponent->bAffectReflection)
+	, bAffectGlobalIllumination(InLightComponent->bAffectGlobalIllumination)
 	, OcclusionCombineMode(InLightComponent->OcclusionCombineMode)
 	, IndirectLightingIntensity(InLightComponent->IndirectLightingIntensity)
 	, VolumetricScatteringIntensity(FMath::Max(InLightComponent->VolumetricScatteringIntensity, 0.0f))
@@ -236,6 +238,8 @@ USkyLightComponent::USkyLightComponent(const FObjectInitializer& ObjectInitializ
 	BlendDestinationAverageBrightness = 1.0f;
 	bCastVolumetricShadow = true;
 	bCastRaytracedShadow = false;
+	bAffectReflection = true;
+	bAffectGlobalIllumination = true;
 	SamplesPerPixel = 1;
 }
 
