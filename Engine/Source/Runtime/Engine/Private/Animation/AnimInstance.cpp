@@ -74,6 +74,8 @@ DEFINE_STAT(STAT_AnimGameThreadTime);
 DEFINE_STAT(STAT_TickAssetPlayerInstances);
 DEFINE_STAT(STAT_TickAssetPlayerInstance);
 
+CSV_DEFINE_CATEGORY_MODULE(ENGINE_API, Animation, false);
+
 // Define AnimNotify
 DEFINE_LOG_CATEGORY(LogAnimNotify);
 
