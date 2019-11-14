@@ -480,10 +480,9 @@ FActiveSound* FSoundConcurrencyManager::GetEvictableSoundStopFarthest(const FAct
 	const EMaxConcurrentResolutionRule::Type Rule = ConcurrencyGroup.GetSettings().ResolutionRule;
 
 	check(AudioDevice);
-	TArray<FListener>& Listeners = AudioDevice->Listeners;
-
-	int32 ClosestListenerIndex = NewActiveSound.FindClosestListener(Listeners);
-	float DistanceToStopSoundSq = FVector::DistSquared(Listeners[ClosestListenerIndex].Transform.GetTranslation(), NewActiveSound.Transform.GetTranslation());
+	float DistanceToStopSoundSq;
+	const bool bAllowAttenuationOverrides = false;
+	int32 ClosestListenerIndex = AudioDevice->FindClosestListenerIndex(NewActiveSound.Transform.GetTranslation(), DistanceToStopSoundSq, bAllowAttenuationOverrides);
 
 	FActiveSound* EvictableSound = nullptr;
 	const TArray<FActiveSound*>& ActiveSounds = ConcurrencyGroup.GetActiveSounds();
@@ -491,8 +490,8 @@ FActiveSound* FSoundConcurrencyManager::GetEvictableSoundStopFarthest(const FAct
 	{
 		check(ActiveSound);
 
-		ClosestListenerIndex = ActiveSound->FindClosestListener(Listeners);
-		const float DistanceToActiveSoundSq = FVector::DistSquared(Listeners[ClosestListenerIndex].Transform.GetTranslation(), ActiveSound->Transform.GetTranslation());
+		float DistanceToActiveSoundSq;
+		ClosestListenerIndex = AudioDevice->FindClosestListenerIndex(ActiveSound->Transform.GetTranslation(), DistanceToActiveSoundSq, bAllowAttenuationOverrides);
 
 		// Stop Farthest
 		if (DistanceToActiveSoundSq > DistanceToStopSoundSq)

@@ -510,13 +510,15 @@ void FAudioDebugger::DrawDebugInfo(const FActiveSound& ActiveSound, const TArray
 #endif // ENABLE_DRAW_DEBUG
 }
 
-void FAudioDebugger::DrawDebugInfo(UWorld& World, const TArray<FListener>& Listeners, FVector& ListenerTransformOverride, bool bUseListenerTransformOverride)
+void FAudioDebugger::DrawDebugInfo(UWorld& World, const TArray<FListener>& Listeners)
 {
 #if ENABLE_DRAW_DEBUG
 	if (!ActiveSoundVisualizeListenersCVar)
 	{
 		return;
 	}
+
+	check(IsInAudioThread());
 
 	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
 	if (DeviceManager && DeviceManager->IsVisualizeDebug3dEnabled())
@@ -525,10 +527,11 @@ void FAudioDebugger::DrawDebugInfo(UWorld& World, const TArray<FListener>& Liste
 		const TWeakObjectPtr<UWorld> WorldPtr = &World;
 		for (const FListener& Listener : Listeners)
 		{
-			const FVector ListenerPosition = bUseListenerTransformOverride ? ListenerTransformOverride : Listener.Transform.GetTranslation();
+			const FVector ListenerPosition = Listener.GetPosition(true);
 			const FVector ListenerFront = Listener.GetFront();
 			const FVector ListenerUp = Listener.GetUp();
 			const FVector ListenerRight = Listener.GetRight();
+
 			FAudioThread::RunCommandOnGameThread([WorldPtr, ListenerPosition, ListenerFront, ListenerUp, ListenerRight]()
 			{
 				if (WorldPtr.IsValid())
@@ -853,6 +856,8 @@ int32 FAudioDebugger::RenderStatReverb(UWorld* World, FViewport* Viewport, FCanv
 		return Y;
 	}
 
+	check(IsInGameThread());
+
 	const int32 Height = static_cast<int32>(GetStatsFont()->GetMaxCharHeight() + 2);
 
 	FString TheString;
@@ -863,8 +868,10 @@ int32 FAudioDebugger::RenderStatReverb(UWorld* World, FViewport* Viewport, FCanv
 		Y += Height;
 
 		AAudioVolume* CurrentAudioVolume = nullptr;
-		for (const FTransform& Transform : AudioDevice->ListenerTransforms)
+		const int32 ProxyCount = AudioDevice->ListenerProxies.Num();
+		for (int i = 0; i < ProxyCount; ++i)
 		{
+			const FTransform& Transform = AudioDevice->ListenerProxies[i].Transform;
 			AAudioVolume* PlayerAudioVolume = World->GetAudioSettings(Transform.GetLocation(), nullptr, nullptr);
 			if (PlayerAudioVolume && ((CurrentAudioVolume == nullptr) || (PlayerAudioVolume->GetPriority() > CurrentAudioVolume->GetPriority())))
 			{
