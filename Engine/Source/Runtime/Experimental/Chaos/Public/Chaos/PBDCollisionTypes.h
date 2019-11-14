@@ -101,39 +101,6 @@ namespace Chaos
 
 	};
 
-	/*
-	template<class T, int d>
-	struct TCollisionResolutionManifold
-	{
-		bool ContainsShapeConnection(const FImplicitObject* Implicit0, const FImplicitObject* Implicit1) { return false; }
-
-		TRigidBodyContactConvexConstraint2<T, d> A;
-	};
-	*/
-
-	/**
-	// @todo(ccaulfield): should these be held SOA style in the PBDCollisionConstraint?
-	template<class T, int d>
-	struct TRigidBodyContactConstraint
-	{
-		TRigidBodyContactConstraint() : bDisabled(false), Normal(0), AccumulatedImpulse(0.f) {}
-		TGeometryParticleHandle<T, d>* Particle;
-		TGeometryParticleHandle<T, d>* Levelset;
-		const FImplicitObject* Geometry[2];
-
-		bool bDisabled;
-		TVector<T, d> Normal;
-		TVector<T, d> Location;
-		TVector<T, d> LocalLocation;
-		T Phi;
-		TVector<T, d> AccumulatedImpulse;
-
-		FString ToString() const
-		{
-			return FString::Printf(TEXT("Particle:%s, Levelset:%s, Normal:%s, Location:%s, Phi:%f, AccumulatedImpulse:%s"), *Particle->ToString(), *Levelset->ToString(), *Normal.ToString(), *Location.ToString(), Phi, *AccumulatedImpulse.ToString());
-		}
-	};
-	*/
 
 	template<class T, int d>
 	struct TRigidBodyContactConstraintPGS
