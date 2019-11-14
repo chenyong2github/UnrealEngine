@@ -46,6 +46,8 @@ public:
 
 	UNiagaraStackViewModel* GetSelectionStackViewModel();
 
+	void EmptySelection();
+
 	void RemoveEntryFromSelectionByDisplayedObject(const UObject* InObject);
 
 	void AddEntriesToSelectionByDisplayedObjectsDeferred(const TArray<const UObject*>& InObjects);
