@@ -30,11 +30,6 @@ void UDisplayClusterSceneComponentSyncThis::TickComponent( float DeltaTime, ELev
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterClusterSyncObject
 //////////////////////////////////////////////////////////////////////////////////////////////
-FString UDisplayClusterSceneComponentSyncThis::GetSyncId() const
-{
-	return FString::Printf(TEXT("ST_%s"), *GetOwner()->GetName());
-}
-
 bool UDisplayClusterSceneComponentSyncThis::IsDirty() const
 {
 	return (LastSyncLoc != GetRelativeLocation() || LastSyncRot != GetRelativeRotation() || LastSyncScale != GetRelativeScale3D());
@@ -51,6 +46,11 @@ void UDisplayClusterSceneComponentSyncThis::ClearDirty()
 //////////////////////////////////////////////////////////////////////////////////////////////
 // UDisplayClusterSceneComponentSync
 //////////////////////////////////////////////////////////////////////////////////////////////
+FString UDisplayClusterSceneComponentSyncThis::GenerateSyncId()
+{
+	return FString::Printf(TEXT("ST_%s"), *GetOwner()->GetName());
+}
+
 FTransform UDisplayClusterSceneComponentSyncThis::GetSyncTransform() const
 {
 	return GetRelativeTransform();
