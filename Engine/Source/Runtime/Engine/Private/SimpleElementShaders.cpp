@@ -165,7 +165,7 @@ void FSimpleElementDistanceFieldGammaPS::SetParameters(
 	float InGamma,
 	float InClipRef,
 	float SmoothWidthValue,
-	bool EnableShadowValue,
+	bool bEnableShadowValue,
 	const FVector2D& ShadowDirectionValue,
 	const FLinearColor& ShadowColorValue,
 	float ShadowSmoothWidthValue,
@@ -174,15 +174,16 @@ void FSimpleElementDistanceFieldGammaPS::SetParameters(
 	)
 {
 	FSimpleElementMaskedGammaBasePS::SetParameters(RHICmdList, Texture,InGamma,InClipRef,BlendMode);
-	SetShaderValue(RHICmdList, GetPixelShader(),SmoothWidth,SmoothWidthValue);		
-	SetPixelShaderBool(RHICmdList, GetPixelShader(),EnableShadow,EnableShadowValue);
-	if (EnableShadowValue)
+	SetShaderValue(RHICmdList, GetPixelShader(),SmoothWidth,SmoothWidthValue);
+	const uint32 bEnableShadowValueUInt = (bEnableShadowValue ? 1 : 0);
+	SetShaderValue(RHICmdList, GetPixelShader(),EnableShadow,bEnableShadowValueUInt);
+	if (bEnableShadowValue)
 	{
 		SetShaderValue(RHICmdList, GetPixelShader(),ShadowDirection,ShadowDirectionValue);
 		SetShaderValue(RHICmdList, GetPixelShader(),ShadowColor,ShadowColorValue);
 		SetShaderValue(RHICmdList, GetPixelShader(),ShadowSmoothWidth,ShadowSmoothWidthValue);
 	}
-	SetPixelShaderBool(RHICmdList, GetPixelShader(),EnableGlow,GlowInfo.bEnableGlow);
+	SetShaderValue(RHICmdList, GetPixelShader(),EnableGlow,GlowInfo.bEnableGlow);
 	if (GlowInfo.bEnableGlow)
 	{
 		SetShaderValue(RHICmdList, GetPixelShader(),GlowColor,GlowInfo.GlowColor);
