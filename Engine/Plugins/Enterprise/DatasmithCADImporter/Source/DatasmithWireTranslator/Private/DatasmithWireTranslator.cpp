@@ -576,12 +576,17 @@ void FWireTranslatorImpl::AddAlBlinnParameters(AlShader *Shader, TSharedRef<IDat
 	MaterialElement->GetSpecular().SetExpression(FresnelMultiply);
 	MaterialElement->GetRoughness().SetExpression(RoughnessOneMinus);
 	MaterialElement->GetEmissiveColor().SetExpression(IncandescenceMultiply);
+
 	if (bIsTransparent)
 	{
 		MaterialElement->GetOpacity().SetExpression(Divide);
+		MaterialElement->SetParentLabel(TEXT("M_DatasmithAliasBlinnTransparent"));
+	}
+	else 
+	{
+		MaterialElement->SetParentLabel(TEXT("M_DatasmithAliasBlinn"));
 	}
 
-	MaterialElement->SetParentLabel(TEXT("BLINN"));
 }
 
 void FWireTranslatorImpl::AddAlLambertParameters(AlShader *Shader, TSharedRef<IDatasmithUEPbrMaterialElement> MaterialElement)
@@ -763,9 +768,12 @@ void FWireTranslatorImpl::AddAlLambertParameters(AlShader *Shader, TSharedRef<ID
 	if (bIsTransparent)
 	{
 		MaterialElement->GetOpacity().SetExpression(Divide);
+		MaterialElement->SetParentLabel(TEXT("M_DatasmithAliasLambertTransparent"));
+	}
+	else {
+		MaterialElement->SetParentLabel(TEXT("M_DatasmithAliasLambert"));
 	}
 
-	MaterialElement->SetParentLabel(TEXT("LAMBERT"));
 }
 
 void FWireTranslatorImpl::AddAlLightSourceParameters(AlShader *Shader, TSharedRef<IDatasmithUEPbrMaterialElement> MaterialElement)
@@ -917,12 +925,16 @@ void FWireTranslatorImpl::AddAlLightSourceParameters(AlShader *Shader, TSharedRe
 	// Connect material outputs
 	MaterialElement->GetBaseColor().SetExpression(BaseColorTransparencyMultiply);
 	MaterialElement->GetEmissiveColor().SetExpression(IncandescenceMultiply);
+
 	if (bIsTransparent)
 	{
 		MaterialElement->GetOpacity().SetExpression(Divide);
+		MaterialElement->SetParentLabel(TEXT("M_DatasmithAliasLightSourceTransparent"));
+	}
+	else {
+		MaterialElement->SetParentLabel(TEXT("M_DatasmithAliasLightSource"));
 	}
 
-	MaterialElement->SetParentLabel(TEXT("LIGHTSOURCE"));
 }
 
 void FWireTranslatorImpl::AddAlPhongParameters(AlShader *Shader, TSharedRef<IDatasmithUEPbrMaterialElement> MaterialElement)
@@ -1205,9 +1217,11 @@ void FWireTranslatorImpl::AddAlPhongParameters(AlShader *Shader, TSharedRef<IDat
 	if (bIsTransparent)
 	{
 		MaterialElement->GetOpacity().SetExpression(Divide);
+		MaterialElement->SetParentLabel(TEXT("M_DatasmithAliasPhongTransparent"));
 	}
-
-	MaterialElement->SetParentLabel(TEXT("PHONG"));
+	else {
+		MaterialElement->SetParentLabel(TEXT("M_DatasmithAliasPhong"));
+	}
 }
 //#endif
 
