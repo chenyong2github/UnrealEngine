@@ -303,11 +303,11 @@ void URemoveOccludedTrianglesTool::GenerateAsset(const TArray<FDynamicMeshOpResu
 	for (int32 ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
 	{
 		check(Results[ComponentIdx].Mesh.Get() != nullptr);
-		ComponentTargets[ComponentIdx]->CommitMesh([&Results, &ComponentIdx, this](FMeshDescription* MeshDescription)
+		ComponentTargets[ComponentIdx]->CommitMesh([&Results, &ComponentIdx, this](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 		{
 			FDynamicMeshToMeshDescription Converter;
 			
-			Converter.Convert(Results[ComponentIdx].Mesh.Get(), *MeshDescription);
+			Converter.Convert(Results[ComponentIdx].Mesh.Get(), *CommitParams.MeshDescription);
 		});
 	}
 

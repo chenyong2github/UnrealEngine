@@ -123,10 +123,10 @@ void USmoothMeshTool::Shutdown(EToolShutdownType ShutdownType)
 			FDynamicMesh3* DynamicMeshResult = Result.Mesh.Get();
 			check(DynamicMeshResult != nullptr);
 
-			ComponentTarget->CommitMesh([DynamicMeshResult](FMeshDescription* MeshDescription)
+			ComponentTarget->CommitMesh([DynamicMeshResult](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 			{
 				FDynamicMeshToMeshDescription Converter;
-				Converter.Convert(DynamicMeshResult, *MeshDescription);
+				Converter.Convert(DynamicMeshResult, *CommitParams.MeshDescription);
 			});
 
 

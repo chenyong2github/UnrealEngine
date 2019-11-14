@@ -131,20 +131,20 @@ void UAttributeEditorTool::GenerateAssets()
 
 	for (TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget : ComponentTargets)
 	{
-		ComponentTarget->CommitMesh([this](FMeshDescription* MeshDescription)
+		ComponentTarget->CommitMesh([this](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 		{
 			if (RemovalProperties->bClearNormals)
 			{
-				TEdgeAttributesRef<bool> EdgeHardnesses = MeshDescription->EdgeAttributes().GetAttributesRef<bool>(MeshAttribute::Edge::IsHard);
+				TEdgeAttributesRef<bool> EdgeHardnesses = CommitParams.MeshDescription->EdgeAttributes().GetAttributesRef<bool>(MeshAttribute::Edge::IsHard);
 				if (EdgeHardnesses.IsValid())
 				{
-					for (FEdgeID ElID : MeshDescription->Edges().GetElementIDs())
+					for (FEdgeID ElID : CommitParams.MeshDescription->Edges().GetElementIDs())
 					{
 						EdgeHardnesses[ElID] = false;
 					}
 				}
-				FMeshDescriptionOperations::CreatePolygonNTB(*MeshDescription, FMathf::Epsilon);
-				FMeshDescriptionOperations::RecomputeNormalsAndTangentsIfNeeded(*MeshDescription, FMeshDescriptionOperations::ETangentOptions::UseWeightedAreaAndAngle, true);
+				FMeshDescriptionOperations::CreatePolygonNTB(*CommitParams.MeshDescription, FMathf::Epsilon);
+				FMeshDescriptionOperations::RecomputeNormalsAndTangentsIfNeeded(*CommitParams.MeshDescription, FMeshDescriptionOperations::ETangentOptions::UseWeightedAreaAndAngle, true);
 			}
 			bool RemoveLayers[8] =
 			{
@@ -158,13 +158,13 @@ void UAttributeEditorTool::GenerateAssets()
 				RemovalProperties->bClearUVLayer7
 			};
 			TVertexInstanceAttributesRef<FVector2D> InstanceUVs =
-				MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-			const FVertexInstanceArray& Instances = MeshDescription->VertexInstances();
+				CommitParams.MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+			const FVertexInstanceArray& Instances = CommitParams.MeshDescription->VertexInstances();
 			for (int LayerIndex = 7; LayerIndex >= 0; LayerIndex--)
 			{
 				if (RemoveLayers[LayerIndex] && LayerIndex < InstanceUVs.GetNumIndices())
 				{
-					if (!FMeshDescriptionOperations::RemoveUVChannel(*MeshDescription, LayerIndex))
+					if (!FMeshDescriptionOperations::RemoveUVChannel(*CommitParams.MeshDescription, LayerIndex))
 					{
 						for (const FVertexInstanceID& ElID : Instances.GetElementIDs())
 						{

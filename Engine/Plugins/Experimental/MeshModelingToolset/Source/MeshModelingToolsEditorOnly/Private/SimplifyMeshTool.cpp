@@ -240,12 +240,12 @@ void USimplifyMeshTool::GenerateAsset(const FDynamicMeshOpResult& Result)
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("SimplifyMeshToolTransactionName", "Simplify Mesh"));
 
 	check(Result.Mesh.Get() != nullptr);
-	ComponentTarget->CommitMesh([&Result](FMeshDescription* MeshDescription)
+	ComponentTarget->CommitMesh([&Result](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 	{
 		FDynamicMeshToMeshDescription Converter;
 
 		// full conversion if normal topology changed or faces were inverted
-		Converter.Convert(Result.Mesh.Get(), *MeshDescription);
+		Converter.Convert(Result.Mesh.Get(), *CommitParams.MeshDescription);
 	});
 
 	GetToolManager()->EndUndoTransaction();

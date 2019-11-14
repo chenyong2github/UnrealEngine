@@ -90,9 +90,9 @@ void UConvertToPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("ConvertToPolygonsToolTransactionName", "Convert to Polygons"));
-		ComponentTarget->CommitMesh([=](FMeshDescription* MeshDescription)
+		ComponentTarget->CommitMesh([=](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 		{
-			ConvertToPolygons(MeshDescription);
+			ConvertToPolygons(CommitParams.MeshDescription);
 		});
 		GetToolManager()->EndUndoTransaction();
 	}

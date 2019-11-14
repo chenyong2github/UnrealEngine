@@ -373,10 +373,10 @@ void UPlaneCutTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 	for (int OrigMeshIdx = 0; OrigMeshIdx < NumSourceMeshes; OrigMeshIdx++)
 	{
 		check(Results[OrigMeshIdx].Mesh.Get() != nullptr);
-		ComponentTargets[OrigMeshIdx]->CommitMesh([&Results, OrigMeshIdx](FMeshDescription* MeshDescription)
+		ComponentTargets[OrigMeshIdx]->CommitMesh([&Results, OrigMeshIdx](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 		{
 			FDynamicMeshToMeshDescription Converter;
-			Converter.Convert(Results[OrigMeshIdx].Mesh.Get(), *MeshDescription);
+			Converter.Convert(Results[OrigMeshIdx].Mesh.Get(), *CommitParams.MeshDescription);
 		});
 	}
 

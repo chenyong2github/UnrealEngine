@@ -262,19 +262,19 @@ void UEditNormalsTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results
 	for (int32 ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
 	{
 		check(Results[ComponentIdx].Mesh.Get() != nullptr);
-		ComponentTargets[ComponentIdx]->CommitMesh([&Results, &ComponentIdx, this](FMeshDescription* MeshDescription)
+		ComponentTargets[ComponentIdx]->CommitMesh([&Results, &ComponentIdx, this](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 		{
 			FDynamicMeshToMeshDescription Converter;
 			
 			if (BasicProperties->WillTopologyChange())
 			{
 				// full conversion if normal topology changed or faces were inverted
-				Converter.Convert(Results[ComponentIdx].Mesh.Get(), *MeshDescription);
+				Converter.Convert(Results[ComponentIdx].Mesh.Get(), *CommitParams.MeshDescription);
 			}
 			else
 			{
 				// otherwise just copy attributes
-				Converter.UpdateAttributes(Results[ComponentIdx].Mesh.Get(), *MeshDescription, true, false);
+				Converter.UpdateAttributes(Results[ComponentIdx].Mesh.Get(), *CommitParams.MeshDescription, true, false);
 			}
 		});
 	}

@@ -28,7 +28,7 @@ FStaticMeshComponentTarget::CommitMesh( const FCommitter& Committer )
 	check(bSavedToTransactionBuffer);
 	FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(LODIndex);
 
-	Committer(MeshDescription);
+	Committer({MeshDescription});
 
 	StaticMesh->CommitMeshDescription(LODIndex);
 	StaticMesh->PostEditChange();

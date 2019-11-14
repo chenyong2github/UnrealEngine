@@ -314,10 +314,10 @@ void UPolygonOnMeshTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Resul
 	// TODO: options to support other choices re what should be a new actor
 	check(Results.Num() > 0);
 	check(Results[0].Mesh.Get() != nullptr);
-	ComponentTarget->CommitMesh([&Results](FMeshDescription* MeshDescription)
+	ComponentTarget->CommitMesh([&Results](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 	{
 		FDynamicMeshToMeshDescription Converter;
-		Converter.Convert(Results[0].Mesh.Get(), *MeshDescription);
+		Converter.Convert(Results[0].Mesh.Get(), *CommitParams.MeshDescription);
 	});
 
 	// currently nothing generates more than the single result for this tool

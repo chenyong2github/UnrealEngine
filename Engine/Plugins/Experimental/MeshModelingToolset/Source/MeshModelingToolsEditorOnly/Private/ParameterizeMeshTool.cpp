@@ -141,10 +141,10 @@ void UParameterizeMeshTool::Shutdown(EToolShutdownType ShutdownType)
 		check(DynamicMeshResult != nullptr);
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("ParameterizeMesh", "Parameterize Mesh"));
 
-		ComponentTarget->CommitMesh([DynamicMeshResult](FMeshDescription* MeshDescription)
+		ComponentTarget->CommitMesh([DynamicMeshResult](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 		{
 			FDynamicMeshToMeshDescription Converter;
-			Converter.Convert(DynamicMeshResult, *MeshDescription);
+			Converter.Convert(DynamicMeshResult, *CommitParams.MeshDescription);
 		});
 		GetToolManager()->EndUndoTransaction();
 	}

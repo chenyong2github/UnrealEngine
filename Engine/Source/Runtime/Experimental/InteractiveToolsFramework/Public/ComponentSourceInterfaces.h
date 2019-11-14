@@ -69,7 +69,11 @@ public:
 	 */
 	void SetOwnerVisibility(bool bVisible) const;
 
-	using  FCommitter  = TFunction< void( FMeshDescription* ) >;
+	struct FCommitParams
+	{
+		FMeshDescription* MeshDescription{ nullptr };
+	};
+	using  FCommitter  = TFunction< void( const FCommitParams& ) >;
 	virtual FMeshDescription* GetMesh() = 0;
 	virtual void CommitMesh( const FCommitter& ) = 0;
 

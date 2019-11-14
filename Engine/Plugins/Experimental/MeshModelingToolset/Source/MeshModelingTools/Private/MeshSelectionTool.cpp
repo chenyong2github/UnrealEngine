@@ -145,9 +145,9 @@ void UMeshSelectionTool::OnShutdown(EToolShutdownType ShutdownType)
 		// this block bakes the modified DynamicMeshComponent back into the StaticMeshComponent inside an undo transaction
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("MeshSelectionToolTransactionName", "Edit Mesh"));
 
-		ComponentTarget->CommitMesh([=](FMeshDescription* MeshDescription)
+		ComponentTarget->CommitMesh([=](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 		{
-			PreviewMesh->Bake(MeshDescription, true);
+			PreviewMesh->Bake(CommitParams.MeshDescription, true);
 		});
 		GetToolManager()->EndUndoTransaction();
 	}
@@ -560,7 +560,7 @@ void UMeshSelectionTool::Render(IToolsContextRenderAPI* RenderAPI)
 }
 
 
-void UMeshSelectionTool::Tick(float DeltaTime)
+void UMeshSelectionTool::Tick(float DeltaTime)
 {
 	UDynamicMeshBrushTool::Tick(DeltaTime);
 

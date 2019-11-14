@@ -91,9 +91,9 @@ void UWeldMeshEdgesTool::Shutdown(EToolShutdownType ShutdownType)
 		{
 			// this block bakes the modified DynamicMeshComponent back into the StaticMeshComponent inside an undo transaction
 			GetToolManager()->BeginUndoTransaction(LOCTEXT("WeldMeshEdgesToolTransactionName", "Remesh Mesh"));
-			ComponentTarget->CommitMesh([=](FMeshDescription* MeshDescription)
+			ComponentTarget->CommitMesh([=](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 			{
-				DynamicMeshComponent->Bake(MeshDescription, true);
+				DynamicMeshComponent->Bake(CommitParams.MeshDescription, true);
 			});
 			GetToolManager()->EndUndoTransaction();
 		}
