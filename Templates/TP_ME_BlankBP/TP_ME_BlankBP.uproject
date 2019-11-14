@@ -134,7 +134,7 @@
 			"Name": "PixelStreaming",
 			"Enabled": true
 		},
-			{
+		{
 			"Name": "TimecodeSynchronizer",
 			"Enabled": true
 		},
