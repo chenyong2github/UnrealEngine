@@ -170,7 +170,7 @@ void FRemoteTalkerDataImpl::Cleanup()
 }
 
 FVoiceEngineImpl ::FVoiceEngineImpl()
-	: OnlineSubsystem(nullptr)
+	: OnlineInstanceName(NAME_None),
 	, VoiceCapture(nullptr)
 	, VoiceEncoder(nullptr)
 	, OwningUserIndex(INVALID_INDEX)
@@ -187,7 +187,7 @@ FVoiceEngineImpl ::FVoiceEngineImpl()
 }
 
 FVoiceEngineImpl::FVoiceEngineImpl(IOnlineSubsystem* InSubsystem) :
-	OnlineSubsystem(InSubsystem),
+	OnlineInstanceName(NAME_None),
 	VoiceCapture(nullptr),
 	VoiceEncoder(nullptr),
 	OwningUserIndex(INVALID_INDEX),
@@ -202,6 +202,11 @@ FVoiceEngineImpl::FVoiceEngineImpl(IOnlineSubsystem* InSubsystem) :
 #endif
 {
 	FCoreUObjectDelegates::PostLoadMapWithWorld.AddRaw(this, &FVoiceEngineImpl::OnPostLoadMap);
+
+	if (InSubsystem)
+	{
+		OnlineInstanceName = InSubsystem->GetInstanceName();
+	}
 }
 
 FVoiceEngineImpl::~FVoiceEngineImpl()
@@ -277,7 +282,9 @@ bool FVoiceEngineImpl::Init(int32 MaxLocalTalkers, int32 MaxRemoteTalkers)
 {
 	bool bSuccess = false;
 
-	if (!OnlineSubsystem->IsDedicated())
+	IOnlineSubsystem* OnlineSub = GetOnlineSubSystem();
+
+	if (OnlineSub && !OnlineSub->IsDedicated())
 	{
 		FVoiceModule& VoiceModule = FVoiceModule::Get();
 		if (VoiceModule.IsVoiceEnabled())
@@ -931,6 +938,16 @@ void FVoiceEngineImpl::OnDefaultDeviceChanged()
 	TimeDeviceChaned = FPlatformTime::Seconds();
 }
 #endif
+
+IOnlineSubsystem* FVoiceEngineImpl::GetOnlineSubSystem()
+{
+	if (UWorld* World = GetWorldForOnline(OnlineInstanceName))
+	{
+		return Online::GetSubsystem(World);
+	}
+
+	return nullptr;
+}
 
 FVoiceEndpoint::FVoiceEndpoint(const FString& InEndpointName, float InSampleRate, int32 InNumChannels)
 	: NumChannelsComingIn(InNumChannels)
