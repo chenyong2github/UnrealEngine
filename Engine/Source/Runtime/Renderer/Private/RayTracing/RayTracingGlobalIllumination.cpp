@@ -306,13 +306,16 @@ class FGlobalIlluminationRGS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FGlobalIlluminationRGS, "/Engine/Private/RayTracing/RayTracingGlobalIlluminationRGS.usf", "GlobalIlluminationRGS", SF_RayGen);
 
+// Note: This constant must match the definition in RayTracingGatherPoints.ush
+constexpr int32 MAXIMUM_GATHER_POINTS_PER_PIXEL = 32;
+
 // Placeholder structure used to allocate gather points buffer
 // #dxr_todo: rework to minimal set, based on active samples-per-pixel
 struct FGatherPoints
 {
-	FVector CreationPoint[16];
-	FVector Position[16];
-	FIntPoint Irradiance[16];
+	FVector CreationPoint[MAXIMUM_GATHER_POINTS_PER_PIXEL];
+	FVector Position[MAXIMUM_GATHER_POINTS_PER_PIXEL];
+	FIntPoint Irradiance[MAXIMUM_GATHER_POINTS_PER_PIXEL];
 };
 
 class FRayTracingGlobalIlluminationCreateGatherPointsRGS : public FGlobalShader
@@ -320,7 +323,7 @@ class FRayTracingGlobalIlluminationCreateGatherPointsRGS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FRayTracingGlobalIlluminationCreateGatherPointsRGS)
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FRayTracingGlobalIlluminationCreateGatherPointsRGS, FGlobalShader)
 
-		class FUseAttenuationTermDim : SHADER_PERMUTATION_BOOL("USE_ATTENUATION_TERM");
+	class FUseAttenuationTermDim : SHADER_PERMUTATION_BOOL("USE_ATTENUATION_TERM");
 	class FEnableTwoSidedGeometryDim : SHADER_PERMUTATION_BOOL("ENABLE_TWO_SIDED_GEOMETRY");
 
 	using FPermutationDomain = TShaderPermutationDomain<FUseAttenuationTermDim, FEnableTwoSidedGeometryDim>;
@@ -642,7 +645,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationFinalGathe
 	RDG_EVENT_SCOPE(GraphBuilder, "Ray Tracing GI: Final Gather");
 
 	FRayTracingGlobalIlluminationFinalGatherRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRayTracingGlobalIlluminationFinalGatherRGS::FParameters>();
-	int32 SamplesPerPixel = GetRayTracingGlobalIlluminationSamplesPerPixel(View);
+	int32 SamplesPerPixel = FMath::Min(GetRayTracingGlobalIlluminationSamplesPerPixel(View), MAXIMUM_GATHER_POINTS_PER_PIXEL);
 	int32 SampleIndex = View.ViewState->FrameIndex % SamplesPerPixel;
 	PassParameters->SampleIndex = SampleIndex;
 	PassParameters->SamplesPerPixel = SamplesPerPixel;
