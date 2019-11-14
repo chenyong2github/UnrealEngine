@@ -187,8 +187,28 @@ FOSCMessage& UOSCManager::AddBool(FOSCMessage& Message, bool Value)
 	return Message;
 }
 
-void UOSCManager::GetMessagesFromBundle(const FOSCBundle& Bundle, TArray<FOSCMessage>& Messages)
+TArray<FOSCBundle>& UOSCManager::GetBundlesFromBundle(const FOSCBundle& Bundle, TArray<FOSCBundle>& Bundles)
 {
+	Bundles.Reset();
+	if (Bundle.GetPacket().IsValid())
+	{
+		const TSharedPtr<FOSCBundlePacket>& BundlePacket = StaticCastSharedPtr<FOSCBundlePacket>(Bundle.GetPacket());
+		for (int32 i = 0; i < BundlePacket->GetPackets().Num(); i++)
+		{
+			const TSharedPtr<IOSCPacket>& Packet = BundlePacket->GetPackets()[i];
+			if (Packet->IsBundle())
+			{
+				Bundles.Emplace(StaticCastSharedPtr<FOSCMessagePacket>(Packet));
+			}
+		}
+	}
+
+	return Bundles;
+}
+
+TArray<FOSCMessage>& UOSCManager::GetMessagesFromBundle(const FOSCBundle& Bundle, TArray<FOSCMessage>& Messages)
+{
+	Messages.Reset();
 	if (Bundle.GetPacket().IsValid())
 	{
 		const TSharedPtr<FOSCBundlePacket>& BundlePacket = StaticCastSharedPtr<FOSCBundlePacket>(Bundle.GetPacket());
@@ -201,6 +221,8 @@ void UOSCManager::GetMessagesFromBundle(const FOSCBundle& Bundle, TArray<FOSCMes
 			}
 		}
 	}
+	
+	return Messages;
 }
 
 void UOSCManager::GetFloat(const FOSCMessage& Message, const int32 Index, float& Value)
@@ -375,9 +397,25 @@ FOSCAddress& UOSCManager::OSCAddressPushContainer(FOSCAddress& Address, const FS
 	return Address;
 }
 
+FOSCAddress& UOSCManager::OSCAddressPushContainers(FOSCAddress& Address, const TArray<FString>& ToAppend)
+{
+	Address.PushContainers(ToAppend);
+	return Address;
+}
+
 FString UOSCManager::OSCAddressPopContainer(FOSCAddress& Address)
 {
 	return Address.PopContainer();
+}
+
+TArray<FString> UOSCManager::OSCAddressPopContainers(FOSCAddress& Address, int32 InNumContainers)
+{
+	return Address.PopContainers(InNumContainers);
+}
+
+bool UOSCManager::OSCAddressPathMatchesPattern(const FOSCAddress& InPattern, const FOSCAddress& InPath)
+{
+	return InPattern.Matches(InPath);
 }
 
 FOSCAddress UOSCManager::GetOSCMessageAddress(const FOSCMessage& Message)
@@ -400,7 +438,7 @@ TArray<FString> UOSCManager::GetOSCAddressContainers(const FOSCAddress& Address)
 {
 	TArray<FString> Containers;
 	Address.GetContainers(Containers);
-	return MoveTemp(Containers);
+	return Containers;
 }
 
 FString UOSCManager::GetOSCAddressContainerPath(const FOSCAddress& Address)
@@ -416,6 +454,12 @@ FString UOSCManager::GetOSCAddressFullPath(const FOSCAddress& Address)
 FString UOSCManager::GetOSCAddressMethod(const FOSCAddress& Address)
 {
 	return Address.GetMethod();
+}
+
+FOSCAddress& UOSCManager::ClearOSCAddressContainers(FOSCAddress& Address)
+{
+	Address.ClearContainers();
+	return Address;
 }
 
 FOSCAddress& UOSCManager::SetOSCAddressMethod(FOSCAddress& Address, const FString& Method)
