@@ -3976,7 +3976,7 @@ void ULandscapeInfo::UpdateAllComponentMaterialInstances()
 	});
 }
 
-ALandscapeProxy* ULandscapeInfo::MoveComponentsToLevel(const TArray<ULandscapeComponent*>& InComponents, ULevel* TargetLevel)
+ALandscapeProxy* ULandscapeInfo::MoveComponentsToLevel(const TArray<ULandscapeComponent*>& InComponents, ULevel* TargetLevel, FName NewProxyName)
 {
 	ALandscape* Landscape = LandscapeActor.Get();
 	check(Landscape != nullptr);
@@ -4077,11 +4077,14 @@ ALandscapeProxy* ULandscapeInfo::MoveComponentsToLevel(const TArray<ULandscapeCo
 	if (!LandscapeProxy)
 	{
 		FActorSpawnParameters SpawnParams;
+		SpawnParams.Name = NewProxyName;
 		SpawnParams.OverrideLevel = TargetLevel;
 		LandscapeProxy = TargetLevel->GetWorld()->SpawnActor<ALandscapeStreamingProxy>(SpawnParams);
+		
 		// copy shared properties to this new proxy
 		LandscapeProxy->GetSharedProperties(Landscape);
 		LandscapeProxy->CreateLandscapeInfo();
+		LandscapeProxy->SetActorLabel(LandscapeProxy->GetName());
 
 		// set proxy location
 		// by default first component location
