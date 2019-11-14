@@ -17,6 +17,9 @@ class ULandscapeLayerInfoObject;
 class ULevel;
 class UMaterialInstanceConstant;
 struct FLandscapeEditorLayerSettings;
+class ULandscapeSplinesComponent;
+class ULandscapeSplineControlPoint;
+class ULandscapeSplineSegment;
 class ULandscapeHeightfieldCollisionComponent;
 
 /** Structure storing Collision for LandscapeComponent Add */
@@ -248,9 +251,14 @@ public:
 	/** Moves Components to target level. Creates ALandscapeProxy if needed. */
 	LANDSCAPE_API ALandscapeProxy* MoveComponentsToLevel(const TArray<ULandscapeComponent*>& InComponents, ULevel* TargetLevel, FName NewProxyName = NAME_None);
 
+	/** Moves Splines connected to this control point to target level. Creates ULandscapeSplineComponent if needed. */
+	LANDSCAPE_API void MoveSplineToLevel(ULandscapeSplineControlPoint* InControlPoint, ULevel* TargetLevel);
+
+	/** Moves all Splines to target level. Creates ULandscapeSplineComponent if needed. */
+	LANDSCAPE_API void MoveSplinesToLevel(ULandscapeSplinesComponent* InSplineComponent, ULevel* TargetLevel);
+
 	/** Will call UpdateAllComponentMaterialInstances on all LandscapeProxies */
 	LANDSCAPE_API void UpdateAllComponentMaterialInstances();
-
 #endif
 	/** Associates passed actor with this info object
  *  @param	Proxy		Landscape actor to register
@@ -273,4 +281,10 @@ public:
 	/** Server doesn't have ULandscapeComponent use CollisionComponents instead to get height on landscape */
 	LANDSCAPE_API void RegisterCollisionComponent(ULandscapeHeightfieldCollisionComponent* Component);
 	LANDSCAPE_API void UnregisterCollisionComponent(ULandscapeHeightfieldCollisionComponent* Component);
+
+#if WITH_EDITOR
+private:
+	void MoveSegmentToLandscape(ULandscapeSplineSegment* InSegment, ALandscapeProxy* FromProxy, ALandscapeProxy* ToProxy);
+	void MoveControlPointToLandscape(ULandscapeSplineControlPoint* InControlPoint, ALandscapeProxy* FromProxy, ALandscapeProxy* ToProxy);
+#endif
 };
