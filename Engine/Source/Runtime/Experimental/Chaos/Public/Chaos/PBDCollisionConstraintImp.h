@@ -203,9 +203,6 @@ namespace Chaos
 				int32 CountNP = 0;
 				int32 RejectedNP = 0;
 #endif
-				TArray<TRigidBodyContactConstraint<T, d>> TempConstraintBuffer;
-				TempConstraintBuffer.Reserve(4);
-
 				const int32 NumPotentials = PotentialIntersections.Num();
 				for (int32 i = 0; i < NumPotentials; ++i)
 				{
@@ -255,8 +252,9 @@ namespace Chaos
 					const TVector<T, d> Box2Thickness = Particle2.AsDynamic() ? ComputeThickness(*Particle2.AsDynamic(), Dt) : TVector<T, d>(0);
 					const T UseThickness = FMath::Max(Box1Thickness, Box2Thickness.Size());// + MThickness
 
-					TempConstraintBuffer.Reset();
-					ConstructConstraints(Particle1.Handle(), Particle2.Handle(), UseThickness, TempConstraintBuffer);
+
+					TRigidBodyContactConstraint<T, d> Constraint;
+					ConstructConstraints(Particle1.Handle(), Particle2.Handle(), UseThickness, Constraint);
 
 #if !UE_BUILD_SHIPPING
 					if (bGatherStats)
@@ -264,23 +262,20 @@ namespace Chaos
 						++CountNP;
 					}
 #endif
-					if (TempConstraintBuffer.Num())
+					if (Constraint.ContainsManifold())
 					{
-						UpdateConstraint<ECollisionUpdateType::Any>(UseThickness, &TempConstraintBuffer[0], TempConstraintBuffer.Num());
+						UpdateConstraint<ECollisionUpdateType::Any>(UseThickness, Constraint);
 					}
 
-					for (auto& Constraint : TempConstraintBuffer)
+					if (Constraint.GetPhi() < UseThickness)
 					{
-						if (Constraint.Phi < UseThickness)
-						{
-							Queue.Enqueue(Constraint);
-						}
-						else
-						{
+						Queue.Enqueue(Constraint);
+					}
+					else
+					{
 #if !UE_BUILD_SHIPPING
-							++RejectedNP;
+						++RejectedNP;
 #endif
-						}
 					}
 				}
 
