@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "CADData.h"
+#include "CADSceneGraph.h"
 #include "CoreTechHelper.h"
 #include "CoreTechTypes.h"
 #include "CTSession.h"
