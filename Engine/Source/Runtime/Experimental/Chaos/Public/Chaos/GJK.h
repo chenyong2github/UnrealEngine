@@ -2,7 +2,6 @@
 #pragma once
 
 #include "Chaos/Simplex.h"
-#include "Chaos/EPA.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/Box.h"
 #include "Chaos/Sphere.h"
