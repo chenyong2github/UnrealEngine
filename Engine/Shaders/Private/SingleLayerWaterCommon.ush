@@ -89,15 +89,6 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 			PixelSceneDepth = lerp(PixelSceneDepth, FadeBehindWaterDepth, saturate((WaterDepth - FadeStartDistance) / FadeLenght));
 			PixelSceneDeviceZ = ConvertToDeviceZ(PixelSceneDepth);
 		}
-		
-		// Water depth override hack for Android devices
-	#if !COMPILER_METAL
-		if (View.ConstantWaterDepth >= 0.0f)
-		{
-			PixelSceneDepth = WaterDepth + View.ConstantWaterDepth;
-			PixelSceneDeviceZ = ConvertToDeviceZ(PixelSceneDepth);
-		}
-	#endif
 #endif
 
 		float SceneDeviceZ = PixelSceneDeviceZ;
