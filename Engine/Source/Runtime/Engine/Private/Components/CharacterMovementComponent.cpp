@@ -9017,6 +9017,8 @@ void UCharacterMovementComponent::MoveAutonomous
 	const FVector OldLocation = UpdatedComponent->GetComponentLocation();
 	const FQuat OldRotation = UpdatedComponent->GetComponentQuat();
 
+	const bool bWasPlayingRootMotion = CharacterOwner->IsPlayingRootMotion();
+
 	PerformMovement(DeltaTime);
 
 	// Check if data is valid as PerformMovement can mark character for pending kill
@@ -9028,7 +9030,10 @@ void UCharacterMovementComponent::MoveAutonomous
 	// If not playing root motion, tick animations after physics. We do this here to keep events, notifies, states and transitions in sync with client updates.
 	if( CharacterOwner && !CharacterOwner->bClientUpdating && !CharacterOwner->IsPlayingRootMotion() && CharacterOwner->GetMesh() )
 	{
-		TickCharacterPose(DeltaTime);
+		if (!bWasPlayingRootMotion) // If we were playing root motion before PerformMovement but aren't anymore, we're on the last frame of anim root motion and have already ticked character
+		{
+			TickCharacterPose(DeltaTime);
+		}
 		// TODO: SaveBaseLocation() in case tick moves us?
 
 		// Trigger Events right away, as we could be receiving multiple ServerMoves per frame.
@@ -10571,6 +10576,13 @@ void FSavedMove_Character::SetMoveFor(ACharacter* Character, float InDeltaTime, 
 		bForceNoCombine = true;
 	}
 
+	// Moves with anim root motion should not be combined
+	const FAnimMontageInstance* RootMotionMontageInstance = Character->GetRootMotionAnimMontageInstance();
+	if (RootMotionMontageInstance)
+	{
+		bForceNoCombine = true;
+	}
+
 	// Launch velocity gives instant and potentially huge change of velocity
 	// Avoid combining move to prevent from reverting locations until server catches up
 	const bool bHasLaunchVelocity = !Character->GetCharacterMovement()->PendingLaunchVelocity.IsZero();
@@ -10675,6 +10687,9 @@ void FSavedMove_Character::PostUpdate(ACharacter* Character, FSavedMove_Characte
 			RootMotionMontage = RootMotionMontageInstance->Montage;
 			RootMotionTrackPosition = RootMotionMontageInstance->GetPosition();
 			RootMotionMovement = Character->ClientRootMotionParams;
+
+			// Moves with anim root motion should not be combined
+			bForceNoCombine = true;
 		}
 
 		// Save off Root Motion Sources
@@ -11060,6 +11075,7 @@ void FSavedMove_Character::PrepMoveFor(ACharacter* Character)
 				RootMotionTrackPosition = RootMotionMontageInstance->GetPosition();
 				RootMotionMontageInstance->SimulateAdvance(DeltaTime, RootMotionTrackPosition, RootMotionMovement);
 				RootMotionMontageInstance->SetPosition(RootMotionTrackPosition);
+				RootMotionMovement.ScaleRootMotionTranslation(Character->GetAnimRootMotionTranslationScale());
 			}
 		}
 
