@@ -35,4 +35,9 @@ public:
 	{
 		return FModuleManager::Get().IsModuleLoaded( "WindowsMixedRealityHMD" );
 	}
+
+	virtual WindowsMixedReality::MixedRealityInterop* GetMixedRealityInterop()
+	{
+		return nullptr;
+	}
 };

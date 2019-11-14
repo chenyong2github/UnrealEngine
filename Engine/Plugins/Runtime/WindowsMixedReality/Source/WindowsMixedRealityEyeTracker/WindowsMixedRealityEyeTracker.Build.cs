@@ -27,6 +27,7 @@ namespace UnrealBuildTool.Rules
 						"MixedRealityInteropLibrary",
 						"InputDevice",
 						"EyeTracker",
+						"WindowsMixedRealityHMD",
 					}
 				);
 
