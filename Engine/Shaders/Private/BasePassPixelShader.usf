@@ -273,7 +273,7 @@ void GetSkyLighting(FMaterialPixelParameters MaterialParameters, VTPageTableResu
 	
 	#if HQ_TEXTURE_LIGHTMAP || CACHED_POINT_INDIRECT_LIGHTING || CACHED_VOLUME_INDIRECT_LIGHTING || PRECOMPUTED_IRRADIANCE_VOLUME_LIGHTING
 		BRANCH
-		if (View.SkyLightParameters.x > 0)
+		if (ShouldSkyLightApplyPrecomputedBentNormalShadowing())
 		{
 			float3 NormalizedBentNormal = SkyLightingNormal;
 
