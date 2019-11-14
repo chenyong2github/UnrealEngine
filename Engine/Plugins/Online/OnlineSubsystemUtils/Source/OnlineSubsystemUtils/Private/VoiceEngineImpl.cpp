@@ -53,7 +53,7 @@ FRemoteTalkerDataImpl::FRemoteTalkerDataImpl() :
 	VoiceDecoder(nullptr)
 {
 	int32 SampleRate = UVOIPStatics::GetVoiceSampleRate();
-	int32 NumChannels = DEFAULT_NUM_VOICE_CHANNELS;
+	int32 NumChannels = UVOIPStatics::GetVoiceNumChannels();
 	VoiceDecoder = FVoiceModule::Get().CreateVoiceDecoder(SampleRate, NumChannels);
 	check(VoiceDecoder.IsValid());
 
@@ -672,7 +672,7 @@ void FVoiceEngineImpl::GenerateVoiceData(USoundWaveProcedural* InProceduralWave,
 	FRemoteTalkerDataImpl* QueuedData = RemoteTalkerBuffers.Find(FUniqueNetIdWrapper(TalkerId.AsShared()));
 	if (QueuedData)
 	{
-		const int32 SampleSize = sizeof(uint16) * DEFAULT_NUM_VOICE_CHANNELS;
+		const int32 SampleSize = sizeof(uint16) * UVOIPStatics::GetVoiceNumChannels();
 
 		{
 			FScopeLock ScopeLock(&QueuedData->QueueLock);
