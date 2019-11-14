@@ -154,6 +154,9 @@ public:
 	UPROPERTY(transient)
 	UControlRigController* ModelController;
 
+	// hack until RigVM refactoring
+	TMap<FName, EControlRigModelParameterType> NodeToParameterType;
+
 	bool bSuspendModelNotificationsForSelf;
 	bool bSuspendModelNotificationsForOthers;
 	FName LastNameFromNotification;
