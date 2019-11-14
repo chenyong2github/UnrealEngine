@@ -11,6 +11,7 @@
 #include "Misc/Paths.h"
 #include "Misc/ScopeExit.h"
 #include "Misc/FileHelper.h"
+#include "Misc/PackageName.h"
 #include "UObject/Class.h"
 #include "UObject/Stack.h"
 #include "UObject/Package.h"
@@ -19,6 +20,7 @@
 #include "UObject/CoreRedirects.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/UnrealType.h"
+#include "Engine/BlueprintCore.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/UserDefinedStruct.h"
 #include "Engine/UserDefinedEnum.h"
@@ -593,9 +595,20 @@ bool FGeneratedWrappedType::Finalize()
 
 	bool bSuccess = false;
 	// Execute Python code within this block
+	if (FinalizedState != EFinalizedState::Finalized)
 	{
 		FPyScopedGIL GIL;
-		bSuccess = PyType_Ready(&PyType) == 0;
+		if (FinalizedState == EFinalizedState::Initial)
+		{
+			bSuccess = PyType_Ready(&PyType) == 0;
+		}
+		else if (FinalizedState == EFinalizedState::Reset)
+		{
+			PyType_Modified(&PyType);
+			PyDict_SetItemString(PyType.tp_dict, "__doc__", PyUnicode_FromString(PyType.tp_doc ? PyType.tp_doc : "")); // PyType_Modified doesn't update __doc__
+			bSuccess = true;
+		}
+		FinalizedState = EFinalizedState::Finalized;
 	}
 
 	if (bSuccess)
@@ -608,6 +621,12 @@ bool FGeneratedWrappedType::Finalize()
 	return false;
 }
 
+void FGeneratedWrappedType::Reset()
+{
+	Reset_CleansePyType();
+	Reset_CleanseSelf();
+}
+
 void FGeneratedWrappedType::Finalize_PreReady()
 {
 	PyType.tp_name = TypeName.GetData();
@@ -616,6 +635,22 @@ void FGeneratedWrappedType::Finalize_PreReady()
 
 void FGeneratedWrappedType::Finalize_PostReady()
 {
+}
+
+void FGeneratedWrappedType::Reset_CleansePyType()
+{
+	PyType.tp_name = nullptr;
+	PyType.tp_doc = nullptr;
+
+	FPyWrapperBaseMetaData::SetMetaData(&PyType, nullptr);
+}
+
+void FGeneratedWrappedType::Reset_CleanseSelf()
+{
+	TypeName.Reset();
+	TypeDoc.Reset();
+	MetaData.Reset();
+	FinalizedState = EFinalizedState::Reset;
 }
 
 
@@ -657,23 +692,44 @@ void FGeneratedWrappedEnumType::Finalize_PostReady()
 {
 	FGeneratedWrappedType::Finalize_PostReady();
 
-	check(MetaData.IsValid() && MetaData->GetTypeId() == FPyWrapperEnumMetaData::StaticTypeId());
-	TSharedRef<FPyWrapperEnumMetaData> EnumMetaData = StaticCastSharedRef<FPyWrapperEnumMetaData>(MetaData.ToSharedRef());
+	check(!MetaData || MetaData->GetTypeId() == FPyWrapperEnumMetaData::StaticTypeId());
+	TSharedPtr<FPyWrapperEnumMetaData> EnumMetaData = StaticCastSharedPtr<FPyWrapperEnumMetaData>(MetaData);
 
-	// Execute Python code within this block
+	if (EnumMetaData)
 	{
-		FPyScopedGIL GIL;
-		for (const FGeneratedWrappedEnumEntry& EnumEntry : EnumEntries)
+		// Execute Python code within this block
 		{
-			FPyWrapperEnum* PyEnumEntry = FPyWrapperEnum::AddEnumEntry(&PyType, EnumEntry.EntryValue, EnumEntry.EntryName.GetData(), EnumEntry.EntryDoc.GetData());
-			if (PyEnumEntry)
+			FPyScopedGIL GIL;
+			for (const FGeneratedWrappedEnumEntry& EnumEntry : EnumEntries)
 			{
-				EnumMetaData->EnumEntries.Add(PyEnumEntry);
+				FPyWrapperEnum* PyEnumEntry = FPyWrapperEnum::AddEnumEntry(&PyType, EnumEntry.EntryValue, EnumEntry.EntryName.GetData(), EnumEntry.EntryDoc.GetData());
+				if (PyEnumEntry)
+				{
+					EnumMetaData->EnumEntries.Add(PyEnumEntry);
+				}
 			}
 		}
+
+		EnumMetaData->bFinalized = true;
+	}
+}
+
+void FGeneratedWrappedEnumType::Reset_CleansePyType()
+{
+	// Unregister the existing enum entries
+	for (const FGeneratedWrappedEnumEntry& EnumEntry : EnumEntries)
+	{
+		PyDict_DelItemString(PyType.tp_dict, EnumEntry.EntryName.GetData());
 	}
 
-	EnumMetaData->bFinalized = true;
+	FGeneratedWrappedType::Reset_CleansePyType();
+}
+
+void FGeneratedWrappedEnumType::Reset_CleanseSelf()
+{
+	EnumEntries.Reset();
+
+	FGeneratedWrappedType::Reset_CleanseSelf();
 }
 
 void FGeneratedWrappedEnumType::ExtractEnumEntries(const UEnum* InEnum)
@@ -1281,6 +1337,11 @@ bool IsScriptExposedClass(const UClass* InClass)
 {
 	for (const UClass* ParentClass = InClass; ParentClass; ParentClass = ParentClass->GetSuperClass())
 	{
+		if (IsBlueprintGeneratedClass(ParentClass))
+		{
+			return true;
+		}
+
 		if (ParentClass->GetBoolMetaData(BlueprintTypeMetaDataKey) || ParentClass->HasMetaData(BlueprintSpawnableComponentMetaDataKey))
 		{
 			return true;
@@ -1299,6 +1360,11 @@ bool IsScriptExposedStruct(const UScriptStruct* InStruct)
 {
 	for (const UScriptStruct* ParentStruct = InStruct; ParentStruct; ParentStruct = Cast<UScriptStruct>(ParentStruct->GetSuperStruct()))
 	{
+		if (IsBlueprintGeneratedStruct(ParentStruct))
+		{
+			return true;
+		}
+
 		if (ParentStruct->GetBoolMetaData(BlueprintTypeMetaDataKey))
 		{
 			return true;
@@ -1315,6 +1381,11 @@ bool IsScriptExposedStruct(const UScriptStruct* InStruct)
 
 bool IsScriptExposedEnum(const UEnum* InEnum)
 {
+	if (IsBlueprintGeneratedEnum(InEnum))
+	{
+		return true;
+	}
+
 	if (InEnum->GetBoolMetaData(BlueprintTypeMetaDataKey))
 	{
 		return true;
@@ -2243,6 +2314,42 @@ FString PythonizeDefaultValue(const UProperty* InProp, const FString& InDefaultV
 	return PythonizeValue(InProp, PropValue.GetValue(), InFlags);
 }
 
+const UObject* GetTypeRegistryType(const UObject* InObj)
+{
+	if (const UBlueprintCore* BlueprintAsset = Cast<const UBlueprintCore>(InObj))
+	{
+		return BlueprintAsset->GeneratedClass;
+	}
+
+	return InObj;
+}
+
+FName GetTypeRegistryName(const UClass* InClass)
+{
+	return IsBlueprintGeneratedClass(InClass)
+		? InClass->GetOutermost()->GetFName()
+		: InClass->GetFName();
+}
+
+FName GetTypeRegistryName(const UScriptStruct* InStruct)
+{
+	return IsBlueprintGeneratedStruct(InStruct)
+		? InStruct->GetOutermost()->GetFName()
+		: InStruct->GetFName();
+}
+
+FName GetTypeRegistryName(const UEnum* InEnum)
+{
+	return IsBlueprintGeneratedEnum(InEnum)
+		? InEnum->GetOutermost()->GetFName()
+		: InEnum->GetFName();
+}
+
+FName GetTypeRegistryName(const UFunction* InDelegateSignature)
+{
+	return InDelegateSignature->GetFName();
+}
+
 FString GetFieldModule(const UField* InField)
 {
 	UPackage* ScriptPackage = InField->GetOutermost();
@@ -2251,6 +2358,11 @@ FString GetFieldModule(const UField* InField)
 	if (PackageName.StartsWith(TEXT("/Script/")))
 	{
 		return PackageName.RightChop(8); // Chop "/Script/" from the name
+	}
+	else
+	{
+		// Not a native module!
+		return FString();
 	}
 
 	check(PackageName[0] == TEXT('/'));
@@ -2505,6 +2617,28 @@ FString GetEnumEntryPythonName(const UEnum* InEnum, const int32 InEntryIndex)
 		}
 	}
 	
+	// Blueprint enums have horrible internal names, so try and create a valid identifier from the display name meta-data
+	if (IsBlueprintGeneratedEnum(InEnum))
+	{
+		EnumEntryName = InEnum->GetAuthoredNameStringByIndex(InEntryIndex);
+		if (FCString::IsPureAnsi(*EnumEntryName))
+		{
+			// Sanitize out any invalid characters in the name
+			for (TCHAR& Char : EnumEntryName)
+			{
+				if (!FChar::IsAlnum(Char))
+				{
+					Char = TEXT('_');
+				}
+			}
+		}
+		else
+		{
+			// If the name isn't pure-ANSI then don't attempt to sanitize it as the result will be very mangled
+			EnumEntryName.Reset();
+		}
+	}
+
 	// Just use the entry name if we have no meta-data
 	if (EnumEntryName.IsEmpty())
 	{
@@ -2741,14 +2875,14 @@ FString GetEnumEntryTooltip(const UEnum* InEnum, const int64 InEntryIndex)
 	return *FTextInspector::GetSourceString(InEnum->GetToolTipTextByIndex(InEntryIndex));
 }
 
-FString BuildCppSourceInformationDocString(const UField* InOwnerType)
+FString BuildSourceInformationDocString(const UField* InOwnerType)
 {
 	FString Str;
-	AppendCppSourceInformationDocString(InOwnerType, Str);
+	AppendSourceInformationDocString(InOwnerType, Str);
 	return Str;
 }
 
-void AppendCppSourceInformationDocString(const UField* InOwnerType, FString& OutStr)
+void AppendSourceInformationDocString(const UField* InOwnerType, FString& OutStr)
 {
 	if (!InOwnerType)
 	{
@@ -2763,23 +2897,35 @@ void AppendCppSourceInformationDocString(const UField* InOwnerType, FString& Out
 		}
 	}
 
-	static const FName ModuleRelativePathMetaDataKey = "ModuleRelativePath";
+	const UPackage* OwnerPackage = InOwnerType->GetOutermost();
+	const FString OwnerPackageName = OwnerPackage->GetName();
 
-	const FString TypePlugin = GetFieldPlugin(InOwnerType);
-	const FString TypeModule = GetFieldModule(InOwnerType);
-	const FString TypeFile = FPaths::GetCleanFilename(InOwnerType->GetMetaData(ModuleRelativePathMetaDataKey));
-
-	OutStr += LINE_TERMINATOR TEXT("**C++ Source:**") LINE_TERMINATOR;
-	if (!TypePlugin.IsEmpty())
+	if (FPackageName::IsScriptPackage(OwnerPackageName))
 	{
-		OutStr += LINE_TERMINATOR TEXT("- **Plugin**: ");
-		OutStr += TypePlugin;
+		static const FName ModuleRelativePathMetaDataKey = "ModuleRelativePath";
+
+		const FString TypePlugin = GetFieldPlugin(InOwnerType);
+		const FString TypeModule = GetFieldModule(InOwnerType);
+		const FString TypeFile = FPaths::GetCleanFilename(InOwnerType->GetMetaData(ModuleRelativePathMetaDataKey));
+
+		OutStr += LINE_TERMINATOR TEXT("**C++ Source:**") LINE_TERMINATOR;
+		if (!TypePlugin.IsEmpty())
+		{
+			OutStr += LINE_TERMINATOR TEXT("- **Plugin**: ");
+			OutStr += TypePlugin;
+		}
+		OutStr += LINE_TERMINATOR TEXT("- **Module**: ");
+		OutStr += TypeModule;
+		OutStr += LINE_TERMINATOR TEXT("- **File**: ");
+		OutStr += TypeFile;
+		OutStr += LINE_TERMINATOR;
 	}
-	OutStr += LINE_TERMINATOR TEXT("- **Module**: ");
-	OutStr += TypeModule;
-	OutStr += LINE_TERMINATOR TEXT("- **File**: ");
-	OutStr += TypeFile;
-	OutStr += LINE_TERMINATOR;
+	else
+	{
+		OutStr += LINE_TERMINATOR TEXT("**Asset Source:**") LINE_TERMINATOR;
+		OutStr += LINE_TERMINATOR TEXT("- **Package**: ");
+		OutStr += OwnerPackageName;
+	}
 }
 
 bool SaveGeneratedTextFile(const TCHAR* InFilename, const FString& InFileContents, const bool InForceWrite)

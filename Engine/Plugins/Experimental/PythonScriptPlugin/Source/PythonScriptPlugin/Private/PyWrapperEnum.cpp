@@ -714,6 +714,11 @@ bool FPyWrapperEnumMetaData::IsEnumFinalized(FPyWrapperEnum* Instance)
 	return IsEnumFinalized(Py_TYPE(Instance));
 }
 
+void FPyWrapperEnumMetaData::AddReferencedObjects(FPyWrapperBase* Instance, FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObject(Enum);
+}
+
 class FPythonGeneratedEnumBuilder
 {
 public:

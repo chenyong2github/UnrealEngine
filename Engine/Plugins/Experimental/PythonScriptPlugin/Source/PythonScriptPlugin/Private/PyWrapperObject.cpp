@@ -912,6 +912,8 @@ void FPyWrapperObjectMetaData::AddReferencedObjects(FPyWrapperBase* Instance, FR
 {
 	FPyWrapperObject* Self = static_cast<FPyWrapperObject*>(Instance);
 
+	Collector.AddReferencedObject(Class);
+
 	UObject* OldInstance = Self->ObjectInstance;
 	Collector.AddReferencedObject(Self->ObjectInstance);
 

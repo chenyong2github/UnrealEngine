@@ -18,6 +18,7 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"Analytics",
+					"AssetRegistry",
 					"Projects",
 					"Python",
 					"Slate",

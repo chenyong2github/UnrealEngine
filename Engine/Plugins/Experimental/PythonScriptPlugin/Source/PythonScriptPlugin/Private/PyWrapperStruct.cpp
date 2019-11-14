@@ -1183,10 +1183,12 @@ FPyWrapperStructMetaData::FPyWrapperStructMetaData()
 {
 }
 
-/** Add object references from the given Python object to the given collector */
 void FPyWrapperStructMetaData::AddReferencedObjects(FPyWrapperBase* Instance, FReferenceCollector& Collector)
 {
 	FPyWrapperStruct* Self = static_cast<FPyWrapperStruct*>(Instance);
+
+	Collector.AddReferencedObject(Struct);
+	
 	Collector.AddReferencedObject(Self->ScriptStruct);
 	if (Self->ScriptStruct && Self->StructInstance && !Self->OwnerContext.HasOwner())
 	{

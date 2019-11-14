@@ -9,6 +9,7 @@
 #include "PyGenUtil.h"
 #include "PyConversionMethod.h"
 #include "PyOnlineDocsWriter.h"
+#include "Misc/EnumClassFlags.h"
 #include "UObject/WeakObjectPtr.h"
 #include "Templates/Function.h"
 
@@ -32,6 +33,19 @@ class IPyWrapperInlineStructFactory;
 
 class FPyFileWriter;
 class FReferenceCollector;
+
+enum class EPyTypeGenerationFlags : uint8
+{
+	/** No behavior */
+	None = 0,
+	/** Generate the Python wrapper for this type, even if it fails the PyGenUtil::ShouldExportX check */
+	ForceShouldExport = 1<<0,
+	/** Generate the Python wrapper for this type, even if it passes the PyGenUtil::IsBlueprintGeneratedX check */
+	IncludeBlueprintGeneratedTypes = 1<<1,
+	/** Generate the Python wrapper for this type, re-using the existing type if it already exists */
+	OverwriteExisting = 1<<2,
+};
+ENUM_CLASS_FLAGS(EPyTypeGenerationFlags);
 
 /** Type conversion for TPyWrapperTypeFactory */
 template <typename UnrealType, typename KeyType>
@@ -368,11 +382,26 @@ public:
 	/** Generate notifications to (re)load the dirtied modules in Python */
 	void NotifyModulesDirtied(const TSet<FName>& InDirtyModules) const;
 
+	/** Called when an asset that is registered with the type registry has been renamed */
+	void UpdateGenerateWrappedTypeForRename(const FName InOldName, const UObject* InObj);
+
+	/** Called when an asset that is registered with the type registry is deleted */
+	void RemoveGenerateWrappedTypeForDelete(const UObject* InObj);
+
 	/** Generate a wrapped type for the given object (if it's a valid type to be wrapped) */
-	PyTypeObject* GenerateWrappedTypeForObject(const UObject* InObj, FGeneratedWrappedTypeReferences& OutGeneratedWrappedTypeReferences, TSet<FName>& OutDirtyModules, const bool bForceGenerate = false);
+	PyTypeObject* GenerateWrappedTypeForObject(const UObject* InObj, FGeneratedWrappedTypeReferences& OutGeneratedWrappedTypeReferences, TSet<FName>& OutDirtyModules, const EPyTypeGenerationFlags InGenerationFlags = EPyTypeGenerationFlags::None);
+
+	/** True if we have wrapped type for the given object */
+	bool HasWrappedTypeForObject(const UObject* InObj) const;
+
+	/** True if we have wrapped type for the given object name */
+	bool HasWrappedTypeForObjectName(const FName InName) const;
+
+	/** Get the best wrapped type for the given object */
+	PyTypeObject* GetWrappedTypeForObject(const UObject* InObj) const;
 
 	/** Generate a wrapped type for the given class (only if this class has not yet been registered; will also register the type) */
-	PyTypeObject* GenerateWrappedClassType(const UClass* InClass, FGeneratedWrappedTypeReferences& OutGeneratedWrappedTypeReferences, TSet<FName>& OutDirtyModules, const bool bForceGenerate = false);
+	PyTypeObject* GenerateWrappedClassType(const UClass* InClass, FGeneratedWrappedTypeReferences& OutGeneratedWrappedTypeReferences, TSet<FName>& OutDirtyModules, const EPyTypeGenerationFlags InGenerationFlags = EPyTypeGenerationFlags::None);
 
 	/** Register the wrapped type associated with the given class name */
 	void RegisterWrappedClassType(const FName ClassName, PyTypeObject* PyType, const bool InDetectNameConflicts = true);
@@ -387,7 +416,7 @@ public:
 	PyTypeObject* GetWrappedClassType(const UClass* InClass) const;
 
 	/** Generate a wrapped type for the given struct (only if this struct has not yet been registered; will also register the type) */
-	PyTypeObject* GenerateWrappedStructType(const UScriptStruct* InStruct, FGeneratedWrappedTypeReferences& OutGeneratedWrappedTypeReferences, TSet<FName>& OutDirtyModules, const bool bForceGenerate = false);
+	PyTypeObject* GenerateWrappedStructType(const UScriptStruct* InStruct, FGeneratedWrappedTypeReferences& OutGeneratedWrappedTypeReferences, TSet<FName>& OutDirtyModules, const EPyTypeGenerationFlags InGenerationFlags = EPyTypeGenerationFlags::None);
 
 	/** Register the wrapped type associated with the given struct name */
 	void RegisterWrappedStructType(const FName StructName, PyTypeObject* PyType, const bool InDetectNameConflicts = true);
@@ -402,7 +431,7 @@ public:
 	PyTypeObject* GetWrappedStructType(const UScriptStruct* InStruct) const;
 
 	/** Generate a wrapped type for the given enum (only if this enum has not yet been registered; will also register the type) */
-	PyTypeObject* GenerateWrappedEnumType(const UEnum* InEnum, FGeneratedWrappedTypeReferences& OutGeneratedWrappedTypeReferences, TSet<FName>& OutDirtyModules, const bool bForceGenerate = false);
+	PyTypeObject* GenerateWrappedEnumType(const UEnum* InEnum, FGeneratedWrappedTypeReferences& OutGeneratedWrappedTypeReferences, TSet<FName>& OutDirtyModules, const EPyTypeGenerationFlags InGenerationFlags = EPyTypeGenerationFlags::None);
 
 	/** Register the wrapped type associated with the given enum name */
 	void RegisterWrappedEnumType(const FName EnumName, PyTypeObject* PyType, const bool InDetectNameConflicts = true);
@@ -417,7 +446,7 @@ public:
 	PyTypeObject* GetWrappedEnumType(const UEnum* InEnum) const;
 
 	/** Generate a wrapped type for the given delegate signature (only if this delegate has not yet been registered; will also register the type) */
-	PyTypeObject* GenerateWrappedDelegateType(const UFunction* InDelegateSignature, FGeneratedWrappedTypeReferences& OutGeneratedWrappedTypeReferences, TSet<FName>& OutDirtyModules, const bool bForceGenerate = false);
+	PyTypeObject* GenerateWrappedDelegateType(const UFunction* InDelegateSignature, FGeneratedWrappedTypeReferences& OutGeneratedWrappedTypeReferences, TSet<FName>& OutDirtyModules, const EPyTypeGenerationFlags InGenerationFlags = EPyTypeGenerationFlags::None);
 
 	/** Register the wrapped type associated with the given delegate name */
 	void RegisterWrappedDelegateType(const FName DelegateName, PyTypeObject* PyType, const bool InDetectNameConflicts = true);
