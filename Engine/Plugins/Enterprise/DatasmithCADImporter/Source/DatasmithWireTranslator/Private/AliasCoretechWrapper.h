@@ -31,9 +31,8 @@ public:
 	 * eg. For a file in inches, arg should be 0.0254
 	 */
 	FAliasCoretechWrapper(const TCHAR* InOwner)
-		: CTSession(InOwner, 0.001, 1) 
-// We prefere to tell to kernelIO that Nurbs are in mm (default unit of kernelIO) to don't have side effect. 
-// Scale == 1 because in fact Alias work in cm so we do not need to scale mesh parameters
+		: CTSession(InOwner, 0.01, 1) 
+		// Unit for CoreTech session is set to cm, 0.01, because Wire's unit is cm. Consequently, Scale factor is set to 1.
 	{
 	}
 
