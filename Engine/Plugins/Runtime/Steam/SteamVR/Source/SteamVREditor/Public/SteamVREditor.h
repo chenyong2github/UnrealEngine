@@ -29,11 +29,12 @@ public:
 
 private:
 
+	void AddToolbarExtension(FToolBarBuilder& Builder);
 	void AddMenuExtension(FMenuBuilder& Builder);
 	bool AddUniqueAxisMapping(TArray<FInputAxisKeyMapping> ExistingAxisKeys, UInputSettings* InputSettings, FName ActionName, FKey ActionKey);
 	bool AddUniqueActionMapping(TArray<FInputActionKeyMapping> ExistingActionKeys, UInputSettings* InputSettings, FName ActionName, FKey ActionKey);
 
 	TSharedPtr<class FUICommandList> PluginCommands;
-	void MakeMenu(FMenuBuilder& MenuBuilder);
+	TSharedRef<SWidget> FillComboButton(TSharedPtr<class FUICommandList> Commands);
 
 };

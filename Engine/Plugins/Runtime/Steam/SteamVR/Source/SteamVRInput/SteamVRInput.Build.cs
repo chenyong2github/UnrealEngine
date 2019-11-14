@@ -12,13 +12,19 @@ public class SteamVRInput : ModuleRules
         PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "Private"));
         PublicDependencyModuleNames.AddRange(
 			new string[]
-			{
-				"Core",
+            {
+                "Core",
+                "CoreUObject",
                 "Projects",
                 "OpenVR",
                 "SteamVR"
             }
 			);
+
+        if (Target.bBuildEditor == true)
+        {
+            PrivateDependencyModuleNames.Add("UnrealEd");
+        }
 
         RuntimeDependencies.Add("$(ProjectDir)/Config/SteamVRBindings/...");
     }

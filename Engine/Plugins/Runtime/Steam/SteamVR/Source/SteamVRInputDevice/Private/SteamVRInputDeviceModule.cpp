@@ -7,6 +7,11 @@
 #include "Engine/Engine.h"
 #include "IXRTrackingSystem.h"
 
+#if WITH_EDITOR
+#include "Editor/EditorEngine.h"
+#include "Editor.h"
+#endif
+
 class FSteamVRInputDeviceModule : public ISteamVRInputDeviceModule
 {
 	/* Creates a new instance of SteamVR Input Controller **/
@@ -15,7 +20,11 @@ class FSteamVRInputDeviceModule : public ISteamVRInputDeviceModule
 		static FName SystemName(TEXT("SteamVR"));
 		if (GEngine->XRSystem.IsValid() && (GEngine->XRSystem->GetSystemName() == SystemName))
 		{
-			return TSharedPtr<class IInputDevice>(new FSteamVRInputDevice(InMessageHandler));
+			TSharedPtr<class FSteamVRInputDevice> Device(new FSteamVRInputDevice(InMessageHandler));
+#if WITH_EDITOR
+			FEditorDelegates::OnActionAxisMappingsChanged.AddSP(Device.ToSharedRef(), &FSteamVRInputDevice::OnActionMappingsChanged);
+#endif
+			return Device;
 		}
 		return nullptr;
 	}

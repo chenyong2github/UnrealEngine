@@ -112,6 +112,76 @@ namespace WindowsMixedReality
 			static_cast<float>(axisPosition));
 	}
 
+	FKey GetThumbstickDirectionKey(FVector2D TouchDir, HMDHand Hand)
+	{
+		const FVector2D UpDir(0.f, 1.f);
+		const FVector2D RightDir(1.f, 0.f);
+
+		const float VerticalDot = TouchDir | UpDir;
+		const float RightDot = TouchDir | RightDir;
+
+		if (VerticalDot >= UE_HALF_SQRT_2)
+		{
+			return (Hand == HMDHand::Left) ?
+				EKeys::MixedReality_Left_Thumbstick_Up :
+				EKeys::MixedReality_Right_Thumbstick_Up;
+		}
+		else if (VerticalDot <= -UE_HALF_SQRT_2)
+		{
+			return (Hand == HMDHand::Left) ?
+				EKeys::MixedReality_Left_Thumbstick_Down :
+				EKeys::MixedReality_Right_Thumbstick_Down;
+		}
+		else if (RightDot <= -UE_HALF_SQRT_2)
+		{
+			return (Hand == HMDHand::Left) ?
+				EKeys::MixedReality_Left_Thumbstick_Left :
+				EKeys::MixedReality_Right_Thumbstick_Left;
+		}
+		else if (RightDot >= UE_HALF_SQRT_2)
+		{
+			return (Hand == HMDHand::Left) ?
+				EKeys::MixedReality_Left_Thumbstick_Right :
+				EKeys::MixedReality_Right_Thumbstick_Right;
+		}
+		return EKeys::Invalid;
+	}
+
+	FKey GetTouchpadDirectionKey(FVector2D TouchDir, HMDHand Hand)
+	{
+		const FVector2D UpDir(0.f, 1.f);
+		const FVector2D RightDir(1.f, 0.f);
+
+		const float VerticalDot = TouchDir | UpDir;
+		const float RightDot = TouchDir | RightDir;
+
+		if (VerticalDot >= UE_HALF_SQRT_2)
+		{
+			return (Hand == HMDHand::Left) ?
+				EKeys::MixedReality_Left_Trackpad_Up :
+				EKeys::MixedReality_Right_Trackpad_Up;
+		}
+		else if (VerticalDot <= -UE_HALF_SQRT_2)
+		{
+			return (Hand == HMDHand::Left) ?
+				EKeys::MixedReality_Left_Trackpad_Down :
+				EKeys::MixedReality_Right_Trackpad_Down;
+		}
+		else if (RightDot <= -UE_HALF_SQRT_2)
+		{
+			return (Hand == HMDHand::Left) ?
+				EKeys::MixedReality_Left_Trackpad_Left :
+				EKeys::MixedReality_Right_Trackpad_Left;
+		}
+		else if (RightDot >= UE_HALF_SQRT_2)
+		{
+			return (Hand == HMDHand::Left) ?
+				EKeys::MixedReality_Left_Trackpad_Right :
+				EKeys::MixedReality_Right_Trackpad_Right;
+		}
+		return EKeys::Invalid;
+	}
+
 	// Gesture events come in from some microsoft thread, so we have to queue them up and send them from the game thread
 	// to avoid problems with systems that handle the events directly (UI is an example).
 	void FWindowsMixedRealitySpatialInput::EnqueueControllerButtonEvent(
@@ -169,7 +239,7 @@ namespace WindowsMixedReality
 	void FWindowsMixedRealitySpatialInput::SendAxisEvents(uint32 source)
 	{
 		FKey key;
-		FVector position;
+		FVector2D position;
 
 		for (int i = 0; i < 2; i++)
 		{
@@ -214,6 +284,25 @@ namespace WindowsMixedReality
 
 			SendControllerAxisEvent(MessageHandler, source, key, position.Y);
 
+			// Thumbstick direction
+			if (position.Size() > 0.5f)
+			{
+				key = GetThumbstickDirectionKey(position, hand);
+				if (!ThumbstickDirection[i].IsValid())
+				{
+					SendControllerButtonEvent(MessageHandler, source, key, HMDInputPressState::Pressed);
+				}
+				ThumbstickDirection[i] = key;
+			}
+			else
+			{
+				if (ThumbstickDirection[i].IsValid())
+				{
+					SendControllerButtonEvent(MessageHandler, source, ThumbstickDirection[i], HMDInputPressState::Released);
+				}
+				ThumbstickDirection[i] = EKeys::Invalid;
+			}
+
 			// Touchpad X
 			position.X = FWindowsMixedRealityStatics::GetAxisPosition(hand, HMDInputControllerAxes::TouchpadX);
 			key = (hand == HMDHand::Left) ?
@@ -241,6 +330,25 @@ namespace WindowsMixedReality
 			}
 
 			SendControllerAxisEvent(MessageHandler, source, key, position.Y);
+
+			// Touchpad direction
+			if (position.Size() > 0.5f)
+			{
+				key = GetTouchpadDirectionKey(position, hand);
+				if (!ThumbstickDirection[i].IsValid())
+				{
+					SendControllerButtonEvent(MessageHandler, source, key, HMDInputPressState::Pressed);
+				}
+				ThumbstickDirection[i] = key;
+			}
+			else
+			{
+				if (ThumbstickDirection[i].IsValid())
+				{
+					SendControllerButtonEvent(MessageHandler, source, ThumbstickDirection[i], HMDInputPressState::Released);
+				}
+				ThumbstickDirection[i] = EKeys::Invalid;
+			}
 		}
 	}
 

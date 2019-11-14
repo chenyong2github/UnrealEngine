@@ -299,21 +299,25 @@ struct FOculusTouchControllerState
 			Button.NextRepeatTime = 0.0;
 		}
 
-		Buttons[(int32)EOculusTouchControllerButton::Trigger].Key = (Hand == EControllerHand::Left) ? EKeys::OculusTouch_Left_Trigger_Click.GetFName() : EKeys::OculusTouch_Right_Trigger_Click.GetFName();
-		Buttons[(int32)EOculusTouchControllerButton::Grip].Key = (Hand == EControllerHand::Left) ? EKeys::OculusTouch_Left_Grip_Click.GetFName() : EKeys::OculusTouch_Right_Grip_Click.GetFName();
-		Buttons[(int32)EOculusTouchControllerButton::Thumbstick].Key = (Hand == EControllerHand::Left) ? EKeys::OculusTouch_Left_Thumbstick_Click.GetFName() : EKeys::OculusTouch_Right_Thumbstick_Click.GetFName();
-		Buttons[(int32)EOculusTouchControllerButton::XA].Key = (Hand == EControllerHand::Left) ? EKeys::OculusTouch_Left_X_Click.GetFName() : EKeys::OculusTouch_Right_A_Click.GetFName();
-		Buttons[(int32)EOculusTouchControllerButton::YB].Key = (Hand == EControllerHand::Left) ? EKeys::OculusTouch_Left_Y_Click.GetFName() : EKeys::OculusTouch_Right_B_Click.GetFName();
+		Buttons[ (int32)EOculusTouchControllerButton::Trigger ].Key = (Hand == EControllerHand::Left) ? EKeys::OculusTouch_Left_Trigger_Click.GetFName() : EKeys::OculusTouch_Right_Trigger_Click.GetFName();
+		Buttons[ (int32)EOculusTouchControllerButton::Grip ].Key = (Hand == EControllerHand::Left) ? EKeys::OculusTouch_Left_Grip_Click.GetFName() : EKeys::OculusTouch_Right_Grip_Click.GetFName();
+		Buttons[ (int32)EOculusTouchControllerButton::Thumbstick ].Key = (Hand == EControllerHand::Left) ? EKeys::OculusTouch_Left_Thumbstick_Click.GetFName() : EKeys::OculusTouch_Right_Thumbstick_Click.GetFName();
+		Buttons[ (int32)EOculusTouchControllerButton::XA ].Key = (Hand == EControllerHand::Left) ? EKeys::OculusTouch_Left_X_Click.GetFName() : EKeys::OculusTouch_Right_A_Click.GetFName();
+		Buttons[ (int32)EOculusTouchControllerButton::YB ].Key = (Hand == EControllerHand::Left) ? EKeys::OculusTouch_Left_Y_Click.GetFName() : EKeys::OculusTouch_Right_B_Click.GetFName();
+		Buttons[ (int32)EOculusTouchControllerButton::Thumbstick_Up ].Key = (Hand == EControllerHand::Left) ? EKeys::OculusTouch_Left_Thumbstick_Up.GetFName() : EKeys::OculusTouch_Right_Thumbstick_Up.GetFName();
+		Buttons[ (int32)EOculusTouchControllerButton::Thumbstick_Down ].Key = (Hand == EControllerHand::Left) ? EKeys::OculusTouch_Left_Thumbstick_Down.GetFName() : EKeys::OculusTouch_Right_Thumbstick_Down.GetFName();
+		Buttons[ (int32)EOculusTouchControllerButton::Thumbstick_Left ].Key = (Hand == EControllerHand::Left) ? EKeys::OculusTouch_Left_Thumbstick_Left.GetFName() : EKeys::OculusTouch_Right_Thumbstick_Left.GetFName();
+		Buttons[ (int32)EOculusTouchControllerButton::Thumbstick_Right ].Key = (Hand == EControllerHand::Left) ? EKeys::OculusTouch_Left_Thumbstick_Right.GetFName() : EKeys::OculusTouch_Right_Thumbstick_Right.GetFName();
 
 		Buttons[ (int32)EOculusTouchControllerButton::Trigger ].EmulatedKey = ( Hand == EControllerHand::Left ) ? FGamepadKeyNames::MotionController_Left_Trigger : FGamepadKeyNames::MotionController_Right_Trigger;
 		Buttons[ (int32)EOculusTouchControllerButton::Grip ].EmulatedKey = ( Hand == EControllerHand::Left ) ? FGamepadKeyNames::MotionController_Left_Grip1 : FGamepadKeyNames::MotionController_Right_Grip1;
 		Buttons[ (int32)EOculusTouchControllerButton::Thumbstick ].EmulatedKey = ( Hand == EControllerHand::Left ) ? FGamepadKeyNames::MotionController_Left_Thumbstick : FGamepadKeyNames::MotionController_Right_Thumbstick;
 		Buttons[ (int32)EOculusTouchControllerButton::XA ].EmulatedKey = (Hand == EControllerHand::Left) ? FGamepadKeyNames::MotionController_Left_FaceButton1 : FGamepadKeyNames::MotionController_Right_FaceButton1;
 		Buttons[ (int32)EOculusTouchControllerButton::YB ].EmulatedKey = (Hand == EControllerHand::Left) ? FGamepadKeyNames::MotionController_Left_FaceButton2 : FGamepadKeyNames::MotionController_Right_FaceButton2;
-		Buttons[ (int32)EOculusTouchControllerButton::Thumbstick_Up].Key = (Hand == EControllerHand::Left) ? FGamepadKeyNames::MotionController_Left_Thumbstick_Up : FGamepadKeyNames::MotionController_Right_Thumbstick_Up;
-		Buttons[ (int32)EOculusTouchControllerButton::Thumbstick_Down].Key = (Hand == EControllerHand::Left) ? FGamepadKeyNames::MotionController_Left_Thumbstick_Down : FGamepadKeyNames::MotionController_Right_Thumbstick_Down;
-		Buttons[ (int32)EOculusTouchControllerButton::Thumbstick_Left].Key = (Hand == EControllerHand::Left) ? FGamepadKeyNames::MotionController_Left_Thumbstick_Left : FGamepadKeyNames::MotionController_Right_Thumbstick_Left;
-		Buttons[ (int32)EOculusTouchControllerButton::Thumbstick_Right].Key = (Hand == EControllerHand::Left) ? FGamepadKeyNames::MotionController_Left_Thumbstick_Right : FGamepadKeyNames::MotionController_Right_Thumbstick_Right;
+		Buttons[ (int32)EOculusTouchControllerButton::Thumbstick_Up].EmulatedKey = (Hand == EControllerHand::Left) ? FGamepadKeyNames::MotionController_Left_Thumbstick_Up : FGamepadKeyNames::MotionController_Right_Thumbstick_Up;
+		Buttons[ (int32)EOculusTouchControllerButton::Thumbstick_Down].EmulatedKey = (Hand == EControllerHand::Left) ? FGamepadKeyNames::MotionController_Left_Thumbstick_Down : FGamepadKeyNames::MotionController_Right_Thumbstick_Down;
+		Buttons[ (int32)EOculusTouchControllerButton::Thumbstick_Left].EmulatedKey = (Hand == EControllerHand::Left) ? FGamepadKeyNames::MotionController_Left_Thumbstick_Left : FGamepadKeyNames::MotionController_Right_Thumbstick_Left;
+		Buttons[ (int32)EOculusTouchControllerButton::Thumbstick_Right].EmulatedKey = (Hand == EControllerHand::Left) ? FGamepadKeyNames::MotionController_Left_Thumbstick_Right : FGamepadKeyNames::MotionController_Right_Thumbstick_Right;
 
 		Buttons[ (int32)EOculusTouchControllerButton::Menu ].Key = (Hand == EControllerHand::Left) ? FGamepadKeyNames::SpecialLeft : FGamepadKeyNames::SpecialRight;
 
