@@ -17,8 +17,12 @@ USoundEffectPreset::~USoundEffectPreset()
 {
 	for (int32 i = 0; i < Instances.Num(); ++i)
 	{
-		Instances[i]->ClearPreset();
+		if (Instances[i])
+		{
+			Instances[i]->ClearPreset(false /* bRemoveFromPreset */);
+		}
 	}
+	Instances.Reset();
 }
 
 
@@ -26,15 +30,25 @@ void USoundEffectPreset::EffectCommand(TFunction<void()> Command)
 {
 	for (int32 i = 0; i < Instances.Num(); ++i)
 	{
-		Instances[i]->EffectCommand(Command);
+		if (Instances[i])
+		{
+			Instances[i]->EffectCommand(Command);
+		}
 	}
 }
 
 void USoundEffectPreset::Update()
 {
-	for (int32 i = 0; i < Instances.Num(); ++i)
+	for (int32 i = Instances.Num() - 1; i >= 0; --i)
 	{
-		Instances[i]->SetPreset(this);
+		if (!Instances[i] || Instances[i]->GetPreset() == nullptr)
+		{
+			Instances.RemoveAtSwap(i, 1, false /* bAllowShrinking */);
+		}
+		else
+		{
+			Instances[i]->SetPreset(this);
+		}
 	}
 }
 
@@ -66,10 +80,7 @@ void USoundEffectPreset::AddReferencedEffects(FReferenceCollector& Collector)
 
 void USoundEffectPreset::RemoveEffectInstance(FSoundEffectBase* InSource)
 {
-	if (Instances.Contains(InSource))
-	{
-		Instances.Remove(InSource);
-	}
+	Instances.RemoveSwap(InSource);
 }
 
 #if WITH_EDITORONLY_DATA
