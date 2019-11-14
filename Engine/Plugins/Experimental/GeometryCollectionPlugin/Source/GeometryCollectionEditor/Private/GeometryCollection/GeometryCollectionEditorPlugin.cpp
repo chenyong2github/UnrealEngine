@@ -47,6 +47,18 @@ void IGeometryCollectionEditorPlugin::StartupModule()
 	if (GIsEditor && !IsRunningCommandlet())
 	{
 		EditorCommands.Add(IConsoleManager::Get().RegisterConsoleCommand(
+			TEXT("GeometryCollection.CreateFromSelectedActors"),
+			TEXT("Creates a GeometryCollection from the selected Actors that contain Skeletal and Statict Mesh Components"),
+			FConsoleCommandWithWorldDelegate::CreateStatic(&FGeometryCollectionConversion::CreateFromSelectedActorsCommand),
+			ECVF_Default
+		));
+		EditorCommands.Add(IConsoleManager::Get().RegisterConsoleCommand(
+			TEXT("GeometryCollection.CreateFromSelectedAssets"),
+			TEXT("Creates a GeometryCollection from the selected Skeletal Mesh and Static Mesh Assets"),
+			FConsoleCommandWithWorldDelegate::CreateStatic(&FGeometryCollectionConversion::CreateFromSelectedAssetsCommand),
+			ECVF_Default
+		));
+		EditorCommands.Add(IConsoleManager::Get().RegisterConsoleCommand(
 			TEXT("GeometryCollection.ToString"),
 			TEXT("Dump the contents of the collection to the log file. WARNING: The collection can be very large."),
 			FConsoleCommandWithWorldDelegate::CreateStatic(&FGeometryCollectionCommands::ToString),
