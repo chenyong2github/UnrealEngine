@@ -723,6 +723,7 @@ void FBulkDataBase::GetCopy(void** DstBuffer, bool bDiscardInternalCopy)
 
 			if (bDiscardInternalCopy && (CanLoadFromDisk() || IsSingleUse()))
 			{
+				UE_LOG(LogSerialization, Warning, TEXT("FBulkDataBase::GetCopy both copied and discarded it's data, passing in an empty pointer would avoid an extra allocate and memcpy!"));
 				FreeData();
 			}
 		}
