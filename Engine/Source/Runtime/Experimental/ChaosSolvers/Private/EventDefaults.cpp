@@ -69,13 +69,13 @@ namespace Chaos
 
 					// Since Clustered GCs can be unioned the particleIndex representing the union 
 					// is not associated with a PhysicsProxy
-					if(Constraint.Particle->Handle()->GTGeometryParticle()->Proxy != nullptr)
+					if(Constraint.Particle[0]->Handle()->GTGeometryParticle()->Proxy != nullptr)
 
 					{
 						if(ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.GetPhi())))
 						{
-							TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle;
-							TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Levelset;
+							TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
+							TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];
 							TKinematicGeometryParticleHandle<float, 3>* Body0 = Particle0->AsKinematic();
 
 							// presently when a rigidbody or kinematic hits static geometry then Body1 is null
@@ -105,8 +105,8 @@ namespace Chaos
 					{
 						Chaos::TPBDCollisionConstraint<float, 3>::FRigidBodyContactConstraint const& Constraint = AllConstraintsArray[ValidCollisionIndices[IdxCollision]];
 
-						TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle;
-						TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Levelset;
+						TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
+						TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];
 
 						TCollisionData<float, 3> Data;
 						Data.Location = Constraint.GetLocation();
