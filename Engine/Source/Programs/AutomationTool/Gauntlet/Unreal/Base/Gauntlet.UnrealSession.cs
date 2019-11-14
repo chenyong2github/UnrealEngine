@@ -157,7 +157,7 @@ namespace Gauntlet
 				}
 			}
 
-			if (Globals.Params.ParseParam("packaged") && (InPlatform == UnrealTargetPlatform.Switch || InPlatform == UnrealTargetPlatform.XboxOne))
+			if (Globals.Params.ParseParam("packaged") && (InPlatform == UnrealTargetPlatform.Switch || InPlatform == UnrealTargetPlatform.XboxOne || InPlatform == UnrealTargetPlatform.PS4))
 			{
 				RequiredBuildFlags |= BuildFlags.Packaged;
 			}
