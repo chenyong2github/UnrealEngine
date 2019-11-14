@@ -708,6 +708,7 @@ FMaterialClosestHitPayload TraceRayAndAccumulateResults(
 	in uint ShouldDoDirectLighting,
 	in uint ShouldDoEmissiveAndIndirectLighting,
 	inout FRayCone RayCone,
+	in bool bDisableSkyLightContribution,
 	inout float3 Radiance)
 {
 	FPackedMaterialClosestHitPayload Payload = (FPackedMaterialClosestHitPayload)0;
@@ -717,7 +718,8 @@ FMaterialClosestHitPayload TraceRayAndAccumulateResults(
 		RayFlags,
 		InstanceInclusionMask,
 		Ray,
-		RayCone);
+		RayCone,
+		bDisableSkyLightContribution);
 
 	float3 WorldPosition = Ray.Origin + Ray.Direction * Payload.HitT;
 	float3 ViewDirection = Ray.Direction;
@@ -749,6 +751,7 @@ FMaterialClosestHitPayload TraceRayAndAccumulateBottomLayerResults(
 	in uint ShouldDoDirectLighting,
 	in uint ShouldDoEmissiveAndIndirectLighting,
 	inout FRayCone RayCone,
+	in bool bDisableSkyLightContribution,
 	inout float3 Radiance)
 {
 	FMaterialClosestHitPayload BottomLayerPayload = TraceMaterialRay(
@@ -756,7 +759,8 @@ FMaterialClosestHitPayload TraceRayAndAccumulateBottomLayerResults(
 		RayFlags,
 		InstanceInclusionMask,
 		Ray,
-		RayCone);
+		RayCone,
+		bDisableSkyLightContribution);
 
 	ComputeBottomLayerMaterialProperties(Ray, BottomLayerPayload);
 
