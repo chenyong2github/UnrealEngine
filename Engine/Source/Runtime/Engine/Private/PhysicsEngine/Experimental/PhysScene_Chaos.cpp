@@ -821,7 +821,7 @@ Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float
 
 void FPhysScene_Chaos::CopySolverAccelerationStructure()
 {
-	if(SceneSolver)
+	if (SceneSolver && GetDispatcher()->GetMode() != Chaos::EThreadingMode::SingleThread)
 	{
 		ExternalDataLock.WriteLock();
 		SceneSolver->GetEvolution()->UpdateExternalAccelerationStructure(SolverAccelerationStructure);
