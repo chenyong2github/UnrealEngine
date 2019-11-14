@@ -135,12 +135,19 @@ namespace EpicGames.MCP.Automation
 		/// PS4 platform
 		/// </summary>
 		PS4,
+
+		/// <summary>
+		/// Switch platform
+		/// </summary>
+		Switch,
+
+
 	}
 
-    /// <summary>
-    /// Enum that defines CDN types
-    /// </summary>
-    public enum CDNType
+	/// <summary>
+	/// Enum that defines CDN types
+	/// </summary>
+	public enum CDNType
     {
         /// <summary>
         /// Internal HTTP CDN server
