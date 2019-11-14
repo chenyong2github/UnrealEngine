@@ -32,6 +32,7 @@ namespace Chaos
 		FCollisionFilterData SimData;
 		void* UserData;
 		TSerializablePtr<FImplicitObject> Geometry;
+		TAABB<FReal, 3> WorldSpaceInflatedShapeBounds;
 		
 
 		static TPerShapeData<T, d>* SerializationFactory(FChaosArchive& Ar, TPerShapeData<T, d>*);
@@ -53,9 +54,9 @@ namespace Chaos
 	using TShapesArray = TArray<TUniquePtr<TPerShapeData<T, d>>, TInlineAllocator<1>>;
 
 	template <typename T, int d>
-	void UpdateShapesArrayFromGeometry(TShapesArray<T, d>& ShapesArray, TSerializablePtr<FImplicitObject> Geometry);
+	void UpdateShapesArrayFromGeometry(TShapesArray<T, d>& ShapesArray, TSerializablePtr<FImplicitObject> Geometry, const FRigidTransform3& ActorTM);
 
-	extern template void CHAOS_API UpdateShapesArrayFromGeometry(TShapesArray<float, 3>& ShapesArray, TSerializablePtr<FImplicitObject> Geometry);
+	extern template void CHAOS_API UpdateShapesArrayFromGeometry(TShapesArray<float, 3>& ShapesArray, TSerializablePtr<FImplicitObject> Geometry,  const FRigidTransform3& ActorTM);
 
 #if CHAOS_DETERMINISTIC
 	using FParticleID = int32;	//Used to break ties when determinism is needed. Should not be used for anything else
@@ -262,9 +263,20 @@ namespace Chaos
 			return MWorldSpaceInflatedBounds[Index];
 		}
 
-		CHAOS_API TBox<T, d>& WorldSpaceInflatedBounds(const int32 Index)
+		CHAOS_API void SetWorldSpaceInflatedBounds(const int32 Index, const TBox<T, d>& Bounds)
 		{
-			return MWorldSpaceInflatedBounds[Index];
+			MWorldSpaceInflatedBounds[Index] = Bounds;
+
+			const TShapesArray<FReal, 3>& Shapes = ShapesArray(Index);
+			for (const auto& Shape : Shapes)
+			{
+				if (Shape->Geometry->HasBoundingBox())
+				{
+					const TRigidTransform<FReal, 3> ActorTM(X(Index), R(Index));
+					TAABB<FReal, 3> Bound = Shape->Geometry->BoundingBox().GetAABB().TransformedAABB(ActorTM);
+					Shape->WorldSpaceInflatedShapeBounds = Bound;
+				}
+			}
 		}
 
 		const TArray<TSerializablePtr<FImplicitObject>>& GetAllGeometry() const { return MGeometry; }
@@ -304,6 +316,14 @@ namespace Chaos
 				Ar << MLocalBounds;
 				Ar << MWorldSpaceInflatedBounds;
 				Ar << MHasBounds;
+
+				if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::SerializeShapeWorldSpaceBounds)
+				{
+					for (int32 Idx = 0; Idx < MShapesArray.Num(); ++Idx)
+					{
+						SetWorldSpaceInflatedBounds(Idx, MWorldSpaceInflatedBounds[Idx]);
+					}
+				}
 			}
 			else
 			{
@@ -314,7 +334,8 @@ namespace Chaos
 					if (MHasBounds[Idx])
 					{
 						MLocalBounds[Idx] = MGeometry[Idx]->BoundingBox();
-						MWorldSpaceInflatedBounds[Idx] = MLocalBounds[Idx].TransformedBox(TRigidTransform<T,d>(X(Idx), R(Idx)));	//ignore velocity too, really just trying to get something reasonable
+						//ignore velocity too, really just trying to get something reasonable)
+						SetWorldSpaceInflatedBounds(Idx, MLocalBounds[Idx].TransformedBox(TRigidTransform<T,d>(X(Idx), R(Idx))));
 					}
 				}
 			}
@@ -368,7 +389,7 @@ namespace Chaos
 
 		void UpdateShapesArray(const int32 Index)
 		{
-			UpdateShapesArrayFromGeometry(MShapesArray[Index], MGeometry[Index]);
+			UpdateShapesArrayFromGeometry(MShapesArray[Index], MGeometry[Index], FRigidTransform3(X(Index), R(Index)));
 		}
 
 		template <typename T2, int d2, EGeometryParticlesSimType SimType2>
