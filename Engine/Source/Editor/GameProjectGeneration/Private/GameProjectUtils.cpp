@@ -157,6 +157,7 @@ namespace
 		return MoveTemp(DefaultProjectSettings);
 	}
 
+	// @todo: This is currently not called from anywhere as this approach does not work for binary builds.
 	/** Set the state of XR plugins in OutProject based on the flags in InProjectInfo. */
 	void SetXRPluginStates(const FProjectInformation& InProjectInfo, FProjectDescriptor& OutProject)
 	{
@@ -1428,8 +1429,6 @@ bool GameProjectUtils::GenerateProjectFromScratch(const FProjectInformation& InP
 
 		Project.bIsEnterpriseProject = InProjectInfo.bIsEnterpriseProject;
 
-		SetXRPluginStates(InProjectInfo, Project);
-
 		// Try to save it
 		FText LocalFailReason;
 		if(!Project.Save(InProjectInfo.ProjectFilename, LocalFailReason))
@@ -1840,9 +1839,6 @@ bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InPr
 		{
 			ModuleInfo.Name = FName(*ModuleInfo.Name.ToString().Replace(*BaseSourceName, *BaseNewName));
 		}
-
-		// Disable XR plugins if desired
-		SetXRPluginStates(InProjectInfo, Project);
 
 		// Save it to disk
 		if(!Project.Save(InProjectInfo.ProjectFilename, OutFailReason))

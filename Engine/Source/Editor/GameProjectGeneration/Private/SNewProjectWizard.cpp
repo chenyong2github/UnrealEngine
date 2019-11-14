@@ -1625,6 +1625,7 @@ TSharedRef<SWidget> SNewProjectWizard::MakeProjectSettingsOptionsBox()
 		AddToProjectSettingsGrid(GridPanel, Enum, Description, CurrentSlot);
 	}
 
+#if 0 // @todo: XR settings cannot be shown at the moment as the setting causes issues with binary builds.
 	if (!HiddenSettings.Contains(ETemplateSetting::XR))
 	{
 		TArray<SDecoratedEnumCombo<int32>::FComboOption> VirtualRealityOptions;
@@ -1649,6 +1650,7 @@ TSharedRef<SWidget> SNewProjectWizard::MakeProjectSettingsOptionsBox()
 
 		AddToProjectSettingsGrid(GridPanel, Enum, Description, CurrentSlot);
 	}
+#endif 
 
 	if (!HiddenSettings.Contains(ETemplateSetting::Raytracing))
 	{
