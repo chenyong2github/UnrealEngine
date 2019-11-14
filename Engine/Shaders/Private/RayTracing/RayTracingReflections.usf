@@ -152,12 +152,15 @@ float Transmit(in RayDesc TransmissionRay, inout RandomSequence RandSequence, in
 	const uint RayFlags = 0;
 	const uint InstanceInclusionMask = RAY_TRACING_MASK_TRANSLUCENT;
 	FRayCone RayCone = (FRayCone)0;
+	bool bDisableSkyLightContribution = false;
+
 	FMaterialClosestHitPayload TransmPayload = TraceMaterialRay(
 		TLAS,
 		RayFlags,
 		InstanceInclusionMask,
 		TransmissionRay,
-		RayCone);
+		RayCone,
+		bDisableSkyLightContribution);
 
 	const uint HitCountMax = 32;
 	uint HitCount = 0;
@@ -184,7 +187,8 @@ float Transmit(in RayDesc TransmissionRay, inout RandomSequence RandSequence, in
 			RayFlags,
 			RAY_TRACING_MASK_TRANSLUCENT,
 			TransmissionRay,
-			RayCone);
+			RayCone,
+			bDisableSkyLightContribution);
 
 		bIsHit = TransmPayload.IsHit();
 	}
@@ -446,6 +450,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 				{
 					const uint RayFlags = 0;
 					const uint InstanceInclusionMask = RAY_TRACING_MASK_OPAQUE;
+					const bool bDisableSkyLightContribution = false;
 
 					TraceMaterialRayPacked(
 						Payload,
@@ -453,7 +458,8 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 						RayFlags,
 						InstanceInclusionMask,
 						TopLayerRay,
-						RayCone);
+						RayCone,
+						bDisableSkyLightContribution);
 
 					// Trace separate ray for translucent objects
 					float Transmission = 1.0;
@@ -562,6 +568,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 					{
 						const uint RayFlags = 0;
 						const uint InstanceInclusionMask = RAY_TRACING_MASK_OPAQUE;
+						const bool bDisableSkyLightContribution = false;
 
 						FMaterialClosestHitPayload BottomLayerPayload = TraceRayAndAccumulateBottomLayerResults(
 							BottomLayerRay,
@@ -574,6 +581,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 							ShouldDoDirectLighting,
 							ShouldDoEmissiveAndIndirectLighting,
 							RayCone,
+							bDisableSkyLightContribution,
 							BottomLayerRadiance);
 
 						// Distance and sky: similar processing to main ray.
