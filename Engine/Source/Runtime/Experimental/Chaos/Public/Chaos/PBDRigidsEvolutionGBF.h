@@ -55,7 +55,7 @@ public:
 	static constexpr int32 DefaultNumPushOutIterations = 5;
 	static constexpr int32 DefaultNumPushOutPairIterations = 2;
 
-	CHAOS_API TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<T, d>& InParticles, int32 InNumIterations = DefaultNumIterations);
+	CHAOS_API TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<T, d>& InParticles, int32 InNumIterations = DefaultNumIterations, bool InIsSingleThreaded = false);
 	CHAOS_API ~TPBDRigidsEvolutionGBF() {}
 
 	void SetPostIntegrateCallback(const TPBDRigidsEvolutionCallback<T, d>& Cb)
