@@ -106,10 +106,10 @@ public:
 			Map.Add(FManagedArrayCollection::MakeMapKey(Name, Group), MoveTemp(Value));
 		}
 		return GetAttribute<T>(Name, Group);
-	};
+	}
 
 	/**
-	* Add an external attribute of Type(T) to the group for size management. Lifetime is managed by the caller, must make sure the array is alive when collection is
+	* Add an external attribute of Type(T) to the group for size management. Lifetime is managed by the caller, must make sure the array is alive when the collection is
 	* @param Name - The name of the attribute
 	* @param Group - The group that manages the attribute
 	* @param ValueIn - The array to be managed
@@ -137,7 +137,7 @@ public:
 		}
 		Value.bExternalValue = true;
 		Map.Add(FManagedArrayCollection::MakeMapKey(Name, Group), MoveTemp(Value));
-	};
+	}
 
 	/**
 	* Create a group on the collection. Adding attribute will also create unknown groups.
