@@ -2969,10 +2969,9 @@ public:
 	}
 
 	/** serializes the associated sparse class data for the passed in object using the given archive slot. This should only be called if the class has an associated sparse data structure.
-	 * @param Object the object to serialize as default
 	 * @param Slot the structured archive slot to serialize from
 	 */
-	void SerializeSparseClassData(UObject* Object, FStructuredArchive::FSlot Slot);
+	void SerializeSparseClassData(FStructuredArchive::FSlot Slot);
 
 	/** Wraps the PostLoad() call for the class default object.
 	 * @param Object the default object to call PostLoad() on
