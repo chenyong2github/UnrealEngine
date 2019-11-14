@@ -1512,6 +1512,8 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 	}
 	else
 	{
+		GetRendererModule().PerFrameCleanupIfSkipRenderer();
+
 		// Make sure RHI resources get flushed if we're not using a renderer
 		ENQUEUE_RENDER_COMMAND(UGameViewportClient_FlushRHIResources)(
 			[](FRHICommandListImmediate& RHICmdList)
