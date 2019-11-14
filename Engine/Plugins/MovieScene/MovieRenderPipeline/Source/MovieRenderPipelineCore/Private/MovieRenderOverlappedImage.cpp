@@ -34,13 +34,16 @@ void FImageOverlappedPlane::Reset()
 }
 
 // a subpixel offset of (0.5,0.5) means that the raw data is exactly centered on destination pixels.
-void FImageOverlappedPlane::AccumulateSinglePlane(const TArray64<float>& InRawData, const TArray64<float>& InWeightData, FIntPoint InSize, FIntPoint InOffset,
+void FImageOverlappedPlane::AccumulateSinglePlane(const TArray64<float>& InRawData, FIntPoint InSize, FIntPoint InOffset,
 								float SubpixelOffsetX, float SubpixelOffsetY,
 								FIntPoint SubRectOffset,
-								FIntPoint SubRectSize)
+								FIntPoint SubRectSize,
+								const TArray<float> & WeightDataX,
+								const TArray<float> & WeightDataY)
 {
 	check(InRawData.Num() == InSize.X * InSize.Y);
-	check(InWeightData.Num() == InSize.X * InSize.Y);
+	check(WeightDataX.Num() == InSize.X);
+	check(WeightDataY.Num() == InSize.Y);
 
 	check(SubpixelOffsetX >= 0.0f);
 	check(SubpixelOffsetX <= 1.0f);
@@ -92,7 +95,10 @@ void FImageOverlappedPlane::AccumulateSinglePlane(const TArray64<float>& InRawDa
 							for (int32 OffsetX = 0; OffsetX < 2; OffsetX++)
 							{
 								float Val = InRawData[(CurrY - 1 + OffsetY) * InSize.X + (CurrX - 1 + OffsetX)];
-								float BaseWeight = InWeightData[(CurrY - 1 + OffsetY) * InSize.X + (CurrX - 1 + OffsetX)];
+								
+								float WX = WeightDataX[(CurrX - 1 + OffsetX)];
+								float WY = WeightDataY[(CurrY - 1 + OffsetY)];
+								float BaseWeight = WX * WY;
 
 								float Weight = BaseWeight * PixelWeight[1-OffsetY][1-OffsetX];
 
@@ -111,7 +117,10 @@ void FImageOverlappedPlane::AccumulateSinglePlane(const TArray64<float>& InRawDa
 				for (int32 CurrX = 0; CurrX < InSize.X; CurrX++)
 				{
 					float Val = InRawData[CurrY * InSize.X + CurrX];
-					float BaseWeight = InWeightData[CurrY * InSize.X + CurrX];
+					float WX = WeightDataX[CurrX];
+					float WY = WeightDataX[CurrY];
+
+					float BaseWeight = WX * WY;
 
 					for (int32 OffsetY = 0; OffsetY < 2; OffsetY++)
 					{
@@ -164,8 +173,11 @@ void FImageOverlappedPlane::AccumulateSinglePlane(const TArray64<float>& InRawDa
 				const float * SrcLineRaw0 = &InRawData[SrcY0 * InSize.X];
 				const float * SrcLineRaw1 = &InRawData[SrcY1 * InSize.X];
 
-				const float * SrcLineWeight0 = &InWeightData[SrcY0 * InSize.X];
-				const float * SrcLineWeight1 = &InWeightData[SrcY1 * InSize.X];
+
+				const float * SrcLineWeight = WeightDataX.GetData();
+
+				const float RowWeight0 = WeightDataY[SrcY0];
+				const float RowWeight1 = WeightDataY[SrcY1];
 
 				float * DstLine = &ChannelData[DstY * Size.X];
 				for (int32 DstX = ActualDstX0; DstX < ActualDstX1; DstX++)
@@ -176,10 +188,10 @@ void FImageOverlappedPlane::AccumulateSinglePlane(const TArray64<float>& InRawDa
 
 					float Sum = DstLine[DstX];
 
-					Sum += SrcLineWeight0[X0] * PixelWeight[1][1] * SrcLineRaw0[X0];
-					Sum += SrcLineWeight0[X1] * PixelWeight[1][0] * SrcLineRaw0[X1];
-					Sum += SrcLineWeight1[X0] * PixelWeight[0][1] * SrcLineRaw1[X0];
-					Sum += SrcLineWeight1[X1] * PixelWeight[0][0] * SrcLineRaw1[X1];
+					Sum += RowWeight0 * SrcLineWeight[X0] * PixelWeight[1][1] * SrcLineRaw0[X0];
+					Sum += RowWeight0 * SrcLineWeight[X1] * PixelWeight[1][0] * SrcLineRaw0[X1];
+					Sum += RowWeight1 * SrcLineWeight[X0] * PixelWeight[0][1] * SrcLineRaw1[X0];
+					Sum += RowWeight1 * SrcLineWeight[X1] * PixelWeight[0][0] * SrcLineRaw1[X1];
 
 					DstLine[DstX] = Sum;
 				}
@@ -209,8 +221,17 @@ void FImageOverlappedPlane::AccumulateSinglePlane(const TArray64<float>& InRawDa
 				const float * SrcLineRaw0 = &InRawData[SrcY0 * InSize.X];
 				const float * SrcLineRaw1 = &InRawData[SrcY1 * InSize.X];
 
-				const float * SrcLineWeight0 = &InWeightData[SrcY0 * InSize.X];
-				const float * SrcLineWeight1 = &InWeightData[SrcY1 * InSize.X];
+				//const float * SrcLineWeight0 = &InWeightData[SrcY0 * InSize.X];
+				//const float * SrcLineWeight1 = &InWeightData[SrcY1 * InSize.X];
+
+				const float * SrcLineWeight = WeightDataX.GetData();
+
+				const float RowWeight0 = WeightDataY[SrcY0];
+				const float RowWeight1 = WeightDataY[SrcY1];
+
+
+				VectorRegister VecRowWeight0 = VectorSetFloat1(RowWeight0);
+				VectorRegister VecRowWeight1 = VectorSetFloat1(RowWeight1);
 
 				float * DstLine = &ChannelData[DstY * Size.X];
 
@@ -226,10 +247,10 @@ void FImageOverlappedPlane::AccumulateSinglePlane(const TArray64<float>& InRawDa
 
 						VectorRegister Sum = VectorLoad(&DstLine[BaseDstX]);
 						
-						Sum = VectorMultiplyAdd(VecPixelWeight11, VectorMultiply(VectorLoad(&SrcLineWeight0[BaseX0]), VectorLoad(&SrcLineRaw0[BaseX0])), Sum);
-						Sum = VectorMultiplyAdd(VecPixelWeight10, VectorMultiply(VectorLoad(&SrcLineWeight0[BaseX1]), VectorLoad(&SrcLineRaw0[BaseX1])), Sum);
-						Sum = VectorMultiplyAdd(VecPixelWeight01, VectorMultiply(VectorLoad(&SrcLineWeight1[BaseX0]), VectorLoad(&SrcLineRaw1[BaseX0])), Sum);
-						Sum = VectorMultiplyAdd(VecPixelWeight00, VectorMultiply(VectorLoad(&SrcLineWeight1[BaseX1]), VectorLoad(&SrcLineRaw1[BaseX1])), Sum);
+						Sum = VectorMultiplyAdd(VecPixelWeight11, VectorMultiply(VecRowWeight0,VectorMultiply(VectorLoad(&SrcLineWeight[BaseX0]), VectorLoad(&SrcLineRaw0[BaseX0]))), Sum);
+						Sum = VectorMultiplyAdd(VecPixelWeight10, VectorMultiply(VecRowWeight0,VectorMultiply(VectorLoad(&SrcLineWeight[BaseX1]), VectorLoad(&SrcLineRaw0[BaseX1]))), Sum);
+						Sum = VectorMultiplyAdd(VecPixelWeight01, VectorMultiply(VecRowWeight1,VectorMultiply(VectorLoad(&SrcLineWeight[BaseX0]), VectorLoad(&SrcLineRaw1[BaseX0]))), Sum);
+						Sum = VectorMultiplyAdd(VecPixelWeight00, VectorMultiply(VecRowWeight1,VectorMultiply(VectorLoad(&SrcLineWeight[BaseX1]), VectorLoad(&SrcLineRaw1[BaseX1]))), Sum);
 
 						VectorStore(Sum, &DstLine[BaseDstX]);
 					}
@@ -266,10 +287,10 @@ void FImageOverlappedPlane::AccumulateSinglePlane(const TArray64<float>& InRawDa
 
 					float Sum = DstLine[DstX];
 
-					Sum += PixelWeight11 * SrcLineWeight0[X0] * SrcLineRaw0[X0];
-					Sum += PixelWeight10 * SrcLineWeight0[X1] * SrcLineRaw0[X1];
-					Sum += PixelWeight01 * SrcLineWeight1[X0] * SrcLineRaw1[X0];
-					Sum += PixelWeight00 * SrcLineWeight1[X1] * SrcLineRaw1[X1];
+					Sum += PixelWeight11 * RowWeight0 * SrcLineWeight[X0] * SrcLineRaw0[X0];
+					Sum += PixelWeight10 * RowWeight0 * SrcLineWeight[X1] * SrcLineRaw0[X1];
+					Sum += PixelWeight01 * RowWeight1 * SrcLineWeight[X0] * SrcLineRaw1[X0];
+					Sum += PixelWeight00 * RowWeight1 * SrcLineWeight[X1] * SrcLineRaw1[X1];
 
 					DstLine[DstX] = Sum;
 				}
@@ -421,7 +442,7 @@ void FImageOverlappedAccumulator::CheckTileSubRect(const TArray64<float>& OutWei
 	}
 }
 
-void FImageOverlappedAccumulator::AccumulatePixelData(const FImagePixelData& InPixelData, FIntPoint InTileOffset, FVector2D InSubpixelOffset)
+void FImageOverlappedAccumulator::AccumulatePixelData(const FImagePixelData& InPixelData, FIntPoint InTileOffset, FVector2D InSubpixelOffset, const MoviePipeline::FTileWeight1D & WeightX, const MoviePipeline::FTileWeight1D & WeightY)
 {
 	EImagePixelType Fmt = InPixelData.GetType();
 
@@ -615,7 +636,12 @@ void FImageOverlappedAccumulator::AccumulatePixelData(const FImagePixelData& InP
 
 			GenerateTileWeight(TileMaskData, RawSize);
 		}
-		
+
+		TArray<float> WeightDataX;
+		TArray<float> WeightDataY;
+		WeightX.CalculateArrayWeight(WeightDataX, RawSize.X);
+		WeightY.CalculateArrayWeight(WeightDataY, RawSize.Y);
+
 		FIntPoint SubRectOffset(0, 0);
 		FIntPoint SubRectSize(0, 0);
 		GetTileSubRect(SubRectOffset, SubRectSize, TileMaskData, RawSize);
@@ -636,8 +662,8 @@ void FImageOverlappedAccumulator::AccumulatePixelData(const FImagePixelData& InP
 
 		for (int32 ChanIter = 0; ChanIter < NumChannels; ChanIter++)
 		{
-			ChannelPlanes[ChanIter].AccumulateSinglePlane(RawData[ChanIter], TileMaskData, RawSize, InTileOffset, InSubpixelOffset.X, InSubpixelOffset.Y,
-				SubRectOffset, SubRectSize);
+			ChannelPlanes[ChanIter].AccumulateSinglePlane(RawData[ChanIter], RawSize, InTileOffset, InSubpixelOffset.X, InSubpixelOffset.Y,
+				SubRectOffset, SubRectSize, WeightDataX, WeightDataY);
 		}
 
 		// Accumulate weights as well.
@@ -649,8 +675,8 @@ void FImageOverlappedAccumulator::AccumulatePixelData(const FImagePixelData& InP
 				VecOne[Index] = 1.0f;
 			}
 
-			WeightPlane.AccumulateSinglePlane(VecOne, TileMaskData, RawSize, InTileOffset, InSubpixelOffset.X, InSubpixelOffset.Y,
-				SubRectOffset, SubRectSize);
+			WeightPlane.AccumulateSinglePlane(VecOne, RawSize, InTileOffset, InSubpixelOffset.X, InSubpixelOffset.Y,
+				SubRectOffset, SubRectSize, WeightDataX, WeightDataY);
 		}
 
 		const double PlaneEndTime = FPlatformTime::Seconds();

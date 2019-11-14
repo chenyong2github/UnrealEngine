@@ -134,10 +134,99 @@ FMoviePipelineWorkInfo FMoviePipelineCameraCutInfo::GetTotalWorkEstimate() const
 	return WorkEstimate;
 }
 
-namespace MoviePipeline
+
+bool MoviePipeline::FTileWeight1D::operator==(const FTileWeight1D& Rhs) const
 {
-	UMoviePipeline* FMoviePipelineEnginePass::GetPipeline() const
+	const bool bIsSame =
+		(X0 == Rhs.X0) &&
+		(X1 == Rhs.X1) &&
+		(X2 == Rhs.X2) &&
+		(X3 == Rhs.X3);
+
+	return bIsSame;
+}
+
+void MoviePipeline::FTileWeight1D::InitHelper(int32 PadLeft, int32 SizeCenter, int32 PadRight)
+{
+	check(PadLeft >= 0);
+	check(SizeCenter > 0);
+	check(PadRight >= 0);
+
+	int32 Size = PadLeft + SizeCenter + PadRight;
+	int32 Midpoint = PadLeft + SizeCenter / 2;
+
+	X0 = PadLeft / 2;
+	X1 = (3 * PadLeft) / 2;
+	X2 = Size - ((3 * PadLeft) / 2);
+	X3 = Size - (PadRight / 2);
+
+	X1 = FMath::Min<int32>(X1, Midpoint);
+	X2 = FMath::Max<int32>(X2, Midpoint);
+}
+
+float MoviePipeline::FTileWeight1D::CalculateWeight(int32 Pixel) const
+{
+	// the order of the if is important, because if X0=X1, then
+	// we take the Pixel < X0 path, not the Pixel < X1 path which would cause a
+	// divide by zero. Same for X2 and X3.
+	if (Pixel < X0)
 	{
-		return OwningPipeline.Get();
+		return 0.0f;
 	}
+	else if (Pixel < X1)
+	{
+		// note that it's impossible for X0==X1, because the X0 if is earlier
+		return float(Pixel - X0) / float(X1 - X0);
+	}
+	else if (Pixel < X2)
+	{
+		return 1.0f;
+	}
+	else if (Pixel < X3)
+	{
+		// note that it's impossible for X2==X3
+		return float(X3 - Pixel) / float(X3 - X2);
+	}
+
+	return 0.0f;
+}
+
+void MoviePipeline::FTileWeight1D::CalculateArrayWeight(TArray<float>& WeightData, int Size) const
+{
+	WeightData.SetNum(Size);
+	for (int32 Index = 0; Index < X0; Index++)
+	{
+		WeightData[Index] = 0.0f;
+	}
+
+	float ScaleLhs = (X0 != X1) ? 1.0f / float(X1 - X0) : 0.0f;
+	float ScaleRhs = (X2 != X3) ? 1.0f / float(X3 - X2) : 0.0f;
+
+	for (int32 Index = X0; Index < X1; Index++)
+	{
+		float W = FMath::Clamp<float>(((float(Index) + .5f) - float(X0)) * ScaleLhs, 0.0f, 1.0f);
+		WeightData[Index] = W;
+	}
+
+	for (int32 Index = X1; Index < X2; Index++)
+	{
+		WeightData[Index] = 1.0f;
+	}
+
+	for (int32 Index = X2; Index < X3; Index++)
+	{
+		float W = FMath::Clamp<float>(1.0f - ((float(Index) + .5f) - float(X2)) * ScaleRhs, 0.0f, 1.0f);
+		WeightData[Index] = W;
+	}
+
+	for (int32 Index = X3; Index < Size; Index++)
+	{
+		WeightData[Index] = 0.0f;
+	}
+}
+
+
+UMoviePipeline* MoviePipeline::FMoviePipelineEnginePass::GetPipeline() const
+{
+	return OwningPipeline.Get();
 }

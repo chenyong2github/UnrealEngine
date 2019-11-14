@@ -6,6 +6,8 @@
 
 #include "ImagePixelData.h"
 
+#include "MovieRenderPipelineDataTypes.h"
+
 /* Types
  *****************************************************************************/
 
@@ -54,10 +56,12 @@ public:
 	 * @param SubRectOffset - The offset of the SubRect inside the raw data (InRawData) that actually has a weight > 0.0.
 	 * @param SubRectSize - The size of the SubRect inside the raw data (InRawData) that actually has a weight > 0.0.
 	 */
-	void AccumulateSinglePlane(const TArray64<float>& InRawData, const TArray64<float>& InWeightData, FIntPoint InSize, FIntPoint InOffset,
+	void AccumulateSinglePlane(const TArray64<float>& InRawData, FIntPoint InSize, FIntPoint InOffset,
 								float SubpixelOffsetX, float SubpixelOffsetY,
 								FIntPoint SubRectOffset,
-								FIntPoint SubRectSize);
+								FIntPoint SubRectSize,
+								const TArray<float> & WeightDataX,
+								const TArray<float> & WeightDataY);
 
 	/** Actual channel data*/
 	TArray64<float> ChannelData;
@@ -140,8 +144,10 @@ public:
 	 * @param InPixelData - Raw pixel data.
 	 * @param InTileOffset - Tile offset in pixels.
 	 * @param InSubPixelOffset - SubPixel offset, should be in the range [0,1)
+	 * @param WeightX - 1D Weights in X
+	 * @param WeightY - 1D Weights in Y
 	 */
-	void AccumulatePixelData(const FImagePixelData& InPixelData, FIntPoint InTileOffset, FVector2D InSubpixelOffset);
+	void AccumulatePixelData(const FImagePixelData& InPixelData, FIntPoint InTileOffset, FVector2D InSubpixelOffset, const MoviePipeline::FTileWeight1D & WeightX, const MoviePipeline::FTileWeight1D & WeightY);
 
 	/**
 	 * After accumulation is finished, fetch the final image as bytes. In theory we don't need this, because we could

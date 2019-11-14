@@ -159,6 +159,73 @@ namespace MoviePipeline
 		FString PassName;
 	};
 
+	struct MOVIERENDERPIPELINECORE_API FTileWeight1D
+	{
+	public:
+		/**
+		 * For tiles, this struct stores the weight function in one dimension.
+		 *
+		 *                X1           X2
+		 * 1.0              |------------|
+		 *                 /              \
+		 *                /                \
+		 *               /                  \
+		 * 0.0 |--------|                    |----------------|
+		 *     0       X0                    X3             Size
+		 *
+		 *  For a tile, the weight goes from:
+		 *  [0 ,X0]    : 0.0
+		 *  [X0,X1]    : 0.0 to 1.0
+		 *  [X1,X2]    : 1.0
+		 *  [X2,X3]    : 1.0 to 0.0
+		 *  [X3,SizeX] : 0.0
+		 **/
+
+		/** Constructor. Sets to invalid values and must be initialized to reasonable values before using. **/
+		FTileWeight1D()
+		{
+			X0 = 0;
+			X1 = 0;
+			X2 = 0;
+			X3 = 0;
+		}
+
+		/** Make sure this map has valid values. **/
+		void CheckValid() const
+		{
+			check(0 <= X0);
+			check(X0 <= X1);
+			check(X1 <= X2);
+			check(X2 <= X3);
+		}
+
+		/** Is equal operator.**/
+		bool operator==(const FTileWeight1D& Rhs) const;
+
+		/**
+		 * The full tile is of size PadLeft + SizeCenter + PadRight
+		 *
+		 *  |------PadLeft-------|------------SizeCenter-----------|------PadRight-----|
+		 *  
+		 * This function puts X0 in the middle of PadLeft, X3 in the middle of PadRight.
+		 * And X1 is "reflected" around PadLeft, and X2 is "reflected" around PadRight.
+		 *
+		 *  |------PadLeft-------|------------SizeCenter-----------|------PadRight-----|
+		 *           X0                  X1                  X2              X3
+		 * Also note that PadLeft and PadRight are allowed to be zero, but SizeCenter must be > 0;
+		 **/
+		void InitHelper(int32 PadLeft, int32 SizeCenter, int32 PadRight);
+
+		float CalculateWeight(int32 Pixel) const;
+
+		void CalculateArrayWeight(TArray<float>& WeightData, int Size) const;
+
+		int32 X0;
+		int32 X1;
+		int32 X2;
+		int32 X3;
+	};
+
 	struct FFrameConstantMetrics
 	{
 		/** What is the tick resolution fo the sequence */
@@ -691,6 +758,8 @@ public:
 
 	FVector2D OverlappedSubpixelShift;
 
+	MoviePipeline::FTileWeight1D WeightFunctionX;
+	MoviePipeline::FTileWeight1D WeightFunctionY;
 
 	MoviePipeline::FMoviePipelineFrameInfo FrameInfo;
 };
@@ -723,8 +792,6 @@ namespace MoviePipeline
 
 		virtual ~FMoviePipelineEnginePass()
 		{}
-
-
 		virtual void Setup(TWeakObjectPtr<UMoviePipeline> InOwningPipeline, const FMoviePipelineRenderPassInitSettings& InInitSettings)
 		{
 			OwningPipeline = InOwningPipeline;

@@ -371,6 +371,9 @@ void UMoviePipeline::RenderFrame()
 					SampleState.OverlappedSubpixelShift = FVector2D(0.0f,0.0f);
 				}
 
+				SampleState.WeightFunctionX.InitHelper(SampleState.OverlappedPad.X, SampleState.TileSize.X, SampleState.OverlappedPad.X);
+				SampleState.WeightFunctionY.InitHelper(SampleState.OverlappedPad.Y, SampleState.TileSize.Y, SampleState.OverlappedPad.Y);
+
 				// Now we can request that all of the engine passes render. The individual render passes should have already registered delegates
 				// to receive data when the engine render pass is run, so no need to run them.
 				for (TSharedPtr<MoviePipeline::FMoviePipelineEnginePass> EnginePass : ActiveRenderPasses)
