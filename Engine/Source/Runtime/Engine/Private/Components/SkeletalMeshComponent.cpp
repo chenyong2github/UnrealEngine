@@ -58,6 +58,7 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("Anim Instance Spawn Time"), STAT_AnimSpawnTime, 
 DEFINE_STAT(STAT_AnimSpawnTime);
 DEFINE_STAT(STAT_PostAnimEvaluation);
 
+CSV_DECLARE_CATEGORY_EXTERN(Animation);
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 
 FAutoConsoleTaskPriority CPrio_ParallelAnimationEvaluationTask(
@@ -607,6 +608,7 @@ void USkeletalMeshComponent::OnUnregister()
 
 void USkeletalMeshComponent::InitAnim(bool bForceReinit)
 {
+	CSV_SCOPED_TIMING_STAT(Animation, InitAnim);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_SkelMeshComp_InitAnim);
 	LLM_SCOPE(ELLMTag::Animation);
 
@@ -1803,6 +1805,7 @@ void USkeletalMeshComponent::PerformAnimationEvaluation(const USkeletalMesh* InS
 
 void USkeletalMeshComponent::PerformAnimationProcessing(const USkeletalMesh* InSkeletalMesh, UAnimInstance* InAnimInstance, bool bInDoEvaluation, TArray<FTransform>& OutSpaceBases, TArray<FTransform>& OutBoneSpaceTransforms, FVector& OutRootBoneTranslation, FBlendedHeapCurve& OutCurve)
 {
+	CSV_SCOPED_TIMING_STAT(Animation, WorkerThreadTickTime);
 	ANIM_MT_SCOPE_CYCLE_COUNTER(PerformAnimEvaluation, !IsInGameThread());
 
 	// Can't do anything without a SkeletalMesh
