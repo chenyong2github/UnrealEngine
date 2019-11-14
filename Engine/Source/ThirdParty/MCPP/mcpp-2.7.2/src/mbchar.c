@@ -845,7 +845,7 @@ uexpr_t     mb_eval(
 
 int  last_is_mbchar(
     const char *  in,               /* Input physical line          */
-    int     len                     /* Length of the line minus 2   */
+    size_t        len               /* Length of the line minus 2   */
 )
 /*
  * Return 2, if the last char of the line is second byte of SJIS or BIGFIVE,

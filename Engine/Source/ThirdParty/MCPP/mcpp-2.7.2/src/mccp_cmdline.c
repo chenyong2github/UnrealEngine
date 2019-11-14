@@ -2,7 +2,13 @@
 
 /** MCPP command line tool for debugging preprocessed HLSL shaders. */
 
-#include <mcpp.h>
+#if PREPROCESSED
+#include "mcpp.H"
+#else
+#include "system.H"
+#include "internal.H"
+#endif
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
