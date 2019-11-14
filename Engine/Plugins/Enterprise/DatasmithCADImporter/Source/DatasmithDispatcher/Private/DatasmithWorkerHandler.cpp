@@ -17,15 +17,23 @@ namespace DatasmithDispatcher
 
 static FString GetWorkerExecutablePath()
 {
-	FString ProcessorPath = FPaths::Combine(FPaths::EnginePluginsDir(), TEXT("Enterprise/DatasmithCADImporter/Binaries"));
+	static FString ProcessorPath = [&]()
+	{
+		FString Path = FPaths::Combine(FPaths::EnginePluginsDir(), TEXT("Enterprise/DatasmithCADImporter/Binaries"));
 
 #if PLATFORM_MAC
-	ProcessorPath = FPaths::Combine(ProcessorPath, TEXT("Mac/DatasmithCADWorker"));
+		Path = FPaths::Combine(Path, TEXT("Mac/DatasmithCADWorker"));
 #elif PLATFORM_LINUX
-	ProcessorPath = FPaths::Combine(ProcessorPath, TEXT("Linux/DatasmithCADWorker"));
+		Path = FPaths::Combine(Path, TEXT("Linux/DatasmithCADWorker"));
 #elif PLATFORM_WINDOWS
-	ProcessorPath = FPaths::Combine(ProcessorPath, TEXT("Win64/DatasmithCADWorker.exe"));
+		Path = FPaths::Combine(Path, TEXT("Win64/DatasmithCADWorker.exe"));
 #endif
+		if (!FPaths::FileExists(Path))
+		{
+			UE_LOG(LogDatasmithDispatcher, Warning, TEXT("CADWorker executable not found. Expected location: %s"), *FPaths::ConvertRelativePathToFull(ProcessorPath));
+		}
+		return Path;
+	}();
 
 	return ProcessorPath;
 }
@@ -49,7 +57,7 @@ FDatasmithWorkerHandler::~FDatasmithWorkerHandler()
 void FDatasmithWorkerHandler::StartWorkerProcess()
 {
 	ensure(ErrorState == EWorkerErrorState::Ok);
-	static const FString ProcessorPath = GetWorkerExecutablePath();
+	FString ProcessorPath = GetWorkerExecutablePath();
 	if (FPaths::FileExists(ProcessorPath))
 	{
 		int32 ListenPort = NetworkInterface.GetListeningPort();
@@ -97,7 +105,7 @@ void FDatasmithWorkerHandler::Run()
 	WorkerState = EWorkerState::Uninitialized;
 	RunInternal();
 	WorkerState = EWorkerState::Terminated;
-	UE_CLOG(ErrorState != EWorkerErrorState::Ok, LogDatasmithDispatcher, Warning, TEXT("Handler ended with error %s"), EWorkerErrorStateAsString(ErrorState));
+	UE_CLOG(ErrorState != EWorkerErrorState::Ok, LogDatasmithDispatcher, Warning, TEXT("Handler ended with error: %s"), EWorkerErrorStateAsString(ErrorState));
 }
 
 void FDatasmithWorkerHandler::RunInternal()
@@ -320,17 +328,17 @@ void FDatasmithWorkerHandler::ProcessCommand(FCompletedTaskCommand& CompletedTas
 	CurrentTask.Reset();
 }
 
-const TCHAR* FDatasmithWorkerHandler::EWorkerErrorStateAsString(EWorkerErrorState e)
+const TCHAR* FDatasmithWorkerHandler::EWorkerErrorStateAsString(EWorkerErrorState Error)
 {
-	switch (e)
+	switch (Error)
 	{
 		case EWorkerErrorState::Ok: return TEXT("Ok");
-		case EWorkerErrorState::ConnectionFailed_NotBound: return TEXT("ConnectionFailed_NotBound");
-		case EWorkerErrorState::ConnectionFailed_NoClient: return TEXT("ConnectionFailed_NoClient");
-		case EWorkerErrorState::ConnectionLost: return TEXT("ConnectionLost");
-		case EWorkerErrorState::ConnectionLost_SendFailed: return TEXT("ConnectionLost_SendFailed");
-		case EWorkerErrorState::WorkerProcess_CantCreate: return TEXT("WorkerProcess_CantCreate");
-		case EWorkerErrorState::WorkerProcess_Lost: return TEXT("WorkerProcess_Lost");
+		case EWorkerErrorState::ConnectionFailed_NotBound: return TEXT("Connection failed (socket not bound)");
+		case EWorkerErrorState::ConnectionFailed_NoClient: return TEXT("Connection failed (No connection from client)");
+		case EWorkerErrorState::ConnectionLost: return TEXT("Connection lost");
+		case EWorkerErrorState::ConnectionLost_SendFailed: return TEXT("Connection lost (send failed)");
+		case EWorkerErrorState::WorkerProcess_CantCreate: return TEXT("Worker process issue (cannot create worker process)");
+		case EWorkerErrorState::WorkerProcess_Lost: return TEXT("Worker process issue (worker lost)");
 		default: return TEXT("unknown");
 	}
 }
