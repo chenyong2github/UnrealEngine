@@ -1675,8 +1675,21 @@ template <bool bPersistent>
 TAccelerationStructureHandle<T, d>::TAccelerationStructureHandle(TGeometryParticleHandleImp<T, d, bPersistent>* InHandle, TGeometryParticle<T, d>* InGeometryParticle)
 	: ExternalGeometryParticle(InGeometryParticle)
 	, GeometryParticleHandle(InHandle)
-	, HashResult(InGeometryParticle ? InGeometryParticle->GetHashResultLowLevel() : InHandle->GetHashResultLowLevel())
+	, HashResult(0)
 {
+	if (GeometryParticleHandle)
+	{
+		HashResult = GeometryParticleHandle->GetHashResultLowLevel();
+	}
+	else if (ExternalGeometryParticle)
+	{
+		HashResult = ExternalGeometryParticle->GetHashResultLowLevel();
+	}
+
+	if (GeometryParticleHandle && ExternalGeometryParticle)
+	{
+		CHAOS_ENSURE(GeometryParticleHandle->GetHashResultLowLevel() == ExternalGeometryParticle->GetHashResultLowLevel());
+	}
 }
 
 template <typename T, int d>
@@ -1684,6 +1697,32 @@ void TAccelerationStructureHandle<T, d>::Serialize(FChaosArchive& Ar)
 {
 	Ar << AsAlwaysSerializable(ExternalGeometryParticle);
 	Ar << AsAlwaysSerializable(GeometryParticleHandle);
+
+	Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+	if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::SerializeHashResult)
+	{
+		if (GeometryParticleHandle)
+		{
+			HashResult = GeometryParticleHandle->GetHashResultLowLevel();
+		}
+		else if (ExternalGeometryParticle)
+		{
+			HashResult = ExternalGeometryParticle->GetHashResultLowLevel();
+		}
+		else
+		{
+			HashResult = 0;
+		}
+
+		if (GeometryParticleHandle && ExternalGeometryParticle)
+		{
+			CHAOS_ENSURE(GeometryParticleHandle->GetHashResultLowLevel() == ExternalGeometryParticle->GetHashResultLowLevel());
+		}
+	}
+	else
+	{
+		Ar << HashResult;
+	}
 }
 
 template <typename T, int d>
