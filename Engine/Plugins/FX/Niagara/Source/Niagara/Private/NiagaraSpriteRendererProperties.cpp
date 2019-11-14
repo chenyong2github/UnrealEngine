@@ -34,7 +34,7 @@ UNiagaraSpriteRendererProperties::UNiagaraSpriteRendererProperties()
 	, FacingMode(ENiagaraSpriteFacingMode::FaceCamera)
 	, CustomFacingVectorMask(ForceInitToZero)
 	, PivotInUVSpace(0.5f, 0.5f)
-	, SortMode(ENiagaraSortMode::ViewDistance)
+	, SortMode(ENiagaraSortMode::None)
 	, SubImageSize(1.0f, 1.0f)
 	, bSubImageBlend(false)
 	, bRemoveHMDRollInVR(false)
@@ -117,6 +117,15 @@ void UNiagaraSpriteRendererProperties::PostInitProperties()
 
 void UNiagaraSpriteRendererProperties::Serialize(FStructuredArchive::FRecord Record)
 {
+	FArchive& Ar = Record.GetUnderlyingArchive();
+	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);
+	const int32 NiagaraVersion = Ar.CustomVer(FNiagaraCustomVersion::GUID);
+
+	if (Ar.IsLoading() && (NiagaraVersion < FNiagaraCustomVersion::DisableSortingByDefault))
+	{
+		SortMode = ENiagaraSortMode::ViewDistance;
+	}
+
 	Super::Serialize(Record);
 
 	bool bIsCookedForEditor = false;
