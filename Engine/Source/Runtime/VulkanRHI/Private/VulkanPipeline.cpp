@@ -1699,6 +1699,7 @@ FVulkanRHIGraphicsPipelineState* FVulkanPipelineStateCacheManager::RHICreateGrap
 			FVulkanGfxLayout* GfxLayout = (FVulkanGfxLayout*)Layout;
 			check(GfxLayout->GfxPipelineDescriptorInfo.IsInitialized());
 			NewPSO->Layout = GfxLayout;
+			NewPSO->bHasInputAttachments = GfxLayout->GetDescriptorSetsLayout().HasInputAttachments();
 		}
 		NewPSO->RenderPass = Device->GetImmediateContext().PrepareRenderPassForPSOCreation(Initializer);
 		{
