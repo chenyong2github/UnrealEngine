@@ -57,9 +57,6 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 		// Only serialize internal acceleration structure queue and acceleration structure. No external/Async queues.
 		FlushEvolutionInternalAccelerationQueue,
 
-		// Serialize world space bounds of TPerShapeData
-		SerializeShapeWorldSpaceBounds,
-
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
