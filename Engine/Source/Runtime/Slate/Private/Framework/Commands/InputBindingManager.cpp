@@ -571,7 +571,7 @@ void FInputBindingManager::UnregisterCommandFilterOwner(const FName InOwnerName)
 	{
 		FCommandFilterForContext& CommandFilterForContext = CommandFiltersByContextIt->Value;
 
-		for (auto CommandIt = CommandFilterForContext.BlacklistedCommands.CreateIterator(); ++CommandIt; CommandIt)
+		for (auto CommandIt = CommandFilterForContext.BlacklistedCommands.CreateIterator(); CommandIt; ++CommandIt)
 		{
 			FCommandFilterOwners& CommandFilterOwners = CommandIt->Value;
 			CommandFilterOwners.OwnerNames.Remove(InOwnerName);
