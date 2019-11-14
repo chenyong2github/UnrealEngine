@@ -21,7 +21,7 @@ static float DefaultPatchGainCVar = 1.0f;
 FAutoConsoleVariableRef CVarDefaultPatchGain(
 	TEXT("voice.DefaultPatchGain"),
 	DefaultPatchGainCVar,
-	TEXT("Changes the default gain of audio patches, in samples.\n"),
+	TEXT("Changes the default gain of audio patches, in linear gain.\n"),
 	ECVF_Default);
 
 static int32 MuteAudioEngineOutputCVar = 0;
@@ -34,7 +34,7 @@ FAutoConsoleVariableRef CVarMuteAudioEngineOutput(
 
 bool UVoipListenerSynthComponent::Init(int32& SampleRate)
 {
-	NumChannels = 1;
+	NumChannels = UVOIPStatics::GetVoiceNumChannels();
 	SampleRate = UVOIPStatics::GetVoiceSampleRate();
 	MySampleRate = SampleRate;
 
