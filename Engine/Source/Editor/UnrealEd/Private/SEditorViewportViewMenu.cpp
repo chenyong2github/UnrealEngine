@@ -364,7 +364,26 @@ TSharedRef<SWidget> SEditorViewportViewMenu::GenerateViewMenuContent() const
 					}
 				};
 
-				ViewMenuBuilder.AddSubMenu( LOCTEXT("OptimizationSubMenu", "Optimization Viewmodes"), LOCTEXT("Optimization_ToolTip", "Select optimization visualizer"), FNewMenuDelegate::CreateStatic( &Local::BuildOptimizationMenu, ParentToolBar ) );
+				ViewMenuBuilder.AddSubMenu(
+					LOCTEXT("OptimizationSubMenu", "Optimization Viewmodes"), LOCTEXT("Optimization_ToolTip", "Select optimization visualizer"),
+					FNewMenuDelegate::CreateStatic(&Local::BuildOptimizationMenu, ParentToolBar),
+					FUIAction(FExecuteAction(), FCanExecuteAction(),
+						FIsActionChecked::CreateLambda([this]()
+						{
+								const TSharedRef<SEditorViewport> ViewportRef = Viewport.Pin().ToSharedRef();
+								const TSharedPtr<FEditorViewportClient> ViewportClient = ViewportRef->GetViewportClient();
+								check(ViewportClient.IsValid());
+								const EViewModeIndex ViewMode = ViewportClient->GetViewMode();
+								return (
+									// Texture Streaming Accuracy
+									ViewMode == VMI_LightComplexity || ViewMode == VMI_LightmapDensity || ViewMode == VMI_StationaryLightOverlap
+									|| ViewMode == VMI_ShaderComplexity || ViewMode == VMI_ShaderComplexityWithQuadOverdraw || ViewMode == VMI_QuadOverdraw
+									// Texture Streaming Accuracy
+									|| ViewMode == VMI_PrimitiveDistanceAccuracy || ViewMode == VMI_MeshUVDensityAccuracy || ViewMode == VMI_MaterialTextureScaleAccuracy || ViewMode == VMI_RequiredTextureResolution
+								);
+						})),
+					/* InExtensionHook = */ NAME_None, EUserInterfaceActionType::RadioButton,
+					/* bInOpenSubMenuOnClick = */ false, FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorViewport.QuadOverdrawMode"));
 			}
 
 #if RHI_RAYTRACING
@@ -397,7 +416,20 @@ TSharedRef<SWidget> SEditorViewportViewMenu::GenerateViewMenuContent() const
 					}
 				};
 
-				ViewMenuBuilder.AddSubMenu(LOCTEXT("VisualizeGroupedLODDisplayName", "Level of Detail Coloration"), LOCTEXT("GroupedLODMenu_ToolTip", "Select a mode for LOD Coloration"), FNewMenuDelegate::CreateStatic(&Local::BuildLODMenu), /*Default*/false, FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorViewport.GroupLODColorationMode"));
+				ViewMenuBuilder.AddSubMenu(
+					LOCTEXT("VisualizeGroupedLODDisplayName", "Level of Detail Coloration"), LOCTEXT("GroupedLODMenu_ToolTip", "Select a mode for LOD Coloration"),
+					FNewMenuDelegate::CreateStatic(&Local::BuildLODMenu),
+					FUIAction(FExecuteAction(), FCanExecuteAction(),
+						FIsActionChecked::CreateLambda([this]()
+						{
+								const TSharedRef<SEditorViewport> ViewportRef = Viewport.Pin().ToSharedRef();
+								const TSharedPtr<FEditorViewportClient> ViewportClient = ViewportRef->GetViewportClient();
+								check(ViewportClient.IsValid());
+								const EViewModeIndex ViewMode = ViewportClient->GetViewMode();
+								return (ViewMode == VMI_LODColoration || ViewMode == VMI_HLODColoration);
+						})),
+					/* InExtensionHook = */ NAME_None, EUserInterfaceActionType::RadioButton,
+					/* bInOpenSubMenuOnClick = */ false, FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorViewport.GroupLODColorationMode"));
 			}
 
 			ViewMenuBuilder.EndSection();
