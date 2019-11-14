@@ -136,13 +136,13 @@ namespace Chaos
 		void DrawCollisionImpl(const FRigidTransform3& SpaceTransform, const TPBDCollisionConstraintHandle<float, 3>* ConstraintHandle, float ColorScale)
 		{
 			const TRigidBodyContactConstraint<FReal, 3>& Contact = ConstraintHandle->GetContact();
-			if (Contact.Phi > 0)
+			if (Contact.GetPhi() > 0)
 			{
 				ColorScale = ColorScale * (FReal)0.1;
 			}
 
-			FVec3 Location = SpaceTransform.TransformPosition(Contact.Location);
-			FVec3 Normal = SpaceTransform.TransformVector(Contact.Normal);
+			FVec3 Location = SpaceTransform.TransformPosition(Contact.GetLocation());
+			FVec3 Normal = SpaceTransform.TransformVector(Contact.GetNormal());
 
 			if (ContactWidth > 0)
 			{
@@ -155,11 +155,11 @@ namespace Chaos
 				FColor C1 = (ColorScale * FColor(255, 0, 0)).ToFColor(false);
 				FDebugDrawQueue::GetInstance().DrawDebugLine(Location, Location + DrawScale * ContactLen * Normal, C1, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
 			}
-			if (ContactPhiWidth > 0 && Contact.Phi < FLT_MAX)
+			if (ContactPhiWidth > 0 && Contact.GetPhi() < FLT_MAX)
 			{
 				FColor C2 = (ColorScale * FColor(128, 128, 0)).ToFColor(false);
 				FMatrix Axes = FRotationMatrix::MakeFromX(Normal);
-				FDebugDrawQueue::GetInstance().DrawDebugCircle(Location - Contact.Phi * Normal, DrawScale * ContactPhiWidth, 12, C2, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness, Axes.GetUnitAxis(EAxis::Y), Axes.GetUnitAxis(EAxis::Z), false);
+				FDebugDrawQueue::GetInstance().DrawDebugCircle(Location - Contact.GetPhi() * Normal, DrawScale * ContactPhiWidth, 12, C2, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness, Axes.GetUnitAxis(EAxis::Y), Axes.GetUnitAxis(EAxis::Z), false);
 			}
 		}
 
