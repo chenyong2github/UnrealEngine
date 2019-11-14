@@ -256,7 +256,7 @@ void FMainMenu::RegisterWindowMenu()
 		Section.AddEntry(FToolMenuEntry::InitSubMenu(
 			"LoadLayout",
 			NSLOCTEXT("LayoutMenu", "LayoutLoadHeader", "Load Layout"),
-			NSLOCTEXT("LayoutMenu", "LoadLayoutsSubMenu_ToolTip", "Load a layout configuration from disk. If PIE is running, most options will be disabled"),
+			NSLOCTEXT("LayoutMenu", "LoadLayoutsSubMenu_ToolTip", "Load a layout configuration from disk"),
 			FNewToolMenuDelegate::CreateStatic(&FLayoutsMenuLoad::MakeLoadLayoutsMenu)
 		));
 		// Save and Remove Layout
