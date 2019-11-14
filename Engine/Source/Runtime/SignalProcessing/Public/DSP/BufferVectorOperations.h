@@ -32,7 +32,7 @@ namespace Audio
 	/* Sets a values to zero if value is denormal. Denormal numbers significantly slow down floating point operations. */
 	SIGNALPROCESSING_API void BufferUnderflowClampFast(float* RESTRICT InOutBuffer, const int32 InNum);
 	
-	/* Clamps the values in a buffer between a min and max value. Returns true if it had to clamp */
+	/* Clamps the values in a buffer between a min and max value.*/
 	void SIGNALPROCESSING_API BufferRangeClampFast(AlignedFloatBuffer& InOutBuffer, float InMinValue, float InMaxValue);
 	void SIGNALPROCESSING_API BufferRangeClampFast(float* RESTRICT InOutBuffer, const int32 InNum, float InMinValue, float InMaxValue);
 	
