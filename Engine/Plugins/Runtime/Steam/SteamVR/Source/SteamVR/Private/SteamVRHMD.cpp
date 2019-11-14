@@ -1353,6 +1353,9 @@ bool FSteamVRHMD::EnableStereo(bool bStereo)
 		TSharedPtr<SWindow> Window = SceneVP->FindWindow();
 		if (Window.IsValid() && SceneVP->GetViewportWidget().IsValid())
 		{
+			// Set MirrorWindow state on the Window
+			Window->SetMirrorWindow(bStereo);
+
 			if( bStereo )
 			{
 				uint32 Width, Height;
