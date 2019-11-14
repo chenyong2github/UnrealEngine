@@ -81,7 +81,6 @@ bool FOSCAddress::IsValidPath() const
 
 void FOSCAddress::PushContainer(const FString& Container)
 {
-	const bool bInvalidateSeparator = true;
 	if (Container.Contains(OSC::PathSeparator))
 	{
 		UE_LOG(LogOSC, Warning, TEXT("Failed to push container on OSCAddress. "
@@ -93,18 +92,62 @@ void FOSCAddress::PushContainer(const FString& Container)
 	CacheAggregates();
 }
 
+void FOSCAddress::PushContainers(const TArray<FString>& InContainers)
+{
+	for (const FString& Container : InContainers)
+	{
+		if (Container.Contains(OSC::PathSeparator))
+		{
+			UE_LOG(LogOSC, Warning, TEXT("Failed to push containers on OSCAddress. "
+				"Cannot contain OSC path separator '%s'."), *OSC::PathSeparator);
+			return;
+		}
+	}
+
+	for (const FString& Container : InContainers)
+	{
+		Containers.Push(Container);
+	}
+
+	CacheAggregates();
+}
+
 FString FOSCAddress::PopContainer()
 {
+	FString Popped;
 	if (Containers.Num() > 0)
 	{
-		FString Popped = Containers.Pop(false);
+		Popped = Containers.Pop(false /* bAllowShrinking */);
 		Hash = GetTypeHash(GetFullPath());
 	}
 
-	return FString();
+	return Popped;
 }
 
-void FOSCAddress::ClearContainers(const FString& Container)
+TArray<FString> FOSCAddress::PopContainers(int32 InNumContainers)
+{
+	TArray<FString> Popped;
+	if (InNumContainers <= 0 || Containers.Num() == 0)
+	{
+		return Popped;
+	}
+
+	int32 Removed = 0;
+	for (int32 i = Containers.Num() - 1; i >= 0; --i)
+	{
+		if (Removed > InNumContainers)
+		{
+			break;
+		}
+		++Removed;
+		Popped.Add(Containers.Pop(false /* bAllowShrinking */));
+	}
+
+	Hash = GetTypeHash(GetFullPath());
+	return Popped;
+}
+
+void FOSCAddress::ClearContainers()
 {
 	Containers.Reset();
 	CacheAggregates();
