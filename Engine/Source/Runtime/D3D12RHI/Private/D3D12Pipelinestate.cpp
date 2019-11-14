@@ -96,6 +96,8 @@ FD3D12LowLevelGraphicsPipelineStateDesc GetLowLevelGraphicsPipelineStateDesc(con
 	Desc.Desc.DepthStencilState.DepthBoundsTestEnable = GSupportsDepthBoundsTest && Initializer.bDepthBounds;
 #endif
 
+	Desc.bFromPSOFileCache = Initializer.bFromPSOFileCache;
+
 	return Desc;
 }
 
