@@ -10,6 +10,7 @@
 #include "ReflectionEnvironmentShared.ush"
 #include "ShadingModels.ush"
 #include "SceneTextureParameters.ush"
+#include "LightGridCommon.ush"
 
 // Scale for encoding depth into SceneDepthWithoutSingleLayerWaterTexture
 #define SINGLE_LAYER_WATER_DEPTH_SCALE 100.0f
