@@ -41,8 +41,6 @@
 #include "INiagaraEditorTypeUtilities.h"
 #include "ViewModels/Stack/NiagaraStackInputCategory.h"
 
-#include "NiagaraScriptVariable.h"
-
 #define LOCTEXT_NAMESPACE "NiagaraStackViewModel"
 
 UNiagaraStackFunctionInput::UNiagaraStackFunctionInput()
@@ -53,7 +51,6 @@ UNiagaraStackFunctionInput::UNiagaraStackFunctionInput()
 	, bShowEditConditionInline(false)
 	, bIsInlineEditConditionToggle(false)
 	, bIsDynamicInputScriptReassignmentPending(false)
-	, bIsLocalOverride(false)
 {
 }
 
@@ -552,23 +549,7 @@ UNiagaraDataInterface* UNiagaraStackFunctionInput::FInputValues::GetDataDefaultV
 		: nullptr;
 }
 
-bool UNiagaraStackFunctionInput::TryGetDefaultBinding(FNiagaraParameterHandle& LinkedValueHandle, UNiagaraScriptVariable* InVariable, UEdGraphPin& ValuePin)
-{
-	if (!InVariable)
-	{
-		return false;
-	}
-
-	if (InVariable->DefaultMode != ENiagaraDefaultMode::Binding || !InVariable->DefaultBinding.IsValid())
-	{
-		return false;
-	}
-
-	LinkedValueHandle = FNiagaraParameterHandle(InVariable->DefaultBinding.GetName());
-	return true;
-}
-
-void UNiagaraStackFunctionInput::RefreshValues(bool bFromSetLocalValue)
+void UNiagaraStackFunctionInput::RefreshValues()
 {
 	if (ensureMsgf(IsStaticParameter() || InputParameterHandle.IsModuleHandle(), TEXT("Function inputs can only be generated for module paramters.")) == false)
 	{
@@ -584,54 +565,25 @@ void UNiagaraStackFunctionInput::RefreshValues(bool bFromSetLocalValue)
 		UEdGraphPin* OverridePin = GetOverridePin();
 		UEdGraphPin* ValuePin = OverridePin != nullptr ? OverridePin : DefaultPin;
 
-		if (UNiagaraGraph* FunctionGraph = Cast<UNiagaraScriptSource>(OwningFunctionCallNode->FunctionScript->GetSource())->NodeGraph)
+		if (TryGetCurrentLocalValue(InputValues.LocalStruct, *DefaultPin, *ValuePin, OldValues.GetLocalStructToReuse()))
 		{
-			Variable = FunctionGraph->GetScriptVariable(*(TEXT("Module.") + DisplayName.ToString()));
-		}
-
-		if (TryGetCurrentDataValue(InputValues.DataObjects, OverridePin, *DefaultPin, OldValues.GetDataDefaultValueObjectToReuse()))
-		{
-			InputValues.Mode = EValueMode::Data;
-			bIsLocalOverride = false;
-		}
-		else if (TryGetCurrentExpressionValue(InputValues.ExpressionNode, OverridePin))
-		{
-			InputValues.Mode = EValueMode::Expression;
-			bIsLocalOverride = false;
-		}
-		else if (TryGetCurrentDynamicValue(InputValues.DynamicNode, OverridePin))
-		{
-			InputValues.Mode = EValueMode::Dynamic;
-			bIsLocalOverride = false;
+			InputValues.Mode = EValueMode::Local;
 		}
 		else if (TryGetCurrentLinkedValue(InputValues.LinkedHandle, *ValuePin))
 		{
 			InputValues.Mode = EValueMode::Linked;
-			bIsLocalOverride = false;
 		}
-		else if (TryGetCurrentLocalValue(InputValues.LocalStruct, *DefaultPin, *ValuePin, OldValues.GetLocalStructToReuse(), Variable))
+		else if (TryGetCurrentDataValue(InputValues.DataObjects, OverridePin, *DefaultPin, OldValues.GetDataDefaultValueObjectToReuse()))
 		{
-			if (OverridePin)
-			{
-				InputValues.Mode = EValueMode::Local;
-			}
-			else
-			{
-				if (!bIsLocalOverride && TryGetDefaultBinding(InputValues.LinkedHandle, Variable, *ValuePin))
-				{
-					InputValues.Mode = EValueMode::Linked;
-					bIsLocalOverride = false; 
-				}
-				else
-				{
-					InputValues.Mode = EValueMode::Local;
-				}
-			}
+			InputValues.Mode = EValueMode::Data;
 		}
-		else if (TryGetDefaultBinding(InputValues.LinkedHandle, Variable, *ValuePin))
+		else if (TryGetCurrentExpressionValue(InputValues.ExpressionNode, OverridePin))
 		{
-			InputValues.Mode = EValueMode::Linked;
-			bIsLocalOverride = false;
+			InputValues.Mode = EValueMode::Expression;
+		}
+		else if (TryGetCurrentDynamicValue(InputValues.DynamicNode, OverridePin))
+		{
+			InputValues.Mode = EValueMode::Dynamic;
 		}
 	}
 
@@ -857,9 +809,9 @@ void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraPar
 				{
 					for (int32 j = 0; j < Builder.Histories[0].Variables.Num(); j++)
 					{
-						FNiagaraVariable& HistoryVariable = Builder.Histories[0].Variables[j];
-						FNiagaraParameterHandle AvailableHandle = FNiagaraParameterHandle(HistoryVariable.GetName());
-						if (HistoryVariable.GetType() == InputType)
+						FNiagaraVariable& Variable = Builder.Histories[0].Variables[j];
+						FNiagaraParameterHandle AvailableHandle = FNiagaraParameterHandle(Variable.GetName());
+						if (Variable.GetType() == InputType)
 						{
 							TArray<const UEdGraphPin*>& WriteHistory = Builder.Histories[0].PerVariableWriteHistory[j];
 							for (const UEdGraphPin* WritePin : WriteHistory)
@@ -1025,12 +977,8 @@ bool UNiagaraStackFunctionInput::IsRapidIterationCandidate() const
 	return !IsStaticParameter() && FNiagaraStackGraphUtilities::IsRapidIterationType(InputType);
 }
 
-void UNiagaraStackFunctionInput::SetLocalValue(TSharedRef<FStructOnScope> InLocalValue, bool bIsOverride)
+void UNiagaraStackFunctionInput::SetLocalValue(TSharedRef<FStructOnScope> InLocalValue)
 {
-	if (bIsOverride)
-	{
-		bIsLocalOverride = bIsOverride;
-	}
 	TGuardValue<bool> UpdateGuard(bUpdatingLocalValueDirectly, true);
 
 	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
@@ -1051,18 +999,13 @@ void UNiagaraStackFunctionInput::SetLocalValue(TSharedRef<FStructOnScope> InLoca
 			DefaultPin->DefaultValue = PinDefaultValue;
 			Cast<UNiagaraNode>(DefaultPin->GetOwningNode())->MarkNodeRequiresSynchronization(TEXT("Default Value Changed"), true);
 		}
-		RefreshValues(true);
+		RefreshValues();
 		return;
 	}
 	
 	// If the default pin in the function graph is connected internally, rapid iteration parameters can't be used since
 	// the compilation currently won't use them.
 	bool bCanUseRapidIterationParameter = IsRapidIterationCandidate() && DefaultPin->LinkedTo.Num() == 0;
-	if (Variable && Variable->DefaultMode == ENiagaraDefaultMode::Binding)
-	{
-		bCanUseRapidIterationParameter = false;
-	}
-
 	if (bCanUseRapidIterationParameter == false)
 	{
 		ValuePin = OverridePin != nullptr ? OverridePin : DefaultPin;
@@ -1070,7 +1013,7 @@ void UNiagaraStackFunctionInput::SetLocalValue(TSharedRef<FStructOnScope> InLoca
 
 	TSharedPtr<FStructOnScope> CurrentValue;
 	bool bCanHaveLocalValue = ValuePin != nullptr;
-	bool bHasLocalValue = bCanHaveLocalValue && InputValues.Mode == EValueMode::Local && TryGetCurrentLocalValue(CurrentValue, *DefaultPin, *ValuePin, TSharedPtr<FStructOnScope>(), nullptr);
+	bool bHasLocalValue = bCanHaveLocalValue && InputValues.Mode == EValueMode::Local && TryGetCurrentLocalValue(CurrentValue, *DefaultPin, *ValuePin, TSharedPtr<FStructOnScope>());
 	bool bLocalValueMatchesSetValue = bHasLocalValue && FNiagaraEditorUtilities::DataMatches(*CurrentValue.Get(), InLocalValue.Get());
 
 	if (bCanHaveLocalValue == false || bLocalValueMatchesSetValue)
@@ -1134,7 +1077,7 @@ void UNiagaraStackFunctionInput::SetLocalValue(TSharedRef<FStructOnScope> InLoca
 		FNiagaraStackGraphUtilities::RelayoutGraph(*EmitterGraph);
 	}
 
-	RefreshValues(true);
+	RefreshValues();
 }
 
 bool UNiagaraStackFunctionInput::CanReset() const
@@ -1165,18 +1108,9 @@ bool UNiagaraStackFunctionInput::CanReset() const
 			{			
 				if(DefaultPin->LinkedTo.Num() == 0)
 				{
-					if (UEdGraphPin* OverridePin = GetOverridePin())
+					if (GetOverridePin() != nullptr)
 					{
 						bNewCanReset = true;
-						UNiagaraGraph* FunctionGraph = CastChecked<UNiagaraScriptSource>(OwningFunctionCallNode->FunctionScript->GetSource())->NodeGraph;
-						if (FunctionGraph && OverridePin && OverridePin->LinkedTo.Num() == 1)
-						{
-							UNiagaraScriptVariable* ScriptVariable = FunctionGraph->GetScriptVariable(*(TEXT("Module.") + DisplayName.ToString()));
-							if (ScriptVariable && OverridePin->LinkedTo[0]->PinName == ScriptVariable->DefaultBinding.GetName())
-							{
-								bNewCanReset = false;
-							}
-						}
 					}
 					else if (IsRapidIterationCandidate())
 					{
@@ -1259,7 +1193,6 @@ bool UNiagaraStackFunctionInput::RemoveRapidIterationParametersForAffectedScript
 
 void UNiagaraStackFunctionInput::Reset()
 {
-	bIsLocalOverride = false;
 	if(InputValues.Mode == EValueMode::Data)
 	{
 		// For data values they are reset by making sure the data object owned by this input matches the default
@@ -1804,7 +1737,7 @@ UEdGraphPin& UNiagaraStackFunctionInput::GetOrCreateOverridePin()
 	return *OverridePin;
 }
 
-bool UNiagaraStackFunctionInput::TryGetCurrentLocalValue(TSharedPtr<FStructOnScope>& LocalValue, UEdGraphPin& DefaultPin, UEdGraphPin& ValuePin, TSharedPtr<FStructOnScope> OldValueToReuse, UNiagaraScriptVariable* InVariable)
+bool UNiagaraStackFunctionInput::TryGetCurrentLocalValue(TSharedPtr<FStructOnScope>& LocalValue, UEdGraphPin& DefaultPin, UEdGraphPin& ValuePin, TSharedPtr<FStructOnScope> OldValueToReuse)
 {
 	if (InputType.IsUObject() == false && ValuePin.LinkedTo.Num() == 0)
 	{
@@ -1823,10 +1756,6 @@ bool UNiagaraStackFunctionInput::TryGetCurrentLocalValue(TSharedPtr<FStructOnSco
 		// the compilation currently won't use them.
 		bool bCanUseRapidIterationParameter = IsRapidIterationCandidate() && DefaultPin.LinkedTo.Num() == 0;
 		bool bFoundRapidIterationParameter = false;
-		if (InVariable && InVariable->DefaultMode == ENiagaraDefaultMode::Binding)
-		{
-			bCanUseRapidIterationParameter = false;
-		}
 		if (bCanUseRapidIterationParameter)
 		{
 			const uint8* RapidIterationParameterData = SourceScript->RapidIterationParameters.GetParameterData(RapidIterationParameter);
