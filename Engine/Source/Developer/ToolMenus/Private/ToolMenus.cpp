@@ -681,13 +681,18 @@ UToolMenu* UToolMenus::GenerateSubMenu(const UToolMenu* InGeneratedParent, const
 		return nullptr;
 	}
 
+	FName SubMenuFullName = JoinMenuPaths(InGeneratedParent->GetMenuName(), InBlockName);
+	if (const FName* ReplacementName = MenuSubstitutionsDuringGenerate.Find(SubMenuFullName))
+	{
+		return GenerateMenuFromHierarchy(CollectHierarchy(*ReplacementName), InGeneratedParent->Context);
+	}
+
 	const FToolMenuEntry* Block = InGeneratedParent->FindEntry(InBlockName);
 	if (!Block)
 	{
 		return nullptr;
 	}
 
-	FName SubMenuFullName = JoinMenuPaths(InGeneratedParent->GetMenuName(), InBlockName);
 
 	// Submenus that are constructed by delegates can also be overridden by menus in the database
 	TArray<UToolMenu*> Hierarchy;
@@ -729,6 +734,14 @@ UToolMenu* UToolMenus::GenerateSubMenu(const UToolMenu* InGeneratedParent, const
 	{
 		UToolMenu* GeneratedMenu = NewObject<UToolMenu>(this);
 		GeneratedMenu->InitGeneratedCopy(Hierarchy[0], SubMenuFullName, &InGeneratedParent->Context);
+		for (UToolMenu* HiearchyItem : Hierarchy)
+		{
+			if (HiearchyItem && !HiearchyItem->bExtendersEnabled)
+			{
+				GeneratedMenu->SetExtendersEnabled(false);
+				break;
+			}
+		}
 		GeneratedMenu->SubMenuParent = InGeneratedParent;
 		GeneratedMenu->SubMenuSourceEntryName = InBlockName;
 		AssembleMenuHierarchy(GeneratedMenu, Hierarchy);
@@ -1443,6 +1456,35 @@ void UToolMenus::AddMenuSubstitutionDuringGenerate(const FName OriginalMenu, con
 	MenuSubstitutionsDuringGenerate.Add(OriginalMenu, NewMenu);
 }
 
+void UToolMenus::RemoveSubstitutionDuringGenerate(const FName InMenu)
+{
+	if (const FName* FoundOverrideMenuName = MenuSubstitutionsDuringGenerate.Find(InMenu))
+	{
+		const FName OverrideMenuName = *FoundOverrideMenuName;
+
+		// Update all active widget instances of this menu
+		FGeneratedToolMenuWidgets* OverrideMenuWidgets = GeneratedMenuWidgets.Find(OverrideMenuName);
+		if (OverrideMenuWidgets)
+		{
+			FGeneratedToolMenuWidgets* DestMenuWidgets = GeneratedMenuWidgets.Find(InMenu);
+			if (DestMenuWidgets)
+			{
+				DestMenuWidgets->Instances.Append(OverrideMenuWidgets->Instances);
+			}
+			else
+			{
+				GeneratedMenuWidgets.Add(InMenu, *OverrideMenuWidgets);
+			}
+
+			GeneratedMenuWidgets.Remove(OverrideMenuName);
+		}
+
+		MenuSubstitutionsDuringGenerate.Remove(InMenu);
+
+		CleanupStaleWidgetsNextTick();
+	}
+}
+
 UToolMenu* UToolMenus::GenerateMenu(const FName Name, const FToolMenuContext& InMenuContext)
 {
 	// Allow substituting one menu for another
@@ -1462,6 +1504,14 @@ UToolMenu* UToolMenus::GenerateMenuFromHierarchy(const TArray<UToolMenu*>& Hiera
 	if (Hierarchy.Num() > 0)
 	{
 		GeneratedMenu->InitGeneratedCopy(Hierarchy[0], Hierarchy.Last()->MenuName, &InMenuContext);
+		for (UToolMenu* HiearchyItem : Hierarchy)
+		{
+			if (HiearchyItem && !HiearchyItem->bExtendersEnabled)
+			{
+				GeneratedMenu->SetExtendersEnabled(false);
+				break;
+			}
+		}
 		AssembleMenuHierarchy(GeneratedMenu, Hierarchy);
 	}
 
@@ -1513,6 +1563,7 @@ TSharedRef<SWidget> UToolMenus::GenerateWidget(UToolMenu* GeneratedMenu)
 		}
 
 		FMenuBuilder MenuBuilder(GeneratedMenu->bShouldCloseWindowAfterMenuSelection, GeneratedMenu->Context.CommandList, GeneratedMenu->Context.GetAllExtenders(), GeneratedMenu->bCloseSelfOnly, GeneratedMenu->StyleSet, GeneratedMenu->bSearchable, GeneratedMenu->MenuName);
+		MenuBuilder.SetExtendersEnabled(GeneratedMenu->bExtendersEnabled);
 		MenuBuilder.GetMultiBox()->WeakToolMenu = GeneratedMenu;
 		PopulateMenuBuilder(MenuBuilder, GeneratedMenu);
 		if (GeneratedMenu->ModifyBlockWidgetAfterMake.IsBound())
@@ -1526,6 +1577,7 @@ TSharedRef<SWidget> UToolMenus::GenerateWidget(UToolMenu* GeneratedMenu)
 	else if (GeneratedMenu->MenuType == EMultiBoxType::Menu)
 	{
 		FMenuBuilder MenuBuilder(GeneratedMenu->bShouldCloseWindowAfterMenuSelection, GeneratedMenu->Context.CommandList, GeneratedMenu->Context.GetAllExtenders(), GeneratedMenu->bCloseSelfOnly, GeneratedMenu->StyleSet, GeneratedMenu->bSearchable, GeneratedMenu->MenuName);
+		MenuBuilder.SetExtendersEnabled(GeneratedMenu->bExtendersEnabled);
 		PopulateMenuBuilder(MenuBuilder, GeneratedMenu);
 		TSharedRef<SWidget> Result = MenuBuilder.MakeWidget(nullptr, GeneratedMenu->MaxHeight);
 		GeneratedMenuWidget.Widget = Result;
@@ -1534,6 +1586,7 @@ TSharedRef<SWidget> UToolMenus::GenerateWidget(UToolMenu* GeneratedMenu)
 	else if (GeneratedMenu->MenuType == EMultiBoxType::MenuBar)
 	{
 		FMenuBarBuilder MenuBarBuilder(GeneratedMenu->Context.CommandList, GeneratedMenu->Context.GetAllExtenders(), GeneratedMenu->StyleSet, GeneratedMenu->MenuName);
+		MenuBarBuilder.SetExtendersEnabled(GeneratedMenu->bExtendersEnabled);
 		PopulateMenuBarBuilder(MenuBarBuilder, GeneratedMenu);
 		TSharedRef<SWidget> Result = MenuBarBuilder.MakeWidget();
 		GeneratedMenuWidget.Widget = Result;
@@ -1543,6 +1596,7 @@ TSharedRef<SWidget> UToolMenus::GenerateWidget(UToolMenu* GeneratedMenu)
 	{
 		const EOrientation ToolBarOrientation = (GeneratedMenu->MenuType == EMultiBoxType::VerticalToolBar) ? Orient_Vertical : Orient_Horizontal;
 		FToolBarBuilder ToolbarBuilder(GeneratedMenu->Context.CommandList, GeneratedMenu->MenuName, GeneratedMenu->Context.GetAllExtenders(), ToolBarOrientation, GeneratedMenu->bToolBarForceSmallIcons);
+		ToolbarBuilder.SetExtendersEnabled(GeneratedMenu->bExtendersEnabled);
 		ToolbarBuilder.SetIsFocusable(GeneratedMenu->bToolBarIsFocusable);
 		PopulateToolBarBuilder(ToolbarBuilder, GeneratedMenu);
 		TSharedRef<SWidget> Result = ToolbarBuilder.MakeWidget();

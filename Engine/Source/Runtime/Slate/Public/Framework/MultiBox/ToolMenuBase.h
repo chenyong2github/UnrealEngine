@@ -73,7 +73,6 @@ struct SLATE_API FCustomizedToolMenu
 	UPROPERTY()
 	TArray<FName> SectionOrder;
 
-	UPROPERTY()
 	TArray<FName> WhitelistEntries;
 
 	FCustomizedToolMenuEntry* FindEntry(const FName InEntryName);
