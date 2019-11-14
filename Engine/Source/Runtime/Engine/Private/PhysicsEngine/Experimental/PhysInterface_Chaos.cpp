@@ -413,7 +413,11 @@ FVector FPhysInterface_Chaos::GetWorldVelocityAtPoint_AssumesLocked(const FPhysi
 
 FTransform FPhysInterface_Chaos::GetComTransform_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
-	// #todo : Implement
+	// NOTE: This might need to change after we add separate COM transforms.
+	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
+	{
+		return FTransform(InActorReference->R(), InActorReference->X());
+	}
 	return FTransform();
 }
 
