@@ -116,6 +116,8 @@ PARTY_SCOPE:
 
 	bool TrySendFriendInvite(USocialUser& SocialUser, ESocialSubsystem SubsystemType) const;
 
+	bool AcceptFriendInvite(const USocialUser& SocialUser, ESocialSubsystem SubsystemType) const;
+
 	void HandleUserInvalidated(USocialUser* InvalidUser);
 
 #if PLATFORM_PS4
@@ -128,7 +130,8 @@ protected:
 	virtual void OnOwnerLoggedIn();
 	virtual void OnOwnerLoggedOut();
 	
-	virtual void OnFriendInviteComplete(const FUniqueNetId& InvitedUserId, const FString& InvitedUserName, bool bInviteSuceeded, const FString& InviteError) {}
+	virtual void OnSendFriendInviteComplete(const FUniqueNetId& InvitedUserId, bool bInviteSuceeded, const FString& InviteError) {}
+	virtual void OnAcceptFriendInviteComplete(const FUniqueNetId& InviterUserId, bool bInviteSucceeded, const FString& InviteError) {}
 
 	void QueryFriendsLists();
 	void QueryBlockedPlayers();
@@ -198,6 +201,7 @@ private:	// Handlers
 	void HandleFriendRemoved(const FUniqueNetId& LocalUserId, const FUniqueNetId& FormerFriendId, ESocialSubsystem SubsystemType);
 
 	void HandleDeleteFriendComplete(int32 LocalPlayer, bool bWasSuccessful, const FUniqueNetId& FormerFriendId, const FString& ListName, const FString& ErrorStr, ESocialSubsystem SubsystemType);
+	void HandleAcceptFriendInviteComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& InviterUserId, const FString& ListName, const FString& ErrorStr);
 
 	void HandlePartyInviteReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& SenderId);
 
