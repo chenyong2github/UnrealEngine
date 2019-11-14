@@ -28,7 +28,9 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("Max Num GPU Renderers"), STAT_NiagaraMaxNumGPUR
 //*****************************************************************************
 
 FNiagaraGPUInstanceCountManager::FNiagaraGPUInstanceCountManager() 
-{}
+{
+	NumRegisteredGPURenderers = new FNiagaraGPURendererCount();
+}
 
 FNiagaraGPUInstanceCountManager::~FNiagaraGPUInstanceCountManager()
 {
@@ -93,6 +95,7 @@ void FNiagaraGPUInstanceCountManager::FreeEntry(uint32& BufferOffset)
 void FNiagaraGPUInstanceCountManager::ResizeBuffers(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, int32 ReservedInstanceCounts)
 {
 	const int32 RequiredInstanceCounts = UsedInstanceCounts + FMath::Max<int32>(ReservedInstanceCounts - FreeEntries.Num(), 0);
+	const int32 MaxDrawIndirectArgs = NumRegisteredGPURenderers->Value;
 	if (RequiredInstanceCounts > 0 || MaxDrawIndirectArgs > 0)
 	{
 		const int32 RecommendedInstanceCounts = FMath::Max(GNiagaraMinGPUInstanceCount, (int32)(RequiredInstanceCounts * BufferSlack));
@@ -172,6 +175,7 @@ uint32 FNiagaraGPUInstanceCountManager::AddDrawIndirect(uint32 InstanceCountBuff
 	else if (DrawIndirectArgGenTasks.Num() < AllocatedDrawIndirectArgs)
 	{
 #if !UE_BUILD_SHIPPING
+		const int32 MaxDrawIndirectArgs = NumRegisteredGPURenderers->Value;
 		if (DrawIndirectArgGenTasks.Num() >= MaxDrawIndirectArgs)
 		{
 			UE_LOG(LogNiagara, Warning, TEXT("More draw indirect args then expected (%d / %d)"), DrawIndirectArgGenTasks.Num() + 1, MaxDrawIndirectArgs);

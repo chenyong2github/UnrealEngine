@@ -76,6 +76,14 @@ struct FNiagaraRendererVariableInfo
 	bool bUpload;
 };
 
+// The number of GPU renderers registered in the instance count manager.
+// Shared between the manager and the renderers.
+class FNiagaraGPURendererCount : public FRefCountedObject
+{
+public:
+	int32 Value = 0;
+};
+
 /**
 * Base class for Niagara System renderers.
 */
@@ -91,7 +99,7 @@ public:
 
 	virtual void Initialize(const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter);
 	virtual void CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher);
-	virtual void ReleaseRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher);
+	virtual void ReleaseRenderThreadResources();
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View, const FNiagaraSceneProxy *SceneProxy)const;
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector, const FNiagaraSceneProxy *SceneProxy) const {}
@@ -130,7 +138,7 @@ protected:
 
 	uint32 bLocalSpace : 1;
 	uint32 bHasLights : 1;
-	ENiagaraSimTarget SimTarget;
+	const ENiagaraSimTarget SimTarget;
 	uint32 NumIndicesPerInstance;
 
 	ERHIFeatureLevel::Type FeatureLevel;
@@ -149,5 +157,6 @@ protected:
 	TArray<UMaterialInterface*> BaseMaterials_GT;
 	FMaterialRelevance BaseMaterialRelevance_GT;
 
+	TRefCountPtr<FNiagaraGPURendererCount> NumRegisteredGPURenderers;
 };
 
