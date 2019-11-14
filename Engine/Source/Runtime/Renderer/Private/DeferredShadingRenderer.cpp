@@ -594,12 +594,12 @@ void FDeferredShadingSceneRenderer::PrepareDistanceFieldScene(FRHICommandListImm
 
 bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandListImmediate& RHICmdList)
 {
-	if (!IsRayTracingEnabled())
+	if (!IsRayTracingEnabled() || GetForceRayTracingEffectsCVarValue() == 0 || Views.Num() == 0)
 	{
 		return false;
 	}
 
-	if (GetForceRayTracingEffectsCVarValue() == 0 && Views.Num() > 0 && CanOverlayRayTracingOutput(Views[0])) // #dxr_todo: UE-72557 multi-view case
+	if (!AnyRayTracingPassEnabled(Views[0]))
 	{
 		return false;
 	}
@@ -854,12 +854,12 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 
 bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRHICommandListImmediate& RHICmdList)
 {
-	if (!IsRayTracingEnabled())
+	if (!IsRayTracingEnabled() || GetForceRayTracingEffectsCVarValue() == 0 || Views.Num() == 0)
 	{
 		return false;
 	}
 
-	if (GetForceRayTracingEffectsCVarValue() == 0 && Views.Num() > 0 && CanOverlayRayTracingOutput(Views[0])) // #dxr_todo: UE-72557 multi-view case
+	if (!AnyRayTracingPassEnabled(Views[0]))
 	{
 		return false;
 	}
@@ -2740,6 +2740,36 @@ void FDeferredShadingSceneRenderer::CopyStencilToLightingChannelTexture(FRHIComm
 }
 
 #if RHI_RAYTRACING
+
+bool AnyRayTracingPassEnabled(const FViewInfo& View)
+{
+	static auto CVarRayTracingSkyLight = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.SkyLight"));
+	static auto CVarRayTracingShadows = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.Shadows"));
+	static auto CVarStochasticRectLight = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.StochasticRectLight"));
+
+	const bool bRayTracingSkyLight = CVarRayTracingSkyLight != nullptr && CVarRayTracingSkyLight->GetInt() > 0;
+	const bool bRayTracingShadows = CVarRayTracingShadows != nullptr && CVarRayTracingShadows->GetInt() > 0;
+	const bool bRayTracingStochasticRectLight = CVarStochasticRectLight != nullptr && CVarStochasticRectLight->GetInt() > 0;
+
+	if (
+		ShouldRenderRayTracingAmbientOcclusion(View)
+		|| ShouldRenderRayTracingReflections(View)
+		|| ShouldRenderRayTracingGlobalIllumination(View)
+		|| ShouldRenderRayTracingTranslucency(View)
+		|| bRayTracingSkyLight
+		|| bRayTracingShadows
+		|| bRayTracingStochasticRectLight
+		|| View.RayTracingRenderMode == ERayTracingRenderMode::PathTracing
+		|| View.RayTracingRenderMode == ERayTracingRenderMode::RayTracingDebug
+		)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}	
+}
 
 int32 GetForceRayTracingEffectsCVarValue()
 {
