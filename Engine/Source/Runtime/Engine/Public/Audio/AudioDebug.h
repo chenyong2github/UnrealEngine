@@ -69,7 +69,12 @@ public:
 
 	bool IsVisualizeDebug3dEnabled() const;
 	void ToggleVisualizeDebug3dEnabled();
-		
+
+#if WITH_EDITOR
+	static void OnBeginPIE();
+	static void OnEndPIE();
+#endif // WITH_EDITOR
+
 	// Evaluate Mute/Solos
 	void QuerySoloMuteSoundClass(const FString& Name, bool& bOutIsSoloed, bool& bOutIsMuted, FString& OutReason ) const;
 	void QuerySoloMuteSoundWave(const FString& Name, bool& bOutIsSoloed, bool& bOutIsMuted, FString& OutReason) const;
