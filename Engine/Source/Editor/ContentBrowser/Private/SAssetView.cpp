@@ -283,6 +283,44 @@ namespace AssetViewUtils
 			return INDEX_NONE;
 		}
 	};
+
+	static FARFilter CreateSupportedFilter()
+	{
+		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+		TArray<TWeakPtr<IAssetTypeActions>> AssetTypeActionsList;
+		AssetToolsModule.Get().GetAssetTypeActionsList(AssetTypeActionsList);
+
+		bool bAnyUnsupported = false;
+		FARFilter SupportedFilter;
+
+		for (const TWeakPtr<IAssetTypeActions>& WeakTypeActions : AssetTypeActionsList)
+		{
+			if (const TSharedPtr<IAssetTypeActions> TypeActions = WeakTypeActions.Pin())
+			{
+				if (!TypeActions->IsSupported())
+				{
+					bAnyUnsupported = true;
+				}
+				else
+				{
+					SupportedFilter.bRecursiveClasses = true;
+					const UClass* SupportedClass = TypeActions->GetSupportedClass();
+					if (SupportedClass != nullptr)
+					{
+						const FName ClassName = SupportedClass->GetFName();
+						SupportedFilter.ClassNames.AddUnique(ClassName);
+					}
+				}
+			}
+		}
+
+		if (!bAnyUnsupported)
+		{
+			return FARFilter();
+		}
+
+		return SupportedFilter;
+	}
 } // namespace AssetViewUtils
 
 SAssetView::~SAssetView()
@@ -492,6 +530,8 @@ void SAssetView::Construct( const FArguments& InArgs )
 	bWereItemsRecursivelyFiltered = false;
 
 	NumVisibleColumns = 0;
+
+	SupportedFilter = AssetViewUtils::CreateSupportedFilter();
 
 	FEditorWidgetsModule& EditorWidgetsModule = FModuleManager::LoadModuleChecked<FEditorWidgetsModule>("EditorWidgets");
 	TSharedRef<SWidget> AssetDiscoveryIndicator = EditorWidgetsModule.CreateAssetDiscoveryIndicator(EAssetDiscoveryIndicatorScaleMode::Scale_Vertical);
@@ -1925,7 +1965,7 @@ void SAssetView::RefreshSourceItems()
 
 	TArray<FAssetData>& Items = OnShouldFilterAsset.IsBound() ? QueriedAssetItems : AssetItems;
 
-	const bool bShowAll = SourcesData.IsEmpty() && BackendFilter.IsEmpty();
+	const bool bShowAll = SourcesData.IsEmpty() && SupportedFilter.IsEmpty() && BackendFilter.IsEmpty();
 
 	bool bShowClasses = false;
 	TArray<FName> ClassPathsToShow;
@@ -1991,6 +2031,8 @@ void SAssetView::RefreshSourceItems()
 		const bool bUsingFolders = IsShowingFolders();
 		const bool bIsDynamicCollection = SourcesData.IsDynamicCollection();
 		FARFilter Filter = SourcesData.MakeFilter(bRecurse, bUsingFolders);
+
+		Filter.Append(SupportedFilter);
 
 		// Add the backend filters from the filter list
 		Filter.Append(BackendFilter);
@@ -2143,7 +2185,7 @@ void SAssetView::RefreshFilteredItems()
 	TMap< FName, TSharedPtr< FAssetViewAsset > > ItemToObjectPath;
 	for (int Index = 0; Index < FilteredAssetItems.Num(); Index++)
 	{
-		if(FilteredAssetItems[Index].IsValid() && FilteredAssetItems[Index]->GetType() != EAssetItemType::Folder)
+		if (FilteredAssetItems[Index].IsValid() && FilteredAssetItems[Index]->GetType() != EAssetItemType::Folder)
 		{
 			TSharedPtr<FAssetViewAsset> Item = StaticCastSharedPtr<FAssetViewAsset>(FilteredAssetItems[Index]);
 
@@ -2168,18 +2210,19 @@ void SAssetView::RefreshFilteredItems()
 	const bool bGatherAssetTypeCount = CurrentViewType == EAssetViewType::Column;
 	TMap<FName, int32> AssetTypeCount;
 
-	if ( bIsFrontendFilterActive && FrontendFilters.IsValid() )
+	if (bIsFrontendFilterActive && FrontendFilters.IsValid())
 	{
 		const bool bRecurse = ShouldFilterRecursively();
 		const bool bUsingFolders = IsShowingFolders();
 		FARFilter CombinedFilter = SourcesData.MakeFilter(bRecurse, bUsingFolders);
+		CombinedFilter.Append(SupportedFilter);
 		CombinedFilter.Append(BackendFilter);
 
 		// Let the frontend filters know the currently used filter in case it is necessary to conditionally filter based on path or class filters
-		for ( int32 FilterIdx = 0; FilterIdx < FrontendFilters->Num(); ++FilterIdx )
+		for (int32 FilterIdx = 0; FilterIdx < FrontendFilters->Num(); ++FilterIdx)
 		{
 			// There are only FFrontendFilters in this collection
-			const TSharedPtr<FFrontendFilter>& Filter = StaticCastSharedPtr<FFrontendFilter>( FrontendFilters->GetFilterAtIndex(FilterIdx) );
+			const TSharedPtr<FFrontendFilter>& Filter = StaticCastSharedPtr<FFrontendFilter>(FrontendFilters->GetFilterAtIndex(FilterIdx));
 			if ( Filter.IsValid() )
 			{
 				Filter->SetCurrentFilter(CombinedFilter);
@@ -2187,25 +2230,24 @@ void SAssetView::RefreshFilteredItems()
 		}
 	}
 
-	if ( bIsFrontendFilterActive && bGatherAssetTypeCount )
-	{
 		// Check the frontend filter for every asset and keep track of how many assets were found of each type
-		for (int32 AssetIdx = 0; AssetIdx < AssetItems.Num(); ++AssetIdx)
+	for (const FAssetData& AssetData : AssetItems)
+	{
+		if (bIsFrontendFilterActive == false ||
+			PassesCurrentFrontendFilter(AssetData) )
 		{
-			const FAssetData& AssetData = AssetItems[AssetIdx];
-			if ( PassesCurrentFrontendFilter(AssetData) )
+			const TSharedPtr< FAssetViewAsset >* AssetItem = ItemToObjectPath.Find( AssetData.ObjectPath );
+			if (AssetItem != nullptr)
 			{
-				const TSharedPtr< FAssetViewAsset >* AssetItem = ItemToObjectPath.Find( AssetData.ObjectPath );
+				FilteredAssetItems.Add(*AssetItem);
+			}
+			else
+			{
+				FilteredAssetItems.Add(MakeShareable(new FAssetViewAsset(AssetData)));
+			}
 
-				if ( AssetItem != NULL )
-				{
-					FilteredAssetItems.Add(*AssetItem);
-				}
-				else
-				{
-					FilteredAssetItems.Add(MakeShareable(new FAssetViewAsset(AssetData)));
-				}
-
+			if (bGatherAssetTypeCount)
+			{
 				int32* TypeCount = AssetTypeCount.Find(AssetData.AssetClass);
 				if ( TypeCount )
 				{
@@ -2218,86 +2260,14 @@ void SAssetView::RefreshFilteredItems()
 			}
 		}
 	}
-	else if ( bIsFrontendFilterActive && !bGatherAssetTypeCount )
-	{
-		// Check the frontend filter for every asset and don't worry about asset type counts
-		for (int32 AssetIdx = 0; AssetIdx < AssetItems.Num(); ++AssetIdx)
-		{
-			const FAssetData& AssetData = AssetItems[AssetIdx];
-			if ( PassesCurrentFrontendFilter(AssetData) )
-			{
-				const TSharedPtr< FAssetViewAsset >* AssetItem = ItemToObjectPath.Find( AssetData.ObjectPath );
 
-				if ( AssetItem != NULL )
-				{
-					FilteredAssetItems.Add(*AssetItem);
-				}
-				else
-				{
-					FilteredAssetItems.Add(MakeShareable(new FAssetViewAsset(AssetData)));
-				}
-			}
-		}
-	}
-	else if ( !bIsFrontendFilterActive && bGatherAssetTypeCount )
-	{
-		// Don't need to check the frontend filter for every asset but keep track of how many assets were found of each type
-		for (int32 AssetIdx = 0; AssetIdx < AssetItems.Num(); ++AssetIdx)
-		{
-			const FAssetData& AssetData = AssetItems[AssetIdx];
-			const TSharedPtr< FAssetViewAsset >* AssetItem = ItemToObjectPath.Find( AssetData.ObjectPath );
-
-			if ( AssetItem != NULL )
-			{
-				FilteredAssetItems.Add(*AssetItem);
-			}
-			else
-			{
-				FilteredAssetItems.Add(MakeShareable(new FAssetViewAsset(AssetData)));
-			}
-
-			int32* TypeCount = AssetTypeCount.Find(AssetData.AssetClass);
-			if ( TypeCount )
-			{
-				(*TypeCount)++;
-			}
-			else
-			{
-				AssetTypeCount.Add(AssetData.AssetClass, 1);
-			}
-		}
-	}
-	else if ( !bIsFrontendFilterActive && !bGatherAssetTypeCount )
-	{
-		// Don't check the frontend filter and don't count the number of assets of each type. Just add all assets.
-		for (int32 AssetIdx = 0; AssetIdx < AssetItems.Num(); ++AssetIdx)
-		{
-			const FAssetData& AssetData = AssetItems[AssetIdx];
-			const TSharedPtr< FAssetViewAsset >* AssetItem = ItemToObjectPath.Find( AssetData.ObjectPath );
-
-			if ( AssetItem != NULL )
-			{
-				FilteredAssetItems.Add(*AssetItem);
-			}
-			else
-			{
-				FilteredAssetItems.Add(MakeShareable(new FAssetViewAsset(AssetData)));
-			}
-		}
-	}
-	else
-	{
-		// The above cases should handle all combinations of bIsFrontendFilterActive and bGatherAssetTypeCount
-		ensure(0);
-	}
-
-	if ( bGatherAssetTypeCount )
+	if (bGatherAssetTypeCount)
 	{
 		int32 HighestCount = 0;
 		FName HighestType;
-		for ( auto TypeIt = AssetTypeCount.CreateConstIterator(); TypeIt; ++TypeIt )
+		for (auto TypeIt = AssetTypeCount.CreateConstIterator(); TypeIt; ++TypeIt)
 		{
-			if ( TypeIt.Value() > HighestCount )
+			if (TypeIt.Value() > HighestCount)
 			{
 				HighestType = TypeIt.Key();
 				HighestCount = TypeIt.Value();
@@ -2672,14 +2642,14 @@ void SAssetView::ProcessRecentlyAddedAssets()
 		bool bNeedsRefresh = false;
 
 		TSet<FName> ExistingObjectPaths;
-		for ( auto AssetIt = AssetItems.CreateConstIterator(); AssetIt; ++AssetIt )
+		for (const FAssetData& AssetItem : AssetItems)
 		{
-			ExistingObjectPaths.Add((*AssetIt).ObjectPath);
+			ExistingObjectPaths.Add(AssetItem.ObjectPath);
 		}
 
-		for ( auto AssetIt = QueriedAssetItems.CreateConstIterator(); AssetIt; ++AssetIt )
+		for (const FAssetData& AssetItem : AssetItems)
 		{
-			ExistingObjectPaths.Add((*AssetIt).ObjectPath);
+			ExistingObjectPaths.Add(AssetItem.ObjectPath);
 		}
 
 		int32 AssetIdx = 0;
@@ -2988,14 +2958,6 @@ bool SAssetView::PassesCurrentFrontendFilter(const FAssetData& Item) const
 	return true;
 }
 
-bool SAssetView::PassesCurrentBackendFilter(const FAssetData& Item) const
-{
-	TArray<FAssetData> AssetDataList;
-	AssetDataList.Add(Item);
-	RunAssetsThroughBackendFilter(AssetDataList);
-	return AssetDataList.Num() == 1;
-}
-
 void SAssetView::RunAssetsThroughBackendFilter(TArray<FAssetData>& InOutAssetDataList) const
 {
 	const bool bRecurse = ShouldFilterRecursively();
@@ -3010,7 +2972,7 @@ void SAssetView::RunAssetsThroughBackendFilter(TArray<FAssetData>& InOutAssetDat
 	}
 	else
 	{
-		// Actually append the backend filter
+		Filter.Append(SupportedFilter);
 		Filter.Append(BackendFilter);
 
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
