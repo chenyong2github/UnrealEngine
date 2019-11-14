@@ -485,6 +485,7 @@ uint32 URuntimeVirtualTexture::GetStreamingTextureBuildHash() const
 			uint32 TileSize : 4;
 			uint32 TileBorderSize : 4;
 			uint32 StreamLowMips : 4;
+			uint32 EnableCompressCrunch : 1;
 		};
 	};
 
@@ -496,6 +497,7 @@ uint32 URuntimeVirtualTexture::GetStreamingTextureBuildHash() const
 	Settings.TileSize = (uint32)TileSize;
 	Settings.TileBorderSize = (uint32)TileBorderSize;
 	Settings.StreamLowMips = (uint32)GetStreamLowMips();
+	Settings.EnableCompressCrunch = (uint32)bEnableCompressCrunch;
 
 	return Settings.PackedValue;
 }
@@ -513,6 +515,7 @@ void URuntimeVirtualTexture::InitializeStreamingTexture(uint32 InSizeX, uint32 I
 	StreamingTexture->Settings.Init();
 	StreamingTexture->Settings.TileSize = GetTileSize();
 	StreamingTexture->Settings.TileBorderSize = GetTileBorderSize();
+	StreamingTexture->Settings.bEnableCompressCrunch = bEnableCompressCrunch;
 
 	StreamingTexture->BuildHash = GetStreamingTextureBuildHash();
 
