@@ -166,6 +166,9 @@ private:
 	/** Adds asset reference menu options to a menu builder. Returns true if any options were added. */
 	bool AddReferenceMenuOptions(UToolMenu* Menu);
 
+	/** Adds copy file path menu options to a menu builder. Returns true if any options were added. */
+	bool AddCopyFilePathMenuOptions(UToolMenu* Menu);
+
 	/** Adds asset documentation menu options to a menu builder. Returns true if any options were added. */
 	bool AddDocumentationMenuOptions(UToolMenu* Menu);
 	
@@ -234,6 +237,9 @@ private:
 
 	/** Handler for CopyReference */
 	void ExecuteCopyReference();
+
+	/** Handler for CopyFilePath */
+	void ExecuteCopyFilePath();
 
 	/** Handler to copy the given text to the clipboard */
 	void ExecuteCopyTextToClipboard(FString InText);

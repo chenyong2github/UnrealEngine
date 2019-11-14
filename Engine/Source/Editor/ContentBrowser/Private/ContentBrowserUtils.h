@@ -131,6 +131,9 @@ namespace ContentBrowserUtils
 	/** Copies references to the specified assets to the clipboard */
 	void CopyAssetReferencesToClipboard(const TArray<FAssetData>& AssetsToCopy);
 
+	/** Copies file paths on disk to the specified assets to the clipboard */
+	void CopyFilePathsToClipboard(const TArray<FAssetData>& AssetsToCopy);
+
 	/**
 	 * Capture active viewport to thumbnail and assigns that thumbnail to incoming assets
 	 *
