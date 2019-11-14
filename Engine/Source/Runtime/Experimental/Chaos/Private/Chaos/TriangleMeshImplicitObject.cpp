@@ -60,7 +60,7 @@ struct TTriangleMeshRaycastVisitor
 		const TVector<T, 3> AC = C - A;
 		TVector<T, 3> TriNormal = TVector<T, 3>::CrossProduct(AB, AC);
 		const T NormalLength = TriNormal.SafeNormalize();
-		if (!ensure(NormalLength > Epsilon))
+		if (!CHAOS_ENSURE(NormalLength > Epsilon))
 		{
 			//hitting degenerate triangle so keep searching - should be fixed before we get to this stage
 			return true;
