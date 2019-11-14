@@ -101,6 +101,7 @@ public:
 
 #if WITH_EDITOR
 	virtual void CheckForErrors() override;
+	virtual void PreEditChange(UProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool CanEditChange(const UProperty* InProperty) const override;
 	void ValidateMaterials(bool bMapCheck) const;
