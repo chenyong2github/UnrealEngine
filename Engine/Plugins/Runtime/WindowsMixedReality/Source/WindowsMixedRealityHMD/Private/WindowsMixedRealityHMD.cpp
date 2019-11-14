@@ -106,6 +106,11 @@ namespace WindowsMixedReality
 	{
 		virtual TSharedPtr< class IXRTrackingSystem, ESPMode::ThreadSafe > CreateTrackingSystem() override;
 
+		virtual WindowsMixedReality::MixedRealityInterop* GetMixedRealityInterop() override
+		{
+			return HMD;
+		}
+
 		bool IsHMDConnected()
 		{
 #if WITH_WINDOWS_MIXED_REALITY
