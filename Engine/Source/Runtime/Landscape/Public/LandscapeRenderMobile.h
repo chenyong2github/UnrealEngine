@@ -13,12 +13,12 @@ LandscapeRenderMobile.h: Mobile landscape rendering
 #include "LandscapeRender.h"
 #include "Runtime/Landscape/Private/LandscapePrivate.h"
 
-#define LANDSCAPE_MAX_ES_LOD_COMP	3
+#define LANDSCAPE_MAX_ES_LOD_COMP	2
 #define LANDSCAPE_MAX_ES_LOD		6
 
 struct FLandscapeMobileVertex
 {
-	uint8 Position[4]; // X, Y, SubX, SubY
+	uint8 Position[4]; // Pos + LOD 0 Height
 	uint8 LODHeights[LANDSCAPE_MAX_ES_LOD_COMP*4];
 };
 

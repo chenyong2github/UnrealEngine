@@ -6339,6 +6339,7 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 		TArray<int32> MipHeights;
 		MipHeights.AddZeroed(HeightmapMipData.Num());
 		int32 LastIndex = 0;
+		uint16 MaxHeight = 0, MinHeight = 65535;
 
 		for (int32 Mip = 0; Mip < HeightmapMipData.Num(); ++Mip)
 		{
@@ -6354,12 +6355,25 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 			uint16 Height = CurrentMipSrcRow[MipX].R << 8 | CurrentMipSrcRow[MipX].G;
 
 			MipHeights[Mip] = Height;
+			MaxHeight = FMath::Max(MaxHeight, Height);
+			MinHeight = FMath::Min(MinHeight, Height);
 		}
+
+		DstVert->LODHeights[0] = MinHeight >> 8;
+		DstVert->LODHeights[1] = (MinHeight & 255);
+		DstVert->LODHeights[2] = MaxHeight >> 8;
+		DstVert->LODHeights[3] = (MaxHeight & 255);
 
 		for (int32 Mip = 0; Mip < HeightmapMipData.Num(); ++Mip)
 		{
-			DstVert->LODHeights[Mip * 2] = MipHeights[Mip] >> 8;
-			DstVert->LODHeights[Mip * 2 + 1] = MipHeights[Mip] & 255;
+			if (Mip < 4)
+			{
+				DstVert->LODHeights[4 + Mip] = FMath::RoundToInt(float(MipHeights[Mip] - MinHeight) / (MaxHeight - MinHeight) * 255);
+			}
+			else // Mip 4 5 packed into SubX, SubY
+			{
+				DstVert->Position[Mip - 2] += (FMath::RoundToInt(float(MipHeights[Mip] - MinHeight) / (MaxHeight - MinHeight) * 255)) & (0xfffe);
+			}
 		}
 
 		DstVert++;
