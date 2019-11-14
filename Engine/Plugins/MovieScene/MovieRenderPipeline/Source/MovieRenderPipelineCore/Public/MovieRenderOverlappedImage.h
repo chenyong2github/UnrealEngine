@@ -83,7 +83,6 @@ public:
 		: PlaneSize(0,0)
 		, NumChannels(0)
 		, AccumulationGamma(1.0f)
-		, TileMaskSize(0,0)
 	{
 	}
 
@@ -110,6 +109,7 @@ public:
 	 */
 	void Reset();
 
+#if 0
 	/**
 	 * Given the size of a tile, calculate its weight mask.
 	 * 
@@ -137,6 +137,7 @@ public:
 	 * @param SubRectSize - Size of the found subrect.
 	 */
 	static void CheckTileSubRect(const TArray64<float>& Weights, const FIntPoint Size, FIntPoint SubRectOffset, FIntPoint SubRectSize);
+#endif
 
 	/**
 	 * Given a rendered tile, accumulate the data to the full size image.
@@ -196,12 +197,6 @@ public:
 	TArray64<FImageOverlappedPlane> ChannelPlanes;
 	
 	FImageOverlappedPlane WeightPlane;
-
-	/** Weights image. Recalculate if it changes. */
-	TArray64<float> TileMaskData;
-
-	/** Width and height of weight mask image. */
-	FIntPoint TileMaskSize;
 };
 
 
