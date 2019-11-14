@@ -95,6 +95,11 @@ namespace Audio
 	}
 
 
+	int32 FPatchOutput::GetNumSamplesAvailable()
+	{
+		return InternalBuffer.Num();
+	}
+
 	FPatchInput::FPatchInput(const FPatchOutputStrongPtr& InOutput)
 		: OutputHandle(InOutput)
 		, PushCallsCounter(0)
