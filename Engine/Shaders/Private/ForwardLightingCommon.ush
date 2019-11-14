@@ -341,6 +341,7 @@ half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameter
 	#endif
 #endif
 
+	const bool bCompositeSkylight = true;
 	float3 SpecularIBL = CompositeReflectionCapturesAndSkylight(
 		1.0f, 
 		MaterialParameters.AbsoluteWorldPosition, 
@@ -352,6 +353,7 @@ half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameter
 		NumLocalReflectionCaptures, 
 		DataStartIndex, 
 		SingleCaptureIndex,
+		bCompositeSkylight,
 		EyeIndex);
 
 #if MATERIAL_SSR && !FORWARD_SHADING

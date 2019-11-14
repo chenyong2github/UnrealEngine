@@ -52,6 +52,7 @@ float3 GatherRadiance(float3 RayDirection, float Roughness, uint2 PixelPosition,
 	const uint NumLocalReflectionCaptures = min(ForwardLightData.NumCulledLightsGrid[NumCulledEntryIndex + 0], ForwardLightData.NumReflectionCaptures);
 	const uint DataStartIndex = ForwardLightData.NumCulledLightsGrid[NumCulledEntryIndex + 1];
 
+	const bool bCompositeSkylight = true;
 	return CompositeReflectionCapturesAndSkylight(
 		1.0f,
 		AbsoluteWorldPosition,
@@ -63,6 +64,7 @@ float3 GatherRadiance(float3 RayDirection, float Roughness, uint2 PixelPosition,
 		NumLocalReflectionCaptures,
 		DataStartIndex,
 		SingleCaptureIndex,
+		bCompositeSkylight,
 		EyeIndex);
 }
 
