@@ -49,6 +49,7 @@ struct FGeometryAddParams
 	UPhysicalMaterial* SimpleMaterial;
 	TArrayView<UPhysicalMaterial*> ComplexMaterials;
 	FTransform LocalTransform;
+	FTransform WorldTransform;
 	FKAggregateGeom* Geometry;
 	// FPhysicsInterfaceTriMesh - Per implementation
 #if WITH_PHYSX
