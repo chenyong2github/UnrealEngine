@@ -643,6 +643,16 @@ TSharedRef<SWidget> SFilterList::ExternalMakeAddFilterMenu(EAssetTypeCategories:
 	return MakeAddFilterMenu(MenuExpansion);
 }
 
+void SFilterList::EnableAllFilters()
+{
+	for (const TSharedRef<SFilter>& Filter : Filters)
+	{
+		Filter->SetEnabled(true, false);
+	}
+
+	OnFilterChanged.ExecuteIfBound();
+}
+
 void SFilterList::DisableAllFilters()
 {
 	for (const TSharedRef<SFilter>& Filter : Filters)
