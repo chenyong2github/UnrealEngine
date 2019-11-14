@@ -930,7 +930,7 @@ public:
 	FIESLightProfileResource IESLightProfileResources;
 
 	TRefCountPtr<FPooledRDGBuffer> GatherPointsBuffer;
-	FIntPoint GatherPointsResolution;
+	FIntVector GatherPointsResolution;
 #endif
 
 	TUniquePtr<FForwardLightingViewResources> ForwardLightingResources;
