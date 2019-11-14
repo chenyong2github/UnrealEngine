@@ -77,7 +77,7 @@ void PBDRigidParticleHandleImpDefaultConstruct(TPBDRigidParticleHandleImp<T, d, 
 	Concrete.SetInvM(1);
 	Concrete.SetI(PMatrix<T, d, d>(1, 1, 1));
 	Concrete.SetInvI(PMatrix<T, d, d>(1, 1, 1));
-	Concrete.SetObjectState(Params.bStartSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic);
+	Concrete.SetObjectStateLowLevel(Params.bStartSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic);
 }
 
 template <typename T, int d>
@@ -661,7 +661,7 @@ public:
 	void SetToBeRemovedOnFracture(const bool bToBeRemovedOnFracture) { PBDRigidParticles->ToBeRemovedOnFracture(ParticleIdx) = bToBeRemovedOnFracture; }
 
 	EObjectStateType ObjectState() const { return PBDRigidParticles->ObjectState(ParticleIdx); }
-	void SetObjectState(EObjectStateType InState) { PBDRigidParticles->SetObjectState(ParticleIdx, InState); }
+	void SetObjectStateLowLevel(EObjectStateType InState) { PBDRigidParticles->SetObjectState(ParticleIdx, InState); }
 	void SetSleeping(bool bSleeping) { PBDRigidParticles->SetSleeping(ParticleIdx, bSleeping); }
 
 	//Really only useful when using a transient handle
@@ -1119,6 +1119,11 @@ public:
 		return this->MDirtyFlags.IsDirty(CheckBits);
 	}
 
+	const FParticleDirtyFlags& DirtyFlags() const
+	{
+		return MDirtyFlags;
+	}
+
 	void ClearDirtyFlags()
 	{
 		this->MDirtyFlags.Clear();
@@ -1191,6 +1196,7 @@ public:
 		, R(TRotation<T, d>())
 		, SpatialIdx(FSpatialAccelerationIdx{ 0,0 })
 		, HashResult(0)
+		, DirtyFlags()
 	{}
 
 	TGeometryParticleData(const TGeometryParticle<T, d>& InParticle)
@@ -1200,6 +1206,7 @@ public:
 		, Geometry(InParticle.GeometrySharedLowLevel())
 		, SpatialIdx(InParticle.SpatialIdx())
 		, HashResult(InParticle.GetHashResultLowLevel())
+		, DirtyFlags(InParticle.DirtyFlags())
 	{}
 
 	void Reset() 
@@ -1210,6 +1217,7 @@ public:
 		Geometry = TSharedPtr<TImplicitObjectUnion<T, d>, ESPMode::ThreadSafe>();
 		SpatialIdx = FSpatialAccelerationIdx{ 0,0 };
 		HashResult = 0;
+		DirtyFlags.Clear();
 	}
 
 	TVector<T, d> X;
@@ -1217,6 +1225,7 @@ public:
 	TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> Geometry;
 	FSpatialAccelerationIdx SpatialIdx;
 	uint32 HashResult;
+	FParticleDirtyFlags DirtyFlags;
 };
 
 
