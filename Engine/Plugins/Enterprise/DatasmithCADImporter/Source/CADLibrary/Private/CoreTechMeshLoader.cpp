@@ -41,8 +41,7 @@ bool CoreTechMeshLoader::LoadFile(const FString& FileName, FMeshDescription& Mes
 		return false;
 	}
 
-	ConvertCTBodySetToMeshDescription(ImportParameters, MeshParameters, BodySet, MeshDescription);
-
+	Tessellate(MainObjectID, ImportParameters, MeshDescription, MeshParameters);
 	return true;
 }
 
