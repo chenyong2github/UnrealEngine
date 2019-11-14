@@ -186,7 +186,7 @@ void FGenerateMips::Execute(FRDGBuilder* GraphBuilder, FRDGTextureRef InGraphTex
 	check(InSampler);
 
 	FGenerateMipsCS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FGenerateMipsCS::FGenMipsSRGB>(!!(InGraphTexture->GetRHI()->GetFlags() & TexCreate_SRGB));
+	PermutationVector.Set<FGenerateMipsCS::FGenMipsSRGB>(!!(InGraphTexture->Desc.Flags & TexCreate_SRGB));
 	TShaderMapRef<FGenerateMipsCS> ComputeShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5), PermutationVector);
 
 	//Loop through each level of the mips that require creation and add a dispatch pass per level,.
