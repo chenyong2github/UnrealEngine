@@ -103,7 +103,7 @@ public:
 	TSharedRef<SBorder> GetToolbox() { return Toolbox.ToSharedRef(); }
 
 	/** Get the edit mode */
-	FControlRigEditorEditMode* GetEditMode() const { return static_cast<FControlRigEditorEditMode*>(GetAssetEditorModeManager()->GetActiveMode(FControlRigEditorEditMode::ModeName)); }
+	FControlRigEditorEditMode* GetEditMode() const;
 
 	// this changes everytime you compile, so don't cache it expecting it will last. 
 	UControlRig* GetInstanceRig() const { return ControlRig;  }
