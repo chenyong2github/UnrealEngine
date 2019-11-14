@@ -16,6 +16,8 @@
 #include "DisplayClusterLog.h"
 #include "DisplayClusterStrings.h"
 
+#include "HAL/FileManager.h"
+
 
 FDisplayClusterConfigManager::FDisplayClusterConfigManager()
 {
@@ -422,27 +424,36 @@ bool FDisplayClusterConfigManager::LoadConfig(const FString& cfgPath)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
 
+	FString ConfigFile = cfgPath;
+	ConfigFile.TrimStartAndEndInline();
+
+	if (FPaths::IsRelative(ConfigFile))
+	{
+		const FString ProjectDir = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*FPaths::ProjectDir());
+		ConfigFile = FPaths::ConvertRelativePathToFull(ProjectDir, ConfigFile);
+	}
+
 	// Actually the data is reset on EndFrame. This one is a safety call.
 	ResetConfigData();
 
 #ifdef DISPLAY_CLUSTER_USE_DEBUG_STANDALONE_CONFIG
-	if (cfgPath.Compare(FString(DisplayClusterStrings::misc::DbgStubConfig), ESearchCase::IgnoreCase) != 0 &&
-		FPaths::FileExists(cfgPath) == false)
+	if (ConfigFile.Compare(FString(DisplayClusterStrings::misc::DbgStubConfig), ESearchCase::IgnoreCase) != 0 &&
+		FPaths::FileExists(ConfigFile) == false)
 	{
-		UE_LOG(LogDisplayClusterConfig, Error, TEXT("File not found: %s"), *cfgPath);
+		UE_LOG(LogDisplayClusterConfig, Error, TEXT("File not found: %s"), *ConfigFile);
 		return false;
 	}
 #else
-	if (FPaths::FileExists(cfgPath) == false)
+	if (FPaths::FileExists(ConfigFile) == false)
 	{
-		UE_LOG(LogDisplayClusterConfig, Error, TEXT("File not found: %s"), *cfgPath);
+		UE_LOG(LogDisplayClusterConfig, Error, TEXT("File not found: %s"), *ConfigFile);
 		return false;
 	}
 #endif
 
 	// Instantiate appropriate parser
 	TUniquePtr<FDisplayClusterConfigParser> parser;
-	switch (GetConfigFileType(cfgPath))
+	switch (GetConfigFileType(ConfigFile))
 	{
 	case EConfigFileType::Text:
 		parser.Reset(new FDisplayClusterConfigParserText(this));
@@ -464,7 +475,7 @@ bool FDisplayClusterConfigManager::LoadConfig(const FString& cfgPath)
 		return false;
 	}
 
-	return parser->ParseFile(cfgPath);
+	return parser->ParseFile(ConfigFile);
 }
 
 void FDisplayClusterConfigManager::ResetConfigData()
