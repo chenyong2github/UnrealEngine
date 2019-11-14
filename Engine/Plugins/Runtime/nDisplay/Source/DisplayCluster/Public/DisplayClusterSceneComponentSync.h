@@ -43,8 +43,8 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterStringSerializable
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual FString SerializeToString() const override final;
-	virtual bool    DeserializeFromString(const FString& data) override final;
+	virtual FString SerializeToString() const override;
+	virtual bool    DeserializeFromString(const FString& data) override;
 
 public:
 	virtual void BeginPlay() override;
