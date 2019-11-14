@@ -34,7 +34,7 @@ void STimerTableRow::Construct(const FArguments& InArgs, const TSharedRef<STable
 	TablePtr = InArgs._TablePtr;
 	TimerNodePtr = InArgs._TimerNodePtr;
 
-	RowToolTip = MakeShareable(new STimerTableRowToolTip(TimerNodePtr));
+	RowToolTip = MakeShared<STimerTableRowToolTip>(TimerNodePtr);
 
 	SetEnabled(TAttribute<bool>(this, &STimerTableRow::HandleShouldBeEnabled));
 

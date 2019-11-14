@@ -33,7 +33,7 @@ void SNetStatsTableRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 	TablePtr = InArgs._TablePtr;
 	NetEventNodePtr = InArgs._NetEventNodePtr;
 
-	RowToolTip = MakeShareable(new SNetEventTableRowToolTip(NetEventNodePtr));
+	RowToolTip = MakeShared<SNetEventTableRowToolTip>(NetEventNodePtr);
 
 	SetEnabled(TAttribute<bool>(this, &SNetStatsTableRow::HandleShouldBeEnabled));
 

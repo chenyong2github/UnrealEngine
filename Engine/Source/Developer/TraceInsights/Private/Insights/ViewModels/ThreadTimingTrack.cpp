@@ -553,12 +553,12 @@ void FThreadTimingTrack::GetParentAndRoot(const FTimingEvent& TimingEvent, TShar
 						if (EventDepth == 0)
 						{
 							OutRootEvent = Event;
-							OutRootTimingEvent = MakeShareable(new FTimingEvent(TimingEvent.GetTrack(), EventStartTime, EventEndTime, EventDepth));
+							OutRootTimingEvent = MakeShared<FTimingEvent>(TimingEvent.GetTrack(), EventStartTime, EventEndTime, EventDepth);
 						}
 						if (EventDepth == TimingEvent.GetDepth() - 1)
 						{
 							OutParentEvent = Event;
-							OutParentTimingEvent = MakeShareable(new FTimingEvent(TimingEvent.GetTrack(), EventStartTime, EventEndTime, EventDepth));
+							OutParentTimingEvent = MakeShared<FTimingEvent>(TimingEvent.GetTrack(), EventStartTime, EventEndTime, EventDepth);
 						}
 					});
 				});
@@ -575,7 +575,7 @@ const TSharedPtr<const ITimingEvent> FThreadTimingTrack::SearchEvent(const FTimi
 
 	FindTimingProfilerEvent(InSearchParameters, [this, &FoundEvent](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const Trace::FTimingProfilerEvent& InFoundEvent)
 	{
-		FoundEvent = MakeShareable(new FTimingEvent(SharedThis(this), InFoundStartTime, InFoundEndTime, InFoundDepth));
+		FoundEvent = MakeShared<FTimingEvent>(SharedThis(this), InFoundStartTime, InFoundEndTime, InFoundDepth);
 	});
 
 	return FoundEvent;

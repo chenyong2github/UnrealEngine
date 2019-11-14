@@ -72,13 +72,13 @@ namespace Insights { const FName TimingViewExtenderFeatureName(TEXT("TimingViewE
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 STimingView::STimingView()
-	: ThreadTimingSharedState(MakeShareable(new FThreadTimingSharedState(this)))
-	, LoadingSharedState(MakeShareable(new FLoadingSharedState(this)))
+	: ThreadTimingSharedState(MakeShared<FThreadTimingSharedState>(this))
+	, LoadingSharedState(MakeShared<FLoadingSharedState>(this))
 	, bAssetLoadingMode(false)
-	, FileActivitySharedState(MakeShareable(new FFileActivitySharedState(this)))
-	, TimeRulerTrack(MakeShareable(new FTimeRulerTrack()))
-	, MarkersTrack(MakeShareable(new FMarkersTimingTrack()))
-	, GraphTrack(MakeShareable(new FTimingGraphTrack()))
+	, FileActivitySharedState(MakeShared<FFileActivitySharedState>(this))
+	, TimeRulerTrack(MakeShared<FTimeRulerTrack>())
+	, MarkersTrack(MakeShared<FMarkersTimingTrack>())
+	, GraphTrack(MakeShared<FTimingGraphTrack>())
 	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
 	, MainFont(FCoreStyle::GetDefaultFontStyle("Regular", 8))
 {

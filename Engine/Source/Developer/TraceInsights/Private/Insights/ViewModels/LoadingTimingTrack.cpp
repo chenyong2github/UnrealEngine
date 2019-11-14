@@ -89,7 +89,7 @@ void FLoadingSharedState::Tick(Insights::ITimingViewSession& InSession, const Tr
 					const TCHAR* const GroupName = ThreadInfo.GroupName ? ThreadInfo.GroupName : ThreadInfo.Name;
 					const FString TrackName(ThreadInfo.Name && *ThreadInfo.Name ? FString::Printf(TEXT("Loading - %s"), ThreadInfo.Name) : FString::Printf(TEXT("Loading - Thread %u"), ThreadInfo.Id));
 
-					TSharedPtr<FLoadingTimingTrack> LoadingThreadTrack = MakeShareable(new FLoadingTimingTrack(*this, LoadingTimelineIndex, GroupName, TrackName));
+					TSharedRef<FLoadingTimingTrack> LoadingThreadTrack = MakeShared<FLoadingTimingTrack>(*this, LoadingTimelineIndex, GroupName, TrackName);
 					LoadingThreadTrack->SetOrder(-100 + LoadingTracks.Num());
 					LoadingThreadTrack->SetVisibilityFlag(bShowHideAllLoadingTracks);
 					InSession.AddScrollableTrack(LoadingThreadTrack);
@@ -219,6 +219,12 @@ void FLoadingSharedState::SetColorSchema(int32 Schema)
 		case 2: GetEventNameDelegate = FLoadingTrackGetEventNameDelegate::CreateRaw(this, &FLoadingSharedState::GetEventNameByExportClassName); break;
 		case 3: GetEventNameDelegate = FLoadingTrackGetEventNameDelegate::CreateRaw(this, &FLoadingSharedState::GetEventNameByPackageAndExportClassName); break;
 	};
+
+	for (const auto& KV : LoadingTracks)
+	{
+		FLoadingTimingTrack& Track = *KV.Value;
+		Track.SetDirtyFlag();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -319,7 +325,7 @@ const TSharedPtr<const ITimingEvent> FLoadingTimingTrack::SearchEvent(const FTim
 
 	FindLoadTimeProfilerCpuEvent(InSearchParameters, [this, &FoundEvent](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const Trace::FLoadTimeProfilerCpuEvent& InFoundEvent)
 	{
-		FoundEvent = MakeShareable(new FTimingEvent(SharedThis(this), InFoundStartTime, InFoundEndTime, InFoundDepth));
+		FoundEvent = MakeShared<FTimingEvent>(SharedThis(this), InFoundStartTime, InFoundEndTime, InFoundDepth);
 	});
 
 	return FoundEvent;

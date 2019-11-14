@@ -31,7 +31,7 @@ const FName FNetStatsViewColumns::AverageExclusiveSizeColumnID(TEXT("AverageExcl
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FNetStatsViewColumnFactory::CreateNetStatsViewColumns(TArray<TSharedPtr<Insights::FTableColumn>>& Columns)
+void FNetStatsViewColumnFactory::CreateNetStatsViewColumns(TArray<TSharedRef<Insights::FTableColumn>>& Columns)
 {
 	Columns.Reset();
 

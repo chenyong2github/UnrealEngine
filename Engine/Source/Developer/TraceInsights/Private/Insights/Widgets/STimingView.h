@@ -59,7 +59,6 @@ public:
 		{
 			_Clipping = EWidgetClipping::ClipToBounds;
 		}
-
 	SLATE_END_ARGS()
 
 	/**

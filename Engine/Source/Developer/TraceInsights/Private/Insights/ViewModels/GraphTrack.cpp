@@ -475,7 +475,7 @@ const TSharedPtr<const ITimingEvent> FGraphTrack::GetEvent(float InPosX, float I
 			const FGraphSeriesEvent* Event = Series->GetEvent(LocalPosX, LocalPosY, Viewport, bCheckLine, bDrawBoxes);
 			if (Event != nullptr)
 			{
-				return MakeShareable(new FGraphTrackEvent(SharedThis(this), Series.ToSharedRef(), *Event));
+				return MakeShared<FGraphTrackEvent>(SharedThis(this), Series.ToSharedRef(), *Event);
 			}
 		}
 	}
@@ -784,21 +784,21 @@ FRandomGraphTrack::FRandomGraphTrack()
 
 void FRandomGraphTrack::AddDefaultSeries()
 {
-	TSharedPtr<FGraphSeries> Series0 = MakeShareable(new FGraphSeries());
+	TSharedRef<FGraphSeries> Series0 = MakeShared<FGraphSeries>();
 	Series0->SetName(TEXT("Random Blue"));
 	Series0->SetDescription(TEXT("Random series; for debuging purposes"));
 	Series0->SetColor(FLinearColor(0.1f, 0.5f, 1.0f, 1.0f), FLinearColor(0.4f, 0.8f, 1.0f, 1.0f));
 	Series0->SetVisibility(true);
 	AllSeries.Add(Series0);
 
-	TSharedPtr<FGraphSeries> Series1 = MakeShareable(new FGraphSeries());
+	TSharedRef<FGraphSeries> Series1 = MakeShared<FGraphSeries>();
 	Series1->SetName(TEXT("Random Yellow"));
 	Series1->SetDescription(TEXT("Random series; for debuging purposes"));
 	Series1->SetColor(FLinearColor(0.9f, 0.9f, 0.1f, 1.0f), FLinearColor(1.0f, 1.0f, 0.4f, 1.0f));
 	Series1->SetVisibility(false);
 	AllSeries.Add(Series1);
 
-	TSharedPtr<FGraphSeries> Series2 = MakeShareable(new FGraphSeries());
+	TSharedRef<FGraphSeries> Series2 = MakeShared<FGraphSeries>();
 	Series2->SetName(TEXT("Random Red"));
 	Series2->SetDescription(TEXT("Random series; for debuging purposes"));
 	Series2->SetColor(FLinearColor(1.0f, 0.1f, 0.2f, 1.0f), FLinearColor(1.0f, 0.4f, 0.5f, 1.0f));

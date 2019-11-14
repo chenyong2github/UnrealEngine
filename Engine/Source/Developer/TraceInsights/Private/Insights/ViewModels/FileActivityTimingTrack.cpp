@@ -127,7 +127,7 @@ void FFileActivitySharedState::Tick(Insights::ITimingViewSession& InSession, con
 
 	if (!IoOverviewTrack.IsValid())
 	{
-		IoOverviewTrack = MakeShareable(new FOverviewFileActivityTimingTrack(*this));
+		IoOverviewTrack = MakeShared<FOverviewFileActivityTimingTrack>(*this);
 		IoOverviewTrack->SetOrder(-999999); // first track
 		IoOverviewTrack->SetVisibilityFlag(bShowHideAllIoTracks);
 		InSession.AddScrollableTrack(IoOverviewTrack);
@@ -135,7 +135,7 @@ void FFileActivitySharedState::Tick(Insights::ITimingViewSession& InSession, con
 
 	if (!IoActivityTrack.IsValid())
 	{
-		IoActivityTrack = MakeShareable(new FDetailedFileActivityTimingTrack(*this));
+		IoActivityTrack = MakeShared<FDetailedFileActivityTimingTrack>(*this);
 		IoActivityTrack->SetOrder(+999999); // last track
 		IoActivityTrack->SetVisibilityFlag(bShowHideAllIoTracks);
 		InSession.AddScrollableTrack(IoActivityTrack);
@@ -170,7 +170,7 @@ void FFileActivitySharedState::Tick(Insights::ITimingViewSession& InSession, con
 
 					if (!FileActivityMap.Contains(FileInfo.Id))
 					{
-						Activity = MakeShareable(new FIoFileActivity());
+						Activity = MakeShared<FIoFileActivity>();
 
 						Activity->Id = FileInfo.Id;
 						Activity->Path = FileInfo.Path;
@@ -680,7 +680,7 @@ const TSharedPtr<const ITimingEvent> FOverviewFileActivityTimingTrack::SearchEve
 	constexpr bool bIgnoreEventDepth = true;
 	FindIoTimingEvent(InSearchParameters, bIgnoreEventDepth, [this, &FoundEvent](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FFileActivitySharedState::FIoTimingEvent& InEvent)
 	{
-		FoundEvent = MakeShareable(new FTimingEvent(SharedThis(this), InFoundStartTime, InFoundEndTime, InFoundDepth));
+		FoundEvent = MakeShared<FTimingEvent>(SharedThis(this), InFoundStartTime, InFoundEndTime, InFoundDepth);
 	});
 
 	return FoundEvent;
@@ -771,7 +771,7 @@ const TSharedPtr<const ITimingEvent> FDetailedFileActivityTimingTrack::SearchEve
 	constexpr bool bIgnoreEventDepth = false;
 	FindIoTimingEvent(InSearchParameters, bIgnoreEventDepth, [this, &FoundEvent](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FFileActivitySharedState::FIoTimingEvent& InEvent)
 	{
-		FoundEvent = MakeShareable(new FTimingEvent(SharedThis(this), InFoundStartTime, InFoundEndTime, InFoundDepth));
+		FoundEvent = MakeShared<FTimingEvent>(SharedThis(this), InFoundStartTime, InFoundEndTime, InFoundDepth);
 	});
 
 	return FoundEvent;

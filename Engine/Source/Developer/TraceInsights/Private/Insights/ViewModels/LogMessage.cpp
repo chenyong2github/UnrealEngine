@@ -190,7 +190,7 @@ TSharedPtr<FLogMessageRecord> FLogMessageCache::GetUncached(uint64 Index) const
 		const Trace::ILogProvider& LogProvider = Trace::ReadLogProvider(*Session.Get());
 		LogProvider.ReadMessage(Index, [&EntryPtr](const Trace::FLogMessage& Message)
 		{
-			EntryPtr = MakeShareable(new FLogMessageRecord(Message));
+			EntryPtr = MakeShared<FLogMessageRecord>(Message);
 		});
 	}
 

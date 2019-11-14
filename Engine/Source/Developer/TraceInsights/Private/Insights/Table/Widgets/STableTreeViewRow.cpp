@@ -36,7 +36,7 @@ void STableTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 	TablePtr = InArgs._TablePtr;
 	TableTreeNodePtr = InArgs._TableTreeNodePtr;
 
-	RowToolTip = MakeShareable(new STableTreeRowToolTip(TableTreeNodePtr));
+	RowToolTip = MakeShared<STableTreeRowToolTip>(TableTreeNodePtr);
 
 	SetEnabled(TAttribute<bool>(this, &STableTreeViewRow::HandleShouldBeEnabled));
 

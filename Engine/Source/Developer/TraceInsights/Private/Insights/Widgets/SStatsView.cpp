@@ -242,8 +242,8 @@ void SStatsView::Construct(const FArguments& InArgs)
 	//BindCommands();
 
 	// Create the search filters: text based, type based etc.
-	TextFilter = MakeShareable(new FStatsNodeTextFilter(FStatsNodeTextFilter::FItemToStringArray::CreateSP(this, &SStatsView::HandleItemToStringArray)));
-	Filters = MakeShareable(new FStatsNodeFilterCollection());
+	TextFilter = MakeShared<FStatsNodeTextFilter>(FStatsNodeTextFilter::FItemToStringArray::CreateSP(this, &SStatsView::HandleItemToStringArray));
+	Filters = MakeShared<FStatsNodeFilterCollection>();
 	Filters->Add(TextFilter);
 
 	CreateGroupByOptionsSources();
@@ -1064,7 +1064,7 @@ void SStatsView::CreateGroups()
 		FStatsNodePtr* GroupPtr = GroupNodeSet.Find(GroupName);
 		if (!GroupPtr)
 		{
-			GroupPtr = &GroupNodeSet.Add(GroupName, MakeShareable(new FStatsNode(GroupName)));
+			GroupPtr = &GroupNodeSet.Add(GroupName, MakeShared<FStatsNode>(GroupName));
 		}
 
 		for (const FStatsNodePtr& StatsNodePtr : StatsNodes)
@@ -1084,7 +1084,7 @@ void SStatsView::CreateGroups()
 			FStatsNodePtr* GroupPtr = GroupNodeSet.Find(GroupName);
 			if (!GroupPtr)
 			{
-				GroupPtr = &GroupNodeSet.Add(GroupName, MakeShareable(new FStatsNode(GroupName)));
+				GroupPtr = &GroupNodeSet.Add(GroupName, MakeShared<FStatsNode>(GroupName));
 			}
 
 			(*GroupPtr)->AddChildAndSetGroupPtr(StatsNodePtr);
@@ -1101,7 +1101,7 @@ void SStatsView::CreateGroups()
 			FStatsNodePtr* GroupPtr = GroupNodeSet.Find(GroupName);
 			if (!GroupPtr)
 			{
-				GroupPtr = &GroupNodeSet.Add(GroupName, MakeShareable(new FStatsNode(GroupName)));
+				GroupPtr = &GroupNodeSet.Add(GroupName, MakeShared<FStatsNode>(GroupName));
 			}
 
 			(*GroupPtr)->AddChildAndSetGroupPtr(StatsNodePtr);
@@ -1118,7 +1118,7 @@ void SStatsView::CreateGroups()
 			FStatsNodePtr* GroupPtr = GroupNodeSet.Find(GroupName);
 			if (!GroupPtr)
 			{
-				GroupPtr = &GroupNodeSet.Add(GroupName, MakeShareable(new FStatsNode(GroupName)));
+				GroupPtr = &GroupNodeSet.Add(GroupName, MakeShared<FStatsNode>(GroupName));
 			}
 
 			(*GroupPtr)->AddChildAndSetGroupPtr(StatsNodePtr);
@@ -1138,10 +1138,10 @@ void SStatsView::CreateGroupByOptionsSources()
 	GroupByOptionsSource.Reset(3);
 
 	// Must be added in order of elements in the EStatsGroupingMode.
-	GroupByOptionsSource.Add(MakeShareable(new EStatsGroupingMode(EStatsGroupingMode::Flat)));
-	GroupByOptionsSource.Add(MakeShareable(new EStatsGroupingMode(EStatsGroupingMode::ByName)));
-	GroupByOptionsSource.Add(MakeShareable(new EStatsGroupingMode(EStatsGroupingMode::ByMetaGroupName)));
-	GroupByOptionsSource.Add(MakeShareable(new EStatsGroupingMode(EStatsGroupingMode::ByType)));
+	GroupByOptionsSource.Add(MakeShared<EStatsGroupingMode>(EStatsGroupingMode::Flat));
+	GroupByOptionsSource.Add(MakeShared<EStatsGroupingMode>(EStatsGroupingMode::ByName));
+	GroupByOptionsSource.Add(MakeShared<EStatsGroupingMode>(EStatsGroupingMode::ByMetaGroupName));
+	GroupByOptionsSource.Add(MakeShared<EStatsGroupingMode>(EStatsGroupingMode::ByType));
 
 	EStatsGroupingModePtr* GroupingModePtrPtr = GroupByOptionsSource.FindByPredicate([&](const EStatsGroupingModePtr InGroupingModePtr) { return *InGroupingModePtr == GroupingMode; });
 	if (GroupingModePtrPtr != nullptr)
@@ -1553,7 +1553,7 @@ void SStatsView::RebuildTree(bool bResync)
 				FName Group(Counter.GetDisplayHint() == Trace::CounterDisplayHint_Memory ? TEXT("Memory") :
 							Counter.IsFloatingPoint() ? TEXT("float") : TEXT("int64"));
 				EStatsNodeType Type = Counter.IsFloatingPoint() ? EStatsNodeType::Float : EStatsNodeType::Int64;
-				FStatsNodePtr StatsNodePtr = MakeShareable(new FStatsNode(CounterId, Name, Group, Type));
+				FStatsNodePtr StatsNodePtr = MakeShared<FStatsNode>(CounterId, Name, Group, Type);
 				UpdateStatsNode(StatsNodePtr);
 				StatsNodes.Add(StatsNodePtr);
 				//StatsNodesMap.Add(Name, StatsNodePtr);

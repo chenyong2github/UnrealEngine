@@ -73,7 +73,7 @@ void FTimingGraphTrack::AddDefaultFrameSeries()
 	const float BaselineY = GetHeight() - 1.0f;
 	const double ScaleY = GetHeight() / 0.1; // 100ms
 
-	TSharedPtr<FTimingGraphSeries> GameFramesSeries = MakeShareable(new FTimingGraphSeries());
+	TSharedRef<FTimingGraphSeries> GameFramesSeries = MakeShared<FTimingGraphSeries>();
 	GameFramesSeries->SetName(TEXT("Game Frames"));
 	GameFramesSeries->SetDescription(TEXT("Duration of Game frames"));
 	GameFramesSeries->SetColor(FLinearColor(0.3f, 0.3f, 1.0f, 1.0f), FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
@@ -83,7 +83,7 @@ void FTimingGraphTrack::AddDefaultFrameSeries()
 	GameFramesSeries->SetScaleY(ScaleY);
 	AllSeries.Add(GameFramesSeries);
 
-	TSharedPtr<FTimingGraphSeries> RenderingFramesSeries = MakeShareable(new FTimingGraphSeries());
+	TSharedRef<FTimingGraphSeries> RenderingFramesSeries = MakeShared<FTimingGraphSeries>();
 	RenderingFramesSeries->SetName(TEXT("Rendering Frames"));
 	RenderingFramesSeries->SetDescription(TEXT("Duration of Rendering frames"));
 	RenderingFramesSeries->SetColor(FLinearColor(1.0f, 0.3f, 0.3f, 1.0f), FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
@@ -110,7 +110,7 @@ TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::GetStatsCounterSeries(uint32 C
 
 TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::AddStatsCounterSeries(uint32 CounterId, FLinearColor Color)
 {
-	TSharedPtr<FTimingGraphSeries> Series = MakeShareable(new FTimingGraphSeries());
+	TSharedRef<FTimingGraphSeries> Series = MakeShared<FTimingGraphSeries>();
 
 	const TCHAR* CounterName = nullptr;
 	bool bIsFloatingPoint = false;

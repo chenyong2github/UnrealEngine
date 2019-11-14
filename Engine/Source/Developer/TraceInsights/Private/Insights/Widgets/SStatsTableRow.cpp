@@ -31,7 +31,7 @@ void SStatsTableRow::Construct(const FArguments& InArgs, const TSharedRef<STable
 
 	StatsNodePtr = InArgs._StatsNodePtr;
 
-	RowToolTip = MakeShareable(new SStatsCounterTableRowToolTip(StatsNodePtr));
+	RowToolTip = MakeShared<SStatsCounterTableRowToolTip>(StatsNodePtr);
 
 	SetEnabled(TAttribute<bool>(this, &SStatsTableRow::HandleShouldBeEnabled));
 

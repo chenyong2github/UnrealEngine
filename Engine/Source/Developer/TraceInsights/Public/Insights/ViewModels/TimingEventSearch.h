@@ -131,7 +131,7 @@ public:
 				check(ReadIndex >= 0 && ReadIndex < Size);
 
 				const TPair<FTimingEventSearchHandle, FResultData>& CachedPair = CachedValues[ReadIndex];
-				if(InHandle == CachedPair.Key)
+				if (InHandle == CachedPair.Key)
 				{
 					OutStartTime = CachedPair.Value.StartTime;
 					OutEndTime = CachedPair.Value.EndTime;

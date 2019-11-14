@@ -40,7 +40,7 @@ const FName FTimersViewColumns::MinExclusiveTimeColumnID(TEXT("MinExclTime"));
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimersViewColumnFactory::CreateTimersViewColumns(TArray<TSharedPtr<Insights::FTableColumn>>& Columns)
+void FTimersViewColumnFactory::CreateTimersViewColumns(TArray<TSharedRef<Insights::FTableColumn>>& Columns)
 {
 	Columns.Reset();
 
@@ -64,7 +64,7 @@ void FTimersViewColumnFactory::CreateTimersViewColumns(TArray<TSharedPtr<Insight
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimersViewColumnFactory::CreateTimerTreeViewColumns(TArray<TSharedPtr<Insights::FTableColumn>>& Columns)
+void FTimersViewColumnFactory::CreateTimerTreeViewColumns(TArray<TSharedRef<Insights::FTableColumn>>& Columns)
 {
 	Columns.Reset();
 
