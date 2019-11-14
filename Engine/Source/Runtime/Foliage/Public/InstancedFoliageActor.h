@@ -166,6 +166,7 @@ public:
 
 	// Moves instances based on the specified component to the current streaming level
 	static FOLIAGE_API void MoveInstancesForComponentToCurrentLevel(UActorComponent* InComponent);
+	static FOLIAGE_API void MoveInstancesForComponentToLevel(UActorComponent* InComponent, ULevel* TargetLevel);
 
 	// Change all instances based on one component to a new component (possible in another level).
 	// The instances keep the same world locations
