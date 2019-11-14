@@ -1227,7 +1227,7 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 #if GEOMETRYCOLLECTION_DEBUG_DRAW
 				const bool bHasNumParticlesChanged = (NumParticlesAdded != Results.NumParticlesAdded);  // Needs to be evaluated before NumParticlesAdded gets updated
 #endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW
-				RigidBodyIds.Init(Results.RigidBodyIds);
+				//RigidBodyIds.Init(Results.RigidBodyIds);
 				BaseRigidBodyIndex = Results.BaseIndex;
 				NumParticlesAdded = Results.NumParticlesAdded;
 				DisabledFlags = Results.DisabledStates;

@@ -98,11 +98,13 @@ private:
 private:
 	static UGeometryCollectionDebugDrawComponent* RenderLevelSetOwner;
 	static int32 LastRenderedId;
+	//static FGuid LastRenderedId;
 
 #if GEOMETRYCOLLECTION_DEBUG_DRAW
 	FGeometryCollectionParticlesData ParticlesData;
 	int32 ParentCheckSum;
 	int32 SelectedRigidBodyId;
+	//FGuid SelectedRigidBodyId;
 	int32 SelectedTransformIndex;
 	int32 HiddenTransformIndex;
 	bool bWasVisible;
