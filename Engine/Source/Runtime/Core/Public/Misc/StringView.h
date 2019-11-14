@@ -60,10 +60,44 @@ public:
 	{
 	}
 
+	template<	typename CharType,
+				typename = typename TEnableIf<TIsCharType<CharType>::Value>::Type>
+	TStringViewImpl(const CharType * InData)
+	{
+		static_assert(TIsCharType<CharType>::Value, "Trying to assign an incompatible string type to the TStringViewImpl!");
+	}
+
 	inline TStringViewImpl(const C* InData, SizeType InSize)
 	:	DataPtr(InData)
 	,	Size(InSize)
 	{
+	}
+
+	template<	typename CharType,
+				typename = typename TEnableIf<TIsCharType<CharType>::Value>::Type>
+	TStringViewImpl(const CharType * InData, SizeType InSize)
+	{
+		static_assert(TIsCharType<CharType>::Value, "Trying to assign an incompatible string type to the TStringViewImpl!");
+	}
+
+	// Constructor for FString where the StringView is of the correct type
+	template<	typename U = C,
+				typename = typename TEnableIf< TIsSame<U, FString::ElementType>::Value >::Type >
+	TStringViewImpl(const FString& InString)
+	:	DataPtr(*InString)
+	,	Size(InString.Len())
+	{
+
+	}
+
+	// Constructor for FString where the StringView is of the incorrect type
+	// In this case we give a clear static assert as to why the code will not compile.
+	template<	typename U = C,
+				typename = typename TEnableIf< !TIsSame<U, FString::ElementType>::Value >::Type,
+				typename = U >
+	TStringViewImpl(const FString & InString)
+	{
+		static_assert(!TIsSame<U, FString::ElementType>::Value, "Can only use FString with a TStringViewImpl of the same type!");
 	}
 
 	inline const C& operator[](SizeType Pos) const	{ return DataPtr[Pos]; }
@@ -82,126 +116,36 @@ public:
 
 	// Operations
 
-	inline SIZE_T			CopyString(C* Dest, SizeType CharCount, SizeType Position = 0)	{ memcpy(Dest, DataPtr + Position, FMath::Min(Size - Position, CharCount)); }
-	inline TStringViewImpl& SubStr(SizeType Position, SizeType CharCount)					{ return TStringViewImpl(DataPtr + Position, FMath::Min(Size - Position, CharCount)); }
+	inline SIZE_T			CopyString(C* Dest, SizeType CharCount, SizeType Position = 0) const	{ memcpy(Dest, DataPtr + Position, FMath::Min(Size - Position, CharCount)); }
+	inline TStringViewImpl	SubStr(SizeType Position, SizeType CharCount) const						{ check(Position <= Len()); return TStringViewImpl(DataPtr + Position, FMath::Min(Size - Position, CharCount)); }
 
+	// Maintain compatibility with FString 
+	inline TStringViewImpl	Left(SizeType CharCount) const											{ return TStringViewImpl(Data(), FMath::Clamp(CharCount, 0, Len())); }
+	inline TStringViewImpl  LeftChop(SizeType CharCount) const										{ return TStringViewImpl(Data(), FMath::Clamp(Len() - CharCount, 0, Len())); }
+	inline TStringViewImpl  Right(SizeType CharCount) const											{ return TStringViewImpl(Data() + Len() - FMath::Clamp(CharCount, 0, Len())); }
+	inline TStringViewImpl	RightChop(SizeType CharCount) const										{ return TStringViewImpl(Data() + Len() - FMath::Clamp(Len() - CharCount, 0, Len())); }
+	inline TStringViewImpl  Mid(SizeType Position, SizeType CharCount) const						{ return SubStr(Position, CharCount); /*This is just a wrapper around SubStr to keep compatibility with the FString interface*/} 
+	
 	// Comparison
+	inline bool				Equals(const TStringViewImpl Other, ESearchCase::Type SearchCase) const	{ return Compare(Other, SearchCase) == 0; }
 
-	// Compare
+	inline int32			Compare(const TStringViewImpl Other, ESearchCase::Type SearchCase) const;
 
-	inline bool				StartsWith(const TStringViewImpl& Prefix) const				{ return 0 == TCString<C>::Strnicmp(Prefix.Data(), this->Data(), Prefix.Len()); }
-	inline bool				StartsWith(C Prefix) const									{ return Size >= 1 && DataPtr[0] == Prefix; }
+	inline bool				StartsWith(C Prefix) const												{ return Size >= 1 && DataPtr[0] == Prefix; }
+	inline bool				StartsWith(const TStringViewImpl& Prefix) const							{ return 0 == TCString<C>::Strnicmp(Prefix.Data(), this->Data(), Prefix.Len()); }
+	
+	inline bool				EndsWith(C Suffix) const												{ return Size >= 1 && DataPtr[Size-1] == Suffix; }
+	inline bool				EndsWith(const TStringViewImpl& Suffix) const;
 
-	// EndsWith
+	// Searching/Finding
+	inline bool FindChar(C InChar, int32& OutIndex) const;
+	inline bool FindLastChar(C InChar, int32& OutIndex) const;
 
-	inline bool				EndsWith(const TStringViewImpl& Suffix) const 
-	{ 
-		const SIZE_T SuffixLen = Suffix.Len();
-		if (SuffixLen > this->Len())
-		{
-			return false;
-		}
-
-		return 0 == TCString<C>::Strnicmp(Suffix.Data(), this->Data() + this->Len() - SuffixLen, SuffixLen);
-	}
-
-	inline bool FindChar(C InChar, int32& OutIndex) const
-	{
-		for (SizeType i = 0; i < Size; ++i)
-		{
-			if (DataPtr[i] == InChar)
-			{
-				OutIndex = (int32) i;
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	inline bool FindLastChar(C InChar, int32& OutIndex) const
-	{
-		if (Size == 0)
-		{
-			return false;
-		}
-
-		for (SizeType i = Size - 1; i >= 0; --i)
-		{
-			if (DataPtr[i] == InChar)
-			{
-				OutIndex = (int32)i;
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	// FindLastOf
-	// FindFirstNotOf
-	// FindLastNotOf
+	template <typename Predicate> inline SizeType FindLastCharByPredicate(Predicate Pred, SizeType Count) const;
+	template <typename Predicate> inline SizeType FindLastCharByPredicate(Predicate Pred) const		{ return FindLastCharByPredicate(Pred, Len()); }
 
 	inline const C* begin() const					{ return DataPtr; }
 	inline const C* end() const						{ return DataPtr + Size; }
-
-protected:
-	const C*	DataPtr;
-	SizeType	Size;
-};
-
-// Case-insensitive comparison operators
-
-template<typename C>
-inline bool operator==(const TStringViewImpl<C>& lhs, const TStringViewImpl<C>& rhs)
-{
-	if (rhs.Len() != lhs.Len())
-	{
-		return false;
-	}
-
-	return lhs.StartsWith(rhs);
-}
-
-template<typename C>
-inline bool operator!=(const TStringViewImpl<C>& lhs, const TStringViewImpl<C>& rhs)
-{
-	return !operator==(lhs, rhs);
-}
-
-//////////////////////////////////////////////////////////////////////////
-
-class FAnsiStringView : public TStringViewImpl<ANSICHAR>
-{
-public:
-	FAnsiStringView(const ANSICHAR* InString, SizeType InStrlen)
-	:	TStringViewImpl<ANSICHAR>(InString, InStrlen)
-	{
-	}
-
-	FAnsiStringView(const ANSICHAR* InString)
-	:	TStringViewImpl<ANSICHAR>(InString)
-	{
-	}
-};
-
-class FStringView : public TStringViewImpl<TCHAR>
-{
-public:
-	FStringView(const FString& InString)
-	:	TStringViewImpl<TCHAR>(*InString, InString.Len())
-	{
-	}
-
-	FStringView(const TCHAR* InString)
-	:	TStringViewImpl<TCHAR>(InString)
-	{
-	}
-
-	FStringView(const TCHAR* InString, SizeType InStrlen)
-	:	TStringViewImpl<TCHAR>(InString, InStrlen)
-	{
-	}
 
 	/** Convert to a dynamic string
 
@@ -219,5 +163,19 @@ public:
 		the heap is always more expensive even if it
 		seems seductively convenient.
 	  */
-	CORE_API FString ToString() const;
+	FString ToString() const
+	{
+		return FString(Len(), Data());
+	}
+protected:
+	const C*	DataPtr;
+	SizeType	Size;
 };
+
+//////////////////////////////////////////////////////////////////////////
+
+using FAnsiStringView = TStringViewImpl<ANSICHAR>;
+using FWideStringView = TStringViewImpl<WIDECHAR>;
+using FStringView = TStringViewImpl<TCHAR>;
+
+#include "StringView.inl"
