@@ -173,20 +173,20 @@ class NIAGARA_API UNiagaraDataInterfaceGrid2D : public UNiagaraDataInterfaceRWBa
 	GENERATED_UCLASS_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "!SetGridFromCellSize"))
+	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "!SetGridFromMaxAxis"))
 	int32 NumCellsX;
 
-	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "!SetGridFromCellSize"))
+	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "!SetGridFromMaxAxis"))
 	int32 NumCellsY;
 	
-	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "SetGridFromCellSize"))
-	float CellSize;
+	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "SetGridFromMaxAxis"))
+	int32 NumCellsMaxAxis;
 
 	UPROPERTY(EditAnywhere, Category = "Grid")
 	int32 NumAttributes;
 
 	UPROPERTY(EditAnywhere, Category = "Grid")
-	bool SetGridFromCellSize;
+	bool SetGridFromMaxAxis;
 
 	UPROPERTY(EditAnywhere, Category = "Grid")
 	FVector WorldBBoxMin;
