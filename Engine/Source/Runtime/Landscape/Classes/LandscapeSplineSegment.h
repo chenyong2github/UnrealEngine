@@ -364,4 +364,5 @@ public:
 	//~ End UObject Interface
 
 	friend class FLandscapeToolSplines;
+	friend class ULandscapeInfo;
 };
