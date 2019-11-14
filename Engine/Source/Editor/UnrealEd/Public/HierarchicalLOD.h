@@ -117,15 +117,14 @@ struct UNREALED_API FHierarchicalLODBuilder
 
 private:
 	/**
-	* Builds the clusters (HLODs) for InLevel, and will create the new/merged StaticMeshes if bCreateMeshes is true
+	* Builds the clusters (HLODs) for InLevel
 	*
 	* @param InLevel - Level for which the HLODs are currently being build
-	* @param bCreateMeshes - Whether or not to create/merge the StaticMeshes (false if builing preview only)
 	*/
-	void BuildClusters(ULevel* InLevel, const bool bCreateMeshes);
+	void BuildClusters(ULevel* InLevel);
 
 	/** Generates a single cluster for the ULevel (across all HLOD levels) */
-	void GenerateAsSingleCluster(const int32 NumHLODLevels, ULevel* InLevel, const bool bCreateMeshes);
+	void GenerateAsSingleCluster(const int32 NumHLODLevels, ULevel* InLevel);
 
 	/**
 	* Initializes the clusters, creating one for each actor within the level eligble for HLOD-ing
@@ -134,7 +133,7 @@ private:
 	* @param LODIdx - LOD index we are building
 	* @param CullCost - Test variable for tweaking HighestCost
 	*/
-	void InitializeClusters(ULevel* InLevel, const int32 LODIdx, float CullCost, bool const bPreviewBuild, bool const bVolumesOnly);
+	void InitializeClusters(ULevel* InLevel, const int32 LODIdx, float CullCost, bool const bVolumesOnly);
 
 	/**
 	* Merges clusters and builds actors for resulting (valid) clusters
@@ -143,9 +142,8 @@ private:
 	* @param LODIdx - LOD index we are building, used for determining which StaticMesh LOD to use
 	* @param HighestCost - Allowed HighestCost for this LOD level
 	* @param MinNumActors - Minimum number of actors for this LOD level
-	* @param bCreateMeshes - Whether or not to create/merge the StaticMeshes (false if builing preview only)
 	*/
-	void MergeClustersAndBuildActors(ULevel* InLevel, const int32 LODIdx, float HighestCost, int32 MinNumActors, const bool bCreateMeshes);
+	void MergeClustersAndBuildActors(ULevel* InLevel, const int32 LODIdx, float HighestCost, int32 MinNumActors);
 
 	/**
 	* Finds the minimal spanning tree MST for the clusters by sorting on their cost ( Lower == better )
@@ -164,7 +162,7 @@ private:
 	* @param Actor - Actor to test
 	* @return bool
 	*/
-	bool ShouldGenerateCluster(AActor* Actor, const bool bPreviewBuild, const int32 HLODLevelIndex);
+	bool ShouldGenerateCluster(AActor* Actor, const int32 HLODLevelIndex);
 	
 	/**
 	* if criteria matches, creates new LODActor and replace current Actors with that. We don't need
@@ -174,16 +172,14 @@ private:
 	*
 	* @param InLevel - Level for which currently the HLODs are being build
 	* @param LODIdx - LOD index to build
-	* @param bCreateMeshes - Whether or not the new StaticMeshes should be created
 	* @return ALODActor*
 	*/
-	ALODActor* CreateLODActor(const FLODCluster& InCluster, ULevel* InLevel, const int32 LODIdx, const bool bCreateMeshes);
+	ALODActor* CreateLODActor(const FLODCluster& InCluster, ULevel* InLevel, const int32 LODIdx);
 
 	/**
 	* Deletes LOD actors from the world	
 	*
 	* @param InLevel - Level to delete the actors from
-	* @param bPreviewOnly - Only delete preview actors
 	* @return void
 	*/
 	void DeleteLODActors(ULevel* InLevel);
