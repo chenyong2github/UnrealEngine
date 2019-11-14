@@ -775,7 +775,7 @@ namespace UnrealBuildTool
 				CompileAction.StatusDescription = string.Format("{0}", Path.GetFileName(SourceFile.AbsolutePath));
 				CompileAction.bIsGCCCompiler = true;
 				// We're already distributing the command by execution on Mac.
-				CompileAction.bCanExecuteRemotely = false;
+				CompileAction.bCanExecuteRemotely = true;
 				CompileAction.bShouldOutputStatusDescription = true;
 
 				foreach (UEBuildFramework Framework in CompileEnvironment.AdditionalFrameworks)
