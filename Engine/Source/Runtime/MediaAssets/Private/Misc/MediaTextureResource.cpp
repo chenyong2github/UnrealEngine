@@ -25,12 +25,11 @@
 
 #include "MediaTexture.h"
 
+#if PLATFORM_ANDROID
+# include "Android/AndroidPlatformMisc.h"
+#endif
 
 #define MEDIATEXTURERESOURCE_TRACE_RENDER 0
-
-// Global mips enabled / disabled switch (more gating is done with GSupportsImageExternal)
-#define MTR_USE_MIPS 1
-
 
 /** Time spent in media player facade closing media. */
 DECLARE_CYCLE_STAT(TEXT("MediaAssets MediaTextureResource Render"), STAT_MediaAssets_MediaTextureResourceRender, STATGROUP_Media);
@@ -168,20 +167,22 @@ namespace MediaTextureResourceHelpers
 /* FMediaTextureResource structors
  *****************************************************************************/
 
-FMediaTextureResource::FMediaTextureResource(UMediaTexture& InOwner, FIntPoint& InOwnerDim, SIZE_T& InOwnerSize, FLinearColor InClearColor, FGuid InTextureGuid, uint8 InNumMips)
+FMediaTextureResource::FMediaTextureResource(UMediaTexture& InOwner, FIntPoint& InOwnerDim, SIZE_T& InOwnerSize, FLinearColor InClearColor, FGuid InTextureGuid, bool InEnableGenMips, uint8 InNumMips)
 	: Cleared(false)
 	, CurrentClearColor(InClearColor)
 	, InitialTextureGuid(InTextureGuid)
 	, Owner(InOwner)
 	, OwnerDim(InOwnerDim)
 	, OwnerSize(InOwnerSize)
-#if MTR_USE_MIPS
-	, CurrentNumMips(GSupportsImageExternal ? 1 : InNumMips)
-#else
-	, CurrentNumMips(1)
-#endif
+	, bEnableGenMips(InEnableGenMips)
+	, CurrentNumMips(InEnableGenMips ? InNumMips : 1)
 	, CurrentSamplerFilter(ESamplerFilter_Num)
 {
+#if PLATFORM_ANDROID
+	bUsesImageExternal = (!FAndroidMisc::ShouldUseVulkan() && GSupportsImageExternal);
+#else
+	bUsesImageExternal = GSupportsImageExternal;
+#endif
 }
 
 
@@ -250,13 +251,11 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-#if MTR_USE_MIPS
-		const uint8 NumMips = GSupportsImageExternal ? 1 : Params.NumMips;
-#else
-		const uint8 NumMips = 1;
-#endif
+		const uint8 NumMips = bEnableGenMips ? Params.NumMips : 1;
 
-		if (UseSample)
+		// If real "external texture" support is in place and no mips are used the image will "bypass" any of this processing via the GUID-based lookup for "ExternalTextures" and will
+		// reach the reading material shader without any processing here...
+		if (UseSample && !(bUsesImageExternal && !bEnableGenMips))
 		{
 			//
 			// Valid sample & Sample should be shown
@@ -290,7 +289,7 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 				//
 				// Sample can be used directly or is a simple copy
 				//
-				CopySample(Sample, Params.ClearColor, Params.SrgbOutput, NumMips);
+				CopySample(Sample, Params.ClearColor, Params.SrgbOutput, NumMips, Params.CurrentGuid);
 			}
 
 			Rotation = Sample->GetScaleRotation();
@@ -359,7 +358,7 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 
 	// Update external texture registration in case we have no native support
 	// (in that case there is support, the player will do this - but it is used all the time)
-	if (!GSupportsImageExternal)
+	if (!bUsesImageExternal)
 	{
 		SetupSampler();
 
@@ -412,12 +411,7 @@ uint32 FMediaTextureResource::GetSizeY() const
 
 void FMediaTextureResource::SetupSampler()
 {
-#if MTR_USE_MIPS
-	// note: no need to check if we support external textures & suppress mips as this sampler state will not be used in that case
-	ESamplerFilter OwnerFilter = (ESamplerFilter)UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetSamplerFilter(&Owner);
-#else
-	ESamplerFilter OwnerFilter = SF_Bilinear;
-#endif
+	ESamplerFilter OwnerFilter = bEnableGenMips ? (ESamplerFilter)UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetSamplerFilter(&Owner) : SF_Bilinear;
 
 	if (CurrentSamplerFilter != OwnerFilter)
 	{
@@ -451,7 +445,7 @@ void FMediaTextureResource::InitDynamicRHI()
 	check(OutputTarget.IsValid());
 
 	// Register "external texture" parameters if the platform does not support them (and hence the player does not set them)
-	if (!GSupportsImageExternal)
+	if (!bUsesImageExternal)
 	{
 		FTextureRHIRef VideoTexture = (FTextureRHIRef)Owner.TextureReference.TextureReferenceRHI;
 		FExternalTextureRegistry::Get().RegisterExternalTexture(InitialTextureGuid, VideoTexture, SamplerStateRHI);
@@ -720,7 +714,7 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 }
 
 
-void FMediaTextureResource::CopySample(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample, const FLinearColor& ClearColor, bool SrgbOutput, uint8 InNumMips)
+void FMediaTextureResource::CopySample(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample, const FLinearColor& ClearColor, bool SrgbOutput, uint8 InNumMips, const FGuid & TextureGUID)
 {
 	FRHITexture* SampleTexture = Sample->GetTexture();
 	FRHITexture2D* SampleTexture2D = (SampleTexture != nullptr) ? SampleTexture->GetTexture2D() : nullptr;
@@ -731,37 +725,100 @@ void FMediaTextureResource::CopySample(const TSharedPtr<IMediaTextureSample, ESP
 
 	if (SampleTexture2D != nullptr)
 	{
-		if (InNumMips == 1)
-		{
-			// Use sample's texture as the new render target.
-		if (TextureRHI != SampleTexture2D)
-		{
-			UpdateTextureReference(SampleTexture2D);
+		// Use sample's texture as the new render target - no copy
+			if (TextureRHI != SampleTexture2D)
+			{
+				UpdateTextureReference(SampleTexture2D);
 
-			OutputTarget.SafeRelease();
-			UpdateResourceSize();
+				OutputTarget.SafeRelease();
 		}
-
-	}
-	else
-	{
+		else
+		{
 			// Texture to receive texture from sample
 			CreateOutputRenderTarget(Sample->GetOutputDim(), MediaTextureResourceHelpers::GetPixelFormat(Sample), SrgbOutput, ClearColor, InNumMips);
 
 			// Copy data into the output texture to able to add mips later on
 			FRHICommandListExecutor::GetImmediateCommandList().CopyTexture(SampleTexture2D, OutputTarget, FRHICopyTextureInfo());
 		}
-
-		Cleared = false;
-		}
+	}
 	else
-		{
+	{
 		// Texture to receive precisely only output pixels via CPU copy
 		CreateOutputRenderTarget(Sample->GetDim(), MediaTextureResourceHelpers::GetPixelFormat(Sample), SrgbOutput, ClearColor, InNumMips);
 
-		// copy sample data to output render target
+		if (bEnableGenMips && bUsesImageExternal)
+		{
+			// we are using an external texture to read from
+			CopyFromExternalTexture(Sample, TextureGUID);
+		}
+		else
+		{
+			// copy sample data (from CPU mem) to output render target
 		FUpdateTextureRegion2D Region(0, 0, 0, 0, Sample->GetDim().X, Sample->GetDim().Y);
 		RHIUpdateTexture2D(RenderTargetTextureRHI.GetReference(), 0, Region, Sample->GetStride(), (uint8*)Sample->GetBuffer());
+	}
+	}
+
+	Cleared = false;
+}
+
+
+void FMediaTextureResource::CopyFromExternalTexture(const TSharedPtr <IMediaTextureSample, ESPMode::ThreadSafe>& Sample, const FGuid & TextureGUID)
+{
+	FRHICommandListImmediate& CommandList = FRHICommandListExecutor::GetImmediateCommandList();
+	{
+		FTextureRHIRef SampleTexture;
+		FSamplerStateRHIRef SamplerState;
+		if (!FExternalTextureRegistry::Get().GetExternalTexture(nullptr, TextureGUID, SampleTexture, SamplerState))
+		{
+			return;
+		}
+
+		FLinearColor Offset, ScaleRotation;
+		FExternalTextureRegistry::Get().GetExternalTextureCoordinateOffset(TextureGUID, Offset);
+		FExternalTextureRegistry::Get().GetExternalTextureCoordinateScaleRotation(TextureGUID, ScaleRotation);
+
+		SCOPED_DRAW_EVENT(CommandList, FMediaTextureResource_ConvertExternalTexture);
+		SCOPED_GPU_STAT(CommandList, MediaTextureResource);
+
+		FGraphicsPipelineStateInitializer GraphicsPSOInit;
+		FRHITexture* RenderTarget = RenderTargetTextureRHI.GetReference();
+
+		FRHIRenderPassInfo RPInfo(RenderTarget, ERenderTargetActions::DontLoad_Store);
+		CommandList.BeginRenderPass(RPInfo, TEXT("ConvertMedia_ExternalTexture"));
+		{
+			const FIntPoint OutputDim = Sample->GetOutputDim();
+
+			CommandList.ApplyCachedRenderTargets(GraphicsPSOInit);
+			CommandList.SetViewport(0, 0, 0.0f, OutputDim.X, OutputDim.Y, 1.0f);
+			
+			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+			GraphicsPSOInit.BlendState = TStaticBlendStateWriteMask<CW_RGBA, CW_NONE, CW_NONE, CW_NONE, CW_NONE, CW_NONE, CW_NONE, CW_NONE>::GetRHI();
+			GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
+
+			// configure media shaders
+			auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+			TShaderMapRef<FMediaShadersVS> VertexShader(ShaderMap);
+
+			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GMediaVertexDeclaration.VertexDeclarationRHI;
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
+
+			TShaderMapRef<FReadTextureExternalPS> CopyShader(ShaderMap);
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*CopyShader);
+			SetGraphicsPipelineState(CommandList, GraphicsPSOInit);
+			CopyShader->SetParameters(CommandList, SampleTexture, SamplerState, ScaleRotation, Offset);
+
+			// draw full size quad into render target
+			FVertexBufferRHIRef VertexBuffer = CreateTempMediaVertexBuffer();
+			CommandList.SetStreamSource(0, VertexBuffer, 0);
+			// set viewport to RT size
+			CommandList.SetViewport(0, 0, 0.0f, OutputDim.X, OutputDim.Y, 1.0f);
+
+			CommandList.DrawPrimitive(0, 2, 1);
+		}
+		CommandList.EndRenderPass();
+		CommandList.TransitionResource(EResourceTransitionAccess::EReadable, RenderTargetTextureRHI);
 	}
 }
 
