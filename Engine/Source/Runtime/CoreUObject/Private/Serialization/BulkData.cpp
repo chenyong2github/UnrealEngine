@@ -1340,7 +1340,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 						// is cooked data, see if we can remove the if check
 						if (Ar.IsCooking())
 						{
-							SavedBulkDataChunkIdPos = Ar.Tell();
+							SavedDupeBulkDataChunkIdPos = Ar.Tell();
 							
 							FIoChunkId InvalidChunkId = FIoChunkId::InvalidChunkId;
 							Ar << InvalidChunkId;
