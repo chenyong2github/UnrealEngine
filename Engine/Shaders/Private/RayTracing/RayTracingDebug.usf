@@ -25,7 +25,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugMainRGS)
 
 	const uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 	const uint InstanceInclusionMask = RAY_TRACING_MASK_ALL;
-	const bool bDisableSkyLightContribution = false;
+	const bool bEnableSkyLightContribution = true;
 
 	FMaterialClosestHitPayload Payload = TraceMaterialRay(
 		TLAS,
@@ -33,7 +33,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugMainRGS)
 		InstanceInclusionMask,
 		Ray,
 		RayCone,
-		bDisableSkyLightContribution);
+		bEnableSkyLightContribution);
 
 	float4 Result = float4(0, 0, 0, 1);
 
