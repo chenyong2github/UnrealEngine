@@ -344,6 +344,12 @@ class TPBDRigidsEvolutionBase
 		DirtyParticle(*ParticleAdded);
 	}
 
+	CHAOS_API void SetParticleObjectState(TPBDRigidParticleHandle<T, d>* Particle, EObjectStateType ObjectState)
+	{
+		Particle->SetObjectStateLowLevel(ObjectState);
+		Particles.SetDynamicParticleSOA(Particle);
+	}
+
 	CHAOS_API void DisableParticles(const TSet<TGeometryParticleHandle<T,d>*>& InParticles)
 	{
 		for (TGeometryParticleHandle<T, d>* Particle : InParticles)
