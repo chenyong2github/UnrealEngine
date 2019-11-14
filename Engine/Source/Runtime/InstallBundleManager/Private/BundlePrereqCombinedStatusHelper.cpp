@@ -100,7 +100,7 @@ void FBundlePrereqCombinedStatusHelper::CleanUpDelegates()
 	}
 }
 
-void FBundlePrereqCombinedStatusHelper::SetBundlesToTrackFromContentState(const FInstallBundleContentState& BundleContentState, TArrayView<FName> BundlesToTrack)
+void FBundlePrereqCombinedStatusHelper::SetBundlesToTrackFromContentState(const FInstallBundleCombinedContentState& BundleContentState, TArrayView<FName> BundlesToTrack)
 {
 	RequiredBundleNames.Empty();
 	CachedBundleWeights.Empty();
@@ -110,20 +110,19 @@ void FBundlePrereqCombinedStatusHelper::SetBundlesToTrackFromContentState(const 
 	float TotalWeight = 0.0f;
 	for (const FName& Bundle : BundlesToTrack)
 	{
-		const EInstallBundleContentState* BundleState = BundleContentState.IndividualBundleStates.Find(Bundle);
-		const float* BundleWeight = BundleContentState.IndividualBundleWeights.Find(Bundle);
-		if (ensureAlwaysMsgf(BundleState && BundleWeight, TEXT("Trying to track unknown bundle %s"), *Bundle.ToString()))
+		const FInstallBundleContentState* BundleState = BundleContentState.IndividualBundleStates.Find(Bundle);
+		if (ensureAlwaysMsgf(BundleState, TEXT("Trying to track unknown bundle %s"), *Bundle.ToString()))
 		{
 			//Track if we need any kind of bundle updates
-			if (*BundleState == EInstallBundleContentState::NotInstalled || *BundleState == EInstallBundleContentState::NeedsUpdate)
+			if (BundleState->State == EInstallBundleContentState::NotInstalled || BundleState->State == EInstallBundleContentState::NeedsUpdate)
 			{
 				bBundleNeedsUpdate = true;
 			}
 
 			//Save required bundles and their weights
 			RequiredBundleNames.Add(Bundle);
-			CachedBundleWeights.FindOrAdd(Bundle) = *BundleWeight;
-			TotalWeight += *BundleWeight;
+			CachedBundleWeights.FindOrAdd(Bundle) = BundleState->Weight;
+			TotalWeight += BundleState->Weight;
 		}
 	}
 
