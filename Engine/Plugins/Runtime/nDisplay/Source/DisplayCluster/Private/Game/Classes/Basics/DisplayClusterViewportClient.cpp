@@ -356,11 +356,11 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 									FVector OverrideAttenuation;
 									if (PlayerController->GetAudioListenerAttenuationOverridePosition(OverrideAttenuation))
 									{
-										AudioDevice->SetListenerAttenuationOverride(OverrideAttenuation);
+										AudioDevice->SetListenerAttenuationOverride(ViewportIndex, OverrideAttenuation);
 									}
 									else
 									{
-										AudioDevice->ClearListenerAttenuationOverride();
+										AudioDevice->ClearListenerAttenuationOverride(ViewportIndex);
 									}
 								}
 							}
