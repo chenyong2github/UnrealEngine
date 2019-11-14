@@ -136,12 +136,12 @@ class ENGINE_VTABLE UExporter : public UObject
 	 * which have upto 8 raw waves stored within them.
 	 * @todo document - this will only ever return 1 is that correct.
 	 */
-	virtual int32 GetFileCount( void ) const { return( 1 ); }
+	virtual int32 GetFileCount( UObject* Object ) const { return( 1 ); }
 
 	/** 
 	 * Differentiates the filename for objects with multiple files to export. Only needs to be overridden if GetFileCount() returns > 1.
 	 */
-	virtual FString GetUniqueFilename( const TCHAR* Filename, int32 FileIndex ) { check( FileIndex == 0 ); return( FString( Filename ) ); }
+	virtual FString GetUniqueFilename( const TCHAR* Filename, int32 FileIndex, int32 FileCount ) { check( FileIndex == 0 && FileCount == 1 ); return( FString( Filename ) ); }
 
 	/**
 	* Return true if the exporter is in batch mode.

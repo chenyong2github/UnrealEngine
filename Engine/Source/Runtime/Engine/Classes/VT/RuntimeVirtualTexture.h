@@ -139,6 +139,8 @@ public:
 	FVector4 GetUniformParameter(int32 Index) const;
 
 #if WITH_EDITOR
+	/** Get the streaming texture */
+	URuntimeVirtualTextureStreamingProxy* GetStreamingTexture() const { return StreamingTexture; }
 	/** Get a hash of the current state to use for streaming texture invalidation. */
 	uint32 GetStreamingTextureBuildHash() const;
 	/** Initialize the low mip streaming texture with the passed in size and data. */
