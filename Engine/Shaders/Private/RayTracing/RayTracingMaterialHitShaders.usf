@@ -39,7 +39,7 @@ void GetSkyLighting(
 	uint LightmapDataIndex,
 	float3 SkyOcclusionUV3D,
 	uint ShadingModel,
-	bool bDisableSkyLightContribution,
+	bool bEnableSkyLightContribution,
 	out float3 OutDiffuseLighting,
 	out float3 OutSubsurfaceLighting)
 {
@@ -49,7 +49,7 @@ void GetSkyLighting(
 #if ENABLE_SKY_LIGHT
 
 	// Check if the Sky Light contribution should be ignored
-	if (bDisableSkyLightContribution)
+	if (!bEnableSkyLightContribution)
 	{
 		return;
 	}
@@ -130,7 +130,7 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 	float3 DiffuseDir,
 	float3 VolumetricLightmapBrickTextureUVs,
 	uint ShadingModel,
-	bool bDisableSkyLightContribution,
+	bool bEnableSkyLightContribution,
 	out float3 OutDiffuseLighting,
 	out float3 OutSubsurfaceLighting,
 	out float OutIndirectIrradiance)
@@ -192,7 +192,7 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 		SkyOcclusionDataIndex,
 		VolumetricLightmapBrickTextureUVs,
 		ShadingModel,
-		bDisableSkyLightContribution,
+		bEnableSkyLightContribution,
 		SkyDiffuseLighting,
 		SkySubsurfaceLighting);
 
@@ -388,7 +388,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 		Payload.WorldNormal,
 		VolumetricLightmapBrickTextureUVs,
 		Payload.ShadingModelID,
-		PackedPayload.IsDisableSkyLightContribution(),
+		PackedPayload.IsEnableSkyLightContribution(),
 		DiffuseIndirectLighting,
 		SubsurfaceIndirectLighting,
 		IndirectIrradiance);
