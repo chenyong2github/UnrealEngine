@@ -2314,7 +2314,13 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		SCOPED_GPU_STAT(RHICmdList, VirtualTextureUpdate);
 		// No pass after this can make VT page requests
-		SceneContext.VirtualTextureFeedback.TransferGPUToCPU(RHICmdList, Views[0].ViewRect);
+		TArray<FIntRect, TInlineAllocator<FVirtualTextureFeedback::MaxRectPerTarget>> ViewRects;
+		ViewRects.AddUninitialized(Views.Num());
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+		{
+			ViewRects[ViewIndex] = Views[ViewIndex].ViewRect;
+		}
+		SceneContext.VirtualTextureFeedback.TransferGPUToCPU(RHICmdList, ViewRects);
 	}
 
 #if RHI_RAYTRACING
