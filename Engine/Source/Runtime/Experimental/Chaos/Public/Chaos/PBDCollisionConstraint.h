@@ -127,12 +127,12 @@ public:
 
 	FConstraintHandleID GetConstraintHandleID(const FRigidBodyContactConstraint & Constraint) const
 	{
-		return  FConstraintHandleID( Constraint.Particle, Constraint.Levelset );
+		return  FConstraintHandleID( Constraint.Particle[0], Constraint.Particle[1] );
 	}
 
 	FConstraintHandleID GetConstraintHandleID(int32 ConstraintIndex) const
 	{
-		return  FConstraintHandleID( Constraints[ConstraintIndex].Particle, Constraints[ConstraintIndex].Levelset );
+		return  FConstraintHandleID( Constraints[ConstraintIndex].Particle[0], Constraints[ConstraintIndex].Particle[1] );
 	}
 		
 	const FConstraintContainerHandle* GetConstraintHandle(int32 ConstraintIndex) const
@@ -185,7 +185,7 @@ public:
 	 */
 	TVector<TGeometryParticleHandle<T, d>*, 2> GetConstrainedParticles(int32 ConstraintIndex) const
 	{
-		return { Constraints[ConstraintIndex].Particle, Constraints[ConstraintIndex].Levelset };
+		return { Constraints[ConstraintIndex].Particle[0], Constraints[ConstraintIndex].Particle[1] };
 	}
 
 
@@ -228,7 +228,7 @@ public:
 	/**
 	 * Get the particles that are affected by the specified constraint.
 	 */
-	TVector<TGeometryParticleHandle<T, d>*, 2> ConstraintParticles(int32 ContactIndex) const { return { Constraints[ContactIndex].Particle, Constraints[ContactIndex].Levelset }; }
+	TVector<TGeometryParticleHandle<T, d>*, 2> ConstraintParticles(int32 ContactIndex) const { return { Constraints[ContactIndex].Particle[0], Constraints[ContactIndex].Particle[1] }; }
 
 	//NOTE: this should not be called by anyone other than ISpatialAccelerationCollection and CollisionConstraints - todo: make private with friends?
 	template <bool bGatherStats, typename SPATIAL_ACCELERATION>

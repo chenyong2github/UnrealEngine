@@ -125,7 +125,7 @@ void TPBDCollisionConstraint<T, d>::RemoveConstraints(const TSet<TGeometryPartic
 	{
 		for (int32 Idx = Constraints.Num() - 1; Idx >= 0; Idx--)
 		{
-			if (Constraints[Idx].Levelset == ParticleHandle || Constraints[Idx].Particle == ParticleHandle)
+			if (Constraints[Idx].Particle[1] == ParticleHandle || Constraints[Idx].Particle[0] == ParticleHandle)
 			{
 				RemoveConstraint(Idx);
 			}
@@ -419,7 +419,7 @@ void TPBDCollisionConstraint<T, d>::UpdateConstraints(/*const TPBDRigidParticles
 		for(int32 i = 0; i < Constraints.Num(); ++i)
 		{
 			const FRigidBodyContactConstraint& Constraint = Constraints[i];
-			if(InParticles.Disabled(Constraint.ParticleIndex) || InParticles.Disabled(Constraint.LevelsetIndex))
+			if(InParticles.Disabled(Constraint.ParticleIndex) || InParticles.Disabled(Constraint.ParticleIndex))
 			{
 				Constraints.RemoveAtSwap(i);
 				HandleAllocator.FreeHandle(Handles[i]);
@@ -469,8 +469,8 @@ PMatrix<T, 3, 3> ComputeFactorMatrix3(const TVector<T, 3>& V, const PMatrix<T, 3
 template<typename T, int d>
 TVector<T, d> GetEnergyClampedImpulse(const TRigidBodyContactConstraint<T, d>& Constraint, const TVector<T, d>& Impulse, const TVector<T, d>& VectorToPoint1, const TVector<T, d>& VectorToPoint2, const TVector<T, d>& Velocity1, const TVector<T, d>& Velocity2)
 {
-	TPBDRigidParticleHandle<T, d>* PBDRigid0 = Constraint.Particle->AsDynamic();
-	TPBDRigidParticleHandle<T, d>* PBDRigid1 = Constraint.Levelset->AsDynamic();
+	TPBDRigidParticleHandle<T, d>* PBDRigid0 = Constraint.Particle[0]->AsDynamic();
+	TPBDRigidParticleHandle<T, d>* PBDRigid1 = Constraint.Particle[1]->AsDynamic();
 
 	TVector<T, d> Jr0, Jr1, IInvJr0, IInvJr1;
 	T ImpulseRatioNumerator0 = 0, ImpulseRatioNumerator1 = 0, ImpulseRatioDenom0 = 0, ImpulseRatioDenom1 = 0;
@@ -503,8 +503,8 @@ TVector<T, d> GetEnergyClampedImpulse(const TRigidBodyContactConstraint<T, d>& C
 template<typename T, int d>
 void TPBDCollisionConstraint<T, d>::Apply(const T Dt, FRigidBodyContactConstraint& Constraint)
 {
-	TGenericParticleHandle<T, d> Particle0 = TGenericParticleHandle<T, d>(Constraint.Particle);
-	TGenericParticleHandle<T, d> Particle1 = TGenericParticleHandle<T, d>(Constraint.Levelset);
+	TGenericParticleHandle<T, d> Particle0 = TGenericParticleHandle<T, d>(Constraint.Particle[0]);
+	TGenericParticleHandle<T, d> Particle1 = TGenericParticleHandle<T, d>(Constraint.Particle[1]);
 	TPBDRigidParticleHandle<T, d>* PBDRigid0 = Particle0->AsDynamic();
 	TPBDRigidParticleHandle<T, d>* PBDRigid1 = Particle1->AsDynamic();
 
@@ -729,8 +729,8 @@ void TPBDCollisionConstraint<T, d>::Apply(const T Dt, const TArray<FConstraintCo
 template<typename T, int d>
 void TPBDCollisionConstraint<T, d>::ApplyPushOut(const T Dt, FRigidBodyContactConstraint& Constraint, const TSet<TGeometryParticleHandle<T,d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations, bool &NeedsAnotherIteration)
 {
-	TGeometryParticleHandle<T, d>* Particle0 = Constraint.Particle;
-	TGeometryParticleHandle<T, d>* Particle1 = Constraint.Levelset;
+	TGeometryParticleHandle<T, d>* Particle0 = Constraint.Particle[0];
+	TGeometryParticleHandle<T, d>* Particle1 = Constraint.Particle[1];
 	TPBDRigidParticleHandle<T, d>* PBDRigid0 = Particle0->AsDynamic();
 	TPBDRigidParticleHandle<T, d>* PBDRigid1 = Particle1->AsDynamic();
 
@@ -978,8 +978,8 @@ void SampleObject2(const FImplicitObject& Object, const TRigidTransform<T, d>& O
 	TContactData<float, 3> & Contact = Constraint.ShapeManifold.Manifold;
 	TContactData<float, 3> & AvgContact = AvgConstraint.ShapeManifold.Manifold;
 
-	AvgConstraint.Particle = Constraint.Particle;
-	AvgConstraint.Levelset = Constraint.Levelset;
+	AvgConstraint.Particle[0] = Constraint.Particle[0];
+	AvgConstraint.Particle[1] = Constraint.Particle[1];
 	AvgContact.Location = TVector<float, 3>::ZeroVector;
 	AvgContact.Normal = TVector<float, 3>::ZeroVector;
 	AvgContact.Phi = Thickness;
@@ -1088,8 +1088,8 @@ void SampleObject2(const FImplicitObject& Object, const TRigidTransform<float, 3
 	TContactData<float, 3> & Contact = Constraint.ShapeManifold.Manifold;
 	TContactData<float, 3> & AvgContact = AvgConstraint.ShapeManifold.Manifold;
 
-	AvgConstraint.Particle = Constraint.Particle;
-	AvgConstraint.Levelset = Constraint.Levelset;
+	AvgConstraint.Particle[0] = Constraint.Particle[0];
+	AvgConstraint.Particle[1] = Constraint.Particle[1];
 	AvgContact.Location = TVector<float, 3>::ZeroVector;
 	AvgContact.Normal = TVector<float, 3>::ZeroVector;
 	AvgContact.Phi = Thickness;
@@ -1605,8 +1605,8 @@ void UpdateUnionUnionConstraint(const T Thickness, TRigidBodyContactConstraint<T
 {
 	SCOPE_CYCLE_COUNTER(STAT_UpdateUnionUnionConstraint);
 
-	TGenericParticleHandle<T, d> Particle0 = Constraint.Particle;
-	TGenericParticleHandle<T, d> Particle1 = Constraint.Levelset;
+	TGenericParticleHandle<T, d> Particle0 = Constraint.Particle[0];
+	TGenericParticleHandle<T, d> Particle1 = Constraint.Particle[1];
 
 	TRigidTransform<T, d> ParticlesTM = TRigidTransform<T, d>(Particle0->P(), Particle0->Q());
 	TRigidTransform<T, d> LevelsetTM = TRigidTransform<T, d>(Particle1->P(), Particle1->Q());
@@ -1639,8 +1639,8 @@ void UpdateSingleUnionConstraint(const T Thickness, TRigidBodyContactConstraint<
 {
 	SCOPE_CYCLE_COUNTER(STAT_UpdateSingleUnionConstraint);
 
-	TGenericParticleHandle<T, d> Particle0 = Constraint.Particle;
-	TGenericParticleHandle<T, d> Particle1 = Constraint.Levelset;
+	TGenericParticleHandle<T, d> Particle0 = Constraint.Particle[0];
+	TGenericParticleHandle<T, d> Particle1 = Constraint.Particle[1];
 
 	TRigidTransform<T, d> ParticlesTM = TRigidTransform<T, d>(Particle0->P(), Particle0->Q());
 	TRigidTransform<T, d> LevelsetTM = TRigidTransform<T, d>(Particle1->P(), Particle1->Q());
@@ -1664,14 +1664,14 @@ void TPBDCollisionConstraint<T, d>::UpdateLevelsetConstraint(const T Thickness, 
 {
 	SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetConstraint);
 	
-	TGenericParticleHandle<T, d> Particle0 = Constraint.Particle;
+	TGenericParticleHandle<T, d> Particle0 = Constraint.Particle[0];
 	TRigidTransform<T, d> ParticlesTM = TRigidTransform<T, d>(Particle0->P(), Particle0->Q());
 	if (!(ensure(!FMath::IsNaN(ParticlesTM.GetTranslation().X)) && ensure(!FMath::IsNaN(ParticlesTM.GetTranslation().Y)) && ensure(!FMath::IsNaN(ParticlesTM.GetTranslation().Z))))
 	{
 		return;
 	}
 
-	TGenericParticleHandle<T, d> Particle1 = Constraint.Levelset;
+	TGenericParticleHandle<T, d> Particle1 = Constraint.Particle[1];
 	TRigidTransform<T, d> LevelsetTM = TRigidTransform<T, d>(Particle1->P(), Particle1->Q());
 	if (!(ensure(!FMath::IsNaN(LevelsetTM.GetTranslation().X)) && ensure(!FMath::IsNaN(LevelsetTM.GetTranslation().Y)) && ensure(!FMath::IsNaN(LevelsetTM.GetTranslation().Z))))
 	{
@@ -1693,8 +1693,8 @@ void UpdateUnionLevelsetConstraint(const T Thickness, TRigidBodyContactConstrain
 {
 	SCOPE_CYCLE_COUNTER(STAT_UpdateUnionLevelsetConstraint);
 
-	TGenericParticleHandle<T, d> Particle0 = Constraint.Particle;
-	TGenericParticleHandle<T, d> Particle1 = Constraint.Levelset;
+	TGenericParticleHandle<T, d> Particle0 = Constraint.Particle[0];
+	TGenericParticleHandle<T, d> Particle1 = Constraint.Particle[1];
 
 	TRigidTransform<T, d> ParticlesTM = TRigidTransform<T, d>(Particle0->P(), Particle0->Q());
 	TRigidTransform<T, d> LevelsetTM = TRigidTransform<T, d>(Particle1->P(), Particle1->Q());
@@ -1769,8 +1769,8 @@ void UpdateLevelsetUnionConstraint(const T Thickness, TRigidBodyContactConstrain
 {
 	SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetUnionConstraint);
 
-	TGenericParticleHandle<T, d> Particle0 = Constraint.Particle;
-	TGenericParticleHandle<T, d> Particle1 = Constraint.Levelset;
+	TGenericParticleHandle<T, d> Particle0 = Constraint.Particle[0];
+	TGenericParticleHandle<T, d> Particle1 = Constraint.Particle[1];
 
 	TRigidTransform<T, d> ParticlesTM = TRigidTransform<T, d>(Particle0->P(), Particle0->Q());
 	TRigidTransform<T, d> LevelsetTM = TRigidTransform<T, d>(Particle1->P(), Particle1->Q());
@@ -1871,14 +1871,14 @@ void ConstructLevelsetConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeo
 	
 	if (!Particle1->Geometry() || (Particle0->AsDynamic() && !Particle0->AsDynamic()->CollisionParticlesSize() && Particle0->Geometry() && !Particle0->Geometry()->IsUnderlyingUnion()))
 	{
-		Constraint.Particle = Particle1;
-		Constraint.Levelset = Particle0;
+		Constraint.Particle[0] = Particle1;
+		Constraint.Particle[1] = Particle0;
 		Constraint.AddManifold(Implicit1, Implicit0);
 	}
 	else
 	{
-		Constraint.Particle = Particle0;
-		Constraint.Levelset = Particle1;
+		Constraint.Particle[0] = Particle0;
+		Constraint.Particle[1] = Particle1;
 		Constraint.AddManifold(Implicit0, Implicit1);
 	}
 }
@@ -1886,64 +1886,64 @@ void ConstructLevelsetConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeo
 template<typename T, int d>
 void ConstructBoxConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
 {
-	Constraint.Particle = Particle0;
-	Constraint.Levelset = Particle1;
+	Constraint.Particle[0] = Particle0;
+	Constraint.Particle[1] = Particle1;
 	Constraint.AddManifold(Implicit0, Implicit1);
 }
 
 template<typename T, int d>
 void ConstructBoxPlaneConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
 {
-	Constraint.Particle = Particle0;
-	Constraint.Levelset = Particle1;
+	Constraint.Particle[0] = Particle0;
+	Constraint.Particle[1] = Particle1;
 	Constraint.AddManifold(Implicit0, Implicit1);
 }
 
 template<typename T, int d>
 void ConstructSphereConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
 {
-	Constraint.Particle = Particle0;
-	Constraint.Levelset = Particle1;
+	Constraint.Particle[0] = Particle0;
+	Constraint.Particle[1] = Particle1;
 	Constraint.AddManifold(Implicit0, Implicit1);
 }
 
 template<typename T, int d>
 void ConstructSpherePlaneConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
 {
-	Constraint.Particle = Particle0;
-	Constraint.Levelset = Particle1;
+	Constraint.Particle[0] = Particle0;
+	Constraint.Particle[1] = Particle1;
 	Constraint.AddManifold(Implicit0, Implicit1);
 }
 
 template<typename T, int d>
 void ConstructSphereBoxConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
 {
-	Constraint.Particle = Particle0;
-	Constraint.Levelset = Particle1;
+	Constraint.Particle[0] = Particle0;
+	Constraint.Particle[1] = Particle1;
 	Constraint.AddManifold(Implicit0, Implicit1);
 }
 
 template<typename T, int d>
 void ConstructCapsuleCapsuleConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
 {
-	Constraint.Particle = Particle0;
-	Constraint.Levelset = Particle1;
+	Constraint.Particle[0] = Particle0;
+	Constraint.Particle[1] = Particle1;
 	Constraint.AddManifold(Implicit0, Implicit1);
 }
 
 template<typename T, int d>
 void ConstructCapsuleBoxConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
 {
-	Constraint.Particle = Particle0;
-	Constraint.Levelset = Particle1;
+	Constraint.Particle[0] = Particle0;
+	Constraint.Particle[1] = Particle1;
 	Constraint.AddManifold(Implicit0, Implicit1);
 }
 
 template<typename T, int d>
 void ConstructSingleUnionConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
 {
-	Constraint.Particle = Particle0;
-	Constraint.Levelset = Particle1;
+	Constraint.Particle[0] = Particle0;
+	Constraint.Particle[1] = Particle1;
 	Constraint.AddManifold(Implicit0, Implicit1);
 }
 
@@ -2208,14 +2208,14 @@ void TPBDCollisionConstraint<T, d>::UpdateConstraint(const T Thickness, FRigidBo
 	SCOPE_CYCLE_COUNTER(STAT_UpdateConstraint);
 
 	Constraint.ResetPhi(Thickness);	
-	const TRigidTransform<T, d> ParticleTM = GetTransform(Constraint.Particle);
-	const TRigidTransform<T, d> LevelsetTM = GetTransform(Constraint.Levelset);
+	const TRigidTransform<T, d> ParticleTM = GetTransform(Constraint.Particle[0]);
+	const TRigidTransform<T, d> LevelsetTM = GetTransform(Constraint.Particle[1]);
 
-	if (!Constraint.Particle->Geometry())
+	if (!Constraint.Particle[0]->Geometry())
 	{
-		if (Constraint.Levelset->Geometry())
+		if (Constraint.Particle[1]->Geometry())
 		{
-			if (!Constraint.Levelset->Geometry()->IsUnderlyingUnion())
+			if (!Constraint.Particle[1]->Geometry()->IsUnderlyingUnion())
 			{
 				TPBDCollisionConstraint<T, d>::UpdateLevelsetConstraint<UpdateType>(Thickness, Constraint);
 			}
@@ -2227,7 +2227,7 @@ void TPBDCollisionConstraint<T, d>::UpdateConstraint(const T Thickness, FRigidBo
 	}
 	else
 	{
-		UpdateConstraintImp<UpdateType>(*Constraint.Particle->Geometry(), ParticleTM, *Constraint.Levelset->Geometry(), LevelsetTM, Thickness, Constraint);
+		UpdateConstraintImp<UpdateType>(*Constraint.Particle[0]->Geometry(), ParticleTM, *Constraint.Particle[1]->Geometry(), LevelsetTM, Thickness, Constraint);
 	}
 }
 
