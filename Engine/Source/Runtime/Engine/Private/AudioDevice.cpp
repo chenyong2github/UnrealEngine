@@ -6146,7 +6146,7 @@ void FAudioDevice::OnBeginPIE(const bool bIsSimulating)
 
 #if ENABLE_AUDIO_DEBUG
 	FAudioDebugger::OnBeginPIE();
-#endif // WITH_EDITOR
+#endif // ENABLE_AUDIO_DEBUG
 }
 
 void FAudioDevice::OnEndPIE(const bool bIsSimulating)
@@ -6159,9 +6159,9 @@ void FAudioDevice::OnEndPIE(const bool bIsSimulating)
 
 #if ENABLE_AUDIO_DEBUG
 	FAudioDebugger::OnEndPIE();
-#endif // WITH_EDITOR
+#endif // ENABLE_AUDIO_DEBUG
 }
-#endif
+#endif // WITH_EDITOR
 
 bool FAudioDevice::CanUseVRAudioDevice()
 {
