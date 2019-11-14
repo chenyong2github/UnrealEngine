@@ -6512,79 +6512,94 @@ void FSlateApplication::InputPreProcessorsHelper::Tick(const float DeltaTime, FS
 {
 	TGuardValue<bool> IteratingGuard(bIsIteratingPreProcessors, true);
 
-	for (int32 ProcessorIndex = 0; ProcessorIndex < InputPreProcessorList.Num(); ProcessorIndex++)
+	for (const TSharedPtr<IInputProcessor>& Preprocessor : InputPreProcessorList)
 	{
-		TSharedPtr<IInputProcessor> InputPreProcessor = InputPreProcessorList[ProcessorIndex];
-		InputPreProcessor->Tick(DeltaTime, SlateApp, Cursor);
+		if (Preprocessor)
+		{
+			Preprocessor->Tick(DeltaTime, SlateApp, Cursor);
+		}
 	}
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::HandleKeyDownEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent)
 {
-	return PreProcessInput([&SlateApp, &InKeyEvent](TSharedPtr<IInputProcessor> Processor) { return Processor->HandleKeyDownEvent(SlateApp, InKeyEvent); });
+	return PreProcessInput([&SlateApp, &InKeyEvent](IInputProcessor& Processor) { return Processor.HandleKeyDownEvent(SlateApp, InKeyEvent); });
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::HandleKeyUpEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent)
 {
-	return PreProcessInput([&SlateApp, &InKeyEvent](TSharedPtr<IInputProcessor> Processor) { return Processor->HandleKeyUpEvent(SlateApp, InKeyEvent); });
+	return PreProcessInput([&SlateApp, &InKeyEvent](IInputProcessor& Processor) { return Processor.HandleKeyUpEvent(SlateApp, InKeyEvent); });
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::HandleAnalogInputEvent(FSlateApplication& SlateApp, const FAnalogInputEvent& InAnalogInputEvent)
 {
-	return PreProcessInput([&SlateApp, &InAnalogInputEvent](TSharedPtr<IInputProcessor> Processor) { return Processor->HandleAnalogInputEvent(SlateApp, InAnalogInputEvent); });
+	return PreProcessInput([&SlateApp, &InAnalogInputEvent](IInputProcessor& Processor) { return Processor.HandleAnalogInputEvent(SlateApp, InAnalogInputEvent); });
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::HandleMouseMoveEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent)
 {
-	return PreProcessInput([&SlateApp, &MouseEvent](TSharedPtr<IInputProcessor> Processor) { return Processor->HandleMouseMoveEvent(SlateApp, MouseEvent); });
+	return PreProcessInput([&SlateApp, &MouseEvent](IInputProcessor& Processor) { return Processor.HandleMouseMoveEvent(SlateApp, MouseEvent); });
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::HandleMouseButtonDownEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent)
 {
-	return PreProcessInput([&SlateApp, &MouseEvent](TSharedPtr<IInputProcessor> Processor) { return Processor->HandleMouseButtonDownEvent(SlateApp, MouseEvent); });
+	return PreProcessInput([&SlateApp, &MouseEvent](IInputProcessor& Processor) { return Processor.HandleMouseButtonDownEvent(SlateApp, MouseEvent); });
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::HandleMouseButtonUpEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent)
 {
-	return PreProcessInput([&SlateApp, &MouseEvent](TSharedPtr<IInputProcessor> Processor) { return Processor->HandleMouseButtonUpEvent(SlateApp, MouseEvent); });
-
+	return PreProcessInput([&SlateApp, &MouseEvent](IInputProcessor& Processor) { return Processor.HandleMouseButtonUpEvent(SlateApp, MouseEvent); });
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::HandleMouseButtonDoubleClickEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent)
 {
-	return PreProcessInput([&SlateApp, &MouseEvent](TSharedPtr<IInputProcessor> Processor) { return Processor->HandleMouseButtonDoubleClickEvent(SlateApp, MouseEvent); });
+	return PreProcessInput([&SlateApp, &MouseEvent](IInputProcessor& Processor) { return Processor.HandleMouseButtonDoubleClickEvent(SlateApp, MouseEvent); });
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::HandleMouseWheelOrGestureEvent(FSlateApplication& SlateApp, const FPointerEvent& WheelEvent, const FPointerEvent* GestureEvent)
 {
-	return PreProcessInput([&SlateApp, &WheelEvent, &GestureEvent](TSharedPtr<IInputProcessor> Processor) { return Processor->HandleMouseWheelOrGestureEvent(SlateApp, WheelEvent, GestureEvent); });
+	return PreProcessInput([&SlateApp, &WheelEvent, &GestureEvent](IInputProcessor& Processor) { return Processor.HandleMouseWheelOrGestureEvent(SlateApp, WheelEvent, GestureEvent); });
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::HandleMotionDetectedEvent(FSlateApplication& SlateApp, const FMotionEvent& MotionEvent)
 {
-	return PreProcessInput([&SlateApp, &MotionEvent](TSharedPtr<IInputProcessor> Processor) { return Processor->HandleMotionDetectedEvent(SlateApp, MotionEvent); });
+	return PreProcessInput([&SlateApp, &MotionEvent](IInputProcessor& Processor) { return Processor.HandleMotionDetectedEvent(SlateApp, MotionEvent); });
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::Add(TSharedPtr<IInputProcessor> InputProcessor, const int32 Index /*= INDEX_NONE*/)
 {
-	bool bResult = false;
+	const bool bAlreadyInList = InputPreProcessorList.Contains(InputProcessor);
+	if (!bAlreadyInList)
+	{
+		if (!bIsIteratingPreProcessors)
+		{
+			AddInternal(InputProcessor, Index);
+		}
+		else
+		{
+			ProcessorsPendingAddition.Add(InputProcessor, Index);
+		}
+	}
+
+	ProcessorsPendingRemoval.Remove(InputProcessor);
+
+	return !bAlreadyInList;
+}
+
+void FSlateApplication::InputPreProcessorsHelper::AddInternal(TSharedPtr<IInputProcessor> InputProcessor, const int32 Index)
+{
 	if (Index == INDEX_NONE)
 	{
-		InputPreProcessorList.AddUnique(InputProcessor);
-		bResult = true;
+		InputPreProcessorList.Add(InputProcessor);
 	}
-	else if (InputPreProcessorList.Find(InputProcessor) == INDEX_NONE)
+	else
 	{
+		if (Index >= InputPreProcessorList.Num())
+		{
+			InputPreProcessorList.SetNum(Index + 1);
+		}
 		InputPreProcessorList.Insert(InputProcessor, Index);
-		bResult = true;
 	}
-
-	if (bResult)
-	{
-		ProcessorsPendingRemoval.Remove(InputProcessor);
-	}
-
-	return bResult;
 }
 
 void FSlateApplication::InputPreProcessorsHelper::Remove(TSharedPtr<IInputProcessor> InputProcessor)
@@ -6597,6 +6612,8 @@ void FSlateApplication::InputPreProcessorsHelper::Remove(TSharedPtr<IInputProces
 	{
 		InputPreProcessorList.Remove(InputProcessor);
 	}
+
+	ProcessorsPendingAddition.Remove(InputProcessor);
 }
 
 void FSlateApplication::InputPreProcessorsHelper::RemoveAll()
@@ -6609,6 +6626,8 @@ void FSlateApplication::InputPreProcessorsHelper::RemoveAll()
 	{
 		InputPreProcessorList.Reset();
 	}
+
+	ProcessorsPendingAddition.Reset();
 }
 
 
@@ -6617,14 +6636,14 @@ int32 FSlateApplication::InputPreProcessorsHelper::Find(TSharedPtr<IInputProcess
 	return InputPreProcessorList.Find(InputProcessor);
 }
 
-bool FSlateApplication::InputPreProcessorsHelper::PreProcessInput(TFunctionRef<bool(TSharedPtr<IInputProcessor>)> ToRun)
+bool FSlateApplication::InputPreProcessorsHelper::PreProcessInput(TFunctionRef<bool(IInputProcessor&)> InputProcessFunc)
 {
 	TGuardValue<bool> IteratingGuard(bIsIteratingPreProcessors, true);
 
 	bool bShouldExit = false;
-	for (TSharedPtr<IInputProcessor> InputPreProcessor : InputPreProcessorList)
+	for (const TSharedPtr<IInputProcessor>& InputPreProcessor : InputPreProcessorList)
 	{
-		if (ToRun(InputPreProcessor))
+		if (InputPreProcessor && InputProcessFunc(*InputPreProcessor))
 		{
 			bShouldExit = true;
 			break;
@@ -6633,6 +6652,12 @@ bool FSlateApplication::InputPreProcessorsHelper::PreProcessInput(TFunctionRef<b
 
 	InputPreProcessorList.RemoveAll([this](const TSharedPtr<IInputProcessor> Processor) { return ProcessorsPendingRemoval.Contains(Processor); });
 	ProcessorsPendingRemoval.Reset();
+
+	for (TPair<TSharedPtr<IInputProcessor>, int32>& ProcessorIndexPair : ProcessorsPendingAddition)
+	{
+		AddInternal(ProcessorIndexPair.Key, ProcessorIndexPair.Value);
+	}
+	ProcessorsPendingAddition.Reset();
 
 	return bShouldExit;
 }
