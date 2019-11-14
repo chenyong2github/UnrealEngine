@@ -371,7 +371,8 @@ void    init_system( void)
         xfree( sharp_filename);
     sharp_filename = NULL;
     incend = incdir = NULL;
-    fnamelist = once_list = NULL;
+    fnamelist = fname_end = once_list = once_end = NULL;
+	max_fnamelist = max_once = 0;
     search_rule = SEARCH_INIT;
     mb_changed = nflag = ansi = compat_mode = FALSE;
     mkdep_fp = NULL;
