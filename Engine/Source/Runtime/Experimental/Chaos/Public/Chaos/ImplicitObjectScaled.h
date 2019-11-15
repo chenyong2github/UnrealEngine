@@ -414,7 +414,16 @@ public:
 		return MObject->Support2(Direction * MScale) * MScale;
 	}
 
-	FORCEINLINE T GetMargin() const { return MObject->GetMargin(); }
+	FORCEINLINE T GetMargin() const
+	{
+		if (T UnscaledMargin = MObject->GetMargin())
+		{
+			ensure(MScale[0] == MScale[1] && MScale[1] == MScale[2]);
+			return UnscaledMargin * MScale[0];
+		}
+
+		return 0;
+	}
 
 	const TVector<T, d>& GetScale() const { return MScale; }
 	void SetScale(const TVector<T, d>& Scale)
