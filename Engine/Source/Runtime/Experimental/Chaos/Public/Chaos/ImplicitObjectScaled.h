@@ -426,6 +426,7 @@ public:
 	}
 
 	const TVector<T, d>& GetScale() const { return MScale; }
+	const TVector<T, d>& GetInvScale() const { return MInvScale; }
 	void SetScale(const TVector<T, d>& Scale)
 	{
 		constexpr T MinMagnitude = 1e-4;
