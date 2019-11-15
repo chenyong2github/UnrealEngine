@@ -5092,8 +5092,14 @@ bool FEngineLoop::AppInit( )
 	{
 			if (Target.Type == EBuildTargetType::Editor)
 			{
-				// Read the editor target receipt
-				EditorTargetFileName = FTargetReceipt::GetDefaultPath(FPlatformMisc::ProjectDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
+				if(FPaths::IsUnderDirectory(Target.Path, FPlatformMisc::ProjectDir()))
+				{
+					EditorTargetFileName = FTargetReceipt::GetDefaultPath(FPlatformMisc::ProjectDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
+				}
+				else if(FPaths::IsUnderDirectory(Target.Path, FPaths::EngineDir()))
+				{
+					EditorTargetFileName = FTargetReceipt::GetDefaultPath(*FPaths::EngineDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
+				}
 				break;
 			}
 		}
