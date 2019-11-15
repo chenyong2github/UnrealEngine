@@ -11,7 +11,7 @@ public class DatasmithCADWorkerTarget : TargetRules
 		Type = TargetType.Program;
 		LinkType = TargetLinkType.Monolithic;
 		LaunchModuleName = "DatasmithCADWorker";
-		SolutionDirectory = "Programs/Enterprise";
+		SolutionDirectory = "Programs/Datasmith";
 
         // Lean and mean
         bBuildDeveloperTools = false;
