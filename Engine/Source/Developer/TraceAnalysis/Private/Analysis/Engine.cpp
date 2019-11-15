@@ -542,7 +542,7 @@ void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
 	FDispatchBuilder Builder;
 	switch (ProtocolVersion)
 	{
-	case int(Protocol0::EProtocol::Id): OnNewEventProtocol0(Builder, EventData.Ptr); break;
+	case Protocol0::EProtocol::Id: OnNewEventProtocol0(Builder, EventData.Ptr); break;
 	}
 
 	// Get the dispatch and add it into the dispatch table. Fail gently if there
@@ -663,8 +663,8 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader& Reader)
 
 	switch (Header->TransportVersion)
 	{
-	case int(ETransport::Raw):		Transport = new FTransport(); break;
-	case int(ETransport::Packet):	Transport = new FPacketTransport(); break;
+	case ETransport::Raw:		Transport = new FTransport(); break;
+	case ETransport::Packet:	Transport = new FPacketTransport(); break;
 	default:					return false;
 	//case 'E':	/* See the magic above */ break;
 	//case 'T':	/* See the magic above */ break;
@@ -673,7 +673,7 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader& Reader)
 	ProtocolVersion = Header->ProtocolVersion;
 	switch (ProtocolVersion)
 	{
-	case int(Protocol0::EProtocol::Id):
+	case Protocol0::EProtocol::Id:
 		ProtocolHandler = &FAnalysisEngine::OnDataProtocol0;
 		{
 			FDispatchBuilder Builder;

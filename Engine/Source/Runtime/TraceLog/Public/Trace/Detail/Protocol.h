@@ -24,7 +24,7 @@
 namespace Trace
 {
 
-enum class ETransport : uint8
+enum ETransport : uint8
 {
 	_Unused		= 0,
 	Raw			= 1,
