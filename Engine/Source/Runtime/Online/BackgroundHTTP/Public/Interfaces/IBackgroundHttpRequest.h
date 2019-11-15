@@ -31,6 +31,34 @@ DECLARE_DELEGATE_TwoParams(FBackgroundHttpRequestCompleteDelegate, FBackgroundHt
 DECLARE_DELEGATE_ThreeParams(FBackgroundHttpProgressUpdateDelegate, FBackgroundHttpRequestPtr /*Request*/, int32 /*TotalBytesWritten*/, int32 /*BytesWrittenSinceLastUpdate*/);
 
 /**
+ * Enum used to describe download priority. Higher priorities will be downloaded first.
+ * Note: Should always be kept in High -> Low priority order if adding more Priorities!
+ */
+enum class EBackgroundHTTPPriority : uint8
+{
+	  High
+	, Normal
+	, Low
+	, Num
+};
+
+inline const TCHAR* LexToString(EBackgroundHTTPPriority InType)
+{
+	switch (InType)
+	{
+	case EBackgroundHTTPPriority::High:
+		return TEXT("High");
+	case EBackgroundHTTPPriority::Normal:
+		return TEXT("Normal");
+	case EBackgroundHTTPPriority::Low:
+		return TEXT("Low");
+	default:
+		break;
+	}
+	return TEXT("<Unknown EBackgroundHTTPPriority>");
+}
+
+/**
  * Interface for Http requests (created using FHttpFactory)
  */
 class IBackgroundHttpRequest 
@@ -140,6 +168,20 @@ public:
 	*/
 	virtual void SetRequestID(const FString& NewRequestID) = 0;
 
+	/**
+	* Gets the associated Requeset's Priority for Background Downloadings. Where possible, we attempt to finish downloads in lowest-priority first order.
+	*
+	* @return The request Priority
+	*/
+	virtual EBackgroundHTTPPriority GetRequestPriority() const = 0;
+	
+	/**
+	* Sets the associated Requeset's Priority for Background Downloadings. Where possible, we attempt to finish downloads in lowest-priority first order.
+	*
+	* @param uint32 describing priority of this download. Lower happens first and thus 0 is the highest priority.
+	*/
+	virtual void SetRequestPriority(EBackgroundHTTPPriority NewPriority) = 0;
+	
 	/** 
 	* Destructor for overrides 
 	*/
