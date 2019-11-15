@@ -15,6 +15,7 @@
 
 namespace Chaos
 {
+
 	class FPBDJointConstraintHandle : public TContainerConstraintHandle<FPBDJointConstraints>
 	{
 	public:
@@ -28,6 +29,8 @@ namespace Chaos
 		CHAOS_API void SetParticleLevels(const TVector<int32, 2>& ParticleLevels);
 		CHAOS_API int32 GetConstraintLevel() const;
 		CHAOS_API const FPBDJointSettings& GetSettings() const;
+		CHAOS_API TVector<TGeometryParticleHandle<float,3>*, 2> GetConstrainedParticles() const;
+
 	protected:
 		using Base::ConstraintIndex;
 		using Base::ConstraintContainer;
@@ -56,6 +59,7 @@ namespace Chaos
 		using FParticlePair = TVector<TGeometryParticleHandle<FReal, 3>*, 2>;
 		using FVectorPair = TVector<FVec3, 2>;
 		using FTransformPair = TVector<FRigidTransform3, 2>;
+		using FHandles = TArray<FConstraintContainerHandle*>;
 
 		FPBDJointConstraints(const FPBDJointSolverSettings& InSettings = FPBDJointSolverSettings());
 
@@ -97,6 +101,14 @@ namespace Chaos
 		//
 		// Constraint API
 		//
+		FHandles& GetConstraintHandles()
+		{
+			return Handles;
+		}
+		const FHandles& GetConstConstraintHandles() const
+		{
+			return Handles;
+		}
 
 		const FConstraintContainerHandle* GetConstraintHandle(int32 ConstraintIndex) const;
 		FConstraintContainerHandle* GetConstraintHandle(int32 ConstraintIndex);
@@ -142,7 +154,7 @@ namespace Chaos
 		TArray<FParticlePair> ConstraintParticles;
 		TArray<FPBDJointState> ConstraintStates;
 
-		TArray<FConstraintContainerHandle*> Handles;
+		FHandles Handles;
 		FConstraintHandleAllocator HandleAllocator;
 
 		FJointPreApplyCallback PreApplyCallback;
