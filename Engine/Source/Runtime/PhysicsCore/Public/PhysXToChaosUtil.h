@@ -147,8 +147,13 @@ inline TUniquePtr<Chaos::TImplicitObjectTransformed<float, 3>> PxShapeToChaosGeo
 		const uint32 NumTriangles = TriangleMesh->getNbTriangles();
 		PxTriangleMeshFlags Flags = TriangleMesh->getTriangleMeshFlags();
 		TArray<TVector<int32, 3>> Triangles;
+		TArray<uint16> MaterialIndices;
 		Triangles.AddUninitialized(NumTriangles);
-		for (uint32 TriIdx = 0; TriIdx < NumTriangles; ++TriIdx)
+		MaterialIndices.Reserve(NumTriangles);
+
+		const bool bHasMaterials = NumTriangles > 0 && TriangleMesh->getTriangleMaterialIndex(0) != TNumericLimits<uint16>::Max();
+
+		for(uint32 TriIdx = 0; TriIdx < NumTriangles; ++TriIdx)
 		{
 			if (Flags & PxTriangleMeshFlag::e16_BIT_INDICES)
 			{
@@ -166,9 +171,14 @@ inline TUniquePtr<Chaos::TImplicitObjectTransformed<float, 3>> PxShapeToChaosGeo
 					static_cast<const int32*>(IndexBuffer)[TriIdx * 3+2] };
 				Triangles[TriIdx] = Triangle;
 			}
+
+			if(bHasMaterials)
+			{
+				MaterialIndices.Add(TriangleMesh->getTriangleMaterialIndex(TriIdx));
+			}
 		}
 
-		TUniquePtr<TTriangleMeshImplicitObject<float>> TriMeshObj = MakeUnique<TTriangleMeshImplicitObject<float>>(MoveTemp(Particles), MoveTemp(Triangles));
+		TUniquePtr<TTriangleMeshImplicitObject<float>> TriMeshObj = MakeUnique<TTriangleMeshImplicitObject<float>>(MoveTemp(Particles), MoveTemp(Triangles), MoveTemp(MaterialIndices));
 		if (TriMeshGeom.scale.isIdentity())
 		{
 			InnerObj = MoveTemp(TriMeshObj);
