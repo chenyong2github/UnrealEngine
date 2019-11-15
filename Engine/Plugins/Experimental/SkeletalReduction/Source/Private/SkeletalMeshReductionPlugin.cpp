@@ -1826,42 +1826,11 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 		int32 OriginalDataSectionIndex;
 	};
 
-	TMap<int32, FSectionData> BackupSectionIndexToSectionData;
 	TMap<int32, FSkelMeshSourceSectionUserData> BackupUserSectionsData;
 	FString BackupLodModelBuildStringID = TEXT("");
-	//Store the section data. Store the source LOD model in case we add a LOD, or the target LOD model in case the LOD already exist
-	FSkeletalMeshLODModel& BackupSectionLODModel = bLODModelAdded ? SkeletalMeshResource.LODModels[Settings.BaseLOD] : SkeletalMeshResource.LODModels[LODIndex];
-	if (!bLODModelAdded)
-	{
-		BackupLodModelBuildStringID = BackupSectionLODModel.BuildStringID;
-		BackupUserSectionsData = BackupSectionLODModel.UserSectionsData;
-	}
 
-	BackupSectionIndexToSectionData.Reserve(BackupSectionLODModel.Sections.Num());
 
-	for (int32 SectionIndex = 0; SectionIndex < BackupSectionLODModel.Sections.Num(); ++SectionIndex)
-	{
-		//Skip disable and not generated section
-		int32 MaxGeneratedLODIndex = BackupSectionLODModel.Sections[SectionIndex].GenerateUpToLodIndex;
-		if (BackupSectionLODModel.Sections[SectionIndex].bDisabled || (MaxGeneratedLODIndex != -1 && MaxGeneratedLODIndex < LODIndex))
-		{
-			continue;
-		}
-		FSectionData& SectionData = BackupSectionIndexToSectionData.FindOrAdd(SectionIndex);
-		SectionData.MaterialIndex = BackupSectionLODModel.Sections[SectionIndex].MaterialIndex;
-		SectionData.bCastShadow = BackupSectionLODModel.Sections[SectionIndex].bCastShadow;
-		SectionData.bRecomputeTangent = BackupSectionLODModel.Sections[SectionIndex].bRecomputeTangent;
-		SectionData.bDisabled = BackupSectionLODModel.Sections[SectionIndex].bDisabled;
-		SectionData.GenerateUpToLodIndex = BackupSectionLODModel.Sections[SectionIndex].GenerateUpToLodIndex;
-		SectionData.ChunkedParentSectionIndex = BackupSectionLODModel.Sections[SectionIndex].ChunkedParentSectionIndex;
-		SectionData.OriginalDataSectionIndex = BackupSectionLODModel.Sections[SectionIndex].OriginalDataSectionIndex;
-		SectionData.MaterialMap = LODInfo->LODMaterialMap.IsValidIndex(SectionIndex) ? LODInfo->LODMaterialMap[SectionIndex] : INDEX_NONE;
-		if (SectionData.MaterialMap == SectionData.MaterialIndex)
-		{
-			//Remove any override if the value is the same
-			SectionData.MaterialMap = INDEX_NONE;
-		}
-	}
+	
 
 	auto FillSectionMaterialSlot = [&SkeletalMeshResource, &LODIndex, bLODModelAdded](TArray<int32>& SectionMaterialSlot)
 	{
@@ -1887,12 +1856,22 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 		FLODUtilities::UnbindClothingAndBackup(&SkeletalMesh, ClothingBindings, LODIndex);
 	}
 
+	if (!bLODModelAdded)
+	{
+		FSkeletalMeshLODModel& DstBackupSectionLODModel = SkeletalMeshResource.LODModels[LODIndex];
+		BackupLodModelBuildStringID = DstBackupSectionLODModel.BuildStringID;
+		BackupUserSectionsData = DstBackupSectionLODModel.UserSectionsData;
+	}
+
 	bool bReducingSourceModel = false;
 	//Reducing source LOD, we need to use the temporary data so it can be iterative
 	if (BaseLOD == LODIndex && (SkelResource->OriginalReductionSourceMeshData.IsValidIndex(BaseLOD) && !SkelResource->OriginalReductionSourceMeshData[BaseLOD]->IsEmpty()))
 	{
 		TMap<FString, TArray<FMorphTargetDelta>> TempLODMorphTargetData;
 		SkelResource->OriginalReductionSourceMeshData[BaseLOD]->LoadReductionData(*SrcModel, TempLODMorphTargetData, &SkeletalMesh);
+		//Rebackup the source model since we update it, source always have empty LODMaterial map
+		//If you swap a material ID and after you do inline reduction, you have to remap it again, but not if you reduce and then remap the materialID
+		//this is by design currently
 		bReducingSourceModel = true;
 	}
 	else
@@ -1901,6 +1880,37 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 	}
 
 	check(SrcModel);
+
+	//We backup the section data to put keep the LODModel Section in a good state after the reduction
+	TMap<int32, FSectionData> SrcBackupSectionIndexToSectionData;
+	{
+		FSkeletalMeshLODInfo* BackupLODInfo = SkeletalMesh.GetLODInfo(Settings.BaseLOD);
+		FSkeletalMeshLODModel& LODModelToBackup = *SrcModel;
+		SrcBackupSectionIndexToSectionData.Empty(LODModelToBackup.Sections.Num());
+		for (int32 SectionIndex = 0; SectionIndex < LODModelToBackup.Sections.Num(); ++SectionIndex)
+		{
+			//Skip disable and not generated section
+			int32 MaxGeneratedLODIndex = LODModelToBackup.Sections[SectionIndex].GenerateUpToLodIndex;
+			if (LODModelToBackup.Sections[SectionIndex].bDisabled || (MaxGeneratedLODIndex != -1 && MaxGeneratedLODIndex < LODIndex))
+			{
+				continue;
+			}
+			FSectionData& SectionData = SrcBackupSectionIndexToSectionData.FindOrAdd(SectionIndex);
+			SectionData.MaterialIndex = LODModelToBackup.Sections[SectionIndex].MaterialIndex;
+			SectionData.bCastShadow = LODModelToBackup.Sections[SectionIndex].bCastShadow;
+			SectionData.bRecomputeTangent = LODModelToBackup.Sections[SectionIndex].bRecomputeTangent;
+			SectionData.bDisabled = LODModelToBackup.Sections[SectionIndex].bDisabled;
+			SectionData.GenerateUpToLodIndex = LODModelToBackup.Sections[SectionIndex].GenerateUpToLodIndex;
+			SectionData.ChunkedParentSectionIndex = LODModelToBackup.Sections[SectionIndex].ChunkedParentSectionIndex;
+			SectionData.OriginalDataSectionIndex = LODModelToBackup.Sections[SectionIndex].OriginalDataSectionIndex;
+			SectionData.MaterialMap = (BackupLODInfo != nullptr && BackupLODInfo->LODMaterialMap.IsValidIndex(SectionIndex)) ? BackupLODInfo->LODMaterialMap[SectionIndex] : INDEX_NONE;
+			if (SectionData.MaterialMap == SectionData.MaterialIndex)
+			{
+				//Remove any override if the value is the same
+				SectionData.MaterialMap = INDEX_NONE;
+			}
+		}
+	}
 
 	// now try bone reduction process if it's setup
 	TMap<FBoneIndexType, FBoneIndexType> BonesToRemove;
@@ -2038,50 +2048,51 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 		// Flag this LOD as having been simplified.
 		ReducedLODInfoPtr->bHasBeenSimplified = true;
 		SkeletalMesh.bHasBeenSimplified = true;
-		//Restore section data
-		FSkeletalMeshLODModel& ImportedModelLOD = SkeletalMesh.GetImportedModel()->LODModels[LODIndex];
-		TArray<bool> SectionMatched;
-		SectionMatched.AddZeroed(ImportedModelLOD.Sections.Num());
 		
-		if (!bLODModelAdded)
+		//Restore the source sections data
 		{
-			ImportedModelLOD.UserSectionsData = BackupUserSectionsData;
-			ImportedModelLOD.BuildStringID = BackupLodModelBuildStringID;
-		}
-
-		for (auto Kvp : BackupSectionIndexToSectionData)
-		{
-			const int32 SourceSectionIndex = Kvp.Key;
-
-			const FSectionData& SectionData = Kvp.Value;
-			int32 MaxSectionIndex = FMath::Min(ImportedModelLOD.Sections.Num(), SourceSectionIndex+1);
-			for (int32 SectionIndex = 0; SectionIndex < MaxSectionIndex; ++SectionIndex)
+			FSkeletalMeshLODModel& ImportedModelLOD = SkeletalMesh.GetImportedModel()->LODModels[LODIndex];
+			TArray<bool> SectionMatched;
+			SectionMatched.AddZeroed(SrcBackupSectionIndexToSectionData.Num());
+			int32 CurrentParentSectionIndex = INDEX_NONE;
+			int32 OriginalSectionIndex = INDEX_NONE;
+			for (int32 SectionIndex = 0; SectionIndex < ImportedModelLOD.Sections.Num(); ++SectionIndex)
 			{
-				if (SectionMatched[SectionIndex])
+				FSkelMeshSection& Section = ImportedModelLOD.Sections[SectionIndex];
+				for (auto Kvp : SrcBackupSectionIndexToSectionData)
 				{
-					continue;
-				}
-				if (SectionData.MaterialIndex == ImportedModelLOD.Sections[SectionIndex].MaterialIndex)
-				{
-					//Restore the LOD material map for this section
-					if (SectionData.MaterialMap != INDEX_NONE)
+					const int32 SourceSectionIndex = Kvp.Key;
+					if (SectionMatched[Kvp.Key])
 					{
-						while (ReducedLODInfoPtr->LODMaterialMap.Num() <= SectionIndex)
-						{
-							ReducedLODInfoPtr->LODMaterialMap.Add(INDEX_NONE);
-						}
-						ReducedLODInfoPtr->LODMaterialMap[SectionIndex] = SectionData.MaterialMap;
+						continue;
 					}
-					//Restore the LODModel Section
-					ImportedModelLOD.Sections[SectionIndex].bCastShadow = SectionData.bCastShadow;
-					ImportedModelLOD.Sections[SectionIndex].bRecomputeTangent = SectionData.bRecomputeTangent;
-					ImportedModelLOD.Sections[SectionIndex].bDisabled = SectionData.bDisabled;
-					ImportedModelLOD.Sections[SectionIndex].GenerateUpToLodIndex = SectionData.GenerateUpToLodIndex;
-					ImportedModelLOD.Sections[SectionIndex].ChunkedParentSectionIndex = SectionData.ChunkedParentSectionIndex;
-					ImportedModelLOD.Sections[SectionIndex].OriginalDataSectionIndex = SectionData.OriginalDataSectionIndex;
-					SectionMatched[SectionIndex] = true;
-					break;
+					const FSectionData& SectionData = Kvp.Value;
+					//We use the material index to match the section
+					if (Section.MaterialIndex == SectionData.MaterialIndex)
+					{
+						bool bIsChunkedSection = SectionData.ChunkedParentSectionIndex != INDEX_NONE;
+						if (!bIsChunkedSection)
+						{
+							CurrentParentSectionIndex = SectionIndex;
+							OriginalSectionIndex++;
+						}
+						Section.bCastShadow = SectionData.bCastShadow;
+						Section.bRecomputeTangent = SectionData.bRecomputeTangent;
+						Section.bDisabled = SectionData.bDisabled;
+						Section.GenerateUpToLodIndex = SectionData.GenerateUpToLodIndex;
+						Section.ChunkedParentSectionIndex = bIsChunkedSection ? CurrentParentSectionIndex : INDEX_NONE;
+						Section.OriginalDataSectionIndex = OriginalSectionIndex;
+						SectionMatched[Kvp.Key] = true; //a backup section can be restore only once
+						break;
+					}
 				}
+			}
+
+			if (!bLODModelAdded)
+			{
+				//If its an existing LOD re-apply the UserSectionData
+				ImportedModelLOD.UserSectionsData = BackupUserSectionsData;
+				ImportedModelLOD.BuildStringID = BackupLodModelBuildStringID;
 			}
 		}
 	}
