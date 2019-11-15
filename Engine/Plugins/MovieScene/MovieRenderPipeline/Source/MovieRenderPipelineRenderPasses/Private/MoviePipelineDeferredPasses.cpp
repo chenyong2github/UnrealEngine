@@ -69,11 +69,12 @@ namespace MoviePipeline
 
 		FEngineShowFlags ShowFlags = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);
 
-		if (InSampleState.bIsUsingOverlappedTiles)
+		static bool TestDisableDofAndMotionBlur = false;
+		if (TestDisableDofAndMotionBlur)
 		{
 			// Disable these for now
-			//ShowFlags.SetDepthOfField(false);
-			//ShowFlags.SetMotionBlur(false);
+			ShowFlags.SetDepthOfField(false);
+			ShowFlags.SetMotionBlur(false);
 		}
 
 		FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(

@@ -368,7 +368,7 @@ void UMoviePipeline::RenderFrame()
 				{
 					SampleState.OverlappedOffset = FIntPoint(0,0);
 					SampleState.OverlappedPad = FIntPoint(0, 0);
-					SampleState.OverlappedSubpixelShift = FVector2D(0.0f,0.0f);
+					SampleState.OverlappedSubpixelShift = FVector2D(0.5f,0.5f);
 				}
 
 				SampleState.WeightFunctionX.InitHelper(SampleState.OverlappedPad.X, SampleState.TileSize.X, SampleState.OverlappedPad.X);
