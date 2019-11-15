@@ -1,0 +1,30 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "HairStrandsVisibilityCommon.ush"
+#include "../Common.ush"
+#include "/Engine/Generated/Material.ush"
+#include "/Engine/Generated/VertexFactory.ush"
+
+#if VERTEXSHADER
+ 
+void Main(
+	uint VertexId : SV_VertexID, 
+	out float4 Position : SV_POSITION,
+	nointerpolation out uint2 Resolution : DISPATCH_RESOLUTION)
+{
+	const uint DispatchCountX = MaterialPassParameters.IndirectArgs.Load(0);
+	const uint DispatchCountY = MaterialPassParameters.IndirectArgs.Load(1);
+	const uint TotalNodeCount = MaterialPassParameters.NodeGroupSize * DispatchCountX * DispatchCountY;
+
+	Resolution.x = ceil(sqrt(TotalNodeCount));
+	Resolution.y = Resolution.x;
+
+	const float2 ClipCoord = ((Resolution+0.5f) / float2(MaterialPassParameters.MaxResolution)) * 2;
+
+	const float2 UV = float2(VertexId & 1, VertexId >> 1);
+	const float2 Pos = float2(-UV.x, UV.y) * 4 + float2(-1,+1) + float2(ClipCoord.x, -ClipCoord.y);
+	Position = float4(Pos, 0.5f, 1);
+
+}
+
+#endif // VERTEXSHADER
