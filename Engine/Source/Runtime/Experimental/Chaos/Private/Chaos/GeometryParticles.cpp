@@ -85,6 +85,11 @@ namespace Chaos
 			// This should be set by particle serializing this TPerShapeData.
 			WorldSpaceInflatedShapeBounds = TAABB<FReal, 3>(FVec3(0.0f, 0.0f, 0.0f), FVec3(0.0f, 0.0f, 0.0f));
 		}
+
+		if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddedMaterialManager)
+		{
+			Ar << Materials;
+		}
 	}
 
 

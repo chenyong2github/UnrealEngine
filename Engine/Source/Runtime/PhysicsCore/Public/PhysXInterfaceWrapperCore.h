@@ -216,7 +216,7 @@ FORCEINLINE ECollisionShapeType GetGeometryType(const PxShape& Shape)
 	return P2UGeometryType(Shape.getGeometryType());
 }
 
-FORCEINLINE PxMaterial* GetMaterialFromInternalFaceIndex(const PxShape& Shape, uint32 InternalFaceIndex)
+FORCEINLINE PxMaterial* GetMaterialFromInternalFaceIndex(const PxShape& Shape, const FPhysicsActor& Actor, uint32 InternalFaceIndex)
 {
 	return Shape.getMaterialFromInternalFaceIndex(InternalFaceIndex);
 }

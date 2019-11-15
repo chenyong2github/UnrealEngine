@@ -138,11 +138,6 @@ inline FVector GetNormal(const FLocationHit& Hit)
 	return Hit.WorldNormal;
 }
 
-inline FDummyPhysType* GetMaterialFromInternalFaceIndex(const FDummyPhysType& Shape, uint32 InternalFaceIndex)
-{
-	return nullptr;
-}
-
 inline FHitFlags GetFlags(const FLocationHit& Hit)
 {
 	return Hit.Flags;

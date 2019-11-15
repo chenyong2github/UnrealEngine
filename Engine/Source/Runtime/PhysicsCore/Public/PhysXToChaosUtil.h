@@ -88,6 +88,15 @@ inline TUniquePtr<Chaos::TImplicitObjectTransformed<float, 3>> PxShapeToChaosGeo
 
 		HeightField->saveCells(CellBuffer.GetData(), sizeof(CellBuffer[0]) * CellBuffer.Num());
 
+		const int32 NumTris = (NumCells - NumRows - NumCols + 1) * 2;
+		TArray<uint8> MaterialIndices;
+		MaterialIndices.Reserve(NumTris / 2);
+		for(int32 TriangleIndex = 0; TriangleIndex < NumTris; TriangleIndex += 2)
+		{
+			// We're only grabbing every other material because UE4 will only use one material per cell
+			MaterialIndices.Add((uint8)(HeightField->getTriangleMaterialIndex(TriangleIndex)));
+		}
+		
 		TArray<float> Height;
 		Height.AddUninitialized(NumRows * NumCols);
 		//PhysX and unreal have opposite handedness so we flip the data (see LandscapeComponent)
@@ -116,7 +125,7 @@ inline TUniquePtr<Chaos::TImplicitObjectTransformed<float, 3>> PxShapeToChaosGeo
 
 		ShapeTM = U2PTransform(FTransform(LandscapeComponentMatrix));
 
-		InnerObj = MakeUnique<THeightField<float>>(MoveTemp(Height), NumRows, NumCols, TVector<float, 3>(HeightFieldGeom.columnScale, HeightFieldGeom.rowScale, HeightFieldGeom.heightScale));
+		InnerObj = MakeUnique<THeightField<float>>(MoveTemp(Height), MoveTemp(MaterialIndices), NumRows, NumCols, TVector<float, 3>(HeightFieldGeom.columnScale, HeightFieldGeom.rowScale, HeightFieldGeom.heightScale));
 		break;
 	}
 	case PxGeometryType::eTRIANGLEMESH:

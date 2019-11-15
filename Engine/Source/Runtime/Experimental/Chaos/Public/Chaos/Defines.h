@@ -30,6 +30,7 @@ namespace Chaos
 		Chaos::FReal SleepingAngularThreshold;
 		Chaos::FReal DisabledLinearThreshold;
 		Chaos::FReal DisabledAngularThreshold;
+		void* UserData;
 
 		FChaosPhysicsMaterial()
 			: Friction(0.5)
@@ -38,6 +39,7 @@ namespace Chaos
 			, SleepingAngularThreshold(1)
 			, DisabledLinearThreshold(0)
 			, DisabledAngularThreshold(0)
+			, UserData(nullptr)
 		{
 		}
 
