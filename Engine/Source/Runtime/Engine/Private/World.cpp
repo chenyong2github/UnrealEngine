@@ -4500,7 +4500,12 @@ bool UWorld::AreActorsInitialized() const
 
 void UWorld::CreatePhysicsScene(const AWorldSettings* Settings)
 {
+#if CHAOS_CHECKED
+	const FName PhysicsName = IsNetMode(NM_DedicatedServer) ? TEXT("ServerPhysics") : TEXT("ClientPhysics");
+	FPhysScene* NewScene = new FPhysScene(Settings, PhysicsName);
+#else
 	FPhysScene* NewScene = new FPhysScene(Settings);
+#endif
 	SetPhysicsScene(NewScene);
 }
 
