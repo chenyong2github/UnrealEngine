@@ -30,6 +30,7 @@ namespace EditorAnalyticsDefs
 	// timestamps
 	static const FString StartupTimestampStoreKey(TEXT("StartupTimestamp"));
 	static const FString TimestampStoreKey(TEXT("Timestamp"));
+	static const FString SessionDurationStoreKey(TEXT("SessionDuration"));
 	static const FString Idle1MinStoreKey(TEXT("Idle1Min"));
 	static const FString Idle5MinStoreKey(TEXT("Idle5Min"));
 	static const FString Idle30MinStoreKey(TEXT("Idle30Min"));
@@ -145,6 +146,7 @@ namespace EditorAnalyticsUtils
 			Session.Timestamp = EditorAnalyticsUtils::StringToTimestamp(TimestampString);
 		}
 
+		GET_STORED_INT(SessionDuration);
 		GET_STORED_INT(Idle1Min);
 		GET_STORED_INT(Idle5Min);
 		GET_STORED_INT(Idle30Min);
@@ -225,6 +227,7 @@ FEditorAnalyticsSession::FEditorAnalyticsSession()
 	PlatformProcessID = 0;
 	StartupTimestamp = FDateTime::MinValue();
 	Timestamp = FDateTime::MinValue();
+	SessionDuration = 0;
 	Idle1Min = 0;
 	Idle5Min = 0;
 	Idle30Min = 0;
@@ -340,6 +343,7 @@ bool FEditorAnalyticsSession::Save()
 
 	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::TimestampStoreKey, EditorAnalyticsUtils::TimestampToString(Timestamp));
 
+	SET_STORED_INT(SessionDuration);
 	SET_STORED_INT(Idle1Min);
 	SET_STORED_INT(Idle5Min);
 	SET_STORED_INT(Idle30Min);
@@ -375,6 +379,7 @@ bool FEditorAnalyticsSession::SaveForCrash()
 	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsTerminatingKey, EditorAnalyticsUtils::BoolToStoredString(bIsTerminating));
 	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::WasShutdownStoreKey, EditorAnalyticsUtils::BoolToStoredString(bWasShutdown));
 	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::TimestampStoreKey, EditorAnalyticsUtils::TimestampToString(Timestamp));
+	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::SessionDurationStoreKey, FString::FromInt(SessionDuration));
 
 	return true;
 }
@@ -390,6 +395,8 @@ bool FEditorAnalyticsSession::Load(const FString& InSessionID)
 	}
 
 	EditorAnalyticsUtils::LoadInternal(*this, InSessionID);
+	bAlreadySaved = false;
+
 	return true;
 }
 
@@ -411,6 +418,7 @@ bool FEditorAnalyticsSession::Delete() const
 
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::StartupTimestampStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::TimestampStoreKey);
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::SessionDurationStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::Idle1MinStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::Idle5MinStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::Idle30MinStoreKey);
