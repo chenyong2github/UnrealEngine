@@ -661,6 +661,7 @@ class UStaticMesh : public UStreamableRenderAsset, public IInterface_CollisionDa
 	/**
 	 * If true, StaticMesh has been built at runtime
 	 */
+	UPROPERTY()
 	uint8 bIsBuiltAtRuntime : 1;
 
 protected:
