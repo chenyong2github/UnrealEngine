@@ -41,7 +41,7 @@ public:
 	virtual void GetSyncData(FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup) override;
 	virtual void GetInputData(FDisplayClusterMessage::DataType& InputData) override;
 	virtual void GetEventsData(FDisplayClusterMessage::DataType& EventsData) override;
-	virtual void GetNativeInputData(FDisplayClusterMessage::DataType& EventsData) override;
+	virtual void GetNativeInputData(FDisplayClusterMessage::DataType& NativeInputData) override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
