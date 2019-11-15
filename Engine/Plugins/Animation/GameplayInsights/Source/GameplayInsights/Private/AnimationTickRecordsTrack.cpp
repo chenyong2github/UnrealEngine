@@ -1,7 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AnimationTickRecordsTrack.h"
-#include "Insights/ITimingViewDrawHelper.h"
 #include "GameplayProvider.h"
 #include "AnimationProvider.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
@@ -9,6 +8,7 @@
 #include "Insights/ViewModels/TooltipDrawState.h"
 #include "AnimationSharedData.h"
 #include "Insights/ViewModels/TimingEventSearch.h"
+#include "Insights/ViewModels/TooltipDrawState.h"
 
 #define LOCTEXT_NAMESPACE "AnimationTickRecordsTrack"
 
@@ -22,45 +22,38 @@ FAnimationTickRecordsTrack::FAnimationTickRecordsTrack(const FAnimationSharedDat
 {
 }
 
-void FAnimationTickRecordsTrack::Draw(ITimingViewDrawHelper& Helper) const
+void FAnimationTickRecordsTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context)
 {
-	FAnimationTickRecordsTrack& Track = *const_cast<FAnimationTickRecordsTrack*>(this);
+	const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
+	const FAnimationProvider* AnimationProvider = SharedData.GetAnalysisSession().ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
 
-	if (Helper.BeginTimeline(Track))
+	if(GameplayProvider && AnimationProvider)
 	{
-		const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
-		const FAnimationProvider* AnimationProvider = SharedData.GetAnalysisSession().ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
+		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
-		if(GameplayProvider && AnimationProvider)
+		AnimationProvider->ReadTickRecordTimeline(GetGameplayTrack().GetObjectId(), GetAssetId(), [this, &GameplayProvider, &AnimationProvider, &Context, &Builder](const FAnimationProvider::TickRecordTimeline& InTimeline)
 		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
-
-			AnimationProvider->ReadTickRecordTimeline(GetGameplayTrack().GetObjectId(), GetAssetId(), [this, &GameplayProvider, &AnimationProvider, &Helper](const FAnimationProvider::TickRecordTimeline& InTimeline)
+			auto DrawEvents = [this, &Builder, &GameplayProvider](double InStartTime, double InEndTime, uint32 InDepth, const FTickRecordMessage& InMessage)
 			{
-				auto DrawEvents = [this, &Helper, &GameplayProvider](double InStartTime, double InEndTime, uint32 InDepth, const FTickRecordMessage& InMessage)
-				{
-					Helper.AddEvent(InStartTime, InEndTime, 0, *GetName());
-				};
+				Builder.AddEvent(InStartTime, InEndTime, 0, *GetName());
+			};
 
-				if (FTimingEventsTrack::bUseDownSampling)
-				{
-					const double SecondsPerPixel = 1.0 / Helper.GetViewport().GetScaleX();
-					InTimeline.EnumerateEventsDownSampled(Helper.GetViewport().GetStartTime(), Helper.GetViewport().GetEndTime(), SecondsPerPixel, DrawEvents);
-				}
-				else
-				{
-					InTimeline.EnumerateEvents(Helper.GetViewport().GetStartTime(), Helper.GetViewport().GetEndTime(), DrawEvents);
-				}
-			});
-		}
-
-		Helper.EndTimeline(Track);
+			if (FTimingEventsTrack::bUseDownSampling)
+			{
+				const double SecondsPerPixel = 1.0 / Context.GetViewport().GetScaleX();
+				InTimeline.EnumerateEventsDownSampled(Context.GetViewport().GetStartTime(), Context.GetViewport().GetEndTime(), SecondsPerPixel, DrawEvents);
+			}
+			else
+			{
+				InTimeline.EnumerateEvents(Context.GetViewport().GetStartTime(), Context.GetViewport().GetEndTime(), DrawEvents);
+			}
+		});
 	}
 }
 
-void FAnimationTickRecordsTrack::InitTooltip(FTooltipDrawState& Tooltip, const FTimingEvent& HoveredTimingEvent) const
+void FAnimationTickRecordsTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimingEvent& HoveredTimingEvent) const
 {
-	FTimingEventSearchParameters SearchParameters(HoveredTimingEvent.StartTime, HoveredTimingEvent.EndTime, ETimingEventSearchFlags::StopAtFirstMatch);
+	FTimingEventSearchParameters SearchParameters(HoveredTimingEvent.GetStartTime(), HoveredTimingEvent.GetEndTime(), ETimingEventSearchFlags::StopAtFirstMatch);
 
 	FindTickRecordMessage(SearchParameters, [this, &Tooltip](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FTickRecordMessage& InMessage)
 	{
@@ -79,17 +72,21 @@ void FAnimationTickRecordsTrack::InitTooltip(FTooltipDrawState& Tooltip, const F
 	});
 }
 
-bool FAnimationTickRecordsTrack::SearchTimingEvent(const FTimingEventSearchParameters& InSearchParameters, FTimingEvent& InOutTimingEvent) const
+const TSharedPtr<const ITimingEvent> FAnimationTickRecordsTrack::SearchEvent(const FTimingEventSearchParameters& InSearchParameters) const
 {
-	return FindTickRecordMessage(InSearchParameters, [this, &InOutTimingEvent](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FTickRecordMessage& InFoundMessage)
+	TSharedPtr<const ITimingEvent> FoundEvent;
+
+	FindTickRecordMessage(InSearchParameters, [this, &FoundEvent](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FTickRecordMessage& InFoundMessage)
 	{
-		InOutTimingEvent = FTimingEvent(this, InFoundStartTime, InFoundEndTime, InFoundDepth);
+		FoundEvent = MakeShared<const FTimingEvent>(SharedThis(this), InFoundStartTime, InFoundEndTime, InFoundDepth);
 	});
+
+	return FoundEvent;
 }
 
-bool FAnimationTickRecordsTrack::FindTickRecordMessage(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const FTickRecordMessage&)> InFoundPredicate) const
+void FAnimationTickRecordsTrack::FindTickRecordMessage(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const FTickRecordMessage&)> InFoundPredicate) const
 {
-	return TTimingEventSearch<FTickRecordMessage>::Search(
+	TTimingEventSearch<FTickRecordMessage>::Search(
 		InParameters,
 
 		[this](TTimingEventSearch<FTickRecordMessage>::FContext& InContext)

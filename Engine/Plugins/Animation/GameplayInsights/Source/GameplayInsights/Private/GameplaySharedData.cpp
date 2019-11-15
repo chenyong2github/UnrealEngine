@@ -12,6 +12,7 @@
 
 FGameplaySharedData::FGameplaySharedData()
 	: AnalysisSession(nullptr)
+	, bObjectTracksDirty(false)
 	, bObjectTracksEnabled(false)
 {
 }
@@ -26,36 +27,38 @@ void FGameplaySharedData::OnEndSession(Insights::ITimingViewSession& InTimingVie
 	ObjectTracks.Reset();
 }
 
-FObjectEventsTrack* FGameplaySharedData::GetObjectEventsTrackForId(Insights::ITimingViewSession& InTimingViewSession, const Trace::IAnalysisSession& InAnalysisSession, const FObjectInfo& InObjectInfo)
+TSharedRef<FObjectEventsTrack> FGameplaySharedData::GetObjectEventsTrackForId(Insights::ITimingViewSession& InTimingViewSession, const Trace::IAnalysisSession& InAnalysisSession, const FObjectInfo& InObjectInfo)
 {
 	const FGameplayProvider* GameplayProvider = InAnalysisSession.ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
 	check(GameplayProvider);
 
-	FObjectEventsTrack* LeafObjectEventsTrack = ObjectTracks.FindRef(InObjectInfo.Id);
-	if(LeafObjectEventsTrack == nullptr)
+	TSharedPtr<FObjectEventsTrack> LeafObjectEventsTrack = ObjectTracks.FindRef(InObjectInfo.Id);
+	if(!LeafObjectEventsTrack.IsValid())
 	{
-		LeafObjectEventsTrack = new FObjectEventsTrack(*this, InObjectInfo.Id, InObjectInfo.Name);
+		LeafObjectEventsTrack = MakeShared<FObjectEventsTrack>(*this, InObjectInfo.Id, InObjectInfo.Name);
 		LeafObjectEventsTrack->SetVisibilityFlag(bObjectTracksEnabled);
 		ObjectTracks.Add(InObjectInfo.Id, LeafObjectEventsTrack);
 
-		InTimingViewSession.AddTimingEventsTrack(LeafObjectEventsTrack);
+		InTimingViewSession.AddScrollableTrack(LeafObjectEventsTrack);
+		InvalidateObjectTracksOrder();
 	}
 
 	// Fill the outer chain
 	if(InObjectInfo.OuterId != 0)
 	{
-		FObjectEventsTrack* ObjectEventsTrack = LeafObjectEventsTrack;
+		TSharedPtr<FObjectEventsTrack> ObjectEventsTrack = LeafObjectEventsTrack;
 		uint64 OuterId = InObjectInfo.OuterId;
 		while(const FObjectInfo* OuterInfo = GameplayProvider->FindObjectInfo(OuterId))
 		{
-			FObjectEventsTrack* OuterEventsTrack = ObjectTracks.FindRef(OuterId);
-			if(OuterEventsTrack == nullptr)
+			TSharedPtr<FObjectEventsTrack> OuterEventsTrack = ObjectTracks.FindRef(OuterId);
+			if(!OuterEventsTrack.IsValid())
 			{
-				OuterEventsTrack = new FObjectEventsTrack(*this, OuterId, OuterInfo->Name);
+				OuterEventsTrack = MakeShared<FObjectEventsTrack>(*this, OuterId, OuterInfo->Name);
 				OuterEventsTrack->SetVisibilityFlag(bObjectTracksEnabled);
 				ObjectTracks.Add(OuterId, OuterEventsTrack);
 
-				InTimingViewSession.AddTimingEventsTrack(OuterEventsTrack);
+				InTimingViewSession.AddScrollableTrack(OuterEventsTrack);
+				InvalidateObjectTracksOrder();
 			}
 
 			// setup hierarchy
@@ -69,10 +72,10 @@ FObjectEventsTrack* FGameplaySharedData::GetObjectEventsTrackForId(Insights::ITi
 		}
 	}
 
-	return LeafObjectEventsTrack;
+	return LeafObjectEventsTrack.ToSharedRef();
 }
 
-static void UpdateTrackOrderRecursive(FObjectEventsTrack* InTrack, int32& InOutOrder)
+static void UpdateTrackOrderRecursive(TSharedRef<FObjectEventsTrack> InTrack, int32& InOutOrder)
 {
 	// recurse down object-track children, then non-object track leaf tracks to set 
 	// overall ordering based on depth-first traversal of the hierarchy
@@ -81,17 +84,17 @@ static void UpdateTrackOrderRecursive(FObjectEventsTrack* InTrack, int32& InOutO
 
 	for(FGameplayTrack* ChildTrack : InTrack->GetGameplayTrack().GetChildTracks())
 	{
-		if(ChildTrack->GetTimingTrack().GetType() == FObjectEventsTrack::TypeName)
+		if(ChildTrack->GetTimingTrack()->GetType() == FObjectEventsTrack::TypeName)
 		{
-			UpdateTrackOrderRecursive(static_cast<FObjectEventsTrack*>(&ChildTrack->GetTimingTrack()), InOutOrder);
+			UpdateTrackOrderRecursive(StaticCastSharedRef<FObjectEventsTrack>(ChildTrack->GetTimingTrack()), InOutOrder);
 		}
 	}
 
 	for(FGameplayTrack* ChildTrack : InTrack->GetGameplayTrack().GetChildTracks())
 	{
-		if(ChildTrack->GetTimingTrack().GetType() != FObjectEventsTrack::TypeName)
+		if(ChildTrack->GetTimingTrack()->GetType() != FObjectEventsTrack::TypeName)
 		{
-			ChildTrack->GetTimingTrack().SetOrder(InOutOrder++);
+			ChildTrack->GetTimingTrack()->SetOrder(InOutOrder++);
 		}
 	}
 }
@@ -104,10 +107,12 @@ void FGameplaySharedData::Tick(Insights::ITimingViewSession& InTimingViewSession
 
 	if(GameplayProvider)
 	{
+		Trace::FAnalysisSessionReadScope SessionReadScope(GetAnalysisSession());
+
 		// Add a track for each tracked object
 		GameplayProvider->EnumerateObjects([this, &InTimingViewSession, &InAnalysisSession, &GameplayProvider](const FObjectInfo& InObjectInfo)
 		{
-			FObjectEventsTrack* ObjectEventsTrack = GetObjectEventsTrackForId(InTimingViewSession, InAnalysisSession, InObjectInfo);
+			TSharedPtr<FObjectEventsTrack> ObjectEventsTrack = GetObjectEventsTrackForId(InTimingViewSession, InAnalysisSession, InObjectInfo);
 			ObjectEventsTrack->SetVisibilityFlag(false);
 
 			GameplayProvider->ReadObjectEventsTimeline(InObjectInfo.Id, [this, &ObjectEventsTrack](const IGameplayProvider::ObjectEventsTimeline& InTimeline)
@@ -115,6 +120,13 @@ void FGameplaySharedData::Tick(Insights::ITimingViewSession& InTimingViewSession
 				ObjectEventsTrack->SetVisibilityFlag(bObjectTracksEnabled);
 			});
 		});
+
+		if(bObjectTracksDirty)
+		{
+			SortTracks();
+			InTimingViewSession.InvalidateScrollableTracksOrder();
+			bObjectTracksDirty = false;
+		}
 	}
 }
 
@@ -133,30 +145,32 @@ void FGameplaySharedData::ExtendFilterMenu(FMenuBuilder& InMenuBuilder)
 	);
 }
 
-void FGameplaySharedData::OnTracksChanged(int32& InOutOrder)
+void FGameplaySharedData::SortTracks()
 {
+	int32 Order = 10000;
+
 	// Find current roots
-	static TArray<FObjectEventsTrack*> Roots;
+	static TArray<TSharedRef<FObjectEventsTrack>> Roots;
 	check(Roots.Num() == 0);
 
 	for(auto ObjectTrackPair : ObjectTracks)
 	{
 		if(ObjectTrackPair.Value->GetGameplayTrack().GetParentTrack() == nullptr)
 		{
-			Roots.Add(ObjectTrackPair.Value);
+			Roots.Add(ObjectTrackPair.Value.ToSharedRef());
 		}
 	}
 
 	// Sort roots alphabetically
-	Algo::Sort(Roots, [](FObjectEventsTrack* InTrack0, FObjectEventsTrack* InTrack1)
+	Algo::Sort(Roots, [](TSharedRef<FObjectEventsTrack> InTrack0, TSharedRef<FObjectEventsTrack> InTrack1)
 	{
 		return InTrack0->GetName() < InTrack1->GetName();
 	});
 
 	// update ordering
-	for(FObjectEventsTrack* RootTrack : Roots)
+	for(TSharedRef<FObjectEventsTrack> RootTrack : Roots)
 	{
-		UpdateTrackOrderRecursive(RootTrack, InOutOrder);
+		UpdateTrackOrderRecursive(RootTrack, Order);
 	}
 
 	Roots.Reset();
@@ -166,9 +180,9 @@ void FGameplaySharedData::ToggleGameplayTracks()
 {
 	bObjectTracksEnabled = !bObjectTracksEnabled;
 
-	for(TPair<uint64, FObjectEventsTrack*> TrackPair : ObjectTracks)
+	for(auto ObjectTrackPair : ObjectTracks)
 	{
-		TrackPair.Value->SetVisibilityFlag(bObjectTracksEnabled);
+		ObjectTrackPair.Value->SetVisibilityFlag(bObjectTracksEnabled);
 	}
 }
 

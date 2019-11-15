@@ -20,27 +20,35 @@ public:
 	void OnEndSession(Insights::ITimingViewSession& InTimingViewSession);
 	void Tick(Insights::ITimingViewSession& InTimingViewSession, const Trace::IAnalysisSession& InAnalysisSession);
 	void ExtendFilterMenu(FMenuBuilder& InMenuBuilder);
-	void OnTracksChanged(int32& InOutOrder);
 
 	// Helper function. Builds object track hierarchy on-demand and returns a track for the supplied object info.
-	FObjectEventsTrack* GetObjectEventsTrackForId(Insights::ITimingViewSession& InTimingViewSession, const Trace::IAnalysisSession& InAnalysisSession, const FObjectInfo& InObjectInfo);
+	TSharedRef<FObjectEventsTrack> GetObjectEventsTrackForId(Insights::ITimingViewSession& InTimingViewSession, const Trace::IAnalysisSession& InAnalysisSession, const FObjectInfo& InObjectInfo);
 
 	// Check whether gameplay tacks are enabled
 	bool AreGameplayTracksEnabled() const;
+
+	// Invalidate object trcks order, so they get re-sorted next tick
+	void InvalidateObjectTracksOrder() { bObjectTracksDirty = true; }
 
 	// Get the last cached analysis session
 	const Trace::IAnalysisSession& GetAnalysisSession() const { return *AnalysisSession; }
 
 private:
+	// Re-sort tracks if trrack ordering has changed
+	void SortTracks();
+
 	// UI handlers
 	void ToggleGameplayTracks();
 
 private:
 	// Track for each tracked object, mapped from Object ID -> track
-	TMap<uint64, FObjectEventsTrack*> ObjectTracks;
+	TMap<uint64, TSharedPtr<FObjectEventsTrack>> ObjectTracks;
 
 	// Cached analysis session, set in Tick()
 	const Trace::IAnalysisSession* AnalysisSession;
+
+	// Dirty flag for adding object tracks, used to trigger re-sorting
+	bool bObjectTracksDirty;
 
 	// Whether all of our object tracks are enabled
 	bool bObjectTracksEnabled;

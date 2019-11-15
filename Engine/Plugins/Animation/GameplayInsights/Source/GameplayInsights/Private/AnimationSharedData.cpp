@@ -63,10 +63,12 @@ void FAnimationSharedData::Tick(Insights::ITimingViewSession& InTimingViewSessio
 
 	if(AnimationProvider && GameplayProvider)
 	{
+		Trace::FAnalysisSessionReadScope SessionReadScope(GetAnalysisSession());
+
 		// Add tracks for each tracked object's animation data
 		GameplayProvider->EnumerateObjects([this, &InTimingViewSession, &InAnalysisSession, &AnimationProvider, &GameplayProvider](const FObjectInfo& InObjectInfo)
 		{
-			FObjectEventsTrack* ObjectEventsTrack = GameplaySharedData.GetObjectEventsTrackForId(InTimingViewSession, InAnalysisSession, InObjectInfo);
+			TSharedRef<FObjectEventsTrack> ObjectEventsTrack = GameplaySharedData.GetObjectEventsTrackForId(InTimingViewSession, InAnalysisSession, InObjectInfo);
 
 			AnimationProvider->ReadSkeletalMeshPoseTimeline(InObjectInfo.Id, [this, &InObjectInfo, &ObjectEventsTrack, &InTimingViewSession](const IAnimationProvider::SkeletalMeshPoseTimeline& InTimeline)
 			{
@@ -83,14 +85,15 @@ void FAnimationSharedData::Tick(Insights::ITimingViewSession& InTimingViewSessio
 					return false;
 				};
 
-				FSkeletalMeshPoseTrack* SkeletalMeshPoseTrack = static_cast<FSkeletalMeshPoseTrack*>(ObjectEventsTrack->GetGameplayTrack().FindChildTrack(InObjectInfo.Id, FindSkeletalMeshPoseTrack));
-				if(SkeletalMeshPoseTrack == nullptr)
+				TSharedPtr<FSkeletalMeshPoseTrack> SkeletalMeshPoseTrack = StaticCastSharedPtr<FSkeletalMeshPoseTrack>(ObjectEventsTrack->GetGameplayTrack().FindChildTrack(InObjectInfo.Id, FindSkeletalMeshPoseTrack));
+				if(!SkeletalMeshPoseTrack.IsValid())
 				{
-					SkeletalMeshPoseTrack = new FSkeletalMeshPoseTrack(*this, InObjectInfo.Id, InObjectInfo.Name);
+					SkeletalMeshPoseTrack = MakeShared<FSkeletalMeshPoseTrack>(*this, InObjectInfo.Id, InObjectInfo.Name);
 					SkeletalMeshPoseTrack->SetVisibilityFlag(bAnimationTracksEnabled);
-					SkeletalMeshPoseTracks.Add(SkeletalMeshPoseTrack);
+					SkeletalMeshPoseTracks.Add(SkeletalMeshPoseTrack.ToSharedRef());
 
-					InTimingViewSession.AddTimingEventsTrack(SkeletalMeshPoseTrack);
+					InTimingViewSession.AddScrollableTrack(SkeletalMeshPoseTrack);
+					GameplaySharedData.InvalidateObjectTracksOrder();
 
 					ObjectEventsTrack->GetGameplayTrack().AddChildTrack(SkeletalMeshPoseTrack->GetGameplayTrack());
 				}
@@ -112,16 +115,17 @@ void FAnimationSharedData::Tick(Insights::ITimingViewSession& InTimingViewSessio
 					return false;
 				};
 
-				FAnimationTickRecordsTrack* AnimationTickRecordsTrack = static_cast<FAnimationTickRecordsTrack*>(ObjectEventsTrack->GetGameplayTrack().FindChildTrack(InObjectInfo.Id, FindTickRecordTrackWithAssetId));
-				if(AnimationTickRecordsTrack == nullptr)
+				TSharedPtr<FAnimationTickRecordsTrack> AnimationTickRecordsTrack = StaticCastSharedPtr<FAnimationTickRecordsTrack>(ObjectEventsTrack->GetGameplayTrack().FindChildTrack(InObjectInfo.Id, FindTickRecordTrackWithAssetId));
+				if(!AnimationTickRecordsTrack.IsValid())
 				{
 					const FObjectInfo* AssetObjectInfo = GameplayProvider->FindObjectInfo(InAssetId);
 					FString AssetName = AssetObjectInfo ? AssetObjectInfo->Name : LOCTEXT("UnknownAsset", "Unknown").ToString();
-					AnimationTickRecordsTrack = new FAnimationTickRecordsTrack(*this, InObjectInfo.Id, InAssetId, *AssetName);
+					AnimationTickRecordsTrack = MakeShared<FAnimationTickRecordsTrack>(*this, InObjectInfo.Id, InAssetId, *AssetName);
 					AnimationTickRecordsTrack->SetVisibilityFlag(bAnimationTracksEnabled);
-					AnimationTickRecordsTracks.Add(AnimationTickRecordsTrack);
+					AnimationTickRecordsTracks.Add(AnimationTickRecordsTrack.ToSharedRef());
 
-					InTimingViewSession.AddTimingEventsTrack(AnimationTickRecordsTrack);
+					InTimingViewSession.AddScrollableTrack(AnimationTickRecordsTrack);
+					GameplaySharedData.InvalidateObjectTracksOrder();
 
 					ObjectEventsTrack->GetGameplayTrack().AddChildTrack(AnimationTickRecordsTrack->GetGameplayTrack());
 				}
@@ -149,12 +153,12 @@ void FAnimationSharedData::ToggleAnimationTracks()
 {
 	bAnimationTracksEnabled = !bAnimationTracksEnabled;
 
-	for(FSkeletalMeshPoseTrack* PoseTrack : SkeletalMeshPoseTracks)
+	for(TSharedRef<FSkeletalMeshPoseTrack> PoseTrack : SkeletalMeshPoseTracks)
 	{
 		PoseTrack->SetVisibilityFlag(bAnimationTracksEnabled);
 	}
 
-	for(FAnimationTickRecordsTrack* TickRecordTrack : AnimationTickRecordsTracks)
+	for(TSharedRef<FAnimationTickRecordsTrack> TickRecordTrack : AnimationTickRecordsTracks)
 	{
 		TickRecordTrack->SetVisibilityFlag(bAnimationTracksEnabled);
 	}
@@ -165,20 +169,38 @@ bool FAnimationSharedData::AreAnimationTracksEnabled() const
 	return bAnimationTracksEnabled;
 }
 
-void FAnimationSharedData::OnSelectedEventChanged(const FTimingEvent& InEvent)
+void FAnimationSharedData::OnSelectedEventChanged(const TSharedPtr<const ITimingEvent> InEvent)
 {
 	bSelectedEventValid = InEvent.IsValid();
-	SelectedEventTrack = InEvent.Track;
-	SelectedEventStartTime = InEvent.StartTime;
-	SelectedEventEndTime = InEvent.EndTime;
+	if(bSelectedEventValid)
+	{
+		SelectedEventTrack = InEvent->GetTrack();
+		SelectedEventStartTime = InEvent->GetStartTime();
+		SelectedEventEndTime = InEvent->GetEndTime();
+	}
+	else
+	{
+		SelectedEventTrack = nullptr;
+		SelectedEventStartTime = 0.0;
+		SelectedEventEndTime = 0.0;
+	}
 }
 
-void FAnimationSharedData::OnHoveredEventChanged(const FTimingEvent& InEvent)
+void FAnimationSharedData::OnHoveredEventChanged(const TSharedPtr<const ITimingEvent> InEvent)
 {
 	bHoveredEventValid = InEvent.IsValid();
-	HoveredEventTrack = InEvent.Track;
-	HoveredEventStartTime = InEvent.StartTime;
-	HoveredEventEndTime = InEvent.EndTime;
+	if(bHoveredEventValid)
+	{
+		HoveredEventTrack = InEvent->GetTrack();
+		HoveredEventStartTime = InEvent->GetStartTime();
+		HoveredEventEndTime = InEvent->GetEndTime();
+	}
+	else
+	{
+		HoveredEventTrack = nullptr;
+		HoveredEventStartTime = 0.0;
+		HoveredEventEndTime = 0.0;
+	}
 }
 
 void FAnimationSharedData::OnTimeMarkerChanged(Insights::ETimeChangedFlags InFlags, double InTimeMarker)
@@ -198,7 +220,7 @@ void FAnimationSharedData::OnSelectionChanged(Insights::ETimeChangedFlags InFlag
 
 void FAnimationSharedData::DrawPoses(ULineBatchComponent* InLineBatcher)
 {
-	for(FSkeletalMeshPoseTrack* PoseTrack : SkeletalMeshPoseTracks)
+	for(TSharedRef<FSkeletalMeshPoseTrack> PoseTrack : SkeletalMeshPoseTracks)
 	{
 		if(PoseTrack->IsVisible())
 		{

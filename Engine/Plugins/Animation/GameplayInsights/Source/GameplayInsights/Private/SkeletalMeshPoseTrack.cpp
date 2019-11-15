@@ -1,7 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "SkeletalMeshPoseTrack.h"
-#include "Insights/ITimingViewDrawHelper.h"
 #include "GameplayProvider.h"
 #include "AnimationProvider.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
@@ -9,10 +8,12 @@
 #include "AnimationSharedData.h"
 #include "Framework/Multibox/MultiboxBuilder.h"
 #include "Insights/ViewModels/TimingEventSearch.h"
+#include "Insights/ViewModels/TooltipDrawState.h"
 
 #if WITH_ENGINE
 #include "Components/LineBatchComponent.h"
 #endif
+
 
 #define LOCTEXT_NAMESPACE "SkeletalMeshPoseTrack"
 
@@ -29,53 +30,39 @@ FSkeletalMeshPoseTrack::FSkeletalMeshPoseTrack(const FAnimationSharedData& InSha
 {
 }
 
-void FSkeletalMeshPoseTrack::Reset()
+void FSkeletalMeshPoseTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context)
 {
-	FTimingEventsTrack::Reset();
+	const FAnimationProvider* AnimationProvider = SharedData.GetAnalysisSession().ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
 
-	SetHeight(16.0f);
-}
-
-void FSkeletalMeshPoseTrack::Draw( ITimingViewDrawHelper& Helper) const
-{
-	FSkeletalMeshPoseTrack& Track = *const_cast<FSkeletalMeshPoseTrack*>(this);
-
-	if (Helper.BeginTimeline(Track))
+	if(AnimationProvider)
 	{
-		const FAnimationProvider* AnimationProvider = SharedData.GetAnalysisSession().ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
+		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
-		if(AnimationProvider)
+		AnimationProvider->ReadSkeletalMeshPoseTimeline(GetGameplayTrack().GetObjectId(), [&Context, &Builder](const FAnimationProvider::SkeletalMeshPoseTimeline& InTimeline)
 		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
-
-			AnimationProvider->ReadSkeletalMeshPoseTimeline(GetGameplayTrack().GetObjectId(), [&Helper](const FAnimationProvider::SkeletalMeshPoseTimeline& InTimeline)
+			auto DrawEvent = [&Builder](double InStartTime, double InEndTime, uint32 InDepth, const FSkeletalMeshPoseMessage& InMessage)
 			{
-				auto DrawEvent = [&Helper](double InStartTime, double InEndTime, uint32 InDepth, const FSkeletalMeshPoseMessage& InMessage)
-				{
-					static TCHAR Buffer[256];
-					FCString::Snprintf(Buffer, 256, TEXT("%d Bones"), InMessage.NumTransforms);
-					Helper.AddEvent(InStartTime, InEndTime, 0, Buffer);
-				};
+				static TCHAR Buffer[256];
+				FCString::Snprintf(Buffer, 256, TEXT("%d Bones"), InMessage.NumTransforms);
+				Builder.AddEvent(InStartTime, InEndTime, 0, Buffer);
+			};
 
-				if (FTimingEventsTrack::bUseDownSampling)
-				{
-					const double SecondsPerPixel = 1.0 / Helper.GetViewport().GetScaleX();
-					InTimeline.EnumerateEventsDownSampled(Helper.GetViewport().GetStartTime(), Helper.GetViewport().GetEndTime(), SecondsPerPixel, DrawEvent);
-				}
-				else
-				{
-					InTimeline.EnumerateEvents(Helper.GetViewport().GetStartTime(), Helper.GetViewport().GetEndTime(), DrawEvent);
-				}
-			});
-		}
-
-		Helper.EndTimeline(Track);
+			if (FTimingEventsTrack::bUseDownSampling)
+			{
+				const double SecondsPerPixel = 1.0 / Context.GetViewport().GetScaleX();
+				InTimeline.EnumerateEventsDownSampled(Context.GetViewport().GetStartTime(), Context.GetViewport().GetEndTime(), SecondsPerPixel, DrawEvent);
+			}
+			else
+			{
+				InTimeline.EnumerateEvents(Context.GetViewport().GetStartTime(), Context.GetViewport().GetEndTime(), DrawEvent);
+			}
+		});
 	}
 }
 
-void FSkeletalMeshPoseTrack::InitTooltip(FTooltipDrawState& Tooltip, const FTimingEvent& HoveredTimingEvent) const
+void FSkeletalMeshPoseTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimingEvent& HoveredTimingEvent) const
 {
-	FTimingEventSearchParameters SearchParameters(HoveredTimingEvent.StartTime, HoveredTimingEvent.EndTime, ETimingEventSearchFlags::StopAtFirstMatch);
+	FTimingEventSearchParameters SearchParameters(HoveredTimingEvent.GetStartTime(), HoveredTimingEvent.GetEndTime(), ETimingEventSearchFlags::StopAtFirstMatch);
 
 	FindSkeletalMeshPoseMessage(SearchParameters, [this, &Tooltip](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FSkeletalMeshPoseMessage& InMessage)
 	{
@@ -90,17 +77,21 @@ void FSkeletalMeshPoseTrack::InitTooltip(FTooltipDrawState& Tooltip, const FTimi
 	});
 }
 
-bool FSkeletalMeshPoseTrack::SearchTimingEvent(const FTimingEventSearchParameters& InSearchParameters, FTimingEvent& InOutTimingEvent) const
+const TSharedPtr<const ITimingEvent> FSkeletalMeshPoseTrack::SearchEvent(const FTimingEventSearchParameters& InSearchParameters) const
 {
-	return FindSkeletalMeshPoseMessage(InSearchParameters, [this, &InOutTimingEvent](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FSkeletalMeshPoseMessage& InFoundMessage)
+	TSharedPtr<const ITimingEvent> FoundEvent;
+
+	FindSkeletalMeshPoseMessage(InSearchParameters, [this, &FoundEvent](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FSkeletalMeshPoseMessage& InFoundMessage)
 	{
-		InOutTimingEvent = FTimingEvent(this, InFoundStartTime, InFoundEndTime, InFoundDepth);
+		FoundEvent = MakeShared<const FTimingEvent>(SharedThis(this), InFoundStartTime, InFoundEndTime, InFoundDepth);
 	});
+
+	return FoundEvent;
 }
 
-bool FSkeletalMeshPoseTrack::FindSkeletalMeshPoseMessage(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const FSkeletalMeshPoseMessage&)> InFoundPredicate) const
+void FSkeletalMeshPoseTrack::FindSkeletalMeshPoseMessage(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const FSkeletalMeshPoseMessage&)> InFoundPredicate) const
 {
-	return TTimingEventSearch<FSkeletalMeshPoseMessage>::Search(
+	TTimingEventSearch<FSkeletalMeshPoseMessage>::Search(
 		InParameters,
 
 		[this](TTimingEventSearch<FSkeletalMeshPoseMessage>::FContext& InContext)

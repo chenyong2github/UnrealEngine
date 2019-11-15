@@ -39,8 +39,8 @@ public:
 private:
 	// UI handlers
 	void ToggleAnimationTracks();
-	void OnSelectedEventChanged(const FTimingEvent& InEvent);
-	void OnHoveredEventChanged(const FTimingEvent& InEvent);
+	void OnSelectedEventChanged(const TSharedPtr<const ITimingEvent> InEvent);
+	void OnHoveredEventChanged(const TSharedPtr<const ITimingEvent> InEvent);
 	void OnTimeMarkerChanged(Insights::ETimeChangedFlags InFlags, double InTimeMarker);
 	void OnSelectionChanged(Insights::ETimeChangedFlags InFlags, double InStartTime, double InEndTime);
 
@@ -52,8 +52,8 @@ private:
 	const Trace::IAnalysisSession* AnalysisSession;
 
 	// All the tracks we manage
-	TArray<FSkeletalMeshPoseTrack*> SkeletalMeshPoseTracks;
-	TArray<FAnimationTickRecordsTrack*> AnimationTickRecordsTracks;
+	TArray<TSharedRef<FSkeletalMeshPoseTrack>> SkeletalMeshPoseTracks;
+	TArray<TSharedRef<FAnimationTickRecordsTrack>> AnimationTickRecordsTracks;
 
 	// Delegate handles for hooks into the timing view
 	FDelegateHandle SelectedEventChangedHandle;
@@ -62,8 +62,8 @@ private:
 	FDelegateHandle SelectionChangedHandle;
 
 	/** Selected/hovered tracks */
-	const FTimingEventsTrack* SelectedEventTrack;
-	const FTimingEventsTrack* HoveredEventTrack;
+	TSharedPtr<const FBaseTimingTrack> SelectedEventTrack;
+	TSharedPtr<const FBaseTimingTrack> HoveredEventTrack;
 
 	/** Various times and ranges */
 	double SelectedEventStartTime;

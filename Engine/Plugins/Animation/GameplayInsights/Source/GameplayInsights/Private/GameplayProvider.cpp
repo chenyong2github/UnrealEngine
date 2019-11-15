@@ -41,6 +41,8 @@ bool FGameplayProvider::ReadObjectEvent(uint64 InObjectId, uint64 InMessageId, T
 
 void FGameplayProvider::EnumerateObjects(TFunctionRef<void(const FObjectInfo&)> Callback) const
 {
+	Session.ReadAccessCheck();
+
 	for(const FObjectInfo& ObjectInfo : ObjectInfos)
 	{
 		Callback(ObjectInfo);
@@ -49,6 +51,8 @@ void FGameplayProvider::EnumerateObjects(TFunctionRef<void(const FObjectInfo&)> 
 
 const FClassInfo* FGameplayProvider::FindClassInfo(uint64 InClassId) const
 {
+	Session.ReadAccessCheck();
+
 	const int32* ClassIndex = ClassIdToIndexMap.Find(InClassId);
 	if(ClassIndex != nullptr)
 	{
@@ -60,6 +64,8 @@ const FClassInfo* FGameplayProvider::FindClassInfo(uint64 InClassId) const
 
 const FObjectInfo* FGameplayProvider::FindObjectInfo(uint64 InObjectId) const
 {
+	Session.ReadAccessCheck();
+
 	const int32* ObjectIndex = ObjectIdToIndexMap.Find(InObjectId);
 	if(ObjectIndex != nullptr)
 	{

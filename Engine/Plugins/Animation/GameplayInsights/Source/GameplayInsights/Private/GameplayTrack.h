@@ -11,7 +11,7 @@
 class FGameplayTrack
 {
 public:
-	FGameplayTrack(FBaseTimingTrack* InTimingTrack, uint64 InObjectId)
+	FGameplayTrack(FBaseTimingTrack& InTimingTrack, uint64 InObjectId)
 		: TimingTrack(InTimingTrack)
 		, ObjectId(InObjectId)
 		, Parent(nullptr)
@@ -37,20 +37,20 @@ public:
 
 		Algo::Sort(Children, [](FGameplayTrack* InTrack0, FGameplayTrack* InTrack1)
 		{
-			return InTrack0->GetTimingTrack().GetName() < InTrack1->GetTimingTrack().GetName();
+			return InTrack0->GetTimingTrack()->GetName() < InTrack1->GetTimingTrack()->GetName();
 		});	
 	}
 
 	/** Find a child track using the specified callback */
-	FBaseTimingTrack* FindChildTrack(uint64 InObjectId, TFunctionRef<bool(const FBaseTimingTrack& InTrack)> Callback)
+	TSharedPtr<FBaseTimingTrack> FindChildTrack(uint64 InObjectId, TFunctionRef<bool(const FBaseTimingTrack& InTrack)> Callback)
 	{
 		for(FGameplayTrack* ChildTrack : Children)
 		{
 			if( ChildTrack != nullptr &&
 				ChildTrack->ObjectId == InObjectId && 
-				Callback(ChildTrack->GetTimingTrack()))
+				Callback(ChildTrack->GetTimingTrack().Get()))
 			{
-				return &ChildTrack->GetTimingTrack();
+				return ChildTrack->GetTimingTrack();
 			}
 		}
 
@@ -58,14 +58,11 @@ public:
 	}
 
 	/** Access the outer timing track */
-	FBaseTimingTrack& GetTimingTrack() { return *TimingTrack; }
-
-	/** Access the outer timing track */
-	const FBaseTimingTrack& GetTimingTrack() const { return *TimingTrack; }
+	TSharedRef<FBaseTimingTrack> GetTimingTrack() const { return TimingTrack.AsShared(); }
 
 private:
 	/** Outer timing track */
-	FBaseTimingTrack* TimingTrack;
+	FBaseTimingTrack& TimingTrack;
 
 	// The object ID for this track
 	uint64 ObjectId;
@@ -82,8 +79,8 @@ class TGameplayTrackMixin : public Base
 {
 public:
 	TGameplayTrackMixin(uint64 InObjectId, const FName& InType, const FName& InSubType, const FText& InName)
-		: Base(FBaseTimingTrack::GenerateId(), InType, InSubType, InName.ToString())
-		, GameplayTrack(this, InObjectId)
+		: Base(InType, InSubType, InName.ToString())
+		, GameplayTrack(*this, InObjectId)
 	{
 	}
 

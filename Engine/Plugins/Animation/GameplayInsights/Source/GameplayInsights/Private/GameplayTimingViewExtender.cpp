@@ -61,15 +61,6 @@ void FGameplayTimingViewExtender::ExtendFilterMenu(Insights::ITimingViewSession&
 	}
 }
 
-void FGameplayTimingViewExtender::OnTracksChanged(Insights::ITimingViewSession& InSession, int32& InOutOrder)
-{
-	FPerSessionData* PerSessionData = PerSessionDataMap.Find(&InSession);
-	if(PerSessionData != nullptr)
-	{
-		PerSessionData->GameplaySharedData->OnTracksChanged(InOutOrder);
-	}
-}
-
 #if WITH_ENGINE
 void FGameplayTimingViewExtender::AddVisualizerWorld(UWorld* InWorld)
 {
