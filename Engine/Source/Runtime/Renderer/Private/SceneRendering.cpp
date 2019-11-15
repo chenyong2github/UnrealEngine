@@ -3704,6 +3704,16 @@ void FRendererModule::PostRenderAllViewports()
 	++GFrameNumber;
 }
 
+void FRendererModule::PerFrameCleanupIfSkipRenderer()
+{
+	// Some systems (e.g. Slate) can still draw (via FRendererModule::DrawTileMesh for example) when scene renderer is not used
+	ENQUEUE_RENDER_COMMAND(CmdPerFrameCleanupIfSkipRenderer)(
+		[](FRHICommandListImmediate&)
+	{
+		GPrimitiveIdVertexBufferPool.DiscardAll();
+	});
+}
+
 void FRendererModule::UpdateMapNeedsLightingFullyRebuiltState(UWorld* World)
 {
 	World->SetMapNeedsLightingFullyRebuilt(World->Scene->GetRenderScene()->NumUncachedStaticLightingInteractions, World->Scene->GetRenderScene()->NumUnbuiltReflectionCaptures);
