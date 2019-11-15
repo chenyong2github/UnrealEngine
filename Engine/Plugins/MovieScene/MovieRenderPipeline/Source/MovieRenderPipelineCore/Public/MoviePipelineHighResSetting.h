@@ -28,6 +28,9 @@ public:
 
 		return InTileSize + FIntPoint(2 * OverlappedPadX, 2 * OverlappedPadY);
 	}
+protected:
+	virtual bool IsValidOnShots() const override { return true; }
+	virtual bool IsValidOnMaster() const override { return false; }
 
 public:
 	/**

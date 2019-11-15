@@ -19,7 +19,12 @@ public:
 		, bShowPlayer(false)
 	{
 	}
-	
+
+protected:
+	virtual bool IsValidOnShots() const override { return false; }
+	virtual bool IsValidOnMaster() const override { return true; }
+
+public:
 	/** Optional Game Mode to override the map's default game mode with. This can be useful if the game's normal mode displays UI elements or loading screens that you don't want captured. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movie Pipeline")
 	TSubclassOf<AGameModeBase> GameModeOverride;

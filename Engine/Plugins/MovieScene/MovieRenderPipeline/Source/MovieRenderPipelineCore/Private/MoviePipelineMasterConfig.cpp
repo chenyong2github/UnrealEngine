@@ -119,11 +119,11 @@ UMoviePipelineShotConfig* UMoviePipelineMasterConfig::GetConfigForShot(const FSt
 
 UMoviePipelineMasterConfig::UMoviePipelineMasterConfig()
 {
-	DefaultShotConfig = NewObject<UMoviePipelineShotConfig>(this, "DefaultShotConfig");
+	DefaultShotConfig = CreateDefaultSubobject<UMoviePipelineShotConfig>("DefaultShotConfig");
 	
-	// Always add at least the output settings block since having a framerate/directory/etc. is crucial.
-	Settings.Add(NewObject<UMoviePipelineOutputSetting>(this, "OutputSetting"));
-
+	// Always add at least the output settings block since having a framerate/directory/etc. is critical.
+	UMoviePipelineOutputSetting* DefaultOutputBlock = CreateDefaultSubobject<UMoviePipelineOutputSetting>("DefaultOutputSetting");
+	Settings.Add(DefaultOutputBlock);
 }
 
 TArray<UMoviePipelineOutputBase*> UMoviePipelineMasterConfig::GetOutputContainers() const

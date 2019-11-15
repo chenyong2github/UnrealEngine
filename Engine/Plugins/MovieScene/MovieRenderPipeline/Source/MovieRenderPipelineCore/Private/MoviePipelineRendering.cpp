@@ -161,7 +161,7 @@ void UMoviePipeline::RenderFrame()
 	// In short, for each output frame, for each accumulation frame, for each tile X/Y, for each jitter, we render a pass. This setup is
 	// designed to maximize the likely hood of deterministic rendering and that different passes line up with each other.
 	UMoviePipelineAccumulationSetting* AccumulationSettings = CurrentShot.ShotConfig->FindOrAddSetting<UMoviePipelineAccumulationSetting>();
-	UMoviePipelineCameraSetting* CameraSettings = GetPipelineMasterConfig()->FindOrAddSetting<UMoviePipelineCameraSetting>();
+	UMoviePipelineCameraSetting* CameraSettings = CurrentShot.ShotConfig->FindOrAddSetting<UMoviePipelineCameraSetting>();
 	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	check(OutputSettings);
 
@@ -355,6 +355,14 @@ void UMoviePipeline::RenderFrame()
 				SampleState.BackbufferSize = BackbufferResolution;
 				SampleState.TileSize = TileResolution;
 				SampleState.FrameInfo = FrameInfo;
+				if (HighResSettings)
+				{
+					SampleState.bWriteSampleToDisk = HighResSettings->bWriteAllSamples;
+				}
+				else
+				{
+					SampleState.bWriteSampleToDisk = false;
+				}
 
 				if (bIsUsingOverlappedTiles)
 				{
@@ -429,7 +437,7 @@ void UMoviePipeline::OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample
 	}
 
 	// JPEG output
-	TileImageTask->Format = EImageFormat::EXR;
+	TileImageTask->Format = EImageFormat::JPEG;
 	TileImageTask->CompressionQuality = 100;
 
 	FString OutputName = FString::Printf(TEXT("/%s_SS_%d_TS_%d_TileX_%d_TileY_%d.%d.jpeg"),

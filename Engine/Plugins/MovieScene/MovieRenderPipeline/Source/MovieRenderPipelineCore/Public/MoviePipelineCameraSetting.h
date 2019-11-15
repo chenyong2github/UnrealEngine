@@ -18,7 +18,10 @@ public:
 		, bManualExposure(true)
 		, ExposureCompensation(8.0)
 	{}
-	
+protected:
+	virtual bool IsValidOnShots() const override { return true; }
+	virtual bool IsValidOnMaster() const override { return false; }
+
 public:
 
 	/** 

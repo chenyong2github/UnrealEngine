@@ -709,7 +709,7 @@ public:
 
 	FORCEINLINE int32 GetTileCount() const
 	{
-		return (TileCounts.X & TileCounts.Y);
+		return (TileCounts.X * TileCounts.Y);
 	}
 
 	/** How big is the back buffer for this sample? This is the final target size divided by the number of tiles with padding added. */
@@ -720,6 +720,9 @@ public:
 
 	/** If true, we will discard this sample after rendering. Used to get history set up correctly. */
 	bool bIsHistoryOnlyFrame;
+
+	/** If true, we will write this sample to disk (and also send it to the accumulator.) */
+	bool bWriteSampleToDisk;
 
 	/** How many spatial jitters will there be total for this particular temporal accumulation frame? */
 	int32 SpatialSampleCount;
@@ -825,7 +828,6 @@ namespace MoviePipeline
 		FMoviePipelineRenderPassMetrics SampleState;
 		TSharedPtr<FImageOverlappedAccumulator, ESPMode::ThreadSafe> ImageAccumulator;
 		TSharedPtr<FMoviePipelineOutputMerger, ESPMode::ThreadSafe> OutputMerger;
-		bool bWriteTiles;
 		FMoviePipelinePassIdentifier PassIdentifier;
 	};
 }

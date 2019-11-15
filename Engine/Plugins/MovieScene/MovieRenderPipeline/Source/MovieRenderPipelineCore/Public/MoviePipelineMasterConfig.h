@@ -38,6 +38,12 @@ public:
 	/** Returns a pointer to the config specified for the shot, otherwise the default for this pipeline. */
 	UMoviePipelineShotConfig* GetConfigForShot(const FString& ShotName) const;
 
+protected:
+	virtual bool CanSettingBeAdded(UMoviePipelineSetting* InSetting) override
+	{
+		check(InSetting);
+		return InSetting->IsValidOnMaster();
+	}
 public:
 	
 	/** The default shot-setup to use for any shot that doesn't a specific implementation. This is required! */

@@ -17,6 +17,13 @@ class MOVIERENDERPIPELINECORE_API UMoviePipelineBlueprintLibrary : public UBluep
 	GENERATED_BODY()
 
 public:
+	/**
+	* Takes a given Output Directory and FileName which contain {formatStrings} and convert those format strings
+	* to their actual values as best as possible. Merges the result into one final filepath string.
+	*/
+	// UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	// static FString GetCameraCutCounts(const UMoviePipeline* InPipeline, const FMoviePipelineFrameOutputState& OutputState, const FDirectoryPath& InDirectoryFormatString, const FString& InFileNameFormatString);
+
 	/** 
 	* Get the total number of Camera Cuts in a Movie Pipeline, and an index of which one is being processed.
 	* Note: Index doesn't index into any arrays (since internally we store CameraCuts inside of Shots)

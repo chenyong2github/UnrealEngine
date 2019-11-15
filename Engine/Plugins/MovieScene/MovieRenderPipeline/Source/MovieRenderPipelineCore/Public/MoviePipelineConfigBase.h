@@ -7,11 +7,11 @@
 #include "MoviePipelineConfigBase.generated.h"
 
 
-UCLASS(Blueprintable)
+UCLASS(BlueprintType, Abstract)
 class MOVIERENDERPIPELINECORE_API UMoviePipelineConfigBase : public UObject
 {
 	GENERATED_BODY()
-	
+
 public:
 	UMoviePipelineConfigBase()
 	{
@@ -20,13 +20,13 @@ public:
 
 public:
 	/**
-	* Removes the specific instance from our Setting list. 
+	* Removes the specific instance from our Setting list.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
-	void RemoveSetting(UMoviePipelineSetting* InSetting);
+		void RemoveSetting(UMoviePipelineSetting* InSetting);
 
 	int32 GetSettingsSerialNumber() const { return SettingsSerialNumber; }
-	
+
 	/**
 	* Returns an array of all settings in this config.
 	*/
@@ -38,29 +38,38 @@ public:
 	* @param InClass - Class that you wish to find the setting object for.
 	* @return An instance of this class if it already exists as a setting on this config, otherwise null.
 	*/
-	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	UMoviePipelineSetting* FindSettingByClass(TSubclassOf<UMoviePipelineSetting> InClass) const
+	UFUNCTION(BlueprintPure, meta = (DeterminesOutputType = "InClass"), Category = "Movie Render Pipeline")
+		UMoviePipelineSetting* FindSettingByClass(TSubclassOf<UMoviePipelineSetting> InClass) const
 	{
 		UMoviePipelineSetting* const* Found = Settings.FindByPredicate([InClass](UMoviePipelineSetting* In) { return In && In->GetClass() == InClass; });
 		return Found ? CastChecked<UMoviePipelineSetting>(*Found) : nullptr;
 	}
 
-	/** 
+	/**
 	* Finds a setting of a particular type for this pipeline config, adding it if it doesn't already exist.
 	* @param InClass - Class you wish to find or create the setting object for.
 	* @return An instance of this class as a setting on this config.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
-	UMoviePipelineSetting* FindOrAddSettingByClass(TSubclassOf<UMoviePipelineSetting> InClass)
+	UFUNCTION(BlueprintCallable, meta = (DeterminesOutputType = "InClass"), Category = "Movie Render Pipeline")
+		UMoviePipelineSetting* FindOrAddSettingByClass(TSubclassOf<UMoviePipelineSetting> InClass)
 	{
 		UMoviePipelineSetting* Found = FindSettingByClass(InClass);
 		if (!Found)
 		{
 			Modify();
-
+			
 			Found = NewObject<UMoviePipelineSetting>(this, InClass);
-			Settings.Add(Found);
-			++SettingsSerialNumber;
+
+			if (CanSettingBeAdded(Found))
+			{
+				Settings.Add(Found);
+				++SettingsSerialNumber;
+			}
+			else
+			{
+				FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Setting %d is not compatible with this Config Type and was not added."), *InClass->GetName()), ELogVerbosity::Error);
+				return nullptr;
+			}
 		}
 
 		return Found;
@@ -89,15 +98,26 @@ public:
 			Modify();
 
 			Found = NewObject<SettingType>(this);
-			Settings.Add(Found);
-			++SettingsSerialNumber;
+			if (CanSettingBeAdded(Found))
+			{
+				Settings.Add(Found);
+				++SettingsSerialNumber;
+			}
+			else
+			{
+				FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Setting %d is not compatible with this Config Type and was not added."), *Found->GetName()), ELogVerbosity::Error);
+				return nullptr;
+			}
 		}
 		return Found;
 	}
 
 protected:
+	virtual bool CanSettingBeAdded(UMoviePipelineSetting* InSetting) PURE_VIRTUAL( UMoviePipelineConfigBase::CanSettingBeAdded, return false; );
+
+protected:
 	/** Array of settings classes that affect various parts of the output pipeline. */
-	UPROPERTY(VisibleAnywhere, Category = "Movie Pipeline")
+	UPROPERTY(VisibleAnywhere, Instanced, Category = "Movie Pipeline")
 	TArray<UMoviePipelineSetting*> Settings;
 
 private:

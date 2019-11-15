@@ -84,7 +84,7 @@ namespace MoviePipeline
 			.SetWorldTimes(TimeSeconds, DeltaTimeSeconds, RealTimeSeconds)
 			.SetRealtimeUpdate(true));
 
-		ViewFamily.SceneCaptureSource = ESceneCaptureSource::SCS_FinalColorHDR;
+		ViewFamily.SceneCaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
 		ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, 1.0f, false));
 
 		// View is added as a child of the ViewFamily
@@ -185,7 +185,7 @@ namespace MoviePipeline
 			{
 				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Frame: %d TemporalSample: %d/%d Rendered Tile: %d/%d Sample: %d/%d"),
 					InSampleState.OutputState.OutputFrameNumber, InSampleState.TemporalSampleIndex + 1, InSampleState.TemporalSampleCount,
-					InSampleState.GetTileIndex() + 1 / InSampleState.GetTileCount(), InSampleState.SpatialSampleIndex + 1, InSampleState.SpatialSampleCount);
+					InSampleState.GetTileIndex() + 1 , InSampleState.GetTileCount(), InSampleState.SpatialSampleIndex + 1, InSampleState.SpatialSampleCount);
 			}
 			
 			ReadBackbufferAndBroadcast_RenderThread(RHICmdList, BackbufferRenderTarget, InSampleState, OnBackbufferReadDelegate);
@@ -199,11 +199,11 @@ namespace MoviePipeline
 		FIntRect SourceRect = FIntRect(0, 0, InFromRenderTarget->GetSizeXY().X, InFromRenderTarget->GetSizeXY().Y);
 
 		// Read the data back to the CPU
-		TArray<FLinearColor> RawPixels;
+		TArray<FColor> RawPixels;
 		RawPixels.SetNum(SourceRect.Width() * SourceRect.Height());
 
 		FReadSurfaceDataFlags ReadDataFlags;
-		ReadDataFlags.SetLinearToGamma(false);
+		ReadDataFlags.SetLinearToGamma(true);
 
 		RHICmdList.ReadSurfaceData(InFromRenderTarget->GetRenderTargetTexture(), SourceRect, RawPixels, ReadDataFlags);
 
@@ -394,11 +394,10 @@ void UMoviePipelineDeferredPassBase::GatherOutputPassesImpl(TArray<FMoviePipelin
 	}
 }
 
-void UMoviePipelineDeferredPassBase::OnBackbufferSampleReady(TArray<FLinearColor> InPixelData, FMoviePipelineRenderPassMetrics InSampleState)
+void UMoviePipelineDeferredPassBase::OnBackbufferSampleReady(TArray<FColor> InPixelData, FMoviePipelineRenderPassMetrics InSampleState)
 {
 	MoviePipeline::FSampleRenderThreadParams AccumulationParams;
 	{
-		AccumulationParams.bWriteTiles = true;
 		AccumulationParams.OutputMerger = GetPipeline()->OutputBuilder;
 		AccumulationParams.ImageAccumulator = ImageTileAccumulator[0];
 		AccumulationParams.SampleState = InSampleState;
@@ -409,7 +408,7 @@ void UMoviePipelineDeferredPassBase::OnBackbufferSampleReady(TArray<FLinearColor
 	FrameData->PassIdentifier = FMoviePipelinePassIdentifier(TEXT("Backbuffer"));
 	FrameData->SampleState = InSampleState;
 
-	TUniquePtr<TImagePixelData<FLinearColor>> PixelData = MakeUnique<TImagePixelData<FLinearColor>>(InSampleState.BackbufferSize, TArray64<FLinearColor>(MoveTemp(InPixelData)), FrameData);
+	TUniquePtr<TImagePixelData<FColor>> PixelData = MakeUnique<TImagePixelData<FColor>>(InSampleState.BackbufferSize, TArray64<FColor>(MoveTemp(InPixelData)), FrameData);
 
 	AccumulateSample_RenderThread(MoveTemp(PixelData), FrameData, AccumulationParams);
 }
@@ -449,7 +448,6 @@ void UMoviePipelineDeferredPassBase::OnSetupView(FSceneViewFamily& InViewFamily,
 
 		MoviePipeline::FSampleRenderThreadParams AccumulationParams;
 		{
-			AccumulationParams.bWriteTiles = true;
 			AccumulationParams.OutputMerger = GetPipeline()->OutputBuilder;
 			AccumulationParams.ImageAccumulator = ImageTileAccumulator[PassIndex + 1]; // 0 is reserved for backbuffer.
 			AccumulationParams.SampleState = InSampleState;
@@ -493,7 +491,7 @@ namespace MoviePipeline
 		check(InPixelData->IsDataWellFormed());
 
 		// Writing tiles can be useful for debug reasons. These get passed onto the output every frame.
-		if (InParams.bWriteTiles)
+		if (InParams.SampleState.bWriteSampleToDisk)
 		{
 			// Send the data to the Output Builder. This has to be a copy of the pixel data from the GPU, since
 			// it enqueues it onto the game thread and won't be read/sent to write to disk for another frame. 
@@ -540,7 +538,7 @@ namespace MoviePipeline
 
 			// Now that a tile is fully built and accumulated we can notify the output builder that the
 			// data is ready so it can pass that onto the output containers (if needed).
-			if (InPixelData->GetType() == EImagePixelType::Float32)
+			/*if (InPixelData->GetType() == EImagePixelType::Float32)
 			{
 				// 32 bit FLinearColor
 				TUniquePtr<TImagePixelData<FLinearColor> > FinalPixelData = MakeUnique<TImagePixelData<FLinearColor>>(FIntPoint(FullSizeX, FullSizeY));
@@ -558,7 +556,7 @@ namespace MoviePipeline
 				// Send the data to the Output Builder
 				InParams.OutputMerger->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(FinalPixelData), InFrameData);
 			}
-			else if(InPixelData->GetType() == EImagePixelType::Color)
+			else*/ if(true)
 			{
 				// 8bit FColors
 				TUniquePtr<TImagePixelData<FColor>> FinalPixelData = MakeUnique<TImagePixelData<FColor>>(FIntPoint(FullSizeX, FullSizeY));

@@ -34,7 +34,7 @@ UMoviePipelineShotConfig* GenerateTestShotConfig(UObject* InOwner, int32 InSampl
 		CameraSetting->CameraShutterAngle = InShutterAngle;
 		CameraSetting->ShutterTiming = InFrameTiming;
 		CameraSetting->bManualExposure = true;
-		CameraSetting->ExposureCompensation = 8;
+		CameraSetting->ExposureCompensation = 11;
 	}
 
 	if (InTileCount > 1)
@@ -43,6 +43,7 @@ UMoviePipelineShotConfig* GenerateTestShotConfig(UObject* InOwner, int32 InSampl
 		HighRes->TileCount = InTileCount;
 		HighRes->bIsUsingOverlappedTiles = bIsUsingOverlappedTiles;
 		HighRes->OverlapPercentage = PadRatioX;
+		HighRes->bWriteAllSamples = false;
 	}
 
 	return OutConfig;
@@ -74,11 +75,11 @@ TArray<UMoviePipelineMasterConfig*> FMovieRenderPipelineEditorModule::GenerateTe
 				UMoviePipelineMasterConfig* OutPipeline = NewObject<UMoviePipelineMasterConfig>(GetTransientPackage());
 				UMoviePipelineOutputSetting* OutputSetting = OutPipeline->FindOrAddSetting<UMoviePipelineOutputSetting>();
 
-				int32 SizeX = 1920/4;
-				int32 SizeY = 1080/4;
+				int32 SizeX = 1920;
+				int32 SizeY = 1080;
 				int32 TileX = 4;
 				int32 TileY = 4;
-				int32 TestNumSamples = 2;
+				int32 TestNumSamples = 8;
 				float PadRatioX = 0.5f;
 				float PadRatioY = 0.5f;
 				float AccumulationGamma = 1.0f;

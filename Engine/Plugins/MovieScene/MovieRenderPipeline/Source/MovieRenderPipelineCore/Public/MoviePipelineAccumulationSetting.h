@@ -19,6 +19,11 @@ public:
 	{
 	}
 
+protected:
+	virtual bool IsValidOnShots() const override { return true; }
+	virtual bool IsValidOnMaster() const override { return false; }
+	
+public:
 
 	/**
 	* How many frames should we accumulate together before contributing to one overall sample. This lets you

@@ -24,4 +24,12 @@ public:
 	}
 	
 	TArray<UMoviePipelineRenderPass*> GetRenderPasses() const;
+
+protected:
+	virtual bool CanSettingBeAdded(UMoviePipelineSetting* InSetting) override
+	{
+		check(InSetting);
+		return InSetting->IsValidOnShots();
+	}
+
 };

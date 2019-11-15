@@ -37,11 +37,16 @@ protected:
 
 	virtual void SetupForPipelineImpl(UMoviePipeline* InPipeline) {}
 	virtual void TeardownForPipelineImpl(UMoviePipeline* InPipeline) {}
-
+	
 public:
 #if WITH_EDITOR
 	virtual FText GetDisplayText() const { return this->GetClass()->GetDisplayNameText(); }
 #endif
+	/** Can this configuration setting be added to shots? If not, it will throw an error when trying to add it to a shot config. */
+	virtual bool IsValidOnShots() const PURE_VIRTUAL(UMoviePipelineSetting::IsValidOnShots, return false; );
+	/** Can this configuration setting be added to the master configuration? If not, it will throw an error when trying to add it to the master configuration. */
+	virtual bool IsValidOnMaster() const PURE_VIRTUAL(UMoviePipelineSetting::IsValidOnMaster, return false; );
+
 	/** Should the Pipeline automatically create an instance of this under the hood so calling code can rely on it existing? */
 	virtual bool IsRequired() const { return false; }
 	
