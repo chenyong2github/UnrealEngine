@@ -258,16 +258,9 @@ public final class NetworkChangedManager implements NetworkConnectivityClient {
 		if (networks.isEmpty() || connectivityManager == null) {
 			return ConnectivityState.NO_CONNECTION;
 		} else {
-			NetworkInfo activeNetwork = connectivityManager.getActiveNetworkInfo();
+			NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
 
-			boolean isConnected = (activeNetwork != null && activeNetwork.isAvailable() && activeNetwork.isConnected());
-			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-				if (activeNetwork != null
-						&& !connectivityManager.getNetworkCapabilities(connectivityManager.getActiveNetwork()).hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
-					isConnected = false;
-				}
-			}
-			if (isConnected) {
+			if (activeNetworkInfo != null && activeNetworkInfo.isAvailable() && activeNetworkInfo.isConnected()) {
 				return ConnectivityState.CONNECTION_AVAILABLE;
 			} else {
 				return ConnectivityState.NO_CONNECTION;
