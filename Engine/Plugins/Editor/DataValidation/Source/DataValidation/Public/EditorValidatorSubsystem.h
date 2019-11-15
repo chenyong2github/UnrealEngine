@@ -21,6 +21,23 @@ struct FAssetData;
 DECLARE_LOG_CATEGORY_EXTERN(LogContentValidation, Log, All);
 
 /**
+* Implements the settings for VR Mode.
+*/
+UCLASS(config = EditorSettings)
+class DATAVALIDATION_API UDataValidationSettings : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	/** Default constructor that sets up CDO properties */
+	UDataValidationSettings();
+
+	/** Display a progress bar while scaling that shows your current scale */
+	UPROPERTY(EditAnywhere, config, Category = "Validation Scenarios")
+	uint32 bValidateOnSave : 1;
+};
+
+/**
  * UEditorValidatorSubsystem manages all the asset validation in the engine. 
  * The first validation handled is UObject::IsDataValid and its overridden functions.
  * Those validations require custom classes and are most suited to project-specific
@@ -103,7 +120,7 @@ protected:
 	/**
 	 * Whether it should validate assets on save inside the editor
 	 */
-	UPROPERTY(config)
+	UPROPERTY(config, meta = (DeprecatedProperty, DeprecationMessage = "Use bValidateOnSave on UDataValidationSettings instead."))
 	bool bValidateOnSave;
 
 	/** List of saved package names to validate next frame */
