@@ -363,8 +363,16 @@ float SSequencerTreeView::PhysicalToVirtual(float InPhysical) const
 
 	if (PhysicalNodes.Num())
 	{
-		const FCachedGeometry& Last = PhysicalNodes.Last();
-		return Last.Node->GetVirtualTop() + (InPhysical - Last.PhysicalTop);
+		const FCachedGeometry& First = PhysicalNodes[0];
+		if (InPhysical < First.PhysicalTop)
+		{
+			return First.Node->GetVirtualTop() + (InPhysical - First.PhysicalTop);
+		}
+		else
+		{
+			const FCachedGeometry& Last = PhysicalNodes.Last();
+			return Last.Node->GetVirtualTop() + (InPhysical - Last.PhysicalTop);
+		}
 	}
 
 	return InPhysical;
