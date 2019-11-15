@@ -162,7 +162,7 @@ TArray<TEPAEntry<T>> InitializeEPA(TArray<TVec3<T>>& VertsA, TArray<TVec3<T>>& V
 	{
 		case 1:
 		{
-			ensure(false);	//This case is not supported - for GJK it means two surfaces are touching so the penetration is 0
+			//assuming it's a touching hit at origin
 			break;
 		}
 		case 2:
