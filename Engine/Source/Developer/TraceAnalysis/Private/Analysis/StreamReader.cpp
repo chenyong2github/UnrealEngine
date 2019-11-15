@@ -1,80 +1,71 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "StreamReader.h"
-#include "DataStream.h"
 #include "HAL/UnrealMemory.h"
+#include "Math/UnrealMath.h"
 
 namespace Trace
 {
 
 ////////////////////////////////////////////////////////////////////////////////
-const uint8* FStreamReader::GetPointer(uint32 Size) const
+FStreamReader::~FStreamReader()
+{
+	FMemory::Free(Buffer);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const uint8* FStreamReader::GetPointer(uint32 Size)
 {
 	if (Cursor + Size > End)
 	{
-		LastRequestedSize = Size;
+		DemandHint = FMath::Max(DemandHint, Size);
 		return nullptr;
 	}
 
-	return Cursor;
+	return Buffer + Cursor;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 void FStreamReader::Advance(uint32 Size)
 {
 	Cursor += Size;
-	check(Cursor <= End);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool FStreamReader::IsEmpty() const
+{
+	return Cursor >= End;
 }
 
 
 
 ////////////////////////////////////////////////////////////////////////////////
-FStreamReaderDetail::FStreamReaderDetail(IInDataStream& InDataStream)
-: DataStream(InDataStream)
-, BufferSize(1024)
+void FStreamBuffer::Consolidate()
 {
-	Buffer = (uint8*)FMemory::Malloc(BufferSize);
-}
+	int32 Remaining = End - Cursor;
+	DemandHint += Remaining;
 
-////////////////////////////////////////////////////////////////////////////////
-FStreamReaderDetail::~FStreamReaderDetail()
-{
-	FMemory::Free(Buffer);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-bool FStreamReaderDetail::Read()
-{
-	int32 Remaining = int32(UPTRINT(End - Cursor));
-
-	uint32 Demand = Remaining + LastRequestedSize;
-	if (Demand > BufferSize)
+	if (DemandHint >= BufferSize)
 	{
 		const uint32 GrowthSizeMask = (8 << 10) - 1;
-		BufferSize = (Demand + GrowthSizeMask) & ~GrowthSizeMask;
-		uint8* NextBuffer = (uint8*)FMemory::Realloc(Buffer, BufferSize);
-
-		SIZE_T Delta = NextBuffer - Buffer;
-		Cursor += Delta;
-		End += Delta;
-		Buffer += Delta;
+		BufferSize = (DemandHint + GrowthSizeMask + 1) & ~GrowthSizeMask;
+		Buffer = (uint8*)FMemory::Realloc(Buffer, BufferSize);
 	}
 
-	if (Remaining != 0)
+	if (!Remaining)
 	{
-		memmove(Buffer, Cursor, Remaining);
+		Cursor = 0;
+		End = 0;
 	}
-
-	uint8* Dest = Buffer + Remaining;
-	int32 ReadSize = DataStream.Read(Dest, BufferSize - Remaining);
-	if (ReadSize <= 0)
+	else if (Cursor)
 	{
-		return false;
+		memmove(Buffer, Buffer + Cursor, Remaining);
+		Cursor = 0;
+		End = Remaining;
+		check(End <= BufferSize);
 	}
 
-	Cursor = Buffer;
-	End = Dest + ReadSize;
-	return true;
+	DemandHint = 0;
 }
 
 } // namespace Trace

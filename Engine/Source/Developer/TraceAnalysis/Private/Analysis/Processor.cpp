@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Processor.h"
+#include "DataStream.h"
 #include "HAL/Event.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/RunnableThread.h"
@@ -33,18 +34,23 @@ FAnalysisProcessor::FImpl::~FImpl()
 ////////////////////////////////////////////////////////////////////////////////
 uint32 FAnalysisProcessor::FImpl::Run()
 {
-	FStreamReaderDetail Reader(DataStream);
+	FStreamBuffer Buffer;
 
 	while (!StopEvent->Wait(0, true))
 	{
 		UnpausedEvent->Wait();
 
-		if (!Reader.Read())
+		int32 BytesRead = Buffer.Fill([&] (uint8* Out, uint32 Size)
+		{
+			return DataStream.Read(Out, Size);
+		});
+
+		if (BytesRead <= 0)
 		{
 			break;
 		}
 
-		if (!AnalysisEngine.OnData(Reader))
+		if (!AnalysisEngine.OnData(Buffer))
 		{
 			break;
 		}

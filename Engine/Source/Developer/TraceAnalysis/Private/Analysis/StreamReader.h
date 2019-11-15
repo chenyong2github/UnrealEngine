@@ -7,34 +7,60 @@
 namespace Trace
 {
 
-class IInDataStream;
-
 ////////////////////////////////////////////////////////////////////////////////
 class FStreamReader
 {
 public:
-	const uint8*		GetPointer(uint32 Size) const;
-	void				Advance(uint32 Size);
+								~FStreamReader();
+	template <typename Type>
+	Type const*					GetPointer();
+	const uint8*				GetPointer(uint32 Size);
+	void						Advance(uint32 Size);
+	bool						IsEmpty() const;
 
 protected:
-	const uint8*		Cursor = nullptr;
-	const uint8*		End = nullptr;
-	mutable uint32		LastRequestedSize = 0;
+	uint8*						Buffer = nullptr;
+	uint32						DemandHint = 0;
+	uint32						Cursor = 0;
+	uint32						End = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-class FStreamReaderDetail
+template <typename Type>
+Type const* FStreamReader::GetPointer()
+{
+	return (Type const*)GetPointer(sizeof(Type));
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+class FStreamBuffer
 	: public FStreamReader
 {
 public:
-						FStreamReaderDetail(IInDataStream& InDataStream);
-						~FStreamReaderDetail();
-	bool				Read();
+	template <typename Lambda>
+	int32						Fill(Lambda&& Source);
 
-private:
-	IInDataStream&		DataStream;
-	uint8*				Buffer;
-	uint32				BufferSize;
+protected:
+	void						Consolidate();
+	uint32						BufferSize = 0;
 };
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename Lambda>
+inline int32 FStreamBuffer::Fill(Lambda&& Source)
+{
+	Consolidate();
+
+	uint8* Dest = Buffer + End;
+	int32 ReadSize = Source(Dest, BufferSize - End);
+	if (ReadSize > 0)
+	{
+		End += ReadSize;
+	}
+
+	return ReadSize;
+}
 
 } // namespace Trace
