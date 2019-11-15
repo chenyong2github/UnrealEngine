@@ -2309,6 +2309,9 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 	if (bEnableShaderCompile && !FPlatformProperties::RequiresCookedData())
 	{
+		check(!GShaderCompilerStats);
+		GShaderCompilerStats = new FShaderCompilerStats();
+
 		check(!GShaderCompilingManager);
 		GShaderCompilingManager = new FShaderCompilingManager();
 
@@ -5401,6 +5404,11 @@ void FEngineLoop::AppPreExit( )
 
 		delete GShaderCompilingManager;
 		GShaderCompilingManager = nullptr;
+	}
+	if(GShaderCompilerStats)
+	{
+		delete GShaderCompilerStats;
+		GShaderCompilerStats = nullptr;
 	}
 #endif
 }

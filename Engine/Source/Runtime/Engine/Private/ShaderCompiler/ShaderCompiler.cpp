@@ -46,6 +46,7 @@
 #include "ShaderCodeLibrary.h"
 #include "MeshMaterialShaderType.h"
 #include "ShaderParameterMetadata.h"
+#include "ProfilingDebugging/DiagnosticTable.h"
 
 #define LOCTEXT_NAMESPACE "ShaderCompiler"
 
@@ -1511,6 +1512,170 @@ int32 FShaderCompileThreadRunnable::CompilingLoop()
 	return NumActiveThreads;
 }
 
+FShaderCompilerStats* GShaderCompilerStats = NULL;
+
+void FShaderCompilerStats::WriteStats()
+{
+	{
+		FlushRenderingCommands(true);
+
+		FString FileName = FString::Printf(TEXT("%s/MaterialStats/Stats-%s.csv"), *FPaths::ProjectSavedDir(), *FDateTime::Now().ToString());
+		auto DebugWriter = IFileManager::Get().CreateDebugFileWriter(*FileName);
+		FDiagnosticTableWriterCSV StatWriter(DebugWriter);
+		const TSparseArray<ShaderCompilerStats>& PlatformStats = GetShaderCompilerStats();
+
+		StatWriter.AddColumn(TEXT("Path"));
+		StatWriter.AddColumn(TEXT("Platform"));
+		StatWriter.AddColumn(TEXT("Compiled"));
+		StatWriter.AddColumn(TEXT("Cooked"));
+		StatWriter.AddColumn(TEXT("Permutations"));
+		StatWriter.AddColumn(TEXT("CompiledDouble"));
+		StatWriter.AddColumn(TEXT("CookedDouble"));
+		StatWriter.CycleRow();
+
+		
+		for(int32 Platform = 0; Platform < PlatformStats.Num(); ++Platform)
+		{
+			if(PlatformStats.IsValidIndex(Platform))
+			{
+				const ShaderCompilerStats& Stats = PlatformStats[Platform];
+				for (const auto& Pair : Stats)
+				{
+					const FString& Path = Pair.Key;
+					const FShaderCompilerStats::FShaderStats& SingleStats = Pair.Value;
+
+					StatWriter.AddColumn(*Path);
+					StatWriter.AddColumn(TEXT("%u"), Platform);
+					StatWriter.AddColumn(TEXT("%u"), SingleStats.Compiled);
+					StatWriter.AddColumn(TEXT("%u"), SingleStats.Cooked);
+					StatWriter.AddColumn(TEXT("%u"), SingleStats.PermutationCompilations.Num());
+					StatWriter.AddColumn(TEXT("%u"), SingleStats.CompiledDouble);
+					StatWriter.AddColumn(TEXT("%u"), SingleStats.CookedDouble);
+					StatWriter.CycleRow();
+				}
+			}
+		}
+	}
+	{
+
+		FString FileName = FString::Printf(TEXT("%s/MaterialStatsDebug/StatsDebug-%s.csv"), *FPaths::ProjectSavedDir(), *FDateTime::Now().ToString());
+		auto DebugWriter = IFileManager::Get().CreateDebugFileWriter(*FileName);
+		FDiagnosticTableWriterCSV StatWriter(DebugWriter);
+		const TSparseArray<ShaderCompilerStats>& PlatformStats = GetShaderCompilerStats();
+		StatWriter.AddColumn(TEXT("Name"));
+		StatWriter.AddColumn(TEXT("Platform"));
+		StatWriter.AddColumn(TEXT("Compiles"));
+		StatWriter.AddColumn(TEXT("CompilesDouble"));
+		StatWriter.AddColumn(TEXT("Uses"));
+		StatWriter.AddColumn(TEXT("UsesDouble"));
+		StatWriter.AddColumn(TEXT("PermutationString"));
+		StatWriter.CycleRow();
+
+
+		for (int32 Platform = 0; Platform < PlatformStats.Num(); ++Platform)
+		{
+			if (PlatformStats.IsValidIndex(Platform))
+			{
+				const ShaderCompilerStats& Stats = PlatformStats[Platform];
+				for (const auto& Pair : Stats)
+				{
+					const FString& Path = Pair.Key;
+					const FShaderCompilerStats::FShaderStats& SingleStats = Pair.Value;
+					for (const FShaderCompilerStats::FShaderCompilerSinglePermutationStat& Stat : SingleStats.PermutationCompilations)
+					{
+						StatWriter.AddColumn(*Path);
+						StatWriter.AddColumn(TEXT("%u"), Platform);
+						StatWriter.AddColumn(TEXT("%u"), Stat.Compiled);
+						StatWriter.AddColumn(TEXT("%u"), Stat.CompiledDouble);
+						StatWriter.AddColumn(TEXT("%u"), Stat.Cooked);
+						StatWriter.AddColumn(TEXT("%u"), Stat.CookedDouble);
+						StatWriter.AddColumn(TEXT("%s"), *Stat.PermutationString);
+						StatWriter.CycleRow();
+					}
+				}
+
+			}
+		}
+	}
+}
+void FShaderCompilerStats::RegisterCookedShaders(uint32 NumCooked, EShaderPlatform Platform, const FString MaterialPath, FString PermutationString)
+{
+	FScopeLock Lock(&CompileStatsLock);
+	if(!CompileStats.IsValidIndex(Platform))
+	{
+		ShaderCompilerStats Stats;
+		CompileStats.Insert(Platform, Stats);
+	}
+
+	FShaderCompilerStats::FShaderStats& Stats = CompileStats[Platform].FindOrAdd(MaterialPath);
+	bool bFound = false;
+	for (FShaderCompilerSinglePermutationStat& Stat : Stats.PermutationCompilations)
+	{
+		if (PermutationString == Stat.PermutationString)
+		{
+			bFound = true;
+			if (Stat.Cooked != 0)
+			{
+				Stat.CookedDouble += NumCooked;
+				Stats.CookedDouble += NumCooked;
+			}
+			else
+			{
+				Stat.Cooked = NumCooked;
+				Stats.Cooked += NumCooked;
+			}
+		}
+	}
+	if(!bFound)
+	{
+		Stats.Cooked += NumCooked;
+	}
+	if (!bFound)
+	{
+		Stats.PermutationCompilations.Emplace(PermutationString, 0, NumCooked);
+	}
+}
+
+void FShaderCompilerStats::RegisterCompiledShaders(uint32 NumCompiled, EShaderPlatform Platform, const FString MaterialPath, FString PermutationString)
+{
+	FScopeLock Lock(&CompileStatsLock);
+	if (!CompileStats.IsValidIndex(Platform))
+	{
+		ShaderCompilerStats Stats;
+		CompileStats.Insert(Platform, Stats);
+	}
+	FShaderCompilerStats::FShaderStats& Stats = CompileStats[Platform].FindOrAdd(MaterialPath);
+
+	bool bFound = false;
+	for (FShaderCompilerSinglePermutationStat& Stat : Stats.PermutationCompilations)
+	{
+		if (PermutationString == Stat.PermutationString)
+		{
+			bFound = true;
+			if (Stat.Compiled != 0)
+			{
+				Stat.CompiledDouble += NumCompiled;
+				Stats.CompiledDouble += NumCompiled;
+			}
+			else
+			{
+				Stat.Compiled = NumCompiled;
+				Stats.Compiled += NumCompiled;
+			}
+		}
+	}
+	if(!bFound)
+	{
+		Stats.Compiled += NumCompiled;
+	}
+
+
+	if (!bFound)
+	{
+		Stats.PermutationCompilations.Emplace(PermutationString, NumCompiled, 0);
+	}
+}
+
 FShaderCompilingManager* GShaderCompilingManager = NULL;
 
 FShaderCompilingManager::FShaderCompilingManager() :
@@ -1722,13 +1887,26 @@ bool FShaderCompilingManager::GetDumpShaderDebugInfo() const
 	return GDumpShaderDebugInfo != 0;
 }
 
-void FShaderCompilingManager::AddJobs(TArray<FShaderCommonCompileJob*>& NewJobs, bool bOptimizeForLowLatency, bool bRecreateComponentRenderStateOnCompletion)
+void FShaderCompilingManager::AddJobs(TArray<FShaderCommonCompileJob*>& NewJobs, bool bOptimizeForLowLatency, bool bRecreateComponentRenderStateOnCompletion, const FString MaterialBasePath, const FString PermutationString)
 {
 	check(!FPlatformProperties::RequiresCookedData());
-
 	// Lock CompileQueueSection so we can access the input and output queues
 	FScopeLock Lock(&CompileQueueSection);
 
+	check(GShaderCompilerStats)
+
+	if(NewJobs.Num())
+	{
+		FShaderCompileJob* Job = NewJobs[0]->GetSingleShaderJob();
+		if(Job) //assume that all jobs are for the same platform
+		{
+			GShaderCompilerStats->RegisterCompiledShaders(NewJobs.Num(), Job->Input.Target.GetPlatform(), MaterialBasePath, PermutationString);
+		}
+		else
+		{
+			GShaderCompilerStats->RegisterCompiledShaders(NewJobs.Num(), SP_NumPlatforms, MaterialBasePath, PermutationString);
+		}
+	}
 	if (bOptimizeForLowLatency)
 	{
 		int32 InsertIndex = 0;
@@ -2451,7 +2629,7 @@ bool FShaderCompilingManager::HandlePotentialRetryOnError(TMap<int32, FShaderMap
 				}
 
 				// Send all the shaders from this shader map through the compiler again
-				AddJobs(Results.FinishedJobs, true, Results.bRecreateComponentRenderStateOnCompletion);
+				AddJobs(Results.FinishedJobs, true, Results.bRecreateComponentRenderStateOnCompletion, FString(""), FString(""));
 			}
 		}
 
@@ -4022,7 +4200,7 @@ void VerifyGlobalShaders(EShaderPlatform Platform, bool bLoadedFromCacheFile)
 
 	if (GlobalShaderJobs.Num() > 0)
 	{
-		GShaderCompilingManager->AddJobs(GlobalShaderJobs, true, false);
+		GShaderCompilingManager->AddJobs(GlobalShaderJobs, true, false, "Globals");
 
 		const bool bAllowAsynchronousGlobalShaderCompiling =
 			// OpenGL requires that global shader maps are compiled before attaching
