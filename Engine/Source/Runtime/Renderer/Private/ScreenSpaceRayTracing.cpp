@@ -92,7 +92,7 @@ static bool SupportScreenSpaceDiffuseIndirect(const FViewInfo& View)
 		return false;
 	}
 
-	return View.ViewState;
+	return View.ViewState != nullptr;
 }
 
 bool ShouldKeepBleedFreeSceneColor(const FViewInfo& View)
