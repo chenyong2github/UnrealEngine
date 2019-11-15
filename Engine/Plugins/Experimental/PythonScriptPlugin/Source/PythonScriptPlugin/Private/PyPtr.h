@@ -126,12 +126,7 @@ public:
 		return Ptr != nullptr;
 	}
 
-	operator TPythonType*()
-	{
-		return Ptr;
-	}
-
-	operator const TPythonType*() const
+	operator TPythonType*() const
 	{
 		return Ptr;
 	}
@@ -165,17 +160,7 @@ public:
 		return Ptr;
 	}
 
-	const TPythonType*& Get() const
-	{
-		return Ptr;
-	}
-
-	TPythonType* GetPtr()
-	{
-		return Ptr;
-	}
-
-	const TPythonType* GetPtr() const
+	TPythonType* GetPtr() const
 	{
 		return Ptr;
 	}
