@@ -177,11 +177,13 @@ struct FPackageStoreEntry
 struct FPackageSummary
 {
 	uint32 PackageFlags;
+	int32 NameMapOffset;
 	int32 ExportMapOffset;
 	int32 ExportBundlesOffset;
 	int32 GraphDataOffset;
 	int32 GraphDataSize;
 	int32 BulkDataStartOffset;
+	int32 Pad;
 };
 
 class FGlobalNameMap
@@ -609,7 +611,7 @@ public:
 
 	void BadNameIndexError(int32 NameIndex)
 	{
-		UE_LOG(LogLinker, Error, TEXT("Bad name index %i/%i"), NameIndex, NameMap->Num());
+		UE_LOG(LogStreaming, Error, TEXT("Bad name index %i/%i"), NameIndex, GlobalNameMap->Num());
 	}
 
 	inline virtual FArchive& operator<<(FName& Name) override
@@ -620,10 +622,16 @@ public:
 		int32 Number = 0;
 		Ar << Number;
 
-		if (NameMap->IsValidIndex(NameIndex))
+		// TODO: Remove support for old global namemap
+		if (PackageNameMap)
+		{
+			NameIndex = PackageNameMap[NameIndex];
+		}
+
+		if (GlobalNameMap->IsValidIndex(NameIndex))
 		{
 			// if the name wasn't loaded (because it wasn't valid in this context)
-			FNameEntryId MappedName = (*NameMap)[NameIndex];
+			FNameEntryId MappedName = (*GlobalNameMap)[NameIndex];
 
 			// simply create the name from the NameMap's name and the serialized instance number
 			Name = FName::CreateFromDisplayId(MappedName, Number);
@@ -644,7 +652,8 @@ private:
 
 	UObject* TemplateForGetArchetypeFromLoader = nullptr;
 	FPackageImportStore* ImportStore = nullptr;
-	const TArray<FNameEntryId>* NameMap = nullptr;
+	const int32* PackageNameMap = nullptr;
+	const TArray<FNameEntryId>* GlobalNameMap = nullptr;
 	const TArray<UObject*>* Exports = nullptr;
 	TArray<FExternalReadCallback>* ExternalReadDependencies;
 	FExternalIoRequests* ExternalIoRequests;
@@ -1285,6 +1294,7 @@ private:
 	FExternalIoRequests ExternalIoRequests;
 	int32 ExportCount = 0;
 	const FExportMapEntry* ExportMap = nullptr;
+	const int32* PackageNameMap = nullptr;
 	TArray<UObject*> Exports;
 	FPackageImportStore ImportStore;
 
@@ -2856,7 +2866,8 @@ void FAsyncPackage2::EventDrivenSerializeExport(int32 LocalExportIndex, const ui
 	Ar.ArAllowLazyLoading = true;
 
 	// FSimpleExportArchive special fields
-	Ar.NameMap = &AsyncLoadingThread.GlobalNameMap.GetNameEntries();
+	Ar.PackageNameMap = PackageNameMap;
+	Ar.GlobalNameMap = &AsyncLoadingThread.GlobalNameMap.GetNameEntries();
 	Ar.ImportStore = &ImportStore;
 	Ar.Exports = &Exports;
 	Ar.ExternalReadDependencies = &ExternalReadDependencies;
@@ -4208,8 +4219,12 @@ EAsyncPackageState::Type FAsyncPackage2::FinishLinker()
 	const uint8* PackageSummaryData = PackageSummaryIoBuffer.Data();
 	const FPackageSummary* PackageSummary = reinterpret_cast<const FPackageSummary*>(PackageSummaryData);
 	
-	ExportMap = reinterpret_cast<const FExportMapEntry*>(PackageSummaryData + PackageSummary->ExportMapOffset);
+	// TODO: Remove support for old global namemap
+	PackageNameMap = (PackageSummary->NameMapOffset == PackageSummary->ExportMapOffset) ? 
+		nullptr :
+		reinterpret_cast<const int32*>(PackageSummaryData + PackageSummary->NameMapOffset);
 
+	ExportMap = reinterpret_cast<const FExportMapEntry*>(PackageSummaryData + PackageSummary->ExportMapOffset);
 	ExportBundles = reinterpret_cast<const FExportBundleHeader*>(PackageSummaryData + PackageSummary->ExportBundlesOffset);
 	ExportBundleEntries = reinterpret_cast<const FExportBundleEntry*>(ExportBundles + ExportBundleCount);
 
