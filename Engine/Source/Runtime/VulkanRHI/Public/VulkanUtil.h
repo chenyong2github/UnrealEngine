@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "Serialization/MemoryWriter.h"
+
 namespace VulkanRHI
 {
 	/**
