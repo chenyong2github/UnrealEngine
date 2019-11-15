@@ -15,18 +15,18 @@ namespace Trace
 ////////////////////////////////////////////////////////////////////////////////
 template <typename Type> struct TFieldType;
 
-template <> struct TFieldType<bool>			{ enum { Value = Field_Bool }; };
-template <> struct TFieldType<int8>			{ enum { Value = Field_Int8 }; };
-template <> struct TFieldType<int16>		{ enum { Value = Field_Int16 }; };
-template <> struct TFieldType<int32>		{ enum { Value = Field_Int32 }; };
-template <> struct TFieldType<int64>		{ enum { Value = Field_Int64 }; };
-template <> struct TFieldType<uint8>		{ enum { Value = Field_Int8 }; };
-template <> struct TFieldType<uint16>		{ enum { Value = Field_Int16 }; };
-template <> struct TFieldType<uint32>		{ enum { Value = Field_Int32 }; };
-template <> struct TFieldType<uint64>		{ enum { Value = Field_Int64 }; };
-template <> struct TFieldType<float>		{ enum { Value = Field_Float32 }; };
-template <> struct TFieldType<double>		{ enum { Value = Field_Float64 }; };
-template <class T> struct TFieldType<T*>	{ enum { Value = Field_Pointer }; };
+template <> struct TFieldType<bool>			{ enum { Value = int(EFieldType::Bool) }; };
+template <> struct TFieldType<int8>			{ enum { Value = int(EFieldType::Int8) }; };
+template <> struct TFieldType<int16>		{ enum { Value = int(EFieldType::Int16) }; };
+template <> struct TFieldType<int32>		{ enum { Value = int(EFieldType::Int32) }; };
+template <> struct TFieldType<int64>		{ enum { Value = int(EFieldType::Int64) }; };
+template <> struct TFieldType<uint8>		{ enum { Value = int(EFieldType::Int8) }; };
+template <> struct TFieldType<uint16>		{ enum { Value = int(EFieldType::Int16) }; };
+template <> struct TFieldType<uint32>		{ enum { Value = int(EFieldType::Int32) }; };
+template <> struct TFieldType<uint64>		{ enum { Value = int(EFieldType::Int64) }; };
+template <> struct TFieldType<float>		{ enum { Value = int(EFieldType::Float32) }; };
+template <> struct TFieldType<double>		{ enum { Value = int(EFieldType::Float64) }; };
+template <class T> struct TFieldType<T*>	{ enum { Value = int(EFieldType::Pointer) }; };
 
 ////////////////////////////////////////////////////////////////////////////////
 struct FLiteralName

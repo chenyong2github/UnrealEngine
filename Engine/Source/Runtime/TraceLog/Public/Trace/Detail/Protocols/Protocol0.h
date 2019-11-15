@@ -36,16 +36,16 @@ enum : uint8
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-enum EFieldType : uint8
+enum class EFieldType : uint8
 {
-	Field_Bool		= Field_Integer | Field_8,
-	Field_Int8		= Field_Integer | Field_8,
-	Field_Int16		= Field_Integer | Field_16,
-	Field_Int32		= Field_Integer | Field_32,
-	Field_Int64		= Field_Integer | Field_64,
-	Field_Pointer	= Field_Integer | Field_Ptr,
-	Field_Float32	= Field_Float   | Field_32,
-	Field_Float64	= Field_Float   | Field_64,
+	Bool	= Field_Integer | Field_8,
+	Int8	= Field_Integer | Field_8,
+	Int16	= Field_Integer | Field_16,
+	Int32	= Field_Integer | Field_32,
+	Int64	= Field_Integer | Field_64,
+	Pointer	= Field_Integer | Field_Ptr,
+	Float32	= Field_Float   | Field_32,
+	Float64	= Field_Float   | Field_64,
 };
 
 ////////////////////////////////////////////////////////////////////////////////
