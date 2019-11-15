@@ -125,7 +125,7 @@ void FDatasmithCADWorkerImpl::ProcessCommand(const FRunTaskCommand& RunTaskComma
 
 	FCompletedTaskCommand CompletedTask;
 #ifdef CAD_INTERFACE
-	CADLibrary::FCoreTechFileParser FileParser(FileToProcess, CachePath, ImportParameters, true, true);
+	CADLibrary::FCoreTechFileParser FileParser(FileToProcess, CachePath, ImportParameters);
 	CADLibrary::FCoreTechFileParser::EProcessResult ProcessResult = FileParser.ProcessFile();
 
 	CompletedTask.ProcessResult = ProcessResult;
@@ -134,7 +134,7 @@ void FDatasmithCADWorkerImpl::ProcessCommand(const FRunTaskCommand& RunTaskComma
 	{
 		CompletedTask.ExternalReferences = FileParser.GetExternalRefSet().Array();
 		CompletedTask.SceneGraphFileName = FileParser.GetSceneGraphFile();
-		CompletedTask.GeomFileName = FileParser.GetMeshFile();
+		CompletedTask.GeomFileName = FileParser.GetMeshFileName();
 	}
 #endif // CAD_INTERFACE
 	CommandIO.SendCommand(CompletedTask, Config::SendCommandTimeout_s);
