@@ -20,6 +20,9 @@ DEFINE_LOG_CATEGORY(LogCrashDebugHelper);
 #elif PLATFORM_IOS
 	#include "CrashDebugHelperIOS.h"
 
+#elif PLATFORM_ANDROID
+	#include "Android/CrashDebugHelperAndroid.h"
+
 #else
 	#error "Unknown platform"
 #endif
