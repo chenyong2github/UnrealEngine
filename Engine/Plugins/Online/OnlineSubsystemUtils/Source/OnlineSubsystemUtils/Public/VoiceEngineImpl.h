@@ -158,8 +158,8 @@ class ONLINESUBSYSTEMUTILS_API FVoiceEngineImpl : public IVoiceEngine, public FS
 	/** Mapping of UniqueIds to the incoming voice data and their audio component */
 	typedef TMap<FUniqueNetIdWrapper, FRemoteTalkerDataImpl> FRemoteTalkerData;
 
-	/** Reference to the main online subsystem */
-	IOnlineSubsystem* OnlineSubsystem;
+	/** Instance name of associated online subsystem */
+	FName OnlineInstanceName;
 
 	FLocalVoiceData PlayerVoiceData[MAX_SPLITSCREEN_TALKERS];
 	/** Reference to voice capture device */
@@ -358,7 +358,7 @@ private:
 	void OnPostLoadMap(UWorld*);
 
 protected:
-	virtual IOnlineSubsystem*				 GetOnlineSubSystem()			{ return OnlineSubsystem; }
+	virtual IOnlineSubsystem*				 GetOnlineSubSystem();
 	virtual const TSharedPtr<IVoiceCapture>& GetVoiceCapture() const		{ return VoiceCapture; }
 	virtual TSharedPtr<IVoiceCapture>&		 GetVoiceCapture()				{ return VoiceCapture; }
 	virtual const TSharedPtr<IVoiceEncoder>& GetVoiceEncoder() const		{ return VoiceEncoder; }
