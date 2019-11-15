@@ -11,6 +11,7 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "ChaosStats.h"
 #include "Containers/Queue.h"
+#include "ChaosLog.h"
 
 #include <memory>
 #include <queue>
