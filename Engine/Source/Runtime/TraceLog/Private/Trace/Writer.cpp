@@ -79,9 +79,10 @@ void Writer_InitializeTiming()
 
 
 ////////////////////////////////////////////////////////////////////////////////
-thread_local		FWriteTlsContext TlsContext;
-uint8				FWriteTlsContext::DefaultBuffer[];	// = {}
-UPTRINT volatile	FWriteTlsContext::ThreadIdCounter;	// = 0;
+thread_local					FWriteTlsContext TlsContext;
+uint8							FWriteTlsContext::DefaultBuffer[];	// = {}
+UPTRINT volatile				FWriteTlsContext::ThreadIdCounter;	// = 0;
+TRACELOG_API uint32 volatile	GLogSerial;							// = 0;
 
 ////////////////////////////////////////////////////////////////////////////////
 FWriteTlsContext::FWriteTlsContext()
@@ -458,14 +459,14 @@ static void Writer_ConsumeEvents()
 		}
 	};
 
-	auto Send = [&] (uint8* __restrict Data, uint32 Size)
+	auto Send = [&] (FWriteBuffer* Buffer, uint8* __restrict Data, uint32 Size)
 	{
 		BytesSent += Size;
 
 		struct FPacketBase
 		{
-			uint16 Serial;
 			uint16 PacketSize;
+			uint16 ThreadId;
 		};
 
 		// Smaller buffers usually aren't redundant enough to benefit from being
@@ -485,7 +486,7 @@ static void Writer_ConsumeEvents()
 			};
 
 			FPacket Packet;
-			Packet.Serial = 0x8000;
+			Packet.ThreadId = 0x8000 | uint16(Buffer->ThreadId & 0x7fff);
 			Packet.DecodedSize = uint16(Size);
 			Packet.PacketSize = Encode(Data, Packet.DecodedSize, Packet.Data, sizeof(Packet.Data));
 			Packet.PacketSize += sizeof(FPacketEncoded);
@@ -498,8 +499,9 @@ static void Writer_ConsumeEvents()
 			Data -= sizeof(FPacketBase);
 			Size += sizeof(FPacketBase);
 			auto* Packet = (FPacketBase*)Data;
-			Packet->Serial = 0;
+			Packet->ThreadId = uint16(Buffer->ThreadId & 0x7fff);
 			Packet->PacketSize = uint16(Size);
+
 			SendInner(Data, Size);
 		}
 	};
@@ -561,7 +563,7 @@ static void Writer_ConsumeEvents()
 
 		if (uint32 SizeToReap = uint32(Committed - Buffer->Reaped))
 		{
-			Send(Buffer->Reaped, SizeToReap);
+			Send(Buffer, Buffer->Reaped, SizeToReap);
 			Buffer->Reaped = Committed;
 		}
 	}
@@ -577,7 +579,7 @@ static void Writer_ConsumeEvents()
 
 		if (uint32 SizeToReap = uint32(Buffer->Cursor - Buffer->Reaped))
 		{
-			Send(Buffer->Reaped, SizeToReap);
+			Send(Buffer, Buffer->Reaped, SizeToReap);
 		}
 	}
 
@@ -637,8 +639,8 @@ static void Writer_UpdateData()
 
 		// Stream header
 		const struct {
-			uint8 TransportVersion	= uint8(ETransport::Packet);
-			uint8 ProtocolVersion	= uint8(EProtocol::Id);
+			uint8 TransportVersion	= ETransport::TidPacket;
+			uint8 ProtocolVersion	= EProtocol::Id;
 		} TransportHeader;
 		bOk &= IoWrite(GDataHandle, &TransportHeader, sizeof(TransportHeader));
 

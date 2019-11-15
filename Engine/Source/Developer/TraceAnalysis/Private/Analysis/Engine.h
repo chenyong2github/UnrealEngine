@@ -40,9 +40,12 @@ private:
 	void				OnTiming(const FOnEventContext& Context);
 	void				OnNewEventInternal(const FOnEventContext& Context);
 	void				OnNewEventProtocol0(FDispatchBuilder& Builder, const void* EventData);
+	void				OnNewEventProtocol1(FDispatchBuilder& Builder, const void* EventData);
 
 	bool				EstablishTransport(FStreamReader& Reader);
 	bool				OnDataProtocol0();
+	bool				OnDataProtocol1();
+	int32				OnDataProtocol1(FStreamReader& Reader);
 	bool				AddDispatch(FDispatch* Dispatch);
 	template <typename ImplType>
 	void				ForEachRoute(const FDispatch* Dispatch, ImplType&& Impl);
@@ -55,6 +58,7 @@ private:
 	TArray<FDispatch*>	Dispatches;
 	class FTransport*	Transport = nullptr;
 	ProtocolHandlerType	ProtocolHandler = nullptr;
+	uint16				NextLogSerial = 0;
 	uint8				ProtocolVersion = 0;
 };
 

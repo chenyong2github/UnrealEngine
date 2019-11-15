@@ -10,6 +10,7 @@
 #include "Trace/Detail/Protocol.h"
 #include "Transport/PacketTransport.h"
 #include "Transport/Transport.h"
+#include "Transport/TidPacketTransport.h"
 
 namespace Trace
 {
@@ -475,6 +476,7 @@ void FAnalysisEngine::OnNewTrace(const FOnEventContext& Context)
 		}
 	}
 
+	FixedRouteCount = 0; // Disabled for now until AddRoute([ExplicitHash]) has been removed
 	TArrayView<FRoute> RouteSubset(Routes.GetData() + FixedRouteCount, Routes.Num() - FixedRouteCount);
 	Algo::SortBy(RouteSubset, [] (const FRoute& Route) { return Route.Hash; });
 
@@ -543,6 +545,7 @@ void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
 	switch (ProtocolVersion)
 	{
 	case Protocol0::EProtocol::Id: OnNewEventProtocol0(Builder, EventData.Ptr); break;
+	case Protocol1::EProtocol::Id: OnNewEventProtocol1(Builder, EventData.Ptr); break;
 	}
 
 	// Get the dispatch and add it into the dispatch table. Fail gently if there
@@ -630,6 +633,12 @@ void FAnalysisEngine::OnNewEventProtocol0(FDispatchBuilder& Builder, const void*
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::OnNewEventProtocol1(FDispatchBuilder& Builder, const void* EventData)
+{
+	return OnNewEventProtocol0(Builder, EventData);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 bool FAnalysisEngine::EstablishTransport(FStreamReader& Reader)
 {
 	const struct {
@@ -665,6 +674,7 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader& Reader)
 	{
 	case ETransport::Raw:		Transport = new FTransport(); break;
 	case ETransport::Packet:	Transport = new FPacketTransport(); break;
+	case ETransport::TidPacket:	Transport = new FTidPacketTransport(); break;
 	default:					return false;
 	//case 'E':	/* See the magic above */ break;
 	//case 'T':	/* See the magic above */ break;
@@ -675,6 +685,15 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader& Reader)
 	{
 	case Protocol0::EProtocol::Id:
 		ProtocolHandler = &FAnalysisEngine::OnDataProtocol0;
+		{
+			FDispatchBuilder Builder;
+			Builder.SetUid(uint16(Protocol0::FNewEventEvent::Uid));
+			AddDispatch(Builder.Finalize());
+		}
+		break;
+
+	case Protocol1::EProtocol::Id:
+		ProtocolHandler = &FAnalysisEngine::OnDataProtocol1;
 		{
 			FDispatchBuilder Builder;
 			Builder.SetUid(uint16(Protocol0::FNewEventEvent::Uid));
@@ -753,7 +772,86 @@ bool FAnalysisEngine::OnDataProtocol0()
 			return false;
 		}
 
+		FEventDataInfo EventDataInfo = { *Dispatch, Header->EventData, Header->Size };
+		const FEventData& EventData = (FEventData&)EventDataInfo;
+
+		ForEachRoute(Dispatch, [&] (IAnalyzer* Analyzer, uint16 RouteId)
+		{
+			if (!Analyzer->OnEvent(RouteId, { SessionContext, EventData }))
+			{
+				RetireAnalyzer(Analyzer);
+			}
+		});
+
 		Transport->Advance(BlockSize);
+	}
+
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool FAnalysisEngine::OnDataProtocol1()
+{
+	auto* InnerTransport = (FTidPacketTransport*)Transport;
+	InnerTransport->Update();
+
+	int32 EventCount;
+	do
+	{
+		EventCount = 0;
+		FTidPacketTransport::ThreadIter Iter = InnerTransport->ReadThreads();
+		while (FStreamReader* Reader = InnerTransport->GetNextThread(Iter))
+		{
+			int32 ThreadEventCount = OnDataProtocol1(*Reader);
+			if (ThreadEventCount < 0)
+			{
+				return false;
+			}
+
+			EventCount += ThreadEventCount;
+		}
+	}
+	while (EventCount);
+
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+int32 FAnalysisEngine::OnDataProtocol1(FStreamReader& Reader)
+{
+	int32 EventCount = 0;
+	while (!Reader.IsEmpty())
+	{
+		const auto* Header = Reader.GetPointer<Protocol1::FEventHeader>();
+		if (Header == nullptr)
+		{
+			break;
+		}
+
+		// Make sure we consume events in the correct order
+		if (Header->Serial != uint16(NextLogSerial))
+		{
+			break;
+		}
+		++NextLogSerial;
+
+		uint32 BlockSize = Header->Size + sizeof(Protocol1::FEventHeader);
+		if (Reader.GetPointer(BlockSize) == nullptr)
+		{
+			break;
+		}
+
+		uint16 Uid = uint16(Header->Uid & 0x3fff);
+		if (Uid >= Dispatches.Num())
+		{
+			return -1;
+		}
+
+		const FDispatch* Dispatch = Dispatches[Uid];
+		if (Dispatch == nullptr)
+		{
+			return -1;
+		}
 
 		FEventDataInfo EventDataInfo = { *Dispatch, Header->EventData, Header->Size };
 		const FEventData& EventData = (FEventData&)EventDataInfo;
@@ -765,9 +863,12 @@ bool FAnalysisEngine::OnDataProtocol0()
 				RetireAnalyzer(Analyzer);
 			}
 		});
+
+		Reader.Advance(BlockSize);
+		++EventCount;
 	}
 
-	return true;
+	return EventCount;
 }
 
 } // namespace Trace

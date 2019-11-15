@@ -45,8 +45,9 @@ private:
 
 
 ////////////////////////////////////////////////////////////////////////////////
-TRACELOG_API FWriteBuffer* Writer_NextBuffer(uint16);
-TRACELOG_API FWriteBuffer* Writer_GetBuffer();
+extern TRACELOG_API uint32 volatile	GLogSerial;
+TRACELOG_API FWriteBuffer*			Writer_NextBuffer(uint16);
+TRACELOG_API FWriteBuffer*			Writer_GetBuffer();
 
 ////////////////////////////////////////////////////////////////////////////////
 #if IS_MONOLITHIC
@@ -73,21 +74,22 @@ inline FLogInstance Writer_BeginLog(uint16 EventUid, uint16 Size)
 {
 	using namespace Private;
 
-	static const uint32 HeaderSize = sizeof(FEventHeader);
-	uint32 AllocSize = Size + HeaderSize;
-
 	FWriteBuffer* Buffer = Writer_GetBuffer();
-	uint8* Cursor = (Buffer->Cursor += AllocSize);
-	if (UNLIKELY(UPTRINT(Cursor) > UPTRINT(Buffer)))
+	uint32 AllocSize = Size + sizeof(FEventHeader);
+	Buffer->Cursor += AllocSize;
+	if (UNLIKELY(UPTRINT(Buffer->Cursor) > UPTRINT(Buffer)))
 	{
 		Buffer = Writer_NextBuffer(AllocSize);
-		Cursor = Buffer->Cursor;
 	}
-	Cursor -= AllocSize;
 
-	uint32* Out = (uint32*)Cursor;
-	Out[0] = (uint32(Size) << 16)|uint32(EventUid);
-	return {(uint8*)(Out + 1), Buffer};
+	uint8* Cursor = Buffer->Cursor - Size;
+
+	auto* Header = (uint16*)(Cursor); // FEventHeader
+	Header[-1] = uint16(AtomicIncrementRelaxed(&GLogSerial));
+	Header[-2] = Size;
+	Header[-3] = EventUid;
+
+	return {Cursor, Buffer};
 }
 
 ////////////////////////////////////////////////////////////////////////////////
