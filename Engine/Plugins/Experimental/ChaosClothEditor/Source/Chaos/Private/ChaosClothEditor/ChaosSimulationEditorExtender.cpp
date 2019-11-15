@@ -158,7 +158,7 @@ void FSimulationEditorExtender::ShowClothSections(USkeletalMeshComponent* MeshCo
 
 				if (SkelMeshRenderSection.HasClothingData())
 				{
-					MeshComponent->ShowMaterialSection(SkelMeshRenderSection.MaterialIndex, bIsClothSectionsVisible, LODIndex);
+					MeshComponent->ShowMaterialSection(SkelMeshRenderSection.MaterialIndex, SectionIndex, bIsClothSectionsVisible, LODIndex);
 				}
 			}
 		}
