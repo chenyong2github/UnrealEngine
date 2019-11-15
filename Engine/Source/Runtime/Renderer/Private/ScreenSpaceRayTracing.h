@@ -30,9 +30,17 @@ struct FTiledScreenSpaceReflection
 	uint32 TileSize;
 };
 
+bool ShouldKeepBleedFreeSceneColor(const FViewInfo& View);
+
 bool ShouldRenderScreenSpaceReflections(const FViewInfo& View);
 
 bool ShouldRenderScreenSpaceDiffuseIndirect(const FViewInfo& View);
+
+void ProcessForNextFrameScreenSpaceRayTracing(
+	FRDGBuilder& GraphBuilder,
+	const FSceneTextureParameters& SceneTextures,
+	const FRDGTextureRef CurrentSceneColor,
+	const FViewInfo& View);
 
 void GetSSRQualityForView(const FViewInfo& View, ESSRQuality* OutQuality, IScreenSpaceDenoiser::FReflectionsRayTracingConfig* OutRayTracingConfigs);
 
