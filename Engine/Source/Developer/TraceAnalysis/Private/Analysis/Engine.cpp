@@ -540,9 +540,9 @@ void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
 	const FEventDataInfo& EventData = (const FEventDataInfo&)(Context.EventData);
 
 	FDispatchBuilder Builder;
-	if (ProtocolHandler == &FAnalysisEngine::OnDataProtocol0)
+	switch (ProtocolVersion)
 	{
-		OnNewEventProtocol0(Builder, EventData.Ptr);
+	case int(Protocol0::EProtocol::Id): OnNewEventProtocol0(Builder, EventData.Ptr); break;
 	}
 
 	// Get the dispatch and add it into the dispatch table. Fail gently if there
@@ -670,7 +670,8 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader& Reader)
 	//case 'T':	/* See the magic above */ break;
 	}
 
-	switch (Header->ProtocolVersion)
+	ProtocolVersion = Header->ProtocolVersion;
+	switch (ProtocolVersion)
 	{
 	case int(Protocol0::EProtocol::Id):
 		ProtocolHandler = &FAnalysisEngine::OnDataProtocol0;

@@ -55,6 +55,7 @@ private:
 	TArray<FDispatch*>	Dispatches;
 	class FTransport*	Transport = nullptr;
 	ProtocolHandlerType	ProtocolHandler = nullptr;
+	uint8				ProtocolVersion = 0;
 };
 
 } // namespace Trace
