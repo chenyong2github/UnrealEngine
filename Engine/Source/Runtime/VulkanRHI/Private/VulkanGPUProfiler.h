@@ -157,12 +157,9 @@ struct FVulkanGPUProfiler : public FGPUProfiler
 	/** GPU hitch profile histories */
 	TIndirectArray<FVulkanEventNodeFrame> GPUHitchEventNodeFrames;
 
-	FVulkanGPUProfiler(FVulkanCommandListContext* InCmd, FVulkanDevice* InDevice)
-		: bCommandlistSubmitted(false)
-		, Device(InDevice)
-		, CmdContext(InCmd)
-	{
-	}
+	FVulkanGPUProfiler(FVulkanCommandListContext* InCmd, FVulkanDevice* InDevice);
+
+	virtual ~FVulkanGPUProfiler();
 
 	virtual FGPUProfilerEventNode* CreateEventNode(const TCHAR* InName, FGPUProfilerEventNode* InParent) override final
 	{
@@ -188,4 +185,8 @@ struct FVulkanGPUProfiler : public FGPUProfiler
 	// For crash/marker tracking
 	TMap<uint32, FString> CachedStrings;
 	TArray<uint32> PushPopStack;
+
+	FVulkanTimingQueryPool* LocalTracePointsQueryPool;
+	TArray<uint64> CrashMarkers;
+	bool bBeginFrame;
 };
