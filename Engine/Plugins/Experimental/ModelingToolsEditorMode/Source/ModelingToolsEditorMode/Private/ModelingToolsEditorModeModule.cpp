@@ -38,7 +38,7 @@ void FModelingToolsEditorModeModule::OnPostEngineInit()
 	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
 	FEditorModeRegistry::Get().RegisterMode<FModelingToolsEditorMode>(
 		FModelingToolsEditorMode::EM_ModelingToolsEditorModeId,
-		LOCTEXT("ModelingToolsEditorModeName", "ModelingToolsEditorMode"),
+		LOCTEXT("ModelingToolsEditorModeName", "Modeling"),
 		FSlateIcon("ModelingToolsStyle", "LevelEditor.ModelingToolsMode", "LevelEditor.ModelingToolsMode.Small"),
 		true);
 
