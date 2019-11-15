@@ -423,15 +423,12 @@ class TPBDRigidsEvolutionBase
 
 	void ApplyConstraints(const T Dt, int32 Island)
 	{
-		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
-		{
-			ConstraintRule->UpdateAccelerationStructures(Island);
-		}
+		UpdateAccelerationStructures(Island);
 
 		// @todo(ccaulfield): track whether we are sufficiently solved and can early-out
 		for (int i = 0; i < NumIterations; ++i)
 		{
-			for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+			for (FPBDConstraintGraphRule* ConstraintRule : PrioritizedConstraintRules)
 			{
 				ConstraintRule->ApplyConstraints(Dt, Island, i, NumIterations);
 			}
@@ -579,6 +576,11 @@ protected:
 		{
 			ConstraintRule->AddToGraph();
 		}
+
+		// Apply rules in priority order
+		// @todo(ccaulfield): only really needed when list or priorities change
+		PrioritizedConstraintRules = ConstraintRules;
+		PrioritizedConstraintRules.StableSort();
 	}
 
 	void CreateIslands()
@@ -602,7 +604,7 @@ protected:
 		for (int32 It = 0; bNeedsAnotherIteration && (It < NumPushOutIterations); ++It)
 		{
 			bNeedsAnotherIteration = false;
-			for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+			for (FPBDConstraintGraphRule* ConstraintRule : PrioritizedConstraintRules)
 			{
 				if (ConstraintRule->ApplyPushOut(Dt, Island, It, NumPushOutIterations))
 				{
@@ -625,6 +627,7 @@ protected:
 	FUpdatePositionRule ParticleUpdatePosition;
 	FKinematicUpdateRule KinematicUpdate;
 	TArray<FPBDConstraintGraphRule*> ConstraintRules;
+	TArray<FPBDConstraintGraphRule*> PrioritizedConstraintRules;
 	FPBDConstraintGraph ConstraintGraph;
 	TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>> PhysicsMaterials;
 	TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>> PerParticlePhysicsMaterials;

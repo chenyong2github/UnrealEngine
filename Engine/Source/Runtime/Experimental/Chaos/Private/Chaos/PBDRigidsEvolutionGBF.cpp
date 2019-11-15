@@ -118,9 +118,6 @@ void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(const T Dt, const T StepFr
 {
 	SCOPE_CYCLE_COUNTER(STAT_Evo_AdvanceOneTimeStep);
 
-	// @todo(ccaulfield): only need this when list has changed
-	ConstraintRules.StableSort();
-
 #if !UE_BUILD_SHIPPING
 	if (SerializeEvolution)
 	{
