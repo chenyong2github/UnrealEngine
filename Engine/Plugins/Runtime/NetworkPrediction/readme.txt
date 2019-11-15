@@ -108,10 +108,17 @@ Smoothing: Taking the output of the simulation and applying an additional layer 
 // Release notes
 // ----------------------------------------------------------------------------------------------------------
 
+Update (11-15-19)
+-NetSimCues initial check in
+-These are the async/deferred events that are outputted during the network simulation tick
+-Different classification in types wrt prediction and replication
+-See FMockAbilityBlinkCue in code, "Misc Notes" at bottom of readme file
+-"Rewindable NetSimCue" api still todo
+
 Update (10-28-19)
 Renaming/cleanup on ::Update function:
 -"TSimulation::Update" is now "TSimulation::SimulationTick". Makes searching through source a bit easier, less generic name
--Collapsed parameters of SimulationTick into 3 containers: TNetSimTimeStep, TNetSimInput, TNetSimOutput
+-Collapsed parameters of SimulationTick into 3 containers: FNetSimTimeStep, TNetSimInput, TNetSimOutput
 -Time passed into simulation is now FNetworkSimTime (instead of forcing float RealTimeSeconds conversion at callsite)
 -TSimulationTickState broken up into FSimulationTickState and TSimulationTicker. 
 -::SimulationTick now also gets a reference to FSimulationTickState. This is setting us up to do timers/countdowns based on sim time within these functions.
@@ -189,7 +196,65 @@ Current State (7-25-19)
 -Flying Movement: a port of FloatingPawnMovement into the new system. Essentially just a basic flying movement system.
 -MockNetworkSimulation: a very basic minimal "simulation" that demonstrates how the system works. Not tied to movement or anything physical: just a running counter/sum.
  
- 
- 
 
+// ----------------------------------------------------------------------------------------------------------
+// Misc Notes
+// ----------------------------------------------------------------------------------------------------------
 
+Notes on "State Transitions"
+-Detecting changes to sync/aux state in FinalizeFrame
+-Can emit events from these transitions
+-Events can't have additional data (thats not in the sync/aux state)
+-Can't really know for sure if transition "just actually happnened in the simulation" vs "I'm just finding out about it now"
+-Biggest advantage: "Reliable", doesn't require SimulationTick to run. (Interpolated proxies can still use them)
+
+Notes on "Events" --> NetSimCues
+
+Basic idea/notes:
+-"Non simulation affecting" events that are emitted during the ::SimulationTick function.
+-Cues are *handled* (by user code) during actor tick. Not during ::SimulationTick. (they are queued in a buffer)
+-Must support arbitrary data payloads. E.g, "Impact Velocity" for a "Landed" cue.
+-Fundamentally unreliable: join in progress, relevancy, temporary network disconnect = missed events.
+	-Seriously! These events should never be used to "track state" at some higher level. Even if simulation code guaruntees 1:1 On/Off events, you may miss them!
+	-Note: see "State transitions" above for how "reliable" events would be done
+
+Implementation progression:
+
+0. Niave approach is to let simulation code call directly into user code at anytime to do this stuff
+	Major issue: rollback/resimulate will double play events	
+	Interpolating proxies would not invoke because they do not run the simulation
+
+[+Simple Invocation Suppressiong mechanism/context]
+1. Simplest approach would be "Weak Cues": "Cues don't replicate. Are only played on 'latest' simulation ticks (supressed during any rewind/resimulate scope)"
+	This causes/leaves two main issues/needs:
+		A. Interpolating simulated proxies (who don't run TickSimulation) will never invoke these cues. 
+			(Note: could just say "yup, thats how it works" and leave replication up to the user at a higher level. Not great though!)
+		B. Predicting Client can mispredict: missed events or can play wrong events. Won't catch this / don't care.
+
+[+Cue type traits/policies, build on invocation supression above. Cue data doesn't matter yet, just local context and cue type]
+[+Time information passed to cue handler]
+2. Next simplest approach would be to add two more cues types (in addition to "Weak Cues"):
+	A. Replicated, non predicted. Always comes from server, never predicted. Everyone gets them.
+		-Downside: we won't predict them since we can't guard against double playing yet.
+		-Downside: cues can fire off "in the past" and now we must include time information to Cue handler (let them figure out how to deal with time make up)
+	B. Replicated (to sim proxy only), predicted (by auto proxy only).
+		-Allow auto proxy to treat them as Weak Cues: always play on simulate (not resimulate), always ignore server replication (so, can mispredict)
+		-Sim proxy will have them replicated explicitly	
+
+[+Cue identification/uniqueness function]
+3. Next complicated approach would be to have identifying/uniqueness function to determine cues that were predicted or not. "Strong Cues"
+	Keep buffer of last N msecs of cues that were invoked locally.
+	When receiving replicated cues, look for matches that are "close enough" (hard to define!). If we already predicted, then ignore from server.
+	+This allows us to combine #2's cue types into a single type: Replicated + predicted (universal)		
+	+Can also now invoke while resimulating by checking if a matching cue was already invoked during the original predicted simulate.
+	
+[+Cue rollback/resimulate callbacks]
+4. Final complicated approach: full rollback/resimulate aware cue system
+	Cues are invoked with callbacks that can be subcribed to: Rewind, Resimulate, Confirmed. This is the only way to support "undoing" cues.
+	+Allows cues that "didn't actually happen" (mispredict) to be undone.
+	+Allows "all cues" to be undown on rollback and then repredicted during resimulate. (How important is this actually given everything else???)
+		-Allows us to "skip" the uniqueness test at the cost of redundantly rolling back -> redoing cues that were not mispredicted
+
+	
+	
+	
