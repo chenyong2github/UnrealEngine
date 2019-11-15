@@ -236,6 +236,9 @@ public:
 
 		/** Returns true if the allocator has made any heap allocations */
 		bool HasAllocation() const;
+
+		/** Returns number of pre-allocated elements the container can use before allocating more space */
+		SizeType GetInitialCapacity() const;
 	};
 
 	/**
@@ -330,6 +333,11 @@ public:
 		bool HasAllocation() const
 		{
 			return !!Data;
+		}
+
+		SizeType GetInitialCapacity() const
+		{
+			return 0;
 		}
 
 	private:
@@ -471,6 +479,11 @@ public:
 		bool HasAllocation() const
 		{
 			return !!Data;
+		}
+		
+		SizeType GetInitialCapacity() const
+		{
+			return 0;
 		}
 
 	private:
@@ -631,6 +644,11 @@ public:
 			return SecondaryData.HasAllocation();
 		}
 
+		SizeType GetInitialCapacity() const
+		{
+			return NumInlineElements;
+		}
+
 	private:
 		ForElementType(const ForElementType&);
 		ForElementType& operator=(const ForElementType&);
@@ -773,6 +791,11 @@ public:
 			return Data != GetInlineElements();
 		}
 
+		SizeType GetInitialCapacity() const
+		{
+			return NumInlineElements;
+		}
+
 	private:
 		ForElementType(const ForElementType&) = delete;
 		ForElementType& operator=(const ForElementType&) = delete;
@@ -875,7 +898,11 @@ public:
 		{
 			return false;
 		}
-
+		
+		SizeType GetInitialCapacity() const
+		{
+			return NumInlineElements;
+		}
 
 	private:
 		ForElementType(const ForElementType&);

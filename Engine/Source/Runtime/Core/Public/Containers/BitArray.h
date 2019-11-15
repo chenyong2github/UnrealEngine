@@ -185,16 +185,45 @@ public:
 	template<typename,typename>
 	friend class TConstDualSetBitIterator;
 
+	TBitArray()
+	:	NumBits(0)
+	,	MaxBits(AllocatorInstance.GetInitialCapacity() * NumBitsPerDWORD)
+	{}
+
 	/**
 	 * Minimal initialization constructor.
 	 * @param Value - The value to initial the bits to.
 	 * @param InNumBits - The initial number of bits in the array.
 	 */
-	explicit TBitArray( const bool Value = false, const int32 InNumBits = 0 )
-	:	NumBits(0)
-	,	MaxBits(0)
+	explicit TBitArray(bool bValue, int32 InNumBits)
+	:	NumBits(InNumBits)
+	,	MaxBits(AllocatorInstance.GetInitialCapacity() * NumBitsPerDWORD)
 	{
-		Init(Value,InNumBits);
+		if (NumBits > 0)
+		{
+			const int32 Words = FMath::DivideAndRoundUp(NumBits, NumBitsPerDWORD);
+
+			if (Words > FMath::DivideAndRoundUp(MaxBits, NumBitsPerDWORD))
+			{
+				AllocatorInstance.ResizeAllocation(0, Words, sizeof(uint32));
+				MaxBits = Words * NumBitsPerDWORD;
+			}
+			
+			if (Words > 8)
+			{
+				FMemory::Memset(GetData(), bValue ? 0xff : 0, Words * sizeof(uint32));
+			}
+			else
+			{
+				uint32 Word = bValue ? ~0u : 0;
+				int32 WordIdx = 0;
+				do
+				{
+					GetData()[WordIdx] = Word;
+				}
+				while (++WordIdx < Words);
+			}
+		}
 	}
 
 	/**

@@ -293,7 +293,7 @@ public:
 	 */
 	FORCEINLINE TArray()
 		: ArrayNum(0)
-		, ArrayMax(0)
+		, ArrayMax(AllocatorInstance.GetInitialCapacity())
 	{}
 
 	/**
@@ -459,7 +459,7 @@ private:
 		checkf(ToArray.ArrayNum == FromArray.ArrayNum && ToArray.ArrayMax == FromArray.ArrayMax, TEXT("Data lost when moving to a container with a more constrained size type"));
 
 		FromArray.ArrayNum = 0;
-		FromArray.ArrayMax = 0;
+		FromArray.ArrayMax = FromArray.AllocatorInstance.GetInitialCapacity();
 	}
 
 	/**
@@ -2568,7 +2568,7 @@ private:
 		}
 		else
 		{
-			ArrayMax = 0;
+			ArrayMax = AllocatorInstance.GetInitialCapacity();
 		}
 	}
 
