@@ -339,7 +339,7 @@ namespace Chaos
 				Simplex[SimplexIDs.NumVerts++] = W;	//this is really X - P which is what we need for simplex computation
 			}
 
-			if (bInflatedCloseEnough)
+			if (bInflatedCloseEnough && VDotW >= 0)
 			{
 				//Inflated shapes are close enough, but we want MTD so we need to find closest point on core shape
 				const T VDotW2 = VDotW * VDotW;
@@ -420,25 +420,46 @@ namespace Chaos
 			else
 			{
 				//todo: use EPA
-				if (false && SimplexIDs.NumVerts == 4)
+				TArray<TVec3<T>> VertsA;
+				TArray<TVec3<T>> VertsB;
+
+				VertsA.Reserve(8);
+				VertsB.Reserve(8);
+
+				if (NumIterations)
 				{
-					TArray<TVec3<T>> VertsA = { As[0], As[1], As[2], As[3] };
-					TArray<TVec3<T>> VertsB = { Bs[0], Bs[1], Bs[2], Bs[3] };
+					for (int i = 0; i < SimplexIDs.NumVerts; ++i)
+					{
+						VertsA.Add(As[i]);
+						const TVec3<T> BInA = StartTM.TransformPosition(Bs[i]);
+						VertsB.Add(BInA);
+					}
+
+					auto SupportBInAFunc = [&](const TVec3<T>& Dir)
+					{
+						const TVec3<T> SupportB = SupportBFunc(Dir);
+						return StartTM.TransformPosition(SupportB);
+					};
 
 					T Penetration;
-					TVec3<T> MTD, ClosestA, ClosestB;
-					EPA(VertsA, VertsB, SupportAFunc, SupportBFunc, Penetration, MTD, ClosestA, ClosestB);
-
-					OutNormal = (ClosestA - ClosestB);
-					OutNormal.SafeNormalize();
-					const TVector<T, 3> ClosestLocal = ClosestB - OutNormal * ThicknessB;
-
-					OutPosition = StartPoint + ClosestLocal;
-					OutTime = -Penetration - ThicknessA - ThicknessB;
+					TVec3<T> MTD, ClosestA, ClosestBInA;
+					if (EPA(VertsA, VertsB, SupportAFunc, SupportBInAFunc, Penetration, MTD, ClosestA, ClosestBInA) == EPAResult::BadInitialSimplex)
+					{
+						//assume touching hit
+						OutTime = 0;
+						OutPosition = TVector<T, 3>(0);
+						OutNormal = { 0,0,1 };
+					}
+					else
+					{
+						OutNormal = MTD;
+						OutTime = -Penetration - Inflation;
+						OutPosition = ClosestA;
+					}
 				}
 				else
 				{
-					ensure(false);	//todo: EPA with num verts < 4
+					//didn't even go into gjk loop, touching hit
 					OutTime = 0;
 					OutPosition = TVector<T, 3>(0);
 					OutNormal = { 0,0,1 };
