@@ -3023,7 +3023,6 @@ void UHierarchicalInstancedStaticMeshComponent::OnPostLoadPerInstanceData()
 		if (bEnableDensityScaling && GetWorld() && GetWorld()->IsGameWorld())
 		{
 			CurrentDensityScaling = FMath::Clamp(CVarFoliageDensityScale.GetValueOnGameThread(), 0.0f, 1.0f);
-			//CurrentDensityScaling = 0.2f;
 			bForceTreeBuild = CurrentDensityScaling < 1.0f;
 		}
 
@@ -3034,34 +3033,46 @@ void UHierarchicalInstancedStaticMeshComponent::OnPostLoadPerInstanceData()
 		}
 		else
 		{
-			AActor* Owner = GetOwner();
-			ULevel* OwnerLevel = Owner->GetLevel();
-			UWorld* OwnerWorld = OwnerLevel ? OwnerLevel->OwningWorld : nullptr;
+			bool bAsyncTreeBuild = true;
 
-			//update the instance data if the lighting scenario isn't the owner level or if the reorder table do not match the per instance sm data
-			if ((OwnerWorld && OwnerWorld->GetActiveLightingScenario() != nullptr && OwnerWorld->GetActiveLightingScenario() != OwnerLevel)
-				|| (PerInstanceSMData.Num() > 0 && PerInstanceSMData.Num() != InstanceReorderTable.Num()))
+#if WITH_EDITOR
+			// If InstanceReorderTable contains invalid indices force a synchronous tree rebuild
+			bool bHasInvalidIndices = Algo::AnyOf(InstanceReorderTable, [this](int32 ReorderIndex) { return !PerInstanceSMData.IsValidIndex(ReorderIndex); });
+			if (bHasInvalidIndices)
+			{
+				bAsyncTreeBuild = false;
+				bForceTreeBuild = true;
+			}
+#endif
+
+			// Update the instance data if the reorder table do not match the per instance sm data
+			if (!bForceTreeBuild && PerInstanceSMData.Num() > 0 && PerInstanceSMData.Num() != InstanceReorderTable.Num())
 			{
 				bForceTreeBuild = true;
 			}
 
-			
-			// If Reorder table contains invalid indices force a tree rebuild
-			if(!bForceTreeBuild)
+			// Update the instance data if the lighting scenario isn't the owner level
+			if (!bForceTreeBuild)
 			{
-				bForceTreeBuild = Algo::AnyOf(InstanceReorderTable, [this](int32 ReorderIndex) { return ReorderIndex != INDEX_NONE && !PerInstanceSMData.IsValidIndex(ReorderIndex); });
+				AActor* Owner = GetOwner();
+				ULevel* OwnerLevel = Owner->GetLevel();
+				UWorld* OwnerWorld = OwnerLevel ? OwnerLevel->OwningWorld : nullptr;
+				if (OwnerWorld && OwnerWorld->GetActiveLightingScenario() != nullptr && OwnerWorld->GetActiveLightingScenario() != OwnerLevel)
+				{
+					bForceTreeBuild = true;
+				}
 			}
 
 			if (!bForceTreeBuild)
 			{
-				// create PerInstanceRenderData either from current data or pre-built instance buffer
+				// Create PerInstanceRenderData either from current data or pre-built instance buffer
 				InitPerInstanceRenderData(true, InstanceDataBuffers.Release());
 				NumBuiltRenderInstances = PerInstanceRenderData->InstanceBuffer_GameThread->GetNumInstances();
 				InstanceCountToRender = NumBuiltInstances;
 			}
 
 			// If any of the data is out of sync, build the tree now!
-			BuildTreeIfOutdated(true, bForceTreeBuild);
+			BuildTreeIfOutdated(bAsyncTreeBuild, bForceTreeBuild);
 		}
 	}
 
