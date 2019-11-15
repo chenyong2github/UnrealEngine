@@ -988,6 +988,11 @@ void* FVulkanDynamicRHI::RHIGetNativeDevice()
 	return (void*)Device->GetInstanceHandle();
 }
 
+void* FVulkanDynamicRHI::RHIGetNativeInstance()
+{
+	return (void*)GetInstance();
+}
+
 IRHICommandContext* FVulkanDynamicRHI::RHIGetDefaultContext()
 {
 	return &Device->GetImmediateContext();
