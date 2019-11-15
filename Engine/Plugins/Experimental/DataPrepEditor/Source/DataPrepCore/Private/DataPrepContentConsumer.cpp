@@ -81,6 +81,12 @@ bool UDataprepContentConsumer::SetTargetContentFolder(const FString& InTargetCon
 
 		TargetContentFolder = !InTargetContentFolder.IsEmpty() ? InTargetContentFolder : FPaths::GetPath( GetOutermost()->GetPathName() );
 
+		// Remove ending '/' if applicable
+		if(TargetContentFolder[TargetContentFolder.Len() - 1] == L'/')
+		{
+			TargetContentFolder.RemoveAt(TargetContentFolder.Len() - 1, 1);
+		}
+
 		OnChanged.Broadcast();
 	}
 
