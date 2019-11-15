@@ -69,7 +69,7 @@ namespace WindowsMixedReality
 
 #if WITH_WINDOWS_MIXED_REALITY
 #if SUPPORTS_WINDOWS_MIXED_REALITY_GESTURES
-		TUniquePtr<GestureRecognizerInterop> gestureRecognizer;
+		TUniquePtr<GestureRecognizerInterop> GestureRecognizer;
 		uint32 CapturingSet = 0;
 #endif
 		bool UpdateGestureCallbacks(FString& errorMsg);
