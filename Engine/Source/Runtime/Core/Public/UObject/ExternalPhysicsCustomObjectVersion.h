@@ -63,6 +63,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 		// Add an SOA which contains particles with full dynamic data but which are in the kinematic object state.
 		AddDynamicKinematicSOA,
 
+		// Added material manager to Chaos
+		AddedMaterialManager,
+		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

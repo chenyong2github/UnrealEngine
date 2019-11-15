@@ -158,8 +158,8 @@ namespace Chaos
 			GeomData->GetPointsScaled(FullIndex, Points);
 
 			// Test both triangles that are in this cell, as we could hit both in any order
-			TestTriangle(FullIndex * 2, Points[0], Points[1], Points[2]);
-			TestTriangle(FullIndex * 2 + 1, Points[2], Points[1], Points[3]);
+			TestTriangle(Payload * 2, Points[0], Points[1], Points[2]);
+			TestTriangle(Payload * 2 + 1, Points[2], Points[1], Points[3]);
 
 			return OutTime > 0;
 		}
@@ -244,8 +244,8 @@ namespace Chaos
 			TVector<T, 3> Points[4];
 			HfData->GetPointsScaled(FullIndex, Points);
 
-			TestTriangle(FullIndex * 2, Points[0], Points[1], Points[2]);
-			TestTriangle(FullIndex * 2 + 1, Points[2], Points[1], Points[3]);
+			TestTriangle(Payload * 2, Points[0], Points[1], Points[2]);
+			TestTriangle(Payload * 2 + 1, Points[2], Points[1], Points[3]);
 
 			return OutTime != 0;
 		}
@@ -266,14 +266,15 @@ namespace Chaos
 	};
 
 	template<typename HeightfieldT, typename BufferType>
-	void BuildGeomData(TArrayView<BufferType> BufferView, int32 NumRows, int32 NumCols, const TVector<HeightfieldT, 3>& InScale, TUniqueFunction<HeightfieldT(const BufferType)> ToRealFunc, typename THeightField<HeightfieldT>::FDataType& OutData, TBox<HeightfieldT, 3>& OutBounds)
+	void BuildGeomData(TArrayView<BufferType> BufferView, TArrayView<uint8> MaterialIndexView, int32 NumRows, int32 NumCols, const TVector<HeightfieldT, 3>& InScale, TUniqueFunction<HeightfieldT(const BufferType)> ToRealFunc, typename THeightField<HeightfieldT>::FDataType& OutData, TBox<HeightfieldT, 3>& OutBounds)
 	{
 		using FDataType = typename THeightField<HeightfieldT>::FDataType;
 
 		using RealType = typename FDataType::RealType;
 
-		const int32 NumCells = NumRows * NumCols;
-		ensure(BufferView.Num() == NumCells);
+		const bool bHaveMaterials = MaterialIndexView.Num() > 0;
+		const bool bOnlyDefaultMaterial = MaterialIndexView.Num() == 1;
+		ensure(BufferView.Num() == NumRows * NumCols);
 		ensure(NumRows > 1);
 		ensure(NumCols > 1);
 
@@ -321,6 +322,21 @@ namespace Chaos
 			}
 		}
 		OutBounds.Thicken(KINDA_SMALL_NUMBER);
+
+		if(bHaveMaterials)
+		{
+			if(bOnlyDefaultMaterial)
+			{
+				OutData.MaterialIndices.Add(0);
+			}
+			else
+			{
+				const int32 NumCells = NumHeights - NumRows - NumCols + 1;
+				ensure(MaterialIndexView.Num() == NumCells);
+				OutData.MaterialIndices.Empty();
+				OutData.MaterialIndices.Append(MaterialIndexView.GetData(), MaterialIndexView.Num());
+			}
+		}
 	}
 
 	template<typename HeightfieldT, typename BufferType>
@@ -408,16 +424,16 @@ namespace Chaos
 	}
 
 	template <typename T>
-	THeightField<T>::THeightField(TArray<T>&& Height, int32 NumRows, int32 NumCols, const TVector<T, 3>& InScale)
+	THeightField<T>::THeightField(TArray<T>&& Height, TArray<uint8>&& InMaterialIndices, int32 NumRows, int32 NumCols, const TVector<T, 3>& InScale)
 		: FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::HeightField)
 	{
-		BuildGeomData<T, T>(MakeArrayView(Height), NumRows, NumCols, TVector<T, 3>(1), [](const T InVal) {return InVal; }, GeomData, LocalBounds);
+		BuildGeomData<T, T>(MakeArrayView(Height), MakeArrayView(InMaterialIndices), NumRows, NumCols, TVector<T, 3>(1), [](const T InVal) {return InVal; }, GeomData, LocalBounds);
 		CalcBounds();
 		SetScale(InScale);
 	}
 
 	template<typename T>
-	Chaos::THeightField<T>::THeightField(TArrayView<const uint16> InHeights, int32 InNumRows, int32 InNumCols, const TVector<T, 3>& InScale)
+	Chaos::THeightField<T>::THeightField(TArrayView<const uint16> InHeights, TArrayView<uint8> InMaterialIndices, int32 InNumRows, int32 InNumCols, const TVector<T, 3>& InScale)
 		: FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::HeightField)
 	{
 		TUniqueFunction<T(const uint16)> ConversionFunc = [](const T InVal) -> float
@@ -425,7 +441,7 @@ namespace Chaos
 			return (float)((int32)InVal - 32768);
 		};
 
-		BuildGeomData<T, const uint16>(InHeights, InNumRows, InNumCols, TVector<T, 3>(1), MoveTemp(ConversionFunc), GeomData, LocalBounds);
+		BuildGeomData<T, const uint16>(InHeights, InMaterialIndices, InNumRows, InNumCols, TVector<T, 3>(1), MoveTemp(ConversionFunc), GeomData, LocalBounds);
 		CalcBounds();
 		SetScale(InScale);
 	}

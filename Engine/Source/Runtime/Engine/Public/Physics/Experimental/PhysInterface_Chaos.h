@@ -13,6 +13,7 @@
 #include "Physics/PhysicsInterfaceTypes.h"
 #include "Physics/GenericPhysicsInterface.h"
 #include "Physics/Experimental/PhysicsUserData_Chaos.h"
+#include "Chaos/PhysicalMaterials.h"
 
 //NOTE: Do not include Chaos headers directly as it means recompiling all of engine. This should be reworked to avoid allocations
 
@@ -194,11 +195,10 @@ public:
 	static void AddActorToAggregate_AssumesLocked(const FPhysicsAggregateReference_Chaos& InAggregate, const FPhysicsActorHandle& InActor);
 
 	// Material interface functions
-    // @todo(mlentine): How do we set material on the solver?
-	static FPhysicsMaterialHandle CreateMaterial(const UPhysicalMaterial* InMaterial) { return nullptr; }
-    static void ReleaseMaterial(FPhysicsMaterialHandle& InHandle) {}
-    static void UpdateMaterial(const FPhysicsMaterialHandle& InHandle, UPhysicalMaterial* InMaterial) {}
-    static void SetUserData(const FPhysicsMaterialHandle& InHandle, void* InUserData) {}
+	static FPhysicsMaterialHandle CreateMaterial(const UPhysicalMaterial* InMaterial);
+    static void ReleaseMaterial(FPhysicsMaterialHandle& InHandle);
+    static void UpdateMaterial(FPhysicsMaterialHandle& InHandle, UPhysicalMaterial* InMaterial);
+    static void SetUserData(FPhysicsMaterialHandle& InHandle, void* InUserData);
 
 	// Actor interface functions
 	template<typename AllocatorType>
@@ -397,7 +397,7 @@ public:
     static void SetUserData(const FPhysicsShapeHandle& InShape, void* InUserData) {}
     static void SetGeometry(const FPhysicsShapeHandle& InShape, physx::PxGeometry& InGeom) {}
 	static void SetLocalTransform(const FPhysicsShapeHandle& InShape, const FTransform& NewLocalTransform);
-    static void SetMaterials(const FPhysicsShapeHandle& InShape, const TArrayView<UPhysicalMaterial*>InMaterials) {}
+    static void SetMaterials(const FPhysicsShapeHandle& InShape, const TArrayView<UPhysicalMaterial*>InMaterials);
 };
 
 /*
@@ -442,10 +442,7 @@ FORCEINLINE void ComputeZeroDistanceImpactNormalAndPenetration(const UWorld* Wor
 	//TODO_SQ_IMPLEMENTATION
 }
 
-inline FPhysTypeDummy* GetMaterialFromInternalFaceIndex(const FPhysicsShape& Shape, uint32 InternalFaceIndex)
-{
-	return nullptr;
-}
+Chaos::FChaosPhysicsMaterial* GetMaterialFromInternalFaceIndex(const FPhysicsShape& Shape, const FPhysicsActor& Actor, uint32 InternalFaceIndex);
 
 inline uint32 GetTriangleMeshExternalFaceIndex(const FPhysicsShape& Shape, uint32 InternalFaceIndex)
 {

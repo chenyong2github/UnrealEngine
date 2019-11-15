@@ -15,6 +15,7 @@
 #include "PhysicsCoreTypes.h"
 #include "Chaos/Framework/MultiBufferResource.h"
 #include "Chaos/Declares.h"
+#include "Chaos/PhysicalMaterials.h"
 
 /** Classes that want to set the solver actor class can implement this. */
 class IChaosSolverActorClassProvider
@@ -288,6 +289,11 @@ public:
 	Chaos::EThreadingMode GetDesiredThreadingMode() const;
 	Chaos::EMultiBufferMode GetDesiredBufferingMode() const;
 
+	/** Events that the material manager will emit for us to update our threaded data */
+	void OnUpdateMaterial(Chaos::FMaterialHandle InHandle);
+	void OnCreateMaterial(Chaos::FMaterialHandle InHandle);
+	void OnDestroyMaterial(Chaos::FMaterialHandle InHandle);
+
 private:
 
 	/** Safe method for always getting a settings provider (from the external caller or an internal default) */
@@ -352,6 +358,11 @@ private:
 
 	// Whether we're initialized, gates work in Initialize() and Shutdown()
 	bool bModuleInitialized;
+
+	/** Event binding handles */
+	FDelegateHandle OnCreateMaterialHandle;
+	FDelegateHandle OnDestroyMaterialHandle;
+	FDelegateHandle OnUpdateMaterialHandle;
 };
 
 /**
