@@ -14,6 +14,11 @@ namespace MeshTransforms
 {
 	
 	/**
+	 * Apply Translation to vertex positions of Mesh. Does not modify any other attributes.
+	 */
+	DYNAMICMESH_API void Translate(FDynamicMesh3& Mesh, const FVector3d& Translation);
+
+	/**
 	 * Apply given Transform to a Mesh.
 	 * Modifies Vertex Positions and Normals, and any Per-Triangle Normal Overlays
 	 */

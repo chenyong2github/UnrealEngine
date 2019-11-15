@@ -244,9 +244,9 @@ struct TAxisAlignedBox3
 	FVector3<RealType> GetCorner(int Index) const
 	{
 		check(Index >= 0 && Index <= 7);
-		double X = (((Index & 1) != 0) ^ ((Index & 2) != 0)) ? (Max.X) : (Min.X);
-		double Y = ((Index / 2) % 2 == 0) ? (Min.Y) : (Max.Y);
-		double Z = (Index < 4) ? (Min.Z) : (Max.Z);
+		RealType X = (((Index & 1) != 0) ^ ((Index & 2) != 0)) ? (Max.X) : (Min.X);
+		RealType Y = ((Index / 2) % 2 == 0) ? (Min.Y) : (Max.Y);
+		RealType Z = (Index < 4) ? (Min.Z) : (Max.Z);
 		return FVector3<RealType>(X, Y, Z);
 	}
 

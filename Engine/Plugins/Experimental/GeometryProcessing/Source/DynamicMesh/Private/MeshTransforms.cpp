@@ -4,6 +4,22 @@
 #include "MeshTransforms.h"
 #include "DynamicMeshAttributeSet.h"
 #include "DynamicMeshOverlay.h"
+#include "Async/ParallelFor.h"
+
+
+
+void MeshTransforms::Translate(FDynamicMesh3& Mesh, const FVector3d& Translation)
+{
+	int NumVertices = Mesh.MaxVertexID();
+	ParallelFor(NumVertices, [&](int vid) 
+	{
+		if (Mesh.IsVertex(vid))
+		{
+			Mesh.SetVertex(vid, Mesh.GetVertex(vid) + Translation);
+		}
+	});
+}
+
 
 
 void MeshTransforms::ApplyTransform(FDynamicMesh3& Mesh, const FTransform3d& Transform)

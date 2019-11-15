@@ -808,6 +808,9 @@ void FDynamicMeshEditor::AppendMesh(const FDynamicMesh3* AppendMesh,
 	TFunction<FVector3d(int, const FVector3d&)> PositionTransform,
 	TFunction<FVector3d(int, const FVector3d&)> NormalTransform)
 {
+	// todo: handle this case by making a copy?
+	check(AppendMesh != Mesh);
+
 	IndexMapsOut.Reset();
 	IndexMapsOut.Initialize(Mesh);
 
