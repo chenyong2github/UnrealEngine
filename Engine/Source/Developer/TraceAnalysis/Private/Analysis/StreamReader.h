@@ -41,6 +41,8 @@ class FStreamBuffer
 public:
 	template <typename Lambda>
 	int32						Fill(Lambda&& Source);
+	void						Append(const uint8* Data, uint32 Size);
+	uint8*						Append(uint32 Size);
 
 protected:
 	void						Consolidate();

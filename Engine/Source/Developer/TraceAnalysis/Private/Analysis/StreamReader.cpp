@@ -40,6 +40,24 @@ bool FStreamReader::IsEmpty() const
 
 
 ////////////////////////////////////////////////////////////////////////////////
+void FStreamBuffer::Append(const uint8* Data, uint32 Size)
+{
+	uint8* Out = Append(Size);
+	FMemory::Memcpy(Out, Data, Size);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+uint8* FStreamBuffer::Append(uint32 Size)
+{
+	DemandHint = FMath::Max(Size, DemandHint);
+	Consolidate();
+	uint8* Out = Buffer + End;
+	End += Size;
+	check(End <= BufferSize);
+	return Out;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void FStreamBuffer::Consolidate()
 {
 	int32 Remaining = End - Cursor;
