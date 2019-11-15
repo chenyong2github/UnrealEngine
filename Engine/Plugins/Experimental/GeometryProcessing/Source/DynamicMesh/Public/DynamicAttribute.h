@@ -125,6 +125,11 @@ public:
 	{
 	}
 
+	/** Update to reflect an edge merge in the parent mesh */
+	virtual void OnSplitVertex(const DynamicMeshInfo::FVertexSplitInfo& SplitInfo, const TArrayView<const int>& TrianglesToUpdate)
+	{
+	}
+
 };
 
 
@@ -260,6 +265,13 @@ public:
 		for (TDynamicAttributeBase<ParentType>* A : RegisteredAttributes)
 		{
 			A->OnMergeEdges(MergeInfo);
+		}
+	}
+	virtual void OnSplitVertex(const DynamicMeshInfo::FVertexSplitInfo& SplitInfo, const TArrayView<const int>& TrianglesToUpdate)
+	{
+		for (TDynamicAttributeBase<ParentType>* A : RegisteredAttributes)
+		{
+			A->OnSplitVertex(SplitInfo, TrianglesToUpdate);
 		}
 	}
 };

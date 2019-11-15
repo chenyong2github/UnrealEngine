@@ -306,8 +306,7 @@ bool FDynamicMeshEditor::DisconnectTriangles(const TArray<int>& Triangles, TArra
 	// find the region boundary loops
 	FMeshRegionBoundaryLoops RegionLoops(Mesh, Triangles, false);
 	bool bOK = RegionLoops.Compute();
-	check(bOK);
-	if (!bOK)
+	if (!ensure(bOK))
 	{
 		return false;
 	}
@@ -377,6 +376,115 @@ bool FDynamicMeshEditor::DisconnectTriangles(const TArray<int>& Triangles, TArra
 
 	return true;
 }
+
+
+void FDynamicMeshEditor::DisconnectTriangles(const TArray<int>& Triangles, bool bPreventBowties)
+{
+	TSet<int> TriSet, BoundaryVerts;
+	TArray<int> NewVerts, OldVertsThatSplit;
+	TArray<int> FilteredTriangles;
+	DynamicMeshInfo::FVertexSplitInfo SplitInfo;
+
+	TriSet.Append(Triangles);
+	for (int TID : Triangles)
+	{
+		FIndex3i Nbrs = Mesh->GetTriNeighbourTris(TID);
+		FIndex3i Tri = Mesh->GetTriangle(TID);
+		for (int SubIdx = 0; SubIdx < 3; SubIdx++)
+		{
+			int NeighborTID = Nbrs[SubIdx];
+			if (!TriSet.Contains(NeighborTID))
+			{
+				BoundaryVerts.Add(Tri[SubIdx]);
+				BoundaryVerts.Add(Tri[(SubIdx + 1) % 3]);
+			}
+		}
+	}
+	for (int VID : BoundaryVerts)
+	{
+		FilteredTriangles.Reset();
+		int TriRingCount = 0;
+		for (int RingTID : Mesh->VtxTrianglesItr(VID))
+		{
+			if (TriSet.Contains(RingTID))
+			{
+				FilteredTriangles.Add(RingTID);
+			}
+			TriRingCount++;
+		}
+
+		if (FilteredTriangles.Num() < TriRingCount)
+		{
+			checkSlow(!Mesh->SplitVertexWouldLeaveIsolated(VID, FilteredTriangles));
+			ensure(EMeshResult::Ok == Mesh->SplitVertex(VID, FilteredTriangles, SplitInfo));
+			NewVerts.Add(SplitInfo.NewVertex);
+			OldVertsThatSplit.Add(SplitInfo.OriginalVertex);
+		}
+	}
+	if (bPreventBowties)
+	{
+		FDynamicMeshEditResult Result;
+		for (int VID : OldVertsThatSplit)
+		{
+			SplitBowties(VID, Result);
+			Result.Reset(); // don't actually keep results; they are not used in this fn
+		}
+		for (int VID : NewVerts)
+		{
+			SplitBowties(VID, Result);
+			Result.Reset(); // don't actually keep results; they are not used in this fn
+		}
+	}
+}
+
+
+
+
+void FDynamicMeshEditor::SplitBowties(FDynamicMeshEditResult& ResultOut)
+{
+	ResultOut.Reset();
+	TSet<int> AddedVerticesWithIDLessThanMax; // added vertices that we can't filter just by checking against original max id; this will be empty for compact meshes
+	for (int VertexID = 0, OriginalMaxID = Mesh->MaxVertexID(); VertexID < OriginalMaxID; VertexID++)
+	{
+		if (!Mesh->IsVertex(VertexID) || AddedVerticesWithIDLessThanMax.Contains(VertexID))
+		{
+			continue;
+		}
+		int32 NumVertsBefore = ResultOut.NewVertices.Num();
+		// TODO: may be faster to inline this call to reuse the contiguous triangle arrays?
+		SplitBowties(VertexID, ResultOut);
+		for (int Idx = NumVertsBefore; Idx < ResultOut.NewVertices.Num(); Idx++)
+		{
+			if (ResultOut.NewVertices[Idx] < OriginalMaxID)
+			{
+				AddedVerticesWithIDLessThanMax.Add(ResultOut.NewVertices[Idx]);
+			}
+		}
+	}
+}
+
+
+
+void FDynamicMeshEditor::SplitBowties(int VertexID, FDynamicMeshEditResult& ResultOut)
+{
+	TArray<int> TrianglesOut, ContiguousGroupLengths;
+	TArray<bool> GroupIsLoop;
+	DynamicMeshInfo::FVertexSplitInfo SplitInfo;
+	check(Mesh->IsVertex(VertexID));
+	if (ensure(EMeshResult::Ok == Mesh->GetVtxContiguousTriangles(VertexID, TrianglesOut, ContiguousGroupLengths, GroupIsLoop)))
+	{
+		if (ContiguousGroupLengths.Num() > 1)
+		{
+			// is bowtie
+			for (int GroupIdx = 1, GroupStartIdx = ContiguousGroupLengths[0]; GroupIdx < ContiguousGroupLengths.Num(); GroupStartIdx += ContiguousGroupLengths[GroupIdx++])
+			{
+				ensure(EMeshResult::Ok == Mesh->SplitVertex(VertexID, TArrayView<const int>(TrianglesOut.GetData() + GroupStartIdx, ContiguousGroupLengths[GroupIdx]), SplitInfo));
+				ResultOut.NewVertices.Add(SplitInfo.NewVertex);
+			}
+		}
+	}
+}
+
 
 
 

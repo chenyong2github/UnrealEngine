@@ -207,7 +207,7 @@ public:
 public:
 
 	/** Update the overlay to reflect an edge split in the parent mesh */
-	void OnSplitEdge(const DynamicMeshInfo::FEdgeSplitInfo& SplitInfo)
+	void OnSplitEdge(const DynamicMeshInfo::FEdgeSplitInfo& SplitInfo) override
 	{
 		CopyValue(SplitInfo.OriginalTriangles.A, SplitInfo.NewTriangles.A);
 		if (SplitInfo.OriginalTriangles.B != FDynamicMesh3::InvalidID)
@@ -217,29 +217,36 @@ public:
 	}
 
 	/** Update the overlay to reflect an edge flip in the parent mesh */
-	void OnFlipEdge(const DynamicMeshInfo::FEdgeFlipInfo& FlipInfo)
+	void OnFlipEdge(const DynamicMeshInfo::FEdgeFlipInfo& FlipInfo) override
 	{
 		// yikes! triangles did not actually change so we will leave attrib unmodified
 	}
 
 	/** Update the overlay to reflect an edge collapse in the parent mesh */
-	void OnCollapseEdge(const DynamicMeshInfo::FEdgeCollapseInfo& CollapseInfo)
+	void OnCollapseEdge(const DynamicMeshInfo::FEdgeCollapseInfo& CollapseInfo) override
 	{
 		// nothing to do here, triangles were only deleted
 	}
 
 	/** Update the overlay to reflect a face poke in the parent mesh */
-	void OnPokeTriangle(const DynamicMeshInfo::FPokeTriangleInfo& PokeInfo)
+	void OnPokeTriangle(const DynamicMeshInfo::FPokeTriangleInfo& PokeInfo) override
 	{
 		CopyValue(PokeInfo.OriginalTriangle, PokeInfo.NewTriangles.A);
 		CopyValue(PokeInfo.OriginalTriangle, PokeInfo.NewTriangles.B);
 	}
 
 	/** Update the overlay to reflect an edge merge in the parent mesh */
-	void OnMergeEdges(const DynamicMeshInfo::FMergeEdgesInfo& MergeInfo)
+	void OnMergeEdges(const DynamicMeshInfo::FMergeEdgesInfo& MergeInfo) override
 	{
 		// nothing to do here because triangles did not change
 	}
+
+	/** Update the overlay to reflect a vertex split in the parent */
+	void OnSplitVertex(const DynamicMeshInfo::FVertexSplitInfo& SplitInfo, const TArrayView<const int>& TrianglesToUpdate) override
+	{
+		// nothing to do here because triangles did not change
+	}
+
 
 };
 

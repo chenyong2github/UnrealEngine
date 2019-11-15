@@ -1012,3 +1012,24 @@ int FDynamicMesh3::FindEdgeFromTri(int vA, int vB, int tID) const
 	}
 	return InvalidID;
 }
+
+int FDynamicMesh3::FindEdgeFromTriPair(int TriA, int TriB) const
+{
+	if (TriangleRefCounts.IsValid(TriA) && TriangleRefCounts.IsValid(TriB))
+	{
+		int AI = 3 * TriA, BI = 3 * TriB;
+		for (int j = 0; j < 3; ++j)
+		{
+			int EdgeID = TriangleEdges[AI + j];
+			int EdgeIndex = 4 * EdgeID;
+			int NbrT = (Edges[EdgeIndex + 2] == TriA) ? Edges[EdgeIndex + 3] : Edges[EdgeIndex + 2];
+			if (NbrT == TriB)
+			{
+				return EdgeID;
+			}
+		}
+	}
+	return InvalidID;
+}
+
+

@@ -89,6 +89,7 @@ using FEdgeSplitInfo = DynamicMeshInfo::FEdgeSplitInfo;
 using FEdgeCollapseInfo = DynamicMeshInfo::FEdgeCollapseInfo;
 using FMergeEdgesInfo = DynamicMeshInfo::FMergeEdgesInfo;
 using FPokeTriangleInfo = DynamicMeshInfo::FPokeTriangleInfo;
+using FVertexSplitInfo = DynamicMeshInfo::FVertexSplitInfo;
 
 	/** InvalidID indicates that a vertex/edge/triangle ID is invalid */
 	constexpr static int InvalidID = IndexConstants::InvalidID;
@@ -104,7 +105,7 @@ using FPokeTriangleInfo = DynamicMeshInfo::FPokeTriangleInfo;
 protected:
 	/** List of vertex positions */
 	TDynamicVector<double> Vertices{};
-	/** Reference counts of vertex indices. Iterate over this to find out which vertex indices are valid. */
+	/** Reference counts of vertex indices. For vertices that exist, the count is 1 + num_triangle_using_vertex. Iterate over this to find out which vertex indices are valid. */
 	FRefCountVector VertexRefCounts{};
 	/** (optional) List of per-vertex normals */
 	TOptional<TDynamicVector<float>> VertexNormals{};
@@ -117,7 +118,7 @@ protected:
 
 	/** List of triangle vertex-index triplets [Vert0 Vert1 Vert2]*/
 	TDynamicVector<int> Triangles;
-	/** Reference counts of triangle indices. Iterate over this to find out which triangle indices are valid. */
+	/** Reference counts of triangle indices. Ref count is always 1 if the triangle exists. Iterate over this to find out which triangle indices are valid. */
 	FRefCountVector TriangleRefCounts;
 	/** List of triangle edge triplets [Edge0 Edge1 Edge2] */
 	TDynamicVector<int> TriangleEdges;
@@ -128,7 +129,7 @@ protected:
 
 	/** List of edge elements. An edge is four elements [VertA, VertB, Tri0, Tri1], where VertA < VertB, and Tri1 may be InvalidID (if the edge is a boundary edge) */
 	TDynamicVector<int> Edges;
-	/** Reference counts of edge indices. Iterate over this to find out which edge indices are valid. */
+	/** Reference counts of edge indices. Ref count is always 1 if the edge exists. Iterate over this to find out which edge indices are valid. */
 	FRefCountVector EdgeRefCounts;
 
 	TUniquePtr<FDynamicMeshAttributeSet> AttributeSet{};
@@ -730,6 +731,9 @@ public:
 	/** Find edgeid for edge [a,b] from triangle that contains the edge. Faster than FindEdge() because it is constant-time. */
 	int FindEdgeFromTri(int VertexA, int VertexB, int TriangleID) const;
 
+	/** Find edgeid for edge connecting two triangles */
+	int FindEdgeFromTriPair(int TriangleA, int TriangleB) const;
+
 	/** Find triangle made up of any permutation of vertices [a,b,c] */
 	int FindTriangle(int A, int B, int C) const;
 
@@ -1060,6 +1064,24 @@ public:
 	 * @return Ok on success, or enum value indicates why operation cannot be applied. Mesh remains unmodified on error.
 	 */
 	virtual EMeshResult FlipEdge(int EdgeVertA, int EdgeVertB, FEdgeFlipInfo& FlipInfo);
+
+
+	/**
+	 * Clones the given vertex and updates any provided triangles to use the new vertex if/where they used the old one.
+	 * @param VertexID the vertex to split
+	 * @param TrianglesToUpdate triangles that should be updated to use the new vertex anywhere they previously had the old one
+	 * @param SplitInfo returned info about the new and modified mesh elements
+	 * @return Ok on success, or enum value indicates why operation cannot be applied. Mesh remains unmodified on error.
+	 */
+	virtual EMeshResult SplitVertex(int VertexID, const TArrayView<const int>& TrianglesToUpdate, FVertexSplitInfo& SplitInfo);
+
+	/**
+	 * Tests whether splitting the given vertex with the given triangles would leave no triangles attached to the original vertex (creating an isolated vertex)
+	 * @param VertexID the vertex to split
+	 * @param TrianglesToUpdate triangles that should be updated to use the new vertex anywhere they previously had the old one
+	 * @return true if calling SplitVertex with these arguments would leave an isolated vertex at the original VertexID
+	 */
+	virtual bool SplitVertexWouldLeaveIsolated(int VertexID, const TArrayView<const int>& TrianglesToUpdate);
 
 
 

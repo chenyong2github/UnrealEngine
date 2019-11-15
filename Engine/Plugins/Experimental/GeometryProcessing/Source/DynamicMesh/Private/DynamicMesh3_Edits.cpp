@@ -1187,7 +1187,77 @@ EMeshResult FDynamicMesh3::FlipEdge(int vA, int vB, FEdgeFlipInfo& FlipInfo)
 
 
 
+EMeshResult FDynamicMesh3::SplitVertex(int VertexID, const TArrayView<const int>& TrianglesToUpdate, FVertexSplitInfo& SplitInfo)
+{
+	if (!ensure(IsVertex(VertexID)))
+	{
+		return EMeshResult::Failed_NotAVertex;
+	}
 
+	SplitInfo.OriginalVertex = VertexID;
+	SplitInfo.NewVertex = AppendVertex(*this, VertexID);
+
+	// TODO: consider making a TSet copy of TrianglesToUpdate for membership tests, if TrianglesToUpdate is large
+	auto ProcessEdge = [this, &TrianglesToUpdate, &SplitInfo](int TriID, FIndex3i& UpdatedTri, FIndex3i& TriEdges, int SubIdx)
+	{
+		int EdgeID = TriEdges[SubIdx];
+		int OtherTri = GetOtherEdgeTriangle(EdgeID, TriID);
+		bool bNewBoundary = OtherTri >= 0 && !TrianglesToUpdate.Contains(OtherTri); // processing this edge will create a new boundary
+		if (bNewBoundary) // there *is* a triangle across from this edge and we do need to separate from it
+		{
+			ReplaceEdgeTriangle(EdgeID, TriID, InvalidID); // remove TriID from original edge, disconnecting it from OtherTri
+			// add a new edge for TriID connecting the updated tri vertices
+			AddTriangleEdge(TriID, UpdatedTri[SubIdx], UpdatedTri[(SubIdx+1)%3], SubIdx, InvalidID); // adds to vertexedgelists
+		}
+		else // othertri invalid or also in set
+		{
+			// if OtherTri already was processed and replaced edge, ReplaceEdgeVertex will return InvalidID and do nothing
+			if (ReplaceEdgeVertex(EdgeID, SplitInfo.OriginalVertex, SplitInfo.NewVertex) != InvalidID)
+			{
+				// if replace edge actually happened, also update VertexEdgeLists accordingly
+				ensure(VertexEdgeLists.Remove(SplitInfo.OriginalVertex, EdgeID));
+				VertexEdgeLists.Insert(SplitInfo.NewVertex, EdgeID);
+			}
+		}
+	};
+	for (int TriID : TrianglesToUpdate)
+	{
+		FIndex3i Triangle = GetTriangle(TriID);
+		int SubIdx = Triangle.IndexOf(VertexID);
+		if (SubIdx < 0)
+		{
+			continue;
+		}
+		Triangle[SubIdx] = SplitInfo.NewVertex; // update local copy w/ new vertex, for use by ProcessEdge helper
+		FIndex3i TriEdges = GetTriEdges(TriID);
+		ProcessEdge(TriID, Triangle, TriEdges, SubIdx);
+		ProcessEdge(TriID, Triangle, TriEdges, (SubIdx+2)%3);
+
+		Triangles[TriID * 3 + SubIdx] = SplitInfo.NewVertex;
+		VertexRefCounts.Decrement(SplitInfo.OriginalVertex); // remove the triangle from the original vertex
+		VertexRefCounts.Increment(SplitInfo.NewVertex);
+	}
+
+	if (HasAttributes())
+	{
+		Attributes()->OnSplitVertex(SplitInfo, TrianglesToUpdate);
+	}
+	UpdateTimeStamp(true, true);
+	return EMeshResult::Ok;
+}
+
+
+bool FDynamicMesh3::SplitVertexWouldLeaveIsolated(int VertexID, const TArrayView<const int>& TrianglesToUpdate)
+{
+	for (int TID : VtxTrianglesItr(VertexID))
+	{
+		if (!TrianglesToUpdate.Contains(TID))
+		{
+			return false; // at least one triangle will keep the old VertexID
+		}
+	}
+	return true; // no triangles founds that keep old VertexID
+}
 
 
 

@@ -204,6 +204,135 @@ void TDynamicMeshOverlay<RealType, ElementSize>::SplitVerticesWithPredicate(TFun
 
 
 template<typename RealType, int ElementSize>
+int TDynamicMeshOverlay<RealType, ElementSize>::SplitElement(int ElementID, const TArrayView<const int>& TrianglesToUpdate)
+{
+	int ParentID = ParentVertices[ElementID];
+	return SplitElementWithNewParent(ElementID, ParentID, TrianglesToUpdate);
+}
+
+
+template<typename RealType, int ElementSize>
+int TDynamicMeshOverlay<RealType, ElementSize>::SplitElementWithNewParent(int ElementID, int NewParentID, const TArrayView<const int>& TrianglesToUpdate)
+{
+	RealType SourceData[ElementSize];
+	GetElement(ElementID, SourceData);
+	int NewElID = AppendElement(SourceData, NewParentID);
+	for (int TriID : TrianglesToUpdate)
+	{
+		int ElementTriStart = TriID * 3;
+		for (int SubIdx = 0; SubIdx < 3; SubIdx++)
+		{
+			int CurElID = ElementTriangles[ElementTriStart + SubIdx];
+			if (CurElID == ElementID)
+			{
+				ElementsRefCounts.Decrement(ElementID);
+				ElementsRefCounts.Increment(NewElID);
+				ElementTriangles[ElementTriStart + SubIdx] = NewElID;
+			}
+		}
+	}
+	checkSlow(ElementsRefCounts.IsValid(ElementID)); // simple sanity check; shouldn't completely remove an element with SplitElement
+	return NewElID;
+}
+
+
+template<typename RealType, int ElementSize>
+void TDynamicMeshOverlay<RealType, ElementSize>::SplitBowties()
+{
+	// arrays for storing contiguous triangle groups from parentmesh
+	TArray<int> TrianglesOut, ContiguousGroupLengths;
+	TArray<bool> GroupIsLoop;
+
+	// per-vertex element group tracking data, reused in loop below
+	TSet<int> ElementIDSeen;
+	TArray<int> ElementIDs, SubGroupID, SubGroupElementIDs;
+	
+	for (int VertexID : ParentMesh->VertexIndicesItr())
+	{
+		ensure(EMeshResult::Ok == ParentMesh->GetVtxContiguousTriangles(VertexID, TrianglesOut, ContiguousGroupLengths, GroupIsLoop));
+		int32 NumTris = TrianglesOut.Num();
+
+		ElementIDSeen.Reset();
+		// per contiguous group of triangles around vertex in ParentMesh, find contiguous sub-groups in overlay
+		for (int32 GroupIdx = 0, NumGroups = ContiguousGroupLengths.Num(), TriSubStart = 0; GroupIdx < NumGroups; GroupIdx++)
+		{
+			bool bIsLoop = GroupIsLoop[GroupIdx];
+			int TriInGroupNum = ContiguousGroupLengths[GroupIdx];
+			check(TriInGroupNum > 0);
+			int TriSubEnd = TriSubStart + TriInGroupNum;
+			
+			ElementIDs.Reset();
+			for (int TriSubIdx = TriSubStart; TriSubIdx < TriSubEnd; TriSubIdx++)
+			{
+				int TriID = TrianglesOut[TriSubIdx];
+				FIndex3i TriVIDs = ParentMesh->GetTriangle(TriID);
+				FIndex3i TriEIDs = GetTriangle(TriID);
+				int SubIdx = TriVIDs.IndexOf(VertexID);
+				ElementIDs.Add(TriEIDs[SubIdx]);
+			}
+
+			auto IsConnected = [this, &ElementIDs, &TrianglesOut](int TriOutIdxA, int TriOutIdxB)
+			{
+				if (ElementIDs[TriOutIdxA] != ElementIDs[TriOutIdxB])
+				{
+					return false;
+				}
+				int EdgeID = ParentMesh->FindEdgeFromTriPair(TrianglesOut[TriOutIdxA], TrianglesOut[TriOutIdxB]);
+				return EdgeID >= 0 && !IsSeamEdge(EdgeID);
+			};
+
+			SubGroupID.Reset(); SubGroupID.SetNum(TriInGroupNum);
+			SubGroupElementIDs.Reset();
+			int MaxSubID = 0;
+			SubGroupID[0] = 0;
+			SubGroupElementIDs.Add(ElementIDs[0]);
+			for (int TriSubIdx = TriSubStart; TriSubIdx+1 < TriSubEnd; TriSubIdx++)
+			{
+				if (!IsConnected(TriSubIdx, TriSubIdx+1))
+				{
+					SubGroupElementIDs.Add(ElementIDs[TriSubIdx + 1]);
+					MaxSubID++;
+				}
+				SubGroupID[TriSubIdx - TriSubStart + 1] = MaxSubID;
+			}
+			// if group was a loop, need to check if the last sub-group and first sub-group were actually the same group
+			if (bIsLoop && MaxSubID > 0 && IsConnected(TriSubStart, TriSubStart + TriInGroupNum - 1))
+			{
+				int LastGroupID = SubGroupID.Last();
+				for (int32 Idx = SubGroupID.Num() - 1; Idx >= 0 && SubGroupID[Idx] == LastGroupID; Idx--)
+				{
+					SubGroupID[Idx] = 0;
+				}
+				MaxSubID--;
+				SubGroupElementIDs.Pop(false);
+			}
+
+			for (int SubID = 0; SubID < SubGroupElementIDs.Num(); SubID++)
+			{
+				int ElementID = SubGroupElementIDs[SubID];
+				// split needed the *second* time we see a sub-group using a given ElementID
+				if (ElementIDSeen.Contains(ElementID))
+				{
+					TArray<int> ConnectedTris;
+					for (int TriSubIdx = TriSubStart; TriSubIdx < TriSubEnd; TriSubIdx++)
+					{
+						if (SubID == SubGroupID[TriSubIdx - TriSubStart])
+						{
+							ConnectedTris.Add(TrianglesOut[TriSubIdx]);
+						}
+					}
+					SplitElement(ElementID, ConnectedTris);
+				}
+				ElementIDSeen.Add(ElementID);
+			}
+
+			TriSubStart = TriSubEnd;
+		}
+	}
+}
+
+
+template<typename RealType, int ElementSize>
 void TDynamicMeshOverlay<RealType, ElementSize>::InitializeTriangles(int MaxTriangleID)
 {
 	ElementTriangles.Resize(0);
@@ -775,6 +904,33 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnMergeEdges(const FDynamicMesh
 	}
 }
 
+
+
+template<typename RealType, int ElementSize>
+void TDynamicMeshOverlay<RealType, ElementSize>::OnSplitVertex(const DynamicMeshInfo::FVertexSplitInfo& SplitInfo, const TArrayView<const int>& TrianglesToUpdate)
+{
+	TArray<int> OutElements;
+	// custom reimplementation of GetVertexElements() accounting for the base mesh already being updated
+	for (int tid : ParentMesh->VtxTrianglesItr(SplitInfo.NewVertex)) // only care about triangles connected to the *new* vertex; these are updated
+	{
+		FIndex3i Triangle = GetTriangle(tid);
+		for (int j = 0; j < 3; ++j)
+		{
+			// though the ParentMesh vertex is NewVertex in the source mesh, it is still OriginalVertex in the ParentVertices array (since that hasn't been updated yet)
+			if (ParentVertices[Triangle[j]] == SplitInfo.OriginalVertex)
+			{
+				OutElements.AddUnique(Triangle[j]);
+			}
+		}
+	}
+
+	for (int ElementID : OutElements)
+	{
+		// Note: TrianglesToUpdate will include triangles that don't include the element, but that's ok; it just won't find any elements to update for those
+		//			(and this should be cheaper than constructing a new array for every element)
+		SplitElementWithNewParent(ElementID, SplitInfo.NewVertex, TrianglesToUpdate);
+	}
+}
 
 
 

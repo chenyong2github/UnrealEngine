@@ -97,4 +97,13 @@ struct FPokeTriangleInfo
 
 	FVector3d BaryCoords;				// barycentric coords that NewVertex was inserted at
 };
+
+/** Information about mesh elements modified/created by SplitVertex() */
+struct FVertexSplitInfo
+{
+	int OriginalVertex;
+	int NewVertex;
+	// if needed could possibly add information about added edges?  but it would be a dynamic array, and there is no use for it yet.
+	// modified triangles are passed as input to the function, no need to store those here.
+};
 }

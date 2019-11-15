@@ -41,6 +41,7 @@ public class ModelingOperators : ModuleRules
 				"MeshConversion",
                 "GeometryAlgorithms", // required for constrained Delaunay triangulation
                 "MeshSolverUtilities", // required by the smoothing operators
+				"MeshUtilitiesCommon", // required by uvlayoutop
 				// ... add other public dependencies that you statically link with here ...
 			}
             );

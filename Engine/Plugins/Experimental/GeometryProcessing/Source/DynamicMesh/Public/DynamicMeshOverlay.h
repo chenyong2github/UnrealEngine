@@ -132,6 +132,33 @@ public:
 	void SplitVerticesWithPredicate(TFunctionRef<bool(int ElementIdx, int TriID)> ShouldSplitOutVertex, TFunctionRef<void(int ElementIdx, int TriID, RealType* FillVect)> GetNewElementValue);
 
 
+	/**
+	 * Create a new copy of ElementID, and update connected triangles in the TrianglesToUpdate array to reference the copy of ElementID where they used to reference ElementID
+	 * (Note: This just calls "SplitElementWithNewParent" with the existing element's parent id.)
+	 *
+	 * @param ElementID the element to copy
+	 * @param TrianglesToUpdate the triangles that should now reference the new element
+	 * @return the ID of the newly created element
+	 */
+	int SplitElement(int ElementID, const TArrayView<const int>& TrianglesToUpdate);
+
+	/**
+	* Create a new copy of ElementID, and update connected triangles in the TrianglesToUpdate array to reference the copy of ElementID where they used to reference ElementID.  The new element will have the given parent vertex ID.
+	*
+	* @param ElementID the element to copy
+	* @param SplitParentVertexID the new parent vertex for copied elements
+	* @param TrianglesToUpdate the triangles that should now reference the new element.  Note: this is allowed to include triangles that do not have the element at all; sometimes you may want to do so to avoid creating a new array for each call.
+	* @return the ID of the newly created element
+	*/
+	int SplitElementWithNewParent(int ElementID, int SplitParentVertexID, const TArrayView<const int>& TrianglesToUpdate);
+
+
+	/**
+	* Refine an existing overlay topology by splitting any bow ties
+	*/
+	void SplitBowties();
+
+
 	//
 	// Support for inserting element at specific ID. This is a bit tricky
 	// because we likely will need to update the free list in the RefCountVector, which
@@ -270,6 +297,8 @@ public:
 	void OnPokeTriangle(const DynamicMeshInfo::FPokeTriangleInfo& PokeInfo);
 	/** Update the overlay to reflect an edge merge in the parent mesh */
 	void OnMergeEdges(const DynamicMeshInfo::FMergeEdgesInfo& MergeInfo);
+	/** Update the overlay to reflect a vertex split in the parent mesh */
+	void OnSplitVertex(const DynamicMeshInfo::FVertexSplitInfo& SplitInfo, const TArrayView<const int>& TrianglesToUpdate);
 
 protected:
 	/** Set the value at an Element to be a linear interpolation of two other Elements */

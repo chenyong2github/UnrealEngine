@@ -186,11 +186,31 @@ public:
 	/**
 	 * Finds boundary loops of connected components of a set of triangles, and duplicates the vertices
 	 * along the boundary, such that the triangles become disconnected.
+	 * Note: This can create a mesh with bowties if you pass in a subset of triangles that would have bowtie connectivity.
+	 *		 (it is impossible to create the paired LoopSetOut with 1:1 vertex pairs without leaving in the bowties?)
 	 * @param Triangles set of triangles
 	 * @param LoopSetOut set of boundary loops. LoopA is original loop which remains with "outer" triangles, and LoopB is new boundary loop of triangle set
 	 * @return true on success
 	 */
 	bool DisconnectTriangles(const TArray<int>& Triangles, TArray<FLoopPairSet>& LoopSetOut);
+
+	/**
+	* Disconnects triangles (without constructing boundary loops) such that the input Triangles are not connected to any other triangles in the mesh
+	* @param Triangles set of triangles
+	* @param bPreventBowties do some additional processing and vertex splitting as needed to prevent the creation of any new bowties
+	*/
+	void DisconnectTriangles(const TArray<int>& Triangles, bool bPreventBowties = true);
+
+
+	/**
+	 * Splits all bowties across the whole mesh
+	 */
+	void SplitBowties(FDynamicMeshEditResult& ResultOut);
+
+	/**
+	 * Splits any bowties specifically on the given vertex, and updates (does not reset!) ResultOut with any added vertices
+	 */
+	void SplitBowties(int VertexID, FDynamicMeshEditResult& ResultOut);
 
 
 	/**

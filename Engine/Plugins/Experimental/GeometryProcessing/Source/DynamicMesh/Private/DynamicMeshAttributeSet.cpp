@@ -179,3 +179,19 @@ void FDynamicMeshAttributeSet::OnMergeEdges(const FDynamicMesh3::FMergeEdgesInfo
 	}
 }
 
+void FDynamicMeshAttributeSet::OnSplitVertex(const DynamicMeshInfo::FVertexSplitInfo& SplitInfo, const TArrayView<const int>& TrianglesToUpdate)
+{
+	FDynamicMeshAttributeSetBase::OnSplitVertex(SplitInfo, TrianglesToUpdate);
+
+	for (FDynamicMeshUVOverlay& UVLayer : UVLayers)
+	{
+		UVLayer.OnSplitVertex(SplitInfo, TrianglesToUpdate);
+	}
+	Normals0.OnSplitVertex(SplitInfo, TrianglesToUpdate);
+
+	if (MaterialIDAttrib)
+	{
+		MaterialIDAttrib->OnSplitVertex(SplitInfo, TrianglesToUpdate);
+	}
+}
+

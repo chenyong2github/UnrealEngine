@@ -39,6 +39,7 @@ enum class EMeshSelectionToolActions
 	ExpandToConnected,
 
 	DeleteSelected,
+	DisconnectSelected,
 	SeparateSelected,
 	FlipSelected,
 	CreateGroup
@@ -122,13 +123,19 @@ public:
 		PostAction(EMeshSelectionToolActions::SeparateSelected);
 	}
 
-	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Flip Normals", DisplayPriority = 3))
+	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Disconnect", DisplayPriority = 3))
+	void DisconnectTriangles() 
+	{
+		PostAction(EMeshSelectionToolActions::DisconnectSelected);
+	}
+
+	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Flip Normals", DisplayPriority = 4))
 	void FlipNormals() 
 	{
 		PostAction(EMeshSelectionToolActions::FlipSelected);
 	}
 
-	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Create Polygroup", DisplayPriority = 4))
+	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Create Polygroup", DisplayPriority = 5))
 	void CreatePolygroup()
 	{
 		PostAction(EMeshSelectionToolActions::CreateGroup);
@@ -310,7 +317,8 @@ protected:
 	void ExpandToConnected();
 
 	void DeleteSelectedTriangles();
-	void SeparateSelectedTriangles();
+	void DisconnectSelectedTriangles(); // disconnects edges between selected and not-selected triangles; keeps all triangles in the same mesh
+	void SeparateSelectedTriangles(); // separates out selected triangles to a new mesh, removing them from the current mesh
 	void FlipSelectedTriangles();
 	void AssignNewGroupToSelectedTriangles();
 

@@ -35,6 +35,7 @@
 #include "TransformMeshesTool.h"
 #include "MeshSelectionTool.h"
 #include "UVProjectionTool.h"
+#include "UVLayoutTool.h"
 
 #include "ParameterizeMeshTool.h"
 
@@ -380,6 +381,10 @@ void FModelingToolsEditorMode::Enter()
 	auto UVProjectionToolBuilder = NewObject<UUVProjectionToolBuilder>();
 	UVProjectionToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginUVProjectionTool, TEXT("UVProjectionTool"), UVProjectionToolBuilder);
+
+	auto UVLayoutToolBuilder = NewObject<UUVLayoutToolBuilder>();
+	UVLayoutToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	RegisterToolFunc(ToolManagerCommands.BeginUVLayoutTool, TEXT("UVLayoutTool"), UVLayoutToolBuilder);
 
 	auto MergeMeshesToolBuilder = NewObject<UMergeMeshesToolBuilder>();
 	MergeMeshesToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();

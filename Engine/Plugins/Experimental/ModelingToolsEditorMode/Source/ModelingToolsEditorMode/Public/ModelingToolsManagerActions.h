@@ -33,6 +33,7 @@ public:
 	TSharedPtr<FUICommandInfo> BeginEditNormalsTool;
 	TSharedPtr<FUICommandInfo> BeginRemoveOccludedTrianglesTool;
 	TSharedPtr<FUICommandInfo> BeginUVProjectionTool;
+	TSharedPtr<FUICommandInfo> BeginUVLayoutTool;
 	TSharedPtr<FUICommandInfo> BeginPlaneCutTool;
 	TSharedPtr<FUICommandInfo> BeginPolygonOnMeshTool;
 	TSharedPtr<FUICommandInfo> BeginVoxelMergeTool;

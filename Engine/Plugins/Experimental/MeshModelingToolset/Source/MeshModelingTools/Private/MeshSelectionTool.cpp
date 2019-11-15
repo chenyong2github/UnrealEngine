@@ -10,6 +10,7 @@
 #include "Changes/MeshChange.h"
 #include "Util/ColorConstants.h"
 #include "Selections/MeshConnectedComponents.h"
+#include "MeshRegionBoundaryLoops.h"
 #include "MeshIndexUtil.h"
 #include "AssetGenerationUtil.h"
 #include "ToolSetupUtil.h"
@@ -560,7 +561,7 @@ void UMeshSelectionTool::Render(IToolsContextRenderAPI* RenderAPI)
 }
 
 
-void UMeshSelectionTool::Tick(float DeltaTime)
+void UMeshSelectionTool::Tick(float DeltaTime)
 {
 	UDynamicMeshBrushTool::Tick(DeltaTime);
 
@@ -657,6 +658,10 @@ void UMeshSelectionTool::ApplyAction(EMeshSelectionToolActions ActionType)
 
 		case EMeshSelectionToolActions::DeleteSelected:
 			DeleteSelectedTriangles();
+			break;
+
+		case EMeshSelectionToolActions::DisconnectSelected:
+			DisconnectSelectedTriangles();
 			break;
 
 		case EMeshSelectionToolActions::SeparateSelected:
@@ -918,6 +923,49 @@ void AssignMaterial(AActor* ToActor, const TUniquePtr<FPrimitiveComponentTarget>
 		}
 	//}
 }
+
+
+void UMeshSelectionTool::DisconnectSelectedTriangles()
+{
+	check(SelectionType == EMeshSelectionElementType::Face);
+	TArray<int32> SelectedFaces = Selection->GetElements(EMeshSelectionElementType::Face);
+	if (SelectedFaces.Num() == 0)
+	{
+		return;
+	}
+
+	TUniquePtr<FToolCommandChangeSequence> ChangeSeq = MakeUnique<FToolCommandChangeSequence>();
+
+	// split out selected triangles and emit triangle change
+	TUniquePtr<FMeshChange> MeshChange = PreviewMesh->TrackedEditMesh(
+		[&SelectedFaces](FDynamicMesh3& Mesh, FDynamicMeshChangeTracker& ChangeTracker)
+	{
+		// save vertices and triangles that are on the boundary of the selection
+		FMeshRegionBoundaryLoops BoundaryLoops(&Mesh, SelectedFaces);
+		for (const FEdgeLoop& Loop : BoundaryLoops.Loops)
+		{
+			for (int VID : Loop.Vertices)
+			{
+				ChangeTracker.SaveVertex(VID);
+				// include the whole one-ring in case the disconnect creates bowties that need to be split
+				for (int TID : Mesh.VtxTrianglesItr(VID))
+				{
+					ChangeTracker.SaveTriangle(TID, false);
+				}
+			}
+		}
+
+		FDynamicMeshEditor Editor(&Mesh);
+		Editor.DisconnectTriangles(SelectedFaces);
+	});
+	ChangeSeq->AppendChange(PreviewMesh, MoveTemp(MeshChange));
+
+	// emit combined change sequence
+	GetToolManager()->EmitObjectChange(this, MoveTemp(ChangeSeq), LOCTEXT("MeshSelectionToolDisconnectFaces", "Disconnect Faces"));
+
+	bHaveModifiedMesh = true;
+}
+
 
 
 void UMeshSelectionTool::SeparateSelectedTriangles()

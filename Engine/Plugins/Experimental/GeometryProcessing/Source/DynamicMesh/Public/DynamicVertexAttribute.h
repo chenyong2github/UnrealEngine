@@ -226,6 +226,12 @@ public:
 		SetAttributeFromLerp(MergeInfo.KeptVerts.B, MergeInfo.KeptVerts.B, MergeInfo.RemovedVerts.B, .5);
 	}
 
+	/** Update the overlay to reflect a vertex split in the parent */
+	void OnSplitVertex(const FDynamicMesh3::FVertexSplitInfo& SplitInfo, const TArrayView<const int>& TrianglesToUpdate) override
+	{
+		CopyValue(SplitInfo.OriginalVertex, SplitInfo.NewVertex);
+	}
+
 	virtual TUniquePtr<TDynamicAttributeChangeBase<ParentType>> NewBlankChange() override
 	{
 		return MakeUnique<TDynamicVertexAttributeChange<AttribValueType, AttribDimension, ParentType>>();
