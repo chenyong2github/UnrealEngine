@@ -66,18 +66,34 @@ struct FRenderDocAsyncGraphTask : public FAsyncGraphTaskBase
 class FRenderDocFrameCapturer
 {
 public:
+	static RENDERDOC_DevicePointer GetRenderdocDevicePointer()
+	{
+		RENDERDOC_DevicePointer Device;
+		if(0 == FCString::Strcmp(GDynamicRHI->GetName(),TEXT("Vulkan")))
+		{
+			Device = GDynamicRHI->RHIGetNativeInstance();
+#ifndef RENDERDOC_DEVICEPOINTER_FROM_VKINSTANCE
+#define RENDERDOC_DEVICEPOINTER_FROM_VKINSTANCE(inst) (*((void **)(inst)))
+#endif
+			Device = RENDERDOC_DEVICEPOINTER_FROM_VKINSTANCE(Device);
+		}
+		else
+		{
+			Device = GDynamicRHI->RHIGetNativeDevice();
+		}
+		return Device;
+
+	}
 	static void BeginCapture(HWND WindowHandle, FRenderDocPluginLoader::RENDERDOC_API_CONTEXT* RenderDocAPI, FRenderDocPluginModule* Plugin)
 	{
 		UE4_GEmitDrawEvents_BeforeCapture = GetEmitDrawEvents();
 		SetEmitDrawEvents(true);
-
-		RENDERDOC_DevicePointer Device = GDynamicRHI->RHIGetNativeDevice();
-		RenderDocAPI->StartFrameCapture(Device, WindowHandle);
+		RenderDocAPI->StartFrameCapture(GetRenderdocDevicePointer(), WindowHandle);
 	}
 	static void EndCapture(HWND WindowHandle, FRenderDocPluginLoader::RENDERDOC_API_CONTEXT* RenderDocAPI, FRenderDocPluginModule* Plugin)
 	{
-		RENDERDOC_DevicePointer Device = GDynamicRHI->RHIGetNativeDevice();
-		RenderDocAPI->EndFrameCapture(Device, WindowHandle);
+		FRHICommandListExecutor::GetImmediateCommandList().SubmitCommandsAndFlushGPU();
+		RenderDocAPI->EndFrameCapture(GetRenderdocDevicePointer(), WindowHandle);
 
 		SetEmitDrawEvents(UE4_GEmitDrawEvents_BeforeCapture);
 

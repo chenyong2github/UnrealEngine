@@ -1184,6 +1184,15 @@ public:
 	{
 		return RHI->RHIGetNativeDevice();
 	}
+	/**
+	* Provides access to the native instance. Generally this should be avoided but is useful for third party plugins.
+	*/
+	// FlushType: Flush RHI Thread
+	virtual void* RHIGetNativeInstance() override final
+	{
+		return RHI->RHIGetNativeInstance();
+	}
+
 
 	// FlushType: Thread safe
 	virtual IRHICommandContext* RHIGetDefaultContext() override final;
