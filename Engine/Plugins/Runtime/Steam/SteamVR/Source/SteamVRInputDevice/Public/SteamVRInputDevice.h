@@ -95,8 +95,11 @@ public:
 	/** Have the action manifest regenerated. Used by the plugin Editor UI */
 	void RegenerateActionManifest();
 
-	/** Have the controller bindings regenerated. Used by the plugin Editor UI  */
+	/** Have the controller bindings regenerated. Used by the plugin Editor UI */
 	void RegenerateControllerBindings();
+
+	/** Have the manifest and bindings bindings regenerated. Used by a UI callback */
+	void OnActionMappingsChanged();
 
 	/** Reload the action manifest to the SteamVR system. Use if you changed the action manifest manually */
 	void ReloadActionManifest();
