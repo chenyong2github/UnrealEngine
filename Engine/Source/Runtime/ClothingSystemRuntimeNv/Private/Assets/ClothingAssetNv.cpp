@@ -73,7 +73,7 @@ UClothingAssetNv::UClothingAssetNv(const FObjectInitializer& ObjectInitializer)
 	{
 		IClothingSimulationFactoryClassProvider* const Provider = ClassProviders[Index];
 		check(Provider);
-		ClothingSimulationFactory = Provider->GetDefaultSimulationFactoryClass();
+		ClothingSimulationFactory = Provider->GetClothingSimulationFactoryClass();
 
 		UClass* SimFactoryClass = *ClothingSimulationFactory;
 		if (SimFactoryClass)

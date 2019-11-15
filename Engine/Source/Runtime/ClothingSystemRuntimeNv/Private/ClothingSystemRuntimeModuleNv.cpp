@@ -73,7 +73,7 @@ nv::cloth::ClothMeshQuadifier* FClothingSystemRuntimeModuleNv::GetMeshQuadifier(
 	return nullptr;
 }
 
-UClass* FClothingSystemRuntimeModuleNv::GetDefaultSimulationFactoryClass()
+TSubclassOf<UClothingSimulationFactory> FClothingSystemRuntimeModuleNv::GetClothingSimulationFactoryClass() const
 {
 #if WITH_NVCLOTH
 	return UClothingSimulationFactoryNv::StaticClass();

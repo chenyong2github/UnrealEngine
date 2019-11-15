@@ -27,7 +27,7 @@ class FChaosClothModule : public IChaosClothModuleInterface, public IClothingSim
 #endif
     }
 
-	UClass* GetDefaultSimulationFactoryClass()
+	TSubclassOf<UClothingSimulationFactory> GetClothingSimulationFactoryClass() const override
 	{
 #if WITH_CHAOS
 		return UChaosClothingSimulationFactory::StaticClass();

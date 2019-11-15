@@ -28,7 +28,7 @@ public:
 	nv::cloth::ClothMeshQuadifier* GetMeshQuadifier();
 
 	// IClothingSimulationFactoryClassProvider Interface
-	virtual UClass* GetDefaultSimulationFactoryClass() override;
+	virtual TSubclassOf<UClothingSimulationFactory> GetClothingSimulationFactoryClass() const override;
 	//////////////////////////////////////////////////////////////////////////
 
 private:
