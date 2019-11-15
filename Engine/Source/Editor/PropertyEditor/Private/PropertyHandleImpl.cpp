@@ -3158,8 +3158,8 @@ bool FPropertyHandleBase::CanResetToDefault() const
 	}
 
 	// Should not be able to reset fixed size arrays
-	const bool bFixedSized = Property->PropertyFlags & CPF_EditFixedSize;
-	const bool bCanResetToDefault = !(Property->PropertyFlags & CPF_Config);
+	const bool bFixedSized = (Property->PropertyFlags & CPF_EditFixedSize) != 0;
+	const bool bCanResetToDefault = (Property->PropertyFlags & CPF_Config) == 0;
 
 	return bCanResetToDefault && !bFixedSized && DiffersFromDefault();
 }
