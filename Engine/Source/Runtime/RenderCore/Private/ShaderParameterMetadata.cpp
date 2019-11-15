@@ -135,7 +135,10 @@ void FShaderParametersMetadata::InitializeAllGlobalStructs()
 {
 	for (TLinkedList<FShaderParametersMetadata*>::TIterator StructIt(FShaderParametersMetadata::GetStructList()); StructIt; StructIt.Next())
 	{
-		StructIt->InitializeLayout();
+		if (!StructIt->bLayoutInitialized)
+		{
+			StructIt->InitializeLayout();
+		}
 	}
 }
 
@@ -146,7 +149,6 @@ void FShaderParametersMetadata::InitializeLayout()
 
 	TArray<FUniformBufferMemberAndOffset> MemberStack;
 	MemberStack.Reserve(Members.Num());
-
 	for (int32 MemberIndex = 0; MemberIndex < Members.Num(); MemberIndex++)
 	{
 		MemberStack.Push(FUniformBufferMemberAndOffset(*this, Members[MemberIndex], 0));
@@ -281,8 +283,48 @@ void FShaderParametersMetadata::InitializeLayout()
 #endif
 	});
 
+	// Compute the hash of the RHI layout.
 	Layout.ComputeHash();
+	
+	// Compute the hash about the entire layout of the structure.
+	{
+		uint32 RootStructureHash = 0;
+		RootStructureHash = HashCombine(RootStructureHash, GetTypeHash(int32(GetSize())));
 
+		for (const FMember& CurrentMember : Members)
+		{
+			EUniformBufferBaseType BaseType = CurrentMember.GetBaseType();
+			const FShaderParametersMetadata* ChildStruct = CurrentMember.GetStructMetadata();
+
+			uint32 MemberHash = 0;
+			MemberHash = HashCombine(MemberHash, GetTypeHash(int32(CurrentMember.GetOffset())));
+			MemberHash = HashCombine(MemberHash, GetTypeHash(uint8(BaseType)));
+			static_assert(EUniformBufferBaseType_NumBits <= 8, "Invalid EUniformBufferBaseType_NumBits");
+			MemberHash = HashCombine(MemberHash, GetTypeHash(CurrentMember.GetName()));
+			MemberHash = HashCombine(MemberHash, GetTypeHash(int32(CurrentMember.GetNumElements())));
+
+			if (BaseType == UBMT_INT32 ||
+				BaseType == UBMT_UINT32 ||
+				BaseType == UBMT_FLOAT32)
+			{
+				MemberHash = HashCombine(MemberHash, GetTypeHash(uint8(CurrentMember.GetNumRows())));
+				MemberHash = HashCombine(MemberHash, GetTypeHash(uint8(CurrentMember.GetNumColumns())));
+			}
+			else if (BaseType == UBMT_INCLUDED_STRUCT || BaseType == UBMT_NESTED_STRUCT)
+			{
+				if (!ChildStruct->bLayoutInitialized)
+				{
+					const_cast<FShaderParametersMetadata*>(ChildStruct)->InitializeLayout();
+				}
+
+				MemberHash = HashCombine(MemberHash, ChildStruct->GetLayoutHash());
+			}
+
+			RootStructureHash = HashCombine(RootStructureHash, MemberHash);
+		}
+
+		LayoutHash = RootStructureHash;
+	}
 	bLayoutInitialized = true;
 }
 
