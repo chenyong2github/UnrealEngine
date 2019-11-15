@@ -8,6 +8,7 @@
 #include "SteamVREditorStyle.h"
 #include "SteamVREditorCommands.h"
 #include "SteamVRControllerKeys.h"
+#include "SteamVRInputSettings.h"
 #include "LevelEditor.h"
 
 static const FName SteamVREditorTabName("SteamVREditor");
@@ -60,11 +61,14 @@ void FSteamVREditorModule::StartupModule()
 		FCanExecuteAction());
 
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-
-	TSharedPtr<FExtender> MenuExtender = MakeShareable(new FExtender());
-	MenuExtender->AddMenuExtension("EditLocalTabSpawners", EExtensionHook::After, PluginCommands, FMenuExtensionDelegate::CreateRaw(this, &FSteamVREditorModule::AddMenuExtension));
-
-	LevelEditorModule.GetMenuExtensibilityManager()->AddExtender(MenuExtender);
+	const USteamVRInputSettings* Settings = GetDefault<USteamVRInputSettings>();
+	if (Settings->bDeveloperMode)
+	{
+		TSharedPtr<FExtender> ToolbarExtender = MakeShareable(new FExtender);
+		ToolbarExtender->AddToolBarExtension("Settings", EExtensionHook::After, PluginCommands, FToolBarExtensionDelegate::CreateRaw(this, &FSteamVREditorModule::AddToolbarExtension));
+		
+		LevelEditorModule.GetToolBarExtensibilityManager()->AddExtender(ToolbarExtender);
+	}
 }
 
 void FSteamVREditorModule::ShutdownModule()
@@ -273,25 +277,34 @@ bool FSteamVREditorModule::AddUniqueActionMapping(TArray<FInputActionKeyMapping>
 
 void FSteamVREditorModule::AddMenuExtension(FMenuBuilder& Builder)
 {
+	Builder.AddMenuEntry(FSteamVREditorCommands::Get().PluginAction);
+}
+
+void FSteamVREditorModule::AddToolbarExtension(FToolBarBuilder& Builder)
+{
 	FSteamVREditorStyle MenuStyle = FSteamVREditorStyle();
 	MenuStyle.Initialize();
 
-	Builder.AddSubMenu(
+	Builder.AddComboButton(
+		FUIAction(FExecuteAction::CreateRaw(this, &FSteamVREditorModule::PluginButtonClicked)),
+		FOnGetContent::CreateRaw(this, &FSteamVREditorModule::FillComboButton, PluginCommands),
 		LOCTEXT("SteamVRInputBtn", "SteamVR Input"),
 		LOCTEXT("SteamVRInputBtnTootlip", "SteamVR Input"),
-		FNewMenuDelegate::CreateRaw(this, &FSteamVREditorModule::MakeMenu),
-		false, FSlateIcon(FSteamVREditorStyle::GetStyleSetName(), "SteamVREditor.PluginAction")
+		FSlateIcon(FSteamVREditorStyle::GetStyleSetName(), "SteamVREditor.PluginAction")
 	);
 }
 
-void FSteamVREditorModule::MakeMenu(FMenuBuilder& MenuBuilder)
+TSharedRef<SWidget> FSteamVREditorModule::FillComboButton(TSharedPtr<class FUICommandList> Commands)
 {
-	//MenuBuilder.AddMenuEntry(FSteamVREditorCommands::Get().PluginAction);
+	FMenuBuilder MenuBuilder(true, Commands);
+
 	MenuBuilder.AddMenuEntry(FSteamVREditorCommands::Get().JsonActionManifest, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FSteamVREditorStyle::GetStyleSetName(), "SteamVREditor.JsonActionManifest"));
 	MenuBuilder.AddMenuEntry(FSteamVREditorCommands::Get().JsonControllerBindings, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FSteamVREditorStyle::GetStyleSetName(), "SteamVREditor.JsonControllerBindings"));
 	MenuBuilder.AddMenuEntry(FSteamVREditorCommands::Get().ReloadActionManifest, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FSteamVREditorStyle::GetStyleSetName(), "SteamVREditor.ReloadActionManifest"));
 	MenuBuilder.AddMenuEntry(FSteamVREditorCommands::Get().LaunchBindingsURL, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FSteamVREditorStyle::GetStyleSetName(), "SteamVREditor.LaunchBindingsURL"));
 	//MenuBuilder.AddMenuEntry(FSteamVREditorCommands::Get().AddSampleInputs, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FSteamVREditorStyle::GetStyleSetName(), "SteamVREditor.AddSampleInputs"));
+
+	return MenuBuilder.MakeWidget();
 }
 
 #undef LOCTEXT_NAMESPACE
