@@ -811,7 +811,7 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		virtual const TSharedPtr<const ITimingEvent> GetHoveredEvent() const override { return TimingView->GetHoveredEvent(); }
 		virtual const TSharedPtr<const ITimingEvent> GetSelectedEvent() const override { return TimingView->GetSelectedEvent(); }
 		virtual FDrawContext& GetDrawContext() const override { return DrawContext; }
-		virtual const FTimingViewDrawHelper& GetHelper() const override { return Helper; }
+		virtual const ITimingViewDrawHelper& GetHelper() const override { return Helper; }
 
 	public:
 		const STimingView* TimingView;

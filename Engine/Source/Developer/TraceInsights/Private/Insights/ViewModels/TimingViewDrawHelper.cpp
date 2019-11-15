@@ -442,9 +442,7 @@ void FTimingViewDrawHelper::DrawTrackHeader(const FTimingEventsTrack& Track) con
 			const float HeaderH = FMath::Min(12.0f, Track.GetHeight() - 1.0f);
 			DrawContext.DrawBox(HeaderLayerId, 0.0f, TrackY + 1.0f, NameWidth + 4.0f, HeaderH, WhiteBrush, EdgeColor);
 
-			const FLinearColor TextColor = Track.IsHovered() ?  FLinearColor(1.0f, 1.0f, 0.0f, 1.0f) :
-			                               Track.IsSelected() ? FLinearColor(1.0f, 1.0f, 0.5f, 1.0f) :
-			                                                    FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+			const FLinearColor TextColor = GetTrackNameTextColor(Track);
 
 			const float TextY = TrackY + FMath::Min(0.0f, (Track.GetHeight() - 13.0f) / 2.0f);
 			const int32 HeaderTextLayerId = ReservedLayerId + ToInt32(EDrawLayer::HeaderText);
@@ -562,6 +560,15 @@ void FTimingViewDrawHelper::DrawTimingEventHighlight(double StartTime, double En
 		// Draw border around the timing event box.
 		DrawContext.DrawBox(LayerId, EventX1 - 2.0f, Y - 2.0f, EventW + 4.0f, Layout.EventH + 4.0f, SelectedEventBorderBrush, Color);
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FLinearColor FTimingViewDrawHelper::GetTrackNameTextColor(const FTimingEventsTrack& Track) const
+{
+	return  Track.IsHovered() ?  FLinearColor(1.0f, 1.0f, 0.0f, 1.0f) :
+			Track.IsSelected() ? FLinearColor(1.0f, 1.0f, 0.5f, 1.0f) :
+			                     FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

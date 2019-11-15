@@ -123,7 +123,7 @@ void FTimingEventsTrack::PostUpdate(const ITimingTrackUpdateContext& Context)
 
 void FTimingEventsTrack::Draw(const ITimingTrackDrawContext& Context) const
 {
-	const FTimingViewDrawHelper& Helper = Context.GetHelper();
+	const FTimingViewDrawHelper& Helper = *static_cast<const FTimingViewDrawHelper*>(&Context.GetHelper());
 	Helper.DrawEvents(*DrawState, *this);
 	Helper.DrawTrackHeader(*this);
 }
@@ -132,7 +132,7 @@ void FTimingEventsTrack::Draw(const ITimingTrackDrawContext& Context) const
 
 void FTimingEventsTrack::DrawEvents(const ITimingTrackDrawContext& Context, const float OffsetY) const
 {
-	const FTimingViewDrawHelper& Helper = Context.GetHelper();
+	const FTimingViewDrawHelper& Helper = *static_cast<const FTimingViewDrawHelper*>(&Context.GetHelper());
 	Helper.DrawEvents(*DrawState, *this, OffsetY);
 }
 
@@ -140,7 +140,7 @@ void FTimingEventsTrack::DrawEvents(const ITimingTrackDrawContext& Context, cons
 
 int32 FTimingEventsTrack::GetHeaderBackgroundLayerId(const ITimingTrackDrawContext& Context) const
 {
-	const FTimingViewDrawHelper& Helper = Context.GetHelper();
+	const FTimingViewDrawHelper& Helper = *static_cast<const FTimingViewDrawHelper*>(&Context.GetHelper());
 	return Helper.GetHeaderBackgroundLayerId();
 }
 
@@ -148,7 +148,7 @@ int32 FTimingEventsTrack::GetHeaderBackgroundLayerId(const ITimingTrackDrawConte
 
 int32 FTimingEventsTrack::GetHeaderTextLayerId(const ITimingTrackDrawContext& Context) const
 {
-	const FTimingViewDrawHelper& Helper = Context.GetHelper();
+	const FTimingViewDrawHelper& Helper = *static_cast<const FTimingViewDrawHelper*>(&Context.GetHelper());
 	return Helper.GetHeaderTextLayerId();
 }
 
@@ -156,7 +156,7 @@ int32 FTimingEventsTrack::GetHeaderTextLayerId(const ITimingTrackDrawContext& Co
 
 void FTimingEventsTrack::DrawHeader(const ITimingTrackDrawContext& Context) const
 {
-	const FTimingViewDrawHelper& Helper = Context.GetHelper();
+	const FTimingViewDrawHelper& Helper = *static_cast<const FTimingViewDrawHelper*>(&Context.GetHelper());
 	Helper.DrawTrackHeader(*this);
 }
 
@@ -169,7 +169,9 @@ void FTimingEventsTrack::DrawEvent(const ITimingTrackDrawContext& Context, const
 		const FTimingEvent& TrackEvent = static_cast<const FTimingEvent&>(InTimingEvent);
 		const FTimingViewLayout& Layout = Context.GetViewport().GetLayout();
 		const float Y = TrackEvent.GetTrack()->GetPosY() + Layout.GetLaneY(TrackEvent.GetDepth());
-		Context.GetHelper().DrawTimingEventHighlight(TrackEvent.GetStartTime(), TrackEvent.GetEndTime(), Y, InDrawMode);
+
+		const FTimingViewDrawHelper& Helper = *static_cast<const FTimingViewDrawHelper*>(&Context.GetHelper());
+		Helper.DrawTimingEventHighlight(TrackEvent.GetStartTime(), TrackEvent.GetEndTime(), Y, InDrawMode);
 	}
 }
 

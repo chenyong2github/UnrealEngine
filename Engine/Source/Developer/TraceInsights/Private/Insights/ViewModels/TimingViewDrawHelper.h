@@ -8,6 +8,7 @@
 
 // Insights
 #include "Insights/ViewModels/TimingEventsTrack.h"
+#include "Insights/ViewModels/ITimingViewDrawHelper.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -133,7 +134,7 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FTimingViewDrawHelper final
+class FTimingViewDrawHelper final : public ITimingViewDrawHelper
 {
 private:
 	enum class EDrawLayer : int32
@@ -159,19 +160,22 @@ public:
 	FTimingViewDrawHelper(const FTimingViewDrawHelper&) = delete;
 	FTimingViewDrawHelper& operator=(const FTimingViewDrawHelper&) = delete;
 
+	// ITimingViewDrawHelper interface
+	virtual const FSlateBrush* GetWhiteBrush() const override { return WhiteBrush; }
+	virtual const FSlateFontInfo& GetEventFont() const override { return EventFont; }
+	virtual FLinearColor GetEdgeColor() const override { return EdgeColor; }
+	virtual FLinearColor GetTrackNameTextColor(const FTimingEventsTrack& Track) const override;
+	virtual int32 GetHeaderBackgroundLayerId() const override { return ReservedLayerId + ToInt32(EDrawLayer::HeaderBackground); }
+	virtual int32 GetHeaderTextLayerId() const override { return ReservedLayerId + ToInt32(EDrawLayer::HeaderText); }
+
 	const FDrawContext& GetDrawContext() const { return DrawContext; }
 	const FTimingTrackViewport& GetViewport() const { return Viewport; }
-
-	const FSlateBrush* GetWhiteBrush() const { return WhiteBrush; }
-	const FSlateFontInfo& GetEventFont() const { return EventFont; }
 
 	void DrawBackground() const;
 
 	void BeginDrawTracks() const;
 	// OffsetY = 1.0f is for the top horizontal line (which separates the timelines) added by DrawTrackHeader.
 	void DrawEvents(const FTimingEventsTrackDrawState& DrawState, const FTimingEventsTrack& Track, const float OffsetY = 1.0f) const;
-	int32 GetHeaderBackgroundLayerId() const { return ReservedLayerId + ToInt32(EDrawLayer::HeaderBackground); }
-	int32 GetHeaderTextLayerId() const { return ReservedLayerId + ToInt32(EDrawLayer::HeaderText); }
 	void DrawTrackHeader(const FTimingEventsTrack& Track) const;
 	void EndDrawTracks() const;
 

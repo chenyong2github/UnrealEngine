@@ -12,7 +12,7 @@ namespace Trace { class IAnalysisSession; };
 
 class FTimingEventSearchParameters;
 class FTimingTrackViewport;
-class FTimingViewDrawHelper;
+class ITimingViewDrawHelper;
 class FTooltipDrawState;
 class ITimingEvent;
 
@@ -41,7 +41,7 @@ public:
 	virtual const TSharedPtr<const ITimingEvent> GetHoveredEvent() const = 0;
 	virtual const TSharedPtr<const ITimingEvent> GetSelectedEvent() const = 0;
 	virtual FDrawContext& GetDrawContext() const = 0;
-	virtual const FTimingViewDrawHelper& GetHelper() const = 0;
+	virtual const ITimingViewDrawHelper& GetHelper() const = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

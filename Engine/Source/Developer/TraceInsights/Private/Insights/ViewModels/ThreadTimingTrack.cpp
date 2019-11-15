@@ -425,7 +425,7 @@ void FThreadTimingTrack::PostDraw(const ITimingTrackDrawContext& Context) const
 		FTimingEvent::CheckTypeName(*SelectedEventPtr))
 	{
 		const FTimingEvent& SelectedEvent = static_cast<const FTimingEvent&>(*SelectedEventPtr);
-		const FTimingViewDrawHelper& Helper = Context.GetHelper();
+		const ITimingViewDrawHelper& Helper = Context.GetHelper();
 		DrawSelectedEventInfo(SelectedEvent, Context.GetViewport(), Context.GetDrawContext(), Helper.GetWhiteBrush(), Helper.GetEventFont());
 	}
 }
