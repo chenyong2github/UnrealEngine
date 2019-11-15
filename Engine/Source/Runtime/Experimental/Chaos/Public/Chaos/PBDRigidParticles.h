@@ -5,6 +5,9 @@
 #include "Chaos/RigidParticles.h"
 #include "Chaos/Rotation.h"
 
+#pragma warning(push)
+#pragma warning(disable:4946)
+
 namespace Chaos
 {
 template<class T, int d>
@@ -42,29 +45,29 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 		TArrayCollection::AddArray(&MPreW);
 	}
 
-		CHAOS_API virtual ~TPBDRigidParticles()
-		{}
+	CHAOS_API virtual ~TPBDRigidParticles()
+	{}
 
+	CHAOS_API const TVector<T, d>& P(const int32 index) const { return MP[index]; }
+	CHAOS_API TVector<T, d>& P(const int32 index) { return MP[index]; }
 
-	const TVector<T, d>& P(const int32 index) const { return MP[index]; }
-	TVector<T, d>& P(const int32 index) { return MP[index]; }
+	CHAOS_API const TRotation<T, d>& Q(const int32 index) const { return MQ[index]; }
+	CHAOS_API TRotation<T, d>& Q(const int32 index) { return MQ[index]; }
 
-	const TRotation<T, d>& Q(const int32 index) const { return MQ[index]; }
-	TRotation<T, d>& Q(const int32 index) { return MQ[index]; }
+	CHAOS_API const TVector<T, d>& PreV(const int32 index) const { return MPreV[index]; }
+	CHAOS_API TVector<T, d>& PreV(const int32 index) { return MPreV[index]; }
 
-	const TVector<T, d>& PreV(const int32 index) const { return MPreV[index]; }
-	TVector<T, d>& PreV(const int32 index) { return MPreV[index]; }
+	CHAOS_API const TVector<T, d>& PreW(const int32 index) const { return MPreW[index]; }
+	CHAOS_API TVector<T, d>& PreW(const int32 index) { return MPreW[index]; }
 
-	const TVector<T, d>& PreW(const int32 index) const { return MPreW[index]; }
-	TVector<T, d>& PreW(const int32 index) { return MPreW[index]; }
-
+    // Must be reinterpret cast instead of static_cast as it's a forward declare
 	typedef TPBDRigidParticleHandle<T, d> THandleType;
-	const THandleType* Handle(int32 Index) const { return static_cast<const THandleType*>(TGeometryParticles<T,d>::Handle(Index)); }
+	CHAOS_API const THandleType* Handle(int32 Index) const { return reinterpret_cast<const THandleType*>(TGeometryParticles<T,d>::Handle(Index)); }
 
 	//cannot be reference because double pointer would allow for badness, but still useful to have non const access to handle
-	THandleType* Handle(int32 Index) { return static_cast<THandleType*>(TGeometryParticles<T, d>::Handle(Index)); }
+	CHAOS_API THandleType* Handle(int32 Index) { return reinterpret_cast<THandleType*>(TGeometryParticles<T, d>::Handle(Index)); }
 
-	void SetSleeping(int32 Index, bool bSleeping)
+	CHAOS_API void SetSleeping(int32 Index, bool bSleeping)
 	{
 		if (Sleeping(Index) && bSleeping == false)
 		{
@@ -74,7 +77,7 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 
 		if (Sleeping(Index) != bSleeping)
 		{
-			TGeometryParticleHandle<T, d>* Particle = this->Handle(Index);
+			TGeometryParticleHandle<T, d>* Particle = reinterpret_cast<TGeometryParticleHandle<T, d>*>(this->Handle(Index));
 			this->AddSleepData(Particle);
 		}
 
@@ -90,7 +93,7 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 		}
 	}
 
-	void SetObjectState(int32 Index, EObjectStateType InObjectState)
+	CHAOS_API void SetObjectState(int32 Index, EObjectStateType InObjectState)
 	{
 		const EObjectStateType CurrentState = this->ObjectState(Index);
 
@@ -130,7 +133,7 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 		const bool bNewSleeping = InObjectState == EObjectStateType::Sleeping;
 		if(bCurrentSleeping != bNewSleeping)
 		{
-			TGeometryParticleHandle<T, d>* Particle = this->Handle(Index);
+			TGeometryParticleHandle<T, d>* Particle = reinterpret_cast<TGeometryParticleHandle<T, d>*>(this->Handle(Index));
 			this->AddSleepData(Particle);
 		}
 
@@ -156,6 +159,8 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 	TArrayCollectionArray<TVector<T, d>> MPreW;
 };
 
+extern template class TPBDRigidParticles<float,3>;
+
 template <typename T, int d>
 FChaosArchive& operator<<(FChaosArchive& Ar, TPBDRigidParticles<T, d>& Particles)
 {
@@ -163,3 +168,5 @@ FChaosArchive& operator<<(FChaosArchive& Ar, TPBDRigidParticles<T, d>& Particles
 	return Ar;
 }
 }
+
+#pragma warning(pop)
