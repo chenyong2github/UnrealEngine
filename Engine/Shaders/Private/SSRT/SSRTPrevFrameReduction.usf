@@ -10,29 +10,65 @@
 #define GROUP_PIXEL_COUNT GROUP_TILE_SIZE * GROUP_TILE_SIZE
 
 
-uint bIsTemporalAAHistory;
-Texture2D PrevTemporalAAHistory;
+Texture2D PrevSceneColor;
+Texture2D PrevSceneDepth;
+Texture2D FurthestHZBTexture;
 
 Texture2D HigherMipTexture;
+Texture2D HigherAlphaMipTexture;
 
 #if SUPPORTS_INDEPENDENT_SAMPLERS
-#define PrevTemporalAAHistorySampler GlobalBilinearClampedSampler
-#define HigherMipTextureSampler GlobalPointClampedSampler
+#if DIM_LEAK_FREE
+#define PrevSceneColorSampler GlobalPointClampedSampler
 #else
-SamplerState PrevTemporalAAHistorySampler;
+#define PrevSceneColorSampler GlobalBilinearClampedSampler
+#endif
+#define PrevSceneDepthSampler GlobalPointClampedSampler
+#define FurthestHZBTextureSampler GlobalPointClampedSampler
+#define HigherMipTextureSampler GlobalPointClampedSampler
+#define HigherAlphaMipTextureSampler GlobalPointClampedSampler
+#else
+SamplerState PrevSceneColorSampler;
+SamplerState PrevSceneDepthSampler;
+SamplerState FurthestHZBTextureSampler;
 SamplerState HigherMipTextureSampler;
+SamplerState HigherAlphaMipTextureSampler;
 #endif
 
 float4 PrevScreenPositionScaleBias;
-float  PrevSceneColorPreExposureCorrection;
-float  MinimumLuminance;
-float TexelSize;
+float2 ViewportUVToHZBBufferUV;
+float2 ReducedSceneColorSize;
+float2 ReducedSceneColorTexelSize;
+float PrevSceneColorPreExposureCorrection;
+float MinimumLuminance;
+float HigherMipDownScaleFactor;
 
 RWTexture2D<float4>	ReducedSceneColorOutput_0;
 RWTexture2D<float4>	ReducedSceneColorOutput_1;
 RWTexture2D<float4>	ReducedSceneColorOutput_2;
 
+RWTexture2D<float>	ReducedSceneAlphaOutput_0;
+RWTexture2D<float>	ReducedSceneAlphaOutput_1;
+RWTexture2D<float>	ReducedSceneAlphaOutput_2;
+
 groupshared uint SharedMemory[GROUP_PIXEL_COUNT * 2];
+
+#if DIM_LEAK_FREE
+groupshared float SharedFurthestDepth[GROUP_PIXEL_COUNT];
+#endif
+
+
+float3 ComputeTranslatedWorldPosition(float2 ScreenPosition, float WorldDepth, bool bIsPrevFrame)
+{
+	float4 ClipPosition = float4(ScreenPosition * (View.ViewToClip[3][3] < 1.0f ? WorldDepth : 1.0f), WorldDepth, 1);
+
+	if (bIsPrevFrame)
+	{
+		return mul(ClipPosition, View.PrevScreenToTranslatedWorld).xyz + (View.PreViewTranslation.xyz - View.PrevPreViewTranslation.xyz);
+	}
+	
+	return mul(ClipPosition, View.ScreenToTranslatedWorld).xyz;
+}
 
 
 [numthreads(GROUP_TILE_SIZE, GROUP_TILE_SIZE, 1)]
@@ -42,88 +78,167 @@ void MainCS(
 	uint2 GroupThreadId : SV_GroupThreadID,
 	uint GroupThreadIndex : SV_GroupIndex)
 {
-	float2 BufferUV = (float2(DispatchThreadId) + 0.5) * View.BufferSizeAndInvSize.zw;
-	float2 ViewportUV = (float2(DispatchThreadId) + 0.5f) * View.ViewSizeAndInvSize.zw;
+	#if DIM_LOWER_MIPS
+		float2 SceneBufferUV = HigherMipDownScaleFactor * (2.0 * float2(DispatchThreadId) + 1.0) * View.BufferSizeAndInvSize.zw;
+	#else
+		float2 SceneBufferUV = (float2(DispatchThreadId) + 0.5) * View.BufferSizeAndInvSize.zw;
+	#endif
+
+	SceneBufferUV = clamp(SceneBufferUV, View.BufferBilinearUVMinMax.xy, View.BufferBilinearUVMinMax.zw);
+	float2 ViewportUV = BufferUVToViewportUV(SceneBufferUV);
     float2 ScreenPosition = ViewportUVToScreenPos(ViewportUV);
 	
 	float2 PrevFrameUV;
 	float2 PrevScreen;
 	bool bIsSky = false;
 
-	float4 PrevSceneColor;
+	float4 PrevColor;
+
+	float WorldDepth;
 
 	#if DIM_LOWER_MIPS
 	{
-		PrevFrameUV = TexelSize * (float2(DispatchThreadId) + 0.5) * View.BufferSizeAndInvSize.zw;
+		PrevFrameUV = HigherMipDownScaleFactor * (float2(DispatchThreadId) * 2.0 + 1.0) * ReducedSceneColorTexelSize;
 		PrevScreen = 0.0; // unused.
 		
-		PrevSceneColor = HigherMipTexture.SampleLevel(HigherMipTextureSampler, PrevFrameUV, 0);
+		#if DIM_LEAK_FREE
+		{
+			{
+				float HZBDeviceZ = FurthestHZBTexture.SampleLevel(FurthestHZBTextureSampler, ViewportUV * ViewportUVToHZBBufferUV, 2.0).r;
+				WorldDepth = ConvertFromDeviceZ(HZBDeviceZ);
+			}
+
+			float WorldDepthToPixelWorldRadius = GetTanHalfFieldOfView().x * View.ViewSizeAndInvSize.z * 100;
+
+			float WorldBluringRadius = WorldDepthToPixelWorldRadius * WorldDepth;
+			float InvSquareWorldBluringRadius = rcp(WorldBluringRadius * WorldBluringRadius);
+
+			PrevColor = 0.0;
+
+			UNROLL_N(4)
+			for (uint i = 0; i < 4; i++)
+			{
+				const float2 TexelOffset = float2(i % 2, i / 2) - 0.5;
+
+				float2 HZBBufferUV = (ViewportUV + TexelOffset * HigherMipDownScaleFactor * View.ViewSizeAndInvSize.zw) * ViewportUVToHZBBufferUV;
+				float SampleDeviceZ = FurthestHZBTexture.SampleLevel(FurthestHZBTextureSampler, HZBBufferUV, 1.0).r;
+
+				float SampleDist = WorldDepth - ConvertFromDeviceZ(SampleDeviceZ);
+
+				float SampleWeight = 0.25 * saturate(1 - SampleDist * SampleDist * InvSquareWorldBluringRadius);
+
+				float2 SampleUV = HigherMipDownScaleFactor * (2.0 * float2(DispatchThreadId) + 1.0 + TexelOffset) * 0.5 * ReducedSceneColorTexelSize;
+				SampleUV = clamp(SampleUV, View.BufferBilinearUVMinMax.xy, View.BufferBilinearUVMinMax.zw);
+
+				float4 SampleColor = float4(
+					HigherMipTexture.SampleLevel(HigherMipTextureSampler, SampleUV, 0).rgb,
+					HigherAlphaMipTexture.SampleLevel(HigherAlphaMipTextureSampler, SampleUV, 0).r);
+
+				PrevColor += SampleColor * SampleWeight;
+			}
+		}
+		#else
+		{
+			WorldDepth = 0.0;
+			PrevColor = float4(HigherMipTexture.SampleLevel(HigherMipTextureSampler, PrevFrameUV, 0).rgb, 1);
+		}
+		#endif
 	}
 	#else
 	{
-		if (bIsTemporalAAHistory)
+		float DeviceZ = SampleDeviceZFromSceneTextures(SceneBufferUV);
+		WorldDepth = ConvertFromDeviceZ(DeviceZ);
+
+		// Camera motion for pixel (in ScreenPos space).
+		float4 ThisClip = float4(ScreenPosition, DeviceZ, 1);
+		float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
+		PrevScreen = PrevClip.xy / PrevClip.w;
+
+		bIsSky = WorldDepth > 100 * 1000;
+
+		float2 EncodedVelocity = SceneVelocityBuffer.SampleLevel(SceneVelocityBufferSampler, SceneBufferUV, 0).xy;
+		if (EncodedVelocity.x > 0.0)
 		{
-			float DeviceZ = SceneDepthBuffer.SampleLevel(SceneDepthBufferSampler, BufferUV, 0).r;
-
-			// Camera motion for pixel (in ScreenPos space).
-			float4 ThisClip = float4(ScreenPosition, DeviceZ, 1);
-			float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
-			PrevScreen = PrevClip.xy / PrevClip.w;
-
-			bIsSky = ConvertFromDeviceZ(DeviceZ) > 100 * 1000;
-
-			float2 EncodedVelocity = SceneVelocityBuffer.SampleLevel(SceneVelocityBufferSampler, BufferUV, 0).xy;
-			if (EncodedVelocity.x > 0.0)
-			{
-				PrevScreen = ThisClip.xy - DecodeVelocityFromTexture(EncodedVelocity);
-			}
-
-			PrevFrameUV = PrevScreen.xy * PrevScreenPositionScaleBias.xy + PrevScreenPositionScaleBias.zw;
+			PrevScreen = ThisClip.xy - DecodeVelocityFromTexture(EncodedVelocity);
 		}
-		else
-		{
-			PrevFrameUV = BufferUV;
-			PrevScreen = ScreenPosition;
-		}
-		
+
+		PrevFrameUV = PrevScreen.xy * PrevScreenPositionScaleBias.xy + PrevScreenPositionScaleBias.zw;
+
 		// Fetch color.
-		PrevSceneColor = float4(
-			PrevTemporalAAHistory.SampleLevel(PrevTemporalAAHistorySampler, PrevFrameUV, 0).rgb, 1.0);
-		
+		#if DIM_LEAK_FREE
+		{
+			float3 RefWorldPosition = ComputeTranslatedWorldPosition(ScreenPosition, WorldDepth, /* bIsPrevFrame = */ false);
+
+			float NoV = dot(View.TranslatedWorldCameraOrigin - normalize(RefWorldPosition), GetGBufferDataFromSceneTextures(SceneBufferUV).WorldNormal);
+				
+			float WorldDepthToPixelWorldRadius = GetTanHalfFieldOfView().x * View.ViewSizeAndInvSize.z * 100; // / max(NoV, 0.01);
+
+			float WorldBluringRadius = WorldDepthToPixelWorldRadius * WorldDepth;
+			float InvSquareWorldBluringRadius = rcp(WorldBluringRadius * WorldBluringRadius);
+
+			//PrevColor = 0.0;
+
+			//UNROLL_N(4)
+			//for (uint i = 0; i < 4; i++)
+			{
+				float2 SampleUV = PrevFrameUV; // + View.BufferSizeAndInvSize.zw * (float2(i % 2, i / 2) - 0.5);
+				SampleUV = clamp(SampleUV, View.BufferBilinearUVMinMax.xy, View.BufferBilinearUVMinMax.zw);
+
+				float PrevDeviceZ = PrevSceneDepth.SampleLevel(PrevSceneDepthSampler, SampleUV, 0).r;
+
+				float3 SampleWorldPosition = ComputeTranslatedWorldPosition(PrevScreen.xy, ConvertFromDeviceZ(PrevDeviceZ), /* bIsPrevFrame = */ true);
+
+				float SampleDistSquare = length2(RefWorldPosition - SampleWorldPosition);
+
+				float SampleWeight = saturate(1 - SampleDistSquare * InvSquareWorldBluringRadius);
+
+				PrevColor = float4(PrevSceneColor.SampleLevel(PrevSceneColorSampler, SampleUV, 0).rgb * SampleWeight, SampleWeight);
+			}
+		}
+		#else
+		{
+			PrevColor = float4(PrevSceneColor.SampleLevel(PrevSceneColorSampler, PrevFrameUV, 0).rgb, 1.0);
+		}
+		#endif
+
 		#if CONFIG_COLOR_TILE_CLASSIFICATION
 		{
 			if (bIsSky)
-				PrevSceneColor = 0;
+				PrevColor = 0;
 		}
 		#endif
 
 		// Correct scene color exposure.
 		#if USE_PREEXPOSURE
-			PrevSceneColor.rgb *= PrevSceneColorPreExposureCorrection;
+			PrevColor.rgb *= PrevSceneColorPreExposureCorrection;
 		#endif
 
 		// Apply vignette to the color.
 		{
 			float Vignette = min(ComputeHitVignetteFromScreenPos(ScreenPosition), ComputeHitVignetteFromScreenPos(PrevScreen));
-			PrevSceneColor *= Vignette;
+			PrevColor *= Vignette;
 		}
 
 		// Apply luminance to mask in only significant lighting worth tracing rays towards.
 		#if CONFIG_COLOR_TILE_CLASSIFICATION
 		if (MinimumLuminance > 0.0)
 		{
-			float ColorLuminance = Luminance(PrevSceneColor.rgb);
+			float ColorLuminance = Luminance(PrevColor.rgb);
 
-			PrevSceneColor.rgb *= saturate((ColorLuminance - MinimumLuminance) / MinimumLuminance);
+			PrevColor.rgb *= saturate((ColorLuminance - MinimumLuminance) / MinimumLuminance);
 		}
 		#endif
 	}
 	#endif
-	
+
 	// Output mip 0
 	#if DIM_LOWER_MIPS
 	{
-		ReducedSceneColorOutput_0[DispatchThreadId] = PrevSceneColor;
+		ReducedSceneColorOutput_0[DispatchThreadId] = float4(PrevColor.rgb, 0);
+
+		#if DIM_LEAK_FREE
+			ReducedSceneAlphaOutput_0[DispatchThreadId] = PrevColor.a;
+		#endif
 	}
 	#endif
 
@@ -131,8 +246,12 @@ void MainCS(
 	{
 		// Store to LDS
 		{
-			SharedMemory[GROUP_PIXEL_COUNT * 0 | GroupThreadIndex] = (f32tof16(PrevSceneColor.r) << 0) | (f32tof16(PrevSceneColor.g) << 16);
-			SharedMemory[GROUP_PIXEL_COUNT * 1 | GroupThreadIndex] = (f32tof16(PrevSceneColor.b) << 0) | (f32tof16(PrevSceneColor.a) << 16);
+			SharedMemory[GROUP_PIXEL_COUNT * 0 | GroupThreadIndex] = (f32tof16(PrevColor.r) << 0) | (f32tof16(PrevColor.g) << 16);
+			SharedMemory[GROUP_PIXEL_COUNT * 1 | GroupThreadIndex] = (f32tof16(PrevColor.b) << 0) | (f32tof16(PrevColor.a) << 16);
+
+			#if DIM_LEAK_FREE
+				SharedFurthestDepth[GroupThreadIndex] = WorldDepth;
+			#endif
 		}
 	
 		GroupMemoryBarrierWithGroupSync();
@@ -141,8 +260,6 @@ void MainCS(
 		UNROLL
 		for (uint MipLevel = 1; MipLevel < 3; MipLevel++)
 		{
-			float4 PrevSceneColor = 0;
-			
 			const uint ReductionAmount = 1 << MipLevel;
 			const uint NumberPixelInMip = GROUP_PIXEL_COUNT / (ReductionAmount * ReductionAmount);
 			
@@ -152,11 +269,41 @@ void MainCS(
 					GroupThreadIndex % (GROUP_TILE_SIZE / ReductionAmount),
 					GroupThreadIndex / (GROUP_TILE_SIZE / ReductionAmount));
 
+				// Ray marchsing against FurthestHZB to avoid self intersections, so match here to remain conservative.
+				#if DIM_LEAK_FREE
+				float FurthestDepth;
+				{
+					UNROLL_N(2)
+					for (uint x = 0; x < 2; x++)
+					{
+						UNROLL_N(2)
+						for (uint y = 0; y < 2; y++)
+						{
+							uint2 Coord = OutputCoord * 2 + uint2(x, y);
+							uint LDSIndex = Coord.x + Coord.y * ((2 * GROUP_TILE_SIZE) / ReductionAmount);
+
+							float NeighborDepth = SharedFurthestDepth[LDSIndex];
+
+							if (x == 0 && y == 0)
+								FurthestDepth = NeighborDepth;
+							else
+								FurthestDepth = max(FurthestDepth, NeighborDepth);
+						}
+					}
+				}
+
+				float WorldDepthToPixelWorldRadius = GetTanHalfFieldOfView().x * View.ViewSizeAndInvSize.z * 100;
+
+				float WorldBluringRadius = WorldDepthToPixelWorldRadius * FurthestDepth;
+				float InvSquareWorldBluringRadius = rcp(WorldBluringRadius * WorldBluringRadius);
+
+				#endif
+
 				float4 ReducedColor = 0;
 
 				UNROLL
 				for (uint x = 0; x < 2; x++)
-                {
+				{
 					UNROLL
 					for (uint y = 0; y < 2; y++)
 					{
@@ -172,7 +319,18 @@ void MainCS(
 						Color.b = f16tof32(Raw1 >> 0);
 						Color.a = f16tof32(Raw1 >> 16);
 
-						ReducedColor += Color;
+
+						float SampleWeight = 1.0;
+						#if DIM_LEAK_FREE
+						{
+							float NeighborDepth = SharedFurthestDepth[LDSIndex];
+							float SampleDist = (FurthestDepth - NeighborDepth);
+
+							SampleWeight = saturate(1 - (SampleDist * SampleDist) * InvSquareWorldBluringRadius);
+						}
+						#endif
+
+						ReducedColor += Color * SampleWeight;
 					}
                 }
 
@@ -182,15 +340,27 @@ void MainCS(
 
 				if (MipLevel == 1)
                 {
-					ReducedSceneColorOutput_1[OutputPosition] = ReducedColor;
+					ReducedSceneColorOutput_1[OutputPosition] = float4(ReducedColor.rgb, 0);
+					#if DIM_LEAK_FREE
+						ReducedSceneAlphaOutput_1[OutputPosition] = ReducedColor.a;
+					#endif
                 }
 				else if (MipLevel == 2)
                 {
-					ReducedSceneColorOutput_2[OutputPosition] = ReducedColor;
+					ReducedSceneColorOutput_2[OutputPosition] = float4(ReducedColor.rgb, 0);
+					#if DIM_LEAK_FREE
+						ReducedSceneAlphaOutput_2[OutputPosition] = ReducedColor.a;
+					#endif
                 }
 				
 				SharedMemory[GROUP_PIXEL_COUNT * 0 | GroupThreadIndex] = (f32tof16(ReducedColor.r) << 0) | (f32tof16(ReducedColor.g) << 16);
 				SharedMemory[GROUP_PIXEL_COUNT * 1 | GroupThreadIndex] = (f32tof16(ReducedColor.b) << 0) | (f32tof16(ReducedColor.a) << 16);
+
+				#if DIM_LEAK_FREE
+				{
+					SharedFurthestDepth[GroupThreadIndex] = FurthestDepth;
+				}
+				#endif
             } // if (GroupThreadIndex < NumberPixelInMip)
         } // for (uint MipLevel = 1; MipLevel < 3; MipLevel++)
     }
