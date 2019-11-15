@@ -2038,15 +2038,6 @@ void UDynamicMeshSculptTool::PlaneTransformChanged(UTransformProxy* Proxy, FTran
 void UDynamicMeshSculptTool::UpdateFixedSculptPlanePosition(const FVector& Position)
 {
 	GizmoProperties->Position = Position;
-
-	if (GizmoProperties->bSnapToGrid)
-	{
-		FVector3d GridSnapPos;
-		if (ToolSceneQueriesUtil::FindWorldGridSnapPoint(this, GizmoProperties->Position, GridSnapPos))
-		{
-			GizmoProperties->Position = GridSnapPos;
-		}
-	}
 }
 
 
@@ -2068,6 +2059,8 @@ void UDynamicMeshSculptTool::UpdateFixedPlaneGizmoVisibility(bool bVisible)
 			PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy, GetToolManager());
 			PlaneTransformGizmo->SetNewGizmoTransform(FTransform(DrawPlaneOrientation, GizmoProperties->Position));
 		}
+
+		PlaneTransformGizmo->bSnapToWorldGrid = GizmoProperties->bSnapToGrid;
 	}
 }
 

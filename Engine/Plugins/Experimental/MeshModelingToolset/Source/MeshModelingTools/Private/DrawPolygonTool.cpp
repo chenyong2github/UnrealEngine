@@ -298,6 +298,20 @@ void UDrawPolygonTool::PopLastVertexAction()
 	}
 }
 
+
+
+
+void UDrawPolygonTool::Tick(float DeltaTime)
+{
+	if (PlaneTransformGizmo != nullptr)
+	{
+		PlaneTransformGizmo->bSnapToWorldGrid =
+			SnapProperties->bEnableSnapping && SnapProperties->bSnapToWorldGrid && bIgnoreSnappingToggle == false;
+	}
+}
+
+
+
 void DrawEdgeTicks(FPrimitiveDrawInterface* PDI, 
 	const FSegment3f& Segment, float Height,
 	const FVector3f& PlaneNormal, 
@@ -1045,18 +1059,7 @@ void UDrawPolygonTool::SetDrawPlaneFromWorldPos(const FVector& Position, const F
 void UDrawPolygonTool::PlaneTransformChanged(UTransformProxy* Proxy, FTransform Transform)
 {
 	DrawPlaneOrientation = Transform.GetRotation();
-	
 	DrawPlaneOrigin = Transform.GetLocation();
-
-	if (bIgnoreSnappingToggle == false && SnapProperties->bEnableSnapping && SnapProperties->bSnapToWorldGrid)
-	{
-		FVector3d GridSnapPos;
-		if (ToolSceneQueriesUtil::FindWorldGridSnapPoint(this, DrawPlaneOrigin, GridSnapPos))
-		{
-			DrawPlaneOrigin = GridSnapPos;
-		}
-	}
-
 	SnapEngine.Plane = FFrame3d((FVector3d)DrawPlaneOrigin, (FQuaterniond)DrawPlaneOrientation);
 }
 
