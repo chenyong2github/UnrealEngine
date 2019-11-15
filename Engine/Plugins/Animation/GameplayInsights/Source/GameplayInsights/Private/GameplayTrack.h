@@ -3,8 +3,6 @@
 #pragma once
 
 #include "Insights/ViewModels/TimingEventsTrack.h"
-#include "Insights/ViewModels/GraphTrack.h"
-#include "Algo/Sort.h"
 
 // Provides parent/child hierarchy structure and the owning object Id
 // Designed as a compositional member of outer timing tracks
@@ -15,6 +13,7 @@ public:
 		: TimingTrack(InTimingTrack)
 		, ObjectId(InObjectId)
 		, Parent(nullptr)
+		, Indent(0)
 	{
 	}
 
@@ -28,37 +27,22 @@ public:
 	TArrayView<FGameplayTrack*> GetChildTracks() { return Children; }
 
 	/** Add a child track */
-	void AddChildTrack(FGameplayTrack& InChildTrack)
-	{
-		check(InChildTrack.Parent == nullptr);
-		InChildTrack.Parent = this;
-
-		Children.Add(&InChildTrack);
-
-		Algo::Sort(Children, [](FGameplayTrack* InTrack0, FGameplayTrack* InTrack1)
-		{
-			return InTrack0->GetTimingTrack()->GetName() < InTrack1->GetTimingTrack()->GetName();
-		});	
-	}
+	void AddChildTrack(FGameplayTrack& InChildTrack);
 
 	/** Find a child track using the specified callback */
-	TSharedPtr<FBaseTimingTrack> FindChildTrack(uint64 InObjectId, TFunctionRef<bool(const FBaseTimingTrack& InTrack)> Callback)
-	{
-		for(FGameplayTrack* ChildTrack : Children)
-		{
-			if( ChildTrack != nullptr &&
-				ChildTrack->ObjectId == InObjectId && 
-				Callback(ChildTrack->GetTimingTrack().Get()))
-			{
-				return ChildTrack->GetTimingTrack();
-			}
-		}
+	TSharedPtr<FBaseTimingTrack> FindChildTrack(uint64 InObjectId, TFunctionRef<bool(const FBaseTimingTrack& InTrack)> Callback) const;
 
-		return nullptr;
-	}
+	/** Helper to draw the name for a timing track (uses indentation etc.) */
+	void DrawHeaderForTimingTrack(const ITimingTrackDrawContext& InContext, const FTimingEventsTrack& InTrack) const;
 
 	/** Access the outer timing track */
 	TSharedRef<FBaseTimingTrack> GetTimingTrack() const { return TimingTrack.AsShared(); }
+
+	/** Access indent */
+	void SetIndent(uint32 InIndent) { Indent = InIndent; }
+
+	/** Access indent */
+	uint32 GetIndent() const { return Indent; }
 
 private:
 	/** Outer timing track */
@@ -72,6 +56,9 @@ private:
 
 	/** Our child tracks */
 	TArray<FGameplayTrack*> Children;
+
+	/** Our indent when drawn in a tree */
+	uint32 Indent;
 };
 
 template <class Base>

@@ -51,6 +51,12 @@ void FAnimationTickRecordsTrack::BuildDrawState(ITimingEventsTrackDrawStateBuild
 	}
 }
 
+void FAnimationTickRecordsTrack::Draw(const ITimingTrackDrawContext& Context) const
+{
+	DrawEvents(Context);
+	GetGameplayTrack().DrawHeaderForTimingTrack(Context, *this);
+}
+
 void FAnimationTickRecordsTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimingEvent& HoveredTimingEvent) const
 {
 	FTimingEventSearchParameters SearchParameters(HoveredTimingEvent.GetStartTime(), HoveredTimingEvent.GetEndTime(), ETimingEventSearchFlags::StopAtFirstMatch);

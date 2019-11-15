@@ -75,18 +75,19 @@ TSharedRef<FObjectEventsTrack> FGameplaySharedData::GetObjectEventsTrackForId(In
 	return LeafObjectEventsTrack.ToSharedRef();
 }
 
-static void UpdateTrackOrderRecursive(TSharedRef<FObjectEventsTrack> InTrack, int32& InOutOrder)
+static void UpdateTrackOrderRecursive(TSharedRef<FObjectEventsTrack> InTrack, int32& InOutOrder, uint32 InDepth)
 {
 	// recurse down object-track children, then non-object track leaf tracks to set 
 	// overall ordering based on depth-first traversal of the hierarchy
 
 	InTrack->SetOrder(InOutOrder++);
+	InTrack->GetGameplayTrack().SetIndent(InDepth);
 
 	for(FGameplayTrack* ChildTrack : InTrack->GetGameplayTrack().GetChildTracks())
 	{
 		if(ChildTrack->GetTimingTrack()->GetType() == FObjectEventsTrack::TypeName)
 		{
-			UpdateTrackOrderRecursive(StaticCastSharedRef<FObjectEventsTrack>(ChildTrack->GetTimingTrack()), InOutOrder);
+			UpdateTrackOrderRecursive(StaticCastSharedRef<FObjectEventsTrack>(ChildTrack->GetTimingTrack()), InOutOrder, InDepth + 1);
 		}
 	}
 
@@ -95,6 +96,7 @@ static void UpdateTrackOrderRecursive(TSharedRef<FObjectEventsTrack> InTrack, in
 		if(ChildTrack->GetTimingTrack()->GetType() != FObjectEventsTrack::TypeName)
 		{
 			ChildTrack->GetTimingTrack()->SetOrder(InOutOrder++);
+			ChildTrack->SetIndent(InDepth + 1);
 		}
 	}
 }
@@ -170,7 +172,7 @@ void FGameplaySharedData::SortTracks()
 	// update ordering
 	for(TSharedRef<FObjectEventsTrack> RootTrack : Roots)
 	{
-		UpdateTrackOrderRecursive(RootTrack, Order);
+		UpdateTrackOrderRecursive(RootTrack, Order, 0);
 	}
 
 	Roots.Reset();

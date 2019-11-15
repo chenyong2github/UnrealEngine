@@ -21,7 +21,7 @@ const FName FSkeletalMeshPoseTrack::TypeName(TEXT("Animation"));
 const FName FSkeletalMeshPoseTrack::SubTypeName(TEXT("SkeletalMeshPose"));
 
 FSkeletalMeshPoseTrack::FSkeletalMeshPoseTrack(const FAnimationSharedData& InSharedData, uint64 InObjectID, const TCHAR* InName)
-	: TGameplayTrackMixin<FTimingEventsTrack>(InObjectID, FSkeletalMeshPoseTrack::TypeName, FSkeletalMeshPoseTrack::SubTypeName, FText::Format(LOCTEXT("SkelMeshPoseName", "{0} Pose"), FText::FromString(FString(InName))))
+	: TGameplayTrackMixin<FTimingEventsTrack>(InObjectID, FSkeletalMeshPoseTrack::TypeName, FSkeletalMeshPoseTrack::SubTypeName, FText::Format(LOCTEXT("TrackNameFormat", "Pose - {0}"), FText::FromString(FString(InName))))
 	, SharedData(InSharedData)
 	, bDrawMarkerTime(false)
 	, bDrawSelectedEvent(false)
@@ -58,6 +58,12 @@ void FSkeletalMeshPoseTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& 
 			}
 		});
 	}
+}
+
+void FSkeletalMeshPoseTrack::Draw(const ITimingTrackDrawContext& Context) const
+{
+	DrawEvents(Context);
+	GetGameplayTrack().DrawHeaderForTimingTrack(Context, *this);
 }
 
 void FSkeletalMeshPoseTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimingEvent& HoveredTimingEvent) const
