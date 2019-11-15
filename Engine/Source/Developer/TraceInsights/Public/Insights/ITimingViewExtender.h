@@ -30,9 +30,6 @@ public:
 
 	/** Extension hook for the 'quick filter' menu */
 	virtual void ExtendFilterMenu(ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder) = 0;
-
-	/** Called when tracks have changed and need to be re-ordered */
-	virtual void OnTracksChanged(ITimingViewSession& InSession, int32& InOutOrder) = 0;
 };
 
 } // namespace Insights

@@ -72,7 +72,8 @@ namespace Insights { const FName TimingViewExtenderFeatureName(TEXT("TimingViewE
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 STimingView::STimingView()
-	: ThreadTimingSharedState(MakeShared<FThreadTimingSharedState>(this))
+	: bScrollableTracksDirty(false)
+	, ThreadTimingSharedState(MakeShared<FThreadTimingSharedState>(this))
 	, LoadingSharedState(MakeShared<FLoadingSharedState>(this))
 	, bAssetLoadingMode(false)
 	, FileActivitySharedState(MakeShared<FFileActivitySharedState>(this))
@@ -395,6 +396,9 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		{
 			Extender->Tick(*this, *Session.Get());
 		}
+
+		// Re-sort now if we need to
+		UpdateScrollableTracksOrder();
 	}
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1233,14 +1237,25 @@ void STimingView::AddScrollableTrack(TSharedPtr<FBaseTimingTrack> Track)
 	check(!AllTracks.Contains(Track->GetId()));
 	AllTracks.Add(Track->GetId(), Track);
 	ScrollableTracks.Add(Track);
-	UpdateScrollableTracksOrder();
+	InvalidateScrollableTracksOrder();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::InvalidateScrollableTracksOrder()
+{
+	bScrollableTracksDirty = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimingView::UpdateScrollableTracksOrder()
 {
-	Algo::SortBy(ScrollableTracks, &FBaseTimingTrack::GetOrder);
+	if(bScrollableTracksDirty)
+	{
+		Algo::SortBy(ScrollableTracks, &FBaseTimingTrack::GetOrder);
+		bScrollableTracksDirty = false;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

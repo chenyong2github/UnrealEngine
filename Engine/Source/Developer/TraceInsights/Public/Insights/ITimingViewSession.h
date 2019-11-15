@@ -53,6 +53,9 @@ public:
 	/** Adds a new foreground track. */
 	virtual void AddForegroundTrack(TSharedPtr<FBaseTimingTrack> Track) = 0;
 
+	/** Marks the scrollable tracks as dirty so they will be re-sorted */
+	virtual void InvalidateScrollableTracksOrder() = 0;
+
 	/** Finds a track has been added via Add*Track(). */
 	virtual TSharedPtr<FBaseTimingTrack> FindTrack(uint64 InTrackId) = 0;
 

@@ -152,16 +152,6 @@ void FLoadingSharedState::ShowHideAllLoadingTracks_Execute()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FLoadingSharedState::OnTracksChanged(Insights::ITimingViewSession& InSession, int32& InOutOrder)
-{
-	if (&InSession != TimingView)
-	{
-		return;
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 const TCHAR* FLoadingSharedState::GetEventNameByEventType(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const
 {
 	return Trace::GetLoadTimeProfilerObjectEventTypeString(Event.EventType);

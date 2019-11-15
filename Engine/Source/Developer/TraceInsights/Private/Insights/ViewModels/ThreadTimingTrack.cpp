@@ -197,9 +197,9 @@ void FThreadTimingSharedState::Tick(Insights::ITimingViewSession& InSession, con
 			Order += 100;
 		});
 
-		if (bTracksOrderChanged && TimingView)
+		if (bTracksOrderChanged)
 		{
-			TimingView->UpdateScrollableTracksOrder();
+			InSession.InvalidateScrollableTracksOrder();
 		}
 	}
 }
@@ -367,16 +367,6 @@ void FThreadTimingSharedState::ToggleTrackVisibilityByGroup_Execute(const TCHAR*
 		{
 			TimingView->OnTrackVisibilityChanged();
 		}
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FThreadTimingSharedState::OnTracksChanged(Insights::ITimingViewSession& InSession, int32& InOutOrder)
-{
-	if (&InSession != TimingView)
-	{
-		return;
 	}
 }
 

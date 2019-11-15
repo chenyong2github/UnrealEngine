@@ -110,7 +110,7 @@ public:
 
 	const FTimingTrackViewport& GetViewport() const { return Viewport; }
 
-	virtual void AddEvent(double InEventStartTime, double InEventEndTime, uint32 InEventDepth, const TCHAR* InEventName, uint64 InEventType, uint32 InEventColor) override;
+	virtual void AddEvent(double InEventStartTime, double InEventEndTime, uint32 InEventDepth, const TCHAR* InEventName, uint64 InEventType = 0, uint32 InEventColor = 0) override;
 	void Flush();
 
 	int32 GetMaxDepth() const { return MaxDepth; }

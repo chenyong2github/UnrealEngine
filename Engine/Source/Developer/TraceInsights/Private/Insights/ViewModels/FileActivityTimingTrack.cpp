@@ -471,16 +471,6 @@ void FFileActivitySharedState::ExtendFilterMenu(Insights::ITimingViewSession& In
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FFileActivitySharedState::OnTracksChanged(Insights::ITimingViewSession& InSession, int32& InOutOrder)
-{
-	if (&InSession != TimingView)
-	{
-		return;
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 bool FFileActivitySharedState::ShowHideAllIoTracks_IsChecked() const
 {
 	return bShowHideAllIoTracks;

@@ -14,7 +14,7 @@ class TRACEINSIGHTS_API ITimingEventsTrackDrawStateBuilder
 public:
 	virtual ~ITimingEventsTrackDrawStateBuilder() = default;
 
-	virtual void AddEvent(double InEventStartTime, double InEventEndTime, uint32 InEventDepth, const TCHAR* InEventName, uint64 InEventType, uint32 InEventColor) = 0;
+	virtual void AddEvent(double InEventStartTime, double InEventEndTime, uint32 InEventDepth, const TCHAR* InEventName, uint64 InEventType = 0, uint32 InEventColor = 0) = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

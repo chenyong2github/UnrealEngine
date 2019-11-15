@@ -228,6 +228,8 @@ public:
 	virtual void AddScrollableTrack(TSharedPtr<FBaseTimingTrack> Track) override;
 	virtual void AddForegroundTrack(TSharedPtr<FBaseTimingTrack> Track) override;
 
+	virtual void InvalidateScrollableTracksOrder() override;
+
 	virtual Insights::FSelectionChangedDelegate& OnSelectionChanged() override { return OnSelectionChangedDelegate; }
 	virtual Insights::FTimeMarkerChangedDelegate& OnTimeMarkerChanged() override { return OnTimeMarkerChangedDelegate; }
 	virtual Insights::FHoveredTrackChangedDelegate& OnHoveredTrackChanged() override { return OnHoveredTrackChangedDelegate; }
@@ -380,6 +382,9 @@ protected:
 	TArray<TSharedPtr<FBaseTimingTrack>> BottomDockedTracks; /**< tracks docked on bottom, in the order to be displayed (top to bottom) */
 	TArray<TSharedPtr<FBaseTimingTrack>> ScrollableTracks; /**< tracks in scrollable area, in the order to be displayed (top to bottom) */
 	TArray<TSharedPtr<FBaseTimingTrack>> ForegroundTracks; /**< tracks to draw over top/scrollable/bottom tracks (can use entire area), in the order to be displayed (back to front) */
+
+	/** Whether the scrollable tracks are dirty and need to be re-sorted */
+	bool bScrollableTracksDirty;
 
 	////////////////////////////////////////////////////////////
 
