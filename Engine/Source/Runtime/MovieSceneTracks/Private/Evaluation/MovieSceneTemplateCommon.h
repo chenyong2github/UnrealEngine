@@ -32,7 +32,7 @@ struct F3DTransformTrackToken
 	FRotator Rotation;
 	FVector Scale;
 
-	void Apply(USceneComponent& SceneComponent, float DeltaTime = 0.f) const;
+	void Apply(USceneComponent& SceneComponent) const;
 };
 
 struct F3DTransformTokenProducer : IMovieScenePreAnimatedTokenProducer
