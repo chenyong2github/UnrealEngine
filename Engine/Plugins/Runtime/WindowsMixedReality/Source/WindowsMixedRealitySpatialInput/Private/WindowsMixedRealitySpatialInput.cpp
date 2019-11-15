@@ -505,7 +505,7 @@ namespace WindowsMixedReality
 		{
 			UE_LOG(LogCore, Error, TEXT("%s, Gesture capturing disabled"), *errorMsg);
 			CapturingSet = 0;
-			gestureRecognizer->Reset();
+			GestureRecognizer->Reset();
 			return false;
 		}
 
@@ -525,11 +525,11 @@ namespace WindowsMixedReality
 		using std::placeholders::_2;
 		using std::placeholders::_3;
 
-		gestureRecognizer->Reset();
+		GestureRecognizer->Reset();
 
 		if (CapturingSet & (uint32)EGestureType::TapGesture)
 		{
-			if (!gestureRecognizer->SubscribeTap(std::bind(&FWindowsMixedRealitySpatialInput::TapCallback, this, _1, _2, _3)))
+			if (!GestureRecognizer->SubscribeTap(std::bind(&FWindowsMixedRealitySpatialInput::TapCallback, this, _1, _2, _3)))
 			{
 				errorMsg = (TEXT("WindowsMixedRealitySpatialInput couldn't subscribe to Tap event"));
 				return false;
@@ -537,7 +537,7 @@ namespace WindowsMixedReality
 		}
 		if (CapturingSet & (uint32)EGestureType::HoldGesture)
 		{
-			if (!gestureRecognizer->SubscribeHold(std::bind(&FWindowsMixedRealitySpatialInput::HoldCallback, this, _1, _2, _3)))
+			if (!GestureRecognizer->SubscribeHold(std::bind(&FWindowsMixedRealitySpatialInput::HoldCallback, this, _1, _2, _3)))
 			{
 				errorMsg = (TEXT("WindowsMixedRealitySpatialInput couldn't subscribe to Hold event"));
 				return false;
@@ -547,7 +547,7 @@ namespace WindowsMixedReality
 		{
 			check(!(CapturingSet & (uint32)EGestureType::NavigationGesture || CapturingSet & (uint32)EGestureType::NavigationRailsGesture));
 
-			if (!gestureRecognizer->SubscribeManipulation(std::bind(&FWindowsMixedRealitySpatialInput::ManipulationCallback, this, _1, _2, _3)))
+			if (!GestureRecognizer->SubscribeManipulation(std::bind(&FWindowsMixedRealitySpatialInput::ManipulationCallback, this, _1, _2, _3)))
 			{
 				errorMsg = (TEXT("WindowsMixedRealitySpatialInput couldn't subscribe to Manipulation event"));
 				return false;
@@ -575,7 +575,7 @@ namespace WindowsMixedReality
 				UE_LOG(LogCore, Warning, TEXT("CaptureGestures is set to capture Navigation, but no axis.  This will work, but it's wierd enough that it is probably a mistake."));
 			}
 
-			if (!gestureRecognizer->SubscribeNavigation(std::bind(&FWindowsMixedRealitySpatialInput::NavigationCallback, this, _1, _2, _3),
+			if (!GestureRecognizer->SubscribeNavigation(std::bind(&FWindowsMixedRealitySpatialInput::NavigationCallback, this, _1, _2, _3),
 				Axes))
 			{
 				errorMsg = (TEXT("WindowsMixedRealitySpatialInput couldn't subscribe to Navigation event"));
@@ -605,7 +605,7 @@ namespace WindowsMixedReality
 				UE_LOG(LogCore, Warning, TEXT("CaptureGestures is set to capture NavigationRails, but no axis.  This will work, but it's wierd enough that it is probably a mistake."));
 			}
 
-			if (!gestureRecognizer->SubscribeNavigation(std::bind(&FWindowsMixedRealitySpatialInput::NavigationCallback, this, _1, _2, _3),
+			if (!GestureRecognizer->SubscribeNavigation(std::bind(&FWindowsMixedRealitySpatialInput::NavigationCallback, this, _1, _2, _3),
 				Axes))
 			{
 				errorMsg = (TEXT("WindowsMixedRealitySpatialInput couldn't subscribe to NavigationRails event"));
@@ -877,7 +877,7 @@ namespace WindowsMixedReality
 		IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), this);
 
 #if SUPPORTS_WINDOWS_MIXED_REALITY_GESTURES
-		gestureRecognizer = MakeUnique<GestureRecognizerInterop>();
+		GestureRecognizer = MakeUnique<GestureRecognizerInterop>();
 #endif
 
 		IsInitialized = true;
@@ -891,7 +891,7 @@ namespace WindowsMixedReality
 		}
 		
 #if SUPPORTS_WINDOWS_MIXED_REALITY_GESTURES
-		gestureRecognizer = nullptr;
+		GestureRecognizer = nullptr;
 #endif
 
 		IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureName(), this);
