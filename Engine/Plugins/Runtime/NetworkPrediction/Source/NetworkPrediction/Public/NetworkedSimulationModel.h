@@ -35,6 +35,22 @@
 //
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+
+struct TNetSimModelTraitsBase
+{
+
+};
+
+template<typename T>
+struct TNetSimModelTraits : public TNetSimModelTraitsBase
+{
+	using TSimulation = void;
+	using TBufferTypes = void;	
+	using TTickSettings = TNetworkSimTickSettings<>;
+
+};
+
+
 template <
 	typename InTSimulation,								// Final Simulation class
 	typename TUserBufferTypes,							// The user types (input, sync, aux, debug). Note this gets wrapped in TInternalBufferTypes internally.

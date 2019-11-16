@@ -8,127 +8,123 @@
 #include "ParametricMovement.generated.h"
 
 struct FSimpleParametricMotion;
+class IMovementDriver;
 
-namespace ParametricMovement
+// State the client generates
+struct FParametricInputCmd
 {
-	class IMovementDriver;
+	// Input Playrate. This being set can be thought of "telling the simulation what its new playrate should be"
+	TOptional<float> PlayRate;
 
-	// State the client generates
-	struct FInputCmd
+	void NetSerialize(const FNetSerializeParams& P)
 	{
-		// Input Playrate. This being set can be thought of "telling the simulation what its new playrate should be"
-		TOptional<float> PlayRate;
+		P.Ar << PlayRate;
+	}
 
-		void NetSerialize(const FNetSerializeParams& P)
-		{
-			P.Ar << PlayRate;
-		}
-
-		void Log(FStandardLoggingParameters& P) const
-		{
-			if (P.Context == EStandardLoggingContext::HeaderOnly)
-			{
-				P.Ar->Logf(TEXT(" %d "), P.Frame);
-			}
-			else if (P.Context == EStandardLoggingContext::Full)
-			{
-				if (PlayRate.IsSet())
-				{
-					P.Ar->Logf(TEXT("PlayRate: %.2f"), PlayRate.GetValue());
-				}
-			}
-		}
-	};
-
-	// State we are evolving frame to frame and keeping in sync
-	struct FMoveState
+	void Log(FStandardLoggingParameters& P) const
 	{
-		float Position;
-		float PlayRate;
-
-		void NetSerialize(const FNetSerializeParams& P)
+		if (P.Context == EStandardLoggingContext::HeaderOnly)
 		{
-			P.Ar << Position;
-			P.Ar << PlayRate;
+			P.Ar->Logf(TEXT(" %d "), P.Frame);
 		}
-
-		// Compare this state with AuthorityState. return true if a reconcile (correction) should happen
-		bool ShouldReconcile(const FMoveState& AuthorityState)
+		else if (P.Context == EStandardLoggingContext::Full)
 		{
-			const float ErrorTolerance = 0.01f;
-			return (FMath::Abs<float>(AuthorityState.Position - Position) > ErrorTolerance) || (FMath::Abs<float>(AuthorityState.PlayRate - PlayRate) > ErrorTolerance);
-		}
-
-		void Log(FStandardLoggingParameters& Params) const
-		{
-			if (Params.Context == EStandardLoggingContext::HeaderOnly)
+			if (PlayRate.IsSet())
 			{
-				Params.Ar->Logf(TEXT(" %d "), Params.Frame);
-			}
-			else if (Params.Context == EStandardLoggingContext::Full)
-			{
-				Params.Ar->Logf(TEXT("Frame: %d"), Params.Frame);
-				Params.Ar->Logf(TEXT("Pos: %.2f"), Position);
-				Params.Ar->Logf(TEXT("Rate: %.2f"), PlayRate);
+				P.Ar->Logf(TEXT("PlayRate: %.2f"), PlayRate.GetValue());
 			}
 		}
+	}
+};
 
-		void VisualLog(const FVisualLoggingParameters& Parameters, IMovementDriver* Driver, IMovementDriver* LogDriver) const;
+// State we are evolving frame to frame and keeping in sync
+struct FParametricSyncState
+{
+	float Position;
+	float PlayRate;
 
-		static void Interpolate(const FMoveState& From, const FMoveState& To, const float PCT, FMoveState& OutDest)
-		{
-			OutDest.Position = From.Position + ((To.Position - From.Position) * PCT);
-			OutDest.PlayRate = From.PlayRate + ((To.PlayRate - From.PlayRate) * PCT);
-		}
-	};
-
-	// Auxiliary state that is input into the simulation. Doesn't change during the simulation tick.
-	// (It can change and even be predicted but doing so will trigger more bookeeping, etc. Changes will happen "next tick")
-	struct FAuxState
+	void NetSerialize(const FNetSerializeParams& P)
 	{
-		float Multiplier=1;
-		void NetSerialize(const FNetSerializeParams& P)
-		{
-			P.Ar << Multiplier;
-		}
+		P.Ar << Position;
+		P.Ar << PlayRate;
+	}
 
-		void Log(FStandardLoggingParameters& Params) const
-		{
-			if (Params.Context == EStandardLoggingContext::HeaderOnly)
-			{
-				Params.Ar->Logf(TEXT(" %d "), Params.Frame);
-			}
-			else if (Params.Context == EStandardLoggingContext::Full)
-			{
-				Params.Ar->Logf(TEXT("Multiplier: %f"), Multiplier);
-			}
-		}
-	};
+	// Compare this state with AuthorityState. return true if a reconcile (correction) should happen
+	bool ShouldReconcile(const FParametricSyncState& AuthorityState)
+	{
+		const float ErrorTolerance = 0.01f;
+		return (FMath::Abs<float>(AuthorityState.Position - Position) > ErrorTolerance) || (FMath::Abs<float>(AuthorityState.PlayRate - PlayRate) > ErrorTolerance);
+	}
 
-	using TMovementBufferTypes = TNetworkSimBufferTypes<FInputCmd, FMoveState, FAuxState>;
+	void Log(FStandardLoggingParameters& Params) const
+	{
+		if (Params.Context == EStandardLoggingContext::HeaderOnly)
+		{
+			Params.Ar->Logf(TEXT(" %d "), Params.Frame);
+		}
+		else if (Params.Context == EStandardLoggingContext::Full)
+		{
+			Params.Ar->Logf(TEXT("Frame: %d"), Params.Frame);
+			Params.Ar->Logf(TEXT("Pos: %.2f"), Position);
+			Params.Ar->Logf(TEXT("Rate: %.2f"), PlayRate);
+		}
+	}
+
+	void VisualLog(const FVisualLoggingParameters& Parameters, IMovementDriver* Driver, IMovementDriver* LogDriver) const;
+
+	static void Interpolate(const FParametricSyncState& From, const FParametricSyncState& To, const float PCT, FParametricSyncState& OutDest)
+	{
+		OutDest.Position = From.Position + ((To.Position - From.Position) * PCT);
+		OutDest.PlayRate = From.PlayRate + ((To.PlayRate - From.PlayRate) * PCT);
+	}
+};
+
+// Auxiliary state that is input into the simulation. Doesn't change during the simulation tick.
+// (It can change and even be predicted but doing so will trigger more bookeeping, etc. Changes will happen "next tick")
+struct FParametricAuxState
+{
+	float Multiplier=1;
+	void NetSerialize(const FNetSerializeParams& P)
+	{
+		P.Ar << Multiplier;
+	}
+
+	void Log(FStandardLoggingParameters& Params) const
+	{
+		if (Params.Context == EStandardLoggingContext::HeaderOnly)
+		{
+			Params.Ar->Logf(TEXT(" %d "), Params.Frame);
+		}
+		else if (Params.Context == EStandardLoggingContext::Full)
+		{
+			Params.Ar->Logf(TEXT("Multiplier: %f"), Multiplier);
+		}
+	}
+};
+
+using ParametricMovementBufferTypes = TNetworkSimBufferTypes<FParametricInputCmd, FParametricSyncState, FParametricAuxState>;
 	
-	class FMovementSimulation : public FBaseMovementSimulation
-	{
-	public:
-		static const FName GroupName;
+class FParametricMovementSimulation : public FBaseMovementSimulation
+{
+public:
+	static const FName GroupName;
 
-		void SimulationTick(const FNetSimTimeStep& TimeStep, const TNetSimInput<TMovementBufferTypes>& Input, const TNetSimOutput<TMovementBufferTypes>& Output);
+	void SimulationTick(const FNetSimTimeStep& TimeStep, const TNetSimInput<ParametricMovementBufferTypes>& Input, const TNetSimOutput<ParametricMovementBufferTypes>& Output);
 
-		// Pointer to our static mapping of time->position
-		const FSimpleParametricMotion* Motion = nullptr;
-	};
+	// Pointer to our static mapping of time->position
+	const FSimpleParametricMotion* Motion = nullptr;
+};
 
 
-	// Actual definition of our network simulation.
-	template<int32 FixedStepMS=0>
-	using FMovementSystem = TNetworkedSimulationModel<FMovementSimulation, TMovementBufferTypes, TNetworkSimTickSettings<FixedStepMS>>;
+// Actual definition of our network simulation.
+template<int32 FixedStepMS=0>
+using FParametricMovementSystem = TNetworkedSimulationModel<FParametricMovementSimulation, ParametricMovementBufferTypes, TNetworkSimTickSettings<FixedStepMS>>;
 
-} // End namespace
+
 
 // Needed to trick UHT into letting UMockNetworkSimulationComponent implement. UHT cannot parse the ::
 // Also needed for forward declaring. Can't just be a typedef/using =
-class IParametricMovementDriver : public TNetworkedSimulationModelDriver<ParametricMovement::TMovementBufferTypes> { };
-class FParametricMovementSimulation : public ParametricMovement::FMovementSimulation { };
+class IParametricMovementDriver : public TNetworkedSimulationModelDriver<ParametricMovementBufferTypes> { };
 
 // Extremely simple struct for defining parametric motion. This is editable in UParametricMovementComponent's defaults, and also used by the simulation code above. 
 USTRUCT(BlueprintType)
@@ -176,15 +172,15 @@ class NETWORKPREDICTION_API UParametricMovementComponent : public UBaseMovementC
 	// Base TNetworkModelSimulation driver
 	FString GetDebugName() const override;
 	const AActor* GetVLogOwner() const override;
-	void VisualLog(const ParametricMovement::FInputCmd* Input, const ParametricMovement::FMoveState* Sync, const ParametricMovement::FAuxState* Aux, const FVisualLoggingParameters& SystemParameters) const override;
+	void VisualLog(const FParametricInputCmd* Input, const FParametricSyncState* Sync, const FParametricAuxState* Aux, const FVisualLoggingParameters& SystemParameters) const override;
 
-	void ProduceInput(const FNetworkSimTime SimTime, ParametricMovement::FInputCmd& Cmd);
-	void FinalizeFrame(const ParametricMovement::FMoveState& SyncState, const ParametricMovement::FAuxState& AuxState) override;
+	void ProduceInput(const FNetworkSimTime SimTime, FParametricInputCmd& Cmd);
+	void FinalizeFrame(const FParametricSyncState& SyncState, const FParametricAuxState& AuxState) override;
 
 protected:
 
-	TNetSimStateAccessor<ParametricMovement::FMoveState> MovementSyncState;
-	TNetSimStateAccessor<ParametricMovement::FAuxState> MovementAuxState;
+	TNetSimStateAccessor<FParametricSyncState> MovementSyncState;
+	TNetSimStateAccessor<FParametricAuxState> MovementAuxState;
 
 	virtual INetworkedSimulationModel* InstantiateNetworkedSimulation() override;
 	FNetworkSimulationModelInitParameters GetSimulationInitParameters(ENetRole Role) override;
@@ -192,7 +188,7 @@ protected:
 	FParametricMovementSimulation* ParametricMovementSimulation = nullptr;
 
 	template<typename TSimulation>
-	void InitParametricMovementSimulation(TSimulation* Simulation, ParametricMovement::FMoveState& InitialSyncState, ParametricMovement::FAuxState& InitialAuxState)
+	void InitParametricMovementSimulation(TSimulation* Simulation, FParametricSyncState& InitialSyncState, FParametricAuxState& InitialAuxState)
 	{
 		check(ParametricMovementSimulation == nullptr);
 		ParametricMovementSimulation = Simulation;

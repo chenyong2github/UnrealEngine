@@ -56,13 +56,13 @@ UFlyingMovementComponent::UFlyingMovementComponent()
 INetworkedSimulationModel* UFlyingMovementComponent::InstantiateNetworkedSimulation()
 {
 	// The Simulation
-	FlyingMovement::FMoveState InitialSyncState;
-	FlyingMovement::FAuxState InitialAuxState;
+	FFlyingMovementSyncState InitialSyncState;
+	FFlyingMovementAuxState InitialAuxState;
 
-	InitFlyingMovementSimulation(new FlyingMovement::FMovementSimulation(), InitialSyncState, InitialAuxState);
+	InitFlyingMovementSimulation(new FFlyingMovementSimulation(), InitialSyncState, InitialAuxState);
 
 	// The Model
-	auto NewModel = new FlyingMovement::FMovementSystem<0>(MovementSimulation, this, InitialSyncState, InitialAuxState);
+	auto NewModel = new FFlyingMovementSystem<0>(MovementSimulation, this, InitialSyncState, InitialAuxState);
 	InitFlyingMovementNetSimModel(NewModel);
 	
 	return NewModel;
@@ -90,7 +90,7 @@ void UFlyingMovementComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 	// Check if we should trip a mispredict. (Note how its not possible to do this inside the Update function!)
 	if (OwnerRole == ROLE_Authority && FlyingMovementCVars::RequestMispredict)
 	{
-		FlyingMovement::FMovementSimulation::ForceMispredict = true;
+		FFlyingMovementSimulation::ForceMispredict = true;
 		FlyingMovementCVars::RequestMispredict = 0;
 	}
 
@@ -100,7 +100,7 @@ void UFlyingMovementComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 	{
 		if (MovementAuxState->Get()->MaxSpeed != FlyingMovementCVars::MaxSpeed)
 		{
-			MovementAuxState->Modify([](FlyingMovement::FAuxState& Aux)
+			MovementAuxState->Modify([](FFlyingMovementAuxState& Aux)
 			{
 				Aux.MaxSpeed = FlyingMovementCVars::MaxSpeed;
 			});
@@ -119,16 +119,16 @@ void UFlyingMovementComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 //
 // ----------------------------------------------------------------------------------------------------------
 
-void UFlyingMovementComponent::ProduceInput(const FNetworkSimTime SimTime, FlyingMovement::FInputCmd& Cmd)
+void UFlyingMovementComponent::ProduceInput(const FNetworkSimTime SimTime, FFlyingMovementInputCmd& Cmd)
 {
 	// This isn't ideal. It probably makes sense for the component to do all the input binding rather.
 	ProduceInputDelegate.ExecuteIfBound(SimTime, Cmd);
 }
 
-void UFlyingMovementComponent::FinalizeFrame(const FlyingMovement::FMoveState& SyncState, const FlyingMovement::FAuxState& AuxState)
+void UFlyingMovementComponent::FinalizeFrame(const FFlyingMovementSyncState& SyncState, const FFlyingMovementAuxState& AuxState)
 {
 	// Does checking equality make any sense here? This is unfortunate
-	if (UpdatedComponent->GetComponentLocation().Equals(SyncState.Location) == false || UpdatedComponent->GetComponentQuat().Rotator().Equals(SyncState.Rotation, FlyingMovement::ROTATOR_TOLERANCE) == false)
+	if (UpdatedComponent->GetComponentLocation().Equals(SyncState.Location) == false || UpdatedComponent->GetComponentQuat().Rotator().Equals(SyncState.Rotation, ROTATOR_TOLERANCE) == false)
 	{
 		FTransform Transform(SyncState.Rotation.Quaternion(), SyncState.Location, UpdatedComponent->GetComponentTransform().GetScale3D() );
 		UpdatedComponent->SetWorldTransform(Transform, false, nullptr, ETeleportType::TeleportPhysics);
@@ -147,7 +147,7 @@ const AActor* UFlyingMovementComponent::GetVLogOwner() const
 	return GetOwner();
 }
 
-void UFlyingMovementComponent::VisualLog(const FlyingMovement::FInputCmd* Input, const FlyingMovement::FMoveState* Sync, const FlyingMovement::FAuxState* Aux, const FVisualLoggingParameters& SystemParameters) const
+void UFlyingMovementComponent::VisualLog(const FFlyingMovementInputCmd* Input, const FFlyingMovementSyncState* Sync, const FFlyingMovementAuxState* Aux, const FVisualLoggingParameters& SystemParameters) const
 {
 	FTransform Transform(Sync->Rotation, Sync->Location);
 	FVisualLoggingHelpers::VisualLogActor(GetOwner(), Transform, SystemParameters);	
