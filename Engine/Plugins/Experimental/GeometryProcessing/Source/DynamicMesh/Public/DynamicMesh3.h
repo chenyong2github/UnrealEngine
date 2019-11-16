@@ -275,6 +275,11 @@ public:
 	{
 		return VertexRefCounts.IsValid(VertexID);
 	}
+	/** @return true if VertexID is a valid vertex in this mesh AND is used by at least one triangle */
+	inline bool IsReferencedVertex(int VertexID) const
+	{
+		return VertexID >= 0 && VertexID < (int)VertexRefCounts.GetMaxIndex() && VertexRefCounts.GetRawRefCount(VertexID) > 1;
+	}
 	/** @return true if TriangleID is a valid triangle in this mesh */
 	inline bool IsTriangle(int TriangleID) const
 	{
