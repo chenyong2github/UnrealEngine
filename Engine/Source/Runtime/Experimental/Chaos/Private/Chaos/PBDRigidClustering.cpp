@@ -631,16 +631,16 @@ namespace Chaos
 
 		ResetCollisionImpulseArray();
 
-		for (const typename FPBDCollisionConstraint::FRigidBodyContactConstraint& Contact : CollisionRule.GetAllConstraints())
+		for (const Chaos::TPBDCollisionConstraintHandle<T, 3> * ContactHandle : CollisionRule.GetConstConstraintHandles())
 		{
-			if (Contact.AccumulatedImpulse.Size() < MinImpulseForStrainEval)
+			if (ContactHandle->GetAccumulatedImpulse().Size() < MinImpulseForStrainEval)
 			{
 				continue;
 			}
 
-			auto ComputeStrainLambda = [&](TPBDRigidClusteredParticleHandle<T, d>* Cluster, const TArray<uint32>& ParentToChildren) {
+			auto ComputeStrainLambda = [&](const TPBDRigidClusteredParticleHandle<T, d>* Cluster, const TArray<uint32>& ParentToChildren) {
 				const TRigidTransform<T, d> WorldToClusterTM = TRigidTransform<T, d>(Cluster->P(), Cluster->Q());
-				const TVector<T, d> ContactLocationClusterLocal = WorldToClusterTM.InverseTransformPosition(GetContactLocation(Contact));
+				const TVector<T, d> ContactLocationClusterLocal = WorldToClusterTM.InverseTransformPosition(ContactHandle->GetContactLocation());
 				TBox<T, d> ContactBox(ContactLocationClusterLocal, ContactLocationClusterLocal);
 				ContactBox.Thicken(ClusterDistanceThreshold);
 				if (Cluster->ChildrenSpatial())
@@ -661,26 +661,27 @@ namespace Chaos
 								const TArray<int32> SubIntersections = MParticles.ChildrenSpatial(Child)->FindAllIntersectingChildren(ContactBoxProxy);
 								for (int32 SubChild : SubIntersections)
 								{
-									MParticles.CollisionImpulses(SubChild) += Contact.AccumulatedImpulse.Size();
+									MParticles.CollisionImpulses(SubChild) += ContactHandle->GetAccumulatedImpulse().Size();
 								}
 							}
 						}
 						else
 						{
-							MParticles.CollisionImpulses(Child) += Contact.AccumulatedImpulse.Size();
+							MParticles.CollisionImpulses(Child) += ContactHandle->GetAccumulatedImpulse().Size();
 						}
 					}
 				}
 			};
 
-			if (auto ChildrenPtr = MParentToChildren.Find(Contact.Particle[0]))
+			TVector<const TGeometryParticleHandle<T, d>*, 2> ConstrainedParticles = ContactHandle->GetConstrainedParticles();
+			if (auto ChildrenPtr = MParentToChildren.Find(ConstrainedParticles[0]))
 			{
-				ComputeStrainLambda(Contact.Particle[0]->AsClustered(), *ChildrenPtr);
+				ComputeStrainLambda(ConstrainedParticles[0]->AsClustered(), *ChildrenPtr);
 			}
 
-			if (auto ChildrenPtr = MParentToChildren.Find(Contact.Particle[1]))
+			if (auto ChildrenPtr = MParentToChildren.Find(ConstrainedParticles[1]))
 			{
-				ComputeStrainLambda(Contact.Particle[1]->AsClustered(), *ChildrenPtr);
+				ComputeStrainLambda(ConstrainedParticles[1]->AsClustered(), *ChildrenPtr);
 			}
 
 			MCollisionImpulseArrayDirty = true;
