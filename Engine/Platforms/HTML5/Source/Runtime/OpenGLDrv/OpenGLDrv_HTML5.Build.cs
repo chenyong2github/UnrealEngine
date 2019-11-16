@@ -2,7 +2,7 @@
 
 using UnrealBuildTool;
 
-[SupportedPlatformsAttribute(new string[] {"Win64", "Mac", "Linux", "HTML5", "LinuxAArch64"})]
+[SupportedPlatformsAttribute(new string[] {"HTML5"})]
 public class OpenGLDrv_HTML5 : OpenGLDrv
 {
 	public OpenGLDrv_HTML5(ReadOnlyTargetRules Target) : base(Target)
