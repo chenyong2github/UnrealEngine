@@ -1289,8 +1289,8 @@ USceneComponent *CreateCameraComponent(AActor *ParentActor, TSharedPtr<FFbxCamer
 	CameraComponent->SetOrthoFarClipPlane(CameraInfo->FarPlane);
 	CameraComponent->SetOrthoWidth(CameraInfo->AspectWidth);
 	CameraComponent->SetFieldOfView(CameraInfo->FieldOfView);
-	CameraComponent->FilmbackSettings.SensorWidth = FUnitConversion::Convert(CameraInfo->ApertureWidth, EUnit::Inches, EUnit::Millimeters);
-	CameraComponent->FilmbackSettings.SensorHeight = FUnitConversion::Convert(CameraInfo->ApertureHeight, EUnit::Inches, EUnit::Millimeters);
+	CameraComponent->Filmback.SensorWidth = FUnitConversion::Convert(CameraInfo->ApertureWidth, EUnit::Inches, EUnit::Millimeters);
+	CameraComponent->Filmback.SensorHeight = FUnitConversion::Convert(CameraInfo->ApertureHeight, EUnit::Inches, EUnit::Millimeters);
 	CameraComponent->LensSettings.MaxFocalLength = CameraInfo->FocalLength;
 	CameraComponent->LensSettings.MinFocalLength = CameraInfo->FocalLength;
 	CameraComponent->FocusSettings.FocusMethod = ECameraFocusMethod::None;
