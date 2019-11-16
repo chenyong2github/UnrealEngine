@@ -68,7 +68,7 @@ public:
 	using FRigidBodyContactConstraint = TRigidBodyContactConstraint<T, d>;
 	using FHandles = TArray<FConstraintContainerHandle*>;
 
-	TPBDCollisionConstraint(const TPBDRigidsSOAs<T,d>& InParticles, TArrayCollectionArray<bool>& Collided, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterials, const int32 PairIterations = 1, const T Thickness = (T)0);
+	TPBDCollisionConstraint(const TPBDRigidsSOAs<T,d>& InParticles, TArrayCollectionArray<bool>& Collided, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterials, const int32 ApplyPairIterations = 1, const int32 ApplyPushOutPairIterations = 1, const T Thickness = (T)0);
 	virtual ~TPBDCollisionConstraint() {}
 
 	//
@@ -85,14 +85,14 @@ public:
 		CollisionVelocityInflation = ScaleFactor;
 	}
 
-	void SetVelocitySolveEnabled(bool bInEnableVelocitySolve)
+	void SetPairIterations(int32 InPairIterations)
 	{
-		bEnableVelocitySolve = bInEnableVelocitySolve;
+		MApplyPairIterations = InPairIterations;
 	}
 
 	void SetPushOutPairIterations(int32 InPairIterations)
-	{ 
-		MPairIterations = InPairIterations;
+	{
+		MApplyPushOutPairIterations = InPairIterations;
 	}
 
 	void SetCollisionsEnabled(bool bInEnableCollisions)
@@ -201,7 +201,8 @@ private:
 	*/
 	void Reset( );
 
-	void Apply(const T Dt, FRigidBodyContactConstraint& Constraint);
+	void Apply(const T Dt, FRigidBodyContactConstraint& Constraint, const int32 It, const int32 NumIts);
+
 
 	void ApplyPushOut(const T Dt, FRigidBodyContactConstraint& Constraint, const TSet<const TGeometryParticleHandle<T, d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations, bool &NeedsAnotherIteration);
 
@@ -224,8 +225,8 @@ private:
 
 	TArrayCollectionArray<bool>& MCollided;
 	const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& MPhysicsMaterials;
-	bool bEnableVelocitySolve;
-	int32 MPairIterations;
+	int32 MApplyPairIterations;
+	int32 MApplyPushOutPairIterations;
 	T MThickness;
 	T MAngularFriction;
 	bool bUseCCD;

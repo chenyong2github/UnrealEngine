@@ -144,8 +144,8 @@ namespace Chaos
 
 		void CalculateConstraintSpace(int32 ConstraintIndex, FVec3& OutX0, FMatrix33& OutR0, FVec3& OutX1, FMatrix33& OutR1, FVec3& OutAngles) const;
 
-		void SolveVelocity(const FReal Dt, const int32 ConstraintIndex, const int32 It, const int32 NumIts);
-		void SolvePosition(const FReal Dt, const int32 ConstraintIndex, const int32 It, const int32 NumIts);
+		void SolveVelocity(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
+		void SolvePosition(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
 		void ProjectPosition(const FReal Dt, const int32 ConstraintIndex, const int32 It, const int32 NumIts);
 
 		FPBDJointSolverSettings Settings;

@@ -15,6 +15,7 @@
 namespace Chaos
 {
 	DECLARE_CYCLE_STAT(TEXT("TPBDJointConstraints::Apply"), STAT_ApplyJointConstraints, STATGROUP_Chaos);
+	DECLARE_CYCLE_STAT(TEXT("TPBDJointConstraints::Apply"), STAT_ApplyPushOutJointConstraints, STATGROUP_Chaos);
 
 	FReal GetLinearStiffness(
 		const FPBDJointSolverSettings& SolverSettings,
@@ -166,14 +167,16 @@ namespace Chaos
 
 	
 	FPBDJointSolverSettings::FPBDJointSolverSettings()
-		: SwingTwistAngleTolerance((FReal)1.0e-6)
+		: ApplyPairIterations(1)
+		, ApplyPushOutPairIterations(1)
+		, SwingTwistAngleTolerance((FReal)1.0e-6)
 		, MinParentMassRatio(0)
 		, MaxInertiaRatio(0)
 		, bEnableVelocitySolve(false)
-		, bEnableLinearLimits(true)
 		, bEnableTwistLimits(true)
 		, bEnableSwingLimits(true)
 		, bEnableDrives(true)
+		, ProjectionPhase(EJointProjectionPhase::None)
 		, LinearProjection((FReal)0)
 		, AngularProjection((FReal)0)
 		, Stiffness((FReal)0)
@@ -404,11 +407,20 @@ namespace Chaos
 		{
 			if (Settings.bEnableVelocitySolve)
 			{
-				SolveVelocity(Dt, ConstraintHandle->GetConstraintIndex(), It, NumIts);
+				SolveVelocity(Dt, ConstraintHandle->GetConstraintIndex(), Settings.ApplyPairIterations, It, NumIts);
 			}
 			else
 			{
-				SolvePosition(Dt, ConstraintHandle->GetConstraintIndex(), It, NumIts);
+				SolvePosition(Dt, ConstraintHandle->GetConstraintIndex(), Settings.ApplyPairIterations, It, NumIts);
+			}
+		}
+
+		if (Settings.ProjectionPhase == EJointProjectionPhase::Apply)
+		{
+			int32 ProjectionIt = NumIts - 1;
+			if (It == ProjectionIt)
+			{
+				ApplyProjection(Dt, InConstraintHandles);
 			}
 		}
 
@@ -421,10 +433,12 @@ namespace Chaos
 	
 	bool FPBDJointConstraints::ApplyPushOut(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_ApplyPushOutJointConstraints);
+
 		// @todo(ccaulfield): track whether we are sufficiently solved
 		bool bNeedsAnotherIteration = true;
 
-		if (Settings.bEnableVelocitySolve)
+		if (Settings.ApplyPushOutPairIterations > 0)
 		{
 			TArray<FConstraintContainerHandle*> SortedConstraintHandles = InConstraintHandles;
 			SortedConstraintHandles.Sort([](const FConstraintContainerHandle& L, const FConstraintContainerHandle& R)
@@ -435,14 +449,17 @@ namespace Chaos
 
 			for (FConstraintContainerHandle* ConstraintHandle : SortedConstraintHandles)
 			{
-				SolvePosition(Dt, ConstraintHandle->GetConstraintIndex(), It, NumIts);
+				SolvePosition(Dt, ConstraintHandle->GetConstraintIndex(), Settings.ApplyPushOutPairIterations, It, NumIts);
 			}
 		}
 
-		if (It == NumIts - 1)
+		if (Settings.ProjectionPhase == EJointProjectionPhase::ApplyPushOut)
 		{
-			// @todo(ccaulfield): should be called by constraint rule after PushOut
-			ApplyProjection(Dt, InConstraintHandles);
+			int32 ProjectionIt = (Settings.ApplyPushOutPairIterations > 0) ? NumIts - 1 : 0;
+			if (It == ProjectionIt)
+			{
+				ApplyProjection(Dt, InConstraintHandles);
+			}
 		}
 
 		return bNeedsAnotherIteration;
@@ -465,7 +482,7 @@ namespace Chaos
 	}
 
 	
-	void FPBDJointConstraints::SolveVelocity(const FReal Dt, const int32 ConstraintIndex, const int32 It, const int32 NumIts)
+	void FPBDJointConstraints::SolveVelocity(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
 	{
 		const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& Constraint = ConstraintParticles[ConstraintIndex];
 		UE_LOG(LogChaosJoint, Verbose, TEXT("Solve Joint Constraint %d %s %s (dt = %f; it = %d / %d)"), ConstraintIndex, *Constraint[0]->ToString(), *Constraint[1]->ToString(), Dt, It, NumIts);
@@ -520,74 +537,77 @@ namespace Chaos
 		EJointMotionType Swing1Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1];
 		EJointMotionType Swing2Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2];
 
-		// Apply angular drives (NOTE: modifies position, not velocity)
-		if (Settings.bEnableDrives)
+		for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
 		{
-			bool bTwistLocked = TwistMotion == EJointMotionType::Locked;
-			bool bSwing1Locked = Swing1Motion == EJointMotionType::Locked;
-			bool bSwing2Locked = Swing2Motion == EJointMotionType::Locked;
+			// Apply angular drives (NOTE: modifies position, not velocity)
+			if (Settings.bEnableDrives)
+			{
+				bool bTwistLocked = TwistMotion == EJointMotionType::Locked;
+				bool bSwing1Locked = Swing1Motion == EJointMotionType::Locked;
+				bool bSwing2Locked = Swing2Motion == EJointMotionType::Locked;
 
-			// No SLerp drive if we have a locked rotation (it will be grayed out in the editor in this case, but could still have been set before the rotation was locked)
-			if (JointSettings.Motion.bAngularSLerpDriveEnabled && !bTwistLocked && !bSwing1Locked && !bSwing2Locked)
-			{
-				FPBDJointUtilities::ApplyJointSLerpDrive(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
-			}
-
-			if (JointSettings.Motion.bAngularTwistDriveEnabled && !bTwistLocked)
-			{
-				FPBDJointUtilities::ApplyJointTwistDrive(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
-			}
-
-			if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing1Locked && !bSwing2Locked)
-			{
-				FPBDJointUtilities::ApplyJointConeDrive(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
-			}
-			else if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing1Locked)
-			{
-				//FPBDJointUtilities::ApplyJointSwingDrive(Dt, Settings, JointSettings, Index0, Index1, EJointAngularConstraintIndex::Swing1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
-			}
-			else if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing2Locked)
-			{
-				//FPBDJointUtilities::ApplyJointSwingDrive(Dt, Settings, JointSettings, Index0, Index1, EJointAngularConstraintIndex::Swing2, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
-			}
-		}
-
-		// Apply twist velocity constraint
-		if (Settings.bEnableTwistLimits)
-		{
-			if (TwistMotion != EJointMotionType::Free)
-			{
-				FPBDJointUtilities::ApplyJointTwistVelocityConstraint(Dt, Settings, JointSettings, TwistStiffness, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
-			}
-		}
-
-		// Apply swing velocity constraints
-		if (Settings.bEnableSwingLimits)
-		{
-			if ((Swing1Motion == EJointMotionType::Limited) && (Swing2Motion == EJointMotionType::Limited))
-			{
-				// Swing Cone
-				FPBDJointUtilities::ApplyJointConeVelocityConstraint(Dt, Settings, JointSettings, SwingStiffness, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
-			}
-			else
-			{
-				if (Swing1Motion != EJointMotionType::Free)
+				// No SLerp drive if we have a locked rotation (it will be grayed out in the editor in this case, but could still have been set before the rotation was locked)
+				if (JointSettings.Motion.bAngularSLerpDriveEnabled && !bTwistLocked && !bSwing1Locked && !bSwing2Locked)
 				{
-					// Swing Arc/Lock
-					FPBDJointUtilities::ApplyJointSwingVelocityConstraint(Dt, Settings, JointSettings, SwingStiffness, Index0, Index1, EJointAngularConstraintIndex::Swing1, EJointAngularAxisIndex::Swing1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+					FPBDJointUtilities::ApplyJointSLerpDrive(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
 				}
-				if (Swing2Motion != EJointMotionType::Free)
+
+				if (JointSettings.Motion.bAngularTwistDriveEnabled && !bTwistLocked)
 				{
-					// Swing Arc/Lock
-					FPBDJointUtilities::ApplyJointSwingVelocityConstraint(Dt, Settings, JointSettings, SwingStiffness, Index0, Index1, EJointAngularConstraintIndex::Swing2, EJointAngularAxisIndex::Swing2, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+					FPBDJointUtilities::ApplyJointTwistDrive(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+				}
+
+				if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing1Locked && !bSwing2Locked)
+				{
+					FPBDJointUtilities::ApplyJointConeDrive(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+				}
+				else if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing1Locked)
+				{
+					//FPBDJointUtilities::ApplyJointSwingDrive(Dt, Settings, JointSettings, Index0, Index1, EJointAngularConstraintIndex::Swing1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+				}
+				else if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing2Locked)
+				{
+					//FPBDJointUtilities::ApplyJointSwingDrive(Dt, Settings, JointSettings, Index0, Index1, EJointAngularConstraintIndex::Swing2, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
 				}
 			}
-		}
 
-		// Apply linear velocity  constraints
-		if ((LinearMotion[0] != EJointMotionType::Free) || (LinearMotion[1] != EJointMotionType::Free) || (LinearMotion[2] != EJointMotionType::Free))
-		{
-			FPBDJointUtilities::ApplyJointVelocityConstraint(Dt, Settings, JointSettings, LinearStiffness, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+			// Apply twist velocity constraint
+			if (Settings.bEnableTwistLimits)
+			{
+				if (TwistMotion != EJointMotionType::Free)
+				{
+					FPBDJointUtilities::ApplyJointTwistVelocityConstraint(Dt, Settings, JointSettings, TwistStiffness, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+				}
+			}
+
+			// Apply swing velocity constraints
+			if (Settings.bEnableSwingLimits)
+			{
+				if ((Swing1Motion == EJointMotionType::Limited) && (Swing2Motion == EJointMotionType::Limited))
+				{
+					// Swing Cone
+					FPBDJointUtilities::ApplyJointConeVelocityConstraint(Dt, Settings, JointSettings, SwingStiffness, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+				}
+				else
+				{
+					if (Swing1Motion != EJointMotionType::Free)
+					{
+						// Swing Arc/Lock
+						FPBDJointUtilities::ApplyJointSwingVelocityConstraint(Dt, Settings, JointSettings, SwingStiffness, Index0, Index1, EJointAngularConstraintIndex::Swing1, EJointAngularAxisIndex::Swing1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+					}
+					if (Swing2Motion != EJointMotionType::Free)
+					{
+						// Swing Arc/Lock
+						FPBDJointUtilities::ApplyJointSwingVelocityConstraint(Dt, Settings, JointSettings, SwingStiffness, Index0, Index1, EJointAngularConstraintIndex::Swing2, EJointAngularAxisIndex::Swing2, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+					}
+				}
+			}
+
+			// Apply linear velocity  constraints
+			if ((LinearMotion[0] != EJointMotionType::Free) || (LinearMotion[1] != EJointMotionType::Free) || (LinearMotion[2] != EJointMotionType::Free))
+			{
+				FPBDJointUtilities::ApplyJointVelocityConstraint(Dt, Settings, JointSettings, LinearStiffness, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+			}
 		}
 
 		// Update the particles
@@ -608,7 +628,7 @@ namespace Chaos
 	}
 
 	
-	void FPBDJointConstraints::SolvePosition(const FReal Dt, const int32 ConstraintIndex, const int32 It, const int32 NumIts)
+	void FPBDJointConstraints::SolvePosition(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
 	{
 		const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& Constraint = ConstraintParticles[ConstraintIndex];
 		UE_LOG(LogChaosJoint, Verbose, TEXT("Solve Joint Constraint %d %s %s (dt = %f; it = %d / %d)"), ConstraintIndex, *Constraint[0]->ToString(), *Constraint[1]->ToString(), Dt, It, NumIts);
@@ -625,8 +645,12 @@ namespace Chaos
 
 		FVec3 P0 = Particle0->P();
 		FRotation3 Q0 = Particle0->Q();
+		FVec3 V0 = Particle0->V();
+		FVec3 W0 = Particle0->W();
 		FVec3 P1 = Particle1->P();
 		FRotation3 Q1 = Particle1->Q();
+		FVec3 V1 = Particle1->V();
+		FVec3 W1 = Particle1->W();
 		float InvM0 = Particle0->InvM();
 		float InvM1 = Particle1->InvM();
 		FMatrix33 InvIL0 = Particle0->InvI();
@@ -654,101 +678,82 @@ namespace Chaos
 			FPBDJointUtilities::GetConditionedInverseMass(Particle0->M(), Particle0->I().GetDiagonal(), Particle1->M(), Particle1->I().GetDiagonal(), InvM0, InvM1, InvIL0, InvIL1, (FReal)0, Settings.MaxInertiaRatio);
 		}
 
-		// Freeze the closest to kinematic connection (if one is closer than the other)
-		if (Settings.bEnableVelocitySolve && (Level0 != Level1))
-		{
-			const FReal FreezeFactor = (FReal)(NumIts - (It + 1)) / (FReal)NumIts;
-			if (Level0 < Level1)
-			{
-				InvM0 = InvM0 * FreezeFactor * FreezeFactor;
-				InvIL0 = InvIL0 * FreezeFactor * FreezeFactor;
-			}
-			else if (Level1 < Level0)
-			{
-				InvM1 = InvM1 * FreezeFactor * FreezeFactor;
-				InvIL1 = InvIL1 * FreezeFactor * FreezeFactor;
-			}
-		}
-
 		const TVector<EJointMotionType, 3>& LinearMotion = JointSettings.Motion.LinearMotionTypes;
 		EJointMotionType TwistMotion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist];
 		EJointMotionType Swing1Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1];
 		EJointMotionType Swing2Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2];
 
-		// Disable a constraint if it has any linear limits?
-		if (!Settings.bEnableLinearLimits && ((LinearMotion[0] == EJointMotionType::Limited) || (LinearMotion[1] == EJointMotionType::Limited) || (LinearMotion[2] == EJointMotionType::Limited)))
+		for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
 		{
-			return;
-		}
+			// Apply angular drives (NOTE: modifies position, not velocity)
+			if (!Settings.bEnableVelocitySolve && Settings.bEnableDrives)
+			{
+				bool bTwistLocked = TwistMotion == EJointMotionType::Locked;
+				bool bSwing1Locked = Swing1Motion == EJointMotionType::Locked;
+				bool bSwing2Locked = Swing2Motion == EJointMotionType::Locked;
 
-		// Apply angular drives (NOTE: modifies position, not velocity)
-		if (!Settings.bEnableVelocitySolve && Settings.bEnableDrives)
-		{
-			bool bTwistLocked = TwistMotion == EJointMotionType::Locked;
-			bool bSwing1Locked = Swing1Motion == EJointMotionType::Locked;
-			bool bSwing2Locked = Swing2Motion == EJointMotionType::Locked;
-
-			// No SLerp drive if we have a locked rotation (it will be grayed out in the editor in this case, but could still have been set before the rotation was locked)
-			if (JointSettings.Motion.bAngularSLerpDriveEnabled && !bTwistLocked && !bSwing1Locked && !bSwing2Locked)
-			{
-				FPBDJointUtilities::ApplyJointSLerpDrive(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
-			}
-
-			if (JointSettings.Motion.bAngularTwistDriveEnabled && !bTwistLocked)
-			{
-				FPBDJointUtilities::ApplyJointTwistDrive(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
-			}
-
-			if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing1Locked && !bSwing2Locked)
-			{
-				FPBDJointUtilities::ApplyJointConeDrive(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
-			}
-			else if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing1Locked)
-			{
-				//FPBDJointUtilities::ApplyJointSwingDrive(Dt, Settings, JointSettings, Index0, Index1, EJointAngularConstraintIndex::Swing1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
-			}
-			else if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing2Locked)
-			{
-				//FPBDJointUtilities::ApplyJointSwingDrive(Dt, Settings, JointSettings, Index0, Index1, EJointAngularConstraintIndex::Swing2, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
-			}
-		}
-
-		// Apply twist constraint
-		if (Settings.bEnableTwistLimits)
-		{
-			if (TwistMotion != EJointMotionType::Free)
-			{
-				FPBDJointUtilities::ApplyJointTwistConstraint(Dt, Settings, JointSettings, TwistStiffness, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
-			}
-		}
-
-		// Apply swing constraints
-		if (Settings.bEnableSwingLimits)
-		{
-			if ((Swing1Motion == EJointMotionType::Limited) && (Swing2Motion == EJointMotionType::Limited))
-			{
-				// Swing Cone
-				FPBDJointUtilities::ApplyJointConeConstraint(Dt, Settings, JointSettings, SwingStiffness, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
-			}
-			else
-			{
-				if (Swing1Motion != EJointMotionType::Free)
+				// No SLerp drive if we have a locked rotation (it will be grayed out in the editor in this case, but could still have been set before the rotation was locked)
+				if (JointSettings.Motion.bAngularSLerpDriveEnabled && !bTwistLocked && !bSwing1Locked && !bSwing2Locked)
 				{
-					// Swing Arc/Lock
-					FPBDJointUtilities::ApplyJointSwingConstraint(Dt, Settings, JointSettings, SwingStiffness, Index0, Index1, EJointAngularConstraintIndex::Swing1, EJointAngularAxisIndex::Swing1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+					FPBDJointUtilities::ApplyJointSLerpDrive(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
 				}
-				if (Swing2Motion != EJointMotionType::Free)
+
+				if (JointSettings.Motion.bAngularTwistDriveEnabled && !bTwistLocked)
 				{
-					// Swing Arc/Lock
-					FPBDJointUtilities::ApplyJointSwingConstraint(Dt, Settings, JointSettings, SwingStiffness, Index0, Index1, EJointAngularConstraintIndex::Swing2, EJointAngularAxisIndex::Swing2, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+					FPBDJointUtilities::ApplyJointTwistDrive(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+				}
+
+				if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing1Locked && !bSwing2Locked)
+				{
+					FPBDJointUtilities::ApplyJointConeDrive(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+				}
+				else if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing1Locked)
+				{
+					//FPBDJointUtilities::ApplyJointSwingDrive(Dt, Settings, JointSettings, Index0, Index1, EJointAngularConstraintIndex::Swing1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+				}
+				else if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing2Locked)
+				{
+					//FPBDJointUtilities::ApplyJointSwingDrive(Dt, Settings, JointSettings, Index0, Index1, EJointAngularConstraintIndex::Swing2, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
 				}
 			}
-		}
 
-		// Apply linear constraints
-		if ((LinearMotion[0] != EJointMotionType::Free) || (LinearMotion[1] != EJointMotionType::Free) || (LinearMotion[2] != EJointMotionType::Free))
-		{
-			FPBDJointUtilities::ApplyJointPositionConstraint(Dt, Settings, JointSettings, LinearStiffness, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+			// Apply twist constraint
+			if (Settings.bEnableTwistLimits)
+			{
+				if (TwistMotion != EJointMotionType::Free)
+				{
+					FPBDJointUtilities::ApplyJointTwistConstraint(Dt, Settings, JointSettings, TwistStiffness, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+				}
+			}
+
+			// Apply swing constraints
+			if (Settings.bEnableSwingLimits)
+			{
+				if ((Swing1Motion == EJointMotionType::Limited) && (Swing2Motion == EJointMotionType::Limited))
+				{
+					// Swing Cone
+					FPBDJointUtilities::ApplyJointConeConstraint(Dt, Settings, JointSettings, SwingStiffness, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+				}
+				else
+				{
+					if (Swing1Motion != EJointMotionType::Free)
+					{
+						// Swing Arc/Lock
+						FPBDJointUtilities::ApplyJointSwingConstraint(Dt, Settings, JointSettings, SwingStiffness, Index0, Index1, EJointAngularConstraintIndex::Swing1, EJointAngularAxisIndex::Swing1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+					}
+					if (Swing2Motion != EJointMotionType::Free)
+					{
+						// Swing Arc/Lock
+						FPBDJointUtilities::ApplyJointSwingConstraint(Dt, Settings, JointSettings, SwingStiffness, Index0, Index1, EJointAngularConstraintIndex::Swing2, EJointAngularAxisIndex::Swing2, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+					}
+				}
+			}
+
+			// Apply linear constraints
+			if ((LinearMotion[0] != EJointMotionType::Free) || (LinearMotion[1] != EJointMotionType::Free) || (LinearMotion[2] != EJointMotionType::Free))
+			{
+				FPBDJointUtilities::ApplyJointPositionConstraint(Dt, Settings, JointSettings, LinearStiffness, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+			}
 		}
 
 		// Update the particles
@@ -756,11 +761,15 @@ namespace Chaos
 		{
 			Rigid0->SetP(P0);
 			Rigid0->SetQ(Q0);
+			Rigid0->SetV(V0);
+			Rigid0->SetW(W0);
 		}
 		if (Rigid1)
 		{
 			Rigid1->SetP(P1);
 			Rigid1->SetQ(Q1);
+			Rigid1->SetV(V1);
+			Rigid1->SetW(W1);
 		}
 	}
 
@@ -816,23 +825,29 @@ namespace Chaos
 
 		if (AngularProjectionFactor > 0)
 		{
-			// Remove Twist Error
-			FPBDJointUtilities::ApplyJointTwistProjection(Dt, Settings, JointSettings, AngularProjectionFactor, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
-
-			// Remove Swing Error
-			if ((Swing1Motion == EJointMotionType::Limited) && (Swing2Motion == EJointMotionType::Limited))
+			if (Settings.bEnableTwistLimits)
 			{
-				FPBDJointUtilities::ApplyJointConeProjection(Dt, Settings, JointSettings, AngularProjectionFactor, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+				// Remove Twist Error
+				FPBDJointUtilities::ApplyJointTwistProjection(Dt, Settings, JointSettings, AngularProjectionFactor, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
 			}
-			else
+
+			if (Settings.bEnableSwingLimits)
 			{
-				if (Swing1Motion != EJointMotionType::Free)
+				// Remove Swing Error
+				if ((Swing1Motion == EJointMotionType::Limited) && (Swing2Motion == EJointMotionType::Limited))
 				{
-					FPBDJointUtilities::ApplyJointSwingProjection(Dt, Settings, JointSettings, AngularProjectionFactor, Index0, Index1, EJointAngularConstraintIndex::Swing1, EJointAngularAxisIndex::Swing1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+					FPBDJointUtilities::ApplyJointConeProjection(Dt, Settings, JointSettings, AngularProjectionFactor, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
 				}
-				if (Swing2Motion != EJointMotionType::Free)
+				else
 				{
-					FPBDJointUtilities::ApplyJointSwingProjection(Dt, Settings, JointSettings, AngularProjectionFactor, Index0, Index1, EJointAngularConstraintIndex::Swing2, EJointAngularAxisIndex::Swing2, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+					if (Swing1Motion != EJointMotionType::Free)
+					{
+						FPBDJointUtilities::ApplyJointSwingProjection(Dt, Settings, JointSettings, AngularProjectionFactor, Index0, Index1, EJointAngularConstraintIndex::Swing1, EJointAngularAxisIndex::Swing1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+					}
+					if (Swing2Motion != EJointMotionType::Free)
+					{
+						FPBDJointUtilities::ApplyJointSwingProjection(Dt, Settings, JointSettings, AngularProjectionFactor, Index0, Index1, EJointAngularConstraintIndex::Swing2, EJointAngularAxisIndex::Swing2, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+					}
 				}
 			}
 		}
