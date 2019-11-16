@@ -232,6 +232,11 @@ bool FHTML5OpenGL::PE_GLSLToDeviceCompatibleGLSL(FAnsiCharArray& GlslCodeOrigina
 	return true;
 }
 
+void FHTML5OpenGL::PE_SetupTextureFormat(void(*SetupTextureFormat)(EPixelFormat, const FOpenGLTextureFormat&))
+{
+	SetupTextureFormat(PF_R8G8B8A8_UINT, FOpenGLTextureFormat(GL_RGBA8UI, GL_RGBA8UI, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE, false, false));
+}
+
 struct FPlatformOpenGLContext
 {
 	GLuint			ViewportFramebuffer;
