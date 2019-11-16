@@ -58,6 +58,18 @@ FString UDatasmithObjectElement::GetElementName() const
 	return FString(Element->GetName());
 }
 
+FString UDatasmithObjectElement::GetLabel() const
+{
+	DATASMITHOBJECTELEMENT_GETSHARED_AND_EARLYRETURN(IDatasmithElement, GetIDatasmithElement(), FString());
+	return Element->GetLabel();
+}
+
+void UDatasmithObjectElement::SetLabel(const FString& InLabel)
+{
+	DATASMITHOBJECTELEMENT_GETSHARED_AND_EARLYRETURN(IDatasmithElement, GetIDatasmithElement(), );
+	Element->SetLabel(*InLabel);
+}
+
 bool UDatasmithObjectElement::IsElementValid() const
 {
 	if (!GetIDatasmithElement().IsValid())
@@ -117,18 +129,6 @@ void UDatasmithActorElement::SetLayer(const FString& InLayer)
 {
 	DATASMITHOBJECTELEMENT_GETSHARED_AND_EARLYRETURN(IDatasmithActorElement, GetIDatasmithActorElement(), );
 	Element->SetLayer(*InLayer);
-}
-
-FString UDatasmithActorElement::GetLabel() const
-{
-	DATASMITHOBJECTELEMENT_GETSHARED_AND_EARLYRETURN(IDatasmithActorElement, GetIDatasmithActorElement(), FString());
-	return Element->GetLabel();
-}
-
-void UDatasmithActorElement::SetLabel(const FString& InLabel)
-{
-	DATASMITHOBJECTELEMENT_GETSHARED_AND_EARLYRETURN(IDatasmithActorElement, GetIDatasmithActorElement(), );
-	Element->SetLabel(*InLabel);
 }
 
 TArray<FString> UDatasmithActorElement::GetTags() const
