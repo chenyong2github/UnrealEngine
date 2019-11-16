@@ -44,21 +44,10 @@ private:
 		TSharedPtr<TimelineInternal> ActivityTimeline;
 	};
 
-	UE_TRACE_TABLE_LAYOUT_BEGIN(FFileActivityTableLayout, FFileActivity)
-		UE_TRACE_TABLE_PROJECTED_COLUMN(TableColumnType_CString, TEXT("File"), [](const FFileActivity& Row) { return Row.File ? Row.File->Path : TEXT("N/A"); })
-		UE_TRACE_TABLE_COLUMN(StartTime, TEXT("StartTime"))
-		UE_TRACE_TABLE_COLUMN(EndTime, TEXT("EndTime"))
-		UE_TRACE_TABLE_COLUMN(ThreadId, TEXT("ThreadId"))
-		UE_TRACE_TABLE_PROJECTED_COLUMN(TableColumnType_CString, TEXT("Type"), [](const FFileActivity& Row) { return GetFileActivityTypeString(Row.ActivityType); })
-		UE_TRACE_TABLE_COLUMN(Offset, TEXT("Offset"))
-		UE_TRACE_TABLE_COLUMN(Size, TEXT("Size"))
-		UE_TRACE_TABLE_COLUMN(Failed, TEXT("Failed"))
-	UE_TRACE_TABLE_LAYOUT_END()
-
 	IAnalysisSession& Session;
 	TPagedArray<FFileInfoInternal> Files;
 	TPagedArray<FFileActivity> FileActivities;
-	TTableView<FFileActivityTableLayout> FileActivityTable;
+	TTableView<FFileActivity> FileActivityTable;
 };
 
 }
