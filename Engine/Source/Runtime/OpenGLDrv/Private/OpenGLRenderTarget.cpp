@@ -855,7 +855,6 @@ void FOpenGLDynamicRHI::ReadSurfaceDataRaw(FOpenGLContextState& ContextState, FR
 	{
 		// It's a simple int format. OpenGL converts them internally to what we want.
 		glReadPixels(Rect.Min.X, Rect.Min.Y, SizeX, SizeY, GL_BGRA, UGL_ABGR8, TargetBuffer );
-		// @to-do HTML5. 
 	}
 #endif
 
