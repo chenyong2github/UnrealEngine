@@ -367,7 +367,7 @@ namespace Chaos
 			TSerializablePtr<FChaosPhysicsMaterial> PhysicsMaterial0 = Particle0->AuxilaryValue(MPhysicsMaterials);
 			TSerializablePtr<FChaosPhysicsMaterial> PhysicsMaterial1 = Particle1->AuxilaryValue(MPhysicsMaterials);
 
-			TContactData<T, d> & Contact = Constraint.ShapeManifold.Manifold;
+			TConvexManifold<T, d> & Contact = Constraint.ShapeManifold;
 
 			TVector<T, d> VectorToPoint1 = Contact.Location - P0;
 			TVector<T, d> VectorToPoint2 = Contact.Location - P1;
@@ -600,7 +600,7 @@ namespace Chaos
 		{
 			UpdateConstraint<ECollisionUpdateType::Deepest>(MThickness, Constraint);
 
-			const TContactData<T, d> & Contact = Constraint.ShapeManifold.Manifold;
+			const TConvexManifold<T, d> & Contact = Constraint.ShapeManifold;
 
 			if (Contact.Phi >= MThickness)
 			{
