@@ -17,6 +17,7 @@ FHairStrandsClusterViews CreateHairStrandsClusters(
 		const FViewInfo& View = Views[ViewIndex];
 		if (View.Family)
 		{
+			int32 MaterialId = 0;
 			FHairStrandsClusterDatas& PrimitivesClusters = PrimitivesClusterViews.Views.AddDefaulted_GetRef();
 
 			if (View.HairStrandsMeshElements.Num() == 0)
@@ -26,7 +27,7 @@ FHairStrandsClusterViews CreateHairStrandsClusters(
 
 			// Spatially clusters all hair primitives within the same area, and render a single DOM for them
 			uint32 ClusterId = 0;
-			auto UpdateCluster = [&PrimitivesClusters, &View, &ClusterId](const FMeshBatchAndRelevance* MeshBatchAndRelevance, const FPrimitiveSceneProxy* Proxy)
+			auto UpdateCluster = [&PrimitivesClusters, &View, &ClusterId, &MaterialId](const FMeshBatchAndRelevance* MeshBatchAndRelevance, const FPrimitiveSceneProxy* Proxy)
 			{
 				const FBoxSphereBounds& PrimitiveBounds = Proxy->GetBounds();
 
@@ -40,7 +41,9 @@ FHairStrandsClusterViews CreateHairStrandsClusters(
 
 						if (MeshBatchAndRelevance)
 						{
-							Cluster.PrimitivesInfos.Add(*MeshBatchAndRelevance);
+							FHairStrandsClusterData::PrimitiveInfo& PrimitiveInfo = Cluster.PrimitivesInfos.AddZeroed_GetRef();
+							PrimitiveInfo.MeshBatchAndRelevance = *MeshBatchAndRelevance;
+							PrimitiveInfo.MaterialId = MaterialId++;
 						}
 						bClusterFound = true;
 						break;
@@ -53,7 +56,9 @@ FHairStrandsClusterViews CreateHairStrandsClusters(
 					Cluster.ClusterId = ClusterId++;
 					if (MeshBatchAndRelevance)
 					{
-						Cluster.PrimitivesInfos.Add(*MeshBatchAndRelevance);
+						FHairStrandsClusterData::PrimitiveInfo& PrimitiveInfo = Cluster.PrimitivesInfos.AddZeroed_GetRef();
+						PrimitiveInfo.MeshBatchAndRelevance = *MeshBatchAndRelevance;
+						PrimitiveInfo.MaterialId = MaterialId++;
 					}
 					Cluster.Bounds = PrimitiveBounds;
 					PrimitivesClusters.Datas.Add(Cluster);
