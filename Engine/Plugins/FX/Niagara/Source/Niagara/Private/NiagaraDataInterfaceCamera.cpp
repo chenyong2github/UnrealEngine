@@ -4,8 +4,10 @@
 #include "NiagaraTypes.h"
 #include "NiagaraCustomVersion.h"
 #include "NiagaraWorldManager.h"
+#include "ShaderParameterUtils.h"
 #include "Internationalization/Internationalization.h"
 #include "NiagaraSystemInstance.h"
+#include "GameFramework/PlayerController.h"
 
 const FName UNiagaraDataInterfaceCamera::GetCameraOcclusionName(TEXT("QueryOcclusionFactorGPU"));
 const FName UNiagaraDataInterfaceCamera::GetViewPropertiesName(TEXT("GetViewPropertiesGPU"));
