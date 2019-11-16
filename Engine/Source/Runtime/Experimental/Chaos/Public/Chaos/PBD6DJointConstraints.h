@@ -28,7 +28,8 @@ namespace Chaos
 		void CalculateConstraintSpace(FVec3& OutXa, FMatrix33& OutRa, FVec3& OutXb, FMatrix33& OutRb, FVec3& OutCR) const;
 		void SetParticleLevels(const TVector<int32, 2>& ParticleLevels);
 		int32 GetConstraintLevel() const;
-
+		TVector<TGeometryParticleHandle<float,3>*, 2> GetConstrainedParticles() const;
+		
 	protected:
 		using Base::ConstraintIndex;
 		using Base::ConstraintContainer;
@@ -196,6 +197,7 @@ namespace Chaos
 		using FParticlePair = TVector<TGeometryParticleHandle<FReal, 3>*, 2>;
 		using FVectorPair = TVector<FVec3, 2>;
 		using FTransformPair = TVector<FRigidTransform3, 2>;
+		using FHandles = TArray<FConstraintContainerHandle*>;
 
 		FPBD6DJointConstraints(const FPBD6DJointSolverSettings& InSettings);
 
@@ -236,9 +238,18 @@ namespace Chaos
 		//
 		// Constraint API
 		//
+		FHandles& GetConstraintHandles()
+		{
+			return Handles;
+		}
+		const FHandles& GetConstConstraintHandles() const
+		{
+			return Handles;
+		}
 
 		const FConstraintContainerHandle* GetConstraintHandle(int32 ConstraintIndex) const;
 		FConstraintContainerHandle* GetConstraintHandle(int32 ConstraintIndex);
+
 
 		/**
 		 * Get the particles that are affected by the specified constraint.
@@ -281,7 +292,7 @@ namespace Chaos
 		TArray<FParticlePair> ConstraintParticles;
 		TArray<FPBD6DJointState> ConstraintStates;
 
-		TArray<FConstraintContainerHandle*> Handles;
+		FHandles Handles;
 		FConstraintHandleAllocator HandleAllocator;
 
 		FD6JointPreApplyCallback PreApplyCallback;

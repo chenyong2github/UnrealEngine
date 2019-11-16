@@ -293,26 +293,12 @@ namespace Chaos
 				while (!Queue.IsEmpty())
 				{
 					int32 Idx = Constraints.AddUninitialized(1);
-					FConstraintContainerHandle* Handle = HandleAllocator.AllocHandle(this, Idx);
+					FConstraintContainerHandle* Handle = HandleAllocator.template AllocHandle< TRigidBodyContactConstraint<T,d> >(this, Idx );
 
 					Handles.Add(Handle);
 					Queue.Dequeue(Constraints[Idx]);
 					ensure(Handles.Num() == Constraints.Num());
 
-					/*
-					FConstraintHandleID HandleID = GetConstraintHandleID(Constraints[Idx]);
-					FConstraintManifold* Manifold;
-					if (auto ValPtr = Manifolds.Find(HandleID))
-					{
-						Manifold = *ValPtr;
-					}
-					else
-					{
-						Manifold = new FConstraintManifold(Constraints[Idx].Particle->X(), Constraints[Idx].Particle->R(), LifespanCounter + CollisionManifoldLifespan);
-						Manifolds.Add(HandleID, Manifold);
-					}
-					Manifold->AddHandle(Handle);
-					*/
 				}
 				LifespanCounter++;
 			}
