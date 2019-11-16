@@ -39,6 +39,7 @@ public:
 	virtual const FText& GetLabel() const override;
 	virtual const FText& GetDescription() const override;
 	virtual bool SetLevelName(const FString& InLevelName, FText& OutReason ) override;
+	virtual bool SetTargetContentFolder(const FString& InTargetContentFolder, FText& OutReason) override;
 
 protected:
 	virtual bool Initialize() override;
