@@ -73,9 +73,9 @@ namespace Chaos
 		check(IsInGameThread());
 		if(InHandle.InnerHandle.IsValid())
 		{
-			Materials.Destroy(InHandle.InnerHandle);
-
 			OnMaterialDestroyed.Broadcast(InHandle);
+
+			Materials.Destroy(InHandle.InnerHandle);
 		}
 	}
 

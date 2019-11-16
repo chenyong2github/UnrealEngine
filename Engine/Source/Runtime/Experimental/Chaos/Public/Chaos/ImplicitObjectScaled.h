@@ -469,6 +469,11 @@ public:
 		return HashCombine(MObject->GetTypeHash(), ::GetTypeHash(MScale));
 	}
 
+	virtual uint16 GetMaterialIndex(uint32 HintIndex) const override
+	{
+		return MObject->GetMaterialIndex(HintIndex);
+	}
+
 #if 0
 	virtual TUniquePtr<FImplicitObject> Copy() const override
 	{
@@ -526,6 +531,7 @@ private:
 		TImplicitObjectScaled<QueryGeomType> ScaledB(B.Object(), InvScale * B.GetScale());
 		return ScaledB;
 	}
+
 };
 
 template <typename TConcrete>
