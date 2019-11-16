@@ -5,6 +5,7 @@
 #define RENDER_MODE_MSAA 0
 #define RENDER_MODE_TRANSMITTANCE 1
 #define RENDER_MODE_PPLL 2
+#define RENDER_MODE_MSAA_VISIBILITY 3
 
 struct FVisibilityData
 {
@@ -14,10 +15,19 @@ struct FVisibilityData
 	uint   ClusterId;	//  4 bits
 };
 
+struct FNodeVis // 128 bit aligments. TODO: Move the coverage computation into the material evaluation for saving 64 bits? 
+{
+	float Depth;		// 32 bits
+	uint  PrimitiveId;	// 32 bits
+	uint  MaterialId;	//  8 bits : this could be packed into a the 3 high bits of PrimitiveId: up to 8 material on screen
+	uint  Coverage8bit;	//  8 bits
+};
+
 // Footprint: 128bits | 16bytes
 // Option to reduce the footprint: 
 // * we don't use PrimitiveID at the moment which is encoded on 3bytes
 // * Deferred the evaluation of Coverage & material properties into some other pass?
+
 struct FNodeData
 {
 	float Depth;
@@ -350,3 +360,50 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 	 return Out;
  }
 
+ uint Uint16ToUint32(uint2 In)
+ {
+	 return (In.x & 0xFFFF) | ((In.y & 0xFFFF) << 16);
+ }
+
+ uint2 Uint32ToUint16(uint In)
+ {
+	 uint2 A;
+	 A.x = In & 0xFFFF;
+	 A.y = (In >> 16) & 0xFFFF;
+	 return A;
+ }
+
+ uint Float16ToUint32(float2 In)
+ {
+	 return Uint16ToUint32(f32tof16(In));
+ }
+
+ float2 Uint32ToFloat16(uint In)
+ {
+	return f16tof32(Uint32ToUint16(In));
+ }
+
+ struct FVisSample
+ {
+	 uint PrimitiveId;
+	 uint MaterialId;
+ };
+
+ uint GetInvalidHairPrimitiveId()
+ {
+	return 0xFFFFFFFF;
+ }
+
+ uint EncodeVisSample(uint PrimitiveId, uint MaterialId)
+ {
+	 return (PrimitiveId & 0x0FFFFFFF) | ((MaterialId & 0xF) << 28);
+ }
+
+ FVisSample DecodeVisSample(uint RawVis)
+ {
+	 FVisSample Out;
+	 Out.PrimitiveId = RawVis & 0x0FFFFFFF;
+	 Out.MaterialId = (RawVis >> 28) & 0xF;
+	 return Out;
+ }
+ 

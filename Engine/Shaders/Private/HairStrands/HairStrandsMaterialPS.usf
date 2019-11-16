@@ -1,0 +1,379 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "HairStrandsVisibilityCommon.ush"
+#include "../Common.ush"
+#include "../SceneTexturesCommon.ush"
+#include "HairStrandsDeepShadowCommon.ush"
+#include "../DeferredShadingCommon.ush"
+#include "../VelocityCommon.ush"
+
+#include "/Engine/Generated/Material.ush"
+#include "/Engine/Generated/VertexFactory.ush" 
+
+#define SUPPORT_MATERIAL_PROPERTY 1
+uint MaterialPass_ClusterId;
+uint MaterialPass_MaterialId;  
+uint MaterialPass_PrimitiveId;
+RWStructuredBuffer<FNodeData>	OutNodeData;
+RWBuffer<float2>				OutNodeVelocity; 
+
+// For reference:
+#if 0
+struct FVertexFactoryInterpolantsVSToPS
+{
+	TANGENTTOWORLD_INTERPOLATOR_BLOCK
+
+
+#if USE_INSTANCING
+	// x = per-instance random, y = per-instance fade out amount, z = hide/show flag, w dither fade cutoff
+	float4  PerInstanceParams : COLOR1;
+#endif
+
+#if INSTANCED_STEREO
+	nointerpolation uint EyeIndex : PACKED_EYE_INDEX;
+#endif
+
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	nointerpolation uint PrimitiveId : PRIMITIVE_ID;
+#endif
+#if VF_STRAND_HAIR
+	nointerpolation uint HairPrimitiveId : HAIR_PRIMITIVE_ID; // Control point ID
+	float2 HairPrimitiveUV : HAIR_PRIMITIVE_UV; // U: parameteric distance between the two surrounding control points. V: parametric distance along the width.
+#endif
+};
+
+struct FVertexFactoryInput
+{
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	uint PrimitiveId : ATTRIBUTE13;
+#endif	
+	uint VertexId : SV_VertexID;
+};
+
+#endif
+
+#if VF_STRAND_HAIR
+struct FEvaluateOutput
+{
+	FNodeData NodeData;
+	float2 NodeVelocity;
+//	float3 P0;
+//	float3 P1;
+//	float3 P;
+//	float3 A;
+//	float3 B;
+//	float U;
+
+};
+
+FVertexFactoryInterpolantsVSToPS GetInterpolants(uint PrimitiveId, uint HairPrimitiveId, inout float3 World_P, inout float3 World_P_Prev)
+{
+	FMaterialVertexParameters Empty = (FMaterialVertexParameters)0;
+
+	FVertexFactoryInput Input;
+	Input.PrimitiveId = PrimitiveId;
+	Input.VertexId = HairPrimitiveId * 6; // 6: the vertex factory expect triangles list index. A quad is made of two triangles with indices: 0,1,2,3,4,5.
+
+	FVertexFactoryIntermediates	Intermediates = GetVertexFactoryIntermediates(Input);
+	FVertexFactoryInterpolantsVSToPS Interpolants = VertexFactoryGetInterpolantsVSToPS(Input, Intermediates, Empty);
+
+	World_P = VertexFactoryGetWorldPositionRaw(Input, Intermediates).xyz;
+	World_P_Prev = VertexFactoryGetPreviousWorldPosition(Input, Intermediates).xyz;
+
+	return Interpolants;
+}
+
+FEvaluateOutput Evaluate(
+	in float2 SamplePixelCoord,
+	in float SampleDepth,
+	in uint SamplePrimitiveId,
+	in uint SampleCoverage8bit,
+	in uint PrimitiveId)
+{
+	// World_P / World_P0 / World_P1 are in translated world space
+	const float SceneDepth = ConvertFromDeviceZ(SampleDepth);
+	const float2 UV = SamplePixelCoord / float2(View.BufferSizeAndInvSize.xy);
+	const float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+//	const float3 World_P = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;
+	const float3 World_P = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+
+//	Out.P = World_P;
+
+	float3 Velocity_World_P;
+	float3 Velocity_World_P_Prev;
+	float U = 0;
+	FVertexFactoryInterpolantsVSToPS Interpolants;
+	{
+		const uint HairPrimitiveId0 = SamplePrimitiveId;
+		const uint HairPrimitiveId1 = HairPrimitiveId0 + 1;
+
+		float3 World_P0;
+		float3 World_P1;
+
+		float3 World_P0_Prev;
+		float3 World_P1_Prev;
+
+		
+		FVertexFactoryInterpolantsVSToPS Interpolants0 = GetInterpolants(PrimitiveId, HairPrimitiveId0, World_P0, World_P0_Prev);
+		FVertexFactoryInterpolantsVSToPS Interpolants1 = GetInterpolants(PrimitiveId, HairPrimitiveId1, World_P1, World_P1_Prev);
+//		Out.P0 = World_P0;
+//		Out.P1 = World_P1;
+
+		Interpolants = Interpolants0;
+
+		// Compute the projection of the current sample point onto the hair segment (which is in the middle of the hair strands)
+		const float3 A = (World_P - World_P0);
+		const float3 B = (World_P1 - World_P0);
+		const float DotA = dot(A, B);
+		const float LengthB2 = dot(B, B);
+		const float SegmentU = LengthB2 > 0 ? saturate(DotA / LengthB2) : 0;
+
+//		Out.U = SegmentU;
+//		Out.A = A;
+//		Out.B = B;
+		const float SegmentV = 0.5f; // Todo handle case when the actual geometry is close and cover multiple pixels
+
+		Velocity_World_P	  = lerp(World_P0, World_P1, SegmentU);
+		Velocity_World_P_Prev = lerp(World_P0_Prev, World_P1_Prev, SegmentU);
+
+		Interpolants.TangentToWorld0 = lerp(Interpolants0.TangentToWorld0, Interpolants1.TangentToWorld0, SegmentU);
+		Interpolants.TangentToWorld2 = lerp(Interpolants0.TangentToWorld2, Interpolants1.TangentToWorld2, SegmentU);
+
+		Interpolants.TangentToWorld0 = normalize(Interpolants.TangentToWorld0);
+		Interpolants.TangentToWorld2 = normalize(Interpolants.TangentToWorld2);
+
+		Interpolants.PrimitiveId	 = PrimitiveId;
+		Interpolants.HairPrimitiveId = HairPrimitiveId0;
+		Interpolants.HairPrimitiveUV = float2(SegmentU, SegmentV);
+	}
+	
+
+	#if 1
+	float2 EncodedVelocity = 0;
+	{
+		const float4 ScreenPos		= mul(float4(Velocity_World_P.xyz, 1), ResolvedView.TranslatedWorldToClip);
+		const float4 PrevScreenPos	= mul(float4(Velocity_World_P_Prev.xyz, 1), ResolvedView.PrevTranslatedWorldToClip);
+
+		const float2 Velocity	= Calculate2DVelocity(ScreenPos, PrevScreenPos);
+		EncodedVelocity			= EncodeVelocityToTexture(Velocity);
+	}
+	#endif
+
+	// Sample Position < consider to be the center??
+	// VS
+	const float4 SvPosition = float4(SamplePixelCoord, SampleDepth, 1);
+
+	// PS
+	FVisibilityData OutVisibilityData = (FVisibilityData)0;	
+	OutVisibilityData.Coverage8bit = SampleCoverage8bit;
+	OutVisibilityData.PrimitiveId = SampleCoverage8bit;
+	OutVisibilityData.ClusterId = MaterialPass_ClusterId;
+
+	half3 OutBaseColor = 0;
+	float OutRoughness = 0;
+	float OutSpecular = 0;
+	{
+		// Coverage computation
+		// We don't use the coverage information
+		#if 0
+		float Coverage = 1;
+		{
+			float WorldStrandRadius = VFIntermediates.HairDimensions.y; // Coming from the vertex factory evaluation
+
+			FHairRenderInfo HairRenderInfo = GetHairRenderInfo(ResolvedView.HairRenderInfo);
+			const float SceneDepth = ConvertFromDeviceZ(SvPosition.z); // Linear depth in world unit
+			const float PixelRadius = HairRenderInfo.bIsOrthoView ? HairRenderInfo.RadiusAtDepth1Primary : SceneDepth * HairRenderInfo.RadiusAtDepth1Primary; // Not correct but the coverage is not used (we count instead the number of sub-sample covered)
+			const float StrandRealRadius = WorldStrandRadius;
+			Coverage = StrandRealRadius / max(StrandRealRadius, PixelRadius);
+		}
+		float Transmittance = saturate(1.0f - Coverage);
+		#endif
+
+		//OutVisibilityData.Tangent = normalize(Interpolants.TangentToWorld2.xyz);
+		//OutVisibilityData.PrimitiveId = Interpolants.HairPrimitiveId;
+		//OutVisibilityData.ClusterId = HairVisibilityPass_HairClusterIndex;
+		//OutVisibilityData.Coverage8bit = To8bitCoverage(Coverage);
+
+		// Material computation
+		#if 1
+		{
+			const bool bIsFrontFace = true;
+			FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants, SvPosition);
+			FPixelMaterialInputs PixelMaterialInputs;
+
+			float4 ScreenPosition = SvPositionToResolvedScreenPosition(SvPosition);
+			float3 TranslatedWorldPosition = SvPositionToResolvedTranslatedWorld(SvPosition);
+			CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
+
+			OutBaseColor = GetMaterialBaseColor(PixelMaterialInputs);
+			OutRoughness = GetMaterialRoughness(PixelMaterialInputs);
+			OutSpecular = GetMaterialSpecular(PixelMaterialInputs);
+			//float MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
+
+			//OutVisibilityData.Tangent = mul(normalize(GetMaterialNormalRaw(PixelMaterialInputs)), MaterialParameters.TangentToWorld);
+			OutVisibilityData.Tangent = mul(normalize(GetMaterialNormalRaw(PixelMaterialInputs)), MaterialParameters.TangentToWorld);
+//			OutVisibilityData.Tangent = normalize(Interpolants.TangentToWorld2.xyz);
+
+			OutVisibilityData.Tangent = normalize(OutVisibilityData.Tangent); 
+		}
+		#endif
+	}
+
+	FEvaluateOutput Out;
+	Out.NodeData		= ConvertToNodeData(SampleDepth, OutVisibilityData, OutBaseColor, OutRoughness, OutSpecular);
+	Out.NodeVelocity	= EncodedVelocity;
+	return Out;
+}
+#endif
+
+void Main(
+	in float4 SvPosition: SV_Position
+	, in uint2 Resolution : DISPATCH_RESOLUTION
+	, out float4 OutColor0 : SV_Target0
+//	, out float4 OutColor1 : SV_Target1
+//	, out float4 OutColor2 : SV_Target2
+//	, out float4 OutColor3 : SV_Target3
+//	, out float4 OutColor4 : SV_Target4
+)
+{
+	ResolvedView = ResolveView();
+
+	const uint3 PixelCoord = uint3(floor(SvPosition.xy), 0);
+//	const FNodeDesc NodeDesc = DecodeNodeDesc(MaterialPassParameters.NodeIndex.Load(PixelCoord));
+
+//	OutColor0 = 0;
+	const uint SampleIndex = PixelCoord.x + PixelCoord.y * Resolution.x;// MaterialPassParameters.MaxResolution.x;
+	bool bIsValid = false;
+	if (SampleIndex < MaterialPassParameters.MaxSampleCount)
+	{
+//		FNodeData InNode = MaterialPassParameters.NodeVis[SampleIndex];
+		const FNodeVis InNode = MaterialPassParameters.NodeVis.Load(SampleIndex);
+		
+		const uint PackedSamplePixelCoord = MaterialPassParameters.NodeCoord[SampleIndex];
+		const float2 SamplePixelCoord = float2(PackedSamplePixelCoord & 0xFFFF, (PackedSamplePixelCoord>>16) & 0xFFFF) + float2(0.5f, 0.5f);
+
+#if 0
+		float			SampleDepth;
+		FVisibilityData	VisibilityData;
+		float3			BaseColor;
+		float			Roughness;
+		float			Specular;
+
+		DecodeNodeData(
+			InNode,
+			SampleDepth,
+			VisibilityData,
+			BaseColor,
+			Roughness,
+			Specular);
+#else
+		float SampleDepth = InNode.Depth;
+		uint SampleCoverage8bit = InNode.Coverage8bit;
+		uint SamplePrimitiveId = InNode.PrimitiveId;
+		uint SampleMaterialId = InNode.MaterialId;
+
+		if (SampleMaterialId == MaterialPass_MaterialId)
+		{
+#endif
+			FEvaluateOutput Out = Evaluate(SamplePixelCoord, SampleDepth, SamplePrimitiveId, SampleCoverage8bit, MaterialPass_PrimitiveId);
+			OutNodeData[SampleIndex] = Out.NodeData;
+			OutNodeVelocity[SampleIndex] = Out.NodeVelocity;
+
+			bIsValid = true;
+//		OutColor0 = float4(Out.P0, 1);
+//		OutColor1 = float4(Out.P1, 1);
+//		OutColor2 = float4(Out.P, Out.U);
+//		OutColor3 = float4(Out.A, 1);
+//		OutColor4 = float4(Out.B, 1);
+		}
+	}
+
+	OutColor0 = bIsValid? float4(0, 1, 0, 1) : float4(1, 0, 0, 1);
+
+#if 0
+	float Coverage = 1;
+	{
+		FHairRenderInfo HairRenderInfo = GetHairRenderInfo(ResolvedView.HairRenderInfo);
+		const float SceneDepth = ConvertFromDeviceZ(SvPosition.z); // Linear depth in world unit
+		const float PixelRadius = HairRenderInfo.bIsOrthoView ? HairRenderInfo.RadiusAtDepth1Primary : SceneDepth * HairRenderInfo.RadiusAtDepth1Primary; // Not correct but the coverage is not used (we count instead the number of sub-sample covered)
+		const float StrandRealRadius = WorldStrandRadius;
+		Coverage = StrandRealRadius / max(StrandRealRadius, PixelRadius);
+	}
+
+#if HAIR_RENDER_MODE == RENDER_MODE_TRANSMITTANCE
+	OutColor0 = saturate(1.0f - Coverage);
+#endif
+
+#if HAIR_RENDER_MODE == RENDER_MODE_MSAA || HAIR_RENDER_MODE == RENDER_MODE_PPLL
+	FVisibilityData VisibilityData;
+  #if VF_STRAND_HAIR
+	VisibilityData.Tangent = normalize(Interpolants.TangentToWorld2.xyz);
+	VisibilityData.PrimitiveId = Interpolants.HairPrimitiveId;
+  #else
+	VisibilityData.Tangent = float3(0, 0, 1);
+	VisibilityData.PrimitiveId = 0;
+  #endif
+	VisibilityData.ClusterId = HairVisibilityPass_HairClusterIndex;
+	VisibilityData.Coverage8bit = To8bitCoverage(Coverage);
+
+	half3 BaseColor = 0;
+	float Roughness = 0;
+	float Specular  = 0;
+	float2 Velocity = 0;
+	float2 EncodedVelocity = 0;
+#if SUPPORT_MATERIAL_PROPERTY
+	{
+		FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants, SvPosition);
+		FPixelMaterialInputs PixelMaterialInputs;
+	
+		float4 ScreenPosition = SvPositionToResolvedScreenPosition(SvPosition);
+		float3 TranslatedWorldPosition = SvPositionToResolvedTranslatedWorld(SvPosition);
+		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
+
+		BaseColor		 = GetMaterialBaseColor(PixelMaterialInputs);
+		Roughness		 = GetMaterialRoughness(PixelMaterialInputs);
+		half  Metallic	 = GetMaterialMetallic(PixelMaterialInputs);
+		Specular		 = GetMaterialSpecular(PixelMaterialInputs);
+		float MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
+
+		VisibilityData.Tangent = mul(normalize(GetMaterialNormalRaw(PixelMaterialInputs)), MaterialParameters.TangentToWorld);
+	}
+	{
+		Velocity = Calculate2DVelocity(PackedVelocityA, PackedVelocityC);
+		EncodedVelocity = EncodeVelocityToTexture(Velocity);
+	}
+#endif
+#endif
+
+#if HAIR_RENDER_MODE == RENDER_MODE_MSAA
+	OutColor0 = EncodeVisibilityData(VisibilityData);
+	OutColor1 = float4(sqrt(BaseColor), Roughness);
+	OutColor2 = float4(Specular,0,0,0);
+	OutColor3 = EncodedVelocity;
+#endif
+
+#if HAIR_RENDER_MODE == RENDER_MODE_PPLL
+	const uint2 PixelCoord = SvPosition.xy;
+
+	float2 NDC = SvPosition.xy / SvPosition.w;
+	float2 ScreenUV = NDC * ResolvedView.ScreenPositionScaleBias.xy + ResolvedView.ScreenPositionScaleBias.wz;
+
+	// Allocate space for a new node
+	uint NodeIndex;
+	InterlockedAdd(PPLLCounter[uint2(0, 0)], 1, NodeIndex);
+
+	if (NodeIndex < VisibilityPassGlobalParameters.MaxPPLLNodeCount)
+	{
+		// If we can append new node, add it and make it point to the node previously in head of list
+		uint NextNodeIndex;
+		InterlockedExchange(PPLLNodeIndex[PixelCoord], NodeIndex, NextNodeIndex);
+		const FPPLLNodeData Node = ConvertToPPLLNodeData(SvPosition.z, VisibilityData, BaseColor, Roughness, Specular, Velocity, NextNodeIndex);
+		PPLLNodes[NodeIndex] = Node;
+	}
+#endif
+
+#endif
+
+}
+
+
