@@ -226,7 +226,8 @@ void FAnimNode_RigidBody_Chaos::EvaluateSkeletalControl_AnyThread(FComponentSpac
 	{
 		// Always propagate skip rate as it can go up and down between updates
 		EvalCounter.SetMaxSkippedFrames(Output.AnimInstanceProxy->GetEvaluationCounter().GetMaxSkippedFrames());
-		if (!EvalCounter.WasSynchronizedLastFrame(Output.AnimInstanceProxy->GetEvaluationCounter()))
+		extern bool bRBAN_EnableTimeBasedReset;
+		if (!EvalCounter.WasSynchronizedLastFrame(Output.AnimInstanceProxy->GetEvaluationCounter()) && bRBAN_EnableTimeBasedReset)
 		{
 			ResetSimulatedTeleportType = ETeleportType::ResetPhysics;
 		}
