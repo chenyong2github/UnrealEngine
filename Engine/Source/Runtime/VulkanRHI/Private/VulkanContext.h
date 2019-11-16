@@ -7,6 +7,7 @@
 #pragma once 
 
 #include "VulkanResources.h"
+#include "VulkanGPUProfiler.h"
 
 class FVulkanDevice;
 class FVulkanCommandBufferManager;
