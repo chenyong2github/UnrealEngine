@@ -112,6 +112,20 @@ public:
 	}
 };
 
+uint32 GetSceneFileHash(const FString& FullPath, const FString& FileName)
+{
+	FFileStatData FileStatData = IFileManager::Get().GetStatData(*FullPath);
+
+	int64 FileSize = FileStatData.FileSize;
+	FDateTime ModificationTime = FileStatData.ModificationTime;
+
+	uint32 FileHash = GetTypeHash(FileName);
+	FileHash = HashCombine(FileHash, GetTypeHash(FileSize));
+	FileHash = HashCombine(FileHash, GetTypeHash(ModificationTime));
+
+	return FileHash;
+}
+
 class FWireTranslatorImpl
 {
 public:
@@ -120,7 +134,7 @@ public:
 		, SceneName(FPaths::GetBaseFilename(InSceneFullName))
 		, CurrentPath(FPaths::GetPath(InSceneFullName))
 		, SceneFullPath(InSceneFullName)
-		, TessellationOptionsHash(0)
+		, SceneFileHash(0)
 		, AlRootNode(nullptr)
 		, FileVersion(0)
 		, ArchiveWireVersion(0)
@@ -205,7 +219,9 @@ private:
 	FString SceneFullPath;
 
 	FDatasmithTessellationOptions TessellationOptions;
-	uint32 TessellationOptionsHash;
+	// Hash value of the scene file used to check if the file has been modified for re-import
+	uint32 SceneFileHash;
+
 	AlDagNode* AlRootNode;
 
 	/** Table of correspondence between mesh identifier and associated Datasmith mesh element */
@@ -238,7 +254,7 @@ private:
 void FWireTranslatorImpl::SetTessellationOptions(const FDatasmithTessellationOptions& Options)
 {
 	TessellationOptions = Options;
-	TessellationOptionsHash = Options.GetHash();
+	SceneFileHash = HashCombine(Options.GetHash(), GetSceneFileHash(SceneFullPath, SceneName));
 }
 #endif
 
@@ -1400,7 +1416,7 @@ TSharedPtr< IDatasmithMeshElement > FWireTranslatorImpl::FindOrAddMeshElement(Al
 	MeshElement->SetLabel(*MeshInfo.Label);
 	MeshElement->SetLightmapSourceUV(-1);
 
-// TODO
+	// TODO
 	// Get bounding box saved by GPure
 	double BoundingBox[8][4];
 	ShellNode.boundingBox(BoundingBox);
@@ -1411,6 +1427,14 @@ TSharedPtr< IDatasmithMeshElement > FWireTranslatorImpl::FindOrAddMeshElement(Al
 	//	MeshElement->SetDimensions(BoundingBox[3] - BoundingBox[0], BoundingBox[4] - BoundingBox[1], BoundingBox[5] - BoundingBox[2], 0.0f);
 	//}
 
+	// Set MeshElement FileHash used for re-import task 
+	FMD5 MD5; // unique Value that define the mesh
+	MD5.Update(reinterpret_cast<const uint8*>(&SceneFileHash), sizeof SceneFileHash);
+	// MeshActor Name
+	MD5.Update(reinterpret_cast<const uint8*>(&ShellUUID), sizeof ShellUUID);
+	FMD5Hash Hash;
+	Hash.Set(MD5);
+	MeshElement->SetFileHash(Hash);
 
 	if (ShaderName)
 	{
