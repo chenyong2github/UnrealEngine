@@ -94,3 +94,8 @@ void FVoicePacketImpl::Serialize(class FArchive& Ar)
 #endif
 	}
 }
+
+void FVoicePacketImpl::ResetData()
+{
+	Length = 0;
+}
