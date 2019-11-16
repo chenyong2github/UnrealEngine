@@ -5077,7 +5077,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						if (ObjClass != UClass::StaticClass())
 						{
 							Export.ClassIndex = Linker->MapObject(ObjClass);
-							check(!Export.ClassIndex.IsNull());
+							checkf(!Export.ClassIndex.IsNull(), TEXT("Export %s class is not mapped when saving %s"), *Export.Object->GetFullName(), *Linker->LinkerRoot->GetName());
 						}
 						else
 						{
