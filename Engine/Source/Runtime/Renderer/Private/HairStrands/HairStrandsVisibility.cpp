@@ -1375,7 +1375,7 @@ static void AddHairVisibilityCommonPass(
 	TPassParameters* PassParameters)
 {
 
-	auto GetPassName = [](EHairVisibilityRenderMode RenderMode)
+	auto GetPassName = [RenderMode]()
 	{
 		switch (RenderMode)
 		{
@@ -1389,7 +1389,7 @@ static void AddHairVisibilityCommonPass(
 	};
 
 	GraphBuilder.AddPass(
-		GetPassName(RenderMode), 
+		GetPassName(), 
 		PassParameters,
 		ERDGPassFlags::Raster,
 		[PassParameters, Scene = Scene, ViewInfo, &ClusterDatas, RenderMode](FRHICommandListImmediate& RHICmdList)
