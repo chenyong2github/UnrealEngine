@@ -138,7 +138,7 @@ class FMockNetworkSimulation
 public:
 
 	/** Main update function */
-	void SimulationTick(const TNetSimTimeStep& TimeStep, const TNetSimInput<TMockNetworkSimulationBufferTypes>& Input, const TNetSimOutput<TMockNetworkSimulationBufferTypes>& Output);
+	void SimulationTick(const FNetSimTimeStep& TimeStep, const TNetSimInput<TMockNetworkSimulationBufferTypes>& Input, const TNetSimOutput<TMockNetworkSimulationBufferTypes>& Output);
 
 	/** Tick group the simulation maps to */
 	static const FName GroupName;
