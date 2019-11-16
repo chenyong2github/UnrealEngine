@@ -435,6 +435,7 @@ ULightComponent::ULightComponent(const FObjectInitializer& ObjectInitializer)
 	bEnableLightShaftBloom = false;
 	BloomScale = .2f;
 	BloomThreshold = 0;
+	BloomMaxBrightness = 100.0f;
 	BloomTint = FColor::White;
 
 	RayStartOffsetDepthScale = .003f;
@@ -627,6 +628,7 @@ bool ULightComponent::CanEditChange(const UProperty* InProperty) const
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, BloomScale)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, BloomThreshold)
+			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, BloomMaxBrightness)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, BloomTint))
 		{
 			return bEnableLightShaftBloom;
@@ -677,6 +679,7 @@ void ULightComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, bEnableLightShaftBloom) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, BloomScale) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, BloomThreshold) &&
+		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, BloomMaxBrightness) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, BloomTint) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, bUseRayTracedDistanceFieldShadows) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, RayStartOffsetDepthScale) &&
@@ -1019,6 +1022,16 @@ void ULightComponent::SetBloomThreshold(float NewValue)
 		&& BloomThreshold != NewValue)
 	{
 		BloomThreshold = NewValue;
+		MarkRenderStateDirty();
+	}
+}
+
+void ULightComponent::SetBloomMaxBrightness(float NewValue)
+{
+	if (AreDynamicDataChangesAllowed()
+		&& BloomMaxBrightness != NewValue)
+	{
+		BloomMaxBrightness = NewValue;
 		MarkRenderStateDirty();
 	}
 }
