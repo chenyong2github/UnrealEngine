@@ -411,6 +411,17 @@ bool UDatasmithConsumer::SetLevelName( const FString & InLevelName, FText& OutRe
 	return bValidLevelName;
 }
 
+bool UDatasmithConsumer::SetTargetContentFolder(const FString& InTargetContentFolder, FText& OutReason)
+{
+	if ( Super::SetTargetContentFolder( InTargetContentFolder, OutReason ) )
+	{
+		UpdateScene();
+		return true;
+	}
+
+	return false;
+}
+
 void UDatasmithConsumer::UpdateScene()
 {
 	// Do nothing if this is the First call to Run, DatasmithScene is null
