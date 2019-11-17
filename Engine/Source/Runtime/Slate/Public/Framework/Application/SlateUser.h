@@ -45,12 +45,19 @@ public:
 	FORCEINLINE bool IsVirtualUser() const { return !Cursor.IsValid(); }
 
 	TSharedPtr<SWidget> GetFocusedWidget() const;
-	TOptional<EFocusCause> HasFocus(TSharedPtr<const SWidget> Widget) const;
 	bool ShouldShowFocus(TSharedPtr<const SWidget> Widget) const;
-	bool HasFocusedDescendants(TSharedRef<const SWidget> Widget) const;
 	bool SetFocus(const TSharedRef<SWidget>& WidgetToFocus, EFocusCause ReasonFocusIsChanging = EFocusCause::SetDirectly);
 	void ClearFocus(EFocusCause ReasonFocusIsChanging = EFocusCause::SetDirectly);
 
+	/** Returns the cause for which the provided widget was focused, or nothing if the given widget is not the current focus target. */
+	TOptional<EFocusCause> HasFocus(TSharedPtr<const SWidget> Widget) const;
+
+	/** Returns true if the given widget is in the focus path, but is not the focused widget itself. */
+	bool HasFocusedDescendants(TSharedRef<const SWidget> Widget) const;
+
+	/** Returns true if the given widget is anywhere in the focus path, including the focused widget itself. */
+	bool IsWidgetInFocusPath(TSharedPtr<const SWidget> Widget) const;
+	
 	bool HasAnyCapture() const;
 	bool HasCursorCapture() const;
 	bool HasCapture(uint32 PointerIndex) const;
