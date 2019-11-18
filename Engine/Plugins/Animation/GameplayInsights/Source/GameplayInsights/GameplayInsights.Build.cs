@@ -10,7 +10,6 @@ namespace UnrealBuildTool.Rules
 			new string[]
 			{
 				"Core",
-				"CoreUObject",
 				"InputCore",
 				"SlateCore",
 				"Slate",
@@ -21,7 +20,21 @@ namespace UnrealBuildTool.Rules
 
 			if (Target.bCompileAgainstEngine)
 			{
-				PrivateDependencyModuleNames.Add("Engine");
+				PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"Engine",
+					"CoreUObject",
+				});
+			}
+
+			if (Target.bBuildEditor)
+			{
+				PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"UnrealEd",
+				});
 			}
 		}
 	}

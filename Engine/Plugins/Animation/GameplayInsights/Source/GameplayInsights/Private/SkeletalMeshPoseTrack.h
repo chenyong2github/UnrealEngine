@@ -5,18 +5,30 @@
 #include "GameplayTrack.h"
 #include "Insights/ViewModels/TimingEventsTrack.h"
 
-class ULineBatchComponent;
+#if WITH_ENGINE
+#include "UObject/GCObject.h"
+#endif
+
+#if WITH_ENGINE
+class UWorld;
+class UInsightsSkeletalMeshComponent;
+#endif
+
 class FAnimationSharedData;
 class FTimingEventSearchParameters;
 struct FSkeletalMeshPoseMessage;
 
 class FSkeletalMeshPoseTrack : public TGameplayTrackMixin<FTimingEventsTrack>
+#if WITH_ENGINE
+	, public FGCObject
+#endif
 {
 public:
 	static const FName TypeName;
 	static const FName SubTypeName;
 
 	FSkeletalMeshPoseTrack(const FAnimationSharedData& InSharedData, uint64 InObjectID, const TCHAR* InName);
+	~FSkeletalMeshPoseTrack();
 
 	virtual void BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;
 	virtual void Draw(const ITimingTrackDrawContext& Context) const override;
@@ -25,14 +37,19 @@ public:
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
 
 	// Access drawing flags
-	bool ShouldDrawMarkerTime() const { return bDrawMarkerTime; }
-	bool ShouldDrawSelectedEvent() const { return bDrawSelectedEvent; }
-	bool ShouldDrawHoveredEvent() const { return bDrawHoveredEvent; }
-	bool ShouldDrawSelection() const { return bDrawSelection; }
+	bool ShouldDrawPose() const { return bDrawPose; }
+	bool ShouldDrawSkeleton() const { return bDrawSkeleton; }
 
 #if WITH_ENGINE
-	// Draw poses in the specified time range
-	void DrawPoses(ULineBatchComponent* InLineBatcher, double SelectionStartTime, double SelectionEndTime);
+	// Handle worlds being torn down
+	void OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources);
+
+	// Draw poses at the specified time
+	void DrawPoses(UWorld* InWorld, double InTime);
+
+	// FGCObject interface
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override { return TEXT("InsightsSkeletalMeshPoseTrack"); }
 #endif
 
 private:
@@ -43,9 +60,45 @@ private:
 	/** The shared data */
 	const FAnimationSharedData& SharedData;
 
-	/** Whether to draw poses at specified times */
-	bool bDrawMarkerTime;
-	bool bDrawSelectedEvent;
-	bool bDrawHoveredEvent;
-	bool bDrawSelection;
+	/** The color to use to draw this track */
+	FLinearColor Color;
+
+	/** Whether to draw the pose */
+	bool bDrawPose;
+
+	/** Whether to draw the skeleton */
+	bool bDrawSkeleton;
+
+#if WITH_ENGINE
+	/** Cached data per-world */
+	struct FWorldComponentCache
+	{
+		FWorldComponentCache()
+			: World(nullptr)
+			, Component(nullptr)
+			, Time(0.0)
+		{}
+
+		/** Get a cached component for this world */
+		UInsightsSkeletalMeshComponent* GetComponent();
+
+		/** The world we populate */
+		UWorld* World;
+
+		/** Cached component used to visualize in this world */
+		UInsightsSkeletalMeshComponent* Component;
+
+		/** The time we last cached on this component */
+		double Time;
+	};
+
+	// Get the cached data for a world
+	FWorldComponentCache& GetWorldCache(UWorld* InWorld);
+
+	/** Cached map of per-world data */
+	TMap<TWeakObjectPtr<UWorld>, FWorldComponentCache> WorldCache;
+
+	/** Handle used to deal with world switching */
+	FDelegateHandle OnWorldDestroyedHandle;
+#endif
 };

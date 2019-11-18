@@ -30,8 +30,8 @@ struct FAnimTrace
 	/** Helper function to output a skeletal mesh */
 	ENGINE_API static void OutputSkeletalMesh(const USkeletalMesh* InMesh);
 
-	/** Helper function to output a skeletal mesh pose */
-	ENGINE_API static void OutputSkeletalMeshPose(const USkeletalMeshComponent* InComponent);
+	/** Helper function to output a skeletal mesh pose, curves etc. */
+	ENGINE_API static void OutputSkeletalMeshComponent(const USkeletalMeshComponent* InComponent);
 
 	/** Helper function to output a pose link */
 	ENGINE_API static void OutputPoseLink(const FAnimationUpdateContext& InContext);
@@ -42,6 +42,12 @@ struct FAnimTrace
 	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, float Value);
 	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, const FName& Value);
 	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, const TCHAR* Value);
+
+	/** 
+	 * Helper function to output a name to the trace stream, referenced by ID. 
+	 * @return the ID used to reference the name
+	 */
+	ENGINE_API static uint32 OutputName(const FName& InName);
 };
 
 #define TRACE_ANIM_TICK_RECORDS(Proxy, Component) \
@@ -50,8 +56,8 @@ struct FAnimTrace
 #define TRACE_SKELETAL_MESH(Mesh) \
 	FAnimTrace::OutputSkeletalMesh(Mesh);
 
-#define TRACE_SKELETALMESH_POSE(Component) \
-	FAnimTrace::OutputSkeletalMeshPose(Component);
+#define TRACE_SKELETAL_MESH_COMPONENT(Component) \
+	FAnimTrace::OutputSkeletalMeshComponent(Component);
 
 #define TRACE_POSE_LINK(Context) \
 	FAnimTrace::OutputPoseLink(Context);

@@ -278,6 +278,8 @@ void STimingView::Reset()
 		OnSelectedEventChangedDelegate.Broadcast(SelectedEvent);
 	}
 
+	bPreventThrottling = false;
+
 	Tooltip.Reset();
 
 	LastSelectionType = ESelectionType::None;
@@ -342,6 +344,8 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 	TickStopwatch.Start();
 
 	ThisGeometry = AllottedGeometry;
+
+	bPreventThrottling = false;
 
 	const float ViewWidth = AllottedGeometry.GetLocalSize().X;
 	const float ViewHeight = AllottedGeometry.GetLocalSize().Y;
@@ -1371,7 +1375,12 @@ FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 		Reply = FReply::Handled().CaptureMouse(SharedThis(this));
 	}
 
-	if (bStartScrubbing)
+	if(bPreventThrottling)
+	{
+		Reply.PreventThrottling();
+	}
+
+	if(bStartScrubbing)
 	{
 		bIsPanning = false;
 		bIsDragging = false;
@@ -2858,6 +2867,13 @@ void STimingView::OnTrackVisibilityChanged()
 	{
 		UpdateAggregatedStats();
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::PreventThrottling()
+{
+	bPreventThrottling = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

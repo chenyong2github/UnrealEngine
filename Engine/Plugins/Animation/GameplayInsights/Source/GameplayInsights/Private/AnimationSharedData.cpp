@@ -17,16 +17,7 @@
 FAnimationSharedData::FAnimationSharedData(FGameplaySharedData& InGameplaySharedData)
 	: GameplaySharedData(InGameplaySharedData)
 	, AnalysisSession(nullptr)
-	, SelectedEventStartTime(0.0)
-	, SelectedEventEndTime(0.0)
-	, HoveredEventStartTime(0.0)
-	, HoveredEventEndTime(0.0)
-	, SelectionStartTime(0.0)
-	, SelectionEndTime(0.0)
 	, MarkerTime(0.0)
-	, bSelectedEventValid(false)
-	, bHoveredEventValid(false)
-	, bSelectionValid(false)
 	, bTimeMarkerValid(false)
 	, bAnimationTracksEnabled(true)
 {
@@ -37,10 +28,7 @@ void FAnimationSharedData::OnBeginSession(Insights::ITimingViewSession& InTiming
 	SkeletalMeshPoseTracks.Reset();
 	AnimationTickRecordsTracks.Reset();
 
-	SelectedEventChangedHandle = InTimingViewSession.OnSelectedEventChanged().AddRaw(this, &FAnimationSharedData::OnSelectedEventChanged);
-	HoveredEventChangedHandle = InTimingViewSession.OnHoveredEventChanged().AddRaw(this, &FAnimationSharedData::OnHoveredEventChanged);
 	TimeMarkerChangedHandle = InTimingViewSession.OnTimeMarkerChanged().AddRaw(this, &FAnimationSharedData::OnTimeMarkerChanged);
-	SelectionChangedHandle = InTimingViewSession.OnSelectionChanged().AddRaw(this, &FAnimationSharedData::OnSelectionChanged);
 }
 
 void FAnimationSharedData::OnEndSession(Insights::ITimingViewSession& InTimingViewSession)
@@ -48,10 +36,7 @@ void FAnimationSharedData::OnEndSession(Insights::ITimingViewSession& InTimingVi
 	SkeletalMeshPoseTracks.Reset();
 	AnimationTickRecordsTracks.Reset();
 
-	InTimingViewSession.OnSelectedEventChanged().Remove(SelectedEventChangedHandle);
-	InTimingViewSession.OnHoveredEventChanged().Remove(HoveredEventChangedHandle);
 	InTimingViewSession.OnTimeMarkerChanged().Remove(TimeMarkerChangedHandle);
-	InTimingViewSession.OnSelectionChanged().Remove(SelectionChangedHandle);
 }
 
 void FAnimationSharedData::Tick(Insights::ITimingViewSession& InTimingViewSession, const Trace::IAnalysisSession& InAnalysisSession)
@@ -132,6 +117,19 @@ void FAnimationSharedData::Tick(Insights::ITimingViewSession& InTimingViewSessio
 			});
 		});
 	}
+
+	// Prevent mouse movement throttling if we are drawing stuff that can change when the mouse is dragged
+	for(TSharedRef<FSkeletalMeshPoseTrack> PoseTrack : SkeletalMeshPoseTracks)
+	{
+		if(PoseTrack->IsVisible())
+		{
+			if(PoseTrack->ShouldDrawPose())
+			{
+				InTimingViewSession.PreventThrottling();
+				break;
+			}
+		}
+	}
 }
 
 void FAnimationSharedData::ExtendFilterMenu(FMenuBuilder& InMenuBuilder)
@@ -169,79 +167,31 @@ bool FAnimationSharedData::AreAnimationTracksEnabled() const
 	return bAnimationTracksEnabled;
 }
 
-void FAnimationSharedData::OnSelectedEventChanged(const TSharedPtr<const ITimingEvent> InEvent)
-{
-	bSelectedEventValid = InEvent.IsValid();
-	if(bSelectedEventValid)
-	{
-		SelectedEventTrack = InEvent->GetTrack();
-		SelectedEventStartTime = InEvent->GetStartTime();
-		SelectedEventEndTime = InEvent->GetEndTime();
-	}
-	else
-	{
-		SelectedEventTrack = nullptr;
-		SelectedEventStartTime = 0.0;
-		SelectedEventEndTime = 0.0;
-	}
-}
-
-void FAnimationSharedData::OnHoveredEventChanged(const TSharedPtr<const ITimingEvent> InEvent)
-{
-	bHoveredEventValid = InEvent.IsValid();
-	if(bHoveredEventValid)
-	{
-		HoveredEventTrack = InEvent->GetTrack();
-		HoveredEventStartTime = InEvent->GetStartTime();
-		HoveredEventEndTime = InEvent->GetEndTime();
-	}
-	else
-	{
-		HoveredEventTrack = nullptr;
-		HoveredEventStartTime = 0.0;
-		HoveredEventEndTime = 0.0;
-	}
-}
-
 void FAnimationSharedData::OnTimeMarkerChanged(Insights::ETimeChangedFlags InFlags, double InTimeMarker)
 {
 	bTimeMarkerValid = InTimeMarker != std::numeric_limits<double>::infinity();
 	MarkerTime = InTimeMarker;
 }
 
-void FAnimationSharedData::OnSelectionChanged(Insights::ETimeChangedFlags InFlags, double InStartTime, double InEndTime)
+void FAnimationSharedData::EnumerateSkeletalMeshPoseTracks(TFunctionRef<void(const TSharedRef<FSkeletalMeshPoseTrack>&)> InCallback) const
 {
-	bSelectionValid = InStartTime < InEndTime;
-	SelectionStartTime = InStartTime;
-	SelectionEndTime = InEndTime;
+	for(const TSharedRef<FSkeletalMeshPoseTrack>& Track : SkeletalMeshPoseTracks)
+	{
+		InCallback(Track);
+	}
 }
 
 #if WITH_ENGINE
 
-void FAnimationSharedData::DrawPoses(ULineBatchComponent* InLineBatcher)
+void FAnimationSharedData::DrawPoses(UWorld* InWorld)
 {
 	for(TSharedRef<FSkeletalMeshPoseTrack> PoseTrack : SkeletalMeshPoseTracks)
 	{
 		if(PoseTrack->IsVisible())
 		{
-			if(bSelectedEventValid && PoseTrack == SelectedEventTrack && PoseTrack->ShouldDrawSelectedEvent())
+			if(bTimeMarkerValid && PoseTrack->ShouldDrawPose())
 			{
-				PoseTrack->DrawPoses(InLineBatcher, SelectedEventStartTime, SelectedEventEndTime);
-			}
-		
-			if(bHoveredEventValid && PoseTrack == HoveredEventTrack && PoseTrack->ShouldDrawHoveredEvent())
-			{
-				PoseTrack->DrawPoses(InLineBatcher, HoveredEventStartTime, HoveredEventEndTime);
-			}
-
-			if(bTimeMarkerValid && PoseTrack->ShouldDrawMarkerTime())
-			{
-				PoseTrack->DrawPoses(InLineBatcher, MarkerTime, MarkerTime);
-			}
-
-			if(bSelectionValid && PoseTrack->ShouldDrawSelection())
-			{
-				PoseTrack->DrawPoses(InLineBatcher, SelectionStartTime, SelectionEndTime);
+				PoseTrack->DrawPoses(InWorld, MarkerTime);
 			}
 		}
 	}

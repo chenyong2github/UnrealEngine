@@ -6,6 +6,7 @@ FName FGameplayProvider::ProviderName("GameplayProvider");
 
 FGameplayProvider::FGameplayProvider(Trace::IAnalysisSession& InSession)
 	: Session(InSession)
+	, EndPlayEvent(nullptr)
 {
 }
 
@@ -120,6 +121,12 @@ void FGameplayProvider::AppendObjectEvent(uint64 InObjectId, double InTime, cons
 {
 	Session.WriteAccessCheck();
 
+	// Important events need some extra routing
+	if(EndPlayEvent == nullptr)
+	{
+		EndPlayEvent = Session.StoreString(TEXT("EndPlay"));
+	}
+
 	TSharedPtr<Trace::TPointTimeline<FObjectEventMessage>> Timeline;
 	uint32* IndexPtr = ObjectIdToEventTimelines.Find(InObjectId);
 	if(IndexPtr != nullptr)
@@ -136,6 +143,14 @@ void FGameplayProvider::AppendObjectEvent(uint64 InObjectId, double InTime, cons
 	FObjectEventMessage Message;
 	Message.Id = InObjectId;
 	Message.Name = Session.StoreString(InEventName);
+
+	if(Message.Name == EndPlayEvent)
+	{
+		if(int32* ObjectInfoIndex = ObjectIdToIndexMap.Find(InObjectId))
+		{
+			OnObjectEndPlayDelegate.Broadcast(InObjectId, InTime, ObjectInfos[*ObjectInfoIndex]);
+		}
+	}
 
 	Timeline->AppendEvent(InTime, Message);
 

@@ -28,6 +28,9 @@ struct FObjectEventMessage
 	const TCHAR* Name = nullptr;
 };
 
+// Delegate fired when an object receives an end play event
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnObjectEndPlay, uint64 /*ObjectId*/, double /*Time*/, const FObjectInfo& /*ObjectInfo*/);
+
 class IGameplayProvider : public Trace::IProvider
 {
 public:
@@ -38,4 +41,5 @@ public:
 	virtual void EnumerateObjects(TFunctionRef<void(const FObjectInfo&)> Callback) const = 0;
 	virtual const FClassInfo* FindClassInfo(uint64 InClassId) const = 0;
 	virtual const FObjectInfo* FindObjectInfo(uint64 InObjectId) const = 0;
+	virtual FOnObjectEndPlay& OnObjectEndPlay() = 0;
 };

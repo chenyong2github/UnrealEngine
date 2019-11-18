@@ -22,6 +22,7 @@ public:
 	virtual void EnumerateObjects(TFunctionRef<void(const FObjectInfo&)> Callback) const override;
 	virtual const FClassInfo* FindClassInfo(uint64 InClassId) const override;
 	virtual const FObjectInfo* FindObjectInfo(uint64 InObjectId) const override;
+	virtual FOnObjectEndPlay& OnObjectEndPlay() override { return OnObjectEndPlayDelegate; }
 
 	/** Add a class message */
 	void AppendClass(uint64 InClassId, uint64 InSuperId, const TCHAR* InClassName, const TCHAR* InClassPathName);
@@ -52,4 +53,10 @@ private:
 
 	/** Message storage */
 	TArray<TSharedRef<Trace::TPointTimeline<FObjectEventMessage>>> EventTimelines;
+
+	/** EndPlay event text */
+	const TCHAR* EndPlayEvent;
+
+	/** Delegate fired when an object receives an end play event */
+	FOnObjectEndPlay OnObjectEndPlayDelegate;
 };

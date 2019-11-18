@@ -33,20 +33,10 @@ void FAnimationTickRecordsTrack::BuildDrawState(ITimingEventsTrackDrawStateBuild
 
 		AnimationProvider->ReadTickRecordTimeline(GetGameplayTrack().GetObjectId(), GetAssetId(), [this, &GameplayProvider, &AnimationProvider, &Context, &Builder](const FAnimationProvider::TickRecordTimeline& InTimeline)
 		{
-			auto DrawEvents = [this, &Builder, &GameplayProvider](double InStartTime, double InEndTime, uint32 InDepth, const FTickRecordMessage& InMessage)
+			InTimeline.EnumerateEvents(Context.GetViewport().GetStartTime(), Context.GetViewport().GetEndTime(), [this, &Builder, &GameplayProvider](double InStartTime, double InEndTime, uint32 InDepth, const FTickRecordMessage& InMessage)
 			{
 				Builder.AddEvent(InStartTime, InEndTime, 0, *GetName());
-			};
-
-			if (FTimingEventsTrack::bUseDownSampling)
-			{
-				const double SecondsPerPixel = 1.0 / Context.GetViewport().GetScaleX();
-				InTimeline.EnumerateEventsDownSampled(Context.GetViewport().GetStartTime(), Context.GetViewport().GetEndTime(), SecondsPerPixel, DrawEvents);
-			}
-			else
-			{
-				InTimeline.EnumerateEvents(Context.GetViewport().GetStartTime(), Context.GetViewport().GetEndTime(), DrawEvents);
-			}
+			});
 		});
 	}
 }

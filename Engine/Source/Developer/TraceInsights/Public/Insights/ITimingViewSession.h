@@ -53,6 +53,9 @@ public:
 	/** Adds a new foreground track. */
 	virtual void AddForegroundTrack(TSharedPtr<FBaseTimingTrack> Track) = 0;
 
+	/** Prevents mouse movements from throttling application updates */
+	virtual void PreventThrottling() = 0;
+
 	/** Marks the scrollable tracks as not being in the correct order so they will be re-sorted */
 	virtual void InvalidateScrollableTracksOrder() = 0;
 

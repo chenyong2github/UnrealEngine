@@ -18,7 +18,7 @@ void FGameplayTraceModule::OnAnalysisBegin(Trace::IAnalysisSession& InSession)
 {
 	FGameplayProvider* GameplayProvider = new FGameplayProvider(InSession);
 	InSession.AddProvider(FGameplayProvider::ProviderName, GameplayProvider);
-	FAnimationProvider* AnimationProvider = new FAnimationProvider(InSession);
+	FAnimationProvider* AnimationProvider = new FAnimationProvider(InSession, *GameplayProvider);
 	InSession.AddProvider(FAnimationProvider::ProviderName, AnimationProvider);
 
 	InSession.AddAnalyzer(new FAnimationAnalyzer(InSession, *AnimationProvider));

@@ -820,6 +820,10 @@ void USkeletalMeshComponent::InitializeComponent()
 void USkeletalMeshComponent::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Trace the 'first frame' markers
+	TRACE_SKELETAL_MESH_COMPONENT(this);
+
 	if (AnimScriptInstance)
 	{
 		AnimScriptInstance->NativeBeginPlay();
@@ -3733,7 +3737,7 @@ void USkeletalMeshComponent::FinalizeBoneTransform()
 
 	OnBoneTransformsFinalized.Broadcast();
 
-	TRACE_SKELETALMESH_POSE(this);
+	TRACE_SKELETAL_MESH_COMPONENT(this);
 }
 
 void USkeletalMeshComponent::GetCurrentRefToLocalMatrices(TArray<FMatrix>& OutRefToLocals, int32 InLodIdx)

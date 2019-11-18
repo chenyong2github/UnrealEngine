@@ -33,6 +33,9 @@ public:
 	// Get the last cached analysis session
 	const Trace::IAnalysisSession& GetAnalysisSession() const { return *AnalysisSession; }
 
+	// Enumerate object tracks
+	void EnumerateObjectTracks(TFunctionRef<void(const TSharedRef<FObjectEventsTrack>&)> InCallback) const;
+
 private:
 	// Re-sort tracks if trrack ordering has changed
 	void SortTracks();

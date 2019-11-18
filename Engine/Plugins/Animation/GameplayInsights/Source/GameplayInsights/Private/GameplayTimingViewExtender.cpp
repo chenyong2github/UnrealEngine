@@ -8,6 +8,7 @@
 
 #if WITH_ENGINE
 #include "Engine/World.h"
+#include "Editor/EditorEngine.h"
 #endif
 
 void FGameplayTimingViewExtender::OnBeginSession(Insights::ITimingViewSession& InSession)
@@ -62,27 +63,39 @@ void FGameplayTimingViewExtender::ExtendFilterMenu(Insights::ITimingViewSession&
 }
 
 #if WITH_ENGINE
-void FGameplayTimingViewExtender::AddVisualizerWorld(UWorld* InWorld)
+
+static UWorld* GetWorldToVisualize()
 {
-	Worlds.Add(InWorld);
+	UWorld* World = nullptr;
+
+#if WITH_EDITOR
+	UEditorEngine* EditorEngine = Cast<UEditorEngine>(GEngine);
+	if (GIsEditor && EditorEngine != nullptr && World == nullptr)
+	{
+		// lets use PlayWorld during PIE/Simulate and regular world from editor otherwise, to draw debug information
+		World = EditorEngine->PlayWorld != nullptr ? EditorEngine->PlayWorld : EditorEngine->GetEditorWorldContext().World();
+	}
+
+#endif
+	if (!GIsEditor && World == nullptr)
+	{
+		World = GEngine->GetWorld();
+	}
+
+	return World;
 }
+
 #endif
 
 void FGameplayTimingViewExtender::TickVisualizers(float DeltaTime)
 {
 #if WITH_ENGINE
-	// Trim invalid worlds
-	Worlds.RemoveAll([](const TWeakObjectPtr<UWorld>& InWorld){ return InWorld.Get() == nullptr; });
-
-	for(auto& PerSessionData : PerSessionDataMap)
+	UWorld* WorldToVisualize = GetWorldToVisualize();
+	if(WorldToVisualize)
 	{
-		// Draw using line batchers
-		for(TWeakObjectPtr<UWorld>& World : Worlds)
+		for(auto& PerSessionData : PerSessionDataMap)
 		{
-			if(World->LineBatcher)
-			{
-				PerSessionData.Value.AnimationSharedData->DrawPoses(World->LineBatcher);
-			}
+			PerSessionData.Value.AnimationSharedData->DrawPoses(WorldToVisualize);
 		}
 	}
 #endif

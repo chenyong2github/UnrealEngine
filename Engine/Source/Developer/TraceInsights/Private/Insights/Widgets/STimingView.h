@@ -228,6 +228,7 @@ public:
 	virtual void AddScrollableTrack(TSharedPtr<FBaseTimingTrack> Track) override;
 	virtual void AddForegroundTrack(TSharedPtr<FBaseTimingTrack> Track) override;
 
+	virtual void PreventThrottling() override;
 	virtual void InvalidateScrollableTracksOrder() override;
 	//TODO: virtual void InvalidateScrollableTracksVisibility() override;
 
@@ -482,6 +483,9 @@ protected:
 	ESelectionType LastSelectionType;
 
 	double TimeMarker;
+
+	/** Throttle flag, allowing tracks to control whether Slate throttle should take place */
+	bool bPreventThrottling;
 
 	/** True of the user is currently dragging the time marker */
 	bool bIsScrubbing;

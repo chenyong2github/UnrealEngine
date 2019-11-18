@@ -193,4 +193,12 @@ bool FGameplaySharedData::AreGameplayTracksEnabled() const
 	return bObjectTracksEnabled;
 }
 
+void FGameplaySharedData::EnumerateObjectTracks(TFunctionRef<void(const TSharedRef<FObjectEventsTrack>&)> InCallback) const
+{
+	for(const auto& TrackPair : ObjectTracks)
+	{
+		InCallback(TrackPair.Value.ToSharedRef());
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

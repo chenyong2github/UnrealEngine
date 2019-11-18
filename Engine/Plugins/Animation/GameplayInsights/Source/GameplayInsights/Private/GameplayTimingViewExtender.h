@@ -18,11 +18,6 @@ public:
 	virtual void Tick(Insights::ITimingViewSession& InSession, const Trace::IAnalysisSession& InAnalysisSession) override;
 	virtual void ExtendFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder) override;
 
-#if WITH_ENGINE
-	// Add a world to be visualized
-	void AddVisualizerWorld(UWorld* InWorld);
-#endif
-
 	// Tick the visualizers
 	void TickVisualizers(float DeltaTime);
 
@@ -36,9 +31,4 @@ private:
 
 	// The data we host per-session
 	TMap<Insights::ITimingViewSession*, FPerSessionData> PerSessionDataMap;
-
-#if WITH_ENGINE
-	// The worlds we will visualize
-	TArray<TWeakObjectPtr<UWorld>> Worlds;
-#endif
 };

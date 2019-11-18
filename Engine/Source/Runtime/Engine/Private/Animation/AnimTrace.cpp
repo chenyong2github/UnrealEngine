@@ -32,11 +32,12 @@ UE_TRACE_EVENT_BEGIN(Animation, SkeletalMesh, Important)
 	UE_TRACE_EVENT_FIELD(uint32, BoneCount)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(Animation, SkeletalMeshPose)
+UE_TRACE_EVENT_BEGIN(Animation, SkeletalMeshComponent)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, ComponentId)
 	UE_TRACE_EVENT_FIELD(uint64, MeshId)
 	UE_TRACE_EVENT_FIELD(uint32, BoneCount)
+	UE_TRACE_EVENT_FIELD(uint32, CurveCount)
 	UE_TRACE_EVENT_FIELD(uint16, LodIndex)
 	UE_TRACE_EVENT_FIELD(uint16, FrameCounter)
 UE_TRACE_EVENT_END()
@@ -81,8 +82,15 @@ UE_TRACE_EVENT_BEGIN(Animation, PoseLink)
 	UE_TRACE_EVENT_FIELD(int32, TargetNameLength)
 UE_TRACE_EVENT_END()
 
+UE_TRACE_EVENT_BEGIN(Animation, Name, Important)
+	UE_TRACE_EVENT_FIELD(uint32, Id)
+UE_TRACE_EVENT_END()
+
 // Object annotations used for tracing
 FUObjectAnnotationSparseBool GSkeletalMeshTraceAnnotations;
+
+// Map used for unique name output
+TMap<FName, uint32> GAnimTraceNames;
 
 void FAnimTrace::Init()
 {
@@ -90,12 +98,13 @@ void FAnimTrace::Init()
 	{
 		UE_TRACE_EVENT_IS_ENABLED(Animation, TickRecord);
 		UE_TRACE_EVENT_IS_ENABLED(Animation, SkeletalMesh);
-		UE_TRACE_EVENT_IS_ENABLED(Animation, SkeletalMeshPose);
+		UE_TRACE_EVENT_IS_ENABLED(Animation, SkeletalMeshComponent);
 // 		UE_TRACE_EVENT_IS_ENABLED(Animation, AnimNodeValueBool);
 // 		UE_TRACE_EVENT_IS_ENABLED(Animation, AnimNodeValueInt);
 // 		UE_TRACE_EVENT_IS_ENABLED(Animation, AnimNodeValueFloat);
 // 		UE_TRACE_EVENT_IS_ENABLED(Animation, AnimNodeValueString);
 // 		UE_TRACE_EVENT_IS_ENABLED(Animation, PoseLink);
+		UE_TRACE_EVENT_IS_ENABLED(Animation, Name);
 		Trace::ToggleEvent(TEXT("Animation"), true);
 	}
 }
@@ -178,34 +187,96 @@ void FAnimTrace::OutputSkeletalMesh(const USkeletalMesh* InMesh)
 	GSkeletalMeshTraceAnnotations.Set(InMesh);
 }
 
-void FAnimTrace::OutputSkeletalMeshPose(const USkeletalMeshComponent* InComponent)
+uint32 FAnimTrace::OutputName(const FName& InName)
 {
-	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(Animation, SkeletalMeshPose);
+	static uint32 CurrentId = 1;
+	check(IsInGameThread());
+
+	uint32* ExistingIdPtr = GAnimTraceNames.Find(InName);
+	if(ExistingIdPtr == nullptr)
+	{
+		int32 NameStringLength = InName.GetStringLength() + 1;
+
+		auto StringCopyFunc = [NameStringLength, &InName](uint8* Out)
+		{
+			InName.ToString(reinterpret_cast<TCHAR*>(Out), NameStringLength);
+		};
+
+		uint32 NewId = CurrentId++;
+
+		UE_TRACE_LOG(Animation, Name, NameStringLength * sizeof(TCHAR))
+			<< Name.Id(NewId)
+			<< Name.Attachment(StringCopyFunc);
+
+		GAnimTraceNames.Add(InName, NewId);
+		return NewId;
+	}
+	else
+	{
+		return *ExistingIdPtr;
+	}
+}
+
+void FAnimTrace::OutputSkeletalMeshComponent(const USkeletalMeshComponent* InComponent)
+{
+	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(Animation, SkeletalMeshComponent);
 	if (!bEventEnabled || InComponent == nullptr)
 	{
 		return;
 	}
 
 	int32 BoneCount = InComponent->GetComponentSpaceTransforms().Num();
-	if(BoneCount > 0)
+	int32 CurveCount = 0;
+	UAnimInstance* AnimInstance = InComponent->GetAnimInstance();
+
+	if(AnimInstance)
+	{
+		for(EAnimCurveType CurveType : TEnumRange<EAnimCurveType>())
+		{
+			CurveCount += AnimInstance->GetAnimationCurveList(CurveType).Num();
+		}
+	}
+	
+	if(BoneCount > 0 || CurveCount > 0)
 	{
 		TRACE_OBJECT(InComponent);
 		TRACE_SKELETAL_MESH(InComponent->SkeletalMesh);
 
-		auto CopyTransforms = [&InComponent, &BoneCount](uint8* Out)
+		auto CopyTransformsAndCurves = [&InComponent, &BoneCount, &CurveCount, &AnimInstance](uint8* Out)
 		{
 			FPlatformMemory::Memcpy(Out, &InComponent->GetComponentToWorld(), sizeof(FTransform));
-			FPlatformMemory::Memcpy(Out + sizeof(FTransform), InComponent->GetComponentSpaceTransforms().GetData(), BoneCount * sizeof(FTransform));
+			Out += sizeof(FTransform);
+
+			if(BoneCount > 0)
+			{
+				const int32 BufferSize = BoneCount * sizeof(FTransform);
+				FPlatformMemory::Memcpy(Out, InComponent->GetComponentSpaceTransforms().GetData(), BufferSize);
+				Out += BufferSize;
+			}
+			if(CurveCount > 0 && AnimInstance)
+			{
+				for(EAnimCurveType CurveType : TEnumRange<EAnimCurveType>())
+				{
+					for(TPair<FName, float> CurvePair : AnimInstance->GetAnimationCurveList(CurveType))
+					{
+						*reinterpret_cast<uint32*>(Out) = OutputName(CurvePair.Key);
+						Out += sizeof(uint32);
+						*reinterpret_cast<float*>(Out) = CurvePair.Value;
+						Out += sizeof(float);
+					}
+				}
+			}
 		};
 
-		UE_TRACE_LOG(Animation, SkeletalMeshPose, (BoneCount + 1) * sizeof(FTransform))
-			<< SkeletalMeshPose.Cycle(FPlatformTime::Cycles64())
-			<< SkeletalMeshPose.ComponentId(FObjectTrace::GetObjectId(InComponent))
-			<< SkeletalMeshPose.MeshId(FObjectTrace::GetObjectId(InComponent->SkeletalMesh))
-			<< SkeletalMeshPose.BoneCount((uint32)BoneCount + 1)
-			<< SkeletalMeshPose.LodIndex((uint16)InComponent->PredictedLODLevel)
-			<< SkeletalMeshPose.FrameCounter((uint16)(GFrameCounter % 0xffff))
-			<< SkeletalMeshPose.Attachment(CopyTransforms);
+		UE_TRACE_LOG(Animation, SkeletalMeshComponent, ((BoneCount + 1) * sizeof(FTransform)) + (CurveCount * (sizeof(float) + sizeof(uint32))))
+			<< SkeletalMeshComponent.Cycle(FPlatformTime::Cycles64())
+			<< SkeletalMeshComponent.ComponentId(FObjectTrace::GetObjectId(InComponent))
+			<< SkeletalMeshComponent.MeshId(FObjectTrace::GetObjectId(InComponent->SkeletalMesh))
+			<< SkeletalMeshComponent.BoneCount((uint32)BoneCount + 1)
+			<< SkeletalMeshComponent.CurveCount((uint32)CurveCount)
+			<< SkeletalMeshComponent.LodIndex((uint16)InComponent->PredictedLODLevel)
+			<< SkeletalMeshComponent.FrameCounter((uint16)(GFrameCounter % 0xffff))
+			<< SkeletalMeshComponent.Attachment(CopyTransformsAndCurves);
 	}
 }
 

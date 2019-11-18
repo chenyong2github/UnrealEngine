@@ -21,7 +21,8 @@ private:
 	{
 		RouteId_TickRecord,
 		RouteId_SkeletalMesh,
-		RouteId_SkeletalMeshPose,
+		RouteId_SkeletalMeshComponent,
+		RouteId_Name,
 	};
 
 	Trace::IAnalysisSession& Session;

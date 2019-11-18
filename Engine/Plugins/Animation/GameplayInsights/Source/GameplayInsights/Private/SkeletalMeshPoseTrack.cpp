@@ -9,9 +9,13 @@
 #include "Framework/Multibox/MultiboxBuilder.h"
 #include "Insights/ViewModels/TimingEventSearch.h"
 #include "Insights/ViewModels/TooltipDrawState.h"
+#include "AssetRegistryModule.h"
+#include "Modules/ModuleManager.h"
 
 #if WITH_ENGINE
-#include "Components/LineBatchComponent.h"
+#include "Engine/SkeletalMesh.h"
+#include "UObject/SoftObjectPtr.h"
+#include "InsightsSkeletalMeshComponent.h"
 #endif
 
 
@@ -23,11 +27,20 @@ const FName FSkeletalMeshPoseTrack::SubTypeName(TEXT("SkeletalMeshPose"));
 FSkeletalMeshPoseTrack::FSkeletalMeshPoseTrack(const FAnimationSharedData& InSharedData, uint64 InObjectID, const TCHAR* InName)
 	: TGameplayTrackMixin<FTimingEventsTrack>(InObjectID, FSkeletalMeshPoseTrack::TypeName, FSkeletalMeshPoseTrack::SubTypeName, FText::Format(LOCTEXT("TrackNameFormat", "Pose - {0}"), FText::FromString(FString(InName))))
 	, SharedData(InSharedData)
-	, bDrawMarkerTime(false)
-	, bDrawSelectedEvent(false)
-	, bDrawHoveredEvent(false)
-	, bDrawSelection(false)
+	, Color(FLinearColor::MakeRandomColor())
+	, bDrawPose(false)
+	, bDrawSkeleton(false)
 {
+#if WITH_ENGINE
+	OnWorldDestroyedHandle = FWorldDelegates::OnWorldCleanup.AddRaw(this, &FSkeletalMeshPoseTrack::OnWorldCleanup);
+#endif
+}
+
+FSkeletalMeshPoseTrack::~FSkeletalMeshPoseTrack()
+{
+#if WITH_ENGINE
+	FWorldDelegates::OnWorldCleanup.Remove(OnWorldDestroyedHandle);
+#endif
 }
 
 void FSkeletalMeshPoseTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context)
@@ -40,22 +53,12 @@ void FSkeletalMeshPoseTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& 
 
 		AnimationProvider->ReadSkeletalMeshPoseTimeline(GetGameplayTrack().GetObjectId(), [&Context, &Builder](const FAnimationProvider::SkeletalMeshPoseTimeline& InTimeline)
 		{
-			auto DrawEvent = [&Builder](double InStartTime, double InEndTime, uint32 InDepth, const FSkeletalMeshPoseMessage& InMessage)
+			InTimeline.EnumerateEvents(Context.GetViewport().GetStartTime(), Context.GetViewport().GetEndTime(), [&Builder](double InStartTime, double InEndTime, uint32 InDepth, const FSkeletalMeshPoseMessage& InMessage)
 			{
 				static TCHAR Buffer[256];
 				FCString::Snprintf(Buffer, 256, TEXT("%d Bones"), InMessage.NumTransforms);
 				Builder.AddEvent(InStartTime, InEndTime, 0, Buffer);
-			};
-
-			if (FTimingEventsTrack::bUseDownSampling)
-			{
-				const double SecondsPerPixel = 1.0 / Context.GetViewport().GetScaleX();
-				InTimeline.EnumerateEventsDownSampled(Context.GetViewport().GetStartTime(), Context.GetViewport().GetEndTime(), SecondsPerPixel, DrawEvent);
-			}
-			else
-			{
-				InTimeline.EnumerateEvents(Context.GetViewport().GetStartTime(), Context.GetViewport().GetEndTime(), DrawEvent);
-			}
+			});
 		});
 	}
 }
@@ -77,7 +80,26 @@ void FSkeletalMeshPoseTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimi
 		Tooltip.AddTitle(LOCTEXT("SkeletalMeshPoseTooltipTitle", "Skeletal Mesh Pose").ToString());
 
 		Tooltip.AddNameValueTextLine(LOCTEXT("EventTime", "Time").ToString(), FText::AsNumber(InFoundStartTime).ToString());
+
+		{
+			Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+
+			const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
+			const FObjectInfo* SkeletalMeshObjectInfo = GameplayProvider->FindObjectInfo(InMessage.MeshId);
+			if(SkeletalMeshObjectInfo != nullptr)
+			{
+				Tooltip.AddNameValueTextLine(LOCTEXT("Mesh", "Mesh").ToString(), SkeletalMeshObjectInfo->PathName);
+
+				FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+				if(!AssetRegistryModule.Get().GetAssetByObjectPath(SkeletalMeshObjectInfo->PathName).IsValid())
+				{
+					Tooltip.AddTextLine(LOCTEXT("MeshNotFound", "Mesh not found").ToString(), FLinearColor::Red);
+				}
+			}
+		}
+
 		Tooltip.AddNameValueTextLine(LOCTEXT("BoneCount", "Bone Count").ToString(), FText::AsNumber(InMessage.NumTransforms).ToString());
+		Tooltip.AddNameValueTextLine(LOCTEXT("CurveCount", "Curve Count").ToString(), FText::AsNumber(InMessage.NumCurves).ToString());
 
 		Tooltip.UpdateLayout();
 	});
@@ -126,95 +148,249 @@ void FSkeletalMeshPoseTrack::FindSkeletalMeshPoseMessage(const FTimingEventSearc
 
 void FSkeletalMeshPoseTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 {
-	MenuBuilder.BeginSection(TEXT("ShowPoseSection"), LOCTEXT("ShowPose", "Show Pose"));
+	MenuBuilder.BeginSection(TEXT("DrawingSection"), LOCTEXT("Drawing", "Drawing (Component)"));
 	{
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ToggleDrawMarkerTime", "Marker Time"),
-			LOCTEXT("ToggleDrawMarkerTime_Tooltip", "Draw the pose at the current marker time"),
+			LOCTEXT("ToggleDrawPose", "Draw Pose"),
+			LOCTEXT("ToggleDrawPose_Tooltip", "Draw the poses in this track"),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda([this](){ bDrawMarkerTime = !bDrawMarkerTime; }),
+				FExecuteAction::CreateLambda([this](){ bDrawPose = !bDrawPose; }),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateLambda([this](){ return bDrawMarkerTime; })),
+				FIsActionChecked::CreateLambda([this](){ return bDrawPose; })),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
 
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ToggleDrawSelection", "Selection"),
-			LOCTEXT("ToggleDrawSelection_Tooltip", "Draw the pose for the currently selected event"),
+			LOCTEXT("ToggleDrawSkeleton", "Draw Skeleton"),
+			LOCTEXT("ToggleDrawSkeleton_Tooltip", "Draw the skeleton for poses in this track (when pose drawing is also enabled)"),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda([this](){ bDrawSelectedEvent = !bDrawSelectedEvent; }),
+				FExecuteAction::CreateLambda([this](){ bDrawSkeleton = !bDrawSkeleton; }),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateLambda([this](){ return bDrawSelectedEvent; })),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ToggleDrawHovered", "Hovered"),
-			LOCTEXT("ToggleDrawSelection_Tooltip", "Draw the pose for the currently hovered event"),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateLambda([this](){ bDrawHoveredEvent = !bDrawHoveredEvent; }),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateLambda([this](){ return bDrawHoveredEvent; })),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ToggleDrawSelectedRange", "Selected Range"),
-			LOCTEXT("ToggleDrawSelectedRange_Tooltip", "Draw poses for the currently selected range"),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateLambda([this](){ bDrawSelection = !bDrawSelection; }),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateLambda([this](){ return bDrawSelection; })),
+				FIsActionChecked::CreateLambda([this](){ return bDrawSkeleton; })),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
 	}
 	MenuBuilder.EndSection();
+
+	const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
+
+	if(GameplayProvider)
+	{
+		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+	
+		const FObjectInfo* ComponentObjectInfo = GameplayProvider->FindObjectInfo(GetGameplayTrack().GetObjectId());
+		if(ComponentObjectInfo != nullptr)
+		{
+			// @FIXME: Outer does always equal owning actor, although does in nearly all cases with skeletal mesh components
+			const FObjectInfo* ActorObjectInfo = GameplayProvider->FindObjectInfo(ComponentObjectInfo->OuterId);
+			if(ActorObjectInfo != nullptr)
+			{
+				MenuBuilder.BeginSection(TEXT("DrawingSection"), FText::Format(LOCTEXT("DrawingActor", "Drawing ({0})"), FText::FromString(ActorObjectInfo->Name)));
+				{
+					MenuBuilder.AddMenuEntry(
+						LOCTEXT("ToggleDrawPoseActor", "Draw Pose for Actor"),
+						LOCTEXT("ToggleDrawPoseActor_Tooltip", "Draw the poses in this track and all other tracks for the current actor"),
+						FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateLambda([this, ActorObjectInfo, GameplayProvider]()
+							{
+								Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+
+								bool bSetDrawPose = true;
+								SharedData.EnumerateSkeletalMeshPoseTracks([GameplayProvider, ActorObjectInfo, &bSetDrawPose](const TSharedRef<FSkeletalMeshPoseTrack>& InTrack)
+								{
+									const FObjectInfo* OtherComponentObjectInfo = GameplayProvider->FindObjectInfo(InTrack->GetGameplayTrack().GetObjectId());
+									if(OtherComponentObjectInfo->OuterId == ActorObjectInfo->Id)
+									{
+										bSetDrawPose &= InTrack->bDrawPose;
+									}
+								});
+
+								SharedData.EnumerateSkeletalMeshPoseTracks([GameplayProvider, ActorObjectInfo, &bSetDrawPose](const TSharedRef<FSkeletalMeshPoseTrack>& InTrack)
+								{
+									const FObjectInfo* OtherComponentObjectInfo = GameplayProvider->FindObjectInfo(InTrack->GetGameplayTrack().GetObjectId());
+									if(OtherComponentObjectInfo->OuterId == ActorObjectInfo->Id)
+									{
+										InTrack->bDrawPose = !bSetDrawPose;
+									}
+								});
+							}),
+							FCanExecuteAction(),
+							FIsActionChecked::CreateLambda([this, ActorObjectInfo, GameplayProvider]()
+							{
+								Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+
+								bool bDrawPoseSet = true;
+								SharedData.EnumerateSkeletalMeshPoseTracks([GameplayProvider, ActorObjectInfo, &bDrawPoseSet](const TSharedRef<FSkeletalMeshPoseTrack>& InTrack)
+								{
+									const FObjectInfo* OtherComponentObjectInfo = GameplayProvider->FindObjectInfo(InTrack->GetGameplayTrack().GetObjectId());
+									if(OtherComponentObjectInfo->OuterId == ActorObjectInfo->Id)
+									{
+										bDrawPoseSet &= InTrack->bDrawPose;
+									}
+								});
+
+								return bDrawPoseSet;
+							})),
+						NAME_None,
+						EUserInterfaceActionType::ToggleButton
+					);
+
+					MenuBuilder.AddMenuEntry(
+						LOCTEXT("ToggleDrawSkeletonActor", "Draw Skeleton for Actor"),
+						LOCTEXT("ToggleDrawSkeletonActor_Tooltip", "Draw the skeleton for poses in this track and all other tracks for the current actor (when pose drawing is also enabled)"),
+						FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateLambda([this, ActorObjectInfo, GameplayProvider]()
+							{
+								Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+
+								bool bSetDrawSkeleton = true;
+								SharedData.EnumerateSkeletalMeshPoseTracks([GameplayProvider, ActorObjectInfo, &bSetDrawSkeleton](const TSharedRef<FSkeletalMeshPoseTrack>& InTrack)
+								{
+									const FObjectInfo* OtherComponentObjectInfo = GameplayProvider->FindObjectInfo(InTrack->GetGameplayTrack().GetObjectId());
+									if(OtherComponentObjectInfo->OuterId == ActorObjectInfo->Id)
+									{
+										bSetDrawSkeleton &= InTrack->bDrawSkeleton;
+									}
+								});
+
+								SharedData.EnumerateSkeletalMeshPoseTracks([GameplayProvider, ActorObjectInfo, &bSetDrawSkeleton](const TSharedRef<FSkeletalMeshPoseTrack>& InTrack)
+								{
+									const FObjectInfo* OtherComponentObjectInfo = GameplayProvider->FindObjectInfo(InTrack->GetGameplayTrack().GetObjectId());
+									if(OtherComponentObjectInfo->OuterId == ActorObjectInfo->Id)
+									{
+										InTrack->bDrawSkeleton = !bSetDrawSkeleton;
+									}
+								});
+							}),
+							FCanExecuteAction(),
+							FIsActionChecked::CreateLambda([this, ActorObjectInfo, GameplayProvider]()
+							{
+								Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+
+								bool bDrawSkeletonSet = true;
+								SharedData.EnumerateSkeletalMeshPoseTracks([GameplayProvider, ActorObjectInfo, &bDrawSkeletonSet](const TSharedRef<FSkeletalMeshPoseTrack>& InTrack)
+								{
+									const FObjectInfo* OtherComponentObjectInfo = GameplayProvider->FindObjectInfo(InTrack->GetGameplayTrack().GetObjectId());
+									if(OtherComponentObjectInfo->OuterId == ActorObjectInfo->Id)
+									{
+										bDrawSkeletonSet &= InTrack->bDrawSkeleton;
+									}
+								});
+
+								return bDrawSkeletonSet;
+							})),
+						NAME_None,
+						EUserInterfaceActionType::ToggleButton
+					);
+				}
+				MenuBuilder.EndSection();
+			}
+		}
+	}
 }
 
 #if WITH_ENGINE
 
-void FSkeletalMeshPoseTrack::DrawPoses(ULineBatchComponent* InLineBatcher, double SelectionStartTime, double SelectionEndTime)
+void FSkeletalMeshPoseTrack::OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources)
+{
+	FWorldComponentCache& CacheForWorld = GetWorldCache(InWorld);
+
+	if(CacheForWorld.Component)
+	{
+		CacheForWorld.Component->UnregisterComponent();
+		CacheForWorld.Component->MarkPendingKill();
+		CacheForWorld.Component = nullptr;
+	}
+
+	WorldCache.Remove(TWeakObjectPtr<UWorld>(InWorld));
+}
+
+void FSkeletalMeshPoseTrack::DrawPoses(UWorld* InWorld, double InTime)
 {
 	if(SharedData.IsAnalysisSessionValid())
 	{
 		const FAnimationProvider* AnimationProvider = SharedData.GetAnalysisSession().ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
+		const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
 
-		if(AnimationProvider)
+		if(AnimationProvider && GameplayProvider)
 		{
 			Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
-			AnimationProvider->ReadSkeletalMeshPoseTimeline(GetGameplayTrack().GetObjectId(), [this, &InLineBatcher, &AnimationProvider, &SelectionStartTime, &SelectionEndTime](const FAnimationProvider::SkeletalMeshPoseTimeline& InTimeline)
+			FWorldComponentCache& CacheForWorld = GetWorldCache(InWorld);
+			if(CacheForWorld.Component)
 			{
-				static TArray<FBatchedLine> Lines;
+				CacheForWorld.Component->SetVisibility(false);
+			}
 
-				InTimeline.EnumerateEvents(SelectionStartTime, SelectionEndTime, [&InLineBatcher, &AnimationProvider, &SelectionStartTime, &SelectionEndTime](double InStartTime, double InEndTime, uint32 InDepth, const FSkeletalMeshPoseMessage& InMessage)
+			AnimationProvider->ReadSkeletalMeshPoseTimeline(GetGameplayTrack().GetObjectId(), [this, &CacheForWorld, &AnimationProvider, &GameplayProvider, &InTime](const FAnimationProvider::SkeletalMeshPoseTimeline& InTimeline)
+			{
+				InTimeline.EnumerateEvents(InTime, InTime, [this, &CacheForWorld, &AnimationProvider, &GameplayProvider, &InTime](double InStartTime, double InEndTime, uint32 InDepth, const FSkeletalMeshPoseMessage& InMessage)
 				{
-					if(SelectionStartTime == SelectionEndTime || (InStartTime >= SelectionStartTime && InEndTime <= SelectionEndTime))
+					if((InStartTime <= InTime && InEndTime > InTime))
 					{
 						const FSkeletalMeshInfo* SkeletalMeshInfo = AnimationProvider->FindSkeletalMeshInfo(InMessage.MeshId);
-						if(SkeletalMeshInfo)
+						const FObjectInfo* SkeletalMeshObjectInfo = GameplayProvider->FindObjectInfo(InMessage.MeshId);
+						if(SkeletalMeshInfo && SkeletalMeshObjectInfo)
 						{
-							AnimationProvider->EnumerateSkeletalMeshPose(InMessage, *SkeletalMeshInfo, [&InLineBatcher](const FTransform& InTransform, const FTransform& InParentTransform)
+							UInsightsSkeletalMeshComponent* Component = CacheForWorld.GetComponent();
+							Component->SetVisibility(true);
+
+							if(CacheForWorld.Time != InTime)
 							{
-								Lines.Emplace(InParentTransform.GetLocation(), InTransform.GetLocation(), FLinearColor::Red, 1.0f, 0.2f, SDPG_Foreground);
-							});
+								USkeletalMesh* SkeletalMesh = TSoftObjectPtr<USkeletalMesh>(FSoftObjectPath(SkeletalMeshObjectInfo->PathName)).LoadSynchronous();
+								if(SkeletalMesh)
+								{
+									Component->SetSkeletalMesh(SkeletalMesh);
+								}
+
+								Component->SetPoseFromProvider(*AnimationProvider, InMessage, *SkeletalMeshInfo);
+
+								CacheForWorld.Time = InTime;
+							}
+
+							Component->SetDrawDebugSkeleton(bDrawSkeleton);
+							Component->SetDebugDrawColor(Color);
 						}
 					}
 				});
-
-				InLineBatcher->DrawLines(Lines);
-
-				Lines.Reset();
 			});
 		}
+	}
+}
+
+FSkeletalMeshPoseTrack::FWorldComponentCache& FSkeletalMeshPoseTrack::GetWorldCache(UWorld* InWorld)
+{
+	FWorldComponentCache& Cache = WorldCache.FindOrAdd(TWeakObjectPtr<UWorld>(InWorld));
+	Cache.World = InWorld;
+	return Cache;
+}
+
+UInsightsSkeletalMeshComponent* FSkeletalMeshPoseTrack::FWorldComponentCache::GetComponent()
+{
+	if(Component == nullptr)
+	{
+		Component = NewObject<UInsightsSkeletalMeshComponent>();
+		Component->PrimaryComponentTick.bStartWithTickEnabled = false;
+		Component->PrimaryComponentTick.bCanEverTick = false;
+		Component->RegisterComponentWithWorld(World);
+
+		Time = 0.0;
+	}
+	
+	return Component;
+}
+
+void FSkeletalMeshPoseTrack::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	for(auto& WorldCacheEntry : WorldCache)
+	{
+		Collector.AddReferencedObject(WorldCacheEntry.Value.Component);
 	}
 }
 
