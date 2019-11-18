@@ -95,7 +95,7 @@ void FSteamVRHMD::UpdateLayer(struct FSteamVRLayer& Layer, uint32 LayerId, bool 
 	{
 		UE_LOG(LogHMD, Warning, TEXT("Unsupported StereoLayer flag. SteamVR StereoLayers do not support disabling alpha renderding. Make the texture opaque instead."));
 	}
-	if (Layer.LayerDesc.ShapeType != IStereoLayers::QuadLayer)
+	if (!Layer.LayerDesc.HasShape<FQuadLayer>())
 	{
 		UE_LOG(LogHMD, Warning, TEXT("Unsupported StereoLayer shape. SteamVR StereoLayers can only be Quads."));
 	}
@@ -278,36 +278,6 @@ void FSteamVRHMD::UpdateStereoLayers_RenderThread()
 		}
 
 	}
-}
-
-void FSteamVRHMD::GetAllocatedTexture(uint32 LayerId, FTextureRHIRef &Texture, FTextureRHIRef &LeftTexture)
-{
-	Texture = LeftTexture = nullptr;
-	FSteamVRLayer* LayerFound = nullptr;
-	check(IsInRenderingThread()); // Not strictly necessary, as WithLayer uses a scope lock
-
-	WithLayer(LayerId, [&](FSteamVRLayer* LayerFound)
-	{
-		if (LayerFound && LayerFound->LayerDesc.Texture)
-		{
-			switch (LayerFound->LayerDesc.ShapeType)
-			{
-			case IStereoLayers::CubemapLayer:
-				Texture = LayerFound->LayerDesc.Texture->GetTextureCube();
-				LeftTexture = LayerFound->LayerDesc.LeftTexture ? LayerFound->LayerDesc.LeftTexture->GetTextureCube() : nullptr;
-				break;
-
-			case IStereoLayers::CylinderLayer:
-			case IStereoLayers::QuadLayer:
-				Texture = LayerFound->LayerDesc.Texture->GetTexture2D();
-				LeftTexture = LayerFound->LayerDesc.LeftTexture ? LayerFound->LayerDesc.LeftTexture->GetTexture2D() : nullptr;
-				break;
-
-			default:
-				break;
-			}
-		}
-	});
 }
 
 //=============================================================================

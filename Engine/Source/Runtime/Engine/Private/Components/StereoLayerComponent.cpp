@@ -6,6 +6,7 @@
 #include "TextureResource.h"
 #include "Engine/Texture.h"
 #include "IStereoLayers.h"
+#include "StereoLayerShapes.h"
 #include "StereoRendering.h"
 
 UStereoLayerComponent::UStereoLayerComponent(const FObjectInitializer& ObjectInitializer)
@@ -119,23 +120,18 @@ void UStereoLayerComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 		switch (StereoLayerShape)
 		{
 		case SLSH_QuadLayer:
-			LayerDsec.ShapeType = IStereoLayers::QuadLayer;
 			break;
 
 		case SLSH_CylinderLayer:
-			LayerDsec.ShapeType = IStereoLayers::CylinderLayer;
-			LayerDsec.CylinderRadius = CylinderRadius;
-			LayerDsec.CylinderOverlayArc = CylinderOverlayArc;
-			LayerDsec.CylinderHeight = CylinderHeight;
+			LayerDsec.SetShape<FCylinderLayer>(CylinderRadius, CylinderOverlayArc, CylinderHeight);
 			break;
 
 		case SLSH_CubemapLayer:
-			LayerDsec.ShapeType = IStereoLayers::CubemapLayer;
+			LayerDsec.SetShape<FCubemapLayer>();
 			break;
 
 		case SLSH_EquirectLayer:
-			LayerDsec.ShapeType = IStereoLayers::EquirectLayer;
-			LayerDsec.EquirectProps = { EquirectProps.LeftUVRect, EquirectProps.RightUVRect, EquirectProps.LeftScale, EquirectProps.RightScale, EquirectProps.LeftBias, EquirectProps.RightBias };
+			LayerDsec.SetShape<FEquirectLayer>(EquirectProps.LeftUVRect, EquirectProps.RightUVRect, EquirectProps.LeftScale, EquirectProps.RightScale, EquirectProps.LeftBias, EquirectProps.RightBias );
 			break;
 
 		default:
