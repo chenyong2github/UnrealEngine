@@ -4,6 +4,7 @@
 
 #include "Transport.h"
 #include "Analysis/StreamReader.h"
+#include "Containers/Array.h"
 
 namespace Trace
 {
