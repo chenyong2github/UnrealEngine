@@ -256,6 +256,12 @@ void FMeshMaterialRenderItem::PopulateWithMeshData()
 				Indices.Add(VertIndex - 3);
 				Indices.Add(VertIndex - 1);
 				Indices.Add(VertIndex - 2);
+
+				// Swap vertices order if mesh is mirrored
+				if (MeshSettings->bMirrored)
+				{
+					Swap(Vertices[Vertices.Num() - 3].Position, Vertices[Vertices.Num() - 1].Position);
+				}
 			}
 			FaceIndex++;
 		}
