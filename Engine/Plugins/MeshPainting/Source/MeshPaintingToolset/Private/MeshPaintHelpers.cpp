@@ -166,7 +166,7 @@ bool UMeshPaintingToolset::PaintVertex(const FVector& InVertexPosition, const FM
 	if (UMeshPaintingToolset::IsPointInfluencedByBrush(InVertexPosition, InParams, SquaredDistanceToVertex2D, VertexDepthToBrush))
 	{
 		// Compute amount of paint to apply
-		const float PaintAmount = ComputePaintMultiplier(SquaredDistanceToVertex2D, InParams.BrushStrength, InParams.InnerBrushRadius, InParams.BrushRadialFalloffRange, InParams.BrushDepth, InParams.BrushDepthFalloffRange, VertexDepthToBrush);
+		const float PaintAmount = UMeshPaintingToolset::ComputePaintMultiplier(SquaredDistanceToVertex2D, InParams.BrushStrength, InParams.InnerBrushRadius, InParams.BrushRadialFalloffRange, InParams.BrushDepth, InParams.BrushDepthFalloffRange, VertexDepthToBrush);
 			
 		const FLinearColor OldColor = InOutVertexColor.ReinterpretAsLinear();
 		FLinearColor NewColor = OldColor;
