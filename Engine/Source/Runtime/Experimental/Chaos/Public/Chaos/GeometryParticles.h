@@ -36,6 +36,8 @@ namespace Chaos
 		TAABB<FReal, 3> WorldSpaceInflatedShapeBounds;
 		TArray<FMaterialHandle> Materials;
 
+		void UpdateShapeBounds(const TRigidTransform<T, d>& WorldTM);
+
 		static TPerShapeData<T, d>* SerializationFactory(FChaosArchive& Ar, TPerShapeData<T, d>*);
 		void Serialize(FChaosArchive& Ar);
 
@@ -274,8 +276,7 @@ namespace Chaos
 				if (Shape->Geometry->HasBoundingBox())
 				{
 					const TRigidTransform<FReal, 3> ActorTM(X(Index), R(Index));
-					TAABB<FReal, 3> Bound = Shape->Geometry->BoundingBox().GetAABB().TransformedAABB(ActorTM);
-					Shape->WorldSpaceInflatedShapeBounds = Bound;
+					Shape->UpdateShapeBounds(ActorTM);
 				}
 			}
 		}
