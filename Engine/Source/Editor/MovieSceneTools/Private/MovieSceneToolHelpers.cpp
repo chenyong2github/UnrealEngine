@@ -1296,8 +1296,8 @@ void MovieSceneToolHelpers::CopyCameraProperties(FbxCamera* CameraNode, AActor* 
 		CameraComponent = CineCameraActor->GetCineCameraComponent();
 
 		UCineCameraComponent* CineCameraComponent = CineCameraActor->GetCineCameraComponent();
-		CineCameraComponent->FilmbackSettings.SensorWidth = FUnitConversion::Convert(ApertureWidth, EUnit::Inches, EUnit::Millimeters);
-		CineCameraComponent->FilmbackSettings.SensorHeight = FUnitConversion::Convert(ApertureHeight, EUnit::Inches, EUnit::Millimeters);
+		CineCameraComponent->Filmback.SensorWidth = FUnitConversion::Convert(ApertureWidth, EUnit::Inches, EUnit::Millimeters);
+		CineCameraComponent->Filmback.SensorHeight = FUnitConversion::Convert(ApertureHeight, EUnit::Inches, EUnit::Millimeters);
 		CineCameraComponent->FocusSettings.ManualFocusDistance = CameraNode->FocusDistance;
 		if (FocalLength < CineCameraComponent->LensSettings.MinFocalLength)
 		{
