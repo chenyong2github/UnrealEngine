@@ -67,9 +67,9 @@ protected:
 	virtual void ActorSelectionChangeNotify() override;
 	virtual void ActivateDefaultTool() override;
 	virtual void UpdateOnPaletteChange() override;
-
 	// end UEdMode Interface
 	void UpdateSelectedMeshes();
+	void OnResetViewMode();
 	void FillWithVertexColor();
 	void PropagateVertexColorsToAsset();
 	bool CanPropagateVertexColors() const;

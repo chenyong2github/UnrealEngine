@@ -98,6 +98,7 @@ UMeshPaintMode::UMeshPaintMode()
 void UMeshPaintMode::Enter()
 {
 	Super::Enter();
+	GEditor->OnEditorClose().AddUObject(this, &UMeshPaintMode::OnResetViewMode);
 	ModeSettings = Cast<UMeshPaintModeSettings>(SettingsObject);
 	FMeshPaintEditorModeCommands ToolManagerCommands = FMeshPaintEditorModeCommands::Get();
 	RegisterTool(ToolManagerCommands.Select, TEXT("MeshClickTool"), NewObject<UMeshClickToolBuilder>());
@@ -111,6 +112,8 @@ void UMeshPaintMode::Enter()
 
 void UMeshPaintMode::Exit()
 {
+	GEditor->OnEditorClose().RemoveAll(this);
+	OnResetViewMode();
 	const FMeshPaintEditorModeCommands& Commands = FMeshPaintEditorModeCommands::Get();
 	const TSharedRef<FUICommandList>& CommandList = Toolkit->GetToolkitCommands();
 	for (const TSharedPtr<const FUICommandInfo> Action : Commands.Commands[UMeshPaintMode::MeshPaintMode_Color])
@@ -681,6 +684,21 @@ void UMeshPaintMode::UpdateOnPaletteChange()
 {
 	UpdateSelectedMeshes();
 }
+
+void UMeshPaintMode::OnResetViewMode()
+{
+	// Reset viewport color mode for all active viewports
+	for (FEditorViewportClient* ViewportClient : GEditor->GetAllViewportClients())
+	{
+		if (!ViewportClient || ViewportClient->GetModeTools() != GetModeManager())
+		{
+			continue;
+		}
+
+		UMeshPaintModeHelpers::SetViewportColorMode(EMeshPaintDataColorViewMode::Normal, ViewportClient);
+	}
+}
+
 
 #undef LOCTEXT_NAMESPACE
 
