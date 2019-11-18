@@ -11,6 +11,7 @@
 namespace Trace { class IAnalysisSession; }
 class FGameplayProvider;
 struct FObjectInfo;
+class USkeletalMesh;
 
 class FAnimationProvider : public IAnimationProvider
 {

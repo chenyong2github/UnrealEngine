@@ -7,10 +7,10 @@
 
 #if WITH_ENGINE
 #include "UObject/GCObject.h"
+#include "Engine/World.h"
 #endif
 
 #if WITH_ENGINE
-class UWorld;
 class UInsightsSkeletalMeshComponent;
 #endif
 
