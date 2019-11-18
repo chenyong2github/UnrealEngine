@@ -1130,7 +1130,7 @@ bool FEditorModeTools::EnsureNotInMode(FEditorModeID ModeID, const FText& ErrorM
 	return bInASafeMode;
 }
 
-UEdMode* FEditorModeTools::GetActiveScriptableMode(FEditorModeID InID)
+UEdMode* FEditorModeTools::GetActiveScriptableMode(FEditorModeID InID) const
 {
 	for (auto& Mode : ActiveScriptableModes)
 	{
@@ -2034,7 +2034,15 @@ const FModeTool* FEditorModeTools::GetActiveTool( FEditorModeID InID ) const
 
 bool FEditorModeTools::IsModeActive( FEditorModeID InID ) const
 {
-	return GetActiveMode( InID ) != nullptr;
+	if (GetActiveMode(InID) != nullptr)
+	{
+		return true;
+	}
+	else if (GetActiveScriptableMode(InID) != nullptr)
+	{
+		return true;
+	}
+	return false;
 }
 
 bool FEditorModeTools::IsDefaultModeActive() const

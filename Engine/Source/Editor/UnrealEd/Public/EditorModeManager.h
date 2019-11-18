@@ -125,7 +125,7 @@ public:
 	UE_DEPRECATED(4.24, "Use GetActiveMode instead.")
 	FEdMode* FindMode( FEditorModeID InID );
 
-	UEdMode* GetActiveScriptableMode(FEditorModeID InID);
+	UEdMode* GetActiveScriptableMode(FEditorModeID InID) const;
 
 	/**
 	 * Returns true if the current mode is not the specified ModeID.  Also optionally warns the user.
