@@ -15,6 +15,7 @@
 #include "LevelEditorModesActions.h"
 #include "Settings/LevelEditorMiscSettings.h"
 #include "EdMode.h"
+#include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "SLevelEditorToolBox"
 
