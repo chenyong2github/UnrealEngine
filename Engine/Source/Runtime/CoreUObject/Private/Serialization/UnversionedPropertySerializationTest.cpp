@@ -10,10 +10,10 @@
 
 namespace PropertySerializationStats
 {
-	static TAtomic<uint64> Structs = 0;
-	static TAtomic<uint64> VersionedBytes = 0;
-	static TAtomic<uint64> UnversionedBytes = 0;
-	static TAtomic<uint64> UselessBytes = 0;
+	static TAtomic<uint64> Structs;
+	static TAtomic<uint64> VersionedBytes;
+	static TAtomic<uint64> UnversionedBytes;
+	static TAtomic<uint64> UselessBytes;
 
 #if ENABLE_COOK_STATS
 	static FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)

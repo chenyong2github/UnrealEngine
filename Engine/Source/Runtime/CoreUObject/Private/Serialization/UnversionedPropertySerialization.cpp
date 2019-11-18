@@ -10,7 +10,7 @@
 // unversioned property loading except non-numeric SerializeItem() calls about 2x faster.
 #ifndef CACHE_UNVERSIONED_PROPERTY_SCHEMA
 // x64 platforms tend to have more memory...
-#	define CACHE_UNVERSIONED_PROPERTY_SCHEMA PLATFORM_CPU_X86_FAMILY && PLATFORM_64BITS
+#	define CACHE_UNVERSIONED_PROPERTY_SCHEMA (PLATFORM_CPU_X86_FAMILY && PLATFORM_64BITS)
 #endif
 
 // Helper to pass around appropriate default value types depending on CACHE_UNVERSIONED_PROPERTY_SCHEMA
@@ -640,7 +640,6 @@ public:
 			}
 
 			RemainingFragmentValues = FragmentIt->ValueNum;
-			check(SchemaIt + RemainingFragmentValues <= SchemaEnd);
 		}
 	};
 };
