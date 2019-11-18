@@ -30,7 +30,6 @@ private:
 
 	bool					ReadPacket();
 	FThreadStream&			FindOrAddThread(uint32 ThreadId);
-	static const uint32		MaxPacketSize = 8192;
 	TArray<FThreadStream>	Threads;
 };
 
