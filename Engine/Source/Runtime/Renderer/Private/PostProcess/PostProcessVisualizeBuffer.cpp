@@ -9,6 +9,7 @@
 #include "ImageWriteTask.h"
 #include "ImageWriteQueue.h"
 #include "HighResScreenshot.h"
+#include "BufferVisualizationData.h"
 
 class FVisualizeBufferPS : public FGlobalShader
 {
@@ -414,7 +415,7 @@ FScreenPassTexture AddVisualizeGBufferOverviewPass(
 
 			FVisualizeBufferTile Tile;
 			Tile.Input = AddDownsamplePass(GraphBuilder, View, DownsampleInputs);
-			Tile.Label = MaterialName;
+			Tile.Label = GetBufferVisualizationData().GetMaterialDisplayName(FName(*MaterialName)).ToString();
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 			Tile.bSelected = 
 				PostProcessSettings.bBufferVisualizationOverviewTargetIsSelected &&

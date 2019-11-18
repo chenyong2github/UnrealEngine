@@ -1137,6 +1137,11 @@ public:
 	bool IsBufferVisualizationModeSelected( FName InName ) const;
 
 	/**
+	 * It returns the FText display name associate with CurrentBufferVisualizationMode
+	 */
+	FText GetCurrentBufferVisualizationModeDisplayName() const;
+
+	/**
 	 * Changes the ray tracing debug visualization mode for this viewport
 	 *
 	 * @param InName	The ID of the required ray tracing debug visualization mode

@@ -56,6 +56,7 @@
 #include "RayTracingDebugVisualizationMenuCommands.h"
 #include "Misc/ScopedSlowTask.h"
 #include "UnrealEngine.h"
+#include "BufferVisualizationData.h"
 
 #define LOCTEXT_NAMESPACE "EditorViewportClient"
 
@@ -2507,6 +2508,13 @@ void FEditorViewportClient::ChangeBufferVisualizationMode( FName InName )
 bool FEditorViewportClient::IsBufferVisualizationModeSelected( FName InName ) const
 {
 	return IsViewModeEnabled( VMI_VisualizeBuffer ) && CurrentBufferVisualizationMode == InName;
+}
+
+FText FEditorViewportClient::GetCurrentBufferVisualizationModeDisplayName() const
+{
+	checkf(IsViewModeEnabled(VMI_VisualizeBuffer), TEXT("In order to call GetCurrentBufferVisualizationMode(), first you must set ViewMode to VMI_VisualizeBuffer."));
+	return (CurrentBufferVisualizationMode.IsNone()
+		? FBufferVisualizationData::GetMaterialDefaultDisplayName() : GetBufferVisualizationData().GetMaterialDisplayName(CurrentBufferVisualizationMode));
 }
 
 void FEditorViewportClient::ChangeRayTracingDebugVisualizationMode(FName InName)

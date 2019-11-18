@@ -1296,7 +1296,6 @@ void SLevelViewportToolBar::CreateViewMenuExtensions(FMenuBuilder& MenuBuilder)
 				check(ViewportClient.IsValid());
 				return ViewportClient->IsViewModeEnabled(VMI_VisualizeBuffer);
 			})),
-			//FIsActionChecked::CreateStatic(&FBufferVisualizationMenuCommands::IsVisualisationMenuSelected, ViewportClient)),
 		/* InExtensionHook = */ NAME_None, EUserInterfaceActionType::RadioButton,
 		/* bInOpenSubMenuOnClick = */ false, FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorViewport.VisualizeBufferMode"));
 
