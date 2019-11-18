@@ -3,22 +3,19 @@
 
 #include "CoreMinimal.h"
 
+#include "Chaos/Core.h"
 #include "Chaos/Transform.h"
 #include "Chaos/Vector.h"
 
 namespace Chaos
 {
-	template<class T, int d>
-	class TPBDJointConstraints;
+	class FPBDJointConstraints;
 
-	template<class T, int d>
-	class TPBDJointConstraintHandle;
+	class FPBDJointConstraintHandle;
 
-	template<typename T, int d>
-	using TJointPreApplyCallback = TFunction<void(const T Dt, const TArray<TPBDJointConstraintHandle<T, d>*>& InConstraintHandles)>;
+	using FJointPreApplyCallback = TFunction<void(const FReal Dt, const TArray<FPBDJointConstraintHandle*>& InConstraintHandles)>;
 
-	template<typename T, int d>
-	using TJointPostApplyCallback = TFunction<void(const T Dt, const TArray<TPBDJointConstraintHandle<T, d>*>& InConstraintHandles)>;
+	using FJointPostApplyCallback = TFunction<void(const FReal Dt, const TArray<FPBDJointConstraintHandle*>& InConstraintHandles)>;
 
 	enum class EJointMotionType : int32
 	{
@@ -47,85 +44,100 @@ namespace Chaos
 		Swing1 = 2,		// Swing1 Axis = Z
 	};
 
-	template<class T, int d>
-	struct TJointConstants
+	enum class EJointProjectionPhase
 	{
-		/** The constraint-space twist axis (X Axis) */
-		static const TVector<T, d> TwistAxis() { return TVector<T, d>(1, 0, 0); }
-
-		/** The constraint-space Swing1 axis (Z Axis) */
-		static const TVector<T, d> Swing1Axis() { return TVector<T, d>(0, 0, 1); }
-
-		/** The constraint-space Swing2 axis (Y Axis) */
-		static const TVector<T, d> Swing2Axis() { return TVector<T, d>(0, 1, 0); }
+		None,
+		Apply,
+		ApplyPushOut,
 	};
 
-	template<class T, int d>
-	class CHAOS_API TPBDJointMotionSettings
+	struct FJointConstants
+	{
+		/** The constraint-space twist axis (X Axis) */
+		static const FVec3 TwistAxis() { return FVec3(1, 0, 0); }
+
+		/** The constraint-space Swing1 axis (Z Axis) */
+		static const FVec3 Swing1Axis() { return FVec3(0, 0, 1); }
+
+		/** The constraint-space Swing2 axis (Y Axis) */
+		static const FVec3 Swing2Axis() { return FVec3(0, 1, 0); }
+	};
+
+	class CHAOS_API FPBDJointMotionSettings
 	{
 	public:
-		TPBDJointMotionSettings();
-		TPBDJointMotionSettings(const TVector<EJointMotionType, d>& InLinearMotionTypes, const TVector<EJointMotionType, d>& InAngularMotionTypes);
+		FPBDJointMotionSettings();
+		FPBDJointMotionSettings(const TVector<EJointMotionType, 3>& InLinearMotionTypes, const TVector<EJointMotionType, 3>& InAngularMotionTypes);
 
-		T Stiffness;
-		T Projection;
+		FReal Stiffness;
+		FReal LinearProjection;
+		FReal AngularProjection;
 
-		TVector<EJointMotionType, d> LinearMotionTypes;
-		T LinearLimit;
+		TVector<EJointMotionType, 3> LinearMotionTypes;
+		FReal LinearLimit;
 
-		TVector<EJointMotionType, d> AngularMotionTypes;
-		TVector<T, d> AngularLimits;
+		TVector<EJointMotionType, 3> AngularMotionTypes;
+		FVec3 AngularLimits;
+
+		bool bSoftLinearLimitsEnabled;
+		bool bSoftTwistLimitsEnabled;
+		bool bSoftSwingLimitsEnabled;
+		FReal SoftLinearStiffness;
+		FReal SoftTwistStiffness;
+		FReal SoftSwingStiffness;
 
 		// @todo(ccaulfield): remove one of these
-		TRotation<T, d> AngularDriveTarget;
-		TVector<T, d> AngularDriveTargetAngles;
+		FRotation3 AngularDriveTarget;
+		FVec3 AngularDriveTargetAngles;
 
 		bool bAngularSLerpDriveEnabled;
 		bool bAngularTwistDriveEnabled;
 		bool bAngularSwingDriveEnabled;
-
-		T AngularDriveStiffness;
-		T AngularDriveDamping;
+		FReal AngularDriveStiffness;
 	};
 
 
-	template<class T, int d>
-	class CHAOS_API TPBDJointSettings
+	class CHAOS_API FPBDJointSettings
 	{
 	public:
-		using FTransformPair = TVector<TRigidTransform<T, d>, 2>;
+		using FTransformPair = TVector<FRigidTransform3, 2>;
 
-		TPBDJointSettings();
+		FPBDJointSettings();
 
 		// Particle-relative joint axes and positions
 		FTransformPair ConstraintFrames;
 
 		// How the constraint is allowed to move
-		TPBDJointMotionSettings<T, d> Motion;
+		FPBDJointMotionSettings Motion;
 	};
 
-	template<class T, int d>
-	class CHAOS_API TPBDJointSolverSettings
+	class CHAOS_API FPBDJointSolverSettings
 	{
 	public:
-		TPBDJointSolverSettings();
+		FPBDJointSolverSettings();
+
+		// Iterations
+		int32 ApplyPairIterations;
+		int32 ApplyPushOutPairIterations;
 
 		// Tolerances
-		T SwingTwistAngleTolerance;
+		FReal SwingTwistAngleTolerance;
 
 		// Stability control
-		T MinParentMassRatio;
-		T MaxInertiaRatio;
+		FReal MinParentMassRatio;
+		FReal MaxInertiaRatio;
 
 		// @todo(ccaulfield): remove these TEMP overrides for testing
-		bool bProjectPostApply;
-		bool bEnableLinearLimits;
+		bool bEnableVelocitySolve;
 		bool bEnableTwistLimits;
 		bool bEnableSwingLimits;
-		bool bEnablePositionCorrection;
 		bool bEnableDrives;
-		T Projection;
-		T Stiffness;
-		T DriveStiffness;
+		EJointProjectionPhase ProjectionPhase;
+		FReal LinearProjection;
+		FReal AngularProjection;
+		FReal Stiffness;
+		FReal DriveStiffness;
+		FReal SoftLinearStiffness;
+		FReal SoftAngularStiffness;
 	};
 }

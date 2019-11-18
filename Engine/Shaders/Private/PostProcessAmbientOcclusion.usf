@@ -921,16 +921,16 @@ void MainSSAOSmoothCS(
 
 #if SHADER_QUALITY == 0
 	// very low
-	#define GTAO_NUMTAPS 5
+	#define GTAO_NUMTAPS 4
 #elif SHADER_QUALITY == 1
 	// low
-	#define GTAO_NUMTAPS 9
+	#define GTAO_NUMTAPS 7
 #elif SHADER_QUALITY == 2
 	// medium
-	#define GTAO_NUMTAPS 15
+	#define GTAO_NUMTAPS 12
 #elif SHADER_QUALITY == 3
 	// high
-	#define GTAO_NUMTAPS 25
+	#define GTAO_NUMTAPS 20
 #else // SHADER_QUALITY == 4
 	// very high
 	#define GTAO_NUMTAPS 35
@@ -992,40 +992,37 @@ float3 GetViewSpacePosFromHZB(float2 UV, float MipLevel)
 }
 
 
-float3 GetNormal(float2 UV, float3 ViewSpacePosMid, bool bConstructFromDepth)
+float3 GetNormal(float2 UV, float3 ViewSpacePosMid)
 {
 	float3 ViewSpaceNormal;
 
-	if(bConstructFromDepth)
-	{
-		// Get the normal derived from the depth buffer
-		float2 DeltaUV = View.BufferSizeAndInvSize.zw;
+#if USE_NORMALBUFFER
+
+	// Get the normal from the normal buffer
+	float3 WorldNormal		= GetGBufferData(UV, false).WorldNormal;
+	ViewSpaceNormal	= normalize(mul(WorldNormal, (float3x3)View.TranslatedWorldToView));
+
+#else
+	// Get the normal derived from the depth buffer
+	float2 DeltaUV = View.BufferSizeAndInvSize.zw;
 	
-		float DeviceZ		= Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct.SceneDepthTextureSampler, UV,0).r;									
-		float DeviceZLeft	= Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct.SceneDepthTextureSampler, UV + float2(-DeltaUV.x,  0.0f),0).r;		
-		float DeviceZTop	= Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct.SceneDepthTextureSampler, UV + float2( 0.0f     , -DeltaUV.y),0).r;	
-		float DeviceZRight	= Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct.SceneDepthTextureSampler, UV + float2( DeltaUV.x,  0.0f),0).r;		
-		float DeviceZBottom = Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct.SceneDepthTextureSampler, UV + float2( 0.0f     ,  DeltaUV.y),0).r;	
+	float DeviceZ		= Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct.SceneDepthTextureSampler, UV,0).r;									
+	float DeviceZLeft	= Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct.SceneDepthTextureSampler, UV + float2(-DeltaUV.x,  0.0f),0).r;		
+	float DeviceZTop	= Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct.SceneDepthTextureSampler, UV + float2( 0.0f     , -DeltaUV.y),0).r;	
+	float DeviceZRight	= Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct.SceneDepthTextureSampler, UV + float2( DeltaUV.x,  0.0f),0).r;		
+	float DeviceZBottom = Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct.SceneDepthTextureSampler, UV + float2( 0.0f     ,  DeltaUV.y),0).r;	
 
-		float DeviceZDdx	= TakeSmallerAbsDelta(DeviceZLeft, DeviceZ, DeviceZRight);
-		float DeviceZDdy	= TakeSmallerAbsDelta(DeviceZTop, DeviceZ, DeviceZBottom);
+	float DeviceZDdx	= TakeSmallerAbsDelta(DeviceZLeft, DeviceZ, DeviceZRight);
+	float DeviceZDdy	= TakeSmallerAbsDelta(DeviceZTop, DeviceZ, DeviceZBottom);
 
-		float ZRight		= ConvertFromDeviceZ(DeviceZ + DeviceZDdx);
-		float ZDown			= ConvertFromDeviceZ(DeviceZ + DeviceZDdy);
+	float ZRight		= ConvertFromDeviceZ(DeviceZ + DeviceZDdx);
+	float ZDown			= ConvertFromDeviceZ(DeviceZ + DeviceZDdy);
 
-		float3 Right		= ScreenToViewPos(UV+ float2( DeltaUV.x,      0.0f) , ZRight)-ViewSpacePosMid;
-		float3 Down			= ScreenToViewPos(UV+ float2(      0.0f, DeltaUV.y) , ZDown) -ViewSpacePosMid;
+	float3 Right		= ScreenToViewPos(UV+ float2( DeltaUV.x,      0.0f) , ZRight)-ViewSpacePosMid;
+	float3 Down			= ScreenToViewPos(UV+ float2(      0.0f, DeltaUV.y) , ZDown) -ViewSpacePosMid;
 		
-		ViewSpaceNormal = normalize(cross(Right, Down));
-
-	}
-	else
-	{
-		// Get the normal from the normal buffer
-		float3 WorldNormal		= GetGBufferData(UV, false).WorldNormal;
-		ViewSpaceNormal	= normalize(mul(WorldNormal, (float3x3)View.TranslatedWorldToView));
-
-	}
+	ViewSpaceNormal = normalize(cross(Right, Down));
+#endif
 
 	return ViewSpaceNormal;
 }
@@ -1345,7 +1342,8 @@ void GTAOCombinedPSandCS(in float2 UV, out float4 OutColor, inout float Depth)
 	float3 ViewSpacePos		= ScreenToViewPos(UV,SceneDepth);
 
 	// Get Normal and transform into viewspace
-	float3 ViewSpaceNormal	= GetNormal(UV, ViewSpacePos, false);
+	float3 ViewSpaceNormal	= GetNormal(UV, ViewSpacePos);
+
 #if GTAO_OPT
 	float3 ViewDir			= float3(0,0,-1);
 #else
@@ -1598,7 +1596,7 @@ float2 ReprojectPos(float2 UV, float Depth)
 	return PrevUV;
 }
 
-void GTAOTemporalFilterPSAndCS(float2 UV, out float OutAO, out float OutDepth)
+void GTAOTemporalFilterPSAndCS(float2 UV, inout float OutAO, inout float OutDepth)
 {
 	float NewAO			= Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UV).r;
 
@@ -1671,36 +1669,17 @@ void GTAOTemporalFilterCS(
 	float OutDepth		= 0;
 	int2   PixelPos		= DispatchThreadId + ScreenSpaceAOParams[5].zw; 
 	float2 PixelCenter	= (float2)PixelPos + float2(0.5, 0.5);
-	float2 BufferUV		= SvPositionToBufferUV(float4(PixelCenter, 0, 0));
+	float2 BufferUV		= PixelCenter.xy * PostprocessInput0Size.zw;
 
 	GTAOTemporalFilterPSAndCS(BufferUV, OutColor, OutDepth);
 
-	OutTexture[PixelPos] = OutColor;
+	OutTexture[PixelPos]		= OutColor;
+	DepthOutTexture[PixelPos]   = OutDepth;
 }
+
 #endif
 
 
-
-
-
-
-
-float4 GTAOUpsamplePSAndCS(float2 UV)
-{
-	float AO = saturate(PI_HALF * Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UV).r);
-
-	float AmbientOcclusionIntensity = ScreenSpaceAOParams[0].w;
-	float AmbientOcclusionPower		= ScreenSpaceAOParams[0].x;
-	// user adjust AO
-	AO = 1 - (1 - pow(abs(AO), AmbientOcclusionPower)) * AmbientOcclusionIntensity;
-
-	return saturate(AO);
-}
-
-void GTAOUpsamplePS(in noperspective float4 UVAndScreenPos : TEXCOORD0,  out float4 OutColor : SV_Target0)
-{
-	OutColor = GTAOUpsamplePSAndCS(UVAndScreenPos.xy);
-}
 
 #if COMPUTE_SHADER
 
@@ -1753,6 +1732,8 @@ void GTAOUpsampleCS(
 {
 	float2 OutColor		= 0;
 
+
+
 	// Get Pixel Pos of the group we are processing
 	int2   PixelPos				= DispatchThreadId + ScreenSpaceAOParams[5].zw; 
 
@@ -1763,14 +1744,14 @@ void GTAOUpsampleCS(
 	int2   PosInGroup			= GroupThreadId.xy;	// Position with a group
 
 	// Get Full Rez Depth
-	float DeviceZ  = PostprocessInput0.Load(int3(PixelPos, 0)).r;
+	float DeviceZ  = PostprocessInput1.Load(int3(PixelPos, 0)).r;
 	float FullResZ = ConvertFromDeviceZ(DeviceZ); 
 	
 	// Get all the low res samples
 	float HalfZ   = ZReadTexture.Load(int3(HalfGroupOriginM1 +PosInGroup.xy , 0)).r;
 	LowResZArray[PosInGroup.x + (PosInGroup.y * THREADGROUP_SIZEX)] = HalfZ;
 
-	float AO      = saturate(PostprocessInput1.Load(int3(HalfGroupOriginM1 +PosInGroup.xy , 0)).r);
+	float AO      = saturate(PostprocessInput0.Load(int3(HalfGroupOriginM1 +PosInGroup.xy , 0)).r);
 	LowResAOArray[PosInGroup.x + (PosInGroup.y * THREADGROUP_SIZEX)] = AO;
 
 	GroupMemoryBarrierWithGroupSync();
@@ -1808,10 +1789,22 @@ void GTAOUpsampleCS(
 }
 #endif
 
-void GTAOSpatialFilterPS(in noperspective float4 UVAndScreenPos : TEXCOORD0,  out float4 OutColor : SV_Target0)
+
+
+float4 GTAOUpsamplePSAndCS(float2 UV)
 {
-	OutColor = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UVAndScreenPos.xy);
+	float AO = saturate( Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UV).r);
+	return float4(AO,0,0,0);
 }
+
+void GTAOUpsamplePS(in noperspective float4 UVAndScreenPos : TEXCOORD0,  out float4 OutColor : SV_Target0)
+{
+	OutColor = GTAOUpsamplePSAndCS(UVAndScreenPos.xy);
+}
+
+
+
+
 
 
 
@@ -1870,13 +1863,13 @@ void GTAOSpatialFilterCS(
 	uint XPos = pixIdx%11;
 	uint YPos = pixIdx/11;
 	SetAOVal(PostprocessInput0.Load(int3(FullGroupOriginM2 + int2(XPos,YPos), 0)).r, XPos, YPos);
-	SetZVal( ZReadTexture.Load(    int3(FullGroupOriginM2 + int2(XPos,YPos), 0)).r, XPos,YPos);
+	SetZVal( ZReadTexture.Load(     int3(FullGroupOriginM2 + int2(XPos,YPos), 0)).r, XPos, YPos);
 
 	pixIdx = 1+(GroupIndex*2);
 	XPos = pixIdx%11;
 	YPos = pixIdx/11;
 	SetAOVal(PostprocessInput0.Load(int3(FullGroupOriginM2 + int2(XPos,YPos), 0)).r, XPos, YPos);
-	SetZVal( ZReadTexture.Load(    int3(FullGroupOriginM2 + int2(XPos,YPos), 0)).r, XPos,YPos);
+	SetZVal( ZReadTexture.Load(     int3(FullGroupOriginM2 + int2(XPos,YPos), 0)).r, XPos, YPos);
 
 	GroupMemoryBarrierWithGroupSync();
 
@@ -1943,7 +1936,11 @@ void GTAOSpatialFilterCS(
 	// user adjust AO
 	SumAO = 1 - (1 - pow(abs(SumAO), AmbientOcclusionPower)) * AmbientOcclusionIntensity;
 
-
 	OutTexture[PixelPos] = SumAO ;
 }
 #endif
+
+void GTAOSpatialFilterPS(in noperspective float4 UVAndScreenPos : TEXCOORD0,  out float4 OutColor : SV_Target0)
+{
+	OutColor = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UVAndScreenPos.xy);
+}

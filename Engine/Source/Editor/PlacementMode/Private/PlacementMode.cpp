@@ -449,8 +449,6 @@ bool FPlacementMode::UsesPropertyWidgets() const
 bool FPlacementMode::IsCompatibleWith(FEditorModeID OtherModeID) const
 {
 	return
-		OtherModeID == FBuiltinEditorModes::EM_Bsp			||
-		OtherModeID == FBuiltinEditorModes::EM_Geometry		||
 		OtherModeID == FBuiltinEditorModes::EM_InterpEdit	||
 		OtherModeID == FBuiltinEditorModes::EM_MeshPaint	||
 		OtherModeID == FBuiltinEditorModes::EM_Foliage		||

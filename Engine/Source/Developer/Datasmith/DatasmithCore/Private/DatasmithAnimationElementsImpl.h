@@ -143,9 +143,20 @@ public:
 		}
 	}
 
+	virtual void SetPropagateToChildren(bool bInPropagate) override
+	{
+		bPropagate = bInPropagate;
+	}
+
+	virtual bool GetPropagateToChildren() const override
+	{
+		return bPropagate;
+	}
+
 private:
 	TArray<FDatasmithVisibilityFrameInfo> Frames;
 	EDatasmithCurveInterpMode CurveInterpMode;
+	bool bPropagate;
 };
 
 class FDatasmithSubsequenceAnimationElementImpl : public FDatasmithBaseAnimationElementImpl< IDatasmithSubsequenceAnimationElement >

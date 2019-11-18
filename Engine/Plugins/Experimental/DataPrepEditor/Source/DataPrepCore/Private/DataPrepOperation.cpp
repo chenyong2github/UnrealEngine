@@ -114,7 +114,7 @@ FText UDataprepOperation::GetTooltip_Implementation() const
 
 FText UDataprepOperation::GetCategory_Implementation() const
 {
-	return FText::FromString( TEXT("Undefined Category") );
+	return LOCTEXT("DefaultOperationCategory", "User-defined");
 }
 
 FText UDataprepOperation::GetAdditionalKeyword_Implementation() const
@@ -137,7 +137,7 @@ UObject* UDataprepEditingOperation::AddAsset( const UObject* Asset, const FStrin
 		return OperationContext->AddAssetDelegate.Execute( Asset, AssetName.Len() > 0 ? *AssetName : nullptr );
 	}
 
-	// #ueent_todo: Report error
+	UE_LOG( LogDataprepCore, Log, TEXT("UDataprepEditingOperation::AddAsset called without context") );
 
 	return nullptr;
 }
@@ -149,7 +149,7 @@ UObject* UDataprepEditingOperation::CreateAsset( UClass* AssetClass, const FStri
 		return OperationContext->CreateAssetDelegate.Execute( AssetClass, AssetName.Len() > 0 ? *AssetName : nullptr );
 	}
 
-	// #ueent_todo: Report error
+	UE_LOG( LogDataprepCore, Log, TEXT("UDataprepEditingOperation::CreateAsset called without context") );
 
 	return nullptr;
 }
@@ -161,7 +161,7 @@ AActor * UDataprepEditingOperation::CreateActor(UClass* ActorClass, const FStrin
 		return OperationContext->CreateActorDelegate.Execute( ActorClass, ActorName.Len() > 0 ? *ActorName : nullptr );
 	}
 
-	// #ueent_todo: Report error
+	UE_LOG( LogDataprepCore, Log, TEXT("UDataprepEditingOperation::CreateActor called without context") );
 
 	return nullptr;
 }
@@ -174,7 +174,7 @@ void UDataprepEditingOperation::RemoveObject( UObject* Object, bool bLocalContex
 		return;
 	}
 
-	// #ueent_todo: Report error
+	UE_LOG( LogDataprepCore, Log, TEXT("UDataprepEditingOperation::RemoveObject called without context") );
 }
 
 void UDataprepEditingOperation::RemoveObjects(TArray<UObject*> Objects, bool bLocalContext)
@@ -188,7 +188,7 @@ void UDataprepEditingOperation::RemoveObjects(TArray<UObject*> Objects, bool bLo
 		return;
 	}
 
-	// #ueent_todo: Report error
+	UE_LOG( LogDataprepCore, Log, TEXT("UDataprepEditingOperation::RemoveObjects called without context") );
 }
 
 void UDataprepEditingOperation::DeleteObject( UObject* Object )
@@ -201,7 +201,7 @@ void UDataprepEditingOperation::DeleteObject( UObject* Object )
 		return;
 	}
 
-	// #ueent_todo: Report error
+	UE_LOG( LogDataprepCore, Log, TEXT("UDataprepEditingOperation::DeleteObject called without context") );
 }
 
 void UDataprepEditingOperation::DeleteObjects( TArray<UObject*> Objects )
@@ -211,7 +211,7 @@ void UDataprepEditingOperation::DeleteObjects( TArray<UObject*> Objects )
 		OperationContext->DeleteObjectsDelegate.Execute( MoveTemp( Objects ) );
 	}
 
-	// #ueent_todo: Report error
+	UE_LOG( LogDataprepCore, Log, TEXT("UDataprepEditingOperation::DeleteObjects called without context") );
 }
 
 #undef LOCTEXT_NAMESPACE

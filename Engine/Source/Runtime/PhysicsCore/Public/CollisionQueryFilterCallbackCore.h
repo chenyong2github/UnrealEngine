@@ -26,8 +26,7 @@ enum class ECollisionQueryHitType : uint8
 
 namespace Chaos
 {
-	template <typename, int>
-	class TImplicitObject;
+	class FImplicitObject;
 }
 
 class ICollisionQueryFilterCallbackBase

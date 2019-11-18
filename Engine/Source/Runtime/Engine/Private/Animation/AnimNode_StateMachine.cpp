@@ -10,6 +10,8 @@
 #include "Animation/AnimNode_LinkedAnimLayer.h"
 #include "Animation/AnimInstance.h"
 
+#define LOCTEXT_NAMESPACE "AnimNode_StateMachine"
+
 DECLARE_CYCLE_STAT(TEXT("StateMachine SetState"), Stat_StateMachineSetState, STATGROUP_Anim);
 
 //////////////////////////////////////////////////////////////////////////
@@ -334,6 +336,19 @@ const FAnimationTransitionBetweenStates& FAnimNode_StateMachine::GetTransitionIn
 	return PRIVATE_MachineDescription->Transitions[TransIndex];
 }
 
+void FAnimNode_StateMachine::LogInertializationRequestError(const FAnimationUpdateContext& Context, int32 PreviousState, int32 NextState)
+{
+#if WITH_EDITORONLY_DATA
+	const FBakedAnimationStateMachine* Machine = GetMachineDescription();
+	FText Message = FText::Format(LOCTEXT("InertialTransitionError", "No Inertialization node found for request from transition '{0}' to '{1}' in state machine '{2}' in anim blueprint '{3}'. Add an Inertialization node after this state machine."),
+		FText::FromName(GetStateInfo(PreviousState).StateName),
+		FText::FromName(GetStateInfo(NextState).StateName),
+		FText::FromName(Machine->MachineName),
+		FText::FromString(GetPathNameSafe(Context.AnimInstanceProxy->GetAnimBlueprint())));
+	Context.LogMessage(EMessageSeverity::Error, Message);
+#endif
+}
+
 // Temporarily turned off while we track down and fix https://jira.ol.epicgames.net/browse/OR-17066
 TAutoConsoleVariable<int32> CVarAnimStateMachineRelevancyReset(TEXT("a.AnimNode.StateMachine.EnableRelevancyReset"), 1, TEXT("Reset State Machine when it becomes relevant"));
 
@@ -449,7 +464,11 @@ void FAnimNode_StateMachine::Update_AnyThread(const FAnimationUpdateContext& Con
 					FAnimNode_Inertialization* InertializationNode = Context.GetAncestor<FAnimNode_Inertialization>();
 					if (InertializationNode)
 					{
-						InertializationNode->Request(ReferenceTransition.CrossfadeDuration);
+						InertializationNode->RequestInertialization(ReferenceTransition.CrossfadeDuration);
+					}
+					else
+					{
+						LogInertializationRequestError(Context, PreviousState, NextState);
 					}
 				}
 
@@ -1089,3 +1108,5 @@ void FAnimNode_StateMachine::CacheMachineDescription(IAnimClassInterface* AnimBl
 {
 	PRIVATE_MachineDescription = AnimBlueprintClass->GetBakedStateMachines().IsValidIndex(StateMachineIndexInClass) ? &(AnimBlueprintClass->GetBakedStateMachines()[StateMachineIndexInClass]) : nullptr;
 }
+
+#undef LOCTEXT_NAMESPACE

@@ -134,7 +134,7 @@ public:
 	/**
 	 * Add a binding and map it to the parameter
 	 */
-	void Add(const TSharedRef<FDataprepParameterizationBinding>& Binding, const FName& ParameterName);
+	void Add(const TSharedRef<FDataprepParameterizationBinding>& Binding, const FName& ParameterName, FSetOfBinding& OutBindingsContainedByNewBinding);
 
 	/**
 	 * Remove a binding.
@@ -147,6 +147,11 @@ public:
 	 * @return The name of the parameters that were associated to the binding of the object
 	 */
 	TSet<FName> RemoveAllBindingsFromObject(UDataprepParameterizableObject* Object);
+
+	/**
+	 * @return A valid pointer if the binding is a part of an existing binding
+	 */
+	TSharedPtr<FDataprepParameterizationBinding> GetContainingBinding(const TSharedRef<FDataprepParameterizationBinding>& Binding) const;
 
 	const FBindingToParameterNameMap& GetBindingToParameterName() const;
 
@@ -212,7 +217,7 @@ public:
 
 	void OnObjectPostEdit(UDataprepParameterizableObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain, EPropertyChangeType::Type ChangeType);
 
-	void GetExistingParameterNamesForType(UProperty* Property,TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const;
+	void GetExistingParameterNamesForType(UProperty* Property, bool bIsDescribingFullProperty, TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const;
 
 private:
 
@@ -250,9 +255,8 @@ private:
 
 	/**
 	 * Try adding a binded property to the parameterization class
-	 * @return false if the binding is no more valid
 	 */
-	UProperty* AddPropertyToClass(const FName& ParameterisationPropertyName, UProperty& Property);
+	UProperty* AddPropertyToClass(const FName& ParameterisationPropertyName, UProperty& Property, bool bAddFullProperty);
 
 	/**
 	 * Get a new value for the parameterization from it's associated binding
@@ -271,6 +275,13 @@ private:
 	bool RemoveBinding(const TSharedRef<FDataprepParameterizationBinding>& Binding, bool& bOutClassNeedUpdate);
 
 public:
+
+	/**
+	 * Update the package of the generated class
+	 * Return if it can be rename
+	 */
+	bool OnAssetRename(ERenameFlags Flags);
+
 
 	static const FName MetadataClassGeneratorName;
 

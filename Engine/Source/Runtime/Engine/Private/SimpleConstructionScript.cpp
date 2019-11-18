@@ -819,7 +819,7 @@ void USimpleConstructionScript::AddNode(USCS_Node* Node)
 	}
 }
 
-void USimpleConstructionScript::RemoveNode(USCS_Node* Node)
+void USimpleConstructionScript::RemoveNode(USCS_Node* Node, const bool bValidateSceneRootNodes)
 {
 	// If it's a root node we are removing, clear it from the list
 	if(RootNodes.Contains(Node))
@@ -835,7 +835,10 @@ void USimpleConstructionScript::RemoveNode(USCS_Node* Node)
 		Node->ParentComponentOrVariableName = NAME_None;
 		Node->ParentComponentOwnerClassName = NAME_None;
 
-		ValidateSceneRootNodes();
+		if (bValidateSceneRootNodes)
+		{
+			ValidateSceneRootNodes();
+		}
 	}
 	// Not the root, so iterate over all nodes looking for the one with us in its ChildNodes array
 	else

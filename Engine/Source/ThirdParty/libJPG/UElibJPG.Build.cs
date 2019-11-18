@@ -11,7 +11,7 @@ public class UElibJPG : ModuleRules
 		string libJPGPath = Target.UEThirdPartySourceDirectory + "libJPG";
 		PublicIncludePaths.Add(libJPGPath);
 
-        bEnableShadowVariableWarnings = false;
-    }
+		ShadowVariableWarningLevel = WarningLevel.Off;
+	}
 }
 

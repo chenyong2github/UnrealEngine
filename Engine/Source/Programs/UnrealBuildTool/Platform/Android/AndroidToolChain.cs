@@ -629,9 +629,9 @@ namespace UnrealBuildTool
 				Result += " -fvisibility=hidden -fvisibility-inlines-hidden"; // Symbols default to hidden.
 			}
 
-			if (CompileEnvironment.bEnableShadowVariableWarnings)
+			if (CompileEnvironment.ShadowVariableWarningLevel != WarningLevel.Off)
 			{
-				Result += " -Wshadow -Wno-error=shadow";
+				Result += " -Wshadow" + ((CompileEnvironment.ShadowVariableWarningLevel == WarningLevel.Error) ? "" : " -Wno-error=shadow");
 			}
 
 			if (CompileEnvironment.bEnableUndefinedIdentifierWarnings)

@@ -273,7 +273,7 @@ void GetSkyLighting(FMaterialPixelParameters MaterialParameters, VTPageTableResu
 	
 	#if HQ_TEXTURE_LIGHTMAP || CACHED_POINT_INDIRECT_LIGHTING || CACHED_VOLUME_INDIRECT_LIGHTING || PRECOMPUTED_IRRADIANCE_VOLUME_LIGHTING
 		BRANCH
-		if (View.SkyLightParameters.x > 0)
+		if (ShouldSkyLightApplyPrecomputedBentNormalShadowing())
 		{
 			float3 NormalizedBentNormal = SkyLightingNormal;
 
@@ -774,8 +774,10 @@ void FPixelShaderInOut_MainPS(
 	inout FPixelShaderOut Out)
 {
 #if INSTANCED_STEREO
-	ResolvedView = ResolveView(Interpolants.EyeIndex);
+	const uint EyeIndex = Interpolants.EyeIndex;
+	ResolvedView = ResolveView(EyeIndex);
 #else
+	const uint EyeIndex = 0;
 	ResolvedView = ResolveView();
 #endif
 
@@ -1115,12 +1117,6 @@ ShadingModel);
 		#elif FORWARD_SHADING || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || TRANSLUCENCY_LIGHTING_SURFACE_LIGHTINGVOLUME || MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 			uint GridIndex = 0;
 
-			#if INSTANCED_STEREO
-				const uint EyeIndex = Interpolants.EyeIndex;
-			#else
-				const uint EyeIndex = 0;
-			#endif
-
 			#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 				GridIndex = ComputeLightGridCellIndex((uint2)(MaterialParameters.SvPosition.xy - ResolvedView.ViewRectMin.xy), MaterialParameters.SvPosition.w, EyeIndex);
 
@@ -1179,11 +1175,7 @@ ShadingModel);
 	if (FogStruct.ApplyVolumetricFog > 0) 
 	{
 		float3 VolumeUV = ComputeVolumeUV(MaterialParameters.AbsoluteWorldPosition, ResolvedView.WorldToClip);
-#if INSTANCED_STEREO
-		Fogging = CombineVolumetricFog(HeightFogging, VolumeUV, Interpolants.EyeIndex);
-#else
-		Fogging = CombineVolumetricFog(HeightFogging, VolumeUV, 0);
-#endif
+		Fogging = CombineVolumetricFog(HeightFogging, VolumeUV, EyeIndex);
 	}
 #endif
 
@@ -1265,7 +1257,7 @@ ShadingModel);
 			OpaqueBasePass.SceneDepthWithoutSingleLayerWaterTexture, SingleLayerWaterSceneDepthSampler, // Scene depth texture
 			Specular, NullDistortionParams,
 			SunIlluminance, WaterDiffuseIndirectIlluminance, EnvBrdf,
-			CameraIsUnderWater, WaterVisibility);
+			CameraIsUnderWater, WaterVisibility, EyeIndex);
 
 		// Add water luminance contribution
 		Color += WaterLighting.Luminance;
@@ -1280,7 +1272,7 @@ ShadingModel);
 			OpaqueBasePass.SceneWithoutSingleLayerWaterMaxUV,
 			Specular, OpaqueBasePass.DistortionParams,
 			SunIlluminance, WaterDiffuseIndirectIlluminance, EnvBrdf,
-			CameraIsUnderWater, WaterVisibility).Luminance;
+			CameraIsUnderWater, WaterVisibility, EyeIndex).Luminance;
 #endif
 	}
 #endif // MATERIAL_SHADINGMODEL_SINGLELAYERWATER

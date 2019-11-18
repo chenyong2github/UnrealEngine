@@ -33,6 +33,9 @@
 
 
 #if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK
+	#define MAX_SIGNAL_BATCH_SIZE CONFIG_SIGNAL_BATCH_SIZE
+	#define SIGNAL_ARRAY_SIZE CONFIG_SIGNAL_BATCH_SIZE
+
 	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_MONOCHROMATIC_PENUMBRA
 	#define CONFIG_HISTORY_BILATERAL_PRESET BILATERAL_PRESET_MONOCHROMATIC_PENUMBRA
 	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN 1
@@ -50,24 +53,17 @@
 	// TODO(Denoiser): cause a regression on spot light for some reasons.
 	//#define CONFIG_USE_NEAREST_HISTORY 1
 
-	// Use pre transformed rejection buffer that contains pre transformed momment 1 & 2.
-	#if 0
-		#define CONFIG_USE_REJECTION_BUFFER               1
-		#define CONFIG_SIGNAL_HISTORY_REJECTION_LAYOUT    SIGNAL_BUFFER_LAYOUT_PENUMBRA_REJECTION
-		
-		#define CONFIG_REJECTION_TEXTURE_COUNT CONFIG_SIGNAL_BATCH_SIZE
-
-		#define CONFIG_REJECTION_INPUT_MODE               REJECTION_INPUT_MODE_2PRETRANSFORMED_MOMMENTS
-		#define CONFIG_REJECTION_SAMPLE_SET               REJECTION_SAMPLE_SET_SOBEK2018
-	#endif
-
 	#if DIM_SIGNAL_BATCH_SIZE > 1
 		#define CONFIG_CLAMP_UV_PER_SIGNAL 1
 	#endif
 
-	#define MAX_SIGNAL_BATCH_SIZE CONFIG_SIGNAL_BATCH_SIZE
-
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_POLYCHROMATIC_PENUMBRA_HARMONIC
+	// Denoise diffuse and specular harmonics at the same time.
+	#define MAX_SIGNAL_BATCH_SIZE 2
+	#define SIGNAL_ARRAY_SIZE 2
+	#undef CONFIG_SIGNAL_BATCH_SIZE
+	#define CONFIG_SIGNAL_BATCH_SIZE 2
+
 	#define COMPILE_SIGNAL_COLOR 1
 
 	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_POLYCHROMATIC_PENUMBRA
@@ -80,16 +76,13 @@
 	#define CONFIG_INPUT_TEXTURE_COUNT 2
 	#define CONFIG_HISTORY_TEXTURE_COUNT 2
 
-	#undef CONFIG_SIGNAL_BATCH_SIZE
-	#define CONFIG_SIGNAL_BATCH_SIZE 2
-
 	#define CONFIG_HISTORY_REJECTION HISTORY_REJECTION_VAR_BOUNDARIES
-
-	// Denoise diffuse and specular harmonics at the same time.
-	#define MAX_SIGNAL_BATCH_SIZE 2
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
 	#define COMPILE_SIGNAL_COLOR 1
+
+	#define MAX_SIGNAL_BATCH_SIZE 1
+	#define SIGNAL_ARRAY_SIZE 2 // First and Second moment in rejection pre convolution.
 
 	// Input and output layout.
 	#define CONFIG_SIGNAL_INPUT_LAYOUT   SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY
@@ -118,6 +111,9 @@
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO
+	#define MAX_SIGNAL_BATCH_SIZE 1
+	#define SIGNAL_ARRAY_SIZE 2 // First and Second moment in rejection pre convolution.
+
 	// Input and output layout.
 	#define CONFIG_SIGNAL_INPUT_LAYOUT   SIGNAL_BUFFER_LAYOUT_AO_HISTORY
 	#define CONFIG_SIGNAL_HISTORY_LAYOUT SIGNAL_BUFFER_LAYOUT_AO_HISTORY
@@ -141,6 +137,9 @@
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_INDIRECT_AND_AO
+	#define MAX_SIGNAL_BATCH_SIZE 1
+	#define SIGNAL_ARRAY_SIZE 1
+
 	#define COMPILE_SIGNAL_COLOR 1
 
 	// Input and output layout.
@@ -158,6 +157,9 @@
 	#define CONFIG_HISTORY_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_SPHERICAL_HARMONIC
+	#define MAX_SIGNAL_BATCH_SIZE 1
+	#define SIGNAL_ARRAY_SIZE 1
+
 	#define COMPILE_SIGNAL_COLOR_SH 1
 
 	// Input and output layout.
@@ -178,6 +180,9 @@
 	#define CONFIG_HISTORY_BILATERAL_PRESET BILATERAL_PRESET_SPHERICAL_HARMONIC
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SSGI
+	#define MAX_SIGNAL_BATCH_SIZE 1
+	#define SIGNAL_ARRAY_SIZE 1
+
 	#define COMPILE_SIGNAL_COLOR 1
 	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN 1
 
@@ -241,7 +246,7 @@
 
 /** The number of signal that should be processed per signal domain. */
 #ifndef CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN
-	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN MAX_SIGNAL_MULTIPLEXING
+	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN SIGNAL_ARRAY_SIZE
 #endif
 
 /** Whether can use a nearest sampler when sampling the history */
@@ -535,7 +540,7 @@ void TemporallyAccumulate(
 			SetBilateralPreset(CONFIG_HISTORY_BILATERAL_PRESET, /* inout */ KernelConfig);
 
 			// SGPR configuration of the kernel.
-			KernelConfig.BufferSizeAndInvSize = View.BufferSizeAndInvSize;
+			KernelConfig.BufferSizeAndInvSize = BufferSizeAndInvSize;
 			KernelConfig.BufferBilinearUVMinMax = BufferBilinearUVMinMax;
 			
 			#if CONFIG_CLAMP_UV_PER_SIGNAL
@@ -550,7 +555,7 @@ void TemporallyAccumulate(
 			#endif
 			
 			// VGPR configuration of the kernel.
-			KernelConfig.BufferUV = HistoryBufferUV;
+			KernelConfig.BufferUV = HistoryBufferUV + BufferUVBilinearCorrection;
 			{
 				KernelConfig.CompressedRefSceneMetadata = CompressedRefSceneMetadata;
 				KernelConfig.RefBufferUV = SceneBufferUV;
@@ -672,7 +677,7 @@ void TemporallyAccumulate(
 				KernelConfig.BufferLayout = CONFIG_SIGNAL_HISTORY_REJECTION_LAYOUT;
 				KernelConfig.bNormalizeSample = false;
 			
-				for (uint MultiplexId = 0; MultiplexId < MAX_SIGNAL_MULTIPLEXING; MultiplexId++)
+				for (uint MultiplexId = 0; MultiplexId < SIGNAL_ARRAY_SIZE; MultiplexId++)
 				{
 					KernelConfig.BufferColorSpace[MultiplexId] = CONFIG_REJECTION_BUFFER_COLOR_SPACE;
 					KernelConfig.AccumulatorColorSpace[MultiplexId] = CONFIG_HISTORY_REJECTION_COLOR_SPACE;
@@ -687,7 +692,7 @@ void TemporallyAccumulate(
 				KernelConfig.BufferLayout = CONFIG_SIGNAL_INPUT_LAYOUT;
 				KernelConfig.bNormalizeSample = true;
 			
-				for (uint MultiplexId = 0; MultiplexId < MAX_SIGNAL_MULTIPLEXING; MultiplexId++)
+				for (uint MultiplexId = 0; MultiplexId < SIGNAL_ARRAY_SIZE; MultiplexId++)
 				{
 					KernelConfig.AccumulatorColorSpace[MultiplexId] = CONFIG_HISTORY_REJECTION_COLOR_SPACE;
 				}
@@ -704,7 +709,7 @@ void TemporallyAccumulate(
 
 		// SGPR configuration of the kernel.
 		{
-			KernelConfig.BufferSizeAndInvSize = View.BufferSizeAndInvSize;
+			KernelConfig.BufferSizeAndInvSize = BufferSizeAndInvSize;
 			KernelConfig.BufferBilinearUVMinMax = BufferBilinearUVMinMax;
 		}
 
@@ -775,6 +780,10 @@ void TemporallyAccumulate(
 			}
 			#elif CONFIG_REJECTION_INPUT_MODE == REJECTION_INPUT_MODE_2PRETRANSFORMED_MOMMENTS
 			{
+				#if SIGNAL_ARRAY_SIZE != 2 * MAX_SIGNAL_BATCH_SIZE
+					#error Invalid signal array size.
+				#endif
+
 				float NormalizeFactor = SafeRcp(SignalAccumulators.Array[BatchedSignalId * 2 + 0].Moment1.SampleCount);
 				NeighborMoment1 = MulSignal(SignalAccumulators.Array[BatchedSignalId * 2 + 0].Moment1, NormalizeFactor);
 				NeighborMoment2 = MulSignal(SignalAccumulators.Array[BatchedSignalId * 2 + 1].Moment1, NormalizeFactor);

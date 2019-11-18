@@ -113,11 +113,11 @@ static TAutoConsoleVariable<int32> CVarRayTracingGlobalIlluminationEnableTwoSide
 	ECVF_RenderThreadSafe
 );
 
-static int32 GRayTracingGlobalIlluminationTileSize = 0;
-static FAutoConsoleVariableRef CVarRayTracingGlobalIlluminationTileSize(
-	TEXT("r.RayTracing.GlobalIllumination.TileSize"),
-	GRayTracingGlobalIlluminationTileSize,
-	TEXT("Render ray traced global illumination in NxN piel tiles, where each tile is submitted as separate GPU command buffer, allowing high quality rendering without triggering timeout detection. (default = 0, tiling disabled)")
+static int32 GRayTracingGlobalIlluminationRenderTileSize = 0;
+static FAutoConsoleVariableRef CVarRayTracingGlobalIlluminationRenderTileSize(
+	TEXT("r.RayTracing.GlobalIllumination.RenderTileSize"),
+	GRayTracingGlobalIlluminationRenderTileSize,
+	TEXT("Render ray traced global illumination in NxN pixel tiles, where each tile is submitted as separate GPU command buffer, allowing high quality rendering without triggering timeout detection. (default = 0, tiling disabled)")
 );
 
 static TAutoConsoleVariable<int32> CVarRayTracingGlobalIlluminationMaxLightCount(
@@ -147,21 +147,30 @@ DECLARE_GPU_STAT_NAMED(RayTracingGIFinalGather, TEXT("Ray Tracing GI: Final Gath
 DECLARE_GPU_STAT_NAMED(RayTracingGICreateGatherPoints, TEXT("Ray Tracing GI: Create Gather Points"));
 
 void SetupLightParameters(
-	const TSparseArray<FLightSceneInfoCompact>& Lights,
+	const FScene& Scene,
 	const FViewInfo& View,
 	FPathTracingLightData* LightParameters)
 {
 	LightParameters->Count = 0;
 
+	// Get the SkyLight color
+
+	FSkyLightSceneProxy* SkyLight = Scene.SkyLight;
+	FVector SkyLightColor = FVector(0.0f, 0.0f, 0.0f);
+	if (SkyLight && SkyLight->bAffectGlobalIllumination)
+	{
+		SkyLightColor = FVector(SkyLight->GetEffectiveLightColor());
+	}
+
 	// Prepend SkyLight to light buffer
 	// WARNING: Until ray payload encodes Light data buffer, the execution depends on this ordering!
 	uint32 SkyLightIndex = 0;
 	LightParameters->Type[SkyLightIndex] = 0;
-	LightParameters->Color[SkyLightIndex] = FVector(1.0);
+	LightParameters->Color[SkyLightIndex] = SkyLightColor;
 	LightParameters->Count++;
 
 	uint32 MaxLightCount = FMath::Min(CVarRayTracingGlobalIlluminationMaxLightCount.GetValueOnRenderThread(), RAY_TRACING_LIGHT_COUNT_MAXIMUM);
-	for (auto Light : Lights)
+	for (auto Light : Scene.Lights)
 	{
 		if (LightParameters->Count >= MaxLightCount) break;
 
@@ -226,6 +235,21 @@ void SetupLightParameters(
 	}
 }
 
+void SetupGlobalIlluminationSkyLightParameters(
+	const FScene& Scene,
+	FSkyLightData* SkyLightData)
+{
+	FSkyLightSceneProxy* SkyLight = Scene.SkyLight;
+
+	SetupSkyLightParameters(Scene, SkyLightData);
+
+	// Override the Sky Light color if it should not affect global illumination
+	if (SkyLight && !SkyLight->bAffectGlobalIllumination)
+	{
+		SkyLightData->Color = FVector(0.0f);
+	}
+}
+
 int32 GetRayTracingGlobalIlluminationSamplesPerPixel(const FViewInfo& View)
 {
 	int32 SamplesPerPixel = GRayTracingGlobalIlluminationSamplesPerPixel > -1 ? GRayTracingGlobalIlluminationSamplesPerPixel : View.FinalPostProcessSettings.RayTracingGISamplesPerPixel;
@@ -286,8 +310,8 @@ class FGlobalIlluminationRGS : public FGlobalShader
 		SHADER_PARAMETER(uint32, EvalSkyLight)
 		SHADER_PARAMETER(uint32, UseRussianRoulette)
 		SHADER_PARAMETER(float, MaxNormalBias)
-		SHADER_PARAMETER(uint32, TileOffsetX)
-		SHADER_PARAMETER(uint32, TileOffsetY)
+		SHADER_PARAMETER(uint32, RenderTileOffsetX)
+		SHADER_PARAMETER(uint32, RenderTileOffsetY)
 
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWGlobalIlluminationUAV)
@@ -306,11 +330,14 @@ class FGlobalIlluminationRGS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FGlobalIlluminationRGS, "/Engine/Private/RayTracing/RayTracingGlobalIlluminationRGS.usf", "GlobalIlluminationRGS", SF_RayGen);
 
-struct GatherPoints
+// Note: This constant must match the definition in RayTracingGatherPoints.ush
+constexpr int32 MAXIMUM_GATHER_POINTS_PER_PIXEL = 32;
+
+struct FGatherPoint
 {
-	FVector CreationPoint[16];
-	FVector Position[16];
-	FVector Irradiance[16];
+	FVector CreationPoint;
+	FVector Position;
+	FIntPoint Irradiance;
 };
 
 class FRayTracingGlobalIlluminationCreateGatherPointsRGS : public FGlobalShader
@@ -318,7 +345,7 @@ class FRayTracingGlobalIlluminationCreateGatherPointsRGS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FRayTracingGlobalIlluminationCreateGatherPointsRGS)
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FRayTracingGlobalIlluminationCreateGatherPointsRGS, FGlobalShader)
 
-		class FUseAttenuationTermDim : SHADER_PERMUTATION_BOOL("USE_ATTENUATION_TERM");
+	class FUseAttenuationTermDim : SHADER_PERMUTATION_BOOL("USE_ATTENUATION_TERM");
 	class FEnableTwoSidedGeometryDim : SHADER_PERMUTATION_BOOL("ENABLE_TWO_SIDED_GEOMETRY");
 
 	using FPermutationDomain = TShaderPermutationDomain<FUseAttenuationTermDim, FEnableTwoSidedGeometryDim>;
@@ -329,12 +356,13 @@ class FRayTracingGlobalIlluminationCreateGatherPointsRGS : public FGlobalShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(uint32, GatherSamplesPerPixel)
 		SHADER_PARAMETER(uint32, SamplesPerPixel)
 		SHADER_PARAMETER(uint32, SampleIndex)
 		SHADER_PARAMETER(uint32, MaxBounces)
 		SHADER_PARAMETER(uint32, UpscaleFactor)
-		SHADER_PARAMETER(uint32, TileOffsetX)
-		SHADER_PARAMETER(uint32, TileOffsetY)
+		SHADER_PARAMETER(uint32, RenderTileOffsetX)
+		SHADER_PARAMETER(uint32, RenderTileOffsetY)
 		SHADER_PARAMETER(float, MaxRayDistanceForGI)
 		SHADER_PARAMETER(float, NextEventEstimationSamples)
 		SHADER_PARAMETER(float, DiffuseThreshold)
@@ -387,8 +415,8 @@ class FRayTracingGlobalIlluminationFinalGatherRGS : public FGlobalShader
 		SHADER_PARAMETER(uint32, SampleIndex)
 		SHADER_PARAMETER(uint32, SamplesPerPixel)
 		SHADER_PARAMETER(uint32, UpscaleFactor)
-		SHADER_PARAMETER(uint32, TileOffsetX)
-		SHADER_PARAMETER(uint32, TileOffsetY)
+		SHADER_PARAMETER(uint32, RenderTileOffsetX)
+		SHADER_PARAMETER(uint32, RenderTileOffsetY)
 		SHADER_PARAMETER(float, DiffuseThreshold)
 		SHADER_PARAMETER(float, MaxNormalBias)
 		SHADER_PARAMETER(float, FinalGatherDistance)
@@ -508,7 +536,7 @@ void FDeferredShadingSceneRenderer::RayTracingGlobalIlluminationCreateGatherPoin
 	FViewInfo& View,
 	int32 UpscaleFactor,
 	FRDGBufferRef& GatherPointsBuffer,
-	FIntPoint& GatherPointsResolution
+	FIntVector& GatherPointsResolution
 )
 #if RHI_RAYTRACING
 {
@@ -534,7 +562,7 @@ void FDeferredShadingSceneRenderer::RayTracingGlobalIlluminationCreateGatherPoin
 	InitializeBlueNoise(BlueNoise);
 
 	FPathTracingLightData LightParameters;
-	SetupLightParameters(Scene->Lights, View, &LightParameters);
+	SetupLightParameters(*Scene, View, &LightParameters);
 
 	if (Scene->SkyLight && Scene->SkyLight->ShouldRebuildCdf())
 	{
@@ -542,10 +570,11 @@ void FDeferredShadingSceneRenderer::RayTracingGlobalIlluminationCreateGatherPoin
 		BuildSkyLightCdfs(GraphBuilder.RHICmdList, Scene->SkyLight);
 	}
 	FSkyLightData SkyLightParameters;
-	SetupSkyLightParameters(*Scene, &SkyLightParameters);
+	SetupGlobalIlluminationSkyLightParameters(*Scene, &SkyLightParameters);
 
 	FRayTracingGlobalIlluminationCreateGatherPointsRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRayTracingGlobalIlluminationCreateGatherPointsRGS::FParameters>();
 	PassParameters->SampleIndex = (FrameIndex * SamplesPerPixel) % GatherSamples;
+	PassParameters->GatherSamplesPerPixel = GatherSamples;
 	PassParameters->SamplesPerPixel = SamplesPerPixel;
 	PassParameters->MaxBounces = 1;
 	PassParameters->MaxNormalBias = GetRaytracingMaxNormalBias();
@@ -555,8 +584,8 @@ void FDeferredShadingSceneRenderer::RayTracingGlobalIlluminationCreateGatherPoin
 	PassParameters->DiffuseThreshold = GRayTracingGlobalIlluminationDiffuseThreshold;
 	PassParameters->NextEventEstimationSamples = GRayTracingGlobalIlluminationNextEventEstimationSamples;
 	PassParameters->UpscaleFactor = UpscaleFactor;
-	PassParameters->TileOffsetX = 0;
-	PassParameters->TileOffsetY = 0;
+	PassParameters->RenderTileOffsetX = 0;
+	PassParameters->RenderTileOffsetY = 0;
 
 	// Global
 	PassParameters->TLAS = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
@@ -582,18 +611,19 @@ void FDeferredShadingSceneRenderer::RayTracingGlobalIlluminationCreateGatherPoin
 	PassParameters->TransmissionProfilesLinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	// Output
-	FIntPoint LocalGatherPointsResolution = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), UpscaleFactor);
+	FIntPoint DispatchResolution = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), UpscaleFactor);
+	FIntVector LocalGatherPointsResolution(DispatchResolution.X, DispatchResolution.Y, GatherSamples);
 	if (GatherPointsResolution != LocalGatherPointsResolution)
 	{
 		GatherPointsResolution = LocalGatherPointsResolution;
-		FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateStructuredDesc(sizeof(GatherPoints), GatherPointsResolution.X * GatherPointsResolution.Y);
+		FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateStructuredDesc(sizeof(FGatherPoint), GatherPointsResolution.X * GatherPointsResolution.Y * GatherPointsResolution.Z);
 		GatherPointsBuffer = GraphBuilder.CreateBuffer(BufferDesc, TEXT("GatherPointsBuffer"), ERDGResourceFlags::MultiFrame);
 	}
 	else
 	{
 		GatherPointsBuffer = GraphBuilder.RegisterExternalBuffer(((FSceneViewState*)View.State)->GatherPointsBuffer, TEXT("GatherPointsBuffer"));
 	}
-	PassParameters->GatherPointsResolution = GatherPointsResolution;
+	PassParameters->GatherPointsResolution = FIntPoint(GatherPointsResolution.X, GatherPointsResolution.Y);
 	PassParameters->RWGatherPointsBuffer = GraphBuilder.CreateUAV(GatherPointsBuffer, EPixelFormat::PF_R32_UINT);
 
 	FRayTracingGlobalIlluminationCreateGatherPointsRGS::FPermutationDomain PermutationVector;
@@ -640,7 +670,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationFinalGathe
 	RDG_EVENT_SCOPE(GraphBuilder, "Ray Tracing GI: Final Gather");
 
 	FRayTracingGlobalIlluminationFinalGatherRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRayTracingGlobalIlluminationFinalGatherRGS::FParameters>();
-	int32 SamplesPerPixel = GetRayTracingGlobalIlluminationSamplesPerPixel(View);
+	int32 SamplesPerPixel = FMath::Min(GetRayTracingGlobalIlluminationSamplesPerPixel(View), MAXIMUM_GATHER_POINTS_PER_PIXEL);
 	int32 SampleIndex = View.ViewState->FrameIndex % SamplesPerPixel;
 	PassParameters->SampleIndex = SampleIndex;
 	PassParameters->SamplesPerPixel = SamplesPerPixel;
@@ -648,8 +678,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationFinalGathe
 	PassParameters->MaxNormalBias = GetRaytracingMaxNormalBias();
 	PassParameters->FinalGatherDistance = GRayTracingGlobalIlluminationFinalGatherDistance;
 	PassParameters->UpscaleFactor = UpscaleFactor;
-	PassParameters->TileOffsetX = 0;
-	PassParameters->TileOffsetY = 0;
+	PassParameters->RenderTileOffsetX = 0;
+	PassParameters->RenderTileOffsetY = 0;
 
 	// Scene data
 	PassParameters->TLAS = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
@@ -666,7 +696,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationFinalGathe
 	PassParameters->TransmissionProfilesLinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	// Gather points
-	PassParameters->GatherPointsResolution = SceneViewState->GatherPointsResolution;
+	PassParameters->GatherPointsResolution = FIntPoint(SceneViewState->GatherPointsResolution.X, SceneViewState->GatherPointsResolution.Y);
 	PassParameters->GatherPointsBuffer = GraphBuilder.CreateSRV(GatherPointsBuffer);
 
 	// Output
@@ -730,7 +760,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationBruteForce
 	InitializeBlueNoise(BlueNoise);
 
 	FPathTracingLightData LightParameters;
-	SetupLightParameters(Scene->Lights, View, &LightParameters);
+	SetupLightParameters(*Scene, View, &LightParameters);
 
 	if (Scene->SkyLight && Scene->SkyLight->ShouldRebuildCdf())
 	{
@@ -738,7 +768,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationBruteForce
 		BuildSkyLightCdfs(GraphBuilder.RHICmdList, Scene->SkyLight);
 	}
 	FSkyLightData SkyLightParameters;
-	SetupSkyLightParameters(*Scene, &SkyLightParameters);
+	SetupGlobalIlluminationSkyLightParameters(*Scene, &SkyLightParameters);
 
 	FGlobalIlluminationRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGlobalIlluminationRGS::FParameters>();
 	PassParameters->SamplesPerPixel = RayTracingGISamplesPerPixel;
@@ -776,8 +806,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationBruteForce
 	PassParameters->TransmissionProfilesLinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	PassParameters->RWGlobalIlluminationUAV = GraphBuilder.CreateUAV(OutDenoiserInputs->Color);
 	PassParameters->RWRayDistanceUAV = GraphBuilder.CreateUAV(OutDenoiserInputs->RayHitDistance);
-	PassParameters->TileOffsetX = 0;
-	PassParameters->TileOffsetY = 0;
+	PassParameters->RenderTileOffsetX = 0;
+	PassParameters->RenderTileOffsetY = 0;
 
 	FGlobalIlluminationRGS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FGlobalIlluminationRGS::FUseAttenuationTermDim>(true);
@@ -787,7 +817,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationBruteForce
 
 	FIntPoint RayTracingResolution = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), UpscaleFactor);
 
-	if (GRayTracingGlobalIlluminationTileSize <= 0)
+	if (GRayTracingGlobalIlluminationRenderTileSize <= 0)
 	{
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("GlobalIlluminationRayTracing %dx%d", RayTracingResolution.X, RayTracingResolution.Y),
@@ -804,9 +834,9 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationBruteForce
 	}
 	else
 	{
-		int32 TileSize = FMath::Max(32, GRayTracingGlobalIlluminationTileSize);
-		int32 NumTilesX = FMath::DivideAndRoundUp(RayTracingResolution.X, TileSize);
-		int32 NumTilesY = FMath::DivideAndRoundUp(RayTracingResolution.Y, TileSize);
+		int32 RenderTileSize = FMath::Max(32, GRayTracingGlobalIlluminationRenderTileSize);
+		int32 NumTilesX = FMath::DivideAndRoundUp(RayTracingResolution.X, RenderTileSize);
+		int32 NumTilesY = FMath::DivideAndRoundUp(RayTracingResolution.Y, RenderTileSize);
 		for (int32 Y = 0; Y < NumTilesY; ++Y)
 		{
 			for (int32 X = 0; X < NumTilesX; ++X)
@@ -818,12 +848,12 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationBruteForce
 					TilePassParameters = GraphBuilder.AllocParameters<FGlobalIlluminationRGS::FParameters>();
 					*TilePassParameters = *PassParameters;
 
-					TilePassParameters->TileOffsetX = X * TileSize;
-					TilePassParameters->TileOffsetY = Y * TileSize;
+					TilePassParameters->RenderTileOffsetX = X * RenderTileSize;
+					TilePassParameters->RenderTileOffsetY = Y * RenderTileSize;
 				}
 
-				int32 DispatchSizeX = FMath::Min<int32>(TileSize, RayTracingResolution.X - TilePassParameters->TileOffsetX);
-				int32 DispatchSizeY = FMath::Min<int32>(TileSize, RayTracingResolution.Y - TilePassParameters->TileOffsetY);
+				int32 DispatchSizeX = FMath::Min<int32>(RenderTileSize, RayTracingResolution.X - TilePassParameters->RenderTileOffsetX);
+				int32 DispatchSizeY = FMath::Min<int32>(RenderTileSize, RayTracingResolution.Y - TilePassParameters->RenderTileOffsetY);
 
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("GlobalIlluminationRayTracing %dx%d (tile %dx%d)", DispatchSizeX, DispatchSizeY, X, Y),

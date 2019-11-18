@@ -14,6 +14,7 @@ UListViewBase::UListViewBase(const FObjectInitializer& ObjectInitializer)
 	, EntryWidgetPool(*this)
 {
 	bIsVariable = true;
+	Clipping = EWidgetClipping::ClipToBounds;
 }
 
 #if WITH_EDITOR

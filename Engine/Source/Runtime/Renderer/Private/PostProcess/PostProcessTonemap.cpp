@@ -837,15 +837,13 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 		TShaderMapRef<FTonemapVS> VertexShader(View.ShaderMap, VertexPermutationVector);
 		TShaderMapRef<FTonemapPS> PixelShader(View.ShaderMap, DesktopPermutationVector);
 
-		FRHIBlendState* BlendState = Inputs.bWriteAlphaChannel ? FScreenPassPipelineState::FDefaultBlendState::GetRHI() : TStaticBlendStateWriteMask<CW_RGB>::GetRHI();
+		// If this is a stereo view, there's a good chance we need alpha out of the tonemapper
+		// @todo: Remove this once Oculus fix the bug in their runtime that requires alpha here.
+		const bool bIsStereo = IStereoRendering::IsStereoEyeView(View);
+		FRHIBlendState* BlendState = Inputs.bWriteAlphaChannel || bIsStereo ? FScreenPassPipelineState::FDefaultBlendState::GetRHI() : TStaticBlendStateWriteMask<CW_RGB>::GetRHI();
 		FRHIDepthStencilState* DepthStencilState = FScreenPassPipelineState::FDefaultDepthStencilState::GetRHI();
 
 		EScreenPassDrawFlags DrawFlags = EScreenPassDrawFlags::AllowHMDHiddenAreaMask;
-
-		if (Inputs.bFlipYAxis)
-		{
-			DrawFlags |= EScreenPassDrawFlags::FlipYAxis;
-		}
 
 		AddDrawScreenPass(
 			GraphBuilder,
@@ -1484,7 +1482,7 @@ void FRCPassPostProcessTonemapES2::Process(FRenderingCompositePassContext& Conte
 		const bool bFirstView = (&View == View.Family->Views[0]);
 		
 		// Full clear to avoid restore
-		if ((View.StereoPass == eSSP_FULL && bFirstView) || View.StereoPass == eSSP_LEFT_EYE)
+		if (IStereoRendering::IsAPrimaryView(View) && (bFirstView || IStereoRendering::IsStereoEyeView(View)))
 		{
 			LoadAction = ERenderTargetLoadAction::EClear;
 		}

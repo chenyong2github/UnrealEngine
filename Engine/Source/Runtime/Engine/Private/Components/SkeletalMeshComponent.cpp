@@ -57,6 +57,7 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("Anim Instance Spawn Time"), STAT_AnimSpawnTime, 
 DEFINE_STAT(STAT_AnimSpawnTime);
 DEFINE_STAT(STAT_PostAnimEvaluation);
 
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 
 FAutoConsoleTaskPriority CPrio_ParallelAnimationEvaluationTask(
@@ -198,22 +199,22 @@ USkeletalMeshComponent::USkeletalMeshComponent(const FObjectInitializer& ObjectI
 
 #endif//#if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 
-	MassMode = EClothMassMode::Density;
-	UniformMass = 1.f;
-	TotalMass = 100.0f;
-	Density = 0.1f;
-	MinPerParticleMass = 0.0001f;
-	EdgeStiffness = 1.f;
-	BendingStiffness = 1.f;
-	AreaStiffness = 1.f;
-	VolumeStiffness = 0.f;
-	StrainLimitingStiffness = 1.f;
-	ShapeTargetStiffness = 0.f;
-	bUseBendingElements = false;
-	bUseTetrahedralConstraints = false;
-	bUseThinShellVolumeConstraints = false;
-	bUseSelfCollisions = false;
-	bUseContinuousCollisionDetection = false;
+	MassMode_DEPRECATED = EClothMassMode::Density;
+	UniformMass_DEPRECATED = 1.f;
+	TotalMass_DEPRECATED = 100.0f;
+	Density_DEPRECATED = 0.1f;
+	MinPerParticleMass_DEPRECATED = 0.0001f;
+	EdgeStiffness_DEPRECATED = 1.f;
+	BendingStiffness_DEPRECATED = 1.f;
+	AreaStiffness_DEPRECATED = 1.f;
+	VolumeStiffness_DEPRECATED = 0.f;
+	StrainLimitingStiffness_DEPRECATED = 1.f;
+	ShapeTargetStiffness_DEPRECATED = 0.f;
+	bUseBendingElements_DEPRECATED = false;
+	bUseTetrahedralConstraints_DEPRECATED = false;
+	bUseThinShellVolumeConstraints_DEPRECATED = false;
+	bUseSelfCollisions_DEPRECATED = false;
+	bUseContinuousCollisionDetection_DEPRECATED = false;
 
 #if WITH_EDITORONLY_DATA
 	DefaultPlayRate_DEPRECATED = 1.0f;
@@ -232,16 +233,7 @@ USkeletalMeshComponent::USkeletalMeshComponent(const FObjectInitializer& ObjectI
 	CachedAnimCurveUidVersion = 0;
 	ResetRootBodyIndex();
 
-	TArray<IClothingSimulationFactoryClassProvider*> ClassProviders = IModularFeatures::Get().GetModularFeatureImplementations<IClothingSimulationFactoryClassProvider>(IClothingSimulationFactoryClassProvider::FeatureName);
-
-	ClothingSimulationFactory = nullptr;
-	for (int32 Index = ClassProviders.Num() - 1; Index >= 0 && !*ClothingSimulationFactory; --Index)  // We use the last provider in the list so plugins/modules can override ours
-	{
-		IClothingSimulationFactoryClassProvider* const Provider = ClassProviders[Index];
-		check(Provider);
-
-		ClothingSimulationFactory = Provider->GetDefaultSimulationFactoryClass();
-	}
+	ClothingSimulationFactory = UClothingSimulationFactory::GetDefaultClothingSimulationFactoryClass();
 
 	ClothingSimulation = nullptr;
 	ClothingSimulationContext = nullptr;
@@ -515,7 +507,7 @@ void USkeletalMeshComponent::OnRegister()
 
 	// Ensure we have an empty list of linked instances on registration. Ready for the initialization below 
 	// to correctly populate that list.
-	LinkedInstances.Reset();
+	ResetLinkedAnimInstances();
 
 	// We force an initialization here because we're in one of two cases.
 	// 1) First register, no spawned instance, need to initialize
@@ -530,18 +522,10 @@ void USkeletalMeshComponent::OnRegister()
 	}
 
 #if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
-	
 	// If we don't have a valid simulation factory - check to see if we have an available default to use instead
-	if(*ClothingSimulationFactory == nullptr)
+	if (*ClothingSimulationFactory == nullptr)
 	{
-		TArray<IClothingSimulationFactoryClassProvider*> ClassProviders = IModularFeatures::Get().GetModularFeatureImplementations<IClothingSimulationFactoryClassProvider>(IClothingSimulationFactoryClassProvider::FeatureName);
-		for (int32 Index = ClassProviders.Num() - 1; Index >= 0 && !*ClothingSimulationFactory; --Index)  // We use the last provider in the list so plugins/modules can override ours
-		{
-			IClothingSimulationFactoryClassProvider* const Provider = ClassProviders[Index];
-			check(Provider);
-
-			ClothingSimulationFactory = Provider->GetDefaultSimulationFactoryClass();
-		}
+		ClothingSimulationFactory = UClothingSimulationFactory::GetDefaultClothingSimulationFactoryClass();
 	}
 
 	RecreateClothingActors();
@@ -571,7 +555,7 @@ void USkeletalMeshComponent::OnUnregister()
 	{
 		LinkedInstance->UninitializeAnimation();
 	}
-	LinkedInstances.Reset();
+	ResetLinkedAnimInstances();
 
 	if(PostProcessAnimInstance)
 	{
@@ -606,6 +590,7 @@ void USkeletalMeshComponent::OnUnregister()
 
 void USkeletalMeshComponent::InitAnim(bool bForceReinit)
 {
+	CSV_SCOPED_TIMING_STAT(Animation, InitAnim);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_SkelMeshComp_InitAnim);
 	LLM_SCOPE(ELLMTag::Animation);
 
@@ -703,7 +688,7 @@ bool USkeletalMeshComponent::InitializeAnimScriptInstance(bool bForceReinit, boo
 			if (AnimScriptInstance)
 			{
 				// If we have any linked instances left we need to clear them out now, we're about to have a new master instance
-				LinkedInstances.Empty();
+				ResetLinkedAnimInstances();
 
 				AnimScriptInstance->InitializeAnimation(bInDeferRootNodeInitialization);
 				bInitializedMainInstance = true;
@@ -820,9 +805,16 @@ void USkeletalMeshComponent::ClearAnimScriptInstance()
 		AnimScriptInstance->EndNotifyStates();
 	}
 	AnimScriptInstance = nullptr;
-	LinkedInstances.Empty();
+	ResetLinkedAnimInstances();
+	ClearCachedAnimProperties();
 }
 
+void USkeletalMeshComponent::ClearCachedAnimProperties()
+{
+	CachedBoneSpaceTransforms.Empty();
+	CachedComponentSpaceTransforms.Empty();
+	CachedCurve.Empty();
+}
 
 void USkeletalMeshComponent::InitializeComponent()
 {
@@ -1012,10 +1004,13 @@ void USkeletalMeshComponent::TickAnimation(float DeltaTime, bool bNeedsValidRoot
 
 		// We update linked instances first incase we're using either root motion or non-threaded update.
 		// This ensures that we go through the pre update process and initialize the proxies correctly.
-		for(UAnimInstance* LinkedInstance : LinkedInstances)
+		if (LinkedAnimationEvaluationOrder == ELinkedAnimationUpdateOrder::UpdateAnimationBeforeAnimScriptInstance)
 		{
-			// Sub anim instances are always forced to do a parallel update 
-			LinkedInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, false, UAnimInstance::EUpdateAnimationFlag::ForceParallelUpdate);
+			for (UAnimInstance* LinkedInstance : LinkedInstances)
+			{
+				// Sub anim instances are always forced to do a parallel update 
+				LinkedInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, false, UAnimInstance::EUpdateAnimationFlag::ForceParallelUpdate);
+			}
 		}
 
 		if (AnimScriptInstance != nullptr)
@@ -1023,6 +1018,16 @@ void USkeletalMeshComponent::TickAnimation(float DeltaTime, bool bNeedsValidRoot
 			// Tick the animation
 			AnimScriptInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, bNeedsValidRootMotion);
 		}
+
+		if (LinkedAnimationEvaluationOrder == ELinkedAnimationUpdateOrder::UpdateAnimationAfterAnimScriptInstance)
+		{
+			for (UAnimInstance* LinkedInstance : LinkedInstances)
+			{
+				// Sub anim instances are always forced to do a parallel update 
+				LinkedInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, false, UAnimInstance::EUpdateAnimationFlag::ForceParallelUpdate);
+			}
+		}
+
 
 		if(ShouldUpdatePostProcessInstance())
 		{
@@ -1714,9 +1719,7 @@ void USkeletalMeshComponent::RecalcRequiredBones(int32 LODIndex)
 	bRequiredBonesUpToDate = true;
 
 	// Invalidate cached bones.
-	CachedBoneSpaceTransforms.Empty();
-	CachedComponentSpaceTransforms.Empty();
-	CachedCurve.Empty();
+	ClearCachedAnimProperties();
 }
 
 void USkeletalMeshComponent::MarkRequiredCurveUpToDate()
@@ -1802,6 +1805,7 @@ void USkeletalMeshComponent::PerformAnimationEvaluation(const USkeletalMesh* InS
 
 void USkeletalMeshComponent::PerformAnimationProcessing(const USkeletalMesh* InSkeletalMesh, UAnimInstance* InAnimInstance, bool bInDoEvaluation, TArray<FTransform>& OutSpaceBases, TArray<FTransform>& OutBoneSpaceTransforms, FVector& OutRootBoneTranslation, FBlendedHeapCurve& OutCurve)
 {
+	CSV_SCOPED_TIMING_STAT(Animation, WorkerThreadTickTime);
 	ANIM_MT_SCOPE_CYCLE_COUNTER(PerformAnimEvaluation, !IsInGameThread());
 
 	// Can't do anything without a SkeletalMesh
@@ -2720,6 +2724,19 @@ UAnimInstance* USkeletalMeshComponent::GetAnimInstance() const
 UAnimInstance* USkeletalMeshComponent::GetPostProcessInstance() const
 {
 	return PostProcessAnimInstance;
+}
+
+void USkeletalMeshComponent::ResetLinkedAnimInstances()
+{
+	for(UAnimInstance* LinkedInstance : LinkedInstances)
+	{
+		if(LinkedInstance)
+		{
+			LinkedInstance->MarkPendingKill();
+			LinkedInstance = nullptr;
+		}
+	}
+	LinkedInstances.Reset();
 }
 
 UAnimInstance* USkeletalMeshComponent::GetLinkedAnimGraphInstanceByTag(FName InName) const

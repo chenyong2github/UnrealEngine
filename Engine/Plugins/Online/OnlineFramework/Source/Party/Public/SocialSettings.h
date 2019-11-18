@@ -28,7 +28,6 @@ public:
 	static float GetUserListAutoUpdateRate();
 	static int32 GetMinNicknameLength();
 	static int32 GetMaxNicknameLength();
-	static bool ValidateNickname(const FString& InNickname);
 
 private:
 	/**
@@ -55,14 +54,11 @@ private:
 	bool bLeavePartyOnDisconnect = true;
 
 	UPROPERTY(config)
-	float UserListAutoUpdateRate = 7.5f;
+	float UserListAutoUpdateRate = 0.5f;
 
 	UPROPERTY(Config)
 	int32 MinNicknameLength = 3;
 
 	UPROPERTY(Config)
 	int32 MaxNicknameLength = 16;
-
-	UPROPERTY(Config)
-	FString NicknameRegexPattern = TEXT("[\\p{L}\\p{N} \\-_.'\\u0091\\u0092\\u2018\\u2019]+");
 };

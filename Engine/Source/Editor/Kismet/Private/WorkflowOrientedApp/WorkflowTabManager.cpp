@@ -774,7 +774,7 @@ TSharedPtr<SDockTab> FDocumentTracker::OpenNewTab(TSharedPtr<FGenericTabHistory>
 
 void FDocumentTracker::CloseTab(TSharedPtr<FTabPayload> Payload)
 {
-	FTabList& List = GetSpawnedList();
+	FTabList List = GetSpawnedList();
 	for (auto ListIt = List.CreateIterator(); ListIt; ++ListIt)
 	{
 		if ((*ListIt)->PayloadMatches(Payload))

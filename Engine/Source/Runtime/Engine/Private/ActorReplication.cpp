@@ -144,10 +144,12 @@ void AActor::PostNetReceive()
 		bNetCheckedInitialPhysicsState = true;
 	}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ExchangeB(bHidden, ActorReplication::SavedbHidden);
 	Exchange(Owner, ActorReplication::SavedOwner);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	if (bHidden != ActorReplication::SavedbHidden)
+	if (IsHidden() != ActorReplication::SavedbHidden)
 	{
 		SetActorHiddenInGame(ActorReplication::SavedbHidden);
 	}
@@ -156,7 +158,7 @@ void AActor::PostNetReceive()
 		SetOwner(ActorReplication::SavedOwner);
 	}
 
-	if (Role != ActorReplication::SavedRole)
+	if (GetLocalRole() != ActorReplication::SavedRole)
 	{
 		PostNetReceiveRole();
 	}
@@ -333,6 +335,7 @@ bool AActor::IsReplayRelevantFor(const AActor* RealViewer, const AActor* ViewTar
 
 void AActor::GatherCurrentMovement()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (IsReplicatingMovement() || (RootComponent && RootComponent->GetAttachParent()))
 	{
 		bool bWasAttachmentModified = false;
@@ -404,6 +407,7 @@ void AActor::GatherCurrentMovement()
 			ReplicatedMovement.bRepPhysics = false;
 		}
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void AActor::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & OutLifetimeProps ) const
@@ -414,22 +418,29 @@ void AActor::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & OutLifeti
 		BPClass->GetLifetimeBlueprintReplicationList(OutLifetimeProps);
 	}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	DOREPLIFETIME( AActor, bReplicateMovement );
 	DOREPLIFETIME( AActor, Role );
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	DOREPLIFETIME( AActor, RemoteRole );
 	DOREPLIFETIME( AActor, Owner );
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	DOREPLIFETIME( AActor, bHidden );
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	DOREPLIFETIME( AActor, bTearOff );
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	DOREPLIFETIME( AActor, bCanBeDamaged );
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	DOREPLIFETIME_CONDITION_NOTIFY( AActor, AttachmentReplication, COND_Custom, REPNOTIFY_Always );
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	DOREPLIFETIME( AActor, Instigator );
-
 	DOREPLIFETIME_CONDITION_NOTIFY( AActor, ReplicatedMovement, COND_SimulatedOrPhysics, REPNOTIFY_Always );
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 bool AActor::ReplicateSubobjects(UActorChannel *Channel, FOutBunch *Bunch, FReplicationFlags *RepFlags)

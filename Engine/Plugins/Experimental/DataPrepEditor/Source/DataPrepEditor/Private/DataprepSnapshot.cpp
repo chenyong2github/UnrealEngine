@@ -49,10 +49,6 @@ enum class EDataprepAssetClass : uint8 {
 	EMaxClasses
 };
 
-// #ueent_todo: Boolean driving activating actual snapshot based logic
-const bool bUseSnapshot = true;
-const bool bUseCompression = false;
-
 namespace DataprepSnapshotUtil
 {
 	const TCHAR* SnapshotExtension = TEXT(".dpc");
@@ -98,7 +94,6 @@ namespace DataprepSnapshotUtil
 
 	}
 
-	// #ueent_todo: Find a solution using the path of the RootPackage instead of the UPackage object itself
 	FString BuildAssetFileName(const FString& RootPath, const FString& AssetPath )
 	{
 		static FString FileNamePrefix( TEXT("stream_") );
@@ -170,7 +165,6 @@ namespace DataprepSnapshotUtil
 			}
 
 			// Sort array of sub-objects: first objects do not depend on ones below
-			// #ueent_todo: Improve performance of building. Current is pretty brute force
 			int32 Count = SubObjectsArray.Num();
 			SubObjectsArray.Empty(Count);
 
@@ -216,15 +210,20 @@ namespace DataprepSnapshotUtil
 			MemAr << ObjectFlags;
 		}
 
-		// Serialize sub-objects' outer path
-		// Done in reverse order since an object can be the outer of the object
+		// Serialize sub-objects' outer path and name
+		// Done in reverse order since a sub-object can be the outer of another sub-object
 		// it depends on. Not the opposite
 		for(int32 Index = SubObjectsArray.Num() - 1; Index >= 0; --Index)
 		{
-			FSoftObjectPath SoftPath( SubObjectsArray[Index]->GetOuter() );
+			const UObject* SubObject = SubObjectsArray[Index];
+
+			FSoftObjectPath SoftPath( SubObject->GetOuter() );
 
 			FString SoftPathString = SoftPath.ToString();
 			MemAr << SoftPathString;
+
+			FString SubObjectName = SubObject->GetName();
+			MemAr << SubObjectName;
 		}
 
 		// Serialize sub-objects' content
@@ -240,28 +239,6 @@ namespace DataprepSnapshotUtil
 		{
 			bool bRebuildResource = !!Texture->Resource;
 			Ar << bRebuildResource;
-		}
-
-		if(bUseCompression)
-		{
-			const int32 BufferHeaderSize = (int32)sizeof(int32);
-
-			TArray<uint8> MemoryBuffer( MoveTemp( OutSerializedData ) );
-
-			// allocate all of the input space for the output, with extra space for max overhead of zlib (when compressed > uncompressed)
-			int32 CompressedSize = FCompression::CompressMemoryBound(NAME_Zlib, MemoryBuffer.Num());
-			OutSerializedData.SetNum( CompressedSize + BufferHeaderSize );
-
-			// Store the size of the uncompressed buffer
-			((int32*)OutSerializedData.GetData())[0] = MemoryBuffer.Num();
-
-			// compress the data		
-			bool bSucceeded = FCompression::CompressMemory(NAME_Zlib, OutSerializedData.GetData() + BufferHeaderSize, CompressedSize, MemoryBuffer.GetData(), MemoryBuffer.Num());
-
-			// if it failed send the data uncompressed, which we mark by setting compressed size to 0
-			checkf(bSucceeded, TEXT("zlib failed to compress, which is very unexpected"));
-
-			OutSerializedData.SetNum( CompressedSize + BufferHeaderSize );
 		}
 	}
 
@@ -281,25 +258,9 @@ namespace DataprepSnapshotUtil
 			}
 		};
 
-		TArray<uint8> MemoryBuffer;
-		if(bUseCompression)
-		{
-			const int32 BufferHeaderSize = (int32)sizeof(int32);
-
-			// Allocate the space required for the uncompressed data
-			int32 UncompressedSize = ((int32*)InSerializedData.GetData())[0];
-			MemoryBuffer.SetNum(UncompressedSize);
-
-			// uncompress the data		
-			bool bSucceeded = FCompression::UncompressMemory(NAME_Zlib, MemoryBuffer.GetData(), MemoryBuffer.Num(), InSerializedData.GetData() + BufferHeaderSize, InSerializedData.Num() - BufferHeaderSize);
-
-			// if it failed send the data uncompressed, which we mark by setting compressed size to 0
-			checkf(bSucceeded, TEXT("zlib failed to uncompress, which is very unexpected"));
-		}
-
 		RemoveDefaultDependencies( Object );
 
-		FMemoryReader MemAr(bUseCompression ? MemoryBuffer : InSerializedData);
+		FMemoryReader MemAr(InSerializedData);
 		FSnapshotCustomArchive Ar(MemAr);
 
 		// Deserialize count of sub-objects
@@ -334,6 +295,9 @@ namespace DataprepSnapshotUtil
 			FString SoftPathString;
 			MemAr << SoftPathString;
 
+			FString SubObjectName;
+			MemAr << SubObjectName;
+
 			const FSoftObjectPath SoftPath( SoftPathString );
 
 			UObject* NewOuter = SoftPath.ResolveObject();
@@ -342,7 +306,7 @@ namespace DataprepSnapshotUtil
 			UObject* SubObject = SubObjectsArray[Index];
 			if( NewOuter != SubObject->GetOuter() )
 			{
-				FDataprepCoreUtils::RenameObject( SubObject, nullptr, NewOuter );
+				FDataprepCoreUtils::RenameObject( SubObject, *SubObjectName, NewOuter );
 			}
 		}
 
@@ -446,11 +410,6 @@ public:
 
 void FDataprepEditor::TakeSnapshot()
 {
-	if(!bUseSnapshot)
-	{
-		return;
-	}
-
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDataprepEditor::TakeSnapshot);
 
 	uint64 StartTime = FPlatformTime::Cycles64();
@@ -644,7 +603,6 @@ void FDataprepEditor::TakeSnapshot()
 		return;
 	}
 
-	// #ueent_todo: Is that necessary since Assets has already been sorted?
 	ContentSnapshot.DataEntries.Sort([&](const FSnapshotDataEntry& A, const FSnapshotDataEntry& B)
 	{
 		return GetAssetClassEnum( A.Get<1>() ) < GetAssetClassEnum( B.Get<1>() );
@@ -660,16 +618,10 @@ void FDataprepEditor::TakeSnapshot()
 
 void FDataprepEditor::RestoreFromSnapshot(bool bUpdateViewport)
 {
-	if(!bUseSnapshot)
-	{
-		OnBuildWorld();
-		return;
-	}
-
 	// Snapshot is not usable, rebuild the world from the producers
 	if ( !ContentSnapshot.bIsValid )
 	{
-		// #ueent_todo: Inform user that snapshot is no good and world is going to be rebuilt from scratch
+		UE_LOG( LogDataprepEditor, Log, TEXT("Snapshot is invalid. Running the producers...") );
 		OnBuildWorld();
 		return;
 	}

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "VoicePackage.h"
+#include "DSP/MultithreadedPatching.h"
 
 class Error;
 
@@ -70,6 +71,11 @@ class IVoiceCapture : public TSharedFromThis<IVoiceCapture>
 protected:
 
 	IVoiceCapture() {};
+
+	/**
+	 * Optional patch point for MicrophoneOutput.
+	 */
+	Audio::FPatchSplitter MicrophoneOutput;
 
 public:
 	
@@ -150,4 +156,12 @@ public:
 
 	/** Dump the state of the voice capture device */
 	virtual void DumpState() const = 0;
+
+	/**
+	 * @returns a new output for this mic's audio.
+	 */
+	Audio::FPatchOutputStrongPtr GetMicrophoneAudio(int32 MaxExpectedLatencyInSamples, float Gain)
+	{
+		return MicrophoneOutput.AddNewPatch(MaxExpectedLatencyInSamples, Gain);
+	}
 };

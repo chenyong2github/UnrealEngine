@@ -9,6 +9,7 @@
 #include "Chaos/GeometryParticlesfwd.h"
 #include "Chaos/CollisionFilterData.h"
 #include "Chaos/Box.h"
+#include "Chaos/PhysicalMaterials.h"
 #include "UObject/PhysicsObjectVersion.h"
 #include "UObject/ExternalPhysicsCustomObjectVersion.h"
 
@@ -31,8 +32,9 @@ namespace Chaos
 		FCollisionFilterData QueryData;
 		FCollisionFilterData SimData;
 		void* UserData;
-		TSerializablePtr<TImplicitObject<T, d>> Geometry;
-		
+		TSerializablePtr<FImplicitObject> Geometry;
+		TAABB<FReal, 3> WorldSpaceInflatedShapeBounds;
+		TArray<FMaterialHandle> Materials;
 
 		static TPerShapeData<T, d>* SerializationFactory(FChaosArchive& Ar, TPerShapeData<T, d>*);
 		void Serialize(FChaosArchive& Ar);
@@ -53,9 +55,9 @@ namespace Chaos
 	using TShapesArray = TArray<TUniquePtr<TPerShapeData<T, d>>, TInlineAllocator<1>>;
 
 	template <typename T, int d>
-	void UpdateShapesArrayFromGeometry(TShapesArray<T, d>& ShapesArray, TSerializablePtr<TImplicitObject<T, d>> Geometry);
+	void UpdateShapesArrayFromGeometry(TShapesArray<T, d>& ShapesArray, TSerializablePtr<FImplicitObject> Geometry, const FRigidTransform3& ActorTM);
 
-	extern template void CHAOS_API UpdateShapesArrayFromGeometry(TShapesArray<float, 3>& ShapesArray, TSerializablePtr<TImplicitObject<float, 3>> Geometry);
+	extern template void CHAOS_API UpdateShapesArrayFromGeometry(TShapesArray<float, 3>& ShapesArray, TSerializablePtr<FImplicitObject> Geometry,  const FRigidTransform3& ActorTM);
 
 #if CHAOS_DETERMINISTIC
 	using FParticleID = int32;	//Used to break ties when determinism is needed. Should not be used for anything else
@@ -97,6 +99,7 @@ namespace Chaos
 			TArrayCollection::AddArray(&MWorldSpaceInflatedBounds);
 			TArrayCollection::AddArray(&MHasBounds);
 			TArrayCollection::AddArray(&MSpatialIdx);
+			TArrayCollection::AddArray(&MHashResult);
 
 			if (IsRigidBodySim())
 			{
@@ -119,6 +122,7 @@ namespace Chaos
 			, MWorldSpaceInflatedBounds(MoveTemp(Other.MWorldSpaceInflatedBounds))
 			, MHasBounds(MoveTemp(Other.MHasBounds))
 			, MSpatialIdx(MoveTemp(Other.MSpatialIdx))
+			, MHashResult(MoveTemp(Other.MHashResult))
 #if CHAOS_DETERMINISTIC
 			, MParticleIDs(MoveTemp(Other.MParticleIDs))
 #endif
@@ -133,6 +137,7 @@ namespace Chaos
 			TArrayCollection::AddArray(&MWorldSpaceInflatedBounds);
 			TArrayCollection::AddArray(&MHasBounds);
 			TArrayCollection::AddArray(&MSpatialIdx);
+			TArrayCollection::AddArray(&MHashResult);
 #if CHAOS_DETERMINISTIC
 			TArrayCollection::AddArray(&MParticleIDs);
 #endif
@@ -159,6 +164,7 @@ namespace Chaos
 			TArrayCollection::AddArray(&MWorldSpaceInflatedBounds);
 			TArrayCollection::AddArray(&MHasBounds);
 			TArrayCollection::AddArray(&MSpatialIdx);
+			TArrayCollection::AddArray(&MHashResult);
 #if CHAOS_DETERMINISTIC
 			TArrayCollection::AddArray(&MParticleIDs);
 #endif
@@ -176,11 +182,11 @@ namespace Chaos
 		CHAOS_API const TRotation<T, d>& R(const int32 Index) const { return MR[Index]; }
 		CHAOS_API TRotation<T, d>& R(const int32 Index) { return MR[Index]; }
 
-		CHAOS_API TSerializablePtr<TImplicitObject<T, d>> Geometry(const int32 Index) const { return MGeometry[Index]; }
+		CHAOS_API TSerializablePtr<FImplicitObject> Geometry(const int32 Index) const { return MGeometry[Index]; }
 
-		CHAOS_API const TUniquePtr<TImplicitObject<T, d>>& DynamicGeometry(const int32 Index) const { return MDynamicGeometry[Index]; }
+		CHAOS_API const TUniquePtr<FImplicitObject>& DynamicGeometry(const int32 Index) const { return MDynamicGeometry[Index]; }
 
-		const TSharedPtr<TImplicitObject<T, d>, ESPMode::ThreadSafe>& SharedGeometry(const int32 Index) const { return MSharedGeometry[Index]; }
+		const TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>& SharedGeometry(const int32 Index) const { return MSharedGeometry[Index]; }
 
 		const TShapesArray<T, d>& ShapesArray(const int32 Index) const { return MShapesArray[Index]; }
 
@@ -189,7 +195,7 @@ namespace Chaos
 		CHAOS_API FParticleID& ParticleID(const int32 Idx) { return MParticleIDs[Idx]; }
 #endif
 
-		CHAOS_API void SetDynamicGeometry(const int32 Index, TUniquePtr<TImplicitObject<T, d>>&& InUnique)
+		CHAOS_API void SetDynamicGeometry(const int32 Index, TUniquePtr<FImplicitObject>&& InUnique)
 		{
 			check(!SharedGeometry(Index));	// If shared geometry exists we should not be setting dynamic geometry on top
 			MGeometry[Index] = MakeSerializable(InUnique);
@@ -197,7 +203,7 @@ namespace Chaos
 			UpdateShapesArray(Index);
 		}
 
-		CHAOS_API void SetSharedGeometry(const int32 Index, TSharedPtr<TImplicitObject<T, d>, ESPMode::ThreadSafe> InShared)
+		CHAOS_API void SetSharedGeometry(const int32 Index, TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> InShared)
 		{
 			check(!DynamicGeometry(Index));	// If dynamic geometry exists we should not be setting shared geometry on top
 			MGeometry[Index] = MakeSerializable(InShared);
@@ -205,7 +211,7 @@ namespace Chaos
 			UpdateShapesArray(Index);
 		}
 		
-		CHAOS_API void SetGeometry(const int32 Index, TSerializablePtr<TImplicitObject<T, d>> InGeometry)
+		CHAOS_API void SetGeometry(const int32 Index, TSerializablePtr<FImplicitObject> InGeometry)
 		{
 			check(!DynamicGeometry(Index));
 			check(!SharedGeometry(Index));
@@ -243,17 +249,38 @@ namespace Chaos
 			return MSpatialIdx[Index];
 		}
 
+		CHAOS_API uint32 HashResultLowLevel(const int32 Index) const
+		{
+			return MHashResult[Index];
+		}
+
+		CHAOS_API uint32& HashResultLowLevel(const int32 Index)
+		{
+			return MHashResult[Index];
+		}
+
 		CHAOS_API const TBox<T, d>& WorldSpaceInflatedBounds(const int32 Index) const
 		{
 			return MWorldSpaceInflatedBounds[Index];
 		}
 
-		CHAOS_API TBox<T, d>& WorldSpaceInflatedBounds(const int32 Index)
+		CHAOS_API void SetWorldSpaceInflatedBounds(const int32 Index, const TBox<T, d>& Bounds)
 		{
-			return MWorldSpaceInflatedBounds[Index];
+			MWorldSpaceInflatedBounds[Index] = Bounds;
+
+			const TShapesArray<FReal, 3>& Shapes = ShapesArray(Index);
+			for (const auto& Shape : Shapes)
+			{
+				if (Shape->Geometry->HasBoundingBox())
+				{
+					const TRigidTransform<FReal, 3> ActorTM(X(Index), R(Index));
+					TAABB<FReal, 3> Bound = Shape->Geometry->BoundingBox().GetAABB().TransformedAABB(ActorTM);
+					Shape->WorldSpaceInflatedShapeBounds = Bound;
+				}
+			}
 		}
 
-		const TArray<TSerializablePtr<TImplicitObject<T, d>>>& GetAllGeometry() const { return MGeometry; }
+		const TArray<TSerializablePtr<FImplicitObject>>& GetAllGeometry() const { return MGeometry; }
 
 		typedef TGeometryParticleHandle<T, d> THandleType;
 		CHAOS_API THandleType* Handle(int32 Index) const { return const_cast<THandleType*>(MGeometryParticleHandle[Index].Get()); }
@@ -290,6 +317,14 @@ namespace Chaos
 				Ar << MLocalBounds;
 				Ar << MWorldSpaceInflatedBounds;
 				Ar << MHasBounds;
+
+				if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::SerializeShapeWorldSpaceBounds)
+				{
+					for (int32 Idx = 0; Idx < MShapesArray.Num(); ++Idx)
+					{
+						SetWorldSpaceInflatedBounds(Idx, MWorldSpaceInflatedBounds[Idx]);
+					}
+				}
 			}
 			else
 			{
@@ -300,7 +335,8 @@ namespace Chaos
 					if (MHasBounds[Idx])
 					{
 						MLocalBounds[Idx] = MGeometry[Idx]->BoundingBox();
-						MWorldSpaceInflatedBounds[Idx] = MLocalBounds[Idx].TransformedBox(TRigidTransform<T,d>(X(Idx), R(Idx)));	//ignore velocity too, really just trying to get something reasonable
+						//ignore velocity too, really just trying to get something reasonable)
+						SetWorldSpaceInflatedBounds(Idx, MLocalBounds[Idx].TransformedBox(TRigidTransform<T,d>(X(Idx), R(Idx))));
 					}
 				}
 			}
@@ -313,6 +349,18 @@ namespace Chaos
 			{
 				Ar << MSpatialIdx;
 			}
+
+			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::SerializeHashResult)
+			{
+				for (const auto& Particle : MGeometryParticle)
+				{
+					SerializeHashResultHelper(Ar, Particle);
+				}
+			}
+			else
+			{
+				Ar << MHashResult;
+			}
 		}
 
 		CHAOS_API EParticleType ParticleType() const { return MParticleType; }
@@ -324,13 +372,13 @@ namespace Chaos
 		TArrayCollectionArray<TRotation<T, d>> MR;
 		// MGeometry contains raw ptrs to every entry in both MSharedGeometry and MDynamicGeometry.
 		// It may also contain raw ptrs to geometry which is managed outside of Chaos.
-		TArrayCollectionArray<TSerializablePtr<TImplicitObject<T, d>>> MGeometry;
+		TArrayCollectionArray<TSerializablePtr<FImplicitObject>> MGeometry;
 		// MSharedGeometry entries are owned by the solver, shared between *representations* of a particle.
 		// This is NOT for sharing geometry resources between particle's A and B, this is for sharing the
 		// geometry between particle A's various representations.
-		TArrayCollectionArray<TSharedPtr<TImplicitObject<T, d>, ESPMode::ThreadSafe>> MSharedGeometry;
+		TArrayCollectionArray<TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>> MSharedGeometry;
 		// MDynamicGeometry entries are used for geo which is by the evolution. It is not set from the game side.
-		TArrayCollectionArray<TUniquePtr<TImplicitObject<T, d>>> MDynamicGeometry;
+		TArrayCollectionArray<TUniquePtr<FImplicitObject>> MDynamicGeometry;
 		TArrayCollectionArray<TSerializablePtr<TGeometryParticleHandle<T, d>>> MGeometryParticleHandle;
 		TArrayCollectionArray<TGeometryParticle<T, d>*> MGeometryParticle;
 		TArrayCollectionArray<TShapesArray<T,d>> MShapesArray;
@@ -338,16 +386,18 @@ namespace Chaos
 		TArrayCollectionArray<TBox<T, d>> MWorldSpaceInflatedBounds;
 		TArrayCollectionArray<bool> MHasBounds;
 		TArrayCollectionArray<FSpatialAccelerationIdx> MSpatialIdx;
+		TArrayCollectionArray<uint32> MHashResult;
 
 		void UpdateShapesArray(const int32 Index)
 		{
-			UpdateShapesArrayFromGeometry(MShapesArray[Index], MGeometry[Index]);
+			UpdateShapesArrayFromGeometry(MShapesArray[Index], MGeometry[Index], FRigidTransform3(X(Index), R(Index)));
 		}
 
 		template <typename T2, int d2, EGeometryParticlesSimType SimType2>
 		friend class TGeometryParticlesImp;
 
 		CHAOS_API void SerializeGeometryParticleHelper(FChaosArchive& Ar, TGeometryParticlesImp<T, d, EGeometryParticlesSimType::RigidBodySim>* GeometryParticles);
+		CHAOS_API void SerializeHashResultHelper(FChaosArchive& Ar, TGeometryParticle<T, d>* Particle);
 		
 		void SerializeGeometryParticleHelper(FChaosArchive& Ar, TGeometryParticlesImp<T, d, EGeometryParticlesSimType::Other>* GeometryParticles)
 		{

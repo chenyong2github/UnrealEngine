@@ -12,12 +12,13 @@
 
 USoundControlBusBase::USoundControlBusBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-#if WITH_EDITORONLY_DATA
-	, bOverrideAddress(false)
-#endif
+	, bBypass(false)
 	, DefaultValue(1.0f)
 	, Min(0.0f)
 	, Max(1.0f)
+#if WITH_EDITORONLY_DATA
+	, bOverrideAddress(false)
+#endif
 {
 }
 
@@ -39,6 +40,14 @@ void USoundControlBusBase::PostEditChangeProperty(FPropertyChangedEvent& Propert
 		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(USoundControlBusBase, bOverrideAddress) && !bOverrideAddress)
 		{
 			Address = GetName();
+		}
+
+		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(USoundControlBusBase, DefaultValue)
+			|| Property->GetFName() == GET_MEMBER_NAME_CHECKED(USoundControlBusBase, Min)
+			|| Property->GetFName() == GET_MEMBER_NAME_CHECKED(USoundControlBusBase, Max))
+		{
+			Min = FMath::Min(Min, Max);
+			DefaultValue = FMath::Clamp(DefaultValue, Min, Max);
 		}
 	}
 
@@ -94,65 +103,43 @@ void USoundControlBusBase::BeginDestroy()
 {
 	Super::BeginDestroy();
 
-	UWorld* World = GetWorld();
-	if (!World)
+	if (UWorld* World = GetWorld())
 	{
-		return;
-	}
-
-	FAudioDevice* AudioDevice = World->GetAudioDevice();
-	if (!AudioDevice)
-	{
-		return;
-	}
-
-	check(AudioDevice->IsModulationPluginEnabled());
-	if (IAudioModulation* ModulationInterface = AudioDevice->ModulationInterface.Get())
-	{
-		auto ModulationImpl = static_cast<AudioModulation::FAudioModulation*>(ModulationInterface)->GetImpl();
-		check(ModulationImpl);
-
-		auto BusId = static_cast<const AudioModulation::FBusId>(GetUniqueID());
-		ModulationImpl->DeactivateBus(BusId);
+		if (FAudioDevice* AudioDevice = World->GetAudioDevice())
+		{
+			check(AudioDevice->IsModulationPluginEnabled());
+			if (IAudioModulation* ModulationInterface = AudioDevice->ModulationInterface.Get())
+			{
+				auto ModulationImpl = static_cast<AudioModulation::FAudioModulation*>(ModulationInterface)->GetImpl();
+				check(ModulationImpl);
+				ModulationImpl->DeactivateBus(*this);
+			}
+		}
 	}
 }
 
 namespace AudioModulation
 {
 	FControlBusProxy::FControlBusProxy()
-		: TModulatorProxyRefBase<FBusId>()
-		, DefaultValue(0.0f)
+		: DefaultValue(0.0f)
 		, LFOValue(1.0f)
 		, MixValue(NAN)
+		, bBypass(false)
 		, Operator(ESoundModulatorOperator::Multiply)
 		, Range(0.0f, 1.0f)
 	{
 	}
 
-	FControlBusProxy::FControlBusProxy(const USoundControlBusBase& Bus)
-		: TModulatorProxyRefBase<FBusId>(Bus.GetName(), Bus.GetUniqueID(), Bus.bAutoActivate)
-		, DefaultValue(Bus.DefaultValue)
-		, LFOValue(1.0f)
-		, MixValue(NAN)
-		, Operator(Bus.GetOperator())
-		, Range(Bus.Min, Bus.Max)
+	FControlBusProxy::FControlBusProxy(const USoundControlBusBase& InBus)
+		: TModulatorProxyRefType(InBus.GetName(), InBus.GetUniqueID())
 	{
-		if (Bus.Min > Bus.Max)
-		{
-			Range.X = Bus.Max;
-			Range.Y = Bus.Min;
-		}
+		Init(InBus);
+	}
 
-		DefaultValue = FMath::Clamp(DefaultValue, Range.X, Range.Y);
-
-		for (const USoundBusModulatorBase* Modulator: Bus.Modulators)
-		{
-			if (const USoundBusModulatorLFO* LFO = Cast<USoundBusModulatorLFO>(Modulator))
-			{
-				const FLFOId RefLFOId = static_cast<FLFOId>(LFO->GetUniqueID());
-				LFOIds.Add(RefLFOId);
-			}
-		}
+	FControlBusProxy& FControlBusProxy::operator =(const USoundControlBusBase& InBus)
+	{
+		Init(InBus);
+		return *this;
 	}
 
 	float FControlBusProxy::GetDefaultValue() const
@@ -160,9 +147,9 @@ namespace AudioModulation
 		return DefaultValue;
 	}
 
-	const TArray<FLFOId>& FControlBusProxy::GetLFOIds() const
+	const TArray<FLFOHandle>& FControlBusProxy::GetLFOHandles() const
 	{
-		return LFOIds;
+		return LFOHandles;
 	}
 
 	float FControlBusProxy::GetLFOValue() const
@@ -184,6 +171,41 @@ namespace AudioModulation
 	{
 		const float DefaultMixed = Mix(DefaultValue);
 		return FMath::Clamp(DefaultMixed * LFOValue, Range.X, Range.Y);
+	}
+
+	void FControlBusProxy::Init(const USoundControlBusBase& InBus)
+	{
+		DefaultValue = InBus.DefaultValue;
+		LFOValue = 1.0f;
+		MixValue = NAN;
+		Operator = InBus.GetOperator();
+		Range = FVector2D(InBus.Min, InBus.Max);
+		if (InBus.Min > InBus.Max)
+		{
+			Range.X = InBus.Max;
+			Range.Y = InBus.Min;
+		}
+
+		DefaultValue = FMath::Clamp(DefaultValue, Range.X, Range.Y);
+		bBypass = InBus.bBypass;
+	}
+
+	void FControlBusProxy::InitLFOs(const USoundControlBusBase& InBus, FLFOProxyMap& OutActiveLFOs)
+	{
+		LFOHandles.Reset();
+
+		for (const USoundBusModulatorBase* Modulator : InBus.Modulators)
+		{
+			if (const USoundBusModulatorLFO* LFO = Cast<USoundBusModulatorLFO>(Modulator))
+			{
+				LFOHandles.Add(FLFOHandle::Create(*LFO, OutActiveLFOs));
+			}
+		}
+	}
+
+	bool FControlBusProxy::IsBypassed() const
+	{
+		return bBypass;
 	}
 
 	float FControlBusProxy::Mix(float ValueA) const
@@ -235,22 +257,19 @@ namespace AudioModulation
 		MixValue = Mix(InValue);
 	}
 
-	void FControlBusProxy::MixLFO(LFOProxyMap& LFOMap)
+	void FControlBusProxy::MixLFO()
 	{
-		for (const FLFOId& LFOId : LFOIds)
+		for (const FLFOHandle& Handle: LFOHandles)
 		{
-			if (FModulatorLFOProxy* LFOProxy = LFOMap.Find(LFOId))
+			if (Handle.IsValid())
 			{
-				LFOValue *= LFOProxy->GetValue();
+				const FModulatorLFOProxy& LFOProxy = Handle.FindProxy();
+				if (!LFOProxy.IsBypassed())
+				{
+					LFOValue *= LFOProxy.GetValue();
+				}
 			}
 		}
-	}
-
-	void FControlBusProxy::OnUpdateProxy(const FControlBusProxy& InBusProxy)
-	{
-		DefaultValue = FMath::Clamp(InBusProxy.DefaultValue, InBusProxy.Range.GetMin(), InBusProxy.Range.GetMax());
-		Operator = InBusProxy.Operator;
-		Range = InBusProxy.Range;
 	}
 
 	void FControlBusProxy::Reset()

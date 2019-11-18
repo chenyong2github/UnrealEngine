@@ -244,18 +244,21 @@ UObject* USoundFactory::CreateObject
 				}
 			}
 
-			UE_LOG(LogAudioEditor, Log, TEXT("Stopping Sound Resources of Existing Sound"));
 			if (ComponentsToRestart.Num() > 0)
 			{
+				UE_LOG(LogAudioEditor, Display, TEXT("Stopping the following AudioComponents referencing sound being imported"));
 				for (UAudioComponent* AudioComponent : ComponentsToRestart)
 				{
-					UE_LOG(LogAudioEditor, Log, TEXT("Component '%s' Stopped"), *AudioComponent->GetName());
+					UE_LOG(LogAudioEditor, Display, TEXT("Component '%s' Stopped"), *AudioComponent->GetName());
 					AudioComponent->Stop();
 				}
 			}
 		}
 
-		UpdateTemplate();
+		if (!ExistingSound)
+		{
+			UpdateTemplate();
+		}
 
 		bool bUseExistingSettings = SuppressImportDialogOptions & ESuppressImportDialog::Overwrite;
 		if (ExistingSound && !bUseExistingSettings && !GIsAutomationTesting)
@@ -349,18 +352,6 @@ UObject* USoundFactory::CreateObject
 			Sound->ConcurrencySet = TemplateSoundWave->ConcurrencySet;
 		}
 
-		if (bUseExistingSettings && ExistingSound)
-		{
-			// Clear resources so that if it's already been played, it will reload the wave data
-			Sound->FreeResources();
-		}
-
-		// Store the current file path and timestamp for re-import purposes
-		Sound->AssetImportData->Update(CurrentFilename);
-
-		// Compressed data is now out of date.
-		Sound->InvalidateCompressedData();
-		 
 		// If we're a multi-channel file, we're going to spoof the behavior of the SoundSurroundFactory
 		int32 ChannelCount = (int32)*WaveInfo.pChannels;
 		check(ChannelCount >0);
@@ -497,6 +488,12 @@ UObject* USoundFactory::CreateObject
 		Sound->SetSampleRate(*WaveInfo.pSamplesPerSec);
 		Sound->NumChannels = ChannelCount;
 		Sound->TotalSamples = *WaveInfo.pSamplesPerSec * Sound->Duration;
+
+		// Store the current file path and timestamp for re-import purposes
+		Sound->AssetImportData->Update(CurrentFilename);
+
+		// Compressed data is now out of date.
+		Sound->InvalidateCompressedData(true /* bFreeResources */);
 
 		// If stream caching is enabled, we need to make sure this asset is ready for playback.
 		if (FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching() && Sound->IsStreaming())

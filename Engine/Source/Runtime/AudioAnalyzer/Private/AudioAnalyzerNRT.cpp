@@ -6,6 +6,7 @@
 #include "SampleBuffer.h"
 #include "Async/Async.h"
 
+
 #if WITH_EDITOR
 
 namespace 
@@ -17,11 +18,13 @@ namespace
 		public:
 			FAudioAnalyzeTask(
 					TWeakObjectPtr<UAudioAnalyzerNRT> InAnalyzerUObject, 
+					const UAudioAnalyzerNRT::FResultId InResultId,
 					TUniquePtr<Audio::FAnalyzerNRTBatch>&& InAnalyzerFacade, 
 					TArray<uint8>&& InRawWaveData,
 					int32 InNumChannels,
 					float InSampleRate)
 			: AnalyzerUObject(InAnalyzerUObject)
+			, ResultId(InResultId)
 			, AnalyzerFacade(MoveTemp(InAnalyzerFacade))
 			, RawWaveData(MoveTemp(InRawWaveData))
 			, NumChannels(InNumChannels)
@@ -32,16 +35,12 @@ namespace
 			{
 				TUniquePtr<Audio::IAnalyzerNRTResult> Result = AnalyzerFacade->AnalyzePCM16Audio(RawWaveData, NumChannels, SampleRate);
 
-				// Make sharedptr so can be passed by value to async lambda
-				TSharedPtr<Audio::IAnalyzerNRTResult, ESPMode::ThreadSafe> ResultPtr(Result.Release());
-				// Make local so can be passed to lambda without having to capture 'this'
-				TWeakObjectPtr<UAudioAnalyzerNRT> Analyzer = AnalyzerUObject;
-
+				UAudioAnalyzerNRT::FResultSharedPtr ResultPtr(Result.Release());
 				// Set value on game thread.
-				AsyncTask(ENamedThreads::GameThread, [Analyzer, ResultPtr]() {
+				AsyncTask(ENamedThreads::GameThread, [Analyzer = AnalyzerUObject, ThisResultId = ResultId, ResultPtr]() {
 					if (Analyzer.IsValid())
 					{
-						Analyzer->SetResult(ResultPtr);
+						Analyzer->SetResultIfLatest(ResultPtr, ThisResultId);
 					}
 				});
 			}
@@ -50,6 +49,7 @@ namespace
 
 		private:
 			TWeakObjectPtr<UAudioAnalyzerNRT> AnalyzerUObject;
+			const UAudioAnalyzerNRT::FResultId ResultId;
 			TUniquePtr<Audio::FAnalyzerNRTBatch> AnalyzerFacade;
 			TArray<uint8> RawWaveData;
 			int32 NumChannels;
@@ -67,14 +67,14 @@ void UAudioAnalyzerNRTSettings::PostEditChangeProperty (struct FPropertyChangedE
 
 	if (ShouldEventTriggerAnalysis(PropertyChangedEvent))
 	{
-		AnalyzeAudioDelegate.ExecuteIfBound();
+		AnalyzeAudioDelegate.Broadcast();
 	}
 }
 
 bool UAudioAnalyzerNRTSettings::ShouldEventTriggerAnalysis(struct FPropertyChangedEvent & PropertyChangeEvent)
 {
-	// By default, all changes to settings will trigger analysis.
-	return true;
+	// By default, all non-interactive changes to settings will trigger analysis.
+	return PropertyChangeEvent.ChangeType != EPropertyChangeType::Interactive;
 }
 
 
@@ -92,7 +92,7 @@ void UAudioAnalyzerNRT::PreEditChange(UProperty* PropertyAboutToChange)
 
 	if (Settings)
 	{
-		Settings->AnalyzeAudioDelegate.Unbind();
+		RemoveSettingsDelegate(Settings);
 	}
 }
 
@@ -106,7 +106,7 @@ void UAudioAnalyzerNRT::PostEditChangeProperty (struct FPropertyChangedEvent & P
 	if (Settings)
 	{
 		// If it was a UAudioAnalyzerNRTSettings object, bind the FAnalyzeAudioDelegate
-		Settings->AnalyzeAudioDelegate.BindUObject(this, &UAudioAnalyzerNRT::AnalyzeAudio);
+		SetSettingsDelegate(Settings);
 	}
 
 	if (ShouldEventTriggerAnalysis(PropertyChangedEvent))
@@ -124,6 +124,9 @@ bool UAudioAnalyzerNRT::ShouldEventTriggerAnalysis(struct FPropertyChangedEvent 
 void UAudioAnalyzerNRT::AnalyzeAudio()
 {
 	TSharedPtr<Audio::IAnalyzerNRTResult, ESPMode::ThreadSafe> NewResult;
+
+	// Create a new result id for this result.
+	FResultId ThisResultId = ++CurrentResultId;
 
 	if (nullptr != Sound)
 	{
@@ -152,13 +155,13 @@ void UAudioAnalyzerNRT::AnalyzeAudio()
 		}
 		
 		// Create analyzer helper object
-		TUniquePtr<Audio::FAnalyzerNRTBatch> BatchAnalyzer = MakeUnique<Audio::FAnalyzerNRTBatch>(GetSettings(), GetAnalyzerNRTFactoryName());
+		TUniquePtr<Audio::FAnalyzerNRTBatch> BatchAnalyzer = MakeUnique<Audio::FAnalyzerNRTBatch>(GetSettings(SampleRate, NumChannels), GetAnalyzerNRTFactoryName());
 
 		// Use weak reference in case this object is deleted before analysis is done
 		TWeakObjectPtr<UAudioAnalyzerNRT> AnalyzerPtr(this);
 		
 		// Create and start async task. Parentheses avoids memory leak warnings from static analysis.
-		(new FAutoDeleteAsyncTask<FAudioAnalyzeTask>(AnalyzerPtr, MoveTemp(BatchAnalyzer), MoveTemp(RawWaveData), NumChannels, SampleRate))->StartBackgroundTask();
+		(new FAutoDeleteAsyncTask<FAudioAnalyzeTask>(AnalyzerPtr, ThisResultId, MoveTemp(BatchAnalyzer), MoveTemp(RawWaveData), NumChannels, SampleRate))->StartBackgroundTask();
 	}
 	else
 	{
@@ -194,10 +197,39 @@ UAudioAnalyzerNRTSettings* UAudioAnalyzerNRT::GetSettingsFromProperty(UProperty*
 	return nullptr;
 }
 
-void UAudioAnalyzerNRT::SetResult(TSharedPtr<Audio::IAnalyzerNRTResult, ESPMode::ThreadSafe> NewResult)
+void UAudioAnalyzerNRT::SetResult(FResultSharedPtr NewResult)
 {
 	FScopeLock ResultLock(&ResultCriticalSection);
 	Result = NewResult;
+	if (Result.IsValid())
+	{
+		DurationInSeconds = Result->GetDurationInSeconds();
+	}
+	else
+	{
+		DurationInSeconds = 0.f;
+	}
+	Modify();
+}
+
+void UAudioAnalyzerNRT::SetResultIfLatest(FResultSharedPtr NewResult, FResultId InResultId)
+{
+	FScopeLock ResultLock(&ResultCriticalSection);
+	const FResultId ResultId = CurrentResultId.Load();
+
+	if (ResultId == InResultId)
+	{
+		Result = NewResult;
+		if (Result.IsValid())
+		{
+			DurationInSeconds = Result->GetDurationInSeconds();
+		}
+		else
+		{
+			DurationInSeconds = 0.f;
+		}
+		Modify();
+	}
 }
 
 #endif
@@ -234,8 +266,47 @@ void UAudioAnalyzerNRT::Serialize(FArchive& Ar)
 	}
 }
 
-TUniquePtr<Audio::IAnalyzerNRTSettings> UAudioAnalyzerNRT::GetSettings()
+TUniquePtr<Audio::IAnalyzerNRTSettings> UAudioAnalyzerNRT::GetSettings(const float InSampleRate, const int32 InNumChannels) const
 {
 	return MakeUnique<Audio::IAnalyzerNRTSettings>();
 }
 
+#if WITH_EDITOR
+void UAudioAnalyzerNRT::SetSettingsDelegate(UAudioAnalyzerNRTSettings* InSettings)
+{
+	if (InSettings)
+	{
+		if (AnalyzeAudioDelegateHandles.Contains(InSettings))
+		{
+			// Avoid setting delegate more tha once
+			return;
+		}
+
+		FDelegateHandle DelegateHandle = InSettings->AnalyzeAudioDelegate.AddUObject(this, &UAudioAnalyzerNRT::AnalyzeAudio);
+
+		if (DelegateHandle.IsValid())
+		{
+			AnalyzeAudioDelegateHandles.Add(InSettings, DelegateHandle);
+		}
+	}
+}
+
+void UAudioAnalyzerNRT::RemoveSettingsDelegate(UAudioAnalyzerNRTSettings* InSettings)
+{
+	if (InSettings)
+	{
+		if (AnalyzeAudioDelegateHandles.Contains(InSettings))
+		{
+			FDelegateHandle DelegateHandle = AnalyzeAudioDelegateHandles[InSettings];
+
+			if (DelegateHandle.IsValid())
+			{
+				InSettings->AnalyzeAudioDelegate.Remove(DelegateHandle);
+			}
+
+			AnalyzeAudioDelegateHandles.Remove(InSettings);
+		}
+	}
+}
+
+#endif

@@ -874,7 +874,7 @@ void FIOSTargetSettingsCustomization::BuildPListSection(IDetailLayoutBuilder& De
 		UpdateShaderStandardWarning();
     }
 
-	// Handle max. shader version a little specially.
+	// Handle Min IOS version a little specially.
 	{
 		MinOSPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, MinimumiOSVersion));
 		MinOSPropertyHandle->SetOnPropertyValueChanged(OnUpdateOSVersionWarning);
@@ -1723,7 +1723,7 @@ TSharedRef<SWidget> FIOSTargetSettingsCustomization::OnGetShaderVersionContent()
 	
 	for (int32 i = 0; i < Enum->GetMaxEnumValue(); i++)
 	{
-		if (Enum->IsValidEnumValue(i))
+		if (Enum->IsValidEnumValue(i) && !Enum->HasMetaData(TEXT("Hidden"), Enum->GetIndexByValue(i)))
 		{
 			FUIAction ItemAction(FExecuteAction::CreateSP(this, &FIOSTargetSettingsCustomization::SetShaderStandard, i));
 			MenuBuilder.AddMenuEntry(Enum->GetDisplayNameTextByValue(i), TAttribute<FText>(), FSlateIcon(), ItemAction);

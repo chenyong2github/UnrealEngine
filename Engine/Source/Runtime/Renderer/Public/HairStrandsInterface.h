@@ -191,3 +191,18 @@ RENDERER_API bool UpdateHairStrands(
 
 RENDERER_API bool IsHairStrandsSupported(const EShaderPlatform Platform);
 bool IsHairStrandsEnable(EShaderPlatform Platform);
+
+// Return strands & guide indices to be preserved, while all others strands/guides should be culled
+enum class EHairCullMode : uint8
+{
+	None,
+	Render,
+	Sim
+};
+struct FHairCullInfo
+{
+	int32 ExplicitIndex = -1; 
+	float NormalizedIndex = 0; // [0,1]
+	EHairCullMode CullMode = EHairCullMode::None;
+};
+RENDERER_API FHairCullInfo GetHairStrandsCullInfo();

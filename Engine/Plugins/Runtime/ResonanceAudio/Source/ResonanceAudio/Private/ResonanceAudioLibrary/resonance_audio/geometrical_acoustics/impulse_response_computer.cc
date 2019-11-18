@@ -33,7 +33,9 @@ ImpulseResponseComputer::ImpulseResponseComputer(
     SceneManager* scene_manager)
     : listeners_(std::move(listeners)),
       collection_kernel_(listener_sphere_radius, sampling_rate),
+#if INCLUDE_UNUSED_CODE
       scene_manager_(scene_manager),
+#endif
       finalized_(false),
       num_total_paths_(0) {
   CHECK_NOTNULL(listeners_.get());
@@ -42,6 +44,7 @@ ImpulseResponseComputer::ImpulseResponseComputer(
 
 ImpulseResponseComputer::~ImpulseResponseComputer() {}
 
+#if INCLUDE_UNUSED_CODE
 void ImpulseResponseComputer::CollectContributions(
     const std::vector<Path>& paths_batch) {
   // Do not collect anymore if finalized.
@@ -160,7 +163,8 @@ void ImpulseResponseComputer::CollectContributions(
       });
   num_total_paths_ += paths_batch.size();
 }
-
+#endif
+	
 const std::vector<AcousticListener>&
 ImpulseResponseComputer::GetFinalizedListeners() {
   DCHECK_GT(num_total_paths_, 0U);

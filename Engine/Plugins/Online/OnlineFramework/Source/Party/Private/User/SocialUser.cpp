@@ -433,19 +433,26 @@ FString USocialUser::GetNickname() const
 	return TEXT("");
 }
 
-void USocialUser::SetNickname(const FString& InNickname)
+bool USocialUser::SetNickname(const FString& InNickname)
 {
-	IOnlineFriendsPtr FriendsInterface = GetOwningToolkit().GetSocialOss(ESocialSubsystem::Primary)->GetFriendsInterface();
-	check(FriendsInterface.IsValid());
+	if (IsFriend())
+	{
+		IOnlineFriendsPtr FriendsInterface = GetOwningToolkit().GetSocialOss(ESocialSubsystem::Primary)->GetFriendsInterface();
+		check(FriendsInterface.IsValid());
 
-	if (!InNickname.IsEmpty())
-	{
-		FriendsInterface->SetFriendAlias(GetOwningToolkit().GetLocalUserNum(), *GetUserId(ESocialSubsystem::Primary), EFriendsLists::ToString(EFriendsLists::Default), InNickname, FOnSetFriendAliasComplete::CreateUObject(const_cast<USocialUser*>(this), &USocialUser::HandleSetNicknameComplete));
+		if (!InNickname.IsEmpty())
+		{
+			FriendsInterface->SetFriendAlias(GetOwningToolkit().GetLocalUserNum(), *GetUserId(ESocialSubsystem::Primary), EFriendsLists::ToString(EFriendsLists::Default), InNickname, FOnSetFriendAliasComplete::CreateUObject(const_cast<USocialUser*>(this), &USocialUser::HandleSetNicknameComplete));
+			return true;
+		}
+		else if (!GetNickname().IsEmpty())
+		{
+			FriendsInterface->DeleteFriendAlias(GetOwningToolkit().GetLocalUserNum(), *GetUserId(ESocialSubsystem::Primary), EFriendsLists::ToString(EFriendsLists::Default), FOnDeleteFriendAliasComplete::CreateUObject(const_cast<USocialUser*>(this), &USocialUser::HandleSetNicknameComplete));
+			return true;
+		}
 	}
-	else if (!GetNickname().IsEmpty())
-	{
-		FriendsInterface->DeleteFriendAlias(GetOwningToolkit().GetLocalUserNum(), *GetUserId(ESocialSubsystem::Primary), EFriendsLists::ToString(EFriendsLists::Default), FOnDeleteFriendAliasComplete::CreateUObject(const_cast<USocialUser*>(this), &USocialUser::HandleSetNicknameComplete));
-	}
+	OnSetNicknameCompleted().Broadcast(FText::GetEmpty());
+	return false;
 }
 
 EInviteStatus::Type USocialUser::GetFriendInviteStatus(ESocialSubsystem SubsystemType) const
@@ -960,14 +967,7 @@ bool USocialUser::SendFriendInvite(ESocialSubsystem SubsystemType)
 
 bool USocialUser::AcceptFriendInvite(ESocialSubsystem SocialSubsystem) const
 {
-	if (GetFriendInviteStatus(SocialSubsystem) == EInviteStatus::PendingInbound)
-	{
-		IOnlineFriendsPtr FriendsInterface = GetOwningToolkit().GetSocialOss(SocialSubsystem)->GetFriendsInterface();
-		check(FriendsInterface.IsValid());
-
-		return FriendsInterface->AcceptInvite(GetOwningToolkit().GetLocalUserNum(), *GetUserId(SocialSubsystem), EFriendsLists::ToString(EFriendsLists::Default));
-	}
-	return false;
+	return GetOwningToolkit().AcceptFriendInvite(*this, SocialSubsystem);
 }
 
 bool USocialUser::RejectFriendInvite(ESocialSubsystem SocialSubsystem) const
@@ -1306,7 +1306,7 @@ void USocialUser::HandleSetNicknameComplete(int32 LocalUserNum, const FUniqueNet
 {
 	if (!Error.WasSuccessful())
 	{
-		UE_LOG(LogOnline, Warning, TEXT("Set nickname request failed for user: %s with error message: %s"), *FriendId.ToDebugString(), *Error.GetErrorMessage().ToString());
+		UE_LOG(LogOnline, Log, TEXT("Set nickname request failed for user: %s with error message: %s"), *FriendId.ToDebugString(), *Error.GetErrorMessage().ToString());
 	}
 	OnSetNicknameCompleted().Broadcast(Error.GetErrorMessage());
 }

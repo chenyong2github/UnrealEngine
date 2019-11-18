@@ -39,8 +39,9 @@ void FStaticMeshComponentBuilder::Initialize(UPackage* AssetPackage, FName MeshN
 		NewStaticMesh->BodySetup->CollisionTraceFlag = ECollisionTraceFlag::CTF_UseComplexAsSimple;
 	}
 
-	// add a material slot
-	for (int MatIdx = 0; MatIdx < NumMaterialSlots; MatIdx++)
+	// add a material slot. Must always have one material slot.
+	int AddMaterialCount = FMath::Max(1, NumMaterialSlots);
+	for (int MatIdx = 0; MatIdx < AddMaterialCount; MatIdx++)
 	{
 		NewStaticMesh->StaticMaterials.Add(FStaticMaterial());
 	}

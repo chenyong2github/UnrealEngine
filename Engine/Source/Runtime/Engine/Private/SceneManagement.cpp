@@ -527,7 +527,7 @@ int8 ComputeTemporalStaticMeshLOD( const FStaticMeshRenderData* RenderData, cons
 // Ensure we always use the left eye when selecting lods to avoid divergent selections in stereo
 const FSceneView& GetLODView(const FSceneView& InView)
 {
-	if (InView.StereoPass == EStereoscopicPass::eSSP_RIGHT_EYE && InView.Family)
+	if (IStereoRendering::IsASecondaryView(InView) && InView.Family)
 	{
 		return *InView.Family->Views[0];
 	}
@@ -747,7 +747,7 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	CameraAerialPerspectiveVolume = GBlackAlpha1VolumeTexture->TextureRHI;
 	CameraAerialPerspectiveVolumeSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 
-	PrimitiveSceneDataTexture = GIdentityPrimitiveBuffer.PrimitiveSceneDataTextureRHI;
+	PrimitiveSceneDataTexture = OrBlack2DIfNull(GIdentityPrimitiveBuffer.PrimitiveSceneDataTextureRHI);
 	PrimitiveSceneData = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
 	LightmapSceneData = GIdentityPrimitiveBuffer.LightmapSceneDataBufferSRV;
 
@@ -1096,8 +1096,17 @@ void FMeshBatch::PreparePrimitiveUniformBuffer(const FPrimitiveSceneProxy* Primi
 			MeshElement.PrimitiveUniformBuffer = PrimitiveSceneProxy->GetUniformBuffer();
 		}
 
-		checkf(bPrimitiveShaderDataComesFromSceneBuffer || Elements[ElementIndex].PrimitiveUniformBuffer || Elements[ElementIndex].PrimitiveUniformBufferResource != NULL,
-			TEXT("FMeshBatch was not properly setup.  The primitive uniform buffer must be specified."));
+		const bool bValidPrimitiveData = bPrimitiveShaderDataComesFromSceneBuffer || Elements[ElementIndex].PrimitiveUniformBuffer || Elements[ElementIndex].PrimitiveUniformBufferResource;
+
+		UE_CLOG(!bValidPrimitiveData, LogEngine, Fatal,
+			TEXT("FMeshBatch was not properly setup. No primitive uniform buffer was specified and the vertex factory does not have a valid primitive id stream.\n")
+			TEXT("\tVertexFactory[Name: %s, Initialized: %u]\n")
+			TEXT("\tPrimitiveSceneProxy[Level: %s, Owner: %s, Resource: %s]"),
+			*VertexFactory->GetType()->GetFName().ToString(),
+			VertexFactory->IsInitialized() ? 1 : 0,
+			*PrimitiveSceneProxy->GetLevelName().ToString(),
+			*PrimitiveSceneProxy->GetOwnerName().ToString(),
+			*PrimitiveSceneProxy->GetResourceName().ToString());
 	}
 }
 

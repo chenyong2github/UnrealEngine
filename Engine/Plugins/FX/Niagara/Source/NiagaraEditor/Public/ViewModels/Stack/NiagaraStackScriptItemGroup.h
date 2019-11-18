@@ -36,6 +36,10 @@ protected:
 
 	virtual void FinalizeInternal() override;
 
+	virtual TOptional<FDropRequestResponse> CanDropInternal(const FDropRequest& DropRequest) override;
+
+	virtual TOptional<FDropRequestResponse> DropInternal(const FDropRequest& DropRequest) override;
+
 	virtual TOptional<FDropRequestResponse> ChildRequestCanDropInternal(const UNiagaraStackEntry& TargetChild, const FDropRequest& DropRequest) override;
 
 	virtual TOptional<FDropRequestResponse> ChildRequestDropInternal(const UNiagaraStackEntry& TargetChild, const FDropRequest& DropRequest) override;
@@ -47,17 +51,21 @@ private:
 
 	void OnScriptGraphChanged(const struct FEdGraphEditAction& InAction);
 
-	TOptional<FDropRequestResponse> ChildRequestCanDropEntries(const UNiagaraStackEntry& TargetChild, const FDropRequest& DropRequest);
+	TOptional<FDropRequestResponse> CanDropOnTarget(const UNiagaraStackEntry& TargetEntry, const FDropRequest& DropRequest);
 
-	TOptional<FDropRequestResponse> ChildRequestCanDropAssets(const UNiagaraStackEntry& TargetChild, const FDropRequest& DropRequest);
+	TOptional<FDropRequestResponse> CanDropEntriesOnTarget(const UNiagaraStackEntry& TargetEntry, const FDropRequest& DropRequest);
 
-	TOptional<FDropRequestResponse> ChildRequestCanDropParameter(const UNiagaraStackEntry& TargetChild, const FDropRequest& DropRequest);
+	TOptional<FDropRequestResponse> CanDropAssetsOnTarget(const UNiagaraStackEntry& TargetEntry, const FDropRequest& DropRequest);
 
-	TOptional<FDropRequestResponse> ChildRequestDropEntries(const UNiagaraStackEntry& TargetChild, const FDropRequest& DropRequest);
+	TOptional<FDropRequestResponse> CanDropParameterOnTarget(const UNiagaraStackEntry& TargetEntry, const FDropRequest& DropRequest);
 
-	TOptional<FDropRequestResponse> ChildRequestDropAssets(const UNiagaraStackEntry& TargetChild, const FDropRequest& DropRequest);
+	TOptional<FDropRequestResponse> DropOnTarget(const UNiagaraStackEntry& TargetEntry, const FDropRequest& DropRequest);
 
-	TOptional<FDropRequestResponse> ChildRequestDropParameter(const UNiagaraStackEntry& TargetChild, const FDropRequest& DropRequest);
+	TOptional<FDropRequestResponse> DropEntriesOnTarget(const UNiagaraStackEntry& TargetEntry, const FDropRequest& DropRequest);
+
+	TOptional<FDropRequestResponse> DropAssetsOnTarget(const UNiagaraStackEntry& TargetEntry, const FDropRequest& DropRequest);
+
+	TOptional<FDropRequestResponse> DropParameterOnTarget(const UNiagaraStackEntry& TargetEntry, const FDropRequest& DropRequest);
 
 protected:
 	TWeakPtr<FNiagaraScriptViewModel> ScriptViewModel;

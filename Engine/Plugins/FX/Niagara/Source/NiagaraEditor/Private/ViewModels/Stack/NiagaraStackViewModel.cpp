@@ -22,6 +22,18 @@
 #define LOCTEXT_NAMESPACE "NiagaraStackViewModel"
 const double UNiagaraStackViewModel::MaxSearchTime = .02f; // search at 50 fps
 
+UNiagaraStackViewModel::FTopLevelViewModel::FTopLevelViewModel(TSharedPtr<FNiagaraSystemViewModel> InSystemViewModel)
+	: SystemViewModel(InSystemViewModel)
+	, RootEntry(InSystemViewModel->GetSystemStackViewModel()->GetRootEntry())
+{
+}
+
+UNiagaraStackViewModel::FTopLevelViewModel::FTopLevelViewModel(TSharedPtr<FNiagaraEmitterHandleViewModel> InEmitterHandleViewModel)
+	: EmitterHandleViewModel(InEmitterHandleViewModel)
+	, RootEntry(InEmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntry())
+{
+}
+
 bool UNiagaraStackViewModel::FTopLevelViewModel::IsValid() const
 {
 	return (SystemViewModel.IsValid() && EmitterHandleViewModel.IsValid() == false) ||
@@ -62,7 +74,7 @@ FText UNiagaraStackViewModel::FTopLevelViewModel::GetDisplayName() const
 
 bool UNiagaraStackViewModel::FTopLevelViewModel::operator==(const FTopLevelViewModel& Other) const
 {
-	return Other.SystemViewModel == SystemViewModel && Other.EmitterHandleViewModel == EmitterHandleViewModel;
+	return Other.SystemViewModel == SystemViewModel && Other.EmitterHandleViewModel == EmitterHandleViewModel && Other.RootEntry == RootEntry;
 }
 
 void UNiagaraStackViewModel::InitializeWithViewModels(TSharedPtr<FNiagaraSystemViewModel> InSystemViewModel, TSharedPtr<FNiagaraEmitterHandleViewModel> InEmitterHandleViewModel, FNiagaraStackViewModelOptions InOptions)
@@ -159,6 +171,11 @@ void UNiagaraStackViewModel::Reset()
 	bUsesTopLevelViewModels = false;
 }
 
+bool UNiagaraStackViewModel::HasIssues() const
+{
+	return bHasIssues;
+}
+
 void UNiagaraStackViewModel::Finalize()
 {
 	Reset();
@@ -232,7 +249,7 @@ void UNiagaraStackViewModel::AddSearchScrollOffset(int NumberOfSteps)
 
 void UNiagaraStackViewModel::CollapseToHeaders()
 {
-	CollapseToHeadersRecursive(GetRootEntries());
+	CollapseToHeadersRecursive(GetRootEntryAsArray());
 	NotifyStructureChanged();
 }
 
@@ -326,7 +343,7 @@ void UNiagaraStackViewModel::CollapseToHeadersRecursive(TArray<UNiagaraStackEntr
 	}
 }
 
-void UNiagaraStackViewModel::GetPathForEntry(UNiagaraStackEntry* Entry, TArray<UNiagaraStackEntry*>& EntryPath)
+void UNiagaraStackViewModel::GetPathForEntry(UNiagaraStackEntry* Entry, TArray<UNiagaraStackEntry*>& EntryPath) const
 {
 	GeneratePathForEntry(RootEntry, Entry, TArray<UNiagaraStackEntry*>(), EntryPath);
 }
@@ -435,7 +452,7 @@ bool UNiagaraStackViewModel::ItemMatchesSearchCriteria(UNiagaraStackEntry::FStac
 	return SearchItem.Value.ToString().Contains(CurrentSearchText.ToString());
 }
 
-void UNiagaraStackViewModel::GeneratePathForEntry(UNiagaraStackEntry* Root, UNiagaraStackEntry* Entry, TArray<UNiagaraStackEntry*> CurrentPath, TArray<UNiagaraStackEntry*>& EntryPath)
+void UNiagaraStackViewModel::GeneratePathForEntry(UNiagaraStackEntry* Root, UNiagaraStackEntry* Entry, TArray<UNiagaraStackEntry*> CurrentPath, TArray<UNiagaraStackEntry*>& EntryPath) const
 {
 	if (EntryPath.Num() > 0)
 	{
@@ -477,7 +494,12 @@ void UNiagaraStackViewModel::RestoreStackEntryExpansionPreSearch()
 	}
 }
 
-TArray<UNiagaraStackEntry*>& UNiagaraStackViewModel::GetRootEntries()
+UNiagaraStackEntry* UNiagaraStackViewModel::GetRootEntry()
+{
+	return RootEntry;
+}
+
+TArray<UNiagaraStackEntry*>& UNiagaraStackViewModel::GetRootEntryAsArray()
 {
 	return RootEntries;
 }
@@ -608,6 +630,7 @@ void UNiagaraStackViewModel::EntryStructureChanged()
 	{
 		RefreshTopLevelViewModels();
 	}
+	RefreshHasIssues();
 	StructureChangedDelegate.Broadcast();
 	OnSearchTextChanged(CurrentSearchText);
 }
@@ -641,12 +664,22 @@ void UNiagaraStackViewModel::RefreshTopLevelViewModels()
 	RootEntry->GetUnfilteredChildren(RootChildren);
 	for (UNiagaraStackEntry* RootChild : RootChildren)
 	{
+		if (RootChild->IsFinalized())
+		{
+			// It's possible for this to run when a system or emitter stack view model has updated it's children, but
+			// before the selection view model with the top level view models has refreshed and removed the finalized
+			// children in the selection so we need to guard against that here.
+			continue;
+		}
 		TSharedPtr<FTopLevelViewModel> TopLevelViewModel;
 		if (RootChild->GetEmitterViewModel().IsValid())
 		{
 			TSharedPtr<FNiagaraEmitterHandleViewModel> RootChildEmitterHandleViewModel = RootChild->GetSystemViewModel()->GetEmitterHandleViewModelForEmitter(RootChild->GetEmitterViewModel()->GetEmitter());
-			TSharedRef<FTopLevelViewModel>* CurrentTopLevelViewModelPtr = CurrentTopLevelViewModels.FindByPredicate(
-				[&RootChildEmitterHandleViewModel](const TSharedRef<FTopLevelViewModel>& TopLevelViewModel) { return TopLevelViewModel->EmitterHandleViewModel == RootChildEmitterHandleViewModel; });
+			TSharedRef<FTopLevelViewModel>* CurrentTopLevelViewModelPtr = CurrentTopLevelViewModels.FindByPredicate([&RootChildEmitterHandleViewModel](const TSharedRef<FTopLevelViewModel>& TopLevelViewModel) 
+			{ 
+				return TopLevelViewModel->EmitterHandleViewModel == RootChildEmitterHandleViewModel &&
+					TopLevelViewModel->RootEntry == RootChildEmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntry(); 
+			});
 			if (CurrentTopLevelViewModelPtr != nullptr)
 			{
 				TopLevelViewModel = *CurrentTopLevelViewModelPtr;
@@ -658,8 +691,11 @@ void UNiagaraStackViewModel::RefreshTopLevelViewModels()
 		}
 		else
 		{
-			TSharedRef<FTopLevelViewModel>* CurrentTopLevelViewModelPtr = CurrentTopLevelViewModels.FindByPredicate(
-				[RootChild](const TSharedRef<FTopLevelViewModel>& TopLevelViewModel) { return TopLevelViewModel->SystemViewModel == RootChild->GetSystemViewModel(); });
+			TSharedRef<FTopLevelViewModel>* CurrentTopLevelViewModelPtr = CurrentTopLevelViewModels.FindByPredicate([RootChild](const TSharedRef<FTopLevelViewModel>& TopLevelViewModel)
+			{ 
+				return TopLevelViewModel->SystemViewModel == RootChild->GetSystemViewModel() &&
+					TopLevelViewModel->RootEntry == RootChild->GetSystemViewModel()->GetSystemStackViewModel()->GetRootEntry();
+			});
 			if (CurrentTopLevelViewModelPtr != nullptr)
 			{
 				TopLevelViewModel = *CurrentTopLevelViewModelPtr;
@@ -673,6 +709,37 @@ void UNiagaraStackViewModel::RefreshTopLevelViewModels()
 		{
 			TopLevelViewModels.Add(TopLevelViewModel.ToSharedRef());
 		}
+	}
+}
+
+void UNiagaraStackViewModel::RefreshHasIssues()
+{
+	bHasIssues = false;
+	if (bUsesTopLevelViewModels)
+	{
+		for (TSharedRef<FTopLevelViewModel> TopLevelViewModel : TopLevelViewModels)
+		{
+			if (TopLevelViewModel->SystemViewModel.IsValid())
+			{
+				if (TopLevelViewModel->SystemViewModel->GetSystemStackViewModel()->GetRootEntry()->HasIssuesOrAnyChildHasIssues())
+				{
+					bHasIssues = true;
+					return;
+				}
+			}
+			else if (TopLevelViewModel->EmitterHandleViewModel.IsValid())
+			{
+				if (TopLevelViewModel->EmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntry()->HasIssuesOrAnyChildHasIssues())
+				{
+					bHasIssues = true;
+					return;
+				}
+			}
+		}
+	}
+	else
+	{
+		bHasIssues = RootEntry->HasIssuesOrAnyChildHasIssues();
 	}
 }
 

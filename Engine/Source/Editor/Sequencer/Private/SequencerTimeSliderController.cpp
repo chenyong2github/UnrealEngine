@@ -534,8 +534,8 @@ int32 FSequencerTimeSliderController::DrawSelectionRange(const FGeometry& Allott
 
 	if (!SelectionRange.IsEmpty())
 	{
-		const float SelectionRangeL = RangeToScreen.InputToLocalX(SelectionRange.GetLowerBoundValue()) - 1;
-		const float SelectionRangeR = RangeToScreen.InputToLocalX(SelectionRange.GetUpperBoundValue()) + 1;
+		const float SelectionRangeL = RangeToScreen.InputToLocalX(SelectionRange.GetLowerBoundValue());
+		const float SelectionRangeR = RangeToScreen.InputToLocalX(SelectionRange.GetUpperBoundValue()) - 1;
 		const auto DrawColor = FEditorStyle::GetSlateColor("SelectionColor").GetColor(FWidgetStyle());
 
 		if (Args.SolidFillOpacity > 0.f)
@@ -590,8 +590,8 @@ int32 FSequencerTimeSliderController::DrawPlaybackRange(const FGeometry& Allotte
 
 	TRange<FFrameNumber> PlaybackRange = TimeSliderArgs.PlaybackRange.Get();
 	FFrameRate TickResolution = GetTickResolution();
-	const float PlaybackRangeL = RangeToScreen.InputToLocalX(MovieScene::DiscreteInclusiveLower(PlaybackRange) / TickResolution);
-	const float PlaybackRangeR = RangeToScreen.InputToLocalX(MovieScene::DiscreteExclusiveUpper(PlaybackRange) / TickResolution) - 1;
+	const float PlaybackRangeL = RangeToScreen.InputToLocalX(PlaybackRange.GetLowerBoundValue() / TickResolution);
+	const float PlaybackRangeR = RangeToScreen.InputToLocalX(PlaybackRange.GetUpperBoundValue() / TickResolution) - 1;
 
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
@@ -650,8 +650,8 @@ int32 FSequencerTimeSliderController::DrawSubSequenceRange(const FGeometry& Allo
 	}
 
 	const FFrameRate   Resolution = GetTickResolution();
-	const FFrameNumber LowerFrame = MovieScene::DiscreteInclusiveLower(RangeValue.GetValue());
-	const FFrameNumber UpperFrame = MovieScene::DiscreteExclusiveUpper(RangeValue.GetValue());
+	const FFrameNumber LowerFrame = RangeValue.GetValue().GetLowerBoundValue();
+	const FFrameNumber UpperFrame = RangeValue.GetValue().GetUpperBoundValue();
 
 	const float SubSequenceRangeL = RangeToScreen.InputToLocalX(LowerFrame / Resolution) - 1;
 	const float SubSequenceRangeR = RangeToScreen.InputToLocalX(UpperFrame / Resolution) + 1;

@@ -56,6 +56,7 @@ Landscape.cpp: Terrain rendering
 #include "MaterialUtilities.h"
 #include "Editor.h"
 #include "Algo/Transform.h"
+#include "Engine/Texture2D.h"
 #endif
 #include "LandscapeVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
@@ -115,7 +116,7 @@ namespace LandscapeCookStats
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.                                       
-#define LANDSCAPE_MOBILE_COOK_VERSION TEXT("A048A0D4A24644BA9948FB08068AE8D7")
+#define LANDSCAPE_MOBILE_COOK_VERSION TEXT("6862AA3DD9FB4368B9DDAF9EB7E9901F")
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
@@ -1041,9 +1042,9 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 	ComponentScreenSizeToUseSubSections = 0.65f;
 	UseTessellationComponentScreenSizeFalloff = true;
 	TessellationComponentScreenSizeFalloff = 0.75f;
-	LOD0ScreenSize = 1.0f;
-	LOD0DistributionSetting = 1.75f;
-	LODDistributionSetting = 2.0f;
+	LOD0ScreenSize = 0.5f;
+	LOD0DistributionSetting = 1.25f;
+	LODDistributionSetting = 3.0f;
 	bCastStaticShadow = true;
 	bCastShadowAsTwoSided = false;
 	bUsedForNavigation = true;
@@ -1566,6 +1567,21 @@ const TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLa
 	return WeightmapLayerAllocations;
 }
 
+TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLayerAllocations(const FGuid& InLayerGuid)
+{
+#if WITH_EDITORONLY_DATA
+	if (InLayerGuid.IsValid())
+	{
+		if (FLandscapeLayerComponentData* LayerData = GetLayerData(InLayerGuid))
+		{
+			return LayerData->WeightmapData.LayerAllocations;
+		}
+	}
+#endif
+
+	return WeightmapLayerAllocations;
+}
+
 const TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLayerAllocations(const FGuid& InLayerGuid) const
 {
 #if WITH_EDITORONLY_DATA
@@ -1621,6 +1637,44 @@ const FLandscapeLayerComponentData* ULandscapeComponent::GetEditingLayer() const
 		CachedEditingLayerData = CachedEditingLayer.IsValid() ? const_cast<TMap<FGuid, FLandscapeLayerComponentData>&>(LayersData).Find(CachedEditingLayer) : nullptr;
 	}
 	return CachedEditingLayerData;
+}
+
+void ULandscapeComponent::CopyFinalLayerIntoEditingLayer(FLandscapeEditDataInterface& DataInterface, TSet<UTexture2D*>& ProcessedHeightmaps)
+{
+	Modify();
+	GetLandscapeProxy()->Modify();
+	
+	// Heightmap	
+	UTexture2D* EditingTexture = GetHeightmap(true);
+	if (!ProcessedHeightmaps.Contains(EditingTexture))
+	{
+		DataInterface.CopyTextureFromHeightmap(EditingTexture, this, 0);	
+		ProcessedHeightmaps.Add(EditingTexture);
+	}
+
+	// Weightmap
+	TArray<FWeightmapLayerAllocationInfo>& FinalWeightmapLayerAllocations = GetWeightmapLayerAllocations();
+	TArray<FWeightmapLayerAllocationInfo>& EditingLayerWeightmapLayerAllocations = GetWeightmapLayerAllocations(GetEditingLayerGUID());
+
+	// Add missing Alloc Infos
+	for (const FWeightmapLayerAllocationInfo& FinalAllocInfo : FinalWeightmapLayerAllocations)
+	{
+		int32 Index = EditingLayerWeightmapLayerAllocations.IndexOfByPredicate([&FinalAllocInfo](const FWeightmapLayerAllocationInfo& EditingAllocInfo) { return EditingAllocInfo.LayerInfo == FinalAllocInfo.LayerInfo; });
+		if (Index == INDEX_NONE)
+		{
+			new (EditingLayerWeightmapLayerAllocations) FWeightmapLayerAllocationInfo(FinalAllocInfo.LayerInfo);
+		}
+	}
+
+	const bool bEditingWeighmaps = true;
+	const bool bSaveToTransactionBuffer = true;
+	ReallocateWeightmaps(&DataInterface, bEditingWeighmaps, bSaveToTransactionBuffer);
+
+	TArray<UTexture2D*>& EditingWeightmapTextures = GetWeightmapTextures(true);
+	for (const FWeightmapLayerAllocationInfo& AllocInfo : EditingLayerWeightmapLayerAllocations)
+	{
+		DataInterface.CopyTextureFromWeightmap(EditingWeightmapTextures[AllocInfo.WeightmapTextureIndex], AllocInfo.WeightmapTextureChannel, this, AllocInfo.LayerInfo, 0);
+	}
 }
 
 FGuid ULandscapeComponent::GetEditingLayerGUID() const
@@ -2366,7 +2420,8 @@ void ALandscapeProxy::PostLoad()
 		ULandscapeInfo* LandscapeInfo = CreateLandscapeInfo();
 
 		// Cache the value at this point as RegisterActor might create/destroy layers content if there was a mismatch between landscape & proxy
-		const bool bNeedOldDataMigration = !HasLayersContent() && CanHaveLayersContent();
+		// Check the actual flag here not HasLayersContent() which could return true if the LandscapeActor is valid.
+		const bool bNeedOldDataMigration = !bHasLayersContent && CanHaveLayersContent();
 				
 		LandscapeInfo->RegisterActor(this, true);
 
@@ -2451,6 +2506,11 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 		PositiveZBoundsExtension = Landscape->PositiveZBoundsExtension;
 		CollisionMipLevel = Landscape->CollisionMipLevel;
 		bBakeMaterialPositionOffsetIntoCollision = Landscape->bBakeMaterialPositionOffsetIntoCollision;
+		RuntimeVirtualTextures = Landscape->RuntimeVirtualTextures;
+		VirtualTextureLodBias = Landscape->VirtualTextureLodBias;
+		VirtualTextureNumLods = Landscape->VirtualTextureNumLods;
+		VirtualTextureRenderPassType = Landscape->VirtualTextureRenderPassType;
+
 		if (!LandscapeMaterial)
 		{
 			LandscapeMaterial = Landscape->LandscapeMaterial;

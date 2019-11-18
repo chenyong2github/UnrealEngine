@@ -13,7 +13,7 @@ class TPBDAnimDriveConstraint : public TParticleRule<T, d>
 		const int InParticleIndexOffset
 		, const TArray<TVector<T, d>>* const InSpringNeutralPositions
 		, const TArray<T>* const InSpringStiffnessMultiplier
-		, float InSpringStiffness
+		, const T InSpringStiffness
 	)
 		: ParticleIndexOffset(InParticleIndexOffset)
 		, SpringNeutralPositions(InSpringNeutralPositions)
@@ -48,11 +48,16 @@ class TPBDAnimDriveConstraint : public TParticleRule<T, d>
 		InParticles.P(Index + ParticleIndexOffset) = RelaxationFactor * NeutralPosition + (1 - RelaxationFactor) * ParticlePosition;
 	}
 
+	inline void SetSpringStiffness(T InSpringStiffness)
+	{
+		SpringStiffness = InSpringStiffness;
+	}
+
 private:
 	const int32 ParticleIndexOffset;
-	const TArray<TVector<T, d>>* const SpringNeutralPositions; // Size: Same as full particle array
-	const TArray<T>* const SpringStiffnessMultiplier; // Size: Number of Animation drive constraints to solve
+	const TArray<TVector<T, d>>* SpringNeutralPositions; // Size: Same as full particle array
+	const TArray<T>* SpringStiffnessMultiplier; // Size: Number of Animation drive constraints to solve
 
-	const float SpringStiffness;
+	T SpringStiffness;
 };
 }

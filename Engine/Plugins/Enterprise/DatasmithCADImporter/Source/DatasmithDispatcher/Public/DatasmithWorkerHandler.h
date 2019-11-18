@@ -1,83 +1,86 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #include "CoreMinimal.h"
 
+#include "CADOptions.h"
 #include "DatasmithCommands.h"
-#include "DatasmithDispatcherSocket.h"
-#include "Misc/Timespan.h"
+#include "DatasmithDispatcherNetworking.h"
+#include "DatasmithDispatcherTask.h"
 
+#include "HAL/PlatformProcess.h"
+#include "HAL/Thread.h"
 
-#if PLATFORM_MAC
-#include "Mac/MacPlatformProcess.h"
-#elif PLATFORM_LINUX
-#include "Unix/UnixPlatformProcess.h"
-#else
-#include "Windows/WindowsPlatformProcess.h"
-#endif
-
-
-
-class FSocket;
 
 namespace DatasmithDispatcher
 {
-class FDatasmithBackPingCommand;
+
 class FDatasmithDispatcher;
-class FDatasmithNotifyEndTaskCommand;
-class FDatasmithPingCommand;
 
 //Handle a Worker by socket communication
 class FDatasmithWorkerHandler
 {
+	enum class EWorkerState
+	{
+		Uninitialized,
+		Idle, // Initialized, available for processing
+		Processing, // Currently processing a task
+		Closing, // in the process of terminating
+		Terminated, // aka. Not Alive
+	};
+
+	enum class EWorkerErrorState
+	{
+		Ok,
+		ConnectionFailed_NotBound,
+		ConnectionFailed_NoClient,
+		ConnectionLost,
+		ConnectionLost_SendFailed,
+		WorkerProcess_CantCreate,
+		WorkerProcess_Lost,
+	};
 
 public:
-	FDatasmithWorkerHandler(FDatasmithDispatcher& InDispatcher, const FString& InCachePath);
+	FDatasmithWorkerHandler(FDatasmithDispatcher& InDispatcher, const CADLibrary::FImportParameters& InImportParameters, FString& InCachePath, uint32 Id);
+	~FDatasmithWorkerHandler();
 
-	bool Run();
-	void NotifyKill();
+	void Run();
+	bool IsAlive() const;
+	bool IsRestartable() const;
+	void Stop();
 
 private:
-	const FString& GetCachePath() const
-	{
-		return CachePath;
-	}
+	void RunInternal();
+	void StartWorkerProcess();
+	void ValidateConnection();
 
-	FString GetExePath();
+// 	void RestartProcessor();
 
-	bool InitializeSocket();
-	bool StartWorker();
-	void Kill();
-
-	void RestartProcessor();
-
-	bool NeedToRun();
-
-	void PingProcess(FDatasmithPingCommand* PingCommand);
-	void BackPingProcess(FDatasmithBackPingCommand* PingCommand);
-	void EndTaskProcess(FDatasmithNotifyEndTaskCommand* RunTaskCommand);
-
+	void ProcessCommand(ICommand& Command);
+	void ProcessCommand(FPingCommand& PingCommand);
+	void ProcessCommand(FCompletedTaskCommand& RunTaskCommand);
+	const TCHAR* EWorkerErrorStateAsString(EWorkerErrorState e);
 
 private:
 	FDatasmithDispatcher& Dispatcher;
-	uint32 WorkerProcessId;
 
-	FDatasmithDispatcherSocket ServerSocket;  
-	/**
-		*  Template socket used to accept connections
-		*/
-	FDatasmithDispatcherSocket ClientListener; 
+	// Send and receive commands
+	FNetworkServerNode NetworkInterface;
+	FCommandQueue CommandIO;
+	FThread IOThread;
+	FString ThreadName;
 
-	FString CachePath;
-
-	TOptional<FTask> CurrentTask;
-
+	// External process
 	FProcHandle WorkerHandle;
+	TAtomic<EWorkerState> WorkerState;
+	EWorkerErrorState ErrorState;
 
+	// self
+	FString CachePath;
+	FImportParametersCommand ImportParametersCommand;
+	TOptional<FTask> CurrentTask;
 	bool bShouldTerminate;
-	//FTimespan Stopwatch;
-	//FTimespan StartPingTime;
-	//FTimespan StartTime;
 
 };
 } // namespace DatasmithDispatcher

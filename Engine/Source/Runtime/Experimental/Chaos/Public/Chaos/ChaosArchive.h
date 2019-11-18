@@ -9,8 +9,7 @@
 
 namespace Chaos
 {
-template <typename T, int d>
-class CHAOS_API TImplicitObject; //needed for legacy serializer
+class CHAOS_API FImplicitObject; //needed for legacy serializer
 
 
 #if CHAOS_MEMORY_TRACKING
@@ -257,7 +256,7 @@ private:
 		check(false);
 	}
 
-	void SerializeLegacy(TUniquePtr<TImplicitObject<float, 3>>& Obj);
+	void SerializeLegacy(TUniquePtr<FImplicitObject>& Obj);
 
 	template <typename T>
 	void StaticSerialize(TSerializablePtr<T>& Serializable)

@@ -171,6 +171,14 @@ namespace EAnimationMode
 }
 
 UENUM()
+enum class ELinkedAnimationUpdateOrder : uint8
+{
+	UpdateAnimationBeforeAnimScriptInstance,
+	UpdateAnimationAfterAnimScriptInstance,
+	DoNotUpdate
+};
+
+UENUM()
 namespace EPhysicsTransformUpdateMode
 {
 	enum Type
@@ -419,7 +427,7 @@ protected:
 	/** Whether to use Animation Blueprint or play Single Animation Asset. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Animation)
 	TEnumAsByte<EAnimationMode::Type>	AnimationMode;
-
+	
 private:
 	/** Teleport type to use on the next update */
 	ETeleportType PendingTeleportType;
@@ -431,6 +439,9 @@ private:
 	uint8 bDisablePostProcessBlueprint:1;
 
 public:
+	/** The order in which linked animation is evaluated with respect to the component's animation */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Animation)
+	ELinkedAnimationUpdateOrder LinkedAnimationEvaluationOrder;
 
 	/** Indicates that simulation (if it's enabled) is entirely responsible for children transforms. This is only ok if you are not animating attachment points relative to the simulation */
 	uint8 bSimulationUpdatesChildTransforms:1;
@@ -587,20 +598,20 @@ public:
 	UPROPERTY()
 	uint8 bEnableLineCheckWithBounds:1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	uint8 bUseBendingElements:1;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	uint8 bUseBendingElements_DEPRECATED :1;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	uint8 bUseTetrahedralConstraints:1;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	uint8 bUseTetrahedralConstraints_DEPRECATED :1;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	uint8 bUseThinShellVolumeConstraints:1;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	uint8 bUseThinShellVolumeConstraints_DEPRECATED :1;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	uint8 bUseSelfCollisions:1;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	uint8 bUseSelfCollisions_DEPRECATED :1;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	uint8 bUseContinuousCollisionDetection:1;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	uint8 bUseContinuousCollisionDetection_DEPRECATED :1;
 
 	/** If true, propagates calls to ApplyAnimationCurvesToComponent for slave components, only needed if slave components do not tick themselves */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MasterPoseComponent)
@@ -638,14 +649,14 @@ public:
 	UPROPERTY(transient)
 	uint16 CachedAnimCurveUidVersion;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	EClothMassMode MassMode;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	EClothMassMode MassMode_DEPRECATED;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	float UniformMass;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	float UniformMass_DEPRECATED;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	float TotalMass;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	float TotalMass_DEPRECATED;
 	
 	/**
 	 * Water: 1.0
@@ -653,11 +664,11 @@ public:
 	 * Wool: 0.13
 	 * Silk: 0.133
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	float Density;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	float Density_DEPRECATED;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	float MinPerParticleMass;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	float MinPerParticleMass_DEPRECATED;
 
 
 	/**
@@ -667,23 +678,23 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
 	float ClothBlendWeight;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	float EdgeStiffness;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	float EdgeStiffness_DEPRECATED;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	float BendingStiffness;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	float BendingStiffness_DEPRECATED;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	float AreaStiffness;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	float AreaStiffness_DEPRECATED;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	float VolumeStiffness;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	float VolumeStiffness_DEPRECATED;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	float StrainLimitingStiffness;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	float StrainLimitingStiffness_DEPRECATED;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	float ShapeTargetStiffness;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	float ShapeTargetStiffness_DEPRECATED;
 
 private:
 
@@ -794,6 +805,9 @@ private:
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TArray<UAnimInstance*>& GetLinkedAnimInstances() { return LinkedInstances; }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	/** Clear the linked anim instances and mark them pending kill */
+	void ResetLinkedAnimInstances();
 
 public:
 	UE_DEPRECATED(4.23, "This function is deprecated. Please use GetLinkedAnimGraphInstanceByTag")
@@ -1751,7 +1765,7 @@ public:
 	void InstantiatePhysicsAsset(const UPhysicsAsset& PhysAsset, const FVector& Scale3D, TArray<FBodyInstance*>& OutBodies, TArray<FConstraintInstance*>& OutConstraints, FPhysScene* PhysScene = nullptr, USkeletalMeshComponent* OwningComponent = nullptr, int32 UseRootBodyIndex = INDEX_NONE, const FPhysicsAggregateHandle& UseAggregate = FPhysicsAggregateHandle()) const;
 
 	/** Instantiates bodies given a physics asset like InstantiatePhysicsAsset but instead of reading the current component state, this reads the ref-pose from the reference skeleton of the mesh. Useful if trying to create bodies to be used during any evaluation work */
-	void InstantiatePhysicsAssetRefPose(const UPhysicsAsset& PhysAsset, const FVector& Scale3D, TArray<FBodyInstance*>& OutBodies, TArray<FConstraintInstance*>& OutConstraints, FPhysScene* PhysScene = nullptr, USkeletalMeshComponent* OwningComponent = nullptr, int32 UseRootBodyIndex = INDEX_NONE, const FPhysicsAggregateHandle& UseAggregate = FPhysicsAggregateHandle()) const;
+	void InstantiatePhysicsAssetRefPose(const UPhysicsAsset& PhysAsset, const FVector& Scale3D, TArray<FBodyInstance*>& OutBodies, TArray<FConstraintInstance*>& OutConstraints, FPhysScene* PhysScene = nullptr, USkeletalMeshComponent* OwningComponent = nullptr, int32 UseRootBodyIndex = INDEX_NONE, const FPhysicsAggregateHandle& UseAggregate = FPhysicsAggregateHandle(), bool bCreateBodiesInRefPose = false) const;
 
 	/** Turn off all physics and remove the instance. */
 	void TermArticulated();
@@ -2013,6 +2027,9 @@ public:
 public:
 	bool IsAnimBlueprintInstanced() const;
 	void ClearAnimScriptInstance();
+
+	/** Clear cached animation data generated for URO during evaluation */
+	void ClearCachedAnimProperties();
 
 protected:
 	bool NeedToSpawnAnimScriptInstance() const;

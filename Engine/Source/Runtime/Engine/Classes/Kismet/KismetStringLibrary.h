@@ -60,6 +60,10 @@ class ENGINE_API UKismetStringLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "ToString (name)", CompactNodeTitle = "->", BlueprintAutocast), Category="Utilities|String")
 	static FString Conv_NameToString(FName InName);
 
+	/** Converts a name value to a string */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "ToString (Matrix)", CompactNodeTitle = "->", BlueprintAutocast), Category = "Utilities|String")
+	static FString Conv_MatrixToString(const FMatrix& InMatrix);
+
 	/** Converts a string to a name value */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "String To Name", CompactNodeTitle = "->", BlueprintAutocast), Category="Utilities|String")
 	static FName Conv_StringToName(const FString& InString);

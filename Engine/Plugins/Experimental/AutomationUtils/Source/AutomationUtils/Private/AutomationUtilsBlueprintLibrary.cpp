@@ -153,6 +153,7 @@ FAutomationUtilsGameplayAutomationScreenshotInstance::FAutomationUtilsGameplayAu
 		JsonObject->SetNumberField(TEXT("textureQuality"), QualityLevels.TextureQuality);
 		JsonObject->SetNumberField(TEXT("effectsQuality"), QualityLevels.EffectsQuality);
 		JsonObject->SetNumberField(TEXT("foliageQuality"), QualityLevels.FoliageQuality);
+		JsonObject->SetNumberField(TEXT("shadingQuality"), QualityLevels.ShadingQuality);
 		//ComparisonOptions
 		JsonObject->SetBoolField(TEXT("bHasComparisonRules"), true);
 		JsonObject->SetNumberField(TEXT("toleranceRed"), 8);

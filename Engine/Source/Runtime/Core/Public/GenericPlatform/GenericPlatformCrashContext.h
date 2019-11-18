@@ -130,6 +130,7 @@ struct FSessionContext
 	bool 					bIsSourceDistribution;
 	bool 					bIsUE4Release;
 	bool					bIsOOM;
+	bool					bIsExitRequested;
 	uint32					ProcessId;
 	int32 					LanguageLCID;
 	int32 					NumberOfCores;
@@ -143,6 +144,7 @@ struct FSessionContext
 	TCHAR					EngineMode[CR_MAX_GENERIC_FIELD_CHARS];
 	TCHAR					EngineModeEx[CR_MAX_GENERIC_FIELD_CHARS];
 	TCHAR 					ExecutableName[CR_MAX_GENERIC_FIELD_CHARS];
+	TCHAR					BuildConfigurationName[CR_MAX_GENERIC_FIELD_CHARS];
 	TCHAR 					DeploymentName[CR_MAX_GENERIC_FIELD_CHARS];
 	TCHAR 					BaseDir[CR_MAX_DIRECTORY_CHARS];
 	TCHAR 					RootDir[CR_MAX_DIRECTORY_CHARS];

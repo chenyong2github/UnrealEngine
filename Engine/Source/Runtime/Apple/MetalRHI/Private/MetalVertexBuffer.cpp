@@ -234,7 +234,7 @@ void FMetalRHIBuffer::Unalias()
 	}
 }
 
-void FMetalRHIBuffer::Alloc(uint32 InSize, EResourceLockMode LockMode)
+void FMetalRHIBuffer::Alloc(uint32 InSize, EResourceLockMode LockMode, bool bIsUniformBuffer)
 {
 	if (!Buffer)
 	{
@@ -258,6 +258,8 @@ void FMetalRHIBuffer::Alloc(uint32 InSize, EResourceLockMode LockMode)
 				check(Pair.Value);
 			}
 		}
+
+		bIsUniformBufferBacking = bIsUniformBuffer;
 	}
 }
 
@@ -411,7 +413,22 @@ ns::AutoReleased<FMetalTexture> FMetalRHIBuffer::GetLinearTexture(EPixelFormat F
 	return Texture;
 }
 
-void* FMetalRHIBuffer::Lock(bool bIsOnRHIThread, EResourceLockMode LockMode, uint32 Offset, uint32 InSize)
+bool FMetalRHIBuffer::CanUseBufferAsBackingForAsyncCopy() const
+{
+	return (!bIsUniformBufferBacking ||
+			UniformBufferFrameIndex != GetMetalDeviceContext().GetDeviceFrameIndex() ||
+			UniformBufferPreviousOffset != Buffer.GetOffset());
+}
+
+void FMetalRHIBuffer::ConditionalSetUniformBufferFrameIndex()
+{
+	if (bIsUniformBufferBacking)
+	{
+		UniformBufferFrameIndex = GetMetalDeviceContext().GetDeviceFrameIndex();
+	}
+}
+
+void* FMetalRHIBuffer::Lock(bool bIsOnRHIThread, EResourceLockMode LockMode, uint32 Offset, uint32 InSize, bool bIsUniformBuffer /*= false*/)
 {
 	check(LockSize == 0 && LockOffset == 0);
 	
@@ -454,14 +471,18 @@ void* FMetalRHIBuffer::Lock(bool bIsOnRHIThread, EResourceLockMode LockMode, uin
 	
 	// When writing to a private buffer, make sure that we can perform an async copy so we don't introduce order of operation bugs
 	// When we can't we have to reallocate the backing store
-	if (LockMode != RLM_ReadOnly && Mode == mtlpp::StorageMode::Private && Buffer && !GetMetalDeviceContext().CanAsyncCopyToBuffer(Buffer))
+	if (LockMode != RLM_ReadOnly &&
+		Mode == mtlpp::StorageMode::Private &&
+		Buffer &&
+		(!GetMetalDeviceContext().CanAsyncCopyToBuffer(Buffer) ||
+		 !CanUseBufferAsBackingForAsyncCopy()))
 	{
 		METAL_INC_DWORD_STAT_BY(Type, MemFreed, Len);
 		SafeReleaseMetalBuffer(Buffer);
 		Buffer = nil;
 	}
 	
-    Alloc(Len, LockMode);
+    Alloc(Len, LockMode, bIsUniformBuffer);
 	AllocTransferBuffer(bIsOnRHIThread, Len, LockMode);
 	
 	FMetalBuffer& theBufferToUse = CPUBuffer ? CPUBuffer : Buffer;
@@ -511,6 +532,9 @@ void FMetalRHIBuffer::Unlock()
 		{
 			// Synchronise the buffer with the GPU
 			GetMetalDeviceContext().AsyncCopyFromBufferToBuffer(CPUBuffer, 0, Buffer, 0, Buffer.GetLength());
+			
+			ConditionalSetUniformBufferPreviousOffset();
+			
 			if (CPUBuffer)
             {
 				SafeReleaseMetalBuffer(CPUBuffer);
@@ -654,6 +678,7 @@ struct FMetalRHICommandInitialiseBuffer : public FRHICommand<FMetalRHICommandIni
 			if (Buffer->CPUBuffer)
 			{
 				SafeReleaseMetalBuffer(Buffer->CPUBuffer);
+				Buffer->CPUBuffer = nil;
 			}
 			else
 			{
@@ -797,6 +822,7 @@ FMetalStagingBuffer::~FMetalStagingBuffer()
 	if (ShadowBuffer)
 	{
 		SafeReleaseMetalBuffer(ShadowBuffer);
+		ShadowBuffer = nil;
 	}
 }
 

@@ -106,6 +106,11 @@ FString UKismetStringLibrary::Conv_NameToString(FName InName)
 	return InName.ToString();
 }
 
+FString UKismetStringLibrary::Conv_MatrixToString(const FMatrix& InMatrix)
+{
+	return InMatrix.ToString();
+}
+
 FName UKismetStringLibrary::Conv_StringToName(const FString& InString)
 {
 	return FName(*InString);

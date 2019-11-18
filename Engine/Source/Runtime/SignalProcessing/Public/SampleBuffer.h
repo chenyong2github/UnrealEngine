@@ -253,7 +253,27 @@ namespace Audio
 			SampleDuration = (float)NumFrames / SampleRate;
 		}
 
+		// Overload of Append that also sets the number of channels and sample rate.
+		template<class OtherSampleType>
+		void Append(const OtherSampleType* InputBuffer, int32 InNumSamples, int32 InNumChannels, int32 InSampleRate)
+		{
+			NumChannels = InNumChannels;
+			SampleRate = InSampleRate;
+
+			Append(InputBuffer, InNumSamples);
+		}
+
 		~TSampleBuffer() {};
+
+		void Reset()
+		{
+			RawPCMData.Reset();
+			NumSamples = 0;
+			NumFrames = 0;
+			NumChannels = 0;
+			SampleRate = 0.0f;
+			SampleDuration = 0.0f;
+		}
 
 		// Gets the raw PCM data of the sound wave
 		FORCEINLINE const SampleType* GetData() const

@@ -6,8 +6,8 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "LoudnessNRTFactory.h"
-
-DECLARE_LOG_CATEGORY_EXTERN(LogAudioSynesthesia, Log, All);
+#include "ConstantQNRTFactory.h"
+#include "OnsetNRTFactory.h"
 
 namespace Audio
 {
@@ -21,5 +21,7 @@ namespace Audio
 
 	private:
 		FLoudnessNRTFactory LoudnessFactory;
+		FConstantQNRTFactory ConstantQFactory;
+		FOnsetNRTFactory OnsetFactory;
 	};
 }

@@ -315,14 +315,12 @@ FReply SSlider::OnTouchStarted(const FGeometry& MyGeometry, const FPointerEvent&
 {
 	if (!IsLocked())
 	{
-		CachedCursor = Cursor.Get().Get(EMouseCursor::Default);
-		OnMouseCaptureBegin.ExecuteIfBound();
-		CommitValue(PositionToValue(MyGeometry, InTouchEvent.GetLastScreenSpacePosition()));
-
 		// Release capture for controller/keyboard when switching to mouse.
 		ResetControllerState();
 
-		return FReply::Handled().CaptureMouse(SharedThis(this));
+		PressedScreenSpaceTouchDownPosition = InTouchEvent.GetScreenSpacePosition();
+
+		return FReply::Handled();
 	}
 
 	return FReply::Unhandled();
@@ -332,12 +330,27 @@ FReply SSlider::OnTouchMoved(const FGeometry& MyGeometry, const FPointerEvent& I
 {
 	if (HasMouseCaptureByUser(InTouchEvent.GetUserIndex(), InTouchEvent.GetPointerIndex()))
 	{
-		CommitValue(PositionToValue(MyGeometry, InTouchEvent.GetLastScreenSpacePosition()));
+		CommitValue(PositionToValue(MyGeometry, InTouchEvent.GetScreenSpacePosition()));
 
 		// Release capture for controller/keyboard when switching to mouse
 		ResetControllerState();
 
 		return FReply::Handled();
+	}
+	else if (!HasMouseCapture())
+	{
+		if (FSlateApplication::Get().HasTraveledFarEnoughToTriggerDrag(InTouchEvent, PressedScreenSpaceTouchDownPosition, Orientation))
+		{
+			CachedCursor = Cursor.Get().Get(EMouseCursor::Default);
+			OnMouseCaptureBegin.ExecuteIfBound();
+
+			CommitValue(PositionToValue(MyGeometry, InTouchEvent.GetScreenSpacePosition()));
+
+			// Release capture for controller/keyboard when switching to mouse
+			ResetControllerState();
+
+			return FReply::Handled().CaptureMouse(SharedThis(this));
+		}
 	}
 
 	return FReply::Unhandled();
@@ -349,6 +362,8 @@ FReply SSlider::OnTouchEnded(const FGeometry& MyGeometry, const FPointerEvent& I
 	{
 		SetCursor(CachedCursor);
 		OnMouseCaptureEnd.ExecuteIfBound();
+
+		CommitValue(PositionToValue(MyGeometry, InTouchEvent.GetScreenSpacePosition()));
 
 		// Release capture for controller/keyboard when switching to mouse.
 		ResetControllerState();

@@ -2001,6 +2001,8 @@ bool UActorChannel::CleanUp(const bool bForDestroy, EChannelCloseReason CloseRea
 					{
 						Actor->TornOff();
 					}
+
+					Connection->Driver->NotifyActorTornOff(Actor);
 				}
 			}
 			else if (Dormant && (CloseReason == EChannelCloseReason::Dormancy) && !Actor->GetTearOff())	

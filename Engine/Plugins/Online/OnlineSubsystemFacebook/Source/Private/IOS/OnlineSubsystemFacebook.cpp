@@ -70,7 +70,7 @@ void PrintSDKStatus()
 	NSString* SDKVersion = [FBSDKSettings sdkVersion];
 	NSString* GraphVer = [FBSDKSettings graphAPIVersion];
 	NSString* OverrideAppId = [FBSDKAppEvents loggingOverrideAppID];
-	NSSet* LoggingBehaviors = [FBSDKSettings loggingBehavior];
+    NSSet* LoggingBehaviors = [FBSDKSettings loggingBehaviors];
 
 	UE_LOG_ONLINE(Log, TEXT("Facebook SDK:%s"), *FString(SDKVersion));
 	UE_LOG_ONLINE(Log, TEXT("AppId:%s"), *FString(AppId));

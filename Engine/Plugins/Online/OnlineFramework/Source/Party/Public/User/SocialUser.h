@@ -46,8 +46,8 @@ public:
 	FUniqueNetIdRepl GetUserId(ESocialSubsystem SubsystemType) const;
 	FString GetDisplayName() const;
 	FString GetDisplayName(ESocialSubsystem SubsystemType) const;
-	FString GetNickname() const;
-	virtual void SetNickname(const FString& InNickName);
+	virtual FString GetNickname() const;
+	virtual bool SetNickname(const FString& InNickName);
 
 	EInviteStatus::Type GetFriendInviteStatus(ESocialSubsystem SubsystemType) const;
 	bool IsFriend() const;
@@ -153,19 +153,11 @@ protected:
 	virtual void OnPresenceChangedInternal(ESocialSubsystem SubsystemType);
 	virtual void OnPartyInviteAcceptedInternal(const FOnlinePartyTypeId& PartyTypeId) const;
 	virtual void OnPartyInviteRejectedInternal(const FOnlinePartyTypeId& PartyTypeId) const;
+	virtual void HandleSetNicknameComplete(int32 LocalUserNum, const FUniqueNetId& FriendId, const FString& ListName, const FOnlineError& Error);
 	virtual void SetSubsystemId(ESocialSubsystem SubsystemType, const FUniqueNetIdRepl& SubsystemId);
 	int32 NumPendingQueries = 0;
 
 	void TryBroadcastInitializationComplete();
-private:
-	
-	void SetUserInfo(ESocialSubsystem SubsystemType, const TSharedRef<FOnlineUser>& UserInfo);
-	void HandleQueryUserInfoComplete(ESocialSubsystem SubsystemType, bool bWasSuccessful, const TSharedPtr<FOnlineUser>& UserInfo);
-	void HandleSetNicknameComplete(int32 LocalUserNum, const FUniqueNetId& FriendId, const FString& ListName, const FOnlineError& Error);
-
-	virtual FString SanitizePresenceString(FString InString) const;
-	
-private:
 
 	struct FSubsystemUserInfo
 	{
@@ -190,6 +182,15 @@ private:
 		TWeakPtr<FOnlineRecentPlayer> RecentPlayerInfo;
 		TWeakPtr<FOnlineBlockedPlayer> BlockedPlayerInfo;
 	};
+	const FSubsystemUserInfo* GetSubsystemUserInfo(ESocialSubsystem Subsystem) const { return SubsystemInfoByType.Find(Subsystem); }
+
+private:
+	void SetUserInfo(ESocialSubsystem SubsystemType, const TSharedRef<FOnlineUser>& UserInfo);
+	void HandleQueryUserInfoComplete(ESocialSubsystem SubsystemType, bool bWasSuccessful, const TSharedPtr<FOnlineUser>& UserInfo);
+
+	virtual FString SanitizePresenceString(FString InString) const;
+
+private:
 	FSubsystemUserInfo& FindOrCreateSubsystemInfo(const FUniqueNetIdRepl& SubsystemId, ESocialSubsystem SubsystemType);
 
 	bool bIsInitialized = false;

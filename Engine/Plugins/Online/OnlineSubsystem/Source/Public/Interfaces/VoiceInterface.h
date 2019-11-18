@@ -6,6 +6,7 @@
 #include "UObject/CoreOnline.h"
 #include "OnlineDelegateMacros.h"
 #include "OnlineSubsystemPackage.h"
+#include "DSP/MultithreadedPatching.h"
 
 class FVoicePacket;
 
@@ -230,6 +231,54 @@ public:
 	 * Get information about the voice state for display
 	 */
 	virtual FString GetVoiceDebugState() const = 0;
+
+	/**
+	 * This can be used to get arbitrarily tap outgoing microphone audio from local players to use elsewhere in your application. 
+	 * for information on usage, see MultithreadedPatching.h.
+	 *
+	 * @return nullptr if the VoiceEngine implementation being used does not support tapping audio output from the microphone.
+	 */
+	virtual Audio::FPatchOutputStrongPtr GetMicrophoneOutput()
+	{
+		return nullptr;
+	};
+
+
+	/**
+	 * This can be used to get arbitrarily tap incoming VOIP audio from remote players to use elsewhere in your application.
+	 * for information on usage, see MultithreadedPatching.h.
+	 * @return nullptr if the VoiceEngine implementation being used does not support tapping incoming audio.
+	 */
+	virtual Audio::FPatchOutputStrongPtr GetRemoteTalkerOutput()
+	{
+		return nullptr;
+	};
+
+	/**
+	 * This can be used to patch incoming audio to a different audio device.
+	 * @param InDeviceName- name of the device to patch to.
+	 * @param bMuteInGameOutput- if set to true, the audio going out to the game will be muted.
+	 */
+	virtual bool PatchRemoteTalkerOutputToEndpoint(const FString& InDeviceName, bool bMuteInGameOutput = true)
+	{
+		return false;
+	}
+	
+	/**
+	 * This can be used to patch outgoing audio to a different audio device.
+	 * @param InDeviceName- name of the device to patch to.
+	 */
+	virtual bool PatchLocalTalkerOutputToEndpoint(const FString& InDeviceName)
+	{
+		return false;
+	}
+
+	/**
+	 * When called, disconnects all additional audio endpoints we patched to using PatchVoiceOutputToDevice().
+	 */
+	virtual void DisconnectAllEndpoints()
+	{
+	}
 };
 
 typedef TSharedPtr<IVoiceEngine, ESPMode::ThreadSafe> IVoiceEnginePtr;
@@ -437,6 +486,55 @@ public:
 	 * Get information about the voice state for display
 	 */
 	virtual FString GetVoiceDebugState() const = 0;
+
+	/**
+	 * This can be used to get arbitrarily tap outgoing microphone audio from local players to use elsewhere in your application.
+	 * for information on usage, see MultithreadedPatching.h.
+	 *
+	 * @return nullptr if the VoiceEngine implementation being used does not support tapping audio output from the microphone.
+	 */
+	virtual Audio::FPatchOutputStrongPtr GetMicrophoneOutput()
+	{
+		return nullptr;
+	};
+
+
+	/**
+	 * This can be used to get arbitrarily tap incoming VOIP audio from remote players to use elsewhere in your application.
+	 * for information on usage, see MultithreadedPatching.h.
+	 * @return nullptr if the VoiceEngine implementation being used does not support tapping incoming audio.
+	 */
+	virtual Audio::FPatchOutputStrongPtr GetRemoteTalkerOutput()
+	{
+		return nullptr;
+	};
+
+	/**
+	 * This can be used to patch incoming audio to a different audio device.
+	 * @param InDeviceName- name of the device to patch to.
+	 * @param bMuteInGameOutput- if set to true, the audio going out to the game will be muted.
+	 */
+	virtual bool PatchRemoteTalkerOutputToEndpoint(const FString& InDeviceName, bool bMuteInGameOutput = true)
+	{
+		return false;
+	}
+
+	/**
+	 * This can be used to patch outgoing audio to a different audio device.
+	 * @param InDeviceName- name of the device to patch to.
+	 */
+	virtual bool PatchLocalTalkerOutputToEndpoint(const FString& InDeviceName)
+	{
+		return false;
+	}
+
+
+	/**
+	 * When called, disconnects all additional audio endpoints we patched to using PatchRemoteTalkerOutputToEndpoint().
+	 */
+	virtual void DisconnectAllEndpoints()
+	{
+	}
 };
 
 typedef TSharedPtr<IOnlineVoice, ESPMode::ThreadSafe> IOnlineVoicePtr;

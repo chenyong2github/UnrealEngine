@@ -77,6 +77,26 @@ namespace Chaos
 			return C;
 		}
 
+		FORCEINLINE_DEBUGGABLE TVector<T, 3> Support2(const TVector<T, 3>& Direction) const
+		{
+			const float DotA = TVector<T, 3>::DotProduct(A, Direction);
+			const float DotB = TVector<T, 3>::DotProduct(B, Direction);
+			const float DotC = TVector<T, 3>::DotProduct(C, Direction);
+
+			if (DotA > DotB && DotA > DotC)
+			{
+				return A;
+			}
+			else if (DotB > DotA && DotB > DotC)
+			{
+				return B;
+			}
+
+			return C;
+		}
+
+		FORCEINLINE T GetMargin() const { return 0; }
+
 		FORCEINLINE bool Raycast(const TVector<T, 3>& StartPoint, const TVector<T, 3>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex) const
 		{
 			// No face as this is only one triangle
@@ -117,22 +137,22 @@ namespace Chaos
 	}
 
 	template<typename T>
-	class TImplicitTriangle final : public TImplicitObject<T, 3>
+	class TImplicitTriangle final : public FImplicitObject
 	{
 	public:
 
 		TImplicitTriangle()
-			: TImplicitObject<T, 3>(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Triangle)
+			: FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Triangle)
 		{}
 
 		TImplicitTriangle(const TImplicitTriangle&) = delete;
 
 		TImplicitTriangle(TImplicitTriangle&& InToSteal)
-			: TImplicitObject<T, 3>(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Triangle)
+			: FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Triangle)
 		{}
 
 		TImplicitTriangle(const TVector<T, 3>& InA, const TVector<T, 3>& InB, const TVector<T, 3>& InC)
-			: TImplicitObject<T, 3>(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Triangle)
+			: FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Triangle)
 			, Tri(InA, InB, InC)
 		{
 			Bounds = TBox<T, 3>(Tri[0], Tri[0]);
@@ -160,7 +180,7 @@ namespace Chaos
 			return Tri.GetPlane();
 		}
 
-		static ImplicitObjectType GetType()
+		static constexpr EImplicitObjectType StaticType()
 		{
 			return ImplicitObjectType::Triangle;
 		}

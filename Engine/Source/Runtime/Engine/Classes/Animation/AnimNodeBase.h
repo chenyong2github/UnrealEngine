@@ -77,7 +77,7 @@ struct FAnimNodeTracker
 		Map.Reserve(Source.Map.Num());
 		for (const auto& Iter : Source.Map)
 		{
-			if (Iter.Value.Top())
+			if (Iter.Value.Num() != 0)
 			{
 				FNodeStack& Stack = Map.Add(Iter.Key);
 				Stack.Push(Iter.Value.Top());
@@ -155,7 +155,7 @@ public:
 protected:
 
 	/** Interface for node contexts to register log messages with the proxy */
-	ENGINE_API void LogMessageInternal(FName InLogType, EMessageSeverity::Type InSeverity, FText InMessage);
+	ENGINE_API void LogMessageInternal(FName InLogType, EMessageSeverity::Type InSeverity, FText InMessage) const;
 };
 
 
@@ -313,7 +313,7 @@ public:
 	float GetDeltaTime() const { return DeltaTime; }
 
 	// Log update message
-	void LogMessage(EMessageSeverity::Type InSeverity, FText InMessage) { LogMessageInternal("Update", InSeverity, InMessage); }
+	void LogMessage(EMessageSeverity::Type InSeverity, FText InMessage) const { LogMessageInternal("Update", InSeverity, InMessage); }
 };
 
 
@@ -345,7 +345,7 @@ public:
 	ENGINE_API void Initialize(FAnimInstanceProxy* InAnimInstanceProxy);
 
 	// Log evaluation message
-	void LogMessage(EMessageSeverity::Type InSeverity, FText InMessage) { LogMessageInternal("Evaluate", InSeverity, InMessage); }
+	void LogMessage(EMessageSeverity::Type InSeverity, FText InMessage) const { LogMessageInternal("Evaluate", InSeverity, InMessage); }
 
 	void ResetToRefPose()
 	{

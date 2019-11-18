@@ -13,14 +13,14 @@ namespace Chaos
 	struct TCylinderSpecializeSamplingHelper;
 
 	template<class T>
-	class TCylinder final : public TImplicitObject<T, 3>
+	class TCylinder final : public FImplicitObject
 	{
 	public:
-		using TImplicitObject<T, 3>::SignedDistance;
-		using TImplicitObject<T, 3>::GetTypeName;
+		using FImplicitObject::SignedDistance;
+		using FImplicitObject::GetTypeName;
 
 		TCylinder(const TVector<T, 3>& x1, const TVector<T, 3>& x2, const T Radius)
-		    : TImplicitObject<T, 3>(EImplicitObject::FiniteConvex, ImplicitObjectType::Cylinder)
+		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::Cylinder)
 		    , MPlane1(x1, (x2 - x1).GetSafeNormal()) // Plane normals point inward
 		    , MPlane2(x2, -MPlane1.Normal())
 		    , MHeight((x2 - x1).Size())
@@ -31,7 +31,7 @@ namespace Chaos
 			MLocalBoundingBox = TBox<T, 3>(MLocalBoundingBox.Min() - TVector<T, 3>(MRadius), MLocalBoundingBox.Max() + TVector<T, 3>(MRadius));
 		}
 		TCylinder(const TCylinder<T>& Other)
-		    : TImplicitObject<T, 3>(EImplicitObject::FiniteConvex, ImplicitObjectType::Cylinder)
+		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::Cylinder)
 		    , MPlane1(Other.MPlane1)
 		    , MPlane2(Other.MPlane2)
 		    , MHeight(Other.MHeight)
@@ -40,7 +40,7 @@ namespace Chaos
 		{
 		}
 		TCylinder(TCylinder<T>&& Other)
-		    : TImplicitObject<T, 3>(EImplicitObject::FiniteConvex, ImplicitObjectType::Cylinder)
+		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::Cylinder)
 		    , MPlane1(MoveTemp(Other.MPlane1))
 		    , MPlane2(MoveTemp(Other.MPlane2))
 		    , MHeight(Other.MHeight)
@@ -50,7 +50,7 @@ namespace Chaos
 		}
 		~TCylinder() {}
 
-		static ImplicitObjectType GetType() { return ImplicitObjectType::Cylinder; }
+		static constexpr EImplicitObjectType StaticType() { return ImplicitObjectType::Cylinder; }
 
 		/**
 		 * Returns sample points centered about the origin.
@@ -213,7 +213,7 @@ namespace Chaos
 		virtual void Serialize(FChaosArchive& Ar)
 		{
 			FChaosArchiveScopedMemory ScopedMemory(Ar, GetTypeName());
-			TImplicitObject<T, 3>::SerializeImp(Ar);
+			FImplicitObject::SerializeImp(Ar);
 			Ar << MPlane1;
 			Ar << MPlane2;
 			Ar << MHeight;
@@ -263,8 +263,8 @@ namespace Chaos
 		}
 
 		//needed for serialization
-		TCylinder() : TImplicitObject<T, 3>(EImplicitObject::HasBoundingBox, ImplicitObjectType::Cylinder) {}
-		friend TImplicitObject<T, 3>;	//needed for serialization
+		TCylinder() : FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::Cylinder) {}
+		friend FImplicitObject;	//needed for serialization
 
 	private:
 		TPlane<T, 3> MPlane1, MPlane2;

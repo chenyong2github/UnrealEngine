@@ -173,7 +173,6 @@ void UNiagaraStackRendererItem::DeleteInternal()
 
 	OnDataObjectModified().Broadcast(RendererProperties.Get());
 	Finalize();
-	ModifiedGroupItemsDelegate.Broadcast();
 }
 
 bool UNiagaraStackRendererItem::HasBaseRenderer() const

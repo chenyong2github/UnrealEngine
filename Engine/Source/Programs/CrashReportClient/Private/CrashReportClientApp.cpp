@@ -467,8 +467,8 @@ FPlatformErrorReport CollectErrorReport(FRecoveryService* RecoveryService, uint3
 	// At this point the game can continue execution. It is important this happens
 	// as soon as thread state and minidump has been created, so that ensures cause
 	// as little hitch as possible.
-	//uint8 ResponseCode[] = { 0xd, 0xe, 0xa, 0xd };
-	//FPlatformProcess::WritePipe(WritePipe, ResponseCode, sizeof(ResponseCode));
+	uint8 ResponseCode[] = { 0xd, 0xe, 0xa, 0xd };
+	FPlatformProcess::WritePipe(WritePipe, ResponseCode, sizeof(ResponseCode));
 
 	// Write out the XML file.
 	const FString CrashContextXMLPath = FPaths::Combine(*ReportDirectoryAbsolutePath, FPlatformCrashContext::CrashContextRuntimeXMLNameW);
@@ -821,16 +821,11 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 					const bool bNoDialog = CrashContext.UserSettings.bNoDialog && CrashContext.UserSettings.bSendUnattendedBugReports;
 					const SubmitCrashReportResult Result = SendErrorReport(ErrorReport, bNoDialog);
 
-					// At this point the game can continue execution. It is important this happens
-					// as soon as thread state and minidump has been created, so that ensures cause
-					// as little hitch as possible.
-					uint8 ResponseCode[] = { 0xd, 0xe, 0xa, 0xd };
-					FPlatformProcess::WritePipe(MonitorWritePipe, ResponseCode, sizeof(ResponseCode));
-
 					if (bReportCrashAnalyticInfo)
 					{
 						// If analytics is enabled make sure they are submitted now.
 						FCrashReportAnalytics::GetProvider().BlockUntilFlushed(5.0f);
+						FCrashReportAnalytics::Shutdown();
 					}
 				}
 			}
@@ -875,26 +870,28 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 					bApplicationAlive = IsMonitoredProcessAlive(ApplicationReturnCode);
 					if (!bApplicationAlive)
 					{
-						if (!FCrashReportAnalytics::IsAvailable())
-						{
-							FCrashReportAnalytics::Initialize();
-						}
+						FCrashReportAnalytics::Initialize();
 
-						// initialize analytics
-						TUniquePtr<FEditorSessionSummarySender> EditorSessionSummarySender = MakeUnique<FEditorSessionSummarySender>(FCrashReportAnalytics::GetProvider(), TEXT("CrashReportClient"), MonitorPid);
-						EditorSessionSummarySender->SetCurrentSessionExitCode(MonitorPid, ApplicationReturnCode);
-
-						if (TempCrashContext.UserSettings.bSendUnattendedBugReports)
+						if (FCrashReportAnalytics::IsAvailable())
 						{
-							// Send a spoofed crash report in the case that we detect an abnormal shutdown has occurred
-							if (WasAbnormalShutdown(*EditorSessionSummarySender.Get()))
+							// initialize analytics
+							TUniquePtr<FEditorSessionSummarySender> EditorSessionSummarySender = MakeUnique<FEditorSessionSummarySender>(FCrashReportAnalytics::GetProvider(), TEXT("CrashReportClient"), MonitorPid);
+							EditorSessionSummarySender->SetCurrentSessionExitCode(MonitorPid, ApplicationReturnCode);
+
+							if (TempCrashContext.UserSettings.bSendUnattendedBugReports)
 							{
-								HandleAbnormalShutdown(TempCrashContext, MonitorPid, MonitorWritePipe, RecoveryServicePtr);
+								// Send a spoofed crash report in the case that we detect an abnormal shutdown has occurred
+								if (WasAbnormalShutdown(*EditorSessionSummarySender.Get()))
+								{
+									HandleAbnormalShutdown(TempCrashContext, MonitorPid, MonitorWritePipe, RecoveryServicePtr);
+								}
 							}
+
+							// send analytics and shutdown
+							EditorSessionSummarySender->Shutdown();
 						}
 
-						// send analytics and shutdown
-						EditorSessionSummarySender->Shutdown();
+						FCrashReportAnalytics::Shutdown();
 					}
 				}
 			}
@@ -904,8 +901,6 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 		DeleteTempCrashContextFile(MonitorPid);
 
 		FPlatformProcess::CloseProc(MonitoredProcess);
-
-		FCrashReportAnalytics::Shutdown();
 	}
 
 	FPrimaryCrashProperties::Shutdown();

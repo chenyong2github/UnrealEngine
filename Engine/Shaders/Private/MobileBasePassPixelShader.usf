@@ -79,7 +79,7 @@ float4 SpotLightDirectionAndSpecularScale[MAX_DYNAMIC_POINT_LIGHTS];
 	TextureCube ReflectionCubemap2;
 	SamplerState ReflectionCubemapSampler2;
 	// x,y,z - inverted average brightness for 0, 1, 2
-	float4 ReflectionInvAverageBrigtness;
+	float4 ReflectionAverageBrigtness;
 	float4 ReflectionPositionsAndRadii[MAX_HQ_REFLECTIONS];
 		#if ALLOW_CUBE_REFLECTIONS
 		float4x4 CaptureBoxTransformArray[MAX_HQ_REFLECTIONS];
@@ -194,7 +194,7 @@ float4 GetBoxCaptureVector(float3 ReflectionVector, float3 WorldPosition, float4
 }
 #endif
 
-half3 BlendReflectionCapture(FMaterialPixelParameters MaterialParameters, half Roughness, TextureCube ReflectionCube, SamplerState ReflectionSampler, half MipLevel, int ReflectionIndex, half InvReflectionCubemapAverageBrightness, inout half BlendFactor)
+half3 BlendReflectionCapture(FMaterialPixelParameters MaterialParameters, TextureCube ReflectionCube, SamplerState ReflectionSampler, half MipLevel, int ReflectionIndex, inout half BlendFactor)
 {
 	half4 ProjectedCaptureVector;
 #if ALLOW_CUBE_REFLECTIONS
@@ -209,21 +209,33 @@ half3 BlendReflectionCapture(FMaterialPixelParameters MaterialParameters, half R
 	}
 
 	// Fetch from cubemap and convert to linear HDR
-	float4 Reflection = ReflectionCube.SampleLevel(ReflectionSampler, ProjectedCaptureVector.xyz, MipLevel);
+	half4 Reflection = ReflectionCube.SampleLevel(ReflectionSampler, ProjectedCaptureVector.xyz, MipLevel);
 	half3 SpecularIBL = RGBMDecode(Reflection, 16.0f);
 
-#if !LQ_TEXTURE_LIGHTMAP && !CACHED_POINT_INDIRECT_LIGHTING
-	// ignore average brightness for non-lightmap use case.
-	InvReflectionCubemapAverageBrightness = 1.0f;
-#endif
-
-	SpecularIBL = SpecularIBL * SpecularIBL * (InvReflectionCubemapAverageBrightness * ProjectedCaptureVector.w * BlendFactor);
+	SpecularIBL = SpecularIBL * SpecularIBL * (ProjectedCaptureVector.w * BlendFactor);
 
 	BlendFactor = BlendFactor * (1.0 - ProjectedCaptureVector.w);
 	return SpecularIBL;
 }
 
-half3 BlendReflectionCaptures(FMaterialPixelParameters MaterialParameters, half Roughness)
+// Half precision version for mobile's high quality reflection
+half3 MobileComputeMixingWeight3(half IndirectIrradiance, half3 AverageBrightness, half Roughness)
+{
+	// Mirror surfaces should have no mixing, so they match reflections from other sources (SSR, planar reflections)
+	half MixingAlpha = smoothstep(0, 1, saturate(Roughness * View.ReflectionEnvironmentRoughnessMixingScaleBiasAndLargestWeight.x + View.ReflectionEnvironmentRoughnessMixingScaleBiasAndLargestWeight.y));
+
+	// We have high frequency directional data but low frequency spatial data in the envmap.
+	// We have high frequency spatial data but low frequency directional data in the lightmap.
+	// So, we combine the two for the best of both. This is done by removing the low spatial frequencies from the envmap and replacing them with the lightmap data.
+	// This is only done with luma so as to not get odd color shifting.
+	half3 MixingWeight = half3(IndirectIrradiance, IndirectIrradiance, IndirectIrradiance) / max(AverageBrightness, half3(.0001f, .0001f, .0001f));
+
+	MixingWeight = min(MixingWeight, half3(View.ReflectionEnvironmentRoughnessMixingScaleBiasAndLargestWeight.z, View.ReflectionEnvironmentRoughnessMixingScaleBiasAndLargestWeight.z, View.ReflectionEnvironmentRoughnessMixingScaleBiasAndLargestWeight.z));
+
+	return lerp(half3(1.0f, 1.0f, 1.0f), MixingWeight, MixingAlpha);
+}
+
+half3 BlendReflectionCaptures(FMaterialPixelParameters MaterialParameters, half Roughness, half IndirectIrradiance)
 {
 	// Compute fractional mip from roughness
 	half AbsoluteSpecularMip = ComputeReflectionCaptureMipFromRoughness(Roughness, ResolvedView.ReflectionCubemapMaxMip);
@@ -231,9 +243,21 @@ half3 BlendReflectionCaptures(FMaterialPixelParameters MaterialParameters, half 
 	half3 SpecularIBL = half3(0, 0, 0);
 	half BlendFactor = 1;
 
-	SpecularIBL += BlendReflectionCapture(MaterialParameters, Roughness, ReflectionCubemap0, ReflectionCubemapSampler0, AbsoluteSpecularMip, 0, ReflectionInvAverageBrigtness.x, BlendFactor);
-	SpecularIBL += BlendReflectionCapture(MaterialParameters, Roughness, ReflectionCubemap1, ReflectionCubemapSampler1, AbsoluteSpecularMip, 1, ReflectionInvAverageBrigtness.y, BlendFactor);
-	SpecularIBL += BlendReflectionCapture(MaterialParameters, Roughness, ReflectionCubemap2, ReflectionCubemapSampler2, AbsoluteSpecularMip, 2, ReflectionInvAverageBrigtness.z, BlendFactor);
+	half3 SpecularIBL0 = BlendReflectionCapture(MaterialParameters, ReflectionCubemap0, ReflectionCubemapSampler0, AbsoluteSpecularMip, 0, BlendFactor);
+	half3 SpecularIBL1 = BlendReflectionCapture(MaterialParameters, ReflectionCubemap1, ReflectionCubemapSampler1, AbsoluteSpecularMip, 1, BlendFactor);
+	half3 SpecularIBL2 = BlendReflectionCapture(MaterialParameters, ReflectionCubemap2, ReflectionCubemapSampler2, AbsoluteSpecularMip, 2, BlendFactor);
+
+	half3 ReflectionCubemapAverageBrightness = ReflectionAverageBrigtness.xyz;
+
+#if !LQ_TEXTURE_LIGHTMAP && !CACHED_POINT_INDIRECT_LIGHTING
+	// ignore average brightness for non-lightmap use case.
+	ReflectionCubemapAverageBrightness = 0.0f;
+#endif
+
+	//To keep ImageBasedReflectionLighting conherence with PC, use ComputeMixingWeight instead of InvReflectionAverageBrightness to calulate the IBL constribution
+	half3 MixingWeight = MobileComputeMixingWeight3(IndirectIrradiance, ReflectionCubemapAverageBrightness, Roughness);
+
+	SpecularIBL = SpecularIBL0 * MixingWeight.x + SpecularIBL1 * MixingWeight.y + SpecularIBL2 * MixingWeight.z;
 
 	return SpecularIBL;
 }
@@ -253,10 +277,27 @@ float4 GetPlanarReflection(float3 WorldPosition, float3 WorldNormal, float Rough
 	return PlanarReflection;
 }
 
-half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameters, half Roughness)
+// Half precision version for mobile's high quality reflection
+half MobileComputeMixingWeight(half IndirectIrradiance, half AverageBrightness, half Roughness)
+{
+	// Mirror surfaces should have no mixing, so they match reflections from other sources (SSR, planar reflections)
+	half MixingAlpha = smoothstep(0, 1, saturate(Roughness * View.ReflectionEnvironmentRoughnessMixingScaleBiasAndLargestWeight.x + View.ReflectionEnvironmentRoughnessMixingScaleBiasAndLargestWeight.y));
+
+	// We have high frequency directional data but low frequency spatial data in the envmap.
+	// We have high frequency spatial data but low frequency directional data in the lightmap.
+	// So, we combine the two for the best of both. This is done by removing the low spatial frequencies from the envmap and replacing them with the lightmap data.
+	// This is only done with luma so as to not get odd color shifting.
+	half MixingWeight = IndirectIrradiance / max(AverageBrightness, .0001f);
+
+	MixingWeight = min(MixingWeight, View.ReflectionEnvironmentRoughnessMixingScaleBiasAndLargestWeight.z);
+
+	return lerp(1.0f, MixingWeight, MixingAlpha);
+}
+
+half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameters, half Roughness, half IndirectIrradiance)
 {
 #if HQ_REFLECTIONS
-	half3 SpecularIBL = BlendReflectionCaptures(MaterialParameters, Roughness);
+	half3 SpecularIBL = BlendReflectionCaptures(MaterialParameters, Roughness, IndirectIrradiance);
 #else
 
 	half3 ProjectedCaptureVector = MaterialParameters.ReflectionVector;	
@@ -279,10 +320,10 @@ half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameter
 	{
 		SpecularIBL = RGBMDecode(SpecularIBLSample, 16.0);
 		SpecularIBL = SpecularIBL * SpecularIBL;
-		#if LQ_TEXTURE_LIGHTMAP || CACHED_POINT_INDIRECT_LIGHTING
-			// divide by average brightness for lightmap use cases only.
-			SpecularIBL *= MobileReflectionCapture.Params.x;
-		#endif
+		
+		//To keep ImageBasedReflectionLighting conherence with PC, use ComputeMixingWeight instead of InvReflectionAverageBrightness to calulate the IBL constribution
+		SpecularIBL *= MobileComputeMixingWeight(IndirectIrradiance, MobileReflectionCapture.Params.x, Roughness);
+
 	}
 
 #endif
@@ -446,7 +487,8 @@ void Main(
 #endif
 	
 	half3 Color = 0;
-	half IndirectIrradiance = 1;
+	//To keep IndirectLightingCache conherence with PC, initialize the IndirectIrradiance to zero.
+	half IndirectIrradiance = 0;
 
 	#if LQ_TEXTURE_LIGHTMAP
 		float2 LightmapUV0, LightmapUV1;
@@ -503,7 +545,7 @@ void Main(
 		half Shadow = 1.0f;
 	#if !MATERIAL_SHADINGMODEL_UNLIT
 		Shadow = GetPrimaryPrecomputedShadowMask(Interpolants).r;
-		#if DIRECTIONAL_LIGHT_CSM && !MOBILE_MULTI_VIEW && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+		#if DIRECTIONAL_LIGHT_CSM && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 		// Cascaded Shadow Map
 		{
 			FPCFSamplerSettings Settings;
@@ -521,7 +563,12 @@ void Main(
 			{
 				if (MaterialParameters.ScreenPosition.w < MobileDirectionalLight.DirectionalLightShadowDistances[i])
 				{
+				#if MOBILE_MULTI_VIEW
+					ShadowPosition = mul(float4(MaterialParameters.ScreenPosition.xyw, 1), ResolvedView.MobileMultiviewShadowTransform);
+					ShadowPosition = mul(ShadowPosition, MobileDirectionalLight.DirectionalLightScreenToShadow[i]);
+				#else
 					ShadowPosition = mul(float4(MaterialParameters.ScreenPosition.xyw, 1), MobileDirectionalLight.DirectionalLightScreenToShadow[i]);
+				#endif
 					break; // position found.
 				}
 			}
@@ -570,7 +617,7 @@ void Main(
 			// MobileDirectionalLight.DirectionalLightDistanceFadeMADAndSpecularScale.z saves SpecularScale for direction light.
 			Color += (Shadow * NoL) * MobileDirectionalLight.DirectionalLightColor.rgb * (DiffuseColor + SpecularColor * MobileDirectionalLight.DirectionalLightDistanceFadeMADAndSpecularScale.z * CalcSpecular(Roughness, RoL, NoH, H, MaterialParameters.WorldNormal));
 			// Environment map has been prenormalized, scale by lightmap luminance
-			half3 SpecularIBL = GetImageBasedReflectionLighting(MaterialParameters, Roughness) * IndirectIrradiance;
+			half3 SpecularIBL = GetImageBasedReflectionLighting(MaterialParameters, Roughness, IndirectIrradiance);
 
 			#if MATERIAL_PLANAR_FORWARD_REFLECTIONS
 				BRANCH
@@ -587,11 +634,20 @@ void Main(
 		#if ENABLE_SKY_LIGHT
 			//@mw todo
 			// TODO: Also need to do specular.
-			float3 SkyDiffuseLighting = GetSkySHDiffuseSimple(MaterialParameters.WorldNormal);
+#if MATERIAL_TWO_SIDED && LQ_TEXTURE_LIGHTMAP
+			if (NoL == 0)
+			{
+#endif
+			half3 SkyDiffuseLighting = GetSkySHDiffuseSimple(MaterialParameters.WorldNormal);
+
 		#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 			WaterDiffuseIndirectLuminance += SkyDiffuseLighting;
 		#endif
-			Color += SkyDiffuseLighting * ResolvedView.SkyLightColor.rgb * DiffuseColor * MaterialAO;
+			Color += SkyDiffuseLighting * half3(ResolvedView.SkyLightColor.rgb) * DiffuseColor * MaterialAO;
+#if MATERIAL_TWO_SIDED && LQ_TEXTURE_LIGHTMAP
+			
+			}
+#endif
 		#endif
 
 		#if MAX_DYNAMIC_POINT_LIGHTS > 0 && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
@@ -661,17 +717,18 @@ void Main(
 
 #if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 	{
-		const bool CameraIsUnderWater = false;	// Fade out the material contribution over to water contribution according to material opacity.
+		const bool CameraIsUnderWater = false;												// Fade out the material contribution over to water contribution according to material opacity.
 		const float3 SunIlluminance = ResolvedView.DirectionalLightColor.rgb * PI;			// times PI because it is divided by PI on CPU (=luminance) and we want illuminance here. 
 		const float3 WaterDiffuseIndirectIlluminance = WaterDiffuseIndirectLuminance * PI;	// DiffuseIndirectLighting is luminance. So we need to multiply by PI to get illuminance.
-		const float3 EnvBrdf = SpecularColor; // SpecularColor is not F0 as in BasePassPixelShader, it is EnvBRDF.
+		const float3 EnvBrdf = SpecularColor;												// SpecularColor is not F0 as in BasePassPixelShader, it is EnvBRDF.
+		const uint EyeIndex = 0;
 
 		const float4 NullDistortionParams = 1.0f;
 		WaterVolumeLightingOutput WaterLighting = EvaluateWaterVolumeLighting(
 			MaterialParameters, PixelMaterialInputs, ResolvedView,
 			Shadow, Specular, NullDistortionParams,
 			SunIlluminance, WaterDiffuseIndirectIlluminance, EnvBrdf,
-			CameraIsUnderWater, WaterVisibility);
+			CameraIsUnderWater, WaterVisibility, EyeIndex);
 
 		// Accumulate luminance and occlude the background according to transmittance to view and mean transmittance to lights.
 		Color += WaterLighting.Luminance;

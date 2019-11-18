@@ -131,6 +131,9 @@ namespace ContentBrowserUtils
 	/** Copies references to the specified assets to the clipboard */
 	void CopyAssetReferencesToClipboard(const TArray<FAssetData>& AssetsToCopy);
 
+	/** Copies file paths on disk to the specified assets to the clipboard */
+	void CopyFilePathsToClipboard(const TArray<FAssetData>& AssetsToCopy);
+
 	/**
 	 * Capture active viewport to thumbnail and assigns that thumbnail to incoming assets
 	 *
@@ -253,6 +256,9 @@ namespace ContentBrowserUtils
 
 	/** Returns true if the specified path is available for object creation */
 	bool IsValidObjectPathForCreate(const FString& ObjectPath, FText& OutErrorMessage, bool bAllowExistingAsset = false);
+	
+	/** Returns true if the specified path is available for object creation */
+	bool IsValidObjectPathForCreate(const FString& ObjectPath, const UClass* ObjectClass, FText& OutErrorMessage, bool bAllowExistingAsset = false);
 
 	/** Returns true if the specified folder name in the specified path is available for folder creation */
 	bool IsValidFolderPathForCreate(const FString& FolderPath, const FString& NewFolderName, FText& OutErrorMessage);

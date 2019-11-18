@@ -13,7 +13,7 @@ public class Facebook : ModuleRules
         if (Target.Platform == UnrealTargetPlatform.IOS)
 		{
 			PublicDefinitions.Add("WITH_FACEBOOK=1");
-			PublicDefinitions.Add("UE4_FACEBOOK_VER=4.38");
+			PublicDefinitions.Add("UE4_FACEBOOK_VER=5.8");
 
             // These are iOS system libraries that Facebook depends on
             //PublicFrameworks.AddRange(
@@ -27,27 +27,13 @@ public class Facebook : ModuleRules
             //    "xml2"
             //});
 
-			//PublicAdditionalFrameworks.Add(
-			//	new UEBuildFramework(
-			//		"AccountKit",
-			//		"IOS/FacebookSDK/AccountKit.embeddedframework.zip",
-			//		"AccountKit.framework/AccountKitStrings.bundle"
-			//	)
-			//);
 
-			PublicAdditionalFrameworks.Add(
-				new Framework(
-					"Bolts",
-					"IOS/FacebookSDK/Bolts.embeddedframework.zip"
-				)
-			);
 
 			// Access to Facebook core
 			PublicAdditionalFrameworks.Add(
 				new Framework(
 					"FBSDKCoreKit",
-					"IOS/FacebookSDK/FBSDKCoreKit.embeddedframework.zip",
-					"FBSDKCoreKit.framework/Resources/FacebookSDKStrings.bundle"
+					"IOS/FacebookSDK/FBSDKCoreKit.embeddedframework.zip"
 				)
 			);
 
@@ -59,13 +45,6 @@ public class Facebook : ModuleRules
 				)
 			);
 
-			// Access to Facebook marketing 
-			//PublicAdditionalFrameworks.Add(
-			//	new UEBuildFramework(
-			//		"FBSDKMarketingKit",
-			//		"IOS/FacebookSDK/FBSDKMarketingKit.embeddedframework.zip"
-			//	)
-			//);
 
 			// commenting out over if(false) for #jira FORT-77943 per Peter.Sauerbrei prior change with CL 3960071
 			//// Access to Facebook places

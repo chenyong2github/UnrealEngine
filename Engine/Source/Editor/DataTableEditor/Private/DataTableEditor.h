@@ -91,10 +91,7 @@ protected:
 	void RestoreCachedSelection(const FName InCachedSelection, const bool bUpdateEvenIfValid = false);
 	
 	void OnFilterTextChanged(const FText& InFilterText);
-
 	void OnFilterTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo);
-
-	void OnFilterCleared();
 
 	virtual void PostRegenerateMenusAndToolbars() override;
 

@@ -1570,4 +1570,18 @@ void SFindInBlueprints::CloseHostTab()
 	}
 }
 
+FReply SFindInBlueprints::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	// BlueprintEditor's IToolkit code will handle shortcuts itself - but we can just use 
+	// simple slate handlers when we're standalone:
+	if(!BlueprintEditorPtr.IsValid() && CommandList.IsValid())
+	{
+		if( CommandList->ProcessCommandBindings(InKeyEvent))
+		{
+			return FReply::Handled();
+		}
+	}
+	return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent);
+}
+
 #undef LOCTEXT_NAMESPACE

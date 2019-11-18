@@ -675,7 +675,7 @@ void SGraphEditorImpl::RegisterContextMenu(const UEdGraphSchema* Schema, FToolMe
 {
 	UToolMenus* ToolMenus = UToolMenus::Get();
 	const FName SchemaMenuName = Schema->GetContextMenuName();
-	UGraphNodeContextMenuContext* Context = MenuContext.Find<UGraphNodeContextMenuContext>();
+	UGraphNodeContextMenuContext* Context = MenuContext.FindContext<UGraphNodeContextMenuContext>();
 
 	// Root menu
 	// "GraphEditor.GraphContextMenu.Common"
@@ -771,7 +771,7 @@ UToolMenu* SGraphEditorImpl::GenerateContextMenu(const UEdGraphSchema* Schema, F
 	RegisterContextMenu(Schema, MenuContext);
 
 	UToolMenus* ToolMenus = UToolMenus::Get();
-	UGraphNodeContextMenuContext* Context = MenuContext.Find<UGraphNodeContextMenuContext>();
+	UGraphNodeContextMenuContext* Context = MenuContext.FindContext<UGraphNodeContextMenuContext>();
 
 	FName MenuName = NAME_None;
 	if (Context->Node)

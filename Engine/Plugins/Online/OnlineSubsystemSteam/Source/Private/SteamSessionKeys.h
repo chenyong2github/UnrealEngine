@@ -19,8 +19,8 @@
 #define STEAMKEY_BUILDUNIQUEID "BUILDID"
 
 /** Number of keys above required for valid lobby session */
-#define STEAMKEY_NUMREQUIREDLOBBYKEYS 8
-#define STEAMKEY_NUMREQUIREDSERVERKEYS 3
+#define STEAMKEY_NUMREQUIREDLOBBYKEYS 9
+#define STEAMKEY_NUMREQUIREDSERVERKEYS 4
 
 /** Optional keys (depends on lobby/advertised server session) */
 #define STEAMKEY_HOSTIP "HOSTIP"
@@ -28,6 +28,7 @@
 #define STEAMKEY_P2PADDR "P2PADDR"
 #define STEAMKEY_P2PPORT "P2PPORT"
 #define STEAMKEY_P2PPING "P2PPING"
+#define STEAMKEY_CONNECTIONMETHOD "CONMETHOD"
 
 /**
  * Converts an engine key and its data type to an appropriate Steam key for use with lobbies/gameservers

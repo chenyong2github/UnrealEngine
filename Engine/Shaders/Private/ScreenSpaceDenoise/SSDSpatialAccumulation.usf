@@ -40,10 +40,11 @@
 
 // Configures all the pass for each individual signals.
 #if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK
+	#define MAX_SIGNAL_BATCH_SIZE CONFIG_SIGNAL_BATCH_SIZE
+	#define SIGNAL_ARRAY_SIZE CONFIG_SIGNAL_BATCH_SIZE
+
 	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_MONOCHROMATIC_PENUMBRA
 	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN 1
-
-	#define MAX_SIGNAL_BATCH_SIZE CONFIG_SIGNAL_BATCH_SIZE
 
 	#if DIM_STAGE == STAGE_RECONSTRUCTION
 		// Input and output layout.
@@ -77,16 +78,6 @@
 		#define CONFIG_MAX_WITH_REF_DISTANCE 1
 		#define CONFIG_OUTPUT_MODE          OUTPUT_MODE_DRB
 
-	#elif DIM_STAGE == STAGE_REJECTION_PRE_CONVOLUTION
-		// Input and output layout.
-		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION
-		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_PENUMBRA_REJECTION
-
-		#define CONFIG_INPUT_TEXTURE_COUNT CONFIG_SIGNAL_BATCH_SIZE
-		#define CONFIG_OUTPUT_TEXTURE_COUNT CONFIG_SIGNAL_BATCH_SIZE
-
-		#define CONFIG_BILATERAL_DISTANCE_COMPUTATION SIGNAL_WORLD_FREQUENCY_PRECOMPUTED_BLURING_RADIUS
-
 	#elif DIM_STAGE == STAGE_POST_FILTERING
 		// Input and output layout.
 		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_PENUMBRA_HISTORY
@@ -119,15 +110,17 @@
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_POLYCHROMATIC_PENUMBRA_HARMONIC
+	// Denoise diffuse and specular harmonics at the same time.
+	#define MAX_SIGNAL_BATCH_SIZE 2
+	#define SIGNAL_ARRAY_SIZE 2
+	#undef CONFIG_SIGNAL_BATCH_SIZE
+	#define CONFIG_SIGNAL_BATCH_SIZE 2
+
+	// Each harmonic requires input and output RGB.
 	#define COMPILE_SIGNAL_COLOR_ARRAY 2
 
 	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_POLYCHROMATIC_PENUMBRA
 	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN 1
-	#undef CONFIG_SIGNAL_BATCH_SIZE
-	#define CONFIG_SIGNAL_BATCH_SIZE 2
-
-	// Denoise diffuse and specular harmonics at the same time.
-	#define MAX_SIGNAL_BATCH_SIZE 2
 
 	// Any world distance depends on the harmonic being processed.
 	#define CONFIG_BILATERAL_DISTANCE_COMPUTATION SIGNAL_WORLD_FREQUENCY_HARMONIC
@@ -148,25 +141,34 @@
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
+	// Denoise only specular.
+	#define MAX_SIGNAL_BATCH_SIZE 1
+
 	#define COMPILE_SIGNAL_COLOR 1
 
 	#if DIM_STAGE == STAGE_RECONSTRUCTION
+		#define SIGNAL_ARRAY_SIZE 1
+
 		// Input and output layout.
 		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_REFLECTIONS_INPUT
 		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY
 
 		// Configure the bilateral therm.
 		#if DIM_MULTI_SPP
-			#define CONFIG_SAMPLE_SET           SAMPLE_SET_DIRECTIONAL_RECT
+			#define CONFIG_SAMPLE_SET           SAMPLE_SET_DIRECTIONAL_ELLIPSE
 
 			#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_REFLECTIONS
 			//#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_REFLECTIONS_1SPP
 			//#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DISABLED
 		#else
-			// Use stackowiak sample set to keep noise in the signal to avoid flicker in history rejection,
-			// and adapt number of samples based on the sample.
-			#define CONFIG_SAMPLE_SET           SAMPLE_SET_STACKOWIAK_4_SETS
-			#define CONFIG_SAMPLE_COUNT_POLICY  SAMPLE_COUNT_POLICY_HIT_DISTANCE_BASED
+			#if 1
+				#define CONFIG_SAMPLE_SET           SAMPLE_SET_DIRECTIONAL_ELLIPSE
+			#else
+				// Use stackowiak sample set to keep noise in the signal to avoid flicker in history rejection,
+				// and adapt number of samples based on the sample.
+				#define CONFIG_SAMPLE_SET           SAMPLE_SET_STACKOWIAK_4_SETS
+				#define CONFIG_SAMPLE_COUNT_POLICY  SAMPLE_COUNT_POLICY_HIT_DISTANCE_BASED
+			#endif
 
 			// Reconstruction has 1 ray per input pixel, therefore can use specular ratio estimator instead of Tokoyashi axes bilateral kernel.
 			#define CONFIG_SPECULAR_RATIO_ESTIMATOR 1
@@ -184,6 +186,8 @@
 		#define CONFIG_OUTPUT_TEXTURE_COUNT 2
 
 	#elif DIM_STAGE == STAGE_REJECTION_PRE_CONVOLUTION
+		#define SIGNAL_ARRAY_SIZE 2 // first and second momment to measure variance in temporal accumulation.
+
 		// Input and output layout.
 		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY
 		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_REFLECTIONS_REJECTION
@@ -197,6 +201,8 @@
 		#define CONFIG_OUTPUT_TEXTURE_COUNT 3
 
 	#elif DIM_STAGE == STAGE_POST_FILTERING
+		#define SIGNAL_ARRAY_SIZE 1
+
 		// Input and output layout.
 		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY
 		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY
@@ -217,9 +223,14 @@
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO
+	// Denoise only AO.
+	#define MAX_SIGNAL_BATCH_SIZE 1
+
 	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
 
 	#if DIM_STAGE == STAGE_RECONSTRUCTION
+		#define SIGNAL_ARRAY_SIZE 1
+
 		// Input and output layout.
 		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_AO_INPUT
 		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_AO_HISTORY
@@ -232,6 +243,8 @@
 		#define CONFIG_OUTPUT_MODE          OUTPUT_MODE_DRB
 
 	#elif DIM_STAGE == STAGE_REJECTION_PRE_CONVOLUTION
+		#define SIGNAL_ARRAY_SIZE 2 // first and second momment to measure variance in temporal accumulation.
+
 		// Input and output layout.
 		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_AO_HISTORY
 		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_AO_REJECTION
@@ -242,6 +255,8 @@
 		#define CONFIG_BILATERAL_DISTANCE_COMPUTATION SIGNAL_WORLD_FREQUENCY_HIT_DISTANCE
 
 	#elif DIM_STAGE == STAGE_POST_FILTERING
+		#define SIGNAL_ARRAY_SIZE 1
+
 		// Input and output layout.
 		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_AO_HISTORY
 		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_AO_HISTORY
@@ -259,6 +274,10 @@
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_INDIRECT_AND_AO
+	// Denoise diffuse and AO, but AO is FSSDSignalSample::MissCount.
+	#define MAX_SIGNAL_BATCH_SIZE 1
+	#define SIGNAL_ARRAY_SIZE 1
+
 	#define COMPILE_SIGNAL_COLOR 1
 
 	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
@@ -299,6 +318,9 @@
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_SPHERICAL_HARMONIC
+	#define MAX_SIGNAL_BATCH_SIZE 1
+	#define SIGNAL_ARRAY_SIZE 1
+
 	#define COMPILE_SIGNAL_COLOR_SH 1
 
 	// Given it's a spherical harmonic that store directionality, only need position based rejection.
@@ -331,6 +353,10 @@
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SSGI
+	// Denoise diffuse and AO, but AO is FSSDSignalSample::MissCount.
+	#define MAX_SIGNAL_BATCH_SIZE 1
+	#define SIGNAL_ARRAY_SIZE 1
+
 	#define COMPILE_SIGNAL_COLOR 1
 
 	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
@@ -431,7 +457,7 @@
 
 /** The number of signal that should be processed per signal domain. */
 #ifndef CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN
-	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN MAX_SIGNAL_MULTIPLEXING
+	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN SIGNAL_ARRAY_SIZE
 #endif
 
 /** Selects how the world distance should be computed for bilateral rejection. */
@@ -449,11 +475,6 @@
 	#define CONFIG_MAX_WITH_REF_DISTANCE 0
 #endif
 
-/** Project GGX lobe to compute the kernel. */
-#ifndef CONFIG_PROJECT_GGX_LOBE
-	#define CONFIG_PROJECT_GGX_LOBE 0
-#endif
-
 
 //------------------------------------------------------- COMPILATION WHITE LISTING
 
@@ -462,7 +483,7 @@
 	#define COMPILE_STACKOWIAK_KERNEL 1
 #elif CONFIG_SAMPLE_SET == SAMPLE_SET_HEXAWEB
 	#define COMPILE_DISK_KERNEL 1
-#elif CONFIG_SAMPLE_SET == SAMPLE_SET_DIRECTIONAL_RECT
+#elif CONFIG_SAMPLE_SET == SAMPLE_SET_DIRECTIONAL_RECT || CONFIG_SAMPLE_SET == SAMPLE_SET_DIRECTIONAL_ELLIPSE
 	#define COMPILE_DIRECTIONAL_KERNEL 1
 #else
 	#define COMPILE_BOX_KERNEL 1
@@ -656,7 +677,8 @@ void MainCS(
 		#if CONFIG_NORMALIZE_INPUT
 			FSSDSignalArray NormalizedRefSamples = RefSamples;
 		#else
-			FSSDSignalArray NormalizedRefSamples = NormalizeToOneSample(RefSamples);
+			// TODO(Denoiser): Decode twice instead.
+			FSSDSignalArray NormalizedRefSamples = NormalizeToOneSampleArray(RefSamples);
 		#endif
 	#endif
 
@@ -750,8 +772,8 @@ void MainCS(
 		KernelConfig.bComputeSampleColorSH = DIM_STAGE == STAGE_RECONSTRUCTION && DIM_MULTI_SPP == 0;
 		
 		{
-			UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
-			for (uint MultiplexId = 0; MultiplexId < MAX_SIGNAL_MULTIPLEXING; MultiplexId++)
+			UNROLL_N(SIGNAL_ARRAY_SIZE)
+			for (uint MultiplexId = 0; MultiplexId < SIGNAL_ARRAY_SIZE; MultiplexId++)
 			{
 				KernelConfig.BufferColorSpace[MultiplexId] = CONFIG_INPUT_COLOR_SPACE;
 				KernelConfig.AccumulatorColorSpace[MultiplexId] = CONFIG_ACCUMULATION_COLOR_SPACE;
@@ -761,7 +783,7 @@ void MainCS(
 		SetBilateralPreset(CONFIG_BILATERAL_PRESET, /* inout */ KernelConfig);
 
 		// SGPRs
-		KernelConfig.BufferSizeAndInvSize = View.BufferSizeAndInvSize;
+		KernelConfig.BufferSizeAndInvSize = BufferSizeAndInvSize;
 		KernelConfig.BufferBilinearUVMinMax = BufferBilinearUVMinMax;
 		KernelConfig.KernelSpreadFactor = KernelSpreadFactor;
 		KernelConfig.HarmonicPeriode = HarmonicPeriode;
@@ -797,8 +819,8 @@ void MainCS(
 		{
 			KernelConfig.bMaxWithRefBilateralDistance = true;
 
-			UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
-			for (uint MultiplexId = 0; MultiplexId < MAX_SIGNAL_MULTIPLEXING; MultiplexId++)
+			UNROLL_N(SIGNAL_ARRAY_SIZE)
+			for (uint MultiplexId = 0; MultiplexId < SIGNAL_ARRAY_SIZE; MultiplexId++)
 			{
 				if (KernelConfig.BilateralDistanceComputation == SIGNAL_WORLD_FREQUENCY_PRECOMPUTED_BLURING_RADIUS)
 				{
@@ -844,8 +866,8 @@ void MainCS(
 		// When not upscaling, manually force accumulate the sample of the kernel.
 		if (!KernelConfig.bSampleKernelCenter && !KernelConfig.bDescOrder)
 		{
-			UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
-			for (uint SignalMultiplexId = 0; SignalMultiplexId < MAX_SIGNAL_MULTIPLEXING; SignalMultiplexId++)
+			UNROLL_N(SIGNAL_ARRAY_SIZE)
+			for (uint SignalMultiplexId = 0; SignalMultiplexId < SIGNAL_ARRAY_SIZE; SignalMultiplexId++)
 			{
 				const uint BatchedSignalId = ComputeSignalBatchIdFromSignalMultiplexId(KernelConfig, SignalMultiplexId);
 				
@@ -886,7 +908,7 @@ void MainCS(
 			
 				uint RaySubPixelId = View.StateFrameIndex & (UpscaleFactor * UpscaleFactor - 1);
 
-				KernelConfig.BufferUV = ((ViewportMin + ClosestRayPixelCoord + (0.5 * KernelSpreadFactor + 0.5))) * View.BufferSizeAndInvSize.zw;
+				KernelConfig.BufferUV = ((ViewportMin + ClosestRayPixelCoord + (0.5 * KernelSpreadFactor + 0.5))) * KernelConfig.BufferSizeAndInvSize.zw;
 			
 				// Sample the center of the kernel by comparing it against the RefSceneMetadata, since it may no match.
 				KernelConfig.bSampleKernelCenter = true;
@@ -922,7 +944,7 @@ void MainCS(
 			#endif
 
 			// Put the kernel center at the center of the quad. Half pixel shift is done in the sample offsets.
-			KernelConfig.BufferUV = (DispatchThreadId | 1) * View.BufferSizeAndInvSize.zw;
+			KernelConfig.BufferUV = (DispatchThreadId | 1) * KernelConfig.BufferSizeAndInvSize.zw;
 
 			// Id of the pixel in the quad. This is to match hard coded first samples of the sample set.
 			KernelConfig.SampleTrackId = ((DispatchThreadId.x & 1) | ((DispatchThreadId.y & 1) << 1));
@@ -935,37 +957,55 @@ void MainCS(
 				KernelBufferUV = KernelConfig.BufferUV;
 			#endif
 		}
-		#elif CONFIG_SAMPLE_SET == SAMPLE_SET_DIRECTIONAL_RECT
+		#elif CONFIG_SAMPLE_SET == SAMPLE_SET_DIRECTIONAL_RECT || CONFIG_SAMPLE_SET == SAMPLE_SET_DIRECTIONAL_ELLIPSE
 		{
-			const float TargetSamplePerPixel = 0.25;
-			const float MinimalPixelRadius = 0.5 * rsqrt(2.0);
+			#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
+			{
+				const float TargetSamplePerPixel = 0.25;
+				const float MinimalPixelRadius = 0.5 * rsqrt(2.0);
 
-			// Project GGX lobe into screen space.
-			float2 NormalizedScreenMajorAxis;
-			float InifinityMajorViewportRadius;
-			float InifinityMinorViewportRadius;
-			ProjectSpecularLobeToScreenSpace(
-				RefSceneMetadata,
-				/* out */ NormalizedScreenMajorAxis,
-				/* out */ InifinityMajorViewportRadius,
-				/* out */ InifinityMinorViewportRadius);
+				// Project GGX lobe into screen space.
+				float2 NormalizedScreenMajorAxis;
+				float InifinityMajorViewportRadius;
+				float InifinityMinorViewportRadius;
+				ProjectSpecularLobeToScreenSpace(
+					RefSceneMetadata,
+					/* out */ NormalizedScreenMajorAxis,
+					/* out */ InifinityMajorViewportRadius,
+					/* out */ InifinityMinorViewportRadius);
 
-			float OutOfFocus = ComputeBluringOutOfFocusOfNormalizedSample(NormalizedRefSamples.Array[0], RefSceneMetadata);
+				float OutOfFocus = ComputeBluringOutOfFocusOfNormalizedSample(NormalizedRefSamples.Array[0], RefSceneMetadata);
 
-			KernelConfig.MajorAxis = NormalizedScreenMajorAxis * float2(1, -1);
-			KernelConfig.MajorPixelRadius = InifinityMajorViewportRadius * OutOfFocus * View.ViewSizeAndInvSize.x;
+				KernelConfig.MajorAxis = NormalizedScreenMajorAxis * float2(1, -1);
+				KernelConfig.MajorPixelRadius = InifinityMajorViewportRadius * OutOfFocus * View.ViewSizeAndInvSize.x;
 
-			float AspectRatio = InifinityMinorViewportRadius / InifinityMajorViewportRadius;
+				float AspectRatio = InifinityMinorViewportRadius / InifinityMajorViewportRadius;
 
-			float MaxPixelRadius = sqrt(rcp(TargetSamplePerPixel) * MaxSampleCount / AspectRatio);
+				float MaxPixelDiameter = sqrt(rcp(TargetSamplePerPixel) * MaxSampleCount / AspectRatio);
+				float MaxPixelRadius = 0.5 * MaxPixelDiameter;
 
+				KernelConfig.MajorPixelRadius = clamp(KernelConfig.MajorPixelRadius, 0, MaxPixelRadius);
+				KernelConfig.MinorPixelRadius = AspectRatio * KernelConfig.MajorPixelRadius;
 
-			KernelConfig.MajorPixelRadius = clamp(KernelConfig.MajorPixelRadius, 0, MaxPixelRadius);
-			KernelConfig.MinorPixelRadius = AspectRatio * KernelConfig.MajorPixelRadius;
+				// *4 to multiply from radii area to diameters area.
+				float ConvolutionArea = 4.0 * max(KernelConfig.MajorPixelRadius, MinimalPixelRadius) * max(KernelConfig.MinorPixelRadius, MinimalPixelRadius);
 
-			float ConvolutionArea = max(KernelConfig.MajorPixelRadius, MinimalPixelRadius) * max(KernelConfig.MinorPixelRadius, MinimalPixelRadius);
+				KernelConfig.SampleCount = clamp(ConvolutionArea * TargetSamplePerPixel, 0, MaxSampleCount);
+			
+				//DebugOutput[DispatchThreadId] = float4(
+				//	NormalizedScreenMajorAxis,
+				//	KernelConfig.MinorPixelRadius,
+				//	OutOfFocus);
 
-			KernelConfig.SampleCount = clamp(ConvolutionArea * TargetSamplePerPixel, 0, MaxSampleCount);
+				// DebugOutput[DispatchThreadId] = float4(
+				// 	KernelConfig.SampleCount,
+				// 	KernelConfig.MajorPixelRadius,
+				// 	KernelConfig.MinorPixelRadius,
+				// 	OutOfFocus);
+			}
+			#else
+				#error Directional rect sample set is not supported.
+			#endif
 		}
 		#endif // CONFIG_SAMPLE_SET == SAMPLE_SET_STOCASTIC_HIERARCHY
 		
@@ -1099,6 +1139,10 @@ void MainCS(
 		}
 		#elif CONFIG_OUTPUT_MODE == OUTPUT_MODE_2MOMMENT_SUM
 		{
+			#if SIGNAL_ARRAY_SIZE != 2 * MAX_SIGNAL_BATCH_SIZE
+				#error Invalid signal array size.
+			#endif
+
 			MultiplexCount = 2 * CONFIG_SIGNAL_BATCH_SIZE;
 
 			UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
@@ -1154,7 +1198,7 @@ void MainCS(
 
 	// TODO(Denoiser):  LeaveRayCount = (LeaveRayCount - 1) * 9 / (9 - 2) post processing to reject when for history rejection
 	uint2 OutputPixelPostion;
-	#if CONFIG_VGPR_OPTIMIZATION && 1 // TODO(Denoiser)
+	#if CONFIG_VGPR_OPTIMIZATION && !CONFIG_UPSCALE // TODO(Denoiser)
 	{
 		// No need to keep DispatchThreadId, can recompute the output pixel position based on information stored in VGPRs for spatial kernel.
 		#if CONFIG_SAMPLE_SET == SAMPLE_SET_STACKOWIAK_4_SETS || CONFIG_SAMPLE_SET == SAMPLE_SET_STOCASTIC_HIERARCHY

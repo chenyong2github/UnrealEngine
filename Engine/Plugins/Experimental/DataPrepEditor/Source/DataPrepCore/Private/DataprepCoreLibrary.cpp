@@ -261,7 +261,6 @@ bool UDataprepCoreLibrary::Execute_Internal(UDataprepAssetInterface* DataprepAss
 				}
 			}
 
-			// #ueent_todo: Should we find a better way to silently delete assets?
 			// Disable warnings from LogStaticMesh because FDataprepCoreUtils::PurgeObjects is pretty verbose on harmless warnings
 			ELogVerbosity::Type PrevLogStaticMeshVerbosity = LogStaticMesh.GetVerbosity();
 			LogStaticMesh.SetVerbosity( ELogVerbosity::Error );

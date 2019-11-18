@@ -24,6 +24,8 @@
 #include "LevelSequence.h"
 #include "Materials/MaterialInstance.h"
 #include "MeshMergeModule.h"
+#include "ObjectTools.h"
+#include "StaticMeshAttributes.h"
 #include "StaticMeshResources.h"
 
 #define LOCTEXT_NAMESPACE "DatasmithEditingOperations"
@@ -115,7 +117,6 @@ void UDataprepDeleteObjectsOperation::OnExecution_Implementation(const FDataprep
 		if (AActor* Actor = Cast< AActor >( Object ))
 		{
 			ActorsToDelete.Add(FActorAndDepth{Actor, DatasmithEditingOperationsUtils::GetActorDepth(Actor)});
-			// #ueent_todo if rem children option, add them here
 		}
 		else if(FDataprepCoreUtils::IsAsset(Object))
 		{
@@ -164,8 +165,8 @@ void UDataprepMergeActorsOperation::OnExecution_Implementation(const FDataprepCo
 
 	DatasmithEditingOperationsUtils::GetActorsToMerge(CurrentWorld, InContext.Objects, ActorsToMerge, ComponentsToMerge);
 
-	// Nothing to do if there is none or only one static mesh actor
-	if( ActorsToMerge.Num() < 2 && ComponentsToMerge.Num() < 2)
+	// Nothing to do if there is only one component to merge
+	if( ComponentsToMerge.Num() < 2)
 	{
 		UE_LOG( LogDataprep, Log, TEXT("No static mesh actors to merge") );
 		return;
@@ -296,10 +297,10 @@ void UDataprepCreateProxyMeshOperation::OnExecution_Implementation(const FDatapr
 
 	DatasmithEditingOperationsUtils::GetActorsToMerge(CurrentWorld, InContext.Objects, ActorsToMerge, ComponentsToMerge);
 
-	// Nothing to do if there is none or only one static mesh actor
-	if(ComponentsToMerge.Num() < 2)
+	// Nothing to do if there is no static mesh components to merge
+	if(ComponentsToMerge.Num() == 0)
 	{
-		UE_LOG(LogDataprep, Log, TEXT("No static mesh actors to merge"));
+		UE_LOG(LogDataprep, Log, TEXT("No static mesh to merge"));
 		return;
 	}
 
@@ -318,8 +319,60 @@ void UDataprepCreateProxyMeshOperation::OnExecution_Implementation(const FDatapr
 
 	DataprepOperationsLibraryUtil::FStaticMeshBuilder StaticMeshBuilder( StaticMeshes );
 
+	// Update the settings for geometry
 	FMeshProxySettings ProxySettings;
-	ProxySettings.ScreenSize = ProxySettings.ScreenSize * ((100.0f - ReductionPercent) / 100.f);
+	ProxySettings.bOverrideVoxelSize = false;
+	
+	const float Coefficient = 2.0f * Quality / 100.0f;
+
+	const float MinScreenSize = Coefficient <= 1.0f ? 100.0f : 300.0f;
+	const float MaxScreenSize = Coefficient <= 1.0f ? 300.0f : 1200.0f;
+	ProxySettings.ScreenSize = FMath::FloorToInt( FMath::Lerp( MinScreenSize, MaxScreenSize, Coefficient <= 1.0f ? Coefficient : Coefficient - 1.0f ) + 0.5f );
+
+	// Determine if incoming lightmap UVs are usable
+	ProxySettings.bReuseMeshLightmapUVs = true;
+	StaticMeshes.Empty( ComponentsToMerge.Num() );
+	for(UPrimitiveComponent* PrimitiveComponent : ComponentsToMerge)
+	{
+		if(UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(PrimitiveComponent))
+		{
+			if(StaticMeshComponent->GetStaticMesh())
+			{
+				StaticMeshes.Add( StaticMeshComponent->GetStaticMesh() );
+			}
+		}
+	}
+
+	for(UStaticMesh* StaticMesh : StaticMeshes)
+	{
+		const FMeshBuildSettings& BuildSettings = StaticMesh->GetSourceModel(0).BuildSettings;
+		if(!BuildSettings.bGenerateLightmapUVs)
+		{
+			ProxySettings.bReuseMeshLightmapUVs = false;
+			break;
+		}
+		else if(FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription( 0 ))
+		{
+			FStaticMeshAttributes Attributes(*MeshDescription);
+			bool bHasValidLightmapUVs = Attributes.GetVertexInstanceUVs().IsValid() &&
+				Attributes.GetVertexInstanceUVs().GetNumIndices() > BuildSettings.SrcLightmapIndex &&
+				Attributes.GetVertexInstanceUVs().GetNumIndices() > BuildSettings.DstLightmapIndex;
+			if(!bHasValidLightmapUVs)
+			{
+				ProxySettings.bReuseMeshLightmapUVs = false;
+				break;
+			}
+		}
+	}
+
+	// Update the settings for materials
+	ProxySettings.MaterialSettings.bMetallicMap = true;
+	ProxySettings.MaterialSettings.bRoughnessMap = true;
+
+	const int32 TextureSize = (Coefficient <= 0.5f) ? 512 : ((Coefficient <= 1.0f) ? 1024 : ((Coefficient <= 1.5f) ? 2048 : 4096 ));
+	ProxySettings.MaterialSettings.TextureSize = FIntPoint( TextureSize, TextureSize );
+
+	const TCHAR* ProxyBasePackageName = TEXT("TOREPLACE");
 
 	// Generate proxy mesh and proxy material assets 
 	FCreateProxyDelegate ProxyDelegate;
@@ -351,12 +404,34 @@ void UDataprepCreateProxyMeshOperation::OnExecution_Implementation(const FDatapr
 		MergedActor->GetStaticMeshComponent()->SetStaticMesh(MergedMesh);
 		MergedActor->SetActorLabel(NewActorLabel.IsEmpty() ? TEXT("Proxy_Actor") : *NewActorLabel);
 		CurrentWorld->UpdateCullDistanceVolumes(MergedActor, MergedActor->GetStaticMeshComponent());
+
+		// Add the other assets created by the merge, i.e. material, texture, etc, to the context
+		TArray< TPair< UObject*, UObject* > > RedirectionMap;
+		RedirectionMap.Reserve( AssetsToSync.Num() );
+
+		for(UObject* Object : AssetsToSync)
+		{
+			if( Cast<UStaticMesh>(Object) != ProxyMesh)
+			{
+				const FString AssetName = Object->GetName().Replace( ProxyBasePackageName, NewActorLabel.IsEmpty() ? *GetDisplayOperationName().ToString() : *NewActorLabel, ESearchCase::CaseSensitive );
+				UObject* AssetFromMerge = AddAsset( Object, *AssetName );
+
+				RedirectionMap.Emplace( AssetFromMerge, Object );
+			}
+		}
+
+		// Update references accordingly
+		for(TPair< UObject*, UObject* >& MapEntry : RedirectionMap)
+		{
+			TArray<UObject*> ObjectsToReplace(&MapEntry.Value, 1);
+			ObjectTools::ForceReplaceReferences( MapEntry.Key, ObjectsToReplace );
+		}
 	});
 
 	FGuid JobGuid = FGuid::NewGuid();
 
 	const IMeshMergeUtilities& MergeUtilities = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
-	MergeUtilities.CreateProxyMesh(ActorsToMerge, ProxySettings, nullptr, GetTransientPackage(), FString(), JobGuid, ProxyDelegate);
+	MergeUtilities.CreateProxyMesh(ActorsToMerge, ProxySettings, nullptr, GetTransientPackage(), ProxyBasePackageName, JobGuid, ProxyDelegate);
 
 	// Position the merged actor at the right location
 	if(MergedActor->GetRootComponent() == nullptr)
@@ -393,7 +468,7 @@ void UDataprepCreateProxyMeshOperation::OnExecution_Implementation(const FDatapr
 	// Then delete the merged actors that don't have any children component
 	for(AActor* Actor : ActorsToMerge)
 	{
-		UPrimitiveComponent* RootComponent = Cast<UPrimitiveComponent>(Actor->GetRootComponent());
+		USceneComponent* RootComponent = Cast<USceneComponent>(Actor->GetRootComponent());
 		if(RootComponent && RootComponent->GetNumChildrenComponents() == 0)
 		{
 			ObjectsToDelete.Add(Actor);
@@ -681,6 +756,7 @@ namespace DatasmithEditingOperationsUtils
 			{
 				if(!Actor->IsPendingKillOrUnreachable())
 				{
+					// Set current world to first world encountered
 					if(World == nullptr)
 					{
 						World = Actor->GetWorld();
@@ -688,7 +764,7 @@ namespace DatasmithEditingOperationsUtils
 
 					if(World != Actor->GetWorld())
 					{
-						// #ueent_todo: Warn that incompatible actor found and discarded
+						UE_LOG( LogDataprep, Log, TEXT("Actor %s is not part of the Dataprep transient world ..."), *Actor->GetActorLabel() );
 						continue;
 					}
 
@@ -698,10 +774,14 @@ namespace DatasmithEditingOperationsUtils
 					bool bMeshActorIsValid = false;
 					for(UStaticMeshComponent* MeshComponent : ComponentArray)
 					{
-						if(MeshComponent->GetStaticMesh())
+						// Skip components which are either editor only or for visualization
+						if(!MeshComponent->IsEditorOnly() && !MeshComponent->IsVisualizationComponent())
 						{
-							bMeshActorIsValid = true;
-							ComponentsToMerge.Add(MeshComponent);
+							if(MeshComponent->GetStaticMesh() && MeshComponent->GetStaticMesh()->GetSourceModels().Num() > 0)
+							{
+								bMeshActorIsValid = true;
+								ComponentsToMerge.Add(MeshComponent);
+							}
 						}
 					}
 

@@ -80,7 +80,6 @@ const FColor PerMeshColor[] =
 	FColor(  0,120, 49),
 };
 
-// #ueent_todo: Remove this debug utility before releasing
 namespace ViewportDebug
 {
 	static bool bLogTiming = false;
@@ -118,7 +117,7 @@ namespace ViewportDebug
 }
 
 // Extension of the FStaticMeshSceneProxy class to allow wireframe display per individual mesh
-// #ueent_todo: Could we unify this behavior across classes deriving from UMeshComponent?
+// #ueent_remark: Could we unify this behavior across classes deriving from UMeshComponent?
 class FStaticMeshSceneProxyExt : public FStaticMeshSceneProxy
 {
 public:
@@ -186,7 +185,6 @@ namespace DataprepEditor3DPreviewUtils
 		TArray< T* > Result;
 
 		const EActorIteratorFlags Flags = EActorIteratorFlags::SkipPendingKill;
-		// #ueent_todo: Maybe just enumerate the actors in the current level
 		for (TActorIterator<AActor> It( World, AActor::StaticClass(), Flags ); It; ++It)
 		{
 			AActor* Actor = *It;
@@ -482,11 +480,14 @@ void SDataprepEditorViewport::UpdateScene()
 
 	PreviewScene->SetFloorOffset(-SceneBounds.Min.Z );
 
-	EditorViewportClient->FocusViewportOnBox( SceneBounds );
-
 	UpdateOverlayText();
 
 	SceneViewport->Invalidate();
+}
+
+void SDataprepEditorViewport::FocusViewportOnScene()
+{
+	EditorViewportClient->FocusViewportOnBox( SceneBounds );
 }
 
 TSharedRef<SEditorViewport> SDataprepEditorViewport::GetViewportWidget()
@@ -1256,11 +1257,6 @@ void FDataprepEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* Hi
 
 							return;
 						}
-						// A contextual menu is requested
-						else if(Key == EKeys::RightMouseButton)
-						{
-							// #ueent_todo: Display contextual menu
-						}
 					}
 				}
 			}
@@ -1362,7 +1358,7 @@ TSharedRef<SWidget> SDataprepEditorViewportToolbar::GenerateShowMenu() const
 		ShowMenuBuilder.AddMenuEntry(FDataprepEditorViewportCommands::Get().SetShowBounds);
 	}
 
-	// #ueent_todo: Look at SAnimViewportToolBar::GenerateShowMenu in SAnimViewportToolBar.cpp for adding ShowFlagFilter to the Show menu
+	// #ueent_remark: Look at SAnimViewportToolBar::GenerateShowMenu in SAnimViewportToolBar.cpp for adding ShowFlagFilter to the Show menu
 
 	return ShowMenuBuilder.MakeWidget();
 }

@@ -302,10 +302,10 @@ void FSkeletalMeshMerge::GenerateNewSectionArray( TArray<FNewSectionInfo>& NewSe
 
 				// get the material for this section
 				int32 MaterialIndex = Section.MaterialIndex;
-				// use the remapping of material indices for all LODs besides the base LOD 
-				if(SrcLODInfo.LODMaterialMap.IsValidIndex(Section.MaterialIndex) && SrcMesh->Materials.IsValidIndex(SrcLODInfo.LODMaterialMap[Section.MaterialIndex]))
+				// use the remapping of material indices if there is a valid value
+				if(SrcLODInfo.LODMaterialMap.IsValidIndex(SectionIdx) && SrcLODInfo.LODMaterialMap[SectionIdx] != INDEX_NONE)
 				{
-					MaterialIndex = FMath::Clamp<int32>( SrcLODInfo.LODMaterialMap[Section.MaterialIndex], 0, SrcMesh->Materials.Num() );
+					MaterialIndex = FMath::Clamp<int32>( SrcLODInfo.LODMaterialMap[SectionIdx], 0, SrcMesh->Materials.Num() );
 				}
 				UMaterialInterface* Material = SrcMesh->Materials[MaterialIndex].MaterialInterface;
 

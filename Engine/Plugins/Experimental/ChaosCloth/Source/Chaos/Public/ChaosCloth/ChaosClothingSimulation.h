@@ -8,6 +8,7 @@
 #include "Chaos/PBDEvolution.h"
 #include "Chaos/Transform.h"
 #include "Chaos/TriangleMesh.h"
+#include "ChaosCloth/ChaosClothConfig.h"
 #include "Components/SkeletalMeshComponent.h"
 
 namespace Chaos
@@ -24,8 +25,7 @@ namespace Chaos
 		FTransform ComponentToWorld;
 	};
 
-	class ClothingSimulation
-		: public IClothingSimulation
+	class ClothingSimulation : public IClothingSimulation
 #if WITH_EDITOR
 		, public FGCObject  // Add garbage collection for debug cloth material
 #endif  // #if WITH_EDITOR
@@ -33,6 +33,11 @@ namespace Chaos
 	public:
 		ClothingSimulation();
 		virtual ~ClothingSimulation();
+
+		// Set the animation drive stiffness for all actors
+		void SetAnimDriveSpringStiffness(float InStiffness);
+		void SetGravityOverride(const TVector<float, 3>& InGravityOverride);
+		void DisableGravityOverride();
 
 #if WITH_EDITOR
 		// FGCObject interface
@@ -48,7 +53,6 @@ namespace Chaos
 		CHAOSCLOTH_API void DebugDrawCollision(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
 		CHAOSCLOTH_API void DebugDrawBackstops(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
 		CHAOSCLOTH_API void DebugDrawMaxDistances(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
-		CHAOSCLOTH_API void DebugDrawSelfCollision(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
 		CHAOSCLOTH_API void DebugDrawAnimDrive(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
 #endif  // #if WITH_EDITOR
 
@@ -56,6 +60,7 @@ namespace Chaos
 		// IClothingSimulation interface
 		void Initialize() override;
 		void CreateActor(USkeletalMeshComponent* InOwnerComponent, UClothingAssetBase* InAsset, int32 SimDataIndex) override;
+		void PostActorCreationInitialize() override;
 		IClothingSimulationContext* CreateContext() override { return new ClothingSimulationContext(); }
 		void FillContext(USkeletalMeshComponent* InComponent, float InDeltaTime, IClothingSimulationContext* InOutContext) override;
 		void Shutdown() override;
@@ -91,6 +96,12 @@ namespace Chaos
 	private:
 		// Assets
 		TArray<UClothingAssetCommon*> Assets;
+		UChaosClothSharedSimConfig* ClothSharedSimConfig;
+
+		// Cloth Interaction Parameters
+		// These simulation parameters can be changed through blueprints
+		// They will only be updated when the simulation is not running (so are safe to use on any cloth thread)
+		TArray<float> AnimDriveSpringStiffness; // One for every Asset
 
 		// Collision Data
 		FClothCollisionData ExtractedCollisions;  // Collisions extracted from the referenced physics asset
@@ -120,36 +131,11 @@ namespace Chaos
 		float DeltaTime;
 		float MaxDeltaTime;
 		float ClampDeltaTime;
-		// Parameters that should be set in the ui
-		int32 NumIterations;
-
-		EClothMassMode MassMode;
-		float UniformMass;
-		float TotalMass;
-		float Density;
-		float MinMass;
-
-		float EdgeStiffness;
-		float BendingStiffness;
-		float AreaStiffness;
-		float VolumeStiffness;
-		float StrainLimitingStiffness;
-		float ShapeTargetStiffness;
-		float SelfCollisionThickness;
-		float CollisionThickness;
-		float CoefficientOfFriction;
-		float Damping;
-		float GravityMagnitude;
-		float AnimDriveSpringStiffness;
-		bool bUseBendingElements;
-		bool bUseTetrahedralConstraints;
-		bool bUseThinShellVolumeConstraints;
-		bool bUseSelfCollisions;
-		bool bUseContinuousCollisionDetection;
 
 #if WITH_EDITOR
 		// Visualization material
 		UMaterial* DebugClothMaterial;
+		UMaterial* DebugClothMaterialVertex;
 #endif  // #if WITH_EDITOR
 	};
 } // namespace Chaos

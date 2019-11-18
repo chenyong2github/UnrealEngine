@@ -19,13 +19,13 @@ template<class T, int D>
 class TPlane;
 
 template<class T, int d>
-class CHAOS_API TLevelSet final : public TImplicitObject<T, d>
+class CHAOS_API TLevelSet final : public FImplicitObject
 {
   public:
-	using TImplicitObject<T, d>::SignedDistance;
+	using FImplicitObject::SignedDistance;
 
 	TLevelSet(FErrorReporter& ErrorReporter, const TUniformGrid<T, d>& InGrid, const TParticles<T, d>& InParticles, const TTriangleMesh<T>& Mesh, const int32 BandWidth = 0);
-	TLevelSet(FErrorReporter& ErrorReporter, const TUniformGrid<T, d>& InGrid, const TImplicitObject<T, d>& InObject, const int32 BandWidth = 0, const bool bUseObjectPhi = false);
+	TLevelSet(FErrorReporter& ErrorReporter, const TUniformGrid<T, d>& InGrid, const FImplicitObject& InObject, const int32 BandWidth = 0, const bool bUseObjectPhi = false);
 	TLevelSet(std::istream& Stream);
 	TLevelSet(const TLevelSet<T, d>& Other) = delete;
 	TLevelSet(TLevelSet<T, d>&& Other);
@@ -54,14 +54,14 @@ class CHAOS_API TLevelSet final : public TImplicitObject<T, d>
 		}
 	}
 
-	FORCEINLINE static ImplicitObjectType GetType()
+	FORCEINLINE static constexpr EImplicitObjectType StaticType()
 	{
 		return ImplicitObjectType::LevelSet;
 	}
 
 	FORCEINLINE void SerializeImp(FArchive& Ar)
 	{
-		TImplicitObject<T, d>::SerializeImp(Ar);
+		FImplicitObject::SerializeImp(Ar);
 		Ar << MGrid;
 		Ar << MPhi;
 		Ar << MNormals;
@@ -105,7 +105,7 @@ class CHAOS_API TLevelSet final : public TImplicitObject<T, d>
 
   private:
 	bool ComputeDistancesNearZeroIsocontour(FErrorReporter& ErrorReporter, const TParticles<T, d>& InParticles, const TArray<TVector<T, 3>> &Normals, const TTriangleMesh<T>& Mesh, TArrayND<bool, d>& BlockedFaceX, TArrayND<bool, d>& BlockedFaceY, TArrayND<bool, d>& BlockedFaceZ, TArray<TVector<int32, d>>& InterfaceIndices);
-	void ComputeDistancesNearZeroIsocontour(const TImplicitObject<T, d>& Object, const TArrayND<T, d>& ObjectPhi, TArray<TVector<int32, d>>& InterfaceIndices);
+	void ComputeDistancesNearZeroIsocontour(const FImplicitObject& Object, const TArrayND<T, d>& ObjectPhi, TArray<TVector<int32, d>>& InterfaceIndices);
 	void CorrectSign(const TArrayND<bool, d>& BlockedFaceX, const TArrayND<bool, d>& BlockedFaceY, const TArrayND<bool, d>& BlockedFaceZ, TArray<TVector<int32, d>>& InterfaceIndices);
 	T ComputePhi(const TArrayND<bool, d>& Done, const TVector<int32, d>& CellIndex);
 	void FillWithFastMarchingMethod(const T StoppingDistance, const TArray<TVector<int32, d>>& InterfaceIndices);
@@ -124,7 +124,7 @@ class CHAOS_API TLevelSet final : public TImplicitObject<T, d>
 	TBox<T, d> MOriginalLocalBoundingBox;
 	int32 MBandWidth;
 private:
-	TLevelSet() : TImplicitObject<T, d>(EImplicitObject::HasBoundingBox, ImplicitObjectType::LevelSet) {}	//needed for serialization
-	friend TImplicitObject<T, d>;	//needed for serialization
+	TLevelSet() : FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::LevelSet) {}	//needed for serialization
+	friend FImplicitObject;	//needed for serialization
 };
 }

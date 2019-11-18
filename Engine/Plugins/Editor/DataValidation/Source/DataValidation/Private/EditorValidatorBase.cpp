@@ -52,6 +52,21 @@ void UEditorValidatorBase::AssetFails(UObject* InAsset, const FText& InMessage, 
 	ValidationResult = EDataValidationResult::Invalid;
 }
 
+void UEditorValidatorBase::AssetWarning(UObject* InAsset, const FText& InMessage)
+{
+	FFormatNamedArguments Arguments;
+	if (InAsset)
+	{
+		FString PackageName = InAsset->GetOutermost()->GetName();
+		Arguments.Add(TEXT("AssetName"), FText::FromString(FPackageName::GetLongPackageAssetName(PackageName)));
+	}
+	Arguments.Add(TEXT("CustomMessage"), InMessage);
+	Arguments.Add(TEXT("ValidatorName"), FText::FromString(GetClass()->GetName()));
+
+	FText WarningMessage = FText::Format(LOCTEXT("AssetCheck_Message_Display", "{AssetName} warning: {CustomMessage}. ({ValidatorName})"), Arguments);
+	AllWarnings.Add(WarningMessage);
+}
+
 void UEditorValidatorBase::LogElapsedTime(FFormatNamedArguments &Arguments)
 {
 	FDateTime CurrentTime = FDateTime::Now();
@@ -86,6 +101,12 @@ void UEditorValidatorBase::ResetValidationState()
 {
 	ValidationResult = EDataValidationResult::NotValidated;
 	ValidationTime = FDateTime::Now();
+	AllWarnings.Empty();
+}
+
+const TArray<FText>& UEditorValidatorBase::GetAllWarnings() const
+{
+	return AllWarnings;
 }
 
 #undef LOCTEXT_NAMESPACE

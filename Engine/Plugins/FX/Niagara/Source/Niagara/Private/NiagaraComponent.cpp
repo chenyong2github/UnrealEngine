@@ -142,17 +142,15 @@ void FNiagaraSceneProxy::ReleaseRenderers()
 {
 	if (EmitterRenderers.Num() > 0)
 	{
-		NiagaraEmitterInstanceBatcher* TheBatcher = Batcher && !Batcher->IsPendingKill() ? Batcher : nullptr;
-
 		//Renderers must be freed on the render thread.
 		ENQUEUE_RENDER_COMMAND(ReleaseRenderersCommand)(
-			[ToDeleteEmitterRenderers = MoveTemp(EmitterRenderers), TheBatcher](FRHICommandListImmediate& RHICmdList)
+			[ToDeleteEmitterRenderers = MoveTemp(EmitterRenderers)](FRHICommandListImmediate& RHICmdList)
 		{
 			for (FNiagaraRenderer* EmitterRenderer : ToDeleteEmitterRenderers)
 			{
 				if (EmitterRenderer)
 				{
-					EmitterRenderer->ReleaseRenderThreadResources(TheBatcher);
+					EmitterRenderer->ReleaseRenderThreadResources();
 					delete EmitterRenderer;
 				}
 			}
@@ -215,13 +213,15 @@ void FNiagaraSceneProxy::CreateRenderers(const UNiagaraComponent* Component)
 
 FNiagaraSceneProxy::~FNiagaraSceneProxy()
 {
+	Batcher = nullptr;
+
 	//UE_LOG(LogNiagara, Warning, TEXT("~FNiagaraSceneProxy %p"), this);
 	check(IsInRenderingThread());
 	for (FNiagaraRenderer* EmitterRenderer : EmitterRenderers)
 	{
 		if (EmitterRenderer)
 		{
-			EmitterRenderer->ReleaseRenderThreadResources(Batcher);
+			EmitterRenderer->ReleaseRenderThreadResources();
 			delete EmitterRenderer;
 		}
 	}
@@ -234,10 +234,9 @@ void FNiagaraSceneProxy::ReleaseRenderThreadResources()
 	{
 		if (Renderer)
 		{
-			Renderer->ReleaseRenderThreadResources(Batcher);
+			Renderer->ReleaseRenderThreadResources();
 		}
 	}
-	return;
 }
 
 // FPrimitiveSceneProxy interface.
@@ -323,7 +322,7 @@ void FNiagaraSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>&
 	for (int32 RendererIdx : RendererDrawOrder)
 	{
 		FNiagaraRenderer* Renderer = EmitterRenderers[RendererIdx];
-		if (Renderer && (Renderer->GetSimTarget() == ENiagaraSimTarget::CPUSim || ViewFamily.GetFeatureLevel() == ERHIFeatureLevel::SM5))
+		if (Renderer && (Renderer->GetSimTarget() == ENiagaraSimTarget::CPUSim || ViewFamily.GetFeatureLevel() >= ERHIFeatureLevel::ES3_1))
 		{
 			Renderer->GetDynamicMeshElements(Views, ViewFamily, VisibilityMap, Collector, this);
 		}
@@ -701,10 +700,12 @@ void UNiagaraComponent::Activate(bool bReset /* = false */)
 {
 	bAwaitingActivationDueToNotReady = false;
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (IsES2Platform(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]))
 	{
 		GbSuppressNiagaraSystems = 1;
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (GbSuppressNiagaraSystems != 0)
 	{
@@ -1082,6 +1083,15 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 				NewDynamicData.Add(NewData);
 			}
 		}
+
+#if WITH_EDITOR
+		if (EmitterRenderers.Num() != NewDynamicData.Num())
+		{
+			// This can happen in the editor when modifying the number or renderers while the system is running and the render thread is already processing the data.
+			// in this case we just skip drawing this frame since the system will be reinitialized.
+			return;
+		}
+#endif
 		
 		ENQUEUE_RENDER_COMMAND(NiagaraSetDynamicData)(
 			[NiagaraProxy, DynamicData = MoveTemp(NewDynamicData)](FRHICommandListImmediate& RHICmdList)

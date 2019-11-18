@@ -17,14 +17,14 @@
 	"AssetTypes": [],
 	"SearchTags": [],
 	"ClassTypes": "",
-	"Category": "",
+	"Category": "BlueprintFeature",
 	"FocusAsset": "",
-	"Thumbnail": "TP_Collaborative.png",
+	"Thumbnail": "TP_CollaborativeBP.png",
 	"Screenshots":
 	[
-		"TP_Collaborative_V_Preview.png"
+		"TP_CollaborativeBP_Preview.png"
 	],
-	"SortKey": "TP_Collaborative_V",
+	"SortKey": "TP_CollaborativeBP",
 	"AdditionalFeaturePacks":
 	[
 	]

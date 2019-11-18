@@ -450,6 +450,20 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
 	static void SetGlobalPitchModulation(const UObject* WorldContextObject, float PitchModulation, float TimeSec);
 
+	/** 
+	* Sets attenuation distance scale value on the sound class over the given amount of time from it's current attenuation distance override value (1.0f it not overridden). 
+	* Attenuation scale allows scaling the attenuation distance used for computing distance attenuation. 
+	*
+	* * Fire and Forget.
+	* * Not Replicated.
+	* @param SoundClass - Sound class to to use to set the attenuation distance scale on.
+	* @param DistanceAttenuationScale - A distance attenuation scale value.
+	* @param TimeSec - A time value to linearly interpolate from the current distance attenuation scale value to the new value.
+	*/
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
+	static void SetSoundClassDistanceScale(const UObject* WorldContextObject, USoundClass* SoundClass, float DistanceAttenuationScale, float TimeSec = 0.0f);
+
+
 	/**
 	* Sets the global listener focus parameters which will scale focus behavior of sounds based on their focus azimuth settings in their attenuation settings. 
 	*
@@ -1013,7 +1027,7 @@ public:
 
 	/**
 	 * Returns the string name of the current platform, to perform different behavior based on platform. 
-	 * (Platform names include Windows, Mac, IOS, Android, PS4, XboxOne, HTML5, Linux) */
+	 * (Platform names include Windows, Mac, IOS, Android, PS4, XboxOne, Linux) */
 	UFUNCTION(BlueprintPure, Category="Game")
 	static FString GetPlatformName();
 

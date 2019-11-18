@@ -74,6 +74,8 @@ DEFINE_STAT(STAT_AnimGameThreadTime);
 DEFINE_STAT(STAT_TickAssetPlayerInstances);
 DEFINE_STAT(STAT_TickAssetPlayerInstance);
 
+CSV_DEFINE_CATEGORY_MODULE(ENGINE_API, Animation, false);
+
 // Define AnimNotify
 DEFINE_LOG_CATEGORY(LogAnimNotify);
 
@@ -1307,7 +1309,7 @@ void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
 	// Send end notification to AnimNotifyState not active anymore.
 	for(const FAnimNotifyEvent& AnimNotifyEvent : ActiveAnimNotifyState)
 	{
-		if (ShouldTriggerAnimNotifyState(AnimNotifyEvent.NotifyStateClass))
+		if (AnimNotifyEvent.NotifyStateClass && ShouldTriggerAnimNotifyState(AnimNotifyEvent.NotifyStateClass))
 		{
 			AnimNotifyEvent.NotifyStateClass->NotifyEnd(SkelMeshComp, Cast<UAnimSequenceBase>(AnimNotifyEvent.NotifyStateClass->GetOuter()));
 		}
@@ -3143,6 +3145,15 @@ FAnimInstanceProxy* UAnimInstance::CreateAnimInstanceProxy()
 void UAnimInstance::DestroyAnimInstanceProxy(FAnimInstanceProxy* InProxy)
 {
 	delete InProxy;
+}
+
+bool UAnimInstance::ShouldTriggerAnimNotifyState(const UAnimNotifyState* AnimNotifyState) const
+{
+	if (ensureMsgf(AnimNotifyState != nullptr, TEXT("UAnimInstance::ShouldTriggerAnimNotifyState: AnimNotifyState is null on AnimInstance %s. ActiveAnimNotifyState array size is: %d"), *GetNameSafe(this), ActiveAnimNotifyState.Num()))
+	{
+		return true;
+	}
+	return false;
 }
 
 void UAnimInstance::RecordMachineWeight(const int32 InMachineClassIndex, const float InMachineWeight)

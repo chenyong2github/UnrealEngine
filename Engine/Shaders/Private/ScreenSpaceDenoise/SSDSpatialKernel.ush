@@ -3,6 +3,7 @@
 #include "SSDSignalAccumulatorArray.ush"
 #include "SSDSignalBufferEncoding.ush"
 #include "../TextureSampling.ush"
+#include "../MonteCarlo.ush"
 
 
 //------------------------------------------------------- ENUMS
@@ -126,13 +127,13 @@ struct FSSDKernelConfig
 	bool bClampUVPerMultiplexedSignal;
 
 	// The color space that has been encoded in the buffer.
-	uint BufferColorSpace[MAX_SIGNAL_MULTIPLEXING];
+	uint BufferColorSpace[SIGNAL_ARRAY_SIZE];
 	
 	// The color space of the accumulation.
-	uint AccumulatorColorSpace[MAX_SIGNAL_MULTIPLEXING];
+	uint AccumulatorColorSpace[SIGNAL_ARRAY_SIZE];
 	
 	// The color space of the accumulation.
-	uint BilateralSettings[MAX_SIGNAL_MULTIPLEXING];
+	uint BilateralSettings[SIGNAL_ARRAY_SIZE];
 
 	
 	// --------------------------- Per wave.
@@ -151,7 +152,7 @@ struct FSSDKernelConfig
 	float HarmonicPeriode;
 
 	// Buffer's min and max UV, per texture.
-	float4 PerSignalUVMinMax[MAX_SIGNAL_MULTIPLEXING];
+	float4 PerSignalUVMinMax[SIGNAL_ARRAY_SIZE];
 
 	
 	// --------------------------- Per lane.
@@ -182,7 +183,7 @@ struct FSSDKernelConfig
 	uint SampleTrackId;
 
 	// Reference meta data.
-	float RefBilateralDistance[MAX_SIGNAL_MULTIPLEXING];
+	float RefBilateralDistance[SIGNAL_ARRAY_SIZE];
 
 	// Uniform random values required for stocastic kernel.
 	float Randoms[1];
@@ -209,7 +210,7 @@ FSSDKernelConfig CreateKernelConfig()
 	KernelConfig.SampleSet = SAMPLE_SET_1X1;
 	KernelConfig.SampleSubSetId = 0;
 	KernelConfig.BufferLayout = SIGNAL_BUFFER_LAYOUT_UNINITIALIZED;
-	KernelConfig.MultiplexedSignalsPerSignalDomain = MAX_SIGNAL_MULTIPLEXING;
+	KernelConfig.MultiplexedSignalsPerSignalDomain = SIGNAL_ARRAY_SIZE;
 	KernelConfig.NeighborToRefComputation = NEIGHBOR_TO_REF_CACHE_WORLD_POSITION;
 	KernelConfig.RefSceneMetadataLayout = METADATA_BUFFER_LAYOUT_DISABLED;
 	KernelConfig.RingCount = 0;
@@ -226,8 +227,8 @@ FSSDKernelConfig CreateKernelConfig()
 	KernelConfig.bClampUVPerMultiplexedSignal = false;
 	
 	{
-		UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
-		for (uint MultiplexId = 0; MultiplexId < MAX_SIGNAL_MULTIPLEXING; MultiplexId++)
+		UNROLL_N(SIGNAL_ARRAY_SIZE)
+		for (uint MultiplexId = 0; MultiplexId < SIGNAL_ARRAY_SIZE; MultiplexId++)
 		{
 			KernelConfig.BufferColorSpace[MultiplexId] = STANDARD_BUFFER_COLOR_SPACE;
 			KernelConfig.AccumulatorColorSpace[MultiplexId] = STANDARD_BUFFER_COLOR_SPACE;
@@ -243,8 +244,8 @@ FSSDKernelConfig CreateKernelConfig()
 	KernelConfig.HarmonicPeriode = 1.0;
 	
 	{
-		UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
-		for (uint MultiplexId = 0; MultiplexId < MAX_SIGNAL_MULTIPLEXING; MultiplexId++)
+		UNROLL_N(SIGNAL_ARRAY_SIZE)
+		for (uint MultiplexId = 0; MultiplexId < SIGNAL_ARRAY_SIZE; MultiplexId++)
 		{
 			KernelConfig.PerSignalUVMinMax[MultiplexId] = 0.0;
 		}
@@ -265,8 +266,8 @@ FSSDKernelConfig CreateKernelConfig()
 	KernelConfig.HammersleySeed = 0;
 
 	{	
-		UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
-		for (uint MultiplexId = 0; MultiplexId < MAX_SIGNAL_MULTIPLEXING; MultiplexId++)
+		UNROLL_N(SIGNAL_ARRAY_SIZE)
+		for (uint MultiplexId = 0; MultiplexId < SIGNAL_ARRAY_SIZE; MultiplexId++)
 		{
 			KernelConfig.RefBilateralDistance[MultiplexId] = 0.0;
 		}
@@ -295,8 +296,8 @@ void SetBilateralPreset(uint BilateralPresetId, inout FSSDKernelConfig KernelCon
 {
 	if (BilateralPresetId == BILATERAL_PRESET_MONOCHROMATIC_PENUMBRA)
 	{
-		UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
-		for (uint MultiplexId = 0; MultiplexId < MAX_SIGNAL_MULTIPLEXING; MultiplexId++)
+		UNROLL_N(SIGNAL_ARRAY_SIZE)
+		for (uint MultiplexId = 0; MultiplexId < SIGNAL_ARRAY_SIZE; MultiplexId++)
 		{
 			// Shadow masks are normal invarient, so only reject based on position.
 			KernelConfig.BilateralSettings[MultiplexId] = BILATERAL_POSITION_BASED(5);
@@ -306,18 +307,22 @@ void SetBilateralPreset(uint BilateralPresetId, inout FSSDKernelConfig KernelCon
 	{
 		// Diffuse.
 		KernelConfig.BilateralSettings[0] = BILATERAL_POSITION_BASED(5) | BILATERAL_NORMAL;
-
+		
 		// Specular.
-		KernelConfig.BilateralSettings[1] = BILATERAL_POSITION_BASED(5) | BILATERAL_TOKOYASHI;
+		#if SIGNAL_ARRAY_SIZE > 1
+			KernelConfig.BilateralSettings[1] = BILATERAL_POSITION_BASED(5) | BILATERAL_TOKOYASHI;
+		#endif
 	}
 	else if (BilateralPresetId == BILATERAL_PRESET_REFLECTIONS)
 	{
 		// Specular.
 		// Can only be done using tokoyashi because have more than one sample at a time.
 		KernelConfig.BilateralSettings[0] = BILATERAL_TOKOYASHI;
-
-		// Specular variance for sampling rejection pre convolution.
-		KernelConfig.BilateralSettings[1] = KernelConfig.BilateralSettings[0];
+		
+		#if SIGNAL_ARRAY_SIZE > 1
+			// Specular variance for sampling rejection pre convolution.
+			KernelConfig.BilateralSettings[1] = KernelConfig.BilateralSettings[0];
+		#endif
 	}
 	else if (BilateralPresetId == BILATERAL_PRESET_REFLECTIONS_1SPP)
 	{
@@ -330,17 +335,21 @@ void SetBilateralPreset(uint BilateralPresetId, inout FSSDKernelConfig KernelCon
 		// Specular.
 		// Can only be done using tokoyashi because have more than one sample at a time.
 		KernelConfig.BilateralSettings[0] = BILATERAL_POSITION_BASED(1) | BILATERAL_TOKOYASHI;
-
-		// Specular variance for sampling rejection pre convolution.
-		KernelConfig.BilateralSettings[1] = KernelConfig.BilateralSettings[0];
+		
+		#if SIGNAL_ARRAY_SIZE > 1
+			// Specular variance for sampling rejection pre convolution.
+			KernelConfig.BilateralSettings[1] = KernelConfig.BilateralSettings[0];
+		#endif
 	}
 	else if (BilateralPresetId == BILATERAL_PRESET_DIFFUSE)
 	{
 		// Diffuse depends on world position, but also the normal of the surface given it doesn't store any directionality.
 		KernelConfig.BilateralSettings[0] = BILATERAL_POSITION_BASED(2) | BILATERAL_NORMAL;
 		
-		// Variance for sampling rejection pre convolution.
-		KernelConfig.BilateralSettings[1] = KernelConfig.BilateralSettings[0];
+		#if SIGNAL_ARRAY_SIZE > 1
+			// Variance for sampling rejection pre convolution.
+			KernelConfig.BilateralSettings[1] = KernelConfig.BilateralSettings[0];
+		#endif
 	}
 	else if (BilateralPresetId == BILATERAL_PRESET_SPHERICAL_HARMONIC)
 	{
@@ -552,8 +561,8 @@ FSSDSignalArray UncompressMultiplexedSignals(
 
 	if (KernelConfig.bClampUVPerMultiplexedSignal)
 	{
-		UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
-		for (uint SignalMultiplexId = 0; SignalMultiplexId < MAX_SIGNAL_MULTIPLEXING; SignalMultiplexId++)
+		UNROLL_N(SIGNAL_ARRAY_SIZE)
+		for (uint SignalMultiplexId = 0; SignalMultiplexId < SIGNAL_ARRAY_SIZE; SignalMultiplexId++)
 		{
 			bool bInvalidSample = any(SampleBufferUV != clamp(
 				SampleBufferUV, KernelConfig.PerSignalUVMinMax[SignalMultiplexId].xy, KernelConfig.PerSignalUVMinMax[SignalMultiplexId].zw));
@@ -562,7 +571,7 @@ FSSDSignalArray UncompressMultiplexedSignals(
 			{
 				MultiplexedSamples.Array[SignalMultiplexId] = CreateSignalSampleFromScalarValue(0.0);
 			}
-		} // for (uint SignalMultiplexId = 0; SignalMultiplexId < MAX_SIGNAL_MULTIPLEXING; SignalMultiplexId++)
+		} // for (uint SignalMultiplexId = 0; SignalMultiplexId < SIGNAL_ARRAY_SIZE; SignalMultiplexId++)
 	}
 
 	return MultiplexedSamples;
@@ -626,8 +635,8 @@ void AccumulateSampledMultiplexedSignals(
 	}
 	#endif
 
-	UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
-	for (uint SignalMultiplexId = 0; SignalMultiplexId < MAX_SIGNAL_MULTIPLEXING; SignalMultiplexId++)
+	UNROLL_N(SIGNAL_ARRAY_SIZE)
+	for (uint SignalMultiplexId = 0; SignalMultiplexId < SIGNAL_ARRAY_SIZE; SignalMultiplexId++)
 	{
 		// Compute at compile time the id of the signal being processed.
 		const uint BatchedSignalId = ComputeSignalBatchIdFromSignalMultiplexId(KernelConfig, SignalMultiplexId);
@@ -727,7 +736,7 @@ void AccumulateSampledMultiplexedSignals(
 			}
 			#endif
 		}
-	} // for (uint SignalMultiplexId = 0; SignalMultiplexId < MAX_SIGNAL_MULTIPLEXING; SignalMultiplexId++)
+	} // for (uint SignalMultiplexId = 0; SignalMultiplexId < SIGNAL_ARRAY_SIZE; SignalMultiplexId++)
 	
 	#if CONFIG_ACCUMULATOR_VGPR_COMPRESSION != ACCUMULATOR_COMPRESSION_DISABLED
 		CompressedAccumulators = CompressAccumulatorArray(Accumulators, CONFIG_ACCUMULATOR_VGPR_COMPRESSION);
@@ -849,8 +858,8 @@ void SampleAndAccumulateMultiplexedSignalsPair(
 		// TODO(Denoiser): this should be normalized in theory...
 		if (KernelConfig.bMinSamplePairInvFrequency)
 		{
-			UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
-			for (uint SignalMultiplexId = 0; SignalMultiplexId < MAX_SIGNAL_MULTIPLEXING; SignalMultiplexId++)
+			UNROLL_N(SIGNAL_ARRAY_SIZE)
+			for (uint SignalMultiplexId = 0; SignalMultiplexId < SIGNAL_ARRAY_SIZE; SignalMultiplexId++)
 			{
 				float MinInvFrequency = min(
 					MultiplexedSamples[0].Array[SignalMultiplexId].WorldBluringRadius,
@@ -900,8 +909,8 @@ void StartAccumulatingCluster(
 		FSSDSignalAccumulatorArray Accumulators = UncompressAccumulatorArray(CompressedAccumulators, CONFIG_ACCUMULATOR_VGPR_COMPRESSION);
 	#endif
 
-	UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
-	for (uint SignalMultiplexId = 0; SignalMultiplexId < MAX_SIGNAL_MULTIPLEXING; SignalMultiplexId++)
+	UNROLL_N(SIGNAL_ARRAY_SIZE)
+	for (uint SignalMultiplexId = 0; SignalMultiplexId < SIGNAL_ARRAY_SIZE; SignalMultiplexId++)
 	{
 		#if CONFIG_ACCUMULATOR_VGPR_COMPRESSION == ACCUMULATOR_COMPRESSION_DISABLED
 		{
@@ -934,8 +943,8 @@ void DijestAccumulatedClusterSamples(
 		FSSDSignalAccumulatorArray Accumulators = UncompressAccumulatorArray(CompressedAccumulators, CONFIG_ACCUMULATOR_VGPR_COMPRESSION);
 	#endif
 		
-	UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
-	for (uint SignalMultiplexId = 0; SignalMultiplexId < MAX_SIGNAL_MULTIPLEXING; SignalMultiplexId++)
+	UNROLL_N(SIGNAL_ARRAY_SIZE)
+	for (uint SignalMultiplexId = 0; SignalMultiplexId < SIGNAL_ARRAY_SIZE; SignalMultiplexId++)
 	{
 		#if CONFIG_ACCUMULATOR_VGPR_COMPRESSION == ACCUMULATOR_COMPRESSION_DISABLED
 		{
@@ -2170,11 +2179,20 @@ void ConvolveDirectionalRect(
 
 			float2 E = Hammersley16(SampleId, BatchCountCount * kSamplingBatchSize, KernelConfig.HammersleySeed);
 
+			if (KernelConfig.SampleSet == SAMPLE_SET_DIRECTIONAL_RECT)
+			{
+				E = (E * 2.0 - 1.0);
+			}
+			else // if (KernelConfig.SampleSet == SAMPLE_SET_DIRECTIONAL_ELLIPSE)
+			{
+				E = UniformSampleDiskConcentric(E);
+			}
+
 			float2 SampleOffset = 
-				float2(KernelConfig.MajorAxis) * KernelConfig.MajorPixelRadius * (E.x * 2.0 - 1.0) +
-				float2(-KernelConfig.MajorAxis.y, KernelConfig.MajorAxis.x) * KernelConfig.MinorPixelRadius * (E.y * 2.0 - 1.0);
+				float2(KernelConfig.MajorAxis) * KernelConfig.MajorPixelRadius * E.x +
+				float2(-KernelConfig.MajorAxis.y, KernelConfig.MajorAxis.x) * KernelConfig.MinorPixelRadius * E.y;
 			
-			SampleBufferUV[SampleBatchId] = KernelConfig.BufferUV + (SampleOffset * KernelConfig.KernelSpreadFactor) * KernelConfig.BufferSizeAndInvSize.zw;
+			SampleBufferUV[SampleBatchId] = KernelConfig.BufferUV + SampleOffset * KernelConfig.BufferSizeAndInvSize.zw;
 		}
 
 		SampleAndAccumulateMultiplexedSignalsPair(
@@ -2361,7 +2379,7 @@ void AccumulateKernel(
 	}
 #endif // COMPILE_HEIRARCHY_KERNEL
 #if COMPILE_DIRECTIONAL_KERNEL
-	else if (KernelConfig.SampleSet == SAMPLE_SET_DIRECTIONAL_RECT)
+	else if (KernelConfig.SampleSet == SAMPLE_SET_DIRECTIONAL_RECT || KernelConfig.SampleSet == SAMPLE_SET_DIRECTIONAL_ELLIPSE)
 	{
 		ConvolveDirectionalRect(
 			KernelConfig,

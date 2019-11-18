@@ -362,7 +362,10 @@ namespace DatasmithMeshHelper
 				FVector RawNormal = (Corners[1] - Corners[2]) ^ (Corners[0] - Corners[2]);
 				RawNormal *= RawNormalScale;
 				double FourSquaredTriangleArea = RawNormal.SizeSquared();
-				if (FourSquaredTriangleArea > SMALL_NUMBER)
+
+				// We support even small triangles, but this function is still useful to
+				// see if we have at least one valid triangle in the mesh
+				if (FourSquaredTriangleArea > 0.0f)
 				{
 					return true;
 				}

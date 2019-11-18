@@ -394,10 +394,20 @@ void FGeometryCacheSceneProxy::GetDynamicMeshElements(const TArray<const FSceneV
 	FColoredMaterialRenderProxy* WireframeMaterialInstance = nullptr;
 	if (bWireframe)
 	{
+		const FEngineShowFlags& EngineShowFlags = ViewFamily.EngineShowFlags;
+		const bool bLevelColorationEnabled = EngineShowFlags.LevelColoration;
+		const bool bPropertyColorationEnabled = EngineShowFlags.PropertyColoration;
+
+		FLinearColor ViewWireframeColor(bLevelColorationEnabled ? GetLevelColor() : GetWireframeColor());
+		if (bPropertyColorationEnabled)
+		{
+			ViewWireframeColor = GetPropertyColor();
+		}
+
 		WireframeMaterialInstance = new FColoredMaterialRenderProxy(
 			GEngine->WireframeMaterial ? GEngine->WireframeMaterial->GetRenderProxy() : nullptr,
-			FLinearColor(0, 0.5f, 1.f)
-			);
+			GetSelectionColor(ViewWireframeColor, !(GIsEditor && EngineShowFlags.Selection) || IsSelected(), IsHovered(), false)
+		);
 
 		Collector.RegisterOneFrameMaterialProxy(WireframeMaterialInstance);
 	}
@@ -494,6 +504,7 @@ void FGeometryCacheSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterial
 			CreateMeshBatch(TrackProxy, BatchInfo, UserDataWrapper, DynamicPrimitiveUniformBuffer, MeshBatch);
 
 			MeshBatch.MaterialRenderProxy = TrackProxy->Materials[SegmentIndex]->GetRenderProxy();
+			MeshBatch.CastRayTracedShadow = IsShadowCast(Context.ReferenceView);
 
 			RayTracingInstance.Materials.Add(MeshBatch);
 		}
@@ -561,6 +572,7 @@ void FGeometryCacheSceneProxy::UpdateAnimation(float NewTime, bool bNewLooping, 
 				Section->RayTracingGeometry.Initializer.TotalPrimitiveCount = 0;
 				
 				TArray<FRayTracingGeometrySegment>& Segments = Section->RayTracingGeometry.Initializer.Segments;
+				Segments.Reset();
 
 				for (FGeometryCacheMeshBatchInfo& BatchInfo : Section->MeshData->BatchesInfo)
 				{
@@ -572,8 +584,6 @@ void FGeometryCacheSceneProxy::UpdateAnimation(float NewTime, bool bNewLooping, 
 					Segments.Add(Segment);
 					Section->RayTracingGeometry.Initializer.TotalPrimitiveCount += BatchInfo.NumTriangles;
 				}
-
-				Section->RayTracingGeometry.Initializer.Segments = Segments;
 							
 				Section->RayTracingGeometry.UpdateRHI();
 			}

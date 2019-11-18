@@ -96,6 +96,8 @@ FD3D12LowLevelGraphicsPipelineStateDesc GetLowLevelGraphicsPipelineStateDesc(con
 	Desc.Desc.DepthStencilState.DepthBoundsTestEnable = GSupportsDepthBoundsTest && Initializer.bDepthBounds;
 #endif
 
+	Desc.bFromPSOFileCache = Initializer.bFromPSOFileCache;
+
 	return Desc;
 }
 
@@ -123,14 +125,16 @@ FD3D12PipelineStateWorker::FD3D12PipelineStateWorker(FD3D12Adapter* Adapter, con
 	: FD3D12AdapterChild(Adapter)
 	, bIsGraphics(false)
 {
-	CreationArgs.ComputeArgs.Init(InArgs.Args);
+	CreationArgs.ComputeArgs = new ComputePipelineCreationArgs_POD();
+	CreationArgs.ComputeArgs->Init(InArgs.Args);
 };
 
 FD3D12PipelineStateWorker::FD3D12PipelineStateWorker(FD3D12Adapter* Adapter, const GraphicsPipelineCreationArgs& InArgs)
 	: FD3D12AdapterChild(Adapter)
 	, bIsGraphics(true)
 {
-	CreationArgs.GraphicsArgs.Init(InArgs.Args);
+	CreationArgs.GraphicsArgs = new GraphicsPipelineCreationArgs_POD();
+	CreationArgs.GraphicsArgs->Init(InArgs.Args);
 };
 
 /// @endcond
@@ -442,18 +446,6 @@ FD3D12PipelineState* FD3D12PipelineStateCacheBase::CreateAndAddToLowLevelCache(c
 	AddToLowLevelCache(Desc, &PipelineState, [this](FD3D12PipelineState** PipelineState, const FD3D12LowLevelGraphicsPipelineStateDesc& Desc)
 	{ 
 		OnPSOCreated(*PipelineState, Desc);
-
-		// The lock will be held at this point so we can modify the cache.
-		// Clean ourselves up if the compilation failed.
-		// Note: This check is called here instead of in AddToLowLevelCache
-		// because GetPipelineState will force a synchronization. This
-		// path is always synchronous anyway.
-		if ((*PipelineState)->GetPipelineState() == nullptr)
-		{
-			this->LowLevelGraphicsPipelineStateCache.Remove(Desc);
-			delete *PipelineState;
-			*PipelineState = nullptr;
-		}
 	});
 
 	return PipelineState;

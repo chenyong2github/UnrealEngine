@@ -151,6 +151,12 @@ public:
 	virtual void ClearVoicePackets() override;
 	virtual void Tick(float DeltaTime) override;
 	virtual FString GetVoiceDebugState() const override;
+	virtual Audio::FPatchOutputStrongPtr GetMicrophoneOutput() override;
+	virtual Audio::FPatchOutputStrongPtr GetRemoteTalkerOutput() override;
+	virtual bool PatchRemoteTalkerOutputToEndpoint(const FString& InDeviceName, bool bMuteInGameOutput = true) override;
+	virtual bool PatchLocalTalkerOutputToEndpoint(const FString& InDeviceName) override;
+	virtual void DisconnectAllEndpoints() override;
+	//~IOnlineVoice
 };
 
 typedef TSharedPtr<FOnlineVoiceImpl, ESPMode::ThreadSafe> FOnlineVoiceImplPtr;

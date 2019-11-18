@@ -115,7 +115,7 @@ private :
 
 
 	//@todo(mlentine): Don't have one per static mesh
-	TUniquePtr<Chaos::TChaosPhysicsMaterial<float>> ChaosMaterial;
+	TUniquePtr<Chaos::FChaosPhysicsMaterial> ChaosMaterial;
 	
 protected:
 

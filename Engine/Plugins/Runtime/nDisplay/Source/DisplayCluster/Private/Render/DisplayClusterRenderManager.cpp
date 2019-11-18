@@ -96,11 +96,8 @@ bool FDisplayClusterRenderManager::StartSession(const FString& configPath, const
 		return true;
 	}
 
-	UDisplayClusterViewportClient* const GameViewport = GEngine ? Cast<UDisplayClusterViewportClient>(GEngine->GameViewport) : nullptr;
-	if (!GameViewport)
-	{
-		UE_LOG(LogDisplayClusterRender, Warning, TEXT("DisplayClusterViewportClient is not set as default GameViewport class"));
-	}
+	// Set callback on viewport created. We want to make sure the DisplayClusterViewportClient is used.
+	UGameViewportClient::OnViewportCreated().AddRaw(this, &FDisplayClusterRenderManager::OnViewportCreatedHandler_CheckViewportClass);
 
 	// Create synchronization object
 	UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating synchronization policy object..."));
@@ -143,7 +140,7 @@ bool FDisplayClusterRenderManager::StartScene(UWorld* InWorld)
 
 	if (RenderDevicePtr)
 	{
-		RenderDevicePtr->InitializeWorldContent(InWorld);
+		RenderDevicePtr->StartScene(InWorld);
 	}
 
 	return true;
@@ -152,6 +149,11 @@ bool FDisplayClusterRenderManager::StartScene(UWorld* InWorld)
 void FDisplayClusterRenderManager::EndScene()
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
+
+	if (RenderDevicePtr)
+	{
+		RenderDevicePtr->EndScene();
+	}
 }
 
 void FDisplayClusterRenderManager::PreTick(float DeltaSeconds)
@@ -645,7 +647,7 @@ TSharedPtr<IDisplayClusterRenderDevice, ESPMode::ThreadSafe> FDisplayClusterRend
 		else
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("A native present handler will be instantiated when viewport is available"));
-			UGameViewportClient::OnViewportCreated().AddRaw(this, &FDisplayClusterRenderManager::OnViewportCreatedHandler);
+			UGameViewportClient::OnViewportCreated().AddRaw(this, &FDisplayClusterRenderManager::OnViewportCreatedHandler_SetCustomPresent);
 		}
 	}
 	else if (CurrentOperationMode == EDisplayClusterOperationMode::Editor)
@@ -730,13 +732,25 @@ void FDisplayClusterRenderManager::ResizeWindow(int32 WinX, int32 WinY, int32 Re
 	window->ReshapeWindow(FVector2D(WinX, WinY), FVector2D(ResX, ResY));
 }
 
-void FDisplayClusterRenderManager::OnViewportCreatedHandler()
+void FDisplayClusterRenderManager::OnViewportCreatedHandler_SetCustomPresent()
 {
 	if (GEngine && GEngine->GameViewport)
 	{
 		if (!GEngine->GameViewport->Viewport->GetViewportRHI().IsValid())
 		{
 			GEngine->GameViewport->OnBeginDraw().AddRaw(this, &FDisplayClusterRenderManager::OnBeginDrawHandler);
+		}
+	}
+}
+
+void FDisplayClusterRenderManager::OnViewportCreatedHandler_CheckViewportClass()
+{
+	if (GEngine && GEngine->GameViewport)
+	{
+		UDisplayClusterViewportClient* const GameViewport = Cast<UDisplayClusterViewportClient>(GEngine->GameViewport);
+		if (!GameViewport)
+		{
+			UE_LOG(LogDisplayClusterRender, Warning, TEXT("DisplayClusterViewportClient is not set as default GameViewport class"));
 		}
 	}
 }

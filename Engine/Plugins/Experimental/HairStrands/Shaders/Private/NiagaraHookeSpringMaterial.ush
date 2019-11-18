@@ -87,26 +87,38 @@ void SolveStretchSpringMaterial(in int StrandsSize, in float RestLength, in floa
 	}
 } 
 
-void ProjectStretchSpringMaterial(in int StrandsSize, in float YoungModulus, in float RodThickness, in float RestLength, in float DeltaTime, out float OutMaterialMultiplier)
+void ProjectStretchSpringMaterial(in int StrandsSize, in float YoungModulus, in float RodThickness, in float RestLength, in float NodeMass, in float DeltaTime, in float3 NodePosition, out float3 OutNodePosition)
 {
-	float MaterialCompliance = 0.0;
-	float MaterialWeight = 0.0;
-	OutMaterialMultiplier = 0.0;
-
 	const int LocalIndex = (GGroupThreadId.x % StrandsSize);
-	if( LocalIndex > 1 )
-	{
-		ResetStretchSpringMaterial(StrandsSize,YoungModulus,RodThickness,RestLength,DeltaTime,true,0.0,MaterialCompliance,MaterialWeight,OutMaterialMultiplier,0);
 
-		for(int i = 2; i < StrandsSize; ++i)
+	SharedNodePosition[GGroupThreadId.x] = NodePosition;
+	SharedPreviousPosition[GGroupThreadId.x] = NodePosition;
+	SharedInverseMass[GGroupThreadId.x] = (LocalIndex > 1 && NodeMass != 0.0) ? 1.0 / NodeMass : 0.0;
+	GroupMemoryBarrier();
+
+	if(DeltaTime != 0.0)
+	{
+		float MaterialCompliance = 0.0;
+		float MaterialWeight = 0.0;
+		float MaterialMultiplier = 0.0;
+
+		if( LocalIndex > 1 )
 		{
-			if( LocalIndex == i )
+			ResetStretchSpringMaterial(StrandsSize,YoungModulus,RodThickness,RestLength,DeltaTime,true,0.0,MaterialCompliance,MaterialWeight,MaterialMultiplier,0);
+
+			for(int i = 2; i < StrandsSize; ++i)
 			{
-				UpdateStretchSpringMultiplier(RestLength,DeltaTime,true,0.0,MaterialCompliance,MaterialWeight,OutMaterialMultiplier,0);
+				if( LocalIndex == i )
+				{
+					UpdateStretchSpringMultiplier(RestLength,DeltaTime,true,0.0,MaterialCompliance,MaterialWeight,MaterialMultiplier,0);
+				}
+				GroupMemoryBarrier(); 
 			}
-			GroupMemoryBarrier(); 
 		}
+		
 	}
+	GroupMemoryBarrier();
+	OutNodePosition = SharedNodePosition[GGroupThreadId.x] ;
 }
 
 /* -----------------------------------------------------------------
@@ -150,26 +162,37 @@ void SolveBendSpringMaterial(in int StrandsSize, in float RestLength, in float D
 	}
 } 
 
-void ProjectBendSpringMaterial(in int StrandsSize, in float YoungModulus, in float RodThickness, in float RestLength, in float DeltaTime, out float OutMaterialMultiplier)
+void ProjectBendSpringMaterial(in int StrandsSize, in float YoungModulus, in float RodThickness, in float RestLength, in float NodeMass, in float DeltaTime, in float3 NodePosition, out float3 OutNodePosition)
 {
-	float MaterialCompliance = 0.0;
-	float MaterialWeight = 0.0;
-	OutMaterialMultiplier = 0.0;
-
 	const int LocalIndex = (GGroupThreadId.x % StrandsSize);
-	if( LocalIndex > 1 )
-	{
-		ResetStretchSpringMaterial(StrandsSize,YoungModulus,RodThickness,RestLength,DeltaTime,true,0.0,MaterialCompliance,MaterialWeight,OutMaterialMultiplier,1);
 
-		for(int i = 2; i < StrandsSize; ++i)
+	SharedNodePosition[GGroupThreadId.x] = NodePosition;
+	SharedPreviousPosition[GGroupThreadId.x] = NodePosition;
+	SharedInverseMass[GGroupThreadId.x] = (LocalIndex > 1 && NodeMass != 0.0) ? 1.0 / NodeMass : 0.0;
+	GroupMemoryBarrier();
+
+	if(DeltaTime != 0.0)
+	{
+		float MaterialCompliance = 0.0;
+		float MaterialWeight = 0.0;
+		float MaterialMultiplier = 0.0;
+
+		if( LocalIndex > 1 )
 		{
-			if( LocalIndex == i )
+			ResetStretchSpringMaterial(StrandsSize,YoungModulus,RodThickness,RestLength,DeltaTime,true,0.0,MaterialCompliance,MaterialWeight,MaterialMultiplier,1);
+
+			for(int i = 2; i < StrandsSize; ++i)
 			{
-				UpdateStretchSpringMultiplier(RestLength,DeltaTime,true,0.0,MaterialCompliance,MaterialWeight,OutMaterialMultiplier,1);
+				if( LocalIndex == i )
+				{
+					UpdateStretchSpringMultiplier(RestLength,DeltaTime,true,0.0,MaterialCompliance,MaterialWeight,MaterialMultiplier,1);
+				}
+				GroupMemoryBarrier(); 
 			}
-			GroupMemoryBarrier(); 
 		}
 	}
+	GroupMemoryBarrier();
+	OutNodePosition = SharedNodePosition[GGroupThreadId.x];
 }
 
 /* -----------------------------------------------------------------
@@ -213,26 +236,37 @@ void SolveTwistSpringMaterial(in int StrandsSize, in float RestLength, in float 
 	}
 } 
 
-void ProjectTwistSpringMaterial(in int StrandsSize, in float YoungModulus, in float RodThickness, in float RestLength, in float DeltaTime, out float OutMaterialMultiplier)
+void ProjectTwistSpringMaterial(in int StrandsSize, in float YoungModulus, in float RodThickness, in float RestLength, in float NodeMass, in float DeltaTime, in float3 NodePosition, out float3 OutNodePosition)
 {
-	float MaterialCompliance = 0.0;
-	float MaterialWeight = 0.0;
-	OutMaterialMultiplier = 0.0;
-
 	const int LocalIndex = (GGroupThreadId.x % StrandsSize);
-	if( LocalIndex > 2 )
-	{
-		ResetStretchSpringMaterial(StrandsSize,YoungModulus,RodThickness,RestLength,DeltaTime,true,0.0,MaterialCompliance,MaterialWeight,OutMaterialMultiplier,2);
 
-		for(int i = 3; i < StrandsSize; ++i)
+	SharedNodePosition[GGroupThreadId.x] = NodePosition;
+	SharedPreviousPosition[GGroupThreadId.x] = NodePosition;
+	SharedInverseMass[GGroupThreadId.x] = (LocalIndex > 1 && NodeMass != 0.0) ? 1.0 / NodeMass : 0.0;
+	GroupMemoryBarrier();
+
+	if(DeltaTime != 0.0)
+	{
+		float MaterialCompliance = 0.0;
+		float MaterialWeight = 0.0;
+		float MaterialMultiplier = 0.0;
+
+		if( LocalIndex > 2 )
 		{
-			if( LocalIndex == i )
+			ResetStretchSpringMaterial(StrandsSize,YoungModulus,RodThickness,RestLength,DeltaTime,true,0.0,MaterialCompliance,MaterialWeight,MaterialMultiplier,2);
+
+			for(int i = 3; i < StrandsSize; ++i)
 			{
-				UpdateStretchSpringMultiplier(RestLength,DeltaTime,true,0.0,MaterialCompliance,MaterialWeight,OutMaterialMultiplier,2);
+				if( LocalIndex == i )
+				{
+					UpdateStretchSpringMultiplier(RestLength,DeltaTime,true,0.0,MaterialCompliance,MaterialWeight,MaterialMultiplier,2);
+				}
+				GroupMemoryBarrier(); 
 			}
-			GroupMemoryBarrier(); 
 		}
 	}
+	GroupMemoryBarrier();
+	OutNodePosition = SharedNodePosition[GGroupThreadId.x];
 }
 
 /* -----------------------------------------------------------------
@@ -246,6 +280,29 @@ void ComputeMaterialFrame(in int StrandsSize)
 	if( LocalIndex == 0 )
 	{
 		float4 NodeQuaternion = SharedNodeOrientation[GGroupThreadId.x];
+		float3 TangentPrev = normalize(SharedNodePosition[GGroupThreadId.x+1] - SharedNodePosition[GGroupThreadId.x]);
+		float3 TangentNext = TangentPrev;
+
+		for (int EdgeIndex = 1, EdgeEnd = StrandsSize-1; EdgeIndex < EdgeEnd; ++EdgeIndex)
+		{
+			TangentPrev = TangentNext;
+			TangentNext = normalize(SharedNodePosition[GGroupThreadId.x+EdgeIndex+1] - SharedNodePosition[GGroupThreadId.x+EdgeIndex]);
+
+			NodeQuaternion = NormalizeQuat( MultiplyQuat( FindQuatBetweenNormals(TangentPrev,TangentNext), NodeQuaternion ) );
+			SharedNodeOrientation[GGroupThreadId.x+EdgeIndex] = NodeQuaternion;
+			GroupMemoryBarrier();
+		}
+		GroupMemoryBarrier();
+	}
+	GroupMemoryBarrier();
+}
+
+void UpdateMaterialFrame(in int StrandsSize)
+{
+	const int LocalIndex = (GGroupThreadId.x % StrandsSize);
+	if( LocalIndex == 0 )
+	{
+		float4 NodeQuaternion = SharedPreviousOrientation[GGroupThreadId.x];
 		float3 TangentPrev = normalize(SharedPreviousPosition[GGroupThreadId.x+1] - SharedPreviousPosition[GGroupThreadId.x]);
 		float3 TangentNext = TangentPrev;
 
@@ -253,13 +310,33 @@ void ComputeMaterialFrame(in int StrandsSize)
 		{
 			TangentPrev = TangentNext;
 			TangentNext = normalize(SharedPreviousPosition[GGroupThreadId.x+EdgeIndex+1] - SharedPreviousPosition[GGroupThreadId.x+EdgeIndex]);
+
 			NodeQuaternion = NormalizeQuat( MultiplyQuat( FindQuatBetweenNormals(TangentPrev,TangentNext), NodeQuaternion ) );
 			SharedNodeOrientation[GGroupThreadId.x+EdgeIndex] = NodeQuaternion;
 			GroupMemoryBarrier();
 		}
+		GroupMemoryBarrier();
 	}
 	GroupMemoryBarrier();
 }
+
+
+/*void UpdateMaterialFrame(in int StrandsSize)
+{
+	const int LocalIndex = (GGroupThreadId.x % StrandsSize);
+	if( (LocalIndex > 0) && (LocalIndex < StrandsSize-1) )
+	{
+		float4 NodeQuaternion = SharedPreviousOrientation[GGroupThreadId.x];
+		//float3 TangentPrev = RotateVectorByQuat( float3(0,0,1), NodeQuaternion);
+		//float3 TangentNext = normalize(SharedPreviousPosition[GGroupThreadId.x+1] - SharedPreviousPosition[GGroupThreadId.x]);
+
+		float3 TangentPrev = normalize(SharedPreviousPosition[GGroupThreadId.x+1] - SharedPreviousPosition[GGroupThreadId.x]);
+		float3 TangentNext = normalize(SharedNodePosition[GGroupThreadId.x+1] - SharedNodePosition[GGroupThreadId.x]);
+
+		SharedNodeOrientation[GGroupThreadId.x] = NormalizeQuat( MultiplyQuat( FindQuatBetweenNormals(TangentPrev,TangentNext), NodeQuaternion) );
+	}
+	GroupMemoryBarrier();
+}*/
 
 /* -----------------------------------------------------------------
  * Bend spring material
@@ -282,7 +359,7 @@ void UpdateAngularSpringMultiplier( in float RestLength, in float3 RestDirection
 	const float3 EdgeDirection = SharedNodePosition[GGroupThreadId.x] - SharedNodePosition[GGroupThreadId.x-1];
 	const float3 DeltaVelocity = (EdgeDirection - ( SharedPreviousPosition[GGroupThreadId.x] - SharedPreviousPosition[GGroupThreadId.x-1] ) ) / DeltaTime; 
 
-	const float4 ParentFrame = SharedNodeOrientation[GGroupThreadId.x-2];
+	const float4 ParentFrame = SlerpQuat(SharedNodeOrientation[GGroupThreadId.x-2],SharedNodeOrientation[GGroupThreadId.x-2],0.5);
 	const float3 TargetDirection = RotateVectorByQuat(RestDirection,ParentFrame);
 
 	// XPBD lagrange multiplier update : dL = -(C+compliance*L) / (dC * invM * dCt + alpha)
@@ -306,49 +383,137 @@ void UpdateAngularSpringMultiplier( in float RestLength, in float3 RestDirection
 void SolveAngularSpringMaterial(in int StrandsSize, in float RestLength, in float3 RestDirection, in float DeltaTime, in float MaterialDamping,
 			in float MaterialCompliance, in float MaterialWeight, in float3 MaterialMultiplier, out float3 OutMaterialMultiplier)
 {
+	
 	OutMaterialMultiplier = MaterialMultiplier;
 	const int LocalIndex = (GGroupThreadId.x % StrandsSize);
 	if( LocalIndex > 1)
 	{
 		const int IsRed = (GGroupThreadId.x % 2) == 0;
 		// Process all the red rods
-		if (IsRed)
+		if (!IsRed)
 		{	
 			UpdateAngularSpringMultiplier(RestLength,RestDirection,DeltaTime,false,MaterialDamping,MaterialCompliance,MaterialWeight,OutMaterialMultiplier);
 		}
 		GroupMemoryBarrier(); 
 
-		if (!IsRed)
+		if (IsRed)
 		{
 			UpdateAngularSpringMultiplier(RestLength,RestDirection,DeltaTime,false,MaterialDamping,MaterialCompliance,MaterialWeight,OutMaterialMultiplier);
 		}
 		GroupMemoryBarrier(); 
 	}
-} 
-
-void ProjectAngularSpringMaterial(in int StrandsSize, in float YoungModulus, in float RodThickness, in float RestLength, in float3 RestDirection, in float DeltaTime,
-			out float3 OutMaterialMultiplier)
+}
+/*
+groupshared float4 SharedRestDatas[THREADGROUP_SIZE];
+void SolveAngularSpringMaterial(in int StrandsSize, in float RestLength, in float3 RestDirection, in float DeltaTime, in float MaterialDamping,
+			in float MaterialCompliance, in float MaterialWeight, in float3 MaterialMultiplier, out float3 OutMaterialMultiplier)
 {
-	float MaterialCompliance = 0.0;
-	float MaterialWeight = 0.0;
-	OutMaterialMultiplier = float3(0,0,0);
+	SharedRestDatas[GGroupThreadId.x] = float4(RestDirection,RestLength);
+	GroupMemoryBarrier(); 
 
-	ComputeMaterialFrame(StrandsSize);
-	SetupAngularSpringMaterial(StrandsSize, YoungModulus, RodThickness, RestLength, DeltaTime, true, 0.0, MaterialCompliance, MaterialWeight, OutMaterialMultiplier);
-
-	float3 MaterialMultiplier = float3(0,0,0);
+	OutMaterialMultiplier = MaterialMultiplier;
 	const int LocalIndex = (GGroupThreadId.x % StrandsSize);
-	if( LocalIndex > 1 )
+	if( LocalIndex == 0)
 	{
-		for(int i = 2; i < StrandsSize; ++i)
+		for(int i = GGroupThreadId.x+2; i < GGroupThreadId.x+StrandsSize; ++i)
 		{
-			if( LocalIndex == i )
+			const float3 EdgeDirection = SharedNodePosition[i] - SharedNodePosition[i-1];
+
+			const float4 ParentFrame = SharedNodeOrientation[i-2];
+			const float3 TargetDirection = RotateVectorByQuat(SharedRestDatas[i].xyz,ParentFrame);
+
+			// XPBD lagrange multiplier update : dL = -(C+compliance*L) / (dC * invM * dCt + alpha)
+			const float3 DeltaLambda = -(EdgeDirection - TargetDirection) / (SharedInverseMass[i]+SharedInverseMass[i-1]);
+
+			// XPBD position update : dX = dL * dCt * invM
+			const float3 PositionDelta  = DeltaLambda;
+
+			SharedDeltaPosition[i] = PositionDelta;
+			GroupMemoryBarrier();
+
+			// dX += dX
+			SharedNodePosition[i] += PositionDelta * SharedInverseMass[i];
+			GroupMemoryBarrier();
+			SharedNodePosition[i-1] -= PositionDelta * SharedInverseMass[i-1];
+			GroupMemoryBarrier();
+
+			if( i > GGroupThreadId.x+2 )
 			{
-				UpdateAngularSpringMultiplier(RestLength,RestDirection,DeltaTime,true,0.0,MaterialCompliance,MaterialWeight,OutMaterialMultiplier);
+				const float3 TangentInit = normalize(SharedNodePosition[i-2] - SharedNodePosition[i-3]);
+				const float3 TangentPrev = normalize(SharedNodePosition[i-1] - SharedNodePosition[i-2]);
+				const float3 TangentNext = normalize(SharedNodePosition[i] - SharedNodePosition[i-1]);
+
+				SharedNodeOrientation[i-2] = NormalizeQuat( MultiplyQuat( FindQuatBetweenNormals(TangentInit,TangentPrev), SharedNodeOrientation[i-3] ) );
+				GroupMemoryBarrier();
+				SharedNodeOrientation[i-1] = NormalizeQuat( MultiplyQuat( FindQuatBetweenNormals(TangentPrev,TangentNext), SharedNodeOrientation[i-2] ) );
+				GroupMemoryBarrier();
 			}
-			GroupMemoryBarrier(); 
+			else
+			{
+				const float3 TangentPrev = normalize(SharedNodePosition[i-1] - SharedNodePosition[i-2]);
+				const float3 TangentNext = normalize(SharedNodePosition[i] - SharedNodePosition[i-1]);
+
+				SharedNodeOrientation[i-1] = NormalizeQuat( MultiplyQuat( FindQuatBetweenNormals(TangentPrev,TangentNext), SharedNodeOrientation[i-2] ) );
+				GroupMemoryBarrier();
+			}
+			GroupMemoryBarrier();
+		}
+		GroupMemoryBarrier();
+		for(int i = GGroupThreadId.x+2; i < GGroupThreadId.x+StrandsSize; ++i)
+		{
+			SharedNodePosition[i] += SharedDeltaPosition[i] * SharedInverseMass[i];
+			SharedNodePosition[i-1] -= SharedDeltaPosition[i] * SharedInverseMass[i-1];
+			GroupMemoryBarrier();
+		}
+		GroupMemoryBarrier();
+		for(int i = GGroupThreadId.x+2; i < GGroupThreadId.x+StrandsSize; ++i)
+		{
+			const float3 TangentPrev = normalize(SharedNodePosition[i-1] - SharedNodePosition[i-2]);
+			const float3 TangentNext = normalize(SharedNodePosition[i] - SharedNodePosition[i-1]);
+
+			SharedNodeOrientation[i-1] = NormalizeQuat( MultiplyQuat( FindQuatBetweenNormals(TangentPrev,TangentNext), SharedNodeOrientation[i-2] ) );
+			GroupMemoryBarrier();
+		}
+		GroupMemoryBarrier();
+	} 
+}*/
+
+void ProjectAngularSpringMaterial(in int StrandsSize, in float YoungModulus, in float RodThickness, in float RestLength, in float3 RestDirection, in float NodeMass, in float DeltaTime,
+			 in float3 NodePosition, out float3 OutNodePosition)
+{
+	const int LocalIndex = (GGroupThreadId.x % StrandsSize);
+
+	SharedNodePosition[GGroupThreadId.x] = NodePosition;
+	SharedPreviousPosition[GGroupThreadId.x] = NodePosition;
+	SharedInverseMass[GGroupThreadId.x] = (LocalIndex > 1 && NodeMass != 0.0) ? 1.0 / NodeMass : 0.0;
+	GroupMemoryBarrier();
+
+	if(DeltaTime != 0.0)
+	{
+
+		float MaterialCompliance = 0.0;
+		float MaterialWeight = 0.0;
+		float3 MaterialMultiplier = float3(0,0,0);
+
+		//ComputeMaterialFrame(StrandsSize);
+		SetupAngularSpringMaterial(StrandsSize, YoungModulus, RodThickness, RestLength, DeltaTime, true, 0.0, MaterialCompliance, MaterialWeight, MaterialMultiplier);
+
+		//if( LocalIndex > 1 )
+		{
+			for(int i = 2; i < StrandsSize; ++i)
+			{
+				ComputeMaterialFrame(StrandsSize);
+				if( LocalIndex == i )
+				{
+					UpdateAngularSpringMultiplier(RestLength,RestDirection,DeltaTime,true,0.0,MaterialCompliance,MaterialWeight,MaterialMultiplier);
+				}
+				GroupMemoryBarrier(); 
+			}
 		}
 	}
+
+	GroupMemoryBarrier();
+	OutNodePosition = SharedNodePosition[GGroupThreadId.x];
 }
 
 /* -----------------------------------------------------------------
@@ -358,7 +523,7 @@ void ProjectAngularSpringMaterial(in int StrandsSize, in float YoungModulus, in 
 
 void ComputeRestDirection(in int StrandsSize, in float3 NodePosition, in float4 NodeOrientation, out float3 OutRestDirection)
 {
-	SharedPreviousPosition[GGroupThreadId.x] = NodePosition;
+	SharedNodePosition[GGroupThreadId.x] = NodePosition;
 	SharedNodeOrientation[GGroupThreadId.x] = NodeOrientation;
 	GroupMemoryBarrier(); 
 
@@ -370,7 +535,7 @@ void ComputeRestDirection(in int StrandsSize, in float3 NodePosition, in float4 
 	{
 		const float3 EdgeDirection = SharedNodePosition[GGroupThreadId.x] - SharedNodePosition[GGroupThreadId.x-1];
 
-		const float4 ParentFrame = SharedNodeOrientation[GGroupThreadId.x-2];
+		const float4 ParentFrame = SlerpQuat(SharedNodeOrientation[GGroupThreadId.x-2],SharedNodeOrientation[GGroupThreadId.x-2],0.5);
 		OutRestDirection = UnrotateVectorByQuat(EdgeDirection,ParentFrame);
 	}
 	GroupMemoryBarrier(); 

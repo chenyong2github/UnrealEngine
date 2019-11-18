@@ -29,6 +29,9 @@
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/RenderingObjectVersion.h"
 
+#include "NiagaraFunctionLibrary.h"
+#include "VectorVM.h"
+
 DECLARE_STATS_GROUP(TEXT("Niagara Detailed"), STATGROUP_NiagaraDetailed, STATCAT_Advanced);
 
 FNiagaraScriptDebuggerInfo::FNiagaraScriptDebuggerInfo() : bWaitForGPU(false), FrameLastWriteId(-1), bWritten(false)
@@ -727,6 +730,21 @@ void UNiagaraScript::PostLoad()
 #if STATS
 	GenerateStatScopeIDs();
 #endif
+
+	// Optimize the VM script for runtime usage
+	if ( FPlatformProperties::RequiresCookedData() && CachedScriptVM.IsValid() )
+	{
+		TArray<uint8, TInlineAllocator<32>> ExternalFunctionRegisterCounts;
+		ExternalFunctionRegisterCounts.Reserve(CachedScriptVM.CalledVMExternalFunctions.Num());
+
+		for ( const FVMExternalFunctionBindingInfo FunctionBindingInfo : CachedScriptVM.CalledVMExternalFunctions )
+		{
+			const uint8 RegisterCount = FunctionBindingInfo.GetNumInputs() + FunctionBindingInfo.GetNumOutputs();
+			ExternalFunctionRegisterCounts.Add(RegisterCount);
+		}
+
+		VectorVM::OptimizeByteCode(CachedScriptVM.ByteCode.GetData(), CachedScriptVM.OptimizedByteCode, MakeArrayView(ExternalFunctionRegisterCounts));
+	}
 
 	//FNiagaraUtilities::DumpHLSLText(RapidIterationParameters.ToString(), *GetPathName());
 }

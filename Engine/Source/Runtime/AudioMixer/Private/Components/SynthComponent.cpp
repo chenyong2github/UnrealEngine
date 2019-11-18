@@ -314,7 +314,7 @@ void USynthComponent::OnUnregister()
 	}
 
 	// Make sure the audio component is destroyed during unregister
-	if (AudioComponent)
+	if (AudioComponent && !AudioComponent->IsBeingDestroyed())
 	{
 		if (Owner && Owner->GetWorld())
 		{

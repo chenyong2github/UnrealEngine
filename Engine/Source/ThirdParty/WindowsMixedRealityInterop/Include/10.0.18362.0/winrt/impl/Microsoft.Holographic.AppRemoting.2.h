@@ -167,7 +167,7 @@ WINRT_EXPORT namespace winrt::Microsoft::Holographic::AppRemoting {
 
 struct WINRT_EBO PlayerContext :
     Microsoft::Holographic::AppRemoting::IPlayerContext,
-    impl::require<PlayerContext, Windows::Foundation::IClosable>
+    impl::require<PlayerContext, Microsoft::Holographic::AppRemoting::IPlayerContext2, Windows::Foundation::IClosable>
 {
     PlayerContext(std::nullptr_t) noexcept {}
     static Microsoft::Holographic::AppRemoting::PlayerContext Create();

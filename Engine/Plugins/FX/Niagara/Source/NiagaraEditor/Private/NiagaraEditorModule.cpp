@@ -23,6 +23,7 @@
 #include "SGraphPin.h"
 #include "KismetPins/SGraphPinVector4.h"
 #include "KismetPins/SGraphPinNum.h"
+#include "KismetPins/SGraphPinExec.h"
 #include "KismetPins/SGraphPinInteger.h"
 #include "KismetPins/SGraphPinVector.h"
 #include "KismetPins/SGraphPinVector2D.h"
@@ -70,6 +71,7 @@
 #include "NiagaraTypes.h"
 #include "NiagaraSystemFactoryNew.h"
 #include "NiagaraSystemEditorData.h"
+#include "NiagaraEditorCommands.h"
 
 #include "MovieScene/Parameters/MovieSceneNiagaraBoolParameterTrack.h"
 #include "MovieScene/Parameters/MovieSceneNiagaraFloatParameterTrack.h"
@@ -113,6 +115,14 @@ const FName FNiagaraEditorModule::NiagaraEditorAppIdentifier( TEXT( "NiagaraEdit
 const FLinearColor FNiagaraEditorModule::WorldCentricTabColorScale(0.0f, 0.0f, 0.2f, 0.5f);
 
 EAssetTypeCategories::Type FNiagaraEditorModule::NiagaraAssetCategory;
+
+int32 GbShowFastPathOptions = 0;
+static FAutoConsoleVariableRef CVarShowFastPathOptions(
+	TEXT("fx.Niagara.ShowFastPathOptions"),
+	GbShowFastPathOptions,
+	TEXT("If > 0 the experimental fast path options will be shown in the system and emitter properties in the niagara system editor.\n"),
+	ECVF_Default
+);
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -586,6 +596,8 @@ class FNiagaraSystemColorParameterTrackEditor : public FNiagaraSystemParameterTr
 
 void FNiagaraEditorModule::StartupModule()
 {
+	bThumbnailRenderersRegistered = false;
+
 	FHlslNiagaraTranslator::Init();
 	MenuExtensibilityManager = MakeShareable(new FExtensibilityManager);
 	ToolBarExtensibilityManager = MakeShareable(new FExtensibilityManager);
@@ -681,6 +693,10 @@ void FNiagaraEditorModule::StartupModule()
 	// TODO: Don't register this here.
 	GraphPanelPinFactory->RegisterMiscSubCategoryPin(UNiagaraNodeWithDynamicPins::AddPinSubCategory, FNiagaraScriptGraphPanelPinFactory::FCreateGraphPin::CreateLambda(
 		[](UEdGraphPin* GraphPin) -> TSharedRef<SGraphPin> { return SNew(SNiagaraGraphPinAdd, GraphPin); }));
+
+	GraphPanelPinFactory->RegisterTypePin(FNiagaraTypeDefinition::GetParameterMapStruct(), FNiagaraScriptGraphPanelPinFactory::FCreateGraphPin::CreateLambda(
+		[](UEdGraphPin* GraphPin) -> TSharedRef<SGraphPin> { return SNew(SGraphPinExec, GraphPin); }));
+
 
 	EnumTypeUtilities = MakeShareable(new FNiagaraEditorEnumTypeUtilities());
 	RegisterTypeUtilities(FNiagaraTypeDefinition::GetFloatDef(), MakeShareable(new FNiagaraEditorFloatTypeUtilities()));
@@ -811,11 +827,6 @@ void FNiagaraEditorModule::StartupModule()
 		TEXT("Dumps data relevant to generating the compile id for an asset."),
 		FConsoleCommandWithArgsDelegate::CreateStatic(&DumpCompileIdDataForAsset));
 
-	if (GIsEditor)
-	{
-		UThumbnailManager::Get().RegisterCustomRenderer(UNiagaraEmitter::StaticClass(), UNiagaraEmitterThumbnailRenderer::StaticClass());
-		UThumbnailManager::Get().RegisterCustomRenderer(UNiagaraSystem::StaticClass(), UNiagaraSystemThumbnailRenderer::StaticClass());
-	}
 }
 
 
@@ -916,16 +927,22 @@ void FNiagaraEditorModule::ShutdownModule()
 		DumpCompileIdDataForAssetCommand = nullptr;
 	}
 
-	if (UObjectInitialized() && GIsEditor)
+	if (UObjectInitialized() && GIsEditor && bThumbnailRenderersRegistered)
 	{
 		UThumbnailManager::Get().UnregisterCustomRenderer(UNiagaraEmitter::StaticClass());
 		UThumbnailManager::Get().UnregisterCustomRenderer(UNiagaraSystem::StaticClass());
 	}
 }
 
-
 void FNiagaraEditorModule::OnPostEngineInit()
 {
+	if (GIsEditor)
+	{
+		UThumbnailManager::Get().RegisterCustomRenderer(UNiagaraEmitter::StaticClass(), UNiagaraEmitterThumbnailRenderer::StaticClass());
+		UThumbnailManager::Get().RegisterCustomRenderer(UNiagaraSystem::StaticClass(), UNiagaraSystemThumbnailRenderer::StaticClass());
+		bThumbnailRenderersRegistered = true;
+	}
+
 	// The editor should be valid at this point.. log a warning if not!
 	if (GEditor)
 	{
@@ -1033,6 +1050,11 @@ const FNiagaraEditorCommands& FNiagaraEditorModule::Commands()
 TSharedPtr<FNiagaraSystemViewModel> FNiagaraEditorModule::GetExistingViewModelForSystem(UNiagaraSystem* InSystem)
 {
 	return FNiagaraSystemViewModel::GetExistingViewModelForObject(InSystem);
+}
+
+const FNiagaraEditorCommands& FNiagaraEditorModule::GetCommands() const
+{
+	return FNiagaraEditorCommands::Get();
 }
 
 void FNiagaraEditorModule::RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)

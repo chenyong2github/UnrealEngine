@@ -240,7 +240,8 @@ namespace AssetSelectionUtils
 
 							// Check for experimental/early-access classes in the component hierarchy
 							bool bIsExperimental, bIsEarlyAccess;
-							FObjectEditorUtils::GetClassDevelopmentStatus(Component->GetClass(), bIsExperimental, bIsEarlyAccess);
+							FString MostDerivedDevelopmentClassName;
+							FObjectEditorUtils::GetClassDevelopmentStatus(Component->GetClass(), bIsExperimental, bIsEarlyAccess, MostDerivedDevelopmentClassName);
 
 							ActorInfo.bHaveExperimentalClass |= bIsExperimental;
 							ActorInfo.bHaveEarlyAccessClass |= bIsEarlyAccess;
@@ -250,7 +251,8 @@ namespace AssetSelectionUtils
 					// Check for experimental/early-access classes in the actor hierarchy
 					{
 						bool bIsExperimental, bIsEarlyAccess;
-						FObjectEditorUtils::GetClassDevelopmentStatus(CurrentClass, bIsExperimental, bIsEarlyAccess);
+						FString MostDerivedDevelopmentClassName;
+						FObjectEditorUtils::GetClassDevelopmentStatus(CurrentClass, bIsExperimental, bIsEarlyAccess, MostDerivedDevelopmentClassName);
 
 						ActorInfo.bHaveExperimentalClass |= bIsExperimental;
 						ActorInfo.bHaveEarlyAccessClass |= bIsEarlyAccess;

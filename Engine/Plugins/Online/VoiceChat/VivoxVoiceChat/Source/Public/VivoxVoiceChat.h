@@ -14,7 +14,7 @@ THIRD_PARTY_INCLUDES_START
 #include "vivoxclientapi/clientconnection.h"
 THIRD_PARTY_INCLUDES_END
 
-#include "Interfaces/VoiceChat.h"
+#include "VoiceChat.h"
 #include "Stats/Stats.h"
 #include "Misc/CoreMisc.h"
 #include "Logging/LogMacros.h"
@@ -205,6 +205,14 @@ protected:
 		TMap<FString, FParticipant> Participants; // Contains participants from all channels and the desired muted/volume state
 	};
 
+	struct AudioOptions
+	{
+		bool bMuted = false;
+		float Volume = 1.0f;
+	};
+	AudioOptions AudioInputOptions;
+	AudioOptions AudioOutputOptions;
+
 	enum class EConnectionState
 	{
 		Disconnected,
@@ -280,8 +288,9 @@ protected:
 	FChannelSession& GetChannelSession(const VivoxClientApi::Uri& ChannelUri);
 	void RemoveChannelSession(const FString& ChannelName);
 	void ClearChannelSessions();
-
 	void ClearLoginSession();
+	void ApplyAudioInputOptions();
+	void ApplyAudioOutputOptions();
 
 	// Log spam avoidance
 	FString LastLogMessage;

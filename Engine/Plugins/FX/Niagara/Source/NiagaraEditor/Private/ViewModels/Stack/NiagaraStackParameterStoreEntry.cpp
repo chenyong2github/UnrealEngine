@@ -58,7 +58,7 @@ void UNiagaraStackParameterStoreEntry::RefreshChildrenInternal(const TArray<UNia
 {
 	RefreshValueAndHandle();
 
-	if (ValueObject != nullptr)
+	if (ValueObject != nullptr && ValueObject->IsA<UNiagaraDataInterface>())
 	{
 		if(ValueObjectEntry == nullptr || ValueObjectEntry->GetObject() != ValueObject)
 		{

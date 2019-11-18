@@ -290,9 +290,12 @@ namespace Audio
 	{
 	public:
 		FOutputBuffer()
-			: AudioMixer(nullptr)
+			: IsReadyEvent(nullptr)
+			, AudioMixer(nullptr)
 			, DataFormat(EAudioMixerStreamDataFormat::Unknown)
 		{}
+
+		~FOutputBuffer();
  
 		/** Initialize the buffer with the given samples and output format. */
 		void Init(IAudioMixer* InAudioMixer, const int32 InNumSamples, const EAudioMixerStreamDataFormat::Type InDataFormat);
@@ -308,6 +311,9 @@ namespace Audio
 		const uint8* GetBufferData() const;
 		uint8* GetBufferData();
 
+		/** Event to signal that the buffer is ready */
+		FEvent* IsReadyEvent;
+
 		/** Gets the number of frames of the buffer. */
 		int32 GetNumFrames() const;
 
@@ -318,7 +324,7 @@ namespace Audio
 		bool IsReady() const { return bIsReady; }
 
 		/** Resets the buffer ready state. */
-		void ResetReadyState() { bIsReady = false; }
+		void ResetReadyState();
 
 		/** Resets the internal buffers to the new sample count. Used when device is changed. */
 		void Reset(const int32 InNewNumSamples);
@@ -381,6 +387,18 @@ namespace Audio
 
 		/** Gets the device information of the given device index. */
 		virtual bool GetOutputDeviceInfo(const uint32 InDeviceIndex, FAudioPlatformDeviceInfo& OutInfo) = 0;
+
+		/**
+		 * Returns the name of the currently used audio device.
+		 */
+		virtual FString GetCurrentDeviceName() { return CurrentDeviceName; }
+
+		/**
+		 * Can be used to look up the current index for a given device name.
+		 * On most platforms, this index may be invalidated if any devices are added or removed.
+		 * Returns INDEX_NONE if no mapping is found
+		 */
+		virtual int32 GetIndexForDevice(const FString& InDeviceName);
 
 		/** Gets the platform specific audio settings. */
 		virtual FAudioPlatformSettings GetPlatformSettings() const = 0;
@@ -559,10 +577,10 @@ namespace Audio
 		FEvent* AudioFadeEvent;
 
 		/** The buffer which is currently submitted to the output device (and is being read from). */
-		int32 CurrentBufferReadIndex;
+		TAtomic<int32> CurrentBufferReadIndex;
 
 		/** The buffer which is currently being rendered to (or about to be rendered to). */
-		int32 CurrentBufferWriteIndex;
+		TAtomic<int32> CurrentBufferWriteIndex;
 
 		/** The number of mixer buffers to queue on the output source voice. */
 		int32 NumOutputBuffers;
@@ -572,6 +590,9 @@ namespace Audio
 
 		/** Source param used to fade in and out audio device. */
 		FParam FadeParam;
+
+		/** This device name can be used to override the default device being used on platforms that use strings to identify audio devices. */
+		FString CurrentDeviceName;
 
 		/** String containing the last generated error. */
 		FString LastError;

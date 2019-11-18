@@ -2608,17 +2608,23 @@ bool AInstancedFoliageActor::ContainsInstancesFromProceduralFoliageComponent(con
 
 void AInstancedFoliageActor::MoveInstancesForComponentToCurrentLevel(UActorComponent* InComponent)
 {
+	UWorld* InWorld = InComponent->GetWorld();
+	MoveInstancesForComponentToLevel(InComponent, InWorld->GetCurrentLevel());
+}
+
+void AInstancedFoliageActor::MoveInstancesForComponentToLevel(UActorComponent* InComponent, ULevel* TargetLevel)
+{
 	if (!HasFoliageAttached(InComponent))
 	{
 		// Quit early if there are no foliage instances painted on this component
 		return;
 	}
 
-	UWorld* InWorld = InComponent->GetWorld();
-	AInstancedFoliageActor* NewIFA = AInstancedFoliageActor::GetInstancedFoliageActorForCurrentLevel(InWorld, true);
+	
+	AInstancedFoliageActor* NewIFA = AInstancedFoliageActor::GetInstancedFoliageActorForLevel(TargetLevel, true);
 	NewIFA->Modify();
 
-	for (TActorIterator<AInstancedFoliageActor> It(InWorld); It; ++It)
+	for (TActorIterator<AInstancedFoliageActor> It(InComponent->GetWorld()); It; ++It)
 	{
 		AInstancedFoliageActor* IFA = (*It);
 
@@ -3926,6 +3932,11 @@ void AInstancedFoliageActor::OnLevelActorMoved(AActor* InActor)
 void AInstancedFoliageActor::OnLevelActorDeleted(AActor* InActor)
 {
 	UWorld* InWorld = InActor->GetWorld();
+
+	if (GIsReinstancing)
+	{
+		return;
+	}
 
 	if (!InWorld || !InWorld->IsGameWorld())
 	{

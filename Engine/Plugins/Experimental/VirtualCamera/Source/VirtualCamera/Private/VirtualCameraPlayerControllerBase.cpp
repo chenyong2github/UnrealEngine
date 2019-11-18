@@ -13,6 +13,8 @@
 #include "RemoteSession/Channels/RemoteSessionInputChannel.h"
 #include "RemoteSession/Channels/RemoteSessionFrameBufferChannel.h"
 #include "RemoteSession/Channels/RemoteSessionXRTrackingChannel.h"
+#include "Roles/LiveLinkAnimationRole.h"
+#include "Roles/LiveLinkAnimationTypes.h"
 #include "Roles/LiveLinkTransformRole.h"
 #include "Roles/LiveLinkTransformTypes.h"
 #include "VirtualCamera.h"
@@ -273,16 +275,17 @@ static const FName RemoteSessionTrackingSystemName(TEXT("RemoteSessionXRTracking
 
 bool AVirtualCameraPlayerControllerBase::GetCurrentTrackerLocationAndRotation(FVector& OutTrackerLocation, FRotator& OutTrackerRotation)
 {
-	FQuat ARKitQuaternion;
+	bool bTransformSet = false;
 
 	switch (InputSource)
 	{
 		case ETrackerInputSource::ARKit:
 			if (GEngine && GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetSystemName() == RemoteSessionTrackingSystemName)
 			{
+				FQuat ARKitQuaternion;
 				GEngine->XRSystem->GetCurrentPose(0, ARKitQuaternion, OutTrackerLocation);
 				OutTrackerRotation = ARKitQuaternion.Rotator();
-				return true;
+				bTransformSet = true;
 			}
 			break;
 
@@ -293,27 +296,45 @@ bool AVirtualCameraPlayerControllerBase::GetCurrentTrackerLocationAndRotation(FV
 				if (LiveLinkClient->EvaluateFrame_AnyThread(LiveLinkTargetName, ULiveLinkTransformRole::StaticClass(), EvaluateData))
 				{
 					FLiveLinkTransformFrameData* TransformFrameData = EvaluateData.FrameData.Cast<FLiveLinkTransformFrameData>();
-					if (TransformFrameData)
+					check(TransformFrameData);
+
+					OutTrackerLocation = TransformFrameData->Transform.GetLocation();
+					OutTrackerRotation = TransformFrameData->Transform.GetRotation().Rotator();
+
+					bTransformSet = true;
+				}
+				else if (LiveLinkClient->EvaluateFrame_AnyThread(LiveLinkTargetName, ULiveLinkAnimationRole::StaticClass(), EvaluateData))
+				{
+					FLiveLinkAnimationFrameData* AnimationFrameData = EvaluateData.FrameData.Cast<FLiveLinkAnimationFrameData>();
+					FLiveLinkSkeletonStaticData* AnimationStaticData = EvaluateData.StaticData.Cast<FLiveLinkSkeletonStaticData>();
+					check(AnimationFrameData && AnimationStaticData);
+
+					int32 RootIndex = AnimationStaticData->FindRootBone();
+					if (AnimationFrameData->Transforms.IsValidIndex(RootIndex))
 					{
-						OutTrackerLocation = TransformFrameData->Transform.GetLocation();
-						OutTrackerRotation = TransformFrameData->Transform.GetRotation().Rotator();
+						
+						OutTrackerLocation = AnimationFrameData->Transforms[RootIndex].GetLocation();
+						OutTrackerRotation = AnimationFrameData->Transforms[RootIndex].GetRotation().Rotator();
+
+						bTransformSet = true;
 					}
 				}
-				return true;
 			}
 			break;
 
 		case ETrackerInputSource::Custom:
 			GetCustomTrackerLocationAndRotation(OutTrackerLocation, OutTrackerRotation);
-			return true;
+			bTransformSet = true;
 
 		default:
 			UE_LOG(LogVirtualCamera, Warning, TEXT("Selected tracker source is not yet supported"))
 			break;
 	}
 
-	// Return failure status if we couldn't find device to track or device isn't supported
-	return false;
+	bTransformSet = bTransformSet && !OutTrackerLocation.ContainsNaN() && !OutTrackerRotation.ContainsNaN();
+
+	// Return failure status if we couldn't find device to track or device isn't supported or the values contains NaN
+	return bTransformSet;
 }
 
 bool AVirtualCameraPlayerControllerBase::IsTouchInputInFocusMode()

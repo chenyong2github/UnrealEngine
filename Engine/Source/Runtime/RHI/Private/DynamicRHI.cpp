@@ -78,7 +78,7 @@ static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 	DriverInfo.InternalDriverVersion = GRHIAdapterInternalDriverVersion;
 	DriverInfo.UserDriverVersion = GRHIAdapterUserDriverVersion;
 	DriverInfo.DriverDate = GRHIAdapterDriverDate;
-
+	DriverInfo.RHIName = GDynamicRHI ? GDynamicRHI->GetName() : FString();
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	// for testing

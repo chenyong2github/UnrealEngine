@@ -27,10 +27,12 @@ namespace vraudio {
 // Basic RIFF WAVE decoder that supports multichannel 16-bit PCM.
 class WavReader {
  public:
-  // Constructor decodes WAV header.
-  //
-  // @param binary_stream Binary input stream to read from.
-  explicit WavReader(std::istream* binary_stream);
+
+  // Constructor that takes a pointer to a raw byte array and the size of that byte stream.
+  // 
+  // @param byte_array Pointer to raw array of bytes.
+  // @param num_bytes Size of byte_array.
+  explicit WavReader(const unsigned char* byte_array, const size_t num_bytes);
 
   // True if WAV header was successfully parsed.
   bool IsHeaderValid() const;
@@ -73,8 +75,22 @@ class WavReader {
   // @return Number of bytes read.
   size_t ReadBinaryDataFromStream(void* target_ptr, size_t size);
 
-  // Binary input stream.
-  std::istream* binary_stream_;
+  struct SourceByteArray
+  {
+	  const unsigned char* byte_array;
+	  const size_t num_bytes;
+	  size_t current_byte_index;
+
+	  SourceByteArray(const unsigned char* in_byte_array, const size_t in_num_bytes)
+		  : byte_array(in_byte_array)
+		  , num_bytes(in_num_bytes)
+		  , current_byte_index(0)
+	  {
+	  }
+  };
+
+  // source we are deserializing.
+  SourceByteArray source;
 
   // Flag indicating if the WAV header was parsed successfully.
   bool init_;

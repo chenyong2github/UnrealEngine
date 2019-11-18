@@ -119,6 +119,26 @@ void UDataprepAsset::PostLoad()
 	}
 }
 
+bool UDataprepAsset::Rename(const TCHAR* NewName/* =nullptr */, UObject* NewOuter/* =nullptr */, ERenameFlags Flags/* =REN_None */)
+{
+	bool bWasRename = Super::Rename( NewName, NewOuter, Flags );
+	if ( bWasRename )
+	{
+		if ( Parameterization )
+		{
+			bWasRename &= Parameterization->OnAssetRename( Flags );
+		}
+
+		if ( DataprepRecipeBP && bWasRename )
+		{
+			// There shouldn't be a blueprint depending on us. Should be ok to just rename the generated class
+			bWasRename &= DataprepRecipeBP->RenameGeneratedClasses( NewName, NewOuter, Flags );
+		}
+	}
+
+	return bWasRename;
+}
+
 bool UDataprepAsset::CreateBlueprint()
 {
 	// Begin: Temp code for the nodes development
@@ -231,9 +251,9 @@ void UDataprepAsset::RemoveObjectPropertyFromParameterization(UDataprepParameter
 	Parameterization->RemoveBindedObjectProperty( Object, InPropertyChain );
 }
 
-void UDataprepAsset::GetExistingParameterNamesForType(UProperty* Property, TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const
+void UDataprepAsset::GetExistingParameterNamesForType(UProperty* Property, bool bIsDescribingFullProperty, TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const
 {
-	Parameterization->GetExistingParameterNamesForType( Property, OutValidExistingNames, OutInvalidNames );
+	Parameterization->GetExistingParameterNamesForType( Property, bIsDescribingFullProperty, OutValidExistingNames, OutInvalidNames );
 }
 
 void UDataprepAsset::OnDataprepBlueprintChanged( UBlueprint* InBlueprint )
@@ -249,45 +269,51 @@ void UDataprepAsset::UpdateActions()
 {
 	ActionAssets.Empty(ActionAssets.Num());
 
-	UEdGraphPin* StartNodePin = StartNode->FindPin(UEdGraphSchema_K2::PN_Then, EGPD_Output);
-	if( StartNodePin && StartNodePin->LinkedTo.Num() > 0 )
+	UEdGraphPin* NodeOutPin= StartNode->FindPin(UEdGraphSchema_K2::PN_Then, EGPD_Output);
+	if( NodeOutPin && NodeOutPin->LinkedTo.Num() > 0 )
 	{
-		TSet<UK2Node_DataprepActionCore*> ActionNodesExecuted;
+		TSet<UEdGraphNode*> ActionNodesVisited;
 
-		for( UEdGraphPin* NextNodeInPin = StartNodePin->LinkedTo[0]; NextNodeInPin != nullptr ; )
+		for( UEdGraphPin* NextNodeInPin = NodeOutPin->LinkedTo[0]; NextNodeInPin != nullptr ; )
 		{
 			UEdGraphNode* NextNode = NextNodeInPin->GetOwningNode();
 
+			uint32 NodeHash = GetTypeHash( NextNode );
+			// Break the loop if the node had already been visited
+			if( ActionNodesVisited.FindByHash( NodeHash, NextNode ) )
+			{
+				break;
+			}
+			else
+			{
+				ActionNodesVisited.AddByHash( NodeHash, NextNode );
+			}
+
 			if(UK2Node_DataprepActionCore* ActionNode = Cast<UK2Node_DataprepActionCore>(NextNode))
 			{
-				// Break the loop if the node had already been executed
-				if( ActionNodesExecuted.Find( ActionNode ) )
-				{
-					break;
-				}
-
-				if(UDataprepActionAsset* DataprepAction = ActionNode->GetDataprepAction())
+				if( UDataprepActionAsset* DataprepAction = ActionNode->GetDataprepAction() )
 				{
 					ActionAssets.Add( DataprepAction );
 				}
 			}
 
-			UEdGraphPin* NextNodeOutPin = NextNode->FindPin( UEdGraphSchema_K2::PN_Then, EGPD_Output );
+			// Look for the next node
+			NodeOutPin = NextNode->FindPin( UEdGraphSchema_K2::PN_Then, EGPD_Output );
 
-			if ( !NextNodeOutPin )
+			if ( !NodeOutPin )
 			{
 				// If we couldn't find a then pin try to get the first output pin as a fallback
 				for ( UEdGraphPin* Pin : NextNode->Pins )
 				{
 					if ( Pin && Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Exec && Pin->Direction == EGPD_Output )
 					{
-						NextNodeOutPin = Pin;
+						NodeOutPin = Pin;
 						break;
 					}
 				}
 			}
 
-			NextNodeInPin = NextNodeOutPin ? ( NextNodeOutPin->LinkedTo.Num() > 0 ? NextNodeOutPin->LinkedTo[0] : nullptr ) : nullptr;
+			NextNodeInPin = NodeOutPin ? ( NodeOutPin->LinkedTo.Num() > 0 ? NodeOutPin->LinkedTo[0] : nullptr ) : nullptr;
 		}
 	}
 }

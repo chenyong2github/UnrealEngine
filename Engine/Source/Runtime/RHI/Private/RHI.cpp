@@ -7,6 +7,7 @@
 #include "RHI.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/MessageDialog.h"
 #include "RHIShaderFormatDefinitions.inl"
 #include "ProfilingDebugging/CsvProfiler.h"
 
@@ -692,7 +693,6 @@ static FName NAME_PLATFORM_IOS(TEXT("IOS"));
 static FName NAME_PLATFORM_MAC(TEXT("Mac"));
 static FName NAME_PLATFORM_SWITCH(TEXT("Switch"));
 static FName NAME_PLATFORM_TVOS(TEXT("TVOS"));
-static FName NAME_PLATFORM_HTML5(TEXT("HTML5"));
 static FName NAME_PLATFORM_LUMIN(TEXT("Lumin"));
 
 // @todo platplug: This is still here, only being used now by UMaterialShaderQualitySettings::GetOrCreatePlatformSettings
@@ -722,7 +722,7 @@ FName ShaderPlatformToPlatformName(EShaderPlatform Platform)
 	case SP_OPENGL_ES3_1_ANDROID:
 		return NAME_PLATFORM_ANDROID;
 	case SP_OPENGL_ES2_WEBGL:
-		return NAME_PLATFORM_HTML5;
+		return FName(TEXT(PREPROCESSOR_TO_STRING(PLATFORM_HEADER_NAME))); // WIP: platform extension magic
 	case SP_METAL:
 	case SP_METAL_MRT:
 		return NAME_PLATFORM_IOS;
@@ -897,6 +897,11 @@ bool RHIGetPreviewFeatureLevel(ERHIFeatureLevel::Type& PreviewFeatureLevelOUT)
 
 	if (bForceFeatureLevelES2)
 	{
+		if (!UE_BUILD_SHIPPING)
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("RHI", "ES2Deprecated", "Warning: FeatureLevel ES2 is deprecated, please use FeatureLevel ES3.1."));
+		}
+
 		PreviewFeatureLevelOUT = ERHIFeatureLevel::ES2;
 	}
 	else if (bForceFeatureLevelES3_1)

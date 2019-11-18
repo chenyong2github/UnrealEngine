@@ -91,6 +91,51 @@ void SLoadingProfilerWindow::Reset()
 	{
 		ExportDetailsTreeView->Reset();
 	}
+
+	UpdateTableTreeViews();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SLoadingProfilerWindow::UpdateTableTreeViews()
+{
+	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session.IsValid() && Trace::ReadLoadTimeProfilerProvider(*Session.Get()))
+	{
+		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(*Session.Get());
+
+		const double SelectionStartTime = TimingView ? TimingView->GetSelectionStartTime() : 0.0;
+		const double SelectionEndTime = TimingView ? TimingView->GetSelectionEndTime() : 0.0;
+
+		if (EventAggregationTreeView)
+		{
+			Trace::ITable<Trace::FLoadTimeProfilerAggregatedStats>* EventAggregationTable = LoadTimeProfilerProvider.CreateEventAggregation(SelectionStartTime, SelectionEndTime);
+			EventAggregationTreeView->GetTable()->UpdateSourceTable(MakeShareable(EventAggregationTable));
+			EventAggregationTreeView->RebuildTree(true);
+		}
+
+		if (ObjectTypeAggregationTreeView)
+		{
+			Trace::ITable<Trace::FLoadTimeProfilerAggregatedStats>* ObjectTypeAggregationTable = LoadTimeProfilerProvider.CreateObjectTypeAggregation(SelectionStartTime, SelectionEndTime);
+			ObjectTypeAggregationTreeView->GetTable()->UpdateSourceTable(MakeShareable(ObjectTypeAggregationTable));
+			ObjectTypeAggregationTreeView->RebuildTree(true);
+		}
+
+		if (PackageDetailsTreeView)
+		{
+			Trace::ITable<Trace::FPackagesTableRow>* PackageDetailsTable = LoadTimeProfilerProvider.CreatePackageDetailsTable(SelectionStartTime, SelectionEndTime);
+			PackageDetailsTreeView->GetTable()->UpdateSourceTable(MakeShareable(PackageDetailsTable));
+			PackageDetailsTreeView->RebuildTree(true);
+		}
+
+		if (ExportDetailsTreeView)
+		{
+			Trace::ITable<Trace::FExportsTableRow>* ExportDetailsTable = LoadTimeProfilerProvider.CreateExportDetailsTable(SelectionStartTime, SelectionEndTime);
+			ExportDetailsTreeView->GetTable()->UpdateSourceTable(MakeShareable(ExportDetailsTable));
+			ExportDetailsTreeView->RebuildTree(true);
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -773,6 +773,19 @@ namespace VulkanRHI
 	}
 }
 
+
+DEFINE_STAT(STAT_VulkanNumPSOs);
+DEFINE_STAT(STAT_VulkanNumGraphicsPSOs);
+DEFINE_STAT(STAT_VulkanNumPSOLRU);
+DEFINE_STAT(STAT_VulkanNumPSOLRUSize);
+DEFINE_STAT(STAT_VulkanPSOLookupTime);
+DEFINE_STAT(STAT_VulkanPSOCreationTime);
+DEFINE_STAT(STAT_VulkanPSOHeaderInitTime);
+DEFINE_STAT(STAT_VulkanPSOVulkanCreationTime);
+DEFINE_STAT(STAT_VulkanNumComputePSOs);
+DEFINE_STAT(STAT_VulkanPSOKeyMemory);
+
+
 DEFINE_STAT(STAT_VulkanDrawCallTime);
 DEFINE_STAT(STAT_VulkanDispatchCallTime);
 DEFINE_STAT(STAT_VulkanDrawCallPrepareTime);
@@ -782,7 +795,6 @@ DEFINE_STAT(STAT_VulkanGetOrCreatePipeline);
 DEFINE_STAT(STAT_VulkanGetDescriptorSet);
 DEFINE_STAT(STAT_VulkanPipelineBind);
 DEFINE_STAT(STAT_VulkanNumCmdBuffers);
-DEFINE_STAT(STAT_VulkanNumPSOs);
 DEFINE_STAT(STAT_VulkanNumRenderPasses);
 DEFINE_STAT(STAT_VulkanNumFrameBuffers);
 DEFINE_STAT(STAT_VulkanNumBufferViews);

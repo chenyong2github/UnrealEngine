@@ -163,11 +163,6 @@ class ENGINE_API UHierarchicalInstancedStaticMeshComponent : public UInstancedSt
 	// Current value of density scaling applied to this component
 	float CurrentDensityScaling;
 
-#if WITH_EDITOR
-	// in Editor mode we might disable the density scaling for edition
-	bool bCanEnableDensityScaling;
-#endif
-
 	// The number of nodes in the occlusion layer
 	UPROPERTY()
 	int32 OcclusionLayerNumNodes;
@@ -176,17 +171,22 @@ class ENGINE_API UHierarchicalInstancedStaticMeshComponent : public UInstancedSt
 	UPROPERTY()
 	FBoxSphereBounds CacheMeshExtendedBounds;
 
-	bool bIsAsyncBuilding;
-	bool bDiscardAsyncBuildResults;
-	bool bConcurrentChanges;
-	bool bAutoRebuildTreeOnInstanceChanges;
-
 	UPROPERTY()
 	bool bDisableCollision;
 
 	// Instances to render (including removed one until the build is complete)
 	UPROPERTY()
 	int32 InstanceCountToRender;
+
+	bool bIsAsyncBuilding : 1;
+	bool bIsOutOfDate : 1;
+	bool bConcurrentChanges : 1;
+	bool bAutoRebuildTreeOnInstanceChanges : 1;
+
+#if WITH_EDITOR
+	// in Editor mode we might disable the density scaling for edition
+	bool bCanEnableDensityScaling : 1;
+#endif
 
 	// Apply the results of the async build
 	void ApplyBuildTreeAsync(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent, TSharedRef<FClusterBuilder, ESPMode::ThreadSafe> Builder, double StartTime);
@@ -236,7 +236,7 @@ public:
 	static void BuildTreeAnyThread(TArray<FMatrix>& InstanceTransforms, const FBox& MeshBox, TArray<FClusterNode>& OutClusterTree, TArray<int32>& OutSortedInstances, TArray<int32>& OutInstanceReorderTable, int32& OutOcclusionLayerNum, int32 MaxInstancesPerLeaf, bool InGenerateInstanceScalingRange);
 	void AcceptPrebuiltTree(TArray<FClusterNode>& InClusterTree, int32 InOcclusionLayerNumNodes, int32 InNumBuiltRenderInstances);
 	bool IsAsyncBuilding() const { return bIsAsyncBuilding; }
-	bool IsTreeFullyBuilt() const { return NumBuiltInstances == PerInstanceSMData.Num(); }
+	bool IsTreeFullyBuilt() const { return !bIsOutOfDate; }
 
 	/** Heuristic for the number of leaves in the tree **/
 	int32 DesiredInstancesPerLeaf();

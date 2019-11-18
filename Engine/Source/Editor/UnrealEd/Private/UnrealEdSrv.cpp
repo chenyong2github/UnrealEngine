@@ -78,7 +78,6 @@
 #include "AssetToolsModule.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
-#include "Editor/GeometryMode/Public/GeometryEdMode.h"
 #include "AssetRegistryModule.h"
 #include "Matinee/MatineeActor.h"
 #include "MatineeExporter.h"
@@ -103,6 +102,8 @@
 	#include "Windows/WindowsHWrapper.h"
 #endif
 #include "ActorGroupingUtils.h"
+#include "EdMode.h"
+#include "Subsystems/BrushEditingSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogUnrealEdSrv, Log, All);
 
@@ -1774,11 +1775,9 @@ static void MirrorActors(const FVector& MirrorScale)
 		LevelDirtyCallback.Request();
 	}
 
-	if ( GLevelEditorModeTools().IsModeActive( FBuiltinEditorModes::EM_Geometry ) )
+	if (UBrushEditingSubsystem* BrushSubsystem = GEditor->GetEditorSubsystem<UBrushEditingSubsystem>())
 	{
-		// If we are in geometry mode, make sure to update the mode with new source data for selected brushes
-		FEdModeGeometry* Mode = (FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode( FBuiltinEditorModes::EM_Geometry );
-		Mode->GetFromSource();
+		BrushSubsystem->UpdateGeometryFromSelectedBrushes();
 	}
 
 	GEditor->RedrawLevelEditingViewports();
@@ -3003,22 +3002,12 @@ bool UUnrealEdEngine::Exec_Mode( const TCHAR* Str, FOutputDevice& Ar )
 	//
 	FEditorModeID EditorMode = FBuiltinEditorModes::EM_None;
 
-	if 		(FParse::Command(&Str,TEXT("CAMERAMOVE")))		{ EditorMode = FBuiltinEditorModes::EM_Default;		}
-	else if	(FParse::Command(&Str,TEXT("GEOMETRY"))) 		{ EditorMode = FBuiltinEditorModes::EM_Geometry;	}
-	else if	(FParse::Command(&Str,TEXT("TEXTURE"))) 		{ EditorMode = FBuiltinEditorModes::EM_Texture;		}
-	else if (FParse::Command(&Str,TEXT("MESHPAINT")))		{ EditorMode = FBuiltinEditorModes::EM_MeshPaint;	}
-	else if (FParse::Command(&Str,TEXT("LANDSCAPE")))		{ EditorMode = FBuiltinEditorModes::EM_Landscape;	}
-	else if (FParse::Command(&Str,TEXT("FOLIAGE")))			{ EditorMode = FBuiltinEditorModes::EM_Foliage;		}
+	FString CommandToken = FParse::Token(Str, false);
+	FEdMode* FoundMode = GLevelEditorModeTools().GetActiveMode(FName(*CommandToken));
 
-	if ( EditorMode == FBuiltinEditorModes::EM_None )
+	if (FoundMode != NULL)
 	{
-		FString CommandToken = FParse::Token(Str, false);
-		FEdMode* FoundMode = GLevelEditorModeTools().GetActiveMode( FName( *CommandToken ) );
-
-		if ( FoundMode != NULL )
-		{
-			EditorMode = FName( *CommandToken );
-		}
+		EditorMode = FName( *CommandToken );
 	}
 
 	if( EditorMode != FBuiltinEditorModes::EM_None )

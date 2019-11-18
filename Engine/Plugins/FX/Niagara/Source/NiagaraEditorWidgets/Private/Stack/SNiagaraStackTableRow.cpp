@@ -8,6 +8,7 @@
 #include "ViewModels/Stack/NiagaraStackItemGroup.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "NiagaraEditorWidgetsUtilities.h"
+#include "Stack/SNiagaraStackIssueIcon.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
@@ -26,6 +27,7 @@ void SNiagaraStackTableRow::Construct(const FArguments& InArgs, UNiagaraStackVie
 	ValueColumnWidth = InArgs._ValueColumnWidth;
 	NameColumnWidthChanged = InArgs._OnNameColumnWidthChanged;
 	ValueColumnWidthChanged = InArgs._OnValueColumnWidthChanged;
+	IssueIconVisibility = InArgs._IssueIconVisibility;
 	RowPadding = InArgs._RowPadding;
 	StackViewModel = InStackViewModel;
 	StackEntry = InStackEntry;
@@ -45,7 +47,9 @@ void SNiagaraStackTableRow::Construct(const FArguments& InArgs, UNiagaraStackVie
 
 	ConstructInternal(
 		STableRow<UNiagaraStackEntry*>::FArguments()
+			.Style(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.TableViewRow")
 			.OnDragDetected(InArgs._OnDragDetected)
+			.OnDragLeave(InArgs._OnDragLeave)
 			.OnCanAcceptDrop(InArgs._OnCanAcceptDrop)
 			.OnAcceptDrop(InArgs._OnAcceptDrop)
 		, OwnerTree.ToSharedRef());
@@ -240,6 +244,13 @@ void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWid
 						ChildContent.ToSharedRef()
 					]
 				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(3, 0, 0, 0)
+			[
+				SNew(SNiagaraStackIssueIcon, StackViewModel, StackEntry)
+				.Visibility(IssueIconVisibility)
 			]
 		]
 		+ SOverlay::Slot()

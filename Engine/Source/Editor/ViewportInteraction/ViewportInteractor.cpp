@@ -694,6 +694,7 @@ FHitResult UViewportInteractor::GetHitResultFromLaserPointer( TArray<AActor*>* O
 			// @todo viewportinteraction: We'll need to device a way to allow volume wire bounds to be selectable using this system
 			static TArray<AActor*> VolumeActors;
 			VolumeActors.Reset();
+			if (WorldInteraction->GetWorld() != nullptr)
 			{
 				for( TActorIterator<AVolume> It( WorldInteraction->GetWorld(), AVolume::StaticClass() ); It; ++It )
 				{

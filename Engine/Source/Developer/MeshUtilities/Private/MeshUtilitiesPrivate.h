@@ -166,6 +166,8 @@ private:
 
 	virtual void GenerateRuntimeSkinWeightData(const FSkeletalMeshLODModel* ImportedModel, const TArray<FRawSkinWeight>& InRawSkinWeights, FRuntimeSkinWeightProfileData& InOutSkinWeightOverrideData) const override;
 
+	void RegisterMenus();
+
 	// Need to call some members from this class, (which is internal to this module)
 	friend class FStaticMeshUtilityBuilder;
 
@@ -181,10 +183,6 @@ protected:
 	void RemoveAnimationEditorToolbarExtender();
 
 	TSharedRef<FExtender> GetAnimationEditorToolbarExtender(const TSharedRef<FUICommandList> CommandList, TSharedRef<IAnimationEditor> InAnimationEditor);
-
-	void AddSkeletalMeshEditorToolbarExtender();
-
-	void RemoveSkeletalMeshEditorToolbarExtender();
 
 	TSharedRef<FExtender> GetSkeletalMeshEditorToolbarExtender(const TSharedRef<FUICommandList> CommandList, TSharedRef<ISkeletalMeshEditor> InSkeletalMeshEditor);
 
@@ -208,7 +206,6 @@ protected:
 	FDelegateHandle LevelViewportExtenderHandle;
 	FDelegateHandle AnimationBlueprintEditorExtenderHandle;
 	FDelegateHandle AnimationEditorExtenderHandle;
-	FDelegateHandle SkeletalMeshEditorExtenderHandle;
 	FDelegateHandle SkeletonEditorExtenderHandle;
 };
 

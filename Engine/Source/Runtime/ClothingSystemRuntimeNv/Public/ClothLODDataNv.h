@@ -64,21 +64,10 @@ struct CLOTHINGSYSTEMRUNTIMENV_API FClothLODData
 		return true;
 	}
 
-	void MigrateTo(UClothLODDataNv* LodData) const
-	{
-		PhysicalMeshData.MigrateTo(LodData->PhysicalMeshData);
-		LodData->CollisionData = CollisionData;
-#if WITH_EDITORONLY_DATA
-		LodData->ParameterMasks.SetNum(ParameterMasks.Num());
-		for (int i = 0; i < ParameterMasks.Num(); i++)
-		{
-			ParameterMasks[i].MigrateTo(&LodData->ParameterMasks[i]);
-		}
-#endif // WITH_EDITORONLY_DATA
-		LodData->TransitionUpSkinData = TransitionUpSkinData;
-		LodData->TransitionDownSkinData = TransitionDownSkinData;
-	}
+	// Migrate this legacy Nv struct to the new class format (called by UClothingAssetNv::Postload())
+	void MigrateTo(UClothLODDataNv* LodData) const;
 };
+
 template<>
 struct TStructOpsTypeTraits<FClothLODData> : public TStructOpsTypeTraitsBase2<FClothLODData>
 {

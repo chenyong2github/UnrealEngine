@@ -52,6 +52,20 @@ enum class EReverbSendMethod : uint8
 };
 
 
+UENUM(BlueprintType)
+enum class EPriorityAttenuationMethod : uint8
+{
+	// A priority attenuation based on linear interpolation between a distance range and priority attenuation range
+	Linear,
+
+	// A priority attenuation based on a supplied curve
+	CustomCurve,
+
+	// A manual priority attenuation (Uses the specified constant value. Useful for 2D sounds.)
+	Manual,
+};
+
+
 USTRUCT(BlueprintType)
 struct ENGINE_API FSoundAttenuationPluginSettings
 {
@@ -110,6 +124,10 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationReverbSend, meta = (DisplayName = "Enable Reverb Send"))
 	uint8 bEnableReverbSend : 1;
 
+	/** Enables attenuation of sound priority based off distance. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationPriority, meta = (DisplayName = "Enable Priority Attenuation"))
+	uint8 bEnablePriorityAttenuation : 1;
+
 	/** Enables applying a -6 dB attenuation to stereo assets which are 3d spatialized. Avoids clipping when assets have spread of 0.0 due to channel summing. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationSpatialization, meta = (DisplayName = "Normalize 3D Stereo Sounds"))
 	uint8 bApplyNormalizationToStereoSounds : 1;
@@ -137,6 +155,10 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 	/** What method to use to control master reverb sends */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationReverbSend)
 	EReverbSendMethod ReverbSendMethod;
+
+	/** What method to use to control priority attenuation */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationPriority)
+	EPriorityAttenuationMethod PriorityAttenuationMethod;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -278,6 +300,30 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationReverbSend)
 	FRuntimeFloatCurve CustomReverbSendCurve;
 
+	/** The priority attenuation to use when the sound is at the minimum priority attenuation distance. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationPriority, meta = (DisplayName = "Min Priority Attenuation"))
+	float PriorityAttenuationMin;
+
+	/** The priority attenuation to use when the sound is at the maximum priority attenuation distance. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationPriority, meta = (DisplayName = "Max Priority Attenuation"))
+	float PriorityAttenuationMax;
+
+	/** The min distance to attenuate priority. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationPriority, meta = (DisplayName = "Priority Attenuation Min Distance"))
+	float PriorityAttenuationDistanceMin;
+
+	/** The max distance to attenuate priority. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationPriority, meta = (DisplayName = "Priority Attenuation Max Distance"))
+	float PriorityAttenuationDistanceMax;
+
+	/* The manual priority attenuation to use. Doesn't change as a function of distance. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationPriority)
+	float ManualPriorityAttenuation;
+
+	/* The custom curve to use for distance-based priority attenuation. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationPriority)
+	FRuntimeFloatCurve CustomPriorityAttenuationCurve;
+
 	/** Sound attenuation plugin settings to use with sounds that play with this attenuation setting. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationPluginSettings, meta = (ShowOnlyInnerProperties))
 	FSoundAttenuationPluginSettings PluginSettings;
@@ -291,6 +337,7 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 		, bEnableOcclusion(false)
 		, bUseComplexCollisionForOcclusion(false)
 		, bEnableReverbSend(true)
+		, bEnablePriorityAttenuation(false)
 		, bApplyNormalizationToStereoSounds(false)
 		, bEnableLogFrequencyScaling(false)
 		, SpatializationAlgorithm(ESoundSpatializationAlgorithm::SPATIALIZATION_Default)
@@ -298,6 +345,7 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 		, AbsorptionMethod(EAirAbsorptionMethod::Linear)
 		, OcclusionTraceChannel(ECC_Visibility)
 		, ReverbSendMethod(EReverbSendMethod::Linear)
+		, PriorityAttenuationMethod(EPriorityAttenuationMethod::Linear)
 #if WITH_EDITORONLY_DATA
 		, DistanceType_DEPRECATED(SOUNDDISTANCE_Normal)
 #endif
@@ -336,6 +384,11 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 		, ReverbDistanceMin(AttenuationShapeExtents.X)
 		, ReverbDistanceMax(AttenuationShapeExtents.X + FalloffDistance)
 		, ManualReverbSendLevel(0.0f)
+		, PriorityAttenuationMin(1.0f)
+		, PriorityAttenuationMax(1.0f)
+		, PriorityAttenuationDistanceMin(AttenuationShapeExtents.X)
+		, PriorityAttenuationDistanceMax(AttenuationShapeExtents.X + FalloffDistance)
+		, ManualPriorityAttenuation(1.0f)
 	{
 	}
 

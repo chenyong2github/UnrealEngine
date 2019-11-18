@@ -163,6 +163,7 @@ public:
 	 * Allows us to only see this Actor in the Editor, and not in the actual game.
 	 * @see SetActorHiddenInGame()
 	 */
+	UE_DEPRECATED(4.24, "This member will be made private. Please use IsHidden or SetHidden.")
 	UPROPERTY(Interp, EditAnywhere, Category=Rendering, BlueprintReadOnly, Replicated, meta=(DisplayName="Actor Hidden In Game", SequencerTrackClass="MovieSceneVisibilityTrack"))
 	uint8 bHidden:1;
 
@@ -188,6 +189,7 @@ public:
 	 * @see SetReplicates()
 	 * @see https://docs.unrealengine.com/latest/INT/Gameplay/Networking/Replication/
 	 */
+	UE_DEPRECATED(4.24, "This member will be made private. Please use IsReplicatingMovement or SetReplicatingMovement.")
 	UPROPERTY(ReplicatedUsing=OnRep_ReplicateMovement, Category=Replication, EditDefaultsOnly)
 	uint8 bReplicateMovement:1;    
 
@@ -267,6 +269,7 @@ public:
 	 * @see https://www.unrealengine.com/blog/damage-in-ue4
 	 * @see TakeDamage(), ReceiveDamage()
 	 */
+	UE_DEPRECATED(4.24, "This member will be made private. Please use CanBeDamaged or SetCanBeDamaged.")
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Replicated, Category=Actor)
 	uint8 bCanBeDamaged:1;
 
@@ -479,6 +482,7 @@ public:
 	ENetRole GetRemoteRole() const;
 
 	/** Used for replication of our RootComponent's position and velocity */
+	UE_DEPRECATED(4.24, "This member will be made private. Please use GetReplicatedMovement or SetReplicatedMovement.")
 	UPROPERTY(EditDefaultsOnly, ReplicatedUsing=OnRep_ReplicatedMovement, Category=Replication, AdvancedDisplay)
 	struct FRepMovement ReplicatedMovement;
 
@@ -525,6 +529,7 @@ public:
 	virtual void OnRep_AttachmentReplication();
 
 	/** Describes how much control the local machine has over the actor. */
+	UE_DEPRECATED(4.24, "This member will be made private. Please use GetLocalRole or SetRole.")
 	UPROPERTY(Replicated)
 	TEnumAsByte<enum ENetRole> Role;
 
@@ -625,6 +630,7 @@ public:
 	void CallPreReplication(UNetDriver* NetDriver);	
 	
 	/** Pawn responsible for damage and other gameplay events caused by this actor. */
+	UE_DEPRECATED(4.24, "This member will be made private. Please use GetInstigator or SetInstigator.")
 	UPROPERTY(BlueprintReadWrite, ReplicatedUsing=OnRep_Instigator, meta=(ExposeOnSpawn=true), Category=Actor)
 	class APawn* Instigator;
 
@@ -2701,7 +2707,7 @@ public:
 	 * @param Tolerance  How many seconds ago the actor last render time can be and still count as having been "recently" rendered.
 	 * @return Whether this actor was recently rendered.
 	 */
-	UFUNCTION(Category="Rendering", BlueprintCallable, meta=(Keywords="scene visible"))
+	UFUNCTION(Category="Rendering", BlueprintCallable, meta=(DisplayName="WasActorRecentlyRendered", Keywords="scene visible"))
 	bool WasRecentlyRendered(float Tolerance = 0.2) const;
 
 	/** Returns the most recent time any of this actor's components were rendered */
@@ -3168,6 +3174,8 @@ private:
 		return (RootComponent != nullptr) ? RootComponent->GetRightVector() : FVector::RightVector;
 	}
 	
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 	//~ Begin Methods for Replicated Members.
 public:
 
@@ -3298,6 +3306,7 @@ public:
 	void SetInstigator(APawn* InInstigator);
 
 	//~ End Methods for Replicated Members.
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 };
 
 /** Internal struct used by level code to mark actors as destroyed */
@@ -3469,10 +3478,13 @@ FORCEINLINE_DEBUGGABLE const AActor* AActor::GetNetOwner() const
 	return Owner;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FORCEINLINE_DEBUGGABLE ENetRole AActor::GetLocalRole() const
 {
 	return Role;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 
 FORCEINLINE_DEBUGGABLE ENetRole AActor::GetRemoteRole() const
 {

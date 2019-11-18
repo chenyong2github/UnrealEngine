@@ -21,6 +21,7 @@
 #include "Components/TimelineComponent.h"
 #include "Engine/TimelineTemplate.h"
 #include "Engine/UserDefinedStruct.h"
+#include "Blueprint/BlueprintExtension.h"
 #include "EdGraphUtilities.h"
 #include "K2Node_CallFunction.h"
 #include "K2Node_Composite.h"
@@ -272,9 +273,19 @@ void FKismetCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedClass* Cla
 		ClassSubObjects.RemoveAllSwap(SubObjectsToSave);
 	}
 
-	for( auto SubObjIt = ClassSubObjects.CreateIterator(); SubObjIt; ++SubObjIt )
+	UClass* InheritableComponentHandlerClass = UInheritableComponentHandler::StaticClass();
+
+	for( UObject* CurrSubObj : ClassSubObjects )
 	{
-		UObject* CurrSubObj = *SubObjIt;
+		// ICH and ICH templates do not need to be destroyed in this way.. doing so will invalidate
+		// transaction buffer references to these UObjects. The UBlueprint may not have a reference to
+		// the ICH at the moment, and therefore might not have added it to SubObjectsToSave (and
+		// removed the ICH from ClassSubObjects):
+		if(Cast<UInheritableComponentHandler>(CurrSubObj) || CurrSubObj->IsInA(InheritableComponentHandlerClass))
+		{
+			continue;
+		}
+
 		FName NewSubobjectName = MakeUniqueObjectName(TransientClass, CurrSubObj->GetClass(), CurrSubObj->GetFName());
 		CurrSubObj->Rename(*NewSubobjectName.ToString(), TransientClass, RenFlags);
 		if( UProperty* Prop = Cast<UProperty>(CurrSubObj) )
@@ -3831,10 +3842,11 @@ void FKismetCompilerContext::CreateFunctionList()
 	{
 		BP_SCOPED_COMPILER_EVENT_STAT(EKismetCompilerStats_GenerateFunctionGraphs);
 
-		// Broadcast the blueprint's function generation event to ensure that any function generators are run right before we create the function list for the class layout
-		FGenerateBlueprintFunctionParams Params;
-		Params.CompilerContext = this;
-		Blueprint->GenerateFunctionGraphsEvent.Broadcast(Params);
+		// Allow blueprint extensions for the blueprint to generate function graphs
+		for (UBlueprintExtension* Extension : Blueprint->Extensions)
+		{
+			Extension->GenerateFunctionGraphs(this);
+		}
 	}
 
 	BP_SCOPED_COMPILER_EVENT_STAT(EKismetCompilerStats_CreateFunctionList);

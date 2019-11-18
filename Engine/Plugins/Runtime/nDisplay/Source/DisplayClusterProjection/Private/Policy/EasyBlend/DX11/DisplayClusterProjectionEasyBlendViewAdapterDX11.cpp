@@ -137,9 +137,7 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::GetProjectionMatrix(cons
 	const float b = Views[ViewIdx].EasyBlendMeshData->Frustum.BottomAngle;
 	const float t = Views[ViewIdx].EasyBlendMeshData->Frustum.TopAngle;
 
-	const FMatrix pm = DisplayClusterHelpers::math::GetProjectionMatrixFromAngles(l, r, t, b, n, f);
-
-	OutPrjMatrix = pm;
+	OutPrjMatrix = DisplayClusterHelpers::math::GetProjectionMatrixFromAngles(l, r, t, b, n, f);
 
 	return true;
 }

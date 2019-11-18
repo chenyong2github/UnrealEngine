@@ -22,6 +22,7 @@
 #include "UObject/PropertyPortFlags.h"
 #include "Components/SplineMeshComponent.h"
 #include "ChaosCheck.h"
+#include "Chaos/Convex.h"
 
 #include "PhysXCookHelper.h"
 
@@ -814,6 +815,7 @@ void UBodySetup::AddShapesToRigidActor_AssumesLocked(
 	AddParams.SimpleMaterial = SimpleMaterial;
 	AddParams.ComplexMaterials = TArrayView<UPhysicalMaterial*>(ComplexMaterials);
 	AddParams.LocalTransform = RelativeTM;
+	AddParams.WorldTransform = OwningInstance->GetUnrealWorldTransform();
 	AddParams.Geometry = &AggGeom;
 #if WITH_PHYSX
 	AddParams.TriMeshes = TArrayView<PxTriangleMesh*>(TriMeshes);
@@ -1667,12 +1669,12 @@ float FKConvexElem::GetVolume(const FVector& Scale) const
 }
 
 #if WITH_CHAOS
-const TUniquePtr<Chaos::TImplicitObject<float, 3>>& FKConvexElem::GetChaosConvexMesh() const
+const TUniquePtr<Chaos::TConvex<float, 3>>& FKConvexElem::GetChaosConvexMesh() const
 {
 	return ChaosConvex;
 }
 
-void FKConvexElem::SetChaosConvexMesh(TUniquePtr<Chaos::TImplicitObject<float, 3>>&& InChaosConvex)
+void FKConvexElem::SetChaosConvexMesh(TUniquePtr<Chaos::TConvex<float, 3>>&& InChaosConvex)
 {
 	ChaosConvex = MoveTemp(InChaosConvex);
 }

@@ -1,4 +1,4 @@
-../../../Templates/TP_Collaborative_V/manifest.json
-../../../Templates/TP_Collaborative_V/Config/config.ini
-../../../Templates/TP_Collaborative_V/Media/TP_Collaborative.png
-../../../Templates/TP_Collaborative_V/Media/TP_Collaborative_V_Preview.png
+../../../Templates/TP_CollaborativeBP/manifest.json
+../../../Templates/TP_CollaborativeBP/Config/config.ini
+../../../Templates/TP_CollaborativeBP/Media/TP_CollaborativeBP.png
+../../../Templates/TP_CollaborativeBP/Media/TP_CollaborativeBP_Preview.png

@@ -119,6 +119,7 @@ extern void SetupMobileSceneTextureUniformParameters(
 	FSceneRenderTargets& SceneContext,
 	ERHIFeatureLevel::Type FeatureLevel,
 	bool bSceneTexturesValid,
+	bool bCustomDepthIsValid,
 	FMobileSceneTextureUniformParameters& SceneTextureParameters);
 
 template< typename TRHICmdList >

@@ -41,6 +41,21 @@ struct FNetSerializeParams
 	FArchive& Ar;
 };
 
+enum class EStandardLoggingContext: uint8
+{
+	HeaderOnly,		// Minimal logging
+	Full			// "Logs everything"
+};
+
+struct FStandardLoggingParameters
+{
+	FStandardLoggingParameters(FOutputDevice* InAr, EStandardLoggingContext InContext, int32 InFrame)
+		: Ar(InAr), Context(InContext), Frame(InFrame) { }
+	FOutputDevice* Ar;
+	EStandardLoggingContext Context;
+	int32 Frame;
+};
+
 struct FNetworkSimulationModelInitParameters
 {
 	int32 InputBufferSize=0;
@@ -54,43 +69,48 @@ struct FNetSimProcessedFrameDebugInfo
 {
 	int32 LocalGFrameNumber; // Local GFrame number
 	float LocalDeltaTimeSeconds; // Local frame time
-	TArray<int32> ProcessedKeyframes; // Which keyframes were processed this frame
-	int32 PendingKeyframe; // What PendingKeyframe was at the end of the frame. Does NOT mean we processed it this frame!
-	int32 HeadKeyframe; // Head keyframe of the inputbuffer when the frame ended
+	TArray<int32> ProcessedFrames; // Which frames were processed this frame
+	int32 PendingFrame; // What PendingFrame was at the end of the frame. Does NOT mean we processed it this frame!
+	int32 HeadFrame; // Head frame of the inputbuffer when the frame ended
 
 	float RemainingAllowedSimulationTimeSeconds;
 	
-	int32 LastSentInputKeyframe;
-	int32 LastReceivedInputKeyframe;
+	int32 LastSentInputFrame;
+	int32 LastReceivedInputFrame;
 
 	void NetSerialize(const FNetSerializeParams& P)
 	{	
 		P.Ar << LocalGFrameNumber;
 		P.Ar << LocalDeltaTimeSeconds;
-		P.Ar << PendingKeyframe;
-		P.Ar << HeadKeyframe;
+		P.Ar << PendingFrame;
+		P.Ar << HeadFrame;
 		P.Ar << RemainingAllowedSimulationTimeSeconds;
 
-		P.Ar << LastSentInputKeyframe;
-		P.Ar << LastReceivedInputKeyframe;
+		P.Ar << LastSentInputFrame;
+		P.Ar << LastReceivedInputFrame;
 
-		SafeNetSerializeTArray_Default<31>(P.Ar, ProcessedKeyframes);
+		SafeNetSerializeTArray_Default<31>(P.Ar, ProcessedFrames);
 	}
-};
+	void Log(FStandardLoggingParameters& P) const
+	{
+		P.Ar->Logf(TEXT("LocalGFrameNumber: %d"), LocalGFrameNumber);
+		P.Ar->Logf(TEXT("LocalDeltaTimeSeconds: %.4f"), LocalDeltaTimeSeconds);
+		P.Ar->Logf(TEXT("PendingFrame: %d"), PendingFrame);
+		P.Ar->Logf(TEXT("HeadFrame: %d"), HeadFrame);
+		P.Ar->Logf(TEXT("RemainingAllowedSimulationTimeSeconds: %.4f"), RemainingAllowedSimulationTimeSeconds);
 
-enum class EStandardLoggingContext: uint8
-{
-	HeaderOnly,		// Minimal logging
-	Full			// "Logs everything"
-};
+		P.Ar->Logf(TEXT("LastSentInputFrame: %d"), LastSentInputFrame);
+		P.Ar->Logf(TEXT("LastReceivedInputFrame: %d"), LastReceivedInputFrame);
 
-struct FStandardLoggingParameters
-{
-	FStandardLoggingParameters(FOutputDevice* InAr, EStandardLoggingContext InContext, int32 InKeyframe)
-		: Ar(InAr), Context(InContext), Keyframe(InKeyframe) { }
-	FOutputDevice* Ar;
-	EStandardLoggingContext Context;
-	int32 Keyframe;
+		FString ProcessedFramesStr;
+		for (int32 k : ProcessedFrames)
+		{
+			ProcessedFramesStr += LexToString(k);
+			ProcessedFramesStr += TEXT(" ");
+		}
+		ProcessedFramesStr.TrimEndInline();
+		P.Ar->Logf(TEXT("ProcessedFrames: [%s]"), *ProcessedFramesStr);
+	}
 };
 
 UENUM()
@@ -110,8 +130,8 @@ enum class EVisualLoggingContext: uint8
 	// (Contexts used by interpolation)
 	InterpolationBufferHead,// Head end of sync buffer while interpolating
 	InterpolationBufferTail,// Tail end of sync buffer while interpolating
-	InterpolationFrom,		// Immediate "from" interpolation keyframe
-	InterpolationTo,		// Immediate "to" interpolation keyframe
+	InterpolationFrom,		// Immediate "from" interpolation frame
+	InterpolationTo,		// Immediate "to" interpolation frame
 	
 	InterpolationLatest,	// Latest interpolation position in normal circumstances
 	InterpolationWaiting,	// Latest interpolation while waiting (overrun)
@@ -125,12 +145,6 @@ inline FString LexToString(EVisualLoggingContext A)
 	return *UEnum::GetValueAsString(TEXT("NetworkPrediction.EVisualLoggingContext"), A);
 }
 
-enum class EVisualLoggingDrawType : uint8
-{
-	Full,				// Draw "the full thing" (maybe a collision capsule for example)
-	Crumb,				// Draw a small/minimal representation (E.g, a point or small axis)
-};
-
 enum class EVisualLoggingLifetime : uint8
 {
 	Transient,			// This logging is transient and will (probably) be done every frame. Don't persist (in contexts where that would matter).
@@ -139,15 +153,22 @@ enum class EVisualLoggingLifetime : uint8
 
 struct FVisualLoggingParameters
 {
-	FVisualLoggingParameters(EVisualLoggingContext InContext, int32 InKeyframe, EVisualLoggingLifetime InLifetime) :
-		 Context(InContext), Keyframe(InKeyframe), Lifetime(InLifetime) { }
+	FVisualLoggingParameters(EVisualLoggingContext InContext, int32 InFrame, EVisualLoggingLifetime InLifetime, const FString& Str=FString()) :
+		 Context(InContext), Frame(InFrame), Lifetime(InLifetime), DebugString(Str) { }
 
 	EVisualLoggingContext Context;
-	int32 Keyframe;
+	int32 Frame;
 	EVisualLoggingLifetime Lifetime;
+	FString DebugString;
 
 	FColor GetDebugColor() const { return DebugColors[(int32)Context]; }
 	static NETWORKPREDICTION_API FColor DebugColors[(int32)EVisualLoggingContext::MAX];
+};
+
+struct FVisualLoggingHelpers
+{
+	// Very basic function to draw an outline of the actor at the given transform
+	static NETWORKPREDICTION_API void VisualLogActor(AActor* Owner, FTransform& Transform, const FVisualLoggingParameters& Params);
 };
 
 UENUM()
@@ -200,7 +221,7 @@ public:
 	virtual int32 GetProxyDirtyCount(EReplicationProxyTarget Target) = 0;
 };
 
-class INetworkSimulationModel : public IReplicationProxy
+class INetworkedSimulationModel : public IReplicationProxy
 {
 public:
 
@@ -218,18 +239,23 @@ public:
 	// ----------------------------------------------------------------------
 	
 	// Main function to call on simulated proxy sim
-	virtual void SetParentSimulation(INetworkSimulationModel* Simulation) = 0;
-	virtual INetworkSimulationModel* GetParentSimulation() const = 0;
+	virtual void SetParentSimulation(INetworkedSimulationModel* Simulation) = 0;
+	virtual INetworkedSimulationModel* GetParentSimulation() const = 0;
 	
-	virtual void AddDepdentSimulation(INetworkSimulationModel* Simulation) = 0;
-	virtual void RemoveDependentSimulation(INetworkSimulationModel* Simulation) = 0;
+	virtual void AddDependentSimulation(INetworkedSimulationModel* Simulation) = 0;
+	virtual void RemoveDependentSimulation(INetworkedSimulationModel* Simulation) = 0;
 	
 	// Tell parent sim that a dependent sim needs to reconcile (parent sim drives this)
 	virtual void NotifyDependentSimNeedsReconcile() = 0;
 	
 	// Called by parent sim on the dependent sim as it reconciles
-	virtual void BeginRollback(const struct FNetworkSimTime& RollbackDeltaTime, const int32 ParentKeyframe) = 0;
-	virtual void StepRollback(const struct FNetworkSimTime& Step, const int32 ParentKeyframe, const bool FinalStep) = 0;
+	virtual void BeginRollback(const struct FNetworkSimTime& RollbackDeltaTime, const int32 ParentFrame) = 0;
+	virtual void StepRollback(const struct FNetworkSimTime& Step, const int32 ParentFrame, const bool FinalStep) = 0;
+
+	void ProcessPendingNetSimCues() { ProcessPendingNetSimCuesFunc(); }
+
+protected:
+	TFunction<void()> ProcessPendingNetSimCuesFunc;
 };
 
 // -------------------------------------------------------------------------------------------------------------------------------

@@ -12,6 +12,7 @@
 #include "ProfilingDebugging/ProfilingHelpers.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/SecureHash.h"
+#include "HAL/FileManagerGeneric.h"
 
 #define LOCTEXT_NAMESPACE "FileHelper"
 
@@ -114,6 +115,44 @@ void FFileHelper::BufferToString( FString& Result, const uint8* Buffer, int32 Si
 	}
 }
 
+bool FFileHelper::LoadFileToString(FString& Result, FArchive& Reader, EHashOptions VerifyFlags /*= EHashOptions::None*/)
+{
+	FScopedLoadingState ScopedLoadingState(*Reader.GetArchiveName());
+
+	int32 Size = Reader.TotalSize();
+	if (!Size)
+	{
+		Result.Empty();
+		return true;
+	}
+
+	if (Reader.Tell() != 0)
+	{
+		UE_LOG(LogStreaming, Warning, TEXT("Archive '%s' has already been read from."), *Reader.GetArchiveName());
+		return false;
+	}
+
+	uint8* Ch = (uint8*)FMemory::Malloc(Size);
+	Reader.Serialize(Ch, Size);
+	bool Success = Reader.Close();
+
+	BufferToString(Result, Ch, Size);
+
+	// handle SHA verify of the file
+	if (EnumHasAnyFlags(VerifyFlags, EHashOptions::EnableVerify) && (EnumHasAnyFlags(VerifyFlags, EHashOptions::ErrorMissingHash) || FSHA1::GetFileSHAHash(*Reader.GetArchiveName(), nullptr)))
+	{
+		// kick off SHA verify task. this frees the buffer on close
+		FBufferReaderWithSHA Ar(Ch, Size, true, *Reader.GetArchiveName(), false, true);
+	}
+	else
+	{
+		// free manually since not running SHA task
+		FMemory::Free(Ch);
+	}
+
+	return Success;
+}
+
 /**
  * Load a text file to an FString.
  * Supports all combination of ANSI/Unicode files and platforms.
@@ -123,40 +162,36 @@ void FFileHelper::BufferToString( FString& Result, const uint8* Buffer, int32 Si
  */
 bool FFileHelper::LoadFileToString( FString& Result, const TCHAR* Filename, EHashOptions VerifyFlags, uint32 ReadFlags)
 {
-	FScopedLoadingState ScopedLoadingState(Filename);
-
-	TUniquePtr<FArchive> Reader( IFileManager::Get().CreateFileReader( Filename, ReadFlags) );
-	if( !Reader )
+	TUniquePtr<FArchive> Reader(IFileManager::Get().CreateFileReader(Filename, ReadFlags));
+	if (!Reader)
 	{
 		return false;
 	}
-	
-	int32 Size = Reader->TotalSize();
-	if( !Size )
+
+	return LoadFileToString(Result, *Reader.Get(), VerifyFlags);
+}
+
+bool FFileHelper::LoadFileToString(FString& Result, IPlatformFile* PlatformFile, const TCHAR* Filename, EHashOptions VerifyFlags /*= EHashOptions::None*/)
+{
+	if (!PlatformFile)
 	{
-		Result.Empty();
-		return true;
+		return false;
 	}
 
-	uint8* Ch = (uint8*)FMemory::Malloc(Size);
-	Reader->Serialize( Ch, Size );
-	bool Success = Reader->Close();
-	Reader = nullptr;
-	BufferToString( Result, Ch, Size );
-
-	// handle SHA verify of the file
-	if( EnumHasAnyFlags(VerifyFlags, EHashOptions::EnableVerify) && ( EnumHasAnyFlags(VerifyFlags, EHashOptions::ErrorMissingHash) || FSHA1::GetFileSHAHash(Filename, NULL) ) )
+	IFileHandle* File = PlatformFile->OpenRead(Filename);
+	if (!File)
 	{
-		// kick off SHA verify task. this frees the buffer on close
-		FBufferReaderWithSHA Ar( Ch, Size, true, Filename, false, true );
-	}
-	else
-	{
-		// free manually since not running SHA task
-		FMemory::Free(Ch);
+		UE_LOG(LogStreaming, Warning, TEXT("Failed to read file '%s' error."), Filename);
+		return false;
 	}
 
-	return Success;
+	TUniquePtr<FArchive> Reader = MakeUnique<FArchiveFileReaderGeneric>(File, Filename, File->Size());
+	if (!Reader)
+	{
+		return false;
+	}
+
+	return LoadFileToString(Result, *Reader.Get(), VerifyFlags);
 }
 
 bool FFileHelper::LoadFileToStringArray( TArray<FString>& Result, const TCHAR* Filename, EHashOptions VerifyFlags )

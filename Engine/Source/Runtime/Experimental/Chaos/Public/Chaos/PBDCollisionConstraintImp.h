@@ -107,13 +107,13 @@ namespace Chaos
 			return true;
 		}
 
-		bool VisitSweep(TSpatialVisitorData<TAccelerationStructureHandle<T, d>>, T Length)
+		bool VisitSweep(TSpatialVisitorData<TAccelerationStructureHandle<T, d>>, FQueryFastData& CurData)
 		{
 			check(false);
 			return false;
 		}
 
-		bool VisitRaycast(TSpatialVisitorData<TAccelerationStructureHandle<T, d>>, T Length)
+		bool VisitRaycast(TSpatialVisitorData<TAccelerationStructureHandle<T, d>>, FQueryFastData& CurData)
 		{
 			check(false);
 			return false;
@@ -152,7 +152,7 @@ namespace Chaos
 			// Narrow phase
 			CHAOS_SCOPED_TIMER(ComputeConstraints_NP);
 
-			TQueue<TRigidBodyContactConstraint<T, d>, EQueueMode::Mpsc> Queue;	//todo(ocohen): use per thread buffer instead, need better support than ParallelFor for this
+			TQueue<TRigidBodySingleContactConstraint<T, d>, EQueueMode::Mpsc> Queue;	//todo(ocohen): use per thread buffer instead, need better support than ParallelFor for this
 			Particles.GetNonDisabledDynamicView().ParallelFor([&](auto& Particle1, int32 ActiveIdxIdx)
 			{
 #if !UE_BUILD_SHIPPING
@@ -166,7 +166,7 @@ namespace Chaos
 
 				const bool bBody1Bounded = HasBoundingBox(Particle1);
 
-				const T Box1Thickness = ComputeThickness(Particle1, Dt).Size();
+				const T Box1Thickness = ComputeThickness(Particle1, CollisionVelocityInflation * Dt).Size();
 				if (bBody1Bounded)
 				{
 #if CHAOS_PARTICLEHANDLE_TODO
@@ -252,33 +252,31 @@ namespace Chaos
 					const TVector<T, d> Box2Thickness = Particle2.AsDynamic() ? ComputeThickness(*Particle2.AsDynamic(), Dt) : TVector<T, d>(0);
 					const T UseThickness = FMath::Max(Box1Thickness, Box2Thickness.Size());// + MThickness
 
-					auto Constraint = ComputeConstraint(Particle1.Handle(), Particle2.Handle(), UseThickness);
 
-					//if (true || !InParticles.Geometry(Body1Index)->HasBoundingBox() || !InParticles.Geometry(Body2Index)->HasBoundingBox())
+					TRigidBodySingleContactConstraint<T, d> Constraint;
+					ConstructConstraints(Particle1.Handle(), Particle2.Handle(), UseThickness, Constraint);
+
+#if !UE_BUILD_SHIPPING
+					if (bGatherStats)
 					{
-						//SCOPE_CYCLE_COUNTER(STAT_ComputeConstraintsNP3);
-						//use narrow phase to determine if constraint is needed. Without this we can't do shock propagation
-
-#if !UE_BUILD_SHIPPING
-						if (bGatherStats)
-						{
-							++CountNP;
-						}
+						++CountNP;
+					}
 #endif
+					if (Constraint.ContainsManifold())
+					{
 						UpdateConstraint<ECollisionUpdateType::Any>(UseThickness, Constraint);
-
-						if (Constraint.Phi < UseThickness)
-						{
-							Queue.Enqueue(Constraint);
-						}
-						else
-						{
-#if !UE_BUILD_SHIPPING
-							++RejectedNP;
-#endif
-						}
 					}
 
+					if (Constraint.GetPhi() < UseThickness)
+					{
+						Queue.Enqueue(Constraint);
+					}
+					else
+					{
+#if !UE_BUILD_SHIPPING
+						++RejectedNP;
+#endif
+					}
 				}
 
 #if !UE_BUILD_SHIPPING
@@ -295,28 +293,12 @@ namespace Chaos
 				while (!Queue.IsEmpty())
 				{
 					int32 Idx = Constraints.AddUninitialized(1);
-					FConstraintHandle * Handle = HandleAllocator.AllocHandle(this, Idx);
+					FConstraintContainerHandle* Handle = HandleAllocator.template AllocHandle< TRigidBodySingleContactConstraint<T,d> >(this, Idx );
 
 					Handles.Add(Handle);
 					Queue.Dequeue(Constraints[Idx]);
-					Constraints[Idx].Lifespan = LifespanCounter;
 					ensure(Handles.Num() == Constraints.Num());
 
-					if (bSupportHistory)
-					{
-						FConstraintHandleID HandleID = GetConstraintHandleID(Constraints[Idx]);
-						FConstraintHistory* HistoryElement;
-						if (auto ValPtr = History.Find(HandleID))
-						{
-							HistoryElement = *ValPtr;
-						}
-						else
-						{
-							HistoryElement = new FConstraintHistory(Constraints[Idx].Particle->X(), Constraints[Idx].Particle->R());
-							History.Add(HandleID, HistoryElement);
-						}
-						HistoryElement->AddHandle(Handle);
-					}
 				}
 				LifespanCounter++;
 			}

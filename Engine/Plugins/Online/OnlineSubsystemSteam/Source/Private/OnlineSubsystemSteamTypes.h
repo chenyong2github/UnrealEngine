@@ -243,6 +243,19 @@ public:
 	}
 };
 
+/** Data regarding preferred session connection methods */
+enum class FSteamConnectionMethod : int8
+{
+	None=0,
+	Direct,
+	P2P,
+	PartnerHosted
+};
+
+/** Functionality for converting a connection method type between formats */
+FString LexToString(const FSteamConnectionMethod Method);
+FSteamConnectionMethod ToConnectionMethod(const FString& InString);
+
 /** 
  * Implementation of session information
  */
@@ -287,6 +300,8 @@ PACKAGE_SCOPE:
 	TSharedPtr<class FInternetAddr> SteamP2PAddr;
 	/** Steam Lobby Id or Gameserver Id if applicable */
 	FUniqueNetIdSteam SessionId;
+	/** How this session should be connected to */
+	FSteamConnectionMethod ConnectionMethod;
 
 public:
 
@@ -302,7 +317,7 @@ public:
 
 	virtual const uint8* GetBytes() const override
 	{
-		return NULL;
+		return nullptr;
 	}
 
 	virtual int32 GetSize() const override
@@ -311,7 +326,8 @@ public:
 			sizeof(ESteamSession::Type) +
 			sizeof(TSharedPtr<class FInternetAddr>) +
 			sizeof(TSharedPtr<class FInternetAddr>) + 
-			sizeof(FUniqueNetIdSteam);
+			sizeof(FUniqueNetIdSteam) +
+			sizeof(FSteamConnectionMethod);
 	}
 
 	virtual bool IsValid() const override
@@ -631,7 +647,7 @@ public:
 			}
 		}
 
-		return NULL;
+		return nullptr;
 	}
 };
 

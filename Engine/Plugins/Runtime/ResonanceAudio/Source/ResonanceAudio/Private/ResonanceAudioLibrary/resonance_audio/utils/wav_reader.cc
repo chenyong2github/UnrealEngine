@@ -18,6 +18,7 @@ limitations under the License.
 
 #include <algorithm>
 #include <string>
+#include <memory>
 
 #include "base/integral_types.h"
 #include "base/logging.h"
@@ -64,8 +65,8 @@ static const uint16 kExtensibleWavFormat = 0xfffe;
 static const uint16 kPcmFormat = 0x1;
 }  // namespace
 
-WavReader::WavReader(std::istream* binary_stream)
-    : binary_stream_(CHECK_NOTNULL(binary_stream)),
+WavReader::WavReader(const unsigned char* byte_array, const size_t num_bytes)
+    : source(byte_array, num_bytes),
       num_channels_(0),
       sample_rate_hz_(-1),
       num_total_samples_(0),
@@ -75,11 +76,15 @@ WavReader::WavReader(std::istream* binary_stream)
 }
 
 size_t WavReader::ReadBinaryDataFromStream(void* target_ptr, size_t size) {
-  if (!binary_stream_->good()) {
+  // if we are out of bounds, return 0.
+  if (source.current_byte_index + size > source.num_bytes) {
     return 0;
   }
-  binary_stream_->read(static_cast<char*>(target_ptr), size);
-  return static_cast<size_t>(binary_stream_->gcount());
+
+  //binary_stream_->read(static_cast<char*>(target_ptr), size);
+  memcpy(target_ptr, &source.byte_array[source.current_byte_index], size);
+  source.current_byte_index += size;
+  return size;
 }
 
 bool WavReader::ParseHeader() {
@@ -155,11 +160,7 @@ bool WavReader::ParseHeader() {
     return false;
   }
 
-  int64 current_position = binary_stream_->tellg();
-  if (current_position < 0) {
-    return false;
-  }
-  pcm_offset_bytes_ = static_cast<uint64>(current_position);
+  pcm_offset_bytes_ = static_cast<uint64>(source.current_byte_index);
   return true;
 }
 
@@ -182,11 +183,18 @@ int64 WavReader::SeekToFrame(const uint64 frame_position) {
   if (frame_position <= (num_total_samples_ / num_channels_)) {
     const uint64 seek_position_byte =
         pcm_offset_bytes_ + frame_position * num_channels_ * bytes_per_sample_;
-    binary_stream_->seekg(seek_position_byte, binary_stream_->beg);
+    
+	//ensure the offset position isn't beyond the end of our stream:
+	DCHECK_LT(seek_position_byte, source.num_bytes);
+
+	// for 32 bit devices, we need to truncate seek_position_byte to a 32 bit value.
+	// If seek_position_byte is less than num_bytes, we should not need to worry about
+	// overflow.
+	source.current_byte_index = static_cast<size_t>(seek_position_byte);
   }
 
   int64 binary_stream_position_byte =
-      static_cast<int64>(binary_stream_->tellg());
+      static_cast<int64>(source.current_byte_index);
   if (binary_stream_position_byte < 0) {
     // Return an error status if the actual bitstream position could not be
     // queried.

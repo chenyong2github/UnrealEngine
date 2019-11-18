@@ -50,6 +50,7 @@ struct FSkeletonTreeArgs
 		, bShowFilterMenu(true)
 		, bAllowMeshOperations(true)
 		, bAllowSkeletonOperations(true)
+		, bHideBonesByDefault(false)
 	{}
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -92,6 +93,9 @@ struct FSkeletonTreeArgs
 
 	/** Whether to allow operations that modify the skeleton */
 	bool bAllowSkeletonOperations;
+
+	/** Whether to hide bones by default */
+	bool bHideBonesByDefault;
 };
 
 /** Interface used to deal with skeleton editing UI */

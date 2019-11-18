@@ -1326,6 +1326,7 @@ void FNiagaraShader::BindParams(const FShaderParameterMap &ParameterMap)
 
 	NumSpawnedInstancesParam.Bind(ParameterMap, TEXT("SpawnedInstances"));
 	UpdateStartInstanceParam.Bind(ParameterMap, TEXT("UpdateStartInstance"));
+	DefaultShaderStageIndexParam.Bind(ParameterMap, TEXT("DefaultShaderStageIndex"));
 	ShaderStageIndexParam.Bind(ParameterMap, TEXT("ShaderStageIndex"));
 	IterationInterfaceCount.Bind(ParameterMap, TEXT("IterationInterfaceCount"));
 
@@ -1393,6 +1394,7 @@ bool FNiagaraShader::Serialize(FArchive& Ar)
 
 	Ar << NumSpawnedInstancesParam;
 	Ar << UpdateStartInstanceParam;
+	Ar << DefaultShaderStageIndexParam;
 	Ar << ShaderStageIndexParam;
 	Ar << IterationInterfaceCount;
 	Ar << ComponentBufferSizeReadParam;

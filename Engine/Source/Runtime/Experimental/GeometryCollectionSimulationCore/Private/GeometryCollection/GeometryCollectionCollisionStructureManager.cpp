@@ -34,7 +34,7 @@ FCollisionStructureManager::FSimplicial*
 FCollisionStructureManager::NewSimplicial(
 	const Chaos::TParticles<float, 3>& Vertices,
 	Chaos::TTriangleMesh<float>& TriMesh,
-	const Chaos::TImplicitObject<float, 3>* Implicit,
+	const Chaos::FImplicitObject* Implicit,
 	int32 CollisionParticlesMaxInput)
 {
 	FCollisionStructureManager::FSimplicial * Simplicial = new FCollisionStructureManager::FSimplicial();
@@ -249,7 +249,7 @@ FCollisionStructureManager::NewImplicit(
 	const ECollisionTypeEnum CollisionType,
 	const EImplicitTypeEnum ImplicitType)
 {
-	Chaos::TImplicitObject<float, 3>* Implicit = nullptr;
+	Chaos::FImplicitObject* Implicit = nullptr;
 	if (ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Box)
 	{
 		FVector HalfExtents = CollisionBounds.GetExtent() * (1 - CollisionObjectReduction / 100.f);

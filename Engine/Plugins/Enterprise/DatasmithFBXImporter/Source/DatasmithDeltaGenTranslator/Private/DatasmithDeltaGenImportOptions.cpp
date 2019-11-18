@@ -21,7 +21,6 @@ UDatasmithDeltaGenImportOptions::UDatasmithDeltaGenImportOptions(const FObjectIn
 	, bImportTml(true)
 	, ShadowTextureMode(EShadowTextureMode::Ignore)
 {
-	bGenerateLightmapUVs = false;
 }
 
 namespace DeltaGenImportOptionsImpl

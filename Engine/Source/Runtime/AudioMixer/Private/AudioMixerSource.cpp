@@ -440,7 +440,7 @@ namespace Audio
 
 		if (!MixerBuffer)
 		{
-			MixerSourceBuffer.Reset();
+			FreeResources(); // APM: maybe need to call this here too? 
 			return false;
 		}
 
@@ -477,6 +477,12 @@ namespace Audio
 
 		check(!MixerSourceBuffer.IsValid());
 		MixerSourceBuffer = FMixerSourceBuffer::Create(*MixerBuffer, SoundWave, InWaveInstance->LoopingMode, bIsSeeking);
+		
+		if (!MixerSourceBuffer.IsValid())
+		{
+			FreeResources();
+		}
+		
 		return MixerSourceBuffer.IsValid();
 	}
 
@@ -708,11 +714,6 @@ namespace Audio
 			return false;
 		}
 		return true;
-	}
-
-	FString FMixerSource::Describe(bool bUseLongName)
-	{
-		return FString(TEXT("Stub"));
 	}
 
 	float FMixerSource::GetPlaybackPercent() const

@@ -3,6 +3,7 @@
 
 #include "GameFramework/Pawn.h"
 #include "Movement/FlyingMovement.h"
+#include "MockAbilitySimulation.h"
 #include "NetworkPredictionExtrasFlyingPawn.generated.h"
 
 class UInputComponent;
@@ -17,7 +18,7 @@ class UFlyingMovementComponent;
 //	that are used by the flying movement simulation. This includes some basic camera/aiming code.
 //
 //	Highlights:
-//		FlyingMovement::FMovementSystem::Update						The "core update" function of the flying movement simulation.
+//		FlyingMovement::FMovementSystem::SimulationTick				The "core update" function of the flying movement simulation.
 //		ANetworkPredictionExtrasFlyingPawn::GenerateLocalInput		Function that generates local input commands that are fed into the movement system.
 //
 //	Usage:
@@ -41,19 +42,19 @@ enum class ENetworkPredictionExtrasFlyingInputPreset: uint8
 };
 
 /** Sample pawn that uses UFlyingMovementComponent. The main thing this provides is actually producing user input for the component/simulation to consume. */
-UCLASS(config = Game)
+UCLASS()
 class NETWORKPREDICTIONEXTRAS_API ANetworkPredictionExtrasFlyingPawn : public APawn
 {
 	GENERATED_BODY()
 
 public:
 
-	ANetworkPredictionExtrasFlyingPawn();
+	ANetworkPredictionExtrasFlyingPawn(const FObjectInitializer& ObjectInitializer);
 
 	virtual void BeginPlay() override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 	virtual void Tick( float DeltaSeconds) override;
-	virtual UNetConnection* GetNetConnection() const override;
+	virtual UNetConnection* GetNetConnection() const override; // For bFakeAutonomousProxy only
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Automation")
@@ -77,16 +78,19 @@ public:
 
 	// Only intended for debugging in test map examples. Not really intended to be useful for general game code use.
 	UFUNCTION(BlueprintCallable, Category="Gameplay")
-	int32 GetPendingKeyframe() const;
+	int32 GetPendingFrame() const;
 
 protected:
 
-	const FlyingMovement::FAuxState* GetAuxStateRead() const;
-	FlyingMovement::FAuxState* GetAuxStateWrite();
+	const FFlyingMovementAuxState* GetAuxStateRead() const;
+	FFlyingMovementAuxState* GetAuxStateWrite();
+
+	void ProduceInput(const FNetworkSimTime SimTime, FFlyingMovementInputCmd& Cmd);
+
+	UPROPERTY(Category=Movement, VisibleAnywhere)
+	UFlyingMovementComponent* FlyingMovementComponent;
 
 private:
-
-	void ProduceInput(const FNetworkSimTime SimTime, FlyingMovement::FInputCmd& Cmd);
 
 	FVector CachedMoveInput;
 	FVector2D CachedLookInput;
@@ -102,7 +106,55 @@ private:
 	void Action_LeftShoulder_Released() { }
 	void Action_RightShoulder_Pressed() { }
 	void Action_RightShoulder_Released() { }
+};
 
-	UPROPERTY()
-	UFlyingMovementComponent* FlyingMovementComponent;
+UENUM()
+enum class ENetworkPredictionExtrasMockAbilityInputPreset: uint8
+{
+	/** No input */
+	None,
+	Sprint,
+	Dash,
+	Blink
+};
+
+// Example subclass of ANetworkPredictionExtrasFlyingPawn that uses the MockAbility simulation
+UCLASS()
+class NETWORKPREDICTIONEXTRAS_API ANetworkPredictionExtrasFlyingPawn_MockAbility : public ANetworkPredictionExtrasFlyingPawn
+{
+	GENERATED_BODY()
+
+public:
+
+	ANetworkPredictionExtrasFlyingPawn_MockAbility(const FObjectInitializer& ObjectInitializer);
+	virtual void BeginPlay() override;
+	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
+
+	
+	UMockFlyingAbilityComponent* GetMockFlyingAbilityComponent();
+	const UMockFlyingAbilityComponent* GetMockFlyingAbilityComponent() const;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Automation")
+	ENetworkPredictionExtrasMockAbilityInputPreset AbilityInputPreset = ENetworkPredictionExtrasMockAbilityInputPreset::None;
+
+	UFUNCTION(BlueprintCallable, Category="Ability")
+	float GetStamina() const;
+
+	UFUNCTION(BlueprintCallable, Category="Ability")
+	float GetMaxStamina() const;
+	
+protected:
+	using ANetworkPredictionExtrasFlyingPawn::ProduceInput;
+	void ProduceInput(const FNetworkSimTime SimTime, FMockAbilityInputCmd& Cmd);
+
+	void Action_Sprint_Pressed();
+	void Action_Sprint_Released();
+	void Action_Dash_Pressed();
+	void Action_Dash_Released();
+	void Action_Blink_Pressed();
+	void Action_Blink_Released();
+
+	bool bSprintPressed = false;
+	bool bDashPressed = false;
+	bool bBlinkPressed = false;
 };

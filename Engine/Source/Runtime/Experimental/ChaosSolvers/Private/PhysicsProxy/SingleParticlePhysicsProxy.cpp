@@ -60,6 +60,7 @@ void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PushToPhys
 			RigidHandle->SetWorldSpaceInflatedBounds(Data->Geometry->BoundingBox().TransformedBox(Chaos::TRigidTransform<float, 3>(Data->X, Data->R)));
 		}
 		RigidHandle->SetSpatialIdx(Data->SpatialIdx);	//todo: this needs to only happen once during initialization
+		RigidHandle->SetHashResultLowLevel(Data->HashResult);
 	}
 }
 
@@ -117,6 +118,7 @@ void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::P
 		RigidHandle->SetW(Data->MW);
 
 		RigidHandle->SetSpatialIdx(Data->SpatialIdx);	//todo: this needs to only happen once during initialization
+		RigidHandle->SetHashResultLowLevel(Data->HashResult);	//todo: this needs to only happen once during initialization
 		
 		if (Data->Geometry && Data->Geometry->HasBoundingBox())
 		{
@@ -173,31 +175,78 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 		typedef Chaos::TPBDRigidParticle<float, 3> PARTICLE_TYPE;
 		const auto* Data = static_cast<const typename PARTICLE_TYPE::FData*>(InData);
 
-		RigidHandle->SetX(Data->X);
-		RigidHandle->SetR(Data->R);
-		RigidHandle->SetSharedGeometry(Data->Geometry);
-		RigidHandle->SetV(Data->MV);
-		RigidHandle->SetW(Data->MW);
+		//
+		// TODO: Split all these setters into separate functions so that
+		//       we don't have to check for each dirty type. We don't
+		//       *actually* have to check each dirty type, but some of
+		//       these set operations require extra actions. This avoids
+		//       performing them for every set.
+		//
+
+		// TODO: Since this can't change, it doesn't have a dirty flag.
+		// This should be moved to initialization.
+		RigidHandle->SetSpatialIdx(Data->SpatialIdx);	//todo: this needs to only happen once during initialization
+		RigidHandle->SetHashResultLowLevel(Data->HashResult);	//todo: this needs to only happen once during initialization
+
+		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::X))
+		{
+			RigidHandle->SetX(Data->X);
+			RigidHandle->SetP(Data->X);
+		}
+		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::R))
+		{
+			RigidHandle->SetR(Data->R);
+			RigidHandle->SetQ(Data->R);
+		}
+		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::Geometry))
+		{
+			RigidHandle->SetSharedGeometry(Data->Geometry);
+		}
+		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::V))
+		{
+			RigidHandle->SetV(Data->MV);
+		}
+		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::W))
+		{
+			RigidHandle->SetW(Data->MW);
+		}
+
 		RigidHandle->SetM(Data->MM);
 		RigidHandle->SetInvM(Data->MInvM);
 		RigidHandle->SetI(Data->MI);
 		RigidHandle->SetInvI(Data->MInvI);
-		RigidHandle->SetExternalForce(Data->MExternalForce);
-		RigidHandle->SetExternalTorque(Data->MExternalTorque);
-		RigidHandle->SetSpatialIdx(Data->SpatialIdx);	//todo: this needs to only happen once during initialization
-		GetSolver()->GetEvolution()->GetGravityForces().SetEnabled(*RigidHandle, Data->MGravityEnabled);
 
-		if (Data->Geometry && Data->Geometry->HasBoundingBox())
+		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::ExternalForce))
 		{
-			RigidHandle->SetHasBounds(true);
-			RigidHandle->SetLocalBounds(Data->Geometry->BoundingBox());
-			Chaos::TBox<float, 3> WorldSpaceBox = Data->Geometry->BoundingBox().TransformedBox(Chaos::TRigidTransform<float, 3>(Data->X, Data->R));
-			WorldSpaceBox.ThickenSymmetrically(Data->MV);
-			RigidHandle->SetWorldSpaceInflatedBounds(WorldSpaceBox);
+			RigidHandle->SetExternalForce(Data->MExternalForce);
 		}
-		else
+		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::ExternalTorque))
 		{
-			//todo: compute bounds based on sample points
+			RigidHandle->SetExternalTorque(Data->MExternalTorque);
+		}
+		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::ObjectState))
+		{
+			GetSolver()->GetEvolution()->SetParticleObjectState(RigidHandle, Data->MObjectState);
+		}
+		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::GravityEnabled))
+		{
+			GetSolver()->GetEvolution()->GetGravityForces().SetEnabled(*RigidHandle, Data->MGravityEnabled);
+		}
+
+		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::X | Chaos::EParticleFlags::R | Chaos::EParticleFlags::V))
+		{
+			if (Data->Geometry && Data->Geometry->HasBoundingBox())
+			{
+				RigidHandle->SetHasBounds(true);
+				RigidHandle->SetLocalBounds(Data->Geometry->BoundingBox());
+				Chaos::TBox<float, 3> WorldSpaceBox = Data->Geometry->BoundingBox().TransformedBox(Chaos::TRigidTransform<float, 3>(Data->X, Data->R));
+				WorldSpaceBox.ThickenSymmetrically(Data->MV);
+				RigidHandle->SetWorldSpaceInflatedBounds(WorldSpaceBox);
+			}
+			else
+			{
+				//todo: compute bounds based on sample points
+			}
 		}
 	}
 }

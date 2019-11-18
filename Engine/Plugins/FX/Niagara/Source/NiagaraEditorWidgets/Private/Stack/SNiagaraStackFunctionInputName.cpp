@@ -44,7 +44,7 @@ void SNiagaraStackFunctionInputName::Construct(const FArguments& InArgs, UNiagar
 			.OnTextCommitted(this, &SNiagaraStackFunctionInputName::OnNameTextCommitted)
 			.HighlightText_UObject(InStackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
 			.ColorAndOpacity(this, &SNiagaraStackFunctionInputName::GetTextColorForSearch)
-			.ToolTipText_UObject(FunctionInput, &UNiagaraStackFunctionInput::GetTooltipText, UNiagaraStackFunctionInput::EValueMode::Local)
+			.ToolTipText(this, &SNiagaraStackFunctionInputName::GetToolTipText)
 		]
 	];
 }
@@ -87,6 +87,17 @@ bool SNiagaraStackFunctionInputName::GetIsNameWidgetSelected() const
 bool SNiagaraStackFunctionInputName::GetIsEnabled() const
 {
 	return FunctionInput->GetOwnerIsEnabled() && (FunctionInput->GetHasEditCondition() == false || FunctionInput->GetEditConditionEnabled());
+}
+
+FText SNiagaraStackFunctionInputName::GetToolTipText() const
+{
+	// The engine ticks tooltips before widgets so it's possible for the footer to be finalized when
+	// the widgets haven't been recreated.
+	if (FunctionInput->IsFinalized())
+	{
+		return FText();
+	}
+	return FunctionInput->GetTooltipText(UNiagaraStackFunctionInput::EValueMode::Local);
 }
 
 void SNiagaraStackFunctionInputName::OnNameTextCommitted(const FText& InText, ETextCommit::Type InCommitType)

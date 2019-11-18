@@ -706,11 +706,13 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSSDCommonParameters, )
 	SHADER_PARAMETER(FIntPoint, ViewportMin)
 	SHADER_PARAMETER(FIntPoint, ViewportMax)
 	SHADER_PARAMETER(FVector4, ThreadIdToBufferUV)
+	SHADER_PARAMETER(FVector4, BufferSizeAndInvSize)
 	SHADER_PARAMETER(FVector4, BufferBilinearUVMinMax)
 	SHADER_PARAMETER(FVector2D, BufferUVToOutputPixelPosition)
 	SHADER_PARAMETER(float, WorldDepthToPixelWorldRadius)
 	SHADER_PARAMETER(FVector4, BufferUVToScreenPosition)
 	SHADER_PARAMETER(FMatrix, ScreenToView)
+	SHADER_PARAMETER(FVector2D, BufferUVBilinearCorrection)
 
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 
@@ -1392,6 +1394,11 @@ static void DenoiseSignalAtConstantPixelDensity(
 	{
 		CommonParameters.ViewportMin = Viewport.Min;
 		CommonParameters.ViewportMax = Viewport.Max;
+		CommonParameters.BufferSizeAndInvSize = FVector4(
+			float(BufferExtent.X),
+			float(BufferExtent.Y),
+			1.0f / float(BufferExtent.X),
+			1.0f / float(BufferExtent.Y));
 		CommonParameters.BufferBilinearUVMinMax = FVector4(
 			float(Viewport.Min.X + 0.5f) / float(BufferExtent.X),
 			float(Viewport.Min.Y + 0.5f) / float(BufferExtent.Y),
@@ -1435,6 +1442,9 @@ static void DenoiseSignalAtConstantPixelDensity(
 			FPlane(0, 0, View.ProjectionMatrixUnadjustedForRHI.M[2][2], 1),
 			FPlane(0, 0, View.ProjectionMatrixUnadjustedForRHI.M[3][2], 0))
 			* View.ViewMatrices.GetInvProjectionMatrix();
+
+		CommonParameters.BufferUVBilinearCorrection.X = (0.5f * PixelPositionToFullResPixel - FullResPixelOffset.X) / float(FullResBufferExtent.X);
+		CommonParameters.BufferUVBilinearCorrection.Y = (0.5f * PixelPositionToFullResPixel - FullResPixelOffset.Y) / float(FullResBufferExtent.Y);
 	}
 
 	#if RHI_RAYTRACING
@@ -2335,7 +2345,8 @@ public:
 
 		// Imaginary depth is only used for Nvidia denoiser.
 		// TODO(Denoiser): permutation to not generate it?
-		GraphBuilder.RemoveUnusedTextureWarning(ReflectionInputs.RayImaginaryDepth);
+		if (ReflectionInputs.RayImaginaryDepth)
+			GraphBuilder.RemoveUnusedTextureWarning(ReflectionInputs.RayImaginaryDepth);
 
 		FSSDSignalTextures InputSignal;
 		InputSignal.Textures[0] = ReflectionInputs.Color;

@@ -8,6 +8,7 @@
 class FApplicationMode;
 class FWorkflowAllowedTabSet;
 class FWorkflowTabFactory;
+class UToolMenu;
 
 // Delegate for mutating a mode
 DECLARE_DELEGATE_RetVal_TwoParams(TSharedRef<FApplicationMode>, FWorkflowApplicationModeExtender, const FName /*ModeName*/, TSharedRef<FApplicationMode> /*InMode*/);
@@ -25,7 +26,11 @@ public:
 	
 	// FAssetEditorToolkit interface
 	virtual bool OnRequestClose() override;
+	virtual FName GetToolMenuToolbarName(FName& OutParentName) const override;
 	// End of FAssetEditorToolkit interface
+
+	// Returns the name of the toolbar for the given mode along with the name of the toolbar's parent.
+	FName GetToolMenuToolbarNameForMode(const FName InModeName, FName& OutParentName) const;
 
 	// Returns the current mode of this application
 	FName GetCurrentMode() const;
@@ -39,6 +44,14 @@ public:
 
 	// Gets the mode extender list for all workflow applications (append to customize a specific mode)
 	static TArray<FWorkflowApplicationModeExtender>& GetModeExtenderList() { return ModeExtenderList; }
+
+	/**
+	* Registers toolbar for a mode if not already registered
+	*
+	* @param InModeName - Name of the mode to register toolbar for
+	* @return nullptr if toolbar already registered.
+	*/
+	virtual UToolMenu* RegisterModeToolbarIfUnregistered(const FName InModeName);
 protected:
 
 	virtual void AddApplicationMode(FName ModeName, TSharedRef<FApplicationMode> Mode);

@@ -1056,7 +1056,9 @@ void AActor::PreReplication(IRepChangedPropertyTracker & ChangedPropertyTracker)
 
 	GatherCurrentMovement();
 
-	DOREPLIFETIME_ACTIVE_OVERRIDE(AActor, ReplicatedMovement, bReplicateMovement);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	DOREPLIFETIME_ACTIVE_OVERRIDE(AActor, ReplicatedMovement, IsReplicatingMovement());
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Don't need to replicate AttachmentReplication if the root component replicates, because it already handles it.
 	DOREPLIFETIME_ACTIVE_OVERRIDE(AActor, AttachmentReplication, RootComponent && !RootComponent->GetIsReplicated());
@@ -1710,7 +1712,7 @@ void AActor::OnRep_AttachmentReplication()
 		// Handle the case where an object was both detached and moved on the server in the same frame.
 		// Calling this extraneously does not hurt but will properly fire events if the movement state changed while attached.
 		// This is needed because client side movement is ignored when attached
-		if (bReplicateMovement)
+		if (IsReplicatingMovement())
 		{
 			OnRep_ReplicatedMovement();
 		}
@@ -2226,9 +2228,17 @@ void AActor::TearOff()
 	{
 		bTearOff = true;
 		// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bTearOff, this);
-		if (UNetDriver* NetDriver = GetNetDriver())
+		
+		FWorldContext* const Context = GEngine->GetWorldContextFromWorld(GetWorld());
+		if (Context != nullptr)
 		{
-			NetDriver->NotifyActorTearOff(this);
+			for (FNamedNetDriver& Driver : Context->ActiveNetDrivers)
+			{
+				if (Driver.NetDriver != nullptr && Driver.NetDriver->ShouldReplicateActor(this))
+				{
+					Driver.NetDriver->NotifyActorTearOff(this);
+				}
+			}
 		}
 	}
 }
@@ -2546,6 +2556,7 @@ void AActor::EndViewTarget( APlayerController* PC )
 	K2_OnEndViewTarget(PC);
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 APawn* AActor::GetInstigator() const
 {
 	return Instigator;
@@ -2555,6 +2566,7 @@ AController* AActor::GetInstigatorController() const
 {
 	return Instigator ? Instigator->Controller : nullptr;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void AActor::CalcCamera(float DeltaTime, FMinimalViewInfo& OutResult)
 {
@@ -3333,8 +3345,9 @@ void AActor::ExchangeNetRoles(bool bRemoteOwned)
 	{
 		if (bRemoteOwned)
 		{
-			// Don't worry about calling SetRemoteRoleInternal here, as this should only be hit during initialization.
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			Exchange( Role, RemoteRole );
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 		bExchangedRoles = true;
 	}
@@ -3342,7 +3355,9 @@ void AActor::ExchangeNetRoles(bool bRemoteOwned)
 
 void AActor::SwapRoles()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Swap(Role, RemoteRole);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, RemoteRole, this);
 	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, Role, this);
@@ -4969,34 +4984,45 @@ void AActor::SetLODParent(UPrimitiveComponent* InLODParent, float InParentDrawDi
 	}
 }
 
+
 void AActor::SetHidden(bool bInHidden)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bHidden = bInHidden;
 	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bHidden, this);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void AActor::SetReplicatingMovement(bool bInReplicateMovement)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bReplicateMovement = bInReplicateMovement;
 	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bReplicateMovement, this);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void AActor::SetCanBeDamaged(bool bInCanBeDamaged)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bCanBeDamaged = bInCanBeDamaged;
 	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bCanBeDamaged, this);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void AActor::SetRole(ENetRole InRole)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Role = InRole;
 	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, Role, this);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FRepMovement& AActor::GetReplicatedMovement_Mutable()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, ReplicatedMovement, this);
 	return ReplicatedMovement;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void AActor::SetReplicatedMovement(const FRepMovement& InReplicatedMovement)
@@ -5006,8 +5032,10 @@ void AActor::SetReplicatedMovement(const FRepMovement& InReplicatedMovement)
 
 void AActor::SetInstigator(APawn* InInstigator)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Instigator = InInstigator;
 	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, Instigator, this);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 #undef LOCTEXT_NAMESPACE

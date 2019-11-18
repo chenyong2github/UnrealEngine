@@ -4,6 +4,8 @@
 #include "Sound/SoundSubmix.h"
 #include "SoundSubmixGraph/SoundSubmixGraphSchema.h"
 #include "SoundSubmixGraph/SoundSubmixGraph.h"
+#include "Toolkits/AssetEditorManager.h"
+#include "SoundSubmixEditor.h"
 
 #define LOCTEXT_NAMESPACE "SoundSubmixGraphNode"
 
@@ -61,8 +63,8 @@ void USoundSubmixGraphNode::AllocateDefaultPins()
 {
 	check(Pins.Num() == 0);
 
-	ChildPin = CreatePin(EGPD_Input, TEXT("SoundSubmix"), *LOCTEXT("SoundSubmixChildren", "Input").ToString());
-	ParentPin = CreatePin(EGPD_Output, TEXT("SoundSubmix"), *LOCTEXT("SoundSubmixChildren", "Output").ToString());
+	ChildPin = CreatePin(EGPD_Input, TEXT("SoundSubmix"), *LOCTEXT("SoundSubmixGraphNode_Input", "Input").ToString());
+	ParentPin = CreatePin(EGPD_Output, TEXT("SoundSubmix"), *LOCTEXT("SoundSubmixGraphNode_Output", "Output").ToString());
 }
 
 void USoundSubmixGraphNode::AutowireNewNode(UEdGraphPin* FromPin)
@@ -85,6 +87,35 @@ void USoundSubmixGraphNode::AutowireNewNode(UEdGraphPin* FromPin)
 bool USoundSubmixGraphNode::CanCreateUnderSpecifiedSchema(const UEdGraphSchema* Schema) const
 {
 	return Schema->IsA(USoundSubmixGraphSchema::StaticClass());
+}
+
+bool USoundSubmixGraphNode::CanUserDeleteNode() const
+{
+	check(GEditor);
+	UAssetEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
+	TArray<IAssetEditorInstance*> SubmixEditors = EditorSubsystem->FindEditorsForAsset(SoundSubmix);
+	for (IAssetEditorInstance* Editor : SubmixEditors)
+	{
+		if (!Editor)
+		{
+			continue;
+		}
+
+		FSoundSubmixEditor* SubmixEditor = static_cast<FSoundSubmixEditor*>(Editor);
+		if (UEdGraph* Graph = SubmixEditor->GetGraph())
+		{
+			if (SoundSubmix->SoundSubmixGraph == Graph)
+			{
+				USoundSubmix* RootSubmix = CastChecked<USoundSubmixGraph>(Graph)->GetRootSoundSubmix();
+				if (RootSubmix == SoundSubmix)
+				{
+					return false;
+				}
+			}
+		}
+	}
+
+	return UEdGraphNode::CanUserDeleteNode();
 }
 
 FText USoundSubmixGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const

@@ -226,7 +226,8 @@ void FAnimNode_RigidBody_Chaos::EvaluateSkeletalControl_AnyThread(FComponentSpac
 	{
 		// Always propagate skip rate as it can go up and down between updates
 		EvalCounter.SetMaxSkippedFrames(Output.AnimInstanceProxy->GetEvaluationCounter().GetMaxSkippedFrames());
-		if (!EvalCounter.WasSynchronizedLastFrame(Output.AnimInstanceProxy->GetEvaluationCounter()))
+		extern bool bRBAN_EnableTimeBasedReset;
+		if (!EvalCounter.WasSynchronizedLastFrame(Output.AnimInstanceProxy->GetEvaluationCounter()) && bRBAN_EnableTimeBasedReset)
 		{
 			ResetSimulatedTeleportType = ETeleportType::ResetPhysics;
 		}
@@ -444,16 +445,10 @@ void FAnimNode_RigidBody_Chaos::EvaluateSkeletalControl_AnyThread(FComponentSpac
 
 			// Run simulation at a minimum of 30 FPS to prevent system from exploding.
 			// DeltaTime can be higher due to URO, so take multiple iterations in that case.
+			extern int32 RBAN_MaxSubSteps;
+			const int32 MaxSteps = RBAN_MaxSubSteps;
 			const float MaxDeltaSeconds = 1.f / 30.f;
-			const int32 NumIterations = FMath::Clamp(FMath::CeilToInt(DeltaSeconds / MaxDeltaSeconds), 1, 4);
-			const float StepDeltaTime = DeltaSeconds / float(NumIterations);
-
-			for (int32 Step = 1; Step <= NumIterations; Step++)
-			{
-				// We call the _AssumesLocked version here without a lock as the simulation is local to this node and we know
-				// we're not going to alter anything while this is running.
-				PhysicsSimulation->Simulate_AssumesLocked(StepDeltaTime, SimSpaceGravity);
-			}
+			PhysicsSimulation->Simulate_AssumesLocked(DeltaSeconds, MaxDeltaSeconds, MaxSteps, SimSpaceGravity);
 		}
 		
 		//write back to animation system

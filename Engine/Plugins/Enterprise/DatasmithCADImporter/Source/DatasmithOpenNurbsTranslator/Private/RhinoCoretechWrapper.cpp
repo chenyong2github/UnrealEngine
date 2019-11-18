@@ -4,8 +4,10 @@
 
 
 #ifdef CAD_LIBRARY
+
 #include "CoreTechHelper.h"
-//#include "TessellationHelper.h"
+
+#include "Containers/Set.h"
 
 #pragma warning(push)
 #pragma warning(disable:4265)
@@ -193,14 +195,11 @@ CT_OBJECT_ID CreateCTSurface(ON_NurbsSurface& Surface)
 	return CTSurfaceID;
 }
 
-void CreateCTFace_internal(const ON_BrepFace& Face, CT_LIST_IO& dest, ON_BoundingBox& outerBBox, ON_NurbsSurface& Surface, bool ignoreInner)
+void CreateCTFace_internal(const ON_BrepFace& Face, CT_LIST_IO& dest, ON_BoundingBox& outerBBox, ON_NurbsSurface& Surface, bool ignoreInner, bool& bOutFaceHasLoopNonManifold)
 {
 	CT_OBJECT_ID SurfaceID = CreateCTSurface(Surface);
 	if (SurfaceID == 0)
 		return;
-
-	ON_BoundingBox realOuterBBox = Face.OuterLoop()->BoundingBox();
-	bool outerRedefined = realOuterBBox != outerBBox;
 
 	int LoopCount = ignoreInner ? 1 : Face.LoopCount();
 	CT_LIST_IO Loops;
@@ -212,10 +211,12 @@ void CreateCTFace_internal(const ON_BrepFace& Face, CT_LIST_IO& dest, ON_Boundin
 
 		ON_BrepLoop::TYPE onLoopType = on_Loop.m_type;
 		bool bIsOuter = (onLoopType == ON_BrepLoop::TYPE::outer);
-		//assert(bIsOuter == (LoopIndex == 0));
+
+		int TrimCount = on_Loop.TrimCount();
 
 		CT_LIST_IO Coedges;
-		int TrimCount = on_Loop.TrimCount();
+		TSet<ON_BrepVertex*> VertexSet;
+		VertexSet.Reserve(TrimCount);
 		for (int i = 0; i < TrimCount; ++i)
 		{
 			CADLibrary::CheckedCTError err = IO_OK;
@@ -226,7 +227,7 @@ void CreateCTFace_internal(const ON_BrepFace& Face, CT_LIST_IO& dest, ON_Boundin
 				continue;
 
 			ON_NurbsCurve nurbs_curve;
-			int nurbFormSuccess = Trim.GetNurbForm(nurbs_curve); // 0:Nok 1:Ok 2:OkBut
+			int nurbFormSuccess = Trim.GetNurbForm(nurbs_curve); // 0:No ok 1:Ok 2:OkBut
 			if (nurbFormSuccess == 0)
 				continue;
 
@@ -234,6 +235,13 @@ void CreateCTFace_internal(const ON_BrepFace& Face, CT_LIST_IO& dest, ON_Boundin
 			err = CT_COEDGE_IO::Create(Coedge, Trim.m_bRev3d ? CT_ORIENTATION::CT_REVERSE : CT_ORIENTATION::CT_FORWARD);
 			if (err != IO_OK)
 				continue;
+
+			// check if the loop is non manifold i.e. is auto-intersecting like a 8. We get the second vertex of each edge. If the vertex is already in the set, this mean that the loop is at least like a 8
+			if (!bOutFaceHasLoopNonManifold)
+			{
+				ON_BrepVertex* Vertex = on_edge->Vertex(1);
+				VertexSet.Add(Vertex, &bOutFaceHasLoopNonManifold);
+			}
 
 			// fill edge data
 			CT_UINT32 order = nurbs_curve.Order();
@@ -261,13 +269,6 @@ void CreateCTFace_internal(const ON_BrepFace& Face, CT_LIST_IO& dest, ON_Boundin
 			for (int j = 0; j < ctrl_hull_size; ++j, wp += ctrl_hull_dim)
 			{
 				nurbs_curve.GetCV(j, nurbs_curve.IsRational() ? ON::point_style::euclidean_rational : ON::point_style::not_rational, wp);
-			}
-			if (outerRedefined && bIsOuter)
-			{
-				for (int j = 0; j < cv_data.size(); j += ctrl_hull_dim)
-				{
-					cv_data[j] = min(max(cv_data[j], outerBBox.m_min.x), outerBBox.m_max.x);
-				}
 			}
 
 			// knot multiplicity (ignored as knots are stored multiple times already)
@@ -310,7 +311,7 @@ void CreateCTFace_internal(const ON_BrepFace& Face, CT_LIST_IO& dest, ON_Boundin
 	dest.PushBack(FaceID);
 }
 
-void CreateCTFace(const ON_Brep& brep, const ON_BrepFace& Face, CT_LIST_IO& dest)
+void CreateCTFace(const ON_Brep& brep, const ON_BrepFace& Face, CT_LIST_IO& dest, bool& bOutFaceHasLoopNonManifold)
 {
 	const ON_BrepLoop* outerLoop = Face.OuterLoop();
 	if (outerLoop == nullptr)
@@ -338,47 +339,12 @@ void CreateCTFace(const ON_Brep& brep, const ON_BrepFace& Face, CT_LIST_IO& dest
 		}
 		bBadLoopHack &= hasSingularTrim;
 	}
-
-	if (bBadLoopHack)
-	{
-		// we try to split in 2 faces: one west one east.
-		double span = outerBBox.Diagonal().x;
-
-		ON_BoundingBox innerBBox = Face.Loop(1)->BoundingBox();
-		for (int LoopIndex = 2; LoopIndex < LoopCount; ++LoopIndex)
-		{
-			const ON_BrepLoop& innerLoop = *Face.Loop(LoopIndex);
-			innerBBox.Union(innerLoop.BoundingBox());
-		}
-		double spaceWest = innerBBox.Min().x - outerBBox.Min().x;
-		double spaceEast = outerBBox.Max().x - innerBBox.Max().x;
-		double e = 0.01;
-		if (spaceEast < e*span && spaceWest < e*span)
-		{
-			// can't split... We could ignore inner loops:
-			CreateCTFace_internal(Face, dest, outerBBox, Surface, true);
-			return;
-		}
-
-		// split the outer bbox in a normal part (with outer) and a 'rest' (with no iner)
-		ON_BoundingBox outerTrimedPartBBox = outerBBox;
-		if (spaceEast > spaceWest)
-		{
-			outerBBox.m_max.x -= 0.5 * spaceEast;
-			outerTrimedPartBBox.m_min.x = outerBBox.m_max.x;
-		}
-		else
-		{
-			outerBBox.m_min.x += 0.5 * spaceWest;
-			outerTrimedPartBBox.m_max.x = outerBBox.m_min.x;
-		}
-
-		// We now need to create a bonus face to handle the hole we just created
-		CreateCTFace_internal(Face, dest, outerTrimedPartBBox, Surface, true);
-	}
+	bOutFaceHasLoopNonManifold = bBadLoopHack;
+	
 #endif // FIX_HOLE_IN_WHOLE_FACE
-
-	CreateCTFace_internal(Face, dest, outerBBox, Surface, false);
+	bool bHasCyclicLoop = false;
+	CreateCTFace_internal(Face, dest, outerBBox, Surface, false, bHasCyclicLoop);
+	bOutFaceHasLoopNonManifold |= bHasCyclicLoop;
 }
 
 
@@ -387,7 +353,7 @@ CT_IO_ERROR FRhinoCoretechWrapper::Tessellate(FMeshDescription& Mesh, CADLibrary
 	return CADLibrary::Tessellate(MainObjectId, ImportParams, Mesh, MeshParameters);
 }
 
-CADLibrary::CheckedCTError FRhinoCoretechWrapper::AddBRep(ON_Brep& Brep)
+CADLibrary::CheckedCTError FRhinoCoretechWrapper::AddBRep(ON_Brep& Brep, bool& bOutBRepHasLoopNonManifold)
 {
 	CADLibrary::CheckedCTError Result;
 	if (!IsSessionValid())
@@ -403,7 +369,9 @@ CADLibrary::CheckedCTError FRhinoCoretechWrapper::AddBRep(ON_Brep& Brep)
 	for (int index = 0; index < FaceCount; index++)
 	{
 		const ON_BrepFace& on_face = Brep.m_F[index];
-		CreateCTFace(Brep, on_face, FaceList);
+		bool bIsFaceHasLoopNonManifold = false;
+		CreateCTFace(Brep, on_face, FaceList, bIsFaceHasLoopNonManifold);
+		bOutBRepHasLoopNonManifold |= bIsFaceHasLoopNonManifold;
 	}
 
 	if (FaceList.IsEmpty())

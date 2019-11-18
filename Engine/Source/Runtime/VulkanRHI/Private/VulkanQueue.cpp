@@ -21,12 +21,13 @@ FAutoConsoleVariableRef CVarVulkanWaitForIdleOnSubmit(
 FVulkanQueue::FVulkanQueue(FVulkanDevice* InDevice, uint32 InFamilyIndex)
 	: Queue(VK_NULL_HANDLE)
 	, FamilyIndex(InFamilyIndex)
+	, QueueIndex(0)
 	, Device(InDevice)
 	, LastSubmittedCmdBuffer(nullptr)
 	, LastSubmittedCmdBufferFenceCounter(0)
 	, SubmitCounter(0)
 {
-	VulkanRHI::vkGetDeviceQueue(Device->GetInstanceHandle(), FamilyIndex, 0, &Queue);
+	VulkanRHI::vkGetDeviceQueue(Device->GetInstanceHandle(), FamilyIndex, QueueIndex, &Queue);
 }
 
 FVulkanQueue::~FVulkanQueue()

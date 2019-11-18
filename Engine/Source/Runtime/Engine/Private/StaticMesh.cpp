@@ -1069,6 +1069,7 @@ void FStaticMeshLODResources::ConditionalForce16BitIndexBuffer(EShaderPlatform M
 {
 	// Initialize the vertex and index buffers.
 	// All platforms supporting Metal also support 32-bit indices.
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (IsES2Platform(MaxShaderPlatform) && !IsMetalPlatform(MaxShaderPlatform))
 	{
 		if (IndexBuffer.Is32Bit())
@@ -1080,6 +1081,7 @@ void FStaticMeshLODResources::ConditionalForce16BitIndexBuffer(EShaderPlatform M
 			UE_LOG(LogStaticMesh, Warning, TEXT("[%s] Mesh has more that 65535 vertices, incompatible with mobile; forcing 16-bit (will probably cause rendering issues)."), *Parent->GetName());
 		}
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 template <bool bIncrement>
@@ -2973,7 +2975,8 @@ void UStaticMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 		}
 	}
 
-	EnforceLightmapRestrictions();
+	//Don't use the render data here because the property that just changed might be invalidating the current RenderData.
+	EnforceLightmapRestrictions(/*bUseRenderData=*/false);
 
 	// Following an undo or other operation which can change the SourceModels, ensure the StaticMeshOwner is up to date
 	for (int32 Index = 0; Index < GetNumSourceModels(); ++Index)
@@ -3764,6 +3767,9 @@ bool UStaticMesh::LoadMeshDescription(int32 LodIndex, FMeshDescription& OutMeshD
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::LoadMeshDescription);
 
+	// Ensure MeshDescription is empty, with no attributes registered
+	OutMeshDescription = FMeshDescription();
+
 	const FStaticMeshSourceModel& SourceModel = GetSourceModel(LodIndex);
 
 	// If we don't have a valid MeshDescription, try and get one...
@@ -3807,6 +3813,11 @@ bool UStaticMesh::LoadMeshDescription(int32 LodIndex, FMeshDescription& OutMeshD
 		SourceModel.LoadRawMesh(LodRawMesh);
 		TMap<int32, FName> MaterialMap;
 		FillMaterialName(StaticMaterials, MaterialMap);
+
+		// Register static mesh attributes on the mesh description
+		FStaticMeshAttributes StaticMeshAttributes(OutMeshDescription);
+		StaticMeshAttributes.Register();
+
 		FMeshDescriptionOperations::ConvertFromRawMesh(LodRawMesh, OutMeshDescription, MaterialMap);
 		return true;
 	}
@@ -4295,9 +4306,14 @@ void UStaticMesh::CacheDerivedData()
 
 	if (RenderData)
 	{
-		// Finish any previous async builds before modifying RenderData
-		// This can happen during import as the mesh is rebuilt redundantly
-		GDistanceFieldAsyncQueue->BlockUntilBuildComplete(this, true);
+		// This is the responsability of the caller to ensure this has been called
+		// on the main thread when calling CacheDerivedData() from another thread.
+		if (IsInGameThread())
+		{
+			// Finish any previous async builds before modifying RenderData
+			// This can happen during import as the mesh is rebuilt redundantly
+			GDistanceFieldAsyncQueue->BlockUntilBuildComplete(this, true);
+		}
 
 		for (int32 LODIndex = 0; LODIndex < RenderData->LODResources.Num(); ++LODIndex)
 		{
@@ -5890,7 +5906,7 @@ ENGINE_API void UStaticMesh::RemoveVertexColors()
 #endif
 }
 
-void UStaticMesh::EnforceLightmapRestrictions()
+void UStaticMesh::EnforceLightmapRestrictions(bool bUseRenderData)
 {
 	// Legacy content may contain a lightmap resolution of 0, which was valid when vertex lightmaps were supported, but not anymore with only texture lightmaps
 	LightMapResolution = FMath::Max(LightMapResolution, 4);
@@ -5898,21 +5914,69 @@ void UStaticMesh::EnforceLightmapRestrictions()
 	// Lightmass only supports 4 UVs
 	int32 NumUVs = 4;
 
-	if (RenderData)
+#if !WITH_EDITORONLY_DATA
+	if (!bUseRenderData)
 	{
-		for (int32 LODIndex = 0; LODIndex < RenderData->LODResources.Num(); ++LODIndex)
+		//The source models are only available in the editor, fallback on the render data.
+		UE_ASSET_LOG(LogStaticMesh, Warning, this, TEXT("Trying to enforce lightmap restrictions using the static mesh SourceModels outside of the Editor."))
+		bUseRenderData = true;
+	}
+#endif //WITH_EDITORONLY_DATA
+
+	if (bUseRenderData)
+	{
+		if (RenderData)
 		{
-			const FStaticMeshLODResources& LODResource = RenderData->LODResources[LODIndex];
-			if (LODResource.GetNumVertices() > 0) // skip LOD that was stripped (eg. MinLOD)
+			for (int32 LODIndex = 0; LODIndex < RenderData->LODResources.Num(); ++LODIndex)
 			{
-				NumUVs = FMath::Min(LODResource.GetNumTexCoords(), NumUVs);
+				const FStaticMeshLODResources& LODResource = RenderData->LODResources[LODIndex];
+				if (LODResource.GetNumVertices() > 0) // skip LOD that was stripped (eg. MinLOD)
+				{
+					NumUVs = FMath::Min(LODResource.GetNumTexCoords(), NumUVs);
+				}
 			}
 		}
+		else
+		{
+			NumUVs = 1;
+		}
 	}
+#if WITH_EDITORONLY_DATA
 	else
 	{
-		NumUVs = 1;
+		for (int32 LODIndex = 0; LODIndex < GetNumSourceModels(); ++LODIndex)
+		{
+			if (const FMeshDescription* MeshDescription = GetMeshDescription(LODIndex))
+			{
+				const TVertexInstanceAttributesConstRef<FVector2D> UVChannels = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+
+				// skip empty LODs
+				if (UVChannels.GetNumElements() > 0)
+				{
+					int NumChannelsInLOD = UVChannels.GetNumIndices();
+					const FStaticMeshSourceModel& SourceModel = GetSourceModel(LODIndex);
+
+					if (SourceModel.BuildSettings.bGenerateLightmapUVs)
+					{
+						NumChannelsInLOD = FMath::Max(NumChannelsInLOD, SourceModel.BuildSettings.DstLightmapIndex + 1);
+					}
+
+					NumUVs = FMath::Min(NumChannelsInLOD, NumUVs);
+				}
+			}
+			else
+			{
+				NumUVs = 1;
+				break;
+			}
+		}
+
+		if (GetNumSourceModels() == 0)
+		{
+			NumUVs = 1;
+		}
 	}
+#endif //WITH_EDITORONLY_DATA
 
 	// do not allow LightMapCoordinateIndex go negative
 	check(NumUVs > 0);

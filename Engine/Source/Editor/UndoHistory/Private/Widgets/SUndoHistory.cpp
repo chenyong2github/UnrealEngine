@@ -20,6 +20,16 @@
 #define LOCTEXT_NAMESPACE "SUndoHistory"
 
 
+// Helper function for TransactionInfo
+const FTransaction* SUndoHistory::FTransactionInfo::GetTransaction() const
+{
+	if (GEditor && GEditor->Trans)
+	{
+		return GEditor->Trans->GetTransaction(QueueIndex);
+	}
+	return nullptr;
+}
+
 /* SUndoHistory interface
  *****************************************************************************/
 
@@ -269,7 +279,7 @@ void SUndoHistory::ReloadUndoList()
 
 	for (int32 QueueIndex = 0; QueueIndex < GEditor->Trans->GetQueueLength(); ++QueueIndex)
 	{
-		UndoList.Add(MakeShared<FTransactionInfo>(QueueIndex, GEditor->Trans->GetTransaction(QueueIndex)));
+		UndoList.Add(MakeShared<FTransactionInfo>(QueueIndex));
 	}
 
 	UndoListView->RequestListRefresh();
@@ -283,11 +293,11 @@ void SUndoHistory::SelectLastTransaction()
 		if (UndoList.IsValidIndex(LastActiveTransactionIndex))
 		{
 			const TSharedPtr<FTransactionInfo>& TransactionInfo = UndoList[LastActiveTransactionIndex];
-
-			if (TransactionInfo.IsValid() && TransactionInfo->Transaction)
+			const FTransaction* InnerTransaction = TransactionInfo.IsValid() ? TransactionInfo->GetTransaction() : nullptr;
+			if (InnerTransaction)
 			{
 				UndoListView->SetSelection(TransactionInfo);
-				UndoDetailsView->SetSelectedTransaction(TransactionInfo->Transaction->GenerateDiff());
+				UndoDetailsView->SetSelectedTransaction(InnerTransaction->GenerateDiff());
 			}
 		}
 	}
@@ -316,19 +326,18 @@ TSharedRef<ITableRow> SUndoHistory::HandleUndoListGenerateRow(TSharedPtr<FTransa
 		.OnGotoTransactionClicked(this, &SUndoHistory::HandleGoToTransaction)
 		.IsApplied(this, &SUndoHistory::HandleUndoListRowIsApplied, TransactionInfo->QueueIndex)
 		.QueueIndex(TransactionInfo->QueueIndex)
-		.Transaction(TransactionInfo->Transaction);
+		.Transaction(TransactionInfo->GetTransaction());
 }
 
 void SUndoHistory::HandleGoToTransaction(const FGuid& TargetTransactionId)
 {
 	TSharedPtr<FTransactionInfo>* Transaction = UndoList.FindByPredicate([TargetTransactionId](TSharedPtr<FTransactionInfo> TransactionInfo)
 	{
-		if (TransactionInfo->Transaction == nullptr)
+		if (const FTransaction* InnerTransaction = TransactionInfo->GetTransaction())
 		{
-			return false;
+			return InnerTransaction->GetId() == TargetTransactionId;
 		}
-
-		return TransactionInfo->Transaction->GetId() == TargetTransactionId;
+		return false;
 	});
 
 	if (Transaction != nullptr)
@@ -355,9 +364,9 @@ void SUndoHistory::HandleUndoListSelectionChanged(TSharedPtr<FTransactionInfo> I
 		return;
 	}
 
-	if (InItem->Transaction)
+	if (const FTransaction* InnerTransaction = InItem->GetTransaction())
 	{
-		UndoDetailsView->SetSelectedTransaction(InItem->Transaction->GenerateDiff());
+		UndoDetailsView->SetSelectedTransaction(InnerTransaction->GenerateDiff());
 	}
 
 	if (SelectInfo == ESelectInfo::OnMouseClick || SelectInfo == ESelectInfo::Direct)

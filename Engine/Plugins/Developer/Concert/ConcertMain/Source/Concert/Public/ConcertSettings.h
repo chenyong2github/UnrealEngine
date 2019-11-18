@@ -155,13 +155,21 @@ public:
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category="Endpoint Settings", meta=(ShowOnlyInnerProperties))
 	FConcertEndpointSettings EndpointSettings;
 
-	/** The directory where the server keeps the live session files. Can be specified on the server command line with `-CONCERTWORKINGDIR=`*/
+	/** The default directory where the server keeps the live session files. Can be specified on the server command line with `-CONCERTWORKINGDIR=`*/
 	UPROPERTY(config)
 	FString WorkingDir;
 
-	/** The directory where the server keeps the archived session files. Can be specified on the server command line with `-CONCERTSAVEDDIR=`*/
+	/** The default directory where the server keeps the archived session files. Can be specified on the server command line with `-CONCERTSAVEDDIR=`*/
 	UPROPERTY(config)
 	FString ArchiveDir;
+
+	/** The root directory where the server creates new session repositories (unless the client request specifies its own root). If empty or invalid, the server will use a default. */
+	UPROPERTY(config)
+	FString SessionRepositoryRootDir;
+
+	/** If neither of WorkingDir and ArchiveDir are set, determine whether the server should mount a standard default session repository where new session will be created. */
+	UPROPERTY(config)
+	bool bMountDefaultSessionRepository = true;
 };
 
 USTRUCT()

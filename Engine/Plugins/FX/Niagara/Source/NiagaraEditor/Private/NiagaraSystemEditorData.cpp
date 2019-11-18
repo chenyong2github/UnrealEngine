@@ -233,6 +233,7 @@ void UNiagaraSystemEditorData::SynchronizeOverviewGraphWithSystem(UNiagaraSystem
 	{
 		if(bSystemIsPlaceholder == false)
 		{
+			SystemOverviewGraph->Modify();
 			FGraphNodeCreator<UNiagaraOverviewNode> SystemOverviewNodeCreator(*SystemOverviewGraph);
 			UNiagaraOverviewNode* SystemOverviewNode = SystemOverviewNodeCreator.CreateNode(false);
 			SystemOverviewNode->Initialize(&OwnerSystem);
@@ -265,6 +266,7 @@ void UNiagaraSystemEditorData::SynchronizeOverviewGraphWithSystem(UNiagaraSystem
 		}
 		else
 		{
+			SystemOverviewGraph->Modify();
 			FGraphNodeCreator<UNiagaraOverviewNode> EmitterOverviewNodeCreator(*SystemOverviewGraph);
 			UNiagaraOverviewNode* EmitterOverviewNode = EmitterOverviewNodeCreator.CreateNode(false);
 			EmitterOverviewNode->Initialize(&OwnerSystem, EmitterHandle.GetId());
@@ -282,7 +284,7 @@ void UNiagaraSystemEditorData::SynchronizeOverviewGraphWithSystem(UNiagaraSystem
 			RightNode = EmitterOverviewNode;
 			EmitterNode = EmitterOverviewNode;
 		}
-
+		EmitterNode->Modify();
 		EmitterNode->SetEnabledState(EmitterHandle.GetIsEnabled() ? ENodeEnabledState::Enabled : ENodeEnabledState::Disabled);
 	}
 

@@ -205,7 +205,7 @@ public:
 	inline float GetMaximumAxisScale() const;
 
 	/** Apply Scale to this matrix **/
-	inline FMatrix ApplyScale(float Scale);
+	inline FMatrix ApplyScale(float Scale) const;
 
 	// @return the origin of the co-ordinate system
 	inline FVector GetOrigin() const;
@@ -273,6 +273,14 @@ public:
 	 * @return vector of the column 
 	 */
 	inline FVector GetColumn(int32 i) const;
+
+	/**
+	 * Set a column of this matrix
+	 *
+	 * @param i index of the matrix column
+	 * @param Value new value of the column
+	 */
+	inline void SetColumn(int32 i, FVector Value);
 
 	/** @return rotator representation of this matrix */
 	CORE_API FRotator Rotator() const;

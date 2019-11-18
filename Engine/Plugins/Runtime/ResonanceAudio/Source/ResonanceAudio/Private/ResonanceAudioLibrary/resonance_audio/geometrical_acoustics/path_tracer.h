@@ -33,9 +33,13 @@ class PathTracer {
   //
   // @param scene_manager Scene manager.
   explicit PathTracer(const SceneManager& scene_manager)
-      : scene_manager_(scene_manager) {}
+#if INCLUDE_UNUSED_CODE
+      : scene_manager_(scene_manager)
+#endif
+	{}
   ~PathTracer() {}
 
+#if INCLUDE_UNUSED_CODE
   // Traces sound propagation paths from a source.
   //
   // @param source Source from which paths are traced.
@@ -48,10 +52,13 @@ class PathTracer {
   std::vector<Path> TracePaths(const AcousticSource& source,
                                size_t min_num_rays, size_t max_depth,
                                float energy_threshold);
+#endif
 
  private:
   // Scene manager.
+#if INCLUDE_UNUSED_CODE
   const SceneManager& scene_manager_;
+#endif
 };
 
 }  // namespace vraudio

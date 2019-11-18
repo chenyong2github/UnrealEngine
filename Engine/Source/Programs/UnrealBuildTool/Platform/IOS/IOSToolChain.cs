@@ -269,9 +269,9 @@ namespace UnrealBuildTool
 			Result += " -Wall -Werror";
 			Result += " -Wdelete-non-virtual-dtor";
 
-			if (CompileEnvironment.bEnableShadowVariableWarnings)
+			if (CompileEnvironment.ShadowVariableWarningLevel != WarningLevel.Off)
 			{
-				Result += " -Wshadow" + (CompileEnvironment.bShadowVariableWarningsAsErrors ? "" : " -Wno-error=shadow");
+				Result += " -Wshadow" + ((CompileEnvironment.ShadowVariableWarningLevel == WarningLevel.Error) ? "" : " -Wno-error=shadow");
 			}
 
 			if (CompileEnvironment.bEnableUndefinedIdentifierWarnings)
@@ -775,7 +775,7 @@ namespace UnrealBuildTool
 				CompileAction.StatusDescription = string.Format("{0}", Path.GetFileName(SourceFile.AbsolutePath));
 				CompileAction.bIsGCCCompiler = true;
 				// We're already distributing the command by execution on Mac.
-				CompileAction.bCanExecuteRemotely = false;
+				CompileAction.bCanExecuteRemotely = true;
 				CompileAction.bShouldOutputStatusDescription = true;
 
 				foreach (UEBuildFramework Framework in CompileEnvironment.AdditionalFrameworks)

@@ -99,6 +99,8 @@
 
 #include "BlueprintEditorTabs.h"
 
+#include "ToolMenus.h"
+#include "BlueprintEditorContext.h"
 
 #include "Interfaces/IProjectManager.h"
 
@@ -1895,6 +1897,15 @@ void FBlueprintEditor::InitBlueprintEditor(
 	}
 }
 
+void FBlueprintEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
+{
+	FAssetEditorToolkit::InitToolMenuContext(MenuContext);
+
+	UBlueprintEditorToolMenuContext* Context = NewObject<UBlueprintEditorToolMenuContext>();
+	Context->BlueprintEditor = SharedThis(this);
+	MenuContext.AddObject(Context);
+}
+
 void FBlueprintEditor::InitalizeExtenders()
 {
 	TSharedPtr<FExtender> MenuExtender = MakeShareable(new FExtender);
@@ -2838,7 +2849,20 @@ void FBlueprintEditor::ReparentBlueprint_NewParentChosen(UClass* ChosenClass)
 
 		if ( bReparent )
 		{
+			const FScopedTransaction Transaction( LOCTEXT("ReparentBlueprint", "Reparent Blueprint") );
 			UE_LOG(LogBlueprint, Warning, TEXT("Reparenting blueprint %s from %s to %s..."), *BlueprintObj->GetFullName(), BlueprintObj->ParentClass ? *BlueprintObj->ParentClass->GetName() : TEXT("[None]"), *ChosenClass->GetName());
+			
+			BlueprintObj->Modify();
+			if(USimpleConstructionScript* SCS = BlueprintObj->SimpleConstructionScript)
+			{
+				SCS->Modify();
+
+				const TArray<USCS_Node*>& AllNodes = SCS->GetAllNodes();
+				for(USCS_Node* Node : AllNodes )
+				{
+					Node->Modify();
+				}
+			}
 
 			UClass* OldParentClass = BlueprintObj->ParentClass ;
 			BlueprintObj->ParentClass = ChosenClass;
@@ -3245,8 +3269,9 @@ void FBlueprintEditor::OnSelectedNodesChangedImpl(const FGraphPanelSelectionSet&
 		SetUISelectionState(FBlueprintEditor::SelectionState_Graph);
 	}
 
-	Inspector->ShowDetailsForObjects(NewSelection.Array());
-
+	SKismetInspector::FShowDetailsOptions DetailsOptions;
+	DetailsOptions.bForceRefresh = true;
+	Inspector->ShowDetailsForObjects(NewSelection.Array(), DetailsOptions);
 
 	bSelectRegularNode = false;
 	for (FGraphPanelSelectionSet::TConstIterator It(NewSelection); It; ++It)
@@ -5529,19 +5554,25 @@ void FBlueprintEditor::ConvertFunctionToEvent(UK2Node_FunctionEntry* SelectedCal
 		{
 			Result->DestroyNode();
 		}
+
 		// Connect any pins that need to be set from the old function
 		if (NewEventNode)
 		{
 			// Link the nodes from the original function entry node to the new event node
 			FEdGraphUtilities::ReconnectPinMap(NewEventNode, PinConnections);
 			FEdGraphUtilities::CopyPinDefaults(SelectedCallFunctionNode, NewEventNode);
-			FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(NewEventNode, false);
 		}
 
 		// Remove the old function graph
 		FBlueprintEditorUtils::RemoveGraph(NodeBP, FunctionGraph, EGraphRemoveFlags::Recompile);
 		FunctionGraph->MarkPendingKill();
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(NodeBP);
+
+		// Do this AFTER removing the function graph so that it's not opened into the existing function graph document tab.
+		if (NewEventNode)
+		{
+			FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(NewEventNode, false);
+		}
 	}
 }
 
@@ -8622,8 +8653,17 @@ TSharedPtr<SGraphEditor> FBlueprintEditor::OpenGraphAndBringToFront(UEdGraph* Gr
 	// First, switch back to standard mode
 	SetCurrentMode(FBlueprintEditorApplicationModes::StandardBlueprintEditorMode);
 
-	// Next, try to make sure there is a copy open
-	TSharedPtr<SDockTab> TabWithGraph = OpenDocument(Graph, FDocumentTracker::NavigatingCurrentDocument);
+		
+	TSharedPtr<SDockTab> TabWithGraph;
+	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
+	if (FocusedGraphEd.IsValid() && FocusedGraphEd->GetCurrentGraph() == Graph)
+	{
+		TabWithGraph = OpenDocument(Graph, FDocumentTracker::CreateHistoryEvent);
+	}
+	else
+	{
+		 TabWithGraph = OpenDocument(Graph, FDocumentTracker::NavigatingCurrentDocument);
+	}
 
 	// We know that the contents of the opened tabs will be a graph editor.
 	TSharedRef<SGraphEditor> NewGraphEditor = StaticCastSharedRef<SGraphEditor>(TabWithGraph->GetContent());
@@ -9386,5 +9426,10 @@ void FBlueprintEditor::ClearAllGraphEditorQuickJumps()
 /////////////////////////////////////////////////////
 /////////////////////////////////////////////////////
 /////////////////////////////////////////////////////
+
+UBlueprint* UBlueprintEditorToolMenuContext::GetBlueprintObj() const
+{
+	return BlueprintEditor.IsValid() ? BlueprintEditor.Pin()->GetBlueprintObj() : nullptr;
+}
 
 #undef LOCTEXT_NAMESPACE

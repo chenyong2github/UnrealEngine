@@ -431,6 +431,7 @@ FPostProcessSettings::FPostProcessSettings()
 	BloomConvolutionCenterUV = FVector2D(0.5f, 0.5f);
 #if WITH_EDITORONLY_DATA
 	BloomConvolutionPreFilter_DEPRECATED = FVector(-1.f, -1.f, -1.f);
+	DepthOfFieldMethod_DEPRECATED = EDepthOfFieldMethod::DOFM_MAX;
 #endif
 	BloomConvolutionPreFilterMin = 7.f;
 	BloomConvolutionPreFilterMax = 15000.f;
@@ -556,7 +557,8 @@ FPostProcessSettings::FPostProcessSettings()
 	RayTracingReflectionsMaxBounces = 1;
 	RayTracingReflectionsSamplesPerPixel = 1;
 	RayTracingReflectionsShadows = EReflectedAndRefractedRayTracedShadows::Hard_shadows;
-	
+	RayTracingReflectionsTranslucency = 0;
+
 	TranslucencyType = ETranslucencyType::Raster;
 	RayTracingTranslucencyMaxRoughness = 0.6f;
 	RayTracingTranslucencyRefractionRays = 3; // 3 to: first hit surface, second hit back inner surface and a third to fetch the background.
@@ -742,6 +744,7 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, bOverride_RayTracingReflectionsMaxBounces(Settings.bOverride_RayTracingReflectionsMaxBounces)
 	, bOverride_RayTracingReflectionsSamplesPerPixel(Settings.bOverride_RayTracingReflectionsSamplesPerPixel)
 	, bOverride_RayTracingReflectionsShadows(Settings.bOverride_RayTracingReflectionsShadows)
+	, bOverride_RayTracingReflectionsTranslucency(Settings.bOverride_RayTracingReflectionsTranslucency)
 	, bOverride_TranslucencyType(Settings.bOverride_TranslucencyType)
 	, bOverride_RayTracingTranslucencyMaxRoughness(Settings.bOverride_RayTracingTranslucencyMaxRoughness)
 	, bOverride_RayTracingTranslucencyRefractionRays(Settings.bOverride_RayTracingTranslucencyRefractionRays)
@@ -757,7 +760,6 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, bMobileHQGaussian(Settings.bMobileHQGaussian)
 	, BloomMethod(Settings.BloomMethod)
 	, AutoExposureMethod(Settings.AutoExposureMethod)
-	//, DepthOfFieldMethod_DEPRECATED(Settings.DepthOfFieldMethod_DEPRECATED)
 	, WhiteTemp(Settings.WhiteTemp)
 	, WhiteTint(Settings.WhiteTint)
 	, ColorSaturation(Settings.ColorSaturation)
@@ -919,6 +921,7 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, RayTracingReflectionsMaxBounces(Settings.RayTracingReflectionsMaxBounces)
 	, RayTracingReflectionsSamplesPerPixel(Settings.RayTracingReflectionsSamplesPerPixel)
 	, RayTracingReflectionsShadows(Settings.RayTracingReflectionsShadows)
+	, RayTracingReflectionsTranslucency(Settings.RayTracingReflectionsTranslucency)
 
 	, TranslucencyType(Settings.TranslucencyType)
 	, RayTracingTranslucencyMaxRoughness(Settings.RayTracingTranslucencyMaxRoughness)

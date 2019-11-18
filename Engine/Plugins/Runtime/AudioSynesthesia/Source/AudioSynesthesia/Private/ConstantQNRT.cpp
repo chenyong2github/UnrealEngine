@@ -2,8 +2,10 @@
 
 #include "ConstantQNRT.h"
 #include "ConstantQNRTFactory.h"
+#include "AudioSynesthesiaLog.h"
 #include "InterpolateSorted.h"
 #include "DSP/ConstantQ.h"
+
 
 namespace
 {
@@ -133,7 +135,7 @@ UConstantQNRTSettings::UConstantQNRTSettings()
 {}
 
 /** Convert UConstantQNRTSettings to FConstantQNRTSettings */
-TUniquePtr<Audio::IAnalyzerNRTSettings> UConstantQNRTSettings::GetSettings()
+TUniquePtr<Audio::IAnalyzerNRTSettings> UConstantQNRTSettings::GetSettings(const float InSampleRate, const int32 InNumChannels) const
 {
 	TUniquePtr<Audio::FConstantQNRTSettings> Settings = MakeUnique<Audio::FConstantQNRTSettings>();
 
@@ -163,22 +165,26 @@ UConstantQNRT::UConstantQNRT()
 
 #if WITH_EDITOR
 	// Bind settings to audio analyze so changes to default settings will trigger analysis.
-	Settings->AnalyzeAudioDelegate.BindUObject(this, &UAudioAnalyzerNRT::AnalyzeAudio);
+	SetSettingsDelegate(Settings);
 #endif
 }
 
 
-void UConstantQNRT::GetChannelConstantQAtTime(const float InSeconds, const int32 InChannel, TArray<float>& OutConstantQ)
+void UConstantQNRT::GetChannelConstantQAtTime(const float InSeconds, const int32 InChannel, TArray<float>& OutConstantQ) const
 {
 	OutConstantQ.Reset();
 
-	TSharedPtr<Audio::FConstantQNRTResult, ESPMode::ThreadSafe> ConstantQResult = GetResult<Audio::FConstantQNRTResult>();
+	TSharedPtr<const Audio::FConstantQNRTResult, ESPMode::ThreadSafe> ConstantQResult = GetResult<Audio::FConstantQNRTResult>();
 
 	if (ConstantQResult.IsValid())
 	{
-		if (!ConstantQResult->IsSortedChronologically())
+		// ConstantQResults should always be sorted if in UConstantQNRT
+		check(ConstantQResult->IsSortedChronologically());
+
+		if (!ConstantQResult->ContainsChannel(InChannel))
 		{
-			ConstantQResult->SortChronologically();
+			UE_LOG(LogAudioSynesthesia, Warning, TEXT("ConstantQNRT does not contain channel %d"), InChannel);
+			return;
 		}
 
 		const TArray<Audio::FConstantQFrame>& ConstantQArray = ConstantQResult->GetFramesForChannel(InChannel);
@@ -187,17 +193,21 @@ void UConstantQNRT::GetChannelConstantQAtTime(const float InSeconds, const int32
 	}
 }
 
-void UConstantQNRT::GetNormalizedChannelConstantQAtTime(const float InSeconds, const int32 InChannelIdx, TArray<float>& OutConstantQ)
+void UConstantQNRT::GetNormalizedChannelConstantQAtTime(const float InSeconds, const int32 InChannelIdx, TArray<float>& OutConstantQ) const
 {
 	OutConstantQ.Reset();
 
-	TSharedPtr<Audio::FConstantQNRTResult, ESPMode::ThreadSafe> ConstantQResult = GetResult<Audio::FConstantQNRTResult>();
+	TSharedPtr<const Audio::FConstantQNRTResult, ESPMode::ThreadSafe> ConstantQResult = GetResult<Audio::FConstantQNRTResult>();
 
 	if (ConstantQResult.IsValid())
 	{
-		if (!ConstantQResult->IsSortedChronologically())
+		// ConstantQResults should always be sorted if in UConstantQNRT
+		check(ConstantQResult->IsSortedChronologically());
+
+		if (!ConstantQResult->ContainsChannel(InChannelIdx))
 		{
-			ConstantQResult->SortChronologically();
+			UE_LOG(LogAudioSynesthesia, Warning, TEXT("ConstantQNRT does not contain channel %d"), InChannelIdx);
+			return;
 		}
 
 		const TArray<Audio::FConstantQFrame>& ConstantQArray = ConstantQResult->GetFramesForChannel(InChannelIdx);
@@ -207,7 +217,9 @@ void UConstantQNRT::GetNormalizedChannelConstantQAtTime(const float InSeconds, c
 		// Normalize output by subtracting minimum and dividing by range
 		Audio::ArraySubtractByConstantInPlace(OutConstantQ, Settings->NoiseFloorDb);
 
-		float ConstantQRange = ConstantQResult->GetChannelConstantQRange(InChannelIdx, Settings->NoiseFloorDb);
+		FFloatInterval ConstantQInterval = ConstantQResult->GetChannelConstantQInterval(InChannelIdx);
+
+		const float ConstantQRange = ConstantQInterval.Max - FMath::Max(Settings->NoiseFloorDb, ConstantQInterval.Min);
 
 		if (ConstantQRange > SMALL_NUMBER)
 		{
@@ -219,13 +231,13 @@ void UConstantQNRT::GetNormalizedChannelConstantQAtTime(const float InSeconds, c
 	}
 }
 
-TUniquePtr<Audio::IAnalyzerNRTSettings> UConstantQNRT::GetSettings()
+TUniquePtr<Audio::IAnalyzerNRTSettings> UConstantQNRT::GetSettings(const float InSampleRate, const int32 InNumChannels) const
 {
 	TUniquePtr<Audio::IAnalyzerNRTSettings> AnalyzerSettings;
 
 	if (Settings)
 	{
-		AnalyzerSettings = Settings->GetSettings();	
+		AnalyzerSettings = Settings->GetSettings(InSampleRate, InNumChannels);	
 	}
 
 	return AnalyzerSettings;

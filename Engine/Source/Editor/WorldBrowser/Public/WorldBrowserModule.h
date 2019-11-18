@@ -65,9 +65,11 @@ private:
 
 	bool IsCurrentSublevel(TSharedPtr<class FLevelModel> InLevelModel);
 	void SetCurrentSublevel(TSharedPtr<class FLevelModel> InLevelModel);
-				
+			
+	void ReleaseWorldModel();
+
 private:
-	TWeakPtr<class FLevelCollectionModel>	WorldModel;
+	TSharedPtr<class FLevelCollectionModel> WorldModel;
 
 	/** Extender for the level menu */
 	FLevelEditorModule::FLevelEditorMenuExtender LevelMenuExtender;

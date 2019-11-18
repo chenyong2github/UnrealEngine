@@ -58,8 +58,8 @@ ENGINE_API TAutoConsoleVariable<int32> CVarReflectionCaptureSize(
 	TEXT("Set the resolution for all reflection capture cubemaps. Should be set via project's Render Settings. Must be power of 2. Defaults to 128.\n")
 	);
 
-TAutoConsoleVariable<int32> CVarUpdateReflectionCaptureEveryFrame(
-	TEXT("r.UpdateReflectionCaptureEveryFrame"),
+TAutoConsoleVariable<int32> CVarReflectionCaptureUpdateEveryFrame(
+	TEXT("r.ReflectionCaptureUpdateEveryFrame"),
 	0,
 	TEXT("When set, reflection captures will constantly be scheduled for update.\n")
 );
@@ -1056,7 +1056,7 @@ void UReflectionCaptureComponent::UpdateReflectionCaptureContents(UWorld* WorldT
 		//guarantee that all render proxies are up to date before kicking off this render
 		WorldToUpdate->SendAllEndOfFrameUpdates();
 
-		if (CVarUpdateReflectionCaptureEveryFrame.GetValueOnGameThread())
+		if (CVarReflectionCaptureUpdateEveryFrame.GetValueOnGameThread())
 		{
 			for (FActorIterator It(WorldToUpdate); It; ++It)
 			{
@@ -1284,7 +1284,6 @@ void FReflectionCaptureProxy::SetTransform(const FMatrix& InTransform)
 
 void FReflectionCaptureProxy::UpdateMobileUniformBuffer()
 {
-	float InvBrightness = FMath::Max(FMath::Min(1.0f / EncodedHDRAverageBrightness, 65504.f), -65504.f);
 	FTexture* CaptureTexture = GBlackTextureCube;
 	if (EncodedHDRCubemap)
 	{
@@ -1293,7 +1292,8 @@ void FReflectionCaptureProxy::UpdateMobileUniformBuffer()
 	}
 		
 	FMobileReflectionCaptureShaderParameters Parameters;
-	Parameters.Params = FVector4(InvBrightness, 0.f, 0.f, 0.f);
+	//To keep ImageBasedReflectionLighting coherence with PC, use AverageBrightness instead of InvAverageBrightness to calculate the IBL contribution
+	Parameters.Params = FVector4(EncodedHDRAverageBrightness, 0.f, 0.f, 0.f);
 	Parameters.Texture = CaptureTexture->TextureRHI;
 	Parameters.TextureSampler = CaptureTexture->SamplerStateRHI;
 

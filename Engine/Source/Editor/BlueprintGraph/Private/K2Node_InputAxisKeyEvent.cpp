@@ -67,6 +67,10 @@ void UK2Node_InputAxisKeyEvent::ValidateNodeDuringCompilation(class FCompilerRes
 	{
 		MessageLog.Warning(*FText::Format(NSLOCTEXT("KismetCompiler", "NotAxis_InputAxisKey_Warning", "InputAxisKey Event specifies FKey'{0}' which is not a float axis for @@"), FText::FromString(AxisKey.ToString())).ToString(), this);
 	}
+	else if (AxisKey.IsDeprecated())
+	{
+		MessageLog.Warning(*FText::Format(NSLOCTEXT("KismetCompiler", "Deprecated_InputAxisKey_Warning", "InputAxisKey Event specifies FKey'{0}' which has been deprecated for @@"), FText::FromString(AxisKey.ToString())).ToString(), this);
+	}
 	else if (!AxisKey.IsBindableInBlueprints())
 	{
 		MessageLog.Warning(*FText::Format(NSLOCTEXT("KismetCompiler", "NotBindable_InputAxisKey_Warning", "InputAxisKey Event specifies FKey'{0}' that is not blueprint bindable for @@"), FText::FromString(AxisKey.ToString())).ToString(), this);

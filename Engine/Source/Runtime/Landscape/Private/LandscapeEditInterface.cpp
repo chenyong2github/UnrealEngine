@@ -1898,7 +1898,7 @@ void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLands
 				continue;
 			}
 			FWeightmapLayerAllocationInfo& Allocation = ComponentWeightmapLayerAllocations[LayerIdx];
-			if (Allocation.LayerInfo->bNoWeightBlend)
+			if ((Allocation.LayerInfo == nullptr) || Allocation.LayerInfo->bNoWeightBlend)
 			{
 				continue;
 			}
@@ -4389,28 +4389,59 @@ void FLandscapeTextureDataInterface::CopyTextureFromHeightmap(UTexture2D* Dest, 
 	}
 }
 
+void FLandscapeTextureDataInterface::CopyTextureFromHeightmap(UTexture2D* Dest, ULandscapeComponent* Comp, int32 MipIndex)
+{
+	FLandscapeTextureDataInfo* DestDataInfo = GetTextureDataInfo(Dest);
+	const int32 MipSize = DestDataInfo->GetMipSizeX(MipIndex);
+	check(MipSize == DestDataInfo->GetMipSizeY(MipIndex));
+	
+	const bool bEditingLayer = false;
+	FLandscapeComponentDataInterface DataInterface(Comp, MipIndex, bEditingLayer);
+	
+	FColor* DestTextureData = (FColor*)DestDataInfo->GetMipData(MipIndex);
+	FColor* SrcTextureData = DataInterface.GetRawHeightData();
+
+	int32 MipSizeSquare = FMath::Square(MipSize);
+	check(MipSizeSquare == DataInterface.GetHeightmapSizeX(MipIndex)*DataInterface.GetHeightmapSizeY(MipIndex));
+
+	FMemory::Memcpy(DestTextureData, SrcTextureData, MipSizeSquare*sizeof(FColor));
+	DestDataInfo->AddMipUpdateRegion(MipIndex, 0, 0, MipSize - 1, MipSize - 1);
+}
+
 void FLandscapeTextureDataInterface::CopyTextureFromWeightmap(UTexture2D* Dest, int32 DestChannel, ULandscapeComponent* Comp, ULandscapeLayerInfoObject* LayerInfo)
 {
 	FLandscapeTextureDataInfo* DestDataInfo = GetTextureDataInfo(Dest);
-	int32 MipSize = Dest->Source.GetSizeX();
-	check(Dest->Source.GetSizeX() == Dest->Source.GetSizeY());
-
 	for (int32 MipIdx = 0; MipIdx < DestDataInfo->NumMips(); MipIdx++)
 	{
-		FLandscapeComponentDataInterface DataInterface(Comp, MipIdx);
-		TArray<uint8> WeightData;
-		DataInterface.GetWeightmapTextureData(LayerInfo, WeightData);
-
-		uint8* DestTextureData = (uint8*)DestDataInfo->GetMipData(MipIdx) + ChannelOffsets[DestChannel];
-
-		for (int32 i = 0; i < FMath::Square(MipSize); i++)
-		{
-			DestTextureData[i * 4] = WeightData[i];
-		}
-
-		DestDataInfo->AddMipUpdateRegion(MipIdx, 0, 0, MipSize - 1, MipSize - 1);
-		MipSize >>= 1;
+		CopyTextureFromWeightmap(DestDataInfo, DestChannel, Comp, LayerInfo, MipIdx);
 	}
+}
+
+void FLandscapeTextureDataInterface::CopyTextureFromWeightmap(UTexture2D* Dest, int32 DestChannel, ULandscapeComponent* Comp, ULandscapeLayerInfoObject* LayerInfo, int32 MipIndex)
+{
+	FLandscapeTextureDataInfo* DestDataInfo = GetTextureDataInfo(Dest);
+	CopyTextureFromWeightmap(DestDataInfo, DestChannel, Comp, LayerInfo, MipIndex);
+}
+
+void FLandscapeTextureDataInterface::CopyTextureFromWeightmap(FLandscapeTextureDataInfo* DestDataInfo, int32 DestChannel, ULandscapeComponent* Comp, ULandscapeLayerInfoObject* LayerInfo, int32 MipIndex)
+{
+	const int32 MipSize = DestDataInfo->GetMipSizeX(MipIndex);
+	check(MipSize == DestDataInfo->GetMipSizeY(MipIndex));
+
+	const bool bEditingLayer = false;
+	FLandscapeComponentDataInterface DataInterface(Comp, MipIndex, bEditingLayer);
+	TArray<uint8> WeightData;
+	DataInterface.GetWeightmapTextureData(LayerInfo, WeightData, bEditingLayer);
+	int32 MipSizeSquare = FMath::Square(MipSize);
+	check(WeightData.Num() == MipSizeSquare);
+	
+	uint8* DestTextureData = (uint8*)DestDataInfo->GetMipData(MipIndex) + ChannelOffsets[DestChannel];
+	for (int32 i = 0; i < MipSizeSquare; i++)
+	{
+		DestTextureData[i * 4] = WeightData[i];
+	}
+
+	DestDataInfo->AddMipUpdateRegion(MipIndex, 0, 0, MipSize - 1, MipSize - 1);
 }
 
 void FLandscapeTextureDataInterface::ZeroTextureChannel(UTexture2D* Dest, int32 DestChannel)

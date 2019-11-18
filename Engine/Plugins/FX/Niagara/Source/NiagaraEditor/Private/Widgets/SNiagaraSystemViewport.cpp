@@ -47,6 +47,7 @@ public:
 	virtual void SetIsSimulateInEditorViewport(bool bInIsSimulateInEditorViewport)override;
 
 	void DrawInstructionCounts(UNiagaraSystem* ParticleSystem, FCanvas* Canvas, float& CurrentX, float& CurrentY, UFont* Font, const float FontHeight);
+	void DrawParticleCounts(UNiagaraComponent* Component, FCanvas* Canvas, float& CurrentX, float& CurrentY, UFont* Font, const float FontHeight);
 
 	TWeakPtr<SNiagaraSystemViewport> NiagaraViewportPtr;
 	bool bCaptureScreenShot;
@@ -101,6 +102,7 @@ void FNiagaraSystemViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 {
 	TSharedPtr<SNiagaraSystemViewport> NiagaraViewport = NiagaraViewportPtr.Pin();
 	UNiagaraSystem* ParticleSystem = NiagaraViewport.IsValid() ? NiagaraViewport->GetPreviewComponent()->GetAsset() : nullptr;
+	UNiagaraComponent* Component = NiagaraViewport.IsValid() ? NiagaraViewport->GetPreviewComponent() : nullptr;
 
 	if (NiagaraViewport.IsValid() && NiagaraViewport->GetDrawElement(SNiagaraSystemViewport::EDrawElements::Bounds))
 	{
@@ -122,9 +124,14 @@ void FNiagaraSystemViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 		UFont* Font = GEngine->GetSmallFont();
 		const float FontHeight = Font->GetMaxCharHeight() * 1.1f;
 
-		if ( NiagaraViewport->GetDrawElement(SNiagaraSystemViewport::EDrawElements::InstructionCounts) )
+		if (NiagaraViewport->GetDrawElement(SNiagaraSystemViewport::EDrawElements::InstructionCounts) && ParticleSystem)
 		{
 			DrawInstructionCounts(ParticleSystem, Canvas, CurrentX, CurrentY, Font, FontHeight);
+			CurrentY += FontHeight;
+		}
+		if (NiagaraViewport->GetDrawElement(SNiagaraSystemViewport::EDrawElements::ParticleCounts) && Component)
+		{
+			DrawParticleCounts(Component, Canvas, CurrentX, CurrentY, Font, FontHeight);
 		}
 	}
 
@@ -200,6 +207,31 @@ void FNiagaraSystemViewportClient::DrawInstructionCounts(UNiagaraSystem* Particl
 				CurrentY += FontHeight;
 			}
 		}
+	}
+}
+
+void FNiagaraSystemViewportClient::DrawParticleCounts(UNiagaraComponent* Component, FCanvas* Canvas, float& CurrentX, float& CurrentY, UFont* Font, const float FontHeight)
+{
+	FCanvasTextItem TextItem(FVector2D(CurrentX, CurrentY), FText::FromString(TEXT("Particle Counts")), Font, FLinearColor::White);
+	TextItem.EnableShadow(FLinearColor::Black);
+	TextItem.Draw(Canvas);
+	CurrentY += FontHeight;
+
+	FNiagaraSystemInstance* SystemInstance = Component->GetSystemInstance();
+	if (!SystemInstance)
+	{
+		return;
+	}
+
+	for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> EmitterInstance : SystemInstance->GetEmitters())
+	{
+		FName EmitterName = EmitterInstance->GetEmitterHandle().GetName();
+		int32 CurrentCount = EmitterInstance->GetNumParticles();
+		int32 MaxCount = EmitterInstance->GetEmitterHandle().GetInstance()->GetMaxParticleCountEstimate();
+		TextItem.Text = FText::FromString(FString::Printf(TEXT("%i Current, %i Max (est.) - [%s]"), CurrentCount, MaxCount, *EmitterName.ToString()));
+		TextItem.Position = FVector2D(CurrentX, CurrentY);
+		TextItem.Draw(Canvas);
+		CurrentY += FontHeight;
 	}
 }
 
@@ -385,6 +417,13 @@ void SNiagaraSystemViewport::BindCommands()
 		FExecuteAction::CreateLambda([Viewport=this]() { Viewport->ToggleDrawElement(EDrawElements::InstructionCounts); Viewport->RefreshViewport(); }),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateLambda([Viewport=this]() -> bool { return Viewport->GetDrawElement(EDrawElements::InstructionCounts); })
+	);
+
+	CommandList->MapAction(
+		Commands.ToggleParticleCounts,
+		FExecuteAction::CreateLambda([Viewport = this]() { Viewport->ToggleDrawElement(EDrawElements::ParticleCounts); Viewport->RefreshViewport(); }),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([Viewport = this]() -> bool { return Viewport->GetDrawElement(EDrawElements::ParticleCounts); })
 	);
 
 	CommandList->MapAction(

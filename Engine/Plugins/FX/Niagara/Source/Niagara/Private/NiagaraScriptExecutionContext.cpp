@@ -49,15 +49,14 @@ bool FNiagaraScriptExecutionContext::Init(UNiagaraScript* InScript, ENiagaraSimT
 
 bool FNiagaraScriptExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemInstance, ENiagaraSimTarget SimTarget)
 {
-	SCOPE_CYCLE_COUNTER(STAT_NiagaraScriptExecContextTick);
-
-	if (Script && Script->IsReadyToRun(ENiagaraSimTarget::CPUSim))//TODO: Remove. Script can only be null for system instances that currently don't have their script exec context set up correctly.
+	//Bind data interfaces if needed.
+	if (Parameters.GetInterfacesDirty())
 	{
-		const TArray<UNiagaraDataInterface*>& DataInterfaces = GetDataInterfaces();
-		
-		//Bind data interfaces if needed.
-		if (Parameters.GetInterfacesDirty())
+		SCOPE_CYCLE_COUNTER(STAT_NiagaraScriptExecContextTick);
+		if (Script && Script->IsReadyToRun(ENiagaraSimTarget::CPUSim))//TODO: Remove. Script can only be null for system instances that currently don't have their script exec context set up correctly.
 		{
+			const TArray<UNiagaraDataInterface*>& DataInterfaces = GetDataInterfaces();
+
 			SCOPE_CYCLE_COUNTER(STAT_NiagaraRebindDataInterfaceFunctionTable);
 			// UE_LOG(LogNiagara, Log, TEXT("Updating data interfaces for script %s"), *Script->GetFullName());
 
@@ -189,6 +188,7 @@ bool FNiagaraScriptExecutionContext::Execute(uint32 NumInstances)
 		const FNiagaraVMExecutableData& ExecData = Script->GetVMExecutableData();
 		VectorVM::Exec(
 			ExecData.ByteCode.GetData(),
+			ExecData.OptimizedByteCode.Num() > 0 ? ExecData.OptimizedByteCode.GetData() : nullptr,
 			ExecData.NumTempRegisters,
 			Parameters.GetParameterDataArray().GetData(),
 			DataSetMetaTable,
@@ -426,13 +426,14 @@ void FNiagaraComputeExecutionContext::Reset(NiagaraEmitterInstanceBatcher* Batch
 	);
 }
 
-void FNiagaraComputeExecutionContext::InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const FString& InDebugSimName, const int32 InMaxUpdateIterations, const TSet<uint32> InSpawnStages)
+void FNiagaraComputeExecutionContext::InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const FString& InDebugSimName, const uint32 InDefaultShaderStageIndex, const int32 InMaxUpdateIterations, const TSet<uint32> InSpawnStages)
 {
 #if !UE_BUILD_SHIPPING
 	DebugSimName = InDebugSimName;
 #endif
 	GPUScript = InGPUComputeScript;
 	CombinedParamStore.InitFromOwningContext(InGPUComputeScript, InSimTarget, true);
+	DefaultShaderStageIndex = InDefaultShaderStageIndex;
 	MaxUpdateIterations = InMaxUpdateIterations;
 	SpawnStages.Empty();
 

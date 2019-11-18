@@ -36,7 +36,7 @@ public:
 	FClothConfig ClothConfig_DEPRECATED;
 
 	/** 
-	 * Deprecasted property for transitioning \c FClothLODData struct to the 
+	 * Deprecated property for transitioning \c FClothLODData struct to the 
 	 * \c UClothLODDataNv class, in a new property called \c ClothLodData.
 	 */
 	UPROPERTY()

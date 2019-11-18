@@ -28,6 +28,8 @@
 #include "SBlueprintEditorSelectedDebugObjectWidget.h"
 #include "DesktopPlatformModule.h"
 #include "SBlueprintRevisionMenu.h"
+#include "ToolMenus.h"
+#include "BlueprintEditorContext.h"
 #include "ISourceCodeAccessor.h"
 #include "ISourceCodeAccessModule.h"
 
@@ -397,222 +399,151 @@ static void BlueprintEditorToolbarImpl::MakeCompileDeveloperSubMenu(FMenuBuilder
 //////////////////////////////////////////////////////////////////////////
 // FBlueprintEditorToolbar
 
-void FBlueprintEditorToolbar::AddBlueprintEditorModesToolbar(TSharedPtr<FExtender> Extender)
+void FBlueprintEditorToolbar::AddBlueprintGlobalOptionsToolbar(UToolMenu* InMenu)
 {
-	
-}
+	FToolMenuSection& Section = InMenu->AddSection("Settings");
+	Section.InsertPosition = FToolMenuInsert("Asset", EToolMenuInsertType::After);
 
-void FBlueprintEditorToolbar::AddBlueprintGlobalOptionsToolbar(TSharedPtr<FExtender> Extender)
-{
-	TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = BlueprintEditor.Pin();
-
-	Extender->AddToolBarExtension(
-		"Asset",
-		EExtensionHook::After,
-		BlueprintEditorPtr->GetToolkitCommands(),
-		FToolBarExtensionDelegate::CreateSP( this, &FBlueprintEditorToolbar::FillBlueprintGlobalOptionsToolbar ) );
-}
-
-void FBlueprintEditorToolbar::AddCompileToolbar(TSharedPtr<FExtender> Extender)
-{
-	TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = BlueprintEditor.Pin();
-
-	Extender->AddToolBarExtension(
-		"Asset",
-		EExtensionHook::Before,
-		BlueprintEditorPtr->GetToolkitCommands(),
-		FToolBarExtensionDelegate::CreateSP( this, &FBlueprintEditorToolbar::FillCompileToolbar ) );
-}
-
-void FBlueprintEditorToolbar::AddNewToolbar(TSharedPtr<FExtender> Extender)
-{
-	TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = BlueprintEditor.Pin();
-
-	Extender->AddToolBarExtension(
-		"MyBlueprint",
-		EExtensionHook::After,
-		BlueprintEditorPtr->GetToolkitCommands(),
-		FToolBarExtensionDelegate::CreateSP( this, &FBlueprintEditorToolbar::FillNewToolbar ) );
-}
-
-void FBlueprintEditorToolbar::AddScriptingToolbar(TSharedPtr<FExtender> Extender)
-{
-	TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = BlueprintEditor.Pin();
-
-	Extender->AddToolBarExtension(
-		"Asset",
-		EExtensionHook::After,
-		BlueprintEditorPtr->GetToolkitCommands(),
-		FToolBarExtensionDelegate::CreateSP( this, &FBlueprintEditorToolbar::FillScriptingToolbar ) );
-}
-
-void FBlueprintEditorToolbar::AddDebuggingToolbar(TSharedPtr<FExtender> Extender)
-{
-	TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = BlueprintEditor.Pin();
-
-	Extender->AddToolBarExtension(
-		"Asset",
-		EExtensionHook::After,
-		BlueprintEditorPtr->GetToolkitCommands(),
-		FToolBarExtensionDelegate::CreateSP( this, &FBlueprintEditorToolbar::FillDebuggingToolbar ) );
-}
-
-void FBlueprintEditorToolbar::AddComponentsToolbar(TSharedPtr<FExtender> Extender)
-{
-	TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = BlueprintEditor.Pin();
-
-	Extender->AddToolBarExtension(
-		"Asset",
-		EExtensionHook::After,
-		BlueprintEditorPtr->GetToolkitCommands(),
-		FToolBarExtensionDelegate::CreateSP( this, &FBlueprintEditorToolbar::FillComponentsToolbar ) );
-}
-
-void FBlueprintEditorToolbar::FillBlueprintEditorModesToolbar(FToolBarBuilder& ToolbarBuilder)
-{
-	TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = BlueprintEditor.Pin();
-	UBlueprint* BlueprintObj = BlueprintEditorPtr->GetBlueprintObj();
-
-	TAttribute<FName> GetActiveMode(BlueprintEditorPtr.ToSharedRef(), &FBlueprintEditor::GetCurrentMode);
-	FOnModeChangeRequested SetActiveMode = FOnModeChangeRequested::CreateSP(BlueprintEditorPtr.ToSharedRef(), &FBlueprintEditor::SetCurrentMode);
-
-	TArray< TSharedPtr< SWidget > > ToolbarWidgets = GenerateToolbarWidgets( BlueprintObj, GetActiveMode, SetActiveMode );
-	
-	for( const auto& Widget : ToolbarWidgets )
+	Section.AddDynamicEntry("BlueprintGlobalOptions", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 	{
-		BlueprintEditorPtr->AddToolbarWidget( Widget.ToSharedRef() );
-	}
-}
-
-void FBlueprintEditorToolbar::FillBlueprintGlobalOptionsToolbar(FToolBarBuilder& ToolbarBuilder)
-{
-	const FFullBlueprintEditorCommands& Commands = FFullBlueprintEditorCommands::Get();
-	TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = BlueprintEditor.Pin();
-	UBlueprint* BlueprintObj = BlueprintEditorPtr->GetBlueprintObj();
-	
-	ToolbarBuilder.BeginSection("Settings");
-	
-	if(BlueprintObj != NULL)
-	{
-		ToolbarBuilder.AddToolBarButton(Commands.EditGlobalOptions);
-		ToolbarBuilder.AddToolBarButton(Commands.EditClassDefaults);
-	}
-	
-	ToolbarBuilder.EndSection();
-}
-
-void FBlueprintEditorToolbar::FillCompileToolbar(FToolBarBuilder& ToolbarBuilder)
-{
-	const FFullBlueprintEditorCommands& Commands = FFullBlueprintEditorCommands::Get();
-	TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = BlueprintEditor.Pin();
-	UBlueprint* BlueprintObj = BlueprintEditorPtr->GetBlueprintObj();
-
-	ToolbarBuilder.BeginSection("Compile");
-	if (BlueprintObj != NULL)
-	{
-		ToolbarBuilder.AddToolBarButton( Commands.Compile,
-									 NAME_None, 
-									 TAttribute<FText>(),
-									 TAttribute<FText>(this, &FBlueprintEditorToolbar::GetStatusTooltip),
-									 TAttribute<FSlateIcon>(this, &FBlueprintEditorToolbar::GetStatusImage),
-									 FName(TEXT("CompileBlueprint")));
-
-		FUIAction TempCompileOptionsCommand;
-		ToolbarBuilder.AddComboButton(
-			TempCompileOptionsCommand,
-			FOnGetContent::CreateStatic(&BlueprintEditorToolbarImpl::GenerateCompileOptionsWidget, BlueprintEditorPtr->GetToolkitCommands()),
-			LOCTEXT("BlupeintCompileOptions_ToolbarName",    "Compile Options"),
-			LOCTEXT("BlupeintCompileOptions_ToolbarTooltip", "Options to customize how Blueprints compile"),
-			TAttribute<FSlateIcon>(),
-			/*bSimpleComboBox =*/true
-		);
-	}
-	ToolbarBuilder.EndSection();
-}
-
-void FBlueprintEditorToolbar::FillNewToolbar(FToolBarBuilder& ToolbarBuilder)
-{
-	const FBlueprintEditorCommands& Commands = FBlueprintEditorCommands::Get();
-
-	TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = BlueprintEditor.Pin();
-	UBlueprint* BlueprintObj = BlueprintEditorPtr->GetBlueprintObj();
-
-	ToolbarBuilder.BeginSection("AddNew");
-	if (BlueprintObj != NULL)
-	{
-		ToolbarBuilder.AddToolBarButton(Commands.AddNewVariable, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("BPEAddNewVariable")));
-		ToolbarBuilder.AddToolBarButton(Commands.AddNewFunction, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("BPEAddNewFunction")));
-		ToolbarBuilder.AddToolBarButton(Commands.AddNewMacroDeclaration, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("BPEAddNewMacro")));
-		// Add New Animation Graph isn't supported right now.
-		ToolbarBuilder.AddToolBarButton(Commands.AddNewEventGraph, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("BPEAddNewEventGraph")));
-		ToolbarBuilder.AddToolBarButton(Commands.AddNewDelegate, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("BPEAddNewDelegate")));
-	}
-	ToolbarBuilder.EndSection();
-}
-
-void FBlueprintEditorToolbar::FillScriptingToolbar(FToolBarBuilder& ToolbarBuilder)
-{
-	const FBlueprintEditorCommands& Commands = FBlueprintEditorCommands::Get();
-
-	TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = BlueprintEditor.Pin();
-	UBlueprint* BlueprintObj = BlueprintEditorPtr->GetBlueprintObj();
-
-	ToolbarBuilder.BeginSection("Script");
-
-	ToolbarBuilder.AddToolBarButton(FBlueprintEditorCommands::Get().FindInBlueprint);
-
-	ToolbarBuilder.AddToolBarButton(
-		FBlueprintEditorCommands::Get().ToggleHideUnrelatedNodes,
-		NAME_None,
-		TAttribute<FText>(),
-		TAttribute<FText>(),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.ToggleHideUnrelatedNodes")
-	);
-	ToolbarBuilder.AddComboButton(
-		FUIAction(),
-		FOnGetContent::CreateSP(BlueprintEditorPtr.Get(), &FBlueprintEditor::MakeHideUnrelatedNodesOptionsMenu),
-		LOCTEXT("HideUnrelatedNodesOptions", "Focus Related Nodes Options"),
-		LOCTEXT("HideUnrelatedNodesOptionsMenu", "Focus Related Nodes options menu"),
-		TAttribute<FSlateIcon>(),
-		true
-	);
-
-	ToolbarBuilder.EndSection();
-}
-
-void FBlueprintEditorToolbar::FillDebuggingToolbar(FToolBarBuilder& ToolbarBuilder)
-{
-	TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = BlueprintEditor.Pin();
-	UBlueprint* BlueprintObj = BlueprintEditorPtr->GetBlueprintObj();
-
-	ToolbarBuilder.BeginSection("Debugging");
-	if (BlueprintObj)
-	{
-		FPlayWorldCommands::BuildToolbar(ToolbarBuilder);
-
-		if (BlueprintObj->BlueprintType != BPTYPE_MacroLibrary)
+		UBlueprintEditorToolMenuContext* Context = InSection.FindContext<UBlueprintEditorToolMenuContext>();
+		if (Context && Context->GetBlueprintObj())
 		{
-			// Selected debug actor button
-			ToolbarBuilder.AddWidget(SNew(SBlueprintEditorSelectedDebugObjectWidget, BlueprintEditorPtr));
+			const FFullBlueprintEditorCommands& Commands = FFullBlueprintEditorCommands::Get();
+			InSection.AddEntry(FToolMenuEntry::InitToolBarButton(Commands.EditGlobalOptions));
+			InSection.AddEntry(FToolMenuEntry::InitToolBarButton(Commands.EditClassDefaults));
 		}
-	}
-	ToolbarBuilder.EndSection();
+	}));
 }
 
-void FBlueprintEditorToolbar::FillComponentsToolbar(FToolBarBuilder& ToolbarBuilder)
+void FBlueprintEditorToolbar::AddCompileToolbar(UToolMenu* InMenu)
 {
-	TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = BlueprintEditor.Pin();
-	UBlueprint* BlueprintObj = BlueprintEditorPtr->GetBlueprintObj();
+	FToolMenuSection& Section = InMenu->AddSection("Compile");
+	Section.InsertPosition = FToolMenuInsert("Asset", EToolMenuInsertType::Before);
+
+	Section.AddDynamicEntry("CompileCommands", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+	{
+		UBlueprintEditorToolMenuContext* Context = InSection.FindContext<UBlueprintEditorToolMenuContext>();
+		if (Context && Context->BlueprintEditor.IsValid() && Context->GetBlueprintObj())
+		{
+			TSharedPtr<class FBlueprintEditorToolbar> BlueprintEditorToolbar = Context->BlueprintEditor.Pin()->GetToolbarBuilder();
+			if (BlueprintEditorToolbar.IsValid())
+			{
+				const FFullBlueprintEditorCommands& Commands = FFullBlueprintEditorCommands::Get();
+
+				InSection.AddEntry(FToolMenuEntry::InitToolBarButton(
+					Commands.Compile,
+					TAttribute<FText>(),
+					TAttribute<FText>(BlueprintEditorToolbar.ToSharedRef(), &FBlueprintEditorToolbar::GetStatusTooltip),
+					TAttribute<FSlateIcon>(BlueprintEditorToolbar.ToSharedRef(), &FBlueprintEditorToolbar::GetStatusImage),
+					"CompileBlueprint"
+				));
+
+				InSection.AddEntry(FToolMenuEntry::InitComboButton(
+					"BlueprintCompileOptions",
+					FUIAction(),
+					FOnGetContent::CreateStatic(&BlueprintEditorToolbarImpl::GenerateCompileOptionsWidget, Context->BlueprintEditor.Pin()->GetToolkitCommands()),
+					LOCTEXT("BlupeintCompileOptions_ToolbarName",    "Compile Options"),
+					LOCTEXT("BlupeintCompileOptions_ToolbarTooltip", "Options to customize how Blueprints compile"),
+					TAttribute<FSlateIcon>(),
+					/*bSimpleComboBox =*/true
+				));
+			}
+		}
+	}));
+}
+
+void FBlueprintEditorToolbar::AddNewToolbar(UToolMenu* InMenu)
+{
+	FToolMenuSection& Section = InMenu->AddSection("Add");
+	Section.InsertPosition = FToolMenuInsert("MyBlueprint", EToolMenuInsertType::After);
+
+	Section.AddDynamicEntry("AddCommands", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+	{
+		UBlueprintEditorToolMenuContext* Context = InSection.FindContext<UBlueprintEditorToolMenuContext>();
+		if (Context && Context->BlueprintEditor.IsValid() && Context->GetBlueprintObj())
+		{
+			const FBlueprintEditorCommands& Commands = FBlueprintEditorCommands::Get();
+			InSection.AddEntry(FToolMenuEntry::InitToolBarButton(Commands.AddNewVariable, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("BPEAddNewVariable"))));
+			InSection.AddEntry(FToolMenuEntry::InitToolBarButton(Commands.AddNewFunction, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("BPEAddNewFunction"))));
+			InSection.AddEntry(FToolMenuEntry::InitToolBarButton(Commands.AddNewMacroDeclaration, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("BPEAddNewMacro"))));
+			// Add New Animation Graph isn't supported right now.
+			InSection.AddEntry(FToolMenuEntry::InitToolBarButton(Commands.AddNewEventGraph, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("BPEAddNewEventGraph"))));
+			InSection.AddEntry(FToolMenuEntry::InitToolBarButton(Commands.AddNewDelegate, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("BPEAddNewDelegate"))));
+		}
+	}));
+}
+
+void FBlueprintEditorToolbar::AddScriptingToolbar(UToolMenu* InMenu)
+{
+	FToolMenuSection& Section = InMenu->AddSection("Script");
+	Section.InsertPosition = FToolMenuInsert("Asset", EToolMenuInsertType::After);
+
+	Section.AddDynamicEntry("ScriptCommands", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+	{
+		UBlueprintEditorToolMenuContext* Context = InSection.FindContext<UBlueprintEditorToolMenuContext>();
+		if (Context && Context->BlueprintEditor.IsValid() && Context->GetBlueprintObj())
+		{
+			InSection.AddEntry(FToolMenuEntry::InitToolBarButton(FBlueprintEditorCommands::Get().FindInBlueprint));
+
+			InSection.AddEntry(FToolMenuEntry::InitToolBarButton(
+				FBlueprintEditorCommands::Get().ToggleHideUnrelatedNodes,
+				TAttribute<FText>(),
+				TAttribute<FText>(),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.ToggleHideUnrelatedNodes")
+			));
+
+			InSection.AddEntry(FToolMenuEntry::InitComboButton(
+				"HideUnrelatedNodesOptions",
+				FUIAction(),
+				FOnGetContent::CreateSP(Context->BlueprintEditor.Pin().Get(), &FBlueprintEditor::MakeHideUnrelatedNodesOptionsMenu),
+				LOCTEXT("HideUnrelatedNodesOptions", "Focus Related Nodes Options"),
+				LOCTEXT("HideUnrelatedNodesOptionsMenu", "Focus Related Nodes options menu"),
+				TAttribute<FSlateIcon>(),
+				true
+			));
+		}
+	}));
+}
+
+void FBlueprintEditorToolbar::AddDebuggingToolbar(UToolMenu* InMenu)
+{
+	FToolMenuSection& Section = InMenu->AddSection("Debugging");
+	Section.InsertPosition = FToolMenuInsert("Asset", EToolMenuInsertType::After);
+
+	Section.AddDynamicEntry("DebuggingCommands", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+	{
+		UBlueprintEditorToolMenuContext* Context = InSection.FindContext<UBlueprintEditorToolMenuContext>();
+		if (Context && Context->BlueprintEditor.IsValid() && Context->GetBlueprintObj())
+		{
+			FPlayWorldCommands::BuildToolbar(InSection);
+
+			if (Context->GetBlueprintObj()->BlueprintType != BPTYPE_MacroLibrary)
+			{
+				// Selected debug actor button
+				InSection.AddEntry(FToolMenuEntry::InitWidget("SelectedDebugObjectWidget", SNew(SBlueprintEditorSelectedDebugObjectWidget, Context->BlueprintEditor.Pin()), FText::GetEmpty()));
+			}
+		}
+	}));
+}
+
+void FBlueprintEditorToolbar::AddComponentsToolbar(UToolMenu* InMenu)
+{
+	FToolMenuInsert InsertPosition("Asset", EToolMenuInsertType::After);
 
 #if 0 // restore this if we ever need the ability to toggle component editing on/off
-	ToolbarBuilder.BeginSection("Components");
-		ToolbarBuilder.AddToolBarButton(FSCSCommands::Get().ToggleComponentEditing);
-	ToolbarBuilder.EndSection();
+	{
+		FToolMenuSection& Section = InMenu->AddSection("Components");
+		Section.InsertPosition = InsertPosition;
+		Section.AddEntry(FToolMenuEntry::InitToolBarButton(FSCSCommands::Get().ToggleComponentEditing));
+	}
 #endif
 
-	ToolbarBuilder.BeginSection("ComponentsViewport");
-		ToolbarBuilder.AddToolBarButton(FBlueprintEditorCommands::Get().EnableSimulation);
-	ToolbarBuilder.EndSection();
+	{
+		FToolMenuSection& Section = InMenu->AddSection("ComponentsViewport");
+		Section.InsertPosition = InsertPosition;
+		Section.AddEntry(FToolMenuEntry::InitToolBarButton(FBlueprintEditorCommands::Get().EnableSimulation));
+	}
 }
 
 FSlateIcon FBlueprintEditorToolbar::GetStatusImage() const
@@ -666,74 +597,6 @@ FText FBlueprintEditorToolbar::GetStatusTooltip() const
 	case BS_UpToDateWithWarnings:
 		return LOCTEXT("GoodToGoWarning_Status", "There was a warning during compilation, see the log for details");
 	}
-}
-
-TArray< TSharedPtr< SWidget> > FBlueprintEditorToolbar::GenerateToolbarWidgets(const UBlueprint* BlueprintObj, TAttribute<FName> ActiveModeGetter, FOnModeChangeRequested ActiveModeSetter)
-{
-	TArray< TSharedPtr< SWidget> > Ret;
-	if (!BlueprintObj ||
-		(!FBlueprintEditorUtils::IsLevelScriptBlueprint(BlueprintObj)
-		&& !FBlueprintEditorUtils::IsInterfaceBlueprint(BlueprintObj)
-		&& !BlueprintObj->bIsNewlyCreated)
-		)
-	{
-		// Left side padding
-		Ret.Add(SNew(SSpacer).Size(FVector2D(4.0f, 1.0f)));
-
-		Ret.Add(
-			SNew(SModeWidget, FBlueprintEditorApplicationModes::GetLocalizedMode(FBlueprintEditorApplicationModes::BlueprintDefaultsMode), FBlueprintEditorApplicationModes::BlueprintDefaultsMode)
-			.OnGetActiveMode(ActiveModeGetter)
-			.OnSetActiveMode(ActiveModeSetter)
-			.CanBeSelected(BlueprintObj ? FBlueprintEditorUtils::DoesSupportDefaults(BlueprintObj) : false)
-			.ToolTip(IDocumentation::Get()->CreateToolTip(
-				LOCTEXT("BlueprintDefaultsModeButtonTooltip", "Switch to Class Defaults Mode"),
-				NULL,
-				TEXT("Shared/Editors/BlueprintEditor"),
-				TEXT("DefaultsMode")))
-			.IconImage(FEditorStyle::GetBrush("FullBlueprintEditor.SwitchToBlueprintDefaultsMode"))
-			.SmallIconImage(FEditorStyle::GetBrush("FullBlueprintEditor.SwitchToBlueprintDefaultsMode.Small"))
-			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("DefaultsMode")))
-		);
-
-		Ret.Add(SNew(SBlueprintModeSeparator));
-
-		Ret.Add(
-			SNew(SModeWidget, FBlueprintEditorApplicationModes::GetLocalizedMode(FBlueprintEditorApplicationModes::BlueprintComponentsMode), FBlueprintEditorApplicationModes::BlueprintComponentsMode)
-			.OnGetActiveMode(ActiveModeGetter)
-			.OnSetActiveMode(ActiveModeSetter)
-			.CanBeSelected(BlueprintObj ? FBlueprintEditorUtils::DoesSupportComponents(BlueprintObj) : false)
-			.ToolTip(IDocumentation::Get()->CreateToolTip(
-				LOCTEXT("ComponentsModeButtonTooltip", "Switch to Components Mode"),
-				NULL,
-				TEXT("Shared/Editors/BlueprintEditor"),
-				TEXT("ComponentsMode")))
-			.IconImage(FEditorStyle::GetBrush("FullBlueprintEditor.SwitchToComponentsMode"))
-			.SmallIconImage(FEditorStyle::GetBrush("FullBlueprintEditor.SwitchToComponentsMode.Small"))
-			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ComponentsMode")))
-		);
-
-		Ret.Add(SNew(SBlueprintModeSeparator));
-
-		Ret.Add(
-			SNew(SModeWidget, FBlueprintEditorApplicationModes::GetLocalizedMode(FBlueprintEditorApplicationModes::StandardBlueprintEditorMode), FBlueprintEditorApplicationModes::StandardBlueprintEditorMode)
-			.OnGetActiveMode(ActiveModeGetter)
-			.OnSetActiveMode(ActiveModeSetter)
-			.CanBeSelected(BlueprintObj != NULL)
-			.ToolTip(IDocumentation::Get()->CreateToolTip(
-				LOCTEXT("GraphModeButtonTooltip", "Switch to Graph Editing Mode"),
-				NULL,
-				TEXT("Shared/Editors/BlueprintEditor"),
-				TEXT("GraphMode")))
-			.ToolTipText(LOCTEXT("GraphModeButtonTooltip", "Switch to Graph Editing Mode"))
-			.IconImage(FEditorStyle::GetBrush("FullBlueprintEditor.SwitchToScriptingMode"))
-			.SmallIconImage(FEditorStyle::GetBrush("FullBlueprintEditor.SwitchToScriptingMode.Small"))
-			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("GraphMode")))
-		);
-
-		// Right side padding
-		Ret.Add(SNew(SSpacer).Size(FVector2D(4.0f, 1.0f)));
-	}
-	return Ret;
 }
 
 #undef LOCTEXT_NAMESPACE

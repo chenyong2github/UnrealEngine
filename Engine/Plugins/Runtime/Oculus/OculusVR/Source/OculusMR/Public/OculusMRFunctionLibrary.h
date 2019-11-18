@@ -32,7 +32,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "OculusLibrary|MR")
 	static void SetTrackingReferenceComponent(USceneComponent* Component);
 
-	// Check if MRC is active (enabled and capturing)
+	// Check if MRC is enabled
+	UFUNCTION(BlueprintCallable, Category = "OculusLibrary|MR")
+	static bool IsMrcEnabled();
+
+	// Check if MRC is enabled and actively capturing
 	UFUNCTION(BlueprintCallable, Category = "OculusLibrary|MR")
 	static bool IsMrcActive();
 

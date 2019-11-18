@@ -86,6 +86,9 @@ protected:
 	UPROPERTY()
 	FRotator ControlRotation;
 
+	/** Return false if rotation contains NaN or extremely large values (usually resulting from uninitialized values). */
+	bool IsValidControlRotation(FRotator CheckRotation) const;
+
 	/**
 	 * If true, the controller location will match the possessed Pawn's location. If false, it will not be updated. Rotation will match ControlRotation in either case.
 	 * Since a Controller's location is normally inaccessible, this is intended mainly for purposes of being able to attach
@@ -223,6 +226,13 @@ public:
 
 	/** Getter for Pawn */
 	FORCEINLINE APawn* GetPawn() const { return Pawn; }
+
+	/** Templated version of GetPawn, will return nullptr if cast fails */
+	template<class T>
+	T* GetPawn() const
+	{
+		return Cast<T>(Pawn);
+	}
 
 	/** Getter for Character */
 	FORCEINLINE ACharacter* GetCharacter() const { return Character; }

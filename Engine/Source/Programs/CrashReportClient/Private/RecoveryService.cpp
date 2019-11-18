@@ -84,10 +84,8 @@ bool FRecoveryService::Startup()
 	// Setup the disaster recovery server configuration
 	UConcertServerConfig* ServerConfig = IConcertSyncServerModule::Get().ParseServerSettings(FCommandLine::Get());
 	ServerConfig->bAutoArchiveOnReboot = true; // If server crashed, was killed, etc, ensure the recovery session is archived (expected by recovery flow).
-	ServerConfig->NumSessionsToKeep = 10;
 	ServerConfig->EndpointSettings.RemoteEndpointTimeoutSeconds = 0;
-	ServerConfig->WorkingDir = GetRecoveryServiceWorkingDir();
-	ServerConfig->ArchiveDir = GetRecoveryServiceArchivedDir();
+	ServerConfig->bMountDefaultSessionRepository = false; // Let the client mount its own repository to support concurrent recovery server and prevent them from concurrently accessing non-sharable database files.
 
 	FConcertSessionFilter AutoArchiveSessionFilter;
 	AutoArchiveSessionFilter.bIncludeIgnoredActivities = true;
@@ -108,16 +106,6 @@ void FRecoveryService::Shutdown()
 		Server.Reset();
 		UE_LOG(CrashReportClientLog, Display, TEXT("%s Shutdown"), RecoveryServiceName);
 	}
-}
-
-FString FRecoveryService::GetRecoveryServiceWorkingDir() const
-{
-	return FPaths::ProjectIntermediateDir();
-}
-
-FString FRecoveryService::GetRecoveryServiceArchivedDir() const
-{
-	return FPaths::ProjectSavedDir();
 }
 
 FGuid FRecoveryService::GetRecoverySessionId() const

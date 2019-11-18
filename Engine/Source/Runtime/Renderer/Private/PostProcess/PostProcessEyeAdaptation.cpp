@@ -137,23 +137,6 @@ float GetAutoExposureCompensation(const FViewInfo& View)
 
 	const FEngineShowFlags& EngineShowFlags = View.Family->EngineShowFlags;
 
-	// Skip the exposure bias when any of these flags are set.
-	const bool bSkipExposureBias =
-		View.Family->ExposureSettings.bFixed ||
-		View.Family->UseDebugViewPS() ||
-		!EngineShowFlags.Lighting ||
-		(EngineShowFlags.VisualizeBuffer && View.CurrentBufferVisualizationMode != NAME_None) ||
-		EngineShowFlags.RayTracingDebug ||
-		EngineShowFlags.VisualizeDistanceFieldAO ||
-		EngineShowFlags.VisualizeGlobalDistanceField ||
-		EngineShowFlags.CollisionVisibility ||
-		EngineShowFlags.CollisionPawn;
-
-	if (bSkipExposureBias)
-	{
-		return 1.0f;
-	}
-
 	// This scales the average luminance AFTER it gets clamped, affecting the exposure value directly.
 	float AutoExposureBias = Settings.AutoExposureBias;
 
@@ -191,10 +174,24 @@ FEyeAdaptationParameters GetEyeAdaptationParameters(const FViewInfo& View, ERHIF
 	// These clamp the average luminance computed from the scene color.
 	float MinAverageLuminance = 1.0f;
 	float MaxAverageLuminance = 1.0f;
+	float ExposureCompensation = GetAutoExposureCompensation(View);
 
-	// Fixed exposure override in effect.
-	if (View.Family->ExposureSettings.bFixed)
+	// Force an exposure of 1 when any of these flags are set.
+	if (View.Family->UseDebugViewPS() ||
+		!EngineShowFlags.Lighting ||
+		(EngineShowFlags.VisualizeBuffer && View.CurrentBufferVisualizationMode != NAME_None) ||
+		EngineShowFlags.RayTracingDebug ||
+		EngineShowFlags.VisualizeDistanceFieldAO ||
+		EngineShowFlags.VisualizeGlobalDistanceField ||
+		EngineShowFlags.CollisionVisibility ||
+		EngineShowFlags.CollisionPawn)
 	{
+		ExposureCompensation = 1.0f;
+	}
+	// Fixed exposure override in effect.
+	else if (View.Family->ExposureSettings.bFixed)
+	{
+		ExposureCompensation = 1.0f;
 		MinAverageLuminance = MaxAverageLuminance = EV100ToLuminance(View.Family->ExposureSettings.FixedEV100);
 	}
 	// When !EngineShowFlags.EyeAdaptation (from "r.EyeAdaptationQuality 0") or the feature level doesn't support eye adaptation, only Settings.AutoExposureBias controls exposure.
@@ -221,8 +218,6 @@ FEyeAdaptationParameters GetEyeAdaptationParameters(const FViewInfo& View, ERHIF
 
 	// This scales the average luminance BEFORE it gets clamped. Note that AEM_Histogram implements the calibration constant through ExposureLowPercent and ExposureHighPercent.
 	const float CalibrationConstant = FMath::Clamp(Settings.AutoExposureCalibrationConstant, 1.0f, 100.0f) * PercentToScale;
-
-	const float ExposureCompensation = GetAutoExposureCompensation(View);
 
 	const float WeightSlope = (AutoExposureMethod == EAutoExposureMethod::AEM_Basic) ? GetBasicAutoExposureFocus() : 0.0f;
 

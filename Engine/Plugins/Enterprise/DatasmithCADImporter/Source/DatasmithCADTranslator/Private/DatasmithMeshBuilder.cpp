@@ -15,61 +15,56 @@
 
 using namespace CADLibrary;
 
-FDatasmithMeshBuilder::FDatasmithMeshBuilder(TMap<FString, FString>& InCADFileToUE4GeomMap, TMap< TSharedPtr< IDatasmithMeshElement >, uint32 >& InMeshElementToCTBodyUuidMap)
-	: CADFileToUE4GeomMap(InCADFileToUE4GeomMap)
-	, MeshElementToBodyUuidMap(InMeshElementToCTBodyUuidMap)
+FDatasmithMeshBuilder::FDatasmithMeshBuilder(TMap<FString, FString>& InCADFileToUE4GeomMap, const FString& InCachePath, const CADLibrary::FImportParameters& InImportParameters)
+	: CachePath(InCachePath)
+	, CADFileToMeshFile(InCADFileToUE4GeomMap)
+	, ImportParameters(InImportParameters)
 {
+	LoadMeshFiles();
 }
 
-void FDatasmithMeshBuilder::Init(const FString& InCachePath)
+void FDatasmithMeshBuilder::LoadMeshFiles()
 {
-	CachePath = InCachePath;
-}
+	BodyMeshes.Reserve(CADFileToMeshFile.Num());
 
-void FDatasmithMeshBuilder::Clear()
-{
-	RawDataArray.Empty();
-	BodyUuidToCADBRepMap.Empty();
-}
-
-void FDatasmithMeshBuilder::LoadRawDataGeom()
-{
-	RawDataArray.Reserve(CADFileToUE4GeomMap.Num());
-	for (const auto& FilePair : CADFileToUE4GeomMap)
+	for (const auto& FilePair : CADFileToMeshFile)
 	{
-		FString RawDataFile = FPaths::Combine(CachePath, TEXT("mesh"), FilePair.Value + TEXT(".gm"));
-		if (!IFileManager::Get().FileExists(*RawDataFile))
+		FString MeshFile = FPaths::Combine(CachePath, TEXT("mesh"), FilePair.Value + TEXT(".gm"));
+		if (!IFileManager::Get().FileExists(*MeshFile))
 		{
 			continue;
 		}
-
-		int32 index = RawDataArray.Emplace(RawDataFile, BodyUuidToCADBRepMap);
+		TArray<CADLibrary::FBodyMesh>& BodyMeshSet = BodyMeshes.Emplace_GetRef();
+		DeserializeBodyMeshFile(*MeshFile, BodyMeshSet);
+		for (FBodyMesh& Body : BodyMeshSet)
+		{
+			MeshActorNameToBodyMesh.Emplace(Body.MeshActorName, &Body);
+		}
 	}
 }
 
 TOptional<FMeshDescription> FDatasmithMeshBuilder::GetMeshDescription(TSharedRef<IDatasmithMeshElement> OutMeshElement, CADLibrary::FMeshParameters& OutMeshParameters)
 {
 #ifdef CAD_INTERFACE
-	uint32* BodyUuid = MeshElementToBodyUuidMap.Find(OutMeshElement);
-	if (BodyUuid == nullptr)
+	const TCHAR* NameLabel = OutMeshElement->GetName();
+	CADUUID BodyUuid = (CADUUID) FCString::Atoi64(OutMeshElement->GetName()+2);  // +2 to remove 2 first char (Ox)
+	if (BodyUuid == 0)
 	{
 		return TOptional<FMeshDescription>();
 	}
 
-	FBody*const* PPBody = BodyUuidToCADBRepMap.Find(*BodyUuid);
+	FBodyMesh** PPBody = MeshActorNameToBodyMesh.Find(BodyUuid);
 	if(PPBody == nullptr || *PPBody == nullptr)
 	{
 		return TOptional<FMeshDescription>();
 	}
 
-	FBody& Body = **PPBody;
-
-	TMap<uint32, uint32> MaterialIdToMaterialHash;
+	FBodyMesh& Body = **PPBody;
 
 	FMeshDescription MeshDescription;
 	DatasmithMeshHelper::PrepareAttributeForStaticMesh(MeshDescription);
 
-	if (ConvertCTBodySetToMeshDescription(ImportParameters, OutMeshParameters, Body.GetTriangleCount(), Body.GetTessellationSet(), MaterialIdToMaterialHash, MeshDescription))
+	if (ConvertCTBodySetToMeshDescription(ImportParameters, OutMeshParameters, Body, MeshDescription))
 	{
 		return MoveTemp(MeshDescription);
 	}

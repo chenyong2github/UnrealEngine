@@ -497,7 +497,8 @@ void USoundWave::PostInitProperties()
 
 	if(!IsTemplate())
 	{
-		InvalidateCompressedData();
+		// Don't rebuild our streaming chunks yet because we may not have loaded the RawPCMData at this point.
+		InvalidateCompressedData(false, false);
 	}
 
 #if WITH_EDITORONLY_DATA
@@ -725,7 +726,7 @@ FByteBulkData* USoundWave::GetCompressedData(FName Format, const FPlatformAudioC
 	return Result->GetBulkDataSize() > 0 ? Result : NULL; // we don't return empty bulk data...but we save it to avoid thrashing the DDC
 }
 
-void USoundWave::InvalidateCompressedData(bool bFreeResources)
+void USoundWave::InvalidateCompressedData(bool bFreeResources, bool bRebuildStreamingChunks)
 {
 	CompressedDataGuid = FGuid::NewGuid();
 	ZerothChunkData.Reset();
@@ -735,6 +736,22 @@ void USoundWave::InvalidateCompressedData(bool bFreeResources)
 	{
 		FreeResources(false);
 	}
+
+#if WITH_EDITOR
+	if (bRebuildStreamingChunks)
+	{
+		CachePlatformData();
+		CurrentChunkRevision.Increment();
+	}
+	
+	
+	// If this sound wave is retained, release and re-retain the new chunk.
+	if (FirstChunk.IsValid())
+	{
+		ReleaseCompressedAudio();
+		RetainCompressedAudio(true);
+	}
+#endif
 }
 
 bool USoundWave::HasStreamingChunks()
@@ -1705,6 +1722,8 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 		WaveInstance->SetVolumeMultiplier(VolumeMultiplier* SoundClassProperties->Volume);
 		WaveInstance->SetPitch(WaveInstance->Pitch * SoundClassProperties->Pitch);
 
+		WaveInstance->AttenuationDistance *= FMath::Max(SoundClassProperties->GetAttenuationDistanceScale(), 0.0f);
+
 		WaveInstance->SoundClassFilterFrequency = SoundClassProperties->LowPassFilterFrequency;
 		WaveInstance->VoiceCenterChannelVolume = SoundClassProperties->VoiceCenterChannelVolume;
 		WaveInstance->RadioFilterVolume = SoundClassProperties->RadioFilterVolume * ParseParams.VolumeMultiplier;
@@ -1748,7 +1767,8 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 	// If set to bAlwaysPlay, increase the current sound's priority scale by 10x. This will still result in a possible 0-priority output if the sound has 0 actual volume
 	if (bAlwaysPlay)
 	{
-		WaveInstance->Priority = MAX_FLT;
+		static constexpr float VolumeWeightedMaxPriority = TNumericLimits<float>::Max() / MAX_VOLUME;
+		WaveInstance->Priority = VolumeWeightedMaxPriority;
 	}
 	else
 	{
@@ -2353,8 +2373,7 @@ void USoundWave::RetainCompressedAudio(bool bForceSync /*= false*/)
 	}
 	else
 	{
-		TWeakObjectPtr<USoundWave> WeakThis = TWeakObjectPtr<USoundWave>(this);
-		GetHandleForChunkOfAudio([WeakThis](FAudioChunkHandle OutHandle)
+		GetHandleForChunkOfAudio([WeakThis = MakeWeakObjectPtr(this)](FAudioChunkHandle OutHandle)
 		{
 			check(IsInGameThread());
 			

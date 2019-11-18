@@ -1218,6 +1218,7 @@ public:
 
 	/** @return true if the difference between the ScreenSpaceOrigin and the ScreenSpacePosition is larger than the trigger distance for dragging in Slate. */
 	bool HasTraveledFarEnoughToTriggerDrag(const FPointerEvent& PointerEvent, const FVector2D ScreenSpaceOrigin) const;
+	bool HasTraveledFarEnoughToTriggerDrag(const FPointerEvent& PointerEvent, const FVector2D ScreenSpaceOrigin, EOrientation Orientation) const;
 
 	/** Set the size of the deadzone for dragging in screen pixels */
 	void SetDragTriggerDistance( float ScreenPixels );
@@ -1830,10 +1831,10 @@ private:
 		 */
 		int32 Find(TSharedPtr<IInputProcessor> InputProcessor) const;
 
-
 	private:
+		bool PreProcessInput(TFunctionRef<bool(IInputProcessor&)> InputProcessFunc);
 
-		bool PreProcessInput(TFunctionRef<bool(TSharedPtr<IInputProcessor>)> ToRun);
+		void AddInternal(TSharedPtr<IInputProcessor> InputProcessor, const int32 Index);
 
 		/** The list of input pre-processors. */
 		TArray<TSharedPtr<IInputProcessor>> InputPreProcessorList;
@@ -1843,6 +1844,9 @@ private:
 
 		/** A list of pre-processors to remove if we are iterating them while removal is requested. */
 		TArray<TSharedPtr<IInputProcessor>> ProcessorsPendingRemoval;
+
+		/** A list of pre-processors to add if we are iterating them while addition is requested. */
+		TMap<TSharedPtr<IInputProcessor>, int32> ProcessorsPendingAddition;
 	};
 
 	/** A list of input pre-processors, gets an opportunity to parse input before anything else. */

@@ -16,6 +16,7 @@ public:
 	ISpatialAccelerationCollection()
 	: ISpatialAcceleration<TPayloadType, T, d>(StaticType)
 	, ActiveBucketsMask(0)
+	, AllAsyncTrasksComplete(true)
 	{}
 	static constexpr ESpatialAcceleration StaticType = ESpatialAcceleration::Collection;
 	virtual FSpatialAccelerationIdx AddSubstructure(TUniquePtr<ISpatialAcceleration<TPayloadType, T, d>>&& Substructure, uint16 Bucket) = 0;
@@ -31,8 +32,13 @@ public:
 	{
 		return (1 << BucketIdx) & ActiveBucketsMask;
 	}
+
+	bool IsAllAsyncTrasksComplete() const { return AllAsyncTrasksComplete; }
+	void SetAllAsyncTrasksComplete(bool State) { AllAsyncTrasksComplete = State; }
+
 protected:
 	uint8 ActiveBucketsMask;
+	bool AllAsyncTrasksComplete;
 };
 
 template <typename T>
@@ -205,12 +211,12 @@ template <int TypeIdx, int NumTypes, typename Tuple, typename TPayloadType, type
 struct TSpatialAccelerationCollectionHelper
 {
 	template <typename SQVisitor>
-	static bool RaycastFast(const Tuple& Types, const TVector<T, d>& Start, const TVector<T, d>& Dir, const TVector<T,d>& InvDir, const bool* bParallel, T& CurLength, T& InvCurLength, SQVisitor& Visitor)
+	static bool RaycastFast(const Tuple& Types, const TVector<T, d>& Start, FQueryFastData& CurData, SQVisitor& Visitor)
 	{
 		const auto& Accelerations = GetAccelerationsPerType<TypeIdx>(Types).Objects;
 		for (const auto& Accelerator : Accelerations)
 		{
-			if (Accelerator && !Accelerator->RaycastFast(Start, Dir, InvDir, bParallel, CurLength, InvCurLength, Visitor))
+			if (Accelerator && !Accelerator->RaycastFast(Start, CurData, Visitor))
 			{
 				return false;
 			}
@@ -219,19 +225,19 @@ struct TSpatialAccelerationCollectionHelper
 		constexpr int NextType = TypeIdx + 1;
 		if (NextType < NumTypes)
 		{
-			return TSpatialAccelerationCollectionHelper<NextType < NumTypes ? NextType : 0, NumTypes, Tuple, TPayloadType, T, d>::RaycastFast(Types, Start, Dir, InvDir, bParallel, CurLength, InvCurLength, Visitor);
+			return TSpatialAccelerationCollectionHelper<NextType < NumTypes ? NextType : 0, NumTypes, Tuple, TPayloadType, T, d>::RaycastFast(Types, Start, CurData, Visitor);
 		}
 
 		return true;
 	}
 
 	template <typename SQVisitor>
-	static bool SweepFast(const Tuple& Types, const TVector<T, d>& Start, const TVector<T, d>& Dir, const TVector<T,d>& InvDir, const bool* bParallel, T& CurLength, T& InvCurLength, const TVector<T, d> QueryHalfExtents, SQVisitor& Visitor)
+	static bool SweepFast(const Tuple& Types, const TVector<T, d>& Start, FQueryFastData& CurData, const TVector<T, d> QueryHalfExtents, SQVisitor& Visitor)
 	{
 		const auto& Accelerations = GetAccelerationsPerType<TypeIdx>(Types).Objects;
 		for (const auto& Accelerator : Accelerations)
 		{
-			if (Accelerator && !Accelerator->SweepFast(Start, Dir, InvDir, bParallel, CurLength, InvCurLength, QueryHalfExtents, Visitor))
+			if (Accelerator && !Accelerator->SweepFast(Start, CurData, QueryHalfExtents, Visitor))
 			{
 				return false;
 			}
@@ -240,7 +246,7 @@ struct TSpatialAccelerationCollectionHelper
 		constexpr int NextType = TypeIdx + 1;
 		if (NextType < NumTypes)
 		{
-			return TSpatialAccelerationCollectionHelper < NextType < NumTypes ? NextType : 0, NumTypes, Tuple, TPayloadType, T, d>::SweepFast(Types, Start, Dir, InvDir, bParallel, CurLength, InvCurLength, QueryHalfExtents, Visitor);
+			return TSpatialAccelerationCollectionHelper < NextType < NumTypes ? NextType : 0, NumTypes, Tuple, TPayloadType, T, d>::SweepFast(Types, Start, CurData, QueryHalfExtents, Visitor);
 		}
 
 		return true;
@@ -405,7 +411,12 @@ public:
 	virtual ISpatialAcceleration<TPayloadType, T, d>* GetSubstructure(FSpatialAccelerationIdx Idx) override
 	{
 		check(Idx.Bucket < MaxBuckets);
-		return Buckets[Idx.Bucket].Objects[Idx.InnerIdx].Acceleration.Get();
+		if (Buckets[Idx.Bucket].Objects.Num() > 0)
+		{
+			return Buckets[Idx.Bucket].Objects[Idx.InnerIdx].Acceleration.Get();
+		}
+
+		return nullptr;
 	}
 
 	virtual void Raycast(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T Length, ISpatialVisitor<TPayloadType, T>& Visitor) const override
@@ -417,19 +428,8 @@ public:
 	template <typename SQVisitor>
 	void Raycast(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T Length, SQVisitor& Visitor) const
 	{
-		ensure(Length);
-		T CurLength = Length;
-		bool bParallel[3];
-		TVector<T, 3> InvDir;
-
-		T InvLength = 1 / Length;
-		for (int Axis = 0; Axis < 3; ++Axis)
-		{
-			bParallel[Axis] = Dir[Axis] == 0;
-			InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
-		}
-
-		TSpatialAccelerationCollectionHelper<0, NumTypes, decltype(Types), TPayloadType, T, d>::RaycastFast(Types, Start, Dir, InvDir, bParallel, CurLength, InvLength, Visitor);
+		FQueryFastData QueryFastData(Dir, Length);
+		TSpatialAccelerationCollectionHelper<0, NumTypes, decltype(Types), TPayloadType, T, d>::RaycastFast(Types, Start, QueryFastData, Visitor);
 	}
 
 	void Sweep(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T Length, const TVector<T, d> QueryHalfExtents, ISpatialVisitor<TPayloadType, T>& Visitor) const override
@@ -441,18 +441,8 @@ public:
 	template <typename SQVisitor>
 	void Sweep(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T Length, const TVector<T, d> QueryHalfExtents, SQVisitor& Visitor) const
 	{
-		ensure(Length);
-		T CurLength = Length;
-		bool bParallel[3];
-		TVector<T, 3> InvDir;
-
-		T InvLength = 1 / Length;
-		for (int Axis = 0; Axis < 3; ++Axis)
-		{
-			bParallel[Axis] = Dir[Axis] == 0;
-			InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
-		}
-		TSpatialAccelerationCollectionHelper<0, NumTypes, decltype(Types), TPayloadType, T, d>::SweepFast(Types, Start, Dir, InvDir, bParallel, CurLength, InvLength, QueryHalfExtents, Visitor);
+		FQueryFastData QueryFastData(Dir, Length);
+		TSpatialAccelerationCollectionHelper<0, NumTypes, decltype(Types), TPayloadType, T, d>::SweepFast(Types, Start, QueryFastData, QueryHalfExtents, Visitor);
 	}
 
 	virtual void Overlap(const TBox<T, d>& QueryBounds, ISpatialVisitor<TPayloadType, T>& Visitor) const override

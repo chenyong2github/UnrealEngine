@@ -10,7 +10,6 @@
 #include "Widgets/SBoxPanel.h"
 	#include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
-#include "SNiagaraStackErrorButton.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackItemGroup"
 
@@ -23,26 +22,14 @@ void SNiagaraStackItemGroup::Construct(const FArguments& InArgs, UNiagaraStackIt
 
 	ChildSlot
 	[
-		// Name
 		SNew(SHorizontalBox)
+		// Name
 		+ SHorizontalBox::Slot()
 		.VAlign(VAlign_Center)
+		.Padding(2, 0, 0, 0)
 		[
 			SNew(SNiagaraStackDisplayName, InGroup, *InStackViewModel, "NiagaraEditor.Stack.GroupText")
 			.ColorAndOpacity(this, &SNiagaraStackEntryWidget::GetTextColorForSearch)
-		]
-		// Stack issues icon
-		+ SHorizontalBox::Slot()
-		.Padding(2, 0, 0, 0)
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		.HAlign(HAlign_Right)
-		[
-			SNew(SNiagaraStackErrorButton)
-			.IssueSeverity_UObject(Group, &UNiagaraStackItemGroup::GetHighestStackIssueSeverity)
-			.ErrorTooltip(this, &SNiagaraStackItemGroup::GetErrorButtonTooltipText)
-			.Visibility(this, &SNiagaraStackItemGroup::GetStackIssuesWarningVisibility)
-			.OnButtonClicked(this, &SNiagaraStackItemGroup::ExpandEntry)
 		]
 		// Delete group button
 		+ SHorizontalBox::Slot()
@@ -98,16 +85,6 @@ FReply SNiagaraStackItemGroup::DeleteClicked()
 {
 	Group->Delete();
 	return FReply::Handled();
-}
-
-EVisibility SNiagaraStackItemGroup::GetStackIssuesWarningVisibility() const
-{
-	return  Group->GetRecursiveStackIssuesCount() > 0 ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-FText SNiagaraStackItemGroup::GetErrorButtonTooltipText() const
-{
-	return FText::Format(LOCTEXT("GroupIssuesTooltip", "This group contains items that have a total of {0} issues, click to expand."), Group->GetRecursiveStackIssuesCount());
 }
 
 #undef LOCTEXT_NAMESPACE

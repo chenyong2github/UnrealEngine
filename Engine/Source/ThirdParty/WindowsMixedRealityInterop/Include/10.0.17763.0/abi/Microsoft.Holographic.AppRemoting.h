@@ -363,6 +363,20 @@ namespace Microsoft {
 
 #endif // ____x_Microsoft_CHolographic_CAppRemoting_CIRemoteContextStatics_FWD_DEFINED__
 
+#ifndef ____x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2_FWD_DEFINED__
+#define ____x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2_FWD_DEFINED__
+
+namespace Microsoft {
+    namespace Holographic {
+        namespace AppRemoting {
+            interface IPlayerContext2;
+        } /* Microsoft */
+    } /* Holographic */
+} /* AppRemoting */
+#define __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2 Microsoft::Holographic::AppRemoting::IPlayerContext2
+
+#endif // ____x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2_FWD_DEFINED__
+
 #ifndef ____x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext_FWD_DEFINED__
 #define ____x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext_FWD_DEFINED__
 
@@ -1529,6 +1543,7 @@ namespace Microsoft {
                 BlitResult_Success_Color,
                 BlitResult_Failed_NoRemoteFrameAvailable,
                 BlitResult_Failed_NoCamera,
+                BlitResult_Failed_RemoteFrameTooOld,
             };
             
         } /* Microsoft */
@@ -1572,6 +1587,45 @@ namespace Microsoft {
     } /* Holographic */
 } /* AppRemoting */
 
+
+
+/*
+ *
+ * Interface Microsoft.Holographic.AppRemoting.IPlayerContext2
+ *
+ * Interface is a part of the implementation of type Microsoft.Holographic.AppRemoting.PlayerContext
+ *
+ *
+ */
+#if !defined(____x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2_INTERFACE_DEFINED__)
+#define ____x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2_INTERFACE_DEFINED__
+extern const __declspec(selectany) _Null_terminated_ WCHAR InterfaceName_Microsoft_Holographic_AppRemoting_IPlayerContext2[] = L"Microsoft.Holographic.AppRemoting.IPlayerContext2";
+
+namespace Microsoft {
+    namespace Holographic {
+        namespace AppRemoting {
+            /* [uuid("529862bd-39af-4b55-980f-46bbdb9854b2"), version, object, exclusiveto] */
+            MIDL_INTERFACE("529862bd-39af-4b55-980f-46bbdb9854b2")
+            IPlayerContext2 : public IInspectable
+            {
+            public:
+                /* [propget] */virtual HRESULT STDMETHODCALLTYPE get_BlitRemoteFrameTimeout(
+                    /* [out, retval] */struct Windows::Foundation::TimeSpan * value
+                    ) = 0;
+                /* [propput] */virtual HRESULT STDMETHODCALLTYPE put_BlitRemoteFrameTimeout(
+                    /* [in] */struct Windows::Foundation::TimeSpan value
+                    ) = 0;
+                
+            };
+
+            extern MIDL_CONST_ID IID & IID_IPlayerContext2=_uuidof(IPlayerContext2);
+            
+        } /* Microsoft */
+    } /* Holographic */
+} /* AppRemoting */
+
+EXTERN_C const IID IID___x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2;
+#endif /* !defined(____x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2_INTERFACE_DEFINED__) */
 
 
 /*
@@ -1714,6 +1768,7 @@ EXTERN_C const IID IID___x_Microsoft_CHolographic_CAppRemoting_CIPlayerContextSt
  * RuntimeClass contains static methods.
  *
  * Class implements the following interfaces:
+ *    Microsoft.Holographic.AppRemoting.IPlayerContext2
  *    Microsoft.Holographic.AppRemoting.IPlayerContext ** Default Interface **
  *    Windows.Foundation.IClosable
  *
@@ -1864,6 +1919,12 @@ typedef interface __x_Microsoft_CHolographic_CAppRemoting_CIRemoteContext __x_Mi
 typedef interface __x_Microsoft_CHolographic_CAppRemoting_CIRemoteContextStatics __x_Microsoft_CHolographic_CAppRemoting_CIRemoteContextStatics;
 
 #endif // ____x_Microsoft_CHolographic_CAppRemoting_CIRemoteContextStatics_FWD_DEFINED__
+
+#ifndef ____x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2_FWD_DEFINED__
+#define ____x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2_FWD_DEFINED__
+typedef interface __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2 __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2;
+
+#endif // ____x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2_FWD_DEFINED__
 
 #ifndef ____x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext_FWD_DEFINED__
 #define ____x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext_FWD_DEFINED__
@@ -4071,6 +4132,7 @@ enum __x_Microsoft_CHolographic_CAppRemoting_CBlitResult
     BlitResult_Success_Color,
     BlitResult_Failed_NoRemoteFrameAvailable,
     BlitResult_Failed_NoCamera,
+    BlitResult_Failed_RemoteFrameTooOld,
 };
 
 
@@ -4093,6 +4155,101 @@ struct __x_Microsoft_CHolographic_CAppRemoting_CPlayerFrameStatistics
     float VideoFrameMaxDelta;
 };
 
+
+
+/*
+ *
+ * Interface Microsoft.Holographic.AppRemoting.IPlayerContext2
+ *
+ * Interface is a part of the implementation of type Microsoft.Holographic.AppRemoting.PlayerContext
+ *
+ *
+ */
+#if !defined(____x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2_INTERFACE_DEFINED__)
+#define ____x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2_INTERFACE_DEFINED__
+extern const __declspec(selectany) _Null_terminated_ WCHAR InterfaceName_Microsoft_Holographic_AppRemoting_IPlayerContext2[] = L"Microsoft.Holographic.AppRemoting.IPlayerContext2";
+/* [uuid("529862bd-39af-4b55-980f-46bbdb9854b2"), version, object, exclusiveto] */
+typedef struct __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2Vtbl
+{
+    BEGIN_INTERFACE
+    HRESULT ( STDMETHODCALLTYPE *QueryInterface)(
+    __RPC__in __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2 * This,
+    /* [in] */ __RPC__in REFIID riid,
+    /* [annotation][iid_is][out] */
+    _COM_Outptr_  void **ppvObject
+    );
+
+ULONG ( STDMETHODCALLTYPE *AddRef )(
+    __RPC__in __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2 * This
+    );
+
+ULONG ( STDMETHODCALLTYPE *Release )(
+    __RPC__in __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2 * This
+    );
+
+HRESULT ( STDMETHODCALLTYPE *GetIids )(
+    __RPC__in __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2 * This,
+    /* [out] */ __RPC__out ULONG *iidCount,
+    /* [size_is][size_is][out] */ __RPC__deref_out_ecount_full_opt(*iidCount) IID **iids
+    );
+
+HRESULT ( STDMETHODCALLTYPE *GetRuntimeClassName )(
+    __RPC__in __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2 * This,
+    /* [out] */ __RPC__deref_out_opt HSTRING *className
+    );
+
+HRESULT ( STDMETHODCALLTYPE *GetTrustLevel )(
+    __RPC__in __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2 * This,
+    /* [OUT ] */ __RPC__out TrustLevel *trustLevel
+    );
+/* [propget] */HRESULT ( STDMETHODCALLTYPE *get_BlitRemoteFrameTimeout )(
+        __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2 * This,
+        /* [out, retval] */struct __x_Windows_CFoundation_CTimeSpan * value
+        );
+    /* [propput] */HRESULT ( STDMETHODCALLTYPE *put_BlitRemoteFrameTimeout )(
+        __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2 * This,
+        /* [in] */struct __x_Windows_CFoundation_CTimeSpan value
+        );
+    END_INTERFACE
+    
+} __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2Vtbl;
+
+interface __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2
+{
+    CONST_VTBL struct __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2Vtbl *lpVtbl;
+};
+
+#ifdef COBJMACROS
+#define __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2_QueryInterface(This,riid,ppvObject) \
+( (This)->lpVtbl->QueryInterface(This,riid,ppvObject) )
+
+#define __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2_AddRef(This) \
+        ( (This)->lpVtbl->AddRef(This) )
+
+#define __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2_Release(This) \
+        ( (This)->lpVtbl->Release(This) )
+
+#define __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2_GetIids(This,iidCount,iids) \
+        ( (This)->lpVtbl->GetIids(This,iidCount,iids) )
+
+#define __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2_GetRuntimeClassName(This,className) \
+        ( (This)->lpVtbl->GetRuntimeClassName(This,className) )
+
+#define __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2_GetTrustLevel(This,trustLevel) \
+        ( (This)->lpVtbl->GetTrustLevel(This,trustLevel) )
+
+#define __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2_get_BlitRemoteFrameTimeout(This,value) \
+    ( (This)->lpVtbl->get_BlitRemoteFrameTimeout(This,value) )
+
+#define __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2_put_BlitRemoteFrameTimeout(This,value) \
+    ( (This)->lpVtbl->put_BlitRemoteFrameTimeout(This,value) )
+
+
+#endif /* COBJMACROS */
+
+
+EXTERN_C const IID IID___x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2;
+#endif /* !defined(____x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext2_INTERFACE_DEFINED__) */
 
 
 /*
@@ -4404,6 +4561,7 @@ EXTERN_C const IID IID___x_Microsoft_CHolographic_CAppRemoting_CIPlayerContextSt
  * RuntimeClass contains static methods.
  *
  * Class implements the following interfaces:
+ *    Microsoft.Holographic.AppRemoting.IPlayerContext2
  *    Microsoft.Holographic.AppRemoting.IPlayerContext ** Default Interface **
  *    Windows.Foundation.IClosable
  *

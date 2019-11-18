@@ -37,7 +37,8 @@ public:
 	// IDisplayClusterStereoDevice
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual bool Initialize() override;
-	virtual void InitializeWorldContent(UWorld* InWorld) override;
+	virtual void StartScene(UWorld* InWorld) override;
+	virtual void EndScene() override;
 	virtual void SetViewportCamera(const FString& InCameraId = FString(), const FString& InViewportId = FString()) override;
 	virtual void SetStartPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& StartPostProcessingSettings) override;
 	virtual void SetOverridePostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& OverridePostProcessingSettings, float BlendWeight = 1.0f) override;
@@ -89,10 +90,19 @@ protected:
 	virtual bool AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 Flags, uint32 TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1)
 	{ return false; }
 
+	virtual bool DeviceIsAPrimaryPass(EStereoscopicPass Pass) override
+	{ return true; }
+
 	virtual bool DeviceIsAPrimaryView(const FSceneView& View) override
 	{ return true; }
+
+	virtual bool DeviceIsASecondaryPass(EStereoscopicPass Pass) override
+	{ return false; }
 	
 	virtual bool DeviceIsASecondaryView(const FSceneView& View) override
+	{ return false; }
+
+	virtual bool DeviceIsAnAdditionalPass(EStereoscopicPass Pass) override
 	{ return false; }
 
 	virtual bool DeviceIsAnAdditionalView(const FSceneView& View) override
@@ -147,6 +157,8 @@ protected:
 	uint32 ViewsAmountPerViewport = 0;
 	// UE4 main viewport
 	FViewport* MainViewport = nullptr;
+
+	bool bIsSceneOpen = false;
 
 	// Per-eye regions
 	FIntRect EyeRegions[2];

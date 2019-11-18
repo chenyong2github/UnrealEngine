@@ -21,7 +21,7 @@ class UAnimationGraph : public UEdGraph
 	/** Delegate fired when a pin's default value is changed */
 	FOnPinDefaultValueChanged OnPinDefaultValueChanged;
 
-	/** Blending options for this graph (only valid for linked anim graphs with inertialization) */
+	/** Blending options for animation graphs in Linked Animation Blueprints. */
 	UPROPERTY(EditAnywhere, Category = GraphBlending, meta = (ShowOnlyInnerProperties))
 	FAnimGraphBlendOptions BlendOptions;
 };

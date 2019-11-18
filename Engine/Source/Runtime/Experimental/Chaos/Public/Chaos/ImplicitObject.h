@@ -1,13 +1,11 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/Matrix.h"
 #include "Chaos/Pair.h"
 #include "Chaos/Serializable.h"
-#include "Chaos/Vector.h"
+#include "Chaos/Core.h"
 
 #include <functional>
-#include "Transform.h"
 
 namespace Chaos
 {
@@ -23,29 +21,52 @@ template<class T, int d>
 class TParticles;
 template<class T, int d>
 class TBVHParticles;
-template<class T, int d>
-class TImplicitObject;
+class FImplicitObject;
 
-
-enum class ImplicitObjectType : int8
+namespace ImplicitObjectType
 {
-	//Note: add entries at the bottom for serialization
-	Sphere = 0,
-	Box,
-	Plane,
-	Capsule,
-	Transformed,
-	Union,
-	LevelSet,
-	Unknown,
-	Convex,
-	TaperedCylinder,
-	Cylinder,
-	TriangleMesh,
-	HeightField,
-	Scaled,
-	Triangle
-};
+	enum
+	{
+		//Note: add entries in order to avoid serialization issues (but before IsInstanced)
+		Sphere = 0,
+		Box,
+		Plane,
+		Capsule,
+		Transformed,
+		Union,
+		LevelSet,
+		Unknown,
+		Convex,
+		TaperedCylinder,
+		Cylinder,
+		TriangleMesh,
+		HeightField,
+		DEPRECATED_Scaled,	//needed for serialization of existing data
+		Triangle,
+
+		//Add entries above this line for serialization
+		IsInstanced = 1 << 6,
+		IsScaled = 1 << 7
+	};
+}
+
+using EImplicitObjectType = uint8;	//see ImplicitObjectType
+
+FORCEINLINE bool IsInstanced(EImplicitObjectType Type)
+{
+	return (Type & ImplicitObjectType::IsInstanced) != 0;
+}
+
+FORCEINLINE bool IsScaled(EImplicitObjectType Type)
+{
+	return (Type & ImplicitObjectType::IsScaled) != 0;
+}
+
+FORCEINLINE EImplicitObjectType GetInnerType(EImplicitObjectType Type)
+{
+	return Type & (~(ImplicitObjectType::IsScaled | ImplicitObjectType::IsInstanced));
+}
+
 
 namespace EImplicitObject
 {
@@ -69,9 +90,9 @@ struct TImplicitObjectPtrStorage
 template<class T, int d>
 struct TImplicitObjectPtrStorage<T, d, false>
 {
-	using PtrType = TImplicitObject<T, d>*;
+	using PtrType = FImplicitObject*;
 
-	static PtrType Convert(const TUniquePtr<TImplicitObject<T, d>>& Object)
+	static PtrType Convert(const TUniquePtr<FImplicitObject>& Object)
 	{
 		return Object.Get();
 	}
@@ -80,31 +101,30 @@ struct TImplicitObjectPtrStorage<T, d, false>
 template<class T, int d>
 struct TImplicitObjectPtrStorage<T, d, true>
 {
-	using PtrType = TSerializablePtr<TImplicitObject<T, d>>;
+	using PtrType = TSerializablePtr<FImplicitObject>;
 
-	static PtrType Convert(const TUniquePtr<TImplicitObject<T, d>>& Object)
+	static PtrType Convert(const TUniquePtr<FImplicitObject>& Object)
 	{
 		return MakeSerializable(Object);
 	}
 };
 
-
-
-template<class T, int d>
-class CHAOS_API TImplicitObject
+class CHAOS_API FImplicitObject
 {
 public:
-	static TImplicitObject<T,d>* SerializationFactory(FChaosArchive& Ar, TImplicitObject<T, d>* Obj);
+	using TType = FReal;
+	static constexpr int D = 3;
+	static FImplicitObject* SerializationFactory(FChaosArchive& Ar, FImplicitObject* Obj);
 
-	TImplicitObject(int32 Flags, ImplicitObjectType InType = ImplicitObjectType::Unknown);
-	TImplicitObject(const TImplicitObject<T, d>&) = delete;
-	TImplicitObject(TImplicitObject<T, d>&&) = delete;
-	virtual ~TImplicitObject();
+	FImplicitObject(int32 Flags, EImplicitObjectType InType = ImplicitObjectType::Unknown);
+	FImplicitObject(const FImplicitObject&) = delete;
+	FImplicitObject(FImplicitObject&&) = delete;
+	virtual ~FImplicitObject();
 
 	template<class T_DERIVED>
 	T_DERIVED* GetObject()
 	{
-		if (T_DERIVED::GetType() == Type)
+		if (T_DERIVED::StaticType() == Type)
 		{
 			return static_cast<T_DERIVED*>(this);
 		}
@@ -114,7 +134,7 @@ public:
 	template<class T_DERIVED>
 	const T_DERIVED* GetObject() const
 	{
-		if (T_DERIVED::GetType() == Type)
+		if (T_DERIVED::StaticType() == Type)
 		{
 			return static_cast<const T_DERIVED*>(this);
 		}
@@ -124,34 +144,33 @@ public:
 	template<class T_DERIVED>
 	const T_DERIVED& GetObjectChecked() const
 	{
-		check(T_DERIVED::GetType() == Type);
+		check(T_DERIVED::StaticType() == Type);
 		return static_cast<const T_DERIVED&>(*this);
 	}
 
 	template<class T_DERIVED>
 	T_DERIVED& GetObjectChecked()
 	{
-		check(T_DERIVED::GetType() == Type);
+		check(T_DERIVED::StaticType() == Type);
 		return static_cast<const T_DERIVED&>(*this);
 	}
 
-	ImplicitObjectType GetType(bool bGetTrueType = false) const;
+	EImplicitObjectType GetType(bool bGetTrueType = false) const;
 
 	virtual bool IsValidGeometry() const;
 
-	virtual TUniquePtr<TImplicitObject<T, d>> Copy() const;
+	virtual TUniquePtr<FImplicitObject> Copy() const;
 
 	//This is strictly used for optimization purposes
 	bool IsUnderlyingUnion() const;
 
 	// Explicitly non-virtual.  Must cast to derived types to target their implementation.
-	T SignedDistance(const TVector<T, d>& x) const;
+	FReal SignedDistance(const FVec3& x) const;
 
 	// Explicitly non-virtual.  Must cast to derived types to target their implementation.
-	TVector<T, d> Normal(const TVector<T, d>& x) const;
-	virtual T PhiWithNormal(const TVector<T, d>& x, TVector<T, d>& Normal) const = 0;
-	virtual const class TBox<T, d>& BoundingBox() const;
-	virtual TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const;
+	FVec3 Normal(const FVec3& x) const;
+	virtual FReal PhiWithNormal(const FVec3& x, FVec3& Normal) const = 0;
+	virtual const class TBox<FReal, 3>& BoundingBox() const;
 	bool HasBoundingBox() const { return bHasBoundingBox; }
 	bool IsConvex() const { return bIsConvex; }
 	void IgnoreAnalyticCollisions(const bool Ignore = true) { bIgnoreAnalyticCollisions = Ignore; }
@@ -163,16 +182,16 @@ public:
 		return FString::Printf(TEXT("ImplicitObject - No Performance String"));
 	};
 
-	Pair<TVector<T, d>, bool> FindDeepestIntersection(const TImplicitObject<T, d>* Other, const TBVHParticles<float, d>* Particles, const PMatrix<T, d, d>& OtherToLocalTransform, const T Thickness) const;
-	Pair<TVector<T, d>, bool> FindDeepestIntersection(const TImplicitObject<T, d>* Other, const TParticles<float, d>* Particles, const PMatrix<T, d, d>& OtherToLocalTransform, const T Thickness) const;
-	Pair<TVector<T, d>, bool> FindClosestIntersection(const TVector<T, d>& StartPoint, const TVector<T, d>& EndPoint, const T Thickness) const;
+	Pair<FVec3, bool> FindDeepestIntersection(const FImplicitObject* Other, const TBVHParticles<FReal, 3>* Particles, const FMatrix33& OtherToLocalTransform, const FReal Thickness) const;
+	Pair<FVec3, bool> FindDeepestIntersection(const FImplicitObject* Other, const TParticles<FReal, 3>* Particles, const FMatrix33& OtherToLocalTransform, const FReal Thickness) const;
+	Pair<FVec3, bool> FindClosestIntersection(const FVec3& StartPoint, const FVec3& EndPoint, const FReal Thickness) const;
 
 	//This gives derived types a way to avoid calling PhiWithNormal todo: this api is confusing
-	virtual bool Raycast(const TVector<T, d>& StartPoint, const TVector<T,d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T,d>& OutPosition, TVector<T,d>& OutNormal, int32& OutFaceIndex) const
+	virtual bool Raycast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const
 	{
 		OutFaceIndex = INDEX_NONE;
-		const TVector<T, d> EndPoint = StartPoint + Dir * Length;
-		Pair<TVector<T,d>, bool> Result = FindClosestIntersection(StartPoint, EndPoint, Thickness);
+		const FVec3 EndPoint = StartPoint + Dir * Length;
+		Pair<FVec3, bool> Result = FindClosestIntersection(StartPoint, EndPoint, Thickness);
 		if (Result.Second)
 		{
 			OutPosition = Result.First;
@@ -189,7 +208,7 @@ public:
 		@param HintFaceIndex - for certain geometry we can use this to accelerate the search.
 		@return Index of the most opposing face
 	*/
-	virtual int32 FindMostOpposingFace(const TVector<T, d>& Position, const TVector<T, d>& UnitDir, int32 HintFaceIndex, T SearchDist) const
+	virtual int32 FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist) const
 	{
 		//Many objects have no concept of a face
 		return INDEX_NONE;
@@ -202,29 +221,29 @@ public:
 		@param OriginalNormal - the original normal given by something like a sphere sweep
 		@return The most opposing normal associated with the underlying geometry's feature (like a face)
 	*/
-	virtual TVector<T,d> FindGeometryOpposingNormal(const TVector<T, d>& DenormDir, int32 FaceIndex, const TVector<T,d>& OriginalNormal) const
+	virtual FVec3 FindGeometryOpposingNormal(const FVec3& DenormDir, int32 FaceIndex, const FVec3& OriginalNormal) const
 	{
 		//Many objects have no concept of a face
 		return OriginalNormal;
 	}
 
 	//This gives derived types a way to do an overlap check without calling PhiWithNormal todo: this api is confusing
-	virtual bool Overlap(const TVector<T, d>& Point, const T Thickness) const
+	virtual bool Overlap(const FVec3& Point, const FReal Thickness) const
 	{
 		return SignedDistance(Point) <= Thickness;
 	}
 
-	virtual void AccumulateAllImplicitObjects(TArray<Pair<const TImplicitObject<T, d>*, TRigidTransform<T, d>>>& Out, const TRigidTransform<T, d>& ParentTM) const
+	virtual void AccumulateAllImplicitObjects(TArray<Pair<const FImplicitObject*, FRigidTransform3>>& Out, const FRigidTransform3& ParentTM) const
 	{
 		Out.Add(MakePair(this, ParentTM));
 	}
 
-	virtual void AccumulateAllSerializableImplicitObjects(TArray<Pair<TSerializablePtr<TImplicitObject<T, d>>, TRigidTransform<T, d>>>& Out, const TRigidTransform<T, d>& ParentTM, TSerializablePtr<TImplicitObject<T,d>> This) const
+	virtual void AccumulateAllSerializableImplicitObjects(TArray<Pair<TSerializablePtr<FImplicitObject>, FRigidTransform3>>& Out, const FRigidTransform3& ParentTM, TSerializablePtr<FImplicitObject> This) const
 	{
 		Out.Add(MakePair(This, ParentTM));
 	}
 
-	virtual void FindAllIntersectingObjects(TArray < Pair<const TImplicitObject<T, d>*, TRigidTransform<T, d>>>& Out, const TBox<T, d>& LocalBounds) const;
+	virtual void FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*, FRigidTransform3>>& Out, const TBox<FReal, 3>& LocalBounds) const;
 
 	virtual FString ToString() const
 	{
@@ -232,6 +251,11 @@ public:
 	}
 
 	void SerializeImp(FArchive& Ar);
+
+	constexpr static EImplicitObjectType StaticType()
+	{
+		return ImplicitObjectType::Unknown;
+	}
 	
 	virtual void Serialize(FArchive& Ar)
 	{
@@ -240,37 +264,37 @@ public:
 
 	virtual void Serialize(FChaosArchive& Ar);
 	
-	static FArchive& SerializeLegacyHelper(FArchive& Ar, TUniquePtr<TImplicitObject<T, d>>& Value);
+	static FArchive& SerializeLegacyHelper(FArchive& Ar, TUniquePtr<FImplicitObject>& Value);
 
 	virtual uint32 GetTypeHash() const = 0;
 
 	virtual FName GetTypeName() const { return GetTypeName(GetType()); }
 
-	static const FName GetTypeName(const ImplicitObjectType InType);
+	static const FName GetTypeName(const EImplicitObjectType InType);
+
+	virtual uint16 GetMaterialIndex(uint32 HintIndex) const { return 0; }
 
 protected:
-	ImplicitObjectType Type;
+	EImplicitObjectType Type;
 	bool bIsConvex;
 	bool bIgnoreAnalyticCollisions;
 	bool bHasBoundingBox;
 
 private:
-	virtual Pair<TVector<T, d>, bool> FindClosestIntersectionImp(const TVector<T, d>& StartPoint, const TVector<T, d>& EndPoint, const T Thickness) const;
+	virtual Pair<FVec3, bool> FindClosestIntersectionImp(const FVec3& StartPoint, const FVec3& EndPoint, const FReal Thickness) const;
 };
 
-template <typename T, int d>
-FORCEINLINE FChaosArchive& operator<<(FChaosArchive& Ar, TImplicitObject<T, d>& Value)
+FORCEINLINE FChaosArchive& operator<<(FChaosArchive& Ar, FImplicitObject& Value)
 {
 	Value.Serialize(Ar);
 	return Ar;
 }
 
-template <typename T, int d>
-FORCEINLINE FArchive& operator<<(FArchive& Ar, TImplicitObject<T, d>& Value)
+FORCEINLINE FArchive& operator<<(FArchive& Ar, FImplicitObject& Value)
 {
 	Value.Serialize(Ar);
 	return Ar;
 }
 
-typedef TImplicitObject<float, 3> FImplicitObject3;
+typedef FImplicitObject FImplicitObject3;
 }

@@ -173,7 +173,7 @@ DECLARE_CYCLE_STAT(TEXT("FGeometryCollectionPhysicsProxy::PopulateSimulatedParti
 void PopulateSimulatedParticle(FGeometryCollectionPhysicsProxy::FParticlesType& Particles,
 	const FSharedSimulationParameters& SharedParams,
 	const FCollisionStructureManager::FSimplicial* Simplicial,
-	Chaos::TSerializablePtr<Chaos::TImplicitObject<float, 3>> Implicit,
+	Chaos::TSerializablePtr<Chaos::FImplicitObject> Implicit,
 	float MassIn,
 	const FVector& InertiaTensorVec,
 	int32 RigidBodyIndex,
@@ -2024,7 +2024,7 @@ void FGeometryCollectionPhysicsProxy::CreateDynamicAttributes()
 		DynamicCollection->AddExternalAttribute("InitialLinearVelocity", FTransformCollection::TransformGroup, InitialLinearVelocity);
 	}
 
-	const auto& RestImplicits = Parameters.RestCollection->GetAttribute<TUniquePtr<Chaos::TImplicitObject<float, 3>>>(ImplicitsAttribute, FTransformCollection::TransformGroup);
+	const auto& RestImplicits = Parameters.RestCollection->GetAttribute<TUniquePtr<Chaos::FImplicitObject>>(ImplicitsAttribute, FTransformCollection::TransformGroup);
 	for (int32 Index = DynamicCollection->NumElements(FTransformCollection::TransformGroup) - 1; 0 <= Index; Index--)
 	{
 		Simplicials[Index] = TUniquePtr<FSimplicial>(nullptr);
@@ -2127,7 +2127,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(Chaos:
 	TManagedArray<FTransform>& CollectionMassToLocal = RestCollection.AddAttribute<FTransform>(TEXT("MassToLocal"), FTransformCollection::TransformGroup);
 	TManagedArray<float>& CollectionMass = RestCollection.AddAttribute<float>(TEXT("Mass"), FTransformCollection::TransformGroup);
 	TManagedArray<TUniquePtr<FSimplicial>>& CollectionSimplicials = RestCollection.AddAttribute<TUniquePtr<FSimplicial>>(SimplicialsAttribute, FTransformCollection::TransformGroup);
-	TManagedArray<TUniquePtr<TImplicitObject<float, 3>>>& CollectionImplicits = RestCollection.AddAttribute<TUniquePtr<TImplicitObject<float, 3>>>(ImplicitsAttribute, FTransformCollection::TransformGroup);
+	TManagedArray<TUniquePtr<FImplicitObject>>& CollectionImplicits = RestCollection.AddAttribute<TUniquePtr<FImplicitObject>>(ImplicitsAttribute, FTransformCollection::TransformGroup);
 
 	for (int32 Index = 0; Index < CollectionMassToLocal.Num(); ++Index)
 	{
@@ -2322,7 +2322,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(Chaos:
 
 
 			ErrorReporter.SetPrefix(BaseErrorPrefix + " | Transform Index: " + FString::FromInt(TransformGroupIndex));
-			CollectionImplicits[TransformGroupIndex] = TUniquePtr<TImplicitObject<float, 3>>(
+			CollectionImplicits[TransformGroupIndex] = TUniquePtr<FImplicitObject>(
 				FCollisionStructureManager::NewImplicit(ErrorReporter, MassSpaceParticles, *TriMesh, InstanceBoundingBox,
 					InnerRadius[GeometryIndex], SizeSpecificData.MinLevelSetResolution, SizeSpecificData.MaxLevelSetResolution,
 					SizeSpecificData.CollisionObjectReductionPercentage, SizeSpecificData.CollisionType,
@@ -2469,7 +2469,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(Chaos:
 
 					//don't support non level-set serialization
 					ErrorReporter.SetPrefix(BaseErrorPrefix + " | Cluster Transform Index: " + FString::FromInt(ClusterTransformIdx));
-					CollectionImplicits[ClusterTransformIdx] = TUniquePtr<TImplicitObject<float, 3>>(
+					CollectionImplicits[ClusterTransformIdx] = TUniquePtr<FImplicitObject>(
 						FCollisionStructureManager::NewImplicit(ErrorReporter, MassSpaceParticles, *UnionMesh,
 							InstanceBoundingBox, 0, MinResolution, MaxResolution,
 							SizeSpecificData.CollisionObjectReductionPercentage, SizeSpecificData.CollisionType,
@@ -2483,7 +2483,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(Chaos:
 				else if (SizeSpecificData.ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Box)
 				{
 					ErrorReporter.SetPrefix(BaseErrorPrefix + " | Cluster Transform Index: " + FString::FromInt(ClusterTransformIdx));
-					CollectionImplicits[ClusterTransformIdx] = TUniquePtr<TImplicitObject<float, 3>>(
+					CollectionImplicits[ClusterTransformIdx] = TUniquePtr<FImplicitObject>(
 						FCollisionStructureManager::NewImplicit(ErrorReporter, MassSpaceParticles, *UnionMesh,
 							InstanceBoundingBox, 0, 0, 0,
 							SizeSpecificData.CollisionObjectReductionPercentage, SizeSpecificData.CollisionType,
@@ -2498,7 +2498,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(Chaos:
 				else if (SizeSpecificData.ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Sphere)
 				{
 					ErrorReporter.SetPrefix(BaseErrorPrefix + " | Cluster Transform Index: " + FString::FromInt(ClusterTransformIdx));
-					CollectionImplicits[ClusterTransformIdx] = TUniquePtr<TImplicitObject<float, 3>>(
+					CollectionImplicits[ClusterTransformIdx] = TUniquePtr<FImplicitObject>(
 						FCollisionStructureManager::NewImplicit(ErrorReporter, MassSpaceParticles, *UnionMesh,
 							InstanceBoundingBox, InstanceBoundingBox.GetExtent().GetAbsMin() / 2, 0, 0,
 							SizeSpecificData.CollisionObjectReductionPercentage, SizeSpecificData.CollisionType,
@@ -2717,10 +2717,10 @@ void FGeometryCollectionPhysicsProxy::UpdateCollisionData(const FParticlesType& 
 
 	if (Parameters.CollisionData.SaveCollisionData && ExistingFrame->Timestamp > 0.f && Parameters.CollisionData.CollisionDataSizeMax > 0)
 	{
+#if TODO_REIMPLEMENT_PHYSICS_PROXY_REVERSE_MAPPING
 		const TArray<Chaos::TPBDCollisionConstraint<float, 3>::FRigidBodyContactConstraint>& AllConstraintsArray = CollisionRule.GetAllConstraints();
 		if (AllConstraintsArray.Num() > 0)
 		{
-#if TODO_REIMPLEMENT_PHYSICS_PROXY_REVERSE_MAPPING
 			const Chaos::TArrayCollectionArray<PhysicsProxyWrapper>& PhysicsProxyReverseMapping = GetSolver()->GetPhysicsProxyReverseMapping();
 
 			TArray<Chaos::TPBDCollisionConstraint<float, 3>::FRigidBodyContactConstraint> ConstraintsArray;
@@ -2856,8 +2856,8 @@ void FGeometryCollectionPhysicsProxy::UpdateCollisionData(const FParticlesType& 
 					}
 				}
 			}
-#endif
 		}
+#endif
 	}
 }
 

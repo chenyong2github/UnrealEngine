@@ -162,6 +162,7 @@ struct FNiagaraGpuSpawnInfo
 {
 	uint32		EventSpawnTotal = 0;
 	uint32		SpawnRateInstances = 0;
+	uint32		MaxParticleCount = 0;
 	FVector4	SpawnInfoStartOffsets[NIAGARA_MAX_GPU_SPAWN_INFOS_V4];
 	FVector4	SpawnInfoParams[NIAGARA_MAX_GPU_SPAWN_INFOS];
 };
@@ -173,7 +174,7 @@ struct FNiagaraComputeExecutionContext
 
 	void Reset(NiagaraEmitterInstanceBatcher* Batcher);
 
-	void InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const FString& InDebugSimName, const int32 InMaxUpdateIterations, const TSet<uint32> InSpawnStages);
+	void InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const FString& InDebugSimName, const uint32 InDefaultShaderStageIndex, int32 InMaxUpdateIterations, const TSet<uint32> InSpawnStages);
 	void DirtyDataInterfaces();
 	bool Tick(FNiagaraSystemInstance* ParentSystemInstance);
 
@@ -224,6 +225,7 @@ public:
 	// Game thread spawn info will be sent to the render thread inside FNiagaraComputeInstanceData
 	FNiagaraGpuSpawnInfo GpuSpawnInfo_GT;
 
+	uint32 DefaultShaderStageIndex;
 	uint32 MaxUpdateIterations;
 	TSet<uint32> SpawnStages;
 

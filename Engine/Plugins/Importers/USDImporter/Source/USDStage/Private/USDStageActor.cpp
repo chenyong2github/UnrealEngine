@@ -68,6 +68,8 @@
 
 static const EObjectFlags DefaultObjFlag = EObjectFlags::RF_Transactional | EObjectFlags::RF_Transient;
 
+AUsdStageActor::FOnActorLoaded AUsdStageActor::OnActorLoaded{};
+
 #if USE_USD_SDK
 FMeshDescription LoadMeshDescription( const pxr::UsdGeomMesh& UsdMesh, const pxr::UsdTimeCode TimeCode )
 {
@@ -140,7 +142,7 @@ void ProcessMaterials( const pxr::UsdStageRefPtr& Stage, UStaticMesh* StaticMesh
 
 		if ( Material == nullptr && bHasPrimDisplayColor )
 		{
-			FSoftObjectPath VertexColorMaterialPath( TEXT("Material'/Engine/EngineDebugMaterials/VertexColorMaterial.VertexColorMaterial'") );
+			FSoftObjectPath VertexColorMaterialPath( TEXT("Material'/USDImporter/Materials/DisplayColor.DisplayColor'") );
 			Material = Cast< UMaterialInterface >( VertexColorMaterialPath.TryLoad() );
 		}
 
@@ -189,7 +191,7 @@ void ProcessMaterials( const pxr::UsdStageRefPtr& Stage, FSkeletalMeshImportData
 
 			if ( Material == nullptr && bHasPrimDisplayColor )
 			{
-				FSoftObjectPath VertexColorMaterialPath( TEXT("Material'/Engine/EngineDebugMaterials/VertexColorMaterial.VertexColorMaterial'") );
+				FSoftObjectPath VertexColorMaterialPath( TEXT("Material'/USDImporter/Materials/DisplayColor.DisplayColor'") );
 				Material = Cast< UMaterialInterface >( VertexColorMaterialPath.TryLoad() );
 			}
 			ImportedMaterial.Material = Material;
@@ -213,11 +215,6 @@ AUsdStageActor::AUsdStageActor()
 	UsdListener.OnPrimChanged.AddLambda(
 		[ this ]( const FString& PrimPath, bool bResync )
 			{
-				if ( this->PrimBeingUpdated.IsSet() && this->PrimBeingUpdated.GetValue() == PrimPath )
-				{
-					return;
-				}
-
 				TUsdStore< pxr::SdfPath > UsdPrimPath = UnrealToUsd::ConvertPath( *PrimPath );
 				this->UpdatePrim( UsdPrimPath.Get(), bResync );
 
@@ -230,6 +227,13 @@ AUsdStageActor::AUsdStageActor()
 	SetupLevelSequence();
 
 	FCoreUObjectDelegates::OnObjectPropertyChanged.AddUObject( this, &AUsdStageActor::OnPrimObjectPropertyChanged );
+}
+
+AUsdStageActor::~AUsdStageActor()
+{
+#if USE_USD_SDK
+	UnrealUSDWrapper::GetUsdStageCache().Erase( UsdStageStore.Get() );
+#endif // #if USE_USD_SDK
 }
 
 #if USE_USD_SDK
@@ -398,6 +402,8 @@ FUsdPrimTwin* AUsdStageActor::SpawnPrim( const pxr::SdfPath& UsdPrimPath )
 	{
 		return nullptr;
 	}
+
+	FScopedUnrealAllocs UnrealAllocs;
 
 	const bool bNeedsActor = ( ParentUsdPrimTwin->SceneComponent == nullptr || Prim.IsModel() || UsdUtils::HasCompositionArcs( Prim ) || Prim.IsGroup() || Prim.IsA< pxr::UsdGeomScope >() || Prim.IsA< pxr::UsdGeomCamera >() );
 
@@ -816,6 +822,8 @@ void AUsdStageActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 	if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, RootLayer ) )
 	{
 #if USE_USD_SDK
+		UnrealUSDWrapper::GetUsdStageCache().Erase( UsdStageStore.Get() );
+
 		UsdStageStore = TUsdStore< pxr::UsdStageRefPtr >();
 		LoadUsdStage();
 #endif // #if USE_USD_SDK
@@ -823,6 +831,10 @@ void AUsdStageActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, Time ) )
 	{
 		Refresh();
+	}
+	else
+	{
+		Super::PostEditChangeProperty( PropertyChangedEvent );
 	}
 }
 
@@ -871,17 +883,20 @@ void AUsdStageActor::OpenUsdStage()
 		UsdUtils::SetUsdStageAxis( UsdStageStore.Get(), pxr::UsdGeomTokens->z );
 	}
 
-	UsdStageStore.Get()->SetEditTarget( UsdStageStore.Get()->GetRootLayer() );
+	if ( UsdStageStore.Get() )
+	{
+		UsdStageStore.Get()->SetEditTarget( UsdStageStore.Get()->GetRootLayer() );
 
-	UsdListener.Register( UsdStageStore.Get() );
+		UsdListener.Register( UsdStageStore.Get() );
 
-	OnStageChanged.Broadcast();
+		OnStageChanged.Broadcast();
+	}
 #endif // #if USE_USD_SDK
 }
 
 void AUsdStageActor::InitLevelSequence(float FramesPerSecond)
 {
-	if (LevelSequence.IsValid())
+	if (LevelSequence)
 	{
 		return;
 	}
@@ -915,7 +930,7 @@ void AUsdStageActor::InitLevelSequence(float FramesPerSecond)
 
 void AUsdStageActor::SetupLevelSequence()
 {
-	if (!LevelSequence.IsValid())
+	if (!LevelSequence)
 	{
 		return;
 	}
@@ -1027,6 +1042,13 @@ void AUsdStageActor::PostRegisterAllComponents()
 #endif // #if USE_USD_SDK
 }
 
+void AUsdStageActor::PostLoad()
+{
+	Super::PostLoad();
+
+	OnActorLoaded.Broadcast( this );
+}
+
 void AUsdStageActor::OnUsdPrimTwinDestroyed( const FUsdPrimTwin& UsdPrimTwin )
 {
 	TArray<FDelegateHandle> DelegateHandles;
@@ -1047,7 +1069,7 @@ void AUsdStageActor::OnUsdPrimTwinDestroyed( const FUsdPrimTwin& UsdPrimTwin )
 void AUsdStageActor::OnPrimObjectPropertyChanged( UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent )
 {
 #if USE_USD_SDK
-	if ( !ObjectsToWatch.Contains( ObjectBeingModified ) )
+	if ( ObjectBeingModified == this || !ObjectsToWatch.Contains( ObjectBeingModified ) )
 	{
 		return;
 	}
@@ -1070,12 +1092,10 @@ void AUsdStageActor::OnPrimObjectPropertyChanged( UObject* ObjectBeingModified, 
 
 			if ( UsdStage )
 			{
-				PrimBeingUpdated = PrimPath;
+				FScopedBlockNotices BlockNotices( UsdListener );
 
 				TUsdStore< pxr::UsdPrim > UsdPrim = UsdStage->GetPrimAtPath( UnrealToUsd::ConvertPath( *PrimPath ).Get() );
 				UnrealToUsd::ConvertSceneComponent( UsdStage, PrimSceneComponent, UsdPrim.Get() );
-
-				PrimBeingUpdated.Reset();
 			}
 		}
 	}

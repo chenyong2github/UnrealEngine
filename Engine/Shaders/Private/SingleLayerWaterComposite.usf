@@ -10,13 +10,12 @@
 #include "ReflectionEnvironmentShared.ush"
 #include "ShadingModels.ush"
 #include "SceneTextureParameters.ush"
+#include "LightGridCommon.ush"
 
 // Scale for encoding depth into SceneDepthWithoutSingleLayerWaterTexture
 #define SINGLE_LAYER_WATER_DEPTH_SCALE 100.0f
 
 #define ENABLE_SKY_LIGHT 1
-
-#include "LightGridCommon.ush"
 
 #define REFLECTION_COMPOSITE_USE_BLENDED_REFLECTION_CAPTURES (FEATURE_LEVEL >= FEATURE_LEVEL_SM5)
 #define REFLECTION_COMPOSITE_SUPPORT_SKYLIGHT_BLEND 0
@@ -87,6 +86,7 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 			float NoV = saturate(dot(N, V));
 			// Point lobe in off-specular peak direction
 			R = GetOffSpecularPeakReflectionDir(N, R, GBuffer.Roughness);
+			const bool bCompositeSkylight = true;
 			Reflection += PreExposure * CompositeReflectionCapturesAndSkylight(
 				1,
 				WorldPosition,
@@ -97,7 +97,8 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 				ExtraIndirectSpecular,
 				NumCulledReflectionCaptures,
 				CaptureDataStartIndex,
-				0);
+				0,
+				bCompositeSkylight);
 
 			// Then combine reflection with SSR
 			float4 SSR = Texture2DSample(ScreenSpaceReflectionsTexture, ScreenSpaceReflectionsSampler, BufferUV);
@@ -257,7 +258,7 @@ void WaterTileVS(
 	uint TileData = TileListData[InstanceId.x];
 	uint2 TileOrigin = uint2((TileData & 0x0000FFFF) * WORK_TILE_SIZE, (TileData >> 16) * WORK_TILE_SIZE);
 
-	uint2 TileVertex = TileOrigin + View.ViewRectMin.xy;
+	uint2 TileVertex = TileOrigin;
 	TileVertex.x += VertexId == 1 || VertexId == 2 || VertexId == 4 ? WORK_TILE_SIZE : 0;
 	TileVertex.y += VertexId == 2 || VertexId == 4 || VertexId == 5 ? WORK_TILE_SIZE : 0;
 

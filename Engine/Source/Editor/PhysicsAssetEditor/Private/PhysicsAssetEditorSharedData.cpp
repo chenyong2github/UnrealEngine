@@ -554,6 +554,32 @@ void FPhysicsAssetEditorSharedData::ToggleSelectionType()
 	}
 }
 
+void FPhysicsAssetEditorSharedData::ToggleShowSelected()
+{
+	for (const FSelection& Selection : SelectedConstraints)
+	{
+		if (HiddenConstraints.Contains(Selection.Index))
+		{
+			HiddenConstraints.Remove(Selection.Index);
+		}
+		else
+		{
+			HiddenConstraints.AddUnique(Selection.Index);
+		}
+	}
+	for (const FSelection& Selection : SelectedBodies)
+	{
+		if (HiddenBodies.Contains(Selection.Index))
+		{
+			HiddenBodies.Remove(Selection.Index);
+		}
+		else
+		{
+			HiddenBodies.AddUnique(Selection.Index);
+		}
+	}
+}
+
 void FPhysicsAssetEditorSharedData::UpdateNoCollisionBodies()
 {
 	NoCollisionBodies.Empty();

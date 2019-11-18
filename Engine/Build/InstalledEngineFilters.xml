@@ -38,6 +38,35 @@
 	<Property Name="MacSignFilter" Value="*.dylib;*.app"/>
 	<Property Name="SignExceptions" Value=".../ThirdParty/..."/>
 
+	<!-- List of project to build Feature packs -->
+	<Property Name="ProjectsToFeaturePack">
+		FP_FirstPerson
+		FP_FirstPersonBP
+		TP_2DSideScroller
+		TP_2DSideScrollerBP
+		TP_Flying
+		TP_FlyingBP
+		TP_HandheldARBP
+		TP_Puzzle
+		TP_PuzzleBP
+		TP_Rolling
+		TP_RollingBP
+		TP_SideScroller
+		TP_SideScrollerBP
+		TP_ThirdPerson
+		TP_ThirdPersonBP
+		TP_TopDown
+		TP_TopDownBP
+		TP_TwinStick
+		TP_TwinStickBP
+		TP_Vehicle
+		TP_VehicleAdv
+		TP_VehicleAdvBP
+		TP_VehicleBP
+		TP_VirtualRealityBP
+		TP_CollaborativeBP
+	</Property>
+
 	<!-- List of projects to build DDC for -->
 	<Property Name="ProjectsToBuildDDC">
 		Templates/FP_FirstPersonBP/FP_FirstPersonBP.uproject
@@ -52,6 +81,7 @@
 		Templates/TP_PuzzleBP/TP_PuzzleBP.uproject
 		Templates/TP_2DSideScrollerBP/TP_2DSideScrollerBP.uproject
 		Templates/TP_VehicleAdvBP/TP_VehicleAdvBP.uproject
+		Templates/TP_CollaborativeBP/TP_CollaborativeBP.uproject
 		Samples/StarterContent/StarterContent.uproject
 		Samples/MobileStarterContent/MobileStarterContent.uproject
 	</Property>
@@ -117,9 +147,6 @@
 		Templates/Media/...
 		Templates/TP_Blank/...
 		Templates/TP_BlankBP/...
-		Templates/TP_AEC_BlankBP/...
-		Templates/TP_ME_BlankBP/...
-		Templates/TP_MFG_BlankBP/...
 		Templates/TP_FirstPerson/...
 		Templates/TP_FirstPersonBP/...
 		Templates/TP_Flying/...
@@ -143,6 +170,16 @@
 		Templates/TP_2DSideScrollerBP/...
 		Templates/TP_VehicleAdv/...
 		Templates/TP_VehicleAdvBP/...
+
+		<!-- Enterprise Templates -->
+		Templates/TP_AEC_BlankBP/...
+		Templates/TP_AEC_ArchvisBP/...
+		Templates/TP_MFG_BlankBP/...
+		Templates/TP_CollaborativeBP/...
+		Templates/TP_PhotoStudioBP/...
+
+		Templates/TP_ME_BlankBP/...
+		Templates/TP_ME_VProdBP/...
 
 		<!-- Shared template resources -->
 		Templates/TemplateResources/...

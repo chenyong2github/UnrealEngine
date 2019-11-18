@@ -10,16 +10,16 @@ namespace Chaos
 	struct TTaperedCylinderSpecializeSamplingHelper;
 
 	template<class T>
-	class TTaperedCylinder : public TImplicitObject<T, 3>
+	class TTaperedCylinder : public FImplicitObject
 	{
 	public:
 		TTaperedCylinder()
-		    : TImplicitObject<T, 3>(EImplicitObject::FiniteConvex, ImplicitObjectType::TaperedCylinder)
+		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::TaperedCylinder)
 		{
 			this->bIsConvex = true;
 		}
 		TTaperedCylinder(const TVector<T, 3>& x1, const TVector<T, 3>& x2, const T Radius1, const T Radius2)
-		    : TImplicitObject<T, 3>(EImplicitObject::FiniteConvex, ImplicitObjectType::TaperedCylinder)
+		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::TaperedCylinder)
 		    , MPlane1(x1, (x2 - x1).GetSafeNormal())
 		    , MPlane2(x2, -MPlane1.Normal())
 		    , MHeight((x2 - x1).Size())
@@ -35,7 +35,7 @@ namespace Chaos
 			MLocalBoundingBox = TBox<T, 3>(MLocalBoundingBox.Min() - TVector<T, 3>(MaxRadius), MLocalBoundingBox.Max() + TVector<T, 3>(MaxRadius));
 		}
 		TTaperedCylinder(const TTaperedCylinder<T>& Other)
-		    : TImplicitObject<T, 3>(EImplicitObject::FiniteConvex, ImplicitObjectType::TaperedCylinder)
+		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::TaperedCylinder)
 		    , MPlane1(Other.MPlane1)
 		    , MPlane2(Other.MPlane2)
 		    , MHeight(Other.MHeight)
@@ -46,7 +46,7 @@ namespace Chaos
 			this->bIsConvex = true;
 		}
 		TTaperedCylinder(TTaperedCylinder<T>&& Other)
-		    : TImplicitObject<T, 3>(EImplicitObject::FiniteConvex, ImplicitObjectType::TaperedCylinder)
+		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::TaperedCylinder)
 		    , MPlane1(MoveTemp(Other.MPlane1))
 		    , MPlane2(MoveTemp(Other.MPlane2))
 		    , MHeight(Other.MHeight)
@@ -58,7 +58,7 @@ namespace Chaos
 		}
 		~TTaperedCylinder() {}
 
-		static ImplicitObjectType GetType() { return ImplicitObjectType::TaperedCylinder; }
+		static constexpr EImplicitObjectType StaticType() { return ImplicitObjectType::TaperedCylinder; }
 
 		/**
 		 * Returns sample points centered about the origin.

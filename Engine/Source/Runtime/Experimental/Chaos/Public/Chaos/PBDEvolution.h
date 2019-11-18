@@ -42,6 +42,18 @@ class CHAOS_API TPBDEvolution
 	int32 GetIterations() const { return MNumIterations; }
 	void SetIterations(const int32 Iterations) { MNumIterations = Iterations; }
 
+	T GetSelfCollisionThickness() const { return MSelfCollisionThickness; }
+	void SetSelfCollisionThickness(const T SelfCollisionThickness) { MSelfCollisionThickness = SelfCollisionThickness; }
+
+	T GetCollisionThickness() const { return MCollisionThickness; }
+	void SetCollisionThickness(const T CollisionThickness) { MCollisionThickness = CollisionThickness; }
+
+	T GetCoefficientOfFriction() const { return MCoefficientOfFriction; }
+	void SetCoefficientOfFriction(const T CoefficientOfFriction) { MCoefficientOfFriction = CoefficientOfFriction; }
+
+	T GetDamping() const { return MDamping; }
+	void SetDamping(const T Damping) { MDamping = Damping; }
+
 	T GetTime() const { return MTime; }
 
   private:

@@ -5,6 +5,7 @@
 #include "../SceneTextureParameters.ush"
 
 
+#if PIXELSHADER
 float3 VoxelMinAABB;
 uint   VoxelResolution;
 float3 VoxelMaxAABB;
@@ -70,6 +71,46 @@ void MainPS(
 	if (ClosestDepth < VoxelDepth && abs(ClosestDepth - VoxelDepth) < DepthBias)
 	{
 		OutColor0 = float4(1,0,0,1);
-		DensityTexture[VoxelPos] = 100000;
+		InterlockedOr(DensityTexture[VoxelPos], 0x10000000);
 	}
 }
+#endif
+
+#if COMPUTESHADER
+
+uint				VoxelResolution;
+RWTexture3D<uint>	VoxelTexture;
+
+[numthreads(4, 4, 4)]
+void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	const uint  OpaqueMask	 =  0x10000000;
+	const uint  DensityMask	 = ~OpaqueMask;
+	const uint3 VoxelCoord   = DispatchThreadId;
+	const uint  VoxelDensity = VoxelTexture[VoxelCoord];
+	const bool  bHasOpaque	 = (OpaqueMask & VoxelDensity) > 0;
+
+	// If the current voxel does not contains any opaque data, there is nothing to filter.
+	if (!bHasOpaque)
+	{
+		return;
+	}
+
+	const int FilterSize = 3;
+	for (int z = -FilterSize; z <= FilterSize; z++)
+	for (int y = -FilterSize; y <= FilterSize; y++)
+	for (int x = -FilterSize; x <= FilterSize; x++)
+	{
+		const int3 Offset = int3(x, y, z);
+		const int3 Sample = clamp(VoxelCoord + Offset, 0, VoxelResolution-1);
+		const uint Density = VoxelTexture[Sample] & DensityMask;
+		if (Density > 0)
+		{
+			return;
+		}
+	}
+
+	// No hair density has been found, so this opaque voxel is a false positive
+	InterlockedAnd(VoxelTexture[VoxelCoord], DensityMask);
+}
+#endif

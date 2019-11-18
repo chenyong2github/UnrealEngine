@@ -49,13 +49,13 @@ public:
 	using FGravityForces = TPerParticleGravity<T, d>;
 	using FCollisionConstraints = TPBDCollisionConstraint<T, d>;
 	using FExternalForces = TPerParticleExternalForces<T, d>;
-	using FCollisionConstraintRule = TPBDConstraintColorRule<FCollisionConstraints, T, d>;
+	using FCollisionConstraintRule = TPBDConstraintColorRule<FCollisionConstraints>;
 
 	static constexpr int32 DefaultNumIterations = 1;
 	static constexpr int32 DefaultNumPushOutIterations = 5;
 	static constexpr int32 DefaultNumPushOutPairIterations = 2;
 
-	CHAOS_API TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<T, d>& InParticles, int32 InNumIterations = DefaultNumIterations);
+	CHAOS_API TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<T, d>& InParticles, int32 InNumIterations = DefaultNumIterations, bool InIsSingleThreaded = false);
 	CHAOS_API ~TPBDRigidsEvolutionGBF() {}
 
 	void SetPostIntegrateCallback(const TPBDRigidsEvolutionCallback<T, d>& Cb)
@@ -78,7 +78,8 @@ public:
 		PostApplyPushOutCallback = Cb;
 	}
 
-	CHAOS_API void AdvanceOneTimeStep(const T dt);
+	CHAOS_API void Advance(const T Dt, const T MaxStepDt, const int32 MaxSteps);
+	CHAOS_API void AdvanceOneTimeStep(const T dt, const T StepFraction = (T)1.0);
 
 	using Base::ApplyConstraints;
 	using Base::ApplyPushOut;
@@ -178,7 +179,8 @@ protected:
 	using Base::UpdateConstraintPositionBasedState;
 	using Base::CreateConstraintGraph;
 	using Base::CreateIslands;
-	using Base::ConstraintGraph;
+	using Base::ConstraintRules;
+	using Base::GetConstraintGraph;
 	using Base::UpdateVelocities;
 	using Base::PhysicsMaterials;
 	using Base::ParticleDisableCount;

@@ -406,10 +406,13 @@ void FFileManagerGeneric::FindFiles( TArray<FString>& Result, const TCHAR* InFil
 		}
 		virtual bool Visit( const TCHAR* FilenameOrDirectory, bool bIsDirectory )
 		{
-			if (((bIsDirectory && bDirectories) || (!bIsDirectory && bFiles))
-				&& FPaths::GetCleanFilename(FilenameOrDirectory).MatchesWildcard(WildCard))
+			if ((bIsDirectory && bDirectories) || (!bIsDirectory && bFiles))
 			{
-				new( Result ) FString( FPaths::GetCleanFilename(FilenameOrDirectory) );
+				const FString Filename = FPaths::GetCleanFilename(FilenameOrDirectory);
+				if (Filename.MatchesWildcard(WildCard))
+				{
+					new( Result ) FString(Filename);
+				}
 			}
 			return true;
 		}
@@ -654,25 +657,16 @@ void FArchiveFileReaderGeneric::Seek( int64 InPos )
 	checkf(InPos >= 0, TEXT("Attempted to seek to a negative location (%lld/%lld), file: %s. The file is most likely corrupt."), InPos, Size, *Filename);
 	checkf(InPos <= Size, TEXT("Attempted to seek past the end of file (%lld/%lld), file: %s. The file is most likely corrupt."), InPos, Size, *Filename);
 
-	if (InPos < BufferBase || InPos >= BufferBase + BufferCount)
+	if (!SeekLowLevel(InPos))
 	{
-		// The seek is outside of the cached buffer so we actually need to seek
-		if (!SeekLowLevel(InPos))
-		{
-			TCHAR ErrorBuffer[1024];
-			ArIsError = true;
-			UE_LOG(LogFileManager, Error, TEXT("SetFilePointer on %s Failed %lld/%lld: %lld %s"), *Filename, InPos, Size, Pos, FPlatformMisc::GetSystemErrorMessage(ErrorBuffer, 1024, 0));
-		}
+		TCHAR ErrorBuffer[1024];
+		ArIsError = true;
+		UE_LOG(LogFileManager, Error, TEXT("SetFilePointer on %s Failed %lld/%lld: %lld %s"), *Filename, InPos, Size, Pos, FPlatformMisc::GetSystemErrorMessage(ErrorBuffer, 1024, 0));
+	}
 
-		Pos = InPos;
-		BufferBase = Pos;
-		BufferCount = 0;
-	}
-	else
-	{
-		// We already have the seek position cached so we can just move the current reading position
-		Pos = InPos;
-	}
+	Pos = InPos;
+	BufferBase = Pos;
+	BufferCount = 0;
 }
 
 FArchiveFileReaderGeneric::~FArchiveFileReaderGeneric()

@@ -41,7 +41,7 @@
 #define DEBUG_DISABLE_SIGNAL_COMPRESSION 0
 
 /** Enables debugging output from shaders. */
-#define DEBUG_OUTPUT 1
+#define DEBUG_OUTPUT 0
 
 
 //------------------------------------------------------- SHARED CONSTANTS
@@ -223,6 +223,7 @@
 	#define SAMPLE_SET_STOCASTIC_HIERARCHY 12
 
 	#define SAMPLE_SET_DIRECTIONAL_RECT 14
+	#define SAMPLE_SET_DIRECTIONAL_ELLIPSE 15
 
 
 /** Compression of signal for VGPR occupency. */

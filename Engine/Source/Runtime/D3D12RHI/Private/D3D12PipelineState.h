@@ -78,6 +78,7 @@ struct FD3D12LowLevelGraphicsPipelineStateDesc
 	ShaderBytecodeHash GSHash;
 	ShaderBytecodeHash PSHash;
 	uint32 InputLayoutHash;
+	bool bFromPSOFileCache;
 
 	SIZE_T CombinedHash;
 
@@ -281,8 +282,8 @@ struct FD3D12PipelineStateWorker : public FD3D12AdapterChild, public FNonAbandon
 
 	union PipelineCreationArgs
 	{
-		ComputePipelineCreationArgs_POD ComputeArgs;
-		GraphicsPipelineCreationArgs_POD GraphicsArgs;
+		ComputePipelineCreationArgs_POD* ComputeArgs;
+		GraphicsPipelineCreationArgs_POD* GraphicsArgs;
 	} CreationArgs;
 
 	const bool bIsGraphics;

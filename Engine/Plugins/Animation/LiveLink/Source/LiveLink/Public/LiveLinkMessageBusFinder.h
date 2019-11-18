@@ -13,6 +13,12 @@
 
 struct FLiveLinkPongMessage;
 
+
+namespace LiveLinkMessageBusHelper
+{
+	double CalculateProviderMachineOffset(double SourceMachinePlatformSeconds, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
+}
+
 USTRUCT(BlueprintType)
 struct FProviderPollResult
 {
@@ -21,10 +27,11 @@ public:
 	
 	FProviderPollResult() = default;
 	
-	FProviderPollResult(const FMessageAddress& InAddress, const FString& InName, const FString& InMachineName)
+	FProviderPollResult(const FMessageAddress& InAddress, const FString& InName, const FString& InMachineName, double InMachineOffset)
 		: Address(InAddress)
 		, Name(InName)
 		, MachineName(InMachineName)
+		, MachineTimeOffset(InMachineOffset)
 	{}
 
 	FMessageAddress Address;
@@ -36,6 +43,10 @@ public:
 	// The name of the machine the provider is running on
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category="LiveLink")
 	FString			MachineName;
+
+	// Offset between sender's engine time and receiver's engine time
+	UPROPERTY()
+	double			MachineTimeOffset;
 };
 
 typedef TSharedPtr<FProviderPollResult, ESPMode::ThreadSafe> FProviderPollResultPtr;

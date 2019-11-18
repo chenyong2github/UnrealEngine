@@ -30,14 +30,6 @@
 		{
 			"Name": "VariantManagerContent",
 			"Enabled": true
-		},
-		{
-			"Name": "DataprepEditor",
-			"Enabled": true
-		},
-		{
-			"Name": "EditorScriptingUtilities",
-			"Enabled": true
 		}
 	]
 }

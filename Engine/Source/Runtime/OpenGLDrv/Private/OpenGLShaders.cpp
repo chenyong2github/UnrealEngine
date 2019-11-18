@@ -534,6 +534,17 @@ namespace
 	}
 }
 
+// make some anon ns functions available to platform extensions
+void PE_AppendCString(TArray<ANSICHAR> & Dest, const ANSICHAR * Source)
+{
+	AppendCString(Dest, Source);
+}
+
+void PE_ReplaceCString(TArray<ANSICHAR> & Dest, const ANSICHAR * Source, const ANSICHAR * Replacement)
+{
+	ReplaceCString(Dest, Source, Replacement);
+}
+
 
 FOpenGLProgramBinaryCache::FPreviousGLProgramBinaryCacheInfo::FPreviousGLProgramBinaryCacheInfo() : NumberOfOldEntriesReused(0) {}
 FOpenGLProgramBinaryCache::FPreviousGLProgramBinaryCacheInfo::FPreviousGLProgramBinaryCacheInfo(FOpenGLProgramBinaryCache::FPreviousGLProgramBinaryCacheInfo&&) = default;
@@ -947,14 +958,10 @@ void OPENGLDRV_API GetCurrentOpenGLShaderDeviceCapabilities(FOpenGLShaderDeviceC
 		Capabilities.bRequiresTexture2DPrecisionHack = FOpenGL::RequiresTexture2DPrecisionHack();
 		Capabilities.bRequiresRoundFunctionHack = FOpenGL::RequiresRoundFunctionHack();
 	#endif // PLATFORM_LUMINGL4
-#elif defined(__EMSCRIPTEN__)
-	Capabilities.TargetPlatform = EOpenGLShaderTargetPlatform::OGLSTP_HTML5;
-	Capabilities.bUseES30ShadingLanguage = FOpenGL::UseES30ShadingLanguage();
-	Capabilities.bSupportsShaderTextureLod = FOpenGL::SupportsShaderTextureLod();
 #elif PLATFORM_IOS
 	Capabilities.TargetPlatform = EOpenGLShaderTargetPlatform::OGLSTP_iOS;
 #else
-	Capabilities.TargetPlatform = EOpenGLShaderTargetPlatform::OGLSTP_Unknown;
+	FOpenGL::PE_GetCurrentOpenGLShaderDeviceCapabilities(Capabilities); // platform extension
 #endif
 	Capabilities.MaxRHIShaderPlatform = GMaxRHIShaderPlatform;
 	Capabilities.bSupportsSeparateShaderObjects = FOpenGL::SupportsSeparateShaderObjects();
@@ -967,6 +974,11 @@ void OPENGLDRV_API GetCurrentOpenGLShaderDeviceCapabilities(FOpenGLShaderDeviceC
 
 void OPENGLDRV_API GLSLToDeviceCompatibleGLSL(FAnsiCharArray& GlslCodeOriginal, const FString& ShaderName, GLenum TypeEnum, const FOpenGLShaderDeviceCapabilities& Capabilities, FAnsiCharArray& GlslCode)
 {
+	if (FOpenGL::PE_GLSLToDeviceCompatibleGLSL(GlslCodeOriginal, ShaderName, TypeEnum, Capabilities, GlslCode))
+	{
+		return; // platform extension overrides
+	}
+
 	// Whether shader was compiled for ES 3.1
 	const ANSICHAR* ES310Version = "#version 310 es";
 	const bool bES31 = (FCStringAnsi::Strstr(GlslCodeOriginal.GetData(), ES310Version) != nullptr);
@@ -993,9 +1005,10 @@ void OPENGLDRV_API GLSLToDeviceCompatibleGLSL(FAnsiCharArray& GlslCodeOriginal, 
 	bool bGlslCodeHasExtensions = CStringCountOccurances(GlslCodeOriginal, GlslPlaceHolderAfterExtensions) == 1;
 	
 	bool bNeedsExtDrawInstancedDefine = false;
-	if (Capabilities.TargetPlatform == EOpenGLShaderTargetPlatform::OGLSTP_Android || Capabilities.TargetPlatform == EOpenGLShaderTargetPlatform::OGLSTP_HTML5)
+	if (Capabilities.TargetPlatform == EOpenGLShaderTargetPlatform::OGLSTP_Android)
 	{
 		bNeedsExtDrawInstancedDefine = !bES31;
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (bES31)
 		{
 			// @todo Lumin hack: This is needed for AEP on Lumin, so that some shaders compile that need version 320
@@ -1022,7 +1035,7 @@ void OPENGLDRV_API GLSLToDeviceCompatibleGLSL(FAnsiCharArray& GlslCodeOriginal, 
 			}
 			ReplaceCString(GlslCodeOriginal, "#version 100", "");
 		}
-
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	else if (Capabilities.TargetPlatform == EOpenGLShaderTargetPlatform::OGLSTP_iOS)
 	{
@@ -1178,6 +1191,7 @@ void OPENGLDRV_API GLSLToDeviceCompatibleGLSL(FAnsiCharArray& GlslCodeOriginal, 
 			}
 		}
 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (IsES2Platform(Capabilities.MaxRHIShaderPlatform) && !bES31)
 		{
 			const ANSICHAR * EncodeModeDefine = nullptr;
@@ -1366,17 +1380,7 @@ void OPENGLDRV_API GLSLToDeviceCompatibleGLSL(FAnsiCharArray& GlslCodeOriginal, 
 				}
 			}
 		}
-	}
-	else if (Capabilities.TargetPlatform == EOpenGLShaderTargetPlatform::OGLSTP_HTML5)
-	{
-		// HTML5 use case is much simpler, use a separate chunk of code from android.
-		if (!Capabilities.bSupportsShaderTextureLod)
-		{
-			AppendCString(GlslCode,
-				"#define DONTEMITEXTENSIONSHADERTEXTURELODENABLE \n"
-				"#define texture2DLodEXT(a, b, c) texture2D(a, b) \n"
-				"#define textureCubeLodEXT(a, b, c) textureCube(a, b) \n");
-		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	if (FOpenGL::SupportsClipControl())

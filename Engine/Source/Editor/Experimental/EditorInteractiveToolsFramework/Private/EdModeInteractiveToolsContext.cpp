@@ -5,7 +5,9 @@
 #include "Editor.h"
 #include "EditorViewportClient.h"
 #include "EditorModeManager.h"
+#include "LevelEditor.h"
 #include "LevelEditorViewport.h"   // for GCurrentLevelEditingViewportClient
+#include "Modules/ModuleManager.h"
 #include "ShowFlags.h"				// for EngineShowFlags
 #include "Engine/Selection.h"
 #include "Misc/ITransaction.h"
@@ -343,6 +345,15 @@ void UEdModeInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* Queries
 		TerminateActiveToolsOnSaveWorld();
 	});
 
+	FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+	WorldTearDownDelegateHandle = LevelEditor.OnMapChanged().AddLambda([this](UWorld* World, EMapChangeType ChangeType)
+	{
+		if (ChangeType == EMapChangeType::TearDownWorld)
+		{
+			TerminateActiveToolsOnWorldTearDown();
+		}
+	});
+
 	ToolManager->OnToolEnded.AddLambda([this](UInteractiveToolManager*, UInteractiveTool*)
 	{
 		RestoreEditorState();
@@ -354,6 +365,9 @@ void UEdModeInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* Queries
 
 void UEdModeInteractiveToolsContext::Shutdown()
 {
+
+	FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+	LevelEditor.OnMapChanged().Remove(WorldTearDownDelegateHandle);
 	FEditorDelegates::BeginPIE.Remove(BeginPIEDelegateHandle);
 	FEditorDelegates::PreSaveWorld.Remove(PreSaveWorldDelegateHandle);
 
@@ -434,6 +448,10 @@ void UEdModeInteractiveToolsContext::TerminateActiveToolsOnSaveWorld()
 {
 	DeactivateAllActiveTools();
 }
+void UEdModeInteractiveToolsContext::TerminateActiveToolsOnWorldTearDown()
+{
+	DeactivateAllActiveTools();
+}
 
 
 
@@ -498,17 +516,33 @@ bool UEdModeInteractiveToolsContext::ProcessEditDelete()
 
 	bool bSkipDelete = false;
 
-	// Test if any of the selected actors are AInternalToolFrameworkActor
-	// subclasses. In this case we do not want to allow them to be deleted,
-	// as generally this will cause problems for the Tool.
 	USelection* SelectedActors = GEditor->GetSelectedActors();
-	for (int i = 0; i < SelectedActors->Num(); ++i)
+	for (int i = 0; i < SelectedActors->Num() && bSkipDelete == false; ++i)
 	{
 		UObject* SelectedActor = SelectedActors->GetSelectedObject(i);
-		if ( Cast<AInternalToolFrameworkActor>(SelectedActor) != nullptr) 
+
+		// If any of the selected actors are AInternalToolFrameworkActor, we do not want to allow them to be deleted,
+		// as generally this will cause problems for the Tool.
+		if ( Cast<AInternalToolFrameworkActor>(SelectedActor) != nullptr)
 		{
 			bSkipDelete = true;
 		}
+
+		// If any Components of selected Actors implement UToolFrameworkComponent, we disable delete (for now).
+		// (Currently Sculpt and a few other Modeling Tools attach their preview mesh components to the selected Actor)
+		AActor* Actor = Cast<AActor>(SelectedActor);
+		if (Actor != nullptr)
+		{
+			const TSet<UActorComponent*>& Components = Actor->GetComponents();
+			for (const UActorComponent* Component : Components)
+			{
+				if ( Component->Implements<UToolFrameworkComponent>() )
+				{
+					bSkipDelete = true;
+				}
+			}
+		}
+
 	}
 
 	return bSkipDelete;

@@ -2344,6 +2344,13 @@ namespace ObjectTools
 			{
 				MorphTarget->BaseSkelMesh->UnregisterMorphTarget(MorphTarget);
 			}
+
+			// @todo FH: Temporary Hack for world to clean up references until `ForceReplaceReferences` can be made consistent with `IsReferenced`
+			// Worlds get hooked on by a lot of external non-uobject system through GCObject, call World cleanup to fire delegates to tell them to unhook and release reference
+			if (UWorld* World = Cast<UWorld>(ObjectToDelete))
+			{
+				World->CleanupWorld();
+			}
 		}
 
 		if ( bPerformReferenceCheck )
@@ -2396,18 +2403,21 @@ namespace ObjectTools
 		return true;
 	}
 
-	static void RecursiveRetrieveReferencers(UObject* Object, TSet<UObject*>& ReferencingObjects)
+	static void RecursiveRetrieveReferencers(UObject* Object, TSet<FWeakObjectPtr>& ReferencingObjects)
 	{
 		TArray<FReferencerInformation> ExternalReferencers;
 		Object->RetrieveReferencers(nullptr /* internal refs */, &ExternalReferencers);
 
-		for (const FReferencerInformation& Referencer : ExternalReferencers)
+		for (const FReferencerInformation& RefInfo : ExternalReferencers)
 		{
-			bool bAlreadyIn = false;
-			ReferencingObjects.Add(Referencer.Referencer, &bAlreadyIn);
-			if (!bAlreadyIn)
+			if (RefInfo.Referencer != nullptr)
 			{
-				RecursiveRetrieveReferencers(Referencer.Referencer, ReferencingObjects);
+				bool bAlreadyIn = false;
+				ReferencingObjects.Add(RefInfo.Referencer, &bAlreadyIn);
+				if (!bAlreadyIn)
+				{
+					RecursiveRetrieveReferencers(RefInfo.Referencer, ReferencingObjects);
+				}
 			}
 		}
 	}
@@ -2435,7 +2445,7 @@ namespace ObjectTools
 		}
 
 		// Recursively find all references to objects being deleted
-		TSet<UObject*> ReferencingObjects;
+		TSet<FWeakObjectPtr> ReferencingObjects;
 		for (UObject* ToDelete : InObjectsToDelete)
 		{
 			ReferencingObjects.Add(ToDelete);
@@ -2445,9 +2455,10 @@ namespace ObjectTools
 
 		// Attempt to close all editors referencing any of the deleted objects
 		bool bClosedAllEditors = true;
-		for (UObject* Object : ReferencingObjects)
+		for (const FWeakObjectPtr& ObjectPtr : ReferencingObjects)
 		{
-			if (Object->IsAsset())
+			UObject* Object = ObjectPtr.Get();
+			if (Object != nullptr && Object->IsAsset())
 			{
 				TArray<IAssetEditorInstance*> ObjectEditors = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorsForAssetAndSubObjects(Object);
 				for (IAssetEditorInstance* ObjectEditorInstance : ObjectEditors)
@@ -2652,6 +2663,7 @@ namespace ObjectTools
 			ReloadEditorWorldForReferenceReplacementIfNecessary(ObjectsToDelete);
 		}
 
+		TArray<UPackage*> PackagesToReload;
 		{
 			int32 ReplaceableObjectsNum = 0;
 			{
@@ -2752,10 +2764,9 @@ namespace ObjectTools
 			FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
 
 			int32 Count = 0;
-			for(TWeakObjectPtr<UObject>& Object : ObjectsToDelete)
+			for(auto It = ObjectsToDelete.CreateIterator(); It; ++It)
 			{
-				UObject* CurObject = Object.Get();
-
+				UObject* CurObject = It->Get();
 				if ( !ensure(CurObject != NULL) )
 				{
 					continue;
@@ -2769,6 +2780,13 @@ namespace ObjectTools
 						// Update return val
 						++NumDeletedObjects;
 					}
+				}
+				// if the delete fails at this point, it means the object won't be able to be purged and might be left in a weird state, as a last resort queue its package for reload
+				else
+				{
+					UE_LOG(LogObjectTools, Warning, TEXT("ForceDeleteObject failed to delete %s, queuing its package for reloading"), *CurObject->GetName());
+					PackagesToReload.AddUnique(CurObject->GetOutermost());
+					It.RemoveCurrent();
 				}
 
 				GWarn->StatusUpdate(Count, ReplaceableObjectsNum, NSLOCTEXT("UnrealEd", "ConsolidateAssetsUpdate_DeletingObjects", "Deleting Assets..."));
@@ -2791,6 +2809,15 @@ namespace ObjectTools
 			CleanupAfterSuccessfulDelete(PotentialPackagesToDelete);
 		}
 		ObjectsToDelete.Empty();
+
+		// Reload packages of objects we failed to clean as a last resort since they might be left in an unstable state due to the force replace references
+		ensureMsgf(PackagesToReload.Num() == 0, TEXT("Failed to unload all packages during ForceDeleteObjects"));
+		if (PackagesToReload.Num() > 0)
+		{
+			FText ErrorMessage;
+			bool bSuccess = UPackageTools::ReloadPackages(PackagesToReload, ErrorMessage, UPackageTools::EReloadPackagesInteractionMode::AssumePositive);
+			ensureMsgf(bSuccess, TEXT("Failed to reload package as a last resort in ForceDeleteObjects"));
+		}
 
 		GWarn->EndSlowTask();
 

@@ -1430,7 +1430,9 @@ namespace PerfSummaries
 		{
 			if ( !isNumeric )
 			{
-				throw new Exception("can't mix numeric and non-numeric types!");
+				// This is already a non-numeric column. Better treat this as a string value
+				SetStringValue(index, value.ToString());
+				return;
 			}
 			// Grow to fill if necessary
 			if ( index >= floatValues.Count )
@@ -1441,6 +1443,20 @@ namespace PerfSummaries
 				}
 			}
 			floatValues[index] = value;
+		}
+
+		void convertToStrings()
+		{
+			if ( isNumeric )
+			{
+				stringValues = new List<string>();
+				foreach (float f in floatValues)
+				{
+					stringValues.Add(f.ToString());
+				}
+				floatValues = new List<float>();
+				isNumeric = false;
+			}
 		}
 
 		public void SetColourThresholds(int index, ColourThresholdList value)
@@ -1492,7 +1508,8 @@ namespace PerfSummaries
 		{
 			if (isNumeric)
 			{
-				throw new Exception("can't mix numeric and non-numeric types!");
+				// Better convert this to a string column, since we're trying to add a string to it
+				convertToStrings();
 			}
 			// Grow to fill if necessary
 			if (index >= stringValues.Count)

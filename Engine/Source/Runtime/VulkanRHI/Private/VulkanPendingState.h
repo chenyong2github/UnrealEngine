@@ -7,7 +7,6 @@
 #pragma once
 
 // Dependencies
-#include "VulkanGlobals.h"
 #include "VulkanConfiguration.h"
 #include "VulkanState.h"
 #include "VulkanResources.h"
@@ -341,36 +340,7 @@ public:
 
 	void PrepareForDraw(FVulkanCmdBuffer* CmdBuffer);
 
-	bool SetGfxPipeline(FVulkanRHIGraphicsPipelineState* InGfxPipeline, bool bForceReset)
-	{
-		bool bChanged = bForceReset;
-
-		if (InGfxPipeline != CurrentPipeline)
-		{
-			CurrentPipeline = InGfxPipeline;
-			FVulkanGraphicsPipelineDescriptorState** Found = PipelineStates.Find(InGfxPipeline);
-			if (Found)
-			{
-				CurrentState = *Found;
-				check(CurrentState->GfxPipeline == InGfxPipeline);
-			}
-			else
-			{
-				CurrentState = new FVulkanGraphicsPipelineDescriptorState(Device, InGfxPipeline);
-				PipelineStates.Add(CurrentPipeline, CurrentState);
-			}
-
-			PrimitiveType = InGfxPipeline->PrimitiveType;
-			bChanged = true;
-		}
-
-		if (bChanged || bForceReset)
-		{
-			CurrentState->Reset();
-		}
-
-		return bChanged;
-	}
+	bool SetGfxPipeline(FVulkanRHIGraphicsPipelineState* InGfxPipeline, bool bForceReset);
 
 	inline void UpdateDynamicStates(FVulkanCmdBuffer* Cmd)
 	{

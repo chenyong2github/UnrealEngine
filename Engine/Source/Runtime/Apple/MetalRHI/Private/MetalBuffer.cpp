@@ -1504,6 +1504,8 @@ FMetalBuffer FMetalResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, uin
 	#if PLATFORM_MAC
 			case mtlpp::StorageMode::Managed:
 			{
+				// TextureBuffers must be 1024 aligned.
+				check(Alignment == 256 || Alignment == 1024);
 				FScopeLock Lock(&Mutex);
 
 				// Disabled Managed sub-allocation as it seems inexplicably slow on the GPU				
@@ -1548,8 +1550,8 @@ FMetalBuffer FMetalResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, uin
 			case mtlpp::StorageMode::Shared:
 			{
 				AllocTypes Storage = StorageMode != mtlpp::StorageMode::Private ? AllocShared : AllocPrivate;
-				check(Alignment == 16 || Alignment == 64 || Alignment == 256);
-				
+				check(Alignment == 16 || Alignment == 64 || Alignment == 256 || Alignment == 1024);
+
 				static bool bSupportsPrivateBufferSubAllocation = FMetalCommandQueue::SupportsFeature(EMetalFeaturesPrivateBufferSubAllocation);
 				if (!bForceUnique && BlockSize <= MagazineSizes[NumMagazineSizes - 1] && (Storage == AllocShared || bSupportsPrivateBufferSubAllocation))
 				{
@@ -1597,7 +1599,7 @@ FMetalBuffer FMetalResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, uin
 					
 					if (!Found)
 					{
-						uint32 MinAlign = PLATFORM_MAC ? 256 : 64;
+						uint32 MinAlign = PLATFORM_MAC ? 1024 : 64;
 						Found = new FMetalSubBufferHeap(HeapAllocSizes[i], MinAlign, mtlpp::ResourceOptions((NSUInteger)Options & (mtlpp::ResourceStorageModeMask|mtlpp::ResourceHazardTrackingModeMask)), Mutex);
 						BufferHeaps[Usage][Storage][i].Add(Found);
 					}

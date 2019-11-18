@@ -339,7 +339,7 @@ UNetReplicationGraphConnection* UReplicationGraph::FindOrAddConnectionManager(UN
 	if (NetConnection->GetUChildConnection() != nullptr)
 	{
 		NetConnection = ((UChildConnection*)NetConnection)->Parent;
-		UE_LOG(LogReplicationGraph, Warning, TEXT("UReplicationGraph::FindOrAddConnectionManager was called with a child connection, redirecting to parent"));
+		UE_LOG(LogReplicationGraph, Verbose, TEXT("UReplicationGraph::FindOrAddConnectionManager was called with a child connection, redirecting to parent"));
 		check(NetConnection != nullptr);
 	}
 
@@ -1562,6 +1562,12 @@ int64 UReplicationGraph::ReplicateSingleActor_FastShared(AActor* Actor, FConnect
 		ConnectionData.FastPath_NextReplicationFrameNum = FrameNum + ConnectionData.FastPath_ReplicationPeriodFrame;
 	};
 	
+	TOptional<FScopedActorRoleSwap> SwapGuard;
+	if (GlobalActorInfo.bSwapRolesOnReplicate)
+	{
+		SwapGuard = FScopedActorRoleSwap(Actor);
+	}
+
 	if (CVar_RepGraph_FastShared_ForceFull > 0)
 	{
 		return ReplicateSingleActor(Actor, ConnectionData, GlobalActorInfo, FindOrAddConnectionManager(NetConnection)->ActorInfoMap, ConnectionManager, FrameNum);

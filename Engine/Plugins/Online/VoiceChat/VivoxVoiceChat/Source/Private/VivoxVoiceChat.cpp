@@ -3,12 +3,14 @@
 #include "VivoxVoiceChat.h" 
 
 #include "Async/Async.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Logging/LogMacros.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/EmbeddedCommunication.h"
 #include "Misc/ScopeLock.h"
 #include "Modules/ModuleManager.h"
-#include "HAL/LowLevelMemTracker.h"
+#include "VoiceChatErrors.h"
+#include "VivoxVoiceChatErrors.h"
 
 #include "Vxc.h"
 #include "VxcErrors.h"
@@ -19,7 +21,6 @@ FVivoxDelegates::FOnAudioUnitCaptureDeviceStatusChanged FVivoxDelegates::OnAudio
 
 namespace
 {
-static const FVoiceChatResult ResultSuccess = { true, 0, TEXT("") };
 
 FString LexToString(VivoxClientApi::IClientApiEventHandler::ParticipantLeftReason Reason)
 {
@@ -33,35 +34,75 @@ FString LexToString(VivoxClientApi::IClientApiEventHandler::ParticipantLeftReaso
 	}
 }
 
-FString LexToString(const FVoiceChatResult& Result)
-{
-	if (Result.bSuccess)
-	{
-		return TEXT("Success");
-	}
-	else if (!Result.Error.IsEmpty())
-	{
-		return FString::Printf(TEXT("Failed: %s"), *Result.Error);
-	}
-	else
-	{
-		return FString::Printf(TEXT("Failed: Error %i"), Result.ErrorCode);
-	}
-}
-
 FVoiceChatResult ResultFromVivoxStatus(const VivoxClientApi::VCSStatus& Status)
 {
-	FString ErrorString = ANSI_TO_TCHAR(Status.ToString());
-	if (ErrorString.IsEmpty() && Status.IsError())
+	FVoiceChatResult Result = FVoiceChatResult::CreateSuccess();
+	if (Status.IsError())
 	{
-		ErrorString = FString::Printf(TEXT("Error %i"), Status.GetStatusCode());
-	}
-	return { !Status.IsError(), Status.GetStatusCode(), ErrorString };
-}
+		switch (Status.GetStatusCode())
+		{
+		case VX_E_NOT_INITIALIZED:
+			Result = VoiceChat::Errors::NotInitialized();
+			break;
+		case VX_E_ALREADY_LOGGED_OUT:
+		case VX_E_NOT_LOGGED_IN:
+			Result = VoiceChat::Errors::NotLoggedIn();
+			break;
+		case VX_E_INVALID_ARGUMENT:
+		case VX_E_INVALID_USERNAME_OR_PASSWORD:
+		case VX_E_CHANNEL_URI_TOO_LONG:
+			Result = VoiceChat::Errors::InvalidArgument();
+			break;
+		case VX_E_CALL_TERMINATED_NO_ANSWER_LOCAL:
+			Result = VoiceChat::Errors::ClientTimeout();
+			break;
+		case VX_E_RTP_TIMEOUT:
+		case VxNetworkHttpTimeout:
+			Result = VoiceChat::Errors::ServerTimeout();
+			break;
+		case VX_E_FAILED_TO_CONNECT_TO_SERVER:
+			Result = VoiceChat::Errors::ConnectionFailure();
+			break;
+		case 10005: // Couldn't resolve proxy name
+		case VxNetworkNameResolutionFailed:
+			Result = VoiceChat::Errors::DnsFailure();
+			break;
+		case VX_E_ACCESSTOKEN_INVALID_SIGNATURE:
+		case VX_E_ACCESSTOKEN_CLAIMS_MISMATCH:
+		case VX_E_ACCESSTOKEN_ISSUER_MISMATCH:
+		case VX_E_ACCESSTOKEN_MALFORMED:
+			Result = VoiceChat::Errors::CredentialsInvalid();
+			break;
+		case VX_E_ACCESSTOKEN_ALREADY_USED:
+		case VX_E_ACCESSTOKEN_EXPIRED:
+			Result = VoiceChat::Errors::CredentialsExpired();
+			break;
+		case VX_E_ALREADY_INITIALIZED:
+			Result = VivoxVoiceChat::Errors::AlreadyInitialized();
+			break;
+		case VX_E_ALREADY_LOGGED_IN:
+			Result = VivoxVoiceChat::Errors::AlreadyLoggedIn();
+			break;
+		case VX_E_CALL_TERMINATED_KICK:
+			Result = VivoxVoiceChat::Errors::KickedFromChannel();
+			break;
+		case VX_E_NO_EXIST:
+			Result = VivoxVoiceChat::Errors::NoExist();
+			break;
+		case VX_E_MAXIMUM_NUMBER_OF_CALLS_EXCEEEDED:
+			Result = VivoxVoiceChat::Errors::MaximumNumberOfCallsExceeded();
+			break;
+		default:
+			// TODO map more vivox statuses to text error codes
+			Result = VIVOXVOICECHAT_ERROR(EVoiceChatResult::ImplementationError, FString::FromInt(Status.GetStatusCode()));
+			break;
+		}
 
-FVoiceChatResult ResultFromErrorString(const FString& Error, int ErrorCode)
-{
-	return { false, ErrorCode, Error };
+		Result.ErrorDesc = FString::Printf(TEXT("StatusCode=%d StatusString=[%s]"), Status.GetStatusCode(), ANSI_TO_TCHAR(Status.ToString()));
+		Result.ErrorNum = Status.GetStatusCode();
+	}
+
+	return Result;
 }
 
 template<class TDelegate, class... TArgs>
@@ -258,7 +299,8 @@ bool FVivoxVoiceChat::Initialize()
 				VivoxClientApi::VCSStatus Status = VivoxClientConnection.Initialize(this, VivoxLogLevel, true, false, &ConfigHints, sizeof(ConfigHints));
 				if (Status.IsError())
 				{
-					UE_LOG(LogVivoxVoiceChat, Warning, TEXT("Initialize failed: error:%s (%i)"), ANSI_TO_TCHAR(Status.ToString()), Status.GetStatusCode());
+					const FVoiceChatResult VoiceChatResult = ResultFromVivoxStatus(Status);
+					UE_LOG(LogVivoxVoiceChat, Warning, TEXT("Initialize %s"), *LexToString(VoiceChatResult));
 				}
 				else
 				{
@@ -306,16 +348,16 @@ void FVivoxVoiceChat::SetAudioInputVolume(float InVolume)
 {
 	UE_LOG(LogVivoxVoiceChat, Verbose, TEXT("SetAudioInputVolume %f"), InVolume);
 
-	VivoxClientConnection.SetAudioInputDeviceMuted(InVolume <= SMALL_NUMBER);
-	VivoxClientConnection.SetMasterAudioInputDeviceVolume(FMath::Lerp(VIVOX_MIN_VOL, VIVOX_MAX_VOL, InVolume));
+	AudioInputOptions.Volume = InVolume;
+	ApplyAudioInputOptions();
 }
 
 void FVivoxVoiceChat::SetAudioOutputVolume(float InVolume)
 {
 	UE_LOG(LogVivoxVoiceChat, Verbose, TEXT("SetAudioOutputVolume %f"), InVolume);
 
-	VivoxClientConnection.SetAudioOutputDeviceMuted(InVolume <= SMALL_NUMBER);
-	VivoxClientConnection.SetMasterAudioOutputDeviceVolume(FMath::Lerp(VIVOX_MIN_VOL, VIVOX_MAX_VOL, InVolume));
+	AudioOutputOptions.Volume = InVolume;
+	ApplyAudioOutputOptions();
 }
 
 float FVivoxVoiceChat::GetAudioInputVolume() const
@@ -332,14 +374,16 @@ void FVivoxVoiceChat::SetAudioInputDeviceMuted(bool bIsMuted)
 {
 	UE_LOG(LogVivoxVoiceChat, Verbose, TEXT("SetAudioInputDeviceMuted %s"), *LexToString(bIsMuted));
 
-	VivoxClientConnection.SetAudioInputDeviceMuted(bIsMuted);
+	AudioInputOptions.bMuted = bIsMuted;
+	ApplyAudioInputOptions();
 }
 
 void FVivoxVoiceChat::SetAudioOutputDeviceMuted(bool bIsMuted)
 {
 	UE_LOG(LogVivoxVoiceChat, Verbose, TEXT("SetAudioOutputDeviceMuted %s"), *LexToString(bIsMuted));
 
-	VivoxClientConnection.SetAudioOutputDeviceMuted(bIsMuted);
+	AudioOutputOptions.bMuted = bIsMuted;
+	ApplyAudioOutputOptions();
 }
 
 bool FVivoxVoiceChat::GetAudioInputDeviceMuted() const
@@ -480,26 +524,26 @@ FString FVivoxVoiceChat::GetDefaultOutputDevice() const
 
 void FVivoxVoiceChat::Connect(const FOnVoiceChatConnectCompleteDelegate& Delegate)
 {
-	FVoiceChatResult Result = ResultSuccess;
+	FVoiceChatResult Result = FVoiceChatResult::CreateSuccess();
 
 	if (!IsInitialized())
 	{
-		Result = ResultFromErrorString(TEXT("Not initialized"), VX_E_NOT_INITIALIZED);
+		Result = VoiceChat::Errors::NotInitialized();
 	}
 	else if (ConnectionState == EConnectionState::Disconnecting)
 	{
-		Result = ResultFromErrorString("Disconnect in progress", -1);
+		Result = VoiceChat::Errors::DisconnectInProgress();
 	}
 
-	if (!Result.bSuccess)
+	if (!Result.IsSuccess())
 	{
-		UE_LOG(LogVivoxVoiceChat, Warning, TEXT("Connect Failed: %s"), *Result.Error);
+		UE_LOG(LogVivoxVoiceChat, Warning, TEXT("Connect %s"), *LexToString(Result));
 
 		Delegate.ExecuteIfBound(Result);
 	}
 	else if (IsConnected())
 	{
-		Delegate.ExecuteIfBound(ResultSuccess);
+		Delegate.ExecuteIfBound(FVoiceChatResult::CreateSuccess());
 	}
 	else
 	{
@@ -510,7 +554,8 @@ void FVivoxVoiceChat::Connect(const FOnVoiceChatConnectCompleteDelegate& Delegat
 			if (VivoxServerUrl.IsEmpty() || VivoxDomain.IsEmpty() || VivoxNamespace.IsEmpty())
 			{
 				UE_LOG(LogVivoxVoiceChat, Warning, TEXT("[VoiceChat.Vivox] ServerUrl, Domain, or Issuer is not set. Vivox voice chat will not work"));
-				Result = ResultFromErrorString(TEXT("Vivox config missing"), -1);
+				Result = VivoxVoiceChat::Errors::MissingConfig();
+				Result.ErrorDesc = FString::Printf(TEXT("ServerUrl=[%s] Domain=[%s] Namespace=[%s]"), *VivoxServerUrl, *VivoxDomain, *VivoxNamespace);
 			}
 			else
 			{
@@ -528,7 +573,7 @@ void FVivoxVoiceChat::Connect(const FOnVoiceChatConnectCompleteDelegate& Delegat
 				}
 			}
 
-			if (!Result.bSuccess)
+			if (!Result.IsSuccess())
 			{
 				ConnectionState = EConnectionState::Disconnected;
 
@@ -550,7 +595,7 @@ void FVivoxVoiceChat::Disconnect(const FOnVoiceChatDisconnectCompleteDelegate& D
 	}
 	else
 	{
-		Delegate.ExecuteIfBound(ResultSuccess);
+		Delegate.ExecuteIfBound(FVoiceChatResult::CreateSuccess());
 	}
 }
 
@@ -566,45 +611,45 @@ bool FVivoxVoiceChat::IsConnected() const
 
 void FVivoxVoiceChat::Login(FPlatformUserId PlatformId, const FString& PlayerName, const FString& Credentials, const FOnVoiceChatLoginCompleteDelegate& Delegate)
 {
-	FVoiceChatResult Result = ResultSuccess;
+	FVoiceChatResult Result = FVoiceChatResult::CreateSuccess();
 
 	if (!IsInitialized())
 	{
-		Result = ResultFromErrorString(TEXT("Not Initialized"), VX_E_NOT_INITIALIZED);
+		Result = VoiceChat::Errors::NotInitialized();
 	}
 	else if (!IsConnected())
 	{
-		Result = ResultFromErrorString(TEXT("Not Connected"), -2);
+		Result = VoiceChat::Errors::NotConnected();
 	}
 	else if (IsLoggedIn())
 	{
 		if (PlayerName == GetLoggedInPlayerName())
 		{
-			Delegate.ExecuteIfBound(PlayerName, ResultSuccess);
+			Delegate.ExecuteIfBound(PlayerName, FVoiceChatResult::CreateSuccess());
 			return;
 		}
 		else
 		{
-			Result = ResultFromErrorString(TEXT("Other user logged in"), VX_E_ALREADY_LOGGED_IN);
+			Result = VoiceChat::Errors::OtherUserLoggedIn();
 		}
 	}
 	else if (PlayerName.IsEmpty())
 	{
-		Result = ResultFromErrorString(TEXT("Player name is empty"), VX_E_INVALID_ARGUMENT);
+		Result = VoiceChat::Errors::InvalidArgument(TEXT("PlayerName empty"));
 	}
 	else if (!VivoxNameContainsValidCharacters(PlayerName))
 	{
-		Result = ResultFromErrorString(TEXT("Invalid PlayerName"), VX_E_INVALID_ARGUMENT);
+		Result = VoiceChat::Errors::InvalidArgument(TEXT("PlayerName invalid characters"));
 	}
-	else if (PlayerName.Len() > 60 - VivoxNamespace.Len())
+	else if(PlayerName.Len() > 60 - VivoxNamespace.Len())
 	{
 		// Name must be between 3-63 characters long and start and end with a '.'. It also must contain the issuer and another '.' separating issuer and name
-		Result = ResultFromErrorString(TEXT("PlayerName is too long"), -1);
+		Result = VoiceChat::Errors::InvalidArgument(TEXT("PlayerName too long"));
 	}
 
-	if (!Result.bSuccess)
+	if (!Result.IsSuccess())
 	{
-		UE_LOG(LogVivoxVoiceChat, Warning, TEXT("Login failed: PlayerName:%s error:%s"), *PlayerName, *Result.Error);
+		UE_LOG(LogVivoxVoiceChat, Warning, TEXT("Login PlayerName:%s %s"), *PlayerName, *LexToString(Result));
 		Delegate.ExecuteIfBound(PlayerName, Result);
 		return;
 	}
@@ -614,9 +659,9 @@ void FVivoxVoiceChat::Login(FPlatformUserId PlatformId, const FString& PlayerNam
 
 	if (!AccountName.IsValid() || !UserUri.IsValid())
 	{
-		VivoxClientApi::VCSStatus Status(VX_E_INVALID_ARGUMENT);
-		UE_LOG(LogVivoxVoiceChat, Warning, TEXT("Login failed: PlayerName:%s error:%s (%i)"), *PlayerName, ANSI_TO_TCHAR(Status.ToString()), Status.GetStatusCode());
-		Delegate.ExecuteIfBound(PlayerName, ResultFromVivoxStatus(Status));
+		Result = VoiceChat::Errors::CredentialsInvalid();
+		UE_LOG(LogVivoxVoiceChat, Warning, TEXT("Login PlayerName:%s %s"), *PlayerName, *LexToString(Result));
+		Delegate.ExecuteIfBound(PlayerName, Result);
 		return;
 	}
 
@@ -629,8 +674,9 @@ void FVivoxVoiceChat::Login(FPlatformUserId PlatformId, const FString& PlayerNam
 	VivoxClientApi::VCSStatus Status = VivoxClientConnection.Login(LoginSession.AccountName, TCHAR_TO_ANSI(*Credentials));
 	if (Status.IsError())
 	{
-		UE_LOG(LogVivoxVoiceChat, Warning, TEXT("Login failed: account:%s error:%s (%i)"), ANSI_TO_TCHAR(LoginSession.AccountName.ToString()), ANSI_TO_TCHAR(Status.ToString()), Status.GetStatusCode());
-		Delegate.ExecuteIfBound(PlayerName, ResultFromVivoxStatus(Status));
+		Result = ResultFromVivoxStatus(Status);
+		UE_LOG(LogVivoxVoiceChat, Warning, TEXT("Login account:%s %s"), ANSI_TO_TCHAR(LoginSession.AccountName.ToString()), *LexToString(Result));
+		Delegate.ExecuteIfBound(PlayerName, Result);
 		return;
 	}
 
@@ -641,25 +687,25 @@ void FVivoxVoiceChat::Login(FPlatformUserId PlatformId, const FString& PlayerNam
 
 void FVivoxVoiceChat::Logout(const FOnVoiceChatLogoutCompleteDelegate& Delegate)
 {
-	FVoiceChatResult Result = ResultSuccess;
+	FVoiceChatResult Result = FVoiceChatResult::CreateSuccess();
 
 	if (!IsInitialized())
 	{
-		Result = ResultFromErrorString(TEXT("Not Initialized"), VX_E_NOT_INITIALIZED);
+		Result = VoiceChat::Errors::NotInitialized();
 	}
 	else if (!IsConnected())
 	{
-		Result = ResultFromErrorString(TEXT("Not Connected"), -2);
+		Result = VoiceChat::Errors::NotConnected();
 	}
 	else if (!IsLoggedIn())
 	{
-		Result = ResultFromErrorString(TEXT("Not Logged In"), VX_E_NOT_LOGGED_IN);
+		Result = VoiceChat::Errors::NotLoggedIn();
 	}
 	// TODO: handle IsLoggingIn case
 
-	if (!Result.bSuccess)
+	if (!Result.IsSuccess())
 	{
-		UE_LOG(LogVivoxVoiceChat, Warning, TEXT("Logout failed: error:%s"), *Result.Error);
+		UE_LOG(LogVivoxVoiceChat, Warning, TEXT("Logout %s"), *LexToString(Result));
 		Delegate.ExecuteIfBound(FString(), Result);
 		return;
 	}
@@ -668,8 +714,9 @@ void FVivoxVoiceChat::Logout(const FOnVoiceChatLogoutCompleteDelegate& Delegate)
 	VivoxClientApi::VCSStatus Status = VivoxClientConnection.Logout(AccountName);
 	if (Status.IsError())
 	{
-		UE_LOG(LogVivoxVoiceChat, Warning, TEXT("Logout failed: error:%s (%i)"), ANSI_TO_TCHAR(Status.ToString()), Status.GetStatusCode());
-		Delegate.ExecuteIfBound(LoginSession.PlayerName, ResultFromVivoxStatus(Status));
+		Result = ResultFromVivoxStatus(Status);
+		UE_LOG(LogVivoxVoiceChat, Warning, TEXT("Logout %s"), *LexToString(Result));
+		Delegate.ExecuteIfBound(LoginSession.PlayerName, Result);
 		return;
 	}
 
@@ -738,37 +785,37 @@ void FVivoxVoiceChat::UnblockPlayers(const TArray<FString>& PlayerNames)
 
 void FVivoxVoiceChat::JoinChannel(const FString& ChannelName, const FString& ChannelCredentials, EVoiceChatChannelType ChannelType, const FOnVoiceChatChannelJoinCompleteDelegate& Delegate, TOptional<FVoiceChatChannel3dProperties> Channel3dProperties)
 {
-	FVoiceChatResult Result = ResultSuccess;
+	FVoiceChatResult Result = FVoiceChatResult::CreateSuccess();
 
 	if (!IsInitialized())
 	{
-		Result = ResultFromErrorString(TEXT("Not Initialized"), VX_E_NOT_INITIALIZED);
+		Result = VoiceChat::Errors::NotInitialized();
 	}
 	else if (!IsConnected())
 	{
-		Result = ResultFromErrorString(TEXT("Not Connected"), -2);
+		Result = VoiceChat::Errors::NotConnected();
 	}
 	else if (!IsLoggedIn())
 	{
-		Result = ResultFromErrorString(TEXT("Not Logged In"), VX_E_NOT_LOGGED_IN);
+		Result = VoiceChat::Errors::NotLoggedIn();
 	}
 	else if (ChannelName.IsEmpty())
 	{
-		Result = ResultFromErrorString(TEXT("ChannelName is empty"), VX_E_INVALID_ARGUMENT);
+		Result = VoiceChat::Errors::InvalidArgument(TEXT("ChannelName empty"));
 	}
 	else if (!VivoxNameContainsValidCharacters(ChannelName))
 	{
-		Result = ResultFromErrorString(TEXT("Invalid ChannelName"), VX_E_INVALID_ARGUMENT);
+		Result = VoiceChat::Errors::InvalidArgument(TEXT("ChannelName invalid characters"));
 	}
 	else if (ChannelName.Len() > 189 - VivoxNamespace.Len())
 	{
 		// channel name length must not exceed 200 characters, including the confctl-?- prefix and the issuer and separator
-		Result = ResultFromErrorString(TEXT("ChannelName is too long"), VX_E_INVALID_ARGUMENT);
+		Result = VoiceChat::Errors::InvalidArgument(TEXT("ChannelName too long"));
 	}
 
-	if (!Result.bSuccess)
+	if (!Result.IsSuccess())
 	{
-		UE_LOG(LogVivoxVoiceChat, Warning, TEXT("JoinChannel failed: ChannelName:%s error:%s"), *ChannelName, *Result.Error);
+		UE_LOG(LogVivoxVoiceChat, Warning, TEXT("JoinChannel ChannelName:%s %s"), *ChannelName, *LexToString(Result));
 		Delegate.ExecuteIfBound(ChannelName, Result);
 		return;
 	}
@@ -776,17 +823,17 @@ void FVivoxVoiceChat::JoinChannel(const FString& ChannelName, const FString& Cha
 	FChannelSession& ChannelSession = GetChannelSession(ChannelName);
 	if (ChannelSession.State == FChannelSession::EState::Connected)
 	{
-		Delegate.ExecuteIfBound(ChannelName, ResultSuccess);
+		Delegate.ExecuteIfBound(ChannelName, FVoiceChatResult::CreateSuccess());
 		return;
 	}
 	else if (ChannelSession.State == FChannelSession::EState::Connecting)
 	{
-		Delegate.ExecuteIfBound(ChannelName, ResultFromErrorString("Join in progress", -1));
+		Delegate.ExecuteIfBound(ChannelName, VoiceChat::Errors::ChannelJoinInProgress());
 		return;
 	}
 	else if (ChannelSession.State == FChannelSession::EState::Disconnecting)
 	{
-		Delegate.ExecuteIfBound(ChannelName, ResultFromErrorString("Leave in progress", -1));
+		Delegate.ExecuteIfBound(ChannelName, VoiceChat::Errors::ChannelLeaveInProgress());
 		return;
 	}
 
@@ -797,8 +844,9 @@ void FVivoxVoiceChat::JoinChannel(const FString& ChannelName, const FString& Cha
 	VivoxClientApi::VCSStatus Status = VivoxClientConnection.JoinChannel(LoginSession.AccountName, ChannelSession.ChannelUri, TCHAR_TO_ANSI(*ChannelCredentials));
 	if (Status.IsError())
 	{
-		UE_LOG(LogVivoxVoiceChat, Warning, TEXT("JoinChannel failed: channel:%s error:%s (%i)"), ANSI_TO_TCHAR(ChannelSession.ChannelUri.ToString()), ANSI_TO_TCHAR(Status.ToString()), Status.GetStatusCode());
-		Delegate.ExecuteIfBound(ChannelName, ResultFromVivoxStatus(Status));
+		Result = ResultFromVivoxStatus(Status);
+		UE_LOG(LogVivoxVoiceChat, Warning, TEXT("JoinChannel ChannelUri:%s %s"), ANSI_TO_TCHAR(ChannelSession.ChannelUri.ToString()), *LexToString(Result));
+		Delegate.ExecuteIfBound(ChannelName, Result);
 		return;
 	}
 
@@ -808,34 +856,34 @@ void FVivoxVoiceChat::JoinChannel(const FString& ChannelName, const FString& Cha
 
 void FVivoxVoiceChat::LeaveChannel(const FString& ChannelName, const FOnVoiceChatChannelLeaveCompleteDelegate& Delegate)
 {
-	FVoiceChatResult Result = ResultSuccess;
+	FVoiceChatResult Result = FVoiceChatResult::CreateSuccess();
 
 	if (!IsInitialized())
 	{
-		Result = ResultFromErrorString(TEXT("Not Initialized"), VX_E_NOT_INITIALIZED);
+		Result = VoiceChat::Errors::NotInitialized();
 	}
 	else if (!IsConnected())
 	{
-		Result = ResultFromErrorString(TEXT("Not Connected"), -2);
+		Result = VoiceChat::Errors::NotConnected();
 	}
 	else if (!IsLoggedIn())
 	{
-		Result = ResultFromErrorString(TEXT("Not Logged In"), VX_E_NOT_LOGGED_IN);
+		Result = VoiceChat::Errors::NotLoggedIn();
 	}
 	else if (ChannelName.IsEmpty())
 	{
-		Result = ResultFromErrorString(TEXT("ChannelName is empty"), VX_E_INVALID_ARGUMENT);
+		Result = VoiceChat::Errors::InvalidArgument();
 	}
 
 	FChannelSession& ChannelSession = GetChannelSession(ChannelName);
 	if (ChannelSession.State != FChannelSession::EState::Connected)
 	{
-		Result = ResultFromErrorString("Not in channel", -1);
+		Result = VoiceChat::Errors::NotInChannel();
 	}
 
-	if (!Result.bSuccess)
+	if (!Result.IsSuccess())
 	{
-		UE_LOG(LogVivoxVoiceChat, Warning, TEXT("LeaveChannel failed: ChannelName:%s error:%s"), *ChannelName, *Result.Error);
+		UE_LOG(LogVivoxVoiceChat, Warning, TEXT("LeaveChannel ChannelName:%s %s"), *ChannelName, *LexToString(Result));
 		Delegate.ExecuteIfBound(ChannelName, Result);
 		return;
 	}
@@ -843,8 +891,9 @@ void FVivoxVoiceChat::LeaveChannel(const FString& ChannelName, const FOnVoiceCha
 	VivoxClientApi::VCSStatus Status = VivoxClientConnection.LeaveChannel(LoginSession.AccountName, ChannelSession.ChannelUri);
 	if (Status.IsError())
 	{
-		UE_LOG(LogVivoxVoiceChat, Warning, TEXT("LeaveChannel failed: channel:%s error:%s (%i)"), ANSI_TO_TCHAR(ChannelSession.ChannelUri.ToString()), ANSI_TO_TCHAR(Status.ToString()), Status.GetStatusCode());
-		Delegate.ExecuteIfBound(ChannelName, ResultFromVivoxStatus(Status));
+		Result = ResultFromVivoxStatus(Status);
+		UE_LOG(LogVivoxVoiceChat, Warning, TEXT("LeaveChannel channel:%s %s"), ANSI_TO_TCHAR(ChannelSession.ChannelUri.ToString()), *LexToString(Result));
+		Delegate.ExecuteIfBound(ChannelName, Result);
 		return;
 	}
 
@@ -1151,17 +1200,15 @@ void FVivoxVoiceChat::InvokeOnUIThread(void (Func)(void* Arg0), void* Arg0)
 
 FString GetLogLevelString(VivoxClientApi::IClientApiEventHandler::LogLevel Level)
 {
-	FString LogLevelString;
 	switch (Level)
 	{
-	case VivoxClientApi::IClientApiEventHandler::LogLevel::LogLevelError:		LogLevelString = TEXT("Error"); break;
-	case VivoxClientApi::IClientApiEventHandler::LogLevel::LogLevelWarning:		LogLevelString = TEXT("Warning"); break;
-	case VivoxClientApi::IClientApiEventHandler::LogLevel::LogLevelInfo:		LogLevelString = TEXT("Info"); break;
-	case VivoxClientApi::IClientApiEventHandler::LogLevel::LogLevelDebug:		LogLevelString = TEXT("Debug"); break;
-	case VivoxClientApi::IClientApiEventHandler::LogLevel::LogLevelTrace:		LogLevelString = TEXT("Trace"); break;
-	default:																	LogLevelString = TEXT("Unknown"); break;
+	case VivoxClientApi::IClientApiEventHandler::LogLevel::LogLevelError:		return TEXT("Error");
+	case VivoxClientApi::IClientApiEventHandler::LogLevel::LogLevelWarning:		return TEXT("Warning");
+	case VivoxClientApi::IClientApiEventHandler::LogLevel::LogLevelInfo:		return TEXT("Info");
+	case VivoxClientApi::IClientApiEventHandler::LogLevel::LogLevelDebug:		return TEXT("Debug");
+	case VivoxClientApi::IClientApiEventHandler::LogLevel::LogLevelTrace:		return TEXT("Trace");
+	default:																	return TEXT("Unknown");
 	}
-	return LogLevelString;
 }
 
 void FVivoxVoiceChat::onLogStatementEmitted(LogLevel Level, long long NativeMillisecondsSinceEpoch, long ThreadId, const char* LogMessageCStr)
@@ -1198,7 +1245,7 @@ void FVivoxVoiceChat::onLogStatementEmitted(LogLevel Level, long long NativeMill
 	{
 		if (Level == LogLevelError)
 		{
-			UE_LOG(LogVivoxVoiceChat, Log, TEXT("vivox: Error: %s"), *LogMessage);
+			UE_LOG(LogVivoxVoiceChat, Warning, TEXT("vivox: Error: %s"), *LogMessage);
 		}
 		else
 		{
@@ -1217,7 +1264,7 @@ void FVivoxVoiceChat::onConnectCompleted(const VivoxClientApi::Uri& Server)
 
 	ConnectionState = EConnectionState::Connected;
 
-	TriggerCompletionDelegates(OnVoiceChatConnectCompleteDelegates, ResultSuccess);
+	TriggerCompletionDelegates(OnVoiceChatConnectCompleteDelegates, FVoiceChatResult::CreateSuccess());
 }
 
 void FVivoxVoiceChat::onConnectFailed(const VivoxClientApi::Uri& Server, const VivoxClientApi::VCSStatus& Status)
@@ -1247,7 +1294,7 @@ void FVivoxVoiceChat::onDisconnected(const VivoxClientApi::Uri& Server, const Vi
 
 	if (PreviousConnectionState == EConnectionState::Disconnecting)
 	{
-		TriggerCompletionDelegates(OnVoiceChatDisconnectCompleteDelegates, ResultSuccess);
+		TriggerCompletionDelegates(OnVoiceChatDisconnectCompleteDelegates, FVoiceChatResult::CreateSuccess());
 	}
 	else
 	{
@@ -1263,7 +1310,7 @@ void FVivoxVoiceChat::onLoginCompleted(const VivoxClientApi::AccountName& Accoun
 
 	LoginSession.State = FLoginSession::EState::LoggedIn;
 
-	TriggerCompletionDelegate(OnVoiceChatLoginCompleteDelegate, PlayerName, ResultSuccess);
+	TriggerCompletionDelegate(OnVoiceChatLoginCompleteDelegate, PlayerName, FVoiceChatResult::CreateSuccess());
 
 	OnVoiceChatLoggedInDelegate.Broadcast(PlayerName);
 }
@@ -1276,7 +1323,7 @@ void FVivoxVoiceChat::onInvalidLoginCredentials(const VivoxClientApi::AccountNam
 
 	FString PlayerName = GetPlayerNameFromAccountName(AccountName);
 
-	TriggerCompletionDelegate(OnVoiceChatLoginCompleteDelegate, PlayerName, ResultFromErrorString(TEXT("Invalid login credentials"), -1));
+	TriggerCompletionDelegate(OnVoiceChatLoginCompleteDelegate, PlayerName, VoiceChat::Errors::CredentialsInvalid());
 }
 
 void FVivoxVoiceChat::onLoginFailed(const VivoxClientApi::AccountName& AccountName, const VivoxClientApi::VCSStatus& Status)
@@ -1299,7 +1346,7 @@ void FVivoxVoiceChat::onLogoutCompleted(const VivoxClientApi::AccountName& Accou
 	LoginSession.State = FLoginSession::EState::LoggedOut;
 
 	FString PlayerName = GetPlayerNameFromAccountName(AccountName);
-	TriggerCompletionDelegate(OnVoiceChatLogoutCompleteDelegate, PlayerName, ResultSuccess);
+	TriggerCompletionDelegate(OnVoiceChatLogoutCompleteDelegate, PlayerName, FVoiceChatResult::CreateSuccess());
 
 	OnVoiceChatLoggedOutDelegate.Broadcast(PlayerName);
 }
@@ -1320,7 +1367,7 @@ void FVivoxVoiceChat::onChannelJoined(const VivoxClientApi::AccountName& Account
 
 	FChannelSession& ChannelSession = GetChannelSession(ChannelUri);
 	ChannelSession.State = FChannelSession::EState::Connected;
-	TriggerCompletionDelegate(ChannelSession.JoinDelegate, ChannelSession.ChannelName, ResultSuccess);
+	TriggerCompletionDelegate(ChannelSession.JoinDelegate, ChannelSession.ChannelName, FVoiceChatResult::CreateSuccess());
 
 	OnVoiceChatChannelJoinedDelegate.Broadcast(ChannelSession.ChannelName);
 }
@@ -1331,7 +1378,7 @@ void FVivoxVoiceChat::onInvalidChannelCredentials(const VivoxClientApi::AccountN
 
 	FChannelSession& ChannelSession = GetChannelSession(ChannelUri);
 	ChannelSession.State = FChannelSession::EState::Disconnected;
-	TriggerCompletionDelegate(ChannelSession.JoinDelegate, ChannelSession.ChannelName, ResultFromErrorString(TEXT("Invalid join credentials"), -1));
+	TriggerCompletionDelegate(ChannelSession.JoinDelegate, ChannelSession.ChannelName, VoiceChat::Errors::CredentialsInvalid());
 
 	RemoveChannelSession(ChannelSession.ChannelName);
 }
@@ -1347,15 +1394,16 @@ void FVivoxVoiceChat::onChannelJoinFailed(const VivoxClientApi::AccountName& Acc
 	RemoveChannelSession(ChannelSession.ChannelName);
 }
 
-void FVivoxVoiceChat::onChannelExited(const VivoxClientApi::AccountName& AccountName, const VivoxClientApi::Uri& ChannelUri, const VivoxClientApi::VCSStatus& ReasonCode)
+void FVivoxVoiceChat::onChannelExited(const VivoxClientApi::AccountName& AccountName, const VivoxClientApi::Uri& ChannelUri, const VivoxClientApi::VCSStatus& Status)
 {
-	if (ReasonCode.IsError())
+	const FVoiceChatResult Result = ResultFromVivoxStatus(Status);
+	if (Result.IsSuccess())
 	{
-		UE_LOG(LogVivoxVoiceChat, Warning, TEXT("onChannelExited channel:%s error:%s (%i)"), ANSI_TO_TCHAR(ChannelUri.ToString()), ANSI_TO_TCHAR(ReasonCode.ToString()), ReasonCode.GetStatusCode());
+		UE_LOG(LogVivoxVoiceChat, Log, TEXT("onChannelExited ChannelUri:%s"), ANSI_TO_TCHAR(ChannelUri.ToString()));
 	}
 	else
 	{
-		UE_LOG(LogVivoxVoiceChat, Log, TEXT("onChannelExited channel:%s"), ANSI_TO_TCHAR(ChannelUri.ToString()));
+		UE_LOG(LogVivoxVoiceChat, Warning, TEXT("onChannelExited ChannelUri:%s %s"), ANSI_TO_TCHAR(ChannelUri.ToString()), *LexToString(Result));
 	}
 
 	FChannelSession& ChannelSession = GetChannelSession(ChannelUri);
@@ -1366,16 +1414,16 @@ void FVivoxVoiceChat::onChannelExited(const VivoxClientApi::AccountName& Account
 	if (bWasConnecting)
 	{
 		// timeouts while connecting call onChannelExited instead of OnChannelJoinFailed
-		TriggerCompletionDelegate(ChannelSession.JoinDelegate, ChannelSession.ChannelName, ResultFromVivoxStatus(ReasonCode));
+		TriggerCompletionDelegate(ChannelSession.JoinDelegate, ChannelSession.ChannelName, Result);
 	}
 	else
 	{
 		if (bWasDisconnecting)
 		{
-			TriggerCompletionDelegate(ChannelSession.LeaveDelegate, ChannelSession.ChannelName, ResultFromVivoxStatus(ReasonCode));
+			TriggerCompletionDelegate(ChannelSession.LeaveDelegate, ChannelSession.ChannelName, Result);
 		}
 
-		OnVoiceChatChannelExitedDelegate.Broadcast(ChannelSession.ChannelName, ResultFromVivoxStatus(ReasonCode));
+		OnVoiceChatChannelExitedDelegate.Broadcast(ChannelSession.ChannelName, Result);
 	}
 
 	RemoveChannelSession(ChannelSession.ChannelName);
@@ -1887,6 +1935,22 @@ void FVivoxVoiceChat::ClearLoginSession()
 {
 	ClearChannelSessions();
 	LoginSession.State = FLoginSession::EState::LoggedOut;
+}
+
+void FVivoxVoiceChat::ApplyAudioInputOptions()
+{
+	VivoxClientConnection.SetMasterAudioInputDeviceVolume(FMath::Lerp(VIVOX_MIN_VOL, VIVOX_MAX_VOL, AudioInputOptions.Volume));
+
+	const bool bVolumeMuted = AudioInputOptions.Volume < SMALL_NUMBER;
+	VivoxClientConnection.SetAudioInputDeviceMuted(AudioInputOptions.bMuted || bVolumeMuted);
+}
+
+void FVivoxVoiceChat::ApplyAudioOutputOptions()
+{
+	VivoxClientConnection.SetMasterAudioOutputDeviceVolume(FMath::Lerp(VIVOX_MIN_VOL, VIVOX_MAX_VOL, AudioOutputOptions.Volume));
+
+	const bool bVolumeMuted = AudioOutputOptions.Volume < SMALL_NUMBER;
+	VivoxClientConnection.SetAudioOutputDeviceMuted(AudioOutputOptions.bMuted || bVolumeMuted);
 }
 
 bool FVivoxVoiceChat::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)

@@ -3319,6 +3319,89 @@ static void ConditionalOverrideIniFilename(FString& IniFilename, const TCHAR* Ba
 }
 
 
+static FString GetLayerPath(const FConfigLayer& Layer, const FString& PlatformName, const TCHAR* EngineConfigDir, const TCHAR* SourceConfigDir, const TCHAR* BaseIniName, bool& bHasPlatformTag, bool& bHasProjectTag)
+{
+	static FString LastPlatform;
+	static FString PlatformExtensionEngineConfigDir;
+	static FString PlatformExtensionProjectConfigDir;
+	static bool bHasPlatformExtensionEngineConfigDir;
+	static bool bHasPlatformExtensionProjectConfigDir;
+
+	if (LastPlatform != PlatformName)
+	{
+		LastPlatform = PlatformName;
+		PlatformExtensionEngineConfigDir = FPaths::Combine(*FPaths::EnginePlatformExtensionsDir(), *PlatformName, TEXT("Config"));
+		PlatformExtensionProjectConfigDir = FPaths::Combine(*FPaths::ProjectPlatformExtensionsDir(), *PlatformName, TEXT("Config"));
+		bHasPlatformExtensionEngineConfigDir = FPaths::DirectoryExists(*PlatformExtensionEngineConfigDir);
+		bHasPlatformExtensionProjectConfigDir = FPaths::DirectoryExists(*PlatformExtensionProjectConfigDir);
+	}
+
+	// cache some searches
+	bHasPlatformTag = FCString::Strstr(Layer.Path, TEXT("{PLATFORM}")) != nullptr;
+	bHasProjectTag = FCString::Strstr(Layer.Path, TEXT("{PROJECT}")) != nullptr;
+
+	// you can only have PROJECT or ENGINE, not both
+	FString LayerPath;
+	if (bHasProjectTag)
+	{
+		if (bHasPlatformTag && bHasPlatformExtensionProjectConfigDir)
+		{
+			LayerPath = FString(Layer.PlatformExtensionPath).Replace(TEXT("{EXTPROJECT}"), *PlatformExtensionProjectConfigDir);
+		}
+		else
+		{
+			LayerPath = FString(Layer.Path).Replace(TEXT("{PROJECT}"), SourceConfigDir);
+		}
+	}
+	else
+	{
+		if (bHasPlatformTag && bHasPlatformExtensionEngineConfigDir)
+		{
+			LayerPath = FString(Layer.PlatformExtensionPath).Replace(TEXT("{EXTENGINE}"), *PlatformExtensionEngineConfigDir);
+		}
+		else
+		{
+			LayerPath = FString(Layer.Path).Replace(TEXT("{ENGINE}"), EngineConfigDir);
+		}
+	}
+
+	LayerPath = LayerPath.Replace(TEXT("{TYPE}"), BaseIniName, ESearchCase::CaseSensitive);
+	LayerPath = LayerPath.Replace(TEXT("{USERSETTINGS}"), FPlatformProcess::UserSettingsDir(), ESearchCase::CaseSensitive);
+	LayerPath = LayerPath.Replace(TEXT("{USER}"), FPlatformProcess::UserDir(), ESearchCase::CaseSensitive);
+
+	return LayerPath;
+}
+
+static FString GetExpansionPath(const FConfigLayerExpansion& Expansion, const FString& LayerPath, bool bHasPlatformTag)
+{
+	// replace the expansion tags
+	FString ExpansionPath = LayerPath.Replace(TEXT("{ED}"), Expansion.DirectoryPrefix, ESearchCase::CaseSensitive);
+	ExpansionPath = ExpansionPath.Replace(TEXT("{EF}"), Expansion.FilePrefix, ESearchCase::CaseSensitive);
+
+	// check for dedicated server expansion
+	if (EnumHasAnyFlags(Expansion.Flag, EConfigLayerFlags::DedicatedServerOnly))
+	{
+		// it's unclear how a platform DS ini would be named, so for now, not supported
+		if (bHasPlatformTag)
+		{
+			return TEXT("");
+		}
+		else if (IsRunningDedicatedServer())
+		{
+			ExpansionPath = ExpansionPath.Replace(TEXT("Base"), TEXT(""));
+			ExpansionPath = ExpansionPath.Replace(TEXT("Default"), TEXT(""));
+			// ExpansionPath = ExpansionPath.Replace(TEXT("{PLATFORM}"), TEXT(""));
+		}
+		else
+		{
+			// skip this expansion if not DS
+			return TEXT("");
+		}
+	}
+
+	return ExpansionPath;
+}
+
 /**
  * Creates a chain of ini filenames to load and combine.
  *
@@ -3330,52 +3413,20 @@ void FConfigFile::AddStaticLayersToHierarchy(const TCHAR* InBaseIniName, const T
 {
 	SourceEngineConfigDir = EngineConfigDir;
 	SourceProjectConfigDir = SourceConfigDir;
-	
+
 	// get the platform name
 	const FString PlatformName(InPlatformName ? InPlatformName : ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()));
 
 	// cache some platform extension information that can be used inside the loops
-	FString PlatformExtensionEngineConfigDir = FPaths::Combine(*FPaths::EnginePlatformExtensionsDir(), *PlatformName, TEXT("Config"));
-	FString PlatformExtensionProjectConfigDir = FPaths::Combine(*FPaths::ProjectPlatformExtensionsDir(), *PlatformName, TEXT("Config"));
-	bool bHasPlatformExtensionEngineConfigDir = FPaths::DirectoryExists(*PlatformExtensionEngineConfigDir);
-	bool bHasPlatformExtensionProjectConfigDir = FPaths::DirectoryExists(*PlatformExtensionProjectConfigDir);
 
 	// go over all the config layers
 	for (int32 LayerIndex = 0; LayerIndex < UE_ARRAY_COUNT(GConfigLayers); LayerIndex++)
 	{
 		const FConfigLayer& Layer = GConfigLayers[LayerIndex];
-		const bool bHasPlatformTag = FCString::Strstr(Layer.Path, TEXT("{PLATFORM}")) != nullptr;
-		const bool bHasProjectTag = FCString::Strstr(Layer.Path, TEXT("{PROJECT}")) != nullptr;
 
 		// start replacing basic variables
-		FString LayerPath;
-		// you can only have PROJECT or ENGINE, not both
-		if (bHasProjectTag)
-		{
-			if (bHasPlatformTag && bHasPlatformExtensionProjectConfigDir)
-			{
-				LayerPath = FString(Layer.PlatformExtensionPath).Replace(TEXT("{EXTPROJECT}"), *PlatformExtensionProjectConfigDir);
-			}
-			else
-			{
-				LayerPath = FString(Layer.Path).Replace(TEXT("{PROJECT}"), SourceConfigDir);
-			}
-		}
-		else
-		{
-			if (bHasPlatformTag && bHasPlatformExtensionEngineConfigDir)
-			{
-				LayerPath = FString(Layer.PlatformExtensionPath).Replace(TEXT("{EXTENGINE}"), *PlatformExtensionEngineConfigDir);
-			}
-			else
-			{
-				LayerPath = FString(Layer.Path).Replace(TEXT("{ENGINE}"), EngineConfigDir);
-			}
-		}
-
-		LayerPath = LayerPath.Replace(TEXT("{TYPE}"), InBaseIniName, ESearchCase::CaseSensitive);
-		LayerPath = LayerPath.Replace(TEXT("{USERSETTINGS}"), FPlatformProcess::UserSettingsDir(), ESearchCase::CaseSensitive);
-		LayerPath = LayerPath.Replace(TEXT("{USER}"), FPlatformProcess::UserDir(), ESearchCase::CaseSensitive);
+		bool bHasPlatformTag, bHasProjectTag;
+		FString LayerPath = GetLayerPath(Layer, PlatformName, EngineConfigDir, SourceConfigDir, InBaseIniName, bHasPlatformTag, bHasProjectTag);
 
 		// PROGRAMs don't require any ini files
 #if IS_PROGRAM
@@ -3397,29 +3448,13 @@ void FConfigFile::AddStaticLayersToHierarchy(const TCHAR* InBaseIniName, const T
 			{
 				const FConfigLayerExpansion& Expansion = GConfigLayerExpansions[ExpansionIndex];
 
-				// replace the expansion tags
-				FString ExpansionPath = LayerPath.Replace(TEXT("{ED}"), Expansion.DirectoryPrefix, ESearchCase::CaseSensitive);
-				ExpansionPath = ExpansionPath.Replace(TEXT("{EF}"), Expansion.FilePrefix, ESearchCase::CaseSensitive);
+				bool bSkipExpansion = false;
+				FString ExpansionPath = GetExpansionPath(Expansion, LayerPath, bHasPlatformTag);
 
-				// check for dedicated server expansion
-				if (EnumHasAnyFlags(Expansion.Flag, EConfigLayerFlags::DedicatedServerOnly))
+				// skip this expansion if we didn't want it
+				if (ExpansionPath.Len() == 0)
 				{
-					// it's unclear how a platform DS ini would be named, so for now, not supported
-					if (bHasPlatformTag)
-					{
-						continue;
-					}
-					if (IsRunningDedicatedServer())
-					{
-						ExpansionPath = ExpansionPath.Replace(TEXT("Base"), TEXT(""));
-						ExpansionPath = ExpansionPath.Replace(TEXT("Default"), TEXT(""));
-						// ExpansionPath = ExpansionPath.Replace(TEXT("{PLATFORM}"), TEXT(""));
-					}
-					else
-					{
-						// skip this expansion if not DS
-						continue;
-					}
+					continue;
 				}
 
 				// allow for override, only on BASE EXPANSION!
@@ -3436,20 +3471,36 @@ void FConfigFile::AddStaticLayersToHierarchy(const TCHAR* InBaseIniName, const T
 
 				const FDataDrivenPlatformInfoRegistry::FPlatformInfo& Info = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(PlatformName);
 
-				// go over parents, and then this platform, unless there's no platform tag, then we simply want to run through the loop one time to add it to the 
+				// go over parents, and then this platform, unless there's no platform tag, then we simply want to run through the loop one time to add it to the
 				int NumPlatforms = bHasPlatformTag ? Info.IniParentChain.Num() + 1 : 1;
 				check(NumPlatforms < MaxPlatformIndex);
 				for (int PlatformIndex = 0; PlatformIndex < NumPlatforms; PlatformIndex++)
 				{
 					// the platform to work on (active platform is always last)
 					const FString& CurrentPlatform = (PlatformIndex == NumPlatforms - 1) ? PlatformName : Info.IniParentChain[PlatformIndex];
+					FString PlatformPath;
 
-					// replace
-					FString PlatformPath = ExpansionPath.Replace(TEXT("{PLATFORM}"), *CurrentPlatform, ESearchCase::CaseSensitive);
+					// ini parent may not be a PlatformExtension even if this was, so update based on the current platform after the first
+					if (PlatformIndex < NumPlatforms - 1)
+					{
+						// overriding the bHas*Tag fields is fine here since it will evaluate to the same
+						FString LocalLayerPath = GetLayerPath(Layer, CurrentPlatform, EngineConfigDir, SourceConfigDir, InBaseIniName, bHasPlatformTag, bHasProjectTag);
+
+						// re-expand the new path
+						FString LocalExpansionPath = GetExpansionPath(Expansion, LocalLayerPath, bHasPlatformTag);
+
+						// modify get the final platform path from the parent ini's location
+						PlatformPath = LocalExpansionPath.Replace(TEXT("{PLATFORM}"), *CurrentPlatform, ESearchCase::CaseSensitive);
+					}
+					else
+					{
+						// replace
+						PlatformPath = ExpansionPath.Replace(TEXT("{PLATFORM}"), *CurrentPlatform, ESearchCase::CaseSensitive);
+					}
 
 					// add this to the list!
 					SourceIniHierarchy.AddStaticLayer(
-						FIniFilename(PlatformPath, bIsRequired, bGenerateCacheKey ? 
+						FIniFilename(PlatformPath, bIsRequired, bGenerateCacheKey ?
 							GenerateHierarchyCacheKey(SourceIniHierarchy, PlatformPath, InBaseIniName) :
 							FString(TEXT(""))),
 						LayerIndex, ExpansionIndex, PlatformIndex);
@@ -3464,7 +3515,7 @@ void FConfigFile::AddStaticLayersToHierarchy(const TCHAR* InBaseIniName, const T
 
 			// final layer needs to generate a hierarchy cache
 			SourceIniHierarchy.AddStaticLayer(
-				FIniFilename(LayerPath, bIsRequired, EnumHasAnyFlags(Layer.Flag, EConfigLayerFlags::GenerateCacheKey) ? 
+				FIniFilename(LayerPath, bIsRequired, EnumHasAnyFlags(Layer.Flag, EConfigLayerFlags::GenerateCacheKey) ?
 					GenerateHierarchyCacheKey(SourceIniHierarchy, LayerPath, InBaseIniName) :
 					FString(TEXT(""))),
 				LayerIndex);

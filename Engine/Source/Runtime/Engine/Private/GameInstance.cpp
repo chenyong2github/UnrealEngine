@@ -1252,7 +1252,7 @@ void UGameInstance::PreloadContentForURL(FURL InURL)
 	// Preload game mode and other content if needed here
 }
 
-AGameModeBase* UGameInstance::CreateGameModeForURL(FURL InURL)
+AGameModeBase* UGameInstance::CreateGameModeForURL(FURL InURL, UWorld* InWorld)
 {
 	// Init the game info.
 	FString Options;
@@ -1264,7 +1264,7 @@ AGameModeBase* UGameInstance::CreateGameModeForURL(FURL InURL)
 		FParse::Value(*InURL.Op[i], TEXT("GAME="), GameParam);
 	}
 
-	UWorld* World = GetWorld();
+	UWorld* World = InWorld ? InWorld : GetWorld();
 	AWorldSettings* Settings = World->GetWorldSettings();
 	UGameEngine* const GameEngine = Cast<UGameEngine>(GEngine);
 

@@ -365,6 +365,15 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 	}
 
 	{
+		FDelegateHandle OnObjectsReplacedHandle = GEditor->OnObjectsReplaced().AddLambda([&](const TMap<UObject*, UObject*>& ReplacementMap)
+		{
+			PreAnimatedState.OnObjectsReplaced(ReplacementMap);
+		});
+		AcquiredResources.Add([=] { GEditor->OnObjectsReplaced().Remove(OnObjectsReplacedHandle); });
+	}
+
+
+	{
 		ISequenceRecorder* Recorder = FModuleManager::Get().GetModulePtr<ISequenceRecorder>("SequenceRecorder");
 		
 		Recorder->OnRecordingStarted().AddSP(this, &FSequencer::HandleRecordingStarted);
@@ -9928,7 +9937,10 @@ void FSequencer::ExportFBXInternal(const FString& ExportFilename, TArray<FGuid>&
 					}
 
 					// Restore modified spawned sections
+					bool bOrigSquelchTransactionNotification = GEditor->bSquelchTransactionNotification;
+					GEditor->bSquelchTransactionNotification = true;
 					GEditor->UndoTransaction(false);
+					GEditor->bSquelchTransactionNotification = bOrigSquelchTransactionNotification;
 				}
 
 				bool bWasChanged;
@@ -9940,8 +9952,20 @@ void FSequencer::ExportFBXInternal(const FString& ExportFilename, TArray<FGuid>&
 
 			{
 				FSpawnableRestoreState SpawnableRestoreState(*this);
-
-				MovieSceneToolHelpers::ExportFBX(World, MovieScene, this, Bindings, NodeNameAdapter, Template, ExportFilename, RootToLocalTransform);
+				if (MovieSceneToolHelpers::ExportFBX(World, MovieScene, this, Bindings, NodeNameAdapter, Template, ExportFilename, RootToLocalTransform))
+				{
+					FNotificationInfo Info(NSLOCTEXT("Sequencer", "ExportFBXSucceeded", "FBX Export Succeeded."));
+					Info.Hyperlink = FSimpleDelegate::CreateStatic([](FString InFilename) { FPlatformProcess::ExploreFolder(*InFilename); }, ExportFilename);
+					Info.HyperlinkText = FText::FromString(ExportFilename);
+					Info.ExpireDuration = 5.0f;
+					FSlateNotificationManager::Get().AddNotification(Info)->SetCompletionState(SNotificationItem::CS_Success);
+				}
+				else
+				{
+					FNotificationInfo Info(NSLOCTEXT("Sequencer", "ExportFBXFailed", "FBX Export Failed."));
+					Info.ExpireDuration = 5.0f;
+					FSlateNotificationManager::Get().AddNotification(Info)->SetCompletionState(SNotificationItem::CS_Fail);
+				}
 			}
 
 			ForceEvaluate();

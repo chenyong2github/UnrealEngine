@@ -385,25 +385,14 @@ void FNiagaraParameterStore::CheckForNaNs()const
 	}
 }
 
-void FNiagaraParameterStore::Tick()
+void FNiagaraParameterStore::TickBindings()
 {
-#if NIAGARA_NAN_CHECKING
-	CheckForNaNs();
-#endif
-	if (Bindings.Num() > 0 && (bParametersDirty || bInterfacesDirty || bUObjectsDirty))
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraParameterStoreTick);
+	for (TPair<FNiagaraParameterStore*, FNiagaraParameterStoreBinding>& Binding : Bindings)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_NiagaraParameterStoreTick);
-		for (TPair<FNiagaraParameterStore*, FNiagaraParameterStoreBinding>& Binding : Bindings)
-		{
-			Binding.Value.Tick(Binding.Key, this);
-		}
-		Dump();
+		Binding.Value.Tick(Binding.Key, this);
 	}
-
-	//We have to have ticked all our source stores before now.
-	bParametersDirty = false;
-	bInterfacesDirty = false;
-	bUObjectsDirty = false;
+	Dump();
 }
 
 void FNiagaraParameterStore::UnbindFromSourceStores()

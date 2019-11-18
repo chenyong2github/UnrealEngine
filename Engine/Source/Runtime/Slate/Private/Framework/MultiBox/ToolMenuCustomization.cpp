@@ -32,6 +32,16 @@ FCustomizedToolMenuEntry* FCustomizedToolMenu::AddEntry(const FName InEntryName)
 	return &Entries.FindOrAdd(InEntryName);
 }
 
+void FCustomizedToolMenu::AddWhitelistEntry(const FName InEntryName)
+{
+	WhitelistEntries.AddUnique(InEntryName);
+}
+
+bool FCustomizedToolMenu::IsEntryWhitelisted(const FName InEntryName) const
+{
+	return WhitelistEntries.Contains(InEntryName);
+}
+
 ECustomizedToolMenuVisibility FCustomizedToolMenu::GetEntryVisiblity(const FName InEntryName) const
 {
 	if (const FCustomizedToolMenuEntry* Found = FindEntry(InEntryName))
@@ -192,6 +202,11 @@ FCustomizedToolMenu FCustomizedToolMenuHierarchy::GenerateFlattened() const
 			{
 				Result.Sections.Add(SectionIterator.Key, SectionIterator.Value);
 			}
+		}
+
+		for (const FName WhitelistEntry : Current->WhitelistEntries)
+		{
+			Result.AddWhitelistEntry(WhitelistEntry);
 		}
 	}
 

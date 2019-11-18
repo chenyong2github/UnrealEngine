@@ -81,24 +81,16 @@ void UPhysicalMaterial::FinishDestroy()
 
 FPhysicsMaterialHandle& UPhysicalMaterial::GetPhysicsMaterial()
 {
-#if WITH_CHAOS
-    check(false);
-    MaterialHandle = nullptr;
-    return MaterialHandle;
-#else
 	if(!MaterialHandle.IsValid())
 	{
 		MaterialHandle = FPhysicsInterface::CreateMaterial(this);
 		check(MaterialHandle.IsValid());
 
-#if WITH_PHYSX
 		FPhysicsInterface::SetUserData(MaterialHandle, &PhysxUserData);
-#endif
 		FPhysicsInterface::UpdateMaterial(MaterialHandle, this);
 	}
 
 	return MaterialHandle;
-#endif
 }
 
 EPhysicalSurface UPhysicalMaterial::DetermineSurfaceType(UPhysicalMaterial const* PhysicalMaterial)
@@ -110,4 +102,3 @@ EPhysicalSurface UPhysicalMaterial::DetermineSurfaceType(UPhysicalMaterial const
 	
 	return PhysicalMaterial->SurfaceType;
 }
-

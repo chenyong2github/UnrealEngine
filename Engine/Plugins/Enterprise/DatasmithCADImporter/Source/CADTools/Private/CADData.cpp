@@ -4,11 +4,13 @@
 #include "CADOptions.h"
 
 #include "Misc/FileHelper.h"
-
+#include "Serialization/Archive.h"
+#include "Serialization/MemoryWriter.h"
+#include "Serialization/MemoryReader.h"
 
 namespace CADLibrary
 {
-uint32 BuildFastColorHash(uint32 ColorId, uint8 Alpha)
+uint32 BuildColorId(uint32 ColorId, uint8 Alpha)
 {
 	if (Alpha == 0)
 	{
@@ -17,184 +19,113 @@ uint32 BuildFastColorHash(uint32 ColorId, uint8 Alpha)
 	return ColorId | Alpha << 24;
 }
 
-void UnhashFastColorHash(uint32 ColorHash, uint32& ColorId, uint8& Alpha)
+void GetCTColorIdAlpha(ColorId ColorId, uint32& CTColorId, uint8& Alpha)
 {
-	ColorId = ColorHash & 0x00ffffff;
-	Alpha = (uint8)((ColorHash & 0xff000000) >> 24);
+	CTColorId = ColorId & 0x00ffffff;
+	Alpha = (uint8)((ColorId & 0xff000000) >> 24);
 }
 
-int32 BuildColorHash(const FColor& Color)
+int32 BuildColorName(const FColor& Color)
 {
-	FString HashString = FString::Printf(TEXT("%02x%02x%02x%02x"), Color.R, Color.G, Color.B, Color.A);
-	return FGenericPlatformMath::Abs((int32)GetTypeHash(HashString));
+	FString Name = FString::Printf(TEXT("%02x%02x%02x%02x"), Color.R, Color.G, Color.B, Color.A);
+	return FGenericPlatformMath::Abs((int32)GetTypeHash(Name));
 }
 
-int32 BuildMaterialHash(const FCADMaterial& Material)
+int32 BuildMaterialName(const FCADMaterial& Material)
 {
-	FString Hash;
+	FString Name;
 	if (!Material.MaterialName.IsEmpty())
 	{
-		Hash += Material.MaterialName;  // we add material name because it could be used by the end user so two material with same parameters but different name are different.
+		Name += Material.MaterialName;  // we add material name because it could be used by the end user so two material with same parameters but different name are different.
 	}
-	Hash += FString::Printf(TEXT("%02x%02x%02x "), Material.Diffuse.R, Material.Diffuse.G, Material.Diffuse.B);
-	Hash += FString::Printf(TEXT("%02x%02x%02x "), Material.Ambient.R, Material.Ambient.G, Material.Ambient.B);
-	Hash += FString::Printf(TEXT("%02x%02x%02x "), Material.Specular.R, Material.Specular.G, Material.Specular.B);
-	Hash += FString::Printf(TEXT("%02x%02x%02x"), (int)(Material.Shininess * 255.0), (int)(Material.Transparency * 255.0), (int)(Material.Reflexion * 255.0));
+	Name += FString::Printf(TEXT("%02x%02x%02x "), Material.Diffuse.R, Material.Diffuse.G, Material.Diffuse.B);
+	Name += FString::Printf(TEXT("%02x%02x%02x "), Material.Ambient.R, Material.Ambient.G, Material.Ambient.B);
+	Name += FString::Printf(TEXT("%02x%02x%02x "), Material.Specular.R, Material.Specular.G, Material.Specular.B);
+	Name += FString::Printf(TEXT("%02x%02x%02x"), (int)(Material.Shininess * 255.0), (int)(Material.Transparency * 255.0), (int)(Material.Reflexion * 255.0));
 
 	if (!Material.TextureName.IsEmpty())
 	{
-		Hash += Material.TextureName;
+		Name += Material.TextureName;
 	}
-	return FMath::Abs((int32)GetTypeHash(Hash));
+	return FMath::Abs((int32)GetTypeHash(Name));
 }
 
-
-FBody::FBody(uint32 InBodyID, int32 FaceNum)
-	: TriangleCount(0)
-	, BodyID(InBodyID)
+FArchive& operator<<(FArchive& Ar, FCADMaterial& Material)
 {
-	FaceTessellationSet.Reserve(FaceNum);
+	Ar << Material.MaterialName;
+	Ar << Material.Diffuse;
+	Ar << Material.Ambient;
+	Ar << Material.Specular;
+	Ar << Material.Shininess;
+	Ar << Material.Transparency;
+	Ar << Material.Reflexion;
+	Ar << Material.TextureName;
+	return Ar;
 }
 
-
-FCTRawGeomFile::FCTRawGeomFile(FString& InFileName, TMap< uint32, FBody* >& InBodyUuidToCTBodyMap)
-	: BodyUuidToBodyMap(InBodyUuidToCTBodyMap)
+FArchive& operator<<(FArchive& Ar, FTessellationData& TessellationData)
 {
-	uint32 NbBody = 0;
+	Ar << TessellationData.VertexArray;
+	Ar << TessellationData.NormalArray;
+	Ar << TessellationData.IndexArray;
+	Ar << TessellationData.TexCoordArray;
+	Ar << TessellationData.VertexCount;
+	Ar << TessellationData.NormalCount;
+	Ar << TessellationData.IndexCount;
+	Ar << TessellationData.TexCoordCount;
 
-	TArray<uint8> RawData;
-	FFileHelper::LoadFileToArray(RawData, *InFileName);
+	Ar << TessellationData.StartVertexIndex;
 
-	ReadTessellationSetFromFile(RawData, NbBody, CTBodySet);
+	Ar << TessellationData.SizeOfVertexType;
+	Ar << TessellationData.SizeOfTexCoordType;
+	Ar << TessellationData.SizeOfNormalType;
+	Ar << TessellationData.SizeOfIndexType;
 
-	for(FBody& Body : CTBodySet)
+	Ar << TessellationData.ColorName;
+	Ar << TessellationData.MaterialName;
+
+	return Ar;
+}
+
+FArchive& operator<<(FArchive& Ar, FBodyMesh& BodyMesh)
+{
+	Ar << BodyMesh.TriangleCount;
+	Ar << BodyMesh.BodyID;
+	Ar << BodyMesh.MeshActorName;
+	Ar << BodyMesh.Faces;
+
+	Ar << BodyMesh.MaterialSet;
+	Ar << BodyMesh.ColorSet;
+
+	return Ar;
+}
+
+void SerializeBodyMeshSet(const TCHAR* Filename, TArray<FBodyMesh>& InBodySet)
+{
+	TArray<uint8> OutBuffer;
+	FMemoryWriter ArWriter(OutBuffer);
+	uint32 type = 234561;
+	ArWriter << type;
+
+	ArWriter << InBodySet;
+
+	FFileHelper::SaveArrayToFile(OutBuffer, Filename);
+}
+
+void DeserializeBodyMeshFile(const TCHAR* Filename, TArray<FBodyMesh>& OutBodySet)
+{
+	TArray<uint8> InBuffer;
+	FFileHelper::LoadFileToArray(InBuffer, Filename);
+
+	FMemoryReader ArReader(InBuffer);
+	uint32 type = 0;
+	ArReader << type;
+	if (type != 234561)
 	{
-		//CTIdToBodyUuidMap.Emplace(Body.GetBodyId(), Body.GetBodyUuid());
-		BodyUuidToBodyMap.Add(Body.GetBodyUuid(), &Body);
+		return;
 	}
+
+	ArReader << OutBodySet;
 }
-
-enum ETessellationContent
-{
-	HasVertex = 1 << 1,
-	HasNormal = 1 << 2,
-	HasIndex = 1 << 3,
-	HasTexCoord = 1 << 4,
-
-	Default = HasVertex | HasNormal | HasIndex | HasTexCoord
-};
-
-void WriteTessellationInRawData(FTessellationData& Tessellation, TArray<uint8>& GlobalRawData)
-{
-	int32 INFO[LastLine];
-
-	int32 Types = ETessellationContent::Default;
-	uint32 VertexSize = Tessellation.VertexArray.Num();
-	uint32 NormalSize = Tessellation.NormalArray.Num();
-	uint32 IndexSize = Tessellation.IndexArray.Num();
-	uint32 TexCoordSize = Tessellation.TexCoordArray.Num();
-
-	uint32 TessellationRawDataSize = VertexSize + NormalSize + IndexSize + TexCoordSize + sizeof(INFO); // VertexCount, VertexType, NormalCount, NormalType, IndexCount, IndexType, TexCoordType;
-
-	INFO[LineType] = Types;
-	INFO[LineRawSize] = TessellationRawDataSize;
-	INFO[LineBodyId] = Tessellation.BodyId;
-	INFO[LineBodyUuId] = Tessellation.BodyUuId;
-	INFO[LineBodyFaceNum] = Tessellation.BodyFaceNum;
-	INFO[LineMaterialId] = Tessellation.MaterialId;
-	INFO[LineMaterialHash] = Tessellation.MaterialHash;
-	INFO[LineVertexCount] = Tessellation.VertexCount;
-	INFO[LineVertexType] = Tessellation.SizeOfVertexType;
-	INFO[LineNormalCount] = Tessellation.NormalCount;
-	INFO[LineNormalType] = Tessellation.SizeOfNormalType;
-	INFO[LineIndexCount] = Tessellation.IndexCount;
-	INFO[LineIndexType] = Tessellation.SizeOfIndexType;
-	INFO[LineTexCoordType] = Tessellation.SizeOfTexCoordType;
-
-	GlobalRawData.Append((uint8*)INFO, sizeof(INFO));
-	GlobalRawData.Append(Tessellation.VertexArray);
-	GlobalRawData.Append(Tessellation.NormalArray);
-	GlobalRawData.Append(Tessellation.IndexArray);
-	GlobalRawData.Append(Tessellation.TexCoordArray);
-}
-
-bool ReadTessellationSetFromFile(TArray<uint8>& RawData, uint32& OutNbBodies, TArray<FBody>& CTBodySet)
-{
-	uint32 INFO[LastLine];
-	const uint32 InfoSize = sizeof(INFO);
-	int32 RawDataOffset = sizeof(uint32);
-	memcpy(&OutNbBodies, RawData.GetData(), RawDataOffset);
-
-	CTBodySet.Reserve(OutNbBodies);
-
-	FBody* CurrentBody = nullptr;
-
-	int32 CurrentBodyId = -1;
-	int32 CurrentBodyIndex = -1;
-	while (RawDataOffset < RawData.Num())
-	{
-		memcpy(INFO, RawData.GetData() + RawDataOffset, InfoSize);
-		RawDataOffset += InfoSize;
-
-		int32 Types = INFO[LineType];
-		int32 RawSize = INFO[LineRawSize];
-
-		if (Types != ETessellationContent::Default)
-		{
-			return false;
-		}
-
-		if (INFO[LineBodyId] != CurrentBodyId)
-		{
-			CurrentBodyId = INFO[LineBodyId];
-			CTBodySet.Emplace(INFO[LineBodyId], INFO[LineBodyFaceNum]);
-			CurrentBodyIndex++;
-
-			CurrentBody = &CTBodySet[CurrentBodyIndex];
-			CurrentBody->SetBodyId(INFO[LineBodyId]);
-			CurrentBody->SetBodyUuid(INFO[LineBodyUuId]);
-			CurrentBody->GetTessellationSet().Reserve(INFO[LineBodyFaceNum]);
-		}
-
-		int32 Index = CurrentBody->GetTessellationSet().Emplace();
-		FTessellationData& Tessellation = CurrentBody->GetTessellationSet()[Index];
-
-		Tessellation.BodyId = INFO[LineBodyId];
-		Tessellation.BodyUuId = INFO[LineBodyUuId];
-		Tessellation.BodyFaceNum = INFO[LineBodyFaceNum];
-		Tessellation.MaterialId = INFO[LineMaterialId];
-		Tessellation.MaterialHash = INFO[LineMaterialHash];
-		Tessellation.VertexCount = INFO[LineVertexCount];
-		Tessellation.SizeOfVertexType = INFO[LineVertexType];
-		Tessellation.NormalCount = INFO[LineNormalCount];
-		Tessellation.SizeOfNormalType = INFO[LineNormalType];
-		Tessellation.IndexCount = INFO[LineIndexCount];
-		Tessellation.SizeOfIndexType = INFO[LineIndexType];
-		Tessellation.SizeOfTexCoordType = INFO[LineTexCoordType];
-
-		uint32 VertexSize = Tessellation.VertexCount * Tessellation.SizeOfVertexType * 3;
-		uint32 NormalSize = Tessellation.NormalCount * Tessellation.SizeOfNormalType * 3;
-		uint32 IndexSize = Tessellation.IndexCount * Tessellation.SizeOfIndexType;
-		uint32 TexCoordSize = Tessellation.VertexCount * Tessellation.SizeOfTexCoordType * 2;
-		uint32 DataByteSize = VertexSize + NormalSize + IndexSize + TexCoordSize + InfoSize;
-
-
-		Tessellation.VertexArray.Empty(VertexSize);
-		Tessellation.NormalArray.Empty(NormalSize);
-		Tessellation.IndexArray.Empty(IndexSize);
-		Tessellation.TexCoordArray.Empty(TexCoordSize);
-
-		Tessellation.VertexArray.Append(RawData.GetData() + RawDataOffset, VertexSize);
-		RawDataOffset += VertexSize;
-		Tessellation.NormalArray.Append(RawData.GetData() + RawDataOffset, NormalSize);
-		RawDataOffset += NormalSize;
-		Tessellation.IndexArray.Append(RawData.GetData() + RawDataOffset, IndexSize);
-		RawDataOffset += IndexSize;
-		Tessellation.TexCoordArray.Append(RawData.GetData() + RawDataOffset, TexCoordSize);
-		RawDataOffset += TexCoordSize;
-	}
-	return true;
-}
-
 
 }

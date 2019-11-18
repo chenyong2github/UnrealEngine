@@ -45,6 +45,8 @@ class UUserDefinedEnum;
 class UUserDefinedStruct;
 class UBlueprintEditorOptions;
 struct Rect;
+class UToolMenu;
+struct FToolMenuContext;
 class UK2Node_FunctionEntry;
 class UK2Node_Event;
 
@@ -237,6 +239,9 @@ public:
 	FBlueprintEditor();
 
 	virtual ~FBlueprintEditor();
+
+	/** Add context objects for menus and toolbars */
+	virtual void InitToolMenuContext(FToolMenuContext& MenuContext) override;
 
 	/** Check the Node Title is visible */
 	bool IsNodeTitleVisible(const UEdGraphNode* Node, bool bRequestRename);

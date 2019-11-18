@@ -44,7 +44,7 @@ struct MOVIESCENETOOLS_API FMovieSceneEventUtils
 {
 	/**
 	 * Create a new event endpoint for the specified sequence. By default, event end points are presented as a UK2Node_CustomEvent in an event graph called "Sequencer Events" with a pin for the bound object.
-	 * @note: Does not bind any event sections to UBlueprint::GenerateFunctionGraphsEvent which is necessary for the event's entry point to be generated during blueprint compilation - that must be done before (or after) this call.
+	 * @note: Does not bind any event sections to the UBlueprintExtension which is necessary for the event's entry point to be generated during blueprint compilation - that must be done before (or after) this call.
 	 *
 	 * @param Blueprint       (Required, non-null) The blueprint within which to create the new custom event
 	 * @param Parameters      The end point parameters that define how to name and construct the event
@@ -54,7 +54,7 @@ struct MOVIESCENETOOLS_API FMovieSceneEventUtils
 
 
 	/**
-	 * As with CreateUserFacingEvent, but also binds the section to UBlueprint::GenerateFunctionGraphsEvent which ensures that it will hook into the compilation process to generate its entry point function graph
+	 * As with CreateUserFacingEvent, but also binds the section to a UBlueprintExtension which ensures that it will hook into the compilation process to generate its entry point function graph
 	 *
 	 * @param EntryPoint      (Required, non-null) The event entry point definition
 	 * @param EventSection    (Required, non-null) The event section that owns the specified entry point
@@ -74,6 +74,13 @@ struct MOVIESCENETOOLS_API FMovieSceneEventUtils
 	 */
 	static UK2Node_FunctionEntry* GenerateEntryPoint(UMovieSceneEventSectionBase* EventSection, FMovieSceneEvent* EntryPoint, FKismetCompilerContext* Compiler, UEdGraphNode* Endpoint);
 
+	/**
+	 * Create the necessary mapping between a director Blueprint and and event section in order for the event section to be compiled correctly.
+	 *
+	 * @param EventSection           (Required, non-null) The event section to bind to the director BP
+	 * @param DirectorBP             (Required, non-null) The owning blueprint that will compile the event section's entry points
+	 */
+	static void BindEventSectionToBlueprint(UMovieSceneEventSectionBase* EventSection, UBlueprint* DirectorBP);
 
 public:
 

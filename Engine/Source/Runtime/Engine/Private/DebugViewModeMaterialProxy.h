@@ -148,6 +148,10 @@ public:
 	virtual bool GetCastDynamicShadowAsMasked() const override;
 	virtual void GatherCustomOutputExpressions(TArray<class UMaterialExpressionCustomOutput*>& OutCustomOutputs) const override;
 	virtual void GatherExpressionsForCustomInterpolators(TArray<class UMaterialExpression*>& OutExpressions) const override;
+	virtual enum EMaterialTessellationMode GetTessellationMode() const override;
+	virtual bool IsCrackFreeDisplacementEnabled() const override;
+	virtual bool IsAdaptiveTessellationEnabled() const override;
+	virtual float GetMaxDisplacement() const override;
 
 	// Cached material usage.
 	virtual bool IsUsedWithSkeletalMesh() const override { return bIsUsedWithSkeletalMesh; }
@@ -171,7 +175,8 @@ private:
 
 	/** The material interface for this proxy */
 	UMaterialInterface* MaterialInterface;
-	UMaterial* Material;	
+	UMaterial* Material;
+	ERHIFeatureLevel::Type FeatureLevel;
 	TArray<UObject*> ReferencedTextures;
 	EMaterialShaderMapUsage::Type Usage;
 	EDebugViewShaderMode DebugViewMode;

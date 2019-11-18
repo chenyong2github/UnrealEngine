@@ -154,6 +154,11 @@ void UOculusMRFunctionLibrary::SetTrackingReferenceComponent(USceneComponent* Co
 	}
 }
 
+bool UOculusMRFunctionLibrary::IsMrcEnabled()
+{
+	return FOculusMRModule::IsAvailable() && FOculusMRModule::Get().IsInitialized();
+}
+
 bool UOculusMRFunctionLibrary::IsMrcActive()
 {
 	return FOculusMRModule::IsAvailable() && FOculusMRModule::Get().IsActive();

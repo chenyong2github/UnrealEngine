@@ -167,7 +167,7 @@ void FVirtualTextureFeedback::CreateResourceGPU( FRHICommandListImmediate& RHICm
 {
 	Size = InSize;
 
-	FPooledRenderTargetDesc Desc( FPooledRenderTargetDesc::Create2DDesc( Size, PF_R32_UINT, FClearValueBinding::None, TexCreate_None, TexCreate_UAV, false ) );
+	FPooledRenderTargetDesc Desc( FPooledRenderTargetDesc::Create2DDesc( Size, PF_R32_UINT, FClearValueBinding::None, TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV, false ) );
 	GRenderTargetPool.FindFreeElement( RHICmdList, Desc, FeedbackTextureGPU, TEXT("VTFeedbackGPU") );
 
 	// Clear to default value
@@ -188,7 +188,7 @@ void FVirtualTextureFeedback::MakeSnapshot(const FVirtualTextureFeedback& Snapsh
 	}
 }
 
-void FVirtualTextureFeedback::TransferGPUToCPU( FRHICommandListImmediate& RHICmdList, FIntRect const& Rect )
+void FVirtualTextureFeedback::TransferGPUToCPU( FRHICommandListImmediate& RHICmdList, TArrayView<FIntRect> const& ViewRects )
 {
 	RHICmdList.TransitionResource( EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EGfxToGfx, FeedbackTextureGPU->GetRenderTargetItem().UAV );
 
@@ -205,8 +205,14 @@ void FVirtualTextureFeedback::TransferGPUToCPU( FRHICommandListImmediate& RHICmd
 	}
 
 	FFeedBackItem& FeedbackEntryCPU = FeedbackTextureCPU[GPUWriteIndex];
-	FeedbackEntryCPU.Rect.Min = FIntPoint(Rect.Min.X / 16, Rect.Min.Y / 16);
-	FeedbackEntryCPU.Rect.Max = FIntPoint((Rect.Max.X + 15) / 16, (Rect.Max.Y + 15) / 16);
+	FeedbackEntryCPU.NumRects = FMath::Min((int32)MaxRectPerTarget, ViewRects.Num());
+	for (int32 RectIndex = 0; RectIndex < FeedbackEntryCPU.NumRects; ++RectIndex)
+	{
+		FIntRect const& Rect = ViewRects[RectIndex];
+		//todo[vt]: Value of 16 has to match r.vt.FeedbackFactor
+		FeedbackEntryCPU.Rects[RectIndex].Min = FIntPoint(Rect.Min.X / 16, Rect.Min.Y / 16);
+		FeedbackEntryCPU.Rects[RectIndex].Max = FIntPoint((Rect.Max.X + 15) / 16, (Rect.Max.Y + 15) / 16);
+	}
 
 	const FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(Size, PF_R32_UINT, FClearValueBinding::None, TexCreate_CPUReadback | TexCreate_HideInVisualizeTexture, TexCreate_None, false));
 
@@ -250,7 +256,12 @@ bool FVirtualTextureFeedback::Map(FRHICommandListImmediate& RHICmdList, MapResul
 		SCOPED_GPU_MASK(RHICmdList, FeedbackEntryCPU.GPUMask);
 
 		OutResult.MapHandle = CPUReadIndex;
-		OutResult.Rect = FeedbackEntryCPU.Rect;
+		
+		OutResult.NumRects = FeedbackEntryCPU.NumRects;
+		for (int32 i = 0; i < FeedbackEntryCPU.NumRects; ++i)
+		{
+			OutResult.Rects[i] = FeedbackEntryCPU.Rects[i];
+		}
 
 		int32 LockHeight = 0;
 		RHICmdList.MapStagingSurface(FeedbackEntryCPU.TextureCPU->GetRenderTargetItem().ShaderResourceTexture, FeedBackFences->GetMapFence(CPUReadIndex), *(void**)&OutResult.Buffer, OutResult.Pitch, LockHeight);

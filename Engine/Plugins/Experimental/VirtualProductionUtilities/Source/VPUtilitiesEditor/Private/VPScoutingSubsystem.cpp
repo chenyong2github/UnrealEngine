@@ -10,12 +10,15 @@
 #include "WidgetBlueprint.h"
 #include "EditorUtilityActor.h"
 #include "EditorUtilityWidget.h"
+#include "Engine/AssetManager.h"
 #include "IVREditorModule.h"
 #include "UObject/ConstructorHelpers.h"
+#include "UObject/Script.h"
 #include "VPSettings.h"
 #include "VPUtilitiesEditorSettings.h"
-#include "LevelEditor.h"
 
+/* UVPScoutingSubsystem name
+ *****************************************************************************/
 const FName UVPScoutingSubsystem::VProdPanelID = FName(TEXT("VirtualProductionPanel"));
 const FName UVPScoutingSubsystem::VProdPanelLeftID = FName(TEXT("VirtualProductionPanelLeft"));
 const FName UVPScoutingSubsystem::VProdPanelRightID = FName(TEXT("VirtualProductionPanelRight"));
@@ -24,6 +27,78 @@ const FName UVPScoutingSubsystem::VProdPanelTimelineID = FName(TEXT("VirtualProd
 const FName UVPScoutingSubsystem::VProdPanelMeasureID = FName(TEXT("VirtualProductionPanelMeasure"));
 const FName UVPScoutingSubsystem::VProdPanelGafferID = FName(TEXT("VirtualProductionPanelGaffer"));
 
+
+/* UVPScoutingSubsystemGestureManagerBase
+ *****************************************************************************/
+UVPScoutingSubsystemGestureManagerBase::UVPScoutingSubsystemGestureManagerBase()
+{
+	if (!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
+	{
+		IVREditorModule::Get().OnVREditingModeEnter().AddUObject(this, &UVPScoutingSubsystemGestureManagerBase::OnVREditingModeEnterCallback);
+		IVREditorModule::Get().OnVREditingModeExit().AddUObject(this, &UVPScoutingSubsystemGestureManagerBase::OnVREditingModeExitCallback);
+	}
+}
+
+void UVPScoutingSubsystemGestureManagerBase::BeginDestroy()
+{
+	if (!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
+	{
+		IVREditorModule::Get().OnVREditingModeEnter().RemoveAll(this);
+		IVREditorModule::Get().OnVREditingModeExit().RemoveAll(this);
+	}
+
+	Super::BeginDestroy();
+}
+
+void UVPScoutingSubsystemGestureManagerBase::Tick(float DeltaTime)
+{
+	FEditorScriptExecutionGuard ScriptGuard;
+	EditorTick(DeltaTime);
+}
+
+bool UVPScoutingSubsystemGestureManagerBase::IsTickable() const
+{
+	if (IVREditorModule::IsAvailable())
+	{
+		return IVREditorModule::Get().IsVREditorModeActive();
+	}
+	return false;
+}
+
+TStatId UVPScoutingSubsystemGestureManagerBase::GetStatId() const
+{
+	RETURN_QUICK_DECLARE_CYCLE_STAT(UVPScoutingSubsystemGestureManagerBase, STATGROUP_Tickables);
+}
+
+void UVPScoutingSubsystemGestureManagerBase::OnVREditingModeEnterCallback()
+{
+	FEditorScriptExecutionGuard ScriptGuard;
+	OnVREditingModeEnter();
+}
+
+void UVPScoutingSubsystemGestureManagerBase::OnVREditingModeExitCallback()
+{
+	FEditorScriptExecutionGuard ScriptGuard;
+	OnVREditingModeExit();
+}
+
+void UVPScoutingSubsystemGestureManagerBase::EditorTick_Implementation(float DeltaSeconds)
+{
+
+}
+
+void UVPScoutingSubsystemGestureManagerBase::OnVREditingModeEnter_Implementation()
+{
+
+}
+
+void UVPScoutingSubsystemGestureManagerBase::OnVREditingModeExit_Implementation()
+{
+
+}
+
+/* UVPScoutingSubsystem
+ *****************************************************************************/
 UVPScoutingSubsystem::UVPScoutingSubsystem()
 	: UEditorSubsystem()
 {
@@ -56,45 +131,48 @@ void UVPScoutingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		CVar->Set(0);
 	}
 
+	// Load the ScoutingHelper implemented in BP. See BaseVirtualProductionUtilitites.ini
+	VPSubsystemHelpers = nullptr;
+	if (UClass* EditorUtilityClass = GetDefault<UVPUtilitiesEditorSettings>()->ScoutingSubsystemEditorUtilityClassPath.TryLoadClass<UVPScoutingSubsystemHelpersBase>())
+	{
+		VPSubsystemHelpers = NewObject<UVPScoutingSubsystemHelpersBase>(GetTransientPackage(), EditorUtilityClass);
+	}
+	else
+	{
+		UE_LOG(LogVPUtilitiesEditor, Warning, TEXT("Failed loading VPScoutingHelpers \"%s\""), *GetDefault<UVPUtilitiesEditorSettings>()->ScoutingSubsystemEditorUtilityClassPath.ToString());
+	}
+
 	// to do final initializations at the right time
 	EngineInitCompleteDelegate = FCoreDelegates::OnFEngineLoopInitComplete.AddUObject(this, &UVPScoutingSubsystem::OnEngineInitComplete);
 }
 
 void UVPScoutingSubsystem::Deinitialize()
 {
-	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-	LevelEditorModule.OnMapChanged().RemoveAll(this);
+	VPSubsystemHelpers = nullptr;
 }
 
 void UVPScoutingSubsystem::OnEngineInitComplete()
 {
-	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-	LevelEditorModule.OnMapChanged().AddUObject(this, &UVPScoutingSubsystem::OnMapChanged);
-
 	FCoreDelegates::OnFEngineLoopInitComplete.Remove(EngineInitCompleteDelegate);
 	EngineInitCompleteDelegate.Reset();
-}
 
-void UVPScoutingSubsystem::OnMapChanged(UWorld * World, EMapChangeType MapChangeType)
-{
-	if (MapChangeType == EMapChangeType::TearDownWorld)
+	// Load the GestureManager implemented in BP. See BaseVirtualProductionUtilitites.ini
+	// GestureManager needs the Take module, load it once the engine is loaded.
+	GestureManager = nullptr;
+	if (UClass* EditorUtilityClass = GetDefault<UVPUtilitiesEditorSettings>()->GestureManagerEditorUtilityClassPath.TryLoadClass<UVPScoutingSubsystemGestureManagerBase>())
 	{
-		VProdHelper = nullptr;
+		GestureManager = NewObject<UVPScoutingSubsystemGestureManagerBase>(GetTransientPackage(), EditorUtilityClass);
 	}
-	else if (MapChangeType == EMapChangeType::LoadMap || MapChangeType == EMapChangeType::NewMap)
+	else
 	{
-		const UVPUtilitiesEditorSettings* VPUtilitiesEditorSettings = GetDefault<UVPUtilitiesEditorSettings>();
-		const FString ClassPath = VPUtilitiesEditorSettings->ScoutingSubsystemEdititorUtilityActorClassPath.ToString();
-		UClass* EditorUtilityActorClass = LoadObject<UClass>(nullptr, *ClassPath);
+		UE_LOG(LogVPUtilitiesEditor, Warning, TEXT("Failed loading VPScoutingHelpers \"%s\""), *GetDefault<UVPUtilitiesEditorSettings>()->GestureManagerEditorUtilityClassPath.ToString());
+	}
 
-		if (EditorUtilityActorClass)
-		{
-			VProdHelper = NewObject<AEditorUtilityActor>(GetTransientPackage(), EditorUtilityActorClass);
-		}
-		else
-		{
-			UE_LOG(LogVPUtilitiesEditor, Warning, TEXT("Failed loading EditorUtilityActorClass \"%s\""), *ClassPath);
-		}
+	// In debug some asset take a long time to load and crash the engine, preload those asset in async mode to prevent that
+	for (const FSoftClassPath& ClassAssetPath : GetDefault<UVPUtilitiesEditorSettings>()->AdditionnalClassToLoad)
+	{
+		FStreamableManager& StreamableManager = UAssetManager::Get().GetStreamableManager();
+		StreamableManager.RequestAsyncLoad(ClassAssetPath);
 	}
 }
 
@@ -302,4 +380,13 @@ void UVPScoutingSubsystem::SetIsHelperSystemEnabled(const bool bInIsHelperSystem
 	UVPUtilitiesEditorSettings* VPUtilitiesEditorSettings = GetMutableDefault<UVPUtilitiesEditorSettings>();
 	VPUtilitiesEditorSettings->bIsHelperSystemEnabled = bInIsHelperSystemEnabled;
 	VPUtilitiesEditorSettings->SaveConfig();
+}
+
+void UVPScoutingSubsystem::ExitVRMode()
+{
+	IVREditorModule& VREditorModule = IVREditorModule::Get();
+	if (VREditorModule.IsVREditorEnabled())
+	{
+		VREditorModule.EnableVREditor(false);
+	}
 }

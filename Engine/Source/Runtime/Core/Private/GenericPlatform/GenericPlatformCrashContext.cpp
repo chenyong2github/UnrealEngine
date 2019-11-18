@@ -94,6 +94,7 @@ void FGenericCrashContext::Initialize()
 	FCString::Strcpy(NCached::Session.GameSessionID, TEXT(""));
 	FCString::Strcpy(NCached::Session.GameStateName, TEXT(""));
 	FCString::Strcpy(NCached::Session.UserActivityHint, TEXT(""));
+	FCString::Strcpy(NCached::Session.BuildConfigurationName, LexToString(FApp::GetBuildConfiguration()));
 	FCString::Strcpy(NCached::Session.ExecutableName, FPlatformProcess::ExecutableName());
 	FCString::Strcpy(NCached::Session.BaseDir, FPlatformProcess::BaseDir());
 	FCString::Strcpy(NCached::Session.RootDir, FPlatformMisc::RootDir());
@@ -211,6 +212,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		{
 			NCached::UserSettings.bSendUsageData = InParams.SendUsageData.GetValue();
 		}
+		SerializeTempCrashContextToFile();
 	});
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
@@ -231,9 +233,15 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif	// !NOINITCRASHREPORTER
 }
 
+// When encoding the plugins list and engine and game data key/value pairs into the dynamic data segment
+// we use 1 and 2 to denote delimiter and equals respectively. This is necessary since the values could 
+// contain any characters normally used for delimiting.
+const TCHAR* CR_PAIR_DELIM = TEXT("\x01");
+const TCHAR* CR_PAIR_EQ = TEXT("\x02");
+
 void FGenericCrashContext::InitializeFromContext(const FSessionContext& Session, const TCHAR* EnabledPluginsStr, const TCHAR* EngineDataStr, const TCHAR* GameDataStr)
 {
-	static const TCHAR* TokenDelim[] = { TEXT(","), TEXT("=") };
+	static const TCHAR* TokenDelim[] = { CR_PAIR_DELIM, CR_PAIR_EQ };
 
 	// Copy the session struct which should be all pod types and fixed size buggers
 	FMemory::Memcpy(NCached::Session, Session);
@@ -293,7 +301,7 @@ void FGenericCrashContext::CopySharedCrashContext(FSharedCrashContext& Dst)
 	for (const FString& Plugin : NCached::EnabledPluginsList)
 	{
 		FCString::Strcat(DynamicDataPtr, Plugin.Len(), *Plugin);
-		FCString::Strcat(DynamicDataPtr, 1, TEXT(","));
+		FCString::Strcat(DynamicDataPtr, 1, CR_PAIR_DELIM);
 	}
 	DynamicDataPtr += FCString::Strlen(DynamicDataPtr) + 1;
 
@@ -302,9 +310,9 @@ void FGenericCrashContext::CopySharedCrashContext(FSharedCrashContext& Dst)
 	for (const TPair<FString, FString>& Pair : NCached::EngineData)
 	{
 		FCString::Strcat(DynamicDataPtr, Pair.Key.Len(), *Pair.Key);
-		FCString::Strcat(DynamicDataPtr, 1, TEXT("="));
+		FCString::Strcat(DynamicDataPtr, 1, CR_PAIR_EQ);
 		FCString::Strcat(DynamicDataPtr, Pair.Value.Len(), *Pair.Value);
-		FCString::Strcat(DynamicDataPtr, 1, TEXT(","));
+		FCString::Strcat(DynamicDataPtr, 1, CR_PAIR_DELIM);
 	}
 	DynamicDataPtr += FCString::Strlen(DynamicDataPtr) + 1;
 
@@ -313,9 +321,9 @@ void FGenericCrashContext::CopySharedCrashContext(FSharedCrashContext& Dst)
 	for (const TPair<FString, FString>& Pair : NCached::GameData)
 	{
 		FCString::Strcat(DynamicDataPtr, Pair.Key.Len(), *Pair.Key);
-		FCString::Strcat(DynamicDataPtr, 1, TEXT("="));
+		FCString::Strcat(DynamicDataPtr, 1, CR_PAIR_EQ);
 		FCString::Strcat(DynamicDataPtr, Pair.Value.Len(), *Pair.Value);
-		FCString::Strcat(DynamicDataPtr, 1, TEXT(","));
+		FCString::Strcat(DynamicDataPtr, 1, CR_PAIR_DELIM);
 	}
 	DynamicDataPtr += FCString::Strlen(DynamicDataPtr) + 1;
 }
@@ -443,7 +451,7 @@ void FGenericCrashContext::SerializeSessionContext(FString& Buffer)
 		}
 	}
 	AddCrashPropertyInternal(Buffer, TEXT("ExecutableName"), NCached::Session.ExecutableName);
-	AddCrashPropertyInternal(Buffer, TEXT("BuildConfiguration"), LexToString(FApp::GetBuildConfiguration()));
+	AddCrashPropertyInternal(Buffer, TEXT("BuildConfiguration"), NCached::Session.BuildConfigurationName);
 	AddCrashPropertyInternal(Buffer, TEXT("GameSessionID"), NCached::Session.GameSessionID);
 
 	// Unique string specifying the symbols to be used by CrashReporter
@@ -451,7 +459,7 @@ void FGenericCrashContext::SerializeSessionContext(FString& Buffer)
 #ifdef UE_APP_FLAVOR
 	Symbols = FString::Printf(TEXT("%s-%s"), *Symbols, *FString(UE_APP_FLAVOR));
 #endif
-	Symbols = FString::Printf(TEXT("%s-%s-%s"), *Symbols, FPlatformMisc::GetUBTPlatform(), LexToString(FApp::GetBuildConfiguration())).Replace(TEXT("+"), TEXT("*"));
+	Symbols = FString::Printf(TEXT("%s-%s-%s"), *Symbols, FPlatformMisc::GetUBTPlatform(), NCached::Session.BuildConfigurationName).Replace(TEXT("+"), TEXT("*"));
 #ifdef UE_BUILD_FLAVOR
 	Symbols = FString::Printf(TEXT("%s-%s"), *Symbols, *FString(UE_BUILD_FLAVOR));
 #endif
@@ -471,7 +479,7 @@ void FGenericCrashContext::SerializeSessionContext(FString& Buffer)
 	AddCrashPropertyInternal(Buffer, TEXT("AppDefaultLocale"), NCached::Session.DefaultLocale);
 	AddCrashPropertyInternal(Buffer, TEXT("BuildVersion"), FApp::GetBuildVersion());
 	AddCrashPropertyInternal(Buffer, TEXT("IsUE4Release"), NCached::Session.bIsUE4Release);
-	AddCrashPropertyInternal(Buffer, TEXT("IsRequestingExit"), IsEngineExitRequested());
+	AddCrashPropertyInternal(Buffer, TEXT("IsRequestingExit"), NCached::Session.bIsExitRequested);
 
 	// Remove periods from user names to match AutoReporter user names
 	// The name prefix is read by CrashRepository.AddNewCrash in the website code

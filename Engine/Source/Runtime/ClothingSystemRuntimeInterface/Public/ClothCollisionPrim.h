@@ -54,7 +54,7 @@ struct FClothCollisionPrim_SphereConnection
  *	shape created by the planes combined.
  */
 USTRUCT()
-struct FClothCollisionPrim_Convex
+struct CLOTHINGSYSTEMRUNTIMEINTERFACE_API FClothCollisionPrim_Convex
 {
 	GENERATED_BODY()
 
@@ -62,8 +62,16 @@ struct FClothCollisionPrim_Convex
 		: BoneIndex(INDEX_NONE)
 	{}
 
+	/** Rebuild the surface point array from the existing planes.
+	 *  This is an expensive function (O(n^4) per number of planes).
+	 */
+	void RebuildSurfacePoints();
+
 	UPROPERTY()
 	TArray<FPlane> Planes;
+
+	UPROPERTY()
+	TArray<FVector> SurfacePoints;  // Surface points, used by Chaos and also for visualization
 
 	UPROPERTY()
 	int32 BoneIndex;

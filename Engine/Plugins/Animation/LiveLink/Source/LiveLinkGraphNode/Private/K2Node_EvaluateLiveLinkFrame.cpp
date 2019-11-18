@@ -114,7 +114,7 @@ UScriptStruct* UK2Node_EvaluateLiveLinkFrame::GetLiveLinkRoleOutputStructType() 
 	UScriptStruct* DataStructType = nullptr;
 
 	TSubclassOf<ULiveLinkRole> Role = GetDefaultRolePinValue();
-	if (Role != nullptr)
+	if (IsRoleValidForEvaluation(Role))
 	{
 		DataStructType = Role.GetDefaultObject()->GetBlueprintDataStruct();
 	}
@@ -192,7 +192,7 @@ void UK2Node_EvaluateLiveLinkFrame::PinDefaultValueChanged(UEdGraphPin* ChangedP
 		if (LiveLinkRolePin->DefaultObject != nullptr && LiveLinkRolePin->LinkedTo.Num() == 0)
 		{
 			UClass* ClassValue = Cast<UClass>(LiveLinkRolePin->DefaultObject);
-			bool bIsValid = ClassValue && ClassValue->IsChildOf(ULiveLinkRole::StaticClass()) && !ClassValue->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_HideDropDown);
+			bool bIsValid = ClassValue && ClassValue->IsChildOf(ULiveLinkRole::StaticClass());
 			if (!bIsValid)
 			{
 				LiveLinkRolePin->DefaultObject = nullptr;
@@ -331,9 +331,15 @@ void UK2Node_EvaluateLiveLinkFrame::EarlyValidation(class FCompilerResultsLog& M
 	}
 
 	TSubclassOf<ULiveLinkRole> Role = GetDefaultRolePinValue();
-	if (Role == nullptr || !Role->IsChildOf(ULiveLinkRole::StaticClass()))
+	if (Role.Get() == nullptr)
 	{
 		MessageLog.Error(*LOCTEXT("NoLiveLinkRole", "No LiveLinkRole in @@").ToString(), this);
+		return;
+	}
+
+	if (!IsRoleValidForEvaluation(Role))
+	{
+		MessageLog.Error(*FText::Format(LOCTEXT("InvalidRoleClass", "Cannot EvaluateFrame for Role of type '{0}' in @@"), FText::FromString(Role->GetFName().ToString())).ToString(), this);
 		return;
 	}
 
@@ -398,7 +404,7 @@ TSubclassOf<ULiveLinkRole> UK2Node_EvaluateLiveLinkFrame::GetDefaultRolePinValue
 	if (LiveLinkRolePin && LiveLinkRolePin->DefaultObject != nullptr && LiveLinkRolePin->LinkedTo.Num() == 0)
 	{
 		UClass* ClassValue = Cast<UClass>(LiveLinkRolePin->DefaultObject);
-		if (ClassValue && ClassValue->IsChildOf(ULiveLinkRole::StaticClass()) && !ClassValue->HasAnyClassFlags(CLASS_Abstract|CLASS_Deprecated|CLASS_HideDropDown))
+		if (ClassValue && ClassValue->IsChildOf(ULiveLinkRole::StaticClass()))
 		{
 			return ClassValue;
 		}
@@ -406,5 +412,10 @@ TSubclassOf<ULiveLinkRole> UK2Node_EvaluateLiveLinkFrame::GetDefaultRolePinValue
 	return nullptr;
 }
 
+
+bool UK2Node_EvaluateLiveLinkFrame::IsRoleValidForEvaluation(TSubclassOf<ULiveLinkRole> InRoleClass) const
+{
+	return InRoleClass.Get() && !InRoleClass->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_HideDropDown);
+}
 
 #undef LOCTEXT_NAMESPACE

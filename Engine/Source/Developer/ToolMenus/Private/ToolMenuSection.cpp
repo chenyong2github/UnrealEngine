@@ -11,7 +11,8 @@
 #include "Internationalization/Internationalization.h"
 
 FToolMenuSection::FToolMenuSection() :
-	ToolMenuSectionDynamic(nullptr)
+	ToolMenuSectionDynamic(nullptr),
+	bIsRegistering(false)
 {
 
 }
@@ -33,22 +34,32 @@ void FToolMenuSection::InitGeneratedSectionCopy(const FToolMenuSection& Source, 
 	Context = InContext;
 }
 
+bool FToolMenuSection::IsRegistering() const
+{
+	return bIsRegistering;
+}
+
 FToolMenuEntry& FToolMenuSection::AddEntry(const FToolMenuEntry& Args)
 {
 	if (Args.Name == NAME_None)
 	{
-		return Blocks.Add_GetRef(Args);
+		FToolMenuEntry& Result = Blocks.Add_GetRef(Args);
+		Result.bAddedDuringRegister = IsRegistering();
+		return Result;
 	}
 
 	int32 BlockIndex = IndexOfBlock(Args.Name);
 	if (BlockIndex != INDEX_NONE)
 	{
 		Blocks[BlockIndex] = Args;
+		Blocks[BlockIndex].bAddedDuringRegister = IsRegistering();
 		return Blocks[BlockIndex];
 	}
 	else
 	{
-		return Blocks.Add_GetRef(Args);
+		FToolMenuEntry& Result = Blocks.Add_GetRef(Args);
+		Result.bAddedDuringRegister = IsRegistering();
+		return Result;
 	}
 }
 

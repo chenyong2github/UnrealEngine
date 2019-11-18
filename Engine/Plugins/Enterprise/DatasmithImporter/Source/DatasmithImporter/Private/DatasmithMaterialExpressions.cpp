@@ -149,9 +149,9 @@ namespace
 
 	FString GenerateUniqueMaterialName( const TCHAR* MaterialLabel, FDatasmithUniqueNameProvider& UniqueNameProvider )
 	{
-		FString Label = MaterialLabel;
+		FString Label = ObjectTools::SanitizeObjectName( MaterialLabel );
 		// Generate unique name from label if valid, otherwise return element's name as it is unique
-		return  UniqueNameProvider.GenerateUniqueName( Label );
+		return UniqueNameProvider.GenerateUniqueName( Label );
 	}
 }
 

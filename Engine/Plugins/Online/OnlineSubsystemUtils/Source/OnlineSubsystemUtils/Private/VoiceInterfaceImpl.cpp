@@ -108,12 +108,8 @@ void FOnlineVoiceImpl::ClearVoicePackets()
 {
 	for (uint32 Index = 0; Index < MAX_SPLITSCREEN_TALKERS; Index++)
 	{
-		FVoicePacketImpl& LocalPacket = VoiceData.LocalPackets[Index];
-		if (LocalPacket.Length > 0)
-		{
-			// Mark the local packet as processed
-			LocalPacket.Length = 0;
-		}
+		// Mark the local packet as processed
+		VoiceData.LocalPackets[Index].ResetData();
 	}
 }
 
@@ -881,4 +877,60 @@ FString FOnlineVoiceImpl::GetVoiceDebugState() const
 	}
 
 	return Output;
+}
+
+Audio::FPatchOutputStrongPtr FOnlineVoiceImpl::GetMicrophoneOutput()
+{
+	if (VoiceEngine.IsValid())
+	{
+		return VoiceEngine->GetMicrophoneOutput();
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+Audio::FPatchOutputStrongPtr FOnlineVoiceImpl::GetRemoteTalkerOutput()
+{
+	if (VoiceEngine.IsValid())
+	{
+		return VoiceEngine->GetRemoteTalkerOutput();
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+bool FOnlineVoiceImpl::PatchRemoteTalkerOutputToEndpoint(const FString& InDeviceName, bool bMuteInGameOutput /*= true*/)
+{
+	if (VoiceEngine.IsValid())
+	{
+		return VoiceEngine->PatchRemoteTalkerOutputToEndpoint(InDeviceName, bMuteInGameOutput);
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool FOnlineVoiceImpl::PatchLocalTalkerOutputToEndpoint(const FString& InDeviceName)
+{
+	if (VoiceEngine.IsValid())
+	{
+		return VoiceEngine->PatchLocalTalkerOutputToEndpoint(InDeviceName);
+	}
+	else
+	{
+		return false;
+	}
+}
+
+void FOnlineVoiceImpl::DisconnectAllEndpoints()
+{
+	if (VoiceEngine.IsValid())
+	{
+		return VoiceEngine->DisconnectAllEndpoints();
+	}
 }

@@ -8,6 +8,7 @@
 
 #include "AssetRegistryModule.h"
 #include "AssetTypeCategories.h"
+#include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 
 UDataprepAssetFactory::UDataprepAssetFactory()
@@ -17,6 +18,23 @@ UDataprepAssetFactory::UDataprepAssetFactory()
 	bCreateNew = true;
 	bText = false;
 	bEditorImport = false;
+}
+
+bool UDataprepAssetFactory::ShouldShowInNewMenu() const
+{
+	// If there is no consumer don't show this factory
+	TArray< UClass* > PotentialClasses;
+	GetDerivedClasses( UDataprepContentConsumer::StaticClass(), PotentialClasses, true );
+
+	for ( UClass* ChildClass : PotentialClasses )
+	{
+		if ( ChildClass && !ChildClass->HasAnyClassFlags( CLASS_CompiledFromBlueprint | CLASS_Deprecated | CLASS_NewerVersionExists | CLASS_Abstract ) && ChildClass->HasAllClassFlags( CLASS_Native ) )
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 UObject * UDataprepAssetFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext *Warn)
@@ -40,7 +58,6 @@ UObject * UDataprepAssetFactory::FactoryCreateNew(UClass* InClass, UObject* InPa
 
 	if(ConsumerClasses.Num() == 0)
 	{
-		// #ueent_todo: Log error about missing consumer classes
 		return nullptr;
 	}
 

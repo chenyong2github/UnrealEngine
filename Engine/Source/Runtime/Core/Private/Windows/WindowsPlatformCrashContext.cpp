@@ -488,6 +488,7 @@ int32 ReportCrashForMonitor(
 	bool bNoDialog = ReportUI == EErrorReportUI::ReportInUnattendedMode || IsRunningDedicatedServer();
 	bool bSendUnattendedBugReports = true;
 	bool bSendUsageData = true;
+	bool bCanSendCrashReport = true;
 
 	if (FCommandLine::IsInitialized())
 	{
@@ -500,10 +501,32 @@ int32 ReportCrashForMonitor(
 		GConfig->GetBool(TEXT("/Script/UnrealEd.AnalyticsPrivacySettings"), TEXT("bSendUsageData"), bSendUsageData, GEditorSettingsIni);
 	}
 
+#if !UE_EDITOR
+	if (BuildSettings::IsLicenseeVersion())
+	{
+		// do not send unattended reports in licensees' builds except for the editor, where it is governed by the above setting
+		bSendUnattendedBugReports = false;
+		bSendUsageData = false;
+	}
+#endif
+
+	if (bNoDialog && !bSendUnattendedBugReports)
+	{
+		// If we shouldn't display a dialog (like for ensures) and the user
+		// does not allow unattended bug reports we cannot send the report.
+		bCanSendCrashReport = false;
+	}
+
+	if (!bCanSendCrashReport)
+	{
+		return EXCEPTION_CONTINUE_EXECUTION;
+	}
+
 	SharedContext->UserSettings.bNoDialog = bNoDialog;
 	SharedContext->UserSettings.bSendUnattendedBugReports = bSendUnattendedBugReports;
 	SharedContext->UserSettings.bSendUsageData = bSendUsageData;
 
+	SharedContext->SessionContext.bIsExitRequested = IsEngineExitRequested();
 	FCString::Strcpy(SharedContext->ErrorMessage, CR_MAX_ERROR_MESSAGE_CHARS-1, ErrorMessage);
 
 	if (GLog)
@@ -1093,6 +1116,12 @@ private:
 			Type = ECrashContextType::GPUCrash;
 			ErrorMessage = Info.ErrorMessage;
 			NumStackFramesToIgnore += Info.NumStackFramesToIgnore;
+		}
+		// Generic exception description is stored in GErrorExceptionDescription
+		else if (ExceptionInfo->ExceptionRecord->ExceptionCode != 1)
+		{
+			CreateExceptionInfoString(ExceptionInfo->ExceptionRecord);
+			ErrorMessage = GErrorExceptionDescription;
 		}
 
 #if USE_CRASH_REPORTER_MONITOR

@@ -34,7 +34,8 @@ void SDataprepLinkToParameter::Construct(const FArguments& InArgs, const TShared
 	{
 		if ( UProperty* Property = ParameterizationActionData->PropertyChain.Last().CachedProperty.Get() )
 		{
-			ParameterizationActionData->DataprepAsset->GetExistingParameterNamesForType( Property, ValidExistingNames, InvalidNames );
+			bool bIsDescribingFullProperty = ParameterizationActionData->PropertyChain.Last().ContainerIndex == INDEX_NONE;
+			ParameterizationActionData->DataprepAsset->GetExistingParameterNamesForType( Property, bIsDescribingFullProperty , ValidExistingNames, InvalidNames );
 
 			FString SuggestedName = ParameterizationActionData->PropertyChain.Last().PropertyName.ToString();
 
@@ -178,9 +179,8 @@ void SDataprepLinkToParameter::OnTextChanged(const FText& Text)
 
 void SDataprepLinkToParameter::OnTextCommited(const FText& Text, ETextCommit::Type CommitType)
 {
-
 	ParameterName = Text.ToString();
-	bool bHasError = SetErrorMessage();
+	bool bHasError = ParameterName.IsEmpty() || InvalidNames.Contains( ParameterName );
 	
 	if ( CommitType == ETextCommit::OnEnter )
 	{

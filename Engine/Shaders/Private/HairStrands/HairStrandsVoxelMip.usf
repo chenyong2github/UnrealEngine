@@ -1,13 +1,86 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#include "/Engine/Public/Platform.ush"
+
+
 uint VoxelResolution;
 uint SourceMip;
 uint TargetMip;
 
 Texture3D<uint> InDensityTexture;
-RWTexture3D<uint> OutDensityTexture;
+RWTexture3D<uint> OutDensityTexture0;
 
-// #hair_todo: do two mips at a time through LDS?
+// Write two levels at a time, and store/cache thread result within LDS
+#if PERMUTATION_METHOD == 1
+
+RWTexture3D<uint> OutDensityTexture1;
+groupshared uint Values0[64];
+groupshared uint Values1[8];
+
+uint ToMorton(uint3 Index)
+{
+	return (Index.x & 0x1) | ((Index.y & 0x1)<<1) | ((Index.z& 0x1)<<2);
+}
+
+uint3 FromMorton(uint Index)
+{
+	return uint3((Index & 0x1) > 0 ? 1 : 0, (Index & 0x2) > 0 ? 1 : 0, (Index & 0x4) > 0 ? 1 : 0);
+}
+
+[numthreads(4, 4, 4)]
+void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3 GroupThreadId : SV_GroupThreadID , uint GroupIndex : SV_GroupIndex, uint3 GroupId : SV_GroupId)
+{
+	{
+		const uint3 LocalBase	= uint3(GroupThreadId.x >> 1, GroupThreadId.y >> 1, GroupThreadId.z>> 1);
+		const uint3 LocalOffset = uint3(GroupThreadId.x % 2,  GroupThreadId.y % 2,  GroupThreadId.z % 2);
+
+		const uint Base   = ToMorton(LocalBase);
+		const uint Offset = ToMorton(LocalOffset);
+		const uint OutLocal = Base*8 + Offset;
+		Values0[OutLocal] = InDensityTexture[DispatchThreadId];
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (GroupIndex < 8)
+	{
+		const uint3 OutLocalCoord = FromMorton(GroupIndex);
+		const uint3 OutVoxelCoord = (GroupId << 1) + OutLocalCoord;
+
+		uint Total = 0;
+		const uint Offset = GroupIndex * 8;
+		Total += Values0[Offset + 0];
+		Total += Values0[Offset + 1];
+		Total += Values0[Offset + 2];
+		Total += Values0[Offset + 3];
+		Total += Values0[Offset + 4];
+		Total += Values0[Offset + 5];
+		Total += Values0[Offset + 6];
+		Total += Values0[Offset + 7];
+		Values1[GroupIndex] = Total;
+		OutDensityTexture0[OutVoxelCoord] = Total;
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (GroupIndex == 0)
+	{
+		const uint3 OutVoxelCoord = GroupId;
+		uint Total = 0;
+		Total += Values1[0];
+		Total += Values1[1];
+		Total += Values1[2];
+		Total += Values1[3];
+		Total += Values1[4];
+		Total += Values1[5];
+		Total += Values1[6];
+		Total += Values1[7];
+		OutDensityTexture1[OutVoxelCoord] = Total;
+	}
+}
+#endif
+
+#if PERMUTATION_METHOD == 0
 [numthreads(4, 4, 4)]
 void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
@@ -34,5 +107,6 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		InDensityTexture[InVoxelCoord6] +
 		InDensityTexture[InVoxelCoord7];
 
-	OutDensityTexture[OutVoxelCoord] = Total;
+	OutDensityTexture0[OutVoxelCoord] = Total;
 }
+#endif

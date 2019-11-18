@@ -3,6 +3,7 @@
 #include "AssetTypeActions_DataprepAssetInterface.h"
 
 #include "DataprepAssetInstance.h"
+#include "DataprepAssetProducers.h"
 #include "DataprepCoreLibrary.h"
 #include "DataPrepCoreModule.h"
 #include "DataPrepFactories.h"
@@ -95,7 +96,11 @@ void FAssetTypeActions_DataprepAssetInterface::ExecuteDataprepAssets(TArray<TWea
 	{
 		if( UDataprepAssetInterface* DataprepAssetInterface = DataprepAssetInterfacePtr.Get() )
 		{
-			UDataprepCoreLibrary::ExecuteWithReporting( DataprepAssetInterface );
+			// Nothing to do if the Dataprep asset does not have any inputs
+			if(DataprepAssetInterface->GetProducers()->GetProducersCount() > 0)
+			{
+				UDataprepCoreLibrary::ExecuteWithReporting( DataprepAssetInterface );
+			}
 		}
 	}
 }
@@ -109,15 +114,30 @@ void FAssetTypeActions_DataprepAssetInterface::GetActions(const TArray<UObject*>
 		return;
 	}
 
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("CreateInstance", "Create Instance"),
-		LOCTEXT("CreateInstanceTooltip", "Creates a parameterized Dataprep asset using this Dataprep asset as a base."),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateSP(this, &FAssetTypeActions_DataprepAssetInterface::CreateInstance, DataprepAssetInterfaces),
-			FCanExecuteAction()
-		)
-	);
+	// #ueent_remark: An instance of an instance is not supported for 4.24.
+	// Do not expose 'Create Instance' menu entry if at least one Dataprep asset is an instance
+	bool bContainsAnInstance  = false;
+	for (UObject* Object : InObjects)
+	{
+		if (Object && Object->GetClass() == UDataprepAssetInstance::StaticClass())
+		{
+			bContainsAnInstance = true;
+			break;
+		}
+	}
+
+	if (!bContainsAnInstance)
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("CreateInstance", "Create Instance"),
+			LOCTEXT("CreateInstanceTooltip", "Creates a parameterized Dataprep asset using this Dataprep asset as a base."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &FAssetTypeActions_DataprepAssetInterface::CreateInstance, DataprepAssetInterfaces),
+				FCanExecuteAction()
+			)
+		);
+	}
 
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("RunAsset", "Execute"),

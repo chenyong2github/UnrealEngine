@@ -1,190 +1,322 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "DatasmithWorkerHandler.h"
 
-#include "HAL/FileManager.h"
-#include "HAL/PlatformProcess.h"
-#include "Misc/Paths.h"
-#include "SocketSubsystem.h"
-#include "Sockets.h"
 #include "DatasmithDispatcher.h"
+#include "DatasmithDispatcherConfig.h"
 #include "DatasmithDispatcherLog.h"
 #include "DatasmithCommands.h"
 
+#include "HAL/FileManager.h"
+#include "HAL/PlatformProcess.h"
+#include "Misc/Paths.h"
+#include "Sockets.h"
+#include "SocketSubsystem.h"
 
 namespace DatasmithDispatcher
 {
-FString FDatasmithWorkerHandler::GetExePath()
-{
-	FString ProcessorPath;
-#if PLATFORM_MAC
-	ProcessorPath = FPaths::Combine(FPaths::EngineDir(), TEXT("Binaries/Mac/DatasmithCADWorker"));
-#elif PLATFORM_LINUX
-	ProcessorPath = FPaths::Combine(FPaths::EngineDir(), TEXT("Binaries/Linux/DatasmithCADWorker"));
-#else
-	ProcessorPath = FPaths::Combine(FPaths::EngineDir(), TEXT("Binaries/Win64/DatasmithCADWorker.exe"));
-#endif
 
-	if (FPaths::FileExists(ProcessorPath))
+static FString GetWorkerExecutablePath()
+{
+	static FString ProcessorPath = [&]()
 	{
-		return ProcessorPath;
-	}
-	return FString();
+		FString Path = FPaths::Combine(FPaths::EnginePluginsDir(), TEXT("Enterprise/DatasmithCADImporter/Binaries"));
+
+#if PLATFORM_MAC
+		Path = FPaths::Combine(Path, TEXT("Mac/DatasmithCADWorker"));
+#elif PLATFORM_LINUX
+		Path = FPaths::Combine(Path, TEXT("Linux/DatasmithCADWorker"));
+#elif PLATFORM_WINDOWS
+		Path = FPaths::Combine(Path, TEXT("Win64/DatasmithCADWorker.exe"));
+#endif
+		if (!FPaths::FileExists(Path))
+		{
+			UE_LOG(LogDatasmithDispatcher, Warning, TEXT("CADWorker executable not found. Expected location: %s"), *FPaths::ConvertRelativePathToFull(ProcessorPath));
+		}
+		return Path;
+	}();
+
+	return ProcessorPath;
 }
 
-FDatasmithWorkerHandler::FDatasmithWorkerHandler(FDatasmithDispatcher& InDispatcher, const FString& InCachePath)
+FDatasmithWorkerHandler::FDatasmithWorkerHandler(FDatasmithDispatcher& InDispatcher, const CADLibrary::FImportParameters& InImportParameters, FString& InCachePath, uint32 Id)
 	: Dispatcher(InDispatcher)
-	, WorkerProcessId(0)
-	, ServerSocket(TEXT("127.0.0.1"))
-	, ClientListener()
+	, WorkerState(EWorkerState::Uninitialized)
+	, ErrorState(EWorkerErrorState::Ok)
 	, CachePath(InCachePath)
 	, bShouldTerminate(false)
 {
+	ThreadName = FString(TEXT("DatasmithWorkerHandler_")) + FString::FromInt(Id);
+	IOThread = FThread(*ThreadName, [this]() { Run(); } );
+	ImportParametersCommand.ImportParameters = InImportParameters;
 }
 
-bool FDatasmithWorkerHandler::StartWorker()
+FDatasmithWorkerHandler::~FDatasmithWorkerHandler()
 {
-	FString ProcessorPath = GetExePath();
-	if (!ProcessorPath.Len())
+	IOThread.Join();
+}
+
+void FDatasmithWorkerHandler::StartWorkerProcess()
+{
+	ensure(ErrorState == EWorkerErrorState::Ok);
+	FString ProcessorPath = GetWorkerExecutablePath();
+	if (FPaths::FileExists(ProcessorPath))
 	{
-		return false;
+		int32 ListenPort = NetworkInterface.GetListeningPort();
+		if (ListenPort == 0)
+		{
+			ErrorState = EWorkerErrorState::ConnectionFailed_NotBound;
+			return;
+		}
+
+		FString CommandToProcess;
+		CommandToProcess += TEXT(" -ServerPID ") + FString::FromInt(FPlatformProcess::GetCurrentProcessId());
+		CommandToProcess += TEXT(" -ServerPort ") + FString::FromInt(ListenPort);
+		CommandToProcess += TEXT(" -CacheDir \"") + CachePath + TEXT('"');
+		UE_LOG(LogDatasmithDispatcher, Verbose, TEXT("CommandToProcess: %s"), *CommandToProcess);
+
+		uint32 WorkerProcessId = 0;
+		WorkerHandle = FPlatformProcess::CreateProc(*ProcessorPath, *CommandToProcess, true, false, false, &WorkerProcessId, 0, nullptr, nullptr);
 	}
-
-	FString WorkerAbsolutePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForWrite(*ProcessorPath);
-	FPaths::NormalizeDirectoryName(WorkerAbsolutePath);
-
-	FString CommandToProcess = TEXT(" -Listen ") + FString::FromInt(ServerSocket.GetPort()) + TEXT(" -CacheDir \"") + GetCachePath() + TEXT("\"");
-
-	WorkerHandle = FPlatformProcess::CreateProc(*WorkerAbsolutePath, *CommandToProcess, true, false, false, &WorkerProcessId, 0, nullptr, nullptr);
-	//WorkerHandle = FPlatformProcess::CreateProc(*WorkerAbsolutePath, *CommandToProcess, false, false, false, &WorkerProcessId, 0, nullptr, nullptr);
 
 	if (!WorkerHandle.IsValid())
 	{
-		return false;
+		ErrorState = EWorkerErrorState::WorkerProcess_CantCreate;
+		return;
 	}
-
-	FSocket *ClientSocket = ServerSocket.Accept();
-	if (!ClientSocket)
-	{
-		return false;
-	}
-
-	ClientListener.SetSocket(ClientSocket);
-	return true;
 }
 
-
-void FDatasmithWorkerHandler::RestartProcessor()
+void FDatasmithWorkerHandler::ValidateConnection()
 {
-	FPlatformProcess::TerminateProc(WorkerHandle, true);
-	StartWorker();
+	if (!NetworkInterface.IsValid())
+	{
+		UE_LOG(LogDatasmithDispatcher, Error, TEXT("NetworkInterface lost"));
+		WorkerState = EWorkerState::Closing;
+		ErrorState = EWorkerErrorState::ConnectionLost;
+	}
+	else if (WorkerHandle.IsValid() && !FPlatformProcess::IsProcRunning(WorkerHandle))
+	{
+		UE_LOG(LogDatasmithDispatcher, Error, TEXT("Worker lost"));
+		WorkerState = EWorkerState::Closing;
+		ErrorState = EWorkerErrorState::WorkerProcess_Lost;
+	}
 }
 
-bool FDatasmithWorkerHandler::InitializeSocket()
+void FDatasmithWorkerHandler::Run()
 {
-	ServerSocket.Bind();
-	return ServerSocket.IsOpen();
+	WorkerState = EWorkerState::Uninitialized;
+	RunInternal();
+	WorkerState = EWorkerState::Terminated;
+	UE_CLOG(ErrorState != EWorkerErrorState::Ok, LogDatasmithDispatcher, Warning, TEXT("Handler ended with error: %s"), EWorkerErrorStateAsString(ErrorState));
 }
 
-bool FDatasmithWorkerHandler::Run()
+void FDatasmithWorkerHandler::RunInternal()
 {
-
-	if (!InitializeSocket())
+	while (IsAlive())
 	{
-		return false;
-	}
-
-	if(!ServerSocket.Listen())
-	{
-		return false;
-	}
-
-	if (!StartWorker())
-	{
-		return false;
-	}
-
-	DatasmithDispatcher::FDatasmithCommandManager CommandManager(ClientListener);
-
-	int test = 0;
-	bool bTaskIsRunning = true;
-
-	while (NeedToRun())
-	{
-
-		if (!ClientListener.IsConnected())
+		switch (WorkerState)
 		{
-			if (CurrentTask.IsSet())
+			case EWorkerState::Uninitialized:
 			{
-				Dispatcher.SetTaskState(CurrentTask->Index, EProcessState::ProcessFailed);
-				CurrentTask.Reset();
-			}
-			RestartProcessor();
-			bTaskIsRunning = true;
-			continue;
-		}
+				ErrorState = EWorkerErrorState::Ok;
 
-		// If No task running, launch one
-		uint32 DataSize;
-		ClientListener.HasPendingData(DataSize);
-		if (!bTaskIsRunning && !DataSize)
-		{
-			CurrentTask = Dispatcher.GetTask();
-			if (CurrentTask.IsSet())
-			{
-				FDatasmithRunTaskCommand AddJob(CurrentTask.GetValue().FileName, CurrentTask.GetValue().Index);
-				AddJob.Write(ClientListener);
-				bTaskIsRunning = true;
-				continue;
-			}
-		}
+				StartWorkerProcess();
 
-		if (DataSize)
-		{
-			if (ICommand* Command = CommandManager.GetNextCommand())
-			{
-				switch (Command->GetType())
+				if (ErrorState != EWorkerErrorState::Ok)
 				{
-				case Ping:
-					PingProcess(StaticCast<FDatasmithPingCommand*>(Command));
-					bTaskIsRunning = false;
-					break;
-				case BackPing:
-					BackPingProcess(StaticCast<FDatasmithBackPingCommand*>(Command));
-					break;
-				case NotifyEndTask:
-				{
-					EndTaskProcess(StaticCast<FDatasmithNotifyEndTaskCommand*>(Command));
-					bTaskIsRunning = false;
+					WorkerState = EWorkerState::Terminated;
 					break;
 				}
 
-				case ImportParams:
-				case RunTask:
-				default:
+				// The Accept() call on the server blocks until a connection is initiated from a client
+				static const FString SocketDescription = TEXT("DatasmithWorkerHandler");
+				if (!NetworkInterface.Accept(SocketDescription, Config::AcceptTimeout_s))
+				{
+					ErrorState = EWorkerErrorState::ConnectionFailed_NoClient;
+				}
+				else
+				{
+					CommandIO.SetNetworkInterface(&NetworkInterface);
+				}
+
+				if (ErrorState != EWorkerErrorState::Ok)
+				{
+					WorkerState = EWorkerState::Closing;
 					break;
 				}
+
+				if (CommandIO.SendCommand(ImportParametersCommand, Config::SendCommandTimeout_s))
+				{
+					UE_LOG(LogDatasmithDispatcher, Verbose, TEXT("Import Parameters sent"));
+				}
+
+				WorkerState = EWorkerState::Idle;
+				break;
+			}
+
+			case EWorkerState::Idle:
+			{
+				// Fetch a new task
+				ensureMsgf(CurrentTask.IsSet() == false, TEXT("We should not have a current task when fetching a new one"));
+				CurrentTask = Dispatcher.GetNextTask();
+
+				if (CurrentTask.IsSet())
+				{
+					FRunTaskCommand NewTask(CurrentTask.GetValue());
+
+					if (CommandIO.SendCommand(NewTask, Config::SendCommandTimeout_s))
+					{
+						UE_LOG(LogDatasmithDispatcher, Verbose, TEXT("New task command sent"));
+						WorkerState = EWorkerState::Processing;
+					}
+					else
+					{
+						// Signal that the Task was not processed
+						Dispatcher.SetTaskState(CurrentTask->Index, ETaskState::UnTreated);
+
+						UE_LOG(LogDatasmithDispatcher, Error, TEXT("New task command issue"));
+						WorkerState = EWorkerState::Closing;
+						ErrorState = EWorkerErrorState::ConnectionLost_SendFailed;
+					}
+				}
+				else if (bShouldTerminate)
+				{
+					UE_LOG(LogDatasmithDispatcher, Verbose, TEXT("Exit loop gracefully"));
+					WorkerState = EWorkerState::Closing;
+				}
+				else
+				{
+					ValidateConnection();
+
+					// consume
+					if (TSharedPtr<ICommand> Command = CommandIO.GetNextCommand(Config::IdleLoopDelay))
+					{
+						ProcessCommand(*Command);
+					}
+				}
+
+				break;
+			}
+
+			case EWorkerState::Processing:
+			{
+				if (TSharedPtr<ICommand> Command = CommandIO.GetNextCommand(Config::ProcessingLoopDelay))
+				{
+					ProcessCommand(*Command);
+
+					bool bProcessingOver = CurrentTask.IsSet() == false;
+					if (bProcessingOver)
+					{
+						WorkerState = bShouldTerminate ? EWorkerState::Closing : EWorkerState::Idle;
+					}
+				}
+				else
+				{
+					ValidateConnection();
+					if (ErrorState == EWorkerErrorState::WorkerProcess_Lost)
+					{
+						if (CurrentTask.IsSet())
+						{
+							Dispatcher.SetTaskState(CurrentTask->Index, ETaskState::ProcessFailed);
+							CurrentTask.Reset();
+						}
+
+						WorkerState = EWorkerState::Closing;
+					}
+				}
+				break;
+			}
+
+			case EWorkerState::Closing:
+			{
+				// try to close the process gracefully
+				if (WorkerHandle.IsValid())
+				{
+					bool CloseByCommand = Config::CloseProcessByCommand && CommandIO.IsValid() && FPlatformProcess::IsProcRunning(WorkerHandle);
+
+					bool bClosed = false;
+					if (CloseByCommand)
+					{
+						FTerminateCommand Terminate;
+						CommandIO.SendCommand(Terminate, 0);
+
+						for (int32 i = 0; i < int32(10. * Config::TerminateTimeout_s); ++i)
+						{
+							if (!FPlatformProcess::IsProcRunning(WorkerHandle))
+							{
+								bClosed = true;
+								break;
+							}
+							FPlatformProcess::Sleep(0.1);
+						}
+					}
+
+					if (!bClosed)
+					{
+						FPlatformProcess::TerminateProc(WorkerHandle, true);
+					}
+				}
+
+				// Process commands still in input queue
+				CommandIO.Disconnect(0);
+				while (TSharedPtr<ICommand> Command = CommandIO.GetNextCommand(0))
+				{
+					ProcessCommand(*Command);
+				}
+
+				WorkerState = EWorkerState::Terminated;
+				break;
+			}
+
+			default:
+			{
+				ensureMsgf(false, TEXT("missing case handling"));
 			}
 		}
-
-		FWindowsPlatformProcess::Sleep(0.001);
 	}
-
-	Kill();
-	return true;
 }
 
-void FDatasmithWorkerHandler::PingProcess(FDatasmithPingCommand* PingCommand)
+void FDatasmithWorkerHandler::Stop()
 {
-	DatasmithDispatcher::FDatasmithBackPingCommand NewCommand;
-	NewCommand.Write(ClientListener);
+	bShouldTerminate = true;
 }
 
-void FDatasmithWorkerHandler::BackPingProcess(FDatasmithBackPingCommand* PingCommand)
+bool FDatasmithWorkerHandler::IsAlive() const
 {
-	return ;
+	return WorkerState != EWorkerState::Terminated;
 }
 
-void FDatasmithWorkerHandler::EndTaskProcess(FDatasmithNotifyEndTaskCommand* RunTaskCommand)
+bool FDatasmithWorkerHandler::IsRestartable() const
+{
+	return !IsAlive() && (
+		ErrorState == EWorkerErrorState::WorkerProcess_Lost ||
+		ErrorState == EWorkerErrorState::ConnectionLost
+	);
+}
+
+void FDatasmithWorkerHandler::ProcessCommand(ICommand& Command)
+{
+	switch (Command.GetType())
+	{
+		case ECommandId::Ping:
+			ProcessCommand(StaticCast<FPingCommand&>(Command));
+			break;
+
+		case ECommandId::NotifyEndTask:
+			ProcessCommand(StaticCast<FCompletedTaskCommand&>(Command));
+			break;
+
+		default:
+			break;
+	}
+}
+
+void FDatasmithWorkerHandler::ProcessCommand(FPingCommand& PingCommand)
+{
+	DatasmithDispatcher::FBackPingCommand BackPing;
+	CommandIO.SendCommand(BackPing, 0);
+}
+
+void FDatasmithWorkerHandler::ProcessCommand(FCompletedTaskCommand& CompletedTaskCommand)
 {
 	if (!CurrentTask.IsSet())
 	{
@@ -192,30 +324,29 @@ void FDatasmithWorkerHandler::EndTaskProcess(FDatasmithNotifyEndTaskCommand* Run
 	}
 
 	FString CurrentPath = FPaths::GetPath(CurrentTask->FileName);
-	for (const FString& ExternalReferenceFile : RunTaskCommand->GetExternalReferences())
+	for (const FString& ExternalReferenceFile : CompletedTaskCommand.ExternalReferences)
 	{
 		Dispatcher.AddTask(FPaths::Combine(CurrentPath, ExternalReferenceFile));
 	}
 	FString CurrentFileName = FPaths::GetCleanFilename(CurrentTask->FileName);
-	Dispatcher.SetTaskState(CurrentTask->Index, RunTaskCommand->GetProcessResult());
-	Dispatcher.LinkCTFileToUnrealCacheFile(CurrentFileName, RunTaskCommand->GetSceneGraphFile(), RunTaskCommand->GetGeomFile());
+	Dispatcher.SetTaskState(CurrentTask->Index, CompletedTaskCommand.ProcessResult);
+	Dispatcher.LinkCTFileToUnrealCacheFile(CurrentFileName, CompletedTaskCommand.SceneGraphFileName, CompletedTaskCommand.GeomFileName);
 	CurrentTask.Reset();
 }
 
-void FDatasmithWorkerHandler::NotifyKill()
+const TCHAR* FDatasmithWorkerHandler::EWorkerErrorStateAsString(EWorkerErrorState Error)
 {
-	bShouldTerminate = true;
+	switch (Error)
+	{
+		case EWorkerErrorState::Ok: return TEXT("Ok");
+		case EWorkerErrorState::ConnectionFailed_NotBound: return TEXT("Connection failed (socket not bound)");
+		case EWorkerErrorState::ConnectionFailed_NoClient: return TEXT("Connection failed (No connection from client)");
+		case EWorkerErrorState::ConnectionLost: return TEXT("Connection lost");
+		case EWorkerErrorState::ConnectionLost_SendFailed: return TEXT("Connection lost (send failed)");
+		case EWorkerErrorState::WorkerProcess_CantCreate: return TEXT("Worker process issue (cannot create worker process)");
+		case EWorkerErrorState::WorkerProcess_Lost: return TEXT("Worker process issue (worker lost)");
+		default: return TEXT("unknown");
+	}
 }
 
-bool FDatasmithWorkerHandler::NeedToRun()
-{
-	return !bShouldTerminate;
-}
-
-void FDatasmithWorkerHandler::Kill()
-{
-	ClientListener.Close();
-	ServerSocket.Close();
-	FPlatformProcess::TerminateProc(WorkerHandle, true);
-}
-}
+} // ns DatasmithDispatcher

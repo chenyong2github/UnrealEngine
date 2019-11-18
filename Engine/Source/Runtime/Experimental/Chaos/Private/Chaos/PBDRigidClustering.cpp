@@ -91,7 +91,7 @@ namespace Chaos
 	int32 TPBDRigidClustering<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::CreateClusterParticle(
 		int32 ClusterGroupIndex,
 		TArray<uint32>&& Children,
-		/*const*/ TSerializablePtr<TImplicitObject<T, d>> ProxyGeometry,
+		/*const*/ TSerializablePtr<FImplicitObject> ProxyGeometry,
 		const TRigidTransform<T, d>* ForceMassOrientation,
 		const FClusterCreationParameters<T>& Parameters)
 	{
@@ -236,7 +236,7 @@ namespace Chaos
 		NoCleanParams.bCopyCollisionParticles = !!UnionsHaveCollisionParticles;
 
 		UpdateMassProperties(ChildrenArray, NewIndex, nullptr);
-		UpdateGeometry(ChildrenArray, NewIndex, TSerializablePtr<TImplicitObject<T, 3>>(), NoCleanParams);
+		UpdateGeometry(ChildrenArray, NewIndex, TSerializablePtr<FImplicitObject>(), NoCleanParams);
 
 		return NewIndex;
 	}
@@ -315,7 +315,7 @@ namespace Chaos
 
 				FClusterCreationParameters<T> Parameters(0.3, 100, false, !!UnionsHaveCollisionParticles);
 				Parameters.ConnectionMethod = MClusterUnionConnectionType;
-				int32 NewIndex = CreateClusterParticle(-Group.Key, MoveTemp(ClusterChildren), TSerializablePtr<TImplicitObject<T, d>>(), nullptr, Parameters);
+				int32 NewIndex = CreateClusterParticle(-Group.Key, MoveTemp(ClusterChildren), TSerializablePtr<FImplicitObject>(), nullptr, Parameters);
 				MParticles.InternalCluster(NewIndex) = true;
 				MEvolution.SetPhysicsMaterial(MParticles.Handle(NewIndex), MEvolution.GetPhysicsMaterial(MParticles.Handle(Group.Value[0])));
 
@@ -631,16 +631,16 @@ namespace Chaos
 
 		ResetCollisionImpulseArray();
 
-		for (const typename FPBDCollisionConstraint::FRigidBodyContactConstraint& Contact : CollisionRule.GetAllConstraints())
+		for (const Chaos::TPBDCollisionConstraintHandle<T, 3> * ContactHandle : CollisionRule.GetConstConstraintHandles())
 		{
-			if (Contact.AccumulatedImpulse.Size() < MinImpulseForStrainEval)
+			if (ContactHandle->GetAccumulatedImpulse().Size() < MinImpulseForStrainEval)
 			{
 				continue;
 			}
 
-			auto ComputeStrainLambda = [&](TPBDRigidClusteredParticleHandle<T, d>* Cluster, const TArray<uint32>& ParentToChildren) {
+			auto ComputeStrainLambda = [&](const TPBDRigidClusteredParticleHandle<T, d>* Cluster, const TArray<uint32>& ParentToChildren) {
 				const TRigidTransform<T, d> WorldToClusterTM = TRigidTransform<T, d>(Cluster->P(), Cluster->Q());
-				const TVector<T, d> ContactLocationClusterLocal = WorldToClusterTM.InverseTransformPosition(GetContactLocation(Contact));
+				const TVector<T, d> ContactLocationClusterLocal = WorldToClusterTM.InverseTransformPosition(ContactHandle->GetContactLocation());
 				TBox<T, d> ContactBox(ContactLocationClusterLocal, ContactLocationClusterLocal);
 				ContactBox.Thicken(ClusterDistanceThreshold);
 				if (Cluster->ChildrenSpatial())
@@ -661,26 +661,27 @@ namespace Chaos
 								const TArray<int32> SubIntersections = MParticles.ChildrenSpatial(Child)->FindAllIntersectingChildren(ContactBoxProxy);
 								for (int32 SubChild : SubIntersections)
 								{
-									MParticles.CollisionImpulses(SubChild) += Contact.AccumulatedImpulse.Size();
+									MParticles.CollisionImpulses(SubChild) += ContactHandle->GetAccumulatedImpulse().Size();
 								}
 							}
 						}
 						else
 						{
-							MParticles.CollisionImpulses(Child) += Contact.AccumulatedImpulse.Size();
+							MParticles.CollisionImpulses(Child) += ContactHandle->GetAccumulatedImpulse().Size();
 						}
 					}
 				}
 			};
 
-			if (auto ChildrenPtr = MParentToChildren.Find(Contact.Particle))
+			TVector<const TGeometryParticleHandle<T, d>*, 2> ConstrainedParticles = ContactHandle->GetConstrainedParticles();
+			if (auto ChildrenPtr = MParentToChildren.Find(ConstrainedParticles[0]))
 			{
-				ComputeStrainLambda(Contact.Particle->AsClustered(), *ChildrenPtr);
+				ComputeStrainLambda(ConstrainedParticles[0]->AsClustered(), *ChildrenPtr);
 			}
 
-			if (auto ChildrenPtr = MParentToChildren.Find(Contact.Levelset))
+			if (auto ChildrenPtr = MParentToChildren.Find(ConstrainedParticles[1]))
 			{
-				ComputeStrainLambda(Contact.Levelset->AsClustered(), *ChildrenPtr);
+				ComputeStrainLambda(ConstrainedParticles[1]->AsClustered(), *ChildrenPtr);
 			}
 
 			MCollisionImpulseArrayDirty = true;
@@ -1285,12 +1286,12 @@ namespace Chaos
 
 	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
 	void TPBDRigidClustering<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::UpdateGeometry(const TArray<uint32>& Children,
-		const uint32 NewIndex, TSerializablePtr<TImplicitObject<T, d>> ProxyGeometry, const FClusterCreationParameters<T>& Parameters)
+		const uint32 NewIndex, TSerializablePtr<FImplicitObject> ProxyGeometry, const FClusterCreationParameters<T>& Parameters)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdateGeometry);
 		const bool bUseCollisionPoints = (ProxyGeometry || Parameters.bCopyCollisionParticles) && !Parameters.CollisionParticles;
-		TArray<TUniquePtr<TImplicitObject<T, d>>> Objects;
-		TArray<TUniquePtr<TImplicitObject<T, d>>> Objects2; //todo: find a better way to reuse this
+		TArray<TUniquePtr<FImplicitObject>> Objects;
+		TArray<TUniquePtr<FImplicitObject>> Objects2; //todo: find a better way to reuse this
 
 		ensure(!MParticles.Geometry(NewIndex)); //we should never update existing geometry since this is used by SQ threads.
 		ensure(!MParticles.DynamicGeometry(NewIndex)); //we should never update existing geometry since this is used by SQ threads.
@@ -1314,8 +1315,8 @@ namespace Chaos
 					const int32 MultiChildProxyId = MParticles.MultiChildProxyId(Child).Id;
 					if (UseLevelsetCollision || MultiChildProxyId == INDEX_NONE || !MParticles.MultiChildProxyData(MultiChildProxyId))
 					{
-						Objects.Add(TUniquePtr<TImplicitObject<T, d>>(new TImplicitObjectTransformed<T, d>(MParticles.Geometry(Child), Frame)));
-						Objects2.Add(TUniquePtr<TImplicitObject<T, d>>(new TImplicitObjectTransformed<T, d>(MParticles.Geometry(Child), Frame)));
+						Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<T, d>(MParticles.Geometry(Child), Frame)));
+						Objects2.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<T, d>(MParticles.Geometry(Child), Frame)));
 						GeomToOriginalParticlesHack.Add(Child);
 					}
 					else if (MParticles.MultiChildProxyData(MultiChildProxyId)->KeyChild == Child)
@@ -1323,8 +1324,8 @@ namespace Chaos
 						//using multi child proxy and this child is the key
 						const TRigidTransform<T, d> ProxyWorldTM = MParticles.MultiChildProxyData(MultiChildProxyId)->RelativeToKeyChild * ChildWorldTM;
 						const TRigidTransform<T, d> ProxyRelativeTM = ProxyWorldTM.GetRelativeTransform(ClusterWorldTM);
-						Objects.Add(TUniquePtr<TImplicitObject<T, d>>(new TImplicitObjectTransformed<T, d>(MParticles.Geometry(MultiChildProxyId), ProxyRelativeTM)));
-						Objects2.Add(TUniquePtr<TImplicitObject<T, d>>(new TImplicitObjectTransformed<T, d>(MParticles.Geometry(MultiChildProxyId), ProxyRelativeTM)));
+						Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<T, d>(MParticles.Geometry(MultiChildProxyId), ProxyRelativeTM)));
+						Objects2.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<T, d>(MParticles.Geometry(MultiChildProxyId), ProxyRelativeTM)));
 						UsedGeomChild = MultiChildProxyId;
 						GeomToOriginalParticlesHack.Add(UsedGeomChild);
 						bUsingMultiChildProxy = true;
@@ -1383,7 +1384,7 @@ namespace Chaos
 		{
 			//ensureMsgf(false, TEXT("Checking usage with no proxy and no objects"));
 			//@coverage : {production}
-			MParticles.SetGeometry(NewIndex, Chaos::TSerializablePtr<Chaos::TImplicitObject<float, 3>>());
+			MParticles.SetGeometry(NewIndex, Chaos::TSerializablePtr<Chaos::FImplicitObject>());
 		}
 		else
 		{
@@ -1756,9 +1757,9 @@ namespace Chaos
 	}
 
 	template<class T, int d>
-	TVector<T, d> GetContactLocation(const TRigidBodyContactConstraint<T, d>& Contact)
+	TVector<T, d> GetContactLocation(const TRigidBodySingleContactConstraint<T, d>& Contact)
 	{
-		return Contact.Location;
+		return Contact.GetLocation();
 	}
 
 	template<class T, int d>
@@ -1864,7 +1865,7 @@ namespace Chaos
 		ResourceLock.WriteLock();
 		//BufferResource.MChildren.Reset();
 		//BufferResource.ClusterParentTransforms.Reset();	//todo: once everything is atomic this should get reset
-		const TArray<TSerializablePtr<TImplicitObject<T, d>>>& AllGeom = MParticles.GetAllGeometry();
+		const TArray<TSerializablePtr<FImplicitObject>>& AllGeom = MParticles.GetAllGeometry();
 		BufferResource.GeometryPtrs.SetNum(AllGeom.Num());
 
 		const auto& NonDisabledClusteredParticles = MEvolution.GetNonDisabledClusteredArray();

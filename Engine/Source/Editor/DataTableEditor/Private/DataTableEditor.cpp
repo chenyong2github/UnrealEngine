@@ -130,6 +130,10 @@ void FDataTableEditor::CreateAndRegisterRowEditorTab(const TSharedRef<class FTab
 }
 
 FDataTableEditor::FDataTableEditor()
+	: RowNameColumnWidth(0)
+	, RowNumberColumnWidth(0)
+	, HighlightedVisibleRowIndex(INDEX_NONE)
+	, SortMode(EColumnSortMode::Ascending)
 {
 }
 
@@ -921,33 +925,16 @@ FText FDataTableEditor::GetFilterText() const
 
 void FDataTableEditor::OnFilterTextChanged(const FText& InFilterText)
 {
-	if (InFilterText.IsEmpty())
-	{
-		OnFilterCleared();
-	}
-	else
-	{
-		ActiveFilterText = InFilterText;
-		UpdateVisibleRows();
-	}
+	ActiveFilterText = InFilterText;
+	UpdateVisibleRows();
 }
 
 void FDataTableEditor::OnFilterTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo)
 {
 	if (CommitInfo == ETextCommit::OnCleared)
 	{
-		OnFilterCleared();
-	}
-}
-
-void FDataTableEditor::OnFilterCleared()
-{
-	ActiveFilterText = FText();
-	if (VisibleRows.IsValidIndex(HighlightedVisibleRowIndex))
-	{
-		VisibleRows = AvailableRows;
-		SearchBoxWidget->SetText(ActiveFilterText);
-		CellsListView->RequestListRefresh();
+		SearchBoxWidget->SetText(FText::GetEmpty());
+		OnFilterTextChanged(FText::GetEmpty());
 	}
 }
 
@@ -1211,6 +1198,9 @@ void FDataTableEditor::UpdateVisibleRows(const FName InCachedSelection, const bo
 			}
 		}
 	}
+
+	CellsListView->RequestListRefresh();
+	RestoreCachedSelection(InCachedSelection, bUpdateEvenIfValid);
 }
 
 void FDataTableEditor::RestoreCachedSelection(const FName InCachedSelection, const bool bUpdateEvenIfValid)
@@ -1406,7 +1396,7 @@ void FDataTableEditor::SetHighlightedRow(FName Name)
 	{
 		HighlightedRowName = NAME_None;
 		CellsListView->ClearSelection();
-		HighlightedVisibleRowIndex = -1;
+		HighlightedVisibleRowIndex = INDEX_NONE;
 	}
 	else
 	{

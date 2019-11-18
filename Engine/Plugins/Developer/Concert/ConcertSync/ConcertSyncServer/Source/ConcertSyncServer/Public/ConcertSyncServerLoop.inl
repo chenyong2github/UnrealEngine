@@ -31,7 +31,10 @@ int32 ConcertSyncServerLoop(int32 ArgC, TCHAR** ArgV, const FConcertSyncServerLo
 	int32 Result = GEngineLoop.PreInit(ArgC, ArgV, TEXT(" -Messaging"));
 	check(GConfig && GConfig->IsReadyForUse());
 
-	GLogConsole->Show(true);
+	if (InitArgs.bShowConsole)
+	{
+		GLogConsole->Show(true);
+	}
 
 	FModuleManager::Get().StartProcessingNewlyLoadedObjects();
 

@@ -574,6 +574,25 @@ EVoiceCaptureState::Type FVoiceCaptureWindows::GetVoiceData(uint8* OutVoiceBuffe
 		}
 	}
 
+	// If we have any sends for this microphones output, push to them here.
+	if (MicrophoneOutput.Num() > 0)
+	{
+		// Convert our buffer from int16 to float:
+		int16* OutputData = reinterpret_cast<int16*>(OutVoiceBuffer);
+		uint32 NumSamples = OutBytesWritten / sizeof(int16);
+		ConversionBuffer.Reset();
+		// Note: Sample rate is unused for this operation.
+		ConversionBuffer.Append(OutputData, NumSamples, NumInputChannels, 16000);
+		
+		if (NumInputChannels > 1)
+		{
+			// For consistency, mixdown to mono.
+			ConversionBuffer.MixBufferToChannels(1);
+		}
+
+		MicrophoneOutput.PushAudio(ConversionBuffer.GetData(), ConversionBuffer.GetNumSamples());
+	}
+
 	return NewMicState;
 }
 

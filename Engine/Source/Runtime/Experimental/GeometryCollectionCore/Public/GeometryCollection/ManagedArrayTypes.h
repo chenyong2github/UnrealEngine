@@ -10,6 +10,7 @@
 #include "Math/Vector.h"
 #include "Math/Vector2D.h"
 #include "Math/Box.h"
+#include "Chaos/ImplicitObject.h"
 #include "Chaos/BVHParticles.h"
 
 inline FArchive& operator<<(FArchive& Ar, TArray<FVector>*& ValueIn)
@@ -34,8 +35,7 @@ inline FArchive& operator<<(FArchive& Ar, TUniquePtr<TArray<FVector>>& ValueIn)
 	return Ar;
 }
 
-template <typename T, int d>
-inline FArchive& operator<<(FArchive& Ar, Chaos::TImplicitObject<T,d>*& ValueIn)
+inline FArchive& operator<<(FArchive& Ar, Chaos::FImplicitObject*& ValueIn)
 {
 	check(false);	//We don't serialize raw pointers to implicit objects. Use unique ptr
 	return Ar;

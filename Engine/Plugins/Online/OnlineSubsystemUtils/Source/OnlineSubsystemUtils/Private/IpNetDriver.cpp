@@ -93,6 +93,17 @@ TAutoConsoleVariable<int32> CVarNetUseRecvTimestamps(
 	TEXT("If true and if net.UseRecvMulti is also true, on a Unix/Linux platform, ")
 		TEXT("the kernel timestamp will be retrieved for each packet received, providing more accurate ping calculations."));
 
+#if !UE_BUILD_SHIPPING
+TAutoConsoleVariable<int32> CVarNetDebugDualIPs(
+	TEXT("net.DebugDualIPs"),
+	0,
+	TEXT("If true, will duplicate every packet received, and process with a new (deterministic) IP, ")
+		TEXT("to emulate receiving client packets from dual IP's - which can happen under real-world network conditions")
+		TEXT("(only supports a single client on the server)."));
+
+TSharedPtr<FInternetAddr> GCurrentDuplicateIP;
+#endif
+
 
 
 /**
@@ -100,7 +111,8 @@ TAutoConsoleVariable<int32> CVarNetUseRecvTimestamps(
  *
  * Encapsulates the NetDriver TickDispatch code required for executing all variations of packet receives
  * (FSocket::RecvFrom, FSocket::RecvMulti, and the Receive Thread),
- * as well as implementing/abstracting-away some of the outermost (non-NetConnection-related) parts of the DDoS detection code.
+ * as well as implementing/abstracting-away some of the outermost (non-NetConnection-related) parts of the DDoS detection code,
+ * and code for timing receives/iterations (which affects control flow).
  */
 class FPacketIterator
 {
@@ -124,32 +136,67 @@ private:
 		/** Error if receiving a packet failed */
 		ESocketErrors Error;
 	};
-	
+
+
 private:
 	FPacketIterator(UIpNetDriver* InDriver)
+		: FPacketIterator(InDriver, InDriver->RecvMultiState.Get(), FPlatformTime::Seconds(),
+							(InDriver->MaxSecondsInReceive > 0.0 && InDriver->NbPacketsBetweenReceiveTimeTest > 0))
+	{
+	}
+
+	FPacketIterator(UIpNetDriver* InDriver, FRecvMulti* InRMState, double InStartReceiveTime, bool bInCheckReceiveTime)
 		: bBreak(false)
+		, IterationCount(0)
 		, Driver(InDriver)
-		, DDoS(Driver->DDoS)
-		, SocketSubsystem(Driver->GetSocketSubsystem())
-		, Socket(Driver->Socket)
-		, SocketReceiveThreadRunnable(Driver->SocketReceiveThreadRunnable.Get())
+		, DDoS(InDriver->DDoS)
+		, SocketSubsystem(InDriver->GetSocketSubsystem())
+		, Socket(InDriver->Socket)
+		, SocketReceiveThreadRunnable(InDriver->SocketReceiveThreadRunnable.Get())
 		, CurrentPacket()
+#if !UE_BUILD_SHIPPING
+		, bDebugDualIPs(CVarNetDebugDualIPs.GetValueOnAnyThread() != 0)
+		, DuplicatePacket()
+#endif
+		, RMState(InRMState)
+		, bUseRecvMulti(CVarNetUseRecvMulti.GetValueOnAnyThread() != 0 && InRMState != nullptr)
 		, RecvMultiIdx(0)
 		, RecvMultiPacketCount(0)
+		, StartReceiveTime(InStartReceiveTime)
+		, bCheckReceiveTime(bInCheckReceiveTime)
+		, CheckReceiveTimePacketCountMask(bInCheckReceiveTime ? (FMath::RoundUpToPowerOfTwo(InDriver->NbPacketsBetweenReceiveTimeTest)-1) : 0)
+		, BailOutTime(InStartReceiveTime + InDriver->MaxSecondsInReceive)
+		, bSlowFrameChecks(UIpNetDriver::OnNetworkProcessingCausingSlowFrame.IsBound())
+		, AlarmTime(InStartReceiveTime + GIpNetDriverMaxDesiredTimeSliceBeforeAlarmSecs)
 	{
-		RMState = Driver->RecvMultiState.Get();
-		bUseRecvMulti = CVarNetUseRecvMulti.GetValueOnAnyThread() != 0 && RMState != nullptr;
-
 		if (!bUseRecvMulti && SocketSubsystem != nullptr)
 		{
 			CurrentPacket.Address = SocketSubsystem->CreateInternetAddr();
 		}
 
+#if !UE_BUILD_SHIPPING
+		if (bDebugDualIPs && !bUseRecvMulti)
+		{
+			DuplicatePacket = MakeUnique<FCachedPacket>();
+		}
+#endif
+
 		AdvanceCurrentPacket();
+	}
+
+	~FPacketIterator()
+	{
+		const float DeltaReceiveTime = FPlatformTime::Seconds() - StartReceiveTime;
+
+		if (DeltaReceiveTime > GIpNetDriverLongFramePrintoutThresholdSecs)
+		{
+			UE_LOG(LogNet, Warning, TEXT("Took too long to receive packets. Time: %2.2f %s"), DeltaReceiveTime, *Driver->GetName());
+		}
 	}
 
 	FORCEINLINE FPacketIterator& operator++()
 	{
+		IterationCount++;
 		AdvanceCurrentPacket();
 
 		return *this;
@@ -183,6 +230,18 @@ private:
 			OutPacket.Address = CurrentPacket.Address;
 			bRecvSuccess = CurrentPacket.bRecvSuccess;
 		}
+
+#if !UE_BUILD_SHIPPING
+		if (IsDuplicatePacket() && OutPacket.Address.IsValid())
+		{
+			TSharedRef<FInternetAddr> NewAddr = OutPacket.Address->Clone();
+
+			NewAddr->SetPort((NewAddr->GetPort() + 9876) & 0xFFFF);
+
+			OutPacket.Address = NewAddr;
+			GCurrentDuplicateIP = NewAddr;
+		}
+#endif
 
 		return bRecvSuccess;
 	}
@@ -230,22 +289,69 @@ private:
 	 */
 	void AdvanceCurrentPacket()
 	{
-		if (bUseRecvMulti)
+		// @todo: Remove the slow frame checks, eventually - potential DDoS and Switch platform constraint
+		if (bSlowFrameChecks)
 		{
-			if (RecvMultiPacketCount == 0 || ((RecvMultiIdx + 1) >= RecvMultiPacketCount))
+			const double CurrentTime = FPlatformTime::Seconds();
+
+			if (CurrentTime > AlarmTime)
 			{
-				AdvanceRecvMultiState();
+				Driver->OnNetworkProcessingCausingSlowFrame.Broadcast();
+
+				AlarmTime = CurrentTime + GIpNetDriverMaxDesiredTimeSliceBeforeAlarmSecs;
+			}
+		}
+
+		if (bCheckReceiveTime)
+		{
+			if ((IterationCount & CheckReceiveTimePacketCountMask) == 0 && IterationCount > 0)
+			{
+				const double CurrentTime = FPlatformTime::Seconds();
+
+				if (CurrentTime > BailOutTime)
+				{
+					// NOTE: For RecvMulti, this will mass-dump packets, leading to packetloss. Avoid using with RecvMulti.
+					bBreak = true;
+
+					UE_LOG(LogNet, Warning, TEXT("Stopping packet reception after processing for more than %f seconds. %s"),
+							Driver->MaxSecondsInReceive, *Driver->GetName());
+				}
+			}
+		}
+
+		if (!bBreak)
+		{
+#if !UE_BUILD_SHIPPING
+			if (IsDuplicatePacket())
+			{
+				CurrentPacket = *DuplicatePacket;
+			}
+			else
+#endif
+			if (bUseRecvMulti)
+			{
+				if (RecvMultiPacketCount == 0 || ((RecvMultiIdx + 1) >= RecvMultiPacketCount))
+				{
+					AdvanceRecvMultiState();
+				}
+				else
+				{
+					RecvMultiIdx++;
+				}
+
+				// At this point, bBreak will be set, or RecvMultiPacketCount will be > 0
 			}
 			else
 			{
-				RecvMultiIdx++;
-			}
+				bBreak = !ReceiveSinglePacket();
 
-			// At this point, bBreak will be set, or RecvMultiPacketCount will be > 0
-		}
-		else
-		{
-			bBreak = !ReceiveSinglePacket();
+#if !UE_BUILD_SHIPPING
+				if (bDebugDualIPs && !bBreak)
+				{
+					(*DuplicatePacket) = CurrentPacket;
+				}
+#endif
+			}
 		}
 	}
 
@@ -444,38 +550,78 @@ private:
 		}
 	}
 
+#if !UE_BUILD_SHIPPING
+	/**
+	 * Whether or not the current packet being iterated, is a duplicate of the previous packet
+	 */
+	FORCEINLINE bool IsDuplicatePacket() const
+	{
+		// When doing Dual IP debugging, every other packet is a duplicate of the previous packet
+		return bDebugDualIPs && (IterationCount % 2) == 1;
+	}
+#endif
+
 
 private:
 	/** Specified internally, when the packet iterator should break/stop (no packets, DDoS limits triggered, etc.) */
 	bool bBreak;
 
+	/** The number of packets iterated thus far */
+	int64 IterationCount;
+
 
 	/** Cached reference to the NetDriver, and NetDriver variables/values */
 
-	UIpNetDriver* Driver;
+	UIpNetDriver* const Driver;
 
 	FDDoSDetection& DDoS;
 
-	ISocketSubsystem* SocketSubsystem;
+	ISocketSubsystem* const SocketSubsystem;
 
 	FSocket*& Socket;
 
-	UIpNetDriver::FReceiveThreadRunnable* SocketReceiveThreadRunnable;
+	UIpNetDriver::FReceiveThreadRunnable* const SocketReceiveThreadRunnable;
 
 	/** Stores information for the current packet being received (when using single-receive mode) */
 	FCachedPacket CurrentPacket;
 
+#if !UE_BUILD_SHIPPING
+	/** Whether or not to enable Dual IP debugging */
+	const bool bDebugDualIPs;
+
+	/** When performing Dual IP tests, a duplicate copy of every packet, is stored here */
+	TUniquePtr<FCachedPacket> DuplicatePacket;
+#endif
+
 	/** Stores information for receiving packets using RecvMulti */
-	FRecvMulti* RMState;
+	FRecvMulti* const RMState;
 
 	/** Whether or not RecvMulti is enabled/supported */
-	bool bUseRecvMulti;
+	const bool bUseRecvMulti;
 
 	/** The RecvMulti index of the next packet to be received (if RecvMultiPacketCount > 0) */
 	int32 RecvMultiIdx;
 
 	/** The number of packets waiting to be read from the FRecvMulti state */
 	int32 RecvMultiPacketCount;
+
+	/** The time at which packet iteration/receiving began */
+	const double StartReceiveTime;
+
+	/** Whether or not to perform receive time limit checks */
+	const bool bCheckReceiveTime;
+
+	/** Receive time is checked every 'x' number of packets, with this mask used to count the packets ('x' is a power of 2) */
+	const int32 CheckReceiveTimePacketCountMask;
+
+	/** The time at which to bail out of the receive loop, if it's time limited */
+	const double BailOutTime;
+
+	/** Whether or not checks for slow frames are active */
+	const bool bSlowFrameChecks;
+
+	/** Cached time at which to trigger a slow frame alarm */
+	double AlarmTime;
 };
 
 /**
@@ -734,48 +880,11 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 	DDoS.PreFrameReceive(DeltaTime);
 
 	ISocketSubsystem* SocketSubsystem = GetSocketSubsystem();
-	const double StartReceiveTime = FPlatformTime::Seconds();
-	double AlarmTime = StartReceiveTime + GIpNetDriverMaxDesiredTimeSliceBeforeAlarmSecs;
-	const bool bSlowFrameChecks = OnNetworkProcessingCausingSlowFrame.IsBound();
 	bool bRetrieveTimestamps = CVarNetUseRecvTimestamps.GetValueOnAnyThread() != 0;
 
-	const bool bCheckReceiveTime = (MaxSecondsInReceive > 0.0) && (NbPacketsBetweenReceiveTimeTest > 0);
-	const double BailOutTime = StartReceiveTime + MaxSecondsInReceive;
-	int32 PacketsLeftUntilTimeTest = NbPacketsBetweenReceiveTimeTest;
-
-	bool bContinueProcessing(true);
-
 	// Process all incoming packets
-	for (FPacketIterator It(this); It && bContinueProcessing; ++It)
+	for (FPacketIterator It(this); It; ++It)
 	{
-		// @todo: Remove the slow frame checks, eventually - potential DDoS and Switch platform constraint
-		if (bSlowFrameChecks)
-		{
-			const double CurrentTime = FPlatformTime::Seconds();
-			if (CurrentTime > AlarmTime)
-			{
-				OnNetworkProcessingCausingSlowFrame.Broadcast();
-
-				AlarmTime = CurrentTime + GIpNetDriverMaxDesiredTimeSliceBeforeAlarmSecs;
-			}
-		}
-
-		if (bCheckReceiveTime)
-		{
-			--PacketsLeftUntilTimeTest;
-			if (PacketsLeftUntilTimeTest <= 0)
-			{
-				PacketsLeftUntilTimeTest = NbPacketsBetweenReceiveTimeTest;
-
-				const double CurrentTime = FPlatformTime::Seconds();
-				if (CurrentTime > BailOutTime)
-				{
-					bContinueProcessing = false;
-					UE_LOG(LogNet, Warning, TEXT("UIpNetDriver::TickDispatch: Stopping packet reception after processing for more than %f seconds. %s"), MaxSecondsInReceive, *GetName());
-				}
-			}
-		}
-
 		FReceivedPacketView ReceivedPacket;
 		bool bOk = It.GetCurrentPacket(ReceivedPacket);
 		const TSharedRef<const FInternetAddr> FromAddr = ReceivedPacket.Address.ToSharedRef();
@@ -1000,13 +1109,6 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 	}
 
 	DDoS.PostFrameReceive();
-
-	const float DeltaReceiveTime = FPlatformTime::Seconds() - StartReceiveTime;
-
-	if (DeltaReceiveTime > GIpNetDriverLongFramePrintoutThresholdSecs)
-	{
-		UE_LOG( LogNet, Warning, TEXT( "UIpNetDriver::TickDispatch: Took too long to receive packets. Time: %2.2f %s" ), DeltaReceiveTime, *GetName() );
-	}
 }
 
 UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(FReceivedPacketView& PacketRef, const FPacketBufferView& WorkingBuffer)
@@ -1180,6 +1282,18 @@ void UIpNetDriver::LowLevelSend(TSharedPtr<const FInternetAddr> Address, void* D
 {
 	if (Address.IsValid() && Address->IsValid())
 	{
+#if !UE_BUILD_SHIPPING
+		if (GCurrentDuplicateIP.IsValid() && Address->CompareEndpoints(*GCurrentDuplicateIP))
+		{
+			TSharedRef<FInternetAddr> NewAddr = Address->Clone();
+			int32 NewPort = NewAddr->GetPort() - 9876;
+
+			NewAddr->SetPort(NewPort >= 0 ? NewPort : (65536 + NewPort));
+
+			Address = NewAddr;
+		}
+#endif
+
 		const uint8* DataToSend = reinterpret_cast<uint8*>(Data);
 
 		if (ConnectionlessHandler.IsValid())

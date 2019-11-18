@@ -269,6 +269,18 @@ TSharedRef<FDragDropOperation> FNiagaraStackEditorWidgetsUtilities::ConstructDra
 	return DragDropOp;
 }
 
+void FNiagaraStackEditorWidgetsUtilities::HandleDragLeave(const FDragDropEvent& InDragDropEvent)
+{
+	if (InDragDropEvent.GetOperation().IsValid())
+	{
+		TSharedPtr<FDecoratedDragDropOp> DecoratedDragDropOp = InDragDropEvent.GetOperationAs<FDecoratedDragDropOp>();
+		if (DecoratedDragDropOp.IsValid())
+		{
+			DecoratedDragDropOp->ResetToDefaultToolTip();
+		}
+	}
+}
+
 TOptional<EItemDropZone> FNiagaraStackEditorWidgetsUtilities::RequestDropForStackEntry(const FDragDropEvent& InDragDropEvent, EItemDropZone InDropZone, UNiagaraStackEntry* InTargetEntry, UNiagaraStackEntry::EDropOptions DropOptions)
 {
 	TOptional<EItemDropZone> DropZone;
@@ -333,6 +345,11 @@ bool FNiagaraStackEditorWidgetsUtilities::HandleDropForStackEntry(const FDragDro
 			TEXT("Failed to drop stack entry when it was requested"));
 	}
 	return bHandled;
+}
+
+FString FNiagaraStackEditorWidgetsUtilities::StackEntryToStringForListDebug(UNiagaraStackEntry* StackEntry)
+{
+	return FString::Printf(TEXT("0x%08x - %s - %s"), StackEntry, *StackEntry->GetClass()->GetName(), *StackEntry->GetDisplayName().ToString());
 }
 
 #undef LOCTEXT_NAMESPACE

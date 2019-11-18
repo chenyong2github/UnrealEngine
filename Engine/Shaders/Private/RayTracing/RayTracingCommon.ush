@@ -154,8 +154,10 @@ uint2 GetPixelCoord(uint2 DispatchThreadId, uint UpscaleFactor)
 #define RAY_TRACING_BLEND_MODE_MODULATE				4
 #define RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT		5
 
-#define RAY_TRACING_PAYLOAD_FLAG_FRONT_FACE         1 // Indicates that ray has hit front face of a primitive. Set by closest hit shader.
-#define RAY_TRACING_PAYLOAD_FLAG_MINIMAL_PAYLOAD    2 // Indicates that closest hit shader should only fill FMinimalPayload (HitT), skipping full material evaluation. Set by RayGen shader, before TraceRay().
+// Check how Flags are packed in the FPackedMaterialClosestHitPayload before adding to ensure bits are free
+#define RAY_TRACING_PAYLOAD_FLAG_FRONT_FACE                    (1 << 0) // Indicates that ray has hit front face of a primitive. Set by closest hit shader.
+#define RAY_TRACING_PAYLOAD_FLAG_MINIMAL_PAYLOAD               (1 << 1) // Indicates that closest hit shader should only fill FMinimalPayload (HitT), skipping full material evaluation. Set by RayGen shader, before TraceRay().
+#define RAY_TRACING_PAYLOAD_FLAG_ENABLE_SKY_LIGHT_CONTRIBUTION (1 << 2) // Indicates that hit shaders should add in the Sky Light contribution in their output. Set by RayGen shader, before TraceRay().
 
 struct FMaterialClosestHitPayload : FMinimalPayload
 {
@@ -176,7 +178,7 @@ struct FMaterialClosestHitPayload : FMinimalPayload
 	uint ShadingModelID;				// 92        1       4bits
 	uint BlendingMode;					// 96        0       4bits (packed with ShadingModelID)
 	uint PrimitiveLightingChannelMask;	// 100       0       (removed)
-	float4 CustomData;					// 104       4       32bits -- only xy are packed at the moment
+	float4 CustomData;					// 104       4       32bits -- only zw are packed at the moment
 	float GBufferAO;					// 120       0       (removed)
 	float3 IndirectIrradiance;			// 124       0       48bits -- gbuffer only has float payload and there are truncation HLSL warnings
 
@@ -193,10 +195,11 @@ struct FMaterialClosestHitPayload : FMinimalPayload
 	void SetFrontFace() { Flags |= RAY_TRACING_PAYLOAD_FLAG_FRONT_FACE; }
 	bool IsFrontFace() { return (Flags & RAY_TRACING_PAYLOAD_FLAG_FRONT_FACE) != 0; }
 
+	void SetEnableSkyLightContribution() { Flags |= RAY_TRACING_PAYLOAD_FLAG_ENABLE_SKY_LIGHT_CONTRIBUTION; }
+	bool IsEnableSkyLightContribution() { return (Flags & RAY_TRACING_PAYLOAD_FLAG_ENABLE_SKY_LIGHT_CONTRIBUTION) != 0; }
+
 	void SetRayCone(FRayCone NewRayCone) { RayCone = NewRayCone; }
 };
-
-#define USE_PACKED_PAYLOAD 1
 
 #if !COMPUTESHADER
 
@@ -215,7 +218,6 @@ RayDesc CreatePrimaryRay(float2 UV)
 	return Ray;
 }
 
-#if USE_PACKED_PAYLOAD
 struct FPackedMaterialClosestHitPayload : FMinimalPayload
 {
 	// float FMinimalPayload::HitT                       // 4  bytes
@@ -231,7 +233,83 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 	void SetMinimalPayloadMode() { IorAndShadingModelIDAndBlendingModeAndFlags |= RAY_TRACING_PAYLOAD_FLAG_MINIMAL_PAYLOAD << 24; }
 	bool IsMinimalPayloadMode() { return ((IorAndShadingModelIDAndBlendingModeAndFlags >> 24) & RAY_TRACING_PAYLOAD_FLAG_MINIMAL_PAYLOAD) != 0; }
 
-	void SetRayCone(FRayCone NewRayCone) { RayCone = NewRayCone; }
+	void SetEnableSkyLightContribution() { IorAndShadingModelIDAndBlendingModeAndFlags |= RAY_TRACING_PAYLOAD_FLAG_ENABLE_SKY_LIGHT_CONTRIBUTION << 24; }
+	bool IsEnableSkyLightContribution() { return ((IorAndShadingModelIDAndBlendingModeAndFlags >> 24) & RAY_TRACING_PAYLOAD_FLAG_ENABLE_SKY_LIGHT_CONTRIBUTION) != 0; }
+
+	void SetRayCone(FRayCone InRayCone) { RayCone = InRayCone; }
+
+	void SetRadiance(in float3 InRadiance)
+	{
+		RadianceAndNormal[0] = f32tof16(InRadiance.x) | (f32tof16(InRadiance.y) << 16);
+		RadianceAndNormal[1] &= 0xffff << 16; // Clear the radiance (low bits), keep packed normal component (high bits)
+		RadianceAndNormal[1] |= f32tof16(InRadiance.z);
+	}
+
+	float3 GetRadiance()
+	{
+		float3 Result;
+		Result.x = f16tof32(RadianceAndNormal[0]);
+		Result.y = f16tof32(RadianceAndNormal[0] >> 16);
+		Result.z = f16tof32(RadianceAndNormal[1]);
+		return Result;
+	}
+
+	void SetIndirectIrradiance(float3 InIndirectIrradiance)
+	{
+		IndirectIrradiance[0] = f32tof16(InIndirectIrradiance.x);
+		IndirectIrradiance[0] |= f32tof16(InIndirectIrradiance.y) << 16;
+		IndirectIrradiance[1] = f32tof16(InIndirectIrradiance.z);
+	}
+
+	float3 GetIndirectIrradiance()
+	{
+		float3 Result;
+		Result.x = f16tof32(IndirectIrradiance[0]);
+		Result.y = f16tof32(IndirectIrradiance[0] >> 16);
+		Result.z = f16tof32(IndirectIrradiance[1]);
+		return Result;
+	}
+
+	float3 GetWorldNormal()
+	{
+		float3 Result;
+		Result.x = f16tof32(RadianceAndNormal[1] >> 16);
+		Result.y = f16tof32(RadianceAndNormal[2]);
+		Result.z = f16tof32(RadianceAndNormal[2] >> 16);
+		return Result;
+	}
+
+	float4 GetCustomData()
+	{
+		float4 Result;
+		Result.z = f16tof32(CustomData.x & 0xFFFF);
+		Result.w = f16tof32(CustomData.x >> 16);
+		Result.xy = 0;
+		return Result;
+	}
+	
+
+	float3 GetBaseColor()
+	{
+		float3 Result;
+		Result.x = f16tof32(BaseColorAndOpacity[0]);
+		Result.y = f16tof32(BaseColorAndOpacity[0] >> 16);
+		Result.z = f16tof32(BaseColorAndOpacity[1]);
+		return Result;
+	}
+
+	float GetOpacity()       { return f16tof32(BaseColorAndOpacity[1] >> 16); }
+	float GetMetallic()      { return float(MetallicAndSpecularAndRoughness & 0xFF) / 255.0f; }
+	float GetSpecular()      { return float((MetallicAndSpecularAndRoughness >> 8) & 0xFF) / 255.0f; }
+	float GetRoughness()     { return f16tof32(MetallicAndSpecularAndRoughness >> 16); }
+	float GetIor()           { return f16tof32(IorAndShadingModelIDAndBlendingModeAndFlags); }
+	uint GetBlendingMode()   { return (IorAndShadingModelIDAndBlendingModeAndFlags >> 20) & 0xF;  }
+	uint GetFlags()          { return (IorAndShadingModelIDAndBlendingModeAndFlags >> 24) & 0xFF; }
+	uint GetShadingModelID() { return (IorAndShadingModelIDAndBlendingModeAndFlags >> 16) & 0xF; }
+
+	float3 GetDiffuseColor() { return GetBaseColor() - GetBaseColor() * GetMetallic(); }
+	float3 GetSpecularColor() { return ComputeF0(GetSpecular(), GetBaseColor(), GetMetallic()); }
+
 };
 
 FPackedMaterialClosestHitPayload PackRayTracingPayload(FMaterialClosestHitPayload Input, in FRayCone RayCone)
@@ -264,65 +342,32 @@ FPackedMaterialClosestHitPayload PackRayTracingPayload(FMaterialClosestHitPayloa
 	return Output;
 }
 
-float3 UnpackRayTracingNormal(FPackedMaterialClosestHitPayload Input)
-{
-	float3 OutWorldNormal;
-	OutWorldNormal.x = f16tof32(Input.RadianceAndNormal[1] >> 16);
-	OutWorldNormal.y = f16tof32(Input.RadianceAndNormal[2]);
-	OutWorldNormal.z = f16tof32(Input.RadianceAndNormal[2] >> 16);
-	return OutWorldNormal;
-}
-
 FMaterialClosestHitPayload UnpackRayTracingPayload(FPackedMaterialClosestHitPayload Input, RayDesc Ray)
 {
 	FMaterialClosestHitPayload Output = (FMaterialClosestHitPayload)0;
-	Output.HitT = Input.HitT;
-	Output.RayCone = Input.RayCone; 
-	Output.Radiance.x = f16tof32(Input.RadianceAndNormal[0]);
-	Output.Radiance.y = f16tof32(Input.RadianceAndNormal[0] >> 16);
-	Output.Radiance.z = f16tof32(Input.RadianceAndNormal[1]);
-	Output.WorldNormal.x = f16tof32(Input.RadianceAndNormal[1] >> 16);
-	Output.WorldNormal.y = f16tof32(Input.RadianceAndNormal[2]);
-	Output.WorldNormal.z = f16tof32(Input.RadianceAndNormal[2] >> 16);
-	Output.BaseColor.x = f16tof32(Input.BaseColorAndOpacity[0]);
-	Output.BaseColor.y = f16tof32(Input.BaseColorAndOpacity[0] >> 16);
-	Output.BaseColor.z = f16tof32(Input.BaseColorAndOpacity[1]);
-	Output.Opacity	   = f16tof32(Input.BaseColorAndOpacity[1] >> 16);
-	Output.Metallic	   = float(Input.MetallicAndSpecularAndRoughness & 0xFF) / 255.0f;
-    Output.Specular	   = float((Input.MetallicAndSpecularAndRoughness >> 8) & 0xFF) / 255.0f;
-    Output.Roughness   = f16tof32(Input.MetallicAndSpecularAndRoughness >> 16);
-	Output.Ior            = f16tof32(Input.IorAndShadingModelIDAndBlendingModeAndFlags);      // 16 bits
-	Output.ShadingModelID = (Input.IorAndShadingModelIDAndBlendingModeAndFlags >> 16) & 0xF;  // 4 bits
-	Output.BlendingMode	  = (Input.IorAndShadingModelIDAndBlendingModeAndFlags >> 20) & 0xF;  // 4 bits
-	Output.Flags          = (Input.IorAndShadingModelIDAndBlendingModeAndFlags >> 24) & 0xFF; // 8 bits
-	Output.IndirectIrradiance.x	= f16tof32(Input.IndirectIrradiance[0]);
-	Output.IndirectIrradiance.y	= f16tof32(Input.IndirectIrradiance[0] >> 16);
-	Output.IndirectIrradiance.z	= f16tof32(Input.IndirectIrradiance[1]);
-	Output.CustomData.z = f16tof32(Input.CustomData.x & 0xFFFF);
-	Output.CustomData.w = f16tof32(Input.CustomData.x >> 16);
-	Output.CustomData.xy = 0;
+
+	Output.HitT               = Input.HitT;
+	Output.RayCone            = Input.RayCone;
+	Output.Radiance           = Input.GetRadiance();
+	Output.WorldNormal        = Input.GetWorldNormal();
+	Output.BaseColor          = Input.GetBaseColor();
+	Output.Opacity	          = Input.GetOpacity();
+	Output.Metallic	          = Input.GetMetallic();
+	Output.Specular           = Input.GetSpecular();
+    Output.Roughness          = Input.GetRoughness();
+	Output.Ior                = Input.GetIor();
+	Output.ShadingModelID     = Input.GetShadingModelID();
+	Output.BlendingMode	      = Input.GetBlendingMode();
+	Output.Flags              = Input.GetFlags();
+	Output.IndirectIrradiance = Input.GetIndirectIrradiance();
+	Output.CustomData         = Input.GetCustomData();
 
 	Output.DiffuseColor  = Output.BaseColor - Output.BaseColor * Output.Metallic;
 	Output.SpecularColor = ComputeF0(Output.Specular, Output.BaseColor, Output.Metallic);
 	Output.WorldPos		 = Ray.Origin + Output.HitT * Ray.Direction;
+
 	return Output;
 }
-
-#else // USE_PACKED_PAYLOAD
-
-typedef FMaterialClosestHitPayload FPackedMaterialClosestHitPayload;
-
-FPackedMaterialClosestHitPayload PackRayTracingPayload(FMaterialClosestHitPayload Input, in FRayCone RayCone)
-{
-	return Input;
-}
-
-FMaterialClosestHitPayload UnpackRayTracingPayload(FPackedMaterialClosestHitPayload Input, RayDesc Ray)
-{
-	return Input;
-}
-
-#endif // USE_PACKED_PAYLOAD
 
 // WorldNormal is the vector towards which the ray position will be offseted.
 void ApplyPositionBias(inout RayDesc Ray, const float3 WorldNormal, const float MaxNormalBias)
@@ -356,21 +401,20 @@ void ApplyCameraRelativeDepthBias(inout RayDesc Ray, uint2 PixelCoord, float Dev
 	ApplyPositionBias(Ray, WorldNormal, RayBias);
 }
 
-FMinimalPayload TraceMinimalRayInternal(
+void TraceVisibilityRayPacked(
+	inout FPackedMaterialClosestHitPayload PackedPayload,
 	in RaytracingAccelerationStructure TLAS,
 	in uint RayFlags,
 	in uint InstanceInclusionMask,
-	in uint RayContributionToHitGroupIndex,
-	in uint MultiplierForGeometryContributionToShaderIndex,
-	in uint MissShaderIndex,
 	in RayDesc Ray)
 {
-	FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
-
-	// Set payload inputs
+	const uint RayContributionToHitGroupIndex = RAY_TRACING_SHADER_SLOT_SHADOW;
+	const uint MultiplierForGeometryContributionToShaderIndex = RAY_TRACING_NUM_SHADER_SLOTS;
+	const uint MissShaderIndex = 0;
 
 	// By enabling minimal payload mode all other payload information is ignored, meaning these functions need no payload inputs
 	PackedPayload.SetMinimalPayloadMode();
+	PackedPayload.HitT = 0;
 
 	// Trace the ray
 
@@ -383,6 +427,16 @@ FMinimalPayload TraceMinimalRayInternal(
 		MissShaderIndex,
 		Ray,
 		PackedPayload);
+}
+
+FMinimalPayload TraceVisibilityRay(
+	in RaytracingAccelerationStructure TLAS,
+	in uint RayFlags,
+	in uint InstanceInclusionMask,
+	in RayDesc Ray)
+{
+	FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
+	TraceVisibilityRayPacked(PackedPayload, TLAS, RayFlags, InstanceInclusionMask, Ray);
 
 	// Unpack the payload
 
@@ -396,22 +450,70 @@ FMinimalPayload TraceMinimalRayInternal(
 	return MinimalPayload;
 }
 
-FMaterialClosestHitPayload TraceRayInternal(
+void TraceMaterialRayPacked(
+	inout FPackedMaterialClosestHitPayload Payload,
 	in RaytracingAccelerationStructure TLAS,
 	in uint RayFlags,
 	in uint InstanceInclusionMask,
-	in uint RayContributionToHitGroupIndex,
-	in uint MultiplierForGeometryContributionToShaderIndex,
-	in uint MissShaderIndex,
 	in RayDesc Ray,
 	// Payload Inputs
-	in FRayCone RayCone)
+	inout FRayCone RayCone,
+	in bool bEnableSkyLightContribution)
 {
+	const uint RayContributionToHitGroupIndex = RAY_TRACING_SHADER_SLOT_MATERIAL;
+	const uint MultiplierForGeometryContributionToShaderIndex = RAY_TRACING_NUM_SHADER_SLOTS;
+	const uint MissShaderIndex = 0;
+
+	// Set payload inputs
+
+	Payload.SetRayCone(RayCone);
+
+	if (bEnableSkyLightContribution)
+	{
+		// Enable Sky Light contribution in the payload if requested
+		Payload.SetEnableSkyLightContribution();
+	}
+
+	// Trace the ray
+
+	Payload.HitT = 0;
+	TraceRay(
+		TLAS,
+		RayFlags,
+		InstanceInclusionMask,
+		RayContributionToHitGroupIndex,
+		MultiplierForGeometryContributionToShaderIndex,
+		MissShaderIndex,
+		Ray,
+		Payload);
+
+	RayCone = Payload.RayCone;
+}
+
+FMaterialClosestHitPayload TraceMaterialRay(
+	in RaytracingAccelerationStructure TLAS,
+	in uint RayFlags,
+	in uint InstanceInclusionMask,
+	in RayDesc Ray,
+	// Payload Inputs
+	inout FRayCone RayCone,
+	in bool bEnableSkyLightContribution)
+{
+	const uint RayContributionToHitGroupIndex = RAY_TRACING_SHADER_SLOT_MATERIAL;
+	const uint MultiplierForGeometryContributionToShaderIndex = RAY_TRACING_NUM_SHADER_SLOTS;
+	const uint MissShaderIndex = 0;
+
 	FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
 
 	// Set payload inputs
 
 	PackedPayload.SetRayCone(RayCone);
+
+	if (bEnableSkyLightContribution)
+	{
+		// Enable Sky Light contribution in the payload if requested
+		PackedPayload.SetEnableSkyLightContribution();
+	}
 
 	// Trace the ray
 
@@ -428,53 +530,6 @@ FMaterialClosestHitPayload TraceRayInternal(
 	// Unpack the payload
 
 	FMaterialClosestHitPayload Payload = UnpackRayTracingPayload(PackedPayload, Ray);
-
-	return Payload;
-}
-
-FMinimalPayload TraceVisibilityRay(
-	in RaytracingAccelerationStructure TLAS,
-	in uint RayFlags,
-	in uint InstanceInclusionMask,
-	in RayDesc Ray)
-{
-	const uint RayContributionToHitGroupIndex = RAY_TRACING_SHADER_SLOT_SHADOW;
-	const uint MultiplierForGeometryContributionToShaderIndex = RAY_TRACING_NUM_SHADER_SLOTS;
-	const uint MissShaderIndex = 0;
-
-	FMinimalPayload Payload = TraceMinimalRayInternal(
-		TLAS,
-		RayFlags,
-		InstanceInclusionMask,
-		RayContributionToHitGroupIndex,
-		MultiplierForGeometryContributionToShaderIndex,
-		MissShaderIndex,
-		Ray);
-
-	return Payload;
-}
-
-FMaterialClosestHitPayload TraceMaterialRay(
-	in RaytracingAccelerationStructure TLAS,
-	in uint RayFlags,
-	in uint InstanceInclusionMask,
-	in RayDesc Ray,
-	// Payload Inputs
-	inout FRayCone RayCone)
-{
-	const uint RayContributionToHitGroupIndex = RAY_TRACING_SHADER_SLOT_MATERIAL;
-	const uint MultiplierForGeometryContributionToShaderIndex = RAY_TRACING_NUM_SHADER_SLOTS;
-	const uint MissShaderIndex = 0;
-
-	FMaterialClosestHitPayload Payload = TraceRayInternal(
-		TLAS,
-		RayFlags,
-		InstanceInclusionMask,
-		RayContributionToHitGroupIndex,
-		MultiplierForGeometryContributionToShaderIndex,
-		MissShaderIndex,
-		Ray,
-		RayCone);
 
 	RayCone = Payload.RayCone;
 

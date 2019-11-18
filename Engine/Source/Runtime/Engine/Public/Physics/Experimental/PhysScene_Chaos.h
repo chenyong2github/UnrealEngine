@@ -68,9 +68,17 @@ class ENGINE_API FPhysScene_Chaos : public FTickableGameObject, public FGCObject
 public:
 
 #if !WITH_CHAOS_NEEDS_TO_BE_FIXED
-	FPhysScene_Chaos(AActor* InSolverActor);
+	FPhysScene_Chaos(AActor* InSolverActor
+#if CHAOS_CHECKED
+	, const FName& DebugName=NAME_None
+#endif
+);
 #else
-	FPhysScene_Chaos(AActor* InSolverActor=nullptr);
+	FPhysScene_Chaos(AActor* InSolverActor=nullptr
+#if CHAOS_CHECKED
+	, const FName& DebugName=NAME_None
+#endif
+);
 #endif
 
 	virtual ~FPhysScene_Chaos();
@@ -268,7 +276,11 @@ public:
 
 	friend class FPhysInterface_Chaos;
 
-	ENGINE_API FPhysScene_ChaosInterface(const AWorldSettings* InSettings = nullptr);
+	ENGINE_API FPhysScene_ChaosInterface(const AWorldSettings* InSettings = nullptr
+#if CHAOS_CHECKED
+		, const FName& DebugName = NAME_None
+#endif
+	);
 
 	// Scene
 	void OnWorldBeginPlay();
@@ -276,7 +288,7 @@ public:
 
 	// In Chaos, this function will update the pointers from actor handles to their proxies.
 	// So the array of handles must be non-const.
-	void ENGINE_API AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& InActors);
+	void ENGINE_API AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& InActors, const bool bImmediate=true);
 	void AddAggregateToScene(const FPhysicsAggregateHandle& InAggregate);
 
 	void SetOwningWorld(UWorld* InOwningWorld);

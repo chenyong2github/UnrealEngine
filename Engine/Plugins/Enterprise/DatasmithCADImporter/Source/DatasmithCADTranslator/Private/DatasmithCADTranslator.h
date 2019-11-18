@@ -25,10 +25,7 @@ public:
 #ifndef CAD_LIBRARY
 	virtual void Initialize(FDatasmithTranslatorCapabilities& OutCapabilities) override { OutCapabilities.bIsEnabled = false; }
 #else
-	FDatasmithCADTranslator();
 	virtual void Initialize(FDatasmithTranslatorCapabilities& OutCapabilities) override;
-
-	virtual bool IsSourceSupported(const FDatasmithSceneSource& Source) override;
 
 	virtual bool LoadScene(TSharedRef<IDatasmithScene> OutScene) override;
 
@@ -39,13 +36,11 @@ public:
 	virtual void SetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options) override;
 
 private:
-	TMap<FString, FString> CADFileToUE4FileMap;
 	TMap<FString, FString> CADFileToUE4GeomMap;
-	TMap< TSharedPtr< IDatasmithMeshElement >, uint32 > MeshElementToCADBRepUuidMap;
 
 	CADLibrary::FImportParameters ImportParameters;
 
-	FDatasmithMeshBuilder MeshBuilder;
+	TUniquePtr<FDatasmithMeshBuilder> MeshBuilderPtr;
 #endif
 };
 

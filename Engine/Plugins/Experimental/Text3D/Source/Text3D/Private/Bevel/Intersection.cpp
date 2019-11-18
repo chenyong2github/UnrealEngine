@@ -3,10 +3,10 @@
 
 #include "Bevel/Intersection.h"
 #include "Bevel/BevelLinear.h"
-#include "Bevel/Data.h"
 #include "Bevel/Contour.h"
 #include "Bevel/Part.h"
 #include "Bevel/Util.h"
+#include "Data.h"
 
 
 FIntersection::FIntersection(FBevelLinear* const BevelIn, FContour* const ContourIn)
@@ -66,9 +66,10 @@ void FIntersectionNear::BevelTillThis()
 	const FVector2D Intersection = Bevel->Expanded(Curr);
 	int32 Count = 1;
 
-	auto ExpandsToSamePoint = [this, Intersection](const FPart* const Point)
+	const FBevelLinear* const BevelLocal = Bevel;
+	auto ExpandsToSamePoint = [BevelLocal, Intersection](const FPart* const Point)
 	{
-		return FMath::IsNearlyZero(FVector2D::DistSquared(Bevel->Expanded(Point), Intersection), 10);
+		return FMath::IsNearlyZero(FVector2D::DistSquared(BevelLocal->Expanded(Point), Intersection), 10);
 	};
 
 	// Check previous points till a point that does not expand to same position is found
@@ -241,7 +242,7 @@ void FIntersectionFar::BevelTillThis()
 	FPart* const EdgeA = SplitEdge;
 	FPart* const EdgeB = EdgeA->Next;
 
-	FData* const Data = Bevel->GetData();
+	const TSharedPtr<FData> Data = Bevel->GetData();
 	// Record last index, it will be removed in FBevelLinear::ExpandPoint and will be needed later
 	const int32 EdgeALast = EdgeA->PathNext.Last(0);
 

@@ -227,6 +227,7 @@ bool PreprocessShader(
 		check(CheckVirtualShaderFilePath(ShaderInput.VirtualSourceFilePath));
 	}
 
+	int32 McppResult = 0;
 	FString McppOutput, McppErrors;
 
 	static FCriticalSection McppCriticalSection;
@@ -263,7 +264,7 @@ bool PreprocessShader(
 		ANSICHAR* McppOutAnsi = NULL;
 		ANSICHAR* McppErrAnsi = NULL;
 
-		int32 Result = mcpp_run(
+		McppResult = mcpp_run(
 			McppOptionsANSI.GetData(),
 			McppOptionsANSI.Num(),
 			TCHAR_TO_ANSI(*ShaderInput.VirtualSourceFilePath),
@@ -278,6 +279,16 @@ bool PreprocessShader(
 
 	if (!ParseMcppErrors(ShaderOutput.Errors, ShaderOutput.PragmaDirectives, McppErrors))
 	{
+		return false;
+	}
+
+	// Report unhandled mcpp failure that didn't generate any errors
+	if (McppResult != 0)
+	{
+		FShaderCompilerError* CompilerError = new(ShaderOutput.Errors) FShaderCompilerError;
+		CompilerError->ErrorVirtualFilePath = ShaderInput.VirtualSourceFilePath;
+		CompilerError->ErrorLineString = TEXT("0");
+		CompilerError->StrippedErrorMessage = FString::Printf(TEXT("PreprocessShader mcpp_run failed with error code %d"), McppResult);
 		return false;
 	}
 

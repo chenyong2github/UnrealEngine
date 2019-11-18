@@ -19,41 +19,48 @@ enum class EAABBQueryType
 	Overlap
 };
 
-template <typename T, EAABBQueryType Query>
+DECLARE_CYCLE_STAT(TEXT("AABBTreeGenerateTree"), STAT_AABBTreeGenerateTree, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("AABBTreeTimeSliceSetup"), STAT_AABBTreeTimeSliceSetup, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("AABBTreeInitialTimeSlice"), STAT_AABBTreeInitialTimeSlice, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("AABBTreeProgressTimeSlice"), STAT_AABBTreeProgressTimeSlice, STATGROUP_Chaos);
+//DECLARE_CYCLE_STAT(TEXT("AABBTreeGrowPhase"), STAT_AABBTreeGrowPhase, STATGROUP_Chaos);
+//DECLARE_CYCLE_STAT(TEXT("AABBTreeChildrenPhase"), STAT_AABBTreeChildrenPhase, STATGROUP_Chaos);
+
+template <typename T, typename TQueryFastData, EAABBQueryType Query>
 struct TAABBTreeIntersectionHelper
 {
-	static bool Intersects(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const TVector<T, 3>& InvDir, const bool* bParallel,
-		T& CurrentLength, T& InvCurrentLength, T& TOI, TVector<T, 3>& OutPosition,
-		const TBox<T, 3>& Bounds, const TBox<T, 3>& QueryBounds, const TVector<T, 3>& QueryHalfExtents);
-};
-
-template <typename T>
-struct TAABBTreeIntersectionHelper<T, EAABBQueryType::Raycast>
-{
-	FORCEINLINE_DEBUGGABLE static bool Intersects(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const TVector<T, 3>& InvDir, const bool* bParallel,
-		T& CurrentLength, T& InvCurrentLength, T& TOI, TVector<T, 3>& OutPosition,
+	static bool Intersects(const TVector<T, 3>& Start, TQueryFastData& QueryFastData, T& TOI, TVector<T, 3>& OutPosition,
 		const TBox<T, 3>& Bounds, const TBox<T, 3>& QueryBounds, const TVector<T, 3>& QueryHalfExtents)
 	{
-		return TBox<T, 3>::RaycastFast(Bounds.Min(), Bounds.Max(), Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, TOI, OutPosition);
+		check(false);
+		return true;
+	}
+};
+
+template<>
+struct TAABBTreeIntersectionHelper<FReal, FQueryFastData, EAABBQueryType::Raycast>
+{
+	FORCEINLINE_DEBUGGABLE static bool Intersects(const FVec3& Start, FQueryFastData& QueryFastData, FReal& TOI, FVec3& OutPosition,
+		const TBox<FReal, 3>& Bounds, const TBox<FReal, 3>& QueryBounds, const TVector<FReal, 3>& QueryHalfExtents)
+	{
+		return TBox<FReal, 3>::RaycastFast(Bounds.Min(), Bounds.Max(), Start, QueryFastData.Dir, QueryFastData.InvDir, QueryFastData.bParallel, QueryFastData.CurrentLength, QueryFastData.InvCurrentLength, TOI, OutPosition);
 	}
 };
 
 template <typename T>
-struct TAABBTreeIntersectionHelper<T, EAABBQueryType::Sweep>
+struct TAABBTreeIntersectionHelper<T, FQueryFastData, EAABBQueryType::Sweep>
 {
-	FORCEINLINE_DEBUGGABLE static bool Intersects(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const TVector<T, 3>& InvDir, const bool* bParallel,
-		T& CurrentLength, T& InvCurrentLength, T& TOI, TVector<T, 3>& OutPosition,
-		const TBox<T, 3>& Bounds, const TBox<T, 3>& QueryBounds, const TVector<T, 3>& QueryHalfExtents)
+	FORCEINLINE_DEBUGGABLE static bool Intersects(const TVector<T, 3>& Start, FQueryFastData& QueryFastData,
+		T& TOI, TVector<T, 3>& OutPosition, const TBox<T, 3>& Bounds, const TBox<T, 3>& QueryBounds, const TVector<T, 3>& QueryHalfExtents)
 	{
-		return TBox<T, 3>::RaycastFast(Bounds.Min() - QueryHalfExtents, Bounds.Max() + QueryHalfExtents, Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, TOI, OutPosition);
+		return TBox<T, 3>::RaycastFast(Bounds.Min() - QueryHalfExtents, Bounds.Max() + QueryHalfExtents, Start, QueryFastData.Dir, QueryFastData.InvDir, QueryFastData.bParallel, QueryFastData.CurrentLength, QueryFastData.InvCurrentLength, TOI, OutPosition);
 	}
 };
 
 template <typename T>
-struct TAABBTreeIntersectionHelper<T, EAABBQueryType::Overlap>
+struct TAABBTreeIntersectionHelper<T, FQueryFastDataVoid, EAABBQueryType::Overlap>
 {
-	FORCEINLINE_DEBUGGABLE static bool Intersects(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const TVector<T, 3>& InvDir, const bool* bParallel,
-		T& CurrentLength, T& InvCurrentLength, T& TOI, TVector<T, 3>& OutPosition,
+	FORCEINLINE_DEBUGGABLE static bool Intersects(const TVector<T, 3>& Start, FQueryFastDataVoid& QueryFastData, T& TOI, TVector<T, 3>& OutPosition,
 		const TBox<T, 3>& Bounds, const TBox<T, 3>& QueryBounds, const TVector<T, 3>& QueryHalfExtents)
 	{
 		return QueryBounds.Intersects(Bounds);
@@ -70,16 +77,16 @@ struct TAABBTreeLeafArray
 	{
 	}
 
-	template <typename TSQVisitor>
-	bool RaycastFast(const TVector<T,3>& Start, const TVector<T,3>& Dir, const TVector<T,3>& InvDir, const bool* bParallel, T& CurrentLength, T& InvCurrentLength, TSQVisitor& Visitor) const
+	template <typename TSQVisitor, typename TQueryFastData>
+	bool RaycastFast(const TVector<T,3>& Start, TQueryFastData& QueryFastData, TSQVisitor& Visitor) const
 	{
-		return RaycastSweepImp</*bSweep=*/false>(Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, TVector<T,3>(), Visitor);
+		return RaycastSweepImp</*bSweep=*/false>(Start, QueryFastData, TVector<T,3>(), Visitor);
 	}
 
-	template <typename TSQVisitor>
-	bool SweepFast(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const TVector<T, 3>& InvDir, const bool* bParallel, T& CurrentLength, T& InvCurrentLength, const TVector<T,3>& QueryHalfExtents, TSQVisitor& Visitor) const
+	template <typename TSQVisitor, typename TQueryFastData>
+	bool SweepFast(const TVector<T, 3>& Start, TQueryFastData& QueryFastData, const TVector<T,3>& QueryHalfExtents, TSQVisitor& Visitor) const
 	{
-		return RaycastSweepImp</*bSweep=*/true>(Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, QueryHalfExtents, Visitor);
+		return RaycastSweepImp</*bSweep=*/true>(Start, QueryFastData, QueryHalfExtents, Visitor);
 	}
 
 	template <typename TSQVisitor>
@@ -100,24 +107,22 @@ struct TAABBTreeLeafArray
 		return true;
 	}
 
-	template <bool bSweep, typename TSQVisitor>
-	bool RaycastSweepImp(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const TVector<T, 3>& InvDir, const bool* bParallel, T& CurrentLength, T& InvCurrentLength, const TVector<T, 3>& QueryHalfExtents, TSQVisitor& Visitor) const
+	template <bool bSweep, typename TQueryFastData, typename TSQVisitor>
+	bool RaycastSweepImp(const TVector<T, 3>& Start, TQueryFastData& QueryFastData, const TVector<T, 3>& QueryHalfExtents, TSQVisitor& Visitor) const
 	{
 		TVector<T, 3> TmpPosition;
 		T TOI;
 		for (const auto& Elem : Elems)
 		{
 			const auto& InstanceBounds = Elem.Bounds;
-			if (TAABBTreeIntersectionHelper<T, bSweep ? EAABBQueryType::Sweep : EAABBQueryType::Raycast>::Intersects(Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength,
-				TOI, TmpPosition, InstanceBounds, TBox<T,3>(), QueryHalfExtents))
+			if (TAABBTreeIntersectionHelper<T, TQueryFastData, bSweep ? EAABBQueryType::Sweep : EAABBQueryType::Raycast>::Intersects(Start, QueryFastData, TOI, TmpPosition, InstanceBounds, TBox<T,3>(), QueryHalfExtents))
 			{
 				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
-				const bool bContinue = (bSweep && Visitor.VisitSweep(VisitData, CurrentLength)) || (!bSweep &&  Visitor.VisitRaycast(VisitData, CurrentLength));
+				const bool bContinue = (bSweep && Visitor.VisitSweep(VisitData, QueryFastData)) || (!bSweep &&  Visitor.VisitRaycast(VisitData, QueryFastData));
 				if (!bContinue)
 				{
 					return false;
 				}
-				InvCurrentLength = 1 / CurrentLength;
 			}
 		}
 
@@ -222,6 +227,7 @@ public:
 	static constexpr T DefaultMaxPayloadBounds = 100000;
 	static constexpr int32 DefaultMaxChildrenInLeaf = 12;
 	static constexpr int32 DefaultMaxTreeDepth = 16;
+	static constexpr int32 DefaultMaxNumToProcess = 0; // 0 special value for processing all without timeslicing
 	static constexpr ESpatialAcceleration StaticType = TIsSame<TAABBTreeLeafArray<TPayloadType, T>, TLeafType>::Value ? ESpatialAcceleration::AABBTree : 
 		(TIsSame<TBoundingVolume<TPayloadType, T, 3>, TLeafType>::Value ? ESpatialAcceleration::AABBTreeBV : ESpatialAcceleration::Unknown);
 	TAABBTree()
@@ -229,17 +235,78 @@ public:
 		, MaxChildrenInLeaf(DefaultMaxChildrenInLeaf)
 		, MaxTreeDepth(DefaultMaxTreeDepth)
 		, MaxPayloadBounds(DefaultMaxPayloadBounds)
+		, MaxNumToProcess(DefaultMaxNumToProcess)
 	{
 	}
 
+	virtual void ProgressAsyncTimeSlicing(bool ForceBuildCompletion) override
+	{
+		SCOPE_CYCLE_COUNTER(STAT_AABBTreeProgressTimeSlice);
+
+		// force is to stop time slicing and complete the rest of the build now
+		if (ForceBuildCompletion)
+		{
+			MaxNumToProcess = 0;
+		}
+
+		// still has work to complete
+		if (!TimeSliceWorkToComplete.IsEmpty())
+		{
+			FWorkSnapshot Store;
+			TimeSliceWorkToComplete.Dequeue(Store);
+			NumProcessedThisSlice = 0;
+			if (Store.TimeslicePhase == eTimeSlicePhase::PHASE1)
+			{
+				SplitNode(Store.Bounds, Store.Elems, Store.NodeLevel, Store.NewNodeIdx);
+			}
+			else
+			{
+				check(Store.TimeslicePhase == eTimeSlicePhase::PHASE2);
+				SplitNode(Store.Bounds, Store.RealBounds, Store.Elems, Store.SplitBoundsSize2, Store.NewNodeIdx, Store.NodeLevel, Store.BoxIdx);
+			}
+		}
+
+		// are done now?
+		if (TimeSliceWorkToComplete.IsEmpty())
+		{
+			this->SetAsyncTimeSlicingComplete(true);
+		}
+
+	}
+
 	template <typename TParticles>
-	TAABBTree(const TParticles& Particles, int32 InMaxChildrenInLeaf = 12, int32 InMaxTreeDepth = 16, T InMaxPayloadBounds = DefaultMaxPayloadBounds)
+	TAABBTree(const TParticles& Particles, int32 InMaxChildrenInLeaf = DefaultMaxChildrenInLeaf, int32 InMaxTreeDepth = DefaultMaxTreeDepth, T InMaxPayloadBounds = DefaultMaxPayloadBounds, int32 InMaxNumToProcess = DefaultMaxNumToProcess )
 		: ISpatialAcceleration<TPayloadType, T, 3>(StaticType)
 		, MaxChildrenInLeaf(InMaxChildrenInLeaf)
 		, MaxTreeDepth(InMaxTreeDepth)
 		, MaxPayloadBounds(InMaxPayloadBounds)
+		, MaxNumToProcess(InMaxNumToProcess)
+
 	{
 		GenerateTree(Particles);
+	}
+
+	template <typename ParticleView>
+	void Reinitialize(const ParticleView& Particles)
+	{
+		GenerateTree(Particles);
+	}
+
+	virtual TArray<TPayloadType> FindAllIntersections(const TBox<T, 3>& Box) const override { return FindAllIntersectionsImp(Box); }
+
+	bool GetAsBoundsArray(TArray<TBox<T, 3>>& AllBounds, int32 NodeIdx, int32 ParentNode, TBox<T, 3>& Bounds)
+	{
+		if (Nodes[NodeIdx].bLeaf)
+		{
+			AllBounds.Add(Bounds);
+			return false;
+		}
+		else
+		{
+			GetAsBoundsArray(AllBounds, Nodes[NodeIdx].ChildrenNodes[0], NodeIdx, Nodes[NodeIdx].ChildrenBounds[0]);
+			GetAsBoundsArray(AllBounds, Nodes[NodeIdx].ChildrenNodes[1], NodeIdx, Nodes[NodeIdx].ChildrenBounds[0]);
+		}
+		return true;
 	}
 
 	virtual ~TAABBTree() {}
@@ -258,25 +325,14 @@ public:
 	template <typename SQVisitor>
 	void Raycast(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const T Length, SQVisitor& Visitor) const
 	{
-		ensure(Length);
-		T CurLength = Length;
-		bool bParallel[3];
-		TVector<T, 3> InvDir;
-
-		T InvLength = 1 / Length;
-		for (int Axis = 0; Axis < 3; ++Axis)
-		{
-			bParallel[Axis] = Dir[Axis] == 0;
-			InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
-		}
-
-		QueryImp<EAABBQueryType::Raycast>(Start, Dir, InvDir, bParallel, CurLength, InvLength, TVector<T,3>(), TBox<T,3>(), Visitor);
+		FQueryFastData QueryFastData(Dir, Length);
+		QueryImp<EAABBQueryType::Raycast>(Start, QueryFastData, TVector<T,3>(), TBox<T,3>(), Visitor);
 	}
 
 	template <typename SQVisitor>
-	bool RaycastFast(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const TVector<T,3>& InvDir, const bool* bParallel, T& CurLength, T& InvLength, SQVisitor& Visitor) const
+	bool RaycastFast(const TVector<T, 3>& Start, FQueryFastData& CurData, SQVisitor& Visitor) const
 	{
-		return QueryImp<EAABBQueryType::Raycast>(Start, Dir, InvDir, bParallel, CurLength, InvLength, TVector<T, 3>(), TBox<T, 3>(), Visitor);
+		return QueryImp<EAABBQueryType::Raycast>(Start, CurData, TVector<T, 3>(), TBox<T, 3>(), Visitor);
 	}
 
 	void Sweep(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const T Length, const TVector<T, 3> QueryHalfExtents, ISpatialVisitor<TPayloadType, T>& Visitor) const override
@@ -288,25 +344,14 @@ public:
 	template <typename SQVisitor>
 	void Sweep(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const T Length, const TVector<T, 3> QueryHalfExtents, SQVisitor& Visitor) const
 	{
-		bool bParallel[3];
-		TVector<T, 3> InvDir;
-
-		ensure(Length);
-		T CurLength = Length;
-		T InvLength = 1 / Length;
-		for (int Axis = 0; Axis < 3; ++Axis)
-		{
-			bParallel[Axis] = Dir[Axis] == 0;
-			InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
-		}
-
-		QueryImp<EAABBQueryType::Sweep>(Start, Dir, InvDir, bParallel, CurLength, InvLength, QueryHalfExtents, TBox<T, 3>(), Visitor);
+		FQueryFastData QueryFastData(Dir, Length);
+		QueryImp<EAABBQueryType::Sweep>(Start, QueryFastData, QueryHalfExtents, TBox<T, 3>(), Visitor);
 	}
 
 	template <typename SQVisitor>
-	bool SweepFast(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const TVector<T,3>& InvDir, const bool* bParallel, T& CurLength, T& InvLength, const TVector<T, 3> QueryHalfExtents, SQVisitor& Visitor) const
+	bool SweepFast(const TVector<T, 3>& Start, FQueryFastData& CurData, const TVector<T, 3> QueryHalfExtents, SQVisitor& Visitor) const
 	{
-		return QueryImp<EAABBQueryType::Sweep>(Start, Dir, InvDir, bParallel, CurLength, InvLength, QueryHalfExtents, TBox<T, 3>(), Visitor);
+		return QueryImp<EAABBQueryType::Sweep>(Start,CurData, QueryHalfExtents, TBox<T, 3>(), Visitor);
 	}
 
 	void Overlap(const TBox<T, 3>& QueryBounds, ISpatialVisitor<TPayloadType, T>& Visitor) const override
@@ -325,11 +370,8 @@ public:
 	bool OverlapFast(const TBox<T, 3>& QueryBounds, SQVisitor& Visitor) const
 	{
 		//dummy variables to reuse templated path
-		T Length;
-		T InvLength;
-		TVector<T, 3> InvDir;
-		bool bParallel;
-		return QueryImp<EAABBQueryType::Overlap>(TVector<T, 3>(), TVector<T, 3>(), InvDir, &bParallel, Length, InvLength, TVector<T, 3>(), QueryBounds, Visitor);
+		FQueryFastDataVoid VoidData;
+		return QueryImp<EAABBQueryType::Overlap>(TVector<T, 3>(), VoidData, TVector<T, 3>(), QueryBounds, Visitor);
 	}
 
 	virtual void RemoveElement(const TPayloadType& Payload)
@@ -454,8 +496,8 @@ private:
 	using FElement = TPayloadBoundsElement<TPayloadType, T>;
 	using FNode = TAABBTreeNode<T>;
 
-	template <EAABBQueryType Query, typename SQVisitor>
-	bool QueryImp(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const TVector<T,3>& InvDir, const bool* bParallel, T& CurrentLength, T& InvCurrentLength, const TVector<T, 3> QueryHalfExtents, const TBox<T,3>& QueryBounds, SQVisitor& Visitor) const
+	template <EAABBQueryType Query, typename TQueryFastData, typename SQVisitor>
+	bool QueryImp(const TVector<T, 3>& Start, TQueryFastData& CurData, const TVector<T, 3> QueryHalfExtents, const TBox<T,3>& QueryBounds, SQVisitor& Visitor) const
 	{
 		TVector<T, 3> TmpPosition;
 		T TOI = 0;
@@ -463,8 +505,7 @@ private:
 		for (const auto& Elem : GlobalPayloads)
 		{
 			const auto& InstanceBounds = Elem.Bounds;
-			if (TAABBTreeIntersectionHelper<T, Query>::Intersects(Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength,
-				TOI, TmpPosition, InstanceBounds, QueryBounds, QueryHalfExtents))
+			if (TAABBTreeIntersectionHelper<T, TQueryFastData, Query>::Intersects(Start, CurData, TOI, TmpPosition, InstanceBounds, QueryBounds, QueryHalfExtents))
 			{
 				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true);
 				bool bContinue;
@@ -474,17 +515,12 @@ private:
 				}
 				else
 				{
-					bContinue = Query == EAABBQueryType::Sweep ? Visitor.VisitSweep(VisitData, CurrentLength) : Visitor.VisitRaycast(VisitData, CurrentLength);
+					bContinue = Query == EAABBQueryType::Sweep ? Visitor.VisitSweep(VisitData, CurData) : Visitor.VisitRaycast(VisitData, CurData);
 				}
 
 				if (!bContinue)
 				{
 					return false;
-				}
-
-				if (Query != EAABBQueryType::Overlap)
-				{
-					InvCurrentLength = 1 / CurrentLength;
 				}
 			}
 		}
@@ -492,8 +528,7 @@ private:
 		for (const auto& Elem : DirtyElements)
 		{
 			const auto& InstanceBounds = Elem.Bounds;
-			if(TAABBTreeIntersectionHelper<T, Query>::Intersects(Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength,
-				TOI, TmpPosition, InstanceBounds, QueryBounds, QueryHalfExtents))
+			if(TAABBTreeIntersectionHelper<T, TQueryFastData, Query>::Intersects(Start, CurData, TOI, TmpPosition, InstanceBounds, QueryBounds, QueryHalfExtents))
 			{
 				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
 				
@@ -504,17 +539,12 @@ private:
 				}
 				else
 				{
-					bContinue = Query == EAABBQueryType::Sweep ? Visitor.VisitSweep(VisitData, CurrentLength) : Visitor.VisitRaycast(VisitData, CurrentLength);
+					bContinue = Query == EAABBQueryType::Sweep ? Visitor.VisitSweep(VisitData, CurData) : Visitor.VisitRaycast(VisitData, CurData);
 				}
 				
 				if (!bContinue)
 				{
 					return false;
-				}
-
-				if (Query != EAABBQueryType::Overlap)
-				{
-					InvCurrentLength = 1 / CurrentLength;
 				}
 			}
 		}
@@ -532,7 +562,7 @@ private:
 			const FNodeQueueEntry NodeEntry = NodeStack.Pop(false);
 			if (Query != EAABBQueryType::Overlap)
 			{
-				if (NodeEntry.TOI > CurrentLength)
+				if (NodeEntry.TOI > CurData.CurrentLength)
 				{
 					continue;
 				}
@@ -551,12 +581,12 @@ private:
 				}
 				else if (Query == EAABBQueryType::Sweep)
 				{
-					if (Leaf.SweepFast(Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, QueryHalfExtents, Visitor) == false)
+					if (Leaf.SweepFast(Start, CurData, QueryHalfExtents, Visitor) == false)
 					{
 						return false;
 					}
 				}
-				else if (Leaf.RaycastFast(Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, Visitor) == false)
+				else if (Leaf.RaycastFast(Start, CurData, Visitor) == false)
 				{
 					return false;
 				}
@@ -566,8 +596,7 @@ private:
 				int32 Idx = 0;
 				for (const TBox<T, 3>& AABB : Node.ChildrenBounds)
 				{
-					if(TAABBTreeIntersectionHelper<T, Query>::Intersects(Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength,
-						TOI, TmpPosition, AABB, QueryBounds, QueryHalfExtents))
+					if(TAABBTreeIntersectionHelper<T, TQueryFastData, Query>::Intersects(Start, CurData, TOI, TmpPosition, AABB, QueryBounds, QueryHalfExtents))
 					{
 						NodeStack.Add(FNodeQueueEntry{ Node.ChildrenNodes[Idx], TOI });
 					}
@@ -582,8 +611,10 @@ private:
 	template <typename TParticles>
 	void GenerateTree(const TParticles& Particles)
 	{
-		TArray<FElement> ElemsWithBounds;
+		SCOPE_CYCLE_COUNTER(STAT_AABBTreeGenerateTree);
+		this->SetAsyncTimeSlicingComplete(false);
 
+		TArray<FElement> ElemsWithBounds;
 		ElemsWithBounds.Reserve(Particles.Num());
 
 		GlobalPayloads.Reset();
@@ -591,49 +622,107 @@ private:
 		Nodes.Reset();
 		DirtyElements.Reset();
 		PayloadToInfo.Reset();
+		NumProcessedThisSlice = 0;
 
-		int32 Idx = 0;
 		FullBounds = TBox<T, 3>::EmptyBox();
-		for (auto& Particle : Particles)
-		{
-			bool bHasBoundingBox = HasBoundingBox(Particle);
-			auto Payload = Particle.template GetPayload<TPayloadType>(Idx);
-			TBox<T, 3> ElemBounds = ComputeWorldSpaceBoundingBox(Particle, false, (T)0);
 
-			if (bHasBoundingBox)
+		{
+			SCOPE_CYCLE_COUNTER(STAT_AABBTreeTimeSliceSetup);
+
+			int32 Idx = 0;
+
+			for (auto& Particle : Particles)
 			{
-				if (ElemBounds.Extents().Max() > MaxPayloadBounds)
+				bool bHasBoundingBox = HasBoundingBox(Particle);
+				auto Payload = Particle.template GetPayload<TPayloadType>(Idx);
+				TBox<T, 3> ElemBounds = ComputeWorldSpaceBoundingBox(Particle, false, (T)0);
+
+				if (bHasBoundingBox)
 				{
-					bHasBoundingBox = false;
+					if (ElemBounds.Extents().Max() > MaxPayloadBounds)
+					{
+						bHasBoundingBox = false;
+					}
+					else
+					{
+						ElemsWithBounds.Add(FElement{ Payload, ElemBounds });
+						FullBounds.GrowToInclude(ElemBounds);
+					}
 				}
 				else
 				{
-					ElemsWithBounds.Add(FElement{ Payload, ElemBounds });
-					FullBounds.GrowToInclude(ElemBounds);
+					ElemBounds = TBox<T, 3>(TVector<T, 3>(TNumericLimits<T>::Lowest()), TVector<T, 3>(TNumericLimits<T>::Max()));
 				}
-			}
-			else
-			{
-				ElemBounds = TBox<T,3>(TVector<T, 3>(TNumericLimits<T>::Lowest()), TVector<T, 3>(TNumericLimits<T>::Max()));
-			}
-			
-			if (!bHasBoundingBox)
-			{
-				PayloadToInfo.Add(Payload, FAABBTreePayloadInfo{ GlobalPayloads.Num(), INDEX_NONE, INDEX_NONE });
-				GlobalPayloads.Add(FElement{ Payload, ElemBounds });
+
+				if (!bHasBoundingBox)
+				{
+					PayloadToInfo.Add(Payload, FAABBTreePayloadInfo{ GlobalPayloads.Num(), INDEX_NONE, INDEX_NONE });
+					GlobalPayloads.Add(FElement{ Payload, ElemBounds });
+				}
+
+				++Idx;
+				//todo: payload info
 			}
 
-			++Idx;
-			//todo: payload info
 		}
 
-		SplitNode(FullBounds, ElemsWithBounds, 0);
+		{
+			SCOPE_CYCLE_COUNTER(STAT_AABBTreeInitialTimeSlice);
+
+			SplitNode(FullBounds, ElemsWithBounds, 0, 0, true);
+
+			if (TimeSliceWorkToComplete.IsEmpty())
+			{
+				this->SetAsyncTimeSlicingComplete(true);
+			}
+		}
+
 	}
 
-	int32 SplitNode(const TBox<T, 3>& Bounds, const TArray<FElement>& Elems, int32 NodeLevel)
+	void SplitNode(TBox<T, 3>& SplitBounds, TBox<T, 3>& RealBounds, TArray<FElement>& Children, T& SplitBoundsSize2, int NewNodeIdx, int NodeLevel, int BoxIdx)
 	{
-		const int32 NewNodeIdx = Nodes.Num();
-		Nodes.AddDefaulted();	//todo: remove TBox
+		//SCOPE_CYCLE_COUNTER(STAT_AABBTreeChildrenPhase);
+
+		check (Children.Num() > 0)
+		{
+			Nodes[NewNodeIdx].bLeaf = false;
+
+			// increment this early so the amount of recursion work left on the stack is smaller
+			NumProcessedThisSlice += Children.Num();
+
+			const int32 ChildIdx = Nodes.Num();
+			Nodes[NewNodeIdx].ChildrenBounds[BoxIdx] = RealBounds;
+			Nodes[NewNodeIdx].ChildrenNodes[BoxIdx] = ChildIdx;
+
+			SplitNode(RealBounds, Children, NodeLevel + 1, ChildIdx);
+		}
+
+	}
+
+	void SplitNode(const TBox<T, 3>& Bounds, const TArray<FElement>& Elems, int32 NodeLevel, int32 NewNodeIdx, bool Initial=false)
+	{
+		// create the actual node space but might no be filled in (YET) due to time slicing exit
+		if (NewNodeIdx >= Nodes.Num())
+		{
+		 	Nodes.AddDefaulted();	//todo: remove TBox
+		}
+
+		bool WeAreTimeslicing = (MaxNumToProcess > 0);
+
+		if (WeAreTimeslicing && (NumProcessedThisSlice >= MaxNumToProcess))
+		{
+			// done enough work, capture stack
+			FWorkSnapshot Store;
+			Store.TimeslicePhase = eTimeSlicePhase::PHASE1;
+			Store.Bounds = Bounds;
+			Store.Elems = Elems;			
+			Store.NodeLevel = NodeLevel;
+			Store.NewNodeIdx = NewNodeIdx;
+
+			TimeSliceWorkToComplete.Enqueue(Store);
+
+			return; // done enough
+		}
 
 		auto& PayloadToInfoRef = PayloadToInfo;
 		auto& LeavesRef = Leaves;
@@ -653,24 +742,17 @@ private:
 		if (Elems.Num() <= MaxChildrenInLeaf || NodeLevel >= MaxTreeDepth)
 		{
 			MakeLeaf();
-			return NewNodeIdx;
+			return; // keep working
 		}
 
 		const TVector<T, 3> Extents = Bounds.Extents();
 		const int32 MaxAxis = Bounds.LargestAxis();
-
-		struct FSplitInfo
-		{
-			TBox<T, 3> SplitBounds;	//Even split of parent bounds
-			TBox<T, 3> RealBounds;	//Actual bounds as children are added
-			TArray<FElement> Children;
-			T SplitBoundsSize2;
-		};
+		bool ChildrenInBothHalves = false;
 
 		FSplitInfo SplitInfos[2];
 		SplitInfos[0].SplitBounds = TBox<T, 3>(Bounds.Min(), Bounds.Min());
 		SplitInfos[1].SplitBounds = TBox<T, 3>(Bounds.Max(), Bounds.Max());
-		
+
 		const TVector<T, 3> Center = Bounds.Center();
 		for (FSplitInfo& SplitInfo : SplitInfos)
 		{
@@ -678,9 +760,9 @@ private:
 
 			for (int32 Axis = 0; Axis < 3; ++Axis)
 			{
-				TVector<T,3> NewPt0 = Center;
-				TVector<T,3> NewPt1 = Center;
-				if(Axis != MaxAxis)
+				TVector<T, 3> NewPt0 = Center;
+				TVector<T, 3> NewPt1 = Center;
+				if (Axis != MaxAxis)
 				{
 					NewPt0[Axis] = Bounds.Min()[Axis];
 					NewPt1[Axis] = Bounds.Max()[Axis];
@@ -692,47 +774,120 @@ private:
 			SplitInfo.SplitBoundsSize2 = SplitInfo.SplitBounds.Extents().SizeSquared();
 		}
 		
-		for (const FElement& Elem : Elems)
 		{
-			int32 MinBoxIdx = INDEX_NONE;
-			T MinDelta2 = TNumericLimits<T>::Max();
-			int32 BoxIdx = 0;
-			for (const FSplitInfo& SplitInfo : SplitInfos)
+			//SCOPE_CYCLE_COUNTER(STAT_AABBTreeGrowPhase);
+
+			// add all elements to one of the two split infos at this level - root level [ not taking into account the max number allowed or anything
+			for (const FElement& Elem : Elems)
 			{
-				TBox<T, 3> NewBox = SplitInfo.SplitBounds;
-				NewBox.GrowToInclude(Elem.Bounds);
-				const T Delta2 = NewBox.Extents().SizeSquared() - SplitInfo.SplitBoundsSize2;
-				if (Delta2 < MinDelta2)
+				int32 MinBoxIdx = INDEX_NONE;
+				T MinDelta2 = TNumericLimits<T>::Max();
+				int32 BoxIdx = 0;
+				for (const FSplitInfo& SplitInfo : SplitInfos)
 				{
-					MinDelta2 = Delta2;
-					MinBoxIdx = BoxIdx;
+					TBox<T, 3> NewBox = SplitInfo.SplitBounds;
+					NewBox.GrowToInclude(Elem.Bounds);
+					const T Delta2 = NewBox.Extents().SizeSquared() - SplitInfo.SplitBoundsSize2;
+					if (Delta2 < MinDelta2)
+					{
+						MinDelta2 = Delta2;
+						MinBoxIdx = BoxIdx;
+					}
+					++BoxIdx;
 				}
-				++BoxIdx;
-			}
-			
-			SplitInfos[MinBoxIdx].Children.Add(Elem);
-			SplitInfos[MinBoxIdx].RealBounds.GrowToInclude(Elem.Bounds);
-		}
 
-		if (SplitInfos[0].Children.Num() && SplitInfos[1].Children.Num())
-		{
-			Nodes[NewNodeIdx].bLeaf = false;
-			for (int32 BoxIdx = 0; BoxIdx < 2; ++BoxIdx)
+				if (CHAOS_ENSURE(MinBoxIdx != INDEX_NONE))
+				{
+					SplitInfos[MinBoxIdx].Children.Add(Elem);
+					SplitInfos[MinBoxIdx].RealBounds.GrowToInclude(Elem.Bounds);
+				}
+			}
+
+			NumProcessedThisSlice += Elems.Num();
+
+			ChildrenInBothHalves = SplitInfos[0].Children.Num() && SplitInfos[1].Children.Num();
+
+			if (ChildrenInBothHalves && WeAreTimeslicing && (NumProcessedThisSlice >= MaxNumToProcess))
 			{
-				const int32 ChildIdx = SplitNode(SplitInfos[BoxIdx].RealBounds, SplitInfos[BoxIdx].Children, NodeLevel + 1);
-				Nodes[NewNodeIdx].ChildrenBounds[BoxIdx] = SplitInfos[BoxIdx].RealBounds;
-				Nodes[NewNodeIdx].ChildrenNodes[BoxIdx] = ChildIdx;
-			}
-		}
-		else
-		{
-			//couldn't split so just make a leaf
-			MakeLeaf();
+				for (int32 BoxIdx = 0; BoxIdx < 2; ++BoxIdx)
+				{
+					// done enough work, capture stack
+					FWorkSnapshot Store;
+					Store.TimeslicePhase = eTimeSlicePhase::PHASE2;
+					Store.NodeLevel = NodeLevel;
+					Store.NewNodeIdx = NewNodeIdx;
+					Store.BoxIdx = BoxIdx;
+					Store.Bounds = MoveTemp(SplitInfos[BoxIdx].SplitBounds);
+					Store.Elems = MoveTemp(SplitInfos[BoxIdx].Children);
+					Store.RealBounds = MoveTemp(SplitInfos[BoxIdx].RealBounds);
+					Store.SplitBoundsSize2 = SplitInfos[BoxIdx].SplitBoundsSize2;
+					TimeSliceWorkToComplete.Enqueue(Store);
+				}
+				return; // done enough
+			}	
 		}
 
-		return NewNodeIdx;
+		{			
+			//SCOPE_CYCLE_COUNTER(STAT_AABBTreeChildrenPhase);
+
+			// if children in both halves, recurse a level down
+			if (ChildrenInBothHalves)
+			{
+				Nodes[NewNodeIdx].bLeaf = false;
+
+				// increment this early so the amount of recursion work left on the stack is smaller
+				NumProcessedThisSlice += SplitInfos[0].Children.Num() + SplitInfos[1].Children.Num();
+
+				for (int32 BoxIdx = 0; BoxIdx < 2; ++BoxIdx)
+				{
+					const int32 ChildIdx = Nodes.Num();
+					Nodes[NewNodeIdx].ChildrenBounds[BoxIdx] = SplitInfos[BoxIdx].RealBounds;
+					Nodes[NewNodeIdx].ChildrenNodes[BoxIdx] = ChildIdx;
+
+					SplitNode(SplitInfos[BoxIdx].RealBounds, SplitInfos[BoxIdx].Children, NodeLevel + 1, ChildIdx);
+				}
+			}
+			else
+			{
+				//couldn't split so just make a leaf - THIS COULD CONTAIN MORE THAN MaxChildrenInLeaf!!!
+				MakeLeaf();
+			}
+		}
+
+		return; // keep working
 	}
-	
+
+	TArray<TPayloadType> FindAllIntersectionsImp(const TBox<T, 3>& Intersection) const
+	{
+		struct FSimpleVisitor
+		{
+			FSimpleVisitor(TArray<TPayloadType>& InResults) : CollectedResults(InResults) {}
+			bool VisitOverlap(const TSpatialVisitorData<TPayloadType>& Instance)
+			{
+				CollectedResults.Add(Instance.Payload);
+				return true;
+			}
+			bool VisitSweep(const TSpatialVisitorData<TPayloadType>& Instance, FQueryFastData& CurData)
+			{
+				check(false);
+				return true;
+			}
+			bool VisitRaycast(const TSpatialVisitorData<TPayloadType>& Instance, FQueryFastData& CurData)
+			{
+				check(false);
+				return true;
+			}
+			TArray<TPayloadType>& CollectedResults;
+		};
+
+		TArray<TPayloadType> Results;
+		FSimpleVisitor Collector(Results);
+		Overlap(Intersection, Collector);
+
+		return Results;
+	}
+
+
 	TAABBTree(const TAABBTree<TPayloadType, TLeafType, T>& Other)
 		: ISpatialAcceleration<TPayloadType, T, 3>(StaticType)
 		, FullBounds(Other.FullBounds)
@@ -744,9 +899,19 @@ private:
 		, MaxChildrenInLeaf(Other.MaxChildrenInLeaf)
 		, MaxTreeDepth(Other.MaxTreeDepth)
 		, MaxPayloadBounds(Other.MaxPayloadBounds)
+		, MaxNumToProcess(Other.MaxNumToProcess)
+		, NumProcessedThisSlice(Other.NumProcessedThisSlice)
 	{
 
 	}
+
+	struct FSplitInfo
+	{
+		TBox<T, 3> SplitBounds;	//Even split of parent bounds
+		TBox<T, 3> RealBounds;	//Actual bounds as children are added
+		TArray<FElement> Children;
+		T SplitBoundsSize2;
+	};
 
 	TBox<T, 3> FullBounds;
 	TArray<FNode> Nodes;
@@ -757,13 +922,39 @@ private:
 	int32 MaxChildrenInLeaf;
 	int32 MaxTreeDepth;
 	T MaxPayloadBounds;
+	int32 MaxNumToProcess;
+	
+	enum eTimeSlicePhase
+	{
+		PHASE1,
+		PHASE2
+	};
+
+	struct FWorkSnapshot
+	{
+		eTimeSlicePhase TimeslicePhase;
+
+		// used for phase 1 & 2
+		TBox<T, 3> Bounds;
+		TArray<FElement> Elems;
+
+		int32 NodeLevel;
+		int32 NewNodeIdx;
+	
+		// phase 2 data only
+		TBox<T, 3> RealBounds;
+		int8 BoxIdx;
+		T SplitBoundsSize2;
+	};
+
+	int32 NumProcessedThisSlice;
+	TQueue<FWorkSnapshot> TimeSliceWorkToComplete;
 };
 
 template<typename TPayloadType, typename TLeafType, class T>
 FArchive& operator<<(FChaosArchive& Ar, TAABBTree<TPayloadType, TLeafType, T>& AABBTree)
 {
-	check(false);
-	//AABBTree.Serialize(Ar);
+	AABBTree.Serialize(Ar);
 	return Ar;
 }
 

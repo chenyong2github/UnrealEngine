@@ -144,6 +144,9 @@ private:
 	/** Helper function to get all matching files in FolderPath based on extensions set */
 	TSet<FString> GetSetOfFiles() const;
 
+	/** Update the name of the producer based on the directory name */
+	void UpdateName();
+
 private:
 	/** Indicates if ExtensionString contains "*.*" */
 	bool bHasWildCardSearch;

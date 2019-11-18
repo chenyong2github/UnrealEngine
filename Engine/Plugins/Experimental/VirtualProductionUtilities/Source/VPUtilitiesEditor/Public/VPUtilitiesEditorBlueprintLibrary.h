@@ -33,5 +33,5 @@ public:
 
 	/** Imports Image file into VirtualProduction/Snapshots/ folder */
 	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
-	static UTexture* ImportSnapshotTexture(FString FileName, FString SubFolderName);
+	static UTexture* ImportSnapshotTexture(FString FileName, FString SubFolderName, FString AbsolutePathPackage);
 };

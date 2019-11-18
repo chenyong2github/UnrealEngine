@@ -60,7 +60,6 @@ void FContentProducerEntry::ToggleProducer()
 		const FScopedTransaction Transaction( LOCTEXT("Producers_ToggleProducer", "Toggle Producer") );
 		AssetProducers->EnableProducer(ProducerIndex, !bIsEnabled);
 
-		// #ueent_todo: Cache previous value to report failed enabling/disabling
 		bIsEnabled = AssetProducers->IsProducerEnabled(ProducerIndex);
 	}
 }
@@ -262,19 +261,19 @@ void SDataprepProducersWidget::Construct(const FArguments & InArgs, UDataprepAss
 
 	TreeView = SNew( SDataprepProducersTreeView, InAssetProducersPtr, InArgs._ColumnSizeData.ToSharedRef() );
 
-	TSharedPtr<SWidget> AddNewMenu = SNew(SComboButton)
-	.ComboButtonStyle(FEditorStyle::Get(), "ToolbarComboButton")
-	.ForegroundColor(FLinearColor::White)
-	.ToolTipText(LOCTEXT("AddNewToolTip", "Add a new producer."))
-	.OnGetMenuContent( this, &SDataprepProducersWidget::CreateAddProducerMenuWidget)
-	.HasDownArrow(false)
+	AddNewMenu = SNew(SComboButton)
+	.ComboButtonStyle( FEditorStyle::Get(), "ToolbarComboButton" )
+	.ForegroundColor( FLinearColor::White )
+	.ToolTipText( LOCTEXT("AddNewToolTip", "Add a new producer.") )
+	.OnGetMenuContent( this, &SDataprepProducersWidget::CreateAddProducerMenuWidget )
+	.HasDownArrow( false )
 	.ButtonContent()
 	[
 		SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
-		.Padding(FMargin(0, 1))
-		.HAlign(HAlign_Center)
+		.Padding( FMargin(0, 1) )
+		.HAlign( HAlign_Center )
 		[
 			SNew(STextBlock)
 			.Font( FDataprepEditorUtils::GetGlyphFont() )
@@ -295,28 +294,8 @@ void SDataprepProducersWidget::Construct(const FArguments & InArgs, UDataprepAss
 			.ExternalScrollbar(ScrollBar)
 			+ SScrollBox::Slot()
 			[
-				SNew(SVerticalBox)
 				// Section for producers
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-					.HAlign(EHorizontalAlignment::HAlign_Left)
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.Font( IDetailLayoutBuilder::GetDetailFontBold() )
-						.Text(LOCTEXT("DataprepProducersWidget_Producers_label", "Inputs"))
-					]
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.HAlign(EHorizontalAlignment::HAlign_Right)
-					[
-						AddNewMenu.ToSharedRef()
-					]
-				]
+				SNew(SVerticalBox)
 				+ SVerticalBox::Slot()
 				.AutoHeight()
 				[

@@ -5,132 +5,132 @@
 #include "SSDSignalCore.ush"
 
 
-FSSDSignalArray MulSignal(FSSDSignalArray Samples, float Scalar[MAX_SIGNAL_BATCH_SIZE])
+FSSDSignalArray MulSignalArray(FSSDSignalArray Samples, float Scalar[SIGNAL_ARRAY_SIZE])
 {
 	FSSDSignalArray OutSamples;
-	UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
-	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
+	UNROLL_N(SIGNAL_ARRAY_SIZE)
+	for (uint BatchedSignalId = 0; BatchedSignalId < SIGNAL_ARRAY_SIZE; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = MulSignal(Samples.Array[BatchedSignalId], Scalar[BatchedSignalId]);
 	}
 	return OutSamples;
 }
 
-FSSDSignalArray AddSignal(FSSDSignalArray SamplesA, FSSDSignalArray SamplesB)
+FSSDSignalArray AddSignalArray(FSSDSignalArray SamplesA, FSSDSignalArray SamplesB)
 {
 	FSSDSignalArray OutSamples;
-	UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
-	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
+	UNROLL_N(SIGNAL_ARRAY_SIZE)
+	for (uint BatchedSignalId = 0; BatchedSignalId < SIGNAL_ARRAY_SIZE; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = AddSignal(SamplesA.Array[BatchedSignalId], SamplesB.Array[BatchedSignalId]);
 	}
 	return OutSamples;
 }
 
-FSSDSignalArray MinusSignal(FSSDSignalArray Samples)
+FSSDSignalArray MinusSignalArray(FSSDSignalArray Samples)
 {
 	FSSDSignalArray OutSamples;
-	UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
-	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
+	UNROLL_N(SIGNAL_ARRAY_SIZE)
+	for (uint BatchedSignalId = 0; BatchedSignalId < SIGNAL_ARRAY_SIZE; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = MinusSignal(Samples.Array[BatchedSignalId]);
 	}
 	return OutSamples;
 }
 
-FSSDSignalArray SubtractSignal(FSSDSignalArray SamplesA, FSSDSignalArray SamplesB)
+FSSDSignalArray SubtractSignalArray(FSSDSignalArray SamplesA, FSSDSignalArray SamplesB)
 {
 	FSSDSignalArray OutSamples;
-	UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
-	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
+	UNROLL_N(SIGNAL_ARRAY_SIZE)
+	for (uint BatchedSignalId = 0; BatchedSignalId < SIGNAL_ARRAY_SIZE; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = SubtractSignal(SamplesA.Array[BatchedSignalId], SamplesB.Array[BatchedSignalId]);
 	}
 	return OutSamples;
 }
 
-FSSDSignalArray AbsSignal(FSSDSignalArray Samples)
+FSSDSignalArray AbsSignalArray(FSSDSignalArray Samples)
 {
 	FSSDSignalArray OutSamples;
-	UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
-	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
+	UNROLL_N(SIGNAL_ARRAY_SIZE)
+	for (uint BatchedSignalId = 0; BatchedSignalId < SIGNAL_ARRAY_SIZE; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = AbsSignal(Samples.Array[BatchedSignalId]);
 	}
 	return OutSamples;
 }
 
-FSSDSignalArray SqrtSignal(FSSDSignalArray Samples)
+FSSDSignalArray SqrtSignalArray(FSSDSignalArray Samples)
 {
 	FSSDSignalArray OutSamples;
-	UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
-	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
+	UNROLL_N(SIGNAL_ARRAY_SIZE)
+	for (uint BatchedSignalId = 0; BatchedSignalId < SIGNAL_ARRAY_SIZE; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = SqrtSignal(Samples.Array[BatchedSignalId]);
 	}
 	return OutSamples;
 }
 
-FSSDSignalArray PowerSignal(FSSDSignalArray Samples, float Exponent)
+FSSDSignalArray PowerSignalArray(FSSDSignalArray Samples, float Exponent)
 {
 	FSSDSignalArray OutSamples;
-	UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
-	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
+	UNROLL_N(SIGNAL_ARRAY_SIZE)
+	for (uint BatchedSignalId = 0; BatchedSignalId < SIGNAL_ARRAY_SIZE; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = PowerSignal(Samples.Array[BatchedSignalId], Exponent);
 	}
 	return OutSamples;
 }
 
-FSSDSignalArray MinSignal(FSSDSignalArray SamplesA, FSSDSignalArray SamplesB)
+FSSDSignalArray MinSignalArray(FSSDSignalArray SamplesA, FSSDSignalArray SamplesB)
 {
 	FSSDSignalArray OutSamples;
-	UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
-	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
+	UNROLL_N(SIGNAL_ARRAY_SIZE)
+	for (uint BatchedSignalId = 0; BatchedSignalId < SIGNAL_ARRAY_SIZE; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = MinSignal(SamplesA.Array[BatchedSignalId], SamplesB.Array[BatchedSignalId]);
 	}
 	return OutSamples;
 }
 
-FSSDSignalArray MaxSignal(FSSDSignalArray SamplesA, FSSDSignalArray SamplesB)
+FSSDSignalArray MaxSignalArray(FSSDSignalArray SamplesA, FSSDSignalArray SamplesB)
 {
 	FSSDSignalArray OutSamples;
-	UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
-	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
+	UNROLL_N(SIGNAL_ARRAY_SIZE)
+	for (uint BatchedSignalId = 0; BatchedSignalId < SIGNAL_ARRAY_SIZE; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = MaxSignal(SamplesA.Array[BatchedSignalId], SamplesB.Array[BatchedSignalId]);
 	}
 	return OutSamples;
 }
 
-FSSDSignalArray ClampSignal(FSSDSignalArray Samples, FSSDSignalArray SamplesMin, FSSDSignalArray SamplesMax)
+FSSDSignalArray ClampSignalArray(FSSDSignalArray Samples, FSSDSignalArray SamplesMin, FSSDSignalArray SamplesMax)
 {
 	FSSDSignalArray OutSamples;
-	UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
-	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
+	UNROLL_N(SIGNAL_ARRAY_SIZE)
+	for (uint BatchedSignalId = 0; BatchedSignalId < SIGNAL_ARRAY_SIZE; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = ClampSignal(Samples.Array[BatchedSignalId], SamplesMin.Array[BatchedSignalId], SamplesMax.Array[BatchedSignalId]);
 	}
 	return OutSamples;
 }
 
-FSSDSignalArray LerpSignal(FSSDSignalArray Samples0, FSSDSignalArray Samples1, float Interp[MAX_SIGNAL_BATCH_SIZE])
+FSSDSignalArray LerpSignalArray(FSSDSignalArray Samples0, FSSDSignalArray Samples1, float Interp[SIGNAL_ARRAY_SIZE])
 {
 	FSSDSignalArray OutSamples;
-	UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
-	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
+	UNROLL_N(SIGNAL_ARRAY_SIZE)
+	for (uint BatchedSignalId = 0; BatchedSignalId < SIGNAL_ARRAY_SIZE; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = LerpSignal(Samples0.Array[BatchedSignalId], Samples1.Array[BatchedSignalId], Interp[BatchedSignalId]);
 	}
 	return OutSamples;
 }
 
-FSSDSignalArray NormalizeToOneSample(FSSDSignalArray Samples)
+FSSDSignalArray NormalizeToOneSampleArray(FSSDSignalArray Samples)
 {
 	FSSDSignalArray OutSamples;
-	UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
-	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
+	UNROLL_N(SIGNAL_ARRAY_SIZE)
+	for (uint BatchedSignalId = 0; BatchedSignalId < SIGNAL_ARRAY_SIZE; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = NormalizeToOneSample(Samples.Array[BatchedSignalId]);
 	}
@@ -140,8 +140,8 @@ FSSDSignalArray NormalizeToOneSample(FSSDSignalArray Samples)
 FSSDSignalArray WaveBroadcastSignalArray(const FWaveBroadcastSettings BroadcastSettings, FSSDSignalArray Samples)
 {
 	FSSDSignalArray OutSamples;
-	UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
-	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
+	UNROLL_N(SIGNAL_ARRAY_SIZE)
+	for (uint BatchedSignalId = 0; BatchedSignalId < SIGNAL_ARRAY_SIZE; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = WaveBroadcastSignal(BroadcastSettings, Samples.Array[BatchedSignalId]);
 	}

@@ -1271,35 +1271,16 @@ bool UResavePackagesCommandlet::CheckoutFile(const FString& Filename, bool bAddF
 		return true;
 	}
 
-	//FString FullPath = FPaths::ConvertRelativePathToFull(StreamingLevelPackageFilename);
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 	FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(*Filename, EStateCacheUsage::ForceUpdate);
 	if (SourceControlState.IsValid())
 	{
-		FString CurrentlyCheckedOutUser;
-		if (SourceControlState->IsCheckedOutOther(&CurrentlyCheckedOutUser))
+		// Already checked out/added this file
+		if (SourceControlState->IsCheckedOut() || SourceControlState->IsAdded())
 		{
-			if (!bIgnoreAlreadyCheckedOut)
-			{
-				UE_LOG(LogContentCommandlet, Error, TEXT("[REPORT] %s level is already checked out by someone else (%s), can not submit!"), *Filename, *CurrentlyCheckedOutUser);
-			}
-			else
-			{
-				UE_LOG(LogContentCommandlet, Warning, TEXT("[REPORT] %s level is already checked out by someone else (%s), can not submit!"), *Filename, *CurrentlyCheckedOutUser);
-			}
+			return true;
 		}
-		else if (!SourceControlState->IsCurrent())
-		{
-			if (!bIgnoreAlreadyCheckedOut)
-			{
-				UE_LOG(LogContentCommandlet, Error, TEXT("[REPORT] %s is not synced to head, can not submit"), *Filename);
-			}
-			else
-			{
-				UE_LOG(LogContentCommandlet, Warning, TEXT("[REPORT] %s is not synced to head, can not submit"), *Filename);
-			}
-		}
-		else if ( SourceControlState->IsSourceControlled() == false )
+		else if (!SourceControlState->IsSourceControlled())
 		{
 			if ( bAddFile )
 			{
@@ -1314,13 +1295,38 @@ bool UResavePackagesCommandlet::CheckoutFile(const FString& Filename, bool bAddF
 				}
 			}
 		}
+		else if (!SourceControlState->IsCurrent())
+		{
+			if (!bIgnoreAlreadyCheckedOut)
+			{
+				UE_LOG(LogContentCommandlet, Error, TEXT("[REPORT] %s is not synced to head, can not submit"), *Filename);
+			}
+			else
+			{
+				UE_LOG(LogContentCommandlet, Warning, TEXT("[REPORT] %s is not synced to head, can not submit"), *Filename);
+			}
+		}
+		else if (!SourceControlState->CanCheckout())
+		{
+			FString CurrentlyCheckedOutUser;
+			if (SourceControlState->IsCheckedOutOther(&CurrentlyCheckedOutUser))
+			{
+				if (!bIgnoreAlreadyCheckedOut)
+				{
+					UE_LOG(LogContentCommandlet, Error, TEXT("[REPORT] %s level is already checked out by someone else (%s), can not submit!"), *Filename, *CurrentlyCheckedOutUser);
+				}
+				else
+				{
+					UE_LOG(LogContentCommandlet, Warning, TEXT("[REPORT] %s level is already checked out by someone else (%s), can not submit!"), *Filename, *CurrentlyCheckedOutUser);
+				}
+			}
+			else
+			{
+				UE_LOG(LogContentCommandlet, Error, TEXT("[REPORT] Unable to checkout %s, can not submit"), *Filename);
+			}
+		}
 		else 
 		{
-			// already checked out this file
-			if (SourceControlState->IsCheckedOut() || SourceControlState->IsAdded() )
-			{
-				return true;
-			}
 			if (SourceControlProvider.Execute(ISourceControlOperation::Create<FCheckOut>(), *Filename) == ECommandResult::Succeeded)
 			{
 				UE_LOG(LogContentCommandlet, Display, TEXT("[REPORT] %s Checked out successfully"), *Filename);
@@ -1720,7 +1726,7 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 				if (InLevel && InLevel->MapBuildData && (bShouldBuildLighting || bShouldBuildHLOD || bShouldBuildReflectionCaptures) )
 				{
 					UPackage* MapBuildDataPackage = InLevel->MapBuildData->GetOutermost();
-					if (MapBuildDataPackage != InLevel->GetOutermost())
+					if (MapBuildDataPackage != InLevel->GetOutermost() && MapBuildDataPackage->IsDirty())
 					{
 						CheckoutAndSavePackage(MapBuildDataPackage, CheckedOutPackagesFilenames);
 					}

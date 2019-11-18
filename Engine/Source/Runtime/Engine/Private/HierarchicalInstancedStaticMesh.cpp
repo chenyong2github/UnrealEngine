@@ -31,6 +31,7 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "ComponentRecreateRenderStateContext.h"
+#include "Algo/AnyOf.h"
 
 static TAutoConsoleVariable<int32> CVarFoliageSplitFactor(
 	TEXT("foliage.SplitFactor"),
@@ -1946,15 +1947,15 @@ UHierarchicalInstancedStaticMeshComponent::UHierarchicalInstancedStaticMeshCompo
 	, UnbuiltInstanceBounds(ForceInit)
 	, bEnableDensityScaling(false)
 	, CurrentDensityScaling(1.0f)
+	, OcclusionLayerNumNodes(0)
+	, InstanceCountToRender(0)
+	, bIsAsyncBuilding(false)
+	, bIsOutOfDate(false)
+	, bConcurrentChanges(false)
+	, bAutoRebuildTreeOnInstanceChanges(true)
 #if WITH_EDITOR
 	, bCanEnableDensityScaling(true)
 #endif
-	, OcclusionLayerNumNodes(0)
-	, bIsAsyncBuilding(false)
-	, bDiscardAsyncBuildResults(false)
-	, bConcurrentChanges(false)
-	, bAutoRebuildTreeOnInstanceChanges(true)
-	, InstanceCountToRender(0)
 	, AccumulatedNavigationDirtyArea(ForceInit)
 {
 	bCanEverAffectNavigation = true;
@@ -2092,9 +2093,10 @@ void UHierarchicalInstancedStaticMeshComponent::PostLoad()
 
 void UHierarchicalInstancedStaticMeshComponent::RemoveInstancesInternal(const int32* InstanceIndices, int32 Num)
 {
-	if (IsAsyncBuilding() && Num > 0)
+	if ( Num > 0)
 	{
-		bConcurrentChanges = true;
+		bIsOutOfDate = true;
+		bConcurrentChanges |= IsAsyncBuilding();
 	}
 
 	for (int32 Index = 0; Index < Num; ++Index)
@@ -2227,13 +2229,11 @@ bool UHierarchicalInstancedStaticMeshComponent::UpdateInstanceTransform(int32 In
 		return false;
 	}
 
-	if (IsAsyncBuilding())
-	{
-		// invalidate the results of the current async build we need to modify the tree
-		bConcurrentChanges = true;
-	}
-
-	int32 RenderIndex = InstanceReorderTable.IsValidIndex(InstanceIndex) ? InstanceReorderTable[InstanceIndex] : InstanceIndex;
+	bIsOutOfDate = true;
+	// invalidate the results of the current async build we need to modify the tree
+	bConcurrentChanges |= IsAsyncBuilding();
+	
+	const int32 RenderIndex = GetRenderIndex(InstanceIndex);
 	const FMatrix OldTransform = PerInstanceSMData[InstanceIndex].Transform;
 	const FTransform NewLocalTransform = bWorldSpace ? NewInstanceTransform.GetRelativeTransform(GetComponentTransform()) : NewInstanceTransform;
 	const FVector NewLocalLocation = NewLocalTransform.GetTranslation();
@@ -2335,11 +2335,9 @@ int32 UHierarchicalInstancedStaticMeshComponent::AddInstance(const FTransform& I
 	{	
 		check(InstanceIndex == InstanceReorderTable.Num());
 
-		if (IsAsyncBuilding())
-		{
-			bConcurrentChanges = true;
-		}
-
+		bIsOutOfDate = true;
+		bConcurrentChanges |= IsAsyncBuilding();
+	
 		int32 InitialBufferOffset = InstanceCountToRender - InstanceReorderTable.Num(); // Until the build is done, we need to always add at the end of the buffer/reorder table
 		InstanceReorderTable.Add(InitialBufferOffset + InstanceIndex); // add to the end until the build is completed
 		++InstanceCountToRender;
@@ -2361,11 +2359,9 @@ int32 UHierarchicalInstancedStaticMeshComponent::AddInstance(const FTransform& I
 
 void UHierarchicalInstancedStaticMeshComponent::ClearInstances()
 {
-	if (IsAsyncBuilding())
-	{
-		bConcurrentChanges = true;
-	}
-
+	bIsOutOfDate = true;
+	bConcurrentChanges |= IsAsyncBuilding();
+	
 	ClusterTreePtr = MakeShareable(new TArray<FClusterNode>);
 	NumBuiltInstances = 0;
 	NumBuiltRenderInstances = 0;
@@ -2390,8 +2386,7 @@ void UHierarchicalInstancedStaticMeshComponent::ClearInstances()
 
 		for (int32 Index = 0; Index < NumInstances; ++Index)
 		{
-			int32 RenderIndex = InstanceReorderTable.IsValidIndex(Index) ? InstanceReorderTable[Index] : Index;
-
+			const int32 RenderIndex = GetRenderIndex(Index);
 			if (RenderIndex == INDEX_NONE) 
 			{
 				// could be skipped by density settings
@@ -2586,11 +2581,8 @@ void UHierarchicalInstancedStaticMeshComponent::BuildTree()
 		CacheMeshExtendedBounds = FBoxSphereBounds(ForceInitToZero);
 	}
 
-	if (bIsAsyncBuilding)
-	{
-		// We did a sync build while async building. The sync build is newer so we will use that.
-		bDiscardAsyncBuildResults = true;
-	}
+	// If an Async Build is running it will bail out because data is no longer bIsOutOfDate
+	bIsOutOfDate = false;
 }
 
 void UHierarchicalInstancedStaticMeshComponent::BuildTreeAnyThread(
@@ -2669,9 +2661,9 @@ void UHierarchicalInstancedStaticMeshComponent::ApplyBuildTreeAsync(ENamedThread
 	BuildTreeAsyncTasks.Empty();
 
 	// We did a sync build while async building. The sync build is newer so we will use that.
-	if (bDiscardAsyncBuildResults)
+	if (!bIsOutOfDate)
 	{
-		bDiscardAsyncBuildResults = false;
+		bConcurrentChanges = false;
 		return;
 	}
 
@@ -2686,6 +2678,9 @@ void UHierarchicalInstancedStaticMeshComponent::ApplyBuildTreeAsync(ENamedThread
 		BuildTreeAsync();
 		return;
 	}
+
+	// Completed the build
+	bIsOutOfDate = false;
 
 	check(Builder->Result->InstanceReorderTable.Num() == PerInstanceSMData.Num());
 
@@ -2755,6 +2750,7 @@ bool UHierarchicalInstancedStaticMeshComponent::BuildTreeIfOutdated(bool Async, 
 	}
 
 	if (ForceUpdate 
+		|| bIsOutOfDate
 		|| InstanceUpdateCmdBuffer.NumTotalCommands() != 0
 		|| InstanceReorderTable.Num() != PerInstanceSMData.Num()
 		|| NumBuiltInstances != PerInstanceSMData.Num() 
@@ -2763,6 +2759,8 @@ bool UHierarchicalInstancedStaticMeshComponent::BuildTreeIfOutdated(bool Async, 
 		|| GetLinkerUE4Version() < VER_UE4_REBUILD_HIERARCHICAL_INSTANCE_TREES
 		|| GetLinkerCustomVersion(FReleaseObjectVersion::GUID) < FReleaseObjectVersion::HISMCClusterTreeMigration)
 	{
+		// Make sure if any of those conditions is true, we mark ourselves out of date so the Async Build completes
+		bIsOutOfDate = true;
 		if (GetStaticMesh() != nullptr && !GetStaticMesh()->HasAnyFlags(RF_NeedLoad)) // we can build the tree if the static mesh is not even loaded, and we can't call PostLoad as the load is not even done
 		{
 			GetStaticMesh()->ConditionalPostLoad();
@@ -2773,7 +2771,6 @@ bool UHierarchicalInstancedStaticMeshComponent::BuildTreeIfOutdated(bool Async, 
 				{
 					// invalidate the results of the current async build we need to modify the tree
 					bConcurrentChanges = true;
-					bDiscardAsyncBuildResults = false;
 				}
 				else
 				{
@@ -2874,6 +2871,7 @@ void UHierarchicalInstancedStaticMeshComponent::BuildTreeAsync()
 
 		UnbuiltInstanceBoundsList.Empty();
 		BuiltInstanceBounds.Init();		
+		bIsOutOfDate = false;
 	}
 }
 
@@ -2895,7 +2893,7 @@ void UHierarchicalInstancedStaticMeshComponent::PropagateLightingScenarioChange(
 			{
 				for (int32 InstanceIndex = 0; InstanceIndex < PerInstanceSMData.Num(); ++InstanceIndex)
 				{
-					int32 RenderIndex = InstanceReorderTable.IsValidIndex(InstanceIndex) ? InstanceReorderTable[InstanceIndex] : InstanceIndex;
+					const int32 RenderIndex = GetRenderIndex(InstanceIndex);
 					if (RenderIndex != INDEX_NONE)
 					{
 						InstanceUpdateCmdBuffer.SetLightMapData(RenderIndex, MeshMapBuildData->PerInstanceLightmapData[InstanceIndex].LightmapUVBias);
@@ -3025,7 +3023,6 @@ void UHierarchicalInstancedStaticMeshComponent::OnPostLoadPerInstanceData()
 		if (bEnableDensityScaling && GetWorld() && GetWorld()->IsGameWorld())
 		{
 			CurrentDensityScaling = FMath::Clamp(CVarFoliageDensityScale.GetValueOnGameThread(), 0.0f, 1.0f);
-			//CurrentDensityScaling = 0.2f;
 			bForceTreeBuild = CurrentDensityScaling < 1.0f;
 		}
 
@@ -3036,27 +3033,46 @@ void UHierarchicalInstancedStaticMeshComponent::OnPostLoadPerInstanceData()
 		}
 		else
 		{
-			AActor* Owner = GetOwner();
-			ULevel* OwnerLevel = Owner->GetLevel();
-			UWorld* OwnerWorld = OwnerLevel ? OwnerLevel->OwningWorld : nullptr;
+			bool bAsyncTreeBuild = true;
 
-			//update the instance data if the lighting scenario isn't the owner level or if the reorder table do not match the per instance sm data
-			if ((OwnerWorld && OwnerWorld->GetActiveLightingScenario() != nullptr && OwnerWorld->GetActiveLightingScenario() != OwnerLevel)
-				|| (PerInstanceSMData.Num() > 0 && PerInstanceSMData.Num() != InstanceReorderTable.Num()))
+#if WITH_EDITOR
+			// If InstanceReorderTable contains invalid indices force a synchronous tree rebuild
+			bool bHasInvalidIndices = Algo::AnyOf(InstanceReorderTable, [this](int32 ReorderIndex) { return !PerInstanceSMData.IsValidIndex(ReorderIndex); });
+			if (bHasInvalidIndices)
+			{
+				bAsyncTreeBuild = false;
+				bForceTreeBuild = true;
+			}
+#endif
+
+			// Update the instance data if the reorder table do not match the per instance sm data
+			if (!bForceTreeBuild && PerInstanceSMData.Num() > 0 && PerInstanceSMData.Num() != InstanceReorderTable.Num())
 			{
 				bForceTreeBuild = true;
 			}
 
+			// Update the instance data if the lighting scenario isn't the owner level
 			if (!bForceTreeBuild)
 			{
-				// create PerInstanceRenderData either from current data or pre-built instance buffer
+				AActor* Owner = GetOwner();
+				ULevel* OwnerLevel = Owner->GetLevel();
+				UWorld* OwnerWorld = OwnerLevel ? OwnerLevel->OwningWorld : nullptr;
+				if (OwnerWorld && OwnerWorld->GetActiveLightingScenario() != nullptr && OwnerWorld->GetActiveLightingScenario() != OwnerLevel)
+				{
+					bForceTreeBuild = true;
+				}
+			}
+
+			if (!bForceTreeBuild)
+			{
+				// Create PerInstanceRenderData either from current data or pre-built instance buffer
 				InitPerInstanceRenderData(true, InstanceDataBuffers.Release());
 				NumBuiltRenderInstances = PerInstanceRenderData->InstanceBuffer_GameThread->GetNumInstances();
 				InstanceCountToRender = NumBuiltInstances;
 			}
 
 			// If any of the data is out of sync, build the tree now!
-			BuildTreeIfOutdated(true, bForceTreeBuild);
+			BuildTreeIfOutdated(bAsyncTreeBuild, bForceTreeBuild);
 		}
 	}
 

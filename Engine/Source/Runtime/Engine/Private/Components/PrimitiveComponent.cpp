@@ -785,6 +785,30 @@ void UPrimitiveComponent::EnsurePhysicsStateCreated()
 	}
 }
 
+
+
+void UPrimitiveComponent::MarkChildPrimitiveComponentRenderStateDirty()
+{
+	// Go through all potential children and update them 
+	TArray<USceneComponent*, TInlineAllocator<8>> ProcessStack;
+	ProcessStack.Append(GetAttachChildren());
+
+	// Walk down the tree updating
+	while (ProcessStack.Num() > 0)
+	{
+		if (USceneComponent* Current = ProcessStack.Pop(/*bAllowShrinking=*/ false))
+		{
+			if (UPrimitiveComponent* CurrentPrimitive = Cast<UPrimitiveComponent>(Current))
+			{
+				CurrentPrimitive->MarkRenderStateDirty();
+			}
+
+			ProcessStack.Append(Current->GetAttachChildren());
+		}
+	}
+}
+
+
 bool UPrimitiveComponent::IsWelded() const
 {
 	return BodyInstance.WeldParent != nullptr;
@@ -926,6 +950,12 @@ void UPrimitiveComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 			MarkRenderStateDirty();
 		}
 
+		// In the light attachment as group has changed, we need to notify attachment children that they are invalid (they may have a new root)
+		// Unless multiple roots are in the way, in either case, they need to work this out.
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UPrimitiveComponent, bLightAttachmentsAsGroup))
+		{
+			MarkChildPrimitiveComponentRenderStateDirty();
+		}
 	}
 
 	if (UProperty* MemberPropertyThatChanged = PropertyChangedEvent.MemberProperty)
@@ -1401,6 +1431,7 @@ void UPrimitiveComponent::SetLightAttachmentsAsGroup(bool bInLightAttachmentsAsG
 	{
 		bLightAttachmentsAsGroup = bInLightAttachmentsAsGroup;
 		MarkRenderStateDirty();
+		MarkChildPrimitiveComponentRenderStateDirty();
 	}
 }
 
@@ -3684,6 +3715,19 @@ void UPrimitiveComponent::SetCustomNavigableGeometry(const EHasCustomNavigableGe
 	bHasCustomNavigableGeometry = InType;
 }
  
+bool UPrimitiveComponent::WasRecentlyRendered(float Tolerance /*= 0.2*/) const
+{
+	if (const UWorld* const World = GetWorld())
+	{
+		// Adjust tolerance, so visibility is not affected by bad frame rate / hitches.
+		const float RenderTimeThreshold = FMath::Max(Tolerance, World->DeltaTimeSeconds + KINDA_SMALL_NUMBER);
+
+		// If the current cached value is less than the tolerance then we don't need to go look at the components
+		return World->TimeSince(GetLastRenderTime()) <= RenderTimeThreshold;
+	}
+	return false;
+}
+
 void UPrimitiveComponent::SetLastRenderTime(float InLastRenderTime)
 {
 	LastRenderTime = InLastRenderTime;

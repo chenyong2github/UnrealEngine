@@ -946,7 +946,7 @@ int32 UTexture2D::CalcTextureMemorySize( int32 MipCount ) const
 		FIntPoint MipExtents = CalcMipMapExtent(SizeX, SizeY, Format, FirstMip);
 
 		uint32 TextureAlign = 0;
-		uint64 TextureSize = RHICalcTexture2DPlatformSize(MipExtents.X, MipExtents.Y, Format, MipCount, 1, 0, FRHIResourceCreateInfo(PlatformData->ExtData), TextureAlign);
+		uint64 TextureSize = RHICalcTexture2DPlatformSize(MipExtents.X, MipExtents.Y, Format, MipCount, 1, 0, FRHIResourceCreateInfo(PlatformData->GetExtData()), TextureAlign);
 		Size = (int32)TextureSize;
 	}
 	return Size;
@@ -1499,7 +1499,7 @@ FTexture2DResource::FTexture2DResource( UTexture2D* InOwner, int32 InitialMipCou
 	check(InitialMipCount>0);
 
 	// Keep track of first miplevel to use.
-	CurrentFirstMip = InOwner->GetNumMips() - FMath::Max(InitialMipCount, Owner->PlatformData ? (int32)Owner->PlatformData->NumMipsInTail : 0);
+	CurrentFirstMip = InOwner->GetNumMips() - FMath::Max(InitialMipCount, Owner->PlatformData ? (int32)Owner->PlatformData->GetNumMipsInTail() : 0);
 	InOwner->SetCachedNumResidentLODs(static_cast<uint8>(InitialMipCount));
 
 	check(CurrentFirstMip>=0);
@@ -1601,7 +1601,7 @@ void FTexture2DResource::InitRHI()
 				TexCreateFlags |= TexCreate_Virtual;
 
 				FRHIResourceCreateInfo CreateInfo(ResourceMem);
-				CreateInfo.ExtData = Owner->PlatformData->ExtData;
+				CreateInfo.ExtData = Owner->PlatformData->GetExtData();
 				Texture2DRHI = RHICreateTexture2D( OwnerMips[0].SizeX, OwnerMips[0].SizeY, EffectiveFormat, OwnerMips.Num(), 1, TexCreateFlags, CreateInfo);
 				RHIVirtualTextureSetFirstMipInMemory(Texture2DRHI, CurrentFirstMip);
 				RHIVirtualTextureSetFirstMipVisible(Texture2DRHI, CurrentFirstMip);
@@ -1637,7 +1637,7 @@ void FTexture2DResource::InitRHI()
 
 			// create texture with ResourceMem data when available
 			FRHIResourceCreateInfo CreateInfo(ResourceMem);
-			CreateInfo.ExtData = Owner->PlatformData->ExtData;
+			CreateInfo.ExtData = Owner->PlatformData->GetExtData();
 			Texture2DRHI	= RHICreateTexture2D( SizeX, SizeY, EffectiveFormat, RequestedMips, 1, TexCreateFlags, CreateInfo);
 			TextureRHI		= Texture2DRHI;
 			TextureRHI->SetName(Owner->GetFName());
@@ -1688,7 +1688,7 @@ void FTexture2DResource::InitRHI()
 		if (GIsEditor || (!bSkipRHITextureCreation)) //-V560
 		{
 			FRHIResourceCreateInfo CreateInfo;
-			CreateInfo.ExtData = Owner->PlatformData->ExtData;
+			CreateInfo.ExtData = Owner->PlatformData->GetExtData();
 			Texture2DRHI	= RHICreateTexture2D( SizeX, SizeY, EffectiveFormat, RequestedMips, 1, TexCreateFlags, CreateInfo );
 			TextureRHI		= Texture2DRHI;
 			TextureRHI->SetName(Owner->GetFName());
@@ -1963,13 +1963,14 @@ void FVirtualTexture2DResource::InitializeEditorResources(IVirtualTexture* InVir
 		while (((MipWidth > 128u && MipHeight > 128u) || MipWidth > MaxTextureSize || MipHeight > MaxTextureSize) && MipLevel < MaxMipLevel)
 		{
 			++MipLevel;
-			MipWidth = FMath::Max(MipWidth / 2u, 1u);
-			MipHeight = FMath::Max(MipHeight / 2u, 1u);
+			MipWidth = FMath::DivideAndRoundUp(MipWidth, 2u);
+			MipHeight = FMath::DivideAndRoundUp(MipHeight, 2u);
 		}
 
 		const EPixelFormat PixelFormat = VTData->LayerTypes[0];
-		const uint32 MipWidthInTiles = FMath::Max(GetNumTilesX() >> MipLevel, 1u);
-		const uint32 MipHeightInTiles = FMath::Max(GetNumTilesY() >> MipLevel, 1u);
+		const uint32 MipScaleFactor = (1u << MipLevel);
+		const uint32 MipWidthInTiles = FMath::DivideAndRoundUp(GetNumTilesX(), MipScaleFactor);
+		const uint32 MipHeightInTiles = FMath::DivideAndRoundUp(GetNumTilesY(), MipScaleFactor);
 		const uint32 TileSizeInPixels = GetTileSize();
 		const uint32 LayerMask = 1u; // FVirtualTexture2DResource should only have a single layer
 
@@ -2030,6 +2031,9 @@ void FVirtualTexture2DResource::InitializeEditorResources(IVirtualTexture* InVir
 		{
 			// Logical dimensions of mip image may be smaller than tile size (in this case tile will contain mirrored/wrapped padding)
 			// In this case, copy the proper sub-image from the tiled texture we produced into a new texture of the correct size
+			check(MipWidth <= MipWidthInTiles * TileSizeInPixels);
+			check(MipHeight <= MipHeightInTiles * TileSizeInPixels);
+
 			FTexture2DRHIRef ResizedTexture2DRHI = RHICreateTexture2D(MipWidth, MipHeight, PixelFormat, 1, 1, TexCreateFlags, CreateInfo);
 			FRHICopyTextureInfo CopyInfo;
 			CopyInfo.Size = FIntVector(MipWidth, MipHeight, 1);
@@ -2255,7 +2259,7 @@ void FTexture2DResource::UpdateTexture(FTexture2DRHIRef& InTextureRHI, int32 InN
 
 		TextureRHI		= InTextureRHI;
 		Texture2DRHI	= InTextureRHI;
-		CurrentFirstMip = FMath::Min(InNewFirstMip, NumMips - (Owner->PlatformData ? (int32)Owner->PlatformData->NumMipsInTail : 0));
+		CurrentFirstMip = FMath::Min(InNewFirstMip, NumMips - (Owner->PlatformData ? (int32)Owner->PlatformData->GetNumMipsInTail() : 0));
 		Owner->SetCachedNumResidentLODs(static_cast<uint8>(NumMips - InNewFirstMip));
 		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, TextureRHI);
 	}

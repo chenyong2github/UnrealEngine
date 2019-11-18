@@ -14,6 +14,7 @@
 #include "PhysicsPublic.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Features/IModularFeatures.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "UObject/AnimPhysObjectVersion.h"
 #include "Rendering/SkeletalMeshModel.h"
@@ -62,6 +63,27 @@ UClothingAssetNv::UClothingAssetNv(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	ClothSimConfig = ObjectInitializer.CreateDefaultSubobject<UClothConfigNv>(this, UClothConfigNv::StaticClass()->GetFName());
+
+// TODO: Move this to Chaos cloth once we have a chaos specific UClothingAsset (In which case we don't need to get a factory from the feature system)
+#if WITH_CHAOS_CLOTHING
+	
+	TArray<IClothingSimulationFactoryClassProvider*> ClassProviders = IModularFeatures::Get().GetModularFeatureImplementations<IClothingSimulationFactoryClassProvider>(IClothingSimulationFactoryClassProvider::FeatureName);
+	TSubclassOf<class UClothingSimulationFactory> ClothingSimulationFactory = nullptr;
+	for (int32 Index = ClassProviders.Num() - 1; Index >= 0 && !ChaosClothSimConfig; --Index)  // Iterating backwards since the last providers in the list should override the first ones
+	{
+		IClothingSimulationFactoryClassProvider* const Provider = ClassProviders[Index];
+		check(Provider);
+		ClothingSimulationFactory = Provider->GetClothingSimulationFactoryClass();
+
+		UClass* SimFactoryClass = *ClothingSimulationFactory;
+		if (SimFactoryClass)
+		{
+			ChaosClothSimConfig = SimFactoryClass->GetDefaultObject<UClothingSimulationFactory>()->CreateDefaultClothConfig(ObjectInitializer, this);
+		}
+	}
+	
+#endif
+
 }
 
 void UClothingAssetNv::PostLoad()
@@ -94,7 +116,7 @@ void UClothingAssetNv::PostLoad()
 			check(Lod.PhysicalMeshData);
 			UClothPhysicalMeshDataBase& PhysMesh = *Lod.PhysicalMeshData;
 
-			// Didn't do anything previously - clear out incase there's something in there
+			// Didn't do anything previously - clear out in case there's something in there
 			// so we can use it correctly now.
 			Lod.ParameterMasks.Reset(3);
 

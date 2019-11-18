@@ -1930,16 +1930,8 @@ void UCharacterMovementComponent::MaybeUpdateBasedMovement(float DeltaSeconds)
 	UPrimitiveComponent* MovementBase = CharacterOwner->GetMovementBase();
 	if (MovementBaseUtility::UseRelativeLocation(MovementBase))
 	{
-		// Need to see if anything we're on is simulating physics or has a parent that is.
-		bool bBaseIsSimulatingPhysics = false;
-		USceneComponent* AttachParent = MovementBase;
-		while (!bBaseIsSimulatingPhysics && AttachParent)
-		{
-			bBaseIsSimulatingPhysics = AttachParent->IsSimulatingPhysics();
-			AttachParent = AttachParent->GetAttachParent();
-		}
-		
-		if (!bBaseIsSimulatingPhysics)
+		// Need to see if anything we're on is simulating physics or has a parent that is.		
+		if (!MovementBaseUtility::IsSimulatedBase(MovementBase))
 		{
 			bDeferUpdateBasedMovement = false;
 			UpdateBasedMovement(DeltaSeconds);
@@ -2670,10 +2662,10 @@ void UCharacterMovementComponent::Crouch(bool bClientSimulation)
 	CharacterOwner->OnStartCrouch( HalfHeightAdjust, ScaledHalfHeightAdjust );
 
 	// Don't smooth this change in mesh position
-	if (bClientSimulation && CharacterOwner->GetLocalRole() == ROLE_SimulatedProxy)
+	if ((bClientSimulation && CharacterOwner->GetLocalRole() == ROLE_SimulatedProxy) || (IsNetMode(NM_ListenServer) && CharacterOwner->GetRemoteRole() == ROLE_AutonomousProxy))
 	{
 		FNetworkPredictionData_Client_Character* ClientData = GetPredictionData_Client_Character();
-		if (ClientData && ClientData->MeshTranslationOffset.Z != 0.f)
+		if (ClientData)
 		{
 			ClientData->MeshTranslationOffset -= FVector(0.f, 0.f, MeshAdjust);
 			ClientData->OriginalMeshTranslationOffset = ClientData->MeshTranslationOffset;
@@ -2815,10 +2807,10 @@ void UCharacterMovementComponent::UnCrouch(bool bClientSimulation)
 	CharacterOwner->OnEndCrouch( HalfHeightAdjust, ScaledHalfHeightAdjust );
 
 	// Don't smooth this change in mesh position
-	if (bClientSimulation && CharacterOwner->GetLocalRole() == ROLE_SimulatedProxy)
+	if ((bClientSimulation && CharacterOwner->GetLocalRole() == ROLE_SimulatedProxy) || (IsNetMode(NM_ListenServer) && CharacterOwner->GetRemoteRole() == ROLE_AutonomousProxy))
 	{
 		FNetworkPredictionData_Client_Character* ClientData = GetPredictionData_Client_Character();
-		if (ClientData && ClientData->MeshTranslationOffset.Z != 0.f)
+		if (ClientData)
 		{
 			ClientData->MeshTranslationOffset += FVector(0.f, 0.f, MeshAdjust);
 			ClientData->OriginalMeshTranslationOffset = ClientData->MeshTranslationOffset;
@@ -2829,7 +2821,7 @@ void UCharacterMovementComponent::UnCrouch(bool bClientSimulation)
 void UCharacterMovementComponent::UpdateCharacterStateBeforeMovement(float DeltaSeconds)
 {
 	// Proxies get replicated crouch state.
-	if (CharacterOwner->Role != ROLE_SimulatedProxy)
+	if (CharacterOwner->GetLocalRole() != ROLE_SimulatedProxy)
 	{
 		// Check for a change in crouch state. Players toggle crouch by changing bWantsToCrouch.
 		const bool bIsCrouching = IsCrouching();
@@ -2847,7 +2839,7 @@ void UCharacterMovementComponent::UpdateCharacterStateBeforeMovement(float Delta
 void UCharacterMovementComponent::UpdateCharacterStateAfterMovement(float DeltaSeconds)
 {
 	// Proxies get replicated crouch state.
-	if (CharacterOwner->Role != ROLE_SimulatedProxy)
+	if (CharacterOwner->GetLocalRole() != ROLE_SimulatedProxy)
 	{
 		// Uncrouch if no longer allowed to be crouched
 		if (IsCrouching() && !CanCrouchInCurrentState())
@@ -3281,6 +3273,11 @@ void UCharacterMovementComponent::CalcVelocity(float DeltaTime, float Friction, 
 	}
 }
 
+bool UCharacterMovementComponent::ShouldComputeAccelerationToReachRequestedVelocity(const float RequestedSpeed) const
+{
+	// Compute acceleration if accelerating toward requested speed, 1% buffer.
+	return bRequestedMoveUseAcceleration && Velocity.SizeSquared() < FMath::Square(RequestedSpeed * 1.01f);
+}
 
 bool UCharacterMovementComponent::ApplyRequestedMove(float DeltaTime, float MaxAccel, float MaxSpeed, float Friction, float BrakingDeceleration, FVector& OutAcceleration, float& OutRequestedSpeed)
 {
@@ -3303,7 +3300,7 @@ bool UCharacterMovementComponent::ApplyRequestedMove(float DeltaTime, float MaxA
 		// Compute acceleration. Use MaxAccel to limit speed increase, 1% buffer.
 		FVector NewAcceleration = FVector::ZeroVector;
 		const float CurrentSpeedSq = Velocity.SizeSquared();
-		if (bRequestedMoveUseAcceleration && CurrentSpeedSq < FMath::Square(RequestedSpeed * 1.01f))
+		if (ShouldComputeAccelerationToReachRequestedVelocity(RequestedSpeed))
 		{
 			// Turn in the same manner as with input acceleration.
 			const float VelSize = FMath::Sqrt(CurrentSpeedSq);
@@ -5636,7 +5633,8 @@ void UCharacterMovementComponent::OnTeleported()
 
 float GetAxisDeltaRotation(float InAxisRotationRate, float DeltaTime)
 {
-	return (InAxisRotationRate >= 0.f) ? (InAxisRotationRate * DeltaTime) : 360.f;
+	// Values over 360 don't do anything, see FMath::FixedTurn. However we are trying to avoid giant floats from overflowing other calculations.
+	return (InAxisRotationRate >= 0.f) ? FMath::Min(InAxisRotationRate * DeltaTime, 360.f) : 360.f;
 }
 
 FRotator UCharacterMovementComponent::GetDeltaRotation(float DeltaTime) const
@@ -9024,6 +9022,8 @@ void UCharacterMovementComponent::MoveAutonomous
 	const FVector OldLocation = UpdatedComponent->GetComponentLocation();
 	const FQuat OldRotation = UpdatedComponent->GetComponentQuat();
 
+	const bool bWasPlayingRootMotion = CharacterOwner->IsPlayingRootMotion();
+
 	PerformMovement(DeltaTime);
 
 	// Check if data is valid as PerformMovement can mark character for pending kill
@@ -9035,7 +9035,10 @@ void UCharacterMovementComponent::MoveAutonomous
 	// If not playing root motion, tick animations after physics. We do this here to keep events, notifies, states and transitions in sync with client updates.
 	if( CharacterOwner && !CharacterOwner->bClientUpdating && !CharacterOwner->IsPlayingRootMotion() && CharacterOwner->GetMesh() )
 	{
-		TickCharacterPose(DeltaTime);
+		if (!bWasPlayingRootMotion) // If we were playing root motion before PerformMovement but aren't anymore, we're on the last frame of anim root motion and have already ticked character
+		{
+			TickCharacterPose(DeltaTime);
+		}
 		// TODO: SaveBaseLocation() in case tick moves us?
 
 		// Trigger Events right away, as we could be receiving multiple ServerMoves per frame.
@@ -10578,6 +10581,13 @@ void FSavedMove_Character::SetMoveFor(ACharacter* Character, float InDeltaTime, 
 		bForceNoCombine = true;
 	}
 
+	// Moves with anim root motion should not be combined
+	const FAnimMontageInstance* RootMotionMontageInstance = Character->GetRootMotionAnimMontageInstance();
+	if (RootMotionMontageInstance)
+	{
+		bForceNoCombine = true;
+	}
+
 	// Launch velocity gives instant and potentially huge change of velocity
 	// Avoid combining move to prevent from reverting locations until server catches up
 	const bool bHasLaunchVelocity = !Character->GetCharacterMovement()->PendingLaunchVelocity.IsZero();
@@ -10682,6 +10692,9 @@ void FSavedMove_Character::PostUpdate(ACharacter* Character, FSavedMove_Characte
 			RootMotionMontage = RootMotionMontageInstance->Montage;
 			RootMotionTrackPosition = RootMotionMontageInstance->GetPosition();
 			RootMotionMovement = Character->ClientRootMotionParams;
+
+			// Moves with anim root motion should not be combined
+			bForceNoCombine = true;
 		}
 
 		// Save off Root Motion Sources
@@ -11067,6 +11080,7 @@ void FSavedMove_Character::PrepMoveFor(ACharacter* Character)
 				RootMotionTrackPosition = RootMotionMontageInstance->GetPosition();
 				RootMotionMontageInstance->SimulateAdvance(DeltaTime, RootMotionTrackPosition, RootMotionMovement);
 				RootMotionMontageInstance->SetPosition(RootMotionTrackPosition);
+				RootMotionMovement.ScaleRootMotionTranslation(Character->GetAnimRootMotionTranslationScale());
 			}
 		}
 

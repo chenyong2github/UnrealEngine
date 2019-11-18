@@ -123,6 +123,9 @@ public:
 
 protected:
 
+	/** Determine if any selected key index is out of range (perhaps because something external has modified the spline) */
+	bool IsAnySelectedKeyIndexOutOfRange(const USplineComponent* Comp) const;
+
 	/** Transforms selected tangent by given translation */
 	bool TransformSelectedTangent(const FVector& DeltaTranslate);
 

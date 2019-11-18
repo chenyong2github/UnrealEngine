@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "NiagaraCommon.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogNiagaraEditor, All, All);
+NIAGARAEDITOR_API DECLARE_LOG_CATEGORY_EXTERN(LogNiagaraEditor, All, All);
 
 /** Information about a Niagara operation. */
 class FNiagaraOpInfo

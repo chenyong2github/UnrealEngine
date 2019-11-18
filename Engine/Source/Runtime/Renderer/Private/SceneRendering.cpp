@@ -57,8 +57,8 @@
 #include "IXRCamera.h"
 #include "IHeadMountedDisplay.h"
 #include "DiaphragmDOF.h" 
-#include "SingleLayerWaterRendering.h" 
-#include "HairStrands/HairStrandsUtils.h"
+#include "SingleLayerWaterRendering.h"
+#include "HairStrands/HairStrandsVisibility.h"
 
 /*-----------------------------------------------------------------------------
 	Globals
@@ -195,12 +195,6 @@ static TAutoConsoleVariable<int32> CVarViewRectUseScreenBottom(
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<float> CVarConstantWaterDepth(
-	TEXT("r.Water.ConstantWaterDepth"),
-	-1.0f,
-	TEXT("Setting this to a negative value means disabled and reading from scene depth texture. Specified in unreal units."),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
-
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 static TAutoConsoleVariable<float> CVarGeneralPurposeTweak(
 	TEXT("r.GeneralPurposeTweak"),
@@ -328,11 +322,6 @@ TAutoConsoleVariable<int32> CVarTransientResourceAliasing_Buffers(
 	1,
 	TEXT("Enables transient resource aliasing for specified buffers. Used only if GSupportsTransientResourceAliasing is true.\n"),
 	ECVF_ReadOnly);
-
-static TAutoConsoleVariable<int32> CVarHairVelocityMagnitudeScale(
-	TEXT("r.HairStrands.VelocityMagnitudeScale"), 
-	100,  // Tuned by eye, based on heavy motion (strong head shack)
-	TEXT("Velocity magnitude (in pixel) at which a hair will reach its pic velocity-rasterization-scale under motion to reduce aliasing. Default is 100."));
 
 #if !UE_BUILD_SHIPPING
 
@@ -1458,12 +1447,12 @@ void FViewInfo::SetupUniformBufferParameters(
 	{
 		// If rendering in stereo, the other stereo passes uses the left eye's translucency lighting volume.
 		const FViewInfo* PrimaryView = this;
-		if (IStereoRendering::IsASecondaryView(*this, GEngine->StereoRenderingDevice))
+		if (IStereoRendering::IsASecondaryView(*this))
 		{
 			if (Family->Views.IsValidIndex(0))
 			{
 				const FSceneView* LeftEyeView = Family->Views[0];
-				if (LeftEyeView->bIsViewInfo && LeftEyeView->StereoPass == eSSP_LEFT_EYE)
+				if (LeftEyeView->bIsViewInfo && IStereoRendering::IsAPrimaryView(*LeftEyeView))
 				{
 					PrimaryView = static_cast<const FViewInfo*>(LeftEyeView);
 				}
@@ -1508,8 +1497,6 @@ void FViewInfo::SetupUniformBufferParameters(
 
 		ViewUniformShaderParameters.GeneralPurposeTweak = Value;
 	}
-
-	ViewUniformShaderParameters.ConstantWaterDepth = CVarConstantWaterDepth.GetValueOnRenderThread();
 
 	ViewUniformShaderParameters.DemosaicVposOffset = 0.0f;
 	{
@@ -1567,12 +1554,16 @@ void FViewInfo::SetupUniformBufferParameters(
 			SkyLight->bCastShadows 
 			&& SkyLight->bWantsStaticShadowing;
 
-		ViewUniformShaderParameters.SkyLightParameters = bApplyPrecomputedBentNormalShadowing ? 1 : 0;
+		ViewUniformShaderParameters.SkyLightApplyPrecomputedBentNormalShadowingFlag = bApplyPrecomputedBentNormalShadowing ? 1.0f : 0.0f;
+		ViewUniformShaderParameters.SkyLightAffectReflectionFlag = SkyLight->bAffectReflection ? 1.0f : 0.0f;
+		ViewUniformShaderParameters.SkyLightAffectGlobalIlluminationFlag = SkyLight->bAffectGlobalIllumination ? 1.0f : 0.0f;
 	}
 	else
 	{
 		ViewUniformShaderParameters.SkyLightColor = FLinearColor::Black;
-		ViewUniformShaderParameters.SkyLightParameters = 0;
+		ViewUniformShaderParameters.SkyLightApplyPrecomputedBentNormalShadowingFlag = 0.0f;
+		ViewUniformShaderParameters.SkyLightAffectReflectionFlag = 0.0f;
+		ViewUniformShaderParameters.SkyLightAffectGlobalIlluminationFlag = 0.0f;
 	}
 
 	// Make sure there's no padding since we're going to cast to FVector4*
@@ -1585,7 +1576,7 @@ void FViewInfo::SetupUniformBufferParameters(
 		GMaxRHIFeatureLevel > ERHIFeatureLevel::ES3_1) ? 1.0f : 0.0f;
 
 	// Padding between the left and right eye may be introduced by an HMD, which instanced stereo needs to account for.
-	if ((StereoPass != eSSP_FULL) && (Family->Views.Num() > 1))
+	if ((IStereoRendering::IsStereoEyePass(StereoPass)) && (Family->Views.Num() > 1))
 	{
 		check(Family->Views.Num() >= 2);
 
@@ -1685,16 +1676,8 @@ void FViewInfo::SetupUniformBufferParameters(
 
 	// Deep opacity maps info
 	{
-		const FMinHairRadiusAtDepth1 MinRadiusAtDepth1 = ComputeMinStrandRadiusAtDepth1(
-			FIntPoint(UnconstrainedViewRect.Width(), UnconstrainedViewRect.Height()), FOV, GetHairVisibilitySampleCount(), 0.0f);
-
-		FVector2D PixelVelocity(1.f / (ViewRect.Width() * 2), 1.f / (ViewRect.Height() * 2));
-		const float VelocityMagnitudeScale = FMath::Clamp(CVarHairVelocityMagnitudeScale.GetValueOnAnyThread(), 0, 512) * FMath::Min(PixelVelocity.X, PixelVelocity.Y);
-
-		ViewUniformShaderParameters.HairRenderInfo.X = MinRadiusAtDepth1.Primary;
-		ViewUniformShaderParameters.HairRenderInfo.Y = MinRadiusAtDepth1.Velocity;
-		ViewUniformShaderParameters.HairRenderInfo.Z = IsPerspectiveProjection() ? 0.0f : 1.0f;
-		ViewUniformShaderParameters.HairRenderInfo.W = VelocityMagnitudeScale;
+		const bool bEnableMSAA = true;
+		SetUpViewHairRenderInfo(*this, bEnableMSAA, ViewUniformShaderParameters.HairRenderInfo);
 	}
 }
 
@@ -1848,7 +1831,7 @@ FSceneViewState* FViewInfo::GetEffectiveViewState() const
 	FSceneViewState* EffectiveViewState = ViewState;
 
 	// When rendering in stereo we want to use the same exposure for both eyes.
-	if (IStereoRendering::IsASecondaryView(*this, GEngine->StereoRenderingDevice))
+	if (IStereoRendering::IsASecondaryView(*this))
 	{
 		int32 ViewIndex = Family->Views.Find(this);
 		if (Family->Views.IsValidIndex(ViewIndex))
@@ -1858,7 +1841,7 @@ FSceneViewState* FViewInfo::GetEffectiveViewState() const
 			if (Family->Views.IsValidIndex(ViewIndex))
 			{
 				const FSceneView* PrimaryView = Family->Views[ViewIndex];
-				if (PrimaryView->StereoPass == eSSP_LEFT_EYE)
+				if (IStereoRendering::IsAPrimaryView(*PrimaryView))
 				{
 					EffectiveViewState = (FSceneViewState*)PrimaryView->State;
 				}
@@ -2579,7 +2562,7 @@ void FSceneRenderer::ComputeFamilySize()
 		MaxFamilyX = FMath::Max(MaxFamilyX, FinalViewMaxX);
 		MaxFamilyY = FMath::Max(MaxFamilyY, FinalViewMaxY);
 
-		if (!IStereoRendering::IsAnAdditionalView(View, GEngine->StereoRenderingDevice))
+		if (!IStereoRendering::IsAnAdditionalView(View))
 		{
 			InstancedStereoWidth = FPlatformMath::Max(InstancedStereoWidth, static_cast<uint32>(View.ViewRect.Max.X));
 		}
@@ -3091,7 +3074,7 @@ void FSceneRenderer::RenderCustomDepthPass(FRHICommandListImmediate& RHICmdList)
 				if (FSceneInterface::GetShadingPath(View.FeatureLevel) == EShadingPath::Mobile)
 				{
 					FMobileSceneTextureUniformParameters SceneTextureParameters;
-					SetupMobileSceneTextureUniformParameters(SceneContext, View.FeatureLevel, false, SceneTextureParameters);
+					SetupMobileSceneTextureUniformParameters(SceneContext, View.FeatureLevel, false, false, SceneTextureParameters);
 					Scene->UniformBuffers.MobileCustomDepthPassUniformBuffer.UpdateUniformBufferImmediate(SceneTextureParameters);
 					PassUniformBuffer = Scene->UniformBuffers.MobileCustomDepthPassUniformBuffer;
 				}
@@ -3149,7 +3132,7 @@ void FSceneRenderer::RenderCustomDepthPass(FRHICommandListImmediate& RHICmdList)
 					{
 						// When drawing the left eye in a stereo scene, set up the instanced custom depth uniform buffer with the right-eye data,
 						// with the TAA jitter removed.
-						const EStereoscopicPass StereoPassIndex = (View.StereoPass != eSSP_FULL) ? eSSP_RIGHT_EYE : eSSP_FULL;
+						const EStereoscopicPass StereoPassIndex = IStereoRendering::IsStereoEyeView(View) ? eSSP_RIGHT_EYE : eSSP_FULL;
 
 						const FViewInfo& InstancedView = static_cast<const FViewInfo&>(View.Family->GetStereoEyeView(StereoPassIndex));
 
@@ -3719,6 +3702,16 @@ void FRendererModule::PostRenderAllViewports()
 	// Increment FrameNumber before render the scene. Wrapping around is no problem.
 	// This is the only spot we change GFrameNumber, other places can only read.
 	++GFrameNumber;
+}
+
+void FRendererModule::PerFrameCleanupIfSkipRenderer()
+{
+	// Some systems (e.g. Slate) can still draw (via FRendererModule::DrawTileMesh for example) when scene renderer is not used
+	ENQUEUE_RENDER_COMMAND(CmdPerFrameCleanupIfSkipRenderer)(
+		[](FRHICommandListImmediate&)
+	{
+		GPrimitiveIdVertexBufferPool.DiscardAll();
+	});
 }
 
 void FRendererModule::UpdateMapNeedsLightingFullyRebuiltState(UWorld* World)

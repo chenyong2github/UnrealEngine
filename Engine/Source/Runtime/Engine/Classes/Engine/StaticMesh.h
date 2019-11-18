@@ -661,6 +661,7 @@ class UStaticMesh : public UStreamableRenderAsset, public IInterface_CollisionDa
 	/**
 	 * If true, StaticMesh has been built at runtime
 	 */
+	UPROPERTY()
 	uint8 bIsBuiltAtRuntime : 1;
 
 protected:
@@ -781,7 +782,7 @@ public:
 	/**
 	 * Registers the mesh attributes required by the mesh description for a static mesh.
 	 */
-	UE_DEPRECATED(4.25, "Please use FStaticMeshAttributes::Register to do this.")
+	UE_DEPRECATED(4.24, "Please use FStaticMeshAttributes::Register to do this.")
 	ENGINE_API static void RegisterMeshAttributes( FMeshDescription& MeshDescription );
 
 #if WITH_EDITORONLY_DATA
@@ -1216,7 +1217,7 @@ public:
 	ENGINE_API void RemoveVertexColors();
 
 	/** Make sure the Lightmap UV point on a valid UVChannel */
-	ENGINE_API void EnforceLightmapRestrictions();
+	ENGINE_API void EnforceLightmapRestrictions(bool bUseRenderData = true);
 
 	/** Calculates the extended bounds */
 	ENGINE_API void CalculateExtendedBounds();

@@ -58,8 +58,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MeshOperation, Meta = (ToolTip = "Array of LOD reduction settings") )
 	TArray<FDataprepSetLODsReductionSettings> ReductionSettings;
 
-	// #ueent_todo: Limit size of array to MAX_STATIC_MESH_LODS
-
 	//~ Begin UDataprepOperation Interface
 public:
 	virtual FText GetCategory_Implementation() const override
@@ -163,7 +161,7 @@ protected:
 	//~ End UDataprepOperation Interface
 };
 
-UCLASS(Experimental, Category = ActorOperation, Meta = (DisplayName="Set Mobility", ToolTip = "For each mesh actor to process, update its mobilty with the selected value") )
+UCLASS(Experimental, Category = ActorOperation, Meta = (DisplayName="Set Mobility", ToolTip = "For each actor to process, update its mobilty with the selected value") )
 class UDataprepSetMobilityOperation : public UDataprepOperation
 {
 	GENERATED_BODY()
@@ -175,14 +173,14 @@ class UDataprepSetMobilityOperation : public UDataprepOperation
 
 public:
 	// Type of mobility to set on mesh actors
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MeshOperation, meta = (ToolTip = "Type of mobility to set on mesh actors"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ActorOperation, meta = (ToolTip = "Type of mobility to set on actors"))
 	TEnumAsByte<EComponentMobility::Type> MobilityType;
 
 	//~ Begin UDataprepOperation Interface
 public:
 	virtual FText GetCategory_Implementation() const override
 	{
-		return FDataprepOperationCategories::MeshOperation;
+		return FDataprepOperationCategories::ActorOperation;
 	}
 
 protected:

@@ -1464,7 +1464,11 @@ void FAsyncPackage::Event_FinishLinker()
 {
 	FScopedAsyncPackageEvent Scope(this);
 	SCOPED_LOADTIMER(Package_FinishLinker);
-	EAsyncPackageState::Type Result = FinishLinker();
+	EAsyncPackageState::Type Result = EAsyncPackageState::Complete;
+	if (!bLoadHasFailed)
+	{
+		Result = FinishLinker();
+	}
 	if (Result == EAsyncPackageState::TimeOut && !bLoadHasFailed)
 	{
 		AsyncLoadingThread.QueueEvent_FinishLinker(FWeakAsyncPackagePtr(this), FAsyncLoadEvent::EventSystemPriority_MAX);
@@ -5773,6 +5777,11 @@ EAsyncPackageState::Type FAsyncPackage::CreateLinker()
 						//native blueprint 
 						check(!Linker->GetAsyncLoader());
 						AsyncLoadingThread.GetPrecacheHandler().SummaryComplete(WeakPtr);
+					}
+					else if (!Linker->Loader)
+					{
+						AsyncLoadingThread.GetPrecacheHandler().SummaryComplete(WeakPtr);
+						bLoadHasFailed = true;
 					}
 				}
 			}

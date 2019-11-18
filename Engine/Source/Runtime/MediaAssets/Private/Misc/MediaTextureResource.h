@@ -39,8 +39,10 @@ public:
 	 * @param InOWnerSize Reference to the size in bytes of the texture that owns this resource (will be updated by resource).
 	 * @param InClearColor The initial clear color.
 	 * @param InTextureGuid The initial external texture GUID.
+	 * @param bEnableGenMips If true mips generation will be enabled (possibly optimizing for NumMips == 1 case)
+	 * @param InNumMips The initial number of mips to be generated for the output texture
 	 */
-	FMediaTextureResource(UMediaTexture& InOwner, FIntPoint& InOwnerDim, SIZE_T& InOwnerSize, FLinearColor InClearColor, FGuid InTextureGuid);
+	FMediaTextureResource(UMediaTexture& InOwner, FIntPoint& InOwnerDim, SIZE_T& InOwnerSize, FLinearColor InClearColor, FGuid InTextureGuid, bool bEnableGenMips, uint8 InNumMips);
 
 	/** Virtual destructor. */
 	virtual ~FMediaTextureResource() { }
@@ -70,6 +72,9 @@ public:
 
 		/** Whether output should be in sRGB color space. */
 		bool SrgbOutput;
+
+		/** Number of mips wanted */
+		uint8 NumMips;
 
 		/** The time of the video frame to render (in player's clock). */
 		FTimespan Time;
@@ -117,9 +122,10 @@ protected:
 	 * @param Sample The texture sample to convert.
 	 * @param ClearColor The clear color to use for the output texture.
 	 * @param SrgbOutput Whether the output texture is in sRGB color space.
+	 * @param Number of mips
 	 * @see CopySample
 	 */
-	void ConvertSample(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample, const FLinearColor& ClearColor, bool SrgbOutput);
+	void ConvertSample(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample, const FLinearColor& ClearColor, bool SrgbOutput, uint8 InNumMips);
 
 	/**
 	 * Render the given texture sample by using it as or copying it to the render target.
@@ -127,9 +133,10 @@ protected:
 	 * @param Sample The texture sample to copy.
 	 * @param ClearColor The clear color to use for the output texture.
 	 * @param SrgbOutput Whether the output texture is in sRGB color space.
+	 * @param Number of mips
 	 * @see ConvertSample
 	 */
-	void CopySample(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample, const FLinearColor& ClearColor, bool SrgbOutput);
+	void CopySample(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample, const FLinearColor& ClearColor, bool SrgbOutput, uint8 InNumMips, const FGuid & TextureGUID);
 
 	/** Calculates the current resource size and notifies the owner texture. */
 	void UpdateResourceSize();
@@ -143,11 +150,8 @@ protected:
 
 	/**
 	 * Create/update output render target as needed
-	 *
-	 * @param InSample Sample to query render target dimension and format from
-	 * @param InParams Parameters containing SrgbOutput and ClearColor
 	 */
-	void CreateOutputRenderTarget(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& InSample, const FRenderParams& InParams);
+	void CreateOutputRenderTarget(const FIntPoint & InDim, EPixelFormat InPixelFormat, bool bInSRGB, const FLinearColor & InClearColor, uint8 InNumMips);
 
 	/**
 	 * Caches next available sample from queue in MediaTexture owner to keep single consumer access
@@ -155,6 +159,12 @@ protected:
 	 * @param InSampleQueue SampleQueue to query sample information from
 	 */
 	void CacheNextAvailableSampleTime(const TSharedPtr<FMediaTextureSampleSource, ESPMode::ThreadSafe>& InSampleQueue) const;
+
+	/** Setup sampler state from owner's settings as needed */
+	void SetupSampler();
+
+	/** Copy to local buffer from external texture */
+	void CopyFromExternalTexture(const TSharedPtr <IMediaTextureSample, ESPMode::ThreadSafe>& Sample, const FGuid & TextureGUID);
 
 private:
 
@@ -170,6 +180,8 @@ private:
 		TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> MediaSample;
 	};
 
+	/** Platform uses GL/ES ImageExternal */
+	bool bUsesImageExternal;
 
 	/** Whether the texture has been cleared. */
 	bool Cleared;
@@ -194,6 +206,15 @@ private:
 
 	/** Reference to the owner's texture size field. */
 	SIZE_T& OwnerSize;
+
+	/** Enable mips generation */
+	bool bEnableGenMips;
+
+	/** Current number of mips to be generated as output */
+	uint8 CurrentNumMips;
+
+	/** Current texture sampler filter value */
+	ESamplerFilter CurrentSamplerFilter;
 
 	/** The current media player facade to get video samples from. */
 	TWeakPtr<FMediaPlayerFacade, ESPMode::ThreadSafe> PlayerFacadePtr;

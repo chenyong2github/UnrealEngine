@@ -18,7 +18,7 @@
 #define VULKAN_MEMORY_HIGHER_PRIORITY 0.75f
 #define VULKAN_MEMORY_HIGHEST_PRIORITY 1.f
 
-
+class FVulkanCommandListContext;
 class FVulkanQueue;
 class FVulkanCmdBuffer;
 

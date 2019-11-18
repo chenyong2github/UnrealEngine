@@ -135,6 +135,7 @@ UNiagaraEmitter::UNiagaraEmitter(const FObjectInitializer& Initializer)
 , bUseMaxDetailLevel(false)
 , bRequiresPersistentIDs(false)
 , MaxDeltaTimePerTick(0.125)
+, DefaultShaderStageIndex(0)
 , MaxUpdateIterations(1)
 , bLimitDeltaTime(true)
 #if WITH_EDITORONLY_DATA
@@ -583,6 +584,11 @@ UNiagaraEmitter::FOnPropertiesChanged& UNiagaraEmitter::OnPropertiesChanged()
 {
 	return OnPropertiesChangedDelegate;
 }
+
+UNiagaraEmitter::FOnPropertiesChanged& UNiagaraEmitter::OnRenderersChanged()
+{
+	return OnRenderersChangedDelegate;
+}
 #endif
 
 
@@ -820,6 +826,8 @@ void UNiagaraEmitter::OnPostCompile()
 			Scripts[i]->InvalidateCompileResults(); 
 		}
 	}
+
+	RuntimeEstimation = MemoryRuntimeEstimation();
 
 	OnEmitterVMCompiled().Broadcast(this);
 
@@ -1080,6 +1088,7 @@ void UNiagaraEmitter::AddRenderer(UNiagaraRendererProperties* Renderer)
 #if WITH_EDITOR
 	Renderer->OnChanged().AddUObject(this, &UNiagaraEmitter::RendererChanged);
 	UpdateChangeId(TEXT("Renderer added"));
+	OnRenderersChangedDelegate.Broadcast();
 #endif
 }
 
@@ -1090,6 +1099,7 @@ void UNiagaraEmitter::RemoveRenderer(UNiagaraRendererProperties* Renderer)
 #if WITH_EDITOR
 	Renderer->OnChanged().RemoveAll(this);
 	UpdateChangeId(TEXT("Renderer removed"));
+	OnRenderersChangedDelegate.Broadcast();
 #endif
 }
 
@@ -1214,6 +1224,58 @@ TStatId UNiagaraEmitter::GetStatID(bool bGameThread, bool bConcurrent)const
 #endif
 	return TStatId();
 }
+
+int32 UNiagaraEmitter::AddRuntimeAllocation(uint64 ReporterHandle, int32 AllocationCount)
+{
+	FScopeLock lock(&EstimationCriticalSection);
+	int32* Estimate = RuntimeEstimation.RuntimeAllocations.Find(ReporterHandle);
+	if (!Estimate || *Estimate < AllocationCount)
+	{
+		RuntimeEstimation.RuntimeAllocations.Add(ReporterHandle, AllocationCount);
+		RuntimeEstimation.IsEstimationDirty = true;
+
+		// Remove a random entry when there are enough logged allocations already
+		if (RuntimeEstimation.RuntimeAllocations.Num() > 10)
+		{
+			TArray<uint64> Keys;
+			RuntimeEstimation.RuntimeAllocations.GetKeys(Keys);
+			RuntimeEstimation.RuntimeAllocations.Remove(Keys[FMath::RandHelper(Keys.Num())]);
+		}
+	}
+	return RuntimeEstimation.RuntimeAllocations.Num();
+}
+
+int32 UNiagaraEmitter::GetMaxParticleCountEstimate()
+{
+	if (AllocationMode == EParticleAllocationMode::ManualEstimate)
+	{
+		return PreAllocationCount;
+	}
+	
+	if (RuntimeEstimation.IsEstimationDirty)
+	{
+		FScopeLock lock(&EstimationCriticalSection);
+		int32 EstimationCount = RuntimeEstimation.RuntimeAllocations.Num();
+		if (EstimationCount > 0)
+		{
+			RuntimeEstimation.RuntimeAllocations.ValueSort(TGreater<int32>());
+			int32 i = 0;
+			for (TPair<uint64, int32> pair : RuntimeEstimation.RuntimeAllocations)
+			{
+				if (i >= (EstimationCount - 1) / 2)
+				{
+					// to prevent overallocation from outliers we take the median instead of the global max
+					RuntimeEstimation.AllocationEstimate = pair.Value;
+					break;
+				}
+				i++;
+			}
+			RuntimeEstimation.IsEstimationDirty = false;
+		}
+	}
+	return RuntimeEstimation.AllocationEstimate;
+}
+
 void UNiagaraEmitter::GenerateStatID()const
 {
 #if STATS

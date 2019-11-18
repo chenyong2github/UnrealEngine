@@ -282,6 +282,12 @@ namespace UnrealBuildTool
 		public bool bBuildAllModules = false;
 
 		/// <summary>
+		/// Additional plugins that are built for this target type but not enabled.
+		/// </summary>
+		[CommandLine("-BuildPlugin=", ListSeparator = '+')]
+		public List<string> BuildPlugins = new List<string>();
+
+		/// <summary>
 		/// A list of additional plugins which need to be included in this target. This allows referencing non-optional plugin modules
 		/// which cannot be disabled, and allows building against specific modules in program targets which do not fit the categories
 		/// in ModuleHostType.
@@ -833,9 +839,18 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Forces shadow variable warnings to be treated as errors on platforms that support it.
 		/// </summary>
-		[CommandLine("-ShadowVariableErrors")]
-		[XmlConfigFile(Category = "BuildConfiguration")]
-		public bool bShadowVariableErrors = false;
+		[CommandLine("-ShadowVariableErrors", Value = nameof(WarningLevel.Error))]
+		public WarningLevel ShadowVariableWarningLevel = WarningLevel.Warning;
+
+		/// <summary>
+		/// Forces shadow variable warnings to be treated as errors on platforms that support it.
+		/// </summary>
+		[Obsolete("bShadowVariableErrors is deprecated in UE 4.24. Set ShadowVariableWarningLevel = WarningLevel.Error instead.")]
+		public bool bShadowVariableErrors
+		{
+			get { return ShadowVariableWarningLevel == WarningLevel.Error; }
+			set { ShadowVariableWarningLevel = (value? WarningLevel.Error : WarningLevel.Warning); }
+		}
 
 		/// <summary>
 		/// Forces the use of undefined identifiers in conditional expressions to be treated as errors.
@@ -1673,16 +1688,17 @@ namespace UnrealBuildTool
 			if(DefaultBuildSettings < BuildSettingsVersion.V2)
 			{
 				Diagnostics.Add("[Upgrade]");
-				Diagnostics.Add("[Upgrade] Using backwards-compatible build settings. The latest version of UE4 sets the following values by default, which may require code changes:");
+				Diagnostics.Add("[Upgrade] Using backward-compatible build settings. The latest version of UE4 sets the following values by default, which may require code changes:");
 
 				List<Tuple<string, string>> ModifiedSettings = new List<Tuple<string, string>>();
 				if(DefaultBuildSettings < BuildSettingsVersion.V2)
 				{
-					ModifiedSettings.Add(Tuple.Create(String.Format("{0} = false", nameof(bLegacyPublicIncludePaths)), "Omits subfolders from public include paths to reduce compiler command line length."));
-					ModifiedSettings.Add(Tuple.Create(String.Format("{0} = PCHUsageMode.UseExplicitOrSharedPCHs", nameof(ModuleRules.PCHUsage)), "Set in build.cs files to enables IWYU-style PCH model. See https://docs.unrealengine.com/en-US/Programming/BuildTools/UnrealBuildTool/IWYU/index.html."));
+					ModifiedSettings.Add(Tuple.Create(String.Format("{0} = false", nameof(bLegacyPublicIncludePaths)), "Omits subfolders from public include paths to reduce compiler command line length. (Previously: true)."));
+					ModifiedSettings.Add(Tuple.Create(String.Format("{0} = WarningLevel.Error", nameof(ShadowVariableWarningLevel)), "Treats shadowed variable warnings as errors. (Previously: WarningLevel.Warning)."));
+					ModifiedSettings.Add(Tuple.Create(String.Format("{0} = PCHUsageMode.UseExplicitOrSharedPCHs", nameof(ModuleRules.PCHUsage)), "Set in build.cs files to enables IWYU-style PCH model. See https://docs.unrealengine.com/en-US/Programming/BuildTools/UnrealBuildTool/IWYU/index.html. (Previously: PCHUsageMode.UseSharedPCHs)."));
 				}
 
-				if(ModifiedSettings.Count > 0)
+				if (ModifiedSettings.Count > 0)
 				{
 					string FormatString = String.Format("[Upgrade]     {{0,-{0}}}   => {{1}}", ModifiedSettings.Max(x => x.Item1.Length));
 					foreach (Tuple<string, string> ModifiedSetting in ModifiedSettings)
@@ -1842,6 +1858,11 @@ namespace UnrealBuildTool
 		public IEnumerable<string> DisablePlugins
 		{
 			get { return Inner.DisablePlugins; }
+		}
+
+		public IEnumerable<string> BuildPlugins
+		{
+			get { return Inner.BuildPlugins; }
 		}
 
 		public string PakSigningKeysFile
@@ -2197,9 +2218,9 @@ namespace UnrealBuildTool
 			get { return Inner.MinGameModuleSourceFilesForUnityBuild; }
 		}
 
-		public bool bShadowVariableErrors
+		public WarningLevel ShadowVariableWarningLevel
 		{
-			get { return Inner.bShadowVariableErrors; }
+			get { return Inner.ShadowVariableWarningLevel; }
 		}
 
 		public bool bUndefinedIdentifierErrors

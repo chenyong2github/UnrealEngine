@@ -6,11 +6,13 @@
 #include "PhysicsEngine/BodySetup.h"
 namespace Chaos
 {
-	template<typename T, int d>
-	class TImplicitObject;
+	class FImplicitObject;
 
 	template <typename T>
 	class TTriangleMeshImplicitObject;
+
+	template <typename T, int d>
+	class TConvex;
 }
 
 struct FUntypedBulkData;
@@ -23,7 +25,7 @@ public:
 	// Only valid use is to explicitly read chaos bulk data
 	explicit FChaosDerivedDataReader(FUntypedBulkData* InBulkData);
 
-	TArray<TUniquePtr<Chaos::TImplicitObject<T, d>>> ConvexImplicitObjects;
+	TArray<TUniquePtr<Chaos::TConvex<T, d>>> ConvexImplicitObjects;
 	TArray<TUniquePtr<Chaos::TTriangleMeshImplicitObject<T>>> TrimeshImplicitObjects;
 	FBodySetupUVInfo UVInfo;
 

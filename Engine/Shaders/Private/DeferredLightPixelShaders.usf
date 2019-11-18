@@ -109,7 +109,7 @@ uint HairTransmittanceBufferMaxCount;
 StructuredBuffer<float4> HairTransmittanceBuffer;
 Texture3D<float4> HairLUTTexture;
 SamplerState HairLUTSampler;
-uint HairTransmittanceEnable;
+uint HairShadowMaskValid;
 uint HairComponents; // R, TT, TRT, LocalScattering, GlobalScattering, MultipleScattering
 
 
@@ -174,7 +174,7 @@ void ComputeHairLighting(
 		HairScreenSpaceData.GBuffer.GBufferAO = 1;
 		HairScreenSpaceData.GBuffer.CustomData = 0;
 		HairScreenSpaceData.GBuffer.IndirectIrradiance = 0;
-		HairScreenSpaceData.GBuffer.PrecomputedShadowFactors = 0;
+		HairScreenSpaceData.GBuffer.PrecomputedShadowFactors = 1;
 
 		const FDerivedParams DerivedParams = GetDerivedParams(InputParams, SceneDepth);
 		FDeferredLightData LightData = SetupLightDataForStandardDeferred();
@@ -204,7 +204,7 @@ void ComputeHairLighting(
 
 		const float Dither = InterleavedGradientNoise(InputParams.PixelPos, View.StateFrameIndexMod8);
 		const uint3 PixelCoord = uint3(floor(InputParams.PixelPos), 0);
-		const float4 LightAttenuation = ScreenShadowMaskSubPixelTexture.Load(PixelCoord);
+		const float4 LightAttenuation = HairShadowMaskValid ? ScreenShadowMaskSubPixelTexture.Load(PixelCoord) : 1;
 
 		FRectTexture RectTexture = InitRectTexture(DeferredLightUniforms.SourceTexture);
 		float SurfaceShadow = 1.0f;

@@ -8,7 +8,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
 #include "ClothingAsset.h"
-#include "ClothPhysicalMeshData.h"
+#include "ClothPhysicalMeshDataBase.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"

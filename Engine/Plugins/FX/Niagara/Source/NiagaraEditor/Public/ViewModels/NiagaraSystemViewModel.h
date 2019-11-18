@@ -8,7 +8,6 @@
 #include "UObject/GCObject.h"
 #include "NiagaraCurveOwner.h"
 #include "ViewModels/TNiagaraViewModelManager.h"
-#include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "ISequencer.h"
 
 #include "TickableEditorObject.h"
@@ -24,6 +23,7 @@ struct FNiagaraEmitterHandle;
 class FNiagaraEmitterHandleViewModel;
 class FNiagaraSystemScriptViewModel;
 class UNiagaraStackViewModel;
+class UNiagaraStackEntry;
 class UNiagaraSystemSelectionViewModel;
 class FNiagaraSystemInstance;
 class ISequencer;
@@ -279,8 +279,8 @@ public:
 	/** Set the system toolkit command list. */
 	void SetToolkitCommands(const TSharedRef<FUICommandList>& InToolkitCommands);
 
-	/** Gets the stack module data for the provided emitter, for use in module dependencies. */
-	const TArray<FNiagaraStackModuleData>& GetStackModuleDataForEmitter(TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel);
+	/** Gets the stack module data for the provided module, for use in determining dependencies. */
+	const TArray<FNiagaraStackModuleData>& GetStackModuleData(UNiagaraStackEntry* ModuleEntry);
 
 	/** Gets the ViewModel for the system overview graph. */
 	NIAGARAEDITOR_API TSharedPtr<FNiagaraOverviewGraphViewModel> GetOverviewGraphViewModel() const;
@@ -374,7 +374,7 @@ private:
 	void SequencerTimeChanged();
 
 	/** Called whenever the current selection in the system changes. */
-	void SystemSelectionChanged(UNiagaraSystemSelectionViewModel::ESelectionChangeSource SelectionChangeSource);
+	void SystemSelectionChanged();
 
 	/** Called whenever the track selection in sequencer changes. */
 	void SequencerTrackSelectionChanged(TArray<UMovieSceneTrack*> SelectedTracks);
@@ -414,6 +414,9 @@ private:
 
 	/** builds stack module data for use in module dependencies */
 	void BuildStackModuleData(UNiagaraScript* Script, FGuid InEmitterHandleId, TArray<FNiagaraStackModuleData>& OutStackModuleData);
+
+	/** Called whenever one of the owned stack viewmodels structure changes. */
+	void StackViewModelStructureChanged();
 
 private:
 	/** The System being viewed and edited by this view model. */
@@ -523,8 +526,8 @@ private:
 	/** A flag which indicates that a compile has been requested, but has not completed. */
 	bool bCompilePendingCompletion;
 
-	/** The cache of stack module data for each emitter */
-	TMap<FGuid, TArray<FNiagaraStackModuleData>> EmitterToCachedStackModuleData;
+	/** The cache of stack module data for each emitter and for the system */
+	TMap<FGuid, TArray<FNiagaraStackModuleData>> GuidToCachedStackModuleData;
 	
 	/** A handle to the on graph changed delegate for the system script. */
 	FDelegateHandle SystemScriptGraphChangedHandler;

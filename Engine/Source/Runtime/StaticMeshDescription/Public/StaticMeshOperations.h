@@ -35,11 +35,4 @@ public:
 
 	/** Determine the edge hardnesses from existing normals */
 	static void DetermineEdgeHardnessesFromVertexInstanceNormals(FMeshDescription& MeshDescription, float Tolerance = KINDA_SMALL_NUMBER);
-
-	/** Extrude the given polygon IDs by the given distance */
-	static void ExtrudePolygons(FMeshDescription& MeshDescription, const TArray<FPolygonID>& PolygonIDs, float ExtrudeDistance, bool bKeepNeighborsTogether, TArray<FPolygonID>& OutNewExtrudedFrontPolygons);
-
-private:
-
-
 };

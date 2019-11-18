@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Math/RandomStream.h"
+#include "Misc/ByteSwap.h"
+#include "Templates/AlignmentTemplates.h"
 
 //TODO: move to a per platform header and have VM scale vectorization according to vector width.
 #define VECTOR_WIDTH (128)
@@ -257,8 +259,10 @@ struct FDataSetThreadLocalTempData
 */
 struct FVectorVMContext : TThreadSingleton<FVectorVMContext>
 {
+private:
 	/** Pointer to the next element in the byte code. */
 	uint8 const* RESTRICT Code;
+public:
 	/** Pointer to the constant table. */
 	uint8 const* RESTRICT ConstantTable;
 	/** Num temp registers required by this script. */
@@ -268,8 +272,11 @@ struct FVectorVMContext : TThreadSingleton<FVectorVMContext>
 	FVMExternalFunction* RESTRICT ExternalFunctionTable;
 	/** Table of user pointers.*/
 	void** UserPtrTable;
+
 	/** Number of instances to process. */
 	int32 NumInstances;
+	/** Number of instances to process when doing batches of VECTOR_WIDTH_FLOATS. */
+	int32 NumInstancesVectorFloats;
 	/** Start instance of current chunk. */
 	int32 StartInstance;
 
@@ -293,6 +300,8 @@ struct FVectorVMContext : TThreadSingleton<FVectorVMContext>
 	/** Thread local per instance random counters for use in external functions needing deterministic randoms. */
 	TArray<int32> RandCounters;
 
+	bool bIsParallelExecution;
+
 	FVectorVMContext();
 
 	void PrepareForExec(
@@ -301,7 +310,8 @@ struct FVectorVMContext : TThreadSingleton<FVectorVMContext>
 		FVMExternalFunction* InExternalFunctionTable,
 		void** InUserPtrTable,
 		TArrayView<FDataSetMeta> InDataSetMetaTable,
-		int32 MaxNumInstances
+		int32 MaxNumInstances,
+		bool bInParallelExecution
 #if STATS
 		, const TArray<TStatId>* InStatScopes
 #endif
@@ -313,6 +323,7 @@ struct FVectorVMContext : TThreadSingleton<FVectorVMContext>
 	{
 		Code = InCode;
 		NumInstances = InNumInstances;
+		NumInstancesVectorFloats = (NumInstances + VECTOR_WIDTH_FLOATS - 1) / VECTOR_WIDTH_FLOATS;
 		StartInstance = InStartInstance;
 
 		RandCounters.Reset();
@@ -334,6 +345,39 @@ struct FVectorVMContext : TThreadSingleton<FVectorVMContext>
 		return  ((T*)Meta.OutputRegisters[RegisterIndex]) + Meta.InstanceOffset;
 	}
 
+	int32 GetNumInstances() const { return NumInstances; }
+	int32 GetStartInstance() const { return StartInstance; }
+
+	template<uint32 InstancesPerOp>
+	int32 GetNumLoops() const { return (InstancesPerOp == VECTOR_WIDTH_FLOATS) ? NumInstancesVectorFloats : ((InstancesPerOp == 1) ? NumInstances : Align(NumInstances, InstancesPerOp));	}
+
+	FORCEINLINE uint8 DecodeU8() { return *Code++; }
+#if PLATFORM_SUPPORTS_UNALIGNED_LOADS
+	FORCEINLINE uint16 DecodeU16() { uint16 v = *reinterpret_cast<const uint16*>(Code); Code += sizeof(uint16); return INTEL_ORDER16(v); }
+	FORCEINLINE uint32 DecodeU32() { uint32 v = *reinterpret_cast<const uint32*>(Code); Code += sizeof(uint32); return INTEL_ORDER32(v); }
+	FORCEINLINE uint64 DecodeU64() { uint64 v = *reinterpret_cast<const uint64*>(Code); Code += sizeof(uint64); return INTEL_ORDER64(v); }
+#else
+	FORCEINLINE uint16 DecodeU16() { uint16 v = Code[1]; v = v << 8 | Code[0]; Code += 2; return INTEL_ORDER16(v); }
+	FORCEINLINE uint32 DecodeU32() { uint32 v = Code[3]; v = v << 8 | Code[2]; v = v << 8 | Code[1]; v = v << 8 | Code[0]; Code += 4; return INTEL_ORDER32(v); }
+	FORCEINLINE uint64 DecodeU64() { uint64 v = Code[7]; v = v << 8 | Code[6]; v = v << 8 | Code[5]; v = v << 8 | Code[4]; v = v << 8 | Code[3]; v = v << 8 | Code[2]; v = v << 8 | Code[1]; v = v << 8 | Code[0]; Code += 8; return INTEL_ORDER64(v); }
+#endif
+	FORCEINLINE uintptr_t DecodePtr() { return (sizeof(uintptr_t) == 4) ? DecodeU32() : DecodeU64(); }
+
+	/** Decode the next operation contained in the bytecode. */
+	FORCEINLINE EVectorVMOp DecodeOp()
+	{
+		return static_cast<EVectorVMOp>(DecodeU8());
+	}
+
+	FORCEINLINE uint8 DecodeSrcOperandTypes()
+	{
+		return DecodeU8();
+	}
+
+	FORCEINLINE bool IsParallelExecution()
+	{
+		return bIsParallelExecution;
+	}
 };
 
 namespace VectorVM
@@ -352,7 +396,8 @@ namespace VectorVM
 	 * Execute VectorVM bytecode.
 	 */
 	VECTORVM_API void Exec(
-		uint8 const* Code,
+		uint8 const* ByteCode,
+		uint8 const* OptimizedByteCode,
 		int32 NumTempRegisters,
 		uint8 const* ConstantTable,
 		TArrayView<FDataSetMeta> DataSetMetaTable,
@@ -364,36 +409,12 @@ namespace VectorVM
 #endif
 	);
 
+	VECTORVM_API void OptimizeByteCode(const uint8* ByteCode, TArray<uint8>& OptimizedCode, TArrayView<uint8> ExternalFunctionRegisterCounts);
+
 	VECTORVM_API void Init();
 
-	FORCEINLINE uint8 DecodeU8(FVectorVMContext& Context)
-	{
-		return *Context.Code++;
-	}
-
-	FORCEINLINE uint16 DecodeU16(FVectorVMContext& Context)
-	{
-		return ((uint16)DecodeU8(Context) << 8) + DecodeU8(Context);
-	}
-
-	FORCEINLINE uint32 DecodeU32(FVectorVMContext& Context)
-	{
-		return ((uint32)DecodeU8(Context) << 24) + (uint32)(DecodeU8(Context) << 16) + (uint32)(DecodeU8(Context) << 8) + DecodeU8(Context);
-	}
-
-	/** Decode the next operation contained in the bytecode. */
-	FORCEINLINE EVectorVMOp DecodeOp(FVectorVMContext& Context)
-	{
-		return static_cast<EVectorVMOp>(DecodeU8(Context));
-	}
-
-	FORCEINLINE uint8 DecodeSrcOperandTypes(FVectorVMContext& Context)
-	{
-		return DecodeU8(Context);
-	}
-
-#define VVM_EXT_FUNC_INPUT_LOC_BIT (unsigned short)(1<<15)
-#define VVM_EXT_FUNC_INPUT_LOC_MASK (unsigned short)~VVM_EXT_FUNC_INPUT_LOC_BIT
+	#define VVM_EXT_FUNC_INPUT_LOC_BIT (unsigned short)(1<<15)
+	#define VVM_EXT_FUNC_INPUT_LOC_MASK (unsigned short)~VVM_EXT_FUNC_INPUT_LOC_BIT
 
 	template<typename T>
 	struct FUserPtrHandler
@@ -401,7 +422,7 @@ namespace VectorVM
 		int32 UserPtrIdx;
 		T* Ptr;
 		FUserPtrHandler(FVectorVMContext& Context)
-			: UserPtrIdx(*(int32*)(Context.ConstantTable + (DecodeU16(Context))))
+			: UserPtrIdx(*(int32*)(Context.ConstantTable + (Context.DecodeU16())))
 			, Ptr((T*)Context.UserPtrTable[UserPtrIdx])
 		{
 			check(UserPtrIdx != INDEX_NONE);
@@ -435,7 +456,7 @@ namespace VectorVM
 
 		void Init(FVectorVMContext& Context)
 		{
-			InputOffset = DecodeU16(Context);
+			InputOffset = Context.DecodeU16();
 			InputPtr = IsConstant() ? (T*)(Context.ConstantTable + GetOffset()) : (T*)Context.GetTempRegister(GetOffset());
 			AdvanceOffset = IsConstant() ? 0 : 1;
 		}
@@ -471,7 +492,7 @@ namespace VectorVM
 		T* RESTRICT Register;
 	public:
 		FORCEINLINE FExternalFuncRegisterHandler(FVectorVMContext& Context)
-			: RegisterIndex(DecodeU16(Context) & VVM_EXT_FUNC_INPUT_LOC_MASK)
+			: RegisterIndex(Context.DecodeU16() & VVM_EXT_FUNC_INPUT_LOC_MASK)
 			, AdvanceOffset(IsValid() ? 1 : 0)
 		{
 			if (IsValid())
@@ -510,7 +531,7 @@ namespace VectorVM
 		uint16 ConstantIndex;
 		T Constant;
 		FExternalFuncConstHandler(FVectorVMContext& Context)
-			: ConstantIndex(VectorVM::DecodeU16(Context) & VVM_EXT_FUNC_INPUT_LOC_MASK)
+			: ConstantIndex(Context.DecodeU16() & VVM_EXT_FUNC_INPUT_LOC_MASK)
 			, Constant(*((T*)(Context.ConstantTable + ConstantIndex)))
 		{}
 		FORCEINLINE const T& Get() { return Constant; }

@@ -181,6 +181,7 @@ public:
 	void FinishRendering();
 
 	OPENXRHMD_API int32 AddActionDevice(XrAction Action);
+	OPENXRHMD_API void ResetActionDevices();
 
 	FXRSwapChain* GetSwapchain() { return Swapchain.Get(); }
 	FXRSwapChain* GetDepthSwapchain() { return DepthSwapchain.Get(); }

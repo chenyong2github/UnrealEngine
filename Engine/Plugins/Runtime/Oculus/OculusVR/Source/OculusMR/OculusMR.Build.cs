@@ -25,6 +25,7 @@ namespace UnrealBuildTool.Rules
                     "Slate",
                     "SlateCore",
                     "RHI",
+                    "VulkanRHI",
                     "RenderCore",
                     "MediaAssets",
                     "HeadMountedDisplay",
@@ -48,6 +49,13 @@ namespace UnrealBuildTool.Rules
 				PublicDelayLoadDLLs.Add("OVRPlugin.dll");
 				RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Oculus/OVRPlugin/OVRPlugin/" + Target.Platform.ToString() + "/OVRPlugin.dll");
 			}
+
+			if (Target.Platform == UnrealTargetPlatform.Android)
+            {
+                PrivateIncludePaths.Add("../../../../../Source/Runtime/VulkanRHI/Private");
+                PrivateIncludePaths.Add("../../../../../Source/Runtime/VulkanRHI/Private/" + Target.Platform);
+                AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
+            }
 
             if (Target.bBuildEditor == true)
             {

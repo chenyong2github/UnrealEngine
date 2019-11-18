@@ -52,4 +52,8 @@ public:
 	/** Whether or not to loop the oscillation more than once */
 	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite)
 	uint8 bLooping : 1;
+
+	/** Whether or not to bypass the LFO from being included in mix. */
+	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite)
+	uint8 bBypass: 1;
 };

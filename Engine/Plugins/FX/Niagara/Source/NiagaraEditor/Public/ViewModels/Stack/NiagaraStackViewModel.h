@@ -58,15 +58,9 @@ public:
 
 	struct NIAGARAEDITOR_API FTopLevelViewModel
 	{
-		FTopLevelViewModel(TSharedPtr<FNiagaraSystemViewModel> InSystemViewModel)
-			: SystemViewModel(InSystemViewModel)
-		{
-		}
+		FTopLevelViewModel(TSharedPtr<FNiagaraSystemViewModel> InSystemViewModel);
 
-		FTopLevelViewModel(TSharedPtr<FNiagaraEmitterHandleViewModel> InEmitterHandleViewModel)
-			: EmitterHandleViewModel(InEmitterHandleViewModel)
-		{
-		}
+		FTopLevelViewModel(TSharedPtr<FNiagaraEmitterHandleViewModel> InEmitterHandleViewModel);
 
 		bool IsValid() const;
 
@@ -78,6 +72,7 @@ public:
 
 		const TSharedPtr<FNiagaraSystemViewModel> SystemViewModel;
 		const TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel;
+		const TWeakObjectPtr<UNiagaraStackEntry> RootEntry;
 	};
 
 public:
@@ -88,7 +83,9 @@ public:
 
 	virtual void BeginDestroy() override;
 
-	TArray<UNiagaraStackEntry*>& GetRootEntries();
+	UNiagaraStackEntry* GetRootEntry();
+
+	TArray<UNiagaraStackEntry*>& GetRootEntryAsArray();
 
 	FOnStructureChanged& OnStructureChanged();
 	FOnSearchCompleted& OnSearchCompleted();
@@ -120,7 +117,7 @@ public:
 	UNiagaraStackEntry* GetCurrentFocusedEntry();
 	void AddSearchScrollOffset(int NumberOfSteps);
 
-	void GetPathForEntry(UNiagaraStackEntry* Entry, TArray<UNiagaraStackEntry*>& EntryPath);
+	void GetPathForEntry(UNiagaraStackEntry* Entry, TArray<UNiagaraStackEntry*>& EntryPath) const;
 
 	/** Starts recursing through all entries to expand all groups and collapse all items. */
 	void CollapseToHeaders();
@@ -133,9 +130,11 @@ public:
 
 	TSharedPtr<FTopLevelViewModel> GetTopLevelViewModelForEntry(UNiagaraStackEntry& InEntry) const;
 
-private:
 	void Reset();
 
+	bool HasIssues() const;
+
+private:
 	/** Recursively Expands all groups and collapses all items in the stack. */
 	void CollapseToHeadersRecursive(TArray<UNiagaraStackEntry*> Entries);
 
@@ -155,6 +154,7 @@ private:
 	void EntryRequestFullRefresh();
 	void EntryRequestFullRefreshDeferred();
 	void RefreshTopLevelViewModels();
+	void RefreshHasIssues();
 	void OnSystemCompiled();
 	void OnEmitterCompiled();
 	void EmitterParentRemoved();
@@ -163,7 +163,7 @@ private:
 	void GenerateTraversalEntries(UNiagaraStackEntry* Root, TArray<UNiagaraStackEntry*> ParentChain, 
 		TArray<FSearchWorkItem>& TraversedArray);
 	bool ItemMatchesSearchCriteria(UNiagaraStackEntry::FStackSearchItem SearchItem);
-	void GeneratePathForEntry(UNiagaraStackEntry* Root, UNiagaraStackEntry* Entry, TArray<UNiagaraStackEntry*> CurrentPath, TArray<UNiagaraStackEntry*>& EntryPath);
+	void GeneratePathForEntry(UNiagaraStackEntry* Root, UNiagaraStackEntry* Entry, TArray<UNiagaraStackEntry*> CurrentPath, TArray<UNiagaraStackEntry*>& EntryPath) const;
 	void RestoreStackEntryExpansionPreSearch();
 
 private:
@@ -189,6 +189,7 @@ private:
 	static const double MaxSearchTime;
 	bool bRestartSearch;
 	bool bRefreshPending;
+	bool bHasIssues;
 
 	bool bUsesTopLevelViewModels;
 	TArray<TSharedRef<FTopLevelViewModel>> TopLevelViewModels;

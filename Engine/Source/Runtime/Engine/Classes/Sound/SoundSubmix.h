@@ -82,7 +82,7 @@ class ENGINE_API USoundSubmix : public UObject
 	GENERATED_UCLASS_BODY()
 
 	// Child submixes to this sound mix
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SoundSubmix)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = SoundSubmix)
 	TArray<USoundSubmix*> ChildSubmixes;
 
 	UPROPERTY()

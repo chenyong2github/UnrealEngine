@@ -243,7 +243,7 @@ void USkyAtmosphereComponent::PostEditChangeProperty(FPropertyChangedEvent& Prop
 	const FName CategoryName = FObjectEditorUtils::GetCategoryFName(PropertyChangedEvent.Property);
 	if (CategoryName == FName(TEXT("Planet")) ||
 		CategoryName == FName(TEXT("Atmosphere")) ||
-		CategoryName == FName(TEXT("Atmosphere - Raleigh")) ||
+		CategoryName == FName(TEXT("Atmosphere - Rayleigh")) ||
 		CategoryName == FName(TEXT("Atmosphere - Mie")) ||
 		CategoryName == FName(TEXT("Atmosphere - Absorption")) ||
 		CategoryName == FName(TEXT("Art direction")))

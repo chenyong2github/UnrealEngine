@@ -54,7 +54,7 @@ typedef struct ovrPoseStatef_ ovrPoseStatef;
 #endif
 
 #define OVR_AUDIO_MAJOR_VERSION 1
-#define OVR_AUDIO_MINOR_VERSION 34
+#define OVR_AUDIO_MINOR_VERSION 41
 #define OVR_AUDIO_PATCH_VERSION 0
 
 #ifdef _WIN32
@@ -87,6 +87,10 @@ typedef enum
   ovrAudioSourceFlag_DirectTimeOfArrival           = 0x0080, ///< Time of arrival delay for the direct signal
 
   ovrAudioSourceFlag_ReflectionsDisabled           = 0x0100, ///< Disable reflections and reverb for a single AudioSource
+
+#if defined(OVR_INTERNAL_CODE)
+	ovrAudioSourceFlag_Stereo					   = 0x0200, ///< Stereo AudioSource
+#endif
 
   ovrAudioSourceFlag_DisableResampling_RESERVED    = 0x8000, ///< Disable resampling IR to output rate, INTERNAL USE ONLY
 

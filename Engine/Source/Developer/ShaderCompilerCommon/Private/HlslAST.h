@@ -518,6 +518,8 @@ namespace CrossCompiler
 				uint32 Raw;
 			};
 
+			const TCHAR* PrimitiveType = nullptr;
+
 			FTypeQualifier();
 
 			void Write(FASTWriter& Writer) const;
@@ -589,6 +591,8 @@ namespace CrossCompiler
 
 			FFullySpecifiedType* Type;
 			TLinearArray<FNode*> Declarations;
+
+			bool bTypedef = false;
 		};
 
 		struct FParameterDeclarator : public FNode
@@ -623,7 +627,7 @@ namespace CrossCompiler
 
 			TLinearArray<FNode*> Parameters;
 
-			bool bIsDefinition;
+			bool bIsDefinition = false;
 
 			//Signature
 		};

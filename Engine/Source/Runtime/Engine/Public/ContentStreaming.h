@@ -107,6 +107,11 @@ public:
 	// Checks whether this points to a valid compressed chunk.
 	bool IsValid() const;
 
+#if WITH_EDITOR
+	// If the soundwave has been recompressed, the compressed audio retained by this handle will not be up to date, and this will return true. 
+	bool IsStale() const;
+#endif
+
 private:
 	// This constructor should only be called by an implementation of IAudioStreamingManager.
 	FAudioChunkHandle(const uint8* InData, uint32 NumBytes, const USoundWave* InSoundWave, const FName& SoundWaveName, uint32 InChunkIndex);
@@ -117,6 +122,10 @@ private:
 	const USoundWave* CorrespondingWave;
 	FName CorrespondingWaveName;
 	int32 ChunkIndex;
+
+#if WITH_EDITOR
+	uint32 ChunkGeneration;
+#endif
 
 	friend struct IAudioStreamingManager;
 	friend struct FCachedAudioStreamingManager;

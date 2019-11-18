@@ -10,10 +10,13 @@
 #include "UObject/ObjectMacros.h"
 #include "Misc/CoreMisc.h"
 #include "Misc/ScopeLock.h"
+#include "HAL/ThreadSafeBool.h"
 
 class FLinkerManager : private FSelfRegisteringExec
 {
 public:
+	FLinkerManager();
+	~FLinkerManager();
 
 	static FLinkerManager& Get();
 
@@ -152,4 +155,5 @@ private:
 #if THREADSAFE_UOBJECTS
 	FCriticalSection PendingCleanupListCritical;
 #endif
+	FThreadSafeBool bHasPendingCleanup;
 };

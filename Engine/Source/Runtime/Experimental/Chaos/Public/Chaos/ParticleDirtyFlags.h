@@ -30,7 +30,8 @@ namespace Chaos
 		ExternalForce =  1 << 18,
 		ExternalTorque = 1 << 19,
 		GravityEnabled = 1 << 20,
-		SpatialIdx     = 1 << 21
+		SpatialIdx     = 1 << 21,
+		HashResult     = 1 << 22
 	};
 
 	class FParticleDirtyFlags
@@ -47,6 +48,11 @@ namespace Chaos
 		bool IsDirty(const EParticleFlags CheckBits) const
 		{
 			return (Bits & (int32)CheckBits) != 0;
+		}
+
+		bool IsDirty(const int32 CheckBits) const
+		{
+			return (Bits & CheckBits) != 0;
 		}
 
 		void MarkDirty(const EParticleFlags DirtyBits)

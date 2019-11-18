@@ -9,6 +9,7 @@
 #include "DSP/EnvelopeFollower.h"
 #include "Containers/Ticker.h"
 #include "Windows/WindowsHWrapper.h"
+#include "SampleBuffer.h"
 
 typedef struct IDirectSound8 *LPDIRECTSOUND8;
 
@@ -146,6 +147,9 @@ private:
 
 	/** Number of channels. */
 	int32 NumInputChannels;
+
+	/** This is used to convert audio from int16 to float to push to any potential connected patch outputs on IVoiceCapture::MicrophoneOutput */
+	Audio::TSampleBuffer<float> ConversionBuffer;
 
 	/**
 	* This buffer is used so that we can detect when the player is speaking

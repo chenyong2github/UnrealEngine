@@ -396,16 +396,35 @@ public:
 	double			StatUpdateTime;
 	/** Interval between gathering stats */
 	float			StatPeriod;
-	float			BestLag,   AvgLag;		// Lag.
 
-	// Stat accumulators.
-	double			LagAcc, BestLagAcc;		// Previous msec lag.
-	int32			LagCount;				// Counter for lag measurement.
-	double			LastTime, FrameTime;	// Monitors frame time.
-	/** @todo document */
-	double			CumulativeTime, AverageFrameTime; 
-	/** @todo document */
+	/** Average lag seen during the last StatPeriod */
+	float AvgLag;
+
+private:
+	// BestLag variable is deprecated. Use AvgLag instead
+	float			BestLag;
+	// BestLagAcc variable is deprecated. Use LagAcc instead
+	double			BestLagAcc;
+
+public:
+
+	/** Total accumulated lag values during the current StatPeriod */
+	double			LagAcc;
+	/** Nb of stats accumulated in LagAcc */
+	int32			LagCount;
+	
+	/** Monitors frame time */
+	double			LastTime, FrameTime;
+
+	/** Total frames times accumulator */
+	double			CumulativeTime;
+	
+	/** The average frame delta time over the last 1 second period.*/
+	double			AverageFrameTime;
+
+	/** Nb of stats accumulated in CumulativeTime */
 	int32			CountedFrames;
+
 	/** bytes sent/received on this connection (accumulated during a StatPeriod) */
 	int32 InBytes, OutBytes;
 	/** total bytes sent/received on this connection */
@@ -424,6 +443,22 @@ public:
 	int32 InTotalPacketsLost, OutTotalPacketsLost;
 	/** total acks sent on this connection */
 	int32 OutTotalAcks;
+
+	/** Percentage of packets lost during the last StatPeriod */
+	using FNetConnectionPacketLoss = TPacketLossData<3>;
+	const FNetConnectionPacketLoss& GetInLossPercentage() const  { return InPacketsLossPercentage; }
+	const FNetConnectionPacketLoss& GetOutLossPercentage() const { return OutPacketsLossPercentage;  }
+
+
+private:
+
+	FNetConnectionPacketLoss InPacketsLossPercentage;
+	FNetConnectionPacketLoss OutPacketsLossPercentage;
+
+	/** Counts the number of stat samples taken */
+	int32 StatPeriodCount;
+
+public:
 
 	/** Net Analytics */
 

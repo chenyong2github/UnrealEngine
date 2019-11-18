@@ -1,470 +1,235 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
-#include "Chaos/Vector.h"
 #include "Box.h"
+#include "Chaos/ExternalCollisionData.h"
 #include "Chaos/ParticleHandleFwd.h"
+#include "Chaos/PBDConstraintContainer.h"
+#include "Chaos/Vector.h"
 
 class UPhysicalMaterial;
 
 namespace Chaos
 {
-/**/
-// @todo(ccaulfield): should these be held SOA style in the PBDCollisionConstraint?
-template<class T, int d>
-struct TRigidBodyContactConstraint
-{
-	TRigidBodyContactConstraint() : AccumulatedImpulse(0.f), bDisabled(false), Lifespan(0) {}
-	TGeometryParticleHandle<T, d>* Particle;
-	TGeometryParticleHandle<T, d>* Levelset;
-	TVector<T, d> Normal;
-	TVector<T, d> Location;
-	T Phi;
-	TVector<T, d> AccumulatedImpulse;
 
-	bool bDisabled;
-	int32 Lifespan;
+	template<typename T, int d>
+	class TPBDCollisionConstraint;
 
-	FString ToString() const
+	template<typename  T, int d>
+	class TPBDCollisionConstraintHandle;
+
+	template<typename T, int d>
+	class TRigidBodySingleContactConstraint;
+
+	/** Specifies the type of work we should do*/
+	enum class CHAOS_API ECollisionUpdateType
 	{
-		return FString::Printf(TEXT("Particle:%s, Levelset:%s, Normal:%s, Location:%s, Phi:%f, AccumulatedImpulse:%s"), *Particle->ToString(), *Levelset->ToString(), *Normal.ToString(), *Location.ToString(), Phi, *AccumulatedImpulse.ToString());
-	}
-};
+		Any,	//stop if we have at least one deep penetration. Does not compute location or normal
+		Deepest	//find the deepest penetration. Compute location and normal
+	};
 
-template<class T, int d>
-struct TRigidBodyContactConstraintPGS
-{
-	TRigidBodyContactConstraintPGS() : AccumulatedImpulse(0.f) {}
-	TGeometryParticleHandle<T, d>* Particle;
-	TGeometryParticleHandle<T, d>* Levelset;
-	TArray<TVector<T, d>> Normal;
-	TArray<TVector<T, d>> Location;
-	TArray<T> Phi;
-	TVector<T, d> AccumulatedImpulse;
-};
-
-/**
- * Collision event data stored for use by other systems (e.g. Niagara, gameplay events)
- */
-template<class T, int d>
-struct TCollisionData
-{
-	TCollisionData()
-		: Location(TVector<T, d>((T)0.0))
-		, AccumulatedImpulse(TVector<T, d>((T)0.0))
-		, Normal(TVector<T, d>((T)0.0))
-		, Velocity1(TVector<T, d>((T)0.0))
-		, Velocity2(TVector<T, d>((T)0.0))
-		, AngularVelocity1(TVector<T, d>((T)0.0))
-		, AngularVelocity2(TVector<T, d>((T)0.0))
-		, Mass1((T)0.0)
-		, Mass2((T)0.0)
-		, PenetrationDepth((T)0.0)
-		, Particle(nullptr)
-		, Levelset(nullptr)
-		, ParticleIndexMesh(INDEX_NONE)
-		, LevelsetIndexMesh(INDEX_NONE)
-	{}
-
-	TCollisionData(TVector<T, d> InLocation
-		, TVector<T, d> InAccumulatedImpulse
-		, TVector<T, d> InNormal
-		, TVector<T, d> InVelocity1
-		, TVector<T, d> InVelocity2
-		, TVector<T, d> InAngularVelocity1
-		, TVector<T, d> InAngularVelocity2
-		, T InMass1
-		, T InMass2
-		, T InPenetrationDepth
-		, TGeometryParticle<T, d>* InParticle
-		, TGeometryParticle<T, d>* InLevelset
-		, int32 InParticleIndexMesh
-		, int32 InLevelsetIndexMesh)
-		: Location(InLocation)
-		, AccumulatedImpulse(InAccumulatedImpulse)
-		, Normal(InNormal)
-		, Velocity1(InVelocity1)
-		, Velocity2(InVelocity2)
-		, AngularVelocity1(InAngularVelocity1)
-		, AngularVelocity2(InAngularVelocity2)
-		, Mass1(InMass1)
-		, Mass2(InMass2)
-		, PenetrationDepth(InPenetrationDepth)
-		, Particle(InParticle)
-		, Levelset(InLevelset)
-		, ParticleIndexMesh(InParticleIndexMesh)
-		, LevelsetIndexMesh(InLevelsetIndexMesh)
-	{}
-
-	TVector<T, d> Location;
-	TVector<T, d> AccumulatedImpulse;
-	TVector<T, d> Normal;
-	TVector<T, d> Velocity1, Velocity2;
-	TVector<T, d> AngularVelocity1, AngularVelocity2;
-	T Mass1, Mass2;
-	T PenetrationDepth;
-	TGeometryParticle<T, d>* Particle;
-	TGeometryParticle<T, d>* Levelset;
-	// @todo(ccaulfield): CHAOS_PARTICLEHANDLE_TODO
-	int32 ParticleIndexMesh, LevelsetIndexMesh; // If ParticleIndex points to a cluster then this index will point to an actual mesh in the cluster
-												// It is important to be able to get extra data from the component
-
-};
-
-
-/*
-CollisionData used in the subsystems
-*/
-template<class T, int d>
-struct TCollisionDataExt
-{
-	TCollisionDataExt()
-		: Location(TVector<T, d>((T)0.0))
-		, AccumulatedImpulse(TVector<T, d>((T)0.0))
-		, Normal(TVector<T, d>((T)0.0))
-		, Velocity1(TVector<T, d>((T)0.0))
-		, Velocity2(TVector<T, d>((T)0.0))
-		, AngularVelocity1(TVector<T, d>((T)0.0))
-		, AngularVelocity2(TVector<T, d>((T)0.0))
-		, Mass1((T)0.0)
-		, Mass2((T)0.0)
-		, Particle(nullptr)
-		, Levelset(nullptr)
-		, ParticleIndexMesh(INDEX_NONE)
-		, LevelsetIndexMesh(INDEX_NONE)
-		, BoundingboxVolume((T)-1.0)
-		, BoundingboxExtentMin((T)-1.0)
-		, BoundingboxExtentMax((T)-1.0)
-		, SurfaceType(-1)
-	{}
-
-	TCollisionDataExt(TVector<T, d> InLocation
-		, TVector<T, d> InAccumulatedImpulse
-		, TVector<T, d> InNormal
-		, TVector<T, d> InVelocity1
-		, TVector<T, d> InVelocity2
-		, TVector<T, d> InAngularVelocity1
-		, TVector<T, d> InAngularVelocity2
-		, T InMass1
-		, T InMass2
-		, TGeometryParticle<T, d>* InParticle
-		, TGeometryParticle<T, d>* InLevelset
-		, int32 InParticleIndexMesh
-		, int32 InLevelsetIndexMesh
-		, float InBoundingboxVolume
-		, float InBoundingboxExtentMin
-		, float InBoundingboxExtentMax
-		, int32 InSurfaceType)
-		: Location(InLocation)
-		, AccumulatedImpulse(InAccumulatedImpulse)
-		, Normal(InNormal)
-		, Velocity1(InVelocity1)
-		, Velocity2(InVelocity2)
-		, AngularVelocity1(InAngularVelocity1)
-		, AngularVelocity2(InAngularVelocity2)
-		, Mass1(InMass1)
-		, Mass2(InMass2)
-		, Particle(InParticle)
-		, Levelset(InLevelset)
-		, ParticleIndexMesh(InParticleIndexMesh)
-		, LevelsetIndexMesh(InLevelsetIndexMesh)
-		, BoundingboxVolume(InBoundingboxVolume)
-		, BoundingboxExtentMin(InBoundingboxExtentMin)
-		, BoundingboxExtentMax(InBoundingboxExtentMax)
-		, SurfaceType(InSurfaceType)
-	{}
-
-	TCollisionDataExt(const TCollisionData<T, d>& InCollisionData)
-		: Location(InCollisionData.Location)
-		, AccumulatedImpulse(InCollisionData.AccumulatedImpulse)
-		, Normal(InCollisionData.Normal)
-		, Velocity1(InCollisionData.Velocity1)
-		, Velocity2(InCollisionData.Velocity2)
-		, AngularVelocity1(InCollisionData.AngularVelocity1)
-		, AngularVelocity2(InCollisionData.AngularVelocity2)
-		, Mass1(InCollisionData.Mass1)
-		, Mass2(InCollisionData.Mass2)
-		, Particle(InCollisionData.Particle)
-		, Levelset(InCollisionData.Levelset)
-		, ParticleIndexMesh(InCollisionData.ParticleIndexMesh)
-		, LevelsetIndexMesh(InCollisionData.LevelsetIndexMesh)
-		, BoundingboxVolume((T)-1.0)
-		, BoundingboxExtentMin((T)-1.0)
-		, BoundingboxExtentMax((T)-1.0)
-		, SurfaceType(-1)
-	{}
-
-	TVector<T, d> Location;
-	TVector<T, d> AccumulatedImpulse;
-	TVector<T, d> Normal;
-	TVector<T, d> Velocity1, Velocity2;
-	TVector<T, d> AngularVelocity1, AngularVelocity2;
-	T Mass1, Mass2;
-	TGeometryParticle<T, d>* Particle;
-	TGeometryParticle<T, d>* Levelset;
-	int32 ParticleIndexMesh, LevelsetIndexMesh;
-	float BoundingboxVolume;
-	float BoundingboxExtentMin, BoundingboxExtentMax;
-	int32 SurfaceType;
-};
-
-/*
-BreakingData passed from the physics solver to subsystems
-*/
-template<class T, int d>
-struct TBreakingData
-{
-	TBreakingData()
-		: Location(TVector<T, d>((T)0.0))
-		, Velocity(TVector<T, d>((T)0.0))
-		, AngularVelocity(TVector<T, d>((T)0.0))
-		, Mass((T)0.0)
-		, Particle(nullptr)
-		, ParticleIndex(INDEX_NONE)
-		, ParticleIndexMesh(INDEX_NONE)
-		, BoundingBox(TBox<T, d>(TVector<T, d>((T)0.0), TVector<T, d>((T)0.0)))
-	{}
-
-	TVector<T, d> Location;
-	TVector<T, d> Velocity;
-	TVector<T, d> AngularVelocity;
-	T Mass;
-	TGeometryParticle<T, d>* Particle;
-	int32 ParticleIndex; //#todo: remove this in favor of TGeometryParticle?
-	int32 ParticleIndexMesh; // If ParticleIndex points to a cluster then this index will point to an actual mesh in the cluster
-							 // It is important to be able to get extra data from the component
-	Chaos::TBox<T, d> BoundingBox;
-};
-
-
-
-/*
-BreakingData used in the subsystems
-*/
-template<class T, int d>
-struct TBreakingDataExt
-{
-	TBreakingDataExt()
-		: Location(TVector<T, d>((T)0.0))
-		, Velocity(TVector<T, d>((T)0.0))
-		, AngularVelocity(TVector<T, d>((T)0.0))
-		, Mass((T)0.0)
-		, ParticleIndex(INDEX_NONE)
-		, ParticleIndexMesh(INDEX_NONE)
-		, BoundingboxVolume((T)-1.0)
-		, BoundingboxExtentMin((T)-1.0)
-		, BoundingboxExtentMax((T)-1.0)
-		, SurfaceType(-1)
-	{}
-
-	TBreakingDataExt(TVector<T, d> InLocation
-		, TVector<T, d> InVelocity
-		, TVector<T, d> InAngularVelocity
-		, T InMass
-		, int32 InParticleIndex
-		, int32 InParticleIndexMesh
-		, float InBoundingboxVolume
-		, float InBoundingboxExtentMin
-		, float InBoundingboxExtentMax
-		, int32 InSurfaceType)
-		: Location(InLocation)
-		, Velocity(InVelocity)
-		, AngularVelocity(InAngularVelocity)
-		, Mass(InMass)
-		, ParticleIndex(InParticleIndex)
-		, ParticleIndexMesh(InParticleIndexMesh)
-		, BoundingboxVolume(InBoundingboxVolume)
-		, BoundingboxExtentMin(InBoundingboxExtentMin)
-		, BoundingboxExtentMax(InBoundingboxExtentMax)
-		, SurfaceType(InSurfaceType)
-	{}
-
-	TBreakingDataExt(const TBreakingData<float, 3>& InBreakingData)
-		: Location(InBreakingData.Location)
-		, Velocity(InBreakingData.Velocity)
-		, AngularVelocity(InBreakingData.AngularVelocity)
-		, Mass(InBreakingData.Mass)
-		, ParticleIndex(InBreakingData.ParticleIndex)
-		, ParticleIndexMesh(InBreakingData.ParticleIndexMesh)
-		, BoundingboxVolume((T)-1.0)
-		, BoundingboxExtentMin((T)-1.0)
-		, BoundingboxExtentMax((T)-1.0)
-		, SurfaceType(-1)
-	{}
-
-	TVector<T, d> Location;
-	TVector<T, d> Velocity;
-	TVector<T, d> AngularVelocity;
-	T Mass;
-	int32 ParticleIndex;
-	int32 ParticleIndexMesh; // If ParticleIndex points to a cluster then this index will point to an actual mesh in the cluster
-							 // It is important to be able to get extra data from the component
-	float BoundingboxVolume;
-	float BoundingboxExtentMin, BoundingboxExtentMax;
-	int32 SurfaceType;
-
-	FVector TransformTranslation;
-	FQuat TransformRotation;
-	FVector TransformScale;
-
-	FBox BoundingBox;
-
-	// Please don't be tempted to add the code below back. Holding onto a UObject pointer without the GC knowing about it is 
-	// not a safe thing to do.
-	//UPhysicalMaterial* PhysicalMaterialTest;
-	FName PhysicalMaterialName;
-};
-
-/*
-TrailingData passed from the physics solver to subsystems
-*/
-template<class T, int d>
-struct TTrailingData
-{
-	TTrailingData()
-		: Location(TVector<T, d>((T)0.0))
-		, Velocity(TVector<T, d>((T)0.0))
-		, AngularVelocity(TVector<T, d>((T)0.0))
-		, Mass((T)0.0)
-		, Particle(nullptr)
-		, ParticleIndexMesh(INDEX_NONE)
-		, BoundingBox(TBox<T, d>(TVector<T, d>((T)0.0), TVector<T, d>((T)0.0)))
-	{}
-
-	TTrailingData(TVector<T, d> InLocation
-		, TVector<T, d> InVelocity
-		, TVector<T, d> InAngularVelocity
-		, T InMass
-		, TGeometryParticle<T, d>* InParticle
-		, int32 InParticleIndexMesh
-		, float InBoundingboxVolume
-		, float InBoundingboxExtentMin
-		, float InBoundingboxExtentMax
-		, int32 InSurfaceType
-		, Chaos::TBox<T, d>& InBoundingBox)
-		: Location(InLocation)
-		, Velocity(InVelocity)
-		, AngularVelocity(InAngularVelocity)
-		, Mass(InMass)
-		, Particle(InParticle)
-		, ParticleIndexMesh(InParticleIndexMesh)
-		, BoundingBox(InBoundingBox)
-	{}
-
-	TVector<T, d> Location;
-	TVector<T, d> Velocity;
-	TVector<T, d> AngularVelocity;
-	T Mass;
-	TGeometryParticle<T, d>* Particle;
-	int32 ParticleIndexMesh; // If ParticleIndex points to a cluster then this index will point to an actual mesh in the cluster
-							 // It is important to be able to get extra data from the component
-	Chaos::TBox<T, d> BoundingBox;
-
-	friend inline uint32 GetTypeHash(const TTrailingData& Other)
+	/** Return value of the collision modification callback */
+	enum class CHAOS_API ECollisionModifierResult
 	{
-		return ::GetTypeHash(Other.Particle);
-	}
+		Unchanged,	/** No change to the collision */
+		Modified,	/** Modified the collision, but want it to remain enabled */
+		Disabled,	/** Collision should be disabled */
+	};
 
-	friend bool operator==(const TTrailingData& A, const TTrailingData& B)
+
+	/*
+	*
+	*/
+	template<class T, int d>
+	class CHAOS_API TSingleContactManifold
 	{
-		return A.Particle == B.Particle;
-	}
-};
+	public:
+		TSingleContactManifold(int32 InTimestamp = -INT_MAX, const FImplicitObject* InImplicit0 = nullptr, const FImplicitObject* InImplicit1 = nullptr)
+			: bDisabled(true), Timestamp(InTimestamp), Normal(0), Phi(FLT_MAX)
+		{
+			Implicit[0] = InImplicit0;
+			Implicit[1] = InImplicit1;
+		}
 
-/*
-TrailingData used in subsystems
-*/
-template<class T, int d>
-struct TTrailingDataExt
-{
-	TTrailingDataExt()
-		: Location(TVector<T, d>((T)0.0))
-		, Velocity(TVector<T, d>((T)0.0))
-		, AngularVelocity(TVector<T, d>((T)0.0))
-		, Mass((T)0.0)
-		, Particle(nullptr)
-		, ParticleIndexMesh(INDEX_NONE)
-		, BoundingboxVolume((T)-1.0)
-		, BoundingboxExtentMin((T)-1.0)
-		, BoundingboxExtentMax((T)-1.0)
-		, SurfaceType(-1)
-	{}
+		bool bDisabled;
+		int32 Timestamp;
+		TVector<T, d> Normal;
+		TVector<T, d> Location;
+		T Phi;
 
-	TTrailingDataExt(TVector<T, d> InLocation
-		, TVector<T, d> InVelocity
-		, TVector<T, d> InAngularVelocity
-		, T InMass
-		, TGeometryParticle<T, d>* InParticle
-		, int32 InParticleIndexMesh
-		, float InBoundingboxVolume
-		, float InBoundingboxExtentMin
-		, float InBoundingboxExtentMax
-		, int32 InSurfaceType)
-		: Location(InLocation)
-		, Velocity(InVelocity)
-		, AngularVelocity(InAngularVelocity)
-		, Mass(InMass)
-		, Particle(InParticle)
-		, ParticleIndexMesh(InParticleIndexMesh)
-		, BoundingboxVolume(InBoundingboxVolume)
-		, BoundingboxExtentMin(InBoundingboxExtentMin)
-		, BoundingboxExtentMax(InBoundingboxExtentMax)
-		, SurfaceType(InSurfaceType)
-	{}
+		const FImplicitObject* Implicit[2]; // {Of Particle[0], Of Particle[1]}
+	};
 
-	TTrailingDataExt(const TTrailingData<float, 3>& InTrailingData)
-		: Location(InTrailingData.Location)
-		, Velocity(InTrailingData.Velocity)
-		, AngularVelocity(InTrailingData.AngularVelocity)
-		, Mass(InTrailingData.Mass)
-		, Particle(InTrailingData.Particle)
-		, ParticleIndexMesh(InTrailingData.ParticleIndexMesh)
-		, BoundingboxVolume((T)-1.0)
-		, BoundingboxExtentMin((T)-1.0)
-		, BoundingboxExtentMax((T)-1.0)
-		, SurfaceType(-1)
-	{}
 
-	TVector<T, d> Location;
-	TVector<T, d> Velocity;
-	TVector<T, d> AngularVelocity;
-	T Mass;
-	TGeometryParticle<T, d>* Particle;
-	int32 ParticleIndexMesh; // If ParticleIndex points to a cluster then this index will point to an actual mesh in the cluster
-							 // It is important to be able to get extra data from the component
-	float BoundingboxVolume;
-	float BoundingboxExtentMin, BoundingboxExtentMax;
-	int32 SurfaceType;
-
-	friend inline uint32 GetTypeHash(const TTrailingDataExt& Other)
+	template<class T, int d>
+	class CHAOS_API TCollisionConstraintBase
 	{
-		return ::GetTypeHash(Other.Particle);
-	}
+	public:
 
-	friend bool operator==(const TTrailingDataExt& A, const TTrailingDataExt& B)
+		enum class FType
+		{
+			None = 0,     // default value also indicates a invalid constraint
+			SinglePoint   // TRigidBodySingleContactConstraint
+		};
+
+		TCollisionConstraintBase() : Type(FType::None) {}
+		TCollisionConstraintBase(FType InType) : Type(InType) {}
+		FType GetType() const { return Type; }
+
+		template<class AS_T> AS_T * As() {return static_cast<AS_T>(this); }
+		template<class AS_T> const AS_T * As() const { return static_cast<AS_T>(this); }
+
+	private:
+		FType Type;
+	};
+
+	/*
+	*
+	*/
+	template<class T, int d>
+	class CHAOS_API TRigidBodySingleContactConstraint : public TCollisionConstraintBase<T,d>
 	{
-		return A.Particle == B.Particle;
-	}
-};
+	public:
+		using Base = TCollisionConstraintBase<T, d>;
+		using FGeometryParticleHandle = TGeometryParticleHandle<T, d>;
+		using FManifold = TSingleContactManifold<T, d>;
+
+		TRigidBodySingleContactConstraint() : AccumulatedImpulse(0) {}
+
+		//API
+		void ResetPhi(T InPhi) { SetPhi(InPhi); }
+		bool ContainsManifold(const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr) const { return (A==nullptr&&B==nullptr)?(Manifold.Implicit[0] != nullptr && Manifold.Implicit[1] != nullptr):(Manifold.Implicit[0]==A && Manifold.Implicit[1]==B); }
+
+		void SetDisabled(bool bInDisabled, const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr) { Manifold.bDisabled = bInDisabled; }
+		TVector<T, d> GetDisabled(const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr) const { return Manifold.bDisabled; }
 
 
-template<class T, int d>
-struct TSleepingData
-{
-	TSleepingData()
-		: Particle(nullptr)
-		, Sleeping(true)
-	{}
+		void SetNormal(const TVector<T, d> & InNormal, const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr) { Manifold.Normal = InNormal; }
+		TVector<T, d> GetNormal(const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr) const { return Manifold.Normal; }
 
-	TSleepingData(
-		  TGeometryParticle<T, d>* InParticle
-		, bool InSleeping) 
-		: Particle(InParticle)
-		, Sleeping(InSleeping)
-	{}
+		void SetLocation(const TVector<T, d> & InLocation, const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr, int32 Index=0) { Manifold.Location = InLocation; }
+		TVector<T, d> GetLocation(const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr) const { return Manifold.Location; }
 
-	TGeometryParticle<T, d>* Particle;
-	bool Sleeping;	// if !Sleeping == Awake
-};
+		void SetPhi(T InPhi, const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr, int32 Index = 0) { Manifold.Phi = InPhi; }
+		T GetPhi(const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr) const { return Manifold.Phi; }
 
+		void AddManifold(const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr) { Manifold.Implicit[0] = A; Manifold.Implicit[1] = B; }
+
+		FManifold Manifold;
+		FGeometryParticleHandle* Particle[2]; // { Point, Volume } 
+		TVector<T, d> AccumulatedImpulse;
+
+		FString ToString() const
+		{
+			return FString::Printf(TEXT("Particle:%s, Levelset:%s, AccumulatedImpulse:%s"), *Particle[0]->ToString(), *Particle[1]->ToString(), *AccumulatedImpulse.ToString());
+		}
+
+		static typename Base::FType StaticType() { return Base::FType::SinglePoint; };
+
+	};
+
+
+	template<class T, int d>
+	struct CHAOS_API TRigidBodyContactConstraintPGS
+	{
+		TRigidBodyContactConstraintPGS() : AccumulatedImpulse(0.f) {}
+		TGeometryParticleHandle<T, d>* Particle;
+		TGeometryParticleHandle<T, d>* Levelset;
+		TArray<TVector<T, d>> Normal;
+		TArray<TVector<T, d>> Location;
+		TArray<T> Phi;
+		TVector<T, d> AccumulatedImpulse;
+	};
+
+
+	template<class T, int d>
+	class CHAOS_API TPBDCollisionConstraintHandle : public TContainerConstraintHandle<TPBDCollisionConstraint<T, d>>
+	{
+	public:
+		using Base = TContainerConstraintHandle<TPBDCollisionConstraint<T, d>>;
+		using FConstraintContainer = TPBDCollisionConstraint<T, d>;
+		using FConstraintBase = TCollisionConstraintBase<T, d>;
+
+
+		TPBDCollisionConstraintHandle() 
+			: ConstraintType(FConstraintBase::FType::None)
+		{}
+
+		TPBDCollisionConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex, typename FConstraintBase::FType InType)
+			: TContainerConstraintHandle<TPBDCollisionConstraint<T, d>>(InConstraintContainer, InConstraintIndex)
+			, ConstraintType(InType)
+		{
+		}
+
+		// Handle API
+
+		template<class AS_T> CHAOS_API AS_T& GetContact();
+		template<class AS_T> CHAOS_API const AS_T& GetContact() const;
+
+		typename FConstraintBase::FType GetType() const { return ConstraintType; }
+
+		void SetConstraintIndex(int32 IndexIn, typename FConstraintBase::FType InType)
+		{
+			ConstraintIndex = IndexIn;
+			ConstraintType = InType;
+		}
+
+		// Contact API
+
+		TVector<T, d> GetContactLocation() const
+		{
+			if (ConstraintType == FConstraintBase::FType::SinglePoint)
+			{
+				return GetContact<TRigidBodySingleContactConstraint<float, 3> >().GetLocation();
+			}
+			ensure(false);
+			return TVector<T, d>(0);
+		}
+
+		TVector<T, d> GetAccumulatedImpulse() const
+		{
+			if (ConstraintType == FConstraintBase::FType::SinglePoint)
+			{
+				return GetContact<TRigidBodySingleContactConstraint<float, 3> >().AccumulatedImpulse;
+			}
+			ensure(false);
+
+			return TVector<T, d>(0);
+		}
+
+
+		TVector<const TGeometryParticleHandle<T, d>*, 2> GetConstrainedParticles() const
+		{
+			if (ConstraintType == FConstraintBase::FType::SinglePoint)
+			{
+				const TRigidBodySingleContactConstraint<float, 3>& Contact = GetContact< TRigidBodySingleContactConstraint<float, 3> >();
+				return { Contact.Particle[0], Contact.Particle[1] };
+			}
+			ensure(false);
+			return { nullptr,nullptr };
+		}
+
+
+
+		TVector<TGeometryParticleHandle<T, d>*, 2> GetConstrainedParticles()
+		{
+			if (ConstraintType == FConstraintBase::FType::SinglePoint)
+			{
+				return { GetContact< TRigidBodySingleContactConstraint<float, 3> >().Particle[0], GetContact< TRigidBodySingleContactConstraint<float, 3> >().Particle[1] };
+			}
+			ensure(false);
+			return { nullptr,nullptr };
+		}
+
+
+	protected:
+		typename FConstraintBase::FType ConstraintType;
+		using Base::ConstraintIndex;
+		using Base::ConstraintContainer;
+
+
+	};
+
+	extern template TRigidBodySingleContactConstraint<float, 3>& TPBDCollisionConstraintHandle<float, 3>::GetContact<TRigidBodySingleContactConstraint<float, 3>>();
+	extern template const TRigidBodySingleContactConstraint<float, 3>& TPBDCollisionConstraintHandle<float, 3>::GetContact<TRigidBodySingleContactConstraint<float, 3>>() const;
 
 }

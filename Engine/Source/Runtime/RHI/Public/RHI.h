@@ -153,7 +153,7 @@ inline bool RHISupportsMSAA(EShaderPlatform Platform)
 
 inline bool RHISupportsBufferLoadTypeConversion(EShaderPlatform Platform)
 {
-	return true;
+	return !IsMetalPlatform(Platform);
 }
 
 /** Whether the platform supports reading from volume textures (does not cover rendering to volume textures). */

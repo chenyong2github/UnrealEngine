@@ -6,6 +6,7 @@
 #ifdef CAD_LIBRARY
 #include "CoreTechParametricSurfaceExtension.h"
 #endif
+#include "DatasmithImportOptions.h"
 #include "DatasmithMaterialElements.h"
 #include "DatasmithMaterialsUtils.h"
 #include "DatasmithMesh.h"
@@ -631,6 +632,7 @@ public:
 
 	TOptional<FMeshDescription> GetMeshDescription(TSharedRef<IDatasmithMeshElement> MeshElement);
 
+	void SetBaseOptions(const FDatasmithImportBaseOptions& InBaseOptions);
 	void SetTessellationOptions(const FDatasmithTessellationOptions& Options);
 	void SetOutputPath(const FString& Path) { OutputPath = Path; }
 	double GetScalingFactor () const { return ScalingFactor; }
@@ -674,6 +676,7 @@ private:
 	FString OutputPath;
 	FDatasmithTessellationOptions TessellationOptions;
 	uint32 TessellationOptionsHash;
+	FDatasmithImportBaseOptions BaseOptions;
 
 #ifdef CAD_LIBRARY
 	TSharedPtr<FRhinoCoretechWrapper> LocalSession;
@@ -1791,7 +1794,7 @@ TSharedPtr<IDatasmithMeshElement> FOpenNurbsTranslatorImpl::GetMeshElement(const
 	MeshElement->SetLightmapSourceUV(-1);
 
 	TSharedPtr<IDatasmithBaseMaterialElement> Material = FindMaterial(Object);
-	if (Material.IsValid())
+	if (Material.IsValid() && BaseOptions.bIncludeMaterial)
 	{
 		MeshElement->SetMaterial(Material->GetName(), 0);
 	}
@@ -1803,14 +1806,17 @@ TSharedPtr<IDatasmithMeshElement> FOpenNurbsTranslatorImpl::GetMeshElement(const
 	MeshElementToObjectMap.Add(MeshElement.Get(), &Object);
 	MeshElementToTranslatorMap.Add(MeshElement.Get(), this);
 
+	uint8 IncludeMaterial = static_cast<uint8>(BaseOptions.bIncludeMaterial);
+
+	FMD5 MD5;
+	MD5.Update(&IncludeMaterial, sizeof(IncludeMaterial));
+
 	// Use the object's CRC as the mesh element hash
 	uint32 CRC = Object.ObjectPtr->DataCRC(0);
 	if (ON_Brep::Cast(Object.ObjectPtr))
 	{
 		CRC ^= TessellationOptionsHash;
 	}
-
-	FMD5 MD5;
 	MD5.Update(reinterpret_cast<const uint8*>(&CRC), sizeof CRC);
 
 	FMD5Hash Hash;
@@ -2827,16 +2833,23 @@ bool FOpenNurbsTranslatorImpl::TranslateBRep(ON_Brep* Brep, const ON_3dmObjectAt
 	// No tessellation if CAD library is not present...
 #ifdef CAD_LIBRARY
 	// Ref. visitBRep
-	LocalSession->SetImportParameters(TessellationOptions.ChordTolerance, TessellationOptions.MaxEdgeLength, TessellationOptions.NormalTolerance, (CADLibrary::EStitchingTechnique) TessellationOptions.StitchingTechnique);
+	LocalSession->SetImportParameters(TessellationOptions.ChordTolerance, TessellationOptions.MaxEdgeLength, TessellationOptions.NormalTolerance, (CADLibrary::EStitchingTechnique) TessellationOptions.StitchingTechnique, false);
 
 	CADLibrary::CheckedCTError Result;
 
 	LocalSession->ClearData();
 
-	Result = LocalSession->AddBRep(*Brep);
+	bool bBRepHasLoopNonManifold = false;
+	Result = LocalSession->AddBRep(*Brep, bBRepHasLoopNonManifold);
 
 	FString Filename = FString::Printf(TEXT("%s.ct"), *Name);
 	FString FilePath = FPaths::Combine(OutputPath, Filename);
+
+	if(bBRepHasLoopNonManifold)
+	{
+		LocalSession->CleanBRep();
+	}
+
 	Result = LocalSession->SaveBrep(FilePath);
 	if (Result)
 	{
@@ -2962,6 +2975,11 @@ TOptional< FMeshDescription > FOpenNurbsTranslatorImpl::GetMeshDescription(TShar
 	return bIsValid ? MoveTemp(MeshDescription) : TOptional< FMeshDescription >();
 }
 
+void FOpenNurbsTranslatorImpl::SetBaseOptions(const FDatasmithImportBaseOptions& InBaseOptions)
+{
+	BaseOptions = InBaseOptions;
+}
+
 void FOpenNurbsTranslatorImpl::SetTessellationOptions(const FDatasmithTessellationOptions& Options)
 {
 	TessellationOptions = Options;
@@ -3021,6 +3039,7 @@ bool FDatasmithOpenNurbsTranslator::LoadScene(TSharedRef<IDatasmithScene> OutSce
 	Translator->SetOutputPath(OutputPath);
 
 	Translator->SetTessellationOptions(GetCommonTessellationOptions());
+	Translator->SetBaseOptions(BaseOptions);
 
 	ON_BinaryFile Archive(ON::archive_mode::read3dm, FileHandle);
 
@@ -3080,9 +3099,18 @@ void FDatasmithOpenNurbsTranslator::SetSceneImportOptions(TArray<TStrongObjectPt
 #ifdef USE_OPENNURBS
 	FDatasmithCoreTechTranslator::SetSceneImportOptions(Options);
 
+	for (TStrongObjectPtr<UObject>& Option : Options)
+	{
+		if (UDatasmithImportOptions* DatasmithOptions = Cast<UDatasmithImportOptions>(Option.Get()))
+		{
+			BaseOptions = DatasmithOptions->BaseOptions;
+		}
+	}
+
 	if (Translator)
 	{
 		Translator->SetTessellationOptions( GetCommonTessellationOptions() );
+		Translator->SetBaseOptions(BaseOptions);
 	}
 #endif
 }

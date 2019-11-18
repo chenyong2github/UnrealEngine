@@ -5,6 +5,7 @@
 #include "SGraphPin.h"
 #include "K2Node_CallFunction.h"
 #include "K2Node_VariableSet.h"
+#include "K2Node_FunctionTerminator.h"
 
 FString GameplayTagPinUtilities::ExtractTagFilterStringFromGraphPin(UEdGraphPin* InTagPin)
 {
@@ -20,16 +21,24 @@ FString GameplayTagPinUtilities::ExtractTagFilterStringFromGraphPin(UEdGraphPin*
 
 		if (FilterString.IsEmpty())
 		{
-			if (UK2Node_CallFunction* CallFuncNode = Cast<UK2Node_CallFunction>(InTagPin->GetOwningNode()))
+			const UEdGraphNode* OwningNode = InTagPin->GetOwningNode();
+			if (const UK2Node_CallFunction* CallFuncNode = Cast<UK2Node_CallFunction>(OwningNode))
 			{
-				if (UFunction* ThisFunction = CallFuncNode->GetTargetFunction())
+				if (const UFunction* TargetFunction = CallFuncNode->GetTargetFunction())
 				{
-					FilterString = TagManager.GetCategoriesMetaFromFunction(ThisFunction, InTagPin->PinName);
+					FilterString = TagManager.GetCategoriesMetaFromFunction(TargetFunction, InTagPin->PinName);
 				}
 			}
-			else if (UK2Node_VariableSet* ThisVariable = Cast<UK2Node_VariableSet>(InTagPin->GetOwningNode()))
+			else if (const UK2Node_VariableSet* VariableSetNode = Cast<UK2Node_VariableSet>(OwningNode))
 			{
-				FilterString = TagManager.GetCategoriesMetaFromField(ThisVariable->GetPropertyForVariable());
+				FilterString = TagManager.GetCategoriesMetaFromField(VariableSetNode->GetPropertyForVariable());
+			}
+			else if (const UK2Node_FunctionTerminator* FuncTermNode = Cast<UK2Node_FunctionTerminator>(OwningNode))
+			{
+				if (const UFunction* SignatureFunction = FuncTermNode->FindSignatureFunction())
+				{
+					FilterString = TagManager.GetCategoriesMetaFromFunction(SignatureFunction, InTagPin->PinName);
+				}
 			}
 		}
 	}

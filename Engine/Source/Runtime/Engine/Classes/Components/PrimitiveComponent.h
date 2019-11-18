@@ -680,6 +680,16 @@ private:
 
 public:
 
+	/**
+	 * Returns true if this component has been rendered "recently", with a tolerance in seconds to define what "recent" means.
+	 * e.g.: If a tolerance of 0.1 is used, this function will return true only if the actor was rendered in the last 0.1 seconds of game time.
+	 *
+	 * @param Tolerance  How many seconds ago the actor last render time can be and still count as having been "recently" rendered.
+	 * @return Whether this actor was recently rendered.
+	 */
+	UFUNCTION(Category = "Rendering", BlueprintCallable, meta=(DisplayName="WasComponentRecentlyRendered", Keywords="scene visible"))
+	bool WasRecentlyRendered(float Tolerance = 0.2) const;
+
 	void SetLastRenderTime(float InLastRenderTime);
 	float GetLastRenderTime() const { return LastRenderTime; }
 	float GetLastRenderTimeOnScreen() const { return LastRenderTimeOnScreen; }
@@ -1897,6 +1907,9 @@ protected:
 
 	/** Ensure physics state created **/
 	void EnsurePhysicsStateCreated();
+
+	/**  Go through attached primitive components and call MarkRenderStateDirty */
+	void MarkChildPrimitiveComponentRenderStateDirty();
 public:
 
 	//~ Begin UObject Interface.

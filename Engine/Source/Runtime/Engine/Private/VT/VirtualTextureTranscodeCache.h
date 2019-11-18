@@ -72,6 +72,8 @@ public:
 	void WaitTaskFinished(FVTTranscodeTileHandle InHandle) const;
 	const FVTUploadTileHandle* AcquireTaskResult(FVTTranscodeTileHandle InHandle);
 
+	void WaitTasksFinished() const;
+
 	void RetireOldTasks(FVirtualTextureUploadCache& InUploadCache);
 
 private:

@@ -34,5 +34,8 @@ OVRP_PUBLIC_FUNCTION(const char *) ovr_AssetDetails_GetIapStatus(const ovrAssetD
 /// app or user is not permitted to access it.
 OVRP_PUBLIC_FUNCTION(ovrLanguagePackInfoHandle) ovr_AssetDetails_GetLanguage(const ovrAssetDetailsHandle obj);
 
+/// Extra metadata associated with this asset file
+OVRP_PUBLIC_FUNCTION(const char *) ovr_AssetDetails_GetMetadata(const ovrAssetDetailsHandle obj);
+
 
 #endif

@@ -415,6 +415,26 @@ private:
 #endif // WITH_EDITORONLY_DATA
 };
 
+struct FOptTexturePlatformData
+{
+	/** Arbitrary extra data that the runtime may need. */
+	uint32 ExtData;
+	/** Number of mips making up the mip tail, which must always be resident */
+	uint32 NumMipsInTail;
+
+	FOptTexturePlatformData()
+		: ExtData(0)
+		, NumMipsInTail(0)
+	{}
+
+	friend inline FArchive& operator << (FArchive& Ar, FOptTexturePlatformData& Data)
+	{
+		Ar << Data.ExtData;
+		Ar << Data.NumMipsInTail;
+		return Ar;
+	}
+};
+
 /**
  * Platform-specific data used by the texture resource at runtime.
  */
@@ -431,10 +451,8 @@ struct FTexturePlatformData
 	uint32 NumSlicesCubemapMask;
 	/** Format in which mip data is stored. */
 	EPixelFormat PixelFormat;
-	/** Optional extra data that the runtime may need. */
-	uint32 ExtData;
-	/** Number of mips making up the mip tail, which must always be resident */
-	uint32 NumMipsInTail;
+	/** Additional data required by some platforms.*/
+	FOptTexturePlatformData OptData;
 	/** Mip data or VT data. one or the other. */
 	TIndirectArray<struct FTexture2DMipMap> Mips;
 	struct FVirtualTextureBuiltData* VTData;
@@ -504,6 +522,16 @@ struct FTexturePlatformData
 	inline void SetIsCubemap(bool bCubemap)
 	{
 		NumSlicesCubemapMask = (bCubemap ? CubeMapBitMask : 0) | (NumSlicesCubemapMask & CubeMapRemainingBitMask);
+	}
+
+	inline int32 GetNumMipsInTail() const
+	{
+		return OptData.NumMipsInTail;
+	}
+
+	inline int32 GetExtData() const
+	{
+		return OptData.ExtData;
 	}
 
 #if WITH_EDITOR

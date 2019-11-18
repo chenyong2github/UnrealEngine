@@ -39,6 +39,8 @@ struct FTranscodeTask
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
+		SCOPED_NAMED_EVENT(VirtualTextureTranscodeTask_DoTask, FColor::Cyan);
+
 		static uint8 Black[4] = { 0,0,0,0 };
 		static uint8 OpaqueBlack[4] = { 0,0,0,255 };
 		static uint8 White[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
@@ -244,6 +246,21 @@ void FVirtualTextureTranscodeCache::WaitTaskFinished(FVTTranscodeTileHandle InHa
 	const FTaskEntry& TaskEntry = Tasks[TaskIndex];
 	check(TaskEntry.Magic == InHandle.Magic);
 	FTaskGraphInterface::Get().WaitUntilTaskCompletes(TaskEntry.GraphEvent, ENamedThreads::GetRenderThread_Local());
+}
+
+void FVirtualTextureTranscodeCache::WaitTasksFinished() const
+{
+	int32 TaskIndex = Tasks[LIST_PENDING].NextIndex;
+	while (TaskIndex != LIST_PENDING)
+	{
+		FTaskEntry const& TaskEntry = Tasks[TaskIndex];
+		const int32 NextIndex = TaskEntry.NextIndex;
+		if (!TaskEntry.GraphEvent->IsComplete())
+		{
+			FTaskGraphInterface::Get().WaitUntilTaskCompletes(TaskEntry.GraphEvent, ENamedThreads::GetRenderThread_Local());
+		}
+		TaskIndex = NextIndex;
+	}
 }
 
 const FVTUploadTileHandle* FVirtualTextureTranscodeCache::AcquireTaskResult(FVTTranscodeTileHandle InHandle)

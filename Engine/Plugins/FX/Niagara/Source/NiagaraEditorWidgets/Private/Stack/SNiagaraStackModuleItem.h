@@ -56,10 +56,6 @@ private:
 
 	bool OnModuleItemAllowDrop(TSharedPtr<class FDragDropOperation> DragDropOperation);
 
-	EVisibility GetStackIssuesWarningVisibility() const;
-
-	FText GetErrorButtonTooltipText() const;
-
 	void ShowReassignModuleScriptMenu();
 
 private:

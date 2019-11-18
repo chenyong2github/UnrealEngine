@@ -2598,7 +2598,6 @@ TSharedRef<SDockTab> FFindInBlueprintSearchManager::SpawnGlobalFindResultsTab(co
 		.ToolTipText(LOCTEXT("GlobalFindResultsTabTooltip", "Search for a string in all Blueprint assets."));
 
 	TSharedRef<SFindInBlueprints> FindResults = SNew(SFindInBlueprints)
-		.bIsSearchWindow(false)
 		.ContainingTab(NewTab);
 
 	GlobalFindResults.Add(FindResults);

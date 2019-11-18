@@ -26,6 +26,8 @@
 #include "SocketSubsystem.h"
 #include "IPAddress.h"
 
+#include "Http.h"
+
 #ifndef DISABLE_UNVERIFIED_CERTIFICATE_LOADING
 #define DISABLE_UNVERIFIED_CERTIFICATE_LOADING 0
 #endif
@@ -238,6 +240,8 @@ void FCurlHttpManager::InitCurl()
 		CurlRequestOptions.BufferSize = ConfigBufferSize;
 	}
 
+	GConfig->GetBool(TEXT("HTTP.Curl"), TEXT("bAllowSeekFunction"), CurlRequestOptions.bAllowSeekFunction, GEngineIni);
+
 	CurlRequestOptions.MaxHostConnections = FHttpModule::Get().GetHttpMaxConnectionsPerServer();
 	if (CurlRequestOptions.MaxHostConnections > 0)
 	{
@@ -353,6 +357,48 @@ void FCurlHttpManager::OnAfterFork()
 	Thread->StartThread();
 
 	FHttpManager::OnAfterFork();
+}
+
+void FCurlHttpManager::UpdateConfigs()
+{
+	// Update configs - update settings that are safe to update after initialize 
+	FHttpManager::UpdateConfigs();
+
+	{
+		bool bAcceptCompressedContent = true;
+		if (GConfig->GetBool(TEXT("HTTP"), TEXT("AcceptCompressedContent"), bAcceptCompressedContent, GEngineIni))
+		{
+			if (CurlRequestOptions.bAcceptCompressedContent != bAcceptCompressedContent)
+			{
+				UE_LOG(LogHttp, Log, TEXT("AcceptCompressedContent changed from %s to %s"), *LexToString(CurlRequestOptions.bAcceptCompressedContent), *LexToString(bAcceptCompressedContent));
+				CurlRequestOptions.bAcceptCompressedContent = bAcceptCompressedContent;
+			}
+		}
+	}
+
+	{
+		int32 ConfigBufferSize = 0;
+		if (GConfig->GetInt(TEXT("HTTP.Curl"), TEXT("BufferSize"), ConfigBufferSize, GEngineIni) && ConfigBufferSize > 0)
+		{
+			if (CurlRequestOptions.BufferSize != ConfigBufferSize)
+			{
+				UE_LOG(LogHttp, Log, TEXT("BufferSize changed from %d to %d"), CurlRequestOptions.BufferSize, ConfigBufferSize);
+				CurlRequestOptions.BufferSize = ConfigBufferSize;
+			}
+		}
+	}
+
+	{
+		bool bConfigAllowSeekFunction = false;
+		if (GConfig->GetBool(TEXT("HTTP.Curl"), TEXT("bAllowSeekFunction"), bConfigAllowSeekFunction, GEngineIni))
+		{
+			if (CurlRequestOptions.bAllowSeekFunction != bConfigAllowSeekFunction)
+			{
+				UE_LOG(LogHttp, Log, TEXT("bAllowSeekFunction changed from %s to %s"), *LexToString(CurlRequestOptions.bAllowSeekFunction), *LexToString(bConfigAllowSeekFunction));
+				CurlRequestOptions.bAllowSeekFunction = bConfigAllowSeekFunction;
+			}
+		}
+	}
 }
 
 FHttpThread* FCurlHttpManager::CreateHttpThread()

@@ -77,6 +77,10 @@ public:
 	/** The material used to render the particle. Note that it must have the Use with Niagara Sprites flag checked.*/
 	UPROPERTY(EditAnywhere, Category = "Sprite Rendering")
 	UMaterialInterface* Material;
+
+	/** Use the UMaterialInterface bound to this user variable if it is set to a valid value. If this is bound to a valid value and Material is also set, UserParamBinding wins.*/
+	UPROPERTY(EditAnywhere, Category = "Sprite Rendering")
+	FNiagaraUserParameterBinding MaterialUserParamBinding;
 	
 	/** Imagine the particle texture having an arrow pointing up, these modes define how the particle aligns that texture to other particle attributes.*/
 	UPROPERTY(EditAnywhere, Category = "Sprite Rendering")
@@ -230,4 +234,6 @@ private:
 
 	/** Derived data for this asset, generated off of SubUVTexture. */
 	FSubUVDerivedData DerivedData;
+
+	static TArray<TWeakObjectPtr<UNiagaraSpriteRendererProperties>> SpriteRendererPropertiesToDeferredInit;
 };

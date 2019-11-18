@@ -30,6 +30,11 @@ namespace UnrealBuildTool.Rules
 			}
 
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "Kiss_FFT");
-        }
-    }
+
+			if (Target.Platform == UnrealTargetPlatform.LinuxAArch64)
+			{
+				PrecompileForTargets = PrecompileTargetsType.None;
+			}
+		}
+	}
 }

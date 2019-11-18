@@ -1063,6 +1063,9 @@ struct FPostProcessSettings
 	uint32 bOverride_RayTracingReflectionsShadows : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Overrides, meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint32 bOverride_RayTracingReflectionsTranslucency : 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Overrides, meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint32 bOverride_TranslucencyType : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Overrides, meta = (PinHiddenByDefault, InlineEditConditionToggle))
@@ -1738,6 +1741,10 @@ struct FPostProcessSettings
 	/** Sets the reflected shadows type. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Reflections", meta = (editcondition = "bOverride_RayTracingReflectionsShadows", DisplayName = "Shadows"))
 	EReflectedAndRefractedRayTracedShadows RayTracingReflectionsShadows;
+
+	/** Enables ray tracing translucency in reflections. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Reflections", meta = (editcondition = "bOverride_RayTracingReflectionsTranslucency", DisplayName = "Include Translucent Objects"))
+	uint8 RayTracingReflectionsTranslucency : 1;
 
 
 	/** Sets the translucency type */

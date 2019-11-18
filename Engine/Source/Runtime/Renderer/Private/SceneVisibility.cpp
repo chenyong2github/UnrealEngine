@@ -769,7 +769,7 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 
 	int32 ReadBackLagTolerance = NumBufferedFrames;
 
-	const bool bIsStereoView = View.StereoPass == eSSP_LEFT_EYE || View.StereoPass == eSSP_RIGHT_EYE;
+	const bool bIsStereoView = IStereoRendering::IsStereoEyeView(View);
 	const bool bUseRoundRobinOcclusion = bIsStereoView && !View.bIsSceneCapture && View.ViewState->IsRoundRobinEnabled();
 	if (bUseRoundRobinOcclusion)
 	{
@@ -1637,13 +1637,13 @@ static int32 OcclusionCull(FRHICommandListImmediate& RHICmdList, const FScene* S
 			if (View.ViewState->IsRoundRobinEnabled() &&
 				!View.bIsSceneCapture && // We only round-robin on the main renderer (not scene captures)
 				!View.bIgnoreExistingQueries && // We do not alternate occlusion queries when we want to refresh the occlusion history
-				(View.StereoPass == eSSP_LEFT_EYE || View.StereoPass == eSSP_RIGHT_EYE)) // Only relevant to stereo views
+				(IStereoRendering::IsStereoEyeView(View))) // Only relevant to stereo views
 			{
 				// For even frames, prevent left eye from occlusion querying
 				// For odd frames, prevent right eye from occlusion querying
 				const bool FrameParity = ((View.ViewState->PrevFrameNumber & 0x01) == 1);
-				bSubmitQueries &= (FrameParity && View.StereoPass == eSSP_LEFT_EYE) ||
-								  (!FrameParity && View.StereoPass == eSSP_RIGHT_EYE);
+				bSubmitQueries &= (FrameParity  && IStereoRendering::IsAPrimaryView(View)) ||
+								  (!FrameParity && IStereoRendering::IsASecondaryView(View));
 			}
 
 			NumOccludedPrimitives += FetchVisibilityForPrimitives(Scene, View, bSubmitQueries, bHZBOcclusion, DynamicVertexBuffer);

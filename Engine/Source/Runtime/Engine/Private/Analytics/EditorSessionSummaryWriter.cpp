@@ -31,20 +31,18 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditorSessionSummary, Verbose, All);
 
-/* FEditorSessionSummaryWriter */
-
 namespace EditorSessionWriterDefs
 {
-	static const int HeartbeatPeriodSeconds = 60;
+	static const float HeartbeatPeriodSeconds = 60;
 }
 
 FEditorSessionSummaryWriter::FEditorSessionSummaryWriter() :
 	CurrentSession(nullptr)
+	, StartupSeconds(0.0)
 	, LastUserInteractionTime(0.0f)
 	, HeartbeatTimeElapsed(0.0f)
 	, bShutdown(false)
 {
-
 }
 
 void FEditorSessionSummaryWriter::Initialize()
@@ -55,6 +53,8 @@ void FEditorSessionSummaryWriter::Initialize()
 	FCoreDelegates::IsVanillaProductChanged.AddRaw(this, &FEditorSessionSummaryWriter::OnVanillaStateChanged);
 	FUserActivityTracking::OnActivityChanged.AddRaw(this, &FEditorSessionSummaryWriter::OnUserActivity);
 	FSlateApplication::Get().GetOnModalLoopTickEvent().AddRaw(this, &FEditorSessionSummaryWriter::Tick);
+
+	StartupSeconds = FPlatformTime::Seconds();
 
 	InitializeSessions();
 }
@@ -92,7 +92,10 @@ void FEditorSessionSummaryWriter::UpdateTimestamps()
 {
 	CurrentSession->Timestamp = FDateTime::UtcNow();
 
-	const float IdleSeconds = FPlatformTime::Seconds() - LastUserInteractionTime;
+	const double CurrentSeconds = FPlatformTime::Seconds();
+	CurrentSession->SessionDuration = FMath::FloorToInt(CurrentSeconds - StartupSeconds);
+
+	const double IdleSeconds = CurrentSeconds - LastUserInteractionTime;
 
 	// 1 + 1 minutes
 	if (IdleSeconds > (60 + 60))
@@ -125,7 +128,7 @@ void FEditorSessionSummaryWriter::Tick(float DeltaTime)
 
 	HeartbeatTimeElapsed += DeltaTime;
 
-	if (HeartbeatTimeElapsed > (float) EditorSessionWriterDefs::HeartbeatPeriodSeconds)
+	if (HeartbeatTimeElapsed > EditorSessionWriterDefs::HeartbeatPeriodSeconds)
 	{
 		HeartbeatTimeElapsed = 0.0f;
 
@@ -188,7 +191,14 @@ void FEditorSessionSummaryWriter::Shutdown()
 
 		if (FEditorAnalyticsSession::Lock())
 		{
-			CurrentSession->Save();
+			if (CurrentSession->bWasShutdown)
+			{
+				CurrentSession->Save();
+			}
+			else
+			{
+				CurrentSession->SaveForCrash();
+			}
 
 			FEditorAnalyticsSession::Unlock();
 		}
@@ -223,6 +233,7 @@ FEditorAnalyticsSession* FEditorSessionSummaryWriter::CreateCurrentSession() con
 	Session->ProjectVersion = ProjectSettings.ProjectVersion;
 	Session->EngineVersion = FEngineVersion::Current().ToString(EVersionComponent::Changelist);
 	Session->Timestamp = Session->StartupTimestamp = FDateTime::UtcNow();
+	Session->SessionDuration = 0;
 	Session->bIsDebugger = FPlatformMisc::IsDebuggerPresent();
 	Session->bWasEverDebugger = FPlatformMisc::IsDebuggerPresent();
 	Session->CurrentUserActivity = GetUserActivityString();
@@ -273,7 +284,7 @@ void FEditorSessionSummaryWriter::OnCrashing()
 
 		if (FEditorAnalyticsSession::Lock())
 		{
-			CurrentSession->Save();
+			CurrentSession->SaveForCrash();
 			
 			FEditorAnalyticsSession::Unlock();
 		}
@@ -290,7 +301,7 @@ void FEditorSessionSummaryWriter::OnTerminate()
 
 		if (FEditorAnalyticsSession::Lock())
 		{
-			CurrentSession->Save();
+			CurrentSession->SaveForCrash();
 		
 			FEditorAnalyticsSession::Unlock();
 		}

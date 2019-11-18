@@ -126,13 +126,13 @@ FHairStrandsRootResource::FHairStrandsRootResource(const FHairStrandsDatas* Hair
 			N0 = FVector(0, 0, 1);
 		}
 
-		FVector4_16 P;
+		FHairStrandsRootPositionFormat::Type P;
 		P.X = P0.X;
 		P.Y = P0.Y;
 		P.Z = P0.Z;
 		P.W = 1;
 
-		FVector4_16 N;
+		FHairStrandsRootNormalFormat::Type N;
 		N.X = N0.X;
 		N.Y = N0.Y;
 		N.Z = N0.Z;
@@ -338,7 +338,7 @@ void UGroomAsset::PostLoad()
 	check(HairGroupsData.Num() > 0);
 	if (HairGroupsData[0].HairSimulationData.GetNumCurves() == 0 || HairGroupsData[0].HairInterpolationData.Num() == 0)
 	{
-		FGroomBuilder::BuildData(this);
+		FGroomBuilder::BuildData(this, 2, 0, false, false);
 	}
 
 	if (!IsTemplate())

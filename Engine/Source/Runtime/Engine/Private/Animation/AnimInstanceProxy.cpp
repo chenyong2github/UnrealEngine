@@ -309,7 +309,7 @@ FGuid MakeGuidForMessage(const FText& Message)
 	return FGuid(Hash[0] ^ Hash[4], Hash[1], Hash[2], Hash[3]);
 }
 
-void FAnimInstanceProxy::LogMessage(FName InLogType, EMessageSeverity::Type InSeverity, const FText& InMessage)
+void FAnimInstanceProxy::LogMessage(FName InLogType, EMessageSeverity::Type InSeverity, const FText& InMessage) const
 {
 #if ENABLE_ANIM_LOGGING
 	FGuid CurrentMessageGuid = MakeGuidForMessage(InMessage);

@@ -85,7 +85,6 @@ void UDataprepActionAsset::Execute(const TArray<UObject*>& InObjects)
 			if ( UDataprepOperation* Operation = Step->Operation )
 			{
 				Operation->Execute( OperationContext->Context->Objects );
-				// #ueent_todo: Add steps to process, added, removed and deleted objects
 			}
 			else if ( UDataprepFilter* Filter = Step->Filter )
 			{
@@ -600,10 +599,6 @@ void UDataprepActionAsset::ProcessWorkingSetChanged()
 						}
 					}
 				}
-				else
-				{
-					// #ueent_todo: Warn object external to Dataprep's context has been removed
-				}
 			}
 
 			ObjectsToRemove.Empty( ObjectsToRemove.Num() );
@@ -637,10 +632,6 @@ void UDataprepActionAsset::ProcessWorkingSetChanged()
 					{
 						bWorldChanged = true;
 					}
-				}
-				else
-				{
-					// #ueent_todo: Warn object external to Dataprep's context has been deleted
 				}
 			}
 

@@ -17,13 +17,26 @@ float Voxel_DepthBiasScale;
 
 float AO_Power;
 float AO_Intensity;
+uint  AO_SampleCount;
+float AO_DistanceThreshold;
 
 float3 Voxel_MinAABB;
 float3 Voxel_MaxAABB;
 uint   Voxel_Resolution;
 Texture3D<uint> Voxel_DensityTexture;
 
-float InternalComputeHairCountVoxel(float3 WorldPosition, float3 LightDirection, float3 InVoxelAABBMin, float3 InVoxelAABBMax, float InVoxelResolution, Texture3D<uint> InDensityTexture, float DensityScale, float CountThreshold, bool bUseConeTracing)
+// todo: make this function in common with the sky lighting integration pass
+float InternalComputeHairCountVoxel(
+	float3 WorldPosition, 
+	float3 LightDirection, 
+	float3 InVoxelAABBMin, 
+	float3 InVoxelAABBMax, 
+	float InVoxelResolution, 
+	Texture3D<uint> InDensityTexture, 
+	float DensityScale, 
+	float CountThreshold, 
+	float DistanceThreshold, 
+	bool bUseConeTracing)
 {
 	if (bUseConeTracing)
 		return ComputeHairCountVoxelCone(
@@ -35,6 +48,7 @@ float InternalComputeHairCountVoxel(float3 WorldPosition, float3 LightDirection,
 			InDensityTexture,
 			DensityScale,
 			CountThreshold,
+			DistanceThreshold,
 			Voxel_TanConeAngle);
 	else
 		return ComputeHairCountVoxel(
@@ -45,7 +59,8 @@ float InternalComputeHairCountVoxel(float3 WorldPosition, float3 LightDirection,
 			InVoxelResolution,
 			InDensityTexture,
 			DensityScale,
-			CountThreshold);
+			CountThreshold,
+			DistanceThreshold);
 }
 
 float TraceAO(float3 WorldPosition, float3 WorldNormal, float4 SvPosition)
@@ -56,6 +71,7 @@ float TraceAO(float3 WorldPosition, float3 WorldNormal, float4 SvPosition)
 	
 	float3 UnoccludedN = 0;
 	uint TotalHairCount = 0;
+#if PERMUTATION_SAMPLESET == 0
 	// Poisson disk position http://developer.download.nvidia.com/whitepapers/2008/PCSS_Integration.pdf
 	float2 PoissonDisk[16] =
 	{
@@ -76,23 +92,33 @@ float TraceAO(float3 WorldPosition, float3 WorldNormal, float4 SvPosition)
 		float2(0.19984126, 0.78641367),
 		float2(0.14383161, -0.14100790)
 	};
-	const uint SampleCount = 16;
+	const uint SampleCount = clamp(AO_SampleCount, 1, 16);
+#else
+	const uint SampleCount = max(AO_SampleCount, 1);
+#endif
 
 	float3 BentNormal = 0;
 	float Occlusion = 0;
 	for (uint i = 0; i < SampleCount; ++i)
 	{
-		float2 Rand2 = (PoissonDisk[i] + float2(1, 1)) * 0.5f;
-		Rand2 = frac(Rand2 + VoxelOffset.xy);
-		const float3 LocalL  = CosineSampleHemisphere(saturate(Rand2)).xyz;
+	#if PERMUTATION_SAMPLESET == 0
+		const float2 Rand2 = (PoissonDisk[i] + float2(1, 1)) * 0.5f;
+	#else // PERMUTATION_SAMPLESET == 1
+		const float2 Rand2 = Hammersley(i, SampleCount, uint2(0, 0));
+	#endif
+		const float2 SequenceOffset = float2(
+			InterleavedGradientNoise(SvPosition.xy, View.StateFrameIndexMod8 + i * 13),
+			InterleavedGradientNoise(SvPosition.xy, View.StateFrameIndexMod8 + i * 117));
+
+		const float3 LocalL = CosineSampleHemisphere(frac(Rand2 + SequenceOffset)).xyz;
 		const float3 SampleL = TangentToWorld(LocalL.xyz, WorldNormal);
 
 		// Depth bias
-		// Origin is shifted voxels away towards the light + a constant bias of the size of the voxel
-		const float3 SampleWorldPosition = WorldPosition + VoxelOffset /*+ VoxelMaxSize*Voxel_DepthBiasScale*SampleL*/;;
+		const float3 SampleVoxelOffset = VoxelMaxSize * GetHairVoxelJitter(SvPosition, View.StateFrameIndexMod8 + i * 17);
+		const float3 SampleWorldPosition = WorldPosition + VoxelOffset;
 
 		// Compute the number of hair count between light & shading point
-		const float HairCount = InternalComputeHairCountVoxel(SampleWorldPosition, SampleL, Voxel_MinAABB, Voxel_MaxAABB, Voxel_Resolution, Voxel_DensityTexture, Voxel_DensityScale, 0, true);
+		const float HairCount = InternalComputeHairCountVoxel(SampleWorldPosition, SampleL, Voxel_MinAABB, Voxel_MaxAABB, Voxel_Resolution, Voxel_DensityTexture, Voxel_DensityScale, 0, AO_DistanceThreshold, true);
 		BentNormal += SampleL * saturate(1 - HairCount);
 		Occlusion += saturate(HairCount);
 	}

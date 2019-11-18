@@ -14,8 +14,10 @@ FSoundModulationInputTransform::FSoundModulationInputTransform()
 
 void FSoundModulationInputTransform::Apply(float& Value) const
 {
-	const float Alpha = FMath::Clamp((Value - InputMin) / (InputMax - InputMin), 0.0f, 1.0f);
+	const float Denom = FMath::Max(FMath::Abs(InputMax - InputMin), SMALL_NUMBER);
+	const float Alpha = FMath::Clamp(FMath::Abs(Value - InputMin) / Denom, 0.0f, 1.0f);
 	Value = FMath::Lerp(OutputMin, OutputMax, Alpha);
+	Value = FMath::Clamp(Value, OutputMin, OutputMax);
 }
 
 FSoundModulationOutputTransform::FSoundModulationOutputTransform()
@@ -23,6 +25,7 @@ FSoundModulationOutputTransform::FSoundModulationOutputTransform()
 	, InputMax(1.0f)
 	, Curve(ESoundModulatorOutputCurve::Linear)
 	, Scalar(2.5f)
+	, CurveShared(nullptr)
 	, OutputMin(0.0f)
 	, OutputMax(1.0f)
 {
@@ -58,13 +61,10 @@ void FSoundModulationOutputTransform::EvaluateCurve(float& Value) const
 		return;
 	}
 
-	// Avoid divide-by-zero & return untransformed if limited to single value
-	if (InputMax <= InputMin)
-	{
-		return;
-	}
-	
-	const float Alpha = (Value - InputMin) / (InputMax - InputMin);
+	// Avoid divide-by-zero
+	const float Denom = FMath::Max(FMath::Abs(InputMax - InputMin), SMALL_NUMBER);
+	const float Alpha = FMath::Clamp(FMath::Abs(Value - InputMin) / Denom, 0.0f, 1.0f);
+
 	switch (Curve)
 	{
 		case ESoundModulatorOutputCurve::Linear:

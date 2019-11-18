@@ -118,7 +118,7 @@ public:
 	*/
 	bool RenderSingleLayerWaterPass(FRHICommandListImmediate& RHICmdList, FSingleLayerWaterPassData& PassData, FExclusiveDepthStencil::Type WaterPassDepthStencilAccess, bool bParallel);
 	/** Renders the water draw pass for a given View. */
-	bool RenderSingleLayerWaterPassView(FRHICommandListImmediate& RHICmdList, FViewInfo& View, FSingleLayerWaterPassData& PassData, const FMeshPassProcessorRenderState& InDrawRenderState, bool bParallel);
+	bool RenderSingleLayerWaterPassView(FRHICommandListImmediate& RHICmdList, FViewInfo& View, const FMeshPassProcessorRenderState& InDrawRenderState, bool bParallel);
 	/** Render, denoise and composite the scene SSR and under water effect.*/
 	void RenderSingleLayerWaterReflections(FRHICommandListImmediate& RHICmdList, FSingleLayerWaterPassData& PassData);
 
@@ -504,9 +504,6 @@ private:
 		int32 SamplePerPixel,
 		int32 HeightFog,
 		float ResolutionFraction,
-		FRDGTextureUAV* ColorOutputUAV,
-		FRDGTextureUAV* RayHitDistanceOutputUAV,
-		FRDGTextureUAV* RayImaginaryDepthOutputUAV,
 		IScreenSpaceDenoiser::FReflectionsInputs* OutDenoiserInputs);
 
 	void RenderRayTracingShadows(
@@ -545,7 +542,7 @@ private:
 		FViewInfo& View,
 		int32 UpscaleFactor,
 		FRDGBufferRef& GatherPointsBuffer,
-		FIntPoint& GatherPointsResolution);
+		FIntVector& GatherPointsResolution);
 
 	void RenderRayTracingGlobalIlluminationFinalGather(
 		FRDGBuilder& GraphBuilder,

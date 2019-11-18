@@ -2,7 +2,7 @@
 
 #include "Utils/ClothingMeshUtils.h"
 
-#include "ClothPhysicalMeshData.h"
+#include "ClothPhysicalMeshDataBase.h"
 
 #include "Math/UnrealMathUtility.h"
 #include "Logging/LogMacros.h"

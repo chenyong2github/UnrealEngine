@@ -225,7 +225,7 @@ void FGeometryCacheStreamingManager::NotifyLevelOffset(class ULevel* Level, cons
 
 void FGeometryCacheStreamingManager::AddGeometryCache(UGeometryCacheTrackStreamable* Cache)
 {
-	check(IsInGameThread());
+	check(IsInGameThread() || IsInAsyncLoadingThread());
 	FStreamingGeometryCacheData* &CacheData = StreamingGeometryCaches.FindOrAdd(Cache);
 	if (CacheData == nullptr)
 	{

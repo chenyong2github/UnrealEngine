@@ -77,14 +77,15 @@ float FGenericPlatformMath::Atan2(float Y, float X)
 
 /*FORCENOINLINE*/ float FGenericPlatformMath::Fmod(float X, float Y)
 {
-	if (fabsf(Y) <= 1.e-8f)
+	const float AbsY = fabsf(Y);
+	if (AbsY <= 1.e-8f)
 	{
 		FmodReportError(X, Y);
 		return 0.f;
 	}
 	const float Div = (X / Y);
 	// All floats where abs(f) >= 2^23 (8388608) are whole numbers so do not need truncation, and avoid overflow in TruncToFloat as they get even larger.
-	const float Quotient = fabsf(Div) < 8388608.f ? TruncToFloat(Div) : Div;
+	const float Quotient = fabsf(Div) < FLOAT_NON_FRACTIONAL ? TruncToFloat(Div) : Div;
 	float IntPortion = Y * Quotient;
 
 	// Rounding and imprecision could cause IntPortion to exceed X and cause the result to be outside the expected range.
@@ -95,7 +96,9 @@ float FGenericPlatformMath::Atan2(float Y, float X)
 	}
 
 	const float Result = X - IntPortion;
-	return Result;
+	// Clamp to [-AbsY, AbsY] because of possible failures for very large numbers (>1e10) due to precision loss.
+	// We could instead fall back to stock fmodf() for large values, however this would diverge from the SIMD VectorMod() which has no similar fallback with reasonable performance.
+	return FMath::Clamp(Result, -AbsY, AbsY);
 }
 
 void FGenericPlatformMath::FmodReportError(float X, float Y)

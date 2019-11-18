@@ -10,6 +10,8 @@ THIRD_PARTY_INCLUDES_START
 THIRD_PARTY_INCLUDES_END
 #include "HTML5JavaScriptFx.h"
 
+#include "OpenGLShaders.h"
+
 DEFINE_LOG_CATEGORY_STATIC(LogHTML5OpenGL, Log, All);
 
 bool FHTML5OpenGL::bCombinedDepthStencilAttachment = false;
@@ -148,6 +150,91 @@ void FHTML5OpenGL::ProcessExtensions( const FString& ExtensionsString )
 	UE_LOG(LogRHI, Log, TEXT("Fragment shader lowp precision: %d"), ShaderLowPrecision);
 	UE_LOG(LogRHI, Log, TEXT("Fragment shader mediump precision: %d"), ShaderMediumPrecision);
 	UE_LOG(LogRHI, Log, TEXT("Fragment shader highp precision: %d"), ShaderHighPrecision);
+}
+
+void FHTML5OpenGL::PE_GetCurrentOpenGLShaderDeviceCapabilities(FOpenGLShaderDeviceCapabilities& Capabilities)
+{
+//	Capabilities.TargetPlatform = EOpenGLShaderTargetPlatform::OGLSTP_HTML5;
+	Capabilities.TargetPlatform = EOpenGLShaderTargetPlatform::OGLSTP_Unknown; // jic
+	Capabilities.bUseES30ShadingLanguage = FHTML5OpenGL::UseES30ShadingLanguage();
+	Capabilities.bSupportsShaderTextureLod = FHTML5OpenGL::SupportsShaderTextureLod();
+}
+
+bool FHTML5OpenGL::PE_GLSLToDeviceCompatibleGLSL(FAnsiCharArray& GlslCodeOriginal, const FString& ShaderName, GLenum TypeEnum, const FOpenGLShaderDeviceCapabilities& Capabilities, FAnsiCharArray& GlslCode)
+{
+	// NOTE: this was an exact copy of Engine/Source/Runtime/OpenGLDrv/Private/OpenGLShaders.cpp::GLSLToDeviceCompatibleGLSL()
+	// with all obvious TargetPlatform & PLATFORM_XYZ code removed -- and then stripped out unsupported shader level code afterwards
+	// the original indentation has also been kept here for reference
+	// *** make sure to view 4.23 or earlier to see where OGLSTP_HTML5 calls were before for reference
+
+
+//	// Whether shader was compiled for ES 3.1
+	const ANSICHAR* ES310Version = "#version 310 es";
+	const bool bES31 = (FCStringAnsi::Strstr(GlslCodeOriginal.GetData(), ES310Version) != nullptr);
+	bool bUseES30ShadingLanguage = Capabilities.bUseES30ShadingLanguage;
+
+	bool bNeedsExtDrawInstancedDefine = !bES31;
+//	if (Capabilities.TargetPlatform == EOpenGLShaderTargetPlatform::OGLSTP_Android || Capabilities.TargetPlatform == EOpenGLShaderTargetPlatform::OGLSTP_HTML5)
+//		else if (IsES2Platform(Capabilities.MaxRHIShaderPlatform))
+			// #version NNN has to be the first line in the file, so it has to be added before anything else.
+			if (bUseES30ShadingLanguage)
+			{
+				bNeedsExtDrawInstancedDefine = false;
+				PE_AppendCString(GlslCode, "#version 300 es\n");
+			}
+			else
+			{
+				PE_AppendCString(GlslCode, "#version 100\n");
+			}
+			PE_ReplaceCString(GlslCodeOriginal, "#version 100", "");
+
+	if (bNeedsExtDrawInstancedDefine)
+	{
+		// Check for the GL_EXT_draw_instanced extension if necessary (version < 300)
+		PE_AppendCString(GlslCode, "#ifdef GL_EXT_draw_instanced\n");
+		PE_AppendCString(GlslCode, "#define UE_EXT_draw_instanced 1\n");
+		PE_AppendCString(GlslCode, "#endif\n");
+	}
+
+	if (ShaderName.IsEmpty() == false)
+	{
+		PE_AppendCString(GlslCode, "// ");
+		PE_AppendCString(GlslCode, TCHAR_TO_ANSI(ShaderName.GetCharArray().GetData()));
+		PE_AppendCString(GlslCode, "\n");
+	}
+
+//	if (Capabilities.TargetPlatform == EOpenGLShaderTargetPlatform::OGLSTP_Android)
+//	elseif (Capabilities.TargetPlatform == EOpenGLShaderTargetPlatform::OGLSTP_HTML5)
+		// HTML5 use case is much simpler, use a separate chunk of code from android.
+		if (!Capabilities.bSupportsShaderTextureLod)
+		{
+			PE_AppendCString(GlslCode,
+				"#define DONTEMITEXTENSIONSHADERTEXTURELODENABLE \n"
+				"#define texture2DLodEXT(a, b, c) texture2D(a, b) \n"
+				"#define textureCubeLodEXT(a, b, c) textureCube(a, b) \n");
+		}
+
+	if (FOpenGL::SupportsClipControl())
+	{
+		PE_AppendCString(GlslCode, "#define HLSLCC_DX11ClipSpace 0 \n");
+	}
+	else
+	{
+		PE_AppendCString(GlslCode, "#define HLSLCC_DX11ClipSpace 1 \n");
+	}
+
+	// Append the possibly edited shader to the one we will compile.
+	// This is to make it easier to debug as we can see the whole
+	// shader source.
+	PE_AppendCString(GlslCode, "\n\n");
+	PE_AppendCString(GlslCode, GlslCodeOriginal.GetData());
+
+	return true;
+}
+
+void FHTML5OpenGL::PE_SetupTextureFormat(void(*SetupTextureFormat)(EPixelFormat, const FOpenGLTextureFormat&))
+{
+	SetupTextureFormat(PF_R8G8B8A8_UINT, FOpenGLTextureFormat(GL_RGBA8UI, GL_RGBA8UI, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE, false, false));
 }
 
 struct FPlatformOpenGLContext

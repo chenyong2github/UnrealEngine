@@ -2,7 +2,7 @@
 #pragma once
 
 #include "ClothingAssetBase.h"
-#include "ClothConfig.h"
+#include "ClothConfigBase.h"
 #include "ClothLODData.h"
 #include "ClothingSimulationInteractor.h"
 
@@ -158,9 +158,23 @@ public:
 	UPROPERTY(EditAnywhere, Category = Config)
 	UPhysicsAsset* PhysicsAsset;
 
-	// Parameters for how the cloth behaves.
+	// Shared by all cloth instances in a skeletal mesh
+	// Only supported with Chaos Cloth for now
+	// This may not be editable on unused cloth assets
+	UPROPERTY(EditAnywhere, Category = Config, NoClear, meta = (NoResetToDefault))
+	UClothSharedSimConfigBase* ClothSharedSimConfig;
+
+	// Parameters for how the NVcloth behaves.
+	// These will have no effect on Chaos cloth
 	UPROPERTY(EditAnywhere, Category = Config, NoClear, meta = (NoResetToDefault))
 	UClothConfigBase* ClothSimConfig;
+
+	// Parameters for how Chaos cloth behaves 
+	// These will not affect NVcloth
+	// For now, we have two configuration parameters so that we can switch between chaos and
+	// non chaos at will without losing the original NVcloth data
+	UPROPERTY(EditAnywhere, Category = Config, NoClear, meta = (NoResetToDefault))
+	UClothConfigBase* ChaosClothSimConfig;
 
 	// The actual asset data, listed by LOD.
 	UPROPERTY()

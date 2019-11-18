@@ -76,7 +76,6 @@ public class UnrealEd : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"BspMode",
 				"Core",
 				"CoreUObject",
 				"ApplicationCore",
@@ -218,10 +217,7 @@ public class UnrealEd : ModuleRules
 				"DeviceManager",
 				"SettingsEditor",
 				"SessionFrontend",
-				"Sequencer",
 				"StringTableEditor",
-				"GeometryMode",
-				"TextureAlignMode",
 				"FoliageEdit",
 				"ImageWrapper",
 				"Blutility",

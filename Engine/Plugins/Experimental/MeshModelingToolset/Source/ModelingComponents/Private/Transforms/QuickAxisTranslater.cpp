@@ -90,11 +90,12 @@ bool ProjectToCameraPlanePos(const FVector3d& ScenePos, const FFrame3d& CameraPl
 	return true;
 }
 
+
 void FQuickAxisTranslater::UpdateSnapAxes()
 {
 	// cos(angle) tolerances 
-	static const double ForwardDotTol = FMathd::Cos(20.0 * FMathd::DegToRad);
-	static const double OverlapDotTol = FMathd::Cos(20.0 * FMathd::DegToRad);
+	static const double ForwardDotTol = FMathd::Cos(15.0 * FMathd::DegToRad);
+	static const double OverlapDotTol = FMathd::Cos(15.0 * FMathd::DegToRad);
 
 	MoveAxisSolver.Reset();
 
@@ -147,9 +148,9 @@ void FQuickAxisTranslater::UpdateSnapAxes()
 
 	// if angle between these 2D projections of axes is too small, then axes are visually overlapping
 	// from this view position, and snapping will be unstable. So only keep the one pointing "towards" camera.
-	double AngleXYDot = FMathd::Abs(PlaneAxisX.Dot(PlaneAxisY));
-	double AngleXZDot = FMathd::Abs(PlaneAxisX.Dot(PlaneAxisZ));
-	double AngleYZDot = FMathd::Abs(PlaneAxisY.Dot(PlaneAxisZ));
+	double AngleXYDot = (IgnoreAxis[0] || IgnoreAxis[1]) ? 0.0 : FMathd::Abs(PlaneAxisX.Dot(PlaneAxisY));
+	double AngleXZDot = (IgnoreAxis[0] || IgnoreAxis[2]) ? 0.0 : FMathd::Abs(PlaneAxisX.Dot(PlaneAxisZ));
+	double AngleYZDot = (IgnoreAxis[1] || IgnoreAxis[2]) ? 0.0 : FMathd::Abs(PlaneAxisY.Dot(PlaneAxisZ));
 	if (AngleXYDot > OverlapDotTol)
 	{
 		int which = (FMathd::Sign(DirectionDotX) < FMathd::Sign(DirectionDotY)) ? 0 : 1;

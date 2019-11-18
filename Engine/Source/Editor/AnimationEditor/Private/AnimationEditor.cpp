@@ -735,7 +735,7 @@ void FAnimationEditor::ConditionalRefreshEditor(UObject* InObject)
 {
 	bool bInterestingAsset = true;
 
-	if (InObject != GetPersonaToolkit()->GetSkeleton() && InObject != GetPersonaToolkit()->GetSkeleton()->GetPreviewMesh() && Cast<UAnimationAsset>(InObject) != AnimationAsset)
+	if (InObject != GetPersonaToolkit()->GetSkeleton() && (GetPersonaToolkit()->GetSkeleton() && InObject != GetPersonaToolkit()->GetSkeleton()->GetPreviewMesh()) && Cast<UAnimationAsset>(InObject) != AnimationAsset)
 	{
 		bInterestingAsset = false;
 	}
@@ -759,6 +759,11 @@ void FAnimationEditor::ConditionalRefreshEditor(UObject* InObject)
 				}
 			}
 		}
+	}
+
+	if (GetPersonaToolkit()->GetSkeleton() == nullptr)
+	{
+		bInterestingAsset = false;
 	}
 
 	if (bInterestingAsset)

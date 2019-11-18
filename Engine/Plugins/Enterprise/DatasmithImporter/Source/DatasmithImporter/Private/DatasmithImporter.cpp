@@ -584,10 +584,17 @@ namespace DatasmithImporterImpl
 		{
 			if ( ImportSceneActor )
 			{
-				for ( const auto& Pair : ImportSceneActor->RelatedActors )
+
+				TArray< TSoftObjectPtr< AActor > > RelatedActors;
+				ImportSceneActor->RelatedActors.GenerateValueArray( RelatedActors );
+
+				ImportSceneActor->Scene = nullptr;
+				ImportSceneActor->RelatedActors.Empty();
+
+				while(RelatedActors.Num() > 0)
 				{
-					AActor* RelatedActor = Pair.Value.Get();
-					if ( RelatedActor )
+					TSoftObjectPtr< AActor > ActorPtr = RelatedActors.Pop(false);
+					if(AActor* RelatedActor = ActorPtr.Get())
 					{
 						FDatasmithImporterUtils::DeleteActor( *RelatedActor );
 					}
@@ -2338,7 +2345,7 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 
 	// Sometimes, the data is invalid and we get the same UStaticMesh multiple times
 	TSet< UStaticMesh* > StaticMeshes;
-	for (const TPair< TSharedRef< IDatasmithMeshElement >, UStaticMesh* >& ImportedStaticMeshPair : ImportContext.ImportedStaticMeshes)
+	for (TPair< TSharedRef< IDatasmithMeshElement >, UStaticMesh* >& ImportedStaticMeshPair : ImportContext.ImportedStaticMeshes)
 	{
 		if (ImportContext.bUserCancelled)
 		{
@@ -2365,6 +2372,7 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 		ExistingStaticMeshPtr = FinalizeStaticMesh(SourceStaticMesh, *DestinationPackagePath, ExistingStaticMesh, &ReferencesToRemap, false);
 		DatasmithImporterImpl::CheckAssetPersistenceValidity(ExistingStaticMeshPtr.Get(), ImportContext);
 
+		ImportedStaticMeshPair.Value = ExistingStaticMeshPtr.Get();
 		StaticMeshes.Add(ExistingStaticMeshPtr.Get());
 	}
 

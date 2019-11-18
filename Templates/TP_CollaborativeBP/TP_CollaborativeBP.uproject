@@ -5,10 +5,6 @@
 	"Description": "",
 	"Plugins": [
 		{
-			"Name": "SunPosition",
-			"Enabled": true
-		},
-		{
 			"Name": "DataPrepEditor",
 			"Enabled": true
 		},

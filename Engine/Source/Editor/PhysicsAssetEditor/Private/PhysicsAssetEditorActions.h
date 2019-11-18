@@ -87,6 +87,7 @@ public:
 	TSharedPtr<FUICommandInfo> SelectKinematicBodies;
 	TSharedPtr<FUICommandInfo> SelectAllConstraints;
 	TSharedPtr<FUICommandInfo> ToggleSelectionType;
+	TSharedPtr<FUICommandInfo> ToggleShowSelected;
 	TSharedPtr<FUICommandInfo> DeselectAll;
 	TSharedPtr<FUICommandInfo> Mirror;
 	TSharedPtr<FUICommandInfo> NewPhysicalAnimationProfile;

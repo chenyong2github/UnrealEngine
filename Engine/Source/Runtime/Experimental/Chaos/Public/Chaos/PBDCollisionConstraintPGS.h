@@ -28,13 +28,13 @@ class TPBDCollisionConstraintPGS
 	typedef TRigidBodyContactConstraintPGS<T, d> FRigidBodyContactConstraint;
 	typedef TPBDConstraintGraph<T, d> FConstraintGraph;
 
-	TPBDCollisionConstraintPGS(TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices, TArrayCollectionArray<bool>& Collided, TArrayCollectionArray<TSerializablePtr<TChaosPhysicsMaterial<T>>>& InPhysicsMaterials, const T Thickness = (T)0);
+	TPBDCollisionConstraintPGS(TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices, TArrayCollectionArray<bool>& Collided, TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& InPhysicsMaterials, const T Thickness = (T)0);
 	virtual ~TPBDCollisionConstraintPGS() {}
 
 	void ComputeConstraints(const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices, const T Dt);
 
 	void Apply(TPBDRigidParticles<T, d>& InParticles, const T Dt, const TArray<int32>& InConstraintIndices);
-	void ApplyPushOut(TPBDRigidParticles<T, d>& InParticles, const T Dt, const TArray<int32>& InConstraintIndices);
+	bool ApplyPushOut(TPBDRigidParticles<T, d>& InParticles, const T Dt, const TArray<int32>& InConstraintIndices);
 	template<class T_PARTICLES> void Solve(T_PARTICLES& InParticles, const T Dt, const TArray<int32>& InConstraintIndices);
 
 	void RemoveConstraints(const TSet<uint32>& RemovedParticles);
@@ -81,7 +81,7 @@ class TPBDCollisionConstraintPGS
 
 	TArray<FRigidBodyContactConstraint> Constraints;
 	TArrayCollectionArray<bool>& MCollided;
-	const TArrayCollectionArray<TSerializablePtr<TChaosPhysicsMaterial<T>>>& MPhysicsMaterials;
+	const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& MPhysicsMaterials;
 	const T MThickness;
 	const T Tolerance;
 	const T MaxIterations;

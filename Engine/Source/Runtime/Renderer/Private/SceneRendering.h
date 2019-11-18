@@ -786,6 +786,9 @@ struct FPreviousViewInfo
 	// DeviceZ as float16, and normal in view space.
 	TRefCountPtr<IPooledRenderTarget> CompressedDepthViewNormal;
 
+	// Bleed free scene color to use for screen space ray tracing.
+	TRefCountPtr<IPooledRenderTarget> ScreenSpaceRayTracingInput;
+
 	// Temporal AA result of last frame
 	FTemporalAAHistory TemporalAAHistory;
 
@@ -1288,11 +1291,11 @@ public:
 		{
 			return true;
 		}
-		else if (bIsInstancedStereoEnabled && StereoPass != eSSP_RIGHT_EYE)
+		else if (bIsInstancedStereoEnabled && !IStereoRendering::IsASecondaryPass(StereoPass))
 		{
 			return true;
 		}
-		else if (bIsMobileMultiViewEnabled && StereoPass != eSSP_RIGHT_EYE && Family && Family->Views.Num() > 1)
+		else if (bIsMobileMultiViewEnabled && !IStereoRendering::IsASecondaryPass(StereoPass) && Family && Family->Views.Num() > 1)
 		{
 			return true;
 		}

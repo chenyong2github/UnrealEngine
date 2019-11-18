@@ -34,6 +34,7 @@
 #include "Chaos/PerParticleGravity.h"
 #include "PBDRigidActiveParticlesBuffer.h"
 #include "Chaos/GeometryParticlesfwd.h"
+#include "Chaos/Box.h"
 
 
 #if !UE_BUILD_SHIPPING
@@ -336,7 +337,11 @@ struct FPhysScenePendingComponentTransform_Chaos
 	{}
 };
 
-FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor)
+FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
+#if CHAOS_CHECKED
+	, const FName& DebugName
+#endif
+)
 	: ChaosModule(nullptr)
 	, SceneSolver(nullptr)
 	, SolverActor(InSolverActor)
@@ -352,7 +357,11 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor)
 	ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
 	check(ChaosModule);
 
-	SceneSolver = ChaosModule->CreateSolver();
+	SceneSolver = ChaosModule->CreateSolver(false
+#if CHAOS_CHECKED
+	, DebugName
+#endif
+);
 	check(SceneSolver);
 
 	// If we're running the physics thread, hand over the solver to it - we are no longer
@@ -820,7 +829,7 @@ Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float
 
 void FPhysScene_Chaos::CopySolverAccelerationStructure()
 {
-	if(SceneSolver)
+	if (SceneSolver && GetDispatcher()->GetMode() != Chaos::EThreadingMode::SingleThread)
 	{
 		ExternalDataLock.WriteLock();
 		SceneSolver->GetEvolution()->UpdateExternalAccelerationStructure(SolverAccelerationStructure);
@@ -913,7 +922,15 @@ void FPhysScene_Chaos::RemoveFromComponentMaps(IPhysicsProxyBase* InObject)
 
 #if WITH_CHAOS
 
-FPhysScene_ChaosInterface::FPhysScene_ChaosInterface(const AWorldSettings* InSettings /*= nullptr*/)
+FPhysScene_ChaosInterface::FPhysScene_ChaosInterface(const AWorldSettings* InSettings /*= nullptr*/
+#if CHAOS_CHECKED
+	, const FName& DebugName
+#endif
+)	: Scene(nullptr
+#if CHAOS_CHECKED
+	, DebugName
+#endif
+)
 {
 	//Initialize unique ptrs that are just here to allow forward declare. This should be reworked todo(ocohen)
 #if TODO_FIX_REFERENCES_TO_ADDARRAY
@@ -942,13 +959,31 @@ void FPhysScene_ChaosInterface::OnWorldEndPlay()
 	}
 }
 
-void FPhysScene_ChaosInterface::AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& InHandles)
+void FPhysScene_ChaosInterface::AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& InHandles, const bool bImmediate)
 {
 	Chaos::FPhysicsSolver* Solver = Scene.GetSolver();
 	Chaos::IDispatcher* Dispatcher = Scene.GetDispatcher();
+	Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>* SpatialAcceleration = Scene.GetSpacialAcceleration();
 	for (FPhysicsActorHandle& Handle : InHandles)
 	{
 		FPhysicsInterface::AddActorToSolver(Handle, Solver, Dispatcher);
+
+		// Optionally add this to the game-thread acceleration structure immediately
+		if (bImmediate && SpatialAcceleration)
+		{
+			// Get the bounding box for the particle if it has one
+			bool bHasBounds = Handle->Geometry()->HasBoundingBox();
+			Chaos::TBox<float, 3> WorldBounds;
+			if (bHasBounds)
+			{
+				const Chaos::TBox<float, 3> LocalBounds = Handle->Geometry()->BoundingBox();
+				WorldBounds = LocalBounds.TransformedBox(Chaos::TRigidTransform<float, 3>(Handle->X(), Handle->R()));
+			}
+
+			// Insert the particle
+			Chaos::TAccelerationStructureHandle<float, 3> AccelerationHandle(Handle);
+			SpatialAcceleration->UpdateElementIn(AccelerationHandle, WorldBounds, bHasBounds, Handle->SpatialIdx());
+		}
 	}
 }
 
@@ -1056,9 +1091,34 @@ void FPhysScene_ChaosInterface::AddForce_AssumesLocked(FBodyInstance* BodyInstan
 
 void FPhysScene_ChaosInterface::AddForceAtPosition_AssumesLocked(FBodyInstance* BodyInstance, const FVector& Force, const FVector& Position, bool bAllowSubstepping, bool bIsLocalForce /*= false*/)
 {
-	// #todo : Implement
-	//AddTorque(Chaos::TVector<float, 3>::CrossProduct(Position - Scene.GetSolver()->GetRigidParticles().X(GetIndexFromId(Id)), Force), Id);
-	//AddForce(Force, Id);
+	FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
+	if (ensure(FPhysicsInterface::IsValid(Handle)))
+	{
+		Chaos::TPBDRigidParticle<float, 3>* Rigid = Handle->AsDynamic();
+		if (ensure(Rigid))
+		{
+			const Chaos::FVec3& CurrentForce = Rigid->ExternalForce();
+			const Chaos::FVec3& CurrentTorque = Rigid->ExternalTorque();
+			const Chaos::FVec3& CurrentPosition = Rigid->X();
+			const Chaos::FVec3& CurrentCOM = CurrentPosition; // TODO: Remember to fix this once we add COM to particles!
+			const Chaos::FVec3 Torque = Chaos::FVec3::CrossProduct(Position - CurrentCOM, Force);
+			if (!bIsLocalForce)
+			{
+				Rigid->SetExternalForce(CurrentForce + Force);
+				Rigid->SetExternalTorque(CurrentTorque + Torque);
+			}
+			else
+			{
+				const Chaos::FRotation3& CurrentRotation = Rigid->R();
+				const Chaos::FRigidTransform3 CurrentTransform(CurrentPosition, CurrentRotation);
+				const Chaos::FVec3 WorldPosition = CurrentTransform.TransformPosition(Position);
+				const Chaos::FVec3 WorldForce = CurrentRotation.RotateVector(Force);
+				const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(WorldPosition - CurrentCOM, WorldForce);
+				Rigid->SetExternalForce(CurrentForce + WorldForce);
+				Rigid->SetExternalTorque(CurrentTorque + WorldTorque);
+			}
+		}
+	}
 }
 
 void FPhysScene_ChaosInterface::AddRadialForceToBody_AssumesLocked(FBodyInstance* BodyInstance, const FVector& Origin, const float Radius, const float Strength, const uint8 Falloff, bool bAccelChange, bool bAllowSubstepping)
@@ -1098,8 +1158,23 @@ void FPhysScene_ChaosInterface::ClearForces_AssumesLocked(FBodyInstance* BodyIns
 
 void FPhysScene_ChaosInterface::AddTorque_AssumesLocked(FBodyInstance* BodyInstance, const FVector& Torque, bool bAllowSubstepping, bool bAccelChange)
 {
-	// #todo : Implement
-	// AddTorque(Torque, BodyInstance->ActorHandle.GetId());
+	FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
+	if (ensure(FPhysicsInterface::IsValid(Handle)))
+	{
+		Chaos::TPBDRigidParticle<float, 3>* Rigid = Handle->AsDynamic();
+		if (ensure(Rigid))
+		{
+			const Chaos::TVector<float, 3> CurrentTorque = Rigid->ExternalTorque();
+			if (bAccelChange)
+			{
+				Rigid->SetExternalTorque(CurrentTorque + (Rigid->I() * Torque));
+			}
+			else
+			{
+				Rigid->SetExternalTorque(CurrentTorque + Torque);
+			}
+		}
+	}
 }
 
 void FPhysScene_ChaosInterface::ClearTorques_AssumesLocked(FBodyInstance* BodyInstance, bool bAllowSubstepping)
@@ -1168,7 +1243,7 @@ void FPhysScene_ChaosInterface::ApplyWorldOffset(FVector InOffset)
 void FPhysScene_ChaosInterface::SetUpForFrame(const FVector* NewGrav, float InDeltaSeconds /*= 0.0f*/, float InMaxPhysicsDeltaTime /*= 0.0f*/)
 {
 	SetGravity(*NewGrav);
-	MDeltaTime = InDeltaSeconds;
+	MDeltaTime = InDeltaSeconds < InMaxPhysicsDeltaTime ? InDeltaSeconds : InMaxPhysicsDeltaTime;
 }
 
 void FPhysScene_ChaosInterface::StartFrame()
@@ -1294,6 +1369,11 @@ void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 			{
 				SyncBodies(Solver);
 				Solver->SyncEvents_GameThread();
+
+				{
+					SCOPE_CYCLE_COUNTER(STAT_SqUpdateMaterials);
+					Solver->SyncQueryMaterials();
+				}
 			}
 		}
 

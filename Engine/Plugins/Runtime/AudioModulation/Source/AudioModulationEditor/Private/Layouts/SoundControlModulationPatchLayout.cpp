@@ -45,57 +45,54 @@ void FSoundModulationPatchLayoutCustomization::CustomizeChildren(TSharedRef<IPro
 	CustomizeControl(PropertyHandles, ChildBuilder);
 }
 
-void FSoundModulationPatchLayoutCustomization::CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>> &PropertyHandles, IDetailChildrenBuilder &ChildBuilder)
+TAttribute<EVisibility> FSoundModulationPatchLayoutCustomization::CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>> &PropertyHandles, IDetailChildrenBuilder &ChildBuilder)
 {
-	TSharedPtr<IPropertyHandle>ValueHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundModulationPatchBase, DefaultInputValue));
-	ChildBuilder.AddProperty(ValueHandle.ToSharedRef());
+	TSharedRef<IPropertyHandle>BypassHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundModulationPatchBase, bBypass)).ToSharedRef();
+	ChildBuilder.AddProperty(BypassHandle);
+
+	TAttribute<EVisibility> VisibilityAttribute = TAttribute<EVisibility>::Create([this, BypassHandle]()
+	{
+		bool bIsBypassed = false;
+		BypassHandle->GetValue(bIsBypassed);
+		return bIsBypassed ? EVisibility::Hidden : EVisibility::Visible;
+	});
+
+	TSharedRef<IPropertyHandle>ValueHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundModulationPatchBase, DefaultInputValue)).ToSharedRef();
+	ChildBuilder.AddProperty(ValueHandle)
+		.Visibility(VisibilityAttribute);
+
+	return VisibilityAttribute;
 }
 
-void FSoundVolumeModulationPatchLayoutCustomization::CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>> &PropertyHandles, IDetailChildrenBuilder &ChildBuilder)
+TAttribute<EVisibility> FSoundVolumeModulationPatchLayoutCustomization::CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>> &PropertyHandles, IDetailChildrenBuilder &ChildBuilder)
 {
-	FSoundModulationPatchLayoutCustomization::CustomizeControl(PropertyHandles, ChildBuilder);
-
-	TSharedPtr<IPropertyHandle>InputsHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundVolumeModulationPatch, Inputs));
-	ChildBuilder.AddProperty(InputsHandle.ToSharedRef());
-
-	TSharedPtr<IPropertyHandle>OutputHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundVolumeModulationPatch, Output));
-	ChildBuilder.AddProperty(OutputHandle.ToSharedRef());
+	TAttribute<EVisibility> VisibilityAttribute = FSoundModulationPatchLayoutCustomization::CustomizeControl(PropertyHandles, ChildBuilder);
+	AddPatchProperties<FSoundVolumeModulationPatch>(VisibilityAttribute, PropertyHandles, ChildBuilder);
+	return VisibilityAttribute;
 }
 
-void FSoundPitchModulationPatchLayoutCustomization::CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>> &PropertyHandles, IDetailChildrenBuilder &ChildBuilder)
+TAttribute<EVisibility> FSoundPitchModulationPatchLayoutCustomization::CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>> &PropertyHandles, IDetailChildrenBuilder &ChildBuilder)
 {
-	FSoundModulationPatchLayoutCustomization::CustomizeControl(PropertyHandles, ChildBuilder);
-
-	TSharedPtr<IPropertyHandle>InputsHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundPitchModulationPatch, Inputs));
-	ChildBuilder.AddProperty(InputsHandle.ToSharedRef());
-
-	TSharedPtr<IPropertyHandle>OutputHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundPitchModulationPatch, Output));
-	ChildBuilder.AddProperty(OutputHandle.ToSharedRef());
+	TAttribute<EVisibility> VisibilityAttribute = FSoundModulationPatchLayoutCustomization::CustomizeControl(PropertyHandles, ChildBuilder);
+	AddPatchProperties<FSoundPitchModulationPatch>(VisibilityAttribute, PropertyHandles, ChildBuilder);
+	return VisibilityAttribute;
 }
 
-void FSoundHPFModulationPatchLayoutCustomization::CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>> &PropertyHandles, IDetailChildrenBuilder &ChildBuilder)
+TAttribute<EVisibility> FSoundHPFModulationPatchLayoutCustomization::CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>> &PropertyHandles, IDetailChildrenBuilder &ChildBuilder)
 {
-	FSoundModulationPatchLayoutCustomization::CustomizeControl(PropertyHandles, ChildBuilder);
-
-	TSharedPtr<IPropertyHandle>InputsHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundHPFModulationPatch, Inputs));
-	ChildBuilder.AddProperty(InputsHandle.ToSharedRef());
-
-	TSharedPtr<IPropertyHandle>OutputHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundHPFModulationPatch, Output));
-	ChildBuilder.AddProperty(OutputHandle.ToSharedRef());
+	TAttribute<EVisibility> VisibilityAttribute = FSoundModulationPatchLayoutCustomization::CustomizeControl(PropertyHandles, ChildBuilder);
+	AddPatchProperties<FSoundHPFModulationPatch>(VisibilityAttribute, PropertyHandles, ChildBuilder);
+	return VisibilityAttribute;
 }
 
-void FSoundLPFModulationPatchLayoutCustomization::CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>> &PropertyHandles, IDetailChildrenBuilder &ChildBuilder)
+TAttribute<EVisibility> FSoundLPFModulationPatchLayoutCustomization::CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>> &PropertyHandles, IDetailChildrenBuilder &ChildBuilder)
 {
-	FSoundModulationPatchLayoutCustomization::CustomizeControl(PropertyHandles, ChildBuilder);
-
-	TSharedPtr<IPropertyHandle>InputsHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundLPFModulationPatch, Inputs));
-	ChildBuilder.AddProperty(InputsHandle.ToSharedRef());
-
-	TSharedPtr<IPropertyHandle>OutputHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundLPFModulationPatch, Output));
-	ChildBuilder.AddProperty(OutputHandle.ToSharedRef());
+	TAttribute<EVisibility> VisibilityAttribute = FSoundModulationPatchLayoutCustomization::CustomizeControl(PropertyHandles, ChildBuilder);
+	AddPatchProperties<FSoundLPFModulationPatch>(VisibilityAttribute, PropertyHandles, ChildBuilder);
+	return VisibilityAttribute;
 }
 
-void FSoundControlModulationPatchLayoutCustomization::CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>> &PropertyHandles, IDetailChildrenBuilder &ChildBuilder)
+TAttribute<EVisibility> FSoundControlModulationPatchLayoutCustomization::CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>> &PropertyHandles, IDetailChildrenBuilder &ChildBuilder)
 {
 // Properties hidden as Generic Control Modulation is still in development
 // 	FName SetControlName;
@@ -123,5 +120,10 @@ void FSoundControlModulationPatchLayoutCustomization::CustomizeControl(TMap<FNam
 // 
 // 	TSharedPtr<IPropertyHandle>OutputHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundControlModulationPatch, Output));
 // 	ChildBuilder.AddProperty(OutputHandle.ToSharedRef());
+
+	return TAttribute<EVisibility>::Create([this]()
+	{
+		return EVisibility::Hidden;
+	});
 }
 #undef LOCTEXT_NAMESPACE

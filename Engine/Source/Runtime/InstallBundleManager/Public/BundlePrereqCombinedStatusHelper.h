@@ -42,7 +42,7 @@ public:
 	FBundlePrereqCombinedStatusHelper& operator=(FBundlePrereqCombinedStatusHelper&& Other);
 	
 	//Setup tracking for all bundles required in the supplied BundleContentState
-	void SetBundlesToTrackFromContentState(const FInstallBundleContentState& BundleContentState);
+	void SetBundlesToTrackFromContentState(const FInstallBundleCombinedContentState& BundleContentState, TArrayView<FName> BundlesToTrack);
 	
 	//Get current CombinedBundleStatus for everything setup to track
 	const FCombinedBundleStatus& GetCurrentCombinedState() const;
@@ -61,10 +61,10 @@ private:
 	void CleanUpDelegates();
 	
 	//Called so we can track when a bundle is finished
-	void OnBundleInstallComplete(FInstallBundleResultInfo CompletedBundleInfo);
+	void OnBundleInstallComplete(FInstallBundleRequestResultInfo CompletedBundleInfo);
 	
-	float GetCombinedProgressPercent();
-	float GetIndividualWeightedProgressPercent(FInstallBundleStatus& Bundle);
+	float GetCombinedProgressPercent() const;
+	float GetIndividualWeightedProgressPercent(const FInstallBundleStatus& Bundle) const;
 	
 private:
 	//All bundles we need including pre-reqs

@@ -47,6 +47,7 @@ class TPerParticleRule : public TParticleRule<T, d>
 	virtual void Apply(TRigidParticles<T, d>& InParticles, const T Dt, const int Index) const { Apply(static_cast<TParticles<T, d>&>(InParticles), Dt, Index); };
 	virtual void Apply(TPBDRigidParticles<T, d>& InParticles, const T Dt, const int Index) const { Apply(static_cast<TRigidParticles<T, d>&>(InParticles), Dt, Index); };
 
+	virtual void Apply(TPBDRigidParticleHandle<T, d>* Particle, const T Dt) const { check(0); }
 	virtual void Apply(TTransientPBDRigidParticleHandle<T, d>& Particle, const T Dt) const { check(0); }
 };
 }

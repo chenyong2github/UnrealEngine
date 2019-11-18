@@ -1093,6 +1093,9 @@ protected:
 	/** Callback when a component item is double clicked. */
 	void HandleItemDoubleClicked(FSCSEditorTreeNodePtrType InItem);
 
+	/** Recursively visits the given node + its children and invokes the given function for each. */
+	void DepthFirstTraversal(const FSCSEditorTreeNodePtrType& InNodePtr, TSet<FSCSEditorTreeNodePtrType>& OutVisitedNodes, const TFunctionRef<void(const FSCSEditorTreeNodePtrType&)> InFunction) const;
+
 	/** Returns the set of expandable nodes that are currently collapsed in the UI */
 	void GetCollapsedNodes(const FSCSEditorTreeNodePtrType& InNodePtr, TSet<FSCSEditorTreeNodePtrType>& OutCollapsedNodes) const;
 

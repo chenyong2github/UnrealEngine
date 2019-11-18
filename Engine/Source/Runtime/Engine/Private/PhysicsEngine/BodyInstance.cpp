@@ -857,7 +857,7 @@ void FBodyInstance::UpdatePhysicsFilterData()
 				// See if we currently have sim collision
 				const bool bWasSimulationShape = FPhysicsInterface::IsSimulationShape(InnerShape);
 				const bool bSyncShape = ShapeIndex < NumSyncShapes;
-				const bool bIsTrimesh = FPhysicsInterface::IsShapeType(InnerShape, ECollisionShapeType::Trimesh);
+				const bool bIsTrimesh = FPhysicsInterface::GetShapeType(InnerShape) == ECollisionShapeType::Trimesh;
 				const bool bIsStatic = FPhysicsInterface::IsStatic(Actor);
 
 				const FBodyCollisionFlags& CollisionFlags = PerShapeCollisionData.CollisionFlags;
@@ -1161,10 +1161,10 @@ struct FInitBodiesHelper
 			}
 
 			FPhysicsInterface::SetActorUserData_AssumesLocked(Instance->ActorHandle, &Instance->PhysicsUserData);
-			}
+		}
 
 		return true;
-			}
+	}
 
 
 	void InitBodies()
@@ -3364,11 +3364,11 @@ void FBodyInstance::FixupData(class UObject* Loader)
 }
 
 void FBodyInstance::ApplyMaterialToShape_AssumesLocked(const FPhysicsShapeHandle& InShape, UPhysicalMaterial* SimplePhysMat, const TArrayView<UPhysicalMaterial*>& ComplexPhysMats)
-	{
+{
 	// If a triangle mesh, need to get array of materials...
 	ECollisionShapeType GeomType = FPhysicsInterface::GetShapeType(InShape);
 	if(GeomType == ECollisionShapeType::Trimesh)
-		{
+	{
 		if(ComplexPhysMats.Num())
 		{
 			FPhysicsInterface::SetMaterials(InShape, ComplexPhysMats);

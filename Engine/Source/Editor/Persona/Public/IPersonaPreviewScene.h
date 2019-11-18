@@ -84,6 +84,9 @@ public:
 	/** Set the additional meshes used by this preview scene (sets the additional meshes on the skeleton) */
 	virtual void SetAdditionalMeshes(class UDataAsset* InAdditionalMeshes) = 0;
 
+	/** Set whether additional meshes are selectable */
+	virtual void SetAdditionalMeshesSelectable(bool bSelectable) = 0;
+
 	/** Refreshes the additional meshes displayed in this preview scene */
 	virtual void RefreshAdditionalMeshes(bool bAllowOverrideBaseMesh) = 0;
 

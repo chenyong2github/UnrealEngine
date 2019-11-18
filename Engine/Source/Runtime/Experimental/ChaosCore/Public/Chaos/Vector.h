@@ -8,7 +8,6 @@
 #endif
 
 #include "Chaos/Array.h"
-#include "Chaos/Defines.h"
 #include "Chaos/Pair.h"
 
 #include "Containers/StaticArray.h"
@@ -396,6 +395,7 @@ namespace Chaos
 			Stream.write(reinterpret_cast<const char*>(&Y), sizeof(Y));
 			Stream.write(reinterpret_cast<const char*>(&Z), sizeof(Z));
 		}
+		static inline TVector<float, 3> Lerp(const TVector<float, 3>& V1, const TVector<float, 3>& V2, const float F) { return FMath::Lerp<FVector, float>(V1, V2, F); }
 		static inline TVector<float, 3> CrossProduct(const TVector<float, 3>& V1, const TVector<float, 3>& V2) { return FVector::CrossProduct(V1, V2); }
 		static inline float DotProduct(const TVector<float, 3>& V1, const TVector<float, 3>& V2) { return FVector::DotProduct(V1, V2); }
 		bool operator<=(const TVector<float, 3>& V) const
@@ -409,6 +409,10 @@ namespace Chaos
 		TVector<float, 3> operator-() const
 		{
 			return TVector<float, 3>(-X, -Y, -Z);
+		}
+		TVector<float, 3> operator+(const float Other) const
+		{
+			return TVector<float, 3>(X + Other, Y + Other, Z + Other);
 		}
 		TVector<float, 3> operator-(const float Other) const
 		{
@@ -426,6 +430,10 @@ namespace Chaos
 		{
 			return TVector<float, 3>(S / V.X, S / V.Y, S / V.Z);
 		}
+		TVector<float, 3> operator+(const TVector<float, 3>& Other) const
+		{
+			return TVector<float, 3>(X + Other[0], Y + Other[1], Z + Other[2]);
+		}
 		TVector<float, 3> operator-(const TVector<float, 3>& Other) const
 		{
 			return TVector<float, 3>(X - Other[0], Y - Other[1], Z - Other[2]);
@@ -437,6 +445,11 @@ namespace Chaos
 		TVector<float, 3> operator/(const TVector<float, 3>& Other) const
 		{
 			return TVector<float, 3>(X / Other[0], Y / Other[1], Z / Other[2]);
+		}
+		template<class T2>
+		TVector<float, 3> operator+(const TVector<T2, 3>& Other) const
+		{
+			return TVector<float, 3>(X + Other[0], Y + Other[1], Z + Other[2]);
 		}
 		template<class T2>
 		TVector<float, 3> operator-(const TVector<T2, 3>& Other) const

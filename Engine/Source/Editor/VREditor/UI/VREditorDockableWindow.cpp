@@ -24,8 +24,8 @@ namespace VREd
 }
 
 
-AVREditorDockableWindow::AVREditorDockableWindow() : 
-	Super(),
+AVREditorDockableWindow::AVREditorDockableWindow(const FObjectInitializer& ObjectInitializer) :
+	Super(ObjectInitializer),
 	bIsLaserAimingTowardUI(false),
 	AimingAtMeFadeAlpha(0.0f),
 	bIsHoveringOverSelectionBar(false),

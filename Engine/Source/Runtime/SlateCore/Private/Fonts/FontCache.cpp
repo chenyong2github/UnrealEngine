@@ -74,10 +74,25 @@ ETextShapingMethod GetDefaultTextShapingMethod()
 }
 
 
+bool FShapedGlyphEntry::HasValidGlyph() const
+{
+#if WITH_FREETYPE
+	TSharedPtr<FFreeTypeFace> FontFacePin = FontFaceData ? FontFaceData->FontFace.Pin() : nullptr;
+	if (FontFacePin && GlyphIndex != 0)
+	{
+		const uint32 InvalidSubCharGlyphIndex = FT_Get_Char_Index(FontFacePin->GetFace(), SlateFontRendererUtils::InvalidSubChar);
+		return GlyphIndex != InvalidSubCharGlyphIndex;
+	}
+#endif	// WITH_FREETYPE
+
+	return false;
+}
+
 float FShapedGlyphEntry::GetBitmapRenderScale() const
 {
 	return FontFaceData ? FontFaceData->BitmapRenderScale : 1.0f;
 }
+
 
 FShapedGlyphEntryKey::FShapedGlyphEntryKey(const FShapedGlyphFaceData& InFontFaceData, uint32 InGlyphIndex, const FFontOutlineSettings& InOutlineSettings)
 	: FontFace(InFontFaceData.FontFace)
@@ -1086,6 +1101,11 @@ int8 FSlateFontCache::GetKerning( const FFontData& InFontData, const int32 InSiz
 bool FSlateFontCache::HasKerning( const FFontData& InFontData ) const
 {
 	return FontRenderer->HasKerning(InFontData);
+}
+
+bool FSlateFontCache::CanLoadCodepoint(const FFontData& InFontData, const UTF32CHAR InCodepoint, EFontFallback MaxFallbackLevel) const
+{
+	return FontRenderer->CanLoadCodepoint(InFontData, InCodepoint, MaxFallbackLevel);
 }
 
 const TSet<FName>& FSlateFontCache::GetFontAttributes( const FFontData& InFontData ) const

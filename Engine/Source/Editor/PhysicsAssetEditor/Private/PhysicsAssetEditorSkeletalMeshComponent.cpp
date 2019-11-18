@@ -116,6 +116,10 @@ void UPhysicsAssetEditorSkeletalMeshComponent::RenderAssetTools(const FSceneView
 		{
 			continue;
 		}
+		if (SharedData->HiddenBodies.Contains(i))
+		{
+			continue;
+		}
 		int32 BoneIndex = GetBoneIndex(PhysicsAsset->SkeletalBodySetups[i]->BoneName);
 
 		// If we found a bone for it, draw the collision.
@@ -240,7 +244,8 @@ void UPhysicsAssetEditorSkeletalMeshComponent::RenderAssetTools(const FSceneView
 	{
 		for (int32 i = 0; i <PhysicsAsset->ConstraintSetup.Num(); ++i)
 		{
-			if(!SharedData->EditorOptions->bRenderOnlySelectedConstraints || (SharedData->EditorOptions->bRenderOnlySelectedConstraints && SharedData->IsConstraintSelected(i)))
+			if((!SharedData->EditorOptions->bRenderOnlySelectedConstraints || (SharedData->EditorOptions->bRenderOnlySelectedConstraints && SharedData->IsConstraintSelected(i))) &&
+				!SharedData->HiddenConstraints.Contains(i))
 			{
 				int32 BoneIndex1 = GetBoneIndex(PhysicsAsset->ConstraintSetup[i]->DefaultInstance.ConstraintBone1);
 				int32 BoneIndex2 = GetBoneIndex(PhysicsAsset->ConstraintSetup[i]->DefaultInstance.ConstraintBone2);

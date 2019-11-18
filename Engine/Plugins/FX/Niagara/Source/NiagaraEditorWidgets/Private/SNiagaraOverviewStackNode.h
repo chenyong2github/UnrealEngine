@@ -23,6 +23,7 @@ protected:
 	virtual TSharedRef<SWidget> CreateNodeContentArea() override;
 
 private:
+	EVisibility GetIssueIconVisibility() const;
 	EVisibility GetEnabledCheckBoxVisibility() const;
 	ECheckBoxState GetEnabledCheckState() const;
 	void OnEnabledCheckStateChanged(ECheckBoxState InCheckState);

@@ -32,8 +32,10 @@ void Main(
 	)
 {
 #if INSTANCED_STEREO
+	const uint EyeIndex = Interpolants.EyeIndex;
 	ResolvedView = ResolveView(Interpolants.EyeIndex);
 #else
+	const uint EyeIndex = 0;
 	ResolvedView = ResolveView();
 #endif
 
@@ -64,7 +66,7 @@ void Main(
 	// Compute UV distortion
 	float2 BufferUVDistortion = ComputeBufferUVDistortion(
 		MaterialParameters, PixelMaterialInputs, ResolvedView,
-		Normal, DistortionParams, ScreenUV, Refraction, true);
+		Normal, DistortionParams, ScreenUV, Refraction, true, EyeIndex);
 
 	// Sample depth at distortion offset
 	float2 DistortBufferUV = ScreenUV + BufferUVDistortion;

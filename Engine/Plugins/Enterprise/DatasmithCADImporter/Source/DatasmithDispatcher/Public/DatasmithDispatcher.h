@@ -1,9 +1,9 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "DatasmithDispatcherTask.h"
 #include "DatasmithWorkerHandler.h"
 
-#include "Containers/Queue.h"
 #include "CoreMinimal.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/Thread.h"
@@ -11,59 +11,47 @@
 namespace DatasmithDispatcher
 {
 
-//Wrapper class to launch processors
+// Handle a list of tasks, and a set of external workers to consume them.
+// Concept of task is currently tightly coupled with cad usage...
 class DATASMITHDISPATCHER_API FDatasmithDispatcher
 {
-
 public:
-	//Constructor
-	FDatasmithDispatcher(const FString& InCacheDir, int32 InNumberOfWorkers, TMap<FString, FString>& CADFileToUnrealFileMap, TMap<FString, FString>& CADFileToUnrealGeomMap);
+	FDatasmithDispatcher(const CADLibrary::FImportParameters& InImportParameters, const FString& InCacheDir, int32 InNumberOfWorkers, TMap<FString, FString>& CADFileToUnrealFileMap, TMap<FString, FString>& CADFileToUnrealGeomMap);
 
-	void Init(const CADLibrary::FImportParameters& ImportParameters);
-
-	/**
-		* Spawns worker handlers
-		*/
-	void RunHandlers();
-	void Close();
+	void AddTask(const FString& FileName);
+	TOptional<FTask> GetNextTask();
+	void SetTaskState(int32 TaskIndex, ETaskState TaskState);
 
 	void Process(bool bWithProcessor);
-	void ProcessLocal();
+	bool IsOver();
 
-	void Clear();
-
-	void AddTask(const FString& FileName); // Thread safe with FScopeLock Lock(&TaskPoolCriticalSection);
-
-	TOptional<FTask> GetTask();   // Thread safe with FScopeLock Lock(&TaskPoolCriticalSection);
-	bool IsOver(); // Thread safe with FScopeLock Lock(&TaskPoolCriticalSection);
-
-	void SetTaskState(int32 TaskIndex, EProcessState TaskState);   // Thread safe
-	void LinkCTFileToUnrealCacheFile(const FString& CTFile, const FString& UnrealSceneGraphFile, const FString& UnrealGeomFile);   // Thread safe
-
-	void SetTessellationOptions(float InChordTolerance = 0.2f, float InMaxEdgeLength = 0.0f, float InNormalTolerance = 20.0f, CADLibrary::EStitchingTechnique InStitchingTechnique = CADLibrary::EStitchingTechnique::StitchingSew);
-
+	void LinkCTFileToUnrealCacheFile(const FString& CTFile, const FString& UnrealSceneGraphFile, const FString& UnrealGeomFile);
 
 private:
-	FCriticalSection TaskPoolCriticalSection;
+	void SpawnHandlers();
+	int32 GetNextWorkerId();
+	int32 GetAliveHandlerCount();
+	void CloseHandlers();
 
+	void ProcessLocal();
+
+private:
+	// Tasks
+	FCriticalSection TaskPoolCriticalSection;
+	TArray<FTask> TaskPool;
+	int32 NextTaskIndex;
+	int32 CompletedTaskCount;
+
+	// Scene wide state
 	TMap<FString, FString>& CADFileToUnrealFileMap;
 	TMap<FString, FString>& CADFileToUnrealGeomMap;
-
 	FString ProcessCacheFolder;
 	CADLibrary::FImportParameters ImportParameters;
 
-	//Started
-	bool bStarted;
-
+	// Workers
 	int32 NumberOfWorkers;
-	TArray<FDatasmithWorkerHandler> WorkerHandlerSet;
-	TArray<FThread> WorkersRunning;
-
-	TArray<FTask> TaskPool;
-	int32 LastLaunchTask;
-	int32 NumOfFinishedTask;
-
-
-}; // FDatasmithDispatcher
+	int32 NextWorkerId;
+	TArray<FDatasmithWorkerHandler> WorkerHandlers;
+};
 
 } // NS DatasmithDispatcher

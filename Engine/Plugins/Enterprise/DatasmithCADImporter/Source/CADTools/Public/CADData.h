@@ -6,31 +6,23 @@
 #include "Containers/Array.h"
 #include "Math/Color.h"
 
+class FArchive;
+
+using CadId = uint32; // Identifier defined in the input CAD file
+using ColorId = uint32; // Identifier defined in the input CAD file
+using MaterialId = uint32; // Identifier defined in the input CAD file
+using CADUUID = uint32;  // Universal unique identifier that be used for the unreal asset name (Actor, Material)
+
+
 namespace CADLibrary
 {
 
-enum ECTTessellationLine
+class CADTOOLS_API FCADMaterial
 {
-	LineType = 0,
-	LineRawSize,
-	LineBodyId,
-	LineBodyUuId,
-	LineBodyFaceNum,
-	LineMaterialId,
-	LineMaterialHash,
-	LineVertexCount,
-	LineVertexType,
-	LineNormalCount,
-	LineNormalType,
-	LineIndexCount,
-	LineIndexType,
-	LineTexCoordType,
-	LastLine
-};
+public:
+	friend CADTOOLS_API FArchive& operator<<(FArchive& Ar, FCADMaterial& Material);
 
-struct CADTOOLS_API FCADMaterial
-{
-	int32 MaterialId;  //#ueent_CAD
+public:
 	FString MaterialName;
 	FColor Diffuse;
 	FColor Ambient;
@@ -43,8 +35,9 @@ struct CADTOOLS_API FCADMaterial
 
 struct CADTOOLS_API FObjectDisplayDataId
 {
-	uint32 MaterialId = 0;
-	uint32 ColorHId = 0; // => FastHash == ColorId+Transparency
+	CADUUID DefaultMaterialName = 0;
+	MaterialId Material = 0;
+	ColorId Color = 0; // => FastHash == ColorId+Transparency
 };
 
 /**
@@ -52,6 +45,8 @@ struct CADTOOLS_API FObjectDisplayDataId
  */
 struct CADTOOLS_API FTessellationData
 {
+	friend CADTOOLS_API FArchive& operator<<(FArchive& Ar, FTessellationData& Tessellation);
+
 	TArray<uint8> VertexArray;
 	TArray<uint8> NormalArray;
 	TArray<uint8> IndexArray;
@@ -59,101 +54,50 @@ struct CADTOOLS_API FTessellationData
 	uint32        VertexCount = 0;
 	uint32        NormalCount = 0;
 	uint32        IndexCount = 0;
+	uint32        TexCoordCount = 0;
 
 	uint32    StartVertexIndex = 0;
 
-	uint8 SizeOfVertexType;
-	uint8 SizeOfTexCoordType;
-	uint8 SizeOfNormalType;
-	uint8 SizeOfIndexType;
-	bool  bHasRGBColor;
+	uint8 SizeOfVertexType = 0;
+	uint8 SizeOfTexCoordType = 0;
+	uint8 SizeOfNormalType = 0;
+	uint8 SizeOfIndexType = 0;
 
-	uint32 BodyId = 0;
-	uint32 BodyUuId = 0;
-	uint32 BodyFaceNum = 0;
-	uint32 MaterialId = 0;
-	uint32 MaterialHash = 0;
+	CADUUID ColorName = 0;
+	CADUUID MaterialName = 0;
 
-	TArray<int32> VertexIdSet;  // StaticMesh FVertexID
-	TArray<int32> SymVertexIdSet; // StaticMesh FVertexID for sym part
+	TArray<int32> VertexIdSet;  // StaticMesh FVertexID NO Serialize
+	TArray<int32> SymVertexIdSet; // StaticMesh FVertexID for sym part NO Serialize
 };
 
-class CADTOOLS_API FBody
+class CADTOOLS_API FBodyMesh
 {
 public:
-	FBody(uint32 BodyID, int32 FaceNum);
-
-	TArray<FTessellationData>& GetTessellationSet()
+	FBodyMesh(CadId InBodyID = 0) : BodyID(InBodyID)
 	{
-		return FaceTessellationSet;
 	}
 
-	uint32 GetTriangleCount() const
-	{
-		return TriangleCount;
-	}
+	friend FArchive& operator<<(FArchive& Ar, FBodyMesh& BodyMesh);
 
-	uint32 GetBodyId() const
-	{
-		return BodyID;
-	}
-
-	uint32 GetBodyUuid() const 
-	{
-		return BodyUuid;
-	}
-
-	void SetBodyId(uint32 Id)
-	{
-		BodyID = Id;
-	}
-
-	void SetBodyUuid(uint32 Uuid)
-	{
-		BodyUuid = Uuid;
-	}
-
-protected:
-
-	/**
-	 * Array of FCTTessellation
-	 * FCTTessellation is an elementary structure of Mesh
-	 */
-	TArray<FTessellationData> FaceTessellationSet;
-
-	/**
-	 * Structure use to map Material ID to Material Hash. Material hash is an unique value by material
-	 */
-	TMap<uint32, uint32> MaterialIdToMaterialHash;
-	uint32 TriangleCount;
-	uint32 BodyID;
-	uint32 BodyUuid;
-};
-
-class CADTOOLS_API FCTRawGeomFile
-{
 public:
-	FCTRawGeomFile(FString& InFileName, TMap< uint32, FBody* >& InBodyUuidToCTBodyMap);
+	TArray<FTessellationData> Faces;
 
-	FString& GetFileName()
-	{
-		return FileName;
-	}
+	uint32 TriangleCount = 0;
+	CadId BodyID = 0;
+	CADUUID MeshActorName = 0;
 
-protected:
-	FString FileName;
-	TArray<FBody> CTBodySet;
-	TMap<uint32, FBody* >& BodyUuidToBodyMap;
+	TSet<uint32> MaterialSet;
+	TSet<uint32> ColorSet;
 };
 
-CADTOOLS_API uint32 BuildFastColorHash(uint32 ColorId, uint8 Alpha);
-CADTOOLS_API void UnhashFastColorHash(uint32 ColorHash, uint32& OutColorId, uint8& OutAlpha);
+CADTOOLS_API uint32 BuildColorId(uint32 ColorId, uint8 Alpha);
+CADTOOLS_API void GetCTColorIdAlpha(uint32 ColorHash, uint32& OutColorId, uint8& OutAlpha);
 
-CADTOOLS_API int32 BuildColorHash(const FColor& Color);
-CADTOOLS_API int32 BuildMaterialHash(const FCADMaterial& Material);
+CADTOOLS_API int32 BuildColorName(const FColor& Color);
+CADTOOLS_API int32 BuildMaterialName(const FCADMaterial& Material);
 
-CADTOOLS_API void WriteTessellationInRawData(FTessellationData& Tessellation, TArray<uint8>& GlobalRawData);
-CADTOOLS_API bool ReadTessellationSetFromFile(TArray<uint8>& RawData, uint32& OutNbBody, TArray<FBody>& FaceTessellations);
+CADTOOLS_API void SerializeBodyMeshSet(const TCHAR* Filename, TArray<FBodyMesh>& InBodySet);
+CADTOOLS_API void DeserializeBodyMeshFile(const TCHAR* Filename, TArray<FBodyMesh>& OutBodySet);
 
 inline void CopyValue(const uint8* Source, int Offset, uint8 Size, bool bIs3D, FVector& Dest, const FMatrix* Matrix = nullptr)
 {

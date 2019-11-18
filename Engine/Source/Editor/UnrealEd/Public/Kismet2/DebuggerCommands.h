@@ -11,6 +11,7 @@
 #include "Framework/Commands/UICommandList.h"
 
 class FToolBarBuilder;
+struct FToolMenuSection;
 
 /** This class acts as a generic widget that listens to and process global play world actions */
 class UNREALED_API SGlobalPlayWorldActions : public SCompoundWidget
@@ -52,7 +53,7 @@ public:
 	static void BindGlobalPlayWorldCommands();
 
 	/** Populates a toolbar with the menu commands for play-world control (pause/resume/stop/possess/eject/step/show current loc) */
-	UNREALED_API static void BuildToolbar( FToolBarBuilder& ToolBarBuilder, bool bIncludeLaunchButtonAndOptions = false );
+	UNREALED_API static void BuildToolbar( FToolMenuSection& InSection, bool bIncludeLaunchButtonAndOptions = false );
 
 	/**
 	* Return the active widget that processes play world actions for PIE

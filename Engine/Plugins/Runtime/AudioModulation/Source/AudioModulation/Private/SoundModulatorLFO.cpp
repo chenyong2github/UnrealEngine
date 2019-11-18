@@ -6,6 +6,7 @@
 #include "AudioModulationInternal.h"
 #include "AudioModulationLogging.h"
 #include "Engine/World.h"
+#include "SoundModulationProxy.h"
 
 
 USoundBusModulatorLFO::USoundBusModulatorLFO(const FObjectInitializer& ObjectInitializer)
@@ -15,6 +16,7 @@ USoundBusModulatorLFO::USoundBusModulatorLFO(const FObjectInitializer& ObjectIni
 	, Frequency(1.0f)
 	, Offset(0.5f)
 	, bLooping(1)
+	, bBypass(0)
 {
 }
 
@@ -28,20 +30,15 @@ void USoundBusModulatorLFO::BeginDestroy()
 		return;
 	}
 
-	FAudioDevice* AudioDevice = World->GetAudioDevice();
-	if (!AudioDevice)
+	if (FAudioDevice* AudioDevice = World->GetAudioDevice())
 	{
-		return;
-	}
-
-	check(AudioDevice->IsModulationPluginEnabled());
-	if (IAudioModulation* ModulationInterface = AudioDevice->ModulationInterface.Get())
-	{
-		auto ModulationImpl = static_cast<AudioModulation::FAudioModulation*>(ModulationInterface)->GetImpl();
-		check(ModulationImpl);
-
-		auto LFOId = static_cast<const AudioModulation::FLFOId>(GetUniqueID());
-		ModulationImpl->DeactivateLFO(LFOId);
+		check(AudioDevice->IsModulationPluginEnabled());
+		if (IAudioModulation* ModulationInterface = AudioDevice->ModulationInterface.Get())
+		{
+			auto ModulationImpl = static_cast<AudioModulation::FAudioModulation*>(ModulationInterface)->GetImpl();
+			check(ModulationImpl);
+			ModulationImpl->DeactivateLFO(*this);
+		}
 	}
 }
 
@@ -51,24 +48,25 @@ namespace AudioModulation
 	FModulatorLFOProxy::FModulatorLFOProxy()
 		: Offset(0.0f)
 		, Value(1.0f)
+		, bBypass(0)
 	{
 		LFO.SetFrequency(1.0f);
 		LFO.Start();
 	}
 
 	FModulatorLFOProxy::FModulatorLFOProxy(const USoundBusModulatorLFO& InLFO)
-		: TModulatorProxyRefBase<FLFOId>(InLFO.GetName(), InLFO.GetUniqueID(), InLFO.bAutoActivate)
+		: TModulatorProxyRefType(InLFO.GetName(), InLFO.GetUniqueID())
 		, Offset(InLFO.Offset)
 		, Value(1.0f)
+		, bBypass(InLFO.bBypass)
 	{
-		LFO.SetGain(InLFO.Amplitude);
-		LFO.SetFrequency(InLFO.Frequency);
-		LFO.SetMode(InLFO.bLooping ? Audio::ELFOMode::Type::Sync : Audio::ELFOMode::OneShot);
+		Init(InLFO);
+	}
 
-		static_assert(static_cast<int32>(ESoundModulatorLFOShape::COUNT) == static_cast<int32>(Audio::ELFO::Type::NumLFOTypes), "LFOShape/ELFO Type mismatch");
-		LFO.SetType(static_cast<Audio::ELFO::Type>(InLFO.Shape));
-
-		LFO.Start();
+	FModulatorLFOProxy& FModulatorLFOProxy::operator =(const USoundBusModulatorLFO& InLFO)
+	{
+		Init(InLFO);
+		return *this;
 	}
 
 	float FModulatorLFOProxy::GetValue() const
@@ -76,11 +74,24 @@ namespace AudioModulation
 		return Value;
 	}
 
-	void FModulatorLFOProxy::OnUpdateProxy(const FModulatorLFOProxy& InLFOProxy)
+	void FModulatorLFOProxy::Init(const USoundBusModulatorLFO& InLFO)
 	{
-		LFO = InLFOProxy.LFO;
-		Offset = InLFOProxy.Offset;
-		Value = InLFOProxy.Value;
+		Offset = InLFO.Offset;
+		Value = 1.0f;
+		bBypass = InLFO.bBypass;
+
+		LFO.SetGain(InLFO.Amplitude);
+		LFO.SetFrequency(InLFO.Frequency);
+		LFO.SetMode(InLFO.bLooping ? Audio::ELFOMode::Type::Sync : Audio::ELFOMode::OneShot);
+
+		static_assert(static_cast<int32>(ESoundModulatorLFOShape::COUNT) == static_cast<int32>(Audio::ELFO::Type::NumLFOTypes), "LFOShape/ELFO Type mismatch");
+		LFO.SetType(static_cast<Audio::ELFO::Type>(InLFO.Shape));
+		LFO.Start();
+	}
+
+	bool FModulatorLFOProxy::IsBypassed() const
+	{
+		return bBypass != 0;
 	}
 
 	void FModulatorLFOProxy::Update(float InElapsed)

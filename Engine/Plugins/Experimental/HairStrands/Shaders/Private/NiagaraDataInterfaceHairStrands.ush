@@ -221,12 +221,13 @@ void DIHairStrands_ComputeNodeInertia(in FDIHairStrandsContext DIContext, in int
 	const float MeanRadius = 0.25 * ( PrevThick + NextThick );
 
 	//const float EdgeMass = StrandsDensity * EdgeLength * M_PI * (PrevThick * PrevThick + NextThick * PrevThick + NextThick * NextThick) / 12.0;
-	//const float RadialInertia = EdgeMass * ( 3.0 * MeanRadius * MeanRadius + EdgeLength * EdgeLength) / 12.0;
-	//OutNodeInertia = float3( RadialInertia, RadialInertia, EdgeMass * MeanRadius * MeanRadius * 0.5 );
-
 	const float EdgeMass = StrandsDensity * EdgeLength * M_PI * MeanRadius * MeanRadius;
-	const float RadialInertia = EdgeMass * ( MeanRadius * MeanRadius) / 4.0;
-	OutNodeInertia = float3( RadialInertia, RadialInertia, 2.0 * RadialInertia );
+	const float RadialInertia = EdgeMass * ( 3.0 * MeanRadius * MeanRadius + EdgeLength * EdgeLength) / 12.0;
+	OutNodeInertia = float3( RadialInertia, RadialInertia, EdgeMass * MeanRadius * MeanRadius * 0.5 );
+
+	//const float EdgeMass = StrandsDensity * EdgeLength * M_PI * MeanRadius * MeanRadius;
+	//const float RadialInertia = EdgeMass * ( MeanRadius * MeanRadius) / 4.0;
+	//OutNodeInertia = float3( RadialInertia, RadialInertia, 2.0 * RadialInertia );
 }
 
 // Compute the node position by linear interpolation over the points
@@ -276,10 +277,77 @@ void DIHairStrands_ComputeNodePosition(in FDIHairStrandsContext DIContext, in in
 	OutNodePosition = mul(float4( OutNodePosition+DIContext.RestPositionOffset, 1.0), DIContext.WorldTransform).xyz;
 }
 
-// Compute the node orientation
-void DIHairStrands_ComputeNodeOrientation(in FDIHairStrandsContext DIContext, in int NodeIndex, out float4 OutNodeOrientation)
+// Compute the node position by linear interpolation over the points
+void DIHairStrands_SmoothNodePosition(in FDIHairStrandsContext DIContext, in int NodeIndex, in float SmoothingFilter, inout float3 OutNodePosition)
 {
-	int StrandIndex = 0, LocalIndex = 0;
+	SharedNodePosition[GGroupThreadId.x] = OutNodePosition;
+	GroupMemoryBarrier();
+
+	const int LocalIndex = (GGroupThreadId.x % DIContext.StrandSize);
+	if(LocalIndex == 0)
+	{
+		const float Beta = SmoothingFilter;
+		float3 DirM1 = SharedNodePosition[GGroupThreadId.x+1] - SharedNodePosition[GGroupThreadId.x];
+		float3 DirM2 = DirM1;
+
+		const float Gamma1 = 2.0 * (1.0-Beta);
+		const float Gamma2 = - (1.0-Beta)*(1.0-Beta);
+		const float Gamma3 = Beta*Beta;
+
+		float3 NodePosition = SharedNodePosition[GGroupThreadId.x];
+		SharedPreviousPosition[GGroupThreadId.x] = NodePosition;
+		
+		for( int i = GGroupThreadId.x, end = GGroupThreadId.x+DIContext.StrandSize-1; i < end; ++i)
+		{
+			const float3 DirM3 = SharedNodePosition[i+1] - SharedNodePosition[i];
+			const float3 DirMi = Gamma1 * DirM1 + Gamma2 * DirM2 + Gamma3 * DirM3;
+
+			SharedPreviousPosition[i+1]  = SharedPreviousPosition[i] + DirMi;
+			GroupMemoryBarrier();
+
+			DirM2 = DirM1;
+			DirM1 = DirMi;
+		}
+	}
+	GroupMemoryBarrier();
+	OutNodePosition = SharedPreviousPosition[GGroupThreadId.x];
+}
+
+// Compute the node orientation
+void DIHairStrands_ComputeNodeOrientation(in FDIHairStrandsContext DIContext, in int NodeIndex, in float3 NodePosition, out float4 OutNodeOrientation)
+{
+	SharedNodePosition[GGroupThreadId.x] = NodePosition;
+	SharedNodeOrientation[GGroupThreadId.x] = QUATERNION_IDENTITY;
+	GroupMemoryBarrier();
+
+	const int LocalIndex = (GGroupThreadId.x % DIContext.StrandSize);
+	if(LocalIndex == 0)
+	{
+		float4 NodeQuaternion = QUATERNION_IDENTITY;
+		float3 TangentNext = float3(0,0,1);
+		float3 TangentPrev = TangentNext;
+
+		float3 PositionNext = SharedNodePosition[GGroupThreadId.x];
+		float3 PositionPrev = PositionNext;
+
+		for (int EdgeIndex = 0, EdgeEnd = DIContext.StrandSize-1; EdgeIndex < EdgeEnd; ++EdgeIndex)
+		{
+			PositionPrev = PositionNext;
+			PositionNext = SharedNodePosition[GGroupThreadId.x+EdgeIndex+1];
+
+			TangentPrev = TangentNext;
+			TangentNext = normalize(PositionNext - PositionPrev);
+			NodeQuaternion = NormalizeQuat( MultiplyQuat( FindQuatBetweenNormals(TangentPrev,TangentNext), NodeQuaternion ) );
+
+			SharedNodeOrientation[GGroupThreadId.x+EdgeIndex] = NodeQuaternion;
+			//GroupMemoryBarrier();
+		}
+		//GroupMemoryBarrier();
+	}
+	GroupMemoryBarrier();
+	OutNodeOrientation = 	SharedNodeOrientation[GGroupThreadId.x];
+
+	/*int StrandIndex = 0, LocalIndex = 0;
 	DIHairStrands_ComputeNodeIndices(DIContext,NodeIndex,StrandIndex,LocalIndex);
 	const int RootIndex = StrandIndex * DIContext.StrandSize;
 
@@ -300,7 +368,7 @@ void DIHairStrands_ComputeNodeOrientation(in FDIHairStrandsContext DIContext, in
 		TangentNext = normalize(PositionNext - PositionPrev);
 		NodeQuaternion = NormalizeQuat( MultiplyQuat( FindQuatBetweenNormals(TangentPrev,TangentNext), NodeQuaternion ) );
 	}
-	OutNodeOrientation = NodeQuaternion;
+	OutNodeOrientation = NodeQuaternion;*/
 }
 
 /* -----------------------------------------------------------------

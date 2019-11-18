@@ -31,6 +31,8 @@
 #include "NiagaraEditorModule.h"
 #include "NiagaraNodeReroute.h"
 
+#include "NiagaraFunctionLibrary.h"
+
 #include "NiagaraDataInterface.h"
 #include "NiagaraDataInterfaceCurve.h"
 #include "NiagaraDataInterfaceVector2DCurve.h"
@@ -1323,6 +1325,8 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 			FString DataInterfaceHLSL;
 			DefineDataInterfaceHLSL(DataInterfaceHLSL);
 			HlslOutput += DataInterfaceHLSL;
+
+			DefineExternalFunctionsHLSL(HlslOutput);
 		}
 
 		//And finally, define the actual main function that handles the reading and writing of data and calls the shared per instance simulate function.
@@ -1366,7 +1370,11 @@ void FHlslNiagaraTranslator::GatherVariableForDataSetAccess(const FNiagaraVariab
 {
 	TArray<FString> Components;
 	UScriptStruct* Struct = Var.GetType().GetScriptStruct();
-	check(Struct);
+	if (!Struct)
+	{
+		Error(FText::Format(LOCTEXT("BadStructDef", "Variable {0} missing struct definition."), FText::FromName(Var.GetName())), nullptr, nullptr);
+		return;
+	}
 
 	TArray<ENiagaraBaseTypes> Types;
 	GatherComponentsForDataSetAccess(Struct, TEXT(""), false, Components, Types);
@@ -1778,6 +1786,16 @@ void FHlslNiagaraTranslator::DefineDataInterfaceHLSL(FString &InHlslOutput)
 	InHlslOutput += InterfaceCommonHLSL + InterfaceUniformHLSL + InterfaceFunctionHLSL;
 }
 
+void FHlslNiagaraTranslator::DefineExternalFunctionsHLSL(FString &InHlslOutput)
+{
+	for (FNiagaraFunctionSignature& FunctionSig : CompilationOutput.ScriptData.AdditionalExternalFunctions )
+	{
+		if ( UNiagaraFunctionLibrary::DefineFunctionHLSL(FunctionSig, InHlslOutput) == false )
+		{
+			Error(FText::Format(LOCTEXT("ExternFunctionMissingHLSL", "ExternalFunction {0} does not have a HLSL implementation for the GPU."), FText::FromName(FunctionSig.Name)), nullptr, nullptr);
+		}
+	}
+}
 
 void FHlslNiagaraTranslator::DefineMain(FString &OutHlslOutput,
 	TArray<TArray<FNiagaraVariable>*> &InstanceReadVars, TArray<FNiagaraDataSetID>& ReadIds,
@@ -4680,7 +4698,7 @@ void FHlslNiagaraTranslator::FinalResolveNamespacedTokens(const FString& Paramet
 								break;
 							}
 						}
-						if (!bAdded)
+						if (!bAdded && !UNiagaraScript::IsStandaloneScript(CompileOptions.TargetUsage)) // Don't warn in modules, they don't have enough context.
 						{
 							Error(FText::Format(LOCTEXT("GetCustomFail1", "Cannot use variable in custom expression, it hasn't been encountered yet: {0}"), FText::FromName(Var.GetName())), nullptr, nullptr);
 						}
@@ -4730,13 +4748,63 @@ void FHlslNiagaraTranslator::HandleCustomHlslNode(UNiagaraNodeCustomHlsl* Custom
 		if (Input.GetType() == FNiagaraTypeDefinition::GetParameterMapDef())
 		{
 			FString ParameterMapInstanceName = GetParameterMapInstanceName(0);
-			FString ReplaceSrc = Input.GetName().ToString() + TEXT(".");
-			FString ReplaceDest = ParameterMapInstanceName + TEXT(".");
-			CustomFunctionHlsl->ReplaceExactMatchTokens(Tokens, ReplaceSrc, ReplaceDest, false);
+			FString ReplaceSrc = Input.GetName().ToString();
+			FString ReplaceDest = ParameterMapInstanceName;
+			CustomFunctionHlsl->ReplaceExactMatchTokens(Tokens, ReplaceSrc, ReplaceDest, true);
 			SigInputs.Add(Input);
 			OutSignature.bRequiresContext = true;
 			ParamMapHistoryIdx = Inputs[i];
 			bHasParamMapInputs = true;
+		}
+		else if (Input.GetType().IsDataInterface())
+		{
+			UObject* const* FoundCDO = CompileData->CDOs.Find(Input.GetType().GetClass());
+			UNiagaraDataInterface* CDO = (FoundCDO ? Cast<UNiagaraDataInterface>(*FoundCDO) : nullptr);
+
+			if (CDO == nullptr)
+			{
+				// If the cdo wasn't found, the data interface was not passed through a parameter map and so it won't be bound correctly, so add a compile error
+				// and invalidate the signature.
+				Error(LOCTEXT("DataInterfaceNotFoundCustomHLSL", "Data interface used by custom hlsl, but not found in precompiled data. Please notify Niagara team of bug."), nullptr, nullptr);
+				return;
+			}
+			int32 OwnerIdx = Inputs[i];
+			if (OwnerIdx < 0 || OwnerIdx >= CompilationOutput.ScriptData.DataInterfaceInfo.Num())
+			{
+				Error(LOCTEXT("FunctionCallDataInterfaceMissingRegistration", "Function call signature does not match to a registered DataInterface. Valid DataInterfaces should be wired into a DataInterface function call."), nullptr, nullptr);
+				return;
+			}
+			
+			// Go over all the supported functions in the DI and look to see if they occur in the 
+			// actual custom hlsl source. If they do, then add them to the function table that we need to map.
+			FNiagaraScriptDataInterfaceCompileInfo& Info = CompilationOutput.ScriptData.DataInterfaceInfo[OwnerIdx];
+			TArray<FNiagaraFunctionSignature> Funcs;
+			TArray<FNiagaraFunctionSignature> AddedFuncs;
+			CDO->GetFunctions(Funcs);
+			for (int32 FuncIdx = 0; FuncIdx < Funcs.Num(); FuncIdx++)
+			{
+				FNiagaraFunctionSignature Sig = Funcs[FuncIdx];
+				FString ReplaceSrc = Input.GetName().ToString() + TEXT(".") + Sig.GetName();
+				FString ReplaceDest = GetSanitizedSymbolName(Sig.GetName() + TEXT("_") + (Info.Name.ToString().Replace(TEXT("."), TEXT(""))));
+				uint32 NumFound = CustomFunctionHlsl->ReplaceExactMatchTokens(Tokens, ReplaceSrc, ReplaceDest, false);
+				if (NumFound != 0)
+				{
+					AddedFuncs.Add(Sig);
+					DataInterfaceRegisteredFunctions.FindOrAdd(Input.GetType().GetFName()).Add(Sig);
+
+					if (Info.UserPtrIdx != INDEX_NONE && CompilationTarget != ENiagaraSimTarget::GPUComputeSim)
+					{
+						//This interface requires per instance data via a user ptr so place the index to it at the end of the inputs.
+						//Skip this for now... Inputs.Add(AddSourceChunk(LexToString(Info.UserPtrIdx), FNiagaraTypeDefinition::GetIntDef(), false));
+						Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("InstanceData")));
+					}
+					//Override the owner id of the signature with the actual caller.
+					Sig.OwnerName = Info.Name;
+					Info.RegisteredFunctions.Add(Sig);
+					Functions.FindOrAdd(Sig);
+				}
+			}
+			SigInputs.Add(Input);
 		}
 		else
 		{
@@ -4755,9 +4823,9 @@ void FHlslNiagaraTranslator::HandleCustomHlslNode(UNiagaraNodeCustomHlsl* Custom
 		if (Output.GetType() == FNiagaraTypeDefinition::GetParameterMapDef())
 		{
 			FString ParameterMapInstanceName = GetParameterMapInstanceName(0);
-			FString ReplaceSrc = Output.GetName().ToString() + TEXT(".");
-			FString ReplaceDest = ParameterMapInstanceName + TEXT(".");
-			CustomFunctionHlsl->ReplaceExactMatchTokens(Tokens, ReplaceSrc, ReplaceDest, false);
+			FString ReplaceSrc = Output.GetName().ToString();
+			FString ReplaceDest = ParameterMapInstanceName;
+			CustomFunctionHlsl->ReplaceExactMatchTokens(Tokens, ReplaceSrc, ReplaceDest, true);
 			SigOutputs.Add(Output);
 			OutSignature.bRequiresContext = true;
 			bHasParamMapOutputs = true;
@@ -5046,7 +5114,7 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 						}
 						else
 						{
-							FunctionDefStr += TEXT("if (ShaderStageIndex == 0)\n{\n");
+							FunctionDefStr += TEXT("if ((GCurrentPhase == 0 && ShaderStageIndex == 0) || (GCurrentPhase == 1 && ShaderStageIndex == DefaultShaderStageIndex))\n{\n");
 						}
 					}
 				}

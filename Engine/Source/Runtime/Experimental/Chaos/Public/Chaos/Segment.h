@@ -41,6 +41,13 @@ namespace Chaos
 			return FarthestCap + (NormalizedDirection * Thickness);
 		}
 
+		FORCEINLINE_DEBUGGABLE TVector<T, 3> Support2(const TVector<T, 3>& Direction) const
+		{
+			const T Dot = TVector<T, 3>::DotProduct(Direction, MAxis);
+			const TVector<T, 3> FarthestCap = Dot >= 0 ? GetX2() : GetX1();	//orthogonal we choose either
+			return FarthestCap;
+		}
+
 		FORCEINLINE void Serialize(FArchive &Ar) 
 		{
 			Ar << MPoint << MAxis << MLength;

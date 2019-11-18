@@ -24,6 +24,22 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogCADLibrary, Log, All)
 
+void UDataprepTessellationOperation::PostLoad()
+{
+	if( HasAnyFlags(RF_WasLoaded) && TessellationSettings_DEPRECATED.ChordTolerance != -MAX_FLT)
+	{
+		ChordTolerance = TessellationSettings_DEPRECATED.ChordTolerance;
+		MaxEdgeLength = TessellationSettings_DEPRECATED.MaxEdgeLength;
+		NormalTolerance = TessellationSettings_DEPRECATED.NormalTolerance;
+		// Mark TessellationSettings_DEPRECATED as non usable
+		TessellationSettings_DEPRECATED.ChordTolerance = -MAX_FLT;
+
+		MarkPackageDirty();
+	}
+
+	Super::PostLoad();
+}
+
 void UDataprepTessellationOperation::OnExecution_Implementation(const FDataprepContext& InContext)
 {
 #ifdef CAD_LIBRARY
@@ -53,6 +69,8 @@ void UDataprepTessellationOperation::OnExecution_Implementation(const FDataprepC
 
 	if(	!IsCancelled() && SelectedMeshes.Num() > 0)
 	{
+		FDatasmithTessellationOptions TessellationSettings( ChordTolerance, MaxEdgeLength, NormalTolerance );
+
 		TSharedPtr<FDataprepWorkReporter> Task = CreateTask( LOCTEXT( "LogCADLibrary_Tessellating", "Tessellating meshes ..." ), (float)SelectedMeshes.Num() );
 
 		TArray<UObject*> ModifiedStaticMeshes;

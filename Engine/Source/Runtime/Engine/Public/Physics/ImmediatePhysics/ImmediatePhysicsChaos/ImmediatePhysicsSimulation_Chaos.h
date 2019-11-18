@@ -59,8 +59,8 @@ namespace ImmediatePhysics_Chaos
 		//void SetIsKinematic(int32 ActorDataIndex, bool bKinematic);
 
 		/** Advance the simulation by DeltaTime */
-		void Simulate(float DeltaTime, const FVector& InGravity);
-		void Simulate_AssumesLocked(float DeltaTime, const FVector& InGravity) { Simulate(DeltaTime, InGravity); }
+		void Simulate(float DeltaTime, float MaxDeltaTime, int32 MaxSubSteps, const FVector& InGravity);
+		void Simulate_AssumesLocked(float DeltaTime, float MaxDeltaTime, int32 MaxSubSteps, const FVector& InGravity) { Simulate(DeltaTime, MaxDeltaTime, MaxSubSteps, InGravity); }
 
 		///** Whether or not an entity is simulated */
 		//bool IsSimulated(int32 ActorDataIndex) const;
@@ -89,8 +89,8 @@ namespace ImmediatePhysics_Chaos
 		using FParticleHandle = Chaos::TGeometryParticleHandle<FReal, Dimensions>;
 		TUniquePtr<Chaos::TPBDRigidsEvolutionGBF<FReal, Dimensions>> Evolution;
 		TUniquePtr<Chaos::TPBDRigidsSOAs<FReal, Dimensions>> Particles;
-		TUniquePtr<Chaos::TPBDJointConstraints<FReal, Dimensions>> Joints;
-		TUniquePtr<Chaos::TPBDConstraintIslandRule<Chaos::TPBDJointConstraints<FReal, Dimensions>, FReal, Dimensions>> JointsRule;		// @todo(ccaulfield): Don't need islands for anim node physics...
+		TUniquePtr<Chaos::FPBDJointConstraints> Joints;
+		TUniquePtr<Chaos::TPBDConstraintIslandRule<Chaos::FPBDJointConstraints>> JointsRule;		// @todo(ccaulfield): Don't need islands for anim node physics...
 
 		/** Mapping from entity index to handle */
 		// @todo(ccaulfield): we now have handles pointing to handles which is inefficient - we can do better than this, but don't want to change API yet

@@ -24,14 +24,12 @@ class SUndoHistory
 		// Holds the transactions index in the transaction queue.
 		int32 QueueIndex;
 
-		// Holds a pointer to the transaction.
-		const FTransaction* Transaction;
-
 		// Creates and initializes a new instance.
-		FTransactionInfo( int32 InQueueIndex, const FTransaction* InTransaction )
-			: QueueIndex(InQueueIndex)
-			, Transaction(InTransaction)
+		FTransactionInfo( int32 InQueueIndex )
+			: QueueIndex(InQueueIndex)			
 		{ }
+
+		const FTransaction* GetTransaction() const;
 	};
 
 public:

@@ -215,7 +215,9 @@ void FStaticMeshStaticLightingTextureMapping::Apply(FQuantizedLightmapData* Quan
 
 	UStaticMeshComponent* StaticMeshComponent = Primitive.Get();
 
-	if (StaticMeshComponent && StaticMeshComponent->GetOwner() && StaticMeshComponent->GetOwner()->GetLevel())
+	if (StaticMeshComponent && StaticMeshComponent->GetOwner() && StaticMeshComponent->GetOwner()->GetLevel() && 
+		(LODIndex >= StaticMeshComponent->LODData.Num() || StaticMeshComponent->LODData[LODIndex].MapBuildDataId.IsValid())
+		)
 	{
 		// Should have happened at a higher level
 		check(!StaticMeshComponent->IsRenderStateCreated());

@@ -175,11 +175,10 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 ,	SendBunchHeader		( MAX_BUNCH_HEADER_BITS )
 
 ,	StatPeriod			( 1.f  )
-,	BestLag				( 9999 )
 ,	AvgLag				( 9999 )
-
+,   BestLag				( 9999 )
+,   BestLagAcc			( 9999 )
 ,	LagAcc				( 9999 )
-,	BestLagAcc			( 9999 )
 ,	LagCount			( 0 )
 ,	LastTime			( 0 )
 ,	FrameTime			( 0 )
@@ -201,6 +200,7 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 ,	InTotalPacketsLost	( 0 )
 ,	OutTotalPacketsLost	( 0 )
 ,	OutTotalAcks		( 0 )
+,	StatPeriodCount		( 0 )
 ,	AnalyticsVars		()
 ,	NetAnalyticsData	()
 ,	SendBuffer			( 0 )
@@ -2950,10 +2950,15 @@ void UNetConnection::Tick()
 		InPacketsPerSecond = FMath::TruncToInt(static_cast<float>(InPackets) / RealTime);
 		OutPacketsPerSecond = FMath::TruncToInt(static_cast<float>(OutPackets) / RealTime);
 
+		// Add TotalPacketsLost to total since InTotalPackets only counts ACK packets
+		InPacketsLossPercentage.UpdateLoss(InPacketsLost, InTotalPackets + InTotalPacketsLost, StatPeriodCount);
+
+		// Using OutTotalNotifiedPackets so we do not count packets that are still in transit.
+		OutPacketsLossPercentage.UpdateLoss(OutPacketsLost, OutTotalNotifiedPackets, StatPeriodCount);
+
 		// Init counters.
 		LagAcc = 0;
 		StatUpdateTime = CurrentRealtimeSeconds;
-		BestLagAcc = 9999;
 		LagCount = 0;
 		InPacketsLost = 0;
 		OutPacketsLost = 0;
@@ -2961,6 +2966,8 @@ void UNetConnection::Tick()
 		OutBytes = 0;
 		InPackets = 0;
 		OutPackets = 0;
+
+		++StatPeriodCount;
 	}
 
 	if (bConnectionPendingCloseDueToSocketSendFailure)
@@ -3741,7 +3748,21 @@ void UNetConnection::SendChallengeControlMessage(const FEncryptionKeyResponse& R
 	{
 		if (Response.Response == EEncryptionResponse::Success)
 		{
-			EnableEncryptionServer(Response.EncryptionData);
+			// handle deprecated path where only the key is set
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			if ((Response.EncryptionKey.Num() > 0) && (Response.EncryptionData.Key.Num() == 0))
+			{
+				FEncryptionData ResponseData = Response.EncryptionData;
+				ResponseData.Key = Response.EncryptionKey;
+
+				EnableEncryptionServer(ResponseData);
+			}
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			else
+			{
+				EnableEncryptionServer(Response.EncryptionData);
+			}
+
 			SendChallengeControlMessage();
 		}
 		else

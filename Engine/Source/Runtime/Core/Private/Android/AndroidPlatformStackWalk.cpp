@@ -12,6 +12,13 @@
 #include <cxxabi.h>
 #include <stdio.h>
 
+#define HAS_LIBUNWIND PLATFORM_ANDROID_ARM64 && !PLATFORM_LUMIN
+
+#if HAS_LIBUNWIND
+#define UNW_LOCAL_ONLY
+#include "libunwind.h"
+#endif
+
 void FAndroidPlatformStackWalk::ProgramCounterToSymbolInfo(uint64 ProgramCounter, FProgramCounterSymbolInfo& out_SymbolInfo)
 {
 	Dl_info DylibInfo;
@@ -95,6 +102,38 @@ namespace AndroidStackWalkHelpers
 	}
 }
 
+#if HAS_LIBUNWIND
+// code based on unw_backtrace using signal context for the walk, note that this code was originally intended to walk the current stack.
+// Since it walks a signal context it includes the first frame.
+static int backtrace_signal(void* sigcontext, void **buffer, int size)
+{
+	unw_cursor_t cursor;
+	unw_word_t ip;
+	int n = 0;
+
+	if (unw_init_local2(&cursor, (unw_context_t *)sigcontext, 1) < 0)
+	{
+		return 0;
+	}
+
+	do
+	{
+		if (n >= size)
+		{
+			return n;
+		}
+
+		if (unw_get_reg(&cursor, UNW_REG_IP, &ip) < 0)
+		{
+			return n;
+		}
+		buffer[n++] = (void *)(uintptr_t)ip;
+	} while (unw_step(&cursor) > 0);
+
+	return n;
+}
+#endif
+
 extern int32 unwind_backtrace_signal(void* sigcontext, uint64* Backtrace, int32 MaxDepth);
 
 uint32 FAndroidPlatformStackWalk::CaptureStackBackTrace(uint64* BackTrace, uint32 MaxDepth, void* Context)
@@ -117,8 +156,20 @@ uint32 FAndroidPlatformStackWalk::CaptureStackBackTrace(uint64* BackTrace, uint3
 		// Code taken from https://android.googlesource.com/platform/system/core/+/jb-dev/libcorkscrew/arch-arm/backtrace-arm.c
 		return unwind_backtrace_signal(Context, BackTrace, MaxDepth);
 	}
-#endif //PLATFORM_ANDROID_ARM
-	
+#elif HAS_LIBUNWIND 
+	if (Context)
+	{
+		// Android signal handlers always catch signals before user handlers and passes it down to user later
+		// unw_backtrace does not use signal context and will produce wrong callstack in this case
+		// We use code from libunwind to unwind backtrace using actual signal context
+		return backtrace_signal(Context, (void**)BackTrace, MaxDepth);
+	}
+	else
+	{
+		return unw_backtrace((void**)BackTrace, MaxDepth);
+	}
+#endif 
+
 	AndroidStackWalkHelpers::BackTrace = BackTrace;
 	AndroidStackWalkHelpers::MaxDepth = MaxDepth;
 	uint32 Depth = 0;

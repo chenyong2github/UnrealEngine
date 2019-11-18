@@ -11,5 +11,5 @@ struct HAIRSTRANDSCORE_API FGroomBuilder
 {
 	static bool BuildGroom(const class FHairDescription& HairDescription, const struct FGroomBuildSettings& BuildSettings, UGroomAsset* GroomAsset);
 	static void GenerateGuides(const FHairStrandsDatas& InData, float DecimationPercentage, FHairStrandsDatas& OutData);
-	static void BuildData(UGroomAsset* GroomAsset);
+	static void BuildData(UGroomAsset* GroomAsset, uint8 QualityLevel, uint8 WeightMethod, bool bRandomize, bool bUnique);
 };

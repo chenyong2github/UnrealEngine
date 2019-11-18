@@ -15,7 +15,7 @@
 #include "Styling/SlateIconFinder.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
-#include "SNiagaraStackErrorButton.h"
+#include "SNiagaraStackIssueIcon.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackRendererItem"
 
@@ -27,8 +27,8 @@ void SNiagaraStackRendererItem::Construct(const FArguments& InArgs, UNiagaraStac
 
 	ChildSlot
 	[
-		// Renderer icon
 		SNew(SHorizontalBox)
+		// Renderer icon
 		+ SHorizontalBox::Slot()
 		.Padding(2, 0, 0, 0)
 		.AutoWidth()
@@ -39,22 +39,11 @@ void SNiagaraStackRendererItem::Construct(const FArguments& InArgs, UNiagaraStac
 		]
 		// Display name
 		+ SHorizontalBox::Slot()
-		.Padding(5, 0, 0, 0)
+		.Padding(2, 0, 0, 0)
 		.VAlign(VAlign_Center)
 		[
 			SNew(SNiagaraStackDisplayName, InRendererItem, *InStackViewModel, "NiagaraEditor.Stack.ItemText")
 			.ColorAndOpacity(this, &SNiagaraStackEntryWidget::GetTextColorForSearch)
-		]
-		// Stack issues icon
-		+ SHorizontalBox::Slot()
-		.Padding(2, 0, 0, 0)
-		.AutoWidth()
-		[
-			SNew(SNiagaraStackErrorButton)
-			.IssueSeverity_UObject(RendererItem, &UNiagaraStackRendererItem::GetHighestStackIssueSeverity)
-			.ErrorTooltip(this, &SNiagaraStackRendererItem::GetErrorButtonTooltipText)
-			.Visibility(this, &SNiagaraStackRendererItem::GetStackIssuesWarningVisibility)
-			.OnButtonClicked(this, &SNiagaraStackRendererItem::ExpandEntry)
 		]
 		// Reset to base Button
 		+ SHorizontalBox::Slot()
@@ -151,16 +140,6 @@ void SNiagaraStackRendererItem::OnCheckStateChanged(ECheckBoxState InCheckState)
 ECheckBoxState SNiagaraStackRendererItem::CheckEnabledStatus() const
 {
 	return RendererItem->GetIsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-}
-
-EVisibility SNiagaraStackRendererItem::GetStackIssuesWarningVisibility() const
-{
-	return  RendererItem->GetRecursiveStackIssuesCount() > 0? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-FText SNiagaraStackRendererItem::GetErrorButtonTooltipText() const
-{
-	return FText::Format(LOCTEXT("ModuleIssuesTooltip", "This renderer has {0} issues, click to expand."), RendererItem->GetRecursiveStackIssuesCount());
 }
 
 #undef LOCTEXT_NAMESPACE

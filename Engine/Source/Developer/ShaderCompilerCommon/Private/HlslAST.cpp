@@ -591,7 +591,14 @@ namespace CrossCompiler
 			{
 				Writer << TEXT(" : ") << ReturnSemantic;
 			}
-			Writer << TEXT("\n");
+			if (bIsDefinition)
+			{
+				Writer << TEXT(";\n");
+			}
+			else
+			{
+				Writer << TEXT("\n");
+			}
 		}
 
 		FFunction::~FFunction()
@@ -847,6 +854,12 @@ namespace CrossCompiler
 			{
 				Writer << TEXT("row_major ");
 			}
+
+			if (PrimitiveType)
+			{
+				Writer << PrimitiveType;
+				Writer << (TCHAR)' ';
+			}
 		}
 
 		FFullySpecifiedType::FFullySpecifiedType(FLinearAllocator* InAllocator, const FSourceInfo& InInfo) :
@@ -954,6 +967,11 @@ namespace CrossCompiler
 		{
 			Writer.DoIndent();
 			WriteAttributes(Writer);
+			if (bTypedef)
+			{
+				Writer << TEXT("typedef ");
+			}
+
 			if (Type)
 			{
 				Type->Write(Writer);
@@ -1117,7 +1135,6 @@ namespace CrossCompiler
 				Writer << TEXT(")\n");
 				if (Body)
 				{
-					FASTWriterIncrementScope Scope(Writer);
 					Body->Write(Writer);
 				}
 				else

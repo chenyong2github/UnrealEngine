@@ -37,6 +37,7 @@ struct FOpenGL3 : public FOpenGLBase
 	static FORCEINLINE bool IsDebugContent()						{ return bDebugContext; }
 
 	static FORCEINLINE bool SupportsTimestampQueries()				{ return TimestampQueryBits > 0; }
+	static FORCEINLINE bool SupportsDrawIndirect()					{ return true; }
 	static FORCEINLINE bool SupportsSeamlessCubeMap()				{ return bSupportsSeamlessCubemap; }
 	static FORCEINLINE bool SupportsVolumeTextureRendering()		{ return bSupportsVolumeTextureRendering; }
 	static FORCEINLINE bool SupportsGenerateMipmap()				{ return true; }

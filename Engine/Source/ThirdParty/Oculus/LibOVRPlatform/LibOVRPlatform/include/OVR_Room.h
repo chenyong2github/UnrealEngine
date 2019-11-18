@@ -9,6 +9,7 @@
 #include "OVR_RoomJoinability.h"
 #include "OVR_RoomJoinPolicy.h"
 #include "OVR_RoomType.h"
+#include "OVR_TeamArray.h"
 #include "OVR_Types.h"
 #include "OVR_User.h"
 #include "OVR_UserArray.h"
@@ -36,6 +37,10 @@ OVRP_PUBLIC_FUNCTION(ovrMatchmakingEnqueuedUserArrayHandle) ovr_Room_GetMatchedU
 /// This method may return null. This indicates that the value is not present or that the curent
 /// app or user is not permitted to access it.
 OVRP_PUBLIC_FUNCTION(ovrUserHandle) ovr_Room_GetOwner(const ovrRoomHandle obj);
+
+/// This method may return null. This indicates that the value is not present or that the curent
+/// app or user is not permitted to access it.
+OVRP_PUBLIC_FUNCTION(ovrTeamArrayHandle) ovr_Room_GetTeams(const ovrRoomHandle obj);
 
 /// This method may return null. This indicates that the value is not present or that the curent
 /// app or user is not permitted to access it.

@@ -66,7 +66,7 @@ UStructProperty* FVariantManagerUtils::GetRelativeLocationProperty()
 {
 	if (!RelativeLocationProperty)
 	{
-		RelativeLocationProperty = FindField<UStructProperty>( USceneComponent::StaticClass(), GET_MEMBER_NAME_CHECKED( USceneComponent, RelativeLocation ) );
+		RelativeLocationProperty = FindField<UStructProperty>(USceneComponent::StaticClass(), *USceneComponent::GetRelativeLocationPropertyName().ToString());
 	}
 
 	return RelativeLocationProperty;
@@ -76,7 +76,7 @@ UStructProperty* FVariantManagerUtils::GetRelativeRotationProperty()
 {
 	if (!RelativeRotationProperty)
 	{
-		RelativeRotationProperty = FindField<UStructProperty>( USceneComponent::StaticClass(), GET_MEMBER_NAME_CHECKED( USceneComponent, RelativeRotation ) );
+		RelativeRotationProperty = FindField<UStructProperty>(USceneComponent::StaticClass(), *USceneComponent::GetRelativeRotationPropertyName().ToString());
 	}
 
 	return RelativeRotationProperty;
@@ -86,7 +86,7 @@ UStructProperty* FVariantManagerUtils::GetRelativeScale3DProperty()
 {
 	if (!RelativeScale3DProperty)
 	{
-		RelativeScale3DProperty = FindField<UStructProperty>( USceneComponent::StaticClass(), GET_MEMBER_NAME_CHECKED( USceneComponent, RelativeScale3D ) );
+		RelativeScale3DProperty = FindField<UStructProperty>(USceneComponent::StaticClass(), *USceneComponent::GetRelativeScale3DPropertyName().ToString());
 	}
 
 	return RelativeScale3DProperty;
@@ -96,7 +96,7 @@ UBoolProperty* FVariantManagerUtils::GetVisibilityProperty()
 {
 	if (!VisiblityProperty)
 	{
-		VisiblityProperty = FindField<UBoolProperty>( USceneComponent::StaticClass(), GET_MEMBER_NAME_CHECKED( USceneComponent, bVisible ) );
+		VisiblityProperty = FindField<UBoolProperty>(USceneComponent::StaticClass(), *USceneComponent::GetVisiblePropertyName().ToString());
 	}
 
 	return VisiblityProperty;
