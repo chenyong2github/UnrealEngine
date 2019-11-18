@@ -237,6 +237,8 @@ TArray<TVector<T, 3>> TTriangleMesh<T>::GetFaceNormals(const TArrayView<const TV
 	return Normals;
 }
 
+// Note:	This function assumes Counter Clockwise triangle windings in a Left Handed coordinate system
+//			If this is not the case the returned face normals may need to be inverted
 template<class T>
 void TTriangleMesh<T>::GetFaceNormals(TArray<TVector<T, 3>>& Normals, const TArrayView<const TVector<T, 3>>& Points, const bool ReturnEmptyOnError) const
 {
@@ -247,7 +249,7 @@ void TTriangleMesh<T>::GetFaceNormals(TArray<TVector<T, 3>>& Normals, const TArr
 		{
 			TVector<T, 3> p10 = Points[Tri[1]] - Points[Tri[0]];
 			TVector<T, 3> p20 = Points[Tri[2]] - Points[Tri[0]];
-			TVector<T, 3> Cross = TVector<T, 3>::CrossProduct(p10, p20);
+			TVector<T, 3> Cross = TVector<T, 3>::CrossProduct(p20, p10);
 			const T Size2 = Cross.SizeSquared();
 			if (Size2 < SMALL_NUMBER)
 			{
@@ -268,7 +270,7 @@ void TTriangleMesh<T>::GetFaceNormals(TArray<TVector<T, 3>>& Normals, const TArr
 		{
 			TVector<T, 3> p10 = Points[Tri[1]] - Points[Tri[0]];
 			TVector<T, 3> p20 = Points[Tri[2]] - Points[Tri[0]];
-			TVector<T, 3> Cross = TVector<T, 3>::CrossProduct(p10, p20);
+			TVector<T, 3> Cross = TVector<T, 3>::CrossProduct(p20, p10);
 			Normals.Add(Cross.GetSafeNormal());
 		}
 	}
