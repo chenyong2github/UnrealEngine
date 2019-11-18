@@ -62,6 +62,9 @@ public:
 	/** returns "SubMenuC.SubMenuD" for menu "ModuleA.MenuB.SubMenuC.SubMenuD" */
 	FString GetSubMenuNamePath() const;
 
+	/* Set support for extenders */
+	void SetExtendersEnabled(bool bEnabled);
+
 	//~ Begin UToolMenuBase Interface
 	virtual bool IsEditing() const override;
 	virtual FName GetSectionName(const FName InEntryName) const override;
@@ -82,7 +85,7 @@ public:
 	template <typename TContextType>
 	TContextType* FindContext() const
 	{
-		return Context.Find<TContextType>();
+		return Context.FindContext<TContextType>();
 	}
 
 	//~ Begin UObject Interface
@@ -104,6 +107,8 @@ private:
 	int32 IndexOfSection(const FName SectionName) const;
 
 	int32 FindInsertIndex(const FToolMenuSection& InSection) const;
+
+	bool IsRegistering() const;
 
 public:
 
@@ -161,6 +166,8 @@ public:
 private:
 
 	bool bRegistered;
+	bool bIsRegistering;
+	bool bExtendersEnabled;
 
 	const ISlateStyle* StyleSet;
 
