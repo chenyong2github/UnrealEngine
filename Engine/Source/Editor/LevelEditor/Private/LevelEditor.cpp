@@ -49,6 +49,31 @@ const FName LevelEditorApp = FName(TEXT("LevelEditorApp"));
 const FName MainFrame("MainFrame");
 const FName CommonMenuExtensionsName(TEXT("CommonMenuExtensions"));
 
+const FName LevelEditorTabIds::LevelEditorViewport(TEXT("LevelEditorViewport"));
+const FName LevelEditorTabIds::LevelEditorViewport_Clone1(TEXT("LevelEditorViewport_Clone1"));
+const FName LevelEditorTabIds::LevelEditorViewport_Clone2(TEXT("LevelEditorViewport_Clone2"));
+const FName LevelEditorTabIds::LevelEditorViewport_Clone3(TEXT("LevelEditorViewport_Clone3"));
+const FName LevelEditorTabIds::LevelEditorViewport_Clone4(TEXT("LevelEditorViewport_Clone4"));
+const FName LevelEditorTabIds::LevelEditorToolBar(TEXT("LevelEditorToolBar"));
+const FName LevelEditorTabIds::LevelEditorToolBox(TEXT("LevelEditorToolBox"));
+const FName LevelEditorTabIds::LevelEditorSelectionDetails(TEXT("LevelEditorSelectionDetails"));
+const FName LevelEditorTabIds::LevelEditorSelectionDetails2(TEXT("LevelEditorSelectionDetails2"));
+const FName LevelEditorTabIds::LevelEditorSelectionDetails3(TEXT("LevelEditorSelectionDetails3"));
+const FName LevelEditorTabIds::LevelEditorSelectionDetails4(TEXT("LevelEditorSelectionDetails4"));
+const FName LevelEditorTabIds::PlacementBrowser(TEXT("PlacementBrowser"));
+const FName LevelEditorTabIds::LevelEditorBuildAndSubmit(TEXT("LevelEditorBuildAndSubmit"));
+const FName LevelEditorTabIds::LevelEditorSceneOutliner(TEXT("LevelEditorSceneOutliner"));
+const FName LevelEditorTabIds::LevelEditorStatsViewer(TEXT("LevelEditorStatsViewer"));
+const FName LevelEditorTabIds::LevelEditorLayerBrowser(TEXT("LevelEditorLayerBrowser"));
+const FName LevelEditorTabIds::Sequencer(TEXT("Sequencer"));
+const FName LevelEditorTabIds::SequencerGraphEditor(TEXT("SequencerGraphEditor"));
+const FName LevelEditorTabIds::WorldSettings(TEXT("WorldSettingsTab"));
+const FName LevelEditorTabIds::WorldBrowserComposition(TEXT("WorldBrowserComposition"));
+const FName LevelEditorTabIds::WorldBrowserHierarchy(TEXT("WorldBrowserHierarchy"));
+const FName LevelEditorTabIds::WorldBrowserDetails(TEXT("WorldBrowserDetails"));
+const FName LevelEditorTabIds::LevelEditorHierarchicalLODOutliner(TEXT("LevelEditorHierarchicalLODOutliner"));
+const FName LevelEditorTabIds::OutputLog(TEXT("OutputLog"));
+
 FLevelEditorModule::FLevelEditorModule()
 	: ToggleImmersiveConsoleCommand(
 	TEXT( "LevelEditor.ToggleImmersive" ),
@@ -344,31 +369,26 @@ void FLevelEditorModule::SummonSelectionDetails()
 void FLevelEditorModule::SummonBuildAndSubmit()
 {
 	TSharedPtr<SLevelEditor> LevelEditorInstance = LevelEditorInstancePtr.Pin();
-	LevelEditorInstance->InvokeTab("LevelEditorBuildAndSubmit");
+	LevelEditorInstance->InvokeTab(LevelEditorTabIds::LevelEditorBuildAndSubmit);
 }
 
-void FLevelEditorModule::SummonLevelBrowser()
-{
-	TSharedPtr<SLevelEditor> LevelEditorInstance = LevelEditorInstancePtr.Pin();
-	LevelEditorInstance->InvokeTab("LevelEditorLevelBrowser");
-}
 
 void FLevelEditorModule::SummonWorldBrowserHierarchy()
 {
 	TSharedPtr<SLevelEditor> LevelEditorInstance = LevelEditorInstancePtr.Pin();
-	LevelEditorInstance->InvokeTab("WorldBrowserHierarchy");
+	LevelEditorInstance->InvokeTab(LevelEditorTabIds::WorldBrowserHierarchy);
 }
 
 void FLevelEditorModule::SummonWorldBrowserDetails()
 {
 	TSharedPtr<SLevelEditor> LevelEditorInstance = LevelEditorInstancePtr.Pin();
-	LevelEditorInstance->InvokeTab("WorldBrowserDetails");
+	LevelEditorInstance->InvokeTab(LevelEditorTabIds::WorldBrowserDetails);
 }
 
 void FLevelEditorModule::SummonWorldBrowserComposition()
 {
 	TSharedPtr<SLevelEditor> LevelEditorInstance = LevelEditorInstancePtr.Pin();
-	LevelEditorInstance->InvokeTab("WorldBrowserComposition");
+	LevelEditorInstance->InvokeTab(LevelEditorTabIds::WorldBrowserComposition);
 }
 
 // @todo remove when world-centric mode is added
