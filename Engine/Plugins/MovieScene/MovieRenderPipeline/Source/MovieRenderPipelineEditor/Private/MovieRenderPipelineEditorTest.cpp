@@ -1,9 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "MovieRenderPipelineEditorModule.h"
-#include "MoviePipelineBackbufferPass.h"
 #include "MoviePipelineShotConfig.h"
 #include "MoviePipelineGameOverrideSetting.h"
-#include "GameFramework/GameMode.h"
 #include "MoviePipelineAccumulationSetting.h"
 #include "MoviePipelineImageSequenceContainer.h"
 #include "MoviePipelineAudioOutput.h"
@@ -13,6 +11,7 @@
 #include "MoviePipelineHighResSetting.h"
 #include "MoviePipelineDeferredPasses.h"
 #include "MoviePipelineCameraSetting.h"
+#include "GameFramework/GameModeBase.h"
 
 UMoviePipelineShotConfig* GenerateTestShotConfig(UObject* InOwner, int32 InSampleCount,
 	int32 InShutterAngle, EMoviePipelineShutterTiming InFrameTiming, int32 InTileCount,
@@ -20,9 +19,6 @@ UMoviePipelineShotConfig* GenerateTestShotConfig(UObject* InOwner, int32 InSampl
 {
 	UMoviePipelineShotConfig* OutConfig = NewObject<UMoviePipelineShotConfig>(InOwner);
 	OutConfig->FindOrAddSetting<UMoviePipelineDeferredPassBase>();
-
-	UMoviePipelineGameOverrideSetting* GamemodeOverride = OutConfig->FindOrAddSetting<UMoviePipelineGameOverrideSetting>();
-	GamemodeOverride->GameModeOverride = AGameMode::StaticClass();
 
 	UMoviePipelineAccumulationSetting* Accumulation = OutConfig->FindOrAddSetting< UMoviePipelineAccumulationSetting>();
 	Accumulation->SpatialSampleCount = InSpatialSampleCount;
@@ -77,9 +73,9 @@ TArray<UMoviePipelineMasterConfig*> FMovieRenderPipelineEditorModule::GenerateTe
 
 				int32 SizeX = 1920;
 				int32 SizeY = 1080;
-				int32 TileX = 4;
-				int32 TileY = 4;
-				int32 TestNumSamples = 8;
+				int32 TileX = 2;
+				int32 TileY = 2;
+				int32 TestNumSamples = 2;
 				float PadRatioX = 0.5f;
 				float PadRatioY = 0.5f;
 				float AccumulationGamma = 1.0f;
@@ -101,6 +97,9 @@ TArray<UMoviePipelineMasterConfig*> FMovieRenderPipelineEditorModule::GenerateTe
 
 				// Add some Outputs
 				OutPipeline->FindOrAddSetting<UMoviePipelineImageSequenceContainerBase>();
+
+				UMoviePipelineGameOverrideSetting* GamemodeOverride = OutPipeline->FindOrAddSetting<UMoviePipelineGameOverrideSetting>();
+				GamemodeOverride->GameModeOverride = AGameModeBase::StaticClass();
 
 				// Add it to our list to be processed.
 				Configs.Add(OutPipeline);

@@ -1,31 +1,22 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "MovieRenderPipelineEditorModule.h"
-#include "Widgets/Docking/SDockTab.h"
-#include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "MovieRenderPipelineCoreModule.h"
+#include "MoviePipelineExecutor.h"
 #include "WorkspaceMenuStructureModule.h"
 #include "WorkspaceMenuStructure.h"
 #include "Widgets/SMoviePipelineTabContent.h"
-#include "Editor.h"
-#include "MoviePipeline.h"
-#include "MovieRenderPipelineDataTypes.h"
-#include "MoviePipelineBackbufferPass.h"
-#include "MoviePipelineImageSequenceContainer.h"
-#include "MoviePipelineShotConfig.h"
-#include "MovieRenderPipelineCoreModule.h"
-#include "MoviePipelineAudioOutput.h"
-#include "MoviePipelineBackbufferPass.h"
-#include "MoviePipelineGameOverrideSetting.h"
-#include "GameFramework/GameMode.h"
-#include "Engine/World.h"
-#include "GameFramework/WorldSettings.h"
-#include "MoviePipelineAccumulationSetting.h"
 #include "ISettingsModule.h"
 #include "MovieRenderPipelineSettings.h"
 #include "HAL/IConsoleManager.h"
-#include "MovieRenderPipelineSettings.h"
 #include "MoviePipelineExecutor.h"
+#include "Widgets/Docking/SDockTab.h"
+#include "Framework/Docking/TabManager.h"
+#include "EditorStyleSet.h"
+#include "Misc/PackageName.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/Package.h"
+#include "Templates/SubclassOf.h"
 
 #define LOCTEXT_NAMESPACE "FMovieRenderPipelineEditorModule"
 
@@ -132,10 +123,6 @@ void FMovieRenderPipelineEditorModule::StartupModule()
 
 void FMovieRenderPipelineEditorModule::ShutdownModule()
 {
-	FEditorDelegates::PostPIEStarted.RemoveAll(this);
-	FEditorDelegates::PrePIEEnded.RemoveAll(this);
-	UGameViewportClient::OnViewportCreated().RemoveAll(this);
-
 	UnregisterSettings();
 }
 
