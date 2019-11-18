@@ -15,7 +15,7 @@
 #include "Editor/FoliageEdit/Public/FoliageEditModule.h"
 #include "Editor/VirtualTexturingEditor/Public/VirtualTexturingEditorModule.h"
 #include "Tools/UEdMode.h"
-#include "Settings/LevelEditorMiscSettings.h"
+#include "Classes/EditorStyleSettings.h"
 
 FEditorModeInfo::FEditorModeInfo()
 	: ID(NAME_None)
@@ -50,7 +50,7 @@ void FEditorModeRegistry::Initialize()
 {
 	Get();
 
-	if(!GetDefault<ULevelEditorMiscSettings>()->bEnableLegacyEditorModeUI)
+	if(!GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
 	{
 		// Add default editor modes
 		FEditorModeRegistry::Get().RegisterMode<FEdModeDefault>(

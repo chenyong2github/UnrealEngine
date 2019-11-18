@@ -43,9 +43,6 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=Editing, meta=( DisplayName = "Preserve Actor Scale on Replace" ))
 	uint32 bReplaceRespectsScale:1;
 
-	/** If enabled, the modes tab will revert to the previous mode UI */
-	UPROPERTY(EditAnywhere, config, AdvancedDisplay, Category = Editing, meta=(ConfigRestartRequired = true))
-	uint32 bEnableLegacyEditorModeUI : 1;
 
 	/** If enabled, the modes tab will revert to the original mesh paint */
 	UPROPERTY(EditAnywhere, config, AdvancedDisplay, Category = Editing, meta = (ConfigRestartRequired = true))

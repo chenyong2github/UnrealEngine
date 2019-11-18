@@ -51,7 +51,7 @@
 #include "HierarchicalLODOutlinerModule.h"
 #include "EditorViewportCommands.h"
 #include "IPlacementModeModule.h"
-#include "Settings/LevelEditorMiscSettings.h"
+#include "Classes/EditorStyleSettings.h"
 
 static const FName MainFrameModuleName("MainFrame");
 static const FName LevelEditorModuleName("LevelEditor");
@@ -682,7 +682,7 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 	}
 	else if (TabIdentifier == LevelEditorTabIds::PlacementBrowser)
 	{
-		if(!GetDefault<ULevelEditorMiscSettings>()->bEnableLegacyEditorModeUI)
+		if(!GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
 		{
 			return
 				SNew(SDockTab)
@@ -1415,7 +1415,7 @@ void SLevelEditor::ToggleEditorMode( FEditorModeID ModeID )
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( "LevelEditor" );
 	TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
 
-	if (GLevelEditorModeTools().IsModeActive(FBuiltinEditorModes::EM_Default) && !GetDefault<ULevelEditorMiscSettings>()->bEnableLegacyEditorModeUI)
+	if (GLevelEditorModeTools().IsModeActive(FBuiltinEditorModes::EM_Default) && !GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
 	{
 		TSharedPtr<SDockTab> ToolboxTab = LevelEditorTabManager->FindExistingLiveTab(LevelEditorTabIds::LevelEditorToolBox);
 		if (ToolboxTab.IsValid())

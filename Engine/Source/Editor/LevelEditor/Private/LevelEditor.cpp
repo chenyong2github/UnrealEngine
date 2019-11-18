@@ -39,7 +39,7 @@
 #include "Interfaces/IMainFrameModule.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Misc/EngineBuildSettings.h"
-#include "Settings/LevelEditorMiscSettings.h"
+#include "Classes/EditorStyleSettings.h"
 
 #define LOCTEXT_NAMESPACE "LevelEditor"
 
@@ -199,7 +199,7 @@ TSharedRef<SDockTab> FLevelEditorModule::SpawnLevelEditor( const FSpawnTabArgs& 
 		SetLevelEditorInstance(LevelEditorTmp);
 		LevelEditorTmp->Initialize( LevelEditorTab, OwnerWindow.ToSharedRef() );
 
-		if (GetDefault<ULevelEditorMiscSettings>()->bEnableLegacyEditorModeUI)
+		if (GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
 		{
 			GLevelEditorModeTools().RemoveDefaultMode(FBuiltinEditorModes::EM_Default);
 			GLevelEditorModeTools().AddDefaultMode(FBuiltinEditorModes::EM_Placement);
@@ -208,7 +208,7 @@ TSharedRef<SDockTab> FLevelEditorModule::SpawnLevelEditor( const FSpawnTabArgs& 
 		GLevelEditorModeTools().DeactivateAllModes();
 		GLevelEditorModeTools().ActivateDefaultMode();
 
-		if (GetDefault<ULevelEditorMiscSettings>()->bEnableLegacyEditorModeUI)
+		if (GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
 		{
 			// In legacy mode this toolbox should always be open
 			static const FTabId ToolboxTabId("LevelEditorToolBox");

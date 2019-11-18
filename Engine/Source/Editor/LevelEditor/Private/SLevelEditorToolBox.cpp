@@ -13,7 +13,7 @@
 #include "LevelEditor.h"
 #include "LevelEditorActions.h"
 #include "LevelEditorModesActions.h"
-#include "Settings/LevelEditorMiscSettings.h"
+#include "Classes/EditorStyleSettings.h"
 #include "EdMode.h"
 #include "Widgets/Docking/SDockTab.h"
 
@@ -136,7 +136,7 @@ void SLevelEditorToolBox::UpdateModeLegacyToolBar()
 		}
 	}
 
-	if (GetDefault<ULevelEditorMiscSettings>()->bEnableLegacyEditorModeUI)
+	if (GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
 	{
 		ModeToolBarContainer->SetContent(EditorModeTools.MakeWidget());
 	}

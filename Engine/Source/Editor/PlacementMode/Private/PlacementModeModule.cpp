@@ -49,7 +49,7 @@
 #include "Kismet2/KismetEditorUtilities.h"
 #include "ActorFactories/ActorFactoryPlanarReflection.h"
 #include "SPlacementModeTools.h"
-#include "Settings/LevelEditorMiscSettings.h"
+#include "Classes/EditorStyleSettings.h"
 
 
 TOptional<FLinearColor> GetBasicShapeColorOverride()
@@ -87,7 +87,7 @@ void FPlacementModeModule::StartupModule()
 		FBuiltinEditorModes::EM_Placement,
 		NSLOCTEXT("PlacementMode", "DisplayName", "Place"),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.PlacementMode", "LevelEditor.PlacementMode.Small"),
-		GetDefault<ULevelEditorMiscSettings>()->bEnableLegacyEditorModeUI, 0);
+		GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI, 0);
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	AssetRegistryModule.Get().OnAssetRemoved().AddRaw(this, &FPlacementModeModule::OnAssetRemoved);
