@@ -4021,6 +4021,7 @@ void FAsyncPackage2::ClearOwnedObjects()
 		Object->ClearInternalFlags(InternalFlagsToClear);
 	}
 	OwnedObjects.Empty();
+	LinkerRoot->LinkerLoad = nullptr; // TEMP 
 }
 
 void FAsyncPackage2::AddRequestID(int32 Id)
