@@ -2850,7 +2850,7 @@ void FAsyncPackage2::EventDrivenSerializeExport(int32 LocalExportIndex, const ui
 	Ar.Exports = &Exports;
 	Ar.ExternalReadDependencies = &ExternalReadDependencies;
 	Ar.ExternalIoRequests = &ExternalIoRequests;
-	//Ar.SetUseUnversionedPropertySerialization(Summary.bUnversioned && CanUseUnversionedPropertySerialization());
+	Ar.SetUseUnversionedPropertySerialization(CanUseUnversionedPropertySerialization());
 
 	Object->ClearFlags(RF_NeedLoad);
 
