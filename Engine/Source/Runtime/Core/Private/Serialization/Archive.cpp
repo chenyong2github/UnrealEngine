@@ -132,6 +132,7 @@ void FArchiveState::Reset()
 	ArIsTransacting						= false;
 	ArIsTextFormat						= false;
 	ArWantBinaryPropertySerialization	= false;
+	ArUseUnversionedPropertySerialization = false;
 	ArForceUnicode						= false;
 	ArIsPersistent						= false;
 	ArIsError							= false;
@@ -189,6 +190,7 @@ void FArchiveState::CopyTrivialFArchiveStatusMembers(const FArchiveState& Archiv
 	ArIsTransacting                      = ArchiveToCopy.ArIsTransacting;
 	ArIsTextFormat                       = ArchiveToCopy.ArIsTextFormat;
 	ArWantBinaryPropertySerialization    = ArchiveToCopy.ArWantBinaryPropertySerialization;
+	ArUseUnversionedPropertySerialization = ArchiveToCopy.ArUseUnversionedPropertySerialization;
 	ArForceUnicode                       = ArchiveToCopy.ArForceUnicode;
 	ArIsPersistent                       = ArchiveToCopy.ArIsPersistent;
 	ArIsError                            = ArchiveToCopy.ArIsError;
@@ -1130,6 +1132,11 @@ void FArchiveState::SetIsTextFormat(bool bInIsTextFormat)
 void FArchiveState::SetWantBinaryPropertySerialization(bool bInWantBinaryPropertySerialization)
 {
 	ArWantBinaryPropertySerialization = bInWantBinaryPropertySerialization;
+}
+
+void FArchiveState::SetUseUnversionedPropertySerialization(bool bInUseUnversioned)
+{
+	ArUseUnversionedPropertySerialization = bInUseUnversioned;
 }
 
 void FArchiveState::SetForceUnicode(bool bInForceUnicode)

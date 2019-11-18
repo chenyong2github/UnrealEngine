@@ -2,7 +2,9 @@
 
 #include "UObject/LinkerSave.h"
 #include "HAL/FileManager.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Serialization/LargeMemoryWriter.h"
+#include "Serialization/UnversionedPropertySerialization.h"
 #include "UObject/Package.h"
 #include "UObject/SavePackage.h"
 #include "UObject/Class.h"
@@ -63,6 +65,9 @@ FLinkerSave::FLinkerSave(FPackageHeaderSaver& InPackageHeaderSaver, UPackage* In
 		this->SetIsSaving(true);
 		this->SetIsPersistent(true);
 		ArForceByteSwapping		= bForceByteSwapping;
+		bool bUseUnversionedProperties = bInSaveUnversioned && CanUseUnversionedPropertySerialization();
+		SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
+		Saver->SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
 
 #if USE_STABLE_LOCALIZATION_KEYS
 		if (GIsEditor)
@@ -117,6 +122,9 @@ FLinkerSave::FLinkerSave(FPackageHeaderSaver& InPackageHeaderSaver, UPackage* In
 		this->SetIsSaving(true);
 		this->SetIsPersistent(true);
 		ArForceByteSwapping = bForceByteSwapping;
+		bool bUseUnversionedProperties = bInSaveUnversioned && CanUseUnversionedPropertySerialization();
+		SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
+		Saver->SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
 
 #if USE_STABLE_LOCALIZATION_KEYS
 		if (GIsEditor)
@@ -166,6 +174,9 @@ FLinkerSave::FLinkerSave(FPackageHeaderSaver& InPackageHeaderSaver, UPackage* In
 		this->SetIsSaving(true);
 		this->SetIsPersistent(true);
 		ArForceByteSwapping		= bForceByteSwapping;
+		bool bUseUnversionedProperties = bInSaveUnversioned && CanUseUnversionedPropertySerialization();
+		SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
+		Saver->SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
 
 #if USE_STABLE_LOCALIZATION_KEYS
 		if (GIsEditor)

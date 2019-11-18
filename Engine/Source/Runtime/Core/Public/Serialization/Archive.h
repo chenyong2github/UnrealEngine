@@ -219,6 +219,11 @@ public:
 		return ArWantBinaryPropertySerialization;
 	}
 
+	FORCEINLINE bool UseUnversionedPropertySerialization() const
+	{
+		return ArUseUnversionedPropertySerialization;
+	}
+
 	FORCEINLINE bool IsForcingUnicode() const
 	{
 		return ArForceUnicode;
@@ -610,6 +615,9 @@ protected:
 	/** Whether this archive wants properties to be serialized in binary form instead of tagged. */
 	uint8 ArWantBinaryPropertySerialization : 1;
 
+	/** Whether tagged property serialization is replaced by faster unversioned serialization. This assumes writer and reader share the same property definitions. */
+	uint8 ArUseUnversionedPropertySerialization : 1;
+
 	/** Whether this archive wants to always save strings in unicode format */
 	uint8 ArForceUnicode : 1;
 
@@ -723,6 +731,9 @@ public:
 	 * @param bInWantBinaryPropertySerialization  true if this archive wants binary serialization, false otherwise.
 	 */
 	virtual void SetWantBinaryPropertySerialization(bool bInWantBinaryPropertySerialization);
+
+	/** Sets whether tagged property serialization should be replaced by faster unversioned serialization. This assumes writer and reader share the same property definitions. */
+	virtual void SetUseUnversionedPropertySerialization(bool bInUseUnversioned);
 
 	/**
 	 * Sets whether this archive wants to force saving as Unicode.
@@ -1592,6 +1603,7 @@ public:
 	using FArchiveState::IsTransacting;
 	using FArchiveState::IsTextFormat;
 	using FArchiveState::WantBinaryPropertySerialization;
+	using FArchiveState::UseUnversionedPropertySerialization;
 	using FArchiveState::IsForcingUnicode;
 	using FArchiveState::IsPersistent;
 	using FArchiveState::IsError;
@@ -1751,6 +1763,7 @@ private:
 	using FArchiveState::ArIsTransacting;
 	using FArchiveState::ArIsTextFormat;
 	using FArchiveState::ArWantBinaryPropertySerialization;
+	using FArchiveState::ArUseUnversionedPropertySerialization;
 	using FArchiveState::ArForceUnicode;
 	using FArchiveState::ArIsPersistent;
 
@@ -1786,6 +1799,7 @@ public:
 	using FArchiveState::SetIsTransacting;
 	using FArchiveState::SetIsTextFormat;
 	using FArchiveState::SetWantBinaryPropertySerialization;
+	using FArchiveState::SetUseUnversionedPropertySerialization;
 	using FArchiveState::SetForceUnicode;
 	using FArchiveState::SetIsPersistent;
 	using FArchiveState::SetUE4Ver;

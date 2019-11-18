@@ -62,12 +62,14 @@ void UArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 {
 	checkSlow(Inner);
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
-	FPropertyTag InnerTag(UnderlyingArchive, Inner, 0, (uint8*)Value, (uint8*)Defaults);
-	
-	if (UnderlyingArchive.IsTextFormat() && InnerTag.Type == NAME_StructProperty)
+	TOptional<FPropertyTag> MaybeInnerTag;
+
+	if (UnderlyingArchive.IsTextFormat() && !UnderlyingArchive.UseUnversionedPropertySerialization()
+		&& Inner && Inner->IsA<UStructProperty>())
 	{
-		Slot << SA_ATTRIBUTE(TEXT("InnerStructName"), InnerTag.StructName);
-		Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("InnerStructGuid"), InnerTag.StructGuid, FGuid());
+		MaybeInnerTag.Emplace(UnderlyingArchive, Inner, 0, (uint8*)Value, (uint8*)Defaults);	
+		Slot << SA_ATTRIBUTE(TEXT("InnerStructName"), MaybeInnerTag.GetValue().StructName);
+		Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("InnerStructGuid"), MaybeInnerTag.GetValue().StructGuid, FGuid());
 	}
 	
 	// Ensure that the Inner itself has been loaded before calling SerializeItem() on it
@@ -101,12 +103,17 @@ void UArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 	ArrayHelper.CountBytes( UnderlyingArchive );
 
 	// Serialize a PropertyTag for the inner property of this array, allows us to validate the inner struct to see if it has changed
-	if (UnderlyingArchive.UE4Ver() >= VER_UE4_INNER_ARRAY_TAG_INFO && InnerTag.Type == NAME_StructProperty)
+	if (!UnderlyingArchive.UseUnversionedPropertySerialization() && 
+		UnderlyingArchive.UE4Ver() >= VER_UE4_INNER_ARRAY_TAG_INFO &&
+		Inner && Inner->IsA<UStructProperty>())
 	{
-		if (!UnderlyingArchive.IsTextFormat())
+		if (!MaybeInnerTag)
 		{
-			UnderlyingArchive << InnerTag;
+			MaybeInnerTag.Emplace(UnderlyingArchive, Inner, 0, (uint8*)Value, (uint8*)Defaults);
+			UnderlyingArchive << MaybeInnerTag.GetValue();
 		}
+
+		FPropertyTag& InnerTag = MaybeInnerTag.GetValue();
 		
 		if (UnderlyingArchive.IsLoading())
 		{
@@ -226,8 +233,10 @@ void UArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 		UnderlyingArchive.ArUseCustomPropertyList = bUsingCustomPropertyList;
 	}
 
-	if (UnderlyingArchive.UE4Ver() >= VER_UE4_INNER_ARRAY_TAG_INFO && UnderlyingArchive.IsSaving() && InnerTag.Type == NAME_StructProperty && !UnderlyingArchive.IsTextFormat())
+	if (MaybeInnerTag.IsSet() && UnderlyingArchive.IsSaving() && !UnderlyingArchive.IsTextFormat())
 	{
+		FPropertyTag& InnerTag = MaybeInnerTag.GetValue();
+
 		// set the tag's size
 		InnerTag.Size = UnderlyingArchive.Tell() - DataOffset;
 

@@ -44,6 +44,8 @@
 #include "UObject/GarbageCollection.h"
 #include "UObject/UObjectThreadContext.h"
 #include "Serialization/LoadTimeTracePrivate.h"
+#include "Serialization/UnversionedPropertySerialization.h"
+#include "Serialization/UnversionedPropertySerializationTest.h"
 
 // This flag enables some expensive class tree validation that is meant to catch mutations of 
 // the class tree outside of SetSuperStruct. It has been disabled because loading blueprints 
@@ -1111,6 +1113,18 @@ void UStruct::LoadTaggedPropertiesFromText(FStructuredArchive::FSlot Slot, uint8
 
 void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct, uint8* Defaults, const UObject* BreakRecursionIfFullyLoad) const
 {
+	if (Slot.GetUnderlyingArchive().UseUnversionedPropertySerialization())
+	{
+		SerializeUnversionedProperties(this, Slot, Data, DefaultsStruct, Defaults);
+	}
+	else
+	{
+		SerializeVersionedTaggedProperties(Slot, Data, DefaultsStruct, Defaults, BreakRecursionIfFullyLoad);
+	}
+}
+
+void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct, uint8* Defaults, const UObject* BreakRecursionIfFullyLoad) const
+{
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
 	//SCOPED_LOADTIMER(SerializeTaggedPropertiesTime);
 
@@ -1325,6 +1339,8 @@ void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* D
 	}
 	else
 	{
+		FUnversionedPropertyTestCollector TestCollector;
+
 		FStructuredArchive::FRecord PropertiesRecord = Slot.EnterRecord();
 
 		check(UnderlyingArchive.IsSaving() || UnderlyingArchive.IsCountingMemory());
@@ -1380,6 +1396,8 @@ void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* D
 						FArchive::FScopeAddDebugData P(UnderlyingArchive, NAME_PropertySerialize);
 						FArchive::FScopeAddDebugData S(UnderlyingArchive, Property->GetFName());
 #endif
+						TestCollector.RecordSavedProperty(Property);
+
 						FPropertyTag Tag( UnderlyingArchive, Property, Idx, DataPtr, DefaultValue );
 						// If available use the property guid from BlueprintGeneratedClasses, provided we aren't cooking data.
 						if (bArePropertyGuidsAvailable && !UnderlyingArchive.IsCooking())
@@ -1440,6 +1458,7 @@ void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* D
 }
 void UStruct::FinishDestroy()
 {
+	DestroyUnversionedSchema(this);
 	Script.Empty();
 	Super::FinishDestroy();
 }
@@ -4249,6 +4268,8 @@ void UClass::PurgeClass(bool bRecompilingOnLoad)
 	FuncMap.Empty();
 	ClearFunctionMapsCaches();
 	PropertyLink = NULL;
+
+	DestroyUnversionedSchema(this);
 }
 
 UClass* UClass::FindCommonBase(UClass* InClassA, UClass* InClassB)

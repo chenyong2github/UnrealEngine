@@ -297,6 +297,9 @@ public:
 	/** Array of object references embedded in script code. Mirrored for easy access by realtime garbage collection code */
 	TArray<UObject*> ScriptObjectReferences;
 
+	/** Cached schema for optimized unversioned property serialization, owned by this. */
+	mutable const struct FUnversionedStructSchema* UnversionedSchema = nullptr;
+
 public:
 	// Constructors.
 	UStruct( EStaticConstructor, int32 InSize, int32 InAlignment, EObjectFlags InFlags );
@@ -384,7 +387,6 @@ public:
 	 */
 	virtual void DestroyStruct(void* Dest, int32 ArrayDim = 1) const;
 
-public:
 	/** Look up a property by an alternate name if it was not found in the first search, this is overridden for user structs */
 	virtual UProperty* CustomFindProperty(const FName InName) const { return nullptr; };
 
@@ -502,6 +504,8 @@ private:
 	friend class FStructBaseChain;
 	friend class FBlueprintCompileReinstancer;
 #endif
+
+	void SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct, uint8* Defaults, const UObject* BreakRecursionIfFullyLoad) const;
 };
 
 enum EStructFlags

@@ -41,6 +41,7 @@
 #include "Serialization/LoadTimeTracePrivate.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "Serialization/AsyncPackage.h"
+#include "Serialization/UnversionedPropertySerialization.h"
 #include "Serialization/Zenaphore.h"
 #include "IO/IoDispatcher.h"
 #include "UObject/GCObject.h"
@@ -2849,6 +2850,7 @@ void FAsyncPackage2::EventDrivenSerializeExport(int32 LocalExportIndex, const ui
 	Ar.Exports = &Exports;
 	Ar.ExternalReadDependencies = &ExternalReadDependencies;
 	Ar.ExternalIoRequests = &ExternalIoRequests;
+	Ar.SetUseUnversionedPropertySerialization(Summary.bUnversioned && CanUseUnversionedPropertySerialization());
 
 	Object->ClearFlags(RF_NeedLoad);
 
