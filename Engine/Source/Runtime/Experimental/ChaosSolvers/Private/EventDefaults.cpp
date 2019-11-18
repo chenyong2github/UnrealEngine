@@ -6,7 +6,7 @@
 #include "Chaos/PBDRigidsEvolution.h"
 #include "Chaos/PBDRigidClustering.h"
 #include "Chaos/PBDCollisionConstraint.h"
-#include "Chaos/PBDCollisionTypes.h"
+#include "Chaos/CollisionResolutionTypes.h"
 #include "PBDRigidsSolver.h"
 #include "PhysicsProxy/SkeletalMeshPhysicsProxy.h"
 #include "PhysicsProxy/StaticMeshPhysicsProxy.h"

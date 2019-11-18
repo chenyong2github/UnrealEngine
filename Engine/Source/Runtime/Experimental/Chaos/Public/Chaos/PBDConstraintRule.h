@@ -3,7 +3,7 @@
 
 #include "Chaos/Declares.h"
 #include "Chaos/ConstraintHandle.h"
-#include "Chaos/PBDCollisionTypes.h"
+#include "Chaos/CollisionResolutionTypes.h"
 #include "Chaos/PBDConstraintColor.h"
 #include "Chaos/PBDConstraintGraph.h"
 
