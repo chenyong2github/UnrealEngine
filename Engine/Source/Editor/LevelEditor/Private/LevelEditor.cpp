@@ -39,6 +39,7 @@
 #include "Interfaces/IMainFrameModule.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Misc/EngineBuildSettings.h"
+#include "Settings/LevelEditorMiscSettings.h"
 
 #define LOCTEXT_NAMESPACE "LevelEditor"
 
@@ -173,10 +174,29 @@ TSharedRef<SDockTab> FLevelEditorModule::SpawnLevelEditor( const FSpawnTabArgs& 
 		SetLevelEditorInstance(LevelEditorTmp);
 		LevelEditorTmp->Initialize( LevelEditorTab, OwnerWindow.ToSharedRef() );
 
-		GLevelEditorModeTools().RemoveDefaultMode( FBuiltinEditorModes::EM_Default );
-		GLevelEditorModeTools().AddDefaultMode( FBuiltinEditorModes::EM_Placement );
+		if (GetDefault<ULevelEditorMiscSettings>()->bEnableLegacyEditorModeUI)
+		{
+			GLevelEditorModeTools().RemoveDefaultMode(FBuiltinEditorModes::EM_Default);
+			GLevelEditorModeTools().AddDefaultMode(FBuiltinEditorModes::EM_Placement);
+		}
+
 		GLevelEditorModeTools().DeactivateAllModes();
 		GLevelEditorModeTools().ActivateDefaultMode();
+
+		if (GetDefault<ULevelEditorMiscSettings>()->bEnableLegacyEditorModeUI)
+		{
+			// In legacy mode this toolbox should always be open
+			static const FTabId ToolboxTabId("LevelEditorToolBox");
+			LevelEditorTabManager->InvokeTab(ToolboxTabId);
+
+			// In legacy mode the standalone placement browser tab should not be opened
+			static const FTabId PlacementBrowserTabId("PlacementBrowser");
+			TSharedPtr<SDockTab> PlacementBrowserTab = LevelEditorTabManager->FindExistingLiveTab(PlacementBrowserTabId);
+			if (PlacementBrowserTab.IsValid())
+			{
+				PlacementBrowserTab->RequestCloseTab();
+			}
+		}
 
 	}
 

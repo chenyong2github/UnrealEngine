@@ -913,9 +913,15 @@ TSharedRef<SDockTab> FEditorModeTools::MakeModeToolbarTab()
 
 }
 
-bool FEditorModeTools::ShouldShowModeToolbar()
+bool FEditorModeTools::ShouldShowModeToolbar() const
 {
 	return ActiveToolBarRows.Num() > 0;
+}
+
+bool FEditorModeTools::ShouldShowModeToolbox() const
+{
+	// This could ideally ask each active mode if it has any tools but when developing a new mode the toolbox not appearing by default could be hard to understand
+	return !IsModeActive(FBuiltinEditorModes::EM_Default);
 }
 
 void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)

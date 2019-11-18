@@ -31,7 +31,7 @@ FName FFoliageEdModeToolkit::GetToolkitFName() const
 
 FText FFoliageEdModeToolkit::GetBaseToolkitName() const
 {
-	return LOCTEXT( "ToolkitName", "Foliage Edit Mode" );
+	return LOCTEXT( "ToolkitName", "Foliage" );
 }
 
 class FEdMode* FFoliageEdModeToolkit::GetEditorMode() const

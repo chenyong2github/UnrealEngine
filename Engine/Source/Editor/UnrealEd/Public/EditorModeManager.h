@@ -54,6 +54,11 @@ public:
 	void RemoveDefaultMode( const FEditorModeID DefaultModeID );
 
 	/**
+	 * Returns whether or not the provided mode ID is a default mode
+	 */
+	bool IsDefaultMode(const FEditorModeID ModeID) const { return DefaultModeIDs.Contains(ModeID); }
+
+	/**
 	 * Activates the default modes defined by this class.  Note that there can be more than one default mode, and this call will activate them all in sequence.
 	 */
 	void ActivateDefaultMode();
@@ -91,8 +96,12 @@ public:
 	/**
 	 * Whether or not the mode toolbar should be shown.  If any active modes generated a toolbar this method will return true
 	 */
-	bool ShouldShowModeToolbar();
+	bool ShouldShowModeToolbar() const;
 
+	/**
+	 * Whether or not the mode toolbox (where mode details panels and some tools are) should be shown.
+	 */
+	bool ShouldShowModeToolbox() const;
 protected:
 	
 	/** Deactivates the editor mode at the specified index */

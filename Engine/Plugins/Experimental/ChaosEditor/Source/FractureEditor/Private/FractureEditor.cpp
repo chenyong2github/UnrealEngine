@@ -16,7 +16,7 @@ void FFractureEditorModule::StartupModule()
 
 	FEditorModeRegistry::Get().RegisterMode<FFractureEditorMode>(
 		FFractureEditorMode::EM_FractureEditorModeId, 
-		LOCTEXT("FractureEditorModeName", "FractureEditorMode"), 
+		LOCTEXT("FractureEditorModeName", "Fracture"), 
 		FSlateIcon("FractureEditorStyle", "LevelEditor.FractureMode", "LevelEditor.FractureMode.Small"),
 		true
 		);

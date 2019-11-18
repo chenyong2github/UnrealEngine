@@ -4899,6 +4899,7 @@ void FSlateEditorStyle::FStyle::SetupLevelEditorStyle()
 			Set( "LevelEditor.Tabs.Cinematics", new IMAGE_BRUSH("/Icons/icon_tab_Cinematics_16x", Icon16x16));
 			Set( "LevelEditor.Tabs.EditorModes", new IMAGE_BRUSH( "/Icons/icon_Editor_Modes_16x", Icon16x16 ) );
 			Set( "LevelEditor.Tabs.Modes", new IMAGE_BRUSH( "/Icons/icon_Editor_Modes_16x", Icon16x16 ) );
+			Set( "LevelEditor.Tabs.PlacementBrowser", new IMAGE_BRUSH("/Icons/icon_Editor_Modes_16x", Icon16x16));
 			Set( "LevelEditor.Tabs.Properties", new IMAGE_BRUSH( "/Icons/properties_16x", Icon16x16 ) );
 			Set( "LevelEditor.Tabs.Outliner", new IMAGE_BRUSH( "/Icons/icon_tab_SceneOutliner_16x", Icon16x16 ) );
 			Set( "LevelEditor.Tabs.ContentBrowser", new IMAGE_BRUSH( "/Icons/icon_tab_ContentBrowser_16x", Icon16x16 ) );
@@ -5004,6 +5005,11 @@ void FSlateEditorStyle::FStyle::SetupLevelEditorStyle()
 			.SetUndeterminedPressedImage( FSlateNoResource() )
 		);	
 		Set( "ToolPalette.DockingWell", new FSlateColorBrush(FLinearColor(FColor(34, 34, 34, 255))));
+
+		Set("LevelEditor.SelectMode", new IMAGE_BRUSH("Icons/icon_DefaultEdMode_40x", Icon40x40));
+		Set("LevelEditor.SelectMode.Small", new IMAGE_BRUSH("Icons/icon_DefaultEdMode_40x", Icon20x20));
+		Set("LevelEditor.SelectMode.Selected", new IMAGE_BRUSH("Icons/icon_DefaultEdMode_40x", Icon40x40));
+		Set("LevelEditor.SelectMode.Selected.Small", new IMAGE_BRUSH("Icons/icon_DefaultEdMode_40x", Icon20x20));
 
 		Set( "LevelEditor.PlacementMode", new IMAGE_BRUSH( "Icons/icon_Mode_Placement_40px", Icon40x40 ) );
 		Set( "LevelEditor.PlacementMode.Small", new IMAGE_BRUSH( "Icons/icon_Mode_Placement_40px", Icon20x20 ) );

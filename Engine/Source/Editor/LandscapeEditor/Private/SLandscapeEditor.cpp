@@ -145,7 +145,7 @@ FName FLandscapeToolKit::GetToolkitFName() const
 
 FText FLandscapeToolKit::GetBaseToolkitName() const
 {
-	return LOCTEXT("ToolkitName", "Landscape Editor");
+	return LOCTEXT("ToolkitName", "Landscape");
 }
 
 FEdModeLandscape* FLandscapeToolKit::GetEditorMode() const

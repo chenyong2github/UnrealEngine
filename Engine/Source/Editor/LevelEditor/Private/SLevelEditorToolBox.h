@@ -14,6 +14,9 @@
 
 class FExtender;
 class SBorder;
+class IToolkit;
+class SDockTab;
+class ILevelEditor;
 
 /**
  * Tools for the level editor                   
@@ -26,17 +29,19 @@ public:
 
 	~SLevelEditorToolBox();
 
-	void Construct( const FArguments& InArgs, const TSharedRef< class ILevelEditor >& OwningLevelEditor );
+	void Construct(const FArguments& InArgs, const TSharedRef<ILevelEditor>& OwningLevelEditor);
 
 	/** Called by SLevelEditor to notify the toolbox about a new toolkit being hosted */
-	void OnToolkitHostingStarted( const TSharedRef< class IToolkit >& Toolkit );
+	void OnToolkitHostingStarted( const TSharedRef<IToolkit>& Toolkit);
 
 	/** Called by SLevelEditor to notify the toolbox about an existing toolkit no longer being hosted */
-	void OnToolkitHostingFinished(const TSharedRef< class IToolkit >& Toolkit);
+	void OnToolkitHostingFinished(const TSharedRef<IToolkit>& Toolkit);
 
 	/** Handles updating the mode toolbar when the registered mode commands change */
 	void OnEditorModeCommandsChanged();
 
+	/** Sets the parent tab of this toolbox */
+	void SetParentTab(TSharedRef<SDockTab>& InDockTab);
 private:
 
 	/** Gets the visibility for the SBorder showing toolbox editor mode inline content */
@@ -46,28 +51,30 @@ private:
 	EVisibility GetNoToolSelectedTextVisibility() const;
 
 	/** Updates the widget for showing toolbox editor mode inline content */
-	void UpdateInlineContent(TSharedPtr<SWidget> InlineContent) const;
+	void UpdateInlineContent(const TSharedPtr<IToolkit>& Toolkit, TSharedPtr<SWidget> InlineContent);
 
 	/** Creates and sets the mode toolbar */
-	void UpdateModeToolBar();
+	void UpdateModeLegacyToolBar();
 
 	/** Handles updating the mode toolbar when the user settings change */
 	void HandleUserSettingsChange( FName PropertyName );
 
-	/** Returns specified Editor modes icon, if that mode is active it adds ".Selected" onto the name */
-	FSlateIcon GetEditorModeIcon(TSharedPtr< FUICommandInfo > EditorModeUICommand, FEditorModeID EditorMode);
-
 private:
+	/** Parent tab where this toolbox is hosted */
+	TWeakPtr<SDockTab> ParentTab;
 
 	/** Level editor that we're associated with */
-	TWeakPtr<class ILevelEditor> LevelEditor;
+	TWeakPtr<ILevelEditor> LevelEditor;
 
 	/** Inline content area for editor modes */
 	TSharedPtr<SBorder> InlineContentHolder;
 
-	/** The menu extenders to populate the toolbox*/
-	TArray< TSharedPtr<FExtender> > ToolboxExtenders;
-
 	/** The container holding the mode toolbar */
-	TSharedPtr< SBorder > ModeToolBarContainer;
+	TSharedPtr<SBorder> ModeToolBarContainer;
+
+	/** The display name that the parent tab should have as its label */
+	FText TabName;
+
+	/** The icon that should be displayed in the parent tab */
+	const FSlateBrush* TabIcon;
 };

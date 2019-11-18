@@ -50,6 +50,8 @@
 #include "Framework/Docking/LayoutExtender.h"
 #include "HierarchicalLODOutlinerModule.h"
 #include "EditorViewportCommands.h"
+#include "IPlacementModeModule.h"
+#include "Settings/LevelEditorMiscSettings.h"
 
 static const FName LevelEditorBuildAndSubmitTab("LevelEditorBuildAndSubmit");
 static const FName LevelEditorStatsViewerTab("LevelEditorStatsViewer");
@@ -668,9 +670,9 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 	{
 		TSharedRef<SLevelEditorToolBox> NewToolBox = StaticCastSharedRef<SLevelEditorToolBox>( CreateToolBox() );
 
-		return SNew( SDockTab )
+		TSharedRef<SDockTab> DockTab = SNew( SDockTab )
 			.Icon( FEditorStyle::GetBrush( "LevelEditor.Tabs.Modes" ) )
-			.Label( NSLOCTEXT( "LevelEditor", "ToolsTabTitle", "Modes" ) )
+			.Label( NSLOCTEXT( "LevelEditor", "ToolsTabTitle", "Toolbox" ) )
 			[
 				SNew( SBox )
 				.AddMetaData<FTutorialMetaData>(FTutorialMetaData(TEXT("ToolsPanel"), TEXT("LevelEditorToolBox")))
@@ -678,6 +680,24 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 					NewToolBox
 				]
 			];
+
+		NewToolBox->SetParentTab(DockTab);
+
+		return DockTab;
+	}
+	else if (TabIdentifier == TEXT("PlacementBrowser"))
+	{
+		if(!GetDefault<ULevelEditorMiscSettings>()->bEnableLegacyEditorModeUI)
+		{
+			return
+				SNew(SDockTab)
+				.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.PlacementBrowser"))
+				.Label(NSLOCTEXT("LevelEditor", "PlacementBrowserTitle", "Place Actors"))
+				.AddMetaData<FTutorialMetaData>(FTutorialMetaData(TEXT("PlacementBrowser"), TEXT("PlacementBrowser")))
+				[
+					IPlacementModeModule::Get().CreatePlacementModeBrowser()
+				];
+		}
 	}
 	else if( TabIdentifier == LevelEditorBuildAndSubmitTab )
 	{
@@ -755,20 +775,19 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 	}
 	else if( TabIdentifier == TEXT("LevelEditorLayerBrowser") )
 	{
-
-			FLayersModule& LayersModule = FModuleManager::LoadModuleChecked<FLayersModule>( "Layers" );
-			return SNew( SDockTab )
-				.Icon( FEditorStyle::GetBrush( "LevelEditor.Tabs.Layers" ) )
-				.Label( NSLOCTEXT("LevelEditor", "LayersTabTitle", "Layers") )
+		FLayersModule& LayersModule = FModuleManager::LoadModuleChecked<FLayersModule>( "Layers" );
+		return SNew( SDockTab )
+			.Icon( FEditorStyle::GetBrush( "LevelEditor.Tabs.Layers" ) )
+			.Label( NSLOCTEXT("LevelEditor", "LayersTabTitle", "Layers") )
+			[
+				SNew(SBorder)
+				.Padding( 0 )
+				.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+				.AddMetaData<FTutorialMetaData>(FTutorialMetaData(TEXT("LayerBrowser"), TEXT("LevelEditorLayerBrowser")))
 				[
-					SNew(SBorder)
-					.Padding( 0 )
-					.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
-					.AddMetaData<FTutorialMetaData>(FTutorialMetaData(TEXT("LayerBrowser"), TEXT("LevelEditorLayerBrowser")))
-					[
-						LayersModule.CreateLayerBrowser()
-					]
-				];
+					LayersModule.CreateLayerBrowser()
+				]
+			];
 	}
 	else if (TabIdentifier == TEXT("LevelEditorHierarchicalLODOutliner"))
 	{
@@ -875,6 +894,11 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 bool SLevelEditor::CanSpawnEditorModeToolbarTab(const FSpawnTabArgs& Args) const
 {
 	return GLevelEditorModeTools().ShouldShowModeToolbar();
+}
+
+bool SLevelEditor::CanSpawnEditorModeToolboxTab(const FSpawnTabArgs& Args) const
+{
+	return GLevelEditorModeTools().ShouldShowModeToolbox();
 }
 
 TSharedRef<SDockTab> SLevelEditor::InvokeTab( FName TabID )
@@ -1123,19 +1147,32 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 		}
 
 		{
-		
+
+			FCanSpawnTab CanSpawnTabDelegate = FCanSpawnTab::CreateSP(this, &SLevelEditor::CanSpawnEditorModeToolboxTab);
 			const FSlateIcon ToolsIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Modes");
-			LevelEditorTabManager->RegisterTabSpawner("LevelEditorToolBox", FOnSpawnTab::CreateSP<SLevelEditor, FName, FString>(this, &SLevelEditor::SpawnLevelEditorTab, FName("LevelEditorToolBox"), FString()))
-				.SetDisplayName(NSLOCTEXT("LevelEditorTabs", "LevelEditorToolBox", "Modes Panel"))
-				.SetTooltipText(NSLOCTEXT("LevelEditorTabs", "LevelEditorToolBoxTooltipText", "Open the Modes tab, which specifies all the available editing modes."))
+			LevelEditorTabManager->RegisterTabSpawner("LevelEditorToolBox", FOnSpawnTab::CreateSP<SLevelEditor, FName, FString>(this, &SLevelEditor::SpawnLevelEditorTab, FName("LevelEditorToolBox"), FString()), CanSpawnTabDelegate)
+				.SetDisplayName(NSLOCTEXT("LevelEditorTabs", "LevelEditorModesToolboxTab", "Active Mode Toolbox"))
+				.SetTooltipText(NSLOCTEXT("LevelEditorTabs", "LevelEditorModesToolboxTabTooltipText", "Open the Modes tab, which contains the active editor mode's settings."))
 				.SetGroup(MenuStructure.GetLevelEditorModesCategory())
 				.SetIcon(ToolsIcon);
+		}
 
+		{
+			const FSlateIcon ToolsIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.PlacementBrowser");
 			FCanSpawnTab CanSpawnTabDelegate = FCanSpawnTab::CreateSP(this, &SLevelEditor::CanSpawnEditorModeToolbarTab);
 			LevelEditorTabManager->RegisterTabSpawner(FEditorModeTools::EditorModeToolbarTabName, FOnSpawnTab::CreateSP<SLevelEditor, FName, FString>(this, &SLevelEditor::SpawnLevelEditorTab, FEditorModeTools::EditorModeToolbarTabName, FString()), CanSpawnTabDelegate)
-				.SetDisplayName(NSLOCTEXT("LevelEditorTabs", "LevelEditorModesTab", "Active Mode Tools"))
-				.SetTooltipText(NSLOCTEXT("LevelEditorTabs", "LevelEditorModesTabTooltipText", "Open the modes toolbar which has the active mode's tools"))
+				.SetDisplayName(NSLOCTEXT("LevelEditorTabs", "LevelEditorModesToolbarTab", "Active Mode Toolbar"))
+				.SetTooltipText(NSLOCTEXT("LevelEditorTabs", "LevelEditorModesToolbarTabTooltipText", "Opens a toolbar for the active editor mode"))
 				.SetGroup(MenuStructure.GetLevelEditorModesCategory())
+				.SetIcon(ToolsIcon);
+		}
+
+		{
+			const FSlateIcon ToolsIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.PlacementBrowser");
+			LevelEditorTabManager->RegisterTabSpawner("PlacementBrowser", FOnSpawnTab::CreateSP<SLevelEditor, FName, FString>(this, &SLevelEditor::SpawnLevelEditorTab, FName("PlacementBrowser"), FString()))
+				.SetDisplayName(NSLOCTEXT("LevelEditorTabs", "PlacementBrowser", "Place Actors"))
+				.SetTooltipText(NSLOCTEXT("LevelEditorTabs", "PlacementBrowserTooltipText", "Actor Placement Browser"))
+				.SetGroup(MenuStructure.GetLevelEditorCategory())
 				.SetIcon(ToolsIcon);
 		}
 
@@ -1245,7 +1282,7 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 	// 10. Push the new "DefaultLayout.ini" together with your new code.
 	// 11. Also update these instructions if you change the version number (e.g., from "UnrealEd_Layout_v1.4" to "UnrealEd_Layout_v1.5").
 	const TSharedRef<FTabManager::FLayout> Layout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni,
-		FTabManager::NewLayout( "LevelEditor_Layout_v1.1" )
+		FTabManager::NewLayout( "LevelEditor_Layout_v1.2" )
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -1265,7 +1302,9 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 					(
 						FTabManager::NewStack()
 						->SetSizeCoefficient( 0.3f )
-						->AddTab( "LevelEditorToolBox", ETabState::OpenedTab )
+						->AddTab("PlacementBrowser", ETabState::OpenedTab)
+						->AddTab("LevelEditorToolBox", ETabState::ClosedTab)
+						->SetForegroundTab(FName("PlacementBrowser"))
 					)
 					->Split
 					(
@@ -1327,9 +1366,6 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 	
 	FLayoutExtender LayoutExtender;
 
-	// Make a layout extension for the mode toolbar.  This avoids bumping level editor layout version to add a mandatory tab
-	LayoutExtender.ExtendLayout(FName("LevelEditorToolBar"), ELayoutExtensionPosition::Below, FTabManager::FTab(FEditorModeTools::EditorModeToolbarTabName, ETabState::ClosedTab));
-
 	LevelEditorModule.OnRegisterLayoutExtensions().Broadcast(LayoutExtender);
 	Layout->ProcessExtensions(LayoutExtender);
 
@@ -1380,7 +1416,21 @@ void SLevelEditor::ToggleEditorMode( FEditorModeID ModeID )
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( "LevelEditor" );
 	TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
 
-	TSharedRef<SDockTab> ToolboxTab = LevelEditorTabManager->InvokeTab( FTabId("LevelEditorToolBox") );
+	static const FTabId ToolboxTabId("LevelEditorToolBox");
+
+	if (GLevelEditorModeTools().IsModeActive(FBuiltinEditorModes::EM_Default) && !GetDefault<ULevelEditorMiscSettings>()->bEnableLegacyEditorModeUI)
+	{
+		TSharedPtr<SDockTab> ToolboxTab = LevelEditorTabManager->FindExistingLiveTab(ToolboxTabId);
+		if (ToolboxTab.IsValid())
+		{
+			ToolboxTab->RequestCloseTab();
+		}
+	}
+	else
+	{
+		LevelEditorTabManager->InvokeTab(ToolboxTabId);
+	}
+
 }
 
 bool SLevelEditor::IsModeActive( FEditorModeID ModeID )

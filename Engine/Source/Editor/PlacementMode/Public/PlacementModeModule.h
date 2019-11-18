@@ -101,7 +101,7 @@ public:
 		StoppedPlacingEvent.Broadcast(bWasSuccessfullyPlaced);
 	}
 
-public:
+	virtual TSharedRef<SWidget> CreatePlacementModeBrowser() override;
 
 	virtual bool RegisterPlacementCategory(const FPlacementCategoryInfo& Info);
 

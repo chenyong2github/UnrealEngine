@@ -16,7 +16,7 @@ void FGeometryModeModule::StartupModule()
 {
 	FEditorModeRegistry::Get().RegisterMode<FEdModeGeometry>(
 		FGeometryEditingModes::EM_Geometry,
-		NSLOCTEXT("EditorModes", "GeometryMode", "Geometry Editing"),
+		NSLOCTEXT("EditorModes", "GeometryMode", "Brush Editing"),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.BspMode", "LevelEditor.BspMode.Small"),
 		true, 500
 	);

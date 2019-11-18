@@ -21,7 +21,7 @@ void FMeshPaintModeModule::StartupModule()
 {
 	FEditorModeRegistry::Get().RegisterMode<FEdModeMeshPaint>(
 		FBuiltinEditorModes::EM_MeshPaint,
-		NSLOCTEXT("MeshPaint_Mode", "MeshPaint_ModeName", "Paint"),
+		NSLOCTEXT("MeshPaint_Mode", "MeshPaint_ModeName", "Mesh Paint"),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.MeshPaintMode", "LevelEditor.MeshPaintMode.Small"),
 		true, 200 );
 

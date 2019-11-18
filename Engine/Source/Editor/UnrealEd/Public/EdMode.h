@@ -403,7 +403,7 @@ protected:
 ------------------------------------------------------------------------------*/
 
 /**
- * The default editing mode.  User can work with BSP and the builder brush. Vector and array properties are also visually editable.
+ * The default editing mode. 
  */
 class FEdModeDefault : public FEdMode
 {
