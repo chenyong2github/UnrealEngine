@@ -11,7 +11,6 @@
 #include "ComponentReregisterContext.h"
 #include "MeshPaintAdapterFactory.h"
 #include "ToolDataVisualizer.h"
-//#include "MeshPaintModeSettings.h"
 
 
 #define LOCTEXT_NAMESPACE "MeshVertexBrush"
@@ -58,7 +57,9 @@ UInteractiveTool* UMeshWeightPaintingToolBuilder::BuildTool(const FToolBuilderSt
 UMeshVertexPaintingToolProperties::UMeshVertexPaintingToolProperties()
 	:UBrushBaseProperties(),
 	PaintColor(FLinearColor::White),
-	EraseColor(FLinearColor::Black)
+	EraseColor(FLinearColor::Black),
+	bEnableFlow(false),
+	VertexPreviewSize(6.0f)
 {
 }
 
@@ -70,6 +71,7 @@ void UMeshVertexPaintingToolProperties::SaveProperties(UInteractiveTool* SaveFro
 	UMeshVertexPaintingToolProperties* PropertyCache = GetPropertyCache<UMeshVertexPaintingToolProperties>();
 	PropertyCache->PaintColor = this->PaintColor;
 	PropertyCache->EraseColor = this->EraseColor;
+	PropertyCache->bEnableFlow = this->bEnableFlow;
 	PropertyCache->bOnlyFrontFacingTriangles = this->bOnlyFrontFacingTriangles;
 }
 
@@ -79,6 +81,7 @@ void UMeshVertexPaintingToolProperties::RestoreProperties(UInteractiveTool* Rest
 	UMeshVertexPaintingToolProperties* PropertyCache = GetPropertyCache<UMeshVertexPaintingToolProperties>();
 	this->PaintColor = PropertyCache->PaintColor;
 	this->EraseColor = PropertyCache->EraseColor;
+	this->bEnableFlow = PropertyCache->bEnableFlow;
 	this->bOnlyFrontFacingTriangles = PropertyCache->bOnlyFrontFacingTriangles;
 }
 
@@ -120,7 +123,7 @@ void UMeshVertexPaintingTool::Render(IToolsContextRenderAPI* RenderAPI)
 		static const FLinearColor NormalLineColor(0.3f, 1.0f, 0.3f);
 		const FLinearColor BrushCueColor = (bArePainting ? FLinearColor(1.0f, 1.0f, 0.3f) : FLinearColor(0.3f, 1.0f, 0.3f));
  		const FLinearColor InnerBrushCueColor = (bArePainting ? FLinearColor(0.5f, 0.5f, 0.1f) : FLinearColor(0.1f, 0.5f, 0.1f));
-		const float PointDrawSize = 6.0f;//GetDefault<UMeshPaintModeSettings>()->VertexPreviewSize;
+		const float PointDrawSize = VertexProperties->VertexPreviewSize;
 		// Draw trace surface normal
 		const FVector NormalLineEnd(LastBestHitResult.Location + LastBestHitResult.Normal * NormalLineSize);
 		Draw.DrawLine(FVector(LastBestHitResult.Location), NormalLineEnd, NormalLineColor, WidgetLineThickness);
@@ -180,7 +183,7 @@ void UMeshVertexPaintingTool::Tick(float DeltaTime)
 		bStampPending = false;
 
 		// flow
-		if (bInDrag)
+		if (bInDrag && VertexProperties && VertexProperties->bEnableFlow)
 		{
 			bStampPending = true;
 		}

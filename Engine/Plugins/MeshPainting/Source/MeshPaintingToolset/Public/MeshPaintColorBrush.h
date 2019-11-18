@@ -92,10 +92,17 @@ public:
 	UPROPERTY(EditAnywhere, Category = VertexPainting)
 	FLinearColor EraseColor;
 
+	/** Enables "Flow" painting where paint is continually applied from the brush every tick */
+	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Enable Brush Flow"))
+	bool bEnableFlow;
+
 	/** Whether back-facing triangles should be ignored */
 	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Ignore Back-Facing"))
 	bool bOnlyFrontFacingTriangles;
 
+	/** Size of vertex points drawn when mesh painting is active. */
+	UPROPERTY(EditAnywhere, Category = Visualization)
+	float VertexPreviewSize;
 
 	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
 	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
