@@ -62,6 +62,9 @@ struct INTERACTIVETOOLSFRAMEWORK_API FBrushStampData
 
 	/** Hit Result provided by implementations - may not be fully populated */
 	FHitResult HitResult;
+
+	/** Falloff of brush stamp */
+	float Falloff;
 };
 
 
@@ -119,6 +122,10 @@ public:
 
 	virtual void IncreaseBrushSizeAction();
 	virtual void DecreaseBrushSizeAction();
+	virtual void IncreaseBrushStrengthAction();
+	virtual void DecreaseBrushStrengthAction();
+	virtual void IncreaseBrushFalloffAction();
+	virtual void DecreaseBrushFalloffAction();
 
 	virtual bool IsInBrushStroke() const { return bInBrushStroke; }
 
@@ -134,7 +141,8 @@ protected:
 	double CurrentBrushRadius;
 	void RecalculateBrushRadius();
 
-
+	UPROPERTY()
+	TSoftClassPtr<UBrushBaseProperties> PropertyClass;
 
 	//
 	// Brush Indicator support

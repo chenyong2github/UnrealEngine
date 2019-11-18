@@ -29,20 +29,22 @@ FInputCaptureRequest USingleClickInputBehavior::WantsCapture(const FInputDeviceS
 }
 
 
-FInputCaptureUpdate USingleClickInputBehavior::BeginCapture(const FInputDeviceState& input, EInputCaptureSide eSide)
+FInputCaptureUpdate USingleClickInputBehavior::BeginCapture(const FInputDeviceState& Input, EInputCaptureSide eSide)
 {
+	Modifiers.UpdateModifiers(Input, Target);
 	return FInputCaptureUpdate::Begin(this, EInputCaptureSide::Any);
 }
 
 
-FInputCaptureUpdate USingleClickInputBehavior::UpdateCapture(const FInputDeviceState& input, const FInputCaptureData& data)
+FInputCaptureUpdate USingleClickInputBehavior::UpdateCapture(const FInputDeviceState& Input, const FInputCaptureData& Data)
 {
-	if (IsReleased(input)) 
+	Modifiers.UpdateModifiers(Input, Target);
+	if (IsReleased(Input))
 	{
 		if (HitTestOnRelease == false || 
-			Target->IsHitByClick(GetDeviceRay(input)) )
+			Target->IsHitByClick(GetDeviceRay(Input)) )
 		{
-			Clicked(input, data);
+			Clicked(Input, Data);
 		}
 
 		return FInputCaptureUpdate::End();

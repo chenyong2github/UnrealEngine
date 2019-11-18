@@ -1023,7 +1023,6 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 					FToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(Mode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), Orient_Horizontal, false);
 					Toolkit->BuildToolPalette(Palette, ModeToolbarBuilder);
 
-					// ActiveToolBarRows.Emplace(Mode, Toolkit->GetToolPaletteName(i), ModeToolbarBuilder.MakeWidget());
 					ActiveToolBarRows.Emplace(Mode->GetID(), Palette, Toolkit->GetToolPaletteDisplayName(Palette), ModeToolbarBuilder.MakeWidget());
 					PaletteCount++;
 				}
@@ -1373,6 +1372,11 @@ bool FEditorModeTools::HandleClick(FEditorViewportClient* InViewportClient,  HHi
 	for( int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex )
 	{
 		const TSharedPtr<FEdMode>& Mode = ActiveModes[ ModeIndex ];
+		bHandled |= Mode->HandleClick(InViewportClient, HitProxy, Click);
+	}
+	for (int32 ModeIndex = 0; ModeIndex < ActiveScriptableModes.Num(); ++ModeIndex)
+	{
+		UEdMode* Mode = ActiveScriptableModes[ModeIndex];
 		bHandled |= Mode->HandleClick(InViewportClient, HitProxy, Click);
 	}
 

@@ -2016,17 +2016,6 @@ void FSlateEditorStyle::FStyle::SetupGeneralStyles()
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR || (IS_PROGRAM && WITH_UNREAL_DEVELOPER_TOOLS)
-	// Menu editor
-	{
-		Set("MultiBox.DragAbove", new BOX_BRUSH("Common/DropZoneIndicator_Above", FMargin(10.0f / 16.0f, 10.0f / 16.0f, 0, 0), SelectionColor));
-		Set("MultiBox.DragBelow", new BOX_BRUSH("Common/DropZoneIndicator_Below", FMargin(10.0f / 16.0f, 0, 0, 10.0f / 16.0f), SelectionColor));
-
-		Set("MultiBox.VisibleIcon16x", new IMAGE_BRUSH("Icons/icon_visible_16px", Icon16x16));
-		Set("MultiBox.VisibleHighlightIcon16x", new IMAGE_BRUSH("Icons/icon_visible_hi_16px", Icon16x16));
-		Set("MultiBox.NotVisibleIcon16x", new IMAGE_BRUSH("Icons/icon_invisible_16px", Icon16x16));
-		Set("MultiBox.NotVisibleHighlightIcon16x", new IMAGE_BRUSH("Icons/icon_invisible_hi_16px", Icon16x16));
-	}
-
 	// ToolBar
 	{
 		Set( "ToolBar.Background", new BOX_BRUSH( "Common/GroupBorder", FMargin(4.0f/16.0f) ) );
@@ -5379,23 +5368,36 @@ void FSlateEditorStyle::FStyle::SetupLevelEditorStyle()
 	// Mesh Paint
 	{
 		Set( "MeshPaint.Fill", new IMAGE_BRUSH( "/Icons/icon_MeshPaint_Fill_40x", Icon20x20) );
-		Set( "MeshPaint.Fill.Small", new IMAGE_BRUSH( "/Icons/icon_MeshPaint_Fill_40x", Icon16x16) );
+		Set( "MeshPaint.Fill.Small", new IMAGE_BRUSH( "/Icons/icon_MeshPaint_Fill_40x", Icon20x20) );
 		Set( "MeshPaint.Propagate", new IMAGE_BRUSH( "/Icons/icon_MatEd_Apply_40x", Icon20x20) );
-		Set( "MeshPaint.Propagate.Small", new IMAGE_BRUSH( "/Icons/icon_MatEd_Apply_40x", Icon16x16) );
+		Set( "MeshPaint.Propagate.Small", new IMAGE_BRUSH( "/Icons/icon_MatEd_Apply_40x", Icon20x20) );
 		Set( "MeshPaint.Import", new IMAGE_BRUSH( "/Icons/icon_Import_40x", Icon20x20) );
-		Set( "MeshPaint.Import.Small", new IMAGE_BRUSH( "/Icons/icon_Import_40x", Icon16x16) );
+		Set( "MeshPaint.Import.Small", new IMAGE_BRUSH( "/Icons/icon_Import_40x", Icon20x20) );
 		Set( "MeshPaint.FindInCB", new IMAGE_BRUSH( "/Icons/icon_toolbar_genericfinder_40px", Icon20x20) );
 		Set( "MeshPaint.Save", new IMAGE_BRUSH( "/Icons/icon_file_save_40x", Icon20x20) );
-		Set( "MeshPaint.Save.Small", new IMAGE_BRUSH( "/Icons/icon_file_save_40x", Icon16x16) );
+		Set( "MeshPaint.Save.Small", new IMAGE_BRUSH( "/Icons/icon_file_save_40x", Icon20x20) );
 		Set( "MeshPaint.Fix", new IMAGE_BRUSH( "/Icons/icon_tab_Toolbars_40x", Icon20x20) );
-		Set( "MeshPaint.Fix.Small", new IMAGE_BRUSH( "/Icons/icon_tab_Toolbars_40x", Icon16x16) );
+		Set( "MeshPaint.Fix.Small", new IMAGE_BRUSH( "/Icons/icon_tab_Toolbars_40x", Icon20x20) );
 		Set( "MeshPaint.Remove", new IMAGE_BRUSH("/Icons/Edit/icon_Edit_Delete_40x", Icon20x20));
-		Set( "MeshPaint.Remove.Small", new IMAGE_BRUSH("/Icons/Edit/icon_Edit_Delete_40x", Icon16x16));
+		Set( "MeshPaint.Remove.Small", new IMAGE_BRUSH("/Icons/Edit/icon_Edit_Delete_40x", Icon20x20));
 		Set( "MeshPaint.Copy", new IMAGE_BRUSH("/Icons/Edit/icon_Edit_Copy_40x", Icon20x20));
-		Set( "MeshPaint.Copy.Small", new IMAGE_BRUSH("/Icons/Edit/icon_Edit_Copy_40x", Icon16x16));
+		Set( "MeshPaint.Copy.Small", new IMAGE_BRUSH("/Icons/Edit/icon_Edit_Copy_40x", Icon20x20));
 		Set( "MeshPaint.Paste", new IMAGE_BRUSH("/Icons/Edit/icon_Edit_Paste_40x", Icon20x20));
-		Set( "MeshPaint.Paste.Small", new IMAGE_BRUSH("/Icons/Edit/icon_Edit_Paste_40x", Icon16x16));
+		Set( "MeshPaint.Paste.Small", new IMAGE_BRUSH("/Icons/Edit/icon_Edit_Paste_40x", Icon20x20));
 		Set( "MeshPaint.Swap", new IMAGE_BRUSH("/Icons/icon_MeshPaint_Swap_16x", Icon12x12));
+		Set("MeshPaint.PropagateTexturePaint", new IMAGE_BRUSH("/Icons/icon_MatEd_Apply_40x", Icon20x20));
+		Set("MeshPaint.PropagateTexturePaint.Small", new IMAGE_BRUSH("/Icons/icon_MatEd_Apply_40x", Icon20x20));
+		Set("MeshPaint.SaveTexturePaint", new IMAGE_BRUSH("/Icons/icon_file_save_40x", Icon20x20));
+		Set("MeshPaint.SaveTexturePaint.Small", new IMAGE_BRUSH("/Icons/icon_file_save_40x", Icon20x20));
+		Set("MeshPaint.PropagateVertexColorsToLODs", new IMAGE_BRUSH("Icons/icon_ViewMode_LODColoration_16px", Icon20x20));
+		Set("MeshPaint.PropagateVertexColorsToLODs.Small", new IMAGE_BRUSH("Icons/icon_ViewMode_LODColoration_16px", Icon20x20));
+		Set("MeshPaint.TexturePaint", new IMAGE_BRUSH("Icons/TexturePaint_40x", Icon20x20));
+		Set("MeshPaint.TexturePaint.Small", new IMAGE_BRUSH("Icons/TexturePaint_40x", Icon20x20));
+		Set("MeshPaint.ColorPaint", new IMAGE_BRUSH("Icons/VertexColorPaint_40x", Icon20x20));
+		Set("MeshPaint.ColorPaint.Small", new IMAGE_BRUSH("Icons/VertexColorPaint_40x", Icon20x20));
+		Set("MeshPaint.WeightPaint", new IMAGE_BRUSH("Icons/WeightPaint_40x", Icon20x20));
+		Set("MeshPaint.WeightPaint.Small", new IMAGE_BRUSH("Icons/WeightPaint_40x", Icon20x20));
+		Set("MeshPaint.Select", new IMAGE_BRUSH(TEXT("Icons/icon_Persona_MeshSectionSelection_40x"), Icon20x20));
 	}
 
 	// News Feed

@@ -11,6 +11,7 @@
 #include "Editor.h"
 #include "InteractiveTool.h"
 #include "Tools/UEdMode.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "BaseToolkit"
 
@@ -215,9 +216,28 @@ void FModeToolkit::Init(const TSharedPtr< class IToolkitHost >& InitToolkitHost)
 	ToolkitMode = EToolkitMode::WorldCentric;
 	ToolkitHost = InitToolkitHost;
 
-	FToolkitManager::Get().RegisterNewToolkit( SharedThis( this ) );
+	if (UEdMode* ScriptableEditorMode = GetScriptableEditorMode())
+	{
+		ScriptableEditorMode->GetToolManager()->OnToolStarted.AddSP(this, &FModeToolkit::OnToolStarted);
+		ScriptableEditorMode->GetToolManager()->OnToolEnded.AddSP(this, &FModeToolkit::OnToolEnded);
+	}
 
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+	FDetailsViewArgs ModeDetailsViewArgs(
+		/*bUpdateFromSelection=*/ false,
+		/*bLockable=*/ false,
+		/*bAllowSearch=*/ false,
+		FDetailsViewArgs::HideNameArea,
+		/*bHideSelectionTip=*/ true,
+		/*InNotifyHook=*/ nullptr,
+		/*InSearchInitialKeyFocus=*/ false,
+		/*InViewIdentifier=*/ NAME_None);
+	ModeDetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
+	ModeDetailsViewArgs.bShowOptions = false;
+	ModeDetailsViewArgs.bAllowMultipleTopLevelObjects = true;
+
+	ModeDetailsView = PropertyEditorModule.CreateDetailView(ModeDetailsViewArgs);
 
 	FDetailsViewArgs DetailsViewArgs(
 		/*bUpdateFromSelection=*/ false,
@@ -233,8 +253,23 @@ void FModeToolkit::Init(const TSharedPtr< class IToolkitHost >& InitToolkitHost)
 	DetailsViewArgs.bAllowMultipleTopLevelObjects = true;
 
 	DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+
+
+	FToolkitManager::Get().RegisterNewToolkit(SharedThis(this));
 }
 
+
+FModeToolkit::~FModeToolkit()
+{
+	if (UEdMode* ScriptableEditorMode = GetScriptableEditorMode())
+	{
+		if (ScriptableEditorMode->GetToolManager())
+		{
+			ScriptableEditorMode->GetToolManager()->OnToolStarted.RemoveAll(this);
+			ScriptableEditorMode->GetToolManager()->OnToolEnded.RemoveAll(this);
+		}
+	}
+}
 
 FName FModeToolkit::GetToolkitFName() const
 {
@@ -292,33 +327,19 @@ bool FModeToolkit::CanCompleteActiveTool()
 }
 
 
-FReply FModeToolkit::StartTool(const FString& ToolTypeIdentifier)
+void FModeToolkit::OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
-	if (GetScriptableEditorMode()->GetToolManager()->SelectActiveToolType(EToolSide::Left, ToolTypeIdentifier) == false)
+	// Update properties panel
+	UInteractiveTool* CurTool = GetScriptableEditorMode()->GetToolManager()->GetActiveTool(EToolSide::Left);
+	if (CurTool)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("ToolManager: Unknown Tool Type %s"), *ToolTypeIdentifier);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("ToolManager: Starting Tool Type %s"), *ToolTypeIdentifier);
-		GetScriptableEditorMode()->GetToolManager()->ActivateTool(EToolSide::Left);
-
-		// Update properties panel
-		UInteractiveTool* CurTool = GetScriptableEditorMode()->GetToolManager()->GetActiveTool(EToolSide::Left);
 		DetailsView->SetObjects(CurTool->GetToolProperties());
 	}
-	return FReply::Handled();
 }
 
-FReply FModeToolkit::EndTool(EToolShutdownType ShutdownType)
+void FModeToolkit::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
-	UE_LOG(LogTemp, Warning, TEXT("ENDING TOOL"));
-
-	GetScriptableEditorMode()->GetToolManager()->DeactivateTool(EToolSide::Left, ShutdownType);
-
 	DetailsView->SetObject(nullptr);
-
-	return FReply::Handled();
 }
 
 class FEdMode* FModeToolkit::GetEditorMode() const
@@ -329,4 +350,63 @@ class FEdMode* FModeToolkit::GetEditorMode() const
 UEdMode* FModeToolkit::GetScriptableEditorMode() const
 {
 	return nullptr;
+}
+
+TSharedPtr<SWidget> FModeToolkit::GetInlineContent() const
+{
+	return SNew(SVerticalBox)
+		+SVerticalBox::Slot()
+		.HAlign(HAlign_Center)
+		.AutoHeight()
+		[
+			SNew(STextBlock)
+			.Text(GetBaseToolkitName())
+		]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			ModeDetailsView.ToSharedRef()
+		]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			DetailsView.ToSharedRef()
+		];
+}
+
+void FModeToolkit::BuildToolPalette(FName PaletteName, class FToolBarBuilder& ToolbarBuilder)
+{
+	if (UEdMode* EditorMode = GetScriptableEditorMode())
+	{
+		TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> CommandLists = EditorMode->GetModeCommands();
+		TArray<TSharedPtr<FUICommandInfo>>* CurrentCommandListPtr = CommandLists.Find(PaletteName);
+		if (CurrentCommandListPtr)
+		{
+			TArray<TSharedPtr<FUICommandInfo>> CurrentCommandList = *CurrentCommandListPtr;
+			for (TSharedPtr<FUICommandInfo> Command : CurrentCommandList)
+			{
+				ToolbarBuilder.AddToolBarButton(Command);
+			}
+			
+		}
+
+	}
+}
+
+void FModeToolkit::OnToolPaletteChanged(FName PaletteName)
+{
+	if (UEdMode* EditorMode = GetScriptableEditorMode())
+	{
+		EditorMode->SetCurrentPaletteName(PaletteName);
+		if (UInteractiveTool* CurrentTool = EditorMode->GetToolManager()->GetActiveTool(EToolSide::Left))
+		{
+			// When swapping tools, default to accepting the active tool
+			EditorMode->GetToolManager()->DeactivateTool(EToolSide::Left, EToolShutdownType::Accept);
+		}
+	}
+}
+
+void FModeToolkit::SetModeSettingsObject(UObject* InSettingsObject)
+{
+	ModeDetailsView->SetObject(InSettingsObject);
 }

@@ -10,6 +10,7 @@
 #include "Toolkits/IToolkitHost.h"
 
 class UInteractiveTool;
+class UInteractiveToolManager;
 class SDockableTab;
 class UEdMode;
 class IDetailsView;
@@ -63,6 +64,7 @@ public:
 	 */
 	void AddToolkitTab(const TSharedRef<SDockableTab>& TabToAdd, const EToolkitTabSpot::Type TabSpot);
 
+
 protected:
 
 	/** @return Returns the prefix string to use for tabs created for this toolkit.  In world-centric mode, tabs get a
@@ -106,6 +108,7 @@ public:
 
 	/** Initializes the mode toolkit */
 	virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost);
+	~FModeToolkit();
 
 public:
 
@@ -126,21 +129,24 @@ public:
 	virtual const TArray<UObject*>* GetObjectsCurrentlyBeingEdited() const override;
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
 	virtual class FEdMode* GetEditorMode() const override;
-
 	virtual UEdMode* GetScriptableEditorMode() const;
+	virtual TSharedPtr<SWidget> GetInlineContent() const override;
+	virtual void BuildToolPalette(FName PaletteName, class FToolBarBuilder& ToolbarBuilder) override;
+	virtual void OnToolPaletteChanged(FName PaletteName) override;
 
-private:
+	void SetModeSettingsObject(UObject* InSettingsObject);
 
-	TSharedPtr<SWidget> ToolkitWidget;
-	TSharedPtr<IDetailsView> DetailsView;
-
-	// these functions just forward calls to the ToolsContext / ToolManager
-
+protected:
 	bool CanStartTool(const FString& ToolTypeIdentifier);
 	bool CanAcceptActiveTool();
 	bool CanCancelActiveTool();
 	bool CanCompleteActiveTool();
 
-	FReply StartTool(const FString& ToolTypeIdentifier);
-	FReply EndTool(EToolShutdownType ShutdownType);
+	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool);
+	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool);
+
+protected:
+	TSharedPtr<SWidget> ToolkitWidget;
+	TSharedPtr<IDetailsView> ModeDetailsView;
+	TSharedPtr<IDetailsView> DetailsView;
 };

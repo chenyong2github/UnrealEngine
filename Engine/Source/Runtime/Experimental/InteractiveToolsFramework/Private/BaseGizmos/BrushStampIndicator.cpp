@@ -33,7 +33,7 @@ void UBrushStampIndicator::Render(IToolsContextRenderAPI* RenderAPI)
 
 		if (bDrawSecondaryLines)
 		{
-			Draw.DrawCircle(BrushPosition, BrushNormal, BrushRadius*0.5f, SampleStepCount, SecondaryLineColor, SecondaryLineThickness, bDepthTested);
+			Draw.DrawCircle(BrushPosition, BrushNormal, BrushRadius*BrushFalloff, SampleStepCount, SecondaryLineColor, SecondaryLineThickness, bDepthTested);
 			Draw.DrawLine(BrushPosition, BrushPosition + BrushRadius * BrushNormal, SecondaryLineColor, SecondaryLineThickness, bDepthTested);
 		}
 
@@ -46,11 +46,12 @@ void UBrushStampIndicator::Tick(float DeltaTime)
 }
 
 
-void UBrushStampIndicator::Update(float Radius, const FVector& Position, const FVector& Normal)
+void UBrushStampIndicator::Update(float Radius, const FVector& Position, const FVector& Normal, float Falloff)
 {
 	BrushRadius = Radius;
 	BrushPosition = Position;
 	BrushNormal = Normal;
+	BrushFalloff = Falloff;
 
 	if (AttachedComponent != nullptr)
 	{

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "BaseBehaviors/AnyButtonInputBehavior.h"
 #include "BehaviorTargetInterfaces.h"
+#include "InputBehaviorModifierStates.h"
 #include "SingleClickBehavior.generated.h"
 
 
@@ -53,6 +54,11 @@ public:
 	/** Hit-test is repeated on release (standard behavior). If false, */
 	UPROPERTY()
 	bool HitTestOnRelease;
+
+	/**
+	 * The modifier set for this behavior
+	 */
+	FInputBehaviorModifierStates Modifiers;
 
 
 protected:

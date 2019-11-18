@@ -11,6 +11,7 @@
 #include "UObject/Object.h"
 #include "Math/Ray.h"
 #include "InputState.h"
+#include "UObject/SoftObjectPtr.h"
 #include "UEdMode.generated.h"
 
 
@@ -27,6 +28,7 @@ struct FConvexVolume;
 struct FViewportClick;
 class UInteractiveToolsContext;
 class UInteractiveToolManager;
+class UInteractiveTool;
 class IToolsContextQueriesAPI;
 class IToolsContextTransactionsAPI;
 class IToolsContextAssetAPI;
@@ -38,6 +40,9 @@ struct FViewportClick;
 class FModeTool;
 class FEditorViewportClient;
 struct FViewportClick;
+class UInteractiveToolBuilder;
+class FUICommandInfo;
+class FUICommandList;
 
 
 /** Outcomes when determining whether it's possible to perform an action on the edit modes*/
@@ -57,7 +62,7 @@ namespace EEditAction
 /**
  * Base class for all editor modes.
  */
-UCLASS()
+UCLASS(Abstract)
 class UNREALED_API UEdMode : public UObject, public FEditorCommonDrawHelper
 {
 	GENERATED_BODY()
@@ -117,7 +122,7 @@ public:
 	virtual bool IsCompatibleWith(FEditorModeID OtherModeID) const { return false; }
 	virtual void ActorMoveNotify() {}
 	virtual void ActorsDuplicatedNotify(TArray<AActor*>& PreDuplicateSelection, TArray<AActor*>& PostDuplicateSelection, bool bOffsetLocations) {}
-	virtual void ActorSelectionChangeNotify();
+	virtual void ActorSelectionChangeNotify() {};
 	virtual void ActorPropChangeNotify() {}
 	virtual void MapChangeNotify() {}
 
@@ -164,6 +169,10 @@ public:
 	virtual void UpdateInternalData() {}
 
 	virtual void Enter();
+
+	virtual void RegisterTool(TSharedPtr<FUICommandInfo> UICommand, FString ToolIdentifier, UInteractiveToolBuilder* Builder);
+
+
 	virtual void Exit();
 	virtual UTexture2D* GetVertexTexture() { return GEngine->DefaultBSPVertexTexture; }
 
@@ -232,13 +241,6 @@ public:
 	/** Returns the owning mode manager for this mode */
 	class FEditorModeTools* GetModeManager() const;
 
-	/**
-	 * Called when the editor mode should rebuild its toolbar
-	 *
-	 * @param ToolbarBuilder	The builder which should be used to add toolbar widgets
-	 */
-	virtual void BuildModeToolbar(class FToolBarBuilder& ToolbarBuilder) {}
-
 public:
 
 	/** Request that this mode be deleted at the next convenient opportunity (FEditorModeTools::Tick) */
@@ -261,6 +263,7 @@ private:
 	virtual void TerminateActiveToolsOnSaveWorld();
 
 	FRay GetRayFromMousePos(FEditorViewportClient* ViewportClient, FViewport* Viewport, int MouseX, int MouseY);
+	
 protected:
 
 	/** Information pertaining to this mode. Assigned by FEditorModeRegistry. */
@@ -299,10 +302,31 @@ public:
 	 */
 	virtual UInteractiveToolManager* GetToolManager() const;
 
+	virtual TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> GetModeCommands() const
+	{
+		return TMap<FName, TArray<TSharedPtr<FUICommandInfo>>>();
+	};
+
+	void SetCurrentPaletteName(FName InName)
+	{
+		CurrentPaletteName = InName;
+		UpdateOnPaletteChange();
+	};
+
+protected:
+	virtual void CreateToolkit();
+	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) {};
+	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) { bCheckIfDefaultToolNeeded = true; };
+	virtual void ActivateDefaultTool() {};
+	virtual void UpdateOnPaletteChange() {};
+
 protected:
 
+	UPROPERTY()
 	UInteractiveToolsContext* ToolsContext;
-
+	TSoftClassPtr<UInteractiveToolsContext> ToolsContextClass;
+	/** Command list lives here so that the key bindings on the commands can be processed in the viewport. */
+	TSharedPtr<FUICommandList> ToolCommandList;
 	bool bInvalidationPending;
 	IToolsContextQueriesAPI* QueriesAPI;
 	IToolsContextTransactionsAPI* TransactionAPI;
@@ -313,5 +337,17 @@ protected:
 	// called before a Save starts. This currently shuts down active tools.
 	FDelegateHandle PreSaveWorldDelegateHandle;
 
+	UPROPERTY()
+	TSoftClassPtr<UObject> SettingsClass;
+
+	UPROPERTY(Transient)
+	UObject* SettingsObject;
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnModeToolNotification, const FText&);
+	FOnModeToolNotification OnToolNotificationMessage;
+	FOnModeToolNotification OnToolWarningMessage;
+
+	FName CurrentPaletteName;
+	bool bCheckIfDefaultToolNeeded;
 };
 

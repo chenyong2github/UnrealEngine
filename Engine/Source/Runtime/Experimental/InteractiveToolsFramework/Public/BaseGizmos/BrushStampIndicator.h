@@ -40,12 +40,15 @@ public:
 	/**
 	 * Update the Radius, Position, and Normal of the stamp indicator
 	 */
-	virtual void Update(float Radius, const FVector& Position, const FVector& Normal);
+	virtual void Update(float Radius, const FVector& Position, const FVector& Normal, float Falloff);
 
 public:
 
 	UPROPERTY()
 	float BrushRadius = 1.0f;
+
+	UPROPERTY()
+	float BrushFalloff = 0.5f;
 
 	UPROPERTY()
 	FVector BrushPosition = FVector::ZeroVector;
