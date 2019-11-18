@@ -229,6 +229,7 @@ public:
 	virtual void AddForegroundTrack(TSharedPtr<FBaseTimingTrack> Track) override;
 
 	virtual void InvalidateScrollableTracksOrder() override;
+	//TODO: virtual void InvalidateScrollableTracksVisibility() override;
 
 	virtual Insights::FSelectionChangedDelegate& OnSelectionChanged() override { return OnSelectionChangedDelegate; }
 	virtual Insights::FTimeMarkerChangedDelegate& OnTimeMarkerChanged() override { return OnTimeMarkerChangedDelegate; }
@@ -300,6 +301,8 @@ protected:
 	void BindCommands();
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	void UpdatePositionForScrollableTracks();
 
 	/**
 	 * Called when the user scrolls the horizontal scrollbar.
@@ -383,8 +386,8 @@ protected:
 	TArray<TSharedPtr<FBaseTimingTrack>> ScrollableTracks; /**< tracks in scrollable area, in the order to be displayed (top to bottom) */
 	TArray<TSharedPtr<FBaseTimingTrack>> ForegroundTracks; /**< tracks to draw over top/scrollable/bottom tracks (can use entire area), in the order to be displayed (back to front) */
 
-	/** Whether the scrollable tracks are dirty and need to be re-sorted */
-	bool bScrollableTracksDirty;
+	/** Whether the order of scrollable tracks is dirty and list need to be re-sorted */
+	bool bScrollableTracksOrderIsDirty;
 
 	////////////////////////////////////////////////////////////
 
@@ -429,6 +432,8 @@ protected:
 
 	/** Mouse position during the call on mouse button up. */
 	FVector2D MousePositionOnButtonUp;
+
+	float LastScrollPosY;
 
 	bool bIsLMB_Pressed;
 	bool bIsRMB_Pressed;

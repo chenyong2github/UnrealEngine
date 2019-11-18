@@ -72,7 +72,7 @@ namespace Insights { const FName TimingViewExtenderFeatureName(TEXT("TimingViewE
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 STimingView::STimingView()
-	: bScrollableTracksDirty(false)
+	: bScrollableTracksOrderIsDirty(false)
 	, ThreadTimingSharedState(MakeShared<FThreadTimingSharedState>(this))
 	, LoadingSharedState(MakeShared<FLoadingSharedState>(this))
 	, bAssetLoadingMode(false)
@@ -211,6 +211,8 @@ void STimingView::Reset()
 	ScrollableTracks.Reset();
 	ForegroundTracks.Reset();
 
+	bScrollableTracksOrderIsDirty = false;
+
 	FTimingEventsTrack::bUseDownSampling = true;
 
 	//////////////////////////////////////////////////
@@ -239,6 +241,8 @@ void STimingView::Reset()
 	ViewportScrollPosYOnButtonDown = 0.0f;
 
 	MousePositionOnButtonUp = FVector2D::ZeroVector;
+
+	LastScrollPosY = 0.0f;
 
 	bIsLMB_Pressed = false;
 	bIsRMB_Pressed = false;
@@ -534,8 +538,29 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 	}
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Elastic snap to vertical scroll limits.
 
+	const float InitialScrollPosY = Viewport.GetScrollPosY();
+	const float InitialPinnedTrackPosY = SelectedTrack.IsValid() ? SelectedTrack->GetPosY() : 0.0f;
+
+	// Update the Y position for visible scrollable tracks.
+	UpdatePositionForScrollableTracks();
+
+	// The selected track will be pinned (keeps Y pos fixed unless user scrolls vertically).
+	if (SelectedTrack.IsValid())
+	{
+		const float ScrollingDY = LastScrollPosY - InitialScrollPosY;
+		const float PinnedTrackPosY = SelectedTrack->GetPosY();
+		const float AdjustmentDY = InitialPinnedTrackPosY - PinnedTrackPosY + ScrollingDY;
+
+		if (!FMath::IsNearlyZero(AdjustmentDY, 0.5f))
+		{
+			ViewportScrollPosYOnButtonDown -= AdjustmentDY;
+			ScrollAtPosY(InitialScrollPosY - AdjustmentDY);
+			UpdatePositionForScrollableTracks();
+		}
+	}
+
+	// Elastic snap to vertical scroll limits.
 	if (!bIsPanning)
 	{
 		const float DY = Viewport.GetScrollHeight() - Viewport.GetScrollableAreaHeight() + 7.0f; // +7 is to allow some space for the horizontal scrollbar
@@ -581,21 +606,14 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 			}
 		}
 
-		ScrollAtPosY(ScrollPosY);
-	}
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Update Y position for visible scrollable tracks.
-
-	float ScrollableTrackPosY = Viewport.GetTopOffset() - Viewport.GetScrollPosY();
-	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : ScrollableTracks)
-	{
-		TrackPtr->SetPosY(ScrollableTrackPosY); // set pos y also for the hidden tracks
-		if (TrackPtr->IsVisible())
+		if (ScrollPosY != Viewport.GetScrollPosY())
 		{
-			ScrollableTrackPosY += TrackPtr->GetHeight();
+			ScrollAtPosY(ScrollPosY);
+			UpdatePositionForScrollableTracks();
 		}
 	}
+
+	LastScrollPosY = Viewport.GetScrollPosY();
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// At this point it is assumed all tracks have proper position and size.
@@ -749,6 +767,22 @@ void STimingView::UpdateOtherViews()
 			{
 				StatsView->RebuildTree(false);
 			}
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::UpdatePositionForScrollableTracks()
+{
+	// Update the Y postion for visible scrollable tracks.
+	float ScrollableTrackPosY = Viewport.GetTopOffset() - Viewport.GetScrollPosY();
+	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : ScrollableTracks)
+	{
+		TrackPtr->SetPosY(ScrollableTrackPosY); // set pos y also for the hidden tracks
+		if (TrackPtr->IsVisible())
+		{
+			ScrollableTrackPosY += TrackPtr->GetHeight();
 		}
 	}
 }
@@ -1244,17 +1278,17 @@ void STimingView::AddScrollableTrack(TSharedPtr<FBaseTimingTrack> Track)
 
 void STimingView::InvalidateScrollableTracksOrder()
 {
-	bScrollableTracksDirty = true;
+	bScrollableTracksOrderIsDirty = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimingView::UpdateScrollableTracksOrder()
 {
-	if(bScrollableTracksDirty)
+	if (bScrollableTracksOrderIsDirty)
 	{
 		Algo::SortBy(ScrollableTracks, &FBaseTimingTrack::GetOrder);
-		bScrollableTracksDirty = false;
+		bScrollableTracksOrderIsDirty = false;
 	}
 }
 

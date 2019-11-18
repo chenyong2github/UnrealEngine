@@ -163,7 +163,7 @@ FLogMessageRecord& FLogMessageCache::Get(uint64 Index)
 		{
 			FScopeLock Lock(&CriticalSection);
 			FLogMessageRecord Entry(Message);
-			Map.Add(Index, Entry);
+			Map.Add(Index, MoveTemp(Entry));
 		});
 	}
 
