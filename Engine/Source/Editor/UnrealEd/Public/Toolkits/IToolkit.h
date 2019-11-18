@@ -136,22 +136,5 @@ public:
 
 	/* Returns true if this is the default generic asset editor used by multiple classes */
 	virtual bool IsSimpleAssetEditor() const { return false; }
-
-	/** Returns the number of Mode specific tabs in the mode toolbar **/ 
-	virtual void GetToolPaletteNames(TArray<FName>& PaletteNames) const {}
-
-	/** 
-	 * @param PaletteIndex      The index of the ToolPalette to build
-	 * @returns the name of Tool Palette 
-	 **/ 
-	virtual FText GetToolPaletteDisplayName(FName Palette) const { return FText(); }
-
-	/** 
-	 * @param PaletteIndex      The index of the ToolPalette to build
-	 * @param ToolbarBuilder    The builder to use for given PaletteIndex
-	**/ 
-	virtual void BuildToolPalette(FName Palette, class FToolBarBuilder& ToolbarBuilder) {}
-
-	virtual void OnToolPaletteChanged(FName NewActivePalette) {}
 };
 
