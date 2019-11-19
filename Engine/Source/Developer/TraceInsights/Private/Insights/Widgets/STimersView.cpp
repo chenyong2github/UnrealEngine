@@ -1640,6 +1640,12 @@ void STimersView::UpdateStats(double StartTime, double EndTime)
 	}
 
 	UpdateTree();
+
+	const TArray<FTimerNodePtr> SelectedNodes = TreeView->GetSelectedItems();
+	if (SelectedNodes.Num() > 0)
+	{
+		TreeView->RequestScrollIntoView(SelectedNodes[0]);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
