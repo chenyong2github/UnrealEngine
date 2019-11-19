@@ -38,8 +38,11 @@ FAutoConsoleVariableRef CVarConstraintBPBVHDepth(TEXT("p.ConstraintBPBVHDepth"),
 int32 BPTreeOfGrids = 1;
 FAutoConsoleVariableRef CVarBPTreeOfGrids(TEXT("p.BPTreeOfGrids"), BPTreeOfGrids, TEXT("Whether to use a seperate tree of grids for bp"));
 
-float CollisionVelocityInflationCVar = 2.0;
+float CollisionVelocityInflationCVar = 2.0f;
 FAutoConsoleVariableRef CVarCollisionVelocityInflation(TEXT("p.CollisionVelocityInflation"), CollisionVelocityInflationCVar, TEXT("Collision velocity inflation.[def:2.0]"));
+
+float CollisionFrictionOverride = -1.0f;
+FAutoConsoleVariableRef CVarCollisionFrictionOverride(TEXT("p.CollisionFriction"), CollisionFrictionOverride, TEXT("Collision friction for all contacts if >= 0"));
 
 
 extern int32 UseLevelsetCollision;
@@ -63,12 +66,18 @@ namespace Chaos
 	//
 
 	template<typename T, int d>
-	TPBDCollisionConstraint<T, d>::TPBDCollisionConstraint(const TPBDRigidsSOAs<T, d>& InParticles, TArrayCollectionArray<bool>& Collided, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& InPerParticleMaterials, const int32 PairIterations /*= 1*/, const T Thickness /*= (T)0*/)
+	TPBDCollisionConstraint<T, d>::TPBDCollisionConstraint(
+		const TPBDRigidsSOAs<T, d>& InParticles, 
+		TArrayCollectionArray<bool>& Collided, 
+		const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& InPerParticleMaterials, 
+		const int32 InApplyPairIterations /*= 1*/, 
+		const int32 InApplyPushOutPairIterations /*= 1*/, 
+		const T Thickness /*= (T)0*/)
 		: Particles(InParticles)
 		, MCollided(Collided)
 		, MPhysicsMaterials(InPerParticleMaterials)
-		, bEnableVelocitySolve(true)
-		, MPairIterations(PairIterations)
+		, MApplyPairIterations(InApplyPairIterations)
+		, MApplyPushOutPairIterations(InApplyPushOutPairIterations)
 		, MThickness(Thickness)
 		, MAngularFriction(0)
 		, bUseCCD(false)
@@ -314,7 +323,7 @@ namespace Chaos
 
 
 	template<typename T, int d>
-	void TPBDCollisionConstraint<T, d>::Apply(const T Dt, FRigidBodyContactConstraint& Constraint)
+	void TPBDCollisionConstraint<T, d>::Apply(const T Dt, FRigidBodyContactConstraint& Constraint, const int32 It, const int32 NumIts)
 	{
 		TGenericParticleHandle<T, d> Particle0 = TGenericParticleHandle<T, d>(Constraint.Particle[0]);
 		TGenericParticleHandle<T, d> Particle1 = TGenericParticleHandle<T, d>(Constraint.Particle[1]);
@@ -332,192 +341,202 @@ namespace Chaos
 			ensure(!PBDRigid0 || PBDRigid0->Sleeping());
 			return;
 		}
-		UpdateConstraint<ECollisionUpdateType::Deepest>(MThickness, Constraint);
-		if (Constraint.GetPhi() >= MThickness)
+
+		for (int32 PairIt = 0; PairIt < MApplyPairIterations; ++PairIt)
 		{
-			return;
-		}
-
-		// @todo(ccaulfield): CHAOS_PARTICLEHANDLE_TODO what's the best way to manage external per-particle data?
-		Particle0->AuxilaryValue(MCollided) = true;
-		Particle1->AuxilaryValue(MCollided) = true;
-
-		// @todo(ccaulfield): CHAOS_PARTICLEHANDLE_TODO split function to avoid ifs
-		const TVector<T, d> ZeroVector = TVector<T, d>(0);
-		const TRotation<T, d>& Q0 = Particle0->Q();
-		const TRotation<T, d>& Q1 = Particle1->Q();
-		const TVector<T, d>& P0 = Particle0->P();
-		const TVector<T, d>& P1 = Particle1->P();
-		const TVector<T, d>& V0 = Particle0->V();
-		const TVector<T, d>& V1 = Particle1->V();
-		const TVector<T, d>& W0 = Particle0->W();
-		const TVector<T, d>& W1 = Particle1->W();
-		TSerializablePtr<FChaosPhysicsMaterial> PhysicsMaterial0 = Particle0->AuxilaryValue(MPhysicsMaterials);
-		TSerializablePtr<FChaosPhysicsMaterial> PhysicsMaterial1 = Particle1->AuxilaryValue(MPhysicsMaterials);
-
-		TContactData<T, d> & Contact = Constraint.ShapeManifold.Manifold;
-
-		TVector<T, d> VectorToPoint1 = Contact.Location - P0;
-		TVector<T, d> VectorToPoint2 = Contact.Location - P1;
-		TVector<T, d> Body1Velocity = V0 + TVector<T, d>::CrossProduct(W0, VectorToPoint1);
-		TVector<T, d> Body2Velocity = V1 + TVector<T, d>::CrossProduct(W1, VectorToPoint2);
-		TVector<T, d> RelativeVelocity = Body1Velocity - Body2Velocity;
-		if (TVector<T, d>::DotProduct(RelativeVelocity, Contact.Normal) < 0) // ignore separating constraints
-		{
-			PMatrix<T, d, d> WorldSpaceInvI1 = PBDRigid0 ? (Q0 * FMatrix::Identity).GetTransposed() * PBDRigid0->InvI() * (Q0 * FMatrix::Identity) : PMatrix<T, d, d>(0);
-			PMatrix<T, d, d> WorldSpaceInvI2 = PBDRigid1 ? (Q1 * FMatrix::Identity).GetTransposed() * PBDRigid1->InvI() * (Q1 * FMatrix::Identity) : PMatrix<T, d, d>(0);
-			PMatrix<T, d, d> Factor =
-				(PBDRigid0 ? ComputeFactorMatrix3(VectorToPoint1, WorldSpaceInvI1, PBDRigid0->InvM()) : PMatrix<T, d, d>(0)) +
-				(PBDRigid1 ? ComputeFactorMatrix3(VectorToPoint2, WorldSpaceInvI2, PBDRigid1->InvM()) : PMatrix<T, d, d>(0));
-			TVector<T, d> Impulse;
-			TVector<T, d> AngularImpulse(0);
-
-			// Resting contact if very close to the surface
-			T Restitution = (T)0;
-			T Friction = (T)0;
-			bool bApplyRestitution = (RelativeVelocity.Size() > (2 * 980 * Dt));
-			if (PhysicsMaterial0 && PhysicsMaterial1)
+			UpdateConstraint<ECollisionUpdateType::Deepest>(MThickness, Constraint);
+			if (Constraint.GetPhi() >= MThickness)
 			{
-				if (bApplyRestitution)
-				{
-					Restitution = FMath::Min(PhysicsMaterial0->Restitution, PhysicsMaterial1->Restitution);
-				}
-				Friction = FMath::Max(PhysicsMaterial0->Friction, PhysicsMaterial1->Friction);
-			}
-			else if (PhysicsMaterial0)
-			{
-				if (bApplyRestitution)
-				{
-					Restitution = PhysicsMaterial0->Restitution;
-				}
-				Friction = PhysicsMaterial0->Friction;
-			}
-			else if (PhysicsMaterial1)
-			{
-				if (bApplyRestitution)
-				{
-					Restitution = PhysicsMaterial1->Restitution;
-				}
-				Friction = PhysicsMaterial1->Friction;
+				return;
 			}
 
-			if (Friction)
+			// @todo(ccaulfield): CHAOS_PARTICLEHANDLE_TODO what's the best way to manage external per-particle data?
+			Particle0->AuxilaryValue(MCollided) = true;
+			Particle1->AuxilaryValue(MCollided) = true;
+
+			// @todo(ccaulfield): CHAOS_PARTICLEHANDLE_TODO split function to avoid ifs
+			const TVector<T, d> ZeroVector = TVector<T, d>(0);
+			const TRotation<T, d>& Q0 = Particle0->Q();
+			const TRotation<T, d>& Q1 = Particle1->Q();
+			const TVector<T, d>& P0 = Particle0->P();
+			const TVector<T, d>& P1 = Particle1->P();
+			const TVector<T, d>& V0 = Particle0->V();
+			const TVector<T, d>& V1 = Particle1->V();
+			const TVector<T, d>& W0 = Particle0->W();
+			const TVector<T, d>& W1 = Particle1->W();
+			TSerializablePtr<FChaosPhysicsMaterial> PhysicsMaterial0 = Particle0->AuxilaryValue(MPhysicsMaterials);
+			TSerializablePtr<FChaosPhysicsMaterial> PhysicsMaterial1 = Particle1->AuxilaryValue(MPhysicsMaterials);
+
+			TContactData<T, d> & Contact = Constraint.ShapeManifold.Manifold;
+
+			TVector<T, d> VectorToPoint1 = Contact.Location - P0;
+			TVector<T, d> VectorToPoint2 = Contact.Location - P1;
+			TVector<T, d> Body1Velocity = V0 + TVector<T, d>::CrossProduct(W0, VectorToPoint1);
+			TVector<T, d> Body2Velocity = V1 + TVector<T, d>::CrossProduct(W1, VectorToPoint2);
+			TVector<T, d> RelativeVelocity = Body1Velocity - Body2Velocity;
+			T RelativeNormalVelocity = TVector<T, d>::DotProduct(RelativeVelocity, Contact.Normal);
+
+			if (RelativeNormalVelocity < 0) // ignore separating constraints
 			{
-				T RelativeNormalVelocity = TVector<T, d>::DotProduct(RelativeVelocity, Contact.Normal);
-				if (RelativeNormalVelocity > 0)
+				PMatrix<T, d, d> WorldSpaceInvI1 = PBDRigid0 ? (Q0 * FMatrix::Identity).GetTransposed() * PBDRigid0->InvI() * (Q0 * FMatrix::Identity) : PMatrix<T, d, d>(0);
+				PMatrix<T, d, d> WorldSpaceInvI2 = PBDRigid1 ? (Q1 * FMatrix::Identity).GetTransposed() * PBDRigid1->InvI() * (Q1 * FMatrix::Identity) : PMatrix<T, d, d>(0);
+				PMatrix<T, d, d> Factor =
+					(PBDRigid0 ? ComputeFactorMatrix3(VectorToPoint1, WorldSpaceInvI1, PBDRigid0->InvM()) : PMatrix<T, d, d>(0)) +
+					(PBDRigid1 ? ComputeFactorMatrix3(VectorToPoint2, WorldSpaceInvI2, PBDRigid1->InvM()) : PMatrix<T, d, d>(0));
+				TVector<T, d> Impulse;
+				TVector<T, d> AngularImpulse(0);
+
+				// Resting contact if very close to the surface
+				T Restitution = (T)0;
+				T Friction = (T)0;
+				bool bApplyRestitution = (RelativeVelocity.Size() > (2 * 980 * Dt));
+				if (PhysicsMaterial0 && PhysicsMaterial1)
 				{
-					RelativeNormalVelocity = 0;
-				}
-				TVector<T, d> VelocityChange = -(Restitution * RelativeNormalVelocity * Contact.Normal + RelativeVelocity);
-				T NormalVelocityChange = TVector<T, d>::DotProduct(VelocityChange, Contact.Normal);
-				PMatrix<T, d, d> FactorInverse = Factor.Inverse();
-				TVector<T, d> MinimalImpulse = FactorInverse * VelocityChange;
-				const T MinimalImpulseDotNormal = TVector<T, d>::DotProduct(MinimalImpulse, Contact.Normal);
-				const T TangentialSize = (MinimalImpulse - MinimalImpulseDotNormal * Contact.Normal).Size();
-				if (TangentialSize <= Friction * MinimalImpulseDotNormal)
-				{
-					//within friction cone so just solve for static friction stopping the object
-					Impulse = MinimalImpulse;
-					if (MAngularFriction)
+					if (bApplyRestitution)
 					{
-						TVector<T, d> RelativeAngularVelocity = W0 - W1;
-						T AngularNormal = TVector<T, d>::DotProduct(RelativeAngularVelocity, Contact.Normal);
-						TVector<T, d> AngularTangent = RelativeAngularVelocity - AngularNormal * Contact.Normal;
-						TVector<T, d> FinalAngularVelocity = FMath::Sign(AngularNormal) * FMath::Max((T)0, FMath::Abs(AngularNormal) - MAngularFriction * NormalVelocityChange) * Contact.Normal + FMath::Max((T)0, AngularTangent.Size() - MAngularFriction * NormalVelocityChange) * AngularTangent.GetSafeNormal();
-						TVector<T, d> Delta = FinalAngularVelocity - RelativeAngularVelocity;
-						if (!PBDRigid0 && PBDRigid1)
+						Restitution = FMath::Min(PhysicsMaterial0->Restitution, PhysicsMaterial1->Restitution);
+					}
+					Friction = FMath::Max(PhysicsMaterial0->Friction, PhysicsMaterial1->Friction);
+				}
+				else if (PhysicsMaterial0)
+				{
+					if (bApplyRestitution)
+					{
+						Restitution = PhysicsMaterial0->Restitution;
+					}
+					Friction = PhysicsMaterial0->Friction;
+				}
+				else if (PhysicsMaterial1)
+				{
+					if (bApplyRestitution)
+					{
+						Restitution = PhysicsMaterial1->Restitution;
+					}
+					Friction = PhysicsMaterial1->Friction;
+				}
+
+				if (CollisionFrictionOverride >= 0)
+				{
+					Friction = CollisionFrictionOverride;
+				}
+
+				if (Friction)
+				{
+					if (RelativeNormalVelocity > 0)
+					{
+						RelativeNormalVelocity = 0;
+					}
+					TVector<T, d> VelocityChange = -(Restitution * RelativeNormalVelocity * Contact.Normal + RelativeVelocity);
+					T NormalVelocityChange = TVector<T, d>::DotProduct(VelocityChange, Contact.Normal);
+					PMatrix<T, d, d> FactorInverse = Factor.Inverse();
+					TVector<T, d> MinimalImpulse = FactorInverse * VelocityChange;
+					const T MinimalImpulseDotNormal = TVector<T, d>::DotProduct(MinimalImpulse, Contact.Normal);
+					const T TangentialSize = (MinimalImpulse - MinimalImpulseDotNormal * Contact.Normal).Size();
+					if (TangentialSize <= Friction * MinimalImpulseDotNormal)
+					{
+						//within friction cone so just solve for static friction stopping the object
+						Impulse = MinimalImpulse;
+						if (MAngularFriction)
 						{
-							PMatrix<T, d, d> WorldSpaceI2 = (Q1 * FMatrix::Identity) * PBDRigid1->I() * (Q1 * FMatrix::Identity).GetTransposed();
-							TVector<T, d> ImpulseDelta = PBDRigid1->M() * TVector<T, d>::CrossProduct(VectorToPoint2, Delta);
-							Impulse += ImpulseDelta;
-							AngularImpulse += WorldSpaceI2 * Delta - TVector<T, d>::CrossProduct(VectorToPoint2, ImpulseDelta);
+							TVector<T, d> RelativeAngularVelocity = W0 - W1;
+							T AngularNormal = TVector<T, d>::DotProduct(RelativeAngularVelocity, Contact.Normal);
+							TVector<T, d> AngularTangent = RelativeAngularVelocity - AngularNormal * Contact.Normal;
+							TVector<T, d> FinalAngularVelocity = FMath::Sign(AngularNormal) * FMath::Max((T)0, FMath::Abs(AngularNormal) - MAngularFriction * NormalVelocityChange) * Contact.Normal + FMath::Max((T)0, AngularTangent.Size() - MAngularFriction * NormalVelocityChange) * AngularTangent.GetSafeNormal();
+							TVector<T, d> Delta = FinalAngularVelocity - RelativeAngularVelocity;
+							if (!PBDRigid0 && PBDRigid1)
+							{
+								PMatrix<T, d, d> WorldSpaceI2 = (Q1 * FMatrix::Identity) * PBDRigid1->I() * (Q1 * FMatrix::Identity).GetTransposed();
+								TVector<T, d> ImpulseDelta = PBDRigid1->M() * TVector<T, d>::CrossProduct(VectorToPoint2, Delta);
+								Impulse += ImpulseDelta;
+								AngularImpulse += WorldSpaceI2 * Delta - TVector<T, d>::CrossProduct(VectorToPoint2, ImpulseDelta);
+							}
+							else if (PBDRigid0 && !PBDRigid1)
+							{
+								PMatrix<T, d, d> WorldSpaceI1 = (Q0 * FMatrix::Identity) * PBDRigid0->I() * (Q0 * FMatrix::Identity).GetTransposed();
+								TVector<T, d> ImpulseDelta = PBDRigid0->M() * TVector<T, d>::CrossProduct(VectorToPoint1, Delta);
+								Impulse += ImpulseDelta;
+								AngularImpulse += WorldSpaceI1 * Delta - TVector<T, d>::CrossProduct(VectorToPoint1, ImpulseDelta);
+							}
+							else if (PBDRigid0 && PBDRigid1)
+							{
+								PMatrix<T, d, d> Cross1(0, VectorToPoint1.Z, -VectorToPoint1.Y, -VectorToPoint1.Z, 0, VectorToPoint1.X, VectorToPoint1.Y, -VectorToPoint1.X, 0);
+								PMatrix<T, d, d> Cross2(0, VectorToPoint2.Z, -VectorToPoint2.Y, -VectorToPoint2.Z, 0, VectorToPoint2.X, VectorToPoint2.Y, -VectorToPoint2.X, 0);
+								PMatrix<T, d, d> CrossI1 = Cross1 * WorldSpaceInvI1;
+								PMatrix<T, d, d> CrossI2 = Cross2 * WorldSpaceInvI2;
+								PMatrix<T, d, d> Diag1 = CrossI1 * Cross1.GetTransposed() + CrossI2 * Cross2.GetTransposed();
+								Diag1.M[0][0] += PBDRigid0->InvM() + PBDRigid1->InvM();
+								Diag1.M[1][1] += PBDRigid0->InvM() + PBDRigid1->InvM();
+								Diag1.M[2][2] += PBDRigid0->InvM() + PBDRigid1->InvM();
+								PMatrix<T, d, d> OffDiag1 = (CrossI1 + CrossI2) * -1;
+								PMatrix<T, d, d> Diag2 = (WorldSpaceInvI1 + WorldSpaceInvI2).Inverse();
+								PMatrix<T, d, d> OffDiag1Diag2 = OffDiag1 * Diag2;
+								TVector<T, d> ImpulseDelta = PMatrix<T, d, d>((Diag1 - OffDiag1Diag2 * OffDiag1.GetTransposed()).Inverse())* ((OffDiag1Diag2 * -1) * Delta);
+								Impulse += ImpulseDelta;
+								AngularImpulse += Diag2 * (Delta - PMatrix<T, d, d>(OffDiag1.GetTransposed()) * ImpulseDelta);
+							}
 						}
-						else if (PBDRigid0 && !PBDRigid1)
+					}
+					else
+					{
+						//outside friction cone, solve for normal relative velocity and keep tangent at cone edge
+						TVector<T, d> Tangent = (RelativeVelocity - TVector<T, d>::DotProduct(RelativeVelocity, Contact.Normal) * Contact.Normal).GetSafeNormal();
+						TVector<T, d> DirectionalFactor = Factor * (Contact.Normal - Friction * Tangent);
+						T ImpulseDenominator = TVector<T, d>::DotProduct(Contact.Normal, DirectionalFactor);
+						if (!ensureMsgf(FMath::Abs(ImpulseDenominator) > SMALL_NUMBER, TEXT("Constraint:%s\n\nParticle:%s\n\nLevelset:%s\n\nDirectionalFactor:%s, ImpulseDenominator:%f"),
+							*Constraint.ToString(),
+							*Particle0->ToString(),
+							*Particle1->ToString(),
+							*DirectionalFactor.ToString(), ImpulseDenominator))
 						{
-							PMatrix<T, d, d> WorldSpaceI1 = (Q0 * FMatrix::Identity) * PBDRigid0->I() * (Q0 * FMatrix::Identity).GetTransposed();
-							TVector<T, d> ImpulseDelta = PBDRigid0->M() * TVector<T, d>::CrossProduct(VectorToPoint1, Delta);
-							Impulse += ImpulseDelta;
-							AngularImpulse += WorldSpaceI1 * Delta - TVector<T, d>::CrossProduct(VectorToPoint1, ImpulseDelta);
+							ImpulseDenominator = (T)1;
 						}
-						else if (PBDRigid0 && PBDRigid1)
-						{
-							PMatrix<T, d, d> Cross1(0, VectorToPoint1.Z, -VectorToPoint1.Y, -VectorToPoint1.Z, 0, VectorToPoint1.X, VectorToPoint1.Y, -VectorToPoint1.X, 0);
-							PMatrix<T, d, d> Cross2(0, VectorToPoint2.Z, -VectorToPoint2.Y, -VectorToPoint2.Z, 0, VectorToPoint2.X, VectorToPoint2.Y, -VectorToPoint2.X, 0);
-							PMatrix<T, d, d> CrossI1 = Cross1 * WorldSpaceInvI1;
-							PMatrix<T, d, d> CrossI2 = Cross2 * WorldSpaceInvI2;
-							PMatrix<T, d, d> Diag1 = CrossI1 * Cross1.GetTransposed() + CrossI2 * Cross2.GetTransposed();
-							Diag1.M[0][0] += PBDRigid0->InvM() + PBDRigid1->InvM();
-							Diag1.M[1][1] += PBDRigid0->InvM() + PBDRigid1->InvM();
-							Diag1.M[2][2] += PBDRigid0->InvM() + PBDRigid1->InvM();
-							PMatrix<T, d, d> OffDiag1 = (CrossI1 + CrossI2) * -1;
-							PMatrix<T, d, d> Diag2 = (WorldSpaceInvI1 + WorldSpaceInvI2).Inverse();
-							PMatrix<T, d, d> OffDiag1Diag2 = OffDiag1 * Diag2;
-							TVector<T, d> ImpulseDelta = PMatrix<T, d, d>((Diag1 - OffDiag1Diag2 * OffDiag1.GetTransposed()).Inverse())* ((OffDiag1Diag2 * -1) * Delta);
-							Impulse += ImpulseDelta;
-							AngularImpulse += Diag2 * (Delta - PMatrix<T, d, d>(OffDiag1.GetTransposed()) * ImpulseDelta);
-						}
+
+						const T ImpulseMag = -(1 + Restitution) * RelativeNormalVelocity / ImpulseDenominator;
+						Impulse = ImpulseMag * (Contact.Normal - Friction * Tangent);
 					}
 				}
 				else
 				{
-					//outside friction cone, solve for normal relative velocity and keep tangent at cone edge
-					TVector<T, d> Tangent = (RelativeVelocity - TVector<T, d>::DotProduct(RelativeVelocity, Contact.Normal) * Contact.Normal).GetSafeNormal();
-					TVector<T, d> DirectionalFactor = Factor * (Contact.Normal - Friction * Tangent);
-					T ImpulseDenominator = TVector<T, d>::DotProduct(Contact.Normal, DirectionalFactor);
-					if (!ensureMsgf(FMath::Abs(ImpulseDenominator) > SMALL_NUMBER, TEXT("Constraint:%s\n\nParticle:%s\n\nLevelset:%s\n\nDirectionalFactor:%s, ImpulseDenominator:%f"),
+					T ImpulseDenominator = TVector<T, d>::DotProduct(Contact.Normal, Factor * Contact.Normal);
+					TVector<T, d> ImpulseNumerator = -(1 + Restitution) * TVector<T, d>::DotProduct(RelativeVelocity, Contact.Normal)* Contact.Normal;
+					if (!ensureMsgf(FMath::Abs(ImpulseDenominator) > SMALL_NUMBER, TEXT("Constraint:%s\n\nParticle:%s\n\nLevelset:%s\n\nFactor*Constraint.Normal:%s, ImpulseDenominator:%f"),
 						*Constraint.ToString(),
 						*Particle0->ToString(),
 						*Particle1->ToString(),
-						*DirectionalFactor.ToString(), ImpulseDenominator))
+						*(Factor * Contact.Normal).ToString(), ImpulseDenominator))
 					{
 						ImpulseDenominator = (T)1;
 					}
-
-					const T ImpulseMag = -(1 + Restitution) * RelativeNormalVelocity / ImpulseDenominator;
-					Impulse = ImpulseMag * (Contact.Normal - Friction * Tangent);
+					Impulse = ImpulseNumerator / ImpulseDenominator;
 				}
-			}
-			else
-			{
-				T ImpulseDenominator = TVector<T, d>::DotProduct(Contact.Normal, Factor * Contact.Normal);
-				TVector<T, d> ImpulseNumerator = -(1 + Restitution) * TVector<T, d>::DotProduct(RelativeVelocity, Contact.Normal)* Contact.Normal;
-				if (!ensureMsgf(FMath::Abs(ImpulseDenominator) > SMALL_NUMBER, TEXT("Constraint:%s\n\nParticle:%s\n\nLevelset:%s\n\nFactor*Constraint.Normal:%s, ImpulseDenominator:%f"),
-					*Constraint.ToString(),
-					*Particle0->ToString(),
-					*Particle1->ToString(),
-					*(Factor * Contact.Normal).ToString(), ImpulseDenominator))
+				Impulse = GetEnergyClampedImpulse(Constraint, Impulse, VectorToPoint1, VectorToPoint2, Body1Velocity, Body2Velocity);
+				Constraint.AccumulatedImpulse += Impulse;
+				if (PBDRigid0)
 				{
-					ImpulseDenominator = (T)1;
+					// Velocity update for next step
+					FVec3 NetAngularImpulse = FVec3::CrossProduct(VectorToPoint1, Impulse) + AngularImpulse;
+					FVec3 DV = PBDRigid0->InvM() * Impulse;
+					FVec3 DW = WorldSpaceInvI1 * NetAngularImpulse;
+					PBDRigid0->V() += DV;
+					PBDRigid0->W() += DW;
+					// Position update as part of pbd
+					PBDRigid0->P() += DV * Dt;
+					PBDRigid0->Q() += FRotation3::FromElements(DW, 0.f) * Q0 * Dt * T(0.5);
+					PBDRigid0->Q().Normalize();
 				}
-				Impulse = ImpulseNumerator / ImpulseDenominator;
-			}
-			Impulse = GetEnergyClampedImpulse(Constraint, Impulse, VectorToPoint1, VectorToPoint2, Body1Velocity, Body2Velocity);
-			Constraint.AccumulatedImpulse += Impulse;
-			if (PBDRigid0)
-			{
-				// Velocity update for next step
-				TVector<T, d> AngularImpulse1 = TVector<T, d>::CrossProduct(VectorToPoint1, Impulse) + AngularImpulse;
-				FVec3 DV1 = PBDRigid0->InvM() * Impulse;
-				FVec3 DW1 = WorldSpaceInvI1 * AngularImpulse1;
-				PBDRigid0->V() += DV1;
-				PBDRigid0->W() += DW1;
-				// Position update as part of pbd
-				PBDRigid0->P() += DV1 * Dt;
-				PBDRigid0->Q() += TRotation<T, d>::FromElements(DW1, 0.f) * Q0 * Dt * T(0.5);
-				PBDRigid0->Q().Normalize();
-			}
-			if (PBDRigid1)
-			{
-				// Velocity update for next step
-				TVector<T, d> AngularImpulse2 = TVector<T, d>::CrossProduct(VectorToPoint2, -Impulse) - AngularImpulse;
-				FVec3 DV2 = -PBDRigid1->InvM() * Impulse;
-				FVec3 DW2 = WorldSpaceInvI2 * AngularImpulse2;
-				PBDRigid1->V() += DV2;
-				PBDRigid1->W() += DW2;
-				// Position update as part of pbd
-				PBDRigid1->P() += DV2 * Dt;
-				PBDRigid1->Q() += TRotation<T, d>::FromElements(DW2, 0.f) * Q1 * Dt * T(0.5);
-				PBDRigid1->Q().Normalize();
+				if (PBDRigid1)
+				{
+					// Velocity update for next step
+					FVec3 NetAngularImpulse = FVec3::CrossProduct(VectorToPoint2, -Impulse) - AngularImpulse;
+					FVec3 DV = -PBDRigid1->InvM() * Impulse;
+					FVec3 DW = WorldSpaceInvI2 * NetAngularImpulse;
+					PBDRigid1->V() += DV;
+					PBDRigid1->W() += DW;
+					// Position update as part of pbd
+					PBDRigid1->P() += DV * Dt;
+					PBDRigid1->Q() += FRotation3::FromElements(DW, 0.f) * Q1 * Dt * T(0.5);
+					PBDRigid1->Q().Normalize();
+				}
 			}
 		}
 	}
@@ -527,12 +546,12 @@ namespace Chaos
 	void TPBDCollisionConstraint<T, d>::Apply(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Apply);
-		if (bEnableVelocitySolve)
+		if (MApplyPairIterations > 0)
 		{
 			PhysicsParallelFor(InConstraintHandles.Num(), [&](int32 ConstraintHandleIndex) {
 				FConstraintContainerHandle* ConstraintHandle = InConstraintHandles[ConstraintHandleIndex];
 				check(ConstraintHandle != nullptr);
-				Apply(Dt, Constraints[ConstraintHandle->GetConstraintIndex()]);
+				Apply(Dt, Constraints[ConstraintHandle->GetConstraintIndex()], It, NumIts);
 			}, bDisableCollisionParallelFor);
 		}
 
@@ -577,7 +596,7 @@ namespace Chaos
 		const bool IsTemporarilyStatic0 = IsTemporarilyStatic.Contains(Particle0);
 		const bool IsTemporarilyStatic1 = IsTemporarilyStatic.Contains(Particle1);
 
-		for (int32 PairIteration = 0; PairIteration < MPairIterations; ++PairIteration)
+		for (int32 PairIteration = 0; PairIteration < MApplyPushOutPairIterations; ++PairIteration)
 		{
 			UpdateConstraint<ECollisionUpdateType::Deepest>(MThickness, Constraint);
 
@@ -668,7 +687,7 @@ namespace Chaos
 		SCOPE_CYCLE_COUNTER(STAT_ApplyPushOut);
 
 		bool NeedsAnotherIteration = false;
-		if (MPairIterations > 0)
+		if (MApplyPushOutPairIterations > 0)
 		{
 			PhysicsParallelFor(InConstraintHandles.Num(), [&](int32 ConstraintHandleIndex) {
 				FConstraintContainerHandle* ConstraintHandle = InConstraintHandles[ConstraintHandleIndex];
