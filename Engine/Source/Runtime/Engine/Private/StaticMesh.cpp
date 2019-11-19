@@ -5961,7 +5961,7 @@ void UStaticMesh::EnforceLightmapRestrictions(bool bUseRenderData)
 
 					if (SourceModel.BuildSettings.bGenerateLightmapUVs)
 					{
-						NumChannelsInLOD = FMath::Max(NumChannelsInLOD, SourceModel.BuildSettings.DstLightmapIndex);
+						NumChannelsInLOD = FMath::Max(NumChannelsInLOD, SourceModel.BuildSettings.DstLightmapIndex + 1);
 					}
 
 					NumUVs = FMath::Min(NumChannelsInLOD, NumUVs);
