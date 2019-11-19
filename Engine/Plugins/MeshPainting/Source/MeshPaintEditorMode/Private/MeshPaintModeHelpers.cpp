@@ -44,7 +44,7 @@
 #include "Rendering/SkeletalMeshModel.h"
 #include "MeshPaintHelpers.h"
 #include "MeshPaintMode.h"
-#include "MeshPaintColorBrush.h"
+#include "MeshVertexPaintingTool.h"
 
 
 void UMeshPaintModeHelpers::SetViewportColorMode(EMeshPaintDataColorViewMode ColorViewMode, FEditorViewportClient* ViewportClient)

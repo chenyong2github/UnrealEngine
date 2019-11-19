@@ -13,7 +13,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "IMeshPaintGeometryAdapter.h"
 #include "MeshPaintHelpers.h"
-#include "MeshPaintColorBrush.h"
+#include "MeshVertexPaintingTool.h"
 #include "MeshPaintMode.generated.h"
 
 class UMeshVertexPaintingToolProperties;

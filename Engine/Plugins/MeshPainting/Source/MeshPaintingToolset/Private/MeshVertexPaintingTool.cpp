@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "MeshPaintColorBrush.h"
+#include "MeshVertexPaintingTool.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 #include "SceneManagement.h" // for FPrimitiveDrawInterface

@@ -11,7 +11,7 @@
 #include "Components/MeshComponent.h"
 #include "MeshPaintHelpers.h"
 #include "MeshPaintingToolsetTypes.h"
-#include "MeshPaintColorBrush.generated.h"
+#include "MeshVertexPaintingTool.generated.h"
 
 
 struct FToolBuilderState;

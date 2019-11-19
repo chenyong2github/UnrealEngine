@@ -4,7 +4,7 @@
 #include "Framework/Commands/UIAction.h"
 #include "MeshPaintMode.h"
 #include "SingleSelectionTool.h"
-#include "MeshPaintColorBrush.h"
+#include "MeshVertexPaintingTool.h"
 
 #define LOCTEXT_NAMESPACE "MeshPaintEditorModeCommands"
 

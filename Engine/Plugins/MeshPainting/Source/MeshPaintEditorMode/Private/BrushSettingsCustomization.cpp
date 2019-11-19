@@ -18,7 +18,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "ScopedTransaction.h"
 #include "MeshPaintHelpers.h"
-#include "MeshPaintColorBrush.h"
+#include "MeshVertexPaintingTool.h"
 #include "MeshPaintHelpers.h"
 #include "InteractiveToolManager.h"
 #include "Editor.h"

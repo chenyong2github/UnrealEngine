@@ -18,7 +18,7 @@
 #include "Async/ParallelFor.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "InteractiveToolManager.h"
-#include "MeshPaintColorBrush.h"
+#include "MeshVertexPaintingTool.h"
 #include "InputRouter.h"
 #include "InteractiveGizmoManager.h"
 #include "ToolContextInterfaces.h"
