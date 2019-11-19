@@ -247,7 +247,7 @@ int32 UEditorValidatorSubsystem::ValidateAssets(TArray<FAssetData> AssetDataList
 			if (ValidationWarnings.Num() > 0)
 			{
 				DataValidationLog.Info()->AddToken(FAssetNameToken::Create(Data.PackageName.ToString()))
-					->AddToken(FTextToken::Create(LOCTEXT("InvalidDataResult", "contains valid data, but has warnings.")));
+					->AddToken(FTextToken::Create(LOCTEXT("ContainsWarningsResult", "contains valid data, but has warnings.")));
 			}
 			++NumValidFiles;
 		}
