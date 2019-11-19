@@ -3,7 +3,7 @@
 
 #include "Chaos/ExternalCollisionData.h"
 #include "Chaos/PBDCollisionConstraint.h"
-#include "Chaos/PBDCollisionTypes.h"
+#include "Chaos/CollisionResolutionTypes.h"
 
 namespace Chaos
 {
