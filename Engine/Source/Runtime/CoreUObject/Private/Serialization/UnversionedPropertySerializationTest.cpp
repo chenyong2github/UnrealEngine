@@ -347,7 +347,7 @@ struct FUnversionedPropertyTest : public FUnversionedPropertyTestInput
 
 		for (UProperty* Property : Properties)
 		{
-			if (!Property->IsEditorOnly())
+			if (!Property->IsEditorOnlyProperty())
 			{
 				Out.Add(Property);
 			}

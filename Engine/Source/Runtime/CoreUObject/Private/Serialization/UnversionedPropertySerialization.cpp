@@ -284,7 +284,7 @@ struct FUnversionedStructSchema
 		TArray<FUnversionedPropertySerializer, TInlineAllocator<256>> Serializers;
 		for (UProperty* Property = Struct->PropertyLink; Property; Property = Property->PropertyLinkNext)
 		{
-			if (!Property->IsEditorOnly())
+			if (!Property->IsEditorOnlyProperty())
 			{
 				for (int32 ArrayIdx = 0, ArrayDim = Property->ArrayDim; ArrayIdx < ArrayDim; ++ArrayIdx)
 				{
@@ -373,7 +373,7 @@ struct FUnversionedSchemaIterator
 	static UProperty* SkipEditorOnlyProperties(UProperty* Property)
 	{
 #if WITH_EDITORONLY_DATA
-		while (Property && Property->IsEditorOnly())
+		while (Property && Property->IsEditorOnlyProperty())
 		{
 			Property = Property->PropertyLinkNext;
 		}
