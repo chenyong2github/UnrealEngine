@@ -1027,7 +1027,7 @@ public:
 
 	/**
 	 * Returns the string name of the current platform, to perform different behavior based on platform. 
-	 * (Platform names include Windows, Mac, IOS, Android, PS4, XboxOne, HTML5, Linux) */
+	 * (Platform names include Windows, Mac, IOS, Android, PS4, XboxOne, Linux) */
 	UFUNCTION(BlueprintPure, Category="Game")
 	static FString GetPlatformName();
 
