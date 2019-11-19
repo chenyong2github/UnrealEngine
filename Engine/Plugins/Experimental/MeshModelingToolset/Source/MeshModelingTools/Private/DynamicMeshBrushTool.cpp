@@ -23,10 +23,10 @@ void UDynamicMeshBrushTool::Setup()
 	PreviewMesh->bBuildSpatialDataStructure = true;
 	PreviewMesh->CreateInWorld(ComponentTarget->GetOwnerActor()->GetWorld(), FTransform::Identity);
 	PreviewMesh->SetTransform(ComponentTarget->GetWorldTransform());
-	if (ComponentTarget->GetMaterial(0) != nullptr)
-	{
-		PreviewMesh->SetMaterial(ComponentTarget->GetMaterial(0));
-	}
+
+	FComponentMaterialSet MaterialSet;
+	ComponentTarget->GetMaterialSet(MaterialSet);
+	PreviewMesh->SetMaterials(MaterialSet.Materials);
 
 	// initialize from LOD-0 MeshDescription
 	PreviewMesh->InitializeMesh(ComponentTarget->GetMesh());

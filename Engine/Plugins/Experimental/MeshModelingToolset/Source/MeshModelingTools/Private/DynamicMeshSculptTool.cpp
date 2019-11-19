@@ -1997,19 +1997,15 @@ void UDynamicMeshSculptTool::UpdateMaterialMode(EMeshEditingMaterialModes Materi
 {
 	if (MaterialMode == EMeshEditingMaterialModes::ExistingMaterial)
 	{
-		UMaterialInterface* Material = ComponentTarget->GetMaterial(0);
-		if (Material != nullptr)
-		{
-			DynamicMeshComponent->SetMaterial(0, Material);
-		}
+		DynamicMeshComponent->ClearOverrideRenderMaterial();
 		DynamicMeshComponent->bCastDynamicShadow = ComponentTarget->GetOwnerComponent()->bCastDynamicShadow;
 	} 
 	else if (MaterialMode == EMeshEditingMaterialModes::MeshFocusMaterial)
 	{ 
-		UMaterialInterface* Material = ToolSetupUtil::GetSculptMaterial1(GetToolManager());
-		if (Material != nullptr)
+		UMaterialInterface* SculptMaterial = ToolSetupUtil::GetSculptMaterial1(GetToolManager());
+		if (SculptMaterial != nullptr)
 		{
-			DynamicMeshComponent->SetMaterial(0, Material);
+			DynamicMeshComponent->SetOverrideRenderMaterial(SculptMaterial);
 		}
 		DynamicMeshComponent->bCastDynamicShadow = false;
 	}

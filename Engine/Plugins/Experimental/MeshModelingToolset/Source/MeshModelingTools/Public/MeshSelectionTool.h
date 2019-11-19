@@ -42,7 +42,8 @@ enum class EMeshSelectionToolActions
 	DisconnectSelected,
 	SeparateSelected,
 	FlipSelected,
-	CreateGroup
+	CreateGroup,
+	AssignMaterial
 };
 
 
@@ -140,6 +141,12 @@ public:
 	{
 		PostAction(EMeshSelectionToolActions::CreateGroup);
 	}
+
+	//UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Assign Material", DisplayPriority = 5))
+	//void AssignMaterial()
+	//{
+	//	PostAction(EMeshSelectionToolActions::AssignMaterial);
+	//}
 };
 
 
@@ -200,6 +207,10 @@ public:
 	/** Toggle drawing of groups */
 	UPROPERTY(EditAnywhere, Category = Selection)
 	bool bShowPolygroups = false;
+
+	UPROPERTY(EditAnywhere, Category = Selection)
+	UMaterialInterface* Material = nullptr;
+
 
 	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
 	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
@@ -321,6 +332,7 @@ protected:
 	void SeparateSelectedTriangles(); // separates out selected triangles to a new mesh, removing them from the current mesh
 	void FlipSelectedTriangles();
 	void AssignNewGroupToSelectedTriangles();
+	void AssignMaterialToSelectedTriangles();
 
 	bool bHaveModifiedMesh = false;
 };

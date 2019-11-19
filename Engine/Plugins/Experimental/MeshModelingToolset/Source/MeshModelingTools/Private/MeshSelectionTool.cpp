@@ -104,12 +104,12 @@ void UMeshSelectionTool::Setup()
 	// enable wireframe on component
 	PreviewMesh->EnableWireframe(true);
 
-	// set vertex color material on base component so we can see selection
 	UMaterialInterface* SelectionMat = ToolSetupUtil::GetSelectionMaterial(GetToolManager());
 	if (SelectionMat != nullptr)
 	{
-		PreviewMesh->SetMaterial(SelectionMat);
+		PreviewMesh->SetOverrideRenderMaterial(SelectionMat);
 	}
+
 	PreviewMesh->GetRootComponent()->bCastDynamicShadow = false;
 
 	const FDynamicMesh3* Mesh = PreviewMesh->GetPreviewDynamicMesh();
@@ -562,6 +562,7 @@ void UMeshSelectionTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 
 void UMeshSelectionTool::Tick(float DeltaTime)
+
 {
 	UDynamicMeshBrushTool::Tick(DeltaTime);
 
@@ -674,6 +675,10 @@ void UMeshSelectionTool::ApplyAction(EMeshSelectionToolActions ActionType)
 
 		case EMeshSelectionToolActions::CreateGroup:
 			AssignNewGroupToSelectedTriangles();
+			break;
+
+		case EMeshSelectionToolActions::AssignMaterial:
+			AssignMaterialToSelectedTriangles();
 			break;
 	}
 }
@@ -1100,7 +1105,55 @@ void UMeshSelectionTool::AssignNewGroupToSelectedTriangles()
 
 	OnExternalSelectionChange();
 	bHaveModifiedMesh = true;
+}
 
+
+
+
+void UMeshSelectionTool::AssignMaterialToSelectedTriangles()
+{
+	check(SelectionType == EMeshSelectionElementType::Face);
+	TArray<int32> SelectedFaces = Selection->GetElements(EMeshSelectionElementType::Face);
+	if (SelectedFaces.Num() == 0 || SelectionProps->Material == nullptr)
+	{
+		return;
+	}
+
+	TUniquePtr<FToolCommandChangeSequence> ChangeSeq = MakeUnique<FToolCommandChangeSequence>();
+
+	// clear current selection
+	BeginChange(false);
+	for (int tid : SelectedFaces)
+	{
+		ActiveSelectionChange->Add(tid);
+	}
+	Selection->RemoveIndices(EMeshSelectionElementType::Face, SelectedFaces);
+	TUniquePtr<FMeshSelectionChange> SelectionChange = EndChange();
+	ChangeSeq->AppendChange(Selection, MoveTemp(SelectionChange));
+
+	// assign new groups to triangles
+	// note: using an FMeshChange is kind of overkill here
+	TUniquePtr<FMeshChange> MeshChange = PreviewMesh->TrackedEditMesh(
+		[&SelectedFaces](FDynamicMesh3& Mesh, FDynamicMeshChangeTracker& ChangeTracker)
+	{
+		int32 SetID = 1;
+		if (Mesh.Attributes() && Mesh.Attributes()->HasMaterialID())
+		{
+			FDynamicMeshMaterialAttribute* MaterialIDAttrib = Mesh.Attributes()->GetMaterialID();
+			for (int tid : SelectedFaces)
+			{
+				ChangeTracker.SaveTriangle(tid, true);
+				MaterialIDAttrib->SetValue(tid, &SetID);
+			}
+		}
+	});
+	ChangeSeq->AppendChange(PreviewMesh, MoveTemp(MeshChange));
+
+	// emit combined change sequence
+	GetToolManager()->EmitObjectChange(this, MoveTemp(ChangeSeq), LOCTEXT("MeshSelectionToolAssignMaterial", "Assign Material"));
+
+	OnExternalSelectionChange();
+	bHaveModifiedMesh = true;
 }
 
 
