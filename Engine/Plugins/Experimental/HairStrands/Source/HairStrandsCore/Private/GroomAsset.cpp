@@ -3,6 +3,7 @@
 #include "GroomAsset.h"
 #include "GroomBuilder.h"
 #include "RenderingThread.h"
+#include "Engine/AssetUserData.h"
 #include "HairStrandsVertexFactory.h"
 #include "Misc/Paths.h"
 
