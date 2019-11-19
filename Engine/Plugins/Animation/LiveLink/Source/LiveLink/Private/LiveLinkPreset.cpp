@@ -43,6 +43,15 @@ void ULiveLinkPreset::BuildFromClient()
 			Sources.Add(LiveLinkClient.GetSourcePreset(SourceGuid, this));
 		}
 
+		for (FGuid SourceGuid : LiveLinkClient.GetVirtualSources())
+		{
+			FLiveLinkSourcePreset NewPreset = LiveLinkClient.GetSourcePreset(SourceGuid, this);
+			if (NewPreset.Guid.IsValid())
+			{
+				Sources.Add(MoveTemp(NewPreset));
+			}
+		}
+
 		for (FLiveLinkSubjectKey SubjectKey : LiveLinkClient.GetSubjects(true, true))
 		{
 			Subjects.Add(LiveLinkClient.GetSubjectPreset(SubjectKey, this));

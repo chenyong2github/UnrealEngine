@@ -56,6 +56,9 @@ class SVirtualSubjectCreateDialog : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SVirtualSubjectCreateDialog) {}
+	
+		/** Pointer to the LiveLinkClient instance. */
+		SLATE_ARGUMENT(FLiveLinkClient*, LiveLinkClient)
 
 	SLATE_END_ARGS()
 
@@ -66,6 +69,14 @@ public:
 		bOkClicked = false;
 		VirtualSubjectClass = nullptr;
 		VirtualSubjectName = DefaultVirtualSubjectName;
+		LiveLinkClient = InArgs._LiveLinkClient;
+
+		check(LiveLinkClient);
+
+		//Default VirtualSubject Source should always exist
+		TArray<FGuid> Sources = LiveLinkClient->GetVirtualSources();
+		check(Sources.Num() > 0);
+		VirtualSourceGuid = Sources[0];
 
 		TSharedPtr<STextEntryPopup> TextEntry;
 		SAssignNew(TextEntry, STextEntryPopup)
@@ -83,6 +94,41 @@ public:
 				SNew(SBox)
 				[
 					SNew(SVerticalBox)
+					
+					//For now, it's not possible to create VirtualSubject Sources from the UI. Also, VirtualSubjects created from the UI will be parented under the default VirtualSubject Source
+					//Code is present in case it's required in the future.
+					/*+ SVerticalBox::Slot()
+					.HAlign(HAlign_Fill)
+					.AutoHeight()
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.HAlign(HAlign_Left)
+						.Padding(FMargin(0.0f, 0.0f, 5.0f, 0.0f))
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("SourceNameLabel", "Parent Source:"))
+						]
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.HAlign(HAlign_Left)
+						.Padding(FMargin(5.0f, 0.0f, 5.0f, 0.0f))
+						[
+							SNew(STextBlock)
+							.Text(this, &SVirtualSubjectCreateDialog::GetParentSourceText)
+						]
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.HAlign(HAlign_Left)
+						.Padding(FMargin(5.0f, 0.0f, 0.0f, 0.0f))
+						[
+							SNew(SComboButton)
+							.OnGetMenuContent(this, &SVirtualSubjectCreateDialog::HandleSourceSelectionComboButton)
+							.ContentPadding(FMargin(4.0, 2.0))
+						]
+					]*/
+
 					+ SVerticalBox::Slot()
 					.HAlign(HAlign_Fill)
 					.AutoHeight()
@@ -142,10 +188,8 @@ public:
 		return VirtualSubjectClass != nullptr;
 	}
 
-	bool ConfigureVirtualSubject(FLiveLinkClient* InLiveLinkClient)
+	bool ConfigureVirtualSubject()
 	{
-		LiveLinkClient = InLiveLinkClient;
-
 		TSharedRef<SWindow> Window = SNew(SWindow)
 			.Title(LOCTEXT("CreateVirtualSubjectCreation", "Create Virtual Subject"))
 			.ClientSize(FVector2D(400, 300))
@@ -194,6 +238,63 @@ private:
 		}
 	};
 
+	TSharedRef<SWidget> HandleSourceSelectionComboButton()
+	{
+		// Generate menu
+		FMenuBuilder MenuBuilder(true, nullptr);
+		MenuBuilder.BeginSection("AvailableVirtualSources", LOCTEXT("AvailableSources", "VirtualSubject Sources"));
+		{
+			if (LiveLinkClient)
+			{
+				for (const FGuid& SourceGuid : LiveLinkClient->GetVirtualSources())
+				{
+					//Always add a None entry
+					MenuBuilder.AddMenuEntry(
+						LiveLinkClient->GetSourceType(SourceGuid),
+						FText::FromName(NAME_None),
+						FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateSP(this, &SVirtualSubjectCreateDialog::HandleVirtualSourceSelection, SourceGuid),
+							FCanExecuteAction(),
+							FIsActionChecked::CreateSP(this, &SVirtualSubjectCreateDialog::IsVirtualSourceSelected, SourceGuid)
+						),
+						NAME_None,
+						EUserInterfaceActionType::RadioButton
+					);
+				}
+			}
+			else
+			{
+				MenuBuilder.AddWidget(SNullWidget::NullWidget, LOCTEXT("InvalidLiveLink", "Invalid LiveLink Client"), false, false);
+			}
+			MenuBuilder.EndSection();
+
+			return MenuBuilder.MakeWidget();
+		}
+	}
+	
+	void HandleVirtualSourceSelection(FGuid InSourceGuid)
+	{
+		VirtualSourceGuid = InSourceGuid;
+	}
+
+	bool IsVirtualSourceSelected(FGuid InSourceGuid) const
+	{
+		return VirtualSourceGuid == InSourceGuid;
+	}
+
+	FText GetParentSourceText() const
+	{
+		if (LiveLinkClient != nullptr && VirtualSourceGuid.IsValid())
+		{
+			return LiveLinkClient->GetSourceType(VirtualSourceGuid);
+		}
+		else
+		{
+			return LOCTEXT("InvalidParentSource", "Invalid Source");
+		}
+	}
+
 	/** Creates the combo menu for the role class */
 	void MakeRoleClassPicker()
 	{
@@ -232,7 +333,8 @@ private:
 	{
 		if (LiveLinkClient)
 		{
-			LiveLinkClient->AddVirtualSubject(VirtualSubjectName, VirtualSubjectClass);
+			const FLiveLinkSubjectKey NewVirtualSubjectKey(VirtualSourceGuid, VirtualSubjectName);
+			LiveLinkClient->AddVirtualSubject(NewVirtualSubjectKey, VirtualSubjectClass);
 		}
 
 		CloseDialog(true);
@@ -273,18 +375,19 @@ private:
 		{
 			TArray<FLiveLinkSubjectKey> SubjectKey = LiveLinkClient->GetSubjects(true, true);
 			FName SubjectName = *NewSubjectName.ToString();
-			VirtualSubjectName = SubjectName;
+			const FLiveLinkSubjectKey ThisSubjectKey(VirtualSourceGuid, SubjectName);
 
 			if (SubjectName.IsNone())
 			{
 				VirtualSubjectTextWidgetPin->SetError(LOCTEXT("VirtualInvalidName", "Invalid Virtual Subject"));
 			}
-			else if (SubjectKey.FindByPredicate([SubjectName](const FLiveLinkSubjectKey& Key) { return Key.SubjectName == SubjectName; }))
+			else if (SubjectKey.FindByPredicate([ThisSubjectKey](const FLiveLinkSubjectKey& Key) { return Key == ThisSubjectKey; }))
 			{
 				VirtualSubjectTextWidgetPin->SetError(LOCTEXT("VirtualExistingName", "Subject already exist"));
 			}
 			else
 			{
+				VirtualSubjectName = SubjectName;
 				VirtualSubjectTextWidgetPin->SetError(FText::GetEmpty());
 			}
 		}
@@ -303,6 +406,9 @@ private:
 
 	/** The virtual subject's class */
 	TSubclassOf<ULiveLinkVirtualSubject> VirtualSubjectClass;
+
+	/** Selected source guid */
+	FGuid VirtualSourceGuid;
 
 	/** The virtual subject's name */
 	FName VirtualSubjectName;
@@ -342,7 +448,7 @@ void SLiveLinkClientPanelToolbar::Construct(const FArguments& Args, FLiveLinkCli
 			[
 				// The green button containing the "+ Add Source" items
 				SAssignNew(AddSourceButton, SComboButton)
-				.ToolTipText(LOCTEXT("AddSource_ToolTip", "Add a new live link source"))
+				.ToolTipText(LOCTEXT("AddSource_ToolTip", "Add a new LiveLink source"))
 				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
 				.ForegroundColor(FLinearColor::White)
 				.ContentPadding(FMargin(4, 0))
@@ -478,7 +584,7 @@ TSharedRef<SWidget> SLiveLinkClientPanelToolbar::OnGenerateSourceMenu()
 	const bool CloseAfterSelection = true;
 	FMenuBuilder MenuBuilder(CloseAfterSelection, NULL);
 
-	MenuBuilder.BeginSection("SourceSection", LOCTEXT("Sources", "Live Link Sources"));
+	MenuBuilder.BeginSection("SourceSection", LOCTEXT("Sources", "LiveLink Sources"));
 
 	for (int32 FactoryIndex = 0; FactoryIndex < Factories.Num(); ++FactoryIndex)
 	{
@@ -525,11 +631,19 @@ TSharedRef<SWidget> SLiveLinkClientPanelToolbar::OnGenerateSourceMenu()
 
 	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection("VirtualSourceSection", LOCTEXT("VirtualSources", "Live Link Virtual Sources"));
+	MenuBuilder.BeginSection("VirtualSourceSection", LOCTEXT("VirtualSources", "LiveLink VirtualSubject Sources"));
+
+	//For now, it's not possible to create VirtualSubject Sources from the UI.
+	//Code is present in case it's required in the future.
+	//MenuBuilder.AddSubMenu(
+	//	LOCTEXT("AddVirtualSubjectSource", "Add VirtualSubject Source"),
+	//	LOCTEXT("AddVirtualSubjectSourceSubMenu_Tooltip", "Adds a new VirtualSubject Source to LiveLink. New Virtual Subjects can be created under a VirtualSubject Source."),
+	//	FNewMenuDelegate::CreateRaw(this, &SLiveLinkClientPanelToolbar::PopulateVirtualSubjectSourceCreationMenu)
+	//);
 
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AddVirtualSubject", "Add Virtual Subject"),
-		LOCTEXT("AddVirtualSubject_Tooltip", "Adds a new virtual subject to live link. Instead of coming from a source a virtual subject is a combination of 2 or more real subjects"),
+		LOCTEXT("AddVirtualSubject_Tooltip", "Adds a new virtual subject to LiveLink. Instead of coming from a source a virtual subject is a combination of 2 or more real subjects"),
 		FSlateIcon(),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &SLiveLinkClientPanelToolbar::AddVirtualSubject)
@@ -598,10 +712,69 @@ void SLiveLinkClientPanelToolbar::OnSourceCreated(TSharedPtr<ILiveLinkSource> Ne
 	FSlateApplication::Get().DismissAllMenus();
 }
 
+void SLiveLinkClientPanelToolbar::PopulateVirtualSubjectSourceCreationMenu(FMenuBuilder& InMenuBuilder)
+{
+	TSharedRef<SWidget> CreateSourceWidget =
+		SNew(SBox)
+		.WidthOverride(250)
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.FillWidth(0.5f)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("VirtualSourceName", "Source Name"))
+				]
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Fill)
+				.FillWidth(0.5f)
+				[
+					SAssignNew(VirtualSubjectSourceName, SEditableTextBox)
+					.Text(LOCTEXT("VirtualSourceNameEditable", "VirtualSubjectSource"))
+				]
+			]
+			+ SVerticalBox::Slot()
+			.HAlign(HAlign_Right)
+			.AutoHeight()
+			[
+				SNew(SButton)
+				.OnClicked(this, &SLiveLinkClientPanelToolbar::OnAddVirtualSubjectSource)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("Ok", "Ok"))
+				]
+			]
+		];
+
+	InMenuBuilder.AddWidget(CreateSourceWidget, FText());
+}
+
+FReply SLiveLinkClientPanelToolbar::OnAddVirtualSubjectSource()
+{
+	if (TSharedPtr<SEditableTextBox> VirtualSourceNamePtr = VirtualSubjectSourceName.Pin())
+	{
+		if (Client)
+		{
+			Client->AddVirtualSubjectSource(*VirtualSourceNamePtr->GetText().ToString());
+		}
+	}
+	FSlateApplication::Get().DismissAllMenus();
+
+	return FReply::Handled();
+}
+
 void SLiveLinkClientPanelToolbar::AddVirtualSubject()
 {
-	TSharedRef<SVirtualSubjectCreateDialog> Dialog = SNew(SVirtualSubjectCreateDialog);
-	Dialog->ConfigureVirtualSubject(Client);
+	TSharedRef<SVirtualSubjectCreateDialog> Dialog = 
+		SNew(SVirtualSubjectCreateDialog)
+		.LiveLinkClient(Client);
+
+	Dialog->ConfigureVirtualSubject();
 }
 
 TSharedRef<SWidget> SLiveLinkClientPanelToolbar::OnPresetGeneratePresetsMenu()

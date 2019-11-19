@@ -11,7 +11,11 @@ namespace LiveLinkAnimationVirtualSubjectUtils
 {
 	void AddToBoneNames(TArray<FName>& BoneNames, const TArray<FName>& NewBoneNames, const FName Prefix)
 	{
-		FString NameFormat = Prefix.ToString() + TEXT("_");
+		FString NameFormat;
+		if (Prefix != NAME_None)
+		{
+			NameFormat = Prefix.ToString() + TEXT("_");
+		}
 
 		BoneNames.Reserve(BoneNames.Num() + NewBoneNames.Num());
 
@@ -133,7 +137,8 @@ void ULiveLinkAnimationVirtualSubject::BuildSkeleton(const TArray<FLiveLinkSubje
 			check(SubjectSnapShotData.StaticData.IsValid());
 			const FLiveLinkSkeletonStaticData* SubjectSkeletonData = SubjectSnapShotData.StaticData.Cast<FLiveLinkSkeletonStaticData>();
 
-			LiveLinkAnimationVirtualSubjectUtils::AddToBoneNames(BoneNames, SubjectSkeletonData->GetBoneNames(), Subjects[i]);
+			const FName BonePrefix = bAppendSubjectNameToBones ? Subjects[i] : NAME_None;
+			LiveLinkAnimationVirtualSubjectUtils::AddToBoneNames(BoneNames, SubjectSkeletonData->GetBoneNames(), BonePrefix);
 			LiveLinkAnimationVirtualSubjectUtils::AddToBoneParents(BoneParents, SubjectSkeletonData->GetBoneParents());
 			SkeletonData->PropertyNames.Append(SubjectSkeletonData->PropertyNames);
 		}

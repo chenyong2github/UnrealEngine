@@ -22,19 +22,7 @@ void ULiveLinkVirtualSubject::Update()
 	FrameSnapshot.StaticData.Reset();
 	FrameSnapshot.FrameData.Reset();
 
-	// Create the new translator for this frame
-	CurrentFrameTranslators.Reset();
-	for (ULiveLinkFrameTranslator* Translator : FrameTranslators)
-	{
-		if (Translator)
-		{
-			ULiveLinkFrameTranslator::FWorkerSharedPtr NewTranslator = Translator->FetchWorker();
-			if (NewTranslator.IsValid())
-			{
-				CurrentFrameTranslators.Add(NewTranslator);
-			}
-		}
-	}
+	UpdateTranslatorsForThisFrame();
 }
 
 
@@ -64,4 +52,21 @@ TArray<FLiveLinkTime> ULiveLinkVirtualSubject::GetFrameTimes() const
 bool ULiveLinkVirtualSubject::DependsOnSubject(FName SubjectName) const
 {
 	return Subjects.Contains(SubjectName);
+}
+
+void ULiveLinkVirtualSubject::UpdateTranslatorsForThisFrame()
+{
+	// Create the new translator for this frame
+	CurrentFrameTranslators.Reset();
+	for (ULiveLinkFrameTranslator* Translator : FrameTranslators)
+	{
+		if (Translator)
+		{
+			ULiveLinkFrameTranslator::FWorkerSharedPtr NewTranslator = Translator->FetchWorker();
+			if (NewTranslator.IsValid())
+			{
+				CurrentFrameTranslators.Add(NewTranslator);
+			}
+		}
+	}
 }

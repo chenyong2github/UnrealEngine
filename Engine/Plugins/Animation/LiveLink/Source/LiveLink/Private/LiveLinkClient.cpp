@@ -16,6 +16,7 @@
 #include "LiveLinkSourceFactory.h"
 #include "LiveLinkSourceSettings.h"
 #include "LiveLinkSubject.h"
+#include "LiveLinkVirtualSource.h"
 #include "IMediaModule.h"
 #include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
@@ -86,6 +87,8 @@ void FLiveLinkClient::Tick()
 	CacheValues();
 	UpdateSources();
 	BuildThisTicksSubjectSnapshot();
+
+	OnLiveLinkTickedDelegate.Broadcast();
 }
 
 void FLiveLinkClient::DoPendingWork()
@@ -230,6 +233,38 @@ FGuid FLiveLinkClient::AddSource(TSharedPtr<ILiveLinkSource> InSource)
 	return Guid;
 }
 
+FGuid FLiveLinkClient::AddVirtualSubjectSource(FName SourceName)
+{
+	check(Collection);
+
+	FGuid Guid;
+
+	if (Collection->FindVirtualSource(SourceName) == nullptr)
+	{
+		TSharedPtr<FLiveLinkVirtualSubjectSource> Source = MakeShared<FLiveLinkVirtualSubjectSource>();
+		Guid = FGuid::NewGuid();
+
+		FLiveLinkCollectionSourceItem Data;
+		Data.Guid = Guid;
+		Data.Source = Source;
+
+		ULiveLinkVirtualSubjectSourceSettings* NewSettings = NewObject<ULiveLinkVirtualSubjectSourceSettings>(GetTransientPackage(), ULiveLinkVirtualSubjectSourceSettings::StaticClass());
+		NewSettings->SourceName = SourceName;
+		Data.Setting = NewSettings;
+		Data.bIsVirtualSource = true;
+		Collection->AddSource(Data);
+
+		Source->ReceiveClient(this, Data.Guid);
+		Source->InitializeSettings(Data.Setting);
+	}
+	else
+	{
+		FLiveLinkLog::Warning(TEXT("The virtual subject Source '%s' could not be created. It already exists."), *SourceName.ToString());
+	}
+
+	return Guid;
+}
+
 bool FLiveLinkClient::CreateSource(const FLiveLinkSourcePreset& InSourcePreset)
 {
 	check(Collection);
@@ -240,15 +275,9 @@ bool FLiveLinkClient::CreateSource(const FLiveLinkSourcePreset& InSourcePreset)
 		return false;
 	}
 
-	if (InSourcePreset.Settings->Factory.Get() == nullptr || InSourcePreset.Settings->Factory.Get() == ULiveLinkSourceFactory::StaticClass())
+	if (InSourcePreset.Guid == FLiveLinkSourceCollection::DefaultVirtualSubjectGuid)
 	{
-		FLiveLinkLog::Warning(TEXT("Create Source Failure: The factory is not defined."));
-		return false;
-	}
-
-	if (InSourcePreset.Guid == FLiveLinkSourceCollection::VirtualSubjectGuid)
-	{
-		FLiveLinkLog::Warning(TEXT("Create Source Failure: Can't create a virtual source."));
+		FLiveLinkLog::Warning(TEXT("Create Source Failure: Can't create default virtual subject source. It will be created automatically."));
 		return false;
 	}
 
@@ -266,13 +295,29 @@ bool FLiveLinkClient::CreateSource(const FLiveLinkSourcePreset& InSourcePreset)
 
 	FLiveLinkCollectionSourceItem Data;
 	Data.Guid = InSourcePreset.Guid;
-	Data.Source = InSourcePreset.Settings->Factory.Get()->GetDefaultObject<ULiveLinkSourceFactory>()->CreateSource(InSourcePreset.Settings->ConnectionString);
-	if (!Data.Source.IsValid())
-	{
-		FLiveLinkLog::Warning(TEXT("Create Source Failure: The source couldn't be created by the factory."));
-		return false;
-	}
 
+	// Virtual subject source have a special settings class. We can differentiate them using this
+	if (InSourcePreset.Settings->GetClass() == ULiveLinkVirtualSubjectSourceSettings::StaticClass())
+	{
+		Data.Source = MakeShared<FLiveLinkVirtualSubjectSource>();
+		Data.bIsVirtualSource = true;
+	}
+	else
+	{
+		if (InSourcePreset.Settings->Factory.Get() == nullptr || InSourcePreset.Settings->Factory.Get() == ULiveLinkSourceFactory::StaticClass())
+		{
+			FLiveLinkLog::Warning(TEXT("Create Source Failure: The factory is not defined."));
+			return false;
+		}
+
+		Data.Source = InSourcePreset.Settings->Factory.Get()->GetDefaultObject<ULiveLinkSourceFactory>()->CreateSource(InSourcePreset.Settings->ConnectionString);
+		if (!Data.Source.IsValid())
+		{
+			FLiveLinkLog::Warning(TEXT("Create Source Failure: The source couldn't be created by the factory."));
+			return false;
+		}
+	}
+	
 	Data.Setting = DuplicateObject<ULiveLinkSourceSettings>(InSourcePreset.Settings, GetTransientPackage());
 	
 	Collection->AddSource(Data);
@@ -335,6 +380,21 @@ TArray<FGuid> FLiveLinkClient::GetSources() const
 	return Result;
 }
 
+TArray<FGuid> FLiveLinkClient::GetVirtualSources() const
+{
+	check(Collection);
+
+	TArray<FGuid> Result;
+	for (const FLiveLinkCollectionSourceItem& SourceItem : Collection->GetSources())
+	{
+		if (!SourceItem.bPendingKill && SourceItem.IsVirtualSource())
+		{
+			Result.Add(SourceItem.Guid);
+		}
+	}
+	return Result;
+}
+
 FLiveLinkSourcePreset FLiveLinkClient::GetSourcePreset(FGuid InSourceGuid, UObject* InDuplicatedObjectOuter) const
 {
 	check(Collection);
@@ -344,7 +404,7 @@ FLiveLinkSourcePreset FLiveLinkClient::GetSourcePreset(FGuid InSourceGuid, UObje
 	FLiveLinkSourcePreset SourcePreset;
 	if (FLiveLinkCollectionSourceItem* SourceItem = Collection->FindSource(InSourceGuid))
 	{
-		if (!SourceItem->IsVirtualSource() && SourceItem->Setting)
+		if (SourceItem->Guid != FLiveLinkSourceCollection::DefaultVirtualSubjectGuid && SourceItem->Setting)
 		{
 			SourcePreset.Guid = SourceItem->Guid;
 			SourcePreset.Settings = DuplicateObject<ULiveLinkSourceSettings>(SourceItem->Setting, DuplicatedObjectOuter);
@@ -625,15 +685,9 @@ bool FLiveLinkClient::CreateSubject(const FLiveLinkSubjectPreset& InSubjectPrese
 		return false;
 	}
 
-	if (InSubjectPreset.Key.Source == FLiveLinkSourceCollection::VirtualSubjectGuid && InSubjectPreset.VirtualSubject == nullptr)
+	if (InSubjectPreset.Key.Source == FLiveLinkSourceCollection::DefaultVirtualSubjectGuid && InSubjectPreset.VirtualSubject == nullptr)
 	{
-		FLiveLinkLog::Warning(TEXT("Create Source Failure: Can't create an empty virtual source."));
-		return false;
-	}
-
-	if (InSubjectPreset.Key.Source != FLiveLinkSourceCollection::VirtualSubjectGuid && InSubjectPreset.VirtualSubject != nullptr)
-	{
-		FLiveLinkLog::Warning(TEXT("Create Source Failure: Can't create a virtual source in another source."));
+		FLiveLinkLog::Warning(TEXT("Create Source Failure: Can't create an empty virtual subject."));
 		return false;
 	}
 
@@ -669,7 +723,7 @@ bool FLiveLinkClient::CreateSubject(const FLiveLinkSubjectPreset& InSubjectPrese
 	{
 		bool bEnabled = false;
 		ULiveLinkVirtualSubject* VSubject = DuplicateObject<ULiveLinkVirtualSubject>(InSubjectPreset.VirtualSubject, GetTransientPackage());
-		FLiveLinkCollectionSubjectItem VSubjectData(InSubjectPreset.Key.SubjectName, VSubject, bEnabled);
+		FLiveLinkCollectionSubjectItem VSubjectData(InSubjectPreset.Key, VSubject, bEnabled);
 		VSubject->Initialize(VSubjectData.Key, VSubject->GetRole(), this);
 
 		FScopeLock Lock(&CollectionAccessCriticalSection);
@@ -712,31 +766,53 @@ void FLiveLinkClient::RemoveSubject_AnyThread(const FLiveLinkSubjectKey& InSubje
 	}
 }
 
-void FLiveLinkClient::AddVirtualSubject(FLiveLinkSubjectName InNewVirtualSubjectName, TSubclassOf<ULiveLinkVirtualSubject> InVirtualSubjectClass)
+bool FLiveLinkClient::AddVirtualSubject(FLiveLinkSubjectKey InVirtualSubjectKey, TSubclassOf<ULiveLinkVirtualSubject> InVirtualSubjectClass)
 {
-	if (Collection && !InNewVirtualSubjectName.IsNone() && InVirtualSubjectClass != nullptr)
+	bool bResult = false;
+
+	if (Collection && !InVirtualSubjectKey.SubjectName.IsNone() && InVirtualSubjectClass != nullptr)
 	{
-		bool bFoundVirtualSubjectWithSameName = nullptr != Collection->GetSubjects().FindByPredicate(
-			[InNewVirtualSubjectName](const FLiveLinkCollectionSubjectItem& Other)
+		FLiveLinkCollectionSourceItem* SourceItem = Collection->FindSource(InVirtualSubjectKey.Source);
+		if (SourceItem == nullptr || SourceItem->bPendingKill)
 		{
-			return Other.Key.SubjectName == InNewVirtualSubjectName && Other.GetVirtualSubject() != nullptr;
-		});
-
-		if (!bFoundVirtualSubjectWithSameName)
-		{
-			ULiveLinkVirtualSubject* VSubject = NewObject<ULiveLinkVirtualSubject>(GetTransientPackage(), InVirtualSubjectClass.Get());
-			bool bEnabled = Collection->FindEnabledSubject(InNewVirtualSubjectName) == nullptr;
-			FLiveLinkCollectionSubjectItem VSubjectData(InNewVirtualSubjectName, VSubject, bEnabled);
-
-			VSubject->Initialize(VSubjectData.Key, VSubject->GetRole(), this);
-
-			FScopeLock Lock(&CollectionAccessCriticalSection);
-			Collection->AddSubject(MoveTemp(VSubjectData));
+			FLiveLinkLog::Warning(TEXT("Create Virtual Subject Failure: The source doesn't exist."));
 		}
 		else
 		{
-			FLiveLinkLog::Warning(TEXT("The virtual subject '%s' could not be created."), *InNewVirtualSubjectName.Name.ToString());
+			FScopeLock Lock(&CollectionAccessCriticalSection);
+			const bool bFoundVirtualSubject = nullptr != Collection->GetSubjects().FindByPredicate(
+				[InVirtualSubjectKey](const FLiveLinkCollectionSubjectItem& Other)
+			{
+				return Other.Key == InVirtualSubjectKey && Other.GetVirtualSubject() != nullptr;
+			});
+
+			if (!bFoundVirtualSubject)
+			{
+				ULiveLinkVirtualSubject* VSubject = NewObject<ULiveLinkVirtualSubject>(GetTransientPackage(), InVirtualSubjectClass.Get());
+				const bool bDoEnableSubject = Collection->FindEnabledSubject(InVirtualSubjectKey.SubjectName) == nullptr;
+				FLiveLinkCollectionSubjectItem VSubjectData(InVirtualSubjectKey, VSubject, bDoEnableSubject);
+
+				VSubject->Initialize(VSubjectData.Key, VSubject->GetRole(), this);
+				Collection->AddSubject(MoveTemp(VSubjectData));
+
+				bResult = true;
+			}
+			else
+			{
+				FLiveLinkLog::Warning(TEXT("The virtual subject '%s' could not be created."), *InVirtualSubjectKey.SubjectName.Name.ToString());
+			}
 		}
+	}
+
+	return bResult;
+}
+
+void FLiveLinkClient::RemoveVirtualSubject(FLiveLinkSubjectKey InVirtualSubjectKey)
+{
+	FScopeLock Lock(&CollectionAccessCriticalSection);
+	if (Collection)
+	{
+		Collection->RemoveSubject(InVirtualSubjectKey);
 	}
 }
 
@@ -1090,6 +1166,11 @@ bool FLiveLinkClient::EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName In
 	return bResult;
 }
 
+FSimpleMulticastDelegate& FLiveLinkClient::OnLiveLinkTicked()
+{
+	return OnLiveLinkTickedDelegate;
+}
+
 TArray<FGuid> FLiveLinkClient::GetDisplayableSources() const
 {
 	TArray<FGuid> Results;
@@ -1330,6 +1411,12 @@ const TArray<FGuid>& FLiveLinkClient::GetSourceEntries() const
 void FLiveLinkClient::AddVirtualSubject(FName InNewVirtualSubjectName)
 {
 	AddVirtualSubject(InNewVirtualSubjectName, ULiveLinkAnimationVirtualSubject::StaticClass());
+}
+
+void FLiveLinkClient::AddVirtualSubject(FLiveLinkSubjectName VirtualSubjectName, TSubclassOf<ULiveLinkVirtualSubject> VirtualSubjectClass)
+{
+	const FLiveLinkSubjectKey DefaultSubjectKey(FLiveLinkSourceCollection::DefaultVirtualSubjectGuid, VirtualSubjectName);
+	AddVirtualSubject(DefaultSubjectKey, ULiveLinkAnimationVirtualSubject::StaticClass());
 }
 
 /**
