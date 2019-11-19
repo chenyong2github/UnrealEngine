@@ -3,6 +3,7 @@
 #include "PreviewMesh.h"
 
 #include "Containers/StaticArray.h"
+#include "Engine/Classes/Materials/Material.h"
 
 
 APreviewMeshActor::APreviewMeshActor()
@@ -62,17 +63,60 @@ void UPreviewMesh::Disconnect()
 
 void UPreviewMesh::SetMaterial(UMaterialInterface* Material)
 {
-	check(DynamicMeshComponent);
-	DynamicMeshComponent->SetMaterial(0, Material);
+	SetMaterial(0, Material);
 }
 
-UMaterialInterface*
-UPreviewMesh::GetMaterial() const
+void UPreviewMesh::SetMaterial(int MaterialIndex, UMaterialInterface* Material)
 {
 	check(DynamicMeshComponent);
-	return DynamicMeshComponent->GetMaterial(0);
+	DynamicMeshComponent->SetMaterial(MaterialIndex, Material);
 }
 
+void UPreviewMesh::SetMaterials(const TArray<UMaterialInterface*>& Materials)
+{
+	check(DynamicMeshComponent);
+	for (int k = 0; k < Materials.Num(); ++k)
+	{
+		DynamicMeshComponent->SetMaterial(k, Materials[k]);
+	}
+}
+
+UMaterialInterface* UPreviewMesh::GetMaterial(int MaterialIndex) const
+{
+	check(DynamicMeshComponent);
+	return DynamicMeshComponent->GetMaterial(MaterialIndex);
+}
+
+
+void UPreviewMesh::SetOverrideRenderMaterial(UMaterialInterface* Material)
+{
+	check(DynamicMeshComponent);
+	return DynamicMeshComponent->SetOverrideRenderMaterial(Material);
+}
+
+void UPreviewMesh::ClearOverrideRenderMaterial()
+{
+	check(DynamicMeshComponent);
+	return DynamicMeshComponent->ClearOverrideRenderMaterial();
+}
+
+
+UMaterialInterface* UPreviewMesh::GetActiveMaterial(int MaterialIndex) const
+{
+	return DynamicMeshComponent->HasOverrideRenderMaterial(MaterialIndex) ?
+		DynamicMeshComponent->GetOverrideRenderMaterial(MaterialIndex) : GetMaterial(MaterialIndex);
+}
+
+void UPreviewMesh::SetTangentsMode(EDynamicMeshTangentCalcType TangentsType)
+{
+	check(DynamicMeshComponent);
+	DynamicMeshComponent->TangentsType = TangentsType;
+}
+
+FMeshTangentsf* UPreviewMesh::GetTangents() const
+{
+	return DynamicMeshComponent->GetTangents();
+}
 
 void UPreviewMesh::EnableWireframe(bool bEnable)
 {

@@ -61,6 +61,8 @@ public:
 	FMeshTangentsf* GetTangents();
 
 
+
+
 	/**
 	 * Write the internal mesh to a MeshDescription
 	 * @param bHaveModifiedTopology if false, we only update the vertex positions in the MeshDescription, otherwise it is Empty()'d and regenerated entirely
@@ -84,10 +86,22 @@ public:
 	//
 
 	/**
-	 * Call this if you update the mesh via GetMesh()
+	 * Call this if you update the mesh via GetMesh(). This will destroy the existing RenderProxy and create a new one.
 	 * @todo should provide a function that calls a lambda to modify the mesh, and only return const mesh pointer
 	 */
 	virtual void NotifyMeshUpdated() override;
+
+	/**
+	 * Call this instead of NotifyMeshUpdated() if you have only updated the vertex colors (or triangle color function).
+	 * This function will update the existing RenderProxy buffers if possible
+	 */
+	void FastNotifyColorsUpdated();
+
+	/**
+	 * Call this instead of NotifyMeshUpdated() if you have only updated the vertex positions.
+	 * This function will update the existing RenderProxy buffers if possible
+	 */
+	void FastNotifyPositionsUpdated();
 
 	/**
 	 * Apply a vertex deformation change to the internal mesh
@@ -107,24 +121,40 @@ public:
 	FSimpleMulticastDelegate OnMeshChanged;
 
 
-	void SetDrawOnTop(bool bSet);
-
 	/**
 	 * if true, we always show the wireframe on top of the shaded mesh, even when not in wireframe mode
 	 */
 	UPROPERTY()
 	bool bExplicitShowWireframe = false;
 
+	/**
+	 * @return true if wireframe rendering pass is enabled
+	 */
+	virtual bool EnableWireframeRenderPass() const override { return bExplicitShowWireframe; }
 
+
+	/**
+	 * If this function is set, we will use these colors instead of vertex colors
+	 */
+	TFunction<FColor(const FDynamicMesh3*, int)> TriangleColorFunc = nullptr;
+
+
+public:
+
+	// do not use this
 	UPROPERTY()
 	bool bDrawOnTop = false;
 
+	// do not use this
+	void SetDrawOnTop(bool bSet);
 
 
-	TFunction<FColor(const FDynamicMesh3*, int)> TriangleColorFunc = nullptr;
-	void FastNotifyColorsUpdated();
-
-	void FastNotifyPositionsUpdated();
+protected:
+	/**
+	 * This is called to tell our RenderProxy about modifications to the material set.
+	 * We need to pass this on for things like material validation in the Editor.
+	 */
+	virtual void NotifyMaterialSetUpdated();
 
 private:
 
@@ -133,10 +163,6 @@ private:
 	//~ Begin UPrimitiveComponent Interface.
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	//~ End UPrimitiveComponent Interface.
-
-	//~ Begin UMeshComponent Interface.
-	virtual int32 GetNumMaterials() const override;
-	//~ End UMeshComponent Interface.
 
 	//~ Begin USceneComponent Interface.
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;

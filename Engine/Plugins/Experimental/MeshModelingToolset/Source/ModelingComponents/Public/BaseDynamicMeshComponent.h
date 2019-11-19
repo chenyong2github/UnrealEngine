@@ -72,4 +72,71 @@ public:
 		unimplemented();
 	}
 
+
+protected:
+	/**
+	 * Subclass must implement this to notify allocated proxies of updated materials
+	 */
+	virtual void NotifyMaterialSetUpdated()
+	{
+		unimplemented();
+	}
+
+
+
+public:
+
+	/**
+	 * @return true if wireframe rendering pass is enabled (default false)
+	 */
+	virtual bool EnableWireframeRenderPass() const { return false; }
+
+
+	//
+	// Override rendering material support
+	//
+
+	/**
+	 * Set an active override render material. This should replace all materials during rendering.
+	 */
+	virtual void SetOverrideRenderMaterial(UMaterialInterface* Material);
+
+	/**
+	 * Clear any active override render material
+	 */
+	virtual void ClearOverrideRenderMaterial();
+	
+	/**
+	 * @return true if an override render material is currently enabled for the given MaterialIndex
+	 */
+	virtual bool HasOverrideRenderMaterial(int k) const
+	{
+		return OverrideRenderMaterial != nullptr;
+	}
+
+	/**
+	 * @return active override render material for the given MaterialIndex
+	 */
+	virtual UMaterialInterface* GetOverrideRenderMaterial(int MaterialIndex) const
+	{
+		return OverrideRenderMaterial;
+	}
+
+
+protected:
+
+	TArray<UMaterialInterface*> BaseMaterials;
+
+	UMaterialInterface* OverrideRenderMaterial = nullptr;
+
+public:
+
+
+	//~ Begin UMeshComponent Interface.
+	virtual int32 GetNumMaterials() const override;
+	virtual UMaterialInterface* GetMaterial(int32 ElementIndex) const override;
+	virtual void SetMaterial(int32 ElementIndex, UMaterialInterface* Material) override;
+	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
+	//~ End UMeshComponent Interface.
+
 };

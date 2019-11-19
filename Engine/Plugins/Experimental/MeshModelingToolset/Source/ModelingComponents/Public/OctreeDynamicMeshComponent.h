@@ -111,7 +111,22 @@ public:
 	UPROPERTY()
 	bool bExplicitShowWireframe = false;
 
+	/**
+	 * @return true if wireframe rendering pass is enabled
+	 */
+	virtual bool EnableWireframeRenderPass() const override { return bExplicitShowWireframe; }
+
+	/**
+	 * If this function is set, we will use these colors instead of vertex colors
+	 */
 	TFunction<FColor(const FDynamicMesh3*, int)> TriangleColorFunc = nullptr;
+
+protected:
+	/**
+	 * This is called to tell our RenderProxy about modifications to the material set.
+	 * We need to pass this on for things like material validation in the Editor.
+	 */
+	virtual void NotifyMaterialSetUpdated();
 
 private:
 
@@ -120,10 +135,6 @@ private:
 	//~ Begin UPrimitiveComponent Interface.
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	//~ End UPrimitiveComponent Interface.
-
-	//~ Begin UMeshComponent Interface.
-	virtual int32 GetNumMaterials() const override;
-	//~ End UMeshComponent Interface.
 
 	//~ Begin USceneComponent Interface.
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;

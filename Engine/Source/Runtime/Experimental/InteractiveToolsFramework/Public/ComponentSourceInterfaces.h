@@ -16,6 +16,15 @@ struct FMeshDescription;
 class UMaterialInterface;
 
 /**
+ * FComponentMaterialSet is the set of materials assigned to a component (ie Material Slots on a StaticMesh)
+ */
+struct INTERACTIVETOOLSFRAMEWORK_API FComponentMaterialSet
+{
+	TArray<UMaterialInterface*> Materials;
+};
+
+
+/**
  * Wrapper around a UObject Component that can provide a MeshDescription, and
  * (optionally) bake a modified MeshDescription back to this Component.
  * An example of a Source might be a StaticMeshComponent. How a modified
@@ -48,6 +57,12 @@ public:
 	 * @return MaterialInterface pointer, or null if MaterialIndex is invalid
 	 */
 	UMaterialInterface* GetMaterial(int32 MaterialIndex) const;
+
+	/**
+	 * Get material set provided by this source
+	 * @param MaterialSetOut returned material set
+	 */
+	void GetMaterialSet(FComponentMaterialSet& MaterialSetOut) const;
 
 	/**
 	 * @return the transform on this component

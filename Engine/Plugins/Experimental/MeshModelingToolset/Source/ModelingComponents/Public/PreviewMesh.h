@@ -12,6 +12,7 @@
 
 class FDynamicMesh3;
 struct FMeshDescription;
+class FTangentsf;
 
 
 
@@ -96,9 +97,49 @@ public:
 	void SetMaterial(UMaterialInterface* Material);
 
 	/**
+	 * Set material on the preview mesh
+	 */
+	void SetMaterial(int MaterialIndex, UMaterialInterface* Material);
+
+	/**
+	 * Set the entire material set on the preview mesh
+	 */
+	void SetMaterials(const TArray<UMaterialInterface*>& Materials);
+
+	/**
 	* Get material from the preview mesh
 	*/
-	UMaterialInterface* GetMaterial() const;
+	UMaterialInterface* GetMaterial(int MaterialIndex = 0) const;
+
+	/**
+	 * Set an override material for the preview mesh. This material will override all the given materials.
+	 */
+	void SetOverrideRenderMaterial(UMaterialInterface* Material);
+
+	/**
+	 * Clear the override material for the preview mesh.
+	 */
+	void ClearOverrideRenderMaterial();
+
+	/**
+	 * @return the actual material that will be used for rendering for the given MaterialIndex. Will return override material if set.
+	 * 
+	 */
+	UMaterialInterface* GetActiveMaterial(int MaterialIndex = 0) const;
+
+
+	/**
+	 * Set the tangents mode for the underlying component, if available. 
+	 * Note that this function may need to be called before the mesh is initialized.
+	 */
+	void SetTangentsMode(EDynamicMeshTangentCalcType TangentsType);
+
+	/**
+	 * @return a MeshTangents data structure for the underlying component, if available, otherwise nullptr
+	 */
+	FMeshTangentsf* GetTangents() const;
+
+
 	/**
 	 * Get the current transform on the preview mesh
 	 */

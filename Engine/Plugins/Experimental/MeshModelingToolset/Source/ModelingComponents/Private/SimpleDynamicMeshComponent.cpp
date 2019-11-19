@@ -129,6 +129,12 @@ FMeshTangentsf* USimpleDynamicMeshComponent::GetTangents()
 
 	// in this mode we assume the tangents are valid
 	check(TangentsType == EDynamicMeshTangentCalcType::ExternallyCalculated);
+	if (TangentsType == EDynamicMeshTangentCalcType::ExternallyCalculated)
+	{
+		// if you hit this, you did not request ExternallyCalculated tangents before initializing this PreviewMesh
+		check(Tangents.GetTangents().Num() > 0)
+	}
+
 	return &Tangents;
 }
 
@@ -159,7 +165,7 @@ void USimpleDynamicMeshComponent::FastNotifyColorsUpdated()
 {
 	if (CurrentProxy != nullptr)
 	{
-		CurrentProxy->FastUpdateColors();
+		CurrentProxy->FastUpdateVertices(false, false, true);
 	}
 	else
 	{
@@ -173,13 +179,13 @@ void USimpleDynamicMeshComponent::FastNotifyPositionsUpdated()
 {
 	if (CurrentProxy != nullptr)
 	{
-		bTangentsValid = false;
-		CurrentProxy->FastUpdatePositions(false);
+		CurrentProxy->FastUpdateVertices(true, false, false);
 	}
 	else
 	{
 		NotifyMeshUpdated();
 	}
+
 }
 
 
@@ -203,10 +209,16 @@ FPrimitiveSceneProxy* USimpleDynamicMeshComponent::CreateSceneProxy()
 	return CurrentProxy;
 }
 
-int32 USimpleDynamicMeshComponent::GetNumMaterials() const
+
+void USimpleDynamicMeshComponent::NotifyMaterialSetUpdated()
 {
-	return 1;
+	if (CurrentProxy != nullptr)
+	{
+		CurrentProxy->UpdatedReferencedMaterials();
+	}
 }
+
+
 
 
 FColor USimpleDynamicMeshComponent::GetTriangleColor(const FDynamicMesh3* MeshIn, int TriangleID)

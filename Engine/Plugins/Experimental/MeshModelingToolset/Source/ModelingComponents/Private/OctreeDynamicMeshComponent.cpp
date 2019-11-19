@@ -317,10 +317,17 @@ FPrimitiveSceneProxy* UOctreeDynamicMeshComponent::CreateSceneProxy()
 	return CurrentProxy;
 }
 
-int32 UOctreeDynamicMeshComponent::GetNumMaterials() const
+
+
+void UOctreeDynamicMeshComponent::NotifyMaterialSetUpdated()
 {
-	return 1;
+	if (CurrentProxy != nullptr)
+	{
+		CurrentProxy->UpdatedReferencedMaterials();
+	}
 }
+
+
 
 
 FColor UOctreeDynamicMeshComponent::GetTriangleColor(int TriangleID)
