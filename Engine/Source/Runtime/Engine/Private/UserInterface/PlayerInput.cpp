@@ -504,7 +504,7 @@ void UPlayerInput::InvertAxis(const FName AxisName)
 		}
 		if (bInverted)
 		{
-			InvertedAxis.Add(AxisName);
+			InvertedAxis.AddUnique(AxisName);
 		}
 		else
 		{
