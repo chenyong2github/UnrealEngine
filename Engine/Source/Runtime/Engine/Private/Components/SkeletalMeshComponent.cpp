@@ -807,7 +807,7 @@ void USkeletalMeshComponent::ClearAnimScriptInstance()
 	}
 	AnimScriptInstance = nullptr;
 	ResetLinkedAnimInstances();
-	ClearCachedAnimProperties();S
+	ClearCachedAnimProperties();
 }
 
 void USkeletalMeshComponent::ClearCachedAnimProperties()
