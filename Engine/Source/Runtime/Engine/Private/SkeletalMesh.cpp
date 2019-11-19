@@ -5008,6 +5008,7 @@ void FSkeletalMeshSceneProxy::DebugDrawPhysicsAsset(int32 ViewIndex, FMeshElemen
 
 void FSkeletalMeshSceneProxy::DebugDrawSkeleton(int32 ViewIndex, FMeshElementCollector& Collector, const FEngineShowFlags& EngineShowFlags) const
 {
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	FMatrix ProxyLocalToWorld, WorldToLocal;
 	if (!GetWorldMatrices(ProxyLocalToWorld, WorldToLocal))
 	{
@@ -5062,6 +5063,7 @@ void FSkeletalMeshSceneProxy::DebugDrawSkeleton(int32 ViewIndex, FMeshElementCol
 			}
 		}
 	}
+#endif
 }
 
 /**

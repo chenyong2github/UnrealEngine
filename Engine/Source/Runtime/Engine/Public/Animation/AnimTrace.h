@@ -69,7 +69,7 @@ struct FAnimTrace
 
 #define TRACE_ANIM_TICK_RECORDS(Proxy, Component)
 #define TRACE_SKELETAL_MESH(Mesh)
-#define TRACE_SKELETALMESH_POSE(Component)
+#define TRACE_SKELETAL_MESH_COMPONENT(Component)
 #define TRACE_POSE_LINK(Context)
 #define TRACE_ANIM_NODE_VALUE(Context, Key, Value)
 
