@@ -12,14 +12,14 @@ struct FIndex3i;
 /**
  * Interface for a class to provide mesh painting support for a subclass of UMeshComponent
  */
-class MESHPAINTINGTOOLSET_API IMeshPaintGeometryAdapter
+class MESHPAINTINGTOOLSET_API IMeshPaintComponentAdapter
 {
 public:
 	/** Constructs the adapter for a specific LOD index using the mesh component */
 	virtual bool Construct(UMeshComponent* InComponent, int32 MeshLODIndex) = 0;
 
 	/** D-tor */
-	virtual ~IMeshPaintGeometryAdapter() {}
+	virtual ~IMeshPaintComponentAdapter() {}
 	
 	/** Returns whether or not initialization of necessary data was successful */
 	virtual bool Initialize() = 0;

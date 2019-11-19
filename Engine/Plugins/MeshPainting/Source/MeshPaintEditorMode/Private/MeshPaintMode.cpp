@@ -306,7 +306,7 @@ void UMeshPaintMode::FillWithVertexColor()
 		Component->Modify();
 		ComponentReregisterContext = MakeUnique<FComponentReregisterContext>(Component);
 
-		TSharedPtr<IMeshPaintGeometryAdapter> MeshAdapter = Cast<UMeshToolManager>(GetToolManager())->GetAdapterForComponent(Component);
+		TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = Cast<UMeshToolManager>(GetToolManager())->GetAdapterForComponent(Component);
 		if (MeshAdapter)
 		{
 			MeshAdapter->PreEdit();
@@ -589,7 +589,7 @@ void UMeshPaintMode::PropagateVertexColorsToLODs()
 	{
 		if (SelectedComponent)
 		{
-			TSharedPtr<IMeshPaintGeometryAdapter> MeshAdapter = Cast<UMeshToolManager>(GetToolManager())->GetAdapterForComponent(SelectedComponent);
+			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = Cast<UMeshToolManager>(GetToolManager())->GetAdapterForComponent(SelectedComponent);
 			UMeshPaintingToolset::ApplyVertexColorsToAllLODs(*MeshAdapter, SelectedComponent);
 			FComponentReregisterContext ReregisterContext(SelectedComponent);
 		}

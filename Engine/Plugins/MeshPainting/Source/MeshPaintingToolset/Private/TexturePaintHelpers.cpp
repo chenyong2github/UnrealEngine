@@ -9,7 +9,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 
-#include "IMeshPaintGeometryAdapter.h"
+#include "IMeshPaintComponentAdapter.h"
 
 #include "Engine/TextureRenderTarget2D.h"
 #include "CanvasTypes.h"
@@ -483,7 +483,7 @@ bool TexturePaintHelpers::DoesMeshComponentUseTexture(UMeshComponent* MeshCompon
 	return UsedTextures.Contains(Texture);
 }
 
-void TexturePaintHelpers::RetrieveTexturesForComponent(const UMeshComponent* Component, IMeshPaintGeometryAdapter* Adapter, TArray<FPaintableTexture>& OutTextures)
+void TexturePaintHelpers::RetrieveTexturesForComponent(const UMeshComponent* Component, IMeshPaintComponentAdapter* Adapter, TArray<FPaintableTexture>& OutTextures)
 {
 	// Get the materials used by the mesh
 	TArray<UMaterialInterface*> UsedMaterials;

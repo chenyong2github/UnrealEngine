@@ -6,7 +6,7 @@
 #include "Engine/EngineTypes.h"
 #include "MeshPaintingToolsetTypes.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "IMeshPaintGeometryAdapter.h"
+#include "IMeshPaintComponentAdapter.h"
 
 class FMeshPaintParameters;
 class UImportVertexColorOptions;
@@ -14,7 +14,7 @@ class UTexture2D;
 class UStaticMeshComponent;
 class UStaticMesh;
 class USkeletalMesh;
-class IMeshPaintGeometryAdapter;
+class IMeshPaintComponentAdapter;
 class UPaintBrushSettings;
 class FEditorViewportClient;
 class UMeshComponent;

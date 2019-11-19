@@ -6,7 +6,7 @@
 #include "Engine/EngineTypes.h"
 #include "MeshPaintingToolsetTypes.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "IMeshPaintGeometryAdapter.h"
+#include "IMeshPaintComponentAdapter.h"
 #include "InteractiveToolManager.h"
 #include "InteractiveToolsContext.h"
 #include "Engine/StaticMesh.h"
@@ -17,7 +17,7 @@ class UImportVertexColorOptions;
 class UTexture2D;
 class UStaticMeshComponent;
 class USkeletalMesh;
-class IMeshPaintGeometryAdapter;
+class IMeshPaintComponentAdapter;
 class UPaintBrushSettings;
 class FEditorViewportClient;
 class UMeshComponent;
@@ -109,7 +109,7 @@ enum class ETexturePaintWeightIndex : uint8
 /** Parameters for paint actions, stored together for convenience */
 struct FPerVertexPaintActionArgs
 {
-	IMeshPaintGeometryAdapter* Adapter;
+	IMeshPaintComponentAdapter* Adapter;
 	UMeshVertexPaintingToolProperties* BrushProperties;
 	FVector CameraPosition;
 	FHitResult HitResult;
@@ -118,7 +118,7 @@ struct FPerVertexPaintActionArgs
 
 /** Delegates used to call per-vertex/triangle actions */
 DECLARE_DELEGATE_TwoParams(FPerVertexPaintAction, FPerVertexPaintActionArgs& /*Args*/, int32 /*VertexIndex*/);
-DECLARE_DELEGATE_ThreeParams(FPerTrianglePaintAction, IMeshPaintGeometryAdapter* /*Adapter*/, int32 /*TriangleIndex*/, const int32[3] /*Vertex Indices*/);
+DECLARE_DELEGATE_ThreeParams(FPerTrianglePaintAction, IMeshPaintComponentAdapter* /*Adapter*/, int32 /*TriangleIndex*/, const int32[3] /*Vertex Indices*/);
 
 class MESHPAINTINGTOOLSET_API UMeshPaintingToolset : public UBlueprintFunctionLibrary
 {
@@ -167,16 +167,16 @@ public:
 	static void ForceRenderMeshLOD(UMeshComponent* Component, int32 LODIndex);
 
 	/** Clears all texture overrides for this component. */
-	static void ClearMeshTextureOverrides(const IMeshPaintGeometryAdapter& GeometryInfo, UMeshComponent* InMeshComponent);
+	static void ClearMeshTextureOverrides(const IMeshPaintComponentAdapter& GeometryInfo, UMeshComponent* InMeshComponent);
 
 	/** Applies vertex color painting found on LOD 0 to all lower LODs. */
-	static void ApplyVertexColorsToAllLODs(IMeshPaintGeometryAdapter& GeometryInfo, UMeshComponent* InMeshComponent);
+	static void ApplyVertexColorsToAllLODs(IMeshPaintComponentAdapter& GeometryInfo, UMeshComponent* InMeshComponent);
 
 	/** Applies the vertex colors found in LOD level 0 to all contained LOD levels in the StaticMeshComponent */
-	static void ApplyVertexColorsToAllLODs(IMeshPaintGeometryAdapter& GeometryInfo, UStaticMeshComponent* StaticMeshComponent);
+	static void ApplyVertexColorsToAllLODs(IMeshPaintComponentAdapter& GeometryInfo, UStaticMeshComponent* StaticMeshComponent);
 
 	/** Applies the vertex colors found in LOD level 0 to all contained LOD levels in the SkeletalMeshComponent */
-	static void ApplyVertexColorsToAllLODs(IMeshPaintGeometryAdapter& GeometryInfo, USkeletalMeshComponent* SkeletalMeshComponent);
+	static void ApplyVertexColorsToAllLODs(IMeshPaintComponentAdapter& GeometryInfo, USkeletalMeshComponent* SkeletalMeshComponent);
 
 	/** Returns the number of Mesh LODs for the given MeshComponent */
 	static int32 GetNumberOfLODs(const UMeshComponent* MeshComponent);
@@ -199,7 +199,7 @@ public:
 	static bool GetPerVertexPaintInfluencedVertices(FPerVertexPaintActionArgs& InArgs, TSet<int32>& InfluencedVertices);
 
 	/** Given the adapter, settings and view-information retrieves influences triangles and applies Action to them */
-	static bool ApplyPerTrianglePaintAction(IMeshPaintGeometryAdapter* Adapter, const FVector& CameraPosition, const FVector& HitPosition, const UMeshVertexPaintingToolProperties* Settings, FPerTrianglePaintAction Action);
+	static bool ApplyPerTrianglePaintAction(IMeshPaintComponentAdapter* Adapter, const FVector& CameraPosition, const FVector& HitPosition, const UMeshVertexPaintingToolProperties* Settings, FPerTrianglePaintAction Action);
 
 	/** Applies vertex painting to InOutvertexColor according to the given parameters  */
 	static bool PaintVertex(const FVector& InVertexPosition, const FMeshPaintParameters& InParams, FColor& InOutVertexColor);
@@ -268,9 +268,9 @@ public:
 	virtual void Shutdown() override;
 
 	/** Map of geometry adapters for each selected mesh component */
-	TMap<UMeshComponent*, TSharedPtr<IMeshPaintGeometryAdapter>> GetComponentToAdapterMap() const;
-	TSharedPtr<IMeshPaintGeometryAdapter> GetAdapterForComponent(UMeshComponent* InComponent);
-	void AddToComponentToAdapterMap(UMeshComponent* InComponent, TSharedPtr<IMeshPaintGeometryAdapter> InAdapter);
+	TMap<UMeshComponent*, TSharedPtr<IMeshPaintComponentAdapter>> GetComponentToAdapterMap() const;
+	TSharedPtr<IMeshPaintComponentAdapter> GetAdapterForComponent(UMeshComponent* InComponent);
+	void AddToComponentToAdapterMap(UMeshComponent* InComponent, TSharedPtr<IMeshPaintComponentAdapter> InAdapter);
 
 	TArray<UMeshComponent*> GetSelectedMeshComponents() const;
 	void AddSelectedMeshComponents(const TArray<UMeshComponent*>& InComponents);
@@ -297,7 +297,7 @@ private:
 
 private:
 	/** Map of geometry adapters for each selected mesh component */
-	TMap<UMeshComponent*, TSharedPtr<IMeshPaintGeometryAdapter>> ComponentToAdapterMap;
+	TMap<UMeshComponent*, TSharedPtr<IMeshPaintComponentAdapter>> ComponentToAdapterMap;
 	TArray<UMeshComponent*> SelectedMeshComponents;
 	/** Mesh components within the current selection which are eligible for painting */
 	TArray<UMeshComponent*> PaintableComponents;

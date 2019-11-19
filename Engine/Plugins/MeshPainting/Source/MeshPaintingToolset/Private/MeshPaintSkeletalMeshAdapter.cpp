@@ -13,12 +13,12 @@
 //////////////////////////////////////////////////////////////////////////
 // FMeshPaintGeometryAdapterForSkeletalMeshes
 
-bool FMeshPaintGeometryAdapterForSkeletalMeshes::Construct(UMeshComponent* InComponent, int32 InMeshLODIndex)
+bool FMeshPaintSkeletalMeshComponentAdapter::Construct(UMeshComponent* InComponent, int32 InMeshLODIndex)
 {
 	SkeletalMeshComponent = Cast<USkeletalMeshComponent>(InComponent);
 	if (SkeletalMeshComponent != nullptr)
 	{
-		SkeletalMeshChangedHandle = SkeletalMeshComponent->RegisterOnSkeletalMeshPropertyChanged(USkeletalMeshComponent::FOnSkeletalMeshPropertyChanged::CreateRaw(this, &FMeshPaintGeometryAdapterForSkeletalMeshes::OnSkeletalMeshChanged));
+		SkeletalMeshChangedHandle = SkeletalMeshComponent->RegisterOnSkeletalMeshPropertyChanged(USkeletalMeshComponent::FOnSkeletalMeshPropertyChanged::CreateRaw(this, &FMeshPaintSkeletalMeshComponentAdapter::OnSkeletalMeshChanged));
 
 		if (SkeletalMeshComponent->SkeletalMesh != nullptr)
 		{
@@ -32,7 +32,7 @@ bool FMeshPaintGeometryAdapterForSkeletalMeshes::Construct(UMeshComponent* InCom
 	return false;
 }
 
-FMeshPaintGeometryAdapterForSkeletalMeshes::~FMeshPaintGeometryAdapterForSkeletalMeshes()
+FMeshPaintSkeletalMeshComponentAdapter::~FMeshPaintSkeletalMeshComponentAdapter()
 {
 	if (SkeletalMeshComponent != nullptr)
 	{
@@ -40,7 +40,7 @@ FMeshPaintGeometryAdapterForSkeletalMeshes::~FMeshPaintGeometryAdapterForSkeleta
 	}
 }
 
-void FMeshPaintGeometryAdapterForSkeletalMeshes::OnSkeletalMeshChanged()
+void FMeshPaintSkeletalMeshComponentAdapter::OnSkeletalMeshChanged()
 {
 	OnRemoved();
 	ReferencedSkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
@@ -51,7 +51,7 @@ void FMeshPaintGeometryAdapterForSkeletalMeshes::OnSkeletalMeshChanged()
 	}	
 }
 
-void FMeshPaintGeometryAdapterForSkeletalMeshes::OnPostMeshCached(USkeletalMesh* SkeletalMesh)
+void FMeshPaintSkeletalMeshComponentAdapter::OnPostMeshCached(USkeletalMesh* SkeletalMesh)
 {
 	if (ReferencedSkeletalMesh == SkeletalMesh)
 	{
@@ -59,7 +59,7 @@ void FMeshPaintGeometryAdapterForSkeletalMeshes::OnPostMeshCached(USkeletalMesh*
 	}
 }
 
-bool FMeshPaintGeometryAdapterForSkeletalMeshes::Initialize()
+bool FMeshPaintSkeletalMeshComponentAdapter::Initialize()
 {
 	check(ReferencedSkeletalMesh == SkeletalMeshComponent->SkeletalMesh);
 
@@ -72,14 +72,14 @@ bool FMeshPaintGeometryAdapterForSkeletalMeshes::Initialize()
 		checkf(ReferencedSkeletalMesh->GetImportedModel()->LODModels.IsValidIndex(MeshLODIndex), TEXT("Invalid Imported Model index for vertex painting"));
 		LODModel = &ReferencedSkeletalMesh->GetImportedModel()->LODModels[MeshLODIndex];
 
-		bInitializationResult = FBaseMeshPaintGeometryAdapter::Initialize();
+		bInitializationResult = FBaseMeshPaintComponentAdapter::Initialize();
 	}
 
 	
 	return bInitializationResult;
 }
 
-bool FMeshPaintGeometryAdapterForSkeletalMeshes::InitializeVertexData()
+bool FMeshPaintSkeletalMeshComponentAdapter::InitializeVertexData()
 {
 	// Retrieve mesh vertex and index data 
 	const int32 NumVertices = LODData->GetNumVertices();
@@ -97,7 +97,7 @@ bool FMeshPaintGeometryAdapterForSkeletalMeshes::InitializeVertexData()
 	return (MeshVertices.Num() >= 0 && MeshIndices.Num() > 0);
 }
 
-void FMeshPaintGeometryAdapterForSkeletalMeshes::InitializeAdapterGlobals()
+void FMeshPaintSkeletalMeshComponentAdapter::InitializeAdapterGlobals()
 {
 	static bool bInitialized = false;
 	if (!bInitialized)
@@ -106,21 +106,21 @@ void FMeshPaintGeometryAdapterForSkeletalMeshes::InitializeAdapterGlobals()
 	}
 }
 
-void FMeshPaintGeometryAdapterForSkeletalMeshes::AddReferencedObjectsGlobals(FReferenceCollector& Collector)
+void FMeshPaintSkeletalMeshComponentAdapter::AddReferencedObjectsGlobals(FReferenceCollector& Collector)
 {
 }
 
-void FMeshPaintGeometryAdapterForSkeletalMeshes::AddReferencedObjects(FReferenceCollector& Collector)
+void FMeshPaintSkeletalMeshComponentAdapter::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObject(ReferencedSkeletalMesh);
 	Collector.AddReferencedObject(SkeletalMeshComponent);
 }
 
-void FMeshPaintGeometryAdapterForSkeletalMeshes::CleanupGlobals()
+void FMeshPaintSkeletalMeshComponentAdapter::CleanupGlobals()
 {
 }
 
-void FMeshPaintGeometryAdapterForSkeletalMeshes::OnAdded()
+void FMeshPaintSkeletalMeshComponentAdapter::OnAdded()
 {
 	checkf(SkeletalMeshComponent, TEXT("Invalid SkeletalMesh Component"));
 	checkf(ReferencedSkeletalMesh, TEXT("Invalid reference to Skeletal Mesh"));
@@ -130,10 +130,10 @@ void FMeshPaintGeometryAdapterForSkeletalMeshes::OnAdded()
 	SkeletalMeshComponent->InitAnim(true);
 
 	// Register callback for when the skeletal mesh is cached underneath us
-	ReferencedSkeletalMesh->OnPostMeshCached().AddRaw(this, &FMeshPaintGeometryAdapterForSkeletalMeshes::OnPostMeshCached);
+	ReferencedSkeletalMesh->OnPostMeshCached().AddRaw(this, &FMeshPaintSkeletalMeshComponentAdapter::OnPostMeshCached);
 }
 
-void FMeshPaintGeometryAdapterForSkeletalMeshes::OnRemoved()
+void FMeshPaintSkeletalMeshComponentAdapter::OnRemoved()
 {
 	checkf(SkeletalMeshComponent, TEXT("Invalid SkeletalMesh Component"));
 	
@@ -150,7 +150,7 @@ void FMeshPaintGeometryAdapterForSkeletalMeshes::OnRemoved()
 	ReferencedSkeletalMesh->OnPostMeshCached().RemoveAll(this);
 }
 
-bool FMeshPaintGeometryAdapterForSkeletalMeshes::LineTraceComponent(struct FHitResult& OutHit, const FVector Start, const FVector End, const struct FCollisionQueryParams& Params) const
+bool FMeshPaintSkeletalMeshComponentAdapter::LineTraceComponent(struct FHitResult& OutHit, const FVector Start, const FVector End, const struct FCollisionQueryParams& Params) const
 {
 	const bool bHitBounds = FMath::LineSphereIntersection(Start, End.GetSafeNormal(), (End - Start).SizeSquared(), SkeletalMeshComponent->Bounds.Origin, SkeletalMeshComponent->Bounds.SphereRadius);
 	const float SqrRadius = FMath::Square(SkeletalMeshComponent->Bounds.SphereRadius);
@@ -217,22 +217,22 @@ bool FMeshPaintGeometryAdapterForSkeletalMeshes::LineTraceComponent(struct FHitR
 	return bHitTriangle;
 }
 
-void FMeshPaintGeometryAdapterForSkeletalMeshes::QueryPaintableTextures(int32 MaterialIndex, int32& OutDefaultIndex, TArray<struct FPaintableTexture>& InOutTextureList)
+void FMeshPaintSkeletalMeshComponentAdapter::QueryPaintableTextures(int32 MaterialIndex, int32& OutDefaultIndex, TArray<struct FPaintableTexture>& InOutTextureList)
 {
 	DefaultQueryPaintableTextures(MaterialIndex, SkeletalMeshComponent, OutDefaultIndex, InOutTextureList);
 }
 
-void FMeshPaintGeometryAdapterForSkeletalMeshes::ApplyOrRemoveTextureOverride(UTexture* SourceTexture, UTexture* OverrideTexture) const
+void FMeshPaintSkeletalMeshComponentAdapter::ApplyOrRemoveTextureOverride(UTexture* SourceTexture, UTexture* OverrideTexture) const
 {
 	DefaultApplyOrRemoveTextureOverride(SkeletalMeshComponent, SourceTexture, OverrideTexture);
 }
 
-void FMeshPaintGeometryAdapterForSkeletalMeshes::GetTextureCoordinate(int32 VertexIndex, int32 ChannelIndex, FVector2D& OutTextureCoordinate) const
+void FMeshPaintSkeletalMeshComponentAdapter::GetTextureCoordinate(int32 VertexIndex, int32 ChannelIndex, FVector2D& OutTextureCoordinate) const
 {
 	OutTextureCoordinate = LODData->StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(VertexIndex, ChannelIndex);
 }
 
-void FMeshPaintGeometryAdapterForSkeletalMeshes::PreEdit()
+void FMeshPaintSkeletalMeshComponentAdapter::PreEdit()
 {
 	FlushRenderingCommands();
 
@@ -272,13 +272,13 @@ void FMeshPaintGeometryAdapterForSkeletalMeshes::PreEdit()
 	}
 }
 
-void FMeshPaintGeometryAdapterForSkeletalMeshes::PostEdit()
+void FMeshPaintSkeletalMeshComponentAdapter::PostEdit()
 {
 	TUniquePtr< FSkinnedMeshComponentRecreateRenderStateContext > RecreateRenderStateContext = MakeUnique<FSkinnedMeshComponentRecreateRenderStateContext>(ReferencedSkeletalMesh);
 	ReferencedSkeletalMesh->InitResources();
 }
 
-void FMeshPaintGeometryAdapterForSkeletalMeshes::GetVertexColor(int32 VertexIndex, FColor& OutColor, bool bInstance /*= true*/) const
+void FMeshPaintSkeletalMeshComponentAdapter::GetVertexColor(int32 VertexIndex, FColor& OutColor, bool bInstance /*= true*/) const
 {
 	if (LODData->StaticVertexBuffers.ColorVertexBuffer.GetNumVertices() > 0)
 	{
@@ -287,7 +287,7 @@ void FMeshPaintGeometryAdapterForSkeletalMeshes::GetVertexColor(int32 VertexInde
 	}
 }
 
-void FMeshPaintGeometryAdapterForSkeletalMeshes::SetVertexColor(int32 VertexIndex, FColor Color, bool bInstance /*= true*/)
+void FMeshPaintSkeletalMeshComponentAdapter::SetVertexColor(int32 VertexIndex, FColor Color, bool bInstance /*= true*/)
 {
 	if (LODData->StaticVertexBuffers.ColorVertexBuffer.GetNumVertices() > 0)
 	{
@@ -305,7 +305,7 @@ void FMeshPaintGeometryAdapterForSkeletalMeshes::SetVertexColor(int32 VertexInde
 	}
 }
 
-FMatrix FMeshPaintGeometryAdapterForSkeletalMeshes::GetComponentToWorldMatrix() const
+FMatrix FMeshPaintSkeletalMeshComponentAdapter::GetComponentToWorldMatrix() const
 {
 	return SkeletalMeshComponent->GetComponentToWorld().ToMatrixWithScale();
 }
@@ -313,13 +313,13 @@ FMatrix FMeshPaintGeometryAdapterForSkeletalMeshes::GetComponentToWorldMatrix() 
 //////////////////////////////////////////////////////////////////////////
 // FMeshPaintGeometryAdapterForSkeletalMeshesFactory
 
-TSharedPtr<IMeshPaintGeometryAdapter> FMeshPaintGeometryAdapterForSkeletalMeshesFactory::Construct(class UMeshComponent* InComponent, int32 InMeshLODIndex) const
+TSharedPtr<IMeshPaintComponentAdapter> FMeshPaintGeometryAdapterForSkeletalMeshesFactory::Construct(class UMeshComponent* InComponent, int32 InMeshLODIndex) const
 {
 	if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(InComponent))
 	{
 		if (SkeletalMeshComponent->SkeletalMesh != nullptr)
 		{
-			TSharedRef<FMeshPaintGeometryAdapterForSkeletalMeshes> Result = MakeShareable(new FMeshPaintGeometryAdapterForSkeletalMeshes());
+			TSharedRef<FMeshPaintSkeletalMeshComponentAdapter> Result = MakeShareable(new FMeshPaintSkeletalMeshComponentAdapter());
 			if (Result->Construct(InComponent, InMeshLODIndex))
 			{
 				return Result;

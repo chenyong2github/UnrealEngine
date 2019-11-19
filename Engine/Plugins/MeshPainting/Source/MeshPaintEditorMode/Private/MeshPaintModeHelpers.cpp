@@ -5,7 +5,7 @@
 #include "ComponentReregisterContext.h"
 
 #include "MeshPaintModeSettings.h"
-#include "IMeshPaintGeometryAdapter.h"
+#include "IMeshPaintComponentAdapter.h"
 #include "MeshPaintAdapterFactory.h"
 
 #include "Components/StaticMeshComponent.h"

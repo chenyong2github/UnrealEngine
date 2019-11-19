@@ -7,7 +7,7 @@
 #include "ToolContextInterfaces.h"
 #include "Components/MeshComponent.h"
 #include "Math/UnrealMathUtility.h"
-#include "IMeshPaintGeometryAdapter.h"
+#include "IMeshPaintComponentAdapter.h"
 #include "ComponentReregisterContext.h"
 #include "MeshPaintAdapterFactory.h"
 #include "ToolDataVisualizer.h"
@@ -130,7 +130,7 @@ void UMeshVertexPaintingTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 		for (UMeshComponent* CurrentComponent : MeshToolManager->GetPaintableMeshComponents())
 		{
-			TSharedPtr<IMeshPaintGeometryAdapter> MeshAdapter = MeshToolManager->GetAdapterForComponent(Cast<UMeshComponent>(CurrentComponent));
+			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = MeshToolManager->GetAdapterForComponent(Cast<UMeshComponent>(CurrentComponent));
 
 			if (MeshAdapter->IsValid() /*&& bRenderVertices*/ && MeshAdapter->SupportsVertexPaint())
 			{
@@ -249,7 +249,7 @@ bool UMeshVertexPaintingTool::PaintInternal(const TArrayView<TPair<FVector, FVec
 
 		for (UMeshComponent* MeshComponent : MeshToolManager->GetPaintableMeshComponents())
 		{
-			TSharedPtr<IMeshPaintGeometryAdapter> MeshAdapter = MeshToolManager->GetAdapterForComponent(MeshComponent);
+			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = MeshToolManager->GetAdapterForComponent(MeshComponent);
 
 			// Ray trace
 			FHitResult TraceHitResult(1.0f);
@@ -337,7 +337,7 @@ bool UMeshVertexPaintingTool::PaintInternal(const TArrayView<TPair<FVector, FVec
 			UMeshComponent* HoveredComponent = Entry.Key;
 			TArray<int32>& PaintRayResultIds = Entry.Value;
 
-			IMeshPaintGeometryAdapter* MeshAdapter = MeshToolManager->GetAdapterForComponent(HoveredComponent).Get();
+			IMeshPaintComponentAdapter* MeshAdapter = MeshToolManager->GetAdapterForComponent(HoveredComponent).Get();
 			if (!ensure(MeshAdapter))
 			{
 				continue;

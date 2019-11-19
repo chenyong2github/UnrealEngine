@@ -3,7 +3,7 @@
 #include "MeshPaintHelpers.h"
 #include "ComponentReregisterContext.h"
 #include "MeshPaintingToolsetTypes.h"
-#include "IMeshPaintGeometryAdapter.h"
+#include "IMeshPaintComponentAdapter.h"
 #include "MeshPaintAdapterFactory.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -862,7 +862,7 @@ void UMeshPaintingToolset::ForceRenderMeshLOD(UMeshComponent* Component, int32 L
 	}	
 }
 
-void UMeshPaintingToolset::ClearMeshTextureOverrides(const IMeshPaintGeometryAdapter& GeometryInfo, UMeshComponent* InMeshComponent)
+void UMeshPaintingToolset::ClearMeshTextureOverrides(const IMeshPaintComponentAdapter& GeometryInfo, UMeshComponent* InMeshComponent)
 {
 	if (InMeshComponent != nullptr)
 	{
@@ -879,7 +879,7 @@ void UMeshPaintingToolset::ClearMeshTextureOverrides(const IMeshPaintGeometryAda
 	}
 }
 
-void UMeshPaintingToolset::ApplyVertexColorsToAllLODs(IMeshPaintGeometryAdapter& GeometryInfo, UMeshComponent* InMeshComponent)
+void UMeshPaintingToolset::ApplyVertexColorsToAllLODs(IMeshPaintComponentAdapter& GeometryInfo, UMeshComponent* InMeshComponent)
 {
 	if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(InMeshComponent))
 	{
@@ -891,7 +891,7 @@ void UMeshPaintingToolset::ApplyVertexColorsToAllLODs(IMeshPaintGeometryAdapter&
 	}
 }
 
-void UMeshPaintingToolset::ApplyVertexColorsToAllLODs(IMeshPaintGeometryAdapter& GeometryInfo, UStaticMeshComponent* StaticMeshComponent)
+void UMeshPaintingToolset::ApplyVertexColorsToAllLODs(IMeshPaintComponentAdapter& GeometryInfo, UStaticMeshComponent* StaticMeshComponent)
 {
 	// If a static mesh component was found, apply LOD0 painting to all lower LODs.
 	if (!StaticMeshComponent || !StaticMeshComponent->GetStaticMesh())
@@ -1157,7 +1157,7 @@ bool UMeshPaintingToolset::ApplyPerVertexPaintAction(FPerVertexPaintActionArgs& 
 	return (InfluencedVertices.Num() > 0);
 }
 
-bool UMeshPaintingToolset::ApplyPerTrianglePaintAction(IMeshPaintGeometryAdapter* Adapter, const FVector& CameraPosition, const FVector& HitPosition, const UMeshVertexPaintingToolProperties* Settings, FPerTrianglePaintAction Action)
+bool UMeshPaintingToolset::ApplyPerTrianglePaintAction(IMeshPaintComponentAdapter* Adapter, const FVector& CameraPosition, const FVector& HitPosition, const UMeshVertexPaintingToolProperties* Settings, FPerTrianglePaintAction Action)
 {
 	// Retrieve components world matrix
 	const FMatrix& ComponentToWorldMatrix = Adapter->GetComponentToWorldMatrix();
@@ -1244,7 +1244,7 @@ struct FVertexColorPropogationOctreeSemantics
 };
 typedef TOctree<FPaintedMeshVertex, FVertexColorPropogationOctreeSemantics> TVertexColorPropogationPosOctree;
 
-void UMeshPaintingToolset::ApplyVertexColorsToAllLODs(IMeshPaintGeometryAdapter& GeometryInfo, USkeletalMeshComponent* SkeletalMeshComponent)
+void UMeshPaintingToolset::ApplyVertexColorsToAllLODs(IMeshPaintComponentAdapter& GeometryInfo, USkeletalMeshComponent* SkeletalMeshComponent)
 {
 	checkf(SkeletalMeshComponent != nullptr, TEXT("Invalid Skeletal Mesh Component"));
 	USkeletalMesh* Mesh = SkeletalMeshComponent->SkeletalMesh;
@@ -1421,18 +1421,18 @@ void UMeshToolManager::Shutdown()
 	SelectedMeshComponents.Empty();
 }
 
-TMap<UMeshComponent*, TSharedPtr<IMeshPaintGeometryAdapter>> UMeshToolManager::GetComponentToAdapterMap() const
+TMap<UMeshComponent*, TSharedPtr<IMeshPaintComponentAdapter>> UMeshToolManager::GetComponentToAdapterMap() const
 {
 	return ComponentToAdapterMap;
 }
 
-TSharedPtr<IMeshPaintGeometryAdapter> UMeshToolManager::GetAdapterForComponent(UMeshComponent* InComponent)
+TSharedPtr<IMeshPaintComponentAdapter> UMeshToolManager::GetAdapterForComponent(UMeshComponent* InComponent)
 {
-	TSharedPtr<IMeshPaintGeometryAdapter>* MeshAdapterPtr = ComponentToAdapterMap.Find(InComponent);
-	return MeshAdapterPtr ? *MeshAdapterPtr : TSharedPtr<IMeshPaintGeometryAdapter>();
+	TSharedPtr<IMeshPaintComponentAdapter>* MeshAdapterPtr = ComponentToAdapterMap.Find(InComponent);
+	return MeshAdapterPtr ? *MeshAdapterPtr : TSharedPtr<IMeshPaintComponentAdapter>();
 }
 
-void UMeshToolManager::AddToComponentToAdapterMap(UMeshComponent* InComponent, TSharedPtr<IMeshPaintGeometryAdapter> InAdapter)
+void UMeshToolManager::AddToComponentToAdapterMap(UMeshComponent* InComponent, TSharedPtr<IMeshPaintComponentAdapter> InAdapter)
 {
 	ComponentToAdapterMap.Add(InComponent, InAdapter);
 }
@@ -1507,7 +1507,7 @@ bool UMeshToolManager::FindHitResult(const FRay Ray, FHitResult& BestTraceResult
 
 		for (UMeshComponent* MeshComponent : PaintableComponents)
 		{
-			TSharedPtr<IMeshPaintGeometryAdapter> MeshAdapter = GetComponentToAdapterMap().FindChecked(MeshComponent);
+			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = GetComponentToAdapterMap().FindChecked(MeshComponent);
 
 			// Ray trace
 			FHitResult TraceHitResult(1.0f);
@@ -1553,7 +1553,7 @@ void UMeshToolManager::CacheSelectionData(const int32 PaintLODIndex, const int32
 	bSelectionContainsPerLODColors = false;
 	for (UMeshComponent* MeshComponent : SelectedMeshComponents)
 	{
-		TSharedPtr<IMeshPaintGeometryAdapter> MeshAdapter = FMeshPaintAdapterFactory::CreateAdapterForMesh(MeshComponent, PaintLODIndex);
+		TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = FMeshPaintAdapterFactory::CreateAdapterForMesh(MeshComponent, PaintLODIndex);
 		if (MeshComponent->IsVisible() && MeshAdapter.IsValid() && MeshAdapter->IsValid())
 		{
 			TUniquePtr< FComponentReregisterContext > ComponentReregisterContext;

@@ -2,7 +2,7 @@
 
 #pragma once
 
-class IMeshPaintGeometryAdapter;
+class IMeshPaintComponentAdapter;
 class UMeshComponent;
 class FReferenceCollector;
 
@@ -12,7 +12,7 @@ class FReferenceCollector;
 class MESHPAINTINGTOOLSET_API IMeshPaintGeometryAdapterFactory
 {
 public:
-	virtual TSharedPtr<IMeshPaintGeometryAdapter> Construct(UMeshComponent* InComponent, int32 InMeshLODIndex) const = 0;
+	virtual TSharedPtr<IMeshPaintComponentAdapter> Construct(UMeshComponent* InComponent, int32 InMeshLODIndex) const = 0;
 	virtual void InitializeAdapterGlobals() = 0;
 	virtual void AddReferencedObjectsGlobals(FReferenceCollector& Collector) = 0;
 	virtual void CleanupGlobals() = 0;

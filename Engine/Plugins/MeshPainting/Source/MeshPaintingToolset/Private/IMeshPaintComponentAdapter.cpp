@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "IMeshPaintGeometryAdapter.h"
+#include "IMeshPaintComponentAdapter.h"
 
 #include "Engine/World.h"
 #include "Components/MeshComponent.h"
@@ -14,7 +14,7 @@
 //////////////////////////////////////////////////////////////////////////
 // IMeshPaintGeometryAdapter
 
-void IMeshPaintGeometryAdapter::DefaultApplyOrRemoveTextureOverride(UMeshComponent* InMeshComponent, UTexture* SourceTexture, UTexture* OverrideTexture)
+void IMeshPaintComponentAdapter::DefaultApplyOrRemoveTextureOverride(UMeshComponent* InMeshComponent, UTexture* SourceTexture, UTexture* OverrideTexture)
 {
 	const ERHIFeatureLevel::Type FeatureLevel = InMeshComponent->GetWorld()->FeatureLevel;
 
@@ -34,7 +34,7 @@ void IMeshPaintGeometryAdapter::DefaultApplyOrRemoveTextureOverride(UMeshCompone
 	}
 }
 
-void IMeshPaintGeometryAdapter::DefaultQueryPaintableTextures(int32 MaterialIndex, const UMeshComponent* MeshComponent, int32& OutDefaultIndex, TArray<struct FPaintableTexture>& InOutTextureList)
+void IMeshPaintComponentAdapter::DefaultQueryPaintableTextures(int32 MaterialIndex, const UMeshComponent* MeshComponent, int32& OutDefaultIndex, TArray<struct FPaintableTexture>& InOutTextureList)
 {
 	OutDefaultIndex = INDEX_NONE;
 

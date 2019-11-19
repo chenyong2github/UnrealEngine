@@ -8,7 +8,7 @@
 //////////////////////////////////////////////////////////////////////////
 // FMeshPaintGeometryAdapterForSplineMeshes
 
-bool FMeshPaintGeometryAdapterForSplineMeshes::InitializeVertexData()
+bool FMeshPaintSplineMeshComponentAdapter::InitializeVertexData()
 {
 	// Cache deformed spline mesh vertices for quick lookup during painting / previewing
 	USplineMeshComponent* SplineMeshComponent = Cast<USplineMeshComponent>(StaticMeshComponent);
@@ -50,13 +50,13 @@ bool FMeshPaintGeometryAdapterForSplineMeshes::InitializeVertexData()
 //////////////////////////////////////////////////////////////////////////
 // FMeshPaintGeometryAdapterForSplineMeshesFactory
 
-TSharedPtr<IMeshPaintGeometryAdapter> FMeshPaintGeometryAdapterForSplineMeshesFactory::Construct(class UMeshComponent* InComponent, int32 MeshLODIndex) const
+TSharedPtr<IMeshPaintComponentAdapter> FMeshPaintGeometryAdapterForSplineMeshesFactory::Construct(class UMeshComponent* InComponent, int32 MeshLODIndex) const
 {
 	if (USplineMeshComponent* SplineMeshComponent = Cast<USplineMeshComponent>(InComponent))
 	{
 		if (SplineMeshComponent->GetStaticMesh() != nullptr)
 		{
-			TSharedRef<FMeshPaintGeometryAdapterForSplineMeshes> Result = MakeShareable(new FMeshPaintGeometryAdapterForSplineMeshes());
+			TSharedRef<FMeshPaintSplineMeshComponentAdapter> Result = MakeShareable(new FMeshPaintSplineMeshComponentAdapter());
 			if (Result->Construct(InComponent, MeshLODIndex))
 			{
 				return Result;

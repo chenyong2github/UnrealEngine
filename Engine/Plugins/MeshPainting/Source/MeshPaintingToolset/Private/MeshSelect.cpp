@@ -7,7 +7,7 @@
 #include "ToolContextInterfaces.h"
 #include "MeshPaintHelpers.h"
 #include "Components/MeshComponent.h"
-#include "IMeshPaintGeometryAdapter.h"
+#include "IMeshPaintComponentAdapter.h"
 #include "MeshPaintAdapterFactory.h"
 #include "EngineUtils.h"
 #include "Editor.h"
@@ -83,7 +83,7 @@ void UMeshClickTool::OnClicked(const FInputDeviceRay& ClickPos)
 				for (UActorComponent* CandidateComponent : CandidateComponents)
 				{
 					UMeshComponent* MeshComponent = Cast<UMeshComponent>(CandidateComponent);
-					TSharedPtr<IMeshPaintGeometryAdapter> MeshAdapter = FMeshPaintAdapterFactory::CreateAdapterForMesh(MeshComponent, 0);
+					TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = FMeshPaintAdapterFactory::CreateAdapterForMesh(MeshComponent, 0);
 					MeshToolManager->AddPaintableMeshComponent(MeshComponent);
 					MeshToolManager->AddToComponentToAdapterMap(MeshComponent, MeshAdapter);
 				}
@@ -96,7 +96,7 @@ void UMeshClickTool::OnClicked(const FInputDeviceRay& ClickPos)
 		TArray<AActor*> SelectedActors;
 		if (UMeshComponent* MeshComponent = Cast<UMeshComponent>(TraceHitResult.GetComponent()))
 		{
-			TSharedPtr<IMeshPaintGeometryAdapter> MeshAdapter = FMeshPaintAdapterFactory::CreateAdapterForMesh(MeshComponent, 0);
+			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = FMeshPaintAdapterFactory::CreateAdapterForMesh(MeshComponent, 0);
 			if (MeshComponent->IsVisible() && MeshAdapter.IsValid() && MeshAdapter->IsValid())
 			{
 				MeshToolManager->AddPaintableMeshComponent(MeshComponent);

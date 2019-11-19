@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "IMeshPaintGeometryAdapterFactory.h"
-#include "BaseMeshPaintGeometryAdapter.h"
+#include "BaseMeshPaintComponentAdapter.h"
 #include "RawIndexBuffer.h"
 #include "Components/StaticMeshComponent.h"
 
@@ -16,7 +16,7 @@ struct FStaticMeshLODResources;
 //////////////////////////////////////////////////////////////////////////
 // FMeshPaintGeometryAdapterForStaticMeshes
 
-class MESHPAINTINGTOOLSET_API FMeshPaintGeometryAdapterForStaticMeshes : public FBaseMeshPaintGeometryAdapter
+class MESHPAINTINGTOOLSET_API FMeshPaintStaticMeshComponentAdapter : public FBaseMeshPaintComponentAdapter
 {
 public:
 	static void InitializeAdapterGlobals();
@@ -24,7 +24,7 @@ public:
 	static void CleanupGlobals();
 	/** Start IMeshPaintGeometryAdapter Overrides */
 	virtual bool Construct(UMeshComponent* InComponent, int32 InMeshLODIndex) override;
-	virtual ~FMeshPaintGeometryAdapterForStaticMeshes();
+	virtual ~FMeshPaintStaticMeshComponentAdapter();
 	virtual bool Initialize() override;
 	virtual void OnAdded() override;
 	virtual void OnRemoved() override;
@@ -69,8 +69,8 @@ protected:
 class MESHPAINTINGTOOLSET_API FMeshPaintGeometryAdapterForStaticMeshesFactory : public IMeshPaintGeometryAdapterFactory
 {
 public:
-	virtual TSharedPtr<IMeshPaintGeometryAdapter> Construct(class UMeshComponent* InComponent, int32 InMeshLODIndex) const override;
-	virtual void InitializeAdapterGlobals() override { FMeshPaintGeometryAdapterForStaticMeshes::InitializeAdapterGlobals(); }
-	virtual void AddReferencedObjectsGlobals(FReferenceCollector& Collector) override { FMeshPaintGeometryAdapterForStaticMeshes::AddReferencedObjectsGlobals(Collector); }
-	virtual void CleanupGlobals() override { FMeshPaintGeometryAdapterForStaticMeshes::CleanupGlobals(); }
+	virtual TSharedPtr<IMeshPaintComponentAdapter> Construct(class UMeshComponent* InComponent, int32 InMeshLODIndex) const override;
+	virtual void InitializeAdapterGlobals() override { FMeshPaintStaticMeshComponentAdapter::InitializeAdapterGlobals(); }
+	virtual void AddReferencedObjectsGlobals(FReferenceCollector& Collector) override { FMeshPaintStaticMeshComponentAdapter::AddReferencedObjectsGlobals(Collector); }
+	virtual void CleanupGlobals() override { FMeshPaintStaticMeshComponentAdapter::CleanupGlobals(); }
 };

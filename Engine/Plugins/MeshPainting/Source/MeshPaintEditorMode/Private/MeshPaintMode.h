@@ -11,7 +11,7 @@
 #include "Framework/Commands/UIAction.h"
 #include "Framework/Commands/UICommandInfo.h"
 #include "Framework/Commands/UICommandList.h"
-#include "IMeshPaintGeometryAdapter.h"
+#include "IMeshPaintComponentAdapter.h"
 #include "MeshPaintHelpers.h"
 #include "MeshVertexPaintingTool.h"
 #include "MeshPaintMode.generated.h"
@@ -19,7 +19,7 @@
 class UMeshVertexPaintingToolProperties;
 class UMeshColorPaintingToolProperties;
 class UMeshPaintModeSettings;
-class IMeshPaintGeometryAdapter;
+class IMeshPaintComponentAdapter;
 class UMeshComponent;
 
 /**

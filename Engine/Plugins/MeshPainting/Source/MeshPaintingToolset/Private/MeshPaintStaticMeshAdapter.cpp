@@ -11,20 +11,20 @@
 //////////////////////////////////////////////////////////////////////////
 // FMeshPaintGeometryAdapterForStaticMeshes
 
-bool FMeshPaintGeometryAdapterForStaticMeshes::Construct(UMeshComponent* InComponent, int32 InMeshLODIndex)
+bool FMeshPaintStaticMeshComponentAdapter::Construct(UMeshComponent* InComponent, int32 InMeshLODIndex)
 {
 	StaticMeshComponent = Cast<UStaticMeshComponent>(InComponent);
 	if (StaticMeshComponent != nullptr)
 	{
 #if WITH_EDITOR
-		StaticMeshComponent->OnStaticMeshChanged().AddRaw(this, &FMeshPaintGeometryAdapterForStaticMeshes::OnStaticMeshChanged);
+		StaticMeshComponent->OnStaticMeshChanged().AddRaw(this, &FMeshPaintStaticMeshComponentAdapter::OnStaticMeshChanged);
 #endif
 		if (StaticMeshComponent->GetStaticMesh() != nullptr)
 		{
 			ReferencedStaticMesh = StaticMeshComponent->GetStaticMesh();
 			MeshLODIndex = InMeshLODIndex;
 #if WITH_EDITOR
-			ReferencedStaticMesh->OnPostMeshBuild().AddRaw(this, &FMeshPaintGeometryAdapterForStaticMeshes::OnPostMeshBuild);
+			ReferencedStaticMesh->OnPostMeshBuild().AddRaw(this, &FMeshPaintStaticMeshComponentAdapter::OnPostMeshBuild);
 #endif
 			const bool bSuccess = Initialize();
 			return bSuccess;
@@ -34,7 +34,7 @@ bool FMeshPaintGeometryAdapterForStaticMeshes::Construct(UMeshComponent* InCompo
 	return false;
 }
 
-FMeshPaintGeometryAdapterForStaticMeshes::~FMeshPaintGeometryAdapterForStaticMeshes()
+FMeshPaintStaticMeshComponentAdapter::~FMeshPaintStaticMeshComponentAdapter()
 {
 	if (StaticMeshComponent != nullptr)
 	{
@@ -49,13 +49,13 @@ FMeshPaintGeometryAdapterForStaticMeshes::~FMeshPaintGeometryAdapterForStaticMes
 	}
 }
 
-void FMeshPaintGeometryAdapterForStaticMeshes::OnPostMeshBuild(UStaticMesh* StaticMesh)
+void FMeshPaintStaticMeshComponentAdapter::OnPostMeshBuild(UStaticMesh* StaticMesh)
 {
 	check(StaticMesh == ReferencedStaticMesh);
 	Initialize();
 }
 
-void FMeshPaintGeometryAdapterForStaticMeshes::OnStaticMeshChanged(UStaticMeshComponent* InStaticMeshComponent)
+void FMeshPaintStaticMeshComponentAdapter::OnStaticMeshChanged(UStaticMeshComponent* InStaticMeshComponent)
 {
 	check(StaticMeshComponent == InStaticMeshComponent);
 	OnRemoved();
@@ -66,26 +66,26 @@ void FMeshPaintGeometryAdapterForStaticMeshes::OnStaticMeshChanged(UStaticMeshCo
 	if (ReferencedStaticMesh)
 	{
 #if WITH_EDITOR
-		ReferencedStaticMesh->OnPostMeshBuild().AddRaw(this, &FMeshPaintGeometryAdapterForStaticMeshes::OnPostMeshBuild);
+		ReferencedStaticMesh->OnPostMeshBuild().AddRaw(this, &FMeshPaintStaticMeshComponentAdapter::OnPostMeshBuild);
 #endif
 		Initialize();
 		OnAdded();
 	}
 }
 
-bool FMeshPaintGeometryAdapterForStaticMeshes::Initialize()
+bool FMeshPaintStaticMeshComponentAdapter::Initialize()
 {
 	check(ReferencedStaticMesh == StaticMeshComponent->GetStaticMesh());
 	if (MeshLODIndex < ReferencedStaticMesh->GetNumLODs())
 	{
 		LODModel = &(ReferencedStaticMesh->RenderData->LODResources[MeshLODIndex]);
-		return FBaseMeshPaintGeometryAdapter::Initialize();
+		return FBaseMeshPaintComponentAdapter::Initialize();
 	}
 
 	return false;
 }
 
-bool FMeshPaintGeometryAdapterForStaticMeshes::InitializeVertexData()
+bool FMeshPaintStaticMeshComponentAdapter::InitializeVertexData()
 {
 	// Retrieve mesh vertex and index data 
 	const int32 NumVertices = LODModel->VertexBuffers.PositionVertexBuffer.GetNumVertices();
@@ -109,7 +109,7 @@ bool FMeshPaintGeometryAdapterForStaticMeshes::InitializeVertexData()
 	return (MeshVertices.Num() > 0 && MeshIndices.Num() > 0);
 }
 
-void FMeshPaintGeometryAdapterForStaticMeshes::PostEdit()
+void FMeshPaintStaticMeshComponentAdapter::PostEdit()
 {
 	// Lighting does not need to be invalidated when mesh painting
 	const bool bUnbuildLighting = false;
@@ -140,7 +140,7 @@ void FMeshPaintGeometryAdapterForStaticMeshes::PostEdit()
 	}
 }
 
-void FMeshPaintGeometryAdapterForStaticMeshes::InitializeAdapterGlobals()
+void FMeshPaintStaticMeshComponentAdapter::InitializeAdapterGlobals()
 {
 	static bool bInitialized = false;
 	if (!bInitialized)
@@ -149,30 +149,30 @@ void FMeshPaintGeometryAdapterForStaticMeshes::InitializeAdapterGlobals()
 	}
 }
 
-void FMeshPaintGeometryAdapterForStaticMeshes::AddReferencedObjectsGlobals(FReferenceCollector& Collector)
+void FMeshPaintStaticMeshComponentAdapter::AddReferencedObjectsGlobals(FReferenceCollector& Collector)
 {
 
 }
 
-void FMeshPaintGeometryAdapterForStaticMeshes::CleanupGlobals()
+void FMeshPaintStaticMeshComponentAdapter::CleanupGlobals()
 {
 }
 
-void FMeshPaintGeometryAdapterForStaticMeshes::AddReferencedObjects(FReferenceCollector& Collector)
+void FMeshPaintStaticMeshComponentAdapter::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObject(ReferencedStaticMesh);
 	Collector.AddReferencedObject(StaticMeshComponent);
 }
 
 
-void FMeshPaintGeometryAdapterForStaticMeshes::OnAdded()
+void FMeshPaintStaticMeshComponentAdapter::OnAdded()
 {
 	check(StaticMeshComponent);
 	check(ReferencedStaticMesh);
 	check(ReferencedStaticMesh == StaticMeshComponent->GetStaticMesh());
 }
 
-void FMeshPaintGeometryAdapterForStaticMeshes::OnRemoved()
+void FMeshPaintStaticMeshComponentAdapter::OnRemoved()
 {
 	check(StaticMeshComponent);
 	
@@ -184,7 +184,7 @@ void FMeshPaintGeometryAdapterForStaticMeshes::OnRemoved()
 	}
 }
 
-bool FMeshPaintGeometryAdapterForStaticMeshes::LineTraceComponent(struct FHitResult& OutHit, const FVector Start, const FVector End, const struct FCollisionQueryParams& Params) const
+bool FMeshPaintStaticMeshComponentAdapter::LineTraceComponent(struct FHitResult& OutHit, const FVector Start, const FVector End, const struct FCollisionQueryParams& Params) const
 {
 	// Ray trace
 	const bool bHitBounds = FMath::LineSphereIntersection(Start, End.GetSafeNormal(), (End - Start).SizeSquared(), StaticMeshComponent->Bounds.Origin, StaticMeshComponent->Bounds.SphereRadius);
@@ -252,17 +252,17 @@ bool FMeshPaintGeometryAdapterForStaticMeshes::LineTraceComponent(struct FHitRes
 	return bHitTriangle;
 }
 
-void FMeshPaintGeometryAdapterForStaticMeshes::QueryPaintableTextures(int32 MaterialIndex, int32& OutDefaultIndex, TArray<struct FPaintableTexture>& InOutTextureList)
+void FMeshPaintStaticMeshComponentAdapter::QueryPaintableTextures(int32 MaterialIndex, int32& OutDefaultIndex, TArray<struct FPaintableTexture>& InOutTextureList)
 {
 	DefaultQueryPaintableTextures(MaterialIndex, StaticMeshComponent, OutDefaultIndex, InOutTextureList);
 }
 
-void FMeshPaintGeometryAdapterForStaticMeshes::ApplyOrRemoveTextureOverride(UTexture* SourceTexture, UTexture* OverrideTexture) const
+void FMeshPaintStaticMeshComponentAdapter::ApplyOrRemoveTextureOverride(UTexture* SourceTexture, UTexture* OverrideTexture) const
 {
 	DefaultApplyOrRemoveTextureOverride(StaticMeshComponent, SourceTexture, OverrideTexture);
 }
 
-void FMeshPaintGeometryAdapterForStaticMeshes::GetVertexColor(int32 VertexIndex, FColor& OutColor, bool bInstance /*= true*/) const
+void FMeshPaintStaticMeshComponentAdapter::GetVertexColor(int32 VertexIndex, FColor& OutColor, bool bInstance /*= true*/) const
 {
 	if (bInstance)
 	{
@@ -296,7 +296,7 @@ void FMeshPaintGeometryAdapterForStaticMeshes::GetVertexColor(int32 VertexIndex,
 	}
 }
 
-void FMeshPaintGeometryAdapterForStaticMeshes::SetVertexColor(int32 VertexIndex, FColor Color, bool bInstance /*= true*/)
+void FMeshPaintStaticMeshComponentAdapter::SetVertexColor(int32 VertexIndex, FColor Color, bool bInstance /*= true*/)
 {
 	// Update the mesh!				
 	if (bInstance)
@@ -334,18 +334,18 @@ void FMeshPaintGeometryAdapterForStaticMeshes::SetVertexColor(int32 VertexIndex,
 	}
 }
 
-FMatrix FMeshPaintGeometryAdapterForStaticMeshes::GetComponentToWorldMatrix() const
+FMatrix FMeshPaintStaticMeshComponentAdapter::GetComponentToWorldMatrix() const
 {
 	return StaticMeshComponent->GetComponentToWorld().ToMatrixWithScale();
 }
 
-void FMeshPaintGeometryAdapterForStaticMeshes::GetTextureCoordinate(int32 VertexIndex, int32 ChannelIndex, FVector2D& OutTextureCoordinate) const
+void FMeshPaintStaticMeshComponentAdapter::GetTextureCoordinate(int32 VertexIndex, int32 ChannelIndex, FVector2D& OutTextureCoordinate) const
 {
 	OutTextureCoordinate = LODModel->VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(VertexIndex, ChannelIndex);
 }
 
 
-void FMeshPaintGeometryAdapterForStaticMeshes::PreEdit()
+void FMeshPaintStaticMeshComponentAdapter::PreEdit()
 {
 	const bool bUsingInstancedVertexColors = true; // Currently we are only painting to instances 
 	UStaticMesh* StaticMesh = ReferencedStaticMesh;
@@ -426,13 +426,13 @@ void FMeshPaintGeometryAdapterForStaticMeshes::PreEdit()
 //////////////////////////////////////////////////////////////////////////
 // FMeshPaintGeometryAdapterForStaticMeshesFactory
 
-TSharedPtr<IMeshPaintGeometryAdapter> FMeshPaintGeometryAdapterForStaticMeshesFactory::Construct(class UMeshComponent* InComponent, int32 InMeshLODIndex) const
+TSharedPtr<IMeshPaintComponentAdapter> FMeshPaintGeometryAdapterForStaticMeshesFactory::Construct(class UMeshComponent* InComponent, int32 InMeshLODIndex) const
 {
 	if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(InComponent))
 	{
 		if (StaticMeshComponent->GetStaticMesh() != nullptr)
 		{
-			TSharedRef<FMeshPaintGeometryAdapterForStaticMeshes> Result = MakeShareable(new FMeshPaintGeometryAdapterForStaticMeshes());
+			TSharedRef<FMeshPaintStaticMeshComponentAdapter> Result = MakeShareable(new FMeshPaintStaticMeshComponentAdapter());
 			if (Result->Construct(InComponent, InMeshLODIndex))
 			{
 				return Result;

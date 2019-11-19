@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "RawIndexBuffer.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "BaseMeshPaintGeometryAdapter.h"
+#include "BaseMeshPaintComponentAdapter.h"
 #include "IMeshPaintGeometryAdapterFactory.h"
 
 class UBodySetup;
@@ -19,7 +19,7 @@ class UMeshComponent;
 
 //////////////////////////////////////////////////////////////////////////
 // FMeshPaintGeometryAdapterForSkeletalMeshes
-class MESHPAINTINGTOOLSET_API FMeshPaintGeometryAdapterForSkeletalMeshes : public FBaseMeshPaintGeometryAdapter
+class MESHPAINTINGTOOLSET_API FMeshPaintSkeletalMeshComponentAdapter : public FBaseMeshPaintComponentAdapter
 {
 public:
 	static void InitializeAdapterGlobals();
@@ -27,7 +27,7 @@ public:
 	static void CleanupGlobals();
 	/** Start IMeshPaintGeometryAdapter Overrides */
 	virtual bool Construct(UMeshComponent* InComponent, int32 InMeshLODIndex) override;
-	virtual ~FMeshPaintGeometryAdapterForSkeletalMeshes();
+	virtual ~FMeshPaintSkeletalMeshComponentAdapter();
 	virtual bool Initialize() override;
 	virtual void OnAdded() override;
 	virtual void OnRemoved() override;
@@ -79,8 +79,8 @@ protected:
 class MESHPAINTINGTOOLSET_API FMeshPaintGeometryAdapterForSkeletalMeshesFactory : public IMeshPaintGeometryAdapterFactory
 {
 public:
-	virtual TSharedPtr<IMeshPaintGeometryAdapter> Construct(UMeshComponent* InComponent, int32 InMeshLODIndex) const override;
-	virtual void InitializeAdapterGlobals() override { FMeshPaintGeometryAdapterForSkeletalMeshes::InitializeAdapterGlobals(); }
-	virtual void AddReferencedObjectsGlobals(FReferenceCollector& Collector) override { FMeshPaintGeometryAdapterForSkeletalMeshes::AddReferencedObjectsGlobals(Collector); }
-	virtual void CleanupGlobals() override { FMeshPaintGeometryAdapterForSkeletalMeshes::CleanupGlobals(); }
+	virtual TSharedPtr<IMeshPaintComponentAdapter> Construct(UMeshComponent* InComponent, int32 InMeshLODIndex) const override;
+	virtual void InitializeAdapterGlobals() override { FMeshPaintSkeletalMeshComponentAdapter::InitializeAdapterGlobals(); }
+	virtual void AddReferencedObjectsGlobals(FReferenceCollector& Collector) override { FMeshPaintSkeletalMeshComponentAdapter::AddReferencedObjectsGlobals(Collector); }
+	virtual void CleanupGlobals() override { FMeshPaintSkeletalMeshComponentAdapter::CleanupGlobals(); }
 };

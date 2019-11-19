@@ -5,9 +5,9 @@
 
 TArray<TSharedPtr<class IMeshPaintGeometryAdapterFactory>> FMeshPaintAdapterFactory::FactoryList;
 
-TSharedPtr<class IMeshPaintGeometryAdapter> FMeshPaintAdapterFactory::CreateAdapterForMesh(UMeshComponent* InComponent, int32 InPaintingMeshLODIndex)
+TSharedPtr<class IMeshPaintComponentAdapter> FMeshPaintAdapterFactory::CreateAdapterForMesh(UMeshComponent* InComponent, int32 InPaintingMeshLODIndex)
 {
-	TSharedPtr<IMeshPaintGeometryAdapter> Result;
+	TSharedPtr<IMeshPaintComponentAdapter> Result;
 
 	for (const auto& Factory : FactoryList)
 	{

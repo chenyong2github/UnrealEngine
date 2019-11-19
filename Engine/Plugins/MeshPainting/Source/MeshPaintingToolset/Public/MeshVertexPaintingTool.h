@@ -16,7 +16,7 @@
 
 struct FToolBuilderState;
 enum class EMeshPaintModeAction : uint8;
-class IMeshPaintGeometryAdapter;
+class IMeshPaintComponentAdapter;
 
 struct FPaintRayResults
 {

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "IMeshPaintGeometryAdapter.h"
+#include "IMeshPaintComponentAdapter.h"
 #include "TMeshPaintOctree.h"
 #include "MeshAdapter.h"
 #include "Spatial/MeshAABBTree3.h"
@@ -11,7 +11,7 @@ struct FIndex3i;
 typedef TIndexMeshArrayAdapter<uint32, double> FIndexMeshArrayAdapterd;
 
 /** Base mesh paint geometry adapter, handles basic sphere intersection using a Octree */
-class MESHPAINTINGTOOLSET_API FBaseMeshPaintGeometryAdapter : public IMeshPaintGeometryAdapter
+class MESHPAINTINGTOOLSET_API FBaseMeshPaintComponentAdapter : public IMeshPaintComponentAdapter
 {
 public:
 	/** Start IMeshPaintGeometryAdapter Overrides */

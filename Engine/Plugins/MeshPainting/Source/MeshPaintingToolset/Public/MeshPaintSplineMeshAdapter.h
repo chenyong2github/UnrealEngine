@@ -8,7 +8,7 @@
 //////////////////////////////////////////////////////////////////////////
 // FMeshPaintGeometryAdapterForSplineMeshes
 
-class MESHPAINTINGTOOLSET_API FMeshPaintGeometryAdapterForSplineMeshes : public FMeshPaintGeometryAdapterForStaticMeshes
+class MESHPAINTINGTOOLSET_API FMeshPaintSplineMeshComponentAdapter : public FMeshPaintStaticMeshComponentAdapter
 {
 public:
 	virtual bool InitializeVertexData() override;
@@ -20,5 +20,5 @@ public:
 class MESHPAINTINGTOOLSET_API FMeshPaintGeometryAdapterForSplineMeshesFactory : public FMeshPaintGeometryAdapterForStaticMeshesFactory
 {
 public:
-	virtual TSharedPtr<IMeshPaintGeometryAdapter> Construct(class UMeshComponent* InComponent, int32 MeshLODIndex) const override;
+	virtual TSharedPtr<IMeshPaintComponentAdapter> Construct(class UMeshComponent* InComponent, int32 MeshLODIndex) const override;
 };

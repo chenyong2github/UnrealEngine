@@ -1,11 +1,11 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "BaseMeshPaintGeometryAdapter.h"
+#include "BaseMeshPaintComponentAdapter.h"
 #include "MeshAdapter.h"
 #include "Spatial/MeshAABBTree3.h"
 #include "Templates/UniquePtr.h"
 
-bool FBaseMeshPaintGeometryAdapter::Initialize()
+bool FBaseMeshPaintComponentAdapter::Initialize()
 {
 	bool bInit = InitializeVertexData() && BuildOctree();
 	FIndexMeshArrayAdapterd TempAdapter(&MeshVertices, &MeshIndices);
@@ -14,7 +14,7 @@ bool FBaseMeshPaintGeometryAdapter::Initialize()
 	return bInit;
 }
 
-bool FBaseMeshPaintGeometryAdapter::BuildOctree()
+bool FBaseMeshPaintComponentAdapter::BuildOctree()
 {
 	bool bValidOctree = false;
 
@@ -62,22 +62,22 @@ bool FBaseMeshPaintGeometryAdapter::BuildOctree()
 	return bValidOctree;	
 }
 
-const TArray<FVector>& FBaseMeshPaintGeometryAdapter::GetMeshVertices() const
+const TArray<FVector>& FBaseMeshPaintComponentAdapter::GetMeshVertices() const
 {
 	return MeshVertices;
 }
 
-const TArray<uint32>& FBaseMeshPaintGeometryAdapter::GetMeshIndices() const
+const TArray<uint32>& FBaseMeshPaintComponentAdapter::GetMeshIndices() const
 {
 	return MeshIndices;
 }
 
-void FBaseMeshPaintGeometryAdapter::GetVertexPosition(int32 VertexIndex, FVector& OutVertex) const
+void FBaseMeshPaintComponentAdapter::GetVertexPosition(int32 VertexIndex, FVector& OutVertex) const
 {
 	OutVertex = MeshVertices[VertexIndex];
 }
 
-TArray<uint32> FBaseMeshPaintGeometryAdapter::SphereIntersectTriangles(const float ComponentSpaceSquaredBrushRadius, const FVector& ComponentSpaceBrushPosition, const FVector& ComponentSpaceCameraPosition, const bool bOnlyFrontFacing) const
+TArray<uint32> FBaseMeshPaintComponentAdapter::SphereIntersectTriangles(const float ComponentSpaceSquaredBrushRadius, const FVector& ComponentSpaceBrushPosition, const FVector& ComponentSpaceCameraPosition, const bool bOnlyFrontFacing) const
 {
 	TArray<uint32> OutTriangles;
 
@@ -99,7 +99,7 @@ TArray<uint32> FBaseMeshPaintGeometryAdapter::SphereIntersectTriangles(const flo
 	return OutTriangles;
 }
 
-void FBaseMeshPaintGeometryAdapter::GetInfluencedVertexIndices(const float ComponentSpaceSquaredBrushRadius, const FVector& ComponentSpaceBrushPosition, const FVector& ComponentSpaceCameraPosition, const bool bOnlyFrontFacing, TSet<int32> &InfluencedVertices) const
+void FBaseMeshPaintComponentAdapter::GetInfluencedVertexIndices(const float ComponentSpaceSquaredBrushRadius, const FVector& ComponentSpaceBrushPosition, const FVector& ComponentSpaceCameraPosition, const bool bOnlyFrontFacing, TSet<int32> &InfluencedVertices) const
 {
 	// Get a list of (optionally front-facing) triangles that are within a reasonable distance to the brush
 	const TArray<uint32> InfluencedTriangles = SphereIntersectTriangles(
@@ -126,7 +126,7 @@ void FBaseMeshPaintGeometryAdapter::GetInfluencedVertexIndices(const float Compo
 	}
 }
 
-void FBaseMeshPaintGeometryAdapter::GetInfluencedVertexData(const float ComponentSpaceSquaredBrushRadius, const FVector& ComponentSpaceBrushPosition, const FVector& ComponentSpaceCameraPosition, const bool bOnlyFrontFacing, TArray<TPair<int32, FVector>>& OutData) const
+void FBaseMeshPaintComponentAdapter::GetInfluencedVertexData(const float ComponentSpaceSquaredBrushRadius, const FVector& ComponentSpaceBrushPosition, const FVector& ComponentSpaceCameraPosition, const bool bOnlyFrontFacing, TArray<TPair<int32, FVector>>& OutData) const
 {
 	// Get a list of (optionally front-facing) triangles that are within a reasonable distance to the brush
 	TArray<uint32> InfluencedTriangles = SphereIntersectTriangles(
@@ -156,7 +156,7 @@ void FBaseMeshPaintGeometryAdapter::GetInfluencedVertexData(const float Componen
 	}
 }
 
-TArray<FVector> FBaseMeshPaintGeometryAdapter::SphereIntersectVertices(const float ComponentSpaceSquaredBrushRadius, const FVector& ComponentSpaceBrushPosition, const FVector& ComponentSpaceCameraPosition, const bool bOnlyFrontFacing) const
+TArray<FVector> FBaseMeshPaintComponentAdapter::SphereIntersectVertices(const float ComponentSpaceSquaredBrushRadius, const FVector& ComponentSpaceBrushPosition, const FVector& ComponentSpaceCameraPosition, const bool bOnlyFrontFacing) const
 {
 	// Get list of intersecting triangles with given sphere data
 	const TArray<uint32> IntersectedTriangles = SphereIntersectTriangles(ComponentSpaceSquaredBrushRadius, ComponentSpaceBrushPosition, ComponentSpaceCameraPosition, bOnlyFrontFacing);
@@ -184,7 +184,7 @@ TArray<FVector> FBaseMeshPaintGeometryAdapter::SphereIntersectVertices(const flo
 	return InRangeVertices;
 }
 
-bool FBaseMeshPaintGeometryAdapter::RayIntersectAdapter(FIndex3i& HitTriangle, FVector& HitPosition, const FVector Start, const FVector End) const
+bool FBaseMeshPaintComponentAdapter::RayIntersectAdapter(FIndex3i& HitTriangle, FVector& HitPosition, const FVector Start, const FVector End) const
 {
 	int32 HitTriangleID;
 	double NearestT;
