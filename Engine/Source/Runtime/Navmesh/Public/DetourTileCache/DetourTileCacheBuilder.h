@@ -127,6 +127,8 @@ protected:
 
 struct NAVMESH_API dtTileCacheAlloc
 {
+	virtual ~dtTileCacheAlloc() = default;
+
 	virtual void reset()
 	{
 	}
