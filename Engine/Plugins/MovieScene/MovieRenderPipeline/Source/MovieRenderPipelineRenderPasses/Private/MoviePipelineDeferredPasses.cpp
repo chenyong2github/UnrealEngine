@@ -283,7 +283,7 @@ namespace MoviePipeline
 				);
 			}
 
-			if (InSampleState.bIsUsingOverlappedTiles)
+			// overlapped tile adjustment
 			{
 				float PadRatioX = 1.0f;
 				float PadRatioY = 1.0f;

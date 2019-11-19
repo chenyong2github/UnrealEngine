@@ -736,9 +736,6 @@ public:
 	/** Of the TemporalSampleCount, which index is this? */
 	int32 TemporalSampleIndex;
 
-	/** Should we use the Overlapped Tiles method of doing high res screen shots? */
-	bool bIsUsingOverlappedTiles;
-
 	/** How many pixels are we overlapping with adjacent tiles (on each side) */
 	FIntPoint OverlappedPad;
 

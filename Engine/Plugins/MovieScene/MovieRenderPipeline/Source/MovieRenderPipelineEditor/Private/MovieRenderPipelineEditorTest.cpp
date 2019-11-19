@@ -15,7 +15,7 @@
 
 UMoviePipelineShotConfig* GenerateTestShotConfig(UObject* InOwner, int32 InSampleCount,
 	int32 InShutterAngle, EMoviePipelineShutterTiming InFrameTiming, int32 InTileCount,
-	int32 InSpatialSampleCount, bool bIsUsingOverlappedTiles, float PadRatioX, float PadRatioY, float AccumulationGamma)
+	int32 InSpatialSampleCount, float PadRatioX, float PadRatioY, float AccumulationGamma)
 {
 	UMoviePipelineShotConfig* OutConfig = NewObject<UMoviePipelineShotConfig>(InOwner);
 	OutConfig->FindOrAddSetting<UMoviePipelineDeferredPassBase>();
@@ -33,11 +33,9 @@ UMoviePipelineShotConfig* GenerateTestShotConfig(UObject* InOwner, int32 InSampl
 		CameraSetting->ExposureCompensation = 11;
 	}
 
-	if (InTileCount > 1)
 	{
 		UMoviePipelineHighResSetting* HighRes = OutConfig->FindOrAddSetting<UMoviePipelineHighResSetting>();
 		HighRes->TileCount = InTileCount;
-		HighRes->bIsUsingOverlappedTiles = bIsUsingOverlappedTiles;
 		HighRes->OverlapPercentage = PadRatioX;
 		HighRes->bWriteAllSamples = false;
 	}
@@ -85,13 +83,12 @@ TArray<UMoviePipelineMasterConfig*> FMovieRenderPipelineEditorModule::GenerateTe
 
 				const int32 NumSpatialSamples = TestNumSamples;
 				const int32 NumTiles = TileX;
-				static bool bIsUsingOverlappedTiles = true;
 
 				UMoviePipelineShotConfig* DefaultConfig = GenerateTestShotConfig(OutPipeline,
 					TemporalSampleCounts[TemporalSampleCountIndex],
 					ShutterAngles[ShutterAngleIndex],
 					ShutterTimings[ShutterTimingIndex],
-					NumTiles, NumSpatialSamples, bIsUsingOverlappedTiles, PadRatioX, PadRatioY, AccumulationGamma);
+					NumTiles, NumSpatialSamples, PadRatioX, PadRatioY, AccumulationGamma);
 
 				OutPipeline->DefaultShotConfig = DefaultConfig;
 

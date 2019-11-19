@@ -15,7 +15,6 @@ public:
 	UMoviePipelineHighResSetting()
 		: TileCount(1)
 		, TextureSharpnessBias(0.f)
-		, bIsUsingOverlappedTiles(true)
 		, OverlapPercentage(.5f)
 		, bWriteAllSamples(true)
 	{
@@ -51,11 +50,6 @@ public:
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = -1, UIMax = 0), Category = "Movie Pipeline")
 	float TextureSharpnessBias;
-	
-	/**
-	* Do we overlap tiles or interlace? Only overlapping is supported at the moment.
-	*/
-	bool bIsUsingOverlappedTiles;
 	
 	/**
 	* How much should each tile overlap each other (0-0.5). Decreasing the overlap will result in smaller individual
