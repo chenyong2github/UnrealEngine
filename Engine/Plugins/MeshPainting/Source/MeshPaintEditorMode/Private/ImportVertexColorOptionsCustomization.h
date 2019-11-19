@@ -6,12 +6,12 @@
 #include "IDetailCustomization.h"
 
 /** Customization for importing vertex colors from a texture see SImportVertexColorOptions */
-class FVertexColorImportOptionsCustomization : public IDetailCustomization
+class FImportVertexColorOptionsCustomization : public IDetailCustomization
 {
 public:
 	static TSharedRef<IDetailCustomization> MakeInstance()
 	{
-		return MakeShareable(new FVertexColorImportOptionsCustomization);
+		return MakeShareable(new FImportVertexColorOptionsCustomization);
 	}
 
 	/** IDetailCustomization interface */

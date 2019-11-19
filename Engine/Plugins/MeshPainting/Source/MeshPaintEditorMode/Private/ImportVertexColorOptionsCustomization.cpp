@@ -10,7 +10,7 @@
 
 #define LOCTEXT_NAMESPACE "VertexColorImportOptionsCustomization"
 
-void FVertexColorImportOptionsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+void FImportVertexColorOptionsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	UMeshVertexColorImportOptions* Options = GetMutableDefault<UMeshVertexColorImportOptions>();
 
@@ -114,7 +114,7 @@ void FVertexColorImportOptionsCustomization::CustomizeDetails(IDetailLayoutBuild
 	}
 }
 
-TSharedRef<SHorizontalBox> FVertexColorImportOptionsCustomization::CreateColorChannelWidget(TSharedRef<IPropertyHandle> ChannelProperty)
+TSharedRef<SHorizontalBox> FImportVertexColorOptionsCustomization::CreateColorChannelWidget(TSharedRef<IPropertyHandle> ChannelProperty)
 {
 	return SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
