@@ -200,6 +200,7 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 
 			// Label text
 			+ SVerticalBox::Slot().AutoHeight()
+			.Padding(StyleSet->GetMargin(ISlateStyle::Join( StyleName, ".Label.Padding" )))
 			.HAlign( HAlign_Center )	// Center the label text horizontally
 			[
 				SNew( STextBlock )
