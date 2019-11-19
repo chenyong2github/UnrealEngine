@@ -34,7 +34,7 @@ namespace Chaos
 			{
 				for (auto& Shape : ShapesArray)
 				{
-					Shape->WorldSpaceInflatedShapeBounds = Geometry->BoundingBox().GetAABB().TransformedAABB(ActorTM);
+					Shape->UpdateShapeBounds(ActorTM);
 				}
 			}
 		}
@@ -59,6 +59,15 @@ namespace Chaos
 	TUniquePtr<TPerShapeData<T, d>> TPerShapeData<T, d>::CreatePerShapeData()
 	{
 		return TUniquePtr<TPerShapeData<T, d>>(new TPerShapeData<T, d>());
+	}
+
+	template<typename T, int d>
+	void TPerShapeData<T, d>::UpdateShapeBounds(const TRigidTransform<T, d>& WorldTM)
+	{
+		if (Geometry && Geometry->HasBoundingBox())
+		{
+			WorldSpaceInflatedShapeBounds = Geometry->BoundingBox().GetAABB().TransformedAABB(WorldTM);
+		}
 	}
 
 	template <typename T, int d>

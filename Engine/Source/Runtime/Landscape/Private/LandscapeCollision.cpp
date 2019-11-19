@@ -53,6 +53,7 @@
 #include "PhysXToChaosUtil.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/Vector.h"
+#include "Chaos/Core.h"
 #endif
 
 using namespace PhysicsInterfaceTypes;
@@ -483,6 +484,15 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 				{
 					PhysHandle->SetGeometry(MakeUnique<Chaos::TImplicitObjectUnion<float, 3>>(MoveTemp(Geoms)));
 				}
+
+				// Construct Shape Bounds
+				for (auto& Shape : ShapeArray)
+				{
+					Chaos::FRigidTransform3 WorldTransform = Chaos::FRigidTransform3(PhysHandle->X(), PhysHandle->R());
+					Shape->UpdateShapeBounds(WorldTransform);
+				}
+
+
 
 				PhysHandle->SetShapesArray(MoveTemp(ShapeArray));
 
