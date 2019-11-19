@@ -257,6 +257,12 @@ public:
 	/** Current view target transition blend parameters. */
 	struct FViewTargetTransitionParams BlendParams;
 
+public:
+	/** Fires when ViewTarget is set to PendingViewTarget */
+	DECLARE_EVENT(APlayerCameraManager, FOnBlendComplete)
+	FOnBlendComplete& OnBlendComplete() const { return OnBlendCompleteEvent; }
+private:
+	mutable FOnBlendComplete OnBlendCompleteEvent;
 private:
 	/** Cached camera properties. */
 	UPROPERTY(transient)
