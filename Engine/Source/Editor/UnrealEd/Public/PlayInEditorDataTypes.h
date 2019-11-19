@@ -77,7 +77,10 @@ struct FPieLoginStruct
 	int32 PIEInstanceIndex;
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FPieLoginStruct& operator = (FPieLoginStruct const&) = default;
+	FPieLoginStruct& operator = (const FPieLoginStruct &) = default;
+	FPieLoginStruct& operator = (FPieLoginStruct &&) = default;
+	FPieLoginStruct(const FPieLoginStruct&) = default; // Copy
+	FPieLoginStruct(FPieLoginStruct&&) = default; // Move
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FPieLoginStruct()

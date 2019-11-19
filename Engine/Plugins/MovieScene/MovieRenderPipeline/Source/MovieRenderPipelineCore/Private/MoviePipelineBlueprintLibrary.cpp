@@ -77,7 +77,7 @@ UMovieSceneSequence* UMoviePipelineBlueprintLibrary::DuplicateSequence(UObject* 
 	UMovieSceneSubTrack* SubTrack = DuplicatedSequence->GetMovieScene()->FindMasterTrack<UMovieSceneSubTrack>();
 	if (SubTrack)
 	{
-		AllSubSequenceSections.Append(ShotTrack->GetAllSections());
+		AllSubSequenceSections.Append(SubTrack->GetAllSections());
 	}
 
 	for (UMovieSceneSection* Section : AllSubSequenceSections)

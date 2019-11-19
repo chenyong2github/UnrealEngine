@@ -579,7 +579,7 @@ void UEditorEngine::EndPlayMap()
 			if (WindowIndex == 0)
 			{
 				// Only update it if "Always center window to screen" is disabled
-				if (PlaySettingsConfig && !PlaySettingsConfig->CenterNewWindow)
+				if (!PlaySettingsConfig->CenterNewWindow)
 				{
 					PlaySettingsConfig->NewWindowPosition = PlaySettingsConfig->MultipleInstancePositions[WindowIndex];
 				}

@@ -40,6 +40,7 @@
   2. It looks like some linked object files have conflicting names (log_ps, exp_ps, etc). So adding the 
      prefix SseMath_ to all the functions.
 */
+#pragma once
 
 #include <xmmintrin.h>
 
