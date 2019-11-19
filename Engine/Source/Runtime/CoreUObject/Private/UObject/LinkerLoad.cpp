@@ -828,6 +828,7 @@ FLinkerLoad::FLinkerLoad(UPackage* InParent, const TCHAR* InFilename, uint32 InL
 , bForceSimpleIndexToObject(false)
 , bLockoutLegacyOperations(false)
 , bIsAsyncLoader(false)
+, bIsDestroyingLoader(false)
 , StructuredArchive(nullptr)
 , StructuredArchiveFormatter(nullptr)
 , Loader(nullptr)
@@ -1026,8 +1027,8 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateLoader(
 				bool bCanUseAsyncLoader = FPlatformProperties::RequiresCookedData() || GAllowCookedDataInEditorBuilds;
 				if (bCanUseAsyncLoader)
 				{
-					Loader = new FAsyncArchive(*Filename
-							, GEventDrivenLoaderEnabled ? Forward<TFunction<void()>>(InSummaryReadyCallback) : TFunction<void()>([]() {})
+					Loader = new FAsyncArchive(*Filename, this,
+							GEventDrivenLoaderEnabled ? Forward<TFunction<void()>>(InSummaryReadyCallback) : TFunction<void()>([]() {})
 						);
 				}
 				else
@@ -1043,8 +1044,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateLoader(
 
 				if (Loader->IsError())
 				{
-					delete Loader;
-					Loader = nullptr;
+					DestroyLoader();
 					UE_LOG(LogLinker, Warning, TEXT("Error opening file '%s'."), *Filename);
 					return LINKER_Failed;
 				}
@@ -1060,8 +1060,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateLoader(
 					uint32	BufferSize = Loader->TotalSize();
 					void*	Buffer = FMemory::Malloc(BufferSize);
 					Loader->Serialize(Buffer, BufferSize);
-					delete Loader;
-					Loader = nullptr;
+					DestroyLoader();
 					if (bHasHashEntry)
 					{
 						// create buffer reader and spawn SHA verify when it gets closed
@@ -1115,8 +1114,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateLoader(
 				int64 Size = Loader->TotalSize();
 				if (Size <= 0)
 				{
-					delete Loader;
-					Loader = nullptr;
+					DestroyLoader();
 					UE_LOG(LogLinker, Warning, TEXT("Error opening file '%s'."), *Filename);
 					return LINKER_Failed;
 				}
@@ -4886,6 +4884,19 @@ void FLinkerLoad::LoadAndDetachAllBulkData()
 #endif
 }
 
+void FLinkerLoad::DestroyLoader()
+{
+	check(!bIsDestroyingLoader); // Destroying loader recursively is not safe
+	bIsDestroyingLoader = true; // Some archives check for this to make sure they're not destroyed by random code
+	FPlatformMisc::MemoryBarrier();
+	if (Loader)
+	{
+		delete Loader;
+		Loader = nullptr;
+	}
+	bIsDestroyingLoader = false;
+}
+
 void FLinkerLoad::Detach()
 {
 #if WITH_EDITOR
@@ -4922,11 +4933,7 @@ void FLinkerLoad::Detach()
 	delete StructuredArchiveFormatter;
 	StructuredArchiveFormatter = nullptr;
 
-	if (Loader)
-	{
-		delete Loader;
-		Loader = nullptr;
-	}
+	DestroyLoader();
 
 	// Empty out no longer used arrays.
 	NameMap.Empty();

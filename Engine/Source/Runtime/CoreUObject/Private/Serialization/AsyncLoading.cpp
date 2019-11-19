@@ -7116,7 +7116,7 @@ static FAutoConsoleCommand GDumpSerializeCmd(
 
 static FCriticalSection SummaryRacePreventer;
 
-FAsyncArchive::FAsyncArchive(const TCHAR* InFileName, TFunction<void()>&& InSummaryReadyCallback)
+FAsyncArchive::FAsyncArchive(const TCHAR* InFileName, FLinkerLoad* InOwner, TFunction<void()>&& InSummaryReadyCallback)
 	: Handle(nullptr)
 	, SizeRequestPtr(nullptr)
 	, EditorPrecacheRequestPtr(nullptr)
@@ -7140,6 +7140,7 @@ FAsyncArchive::FAsyncArchive(const TCHAR* InFileName, TFunction<void()>&& InSumm
 	, SummaryReadTime(0.0)
 	, ExportReadTime(0.0)
 	, SummaryReadyCallback(Forward<TFunction<void()>>(InSummaryReadyCallback))
+	, OwnerLinker(InOwner)
 {
 	LogItem(TEXT("Open"));
 	Handle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(InFileName);
@@ -7165,6 +7166,9 @@ FAsyncArchive::FAsyncArchive(const TCHAR* InFileName, TFunction<void()>&& InSumm
 
 FAsyncArchive::~FAsyncArchive()
 {
+	UE_CLOG(OwnerLinker && !(OwnerLinker->GetLoader_Unsafe() == this && OwnerLinker->IsDestroyingLoader()), LogStreaming, Fatal,
+		TEXT("Destroying FAsyncArchive %s that belongs to linker %s outside of the linker's DestroyLoader code!"), *GetArchiveName(), *OwnerLinker->GetArchiveName());
+
 	// Invalidate any precached data and free memory.
 	FlushCache();
 	if (Handle)

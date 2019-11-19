@@ -137,6 +137,9 @@ public:
 
 private:
 
+	/** True if the linker is currently deleting loader */
+	bool					bIsDestroyingLoader;
+
 	/** Structured archive interface. Wraps underlying loader to provide contextual metadata to the values being written
 	 *  which ultimately allows text based serialization of the data
 	 */
@@ -169,10 +172,11 @@ public:
 		return Loader != nullptr;
 	}
 
-	void DestroyLoader()
+	void DestroyLoader();
+
+	FORCEINLINE bool IsDestroyingLoader() const
 	{
-		delete Loader;
-		Loader = nullptr;
+		return bIsDestroyingLoader;
 	}
 
 	/** The async package associated with this linker */
