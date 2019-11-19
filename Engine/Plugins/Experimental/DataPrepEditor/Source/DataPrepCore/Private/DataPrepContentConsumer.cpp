@@ -93,6 +93,31 @@ bool UDataprepContentConsumer::SetTargetContentFolder(const FString& InTargetCon
 	return bValidContentFolder;
 }
 
+FString UDataprepContentConsumer::GetTargetPackagePath() const
+{
+	FString TargetPackagePath(TargetContentFolder);
+
+	if( TargetPackagePath.IsEmpty() )
+	{
+		TargetPackagePath = TEXT("/Game/");
+	}
+	else if( TargetPackagePath.StartsWith( TEXT("/Content") ) )
+	{
+		TargetPackagePath = TargetPackagePath.Replace( TEXT("/Content"), TEXT("/Game") );
+	}
+
+	// If path is one level deep, make sure it ends with a '/'
+	int32 Index = -1;
+	TargetPackagePath.FindLastChar(L'/', Index);
+	check(Index >= 0);
+	if(Index == 0)
+	{
+		TargetPackagePath.Append( TEXT("/") );
+	}
+
+	return TargetPackagePath;
+}
+
 bool UDataprepContentConsumer::SetLevelName(const FString & InLevelName, FText& OutReason)
 {
 	OutReason = LOCTEXT( "DataprepContentConsumer_SetLevelName", "Not implemented" );
