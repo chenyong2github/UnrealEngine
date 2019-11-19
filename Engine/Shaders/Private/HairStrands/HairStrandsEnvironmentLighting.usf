@@ -75,6 +75,8 @@ Texture3D<float4>			HairEnergyLUTTexture;
 SamplerState 				HairLUTSampler;
 
 float HairDistanceThreshold;
+uint bHairUseViewHairCount;
+Texture2D<float> HairCountTexture;
 
 uint  MultipleScatterSampleCount;
 uint  JitterSphericalIntegration;
@@ -392,7 +394,11 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 			// For TT, we don't want to abort the hair counting, as this is important to get the proper transmission
 			const float DistanceThresholdTT = 100000;
 			const float DensityScaleFactor = 2;
-			const float HairCount = InternalComputeHairCountVoxel(SampleWorldPosition, L, Voxel_MinAABB, Voxel_MaxAABB, Voxel_Resolution, Voxel_DensityTexture, Voxel_DensityScale * DensityScaleFactor, 0, DistanceThresholdTT, false);
+			float HairCount = 0;
+			if (bHairUseViewHairCount)
+				HairCount = HairCountTexture.Load(uint3(SvPosition.xy, 0)) * DensityScaleFactor;
+			else
+				HairCount = InternalComputeHairCountVoxel(SampleWorldPosition, L, Voxel_MinAABB, Voxel_MaxAABB, Voxel_Resolution, Voxel_DensityTexture, Voxel_DensityScale * DensityScaleFactor, 0, DistanceThresholdTT, false);
 			Transmittance = ComputeTransmittanceFromHairCount(HairCount, GBuffer, SinLightAngle, HairScatteringLUTTexture, HairLUTSampler);
 		}
 
