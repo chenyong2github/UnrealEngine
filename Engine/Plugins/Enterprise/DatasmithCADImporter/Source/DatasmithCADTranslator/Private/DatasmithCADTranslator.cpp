@@ -77,7 +77,10 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 	}
 
 	ImportParameters.ModelCoordSys = CADLibrary::EModelCoordSystem::ZUp_RightHanded;
-	if (FileExtension == TEXT("sldprt") || FileExtension == TEXT("sldasm") || FileExtension == TEXT("iam") || FileExtension == TEXT("ipt"))
+	if (FileExtension == TEXT("sldprt") || FileExtension == TEXT("sldasm") || // Solidworks
+		FileExtension == TEXT("iam") || FileExtension == TEXT("ipt") || // Inventor
+		FileExtension.StartsWith(TEXT("asm")) || FileExtension.StartsWith(TEXT("creo")) || FileExtension.StartsWith(TEXT("prt")) // Creo
+		)
 	{
 		ImportParameters.ModelCoordSys = CADLibrary::EModelCoordSystem::YUp_RightHanded;
 		ImportParameters.DisplayPreference = CADLibrary::EDisplayPreference::ColorOnly;
