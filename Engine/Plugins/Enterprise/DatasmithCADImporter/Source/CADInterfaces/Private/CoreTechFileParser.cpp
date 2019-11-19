@@ -490,13 +490,13 @@ void FCoreTechFileParser::ReadMaterials()
 	}
 }
 
-FCoreTechFileParser::FCoreTechFileParser(const FString& InCADFullPath, const FString& InCachePath, const FImportParameters& ImportParams)
+FCoreTechFileParser::FCoreTechFileParser(const FString& InCADFullPath, const FString& InCachePath, const FImportParameters& ImportParams, const TCHAR* KernelIOPath)
 	: CachePath(InCachePath)
 	, FullPath(InCADFullPath)
 	, bNeedSaveCTFile(false)
 	, ImportParameters(ImportParams)
 {
-	CTKIO_InitializeKernel(ImportParameters.MetricUnit);
+	CTKIO_InitializeKernel(ImportParameters.MetricUnit, KernelIOPath);
 }
 
 FCoreTechFileParser::EProcessResult FCoreTechFileParser::ProcessFile()
@@ -531,6 +531,7 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ProcessFile()
 	MeshArchiveFilePath = FPaths::Combine(CachePath, TEXT("mesh"), MeshArchiveFile + TEXT(".gm"));
 
 	bool bNeedToProceed = true;
+#ifndef IGNORE_CACHE
 	if (IFileManager::Get().FileExists(*SceneGraphArchiveFilePath))
 	{
 		if (!IFileManager::Get().FileExists(*CTFilePath)) // the file is scene graph only because no CT file
@@ -553,7 +554,7 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ProcessFile()
 		LoadSceneGraphArchive(SceneGraphArchiveFilePath);
 		return EProcessResult::ProcessOk;
 	}
-
+#endif
 	// Process the file
 	return ReadFileWithKernelIO();
 }
