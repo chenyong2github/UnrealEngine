@@ -279,19 +279,13 @@ namespace ClothingMeshUtils
 		}
 	}
 
+	// TODO: Vertex normals are not used at present, a future improved algorithm might however
 	FVector4 GetPointBaryAndDist(const FVector& A, const FVector& B, const FVector& C, const FVector& NA, const FVector& NB, const FVector& NC, const FVector& Point)
 	{
 		FPlane TrianglePlane(A, B, C);
 		const FVector PointOnTriPlane = FVector::PointPlaneProject(Point, TrianglePlane);
 		const FVector BaryCoords = FMath::ComputeBaryCentric2D(PointOnTriPlane, A, B, C);
-		const FVector NormalAtPoint = TrianglePlane;
-		FVector TriPointToVert = Point - PointOnTriPlane;
-		TriPointToVert = TriPointToVert.ProjectOnTo(NormalAtPoint);
-		float Dist = TriPointToVert.Size();
-
-		float Sign = TrianglePlane.PlaneDot(Point) < 0.0f ? -1.0f : 1.0f;
-
-		return FVector4(BaryCoords, TrianglePlane.PlaneDot(Point));
+		return FVector4(BaryCoords, TrianglePlane.PlaneDot(Point)); // Note: The normal of the plane points away from the Clockwise face (instead of the counter clockwise face) in Left Handed Coordinates (This is why we need to invert the normals later on when before sending it to the shader)
 	}
 
 	void GenerateEmbeddedPositions(const ClothMeshDesc& SourceMesh, TArrayView<const FVector> Positions, TArray<FVector4>& OutEmbeddedPositions, TArray<int32>& OutSourceIndices)

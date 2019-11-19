@@ -126,6 +126,9 @@ namespace Chaos
 		TArray<Chaos::TVector<int32, 2>> GetUniqueAdjacentPoints();
 		TArray<Chaos::TVector<int32, 4>> GetUniqueAdjacentElements();
 
+		/** The GetFaceNormals functions assume Counter Clockwise triangle windings in a Left Handed coordinate system
+			If this is not the case the returned face normals may be inverted
+		*/
 		TArray<TVector<T, 3>> GetFaceNormals(const TArrayView<const TVector<T, 3>>& Points, const bool ReturnEmptyOnError = true) const;
 		void GetFaceNormals(TArray<TVector<T, 3>>& Normals, const TArrayView<const TVector<T, 3>>& Points, const bool ReturnEmptyOnError = true) const;
 		/** Deprecated. Use TArrayView version. */
