@@ -101,7 +101,7 @@ public:
 	bool bOnlyFrontFacingTriangles;
 
 	/** Size of vertex points drawn when mesh painting is active. */
-	UPROPERTY(EditAnywhere, Category = Visualization)
+	UPROPERTY(EditAnywhere, Category = "VertexPainting|Visualization")
 	float VertexPreviewSize;
 
 	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
