@@ -182,10 +182,13 @@ void UPlaneCutTool::UpdateNumPreviews()
 			CutSide->ComponentIndex = SrcIdx;
 			UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(NewObject<UMeshOpPreviewWithBackgroundCompute>(CutSide, "Preview"));
 			Preview->Setup(this->TargetWorld, CutSide);
-			Preview->ConfigureMaterials(
-				ToolSetupUtil::GetDefaultMaterial(GetToolManager(), ComponentTargets[SrcIdx]->GetMaterial(0)),
+
+			FComponentMaterialSet MaterialSet;
+			ComponentTargets[SrcIdx]->GetMaterialSet(MaterialSet);
+			Preview->ConfigureMaterials(MaterialSet.Materials,
 				ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 			);
+
 			// set initial preview to un-processed mesh, so stuff doesn't just disappear if the first cut takes a while
 			Preview->PreviewMesh->UpdatePreview(OriginalDynamicMeshes[SrcIdx].Get());
 			Preview->PreviewMesh->SetTransform(ComponentTargets[SrcIdx]->GetWorldTransform());

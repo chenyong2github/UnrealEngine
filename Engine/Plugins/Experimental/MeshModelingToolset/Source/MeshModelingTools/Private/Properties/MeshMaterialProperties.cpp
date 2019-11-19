@@ -59,23 +59,19 @@ void UExistingMeshMaterialProperties::UpdateMaterials()
 	}
 }
 
-void UExistingMeshMaterialProperties::SetMaterialIfChanged(UMaterialInterface* OriginalMaterial, UMaterialInterface* CurrentMaterial, TFunctionRef<void(UMaterialInterface* Material)> SetMaterialFn)
+
+UMaterialInterface* UExistingMeshMaterialProperties::GetActiveOverrideMaterial() const
 {
-	UMaterialInterface *Material = OriginalMaterial;
 	if (MaterialMode == ESetMeshMaterialMode::Checkerboard && CheckerMaterial != nullptr)
 	{
-		Material = CheckerMaterial;
+		return CheckerMaterial;
 	}
-	else if (MaterialMode == ESetMeshMaterialMode::Override && OverrideMaterial != nullptr)
+	if (MaterialMode == ESetMeshMaterialMode::Override && OverrideMaterial != nullptr)
 	{
-		Material = OverrideMaterial;
+		return OverrideMaterial;
 	}
-	if (CurrentMaterial != Material)
-	{
-		SetMaterialFn(Material);
-	}
+	return nullptr;
 }
-
 
 
 

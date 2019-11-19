@@ -85,15 +85,14 @@ void USmoothMeshTool::Setup()
 		Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
 		Preview->Setup(this->TargetWorld, this); // Adds the actual functional tool in the Preview object
 
-		Preview->PreviewMesh->UpdatePreview(&SrcDynamicMesh);
-		Preview->PreviewMesh->SetTransform(ComponentTarget->GetWorldTransform());
-
-	auto Material = ComponentTarget->GetMaterial(0);
-
-		Preview->ConfigureMaterials(
-			ToolSetupUtil::GetDefaultMaterial(GetToolManager(), Material),
+		FComponentMaterialSet MaterialSet;
+		ComponentTarget->GetMaterialSet(MaterialSet);
+		Preview->ConfigureMaterials(MaterialSet.Materials,
 			ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 		);
+
+		Preview->PreviewMesh->SetTransform(ComponentTarget->GetWorldTransform());
+		Preview->PreviewMesh->UpdatePreview(&SrcDynamicMesh);
 	}
 
 	// show the preview mesh

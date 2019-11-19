@@ -52,11 +52,18 @@ void UMeshOpPreviewWithBackgroundCompute::Tick(float DeltaTime)
 
 	if (bResultValid || WorkingMaterial == nullptr || bIsLongDelay == false)
 	{
-		PreviewMesh->SetMaterial(StandardMaterial);
+		if (OverrideMaterial != nullptr)
+		{
+			PreviewMesh->SetOverrideRenderMaterial(OverrideMaterial);
+		}
+		else
+		{
+			PreviewMesh->ClearOverrideRenderMaterial();
+		}
 	}
 	else
 	{
-		PreviewMesh->SetMaterial(WorkingMaterial);
+		PreviewMesh->SetOverrideRenderMaterial(WorkingMaterial);
 	}
 }
 
@@ -87,12 +94,20 @@ void UMeshOpPreviewWithBackgroundCompute::InvalidateResult()
 
 void UMeshOpPreviewWithBackgroundCompute::ConfigureMaterials(UMaterialInterface* StandardMaterialIn, UMaterialInterface* WorkingMaterialIn)
 {
-	this->StandardMaterial = StandardMaterialIn;
+	TArray<UMaterialInterface*> Materials;
+	Materials.Add(StandardMaterialIn);
+	ConfigureMaterials(Materials, WorkingMaterialIn);
+}
+
+
+void UMeshOpPreviewWithBackgroundCompute::ConfigureMaterials(TArray<UMaterialInterface*> StandardMaterialsIn, UMaterialInterface* WorkingMaterialIn)
+{
+	this->StandardMaterials = StandardMaterialsIn;
 	this->WorkingMaterial = WorkingMaterialIn;
 
 	if (PreviewMesh != nullptr)
 	{
-		PreviewMesh->SetMaterial(this->StandardMaterial);
+		PreviewMesh->SetMaterials(this->StandardMaterials);
 	}
 }
 

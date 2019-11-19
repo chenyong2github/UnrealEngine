@@ -164,10 +164,13 @@ void UPolygonOnMeshTool::UpdateNumPreviews()
 			// TODO: give the OpFactory more info about what specifically it is doing differently vs the other previews
 			UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(NewObject<UMeshOpPreviewWithBackgroundCompute>(OpFactory, "Preview"));
 			Preview->Setup(this->TargetWorld, OpFactory);
-			Preview->ConfigureMaterials(
-				ToolSetupUtil::GetDefaultMaterial(GetToolManager(), ComponentTarget->GetMaterial(0)),
+
+			FComponentMaterialSet MaterialSet;
+			ComponentTarget->GetMaterialSet(MaterialSet);
+			Preview->ConfigureMaterials(MaterialSet.Materials,
 				ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 			);
+
 			Preview->SetVisibility(true);
 		}
 	}

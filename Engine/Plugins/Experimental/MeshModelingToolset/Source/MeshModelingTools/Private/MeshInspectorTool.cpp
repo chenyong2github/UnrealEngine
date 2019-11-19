@@ -288,18 +288,15 @@ void UMeshInspectorTool::OnPropertyModified(UObject* PropertySet, UProperty* Pro
 	PreviewMesh->EnableWireframe(Settings->bWireframe);
 	
 	MaterialSettings->UpdateMaterials();
-	MaterialSettings->SetMaterialIfChanged(DefaultMaterial, PreviewMesh->GetActiveMaterial(0),
-		[this](UMaterialInterface* Material)
+	UMaterialInterface* OverrideMaterial = MaterialSettings->GetActiveOverrideMaterial();
+	if (OverrideMaterial == nullptr)
 	{
-		if (Material == DefaultMaterial)
-		{
-			PreviewMesh->ClearOverrideRenderMaterial();
-		}
-		else
-		{
-			PreviewMesh->SetOverrideRenderMaterial(Material);
-		}
-	});
+		PreviewMesh->ClearOverrideRenderMaterial();
+	}
+	else
+	{
+		PreviewMesh->SetOverrideRenderMaterial(OverrideMaterial);
+	}
 }
 
 

@@ -262,10 +262,12 @@ void UMeshSpaceDeformerTool::Setup()
 		Preview->PreviewMesh->UpdatePreview(OriginalDynamicMesh.Get());
 		Preview->PreviewMesh->SetTransform(ComponentTarget->GetWorldTransform());
 
-		Preview->ConfigureMaterials(
-			ToolSetupUtil::GetDefaultMaterial(GetToolManager(), ComponentTarget->GetMaterial(0)),
+		FComponentMaterialSet MaterialSet;
+		ComponentTarget->GetMaterialSet(MaterialSet);
+		Preview->ConfigureMaterials(MaterialSet.Materials,
 			ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 		);
+
 		// show the preview mesh
 		Preview->SetVisibility(true);
 
