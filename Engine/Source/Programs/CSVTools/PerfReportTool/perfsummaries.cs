@@ -1701,7 +1701,7 @@ namespace PerfSummaries
 				// Check if the file exists in the output directory
 				htmlFile.WriteLine("  <br><h3>" + title + "</h3>");
 				htmlFile.WriteLine("<svg version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' width='" + imageWidth + "' height='" + imageHeight + "'>");
-				htmlFile.WriteLine("<image href='" + outputMapFilename + "' width='" + imageWidth + "' height='" + imageHeight + "' />");
+				htmlFile.WriteLine("<image href='" + destImageFilename + "' width='" + imageWidth + "' height='" + imageHeight + "' />");
 
 				// Draw the overlays
 				foreach (MapOverlay overlay in overlays)
