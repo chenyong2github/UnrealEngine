@@ -224,7 +224,7 @@ namespace Chaos
 		TVector<T, d> LocalNormal;
 		T LocalPhi = Object.PhiWithNormal(LocalPoint, LocalNormal);
 
-		TContactData<T, d> & Contact = Constraint.ShapeManifold.Manifold;
+		TConvexManifold<T, d> & Contact = Constraint.ShapeManifold;
 		if (LocalPhi < Contact.Phi)
 		{
 			Contact.Phi = LocalPhi;
@@ -242,7 +242,7 @@ namespace Chaos
 		TVector<T, d> LocalNormal;
 		T LocalPhi = Object.PhiWithNormal(LocalPoint, LocalNormal);
 
-		TContactData<T, d> & Contact = Constraint.ShapeManifold.Manifold;
+		TConvexManifold<T, d> & Contact = Constraint.ShapeManifold;
 		if (LocalPhi < Contact.Phi)
 		{
 			Contact.Phi = LocalPhi;
@@ -259,7 +259,7 @@ namespace Chaos
 		T LocalPhi = Object.PhiWithNormal(LocalPoint, LocalNormal);
 		T LocalThickness = LocalPhi - Thickness;
 
-		TContactData<T, d> & Contact = Constraint.ShapeManifold.Manifold;
+		TConvexManifold<T, d> & Contact = Constraint.ShapeManifold;
 		if (LocalThickness < -KINDA_SMALL_NUMBER)
 		{
 			Contact.Location += LocalPoint * LocalThickness;
@@ -289,8 +289,8 @@ namespace Chaos
 		SCOPE_CYCLE_COUNTER(STAT_SampleObject);
 		TRigidBodyContactConstraint<float, 3> AvgConstraint = Constraint;
 
-		TContactData<float, 3> & Contact = Constraint.ShapeManifold.Manifold;
-		TContactData<float, 3> & AvgContact = AvgConstraint.ShapeManifold.Manifold;
+		TConvexManifold<float, 3> & Contact = Constraint.ShapeManifold;
+		TConvexManifold<float, 3> & AvgContact = AvgConstraint.ShapeManifold;
 
 		AvgConstraint.Particle[0] = Constraint.Particle[0];
 		AvgConstraint.Particle[1] = Constraint.Particle[1];
@@ -399,8 +399,8 @@ namespace Chaos
 		SCOPE_CYCLE_COUNTER(STAT_SampleObject);
 		TRigidBodyContactConstraint<float, 3> AvgConstraint = Constraint;
 
-		TContactData<float, 3> & Contact = Constraint.ShapeManifold.Manifold;
-		TContactData<float, 3> & AvgContact = AvgConstraint.ShapeManifold.Manifold;
+		TConvexManifold<float, 3> & Contact = Constraint.ShapeManifold;
+		TConvexManifold<float, 3> & AvgContact = AvgConstraint.ShapeManifold;
 
 		AvgConstraint.Particle[0] = Constraint.Particle[0];
 		AvgConstraint.Particle[1] = Constraint.Particle[1];
@@ -823,7 +823,7 @@ namespace Chaos
 	template <typename T, int d>
 	bool UpdateBoxPlaneConstraint(const TBox<T, d>& Box, const TRigidTransform<T, d>& BoxTransform, const TPlane<T, d>& Plane, const TRigidTransform<T, d>& PlaneTransform, T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
 	{
-		TContactData<T, d> & Contact = Constraint.ShapeManifold.Manifold;
+		TConvexManifold<T, d> & Contact = Constraint.ShapeManifold;
 
 #if USING_CODE_ANALYSIS
 		MSVC_PRAGMA(warning(push))
@@ -885,7 +885,7 @@ namespace Chaos
 	template <typename T, int d>
 	void UpdateSphereConstraint(const TSphere<T, d>& Sphere1, const TRigidTransform<T, d>& Sphere1Transform, const TSphere<T, d>& Sphere2, const TRigidTransform<T, d>& Sphere2Transform, T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
 	{
-		TContactData<T, d> & Contact = Constraint.ShapeManifold.Manifold;
+		TConvexManifold<T, d> & Contact = Constraint.ShapeManifold;
 
 		const TVector<T, d> Center1 = Sphere1Transform.TransformPosition(Sphere1.GetCenter());
 		const TVector<T, d> Center2 = Sphere2Transform.TransformPosition(Sphere2.GetCenter());
@@ -903,7 +903,7 @@ namespace Chaos
 	template <typename T, int d>
 	void UpdateSpherePlaneConstraint(const TSphere<T, d>& Sphere, const TRigidTransform<T, d>& SphereTransform, const TPlane<T, d>& Plane, const TRigidTransform<T, d>& PlaneTransform, T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
 	{
-		TContactData<T, d> & Contact = Constraint.ShapeManifold.Manifold;
+		TConvexManifold<T, d> & Contact = Constraint.ShapeManifold;
 
 		const TRigidTransform<T, d> SphereToPlaneTransform(PlaneTransform.Inverse() * SphereTransform);
 		const TVector<T, d> SphereCenter = SphereToPlaneTransform.TransformPosition(Sphere.GetCenter());
@@ -923,7 +923,7 @@ namespace Chaos
 	template <typename T, int d>
 	void UpdateSphereBoxConstraint(const TSphere<T, d>& Sphere, const TRigidTransform<T, d>& SphereTransform, const TBox<T, d>& Box, const TRigidTransform<T, d>& BoxTransform, T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
 	{
-		TContactData<T, d> & Contact = Constraint.ShapeManifold.Manifold;
+		TConvexManifold<T, d> & Contact = Constraint.ShapeManifold;
 
 		const TRigidTransform<T, d> SphereToBoxTransform(SphereTransform * BoxTransform.Inverse());
 		const TVector<T, d> SphereCenterInBox = SphereToBoxTransform.TransformPosition(Sphere.GetCenter());
@@ -943,7 +943,7 @@ namespace Chaos
 	template <typename T, int d>
 	void UpdateCapsuleCapsuleConstraint(const TCapsule<T>& A, const TRigidTransform<T, d>& ATransform, const TCapsule<T>& B, const TRigidTransform<T, d>& BTransform, T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
 	{
-		TContactData<T, d> & Contact = Constraint.ShapeManifold.Manifold;
+		TConvexManifold<T, d> & Contact = Constraint.ShapeManifold;
 
 		FVector A1 = ATransform.TransformPosition(A.GetX1());
 		FVector A2 = ATransform.TransformPosition(A.GetX2());
@@ -971,7 +971,7 @@ namespace Chaos
 	void UpdateCapsuleBoxConstraint(const TCapsule<T>& A, const TRigidTransform<T, d>& ATransform, const TBox<T, d>& B, const TRigidTransform<T, d>& BTransform, T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
 	{
 		// @todo(ccaulfield): Add custom capsule-box collision
-		TContactData<T, d> & Contact = Constraint.ShapeManifold.Manifold;
+		TConvexManifold<T, d> & Contact = Constraint.ShapeManifold;
 
 		TRigidTransform<T, d> BToATransform = BTransform.GetRelativeTransform(ATransform);
 
@@ -1223,7 +1223,7 @@ namespace Chaos
 	template <typename T, int d>
 	void UpdateBoxConstraint(const TBox<T, d>& Box1, const TRigidTransform<T, d>& Box1Transform, const TBox<T, d>& Box2, const TRigidTransform<T, d>& Box2Transform, T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
 	{
-		TContactData<T, d> & Contact = Constraint.ShapeManifold.Manifold;
+		TConvexManifold<T, d> & Contact = Constraint.ShapeManifold;
 
 		TBox<T, d> Box2SpaceBox1 = Box1.TransformedBox(Box1Transform * Box2Transform.Inverse());
 		TBox<T, d> Box1SpaceBox2 = Box2.TransformedBox(Box2Transform * Box1Transform.Inverse());
