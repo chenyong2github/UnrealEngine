@@ -1751,7 +1751,7 @@ public partial class Project : CommandUtils
 				Src.HasExtension(".ubulkmanifest") ||
 				Src.HasExtension(".uglimport") ||
 				Src.HasExtension(".unamemap") ||
-				Src.HasExtension(".uscriptarc") ||
+				Src.HasExtension(".uscriptarcs") ||
 				Src.HasExtension(".uslimport") ||
 				Src.HasExtension(".ustoretoc"))
 			{
