@@ -465,6 +465,9 @@ public:
 	 */
 	static bool IsSamePath(const FString& PathA, const FString& PathB);
 
+	/** Determines if a path is under a given directory */
+	static bool IsUnderDirectory(const FString& InPath, const FString& InDirectory);
+
 	/** Normalize all / and \ to TEXT("/") and remove any trailing TEXT("/") if the character before that is not a TEXT("/") or a colon */
 	static void NormalizeDirectoryName(FString& InPath);
 
