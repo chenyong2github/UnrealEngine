@@ -6,8 +6,6 @@
 
 #pragma once 
 
-#include "VulkanGlobals.h"
-
 class FVulkanTexture2D;
 class FVulkanFramebuffer;
 class FVulkanDevice;
