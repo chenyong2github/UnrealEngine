@@ -23,6 +23,6 @@ public:
 	/** Get the currently selected object set */
 	virtual int32 GetObjectSetIndex() const = 0;
 
-	virtual void SwitchAndFilterPage(int32 Table, FString FilterValue, FString FilterProperty) = 0;
+	virtual void SwitchAndFilterPage(int32 Table, const FString& FilterValue, const FString& FilterProperty) = 0;
 };
 
