@@ -65,7 +65,8 @@ public:
 	using FConstraintHandleID = TPair<const TGeometryParticleHandle<T, d>*, const TGeometryParticleHandle<T, d>*>;
 	using FConstraintContainerHandle = TPBDCollisionConstraintHandle<T, d>; // @todo(brice) rename this to FCollisionConstraintHandle
 	using FConstraintHandleAllocator = TConstraintHandleAllocator<TPBDCollisionConstraint<T, d>>;
-	using FRigidBodyContactConstraint = TRigidBodySingleContactConstraint<T, d>;
+ 	using FPointContactConstraint = TRigidBodyPointContactConstraint<T, d>;
+	using FPlaneContactConstraint = TRigidBodyPlaneContactConstraint<T, d>;
 	using FHandles = TArray<FConstraintContainerHandle*>;
 
 	TPBDCollisionConstraint(const TPBDRigidsSOAs<T,d>& InParticles, TArrayCollectionArray<bool>& Collided, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterials, const int32 ApplyPairIterations = 1, const int32 ApplyPushOutPairIterations = 1, const T Thickness = (T)0);
@@ -102,10 +103,10 @@ public:
 
 	int32 NumConstraints() const
 	{
-		return Constraints.Num();
+		return Handles.Num();
 	}
 
-	FConstraintHandleID GetConstraintHandleID(const FRigidBodyContactConstraint & Constraint) const
+	FConstraintHandleID GetConstraintHandleID(const FPointContactConstraint & Constraint) const
 	{
 		return  FConstraintHandleID( Constraint.Particle[0], Constraint.Particle[1] );
 	}
@@ -201,27 +202,28 @@ private:
 	*/
 	void Reset( );
 
-	void Apply(const T Dt, FRigidBodyContactConstraint& Constraint, const int32 It, const int32 NumIts);
+	void Apply(const T Dt, FPointContactConstraint& Constraint, const int32 It, const int32 NumIts);
 
 
-	void ApplyPushOut(const T Dt, FRigidBodyContactConstraint& Constraint, const TSet<const TGeometryParticleHandle<T, d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations, bool &NeedsAnotherIteration);
+	void ApplyPushOut(const T Dt, FPointContactConstraint& Constraint, const TSet<const TGeometryParticleHandle<T, d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations, bool &NeedsAnotherIteration);
 
 	template <bool bGatherStats = false>
 	void ComputeConstraints(const FAccelerationStructure& AccelerationStructure, T Dt);
 
 	template<ECollisionUpdateType>
-	void UpdateConstraint(const T Thickness, FRigidBodyContactConstraint& Constraint);
+	void UpdateConstraint(const T Thickness, FPointContactConstraint& Constraint);
 
-	void ConstructConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const T Thickness, TRigidBodySingleContactConstraint<T, d> & Constraint);
+	void ConstructConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const T Thickness, TRigidBodyPointContactConstraint<T, d> & Constraint);
 
 
 	const TPBDRigidsSOAs<T,d>& Particles;
 
+	TArray<FPointContactConstraint> PointConstraints;
+	TArray<FPlaneContactConstraint> PlaneConstraints;
 
+	TMap< FConstraintHandleID, FConstraintContainerHandle* > Manifolds;
 	TArray<FConstraintContainerHandle*> Handles;
 	FConstraintHandleAllocator HandleAllocator;
-	TMap< FConstraintHandleID, FConstraintContainerHandle* > Manifolds;
-	TArray<FRigidBodyContactConstraint> Constraints;
 
 	TArrayCollectionArray<bool>& MCollided;
 	const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& MPhysicsMaterials;
@@ -243,8 +245,8 @@ private:
 	const FAccelerationStructure* SpatialAcceleration;
 };
 
-extern template void TPBDCollisionConstraint<float, 3>::UpdateConstraint<ECollisionUpdateType::Any>(const float Thickness, FRigidBodyContactConstraint& Constraint);
-extern template void TPBDCollisionConstraint<float, 3>::UpdateConstraint<ECollisionUpdateType::Deepest>(const float Thickness, FRigidBodyContactConstraint& Constraint);
+extern template void TPBDCollisionConstraint<float, 3>::UpdateConstraint<ECollisionUpdateType::Any>(const float Thickness, FPointContactConstraint& Constraint);
+extern template void TPBDCollisionConstraint<float, 3>::UpdateConstraint<ECollisionUpdateType::Deepest>(const float Thickness, FPointContactConstraint& Constraint);
 extern template void TPBDCollisionConstraint<float, 3>::ComputeConstraints<false>(const TPBDCollisionConstraint<float, 3>::FAccelerationStructure&, float Dt);
 extern template void TPBDCollisionConstraint<float, 3>::ComputeConstraints<true>(const TPBDCollisionConstraint<float, 3>::FAccelerationStructure&, float Dt);
 }
