@@ -23,7 +23,7 @@ FVoicePacketBuffer::FVoicePacketBuffer(int32 BufferSize, int32 InNumSamplesUntil
 int32 FVoicePacketBuffer::PopAudio(float* DestBuffer, uint32 RequestedSamples)
 {
 #if DEBUG_POPPING
-	UE_LOG(LogTemp, Log, TEXT("Beginning to pop %d samples..."), RequestedSamples);
+	UE_LOG(LogAudio, Log, TEXT("Beginning to pop %d samples..."), RequestedSamples);
 #endif
 
 	uint32 DestBufferSampleIndex = 0;
@@ -32,7 +32,7 @@ int32 FVoicePacketBuffer::PopAudio(float* DestBuffer, uint32 RequestedSamples)
 	while (DestBufferSampleIndex < RequestedSamples)
 	{
 #if DEBUG_POPPING
-		UE_LOG(LogTemp, Log, TEXT("  Loop start, index %d "), DestBufferSampleIndex);
+		UE_LOG(LogAudio, Log, TEXT("  Loop start, index %d "), DestBufferSampleIndex);
 #endif
 		//If we don't have any data, output silence and short circuit.
 		if (ListHead == nullptr)
@@ -42,7 +42,9 @@ int32 FVoicePacketBuffer::PopAudio(float* DestBuffer, uint32 RequestedSamples)
 			DestBufferSampleIndex += RequestedSamples;
 			if (IdleSampleCounter > NumSamplesUntilIdling)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("Voip listener now idle."));
+#if DEBUG_POPPING
+				UE_LOG(LogAudio, Warning, TEXT("Voip listener now idle."));
+#endif
 				bIsIdle = true;
 			}
 
@@ -58,7 +60,7 @@ int32 FVoicePacketBuffer::PopAudio(float* DestBuffer, uint32 RequestedSamples)
 			const int32 SampleOffset = ListHead->StartSample - SampleCounter;
 			const int32 NumSilentSamples = FMath::Min(SampleOffset, (int32) (RequestedSamples - DestBufferSampleIndex));
 #if DEBUG_POPPING
-			UE_LOG(LogTemp, Log, TEXT("    Sample counter %d behind next packet. Injecting %d samples of silence."), SampleOffset, NumSilentSamples);
+			UE_LOG(LogAudio, Log, TEXT("    Sample counter %d behind next packet. Injecting %d samples of silence."), SampleOffset, NumSilentSamples);
 #endif
 			FMemory::Memset(&(DestBuffer[DestBufferSampleIndex]), 0, NumSilentSamples * sizeof(float));
 			DestBufferSampleIndex += NumSilentSamples;
@@ -66,7 +68,7 @@ int32 FVoicePacketBuffer::PopAudio(float* DestBuffer, uint32 RequestedSamples)
 			IdleSampleCounter += NumSilentSamples;
 			if (IdleSampleCounter > NumSamplesUntilIdling)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("Voip listener now idle."));
+				UE_LOG(LogAudio, Warning, TEXT("Voip listener now idle."));
 				bIsIdle = true;
 			}
 #endif
@@ -84,7 +86,7 @@ int32 FVoicePacketBuffer::PopAudio(float* DestBuffer, uint32 RequestedSamples)
 			DestBufferSampleIndex += NumSamplesLeftInPacketBuffer;
 #if DEBUG_POPPING
 			check((ListHead->SamplesLeft - NumSamplesLeftInPacketBuffer) == 0);
-			UE_LOG(LogTemp, Log, TEXT("    Copied %d samples from packet and reached end of packet."), NumSamplesLeftInPacketBuffer);
+			UE_LOG(LogAudio, Log, TEXT("    Copied %d samples from packet and reached end of packet."), NumSamplesLeftInPacketBuffer);
 #endif
 			//Delete this packet and move on to the next one.
 			FreedIndicesQueue.Enqueue(ListHead->IndexInPacketBuffer);
@@ -100,7 +102,7 @@ int32 FVoicePacketBuffer::PopAudio(float* DestBuffer, uint32 RequestedSamples)
 			FMemory::Memcpy(&(DestBuffer[DestBufferSampleIndex]), PacketBufferPtr, SamplesLeft * sizeof(float));
 #if DEBUG_POPPING
 			check(DestBufferSampleIndex + SamplesLeft == RequestedSamples);
-			UE_LOG(LogTemp, Log, TEXT("    Copied %d samples from packet and reached end of buffer."), SamplesLeft);
+			UE_LOG(LogAudio, Log, TEXT("    Copied %d samples from packet and reached end of buffer."), SamplesLeft);
 #endif
 			ListHead->SamplesLeft -= SamplesLeft;
 			SampleCounter += SamplesLeft;
@@ -109,12 +111,12 @@ int32 FVoicePacketBuffer::PopAudio(float* DestBuffer, uint32 RequestedSamples)
 			bIsIdle = false;
 		}
 #if DEBUG_POPPING
-		UE_LOG(LogTemp, Log, TEXT("  Ended loop with %d samples popped to buffer."), DestBufferSampleIndex);
+		UE_LOG(LogAudio, Log, TEXT("  Ended loop with %d samples popped to buffer."), DestBufferSampleIndex);
 #endif
 	}
 #if DEBUG_POPPING
 	check(DestBufferSampleIndex == RequestedSamples);
-	UE_LOG(LogTemp, Log, TEXT("Finished PopAudio."));
+	UE_LOG(LogAudio, Log, TEXT("Finished PopAudio."));
 #endif
 	return RequestedSamples - IdleSampleCounter;
 }
@@ -152,7 +154,7 @@ void FVoicePacketBuffer::PushPacket(const void* InBuffer, int32 NumBytes, uint64
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Voice packet buffer filled to capacity of %d packets; packet dropped."), PacketBuffer.Num());
+		UE_LOG(LogAudio, Warning, TEXT("Voice packet buffer filled to capacity of %d packets; packet dropped."), PacketBuffer.Num());
 		return;
 	}
 
@@ -209,13 +211,13 @@ void FVoicePacketBuffer::PushPacket(const void* InBuffer, int32 NumBytes, uint64
 	}
 
 #if DEBUG_SORTING
-	UE_LOG(LogTemp, Log, TEXT("Packet sort order: "));
+	UE_LOG(LogAudio, Log, TEXT("Packet sort order: "));
 	FSortedVoicePacketNode* PacketPtr = ListHead;
 	int32 LoggedPatcketIndex = 0;
 	uint64 CachedSampleStart = 0;
 	while (PacketPtr != nullptr)
 	{
-		UE_LOG(LogTemp, Log, TEXT("    Packet %d: Sample Start %d"), ++LoggedPatcketIndex, PacketPtr->StartSample);
+		UE_LOG(LogAudio, Log, TEXT("    Packet %d: Sample Start %d"), ++LoggedPatcketIndex, PacketPtr->StartSample);
 		check(PacketPtr->StartSample > CachedSampleStart);
 		CachedSampleStart = PacketPtr->StartSample;
 		PacketPtr = PacketPtr->NextPacket;
@@ -223,8 +225,8 @@ void FVoicePacketBuffer::PushPacket(const void* InBuffer, int32 NumBytes, uint64
 	if (LoggedPatcketIndex > 6)
 	{
 		//Put a breakpoint here to check out sample counts.
-		UE_LOG(LogTemp, Log, TEXT("Several Packets buffered."));
+		UE_LOG(LogAudio, Log, TEXT("Several Packets buffered."));
 	}
-	UE_LOG(LogTemp, Log, TEXT("End of packet list."));
+	UE_LOG(LogAudio, Log, TEXT("End of packet list."));
 #endif
 }
