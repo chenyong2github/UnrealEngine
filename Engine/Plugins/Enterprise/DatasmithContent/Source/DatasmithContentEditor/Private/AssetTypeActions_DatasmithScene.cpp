@@ -4,8 +4,7 @@
 
 #include "DatasmithAssetImportData.h"
 #include "DatasmithContentEditorModule.h"
-#include "DataprepAssetUserData.h"
-#include "DataprepCoreLibrary.h"
+#include "DatasmithScene.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
@@ -18,7 +17,7 @@ uint32 FAssetTypeActions_DatasmithScene::GetCategories()
 
 FText FAssetTypeActions_DatasmithScene::GetName() const
 {
-	return NSLOCTEXT("AssetTypeActions_DatasmithScene", "AssetTypeActions_DatasmithScene_Name", "Datasmith Scene");
+	return LOCTEXT("AssetTypeActions_DatasmithScene_Name", "Datasmith Scene");
 }
 
 UClass* FAssetTypeActions_DatasmithScene::GetSupportedClass() const
@@ -61,48 +60,6 @@ void FAssetTypeActions_DatasmithScene::OpenAssetEditor(const TArray<UObject*>& I
 		{
 			DatasmithSceneEditorHandler.ExecuteIfBound(EToolkitMode::Standalone, EditWithinLevelEditor, DatasmithScene);
 		}
-	}
-}
-
-void FAssetTypeActions_DatasmithScene::ExecuteDataprepAssets( TArray< TSoftObjectPtr< UDataprepAssetInterface > > DataprepAssets )
-{
-	for ( TSoftObjectPtr< UDataprepAssetInterface > DataprepAssetInterface : DataprepAssets ) 
-	{
-		UDataprepCoreLibrary::ExecuteWithReporting( DataprepAssetInterface.Get() );
-	}
-}
-
-void FAssetTypeActions_DatasmithScene::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
-{
-	auto DatasmithScenes = GetTypedWeakObjectPtrs<UDatasmithScene>( InObjects );
-
-	if ( DatasmithScenes.Num() == 0 )
-	{
-		return;
-	}
-
-	// Allow execute only if we have at least one valid dataprep asset pointer
-	TArray< TSoftObjectPtr< UDataprepAssetInterface > > DataprepAssets;
-	for ( TWeakObjectPtr< UDatasmithScene > Scene : DatasmithScenes )
-	{
-		UDataprepAssetUserData* DataprepAssetUserData = CastChecked< UDataprepAssetUserData >( Scene->GetAssetUserDataOfClass( UDataprepAssetUserData::StaticClass() ), ECastCheckedType::NullAllowed );
-		if (DataprepAssetUserData && DataprepAssetUserData->DataprepAssetPtr)
-		{
-			DataprepAssets.Add( DataprepAssetUserData->DataprepAssetPtr );
-		}
-	}
-
-	if ( DataprepAssets.Num() > 0 )
-	{
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("RunAsset", "Execute"),
-			LOCTEXT("RunAssetTooltip", "Runs the Dataprep asset's producers, execute its recipe, finally runs the consumer"),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateSP( this, &FAssetTypeActions_DatasmithScene::ExecuteDataprepAssets, DataprepAssets ),
-				FCanExecuteAction()
-			)
-		);
 	}
 }
 
