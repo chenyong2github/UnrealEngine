@@ -238,4 +238,70 @@ bool FLexTryParseStringTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringSubstringTest, "System.Core.String.Substring", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+bool FStringSubstringTest::RunTest(const FString& Parameters)
+{
+	auto DoTest = [this](const TCHAR* Call, const FString& Result, const TCHAR* InExpected)
+	{
+		if (!Result.Equals(InExpected, ESearchCase::CaseSensitive))
+		{
+			AddError(FString::Printf(TEXT("'%s' failure: result '%s' (expected '%s')"), Call, *Result, InExpected));
+		}
+	};
+
+	const FString TestString(TEXT("0123456789"));
+
+#define SUBSTRINGTEST(TestName, ExpectedResult, Operation, ...) \
+	FString TestName = TestString.Operation(__VA_ARGS__); \
+	DoTest(TEXT(#TestName), TestName, ExpectedResult); \
+	\
+	FString Inline##TestName = TestString; \
+	Inline##TestName.Operation##Inline(__VA_ARGS__); \
+	DoTest(TEXT("Inline" #TestName), Inline##TestName, ExpectedResult); 
+
+	// Left
+	SUBSTRINGTEST(Left, TEXT("0123"), Left, 4);
+	SUBSTRINGTEST(ExactLengthLeft, *TestString, Left, 10);
+	SUBSTRINGTEST(LongerThanLeft, *TestString, Left, 20);
+	SUBSTRINGTEST(ZeroLeft, TEXT(""), Left, 0);
+	SUBSTRINGTEST(NegativeLeft, TEXT(""), Left, -1);
+
+	// LeftChop
+	SUBSTRINGTEST(LeftChop, TEXT("012345"), LeftChop, 4);
+	SUBSTRINGTEST(ExactLengthLeftChop, TEXT(""), LeftChop, 10);
+	SUBSTRINGTEST(LongerThanLeftChop, TEXT(""), LeftChop, 20);
+	SUBSTRINGTEST(ZeroLeftChop, *TestString, LeftChop, 0);
+	SUBSTRINGTEST(NegativeLeftChop, *TestString, LeftChop, -1);
+
+	// Right
+	SUBSTRINGTEST(Right, TEXT("6789"), Right, 4);
+	SUBSTRINGTEST(ExactLengthRight, *TestString, Right, 10);
+	SUBSTRINGTEST(LongerThanRight, *TestString, Right, 20);
+	SUBSTRINGTEST(ZeroRight, TEXT(""), Right, 0);
+	SUBSTRINGTEST(NegativeRight, TEXT(""), Right, -1);
+
+	// RightChop
+	SUBSTRINGTEST(RightChop, TEXT("456789"), RightChop, 4);
+	SUBSTRINGTEST(ExactLengthRightChop, TEXT(""), RightChop, 10);
+	SUBSTRINGTEST(LongerThanRightChop, TEXT(""), RightChop, 20);
+	SUBSTRINGTEST(ZeroRightChop, *TestString, RightChop, 0);
+	SUBSTRINGTEST(NegativeRightChop, *TestString, RightChop, -1);
+
+	// Mid
+	SUBSTRINGTEST(Mid, TEXT("456789"), Mid, 4);
+	SUBSTRINGTEST(MidCount, TEXT("4567"), Mid, 4, 4);
+	SUBSTRINGTEST(MidCountFullLength, *TestString, Mid, 0, 10);
+	SUBSTRINGTEST(MidCountOffEnd, TEXT("89"), Mid, 8, 4);
+	SUBSTRINGTEST(MidStartAfterEnd, TEXT(""), Mid, 20);
+	SUBSTRINGTEST(MidZeroCount, TEXT(""), Mid, 5, 0);
+	SUBSTRINGTEST(MidNegativeCount, TEXT(""), Mid, 5, -1);
+	SUBSTRINGTEST(MidNegativeStartNegativeEnd, TEXT(""), Mid, -5, 1);
+	SUBSTRINGTEST(MidNegativeStartPositiveEnd, TEXT("012"), Mid, -1, 4);
+	SUBSTRINGTEST(MidNegativeStartBeyondEnd, *TestString, Mid, -1, 15);
+
+#undef SUBSTRINGTEST
+
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS
