@@ -8,8 +8,6 @@
 
 #include "GPUProfiler.h"
 
-#include "Serialization/MemoryWriter.h"
-
 class FVulkanCmdBuffer;
 class FVulkanCommandListContext;
 class FVulkanTimingQueryPool;
