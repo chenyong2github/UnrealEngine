@@ -4,6 +4,7 @@
 	UObjectArchetype.cpp: Unreal object archetype relationship management
 =============================================================================*/
 
+#include "UObject/UObjectArchetypeInternal.h"
 #include "CoreMinimal.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/Object.h"
@@ -140,6 +141,18 @@ UObject* GetArchetypeFromRequiredInfoImpl(const UClass* Class, const UObject* Ou
 	}
 
 	return Result;
+}
+
+void CacheArchetypeForObject(UObject* Object, UObject* Archetype)
+{
+#if UE_CACHE_ARCHETYPE
+#if UE_VERIFY_CACHED_ARCHETYPE
+	bool bUseUpToDateClass = false;
+	UObject* VerifyArchetype = GetArchetypeFromRequiredInfoImpl(Object->GetClass(), Object->GetOuter(), Object->GetFName(), Object->GetFlags(), bUseUpToDateClass);
+	checkf(Archetype == VerifyArchetype, TEXT("Cached archetype mismatch, expected: %s, cached: %s"), *GetFullNameSafe(VerifyArchetype), *GetFullNameSafe(Archetype));
+#endif
+	ArchetypeAnnotation.AddAnnotation(Object, GUObjectArray.ObjectToIndex(Archetype));
+#endif
 }
 
 UObject* UObject::GetArchetypeFromRequiredInfo(const UClass* Class, const UObject* Outer, FName Name, EObjectFlags ObjectFlags)

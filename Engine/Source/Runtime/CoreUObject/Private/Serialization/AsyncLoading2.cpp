@@ -36,6 +36,7 @@
 #include "Blueprint/BlueprintSupport.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "UObject/UObjectArchetypeInternal.h"
 #include "UObject/GarbageCollectionInternal.h"
 #include "ProfilingDebugging/MiscTrace.h"
 #include "Serialization/LoadTimeTracePrivate.h"
@@ -4213,7 +4214,9 @@ EAsyncPackageState::Type FAsyncPackage2::PostLoadObjects()
 	// PostLoad objects.
 	while (PostLoadIndex < ExportCount && !FAsyncLoadingThreadState2::Get()->IsTimeLimitExceeded())
 	{
-		UObject* Object = Exports[PostLoadIndex++];
+		int32 LocalExportIndex = PostLoadIndex++;
+		const FExportMapEntry& Export = ExportMap[LocalExportIndex];
+		UObject* Object = Exports[LocalExportIndex];
 
 		check(Object);
 		check(!Object->HasAnyFlags(RF_NeedLoad));
@@ -4228,6 +4231,10 @@ EAsyncPackageState::Type FAsyncPackage2::PostLoadObjects()
 			ThreadContext.CurrentlyPostLoadedObjectByALT = Object;
 			{
 				TRACE_LOADTIME_POSTLOAD_EXPORT_SCOPE(Object);
+				// cache archetype before post load
+				// prevents GetArchetype from hitting the expensive GetArchetypeFromRequiredInfoImpl
+				UObject* Template = EventDrivenIndexToObject(Export.TemplateIndex, true);
+				CacheArchetypeForObject(Object, Template);
 				Object->ConditionalPostLoad();
 				Object->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading);
 			}
@@ -4252,7 +4259,21 @@ EAsyncPackageState::Type FAsyncPackage2::PostLoadDeferredObjects()
 
 	FUObjectSerializeContext* LoadContext = GetSerializeContext();
 
-	STAT(double PostLoadStartTime = FPlatformTime::Seconds());
+	{
+		// cache archetype for all exports before post load
+		// prevents GetArchetype from hitting the expensive GetArchetypeFromRequiredInfoImpl
+		TRACE_CPUPROFILER_EVENT_SCOPE(CacheArchetype);
+		for (int32 LocalExportIndex = 0; LocalExportIndex < ExportCount; ++LocalExportIndex)
+		{
+			UObject* Object = Exports[LocalExportIndex];
+			if (Object->HasAnyFlags(RF_NeedPostLoad))
+			{
+				const FExportMapEntry& Export = ExportMap[LocalExportIndex];
+				UObject* Template = EventDrivenIndexToObject(Export.TemplateIndex, true);
+				CacheArchetypeForObject(Object, Template);
+			}
+		}
+	}
 
 	while (DeferredPostLoadIndex < ExportCount && 
 		!AsyncLoadingThread.IsAsyncLoadingSuspended() &&
