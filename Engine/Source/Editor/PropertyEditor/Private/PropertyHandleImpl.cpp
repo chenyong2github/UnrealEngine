@@ -874,21 +874,21 @@ FPropertyAccess::Result FPropertyValueImpl::SetValueAsString( const FString& InV
 		{
 			while ( true )
 			{
-				if ( Value.StartsWith( TEXT("_") ) )
+				if ( Value.StartsWith( TEXT("_"), ESearchCase::CaseSensitive ) )
 				{
 					// Strip leading underscores.
 					do
 					{
-						Value = Value.Right( Value.Len()-1 );
-					} while ( Value.StartsWith( TEXT("_") ) );
+						Value.RightInline( Value.Len()-1, false);
+					} while ( Value.StartsWith( TEXT("_"), ESearchCase::CaseSensitive ) );
 				}
-				else if ( Value.StartsWith( TEXT(" ") ) )
+				else if ( Value.StartsWith( TEXT(" "), ESearchCase::CaseSensitive) )
 				{
 					// Strip leading spaces.
 					do
 					{
-						Value = Value.Right( Value.Len()-1 );
-					} while ( Value.StartsWith( TEXT(" ") ) );
+						Value.RightInline( Value.Len()-1, false );
+					} while ( Value.StartsWith( TEXT(" "), ESearchCase::CaseSensitive) );
 				}
 				else
 				{

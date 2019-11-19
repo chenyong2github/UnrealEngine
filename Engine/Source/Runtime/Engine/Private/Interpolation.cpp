@@ -321,13 +321,13 @@ namespace InterpTools
 		// Check to see if there is a period in the name, which is the case 
 		// for structs and components that own interp variables. In these  
 		// cases, we want to cut off the preceeding text up and the period.
-		int32 PeriodPosition = PropertyString.Find(TEXT("."));
+		int32 PeriodPosition = PropertyString.Find(TEXT("."), ESearchCase::CaseSensitive);
 
 		if(PeriodPosition != INDEX_NONE)
 		{
 			// We found a period; Only capture the text after the 
 			// period, which represents the actual property name.
-			PropertyString = PropertyString.Mid( PeriodPosition + 1 );
+			PropertyString.MidInline( PeriodPosition + 1, MAX_int32, false );
 		}
 
 		return FName(*PropertyString);

@@ -73,7 +73,7 @@ namespace AutomationCommon
 		if ( HardwareDetailsString.Len() > 0 )
 		{
 			//Get rid of the leading "_"
-			HardwareDetailsString = HardwareDetailsString.RightChop(1);
+			HardwareDetailsString.RightChopInline(1, false);
 		}
 
 		return HardwareDetailsString;

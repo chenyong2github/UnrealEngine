@@ -586,12 +586,12 @@ FCrashWERContext::FCrashWERContext( const FString& WERXMLFilepath )
 
 			if (ParsedParameters9.Num() > 0)
 			{
-				BranchName = ParsedParameters9[0].Replace( TEXT( "+" ), TEXT( "/" ) );
+				BranchName = ParsedParameters9[0].Replace( TEXT( "+" ), TEXT( "/" ), ESearchCase::CaseSensitive);
 
 				const FString DepotRoot = TEXT( "//depot/" );
 				if (BranchName.StartsWith( DepotRoot ))
 				{
-					BranchName = BranchName.Mid( DepotRoot.Len() );
+					BranchName.MidInline( DepotRoot.Len(), MAX_int32, false );
 				}
 				EngineVersionComponents++;
 			}

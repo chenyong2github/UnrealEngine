@@ -2820,16 +2820,17 @@ bool UGameplayStatics::GrabOption( FString& Options, FString& Result )
 	{
 		// Get result.
 		Result = Options.Mid(1, MAX_int32);
-		if (Result.Contains(QuestionMark, ESearchCase::CaseSensitive))
+		const int32 QMIdx = Result.Find(QuestionMark, ESearchCase::CaseSensitive);
+		if (QMIdx != INDEX_NONE)
 		{
-			Result = Result.Left(Result.Find(QuestionMark, ESearchCase::CaseSensitive));
+			Result.LeftInline(QMIdx, false);
 		}
 
 		// Update options.
-		Options = Options.Mid(1, MAX_int32);
+		Options.MidInline(1, MAX_int32, false);
 		if (Options.Contains(QuestionMark, ESearchCase::CaseSensitive))
 		{
-			Options = Options.Mid(Options.Find(QuestionMark, ESearchCase::CaseSensitive), MAX_int32);
+			Options.MidInline(Options.Find(QuestionMark, ESearchCase::CaseSensitive), MAX_int32, false);
 		}
 		else
 		{

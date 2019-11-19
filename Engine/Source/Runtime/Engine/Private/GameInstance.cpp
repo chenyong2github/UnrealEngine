@@ -1302,7 +1302,7 @@ AGameModeBase* UGameInstance::CreateGameModeForURL(FURL InURL, UWorld* InWorld)
 		if (MapNameNoPath.StartsWith(PLAYWORLD_PACKAGE_PREFIX))
 		{
 			const int32 PrefixLen = UWorld::BuildPIEPackagePrefix(WorldContext->PIEInstance).Len();
-			MapNameNoPath = MapNameNoPath.Mid(PrefixLen);
+			MapNameNoPath.MidInline(PrefixLen, MAX_int32, false);
 		}
 
 		FString const GameClassName = UGameMapsSettings::GetGameModeForMapName(FString(MapNameNoPath));

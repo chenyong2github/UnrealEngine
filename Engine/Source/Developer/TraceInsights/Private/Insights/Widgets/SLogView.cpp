@@ -741,7 +741,7 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 				FString CategoryStr(Category.Name);
 				if (CategoryStr.StartsWith(TEXT("Log")))
 				{
-					CategoryStr = CategoryStr.RightChop(3);
+					CategoryStr.RightChopInline(3, false);
 				}
 				if (Categories.Contains(FName(*CategoryStr)))
 				{

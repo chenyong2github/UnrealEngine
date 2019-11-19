@@ -1006,7 +1006,7 @@ bool FNetworkFileServerClientConnection::ProcessGetFileList( FArchive& In, FArch
 				int32 GameDirOffset = ConnectedContentFolder.Find(ConnectedProjectDir, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
 				if (GameDirOffset != INDEX_NONE)
 				{
-					ConnectedContentFolder = ConnectedContentFolder.RightChop(GameDirOffset);
+					ConnectedContentFolder.RightChopInline(GameDirOffset, false);
 				}
 			}
 

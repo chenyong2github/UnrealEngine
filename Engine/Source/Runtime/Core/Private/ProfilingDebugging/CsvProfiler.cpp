@@ -206,7 +206,7 @@ public:
 				{
 					FString Val = ValueStr.Mid(0, CommaIndex);
 					CVarValues.Add(FCString::Atof(*Val));
-					ValueStr = ValueStr.Mid(CommaIndex + 1);
+					ValueStr.MidInline(CommaIndex + 1, MAX_int32, false);
 					continue;
 				}
 			}
@@ -223,7 +223,7 @@ public:
 				{
 					FString Val = ValueStr.Mid(0, SemiColonIndex);
 					CVarValues.Add(FCString::Atof(*Val));
-					ValueStr = ValueStr.Mid(SemiColonIndex);
+					ValueStr.MidInline(SemiColonIndex, MAX_int32, false);
 					continue;
 				}
 			}
