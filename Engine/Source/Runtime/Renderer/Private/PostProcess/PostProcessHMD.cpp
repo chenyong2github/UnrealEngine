@@ -117,7 +117,9 @@ FScreenPassTexture AddDefaultHMDDistortionPass(FRDGBuilder& GraphBuilder, const 
 	{
 		RHICmdList.SetViewport(OutputViewRect.Min.X, OutputViewRect.Min.Y, 0.0f, OutputViewRect.Max.X, OutputViewRect.Max.Y, 1.0f);
 
-		SetScreenPassPipelineState(RHICmdList, FScreenPassPipelineState(*VertexShader, *PixelShader));
+		FScreenPassPipelineState PipelineState(*VertexShader, *PixelShader);
+		PipelineState.VertexDeclaration = GDistortionVertexDeclaration.VertexDeclarationRHI;
+		SetScreenPassPipelineState(RHICmdList, PipelineState);
 
 		SetShaderParameters(RHICmdList, *VertexShader, VertexShader->GetVertexShader(), *PassParameters);
 		SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *PassParameters);
