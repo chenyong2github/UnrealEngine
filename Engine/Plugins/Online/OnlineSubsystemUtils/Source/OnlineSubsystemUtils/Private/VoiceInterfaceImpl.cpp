@@ -108,12 +108,8 @@ void FOnlineVoiceImpl::ClearVoicePackets()
 {
 	for (uint32 Index = 0; Index < MAX_SPLITSCREEN_TALKERS; Index++)
 	{
-		FVoicePacketImpl& LocalPacket = VoiceData.LocalPackets[Index];
-		if (LocalPacket.Length > 0)
-		{
-			// Mark the local packet as processed
-			LocalPacket.Length = 0;
-		}
+		// Mark the local packet as processed
+		VoiceData.LocalPackets[Index].ResetData();
 	}
 }
 
