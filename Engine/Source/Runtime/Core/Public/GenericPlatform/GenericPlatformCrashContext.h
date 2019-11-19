@@ -165,7 +165,6 @@ struct FSessionContext
 	TCHAR 					GameStateName[CR_MAX_GENERIC_FIELD_CHARS];
 	TCHAR 					CrashConfigFilePath[CR_MAX_DIRECTORY_CHARS];
 	FPlatformMemoryStats	MemoryStats;
-	TOptional<bool>			bIsVanilla;
 };
 
 /** Additional user settings to be communicated to crash reporting client. */
@@ -339,9 +338,6 @@ public:
 
 	/** Get the Game Name of the crash */
 	static FString GetCrashGameName();
-
-	/** Gets the "vanilla" status string. */
-	static const TCHAR* EngineModeExString();
 
 	/** Helper to get the crash report client config filepath saved by this instance and copied to each crash report folder. */
 	static const TCHAR* GetCrashConfigFilePath();
