@@ -366,7 +366,7 @@ struct FAudioSectionExecutionToken : IMovieSceneExecutionToken
 			if (AudioTime >= 0.f && AudioComponent.Sound)
 			{
 				float Duration = AudioComponent.Sound->GetDuration();
-				AudioTime = FMath::Fmod(AudioTime, Duration/1000.f);
+				AudioTime = FMath::Fmod(AudioTime, Duration);
 				AudioComponent.Play(AudioTime);
 			}
 
