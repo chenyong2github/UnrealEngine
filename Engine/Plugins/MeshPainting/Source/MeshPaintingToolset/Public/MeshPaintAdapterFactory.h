@@ -5,13 +5,13 @@
 #include "CoreMinimal.h"
 
 class UMeshComponent;
-class IMeshPaintGeometryAdapterFactory;
+class IMeshPaintComponentAdapterFactory;
 class FReferenceCollector;
 
-class MESHPAINTINGTOOLSET_API FMeshPaintAdapterFactory
+class MESHPAINTINGTOOLSET_API FMeshPaintComponentAdapterFactory
 {
 public:
-	static TArray<TSharedPtr<IMeshPaintGeometryAdapterFactory>> FactoryList;
+	static TArray<TSharedPtr<IMeshPaintComponentAdapterFactory>> FactoryList;
 
 public:
 	static TSharedPtr<class IMeshPaintComponentAdapter> CreateAdapterForMesh(UMeshComponent* InComponent, int32 InPaintingMeshLODIndex);

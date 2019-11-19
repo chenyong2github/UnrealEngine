@@ -426,7 +426,7 @@ void FMeshPaintStaticMeshComponentAdapter::PreEdit()
 //////////////////////////////////////////////////////////////////////////
 // FMeshPaintGeometryAdapterForStaticMeshesFactory
 
-TSharedPtr<IMeshPaintComponentAdapter> FMeshPaintGeometryAdapterForStaticMeshesFactory::Construct(class UMeshComponent* InComponent, int32 InMeshLODIndex) const
+TSharedPtr<IMeshPaintComponentAdapter> FMeshPaintStaticMeshComponentAdapterFactory::Construct(class UMeshComponent* InComponent, int32 InMeshLODIndex) const
 {
 	if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(InComponent))
 	{

@@ -1492,7 +1492,7 @@ void UMeshToolManager::CleanUp()
 		MeshAdapterPair.Value->OnRemoved();
 	}
 	ComponentToAdapterMap.Empty();
-	FMeshPaintAdapterFactory::CleanupGlobals();
+	FMeshPaintComponentAdapterFactory::CleanupGlobals();
 }
 
 bool UMeshToolManager::FindHitResult(const FRay Ray, FHitResult& BestTraceResult)
@@ -1553,7 +1553,7 @@ void UMeshToolManager::CacheSelectionData(const int32 PaintLODIndex, const int32
 	bSelectionContainsPerLODColors = false;
 	for (UMeshComponent* MeshComponent : SelectedMeshComponents)
 	{
-		TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = FMeshPaintAdapterFactory::CreateAdapterForMesh(MeshComponent, PaintLODIndex);
+		TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = FMeshPaintComponentAdapterFactory::CreateAdapterForMesh(MeshComponent, PaintLODIndex);
 		if (MeshComponent->IsVisible() && MeshAdapter.IsValid() && MeshAdapter->IsValid())
 		{
 			TUniquePtr< FComponentReregisterContext > ComponentReregisterContext;

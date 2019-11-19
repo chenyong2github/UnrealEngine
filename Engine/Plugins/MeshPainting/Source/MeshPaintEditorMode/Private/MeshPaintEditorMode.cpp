@@ -9,7 +9,7 @@
 #include "MeshPaintModeCommands.h"
 #include "BrushSettingsCustomization.h"
 #include "PropertyEditorModule.h"
-#include "IMeshPaintGeometryAdapterFactory.h"
+#include "MeshPaintComponentAdapterFactory.h"
 #include "MeshPaintAdapterFactory.h"
 #include "MeshPaintSplineMeshAdapter.h"
 #include "MeshPaintStaticMeshAdapter.h"
@@ -50,15 +50,15 @@ protected:
 
 	void OnMeshPaintModeButtonClicked();
 	bool IsMeshPaintModeButtonEnabled();
-	void RegisterGeometryAdapterFactory(TSharedRef<IMeshPaintGeometryAdapterFactory> Factory);
-	void UnregisterGeometryAdapterFactory(TSharedRef<IMeshPaintGeometryAdapterFactory> Factory);
+	void RegisterGeometryAdapterFactory(TSharedRef<IMeshPaintComponentAdapterFactory> Factory);
+	void UnregisterGeometryAdapterFactory(TSharedRef<IMeshPaintComponentAdapterFactory> Factory);
 };
 
 void FMeshPaintModeModule::Register()
 {
-	RegisterGeometryAdapterFactory(MakeShareable(new FMeshPaintGeometryAdapterForSplineMeshesFactory));
-	RegisterGeometryAdapterFactory(MakeShareable(new FMeshPaintGeometryAdapterForStaticMeshesFactory));
-	RegisterGeometryAdapterFactory(MakeShareable(new FMeshPaintGeometryAdapterForSkeletalMeshesFactory));
+	RegisterGeometryAdapterFactory(MakeShareable(new FMeshPaintSplineMeshComponentAdapterFactory));
+	RegisterGeometryAdapterFactory(MakeShareable(new FMeshPaintStaticMeshComponentAdapterFactory));
+	RegisterGeometryAdapterFactory(MakeShareable(new FMeshPaintSkeletalMeshComponentAdapterFactory));
 
 
 	FEditorModeRegistry::Get().RegisterScriptableMode<UMeshPaintMode>(
@@ -132,14 +132,14 @@ bool FMeshPaintModeModule::IsMeshPaintModeButtonEnabled( )
 	return true;
 }
 
-void  FMeshPaintModeModule::RegisterGeometryAdapterFactory(TSharedRef<IMeshPaintGeometryAdapterFactory> Factory)
+void  FMeshPaintModeModule::RegisterGeometryAdapterFactory(TSharedRef<IMeshPaintComponentAdapterFactory> Factory)
 {
-	FMeshPaintAdapterFactory::FactoryList.Add(Factory);
+	FMeshPaintComponentAdapterFactory::FactoryList.Add(Factory);
 }
 
-void  FMeshPaintModeModule::UnregisterGeometryAdapterFactory(TSharedRef<IMeshPaintGeometryAdapterFactory> Factory)
+void  FMeshPaintModeModule::UnregisterGeometryAdapterFactory(TSharedRef<IMeshPaintComponentAdapterFactory> Factory)
 {
-	FMeshPaintAdapterFactory::FactoryList.Remove(Factory);
+	FMeshPaintComponentAdapterFactory::FactoryList.Remove(Factory);
 }
 
 IMPLEMENT_MODULE(FMeshPaintModeModule, MeshPaintEditorMode)

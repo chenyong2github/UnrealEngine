@@ -6,7 +6,7 @@
 #include "RawIndexBuffer.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "BaseMeshPaintComponentAdapter.h"
-#include "IMeshPaintGeometryAdapterFactory.h"
+#include "MeshPaintComponentAdapterFactory.h"
 
 class UBodySetup;
 class USkeletalMesh;
@@ -76,7 +76,7 @@ protected:
 //////////////////////////////////////////////////////////////////////////
 // FMeshPaintGeometryAdapterForSkeletalMeshesFactory
 
-class MESHPAINTINGTOOLSET_API FMeshPaintGeometryAdapterForSkeletalMeshesFactory : public IMeshPaintGeometryAdapterFactory
+class MESHPAINTINGTOOLSET_API FMeshPaintSkeletalMeshComponentAdapterFactory : public IMeshPaintComponentAdapterFactory
 {
 public:
 	virtual TSharedPtr<IMeshPaintComponentAdapter> Construct(UMeshComponent* InComponent, int32 InMeshLODIndex) const override;

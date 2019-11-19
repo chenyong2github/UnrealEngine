@@ -3,10 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "IMeshPaintGeometryAdapterFactory.h"
 #include "BaseMeshPaintComponentAdapter.h"
 #include "RawIndexBuffer.h"
 #include "Components/StaticMeshComponent.h"
+#include "MeshPaintComponentAdapterFactory.h"
 
 class UBodySetup;
 class UStaticMesh;
@@ -66,7 +66,7 @@ protected:
 //////////////////////////////////////////////////////////////////////////
 // FMeshPaintGeometryAdapterForStaticMeshesFactory
 
-class MESHPAINTINGTOOLSET_API FMeshPaintGeometryAdapterForStaticMeshesFactory : public IMeshPaintGeometryAdapterFactory
+class MESHPAINTINGTOOLSET_API FMeshPaintStaticMeshComponentAdapterFactory : public IMeshPaintComponentAdapterFactory
 {
 public:
 	virtual TSharedPtr<IMeshPaintComponentAdapter> Construct(class UMeshComponent* InComponent, int32 InMeshLODIndex) const override;

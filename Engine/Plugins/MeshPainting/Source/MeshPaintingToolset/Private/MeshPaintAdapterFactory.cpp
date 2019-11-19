@@ -1,11 +1,11 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "MeshPaintAdapterFactory.h"
-#include "IMeshPaintGeometryAdapterFactory.h"
+#include "MeshPaintComponentAdapterFactory.h"
 
-TArray<TSharedPtr<class IMeshPaintGeometryAdapterFactory>> FMeshPaintAdapterFactory::FactoryList;
+TArray<TSharedPtr<class IMeshPaintComponentAdapterFactory>> FMeshPaintComponentAdapterFactory::FactoryList;
 
-TSharedPtr<class IMeshPaintComponentAdapter> FMeshPaintAdapterFactory::CreateAdapterForMesh(UMeshComponent* InComponent, int32 InPaintingMeshLODIndex)
+TSharedPtr<class IMeshPaintComponentAdapter> FMeshPaintComponentAdapterFactory::CreateAdapterForMesh(UMeshComponent* InComponent, int32 InPaintingMeshLODIndex)
 {
 	TSharedPtr<IMeshPaintComponentAdapter> Result;
 
@@ -22,7 +22,7 @@ TSharedPtr<class IMeshPaintComponentAdapter> FMeshPaintAdapterFactory::CreateAda
 	return Result;
 }
 
-void FMeshPaintAdapterFactory::InitializeAdapterGlobals()
+void FMeshPaintComponentAdapterFactory::InitializeAdapterGlobals()
 {
 	for (const auto& Factory : FactoryList)
 	{
@@ -30,7 +30,7 @@ void FMeshPaintAdapterFactory::InitializeAdapterGlobals()
 	}
 }
 
-void FMeshPaintAdapterFactory::AddReferencedObjectsGlobals(FReferenceCollector& Collector)
+void FMeshPaintComponentAdapterFactory::AddReferencedObjectsGlobals(FReferenceCollector& Collector)
 {
 	for (const auto& Factory : FactoryList)
 	{
@@ -38,7 +38,7 @@ void FMeshPaintAdapterFactory::AddReferencedObjectsGlobals(FReferenceCollector& 
 	}
 }
 
-void FMeshPaintAdapterFactory::CleanupGlobals()
+void FMeshPaintComponentAdapterFactory::CleanupGlobals()
 {
 	for (const auto& Factory : FactoryList)
 	{

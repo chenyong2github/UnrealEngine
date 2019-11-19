@@ -50,7 +50,7 @@ bool FMeshPaintSplineMeshComponentAdapter::InitializeVertexData()
 //////////////////////////////////////////////////////////////////////////
 // FMeshPaintGeometryAdapterForSplineMeshesFactory
 
-TSharedPtr<IMeshPaintComponentAdapter> FMeshPaintGeometryAdapterForSplineMeshesFactory::Construct(class UMeshComponent* InComponent, int32 MeshLODIndex) const
+TSharedPtr<IMeshPaintComponentAdapter> FMeshPaintSplineMeshComponentAdapterFactory::Construct(class UMeshComponent* InComponent, int32 MeshLODIndex) const
 {
 	if (USplineMeshComponent* SplineMeshComponent = Cast<USplineMeshComponent>(InComponent))
 	{
