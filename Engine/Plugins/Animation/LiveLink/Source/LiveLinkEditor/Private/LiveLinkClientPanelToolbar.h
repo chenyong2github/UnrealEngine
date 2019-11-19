@@ -17,6 +17,7 @@ class FLiveLinkClient;
 class ILiveLinkSource;
 class IMenu;
 class SComboButton;
+class SEditableTextBox;
 class STextEntryPopup;
 class ULiveLinkSourceFactory;
 struct FAssetData;
