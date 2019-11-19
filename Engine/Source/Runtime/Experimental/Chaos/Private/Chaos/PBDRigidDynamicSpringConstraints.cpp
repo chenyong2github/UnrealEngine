@@ -5,6 +5,12 @@
 using namespace Chaos;
 
 template<class T, int d>
+TVector<TGeometryParticleHandle<T, d>*, 2> TPBDRigidDynamicSpringConstraintHandle<T,d>::GetConstrainedParticles() const
+{
+	return ConstraintContainer->GetConstrainedParticles(ConstraintIndex);
+}
+
+template<class T, int d>
 void TPBDRigidDynamicSpringConstraints<T, d>::UpdatePositionBasedState(const T Dt)
 {
 	const int32 NumConstraints = Constraints.Num();
@@ -153,5 +159,6 @@ void TPBDRigidDynamicSpringConstraints<T, d>::ApplySingle(const T Dt, int32 Cons
 
 namespace Chaos
 {
+	template class TPBDRigidDynamicSpringConstraintHandle<float, 3>;
 	template class TPBDRigidDynamicSpringConstraints<float, 3>;
 }

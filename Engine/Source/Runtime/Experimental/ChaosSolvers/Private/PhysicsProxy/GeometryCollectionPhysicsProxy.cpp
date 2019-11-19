@@ -2717,10 +2717,10 @@ void FGeometryCollectionPhysicsProxy::UpdateCollisionData(const FParticlesType& 
 
 	if (Parameters.CollisionData.SaveCollisionData && ExistingFrame->Timestamp > 0.f && Parameters.CollisionData.CollisionDataSizeMax > 0)
 	{
+#if TODO_REIMPLEMENT_PHYSICS_PROXY_REVERSE_MAPPING
 		const TArray<Chaos::TPBDCollisionConstraint<float, 3>::FRigidBodyContactConstraint>& AllConstraintsArray = CollisionRule.GetAllConstraints();
 		if (AllConstraintsArray.Num() > 0)
 		{
-#if TODO_REIMPLEMENT_PHYSICS_PROXY_REVERSE_MAPPING
 			const Chaos::TArrayCollectionArray<PhysicsProxyWrapper>& PhysicsProxyReverseMapping = GetSolver()->GetPhysicsProxyReverseMapping();
 
 			TArray<Chaos::TPBDCollisionConstraint<float, 3>::FRigidBodyContactConstraint> ConstraintsArray;
@@ -2856,8 +2856,8 @@ void FGeometryCollectionPhysicsProxy::UpdateCollisionData(const FParticlesType& 
 					}
 				}
 			}
-#endif
 		}
+#endif
 	}
 }
 
