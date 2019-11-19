@@ -12,15 +12,15 @@
 
 void FImportVertexColorOptionsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
-	UMeshVertexColorImportOptions* Options = GetMutableDefault<UMeshVertexColorImportOptions>();
+	UImportVertexColorOptions* Options = GetMutableDefault<UImportVertexColorOptions>();
 
 	const FName CategoryName = "Options";
 	IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(CategoryName);
 	
 	/** Retrieve properties we need */
-	TSharedRef<IPropertyHandle> UVProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMeshVertexColorImportOptions, UVIndex));
-	TSharedRef<IPropertyHandle> LODProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMeshVertexColorImportOptions, LODIndex));
-	TSharedRef<IPropertyHandle> InstanceImportProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMeshVertexColorImportOptions, bImportToInstance));
+	TSharedRef<IPropertyHandle> UVProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UImportVertexColorOptions, UVIndex));
+	TSharedRef<IPropertyHandle> LODProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UImportVertexColorOptions, LODIndex));
+	TSharedRef<IPropertyHandle> InstanceImportProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UImportVertexColorOptions, bImportToInstance));
 
 	/** Hide default properties, this allows us to use default widgets */
 	DetailBuilder.HideProperty(UVProperty);
@@ -75,10 +75,10 @@ void FImportVertexColorOptionsCustomization::CustomizeDetails(IDetailLayoutBuild
 	];
 	
 	// Allign all color channels into one widget from left to right
-	TSharedRef<IPropertyHandle> RedChannel = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMeshVertexColorImportOptions, bRed));
-	TSharedRef<IPropertyHandle> GreenChannel = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMeshVertexColorImportOptions, bGreen));
-	TSharedRef<IPropertyHandle> BlueChannel = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMeshVertexColorImportOptions, bBlue));
-	TSharedRef<IPropertyHandle> AlphaChannel = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMeshVertexColorImportOptions, bAlpha));
+	TSharedRef<IPropertyHandle> RedChannel = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UImportVertexColorOptions, bRed));
+	TSharedRef<IPropertyHandle> GreenChannel = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UImportVertexColorOptions, bGreen));
+	TSharedRef<IPropertyHandle> BlueChannel = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UImportVertexColorOptions, bBlue));
+	TSharedRef<IPropertyHandle> AlphaChannel = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UImportVertexColorOptions, bAlpha));
 	TArray<TSharedRef<IPropertyHandle>> Channels = { RedChannel, GreenChannel, BlueChannel, AlphaChannel };
 	TSharedPtr<SHorizontalBox> ChannelsWidget;
 

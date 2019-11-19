@@ -9,7 +9,7 @@
 #include "IMeshPaintGeometryAdapter.h"
 
 class FMeshPaintParameters;
-class UMeshVertexColorImportOptions;
+class UImportVertexColorOptions;
 class UTexture2D;
 class UStaticMeshComponent;
 class UStaticMesh;
@@ -43,7 +43,7 @@ public:
 	static void ImportVertexColorsFromTexture(UMeshComponent* MeshComponent);
 
 	/** Imports vertex colors from a Texture to the specified Skeletal Mesh according to user-set options */
-	static void ImportVertexColorsToSkeletalMesh(USkeletalMesh* SkeletalMesh, const UMeshVertexColorImportOptions* Options, UTexture2D* Texture);
+	static void ImportVertexColorsToSkeletalMesh(USkeletalMesh* SkeletalMesh, const UImportVertexColorOptions* Options, UTexture2D* Texture);
 
 	struct FPaintRay
 	{
@@ -57,10 +57,10 @@ public:
 	static bool RetrieveViewportPaintRays(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI, TArray<FPaintRay>& OutPaintRays);
 
 	/** Imports vertex colors from a Texture to the specified Static Mesh according to user-set options */
-	static void ImportVertexColorsToStaticMesh(UStaticMesh* StaticMesh, const UMeshVertexColorImportOptions* Options, UTexture2D* Texture);
+	static void ImportVertexColorsToStaticMesh(UStaticMesh* StaticMesh, const UImportVertexColorOptions* Options, UTexture2D* Texture);
 
 	/** Imports vertex colors from a Texture to the specified Static Mesh Component according to user-set options */
-	static void ImportVertexColorsToStaticMeshComponent(UStaticMeshComponent* StaticMeshComponent, const UMeshVertexColorImportOptions* Options, UTexture2D* Texture);
+	static void ImportVertexColorsToStaticMeshComponent(UStaticMeshComponent* StaticMeshComponent, const UImportVertexColorOptions* Options, UTexture2D* Texture);
 
 	static void PropagateVertexColors(const TArray<UStaticMeshComponent *> StaticMeshComponents);
 	static bool CanPropagateVertexColors(TArray<UStaticMeshComponent*>& StaticMeshComponents, TArray<UStaticMesh*>& StaticMeshes, int32 NumInstanceVertexColorBytes);

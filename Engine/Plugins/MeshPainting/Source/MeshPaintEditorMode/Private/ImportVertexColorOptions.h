@@ -12,12 +12,12 @@
 #include "ImportVertexColorOptions.generated.h"
 
 UCLASS()
-class UMeshVertexColorImportOptions : public UObject
+class UImportVertexColorOptions : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	UMeshVertexColorImportOptions() : UVIndex(0), LODIndex(0), bRed(true), bBlue(true), bGreen(true), bAlpha(true), bImportToInstance(true), NumLODs(0), bCanImportToInstance(false) {}
+	UImportVertexColorOptions() : UVIndex(0), LODIndex(0), bRed(true), bBlue(true), bGreen(true), bAlpha(true), bImportToInstance(true), NumLODs(0), bCanImportToInstance(false) {}
 	
 	/** Texture Coordinate Channel to use for Sampling the Texture*/
 	UPROPERTY(EditAnywhere, Category=Options)
@@ -68,10 +68,10 @@ public:
 class IDetailsView;
 class UMeshComponent;
 
-class SImportVertexColorOptions : public SCompoundWidget
+class SImportVertexColorOptionsWindow : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SImportVertexColorOptions)	{}
+	SLATE_BEGIN_ARGS(SImportVertexColorOptionsWindow)	{}
 		SLATE_ARGUMENT(TSharedPtr<SWindow>, WidgetWindow)
 		SLATE_ARGUMENT(FText, FullPath)
 		SLATE_ARGUMENT(UMeshComponent*, Component)
@@ -116,17 +116,17 @@ public:
 		return bShouldImport;
 	}
 
-	UMeshVertexColorImportOptions* GetOptions() const
+	UImportVertexColorOptions* GetOptions() const
 	{
 		return Options;
 	}
 
-	SImportVertexColorOptions()
+	SImportVertexColorOptionsWindow()
 	{}
 private:
 	TWeakPtr< SWindow > WidgetWindow;
 	TSharedPtr< SButton > ImportButton;
 	bool bShouldImport;
 	TSharedPtr<IDetailsView> DetailsView;
-	UMeshVertexColorImportOptions* Options;
+	UImportVertexColorOptions* Options;
 };

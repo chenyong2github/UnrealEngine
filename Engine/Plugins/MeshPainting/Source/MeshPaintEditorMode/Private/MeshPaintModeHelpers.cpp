@@ -183,7 +183,7 @@ void UMeshPaintModeHelpers::ImportVertexColorsFromTexture(UMeshComponent* MeshCo
 				.Title(FText::FromString(TEXT("Vertex Color Import Options")))
 				.SizingRule(ESizingRule::Autosized);
 
-			TSharedPtr<SImportVertexColorOptions> OptionsWindow = SNew(SImportVertexColorOptions).WidgetWindow(Window)
+			TSharedPtr<SImportVertexColorOptionsWindow> OptionsWindow = SNew(SImportVertexColorOptionsWindow).WidgetWindow(Window)
 				.WidgetWindow(Window)
 				.Component(MeshComponent)
 				.FullPath(FText::FromString(ChosenFilename));
@@ -204,7 +204,7 @@ void UMeshPaintModeHelpers::ImportVertexColorsFromTexture(UMeshComponent* MeshCo
 			if (OptionsWindow->ShouldImport())
 			{
 				// Options specified and start importing
-				UMeshVertexColorImportOptions* Options = OptionsWindow->GetOptions();
+				UImportVertexColorOptions* Options = OptionsWindow->GetOptions();
 
 				if (MeshComponent->IsA<UStaticMeshComponent>())
 				{
@@ -249,7 +249,7 @@ void UMeshPaintModeHelpers::ImportVertexColorsFromTexture(UMeshComponent* MeshCo
 }
 
 
-void UMeshPaintModeHelpers::ImportVertexColorsToSkeletalMesh(USkeletalMesh* SkeletalMesh, const UMeshVertexColorImportOptions* Options, UTexture2D* Texture)
+void UMeshPaintModeHelpers::ImportVertexColorsToSkeletalMesh(USkeletalMesh* SkeletalMesh, const UImportVertexColorOptions* Options, UTexture2D* Texture)
 {
 	checkf(SkeletalMesh && Options && Texture, TEXT("Invalid ptr"));
 
@@ -355,7 +355,7 @@ bool UMeshPaintModeHelpers::RetrieveViewportPaintRays(const FSceneView* View, FV
 }
 
 
-void UMeshPaintModeHelpers::ImportVertexColorsToStaticMesh(UStaticMesh* StaticMesh, const UMeshVertexColorImportOptions* Options, UTexture2D* Texture)
+void UMeshPaintModeHelpers::ImportVertexColorsToStaticMesh(UStaticMesh* StaticMesh, const UImportVertexColorOptions* Options, UTexture2D* Texture)
 {
 	checkf(StaticMesh && Options && Texture, TEXT("Invalid ptr"));
 
@@ -400,7 +400,7 @@ void UMeshPaintModeHelpers::ImportVertexColorsToStaticMesh(UStaticMesh* StaticMe
 	StaticMesh->InitResources();
 }
 
-void UMeshPaintModeHelpers::ImportVertexColorsToStaticMeshComponent(UStaticMeshComponent* StaticMeshComponent, const UMeshVertexColorImportOptions* Options, UTexture2D* Texture)
+void UMeshPaintModeHelpers::ImportVertexColorsToStaticMeshComponent(UStaticMeshComponent* StaticMeshComponent, const UImportVertexColorOptions* Options, UTexture2D* Texture)
 {
 	checkf(StaticMeshComponent && Options && Texture, TEXT("Invalid ptr"));
 

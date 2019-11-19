@@ -13,7 +13,7 @@
 #include "MeshPaintHelpers.generated.h"
 
 class FMeshPaintParameters;
-class UMeshVertexColorImportOptions;
+class UImportVertexColorOptions;
 class UTexture2D;
 class UStaticMeshComponent;
 class USkeletalMesh;

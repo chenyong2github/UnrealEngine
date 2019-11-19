@@ -14,11 +14,11 @@
 
 #define LOCTEXT_NAMESPACE "VertexColorImportOptions"
 
-void SImportVertexColorOptions::Construct(const FArguments& InArgs)
+void SImportVertexColorOptionsWindow::Construct(const FArguments& InArgs)
 {
 	WidgetWindow = InArgs._WidgetWindow;
 
-	Options = GetMutableDefault<UMeshVertexColorImportOptions>();
+	Options = GetMutableDefault<UImportVertexColorOptions>();
 	Options->LODIndex = 0;
 	Options->UVIndex = 0;
 	
@@ -90,7 +90,7 @@ void SImportVertexColorOptions::Construct(const FArguments& InArgs)
 				SAssignNew(ImportButton, SButton)
 				.HAlign(HAlign_Center)
 				.Text(LOCTEXT("VertexColorOptionWindow_Import", "Import"))
-				.OnClicked(this, &SImportVertexColorOptions::OnImport)
+				.OnClicked(this, &SImportVertexColorOptionsWindow::OnImport)
 			]
 			+ SUniformGridPanel::Slot(1, 0)
 			[
@@ -98,7 +98,7 @@ void SImportVertexColorOptions::Construct(const FArguments& InArgs)
 				.HAlign(HAlign_Center)
 				.Text(LOCTEXT("VertexColorOptionWindow_Cancel", "Cancel"))
 				.ToolTipText(LOCTEXT("VertexColorOptionWindow_Cancel_ToolTip", "Cancels importing Vertex Colors"))
-				.OnClicked(this, &SImportVertexColorOptions::OnCancel)
+				.OnClicked(this, &SImportVertexColorOptionsWindow::OnCancel)
 			]
 		]
 	];
