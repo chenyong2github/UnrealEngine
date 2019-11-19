@@ -34,7 +34,7 @@ public:
 template<class FPBDRigidEvolution, class FPBDCollisionConstraint, class T, int d>
 class CHAOS_API TPBDRigidClustering
 {
-	typedef typename FPBDCollisionConstraint::FRigidBodyContactConstraint FRigidBodyContactConstraint;
+	typedef typename FPBDCollisionConstraint::FPointContactConstraint FPointContactConstraint;
 
 public:
 	typedef TMap<const TGeometryParticleHandle<T,d>*, TArray<uint32> > FClusterMap;
