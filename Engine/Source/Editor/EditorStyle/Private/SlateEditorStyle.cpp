@@ -2112,6 +2112,55 @@ void FSlateEditorStyle::FStyle::SetupGeneralStyles()
 		Set( "ToolBar.Button.Checked_Pressed", new BOX_BRUSH( "Common/RoundedSelection_16x",  4.0f/16.0f, SelectionColor ) );
 	}
 
+	// Mode ToolPalette 
+	{
+		Set( "PaletteToolBar.Background", 				new BOX_BRUSH( "Common/GroupBorder", FMargin(4.0f/16.0f) ));
+		Set( "PaletteToolBar.Icon", 					new IMAGE_BRUSH( "Icons/icon_tab_Toolbars_16x", Icon16x16 ) );
+		Set( "PaletteToolBar.Expand", 					new IMAGE_BRUSH( "Icons/toolbar_expand_16x", Icon16x16) );
+		Set( "PaletteToolBar.SubMenuIndicator", 		new IMAGE_BRUSH( "Common/SubmenuArrow", Icon8x8 ) );
+
+		// Set( "PaletteToolBar.Content.Padding", FMargin(2.0) );
+		Set( "PaletteToolBar.Label.Padding", FMargin(0.0f, 4.0f, 0.0f, 0.0f) );
+
+		// "SToolBarButtonBlock.Padding" appears as space between the buttons (Outside the Orange selection/hover region)
+		// Outside Margin for Buttons
+		Set( "PaletteToolBar.SToolBarButtonBlock.Padding", 				FMargin(2.f, 0.0f) );
+
+		// SToolBarButtonBlock.CheckBox.Padding is the space inside the toggle button around the icon
+		// Inside Margin for Buttons
+		Set( "PaletteToolBar.SToolBarButtonBlock.CheckBox.Padding", 	FMargin(4.0f, 2.0f, 4.0f, 2.0f) );
+
+		// Outside Margin for Combo Buttons.   
+		// Combo Buttons with Arrows already have an annoying 2.0f built in padding, so we subtract to compensate for that.
+		Set( "PaletteToolBar.SToolBarComboButtonBlock.Padding", 		FMargin(2.0f, 0.0f) );
+
+		// Outside Margin for Generic Widget Blocks.  
+		Set( "PaletteToolBar.Block.IndentedPadding", 					FMargin(4.0f, 2.0f, 4.0f, 2.0f) );
+		Set( "PaletteToolBar.Block.Padding", 							FMargin(4.0f, 2.0f, 4.0f, 2.0f) );
+
+		Set( "PaletteToolBar.SToolBarComboButtonBlock.ComboButton.Color", DefaultForeground );
+
+		Set( "PaletteToolBar.Separator", new FSlateColorBrush( FLinearColor(FColor(47, 47, 47)) ) );
+		Set( "PaletteToolBar.Separator.Padding", FMargin( 2.f, 0.f, 2.f, 0.f) );
+
+		Set( "PaletteToolBar.Label", FTextBlockStyle(NormalText) .SetFont( DEFAULT_FONT( "Regular", 9 ) ) );
+
+		Set( "PaletteToolBar.EditableText",  			GetWidgetStyle<FEditableTextBoxStyle>("ToolBar.EditableText"));
+		Set( "PaletteToolBar.Keybinding", 				GetWidgetStyle<FTextBlockStyle>("ToolBar.Keybinding"));
+		Set( "PaletteToolBar.Heading", 					GetWidgetStyle<FTextBlockStyle>("ToolBar.Heading"));
+		Set( "PaletteToolBar.CheckBox", 				GetWidgetStyle<FCheckBoxStyle>("ToolBar.CheckBox"));
+		Set( "PaletteToolbar.Check", 					GetWidgetStyle<FCheckBoxStyle>("ToolBar.Check"));
+		Set( "PaletteToolBar.RadioButton", 				GetWidgetStyle<FCheckBoxStyle>("ToolBar.RadioButton"));
+		Set( "PaletteToolBar.ToggleButton", 			GetWidgetStyle<FCheckBoxStyle>("ToolBar.ToggleButton"));
+		Set( "PaletteToolBar.Button", 					GetWidgetStyle<FButtonStyle>("ToolBar.Button"));
+		Set( "PaletteToolBar.Button.Normal", 			new FSlateNoResource() );
+		Set( "PaletteToolBar.Button.Pressed", 			new BOX_BRUSH( "Common/RoundedSelection_16x", 4.0f/16.0f, SelectionColor_Pressed ) );
+		Set( "PaletteToolBar.Button.Hovered", 			new BOX_BRUSH( "Common/RoundedSelection_16x", 4.0f/16.0f, SelectionColor ) );
+		Set( "PaletteToolBar.Button.Checked", 			new BOX_BRUSH( "Common/RoundedSelection_16x",  4.0f/16.0f, SelectionColor_Pressed ) );
+		Set( "PaletteToolBar.Button.Checked_Hovered", 	new BOX_BRUSH( "Common/RoundedSelection_16x",  4.0f/16.0f, SelectionColor_Pressed ) );
+		Set( "PaletteToolBar.Button.Checked_Pressed", 	new BOX_BRUSH( "Common/RoundedSelection_16x",  4.0f/16.0f, SelectionColor ) );
+	}
+	
 	// Ctrl+Tab menu
 	{
 		Set("ControlTabMenu.Background", new BOX_BRUSH("Old/Menu_Background", FMargin(8.0f / 64.0f)));

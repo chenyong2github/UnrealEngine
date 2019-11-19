@@ -786,8 +786,10 @@ void FEditorModeTools::RebuildModeToolBar()
 			ModeToolbarBoxPinned->AddSlot()
 			.Padding(1.f)
 			[
-				PaletteSwitcher	
+				PaletteSwitcher 
 			];
+
+			ModeToolbarPaletteSwitcher = PaletteSwitcher;
 		}
 		else
 		{
@@ -809,6 +811,33 @@ void FEditorModeTools::SpawnOrUpdateModeToolbar()
 			ToolkitHost.Pin()->GetTabManager()->InvokeTab(EditorModeToolbarTabName);
 		}
 	}
+}
+
+void FEditorModeTools::InvokeToolPaletteTab(FEditorModeID InModeID, FName InPaletteName)
+{
+	if (!ModeToolbarPaletteSwitcher.Pin()) 
+	{
+		return;
+	}
+
+	for (auto Row: ActiveToolBarRows)
+	{
+		if (Row.ModeID == InModeID && Row.PaletteName == InPaletteName)
+		{
+			TSharedRef<SWidget> PaletteWidget = Row.ToolbarWidget.ToSharedRef();
+
+			FEdMode* Mode = GetActiveMode(InModeID);
+			TSharedPtr<FModeToolkit> RowToolkit = Mode->GetToolkit();
+
+			TSharedPtr<SWidget> ActiveWidget = ModeToolbarPaletteSwitcher.Pin()->GetActiveWidget();
+			if (ActiveWidget.Get() != Row.ToolbarWidget.Get())
+			{
+				ModeToolbarPaletteSwitcher.Pin()->SetActiveWidget(Row.ToolbarWidget.ToSharedRef());
+				RowToolkit->OnToolPaletteChanged(Row.PaletteName);
+			}
+			break;	
+		}
+	}	
 }
 
 void FEditorModeTools::DeactivateMode( FEditorModeID InID )
@@ -1021,6 +1050,7 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 				for(auto Palette : PaletteNames)
 				{
 					FToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(Mode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), Orient_Horizontal, false);
+					ModeToolbarBuilder.SetStyle(&FEditorStyle::Get(), "PaletteToolBar");
 					Toolkit->BuildToolPalette(Palette, ModeToolbarBuilder);
 
 					ActiveToolBarRows.Emplace(Mode->GetID(), Palette, Toolkit->GetToolPaletteDisplayName(Palette), ModeToolbarBuilder.MakeWidget());

@@ -8,6 +8,7 @@
 #include "UnrealWidget.h"
 #include "Editor.h"
 #include "EditorUndoClient.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
 #include "EdMode.h"
 
 class FCanvas;
@@ -554,6 +555,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	/** returns true if all active EdModes are OK with an AutoSave happening now  */
 	bool CanAutoSave() const;
 
+	/*
+	* Sets the active Modes ToolBar Palette Tab to the named Palette
+	*/
+	void  InvokeToolPaletteTab(FEditorModeID InMode, FName InPaletteName);
+
 protected:
 	/** 
 	 * Delegate handlers
@@ -628,6 +634,9 @@ private:
 
 	/** The actual toolbar rows will be placed in this vertical box */
 	TWeakPtr<SVerticalBox> ModeToolbarBox;
+
+	/** The modes palette toolbar **/	
+	TWeakPtr<SWidgetSwitcher> ModeToolbarPaletteSwitcher;
 
 	/** Flag set between calls to StartTracking() and EndTracking() */
 	bool bIsTracking;
