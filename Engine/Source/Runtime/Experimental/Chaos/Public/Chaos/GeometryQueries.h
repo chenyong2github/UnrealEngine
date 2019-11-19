@@ -38,8 +38,14 @@ namespace Chaos
 		return Func(Geom.template GetObjectChecked<TSphere<FReal, 3>>());	//needed for return type
 	}
 
+	struct FMTDInfo
+	{
+		FVec3 Normal;
+		float Penetration;
+	};
+
 	template <typename QueryGeometry>
-	bool OverlapQuery(const FImplicitObject& A, const FRigidTransform3& ATM, const QueryGeometry& B, const FRigidTransform3& BTM, const FReal Thickness = 0, FVec3* OutMTD=nullptr)
+	bool OverlapQuery(const FImplicitObject& A, const FRigidTransform3& ATM, const QueryGeometry& B, const FRigidTransform3& BTM, const FReal Thickness = 0, FMTDInfo* OutMTD=nullptr)
 	{
 		const EImplicitObjectType AType = A.GetType(true);
 		constexpr EImplicitObjectType BType = QueryGeometry::StaticType();
@@ -64,7 +70,16 @@ namespace Chaos
 		else if (A.IsConvex())
 		{
 			const FVec3 Offset = ATM.GetLocation() - BTM.GetLocation();
-			return CastHelper(A, [&](const auto& AConcrete) { return GJKIntersection<FReal>(AConcrete, B, BToATM, Thickness, Offset.SizeSquared() < 1e-4 ? FVec3(1, 0, 0) : Offset); });
+			if (OutMTD)
+			{
+				FVec3 ClosestA;
+				FVec3 ClosestB;
+				return CastHelper(A, [&](const auto& AConcrete) { return GJKPenetration<FReal>(AConcrete, B, BToATM, OutMTD->Penetration, ClosestA, ClosestB, OutMTD->Normal, Thickness, Offset.SizeSquared() < 1e-4 ? FVec3(1, 0, 0) : Offset); });
+			}
+			else
+			{
+				return CastHelper(A, [&](const auto& AConcrete) { return GJKIntersection<FReal>(AConcrete, B, BToATM, Thickness, Offset.SizeSquared() < 1e-4 ? FVec3(1, 0, 0) : Offset); });
+			}
 		}
 		else
 		{
