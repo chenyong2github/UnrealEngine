@@ -8,6 +8,7 @@
 #include "HairDescription.h"
 #include "HairStrandsDatas.h"
 #include "RenderResource.h"
+#include "Interfaces/Interface_AssetUserData.h"
 
 #include "GroomAsset.generated.h"
 
@@ -223,7 +224,7 @@ struct HAIRSTRANDSCORE_API FHairGroupData
  * Implements an asset that can be used to store hair strands
  */
 UCLASS(BlueprintType, hidecategories = (Object))
-class HAIRSTRANDSCORE_API UGroomAsset : public UObject
+class HAIRSTRANDSCORE_API UGroomAsset : public UObject, public IInterface_AssetUserData
 {
 	GENERATED_BODY()
 
@@ -288,9 +289,23 @@ public:
 
 	int32 GetNumHairGroups() const;
 
-//private :
 #if WITH_EDITOR
 	FOnGroomAssetChanged OnGroomAssetChanged;
 #endif
+
+	//~ Begin IInterface_AssetUserData Interface
+	virtual void AddAssetUserData(UAssetUserData* InUserData) override;
+	virtual void RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
+	virtual UAssetUserData* GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
+	virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
+	//~ End IInterface_AssetUserData Interface
+
+//private : 
+
+
 	TUniquePtr<FHairDescription> HairDescription;
+
+	/** Array of user data stored with the asset */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = HairLab)
+	TArray<UAssetUserData*> AssetUserData;
 };
