@@ -8,7 +8,7 @@
 
 
 
-class MODELINGOPERATORS_API FUVLayoutOp : public FDynamicMeshOperator
+class MODELINGOPERATORSEDITORONLY_API FUVLayoutOp : public FDynamicMeshOperator
 {
 public:
 	virtual ~FUVLayoutOp() {}

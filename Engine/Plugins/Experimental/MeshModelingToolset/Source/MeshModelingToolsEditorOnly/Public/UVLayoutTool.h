@@ -24,7 +24,7 @@ class USimpleDynamicMeshComponent;
  *
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UUVLayoutToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEDITORONLY_API UUVLayoutToolBuilder : public UInteractiveToolBuilder
 {
 	GENERATED_BODY()
 
@@ -43,7 +43,7 @@ public:
  * Standard properties
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UUVLayoutToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEDITORONLY_API UUVLayoutToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -62,7 +62,7 @@ public:
  * Advanced properties
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UUVLayoutAdvancedProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEDITORONLY_API UUVLayoutAdvancedProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -76,7 +76,7 @@ public:
  *  stores a pointer to the tool and enough info to know which specific operator it should spawn
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UUVLayoutOperatorFactory : public UObject, public IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLSEDITORONLY_API UUVLayoutOperatorFactory : public UObject, public IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 
@@ -95,7 +95,7 @@ public:
  * Simple Mesh Normal Updating Tool
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UUVLayoutTool : public UMultiSelectionTool
+class MESHMODELINGTOOLSEDITORONLY_API UUVLayoutTool : public UMultiSelectionTool
 {
 	GENERATED_BODY()
 
