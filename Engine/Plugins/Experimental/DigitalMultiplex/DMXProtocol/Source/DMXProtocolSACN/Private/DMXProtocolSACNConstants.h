@@ -56,9 +56,3 @@ enum
 	VHD_H_FLAG = 0x20,
 	VHD_D_FLAG = 0x10
 };
-
-struct FSACNConstants
-{
-	static uint8 constexpr ACN_IDENTIFIER[ACN_IDENTIFIER_SIZE] = { 'A', 'S', 'C', '-', 'E', '1', '.', '1', '7', '\0', '\0', '\0' };
-};
-

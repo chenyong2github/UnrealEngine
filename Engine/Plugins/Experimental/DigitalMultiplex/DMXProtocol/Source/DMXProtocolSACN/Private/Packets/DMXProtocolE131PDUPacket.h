@@ -12,7 +12,7 @@ struct FDMXProtocolE131RootLayerPacket
 public:
 	FDMXProtocolE131RootLayerPacket()
 	{
-		FMemory::Memcpy(ACNPacketIdentifier, FSACNConstants::ACN_IDENTIFIER, ACN_IDENTIFIER_SIZE);
+		FMemory::Memcpy(ACNPacketIdentifier, "ASC-E1.17\0\0\0:", ACN_IDENTIFIER_SIZE);
 	}
 
 	//~ Begin IDMXProtocolPacket implementation

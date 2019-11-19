@@ -133,8 +133,3 @@ enum
 	RECV_NO_DATA = 1,
 	MAX_NODE_BCAST_LIMIT = 30 // always bcast after this point
 };
-
-struct DMXArtNet
-{
-	static uint8 constexpr ARTNET_STRING[ARTNET_STRING_SIZE] = "Art-Net";
-};

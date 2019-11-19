@@ -12,7 +12,7 @@ struct FDMXProtocolArtNetPacket
 public:
 	FDMXProtocolArtNetPacket()
 	{
-		FMemory::Memcpy(ID, DMXArtNet::ARTNET_STRING, ARTNET_STRING_SIZE);
+		FMemory::Memcpy(ID, "Art-Net\0", ARTNET_STRING_SIZE);
 	}
 
 public:
