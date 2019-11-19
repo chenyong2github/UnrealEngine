@@ -5,7 +5,7 @@
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "Chaos/PBDRigidsEvolution.h"
 #include "Chaos/PBDRigidClustering.h"
-#include "Chaos/PBDCollisionConstraint.h"
+#include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/CollisionResolutionTypes.h"
 #include "PBDRigidsSolver.h"
 #include "PhysicsProxy/SkeletalMeshPhysicsProxy.h"
@@ -107,7 +107,7 @@ namespace Chaos
 				{
 					for(int32 IdxCollision = 0; IdxCollision < ValidCollisionHandles.Num(); ++IdxCollision)
 					{
-						Chaos::TPBDCollisionConstraint<float, 3>::FPointContactConstraint const& Constraint = ValidCollisionHandles[IdxCollision]->GetPointContact();
+						Chaos::TPBDCollisionConstraints<float, 3>::FPointContactConstraint const& Constraint = ValidCollisionHandles[IdxCollision]->GetPointContact();
 
 						TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
 						TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];

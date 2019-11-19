@@ -4,7 +4,7 @@
 #include "Chaos/Convex.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/CollisionResolutionTypes.h"
-#include "Chaos/PBDCollisionConstraint.h"
+#include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/Transform.h"
 
 

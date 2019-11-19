@@ -7,7 +7,7 @@
 #include "ShaderParameterUtils.h"
 #include "PhysicsSolver.h"
 #include "Niagara/Private/NiagaraStats.h"
-#include "Chaos/PBDCollisionConstraintUtil.h"
+#include "Chaos/PBDCollisionConstraintsUtil.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "Chaos/CollisionResolutionTypes.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
