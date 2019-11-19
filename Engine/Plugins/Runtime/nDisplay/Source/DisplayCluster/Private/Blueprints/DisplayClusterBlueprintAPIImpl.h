@@ -79,8 +79,11 @@ public:
 	// Game API
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// Root
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get root"), Category = "DisplayCluster|Game")
-	virtual UDisplayClusterRootComponent* GetRoot() override;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get root actor"), Category = "DisplayCluster|Game")
+	virtual ADisplayClusterRootActor* GetRootActor() override;
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get root component"), Category = "DisplayCluster|Game")
+	virtual UDisplayClusterRootComponent* GetRootComponent() override;
 
 	// Screens
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get screen by ID"), Category = "DisplayCluster|Game")
