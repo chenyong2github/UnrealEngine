@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
-#include "IDMXProtocolFactory.h"
+#include "Interfaces/IDMXProtocolFactory.h"
 
 /**
  */

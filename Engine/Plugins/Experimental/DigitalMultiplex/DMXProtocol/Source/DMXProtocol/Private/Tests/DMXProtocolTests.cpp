@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
-#include "IDMXProtocolFactory.h"
+#include "Interfaces/IDMXProtocolFactory.h"
 #include "DMXProtocolCommon.h"
 #include "Json.h"
 
