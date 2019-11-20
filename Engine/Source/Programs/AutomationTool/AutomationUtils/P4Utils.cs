@@ -432,6 +432,13 @@ namespace AutomationTool
 		/// </summary>
 		[Description("undid")]
 		Undid,
+
+		/// <summary>
+		/// file was reverted to a previous revision
+		/// </summary>
+		[Description("undone by")]
+		UndoneBy
+
 	}
 
 	/// <summary>
