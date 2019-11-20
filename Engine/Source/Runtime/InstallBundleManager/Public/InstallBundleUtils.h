@@ -131,4 +131,44 @@ namespace InstallBundleUtil
 	INSTALLBUNDLEMANAGER_API void FinishInstallBundleAsyncIOTasks(TArray<TUniquePtr<FInstallBundleTask>>& Tasks);
 
 	INSTALLBUNDLEMANAGER_API void CleanupInstallBundleAsyncIOTasks(TArray<TUniquePtr<FInstallBundleTask>>& Tasks);
+
+	struct INSTALLBUNDLEMANAGER_API FContentRequestStateStats
+	{
+		double StartTime = 0.0;
+		double EndTime = 0.0;
+		uint64 DataSize = 0;
+		bool bOpen = true;
+
+		double GetElapsedTime() const
+		{
+			return (EndTime > StartTime) ? (EndTime - StartTime) : 0.0;
+		}
+	};
+
+	struct INSTALLBUNDLEMANAGER_API FContentRequestStats
+	{
+		double StartTime = 0.0;
+		double EndTime = 0.0;
+		bool bOpen = true;
+		TMap<FString, FContentRequestStateStats> StateStats;
+
+		double GetElapsedTime() const
+		{
+			return (EndTime > StartTime) ? (EndTime - StartTime) : 0.0;
+		}
+	};
+
+	class INSTALLBUNDLEMANAGER_API FContentRequestStatsMap
+	{
+	private:
+		TMap<FName, InstallBundleUtil::FContentRequestStats> StatsMap;
+
+	public:
+		void StatsBegin(FName BundleName);
+		void StatsEnd(FName BundleName);
+		void StatsBegin(FName BundleName, const TCHAR* State);
+		void StatsEnd(FName BundleName, const TCHAR* State, uint64 DataSize = 0);
+
+		const TMap<FName, InstallBundleUtil::FContentRequestStats>& GetMap() { return StatsMap; }
+	};
 }
