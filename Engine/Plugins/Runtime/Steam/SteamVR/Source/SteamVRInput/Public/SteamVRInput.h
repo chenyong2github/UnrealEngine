@@ -12,6 +12,11 @@ public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
+#if WITH_EDITOR
+	void AddEditorSettings();
+	void RemoveEditorSettings();
+#endif
+
 	static inline IModuleInterface& Get()
 	{
 		return FModuleManager::LoadModuleChecked<IModuleInterface>("SteamVRInput");
