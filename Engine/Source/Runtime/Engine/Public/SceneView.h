@@ -1035,6 +1035,13 @@ public:
 	/** The frame index to override, useful for keeping determinism when rendering sequences. **/
 	TOptional<uint32> OverrideFrameIndexValue;
 
+	/** In some cases, the principal point of the lens is not at the center of the screen, especially for overlapped tile
+	 *  rendering. So given a UV in [-1,1] viewport space, convert it to the [-1,1] viewport space of the lens using
+	 *  LensUV = LensPrincipalPointOffsetScale.xy ScreenUV * LensPrincipalPointOffsetScale.zw;
+	 *  This value is FVector4(0,0,1,1) unless overridden.
+	 */
+	FVector4 LensPrincipalPointOffsetScale;
+
 #if WITH_EDITOR
 	/** The set of (the first 64) groups' visibility info for this view */
 	uint64 EditorViewBitflag;

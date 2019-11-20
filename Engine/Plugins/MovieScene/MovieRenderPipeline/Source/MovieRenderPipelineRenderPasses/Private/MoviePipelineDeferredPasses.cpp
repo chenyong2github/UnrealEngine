@@ -344,7 +344,38 @@ namespace MoviePipeline
 
 		}
 
+		// Scaling sensor size inversely with the the projection matrix [0][0] should physically
+		// cause the circle of confusion to be unchanged.
 		View->FinalPostProcessSettings.DepthOfFieldSensorWidth *= DofSensorScale;
+
+		{
+			// We need our final view parameters to be in the space of [-1,1], including all the tiles.
+			// Starting with a single tile, the middle of the tile in offset screen space is:
+			FVector2D TilePrincipalPointOffset;
+
+			TilePrincipalPointOffset.X = (float(InSampleState.TileIndexes.X) + 0.5f - 0.5f * float(InSampleState.TileCounts.X)) * 2.0f;// / (.5f * float(InSampleState.TileCounts.Y));
+			TilePrincipalPointOffset.Y = (float(InSampleState.TileIndexes.Y) + 0.5f - 0.5f * float(InSampleState.TileCounts.Y)) * 2.0f;// / (.5f * float(InSampleState.TileCounts.X));
+
+			// For the tile size ratio, we have to multiply by (1.0 + overlap) and then divide by tile num
+			FVector2D OverlapScale;
+			OverlapScale.X = (1.0f + float(2 * InSampleState.OverlappedPad.X) / float(InSampleState.TileSize.X) );/// float(InSampleState.TileCounts.X);
+			OverlapScale.Y = (1.0f + float(2 * InSampleState.OverlappedPad.Y) / float(InSampleState.TileSize.Y) );/// float(InSampleState.TileCounts.Y);
+
+			TilePrincipalPointOffset.X /= OverlapScale.X;
+			TilePrincipalPointOffset.Y /= OverlapScale.Y;
+
+			FVector2D TilePrincipalPointScale;
+			TilePrincipalPointScale.X = OverlapScale.X / float(InSampleState.TileCounts.X);
+			TilePrincipalPointScale.Y = OverlapScale.Y / float(InSampleState.TileCounts.Y);
+
+			TilePrincipalPointOffset.X *= TilePrincipalPointScale.X;
+			TilePrincipalPointOffset.Y *= TilePrincipalPointScale.Y;
+
+			View->LensPrincipalPointOffsetScale = FVector4(TilePrincipalPointOffset.X, -TilePrincipalPointOffset.Y, TilePrincipalPointScale.X, TilePrincipalPointScale.Y);
+		}
+
+		//static FVector4 LensOffsetScale = FVector4(0, 0, 1, 1);
+		//View->LensPrincipalPointOffsetScale = LensOffsetScale;
 
 		View->EndFinalPostprocessSettings(ViewInitOptions);
 
