@@ -524,33 +524,6 @@ namespace Audio
 		return true;
 	}
 
-	int32 FMixerPlatformXAudio2::GetIndexForDevice(const FString& InDeviceName)
-	{
-		uint32 TotalNumDevices = 0;
-
-		if (!GetNumOutputDevices(TotalNumDevices))
-		{
-			return INDEX_NONE;
-		}
-
-		// Iterate through every device and see if
-		for (uint32 DeviceIndex = 0; DeviceIndex < TotalNumDevices; DeviceIndex++)
-		{
-			FAudioPlatformDeviceInfo DeviceInfo;
-			if (GetOutputDeviceInfo(DeviceIndex, DeviceInfo))
-			{
-				// check if the device name matches the input device name:
-				if (DeviceInfo.Name.Contains(InDeviceName))
-				{
-					return DeviceIndex;
-				}
-			}
-		}
-
-		// If we've made it here, we weren't able to find a matching device.
-		return INDEX_NONE;
-	}
-
 	bool FMixerPlatformXAudio2::GetDefaultOutputDeviceIndex(uint32& OutDefaultDeviceIndex) const
 	{
 		OutDefaultDeviceIndex = 0;
