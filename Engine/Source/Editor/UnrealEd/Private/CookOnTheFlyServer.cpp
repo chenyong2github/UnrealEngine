@@ -5072,6 +5072,9 @@ FName UCookOnTheFlyServer::ConvertCookedPathToUncookedPath(
 		BuildUncookedPath(FullCookedFilename, SandboxRootDir, RelativeRootDir);
 	}
 
+	// Convert to a standard filename as required by FPackageNameCache where this path is used.
+	FPaths::MakeStandardFilename(OutUncookedPath);
+
 	return FName(*OutUncookedPath);
 }
 
