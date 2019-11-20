@@ -3,7 +3,6 @@
 
 #include "Engine/EngineTypes.h"
 #include "NetworkedSimulationModelTime.h"
-#include "Containers/SortedMap.h"
 
 NETWORKPREDICTION_API DECLARE_LOG_CATEGORY_EXTERN(LogNetSimCues, Log, All);
 
@@ -326,13 +325,14 @@ private:
 template<typename TCueHandler>
 TCueDispatchTable<TCueHandler> TCueDispatchTable<TCueHandler>::Singleton;
 
-// ------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------
 //	CueDispatcher
 //	-Entry point for invoking cues during a SimulationTick
 //	-Holds recorded cue state for replication
-// ------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-struct FCueDispatcher
+// Non-templated, "networking model independent" base: this is what the pure simulation code gets to invoke cues. 
+struct FNetSimCueDispatcher
 {
 	template<typename T>
 	void Invoke(T&& Cue)
@@ -367,10 +367,42 @@ struct FCueDispatcher
 				UE_LOG(LogNetSimCues, Log, TEXT("Suppressing Cue Invocation %s. Mask: %d. TickContext: %d"), *FGlobalCueTypeTable::Get().GetTypeName(T::ID), TCueHandlerTraits<T>::InvokeMask, (int32)Context.TickContext);
 			}
 		}
+	}	
+
+protected:
+
+	bool EnsureValidContext()
+	{
+		return ensure(Context.CurrentSimTime.IsPositive() && Context.TickContext != ESimulationTickContext::None);
 	}
 
-	// Serializes the recorded cue record
-	// Note: this is not NetSerializing the individual cues in the record, it is serializing the record which contains the "net bits" of each individual cue
+	// Sim Context: the Sim has to tell the dispatcher what its doing so that it can decide if it should supress Invocations or not
+	struct FContext
+	{
+		FNetworkSimTime CurrentSimTime;
+		ESimulationTickContext TickContext;
+	};
+	
+	TArray<FSavedCue> SavedCues;		// Cues that must be saved for some period of time, either for replication or for uniqueness testing
+	TArray<FSavedCue> TransientCues;	// Cues that are dispatched on this frame and then forgotten about
+
+	FContext Context;
+};
+
+// Traits for TNetSimCueDispatcher
+struct NETWORKPREDICTION_API FCueDispatcherTraitsBase
+{
+	// Window for replicating a NetSimCue. That is, after a cue is invoked, it has ReplicationWindow time before it will be pruned.
+	// If a client does not get a net update for the sim in this window, they will miss the event.
+	static constexpr FNetworkSimTime ReplicationWindow = FNetworkSimTime::FromRealTimeMS(200);
+};
+template<typename T> struct TCueDispatcherTraits : public FCueDispatcherTraitsBase { };
+
+// Templated cue dispatcher that can be specialized per networking model definition. This is what the system actually uses internally, but is not exposed to user code.
+template<typename Model=void>
+struct TNetSimCueDispatcher : public FNetSimCueDispatcher
+{
+	// Serializes all saved cues
 	void NetSerializeSavedCues(FArchive& Ar, bool bIsInterpolatingSim)
 	{
 		FNetSimCueTypeId NumCues = SavedCues.Num();
@@ -422,29 +454,26 @@ struct FCueDispatcher
 		}
 	}
 
+	// Dispatches and prunes saved/transient cues
 	template<typename T>
 	void DispatchCueRecord(T& Handler, FNetworkSimTime CurrentSimTime)
 	{
-		// Prune
-		FNetworkSimTime CutOffTime = CurrentSimTime - FNetworkSimTime::FromMSec(200); // fixme: hardcoded bad. But also, should take into consideration confirmed server frame in prediction case
-		int32 FirstValidElement = 0;
-		for (; FirstValidElement < SavedCues.Num(); ++FirstValidElement)
-		{
-			if ( SavedCues[FirstValidElement].Time > CutOffTime)
-			{
-				break;
-			}
-		}
-
-		if (FirstValidElement > 0)
-		{
-			SavedCues.RemoveAt(0, FirstValidElement, false);
-		}
+		const FNetworkSimTime PruneTime = (MinPruneNetSimTime.IsPositive() ? MinPruneNetSimTime : CurrentSimTime) - TCueDispatcherTraits<Model>::ReplicationWindow;
 
 		// Dispatch
-		for (FSavedCue& SavedCue : SavedCues)
+		int32 PruneIdx = -1;
+		for (int32 SavedCueIdx = 0; SavedCueIdx < SavedCues.Num(); ++ SavedCueIdx)
 		{
-			if (SavedCue.bDispatched == false)
+			FSavedCue& SavedCue = SavedCues[SavedCueIdx];
+			if ( SavedCue.Time <= PruneTime)
+			{
+				PruneIdx = SavedCueIdx;
+			}
+
+			const bool bWithold = MaxDispatchNetSimTime.IsPositive() && SavedCue.Time > MaxDispatchNetSimTime;
+			UE_CLOG(bWithold, LogNetSimCues, Log, TEXT("Withholding Cue %s. %s > %s"), *SavedCue.GetTypeName(), *SavedCue.Time.ToString(), *MaxDispatchNetSimTime.ToString());
+
+			if (SavedCue.bDispatched == false && !bWithold)
 			{
 				UE_LOG(LogNetSimCues, Log, TEXT("Dispatching NetSimCue %s."), *SavedCue.GetTypeName());
 				SavedCue.bDispatched = true;
@@ -458,29 +487,37 @@ struct FCueDispatcher
 			TCueDispatchTable<T>::Get().Dispatch(TransientCue, Handler, CurrentSimTime - TransientCue.Time);
 		}
 		TransientCues.Reset();
+
+		// Prune
+		if (PruneIdx >= 0)
+		{
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+			for (int32 i=0; i <= PruneIdx; ++i)
+			{
+				UE_CLOG(!SavedCues[i].bDispatched, LogNetSimCues, Warning, TEXT("Non-Dispatched Cue is about to be pruned! %s. %s"), *SavedCues[i].GetTypeName());
+				UE_LOG(LogNetSimCues, Log, TEXT("Pruning Cue %s. Invoke Time: %s. Current Time: %s"), *SavedCues[i].GetTypeName(), *SavedCues[i].Time.ToString(), *CurrentSimTime.ToString());
+			}
+#endif
+
+			SavedCues.RemoveAt(0, PruneIdx+1, false);
+		}
 	}
 
-	// Sim Context: the Sim has to tell the dispatcher what its doing so that it can decide if it should supress Invocations or not
-	struct FContext
-	{
-		FNetworkSimTime CurrentSimTime;
-		ESimulationTickContext TickContext;
-	};
-
+	// Push/pop simulation context.
 	void PushContext(const FContext& InContext) { Context = InContext; }
 	void PopContext() { Context = FContext(); }
 
+	// Set max simulation time to invoke cues for. Clearing = always process latest
+	void SetMaxDispatchTime(const FNetworkSimTime& NewMaxTime) const { MaxDispatchNetSimTime = NewMaxTime; }
+	void ClearMaxDispatchTime() const { MaxDispatchNetSimTime = FNetworkSimTime(); }
+
+	// Set minimum prune time. System will not prune cues that happen after this time. ReplicationWindow is applied *on top* of this
+	void SetPruneTime(const FNetworkSimTime& NewPruneTime) const { MinPruneNetSimTime = NewPruneTime; }
+
 private:
 
-	TArray<FSavedCue> SavedCues;		// Cues that must be saved for some period of time, either for replication or for uniqueness testing
-	TArray<FSavedCue> TransientCues;	// Cues that are dispatched on this frame and then forgotten about
-
-	FContext Context;
-
-	bool EnsureValidContext()
-	{
-		return ensure(Context.CurrentSimTime.IsPositive() && Context.TickContext != ESimulationTickContext::None);
-	}
+	mutable FNetworkSimTime MaxDispatchNetSimTime;	// (If set) Max time of a saved cue that can be dispatched. Needed for delaying interpolation / client side buffering.
+	mutable FNetworkSimTime MinPruneNetSimTime;		// (If set) Min time we start at to look for cues to prune. Note ReplicationWindow is always applied on top of this.
 };
 
 // ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

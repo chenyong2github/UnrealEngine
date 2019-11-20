@@ -40,6 +40,32 @@
 //
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+// Base for Network Simulation Model Defs (defines types used by the model)
+class FNetSimModelDefBase
+{
+public:
+
+	// -----------------------------------------------------------------------------------------------
+	//	Must be set by user to compile:
+	// -----------------------------------------------------------------------------------------------
+
+	// The simulation class. This encompasses all state and functions for running the simulation but none of the networking/bookkeeping etc.
+	using Simulation = void;
+
+	// Buffer types: defines your Input/Sync/Aux state (and optional debug state)
+	using BufferTypes = void;	
+
+	// -----------------------------------------------------------------------------------------------
+	//	Optional customization/overrides 
+	// -----------------------------------------------------------------------------------------------
+
+	// Model base class. E.g, common interface all NetworkedSimulationModels can be communicated with
+	using Base = INetworkedSimulationModel;
+	
+	// Tick settings: defines variable vs fix step tick, etc
+	using TickSettings = TNetworkSimTickSettings<>;
+};
+
 // Traits for which RepController structs are used internally
 struct TNetSimModelRepControllerTraitsBase
 {
@@ -216,7 +242,7 @@ public:
 
 				{
 					ESimulationTickContext Context = Parameters.Role == ROLE_Authority ? ESimulationTickContext::Authority : ESimulationTickContext::Predict;
-					TScopedSimulationTick UpdateScope(Ticker, Buffers.CueDispatcher, Context, OutputFrame, InputCmd->GetFrameDeltaTime());
+					TScopedSimulationTick<Model> UpdateScope(Ticker, Buffers.CueDispatcher, Context, OutputFrame, InputCmd->GetFrameDeltaTime());
 					
 					Simulation->SimulationTick( 
 						{ InputCmd->GetFrameDeltaTime(), Ticker },
@@ -399,7 +425,7 @@ public:
 	const TState* GetPendingStateRead() const
 	{
 		// Reading is always allowed
-		auto& Buffer = NetSimBufferSelect::Get<TNetworkSimBufferContainer<TBufferTypes>, TState>(Buffers);
+		auto& Buffer = NetSimBufferSelect::Get<TNetworkSimBufferContainer<Model>, TState>(Buffers);
 		return Buffer[Ticker.PendingFrame];
 	}
 
@@ -409,7 +435,7 @@ public:
 		// Writes are always allowed on the authority or during a simulation update for predicting clients
 		if (bHasAuthority || Ticker.bUpdateInProgress)
 		{
-			auto& Buffer = NetSimBufferSelect::Get<TNetworkSimBufferContainer<TBufferTypes>, TState>(Buffers);
+			auto& Buffer = NetSimBufferSelect::Get<TNetworkSimBufferContainer<Model>, TState>(Buffers);
 			return Buffer.WriteFrameInitializedFromHead(Ticker.PendingFrame);
 		}
 		return nullptr;
@@ -481,17 +507,17 @@ public:
 
 	TSimulationTicker<TTickSettings> Ticker;
 
-	TNetworkSimBufferContainer<TBufferTypes> Buffers;
+	TNetworkSimBufferContainer<Model> Buffers;
 
 	TRepProxyServerRPC RepProxy_ServerRPC;
 	TRepProxyAutonomous RepProxy_Autonomous;
 	TRepProxySimulated RepProxy_Simulated;
 	TRepProxyReplay RepProxy_Replay;
 
-	using TInputBuffer = typename TNetworkSimBufferContainer<TBufferTypes>::TInputBuffer;
-	using TSyncBuffer = typename TNetworkSimBufferContainer<TBufferTypes>::TSyncBuffer;
-	using TAuxBuffer = typename TNetworkSimBufferContainer<TBufferTypes>::TAuxBuffer;
-	using TDebugBuffer = typename TNetworkSimBufferContainer<TBufferTypes>::TDebugBuffer;
+	using TInputBuffer = typename TNetworkSimBufferContainer<Model>::TInputBuffer;
+	using TSyncBuffer = typename TNetworkSimBufferContainer<Model>::TSyncBuffer;
+	using TAuxBuffer = typename TNetworkSimBufferContainer<Model>::TAuxBuffer;
+	using TDebugBuffer = typename TNetworkSimBufferContainer<Model>::TDebugBuffer;
 
 	// ------------------------------------------------------------------
 	// RPC Sending helper: provides basic send frequency settings for tracking when the Server RPC can be invoked.
@@ -530,9 +556,9 @@ public:
 #if NETSIM_MODEL_DEBUG
 	TDebugBuffer* GetLocalDebugBuffer() {	return &Buffers.Debug; }
 	TDebugState* GetNextLocalDebugStateWrite() { return Buffers.Debug.WriteFrame( Buffers.Debug.HeadFrame() + 1 ); }
-	TNetworkSimBufferContainer<TBufferTypes>* GetHistoricBuffers(bool bCreate=false)
+	TNetworkSimBufferContainer<Model>* GetHistoricBuffers(bool bCreate=false)
 	{
-		if (HistoricBuffers.IsValid() == false && bCreate) { HistoricBuffers.Reset(new TNetworkSimBufferContainer<TBufferTypes>()); }
+		if (HistoricBuffers.IsValid() == false && bCreate) { HistoricBuffers.Reset(new TNetworkSimBufferContainer<Model>()); }
 		return HistoricBuffers.Get();
 	}
 
@@ -540,7 +566,7 @@ public:
 #else
 	TDebugBuffer* GetLocalDebugBuffer() {	return nullptr; }
 	TDebugState* GetNextLocalDebugStateWrite() { return nullptr; }
-	TNetworkSimBufferContainer<TBufferTypes>* GetHistoricBuffers(bool bCreate=false) { return nullptr; }
+	TNetworkSimBufferContainer<Model>* GetHistoricBuffers(bool bCreate=false) { return nullptr; }
 	TDebugBuffer* GetRemoteDebugBuffer() {	return nullptr; }
 #endif
 
@@ -548,7 +574,7 @@ private:
 
 #if NETSIM_MODEL_DEBUG
 	TRepProxyDebug RepProxy_Debug;
-	TUniquePtr<TNetworkSimBufferContainer<TBufferTypes>> HistoricBuffers;
+	TUniquePtr<TNetworkSimBufferContainer<Model>> HistoricBuffers;
 #endif
 
 };
