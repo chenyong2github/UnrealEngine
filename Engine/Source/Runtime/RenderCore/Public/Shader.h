@@ -2027,6 +2027,10 @@ public:
 			}
 		}
 	}
+	uint32 GetShaderNum() const
+	{
+		return Shaders.Num();
+	}
 
 	/** Builds a list of the shader pipelines in a shader map. */
 	void GetShaderPipelineList(TArray<FShaderPipeline*>& OutShaderPipelines, FShaderPipeline::EFilter Filter) const
