@@ -274,7 +274,7 @@ private:
 	}
 };
 
-void DecomposeUCXMesh( const TArray<FVector>& CollisionVertices, const TArray<int32>& CollisionFaceIdx, UBodySetup* BodySetup )
+bool DecomposeUCXMesh( const TArray<FVector>& CollisionVertices, const TArray<int32>& CollisionFaceIdx, UBodySetup* BodySetup )
 {
 	// We keep no ref to this Model, so it will be GC'd at some point after the import.
 	auto TempModel = NewObject<UModel>();
@@ -294,6 +294,7 @@ void DecomposeUCXMesh( const TArray<FVector>& CollisionVertices, const TArray<in
 	ConnectivityBuilder.CreateConnectivityGroups();
 
 	// For each valid group build BSP and extract convex hulls
+	bool bSuccess = true;
 	for ( int32 i=0; i<ConnectivityBuilder.Groups.Num(); i++ )
 	{
 		const FMeshConnectivityGroup &Group = ConnectivityBuilder.Groups[ i ];
@@ -331,8 +332,11 @@ void DecomposeUCXMesh( const TArray<FVector>& CollisionVertices, const TArray<in
 
 		// Convert collision model into a collection of convex hulls.
 		// Generated convex hulls will be added to existing ones
-		BodySetup->CreateFromModel( TempModel, false );
+		bSuccess = BodySetup->CreateFromModel( TempModel, false ) && bSuccess;
 	}
+
+	// Could all meshes be properly decomposed?
+	return bSuccess;
 }
 
 /** 
