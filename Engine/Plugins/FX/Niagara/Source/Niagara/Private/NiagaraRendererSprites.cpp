@@ -155,9 +155,9 @@ FNiagaraRendererSprites::~FNiagaraRendererSprites()
 {
 }
 
-void FNiagaraRendererSprites::ReleaseRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher)
+void FNiagaraRendererSprites::ReleaseRenderThreadResources()
 {
-	FNiagaraRenderer::ReleaseRenderThreadResources(Batcher);
+	FNiagaraRenderer::ReleaseRenderThreadResources();
 
 	CutoutVertexBuffer.ReleaseResource();
 #if RHI_RAYTRACING

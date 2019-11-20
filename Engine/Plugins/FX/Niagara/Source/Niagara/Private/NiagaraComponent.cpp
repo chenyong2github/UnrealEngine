@@ -142,17 +142,15 @@ void FNiagaraSceneProxy::ReleaseRenderers()
 {
 	if (EmitterRenderers.Num() > 0)
 	{
-		NiagaraEmitterInstanceBatcher* TheBatcher = Batcher && !Batcher->IsPendingKill() ? Batcher : nullptr;
-
 		//Renderers must be freed on the render thread.
 		ENQUEUE_RENDER_COMMAND(ReleaseRenderersCommand)(
-			[ToDeleteEmitterRenderers = MoveTemp(EmitterRenderers), TheBatcher](FRHICommandListImmediate& RHICmdList)
+			[ToDeleteEmitterRenderers = MoveTemp(EmitterRenderers)](FRHICommandListImmediate& RHICmdList)
 		{
 			for (FNiagaraRenderer* EmitterRenderer : ToDeleteEmitterRenderers)
 			{
 				if (EmitterRenderer)
 				{
-					EmitterRenderer->ReleaseRenderThreadResources(TheBatcher);
+					EmitterRenderer->ReleaseRenderThreadResources();
 					delete EmitterRenderer;
 				}
 			}
@@ -215,13 +213,15 @@ void FNiagaraSceneProxy::CreateRenderers(const UNiagaraComponent* Component)
 
 FNiagaraSceneProxy::~FNiagaraSceneProxy()
 {
+	Batcher = nullptr;
+
 	//UE_LOG(LogNiagara, Warning, TEXT("~FNiagaraSceneProxy %p"), this);
 	check(IsInRenderingThread());
 	for (FNiagaraRenderer* EmitterRenderer : EmitterRenderers)
 	{
 		if (EmitterRenderer)
 		{
-			EmitterRenderer->ReleaseRenderThreadResources(Batcher);
+			EmitterRenderer->ReleaseRenderThreadResources();
 			delete EmitterRenderer;
 		}
 	}
@@ -234,10 +234,9 @@ void FNiagaraSceneProxy::ReleaseRenderThreadResources()
 	{
 		if (Renderer)
 		{
-			Renderer->ReleaseRenderThreadResources(Batcher);
+			Renderer->ReleaseRenderThreadResources();
 		}
 	}
-	return;
 }
 
 // FPrimitiveSceneProxy interface.
