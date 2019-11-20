@@ -44,6 +44,28 @@ namespace UnrealBuildTool.Rules
                 }
             );
 
+            string MdlSdkModuleName = "libmdl_sdk.so";
+            
+            if (Target.Platform == UnrealTargetPlatform.Win64)
+            {
+                MdlSdkModuleName = "libmdl_sdk.dll";
+
+            }
+            else
+            {
+				MdlSdkModuleName = "libmdl_sdk.so";
+            }
+
+            PublicDelayLoadDLLs.Add(MdlSdkModuleName);
+            string ModulePath = Path.Combine(EngineDirectory, "Plugins/Enterprise/MDLImporter/Binaries/ThirdParty/MDL", Target.Platform.ToString(), MdlSdkModuleName);
+            if (!File.Exists(ModulePath))
+            {
+                string Err = string.Format("MDL SDK module '{0}' not found.", ModulePath);
+                System.Console.WriteLine(Err);
+                throw new BuildException(Err);
+            }
+            RuntimeDependencies.Add(ModulePath);
+
             if (Directory.Exists(ThirdPartyPath))
             {
                 //third party libraries
