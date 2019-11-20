@@ -12,6 +12,8 @@
 #include "Chaos/Sphere.h"
 #include "Chaos/Transform.h"
 
+#define MIN_NUM_OBJECTS 5
+
 namespace Chaos
 {
 
