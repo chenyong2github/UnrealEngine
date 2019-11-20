@@ -325,6 +325,7 @@ bool AVirtualCameraPlayerControllerBase::GetCurrentTrackerLocationAndRotation(FV
 		case ETrackerInputSource::Custom:
 			GetCustomTrackerLocationAndRotation(OutTrackerLocation, OutTrackerRotation);
 			bTransformSet = true;
+			break;
 
 		default:
 			UE_LOG(LogVirtualCamera, Warning, TEXT("Selected tracker source is not yet supported"))
