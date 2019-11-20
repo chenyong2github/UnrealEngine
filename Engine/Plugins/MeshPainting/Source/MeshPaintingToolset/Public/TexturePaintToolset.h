@@ -11,7 +11,7 @@ class UTexture2D;
 class UTextureRenderTarget2D;
 
 /** Batched element parameters for texture paint shaders used for paint blending and paint mask generation */
-class MESHPAINTINGTOOLSET_API FMeshPaintBatchedElementParameters : public FBatchedElementParameters
+class FMeshPaintBatchedElementParameters : public FBatchedElementParameters
 {
 public:
 	/** Binds vertex and pixel shaders for this element */
@@ -27,7 +27,7 @@ public:
 };
 
 /** Batched element parameters for texture paint shaders used for texture dilation */
-class MESHPAINTINGTOOLSET_API FMeshPaintDilateBatchedElementParameters : public FBatchedElementParameters
+class FMeshPaintDilateBatchedElementParameters : public FBatchedElementParameters
 {
 public:
 	/** Binds vertex and pixel shaders for this element */
@@ -56,7 +56,7 @@ class IMeshPaintComponentAdapter;
 struct FPaintableTexture;
 
 /** Helpers functions for texture painting functionality */
-class MESHPAINTINGTOOLSET_API TexturePaintHelpers
+class MESHPAINTINGTOOLSET_API TexturePaintToolset
 {
 public:
 	/** Static: Copies a texture to a render target texture */

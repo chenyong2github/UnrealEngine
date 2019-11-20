@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "TexturePaintHelpers.h"
+#include "TexturePaintToolset.h"
 
 #include "Editor.h"
 #include "Components/StaticMeshComponent.h"
@@ -16,7 +16,7 @@
 #include "CanvasItem.h"
 #include "MeshPaintingToolsetTypes.h"
 
-void TexturePaintHelpers::CopyTextureToRenderTargetTexture(UTexture* SourceTexture, UTextureRenderTarget2D* RenderTargetTexture, ERHIFeatureLevel::Type FeatureLevel)
+void TexturePaintToolset::CopyTextureToRenderTargetTexture(UTexture* SourceTexture, UTextureRenderTarget2D* RenderTargetTexture, ERHIFeatureLevel::Type FeatureLevel)
 {
 	check(SourceTexture != nullptr);
 	check(RenderTargetTexture != nullptr);
@@ -104,7 +104,7 @@ void TexturePaintHelpers::CopyTextureToRenderTargetTexture(UTexture* SourceTextu
 		});		
 }
 
-bool TexturePaintHelpers::GenerateSeamMask(UMeshComponent* MeshComponent, int32 UVSet, UTextureRenderTarget2D* SeamRenderTexture, UTexture2D* Texture, UTextureRenderTarget2D* RenderTargetTexture)
+bool TexturePaintToolset::GenerateSeamMask(UMeshComponent* MeshComponent, int32 UVSet, UTextureRenderTarget2D* SeamRenderTexture, UTexture2D* Texture, UTextureRenderTarget2D* RenderTargetTexture)
 {
 	UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(MeshComponent);
 	if (StaticMeshComponent == nullptr)
@@ -321,7 +321,7 @@ bool TexturePaintHelpers::GenerateSeamMask(UMeshComponent* MeshComponent, int32 
 	return RetVal;
 }
 
-UTexture2D* TexturePaintHelpers::CreateTempUncompressedTexture(UTexture2D* SourceTexture)
+UTexture2D* TexturePaintToolset::CreateTempUncompressedTexture(UTexture2D* SourceTexture)
 {
 	check(SourceTexture->Source.IsValid());
 
@@ -367,7 +367,7 @@ UTexture2D* TexturePaintHelpers::CreateTempUncompressedTexture(UTexture2D* Sourc
 	return NewTexture2D;
 }
 
-void TexturePaintHelpers::SetupInitialRenderTargetData(UTexture2D* InTextureSource, UTextureRenderTarget2D* InRenderTarget)
+void TexturePaintToolset::SetupInitialRenderTargetData(UTexture2D* InTextureSource, UTextureRenderTarget2D* InRenderTarget)
 {
 	check(InTextureSource != nullptr);
 	check(InRenderTarget != nullptr);
@@ -397,7 +397,7 @@ void TexturePaintHelpers::SetupInitialRenderTargetData(UTexture2D* InTextureSour
 	}
 }
 
-void TexturePaintHelpers::FindMaterialIndicesUsingTexture(const UTexture* Texture, const UMeshComponent* MeshComponent, TArray<int32>& OutIndices)
+void TexturePaintToolset::FindMaterialIndicesUsingTexture(const UTexture* Texture, const UMeshComponent* MeshComponent, TArray<int32>& OutIndices)
 {
 	checkf(Texture && MeshComponent, TEXT("Invalid Texture of MeshComponent"));
 
@@ -416,22 +416,22 @@ void TexturePaintHelpers::FindMaterialIndicesUsingTexture(const UTexture* Textur
 	}
 }
 
-void TexturePaintHelpers::RetrieveMeshSectionsForTextures(const UMeshComponent* MeshComponent, int32 LODIndex, TArray<const UTexture*> Textures, TArray<FTexturePaintMeshSectionInfo>& OutSectionInfo)
+void TexturePaintToolset::RetrieveMeshSectionsForTextures(const UMeshComponent* MeshComponent, int32 LODIndex, TArray<const UTexture*> Textures, TArray<FTexturePaintMeshSectionInfo>& OutSectionInfo)
 {	
 	// @todo MeshPaint: if LODs can use different materials/textures then this will cause us problems
 	TArray<int32> MaterialIndices;
 	for (const UTexture* Texture : Textures)
 	{
-		TexturePaintHelpers::FindMaterialIndicesUsingTexture(Texture, MeshComponent, MaterialIndices);
+		TexturePaintToolset::FindMaterialIndicesUsingTexture(Texture, MeshComponent, MaterialIndices);
 	}
 	
 	if (MaterialIndices.Num())
 	{
-		TexturePaintHelpers::RetrieveMeshSectionsForMaterialIndices(MeshComponent, LODIndex, MaterialIndices, OutSectionInfo);
+		TexturePaintToolset::RetrieveMeshSectionsForMaterialIndices(MeshComponent, LODIndex, MaterialIndices, OutSectionInfo);
 	}
 }
 
-void TexturePaintHelpers::RetrieveMeshSectionsForMaterialIndices(const UMeshComponent* MeshComponent, int32 LODIndex, const TArray<int32>& MaterialIndices, TArray<FTexturePaintMeshSectionInfo>& OutSectionInfo)
+void TexturePaintToolset::RetrieveMeshSectionsForMaterialIndices(const UMeshComponent* MeshComponent, int32 LODIndex, const TArray<int32>& MaterialIndices, TArray<FTexturePaintMeshSectionInfo>& OutSectionInfo)
 {
 	if (const UStaticMeshComponent* StaticMeshComponent = Cast<const UStaticMeshComponent>(MeshComponent))
 	{
@@ -476,14 +476,14 @@ void TexturePaintHelpers::RetrieveMeshSectionsForMaterialIndices(const UMeshComp
 	}
 }
 
-bool TexturePaintHelpers::DoesMeshComponentUseTexture(UMeshComponent* MeshComponent, UTexture* Texture)
+bool TexturePaintToolset::DoesMeshComponentUseTexture(UMeshComponent* MeshComponent, UTexture* Texture)
 {
 	TArray<UTexture*> UsedTextures;
 	MeshComponent->GetUsedTextures(UsedTextures, EMaterialQualityLevel::High);
 	return UsedTextures.Contains(Texture);
 }
 
-void TexturePaintHelpers::RetrieveTexturesForComponent(const UMeshComponent* Component, IMeshPaintComponentAdapter* Adapter, TArray<FPaintableTexture>& OutTextures)
+void TexturePaintToolset::RetrieveTexturesForComponent(const UMeshComponent* Component, IMeshPaintComponentAdapter* Adapter, TArray<FPaintableTexture>& OutTextures)
 {
 	// Get the materials used by the mesh
 	TArray<UMaterialInterface*> UsedMaterials;
