@@ -1178,6 +1178,11 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 	SCOPED_BOOT_TIMING("FEngineLoop::PreInit");
 
+	// Set the flag for whether we've build DebugGame instead of Development. The engine does not know this (whereas the launch module does) because it is always built in development.
+#if UE_BUILD_DEVELOPMENT && defined(UE_BUILD_DEVELOPMENT_WITH_DEBUGGAME) && UE_BUILD_DEVELOPMENT_WITH_DEBUGGAME
+	FApp::SetDebugGame(true);
+#endif
+
 	// Trace out information about this session
 	{
 		uint8 Payload[1024];
@@ -1229,11 +1234,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 #endif
 
 	FMemory::SetupTLSCachesOnCurrentThread();
-
-	// Set the flag for whether we've build DebugGame instead of Development. The engine does not know this (whereas the launch module does) because it is always built in development.
-#if UE_BUILD_DEVELOPMENT && defined(UE_BUILD_DEVELOPMENT_WITH_DEBUGGAME) && UE_BUILD_DEVELOPMENT_WITH_DEBUGGAME
-	FApp::SetDebugGame(true);
-#endif
 
 	// disable/enable LLM based on commandline
 	{
