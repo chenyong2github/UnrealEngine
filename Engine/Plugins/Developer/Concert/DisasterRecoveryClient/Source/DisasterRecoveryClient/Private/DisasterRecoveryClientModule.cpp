@@ -519,8 +519,7 @@ private:
 
 		if (DisasterRecoveryClient)
 		{
-			DisasterRecoveryClient->Shutdown();
-			DisasterRecoveryClient.Reset();
+			StopDisasterRecoveryService();
 		}
 
 		const FString DisasterRecoveryServerName = RecoveryService::GetRecoveryServerName();
