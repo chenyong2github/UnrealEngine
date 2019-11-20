@@ -1101,6 +1101,7 @@ bool FMoveKeysAndSections::HandleSectionMovement(FFrameTime MouseTime, FVector2D
 						}
 					}
 				
+					// Track if we're expanding a parent track so we can unexpand it if we stop targeting it
 					if (TargetRowIndex > 0)
 					{
 						if (!ParentTrack->IsExpanded() && ParentTrack != ExpandedParentTrack)
@@ -1125,6 +1126,19 @@ bool FMoveKeysAndSections::HandleSectionMovement(FFrameTime MouseTime, FVector2D
 
 		bool bDeltaX = DesiredDeltaX != 0;
 		bool bDeltaY = TargetRowIndex != Section->GetRowIndex();
+		const int32 TargetRowDelta = Section->GetRowIndex() - TargetRowIndex;
+
+		// Prevent flickering by only moving sections if the user has actually made an effort to do so
+		if (bDeltaY && PrevMousePosY.IsSet())
+		{
+			// Check mouse has been moved in the direction of intended move
+			if ((TargetRowDelta > 0 && LocalMousePos.Y - PrevMousePosY.GetValue() > 1.0f) || (TargetRowDelta < 0 && LocalMousePos.Y - PrevMousePosY.GetValue() < 1.0f))
+			{
+				// Mouse was not moved in the direction the section wants to swap
+				// Assume offset is due to UI relayout and block moving the section
+				bDeltaY = false;
+			}
+		}
 
 		// Horizontal movement
 		if (bDeltaX)
@@ -1180,6 +1194,11 @@ bool FMoveKeysAndSections::HandleSectionMovement(FFrameTime MouseTime, FVector2D
 				bRowIndexChanged = true;
 			}
 		}
+	}
+
+	if (bRowIndexChanged)
+	{
+		PrevMousePosY = LocalMousePos.Y;
 	}
 
 	return bRowIndexChanged;
