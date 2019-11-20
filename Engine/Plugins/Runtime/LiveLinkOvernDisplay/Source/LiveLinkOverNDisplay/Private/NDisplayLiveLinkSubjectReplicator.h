@@ -5,9 +5,7 @@
 #include "Cluster/IDisplayClusterClusterSyncObject.h"
 #include "UObject/GCObject.h"
 
-
-#include "LiveLinkClientReference.h"
-
+#include "LiveLinkTypes.h"
 
 
 class UNDisplaySlaveVirtualSubject;

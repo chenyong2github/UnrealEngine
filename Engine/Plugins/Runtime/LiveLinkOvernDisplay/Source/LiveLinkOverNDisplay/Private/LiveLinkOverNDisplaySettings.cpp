@@ -3,6 +3,7 @@
 #include "LiveLinkOverNDisplaySettings.h"
 
 #include "LiveLinkOverNDisplayPrivate.h"
+#include "Misc/CommandLine.h"
 
 
 ULiveLinkOverNDisplaySettings::ULiveLinkOverNDisplaySettings()

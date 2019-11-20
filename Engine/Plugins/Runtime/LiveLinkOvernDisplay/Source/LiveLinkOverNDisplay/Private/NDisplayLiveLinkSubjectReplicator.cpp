@@ -10,6 +10,8 @@
 #include "LiveLinkSubjectSettings.h"
 #include "Misc/CoreDelegates.h"
 #include "NDisplaySlaveVirtualSubject.h"
+#include "Serialization/MemoryReader.h"
+#include "Serialization/MemoryWriter.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogNDisplayLiveLinkSubjectReplicator, Log, All);
