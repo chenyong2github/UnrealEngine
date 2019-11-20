@@ -41,4 +41,10 @@ private:
 
 	/** Holds the last map key. */
 	FString LastMapKey;
+
+	/** The index of the next byte to copy from the CBOR byte stream into the corresponding TArray<uint8>/TArray<int8> property. */
+	int32 DeserializingByteArrayIndex = 0;
+
+	/** Whether a TArray<uint8>/TArray<int8> property is being deserialized. */
+	bool bDeserializingByteArray = false;
 };
