@@ -3,7 +3,7 @@
 #include "MoviePipelineShotConfig.h"
 #include "MoviePipelineGameOverrideSetting.h"
 #include "MoviePipelineAccumulationSetting.h"
-#include "MoviePipelineImageSequenceContainer.h"
+#include "MoviePipelineImageSequenceOutput.h"
 #include "MoviePipelineAudioOutput.h"
 #include "Misc/Paths.h"
 #include "MoviePipelineMasterConfig.h"
@@ -29,8 +29,8 @@ UMoviePipelineShotConfig* GenerateTestShotConfig(UObject* InOwner, int32 InSampl
 		CameraSetting->TemporalSampleCount = InSampleCount;
 		CameraSetting->CameraShutterAngle = InShutterAngle;
 		CameraSetting->ShutterTiming = InFrameTiming;
-		CameraSetting->bManualExposure = true;
-		CameraSetting->ExposureCompensation = 11;
+		CameraSetting->bManualExposure = false;
+		CameraSetting->ExposureCompensation = 10;
 	}
 
 	{
@@ -71,8 +71,8 @@ TArray<UMoviePipelineMasterConfig*> FMovieRenderPipelineEditorModule::GenerateTe
 
 				int32 SizeX = 1920;
 				int32 SizeY = 1080;
-				int32 TileX = 2;
-				int32 TileY = 2;
+				int32 TileX = 1;
+				int32 TileY = 1;
 				int32 TestNumSamples = 2;
 				float PadRatioX = 0.5f;
 				float PadRatioY = 0.5f;
@@ -93,7 +93,8 @@ TArray<UMoviePipelineMasterConfig*> FMovieRenderPipelineEditorModule::GenerateTe
 				OutPipeline->DefaultShotConfig = DefaultConfig;
 
 				// Add some Outputs
-				OutPipeline->FindOrAddSetting<UMoviePipelineImageSequenceContainerBase>();
+				OutPipeline->FindOrAddSetting<UMoviePipelineImageSequenceOutput_EXR>();
+				OutPipeline->FindOrAddSetting<UMoviePipelineImageSequenceOutput_PNG>();
 
 				UMoviePipelineGameOverrideSetting* GamemodeOverride = OutPipeline->FindOrAddSetting<UMoviePipelineGameOverrideSetting>();
 				GamemodeOverride->GameModeOverride = AGameModeBase::StaticClass();

@@ -41,10 +41,17 @@ namespace MoviePipeline
 		TileRenderTarget->AddToRoot();
 
 		// Initialize to the tile size (not final size) and use a 16 bit back buffer to avoid precision issues when accumulating later
-		TileRenderTarget->InitCustomFormat(InInitSettings.BackbufferResolution.X, InInitSettings.BackbufferResolution.Y, EPixelFormat::PF_A16B16G16R16, false);
+		TileRenderTarget->InitCustomFormat(InInitSettings.BackbufferResolution.X, InInitSettings.BackbufferResolution.Y, EPixelFormat::PF_FloatRGBA, false);
 
 		// Allocate 
 		ViewState.Allocate();
+
+		// Override us to use linear color output.
+		IConsoleVariable* OutputDeviceCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.OutputDevice"));
+		check(OutputDeviceCVar);
+
+		PreviousOutputDeviceIdx = OutputDeviceCVar->GetInt();
+		OutputDeviceCVar->Set(8 /*Linear No Tone Curve*/, EConsoleVariableFlags::ECVF_SetByConsole);
 	}
 
 	void FDeferredRenderEnginePass::Teardown()
@@ -57,6 +64,12 @@ namespace MoviePipeline
 		}
 
 		ViewState.Destroy();
+
+		// Restore the previous output device so that we don't leak changes into the editor.
+		IConsoleVariable* OutputDeviceCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.OutputDevice"));
+		check(OutputDeviceCVar);
+
+		OutputDeviceCVar->Set(PreviousOutputDeviceIdx, EConsoleVariableFlags::ECVF_SetByConsole);
 	}
 
 	void FDeferredRenderEnginePass::RenderSample_GameThread(const FMoviePipelineRenderPassMetrics& InSampleState)
@@ -84,7 +97,7 @@ namespace MoviePipeline
 			.SetWorldTimes(TimeSeconds, DeltaTimeSeconds, RealTimeSeconds)
 			.SetRealtimeUpdate(true));
 
-		ViewFamily.SceneCaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
+		ViewFamily.SceneCaptureSource = ESceneCaptureSource::SCS_FinalColorHDR;
 		ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, 1.0f, false));
 
 		// View is added as a child of the ViewFamily
@@ -106,7 +119,7 @@ namespace MoviePipeline
 		UMoviePipelineCameraSetting* CameraSettings = GetPipeline()->GetPipelineCurrentShotConfig()->FindSetting<UMoviePipelineCameraSetting>();
 		UMoviePipelineHighResSetting* HighResSettings = GetPipeline()->GetPipelineCurrentShotConfig()->FindSetting<UMoviePipelineHighResSetting>();
 
-		if(CameraSettings)
+		if (CameraSettings)
 		{
 			if (CameraSettings->bManualExposure)
 			{
@@ -185,9 +198,9 @@ namespace MoviePipeline
 			{
 				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Frame: %d TemporalSample: %d/%d Rendered Tile: %d/%d Sample: %d/%d"),
 					InSampleState.OutputState.OutputFrameNumber, InSampleState.TemporalSampleIndex + 1, InSampleState.TemporalSampleCount,
-					InSampleState.GetTileIndex() + 1 , InSampleState.GetTileCount(), InSampleState.SpatialSampleIndex + 1, InSampleState.SpatialSampleCount);
+					InSampleState.GetTileIndex() + 1, InSampleState.GetTileCount(), InSampleState.SpatialSampleIndex + 1, InSampleState.SpatialSampleCount);
 			}
-			
+
 			ReadBackbufferAndBroadcast_RenderThread(RHICmdList, BackbufferRenderTarget, InSampleState, OnBackbufferReadDelegate);
 		});
 	}
@@ -199,11 +212,11 @@ namespace MoviePipeline
 		FIntRect SourceRect = FIntRect(0, 0, InFromRenderTarget->GetSizeXY().X, InFromRenderTarget->GetSizeXY().Y);
 
 		// Read the data back to the CPU
-		TArray<FColor> RawPixels;
+		TArray<FLinearColor> RawPixels;
 		RawPixels.SetNum(SourceRect.Width() * SourceRect.Height());
 
-		FReadSurfaceDataFlags ReadDataFlags;
-		ReadDataFlags.SetLinearToGamma(true);
+		FReadSurfaceDataFlags ReadDataFlags(ERangeCompressionMode::RCM_MinMax);
+		ReadDataFlags.SetLinearToGamma(false);
 
 		RHICmdList.ReadSurfaceData(InFromRenderTarget->GetRenderTargetTexture(), SourceRect, RawPixels, ReadDataFlags);
 
@@ -289,25 +302,24 @@ namespace MoviePipeline
 			{
 				float PadRatioX = 1.0f;
 				float PadRatioY = 1.0f;
-				
+
 				if (InSampleState.OverlappedPad.X > 0 && InSampleState.OverlappedPad.Y > 0)
 				{
 					PadRatioX = float(InSampleState.OverlappedPad.X * 2 + InSampleState.TileSize.X) / float(InSampleState.TileSize.X);
 					PadRatioY = float(InSampleState.OverlappedPad.Y * 2 + InSampleState.TileSize.Y) / float(InSampleState.TileSize.Y);
 				}
-				
+
 				float ScaleX = PadRatioX / float(InitSettings.TileCount.X);
 				float ScaleY = PadRatioY / float(InitSettings.TileCount.Y);
-				
+
 				BaseProjMatrix.M[0][0] /= ScaleX;
 				BaseProjMatrix.M[1][1] /= ScaleY;
-				
 				DofSensorScale = ScaleX;
 
 				// this offset would be correct with no pad
 				float OffsetX = -((float(InSampleState.TileIndexes.X) + 0.5f - float(InitSettings.TileCount.X) / 2.0f)* 2.0f);
 				float OffsetY = ((float(InSampleState.TileIndexes.Y) + 0.5f - float(InitSettings.TileCount.Y) / 2.0f)* 2.0f);
-				
+
 				BaseProjMatrix.M[2][0] += OffsetX / PadRatioX;
 				BaseProjMatrix.M[2][1] += OffsetY / PadRatioX;
 			}
@@ -323,7 +335,7 @@ namespace MoviePipeline
 		View->ViewLocation = InSampleState.FrameInfo.CurrViewLocation;
 		View->ViewRotation = InSampleState.FrameInfo.CurrViewRotation;
 		View->PreviousViewTransform = FTransform(InSampleState.FrameInfo.PrevViewRotation, InSampleState.FrameInfo.PrevViewLocation);
-		
+
 		View->StartFinalPostprocessSettings(View->ViewLocation);
 		View->OverrideFrameIndexValue = InSampleState.SpatialSampleIndex;
 
@@ -428,7 +440,7 @@ void UMoviePipelineDeferredPassBase::GatherOutputPassesImpl(TArray<FMoviePipelin
 	}
 }
 
-void UMoviePipelineDeferredPassBase::OnBackbufferSampleReady(TArray<FColor> InPixelData, FMoviePipelineRenderPassMetrics InSampleState)
+void UMoviePipelineDeferredPassBase::OnBackbufferSampleReady(TArray<FLinearColor> InPixelData, FMoviePipelineRenderPassMetrics InSampleState)
 {
 	MoviePipeline::FSampleRenderThreadParams AccumulationParams;
 	{
@@ -442,7 +454,7 @@ void UMoviePipelineDeferredPassBase::OnBackbufferSampleReady(TArray<FColor> InPi
 	FrameData->PassIdentifier = FMoviePipelinePassIdentifier(TEXT("Backbuffer"));
 	FrameData->SampleState = InSampleState;
 
-	TUniquePtr<TImagePixelData<FColor>> PixelData = MakeUnique<TImagePixelData<FColor>>(InSampleState.BackbufferSize, TArray64<FColor>(MoveTemp(InPixelData)), FrameData);
+	TUniquePtr<TImagePixelData<FLinearColor>> PixelData = MakeUnique<TImagePixelData<FLinearColor>>(InSampleState.BackbufferSize, TArray64<FLinearColor>(MoveTemp(InPixelData)), FrameData);
 
 	AccumulateSample_RenderThread(MoveTemp(PixelData), FrameData, AccumulationParams);
 }
@@ -468,7 +480,7 @@ void UMoviePipelineDeferredPassBase::OnSetupView(FSceneViewFamily& InViewFamily,
 	} Iterator(InView.FinalPostProcessSettings, DesiredOutputPasses);
 	GetBufferVisualizationData().IterateOverAvailableMaterials(Iterator);
 
-	for(int32 PassIndex = 0; PassIndex < InView.FinalPostProcessSettings.BufferVisualizationOverviewMaterials.Num(); PassIndex++)
+	for (int32 PassIndex = 0; PassIndex < InView.FinalPostProcessSettings.BufferVisualizationOverviewMaterials.Num(); PassIndex++)
 	{
 		const UMaterialInterface* Pass = InView.FinalPostProcessSettings.BufferVisualizationOverviewMaterials[PassIndex];
 		UE_LOG(LogTemp, Log, TEXT("Pass: %s"), *Pass->GetName());
@@ -497,7 +509,7 @@ void UMoviePipelineDeferredPassBase::OnSetupView(FSceneViewFamily& InViewFamily,
 			{
 				return;
 			}
-			
+
 			TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> FrameData = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
 			FrameData->OutputState = AccumulationParams.SampleState.OutputState;
 			FrameData->PassIdentifier = FMoviePipelinePassIdentifier(PassName.ToString());
@@ -572,7 +584,7 @@ namespace MoviePipeline
 
 			// Now that a tile is fully built and accumulated we can notify the output builder that the
 			// data is ready so it can pass that onto the output containers (if needed).
-			/*if (InPixelData->GetType() == EImagePixelType::Float32)
+			if (InPixelData->GetType() == EImagePixelType::Float32)
 			{
 				// 32 bit FLinearColor
 				TUniquePtr<TImagePixelData<FLinearColor> > FinalPixelData = MakeUnique<TImagePixelData<FLinearColor>>(FIntPoint(FullSizeX, FullSizeY));
@@ -586,11 +598,11 @@ namespace MoviePipeline
 				// 32 bit FLinearColor
 				TUniquePtr<TImagePixelData<FFloat16Color> > FinalPixelData = MakeUnique<TImagePixelData<FFloat16Color>>(FIntPoint(FullSizeX, FullSizeY));
 				InParams.ImageAccumulator->FetchFinalPixelDataHalfFloat(FinalPixelData->Pixels);
-			
+
 				// Send the data to the Output Builder
 				InParams.OutputMerger->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(FinalPixelData), InFrameData);
 			}
-			else*/ if(true)
+			else if (InPixelData->GetType() == EImagePixelType::Color)
 			{
 				// 8bit FColors
 				TUniquePtr<TImagePixelData<FColor>> FinalPixelData = MakeUnique<TImagePixelData<FColor>>(FIntPoint(FullSizeX, FullSizeY));

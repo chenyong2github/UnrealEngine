@@ -124,6 +124,11 @@ void UMoviePipeline::TeardownRenderingPipelineForShot(FMoviePipelineShotInfo& Sh
 	{
 		Input->Teardown();
 	}
+
+	for (TSharedPtr<MoviePipeline::FMoviePipelineEnginePass> EnginePass : ActiveRenderPasses)
+	{
+		EnginePass->Teardown();
+	}
 }
 
 void UMoviePipeline::RenderFrame()
@@ -405,7 +410,7 @@ void UMoviePipeline::OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample
 	}
 
 	// JPEG output
-	TileImageTask->Format = EImageFormat::JPEG;
+	TileImageTask->Format = EImageFormat::EXR;
 	TileImageTask->CompressionQuality = 100;
 
 	FString OutputName = FString::Printf(TEXT("/%s_SS_%d_TS_%d_TileX_%d_TileY_%d.%d.jpeg"),
