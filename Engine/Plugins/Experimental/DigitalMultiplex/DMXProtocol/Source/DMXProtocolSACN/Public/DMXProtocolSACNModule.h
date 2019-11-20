@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/IConsoleManager.h"
 #include "Modules/ModuleInterface.h"
 #include "Interfaces/IDMXProtocolFactory.h"
 
