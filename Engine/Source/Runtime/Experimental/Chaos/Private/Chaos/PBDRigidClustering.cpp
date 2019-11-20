@@ -1920,3 +1920,4 @@ template class CHAOS_API Chaos::TPBDRigidClustering<TPBDRigidsEvolutionPGS<float
 template CHAOS_API void Chaos::UpdateClusterMassProperties<float, 3>(TPBDRigidClusteredParticles<float, 3>& Particles, const TArray<uint32>& Children, const uint32 ClusterIndex, const TRigidTransform<float, 3>* ForceMassOrientation,
 	const TArrayCollectionArray<TUniquePtr<TMultiChildProxyData<float, 3>>>* MMultiChildProxyData,
 	const TArrayCollectionArray<FMultiChildProxyId>* MMultiChildProxyId);
+
