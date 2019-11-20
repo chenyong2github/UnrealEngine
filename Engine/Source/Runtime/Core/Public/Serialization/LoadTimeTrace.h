@@ -6,10 +6,12 @@
 #include "Trace/Config.h"
 #include "ProfilingDebugging/FormatArgsTrace.h"
 
+#if !defined(LOADTIMEPROFILERTRACE_ENABLED)
 #if UE_TRACE_ENABLED && !UE_BUILD_SHIPPING
 #define LOADTIMEPROFILERTRACE_ENABLED 1
 #else
 #define LOADTIMEPROFILERTRACE_ENABLED 0
+#endif
 #endif
 
 #if LOADTIMEPROFILERTRACE_ENABLED
