@@ -6,7 +6,6 @@
 #include "Serialization/LargeMemoryWriter.h"
 #include "Serialization/UnversionedPropertySerialization.h"
 #include "UObject/Package.h"
-#include "UObject/SavePackage.h"
 #include "UObject/Class.h"
 #include "Templates/Casts.h"
 #include "UObject/LazyObjectPtr.h"
@@ -23,10 +22,9 @@
 /** A mapping of package name to generated script SHA keys */
 TMap<FString, TArray<uint8> > FLinkerSave::PackagesToScriptSHAMap;
 
-FLinkerSave::FLinkerSave(FPackageHeaderSaver& InPackageHeaderSaver, UPackage* InParent, const TCHAR* InFilename, bool bForceByteSwapping, bool bInSaveUnversioned)
+FLinkerSave::FLinkerSave(UPackage* InParent, const TCHAR* InFilename, bool bForceByteSwapping, bool bInSaveUnversioned)
 :	FLinker(ELinkerType::Save, InParent, InFilename)
 ,	Saver(nullptr)
-,	HeaderSaver(InPackageHeaderSaver)
 {
 	if (FPlatformProperties::HasEditorOnlyData())
 	{
@@ -79,10 +77,9 @@ FLinkerSave::FLinkerSave(FPackageHeaderSaver& InPackageHeaderSaver, UPackage* In
 }
 
 
-FLinkerSave::FLinkerSave(FPackageHeaderSaver& InPackageHeaderSaver, UPackage* InParent, FArchive *InSaver, bool bForceByteSwapping, bool bInSaveUnversioned)
+FLinkerSave::FLinkerSave(UPackage* InParent, FArchive *InSaver, bool bForceByteSwapping, bool bInSaveUnversioned)
 : FLinker(ELinkerType::Save, InParent, TEXT("$$Memory$$"))
 , Saver(nullptr)
-, HeaderSaver(InPackageHeaderSaver)
 {
 	if (FPlatformProperties::HasEditorOnlyData())
 	{
@@ -135,10 +132,9 @@ FLinkerSave::FLinkerSave(FPackageHeaderSaver& InPackageHeaderSaver, UPackage* In
 	}
 }
 
-FLinkerSave::FLinkerSave(FPackageHeaderSaver& InPackageHeaderSaver, UPackage* InParent, bool bForceByteSwapping, bool bInSaveUnversioned )
+FLinkerSave::FLinkerSave(UPackage* InParent, bool bForceByteSwapping, bool bInSaveUnversioned )
 :	FLinker(ELinkerType::Save, InParent, TEXT("$$Memory$$"))
 ,	Saver(nullptr)
-,	HeaderSaver(InPackageHeaderSaver)
 {
 	if (FPlatformProperties::HasEditorOnlyData())
 	{
@@ -204,6 +200,18 @@ bool FLinkerSave::CloseAndDestroySaver()
 FLinkerSave::~FLinkerSave()
 {
 	CloseAndDestroySaver();
+}
+
+int32 FLinkerSave::MapName(FNameEntryId Id) const
+{
+	const int32* IndexPtr = NameIndices.Find(Id);
+
+	if (IndexPtr)
+	{
+		return *IndexPtr;
+	}
+
+	return INDEX_NONE;
 }
 
 FPackageIndex FLinkerSave::MapObject( const UObject* Object ) const
@@ -280,7 +288,7 @@ FString FLinkerSave::GetArchiveName() const
 
 FArchive& FLinkerSave::operator<<( FName& InName )
 {
-	int32 Save = HeaderSaver.NameMapSaver.MapName(InName);
+	int32 Save = MapName(InName.GetDisplayIndex());
 
 	check(GetSerializeContext());
 	ensureMsgf(Save != INDEX_NONE, TEXT("Name \"%s\" is not mapped when saving %s (object: %s, property: %s)"), 

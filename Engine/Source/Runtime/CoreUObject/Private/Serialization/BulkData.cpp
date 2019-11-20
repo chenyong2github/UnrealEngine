@@ -988,9 +988,9 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 			
 			if ((BulkDataFlags & BULKDATA_CookedForIoDispatcher) != 0)
 			{
-				// Load the ChunkID that will be used by the IoDispatcher, but this version of BulkData will not use it!
-				FIoChunkId ChunkId;
- 				Ar << ChunkId;
+				// Load the bulk data index that will be used to create I/O chunk id's
+				uint16 BulkDataIndex = ~uint16(0);
+ 				Ar << BulkDataIndex;
 			}
 
 			// determine whether the payload is stored inline or at the end of the file
@@ -1100,8 +1100,8 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 
 						if ((BulkDataFlags & BULKDATA_CookedForIoDispatcher) != 0)
 						{
-							FIoChunkId DummyChunkID;
-							Ar << DummyChunkID;
+							uint16 BulkDataIndex = ~uint16(0);
+							Ar << BulkDataIndex;
 						}
 					}
 					else
@@ -1126,8 +1126,8 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 
 						if ((BulkDataFlags & BULKDATA_CookedForIoDispatcher) != 0)
 						{
-							FIoChunkId DummyChunkID;
-							Ar << DummyChunkID;
+							uint16 BulkDataIndex = ~uint16(0);
+							Ar << BulkDataIndex;
 						}
 
 						Filename = FPaths::ChangeExtension(Filename, TEXT(".ubulk"));
@@ -1277,8 +1277,8 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 
 				SavedBulkDataChunkIdPos = Ar.Tell();
 
-				FIoChunkId InvalidChunkId = FIoChunkId::InvalidChunkId;
-				Ar << InvalidChunkId;
+				uint16 BulkDataIndex = ~uint16(0);
+				Ar << BulkDataIndex;
 
 				BulkDataFlags |= BULKDATA_CookedForIoDispatcher;
 			}
@@ -1342,8 +1342,8 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 						{
 							SavedDupeBulkDataChunkIdPos = Ar.Tell();
 							
-							FIoChunkId InvalidChunkId = FIoChunkId::InvalidChunkId;
-							Ar << InvalidChunkId;
+							uint16 BulkDataIndex = ~uint16(0);
+							Ar << BulkDataIndex;
 
 							check((SavedDupeBulkDataFlags& BULKDATA_CookedForIoDispatcher) != 0); // Validate that the BULKDATA_CookedForIoDispatcher flag was already set
 						}

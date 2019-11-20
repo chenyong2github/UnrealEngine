@@ -12,62 +12,6 @@ class FArchive;
 class FLinkerLoad;
 class FLinkerSave;
 
-class INameMapSaver
-{
-public:
-	virtual ~INameMapSaver() = default;
-
-	virtual void Begin() = 0;
-	virtual void End() = 0;
-	virtual void BeginPackage() = 0;
-	virtual void EndPackage(FLinkerSave& Linker, FLinkerLoad* Conform, FArchive* BinarySaver) = 0;
-
-	virtual void MarkNameAsReferenced(FName Name) = 0;
-	virtual int32 MapName(FName Name) const = 0;
-	virtual bool NameExistsInCurrentPackage(FNameEntryId ComparisonId) const = 0;
-};
-
-class FSinglePackageNameMapSaver : public INameMapSaver
-{
-public:
-	virtual void Begin() override {};
-	virtual void End() override {};
-	virtual void BeginPackage() override {};
-	virtual void EndPackage(FLinkerSave& Linker, FLinkerLoad* Conform, FArchive* BinarySaver) override;
-
-	virtual void MarkNameAsReferenced(FName Name) override;
-	virtual int32 MapName(FName Name) const override;
-	virtual bool NameExistsInCurrentPackage(FNameEntryId ComparisonId) const override;
-
-	void MarkNameAsReferenced(FNameEntryId Name);
-
-private:
-	TSet<FNameEntryId> ReferencedNames;
-	TMap<FNameEntryId, int32> NameIndices;
-};
-
-class FPackageStoreNameMapSaver : public INameMapSaver
-{
-public:
-	COREUOBJECT_API FPackageStoreNameMapSaver(const TCHAR* InFilename);
-
-	COREUOBJECT_API virtual void Begin() override {};
-	COREUOBJECT_API virtual void End() override;
-	virtual void BeginPackage();
-	virtual void EndPackage(FLinkerSave& Linker, FLinkerLoad* Conform, FArchive* BinarySaver) override {}
-
-	virtual void MarkNameAsReferenced(FName Name) override;
-	virtual int32 MapName(FName Name) const override;
-	virtual bool NameExistsInCurrentPackage(FNameEntryId ComparisonId) const override;
-
-private:
-	TMap<FNameEntryId, int32> NameIndices;
-	TArray<FNameEntryId> NameMap;
-	mutable TMap<FNameEntryId, TTuple<int32,int32,int32>> DebugNameCounts; // <Number0Count,OtherNumberCount,MaxNumber>
-	TSet<FNameEntryId> PackageReferencedNames;
-	const FString Filename;
-};
-
 class IBulkDataManifest 
 {
 public:
@@ -75,17 +19,15 @@ public:
 
 	virtual void Save() = 0;
 	virtual void AddFileAccess(const FString& PackageFilename, uint16 InIndex, uint64 InOffset, uint64 InSize) = 0;
-
-	static FIoChunkId CreateChunkId(uint32 NameIndex, uint32 NameNumber, uint16 ChunkIndex);
 };
 
 class FPackageStoreBulkDataManifest : public IBulkDataManifest
 {
 public:
 	COREUOBJECT_API FPackageStoreBulkDataManifest(const FString& InRootPath);
-	COREUOBJECT_API virtual ~FPackageStoreBulkDataManifest() = default;
+	COREUOBJECT_API virtual ~FPackageStoreBulkDataManifest();
 
-	bool COREUOBJECT_API Load();
+	COREUOBJECT_API bool Load();
 	virtual void Save() override;
 	
 	const FString& GetFilename() const { return Filename; }
@@ -119,16 +61,6 @@ private:
 	FString RootPath;
 	FString Filename;
 	TMap<FString, PackageDesc> Data;
-};
-
-class FPackageHeaderSaver
-{
-public:
-	FPackageHeaderSaver(INameMapSaver& InNameMapSaver)
-		: NameMapSaver(InNameMapSaver) 
-	{}
-
-	INameMapSaver& NameMapSaver;
 };
 
 class FPackageStoreWriter
@@ -194,14 +126,12 @@ private:
 class FSavePackageContext
 {
 public:
-	FSavePackageContext(FPackageHeaderSaver& InHeaderSaver, FPackageStoreWriter& InPackageStoreWriter, IBulkDataManifest& InBulkDataManifest)
-	: HeaderSaver(InHeaderSaver)
-	, PackageStoreWriter(InPackageStoreWriter) 
+	FSavePackageContext(FPackageStoreWriter& InPackageStoreWriter, IBulkDataManifest& InBulkDataManifest)
+	: PackageStoreWriter(InPackageStoreWriter) 
 	, BulkDataManifest(InBulkDataManifest)
 	{
 	}
 
-	FPackageHeaderSaver& HeaderSaver;
 	FPackageStoreWriter& PackageStoreWriter;
 	IBulkDataManifest& BulkDataManifest;
 };

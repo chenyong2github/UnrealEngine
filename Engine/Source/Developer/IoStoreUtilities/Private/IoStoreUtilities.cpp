@@ -35,7 +35,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogIoStore, Log, All);
 #define OUTPUT_IMPORTMAP_CSV 0
 #define SKIP_WRITE_CONTAINER 0
 #define SKIP_BULKDATA 0
-#define USE_NAMEMAPBUILDER 1
 
 struct FContainerTarget 
 {
@@ -44,87 +43,6 @@ struct FContainerTarget
 	FString OutputDirectory;
 };
 
-#if !USE_NAMEMAPBUILDER
-class FZenGlobalNameMap
-{
-public:
-	void Load(const FString& FilePath)
-	{
-		UE_LOG(LogIoStore, Display, TEXT("Loading global name map from '%s' for container files..."), *FilePath);
-
-		TUniquePtr<FArchive> Ar(IFileManager::Get().CreateFileReader(*FilePath));
-		check(Ar);
-
-		int32 NameCount;
-		*Ar << NameCount;
-
-		DisplayEntries.Reserve(NameCount);
-		ComparisonEntries.Reserve(NameCount);
-
-		FNameEntrySerialized SerializedNameEntry(ENAME_LinkerConstructor);
-
-		for (int32 I = 0; I < NameCount; ++I)
-		{
-			*Ar << SerializedNameEntry;
-			FName Name(SerializedNameEntry);
-
-			DisplayEntries.Emplace(Name.GetDisplayIndex());
-			DisplayEntryToIndex.Emplace(DisplayEntries[I], I);
-
-			ComparisonEntries.Emplace(Name.GetComparisonIndex());
-			ComparisonEntryToIndex.Emplace(ComparisonEntries[I], I);
-		}
-	}
-
-	void Save(const FString& FilePath)
-	{
-		UE_LOG(LogIoStore, Display, TEXT("Saving Container name map to '%s' with '%d' additional names"),
-			*FilePath,
-			ComparisonEntries.Num() - DisplayEntries.Num());
-
-		TUniquePtr<FArchive> Ar(IFileManager::Get().CreateFileWriter(*FilePath));
-		check(Ar);
-
-		int32 NameCount = ComparisonEntries.Num();
-		*Ar << NameCount;
-		
-		for (int32 I = 0; I < NameCount; ++I)
-		{
-			FName::GetEntry(ComparisonEntries[I])->Write(*Ar);
-		}
-	}
-
-	FName GetNameFromDisplayIndex(const uint32 DisplayIndex, const uint32 NameNumber) const
-	{
-		FNameEntryId DisplayEntry = DisplayEntries[DisplayIndex];
-		return FName::CreateFromDisplayId(DisplayEntry, NameNumber);
-	}
-
-	const int32* GetComparisonIndex(const FName& Name) const
-	{
-		return ComparisonEntryToIndex.Find(Name.GetComparisonIndex());
-	}
-
-	int32 GetOrCreateComparisonIndex(const FName& Name)
-	{
-		if (const int32* ExistingIndex = ComparisonEntryToIndex.Find(Name.GetComparisonIndex()))
-		{
-			return *ExistingIndex;
-		}
-		else
-		{
-			int32 NewIndex = ComparisonEntries.Add(Name.GetComparisonIndex());
-			ComparisonEntryToIndex.Add(ComparisonEntries[NewIndex], NewIndex);
-			return NewIndex;
-		}
-	}
-private:
-	TArray<FNameEntryId> DisplayEntries;
-	TArray<FNameEntryId> ComparisonEntries;
-	TMap<FNameEntryId, int32> DisplayEntryToIndex;
-	TMap<FNameEntryId, int32> ComparisonEntryToIndex;
-};
-#else
 class FNameMapBuilder
 {
 public:
@@ -226,7 +144,6 @@ private:
 	TArray<FNameEntryId> NameMap;
 	TMap<FNameEntryId, TTuple<int32,int32,int32>> DebugNameCounts; // <Number0Count,OtherNumberCount,MaxNumber>
 };
-#endif
 
 #if OUTPUT_CHUNKID_DIRECTORY
 class FChunkIdCsv
@@ -275,12 +192,11 @@ enum class EZenChunkType : uint8
 	BulkData
 };
 
-static FIoChunkId CreateZenChunkId(uint32 NameIndex, uint32 NameNumber, uint16 ChunkIndex, EZenChunkType ChunkType, const TCHAR* DebugString)
+static FIoChunkId CreateChunkId(int32 GlobalPackageId, uint16 ChunkIndex, EZenChunkType ChunkType, const TCHAR* DebugString)
 {
 	uint8 Data[12] = {0};
 
-	*reinterpret_cast<uint32*>(&Data[0]) = NameIndex;
-	*reinterpret_cast<int32*>(&Data[4]) = NameNumber;
+	*reinterpret_cast<int32*>(&Data[0]) = GlobalPackageId;
 	*reinterpret_cast<uint16*>(&Data[8]) = ChunkIndex;
 	*reinterpret_cast<uint8*>(&Data[10]) = static_cast<uint8>(ChunkType);
 
@@ -288,7 +204,7 @@ static FIoChunkId CreateZenChunkId(uint32 NameIndex, uint32 NameNumber, uint16 C
 	ChunkId.Set(Data, 12);
 	
 #if OUTPUT_CHUNKID_DIRECTORY
-	ChunkIdCsv.AddChunk(NameIndex, NameNumber, ChunkIndex, (uint8)ChunkType, GetTypeHash(ChunkId), DebugString);
+	ChunkIdCsv.AddChunk(GlobalPackageId, 0, ChunkIndex, (uint8)ChunkType, GetTypeHash(ChunkId), DebugString);
 #endif
 
 	return ChunkId;
@@ -1083,12 +999,10 @@ int32 CreateTarget(const FContainerTarget& Target)
 
 	FPackageStoreBulkDataManifest BulkDataManifest(CookedDir);
 	const bool bWithBulkDataManifest = BulkDataManifest.Load();
-	// if (!BulkDataManifest.Load())
-	// {
-	// 	UE_LOG(LogIoStore, Error, TEXT("Must cook with -packagestore on the command line (%s not found)"), *BulkDataManifest.GetFilename());
-	// 	RequestEngineExit(TEXT("ZenCreator failed"));
-	// 	return 1;
-	// }
+	if (bWithBulkDataManifest)
+	{
+		UE_LOG(LogIoStore, Display, TEXT("Loaded Bulk Data manifest '%s'"), *BulkDataManifest.GetFilename());
+	}
 
 #if OUTPUT_CHUNKID_DIRECTORY
 	ChunkIdCsv.CreateOutputFile(CookedDir);
@@ -1100,31 +1014,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 	IFileManager::Get().FindFilesRecursive(FileNames, *CookedDir, TEXT("*.umap"), true, false, false);
 	UE_LOG(LogIoStore, Display, TEXT("Found '%d' files"), FileNames.Num());
 
-#if USE_NAMEMAPBUILDER
 	FNameMapBuilder NameMapBuilder;
-	auto SerializeName = [&](FArchive& A, const FName& N)
-	{
-		NameMapBuilder.SerializeName(A, N);
-	};
-#else
-	FString GlobalNameMapPath = CookedDir / TEXT("megafile.unamemap");
-	FZenGlobalNameMap GlobalNameMap;
-	GlobalNameMap.Load(GlobalNameMapPath);
-
-	auto SerializeName = [&](FArchive& A, const FName& N)
-	{
-		if (const int32* NameIndex = GlobalNameMap.GetComparisonIndex(N))
-		{
-			uint32 NameIndexNumber[] { uint32(*NameIndex), uint32(N.GetNumber()) };
-			A << NameIndexNumber[0] << NameIndexNumber[1];
-		}
-		else
-		{
-			UE_LOG(LogIoStore, Display, TEXT("FName '%s' has no valid name index in global name map"), *N.ToString());
-			check(false);
-		}
-	};
-#endif
 
 	uint64 NameSize = 0;
 	TArray<FObjectImport> Imports;
@@ -1223,17 +1113,14 @@ int32 CreateTarget(const FContainerTarget& Target)
 			{
 				*Ar << NameEntry;
 				FName Name(NameEntry);
-#if USE_NAMEMAPBUILDER
 				NameMapBuilder.MarkNameAsReferenced(Name);
 				Package.NameMap.Emplace(Name.GetDisplayIndex());
 				Package.NameIndices.Add(NameMapBuilder.MapName(Name));
-#endif
 			}
 
 			NameSize += Ar->Tell() - Summary.NameOffset;
 		}
 
-#if USE_NAMEMAPBUILDER
 		auto DeserializeName = [&](FArchive& A, FName& N)
 		{
 			int32 DisplayIndex, NameNumber;
@@ -1241,14 +1128,6 @@ int32 CreateTarget(const FContainerTarget& Target)
 			FNameEntryId DisplayEntry = Package.NameMap[DisplayIndex];
 			N = FName::CreateFromDisplayId(DisplayEntry, NameNumber);
 		};
-#else
-		auto DeserializeName = [&](FArchive& A, FName& N)
-		{
-			int32 NameIndex, NameNumber;
-			A << NameIndex << NameNumber;
-			N = GlobalNameMap.GetNameFromDisplayIndex(NameIndex, NameNumber);
-		};
-#endif
 
 		if (Summary.ImportCount > 0)
 		{
@@ -1417,7 +1296,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 		for (const FImportData& ImportData : GlobalImports)
 		{
 			UniqueImportPackages += (ImportData.OuterIndex == 0);
-			SerializeName(*GlimportArchive, ImportData.ObjectName);
+			NameMapBuilder.SerializeName(*GlimportArchive, ImportData.ObjectName);
 			FPackageIndex Index;
 			Index = FPackageIndex::FromImport(ImportData.GlobalIndex);
 			*GlimportArchive << Index;
@@ -1605,7 +1484,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 		for (auto& KV : Package.ExternalArcs)
 		{
 			const FName& ImportedPackageName = KV.Key;
-			SerializeName(ZenGraphArchive, ImportedPackageName);
+			NameMapBuilder.SerializeName(ZenGraphArchive, ImportedPackageName);
 
 			TArray<FArc>& Arcs = KV.Value;
 
@@ -1627,7 +1506,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 			FExportData& ExportData = GlobalExports[Package.Exports[I]];
 
 			ZenExportMapArchive << ObjectExport.SerialSize;
-			SerializeName(ZenExportMapArchive, ObjectExport.ObjectName);
+			NameMapBuilder.SerializeName(ZenExportMapArchive, ObjectExport.ObjectName);
 			ZenExportMapArchive << ObjectExport.OuterIndex;
 			ZenExportMapArchive << ObjectExport.ClassIndex;
 			ZenExportMapArchive << ObjectExport.SuperIndex;
@@ -1659,21 +1538,15 @@ int32 CreateTarget(const FContainerTarget& Target)
 		Package.ExportBundlesSize = ZenExportBundlesArchive.Tell();
 
 		FName RelativeFileName(*Package.RelativeFileName);
-#if USE_NAMEMAPBUILDER
 		NameMapBuilder.MarkNameAsReferenced(Package.Name);
 		int32 PackageNameIndex = NameMapBuilder.MapName(Package.Name);
 		int32 PackageNameNumber = Package.Name.GetNumber();
 		NameMapBuilder.MarkNameAsReferenced(RelativeFileName);
-#else
-		int32 PackageNameIndex = GlobalNameMap.GetOrCreateComparisonIndex(Package.Name);
-		int32 PackageNameNumber = Package.Name.GetNumber();
-		GlobalNameMap.GetOrCreateComparisonIndex(RelativeFileName);
-#endif
 
 		ensure(Package.GlobalPackageId == PackageIndex++);
 		{
-			SerializeName(*StoreTocArchive, Package.Name);
-			SerializeName(*StoreTocArchive, RelativeFileName);
+			NameMapBuilder.SerializeName(*StoreTocArchive, Package.Name);
+			NameMapBuilder.SerializeName(*StoreTocArchive, RelativeFileName);
 			*StoreTocArchive << Package.ImportCount;
 			*StoreTocArchive << Package.SlimportCount;
 			*StoreTocArchive << Package.SlimportOffset;
@@ -1735,7 +1608,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 			{
 				FIoBuffer IoBuffer(FIoBuffer::AssumeOwnership, ZenSummaryBuffer, ZenSummarySize);
 #if !SKIP_WRITE_CONTAINER
-				IoStoreWriter->Append(CreateZenChunkId(PackageNameIndex, PackageNameNumber, 0, EZenChunkType::PackageSummary, TEXT("PackageSummary")), IoBuffer);
+				IoStoreWriter->Append(CreateChunkId(Package.GlobalPackageId, 0, EZenChunkType::PackageSummary, TEXT("PackageSummary")), IoBuffer);
 #endif
 				++SummaryChunkCount;
 			}
@@ -1781,7 +1654,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 					FObjectExport& ObjectExport = Exports[Package.ExportIndexOffset + I];
 					const int64 Offset = ObjectExport.SerialOffset - Package.UAssetSize;
 					FIoBuffer IoBuffer(FIoBuffer::Wrap, BundleBuffer, BundleBufferSize);
-					IoStoreWriter->Append(CreateZenChunkId(PackageNameIndex, PackageNameNumber, I, EZenChunkType::ExportBundleData, *Package.FileName), IoBuffer);
+					IoStoreWriter->Append(CreateChunkId(Package.GlobalPackageId, I, EZenChunkType::ExportBundleData, *Package.FileName), IoBuffer);
 #endif
 					++ExportChunkCount;
 					FMemory::Free(BundleBuffer);
@@ -1803,7 +1676,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 				TUniquePtr<FArchive> BulkAr(IFileManager::Get().CreateFileReader(*UBulkFileName));
 				if (BulkAr != nullptr)
 				{
-					const FIoChunkId BulkDataChunkId = CreateZenChunkId(PackageNameIndex, PackageNameNumber, 0, EZenChunkType::BulkData, *Package.FileName);
+					const FIoChunkId BulkDataChunkId = CreateChunkId(Package.GlobalPackageId, 0, EZenChunkType::BulkData, *Package.FileName);
 #if !SKIP_WRITE_CONTAINER
 					uint8* BulkBuffer = static_cast<uint8*>(FMemory::Malloc(BulkAr->TotalSize()));
 					BulkAr->Serialize(BulkBuffer, BulkAr->TotalSize());
@@ -1821,13 +1694,15 @@ int32 CreateTarget(const FContainerTarget& Target)
 					++BulkChunkCount;
 
 					// Create additional mapping chunks as needed
+					FString BulkDataFileName = Package.FileName;
+					FPaths::MakePathRelativeTo(BulkDataFileName, *OutputDir);
 					const FPackageStoreBulkDataManifest::PackageDesc* PackageDesc = BulkDataManifest.Find(Package.FileName);
 					if (PackageDesc != nullptr)
 					{
 						for (const FPackageStoreBulkDataManifest::PackageDesc::BulkDataDesc& BulkDataDesc : PackageDesc->GetDataArray())
 						{
 #if !SKIP_WRITE_CONTAINER
-							const FIoChunkId AccessChunkId = CreateZenChunkId( PackageNameIndex, PackageNameNumber, BulkDataDesc.Index, EZenChunkType::BulkData, *Package.FileName);
+							const FIoChunkId AccessChunkId = CreateChunkId(Package.GlobalPackageId, BulkDataDesc.Index, EZenChunkType::BulkData, *Package.FileName);
 							const FIoStatus PartialResult = IoStoreWriter->MapPartialRange(BulkDataChunkId, BulkDataDesc.Offset, BulkDataDesc.Size, AccessChunkId);
 							if (!PartialResult.IsOk())
 							{
@@ -1847,11 +1722,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 
 	UE_LOG(LogIoStore, Display, TEXT("Saving NameMap..."));
 	FString NameMapFilename = OutputDir / TEXT("Container.namemap");
-#if USE_NAMEMAPBUILDER
 	uint64 GlobalNameMapSize = NameMapBuilder.Save(NameMapFilename);
-#else
-	GlobalNameMap.Save(NameMapFilename);
-#endif
 
 	UE_LOG(LogIoStore, Display, TEXT("Saving StoreToc..."));
 	StoreTocArchive->Close();
@@ -1929,9 +1800,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 		(double)PreloadDependenciesSize / 1024.0 / 1024.0, ImportPreloadCount, ExportPreloadCount, PreloadDependencies.Num());
 
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalToc"), (double)StoreTocSize / 1024.0 / 1024.0);
-#if USE_NAMEMAPBUILDER
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalNameMap, %d unique names"), (double)GlobalNameMapSize / 1024.0 / 1024.0, NameMapBuilder.Num());
-#endif
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalImportMap, %d unique imports, %d unique import packages"),
 		(double)GlimportSize / 1024.0 / 1024.0, GlobalImportsByFullName.Num(), UniqueImportPackages);
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageSummary"), (double)ZenPackageSummarySize / 1024.0 / 1024.0);
@@ -1941,7 +1810,6 @@ int32 CreateTarget(const FContainerTarget& Target)
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB SerializedArcs, %d internal arcs, %d external arcs, %d circular packages (%d chains)"),
 		(double)UGraphSize / 1024.0 / 1024.0, TotalInternalArcCount, TotalExternalArcCount, CircularPackagesCount, CircularChains.Num());
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB ScriptArcs, %d arcs"), (double)ScriptArcsSize / 1024.0 / 1024.0, ScriptArcsCount);
-	UE_LOG(LogIoStore, Display, TEXT("-------------------- IoStore Summary: %s --------------------"), *Target.TargetPlatform->PlatformName());
 
 	return 0;
 }
@@ -1978,7 +1846,6 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 	{
 		UE_LOG(LogIoStore, Display, TEXT("Unknown target platform '%s'"), *TargetPlatformName);
 		return -1;
-
 	}
 
 	FString TargetCookedDirectory = FPaths::ProjectSavedDir() / TEXT("Cooked") / TargetPlatform->PlatformName();
@@ -1986,22 +1853,9 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 		? OutputDirectory
 		: TargetCookedDirectory / FApp::GetProjectName();
 
-	FString GlobalNameMapFilePath = TargetCookedDirectory / TEXT("megafile.unamemap");
-
-#if !USE_NAMEMAPBUILDER
-	if (!IFileManager::Get().FileExists(*GlobalNameMapFilePath))
-	{
-		UE_LOG(LogIoStore, Error,
-			TEXT("Expected to find global name map '%s' for target '%s'"),
-			*GlobalNameMapFilePath, *TargetPlatform->PlatformName());
-		return -1;
-	}
-#endif
-
 	FContainerTarget Target { TargetPlatform, TargetCookedDirectory, TargetOutputDirectory };
 
 	UE_LOG(LogIoStore, Display, TEXT("Creating target: '%s' using output directory: '%s'"), *Target.TargetPlatform->PlatformName(), *Target.OutputDirectory);
 
-	CreateTarget(Target);
-	return 0;
+	return CreateTarget(Target);
 }

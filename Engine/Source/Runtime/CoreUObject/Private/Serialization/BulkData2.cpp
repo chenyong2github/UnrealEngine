@@ -25,6 +25,33 @@ namespace
 	static constexpr const TCHAR* DefaultExt = TEXT(".ubulk");			// Stored in a separate file
 	static constexpr const TCHAR* MemoryMappedExt = TEXT(".m.ubulk");	// Stored in a separate file aligned for memory mapping
 	static constexpr const TCHAR* OptionalExt = TEXT(".uptnl");			// Stored in a separate file that is optional
+
+	const uint16 InvalidBulkDataIndex = ~uint16(0);
+
+	// TODO: Move to common header
+	enum class EZenChunkType : uint8
+	{
+		None,
+		PackageSummary,
+		ExportData,
+		ExportBundleData,
+		BulkData
+	};
+
+	// TODO: Move to common header
+	FIoChunkId CreateChunkId(int32 GlobalPackageId, uint16 ChunkIndex, EZenChunkType ChunkType)
+	{
+		uint8 Data[12] = {0};
+
+		*reinterpret_cast<int32*>(&Data[0]) = GlobalPackageId;
+		*reinterpret_cast<uint16*>(&Data[8]) = ChunkIndex;
+		*reinterpret_cast<uint8*>(&Data[10]) = static_cast<uint8>(ChunkType);
+
+		FIoChunkId ChunkId;
+		ChunkId.Set(Data, 12);
+		
+		return ChunkId;
+	}
 }
 
 // TODO: The code in the FileTokenSystem namespace is a temporary system so that FBulkDataBase can hold
@@ -566,7 +593,18 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 
 		if ((BulkDataFlags & BULKDATA_CookedForIoDispatcher) != 0)
 		{
-			Ar << ChunkID;
+			uint16 BulkDataIndex;
+			Ar << BulkDataIndex;
+
+			if (BulkDataIndex != InvalidBulkDataIndex)
+			{
+				UPackage* Package = Owner->GetOutermost();
+				ChunkID = CreateChunkId(Package->GetGlobalPackageId(), BulkDataIndex, EZenChunkType::BulkData);
+			}
+			else
+			{
+				ChunkID = FIoChunkId::InvalidChunkId;
+			}
 		}
 
 		if (!bUseZenLoader || ChunkID == FIoChunkId::InvalidChunkId)
@@ -1057,8 +1095,8 @@ void FBulkDataBase::SerializeDuplicateData(FArchive& Ar, FLinkerLoad* Linker, ui
 
 	if ((OutBulkDataFlags & BULKDATA_CookedForIoDispatcher) != 0)
 	{
-		FIoChunkId DummyChunkID;
-		Ar << DummyChunkID;
+		uint16 DummyBulkDataIndex = InvalidBulkDataIndex;
+		Ar << DummyBulkDataIndex;
 	}
 
 	// Fix up the file offset if we have a valid linker

@@ -205,21 +205,6 @@ public:
 		{
 			*Ar << SerializedNameEntry;
 			NameEntries.Emplace(FName(SerializedNameEntry).GetDisplayIndex());
-			EntryToIndex.Add(NameEntries[I], I);
-		}
-	}
-
-	void Save(const FString& FilePath)
-	{
-		TUniquePtr<FArchive> Ar(IFileManager::Get().CreateFileWriter(*FilePath));
-		check(Ar);
-
-		int32 NameCount = NameEntries.Num();
-		*Ar << NameCount;
-		
-		for (int32 I = 0; I < NameCount; ++I)
-		{
-			FName::GetEntry(NameEntries[I])->Write(*Ar);
 		}
 	}
 
@@ -236,25 +221,6 @@ public:
 		return FName::CreateFromDisplayId(NameEntry, SerializedName.GetNumber());
 	}
 
-	const int32* GetIndex(const FName& Name) const
-	{
-		return EntryToIndex.Find(Name.GetDisplayIndex());
-	}
-
-	int32 GetOrCreateIndex(const FName& Name)
-	{
-		if (const int32* ExistingIndex = EntryToIndex.Find(Name.GetDisplayIndex()))
-		{
-			return *ExistingIndex;
-		}
-		else
-		{
-			int32 NewIndex = NameEntries.Add(Name.GetDisplayIndex());
-			EntryToIndex.Add(NameEntries[NewIndex], NewIndex);
-			return NewIndex;
-		}
-	}
-
 	const TArray<FNameEntryId>& GetNameEntries() const
 	{
 		return NameEntries;
@@ -262,7 +228,6 @@ public:
 
 private:
 	TArray<FNameEntryId> NameEntries;
-	TMap<FNameEntryId, int32> EntryToIndex;
 };
 
 struct FGlobalImportStore
@@ -670,12 +635,11 @@ enum class EChunkType : uint8
 	BulkData,
 };
 
-FIoChunkId CreateChunkId(uint32 NameIndex, uint32 NameNumber, uint16 ChunkIndex, EChunkType ChunkType)
+FIoChunkId CreateChunkId(FGlobalPackageId GlobalPackageId, uint16 ChunkIndex, EChunkType ChunkType)
 {
 	uint8 Data[12] = {0};
 
-	*reinterpret_cast<uint32*>(&Data[0]) = NameIndex;
-	*reinterpret_cast<int32*>(&Data[4]) = NameNumber;
+	*reinterpret_cast<uint32*>(&Data[0]) = GlobalPackageId.Id;
 	*reinterpret_cast<uint16*>(&Data[8]) = ChunkIndex;
 	*reinterpret_cast<uint8*>(&Data[10]) = static_cast<uint8>(ChunkType);
 
@@ -693,29 +657,6 @@ FIoChunkId CreateChunkId(const FIoChunkId& ChunkId, uint16 ChunkIndex, EChunkTyp
 	*reinterpret_cast<uint8*>(&Data[10]) = static_cast<uint8>(ChunkType);
 
 	return Out;
-}
-
-FName GetChunkName(const FIoChunkId& ChunkId, const FGlobalNameMap& GlobalNameMap)
-{
-	const uint8* Data = reinterpret_cast<const uint8*>(&ChunkId);
-	const uint32 NameIndex = *reinterpret_cast<const uint32*>(&Data[0]);
-	const int32 NameNumber = *reinterpret_cast<const int32*>(&Data[4]);
-
-	return GlobalNameMap.GetName(NameIndex, NameNumber);
-}
-
-EChunkType GetChunkType(const FIoChunkId& ChunkId)
-{
-	const uint8* Data = reinterpret_cast<const uint8*>(&ChunkId);
-	const uint8 ChunkType = *reinterpret_cast<const uint8*>(&Data[10]);
-	return static_cast<EChunkType>(ChunkType);
-}
-
-uint16 GetChunkIndex(const FIoChunkId& ChunkId)
-{
-	const uint8* Data = reinterpret_cast<const uint8*>(&ChunkId);
-	return *reinterpret_cast<const uint16*>(&Data[8]);
-
 }
 
 enum class EAsyncPackageLoadingState2 : uint8
@@ -1258,8 +1199,6 @@ private:
 	FAsyncLoadingThread2Impl& AsyncLoadingThread;
 	IEDLBootNotificationManager& EDLBootNotificationManager;
 	FAsyncLoadEventGraphAllocator& GraphAllocator;
-	/** Package chunk id																				*/
-	FIoChunkId PackageChunkId;
 	/** Global package id used to index into the package store											*/
 	FGlobalPackageId GlobalPackageId;
 	/** Packages that have been imported by this async package */
@@ -2471,7 +2410,7 @@ void FAsyncPackage2::StartLoading()
 	LoadStartTime = FPlatformTime::Seconds();;
 
 	FIoReadOptions ReadOptions;
-	AsyncLoadingThread.IoDispatcher.ReadWithCallback(CreateChunkId(PackageChunkId, 0, EChunkType::PackageSummary),
+	AsyncLoadingThread.IoDispatcher.ReadWithCallback(CreateChunkId(GlobalPackageId, 0, EChunkType::PackageSummary),
 		ReadOptions,
 		[this](TIoStatusOr<FIoBuffer> Result)
 		{
@@ -2548,7 +2487,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_StartExportBundleIo(FAsyncPackage
 	TRACE_CPUPROFILER_EVENT_SCOPE(Event_StartExportBundleIo);
 
 	FIoReadOptions ReadOptions;
-	Package->AsyncLoadingThread.IoDispatcher.ReadWithCallback(CreateChunkId(Package->PackageChunkId, ExportBundleIndex, EChunkType::ExportBundleData),
+	Package->AsyncLoadingThread.IoDispatcher.ReadWithCallback(CreateChunkId(Package->GlobalPackageId, ExportBundleIndex, EChunkType::ExportBundleData),
 		ReadOptions,
 		[Package, ExportBundleIndex](TIoStatusOr<FIoBuffer> Result)
 		{
@@ -3941,10 +3880,6 @@ FAsyncPackage2::FAsyncPackage2(const FAsyncPackageDesc& InDesc, int32 InSerialNu
 	TRACE_LOADTIME_NEW_ASYNC_PACKAGE(this, InDesc.Name);
 	AddRequestID(InDesc.RequestID);
 
-	const int32* NameIndex = AsyncLoadingThread.GlobalNameMap.GetIndex(Desc.NameToLoad);
-	check(NameIndex != nullptr);
-	PackageChunkId = CreateChunkId(*NameIndex, Desc.NameToLoad.GetNumber(), 0, EChunkType::None);
-
 	ExportBundleCount = AsyncLoadingThread.PackageStore.GetPackageExportBundleCount(GlobalPackageId);
 	ExportCount = AsyncLoadingThread.PackageStore.GetPackageExportCount(GlobalPackageId);
 	Exports.AddZeroed(ExportCount);
@@ -4135,6 +4070,7 @@ EAsyncPackageState::Type FAsyncPackage2::CreateLinker()
 			Package = NewObject<UPackage>(/*Outer*/nullptr, Desc.Name, RF_Public);
 			Package->SetPackageFlags(Desc.PackageFlags);
 			Package->FileName = Desc.NameToLoad;
+			Package->SetGlobalPackageId(GlobalPackageId.Id);
 			bCreatedLinkerRoot = true;
 		}
 	}
