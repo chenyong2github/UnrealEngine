@@ -172,6 +172,12 @@ public:
 	/** Add many indices to the mesh. */
 	ENGINE_API void AddTriangles(const TArray<uint32> &InIndices);
 
+	/** Pre-allocate space for the given number of vertices. */
+	ENGINE_API void ReserveVertices(int32 InNumVertices);
+
+	/** Pre-allocate space for the given number of triangles. */
+	ENGINE_API void ReserveTriangles(int32 InNumTriangles);
+
 	/** Adds a mesh of what's been built so far to the collector. */
 	ENGINE_API void GetMesh(const FMatrix& LocalToWorld, const FMaterialRenderProxy* MaterialRenderProxy, uint8 DepthPriorityGroup, bool bDisableBackfaceCulling, bool bReceivesDecals, int32 ViewIndex, FMeshElementCollector& Collector);
 	ENGINE_API void GetMesh(const FMatrix& LocalToWorld, const FMaterialRenderProxy* MaterialRenderProxy, uint8 DepthPriorityGroup, bool bDisableBackfaceCulling, bool bReceivesDecals, bool bUseSelectionOutline, int32 ViewIndex, 
