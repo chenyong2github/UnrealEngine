@@ -3057,7 +3057,9 @@ void FLevelEditorViewportClient::TrackingStopped()
 		// Create post edit property change event
 		UProperty* TransformProperty = LevelEditorViewportClientHelper::GetEditTransformProperty(GetWidgetMode());
 		FPropertyChangedEvent PropertyChangedEvent(TransformProperty, EPropertyChangeType::ValueSet);
-		
+
+		TArray<AActor*> MovedActors;
+
 		for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It) 
 		{
 			AActor* Actor = static_cast<AActor*>( *It );
@@ -3133,10 +3135,14 @@ void FLevelEditorViewportClient::TrackingStopped()
 				// Broadcast Post Edit change notification, we can't call PostEditChangeProperty directly on Actor or ActorComponent from here since it wasn't pair with a proper PreEditChange
 				FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(Actor, PropertyChangedEvent);
 				Actor->PostEditMove(true);
+
+				MovedActors.Add(Actor);
 	
 				GEditor->BroadcastEndObjectMovement(*Actor);
 			}
 		}
+
+		GEditor->BroadcastActorsMoved(MovedActors);
 
 		if (!GUnrealEd->IsPivotMovedIndependently())
 		{

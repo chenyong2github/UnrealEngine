@@ -31,6 +31,20 @@ class UTexture2D;
 struct FLevelCollection;
 class ULevelActorContainer;
 
+UINTERFACE()
+class ULevelPartitionInterface : public UInterface
+{
+	GENERATED_BODY()
+};
+
+class ILevelPartitionInterface
+{
+	GENERATED_BODY()
+
+public:
+	virtual ULevel* GetSubLevel(const FVector& Coords) const = 0;
+};
+
 /**
  * Structure containing all information needed for determining the screen space
  * size of an object/ texture instance.
@@ -595,6 +609,23 @@ public:
 
 	UPROPERTY(transient)
 	bool bLevelOkayForPlacementWhileCheckedIn;
+
+	/** Returns true if the current level is a partitioned level */
+	ENGINE_API bool IsPartitionedLevel() const;
+
+	/** Returns true if the current level is a sublevel (managed by a parent partitioned level) */
+	ENGINE_API bool IsPartitionSubLevel() const;
+
+	/** Assign a level partition to this level */
+	ENGINE_API void SetLevelPartition(ILevelPartitionInterface* LevelPartition);
+
+	/** Get the level partition assigned to this level, if any */
+	ENGINE_API ILevelPartitionInterface* GetLevelPartition();
+	ENGINE_API const ILevelPartitionInterface* GetLevelPartition() const;
+	
+	/** Setup the provided sublevel so that it is handled by this level's partition */
+	ENGINE_API void SetPartitionSubLevel(ULevel* SubLevel);
+
 #endif //WITH_EDITORONLY_DATA
 
 	/** Actor which defines level logical bounding box				*/
@@ -635,6 +666,16 @@ private:
 	UPROPERTY()
 	TArray<FReplicatedStaticActorDestructionInfo> DestroyedReplicatedStaticActors;
 
+#if WITH_EDITORONLY_DATA
+	/** Level partition, if any */
+	UPROPERTY(EditInstanceOnly, Category = World)
+	TScriptInterface<ILevelPartitionInterface> LevelPartition;
+
+	/** When the level is partitioned, this will point to the owner partition (will be the same as this->LevelPartition in case that is the top partition level */
+	UPROPERTY()
+	TSoftObjectPtr<UObject> OwnerLevelPartition;
+#endif // #if WITH_EDITORONLY_DATA
+
 public:
 	// Used internally to determine which actors should go on the world's NetworkActor list
 	ENGINE_API static bool IsNetActor(const AActor* Actor);
@@ -672,6 +713,7 @@ public:
 	virtual void PostEditUndo() override;	
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatform) override;
+	virtual bool CanEditChange(const UProperty* PropertyThatWillChange) const override;
 #endif // WITH_EDITOR
 	virtual void PostLoad() override;
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
@@ -825,7 +867,7 @@ public:
 	ENGINE_API void HandleLegacyMapBuildData();
 
 #if WITH_EDITOR
-	/** 
+	/**
 	*  Called after lighting was built and data gets propagated to this level
 	*  @param	bLightingSuccessful	 Whether lighting build was successful
 	*/
