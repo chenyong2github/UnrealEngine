@@ -72,6 +72,8 @@ void FAssetFixUpRedirectors::FixupReferencers(const TArray<UObjectRedirector*>& 
 
 void FAssetFixUpRedirectors::ExecuteFixUp(TArray<TWeakObjectPtr<UObjectRedirector>> Objects) const
 {
+	TGuardValue<bool> Guard(bIsFixupReferencersInProgress, true);
+
 	TArray<FRedirectorRefs> RedirectorRefsList;
 	for (auto Object : Objects)
 	{
