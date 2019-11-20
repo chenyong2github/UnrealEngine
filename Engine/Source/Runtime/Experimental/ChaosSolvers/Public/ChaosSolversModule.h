@@ -150,7 +150,11 @@ public:
 	 *
 	 * @param bStandalone Whether the solver is standalone (not sent to physics thread - updating left to caller)
 	 */
-	Chaos::FPhysicsSolver* CreateSolver(bool bStandalone = false);
+	Chaos::FPhysicsSolver* CreateSolver(bool bStandalone = false
+#if CHAOS_CHECKED
+		, const FName& DebugName = NAME_None
+#endif
+	);
 
 	Chaos::EMultiBufferMode GetBufferModeFromThreadingModel(Chaos::EThreadingMode ThreadingMode) const
 	{
