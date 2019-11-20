@@ -183,30 +183,12 @@ FChunkIdCsv ChunkIdCsv;
 
 #endif
 
-enum class EZenChunkType : uint8
+static FIoChunkId CreateChunkId(int32 GlobalPackageId, uint16 ChunkIndex, EIoChunkType ChunkType, const TCHAR* DebugString)
 {
-	None,
-	PackageSummary,
-	ExportData,
-	ExportBundleData,
-	BulkData
-};
-
-static FIoChunkId CreateChunkId(int32 GlobalPackageId, uint16 ChunkIndex, EZenChunkType ChunkType, const TCHAR* DebugString)
-{
-	uint8 Data[12] = {0};
-
-	*reinterpret_cast<int32*>(&Data[0]) = GlobalPackageId;
-	*reinterpret_cast<uint16*>(&Data[8]) = ChunkIndex;
-	*reinterpret_cast<uint8*>(&Data[10]) = static_cast<uint8>(ChunkType);
-
-	FIoChunkId ChunkId;
-	ChunkId.Set(Data, 12);
-	
+	FIoChunkId ChunkId = CreateIoChunkId(GlobalPackageId, ChunkIndex, ChunkType);
 #if OUTPUT_CHUNKID_DIRECTORY
 	ChunkIdCsv.AddChunk(GlobalPackageId, 0, ChunkIndex, (uint8)ChunkType, GetTypeHash(ChunkId), DebugString);
 #endif
-
 	return ChunkId;
 }
 
@@ -1608,7 +1590,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 			{
 				FIoBuffer IoBuffer(FIoBuffer::AssumeOwnership, ZenSummaryBuffer, ZenSummarySize);
 #if !SKIP_WRITE_CONTAINER
-				IoStoreWriter->Append(CreateChunkId(Package.GlobalPackageId, 0, EZenChunkType::PackageSummary, TEXT("PackageSummary")), IoBuffer);
+				IoStoreWriter->Append(CreateChunkId(Package.GlobalPackageId, 0, EIoChunkType::PackageSummary, TEXT("PackageSummary")), IoBuffer);
 #endif
 				++SummaryChunkCount;
 			}
@@ -1654,7 +1636,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 					FObjectExport& ObjectExport = Exports[Package.ExportIndexOffset + I];
 					const int64 Offset = ObjectExport.SerialOffset - Package.UAssetSize;
 					FIoBuffer IoBuffer(FIoBuffer::Wrap, BundleBuffer, BundleBufferSize);
-					IoStoreWriter->Append(CreateChunkId(Package.GlobalPackageId, I, EZenChunkType::ExportBundleData, *Package.FileName), IoBuffer);
+					IoStoreWriter->Append(CreateChunkId(Package.GlobalPackageId, I, EIoChunkType::ExportBundleData, *Package.FileName), IoBuffer);
 #endif
 					++ExportChunkCount;
 					FMemory::Free(BundleBuffer);
@@ -1676,7 +1658,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 				TUniquePtr<FArchive> BulkAr(IFileManager::Get().CreateFileReader(*UBulkFileName));
 				if (BulkAr != nullptr)
 				{
-					const FIoChunkId BulkDataChunkId = CreateChunkId(Package.GlobalPackageId, 0, EZenChunkType::BulkData, *Package.FileName);
+					const FIoChunkId BulkDataChunkId = CreateChunkId(Package.GlobalPackageId, 0, EIoChunkType::BulkData, *Package.FileName);
 #if !SKIP_WRITE_CONTAINER
 					uint8* BulkBuffer = static_cast<uint8*>(FMemory::Malloc(BulkAr->TotalSize()));
 					BulkAr->Serialize(BulkBuffer, BulkAr->TotalSize());
@@ -1702,7 +1684,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 						for (const FPackageStoreBulkDataManifest::PackageDesc::BulkDataDesc& BulkDataDesc : PackageDesc->GetDataArray())
 						{
 #if !SKIP_WRITE_CONTAINER
-							const FIoChunkId AccessChunkId = CreateChunkId(Package.GlobalPackageId, BulkDataDesc.Index, EZenChunkType::BulkData, *Package.FileName);
+							const FIoChunkId AccessChunkId = CreateChunkId(Package.GlobalPackageId, BulkDataDesc.Index, EIoChunkType::BulkData, *Package.FileName);
 							const FIoStatus PartialResult = IoStoreWriter->MapPartialRange(BulkDataChunkId, BulkDataDesc.Offset, BulkDataDesc.Size, AccessChunkId);
 							if (!PartialResult.IsOk())
 							{

@@ -513,6 +513,9 @@ private:
 	friend class FIoBufferManager;
 };
 
+/**
+ * Identifier to a chunk of data.
+ */
 class FIoChunkId
 {
 public:
@@ -544,8 +547,6 @@ public:
 		return !(*this == Rhs);
 	}
 
-	CORE_API void GenerateFromData(const void* InData, SIZE_T InDataSize);
-
 	void Set(const void* InIdPtr, SIZE_T InSize)
 	{
 		check(InSize == sizeof Id);
@@ -569,6 +570,35 @@ private:
 
 	uint8	Id[12];
 };
+
+/**
+ * Addressable chunk types.
+ */
+enum class EIoChunkType : uint8
+{
+	Invalid,
+	PackageSummary,
+	ExportData,
+	ExportBundleData,
+	BulkData,
+};
+
+/**
+ * Creates a chunk identifier,
+ */
+static FIoChunkId CreateIoChunkId(uint32 GlobalPackageId, uint16 ChunkIndex, EIoChunkType IoChunkType)
+{
+	uint8 Data[12] = {0};
+
+	*reinterpret_cast<uint32*>(&Data[0]) = GlobalPackageId;
+	*reinterpret_cast<uint16*>(&Data[4]) = ChunkIndex;
+	*reinterpret_cast<uint8*>(&Data[11]) = static_cast<uint8>(IoChunkType);
+
+	FIoChunkId ChunkId;
+	ChunkId.Set(Data, 12);
+
+	return ChunkId;
+}
 
 //////////////////////////////////////////////////////////////////////////
 

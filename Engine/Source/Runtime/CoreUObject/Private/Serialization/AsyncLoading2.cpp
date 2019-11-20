@@ -626,39 +626,6 @@ private:
 	FExternalIoRequests* ExternalIoRequests;
 };
 
-enum class EChunkType : uint8
-{
-	None,
-	PackageSummary,
-	ExportData,
-	ExportBundleData,
-	BulkData,
-};
-
-FIoChunkId CreateChunkId(FGlobalPackageId GlobalPackageId, uint16 ChunkIndex, EChunkType ChunkType)
-{
-	uint8 Data[12] = {0};
-
-	*reinterpret_cast<uint32*>(&Data[0]) = GlobalPackageId.Id;
-	*reinterpret_cast<uint16*>(&Data[8]) = ChunkIndex;
-	*reinterpret_cast<uint8*>(&Data[10]) = static_cast<uint8>(ChunkType);
-
-	FIoChunkId ChunkId;
-	ChunkId.Set(Data, 12);
-	return ChunkId;
-}
-
-FIoChunkId CreateChunkId(const FIoChunkId& ChunkId, uint16 ChunkIndex, EChunkType ChunkType)
-{
-	FIoChunkId Out = ChunkId;
-
-	uint8* Data = reinterpret_cast<uint8*>(&Out);
-	*reinterpret_cast<uint16*>(&Data[8]) = ChunkIndex;
-	*reinterpret_cast<uint8*>(&Data[10]) = static_cast<uint8>(ChunkType);
-
-	return Out;
-}
-
 enum class EAsyncPackageLoadingState2 : uint8
 {
 	NewPackage,
@@ -2410,7 +2377,7 @@ void FAsyncPackage2::StartLoading()
 	LoadStartTime = FPlatformTime::Seconds();;
 
 	FIoReadOptions ReadOptions;
-	AsyncLoadingThread.IoDispatcher.ReadWithCallback(CreateChunkId(GlobalPackageId, 0, EChunkType::PackageSummary),
+	AsyncLoadingThread.IoDispatcher.ReadWithCallback(CreateIoChunkId(GlobalPackageId.Id, 0, EIoChunkType::PackageSummary),
 		ReadOptions,
 		[this](TIoStatusOr<FIoBuffer> Result)
 		{
@@ -2487,7 +2454,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_StartExportBundleIo(FAsyncPackage
 	TRACE_CPUPROFILER_EVENT_SCOPE(Event_StartExportBundleIo);
 
 	FIoReadOptions ReadOptions;
-	Package->AsyncLoadingThread.IoDispatcher.ReadWithCallback(CreateChunkId(Package->GlobalPackageId, ExportBundleIndex, EChunkType::ExportBundleData),
+	Package->AsyncLoadingThread.IoDispatcher.ReadWithCallback(CreateIoChunkId(Package->GlobalPackageId.Id, ExportBundleIndex, EIoChunkType::ExportBundleData),
 		ReadOptions,
 		[Package, ExportBundleIndex](TIoStatusOr<FIoBuffer> Result)
 		{
