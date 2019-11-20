@@ -225,6 +225,12 @@ public:
 	/** Get the index of the bound Metal device in the global list of rendering devices. */
 	uint32 GetDeviceIndex(void) const;
     
+	/** Device frame index accessor. */
+	uint64 GetDeviceFrameIndex() const
+	{
+		return DeviceFrameIndex;
+	}
+	
 #if METAL_DEBUG_OPTIONS
     void AddActiveBuffer(FMetalBuffer const& Buffer);
     void RemoveActiveBuffer(FMetalBuffer const& Buffer);
@@ -309,4 +315,7 @@ private:
 	
 	/** PSO cache manager */
 	FMetalPipelineStateCacheManager* PSOManager;
+
+	/** Device frame index, glorified frame counter in the device namespace. */
+	uint64 DeviceFrameIndex;
 };

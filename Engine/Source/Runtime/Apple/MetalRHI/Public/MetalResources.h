@@ -786,7 +786,7 @@ public:
 	/**
 	 * Allocate the buffer backing store.
 	 */
-	void Alloc(uint32 InSize, EResourceLockMode LockMode);
+	void Alloc(uint32 InSize, EResourceLockMode LockMode, bool bIsUniformBuffer=false);
 	
 	/**
 	 * Allocate the CPU accessible buffer for data transfer.
@@ -811,7 +811,7 @@ public:
 	/**
 	 * Prepare a CPU accessible buffer for uploading to GPU memory
 	 */
-	void* Lock(bool bIsOnRHIThread, EResourceLockMode LockMode, uint32 Offset, uint32 Size=0);
+	void* Lock(bool bIsOnRHIThread, EResourceLockMode LockMode, uint32 Offset, uint32 Size=0, bool bIsUniformBuffer=false);
 	
 	/**
 	 * Prepare a CPU accessible buffer for uploading to GPU memory
@@ -821,7 +821,7 @@ public:
 	void Swap(FMetalRHIBuffer& Other);
 	
 	/**
-	 * Whether to allocate the resource rom private memory or not.
+	 * Whether to allocate the resource from private memory.
 	 */
 	bool UsePrivateMemory() const;
 	
@@ -857,6 +857,33 @@ public:
 	
 	// Resource type
 	ERHIResourceType Type;
+
+	/**
+	 * For resources backing uniform buffers, set the device frame index.
+	 *
+	 * Calling this function on resources that do not back uniform buffers has no effect.
+	 */
+	void ConditionalSetUniformBufferFrameIndex();
+
+private:
+	bool CanUseBufferAsBackingForAsyncCopy() const;
+
+	/**
+	 * For resources backing uniform buffers, updates the last used sub-allocation offset; this is used for
+	 * internal tracking and deciding when to recycle backing stores during uniform buffer updates.
+	 */
+	void ConditionalSetUniformBufferPreviousOffset()
+	{
+		if (bIsUniformBufferBacking)
+		{
+			check(Buffer);
+			UniformBufferPreviousOffset = Buffer.GetOffset();
+		}
+	}
+
+	bool bIsUniformBufferBacking = false;
+	uint64 UniformBufferFrameIndex = 0;
+	uint64 UniformBufferPreviousOffset = uint64(-1);
 };
 
 /** Index buffer resource class that stores stride information. */
