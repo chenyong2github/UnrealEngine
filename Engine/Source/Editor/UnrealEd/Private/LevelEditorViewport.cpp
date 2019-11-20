@@ -1741,6 +1741,7 @@ FLevelEditorViewportClient::FLevelEditorViewportClient(const TSharedPtr<SLevelVi
 	, bLockedCameraView(true)
 	, bReceivedFocusRecently(false)
 	, bAlwaysShowModeWidgetAfterSelectionChanges(true)
+	, bShouldApplyViewModifiers(true)
 	, SpriteCategoryVisibility()
 	, World(nullptr)
 	, TrackingTransaction()
@@ -1836,8 +1837,6 @@ void FLevelEditorViewportClient::InitializeVisibilityFlags()
 FSceneView* FLevelEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, const EStereoscopicPass StereoPass)
 {
 	bWasControlledByOtherViewport = false;
-
-	UpdateViewForLockedActor();
 
 	// set all other matching viewports to my location, if the LOD locking is enabled,
 	// unless another viewport already set me this frame (otherwise they fight)
@@ -2291,7 +2290,30 @@ void FLevelEditorViewportClient::Tick(float DeltaTime)
 
 	UpdateViewForLockedActor(DeltaTime);
 
+	if (bShouldApplyViewModifiers)
+	{
+		ApplyViewModifiers(DeltaTime);
+	}
+
 	UserIsControllingAtmosphericLightTimer = FMath::Max(UserIsControllingAtmosphericLightTimer - DeltaTime, 0.0f);
+}
+
+void FLevelEditorViewportClient::ApplyViewModifiers(float DeltaTime)
+{
+	FEditorViewportViewModifierParams Params;
+	Params.DeltaTime = DeltaTime;
+	Params.ViewportClient = this;
+
+	FMinimalViewInfo InOutPOV;
+	InOutPOV.Location = GetViewLocation();
+	InOutPOV.Rotation = GetViewRotation();
+	InOutPOV.FOV = ViewFOV;
+
+	ViewModifiers.Broadcast(Params, InOutPOV);
+
+	SetViewLocation(InOutPOV.Location);
+	SetViewRotation(InOutPOV.Rotation);
+	ViewFOV = InOutPOV.FOV;
 }
 
 void FLevelEditorViewportClient::UpdateViewForLockedActor(float DeltaTime)
