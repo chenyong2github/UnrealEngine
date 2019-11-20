@@ -12,6 +12,7 @@
 #include "NiagaraDataSet.h"
 #include "NiagaraShared.h"
 #include "NiagaraScriptExecutionParameterStore.h"
+#include "NiagaraScriptHighlight.h"
 #include "NiagaraCustomVersion.h"
 
 #include "NiagaraScript.generated.h"
@@ -395,6 +396,9 @@ public:
 	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script)
 	FText Keywords;
 
+	UPROPERTY(EditAnywhere, Category = Script)
+	TArray<FNiagaraScriptHighlight> Highlights;
+
 	UPROPERTY(EditAnywhere, Category = Script, DisplayName = "Script Metadata", meta = (ToolTip = "Script Metadata"))
 	TMap<FName, FString> ScriptMetaData;
 #endif
@@ -625,6 +629,8 @@ private:
 	FOnScriptCompiled OnVMScriptCompiledDelegate;
 
 	mutable FNiagaraVMExecutableDataId LastReportedVMId;
+
+	mutable TOptional<TMap<FName, FString>> CustomAssetRegistryTagCache;
 #endif
 
 	/** Adjusted every time that we compile this script. Lets us know that we might differ from any cached versions.*/
