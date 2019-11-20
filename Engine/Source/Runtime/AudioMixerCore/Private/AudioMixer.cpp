@@ -423,6 +423,11 @@ namespace Audio
 
 	void IAudioMixerPlatformInterface::StopRunningNullDevice()
 	{
+		if (bIsUsingNullDevice)
+		{
+			CurrentBufferReadIndex = INDEX_NONE;
+			CurrentBufferWriteIndex = INDEX_NONE;
+		}
 		if (NullDeviceCallback.IsValid())
 		{
 			NullDeviceCallback.Reset();
@@ -688,6 +693,8 @@ namespace Audio
 			}
 		}
 
+		CurrentBufferReadIndex = INDEX_NONE;
+		CurrentBufferWriteIndex = INDEX_NONE;
 		OpenStreamParams.AudioMixer->OnAudioStreamShutdown();
 
 		AudioStreamInfo.StreamState = EAudioOutputStreamState::Stopped;
