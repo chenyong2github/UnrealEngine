@@ -22,6 +22,8 @@ namespace WindowsMixedReality
 		typedef GestureRecognizerInterop::NavigationCallback NavigationCallback;
 
 	private:
+		bool m_bIsHololens1 = false;
+
 		static SpatialInteractionManager m_InteractionManager;
 		SpatialGestureRecognizer m_GestureRecognizer = nullptr;
 		SpatialStationaryFrameOfReference m_StationaryReferenceFrame = nullptr;
@@ -78,7 +80,10 @@ namespace WindowsMixedReality
 			{
 				m_InteractionDetectedToken = m_InteractionManager.InteractionDetected([=](SpatialInteractionManager sender, SpatialInteractionDetectedEventArgs args)
 				{
-					m_CurrentHand = GetHandness(args.InteractionSource().Handedness());
+					if (!m_bIsHololens1)
+					{
+						m_CurrentHand = GetHandness(args.InteractionSource().Handedness());
+					}
 
 					if (m_InteractionCallback)
 					{
@@ -96,7 +101,10 @@ namespace WindowsMixedReality
 					GestureRecognizerInterop::SourceStateDesc desc;
 					memset(&desc, sizeof(desc), 0);
 
-					desc.Hand = GetHandness(args.State().Source().Handedness());
+					if (!m_bIsHololens1)
+					{
+						desc.Hand = GetHandness(args.State().Source().Handedness());
+					}
 
 					if (m_SourceStateCallback)
 					{
@@ -112,7 +120,10 @@ namespace WindowsMixedReality
 					GestureRecognizerInterop::SourceStateDesc desc;
 					memset(&desc, sizeof(desc), 0);
 
-					desc.Hand = GetHandness(args.State().Source().Handedness());
+					if (!m_bIsHololens1)
+					{
+						desc.Hand = GetHandness(args.State().Source().Handedness());
+					}
 
 					if (m_SourceStateCallback)
 					{
@@ -349,8 +360,10 @@ namespace WindowsMixedReality
 			Clean();
 		}
 
-		void Init()
+		void Init(bool isHololens1)
 		{
+			m_bIsHololens1 = isHololens1;
+
 			m_GestureRecognizer = SpatialGestureRecognizer(SpatialGestureSettings::None);
 			Update();
 		}
