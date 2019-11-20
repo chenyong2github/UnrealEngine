@@ -36,7 +36,7 @@ struct FActiveCameraShakeInfo
 	UCameraShake* ShakeInstance;
 
 	UPROPERTY()
-	const UCameraShakeSourceComponent* ShakeSource;
+	TWeakObjectPtr<const UCameraShakeSourceComponent> ShakeSource;
 };
 
 struct FAddCameraShakeParams
