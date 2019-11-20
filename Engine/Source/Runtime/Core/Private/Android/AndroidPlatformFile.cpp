@@ -119,6 +119,21 @@ const FString &GetFileBasePath()
 	return BasePath;
 }
 
+
+FString AndroidRelativeToAbsolutePath(bool bUseInternalBasePath, FString RelPath)
+{
+	if (RelPath.StartsWith(TEXT("../")))
+	{
+		while (RelPath.StartsWith(TEXT("../")))
+		{
+			RelPath = RelPath.RightChop(3);
+		}
+
+		return (bUseInternalBasePath ? GInternalFilePath : GetFileBasePath()) / RelPath;
+	}
+	return RelPath;
+}
+
 /**
 	Android file handle implementation for partial (i.e. parcels) files.
 	This can handle all the variations of accessing data for assets and files.
