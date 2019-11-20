@@ -7,9 +7,6 @@
 
 namespace Chaos
 {
-template<class T, int d>
-class TImplicitObjectUnion; 
-
 // ClusterId 
 //    Used within the clustering system to describe the clustering hierarchy. The ID will
 //  store the children IDs, and a Parent ID. When Id==NONE_INDEX the cluster is not
