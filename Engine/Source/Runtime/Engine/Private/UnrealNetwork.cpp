@@ -5,6 +5,8 @@
 FPreReplayScrub FNetworkReplayDelegates::OnPreScrub;
 FOnWriteGameSpecificDemoHeader FNetworkReplayDelegates::OnWriteGameSpecificDemoHeader;
 FOnProcessGameSpecificDemoHeader FNetworkReplayDelegates::OnProcessGameSpecificDemoHeader;
+FOnWriteGameSpecificFrameData FNetworkReplayDelegates::OnWriteGameSpecificFrameData;
+FOnProcessGameSpecificFrameData FNetworkReplayDelegates::OnProcessGameSpecificFrameData;
 
 // ----------------------------------------------------------------
 
