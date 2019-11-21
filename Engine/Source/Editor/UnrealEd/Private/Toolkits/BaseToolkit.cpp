@@ -12,6 +12,7 @@
 #include "InteractiveTool.h"
 #include "Tools/UEdMode.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EdMode.h"
 
 #define LOCTEXT_NAMESPACE "BaseToolkit"
 
