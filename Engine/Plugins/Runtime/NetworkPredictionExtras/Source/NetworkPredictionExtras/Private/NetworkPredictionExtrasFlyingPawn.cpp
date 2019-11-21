@@ -529,7 +529,7 @@ float ANetworkPredictionExtrasFlyingPawn_MockAbility::GetMaxStamina() const
 {
 	if (const UMockFlyingAbilityComponent* FlyingAbilityComponent = GetMockFlyingAbilityComponent())
 	{
-		if (const FMockAbilityAuxstate* AuxState = FlyingAbilityComponent->AbilityAuxState.GetStateRead())
+		if (const FMockAbilityAuxState* AuxState = FlyingAbilityComponent->AbilityAuxState.GetStateRead())
 		{
 			return AuxState->MaxStamina;
 		}
