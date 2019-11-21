@@ -8,7 +8,7 @@
 #include "Chaos/ChaosDebugDraw.h"
 #include "Chaos/DebugDrawQueue.h"
 #include "Chaos/ParticleHandle.h"
-#include "Chaos/PBDCollisionConstraint.h"
+#include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDJointConstraints.h"
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
@@ -155,7 +155,7 @@ namespace ImmediatePhysics_Chaos
 		Joints = MakeUnique<FPBDJointConstraints>(FPBDJointSolverSettings());
 		JointsRule = MakeUnique<TPBDConstraintIslandRule<FPBDJointConstraints>>(*Joints);
 		Evolution = MakeUnique<TPBDRigidsEvolutionGBF<FReal, Dimensions>>(*Particles.Get(), 1);
-		TPBDCollisionConstraint<FReal, Dimensions>& Collisions = Evolution->GetCollisionConstraints();
+		TPBDCollisionConstraints<FReal, Dimensions>& Collisions = Evolution->GetCollisionConstraints();
 
 		Evolution->AddConstraintRule(JointsRule.Get());
 
@@ -169,7 +169,7 @@ namespace ImmediatePhysics_Chaos
 			[this]()
 			{
 				Evolution->GetCollisionConstraints().ApplyCollisionModifier(
-					[this](const TPBDCollisionConstraint<FReal, Dimensions>::FConstraintContainerHandle* Handle)
+					[this](const TPBDCollisionConstraints<FReal, Dimensions>::FConstraintContainerHandle* Handle)
 					{
 						TVector<const TGeometryParticleHandle<FReal, Dimensions>*, 2> ConstrainedParticles = Handle->GetConstrainedParticles();
 						if (ShouldIgnoreCollisionConstraint(ConstrainedParticles[0], ConstrainedParticles[1], IgnoreCollisionParticlePairTable))

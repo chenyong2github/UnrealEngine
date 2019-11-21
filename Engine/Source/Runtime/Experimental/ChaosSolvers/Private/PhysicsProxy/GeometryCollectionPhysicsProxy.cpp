@@ -13,7 +13,7 @@
 #include "Chaos/TriangleMesh.h"
 #include "Chaos/MassProperties.h"
 #include "ChaosSolversModule.h"
-#include "Chaos/PBDCollisionConstraintUtil.h"
+#include "Chaos/PBDCollisionConstraintsUtil.h"
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/Serializable.h"
 #include "Chaos/ErrorReporter.h"
@@ -1325,7 +1325,7 @@ void FGeometryCollectionPhysicsProxy::EndFrameCallback(const float EndFrame)
 			TManagedArray<int32>& DynamicState = Collection->GetAttribute<int32>("DynamicState", FGeometryCollection::TransformGroup);
 
 			Chaos::TPBDRigidParticles<float, 3>& Particles = GetSolver()->GetRigidParticles();
-			const Chaos::TPBDCollisionConstraint<float, 3>& CollisionRule = GetSolver()->GetCollisionConstraints();
+			const Chaos::TPBDCollisionConstraints<float, 3>& CollisionRule = GetSolver()->GetCollisionConstraints();
 			const Chaos::TArrayCollectionArray<Chaos::ClusterId>& ClusterID = GetSolver()->GetRigidClustering().GetClusterIdsArray();
 			const Chaos::TArrayCollectionArray<Chaos::TRigidTransform<float, 3>>& ClusterChildToParentMap = GetSolver()->GetRigidClustering().GetChildToParentMap();
 			const Chaos::TArrayCollectionArray<bool>& InternalCluster = GetSolver()->GetRigidClustering().GetInternalClusterArray();
@@ -3168,7 +3168,7 @@ FRecordedFrame& FGeometryCollectionPhysicsProxy::InsertRecordedFrame(FRecordedTr
 	return InTrack.Records[NewRecordIndex];
 }
 
-void FGeometryCollectionPhysicsProxy::AddCollisionToCollisionData(FRecordedFrame* ExistingFrame, const FParticlesType& Particles, const Chaos::TPBDCollisionConstraint<float, 3>::FPointContactConstraint& Constraint)
+void FGeometryCollectionPhysicsProxy::AddCollisionToCollisionData(FRecordedFrame* ExistingFrame, const FParticlesType& Particles, const Chaos::TPBDCollisionConstraints<float, 3>::FPointContactConstraint& Constraint)
 {
 #if TODO_REIMPLEMENT_RIGID_CLUSTERING
 	const Chaos::TArrayCollectionArray<Chaos::ClusterId>& ClusterIdsArray = GetSolver()->GetRigidClustering().GetClusterIdsArray();
@@ -3214,12 +3214,12 @@ void FGeometryCollectionPhysicsProxy::UpdateCollisionData(const FParticlesType& 
 	if (Parameters.CollisionData.SaveCollisionData && ExistingFrame->Timestamp > 0.f && Parameters.CollisionData.CollisionDataSizeMax > 0)
 	{
 #if TODO_REIMPLEMENT_PHYSICS_PROXY_REVERSE_MAPPING
-		const TArray<Chaos::TPBDCollisionConstraint<float, 3>::FRigidBodyContactConstraint>& AllConstraintsArray = CollisionRule.GetAllConstraints();
+		const TArray<Chaos::TPBDCollisionConstraints<float, 3>::FRigidBodyContactConstraint>& AllConstraintsArray = CollisionRule.GetAllConstraints();
 		if (AllConstraintsArray.Num() > 0)
 		{
 			const Chaos::TArrayCollectionArray<PhysicsProxyWrapper>& PhysicsProxyReverseMapping = GetSolver()->GetPhysicsProxyReverseMapping();
 
-			TArray<Chaos::TPBDCollisionConstraint<float, 3>::FRigidBodyContactConstraint> ConstraintsArray;
+			TArray<Chaos::TPBDCollisionConstraints<float, 3>::FRigidBodyContactConstraint> ConstraintsArray;
 			ConstraintsArray.SetNumUninitialized(AllConstraintsArray.Num());
 
 			FBox BoundingBox(ForceInitToZero);
