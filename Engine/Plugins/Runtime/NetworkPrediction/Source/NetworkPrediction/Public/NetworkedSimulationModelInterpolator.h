@@ -9,6 +9,7 @@
 #include "Engine/World.h"
 #include "NetworkedSimulationModelTypes.h"
 #include "NetworkedSimulationModelTick.h"
+#include "NetworkedSimulationModelTraits.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNetInterpolation, Log, All);
 
@@ -24,13 +25,44 @@ namespace NetworkInterpolationDebugCVars
 	NETSIM_DEVCVAR_SHIPCONST_FLOAT(CatchUpFactor, 1.50, "ni.CatchUpFactor", "Factor we use to catch up");
 }
 
-template<typename TBufferTypes, typename TTickSettings>
-struct TInterpolator
+template<typename TSync, typename TAux>
+struct TInterpolatorParameters
 {
-	using FSimTime = FNetworkSimTime;
-	using FRealTime = FNetworkSimTime::FRealTime;
+	template<typename S, typename A>
+	struct TStatePair
+	{
+		S& Sync;
+		A& Aux;
+	};
+
+	using TInputPair = TStatePair<const TSync, const TAux>;
+	using TOutputPair = TStatePair<TSync, TAux>;
+
+	TInputPair From;
+	TInputPair To;
+	float InterpolationPCT;
+	TOutputPair Out;
+
+	template<typename TS, typename TA>
+	TInterpolatorParameters<TS, TA> Cast() const { return { {From.Sync, From.Aux}, {To.Sync, To.Aux}, InterpolationPCT, {Out.Sync, Out.Aux} }; }
+};
+
+template<typename Model>
+struct TNetSimInterpolator
+{
+	using TBufferTypes = typename TNetSimModelTraits<Model>::InternalBufferTypes;
+	using TTickSettings = typename Model::TickSettings;
 	using TSyncState = typename TBufferTypes::TSyncState;
 	using TAuxState = typename TBufferTypes::TAuxState;
+
+	using FSimTime = FNetworkSimTime;
+	using FRealTime = FNetworkSimTime::FRealTime;
+
+	struct FStatePair
+	{
+		TSyncState Sync;
+		TAuxState Aux;
+	};
 
 	bool bEnableVisualLog = true;
 
@@ -68,7 +100,10 @@ struct TInterpolator
 		{
 			InterpolationTime = SimulationTimeBuffer.TailElement()->ToRealTimeSeconds();
 			InterpolationFrame = SimulationTimeBuffer.TailFrame();
-			InterpolationState = *Buffers.Sync.TailElement();
+
+			auto& FromState = GetFromInterpolationState();
+			FromState.Sync = *Buffers.Sync[InterpolationFrame];
+			FromState.Aux = *Buffers.Aux[InterpolationFrame];
 		}
 
 		// Wait if we were too far ahead
@@ -138,7 +173,7 @@ struct TInterpolator
 
 		// Find "To" frame
 		const TSyncState* ToState = nullptr;
-		const TAuxState* AuxState = nullptr;
+		const TAuxState* ToAuxState = nullptr;
 		FRealTime ToTime = 0.f;
 
 		for (auto It = SimulationTimeBuffer.CreateConstIterator(); It; ++It)
@@ -149,12 +184,12 @@ struct TInterpolator
 				InterpolationFrame = It.Frame();
 				ToTime = ElementSimTime.ToRealTimeSeconds();
 				ToState = Buffers.Sync[It.Frame()];
-				AuxState = Buffers.Aux[It.Frame()];
+				ToAuxState = Buffers.Aux[It.Frame()];
 				break;
 			}
 		}
 
-		if (ensure(ToState && AuxState))
+		if (ensure(ToState && ToAuxState))
 		{
 			const FRealTime FromRealTime = InterpolationTime;
 			const FRealTime ToRealTime = ToTime;
@@ -165,10 +200,11 @@ struct TInterpolator
 				const float InterpolationPCT = (NewInterpolationTime - FromRealTime) / InterpolationInterval;
 				ensureMsgf(InterpolationPCT >= 0.f && InterpolationPCT <= 1.f, TEXT("Calculated InterpolationPCT not in expected range. NewInterpolationTime: %s. From: %s. To: %s"), *LexToString(NewInterpolationTime), *LexToString(FromRealTime), *LexToString(ToRealTime));
 
-				TSyncState NewInterpolatedState;
-				TSyncState::Interpolate(InterpolationState, *ToState, InterpolationPCT, NewInterpolatedState);
+				auto& FromState = GetFromInterpolationState();
+				auto& OutputState = GetNextInterpolationState();
 
-				Driver->FinalizeFrame(NewInterpolatedState, *AuxState);
+				Model::Interpolate({ { FromState.Sync, FromState.Aux }, { *ToState, *ToAuxState }, InterpolationPCT, { OutputState.Sync, OutputState.Aux } });
+				Driver->FinalizeFrame(OutputState.Sync, OutputState.Aux);
 				
 				if (bDoVLog)
 				{
@@ -209,41 +245,42 @@ struct TInterpolator
 
 					{
 						FVisualLoggingParameters VLogParams(EVisualLoggingContext::InterpolationFrom, InterpolationFrame-1, EVisualLoggingLifetime::Transient);
-						Driver->VisualLog(Buffers.Input[InterpolationFrame-1], &InterpolationState, Buffers.Aux[InterpolationFrame-1], VLogParams);
+						Driver->VisualLog(Buffers.Input[InterpolationFrame-1], &FromState.Sync, &FromState.Aux, VLogParams);
 					}
 
 					{
 						FVisualLoggingParameters VLogParams(EVisualLoggingContext::InterpolationTo, InterpolationFrame, EVisualLoggingLifetime::Transient);
-						Driver->VisualLog(Buffers.Input[InterpolationFrame], &InterpolationState, Buffers.Aux[InterpolationFrame], VLogParams);
+						Driver->VisualLog(Buffers.Input[InterpolationFrame], ToState, ToAuxState, VLogParams);
 					}
 
 					{
 						FVisualLoggingParameters VLogParams(LoggingContext, InterpolationFrame, EVisualLoggingLifetime::Transient);
-						Driver->VisualLog(Buffers.Input[InterpolationFrame], &NewInterpolatedState, Buffers.Aux[InterpolationFrame], VLogParams);
+						Driver->VisualLog(Buffers.Input[InterpolationFrame], &OutputState.Sync, &OutputState.Aux, VLogParams);
 					}
 				}
-
-				InterpolationState = NewInterpolatedState;
+				
 				InterpolationTime = NewInterpolationTime;
+				InternalIdx ^= 1;
 			}
 		}
 	}
 
 private:
 
+	FStatePair& GetFromInterpolationState() { return InterpolationState[InternalIdx]; }
+	FStatePair& GetNextInterpolationState() { return InterpolationState[InternalIdx ^ 1]; }
+
 	FRealTime InterpolationTime = 0.f; // SimTime we are currently interpolating at
 	int32 InterpolationFrame = INDEX_NONE; // Frame we are currently/last interpolated at
-
-	TSyncState InterpolationState;
+	FStatePair InterpolationState[2]; // Interpolating "from" state and "out" state
+	int32 InternalIdx = 0; // index into InterpolationState for double buffering pattern
 
 	FRealTime WaitUntilTime = 0.f;	
-
 	FRealTime CatchUpUntilTime = 0.f;
-
 
 	FRealTime DynamicBufferedTime = 1/60.f; // SimTime we are currently interpolating at
 	FRealTime DynamicBufferedTimeStep = 1/60.f;
 
-	FRealTime	MinBufferedTime = 1/120.f;
-	FRealTime	MaxBufferedTime = 1.f;
+	FRealTime MinBufferedTime = 1/120.f;
+	FRealTime MaxBufferedTime = 1.f;
 };
