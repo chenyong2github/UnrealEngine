@@ -115,17 +115,6 @@ public:
 	virtual ITable<FNetProfilerAggregatedStats>* CreateAggregation(uint32 ConnectionIndex, ENetProfilerConnectionMode Mode, uint32 PacketIndexIntervalStart, uint32 PacketIndexIntervalEnd, uint32 StartPosition, uint32 EndPosition) const override;
 
 private:
-
-	UE_TRACE_TABLE_LAYOUT_BEGIN(FAggregatedStatsTableLayout, FNetProfilerAggregatedStats)
-		UE_TRACE_TABLE_COLUMN(EventTypeIndex, TEXT("EventTypeIndex"))
-		UE_TRACE_TABLE_COLUMN(InstanceCount, TEXT("Count"))
-		UE_TRACE_TABLE_COLUMN(TotalInclusive, TEXT("Incl"))
-		UE_TRACE_TABLE_COLUMN(MaxInclusive, TEXT("I.Max"))
-		UE_TRACE_TABLE_COLUMN(AverageInclusive, TEXT("I.Avg"))
-		UE_TRACE_TABLE_COLUMN(TotalExclusive, TEXT("Excl"))
-		UE_TRACE_TABLE_COLUMN(MaxExclusive, TEXT("E.Max"))
-	UE_TRACE_TABLE_LAYOUT_END()
-
 	const FNetProfilerName* GetNetProfilerName(uint32 ProfilerNameId) const;
 	const FNetProfilerEventType* GetNetProfilerEventType(uint32 ProfilerEventTypeId) const;
 
@@ -143,6 +132,7 @@ private:
 	// All connections we have seen throughout the session
 	TPagedArray<FNetProfilerConnectionInternal> Connections;
 	uint32 ConnectionChangeCount;
+	TTableLayout<FNetProfilerAggregatedStats> AggregatedStatsTableLayout;
 };
 
 }
