@@ -37,8 +37,10 @@ namespace Gauntlet
 		public string DeviceData;
 
 		// legacy - remove!
+		[JsonConverter(typeof(UnrealTargetPlatformConvertor))]
 		public UnrealTargetPlatform Type;
 
+		[JsonConverter(typeof(UnrealTargetPlatformConvertor))]
 		public UnrealTargetPlatform? Platform;
 
 		public EPerfSpec PerfSpec;
