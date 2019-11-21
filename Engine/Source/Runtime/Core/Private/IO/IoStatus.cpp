@@ -50,7 +50,7 @@ FIoStatus::FIoStatus(EIoErrorCode Code, const FStringView& InErrorMessage)
 : ErrorCode(Code)
 {
 	const int32 ErrorMessageLength = FMath::Min(MaxErrorMessageLength - 1, InErrorMessage.Len());
-	FPlatformString::Convert(ErrorMessage, ErrorMessageLength, InErrorMessage.Data(), ErrorMessageLength);
+	FPlatformString::Convert(ErrorMessage, ErrorMessageLength, InErrorMessage.GetData(), ErrorMessageLength);
 	ErrorMessage[ErrorMessageLength] = 0;
 }
 
@@ -96,7 +96,7 @@ FIoStatusBuilder::FIoStatusBuilder(EIoErrorCode InStatusCode)
 FIoStatusBuilder::FIoStatusBuilder(const FIoStatus& InStatus, FStringView String)
 :	StatusCode(InStatus.ErrorCode)
 {
-	Message.Append(String.Data(), String.Len());
+	Message.Append(String.GetData(), String.Len());
 }
 
 FIoStatusBuilder::~FIoStatusBuilder()
@@ -110,7 +110,7 @@ FIoStatusBuilder::operator FIoStatus()
 
 FIoStatusBuilder& FIoStatusBuilder::operator<<(FStringView String)
 {
-	Message.Append(String.Data(), String.Len());
+	Message.Append(String.GetData(), String.Len());
 
 	return *this;
 }

@@ -123,14 +123,14 @@ FString::FString(const FStringView& Other)
 	if (const FStringView::SizeType OtherLen = Other.Len())
 	{
 		Reserve(OtherLen);
-		Append(Other.Data(), OtherLen);
+		Append(Other.GetData(), OtherLen);
 		AppendChar(TEXT('\0'));
 	}
 }
 
 FString& FString::operator=(const FStringView& Other)
 {
-	const TCHAR* const OtherData = Other.Data();
+	const TCHAR* const OtherData = Other.GetData();
 	const FStringView::SizeType OtherLen = Other.Len();
 	if (OtherLen == 0)
 	{
