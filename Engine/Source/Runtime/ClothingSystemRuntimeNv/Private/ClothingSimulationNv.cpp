@@ -215,7 +215,7 @@ void FClothingSimulationNv::CreateActor(USkeletalMeshComponent* InOwnerComponent
 
 	for(int32 LodIndex = 0; LodIndex < Asset->ClothLodData.Num(); ++LodIndex)
 	{
-		UClothLODDataBase& AssetLodData = *Asset->ClothLodData[LodIndex];
+		UClothLODDataCommon& AssetLodData = *Asset->ClothLodData[LodIndex];
 		UClothPhysicalMeshDataNv* PhysMeshPtr = Cast<UClothPhysicalMeshDataNv>(AssetLodData.PhysicalMeshData);
 		if (!ensure(PhysMeshPtr))
 		{
@@ -1209,7 +1209,7 @@ void FClothingSimulationNv::UpdateLod(int32 InPredictedLod, const FTransform& Co
 				{
 					// Reposition particles skinned to outgoing LOD
 					bool bLodTransitionUp = OldClothingLod < PredictedClothingLod;
-					UClothLODDataBase& NewLodAssetData = *Actor.AssetCreatedFrom->ClothLodData[PredictedClothingLod];
+					UClothLODDataCommon& NewLodAssetData = *Actor.AssetCreatedFrom->ClothLodData[PredictedClothingLod];
 					TArray<FMeshToMeshVertData>& SkinData = bLodTransitionUp ? NewLodAssetData.TransitionUpSkinData : NewLodAssetData.TransitionDownSkinData;
 
 					for(int32 ParticleIndex = 0; ParticleIndex < NumNewParticles; ++ParticleIndex)
@@ -1666,7 +1666,7 @@ void FClothingSimulationNv::DebugDraw_SelfCollision(USkeletalMeshComponent* Owne
 
 		const float SelfCollisionThickness = Config.SelfCollisionRadius;
 
-		const UClothLODDataBase& LodData = *Asset->ClothLodData[Actor.CurrentLodIndex];
+		const UClothLODDataCommon& LodData = *Asset->ClothLodData[Actor.CurrentLodIndex];
 		const UClothPhysicalMeshDataBase& PhysMesh = *LodData.PhysicalMeshData;
 
 		nv::cloth::Cloth* CurrentCloth = Actor.LodData[Actor.CurrentLodIndex].Cloth;
