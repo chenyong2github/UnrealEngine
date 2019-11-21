@@ -539,8 +539,6 @@ public:
 	};
 
 	/**
->>>> ORIGINAL //Fortnite/Dev-EngineMerge/Engine/Plugins/Online/OnlineSubsystem/Source/Public/Interfaces/VoiceInterface.h#3
-==== THEIRS //Fortnite/Dev-EngineMerge/Engine/Plugins/Online/OnlineSubsystem/Source/Public/Interfaces/VoiceInterface.h#4
 	 * This returns the current amplitude of a given player's incoming audio.
 	 * @return -1.0 if the PlayerId was not found or if this isn't supported with the current Voice Interface, and a value from 0.0 to 1.0 otherwise.
 	 */
@@ -548,7 +546,8 @@ public:
 	{
 		return -1.0f;
 	}
-==== YOURS //UE4_Main_Windows/Engine/Plugins/Online/OnlineSubsystem/Source/Public/Interfaces/VoiceInterface.h
+    
+    /*
 	 * This can be used to patch incoming audio to a different audio device.
 	 * @param InDeviceName- name of the device to patch to.
 	 * @param bMuteInGameOutput- if set to true, the audio going out to the game will be muted.
