@@ -186,6 +186,25 @@ public:
 
 	virtual const TBox<T, d>& BoundingBox() const override { return MLocalBoundingBox; }
 
+	const FReal GetVolume() const
+	{
+		// TODO: More precise volume!
+		return BoundingBox().GetVolume();
+	}
+
+	const FMatrix33 GetInertiaTensor(const FReal Mass) const
+	{
+		// TODO: More precise inertia!
+		return BoundingBox().GetInertiaTensor(Mass);
+	}
+
+	const FVec3 GetCenterOfMass() const
+	{
+		// TODO: Actually compute this!
+		return FVec3(0.f);
+	}
+
+
 	const ObjectType Object() const { return MObject; }
 	
 	virtual void Serialize(FChaosArchive& Ar) override
