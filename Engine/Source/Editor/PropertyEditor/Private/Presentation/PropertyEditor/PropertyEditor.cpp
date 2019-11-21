@@ -614,28 +614,36 @@ bool FPropertyEditor::SupportsEditConditionToggle() const
 	UProperty* Property = PropertyNode->GetProperty();
 
 	static const FName Name_HideEditConditionToggle("HideEditConditionToggle");
-	if (!Property->HasMetaData(Name_HideEditConditionToggle) && EditConditionExpression.IsValid())
+	if (EditConditionExpression.IsValid() && !Property->HasMetaData(Name_HideEditConditionToggle))
 	{
 		const UBoolProperty* ConditionalProperty = EditConditionContext->GetSingleBoolProperty(EditConditionExpression);
 		if (ConditionalProperty != nullptr)
 		{
-			// Both of these conditions are technically bugs of omission.
-			// However, they were supported prior to 4.23, so just warn and allow them for now.
+			// There are 2 valid states for inline edit conditions:
+			// 1. The property is marked as editable and has InlineEditConditionToggle set. 
+			// 2. The property is not marked as editable and does not have InlineEditConditionToggle set.
+			// In both cases, the original property will be hidden and only show up as a toggle.
 
-			// The property is not marked as an inline edit condition toggle.
 			static const FName Name_InlineEditConditionToggle("InlineEditConditionToggle");
-			if (ConditionalProperty->HasMetaData(Name_InlineEditConditionToggle))
+			const bool bIsInlineEditCondition = ConditionalProperty->HasMetaData(Name_InlineEditConditionToggle);
+			const bool bIsEditable = ConditionalProperty->HasAllPropertyFlags(CPF_Edit);
+
+			if (bIsInlineEditCondition == bIsEditable)
 			{
-				UE_LOG(LogPropertyEditor, Warning, TEXT("Property being used as inline edit condition is not marked as InlineEditConditionToggle. Field \"%s\" in class \"%s\"."), *ConditionalProperty->GetNameCPP(), *Property->GetOwnerStruct()->GetName());
+				return true;
 			}
 
-			// The property is not marked as editable.
-			if (!ConditionalProperty->HasAllPropertyFlags(CPF_Edit))
+			if (bIsInlineEditCondition && !bIsEditable)
 			{
-				UE_LOG(LogPropertyEditor, Warning, TEXT("Property being used as inline edit condition is not marked as editable. Field \"%s\" in class \"%s\"."), *ConditionalProperty->GetNameCPP(), *Property->GetOwnerStruct()->GetName());
+				UE_LOG(LogPropertyEditor, Warning, TEXT("Property being used as inline edit condition is not editable, but has redundant InlineEditConditionToggle flag. Field \"%s\" in class \"%s\"."), *ConditionalProperty->GetNameCPP(), *Property->GetOwnerStruct()->GetName());
+				return true;
 			}
 
-			return true;
+			// The property is already shown, and not marked as inline edit condition.
+			if (!bIsInlineEditCondition && bIsEditable)
+			{
+				return false;
+			}
 		}
 	}
 

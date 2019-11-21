@@ -348,7 +348,7 @@ class UPropertyEditorTestObject : public UObject
 	UPROPERTY(EditAnywhere, Category = StructTests, meta = (InlineEditConditionToggle))
 	bool bEditConditionStructWithMultipleInstances2;
 
-	UPROPERTY(EditAnywhere, Category=StructTests, meta=(editcondition = "bEditConditionStructWithMultipleInstances2"))
+	UPROPERTY(EditAnywhere, Category=StructTests, meta=(EditCondition = "bEditConditionStructWithMultipleInstances2"))
 	FPropertyEditorTestBasicStruct StructWithMultipleInstances2;
 
 	UPROPERTY(EditAnywhere, Category=StructTests)
@@ -574,12 +574,12 @@ class UPropertyEditorTestObject : public UObject
 	TArray<FPropertyEditorTestBasicStruct> ArrayOfStructsWithEditCondition;
 
 	UPROPERTY(EditAnywhere, Category = EditCondition)
-	int64 Flags;
+	int64 EditConditionFlags;
 
-	UPROPERTY(EditAnywhere, Category = EditCondition, meta = (EditCondition = "Flags & ETestEnumFlags::Two || Flags & ETestEnumFlags::Four"))
+	UPROPERTY(EditAnywhere, Category = EditCondition, meta = (EditCondition = "EditConditionFlags & ETestEnumFlags::Two || EditConditionFlags & ETestEnumFlags::Four"))
 	bool bEnabledWhenFlagsHasTwoOrFour;
 
-	UPROPERTY(EditAnywhere, Category = EditCondition, meta = (EditCondition = "Flags & ETestEnumFlags::One == false"))
+	UPROPERTY(EditAnywhere, Category = EditCondition, meta = (EditCondition = "EditConditionFlags & ETestEnumFlags::One == false"))
 	bool bDisabledWhenFlagsIsOdd;
 
 	UPROPERTY(EditAnywhere, Category = OnlyInlineProperty, meta = (InlineCategoryProperty))
@@ -596,4 +596,31 @@ class UPropertyEditorTestObject : public UObject
 
 	UPROPERTY(EditAnywhere, Category = DateTime)
 	FDateTime DateTime;
+
+	UPROPERTY()
+	bool bInlineEditConditionWithoutMetaToggle;
+
+	UPROPERTY(EditAnywhere, Category = "Inline Edit Conditions", meta = (EditCondition = "bInlineEditConditionWithoutMetaToggle"))
+	float InlineEditConditionWithoutMeta;
+
+	UPROPERTY(EditAnywhere, Category = "Inline Edit Conditions", meta = (InlineEditConditionToggle))
+	bool bInlineEditConditionWithMetaToggle;
+
+	UPROPERTY(EditAnywhere, Category = "Inline Edit Conditions", meta = (EditCondition = "bInlineEditConditionWithMetaToggle"))
+	float InlineEditConditionWithMeta;
+
+	UPROPERTY(meta = (InlineEditConditionToggle))
+	bool bInlineEditConditionNotEditable;
+
+	UPROPERTY(EditAnywhere, Category = "Inline Edit Conditions", meta = (EditCondition = "bInlineEditConditionNotEditable"))
+	float HasNonEditableInlineCondition;
+
+	UPROPERTY(EditAnywhere, Category = "Inline Edit Conditions")
+	bool bSharedEditCondition;
+
+	UPROPERTY(EditAnywhere, Category = "Inline Edit Conditions", meta = (EditCondition = "bSharedEditCondition"))
+	float UsesSharedEditCondition1;
+
+	UPROPERTY(EditAnywhere, Category = "Inline Edit Conditions", meta = (EditCondition = "bSharedEditCondition"))
+	float UsesSharedEditCondition2;
 };

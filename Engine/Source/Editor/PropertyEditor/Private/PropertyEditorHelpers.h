@@ -107,8 +107,9 @@ class SEditConditionWidget : public SCompoundWidget
 
 private:
 	void OnEditConditionCheckChanged( ECheckBoxState CheckState );
-	bool HasEditCondition() const;
+	bool HasEditConditionToggle() const;
 	ECheckBoxState OnGetEditConditionCheckState() const;
+
 private:
 	TSharedPtr<FPropertyEditor> PropertyEditor;
 	FCustomEditCondition CustomEditCondition;
