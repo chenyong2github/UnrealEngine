@@ -99,7 +99,7 @@ public:
 
 	Some definitions to explain whether a collection can be serialized or not:
 
-	For definitions of <b>requires</b> and <b>complete</b> see #PxSerialization::complete
+	For definitions of <b>requiresObjects</b> and <b>complete</b> see #PxSerialization::complete
 
 	A serializable object is <b>subordinate</b> if it cannot be serialized on it's own
 	The following objects are subordinate:

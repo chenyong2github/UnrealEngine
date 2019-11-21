@@ -108,7 +108,7 @@ namespace Gu
 		PX_PHYSX_COMMON_API static	ConvexMesh*		createObject(PxU8*& address, PxDeserializationContext& context);
 		PX_PHYSX_COMMON_API static	void			getBinaryMetaData(PxOutputStream& stream);
 									void			resolveReferences(PxDeserializationContext&)				{}
-							virtual	void			requires(PxProcessPxBaseCallback&){}
+							virtual	void			requiresObjects(PxProcessPxBaseCallback&){}
 	//~PX_SERIALIZATION
 		PX_PHYSX_COMMON_API 						ConvexMesh();
 
