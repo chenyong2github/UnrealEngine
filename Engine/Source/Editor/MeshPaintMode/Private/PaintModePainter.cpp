@@ -1154,6 +1154,8 @@ void FPaintModePainter::Reset()
 	// Remove any existing texture targets
 	TexturePaintTargetList.Empty();
 	
+	PaintableComponents.Empty();
+
 	// Cleanup all cached 
 	Cleanup();
 }
