@@ -169,7 +169,7 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 	AnimDriveSpringStiffness[InSimDataIndex] = ChaosClothSimConfig->AnimDriveSpringStiffness;
 
 	check(Asset->GetNumLods() == 1);
-	UClothLODDataBase* AssetLodData = Asset->ClothLodData[0];
+	UClothLODDataCommon* AssetLodData = Asset->ClothLodData[0];
 	check(AssetLodData->PhysicalMeshData);
 	UClothPhysicalMeshDataBase* PhysMesh = AssetLodData->PhysicalMeshData;
 
@@ -739,7 +739,7 @@ void ClothingSimulation::ExtractLegacyAssetCollisions(UClothingAssetCommon* Asse
 	UE_CLOG(Asset->GetNumLods() != 1,
 		LogChaosCloth, Warning, TEXT("More than one LOD with the current cloth asset. Only LOD 0 is supported with the current system."));
 
-	if (const UClothLODDataBase* const AssetLodData = Asset->ClothLodData[0])
+	if (const UClothLODDataCommon* const AssetLodData = Asset->ClothLodData[0])
 	{
 		const FClothCollisionData& LodCollData = AssetLodData->CollisionData;
 		if (LodCollData.Spheres.Num() || LodCollData.SphereConnections.Num() || LodCollData.Convexes.Num())
@@ -1040,7 +1040,7 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 		if (!Asset)
 			continue;
 
-		const UClothLODDataBase* AssetLodData = Asset->ClothLodData[0];
+		const UClothLODDataCommon* AssetLodData = Asset->ClothLodData[0];
 		check(AssetLodData->PhysicalMeshData);
 		const UClothPhysicalMeshDataBase* PhysMesh = AssetLodData->PhysicalMeshData;
 
@@ -1171,7 +1171,7 @@ void ClothingSimulation::GetCollisions(FClothCollisionData& OutCollisions, bool 
 	// Add internal asset collisions
 	for (const UClothingAssetCommon* Asset : Assets)
 	{
-		if (const UClothLODDataBase* const ClothLodData = !Asset ? nullptr : Asset->ClothLodData[0])
+		if (const UClothLODDataCommon* const ClothLodData = !Asset ? nullptr : Asset->ClothLodData[0])
 		{
 			OutCollisions.Append(ClothLodData->CollisionData);
 		}
@@ -1553,7 +1553,7 @@ void ClothingSimulation::DebugDrawBackstops(USkeletalMeshComponent* OwnerCompone
 		}
 
 		// Get Backstop Distances
-		const UClothLODDataBase* const AssetLodData = Asset->ClothLodData[0];
+		const UClothLODDataCommon* const AssetLodData = Asset->ClothLodData[0];
 		check(AssetLodData);
 		check(AssetLodData->PhysicalMeshData);
 		const UClothPhysicalMeshDataBase* const PhysMesh = AssetLodData->PhysicalMeshData;
@@ -1610,7 +1610,7 @@ void ClothingSimulation::DebugDrawMaxDistances(USkeletalMeshComponent* OwnerComp
 		}
 
 		// Get Maximum Distances
-		const UClothLODDataBase* const AssetLodData = Asset->ClothLodData[0];
+		const UClothLODDataCommon* const AssetLodData = Asset->ClothLodData[0];
 		check(AssetLodData);
 		check(AssetLodData->PhysicalMeshData);
 		UClothPhysicalMeshDataBase* PhysMesh = AssetLodData->PhysicalMeshData;
@@ -1651,7 +1651,7 @@ void ClothingSimulation::DebugDrawAnimDrive(USkeletalMeshComponent* OwnerCompone
 		}
 
 		// Get Animdrive Multiplier
-		const UClothLODDataBase* const AssetLodData = Asset->ClothLodData[0];
+		const UClothLODDataCommon* const AssetLodData = Asset->ClothLodData[0];
 		check(AssetLodData);
 		check(AssetLodData->PhysicalMeshData);
 		const UClothPhysicalMeshDataBase* const PhysMesh = AssetLodData->PhysicalMeshData;

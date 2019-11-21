@@ -10,7 +10,7 @@ UClothLODDataNv::UClothLODDataNv(const FObjectInitializer& Init)
 UClothLODDataNv::~UClothLODDataNv()
 {}
 
-void FClothLODData::MigrateTo(UClothLODDataNv* LodData) const
+void FClothLODData::MigrateTo(UClothLODDataCommon* LodData) const
 {
 	PhysicalMeshData.MigrateTo(LodData->PhysicalMeshData);
 	LodData->CollisionData = CollisionData;
