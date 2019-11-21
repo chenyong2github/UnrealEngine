@@ -185,6 +185,18 @@ FShaderCookerStats::FShaderCookerStats()
 	TArray<FString> Files;
 	FString BasePath = FString::Printf(TEXT("%s/MaterialStats/"), *FPaths::ProjectSavedDir());
 	FPlatformFileManager::Get().GetPlatformFile().FindFiles(Files, *BasePath, TEXT("csv"));
+
+	FString MirrorLocation;
+	GConfig->GetString(TEXT("/Script/Engine.ShaderCompilerStats"), TEXT("MaterialStatsLocation"), MirrorLocation, GGameIni);
+	FParse::Value(FCommandLine::Get(), TEXT("MaterialStatsMirror="), MirrorLocation);
+	if (!MirrorLocation.IsEmpty())
+	{
+		TArray<FString> RemoteFiles;
+		FString RemotePath = FPaths::Combine(*MirrorLocation, FApp::GetProjectName(), *FApp::GetBranchName());
+		FPlatformFileManager::Get().GetPlatformFile().FindFiles(RemoteFiles, *RemotePath, TEXT("csv"));
+		Files.Append(RemoteFiles);
+	}
+
 	for (FString Filename : Files)
 	{
 		FShaderCookerStatsSet Set;
@@ -192,6 +204,7 @@ FShaderCookerStats::FShaderCookerStats()
 		Set.bInitialized = false;
 		StatSets.Emplace(Set);
 	}
+
 }
 FShaderCookerStats::~FShaderCookerStats()
 {
