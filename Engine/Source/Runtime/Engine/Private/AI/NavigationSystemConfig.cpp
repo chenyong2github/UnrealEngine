@@ -24,8 +24,8 @@ UNavigationSystemBase* UNavigationSystemConfig::CreateAndConfigureNavigationSyst
 {
 	UNavigationSystemBase* NavSys = nullptr;
 
-	NavigationSystemClass.TryLoad();
 	TSubclassOf<UNavigationSystemBase> NavSysClass = NavigationSystemClass.ResolveClass();
+	ensure(NavSysClass != nullptr || NavigationSystemClass.IsValid() == false);
 	
 	if (NavSysClass)
 	{
