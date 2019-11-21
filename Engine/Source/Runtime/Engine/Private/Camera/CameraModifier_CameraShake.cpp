@@ -81,10 +81,10 @@ UCameraShake* UCameraModifier_CameraShake::AddCameraShake(TSubclassOf<UCameraSha
 	if (ShakeClass != nullptr)
 	{
 		float Scale = Params.Scale;
-		UCameraShakeSourceComponent* SourceComponent = Params.SourceComponent;
+		const UCameraShakeSourceComponent* SourceComponent = Params.SourceComponent;
 
 		// Adjust for splitscreen
-		if (GEngine->IsSplitScreen(CameraOwner->GetWorld()))
+		if (CameraOwner != nullptr && GEngine->IsSplitScreen(CameraOwner->GetWorld()))
 		{
 			Scale *= SplitScreenShakeScale;
 		}
@@ -180,6 +180,11 @@ UCameraShake* UCameraModifier_CameraShake::ReclaimShakeFromExpiredPool(TSubclass
 	return nullptr;
 }
 
+void UCameraModifier_CameraShake::GetActiveCameraShakes(TArray<FActiveCameraShakeInfo>& ActiveCameraShakes) const
+{
+	ActiveCameraShakes.Append(ActiveShakes);
+}
+
 void UCameraModifier_CameraShake::RemoveCameraShake(UCameraShake* ShakeInst, bool bImmediately)
 {
 	for (int32 i = 0; i < ActiveShakes.Num(); ++i)
@@ -216,7 +221,7 @@ void UCameraModifier_CameraShake::RemoveAllCameraShakesOfClass(TSubclassOf<UCame
 	}
 }
 
-void UCameraModifier_CameraShake::RemoveAllCameraShakesFromSource(UCameraShakeSourceComponent* SourceComponent, bool bImmediately)
+void UCameraModifier_CameraShake::RemoveAllCameraShakesFromSource(const UCameraShakeSourceComponent* SourceComponent, bool bImmediately)
 {
 	for (int32 i = ActiveShakes.Num() - 1; i >= 0; --i)
 	{
