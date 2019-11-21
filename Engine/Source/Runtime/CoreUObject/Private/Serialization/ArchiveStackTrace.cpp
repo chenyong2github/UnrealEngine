@@ -138,7 +138,7 @@ FString FArchiveStackTrace::FCallstackData::ToString(const TCHAR* CallstackCutof
 			int32 CutoffIndex = StackLine.Find(TEXT(" "), ESearchCase::CaseSensitive);
 			if (CutoffIndex >= -1 && CutoffIndex < StackLine.Len() - 2)
 			{
-				StackLine = StackLine.Mid(CutoffIndex + 1);
+				StackLine.MidInline(CutoffIndex + 1, MAX_int32, false);
 			}
 		}
 		HumanReadableString += Indent;

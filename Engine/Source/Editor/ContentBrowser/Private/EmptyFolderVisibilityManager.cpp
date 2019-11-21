@@ -61,7 +61,7 @@ void FEmptyFolderVisibilityManager::SetAlwaysShowPath(const FString& InPath)
 	bool bWasAlreadyShown = false;
 	if (PathToAdd[PathToAdd.Len() - 1] == TEXT('/'))
 	{
-		PathToAdd = PathToAdd.Mid(0, PathToAdd.Len() - 1);
+		PathToAdd.MidInline(0, PathToAdd.Len() - 1, false);
 	}
 	PathsToAlwaysShow.Add(PathToAdd, &bWasAlreadyShown);
 

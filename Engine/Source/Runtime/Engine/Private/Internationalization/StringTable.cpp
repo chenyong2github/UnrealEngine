@@ -273,7 +273,7 @@ private:
 			int32 DotIndex = INDEX_NONE;
 			if (StringTablePackageName.FindChar(TEXT('.'), DotIndex))
 			{
-				StringTablePackageName = StringTablePackageName.Left(DotIndex);
+				StringTablePackageName.LeftInline(DotIndex, false);
 			}
 		}
 

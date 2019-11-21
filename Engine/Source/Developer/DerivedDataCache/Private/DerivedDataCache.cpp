@@ -960,7 +960,7 @@ public:
 			FString Name((*Iter)->GetName());
 			if (Name.Len() > 1024)
 			{
-				Name = Name.Left(1024);
+				Name.LeftInline(1024);
 				Name += TEXT("...");
 			}
 			UE_LOG(LogDerivedDataCache, Warning, TEXT("Leaked Rollup! %s"), *Name);

@@ -752,7 +752,7 @@ void FAssetManagerEditorModule::OpenShaderCookStatistics(TArray<FName> SelectedP
 			}
 			CommonIdentical = FMath::Min(Identical, CommonIdentical);
 		}
-		CommonSubPath = CommonPath.Left(CommonIdentical);
+		CommonPath.LeftInline(CommonIdentical);
 	}
 	static const FName LevelEditorModuleName("LevelEditor");
 	static const FName LevelEditorStatsViewerTab("LevelEditorStatsViewer");

@@ -104,7 +104,7 @@ FString FAutomationDeviceClusterManager::GetGroupNameForDevice(const FDeviceStat
 	if( OutGroupName.Len() > 0 )
 	{
 		//Get rid of the trailing '-'
-		OutGroupName = OutGroupName.LeftChop(1);
+		OutGroupName.LeftChopInline(1, false);
 	}
 
 	return OutGroupName;
