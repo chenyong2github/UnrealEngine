@@ -823,11 +823,14 @@ void AUsdStageActor::OpenUsdStage()
 		UsdUtils::SetUsdStageAxis( UsdStageStore.Get(), pxr::UsdGeomTokens->z );
 	}
 
-	UsdStageStore.Get()->SetEditTarget( UsdStageStore.Get()->GetRootLayer() );
+	if ( UsdStageStore.Get() )
+	{
+		UsdStageStore.Get()->SetEditTarget( UsdStageStore.Get()->GetRootLayer() );
 
-	UsdListener.Register( UsdStageStore.Get() );
+		UsdListener.Register( UsdStageStore.Get() );
 
-	OnStageChanged.Broadcast();
+		OnStageChanged.Broadcast();
+	}
 #endif // #if USE_USD_SDK
 }
 
