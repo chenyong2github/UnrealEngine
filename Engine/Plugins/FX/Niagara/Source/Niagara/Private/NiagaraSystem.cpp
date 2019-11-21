@@ -1344,8 +1344,13 @@ FNiagaraEmitterCompiledData::FNiagaraEmitterCompiledData()
 
 FNiagaraDeferredDeletionFence::FNiagaraDeferredDeletionFence()
 {
-	bInstanceBatcherComplete = false;
-	bWorldManagerComplete = false;
+	bInstanceBatcherComplete = true;
+	bWorldManagerComplete = true;
+}
+
+FNiagaraDeferredDeletionFence::~FNiagaraDeferredDeletionFence()
+{
+	check(IsComplete());
 }
 
 bool FNiagaraDeferredDeletionFence::IsComplete()
@@ -1358,6 +1363,8 @@ FNiagaraWorldManagerDeferredDeletionFence::FNiagaraWorldManagerDeferredDeletionF
 {
 	if (Fence)
 	{
+		//UE_LOG(LogNiagara, Display, TEXT("%0xP - Create WorldManFence"), Fence);
+		check(Fence->bWorldManagerComplete == true);
 		Fence->bWorldManagerComplete = false;
 	}
 }
@@ -1366,25 +1373,68 @@ FNiagaraWorldManagerDeferredDeletionFence::~FNiagaraWorldManagerDeferredDeletion
 {
 	if (Fence)
 	{
+		//UE_LOG(LogNiagara, Display, TEXT("%0xP - Destroy WorldManFence"), Fence);
+		check(Fence->bWorldManagerComplete == false);
 		Fence->bWorldManagerComplete = true;
 	}
 }
+
+FNiagaraWorldManagerDeferredDeletionFence::FNiagaraWorldManagerDeferredDeletionFence(FNiagaraWorldManagerDeferredDeletionFence&& Other)
+	: Fence(Other.Fence)
+{
+	check(Fence->bWorldManagerComplete == false);
+	Other.Fence = nullptr;
+	//UE_LOG(LogNiagara, Display, TEXT("%0xP - MoveCtor WorldManFence"), Fence);
+}
+
+FNiagaraWorldManagerDeferredDeletionFence& FNiagaraWorldManagerDeferredDeletionFence::operator=(FNiagaraWorldManagerDeferredDeletionFence&& Other)
+{
+	check(Fence->bWorldManagerComplete == false);
+	Fence = Other.Fence;
+	Other.Fence = nullptr;
+	//UE_LOG(LogNiagara, Display, TEXT("%0xP - Move WorldManFence"), Fence);
+	return *this;
+}
+
 
 FNiagaraInstanceBatcherDeferredDeletionFence::FNiagaraInstanceBatcherDeferredDeletionFence(FNiagaraDeferredDeletionFence* InFence)
 	: Fence(InFence)
 {
 	if (Fence)
 	{
+		UE_LOG(LogNiagara, Display, TEXT("%0xP - Create BatcherFence"), Fence);
+		check(Fence->bInstanceBatcherComplete == true);
 		Fence->bInstanceBatcherComplete = false;
 	}
 }
+
 FNiagaraInstanceBatcherDeferredDeletionFence::~FNiagaraInstanceBatcherDeferredDeletionFence()
 {
 	if (Fence)
 	{
+		UE_LOG(LogNiagara, Display, TEXT("%0xP - Destroy BatcherFence"), Fence);
+		check(Fence->bInstanceBatcherComplete == false);
 		Fence->bInstanceBatcherComplete = true;
 	}
 }
+
+FNiagaraInstanceBatcherDeferredDeletionFence::FNiagaraInstanceBatcherDeferredDeletionFence(FNiagaraInstanceBatcherDeferredDeletionFence&& Other)
+	: Fence(Other.Fence)
+{
+	check(Fence->bInstanceBatcherComplete == false);
+	Other.Fence = nullptr;
+	UE_LOG(LogNiagara, Display, TEXT("%0xP - MoveCTor BatcherFence"), Fence);
+}
+
+FNiagaraInstanceBatcherDeferredDeletionFence& FNiagaraInstanceBatcherDeferredDeletionFence::operator=(FNiagaraInstanceBatcherDeferredDeletionFence&& Other)
+{
+	check(Fence->bInstanceBatcherComplete == false);
+	Fence = Other.Fence;
+	Other.Fence = nullptr;
+	UE_LOG(LogNiagara, Display, TEXT("%0xP - Move BatcherFence"), Fence);
+	return *this;
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
