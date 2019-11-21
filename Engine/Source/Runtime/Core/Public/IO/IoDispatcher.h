@@ -743,7 +743,7 @@ public:
 	CORE_API void					ReadWithCallback(const FIoChunkId& Chunk, const FIoReadOptions& Options, TFunction<void(TIoStatusOr<FIoBuffer>)>&& Callback);
 
 	// Polling methods
-	CORE_API bool					DoesChunkExists(const FIoChunkId& ChunkId) const;
+	CORE_API bool					DoesChunkExist(const FIoChunkId& ChunkId) const;
 	CORE_API TIoStatusOr<uint64>	GetSizeForChunk(const FIoChunkId& ChunkId) const;
 
 	CORE_API TIoStatusOr<FIoChunkId>	OpenFileChunk(FStringView Filename);
