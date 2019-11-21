@@ -10,7 +10,6 @@
 #include "Misc/Paths.h"
 #include "Misc/RuntimeErrors.h"
 #include "UObject/GCObject.h"
-#include "UObject/PropertyAccessUtil.h"
 #include "EngineGlobals.h"
 #include "Components/ActorComponent.h"
 #include "TimerManager.h"
@@ -2663,7 +2662,7 @@ bool UKismetSystemLibrary::IsUnattended()
 
 #if WITH_EDITOR
 
-bool UKismetSystemLibrary::GetEditorProperty(UObject* Object, const FName PropertyName, int32& OutValuePtr)
+bool UKismetSystemLibrary::GetEditorProperty(UObject* Object, const FName PropertyName, int32& PropertyValue)
 {
 	// We should never hit this! Stubbed to avoid NoExport on the class.
 	check(0);
@@ -2744,16 +2743,16 @@ DEFINE_FUNCTION(UKismetSystemLibrary::execGetEditorProperty)
 	*(bool*)RESULT_PARAM = bResult;
 }
 
-bool UKismetSystemLibrary::SetEditorProperty(UObject* Object, const FName PropertyName, const int32& OutValuePtr)
+bool UKismetSystemLibrary::SetEditorProperty(UObject* Object, const FName PropertyName, const int32& PropertyValue, const EPropertyAccessChangeNotifyMode ChangeNotifyMode)
 {
 	// We should never hit this! Stubbed to avoid NoExport on the class.
 	check(0);
 	return false;
 }
 
-bool UKismetSystemLibrary::Generic_SetEditorProperty(UObject* Object, const UProperty* Property, const void* ValuePtr)
+bool UKismetSystemLibrary::Generic_SetEditorProperty(UObject* Object, const UProperty* Property, const void* ValuePtr, const EPropertyAccessChangeNotifyMode ChangeNotifyMode)
 {
-	const EPropertyAccessResultFlags AccessResult = PropertyAccessUtil::SetPropertyValue_Object(Property, Object, ValuePtr, INDEX_NONE, PropertyAccessUtil::EditorReadOnlyFlags);
+	const EPropertyAccessResultFlags AccessResult = PropertyAccessUtil::SetPropertyValue_Object(Property, Object, ValuePtr, INDEX_NONE, PropertyAccessUtil::EditorReadOnlyFlags, ChangeNotifyMode);
 
 	if (EnumHasAnyFlags(AccessResult, EPropertyAccessResultFlags::PermissionDenied))
 	{
@@ -2803,6 +2802,8 @@ DEFINE_FUNCTION(UKismetSystemLibrary::execSetEditorProperty)
 	const UProperty* ValueProp = Stack.MostRecentProperty;
 	const void* ValuePtr = Stack.MostRecentPropertyAddress;
 
+	P_GET_ENUM(EPropertyAccessChangeNotifyMode, ChangeNotifyMode);
+
 	P_FINISH;
 
 	if (!ValueProp || !ValuePtr)
@@ -2831,7 +2832,7 @@ DEFINE_FUNCTION(UKismetSystemLibrary::execSetEditorProperty)
 		if (ObjectProp && ObjectProp->GetClass() == ValueProp->GetClass()) // Compare the classes as these must be an *exact* match as the read is low-level and without property coercion
 		{
 			P_NATIVE_BEGIN;
-			bResult = Generic_SetEditorProperty(Object, ObjectProp, ValuePtr);
+			bResult = Generic_SetEditorProperty(Object, ObjectProp, ValuePtr, ChangeNotifyMode);
 			P_NATIVE_END;
 		}
 		else

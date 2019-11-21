@@ -38,7 +38,7 @@ public:
 	void AssertValidConversionMethod(const EPyConversionMethod InMethod) const;
 
 	/** Build the property change notify that corresponds to this owner context, or null if this owner context shouldn't emit change notifications */
-	TUniquePtr<FPropertyAccessChangeNotify> BuildChangeNotify() const;
+	TUniquePtr<FPropertyAccessChangeNotify> BuildChangeNotify(const EPropertyAccessChangeNotifyMode InNotifyMode) const;
 
 private:
 	/** The Python object that owns the instance being wrapped (if any) */

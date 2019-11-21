@@ -52,67 +52,70 @@ void FPyWrapperOwnerContext::AssertValidConversionMethod(const EPyConversionMeth
 	::AssertValidPyConversionOwner(GetOwnerObject(), InMethod);
 }
 
-TUniquePtr<FPropertyAccessChangeNotify> FPyWrapperOwnerContext::BuildChangeNotify() const
+TUniquePtr<FPropertyAccessChangeNotify> FPyWrapperOwnerContext::BuildChangeNotify(const EPropertyAccessChangeNotifyMode InNotifyMode) const
 {
 #if WITH_EDITOR
-	TUniquePtr<FPropertyAccessChangeNotify> ChangeNotify = MakeUnique<FPropertyAccessChangeNotify>();
-
-	auto AppendOwnerPropertyToChain = [&ChangeNotify](const FPyWrapperOwnerContext& InOwnerContext) -> bool
+	if (InNotifyMode != EPropertyAccessChangeNotifyMode::Never)
 	{
-		const UProperty* LeafProp = nullptr;
-		if (PyObject_IsInstance(InOwnerContext.GetOwnerObject(), (PyObject*)&PyWrapperObjectType) == 1 || PyObject_IsInstance(InOwnerContext.GetOwnerObject(), (PyObject*)&PyWrapperStructType) == 1)
+		TUniquePtr<FPropertyAccessChangeNotify> ChangeNotify = MakeUnique<FPropertyAccessChangeNotify>();
+		ChangeNotify->NotifyMode = InNotifyMode;
+
+		auto AppendOwnerPropertyToChain = [&ChangeNotify](const FPyWrapperOwnerContext& InOwnerContext) -> bool
 		{
-			LeafProp = InOwnerContext.GetOwnerProperty();
-		}
+			const UProperty* LeafProp = nullptr;
+			if (PyObject_IsInstance(InOwnerContext.GetOwnerObject(), (PyObject*)&PyWrapperObjectType) == 1 || PyObject_IsInstance(InOwnerContext.GetOwnerObject(), (PyObject*)&PyWrapperStructType) == 1)
+			{
+				LeafProp = InOwnerContext.GetOwnerProperty();
+			}
 
-		if (LeafProp)
+			if (LeafProp)
+			{
+				ChangeNotify->ChangedPropertyChain.AddHead(const_cast<UProperty*>(LeafProp));
+				return true;
+			}
+
+			return false;
+		};
+
+		FPyWrapperOwnerContext OwnerContext = *this;
+		while (OwnerContext.HasOwner() && AppendOwnerPropertyToChain(OwnerContext))
 		{
-			ChangeNotify->ChangedPropertyChain.AddHead(const_cast<UProperty*>(LeafProp));
-			return true;
-		}
+			PyObject* PyObj = OwnerContext.GetOwnerObject();
 
-		return false;
-	};
+			if (PyObj == GetOwnerObject())
+			{
+				ChangeNotify->ChangedPropertyChain.SetActivePropertyNode(ChangeNotify->ChangedPropertyChain.GetHead()->GetValue());
+			}
 
-	FPyWrapperOwnerContext OwnerContext = *this;
-	while (OwnerContext.HasOwner() && AppendOwnerPropertyToChain(OwnerContext))
-	{
-		PyObject* PyObj = OwnerContext.GetOwnerObject();
+			if (PyObject_IsInstance(PyObj, (PyObject*)&PyWrapperObjectType) == 1)
+			{
+				// Found an object, this is the end of the chain
+				ChangeNotify->ChangedObject = ((FPyWrapperObject*)PyObj)->ObjectInstance;
+				ChangeNotify->ChangedPropertyChain.SetActiveMemberPropertyNode(ChangeNotify->ChangedPropertyChain.GetHead()->GetValue());
+				break;
+			}
 
-		if (PyObj == GetOwnerObject())
-		{
-			ChangeNotify->ChangedPropertyChain.SetActivePropertyNode(ChangeNotify->ChangedPropertyChain.GetHead()->GetValue());
-		}
+			if (PyObject_IsInstance(PyObj, (PyObject*)&PyWrapperStructType) == 1)
+			{
+				// Found a struct, recurse up the chain
+				OwnerContext = ((FPyWrapperStruct*)PyObj)->OwnerContext;
+				continue;
+			}
 
-		if (PyObject_IsInstance(PyObj, (PyObject*)&PyWrapperObjectType) == 1)
-		{
-			// Found an object, this is the end of the chain
-			ChangeNotify->ChangedObject = ((FPyWrapperObject*)PyObj)->ObjectInstance;
-			ChangeNotify->ChangedPropertyChain.SetActiveMemberPropertyNode(ChangeNotify->ChangedPropertyChain.GetHead()->GetValue());
+			// Unknown object type - just bail
 			break;
 		}
 
-		if (PyObject_IsInstance(PyObj, (PyObject*)&PyWrapperStructType) == 1)
+		// If we didn't find an object in the chain then we can't emit notifications
+		if (!ChangeNotify->ChangedObject)
 		{
-			// Found a struct, recurse up the chain
-			OwnerContext = ((FPyWrapperStruct*)PyObj)->OwnerContext;
-			continue;
+			ChangeNotify.Reset();
 		}
 
-		// Unknown object type - just bail
-		break;
+		return ChangeNotify;
 	}
-
-	// If we didn't find an object in the chain then we can't emit notifications
-	if (!ChangeNotify->ChangedObject)
-	{
-		ChangeNotify.Reset();
-	}
-
-	return ChangeNotify;
-#else
-	return nullptr;
 #endif
+	return nullptr;
 }
 
 #endif	// WITH_PYTHON

@@ -433,7 +433,7 @@ PyObject* FPyWrapperStruct::GetPropertyValue(FPyWrapperStruct* InSelf, const PyG
 	return PyGenUtil::GetPropertyValue(InSelf->ScriptStruct, InSelf->StructInstance, InPropDef, InPythonAttrName, (PyObject*)InSelf, *PyUtil::GetErrorContext(InSelf));
 }
 
-int FPyWrapperStruct::SetPropertyValue(FPyWrapperStruct* InSelf, PyObject* InValue, const PyGenUtil::FGeneratedWrappedProperty& InPropDef, const char* InPythonAttrName, const bool InNotifyChange, const uint64 InReadOnlyFlags)
+int FPyWrapperStruct::SetPropertyValue(FPyWrapperStruct* InSelf, PyObject* InValue, const PyGenUtil::FGeneratedWrappedProperty& InPropDef, const char* InPythonAttrName, const EPropertyAccessChangeNotifyMode InNotifyMode, const uint64 InReadOnlyFlags)
 {
 	if (!ValidateInternalState(InSelf))
 	{
@@ -447,7 +447,7 @@ int FPyWrapperStruct::SetPropertyValue(FPyWrapperStruct* InSelf, PyObject* InVal
 		OwnerIsTemplate = PropertyAccessUtil::IsObjectTemplate(OwnerObject);
 	}
 
-	const TUniquePtr<FPropertyAccessChangeNotify> ChangeNotify = InNotifyChange ? FPyWrapperOwnerContext((PyObject*)InSelf, InPropDef.Prop).BuildChangeNotify() : nullptr;
+	const TUniquePtr<FPropertyAccessChangeNotify> ChangeNotify = FPyWrapperOwnerContext((PyObject*)InSelf, InPropDef.Prop).BuildChangeNotify(InNotifyMode);
 	return PyGenUtil::SetPropertyValue(InSelf->ScriptStruct, InSelf->StructInstance, InValue, InPropDef, InPythonAttrName, ChangeNotify.Get(), InReadOnlyFlags, OwnerIsTemplate, *PyUtil::GetErrorContext(InSelf));
 }
 
@@ -1051,9 +1051,10 @@ PyTypeObject InitializePyWrapperStructType()
 
 			PyObject* PyNameObj = nullptr;
 			PyObject* PyValueObj = nullptr;
+			PyObject* PyNotifyModeObj = nullptr;
 
-			static const char *ArgsKwdList[] = { "name", "value", nullptr };
-			if (!PyArg_ParseTupleAndKeywords(InArgs, InKwds, "OO:set_editor_property", (char**)ArgsKwdList, &PyNameObj, &PyValueObj))
+			static const char *ArgsKwdList[] = { "name", "value", "notify_mode", nullptr };
+			if (!PyArg_ParseTupleAndKeywords(InArgs, InKwds, "OO|O:set_editor_property", (char**)ArgsKwdList, &PyNameObj, &PyValueObj, &PyNotifyModeObj))
 			{
 				return nullptr;
 			}
@@ -1062,6 +1063,15 @@ PyTypeObject InitializePyWrapperStructType()
 			if (!PyConversion::Nativize(PyNameObj, Name))
 			{
 				PyUtil::SetPythonError(PyExc_TypeError, InSelf, *FString::Printf(TEXT("Failed to convert 'name' (%s) to 'Name'"), *PyUtil::GetFriendlyTypename(InSelf)));
+				return nullptr;
+			}
+
+			static const UEnum* PropertyAccessChangeNotifyModeEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EPropertyAccessChangeNotifyMode"));
+
+			EPropertyAccessChangeNotifyMode NotifyMode = EPropertyAccessChangeNotifyMode::Default;
+			if (PyNotifyModeObj && !PyConversion::NativizeEnumEntry(PyNotifyModeObj, PropertyAccessChangeNotifyModeEnum, NotifyMode))
+			{
+				PyUtil::SetPythonError(PyExc_TypeError, InSelf, *FString::Printf(TEXT("Failed to convert 'notify_mode' (%s) to 'PropertyAccessChangeNotifyMode'"), *PyUtil::GetFriendlyTypename(PyNotifyModeObj)));
 				return nullptr;
 			}
 
@@ -1093,7 +1103,7 @@ PyTypeObject InitializePyWrapperStructType()
 				WrappedPropDef.SetProperty(ResolvedProp);
 			}
 
-			const int Result = FPyWrapperStruct::SetPropertyValue(InSelf, PyValueObj, WrappedPropDef, TCHAR_TO_UTF8(*Name.ToString()), /*InNotifyChange*/true, PropertyAccessUtil::EditorReadOnlyFlags);
+			const int Result = FPyWrapperStruct::SetPropertyValue(InSelf, PyValueObj, WrappedPropDef, TCHAR_TO_UTF8(*Name.ToString()), NotifyMode, PropertyAccessUtil::EditorReadOnlyFlags);
 			if (Result != 0)
 			{
 				return nullptr;
@@ -1112,7 +1122,7 @@ PyTypeObject InitializePyWrapperStructType()
 		{ "assign", PyCFunctionCast(&FMethods::Assign), METH_VARARGS, "x.assign(object) -> None -- assign the value of this Unreal struct to value of the given object" },
 		{ "to_tuple", PyCFunctionCast(&FMethods::ToTuple), METH_NOARGS, "x.to_tuple() -> tuple -- break this Unreal struct into a tuple of its properties" },
 		{ "get_editor_property", PyCFunctionCast(&FMethods::GetEditorProperty), METH_VARARGS | METH_KEYWORDS, "x.get_editor_property(name) -> object -- get the value of any property visible to the editor" },
-		{ "set_editor_property", PyCFunctionCast(&FMethods::SetEditorProperty), METH_VARARGS | METH_KEYWORDS, "x.set_editor_property(name, value) -> None -- set the value of any property visible to the editor, ensuring that the pre/post change notifications are called" },
+		{ "set_editor_property", PyCFunctionCast(&FMethods::SetEditorProperty), METH_VARARGS | METH_KEYWORDS, "x.set_editor_property(name, value, notify_mode=PropertyAccessChangeNotifyMode.DEFAULT) -> None -- set the value of any property visible to the editor, ensuring that the pre/post change notifications are called" },
 		{ nullptr, nullptr, 0, nullptr }
 	};
 
