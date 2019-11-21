@@ -61,6 +61,9 @@ void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PushToPhys
 		}
 		RigidHandle->SetSpatialIdx(Data->SpatialIdx);	//todo: this needs to only happen once during initialization
 		RigidHandle->SetHashResultLowLevel(Data->HashResult);
+#if CHAOS_CHECKED
+		RigidHandle->SetDebugName(Data->DebugName);
+#endif
 	}
 }
 
@@ -119,6 +122,9 @@ void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::P
 
 		RigidHandle->SetSpatialIdx(Data->SpatialIdx);	//todo: this needs to only happen once during initialization
 		RigidHandle->SetHashResultLowLevel(Data->HashResult);	//todo: this needs to only happen once during initialization
+#if CHAOS_CHECKED
+		RigidHandle->SetDebugName(Data->DebugName);
+#endif
 		
 		if (Data->Geometry && Data->Geometry->HasBoundingBox())
 		{
@@ -187,6 +193,9 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 		// This should be moved to initialization.
 		RigidHandle->SetSpatialIdx(Data->SpatialIdx);	//todo: this needs to only happen once during initialization
 		RigidHandle->SetHashResultLowLevel(Data->HashResult);	//todo: this needs to only happen once during initialization
+#if CHAOS_CHECKED
+		RigidHandle->SetDebugName(Data->DebugName);
+#endif
 
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::X))
 		{
