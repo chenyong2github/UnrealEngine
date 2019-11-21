@@ -329,7 +329,8 @@ namespace Chaos
 					continue;
 				}
 
-				if (bBody1Bounded == bBody2Bounded && Particle2.AsDynamic())
+				const bool bIsParticle2Dynamic = Particle2.CastToRigidParticle() && Particle2.ObjectState() == EObjectStateType::Dynamic;
+				if (bBody1Bounded == bBody2Bounded && bIsParticle2Dynamic)
 				{
 					//no bidirectional constraints. 
 					if (Particle2.ParticleID() > Particle1.ParticleID())
@@ -338,7 +339,7 @@ namespace Chaos
 					}
 				}
 
-				const TVector<T, d> Box2Thickness = Particle2.AsDynamic() ? ComputeThickness(*Particle2.AsDynamic(), Dt) : TVector<T, d>(0);
+				const TVector<T, d> Box2Thickness = bIsParticle2Dynamic ? ComputeThickness(*Particle2.CastToRigidParticle(), Dt) : TVector<T, d>(0);
 				const T UseThickness = FMath::Max(Box1Thickness, Box2Thickness.Size());// + MThickness
 
 				FCollisionConstraintsArray Constraints;

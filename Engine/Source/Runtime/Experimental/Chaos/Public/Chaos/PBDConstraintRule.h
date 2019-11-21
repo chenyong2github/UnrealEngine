@@ -270,11 +270,14 @@ namespace Chaos
 							TVector<const TGeometryParticleHandle<FReal, 3>*, 2> Particles = Handle->GetConstrainedParticles();
 							if (It == NumIts - 1)
 							{
-								if (Particles[0]->AsDynamic() == nullptr || IsTemporarilyStatic.Contains(Particles[0]))
+								const bool bIsParticleDynamic0 = Particles[0]->CastToRigidParticle() && Particles[0]->ObjectState() == EObjectStateType::Dynamic;
+								const bool bIsParticleDynamic1 = Particles[1]->CastToRigidParticle() && Particles[1]->ObjectState() == EObjectStateType::Dynamic;
+
+								if (bIsParticleDynamic0 == false || IsTemporarilyStatic.Contains(Particles[0]))
 								{
 									IsTemporarilyStatic.Add(Particles[1]);
 								}
-								else if (Particles[1]->AsDynamic() == nullptr || IsTemporarilyStatic.Contains(Particles[1]))
+								else if (bIsParticleDynamic1 == false || IsTemporarilyStatic.Contains(Particles[1]))
 								{
 									IsTemporarilyStatic.Add(Particles[0]);
 								}
