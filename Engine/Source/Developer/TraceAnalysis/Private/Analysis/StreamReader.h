@@ -17,6 +17,7 @@ public:
 	const uint8*				GetPointer(uint32 Size);
 	void						Advance(uint32 Size);
 	bool						IsEmpty() const;
+	bool						IsEof() const;
 	struct FMark*				SaveMark() const;
 	void						RestoreMark(struct FMark* Mark);
 
@@ -25,6 +26,7 @@ protected:
 	uint32						DemandHint = 0;
 	uint32						Cursor = 0;
 	uint32						End = 0;
+	bool						bEof = false;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -45,6 +47,7 @@ public:
 	int32						Fill(Lambda&& Source);
 	void						Append(const uint8* Data, uint32 Size);
 	uint8*						Append(uint32 Size);
+	void						SetEof();
 
 protected:
 	void						Consolidate();
@@ -62,6 +65,10 @@ inline int32 FStreamBuffer::Fill(Lambda&& Source)
 	if (ReadSize > 0)
 	{
 		End += ReadSize;
+	}
+	else
+	{
+		SetEof();
 	}
 
 	return ReadSize;
