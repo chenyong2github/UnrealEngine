@@ -1087,10 +1087,10 @@ bool FLauncherWorker::TerminateLaunchedProcess()
 				FString TargetDeviceId = DeviceId;
 				
 				// remove the variant prefix (eg. Android_ETC@deviceId)
-				int32 InPos = TargetDeviceId.Find("@");
+				int32 InPos = TargetDeviceId.Find("@", ESearchCase::CaseSensitive);
 				if (InPos > 0) 
 				{ 
-					TargetDeviceId = TargetDeviceId.Right(TargetDeviceId.Len() -  InPos - 1);
+					TargetDeviceId.RightInline(TargetDeviceId.Len() -  InPos - 1, false);
 
 				}
 

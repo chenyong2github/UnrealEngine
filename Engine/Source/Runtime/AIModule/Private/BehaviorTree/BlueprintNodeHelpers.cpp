@@ -108,7 +108,7 @@ namespace BlueprintNodeHelpers
 			const FString CategoryLimit = StructProp->GetMetaData(TEXT("Categories"));
 			if (!CategoryLimit.IsEmpty() && ExportedStringValue.StartsWith(CategoryLimit))
 			{
-				ExportedStringValue = ExportedStringValue.Mid(CategoryLimit.Len());
+				ExportedStringValue.MidInline(CategoryLimit.Len(), MAX_int32, false);
 			}
 #endif
 		}
