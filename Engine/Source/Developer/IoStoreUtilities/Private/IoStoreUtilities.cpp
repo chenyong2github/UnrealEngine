@@ -40,6 +40,7 @@ struct FContainerTarget
 {
 	ITargetPlatform* TargetPlatform;
 	FString CookedDirectory;
+	FString CookedProjectDirectory;
 	FString OutputDirectory;
 };
 
@@ -984,11 +985,11 @@ int32 CreateTarget(const FContainerTarget& Target)
 {
 	TGuardValue<int32> GuardAllowUnversionedContentInEditor(GAllowUnversionedContentInEditor, 1);
 
-	FString CookedDir = Target.CookedDirectory;
-	FString OutputDir = Target.OutputDirectory;
-	FString RelativePrefixForLegacyFilename = TEXT("../../../");
+	const FString CookedDir = Target.CookedDirectory;
+	const FString OutputDir = Target.OutputDirectory;
+	const FString RelativePrefixForLegacyFilename = TEXT("../../../");
 	
-	FPackageStoreBulkDataManifest BulkDataManifest(Target.TargetPlatform->PlatformName());
+	FPackageStoreBulkDataManifest BulkDataManifest(Target.CookedProjectDirectory);
 	const bool bWithBulkDataManifest = BulkDataManifest.Load();
 	if (bWithBulkDataManifest)
 	{
@@ -1844,11 +1845,13 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 	}
 
 	FString TargetCookedDirectory = FPaths::ProjectSavedDir() / TEXT("Cooked") / TargetPlatform->PlatformName();
+	FString TargetCookedProjectDirectory = TargetCookedDirectory / FApp::GetProjectName();
+
 	FString TargetOutputDirectory = OutputDirectory.Len() > 0
 		? OutputDirectory
-		: TargetCookedDirectory / FApp::GetProjectName();
+		: TargetCookedProjectDirectory;
 
-	FContainerTarget Target { TargetPlatform, TargetCookedDirectory, TargetOutputDirectory };
+	FContainerTarget Target { TargetPlatform, TargetCookedDirectory, TargetCookedProjectDirectory, TargetOutputDirectory };
 
 	UE_LOG(LogIoStore, Display, TEXT("Creating target: '%s' using output directory: '%s'"), *Target.TargetPlatform->PlatformName(), *Target.OutputDirectory);
 

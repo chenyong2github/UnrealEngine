@@ -482,9 +482,9 @@ void FPackageStoreBulkDataManifest::PackageDesc::AddData(uint64 InChunkId, uint6
 	Entry.Size = InSize;
 }
 
-FPackageStoreBulkDataManifest::FPackageStoreBulkDataManifest(const FString& PlatformName)
+FPackageStoreBulkDataManifest::FPackageStoreBulkDataManifest(const FString& ProjectPath)
 {
-	Filename = FPaths::ProjectSavedDir() / TEXT("BulkDataManifests") / PlatformName + TEXT(".ubulkmanifest");
+	Filename = ProjectPath / TEXT("Metadata/BulkDataInfo.ubulkmanifest");
 }
 
 FArchive& operator<<(FArchive& Ar, FPackageStoreBulkDataManifest::PackageDesc::BulkDataDesc& Entry)

@@ -15,7 +15,7 @@ class FLinkerSave;
 class FPackageStoreBulkDataManifest
 {
 public:
-	COREUOBJECT_API FPackageStoreBulkDataManifest(const FString& PlatformName);
+	COREUOBJECT_API FPackageStoreBulkDataManifest(const FString& ProjectPath);
 	COREUOBJECT_API ~FPackageStoreBulkDataManifest();
 
 	COREUOBJECT_API bool Load();

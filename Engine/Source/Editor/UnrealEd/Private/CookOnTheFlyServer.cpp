@@ -6714,15 +6714,20 @@ void UCookOnTheFlyServer::InitializePackageStore(const TArray<FName>& TargetPlat
 	const FString RootPath = FPaths::RootDir();
 	const FString RootPathSandbox = ConvertToFullSandboxPath(*RootPath, true);
 
+	const FString ProjectPath = FPaths::ProjectDir();
+	const FString ProjectPathSandbox = ConvertToFullSandboxPath(*ProjectPath, true);
+
 	SavePackageContexts.Reserve(TargetPlatformNames.Num());
 
 	for (const FName PlatformName : TargetPlatformNames)
 	{
 		const FString PlatformString = PlatformName.ToString();
+
 		const FString ResolvedRootPath = RootPathSandbox.Replace(TEXT("[Platform]"), *PlatformString);
+		const FString ResolvedProjectPath = ProjectPathSandbox.Replace(TEXT("[Platform]"), *PlatformString);
 
 		// just leak all memory for now
-		FPackageStoreBulkDataManifest* BulkDataManifest	= new FPackageStoreBulkDataManifest(PlatformString);
+		FPackageStoreBulkDataManifest* BulkDataManifest	= new FPackageStoreBulkDataManifest(ResolvedProjectPath);
 		FLooseFileWriter* LooseFileWriter				= IsUsingPackageStore() ? new FLooseFileWriter() : nullptr;
 
 		FSavePackageContext* SavePackageContext			= new FSavePackageContext(LooseFileWriter, BulkDataManifest);
