@@ -1044,10 +1044,9 @@ void FSkeletalMeshLODModel::UpdateChunkedSectionInfo(const FString& SkeletalMesh
 	for (int32 LODModelSectionIndex = 0; LODModelSectionIndex < LODModelSectionNum; ++LODModelSectionIndex)
 	{
 		FSkelMeshSection& Section = Sections[LODModelSectionIndex];
-		int32 SectionMaterialIndex = Section.MaterialIndex;
 		
 		//If we have cloth on a chunked section we treat the chunked section has a parent section (this is to get the same result has before the refactor)
-		if (LastBoneCount >= MaxGPUSkinBones && SectionMaterialIndex == LastMaterialIndex && !Section.ClothingData.AssetGuid.IsValid())
+		if (LastBoneCount >= MaxGPUSkinBones && Section.MaterialIndex == LastMaterialIndex && !Section.ClothingData.AssetGuid.IsValid())
 		{
 			Section.ChunkedParentSectionIndex = CurrentParentChunkIndex;
 			Section.OriginalDataSectionIndex = Sections[CurrentParentChunkIndex].OriginalDataSectionIndex;
@@ -1078,17 +1077,7 @@ void FSkeletalMeshLODModel::UpdateChunkedSectionInfo(const FString& SkeletalMesh
 			Section.ChunkedParentSectionIndex = INDEX_NONE;
 		}
 
-		//Use the LODMaterialMap if the material is different from the original section index and set back the section materialindex to the originalDataSectionIndex
-		if (SectionMaterialIndex != Section.OriginalDataSectionIndex)
-		{
-			while (LODMaterialMap.Num() <= LODModelSectionIndex)
-			{
-				LODMaterialMap.Add(INDEX_NONE);
-			}
-			LODMaterialMap[LODModelSectionIndex] = Section.ChunkedParentSectionIndex != INDEX_NONE ? Sections[Section.ChunkedParentSectionIndex].MaterialIndex : Section.MaterialIndex;
-			Section.MaterialIndex = Section.OriginalDataSectionIndex;
-		}
-		LastMaterialIndex = SectionMaterialIndex;
+		LastMaterialIndex = Section.MaterialIndex;
 		//Set the last bone count
 		LastBoneCount = (uint32)Sections[LODModelSectionIndex].BoneMap.Num();
 		//its impossible to have more bone then the maximum allowed

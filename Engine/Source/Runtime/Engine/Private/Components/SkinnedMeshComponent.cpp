@@ -2345,7 +2345,7 @@ FName USkinnedMeshComponent::FindClosestBone_K2(FVector TestLocation, FVector& B
 	return FindClosestBone(TestLocation, &BoneLocation, IgnoreScale, bRequirePhysicsAsset);
 }
 
-void USkinnedMeshComponent::ShowMaterialSection(int32 MaterialID, bool bShow, int32 LODIndex)
+void USkinnedMeshComponent::ShowMaterialSection(int32 MaterialID, int32 SectionIndex, bool bShow, int32 LODIndex)
 {
 	if (!SkeletalMesh)
 	{
@@ -2367,15 +2367,12 @@ void USkinnedMeshComponent::ShowMaterialSection(int32 MaterialID, bool bShow, in
 			HiddenMaterials.Empty(SkeletalMesh->Materials.Num());
 			HiddenMaterials.AddZeroed(SkeletalMesh->Materials.Num());
 		}
-		// If we are at a dropped LOD, route material index through the LODMaterialMap in the LODInfo struct.
+		// If we have a valid LODInfo LODMaterialMap, route material index through it.
 		int32 UseMaterialIndex = MaterialID;			
-		if(LODIndex > 0)
+		if(SkelLODInfo.LODMaterialMap.IsValidIndex(SectionIndex) && SkelLODInfo.LODMaterialMap[SectionIndex] != INDEX_NONE)
 		{
-			if(SkelLODInfo.LODMaterialMap.IsValidIndex(MaterialID))
-			{
-				UseMaterialIndex = SkelLODInfo.LODMaterialMap[MaterialID];
-				UseMaterialIndex = FMath::Clamp( UseMaterialIndex, 0, HiddenMaterials.Num() );
-			}
+			UseMaterialIndex = SkelLODInfo.LODMaterialMap[SectionIndex];
+			UseMaterialIndex = FMath::Clamp( UseMaterialIndex, 0, HiddenMaterials.Num() );
 		}
 		// Mark the mapped section material entry as visible/hidden
 		if (HiddenMaterials.IsValidIndex(UseMaterialIndex))
