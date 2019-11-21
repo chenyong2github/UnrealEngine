@@ -63,17 +63,14 @@ struct FFieldDesc
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-template <int OffsetValue, typename Type>
+template <int OffsetValue, int SizeValue>
 struct TFieldBase
-	: public FFieldDesc
 {
-	enum { Offset = OffsetValue, Size = sizeof(Type) };
-
-protected:
-	TFieldBase(const FLiteralName& Name)
-	: FFieldDesc(Name, TFieldType<Type>::Value, OffsetValue, Size)
+	enum : uint16
 	{
-	}
+		Offset	= OffsetValue,
+		Size	= SizeValue
+	};
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -148,8 +145,14 @@ struct TField<Offset, Type[Count]>
 ////////////////////////////////////////////////////////////////////////////////
 template <int Offset, typename Type>
 struct TField
-	: public TFieldBase<Offset, Type>
+	: public TFieldBase<Offset, sizeof(Type)>
+	, public FFieldDesc
 {
+	TField(const FLiteralName& Name)
+	: FFieldDesc(Name, TFieldType<Type>::Value, Offset, sizeof(Type))
+	{
+	}
+
 	struct FActionable
 	{
 		Type Value;
@@ -158,11 +161,6 @@ struct TField
 			*(Type*)(Ptr + Offset) = Value;
 		}
 	};
-
-	TField(const FLiteralName& Name)
-	: TFieldBase<Offset, Type>(Name)
-	{
-	}
 
 	const FActionable operator () (const Type& __restrict Value) const
 	{
