@@ -125,6 +125,12 @@ public:
 	/** @returns the editor mode this toolkit is used for, or null if not relevant. */
 	virtual FEdMode* GetEditorMode() const = 0;
 
+	/** @return the editor mode display name if there is an editor mode associated with this toolkit.  An empty FText is returned otherwise */
+	virtual FText GetEditorModeDisplayName() const = 0;
+
+	/** @return the editor mode icon if there is an editor mode associated with this toolkit.  An empty icon is returned otherwise */
+	virtual FSlateIcon GetEditorModeIcon() const = 0;
+
 	/** @returns the inline content that this toolkit returns if it is an editor mode */
 	virtual TSharedPtr<SWidget> GetInlineContent() const = 0;
 
@@ -137,4 +143,5 @@ public:
 	/* Returns true if this is the default generic asset editor used by multiple classes */
 	virtual bool IsSimpleAssetEditor() const { return false; }
 };
+
 

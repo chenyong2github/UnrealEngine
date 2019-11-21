@@ -129,6 +129,9 @@ public:
 	virtual const TArray<UObject*>* GetObjectsCurrentlyBeingEdited() const override;
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
 	virtual class FEdMode* GetEditorMode() const override;
+	virtual FText GetEditorModeDisplayName() const override;
+	virtual FSlateIcon GetEditorModeIcon() const override;
+
 	virtual UEdMode* GetScriptableEditorMode() const;
 	virtual TSharedPtr<SWidget> GetInlineContent() const override;
 

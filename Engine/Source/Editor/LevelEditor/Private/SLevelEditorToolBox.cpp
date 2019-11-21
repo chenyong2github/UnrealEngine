@@ -168,14 +168,10 @@ void SLevelEditorToolBox::UpdateInlineContent(const TSharedPtr<IToolkit>& Toolki
 	TabName = NSLOCTEXT("LevelEditor", "ToolsTabTitle", "Toolbox");
 	TabIcon = FEditorStyle::Get().GetBrush("LevelEditor.Tabs.Modes");
 
-	if (Toolkit.IsValid() && Toolkit->GetEditorMode())
+	if (Toolkit.IsValid())
 	{
-		TabName = Toolkit->GetEditorMode()->GetModeInfo().Name;
-		TabIcon = Toolkit->GetEditorMode()->GetModeInfo().IconBrush.GetSmallIcon();
-	}
-	else if (Toolkit.IsValid())
-	{
-		TabName = Toolkit->GetToolkitName();
+		TabName = Toolkit->GetEditorModeDisplayName();
+		TabIcon = Toolkit->GetEditorModeIcon().GetSmallIcon();
 	}
 
 	TSharedPtr<SDockTab> ParentTabPinned = ParentTab.Pin();

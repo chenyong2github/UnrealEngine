@@ -347,6 +347,34 @@ class FEdMode* FModeToolkit::GetEditorMode() const
 	return nullptr; 
 }
 
+FText FModeToolkit::GetEditorModeDisplayName() const
+{
+	if (FEdMode* EdMode = GetEditorMode())
+	{
+		return EdMode->GetModeInfo().Name;
+	}
+	else if (UEdMode* ScriptableMode = GetScriptableEditorMode())
+	{
+		return ScriptableMode->GetModeInfo().Name;
+	}
+
+	return FText::GetEmpty();
+}
+
+FSlateIcon FModeToolkit::GetEditorModeIcon() const
+{
+	if (FEdMode* EdMode = GetEditorMode())
+	{
+		return EdMode->GetModeInfo().IconBrush;
+	}
+	else if (UEdMode* ScriptableMode = GetScriptableEditorMode())
+	{
+		return ScriptableMode->GetModeInfo().IconBrush;
+	}
+
+	return FSlateIcon();
+}
+
 UEdMode* FModeToolkit::GetScriptableEditorMode() const
 {
 	return nullptr;
