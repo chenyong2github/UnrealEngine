@@ -679,7 +679,7 @@ bool ShouldCompileSignalPipeline(ESignalProcessing SignalProcessing, EShaderPlat
 {
 	if (SignalProcessing == ESignalProcessing::ScreenSpaceDiffuseIndirect)
 	{
-		return Platform == SP_PCD3D_SM5 || Platform == SP_PS4;
+		return Platform == SP_PCD3D_SM5 || Platform == SP_PS4 || Platform == SP_XBOXONE_D3D12;
 	}
 	else if (
 		SignalProcessing == ESignalProcessing::Reflections ||
@@ -2548,13 +2548,18 @@ public:
 		return GlobalIlluminationOutputs;
 	}
 
+	bool SupportsScreenSpaceDiffuseIndirectDenoiser(EShaderPlatform Platform) const override
+	{
+		return ShouldCompileSignalPipeline(ESignalProcessing::ScreenSpaceDiffuseIndirect, Platform);
+	}
+
 	FDiffuseIndirectOutputs DenoiseScreenSpaceDiffuseIndirect(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
 		const FSceneTextureParameters& SceneTextures,
 		const FDiffuseIndirectInputs& Inputs,
-		const FAmbientOcclusionRayTracingConfig Config) const
+		const FAmbientOcclusionRayTracingConfig Config) const override
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, DiffuseIndirectDenoiser);
 
