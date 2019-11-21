@@ -341,6 +341,10 @@ public:
 
 	/** Get the max number of iteration that the CS is going to be launched. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
+	uint32 DefaultShaderStageIndex;
+
+	/** Get the max number of iteration that the CS is going to be launched. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
 	uint32 MaxUpdateIterations;
 
 	/** Get the max number of iteration that the CS is going to be launched. */

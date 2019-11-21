@@ -5114,7 +5114,7 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 						}
 						else
 						{
-							FunctionDefStr += TEXT("if (ShaderStageIndex == 0)\n{\n");
+							FunctionDefStr += TEXT("if (ShaderStageIndex == DefaultShaderStageIndex)\n{\n");
 						}
 					}
 				}
