@@ -436,7 +436,7 @@ namespace ImmediatePhysics_Chaos
 			if (ChaosImmediate_Evolution_DeltaTime > 0)
 			{
 				// Round Dt to the nearest multiple of fixed step size...
-				const float NumDts = FMath::RoundToFloat(DeltaTime / ChaosImmediate_Evolution_DeltaTime);
+				const float NumDts = FMath::Max((FReal)1, FMath::RoundToFloat(DeltaTime / ChaosImmediate_Evolution_DeltaTime));
 				DeltaTime = NumDts * ChaosImmediate_Evolution_DeltaTime;
 				MaxDeltaTime = ChaosImmediate_Evolution_DeltaTime;
 			}
