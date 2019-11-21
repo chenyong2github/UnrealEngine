@@ -11,6 +11,7 @@ class IAnalyticsProviderET;
 DECLARE_DELEGATE_ThreeParams(FInstallBundleSourceInitDelegate, TSharedRef<IInstallBundleSource> /*Source*/, EInstallBundleManagerInitResult /*Result*/, bool /*bShouldUseFallbackSource*/)
 
 DECLARE_DELEGATE_OneParam(FInstallBundleCompleteDelegate, FInstallBundleSourceRequestResultInfo /*Result*/);
+DECLARE_DELEGATE_OneParam(FInstallBundlePausedDelegate, FInstallBundleSourcePauseInfo /*PauseInfo*/);
 
 class IInstallBundleSource : public TSharedFromThis<IInstallBundleSource>
 {
@@ -58,7 +59,8 @@ public:
 	{
 		FName BundleName;
 		EInstallBundleRequestFlags Flags = EInstallBundleRequestFlags::None;
-		FInstallBundleCompleteDelegate Callback;
+		FInstallBundlePausedDelegate PausedCallback;
+		FInstallBundleCompleteDelegate CompleteCallback;
 	};
 
 	// Updates content on disk if necessary
