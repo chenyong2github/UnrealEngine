@@ -12,11 +12,11 @@ static const FVector DefaultLevelSize = FVector(1000.f);
 ALevelBounds::ALevelBounds(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	UBoxComponent* BoxComponent = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxComponent0"));
+	BoxComponent = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxComponent0"));
 	RootComponent = BoxComponent;
-	RootComponent->Mobility = EComponentMobility::Movable;
-	RootComponent->SetRelativeScale3D(DefaultLevelSize);
-	RootComponent->SetCanEverAffectNavigation(false);
+	BoxComponent->Mobility = EComponentMobility::Movable;
+	BoxComponent->SetRelativeScale3D(DefaultLevelSize);
+	BoxComponent->SetCanEverAffectNavigation(false);
 
 	bAutoUpdateBounds = true;
 
