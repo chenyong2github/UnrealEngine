@@ -821,6 +821,7 @@ private:
 
 		if (!Particles.Num())
 		{
+			bIsEmpty = true;
 			return;
 		}
 
