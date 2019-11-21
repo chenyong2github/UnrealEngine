@@ -200,16 +200,6 @@ public:
 		return InnerArchive.AttachExternalReadDependency(ReadCallback);
 	}
 
-	virtual bool IsExternalIoSupported() const override
-	{
-		return InnerArchive.IsExternalIoSupported();
-	}
-
-	virtual void AddExternalIoRequest(const FIoChunkId& ChunkId, const FIoReadOptions& ReadOptions, FExternalIoCallback&& IoCallback)
-	{
-		InnerArchive.AddExternalIoRequest(ChunkId, ReadOptions, MoveTemp(IoCallback));
-	}
-
 	virtual bool ShouldSkipProperty(const UProperty* InProperty) const override
 	{
 		return InnerArchive.ShouldSkipProperty(InProperty);

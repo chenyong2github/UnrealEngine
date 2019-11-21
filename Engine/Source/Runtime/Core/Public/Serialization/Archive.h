@@ -31,11 +31,6 @@ template<class TEnum> class TEnumAsByte;
 typedef TFunction<bool (double RemainingTime)> FExternalReadCallback;
 struct FUObjectSerializeContext;
 
-class FIoBuffer;
-class FIoChunkId;
-class FIoReadOptions;
-using FExternalIoCallback = TFunction<void(const FIoChunkId&, const FIoBuffer&)>;
-
 // Temporary while we shake out the EDL at boot
 #define USE_EVENT_DRIVEN_ASYNC_LOAD_AT_BOOT_TIME (1)
 
@@ -1679,18 +1674,6 @@ public:
 	 * @return true if dependency has been added, false if Archive does not support them
 	 */
 	virtual bool AttachExternalReadDependency(FExternalReadCallback& ReadCallback) { return false; };
-
-	/** Returns true if I/O dispatcher is supported. */
-	virtual bool IsExternalIoSupported() const { return false; };
-
-	/**
-	 * Add external I/O request.
-	 *
-	 * @param ChunkId		The chunk ID to read from
-	 * @param ReadOptions	Specifies offset and size into the chunk
-	 * @param IoCallback	Callback triggered after the request is completed
-	 */
-	virtual void AddExternalIoRequest(const FIoChunkId& ChunkId, const FIoReadOptions& ReadOptions, FExternalIoCallback&& IoCallback) { };
 
 #if USE_STABLE_LOCALIZATION_KEYS
 	using FArchiveState::SetLocalizationNamespace;

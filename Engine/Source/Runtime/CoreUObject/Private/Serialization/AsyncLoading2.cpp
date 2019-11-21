@@ -498,15 +498,6 @@ private:
 	}
 };
 	
-struct FExternalIoRequest
-{
-	FIoChunkId ChunkId;
-	FIoReadOptions ReadOptions;
-	FExternalIoCallback Callback;
-};
-
-using FExternalIoRequests = TArray<FExternalIoRequest>;
-
 class FSimpleExportArchive
 	: public FSimpleArchive
 {
@@ -527,13 +518,6 @@ public:
 	{
 		ExternalReadDependencies->Add(ReadCallback);
 		return true;
-	}
-
-	virtual bool IsExternalIoSupported() const override { return true; };
-
-	virtual void AddExternalIoRequest(const FIoChunkId& ChunkId, const FIoReadOptions& ReadOptions, FExternalIoCallback&& IoCallback) override
-	{
-		ExternalIoRequests->Add(FExternalIoRequest { ChunkId, ReadOptions, MoveTemp(IoCallback) });
 	}
 
 	virtual FArchive& operator<<( UObject*& Object ) override
@@ -623,7 +607,6 @@ private:
 	const TArray<FNameEntryId>* GlobalNameMap = nullptr;
 	const TArray<UObject*>* Exports = nullptr;
 	TArray<FExternalReadCallback>* ExternalReadDependencies;
-	FExternalIoRequests* ExternalIoRequests;
 };
 
 enum class EAsyncPackageLoadingState2 : uint8
@@ -852,72 +835,6 @@ struct FAsyncLoadingThreadState2
 };
 
 uint32 FAsyncLoadingThreadState2::TlsSlot;
-
-struct FProcessExternalIoTask
-{
-	FProcessExternalIoTask(FIoDispatcher& InIoDispatcher, FExternalIoRequests& InExternalIoRequests, FEventLoadNode2* InDependentNode)
-		: IoDispatcher(InIoDispatcher)
-		, ExternalIoRequests(InExternalIoRequests)
-		, DependentNode(InDependentNode)
-	{
-		check(ExternalIoRequests.Num());
-		check(DependentNode);
-
-		DependentNode->AddBarrier();
-	}
-
-	static FORCEINLINE TStatId GetStatId()
-	{
-		RETURN_QUICK_DECLARE_CYCLE_STAT(FProcessExternalIoTask, STATGROUP_TaskGraphTasks);
-	}
-
-	static FORCEINLINE ENamedThreads::Type GetDesiredThread()
-	{
-		return ENamedThreads::AnyHiPriThreadHiPriTask;
-	}
-
-	FORCEINLINE static ESubsequentsMode::Type GetSubsequentsMode()
-	{
-		return ESubsequentsMode::FireAndForget;
-	}
-
-	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
-	{
-		FIoBatch Batch = IoDispatcher.NewBatch();
-
-		for (int32 RequestIndex = 0; RequestIndex < ExternalIoRequests.Num(); ++RequestIndex)
-		{
-			const FExternalIoRequest& Request = ExternalIoRequests[RequestIndex];
-			Batch.Read(Request.ChunkId, Request.ReadOptions, RequestIndex);
-		}
-
-		Batch.Issue();
-	
-		//TODO: Implement Wait/Callback
-		//Batch.Wait();
-
-		Batch.ForEachRequest([this](FIoRequest& IoRequest)
-		{
-			check(IoRequest.IsOk());
-
-			const int32 RequestIndex = IoRequest.GetUserData();	
-			const FExternalIoRequest& Request = ExternalIoRequests[RequestIndex];
-			Request.Callback(IoRequest.GetChunkId(), IoRequest.GetResult().ValueOrDie());
-
-			return true;
-		});
-
-		DependentNode->ReleaseBarrier();
-
-		IoDispatcher.FreeBatch(Batch);
-		ExternalIoRequests.Empty();
-	}
-
-private:
-	FIoDispatcher& IoDispatcher;
-	FExternalIoRequests& ExternalIoRequests;
-	FEventLoadNode2* DependentNode;
-};
 
 /**
 * Structure containing intermediate data required for async loading of all exports of a package.
@@ -1181,7 +1098,6 @@ private:
 
 	// FZenLinkerLoad
 	TArray<FExternalReadCallback> ExternalReadDependencies;
-	FExternalIoRequests ExternalIoRequests;
 	int32 ExportCount = 0;
 	const FExportMapEntry* ExportMap = nullptr;
 	const int32* PackageNameMap = nullptr;
@@ -2767,7 +2683,6 @@ void FAsyncPackage2::EventDrivenSerializeExport(int32 LocalExportIndex, const ui
 	Ar.ImportStore = &ImportStore;
 	Ar.Exports = &Exports;
 	Ar.ExternalReadDependencies = &ExternalReadDependencies;
-	Ar.ExternalIoRequests = &ExternalIoRequests;
 	Ar.SetUseUnversionedPropertySerialization(CanUseUnversionedPropertySerialization());
 
 	Object->ClearFlags(RF_NeedLoad);
@@ -2818,15 +2733,6 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ExportsDone(FAsyncPackage2* Packa
 	check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::ProcessNewImportsAndExports);
 	Package->bAllExportsSerialized = true;
 	Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::PostLoad_Etc;
-
-	if (Package->ExternalIoRequests.Num())
-	{
-		TGraphTask<FProcessExternalIoTask>::CreateTask()
-			.ConstructAndDispatchWhenReady(
-					Package->AsyncLoadingThread.IoDispatcher,
-					Package->ExternalIoRequests,
-					Package->GetNode(Package_Tick));
-	}
 
 	Package->GetNode(EEventLoadNode2::Package_StartPostLoad)->ReleaseBarrier();
 	return EAsyncPackageState::Complete;

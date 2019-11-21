@@ -33,12 +33,6 @@ ShaderCodeLibrary.cpp: Bound shader state cache implementation.
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #endif
 
-#define RHI_IO_DISPATCHER 1
-
-#if RHI_IO_DISPATCHER
-#include "IO/IoDispatcher.h"
-#endif
-
 // FORT-93125
 #define CHECK_SHADER_CREATION (PLATFORM_XBOXONE)
 
@@ -550,13 +544,6 @@ public:
 			LibraryAsyncFileHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*DestFilePath);
 
 			UE_LOG(LogShaderLibrary, Display, TEXT("Using %s for material shader code. Total %d unique shaders."), *DestFilePath, Shaders.Num());
-
-#if RHI_IO_DISPATCHER
-			if (FIoDispatcher::IsInitialized())
-			{
-				LibraryChunkId = FIoDispatcher::Get().OpenFileChunk(DestFilePath).ValueOrDie();
-			}
-#endif
 		}
 	}
 
@@ -661,41 +648,6 @@ public:
 		FShaderCodeEntry* Entry = Shaders.Find(Hash);
 		if (Entry)
 		{
-#if RHI_IO_DISPATCHER
-			if (Ar && Ar->IsExternalIoSupported())
-			{
-				int32 CodeNumRefs = 0;
-				bool bIsLoaded = false;
-				{
-					FScopeLock ScopeLock(&ReadRequestLock);
-					CodeNumRefs = Entry->NumRefs++;
-					bIsLoaded = Entry->LoadedCode.Num() > 0;
-					if (!bIsLoaded)
-					{
-						Entry->LoadedCode.SetNumUninitialized(Entry->Size);
-					}
-				}
-
-				if (!bIsLoaded && !CodeNumRefs)
-				{
-					FPlatformAtomics::InterlockedAdd(&InFlightAsyncReadRequests, 1);
-
-					Ar->AddExternalIoRequest(
-							LibraryChunkId,
-							FIoReadOptions(LibraryCodeOffset + Entry->Offset, Entry->Size),
-							[this, Entry](const FIoChunkId&, const FIoBuffer& IoBuffer)
-							{
-								FMemory::Memcpy(Entry->LoadedCode.GetData(), IoBuffer.Data(), IoBuffer.DataSize());
-#if DO_CHECK
-								Entry->bReadCompleted = 1;
-#endif
-								FPlatformAtomics::InterlockedAdd(&InFlightAsyncReadRequests, -1);
-							});
-				}
-
-				return true;
-			}
-#endif // RHI_IO_DISPATCHER
 			FScopeLock ScopeLock(&ReadRequestLock);
 
 			int32 CodeNumRefs = Entry->NumRefs++;
@@ -1036,11 +988,6 @@ private:
 
 	// De-serialised pipeline map
 	TSet<FShaderCodeLibraryPipeline> Pipelines;
-
-#if RHI_IO_DISPATCHER
-	// ID to shader code chunk
-	FIoChunkId LibraryChunkId;
-#endif
 
 	FORCENOINLINE void CheckShaderCreation(void* ShaderPtr, const FSHAHash& Hash)
 	{
