@@ -6740,12 +6740,11 @@ void UCookOnTheFlyServer::FinalizePackageStore()
 	SCOPE_TIMER(FinalizePackageStore);
 
 	UE_LOG(LogCook, Display, TEXT("Saving BulkData manifest(s)..."));
-	const TArray<ITargetPlatform*>& TargetPlatforms = GetCookingTargetPlatforms();
-	for (int32 PlatformIndex = 0; PlatformIndex < TargetPlatforms.Num(); ++PlatformIndex)
+	for (FSavePackageContext* PackageContext : SavePackageContexts)
 	{
-		if (SavePackageContexts[PlatformIndex] != nullptr && SavePackageContexts[PlatformIndex]->BulkDataManifest != nullptr)
+		if (PackageContext != nullptr && PackageContext->BulkDataManifest != nullptr)
 		{
-			SavePackageContexts[PlatformIndex]->BulkDataManifest->Save();
+			PackageContext->BulkDataManifest->Save();
 		}
 	}
 	UE_LOG(LogCook, Display, TEXT("Done saving BulkData manifest(s)"));
