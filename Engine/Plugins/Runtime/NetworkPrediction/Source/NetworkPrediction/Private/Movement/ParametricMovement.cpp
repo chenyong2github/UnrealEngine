@@ -37,44 +37,40 @@ static FAutoConsoleVariableRef CVarFixStepMS(TEXT("parametricmover.FixStep"),
 // ParametricMovement
 // -------------------------------------------------------------------------------------------------------------------------------
 
-namespace ParametricMovement
+const FName FParametricMovementSimulation::GroupName(TEXT("Parametric"));
+
+void FParametricMovementSimulation::SimulationTick(const FNetSimTimeStep& TimeStep, const TNetSimInput<ParametricMovementBufferTypes>& Input, const TNetSimOutput<ParametricMovementBufferTypes>& Output)
 {
-	const FName FMovementSimulation::GroupName(TEXT("Parametric"));
+	check(Motion != nullptr); // Must set motion mapping prior to running the simulation
+	const float DeltaSeconds = TimeStep.StepMS.ToRealTimeSeconds();
 
-	void FMovementSimulation::SimulationTick(const FNetSimTimeStep& TimeStep, const TNetSimInput<TMovementBufferTypes>& Input, const TNetSimOutput<TMovementBufferTypes>& Output)
+	// Advance parametric time. This won't always be linear: we could loop, rewind/bounce, etc
+	const float InputPlayRate = Input.Cmd.PlayRate.Get(Input.Sync.PlayRate); // Returns InputCmds playrate if set, else returns previous state's playrate		
+	Motion->AdvanceParametricTime(Input.Sync.Position, InputPlayRate, Output.Sync.Position, Output.Sync.PlayRate, DeltaSeconds);
+
+	// We have our time that we should be at. We just need to move primitive component to that position.
+	// Again, note that we expect this cannot fail. We move like this so that it can push things, but we don't expect failure.
+	// (I think it would need to be a different simulation that supports this as a failure case. The tricky thing would be working out
+	// the output Position in the case where a Move is blocked (E.g, you move 50% towards the desired location)
+
+	FTransform StartingTransform;
+	Motion->MapTimeToTransform(Input.Sync.Position, StartingTransform);
+
+	FTransform NewTransform;
+	Motion->MapTimeToTransform(Output.Sync.Position, NewTransform);
+
+	FHitResult Hit(1.f);
+
+	FVector Delta = NewTransform.GetLocation() - StartingTransform.GetLocation();
+	MoveUpdatedComponent(Delta, NewTransform.GetRotation(), true, &Hit, ETeleportType::None);
+
+	if (Hit.IsValidBlockingHit())
 	{
-		check(Motion != nullptr); // Must set motion mapping prior to running the simulation
-		const float DeltaSeconds = TimeStep.StepMS.ToRealTimeSeconds();
-
-		// Advance parametric time. This won't always be linear: we could loop, rewind/bounce, etc
-		const float InputPlayRate = Input.Cmd.PlayRate.Get(Input.Sync.PlayRate); // Returns InputCmds playrate if set, else returns previous state's playrate		
-		Motion->AdvanceParametricTime(Input.Sync.Position, InputPlayRate, Output.Sync.Position, Output.Sync.PlayRate, DeltaSeconds);
-
-		// We have our time that we should be at. We just need to move primitive component to that position.
-		// Again, note that we expect this cannot fail. We move like this so that it can push things, but we don't expect failure.
-		// (I think it would need to be a different simulation that supports this as a failure case. The tricky thing would be working out
-		// the output Position in the case where a Move is blocked (E.g, you move 50% towards the desired location)
-
-		FTransform StartingTransform;
-		Motion->MapTimeToTransform(Input.Sync.Position, StartingTransform);
-
-		FTransform NewTransform;
-		Motion->MapTimeToTransform(Output.Sync.Position, NewTransform);
-
-		FHitResult Hit(1.f);
-
-		FVector Delta = NewTransform.GetLocation() - StartingTransform.GetLocation();
-		MoveUpdatedComponent(Delta, NewTransform.GetRotation(), true, &Hit, ETeleportType::None);
-
-		if (Hit.IsValidBlockingHit())
-		{
-			FTransform ActualTransform = GetUpdateComponentTransform();
-			FVector ActualDelta = NewTransform.GetLocation() - ActualTransform.GetLocation();
-			UE_LOG(LogParametricMovement, Warning, TEXT("Blocking hit occurred when trying to move parametric mover. ActualDelta: %s"), *ActualDelta.ToString());
-		}
+		FTransform ActualTransform = GetUpdateComponentTransform();
+		FVector ActualDelta = NewTransform.GetLocation() - ActualTransform.GetLocation();
+		UE_LOG(LogParametricMovement, Warning, TEXT("Blocking hit occurred when trying to move parametric mover. ActualDelta: %s"), *ActualDelta.ToString());
 	}
-};
-
+}
 
 // -------------------------------------------------------------------------------------------------------------------------------
 // UParametricMovementComponent
@@ -93,20 +89,20 @@ INetworkedSimulationModel* UParametricMovementComponent::InstantiateNetworkedSim
 	}
 
 	// Simulation
-	ParametricMovement::FMoveState InitialSyncState;
-	ParametricMovement::FAuxState InitialAuxState;
+	FParametricSyncState InitialSyncState;
+	FParametricAuxState InitialAuxState;
 
 	InitParametricMovementSimulation(new FParametricMovementSimulation(), InitialSyncState, InitialAuxState);
 
 	// Model
 	if (ParametricMoverCVars::FixStep > 0)
 	{
-		auto *NewModel = new ParametricMovement::FMovementSystem<32>( ParametricMovementSimulation, this);
+		auto *NewModel = new FParametricMovementSystem<32>( ParametricMovementSimulation, this);
 		InitParametricMovementNetSimModel(NewModel);
 		return NewModel;
 	}
 	
-	auto *NewModel = new ParametricMovement::FMovementSystem<>(ParametricMovementSimulation, this);
+	auto *NewModel = new FParametricMovementSystem<>(ParametricMovementSimulation, this);
 	InitParametricMovementNetSimModel(NewModel);
 	return NewModel;
 }
@@ -129,7 +125,7 @@ void UParametricMovementComponent::BeginPlay()
 	ParametricMotion.CachedStartingTransform = UpdatedComponent->GetComponentToWorld();
 }
 
-void UParametricMovementComponent::FinalizeFrame(const ParametricMovement::FMoveState& SyncState, const ParametricMovement::FAuxState& AuxState)
+void UParametricMovementComponent::FinalizeFrame(const FParametricSyncState& SyncState, const FParametricAuxState& AuxState)
 {
 	FTransform NewTransform;
 	ParametricMotion.MapTimeToTransform(SyncState.Position, NewTransform);
@@ -147,7 +143,7 @@ const AActor* UParametricMovementComponent::GetVLogOwner() const
 	return GetOwner();
 }
 
-void UParametricMovementComponent::VisualLog(const ParametricMovement::FInputCmd* Input, const ParametricMovement::FMoveState* Sync, const ParametricMovement::FAuxState* Aux, const FVisualLoggingParameters& SystemParameters) const
+void UParametricMovementComponent::VisualLog(const FParametricInputCmd* Input, const FParametricSyncState* Sync, const FParametricAuxState* Aux, const FVisualLoggingParameters& SystemParameters) const
 {
 	FTransform Transform;
 	ParametricMotion.MapTimeToTransform(Sync->Position, Transform);
@@ -193,7 +189,7 @@ void UParametricMovementComponent::TickComponent(float DeltaTime, enum ELevelTic
 	}
 }
 
-void UParametricMovementComponent::ProduceInput(const FNetworkSimTime DeltaTimeSeconds, ParametricMovement::FInputCmd& Cmd)
+void UParametricMovementComponent::ProduceInput(const FNetworkSimTime DeltaTimeSeconds, FParametricInputCmd& Cmd)
 {
 	Cmd.PlayRate = PendingPlayRate;
 	PendingPlayRate.Reset();
