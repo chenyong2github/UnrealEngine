@@ -79,6 +79,14 @@ void FTidPacketTransport::Update()
 {
 	while (ReadPacket());
 	Threads.RemoveAllSwap([] (const FThreadStream& Thread) { return Thread.Buffer.IsEmpty(); });
+
+	if (bool bEof = Reader->IsEof())
+	{
+		for (auto& Thread : Threads)
+		{
+			Thread.Buffer.SetEof();
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
