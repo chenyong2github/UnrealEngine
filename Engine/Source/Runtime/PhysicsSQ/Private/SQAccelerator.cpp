@@ -14,7 +14,7 @@
 
 #include "ChaosInterfaceWrapperCore.h"
 #include "Chaos/ISpatialAcceleration.h"
-#include "Chaos/PBDCollisionConstraint.h"
+#include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/GeometryQueries.h"
 #include "Chaos/DebugDrawQueue.h"
 
