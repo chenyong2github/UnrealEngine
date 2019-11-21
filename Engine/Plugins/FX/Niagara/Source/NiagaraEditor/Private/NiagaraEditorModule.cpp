@@ -1057,6 +1057,92 @@ const FNiagaraEditorCommands& FNiagaraEditorModule::GetCommands() const
 	return FNiagaraEditorCommands::Get();
 }
 
+void FNiagaraEditorModule::InvalidateCachedScriptAssetData()
+{
+	CachedScriptAssetHighlights.Reset();
+}
+
+const TArray<FNiagaraScriptHighlight>& FNiagaraEditorModule::GetCachedScriptAssetHighlights() const
+{
+	if (CachedScriptAssetHighlights.IsSet() == false)
+	{
+		CachedScriptAssetHighlights = TArray<FNiagaraScriptHighlight>();
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+		TArray<FAssetData> ScriptAssets;
+		AssetRegistryModule.Get().GetAssetsByClass(UNiagaraScript::StaticClass()->GetFName(), ScriptAssets);
+		for (const FAssetData& ScriptAsset : ScriptAssets)
+		{
+			if (ScriptAsset.IsAssetLoaded())
+			{
+				UNiagaraScript* Script = CastChecked<UNiagaraScript>(ScriptAsset.GetAsset());
+				for (const FNiagaraScriptHighlight& Highlight : Script->Highlights)
+				{
+					if (Highlight.IsValid())
+					{
+						CachedScriptAssetHighlights->AddUnique(Highlight);
+					}
+				}
+			}
+			else
+			{
+				FString HighlightsString;
+				if (ScriptAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, Highlights), HighlightsString))
+				{
+					TArray<FNiagaraScriptHighlight> Highlights;
+					FNiagaraScriptHighlight::JsonToArray(HighlightsString, Highlights);
+					for (const FNiagaraScriptHighlight& Highlight : Highlights)
+					{
+						if (Highlight.IsValid())
+						{
+							CachedScriptAssetHighlights->AddUnique(Highlight);
+						}
+					}
+				}
+			}
+		}
+	}
+	return CachedScriptAssetHighlights.GetValue();
+}
+
+void FNiagaraEditorModule::GetScriptAssetsMatchingHighlight(const FNiagaraScriptHighlight& InHighlight, TArray<FAssetData>& OutMatchingScriptAssets) const
+{
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	TArray<FAssetData> ScriptAssets;
+	AssetRegistryModule.Get().GetAssetsByClass(UNiagaraScript::StaticClass()->GetFName(), ScriptAssets);
+	for (const FAssetData& ScriptAsset : ScriptAssets)
+	{
+		if (ScriptAsset.IsAssetLoaded())
+		{
+			UNiagaraScript* Script = CastChecked<UNiagaraScript>(ScriptAsset.GetAsset());
+			for (const FNiagaraScriptHighlight& Highlight : Script->Highlights)
+			{
+				if (Highlight == InHighlight)
+				{
+					OutMatchingScriptAssets.Add(ScriptAsset);
+					break;
+				}
+			}
+		}
+		else
+		{
+			FString HighlightsString;
+			if (ScriptAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, Highlights), HighlightsString))
+			{
+				TArray<FNiagaraScriptHighlight> Highlights;
+				FNiagaraScriptHighlight::JsonToArray(HighlightsString, Highlights);
+				for (const FNiagaraScriptHighlight& Highlight : Highlights)
+				{
+					if (Highlight == InHighlight)
+					{
+						OutMatchingScriptAssets.Add(ScriptAsset);
+						break;
+					}
+				}
+			}
+		}
+	}
+}
+
 void FNiagaraEditorModule::RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)
 {
 	AssetTools.RegisterAssetTypeActions(Action);
