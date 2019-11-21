@@ -530,7 +530,8 @@ public:
 
 		if (IsMobilePlatform(Parameters.Platform))
 		{
-			OutEnvironment.SetDefine(TEXT("MOBILE_FORCE_DEPTH_TEXTURE_READS"), 1u);
+			// SceneDepth is memoryless on mobile
+			OutEnvironment.SetDefine(TEXT("SCENE_TEXTURES_DISABLED"), 1u);
 		}
 	}
 
