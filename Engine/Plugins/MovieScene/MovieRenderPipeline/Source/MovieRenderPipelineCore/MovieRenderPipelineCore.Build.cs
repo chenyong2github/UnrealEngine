@@ -13,7 +13,8 @@ public class MovieRenderPipelineCore : ModuleRules
 				"InputCore",
 				"RenderCore",
 				"RHI",
-				"UMG"
+				"UMG",
+				"Landscape", // To flush grass
 			}
 		);
 
@@ -24,8 +25,7 @@ public class MovieRenderPipelineCore : ModuleRules
                 "MovieSceneTracks",
 				"LevelSequence",
 				"Engine",
-                "ImageWriteQueue", // Temp 
-
+                "ImageWriteQueue", // For debug tile writing
             }
         );
 	}
