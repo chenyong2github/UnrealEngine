@@ -232,6 +232,8 @@ public final class NetworkChangedManager implements NetworkConnectivityClient {
 					Log.error("Malformed URL, this should never happen. Please fix, url: " + HOST_RESOLUTION_ADDRESS);
 				} catch (IOException e) {
 					Log.verbose("Unable to connect to: " + HOST_RESOLUTION_ADDRESS);
+				} catch (Exception e) {
+					Log.verbose("Unable to connect to: " + HOST_RESOLUTION_ADDRESS + ", exception: " + e.toString());
 				} finally {
 					if (urlConnection != null) {
 						urlConnection.disconnect();
