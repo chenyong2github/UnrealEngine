@@ -40,7 +40,7 @@ public:
 	virtual FMeshShapeGenerator& Generate() override;
 
 	/** Create vertex at position under IndicesMap, shifted to Origin*/
-	virtual FVector3d MakeVertex(double x, double y)
+	virtual FVector3d MakeVertex(int CornerIndex, double x, double y)
 	{
 		FVector3d v(0, 0, 0);
 		v[IndicesMap.A] = x;

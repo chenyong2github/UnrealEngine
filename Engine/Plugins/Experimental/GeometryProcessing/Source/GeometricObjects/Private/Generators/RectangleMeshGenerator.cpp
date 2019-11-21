@@ -29,10 +29,10 @@ FMeshShapeGenerator& FRectangleMeshGenerator::Generate()
 	SetBufferSizes(TotalNumVertices, TotalNumTriangles, TotalNumVertices, TotalNumVertices);
 
 	// corner vertices
-	FVector3d v00 = MakeVertex(-Width / 2.0f, -Height / 2.0f);
-	FVector3d v01 = MakeVertex(Width / 2.0f, -Height / 2.0f);
-	FVector3d v11 = MakeVertex(Width / 2.0f, Height / 2.0f);
-	FVector3d v10 = MakeVertex(-Width / 2.0f, Height / 2.0f);
+	FVector3d v00 = MakeVertex(0, -Width / 2.0f, -Height / 2.0f);
+	FVector3d v01 = MakeVertex(1, Width / 2.0f, -Height / 2.0f);
+	FVector3d v11 = MakeVertex(2, Width / 2.0f, Height / 2.0f);
+	FVector3d v10 = MakeVertex(3, -Width / 2.0f, Height / 2.0f);
 
 	// corner UVs
 	float uvleft = 0.0f, uvright = 1.0f, uvbottom = 0.0f, uvtop = 1.0f;
@@ -144,10 +144,10 @@ FMeshShapeGenerator& FRoundedRectangleMeshGenerator::Generate()
 	
 
 	// corner vertices
-	FVector3d v00 = MakeVertex(-TotWidth / 2.0f, -TotHeight / 2.0f);
-	FVector3d v01 = MakeVertex(TotWidth / 2.0f, -TotHeight / 2.0f);
-	FVector3d v11 = MakeVertex(TotWidth / 2.0f, TotHeight / 2.0f);
-	FVector3d v10 = MakeVertex(-TotWidth / 2.0f, TotHeight / 2.0f);
+	FVector3d v00 = MakeVertex(0, -TotWidth / 2.0f, -TotHeight / 2.0f);
+	FVector3d v01 = MakeVertex(1, TotWidth / 2.0f, -TotHeight / 2.0f);
+	FVector3d v11 = MakeVertex(2, TotWidth / 2.0f, TotHeight / 2.0f);
+	FVector3d v10 = MakeVertex(3, -TotWidth / 2.0f, TotHeight / 2.0f);
 
 	// corner UVs
 	float uvleft = 0.0f, uvright = 1.0f, uvbottom = 0.0f, uvtop = 1.0f;
