@@ -7,7 +7,6 @@
 #include "Chaos/ImplicitObjectTransformed.h"
 #include "Chaos/ImplicitObjectUnion.h"
 #include "Chaos/ParticleHandle.h"
-#include "Chaos/PBD6DJointConstraints.h"
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDJointConstraints.h"
 #include "Chaos/PBDRigidParticles.h"
@@ -221,16 +220,6 @@ namespace Chaos
 			}
 		}
 
-		void Draw6DofConstraintImpl(const FRigidTransform3& SpaceTransform, const FPBD6DJointConstraintHandle* ConstraintHandle, FReal ColorScale)
-		{
-			FVec3 Pa = TGenericParticleHandle<FReal, 3>(ConstraintHandle->GetConstrainedParticles()[1])->P();
-			FVec3 Pb = TGenericParticleHandle<FReal, 3>(ConstraintHandle->GetConstrainedParticles()[0])->P();
-			FVec3 Xa, Xb, CR;
-			FMatrix33 Ra, Rb;
-			ConstraintHandle->CalculateConstraintSpace(Xa, Ra, Xb, Rb, CR);
-			DrawJointConstraintImpl(SpaceTransform, Pa, Xa, Ra, Pb, Xb, Rb, CR, INDEX_NONE, ColorScale, (uint32)EDebugDrawJointFeature::Default);
-		}
-
 #endif
 
 		void DrawParticleShapes(const FRigidTransform3& SpaceTransform, const TParticleView<TGeometryParticles<float, 3>>& ParticlesView, float ColorScale, bool bDrawKinemtatic, bool bDrawDynamic)
@@ -362,32 +351,6 @@ namespace Chaos
 				for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.NumConstraints(); ++ConstraintIndex)
 				{
 					DrawJointConstraintImpl(SpaceTransform, Constraints.GetConstraintHandle(ConstraintIndex), ColorScale, FeatureMask);
-				}
-			}
-#endif
-		}
-
-		void Draw6DofConstraints(const FRigidTransform3& SpaceTransform, const TArray<FPBD6DJointConstraintHandle*>& ConstraintHandles, float ColorScale)
-		{
-#if CHAOS_DEBUG_DRAW
-			if (FDebugDrawQueue::IsDebugDrawingEnabled())
-			{
-				for (const FPBD6DJointConstraintHandle* ConstraintHandle : ConstraintHandles)
-				{
-					Draw6DofConstraintImpl(SpaceTransform, ConstraintHandle, ColorScale);
-				}
-			}
-#endif
-		}
-
-		void Draw6DofConstraints(const FRigidTransform3& SpaceTransform, const FPBD6DJointConstraints& Constraints, float ColorScale)
-		{
-#if CHAOS_DEBUG_DRAW
-			if (FDebugDrawQueue::IsDebugDrawingEnabled())
-			{
-				for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.NumConstraints(); ++ConstraintIndex)
-				{
-					Draw6DofConstraintImpl(SpaceTransform, Constraints.GetConstraintHandle(ConstraintIndex), ColorScale);
 				}
 			}
 #endif
