@@ -118,4 +118,31 @@ TUniquePtr<FPropertyAccessChangeNotify> FPyWrapperOwnerContext::BuildChangeNotif
 	return nullptr;
 }
 
+UObject* FPyWrapperOwnerContext::FindChangeNotifyObject() const
+{
+	FPyWrapperOwnerContext OwnerContext = *this;
+	while (OwnerContext.HasOwner())
+	{
+		PyObject* PyObj = OwnerContext.GetOwnerObject();
+
+		if (PyObject_IsInstance(PyObj, (PyObject*)&PyWrapperObjectType) == 1)
+		{
+			// Found an object, this is the end of the chain
+			return ((FPyWrapperObject*)PyObj)->ObjectInstance;
+		}
+
+		if (PyObject_IsInstance(PyObj, (PyObject*)&PyWrapperStructType) == 1)
+		{
+			// Found a struct, recurse up the chain
+			OwnerContext = ((FPyWrapperStruct*)PyObj)->OwnerContext;
+			continue;
+		}
+
+		// Unknown object type - just bail
+		break;
+	}
+
+	return nullptr;
+}
+
 #endif	// WITH_PYTHON
