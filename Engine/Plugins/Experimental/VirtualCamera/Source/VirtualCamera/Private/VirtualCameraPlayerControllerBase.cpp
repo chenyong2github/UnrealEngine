@@ -500,7 +500,7 @@ void AVirtualCameraPlayerControllerBase::PilotTargetedCamera(AVirtualCameraPawnB
 		TargetCameraComponent->CurrentFocalLength = CameraToFollow->CurrentFocalLength;
 		TargetCameraComponent->FocusSettings = CameraToFollow->FocusSettings;
 		TargetCameraComponent->LensSettings = CameraToFollow->LensSettings;
-		TargetCameraComponent->FilmbackSettings = CameraToFollow->FilmbackSettings;
+		TargetCameraComponent->Filmback = CameraToFollow->Filmback;
 	}
 	TargetCameraComponent->SetRelativeLocationAndRotation(CameraToFollow->GetRelativeLocation(), CameraToFollow->GetRelativeRotation());
 }
