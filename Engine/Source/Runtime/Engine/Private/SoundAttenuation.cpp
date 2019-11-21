@@ -90,6 +90,7 @@ bool FSoundAttenuationSettings::operator==(const FSoundAttenuationSettings& Othe
 	return (   bAttenuate			    == Other.bAttenuate
 			&& bSpatialize			    == Other.bSpatialize
 			&& dBAttenuationAtMax	    == Other.dBAttenuationAtMax
+			&& FalloffMode				== Other.FalloffMode
 			&& OmniRadius				== Other.OmniRadius
 			&& bApplyNormalizationToStereoSounds == Other.bApplyNormalizationToStereoSounds
 			&& StereoSpread				== Other.StereoSpread

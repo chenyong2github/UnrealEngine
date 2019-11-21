@@ -28,11 +28,13 @@ protected:
 	EVisibility IsCustomCurveSelected() const;
 
 	TAttribute<bool> GetIsAttenuationEnabledAttribute() const;
+	TAttribute<bool> GetIsFalloffModeEnabledAttribute() const;
 	TSharedPtr<IPropertyHandle> GetOverrideAttenuationHandle(TSharedRef<IPropertyHandle> StructPropertyHandle);
 
 	TSharedPtr<IPropertyHandle> bIsAttenuatedHandle;
 	TSharedPtr<IPropertyHandle> AttenuationShapeHandle;
 	TSharedPtr<IPropertyHandle> DistanceAlgorithmHandle;
+	TSharedPtr<IPropertyHandle> DbAttenuationAtMaxHandle;
 	TSharedPtr<IPropertyHandle> bOverrideAttenuationHandle;
 };
 
