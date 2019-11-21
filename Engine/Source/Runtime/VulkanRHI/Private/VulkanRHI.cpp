@@ -21,6 +21,7 @@
 #include "GlobalShader.h"
 #include "RHIValidation.h"
 
+static_assert(sizeof(VkStructureType) == sizeof(int32), "ZeroVulkanStruct() assumes VkStructureType is int32!");
 
 extern RHI_API bool GUseTexture3DBulkDataRHI;
 
