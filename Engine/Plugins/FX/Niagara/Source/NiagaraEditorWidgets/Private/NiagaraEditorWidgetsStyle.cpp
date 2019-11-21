@@ -200,7 +200,8 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 		.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f));
 	Style->Set("NiagaraEditor.Stack.AddButtonText", AddButtonText);
 
-	Style->Set("NiagaraEditor.Stack.ModuleHighlight",  new IMAGE_PLUGIN_BRUSH("Icons/ModuleHighlight", Icon8x8, FLinearColor::White));
+	Style->Set("NiagaraEditor.Stack.ModuleHighlight", new IMAGE_PLUGIN_BRUSH("Icons/ModuleHighlight", Icon8x8, FLinearColor::White));
+	Style->Set("NiagaraEditor.Stack.ModuleHighlightMore", new IMAGE_PLUGIN_BRUSH("Icons/ModuleHighlightMore", Icon8x8, FLinearColor::White));
 
 	Style->Set("NiagaraEditor.ShowInCurveEditorIcon", new IMAGE_PLUGIN_BRUSH("Icons/ShowInCurveEditor", Icon16x16, FLinearColor::White));
 
