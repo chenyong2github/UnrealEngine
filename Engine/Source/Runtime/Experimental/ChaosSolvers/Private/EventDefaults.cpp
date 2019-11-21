@@ -68,7 +68,7 @@ namespace Chaos
 				{
 					if (ContactHandle->GetType() == TPBDCollisionConstraintHandle<float, 3>::FConstraintBase::FType::SinglePoint)
 					{
-						const TRigidBodyPointContactConstraint<float, 3>& Constraint = ContactHandle->GetSingleContact();
+						const TRigidBodyPointContactConstraint<float, 3>& Constraint = ContactHandle->GetPointContact();
 
 						// Since Clustered GCs can be unioned the particleIndex representing the union 
 						// is not associated with a PhysicsProxy
@@ -107,7 +107,7 @@ namespace Chaos
 				{
 					for(int32 IdxCollision = 0; IdxCollision < ValidCollisionHandles.Num(); ++IdxCollision)
 					{
-						Chaos::TPBDCollisionConstraint<float, 3>::FPointContactConstraint const& Constraint = ValidCollisionHandles[IdxCollision]->GetSingleContact();
+						Chaos::TPBDCollisionConstraint<float, 3>::FPointContactConstraint const& Constraint = ValidCollisionHandles[IdxCollision]->GetPointContact();
 
 						TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
 						TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];
