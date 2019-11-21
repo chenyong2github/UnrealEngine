@@ -3298,7 +3298,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 				ViewState->PrevFrameViewInfo.ViewMatrices.GetViewMatrix(),
 				ViewState->PrevFrameViewInfo.ViewMatrices.GetViewOrigin(),
 				45.0f, 10000.0f);
-			const bool bResetCamera = (bFirstFrameOrTimeWasReset || View.bCameraCut || bIsLargeCameraMovement);
+			const bool bResetCamera = (bFirstFrameOrTimeWasReset || View.bCameraCut || bIsLargeCameraMovement || View.bForceCameraVisibilityReset);
 			
 #if RHI_RAYTRACING
 			// Note: 0.18 deg is the minimum angle for avoiding numerical precision issue (which would cause constant invalidation)
@@ -3360,6 +3360,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 			if (bFirstFrameOrTimeWasReset || 
 				ViewState->LastRenderTime + GEngine->PrimitiveProbablyVisibleTime < View.Family->CurrentRealTime ||
 				View.bCameraCut ||
+				View.bForceCameraVisibilityReset ||
 				IsLargeCameraMovement(
 					View, 
 				    ViewState->PrevViewMatrixForOcclusionQuery, 

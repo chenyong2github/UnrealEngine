@@ -1017,6 +1017,11 @@ public:
 	/** True if we need to bind the instanced view uniform buffer parameters. */
 	bool bShouldBindInstancedViewUB;
 
+	/** True if we need to force the camera to discard previous frames occlusion. Necessary for overlapped tile rendering
+	  * where we discard previous frame occlusion because the projection matrix changes.
+	  */
+	bool bForceCameraVisibilityReset;
+
 	/** Global clipping plane being applied to the scene, or all 0's if disabled.  This is used when rendering the planar reflection pass. */
 	FPlane GlobalClippingPlane;
 

@@ -386,6 +386,8 @@ namespace MoviePipeline
 			View->LensPrincipalPointOffsetScale = FVector4(TilePrincipalPointOffset.X, -TilePrincipalPointOffset.Y, TilePrincipalPointScale.X, TilePrincipalPointScale.Y);
 		}
 
+		View->bForceCameraVisibilityReset = true;
+
 		View->EndFinalPostprocessSettings(ViewInitOptions);
 
 		return View;
