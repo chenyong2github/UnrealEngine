@@ -65,7 +65,6 @@ namespace Chaos
 	template<typename T, int d>
 	TPBDCollisionConstraint<T, d>::TPBDCollisionConstraint(const TPBDRigidsSOAs<T, d>& InParticles, TArrayCollectionArray<bool>& Collided, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& InPerParticleMaterials, const int32 PairIterations /*= 1*/, const T Thickness /*= (T)0*/)
 		: Particles(InParticles)
-		, SpatialAcceleration(nullptr)
 		, MCollided(Collided)
 		, MPhysicsMaterials(InPerParticleMaterials)
 		, bEnableVelocitySolve(true)
@@ -79,22 +78,24 @@ namespace Chaos
 		, PostComputeCallback(nullptr)
 		, PostApplyCallback(nullptr)
 		, PostApplyPushOutCallback(nullptr)
+		, SpatialAcceleration(nullptr)
 	{
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::Reset"), STAT_CollisionConstraintsReset, STATGROUP_Chaos);
 
 	template<typename T, int d>
-	void TPBDCollisionConstraint<T, d>::Reset(/*const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices*/)
+	void TPBDCollisionConstraint<T, d>::Reset()
 	{
 		SCOPE_CYCLE_COUNTER(STAT_CollisionConstraintsReset);
 
+		TArray<FConstraintContainerHandle*> CopyOfHandles = Handles;
 
-		for (int32 Idx = Constraints.Num() - 1; Idx >= 0; Idx--)
+		for (FConstraintContainerHandle* ContactHandle : CopyOfHandles)
 		{
 			//if (!bEnableCollisions)
 			{
-				RemoveConstraint(Idx);
+				RemoveConstraint(ContactHandle);
 			}
 		}
 
@@ -104,16 +105,20 @@ namespace Chaos
 	}
 
 	template<typename T, int d>
-	void TPBDCollisionConstraint<T, d>::RemoveConstraint(int32 Idx)
+	void TPBDCollisionConstraint<T, d>::RemoveConstraint(FConstraintContainerHandle* Handle)
 	{
-		HandleAllocator.FreeHandle(Handles[Idx]);
+		int32 Idx = Handle->GetConstraintIndex();
+		typename TCollisionConstraintBase<T, d>::FType ConstraintType = Handle->GetType();
+
 		Handles.RemoveAtSwap(Idx);
 		Constraints.RemoveAtSwap(Idx);
 		if (Idx < Constraints.Num())
 		{
-			Handles[Idx]->SetConstraintIndex(Idx);
+			Handles[Idx]->SetConstraintIndex(Idx, ConstraintType);
 		}
+
 		ensure(Handles.Num() == Constraints.Num());
+		HandleAllocator.FreeHandle(Handle);
 	}
 
 	template<typename T, int d>
@@ -122,26 +127,30 @@ namespace Chaos
 		const TArray<TGeometryParticleHandle<T, d>*> HandleArray = InHandleSet.Array();
 		for (auto ParticleHandle : HandleArray)
 		{
-			for (int32 Idx = Constraints.Num() - 1; Idx >= 0; Idx--)
+			TArray<FConstraintContainerHandle*> CopyOfHandles = Handles;
+
+			for (FConstraintContainerHandle* ContactHandle : CopyOfHandles)
 			{
-				if (Constraints[Idx].Particle[1] == ParticleHandle || Constraints[Idx].Particle[0] == ParticleHandle)
+				TVector<TGeometryParticleHandle<T, d>*, 2> ConstraintParticles = ContactHandle->GetConstrainedParticles();
+				if (ConstraintParticles[1] == ParticleHandle || ConstraintParticles[0] == ParticleHandle)
 				{
-					RemoveConstraint(Idx);
+					RemoveConstraint(ContactHandle);
 				}
 			}
 		}
 	}
 
 	template<typename T, int d>
-	void TPBDCollisionConstraint<T, d>::ApplyCollisionModifier(const TFunction<ECollisionModifierResult(FRigidBodyContactConstraint& Constraint)>& CollisionModifier)
+	void TPBDCollisionConstraint<T, d>::ApplyCollisionModifier(const TFunction<ECollisionModifierResult(const FConstraintContainerHandle* Handle)>& CollisionModifier)
 	{
-		for (int ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+		TArray<FConstraintContainerHandle*> CopyOfHandles = Handles;
+
+		for (FConstraintContainerHandle* ContactHandle : CopyOfHandles)
 		{
-			ECollisionModifierResult Result = CollisionModifier(Constraints[ConstraintIndex]);
+			ECollisionModifierResult Result = CollisionModifier(ContactHandle);
 			if (Result == ECollisionModifierResult::Disabled)
 			{
-				RemoveConstraint(ConstraintIndex);
-				--ConstraintIndex;
+				RemoveConstraint(ContactHandle);
 			}
 		}
 	}
@@ -535,7 +544,7 @@ namespace Chaos
 
 
 	template<typename T, int d>
-	void TPBDCollisionConstraint<T, d>::ApplyPushOut(const T Dt, FRigidBodyContactConstraint& Constraint, const TSet<TGeometryParticleHandle<T, d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations, bool &NeedsAnotherIteration)
+	void TPBDCollisionConstraint<T, d>::ApplyPushOut(const T Dt, FRigidBodyContactConstraint& Constraint, const TSet<const TGeometryParticleHandle<T, d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations, bool &NeedsAnotherIteration)
 	{
 		TGeometryParticleHandle<T, d>* Particle0 = Constraint.Particle[0];
 		TGeometryParticleHandle<T, d>* Particle1 = Constraint.Particle[1];
@@ -654,12 +663,11 @@ namespace Chaos
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::ApplyPushOut"), STAT_ApplyPushOut, STATGROUP_Chaos);
 	template<typename T, int d>
-	bool TPBDCollisionConstraint<T, d>::ApplyPushOut(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const TSet<TGeometryParticleHandle<T, d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations)
+	bool TPBDCollisionConstraint<T, d>::ApplyPushOut(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const TSet< const TGeometryParticleHandle<T, d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ApplyPushOut);
 
 		bool NeedsAnotherIteration = false;
-
 		if (MPairIterations > 0)
 		{
 			PhysicsParallelFor(InConstraintHandles.Num(), [&](int32 ConstraintHandleIndex) {
@@ -673,7 +681,6 @@ namespace Chaos
 		{
 			PostApplyPushOutCallback(Dt, InConstraintHandles, NeedsAnotherIteration);
 		}
-
 		return NeedsAnotherIteration;
 	}
 
@@ -681,14 +688,12 @@ namespace Chaos
 	template<typename T, int d>
 	TRigidTransform<T, d> GetTransform(const TGeometryParticleHandle<T, d>* Particle)
 	{
-		//#if CHAOS_PARTICLEHANDLE_TODO
-
 		TGenericParticleHandle<T, d> Generic = const_cast<TGeometryParticleHandle<T, d>*>(Particle);	//TODO: give a const version of the generic API
 		return TRigidTransform<T, d>(Generic->P(), Generic->Q());
 	}
 
 	template<typename T, int d>
-	void TPBDCollisionConstraint<T, d>::ConstructConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	void TPBDCollisionConstraint<T, d>::ConstructConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const T Thickness, TRigidBodyContactConstraint<T, d> & Constraint)
 	{
 		if (ensure(Particle0 && Particle1))
 		{
@@ -731,8 +736,8 @@ namespace Chaos
 	template class TPBDCollisionConstraintHandle<float, 3>;
 	template class TAccelerationStructureHandle<float, 3>;
 	template class CHAOS_API TPBDCollisionConstraint<float, 3>;
-	template void TPBDCollisionConstraint<float, 3>::UpdateConstraint<ECollisionUpdateType::Any>(const float Thickness, FRigidBodyContactConstraint& Constraints);
-	template void TPBDCollisionConstraint<float, 3>::UpdateConstraint<ECollisionUpdateType::Deepest>(const float Thickness, FRigidBodyContactConstraint& Constraints);
+	template void TPBDCollisionConstraint<float, 3>::UpdateConstraint<ECollisionUpdateType::Any>(const float Thickness, FRigidBodyContactConstraint& Constraint);
+	template void TPBDCollisionConstraint<float, 3>::UpdateConstraint<ECollisionUpdateType::Deepest>(const float Thickness, FRigidBodyContactConstraint& Constraint);
 	template void TPBDCollisionConstraint<float, 3>::ComputeConstraints<false>(const TPBDCollisionConstraint<float, 3>::FAccelerationStructure&, float Dt);
 	template void TPBDCollisionConstraint<float, 3>::ComputeConstraints<true>(const TPBDCollisionConstraint<float, 3>::FAccelerationStructure&, float Dt);
 }

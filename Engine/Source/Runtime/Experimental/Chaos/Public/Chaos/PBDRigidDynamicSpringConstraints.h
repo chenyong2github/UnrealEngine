@@ -20,6 +20,7 @@ namespace Chaos
 
 		TPBDRigidDynamicSpringConstraintHandle() {}
 		TPBDRigidDynamicSpringConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) : TContainerConstraintHandle<TPBDRigidDynamicSpringConstraints<T, d>>(InConstraintContainer, InConstraintIndex) {}
+		TVector<TGeometryParticleHandle<T, d>*, 2> GetConstrainedParticles() const;
 
 	protected:
 		using Base::ConstraintIndex;
@@ -36,6 +37,7 @@ namespace Chaos
 		static const int Dimensions = d;
 		using FConstraintContainerHandle = TPBDRigidDynamicSpringConstraintHandle<FReal, Dimensions>;
 		using FConstraintHandleAllocator = TConstraintHandleAllocator<TPBDRigidDynamicSpringConstraints<FReal, Dimensions>>;
+		using FHandles = TArray<FConstraintContainerHandle*>;
 
 		TPBDRigidDynamicSpringConstraints(const T InStiffness = (T)1)
 			: CreationThreshold(1), MaxSprings(1), Stiffness(InStiffness) 
@@ -136,6 +138,15 @@ namespace Chaos
 		//
 		// Constraint API
 		//
+		FHandles& GetConstraintHandles()
+		{
+			return Handles;
+		}
+		const FHandles& GetConstConstraintHandles() const
+		{
+			return Handles;
+		}
+
 
 		const FConstraintContainerHandle* GetConstraintHandle(int32 ConstraintIndex) const
 		{
@@ -147,6 +158,7 @@ namespace Chaos
 			return Handles[ConstraintIndex];
 		}
 
+
 		/**
 		 * Get the particles that are affected by the specified constraint.
 		 */
@@ -154,6 +166,7 @@ namespace Chaos
 		{
 			return Constraints[ConstraintIndex];
 		}
+
 
 
 		//
@@ -191,7 +204,7 @@ namespace Chaos
 		int32 MaxSprings;
 		T Stiffness;
 
-		TArray<FConstraintContainerHandle*> Handles;
+		FHandles Handles;
 		FConstraintHandleAllocator HandleAllocator;
 	};
 }
