@@ -96,11 +96,6 @@ typedef FWindowsPlatformTypes FPlatformTypes;
 #define FUNCTION_NO_RETURN_START __declspec(noreturn)				/* Indicate that the function never returns. */
 #define FUNCTION_NON_NULL_RETURN_START _Ret_notnull_				/* Indicate that the function never returns nullptr. */
 
-// Hints compiler that expression is true; generally restricted to comparisons against constants
-#if !defined(__clang__) || defined(_MSC_VER)	// Clang only supports __assume when using -fms-extensions
-	#define ASSUME(expr) __assume(expr)
-#endif
-
 #define DECLARE_UINT64(x)	x
 
 // Optimization macros (uses __pragma to enable inside a #define).

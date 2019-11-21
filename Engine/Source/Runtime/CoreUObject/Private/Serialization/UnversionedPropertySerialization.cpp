@@ -112,7 +112,7 @@ public:
 			case EIntegerType::Uint16: MemZeroRange<uint16>(GetValue(Data), FastZeroIntNum); break;
 			case EIntegerType::Uint32: MemZeroRange<uint32>(GetValue(Data), FastZeroIntNum); break;
 			case EIntegerType::Uint64: MemZeroRange<uint64>(GetValue(Data), FastZeroIntNum); break;
-			default: ASSUME(0);
+			default: UE_ASSUME(0);
 		}
 	}
 
@@ -196,7 +196,7 @@ private:
 			 case EIntegerType::Uint16: Slot << *reinterpret_cast<uint16*>(Value); break;
 			 case EIntegerType::Uint32: Slot << *reinterpret_cast<uint32*>(Value); break;
 			 case EIntegerType::Uint64: Slot << *reinterpret_cast<uint64*>(Value); break;
-			 default: ASSUME(0);
+			 default: UE_ASSUME(0);
 		 }
 	}
 
@@ -232,7 +232,7 @@ private:
 	template<typename T>
 	FORCEINLINE static void MemZeroRange(void* Value, uint32 Num)
 	{
-		ASSUME(Num > 0);
+		UE_ASSUME(Num > 0);
 		for (uint32 Idx = 0; Idx < Num; ++Idx)
 		{
 			reinterpret_cast<T*>(Value)[Idx] = 0;
