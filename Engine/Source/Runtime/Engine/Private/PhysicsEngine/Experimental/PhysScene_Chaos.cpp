@@ -1243,7 +1243,7 @@ void FPhysScene_ChaosInterface::ApplyWorldOffset(FVector InOffset)
 void FPhysScene_ChaosInterface::SetUpForFrame(const FVector* NewGrav, float InDeltaSeconds /*= 0.0f*/, float InMaxPhysicsDeltaTime /*= 0.0f*/)
 {
 	SetGravity(*NewGrav);
-	MDeltaTime = InDeltaSeconds;
+	MDeltaTime = InDeltaSeconds < InMaxPhysicsDeltaTime ? InDeltaSeconds : InMaxPhysicsDeltaTime;
 }
 
 void FPhysScene_ChaosInterface::StartFrame()
