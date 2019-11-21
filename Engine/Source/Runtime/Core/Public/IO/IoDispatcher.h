@@ -581,6 +581,9 @@ enum class EIoChunkType : uint8
 	ExportData,
 	ExportBundleData,
 	BulkData,
+	LoaderGlobalMeta,
+	LoaderInitialLoadMeta,
+	LoaderGlobalNameMap
 };
 
 /**

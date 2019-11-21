@@ -18,6 +18,7 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/BufferWriter.h"
+#include "Serialization/LargeMemoryWriter.h"
 #include "UObject/PackageFileSummary.h"
 #include "UObject/ObjectResource.h"
 #include "UObject/Package.h"
@@ -96,23 +97,20 @@ public:
 		return NameIndices.Num();
 	}
 
-	int32 Save(const FString& Filename)
+	int32 Save(FArchive& Ar, const FString& CsvFilePath)
 	{
 		int32 TotalSize = 0;
 		{
-			TUniquePtr<FArchive> BinArchive(IFileManager::Get().CreateFileWriter(*Filename));
 			int32 NameCount = NameMap.Num();
-			*BinArchive << NameCount;
+			Ar << NameCount;
 			for (int32 I = 0; I < NameCount; ++I)
 			{
-				FName::GetEntry(NameMap[I])->Write(*BinArchive);
+				FName::GetEntry(NameMap[I])->Write(Ar);
 			}
-			TotalSize = BinArchive->TotalSize();
+			TotalSize = Ar.TotalSize();
 		}
 #if OUTPUT_NAMEMAP_CSV
 		{
-			FString CsvFilePath = Filename;
-			CsvFilePath.Append(TEXT(".csv"));
 			TUniquePtr<FArchive> CsvArchive(IFileManager::Get().CreateFileWriter(*CsvFilePath));
 			if (CsvArchive)
 			{
@@ -1028,10 +1026,10 @@ int32 CreateTarget(const FContainerTarget& Target)
 	uint64 ImportPreloadCount = 0;
 	uint64 ExportPreloadCount = 0;
 
-	TUniquePtr<FArchive> StoreTocArchive(IFileManager::Get().CreateFileWriter(*(OutputDir / TEXT("megafile.ustoretoc"))));
-	TUniquePtr<FArchive> GlimportArchive(IFileManager::Get().CreateFileWriter(*(OutputDir / TEXT("megafile.uglimport"))));
-	TUniquePtr<FArchive> SlimportArchive(IFileManager::Get().CreateFileWriter(*(OutputDir / TEXT("megafile.uslimport"))));
-	TUniquePtr<FArchive> ScriptArcsArchive(IFileManager::Get().CreateFileWriter(*(OutputDir / TEXT("megafile.uscriptarcs"))));
+	TUniquePtr<FLargeMemoryWriter> StoreTocArchive = MakeUnique<FLargeMemoryWriter>(0, true);
+	TUniquePtr<FLargeMemoryWriter> GlimportArchive = MakeUnique<FLargeMemoryWriter>(0, true);
+	TUniquePtr<FLargeMemoryWriter> SlimportArchive = MakeUnique<FLargeMemoryWriter>(0, true);
+	TUniquePtr<FLargeMemoryWriter> ScriptArcsArchive = MakeUnique<FLargeMemoryWriter>(0, true);
 
 	FIoStoreEnvironment IoStoreEnv;
 #if !SKIP_WRITE_CONTAINER
@@ -1716,12 +1714,55 @@ int32 CreateTarget(const FContainerTarget& Target)
 		}
 	}
 
-	UE_LOG(LogIoStore, Display, TEXT("Saving NameMap..."));
-	FString NameMapFilename = OutputDir / TEXT("Container.namemap");
-	uint64 GlobalNameMapSize = NameMapBuilder.Save(NameMapFilename);
+	auto AppendToContainer = [](FIoStoreWriter& IoWriter, FLargeMemoryWriter& Ar, const FIoChunkId& ChunkId) -> FIoStatus
+	{
+		FIoBuffer IoBuffer(FIoBuffer::Wrap, Ar.GetData(), Ar.TotalSize());
+		return IoWriter.Append(ChunkId, IoBuffer);
+	};
 
-	UE_LOG(LogIoStore, Display, TEXT("Saving StoreToc..."));
-	StoreTocArchive->Close();
+	{
+		UE_LOG(LogIoStore, Display, TEXT("Saving global meta data to container file"));
+		FLargeMemoryWriter GlobalMetaArchive(0, true);
+
+		int32 StoreTocByteCount = StoreTocArchive->TotalSize();
+		GlobalMetaArchive << StoreTocByteCount;
+		GlobalMetaArchive.Serialize(StoreTocArchive->GetData(), StoreTocByteCount);
+
+		int32 SlimportsByteCount = SlimportArchive->TotalSize();
+		GlobalMetaArchive << SlimportsByteCount;
+		GlobalMetaArchive.Serialize(SlimportArchive->GetData(), SlimportsByteCount);
+
+		int32 GlimportsByteCount = GlimportArchive->TotalSize();
+		GlobalMetaArchive << GlimportsByteCount;
+		GlobalMetaArchive.Serialize(GlimportArchive->GetData(), GlimportsByteCount);
+
+		const FIoStatus Status = AppendToContainer(*IoStoreWriter, GlobalMetaArchive, CreateIoChunkId(0, 0, EIoChunkType::LoaderGlobalMeta));
+		if (!Status.IsOk())
+		{
+			UE_LOG(LogIoStore, Error, TEXT("Failed to save global meta data to container file"));
+		}
+	}
+
+	{
+		UE_LOG(LogIoStore, Display, TEXT("Saving initial load meta data to container file"));
+		const FIoStatus Status = AppendToContainer(*IoStoreWriter, *ScriptArcsArchive, CreateIoChunkId(0, 0, EIoChunkType::LoaderInitialLoadMeta));
+		if (!Status.IsOk())
+		{
+			UE_LOG(LogIoStore, Error, TEXT("Failed to save initial load meta data to container file"));
+		}
+	}
+	
+	uint64 GlobalNameMapSize = 0;
+	{
+		UE_LOG(LogIoStore, Display, TEXT("Saving global name map to container file"));
+		FLargeMemoryWriter GlobalNameMapArchive(0, true);
+		GlobalNameMapSize = NameMapBuilder.Save(GlobalNameMapArchive, OutputDir / TEXT("Container.namemap.csv"));
+		const FIoStatus Status = AppendToContainer(*IoStoreWriter, GlobalNameMapArchive, CreateIoChunkId(0, 0, EIoChunkType::LoaderGlobalNameMap));
+		if (!Status.IsOk())
+		{
+			UE_LOG(LogIoStore, Error, TEXT("Failed to save global name map to container file"));
+		}
+	}
 
 	UE_LOG(LogIoStore, Display, TEXT("Calculating stats..."));
 	uint64 UExpSize = 0;

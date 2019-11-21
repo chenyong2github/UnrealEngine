@@ -1745,15 +1745,7 @@ public partial class Project : CommandUtils
 			}
 
 			// Filter I/O store container files
-			if (Src.HasExtension(".namemap") ||
-				Src.HasExtension(".ucas") ||
-				Src.HasExtension(".utoc") ||
-				Src.HasExtension(".ubulkmanifest") ||
-				Src.HasExtension(".uglimport") ||
-				Src.HasExtension(".unamemap") ||
-				Src.HasExtension(".uscriptarcs") ||
-				Src.HasExtension(".uslimport") ||
-				Src.HasExtension(".ustoretoc"))
+			if (Src.HasExtension(".ucas") || Src.HasExtension(".utoc"))
 			{
 				LogInformation("Excluding {0}", Src);
 				continue;

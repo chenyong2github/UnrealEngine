@@ -48,6 +48,7 @@
 #include "UObject/GCObject.h"
 #include "UObject/ObjectRedirector.h"
 #include "Serialization/BulkData.h"
+#include "Serialization/LargeMemoryReader.h"
 
 #if UE_BUILD_DEVELOPMENT || UE_BUILD_DEBUG
 //PRAGMA_DISABLE_OPTIMIZATION
@@ -191,19 +192,33 @@ struct FPackageSummary
 class FGlobalNameMap
 {
 public:
-	void Load(const FString& FilePath)
+	void Load(FIoDispatcher& IoDispatcher)
 	{
-		TUniquePtr<FArchive> Ar(IFileManager::Get().CreateFileReader(*FilePath));
-		check(Ar);
+		FEvent* Event = FPlatformProcess::GetSynchEventFromPool();
+		FIoBuffer IoBuffer;
+
+		IoDispatcher.ReadWithCallback(
+			CreateIoChunkId(0, 0, EIoChunkType::LoaderGlobalNameMap),
+			FIoReadOptions(),
+			[Event, &IoBuffer](TIoStatusOr<FIoBuffer> Result)
+			{
+				IoBuffer = Result.ConsumeValueOrDie();
+				Event->Trigger();
+			});
+
+		Event->Wait();
+		FPlatformProcess::ReturnSynchEventToPool(Event);
+
+		FLargeMemoryReader Ar(IoBuffer.Data(), IoBuffer.DataSize());
 
 		int32 NameCount;
-		*Ar << NameCount;
+		Ar << NameCount;
 		NameEntries.Reserve(NameCount);
 		FNameEntrySerialized SerializedNameEntry(ENAME_LinkerConstructor);
 
 		for (int32 I = 0; I < NameCount; ++I)
 		{
-			*Ar << SerializedNameEntry;
+			Ar << SerializedNameEntry;
 			NameEntries.Emplace(FName(SerializedNameEntry).GetDisplayIndex());
 		}
 	}
@@ -258,20 +273,35 @@ class FPackageStore
 	int32 PackageCount = 0;
 
 public:
-	void Load(const FString& RootDir, FGlobalNameMap& GlobalNameMap)
+	void Load(FIoDispatcher& IoDispatcher, FGlobalNameMap& GlobalNameMap)
 	{
+		FEvent* Event = FPlatformProcess::GetSynchEventFromPool();
+		FIoBuffer IoBuffer;
+
+		IoDispatcher.ReadWithCallback(
+			CreateIoChunkId(0, 0, EIoChunkType::LoaderGlobalMeta),
+			FIoReadOptions(),
+			[Event, &IoBuffer](TIoStatusOr<FIoBuffer> Result)
+			{
+				IoBuffer = Result.ConsumeValueOrDie();
+				Event->Trigger();
+			});
+
+		Event->Wait();
+		
+		FLargeMemoryReader GlobalMetaAr(IoBuffer.Data(), IoBuffer.DataSize());
+		
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageStoreToc);
 
-			TUniquePtr<FArchive> StoreTocArchive(IFileManager::Get().CreateFileReader(*(RootDir / TEXT("megafile.ustoretoc"))));
-			check(StoreTocArchive);
+			int32 PackageByteCount = 0;
+			GlobalMetaAr << PackageByteCount;
 
-			const int32 PackageByteCount = StoreTocArchive->TotalSize();
 			PackageCount = PackageByteCount / sizeof(FPackageStoreEntry);
 			StoreEntries = reinterpret_cast<FPackageStoreEntry*>(FMemory::Malloc(PackageByteCount));
 
 			// In-place loading
-			StoreTocArchive->Serialize(StoreEntries, PackageByteCount);
+			GlobalMetaAr.Serialize(StoreEntries, PackageByteCount);
 			PackageNameToGlobalPackageId.Reserve(PackageCount);
 
 			// FName fixup
@@ -297,25 +327,23 @@ public:
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageStoreSlimports);
 
-			TUniquePtr<FArchive> SlimportArchive(IFileManager::Get().CreateFileReader(*(RootDir / TEXT("megafile.uslimport"))));
-			check(SlimportArchive);
+			int32 SlimportByteCount = 0;
+			GlobalMetaAr << SlimportByteCount;
 
-			const int32 SlimportByteCount = SlimportArchive->TotalSize();
 			SlimportCount = SlimportByteCount / sizeof(int32);
 			Slimports = reinterpret_cast<int32*>(FMemory::Malloc(SlimportByteCount));
-			SlimportArchive->Serialize(Slimports, SlimportByteCount);
+			GlobalMetaAr.Serialize(Slimports, SlimportByteCount);
 		}
 
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageStoreGlimports);
 
-			TUniquePtr<FArchive> ImportArchive(IFileManager::Get().CreateFileReader(*(RootDir / TEXT("megafile.uglimport"))));
-			check(ImportArchive);
+			int32 ImportByteCount = 0;
+			GlobalMetaAr << ImportByteCount; 
 
-			const int32 ImportByteCount = ImportArchive->TotalSize();
 			ImportStore.Count = ImportByteCount / sizeof(FGlobalImport);
 			FGlobalImport* Imports = reinterpret_cast<FGlobalImport*>(FMemory::Malloc(ImportByteCount));
-			ImportArchive->Serialize(Imports, ImportByteCount);
+			GlobalMetaAr.Serialize(Imports, ImportByteCount);
 
 			TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageStoreGlimportsFixup);
 			{
@@ -338,18 +366,29 @@ public:
 			}
 		}
 
+		// Load initial loading meta data
+		IoDispatcher.ReadWithCallback(
+			CreateIoChunkId(0, 0, EIoChunkType::LoaderInitialLoadMeta),
+			FIoReadOptions(),
+			[Event, &IoBuffer](TIoStatusOr<FIoBuffer> Result)
+			{
+				IoBuffer = Result.ConsumeValueOrDie();
+				Event->Trigger();
+			});
+
+		Event->Wait();
+		FPlatformProcess::ReturnSynchEventToPool(Event);
+
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageStoreScriptArcs);
 
-			TUniquePtr<FArchive> ScriptArcsArchive(IFileManager::Get().CreateFileReader(*(RootDir / TEXT("megafile.uscriptarcs"))));
-			check(ScriptArcsArchive);
+			FLargeMemoryReader InitialLoadAr(IoBuffer.Data(), IoBuffer.DataSize());
 
-			const int32 ScriptArcsByteCount = ScriptArcsArchive->TotalSize();
+			const int32 ScriptArcsByteCount = InitialLoadAr.TotalSize();
 			ScriptArcsCount = ScriptArcsByteCount / sizeof(int32);
 			ScriptArcs = reinterpret_cast<int32*>(FMemory::Malloc(ScriptArcsByteCount));
-			ScriptArcsArchive->Serialize(ScriptArcs, ScriptArcsByteCount);
+			InitialLoadAr.Serialize(ScriptArcs, ScriptArcsByteCount);
 		}
-
 	}
 
 	inline FGlobalImportStore& GetImportStore()
@@ -1685,19 +1724,6 @@ struct FAsyncLoadingTickScope2
 void FAsyncLoadingThread2Impl::InitializeLoading()
 {
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(LoadGlobalNameMap);
-
-		FString GlobalNameMapFilePath = FPaths::ProjectDir() / TEXT("Container.namemap");
-		UE_LOG(LogStreaming, Log, TEXT("Loading global name map '%s'"), *GlobalNameMapFilePath);
-		GlobalNameMap.Load(GlobalNameMapFilePath);
-	}
-
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageStore);
-		PackageStore.Load(FPaths::ProjectDir(), GlobalNameMap);
-	}
-
-	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(InitIoDispatcher);
 
 		TUniquePtr<FIoStoreReader> IoStoreReader = MakeUnique<FIoStoreReader>(FIoDispatcher::GetEnvironment());
@@ -1710,6 +1736,16 @@ void FAsyncLoadingThread2Impl::InitializeLoading()
 #if USE_NEW_BULKDATA
 		FBulkDataBase::SetIODispatcher(&IoDispatcher);
 #endif
+	}
+
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(LoadGlobalNameMap);
+		GlobalNameMap.Load(IoDispatcher);
+	}
+
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageStore);
+		PackageStore.Load(IoDispatcher, GlobalNameMap);
 	}
 
 	AsyncThreadReady.Increment();
