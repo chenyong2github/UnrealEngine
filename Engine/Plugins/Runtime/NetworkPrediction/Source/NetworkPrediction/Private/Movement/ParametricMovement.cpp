@@ -41,7 +41,7 @@ namespace ParametricMovement
 {
 	const FName FMovementSimulation::GroupName(TEXT("Parametric"));
 
-	void FMovementSimulation::SimulationTick(const TNetSimTimeStep& TimeStep, const TNetSimInput<TMovementBufferTypes>& Input, const TNetSimOutput<TMovementBufferTypes>& Output)
+	void FMovementSimulation::SimulationTick(const FNetSimTimeStep& TimeStep, const TNetSimInput<TMovementBufferTypes>& Input, const TNetSimOutput<TMovementBufferTypes>& Output)
 	{
 		check(Motion != nullptr); // Must set motion mapping prior to running the simulation
 		const float DeltaSeconds = TimeStep.StepMS.ToRealTimeSeconds();

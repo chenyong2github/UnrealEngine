@@ -8,6 +8,7 @@
 #include "NetworkPredictionTypes.h"
 #include "Engine/World.h"
 #include "NetworkedSimulationModelTypes.h"
+#include "NetworkedSimulationModelTick.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNetInterpolation, Log, All);
 

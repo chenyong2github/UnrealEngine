@@ -441,6 +441,8 @@ struct TReplicator_Simulated : public TBase
 		SyncState->NetSerialize(Ar);
 		AuxState->NetSerialize(Ar);
 
+		Buffers.CueDispatcher.NetSerializeSavedCues(Ar, GetSimulatedUpdateMode() == ESimulatedUpdateMode::Interpolate);
+
 		if (Ar.IsLoading())
 		{
 			LastSerializedInputCmd = *InputCmd;
@@ -580,11 +582,11 @@ private:
 
 		// Do the actual update
 		{
-			TScopedSimulationTick UpdateScope(Ticker, OutputFrame, NewCmd->GetFrameDeltaTime());
+			TScopedSimulationTick UpdateScope(Ticker, Buffers.CueDispatcher, ESimulationTickContext::Resimulate, OutputFrame, NewCmd->GetFrameDeltaTime());
 			Simulation->SimulationTick( 
 				{ NewCmd->GetFrameDeltaTime(), Ticker },
 				{ *NewCmd, *PrevSyncState, *AuxState },
-				{ *NextSyncState, Buffers.Aux.LazyWriter(OutputFrame) } );
+				{ *NextSyncState, Buffers.Aux.LazyWriter(OutputFrame), Buffers.CueDispatcher } );
 		}
 
 		Ticker.MaxAllowedFrame = OutputFrame;
@@ -643,6 +645,8 @@ struct TReplicator_Autonomous : public TBase
 			SerializedSyncState.NetSerialize(Ar);
 			SerializedAuxState.NetSerialize(Ar);
 		}
+
+		Buffers.CueDispatcher.NetSerializeSavedCues(Ar, false);
 
 		if (Ar.IsLoading())
 		{
@@ -766,11 +770,11 @@ struct TReplicator_Autonomous : public TBase
 
 			// Do the actual update
 			{
-				TScopedSimulationTick UpdateScope(Ticker, OutputFrame, ResimulateCmd->GetFrameDeltaTime());
+				TScopedSimulationTick UpdateScope(Ticker, Buffers.CueDispatcher, ESimulationTickContext::Resimulate, OutputFrame, ResimulateCmd->GetFrameDeltaTime());
 				Simulation->SimulationTick( 
 					{ ResimulateCmd->GetFrameDeltaTime(), Ticker },
 					{ *ResimulateCmd, *PrevSyncState, *AuxState },
-					{ *NextSyncState, Buffers.Aux.LazyWriter(OutputFrame) } );
+					{ *NextSyncState, Buffers.Aux.LazyWriter(OutputFrame), Buffers.CueDispatcher } );
 			}
 
 			// Log out the newly predicted state that we got.
