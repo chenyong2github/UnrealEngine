@@ -125,30 +125,79 @@ struct FMockAbilityAuxState : public FFlyingMovementAuxState
 // MockAbility NetSimCues - events emitted by the sim
 // -------------------------------------------------------
 
+#define LOG_BLINK_CUE 1 // During development, its useful to sanity check that we aren't doing more construction or moves than we expect
+
 // Cue for blink activation.
 struct FMockAbilityBlinkCue
 {
+	FMockAbilityBlinkCue()
+	{ 
+		UE_CLOG(LOG_BLINK_CUE, LogTemp, Warning, TEXT("  Default Constructor 0x%X"), this);
+	}
+
+	FMockAbilityBlinkCue(FVector Start, FVector Stop) : StartLocation(Start), StopLocation(Stop)
+	{ 
+		UE_CLOG(LOG_BLINK_CUE, LogTemp, Warning, TEXT("  Custom Constructor 0x%X"), this);
+	}
+
+	~FMockAbilityBlinkCue()
+	{ 
+		UE_CLOG(LOG_BLINK_CUE, LogTemp, Warning, TEXT("  Destructor 0x%X"), this);
+	}
+	
+	FMockAbilityBlinkCue(FMockAbilityBlinkCue&& Other)
+		: StartLocation(MoveTemp(Other.StartLocation)), StopLocation(Other.StopLocation)
+	{
+		UE_CLOG(LOG_BLINK_CUE, LogTemp, Warning, TEXT("  Move Constructor 0x%X (Other: 0x%X)"), this, &Other);
+	}
+	
+	FMockAbilityBlinkCue& operator=(FMockAbilityBlinkCue&& Other)
+	{
+		UE_CLOG(LOG_BLINK_CUE, LogTemp, Warning, TEXT("  Move assignment 0x%X (Other: 0x%X)"), this, &Other);
+		StartLocation = MoveTemp(Other.StartLocation);
+		StopLocation = MoveTemp(Other.StopLocation);
+		return *this;
+	}
+
+	FMockAbilityBlinkCue(const FMockAbilityBlinkCue& Other) = delete;
+	FMockAbilityBlinkCue& operator=(const FMockAbilityBlinkCue& Other) = delete;
+
 	NETSIMCUE_BODY();
 
 	FVector_NetQuantize10 StartLocation;
 	FVector_NetQuantize10 StopLocation;
-
+	
 	void NetSerialize(FArchive& Ar)
 	{
 		bool b = false;
 		StartLocation.NetSerialize(Ar, nullptr, b);
 		StopLocation.NetSerialize(Ar, nullptr, b);
 	}
-
-	static bool Unique(const FMockAbilityBlinkCue& A, const FMockAbilityBlinkCue& B)
+	
+	bool NetUnique(const FMockAbilityBlinkCue& Other) const
 	{
 		const float ErrorTolerance = 1.f;
-		return !A.StartLocation.Equals(B.StartLocation, ErrorTolerance) || !A.StopLocation.Equals(B.StopLocation, ErrorTolerance);
+		return !StartLocation.Equals(Other.StartLocation, ErrorTolerance) || !StopLocation.Equals(Other.StopLocation, ErrorTolerance);
 	}
 };
 
 template<>
-struct TCueHandlerTraits<FMockAbilityBlinkCue> : public TNetSimCueTraits_ReplicatedNonPredicted { };
+struct TCueHandlerTraits<FMockAbilityBlinkCue> : public TNetSimCueTraits_Strong { };
+
+// -----------------------------------------------------------------------------------------------------
+// Subtypes of the BlinkCue - this is not an expected setup! This is done for testing/debugging so we can 
+// see the differences between the cue type traits in a controlled setup. See FMockAbilitySimulation::SimulationTick
+// -----------------------------------------------------------------------------------------------------
+#define DECLARE_BLINKCUE_SUBTYPE(TYPE, TRAITS) \
+ struct TYPE : public FMockAbilityBlinkCue { \
+ template <typename... ArgsType> TYPE(ArgsType&&... Args) : FMockAbilityBlinkCue(Forward<ArgsType>(Args)...) { } \
+ NETSIMCUE_BODY(); }; \
+ template<> struct TCueHandlerTraits<TYPE> : public TRAITS { };
+
+DECLARE_BLINKCUE_SUBTYPE(FMockAbilityBlinkCue_Weak, TNetSimCueTraits_Weak);
+DECLARE_BLINKCUE_SUBTYPE(FMockAbilityBlinkCue_ReplicatedNonPredicted, TNetSimCueTraits_ReplicatedNonPredicted);
+DECLARE_BLINKCUE_SUBTYPE(FMockAbilityBlinkCue_ReplicatedXOrPredicted, TNetSimCueTraits_ReplicatedXOrPredicted);
+DECLARE_BLINKCUE_SUBTYPE(FMockAbilityBlinkCue_Strong, TNetSimCueTraits_Strong);
 
 // The set of Cues the MockAbility simulation will invoke
 struct FMockAbilityCueSet
@@ -157,6 +206,12 @@ struct FMockAbilityCueSet
 	static void RegisterNetSimCueTypes(TDispatchTable& DispatchTable)
 	{
 		DispatchTable.template RegisterType<FMockAbilityBlinkCue>();
+
+		// (Again, not a normal setup, just for debugging/testing purposes)
+		DispatchTable.template RegisterType<FMockAbilityBlinkCue_Weak>();
+		DispatchTable.template RegisterType<FMockAbilityBlinkCue_ReplicatedNonPredicted>();
+		DispatchTable.template RegisterType<FMockAbilityBlinkCue_ReplicatedXOrPredicted>();
+		DispatchTable.template RegisterType<FMockAbilityBlinkCue_Strong>();
 	}
 };
 
@@ -239,7 +294,7 @@ public:
 	using UFlyingMovementComponent::FinalizeFrame;
 
 	// NetSimCues
-	void HandleCue(FMockAbilityBlinkCue& BlinkCue, const FNetworkSimTime& ElapsedTime);
+	void HandleCue(FMockAbilityBlinkCue& BlinkCue, const FNetSimCueSystemParamemters& SystemParameters);
 
 	// -------------------------------------------------------------------------------------
 	//	Ability State and Notifications
