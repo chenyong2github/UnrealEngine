@@ -1544,17 +1544,20 @@ void FShaderCompilerStats::WriteStats()
 			}
 		}
 		DebugWriter->Close();
-		FString MirrorLocation;
-		GConfig->GetString(TEXT("/Script/Engine.ShaderCompilerStats"), TEXT("MaterialStatsLocation"), MirrorLocation, GGameIni);
-		FParse::Value(FCommandLine::Get(), TEXT("MaterialStatsMirror="), MirrorLocation);
-
-		if (!MirrorLocation.IsEmpty())
+		if (FParse::Param(FCommandLine::Get(), TEXT("mirrorshaderstats")))
 		{
-			FString TargetType = TEXT("Default");
-			FParse::Value(FCommandLine::Get(), TEXT("target="), TargetType);
+			FString MirrorLocation;
+			GConfig->GetString(TEXT("/Script/Engine.ShaderCompilerStats"), TEXT("MaterialStatsLocation"), MirrorLocation, GGameIni);
+			FParse::Value(FCommandLine::Get(), TEXT("MaterialStatsMirror="), MirrorLocation);
 
-			FString CopyLocation = FPaths::Combine(*MirrorLocation, *FApp::GetBranchName(), FString::Printf(TEXT("Stats-Latest(%s).csv"), *TargetType));
-			IFileManager::Get().Copy(*CopyLocation, *FileName, true, true);
+			if (!MirrorLocation.IsEmpty())
+			{
+				FString TargetType = TEXT("Default");
+				FParse::Value(FCommandLine::Get(), TEXT("target="), TargetType);
+
+				FString CopyLocation = FPaths::Combine(*MirrorLocation, FApp::GetProjectName(), *FApp::GetBranchName(), FString::Printf(TEXT("Stats-Latest(%s).csv"), *TargetType));
+				IFileManager::Get().Copy(*CopyLocation, *FileName, true, true);
+			}
 		}
 	}
 	{
