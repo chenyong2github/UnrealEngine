@@ -43,6 +43,7 @@ typedef TPyPtr<FPyScopedEditorTransaction> FPyScopedEditorTransactionPtr;
 namespace PyEditor
 {
 	void InitializeModule();
+	void ShutdownModule();
 }
 
 #endif	// WITH_EDITOR

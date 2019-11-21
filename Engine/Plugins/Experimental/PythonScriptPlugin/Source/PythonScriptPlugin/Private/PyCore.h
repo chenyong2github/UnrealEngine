@@ -373,6 +373,7 @@ typedef TPyPtr<FPyUFunctionDef> FPyUFunctionDefPtr;
 namespace PyCore
 {
 	void InitializeModule();
+	void ShutdownModule();
 
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FPythonLogCapture, EPythonLogOutputType, const TCHAR*);
 	FPythonLogCapture& GetPythonLogCapture();

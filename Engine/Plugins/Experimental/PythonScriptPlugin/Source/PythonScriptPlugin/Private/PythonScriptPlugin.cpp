@@ -782,6 +782,13 @@ void FPythonScriptPlugin::ShutdownPython()
 
 	FPyReferenceCollector::Get().PurgeUnrealGeneratedTypes();
 
+#if WITH_EDITOR
+	PyEditor::ShutdownModule();
+#endif	// WITH_EDITOR
+	PyEngine::ShutdownModule();
+	PySlate::ShutdownModule();
+	PyCore::ShutdownModule();
+
 	PyUnrealModule.Reset();
 	PyDefaultGlobalDict.Reset();
 	PyDefaultLocalDict.Reset();
