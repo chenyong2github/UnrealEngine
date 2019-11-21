@@ -234,11 +234,11 @@ namespace Chaos
 
 		// Handle API
 
-		const TRigidBodyPointContactConstraint<T, d>& GetSingleContact() const { return ConstraintContainer->PointConstraints[ConstraintIndex]; }
-		TRigidBodyPointContactConstraint<T, d>& GetSingleContact() { return ConstraintContainer->PointConstraints[ConstraintIndex]; }
+		const TRigidBodyPointContactConstraint<T, d>& GetPointContact() const { check(GetType() == FConstraintBase::FType::SinglePoint); return ConstraintContainer->PointConstraints[ConstraintIndex]; }
+		TRigidBodyPointContactConstraint<T, d>& GetPointContact() { check(GetType() == FConstraintBase::FType::SinglePoint); return ConstraintContainer->PointConstraints[ConstraintIndex]; }
 
-		const TRigidBodyPlaneContactConstraint<T, d>& GetPlaneContact() const { return ConstraintContainer->PlaneConstraints[ConstraintIndex]; }
-		TRigidBodyPlaneContactConstraint<T, d>& GetPlaneContact() { return ConstraintContainer->PlaneConstraints[ConstraintIndex]; }
+		const TRigidBodyPlaneContactConstraint<T, d>& GetPlaneContact() const { check(GetType() == FConstraintBase::FType::Plane); return ConstraintContainer->PlaneConstraints[ConstraintIndex]; }
+		TRigidBodyPlaneContactConstraint<T, d>& GetPlaneContact() { check(GetType() == FConstraintBase::FType::Plane); return ConstraintContainer->PlaneConstraints[ConstraintIndex]; }
 
 
 		typename FConstraintBase::FType GetType() const { return ConstraintType; }
@@ -255,7 +255,7 @@ namespace Chaos
 		{
 			if (ConstraintType == FConstraintBase::FType::SinglePoint)
 			{
-				return GetSingleContact().GetLocation();
+				return GetPointContact().GetLocation();
 			}
 			ensure(false);
 			return TVector<T, d>(0);
@@ -265,7 +265,7 @@ namespace Chaos
 		{
 			if (ConstraintType == FConstraintBase::FType::SinglePoint)
 			{
-				return GetSingleContact().AccumulatedImpulse;
+				return GetPointContact().AccumulatedImpulse;
 			}
 			ensure(false);
 
@@ -277,7 +277,7 @@ namespace Chaos
 		{
 			if (ConstraintType == FConstraintBase::FType::SinglePoint)
 			{
-				const TRigidBodyPointContactConstraint<float, 3>& Contact = GetSingleContact();
+				const TRigidBodyPointContactConstraint<float, 3>& Contact = GetPointContact();
 				return { Contact.Particle[0], Contact.Particle[1] };
 			}
 			ensure(false);
@@ -290,7 +290,7 @@ namespace Chaos
 		{
 			if (ConstraintType == FConstraintBase::FType::SinglePoint)
 			{
-				return { GetSingleContact().Particle[0], GetSingleContact().Particle[1] };
+				return { GetPointContact().Particle[0], GetPointContact().Particle[1] };
 			}
 			ensure(false);
 			return { nullptr,nullptr };
