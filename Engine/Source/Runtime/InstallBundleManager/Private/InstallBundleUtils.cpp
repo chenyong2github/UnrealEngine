@@ -4,6 +4,8 @@
 #include "InstallBundleManagerPrivatePCH.h"
 #include "Misc/App.h"
 
+#include "HAL/PlatformApplicationMisc.h"
+
 namespace InstallBundleUtil
 {
 	INSTALLBUNDLEMANAGER_API FString GetAppVersion()
@@ -45,6 +47,29 @@ namespace InstallBundleUtil
 
 	FName FInstallBundleManagerKeepAwake::Tag(TEXT("InstallBundleManagerKeepAwake"));
 	FName FInstallBundleManagerKeepAwake::TagWithRendering(TEXT("InstallBundleManagerKeepAwakeWithRendering"));
+
+	bool FInstallBundleManagerScreenSaverControl::bDidDisableScreensaver = false;
+	int FInstallBundleManagerScreenSaverControl::DisableCount = 0;
+
+	void FInstallBundleManagerScreenSaverControl::IncDisable()
+	{
+		if (!bDidDisableScreensaver && FPlatformApplicationMisc::IsScreensaverEnabled())
+		{
+			bDidDisableScreensaver = FPlatformApplicationMisc::ControlScreensaver(FGenericPlatformApplicationMisc::EScreenSaverAction::Disable);
+		}
+
+		++DisableCount;
+	}
+
+	void FInstallBundleManagerScreenSaverControl::DecDisable()
+	{
+		--DisableCount;
+		if (DisableCount == 0 && bDidDisableScreensaver)
+		{
+			FPlatformApplicationMisc::ControlScreensaver(FGenericPlatformApplicationMisc::EScreenSaverAction::Enable);
+			bDidDisableScreensaver = false;
+		}
+	}
 
 	void StartInstallBundleAsyncIOTask(TArray<TUniquePtr<FInstallBundleTask>>& Tasks, TUniqueFunction<void()> WorkFunc, TUniqueFunction<void()> OnComplete)
 	{
