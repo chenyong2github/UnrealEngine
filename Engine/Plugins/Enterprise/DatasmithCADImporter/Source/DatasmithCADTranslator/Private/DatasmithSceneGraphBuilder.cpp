@@ -59,6 +59,7 @@ FDatasmithSceneGraphBuilder::FDatasmithSceneGraphBuilder(TMap<FString, FString>&
 	, DatasmithScene(InScene)
 	, Source(InSource)
 	, ImportParameters(InImportParameters)
+	, ImportParametersHash(ImportParameters.GetHash())
 {
 }
 
@@ -350,6 +351,18 @@ TSharedPtr< IDatasmithMeshElement > FDatasmithSceneGraphBuilder::FindOrAddMeshEl
 	TSharedPtr< IDatasmithMeshElement > MeshElement = FDatasmithSceneFactory::CreateMesh(*ShellUuidName);
 	MeshElement->SetLabel(*BodyName);
 	MeshElement->SetLightmapSourceUV(-1);
+
+	// Set MeshElement FileHash used for re-import task 
+	FMD5 MD5; // unique Value that define the mesh
+	MD5.Update(reinterpret_cast<const uint8*>(&ImportParametersHash), sizeof ImportParametersHash);
+	// the scene graph archive name that is define by the name and the stat of the file (creation date, size)
+	MD5.Update(reinterpret_cast<const uint8*>(CurrentMockUp->SceneGraphArchive.GetCharArray().GetData()), CurrentMockUp->SceneGraphArchive.GetCharArray().Num());
+	// MeshActorName
+	MD5.Update(reinterpret_cast<const uint8*>(&Body.MeshActorName), sizeof Body.MeshActorName);
+
+	FMD5Hash Hash;
+	Hash.Set(MD5);
+	MeshElement->SetFileHash(Hash);
 
 	FString BodyFile = FString::Printf(TEXT("UEx%08x"), Body.MeshActorName);
 	MeshElement->SetFile(*FPaths::Combine(CachePath, TEXT("body"), BodyFile + TEXT(".ct")));
