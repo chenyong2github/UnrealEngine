@@ -9147,7 +9147,7 @@ void UEngine::PerformanceCapture(UWorld* World, const FString& MapName, const FS
 	// can be define by command line -BuildName="ByCustomBuildName" or "CL<changelist>"
 	FString BuildName = GetBuildNameForPerfTesting();
 
-	// e.g. XboxOne, AllDesktop, Android_.., PS4, HTML5 
+	// e.g. XboxOne, AllDesktop, Android_.., PS4
 	FString PlatformName = FPlatformProperties::PlatformName();
 
 	// e.g. D3D11,OpenGL,Vulcan,D3D12
