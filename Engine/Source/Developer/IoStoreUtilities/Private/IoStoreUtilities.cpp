@@ -192,6 +192,15 @@ static FIoChunkId CreateChunkId(int32 GlobalPackageId, uint16 ChunkIndex, EIoChu
 	return ChunkId;
 }
 
+static FIoChunkId CreateChunkIdForBulkData(int32 GlobalPackageId, uint64 BulkdataOffset, EIoChunkType ChunkType, const TCHAR* DebugString)
+{
+	FIoChunkId ChunkId = CreateBulkdataChunkId(GlobalPackageId, BulkdataOffset, ChunkType);
+#if OUTPUT_CHUNKID_DIRECTORY
+	ChunkIdCsv.AddChunk(GlobalPackageId, 0, 0, (uint8)ChunkType, GetTypeHash(ChunkId), DebugString);
+#endif
+	return ChunkId;
+}
+
 struct FZenPackageSummary
 {
 	uint32 PackageFlags;
@@ -978,8 +987,8 @@ int32 CreateTarget(const FContainerTarget& Target)
 	FString CookedDir = Target.CookedDirectory;
 	FString OutputDir = Target.OutputDirectory;
 	FString RelativePrefixForLegacyFilename = TEXT("../../../");
-
-	FPackageStoreBulkDataManifest BulkDataManifest(CookedDir);
+	
+	FPackageStoreBulkDataManifest BulkDataManifest(Target.TargetPlatform->PlatformName());
 	const bool bWithBulkDataManifest = BulkDataManifest.Load();
 	if (bWithBulkDataManifest)
 	{
@@ -1658,7 +1667,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 				TUniquePtr<FArchive> BulkAr(IFileManager::Get().CreateFileReader(*UBulkFileName));
 				if (BulkAr != nullptr)
 				{
-					const FIoChunkId BulkDataChunkId = CreateChunkId(Package.GlobalPackageId, 0, EIoChunkType::BulkData, *Package.FileName);
+					const FIoChunkId BulkDataChunkId = CreateChunkIdForBulkData(Package.GlobalPackageId, INDEX_NONE, EIoChunkType::BulkData, *Package.FileName);
 #if !SKIP_WRITE_CONTAINER
 					uint8* BulkBuffer = static_cast<uint8*>(FMemory::Malloc(BulkAr->TotalSize()));
 					BulkAr->Serialize(BulkBuffer, BulkAr->TotalSize());
@@ -1684,7 +1693,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 						for (const FPackageStoreBulkDataManifest::PackageDesc::BulkDataDesc& BulkDataDesc : PackageDesc->GetDataArray())
 						{
 #if !SKIP_WRITE_CONTAINER
-							const FIoChunkId AccessChunkId = CreateChunkId(Package.GlobalPackageId, BulkDataDesc.Index, EIoChunkType::BulkData, *Package.FileName);
+							const FIoChunkId AccessChunkId = CreateChunkIdForBulkData(Package.GlobalPackageId, BulkDataDesc.ChunkId, EIoChunkType::BulkData, *Package.FileName);
 							const FIoStatus PartialResult = IoStoreWriter->MapPartialRange(BulkDataChunkId, BulkDataDesc.Offset, BulkDataDesc.Size, AccessChunkId);
 							if (!PartialResult.IsOk())
 							{
@@ -1695,6 +1704,10 @@ int32 CreateTarget(const FContainerTarget& Target)
 #endif
 							++BulkPartialChunkCount;
 						}
+					}
+					else
+					{
+						UE_LOG(LogIoStore, Error, TEXT("Unable to find an entry in the bulkdata manifest for '%s' the file might be out of date!"), *Package.FileName);
 					}
 				}
 			}

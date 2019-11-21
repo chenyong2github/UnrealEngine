@@ -566,43 +566,33 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			Ar << DummyValue;
 		}
 
-		if ((BulkDataFlags & BULKDATA_CookedForIoDispatcher) != 0)
-		{
-			uint16 BulkDataIndex;
-			Ar << BulkDataIndex;
+		check((BulkDataFlags & BULKDATA_UsesIoDispatcher) == 0);
 
-			if (BulkDataIndex != InvalidBulkDataIndex)
-			{
-				UPackage* Package = Owner->GetOutermost();
-				ChunkID = CreateIoChunkId(Package->GetGlobalPackageId(), BulkDataIndex, EIoChunkType::BulkData);
-			}
-			else
-			{
-				ChunkID = FIoChunkId::InvalidChunkId;
-			}
+		// Assuming that Owner/Package/Linker are all valid, the old BulkData system would
+		// generally fail if any of these were nullptr but had plenty of inconsistent checks
+		// scattered throughout.
+		check(Owner != nullptr);
+		const UPackage* Package = Owner->GetOutermost();
+		check(Package != nullptr);
+
+		if (!IsInlined() && bUseZenLoader)
+		{		
+			ChunkID = CreateBulkdataChunkId(Package->GetGlobalPackageId(), BulkDataOffsetInFile, EIoChunkType::BulkData);
+
+			BulkDataFlags |= BULKDATA_UsesIoDispatcher;
 		}
-
-		if (!bUseZenLoader || ChunkID == FIoChunkId::InvalidChunkId)
+		else
 		{
-			// Remove the flag if we are not going to use it
-			BulkDataFlags &= ~BULKDATA_CookedForIoDispatcher;
 			Fallback.Token = InvalidToken;
 			Fallback.BulkDataSize = BulkDataSize;
 		}
 
 		FString Filename;
 		FName PackageName;
-		FLinkerLoad* Linker = nullptr;
+		const FLinkerLoad* Linker = nullptr;
 
 		if (bUseZenLoader == false)
 		{
-			// Assuming that Owner/Package/Linker are all valid, the old BulkData system would
-			// generally fail if any of these were nullptr but had plenty of inconsistent checks
-			// scattered throughout.
-			check(Owner != nullptr);
-			UPackage* Package = Owner->GetOutermost();
-			check(Package != nullptr);
-
 			Linker = FLinkerLoad::FindExistingLinkerForPackage(Package);
 			check(Linker != nullptr);
 
@@ -637,7 +627,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 						if (!bUseZenLoader || ChunkID == FIoChunkId::InvalidChunkId)
 						{
 							// Remove the flag if we are not going to use it
-							BulkDataFlags &= ~BULKDATA_CookedForIoDispatcher;
+							BulkDataFlags &= ~BULKDATA_UsesIoDispatcher;
 							Fallback.Token = InvalidToken;
 							Fallback.BulkDataSize = BulkDataSize;
 						}
@@ -854,7 +844,7 @@ bool FBulkDataBase::IsMemoryMapped() const
 
 bool FBulkDataBase::IsUsingIODispatcher() const
 {
-	return (BulkDataFlags & BULKDATA_CookedForIoDispatcher) != 0;
+	return (BulkDataFlags & BULKDATA_UsesIoDispatcher) != 0;
 }
 
 IBulkDataIORequest* FBulkDataBase::CreateStreamingRequest(EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
@@ -1050,7 +1040,7 @@ void FBulkDataBase::LoadDataDirectly(void** DstBuffer)
 	}
 }
 
-void FBulkDataBase::SerializeDuplicateData(FArchive& Ar, FLinkerLoad* Linker, uint32& OutBulkDataFlags, int64& OutBulkDataSizeOnDisk, int64& OutBulkDataOffsetInFile)
+void FBulkDataBase::SerializeDuplicateData(FArchive& Ar, const FLinkerLoad* Linker, uint32& OutBulkDataFlags, int64& OutBulkDataSizeOnDisk, int64& OutBulkDataOffsetInFile)
 {
 	Ar << OutBulkDataFlags;
 
@@ -1068,7 +1058,7 @@ void FBulkDataBase::SerializeDuplicateData(FArchive& Ar, FLinkerLoad* Linker, ui
 
 	Ar << OutBulkDataOffsetInFile;
 
-	if ((OutBulkDataFlags & BULKDATA_CookedForIoDispatcher) != 0)
+	if ((OutBulkDataFlags & BULKDATA_UsesIoDispatcher) != 0)
 	{
 		uint16 DummyBulkDataIndex = InvalidBulkDataIndex;
 		Ar << DummyBulkDataIndex;

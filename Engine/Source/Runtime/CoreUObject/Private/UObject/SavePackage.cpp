@@ -469,35 +469,27 @@ private:
 	TSet<FNameEntryId> ReferencedNames;
 };
 
-void FPackageStoreBulkDataManifest::PackageDesc::AddData(uint16 InIndex, uint64 InOffset, uint64 InSize)
+void FPackageStoreBulkDataManifest::PackageDesc::AddData(uint64 InChunkId, uint64 InOffset, uint64 InSize)
 {
-	// The index is supposed to be unique
-	auto func = [=](const BulkDataDesc& Entry) { return Entry.Index == InIndex; };
+	// The ChunkId is supposed to be unique
+	auto func = [=](const BulkDataDesc& Entry) { return Entry.ChunkId == InChunkId; };
 	check(Data.FindByPredicate(func) == nullptr);
 
 	BulkDataDesc& Entry = Data.Emplace_GetRef();
 
-	Entry.Index = InIndex;
+	Entry.ChunkId = InChunkId;
 	Entry.Offset = InOffset;
 	Entry.Size = InSize;
 }
 
-FPackageStoreBulkDataManifest::FPackageStoreBulkDataManifest(const FString& InRootPath)
+FPackageStoreBulkDataManifest::FPackageStoreBulkDataManifest(const FString& PlatformName)
 {
-	RootPath = InRootPath;
-	FPaths::NormalizeFilename(RootPath);
-
-	if (!RootPath.EndsWith("/"))
-	{
-		RootPath.Append("/");
-	}
-	
-	Filename = RootPath + "megafile.ubulkmanifest";
+	Filename = FPaths::ProjectSavedDir() / TEXT("BulkDataManifests") / PlatformName + TEXT(".ubulkmanifest");
 }
 
 FArchive& operator<<(FArchive& Ar, FPackageStoreBulkDataManifest::PackageDesc::BulkDataDesc& Entry)
 {
-	Ar << Entry.Index;
+	Ar << Entry.ChunkId;
 	Ar << Entry.Offset;
 	Ar << Entry.Size; 
 
@@ -543,12 +535,12 @@ const FPackageStoreBulkDataManifest::PackageDesc* FPackageStoreBulkDataManifest:
 	return Data.Find(NormalizedFilename);
 }
 
-void FPackageStoreBulkDataManifest::AddFileAccess(const FString& PackageFilename, uint16 InIndex, uint64 InOffset, uint64 InSize)
+void FPackageStoreBulkDataManifest::AddFileAccess(const FString& PackageFilename, uint64 InChunkId, uint64 InOffset, uint64 InSize)
 {
 	const FString NormalizedFilename = FixFilename(PackageFilename);
 	
 	PackageDesc& Entry = GetOrCreateFileAccess(NormalizedFilename);
-	Entry.AddData(InIndex, InOffset, InSize);
+	Entry.AddData(InChunkId, InOffset, InSize);
 }
 
 FPackageStoreBulkDataManifest::PackageDesc& FPackageStoreBulkDataManifest::GetOrCreateFileAccess(const FString& PackageFilename)
@@ -5723,7 +5715,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 							if (IsEventDrivenLoaderEnabledInCookedBuilds() && Linker->IsCooking())
 							{
-								if (SavePackageContext)
+								if (SavePackageContext != nullptr && SavePackageContext->PackageStoreWriter != nullptr)
 								{
 									FIoBuffer IoBuffer(FIoBuffer::AssumeOwnership, Writer->ReleaseOwnership(), DataSize);
 
@@ -5733,7 +5725,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 									HeaderInfo.PackageName		= InOuter->GetFName();
 									HeaderInfo.LooseFilePath	= Filename;
 
-									SavePackageContext->PackageStoreWriter.WriteHeader(HeaderInfo, FIoBuffer(IoBuffer.Data(), HeaderSize, IoBuffer));
+									SavePackageContext->PackageStoreWriter->WriteHeader(HeaderInfo, FIoBuffer(IoBuffer.Data(), HeaderSize, IoBuffer));
 
 									FPackageStoreWriter::ExportsInfo ExportsInfo;
 									ExportsInfo.LooseFilePath	= Filename;
@@ -5749,7 +5741,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 										ExportsInfo.Exports.Add(FIoBuffer(IoBuffer.Data() + Export.SerialOffset, Export.SerialSize, IoBuffer));
 									}
 
-									SavePackageContext->PackageStoreWriter.WriteExports(ExportsInfo, FIoBuffer(ExportsData, DataSize - HeaderSize, IoBuffer));
+									SavePackageContext->PackageStoreWriter->WriteExports(ExportsInfo, FIoBuffer(ExportsData, DataSize - HeaderSize, IoBuffer));
 								}
 								else
 								{
@@ -6289,23 +6281,11 @@ void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Fil
 				*Linker << SizeOnDiskAsInt32;
 			}
 
-			if ((BulkDataStorageInfo.BulkDataFlags & BULKDATA_CookedForIoDispatcher) != 0 && SavePackageContext != nullptr)
+			if (SavePackageContext != nullptr && SavePackageContext->BulkDataManifest != nullptr)
 			{
-				check(BulkDataIndex < TNumericLimits<uint16>::Max());
-
-				SavePackageContext->BulkDataManifest.AddFileAccess
-				(
-					Filename, BulkDataIndex, BulkStartOffset, SizeOnDisk
-				);
-
-				check(BulkDataStorageInfo.BulkDataChunkIdPos != INDEX_NONE);
-
-				Linker->Seek(BulkDataStorageInfo.BulkDataChunkIdPos);
-				*Linker << BulkDataIndex;
-				
-				BulkDataIndex++;
+				SavePackageContext->BulkDataManifest->AddFileAccess(Filename, StoredBulkStartOffset, BulkStartOffset, SizeOnDisk);
 			}
-
+			
 			Linker->Seek(LinkerEndOffset);
 
 			// Restore BulkData flags to before serialization started
@@ -6321,7 +6301,7 @@ void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Fil
 
 			const bool bWriteBulkToDisk = !bDiffing;
 
-			if (SavePackageContext && bWriteBulkToDisk)
+			if (SavePackageContext != nullptr && SavePackageContext->PackageStoreWriter != nullptr && bWriteBulkToDisk)
 			{
 				auto ToIoBuffer = [](FLargeMemoryWriter* Writer)
 				{
@@ -6334,13 +6314,13 @@ void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Fil
 				BulkInfo.LooseFilePath = Filename;
 				BulkInfo.BulkdataType = FPackageStoreWriter::FBulkDataInfo::Standard;
 
-				SavePackageContext->PackageStoreWriter.WriteBulkdata(BulkInfo, ToIoBuffer(BulkArchive.Get()));
+				SavePackageContext->PackageStoreWriter->WriteBulkdata(BulkInfo, ToIoBuffer(BulkArchive.Get()));
 
 				BulkInfo.BulkdataType = FPackageStoreWriter::FBulkDataInfo::Optional;
-				SavePackageContext->PackageStoreWriter.WriteBulkdata(BulkInfo, ToIoBuffer(OptionalBulkArchive.Get()));
+				SavePackageContext->PackageStoreWriter->WriteBulkdata(BulkInfo, ToIoBuffer(OptionalBulkArchive.Get()));
 
 				BulkInfo.BulkdataType = FPackageStoreWriter::FBulkDataInfo::Mmap;
-				SavePackageContext->PackageStoreWriter.WriteBulkdata(BulkInfo, ToIoBuffer(MappedBulkArchive.Get()));
+				SavePackageContext->PackageStoreWriter->WriteBulkdata(BulkInfo, ToIoBuffer(MappedBulkArchive.Get()));
 			}
 			else
 			{

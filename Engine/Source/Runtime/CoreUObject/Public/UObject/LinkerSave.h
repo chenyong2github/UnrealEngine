@@ -57,8 +57,6 @@ public:
 		int64 BulkDataSizeOnDiskPos;
 		/** Offset to the location where the bulk data flags are stored */
 		int64 BulkDataFlagsPos;
-		/** Offset to the location where the bulk data ChunkID is stored */
-		int64 BulkDataChunkIdPos;
 		/** Bulk data flags at the time of serialization */
 		uint32 BulkDataFlags;
 		/** The bulkdata */

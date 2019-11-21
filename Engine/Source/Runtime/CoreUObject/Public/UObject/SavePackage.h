@@ -12,23 +12,16 @@ class FArchive;
 class FLinkerLoad;
 class FLinkerSave;
 
-class IBulkDataManifest 
+class FPackageStoreBulkDataManifest
 {
 public:
-	virtual ~IBulkDataManifest() = default;
-
-	virtual void Save() = 0;
-	virtual void AddFileAccess(const FString& PackageFilename, uint16 InIndex, uint64 InOffset, uint64 InSize) = 0;
-};
-
-class FPackageStoreBulkDataManifest : public IBulkDataManifest
-{
-public:
-	COREUOBJECT_API FPackageStoreBulkDataManifest(const FString& InRootPath);
-	COREUOBJECT_API virtual ~FPackageStoreBulkDataManifest();
+	COREUOBJECT_API FPackageStoreBulkDataManifest(const FString& PlatformName);
+	COREUOBJECT_API ~FPackageStoreBulkDataManifest();
 
 	COREUOBJECT_API bool Load();
-	virtual void Save() override;
+	COREUOBJECT_API void Save() ;
+
+	void AddFileAccess(const FString& PackageFilename, uint64 InChunkId, uint64 InOffset, uint64 InSize);
 	
 	const FString& GetFilename() const { return Filename; }
 
@@ -37,12 +30,13 @@ public:
 	public:
 		struct BulkDataDesc
 		{
-			uint16 Index;
+			uint64 ChunkId;	// Note this is the Offset before the linker BulkDataStartOffset is
+							// applied, to make it easier to compute at runtime.
 			uint64 Offset;
 			uint64 Size;
 		};
 
-		void AddData(uint16 InIndex, uint64 InOffset, uint64 InSize);
+		void AddData(uint64 InChunkId, uint64 InOffset, uint64 InSize);
 		const TArray<BulkDataDesc>& GetDataArray() const { return Data; }
 	private:
 		friend FArchive& operator<<(FArchive& Ar, PackageDesc& Entry);
@@ -52,8 +46,6 @@ public:
 	COREUOBJECT_API const PackageDesc* Find(const FString& PackageName) const;
 
 private:
-	virtual void AddFileAccess(const FString& PackageFilename, uint16 InIndex, uint64 InOffset, uint64 InSize) override;
-
 	PackageDesc& GetOrCreateFileAccess(const FString& PackageFilename);
 
 	FString FixFilename(const FString& InFileName) const;
@@ -126,12 +118,12 @@ private:
 class FSavePackageContext
 {
 public:
-	FSavePackageContext(FPackageStoreWriter& InPackageStoreWriter, IBulkDataManifest& InBulkDataManifest)
+	FSavePackageContext(FPackageStoreWriter* InPackageStoreWriter, FPackageStoreBulkDataManifest* InBulkDataManifest)
 	: PackageStoreWriter(InPackageStoreWriter) 
 	, BulkDataManifest(InBulkDataManifest)
 	{
 	}
 
-	FPackageStoreWriter& PackageStoreWriter;
-	IBulkDataManifest& BulkDataManifest;
+	FPackageStoreWriter* PackageStoreWriter;
+	FPackageStoreBulkDataManifest* BulkDataManifest;
 };

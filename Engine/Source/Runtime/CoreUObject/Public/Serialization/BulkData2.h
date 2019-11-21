@@ -129,7 +129,7 @@ public:
 private:
 	void LoadDataDirectly(void** DstBuffer);
 
-	void SerializeDuplicateData(FArchive& Ar, FLinkerLoad* Linker, uint32& OutBulkDataFlags, int64& OutBulkDataSizeOnDisk, int64& OutBulkDataOffsetInFile);
+	void SerializeDuplicateData(FArchive& Ar, const FLinkerLoad* Linker, uint32& OutBulkDataFlags, int64& OutBulkDataSizeOnDisk, int64& OutBulkDataOffsetInFile);
 	void SerializeBulkData(FArchive& Ar, void* DstBuffer, int64 DataLength);
 
 	void AllocateData(SIZE_T SizeInBytes);

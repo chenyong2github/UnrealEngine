@@ -986,13 +986,6 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 				BulkDataFlags &= ~BULKDATA_BadDataVersion;		
 			}
 			
-			if ((BulkDataFlags & BULKDATA_CookedForIoDispatcher) != 0)
-			{
-				// Load the bulk data index that will be used to create I/O chunk id's
-				uint16 BulkDataIndex = ~uint16(0);
- 				Ar << BulkDataIndex;
-			}
-
 			// determine whether the payload is stored inline or at the end of the file
 			const bool bPayloadInline = !(BulkDataFlags&BULKDATA_PayloadAtEndOfFile);
 
@@ -1097,12 +1090,6 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 
 						Ar << BulkDataOffsetInFile;
 						BulkDataOffsetInFile += OffsetInFileFixup;
-
-						if ((BulkDataFlags & BULKDATA_CookedForIoDispatcher) != 0)
-						{
-							uint16 BulkDataIndex = ~uint16(0);
-							Ar << BulkDataIndex;
-						}
 					}
 					else
 					{
@@ -1123,12 +1110,6 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 
 						int64 DummyBulkDataOffsetInFile;
 						Ar << DummyBulkDataOffsetInFile;
-
-						if ((BulkDataFlags & BULKDATA_CookedForIoDispatcher) != 0)
-						{
-							uint16 BulkDataIndex = ~uint16(0);
-							Ar << BulkDataIndex;
-						}
 
 						Filename = FPaths::ChangeExtension(Filename, TEXT(".ubulk"));
 					}
@@ -1233,7 +1214,6 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 			// Only serialize status information if wanted.
 			int64 SavedBulkDataSizeOnDiskPos	= INDEX_NONE;
 			int64 SavedBulkDataOffsetInFilePos	= INDEX_NONE;
-			int64 SavedBulkDataChunkIdPos		= INDEX_NONE;
 			
 			// Keep track of position we are going to serialize placeholder BulkDataSizeOnDisk.
 			SavedBulkDataSizeOnDiskPos = Ar.Tell();
@@ -1270,19 +1250,6 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 				bStoreInline = true;
 			}
 
-			// Write the ChunkID that will be used by the IoDispatcher, but ONLY if we are producing cooked data
-			if(Ar.IsCooking() )
-			{
-				FArchive::FScopeSetDebugSerializationFlags S(Ar, DSF_IgnoreDiff);
-
-				SavedBulkDataChunkIdPos = Ar.Tell();
-
-				uint16 BulkDataIndex = ~uint16(0);
-				Ar << BulkDataIndex;
-
-				BulkDataFlags |= BULKDATA_CookedForIoDispatcher;
-			}
-
 			if (!bStoreInline)
 			{
 				// set the flag indicating where the payload is stored
@@ -1298,7 +1265,6 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 				BulkStore.BulkDataOffsetInFilePos = SavedBulkDataOffsetInFilePos;
 				BulkStore.BulkDataSizeOnDiskPos = SavedBulkDataSizeOnDiskPos;
 				BulkStore.BulkDataFlagsPos = SavedBulkDataFlagsPos;
-				BulkStore.BulkDataChunkIdPos = SavedBulkDataChunkIdPos;
 				BulkStore.BulkDataFlags = BulkDataFlags;
 				BulkStore.BulkData = this;
 
@@ -1308,7 +1274,6 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 					int64 SavedDupeBulkDataFlagsPos = INDEX_NONE;
 					int64 SavedDupeBulkDataSizeOnDiskPos = INDEX_NONE;
 					int64 SavedDupeBulkDataOffsetInFilePos = INDEX_NONE;
-					int64 SavedDupeBulkDataChunkIdPos = INDEX_NONE;
 
 					int32 SavedDupeBulkDataFlags = (BulkDataFlags & ~BULKDATA_DuplicateNonOptionalPayload) | BULKDATA_OptionalPayload;
 					{
@@ -1335,18 +1300,6 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 						BulkDataOffsetInFile = INDEX_NONE;
 						// And serialize the placeholder which is going to be overwritten later.
 						Ar << BulkDataOffsetInFile;
-
-						// TODO: Fairly sure we can only be in the BULKDATA_DuplicateNonOptionalPayload branch if this
-						// is cooked data, see if we can remove the if check
-						if (Ar.IsCooking())
-						{
-							SavedDupeBulkDataChunkIdPos = Ar.Tell();
-							
-							uint16 BulkDataIndex = ~uint16(0);
-							Ar << BulkDataIndex;
-
-							check((SavedDupeBulkDataFlags& BULKDATA_CookedForIoDispatcher) != 0); // Validate that the BULKDATA_CookedForIoDispatcher flag was already set
-						}
 					}
 
 					// add duplicate bulkdata with different flag
@@ -1357,8 +1310,6 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 					DupeBulkStore.BulkDataSizeOnDiskPos = SavedDupeBulkDataSizeOnDiskPos;
 					DupeBulkStore.BulkDataFlagsPos = SavedDupeBulkDataFlagsPos;
 					DupeBulkStore.BulkDataFlags = SavedDupeBulkDataFlags;
-					DupeBulkStore.BulkDataChunkIdPos = SavedDupeBulkDataChunkIdPos;
-
 					DupeBulkStore.BulkData = this;
 				}
 				

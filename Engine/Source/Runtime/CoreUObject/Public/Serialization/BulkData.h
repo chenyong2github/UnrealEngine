@@ -64,8 +64,8 @@ enum EBulkDataFlags
 	BULKDATA_DuplicateNonOptionalPayload		= 1 << 14,
 	/** Indicates that an old ID is present in the data, at some point when the DDCs are flushed we can remove this. */
 	BULKDATA_BadDataVersion						= 1 << 15,
-	/** Indicates that the data was cooked for use with IoDispatcher. */
-	BULKDATA_CookedForIoDispatcher				= 1 << 16,
+	/** Assigned at runtime to indicate that the BulkData should be using the IoDispatcher when loading, not filepaths. */
+	BULKDATA_UsesIoDispatcher					= 1 << 16,
 };
 
 /**

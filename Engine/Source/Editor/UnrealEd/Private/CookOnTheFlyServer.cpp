@@ -4031,7 +4031,7 @@ void UCookOnTheFlyServer::SaveCookedPackage(UPackage* Package, uint32 SaveFlags,
 						}
 						else
 						{
-							FSavePackageContext* const SavePackageContext = IsUsingPackageStore() ? SavePackageContexts[PlatformIndex] : nullptr;
+							FSavePackageContext* const SavePackageContext = SavePackageContexts[PlatformIndex];
 
 							Result = GEditor->Save(	Package, World, FlagsToCook, *PlatFilename, 
 													GError, nullptr, bSwap, false, SaveFlags, Target, 
@@ -6711,12 +6711,6 @@ void UCookOnTheFlyServer::InitializeSandbox()
 
 void UCookOnTheFlyServer::InitializePackageStore(const TArray<FName>& TargetPlatformNames)
 {
-	// TODO: should ideally support all cook modes
-	if (!IsUsingPackageStore())
-	{
-		return;
-	}
-
 	const FString RootPath = FPaths::RootDir();
 	const FString RootPathSandbox = ConvertToFullSandboxPath(*RootPath, true);
 
@@ -6724,33 +6718,32 @@ void UCookOnTheFlyServer::InitializePackageStore(const TArray<FName>& TargetPlat
 
 	for (const FName PlatformName : TargetPlatformNames)
 	{
-		const FString ResolvedRootPath = RootPathSandbox.Replace(TEXT("[Platform]"), *PlatformName.ToString());
+		const FString PlatformString = PlatformName.ToString();
+		const FString ResolvedRootPath = RootPathSandbox.Replace(TEXT("[Platform]"), *PlatformString);
 
 		// just leak all memory for now
-		FPackageStoreBulkDataManifest* BulkDataManifest	= new FPackageStoreBulkDataManifest(ResolvedRootPath);
-		FLooseFileWriter* LooseFileWriter				= new FLooseFileWriter();
-		FSavePackageContext* SavePackageContext			= new FSavePackageContext(*LooseFileWriter, *BulkDataManifest);
+		FPackageStoreBulkDataManifest* BulkDataManifest	= new FPackageStoreBulkDataManifest(PlatformString);
+		FLooseFileWriter* LooseFileWriter				= IsUsingPackageStore() ? new FLooseFileWriter() : nullptr;
 
+		FSavePackageContext* SavePackageContext			= new FSavePackageContext(LooseFileWriter, BulkDataManifest);
 		SavePackageContexts.Add(SavePackageContext);
 	}
 }
 
 void UCookOnTheFlyServer::FinalizePackageStore()
 {
-	if (!IsUsingPackageStore())
-	{
-		return;
-	}
-
 	SCOPE_TIMER(FinalizePackageStore);
 
-	UE_LOG(LogCook, Display, TEXT("Saving PackageStoreHeaders(s)..."));
+	UE_LOG(LogCook, Display, TEXT("Saving BulkData manifest(s)..."));
 	const TArray<ITargetPlatform*>& TargetPlatforms = GetCookingTargetPlatforms();
 	for (int32 PlatformIndex = 0; PlatformIndex < TargetPlatforms.Num(); ++PlatformIndex)
 	{
-		SavePackageContexts[PlatformIndex]->BulkDataManifest.Save();
+		if (SavePackageContexts[PlatformIndex] != nullptr && SavePackageContexts[PlatformIndex]->BulkDataManifest != nullptr)
+		{
+			SavePackageContexts[PlatformIndex]->BulkDataManifest->Save();
+		}
 	}
-	UE_LOG(LogCook, Display, TEXT("Done saving PackageStoreHeaders(s)"));
+	UE_LOG(LogCook, Display, TEXT("Done saving BulkData manifest(s)"));
 }
 
 void UCookOnTheFlyServer::InitializeTargetPlatforms()

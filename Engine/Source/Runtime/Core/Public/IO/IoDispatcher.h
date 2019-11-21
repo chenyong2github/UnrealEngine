@@ -600,6 +600,23 @@ static FIoChunkId CreateIoChunkId(uint32 GlobalPackageId, uint16 ChunkIndex, EIo
 	return ChunkId;
 }
 
+/**
+ * Creates a chunk identifier for BulkData
+ */
+static FIoChunkId CreateBulkdataChunkId(int32 GlobalPackageId, uint64 BulkDataChunkId, EIoChunkType ChunkType)
+{
+	uint8 Data[12] = { 0 };
+
+	*reinterpret_cast<int32*>(&Data[0]) = GlobalPackageId;
+	*reinterpret_cast<uint64*>(&Data[4]) = BulkDataChunkId; // Top byte will get overwritten!
+	*reinterpret_cast<uint8*>(&Data[11]) = static_cast<uint8>(ChunkType);
+
+	FIoChunkId ChunkId;
+	ChunkId.Set(Data, 12);
+
+	return ChunkId;
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 class FIoReadOptions
