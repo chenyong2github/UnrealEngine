@@ -33,6 +33,11 @@ namespace Chaos
 		case ImplicitObjectType::IsScaled | ImplicitObjectType::Box: return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<TBox<FReal, 3>>>());
 		case ImplicitObjectType::IsScaled | ImplicitObjectType::Capsule: return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<TCapsule<FReal>>>());
 		case ImplicitObjectType::IsScaled | ImplicitObjectType::Convex: return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<TConvex<FReal, 3>>>());
+		case ImplicitObjectType::Transformed:
+			ensure(false); // We are drilling down to concrete implicit inside transformed, this is disregarding transform data. Caller must specially handle transform.
+			// TODO: Refactor Transformed implicit to use same structure as scaled.
+			return CastHelper(*(Geom.template GetObjectChecked<TImplicitObjectTransformed<FReal, 3>>().GetTransformedObject()), Func);
+
 		default: check(false);
 		}
 		return Func(Geom.template GetObjectChecked<TSphere<FReal, 3>>());	//needed for return type
