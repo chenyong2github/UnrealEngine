@@ -171,6 +171,11 @@ public:
 		return FIoStatus(EIoErrorCode::NotFound);
 	}
 
+	bool DoesChunkExists(const FIoChunkId& ChunkId) const
+	{
+		return Toc.Find(ChunkId) != nullptr;
+	}
+
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const
 	{
 		const FIoStoreTocEntry* Entry = Toc.Find(ChunkId);
@@ -430,6 +435,19 @@ public:
 		return FIoStatus(EIoErrorCode::NotFound);
 	}
 
+	bool DoesChunkExists(const FIoChunkId& ChunkId) const
+	{
+		for (const auto& IoStore : IoStores)
+		{
+			if (IoStore->Impl->DoesChunkExists(ChunkId))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const
 	{
 		for (const auto& IoStore : IoStores)
@@ -536,6 +554,11 @@ public:
 			Callback(TIoStatusOr<FIoBuffer>(Request->Result.Status()));
 		}
 		FreeRequest(Request);
+	}
+
+	bool DoesChunkExists(const FIoChunkId& ChunkId) const
+	{
+		return IoStore->DoesChunkExists(ChunkId);
 	}
 
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const
@@ -683,6 +706,12 @@ FIoDispatcher::CloseFileChunk(const FIoChunkId& FileChunkId)
 }
 
 // Polling methods
+bool 
+FIoDispatcher::DoesChunkExists(const FIoChunkId& ChunkId) const
+{
+	return Impl->DoesChunkExists(ChunkId);
+}
+
 TIoStatusOr<uint64>	
 FIoDispatcher::GetSizeForChunk(const FIoChunkId& ChunkId) const
 {
