@@ -13,7 +13,6 @@
 #include "NiagaraParameterCollection.h"
 #include "NiagaraUserRedirectionParameterStore.h"
 #include "NiagaraSystemFastPath.h"
-#include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraSystem.generated.h"
 
 #if WITH_EDITORONLY_DATA
