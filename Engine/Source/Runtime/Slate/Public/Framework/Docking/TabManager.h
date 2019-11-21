@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "SlateFwd.h"
 #include "Misc/Attribute.h"
+#include "Misc/NamedBlacklist.h"
 #include "Textures/SlateIcon.h"
 #include "Widgets/SWindow.h"
 #include "Framework/Docking/WorkspaceItem.h"
@@ -801,6 +802,9 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		/** Returns the owner tab (if it exists) */
 		TSharedPtr<SDockTab> GetOwnerTab() { return OwnerTabPtr.Pin(); }
 
+		/** Returns filter for additional control over available tabs */
+		FNamedBlacklist& GetTabBlacklist();
+
 	protected:
 		void InvokeTabForMenu( FName TabId );
 
@@ -966,6 +970,9 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 
 		/* Prevent or allow Drag operation. */
 		bool bCanDoDragOperation;
+
+		/** Allow systems to dynamically hide tabs */
+		FNamedBlacklist TabBlacklist;
 };
 
 
