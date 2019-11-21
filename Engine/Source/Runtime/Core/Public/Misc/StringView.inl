@@ -1,109 +1,78 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-// Case-insensitive comparison operators
-template<typename C>
-inline bool operator==(const TStringViewImpl<C> Lhs, typename TIdentity<TStringViewImpl<C>>::Type Rhs)
-{
-	if (Rhs.Len() != Lhs.Len())
-	{
-		return false;
-	}
+#include "HAL/PlatformString.h"
+#include "HAL/UnrealMemory.h"
 
-	return FPlatformString::Strnicmp(Lhs.Data(), Rhs.Data(), Lhs.Len()) == 0;
+template <typename CharType, typename ViewType>
+inline typename TStringViewImpl<CharType, ViewType>::SizeType TStringViewImpl<CharType, ViewType>::CopyString(CharType* Dest, SizeType CharCount, SizeType Position) const
+{
+	SizeType CopyCount = FMath::Min(Size - Position, CharCount);
+	FMemory::Memcpy(Dest, DataPtr + Position, CopyCount);
+	return CopyCount;
 }
 
-template<typename C>
-inline bool operator!=(const TStringViewImpl<C> Lhs, typename TIdentity<TStringViewImpl<C>>::Type Rhs)
+// Case-insensitive comparison operators
+
+template <typename CharType, typename ViewType>
+inline bool operator==(const TStringViewImpl<CharType, ViewType>& Lhs, const TStringViewImpl<CharType, ViewType>& Rhs)
+{
+	return Lhs.Len() == Rhs.Len() && FPlatformString::Strnicmp(Lhs.GetData(), Rhs.GetData(), Lhs.Len()) == 0;
+}
+
+template <typename CharType, typename ViewType>
+inline bool operator!=(const TStringViewImpl<CharType, ViewType>& Lhs, const TStringViewImpl<CharType, ViewType>& Rhs)
 {
 	return !operator==(Lhs, Rhs);
 }
 
-template<typename C>
-inline int32 TStringViewImpl<C>::Compare(const TStringViewImpl Other, ESearchCase::Type SearchCase) const
+// Case-insensitive range comparison operators
+
+template <typename CharType, typename ViewType, typename RangeType, typename = typename TStringViewImpl<CharType, ViewType>::template TEnableIfCompatibleRangeType<RangeType>>
+inline bool operator==(const TStringViewImpl<CharType, ViewType>& Lhs, const RangeType& Rhs)
 {
-	const SizeType ShortestLength = FMath::Min(Len(), Other.Len());
-
-	int Result;
-	if (SearchCase == ESearchCase::CaseSensitive)
-	{
-		Result = FPlatformString::Strncmp(Data(), Other.Data(), ShortestLength);
-	}
-	else
-	{
-		Result = FPlatformString::Strnicmp(Data(), Other.Data(), ShortestLength);
-	}
-
-	if (Result == 0 && Len() != Other.Len())
-	{
-		return Len() > Other.Len() ? 1 : -1;
-	}
-	else
-	{
-		return Result;
-	}
+	return Lhs == TStringViewImpl<CharType, ViewType>(Rhs);
 }
 
-template<typename C>
-inline bool TStringViewImpl<C>::EndsWith(const TStringViewImpl& Suffix) const
+template <typename CharType, typename ViewType, typename RangeType, typename = typename TStringViewImpl<CharType, ViewType>::template TEnableIfCompatibleRangeType<RangeType>>
+inline bool operator==(const RangeType& Lhs, const TStringViewImpl<CharType, ViewType>& Rhs)
 {
-	const SizeType SuffixLen = Suffix.Len();
-	if (SuffixLen > this->Len())
-	{
-		return false;
-	}
-
-	return 0 == TCString<C>::Strnicmp(Suffix.Data(), this->Data() + this->Len() - SuffixLen, SuffixLen);
+	return TStringViewImpl<CharType, ViewType>(Lhs) == Rhs;
 }
 
-template<typename C>
-inline bool TStringViewImpl<C>::FindChar(C InChar, int32& OutIndex) const
+template <typename CharType, typename ViewType, typename RangeType, typename = typename TStringViewImpl<CharType, ViewType>::template TEnableIfCompatibleRangeType<RangeType>>
+inline bool operator!=(const TStringViewImpl<CharType, ViewType>& Lhs, const RangeType& Rhs)
 {
-	for (SizeType i = 0; i < Size; ++i)
-	{
-		if (DataPtr[i] == InChar)
-		{
-			OutIndex = (int32)i;
-			return true;
-		}
-	}
-
-	return false;
+	return !operator==(Lhs, Rhs);
 }
 
-template<typename C>
-inline bool TStringViewImpl<C>::FindLastChar(C InChar, int32& OutIndex) const
+template <typename CharType, typename ViewType, typename RangeType, typename = typename TStringViewImpl<CharType, ViewType>::template TEnableIfCompatibleRangeType<RangeType>>
+inline bool operator!=(const RangeType& Lhs, const TStringViewImpl<CharType, ViewType>& Rhs)
 {
-	if (Size == 0)
-	{
-		return false;
-	}
-
-	for (SizeType i = Size - 1; i >= 0; --i)
-	{
-		if (DataPtr[i] == InChar)
-		{
-			OutIndex = (int32)i;
-			return true;
-		}
-	}
-
-	return false;
+	return !operator==(Lhs, Rhs);
 }
 
-template<typename C>
-template<typename Predicate>
-inline typename TStringViewImpl<C>::SizeType TStringViewImpl<C>::FindLastCharByPredicate(Predicate Pred, TStringViewImpl<C>::SizeType Count) const
+// Case-insensitive C-string comparison operators
+
+template <typename CharType, typename ViewType>
+inline bool operator==(const TStringViewImpl<CharType, ViewType>& Lhs, const CharType* Rhs)
 {
-	check(Count >= 0 && Count <= Len());
+	return TCString<CharType>::Strnicmp(Lhs.GetData(), Rhs, Lhs.Len()) == 0 && !Rhs[Lhs.Len()];
+}
 
-	for (const C* RESTRICT Start = Data(), *RESTRICT Data = Start + Count; Data != Start; )
-	{
-		--Data;
-		if (Pred(*Data))
-		{
-			return static_cast<SizeType>(Data - Start);
-		}
-	}
+template <typename CharType, typename ViewType>
+inline bool operator==(const CharType* Lhs, const TStringViewImpl<CharType, ViewType>& Rhs)
+{
+	return TCString<CharType>::Strnicmp(Lhs, Rhs.GetData(), Rhs.Len()) == 0 && !Lhs[Rhs.Len()];
+}
 
-	return INDEX_NONE;
+template <typename CharType, typename ViewType>
+inline bool operator!=(const TStringViewImpl<CharType, ViewType>& Lhs, const CharType* Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
+template <typename CharType, typename ViewType>
+inline bool operator!=(const CharType* Lhs, const TStringViewImpl<CharType, ViewType>& Rhs)
+{
+	return !operator==(Lhs, Rhs);
 }

@@ -21,7 +21,7 @@ FIoStoreEnvironment::~FIoStoreEnvironment()
 
 void FIoStoreEnvironment::InitializeFileEnvironment(FStringView InRootPath)
 {
-	RootPath = InRootPath.ToString();
+	RootPath = InRootPath;
 }
 
 //////////////////////////////////////////////////////////////////////////

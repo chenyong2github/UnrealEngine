@@ -1,6 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/StringView.h"
+
+#include "Containers/UnrealString.h"
 #include "Misc/AutomationTest.h"
 
 #if WITH_DEV_AUTOMATION_TESTS 
@@ -109,7 +111,7 @@ bool FStringViewTestEquality::RunTest(const FString& Parameters)
 	FStringView WideView(WideStringLiteralSrc);
 
 	TestTrue(TEXT("Equality(0)"), WideView == WideStringLiteralSrc);
-	TestFalse(TEXT("Equality(1)"), WideView != WideStringLiteralSrc);	
+	TestFalse(TEXT("Equality(1)"), WideView != WideStringLiteralSrc);
 	TestTrue(TEXT("Equality(2)"), WideView == WideStringLiteralLower);
 	TestFalse(TEXT("Equality(3)"), WideView != WideStringLiteralLower);
 	TestTrue(TEXT("Equality(4)"), WideView == WideStringLiteralUpper);
@@ -119,27 +121,91 @@ bool FStringViewTestEquality::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Equality(8)"), WideView == WideStringLiteralLonger);
 	TestTrue(TEXT("Equality(9)"), WideView != WideStringLiteralLonger);
 
+	TestTrue(TEXT("Equality(10)"), WideStringLiteralSrc == WideView);
+	TestFalse(TEXT("Equality(11)"), WideStringLiteralSrc != WideView);
+	TestTrue(TEXT("Equality(12)"), WideStringLiteralLower == WideView);
+	TestFalse(TEXT("Equality(13)"), WideStringLiteralLower != WideView);
+	TestTrue(TEXT("Equality(14)"), WideStringLiteralUpper == WideView);
+	TestFalse(TEXT("Equality(15)"), WideStringLiteralUpper != WideView);
+	TestFalse(TEXT("Equality(16)"), WideStringLiteralShort == WideView);
+	TestTrue(TEXT("Equality(17)"), WideStringLiteralShort != WideView);
+	TestFalse(TEXT("Equality(18)"), WideStringLiteralLonger == WideView);
+	TestTrue(TEXT("Equality(19)"), WideStringLiteralLonger != WideView);
+
 	FString WideStringSrc = WideStringLiteralSrc;
 	FString WideStringLower = WideStringLiteralLower;
 	FString WideStringUpper = WideStringLiteralUpper;
 	FString WideStringShort = WideStringLiteralShort;
 	FString WideStringLonger = WideStringLiteralLonger;
 
-	TestTrue(TEXT("Equality(10)"), WideView == WideStringSrc);
-	TestFalse(TEXT("Equality(11)"), WideView != WideStringSrc);
-	TestTrue(TEXT("Equality(12)"), WideView == WideStringLower);
-	TestFalse(TEXT("Equality(13)"), WideView != WideStringLower);
-	TestTrue(TEXT("Equality(14)"), WideView == WideStringUpper);
-	TestFalse(TEXT("Equality(15)"), WideView != WideStringUpper);
-	TestFalse(TEXT("Equality(16)"), WideView == WideStringShort);
-	TestTrue(TEXT("Equality(17)"), WideView != WideStringShort);
-	TestFalse(TEXT("Equality(18)"), WideView == WideStringLonger);
-	TestTrue(TEXT("Equality(19)"), WideView != WideStringLonger);
+	TestTrue(TEXT("Equality(20)"), WideView == WideStringSrc);
+	TestFalse(TEXT("Equality(21)"), WideView != WideStringSrc);
+	TestTrue(TEXT("Equality(22)"), WideView == WideStringLower);
+	TestFalse(TEXT("Equality(23)"), WideView != WideStringLower);
+	TestTrue(TEXT("Equality(24)"), WideView == WideStringUpper);
+	TestFalse(TEXT("Equality(25)"), WideView != WideStringUpper);
+	TestFalse(TEXT("Equality(26)"), WideView == WideStringShort);
+	TestTrue(TEXT("Equality(27)"), WideView != WideStringShort);
+	TestFalse(TEXT("Equality(28)"), WideView == WideStringLonger);
+	TestTrue(TEXT("Equality(29)"), WideView != WideStringLonger);
+
+	TestTrue(TEXT("Equality(30)"), WideStringSrc == WideView);
+	TestFalse(TEXT("Equality(31)"), WideStringSrc != WideView);
+	TestTrue(TEXT("Equality(32)"), WideStringLower == WideView);
+	TestFalse(TEXT("Equality(33)"), WideStringLower != WideView);
+	TestTrue(TEXT("Equality(34)"), WideStringUpper == WideView);
+	TestFalse(TEXT("Equality(35)"), WideStringUpper != WideView);
+	TestFalse(TEXT("Equality(36)"), WideStringShort == WideView);
+	TestTrue(TEXT("Equality(37)"), WideStringShort != WideView);
+	TestFalse(TEXT("Equality(38)"), WideStringLonger == WideView);
+	TestTrue(TEXT("Equality(39)"), WideStringLonger != WideView);
 
 	FStringView IdenticalView(WideStringLiteralSrc);
 
-	TestTrue(TEXT("Equality(20)"), WideView == IdenticalView);
-	TestTrue(TEXT("Equality(21)"), IdenticalView == WideView);
+	TestTrue(TEXT("Equality(40)"), WideView == IdenticalView);
+	TestTrue(TEXT("Equality(41)"), IdenticalView == WideView);
+
+	// Views without null termination
+
+	FStringView ShortViewNoNull = WideView.Left(FStringView(WideStringLiteralShort).Len());
+
+	TestTrue(TEXT("Equality(42)"), ShortViewNoNull == WideStringLiteralShort);
+	TestFalse(TEXT("Equality(43)"), ShortViewNoNull != WideStringLiteralShort);
+	TestTrue(TEXT("Equality(44)"), WideStringLiteralShort == ShortViewNoNull);
+	TestFalse(TEXT("Equality(45)"), WideStringLiteralShort != ShortViewNoNull);
+	TestFalse(TEXT("Equality(46)"), ShortViewNoNull == WideStringLiteralSrc);
+	TestTrue(TEXT("Equality(47)"), ShortViewNoNull != WideStringLiteralSrc);
+	TestFalse(TEXT("Equality(48)"), WideStringLiteralSrc == ShortViewNoNull);
+	TestTrue(TEXT("Equality(49)"), WideStringLiteralSrc != ShortViewNoNull);
+
+	TestTrue(TEXT("Equality(50)"), ShortViewNoNull == WideStringShort);
+	TestFalse(TEXT("Equality(51)"), ShortViewNoNull != WideStringShort);
+	TestTrue(TEXT("Equality(52)"), WideStringShort == ShortViewNoNull);
+	TestFalse(TEXT("Equality(53)"), WideStringShort != ShortViewNoNull);
+	TestFalse(TEXT("Equality(54)"), ShortViewNoNull == WideStringSrc);
+	TestTrue(TEXT("Equality(55)"), ShortViewNoNull != WideStringSrc);
+	TestFalse(TEXT("Equality(56)"), WideStringSrc == ShortViewNoNull);
+	TestTrue(TEXT("Equality(57)"), WideStringSrc != ShortViewNoNull);
+
+	FStringView WideViewNoNull = FStringView(WideStringLiteralLonger).Left(WideView.Len());
+
+	TestTrue(TEXT("Equality(58)"), WideViewNoNull == WideStringLiteralSrc);
+	TestFalse(TEXT("Equality(59)"), WideViewNoNull != WideStringLiteralSrc);
+	TestTrue(TEXT("Equality(60)"), WideStringLiteralSrc == WideViewNoNull);
+	TestFalse(TEXT("Equality(61)"), WideStringLiteralSrc != WideViewNoNull);
+	TestFalse(TEXT("Equality(62)"), WideViewNoNull == WideStringLiteralLonger);
+	TestTrue(TEXT("Equality(63)"), WideViewNoNull != WideStringLiteralLonger);
+	TestFalse(TEXT("Equality(64)"), WideStringLiteralLonger == WideViewNoNull);
+	TestTrue(TEXT("Equality(65)"), WideStringLiteralLonger != WideViewNoNull);
+
+	TestTrue(TEXT("Equality(66)"), WideViewNoNull == WideStringLiteralSrc);
+	TestFalse(TEXT("Equality(67)"), WideViewNoNull != WideStringLiteralSrc);
+	TestTrue(TEXT("Equality(68)"), WideStringLiteralSrc == WideViewNoNull);
+	TestFalse(TEXT("Equality(69)"), WideStringLiteralSrc != WideViewNoNull);
+	TestFalse(TEXT("Equality(70)"), WideViewNoNull == WideStringLiteralLonger);
+	TestTrue(TEXT("Equality(71)"), WideViewNoNull != WideStringLiteralLonger);
+	TestFalse(TEXT("Equality(72)"), WideStringLiteralLonger == WideViewNoNull);
+	TestTrue(TEXT("Equality(73)"), WideStringLiteralLonger != WideViewNoNull);
 
 	return true;
 }
@@ -624,61 +690,6 @@ bool FStringViewTestFindLastChar::RunTest(const FString& Parameters)
 	return true; 
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringViewTestFindLastCharByPredicate, TEST_NAME_ROOT ".FindLastCharByPredicate", TestFlags)
-bool FStringViewTestFindLastCharByPredicate::RunTest(const FString& Parameters)
-{
-	auto AcceptMoneyCharacters = [](TCHAR InputChar) { return InputChar == TEXT('\u00a3') // pound sign
-															|| InputChar == TEXT('$')
-															|| InputChar == TEXT('\u20ac'); // euro sign
-	};
-
-	FStringView ViewDollars			= TEXT("The currency we have is in $");
-	FStringView ViewPounds			= TEXT("Another currency £ could be found?");
-	FStringView ViewMixedCurrency	= TEXT("We have both £,$ and € to spend");
-	FStringView ViewNoCurreny		= TEXT("We are a day late and a dollar short");
-	FStringView ViewEmpty			= TEXT("");
-
-	{
-		FStringView::SizeType Result = ViewDollars.FindLastCharByPredicate(AcceptMoneyCharacters);
-		TestTrue(TEXT("FStringView::FindLastCharByPredicate(0)"), Result == 27);
-
-		FStringView::SizeType ResultWithLimits = ViewDollars.FindLastCharByPredicate(AcceptMoneyCharacters, 27);
-		TestTrue(TEXT("FStringView::FindLastCharByPredicate(1)"), ResultWithLimits == INDEX_NONE);
-	}
-
-	{
-		FStringView::SizeType Result = ViewPounds.FindLastCharByPredicate(AcceptMoneyCharacters);
-		TestTrue(TEXT("FStringView::FindLastCharByPredicate(2)"), Result == 17);
-
-		FStringView::SizeType ResultWithLimits = ViewPounds.FindLastCharByPredicate(AcceptMoneyCharacters, 17);
-		TestTrue(TEXT("FStringView::FindLastCharByPredicate(3)"), ResultWithLimits == INDEX_NONE);
-	}
-
-	{
-		FStringView::SizeType EuroPosition = ViewMixedCurrency.FindLastCharByPredicate(AcceptMoneyCharacters);
-		TestTrue(TEXT("FStringView::FindLastCharByPredicate(4)"), EuroPosition == 21);
-
-		FStringView::SizeType DollarPosition = ViewMixedCurrency.FindLastCharByPredicate(AcceptMoneyCharacters, 21);
-		TestTrue(TEXT("FStringView::FindLastCharByPredicate(5)"), DollarPosition == 15);
-
-		FStringView::SizeType PoundPosition = ViewMixedCurrency.FindLastCharByPredicate(AcceptMoneyCharacters, 15);
-		TestTrue(TEXT("FStringView::FindLastCharByPredicate(6)"), PoundPosition == 13);
-
-		FStringView::SizeType Result = ViewMixedCurrency.FindLastCharByPredicate(AcceptMoneyCharacters, 13);
-		TestTrue(TEXT("FStringView::FindLastCharByPredicate(7)"), Result == INDEX_NONE);
-	}
-
-	{
-		FStringView::SizeType Result = ViewNoCurreny.FindLastCharByPredicate(AcceptMoneyCharacters);
-		TestTrue(TEXT("FStringView::FindLastCharByPredicate(8)"), Result == INDEX_NONE);
-	}
-	
-	{
-		FStringView::SizeType Result = ViewEmpty.FindLastCharByPredicate(AcceptMoneyCharacters);
-		TestTrue(TEXT("FStringView::FindLastCharByPredicate(9)"), Result == INDEX_NONE);
-	}
-
-	return true;
-}
+#undef TEST_NAME_ROOT
 
 #endif //WITH_DEV_AUTOMATION_TESTS

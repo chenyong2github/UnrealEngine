@@ -192,7 +192,7 @@ public:
 
 	void SetUniqueId(FStringView InUniqueId)
 	{
-		UniqueId = InUniqueId.ToString();
+		UniqueId = InUniqueId;
 	}
 
 	TIoStatusOr<FIoChunkId> OpenFileChunk(FStringView Filename);
@@ -207,9 +207,9 @@ private:
 
 	FIoChunkId GetFileChunkId(FStringView Filename)
 	{
-		check(Filename.Data() && Filename.Len());
+		check(Filename.GetData() && Filename.Len());
 
-		uint32 Hash = FCrc::MemCrc32(Filename.Data(), Filename.Len());
+		uint32 Hash = FCrc::MemCrc32(Filename.GetData(), Filename.Len());
 
 		uint8 Data[12] = {0};
 		*reinterpret_cast<uint32*>(&Data[0]) = Hash;
@@ -234,7 +234,7 @@ FIoStatus FIoStoreReaderImpl::Initialize(FStringView InUniqueId)
 {
 	IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();
 
-	UniqueId = InUniqueId.ToString();
+	UniqueId = InUniqueId;
 
 	const FString& RootPath = Environment.GetRootPath();
 
@@ -337,7 +337,7 @@ FIoStoreReaderImpl::OpenFileChunk(FStringView Filename)
 	IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();
 
 	TUniquePtr<IMappedFileHandle> FileHandle;
-	FileHandle.Reset(Ipf.OpenMapped(Filename.Data()));
+	FileHandle.Reset(Ipf.OpenMapped(Filename.GetData()));
 
 	if (!FileHandle)
 	{
