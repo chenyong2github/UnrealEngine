@@ -17,6 +17,8 @@ public:
 	const uint8*				GetPointer(uint32 Size);
 	void						Advance(uint32 Size);
 	bool						IsEmpty() const;
+	struct FMark*				SaveMark() const;
+	void						RestoreMark(struct FMark* Mark);
 
 protected:
 	uint8*						Buffer = nullptr;
