@@ -1732,7 +1732,10 @@ void FNiagaraSystemInstance::Tick_GameThread(float DeltaSeconds)
 	Age += DeltaSeconds;
 	TickCount += 1;
 	
-	BeginAsyncWork();
+	if ( !IsComplete() )
+	{
+		BeginAsyncWork();
+	}
 }
 
 void FNiagaraSystemInstance::Tick_Concurrent()
