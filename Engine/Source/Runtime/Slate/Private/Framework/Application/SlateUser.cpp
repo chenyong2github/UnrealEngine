@@ -130,6 +130,11 @@ bool FSlateUser::HasFocusedDescendants(TSharedRef<const SWidget> Widget) const
 	return WeakFocusPath.IsValid() && WeakFocusPath.GetLastWidget().Pin() != Widget && WeakFocusPath.ContainsWidget(Widget);
 }
 
+bool FSlateUser::IsWidgetInFocusPath(TSharedPtr<const SWidget> Widget) const
+{
+	return Widget && WeakFocusPath.IsValid() && WeakFocusPath.ContainsWidget(Widget.ToSharedRef());
+}
+
 bool FSlateUser::SetFocus(const TSharedRef<SWidget>& WidgetToFocus, EFocusCause ReasonFocusIsChanging)
 {
 	return FSlateApplication::Get().SetUserFocus(UserIndex, WidgetToFocus, ReasonFocusIsChanging);
