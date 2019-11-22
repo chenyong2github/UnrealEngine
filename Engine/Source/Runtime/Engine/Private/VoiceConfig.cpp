@@ -21,6 +21,14 @@ static TAutoConsoleVariable<float> CVarVoiceSilenceDetectionThreshold(TEXT("voic
 	TEXT("Threshold to be set for the VOIP microphone's silence detection algorithm.\n"),	
 	ECVF_Default);
 
+static float JitterBufferDelayCvar = 0.3;
+FAutoConsoleVariableRef CVarJitterBufferDelay(
+	TEXT("voice.JitterBufferDelay"),
+	JitterBufferDelayCvar,
+	TEXT("The default amount of audio we buffer, in seconds, before we play back audio. Decreasing this value will decrease latency but increase the potential for underruns.\n")
+	TEXT("Value: Number of seconds of audio we buffer."),
+	ECVF_Default);
+
 static int32 NumVoiceChannelsCvar = 1;
 FAutoConsoleVariableRef CVarNumVoiceChannels(
 	TEXT("voice.NumChannels"),
@@ -142,18 +150,7 @@ EAudioEncodeHint UVOIPStatics::GetAudioEncodingHint()
 
 float UVOIPStatics::GetBufferingDelay()
 {
-	static bool bRetrievedBufferingDelay = false;
-	static float DesiredBufferDelay = 0.2f;
-	if (!bRetrievedBufferingDelay)
-	{
-		bRetrievedBufferingDelay = true;
-		float SettingsBufferDelay;
-		if (GConfig->GetFloat(TEXT("/Script/Engine.AudioSettings"), TEXT("VoipBufferingDelay"), SettingsBufferDelay, GEngineIni) && SettingsBufferDelay > 0.0f)
-		{
-			DesiredBufferDelay = SettingsBufferDelay;
-		}
-	}
-	return DesiredBufferDelay;
+	return JitterBufferDelayCvar;
 }
 
 int32 UVOIPStatics::GetNumBufferedPackets()
