@@ -1324,7 +1324,7 @@ static void SerializePlatformData(
 			if (!bIsVirtual)
 			{
 				FirstMipToSerialize = FMath::Clamp(FirstMipToSerialize, 0, PlatformData->GetNumMipsInTail() > 0 ? FirstMipTailMip : LastMip);
-				NumMips = FMath::Max(1, NumMips - FirstMipToSerialize);
+				NumMips = FMath::Max(0, NumMips - FirstMipToSerialize);
 			}
 			else
 			{
