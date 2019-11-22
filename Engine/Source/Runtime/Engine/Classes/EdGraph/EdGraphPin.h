@@ -477,6 +477,9 @@ public:
 	/** Shorthand way to access the schema of the graph that owns the node that owns this pin */
 	ENGINE_API const class UEdGraphSchema* GetSchema() const;
 
+	/** Returns true if there are entries in the pin's LinkedTo array, or if it has SubPins, one of their SubPins arrays: */
+	ENGINE_API bool HasAnyConnections() const;
+
 	/** Direction flipping utility; returns the complementary direction */
 	static EEdGraphPinDirection GetComplementaryDirection(EEdGraphPinDirection InDirection)
 	{
