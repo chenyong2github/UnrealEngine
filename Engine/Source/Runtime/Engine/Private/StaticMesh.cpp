@@ -5194,6 +5194,7 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 	// Set up
 
 	bIsBuiltAtRuntime = true;
+	NeverStream = true;
 
 	TOptional<FStaticMeshComponentRecreateRenderStateContext> RecreateRenderStateContext;
 	
@@ -5226,6 +5227,17 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 
 		BuildFromMeshDescription(*MeshDescriptionPtr, LODResources);
 
+#if WITH_EDITOR
+		for (int32 SectionIndex = 0; SectionIndex < LODResources.Sections.Num(); SectionIndex++)
+		{
+			const FStaticMeshSection& StaticMeshSection = LODResources.Sections[SectionIndex];
+			FMeshSectionInfo SectionInfo;
+			SectionInfo.MaterialIndex = StaticMeshSection.MaterialIndex;
+			SectionInfo.bEnableCollision = StaticMeshSection.bEnableCollision;
+			SectionInfo.bCastShadow = StaticMeshSection.bCastShadow;
+			GetSectionInfoMap().Set(LODIndex, SectionIndex, SectionInfo);
+		}
+#endif
 		LODIndex++;
 	}
 
@@ -6198,6 +6210,11 @@ UMaterialInterface* UStaticMesh::GetMaterial(int32 MaterialIndex) const
 
 FName UStaticMesh::AddMaterial(UMaterialInterface* Material)
 {
+	if (Material == nullptr)
+	{
+		return NAME_None;
+	}
+
 	// Create a unique slot name for the material
 	FName MaterialName = Material->GetFName();
 	for (const FStaticMaterial& StaticMaterial : StaticMaterials)
