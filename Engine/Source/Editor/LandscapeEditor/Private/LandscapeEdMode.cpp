@@ -2256,6 +2256,7 @@ void FEdModeLandscape::SetCurrentToolMode(FName ToolModeName, bool bRestoreCurre
 					}
 					SetCurrentTool(CurrentToolMode->CurrentToolName, CurrentToolMode->CurrentTargetLayerName);
 				}
+				GetModeManager()->InvokeToolPaletteTab(GetID(), ToolModeName);
 				break;
 			}
 		}
