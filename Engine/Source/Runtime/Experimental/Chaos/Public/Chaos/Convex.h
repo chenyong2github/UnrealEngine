@@ -3,6 +3,7 @@
 
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/Box.h"
+#include "Chaos/MassProperties.h"
 #include "CollisionConvexMesh.h"
 #include "ChaosArchive.h"
 #include "GJK.h"
@@ -17,6 +18,8 @@ namespace Chaos
 
 		TConvex()
 		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
+			, Volume(0.f)
+			, CenterOfMass(FVec3(0.f))
 		{}
 		TConvex(const TConvex&) = delete;
 		TConvex(TConvex&& Other)
@@ -24,17 +27,26 @@ namespace Chaos
 			, Planes(MoveTemp(Other.Planes))
 		    , SurfaceParticles(MoveTemp(Other.SurfaceParticles))
 		    , LocalBoundingBox(MoveTemp(Other.LocalBoundingBox))
-		{}
-		TConvex(TArray<TPlane<T, d>>&& InPlanes, TParticles<T, d>&& InSurfaceParticles)
+			, Volume(MoveTemp(Other.MoveTemp))
+			, CenterOfMass(MoveTemp(Other.CenterOfMass))
+		{
+			CHAOS_ENSURE(Planes.Num() == FaceIndices.Num());
+		}
+		TConvex(TArray<TPlane<T, d>>&& InPlanes, TArray<TArray<int32>>&& InFaceIndices, TParticles<T, d>&& InSurfaceParticles)
 		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
 			, Planes(MoveTemp(InPlanes))
 		    , SurfaceParticles(MoveTemp(InSurfaceParticles))
 		    , LocalBoundingBox(TBox<T, d>::EmptyBox())
 		{
+			CHAOS_ENSURE(Planes.Num() == FaceIndices.Num());
+
 			for (uint32 ParticleIndex = 0; ParticleIndex < SurfaceParticles.Size(); ++ParticleIndex)
 			{
 				LocalBoundingBox.GrowToInclude(SurfaceParticles.X(ParticleIndex));
 			}
+
+			TArray<TArray<int32>> FaceIndices;
+			CalculateVolumeAndCenterOfMass(SurfaceParticles, FaceIndices, Volume, CenterOfMass);
 		}
 		TConvex(const TParticles<T, 3>& InParticles)
 		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
@@ -45,7 +57,10 @@ namespace Chaos
 				return;
 			}
 
-			TConvexBuilder<T>::Build(InParticles, Planes, SurfaceParticles, LocalBoundingBox);
+			TArray<TArray<int32>> FaceIndices;
+			TConvexBuilder<T>::Build(InParticles, Planes, FaceIndices, SurfaceParticles, LocalBoundingBox);
+			CHAOS_ENSURE(Planes.Num() == FaceIndices.Num());
+			CalculateVolumeAndCenterOfMass(SurfaceParticles, FaceIndices, Volume, CenterOfMass);
 		}
 
 		static constexpr EImplicitObjectType StaticType()
@@ -202,8 +217,7 @@ namespace Chaos
 
 		const FReal GetVolume() const
 		{
-			// TODO: More precise volume!
-			return LocalBoundingBox.GetVolume();
+			return Volume;
 		}
 
 		const FMatrix33 GetInertiaTensor(const FReal Mass) const
@@ -214,8 +228,7 @@ namespace Chaos
 
 		const FVec3 GetCenterOfMass() const
 		{
-			// TODO: Actually compute this!
-			return FVec3(0.f);
+			return CenterOfMass;
 		}
 
 		virtual uint32 GetTypeHash() const override
@@ -236,6 +249,22 @@ namespace Chaos
 		{
 			FImplicitObject::SerializeImp(Ar);
 			Ar << Planes << SurfaceParticles << LocalBoundingBox;
+
+			Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddConvexCenterOfMassAndVolume)
+			{
+				Ar << Volume;
+				Ar << CenterOfMass;
+			}
+			else if (Ar.IsLoading())
+			{
+				// Rebuild convex in order to extract face indices.
+				// TODO: Make it so it can take SurfaceParticles as both input and output without breaking...
+				TArray<TArray<int32>> FaceIndices;
+				TParticles<T, d> TempSurfaceParticles;
+				TConvexBuilder<T>::Build(SurfaceParticles, Planes, FaceIndices, TempSurfaceParticles, LocalBoundingBox);
+				CalculateVolumeAndCenterOfMass(SurfaceParticles, FaceIndices, Volume, CenterOfMass);
+			}
 		}
 
 		virtual void Serialize(FChaosArchive& Ar) override
@@ -274,7 +303,8 @@ namespace Chaos
 
 		void SimplifyGeometry()
 		{
-			TConvexBuilder<T>::Simplify(Planes, SurfaceParticles, LocalBoundingBox);
+			TArray<TArray<int32>> FaceIndices;
+			TConvexBuilder<T>::Simplify(Planes, FaceIndices, SurfaceParticles, LocalBoundingBox);
 		}
 
 		TVector<T,d> GetCenter() const
@@ -286,5 +316,7 @@ namespace Chaos
 		TArray<TPlane<T, d>> Planes;
 		TParticles<T, d> SurfaceParticles;	//copy of the vertices that are just on the convex hull boundary
 		TBox<T, d> LocalBoundingBox;
+		float Volume;
+		FVec3 CenterOfMass;
 	};
 }
