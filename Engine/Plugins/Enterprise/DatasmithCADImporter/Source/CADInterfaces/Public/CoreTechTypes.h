@@ -53,7 +53,7 @@ namespace CADLibrary
 	 * This methode set Tolerance to 0.00001 m whether 0.01 mm
 	 * @param MetricUnit: Length unit express in meter
 	 */
-	CADINTERFACES_API CT_IO_ERROR CTKIO_InitializeKernel(double MetricUnit);
+	CADINTERFACES_API CT_IO_ERROR CTKIO_InitializeKernel(double MetricUnit, const TCHAR* = TEXT(""));
 	CADINTERFACES_API CT_IO_ERROR CTKIO_ShutdownKernel();
 
 	CADINTERFACES_API CT_IO_ERROR CTKIO_UnloadModel();
