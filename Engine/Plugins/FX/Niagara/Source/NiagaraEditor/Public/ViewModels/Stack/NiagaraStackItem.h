@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ViewModels/Stack/NiagaraStackEntry.h"
+#include "NiagaraScriptHighlight.h"
 #include "Layout/Visibility.h"
 #include "NiagaraStackItem.generated.h"
 
@@ -30,6 +31,12 @@ public:
 	virtual bool SupportsDelete() const { return false; }
 	virtual bool TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const { return false; }
 	void Delete();
+
+	virtual bool SupportsHighlights() const { return false; }
+	virtual const TArray<FNiagaraScriptHighlight>& GetHighlights() const;
+
+	virtual bool SupportsIcon() const { return false; }
+	virtual const FSlateBrush* GetIconBrush() const;
 	
 protected:
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
