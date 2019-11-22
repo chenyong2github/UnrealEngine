@@ -33,7 +33,6 @@ UCameraShakeSourceComponent::UCameraShakeSourceComponent(const FObjectInitialize
 #endif
 }
 
-#if WITH_EDITOR
 void UCameraShakeSourceComponent::OnRegister()
 {
 	Super::OnRegister();
@@ -42,13 +41,14 @@ void UCameraShakeSourceComponent::OnRegister()
 
 void UCameraShakeSourceComponent::UpdateEditorSpriteTexture()
 {
+#if WITH_EDITORONLY_DATA
 	if (SpriteComponent != nullptr)
 	{
 		SpriteComponent->SetSprite(EditorSpriteTexture);
 		SpriteComponent->SetRelativeScale3D(FVector(EditorSpriteTextureScale));
 	}
-}
 #endif
+}
 
 void UCameraShakeSourceComponent::BeginPlay()
 {
