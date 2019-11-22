@@ -160,7 +160,7 @@ struct TField
 		Type Value;
 		void Write(uint8* __restrict Ptr) const
 		{
-			*(Type*)(Ptr + Offset) = Value;
+			::memcpy(Ptr + Offset, &Value, sizeof(Type));
 		}
 	};
 
