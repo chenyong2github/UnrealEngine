@@ -471,9 +471,11 @@ private:
 
 void FPackageStoreBulkDataManifest::PackageDesc::AddData(uint64 InChunkId, uint64 InOffset, uint64 InSize)
 {
+#if 0 // DIsable until optional data is working again
 	// The ChunkId is supposed to be unique
 	auto func = [=](const BulkDataDesc& Entry) { return Entry.ChunkId == InChunkId; };
 	check(Data.FindByPredicate(func) == nullptr);
+#endif 
 
 	BulkDataDesc& Entry = Data.Emplace_GetRef();
 
