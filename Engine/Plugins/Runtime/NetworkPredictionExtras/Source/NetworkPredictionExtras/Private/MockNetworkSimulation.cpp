@@ -59,7 +59,7 @@ static FAutoConsoleVariableRef CVarBindAutomatically(TEXT("mns.BindAutomatically
 
 static bool ForceMispredict = false;
 
-const FName FMockNetworkSimulation::GroupName(TEXT("Mock"));
+const FName FMockNetworkModelDef::GroupName(TEXT("Mock"));
 
 void FMockNetworkSimulation::SimulationTick(const FNetSimTimeStep& TimeStep, const TNetSimInput<TMockNetworkSimulationBufferTypes>& Input, const TNetSimOutput<TMockNetworkSimulationBufferTypes>& Output)
 {
@@ -114,7 +114,7 @@ INetworkedSimulationModel* UMockNetworkSimulationComponent::InstantiateNetworked
 	FMockSyncState InitialSyncState;
 	InitialSyncState.Total = MockValue;
 
-	auto* NewModel = new FMockNetworkModel(MockNetworkSimulation, this, InitialSyncState);
+	auto* NewModel = new TNetworkedSimulationModel<FMockNetworkModelDef>(MockNetworkSimulation, this, InitialSyncState);
 	return NewModel;
 }
 
