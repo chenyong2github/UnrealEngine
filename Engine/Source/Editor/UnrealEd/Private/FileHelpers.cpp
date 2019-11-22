@@ -537,6 +537,8 @@ static bool SaveWorld(UWorld* World,
 		return false;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(SaveWorld);
+
 	FString PackageName = Package->GetName();
 
 	FString	ExistingFilename;
@@ -2780,6 +2782,8 @@ enum class InternalSavePackageResult : int8
  */
 static InternalSavePackageResult InternalSavePackage(UPackage* PackageToSave, bool bUseDialog, bool& bOutPackageLocallyWritable, FOutputDevice &SaveOutput)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(InternalSavePackage);
+
 	// What we will be returning. Assume for now that everything will go fine
 	InternalSavePackageResult ReturnCode = InternalSavePackageResult::Success;
 
@@ -3129,6 +3133,8 @@ static void InternalNotifyNoPackagesSaved(const bool bUseDialog)
  */
 static bool InternalSavePackagesFast(const TArray<UPackage*>& PackagesToSave, bool bUseDialog, TArray<UPackage*>& OutFailedPackages)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(InternalSavePackagesFast);
+
 	bool bReturnCode = true;
 
 	FSaveErrorOutputDevice SaveErrors;
@@ -3230,6 +3236,8 @@ static bool InternalSavePackages(const TArray<UPackage*>& PackagesToSave, bool b
 
 void FEditorFileUtils::SaveMapDataPackages(UWorld* WorldToSave, bool bCheckDirty)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SaveMapDataPackages);
+
 	TArray<UPackage*> PackagesToSave;
 	ULevel* Level = WorldToSave->PersistentLevel;
 	UPackage* WorldPackage = WorldToSave->GetOutermost();
@@ -3325,6 +3333,8 @@ bool FEditorFileUtils::SaveLevel(ULevel* Level, const FString& DefaultFilename, 
 
 bool FEditorFileUtils::SaveDirtyPackages(const bool bPromptUserToSave, const bool bSaveMapPackages, const bool bSaveContentPackages, const bool bFastSave, const bool bNotifyNoPackagesSaved, const bool bCanBeDeclined, bool* bOutPackagesNeededSaving )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorFileUtils::SaveDirtyPackages);
+
 	bool bReturnCode = true;
 
 	if (bOutPackagesNeededSaving != NULL)

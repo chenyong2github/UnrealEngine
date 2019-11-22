@@ -447,6 +447,8 @@ AActor* FDatasmithLightImporter::ImportAreaLightActor( const TSharedRef< IDatasm
 
 USceneComponent* FDatasmithLightImporter::ImportAreaLightComponent( const TSharedRef< IDatasmithAreaLightElement >& AreaLightElement, FDatasmithImportContext& ImportContext, UObject* Outer )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithLightImporter::ImportAreaLightComponent);
+
 	USceneComponent* MainComponent = nullptr;
 
 	FSoftObjectPath LightShapeBlueprintRef = FSoftObjectPath( TEXT("/DatasmithContent/Datasmith/DatasmithArealight.DatasmithArealight") );

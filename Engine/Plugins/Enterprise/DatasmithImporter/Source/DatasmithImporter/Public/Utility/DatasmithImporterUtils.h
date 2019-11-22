@@ -132,6 +132,32 @@ public:
 	 * @param SceneElement		DatasmithScene holding the materials.
 	 */
 	static TArray< TSharedPtr< IDatasmithBaseMaterialElement > > GetOrderedListOfMaterialsReferencedByMaterials( TSharedPtr< IDatasmithScene >& SceneElement );
+
+	class FDatasmithMaterialImportIterator
+	{
+	public:
+		explicit FDatasmithMaterialImportIterator(const FDatasmithImportContext& InImportContext);
+
+		/** Advances the iterator to the next element. */
+		FDatasmithMaterialImportIterator& operator++();
+
+		/** conversion to "bool" returning true if the iterator is valid. */
+		explicit operator bool() const;
+
+		/** inverse of the "bool" operator */
+		bool operator !() const
+		{
+			return !(bool)*this;
+		}
+
+		// Const Accessor.
+		const TSharedPtr<IDatasmithBaseMaterialElement>& Value() const;
+
+	private:
+		const FDatasmithImportContext& ImportContext;
+		int32 CurrentIndex;
+		TArray<TSharedPtr<IDatasmithBaseMaterialElement>> SortedMaterials;
+	};
 };
 
 template< typename ObjectType >

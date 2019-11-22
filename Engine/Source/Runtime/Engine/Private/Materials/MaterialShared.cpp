@@ -3145,6 +3145,8 @@ void FMaterialUpdateContext::AddMaterialInterface(UMaterialInterface* Interface)
 
 FMaterialUpdateContext::~FMaterialUpdateContext()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialUpdateContext::~FMaterialUpdateContext);
+
 	double StartTime = FPlatformTime::Seconds();
 	bool bProcess = false;
 

@@ -10,6 +10,7 @@ public abstract class DatasmithRevitBaseTarget : TargetRules
 	{
 		Type = TargetType.Program;
 		SolutionDirectory = "Programs/Datasmith";
+		bBuildInSolutionByDefault = false;
 
 		string RevitVersionString = GetVersion();
 		string ProjectName = "DatasmithRevit" + RevitVersionString;

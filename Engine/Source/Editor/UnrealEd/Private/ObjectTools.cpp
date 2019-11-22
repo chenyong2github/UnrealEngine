@@ -4582,6 +4582,8 @@ namespace ThumbnailTools
 	/** Loads thumbnails for the specified objects (or copies them from a cache, if they're already loaded.) */
 	bool ConditionallyLoadThumbnailsForObjects( const TArray< FName >& InObjectFullNames, FThumbnailMap& InOutThumbnails )
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ConditionallyLoadThumbnailsForObjects);
+
 		// Create a list of unique package file names that we'll need to interrogate
 		struct FObjectFullNamesForPackage
 		{

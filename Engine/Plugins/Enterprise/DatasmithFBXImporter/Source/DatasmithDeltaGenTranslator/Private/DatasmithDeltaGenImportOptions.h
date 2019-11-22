@@ -28,9 +28,6 @@ class UDatasmithDeltaGenImportOptions : public UDatasmithFBXImportOptions
 	GENERATED_UCLASS_BODY()
 
 public:
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = Processing, meta = (ToolTip = "Finds duplicated scene nodes which could be replaced with a single instance"))
-	bool bOptimizeDuplicatedNodes;
-
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = Processing, meta = (ToolTip = "Don't keep nodes that marked invisible in FBX(an din the original scene), except switch variants"))
 	bool bRemoveInvisibleNodes;
 
@@ -60,14 +57,4 @@ public:
 
 public:
 	void ResetPaths(const FString& InFBXFilename, bool bJustEmptyPaths=true);
-
-	/**
-	 * Overwrites our data with data from a UDatasmithDeltaGenSceneImportData object
-	 */
-	virtual void FromSceneImportData(UDatasmithFBXSceneImportData* InImportData) override;
-
-	/**
-	 * Places our data into a UDatasmithDeltaGenSceneImportData object
-	 */
-	virtual void ToSceneImportData(UDatasmithFBXSceneImportData* OutImportData) override;
 };

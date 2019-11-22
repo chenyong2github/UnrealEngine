@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#include "DataPrepOperation.h"
+#include "DataprepOperation.h"
 
 #include "DatasmithDataprepOperation.generated.h"
 

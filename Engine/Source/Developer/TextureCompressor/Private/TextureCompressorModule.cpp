@@ -1780,6 +1780,8 @@ public:
 	 */
 	void DoWork()
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(CompressImage);
+
 		bCompressionResults = TextureFormat.CompressImageEx(
 			SourceImages,
 			NumImages,
@@ -1831,6 +1833,8 @@ static bool CompressMipChain(
 	uint32& OutNumMipsInTail,
 	uint32& OutExtData)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(CompressMipChain)
+
 	// now call the Ex version now that we have the proper MipChain
 	const FTextureFormatCompressorCaps CompressorCaps = TextureFormat->GetFormatCapabilitiesEx(Settings, MipChain.Num(), MipChain[0]);
 	OutNumMipsInTail = CompressorCaps.NumMipsInTail;

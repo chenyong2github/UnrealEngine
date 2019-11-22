@@ -14,6 +14,10 @@
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 
+#if PLATFORM_WINDOWS
+#include "Windows/AllowWindowsPlatformTypes.h"
+#endif
+
 THIRD_PARTY_INCLUDES_START
 	#include "FreeImage.h"
 THIRD_PARTY_INCLUDES_END
@@ -686,5 +690,9 @@ void FFreeImageWrapper::FreeImage_Initialise()
 		::FreeImage_Initialise();
 	}
 }
+
+#if PLATFORM_WINDOWS
+#include "Windows/HideWindowsPlatformTypes.h"
+#endif
 
 #endif // WITH_FREEIMAGE_LIB

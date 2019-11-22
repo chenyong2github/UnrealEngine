@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#include "DataPrepContentProducer.h"
+#include "DataprepContentProducer.h"
 
 #include "DatasmithContentEditorModule.h"
 #include "DatasmithImportContext.h"

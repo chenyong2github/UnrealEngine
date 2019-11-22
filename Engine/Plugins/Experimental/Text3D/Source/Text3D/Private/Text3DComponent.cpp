@@ -62,10 +62,10 @@ public:
 	FText3DSceneProxy(UText3DComponent* const Component)
 		: FPrimitiveSceneProxy(Component)
 	{
-		const TText3DMeshList * ComponentMeshes = Component->Meshes.Get();
+		const TText3DMeshList & ComponentMeshes = Component->Meshes.Get();
 		for (int32 Index = 0; Index < static_cast<int32>(EText3DMeshType::TypeCount); Index++)
 		{
-			Meshes.Add(MakeUnique<FProxyMesh>(this, Index, (*ComponentMeshes)[Index], Component->GetMaterial(Index)));
+			Meshes.Add(MakeUnique<FProxyMesh>(this, Index, ComponentMeshes[Index], Component->GetMaterial(Index)));
 		}
 	}
 
@@ -341,9 +341,9 @@ private:
 	TArray<TUniquePtr<FProxyMesh>, TFixedAllocator<static_cast<int32>(EText3DMeshType::TypeCount)>> Meshes;
 };
 
-UText3DComponent::UText3DComponent()
+UText3DComponent::UText3DComponent() :
+	Meshes(new TText3DMeshList())
 {
-	Meshes = MakeShared<TText3DMeshList>();
 	Meshes->SetNum(static_cast<int32>(EText3DMeshType::TypeCount));
 
 	if (!IsRunningDedicatedServer())
@@ -816,14 +816,16 @@ void UText3DComponent::BuildTextMesh()
 
 	if (VerticalAlignment != EText3DVerticalTextAlignment::FirstLine)
 	{
-		VerticalOffset -= LineHeight;							// Align to Top
+		// First align it to Top
+		VerticalOffset -= Face->size->metrics.ascender * FontInverseScale;
+
 		if (VerticalAlignment == EText3DVerticalTextAlignment::Center)
 		{
 			VerticalOffset += TotalHeight * 0.5f;
 		}
 		else if (VerticalAlignment == EText3DVerticalTextAlignment::Bottom)
 		{
-			VerticalOffset += TotalHeight;
+			VerticalOffset += TotalHeight + Face->size->metrics.descender * FontInverseScale;
 		}
 	}
 
@@ -907,8 +909,8 @@ void UText3DComponent::BuildTextMesh()
 						for (int32 Index = 0; Index < PointCount - 2; Index++)
 						{
 							const int32 TriangleStart = StartVertex + Index;
-							const bool bIsOdd = (Index % 2) != 0;
-							MeshesData->AddTriangle(TriangleStart + (bIsOdd ? 0 : 1), TriangleStart + (bIsOdd ? 1 : 0), TriangleStart + 2);
+							const int32 Offset = (Index % 2) ? 0 : 1;
+							MeshesData->AddTriangle(TriangleStart + Offset, TriangleStart + 1 - Offset, TriangleStart + 2);
 						}
 
 						break;
@@ -973,7 +975,7 @@ void UText3DComponent::BuildTextMesh()
 	FVector2D MaxSize(0, 0);
 	{
 		EText3DMeshType MeshType = FMath::IsNearlyZero(Bevel) ? EText3DMeshType::Front : EText3DMeshType::Bevel;
-		const FText3DMesh& Mesh = (*Meshes.Get())[static_cast<int32>(MeshType)];
+		const FText3DMesh& Mesh = Meshes.Get()[static_cast<int32>(MeshType)];
 		const TArray<int32>& GlyphStartVertices = Mesh.GlyphStartVertices;
 		BoundingBoxes.AddUninitialized(GlyphStartVertices.Num() - 1);
 
@@ -1072,8 +1074,8 @@ float UText3DComponent::MaxBevel() const
 void UText3DComponent::MirrorMesh(const EText3DMeshType TypeIn, const EText3DMeshType TypeOut, const float ScaleX)
 {
 #if !TEXT3D_WITH_INTERSECTION
-	const FText3DMesh& MeshIn = (*Meshes.Get())[static_cast<int32>(TypeIn)];
-	FText3DMesh& MeshOut = (*Meshes.Get())[static_cast<int32>(TypeOut)];
+	const FText3DMesh& MeshIn = Meshes.Get()[static_cast<int32>(TypeIn)];
+	FText3DMesh& MeshOut = Meshes.Get()[static_cast<int32>(TypeOut)];
 
 
 	const TArray<FDynamicMeshVertex>& VerticesIn = MeshIn.Vertices;
