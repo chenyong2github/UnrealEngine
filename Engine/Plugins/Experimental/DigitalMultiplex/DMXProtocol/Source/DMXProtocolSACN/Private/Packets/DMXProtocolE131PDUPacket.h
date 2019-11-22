@@ -10,11 +10,6 @@ struct FDMXProtocolE131RootLayerPacket
 	: public IDMXProtocolPacket
 {
 public:
-	FDMXProtocolE131RootLayerPacket()
-	{
-		FMemory::Memcpy(ACNPacketIdentifier, "ASC-E1.17\0\0\0:", ACN_IDENTIFIER_SIZE);
-	}
-
 	//~ Begin IDMXProtocolPacket implementation
 	virtual TSharedPtr<FBufferArchive> Pack() override;
 	//~ End IDMXProtocolPort implementation
@@ -25,7 +20,7 @@ public:
 public:
 	uint16 PreambleSize = ACN_RLP_PREAMBLE_SIZE;
 	uint16 PostambleSize = 0;
-	uint8 ACNPacketIdentifier[ACN_IDENTIFIER_SIZE] = { 0 };
+	uint8 ACNPacketIdentifier[ACN_IDENTIFIER_SIZE] = { 'A', 'S', 'C', '-', 'E', '1', '.', '1', '7', '\0', '\0', '\0' };
 	uint8 Flags = 0x72;
 	uint8 Length = 0x6e;
 	uint32 Vector = VECTOR_ROOT_E131_DATA;
@@ -36,11 +31,6 @@ struct FDMXProtocolE131FramingLayerPacket
 	: public IDMXProtocolPacket
 {
 public:
-	FDMXProtocolE131FramingLayerPacket()
-	{
-		FMemory::Memcpy(SourceName, "New Source", ACN_SOURCE_NAME_SIZE);
-	}
-
 	//~ Begin IDMXProtocolPacket implementation
 	virtual TSharedPtr<FBufferArchive> Pack() override;
 	//~ End IDMXProtocolPort implementation
@@ -52,7 +42,7 @@ public:
 	uint8 Flags = 0;
 	uint8 Length = 0;
 	uint32 Vector = VECTOR_E131_DATA_PACKET;
-	uint8 SourceName[ACN_SOURCE_NAME_SIZE] = { 0 };
+	uint8 SourceName[ACN_SOURCE_NAME_SIZE] = "New Source";
 	uint8 Priority = 0;
 	uint16 SynchronizationAddress = 0;
 	uint8 SequenceNumber = 0;

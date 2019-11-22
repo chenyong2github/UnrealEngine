@@ -7,10 +7,9 @@
 #include "Interfaces/IDMXProtocolTransport.h"
 #include "DMXProtocolTypes.h"
 
-
 class FSocket;
+class ISocketSubsystem;
 class FDMXProtocolArtNet;
-
 
 class DMXPROTOCOLARTNET_API FDMXProtocolSenderArtNet
 	: public IDMXProtocolSender

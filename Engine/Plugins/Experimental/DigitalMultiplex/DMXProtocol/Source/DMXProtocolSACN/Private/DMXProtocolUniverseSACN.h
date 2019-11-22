@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "Interfaces/IDMXProtocolUniverse.h"
+#include "Packets/DMXProtocolE131PDUPacket.h"
 
 class FSocket;
 
@@ -25,6 +26,12 @@ public:
 	virtual uint16 GetUniverseID() const override;
 	//~ End IDMXProtocolDevice implementation
 
+	//~ SACN Getters functions
+	const FDMXProtocolE131RootLayerPacket& GetIncomingDMXRootLayer() const { return IncomingDMXRootLayer; }
+	const FDMXProtocolE131FramingLayerPacket& GetIncomingDMXFramingLayer() const { return IncomingDMXFramingLayer; }
+	const FDMXProtocolE131DMPLayerPacket& GetIncomingDMXDMPLayer() const { return IncomingDMXDMPLayer; }
+
+private:
 	void OnDataReceived(const FArrayReaderPtr & Buffer);
 
 	bool HandleReplyPacket(const FArrayReaderPtr & Buffer);
@@ -39,4 +46,8 @@ private:
 
 	FSocket* ListenerSocket;
 	TSharedPtr<IDMXProtocolReceiver> SACNReceiver;
+
+	FDMXProtocolE131RootLayerPacket IncomingDMXRootLayer;
+	FDMXProtocolE131FramingLayerPacket IncomingDMXFramingLayer;
+	FDMXProtocolE131DMPLayerPacket IncomingDMXDMPLayer;
 };

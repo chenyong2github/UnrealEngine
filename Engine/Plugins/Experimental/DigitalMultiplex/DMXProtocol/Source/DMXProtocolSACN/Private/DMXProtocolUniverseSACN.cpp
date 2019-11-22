@@ -8,7 +8,6 @@
 #include "Common/UdpSocketBuilder.h"
 
 #include "DMXProtocolSACNUtils.h"
-#include "Packets/DMXProtocolE131PDUPacket.h"
 
 FDMXProtocolUniverseSACN::FDMXProtocolUniverseSACN(IDMXProtocol* InDMXProtocol, TSharedPtr<IDMXProtocolPort> InPort, uint16 InUniverseID)
 	: DMXProtocol(InDMXProtocol)
@@ -111,18 +110,14 @@ void FDMXProtocolUniverseSACN::OnDataReceived(const FArrayReaderPtr & Buffer)
 bool FDMXProtocolUniverseSACN::HandleReplyPacket(const FArrayReaderPtr & Buffer)
 {
 	// SACN PDU packets
-	FDMXProtocolE131RootLayerPacket RootLayer;
-	FDMXProtocolE131FramingLayerPacket FramingLayer;
-	FDMXProtocolE131DMPLayerPacket DMPLayer;
-
-	*Buffer << RootLayer;
-	*Buffer << FramingLayer;
-	*Buffer << DMPLayer;
+	*Buffer << IncomingDMXRootLayer;
+	*Buffer << IncomingDMXFramingLayer;
+	*Buffer << IncomingDMXDMPLayer;
 
 	// Make sure we copy same amount of data
 	if (InputDMXBuffer->GetDMXData().Num() == ACN_DMX_SIZE)
 	{
-		FMemory::Memcpy(InputDMXBuffer->GetDMXData().GetData(), DMPLayer.DMX, ACN_DMX_SIZE);
+		FMemory::Memcpy(InputDMXBuffer->GetDMXData().GetData(), IncomingDMXDMPLayer.DMX, ACN_DMX_SIZE);
 		return true;
 	}
 	else

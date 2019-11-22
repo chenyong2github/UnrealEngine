@@ -11,6 +11,7 @@
 #include "Serialization/ArrayReader.h"
 #include "Serialization/ArrayWriter.h"
 #include "Sockets.h"
+#include "SocketSubsystem.h"
 
 static FTimespan CalculateWaitTime()
 {

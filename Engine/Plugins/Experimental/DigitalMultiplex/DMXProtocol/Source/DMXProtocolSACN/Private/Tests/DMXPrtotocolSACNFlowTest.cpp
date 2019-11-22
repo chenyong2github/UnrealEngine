@@ -20,6 +20,7 @@
 #include "DMXProtocolPortSACN.h"
 #include "DMXProtocolSACNConstants.h"
 
+
 struct FDMXProtocolLauncher
 {
 	FDMXProtocolLauncher(uint8 InDeviceID, uint8 InPortID)
@@ -89,6 +90,15 @@ static void SensDMXFragment(DMXPrtotocolSACNBasicFlowTest& Test, FDMXProtocolSAC
 	TSharedPtr<IDMXProtocolUniverse> Universe = SACNPort->GetCachedUniverse().Pin();
 	Test.TestTrue(TEXT("Universe should be valid"), Universe.IsValid());
 	TSharedPtr<FDMXBuffer> InputDMXBuffer = Universe->GetInputDMXBuffer();
+
+	// Test package ACNPacketIdentifier
+	{
+		const uint8 ACNPacketIdentifier[ACN_IDENTIFIER_SIZE] = { 'A', 'S', 'C', '-', 'E', '1', '.', '1', '7', '\0', '\0', '\0' };
+		FDMXProtocolUniverseSACN* DMXProtocolUniverseSACN = static_cast<FDMXProtocolUniverseSACN*>(Universe.Get());
+		FString ExpectedInentifier = FString::Printf(TEXT("%s"), ACNPacketIdentifier);
+		FString IncomingInentifier = FString::Printf(TEXT("%s"), DMXProtocolUniverseSACN->GetIncomingDMXRootLayer().ACNPacketIdentifier);
+		Test.TestTrue(TEXT("Incoming ACNPacketIdentifier should be the same"), ExpectedInentifier.Equals(IncomingInentifier));
+	}
 
 	Test.TestEqual(TEXT("Incoming buffer should be same"), FixtureValues[0], InputDMXBuffer->GetDMXData()[FixtureChannels[0]]);
 	Test.TestEqual(TEXT("Incoming buffer should be same"), FixtureValues[1], InputDMXBuffer->GetDMXData()[FixtureChannels[1]]);
