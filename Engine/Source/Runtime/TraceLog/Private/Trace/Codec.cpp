@@ -8,7 +8,7 @@
 #	pragma warning(disable : 6239)
 #endif
 
-#include "ThirdParty/LZ4/lz4.c"
+#include "ThirdParty/LZ4/lz4.c.h"
 
 #if defined(_MSC_VER)
 #	pragma warning(pop)
