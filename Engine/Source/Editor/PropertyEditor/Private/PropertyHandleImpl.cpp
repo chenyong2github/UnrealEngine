@@ -25,6 +25,7 @@
 #include "IDetailPropertyRow.h"
 #include "ObjectEditorUtils.h"
 #include "PropertyEditorHelpers.h"
+#include "SResetToDefaultPropertyEditor.h"
 
 #define LOCTEXT_NAMESPACE "PropertyHandleImplementation"
 
@@ -2328,6 +2329,60 @@ TSharedRef<SWidget> FPropertyHandleBase::CreatePropertyValueWidget( bool bDispla
 				.ShowPropertyButtons( bDisplayDefaultPropertyButtons );
 	}
 
+	return SNullWidget::NullWidget;
+}
+
+class SDefaultPropertyButtonWidgets : public SCompoundWidget
+{
+	SLATE_BEGIN_ARGS(SDefaultPropertyButtonWidgets)	{}
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, TSharedRef<FPropertyEditor> InPropertyEditor)
+	{
+		PropertyEditor = InPropertyEditor;
+		TSharedRef<SHorizontalBox> ButtonBox = SNew(SHorizontalBox);
+
+		TArray<TSharedRef<SWidget>> RequiredButtons;
+		PropertyEditorHelpers::MakeRequiredPropertyButtons(PropertyEditor.ToSharedRef(), RequiredButtons);
+		for (TSharedRef<SWidget> RequiredButton : RequiredButtons)
+		{
+			ButtonBox->AddSlot()
+			.AutoWidth()
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.Padding(2.0f, 1.0f)
+			[
+				RequiredButton
+			];
+		}
+
+		ButtonBox->AddSlot()
+		.AutoWidth()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.Padding(4.0f, 0.0f)
+		[
+			SNew(SResetToDefaultPropertyEditor, PropertyEditor->GetPropertyHandle())
+		];
+
+		ChildSlot
+		[
+			ButtonBox
+		];
+	}
+
+private:
+	TSharedPtr<FPropertyEditor> PropertyEditor;
+};
+
+TSharedRef<SWidget> FPropertyHandleBase::CreateDefaultPropertyButtonWidgets() const
+{
+	TArray<TSharedRef<SWidget>> DefaultButtons;
+	if (Implementation.IsValid() && Implementation->GetPropertyNode().IsValid())
+	{
+		TSharedRef<FPropertyEditor> PropertyEditor = FPropertyEditor::Create(Implementation->GetPropertyNode().ToSharedRef(), Implementation->GetPropertyUtilities().ToSharedRef());
+		return SNew(SDefaultPropertyButtonWidgets, PropertyEditor);
+	}
 	return SNullWidget::NullWidget;
 }
 
