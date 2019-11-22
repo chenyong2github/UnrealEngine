@@ -617,7 +617,7 @@
 
 /** Promise expression is true. Compiler can optimize accordingly with undefined behavior if wrong. Static analyzers understand this.  */
 #ifndef UE_ASSUME
-	#if defined(__clang__) 
+	#if defined(__clang__)
 		#if __has_builtin(__builtin_assume)
 			#define UE_ASSUME(x) __builtin_assume(x)
 		#else
