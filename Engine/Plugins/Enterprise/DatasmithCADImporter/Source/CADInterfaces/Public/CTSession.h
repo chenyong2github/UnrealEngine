@@ -45,12 +45,6 @@ public:
 	CheckedCTError TopoFixes(double SewingToleranceFactor = 100);
 
 	/**
-	 * In case of patch with cyclic boundary, a process has to be done by kernel_IO
-	 */
-	CheckedCTError CleanBRep();
-
-
-	/**
 	 * @param InScaleFactor : use to scale meshing from Kernel-IO
 	 */
 	void SetScaleFactor(double InScaleFactor)
