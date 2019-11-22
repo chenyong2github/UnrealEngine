@@ -317,8 +317,6 @@ FStaticMeshSceneProxy::~FStaticMeshSceneProxy()
 		Geometry.ReleaseResource();
 	}
 #endif
-
-	RemoveSpeedTreeWind();
 }
 
 void FStaticMeshSceneProxy::AddSpeedTreeWind()
@@ -572,6 +570,14 @@ void FStaticMeshSceneProxy::CreateRenderThreadResources()
 		}
 	}
 #endif
+}
+
+void FStaticMeshSceneProxy::DestroyRenderThreadResources()
+{
+	FPrimitiveSceneProxy::DestroyRenderThreadResources();
+
+	// Call here because it uses RenderData from the StaticMesh which is not guaranteed to still be valid after this DestroyRenderThreadResources call
+	RemoveSpeedTreeWind();
 }
 
 /** Sets up a wireframe FMeshBatch for a specific LOD. */
