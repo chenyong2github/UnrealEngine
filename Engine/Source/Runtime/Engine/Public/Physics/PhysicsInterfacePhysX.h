@@ -184,6 +184,9 @@ struct ENGINE_API FPhysicsCommand_PhysX
 
 struct ENGINE_API FPhysicsInterface_PhysX : public FGenericPhysicsInterface
 {
+	// Describe the interface to identify it to the caller
+	static FString GetInterfaceDescription() { return TEXT("PhysX"); }
+
 	// PhysX Only functions, not related to wider physics interface
 	// To be used only in code that handles PhysX
 	static physx::PxRigidActor* GetPxRigidActorFromScene_AssumesLocked(const FPhysicsActorHandle_PhysX& InActorHandle);

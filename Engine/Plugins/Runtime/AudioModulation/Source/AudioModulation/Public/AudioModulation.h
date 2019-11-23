@@ -27,7 +27,7 @@ namespace AudioModulation
 		virtual ~FAudioModulation() = default;
 
 		//~ Begin IAudioModulation implementation
-		virtual float CalculateInitialVolume(const USoundModulationPluginSourceSettingsBase& InSettingsBase) const override;
+		virtual float CalculateInitialVolume(const USoundModulationPluginSourceSettingsBase& InSettingsBase) override;
 
 		virtual void Initialize(const FAudioPluginInitializationParams& InitializationParams) override;
 		virtual void OnInitSound(ISoundModulatable& Sound, const USoundModulationPluginSourceSettingsBase& Settings) override;

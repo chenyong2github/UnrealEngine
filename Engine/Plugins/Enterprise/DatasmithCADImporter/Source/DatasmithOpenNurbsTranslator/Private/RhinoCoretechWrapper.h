@@ -25,7 +25,7 @@ public:
 	{
 	}
 
-	CADLibrary::CheckedCTError AddBRep(ON_Brep& brep);
+	CADLibrary::CheckedCTError AddBRep(ON_Brep& brep, bool& bOutBRepHasLoopNonManifold);
 	static TSharedPtr<FRhinoCoretechWrapper> GetSharedSession(double SceneUnit, double ScaleFactor);
 
 	CT_IO_ERROR Tessellate(FMeshDescription& Mesh, CADLibrary::FMeshParameters& MeshParameters);

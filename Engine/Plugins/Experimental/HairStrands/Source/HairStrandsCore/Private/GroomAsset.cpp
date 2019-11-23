@@ -339,7 +339,7 @@ void UGroomAsset::PostLoad()
 	check(HairGroupsData.Num() > 0);
 	if (HairGroupsData[0].HairSimulationData.GetNumCurves() == 0 || HairGroupsData[0].HairInterpolationData.Num() == 0)
 	{
-		FGroomBuilder::BuildData(this, 2);
+		FGroomBuilder::BuildData(this, 2, 0, false, false);
 	}
 
 	if (!IsTemplate())

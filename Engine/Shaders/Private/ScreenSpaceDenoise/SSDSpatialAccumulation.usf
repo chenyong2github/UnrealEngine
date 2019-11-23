@@ -783,7 +783,7 @@ void MainCS(
 		SetBilateralPreset(CONFIG_BILATERAL_PRESET, /* inout */ KernelConfig);
 
 		// SGPRs
-		KernelConfig.BufferSizeAndInvSize = View.BufferSizeAndInvSize;
+		KernelConfig.BufferSizeAndInvSize = BufferSizeAndInvSize;
 		KernelConfig.BufferBilinearUVMinMax = BufferBilinearUVMinMax;
 		KernelConfig.KernelSpreadFactor = KernelSpreadFactor;
 		KernelConfig.HarmonicPeriode = HarmonicPeriode;
@@ -908,7 +908,7 @@ void MainCS(
 			
 				uint RaySubPixelId = View.StateFrameIndex & (UpscaleFactor * UpscaleFactor - 1);
 
-				KernelConfig.BufferUV = ((ViewportMin + ClosestRayPixelCoord + (0.5 * KernelSpreadFactor + 0.5))) * View.BufferSizeAndInvSize.zw;
+				KernelConfig.BufferUV = ((ViewportMin + ClosestRayPixelCoord + (0.5 * KernelSpreadFactor + 0.5))) * KernelConfig.BufferSizeAndInvSize.zw;
 			
 				// Sample the center of the kernel by comparing it against the RefSceneMetadata, since it may no match.
 				KernelConfig.bSampleKernelCenter = true;
@@ -944,7 +944,7 @@ void MainCS(
 			#endif
 
 			// Put the kernel center at the center of the quad. Half pixel shift is done in the sample offsets.
-			KernelConfig.BufferUV = (DispatchThreadId | 1) * View.BufferSizeAndInvSize.zw;
+			KernelConfig.BufferUV = (DispatchThreadId | 1) * KernelConfig.BufferSizeAndInvSize.zw;
 
 			// Id of the pixel in the quad. This is to match hard coded first samples of the sample set.
 			KernelConfig.SampleTrackId = ((DispatchThreadId.x & 1) | ((DispatchThreadId.y & 1) << 1));
@@ -1198,7 +1198,7 @@ void MainCS(
 
 	// TODO(Denoiser):  LeaveRayCount = (LeaveRayCount - 1) * 9 / (9 - 2) post processing to reject when for history rejection
 	uint2 OutputPixelPostion;
-	#if CONFIG_VGPR_OPTIMIZATION && 1 // TODO(Denoiser)
+	#if CONFIG_VGPR_OPTIMIZATION && !CONFIG_UPSCALE // TODO(Denoiser)
 	{
 		// No need to keep DispatchThreadId, can recompute the output pixel position based on information stored in VGPRs for spatial kernel.
 		#if CONFIG_SAMPLE_SET == SAMPLE_SET_STACKOWIAK_4_SETS || CONFIG_SAMPLE_SET == SAMPLE_SET_STOCASTIC_HIERARCHY

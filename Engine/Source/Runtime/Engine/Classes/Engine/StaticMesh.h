@@ -1217,7 +1217,7 @@ public:
 	ENGINE_API void RemoveVertexColors();
 
 	/** Make sure the Lightmap UV point on a valid UVChannel */
-	ENGINE_API void EnforceLightmapRestrictions();
+	ENGINE_API void EnforceLightmapRestrictions(bool bUseRenderData = true);
 
 	/** Calculates the extended bounds */
 	ENGINE_API void CalculateExtendedBounds();

@@ -154,8 +154,10 @@ uint2 GetPixelCoord(uint2 DispatchThreadId, uint UpscaleFactor)
 #define RAY_TRACING_BLEND_MODE_MODULATE				4
 #define RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT		5
 
-#define RAY_TRACING_PAYLOAD_FLAG_FRONT_FACE         1 // Indicates that ray has hit front face of a primitive. Set by closest hit shader.
-#define RAY_TRACING_PAYLOAD_FLAG_MINIMAL_PAYLOAD    2 // Indicates that closest hit shader should only fill FMinimalPayload (HitT), skipping full material evaluation. Set by RayGen shader, before TraceRay().
+// Check how Flags are packed in the FPackedMaterialClosestHitPayload before adding to ensure bits are free
+#define RAY_TRACING_PAYLOAD_FLAG_FRONT_FACE                    (1 << 0) // Indicates that ray has hit front face of a primitive. Set by closest hit shader.
+#define RAY_TRACING_PAYLOAD_FLAG_MINIMAL_PAYLOAD               (1 << 1) // Indicates that closest hit shader should only fill FMinimalPayload (HitT), skipping full material evaluation. Set by RayGen shader, before TraceRay().
+#define RAY_TRACING_PAYLOAD_FLAG_ENABLE_SKY_LIGHT_CONTRIBUTION (1 << 2) // Indicates that hit shaders should add in the Sky Light contribution in their output. Set by RayGen shader, before TraceRay().
 
 struct FMaterialClosestHitPayload : FMinimalPayload
 {
@@ -193,6 +195,9 @@ struct FMaterialClosestHitPayload : FMinimalPayload
 	void SetFrontFace() { Flags |= RAY_TRACING_PAYLOAD_FLAG_FRONT_FACE; }
 	bool IsFrontFace() { return (Flags & RAY_TRACING_PAYLOAD_FLAG_FRONT_FACE) != 0; }
 
+	void SetEnableSkyLightContribution() { Flags |= RAY_TRACING_PAYLOAD_FLAG_ENABLE_SKY_LIGHT_CONTRIBUTION; }
+	bool IsEnableSkyLightContribution() { return (Flags & RAY_TRACING_PAYLOAD_FLAG_ENABLE_SKY_LIGHT_CONTRIBUTION) != 0; }
+
 	void SetRayCone(FRayCone NewRayCone) { RayCone = NewRayCone; }
 };
 
@@ -227,6 +232,9 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 
 	void SetMinimalPayloadMode() { IorAndShadingModelIDAndBlendingModeAndFlags |= RAY_TRACING_PAYLOAD_FLAG_MINIMAL_PAYLOAD << 24; }
 	bool IsMinimalPayloadMode() { return ((IorAndShadingModelIDAndBlendingModeAndFlags >> 24) & RAY_TRACING_PAYLOAD_FLAG_MINIMAL_PAYLOAD) != 0; }
+
+	void SetEnableSkyLightContribution() { IorAndShadingModelIDAndBlendingModeAndFlags |= RAY_TRACING_PAYLOAD_FLAG_ENABLE_SKY_LIGHT_CONTRIBUTION << 24; }
+	bool IsEnableSkyLightContribution() { return ((IorAndShadingModelIDAndBlendingModeAndFlags >> 24) & RAY_TRACING_PAYLOAD_FLAG_ENABLE_SKY_LIGHT_CONTRIBUTION) != 0; }
 
 	void SetRayCone(FRayCone InRayCone) { RayCone = InRayCone; }
 
@@ -449,7 +457,8 @@ void TraceMaterialRayPacked(
 	in uint InstanceInclusionMask,
 	in RayDesc Ray,
 	// Payload Inputs
-	inout FRayCone RayCone)
+	inout FRayCone RayCone,
+	in bool bEnableSkyLightContribution)
 {
 	const uint RayContributionToHitGroupIndex = RAY_TRACING_SHADER_SLOT_MATERIAL;
 	const uint MultiplierForGeometryContributionToShaderIndex = RAY_TRACING_NUM_SHADER_SLOTS;
@@ -458,6 +467,12 @@ void TraceMaterialRayPacked(
 	// Set payload inputs
 
 	Payload.SetRayCone(RayCone);
+
+	if (bEnableSkyLightContribution)
+	{
+		// Enable Sky Light contribution in the payload if requested
+		Payload.SetEnableSkyLightContribution();
+	}
 
 	// Trace the ray
 
@@ -481,7 +496,8 @@ FMaterialClosestHitPayload TraceMaterialRay(
 	in uint InstanceInclusionMask,
 	in RayDesc Ray,
 	// Payload Inputs
-	inout FRayCone RayCone)
+	inout FRayCone RayCone,
+	in bool bEnableSkyLightContribution)
 {
 	const uint RayContributionToHitGroupIndex = RAY_TRACING_SHADER_SLOT_MATERIAL;
 	const uint MultiplierForGeometryContributionToShaderIndex = RAY_TRACING_NUM_SHADER_SLOTS;
@@ -492,6 +508,12 @@ FMaterialClosestHitPayload TraceMaterialRay(
 	// Set payload inputs
 
 	PackedPayload.SetRayCone(RayCone);
+
+	if (bEnableSkyLightContribution)
+	{
+		// Enable Sky Light contribution in the payload if requested
+		PackedPayload.SetEnableSkyLightContribution();
+	}
 
 	// Trace the ray
 

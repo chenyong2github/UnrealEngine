@@ -74,20 +74,30 @@ namespace FObjectEditorUtils
 		return bResult;
 	}
 
-	void GetClassDevelopmentStatus(UClass* Class, bool& bIsExperimental, bool& bIsEarlyAccess)
+	void GetClassDevelopmentStatus(UClass* Class, bool& bIsExperimental, bool& bIsEarlyAccess, FString& MostDerivedClassName)
 	{
 		static const FName DevelopmentStatusKey(TEXT("DevelopmentStatus"));
 		static const FString EarlyAccessValue(TEXT("EarlyAccess"));
 		static const FString ExperimentalValue(TEXT("Experimental"));
 
+		MostDerivedClassName = FString();
 		bIsExperimental = bIsEarlyAccess = false;
 
+		// Determine the development status and introducing class
 		FString DevelopmentStatus;
-		if ( Class->GetStringMetaDataHierarchical(DevelopmentStatusKey, /*out*/ &DevelopmentStatus) )
+		for (const UStruct* TestStruct = Class; TestStruct != nullptr; TestStruct = TestStruct->GetSuperStruct())
 		{
-			bIsExperimental = DevelopmentStatus == ExperimentalValue;
-			bIsEarlyAccess = DevelopmentStatus == EarlyAccessValue;
+			if (TestStruct->HasMetaData(DevelopmentStatusKey))
+			{
+				DevelopmentStatus = TestStruct->GetMetaData(DevelopmentStatusKey);
+				MostDerivedClassName = TestStruct->GetName();
+				break;
+			}
 		}
+
+		// Update the flags based on the status
+		bIsExperimental = DevelopmentStatus == ExperimentalValue;
+		bIsEarlyAccess = DevelopmentStatus == EarlyAccessValue;
 	}
 
 	static void CopySinglePropertyRecursive(UObject* SourceObject, const void* const InSourcePtr, UProperty* InSourceProperty, void* const InTargetPtr, UObject* InDestinationObject, UProperty* InDestinationProperty)

@@ -523,6 +523,7 @@ void FMagicLeapController::InitializeInputCallbacks()
 			if (ControllerHand != EControllerHand::ControllerHand_Count)
 			{
 				Controller->PendingButtonEvents.Enqueue(MakeTuple(MLToUnrealButton(ControllerHand, button), true));
+				Controller->PendingButtonEvents.Enqueue(MakeTuple(MLToUnrealButtonLegacy(ControllerHand, button), true));
 			}
 		}
 	};
@@ -536,6 +537,7 @@ void FMagicLeapController::InitializeInputCallbacks()
 			if (ControllerHand != EControllerHand::ControllerHand_Count)
 			{
 				Controller->PendingButtonEvents.Enqueue(MakeTuple(MLToUnrealButton(ControllerHand, button), false));
+				Controller->PendingButtonEvents.Enqueue(MakeTuple(MLToUnrealButtonLegacy(ControllerHand, button), false));
 			}
 		}
 	};
@@ -738,8 +740,8 @@ void FMagicLeapController::CreateEntityTracker()
 	Result = MLInputCreate(&InputConfig, &InputTracker);
 	if (Result != MLResult_Ok)
 	{
-		UE_LOG(LogMagicLeapController, Error, 
-			TEXT("MLInputCreate failed with error %s."), 
+		UE_LOG(LogMagicLeapController, Error,
+			TEXT("MLInputCreate failed with error %s."),
 			UTF8_TO_TCHAR(MLGetResultString(Result)));
 	}
 #endif //PLATFORM_LUMIN
@@ -771,8 +773,8 @@ void FMagicLeapController::DestroyEntityTracker()
 		MLResult Result = MLInputDestroy(InputTracker);
 		if (Result != MLResult_Ok)
 		{
-			UE_LOG(LogMagicLeapController, Error, 
-				TEXT("MLInputDestroy failed with error %s!"), 
+			UE_LOG(LogMagicLeapController, Error,
+				TEXT("MLInputDestroy failed with error %s!"),
 				UTF8_TO_TCHAR(MLGetResultString(Result)));
 		}
 	}
@@ -948,11 +950,23 @@ void FMagicLeapController::UpdateControllerStateFromInputTracker(const IMagicLea
 			// Touch0 activate/deactivate
 			if (CurrControllerState.bTouchActive[0] && !PrevControllerState.bTouchActive[0])
 			{
-				PendingButtonEvents.Enqueue(MakeTuple(MLTouchToUnrealThumbstickButton(Hand), true));
+				PendingButtonEvents.Enqueue(MakeTuple(MLTouchToUnrealTrackpadButton(Hand), true));
+				PendingButtonEvents.Enqueue(MakeTuple(MLTouchToUnrealTrackpadButtonLegacy(Hand), true));
 			}
 			else if (PrevControllerState.bTouchActive[0] && !CurrControllerState.bTouchActive[0])
 			{
-				PendingButtonEvents.Enqueue(MakeTuple(MLTouchToUnrealThumbstickButton(Hand), false));
+				PendingButtonEvents.Enqueue(MakeTuple(MLTouchToUnrealTrackpadButton(Hand), false));
+				PendingButtonEvents.Enqueue(MakeTuple(MLTouchToUnrealTrackpadButtonLegacy(Hand), false));
+			}
+
+			// Touch1 activate/deactivate
+			if (CurrControllerState.bTouchActive[1] && !PrevControllerState.bTouchActive[1])
+			{
+				PendingButtonEvents.Enqueue(MakeTuple(MLTouchToUnrealTouch1Button(Hand), true));
+			}
+			else if (PrevControllerState.bTouchActive[1] && !CurrControllerState.bTouchActive[1])
+			{
+				PendingButtonEvents.Enqueue(MakeTuple(MLTouchToUnrealTouch1Button(Hand), false));
 			}
 
 			// Convert trigger value to trigger press/release events
@@ -964,11 +978,13 @@ void FMagicLeapController::UpdateControllerStateFromInputTracker(const IMagicLea
 			if (IsTriggerKeyPressing)
 			{
 				PendingButtonEvents.Enqueue(MakeTuple(MLTriggerToUnrealTriggerKey(Hand), true));
+				PendingButtonEvents.Enqueue(MakeTuple(MLTriggerToUnrealTriggerKeyLegacy(Hand), true));
 				CurrControllerState.bTriggerKeyPressing = true;
 			}
 			else if (IsTriggerKeyReleasing)
 			{
 				PendingButtonEvents.Enqueue(MakeTuple(MLTriggerToUnrealTriggerKey(Hand), false));
+				PendingButtonEvents.Enqueue(MakeTuple(MLTriggerToUnrealTriggerKeyLegacy(Hand), false));
 				CurrControllerState.bTriggerKeyPressing = false;
 			}
 		}
@@ -1146,11 +1162,35 @@ void FMagicLeapController::UnregisterTouchpadGestureReceiver(IMagicLeapTouchpadG
 
 void FMagicLeapController::AddKeys()
 {
-	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::MotionController_Left_Thumbstick_Z, LOCTEXT("MotionController_Left_Thumbstick_Z", "MotionController (L) Thumbstick Z"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis));
-	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Left_HomeButton, LOCTEXT("MagicLeap_Left_HomeButton", "ML (L) Home Button"), FKeyDetails::GamepadKey));
+	EKeys::AddMenuCategoryDisplayInfo("MagicLeap", LOCTEXT("MagicLeapSubCategory", "Magic Leap"), TEXT("GraphEditor.PadEvent_16x"));
 
-	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::MotionController_Right_Thumbstick_Z, LOCTEXT("MotionController_Right_Thumbstick_Z", "MotionController (R) Thumbstick Z"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis));
-	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Right_HomeButton, LOCTEXT("MagicLeap_Right_HomeButton", "ML (R) Home Button"), FKeyDetails::GamepadKey));
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::MotionController_Left_Thumbstick_Z, LOCTEXT("MotionController_Left_Thumbstick_Z", "MotionController (L) Thumbstick Z"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::Deprecated));
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Left_HomeButton, LOCTEXT("MagicLeap_Left_HomeButton", "ML (L) Home Button"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Left_Bumper, LOCTEXT("MagicLeap_Left_Bumper", "ML (L) Bumper"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Left_Trigger, LOCTEXT("MagicLeap_Left_Trigger", "ML (L) Trigger"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Left_Trigger_Axis, LOCTEXT("MagicLeap_Left_Trigger_Axis", "ML (L) Trigger Axis"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Left_Trackpad_X, LOCTEXT("MagicLeap_Left_Trackpad_X", "ML (L) Trackpad X"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Left_Trackpad_Y, LOCTEXT("MagicLeap_Left_Trackpad_Y", "ML (L) Trackpad Y"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Left_Trackpad_Force, LOCTEXT("MagicLeap_Left_Trackpad_Force", "ML (L) Trackpad Force"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Left_Trackpad_Touch, LOCTEXT("MagicLeap_Left_Trackpad_Touch", "ML (L) Trackpad Touch"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Left_Touch1_X, LOCTEXT("MagicLeap_Left_Touch1_X", "ML (L) Touch1 X"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Left_Touch1_Y, LOCTEXT("MagicLeap_Left_Touch1_Y", "ML (L) Touch1 Y"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Left_Touch1_Force, LOCTEXT("MagicLeap_Left_Touch1_Force", "ML (L) Touch1 Force"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Left_Touch1_Touch, LOCTEXT("MagicLeap_Left_Touch1_Touch", "ML (L) Touch1 Touch"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
+
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::MotionController_Right_Thumbstick_Z, LOCTEXT("MotionController_Right_Thumbstick_Z", "MotionController (R) Thumbstick Z"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::Deprecated));
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Right_HomeButton, LOCTEXT("MagicLeap_Right_HomeButton", "ML (R) Home Button"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Right_Bumper, LOCTEXT("MagicLeap_Right_Bumper", "ML (R) Bumper"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Right_Trigger, LOCTEXT("MagicLeap_Right_Trigger", "ML (R) Trigger"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Right_Trigger_Axis, LOCTEXT("MagicLeap_Right_Trigger_Axis", "ML (R) Trigger Axis"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Right_Trackpad_X, LOCTEXT("MagicLeap_Right_Trackpad_X", "ML (R) Trackpad X"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Right_Trackpad_Y, LOCTEXT("MagicLeap_Right_Trackpad_Y", "ML (R) Trackpad Y"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Right_Trackpad_Force, LOCTEXT("MagicLeap_Right_Trackpad_Force", "ML (R) Trackpad Force"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Right_Trackpad_Touch, LOCTEXT("MagicLeap_Right_Trackpad_Touch", "ML (R) Trackpad Touch"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Right_Touch1_X, LOCTEXT("MagicLeap_Right_Touch1_X", "ML (R) Touch1 X"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Right_Touch1_Y, LOCTEXT("MagicLeap_Right_Touch1_Y", "ML (R) Touch1 Y"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Right_Touch1_Force, LOCTEXT("MagicLeap_Right_Touch1_Force", "ML (R) Touch1 Force"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Right_Touch1_Touch, LOCTEXT("MagicLeap_Right_Touch1_Touch", "ML (R) Touch1 Touch"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
 }
 
 bool FMagicLeapController::PlayLEDPattern(FName MotionSource, EMagicLeapControllerLEDPattern LEDPattern, EMagicLeapControllerLEDColor LEDColor, float DurationInSec)
@@ -1288,19 +1328,26 @@ void FMagicLeapController::SendControllerEventsForHand(EControllerHand Hand)
 		checkf(PrevControllerState != nullptr, TEXT("Unpossible"));
 
 		// Analog touch coords
-		// Touch 0 maps to Motion Controller Thumbstick for hand
-		// Touch 1 is currently not available (we have nothing to map it to)
+		// Touch 0 maps to ML Trackpad
+		// Touch 1 maps to ML Touch1
 		if (CurrControllerState->bTouchActive[0])
 		{
 			MagicLeap::EnableInput EnableInputFromHMD;
 			// fixes unreferenced parameter error for Windows package builds.
 			(void)EnableInputFromHMD;
 
-			MessageHandler->OnControllerAnalog(MLTouchToUnrealThumbstickAxis(Hand, 0),
+			MessageHandler->OnControllerAnalog(MLTouchToUnrealTrackpadAxis(Hand, 0),
 				DeviceIndex, CurrControllerState->TouchPosAndForce[0].X);
-			MessageHandler->OnControllerAnalog(MLTouchToUnrealThumbstickAxis(Hand, 1),
+			MessageHandler->OnControllerAnalog(MLTouchToUnrealTrackpadAxis(Hand, 1),
 				DeviceIndex, CurrControllerState->TouchPosAndForce[0].Y);
-			MessageHandler->OnControllerAnalog(MLTouchToUnrealThumbstickAxis(Hand, 2),
+			MessageHandler->OnControllerAnalog(MLTouchToUnrealTrackpadAxis(Hand, 2),
+				DeviceIndex, CurrControllerState->TouchPosAndForce[0].Z);
+
+			MessageHandler->OnControllerAnalog(MLTouchToUnrealTrackpadAxisLegacy(Hand, 0),
+				DeviceIndex, CurrControllerState->TouchPosAndForce[0].X);
+			MessageHandler->OnControllerAnalog(MLTouchToUnrealTrackpadAxisLegacy(Hand, 1),
+				DeviceIndex, CurrControllerState->TouchPosAndForce[0].Y);
+			MessageHandler->OnControllerAnalog(MLTouchToUnrealTrackpadAxisLegacy(Hand, 2),
 				DeviceIndex, CurrControllerState->TouchPosAndForce[0].Z);
 		}
 		else
@@ -1309,9 +1356,40 @@ void FMagicLeapController::SendControllerEventsForHand(EControllerHand Hand)
 			// fixes unreferenced parameter error for Windows package builds.
 			(void)EnableInputFromHMD;
 
-			MessageHandler->OnControllerAnalog(MLTouchToUnrealThumbstickAxis(Hand, 0), DeviceIndex, 0.0f);
-			MessageHandler->OnControllerAnalog(MLTouchToUnrealThumbstickAxis(Hand, 1), DeviceIndex, 0.0f);
-			MessageHandler->OnControllerAnalog(MLTouchToUnrealThumbstickAxis(Hand, 2), DeviceIndex, 0.0f);
+			MessageHandler->OnControllerAnalog(MLTouchToUnrealTrackpadAxis(Hand, 0), DeviceIndex, 0.0f);
+			MessageHandler->OnControllerAnalog(MLTouchToUnrealTrackpadAxis(Hand, 1), DeviceIndex, 0.0f);
+			MessageHandler->OnControllerAnalog(MLTouchToUnrealTrackpadAxis(Hand, 2), DeviceIndex, 0.0f);
+
+			MessageHandler->OnControllerAnalog(MLTouchToUnrealTrackpadAxisLegacy(Hand, 0), DeviceIndex, 0.0f);
+			MessageHandler->OnControllerAnalog(MLTouchToUnrealTrackpadAxisLegacy(Hand, 1), DeviceIndex, 0.0f);
+			MessageHandler->OnControllerAnalog(MLTouchToUnrealTrackpadAxisLegacy(Hand, 2), DeviceIndex, 0.0f);
+		}
+
+		// Analog touch coords
+		// Touch 0 maps to Motion Controller Thumbstick for hand
+		// Touch 1 is currently not available (we have nothing to map it to)
+		if (CurrControllerState->bTouchActive[1])
+		{
+			MagicLeap::EnableInput EnableInputFromHMD;
+			// fixes unreferenced parameter error for Windows package builds.
+			(void)EnableInputFromHMD;
+
+			MessageHandler->OnControllerAnalog(MLTouchToUnrealTouch1Axis(Hand, 0),
+				DeviceIndex, CurrControllerState->TouchPosAndForce[1].X);
+			MessageHandler->OnControllerAnalog(MLTouchToUnrealTouch1Axis(Hand, 1),
+				DeviceIndex, CurrControllerState->TouchPosAndForce[1].Y);
+			MessageHandler->OnControllerAnalog(MLTouchToUnrealTouch1Axis(Hand, 2),
+				DeviceIndex, CurrControllerState->TouchPosAndForce[1].Z);
+}
+		else
+		{
+			MagicLeap::EnableInput EnableInputFromHMD;
+			// fixes unreferenced parameter error for Windows package builds.
+			(void)EnableInputFromHMD;
+
+			MessageHandler->OnControllerAnalog(MLTouchToUnrealTouch1Axis(Hand, 0), DeviceIndex, 0.0f);
+			MessageHandler->OnControllerAnalog(MLTouchToUnrealTouch1Axis(Hand, 1), DeviceIndex, 0.0f);
+			MessageHandler->OnControllerAnalog(MLTouchToUnrealTouch1Axis(Hand, 2), DeviceIndex, 0.0f);
 		}
 
 		// Analog trigger
@@ -1322,6 +1400,8 @@ void FMagicLeapController::SendControllerEventsForHand(EControllerHand Hand)
 			(void)EnableInputFromHMD;
 
 			MessageHandler->OnControllerAnalog(MLTriggerToUnrealTriggerAxis(Hand),
+				DeviceIndex, CurrControllerState->TriggerAnalog);
+			MessageHandler->OnControllerAnalog(MLTriggerToUnrealTriggerAxisLegacy(Hand),
 				DeviceIndex, CurrControllerState->TriggerAnalog);
 		}
 	}

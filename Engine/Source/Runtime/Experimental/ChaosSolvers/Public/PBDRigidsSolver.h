@@ -7,7 +7,7 @@
 #include "Chaos/Framework/PhysicsSolverBase.h"
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
-#include "Chaos/PBDCollisionConstraint.h"
+#include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDRigidDynamicSpringConstraints.h"
 #include "Chaos/PBDPositionConstraints.h"
 #include "Chaos/PBDJointConstraints.h"
@@ -41,6 +41,20 @@ namespace Chaos
 	class FPersistentPhysicsTask;
 	class FPhysicsCommand;
 	class FChaosArchive;
+	class FPBDRigidsSolver;
+
+	enum class ELockType : uint8
+	{
+		Read,
+		Write
+	};
+
+	template<ELockType LockType>
+	struct TSolverQueryMaterialScope
+	{
+		TSolverQueryMaterialScope() = delete;
+	};
+
 	/**
 	*
 	*/
@@ -72,16 +86,15 @@ namespace Chaos
 		typedef Chaos::TGeometryParticle<float, 3> FParticle;
 		typedef Chaos::TGeometryParticleHandle<float, 3> FHandle;
 		typedef Chaos::TPBDRigidsEvolutionGBF<float, 3> FPBDRigidsEvolution;
-		typedef Chaos::TPBDCollisionConstraint<float, 3> FPBDCollisionConstraints;
+		typedef Chaos::TPBDCollisionConstraints<float, 3> FPBDCollisionConstraints;
 
 		typedef FPBDCollisionConstraints FCollisionConstraints;
-		typedef TPBDJointConstraints<float, 3> FJointConstraints;
 		typedef TPBDRigidDynamicSpringConstraints<float, 3> FRigidDynamicSpringConstraints;
 		typedef TPBDPositionConstraints<float, 3> FPositionConstraints;
 
-		typedef TPBDConstraintIslandRule<FJointConstraints, float, 3> FJointConstraintsRule;
-		typedef TPBDConstraintIslandRule<FRigidDynamicSpringConstraints, float, 3> FRigidDynamicSpringConstraintsRule;
-		typedef TPBDConstraintIslandRule<FPositionConstraints, float, 3> FPositionConstraintsRule;
+		typedef TPBDConstraintIslandRule<FPBDJointConstraints> FJointConstraintsRule;
+		typedef TPBDConstraintIslandRule<FRigidDynamicSpringConstraints> FRigidDynamicSpringConstraintsRule;
+		typedef TPBDConstraintIslandRule<FPositionConstraints> FPositionConstraintsRule;
 
 		//
 		// Execution API
@@ -99,8 +112,8 @@ namespace Chaos
 		void UnregisterObject(Chaos::TGeometryParticle<float, 3>* GTParticle);
 
 		// TODO: Set up an interface for registering fields and geometry collections
-		//void RegisterObject(FGeometryCollectionPhysicsProxy* InProxy);
-		//int UnregisterObject(FGeometryCollectionPhysicsProxy* InProxy);
+		void RegisterObject(FGeometryCollectionPhysicsProxy* InProxy);
+		bool UnregisterObject(FGeometryCollectionPhysicsProxy* InProxy);
 		//void RegisterObject(FFieldSystemPhysicsProxy* InProxy);
 		//int UnregisterObject(FFieldSystemPhysicsProxy* InProxy);
 
@@ -263,6 +276,18 @@ namespace Chaos
 		/**/
 		void PostTickDebugDraw() const;
 
+		/** Events hooked up to the Chaos material manager */
+		void UpdateMaterial(Chaos::FMaterialHandle InHandle, const Chaos::FChaosPhysicsMaterial& InNewData);
+		void CreateMaterial(Chaos::FMaterialHandle InHandle, const Chaos::FChaosPhysicsMaterial& InNewData);
+		void DestroyMaterial(Chaos::FMaterialHandle InHandle);
+
+		/** Access to the intenal material mirrors */
+		const THandleArray<FChaosPhysicsMaterial>& GetQueryMaterials() const { return QueryMaterials; }
+		const THandleArray<FChaosPhysicsMaterial>& GetSimMaterials() const { return SimMaterials; }
+
+		/** Copy the simulation material list to the query material list, to be done when the SQ commits an update */
+		void SyncQueryMaterials();
+
 	private:
 
 		template<typename ParticleType>
@@ -320,7 +345,62 @@ namespace Chaos
 		TArray< FStaticMeshPhysicsProxy* > StaticMeshPhysicsProxies; // dep
 		TArray< FGeometryCollectionPhysicsProxy* > GeometryCollectionPhysicsProxies;
 		TArray< FFieldSystemPhysicsProxy* > FieldSystemPhysicsProxies;
+
+		// Physics material mirrors for the solver. These should generally stay in sync with the global material list from
+		// the game thread. This data is read only in the solver as we should never need to update it here. External threads can
+		// Enqueue commands to change parameters.
+		//
+		// There are two copies here to enable SQ to lock only the solvers that it needs to handle the material access during a query
+		// instead of having to lock the entire physics state of the runtime.
+		FRWLock QueryMaterialLock;
+		THandleArray<FChaosPhysicsMaterial> QueryMaterials;
+		THandleArray<FChaosPhysicsMaterial> SimMaterials;
 				
+		template<ELockType>
+		friend struct TSolverQueryMaterialScope;
+	};
+
+	template<>
+	struct TSolverQueryMaterialScope<ELockType::Read>
+	{
+		TSolverQueryMaterialScope() = delete;
+
+
+		explicit TSolverQueryMaterialScope(FPBDRigidsSolver* InSolver)
+			: Solver(InSolver)
+		{
+			check(Solver);
+			Solver->QueryMaterialLock.ReadLock();
+		}
+
+		~TSolverQueryMaterialScope()
+		{
+			Solver->QueryMaterialLock.ReadUnlock();
+		}
+
+	private:
+		FPBDRigidsSolver* Solver;
+	};
+
+	template<>
+	struct TSolverQueryMaterialScope<ELockType::Write>
+	{
+		TSolverQueryMaterialScope() = delete;
+
+		explicit TSolverQueryMaterialScope(FPBDRigidsSolver* InSolver)
+			: Solver(InSolver)
+		{
+			check(Solver);
+			Solver->QueryMaterialLock.WriteLock();
+		}
+
+		~TSolverQueryMaterialScope()
+		{
+			Solver->QueryMaterialLock.WriteUnlock();
+		}
+
+	private:
+		FPBDRigidsSolver* Solver;
 	};
 
 }; // namespace Chaos

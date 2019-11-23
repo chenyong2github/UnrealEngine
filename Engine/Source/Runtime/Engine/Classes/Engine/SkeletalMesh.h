@@ -163,7 +163,10 @@ struct FSkeletalMeshLODInfo
 	UPROPERTY(EditAnywhere, Category=SkeletalMeshLODInfo, meta=(DisplayName="LOD Hysteresis"))
 	float LODHysteresis;
 
-	/** Mapping table from this LOD's materials to the USkeletalMesh materials array. */
+	/** Mapping table from this LOD's materials to the USkeletalMesh materials array.
+	 * section index is the key
+	 * remapped material index is the value, can be INDEX_NONE for no remapping
+	 */
 	UPROPERTY()
 	TArray<int32> LODMaterialMap;
 

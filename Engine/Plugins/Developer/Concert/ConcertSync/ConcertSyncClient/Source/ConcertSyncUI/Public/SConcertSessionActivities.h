@@ -27,6 +27,9 @@ enum class EConcertActivityFilterFlags
 	ShowAll                  = 0x00,
 	HideConnectionActivities = 1<<0,
 	HideLockActivities       = 1<<1,
+	HidePackageActivities    = 1<<2,
+	HideTransactionActivities= 1<<3,
+	HideIgnoredActivities    = 1<<4,
 };
 ENUM_CLASS_FLAGS(EConcertActivityFilterFlags);
 
@@ -68,6 +71,9 @@ public:
 		, _PackageColumnVisibility(EVisibility::Hidden)
 		, _ConnectionActivitiesVisibility(EVisibility::Hidden)
 		, _LockActivitiesVisibility(EVisibility::Hidden)
+		, _PackageActivitiesVisibility(EVisibility::Visible)
+		, _TransactionActivitiesVisibility(EVisibility::Visible)
+		, _IgnoredActivitiesVisibility(EVisibility::Hidden)
 		, _DetailsAreaVisibility(EVisibility::Hidden)
 		, _IsAutoScrollEnabled(false){ }
 
@@ -110,6 +116,15 @@ public:
 		/** Show/hide lock activities. */
 		SLATE_ATTRIBUTE(EVisibility, LockActivitiesVisibility)
 
+		/** Show/hide package activities. */
+		SLATE_ATTRIBUTE(EVisibility, PackageActivitiesVisibility)
+
+		/** Show/hide transaction activities. */
+		SLATE_ATTRIBUTE(EVisibility, TransactionActivitiesVisibility)
+
+		/** Show/hide ignored activities. */
+		SLATE_ATTRIBUTE(EVisibility, IgnoredActivitiesVisibility)
+
 		/** Show/hide the details area widget. (Not to confuse with widget expansion state) */
 		SLATE_ARGUMENT(EVisibility, DetailsAreaVisibility)
 
@@ -135,6 +150,9 @@ public:
 	/** Returns the number of activities shown. */
 	int32 GetDisplayedActivityNum() const { return Activities.Num(); }
 
+	/** Returns the number of activities marked as 'ignored'. */
+	int32 GetIgnoredActivityNum() const { return IgnoredActivityNum; }
+
 	/** Returns the most recent activity available, ignoring the current filter. */
 	TSharedPtr<FConcertClientSessionActivity> GetMostRecentActivity() const;
 
@@ -159,6 +177,9 @@ private:
 
 	/** Fetches more activities. */
 	void FetchActivities();
+
+	/** Queries the active set of activity filter flags. */
+	EConcertActivityFilterFlags QueryActiveActivityFilters() const;
 
 	/** Invoked when the filter changes and the displayed activity list must be reevaluated. */
 	void OnActivityFilterUpdated();
@@ -235,6 +256,18 @@ private:
 
 	/** Whether the lock/unlock activities are displayed.*/
 	TAttribute<EVisibility> LockActivitiesVisibility;
+
+	/** Whether the package activities are displayed.*/
+	TAttribute<EVisibility> PackageActivitiesVisibility;
+
+	/** Whether the transaction activities are displayed.*/
+	TAttribute<EVisibility> TransactionActivitiesVisibility;
+
+	/** Whether the ignored activities are displayed.*/
+	TAttribute<EVisibility> IgnoredActivitiesVisibility;
+
+	/** The number of activities flagged as 'ignored' within AllActivities array.*/
+	int32 IgnoredActivityNum = 0;
 
 	/** Whether the auto-scrolling is desired (scroll to bottom automatically unless the user scroll himself somewhere). */
 	bool bAutoScrollDesired = false;
@@ -316,11 +349,20 @@ public:
 	/** Returns the time format option. */
 	SConcertSessionActivities::ETimeFormat GetTimeFormat() const { return bDisplayRelativeTime ? SConcertSessionActivities::ETimeFormat::Relative : SConcertSessionActivities::ETimeFormat::Absolute; }
 
-	/** Returns true if the connection activities should be listed in SConcertSessionActivities. */
+	/** Returns whether the connection activities are listed in SConcertSessionActivities. */
 	EVisibility GetConnectionActivitiesVisibility() const { return bDisplayConnectionActivities ? EVisibility::Visible : EVisibility::Hidden; }
 
-	/** Returns true if the lock activities should be listed in SConcertSessionActivities. */
+	/** Returns whether the lock activities are listed in SConcertSessionActivities. */
 	EVisibility GetLockActivitiesVisibility() const { return bDisplayLockActivities ? EVisibility::Visible : EVisibility::Hidden; }
+
+	/** Returns whether the package activities are listed in SConcertSessionActivities. */
+	EVisibility GetPackageActivitiesVisibility() const { return bDisplayPackageActivities ? EVisibility::Visible : EVisibility::Hidden; }
+
+	/** Returns whether the transaction activities are listed in SConcertSessionActivities. */
+	EVisibility GetTransactionActivitiesVisibility() const { return bDisplayTransactionActivities ? EVisibility::Visible : EVisibility::Hidden; }
+
+	/** Returns whether the ignored activities are listed in SConcertSessionActivities. */
+	EVisibility GetIgnoredActivitiesVisibility() const { return bDisplayIgnoredActivities ? EVisibility::Visible : EVisibility::Hidden; }
 
 	/** Invoked when an options is togged from the displayed menu widget. */
 	void OnOptionToggled(const FName CheckBoxId);
@@ -328,8 +370,17 @@ public:
 	/** Enables the 'connection activity' filter check box. (Show Connection Activities). */
 	bool bEnableConnectionActivityFiltering = true;
 
-	/** Enables the 'lock activity' filter check box. (Show Lock Activities)*/
+	/** Enables the 'lock activity' filter check box. (Show Lock Activities).*/
 	bool bEnableLockActivityFiltering = true;
+
+	/** Enables the 'package activity' filter check box (Show Package Activities). */
+	bool bEnablePackageActivityFiltering = true;
+
+	/** Enables the 'transaction activity' filter check box (Show Transaction Activities). */
+	bool bEnableTransactionActivityFiltering = true;
+
+	/** Enables the 'ignored activity' filter check box (Show Unrecoverable Activities). */
+	bool bEnableIgnoredActivityFiltering = false;
 
 	/** Controls whether the time is displayed as absolute or relative. (Display Relative Time). */
 	bool bDisplayRelativeTime = true;
@@ -339,4 +390,13 @@ public:
 
 	/** If lock filtering is enabled, controls whether lock activities are filtered out. */
 	bool bDisplayLockActivities = false;
+
+	/** If package filtering is enabled, controls whether package activities are filtered out. */
+	bool bDisplayPackageActivities = true;
+
+	/** If transaction filtering is enabled, controls whether transaction activities are filtered out.*/
+	bool bDisplayTransactionActivities = true;
+
+	/** If ignored activity filtering is enabled, controls whether ignored activities are filtered out.*/
+	bool bDisplayIgnoredActivities = false;
 };

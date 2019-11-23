@@ -47,6 +47,22 @@ namespace CADLibrary
 		EModelCoordSystem ModelCoordSys = EModelCoordSystem::ZUp_RightHanded;
 		EDisplayDataPropagationMode Propagation = EDisplayDataPropagationMode::TopDown;
 		EDisplayPreference DisplayPreference = EDisplayPreference::MaterialPrefered;
+		bool bScaleUVMap = true;
+
+		uint32 GetHash() const
+		{
+			uint32 Hash = 0; 
+			for (double Param : {MetricUnit, ScaleFactor, ChordTolerance, MaxEdgeLength, MaxNormalAngle})
+			{
+				Hash = HashCombine(Hash, GetTypeHash(Param));
+			}
+			for (uint32 Param : {uint32(StitchingTechnique), uint32(ModelCoordSys), uint32(Propagation), uint32(DisplayPreference)})
+			{
+				Hash = HashCombine(Hash, GetTypeHash(Param));
+			}
+			Hash = HashCombine(Hash, GetTypeHash(bScaleUVMap));
+			return Hash;
+		}
 	};
 
 	struct FMeshParameters

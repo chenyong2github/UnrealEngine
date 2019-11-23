@@ -4337,6 +4337,22 @@ void APlayerController::ClientStopCameraShake_Implementation( TSubclassOf<class 
 	}
 }
 
+void APlayerController::ClientPlayCameraShakeFromSource_Implementation(TSubclassOf<class UCameraShake> Shake, class UCameraShakeSourceComponent* SourceComponent)
+{
+	if (PlayerCameraManager != NULL)
+	{
+		PlayerCameraManager->PlayCameraShakeFromSource(Shake, SourceComponent);
+	}
+}
+
+void APlayerController::ClientStopCameraShakesFromSource_Implementation(class UCameraShakeSourceComponent* SourceComponent, bool bImmediately)
+{
+	if (PlayerCameraManager != NULL)
+	{
+		PlayerCameraManager->StopAllInstancesOfCameraShakeFromSource(SourceComponent, bImmediately);
+	}
+}
+
 void APlayerController::ClientPlayCameraAnim_Implementation( UCameraAnim* AnimToPlay, float Scale, float Rate,
 						float BlendInTime, float BlendOutTime, bool bLoop,
 						bool bRandomStartTime, ECameraAnimPlaySpace::Type Space, FRotator CustomPlaySpace )

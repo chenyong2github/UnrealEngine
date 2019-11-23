@@ -346,8 +346,9 @@ void UBehaviorTreeComponent::StopTree(EBTStopMode::Type StopMode)
 	// make sure that all nodes are getting deactivation notifies
 	if (InstanceStack.Num())
 	{
+		int32 DeactivatedChildIndex = INDEX_NONE;
 		EBTNodeResult::Type AbortedResult = EBTNodeResult::Aborted;
-		DeactivateUpTo(InstanceStack[0].RootNode, 0, AbortedResult);
+		DeactivateUpTo(InstanceStack[0].RootNode, 0, AbortedResult, DeactivatedChildIndex);
 	}
 
 	// clear current state, don't touch debugger data
@@ -857,6 +858,37 @@ void UBehaviorTreeComponent::RequestExecution(UBTCompositeNode* RequestedOn, int
 		return;
 	}
 
+	if (SearchData.bFilterOutRequestFromDeactivatedBranch)
+	{
+		// request on same node or with higher priority doesn't require additional checks
+		FBTNodeIndex RequestedOnNodeIdx(InstanceIdx, RequestedOn->GetExecutionIndex());
+		if (SearchData.SearchRootNode != RequestedOnNodeIdx && SearchData.SearchRootNode.TakesPriorityOver(RequestedOnNodeIdx))
+		{
+			// for requests inside the same instance, perform range check to skip node from the branch deactivated by applying the search data
+			if (InstanceIdx == SearchData.SearchRootNode.InstanceIndex)
+			{
+				const uint16 StartIndex = SearchData.DeactivatedBranchStartIndex;
+				const uint16 EndIndex = SearchData.DeactivatedBranchEndIndex;
+				const bool bCheckDeactivatedBranch = (StartIndex != INDEX_NONE && EndIndex != INDEX_NONE);
+				if (bCheckDeactivatedBranch && (StartIndex <= RequestedOnNodeIdx.ExecutionIndex && RequestedOnNodeIdx.ExecutionIndex < EndIndex))
+				{
+					UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("> skip: node index %s in a deactivated branch [%d..%d[ (applying search data for %s)"),
+						*RequestedOnNodeIdx.Describe(), StartIndex, EndIndex, *SearchData.SearchRootNode.Describe());
+					StoreDebuggerRestart(DebuggerNode, InstanceIdx, false);
+					return;
+				}
+			}
+			// for other instances (subtree), perform check to skip removed subtree
+			else if (SearchData.PendingNotifies.FindByPredicate([InstanceIdx](const FBehaviorTreeSearchUpdateNotify& Item) { return (Item.InstanceIndex == InstanceIdx); }))
+			{
+				UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("> skip: node index %s from a tree instance in a deactivated branch (applying search data for %s)"),
+					*RequestedOnNodeIdx.Describe(), *SearchData.SearchRootNode.Describe());
+				StoreDebuggerRestart(DebuggerNode, InstanceIdx, false);
+				return;
+			}
+		}
+	}
+
 	// when it's aborting and moving to higher priority node:
 	if (bSwitchToHigherPriority)
 	{
@@ -1123,8 +1155,12 @@ void UBehaviorTreeComponent::ApplySearchData(UBTNode* NewActiveNode)
 	// apply changes to aux nodes and parallel tasks
 	const int32 NewNodeExecutionIndex = NewActiveNode ? NewActiveNode->GetExecutionIndex() : 0;
 
+	SearchData.bFilterOutRequestFromDeactivatedBranch = true;
+
 	ApplySearchUpdates(SearchData.PendingUpdates, NewNodeExecutionIndex);
 	ApplySearchUpdates(SearchData.PendingUpdates, NewNodeExecutionIndex, true);
+	
+	SearchData.bFilterOutRequestFromDeactivatedBranch = false;
 
 	// tick newly added aux nodes to compensate for tick-search order changes
 	UWorld* MyWorld = GetWorld();
@@ -1307,16 +1343,29 @@ void UBehaviorTreeComponent::ProcessExecutionRequest()
 		CopyInstanceMemoryToPersistent();
 
 		// deactivate up to ExecuteNode
+		SearchData.DeactivatedBranchStartIndex = INDEX_NONE;
+		SearchData.DeactivatedBranchEndIndex = INDEX_NONE;
+
 		if (InstanceStack[ActiveInstanceIdx].ActiveNode != ExecutionRequest.ExecuteNode)
 		{
-			const bool bDeactivated = DeactivateUpTo(ExecutionRequest.ExecuteNode, ExecutionRequest.ExecuteInstanceIdx, NodeResult);
+			int32 LastDeactivatedChildIndex = INDEX_NONE;
+			const bool bDeactivated = DeactivateUpTo(ExecutionRequest.ExecuteNode, ExecutionRequest.ExecuteInstanceIdx, NodeResult, LastDeactivatedChildIndex);
 			if (!bDeactivated)
 			{
 				// error occurred and tree will restart, all pending deactivation notifies will be lost
 				// this is should happen
+
+				BT_SEARCHLOG(SearchData, Error, TEXT("Unable to deactivate up to %s. Active node is %s. All pending updates will be lost!"), 
+					*UBehaviorTreeTypes::DescribeNodeHelper(ExecutionRequest.ExecuteNode), 
+					*UBehaviorTreeTypes::DescribeNodeHelper(InstanceStack[ActiveInstanceIdx].ActiveNode));
 				SearchData.PendingUpdates.Reset();
 
 				return;
+			}
+			else if (LastDeactivatedChildIndex != INDEX_NONE)
+			{
+				SearchData.DeactivatedBranchStartIndex = ExecutionRequest.ExecuteNode->GetChildExecutionIndex(LastDeactivatedChildIndex);
+				SearchData.DeactivatedBranchEndIndex = ExecutionRequest.ExecuteNode->GetChildExecutionIndex(LastDeactivatedChildIndex + 1);
 			}
 		}
 
@@ -1325,6 +1374,7 @@ void UBehaviorTreeComponent::ProcessExecutionRequest()
 		SearchData.AssignSearchId();
 		SearchData.bPostponeSearch = false;
 		SearchData.bSearchInProgress = true;
+		SearchData.SearchRootNode = FBTNodeIndex(ExecutionRequest.ExecuteInstanceIdx, ExecutionRequest.ExecuteNode->GetExecutionIndex());
 
 		// activate root node if needed (can't be handled by parent composite...)
 		if (ActiveInstance.ActiveNode == NULL)
@@ -1472,7 +1522,13 @@ void UBehaviorTreeComponent::ProcessExecutionRequest()
 			// abort task if needed
 			if (InstanceStack.Last().ActiveNodeType == EBTActiveNode::ActiveTask)
 			{
+				// prevent new execution requests for nodes inside the deativated branch 
+				// that may result from the aborted task.
+				SearchData.bFilterOutRequestFromDeactivatedBranch = true;
+
 				AbortCurrentTask();
+
+				SearchData.bFilterOutRequestFromDeactivatedBranch = false;
 			}
 
 			// set next task to execute
@@ -1569,7 +1625,7 @@ void UBehaviorTreeComponent::RollbackSearchChanges()
 	}
 }
 
-bool UBehaviorTreeComponent::DeactivateUpTo(UBTCompositeNode* Node, uint16 NodeInstanceIdx, EBTNodeResult::Type& NodeResult)
+bool UBehaviorTreeComponent::DeactivateUpTo(UBTCompositeNode* Node, uint16 NodeInstanceIdx, EBTNodeResult::Type& NodeResult, int32& OutLastDeactivatedChildIndex)
 {
 	UBTNode* DeactivatedChild = InstanceStack[ActiveInstanceIdx].ActiveNode;
 	bool bDeactivateRoot = true;
@@ -1586,7 +1642,8 @@ bool UBehaviorTreeComponent::DeactivateUpTo(UBTCompositeNode* Node, uint16 NodeI
 		UBTCompositeNode* NotifyParent = DeactivatedChild->GetParentNode();
 		if (NotifyParent)
 		{
-			NotifyParent->OnChildDeactivation(SearchData, *DeactivatedChild, NodeResult);
+			OutLastDeactivatedChildIndex = NotifyParent->GetChildIndex(SearchData, *DeactivatedChild);
+			NotifyParent->OnChildDeactivation(SearchData, OutLastDeactivatedChildIndex, NodeResult);
 
 			BT_SEARCHLOG(SearchData, Verbose, TEXT("Deactivate node: %s"), *UBehaviorTreeTypes::DescribeNodeHelper(DeactivatedChild));
 			StoreDebuggerSearchStep(DeactivatedChild, ActiveInstanceIdx, NodeResult);

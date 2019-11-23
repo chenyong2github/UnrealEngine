@@ -141,6 +141,8 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 	{
 		bAllowSkySampling = true;
 	}
+	// Check if the Sky Light should affect reflection rays within translucency.
+	const bool bSkyLightAffectReflection = ShouldSkyLightAffectReflection();
 	
 	bool bHasScattered = (ERayTracingPrimaryRaysFlag_ConsiderSurfaceScatter & PrimaryRayFlags) != 0;
 
@@ -155,6 +157,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 	{
 		const uint RefractionRayFlags = 0;
 		const uint RefractionInstanceInclusionMask = RAY_TRACING_MASK_ALL;
+		const bool bRefractionEnableSkyLightContribution = true;
 		float3 PathVertexRadiance = float3(0, 0, 0);
 
 		FMaterialClosestHitPayload Payload = TraceRayAndAccumulateResults(
@@ -168,6 +171,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 			ShouldDoDirectLighting,
 			ShouldDoEmissiveAndIndirectLighting,
 			RayCone,
+			bRefractionEnableSkyLightContribution,
 			PathVertexRadiance);
 		LastRoughness = Payload.Roughness;
 
@@ -219,6 +223,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 
 			const uint ReflectionRayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 			const uint ReflectionInstanceInclusionMask = RAY_TRACING_MASK_ALL;
+			const bool bReflectionEnableSkyLightContribution = bSkyLightAffectReflection;
 			float3 ReflectionRadiance = float3(0, 0, 0);
 
 			FMaterialClosestHitPayload ReflectionPayload = TraceRayAndAccumulateResults(
@@ -232,6 +237,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 				ShouldDoDirectLighting,
 				ShouldDoEmissiveAndIndirectLighting,
 				RayCone,
+				bReflectionEnableSkyLightContribution,
 				ReflectionRadiance);
 
 			// If we have not hit anything, sample the distance sky radiance.

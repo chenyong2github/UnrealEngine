@@ -188,6 +188,7 @@ bool FNiagaraScriptExecutionContext::Execute(uint32 NumInstances)
 		const FNiagaraVMExecutableData& ExecData = Script->GetVMExecutableData();
 		VectorVM::Exec(
 			ExecData.ByteCode.GetData(),
+			ExecData.OptimizedByteCode.Num() > 0 ? ExecData.OptimizedByteCode.GetData() : nullptr,
 			ExecData.NumTempRegisters,
 			Parameters.GetParameterDataArray().GetData(),
 			DataSetMetaTable,
@@ -425,13 +426,14 @@ void FNiagaraComputeExecutionContext::Reset(NiagaraEmitterInstanceBatcher* Batch
 	);
 }
 
-void FNiagaraComputeExecutionContext::InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const FString& InDebugSimName, const int32 InMaxUpdateIterations, const TSet<uint32> InSpawnStages)
+void FNiagaraComputeExecutionContext::InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const FString& InDebugSimName, const uint32 InDefaultShaderStageIndex, const int32 InMaxUpdateIterations, const TSet<uint32> InSpawnStages)
 {
 #if !UE_BUILD_SHIPPING
 	DebugSimName = InDebugSimName;
 #endif
 	GPUScript = InGPUComputeScript;
 	CombinedParamStore.InitFromOwningContext(InGPUComputeScript, InSimTarget, true);
+	DefaultShaderStageIndex = InDefaultShaderStageIndex;
 	MaxUpdateIterations = InMaxUpdateIterations;
 	SpawnStages.Empty();
 

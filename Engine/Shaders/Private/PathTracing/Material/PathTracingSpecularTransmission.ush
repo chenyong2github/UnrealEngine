@@ -28,15 +28,15 @@ void SpecularRefraction_SampleMaterial(
 
 	const float3 F = FresnelDielectric(V_Local.z, IorI, IorT);
     const float Favg = (F.x + F.y + F.z) / 3.0f;
-	const bool bIsReflected = RandSample.x < F.x;
+	const bool bIsReflected = RandSample.x < Favg;
 	
 	float3 L_Local;
 	if (bIsReflected)
 	{
         L_Local = float3(-V_Local.x, -V_Local.y, V_Local.z);
 
-		OutThroughput =  F / abs(L_Local.z);
-        OutPdf = 1.0f / Favg;
+		OutThroughput =  F;
+        OutPdf = Favg;
 		OutPositionBiasSign = bIsEntering ? 1 : -1;
 	}
 	else
@@ -53,8 +53,8 @@ void SpecularRefraction_SampleMaterial(
 		else
 		{
 			float SqrRatio = 1.0; // (IorI * IorI) / (IorT * IorT);	// SqrRatio is 1 for light rays	
-			OutThroughput = SqrRatio * (1 - F) / abs(L_Local.z);
-			OutPdf = 1.0f / (1.0f - Favg);
+			OutThroughput = SqrRatio * (1 - F);
+			OutPdf = 1.0f - Favg;
 			OutPositionBiasSign = bIsEntering ? -1 : 1;
 		}
 	}

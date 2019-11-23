@@ -678,7 +678,10 @@ FLinkerLoad* GetPackageLinker
 		const bool DoesPackageExist = DoesPackageExistForGetPackageLinker(PackageNameToLoad, CompatibleGuid, NewFilename);
 		if( !DoesPackageExist )
 		{
-			if (!FLinkerLoad::IsKnownMissingPackage(InLongPackageName))
+			// Issue a warning if the caller didn't request nowar/quiet, and the package isn't marked as known to be missing.
+			bool IssueWarning = (LoadFlags & (LOAD_NoWarn | LOAD_Quiet)) == 0 && !FLinkerLoad::IsKnownMissingPackage(InLongPackageName);
+
+			if (IssueWarning)
 			{
 				// try to recover from this instead of throwing, it seems recoverable just by doing this
 				LogGetPackageLinkerError(Result, InExistingContext, InLongPackageName, LOCTEXT("FileNotFoundShort", "Can't find file."), InOuter, LoadFlags);

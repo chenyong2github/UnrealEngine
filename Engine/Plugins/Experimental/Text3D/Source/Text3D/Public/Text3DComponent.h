@@ -81,7 +81,6 @@ public:
 	virtual bool ShouldRecreateProxyOnUpdateTransform() const override;
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 
-	virtual int32 GetNumMaterials() const override;
 	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
 	virtual UMaterialInterface* GetMaterial(int32 ElementIndex) const override;
 	virtual void SetMaterial(int32 ElementIndex, UMaterialInterface* InMaterial) override;
@@ -90,6 +89,22 @@ public:
 	/** The text to generate a 3d mesh */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetText, Category="Text3D", meta=(MultiLine=true))
 	FText Text;
+
+	/** Size of the extrude */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetExtrude, Category = "Text3D", Meta = (ClampMin = 0))
+	float Extrude;
+
+	/** Size of bevel */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetBevel, Category="Text3D", Meta=(ClampMin=0))
+	float Bevel;
+
+	/** Bevel Type (Linear / Half Circle) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetBevelType, Category="Text3D")
+	EText3DBevelType BevelType;
+
+	/** Half Circle Bevel Segments (Defines the amount of tesselation for the bevel part) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetHalfCircleSegments, Category="Text3D", Meta=(ClampMin=1, ClampMax=10))
+	int32 HalfCircleSegments;
 
 	/** Material for the front part */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetFrontMaterial, Category="Text3D")
@@ -150,23 +165,6 @@ public:
 	/** Should the mesh scale proportionally when Max Width/Height is set */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetScaleProportionally, Category="Text3D")
 	bool bScaleProportionally;
-
-	/** The text to generate a 3d mesh */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetExtrude, Category = "Text3D", Meta = (ClampMin = 0))
-	float Extrude;
-
-	/** Size of bevel  */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetBevel, Category="Text3D", Meta=(ClampMin=0))
-	float Bevel;
-
-	/** Bevel Type (Linear / Half Circle) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetBevelType, Category="Text3D")
-	EText3DBevelType BevelType;
-
-	/** Half Circle Bevel Segments (Defines the amount of tesselation for the bevel part) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetHalfCircleSegments, Category="Text3D", Meta=(ClampMin=1))
-	int32 HalfCircleSegments;
-
 
 	/** Set the text front material */
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|Text3D")
@@ -261,7 +259,7 @@ private:
 	bool PendingBuild;
 	bool FreezeBuild;
 
-	TText3DMeshList Meshes;
+	TSharedRef<TText3DMeshList> Meshes;
 	FTransform CharacterTransform;
 
 	friend class FText3DSceneProxy;

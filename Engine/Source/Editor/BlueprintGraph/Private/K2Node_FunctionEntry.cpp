@@ -779,7 +779,7 @@ void UK2Node_FunctionEntry::ExpandNode(class FKismetCompilerContext& CompilerCon
 					{
 						// Add a variable set node for the local variable and hook it up immediately following the entry node or the last added local variable
 						UK2Node_VariableSet* VariableSetNode = CompilerContext.SpawnIntermediateNode<UK2Node_VariableSet>(this, SourceGraph);
-						VariableSetNode->SetFromProperty(Property, false);
+						VariableSetNode->SetFromProperty(Property, false, Property->GetOwnerClass());
 						Schema->ConfigureVarNode(VariableSetNode, LocalVar.VarName, Function, CompilerContext.Blueprint);
 						VariableSetNode->AllocateDefaultPins();
 

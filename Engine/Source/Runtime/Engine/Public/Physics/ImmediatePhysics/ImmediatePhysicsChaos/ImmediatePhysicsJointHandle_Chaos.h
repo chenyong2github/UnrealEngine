@@ -15,8 +15,8 @@ namespace ImmediatePhysics_Chaos
 	struct ENGINE_API FJointHandle
 	{
 	public:
-		using FChaosConstraintContainer = Chaos::TPBDJointConstraints<FReal, Dimensions>;
-		using FChaosConstraintHandle = typename Chaos::TPBDJointConstraintHandle<FReal, Dimensions>;
+		using FChaosConstraintContainer = Chaos::FPBDJointConstraints;
+		using FChaosConstraintHandle = typename Chaos::FPBDJointConstraintHandle;
 
 		FJointHandle(FChaosConstraintContainer* InConstraints, FConstraintInstance* ConstraintInstance, FActorHandle* InActor1, FActorHandle* InActor2);
 		~FJointHandle();

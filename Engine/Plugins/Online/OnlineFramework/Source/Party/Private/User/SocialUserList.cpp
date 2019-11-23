@@ -491,17 +491,20 @@ void FSocialUserList::UpdateListInternal()
 	// Re-evaluate whether each user with dirtied presence is still fit for the list
 	for (TWeakObjectPtr<USocialUser> DirtyUser : UsersWithDirtyPresence)
 	{
-		const bool bContainsUser = Users.Contains(DirtyUser);
-		const bool bPendingAdd = PendingAdds.Contains(DirtyUser);
-		const bool bPendingRemove = PendingRemovals.Contains(DirtyUser);
+		if (DirtyUser.IsValid())
+		{
+			const bool bContainsUser = Users.Contains(DirtyUser);
+			const bool bPendingAdd = PendingAdds.Contains(DirtyUser);
+			const bool bPendingRemove = PendingRemovals.Contains(DirtyUser);
 
-		if (bPendingRemove || (!bContainsUser && !bPendingAdd))
-		{
-			TryAddUserFast(*DirtyUser);
-		}
-		else if (bPendingAdd || (bContainsUser && !bPendingRemove))
-		{
-			TryRemoveUser(*DirtyUser);
+			if (bPendingRemove || (!bContainsUser && !bPendingAdd))
+			{
+				TryAddUserFast(*DirtyUser);
+			}
+			else if (bPendingAdd || (bContainsUser && !bPendingRemove))
+			{
+				TryRemoveUser(*DirtyUser);
+			}
 		}
 	}
 	UsersWithDirtyPresence.Reset();

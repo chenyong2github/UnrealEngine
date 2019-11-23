@@ -28,6 +28,26 @@ void SampleMaterialAsWorldNormal(
 	OutPdf = 1.0;
 }
 
+bool IsNeeValidMaterial(FMaterialClosestHitPayload Payload)
+{
+	// Checks done in the same order as other sampling and evaluation functions to ensure consistency
+	if (IsPureSpecularReflection(Payload))
+	{
+		return false;
+	}
+	else if (IsPureSpecularTransmission(Payload))
+	{
+		return false;
+	}
+	else if(IsLambert(Payload))
+	{
+		return true;
+	}
+	else
+	{
+		return true;
+	}
+}
 
 void SampleMaterial(
 	float3 RayDirection,

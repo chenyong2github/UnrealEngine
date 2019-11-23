@@ -26,7 +26,7 @@ namespace AudioModulation
 		return Impl.Get();
 	}
 
-	float FAudioModulation::CalculateInitialVolume(const USoundModulationPluginSourceSettingsBase& Settings) const
+	float FAudioModulation::CalculateInitialVolume(const USoundModulationPluginSourceSettingsBase& Settings)
 	{
 		return Impl->CalculateInitialVolume(Settings);
 	}

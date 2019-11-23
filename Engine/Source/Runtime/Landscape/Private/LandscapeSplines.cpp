@@ -3224,6 +3224,193 @@ void ULandscapeSplineSegment::PostEditChangeProperty(FPropertyChangedEvent& Prop
 		}
 	}
 }
+
+void ALandscapeProxy::CreateSplineComponent(const FVector& Scale3D)
+{
+	check(SplineComponent == nullptr);
+	Modify();
+	SplineComponent = NewObject<ULandscapeSplinesComponent>(this, NAME_None, RF_Transactional);
+	SplineComponent->SetRelativeScale3D_Direct(Scale3D);
+	SplineComponent->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+	SplineComponent->ShowSplineEditorMesh(true);
+
+	if (RootComponent && RootComponent->IsRegistered())
+	{
+		SplineComponent->RegisterComponent();
+	}
+}
+
+void FindStartingControlPoints(ULandscapeSplineControlPoint* ControlPoint, TSet<ULandscapeSplineControlPoint*>& StartingControlPoints)
+{
+	bool bIsStartingControlPoint = true;
+	for (const FLandscapeSplineConnection& Connection : ControlPoint->ConnectedSegments)
+	{
+		if (Connection.End)
+		{
+			ULandscapeSplineControlPoint* Start = Connection.Segment->Connections[0].ControlPoint;
+			check(Start != ControlPoint);
+			FindStartingControlPoints(Start, StartingControlPoints);
+			bIsStartingControlPoint = false;
+		}
+	}
+
+	if (bIsStartingControlPoint)
+	{
+		StartingControlPoints.Add(ControlPoint);
+	}
+}
+
+void ULandscapeInfo::MoveControlPointToLandscape(ULandscapeSplineControlPoint* InControlPoint, ALandscapeProxy* FromProxy, ALandscapeProxy* ToProxy)
+{
+	if (ToProxy->SplineComponent == nullptr)
+	{
+		ToProxy->CreateSplineComponent(FromProxy->SplineComponent->GetRelativeScale3D());
+		check(ToProxy->SplineComponent);
+	}
+
+	if (InControlPoint->GetOuterULandscapeSplinesComponent() == ToProxy->SplineComponent)
+	{
+		return;
+	}
+	check(InControlPoint->GetOuterULandscapeSplinesComponent() == FromProxy->SplineComponent);
+
+	ToProxy->SplineComponent->Modify();
+
+	const FTransform OldToNewTransform =
+		FromProxy->SplineComponent->GetComponentTransform().GetRelativeTransform(ToProxy->SplineComponent->GetComponentTransform());
+		
+	// Delete all Mesh Components associated with the ControlPoint. (Will get recreated in UpdateSplinePoints)
+	if (InControlPoint->LocalMeshComponent)
+	{
+		InControlPoint->LocalMeshComponent->Modify();
+		InControlPoint->LocalMeshComponent->UnregisterComponent();
+		InControlPoint->LocalMeshComponent->DestroyComponent();
+		FromProxy->SplineComponent->Modify();
+		FromProxy->SplineComponent->MeshComponentLocalOwnersMap.Remove(InControlPoint->LocalMeshComponent);
+		InControlPoint->LocalMeshComponent = nullptr;
+	}
+
+	TMap<ULandscapeSplinesComponent*, UControlPointMeshComponent*> ForeignMeshComponents = InControlPoint->GetForeignMeshComponents();
+	for (auto Pair : ForeignMeshComponents)
+	{
+		Pair.Key->RemoveForeignMeshComponent(InControlPoint, Pair.Value);
+		Pair.Value->Modify();
+		Pair.Value->UnregisterComponent();
+		Pair.Value->DestroyComponent();
+	}
+
+	// Move control point to new level
+	FromProxy->SplineComponent->ControlPoints.Remove(InControlPoint);
+	InControlPoint->Rename(nullptr, ToProxy->SplineComponent);
+	ToProxy->SplineComponent->ControlPoints.Add(InControlPoint);
+
+	InControlPoint->Location = OldToNewTransform.TransformPosition(InControlPoint->Location);
+
+	const bool bUpdateCollision = true; // default value
+	const bool bUpdateSegments = false; // done in next loop
+	const bool bUpdateMeshLevel = false; // no need because mesh have been deleted
+	InControlPoint->UpdateSplinePoints(bUpdateCollision, bUpdateSegments, bUpdateMeshLevel);
+
+	// Continue
+	for (const FLandscapeSplineConnection& Connection : InControlPoint->ConnectedSegments)
+	{
+		if (!Connection.End)
+		{
+			MoveSegmentToLandscape(Connection.Segment, FromProxy, ToProxy);
+		}
+	}
+}
+
+void ULandscapeInfo::MoveSegmentToLandscape(ULandscapeSplineSegment* InSegment, ALandscapeProxy* FromProxy, ALandscapeProxy* ToProxy)
+{
+	ToProxy->Modify();
+	if (ToProxy->SplineComponent == nullptr)
+	{
+		ToProxy->CreateSplineComponent(FromProxy->SplineComponent->GetRelativeScale3D());
+		check(ToProxy->SplineComponent);
+	}
+		
+	if (InSegment->GetOuterULandscapeSplinesComponent() == ToProxy->SplineComponent)
+	{
+		return;
+	}
+	check(InSegment->GetOuterULandscapeSplinesComponent() == FromProxy->SplineComponent);
+
+	ToProxy->SplineComponent->Modify();
+		
+	// Delete all Mesh Components associated with the Segment. (Will get recreated in UpdateSplinePoints)
+	for (auto* MeshComponent : InSegment->LocalMeshComponents)
+	{
+		MeshComponent->Modify();
+		MeshComponent->UnregisterComponent();
+		MeshComponent->DestroyComponent();
+		FromProxy->Modify();
+		FromProxy->SplineComponent->MeshComponentLocalOwnersMap.Remove(MeshComponent);
+	}
+	InSegment->LocalMeshComponents.Empty();
+
+	TMap<ULandscapeSplinesComponent*, TArray<USplineMeshComponent*>> ForeignMeshComponents = InSegment->GetForeignMeshComponents();
+	for (auto Pair : ForeignMeshComponents)
+	{
+		Pair.Key->RemoveAllForeignMeshComponents(InSegment);
+		for (auto MeshComponent : Pair.Value)
+		{
+			MeshComponent->Modify();
+			MeshComponent->UnregisterComponent();
+			MeshComponent->DestroyComponent();
+		}
+	}
+
+	// Move segment to new level
+	FromProxy->SplineComponent->Segments.Remove(InSegment);
+	InSegment->Rename(nullptr, ToProxy->SplineComponent);
+	ToProxy->SplineComponent->Segments.Add(InSegment);
+		
+	// Continue ...
+	MoveControlPointToLandscape(InSegment->Connections[1].ControlPoint, FromProxy, ToProxy);
+
+	const bool bUpdateCollision = true; // default value
+	const bool bUpdateMeshLevel = false; // no need because mesh have been deleted 
+	InSegment->UpdateSplinePoints(bUpdateCollision, bUpdateMeshLevel);
+}
+
+void ULandscapeInfo::MoveSplineToLevel(ULandscapeSplineControlPoint* InControlPoint, ULevel* TargetLevel)
+{
+	ALandscapeProxy* FromProxy = InControlPoint->GetTypedOuter<ALandscapeProxy>();
+	if (FromProxy->GetLevel() == TargetLevel)
+	{
+		return;
+	}
+
+	ALandscapeProxy* ToProxy = GetLandscapeProxyForLevel(TargetLevel);
+	if (!ToProxy)
+	{
+		return;
+	}
+	
+	TSet<ULandscapeSplineControlPoint*> ControlPoints;
+	
+	FindStartingControlPoints(InControlPoint, ControlPoints);
+	
+	FromProxy->Modify();
+	FromProxy->SplineComponent->Modify();
+	FromProxy->SplineComponent->MarkRenderStateDirty();
+
+	for (ULandscapeSplineControlPoint* ControlPoint : ControlPoints)
+	{
+		MoveControlPointToLandscape(ControlPoint, FromProxy, ToProxy);
+	}
+}
+
+void ULandscapeInfo::MoveSplinesToLevel(ULandscapeSplinesComponent * InSplineComponent, ULevel * TargetLevel)
+{
+	TArray<ULandscapeSplineControlPoint*> CopyControlPoints(InSplineComponent->ControlPoints);
+	for(ULandscapeSplineControlPoint* ControlPoint : CopyControlPoints)
+	{
+		// Even if ControlPoints are part of same connected spline they will be skipped if already moved
+		MoveSplineToLevel(ControlPoint, TargetLevel);
+	}
+}
 #endif // WITH_EDITOR
 
 

@@ -50,7 +50,7 @@ struct FSkeletonTreeArgs
 		, bShowFilterMenu(true)
 		, bAllowMeshOperations(true)
 		, bAllowSkeletonOperations(true)
-		, bHideBonesByDefault(true)
+		, bHideBonesByDefault(false)
 	{}
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS

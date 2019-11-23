@@ -40,7 +40,6 @@
 #include "FbxMeshUtils.h"
 #include "LODUtilities.h"
 
-#include "LODUtilities.h"
 #include "ScopedTransaction.h"
 #include "ComponentReregisterContext.h"
 #include "EditorFramework/AssetImportData.h"

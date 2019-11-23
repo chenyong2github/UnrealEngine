@@ -34,7 +34,8 @@ TSharedPtr<ILiveLinkSource> ULiveLinkMessageBusSourceFactory::CreateSource(const
 		return TSharedPtr<ILiveLinkSource>();
 	}
 
-	return MakeShared<FLiveLinkMessageBusSource>(FText::FromString(Name), FText::GetEmpty(), FMessageAddress());
+	const double TimeOffset = 0.0;
+	return MakeShared<FLiveLinkMessageBusSource>(FText::FromString(Name), FText::GetEmpty(), FMessageAddress(), TimeOffset);
 }
 
 void ULiveLinkMessageBusSourceFactory::OnSourceSelected(FProviderPollResultPtr SelectedSource, FOnLiveLinkSourceCreated InOnLiveLinkSourceCreated) const
@@ -65,7 +66,7 @@ void ULiveLinkMessageBusSourceFactory::OnSourceSelected(FProviderPollResultPtr S
 		}
 #endif
 
-		TSharedPtr<FLiveLinkMessageBusSource> SharedPtr = MakeShared<FLiveLinkMessageBusSource>(FText::FromString(SelectedSource->Name), FText::FromString(SelectedSource->MachineName), SelectedSource->Address);
+		TSharedPtr<FLiveLinkMessageBusSource> SharedPtr = MakeShared<FLiveLinkMessageBusSource>(FText::FromString(SelectedSource->Name), FText::FromString(SelectedSource->MachineName), SelectedSource->Address, SelectedSource->MachineTimeOffset);
 		FString ConnectionString = FString::Printf(TEXT("Name=\"%s\""), *SelectedSource->Name);
 		InOnLiveLinkSourceCreated.ExecuteIfBound(SharedPtr, MoveTemp(ConnectionString));
 	}

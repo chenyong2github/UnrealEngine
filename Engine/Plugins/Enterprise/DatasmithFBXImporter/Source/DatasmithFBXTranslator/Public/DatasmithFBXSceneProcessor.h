@@ -42,9 +42,6 @@ public:
 	/** Find and mark scene nodes which shouldn't be merged with parent or sibling nodes */
 	void FindPersistentNodes();
 
-	/** Find duplicated nodes which could be replaced with a single instance and pointer to children ("shared nodes") */
-	void OptimizeDuplicatedNodes();
-
 	/** Collapse node hierarchy . */
 	void SimplifyNodeHierarchy();
 
@@ -77,18 +74,6 @@ public:
 
 	/** Recursively splits cameras into a parent simple actor, and a child camera actor, with the _Camera suffix */
 	void SplitCameraNodesRecursive(TSharedPtr<FDatasmithFBXSceneNode> Node);
-
-	/** Decompose all scene nodes with nonzero RotationPivots using dummy actors, and handle their animations */
-	void DecomposeRotationPivots();
-
-	/** Recursively decompose nodes with nonzero RotationPivots using dummy actors, and handle their animations */
-	void DecomposeRotationPivotsForNode(TSharedPtr<FDatasmithFBXSceneNode> Node, TMap<FString, FDatasmithFBXSceneAnimNode*>& NodeNameToAnimNode, TArray<FDatasmithFBXSceneAnimNode>& NewAnimNodes);
-
-	/** Decompose all scene nodes with nonzero ScalingPivots using dummy actors, and handle their animations */
-	void DecomposeScalingPivots();
-
-	/** Recursively decompose nodes with nonzero ScalingPivots using dummy actors, and handle their animations */
-	void DecomposeScalingPivotsForNode(TSharedPtr<FDatasmithFBXSceneNode> Node, TMap<FString, FDatasmithFBXSceneAnimNode*>& NodeNameToAnimNode, TArray<FDatasmithFBXSceneAnimNode>& NewAnimNodes);
 
 protected:
 	FDatasmithFBXScene* Scene;

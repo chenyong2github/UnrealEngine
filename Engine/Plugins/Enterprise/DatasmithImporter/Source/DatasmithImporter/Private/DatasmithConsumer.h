@@ -7,7 +7,7 @@
 #include "DatasmithImporter.h"
 #include "DatasmithScene.h"
 
-#include "DataPrepContentConsumer.h"
+#include "DataprepContentConsumer.h"
 
 #include "UObject/SoftObjectPath.h"
 
@@ -28,12 +28,8 @@ public:
 	{
 	}
 
-	UPROPERTY( BlueprintReadOnly, Category = DatasmithConsumerInternal)
+	UPROPERTY( BlueprintReadOnly, Category = DatasmithConsumerInternal, DuplicateTransient )
 	TSoftObjectPtr<UDatasmithScene> DatasmithScene;
-
-	/** Stores the package path used on the last call to UDatasmithConsumer::Run */
-	UPROPERTY( BlueprintReadOnly, Category = DatasmithConsumerInternal )
-	FString LastPackagePath;
 
 	/** Stores the level used on the last call to UDatasmithConsumer::Run */
 	UPROPERTY( BlueprintReadOnly, Category = DatasmithConsumerInternal )
@@ -43,6 +39,7 @@ public:
 	virtual const FText& GetLabel() const override;
 	virtual const FText& GetDescription() const override;
 	virtual bool SetLevelName(const FString& InLevelName, FText& OutReason ) override;
+	virtual bool SetTargetContentFolder(const FString& InTargetContentFolder, FText& OutReason) override;
 
 protected:
 	virtual bool Initialize() override;
@@ -58,7 +55,7 @@ private:
 	ULevel* FindLevel( const FString& InLevelName );
 
 	/** Move assets if destination package path has changed since last call to UDatasmithConsumer::Run */
-	void MoveAssets();
+	void UpdateScene();
 
 	/** Move level if destination level's name has changed since last call to UDatasmithConsumer::Run */
 	void MoveLevel();
@@ -69,7 +66,6 @@ private:
 private:
 	TUniquePtr< FDatasmithImportContext > ImportContextPtr;
 	TUniquePtr< FDataprepWorkReporter > ProgressTaskPtr;
-	TStrongObjectPtr< UDatasmithScene > WorkingScenePtr;
 
 	ULevel* PreviousCurrentLevel;
 };

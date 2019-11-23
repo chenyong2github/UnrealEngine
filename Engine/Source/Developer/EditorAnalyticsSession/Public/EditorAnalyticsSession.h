@@ -20,6 +20,7 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 
 	FDateTime StartupTimestamp;
 	FDateTime Timestamp;
+	int32 SessionDuration;
 	int32 Idle1Min;
 	int32 Idle5Min;
 	int32 Idle30Min;
@@ -65,6 +66,12 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	 * @returns true if the session was successfully saved.
 	 */
 	bool Save();
+
+	/**
+	 * Save only the bare minimum of fields that may have changed during a crash.
+	 * @returns true if the session was successfully saved.
+	 */
+	bool SaveForCrash();
 
 	/**
 	 *  Load a session with the given session ID from stored values.
@@ -114,6 +121,12 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 private:
 
 	static FSystemWideCriticalSection* StoredValuesLock;
+
+	/** 
+	 * Has this session already been saved? 
+	 * If not, then the first save will write out session invariant details such as hardware specs.
+	 */
+	bool bAlreadySaved : 1;
 };
 
 class FEditorAnalyticsSessionModule : public IModuleInterface

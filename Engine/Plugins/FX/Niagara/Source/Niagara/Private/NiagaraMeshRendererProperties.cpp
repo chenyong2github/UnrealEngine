@@ -5,6 +5,9 @@
 #include "Engine/StaticMesh.h"
 #include "NiagaraConstants.h"
 #include "NiagaraBoundsCalculatorHelper.h"
+#include "Modules/ModuleManager.h"
+
+TArray<TWeakObjectPtr<UNiagaraMeshRendererProperties>> UNiagaraMeshRendererProperties::MeshRendererPropertiesToDeferredInit;
 
 FNiagaraMeshMaterialOverride::FNiagaraMeshMaterialOverride()
 	: ExplicitMat(nullptr)
@@ -28,7 +31,7 @@ bool FNiagaraMeshMaterialOverride::SerializeFromMismatchedTag(const struct FProp
 
 UNiagaraMeshRendererProperties::UNiagaraMeshRendererProperties()
 	: ParticleMesh(nullptr)
-	, SortMode(ENiagaraSortMode::ViewDistance)
+	, SortMode(ENiagaraSortMode::None)
 	, bSortOnlyWhenTranslucent(true)
 {
 }
@@ -61,10 +64,29 @@ FNiagaraBoundsCalculator* UNiagaraMeshRendererProperties::CreateBoundsCalculator
 void UNiagaraMeshRendererProperties::PostInitProperties()
 {
 	Super::PostInitProperties();
+
 	if (HasAnyFlags(RF_ClassDefaultObject) == false)
 	{
+		// We can end up hitting PostInitProperties before the Niagara Module has initialized bindings this needs, mark this object for deferred init and early out.
+		if (FModuleManager::Get().IsModuleLoaded("Niagara") == false)
+		{
+			MeshRendererPropertiesToDeferredInit.Add(this);
+			return;
+		}
 		InitBindings();
 	}
+}
+
+void UNiagaraMeshRendererProperties::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);
+	const int32 NiagaraVersion = Ar.CustomVer(FNiagaraCustomVersion::GUID);
+
+	if (Ar.IsLoading() && (NiagaraVersion < FNiagaraCustomVersion::DisableSortingByDefault))
+	{
+		SortMode = ENiagaraSortMode::ViewDistance;
+	}
+	Super::Serialize(Ar);
 }
 
 /** The bindings depend on variables that are created during the NiagaraModule startup. However, the CDO's are build prior to this being initialized, so we defer setting these values until later.*/
@@ -72,6 +94,14 @@ void UNiagaraMeshRendererProperties::InitCDOPropertiesAfterModuleStartup()
 {
 	UNiagaraMeshRendererProperties* CDO = CastChecked<UNiagaraMeshRendererProperties>(UNiagaraMeshRendererProperties::StaticClass()->GetDefaultObject());
 	CDO->InitBindings();
+
+	for (TWeakObjectPtr<UNiagaraMeshRendererProperties>& WeakMeshRendererProperties : MeshRendererPropertiesToDeferredInit)
+	{
+		if (WeakMeshRendererProperties.Get())
+		{
+			WeakMeshRendererProperties->InitBindings();
+		}
+	}
 }
 
 void UNiagaraMeshRendererProperties::InitBindings()

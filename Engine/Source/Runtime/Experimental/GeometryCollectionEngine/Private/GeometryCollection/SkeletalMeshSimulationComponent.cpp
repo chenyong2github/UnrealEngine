@@ -65,7 +65,7 @@ USkeletalMeshSimulationComponent::USkeletalMeshSimulationComponent(const FObject
 {
 	// Enable calls to TickComponent()
 	UActorComponent::PrimaryComponentTick.bCanEverTick = true;	
-	ChaosMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<float>>();
+	ChaosMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
 }
 
 Chaos::FPhysicsSolver* GetSolver(const USkeletalMeshSimulationComponent& SkeletalMeshSimulationComponent)

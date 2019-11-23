@@ -175,6 +175,7 @@ FReply FNiagaraParameterGraphDragOperation::DroppedOnPanel(const TSharedRef<SWid
 void FNiagaraParameterGraphDragOperation::MakeGetMap(FNiagaraParameterNodeConstructionParams InParams)
 {
 	check(InParams.Graph);
+	InParams.Graph->Modify();
 	FGraphNodeCreator<UNiagaraNodeParameterMapGet> GetNodeCreator(*InParams.Graph);
 	UNiagaraNodeParameterMapGet* GetNode = GetNodeCreator.CreateNode();
 	GetNode->NodePosX = InParams.GraphPosition.X;
@@ -186,6 +187,7 @@ void FNiagaraParameterGraphDragOperation::MakeGetMap(FNiagaraParameterNodeConstr
 void FNiagaraParameterGraphDragOperation::MakeSetMap(FNiagaraParameterNodeConstructionParams InParams)
 {
 	check(InParams.Graph);
+	InParams.Graph->Modify();
 	FGraphNodeCreator<UNiagaraNodeParameterMapSet> SetNodeCreator(*InParams.Graph);
 	UNiagaraNodeParameterMapSet* SetNode = SetNodeCreator.CreateNode();
 	SetNode->NodePosX = InParams.GraphPosition.X;

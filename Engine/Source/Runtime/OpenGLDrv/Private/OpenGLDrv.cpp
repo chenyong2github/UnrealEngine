@@ -19,6 +19,7 @@ IMPLEMENT_MODULE(FOpenGLDynamicRHIModule, OpenGLDrv);
 
 #include "Shader.h"
 #include "OneColorShader.h"
+#include "OpenGLShaders.h"
 
 /** OpenGL Logging. */
 DEFINE_LOG_CATEGORY(LogOpenGL);
@@ -57,7 +58,10 @@ void FOpenGLGPUProfiler::PopEvent()
 
 }
 
-
+bool FOpenGLDynamicRHI::RHIRequiresComputeGenerateMips() const
+{
+	return !FOpenGL::SupportsGenerateMipmap();
+};
 
 void FOpenGLGPUProfiler::BeginFrame(FOpenGLDynamicRHI* InRHI)
 {
@@ -568,6 +572,11 @@ void FOpenGLBase::ProcessExtensions( const FString& ExtensionsString )
 		OpenGLConsoleVariables::bUseVAB = 0;
 	}
 #endif
+}
+
+void PE_GetCurrentOpenGLShaderDeviceCapabilities(FOpenGLShaderDeviceCapabilities& Capabilities)
+{
+	Capabilities.TargetPlatform = EOpenGLShaderTargetPlatform::OGLSTP_Unknown;
 }
 
 void GetExtensionsString( FString& ExtensionsString)

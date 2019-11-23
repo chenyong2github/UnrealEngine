@@ -388,6 +388,18 @@ namespace Audio
 		/** Gets the device information of the given device index. */
 		virtual bool GetOutputDeviceInfo(const uint32 InDeviceIndex, FAudioPlatformDeviceInfo& OutInfo) = 0;
 
+		/**
+		 * Returns the name of the currently used audio device.
+		 */
+		virtual FString GetCurrentDeviceName() { return CurrentDeviceName; }
+
+		/**
+		 * Can be used to look up the current index for a given device name.
+		 * On most platforms, this index may be invalidated if any devices are added or removed.
+		 * Returns INDEX_NONE if no mapping is found
+		 */
+		virtual int32 GetIndexForDevice(const FString& InDeviceName);
+
 		/** Gets the platform specific audio settings. */
 		virtual FAudioPlatformSettings GetPlatformSettings() const = 0;
 
@@ -579,6 +591,9 @@ namespace Audio
 		/** Source param used to fade in and out audio device. */
 		FParam FadeParam;
 
+		/** This device name can be used to override the default device being used on platforms that use strings to identify audio devices. */
+		FString CurrentDeviceName;
+
 		/** String containing the last generated error. */
 		FString LastError;
 
@@ -591,6 +606,7 @@ namespace Audio
 
 		FThreadSafeBool bMoveAudioStreamToNewAudioDevice;
 		FThreadSafeBool bIsUsingNullDevice;
+		FThreadSafeBool bIsGeneratingAudio;
 
 	private:
 		TUniquePtr<FMixerNullCallback> NullDeviceCallback;

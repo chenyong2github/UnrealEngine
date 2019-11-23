@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "Chaos/PBDCollisionTypes.h"
+#include "Chaos/ExternalCollisionData.h"
+#include "Chaos/CollisionResolutionTypes.h"
 #include "Chaos/Framework/PhysicsProxy.h"
 
 namespace Chaos

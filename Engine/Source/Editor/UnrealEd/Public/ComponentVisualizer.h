@@ -35,6 +35,31 @@ struct HComponentVisProxy : public HHitProxy
 };
 
 
+struct FPropertyNameAndIndex
+{
+	FPropertyNameAndIndex()
+		: Name(NAME_None)
+		, Index(INDEX_NONE)
+	{}
+
+	explicit FPropertyNameAndIndex(FName InName, int32 InIndex = 0)
+		: Name(InName)
+		, Index(InIndex)
+	{}
+
+	bool IsValid() const { return Name != NAME_None && Index != INDEX_NONE; }
+
+	void Clear()
+	{
+		Name = NAME_None;
+		Index = INDEX_NONE;
+	}
+
+	FName Name;
+	int32 Index;
+};
+
+
 /**
  * Describes a chain of properties from the parent actor of a given component, to the component itself.
  */
@@ -49,6 +74,7 @@ public:
 	void Reset()
 	{
 		ParentOwningActor = nullptr;
+		LastResortComponentPtr = nullptr;
 		PropertyChain.Reset();
 	}
 
@@ -67,7 +93,8 @@ private:
 	void Set(const UActorComponent* Component);
 
 	TWeakObjectPtr<AActor> ParentOwningActor;
-	TArray<TTuple<FName, int32>> PropertyChain;
+	TWeakObjectPtr<UActorComponent> LastResortComponentPtr;
+	TArray<FPropertyNameAndIndex> PropertyChain;
 };
 
 
@@ -81,6 +108,8 @@ public:
 
 	/** */
 	virtual void OnRegister() {}
+	/** Only show this visualizer if the actor is selected */
+	virtual bool ShowWhenSelected() { return true; }
 	/** Draw visualization for the supplied component */
 	virtual void DrawVisualization(const UActorComponent* Component, const FSceneView* View, FPrimitiveDrawInterface* PDI) {}
 	/** Draw HUD on viewport for the supplied component */
@@ -112,37 +141,15 @@ public:
 	/** */
 	virtual bool IsVisualizingArchetype() const { return false; }
 
-	struct FPropertyNameAndIndex
-	{
-		FPropertyNameAndIndex()
-			: Name(NAME_None)
-			, Index(INDEX_NONE)
-		{}
-
-		explicit FPropertyNameAndIndex(FName InName, int32 InIndex = 0)
-			: Name(InName)
-			, Index(InIndex)
-		{}
-
-		bool IsValid() const { return Name != NAME_None && Index != INDEX_NONE; }
-
-		void Clear()
-		{
-			Name = NAME_None;
-			Index = INDEX_NONE;
-		}
-
-		FName Name;
-		int32 Index;
-	};
-
+	// So deprecated code expecting this as an inner class still works
+	using FPropertyNameAndIndex = ::FPropertyNameAndIndex;
 
 	/** Find the name of the property that points to this component */
-	UE_DEPRECATED(4.25, "Please use the FComponentPropertyPath class to build property name paths for components.")
+	UE_DEPRECATED(4.24, "Please use the FComponentPropertyPath class to build property name paths for components.")
 	static FPropertyNameAndIndex GetComponentPropertyName(const UActorComponent* Component);
 
 	/** Get a component pointer from the property name */
-	UE_DEPRECATED(4.25, "Please use the FComponentPropertyPath::GetComponent() to retrieve a component pointer from a property name path.")
+	UE_DEPRECATED(4.24, "Please use the FComponentPropertyPath::GetComponent() to retrieve a component pointer from a property name path.")
 	static UActorComponent* GetComponentFromPropertyName(const AActor* CompOwner, const FPropertyNameAndIndex& Property);
 
 	/** Notify that a component property has been modified */

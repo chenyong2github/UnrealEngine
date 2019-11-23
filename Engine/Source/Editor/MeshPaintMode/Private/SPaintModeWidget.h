@@ -5,10 +5,12 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Misc/NotifyHook.h"
+#include "Widgets/Notifications/SErrorText.h"
 
 class FPaintModePainter;
 class UPaintModeSettings;
 class IDetailsView;
+class SErrorText;
 
 /** Widget representing the state / functionality and settings for PaintModePainter*/
 class SPaintModeWidget : public SCompoundWidget, public FNotifyHook
@@ -46,6 +48,10 @@ protected:
 	/** Paint settings instance */
 	UPaintModeSettings* PaintModeSettings;
 
+	TSharedPtr<SErrorText> ErrorTextWidget;
+		
 private:
 	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged) override;
+	
+	bool GetMeshPaintEditorIsEnabled() const;
 };

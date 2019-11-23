@@ -176,6 +176,9 @@ void InjectMainPS(
 		#endif
 
 		float ShadowFactor = ComputeVolumeShadowing(WorldPositionForLighting, bPointLight, bSpotLight);
+
+		// Apply light function (it will also fade out at the edge of the volume so overall dimming of light using light function is not a recommended workflow)
+		ShadowFactor *= GetLightFunctionShadowFactor(WorldPositionForLighting);
 		
 		if (VolumeCascadeIndex == 1)
 		{
@@ -197,9 +200,6 @@ void InjectMainPS(
 			ShadowFactor = lerp(1.0f, ShadowFactor, FinalLerpFactor);
 			#endif
 		}
-
-		// Apply light function after edge fading, so that a light function which is modifying the light's brightness still works
-		ShadowFactor *= GetLightFunctionShadowFactor(WorldPositionForLighting);
 
 		float3 Lighting = DeferredLightUniforms.Color / PI * Attenuation * ShadowFactor;
 

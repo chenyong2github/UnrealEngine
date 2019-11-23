@@ -1277,7 +1277,7 @@ void UGameInstance::PreloadContentForURL(FURL InURL)
 	// Preload game mode and other content if needed here
 }
 
-AGameModeBase* UGameInstance::CreateGameModeForURL(FURL InURL)
+AGameModeBase* UGameInstance::CreateGameModeForURL(FURL InURL, UWorld* InWorld)
 {
 	// Init the game info.
 	FString Options;
@@ -1289,7 +1289,7 @@ AGameModeBase* UGameInstance::CreateGameModeForURL(FURL InURL)
 		FParse::Value(*InURL.Op[i], TEXT("GAME="), GameParam);
 	}
 
-	UWorld* World = GetWorld();
+	UWorld* World = InWorld ? InWorld : GetWorld();
 	AWorldSettings* Settings = World->GetWorldSettings();
 	UGameEngine* const GameEngine = Cast<UGameEngine>(GEngine);
 
@@ -1327,7 +1327,7 @@ AGameModeBase* UGameInstance::CreateGameModeForURL(FURL InURL)
 		if (MapNameNoPath.StartsWith(PLAYWORLD_PACKAGE_PREFIX))
 		{
 			const int32 PrefixLen = UWorld::BuildPIEPackagePrefix(WorldContext->PIEInstance).Len();
-			MapNameNoPath = MapNameNoPath.Mid(PrefixLen);
+			MapNameNoPath.MidInline(PrefixLen, MAX_int32, false);
 		}
 
 		FString const GameClassName = UGameMapsSettings::GetGameModeForMapName(FString(MapNameNoPath));

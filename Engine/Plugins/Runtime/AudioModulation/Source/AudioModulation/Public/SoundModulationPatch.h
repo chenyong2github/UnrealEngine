@@ -79,7 +79,7 @@ struct FSoundModulationInputBase
 	uint8 bSampleAndHold : 1;
 
 	/** Transform to apply to the input prior to mix phase */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Input, meta = (ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Input, meta = (DisplayName = "Advanced"))
 	FSoundModulationInputTransform Transform;
 
 	virtual const USoundControlBusBase* GetBus() const PURE_VIRTUAL(FSoundModulationInputBase::GetBus, return nullptr; );
@@ -172,7 +172,7 @@ struct FSoundModulationPatchBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Inputs, meta = (UIMin = "0", UIMax = "1"))
 	uint8 bBypass : 1;
 
-	virtual void GenerateProxies(TArray<AudioModulation::FModulationInputProxy>& InputProxies) const PURE_VIRTUAL(FSoundModulationPatchBase::GenerateProxies, );
+	virtual TArray<const FSoundModulationInputBase*> GetInputs() const PURE_VIRTUAL(FSoundModulationPatchBase::GetInputs(), return TArray<const FSoundModulationInputBase*>(););
 	virtual FSoundModulationOutputBase* GetOutput() PURE_VIRTUAL(FSoundModulationPatchBase::GetOutput(), return nullptr;);
 	virtual const FSoundModulationOutputBase* GetOutput() const PURE_VIRTUAL(FSoundModulationPatchBase::GetOutput(), return nullptr;);
 
@@ -194,7 +194,7 @@ struct FSoundVolumeModulationPatch : public FSoundModulationPatchBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Output, meta = (ShowOnlyInnerProperties))
 	FSoundModulationOutputFixedOperator Output;
 
-	virtual void GenerateProxies(TArray<AudioModulation::FModulationInputProxy>& InputProxies) const override;
+	virtual TArray<const FSoundModulationInputBase*> GetInputs() const override;
 	virtual FSoundModulationOutputBase* GetOutput() override { return static_cast<FSoundModulationOutputBase*>(&Output); }
 	virtual const FSoundModulationOutputBase* GetOutput() const override { return static_cast<const FSoundModulationOutputBase*>(&Output); }
 
@@ -216,7 +216,7 @@ struct FSoundPitchModulationPatch : public FSoundModulationPatchBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Output, meta = (ShowOnlyInnerProperties))
 	FSoundModulationOutputFixedOperator Output;
 
-	virtual void GenerateProxies(TArray<AudioModulation::FModulationInputProxy>& InputProxies) const override;
+	virtual TArray<const FSoundModulationInputBase*> GetInputs() const override;
 	virtual FSoundModulationOutputBase* GetOutput() override { return static_cast<FSoundModulationOutputBase*>(&Output); }
 	virtual const FSoundModulationOutputBase* GetOutput() const override { return static_cast<const FSoundModulationOutputBase*>(&Output); }
 
@@ -238,7 +238,7 @@ struct FSoundLPFModulationPatch : public FSoundModulationPatchBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Output, meta = (ShowOnlyInnerProperties))
 	FSoundModulationOutputFixedOperator Output;
 
-	virtual void GenerateProxies(TArray<AudioModulation::FModulationInputProxy>& InputProxies) const override;
+	virtual TArray<const FSoundModulationInputBase*> GetInputs() const override;
 	virtual FSoundModulationOutputBase* GetOutput() override { return static_cast<FSoundModulationOutputBase*>(&Output); }
 	virtual const FSoundModulationOutputBase* GetOutput() const override { return static_cast<const FSoundModulationOutputBase*>(&Output); }
 
@@ -260,7 +260,7 @@ struct FSoundHPFModulationPatch : public FSoundModulationPatchBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Output, meta = (ShowOnlyInnerProperties))
 	FSoundModulationOutputFixedOperator Output;
 
-	virtual void GenerateProxies(TArray<AudioModulation::FModulationInputProxy>& InputProxies) const override;
+	virtual TArray<const FSoundModulationInputBase*> GetInputs() const override;
 	virtual FSoundModulationOutputBase* GetOutput() override { return static_cast<FSoundModulationOutputBase*>(&Output); }
 	virtual const FSoundModulationOutputBase* GetOutput() const override { return static_cast<const FSoundModulationOutputBase*>(&Output); }
 
@@ -286,7 +286,7 @@ struct FSoundControlModulationPatch : public FSoundModulationPatchBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Output, meta = (ShowOnlyInnerProperties))
 	FSoundModulationOutput Output;
 
-	virtual void GenerateProxies(TArray<AudioModulation::FModulationInputProxy>& InputProxies) const override;
+	virtual TArray<const FSoundModulationInputBase*> GetInputs() const override;
 	virtual FSoundModulationOutputBase* GetOutput() override { return static_cast<FSoundModulationOutputBase*>(&Output); }
 	virtual const FSoundModulationOutputBase* GetOutput() const override { return static_cast<const FSoundModulationOutputBase*>(&Output); }
 };

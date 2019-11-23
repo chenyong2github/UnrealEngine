@@ -14,6 +14,8 @@
 #include "VoipListenerSynthComponent.h"
 #include "OnlineSubsystemUtilsPackage.h"
 #include "AudioDevice.h"
+#include "AudioMixer.h"
+#include "DSP/MultithreadedPatching.h"
 
 #include "VoicePacketImpl.h"
 #include "UObject/CoreOnline.h"
@@ -37,6 +39,8 @@ struct FLocalVoiceData
 	uint32 VoiceRemainderSize;
 	/** Voice sample data not encoded last time */
 	TArray<uint8> VoiceRemainder;
+	/** Output for a local talker. */
+	Audio::FPatchSplitter LocalVoiceOutput;
 };
 
 /** 
@@ -81,7 +85,42 @@ public:
 	TArray<uint8> UncompressedDataQueue;
 	/** Per remote talker voice decoding state */
 	TSharedPtr<IVoiceDecoder> VoiceDecoder;
+	/** Patch splitter to expose incoming audio to multiple outputs. */
+	Audio::FPatchSplitter RemoteVoiceOutput;
+	/** Loudness of the incoming audio, computed on the remote machine using the microphonei input audio and serialized into the packet. */
+	float MicrophoneAmplitude;
 };
+
+/**
+ * Small class that manages an audio endpoint. Used in FVoiceEngineImpl.
+ */
+class FVoiceEndpoint : Audio::IAudioMixer
+{
+public:
+	FVoiceEndpoint(const FString& InEndpointName, float InSampleRate, int32 InNumChannels);
+	virtual ~FVoiceEndpoint();
+
+	void PatchInOutput(Audio::FPatchOutputStrongPtr& InOutput);
+
+
+	// Begin of IAudioMixer overrides
+	bool OnProcessAudioStream(Audio::AlignedFloatBuffer& OutputBuffer) override;
+	void OnAudioStreamShutdown() override;
+	// End of IAudioMixer overrides
+
+private:
+	int32 NumChannelsComingIn;
+	Audio::AlignedFloatBuffer DownmixBuffer;
+
+	TUniquePtr<Audio::IAudioMixerPlatformInterface> PlatformEndpoint;
+
+	Audio::FAudioMixerOpenStreamParams OpenParams;
+	Audio::FAudioPlatformDeviceInfo PlatformDeviceInfo;
+	
+	Audio::FPatchOutputStrongPtr OutputPatch;
+	FCriticalSection OutputPatchCriticalSection;
+};
+
 
 /**
  * Generic implementation of voice engine, using Voice module for capture/codec
@@ -123,8 +162,8 @@ class ONLINESUBSYSTEMUTILS_API FVoiceEngineImpl : public IVoiceEngine, public FS
 	/** Mapping of UniqueIds to the incoming voice data and their audio component */
 	typedef TMap<FUniqueNetIdWrapper, FRemoteTalkerDataImpl> FRemoteTalkerData;
 
-	/** Reference to the main online subsystem */
-	IOnlineSubsystem* OnlineSubsystem;
+	/** Instance name of associated online subsystem */
+	FName OnlineInstanceName;
 
 	FLocalVoiceData PlayerVoiceData[MAX_SPLITSCREEN_TALKERS];
 	/** Reference to voice capture device */
@@ -153,6 +192,16 @@ class ONLINESUBSYSTEMUTILS_API FVoiceEngineImpl : public IVoiceEngine, public FS
 	TArray<uint8> DecompressedVoiceBuffer;
 	/** Serialization helper */
 	FVoiceSerializeHelper* SerializeHelper;
+
+	/** Audio taps for the full mixdown of all remote players. */
+	Audio::FPatchMixerSplitter AllRemoteTalkerAudio;
+
+	/**
+	 * Collection of external endpoints that we are sending local or remote audio to. 
+	 * Note that we need to wrap each FVoiceEndpoint in a unique pointer to ensure the FVoiceEndpoint itself isn't moved elsewhere.
+	 * Otherwise, this will cause a crash in FOutputBuffer::MixNextBuffer(), due to AudioMixer->OnProcessAudioStream(); being called on a stale pointer. 
+	 */
+	TArray<TUniquePtr<FVoiceEndpoint>> ExternalEndpoints;
 
 // Get Audio Device Changes on Windows
 #if PLATFORM_WINDOWS
@@ -282,6 +331,22 @@ public:
 
 	virtual void GetVoiceSettingsOverride(const FUniqueNetIdWrapper& RemoteTalkerId, FVoiceSettings& VoiceSettings) {}
 
+
+	virtual Audio::FPatchOutputStrongPtr GetMicrophoneOutput() override;
+	virtual Audio::FPatchOutputStrongPtr GetRemoteTalkerOutput() override;
+	virtual float GetMicrophoneAmplitude(int32 LocalUserNum) override;
+	virtual float GetIncomingAudioAmplitude(const FUniqueNetIdWrapper& RemoteUserId) override;
+	virtual uint32 SetRemoteVoiceAmplitude(const FUniqueNetIdWrapper& RemoteTalkerId, float InAmplitude) override;
+
+
+	virtual bool PatchRemoteTalkerOutputToEndpoint(const FString& InDeviceName, bool bMuteInGameOutput = true) override;
+
+
+	virtual void DisconnectAllEndpoints() override;
+
+
+	virtual bool PatchLocalTalkerOutputToEndpoint(const FString& InDeviceName) override;
+
 private:
 
 	/**
@@ -300,7 +365,7 @@ private:
 	void OnPostLoadMap(UWorld*);
 
 protected:
-	virtual IOnlineSubsystem*				 GetOnlineSubSystem()			{ return OnlineSubsystem; }
+	virtual IOnlineSubsystem*				 GetOnlineSubSystem();
 	virtual const TSharedPtr<IVoiceCapture>& GetVoiceCapture() const		{ return VoiceCapture; }
 	virtual TSharedPtr<IVoiceCapture>&		 GetVoiceCapture()				{ return VoiceCapture; }
 	virtual const TSharedPtr<IVoiceEncoder>& GetVoiceEncoder() const		{ return VoiceEncoder; }

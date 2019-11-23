@@ -824,7 +824,32 @@ void FLODUtilities::ApplyMorphTargetsToLOD(USkeletalMesh* SkeletalMesh, int32 So
 	}
 
 	const FSkeletalMeshLODModel& BaseLODModel = bReduceBaseLOD ? TempBaseLODModel : SkeletalMeshResource->LODModels[SourceLOD];
+	const FSkeletalMeshLODInfo* BaseLODInfo = SkeletalMesh->GetLODInfo(SourceLOD);
 	const FSkeletalMeshLODModel& TargetLODModel = SkeletalMeshResource->LODModels[DestinationLOD];
+	const FSkeletalMeshLODInfo* TargetLODInfo = SkeletalMesh->GetLODInfo(DestinationLOD);
+
+	TArray<int32> BaseLODMaterialMap = BaseLODInfo ? BaseLODInfo->LODMaterialMap : TArray<int32>();
+	TArray<int32> TargetLODMaterialMap = TargetLODInfo ? TargetLODInfo->LODMaterialMap : TArray<int32>();
+
+	auto InternalGetSectionMaterialIndex = [](const FSkeletalMeshLODModel& LODModel, int32 SectionIndex)->int32
+	{
+		if (!LODModel.Sections.IsValidIndex(SectionIndex))
+		{
+			return 0;
+		}
+		return LODModel.Sections[SectionIndex].MaterialIndex;
+	};
+
+	auto GetBaseSectionMaterialIndex = [&BaseLODModel, &InternalGetSectionMaterialIndex](int32 SectionIndex)->int32
+	{
+		return InternalGetSectionMaterialIndex(BaseLODModel, SectionIndex);
+	};
+
+	auto GetTargetSectionMaterialIndex = [&TargetLODModel, &InternalGetSectionMaterialIndex](int32 SectionIndex)->int32
+	{
+		return InternalGetSectionMaterialIndex(TargetLODModel, SectionIndex);
+	};
+
 	//Make sure we have some morph for this LOD
 	bool bContainsMorphTargets = false;
 	for (UMorphTarget *MorphTarget : SkeletalMesh->MorphTargets)
@@ -848,22 +873,25 @@ void FLODUtilities::ApplyMorphTargetsToLOD(USkeletalMesh* SkeletalMesh, int32 So
 	{
 		TargetSectionMatchBaseIndex[TargetSectionIndex] = INDEX_NONE;
 	}
+	TBitArray<> BaseSectionMatch;
+	BaseSectionMatch.Init(false, BaseLODModel.Sections.Num());
 	//Find corresponding section indices from Source LOD for Target LOD
-	for (int32 BaseSectionIndex = 0; BaseSectionIndex < BaseLODModel.Sections.Num(); ++BaseSectionIndex)
+	for (int32 TargetSectionIndex = 0; TargetSectionIndex < TargetLODModel.Sections.Num(); ++TargetSectionIndex)
 	{
-		int32 TargetSectionIndexMatch = INDEX_NONE;
-		for (int32 TargetSectionIndex = 0; TargetSectionIndex < TargetLODModel.Sections.Num(); ++TargetSectionIndex)
+		int32 TargetSectionMaterialIndex = GetTargetSectionMaterialIndex(TargetSectionIndex);
+		for (int32 BaseSectionIndex = 0; BaseSectionIndex < BaseLODModel.Sections.Num(); ++BaseSectionIndex)
 		{
-			if (TargetLODModel.Sections[TargetSectionIndex].MaterialIndex == BaseLODModel.Sections[BaseSectionIndex].MaterialIndex && TargetSectionMatchBaseIndex[TargetSectionIndex] == INDEX_NONE)
+			if (BaseSectionMatch[BaseSectionIndex])
 			{
-				TargetSectionIndexMatch = TargetSectionIndex;
+				continue;
+			}
+			int32 BaseSectionMaterialIndex = GetBaseSectionMaterialIndex(BaseSectionIndex);
+			if (TargetSectionMaterialIndex == BaseSectionMaterialIndex)
+			{
+				TargetSectionMatchBaseIndex[TargetSectionIndex] = BaseSectionIndex;
+				BaseSectionMatch[BaseSectionIndex] = true;
 				break;
 			}
-		}
-		//We can set the data only once. There should be no clash
-		if (TargetSectionMatchBaseIndex.IsValidIndex(TargetSectionIndexMatch) && TargetSectionMatchBaseIndex[TargetSectionIndexMatch] == INDEX_NONE)
-		{
-			TargetSectionMatchBaseIndex[TargetSectionIndexMatch] = BaseSectionIndex;
 		}
 	}
 	//We should have match all the target sections
@@ -1123,11 +1151,11 @@ void FLODUtilities::RestoreSkeletalMeshLODImportedData(USkeletalMesh* SkeletalMe
 	TMap<FString, TArray<FMorphTargetDelta>> ImportedBaseLODMorphTargetData;
 	SkeletalMesh->GetImportedModel()->OriginalReductionSourceMeshData[LodIndex]->LoadReductionData(ImportedBaseLODModel, ImportedBaseLODMorphTargetData, SkeletalMesh);
 	{
-		FSkeletalMeshUpdateContext UpdateContext;
-		UpdateContext.SkeletalMesh = SkeletalMesh;
-
-		ImportedBaseLODModel.UpdateChunkedSectionInfo();
-
+		TArray<int32> EmptyLodInfoMaterialMap;
+		ImportedBaseLODModel.UpdateChunkedSectionInfo(SkeletalMesh->GetName(), EmptyLodInfoMaterialMap);
+		//When we restore a LOD we destroy the LODMaterialMap (user manual section material slot assignation)
+		FSkeletalMeshLODInfo* LODInfo = SkeletalMesh->GetLODInfo(LodIndex);
+		LODInfo->LODMaterialMap.Empty();
 		//Copy the SkeletalMeshLODModel
 		SkeletalMesh->GetImportedModel()->LODModels[LodIndex] = ImportedBaseLODModel;
 		//Copy the morph target deltas
@@ -1150,12 +1178,6 @@ void FLODUtilities::RestoreSkeletalMeshLODImportedData(USkeletalMesh* SkeletalMe
 
 		//Put back the clothing for the restore LOD
 		FLODUtilities::RestoreClothingFromBackup(SkeletalMesh, ClothingBindings);
-
-		if (UpdateContext.OnLODChanged.IsBound())
-		{
-			//Notify calling system of change
-			UpdateContext.OnLODChanged.ExecuteIfBound();
-		}
 	}
 }
 

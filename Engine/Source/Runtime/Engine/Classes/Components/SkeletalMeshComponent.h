@@ -171,6 +171,14 @@ namespace EAnimationMode
 }
 
 UENUM()
+enum class ELinkedAnimationUpdateOrder : uint8
+{
+	UpdateAnimationBeforeAnimScriptInstance,
+	UpdateAnimationAfterAnimScriptInstance,
+	DoNotUpdate
+};
+
+UENUM()
 namespace EPhysicsTransformUpdateMode
 {
 	enum Type
@@ -419,7 +427,7 @@ protected:
 	/** Whether to use Animation Blueprint or play Single Animation Asset. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Animation)
 	TEnumAsByte<EAnimationMode::Type>	AnimationMode;
-
+	
 private:
 	/** Teleport type to use on the next update */
 	ETeleportType PendingTeleportType;
@@ -431,6 +439,9 @@ private:
 	uint8 bDisablePostProcessBlueprint:1;
 
 public:
+	/** The order in which linked animation is evaluated with respect to the component's animation */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Animation)
+	ELinkedAnimationUpdateOrder LinkedAnimationEvaluationOrder;
 
 	/** Indicates that simulation (if it's enabled) is entirely responsible for children transforms. This is only ok if you are not animating attachment points relative to the simulation */
 	uint8 bSimulationUpdatesChildTransforms:1;
@@ -794,6 +805,9 @@ private:
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TArray<UAnimInstance*>& GetLinkedAnimInstances() { return LinkedInstances; }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	/** Clear the linked anim instances and mark them pending kill */
+	void ResetLinkedAnimInstances();
 
 public:
 	UE_DEPRECATED(4.23, "This function is deprecated. Please use GetLinkedAnimGraphInstanceByTag")
@@ -1751,7 +1765,7 @@ public:
 	void InstantiatePhysicsAsset(const UPhysicsAsset& PhysAsset, const FVector& Scale3D, TArray<FBodyInstance*>& OutBodies, TArray<FConstraintInstance*>& OutConstraints, FPhysScene* PhysScene = nullptr, USkeletalMeshComponent* OwningComponent = nullptr, int32 UseRootBodyIndex = INDEX_NONE, const FPhysicsAggregateHandle& UseAggregate = FPhysicsAggregateHandle()) const;
 
 	/** Instantiates bodies given a physics asset like InstantiatePhysicsAsset but instead of reading the current component state, this reads the ref-pose from the reference skeleton of the mesh. Useful if trying to create bodies to be used during any evaluation work */
-	void InstantiatePhysicsAssetRefPose(const UPhysicsAsset& PhysAsset, const FVector& Scale3D, TArray<FBodyInstance*>& OutBodies, TArray<FConstraintInstance*>& OutConstraints, FPhysScene* PhysScene = nullptr, USkeletalMeshComponent* OwningComponent = nullptr, int32 UseRootBodyIndex = INDEX_NONE, const FPhysicsAggregateHandle& UseAggregate = FPhysicsAggregateHandle()) const;
+	void InstantiatePhysicsAssetRefPose(const UPhysicsAsset& PhysAsset, const FVector& Scale3D, TArray<FBodyInstance*>& OutBodies, TArray<FConstraintInstance*>& OutConstraints, FPhysScene* PhysScene = nullptr, USkeletalMeshComponent* OwningComponent = nullptr, int32 UseRootBodyIndex = INDEX_NONE, const FPhysicsAggregateHandle& UseAggregate = FPhysicsAggregateHandle(), bool bCreateBodiesInRefPose = false) const;
 
 	/** Turn off all physics and remove the instance. */
 	void TermArticulated();
@@ -2013,6 +2027,9 @@ public:
 public:
 	bool IsAnimBlueprintInstanced() const;
 	void ClearAnimScriptInstance();
+
+	/** Clear cached animation data generated for URO during evaluation */
+	void ClearCachedAnimProperties();
 
 protected:
 	bool NeedToSpawnAnimScriptInstance() const;

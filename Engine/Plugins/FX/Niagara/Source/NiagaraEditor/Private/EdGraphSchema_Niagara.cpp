@@ -1012,8 +1012,8 @@ const FPinConnectionResponse UEdGraphSchema_Niagara::CanCreateConnection(const U
 		}
 	}
 
-	int32 Depth = 0;
-	if (UEdGraphSchema_Niagara::CheckCircularConnection(PinB->GetOwningNode(), PinB->Direction, PinA, Depth))
+	TSet<const UEdGraphNode*> VisitedNodes;
+	if (UEdGraphSchema_Niagara::CheckCircularConnection(VisitedNodes, OutputPin->GetOwningNode(), InputPin->GetOwningNode()))
 	{
 		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, TEXT("Circular connection found"));
 	}
@@ -1524,41 +1524,42 @@ void UEdGraphSchema_Niagara::ConvertNumericPinToType(UEdGraphPin* InGraphPin, FN
 	}
 }
 
-bool UEdGraphSchema_Niagara::CheckCircularConnection(const UEdGraphNode* InRootNode, const EEdGraphPinDirection InRootPinDirection, const UEdGraphPin* InPin, int32& OutDepth)
+bool UEdGraphSchema_Niagara::CheckCircularConnection(TSet<const UEdGraphNode*>& VisitedNodes, const UEdGraphNode* InNode, const UEdGraphNode* InTestNode)
 {
-	if (InPin->GetOwningNode() == InRootNode)
-	{
-		return true;
-	}
+	bool AlreadyAdded = false;
 
-	static const int32 MaxDepth = 3;
-	OutDepth++;
-	if (OutDepth > MaxDepth)
+	VisitedNodes.Add(InNode, &AlreadyAdded);
+	if (AlreadyAdded)
 	{
+		// node is already in our set, so return so we don't reprocess it
 		return false;
 	}
 
-	for (const UEdGraphPin* Pin : InPin->GetOwningNode()->GetAllPins())
+	if (InNode == InTestNode)
 	{
-		if (Pin->Direction == InRootPinDirection && Pin != InPin)
-		{
-			for (const UEdGraphPin* LinkedPin : Pin->LinkedTo)
-			{
-				if (UEdGraphSchema_Niagara::CheckCircularConnection(InRootNode, InRootPinDirection, LinkedPin, OutDepth))
-				{
-					return true;
-				}
+		// we've found a match, so we have a circular reference
+		return true;
+	}
 
-				// If the CheckCircularConnection call above returned without finding the root node and was too deep.
-				if (OutDepth > MaxDepth)
+	// iterate over all of the nodes that are inputs to InNode
+	for (const UEdGraphPin* Pin : InNode->GetAllPins())
+	{
+		if (Pin && Pin->Direction == EGPD_Input)
+		{
+			for (const UEdGraphPin* OutputPin : Pin->LinkedTo)
+			{
+				if (const UEdGraphNode* InputNode = OutputPin ? OutputPin->GetOwningNode() : nullptr)
 				{
-					return false;
+					if (CheckCircularConnection(VisitedNodes, InputNode, InTestNode))
+					{
+						return true;
+					}
 				}
 			}
+
 		}
 	}
 
-	OutDepth--;
 	return false;
 }
 

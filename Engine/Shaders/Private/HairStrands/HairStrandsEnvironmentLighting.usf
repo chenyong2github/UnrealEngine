@@ -52,6 +52,7 @@ float3 GatherRadiance(float3 RayDirection, float Roughness, uint2 PixelPosition,
 	const uint NumLocalReflectionCaptures = min(ForwardLightData.NumCulledLightsGrid[NumCulledEntryIndex + 0], ForwardLightData.NumReflectionCaptures);
 	const uint DataStartIndex = ForwardLightData.NumCulledLightsGrid[NumCulledEntryIndex + 1];
 
+	const bool bCompositeSkylight = true;
 	return CompositeReflectionCapturesAndSkylight(
 		1.0f,
 		AbsoluteWorldPosition,
@@ -63,6 +64,7 @@ float3 GatherRadiance(float3 RayDirection, float Roughness, uint2 PixelPosition,
 		NumLocalReflectionCaptures,
 		DataStartIndex,
 		SingleCaptureIndex,
+		bCompositeSkylight,
 		EyeIndex);
 }
 
@@ -71,6 +73,10 @@ StructuredBuffer<FNodeData> HairVisibilityNodeData;
 Texture3D<float4>			HairScatteringLUTTexture;
 Texture3D<float4>			HairEnergyLUTTexture;
 SamplerState 				HairLUTSampler;
+
+float HairDistanceThreshold;
+uint bHairUseViewHairCount;
+Texture2D<float> HairCountTexture;
 
 uint  MultipleScatterSampleCount;
 uint  JitterSphericalIntegration;
@@ -86,7 +92,17 @@ float3 Voxel_MaxAABB;
 uint   Voxel_Resolution;
 Texture3D<uint> Voxel_DensityTexture;
 
-float InternalComputeHairCountVoxel(float3 WorldPosition, float3 LightDirection, float3 InVoxelAABBMin, float3 InVoxelAABBMax, float InVoxelResolution, Texture3D<uint> InDensityTexture, float DensityScale, float CountThreshold, bool bUseConeTracing)
+float InternalComputeHairCountVoxel(
+	float3 WorldPosition, 
+	float3 LightDirection, 
+	float3 InVoxelAABBMin, 
+	float3 InVoxelAABBMax, 
+	float InVoxelResolution, 
+	Texture3D<uint> InDensityTexture, 
+	float DensityScale, 
+	float CountThreshold, 
+	float DistanceThreshold,
+	bool bUseConeTracing)
 {
 	if (bUseConeTracing)
 		return ComputeHairCountVoxelCone(
@@ -98,6 +114,7 @@ float InternalComputeHairCountVoxel(float3 WorldPosition, float3 LightDirection,
 			InDensityTexture,
 			DensityScale,
 			CountThreshold,
+			DistanceThreshold,
 			Voxel_TanConeAngle);
 	else
 		return ComputeHairCountVoxel(
@@ -108,7 +125,8 @@ float InternalComputeHairCountVoxel(float3 WorldPosition, float3 LightDirection,
 			InVoxelResolution,
 			InDensityTexture,
 			DensityScale,
-			CountThreshold);
+			CountThreshold,
+			DistanceThreshold);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -143,6 +161,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 	// Trace/sample transmittance in various direction to have estimate of where is occlusion & computing the integrated dual scattering value
 	float3 UnoccludedN = -V;
 	float3 AvgDualScattering = 0;
+	const float MaxSearchDistance = HairDistanceThreshold; // in cm
 	#if 1
 	if ((HairComponents & HAIR_COMPONENT_R) || (HairComponents & HAIR_COMPONENT_TRT) || (HairComponents & HAIR_COMPONENT_TT))
 	{
@@ -198,7 +217,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 
 			// Compute the number of hair count between light & shading point
 			const float SinLightAngle = dot(SampleL, T);
-			const float HairCount = InternalComputeHairCountVoxel(SampleWorldPosition, SampleL, Voxel_MinAABB, Voxel_MaxAABB, Voxel_Resolution, Voxel_DensityTexture, Voxel_DensityScale, 0, true);
+			const float HairCount = InternalComputeHairCountVoxel(SampleWorldPosition, SampleL, Voxel_MinAABB, Voxel_MaxAABB, Voxel_Resolution, Voxel_DensityTexture, Voxel_DensityScale, 0, MaxSearchDistance, true);
 			const float4 SampleTransmittance = ComputeTransmittanceFromHairCount(HairCount, GBuffer, SinLightAngle, HairScatteringLUTTexture, HairLUTSampler);
 
 			const float ScalarTransmittance = max(SampleTransmittance.x, max(SampleTransmittance.y, SampleTransmittance.z));
@@ -253,8 +272,9 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 		}
 		#endif	
 
-		// Select the TT term for representing the MS roughness lookup as TT lobe carries the most energy
-		const float GGXRoughness = HairToGGXRoughness_TT(GBuffer.Roughness);
+		// Select the TT term for representing the MS roughness lookup as TT lobe carries the most energy + fudge scale as the MS lobe should be wider than a TT lobe
+		const float FudgeScale = 2;
+		const float GGXRoughness = HairToGGXRoughness_TT(GBuffer.Roughness) * FudgeScale;
 		ColorMS.rgb += PreExposure * GatherRadiance(R, GGXRoughness, PixelPosition, PixelSceneDepth, WorldPosition);
 		//ColorMS.rgb += PreExposure * GetSkySHDiffuse(R) * View.SkyLightColor.rgb;
 		ColorMS.rgb *= AvgDualScattering;
@@ -317,7 +337,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 			const float3 SampleWorldPosition = WorldPosition + DepthBias;
 
 			// Compute the number of hair count between light & shading point
-			const float HairCount = InternalComputeHairCountVoxel(SampleWorldPosition, L, Voxel_MinAABB, Voxel_MaxAABB, Voxel_Resolution, Voxel_DensityTexture, Voxel_DensityScale, 0, true);
+			const float HairCount = InternalComputeHairCountVoxel(SampleWorldPosition, L, Voxel_MinAABB, Voxel_MaxAABB, Voxel_Resolution, Voxel_DensityTexture, Voxel_DensityScale, 0, MaxSearchDistance, true);
 			Transmittance = ComputeTransmittanceFromHairCount(HairCount, GBuffer, SinLightAngle, HairScatteringLUTTexture, HairLUTSampler);
 		}
 
@@ -371,8 +391,14 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 			const float3 SampleWorldPosition = WorldPosition + DepthBias;
 
 			// Compute the number of hair count between light & shading point
+			// For TT, we don't want to abort the hair counting, as this is important to get the proper transmission
+			const float DistanceThresholdTT = 100000;
 			const float DensityScaleFactor = 2;
-			const float HairCount = InternalComputeHairCountVoxel(SampleWorldPosition, L, Voxel_MinAABB, Voxel_MaxAABB, Voxel_Resolution, Voxel_DensityTexture, Voxel_DensityScale * DensityScaleFactor, 0, false);
+			float HairCount = 0;
+			if (bHairUseViewHairCount)
+				HairCount = HairCountTexture.Load(uint3(SvPosition.xy, 0)) * DensityScaleFactor;
+			else
+				HairCount = InternalComputeHairCountVoxel(SampleWorldPosition, L, Voxel_MinAABB, Voxel_MaxAABB, Voxel_Resolution, Voxel_DensityTexture, Voxel_DensityScale * DensityScaleFactor, 0, DistanceThresholdTT, false);
 			Transmittance = ComputeTransmittanceFromHairCount(HairCount, GBuffer, SinLightAngle, HairScatteringLUTTexture, HairLUTSampler);
 		}
 

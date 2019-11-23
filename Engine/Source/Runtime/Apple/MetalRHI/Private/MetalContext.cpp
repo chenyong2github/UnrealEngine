@@ -349,6 +349,7 @@ FMetalDeviceContext::FMetalDeviceContext(mtlpp::Device MetalDevice, uint32 InDev
 , ActiveContexts(1)
 , ActiveParallelContexts(0)
 , PSOManager(0)
+, DeviceFrameIndex(0)
 {
 	CommandQueue.SetRuntimeDebuggingLevel(GMetalRuntimeDebugLevel);
 	
@@ -418,6 +419,9 @@ void FMetalDeviceContext::BeginFrame()
 	
 	// Wait for the frame semaphore on the immediate context.
 	dispatch_semaphore_wait(CommandBufferSemaphore, DISPATCH_TIME_FOREVER);
+	
+	// Bump the frame counter.
+	DeviceFrameIndex++;
 }
 
 #if METAL_DEBUG_OPTIONS
@@ -785,14 +789,12 @@ FMetalBuffer FMetalDeviceContext::CreatePooledBuffer(FMetalPooledBufferArgs cons
 	
 	uint32 RequestedBufferOffsetAlignment = BufferOffsetAlignment;
 	
-#if PLATFORM_IOS
-	if((Args.Flags & BUF_ShaderResource) != 0)
+	if((Args.Flags & (BUF_UnorderedAccess | BUF_ShaderResource)) != 0)
 	{
 		// Buffer backed linear textures have specific align requirements
 		// We don't know upfront the pixel format that may be requested for an SRV so we can't use minimumLinearTextureAlignmentForPixelFormat:
 		RequestedBufferOffsetAlignment = BufferBackedLinearTextureOffsetAlignment;
 	}
-#endif
 	
     FMetalBuffer Buffer = Heap.CreateBuffer(Args.Size, RequestedBufferOffsetAlignment, Args.Flags, FMetalCommandQueue::GetCompatibleResourceOptions((mtlpp::ResourceOptions)(CpuResourceOption | mtlpp::ResourceOptions::HazardTrackingModeUntracked | ((NSUInteger)Args.Storage << mtlpp::ResourceStorageModeShift))));
 	check(Buffer && Buffer.GetPtr());

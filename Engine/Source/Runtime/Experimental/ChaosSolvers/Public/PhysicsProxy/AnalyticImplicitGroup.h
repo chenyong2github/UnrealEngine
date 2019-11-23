@@ -405,7 +405,7 @@ public:
 	 *
 	 * Transfers ownership of sub structures to the returned implicit object.
 	 */
-	Chaos::TImplicitObject<float, 3>* BuildSimImplicitObject()
+	Chaos::FImplicitObject* BuildSimImplicitObject()
 	{
 		// TODO: We make copies of implicit objects owned by this class, so we
 		// give the solver memory it can own.  It'd be nice if we could transfer
@@ -425,7 +425,7 @@ public:
 			else
 			{
 				// Make a copy and transfer ownership to the transformed implicit.
-				TUniquePtr<Chaos::TImplicitObject<float, 3>> ObjPtr(TransferImplicitObj(0));
+				TUniquePtr<Chaos::FImplicitObject> ObjPtr(TransferImplicitObj(0));
 				return new Chaos::TImplicitObjectTransformed<float, 3, true>(
 					MoveTemp(ObjPtr),
 					Chaos::TRigidTransform<float, 3>(Transforms[0]));
@@ -435,11 +435,11 @@ public:
 		{
 			// Make copies of the implicits owned by transformed immplicits, and 
 			// transfer ownership of the transformed implicits to the implicit union.
-			TArray<TUniquePtr<Chaos::TImplicitObject<float, 3>>> ImplicitObjects;
+			TArray<TUniquePtr<Chaos::FImplicitObject>> ImplicitObjects;
 			ImplicitObjects.Reserve(Num);
 			for (int i = 0; i < Num; i++)
 			{
-				TUniquePtr<Chaos::TImplicitObject<float, 3>> ObjPtr(TransferImplicitObj(i));
+				TUniquePtr<Chaos::FImplicitObject> ObjPtr(TransferImplicitObj(i));
 
 				const FTransform &Xf = Transforms[i];
 				if (Xf.Equals(FTransform::Identity))
@@ -451,7 +451,7 @@ public:
 				else
 				{
 					ImplicitObjects.Add(
-						TUniquePtr<Chaos::TImplicitObject<float, 3>>(
+						TUniquePtr<Chaos::FImplicitObject>(
 							new Chaos::TImplicitObjectTransformed<float, 3, true>(
 								MoveTemp(ObjPtr),
 								Chaos::TRigidTransform<float, 3>(Xf))));
@@ -562,9 +562,9 @@ protected:
 		}
 	}
 
-	Chaos::TImplicitObject<float, 3>* TransferImplicitObj(int32 Idx)
+	Chaos::FImplicitObject* TransferImplicitObj(int32 Idx)
 	{
-		Chaos::TImplicitObject<float, 3>* Obj = nullptr;
+		Chaos::FImplicitObject* Obj = nullptr;
 		if (Idx < Spheres.Num())
 		{
 			Obj = Spheres[Idx]; 

@@ -661,6 +661,7 @@ static bool IsDeviceOverclocked()
 {
 	if (IsRHIDeviceNVIDIA())
 	{
+#ifdef NVAPI_INTERFACE
 		NvAPI_Status Status;
 		NvU32 NumGPUs;
 		NvPhysicalGpuHandle GPUHandles[NVAPI_MAX_PHYSICAL_GPUS];
@@ -726,6 +727,7 @@ static bool IsDeviceOverclocked()
 				}
 			}
 		}
+#endif // NVAPI_INTERFACE
 	}
 
 	// Assume non-overclocked by default

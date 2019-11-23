@@ -19,15 +19,6 @@ class USoundModulatorBase : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
-public:
-	/**
-	 * When set, automatically activates/deactivates when sounds referencing asset begin/end playing respectively.
-	 */
-	UPROPERTY(EditAnywhere, Category = General, BlueprintReadWrite)
-	uint8 bAutoActivate : 1;
-
-	bool CanAutoActivate(const ISoundModulatable* InSound) const;
-
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR

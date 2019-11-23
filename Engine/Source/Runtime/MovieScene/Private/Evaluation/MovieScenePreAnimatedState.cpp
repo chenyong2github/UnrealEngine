@@ -406,6 +406,34 @@ void FMovieScenePreAnimatedState::DiscardAndRemoveEntityTokensForObject(UObject&
 	}
 }
 
+void FMovieScenePreAnimatedState::OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap)
+{
+	for (auto Iter = ReplacementMap.CreateConstIterator(); Iter; ++Iter)
+	{
+		UObject* OldObject = Iter->Key;
+		UObject* NewObject = Iter->Value;
+
+		FObjectKey OldKey = FObjectKey(OldObject);
+		if (OldObject && NewObject && ObjectTokens.Contains(OldKey))
+		{
+			FObjectKey NewKey = FObjectKey(NewObject);
+
+			ObjectTokens.Add(NewKey, MoveTemp(ObjectTokens[OldKey]));
+			ObjectTokens[NewKey].SetPayload(NewObject);
+
+			ObjectTokens.Remove(OldKey);
+
+			for (auto& Pair : EntityToAnimatedObjects)
+			{
+				if (Pair.Value.Contains(OldKey))
+				{
+					Pair.Value.Add(NewKey);
+					Pair.Value.Remove(OldKey);
+				}
+			}
+		}
+	}
+}
 
 /** Explicit, exported template instantiations */
 template struct MOVIESCENE_API TMovieSceneSavedTokens<IMovieScenePreAnimatedTokenPtr>;

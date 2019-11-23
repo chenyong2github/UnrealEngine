@@ -1,0 +1,21 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+uint NumElements;
+Buffer<uint> BoundingBoxBuffer;
+RWBuffer<uint> OutNodeBoundBuffer;
+
+[numthreads(THREAD_COUNT, 1, 1)]
+void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
+{
+	const uint ElementIndex = DispatchThreadId.x;
+	if (ElementIndex < NumElements)
+	{
+		OutNodeBoundBuffer[0] = BoundingBoxBuffer[0];
+		OutNodeBoundBuffer[1] = BoundingBoxBuffer[1];
+		OutNodeBoundBuffer[2] = BoundingBoxBuffer[2];
+
+		OutNodeBoundBuffer[3] = BoundingBoxBuffer[3];
+		OutNodeBoundBuffer[4] = BoundingBoxBuffer[4];
+		OutNodeBoundBuffer[5] = BoundingBoxBuffer[5];
+	}
+}

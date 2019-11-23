@@ -452,7 +452,7 @@ DXGI_FORMAT FD3D11DynamicRHI::GetPlatformTextureResourceFormat(DXGI_FORMAT InFor
 /**
  * Creates a 2D texture optionally guarded by a structured exception handler.
  */
-void SafeCreateTexture2D(ID3D11Device* Direct3DDevice, const D3D11_TEXTURE2D_DESC* TextureDesc, const D3D11_SUBRESOURCE_DATA* SubResourceData, ID3D11Texture2D** OutTexture2D)
+void SafeCreateTexture2D(ID3D11Device* Direct3DDevice, int32 UEFormat, const D3D11_TEXTURE2D_DESC* TextureDesc, const D3D11_SUBRESOURCE_DATA* SubResourceData, ID3D11Texture2D** OutTexture2D)
 {
 #if GUARDED_TEXTURE_CREATES
 	bool bDriverCrash = true;
@@ -461,6 +461,7 @@ void SafeCreateTexture2D(ID3D11Device* Direct3DDevice, const D3D11_TEXTURE2D_DES
 #endif // #if GUARDED_TEXTURE_CREATES
 		VERIFYD3D11CREATETEXTURERESULT(
 			Direct3DDevice->CreateTexture2D(TextureDesc,SubResourceData,OutTexture2D),
+			UEFormat,
 			TextureDesc->Width,
 			TextureDesc->Height,
 			TextureDesc->ArraySize,
@@ -485,13 +486,14 @@ void SafeCreateTexture2D(ID3D11Device* Direct3DDevice, const D3D11_TEXTURE2D_DES
 		if (bDriverCrash)
 		{
 			UE_LOG(LogD3D11RHI,Error,
-				TEXT("Driver crashed while creating texture: %ux%ux%u %s(0x%08x) with %u mips"),
+				TEXT("Driver crashed while creating texture: %ux%ux%u %s(0x%08x) with %u mips, PF_ %d"),
 				TextureDesc->Width,
 				TextureDesc->Height,
 				TextureDesc->ArraySize,
 				GetD3D11TextureFormatString(TextureDesc->Format),
 				(uint32)TextureDesc->Format,
-				TextureDesc->MipLevels
+				TextureDesc->MipLevels,
+				UEFormat
 				);
 		}
 	}
@@ -765,7 +767,7 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 		else
 #endif
 		{
-			SafeCreateTexture2D(Direct3DDevice, &TextureDesc, CreateInfo.BulkData != NULL ? (const D3D11_SUBRESOURCE_DATA*)SubResourceData.GetData() : NULL, TextureResource.GetInitReference());
+			SafeCreateTexture2D(Direct3DDevice, Format, &TextureDesc, CreateInfo.BulkData != NULL ? (const D3D11_SUBRESOURCE_DATA*)SubResourceData.GetData() : NULL, TextureResource.GetInitReference());
 		}
 
 		if(bCreateRTV)
@@ -1027,6 +1029,7 @@ FD3D11Texture3D* FD3D11DynamicRHI::CreateD3D11Texture3D(uint32 SizeX,uint32 Size
 	const D3D11_SUBRESOURCE_DATA* SubResData = CreateInfo.BulkData != nullptr ? (const D3D11_SUBRESOURCE_DATA*)SubResourceData.GetData() : nullptr;
 	VERIFYD3D11CREATETEXTURERESULT(
 		Direct3DDevice->CreateTexture3D(&TextureDesc, SubResData,TextureResource.GetInitReference()),
+		Format,
 		SizeX,
 		SizeY,
 		SizeZ,
@@ -1195,7 +1198,7 @@ FTexture2DRHIRef FD3D11DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX,uint32 S
 		SubResourceData[MipIndex].SysMemSlicePitch = MipSize;
 	}
 
-	SafeCreateTexture2D(Direct3DDevice,&TextureDesc,SubResourceData,TextureResource.GetInitReference());
+	SafeCreateTexture2D(Direct3DDevice, Format, &TextureDesc,SubResourceData,TextureResource.GetInitReference());
 
 	if (TempBufferSize != ZeroBufferSize)
 	{
@@ -1625,6 +1628,7 @@ void* TD3D11Texture2D<RHIResourceType>::Lock(uint32 MipIndex,uint32 ArrayIndex,E
 		TRefCountPtr<ID3D11Texture2D> StagingTexture;
 		VERIFYD3D11CREATETEXTURERESULT(
 			D3DRHI->GetDevice()->CreateTexture2D(&StagingTextureDesc,NULL,StagingTexture.GetInitReference()),
+			RHIResourceType::GetFormat(),
 			this->GetSizeX(),
 			this->GetSizeY(),
 			this->GetSizeZ(),

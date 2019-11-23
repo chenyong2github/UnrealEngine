@@ -2818,10 +2818,13 @@ namespace ObjectTools
 		ObjectsToDelete.Empty();
 
 		// Reload packages of objects we failed to clean as a last resort since they might be left in an unstable state due to the force replace references
-		FText ErrorMessage;
-		ensureMsgf(PackagesToReload.Num() == 0, TEXT("Failed to unload all packages during ForceDeleteObject"));
-		bool bSuccess = PackageTools::ReloadPackages(PackagesToReload, ErrorMessage, UPackageTools::EReloadPackagesInteractionMode::AssumePositive);
-		ensure(bSuccess);
+		ensureMsgf(PackagesToReload.Num() == 0, TEXT("Failed to unload all packages during ForceDeleteObjects"));
+		if (PackagesToReload.Num() > 0)
+		{
+			FText ErrorMessage;
+			bool bSuccess = UPackageTools::ReloadPackages(PackagesToReload, ErrorMessage, UPackageTools::EReloadPackagesInteractionMode::AssumePositive);
+			ensureMsgf(bSuccess, TEXT("Failed to reload package as a last resort in ForceDeleteObjects"));
+		}
 
 		GWarn->EndSlowTask();
 
@@ -4586,6 +4589,8 @@ namespace ThumbnailTools
 	/** Loads thumbnails for the specified objects (or copies them from a cache, if they're already loaded.) */
 	bool ConditionallyLoadThumbnailsForObjects( const TArray< FName >& InObjectFullNames, FThumbnailMap& InOutThumbnails )
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ConditionallyLoadThumbnailsForObjects);
+
 		// Create a list of unique package file names that we'll need to interrogate
 		struct FObjectFullNamesForPackage
 		{

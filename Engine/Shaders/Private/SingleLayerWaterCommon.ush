@@ -53,7 +53,7 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 #endif // SIMPLE_SINGLE_LAYER_WATER
 	float Specular, const float4 DistortionParams,
 	float3 SunIlluminance, float3 AmbiantIlluminance, float3 EnvBrdf,
-	bool CameraIsUnderWater, float WaterVisibility)
+	bool CameraIsUnderWater, float WaterVisibility, uint EyeIndex)
 {
 	WaterVolumeLightingOutput Output;
 	Output.Luminance = 0.0f;
@@ -89,15 +89,6 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 			PixelSceneDepth = lerp(PixelSceneDepth, FadeBehindWaterDepth, saturate((WaterDepth - FadeStartDistance) / FadeLenght));
 			PixelSceneDeviceZ = ConvertToDeviceZ(PixelSceneDepth);
 		}
-		
-		// Water depth override hack for Android devices
-	#if !COMPILER_METAL
-		if (View.ConstantWaterDepth >= 0.0f)
-		{
-			PixelSceneDepth = WaterDepth + View.ConstantWaterDepth;
-			PixelSceneDeviceZ = ConvertToDeviceZ(PixelSceneDepth);
-		}
-	#endif
 #endif
 
 		float SceneDeviceZ = PixelSceneDeviceZ;
@@ -112,7 +103,7 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		float2 Refraction = GetMaterialRefraction(PixelMaterialInputs); // X = IOR, Y = Refraction Bias
 		float2 BufferUVDistortion = ComputeBufferUVDistortion(
 			MaterialParameters, PixelMaterialInputs, ResolvedView,
-			MaterialParameters.WorldNormal, DistortionParams, ViewportUV, Refraction, false);
+			MaterialParameters.WorldNormal, DistortionParams, ViewportUV, Refraction, false, EyeIndex);
 		PostProcessUVDistortion(MaterialParameters, PixelMaterialInputs, PixelSceneDepth, BufferUVDistortion, Refraction);
 		// Also reduce refraction according to water thickness
 		BufferUVDistortion *= saturate((PixelSceneDepth - WaterDepth) * 1.0 / 30.0f);// *(1 - saturate(WaterDepth * 1.0 / 2000.0f));

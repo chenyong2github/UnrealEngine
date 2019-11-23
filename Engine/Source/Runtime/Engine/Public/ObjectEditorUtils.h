@@ -63,8 +63,9 @@ namespace FObjectEditorUtils
 	 * @param Class the class to inspect.
 	 * @param bIsExperimental [out] value indicating if the class is experimental.
 	 * @param bIsEarlyAccess [out] value indicating if the class is early access.
+	 * @param MostDerivedClassName [out] The name of the most derived class that is marked as experimental or early access (or empty string)
 	 */
-	ENGINE_API void GetClassDevelopmentStatus(UClass* Class, bool& bIsExperimental, bool& bIsEarlyAccess);
+	ENGINE_API void GetClassDevelopmentStatus(UClass* Class, bool& bIsExperimental, bool& bIsEarlyAccess, FString& MostDerivedClassName);
 
 	/**
 	 * Copy the value of a property from source object to a destination object.

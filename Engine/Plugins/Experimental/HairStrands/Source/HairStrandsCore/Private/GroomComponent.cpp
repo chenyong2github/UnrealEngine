@@ -46,6 +46,11 @@ static float GetGroupHairShadowDensity(const FHairGroupDesc& GroupDesc, const FH
 	return GroupDesc.HairShadowDensity > 0 ? GroupDesc.HairShadowDensity : GroupData.HairRenderData.HairDensity;
 }
 
+static float GetGroupHairRaytracingRadiusScale(const FHairGroupDesc& GroupDesc, const FHairGroupData& GroupData)
+{
+	return GroupDesc.HairRaytracingRadiusScale;
+}
+
 /**
  * An material render proxy which overrides the debug mode parameter.
  */
@@ -424,6 +429,11 @@ static void UpdateHairGroupsDesc(UGroomAsset* GroomAsset, TArray<FHairGroupDesc>
 		{
 			Desc.HairShadowDensity = GroupData.HairRenderData.HairDensity;
 		}
+
+		if (bReinitOverride)
+		{
+			Desc.HairRaytracingRadiusScale = 1;
+		}
 	}
 }
 
@@ -442,7 +452,6 @@ UGroomComponent::UGroomComponent(const FObjectInitializer& ObjectInitializer)
 	bSelectable = true;
 	RegisteredSkeletalMeshComponent = nullptr;
 	SkeletalPreviousPositionOffset = FVector::ZeroVector;
-	HairRaytracingRadiusScale = 1;
 	bBindGroomToSkeletalMesh = false;
 	InitializedResources = nullptr;
 	Mobility = EComponentMobility::Movable;
@@ -826,12 +835,12 @@ void UGroomComponent::InitResources()
 		check(GroupIt < GroomGroupsDesc.Num());
 		const FHairGroupDesc& InGroupDesc = GroomGroupsDesc[GroupIt];
 		InterpolationInputGroup.HairRadius = GetGroupMaxHairRadius(InGroupDesc, GroupData);
-		InterpolationInputGroup.HairRaytracingRadiusScale = HairRaytracingRadiusScale;
+		InterpolationInputGroup.HairRaytracingRadiusScale = GetGroupHairRaytracingRadiusScale(InGroupDesc, GroupData);
 		InterpolationInputGroup.InRenderHairPositionOffset = RenderRestHairPositionOffset;
 		InterpolationInputGroup.InSimHairPositionOffset = SimRestHairPositionOffset;
 
 		// For skinned groom, these value will be updated during TickComponent() call
-		// Deformed sim & render are expressed within the referencial (unlike rest pose)
+		// Deformed sim & render are expressed within the referential (unlike rest pose)
 		InterpolationInputGroup.OutHairPositionOffset = RenderRestHairPositionOffset;
 		InterpolationInputGroup.OutHairPreviousPositionOffset = RenderRestHairPositionOffset;
 		InterpolationInputGroup.bIsSimulationEnable = bIsSimulationEnable;
@@ -982,14 +991,10 @@ void UGroomComponent::PostLoad()
 	}
 
 	UpdateHairGroupsDesc(GroomAsset, GroomGroupsDesc);
-	if (!IsTemplate())
-	{
-		InitResources();
-	}
-
+	InitResources();
 
 #if WITH_EDITOR
-	if (!bIsGroomAssetCallbackRegistered)
+	if (GroomAsset && !bIsGroomAssetCallbackRegistered)
 	{
 		GroomAsset->GetOnGroomAssetChanged().AddUObject(this, &UGroomComponent::Invalidate);
 		bIsGroomAssetCallbackRegistered = true;
@@ -1009,6 +1014,12 @@ void UGroomComponent::Invalidate()
 void UGroomComponent::OnRegister()
 {
 	Super::OnRegister();
+
+	if (!InitializedResources)
+	{
+		UpdateHairGroupsDesc(GroomAsset, GroomGroupsDesc);
+		InitResources();
+	}
 
 	// Insure the ticking of the Groom component always happens after the skeletalMeshComponent.
 	USkeletalMeshComponent* SkeletalMeshComponent = GetAttachParent() ? Cast<USkeletalMeshComponent>(GetAttachParent()) : nullptr;
@@ -1337,15 +1348,39 @@ void UGroomComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials
 }
 
 #if WITH_EDITOR
+void UGroomComponent::PreEditChange(UProperty* PropertyAboutToChange)
+{
+	Super::PreEditChange(PropertyAboutToChange);
+
+	const FName PropertyName = PropertyAboutToChange ? PropertyAboutToChange->GetFName() : NAME_None;
+	const bool bAssetAboutToChanged = PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, GroomAsset);
+	if (bAssetAboutToChanged)
+	{
+		// Remove the callback on the GroomAsset about to be replaced
+		if (bIsGroomAssetCallbackRegistered && GroomAsset)
+		{
+			GroomAsset->GetOnGroomAssetChanged().RemoveAll(this);
+		}
+		bIsGroomAssetCallbackRegistered = false;
+	}
+}
+
 void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) 
 {
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
 	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	const FName PropertyName = PropertyThatChanged ? PropertyThatChanged->GetFName() : NAME_None;
 
 	//  Init/release resources when setting the GroomAsset (or undoing)
 	const bool bAssetChanged = PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, GroomAsset);
+	if (bAssetChanged)
+	{
+		// Release the resources before Super::PostEditChangeProperty so that they get
+		// re-initialized in OnRegister
+		ReleaseResources();
+	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
 	const bool bRecreateResources =
 		(PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, GroomAsset) || PropertyThatChanged == nullptr) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, bBindGroomToSkeletalMesh);
@@ -1359,14 +1394,9 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 #if WITH_EDITOR
 	if (bAssetChanged)
 	{
-		if (bIsGroomAssetCallbackRegistered && GroomAsset)
-		{
-			GroomAsset->GetOnGroomAssetChanged().RemoveAll(this);
-		}
-		bIsGroomAssetCallbackRegistered = false;
-
 		if (GroomAsset)
 		{
+			// Set the callback on the new GroomAsset being assigned
 			GroomAsset->GetOnGroomAssetChanged().AddUObject(this, &UGroomComponent::Invalidate);
 			bIsGroomAssetCallbackRegistered = true;
 		}
@@ -1375,7 +1405,7 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 
 	if (bRecreateResources)
 	{
-		if (GroomAsset != InitializedResources)
+		//if (GroomAsset != InitializedResources)
 		{
 			if (GroomAsset)
 			{
@@ -1389,11 +1419,12 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		}
 	}
 
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, HairRaytracingRadiusScale) && InterpolationInput)
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, HairRaytracingRadiusScale) && InterpolationInput && InterpolationInput->HairGroups.Num() == GroomGroupsDesc.Num())
 	{
-		for (FHairStrandsInterpolationInput::FHairGroup& Group : InterpolationInput->HairGroups)
+		const int32 GroupCount = InterpolationInput->HairGroups.Num();
+		for (int32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
 		{
-			Group.HairRaytracingRadiusScale = HairRaytracingRadiusScale;
+			InterpolationInput->HairGroups[GroupIt].HairRaytracingRadiusScale = GroomGroupsDesc[GroupIt].HairRaytracingRadiusScale;
 		}
 	}
 

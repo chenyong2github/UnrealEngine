@@ -2,8 +2,8 @@
 	"FileVersion": 3,
 	"Version": 1,
 	"VersionName": "0.1",
-	"FriendlyName": "Hair Strands",
-	"Description": "Build Hair Strands for rendering and simulation",
+	"FriendlyName": "Groom",
+	"Description": "Rendering and simulation of grooms",
 	"Category": "Geometry",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
@@ -36,7 +36,7 @@
 		{
 			"Name": "HairStrandsNiagara",
 			"Type": "RunTime",
-			"LoadingPhase": "Default",
+			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [
 				"Win64",
 				"Win32"

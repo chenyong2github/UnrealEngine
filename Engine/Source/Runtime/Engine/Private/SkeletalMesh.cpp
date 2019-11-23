@@ -2178,7 +2178,7 @@ void USkeletalMesh::PostLoad()
 						}
 					}
 				}
-				ThisLODModel.UpdateChunkedSectionInfo();
+				ThisLODModel.UpdateChunkedSectionInfo(GetName(), ThisLODInfo->LODMaterialMap);
 			}
 		}
 
@@ -4145,9 +4145,9 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 			// If we are at a dropped LOD, route material index through the LODMaterialMap in the LODInfo struct.
 			int32 UseMaterialIndex = Section.MaterialIndex;			
 			{
-				if(Section.MaterialIndex < Info.LODMaterialMap.Num() && Component->SkeletalMesh->Materials.IsValidIndex(Info.LODMaterialMap[Section.MaterialIndex]))
+				if(SectionIndex < Info.LODMaterialMap.Num() && Component->SkeletalMesh->Materials.IsValidIndex(Info.LODMaterialMap[SectionIndex]))
 				{
-					UseMaterialIndex = Info.LODMaterialMap[Section.MaterialIndex];
+					UseMaterialIndex = Info.LODMaterialMap[SectionIndex];
 					UseMaterialIndex = FMath::Clamp( UseMaterialIndex, 0, Component->SkeletalMesh->Materials.Num() );
 				}
 			}

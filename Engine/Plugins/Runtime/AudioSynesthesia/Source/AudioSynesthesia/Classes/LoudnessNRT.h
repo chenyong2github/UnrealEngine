@@ -37,27 +37,27 @@ class AUDIOSYNESTHESIA_API ULoudnessNRTSettings : public UAudioSynesthesiaNRTSet
 		ULoudnessNRTSettings();
 
 		/** Number of seconds between loudness measurements */
-		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AudioAnalyzer, meta = (ClampMin = "0.01", ClampMax = "0.25"))
+		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AudioAnalyzer, meta = (ClampMin = "0.01", ClampMax = "0.25"))
 		float AnalysisPeriod;
 
 		/** Minimum analysis frequency for calculating loudness. */
-		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AudioAnalyzer, meta = (ClampMin = "20.0", ClampMax = "20000"))
+		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AudioAnalyzer, meta = (ClampMin = "20.0", ClampMax = "20000"))
 		float MinimumFrequency;
 
 		/** Maximum analysis frequency for calculating loudness. */
-		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AudioAnalyzer, meta = (ClampMin = "20.0", ClampMax = "20000"))
+		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AudioAnalyzer, meta = (ClampMin = "20.0", ClampMax = "20000"))
 		float MaximumFrequency;
 
 		/** Type of equal loudness curve used in calculations */
-		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AudioAnalyzer)
+		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AudioAnalyzer)
 		ELoudnessNRTCurveTypeEnum CurveType;
 
 		/** dB level to denote silence.  Used when calculating normalized loudness. */
-		UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category=AudioAnalyzer, meta = (ClampMin = "-100.0", ClampMax="0"))
+		UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category=AudioAnalyzer, meta = (ClampMin = "-100.0", ClampMax="0"))
 		float NoiseFloorDb;
 
 		/** Convert ULoudnessNRTSettings to FLoudnessNRTSettings */
-		TUniquePtr<Audio::IAnalyzerNRTSettings> GetSettings();
+		TUniquePtr<Audio::IAnalyzerNRTSettings> GetSettings(const float InSampleRate, const int32 InNumChannels) const;
 };
 
 
@@ -78,16 +78,16 @@ class AUDIOSYNESTHESIA_API ULoudnessNRT : public UAudioSynesthesiaNRT
 		ULoudnessNRT();
 
 		/** The settings for the audio analyzer.  */
-		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AudioAnalyzer)
+		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AudioAnalyzer)
 		ULoudnessNRTSettings* Settings;
 
 		/** Get the overall loudness of the analyzed sound at a given time. */
 		UFUNCTION(BlueprintCallable, Category="Audio Analyzer")
-		void GetLoudnessAtTime(const float InSeconds, float& OutLoudness);
+		void GetLoudnessAtTime(const float InSeconds, float& OutLoudness) const;
 
 		/** Get a specific channel loudness of the analyzed sound at a given time. */
 		UFUNCTION(BlueprintCallable, Category="Audio Analyzer")
-		void GetChannelLoudnessAtTime(const float InSeconds, const int32 InChannel, float& OutLoudness);
+		void GetChannelLoudnessAtTime(const float InSeconds, const int32 InChannel, float& OutLoudness) const;
 
 		/**
 		 * Get the normalized overall loudness of the analyzed sound at a given time. Normalized loudness
@@ -95,7 +95,7 @@ class AUDIOSYNESTHESIA_API ULoudnessNRT : public UAudioSynesthesiaNRT
 		 * loudness in the sound.
 		 */
 		UFUNCTION(BlueprintCallable, Category="Audio Analyzer")
-		void GetNormalizedLoudnessAtTime(const float InSeconds, float& OutLoudness);
+		void GetNormalizedLoudnessAtTime(const float InSeconds, float& OutLoudness) const;
 
 		/**
 		 * Get a specific channel normalized loudness of the analyzed sound at a given time. Normalized 
@@ -103,10 +103,10 @@ class AUDIOSYNESTHESIA_API ULoudnessNRT : public UAudioSynesthesiaNRT
 		 * maximum loudness in the sound.
 		 */
 		UFUNCTION(BlueprintCallable, Category="Audio Analyzer")
-		void GetNormalizedChannelLoudnessAtTime(const float InSeconds, const int32 InChannel, float& OutLoudness);
+		void GetNormalizedChannelLoudnessAtTime(const float InSeconds, const int32 InChannel, float& OutLoudness) const;
 
 		/** Convert ULoudnessNRTSettings to FLoudnessNRTSettings */
- 		TUniquePtr<Audio::IAnalyzerNRTSettings> GetSettings() override;
+ 		TUniquePtr<Audio::IAnalyzerNRTSettings> GetSettings(const float InSampleRate, const int32 InNumChannels) const override;
 
 	protected:
 

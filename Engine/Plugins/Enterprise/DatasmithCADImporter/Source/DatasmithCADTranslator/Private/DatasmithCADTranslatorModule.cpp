@@ -14,10 +14,12 @@ IMPLEMENT_MODULE(FDatasmithCADTranslatorModule, DatasmithCADTranslator);
 void FDatasmithCADTranslatorModule::StartupModule()
 {
 	// Create temporary directory which will be used by CoreTech to store tessellation data
-	TempDir = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectIntermediateDir(), TEXT("CoreTechImportTemp")));
-	IFileManager::Get().MakeDirectory(*TempDir);
+	const TCHAR* OldCacheVersion = TEXT("0");
+	FString OldCacheDir = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectIntermediateDir(), TEXT("DatasmithCADCache"), OldCacheVersion));
+	IFileManager::Get().DeleteDirectory(*OldCacheDir, true, true);
 
-	CacheDir = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectIntermediateDir(), TEXT("DatasmithCache")));
+	const TCHAR* CacheVersion = TEXT("1");
+	CacheDir = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectIntermediateDir(), TEXT("DatasmithCADCache"), CacheVersion));
 	IFileManager::Get().MakeDirectory(*CacheDir);
 
 	Datasmith::RegisterTranslator<FDatasmithCADTranslator>();
@@ -28,10 +30,6 @@ void FDatasmithCADTranslatorModule::ShutdownModule()
 	Datasmith::UnregisterTranslator<FDatasmithCADTranslator>();
 }
 
-FString FDatasmithCADTranslatorModule::GetTempDir() const
-{
-	return TempDir;
-}
 
 FString FDatasmithCADTranslatorModule::GetCacheDir() const
 {

@@ -451,6 +451,7 @@ public:
 					MeshBatch.Type = PT_TriangleList;
 					MeshBatch.DepthPriorityGroup = SDPG_World;
 					MeshBatch.bCanApplyViewModeOverrides = false;
+					MeshBatch.CastRayTracedShadow = IsShadowCast(Context.ReferenceView);
 
 					FMeshBatchElement& BatchElement = MeshBatch.Elements[0];
 					BatchElement.IndexBuffer = &Section->IndexBuffer;

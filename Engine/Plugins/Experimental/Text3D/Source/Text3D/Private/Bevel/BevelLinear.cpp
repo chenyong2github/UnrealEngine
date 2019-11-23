@@ -3,9 +3,9 @@
 
 #include "Bevel/BevelLinear.h"
 #include "Bevel/Contour.h"
-#include "Bevel/Data.h"
 #include "Bevel/Part.h"
 #include "Bevel/Intersection.h"
+#include "Data.h"
 
 
 THIRD_PARTY_INCLUDES_START
@@ -32,8 +32,8 @@ int32 FBevelLinear::VisibleFace = 0;
 bool FBevelLinear::bHidePrevious = false;
 
 
-FBevelLinear::FBevelLinear(TText3DMeshList* MeshesIn, const float ExpandTotal, const float HorizontalOffset, const float VerticalOffset, const float FontInverseScale, const FVector& Scale, const FTVectoriser& Vectoriser, const int32 IterationsIn, const bool bHidePreviousIn, const int32 Segments, const int32 VisibleFaceIn)
-	: Data(MakeUnique<FData>(MeshesIn, ExpandTotal, HorizontalOffset, VerticalOffset, FontInverseScale, Scale))
+FBevelLinear::FBevelLinear(const TSharedPtr<FData> DataIn, const FTVectoriser& Vectoriser, const int32 IterationsIn, const bool bHidePreviousIn, const int32 Segments, const int32 VisibleFaceIn)
+	: Data(DataIn)
 {
 	enum class EDebugContour : uint8
 	{
@@ -52,6 +52,8 @@ FBevelLinear::FBevelLinear(TText3DMeshList* MeshesIn, const float ExpandTotal, c
 	Iterations = IterationsIn;
 	bHidePrevious = bHidePreviousIn;
 	VisibleFace = VisibleFaceIn;
+
+	Data->ResetDoneExtrude();
 
 	switch (DebugContour)
 	{
@@ -93,6 +95,125 @@ void FBevelLinear::BevelContours(const float Extrude, const float Expand, FVecto
 	MarkVertex(MarkedVertex);
 
 	Data->IncreaseDoneExtrude();
+}
+
+void FBevelLinear::CreateExtrudeMesh(const float Extrude)
+{
+	Data->SetExtrude(Extrude);
+	Data->SetExpand(0);
+
+	const FVector2D Normal(1, 0);
+	Data->SetNormals(Normal, Normal);
+
+	for (FContour& Contour : Contours)
+	{
+		for (FPart* const Part : Contour)
+		{
+			Part->ResetDoneExpand();
+		}
+	}
+
+
+	TArray<float> TextureCoordinateVs;
+
+	auto EdgeLength = [](const FPart* const Edge)
+	{
+		return (Edge->Next->Position - Edge->Position).Size();
+	};
+
+	for (FContour& Contour : Contours)
+	{
+		// Compute TexCoord.V-s for each point
+		TextureCoordinateVs.Reset(Contour.Num() - 1);
+		TextureCoordinateVs.Add(EdgeLength(Contour[0]));
+
+		for(int32 Index = 1; Index < Contour.Num() - 1; Index++)
+		{
+			TextureCoordinateVs.Add(TextureCoordinateVs[Index - 1] + EdgeLength(Contour[Index]));
+		}
+
+
+		const float ContourLength = TextureCoordinateVs.Last() + EdgeLength(Contour.Last());
+
+		if (FMath::IsNearlyZero(ContourLength))
+		{
+			continue;
+		}
+
+
+		for (float& PointY : TextureCoordinateVs)
+		{
+			PointY /= ContourLength;
+		}
+
+		// Duplicate contour
+		Data->SetMinBevelTarget();
+
+		// First point in contour is processed separately
+		{
+			FPart* const Point = Contour[0];
+			// It's set to sharp because we need 2 vertices with TexCoord.Y values 0 and 1 (for smooth points only one vertex is added)
+			Point->bSmooth = false;
+			EmptyPaths(Point);
+			ExpandPointWithoutAddingVertices(Point);
+
+			const FVector2D TexCoordPrev(0, 0);
+			const FVector2D TexCoordCurr(0, 1);
+
+			if (Point->bSmooth)
+			{
+				AddVertexSmooth(Point, TexCoordPrev);
+				AddVertexSmooth(Point, TexCoordCurr);
+			}
+			else
+			{
+				AddVertexSharp(Point, Point->Prev, TexCoordPrev);
+				AddVertexSharp(Point, Point, TexCoordCurr);
+			}
+		}
+
+		for (int32 Index = 1; Index < Contour.Num(); Index++)
+		{
+			FPart* const Point = Contour[Index];
+			EmptyPaths(Point);
+			ExpandPoint(Point, {0, 1 - TextureCoordinateVs[Index - 1]});
+		}
+
+
+		// Add extruded vertices
+		Data->SetMaxBevelTarget();
+
+		// Similarly to duplicating vertices, first point is processed separately
+		{
+			FPart* const Point = Contour[0];
+			ExpandPointWithoutAddingVertices(Point);
+
+			const FVector2D TexCoordPrev(1, 0);
+			const FVector2D TexCoordCurr(1, 1);
+
+			if (Point->bSmooth)
+			{
+				AddVertexSmooth(Point, TexCoordPrev);
+				AddVertexSmooth(Point, TexCoordCurr);
+			}
+			else
+			{
+				AddVertexSharp(Point, Point->Prev, TexCoordPrev);
+				AddVertexSharp(Point, Point, TexCoordCurr);
+			}
+		}
+
+		for (int32 Index = 1; Index < Contour.Num(); Index++)
+		{
+			ExpandPoint(Contour[Index], {1, 1 - TextureCoordinateVs[Index - 1]});
+		}
+
+
+		for (FPart* const Edge : Contour)
+		{
+			FillEdge(Edge, false);
+		}
+	}
 }
 
 // Using GLUtesselator to make triangulation of back cap
@@ -170,7 +291,7 @@ FContour& FBevelLinear::AddContour()
 void FBevelLinear::RemoveContour(const FContour& Contour)
 {
 	// Search with comparing pointers
-	for (TDoubleLinkedList<FContour>::TDoubleLinkedListNode * i = Contours.GetHead(); i; i = i->GetNextNode())
+	for (TDoubleLinkedList<FContour>::TDoubleLinkedListNode* i = Contours.GetHead(); i; i = i->GetNextNode())
 	{
 		if (&i->GetValue() == &Contour)
 		{
@@ -180,9 +301,9 @@ void FBevelLinear::RemoveContour(const FContour& Contour)
 	}
 }
 
-FData* FBevelLinear::GetData()
+TSharedPtr<FData> FBevelLinear::GetData()
 {
-	return Data.Get();
+	return Data;
 }
 
 FVector2D FBevelLinear::Expanded(const FPart* const Point) const
@@ -200,7 +321,7 @@ void FBevelLinear::ExpandPoint(FPart* const Point, const int32 Count)
 	const FPart* const Curr = Point;
 
 	FPart* Prev = Point;
-	for (int32 i = 0; i < Count - 1; i++)
+	for (int32 Index = 0; Index < Count - 1; Index++)
 	{
 		Prev = Prev->Prev;
 	}
@@ -236,10 +357,11 @@ void FBevelLinear::ExpandPoint(FPart* const Point, const int32 Count)
 	FVector2D TangentX = Prev->TangentX;
 	FVector TangentZ = Data->ComputeTangentZ(Prev, Point->DoneExpand);
 
-	auto Add = [this, Point, &TangentX, &TangentZ]()
+	const TSharedPtr<FData> DataLocal = Data;
+	auto Add = [DataLocal, Point, &TangentX, &TangentZ]()
 	{
 		// Result tangent is normalized sum of tangents of all surfaces vertex belongs to
-		Data->AddVertex(Point, TangentX.GetSafeNormal(), TangentZ.GetSafeNormal());
+		DataLocal->AddVertex(Point, TangentX.GetSafeNormal(), TangentZ.GetSafeNormal());
 	};
 
 	for (p = Prev->Next; p != Next; p = p->Next)
@@ -260,6 +382,21 @@ void FBevelLinear::ExpandPoint(FPart* const Point, const int32 Count)
 	}
 
 	Add();
+}
+
+void FBevelLinear::ExpandPoint(FPart* const Point, const FVector2D TextureCoordinates)
+{
+	ExpandPointWithoutAddingVertices(Point);
+
+	if (Point->bSmooth)
+	{
+		AddVertexSmooth(Point, TextureCoordinates);
+	}
+	else
+	{
+		AddVertexSharp(Point, Point->Prev, TextureCoordinates);
+		AddVertexSharp(Point, Point, TextureCoordinates);
+	}
 }
 
 void FBevelLinear::FillEdge(FPart* const Edge, const bool bSkipLastTriangle)
@@ -295,12 +432,19 @@ void FBevelLinear::CreateContours(const FTVectoriser& Vectoriser)
 	for (size_t i = 0; i < Vectoriser.ContourCount(); i++)
 	{
 		const FTContour* const ContourIn = Vectoriser.Contour(i);
+		const size_t PointCount = ContourIn->PointCount();
+
+		if (PointCount < 3)
+		{
+			continue;
+		}
+
 		FContour& Contour = AddContour();
-		Contour.AddUninitialized(ContourIn->PointCount());
+		Contour.AddUninitialized(PointCount);
 
 		for (int32 j = 0; j < Contour.Num(); j++)
 		{
-			FPart* const Point = new FPart;
+			FPart* const Point = new FPart();
 			Contour[j] = Point;
 
 			// FTGL returns contours with clockwise order, changing it to counterclockwise
@@ -389,6 +533,15 @@ void FBevelLinear::CreateDebugIntersectionFarContour()
 
 void FBevelLinear::InitContours()
 {
+	TArray<FContour*> BadContours;
+	bool bContourIsBad = false;
+
+	auto AddToBadContours = [&bContourIsBad, &BadContours](FContour* const BadContour)
+	{
+		bContourIsBad = true;
+		BadContours.Add(BadContour);
+	};
+
 	for (FContour& Contour : Contours)
 	{
 		for (int32 Index = 0; Index < Contour.Num(); Index++)
@@ -401,16 +554,41 @@ void FBevelLinear::InitContours()
 			Point->ResetDoneExpand();
 		}
 
+
+		bContourIsBad = false;
+
 		for (FPart* const Point : Contour)
 		{
 			Point->ComputeTangentX();
+
+			if (Point->TangentX.IsZero())
+			{
+				AddToBadContours(&Contour);
+				break;
+			}
+		}
+
+		if (bContourIsBad)
+		{
+			continue;
 		}
 
 		for (FPart* const Point : Contour)
 		{
-			Point->ComputeNormalAndSmooth();
+			if (!Point->ComputeNormalAndSmooth())
+			{
+				AddToBadContours(&Contour);
+				break;
+			}
+
 			Point->ResetInitialPosition();
 		}
+
+		if (bContourIsBad)
+		{
+			continue;
+		}
+
 
 		for (FPart* const Point : Contour)
 		{
@@ -425,6 +603,11 @@ void FBevelLinear::InitContours()
 			}
 		}
 	}
+
+	for (FContour* const BadContour : BadContours)
+	{
+		RemoveContour(*BadContour);
+	}
 }
 
 void FBevelLinear::DuplicateContourVertices()
@@ -435,11 +618,9 @@ void FBevelLinear::DuplicateContourVertices()
 	{
 		for (FPart* const Point : Contour)
 		{
-			Point->PathPrev.Empty();
-			Point->PathNext.Empty();
-
+			EmptyPaths(Point);
 			// Duplicate points of contour (expansion with value 0)
-			ExpandPoint(Point, 2);
+			ExpandPoint(Point);
 		}
 	}
 }
@@ -497,17 +678,15 @@ void FBevelLinear::BevelPartsWithoutIntersectingNormals()
 	Data->SetMaxBevelTarget();
 	const float MaxExpand = Data->GetExpand();
 
-	auto ExpandToMax = [MaxExpand, this](FPart* const Point)
-	{
-		if(Point->DoneExpand != MaxExpand || MaxExpand == 0)
-			ExpandPoint(Point, 2);
-	};
-
 	for (FContour& Contour : Contours)
 	{
 		for (FPart* const Point : Contour)
 		{
-			ExpandToMax(Point);
+			if(Point->DoneExpand != MaxExpand || MaxExpand == 0)
+			{
+				ExpandPoint(Point);
+			}
+
 			const float Delta = MaxExpand - Point->DoneExpand;
 
 			Point->AvailableExpandNear -= Delta;
@@ -570,4 +749,32 @@ void FBevelLinear::MakeTriangleFanAlongNormal(const FPart* const Cap, FPart* con
 
 	// Remove covered vertices from path
 	Path.RemoveAt(0, Count);
+}
+
+void FBevelLinear::EmptyPaths(FPart *const Point) const
+{
+	Point->PathPrev.Empty();
+	Point->PathNext.Empty();
+}
+
+void FBevelLinear::ExpandPointWithoutAddingVertices(FPart* const Point) const
+{
+	Point->Position = Expanded(Point);
+	const int32 FirstAdded = Data->AddVertices(Point->bSmooth ? 1 : 2);
+
+	Point->PathPrev.Add(FirstAdded);
+	Point->PathNext.Add(Point->bSmooth ? FirstAdded : FirstAdded + 1);
+}
+
+void FBevelLinear::AddVertexSmooth(const FPart *const Point, const FVector2D TextureCoordinates)
+{
+	const FPart* const Curr = Point;
+	const FPart* const Prev = Point->Prev;
+
+	Data->AddVertex(Point, (Prev->TangentX + Curr->TangentX).GetSafeNormal(), (Data->ComputeTangentZ(Prev, Point->DoneExpand) + Data->ComputeTangentZ(Curr, Point->DoneExpand)).GetSafeNormal(), TextureCoordinates);
+}
+
+void FBevelLinear::AddVertexSharp(const FPart *const Point, const FPart *const Edge, const FVector2D TextureCoordinates)
+{
+	Data->AddVertex(Point, Edge->TangentX, Data->ComputeTangentZ(Edge, Point->DoneExpand).GetSafeNormal(), TextureCoordinates);
 }

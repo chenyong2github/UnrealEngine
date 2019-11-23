@@ -29,5 +29,3 @@ void FGeometryModeModule::ShutdownModule()
 }
 
 IMPLEMENT_MODULE(FGeometryModeModule, GeometryMode);
-
-#undef LOCTEXT_NAMESPACE

@@ -14,17 +14,17 @@ namespace Chaos
 	struct TCapsuleSpecializeSamplingHelper;
 
 	template<class T>
-	class TCapsule final : public TImplicitObject<T, 3>
+	class TCapsule final : public FImplicitObject
 	{
 	public:
-		using TImplicitObject<T, 3>::SignedDistance;
-		using TImplicitObject<T, 3>::GetTypeName;
+		using FImplicitObject::SignedDistance;
+		using FImplicitObject::GetTypeName;
 
 		TCapsule()
-		    : TImplicitObject<T, 3>(EImplicitObject::FiniteConvex, ImplicitObjectType::Capsule)
+		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::Capsule)
 		{}
 		TCapsule(const TVector<T, 3>& x1, const TVector<T, 3>& x2, const T Radius)
-		    : TImplicitObject<T, 3>(EImplicitObject::FiniteConvex, ImplicitObjectType::Capsule)
+		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::Capsule)
 			, MSegment(x1, x2)
 		    , MRadius(Radius)
 		    , MLocalBoundingBox(x1, x1)
@@ -36,7 +36,7 @@ namespace Chaos
 		}
 
 		TCapsule(const TCapsule<T>& Other)
-		    : TImplicitObject<T, 3>(EImplicitObject::FiniteConvex, ImplicitObjectType::Capsule)
+		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::Capsule)
 			, MSegment(Other.MSegment)
 		    , MRadius(Other.MRadius)
 		    , MLocalBoundingBox(Other.MLocalBoundingBox)
@@ -46,7 +46,7 @@ namespace Chaos
 		}
 
 		TCapsule(TCapsule<T>&& Other)
-		    : TImplicitObject<T, 3>(EImplicitObject::FiniteConvex, ImplicitObjectType::Capsule)
+		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::Capsule)
 			, MSegment(MoveTemp(Other.MSegment))
 		    , MRadius(Other.MRadius)
 		    , MLocalBoundingBox(MoveTemp(Other.MLocalBoundingBox))
@@ -74,7 +74,7 @@ namespace Chaos
 
 		~TCapsule() {}
 
-		static EImplicitObjectType StaticType() { return ImplicitObjectType::Capsule; }
+		static constexpr EImplicitObjectType StaticType() { return ImplicitObjectType::Capsule; }
 
 		static TCapsule<T> NewFromOriginAndAxis(const TVector<T, 3>& Origin, const TVector<T, 3>& Axis, const T Height, const T Radius)
 		{
@@ -287,21 +287,21 @@ namespace Chaos
 			return RaycastFast(MRadius, GetHeight(), GetAxis(), GetX1(), GetX2(), StartPoint, Dir, Length, Thickness, OutTime, OutPosition, OutNormal, OutFaceIndex);
 		}
 
-		TVector<T,3> Support(const TVector<T, 3>& Direction, const T Thickness) const override
+		FORCEINLINE TVector<T,3> Support(const TVector<T, 3>& Direction, const T Thickness) const
 		{
 			return MSegment.Support(Direction, MRadius + Thickness);
 		}
 
-		virtual TVector<T, 3> Support2(const TVector<T, 3>& Direction) const override { return MSegment.Support2(Direction); }
+		FORCEINLINE TVector<T, 3> Support2(const TVector<T, 3>& Direction) const { return MSegment.Support2(Direction); }
 
-		virtual T GetMargin() const override
+		FORCEINLINE T GetMargin() const
 		{
 			return MRadius;
 		}
 
 		FORCEINLINE void SerializeImp(FArchive& Ar)
 		{
-			TImplicitObject<T, 3>::SerializeImp(Ar);
+			FImplicitObject::SerializeImp(Ar);
 			MSegment.Serialize(Ar);
 			Ar << MRadius << MLocalBoundingBox;
 		}
@@ -313,9 +313,9 @@ namespace Chaos
 			Ar << MUnionedObjects;
 		}
 
-		virtual TUniquePtr<TImplicitObject<T, 3>> Copy() const override
+		virtual TUniquePtr<FImplicitObject> Copy() const override
 		{
-			return TUniquePtr<TImplicitObject<T,3>>(new TCapsule<T>(*this));
+			return TUniquePtr<FImplicitObject>(new TCapsule<T>(*this));
 		}
 
 		const T& GetRadius() const { return MRadius; }
@@ -368,7 +368,7 @@ namespace Chaos
 	private:
 		void InitUnionedObjects()
 		{
-			TArray<TUniquePtr<TImplicitObject<float, 3>>> Objects;
+			TArray<TUniquePtr<FImplicitObject>> Objects;
 
 			const TVector<T, 3>& X1 = GetX1();
 			const TVector<T, 3>& X2 = GetX2();

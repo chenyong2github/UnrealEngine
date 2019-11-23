@@ -13,7 +13,6 @@
 
 UDatasmithDeltaGenImportOptions::UDatasmithDeltaGenImportOptions(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, bOptimizeDuplicatedNodes(true)
 	, bRemoveInvisibleNodes(true)
 	, bSimplifyNodeHierarchy(true)
 	, bImportVar(true)
@@ -53,15 +52,6 @@ namespace DeltaGenImportOptionsImpl
 		if (FPaths::FileExists(VarPathStr))
 		{
 			return VarPathStr;
-		}
-		else
-		{
-			TArray<FString> VarFiles;
-			IFileManager::Get().FindFiles(VarFiles, *FBXDirectory, *Extension);
-			if (VarFiles.Num() > 0)
-			{
-				return FBXDirectory / VarFiles[0];
-			}
 		}
 
 		return FString();
@@ -155,42 +145,6 @@ void UDatasmithDeltaGenImportOptions::ResetPaths(const FString& InFBXFilename, b
 		{
 			TextureDirs[Index].Path = Folders[Index];
 		}
-	}
-}
-
-void UDatasmithDeltaGenImportOptions::FromSceneImportData(UDatasmithFBXSceneImportData* InImportData)
-{
-	UDatasmithFBXImportOptions::FromSceneImportData(InImportData);
-
-	if (UDatasmithDeltaGenSceneImportData* DGImportData = Cast<UDatasmithDeltaGenSceneImportData>(InImportData))
-	{
-		bOptimizeDuplicatedNodes	= DGImportData->bOptimizeDuplicatedNodes;
-		bRemoveInvisibleNodes		= DGImportData->bRemoveInvisibleNodes;
-		bSimplifyNodeHierarchy		= DGImportData->bSimplifyNodeHierarchy;
-		bImportVar					= DGImportData->bImportVar;
-		VarPath.FilePath			= DGImportData->VarPath;
-		bImportPos					= DGImportData->bImportPos;
-		PosPath.FilePath			= DGImportData->PosPath;
-		bImportTml					= DGImportData->bImportTml;
-		TmlPath.FilePath			= DGImportData->TmlPath;
-	}
-}
-
-void UDatasmithDeltaGenImportOptions::ToSceneImportData(UDatasmithFBXSceneImportData* OutImportData)
-{
-	UDatasmithFBXImportOptions::ToSceneImportData(OutImportData);
-
-	if (UDatasmithDeltaGenSceneImportData* DGImportData = Cast<UDatasmithDeltaGenSceneImportData>(OutImportData))
-	{
-		DGImportData->bOptimizeDuplicatedNodes	= bOptimizeDuplicatedNodes;
-		DGImportData->bRemoveInvisibleNodes		= bRemoveInvisibleNodes;
-		DGImportData->bSimplifyNodeHierarchy	= bSimplifyNodeHierarchy;
-		DGImportData->bImportVar				= bImportVar;
-		DGImportData->VarPath					= VarPath.FilePath;
-		DGImportData->bImportPos				= bImportPos;
-		DGImportData->PosPath					= PosPath.FilePath;
-		DGImportData->bImportTml				= bImportTml;
-		DGImportData->TmlPath					= TmlPath.FilePath;
 	}
 }
 

@@ -137,6 +137,12 @@ struct FListener
 	FTransform Transform;
 	FVector Velocity;
 
+	/** An attenuation override to use for distance and attenuation calculations */
+	FVector AttenuationOverride;
+
+	/** Is our attenuation override active */
+	uint32 bUseAttenuationOverride:1;
+
 	struct FInteriorSettings InteriorSettings;
 
 	/** The ID of the volume the listener resides in */
@@ -162,6 +168,11 @@ struct FListener
 	FVector GetRight() const	{ return Transform.GetUnitAxis(EAxis::X); }
 
 	/**
+	 * Gets the position of the listener
+	 */
+	FVector GetPosition(bool bAllowOverride) const;
+
+	/**
 	 * Works out the interp value between source and end
 	 */
 	float Interpolate(const double EndTime);
@@ -179,6 +190,8 @@ struct FListener
 	FListener(FAudioDevice* InAudioDevice)
 		: Transform(FTransform::Identity)
 		, Velocity(ForceInit)
+		, AttenuationOverride(ForceInit)
+		, bUseAttenuationOverride(false)
 		, AudioVolumeID(0)
 		, InteriorStartTime(0.0)
 		, InteriorEndTime(0.0)
@@ -195,6 +208,37 @@ struct FListener
 
 private:
 	FListener();
+};
+
+/**
+ * Game thread representation of a listener
+ */
+struct FListenerProxy
+{
+	FTransform Transform;
+
+	/** An attenuation override to use for distance and attenuation calculations */
+	FVector AttenuationOverride;
+
+	/** Is our attenuation override active */
+	uint32 bUseAttenuationOverride :1;
+
+	/**
+	 * Gets the position of the listener proxy
+	 */
+	FVector GetPosition(bool bAllowOverride) const;
+
+	FListenerProxy()
+		: bUseAttenuationOverride(false)
+	{
+	}
+
+	FListenerProxy(const FListener& Listener)
+		: Transform(Listener.Transform)
+		, AttenuationOverride(Listener.AttenuationOverride)
+		, bUseAttenuationOverride(Listener.bUseAttenuationOverride)
+	{
+	}
 };
 
 /**
@@ -283,7 +327,7 @@ struct FAttenuationListenerData
 	const FSoundAttenuationSettings* AttenuationSettings;
 
 	/** Computes and returns some geometry related to the listener and the given sound transform. */
-	static FAttenuationListenerData Create(const FAudioDevice& AudioDevice, const FTransform& InListenerTransform, const FTransform& InSoundTransform, const FSoundAttenuationSettings& InAttenuationSettings);
+	static FAttenuationListenerData Create(const FAudioDevice& AudioDevice, int32 ListenerIndex, const FTransform& InSoundTransform, const FSoundAttenuationSettings& InAttenuationSettings);
 
 private:
 	FAttenuationListenerData(const FTransform& InListenerTransform, const FTransform& InSoundTransform, const FSoundAttenuationSettings& InAttenuationSettings)
@@ -598,10 +642,10 @@ public:
 	void SetListener(UWorld* World, int32 InListenerIndex, const FTransform& ListenerTransform, float InDeltaSeconds);
 
 	/** Sets an override for the listener to do attenuation calculations. */
-	void SetListenerAttenuationOverride(const FVector AttenuationPosition);
+	void SetListenerAttenuationOverride(int32 ListenerIndex, const FVector AttenuationPosition);
 
 	/** Removes a listener attenuation override. */
-	void ClearListenerAttenuationOverride();
+	void ClearListenerAttenuationOverride(int32 ListenerIndex);
 
 	const TArray<FListener>& GetListeners() const { check(IsInAudioThread()); return Listeners; }
 
@@ -815,14 +859,32 @@ public:
 	/**
 	* Checks to see if a coordinate is within a distance of the given listener
 	*/
-	bool LocationIsAudible(const FVector& Location, const FTransform& ListenerTransform, const float MaxDistance) const;
+	bool LocationIsAudible(const FVector& Location, int32 ListenerIndex, const float MaxDistance) const;
 
 	/**
 	* Returns the distance to the nearest listener from the given location
 	*/
 	float GetDistanceToNearestListener(const FVector& Location) const;
 
-	float GetSquaredDistanceToListener(const FVector& Location, const FTransform& ListenerTransform) const;
+	/**
+	* Returns the distance from location to the appropriate listener representation, depending on calling thread
+	*/
+	float GetDistanceSquaredToListener(const FVector& Location, int32 ListenerIndex) const;
+
+	/**
+	* Returns a position from the appropriate listener representation, depending on calling thread.
+	*
+	* @param	ListenerIndex	index of the listener or proxy
+	* @param	OutPosition		filled in position of the listener or proxy
+	* @param	bAllowOverride	if true we will use the attenuation override for position, if set
+	* @return	true if successful
+	*/
+	bool GetListenerPosition(int32 ListenerIndex, FVector& OutPosition, bool bAllowOverride) const;
+
+	/**
+	* Returns the transform of the appropriate listener representation, depending on calling thread
+	*/
+	bool GetListenerTransform(int32 ListenerIndex, FTransform& OutTransform) const;
 
 	/**
 	 * Sets the Sound Mix that should be active by default
@@ -1028,8 +1090,8 @@ public:
 	bool SoundIsAudible(USoundBase* Sound, const UWorld* World, const FVector& Location, const FSoundAttenuationSettings* AttenuationSettingsToApply, float MaxDistance, float FocusFactor) const;
 
 	/** Returns the index of the listener closest to the given sound transform */
-	static int32 FindClosestListenerIndex(const FTransform& SoundTransform, const TArray<FListener>& InListeners);
 	int32 FindClosestListenerIndex(const FTransform& SoundTransform) const;
+	int32 FindClosestListenerIndex(const FVector& Position, float& OutSqDistance, bool AllowAttenuationOverrides) const;
 
 	/** Disables ActiveSound from responding to calls from its associated AudioComponent. */
 	void UnlinkActiveSoundFromComponent(const FActiveSound& InActiveSound);
@@ -1265,7 +1327,7 @@ private:
 	/**
 	 * Parses the sound classes and propagates multiplicative properties down the tree.
 	 */
-	void ParseSoundClasses();
+	void ParseSoundClasses(float InDeltaTime);
 
 	/** Stops quiet sounds due to being evaluated as not fulfilling concurrency requirements
 	 */
@@ -1507,18 +1569,6 @@ public:
 	/** Returns the game's delta time */
 	float GetGameDeltaTime() const;
 
-	/** Whether device is using listener attenuation override or not. */
-	bool IsUsingListenerAttenuationOverride() const
-	{
-		return bUseListenerAttenuationOverride;
-	}
-
-	/** Returns the listener attenuation override */
-	const FVector& GetListenerAttenuationOverride() const
-	{
-		return ListenerAttenuationOverride;
-	}
-
 	void UpdateVirtualLoops(bool bForceUpdate);
 
 	/** Sets the update delta time for the audio frame */
@@ -1575,6 +1625,9 @@ public:
 	const FDynamicParameter& GetGlobalPitchScale() const { check(IsInAudioThread()); return GlobalPitchScale; }
 	void SetGlobalPitchModulation(float PitchScale, float TimeSec);
 	float ClampPitch(float InPitchScale) const;
+
+	/** Overrides the attenuation scale used on a sound class. */
+	void SetSoundClassDistanceScale(USoundClass* InSoundClass, float DistanceScale, float TimeSec);
 
 	float GetPlatformAudioHeadroom() const { check(IsInAudioThread()); return PlatformAudioHeadroom; }
 	void SetPlatformAudioHeadroom(float PlatformHeadRoom);
@@ -1655,7 +1708,7 @@ public:
 	TArray<TAudioPluginListenerPtr> PluginListeners;
 
 	// Game thread cache of listener transforms
-	TArray<FTransform> ListenerTransforms;
+	TArray<FListenerProxy> ListenerProxies;
 
 private:
 	/** The maximum number of sources.  Value cannot change after initialization. */
@@ -1700,12 +1753,6 @@ private:
 protected:
 	// Audio thread representation of listeners
 	TArray<FListener> Listeners;
-
-	// A listener attenuation override to use for distance and attenuation calculations
-	FVector ListenerAttenuationOverride;
-
-	// Whether or not to use the listener attenuation override
-	bool bUseListenerAttenuationOverride;
 
 	TArray<FSoundSource*> Sources;
 	TArray<FSoundSource*> FreeSources;
@@ -1888,5 +1935,4 @@ private:
 	float GlobalMinPitch;
 	float GlobalMaxPitch;
 };
-
 

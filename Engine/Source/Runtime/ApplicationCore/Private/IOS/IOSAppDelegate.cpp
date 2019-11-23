@@ -328,7 +328,9 @@ static IOSAppDelegate* CachedDelegate = nil;
 	}
 	[self ToggleAudioSession:true];
 
+#if !BUILD_EMBEDDED_APP
 	[self InitIdleTimerSettings];
+#endif
 
 	bEngineInit = true;
     
@@ -604,17 +606,6 @@ static IOSAppDelegate* CachedDelegate = nil;
 		return;
 	}
 	
-	// set the AVAudioSession active if necessary
-	NSError* ActiveError = nil;
-	if (bActive)
-	{
-		[[AVAudioSession sharedInstance] setActive:bActive error:&ActiveError];
-		if (ActiveError)
-		{
-			UE_LOG(LogIOSAudioSession, Error, TEXT("Failed to set audio session to active = %d [Error = %s]"), bActive, *FString([ActiveError description]));
-		}
-	}
-
 	self.bAudioActive = bActive;
 	
 	// get the category and settings to use
@@ -690,6 +681,7 @@ static IOSAppDelegate* CachedDelegate = nil;
 		TestOptions |= AVAudioSessionCategoryOptionMixWithOthers;
 	}
 	// set the category if anything has changed
+	NSError* ActiveError = nil;
 	if ([[[AVAudioSession sharedInstance] category] compare:Category] != NSOrderedSame ||
 		[[[AVAudioSession sharedInstance] mode] compare:Mode] != NSOrderedSame ||
 		[[AVAudioSession sharedInstance] categoryOptions] != TestOptions)
@@ -700,6 +692,16 @@ static IOSAppDelegate* CachedDelegate = nil;
 		if (ActiveError)
 		{
 			UE_LOG(LogIOSAudioSession, Error, TEXT("Failed to set AVAudioSession category to Category:%s Mode:%s Options:%x! [Error = %s]"), *FString(Category), *FString(Mode), Options, *FString([ActiveError description]));
+		}
+	}
+	
+	// set the AVAudioSession active if necessary
+	if (bActive)
+	{
+		[[AVAudioSession sharedInstance] setActive:bActive error:&ActiveError];
+		if (ActiveError)
+		{
+			UE_LOG(LogIOSAudioSession, Error, TEXT("Failed to set audio session to active = %d [Error = %s]"), bActive, *FString([ActiveError description]));
 		}
 	}
 }
@@ -1338,6 +1340,8 @@ extern EDeviceScreenOrientation ConvertFromUIInterfaceOrientation(UIInterfaceOri
     {
 		FFunctionGraphTask::CreateAndDispatchWhenReady([Orientation]()
 		{
+			FIOSApplication* Application = [IOSAppDelegate GetDelegate].IOSApplication;
+			Application->OrientationChanged(Orientation);
 			FCoreDelegates::ApplicationReceivedScreenOrientationChangedNotificationDelegate.Broadcast((int32)ConvertFromUIInterfaceOrientation(Orientation));
 
 			//we also want to fire off the safe frame event
@@ -1361,10 +1365,10 @@ extern EDeviceScreenOrientation ConvertFromUIInterfaceOrientation(UIInterfaceOri
 	// "MyGame://arg1 arg2 arg3 ..."
 	// So, we're going to make it look like:
 	// "arg1 arg2 arg3 ..."
-	int32 URLTerminator = CommandLineParameters.Find( TEXT("://"));
+	int32 URLTerminator = CommandLineParameters.Find( TEXT("://"), ESearchCase::CaseSensitive);
 	if ( URLTerminator > -1 )
 	{
-		CommandLineParameters = CommandLineParameters.RightChop(URLTerminator + 3);
+		CommandLineParameters.RightChopInline(URLTerminator + 3, false);
 	}
 
 	FIOSCommandLineHelper::InitCommandArgs(CommandLineParameters);

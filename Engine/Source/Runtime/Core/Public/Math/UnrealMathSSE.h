@@ -1212,7 +1212,10 @@ FORCEINLINE VectorRegister VectorMod(const VectorRegister& X, const VectorRegist
 	// Floats where abs(f) >= 2^23 have no fractional portion, and larger values would overflow VectorTruncate.
 	VectorRegister NoFractionMask = VectorCompareGE(VectorAbs(Div), GlobalVectorConstants::FloatNonFractional);
 	VectorRegister Temp = VectorSelect(NoFractionMask, Div, VectorTruncate(Div));
-	return VectorSubtract(X, VectorMultiply(Y, Temp));
+	VectorRegister Result = VectorSubtract(X, VectorMultiply(Y, Temp));
+	// Clamp to [-AbsY, AbsY] because of possible failures for very large numbers (>1e10) due to precision loss.
+	VectorRegister AbsY = VectorAbs(Y);
+	return VectorMax(VectorNegate(AbsY), VectorMin(Result, AbsY));
 }
 
 FORCEINLINE VectorRegister VectorSign(const VectorRegister& X)

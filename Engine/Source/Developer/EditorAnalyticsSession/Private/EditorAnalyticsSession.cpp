@@ -30,6 +30,7 @@ namespace EditorAnalyticsDefs
 	// timestamps
 	static const FString StartupTimestampStoreKey(TEXT("StartupTimestamp"));
 	static const FString TimestampStoreKey(TEXT("Timestamp"));
+	static const FString SessionDurationStoreKey(TEXT("SessionDuration"));
 	static const FString Idle1MinStoreKey(TEXT("Idle1Min"));
 	static const FString Idle5MinStoreKey(TEXT("Idle5Min"));
 	static const FString Idle30MinStoreKey(TEXT("Idle30Min"));
@@ -70,7 +71,6 @@ namespace EditorAnalyticsDefs
 	static const FString IsInPIEStoreKey(TEXT("IsInPIE"));
 	static const FString IsInEnterpriseStoreKey(TEXT("IsInEnterprise"));
 	static const FString IsInVRModeStoreKey(TEXT("IsInVRMode"));
-	static const FString IsLowDriveSpaceStoreKey(TEXT("IsLowDriveSpace"));
 }
 
 // Utilities for writing to stored values
@@ -146,6 +146,7 @@ namespace EditorAnalyticsUtils
 			Session.Timestamp = EditorAnalyticsUtils::StringToTimestamp(TimestampString);
 		}
 
+		GET_STORED_INT(SessionDuration);
 		GET_STORED_INT(Idle1Min);
 		GET_STORED_INT(Idle5Min);
 		GET_STORED_INT(Idle30Min);
@@ -199,9 +200,8 @@ namespace EditorAnalyticsUtils
 		Session.bIsTerminating = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsTerminatingKey);
 		Session.bWasShutdown = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::WasShutdownStoreKey);
 		Session.bIsInPIE = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsInPIEStoreKey);
-		Session.bIsInEnterprise = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsInEnterpriseStoreKey);
 		Session.bIsInVRMode = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsInVRModeStoreKey);
-		Session.bIsLowDriveSpace = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsLowDriveSpaceStoreKey);
+		Session.bIsInEnterprise = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsInEnterpriseStoreKey);
 	}
 
 #undef GET_STORED_INT
@@ -227,6 +227,7 @@ FEditorAnalyticsSession::FEditorAnalyticsSession()
 	PlatformProcessID = 0;
 	StartupTimestamp = FDateTime::MinValue();
 	Timestamp = FDateTime::MinValue();
+	SessionDuration = 0;
 	Idle1Min = 0;
 	Idle5Min = 0;
 	Idle30Min = 0;
@@ -248,8 +249,9 @@ FEditorAnalyticsSession::FEditorAnalyticsSession()
 	bIsTerminating = false;
 	bWasShutdown = false;
 	bIsInPIE = false;
-	bIsInVRMode = false;
 	bIsInEnterprise = false;
+	bIsInVRMode = false;
+	bAlreadySaved = false;
 	bIsLowDriveSpace = false;
 }
 
@@ -300,49 +302,56 @@ bool FEditorAnalyticsSession::Save()
 		return false;
 	}
 
-	FString StorageLocation = EditorAnalyticsUtils::GetSessionStorageLocation(SessionId);
+	const FString StorageLocation = EditorAnalyticsUtils::GetSessionStorageLocation(SessionId);
+
+	if (!bAlreadySaved)
+	{
+		SET_STORED_STRING(EngineVersion);
+		SET_STORED_INT(PlatformProcessID);
+		SET_STORED_STRING(DesktopGPUAdapter);
+		SET_STORED_STRING(RenderingGPUAdapter);
+		SET_STORED_INT(GPUVendorID);
+		SET_STORED_INT(GPUDeviceID);
+		SET_STORED_INT(GRHIDeviceRevision);
+		SET_STORED_STRING(GRHIAdapterInternalDriverVersion);
+		SET_STORED_STRING(GRHIAdapterUserDriverVersion);
+
+		FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::TotalPhysicalRAMStoreKey, FString::Printf(TEXT("%llu"), TotalPhysicalRAM));
+
+		SET_STORED_INT(CPUPhysicalCores);
+		SET_STORED_INT(CPULogicalCores);
+		SET_STORED_STRING(CPUVendor);
+		SET_STORED_STRING(CPUBrand);
+
+		FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::StartupTimestampStoreKey, EditorAnalyticsUtils::TimestampToString(StartupTimestamp));
+
+		SET_STORED_STRING(OSMajor);
+		SET_STORED_STRING(OSMinor);
+		SET_STORED_STRING(OSVersion);
+
+		FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::bIs64BitOSStoreKey, EditorAnalyticsUtils::BoolToStoredString(bIs64BitOS));
+
+		const FString PluginsString = FString::Join(Plugins, TEXT(","));
+		FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::PluginsStoreKey, PluginsString);
+
+		bAlreadySaved = true;
+	}
 
 	SET_STORED_STRING(ProjectName);
 	SET_STORED_STRING(ProjectID);
 	SET_STORED_STRING(ProjectDescription);
 	SET_STORED_STRING(ProjectVersion);
-	SET_STORED_STRING(EngineVersion);
-	SET_STORED_INT(PlatformProcessID);
 
-	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::StartupTimestampStoreKey, EditorAnalyticsUtils::TimestampToString(StartupTimestamp));
 	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::TimestampStoreKey, EditorAnalyticsUtils::TimestampToString(Timestamp));
 
+	SET_STORED_INT(SessionDuration);
 	SET_STORED_INT(Idle1Min);
 	SET_STORED_INT(Idle5Min);
 	SET_STORED_INT(Idle30Min);
 
 	SET_STORED_STRING(CurrentUserActivity);
 
-	FString PluginsString = FString::Join(Plugins, TEXT(","));
-	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::PluginsStoreKey, PluginsString);
-	
 	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::AverageFPSStoreKey, FString::SanitizeFloat(AverageFPS));
-
-	SET_STORED_STRING(DesktopGPUAdapter);
-	SET_STORED_STRING(RenderingGPUAdapter);
-	SET_STORED_INT(GPUVendorID);
-	SET_STORED_INT(GPUDeviceID);
-	SET_STORED_INT(GRHIDeviceRevision);
-	SET_STORED_STRING(GRHIAdapterInternalDriverVersion);
-	SET_STORED_STRING(GRHIAdapterUserDriverVersion);
-
-	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::TotalPhysicalRAMStoreKey, FString::Printf(TEXT("%llu"), TotalPhysicalRAM));
-
-	SET_STORED_INT(CPUPhysicalCores);
-	SET_STORED_INT(CPULogicalCores);
-	SET_STORED_STRING(CPUVendor);
-	SET_STORED_STRING(CPUBrand);
-
-	SET_STORED_STRING(OSMajor);
-	SET_STORED_STRING(OSMinor);
-	SET_STORED_STRING(OSVersion);
-
-	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::bIs64BitOSStoreKey, EditorAnalyticsUtils::BoolToStoredString(bIs64BitOS));
 	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsCrashStoreKey, EditorAnalyticsUtils::BoolToStoredString(bCrashed));
 	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsGPUCrashStoreKey, EditorAnalyticsUtils::BoolToStoredString(bGPUCrashed));
 	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsDebuggerStoreKey, EditorAnalyticsUtils::BoolToStoredString(bIsDebugger));
@@ -353,7 +362,25 @@ bool FEditorAnalyticsSession::Save()
 	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsInPIEStoreKey, EditorAnalyticsUtils::BoolToStoredString(bIsInPIE));
 	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsInEnterpriseStoreKey, EditorAnalyticsUtils::BoolToStoredString(bIsInEnterprise));
 	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsInVRModeStoreKey, EditorAnalyticsUtils::BoolToStoredString(bIsInVRMode));
-	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsLowDriveSpaceStoreKey, EditorAnalyticsUtils::BoolToStoredString(bIsLowDriveSpace));
+
+	return true;
+}
+
+bool FEditorAnalyticsSession::SaveForCrash()
+{
+	if (!ensure(IsLocked()))
+	{
+		return false;
+	}
+
+	const FString StorageLocation = EditorAnalyticsUtils::GetSessionStorageLocation(SessionId);
+	
+	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsCrashStoreKey, EditorAnalyticsUtils::BoolToStoredString(bCrashed));
+	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsGPUCrashStoreKey, EditorAnalyticsUtils::BoolToStoredString(bGPUCrashed));
+	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsTerminatingKey, EditorAnalyticsUtils::BoolToStoredString(bIsTerminating));
+	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::WasShutdownStoreKey, EditorAnalyticsUtils::BoolToStoredString(bWasShutdown));
+	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::TimestampStoreKey, EditorAnalyticsUtils::TimestampToString(Timestamp));
+	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::SessionDurationStoreKey, FString::FromInt(SessionDuration));
 
 	return true;
 }
@@ -369,6 +396,8 @@ bool FEditorAnalyticsSession::Load(const FString& InSessionID)
 	}
 
 	EditorAnalyticsUtils::LoadInternal(*this, InSessionID);
+	bAlreadySaved = false;
+
 	return true;
 }
 
@@ -390,6 +419,7 @@ bool FEditorAnalyticsSession::Delete() const
 
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::StartupTimestampStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::TimestampStoreKey);
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::SessionDurationStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::Idle1MinStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::Idle5MinStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::Idle30MinStoreKey);
@@ -426,7 +456,6 @@ bool FEditorAnalyticsSession::Delete() const
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsInPIEStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsInEnterpriseStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsInVRModeStoreKey);
-	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsLowDriveSpaceStoreKey);
 
 	return true;
 }
@@ -457,7 +486,7 @@ bool FEditorAnalyticsSession::LoadAllStoredSessions(TArray<FEditorAnalyticsSessi
 		FEditorAnalyticsSession NewSession;
 		EditorAnalyticsUtils::LoadInternal(NewSession, Id);
 
-		OutSessions.Add(NewSession);
+		OutSessions.Add(MoveTemp(NewSession));
 	}
 
 	return true;

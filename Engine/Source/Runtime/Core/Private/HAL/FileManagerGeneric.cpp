@@ -406,10 +406,13 @@ void FFileManagerGeneric::FindFiles( TArray<FString>& Result, const TCHAR* InFil
 		}
 		virtual bool Visit( const TCHAR* FilenameOrDirectory, bool bIsDirectory )
 		{
-			if (((bIsDirectory && bDirectories) || (!bIsDirectory && bFiles))
-				&& FPaths::GetCleanFilename(FilenameOrDirectory).MatchesWildcard(WildCard))
+			if ((bIsDirectory && bDirectories) || (!bIsDirectory && bFiles))
 			{
-				new( Result ) FString( FPaths::GetCleanFilename(FilenameOrDirectory) );
+				const FString Filename = FPaths::GetCleanFilename(FilenameOrDirectory);
+				if (Filename.MatchesWildcard(WildCard))
+				{
+					new( Result ) FString(Filename);
+				}
 			}
 			return true;
 		}
@@ -577,7 +580,7 @@ FString FFileManagerGeneric::DefaultConvertToRelativePath( const TCHAR* Filename
 			//move up a directory and on an extra .. TEXT("/")
 			// the +1 from "InStr" moves to include the "\" at the end of the directory name
 			NumberOfDirectoriesToGoUp++;
-			RootDirectory = RootDirectory.Left( PositionOfNextSlash + 1 );
+			RootDirectory.LeftInline( PositionOfNextSlash + 1, false );
 		}
 		else
 		{

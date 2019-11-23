@@ -3908,7 +3908,7 @@ bool UWorld::SetGameMode(const FURL& InURL)
 {
 	if( IsServer() && !AuthorityGameMode )
 	{
-		AuthorityGameMode = GetGameInstance()->CreateGameModeForURL(InURL);
+		AuthorityGameMode = GetGameInstance()->CreateGameModeForURL(InURL, this);
 		if( AuthorityGameMode != NULL )
 		{
 			return true;
@@ -4498,7 +4498,12 @@ bool UWorld::AreActorsInitialized() const
 
 void UWorld::CreatePhysicsScene(const AWorldSettings* Settings)
 {
+#if CHAOS_CHECKED
+	const FName PhysicsName = IsNetMode(NM_DedicatedServer) ? TEXT("ServerPhysics") : TEXT("ClientPhysics");
+	FPhysScene* NewScene = new FPhysScene(Settings, PhysicsName);
+#else
 	FPhysScene* NewScene = new FPhysScene(Settings);
+#endif
 	SetPhysicsScene(NewScene);
 }
 

@@ -25,6 +25,7 @@ FSoundModulationOutputTransform::FSoundModulationOutputTransform()
 	, InputMax(1.0f)
 	, Curve(ESoundModulatorOutputCurve::Linear)
 	, Scalar(2.5f)
+	, CurveShared(nullptr)
 	, OutputMin(0.0f)
 	, OutputMax(1.0f)
 {

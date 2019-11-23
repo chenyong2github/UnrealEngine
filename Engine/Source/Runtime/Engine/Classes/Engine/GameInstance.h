@@ -435,7 +435,7 @@ public:
 	virtual void PreloadContentForURL(FURL InURL);
 
 	/** Call to create the game mode for a given map URL */
-	virtual class AGameModeBase* CreateGameModeForURL(FURL InURL);
+	virtual class AGameModeBase* CreateGameModeForURL(FURL InURL, UWorld* InWorld);
 
 	/** Return the game mode subclass to use for a given map, options, and portal. By default return passed in one */
 	virtual TSubclassOf<AGameModeBase> OverrideGameModeClass(TSubclassOf<AGameModeBase> GameModeClass, const FString& MapName, const FString& Options, const FString& Portal) const;

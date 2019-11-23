@@ -13,6 +13,8 @@
 
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
+#include "GraphEditorActions.h"
+#include "NiagaraEditorCommands.h"
 
 IMPLEMENT_MODULE(FNiagaraEditorWidgetsModule, NiagaraEditorWidgets);
 
@@ -22,8 +24,23 @@ FNiagaraStackCurveEditorOptions::FNiagaraStackCurveEditorOptions()
 	, ViewMinOutput(0)
 	, ViewMaxOutput(1)
 	, bAreCurvesVisible(true)
+	, bNeedsInitializeView(true)
 	, Height(100)
 {
+}
+
+bool FNiagaraStackCurveEditorOptions::GetNeedsInitializeView() const
+{
+	return bNeedsInitializeView;
+}
+
+void FNiagaraStackCurveEditorOptions::InitializeView(float InViewMinInput, float InViewMaxInput, float InViewMinOutput, float InViewMaxOutput)
+{
+	ViewMinInput = InViewMinInput;
+	ViewMaxInput = InViewMaxInput;
+	ViewMinOutput = InViewMinOutput;
+	ViewMaxOutput = InViewMaxOutput;
+	bNeedsInitializeView = false;
 }
 
 float FNiagaraStackCurveEditorOptions::GetViewMinInput() const
@@ -104,6 +121,9 @@ void FNiagaraEditorWidgetsModule::StartupModule()
 		TEXT("fx.NiagaraEditorWidgets.ReinitializeStyle"),
 		TEXT("Reinitializes the style for the niagara editor widgets module.  Used in conjuction with live coding for UI tweaks.  May crash the editor if style objects are in use."),
 		FConsoleCommandDelegate::CreateRaw(this, &FNiagaraEditorWidgetsModule::ReinitializeStyle));
+
+	FGraphEditorCommands::Register();
+	FNiagaraEditorCommands::Register();
 }
 
 void FNiagaraEditorWidgetsModule::ShutdownModule()

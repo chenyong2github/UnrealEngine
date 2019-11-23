@@ -551,7 +551,7 @@ void UNiagaraNodeFunctionCall::Compile(class FHlslNiagaraTranslator* Translator,
 	{
 		if (Signature.Inputs.Num() > 0)
 		{
-			if (Signature.Inputs[0].GetType().IsDataInterface())
+			if (Signature.Inputs[0].GetType().IsDataInterface() && GetValidateDataInterfaces())
 			{
 				UClass* DIClass = Signature.Inputs[0].GetType().GetClass();
 				if (UNiagaraDataInterface* DataInterfaceCDO = Cast<UNiagaraDataInterface>(DIClass->GetDefaultObject()))

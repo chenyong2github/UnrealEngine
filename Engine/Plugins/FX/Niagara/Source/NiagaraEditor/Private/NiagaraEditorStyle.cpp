@@ -148,6 +148,14 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 	
 	Style->Set("NiagaraEditor.SubduedHeadingTextBox", SubduedHeadingText);
 
+	// Details
+	FTextBlockStyle DetailsHeadingText = FTextBlockStyle(NormalText)
+		.SetFont(DEFAULT_FONT("Bold", 9))
+		.SetShadowOffset(FVector2D(0, 1))
+		.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f));
+
+	Style->Set("NiagaraEditor.DetailsHeadingText", DetailsHeadingText);
+
 	// Parameters
 	FSlateFontInfo ParameterFont = DEFAULT_FONT("Regular", 8);
 

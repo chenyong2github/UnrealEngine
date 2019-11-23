@@ -15,6 +15,7 @@ class FVulkanCommandBufferManager;
 class FVulkanRenderTargetLayout;
 class FVulkanQueue;
 class FVulkanDescriptorPoolSetContainer;
+class FVulkanGPUTiming;
 
 namespace VulkanRHI
 {
@@ -314,6 +315,10 @@ public:
 
 	void WaitForCmdBuffer(FVulkanCmdBuffer* CmdBuffer, float TimeInSecondsToWait = 10.0f);
 
+
+	void AddQueryPoolForReset(VkQueryPool Pool, uint32 Size);
+	void FlushResetQueryPools();
+
 	// Update the fences of all cmd buffers except SkipCmdBuffer
 	void RefreshFenceStatus(FVulkanCmdBuffer* SkipCmdBuffer = nullptr)
 	{
@@ -332,9 +337,16 @@ public:
 	void FreeUnusedCmdBuffers();
 
 private:
+	struct FQueryPoolReset
+	{
+		VkQueryPool Pool; 
+		uint32 Size;
+	};
+	
 	FVulkanDevice* Device;
 	FVulkanCommandBufferPool Pool;
 	FVulkanQueue* Queue;
 	FVulkanCmdBuffer* ActiveCmdBuffer;
 	FVulkanCmdBuffer* UploadCmdBuffer;
+	TArray<FQueryPoolReset> PoolResets;
 };

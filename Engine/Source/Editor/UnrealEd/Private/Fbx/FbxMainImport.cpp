@@ -978,6 +978,8 @@ bool FFbxImporter::OpenFile(FString Filename)
 		return false;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(FFbxImporter::OpenFile);
+
 	GWarn->BeginSlowTask( LOCTEXT("OpeningFile", "Reading File"), true);
 	GWarn->StatusForceUpdate(20, 100, LOCTEXT("OpeningFile", "Reading File"));
 
@@ -1272,6 +1274,8 @@ bool FFbxImporter::ImportFile(FString Filename, bool bPreventMaterialNameClash /
 
 void FFbxImporter::ConvertScene()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FFbxImporter::ConvertScene);
+
 	//Merge the anim stack before the conversion since the above 0 layer will not be converted
 	int32 AnimStackCount = Scene->GetSrcObjectCount<FbxAnimStack>();
 	//Merge the animation stack layer before converting the scene
@@ -2154,7 +2158,7 @@ void FFbxImporter::ConvertLodPrefixToLodGroup()
 
 		//Get a valid name for the LODGroup actor
 		FString FbxNodeName = UTF8_TO_TCHAR(FirstNode->GetName());
-		FbxNodeName = FbxNodeName.RightChop(5);
+		FbxNodeName.RightChopInline(5, false);
 		FbxNodeName += TEXT("_LodGroup");
 		//Create a LodGroup and child all fbx node to the Group
 		FbxNode* ActorNode = FbxNode::Create(Scene, TCHAR_TO_UTF8(*FbxNodeName));
@@ -2169,7 +2173,7 @@ void FFbxImporter::ConvertLodPrefixToLodGroup()
 				if (bCanReduce)
 				{
 					FString FbxGeneratedNodeName = UTF8_TO_TCHAR(FirstNode->GetName());
-					FbxGeneratedNodeName = FbxGeneratedNodeName.RightChop(5);
+					FbxGeneratedNodeName.RightChopInline(5, false);
 					FbxGeneratedNodeName += TEXT(GeneratedLODNameSuffix) + FString::FromInt(CurrentLodIndex);
 					//Generated LOD add dummy FbxNode to tell the import to add such a LOD
 					FbxNode* DummyGeneratedLODActorNode = FbxNode::Create(Scene, TCHAR_TO_UTF8(*FbxGeneratedNodeName));

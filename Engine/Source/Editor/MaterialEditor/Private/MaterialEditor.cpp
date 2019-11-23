@@ -3012,6 +3012,11 @@ void FMaterialEditor::OnConvertObjects()
 		{
 			GraphEditor->SetNodeSelection(*NodeIter, true);
 		}
+
+		if (MaterialEditorInstance != nullptr)
+		{
+			MaterialParametersOverviewWidget->UpdateEditorInstance(MaterialEditorInstance);
+		}
 	}
 }
 
@@ -4517,6 +4522,7 @@ void FMaterialEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyCha
 			Material->MaterialGraph->RebuildGraph();
 			TArray<TWeakObjectPtr<UObject>> SelectedObjects = MaterialDetailsView->GetSelectedObjects();
 			MaterialDetailsView->SetObjects( SelectedObjects, true );
+			SetPreviewMaterial(Material);
 
 			if (ExpressionPreviewMaterial)
 			{

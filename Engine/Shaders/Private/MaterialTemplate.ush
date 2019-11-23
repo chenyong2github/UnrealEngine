@@ -1148,7 +1148,7 @@ float3 MaterialExpressionSkyAtmosphereViewLuminance(FMaterialPixelParameters Par
 	const float3 ViewDir = -Parameters.CameraVector;
 
 	// The referencial used to build the Sky View lut
-	float3x3 LocalReferencial = GetSkyViewLutReferential(PlanetCenterToWorldCameraPos, ResolvedView.ViewForward);
+	float3x3 LocalReferencial = GetSkyViewLutReferential(PlanetCenterToWorldCameraPos, ResolvedView.ViewForward, ResolvedView.ViewRight);
 	// Compute inputs in this referential
 	float3 WorldPosLocal = float3(0.0, 0.0, ViewHeight);
 	float3 UpVectorLocal = float3(0.0, 0.0, 1.0);
@@ -1791,7 +1791,13 @@ float3 DecodeSceneColorForMaterialNode(float2 ScreenUV)
 	float4 EncodedSceneColor = Texture2DSample(SceneTexturesStruct.SceneColorCopyTexture, SceneTexturesStruct.SceneColorCopyTextureSampler, ScreenUV);
 
 	// Undo the function in EncodeSceneColorForMaterialNode
-	return pow(EncodedSceneColor.rgb, 4) * 10;
+	float3 SampledColor = pow(EncodedSceneColor.rgb, 4) * 10;
+
+#if USE_PREEXPOSURE
+	SampledColor *= View.OneOverPreExposure.xxx;
+#endif
+
+	return SampledColor;
 #endif
 }
 

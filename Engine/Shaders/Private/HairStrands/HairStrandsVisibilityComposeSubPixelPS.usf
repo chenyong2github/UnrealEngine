@@ -8,11 +8,7 @@
 #include "HairStrandsVisibilityCommon.ush"
 
 Texture2D<float4> SubPixelColorTexture;
-#if PERMUTATION_PPLL
 Texture2D<uint4> CategorisationTexture;
-#else
-Texture2DMS<float, HAIR_VISIBILITY_MAXSAMPLECOUNT> HairVisibilityDepthTexture;
-#endif
 
 void SubColorPS(
 	in FScreenVertexOutput Input,
@@ -27,23 +23,8 @@ void SubColorPS(
 	//if (OutColor.a == 0)
 	//	discard;
 
-#if PERMUTATION_PPLL
-
 	const FCategorizationData CategorisationData = DecodeCategorizationData(CategorisationTexture.Load(uint3(Input.Position.xy, 0)));
 	OutDepth = CategorisationData.ClosestDepth;
-
-#else
-
-	// Brute force reading of the depth value. This could be pre-computed during the categorize pass or the compaction pass
-	// This must match what is done in VisibilityDepthPS to fonction. TODO: do not write depth here as it is already in. 
-	OutDepth = 0;
-	for (uint SampleIt = 0; SampleIt < HAIR_VISIBILITY_MAXSAMPLECOUNT; ++SampleIt)
-	{
-		const float SampleDepth = HairVisibilityDepthTexture.Load(PixelCoord, SampleIt);
-		OutDepth = max(OutDepth, SampleDepth); // HAS_INVERTED_Z_BUFFER
-	}
-
-#endif
 }
 
 float VelocityThreshold;

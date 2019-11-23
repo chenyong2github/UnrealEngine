@@ -1,8 +1,15 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/PBDRigidDynamicSpringConstraints.h"
+#include "Chaos/Utilities.h"
 
 using namespace Chaos;
+
+template<class T, int d>
+TVector<TGeometryParticleHandle<T, d>*, 2> TPBDRigidDynamicSpringConstraintHandle<T,d>::GetConstrainedParticles() const
+{
+	return ConstraintContainer->GetConstrainedParticles(ConstraintIndex);
+}
 
 template<class T, int d>
 void TPBDRigidDynamicSpringConstraints<T, d>::UpdatePositionBasedState(const T Dt)
@@ -123,8 +130,8 @@ void TPBDRigidDynamicSpringConstraints<T, d>::ApplySingle(const T Dt, int32 Cons
 	TVector<T, d>& P1 = PBDRigid1 ? PBDRigid1->P() : Static1->X();
 
 	const int32 NumSprings = SpringDistances[ConstraintIndex].Num();
-	const PMatrix<T, d, d> WorldSpaceInvI1 = PBDRigid0? (Q0 * FMatrix::Identity) * PBDRigid0->InvI() * (Q0 * FMatrix::Identity).GetTransposed() : PMatrix<T, d, d>(0);
-	const PMatrix<T, d, d> WorldSpaceInvI2 = PBDRigid1 ? (Q1 * FMatrix::Identity) * PBDRigid1->InvI() * (Q1 * FMatrix::Identity).GetTransposed() : PMatrix<T, d, d>(0);;
+	const PMatrix<T, d, d> WorldSpaceInvI1 = PBDRigid0? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) : PMatrix<T, d, d>(0);
+	const PMatrix<T, d, d> WorldSpaceInvI2 = PBDRigid1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) : PMatrix<T, d, d>(0);;
 	for (int32 SpringIndex = 0; SpringIndex < NumSprings; ++SpringIndex)
 	{
 		const TVector<T, d>& Distance0 = Distances[ConstraintIndex][SpringIndex][0];
@@ -153,5 +160,6 @@ void TPBDRigidDynamicSpringConstraints<T, d>::ApplySingle(const T Dt, int32 Cons
 
 namespace Chaos
 {
+	template class TPBDRigidDynamicSpringConstraintHandle<float, 3>;
 	template class TPBDRigidDynamicSpringConstraints<float, 3>;
 }

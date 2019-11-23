@@ -18,6 +18,7 @@
 #include "UObject/RenderingObjectVersion.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
+#include "GPUSkinVertexFactory.h"
 
 /*-----------------------------------------------------------------------------
 FSoftSkinVertex
@@ -1023,7 +1024,7 @@ FString FSkeletalMeshLODModel::GetLODModelDeriveDataKey() const
 	return KeySuffix;
 }
 
-void FSkeletalMeshLODModel::UpdateChunkedSectionInfo()
+void FSkeletalMeshLODModel::UpdateChunkedSectionInfo(const FString& SkeletalMeshName, TArray<int32>& LODMaterialMap)
 {
 	//Look if the data is pre skeletalmesh build refactor
 	if (RawSkeletalMeshBulkData.IsBuildDataAvailable())
@@ -1034,44 +1035,72 @@ void FSkeletalMeshLODModel::UpdateChunkedSectionInfo()
 	int32 LODModelSectionNum = Sections.Num();
 	//Fill the ChunkedParentSectionIndex data, we assume that every section using the same material are chunked
 	int32 LastMaterialIndex = INDEX_NONE;
+	uint32 LastBoneCount = 0;
 	int32 CurrentParentChunkIndex = INDEX_NONE;
 	int32 OriginalIndex = 0;
+	const uint32 MaxGPUSkinBones = FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones();
+	check(MaxGPUSkinBones <= FGPUBaseSkinVertexFactory::GHardwareMaxGPUSkinBones);
 
 	for (int32 LODModelSectionIndex = 0; LODModelSectionIndex < LODModelSectionNum; ++LODModelSectionIndex)
 	{
+		FSkelMeshSection& Section = Sections[LODModelSectionIndex];
+		
 		//If we have cloth on a chunked section we treat the chunked section has a parent section (this is to get the same result has before the refactor)
-		if (Sections[LODModelSectionIndex].MaterialIndex == LastMaterialIndex && !Sections[LODModelSectionIndex].ClothingData.AssetGuid.IsValid())
+		if (LastBoneCount >= MaxGPUSkinBones && Section.MaterialIndex == LastMaterialIndex && !Section.ClothingData.AssetGuid.IsValid())
 		{
-			Sections[LODModelSectionIndex].ChunkedParentSectionIndex = CurrentParentChunkIndex;
-			Sections[LODModelSectionIndex].OriginalDataSectionIndex = Sections[CurrentParentChunkIndex].OriginalDataSectionIndex;
+			Section.ChunkedParentSectionIndex = CurrentParentChunkIndex;
+			Section.OriginalDataSectionIndex = Sections[CurrentParentChunkIndex].OriginalDataSectionIndex;
 			//In case of a child section that was BONE chunked ensure it has the same setting has the original section
-			FSkelMeshSourceSectionUserData& SectionUserData = UserSectionsData.FindOrAdd(Sections[LODModelSectionIndex].OriginalDataSectionIndex);
-			Sections[LODModelSectionIndex].bDisabled = SectionUserData.bDisabled;
-			Sections[LODModelSectionIndex].bCastShadow = SectionUserData.bCastShadow;
-			Sections[LODModelSectionIndex].bRecomputeTangent = SectionUserData.bRecomputeTangent;
-			Sections[LODModelSectionIndex].GenerateUpToLodIndex = SectionUserData.GenerateUpToLodIndex;
+			FSkelMeshSourceSectionUserData& SectionUserData = UserSectionsData.FindOrAdd(Section.OriginalDataSectionIndex);
+			Section.bDisabled = SectionUserData.bDisabled;
+			Section.bCastShadow = SectionUserData.bCastShadow;
+			Section.bRecomputeTangent = SectionUserData.bRecomputeTangent;
+			Section.GenerateUpToLodIndex = SectionUserData.GenerateUpToLodIndex;
 			//Chunked section cannot have cloth, a cloth section will be a parent section
-			Sections[LODModelSectionIndex].CorrespondClothAssetIndex = INDEX_NONE;
-			Sections[LODModelSectionIndex].ClothingData.AssetGuid = FGuid();
-			Sections[LODModelSectionIndex].ClothingData.AssetLodIndex = INDEX_NONE;
+			Section.CorrespondClothAssetIndex = INDEX_NONE;
+			Section.ClothingData.AssetGuid = FGuid();
+			Section.ClothingData.AssetLodIndex = INDEX_NONE;
 		}
 		else
 		{
 			CurrentParentChunkIndex = LODModelSectionIndex;
 			FSkelMeshSourceSectionUserData& SectionUserData = UserSectionsData.FindOrAdd(OriginalIndex);
-			SectionUserData.bDisabled = Sections[LODModelSectionIndex].bDisabled;
-			SectionUserData.bCastShadow = Sections[LODModelSectionIndex].bCastShadow;
-			SectionUserData.bRecomputeTangent = Sections[LODModelSectionIndex].bRecomputeTangent;
-			SectionUserData.GenerateUpToLodIndex = Sections[LODModelSectionIndex].GenerateUpToLodIndex;
-			SectionUserData.CorrespondClothAssetIndex = Sections[LODModelSectionIndex].CorrespondClothAssetIndex;
-			SectionUserData.ClothingData.AssetGuid = Sections[LODModelSectionIndex].ClothingData.AssetGuid;
-			SectionUserData.ClothingData.AssetLodIndex = Sections[LODModelSectionIndex].ClothingData.AssetLodIndex;
+			SectionUserData.bDisabled = Section.bDisabled;
+			SectionUserData.bCastShadow = Section.bCastShadow;
+			SectionUserData.bRecomputeTangent = Section.bRecomputeTangent;
+			SectionUserData.GenerateUpToLodIndex = Section.GenerateUpToLodIndex;
+			SectionUserData.CorrespondClothAssetIndex = Section.CorrespondClothAssetIndex;
+			SectionUserData.ClothingData.AssetGuid = Section.ClothingData.AssetGuid;
+			SectionUserData.ClothingData.AssetLodIndex = Section.ClothingData.AssetLodIndex;
 
-			Sections[LODModelSectionIndex].OriginalDataSectionIndex = OriginalIndex++;
-			Sections[LODModelSectionIndex].ChunkedParentSectionIndex = INDEX_NONE;
+			Section.OriginalDataSectionIndex = OriginalIndex++;
+			Section.ChunkedParentSectionIndex = INDEX_NONE;
 		}
-		LastMaterialIndex = Sections[LODModelSectionIndex].MaterialIndex;
+
+		LastMaterialIndex = Section.MaterialIndex;
+		//Set the last bone count
+		LastBoneCount = (uint32)Sections[LODModelSectionIndex].BoneMap.Num();
+		//its impossible to have more bone then the maximum allowed
+		ensureMsgf(LastBoneCount <= MaxGPUSkinBones, TEXT("Skeletalmesh(%s) section %d have more bones then its alowed (MaxGPUSkinBones: %d)."), *SkeletalMeshName, LODModelSectionIndex, LastBoneCount);
 	}
+}
+
+bool FSkeletalMeshLODModel::CopyStructure(FSkeletalMeshLODModel* Destination, FSkeletalMeshLODModel* Source)
+{
+	if (Source->RawPointIndices.IsLocked() || Source->LegacyRawPointIndices.IsLocked() || Source->RawSkeletalMeshBulkData.GetBulkData().IsLocked())
+	{
+		return false;
+	}
+	// Bulk data arrays need to be locked before a copy can be made.
+	Source->RawPointIndices.Lock(LOCK_READ_ONLY);
+	Source->LegacyRawPointIndices.Lock(LOCK_READ_ONLY);
+	Source->RawSkeletalMeshBulkData.GetBulkData().Lock(LOCK_READ_ONLY);
+	*Destination = *Source;
+	Source->RawSkeletalMeshBulkData.GetBulkData().Unlock();
+	Source->RawPointIndices.Unlock();
+	Source->LegacyRawPointIndices.Unlock();
+
+	return true;
 }
 
 #endif // WITH_EDITOR

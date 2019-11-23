@@ -63,8 +63,15 @@ INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleContentState Sta
 struct INSTALLBUNDLEMANAGER_API FInstallBundleContentState
 {
 	EInstallBundleContentState State = EInstallBundleContentState::InitializationError;
-	TMap<FName, EInstallBundleContentState> IndividualBundleStates;
-	TMap<FName, float> IndividualBundleWeights;
+	float Weight = 0.0f;
+	TMap<EInstallBundleSourceType, FString> Version;
+};
+
+struct INSTALLBUNDLEMANAGER_API FInstallBundleCombinedContentState
+{
+	EInstallBundleContentState State = EInstallBundleContentState::InitializationError;
+	TMap<FName, FInstallBundleContentState> IndividualBundleStates;
+	TMap<EInstallBundleSourceType, FString> CurrentVersion;
 	uint64 DownloadSize = 0;
 	uint64 InstallSize = 0;
 	uint64 InstallOverheadSize = 0;
@@ -78,16 +85,15 @@ enum class EInstallBundleGetContentStateFlags : uint32
 };
 ENUM_CLASS_FLAGS(EInstallBundleGetContentStateFlags);
 
-DECLARE_DELEGATE_OneParam(FInstallBundleGetContentStateDelegate, FInstallBundleContentState);
+DECLARE_DELEGATE_OneParam(FInstallBundleGetContentStateDelegate, FInstallBundleCombinedContentState);
 
 enum class EInstallBundleRequestInfoFlags : int32
 {
 	None = 0,
 	EnqueuedBundlesForInstall = (1 << 0),
 	SkippedAlreadyMountedBundles = (1 << 1),
-	SkippedBundlesQueuedForInstall = (1 << 2), // Only valid for removal requests
-	SkippedUnknownBundles = (1 << 3),
-	InitializationError = (1 << 4), // Can't enqueue because the bundle manager failed to initialize
+	SkippedUnknownBundles = (1 << 2),
+	InitializationError = (1 << 3), // Can't enqueue because the bundle manager failed to initialize
 };
 ENUM_CLASS_FLAGS(EInstallBundleRequestInfoFlags);
 
@@ -130,6 +136,8 @@ struct FInstallBundleSourceRequestResultInfo
 	// Currently, these just forward BPT Error info
 	FText OptionalErrorText;
 	FString OptionalErrorCode;
+
+	TArray<FString> ContentPaths;
 };
 
 enum class EInstallBundleCancelFlags : int32

@@ -540,9 +540,9 @@ void FAssetEditorToolkit::SaveAsset_Execute()
 
 	TArray<UPackage*> PackagesToSave;
 
-	for (auto Object : ObjectsToSave)
+	for (UObject* Object : ObjectsToSave)
 	{
-		check((Object != nullptr) && Object->IsAsset());
+		checkf(((Object != nullptr) && Object->IsAsset()), TEXT("Invalid object to save: %s"), (Object != nullptr) ? *Object->GetFullName() : TEXT("Null Object"));
 		PackagesToSave.Add(Object->GetOutermost());
 	}
 

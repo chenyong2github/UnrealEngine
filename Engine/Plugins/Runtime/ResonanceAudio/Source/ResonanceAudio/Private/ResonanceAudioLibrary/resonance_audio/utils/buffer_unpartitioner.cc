@@ -29,7 +29,10 @@ namespace vraudio {
 BufferUnpartitioner::BufferUnpartitioner(size_t num_channels,
                                          size_t frames_per_buffer,
                                          GetBufferCallback buffer_callback)
-    : num_channels_(num_channels),
+    :
+#if !DISABLE_CHECKS
+	num_channels_(num_channels),
+#endif
       frames_per_buffer_(frames_per_buffer),
       buffer_callback_(std::move(buffer_callback)),
       current_input_buffer_(nullptr),

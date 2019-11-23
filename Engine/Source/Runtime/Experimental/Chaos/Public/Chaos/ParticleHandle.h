@@ -3,10 +3,12 @@
 
 #include "Templates/ChooseClass.h"
 #include "Chaos/PBDRigidClusteredParticles.h"
+#include "Chaos/PBDGeometryCollectionParticles.h"
 #include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/ParticleIterator.h"
 #include "Chaos/ParticleDirtyFlags.h"
 #include "Chaos/Framework/PhysicsProxyBase.h"
+#include "ChaosCheck.h"
 
 class IPhysicsProxyBase;
 
@@ -48,6 +50,7 @@ void GeometryParticleDefaultConstruct(FConcrete& Concrete, const TGeometryPartic
 	Concrete.SetX(TVector<T, d>(0));
 	Concrete.SetR(TRotation<T, d>::Identity);
 	Concrete.SetSpatialIdx(FSpatialAccelerationIdx{ 0,0 });
+	Concrete.SetHashResultLowLevel(FMath::RandRange(0, FMath::RandHelper(TNumericLimits<int32>::Max())));
 }
 
 template <typename T, int d, typename FConcrete>
@@ -75,7 +78,7 @@ void PBDRigidParticleHandleImpDefaultConstruct(TPBDRigidParticleHandleImp<T, d, 
 	Concrete.SetInvM(1);
 	Concrete.SetI(PMatrix<T, d, d>(1, 1, 1));
 	Concrete.SetInvI(PMatrix<T, d, d>(1, 1, 1));
-	Concrete.SetObjectState(Params.bStartSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic);
+	Concrete.SetObjectStateLowLevel(Params.bStartSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic);
 }
 
 template <typename T, int d>
@@ -137,17 +140,32 @@ public:
 
 	bool operator==(const TAccelerationStructureHandle<T, d>& Rhs) const
 	{
-		return GeometryParticleHandle == Rhs.GeometryParticleHandle;
+		CHAOS_ENSURE((ExternalGeometryParticle || GeometryParticleHandle));
+		CHAOS_ENSURE((Rhs.ExternalGeometryParticle || Rhs.GeometryParticleHandle));
+
+		if (!GeometryParticleHandle || !Rhs.GeometryParticleHandle)
+		{
+			return (ExternalGeometryParticle == Rhs.ExternalGeometryParticle);
+		}
+		else
+		{
+			return (GeometryParticleHandle == Rhs.GeometryParticleHandle);
+		}
+	}
+
+	bool operator!=(const TAccelerationStructureHandle<T, d>& Rhs) const
+	{
+		return !(*this == Rhs);
 	}
 
 	bool operator<(const TAccelerationStructureHandle<T, d>& Rhs) const
 	{
-		return GeometryParticleHandle < Rhs.GeometryParticleHandle;
+		return HashResult < Rhs.HashResult;
 	}
 
 	uint32 GetTypeHash() const
 	{
-		return ::GetTypeHash((void*)GeometryParticleHandle);
+		return HashResult;
 	}
 
 	void Serialize(FChaosArchive& Ar);
@@ -155,6 +173,8 @@ public:
 private:
 	TGeometryParticle<T, d>* ExternalGeometryParticle;
 	TGeometryParticleHandle<T, d>* GeometryParticleHandle;
+
+	uint32 HashResult;
 };
 
 template <typename T, int d>
@@ -346,14 +366,14 @@ public:
 	TRotation<T, d>& R() { return GeometryParticles->R(ParticleIdx); }
 	void SetR(const TRotation<T, d>& InR) { GeometryParticles->R(ParticleIdx) = InR; }
 
-	TSerializablePtr<TImplicitObject<T, d>> Geometry() const { return GeometryParticles->Geometry(ParticleIdx); }
-	void SetGeometry(TSerializablePtr<TImplicitObject<T, d>> InGeometry) { GeometryParticles->SetGeometry(ParticleIdx, InGeometry); }
+	TSerializablePtr<FImplicitObject> Geometry() const { return GeometryParticles->Geometry(ParticleIdx); }
+	void SetGeometry(TSerializablePtr<FImplicitObject> InGeometry) { GeometryParticles->SetGeometry(ParticleIdx, InGeometry); }
 
-	TSerializablePtr<TImplicitObject<T, d>> SharedGeometry() const { return GeometryParticles->SharedGeometry(ParticleIdx); }
-	void SetSharedGeometry(TSharedPtr<TImplicitObject<T, d>, ESPMode::ThreadSafe> InGeometry) { GeometryParticles->SetSharedGeometry(ParticleIdx, InGeometry); }
+	TSerializablePtr<FImplicitObject> SharedGeometry() const { return GeometryParticles->SharedGeometry(ParticleIdx); }
+	void SetSharedGeometry(TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> InGeometry) { GeometryParticles->SetSharedGeometry(ParticleIdx, InGeometry); }
 
-	const TUniquePtr<TImplicitObject<T, d>>& DynamicGeometry() const { return GeometryParticles->DynamicGeometry(ParticleIdx); }
-	void SetDynamicGeometry(TUniquePtr<TImplicitObject<T, d>>&& Unique) { GeometryParticles->SetDynamicGeometry(ParticleIdx, MoveTemp(Unique)); }
+	const TUniquePtr<FImplicitObject>& DynamicGeometry() const { return GeometryParticles->DynamicGeometry(ParticleIdx); }
+	void SetDynamicGeometry(TUniquePtr<FImplicitObject>&& Unique) { GeometryParticles->SetDynamicGeometry(ParticleIdx, MoveTemp(Unique)); }
 
 	const TShapesArray<T,d>& ShapesArray() const { return GeometryParticles->ShapesArray(ParticleIdx); }
 
@@ -361,13 +381,24 @@ public:
 	void SetLocalBounds(const TBox<T, d>& NewBounds) { GeometryParticles->LocalBounds(ParticleIdx) = NewBounds; }
 
 	const TBox<T, d>& WorldSpaceInflatedBounds() const { return GeometryParticles->WorldSpaceInflatedBounds(ParticleIdx); }
-	void SetWorldSpaceInflatedBounds(const TBox<T,d>& WorldSpaceInflatedBounds) { GeometryParticles->WorldSpaceInflatedBounds(ParticleIdx) = WorldSpaceInflatedBounds; }
+	void SetWorldSpaceInflatedBounds(const TBox<T, d>& WorldSpaceInflatedBounds)
+	{
+		GeometryParticles->SetWorldSpaceInflatedBounds(ParticleIdx, WorldSpaceInflatedBounds);
+	}
 
 	bool HasBounds() const { return GeometryParticles->HasBounds(ParticleIdx); }
 	void SetHasBounds(bool bHasBounds) { GeometryParticles->HasBounds(ParticleIdx) = bHasBounds; }
 
 	FSpatialAccelerationIdx SpatialIdx() const { return GeometryParticles->SpatialIdx(ParticleIdx); }
 	void SetSpatialIdx(FSpatialAccelerationIdx Idx) { GeometryParticles->SpatialIdx(ParticleIdx) = Idx; }
+
+	void SetHashResultLowLevel(uint32 Value) { GeometryParticles->HashResultLowLevel(ParticleIdx) = Value; }
+	uint32 GetHashResultLowLevel() const { return GeometryParticles->HashResultLowLevel(ParticleIdx); }
+
+#if CHAOS_CHECKED
+	const FName& DebugName() const { return GeometryParticles->DebugName(ParticleIdx); }
+	void SetDebugName(const FName& InDebugName) { GeometryParticles->DebugName(ParticleIdx) = InDebugName; }
+#endif
 	
 	EObjectStateType ObjectState() const;
 
@@ -636,7 +667,7 @@ public:
 	void SetToBeRemovedOnFracture(const bool bToBeRemovedOnFracture) { PBDRigidParticles->ToBeRemovedOnFracture(ParticleIdx) = bToBeRemovedOnFracture; }
 
 	EObjectStateType ObjectState() const { return PBDRigidParticles->ObjectState(ParticleIdx); }
-	void SetObjectState(EObjectStateType InState) { PBDRigidParticles->SetObjectState(ParticleIdx, InState); }
+	void SetObjectStateLowLevel(EObjectStateType InState) { PBDRigidParticles->SetObjectState(ParticleIdx, InState); }
 	void SetSleeping(bool bSleeping) { PBDRigidParticles->SetSleeping(ParticleIdx, bSleeping); }
 
 	//Really only useful when using a transient handle
@@ -718,6 +749,57 @@ public:
 	int32 TransientParticleIndex() const { return ParticleIdx; }
 };
 
+template <typename T, int d, bool bPersistent = true>
+class TPBDGeometryCollectionParticleHandleImp : public TPBDRigidParticleHandleImp<T, d, bPersistent>
+{
+public:
+	using TGeometryParticleHandleImp<T, d, bPersistent>::ParticleIdx;
+	using TGeometryParticleHandleImp<T, d, bPersistent>::PBDRigidParticles;
+	using TGeometryParticleHandleImp<T, d, bPersistent>::Type;
+	using TTransientHandle = TTransientPBDGeometryCollectionParticleHandle<T, d>;
+	using TSOAType = TPBDGeometryCollectionParticles<T, d>;
+
+protected:
+	friend class TGeometryParticleHandleImp<T, d, bPersistent>;
+
+	//needed for serialization
+	TPBDGeometryCollectionParticleHandleImp()
+		: TPBDRigidParticleHandleImp<T, d, bPersistent>()
+	{}
+
+	TPBDGeometryCollectionParticleHandleImp<T, d, bPersistent>(
+		TSerializablePtr<TPBDGeometryCollectionParticles<T, d>> Particles, 
+		int32 InIdx, 
+		int32 InGlobalIdx, 
+		const TPBDRigidParticleParameters<T, d>& Params = TPBDRigidParticleParameters<T, d>())
+		: TPBDRigidParticleHandleImp<T, d, bPersistent>(
+			TSerializablePtr<TPBDRigidParticles<T, d>>(Particles), InIdx, InGlobalIdx, Params)
+	{}
+public:
+
+	static TUniquePtr<TPBDGeometryCollectionParticleHandleImp<T, d, bPersistent>> CreateParticleHandle(
+		TSerializablePtr<TPBDGeometryCollectionParticles<T, d>> InParticles, 
+		int32 InParticleIdx, 
+		int32 InHandleIdx, 
+		const TPBDRigidParticleParameters<T, d>& Params = TPBDRigidParticleParameters<T, d>())
+	{
+		return TGeometryParticleHandleImp<T, d, bPersistent>::CreateParticleHandleHelper(
+			InParticles, InParticleIdx, InHandleIdx, Params);
+	}
+
+	TSerializablePtr<TPBDGeometryCollectionParticleHandleImp<T, d, bPersistent>> ToSerializable() const
+	{
+		TSerializablePtr<TPBDGeometryCollectionParticleHandleImp<T, d, bPersistent>> Serializable;
+		Serializable.SetFromRawLowLevel(this);
+		return Serializable;
+	}
+
+	const TPBDGeometryCollectionParticleHandleImp<T, d, true>* Handle() const { return PBDRigidParticles->Handle(ParticleIdx); }
+	TPBDGeometryCollectionParticleHandleImp<T, d, true>* Handle() { return PBDRigidParticles->Handle(ParticleIdx); }
+
+	static constexpr EParticleType StaticType() { return EParticleType::GeometryCollection; }
+};
+
 template <typename T, int d, bool bPersistent>
 const TKinematicGeometryParticleHandleImp<T, d, bPersistent>* TGeometryParticleHandleImp<T,d, bPersistent>::AsKinematic() const { return Type >= EParticleType::Kinematic ? static_cast<const TKinematicGeometryParticleHandleImp<T, d, bPersistent>*>(this) : nullptr; }
 template <typename T, int d, bool bPersistent>
@@ -761,6 +843,9 @@ FString TGeometryParticleHandleImp<T, d, bPersistent>::ToString() const
 	case EParticleType::Dynamic:
 		return FString::Printf(TEXT("Dynamic[%d]"), ParticleIdx);
 		break;
+	case EParticleType::GeometryCollection:
+		return FString::Printf(TEXT("GeometryCollection[%d]"), ParticleIdx);
+		break;
 	}
 	return FString();
 }
@@ -777,7 +862,7 @@ TGeometryParticleHandleImp<T,d,bPersistent>* TGeometryParticleHandleImp<T,d, bPe
  * A wrapper around any type of particle handle to provide a consistent (read-only) API for all particle types.
  * This can make code simpler because you can write code that is type-agnostic, but it
  * has a cost. Where possible it is better to write code that is specific to the type(s)
- * of particles being operated on. TGenericParticleHandle has pointer symatics, so you can use one wherever
+ * of particles being operated on. TGenericParticleHandle has pointer symantics, so you can use one wherever
  * you have a particle handle pointer;
  *
  */
@@ -805,8 +890,8 @@ public:
 		// Static Particles
 		const TVector<T, d>& X() const { return Handle->X(); }
 		const TRotation<T, d>& R() const { return Handle->R(); }
-		TSerializablePtr<TImplicitObject<T, d>> Geometry() const { return Handle->Geometry(); }
-		const TUniquePtr<TImplicitObject<T, d>>& DynamicGeometry() const { return Handle->DynamicGeometry(); }
+		TSerializablePtr<FImplicitObject> Geometry() const { return Handle->Geometry(); }
+		const TUniquePtr<FImplicitObject>& DynamicGeometry() const { return Handle->DynamicGeometry(); }
 		bool Sleeping() const { return Handle->Sleeping(); }
 		FString ToString() const { return Handle->ToString(); }
 
@@ -913,6 +998,12 @@ template <typename T, int d>
 class TPBDRigidParticle;
 
 
+/**
+ * Base class for transient classes used to communicate simulated particle state 
+ * between game and physics threads, which is managed by proxies.
+ *
+ * Note the lack of virtual api.
+ */
 class FParticleData
 {
 public:
@@ -975,6 +1066,18 @@ public:
 		Ar << MShapesArray;
 		Ar << Type;
 		//Ar << MDirtyFlags;
+
+		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::SerializeShapeWorldSpaceBounds)
+		{
+			if (MGeometry->HasBoundingBox())
+			{
+				for (auto& Shape : MShapesArray)
+				{
+					Shape->UpdateShapeBounds(FRigidTransform3(MX, MR));
+				}
+			}
+		}
 	}
 
 	virtual bool IsParticleValid() const
@@ -999,26 +1102,26 @@ public:
 	}
 
 	//todo: geometry should not be owned by particle
-	void SetGeometry(TUniquePtr<TImplicitObject<T, d>>&& UniqueGeometry)
+	void SetGeometry(TUniquePtr<FImplicitObject>&& UniqueGeometry)
 	{
 		// Take ownership of the geometry, putting it into a shared ptr.
 		// This is necessary because we cannot be sure whether the particle
 		// will be destroyed on the game thread or physics thread first,
 		// but geometry data is shared between them.
-		TImplicitObject<T, d>* RawGeometry = UniqueGeometry.Release();
-		SetGeometry(TSharedPtr<TImplicitObject<T, d>, ESPMode::ThreadSafe>(RawGeometry));
+		FImplicitObject* RawGeometry = UniqueGeometry.Release();
+		SetGeometry(TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(RawGeometry));
 	}
 
 	// TODO: Right now this method exists so we can do things like FPhysTestSerializer::CreateChaosData.
 	//       We should replace this with a method for supporting SetGeometry(RawGeometry).
-	void SetGeometry(TSharedPtr<TImplicitObject<T, d>, ESPMode::ThreadSafe> SharedGeometry)
+	void SetGeometry(TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> SharedGeometry)
 	{
 		this->MarkDirty(EParticleFlags::Geometry);
 		this->MGeometry = SharedGeometry;
 		UpdateShapesArray();
 	}
 
-	void SetGeometry(TSerializablePtr<TImplicitObject<T, d>> RawGeometry)
+	void SetGeometry(TSerializablePtr<FImplicitObject> RawGeometry)
 	{
 		// Ultimately this method should replace SetGeometry(SharedPtr).
 		// We don't really want people making shared ptrs to geometry everywhere.
@@ -1031,6 +1134,23 @@ public:
 		this->MUserData = InUserData;
 	}
 
+#if CHAOS_CHECKED
+	const FName& DebugName() const { return this->MDebugName; }
+	void SetDebugName(const FName& InDebugName)
+	{
+		this->MarkDirty(EParticleFlags::DebugName);
+		this->MDebugName = InDebugName;
+	}
+#endif
+
+	void SetHashResultLowLevel(uint32 Value)
+	{
+		MarkDirty(EParticleFlags::HashResult);
+		MHashResult = Value;
+	}
+
+	uint32 GetHashResultLowLevel() const { return MHashResult; }
+
 	//Note: this must be called after setting geometry. This API seems bad. Should probably be part of setting geometry
 	void SetShapesArray(TShapesArray<T, d>&& InShapesArray)
 	{
@@ -1038,7 +1158,7 @@ public:
 		MShapesArray = MoveTemp(InShapesArray);
 	}
 
-	TSerializablePtr<TImplicitObject<T, d>> Geometry() const { return MakeSerializable(MGeometry); }
+	TSerializablePtr<FImplicitObject> Geometry() const { return MakeSerializable(MGeometry); }
 
 	const TShapesArray<T,d>& ShapesArray() const { return MShapesArray; }
 
@@ -1074,6 +1194,11 @@ public:
 		return this->MDirtyFlags.IsDirty(CheckBits);
 	}
 
+	const FParticleDirtyFlags& DirtyFlags() const
+	{
+		return MDirtyFlags;
+	}
+
 	void ClearDirtyFlags()
 	{
 		this->MDirtyFlags.Clear();
@@ -1097,19 +1222,27 @@ public:
 private:
 	TVector<T, d> MX;
 	TRotation<T, d> MR;
-	TSharedPtr<TImplicitObject<T, d>, ESPMode::ThreadSafe> MGeometry;	//TODO: geometry should live in bodysetup
+	TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> MGeometry;	//TODO: geometry should live in bodysetup
 	TShapesArray<T,d> MShapesArray;
 	FSpatialAccelerationIdx MSpatialIdx;
+
+	// This value is generated and used in AccelerationStructureHandle for a hash, as that handle
+	// sometimes only has a particle pointer from game thread or phys thread, no easy way to get stable hash from that.
+	uint32 MHashResult;
 
 	// Pointer to some arbitrary data associated with the particle, but not used by Chaos. External systems may use this for whatever.
 	void* MUserData;
 
 	// This is only for use by ParticleData. This should be called only in one place,
 	// when the geometry is being copied from GT to PT.
-	TSharedPtr<TImplicitObject<T, d>, ESPMode::ThreadSafe> GeometrySharedLowLevel() const
+	TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> GeometrySharedLowLevel() const
 	{
 		return MGeometry;
 	}
+
+#if CHAOS_CHECKED
+	FName MDebugName;
+#endif
 
 protected:
 	EParticleType Type;
@@ -1119,7 +1252,7 @@ protected:
 
 	void UpdateShapesArray()
 	{
-		UpdateShapesArrayFromGeometry<T, d>(MShapesArray, MakeSerializable(MGeometry));
+		UpdateShapesArrayFromGeometry<T, d>(MShapesArray, MakeSerializable(MGeometry), FRigidTransform3(X(), R()));
 	}
 };
 
@@ -1141,6 +1274,11 @@ public:
 		, X(TVector<T, d>(0))
 		, R(TRotation<T, d>())
 		, SpatialIdx(FSpatialAccelerationIdx{ 0,0 })
+		, HashResult(0)
+		, DirtyFlags()
+#if CHAOS_CHECKED
+		, DebugName(NAME_None)
+#endif
 	{}
 
 	TGeometryParticleData(const TGeometryParticle<T, d>& InParticle)
@@ -1149,6 +1287,11 @@ public:
 		, R(InParticle.R())
 		, Geometry(InParticle.GeometrySharedLowLevel())
 		, SpatialIdx(InParticle.SpatialIdx())
+		, HashResult(InParticle.GetHashResultLowLevel())
+		, DirtyFlags(InParticle.DirtyFlags())
+#if CHAOS_CHECKED
+		, DebugName(InParticle.DebugName())
+#endif
 	{}
 
 	void Reset() 
@@ -1158,12 +1301,22 @@ public:
 		R = TRotation<T, d>(); 
 		Geometry = TSharedPtr<TImplicitObjectUnion<T, d>, ESPMode::ThreadSafe>();
 		SpatialIdx = FSpatialAccelerationIdx{ 0,0 };
+		HashResult = 0;
+		DirtyFlags.Clear();
+#if CHAOS_CHECKED
+		DebugName = NAME_None;
+#endif
 	}
 
 	TVector<T, d> X;
 	TRotation<T, d> R;
-	TSharedPtr<TImplicitObject<T, d>, ESPMode::ThreadSafe> Geometry;
+	TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> Geometry;
 	FSpatialAccelerationIdx SpatialIdx;
+	uint32 HashResult;
+	FParticleDirtyFlags DirtyFlags;
+#if CHAOS_CHECKED
+	FName DebugName;
+#endif
 };
 
 
@@ -1390,7 +1543,6 @@ public:
 		this->MExternalTorque = InExternalTorque;
 	}
 
-
 	const PMatrix<T, d, d>& I() const { return MI; }
 	void SetI(const PMatrix<T, d, d>& InI)
 	{
@@ -1467,6 +1619,27 @@ private:
 	bool MDisabled;
 	bool MToBeRemovedOnFracture;
 	bool MGravityEnabled;
+};
+
+template <typename T, int d>
+class TPBDGeometryCollectionParticle : public TPBDRigidParticle<T, d>
+{
+public:
+	typedef TPBDRigidParticleData<T, d> FData;
+	typedef TPBDGeometryCollectionParticleHandle<T, d> FHandle;
+
+	using TGeometryParticle<T, d>::Type;
+public:
+	TPBDGeometryCollectionParticle<T,d>(const TPBDRigidParticleParameters<T,d>& DynamicParams = TPBDRigidParticleParameters<T,d>())
+		: TPBDRigidParticle<T, d>(DynamicParams)
+	{
+		Type = EParticleType::GeometryCollection;
+	}
+
+	static TUniquePtr<TPBDGeometryCollectionParticle<T, d>> CreateParticle(const TPBDRigidParticleParameters<T, d>& DynamicParams = TPBDRigidParticleParameters<T, d>())
+	{
+		return TUniquePtr<TPBDGeometryCollectionParticle<T, d>>(new TPBDGeometryCollectionParticle<T, d>(DynamicParams));
+	}
 };
 
 template <typename T, int d>
@@ -1598,6 +1771,7 @@ TGeometryParticle<T, d>* TGeometryParticle<T, d>::SerializationFactory(FChaosArc
 	case EParticleType::Static: if (Ar.IsLoading()) { return new TGeometryParticle<T, d>(); } break;
 	case EParticleType::Kinematic: if (Ar.IsLoading()) { return new TKinematicGeometryParticle<T, d>(); } break;
 	case EParticleType::Dynamic: if (Ar.IsLoading()) { return new TPBDRigidParticle<T, d>(); } break;
+	case EParticleType::GeometryCollection: if (Ar.IsLoading()) { return new TPBDGeometryCollectionParticle<T, d>(); } break;
 	default:
 		check(false);
 	}
@@ -1611,6 +1785,7 @@ template <typename T, int d>
 TAccelerationStructureHandle<T,d>::TAccelerationStructureHandle(TGeometryParticleHandle<T, d>* InHandle)
 	: ExternalGeometryParticle(InHandle->GTGeometryParticle())
 	, GeometryParticleHandle(InHandle)
+	, HashResult(InHandle->GetHashResultLowLevel())
 {
 }
 
@@ -1618,6 +1793,7 @@ template <typename T, int d>
 TAccelerationStructureHandle<T,d>::TAccelerationStructureHandle(TGeometryParticle<T, d>* InGeometryParticle)
 	: ExternalGeometryParticle(InGeometryParticle)
 	, GeometryParticleHandle(InGeometryParticle ? InGeometryParticle->Handle() : nullptr)
+	, HashResult(InGeometryParticle ? InGeometryParticle->GetHashResultLowLevel() : 0)
 {
 }
 
@@ -1626,6 +1802,7 @@ template <bool bPersistent>
 TAccelerationStructureHandle<T, d>::TAccelerationStructureHandle(TGeometryParticleHandleImp<T, d, bPersistent>& InHandle)
 	: ExternalGeometryParticle(InHandle.GTGeometryParticle())
 	, GeometryParticleHandle(InHandle.Handle())
+	, HashResult(InHandle.GetHashResultLowLevel())
 {
 }
 
@@ -1634,7 +1811,21 @@ template <bool bPersistent>
 TAccelerationStructureHandle<T, d>::TAccelerationStructureHandle(TGeometryParticleHandleImp<T, d, bPersistent>* InHandle, TGeometryParticle<T, d>* InGeometryParticle)
 	: ExternalGeometryParticle(InGeometryParticle)
 	, GeometryParticleHandle(InHandle)
+	, HashResult(0)
 {
+	if (GeometryParticleHandle)
+	{
+		HashResult = GeometryParticleHandle->GetHashResultLowLevel();
+	}
+	else if (ExternalGeometryParticle)
+	{
+		HashResult = ExternalGeometryParticle->GetHashResultLowLevel();
+	}
+
+	if (GeometryParticleHandle && ExternalGeometryParticle)
+	{
+		CHAOS_ENSURE(GeometryParticleHandle->GetHashResultLowLevel() == ExternalGeometryParticle->GetHashResultLowLevel());
+	}
 }
 
 template <typename T, int d>
@@ -1642,6 +1833,32 @@ void TAccelerationStructureHandle<T, d>::Serialize(FChaosArchive& Ar)
 {
 	Ar << AsAlwaysSerializable(ExternalGeometryParticle);
 	Ar << AsAlwaysSerializable(GeometryParticleHandle);
+
+	Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+	if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::SerializeHashResult)
+	{
+		if (GeometryParticleHandle)
+		{
+			HashResult = GeometryParticleHandle->GetHashResultLowLevel();
+		}
+		else if (ExternalGeometryParticle)
+		{
+			HashResult = ExternalGeometryParticle->GetHashResultLowLevel();
+		}
+		else
+		{
+			HashResult = 0;
+		}
+
+		if (GeometryParticleHandle && ExternalGeometryParticle)
+		{
+			CHAOS_ENSURE(GeometryParticleHandle->GetHashResultLowLevel() == ExternalGeometryParticle->GetHashResultLowLevel());
+		}
+	}
+	else
+	{
+		Ar << HashResult;
+	}
 }
 
 template <typename T, int d>
@@ -1651,5 +1868,5 @@ FChaosArchive& operator<<(FChaosArchive& Ar, TAccelerationStructureHandle<T, d>&
 	return Ar;
 }
 
-}
+} // namespace Chaos
 

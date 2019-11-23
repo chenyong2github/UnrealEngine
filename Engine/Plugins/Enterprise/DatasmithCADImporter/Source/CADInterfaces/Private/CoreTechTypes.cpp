@@ -1,6 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "CoreTechTypes.h"
 
+#include "Misc/Paths.h"
+
 #ifdef CAD_INTERFACE
 
 const char* CoreTechLicenseKey =
@@ -12,10 +14,10 @@ namespace CADLibrary
 	// Note: CTKIO_* functions are not functionally useful.
 	// This wrapping allows a correct profiling of the CT API.
 
-	CT_IO_ERROR CTKIO_InitializeKernel(double Unit)
+	CT_IO_ERROR CTKIO_InitializeKernel(double Unit, const TCHAR* KernelIOPath)
 	{
 		CT_STR appName = CoreTechLicenseKey;
-		return CT_KERNEL_IO::InitializeKernel(appName, Unit, 0.00001 / Unit);
+		return CT_KERNEL_IO::InitializeKernel(appName, Unit, 0.00001 / Unit, KernelIOPath);
 	}
 
 	CT_IO_ERROR CTKIO_ShutdownKernel()
@@ -58,6 +60,20 @@ namespace CADLibrary
 		return CT_KERNEL_IO::LoadFile(FileName, MainObject, LoadFlags, Lod, StringOption);
 	}
 
+	CT_IO_ERROR CTKIO_CleanBody(CT_OBJECT_ID MainObjectId)
+	{
+		CT_STR format = "Ct";          
+		CT_STR system = "Evolution";
+
+		CT_IO_ERROR result = CT_CONVERT_IO::SetConvertConfiguration(system, format);
+		if (result == IO_OK)
+		{
+			result = CT_CONVERT_IO::Convert(MainObjectId);
+		}
+		return result;
+	}
+
+
 	CT_IO_ERROR CTKIO_SaveFile(CT_LIST_IO& objects_list_to_save, const TCHAR* file_name, const TCHAR* format, const CT_OBJECT_ID coordsystem)
 	{
 		return CT_KERNEL_IO::SaveFile(objects_list_to_save, file_name, format, coordsystem);
@@ -78,21 +94,20 @@ namespace CADLibrary
 		return CT_KERNEL_IO::AskTesselationParameters(max_face_sag, max_face_length, max_face_angle, max_curve_sag, max_curve_length, max_curve_angle, high_quality, vertex_type, normal_type, texture_type);
 	}
 
-	CT_IO_ERROR Repair(CT_OBJECT_ID MainObjectID, EStitchingTechnique StitchingTechnique)
+	CT_IO_ERROR Repair(CT_OBJECT_ID MainObjectID, EStitchingTechnique StitchingTechnique, CT_DOUBLE SewingToleranceFactor)
 	{
 		switch (StitchingTechnique)
 		{
 		case EStitchingTechnique::StitchingSew:
 		{
 			// Sew disconnected faces back together
-			CT_UINT32 SewingToleranceFactor = 100; // factor of 'tolerance' value
 			return CT_REPAIR_IO::Sew(MainObjectID, SewingToleranceFactor, CT_SEW_CREATE_BODIES_BY_TOPOLOGY);
 		}
 
 		case EStitchingTechnique::StitchingHeal:
 		{
 			// Heal disconnected faces back together
-			CT_UINT32 StitchingToleranceFactor = 100; // topo only if deformation=0, factor of 'tolerance' value
+			CT_UINT32 StitchingToleranceFactor = 0; // topo only if deformation=0, factor of 'tolerance' value
 			CT_LOGICAL   OnlyVisible = CT_TRUE;
 			CT_LOGICAL   MergeBeforeHealing = CT_FALSE;
 			CT_LOGICAL   RemoveTinyObjects = CT_TRUE;

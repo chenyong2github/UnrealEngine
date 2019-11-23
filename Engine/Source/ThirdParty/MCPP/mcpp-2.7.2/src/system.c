@@ -145,7 +145,7 @@ static char *   norm_dir( const char * dirname, int framework);
                 /* Normalize include directory path */
 static char *   norm_path( const char * dir, const char * fname, int inf
         , int hmap);    /* Normalize pathname to compare    */
-#if SYS_FAMILY == SYS_UNIX
+#if SYS_FAMILY == SYS_UNIX && SYSTEM != SYS_MAC
 static void     deref_syml( char * slbuf1, char * slbuf2, char * chk_start);
                 /* Dereference symbolic linked directory and file   */
 #endif
@@ -189,10 +189,10 @@ static unsigned hmap_hash( const char * fname);
 #endif
 static void     init_framework( void);
                 /* Initialize framework[]           */
-static int      search_framework( char * filename);
+static int      search_framework( const char * filename);
                 /* Search "Framework" directories   */
-static int      search_subdir( char * fullname, char * cp, char * frame
-        , char * fname, int sys_frame);
+static int      search_subdir( char * fullname, char * cp, const char * frame
+        , const char * fname, int sys_frame);
                 /* Search "Headers" and other dirs  */
 #endif  /* SYSTEM == SYS_MAC    */
 #if 0   /* This function is only for debugging use  */
@@ -371,7 +371,8 @@ void    init_system( void)
         xfree( sharp_filename);
     sharp_filename = NULL;
     incend = incdir = NULL;
-    fnamelist = once_list = NULL;
+    fnamelist = fname_end = once_list = once_end = NULL;
+	max_fnamelist = max_once = 0;
     search_rule = SEARCH_INIT;
     mb_changed = nflag = ansi = compat_mode = FALSE;
     mkdep_fp = NULL;
@@ -424,7 +425,6 @@ void    do_options(
         /* Unset system-specific and site-specific include directories ?    */
     int         set_cplus_dir;  /* Set C++ include directory ? (for GCC)*/
     int         show_path;          /* Show include directory list  */
-    DEFBUF *    defp;
     VAL_SIGN *  valp;
     int         sflag;                      /* -S option or similar */
     int         trad;                       /* -traditional         */
@@ -2434,7 +2434,7 @@ static char *   norm_path(
     char *  cp1;
     char *  cp2;
     char *  abs_path;
-    int     len;                            /* Should not be size_t */
+    size_t  len;
     size_t  start_pos = 0;
     char    slbuf1[ PATHMAX+1];             /* Working buffer       */
 #if SYS_FAMILY == SYS_UNIX
@@ -2504,7 +2504,7 @@ static char *   norm_path(
         slbuf1[ len] = PATH_DELIM;          /* Append PATH_DELIM    */
         slbuf1[ ++len] = EOS;
     }
-#if SYS_FAMILY == SYS_UNIX
+#if SYS_FAMILY == SYS_UNIX && SYSTEM != SYS_MAC
     /* Dereference symbolic linked directory or file, if any    */
     slbuf1[ len] = EOS;     /* Truncate PATH_DELIM and 'fname' part, if any */
     slbuf2[ 0] = EOS;
@@ -2512,13 +2512,15 @@ static char *   norm_path(
         /* Symbolic link check of directories are required  */
         deref_syml( slbuf1, slbuf2, slbuf1);
     } else if (fname) {                             /* Regular file */
+        ssize_t readlink_bytes = 0;
+
         len = strlen( slbuf1);
         strcat( slbuf1, fname);
         deref_syml( slbuf1, slbuf2, slbuf1 + len);
                                 /* Symbolic link check of directory */
-        if ((len = readlink( slbuf1, slbuf2, PATHMAX)) > 0) {
+        if ((readlink_bytes = readlink( slbuf1, slbuf2, PATHMAX)) > 0) {
             /* Dereference symbolic linked file (not directory) */
-            *(slbuf2 + len) = EOS;
+            *(slbuf2 + readlink_bytes) = EOS;
             cp1 = slbuf1;
             if (slbuf2[ 0] != PATH_DELIM) {     /* Relative path    */
                 cp2 = strrchr( slbuf1, PATH_DELIM);
@@ -2677,7 +2679,7 @@ static char *   norm_path(
     return  norm_name;
 }
 
-#if SYS_FAMILY == SYS_UNIX
+#if SYS_FAMILY == SYS_UNIX && SYSTEM != SYS_MAC
 
 static void     deref_syml(
     char *      slbuf1,                     /* Original path-list   */
@@ -2687,7 +2689,7 @@ static void     deref_syml(
 /* Dereference symbolic linked directory    */
 {
     char *      cp2;
-    int         len;                /* Should be int, not size_t    */
+    int         len;                /* Should be int, not size_t because of readlink */
 
     while ((chk_start = strchr( chk_start, PATH_DELIM)) != NULL) {
         *chk_start = EOS;
@@ -2890,7 +2892,7 @@ void    put_depend(
     static int      pos_num;                /* Index of pos[]       */
     static char *   out_p;                  /* Pointer to output[]  */
     static size_t   mkdep_len;              /* Size of output[]     */
-    static size_t   pos_max;                /* Size of pos[]        */
+    static int      pos_max;                /* Size of pos[]        */
     static FILE *   fp;         /* Path to output dependency line   */
     static size_t   llen;       /* Length of current physical output line   */
     size_t *        pos_p;                  /* Index into pos[]     */
@@ -3435,7 +3437,6 @@ static int  open_file(
     } else {
         fname = filename;
     }
-search:
     fullname = norm_path(*dirp, fname, TRUE, FALSE);
                                     /* Convert to absolute path     */
     if (! fullname)                 /* Non-existent or directory    */
@@ -3706,7 +3707,7 @@ static void     init_framework( void)
 static const char *     dot_frame = ".framework";
 
 static int      search_framework(
-    char *  filename
+    const char *  filename
 )
 /*
  * Search "Framework" directories.
@@ -3716,11 +3717,12 @@ static int      search_framework(
  * and so on.
  */
 {
-    char        fullname[ PATHMAX + 1];
-    FILEINFO *  file;
-    char *      frame, * fname, * cp1, * cp2;
-    int         sys_frame = FALSE;
-    int         i;
+    char         fullname[ PATHMAX + 1];
+    FILEINFO *   file;
+    const char * frame;
+    char *       fname, * cp1, * cp2;
+    int          sys_frame = FALSE;
+    int          i;
 
     cp1 = cp2 = strchr( filename, PATH_DELIM);
     /*
@@ -3785,12 +3787,12 @@ static int      search_framework(
 }
 
 static int      search_subdir(
-    char *  fullname,               /* Buffer for path-list to open */
-    char *  cp,                     /* Latter half of 'fullname'    */
-    char *  frame,                  /* 'frame' of <frame/header>    */
-    char *  fname,                  /* 'header' of <frame/header>   */
+    char *       fullname,               /* Buffer for path-list to open */
+    char *       cp,                     /* Latter half of 'fullname'    */
+    const char * frame,                  /* 'frame' of <frame/header>    */
+    const char * fname,                  /* 'header' of <frame/header>   */
                 /* or sometimes 'dir/header' of <frame/dir/header>  */
-    int     sys_frame               /* System framework header ?    */
+    int          sys_frame               /* System framework header ?    */
 )
 /*
  * Make path-list and try to open.
@@ -4258,7 +4260,7 @@ static void do_once(
         once_end = &once_list[ max_once];
         max_once *= 2;
     }
-    once_end->name = fullname;
+    once_end->name = (char*)fullname;
     once_end->len = strlen(fullname);
     once_end++;
 }
@@ -4769,8 +4771,10 @@ static void dump_path( void)
     const char **   incptr;
     const char *    inc_dir;
     const char *    dir = "./";
-    int             i;
-
+#if SYSTEM == SYS_MAC
+	int             i;
+#endif
+	
     mcpp_fputs( "Include paths are as follows --\n", DBG);
     for (incptr = incdir; incptr < incend; incptr++) {
         inc_dir = *incptr;
@@ -4957,7 +4961,7 @@ MFILE* mfopen(const char* filename)
     size_t contents_size = 0;
 
     if (g_file_loader.get_file_contents
-        && g_file_loader.get_file_contents(g_file_loader.user_data, filename, &contents, &contents_size) != 0)
+        && g_file_loader.get_file_contents(g_file_loader.user_data, filename, (const char**)&contents, &contents_size) != 0)
     {
         contents_end = contents + contents_size;
     }
@@ -5054,5 +5058,5 @@ int mftell(MFILE* mf)
     {
         return ftell(mf->fp);
     }
-    return mf->cur - mf->start;
+    return (int)(mf->cur - mf->start);
 }

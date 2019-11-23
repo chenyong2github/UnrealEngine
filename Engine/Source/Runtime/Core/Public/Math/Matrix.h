@@ -274,6 +274,14 @@ public:
 	 */
 	inline FVector GetColumn(int32 i) const;
 
+	/**
+	 * Set a column of this matrix
+	 *
+	 * @param i index of the matrix column
+	 * @param Value new value of the column
+	 */
+	inline void SetColumn(int32 i, FVector Value);
+
 	/** @return rotator representation of this matrix */
 	CORE_API FRotator Rotator() const;
 

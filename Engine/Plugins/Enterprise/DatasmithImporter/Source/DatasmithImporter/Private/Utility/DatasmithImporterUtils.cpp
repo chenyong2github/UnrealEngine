@@ -53,6 +53,7 @@
 #include "LevelSequence.h"
 #include "Lightmass/LightmassPortal.h"
 #include "Logging/TokenizedMessage.h"
+#include "Materials/MaterialInstanceConstant.h"
 #include "MessageLogModule.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/SecureHash.h"
@@ -311,9 +312,50 @@ void FDatasmithImporterUtils::DeleteActor( AActor& Actor )
 			}
 		}
 
+		// Clean up all references to external assets within the actor and its components since those will be deleted later
+		// #ueent_remark: Underlying question why the actor and its components are still reachable after being 'deleted'
+		{
+			struct FObjectExternalReferenceCleaner : public FArchiveUObject
+			{
+				FObjectExternalReferenceCleaner()	{}
+
+				virtual FArchive& operator<<(UObject*& ObjRef) override
+				{
+					if(ObjRef != nullptr)
+					{
+						// Set to null any pointer to an external asset
+						if( ObjRef->HasAnyFlags( RF_Standalone | RF_Public ) )
+						{
+							ObjRef = nullptr;
+						}
+					}
+
+					return *this;
+				}
+			};
+
+			TArray< UObject* > SubObjectsArray;
+			GetObjectsWithOuter( &Actor, SubObjectsArray, /*bIncludeNestedObjects = */ true );
+
+			for(UObject* SubObject : SubObjectsArray)
+			{
+				if(SubObject)
+				{
+					FObjectExternalReferenceCleaner Ar;
+					SubObject->Serialize(Ar);
+				}
+			}
+
+			{
+				FObjectExternalReferenceCleaner Ar;
+				Actor.Serialize(Ar);
+			}
+		}
+
+		// Actually delete the actor
 		ActorWorld->EditorDestroyActor( &Actor, true );
 
-		// Move the actor outside it's so it's object name can be use
+		// Move the actor to the transient package so its object name can be use
 		Actor.UObject::Rename( nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders );
 	}
 }
@@ -603,8 +645,8 @@ namespace FDatasmithImporterUtilsHelper
 
 		const UCineCameraComponent* CineCameraComponent = CameraActor->GetCineCameraComponent();
 
-		CameraElement->SetSensorWidth( CineCameraComponent->FilmbackSettings.SensorWidth );
-		CameraElement->SetSensorAspectRatio( CineCameraComponent->FilmbackSettings.SensorWidth / CineCameraComponent->FilmbackSettings.SensorHeight );
+		CameraElement->SetSensorWidth( CineCameraComponent->Filmback.SensorWidth );
+		CameraElement->SetSensorAspectRatio( CineCameraComponent->Filmback.SensorWidth / CineCameraComponent->Filmback.SensorHeight );
 		CameraElement->SetFocalLength( CineCameraComponent->CurrentFocalLength );
 		CameraElement->SetFStop( CineCameraComponent->CurrentAperture );
 		CameraElement->SetEnableDepthOfField( CineCameraComponent->FocusSettings.FocusMethod == ECameraFocusMethod::Manual );
@@ -968,6 +1010,76 @@ TArray<TSharedPtr<IDatasmithBaseMaterialElement>> FDatasmithImporterUtils::GetOr
 	});
 
 	return ReferencedMaterials;
+}
+
+FDatasmithImporterUtils::FDatasmithMaterialImportIterator::FDatasmithMaterialImportIterator(const FDatasmithImportContext& InImportContext)
+	: ImportContext(InImportContext),
+	CurrentIndex(0)
+{
+	if (!ImportContext.bIsAReimport)
+	{
+		return;
+	}
+
+	SortedMaterials.Reserve(ImportContext.FilteredScene->GetMaterialsCount());
+	for (int32 MaterialIndex = 0; MaterialIndex < ImportContext.FilteredScene->GetMaterialsCount(); ++MaterialIndex)
+	{
+		SortedMaterials.Add(ImportContext.FilteredScene->GetMaterial(MaterialIndex));
+	}
+
+	SortedMaterials.Sort([this](TSharedPtr<IDatasmithBaseMaterialElement> MatA, TSharedPtr<IDatasmithBaseMaterialElement> MatB)
+	{
+		auto DoesParentWithSameNameExist = [this](TSharedPtr<IDatasmithBaseMaterialElement> Mat)
+		{
+			if (TSoftObjectPtr<UMaterialInterface>* MatInterface = ImportContext.SceneAsset->Materials.Find(Mat->GetName()))
+			{
+				if (UMaterialInstanceConstant* MaterialInstance = Cast< UMaterialInstanceConstant >(MatInterface->Get()))
+				{
+					return MaterialInstance->Parent && MaterialInstance->Parent->GetFName() == Mat->GetName();
+				}
+			}
+
+			return false;
+		};
+
+		//Materials that are already existing in the scene should be imported first otherwise we might create new parent materials instead of reusing the existing ones.
+		bool bMatAExists = DoesParentWithSameNameExist(MatA);
+		bool bMatBExists = DoesParentWithSameNameExist(MatB);
+
+		return bMatAExists && !bMatBExists;
+	});
+}
+
+FDatasmithImporterUtils::FDatasmithMaterialImportIterator& FDatasmithImporterUtils::FDatasmithMaterialImportIterator::operator++()
+{
+	++CurrentIndex;
+	return *this;
+}
+
+FDatasmithImporterUtils::FDatasmithMaterialImportIterator::operator bool() const
+{
+	if (ImportContext.bIsAReimport)
+	{
+		return CurrentIndex < SortedMaterials.Num();
+	}
+	else
+	{
+		return CurrentIndex < ImportContext.FilteredScene->GetMaterialsCount();
+	}
+}
+
+const TSharedPtr<IDatasmithBaseMaterialElement>& FDatasmithImporterUtils::FDatasmithMaterialImportIterator::Value() const
+{
+	if (ImportContext.bIsAReimport)
+	{
+		return SortedMaterials[CurrentIndex];
+	}
+	else
+	{
+		//We need to use a const IDatasmithScene to be able to use the const-ref version on GetMaterial().
+		const TSharedPtr<const IDatasmithScene>& DatasmithScene(ImportContext.FilteredScene);
+		return DatasmithScene->GetMaterial(CurrentIndex);
+	}
 }
 
 FScopedLogger::FScopedLogger(FName LogTitle, const FText& LogLabel)

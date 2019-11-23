@@ -61,12 +61,12 @@ void UNetworkSimulationGlobalManager::BeginNewSimulationFrame(UWorld* InWorld, E
 	TickServerRPCDelegate.Broadcast(InDeltaSeconds);
 }
 
-void UNetworkSimulationGlobalManager::RegisterModel(INetworkSimulationModel* Model, AActor* OwningActor)
+void UNetworkSimulationGlobalManager::RegisterModel(INetworkedSimulationModel* Model, AActor* OwningActor)
 {
 	SimulationGroupMap.FindOrAdd(Model->GetSimulationGroupName()).Simulations.Emplace(Model, OwningActor);
 }
 
-void UNetworkSimulationGlobalManager::UnregisterModel(INetworkSimulationModel* Model, AActor* OwningActor)
+void UNetworkSimulationGlobalManager::UnregisterModel(INetworkedSimulationModel* Model, AActor* OwningActor)
 {
 	auto& SimulationList = SimulationGroupMap.FindOrAdd(Model->GetSimulationGroupName()).Simulations;
 	int32 idx = SimulationList.IndexOfByKey(Model);

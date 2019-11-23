@@ -18,6 +18,7 @@
 #include "RayTracing/RaytracingOptions.h"
 #include "SceneTextureParameters.h"
 #include "HairStrands/HairStrandsRendering.h"
+#include "ScreenPass.h"
 
 // ENABLE_DEBUG_DISCARD_PROP is used to test the lighting code by allowing to discard lights to see how performance scales
 // It ought never to be enabled in a shipping build, and is probably only really useful when woring on the shading code.
@@ -706,7 +707,7 @@ void FSceneRenderer::GetLightNameForDrawEvent(const FLightSceneProxy* LightProxy
 		{
 			// Trim the leading path before the level name to make it more readable
 			// The level FName was taken directly from the Outermost UObject, otherwise we would do this operation on the game thread
-			FullLevelName = FullLevelName.Mid(LastSlashIndex + 1, FullLevelName.Len() - (LastSlashIndex + 1));
+			FullLevelName.MidInline(LastSlashIndex + 1, FullLevelName.Len() - (LastSlashIndex + 1), false);
 		}
 
 		LightNameWithLevel = FullLevelName + TEXT(".") + LightProxy->GetComponentName().ToString();
@@ -994,7 +995,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 				bool bAnyViewIsStereo = false;
 				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 				{
-					if (Views[ViewIndex].StereoPass != eSSP_FULL)
+					if (IStereoRendering::IsStereoEyeView(Views[ViewIndex]))
 					{
 						bAnyViewIsStereo = true;
 						break;
@@ -1201,7 +1202,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 			} // if (RHI_RAYTRACING)
 
 			bool bDirectLighting = ViewFamily.EngineShowFlags.DirectLighting;
-
+			bool bShadowMaskReadable = false;
 			TRefCountPtr<IPooledRenderTarget> ScreenShadowMaskTexture;
 			TRefCountPtr<IPooledRenderTarget> ScreenShadowMaskSubPixelTexture;
 
@@ -1225,6 +1226,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 				if ((bDrawShadows || bDrawLightFunction || bDrawPreviewIndicator) && !ScreenShadowMaskTexture.IsValid())
 				{
 					SceneContext.AllocateScreenShadowMask(RHICmdList, ScreenShadowMaskTexture);
+					bShadowMaskReadable = false;
 					if (bUseHairLighting)
 						SceneContext.AllocateScreenShadowMask(RHICmdList, ScreenShadowMaskSubPixelTexture);
 				}
@@ -1329,7 +1331,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 								if (BatchOcclusionType != FLightOcclusionType::Raytraced)
 									continue;
 
-								const bool bRequiresDenoiser = LightRequiresDenosier(BatchLightSceneInfo);
+								const bool bRequiresDenoiser = LightRequiresDenosier(BatchLightSceneInfo) && DenoiserMode > 0;
 
 								IScreenSpaceDenoiser::FShadowRayTracingConfig BatchRayTracingConfig;
 								BatchRayTracingConfig.RayCountPerPixel = BatchLightSceneInfo.Proxy->GetSamplesPerPixel();
@@ -1571,6 +1573,20 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 						FRDGTextureUAV* SubPixelRayTracingShadowMaskUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SubPixelRayTracingShadowMaskTexture));
 						FRDGTextureUAV* SubPixelRayHitDistanceUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SubPixelRayDistanceTexture));
 
+						FRDGTextureRef RayTracingShadowMaskTileTexture;
+						{
+							FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+								SceneTextures.SceneDepthBuffer->Desc.Extent,
+								PF_FloatRGBA,
+								FClearValueBinding::Black,
+								TexCreate_None,
+								TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
+								/* bInForceSeparateTargetAndShaderResource = */ false);
+							RayTracingShadowMaskTileTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingOcclusionTile"));
+						}
+
+						bool bIsMultiview = Views.Num() > 0;
+
 						for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 						{
 							FViewInfo& View = Views[ViewIndex];
@@ -1625,11 +1641,19 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 									InputParameterCount,
 									Outputs);
 
-								GraphBuilder.QueueTextureExtraction(Outputs[0].Mask, &ScreenShadowMaskTexture);
+								if (bIsMultiview)
+								{
+									AddDrawTexturePass(GraphBuilder, View, Outputs[0].Mask, RayTracingShadowMaskTileTexture, View.ViewRect.Min, View.ViewRect.Min, View.ViewRect.Size());
+									GraphBuilder.QueueTextureExtraction(RayTracingShadowMaskTileTexture, &ScreenShadowMaskTexture);
+								}
+								else
+								{
+									GraphBuilder.QueueTextureExtraction(Outputs[0].Mask, &ScreenShadowMaskTexture);
+								}
 							}
 							else
 							{
-									GraphBuilder.QueueTextureExtraction(RayTracingShadowMaskTexture, &ScreenShadowMaskTexture);
+								GraphBuilder.QueueTextureExtraction(RayTracingShadowMaskTexture, &ScreenShadowMaskTexture);
 							}
 
 							// Ray trace the shadow cast by opaque geometries on to hair strands geometries
@@ -1710,7 +1734,9 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 
 						ClearShadowMask(ScreenShadowMaskTexture);
 						if (ScreenShadowMaskSubPixelTexture)
+						{
 							ClearShadowMask(ScreenShadowMaskSubPixelTexture);
+						}
 
 						RenderShadowProjections(RHICmdList, &LightSceneInfo, ScreenShadowMaskTexture, ScreenShadowMaskSubPixelTexture, HairDatas, bInjectedTranslucentVolume);
 					}
@@ -1746,9 +1772,28 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 
 				if (bUsedShadowMaskTexture)
 				{
+					check(ScreenShadowMaskTexture);
 					RHICmdList.CopyToResolveTarget(ScreenShadowMaskTexture->GetRenderTargetItem().TargetableTexture, ScreenShadowMaskTexture->GetRenderTargetItem().ShaderResourceTexture, FResolveParams(FResolveRect()));
 					if (ScreenShadowMaskSubPixelTexture)
+					{
 						RHICmdList.CopyToResolveTarget(ScreenShadowMaskSubPixelTexture->GetRenderTargetItem().TargetableTexture, ScreenShadowMaskSubPixelTexture->GetRenderTargetItem().ShaderResourceTexture, FResolveParams(FResolveRect()));
+					}
+
+					if (!bShadowMaskReadable)
+					{
+						RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ScreenShadowMaskTexture->GetRenderTargetItem().ShaderResourceTexture);
+						if (ScreenShadowMaskSubPixelTexture)
+						{
+							RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ScreenShadowMaskSubPixelTexture->GetRenderTargetItem().ShaderResourceTexture);
+						}
+						bShadowMaskReadable = true;
+					}
+
+					GVisualizeTexture.SetCheckPoint(RHICmdList, ScreenShadowMaskTexture);
+					if (ScreenShadowMaskSubPixelTexture)
+					{
+						GVisualizeTexture.SetCheckPoint(RHICmdList, ScreenShadowMaskSubPixelTexture);
+					}
 				}
 
 				if(bDirectLighting && !bInjectedTranslucentVolume)
@@ -1760,10 +1805,6 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 						InjectTranslucentVolumeLighting(RHICmdList, LightSceneInfo, NULL, Views[ViewIndex], ViewIndex);
 					}
 				}
-
-				GVisualizeTexture.SetCheckPoint(RHICmdList, ScreenShadowMaskTexture);
-				if (ScreenShadowMaskSubPixelTexture)
-					GVisualizeTexture.SetCheckPoint(RHICmdList, ScreenShadowMaskSubPixelTexture);
 
 				FHairStrandsTransmittanceMaskData TransmittanceMaskData;
 				if (bDrawDeepShadow)
@@ -1787,7 +1828,15 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 					// Render the light to the scene color buffer, conditionally using the attenuation buffer or a 1x1 white texture as input 
 					if (bDirectLighting)
 					{
-						RenderLight(RHICmdList, &LightSceneInfo, ScreenShadowMaskTexture, ScreenShadowMaskSubPixelTexture, &TransmittanceMaskData, InHairVisibilityViews, false, true);
+						// ScreenShadowMaskTexture might have been created for a previous light, but only use it if we wrote valid data into it for this light
+						IPooledRenderTarget* LightShadowMaskTexture = nullptr;
+						IPooledRenderTarget* LightShadowMaskSubPixelTexture = nullptr;
+						if (bUsedShadowMaskTexture)
+						{
+							LightShadowMaskTexture = ScreenShadowMaskTexture;
+							LightShadowMaskSubPixelTexture = ScreenShadowMaskSubPixelTexture;
+						}
+						RenderLight(RHICmdList, &LightSceneInfo, LightShadowMaskTexture, LightShadowMaskSubPixelTexture, &TransmittanceMaskData, InHairVisibilityViews, false, true);
 					}
 
 					SceneContext.FinishRenderingSceneColor(RHICmdList);

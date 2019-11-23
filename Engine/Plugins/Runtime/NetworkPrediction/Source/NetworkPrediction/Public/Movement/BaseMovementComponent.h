@@ -34,7 +34,7 @@ public:
 
 // -------------------------------------------------------------------------------------------------------------------------------
 //	Base component for movement. This essentially has the generic glue for selecting an UpdatedComponent and moving it along the world
-//	It is abstract in that you still need to define which simulation the component runs (via ::InstantiateNetworkSimulation)
+//	It is abstract in that you still need to define which simulation the component runs (via ::InstantiateNetworkedSimulation)
 // -------------------------------------------------------------------------------------------------------------------------------
 UCLASS(Abstract)
 class NETWORKPREDICTION_API UBaseMovementComponent : public UNetworkPredictionComponent

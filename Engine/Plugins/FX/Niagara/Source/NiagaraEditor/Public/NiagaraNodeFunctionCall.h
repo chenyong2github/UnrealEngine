@@ -137,6 +137,7 @@ public:
 protected:
 
 	virtual bool IsValidPinToCompile(UEdGraphPin* Pin) const;
+	virtual bool GetValidateDataInterfaces() const { return true; };
 
 	virtual bool AllowDynamicPins() const override { return false; }
 	virtual bool CanRenamePin(const UEdGraphPin* Pin) const override { return false; }

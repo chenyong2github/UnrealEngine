@@ -108,6 +108,24 @@ namespace PersonaMeshDetailsConstants
 	const static int32 LodSliderExtension = 5;
 }
 
+static int32 GetDefaultMaterialIndex(const USkeletalMesh* SkeletalMesh, int32 LODIndex, int32 SectionIndex)
+{
+	int32 DefaultMaterialIndex = INDEX_NONE;
+	if (!SkeletalMesh || !SkeletalMesh->GetImportedModel() || !SkeletalMesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex))
+	{
+		return DefaultMaterialIndex;
+	}
+
+	const FSkeletalMeshLODModel& LODModel = SkeletalMesh->GetImportedModel()->LODModels[LODIndex];
+
+	if (LODModel.Sections.IsValidIndex(SectionIndex))
+	{
+		DefaultMaterialIndex = LODModel.Sections[SectionIndex].MaterialIndex;
+	}
+	
+	return DefaultMaterialIndex;
+}
+
 /** Returns true if automatic mesh reduction is available. */
 static bool IsAutoMeshReductionAvailable()
 {
@@ -2992,65 +3010,6 @@ void FPersonaMeshDetails::RegenerateOneLOD(int32 LODIndex)
 			return;
 		}
 
-		//If we are doing inline reduction, restore the skeletalmesh LOD if it was already reduced and we want to reduced it again (user change the options)
-		//This will ensure the data is the same when starting the reduction
-		if (LODIndex == CurrentLODInfo.ReductionSettings.BaseLOD
-			&& CurrentLODInfo.bHasBeenSimplified
-			&& SkelMesh->IsReductionActive(LODIndex)
-			&& (bIsLODModelbuildDataAvailable || bIsReductionDataPresent))
-		{
-			//Restore the base LOD data
-			CurrentLODInfo.bHasBeenSimplified = false;
-			if (!bIsLODModelbuildDataAvailable)
-			{
-				TMap<int32, FSkelMeshSourceSectionUserData> OldUserSectionsData;
-				TArray<FSkelMeshSection> OldSections;
-				if (SkelMesh->GetImportedModel() && SkelMesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex))
-				{
-					OldSections = SkelMesh->GetImportedModel()->LODModels[LODIndex].Sections;
-					OldUserSectionsData = SkelMesh->GetImportedModel()->LODModels[LODIndex].UserSectionsData;
-				}
-				
-				FLODUtilities::RestoreSkeletalMeshLODImportedData(SkelMesh, LODIndex);
-				if (OldUserSectionsData.Num())
-				{
-					check(SkelMesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex));
-					FSkeletalMeshLODModel& RestoredLODModel = SkelMesh->GetImportedModel()->LODModels[LODIndex];
-					for (int32 OldSectionIndex = 0; OldSectionIndex < OldSections.Num(); ++OldSectionIndex)
-					{
-						FSkelMeshSection& OldSection = OldSections[OldSectionIndex];
-						if (!OldUserSectionsData.Contains(OldSection.OriginalDataSectionIndex))
-						{
-							continue;
-						}
-						FSkelMeshSourceSectionUserData& OldSectionUserData = OldUserSectionsData.FindChecked(OldSection.OriginalDataSectionIndex);
-						for (int32 SectionIndex = 0; SectionIndex < RestoredLODModel.Sections.Num(); ++SectionIndex)
-						{
-							FSkelMeshSection& Section = RestoredLODModel.Sections[SectionIndex];
-							if (Section.MaterialIndex == OldSection.MaterialIndex)
-							{
-								FSkelMeshSourceSectionUserData& RestoredSectionUserData = RestoredLODModel.UserSectionsData.FindOrAdd(Section.OriginalDataSectionIndex);
-								RestoredSectionUserData.bDisabled = OldSectionUserData.bDisabled;
-								RestoredSectionUserData.bCastShadow = OldSectionUserData.bCastShadow;
-								RestoredSectionUserData.bRecomputeTangent = OldSectionUserData.bRecomputeTangent;
-								RestoredSectionUserData.GenerateUpToLodIndex = OldSectionUserData.GenerateUpToLodIndex;
-								RestoredSectionUserData.CorrespondClothAssetIndex = OldSectionUserData.CorrespondClothAssetIndex;
-								RestoredSectionUserData.ClothingData = OldSectionUserData.ClothingData;
-
-								Section.bDisabled = OldSection.bDisabled;
-								Section.bCastShadow = OldSection.bCastShadow;
-								Section.bRecomputeTangent = OldSection.bRecomputeTangent;
-								Section.GenerateUpToLodIndex = OldSection.GenerateUpToLodIndex;
-								Section.CorrespondClothAssetIndex = OldSection.CorrespondClothAssetIndex;
-								Section.ClothingData = OldSection.ClothingData;
-								break;
-							}
-						}
-					}
-				}
-			}
-		}
-
 		FSkeletalMeshUpdateContext UpdateContext;
 		UpdateContext.SkeletalMesh = SkelMesh;
 		UpdateContext.AssociatedComponents.Push(GetPersonaToolkit()->GetPreviewMeshComponent());
@@ -3723,11 +3682,11 @@ void FPersonaMeshDetails::OnGetSectionsForView(ISectionListBuilder& OutSections,
 		int32 NumSections = Model.Sections.Num();
 		for (int32 SectionIdx = 0; SectionIdx < NumSections; SectionIdx++)
 		{
-			int32 DefaultSectionMaterialIndex = Model.Sections[SectionIdx].MaterialIndex;
-			int32 MaterialIndex = DefaultSectionMaterialIndex;
-			if (MaterialMap.IsValidIndex(MaterialIndex) && SkelMesh->Materials.IsValidIndex(MaterialMap[MaterialIndex]))
+			int32 DefaultSectionMaterialIndex = GetDefaultMaterialIndex(SkelMesh, LODIndex, SectionIdx);
+			int32 MaterialIndex = Model.Sections[SectionIdx].MaterialIndex;;
+			if (MaterialMap.IsValidIndex(SectionIdx) && SkelMesh->Materials.IsValidIndex(MaterialMap[SectionIdx]))
 			{
-				MaterialIndex = MaterialMap[MaterialIndex];
+				MaterialIndex = MaterialMap[SectionIdx];
 			}
 
 			if (SkelMesh->Materials.IsValidIndex(MaterialIndex))
@@ -3915,21 +3874,40 @@ void FPersonaMeshDetails::OnDeleteMaterialSlot(int32 MaterialIndex)
 
 	FScopedTransaction Transaction(LOCTEXT("PersonaOnDeleteMaterialSlotTransaction", "Persona editor: Delete material slot"));
 	SkeletalMeshPtr->Modify();
-	SkeletalMeshPtr->Materials.RemoveAt(MaterialIndex);
-	FSkeletalMeshModel* Model = SkeletalMeshPtr->GetImportedModel();
-	
-	for (int32 LodIndex = 0; LodIndex < Model->LODModels.Num(); ++LodIndex)
 	{
-		for (int32 SectionIndex = 0; SectionIndex < Model->LODModels[LodIndex].Sections.Num(); ++SectionIndex)
+		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMeshPtr.Get());
+		//When we delete a material slot we must invalidate the DDC because material index is not part of the DDC key by design
+		SkeletalMeshPtr->Materials.RemoveAt(MaterialIndex);
+		FSkeletalMeshModel* Model = SkeletalMeshPtr->GetImportedModel();
+
+		int32 NumLODInfos = SkeletalMeshPtr->GetLODNum();
+
+		//When we delete a material slot we need to fix all MaterialIndex after the deleted index
+		for (int32 LODInfoIdx = 0; LODInfoIdx < NumLODInfos; LODInfoIdx++)
 		{
-			if (Model->LODModels[LodIndex].Sections[SectionIndex].MaterialIndex > MaterialIndex)
+			TArray<int32>& LODMaterialMap = SkeletalMeshPtr->GetLODInfo(LODInfoIdx)->LODMaterialMap;
+			for (int32 SectionIndex = 0; SectionIndex < Model->LODModels[LODInfoIdx].Sections.Num(); ++SectionIndex)
 			{
-				Model->LODModels[LodIndex].Sections[SectionIndex].MaterialIndex -= 1;
+				int32 SectionMaterialIndex = Model->LODModels[LODInfoIdx].Sections[SectionIndex].MaterialIndex;
+				if (LODMaterialMap.IsValidIndex(SectionIndex) && LODMaterialMap[SectionIndex] != INDEX_NONE)
+				{
+					SectionMaterialIndex = LODMaterialMap[SectionIndex];
+				}
+				if (SectionMaterialIndex > MaterialIndex)
+				{
+					SectionMaterialIndex--;
+				}
+				if (SectionMaterialIndex != Model->LODModels[LODInfoIdx].Sections[SectionIndex].MaterialIndex)
+				{
+					while(!LODMaterialMap.IsValidIndex(SectionIndex))
+					{
+						LODMaterialMap.Add(INDEX_NONE);
+					}
+					LODMaterialMap[SectionIndex] = SectionMaterialIndex;
+				}
 			}
 		}
 	}
-
-	SkeletalMeshPtr->PostEditChange();
 }
 
 bool FPersonaMeshDetails::OnMaterialListDirty()
@@ -4898,54 +4876,12 @@ int32 FPersonaMeshDetails::GetMaterialIndex(int32 LODIndex, int32 SectionIndex) 
 	check(ImportedResource && ImportedResource->LODModels.IsValidIndex(LODIndex));
 	int32 MaterialIndex = ImportedResource->LODModels[LODIndex].Sections[SectionIndex].MaterialIndex;
 	FSkeletalMeshLODInfo& Info = *(SkelMesh->GetLODInfo(LODIndex));
-	if (!Info.LODMaterialMap.IsValidIndex(MaterialIndex) || !SkelMesh->Materials.IsValidIndex(Info.LODMaterialMap[MaterialIndex]))
+	if (Info.LODMaterialMap.IsValidIndex(SectionIndex) && SkelMesh->Materials.IsValidIndex(Info.LODMaterialMap[SectionIndex]))
 	{
-		return MaterialIndex;
+		return Info.LODMaterialMap[SectionIndex];
+		
 	}
-	else
-	{
-		return Info.LODMaterialMap[MaterialIndex];
-	}
-}
-
-bool FPersonaMeshDetails::IsDuplicatedMaterialIndex(int32 LODIndex, int32 MaterialIndex)
-{
-	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
-
-	// finding whether this material index is being used in parent LODs
-	for (int32 LODInfoIdx = 0; LODInfoIdx < LODIndex; LODInfoIdx++)
-	{
-		FSkeletalMeshLODInfo& Info = *(SkelMesh->GetLODInfo(LODInfoIdx));
-		if (LODIndex == 0 || Info.LODMaterialMap.Num() == 0)
-		{
-			FSkeletalMeshModel* ImportedResource = SkelMesh->GetImportedModel();
-
-			if (ImportedResource && ImportedResource->LODModels.IsValidIndex(LODInfoIdx))
-			{
-				FSkeletalMeshLODModel& Model = ImportedResource->LODModels[LODInfoIdx];
-
-				for (int32 SectionIdx = 0; SectionIdx < Model.Sections.Num(); SectionIdx++)
-				{
-					if (MaterialIndex == Model.Sections[SectionIdx].MaterialIndex)
-					{
-						return true;
-					}
-				}
-			}
-		}
-		else // if LODMaterialMap exists
-		{
-			for (int32 MapIdx = 0; MapIdx < Info.LODMaterialMap.Num(); MapIdx++)
-			{
-				if (MaterialIndex == Info.LODMaterialMap[MapIdx])
-				{
-					return true;
-				}
-			}
-		}
-	}
-
-	return false;
+	return MaterialIndex;
 }
 
 void FPersonaMeshDetails::OnSectionChanged(int32 LODIndex, int32 SectionIndex, int32 NewMaterialSlotIndex, FName NewMaterialSlotName)
@@ -4981,45 +4917,46 @@ void FPersonaMeshDetails::OnSectionChanged(int32 LODIndex, int32 SectionIndex, i
 		// There is only one transaction for all replacement
 		FScopedTransaction Transaction(LOCTEXT("PersonaOnSectionChangedTransaction", "Persona editor: Section material slot changed"));
 		Mesh->Modify();
-
-		int32 NumSections = ImportedResource->LODModels[LODIndex].Sections.Num();
-		FSkeletalMeshLODInfo& Info = *(Mesh->GetLODInfo(LODIndex));
-		int32 CurrentMaterialIndex = ImportedResource->LODModels[LODIndex].Sections[SectionIndex].MaterialIndex;
-		
-		auto SetLODMaterialMapValue = [&Info](int32 OriginalSectionMaterialIndex, int32 OverrideMaterialIndex)
 		{
-			if (OriginalSectionMaterialIndex == OverrideMaterialIndex)
-			{
-				if (Info.LODMaterialMap.IsValidIndex(OriginalSectionMaterialIndex))
-				{
-					Info.LODMaterialMap[OriginalSectionMaterialIndex] = INDEX_NONE;
-				}
-			}
-			else
-			{
-				while (Info.LODMaterialMap.Num() <= OriginalSectionMaterialIndex)
-				{
-					int32 NewSectionIndex = Info.LODMaterialMap.Num();
-					Info.LODMaterialMap.Add(INDEX_NONE);
-				}
-				check(OriginalSectionMaterialIndex < Info.LODMaterialMap.Num());
-				Info.LODMaterialMap[OriginalSectionMaterialIndex] = OverrideMaterialIndex;
-			}
-		};
+			FScopedSkeletalMeshPostEditChange ScopedPostEditChange(Mesh);
+			int32 NumSections = ImportedResource->LODModels[LODIndex].Sections.Num();
+			FSkeletalMeshLODInfo& Info = *(Mesh->GetLODInfo(LODIndex));
 
-		SetLODMaterialMapValue(CurrentMaterialIndex, NewSkeletalMaterialIndex);
-		//Set the chunked section 
-		for (int32 SectionIdx = 0; SectionIdx < NumSections; SectionIdx++)
-		{
-			if (ImportedResource->LODModels[LODIndex].Sections[SectionIdx].ChunkedParentSectionIndex == SectionIndex)
+			auto SetLODMaterialMapValue = [&LODIndex, &Info, &ImportedResource](int32 InSectionIndex, int32 OverrideMaterialIndex)
 			{
-				int32 CurrentChunkMaterialIndex = ImportedResource->LODModels[LODIndex].Sections[SectionIdx].MaterialIndex;
-				SetLODMaterialMapValue(CurrentChunkMaterialIndex, NewSkeletalMaterialIndex);
+				if (ImportedResource->LODModels[LODIndex].Sections[InSectionIndex].MaterialIndex == OverrideMaterialIndex)
+				{
+					if (Info.LODMaterialMap.IsValidIndex(InSectionIndex))
+					{
+						Info.LODMaterialMap[InSectionIndex] = INDEX_NONE;
+					}
+				}
+				else
+				{
+					while (Info.LODMaterialMap.Num() <= InSectionIndex)
+					{
+						Info.LODMaterialMap.Add(INDEX_NONE);
+					}
+					check(InSectionIndex < Info.LODMaterialMap.Num());
+					Info.LODMaterialMap[InSectionIndex] = OverrideMaterialIndex;
+				}
+			};
+
+			SetLODMaterialMapValue(SectionIndex, NewSkeletalMaterialIndex);
+			//Set the chunked section 
+			for (int32 SectionIdx = SectionIndex+1; SectionIdx < NumSections; SectionIdx++)
+			{
+				if (ImportedResource->LODModels[LODIndex].Sections[SectionIdx].ChunkedParentSectionIndex == SectionIndex)
+				{
+					SetLODMaterialMapValue(SectionIdx, NewSkeletalMaterialIndex);
+				}
+				else
+				{
+					//Chunked section are contiguous
+					break;
+				}
 			}
 		}
-
-		Mesh->PostEditChange();
-
 		// Redraw viewports to reflect the material changes 
 		GUnrealEd->RedrawLevelEditingViewports();
 	}
@@ -5219,7 +5156,7 @@ TSharedRef<SUniformGridPanel> FPersonaMeshDetails::MakeClothingDetailsWidget(int
 
 		if (UClothingAssetCommon* Asset = Cast<UClothingAssetCommon>(ClothingAsset))
 		{
-			UClothLODDataBase* LodData = Asset->ClothLodData[LODIndex];
+			UClothLODDataCommon* LodData = Asset->ClothLodData[LODIndex];
 			check(LodData->PhysicalMeshData);
 			UClothPhysicalMeshDataBase& PhysMeshData = *LodData->PhysicalMeshData;
 			FClothCollisionData& CollisionData = LodData->CollisionData;
@@ -5626,73 +5563,6 @@ bool FPersonaMeshDetails::CanDeleteMaterialElement(int32 LODIndex, int32 Section
 {
 	// Only allow deletion of extra elements
 	return SectionIndex != 0;
-}
-
-FReply FPersonaMeshDetails::OnDeleteButtonClicked(int32 LODIndex, int32 SectionIndex)
-{
-	ensure(SectionIndex != 0);
-
-	int32 MaterialIndex = GetMaterialIndex(LODIndex, SectionIndex);
-
-	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
-
-	// Move any mappings pointing to the requested material to point to the first
-	// and decrement any above it
-	if(SkelMesh)
-	{
-
-		const FScopedTransaction Transaction(LOCTEXT("PersonaOnDeleteButtonClickedTransaction", "Persona editor: Delete material slot"));
-		UProperty* MaterialProperty = FindField<UProperty>( USkeletalMesh::StaticClass(), "Materials" );
-		SkelMesh->PreEditChange( MaterialProperty );
-
-		// Patch up LOD mapping indices
-		int32 NumLODInfos = SkelMesh->GetLODNum();
-		for(int32 LODInfoIdx=0; LODInfoIdx < NumLODInfos; LODInfoIdx++)
-		{
-			for(auto LodMaterialIter = SkelMesh->GetLODInfo(LODInfoIdx)->LODMaterialMap.CreateIterator() ; LodMaterialIter ; ++LodMaterialIter)
-			{
-				int32 CurrentMapping = *LodMaterialIter;
-
-				if (CurrentMapping == MaterialIndex)
-				{
-					// Set to first material
-					*LodMaterialIter = 0;
-				}
-				else if (CurrentMapping > MaterialIndex)
-				{
-					// Decrement to keep correct reference after removal
-					*LodMaterialIter = CurrentMapping - 1;
-				}
-			}
-		}
-		
-		// Patch up section indices
-		for(auto ModelIter = SkelMesh->GetImportedModel()->LODModels.CreateIterator() ; ModelIter ; ++ModelIter)
-		{
-			FSkeletalMeshLODModel& Model = *ModelIter;
-			for(auto SectionIter = Model.Sections.CreateIterator() ; SectionIter ; ++SectionIter)
-			{
-				FSkelMeshSection& Section = *SectionIter;
-
-				if (Section.MaterialIndex == MaterialIndex)
-				{
-					Section.MaterialIndex = 0;
-				}
-				else if (Section.MaterialIndex > MaterialIndex)
-				{
-					Section.MaterialIndex--;
-				}
-			}
-		}
-
-		SkelMesh->Materials.RemoveAt(MaterialIndex);
-
-		// Notify the change in material
-		FPropertyChangedEvent PropertyChangedEvent( MaterialProperty );
-		SkelMesh->PostEditChangeProperty(PropertyChangedEvent);
-	}
-
-	return FReply::Handled();
 }
 
 void FPersonaMeshDetails::OnPreviewMeshChanged(USkeletalMesh* OldSkeletalMesh, USkeletalMesh* NewMesh)

@@ -267,7 +267,7 @@ FString FPaths::ProjectConfigDir()
 	return FPaths::ProjectDir() + TEXT("Config/");
 }
 
-FString FPaths::ProjectSavedDir()
+const FString& FPaths::ProjectSavedDir()
 {
 	FStaticData& StaticData = TLazySingleton<FStaticData>::Get();
 	if (!StaticData.bGameSavedDirInitialized)
@@ -725,7 +725,7 @@ FString FPaths::GetBaseFilename( const FString& InPath, bool bRemovePath )
 
 	if (ExtPos != INDEX_NONE && (LeafPos == INDEX_NONE || ExtPos > LeafPos))
 	{
-		Wk = Wk.Left(ExtPos);
+		Wk.LeftInline(ExtPos);
 	}
 
 	return Wk;
@@ -903,11 +903,11 @@ bool FPaths::IsDrive(const FString& InPath)
 				int32 SlashIndex = CheckPath.Find(TEXT("\\"), ESearchCase::CaseSensitive);
 				if (SlashIndex != INDEX_NONE)
 				{
-					CheckPath = CheckPath.Right(CheckPath.Len() - SlashIndex  - 1);
+					CheckPath.RightInline(CheckPath.Len() - SlashIndex  - 1, false);
 				}
 				else
 				{
-					CheckPath = TEXT("");
+					CheckPath.Reset();
 				}
 			}
 		}
@@ -932,7 +932,7 @@ bool FPaths::IsDrive(const FString& InPath)
 					// It's a real folder, so add one to the count
 					CheckCount++;
 				}
-				CheckPath = CheckPath.Right(CheckPath.Len() - SlashIndex  - 1);
+				CheckPath.RightInline(CheckPath.Len() - SlashIndex  - 1, false);
 				SlashIndex = CheckPath.Find(TEXT("\\"), ESearchCase::CaseSensitive);
 			}
 
@@ -1099,9 +1099,8 @@ void FPaths::MakePlatformFilename( FString& InPath )
 bool FPaths::MakePathRelativeTo( FString& InPath, const TCHAR* InRelativeTo )
 {
 	FString Target = FPaths::ConvertRelativePathToFull(InPath);
-	FString Source = FPaths::ConvertRelativePathToFull(InRelativeTo);
-	
-	Source = FPaths::GetPath(Source);
+	FString Source = FPaths::GetPath(FPaths::ConvertRelativePathToFull(InRelativeTo));
+
 	Source.ReplaceInline(TEXT("\\"), TEXT("/"), ESearchCase::CaseSensitive);
 	Target.ReplaceInline(TEXT("\\"), TEXT("/"), ESearchCase::CaseSensitive);
 
@@ -1142,7 +1141,7 @@ bool FPaths::MakePathRelativeTo( FString& InPath, const TCHAR* InRelativeTo )
 		}
 	}
 	
-	InPath = Result;
+	InPath = MoveTemp(Result);
 	return true;
 }
 
@@ -1308,7 +1307,7 @@ bool FPaths::ValidatePath( const FString& InPath, FText* OutReason )
 	// The loop below requires that the path not end with a /
 	if(Standardized.EndsWith(TEXT("/"), ESearchCase::CaseSensitive))
 	{
-		Standardized = Standardized.LeftChop(1);
+		Standardized.LeftChopInline(1, false);
 	}
 
 	// Walk each part of the path looking for name errors
@@ -1441,6 +1440,29 @@ bool FPaths::IsSamePath(const FString& PathA, const FString& PathB)
 	return FCString::Strcmp(*TmpA, *TmpB) == 0;
 #endif
 }
+
+bool FPaths::IsUnderDirectory(const FString& InPath, const FString& InDirectory)
+{
+	FString Path = InPath;
+	MakeStandardFilename(Path);
+
+	FString Directory = InDirectory;
+	MakeStandardFilename(Directory);
+
+	if (Directory.EndsWith(TEXT("/")))
+	{
+		Directory.RemoveAt(Directory.Len() - 1);
+	}
+
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE || PLATFORM_HOLOLENS
+	int Compare = FCString::Strnicmp(*Path, *Directory, Directory.Len());
+#else
+	int Compare = FCString::Strncmp(*Path, *Directory, Directory.Len());
+#endif
+
+	return Compare == 0 && (Path[Directory.Len()] == 0 || Path[Directory.Len()] == '/');
+}
+
 
 void FPaths::TearDown()
 {

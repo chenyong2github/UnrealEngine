@@ -52,6 +52,10 @@ protected:
 
 	/** Called when a new typed pin is added by the user. */
 	virtual void OnNewTypedPinAdded(UEdGraphPin* NewPin) { }
+	
+	/** Called in subclasses to restrict renaming.*/
+	/** Verify that the potential rename has produced acceptable results for a pin.*/
+	virtual bool VerifyEditablePinName(const FText& InName, FText& OutErrorMessage, const UEdGraphPin* InGraphPinObj) const { OutErrorMessage = FText::GetEmpty(); return true; }
 
 	/** Called when a pin is renamed. */
 	virtual void OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldPinName) { }
@@ -70,6 +74,8 @@ protected:
 
 	virtual void MoveDynamicPin(UEdGraphPin* Pin, int32 DirectionToMove);
 
+	virtual bool OnVerifyTextChanged(const FText& NewText, FText& OutMessage) { return true; };
+
 private:
 
 	/** Gets the display text for a pin. */
@@ -77,7 +83,7 @@ private:
 
 	/** Called when a pin's name text is committed. */
 	void PinNameTextCommitted(const FText& Text, ETextCommit::Type CommitType, UEdGraphPin* Pin);
-
+	
 	void RemoveDynamicPinFromMenu(UEdGraphPin* Pin);
 
 	void MoveDynamicPinFromMenu(UEdGraphPin* Pin, int32 DirectionToMove);

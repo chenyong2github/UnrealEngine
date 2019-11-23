@@ -7,6 +7,7 @@
 
 class FFrameGrabber;
 class FSceneViewport;
+class SWindow;
 
 /**
  *	Use the FrameGrabber on the host to provide an image to the image channel.
@@ -30,13 +31,16 @@ public:
 	/** Signals that the viewport was resized */
 	void OnViewportResized(FVector2D NewSize);
 
-	/** Safely create the frame grabber */
-	void CreateFrameGrabber(TSharedRef<FSceneViewport> Viewport);
-
 protected:
 
-	/** Release the FrameGrabber*/
+	/** Release the FrameGrabber */
 	void ReleaseFrameGrabber();
+
+	/** When the window is destroyed */
+	void OnWindowClosedEvent(const TSharedRef<SWindow>&);
+
+	/** Safely create the frame grabber */
+	void CreateFrameGrabber(TSharedRef<FSceneViewport> Viewport);
 
 	TWeakPtr<FRemoteSessionImageChannel::FImageSender, ESPMode::ThreadSafe> ImageSender;
 
@@ -51,5 +55,8 @@ protected:
 	bool ViewportResized;
 
 	/** Holds a reference to the scene viewport */
-	TSharedPtr<FSceneViewport> SceneViewport;
+	TWeakPtr<FSceneViewport> SceneViewport;
+
+	/** Holds a reference to the SceneViewport SWindow */
+	TWeakPtr<SWindow> SceneViewportWindow;
 };

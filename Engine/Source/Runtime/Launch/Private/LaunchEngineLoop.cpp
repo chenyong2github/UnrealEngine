@@ -569,7 +569,7 @@ bool LaunchSetGameName(const TCHAR *InCmdLine, FString& OutGameProjectFilePathUn
 			int32 FirstCharToRemove = INDEX_NONE;
 			if (LocalGameName.FindChar(TCHAR('-'), FirstCharToRemove))
 			{
-				LocalGameName = LocalGameName.Left(FirstCharToRemove);
+				LocalGameName.LeftInline(FirstCharToRemove, false);
 			}
 			FApp::SetProjectName(*LocalGameName);
 
@@ -1588,7 +1588,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 #endif
 			if (Token.StartsWith(TEXT("run=")))
 			{
-				Token = Token.RightChop(4);
+				Token.RightChopInline(4, false);
 				if (!Token.EndsWith(TEXT("Commandlet")))
 				{
 					Token += TEXT("Commandlet");
@@ -1647,7 +1647,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 #endif
 		if (Token.StartsWith(TEXT("run=")))
 		{
-			Token = Token.RightChop(4);
+			Token.RightChopInline(4, false);
 			if (!Token.EndsWith(TEXT("Commandlet")))
 			{
 				Token += TEXT("Commandlet");
@@ -2062,7 +2062,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		{
 			if (Token.StartsWith(TEXT("run=")))
 			{
-				Token = Token.RightChop(4);
+				Token.RightChopInline(4, false);
 				bDefinitelyCommandlet = true;
 				if (!Token.EndsWith(TEXT("Commandlet")))
 				{
@@ -2309,6 +2309,9 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 	if (bEnableShaderCompile && !FPlatformProperties::RequiresCookedData())
 	{
+		check(!GShaderCompilerStats);
+		GShaderCompilerStats = new FShaderCompilerStats();
+
 		check(!GShaderCompilingManager);
 		GShaderCompilingManager = new FShaderCompilingManager();
 
@@ -3308,6 +3311,11 @@ bool FEngineLoop::LoadCoreModules()
 }
 
 
+void FEngineLoop::CleanupPreInitContext()
+{
+	PreInitContext.Cleanup();
+}
+
 void FEngineLoop::LoadPreInitModules()
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Loading PreInit Modules"), STAT_PreInitModules, STATGROUP_LoadTime);
@@ -3877,6 +3885,7 @@ void FEngineLoop::Exit()
 	FModuleManager::Get().UnloadModule("AssetTools", true);
 
 #endif // WITH_EDITOR
+	FModuleManager::Get().UnloadModule("WorldBrowser", true);
 	FModuleManager::Get().UnloadModule("AssetRegistry", true);
 
 #if !PLATFORM_ANDROID || PLATFORM_LUMIN 	// AppPreExit doesn't work on Android
@@ -5083,8 +5092,14 @@ bool FEngineLoop::AppInit( )
 	{
 			if (Target.Type == EBuildTargetType::Editor)
 			{
-				// Read the editor target receipt
-				EditorTargetFileName = FTargetReceipt::GetDefaultPath(FPlatformMisc::ProjectDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
+				if(FPaths::IsUnderDirectory(Target.Path, FPlatformMisc::ProjectDir()))
+				{
+					EditorTargetFileName = FTargetReceipt::GetDefaultPath(FPlatformMisc::ProjectDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
+				}
+				else if(FPaths::IsUnderDirectory(Target.Path, FPaths::EngineDir()))
+				{
+					EditorTargetFileName = FTargetReceipt::GetDefaultPath(*FPaths::EngineDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
+				}
 				break;
 			}
 		}
@@ -5395,6 +5410,11 @@ void FEngineLoop::AppPreExit( )
 
 		delete GShaderCompilingManager;
 		GShaderCompilingManager = nullptr;
+	}
+	if(GShaderCompilerStats)
+	{
+		delete GShaderCompilerStats;
+		GShaderCompilerStats = nullptr;
 	}
 #endif
 }

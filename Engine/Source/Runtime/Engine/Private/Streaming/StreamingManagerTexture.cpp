@@ -111,14 +111,6 @@ FRenderAssetStreamingManager::FRenderAssetStreamingManager()
 	// Convert from MByte to byte.
 	MemoryMargin *= 1024 * 1024;
 
-#if STATS_FAST
-	MaxStreamingTexturesSize = 0;
-	MaxOptimalTextureSize = 0;
-	MaxStreamingOverBudget = MIN_int64;
-	MaxTexturePoolAllocatedSize = 0;
-	MaxNumWantingTextures = 0;
-#endif
-
 	for ( int32 LODGroup=0; LODGroup < TEXTUREGROUP_MAX; ++LODGroup )
 	{
 		const FTextureLODGroup& TexGroup = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetTextureLODGroup(TextureGroup(LODGroup));
@@ -1785,27 +1777,30 @@ void FRenderAssetStreamingManager::PropagateLightingScenarioChange()
 	}
 }
 
-#if STATS_FAST
+#if !UE_BUILD_SHIPPING
+
 bool FRenderAssetStreamingManager::HandleDumpTextureStreamingStatsCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 {
 	FScopeLock ScopeLock(&CriticalSection);
 
-	Ar.Logf( TEXT("Current Texture Streaming Stats") );
-	Ar.Logf( TEXT("  Textures In Memory, Current (KB) = %f"), MaxStreamingTexturesSize / 1024.0f);
-	Ar.Logf( TEXT("  Textures In Memory, Target (KB) =  %f"), MaxOptimalTextureSize / 1024.0f );
-	Ar.Logf( TEXT("  Over Budget (KB) =                 %f"), MaxStreamingOverBudget / 1024.0f );
-	Ar.Logf( TEXT("  Pool Memory Used (KB) =            %f"), MaxTexturePoolAllocatedSize / 1024.0f );
-	Ar.Logf( TEXT("  Num Wanting Textures =             %d"), MaxNumWantingTextures );
-	MaxStreamingTexturesSize = 0;
-	MaxOptimalTextureSize = 0;
-	MaxStreamingOverBudget = MIN_int64;
-	MaxTexturePoolAllocatedSize = 0;
-	MaxNumWantingTextures = 0;
+	float CurrentOccupancyPct = 0.f;
+	float TargetOccupancyPct = 0.f;
+	if (DisplayedStats.StreamingPool > 0)
+	{
+		CurrentOccupancyPct = 100.f * (DisplayedStats.WantedMips / (float)DisplayedStats.StreamingPool);
+		TargetOccupancyPct = 100.f * (DisplayedStats.RequiredPool / (float)DisplayedStats.StreamingPool);
+	}
+
+	float StreamingPoolMB = DisplayedStats.StreamingPool / 1024.f / 1024.f;
+
+	// uses csv stats for access in test builds
+	Ar.Logf(TEXT("Current Texture Streaming Stats") );
+	Ar.Logf(TEXT("  Streaming Assets, Current/Pool = %.2f / %.2f MB (%d%%)"), DisplayedStats.WantedMips / 1024.f / 1024.f, StreamingPoolMB, FMath::RoundToInt(CurrentOccupancyPct));
+	Ar.Logf(TEXT("  Streaming Assets, Target/Pool =  %.2f / %.2f MB (%d%%)"), DisplayedStats.RequiredPool / 1024.f / 1024.f, StreamingPoolMB, FMath::RoundToInt(TargetOccupancyPct));
+	Ar.Logf(TEXT("  Non-Streaming Mips = %.2f MB"), DisplayedStats.NonStreamingMips / 1024.f / 1024.f);
+
 	return true;
 }
-#endif // STATS_FAST
-
-#if !UE_BUILD_SHIPPING
 
 bool FRenderAssetStreamingManager::HandleListStreamingRenderAssetsCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 {
@@ -2244,7 +2239,16 @@ bool FRenderAssetStreamingManager::HandleInvestigateRenderAssetCommand(const TCH
 					LODGroupName = StaticMesh->LODGroup.ToString();
 				}
 #endif
-				UE_LOG(LogContentStreaming, Log, TEXT("  LOD group:   %s"), *LODGroupName);
+				// put this up in some shared code somewhere in FGenericPlatformMemory
+				const TCHAR* BucketNames[] = { TEXT("Largest"), TEXT("Larger"), TEXT("Default"), TEXT("Smaller"), TEXT("Smallest"), TEXT("Tiniest") };
+				if ((int32)FPlatformMemory::GetMemorySizeBucket() < UE_ARRAY_COUNT(BucketNames))
+				{
+					UE_LOG(LogContentStreaming, Log, TEXT("  LOD group:   %s [Bucket=%s]"), *LODGroupName, BucketNames[(int32)FPlatformMemory::GetMemorySizeBucket()]);
+				}
+				else
+				{
+					UE_LOG(LogContentStreaming, Log, TEXT("  LOD group:   %s [Unkown Bucket]"), *LODGroupName);
+				}
 
 				if (RenderAsset->bGlobalForceMipLevelsToBeResident)
 				{
@@ -2278,11 +2282,105 @@ bool FRenderAssetStreamingManager::HandleInvestigateRenderAssetCommand(const TCH
 					UE_LOG(LogContentStreaming, Log, TEXT("  Current LOD index: %d"), CurrentMipIndex);
 					UE_LOG(LogContentStreaming, Log, TEXT("  Wanted LOD index: %d"), WantedMipIndex);
 				}
-				UE_LOG(LogContentStreaming, Log, TEXT("  Allowed mips:        %d-%d"), StreamingRenderAsset.MinAllowedMips, StreamingRenderAsset.MaxAllowedMips);
+				UE_LOG(LogContentStreaming, Log, TEXT("  Allowed mips:        %d-%d [%d]"), StreamingRenderAsset.MinAllowedMips, StreamingRenderAsset.MaxAllowedMips, StreamingRenderAsset.MipCount);
 				UE_LOG(LogContentStreaming, Log, TEXT("  LoadOrder Priority:  %d"), StreamingRenderAsset.LoadOrderPriority);
 				UE_LOG(LogContentStreaming, Log, TEXT("  Retention Priority:  %d"), StreamingRenderAsset.RetentionPriority);
 				UE_LOG(LogContentStreaming, Log, TEXT("  Boost factor:        %.1f"), StreamingRenderAsset.BoostFactor);
-				UE_LOG(LogContentStreaming, Log, TEXT("  Mip bias [Budget]:   %d [%d]"), StreamingRenderAsset.MipCount - StreamingRenderAsset.MaxAllowedMips, StreamingRenderAsset.BudgetMipBias + (Settings.bUsePerTextureBias ? 0 : Settings.GlobalMipBias));
+
+				FString BiasDesc;
+				{
+					int32 CumuBias = 0;
+					if (!Settings.bUseAllMips)
+					{
+						// UI specific Bias : see UTextureLODSettings::CalculateLODBias(), included in CachedCombinedLODBias.
+						extern int32 GUITextureLODBias;
+						if (StreamingRenderAsset.LODGroup == TEXTUREGROUP_UI && GUITextureLODBias)
+						{
+							BiasDesc += FString::Printf(TEXT(" [UI:%d]"), GUITextureLODBias);
+							CumuBias += GUITextureLODBias;
+						}
+
+						// LOD group Bias : see UTextureLODSettings::CalculateLODBias(), included in CachedCombinedLODBias
+						const FTextureLODGroup& LODGroupInfo = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->TextureLODGroups[StreamingRenderAsset.LODGroup];
+						if (LODGroupInfo.LODBias)
+						{
+							if (FPlatformProperties::RequiresCookedData())
+							{
+								BiasDesc += FString::Printf(TEXT(" [LODGroup.Bias:0(%d)]"), LODGroupInfo.LODBias);
+							}
+							else
+							{
+								BiasDesc += FString::Printf(TEXT(" [LODGroup.Bias:%d]"), LODGroupInfo.LODBias);
+								CumuBias += LODGroupInfo.LODBias;
+							}
+						}
+
+						// LOD group MaxResolution clamp : see UTextureLODSettings::CalculateLODBias(), included in CachedCombinedLODBias
+						const int32 MipCountBeforeMaxRes = StreamingRenderAsset.MipCount - Texture2D->NumCinematicMipLevels -
+							(StreamingRenderAsset.LODGroup == TEXTUREGROUP_UI ? GUITextureLODBias : 0) - 
+							(FPlatformProperties::RequiresCookedData() ? 0 : (LODGroupInfo.LODBias + Texture2D->LODBias));
+						const int32 MaxResBias = MipCountBeforeMaxRes - (LODGroupInfo.MaxLODMipCount + 1);
+						if (MaxResBias > 0)
+						{
+							BiasDesc += FString::Printf(TEXT(" [LODGroup.MaxRes:%d]"), MaxResBias);
+							CumuBias += MaxResBias;
+						}
+
+						// Asset LODBias : see UTextureLODSettings::CalculateLODBias(), included in CachedCombinedLODBias
+						if (Texture2D->LODBias)
+						{
+							if (FPlatformProperties::RequiresCookedData())
+							{
+								BiasDesc += FString::Printf(TEXT(" [Asset.Bias:0(%d)]"), Texture2D->LODBias);
+							}
+							else
+							{
+								BiasDesc += FString::Printf(TEXT(" [Asset.Bias:%d]"), Texture2D->LODBias);
+								CumuBias += Texture2D->LODBias;
+							}
+						}
+
+						// Asset cinematic mips : see UTextureLODSettings::CalculateLODBias() and FStreamingRenderAsset::UpdateDynamicData(), included in CachedCombinedLODBias
+						if (Texture2D->NumCinematicMipLevels && !(StreamingRenderAsset.bForceFullyLoad && Texture2D->bUseCinematicMipLevels))
+						{
+							BiasDesc += FString::Printf(TEXT(" [Asset.Cine:%d]"), Texture2D->NumCinematicMipLevels);
+							CumuBias += Texture2D->NumCinematicMipLevels;
+						}
+					}
+
+					// RHI max resolution and optional mips : see FStreamingRenderAsset::UpdateDynamicData().
+					{
+						const int32 OptMipBias = StreamingRenderAsset.MipCount - CumuBias - StreamingRenderAsset.NumNonOptionalMips;
+						if (StreamingRenderAsset.OptionalMipsState != FStreamingRenderAsset::EOptionalMipsState::OMS_HasOptionalMips && OptMipBias > 0)
+						{
+							BiasDesc += FString::Printf(TEXT(" [Asset.Opt:%d]"), OptMipBias);
+							CumuBias += OptMipBias;
+						}
+
+						const int32 RHIMaxResBias = StreamingRenderAsset.MipCount - CumuBias - GMaxTextureMipCount;
+						if (RHIMaxResBias > 0)
+						{
+							BiasDesc += FString::Printf(TEXT(" [RHI.MaxRes:%d]"), RHIMaxResBias);
+							CumuBias += RHIMaxResBias;
+						}
+					}
+
+					// Memory budget bias
+					// Global Bias : see FStreamingRenderAsset::UpdateDynamicData().
+					if (StreamingRenderAsset.IsMaxResolutionAffectedByGlobalBias() && !Settings.bUsePerTextureBias && Settings.GlobalMipBias)
+					{
+						BiasDesc += FString::Printf(TEXT(" [Global:%d]"), Settings.GlobalMipBias);
+						CumuBias += Settings.GlobalMipBias;
+					}
+					
+					if (StreamingRenderAsset.BudgetMipBias)
+					{
+						BiasDesc += FString::Printf(TEXT(" [Budget:%d]"), StreamingRenderAsset.BudgetMipBias);
+						CumuBias += StreamingRenderAsset.BudgetMipBias;
+					}
+				}
+
+				UE_LOG(LogContentStreaming, Log, TEXT("  Mip bias:			  %d %s"), StreamingRenderAsset.MipCount - StreamingRenderAsset.MaxAllowedMips, !BiasDesc.IsEmpty() ? *BiasDesc : TEXT("") );
 
 				if (InWorld && !GIsEditor)
 				{
@@ -2316,14 +2414,12 @@ bool FRenderAssetStreamingManager::HandleInvestigateRenderAssetCommand(const TCH
  */
 bool FRenderAssetStreamingManager::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 {
-#if STATS_FAST
+#if !UE_BUILD_SHIPPING
 	if (FParse::Command(&Cmd,TEXT("DumpTextureStreamingStats"))
 		|| FParse::Command(&Cmd, TEXT("DumpRenderAssetStreamingStats")))
 	{
 		return HandleDumpTextureStreamingStatsCommand( Cmd, Ar );
 	}
-#endif
-#if !UE_BUILD_SHIPPING
 	if (FParse::Command(&Cmd,TEXT("ListStreamingTextures"))
 		|| FParse::Command(&Cmd, TEXT("ListStreamingRenderAssets")))
 	{

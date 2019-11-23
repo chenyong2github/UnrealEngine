@@ -2,7 +2,7 @@
 #pragma once
 
 #include "ClothingAssetBase.h"
-#include "ClothConfig.h"
+#include "ClothConfigBase.h"
 #include "ClothLODData.h"
 #include "ClothingSimulationInteractor.h"
 
@@ -178,7 +178,7 @@ public:
 
 	// The actual asset data, listed by LOD.
 	UPROPERTY()
-	TArray<UClothLODDataBase*> ClothLodData;
+	TArray<UClothLODDataCommon*> ClothLodData;
 
 	// Tracks which clothing LOD each skel mesh LOD corresponds to (LodMap[SkelLod]=ClothingLod).
 	UPROPERTY()

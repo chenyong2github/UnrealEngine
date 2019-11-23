@@ -388,7 +388,9 @@ bool FDeferredShadingSceneRenderer::ShouldRenderVelocities() const
 		bool bRayTracing = IsRayTracingEnabled();
 		bool bDenoise = bRayTracing;
 
-		bNeedsVelocity |= bMotionBlur || bTemporalAA || bDistanceFieldAO || bSSRTemporal || bDenoise;
+		bool bSSGI = ShouldRenderScreenSpaceDiffuseIndirect(View);
+		
+		bNeedsVelocity |= bMotionBlur || bTemporalAA || bDistanceFieldAO || bSSRTemporal || bDenoise || bSSGI;
 	}
 
 	return bNeedsVelocity;
@@ -441,7 +443,14 @@ void FDeferredShadingSceneRenderer::RenderVelocities(FRHICommandListImmediate& R
 			RenderVelocitiesInner(RHICmdList, VelocityRT, VelocityPass);
 			RHICmdList.EndRenderPass();
 		}
-
+		if(VelocityPass != EVelocityPass::Opaque)
+		{
+			FTexture2DRHIRef DepthTexture = FSceneRenderTargets::Get(RHICmdList).GetSceneDepthTexture();
+			if(DepthTexture)
+			{
+				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, DepthTexture);
+			}
+		}
 		RHICmdList.CopyToResolveTarget(VelocityRT->GetRenderTargetItem().TargetableTexture, VelocityRT->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
 	}
 

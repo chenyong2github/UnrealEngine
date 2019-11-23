@@ -819,6 +819,7 @@ private:
 			OutCascadeSettings->FadePlaneOffset = FadePlane;
 			OutCascadeSettings->FadePlaneLength = SplitFar - FadePlane;
 			OutCascadeSettings->CascadeBiasDistribution = ShadowCascadeBiasDistribution;
+			OutCascadeSettings->ShadowSplitIndex = (int32)ShadowSplitIndex;
 		}
 
 		const FSphere CascadeSphere = FDirectionalLightSceneProxy::GetShadowSplitBoundsDepthRange(View, View.ViewMatrices.GetViewOrigin(), SplitNear, SplitFar, OutCascadeSettings);

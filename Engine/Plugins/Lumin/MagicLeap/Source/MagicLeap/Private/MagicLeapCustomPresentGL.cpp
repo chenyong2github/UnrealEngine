@@ -82,7 +82,9 @@ void FMagicLeapCustomPresentOpenGL::FinishRendering()
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, Framebuffers[0]);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, Framebuffers[1]);
 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		const bool bShouldFlipVertically = !IsES2Platform(GMaxRHIShaderPlatform);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		bShouldFlipVertically ?
 			FOpenGL::BlitFramebuffer(0, 0, SizeX / 2, SizeY, 0, vp_height, vp_width, 0, GL_COLOR_BUFFER_BIT, GL_NEAREST) :

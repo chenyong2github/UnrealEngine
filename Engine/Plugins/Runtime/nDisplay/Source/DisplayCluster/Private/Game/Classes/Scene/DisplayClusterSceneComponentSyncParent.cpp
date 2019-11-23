@@ -28,22 +28,10 @@ void UDisplayClusterSceneComponentSyncParent::TickComponent( float DeltaTime, EL
 	// ...
 }
 
-void UDisplayClusterSceneComponentSyncParent::DestroyComponent(bool bPromoteChildren)
-{
-	Super::DestroyComponent(bPromoteChildren);
-}
-
-
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterClusterSyncObject
 //////////////////////////////////////////////////////////////////////////////////////////////
-FString UDisplayClusterSceneComponentSyncParent::GetSyncId() const
-{
-	return FString::Printf(TEXT("SP_%s.%s"), *GetOwner()->GetName(), *GetAttachParent()->GetName());
-}
-
-
 bool UDisplayClusterSceneComponentSyncParent::IsDirty() const
 {
 	USceneComponent* const pParent = GetAttachParent();
@@ -72,6 +60,11 @@ void UDisplayClusterSceneComponentSyncParent::ClearDirty()
 //////////////////////////////////////////////////////////////////////////////////////////////
 // UDisplayClusterSceneComponentSync
 //////////////////////////////////////////////////////////////////////////////////////////////
+FString UDisplayClusterSceneComponentSyncParent::GenerateSyncId()
+{
+	return FString::Printf(TEXT("SP_%s.%s"), *GetOwner()->GetName(), *GetAttachParent()->GetName());
+}
+
 FTransform UDisplayClusterSceneComponentSyncParent::GetSyncTransform() const
 {
 	return GetAttachParent()->GetRelativeTransform();

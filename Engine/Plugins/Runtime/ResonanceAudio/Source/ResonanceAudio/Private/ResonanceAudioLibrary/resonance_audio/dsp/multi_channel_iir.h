@@ -64,8 +64,10 @@ class MultiChannelIir {
   // Number of channels in each input buffer.
   const size_t num_channels_;
 
+#if !DISABLE_CHECKS
   // Number of frames in each input buffer.
   const size_t frames_per_buffer_;
+#endif
 
   // Number of coefficients in the numerator and denominator polynomials.
   const size_t num_coefficients_;

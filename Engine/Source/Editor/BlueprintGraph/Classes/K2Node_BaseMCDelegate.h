@@ -43,9 +43,9 @@ public:
 	virtual bool IsCompatibleWithGraph(const UEdGraph* TargetGraph) const override;
 	// End of UEdGraphNode interface
 
-	BLUEPRINTGRAPH_API void SetFromProperty(const UProperty* Property, bool bSelfContext)
+	BLUEPRINTGRAPH_API void SetFromProperty(const UProperty* Property, bool bSelfContext, UClass* OwnerClass)
 	{
-		DelegateReference.SetFromField<UProperty>(Property, bSelfContext);
+		DelegateReference.SetFromField<UProperty>(Property, bSelfContext, OwnerClass);
 	}
 
 	BLUEPRINTGRAPH_API UProperty* GetProperty() const

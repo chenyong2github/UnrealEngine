@@ -257,6 +257,12 @@ public:
 	/** Current view target transition blend parameters. */
 	struct FViewTargetTransitionParams BlendParams;
 
+public:
+	/** Fires when ViewTarget is set to PendingViewTarget */
+	DECLARE_EVENT(APlayerCameraManager, FOnBlendComplete)
+	FOnBlendComplete& OnBlendComplete() const { return OnBlendCompleteEvent; }
+private:
+	mutable FOnBlendComplete OnBlendCompleteEvent;
 private:
 	/** Cached camera properties. */
 	UPROPERTY(transient)
@@ -769,14 +775,26 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
 	virtual class UCameraShake* PlayCameraShake(TSubclassOf<class UCameraShake> ShakeClass, float Scale=1.f, enum ECameraAnimPlaySpace::Type PlaySpace = ECameraAnimPlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
+
+	/** 
+	 * Plays a camera shake on this camera.
+	 * @param Shake - The class of camera shake to play.
+	 * @param SourceComponent - The source from which the camera shake originates.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
+	virtual class UCameraShake* PlayCameraShakeFromSource(TSubclassOf<class UCameraShake> ShakeClass, class UCameraShakeSourceComponent* SourceComponent);
 	
 	/** Immediately stops the given shake instance and invalidates it. */
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
 	virtual void StopCameraShake(class UCameraShake* ShakeInstance, bool bImmediately = true);
 
-	/** Stops playing CameraShake of the given class. */
+	/** Stops playing all shakes of the given class. */
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
 	virtual void StopAllInstancesOfCameraShake(TSubclassOf<class UCameraShake> Shake, bool bImmediately = true);
+
+	/** Stops playing all shakes originating from the given source. */
+	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
+	virtual void StopAllInstancesOfCameraShakeFromSource(class UCameraShakeSourceComponent* SourceComponent, bool bImmediately = true);
 
 	/** Stops all active camera shakes on this camera. */
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")

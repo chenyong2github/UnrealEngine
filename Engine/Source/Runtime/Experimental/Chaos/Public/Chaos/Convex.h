@@ -10,23 +10,23 @@
 namespace Chaos
 {
 	template<class T, int d>
-	class TConvex final : public TImplicitObject<T, d>
+	class TConvex final : public FImplicitObject
 	{
 	public:
-		using TImplicitObject<T, d>::GetTypeName;
+		using FImplicitObject::GetTypeName;
 
 		TConvex()
-		    : TImplicitObject<T,3>(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
+		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
 		{}
 		TConvex(const TConvex&) = delete;
 		TConvex(TConvex&& Other)
-		    : TImplicitObject<T,3>(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
+		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
 			, Planes(MoveTemp(Other.Planes))
 		    , SurfaceParticles(MoveTemp(Other.SurfaceParticles))
 		    , LocalBoundingBox(MoveTemp(Other.LocalBoundingBox))
 		{}
 		TConvex(TArray<TPlane<T, d>>&& InPlanes, TParticles<T, d>&& InSurfaceParticles)
-		    : TImplicitObject<T, d>(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
+		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
 			, Planes(MoveTemp(InPlanes))
 		    , SurfaceParticles(MoveTemp(InSurfaceParticles))
 		    , LocalBoundingBox(TBox<T, d>::EmptyBox())
@@ -37,7 +37,7 @@ namespace Chaos
 			}
 		}
 		TConvex(const TParticles<T, 3>& InParticles)
-		    : TImplicitObject<T, d>(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
+		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
 		{
 			const uint32 NumParticles = InParticles.Size();
 			if (NumParticles == 0)
@@ -48,7 +48,7 @@ namespace Chaos
 			TConvexBuilder<T>::Build(InParticles, Planes, SurfaceParticles, LocalBoundingBox);
 		}
 
-		static EImplicitObjectType StaticType()
+		static constexpr EImplicitObjectType StaticType()
 		{
 			return ImplicitObjectType::Convex;
 		}
@@ -157,7 +157,11 @@ namespace Chaos
 			return TVector<float, 3>(0.f, 0.f, 1.f);
 		}
 
-		virtual TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const override
+		FORCEINLINE T GetMargin() const { return 0; }
+
+		FORCEINLINE TVector<T, d> Support2(const TVector<T, d>& Direction) const { return Support(Direction, 0); }
+
+		TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const
 		{
 			T MaxDot = TNumericLimits<T>::Lowest();
 			int32 MaxVIdx = 0;
@@ -196,6 +200,24 @@ namespace Chaos
 			return Planes;
 		}
 
+		const FReal GetVolume() const
+		{
+			// TODO: More precise volume!
+			return LocalBoundingBox.GetVolume();
+		}
+
+		const FMatrix33 GetInertiaTensor(const FReal Mass) const
+		{
+			// TODO: More precise inertia!
+			return LocalBoundingBox.GetInertiaTensor(Mass);
+		}
+
+		const FVec3 GetCenterOfMass() const
+		{
+			// TODO: Actually compute this!
+			return FVec3(0.f);
+		}
+
 		virtual uint32 GetTypeHash() const override
 		{
 			uint32 Result = LocalBoundingBox.GetTypeHash();
@@ -212,7 +234,7 @@ namespace Chaos
 
 		FORCEINLINE void SerializeImp(FArchive& Ar)
 		{
-			TImplicitObject<T, 3>::SerializeImp(Ar);
+			FImplicitObject::SerializeImp(Ar);
 			Ar << Planes << SurfaceParticles << LocalBoundingBox;
 		}
 
@@ -253,6 +275,11 @@ namespace Chaos
 		void SimplifyGeometry()
 		{
 			TConvexBuilder<T>::Simplify(Planes, SurfaceParticles, LocalBoundingBox);
+		}
+
+		TVector<T,d> GetCenter() const
+		{
+			return TVector<T, d>(0);
 		}
 
 	private:

@@ -24,9 +24,9 @@ class TPBDCollisionSphereConstraints : public TPerParticleRule<T, d>
 	{
 		for (int32 i = 0; i < InParticles.Size(); ++i)
 		{
-			MObjects.Add(TUniquePtr<TImplicitObject<T, d>>(new TSphere<T, d>(InParticles.P(i), Height)));
+			MObjects.Add(TUniquePtr<FImplicitObject>(new TSphere<T, d>(InParticles.P(i), Height)));
 		}
-		TBoundingVolumeHierarchy<TArray<TUniquePtr<TImplicitObject<T, d>>>, TArray<int32>, T, d> Hierarchy(MObjects);
+		TBoundingVolumeHierarchy<TArray<TUniquePtr<FImplicitObject>>, TArray<int32>, T, d> Hierarchy(MObjects);
 		FCriticalSection CriticalSection;
 		PhysicsParallelFor(InParticles.Size(), [&](int32 Index) {
 			TArray<int32> PotentialIntersections = Hierarchy.FindAllIntersections(InParticles.P(Index));
@@ -64,7 +64,7 @@ class TPBDCollisionSphereConstraints : public TPerParticleRule<T, d>
   private:
 	T MH;
 	TMap<int32, TArray<int32>> MConstraints;
-	TArray<TUniquePtr<TImplicitObject<T, d>>> MObjects;
+	TArray<TUniquePtr<FImplicitObject>> MObjects;
 };
 }
 #endif

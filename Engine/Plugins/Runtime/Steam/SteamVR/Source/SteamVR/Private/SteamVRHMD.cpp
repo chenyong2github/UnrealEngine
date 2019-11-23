@@ -1353,6 +1353,9 @@ bool FSteamVRHMD::EnableStereo(bool bStereo)
 		TSharedPtr<SWindow> Window = SceneVP->FindWindow();
 		if (Window.IsValid() && SceneVP->GetViewportWidget().IsValid())
 		{
+			// Set MirrorWindow state on the Window
+			Window->SetMirrorWindow(bStereo);
+
 			if( bStereo )
 			{
 				uint32 Width, Height;
@@ -1573,7 +1576,7 @@ bool FSteamVRHMD::NeedReAllocateViewportRenderTarget(const FViewport& Viewport)
 
 bool FSteamVRHMD::NeedReAllocateDepthTexture(const TRefCountPtr<struct IPooledRenderTarget> & DepthTarget)
 {
-	check(IsInGameThread());
+	check(IsInRenderingThread());
 
 	// Check the dimensions of the currently stored depth swapchain vs the current rendering swapchain.
 	if (pBridge->GetSwapChain()->GetTexture2D()->GetSizeX() != pBridge->GetDepthSwapChain()->GetTexture2D()->GetSizeX() ||

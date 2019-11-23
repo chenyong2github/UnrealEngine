@@ -645,10 +645,12 @@ TSharedRef<SWidget> SFilterList::ExternalMakeAddFilterMenu(EAssetTypeCategories:
 
 void SFilterList::EnableAllFilters()
 {
-	for (auto FilterIt = Filters.CreateConstIterator(); FilterIt; ++FilterIt)
+	for (const TSharedRef<SFilter>& Filter : Filters)
 	{
-		(*FilterIt)->SetEnabled(true);
+		Filter->SetEnabled(true, false);
 	}
+
+	OnFilterChanged.ExecuteIfBound();
 }
 
 void SFilterList::DisableAllFilters()
@@ -1133,7 +1135,7 @@ void SFilterList::CreateOtherFiltersMenuCategory(FMenuBuilder& MenuBuilder, TSha
 	}
 }
 
-bool IsFilteredByPicker(TArray<UClass*> FilterClassList, UClass* TestClass)
+bool IsFilteredByPicker(const TArray<UClass*>& FilterClassList, UClass* TestClass)
 {
 	if (FilterClassList.Num() == 0)
 	{

@@ -3028,9 +3028,7 @@ TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequest
 			static void OnPIEWindowClosed(const TSharedRef<SWindow>& WindowBeingClosed, TWeakPtr<SViewport> PIEViewportWidget, TWeakObjectPtr<UEditorEngine> OwningEditorEngine, int32 InInstanceIndex, bool bRestoreRootWindow)
 			{
 				// Save off the window position
-				FVector2D PIEWindowPos = WindowBeingClosed->GetPositionInScreen();
-				const float DPIScale = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(PIEWindowPos.X, PIEWindowPos.Y);
-				PIEWindowPos /= DPIScale;
+				const FVector2D PIEWindowPos = WindowBeingClosed->GetPositionInScreen();
 
 				FIntPoint WindowSize = FIntPoint(WindowBeingClosed->GetClientSizeInScreen().X, WindowBeingClosed->GetClientSizeInScreen().Y);
 				FIntPoint WindowPosition = FIntPoint(PIEWindowPos.X, PIEWindowPos.Y);

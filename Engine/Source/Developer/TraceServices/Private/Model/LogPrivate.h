@@ -58,15 +58,6 @@ public:
 private:
 	void ConstructMessage(uint64 Id, TFunctionRef<void(const FLogMessage &)> Callback) const;
 
-	UE_TRACE_TABLE_LAYOUT_BEGIN(FMessagesTableLayout, FLogMessageInternal)
-		UE_TRACE_TABLE_COLUMN(Time, TEXT("Time"))
-		UE_TRACE_TABLE_PROJECTED_COLUMN(TableColumnType_CString, TEXT("Verbosity"), [](const FLogMessageInternal& Message) { return FOutputDeviceHelper::VerbosityToString(Message.Spec->Verbosity); })
-		UE_TRACE_TABLE_PROJECTED_COLUMN(TableColumnType_CString, TEXT("Category"), [](const FLogMessageInternal& Message) { return Message.Spec->Category->Name; })
-		UE_TRACE_TABLE_PROJECTED_COLUMN(TableColumnType_CString, TEXT("File"), [](const FLogMessageInternal& Message) { return Message.Spec->File; })
-		UE_TRACE_TABLE_PROJECTED_COLUMN(TableColumnType_Int, TEXT("Line"), [](const FLogMessageInternal& Message) { return Message.Spec->Line; })
-		UE_TRACE_TABLE_COLUMN(Message, TEXT("Message"))
-	UE_TRACE_TABLE_LAYOUT_END()
-
 	enum
 	{
 		FormatBufferSize = 65536
@@ -80,7 +71,7 @@ private:
 	TPagedArray<FLogMessageInternal> Messages;
 	TCHAR FormatBuffer[FormatBufferSize];
 	TCHAR TempBuffer[FormatBufferSize];
-	TTableView<FMessagesTableLayout> MessagesTable;
+	TTableView<FLogMessageInternal> MessagesTable;
 };
 
 }

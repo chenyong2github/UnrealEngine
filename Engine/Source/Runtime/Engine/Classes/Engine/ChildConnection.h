@@ -21,6 +21,8 @@ class UChildConnection
 
 public:
 
+	UNetConnection* GetParentConnection() { return Parent; }
+
 	// UNetConnection interface.
 
 	virtual UChildConnection* GetUChildConnection() override

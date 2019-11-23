@@ -15,6 +15,7 @@ float3 CompositeReflectionCapturesAndSkylight(
 	uint NumCapturesAffectingTile,
 	uint CaptureDataStartIndex, 
 	int SingleCaptureIndex,
+	bool bCompositeSkylight,
 	uint EyeIndex)
 {
 	float Mip = ComputeReflectionCaptureMipFromRoughness(Roughness, View.ReflectionCubemapMaxMip);
@@ -164,7 +165,7 @@ float3 CompositeReflectionCapturesAndSkylight(
 #if ENABLE_SKY_LIGHT
 
 	BRANCH  
-	if (ReflectionStruct.SkyLightParameters.y > 0)
+	if (ReflectionStruct.SkyLightParameters.y > 0 && bCompositeSkylight)
 	{
 		float SkyAverageBrightness = 1.0f;
 
@@ -209,7 +210,8 @@ float3 CompositeReflectionCapturesAndSkylight(
 	float3 ExtraIndirectSpecular,
 	uint NumCapturesAffectingTile,
 	uint CaptureDataStartIndex,
-	int SingleCaptureIndex)
+	int SingleCaptureIndex,
+	bool bCompositeSkylight)
 {
 	return CompositeReflectionCapturesAndSkylight(
 		CompositeAlpha, 
@@ -222,5 +224,6 @@ float3 CompositeReflectionCapturesAndSkylight(
 		NumCapturesAffectingTile, 
 		CaptureDataStartIndex,
 		SingleCaptureIndex,
+		bCompositeSkylight,
 		0);
 }

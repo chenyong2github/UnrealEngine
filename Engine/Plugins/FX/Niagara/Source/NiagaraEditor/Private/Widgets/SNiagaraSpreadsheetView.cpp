@@ -10,6 +10,7 @@
 #include "ISequencer.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "NiagaraEmitterHandle.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraScript.h"
@@ -224,7 +225,7 @@ void SNiagaraSpreadsheetView::Construct(const FArguments& InArgs, TSharedRef<FNi
 	CaptureData.SetNum(UIMax);
 
 	SystemViewModel = InSystemViewModel;
-	SystemViewModel->GetSelectionViewModel()->OnSelectionChanged().AddSP(this, &SNiagaraSpreadsheetView::SystemSelectionChanged);
+	SystemViewModel->GetSelectionViewModel()->OnEmitterHandleIdSelectionChanged().AddSP(this, &SNiagaraSpreadsheetView::SystemSelectionChanged);
 	SystemViewModel->OnPostSequencerTimeChanged().AddRaw(this, &SNiagaraSpreadsheetView::OnSequencerTimeChanged);
 
 	bInitialColumns = true;
@@ -620,7 +621,7 @@ SNiagaraSpreadsheetView::~SNiagaraSpreadsheetView()
 	{
 		if (SystemViewModel->GetSelectionViewModel() != nullptr)
 		{
-			SystemViewModel->GetSelectionViewModel()->OnSelectionChanged().RemoveAll(this);
+			SystemViewModel->GetSelectionViewModel()->OnEmitterHandleIdSelectionChanged().RemoveAll(this);
 		}
 		SystemViewModel->OnPostSequencerTimeChanged().RemoveAll(this);
 	}
@@ -897,7 +898,7 @@ bool SNiagaraSpreadsheetView::IsOutputAttributeEnabled(EUITab Tab, FName Item)
 	return CaptureData[(int32)Tab].FilteredOutputFields.Find(Item) != INDEX_NONE;
 }
 
-void SNiagaraSpreadsheetView::SystemSelectionChanged(UNiagaraSystemSelectionViewModel::ESelectionChangeSource SelectionChangeSource)
+void SNiagaraSpreadsheetView::SystemSelectionChanged()
 {
 	// Need to reset the attributes list...
 	for (int32 i = 0; i < (int32)UIMax; i++)

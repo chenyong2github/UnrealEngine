@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "ConstantQNRTFactory.h"
+#include "AudioSynesthesiaCustomVersion.h"
 #include "DSP/ConstantQ.h"
 #include "DSP/DeinterleaveView.h"
 #include "DSP/FloatArrayMath.h"
@@ -13,6 +14,8 @@ namespace Audio
 
 	FArchive &operator <<(FArchive& Ar, FConstantQFrame& Frame)
 	{
+		Ar.UsingCustomVersion(FAudioSynesthesiaCustomVersion::GUID);
+
 		Ar << Frame.Channel;
 		Ar << Frame.Timestamp;
 		Ar << Frame.Spectrum;
@@ -21,11 +24,15 @@ namespace Audio
 	}
 
 	FConstantQNRTResult::FConstantQNRTResult()
-	:	bIsSortedChronologically(false)
+	:	DurationInSeconds(0.f)
+	,	bIsSortedChronologically(false)
 	{}
 
 	void FConstantQNRTResult::Serialize(FArchive& Archive)
 	{
+		Archive.UsingCustomVersion(FAudioSynesthesiaCustomVersion::GUID);
+		
+		Archive << DurationInSeconds;
 		Archive << bIsSortedChronologically;
 		Archive << ChannelCQTFrames;
 		Archive << ChannelCQTIntervals;
@@ -45,30 +52,34 @@ namespace Audio
 		bIsSortedChronologically = false;
 	}
 
+	bool FConstantQNRTResult::ContainsChannel(int32 InChannelIndex) const
+	{
+		return ChannelCQTFrames.Contains(InChannelIndex);
+	}
+
 	const TArray<FConstantQFrame>& FConstantQNRTResult::GetFramesForChannel(int32 InChannelIndex) const
 	{
 		return ChannelCQTFrames[InChannelIndex];
 	}
 
-	float FConstantQNRTResult::GetChannelConstantQRange(int32 InChannelIdx, float InNoiseFloor) const
+	FFloatInterval FConstantQNRTResult::GetChannelConstantQInterval(int32 InChannelIdx) const
 	{
-		const FFloatInterval& Interval = ChannelCQTIntervals.FindRef(InChannelIdx);
-
-		if (Interval.Contains(InNoiseFloor))
-		{
-			return Interval.Max - InNoiseFloor;
-		}
-		else if (InNoiseFloor > Interval.Max)
-		{
-			return 0.f;
-		}
-
-		return Interval.Size();
+		return ChannelCQTIntervals[InChannelIdx];
 	}
 
-	int32 FConstantQNRTResult::GetNumChannels() const
+	void FConstantQNRTResult::GetChannels(TArray<int32>& OutChannels) const
 	{
-		return ChannelCQTFrames.Num();
+		ChannelCQTFrames.GetKeys(OutChannels);
+	}
+
+	float FConstantQNRTResult::GetDurationInSeconds() const 
+	{
+		return DurationInSeconds;
+	}
+
+	void FConstantQNRTResult::SetDurationInSeconds(float InDuration)
+	{
+		DurationInSeconds = InDuration;
 	}
 
 	 /* Returns true if FConstantQNRTFrame arrays are sorted in chronologically ascending order via their timestamp.
@@ -96,7 +107,8 @@ namespace Audio
 	/*******************************************************************************/
 
 	FConstantQNRTWorker::FConstantQNRTWorker(const FAnalyzerNRTParameters& InParams, const FConstantQNRTSettings& InAnalyzerSettings)
-	:	NumChannels(InParams.NumChannels)
+	:	NumFrames(0)
+	,	NumChannels(InParams.NumChannels)
 	,	NumBuffers(0)
 	,	SampleRate(InParams.SampleRate)
 	,	NumHopFrames(0)
@@ -139,6 +151,8 @@ namespace Audio
 
 	void FConstantQNRTWorker::AnalyzeMultichannel(TArrayView<const float> InAudio, IAnalyzerNRTResult* OutResult, bool bDoFlush)
 	{
+		NumFrames += InAudio.Num() / NumChannels;
+
 		// Assume that outer layers ensured that this is of correct type.
 		FConstantQNRTResult* ConstantQResult = static_cast<FConstantQNRTResult*>(OutResult);
 
@@ -196,12 +210,23 @@ namespace Audio
 
 		check(nullptr != ConstantQResult);
 
-		NumBuffers = 0; // Reset internal counters
 
 		if (nullptr != OutResult)
 		{
+			check(SampleRate > 0.f);
+
+			float DurationInSeconds = static_cast<float>(NumFrames) / SampleRate;
+
+			ConstantQResult->SetDurationInSeconds(DurationInSeconds);
+
 			ConstantQResult->SortChronologically();
 		}
+
+		// Reset internal counters
+		NumBuffers = 0; 
+		NumFrames = 0;
+
+		SlidingBuffer.Reset();
 	}
 
 	void FConstantQNRTWorker::AnalyzeWindow(const AlignedFloatBuffer& InWindow, int32 InChannelIndex, FConstantQNRTResult& OutResult)
@@ -229,13 +254,13 @@ namespace Audio
 	}
 
 	// Create a new FConstantQNRTResult.
-	TUniquePtr<IAnalyzerNRTResult> FConstantQNRTFactory::NewResult()
+	TUniquePtr<IAnalyzerNRTResult> FConstantQNRTFactory::NewResult() const
 	{
 		return MakeUnique<FConstantQNRTResult>();
 	}
 
 	// Create a new FConstantQNRTWorker
-	TUniquePtr<IAnalyzerNRTWorker> FConstantQNRTFactory::NewWorker(const FAnalyzerNRTParameters& InParams, const IAnalyzerNRTSettings* InSettings)
+	TUniquePtr<IAnalyzerNRTWorker> FConstantQNRTFactory::NewWorker(const FAnalyzerNRTParameters& InParams, const IAnalyzerNRTSettings* InSettings) const
 	{
 		const FConstantQNRTSettings* ConstantQSettings = static_cast<const FConstantQNRTSettings*>(InSettings);
 

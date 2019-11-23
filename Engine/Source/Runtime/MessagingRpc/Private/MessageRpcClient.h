@@ -11,9 +11,11 @@
 #include "Templates/SharedPointer.h"
 
 class FMessageEndpoint;
+class IMessageBus;
 class IMessageRpcCall;
 
 struct FMessageRpcProgress;
+struct FMessageEndpointBuilder;
 
 
 /**
@@ -26,7 +28,8 @@ public:
 
 	/** Default constructor. */
 	FMessageRpcClient();
-
+	FMessageRpcClient(const FString& InDebugName, const TSharedRef<IMessageBus, ESPMode::ThreadSafe>& InMessageBus);
+	
 	/** Virtual destructor. */
 	virtual ~FMessageRpcClient();
 
@@ -39,6 +42,7 @@ public:
 	virtual bool IsConnected() const override;
 
 protected:
+	explicit FMessageRpcClient(FMessageEndpointBuilder&& InEndpointBuilder);
 
 	/**
 	 * Find the active RPC call for a received message.

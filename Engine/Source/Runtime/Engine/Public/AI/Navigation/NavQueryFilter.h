@@ -18,6 +18,7 @@ public:
 	virtual void GetAllAreaCosts(float* CostArray, float* FixedCostArray, const int32 Count) const = 0;
 	virtual void SetBacktrackingEnabled(const bool bBacktracking) = 0;
 	virtual bool IsBacktrackingEnabled() const = 0;
+	virtual float GetHeuristicScale() const = 0;
 	virtual bool IsEqual(const INavigationQueryFilterInterface* Other) const = 0;
 	virtual void SetIncludeFlags(uint16 Flags) = 0;
 	virtual uint16 GetIncludeFlags() const = 0;
@@ -75,6 +76,9 @@ public:
 
 	/** get node limit for A* loop */
 	FORCEINLINE uint32 GetMaxSearchNodes() const { return MaxSearchNodes; }
+
+	/** get heuristic scaling factor */
+	float GetHeuristicScale() const { return QueryFilterImpl->GetHeuristicScale(); }
 
 	/** mark filter as backtracking - parse directional links in opposite direction
 	*  (find path from End to Start, but all links works like on path from Start to End) */

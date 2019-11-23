@@ -1,6 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/ArrayView.h"
+
 #include "Chaos/Array.h"
 #include "Chaos/ArrayCollectionArrayBase.h"
 

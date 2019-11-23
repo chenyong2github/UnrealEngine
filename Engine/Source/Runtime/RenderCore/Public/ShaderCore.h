@@ -740,24 +740,64 @@ struct FShaderCompilerInput
 struct FShaderCompilerError
 {
 	FShaderCompilerError(const TCHAR* InStrippedErrorMessage = TEXT(""))
-	:	ErrorVirtualFilePath(TEXT(""))
-	,	ErrorLineString(TEXT(""))
-	,	StrippedErrorMessage(InStrippedErrorMessage)
+		: ErrorVirtualFilePath(TEXT(""))
+		, ErrorLineString(TEXT(""))
+		, StrippedErrorMessage(InStrippedErrorMessage)
+		, HighlightedLine(TEXT(""))
+		, HighlightedLineMarker(TEXT(""))
 	{}
 
 	FShaderCompilerError(const TCHAR* InVirtualFilePath, const TCHAR* InLineString, const TCHAR* InStrippedErrorMessage)
 		: ErrorVirtualFilePath(InVirtualFilePath)
 		, ErrorLineString(InLineString)
 		, StrippedErrorMessage(InStrippedErrorMessage)
+		, HighlightedLine(TEXT(""))
+		, HighlightedLineMarker(TEXT(""))
 	{}
 
 	FString ErrorVirtualFilePath;
 	FString ErrorLineString;
 	FString StrippedErrorMessage;
+	FString HighlightedLine;
+	FString HighlightedLineMarker;
 
+	/** Returns the error message with source file and source line (if present). */
 	FString GetErrorString() const
 	{
-		return ErrorVirtualFilePath + TEXT("(") + ErrorLineString + TEXT("): ") + StrippedErrorMessage; // TODO
+		if (ErrorVirtualFilePath.IsEmpty())
+		{
+			return StrippedErrorMessage;
+		}
+		else
+		{
+			return ErrorVirtualFilePath + TEXT("(") + ErrorLineString + TEXT("): ") + StrippedErrorMessage;
+		}
+	}
+
+	/** Returns the error message with source file and source line (if present), as well as a line marker seperated with a LINE_TERMINATOR. */
+	FString GetErrorStringWithLineMarker() const
+	{
+		if (HasLineMarker())
+		{
+			// Append highlighted line and its marker to the same error message with line terminators
+			// to get a similar multiline error output as with DXC
+			return (GetErrorString() + LINE_TERMINATOR + TEXT("\t") + HighlightedLine + LINE_TERMINATOR + TEXT("\t") + HighlightedLineMarker);
+		}
+		else
+		{
+			return GetErrorString();
+		}
+	}
+
+	/**
+	Returns true if this error message has a marker string for the highlighted source line where the error occurred. Example:
+		/Engine/Private/MySourceFile.usf(120): error: undeclared identifier 'a'
+		float b = a;
+				  ^
+	*/
+	bool HasLineMarker() const
+	{
+		return !HighlightedLine.IsEmpty() && !HighlightedLineMarker.IsEmpty();
 	}
 
 	/** Returns the path of the underlying source file relative to the process base dir. */
@@ -765,7 +805,7 @@ struct FShaderCompilerError
 
 	friend FArchive& operator<<(FArchive& Ar,FShaderCompilerError& Error)
 	{
-		return Ar << Error.ErrorVirtualFilePath << Error.ErrorLineString << Error.StrippedErrorMessage;
+		return Ar << Error.ErrorVirtualFilePath << Error.ErrorLineString << Error.StrippedErrorMessage << Error.HighlightedLine << Error.HighlightedLineMarker;
 	}
 };
 

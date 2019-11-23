@@ -1961,6 +1961,7 @@ bool FMaterial::BeginCompileShaderMap(
 
 	SCOPE_SECONDS_COUNTER(MaterialCompileTime);
 
+	NewShaderMap->SetMaterialPath(GetBaseMaterialPathName());
 	// Generate the material shader code.
 	FMaterialCompilationOutput NewCompilationOutput;
 	FHLSLMaterialTranslator MaterialTranslator(this, NewCompilationOutput, StaticParameterSet, Platform,GetQualityLevel(), ShaderMapId.FeatureLevel, TargetPlatform);
@@ -3144,6 +3145,8 @@ void FMaterialUpdateContext::AddMaterialInterface(UMaterialInterface* Interface)
 
 FMaterialUpdateContext::~FMaterialUpdateContext()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialUpdateContext::~FMaterialUpdateContext);
+
 	double StartTime = FPlatformTime::Seconds();
 	bool bProcess = false;
 

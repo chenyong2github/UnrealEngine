@@ -4388,6 +4388,8 @@ FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase
 				 uint32 SaveFlags, const class ITargetPlatform* TargetPlatform, const FDateTime& FinalTimeStamp, bool bSlowTask, FArchiveDiffMap* InOutDiffMap,
 				 FSavePackageContext* SavePackageContext)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UEditorEngine::Save);
+
 	FScopedSlowTask SlowTask(100, FText(), bSlowTask);
 
 	UObject* Base = InBase;
@@ -4488,6 +4490,8 @@ bool UEditorEngine::SavePackage(UPackage* InOuter, UObject* InBase, EObjectFlags
 	FOutputDevice* Error, FLinkerNull* Conform, bool bForceByteSwapping, bool bWarnOfLongFilename,
 	uint32 SaveFlags, const class ITargetPlatform* TargetPlatform, const FDateTime& FinalTimeStamp, bool bSlowTask)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UEditorEngine::SavePackage);
+
 	// Workaround to avoid function signature change while keeping both bool and ESavePackageResult versions of SavePackage
 	const FSavePackageResultStruct Result = Save(InOuter, InBase, TopLevelFlags, Filename, Error, Conform, bForceByteSwapping,
 		bWarnOfLongFilename, SaveFlags, TargetPlatform, FinalTimeStamp, bSlowTask);
@@ -7151,7 +7155,7 @@ bool FActorLabelUtilities::SplitActorLabel(FString& InOutLabel, int32& OutIdx)
 			FString Idx = InOutLabel.RightChop(CharIdx);
 			if (Idx.Len() > 0)
 			{
-				InOutLabel = InOutLabel.Left(CharIdx);
+				InOutLabel.LeftInline(CharIdx);
 				OutIdx = FCString::Atoi(*Idx);
 				return true;
 			}

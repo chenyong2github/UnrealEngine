@@ -141,7 +141,7 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 	GlobalNavMeshInvalidationCounter += 3;
 	NavmeshInvalidationTimeSliceIndex = GlobalNavMeshInvalidationCounter;
 
-	ChaosMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<float>>();
+	ChaosMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
 
 	WorldBounds = FBoxSphereBounds(FBox(ForceInit));	
 
@@ -1227,7 +1227,7 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 #if GEOMETRYCOLLECTION_DEBUG_DRAW
 				const bool bHasNumParticlesChanged = (NumParticlesAdded != Results.NumParticlesAdded);  // Needs to be evaluated before NumParticlesAdded gets updated
 #endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW
-				RigidBodyIds.Init(Results.RigidBodyIds);
+				//RigidBodyIds.Init(Results.RigidBodyIds);
 				BaseRigidBodyIndex = Results.BaseIndex;
 				NumParticlesAdded = Results.NumParticlesAdded;
 				DisabledFlags = Results.DisabledStates;
@@ -1993,8 +1993,8 @@ void UGeometryCollectionComponent::CalculateGlobalMatrices()
 	SCOPE_CYCLE_COUNTER(STAT_GCCUGlobalMatrices);
 	FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 	Module->LockResultsRead();
-
-	const FGeometryCollectionResults* Results = PhysicsProxy ? &PhysicsProxy->GetPhysicsResults().GetGameDataForRead() : nullptr;
+	
+	const FGeometryCollectionResults* Results = PhysicsProxy ? PhysicsProxy->GetConsumerResultsGT() : nullptr;
 
 	const int32 NumTransforms = Results ? Results->GlobalTransforms.Num() : 0;
 	if(NumTransforms > 0)

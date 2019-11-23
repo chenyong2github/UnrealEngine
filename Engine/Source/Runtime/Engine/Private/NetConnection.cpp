@@ -176,7 +176,8 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 
 ,	StatPeriod			( 1.f  )
 ,	AvgLag				( 9999 )
-
+,   BestLag				( 9999 )
+,   BestLagAcc			( 9999 )
 ,	LagAcc				( 9999 )
 ,	LagCount			( 0 )
 ,	LastTime			( 0 )
@@ -2942,6 +2943,7 @@ void UNetConnection::Tick()
 		{
 			AvgLag = LagAcc/LagCount;
 		}
+		BestLag = AvgLag;
 
 		InBytesPerSecond = FMath::TruncToInt(static_cast<float>(InBytes) / RealTime);
 		OutBytesPerSecond = FMath::TruncToInt(static_cast<float>(OutBytes) / RealTime);

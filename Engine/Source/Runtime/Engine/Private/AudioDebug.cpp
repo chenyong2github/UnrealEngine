@@ -9,6 +9,7 @@
 #include "AudioVirtualLoop.h"
 #include "CanvasTypes.h"
 #include "DrawDebugHelpers.h"
+#include "DSP/Dsp.h"
 #include "Engine/Font.h"
 #include "GameFramework/GameUserSettings.h"
 #include "HAL/IConsoleManager.h"
@@ -24,6 +25,7 @@
 #include "Sound/SoundSourceBus.h"
 #include "Sound/SoundWave.h"
 #include "UnrealEngine.h"
+
 
 #ifndef ENABLE_AUDIO_DEBUG
 #error "Please define ENABLE_AUDIO_DEBUG"
@@ -72,6 +74,70 @@ FAutoConsoleVariableRef CVarAudioVisualizeVirtualLoopsEnabled(
 	TEXT("0: Not Enabled, 1: Enabled"),
 	ECVF_Default);
 
+static int32 AudioDebugSoundMaxNumDisplayedCVar = 32;
+FAutoConsoleVariableRef CVarAudioDebugSoundMaxNumDisplayed(
+	TEXT("au.Debug.Sounds.Max"),
+	AudioDebugSoundMaxNumDisplayedCVar,
+	TEXT("Max number of sounds to display in full sound debugger view. \n")
+	TEXT("Default: 32"),
+	ECVF_Default);
+
+static int32 AudioDebugSoundShowPathCVar = 1;
+FAutoConsoleVariableRef CVarAudioDebugSoundShowPath(
+	TEXT("au.Debug.Sounds.ShowPath"),
+	AudioDebugSoundShowPathCVar,
+	TEXT("Display full path of sound when enabled.\n")
+	TEXT("0: Not Enabled, 1: Enabled"),
+	ECVF_Default);
+
+static FString AudioDebugSoundSortCVarCVar = TEXT("Name");
+FAutoConsoleVariableRef CVarAudioDebugSoundSortCVar(
+	TEXT("au.Debug.Sounds.Sort"),
+	AudioDebugSoundSortCVarCVar,
+	TEXT("Value to sort by and display when sound stats are active. \n")
+	TEXT("Class, Distance, Name (Default), Priority, Time, Waves, Volume"),
+	ECVF_Default);
+
+static FString AudioDebugStatSoundTextColorCVar = TEXT("White");
+FAutoConsoleVariableRef CVarAudioDebugStatSoundColor(
+	TEXT("au.Debug.Sounds.TextColor"),
+	AudioDebugStatSoundTextColorCVar,
+	TEXT("Color of body text in audio debug views. \n")
+	TEXT("White, Red, Orange, Yellow, Blue, Magenta, Purple, Black"),
+	ECVF_Default);
+
+static int32 SoundCueDebugShowPathCVar = 1;
+FAutoConsoleVariableRef CVarAudioSoundCueDebugShowPath(
+	TEXT("au.Debug.Soundcues.ShowPath"),
+	SoundCueDebugShowPathCVar,
+	TEXT("Display full path of sound cue when enabled.\n")
+	TEXT("0: Not Enabled, 1: Enabled"),
+	ECVF_Default);
+
+static int32 SoundCueDebugMinimalCVar = 0;
+FAutoConsoleVariableRef CVarAudioSoundCueDebugMinimal(
+	TEXT("au.Debug.SoundCues.Minimal"),
+	SoundCueDebugMinimalCVar,
+	TEXT("Use the compact view of sound cue debug when enabled. \n")
+	TEXT("0: Not Enabled, 1: Enabled"),
+	ECVF_Default);
+
+static int32 SoundCueDebugTabSpacingCVar = 5;
+FAutoConsoleVariableRef CVarAudioSoundCueDebugTabSpacing(
+	TEXT("au.Debug.SoundCues.Spacing.Tab"),
+	SoundCueDebugTabSpacingCVar,
+	TEXT("Size of tab (in characters) with compact view. \n")
+	TEXT("Default: 5"),
+	ECVF_Default);
+
+static int32 SoundCueDebugCharSpacingCVar = 7;
+FAutoConsoleVariableRef CVarSoundCueDebugCharSpacing(
+	TEXT("au.Debug.SoundCues.Spacing.Char"),
+	SoundCueDebugCharSpacingCVar,
+	TEXT("Size of character (in pixels) with compact view. \n")
+	TEXT("Default: 7"),
+	ECVF_Default);
+
 // Test Data
 namespace ERequestedAudioStats
 {
@@ -87,7 +153,50 @@ namespace ERequestedAudioStats
 namespace
 {
 	const FColor HeaderColor = FColor::Green;
-	const FColor BodyColor = FColor::White;
+
+	FColor GetBodyColor()
+	{
+		return FColor::White;
+	}
+
+	FColor GetStatSoundBodyColor()
+	{
+		if (AudioDebugStatSoundTextColorCVar == TEXT("Red"))
+		{
+			return FColor::Red;
+		}
+		if (AudioDebugStatSoundTextColorCVar == TEXT("Orange"))
+		{
+			return FColor::Orange;
+		}
+		if (AudioDebugStatSoundTextColorCVar == TEXT("Yellow"))
+		{
+			return FColor::Yellow;
+		}
+		if (AudioDebugStatSoundTextColorCVar == TEXT("Green"))
+		{
+			return FColor::Green;
+		}
+		if (AudioDebugStatSoundTextColorCVar == TEXT("Blue"))
+		{
+			return FColor::Blue;
+		}
+		if (AudioDebugStatSoundTextColorCVar == TEXT("Magenta"))
+		{
+			return FColor::Magenta;
+		}
+		if (AudioDebugStatSoundTextColorCVar == TEXT("Purple"))
+		{
+			return FColor::Purple;
+		}
+		if (AudioDebugStatSoundTextColorCVar == TEXT("Black"))
+		{
+			return FColor::Black;
+		}
+
+		return FColor::White;
+	}
+
 	const int32  TabWidth = 12;
 
 	const float MinDisplayVolume = KINDA_SMALL_NUMBER; // -80 dB
@@ -106,14 +215,20 @@ namespace
 
 	struct FAudioStats
 	{
+		enum class EDisplaySort : uint8
+		{
+			Class,
+			Distance,
+			Name,
+			PlaybackTime,
+			Priority,
+			Waves,
+			Volume
+		};
+
 		enum class EDisplayFlags : uint8
 		{
 			Debug = 0x01,
-			Sort_Distance = 0x02,
-			Sort_Class = 0x04,
-			Sort_Name = 0x08,
-			Sort_WavesNum = 0x10,
-			Sort_Disabled = 0x20,
 			Long_Names = 0x40,
 		};
 
@@ -130,11 +245,17 @@ namespace
 		struct FStatSoundInfo
 		{
 			FString SoundName;
+			FString SoundPath;
 			FName SoundClassName;
 			float Distance;
+			float PlaybackTime;
+			float PlaybackTimeNonVirtualized;
+			float Priority;
+			float Volume;
 			uint32 AudioComponentID;
 			FTransform Transform;
 			TArray<FStatWaveInstanceInfo> WaveInstanceInfos;
+
 			TMultiMap<EAttenuationShape::Type, FBaseAttenuationSettings::AttenuationShapeDetails> ShapeDetailsMap;
 		};
 
@@ -147,15 +268,49 @@ namespace
 		};
 
 		uint8 DisplayFlags;
+		EDisplaySort DisplaySort;
 		TArray<FTransform> ListenerTransforms;
 		TArray<FStatSoundInfo> StatSoundInfos;
 		TArray<FStatSoundMix> StatSoundMixes;
 
 		FAudioStats()
 			: DisplayFlags(0)
+			, DisplaySort(EDisplaySort::Name)
 		{
 		}
 	};
+
+	void UpdateDisplaySort(FAudioStats& InAudioStats)
+	{
+		if (AudioDebugSoundSortCVarCVar == TEXT("distance"))
+		{
+			InAudioStats.DisplaySort = FAudioStats::EDisplaySort::Distance;
+		}
+		else if (AudioDebugSoundSortCVarCVar == TEXT("class"))
+		{
+			InAudioStats.DisplaySort = FAudioStats::EDisplaySort::Class;
+		}
+		else if (AudioDebugSoundSortCVarCVar == TEXT("name"))
+		{
+			InAudioStats.DisplaySort = FAudioStats::EDisplaySort::Name;
+		}
+		else if (AudioDebugSoundSortCVarCVar == TEXT("time"))
+		{
+			InAudioStats.DisplaySort = FAudioStats::EDisplaySort::PlaybackTime;
+		}
+		else if (AudioDebugSoundSortCVarCVar == TEXT("priority"))
+		{
+			InAudioStats.DisplaySort = FAudioStats::EDisplaySort::Priority;
+		}
+		else if (AudioDebugSoundSortCVarCVar == TEXT("volume"))
+		{
+			InAudioStats.DisplaySort = FAudioStats::EDisplaySort::Volume;
+		}
+		else if (AudioDebugSoundSortCVarCVar == TEXT("waves"))
+		{
+			InAudioStats.DisplaySort = FAudioStats::EDisplaySort::Waves;
+		}
+	}
 
 	struct FAudioStats_AudioThread
 	{
@@ -209,6 +364,26 @@ void FAudioDebugger::ToggleVisualizeDebug3dEnabled()
 {
 	bVisualize3dDebug = !bVisualize3dDebug;
 }
+
+#if WITH_EDITOR
+void FAudioDebugger::OnBeginPIE()
+{
+	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
+	if (DeviceManager)
+	{
+		DeviceManager->GetDebugger().ClearMutesAndSolos();
+	}
+}
+
+void FAudioDebugger::OnEndPIE()
+{
+	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
+	if (DeviceManager)
+	{
+		DeviceManager->GetDebugger().ClearMutesAndSolos();
+	}
+}
+#endif // WITH_EDITOR
 
 void FAudioDebugger::QuerySoloMuteSoundClass(const FString& Name, bool& bOutIsSoloed, bool& bOutIsMuted, FString& OutReason) const
 {
@@ -510,13 +685,15 @@ void FAudioDebugger::DrawDebugInfo(const FActiveSound& ActiveSound, const TArray
 #endif // ENABLE_DRAW_DEBUG
 }
 
-void FAudioDebugger::DrawDebugInfo(UWorld& World, const TArray<FListener>& Listeners, FVector& ListenerTransformOverride, bool bUseListenerTransformOverride)
+void FAudioDebugger::DrawDebugInfo(UWorld& World, const TArray<FListener>& Listeners)
 {
 #if ENABLE_DRAW_DEBUG
 	if (!ActiveSoundVisualizeListenersCVar)
 	{
 		return;
 	}
+
+	check(IsInAudioThread());
 
 	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
 	if (DeviceManager && DeviceManager->IsVisualizeDebug3dEnabled())
@@ -525,10 +702,11 @@ void FAudioDebugger::DrawDebugInfo(UWorld& World, const TArray<FListener>& Liste
 		const TWeakObjectPtr<UWorld> WorldPtr = &World;
 		for (const FListener& Listener : Listeners)
 		{
-			const FVector ListenerPosition = bUseListenerTransformOverride ? ListenerTransformOverride : Listener.Transform.GetTranslation();
+			const FVector ListenerPosition = Listener.GetPosition(true);
 			const FVector ListenerFront = Listener.GetFront();
 			const FVector ListenerUp = Listener.GetUp();
 			const FVector ListenerRight = Listener.GetRight();
+
 			FAudioThread::RunCommandOnGameThread([WorldPtr, ListenerPosition, ListenerFront, ListenerUp, ListenerRight]()
 			{
 				if (WorldPtr.IsValid())
@@ -739,12 +917,17 @@ int32 FAudioDebugger::RenderStatCues(UWorld* World, FViewport* Viewport, FCanvas
 		return Y;
 	}
 
-	const int32 FontHeight = GetStatsFont()->GetMaxCharHeight() + 2;
-	Canvas->DrawShadowedString(X, Y, TEXT("Active Sound Cues:"), GetStatsFont(), HeaderColor);
+	UFont* StatsFont = GetStatsFont();
+	const int32 FontSpacing = 2;
+	const int32 FontHeight = StatsFont->GetMaxCharHeight() + FontSpacing;
+	Canvas->DrawShadowedString(X, Y, TEXT("Active Sound Cues:"), StatsFont, HeaderColor);
 	Y += FontHeight;
 
 	int32 ActiveSoundCount = 0;
 	FAudioStats& AudioStats = AudioDeviceStats.FindOrAdd(AudioDevice->DeviceHandle);
+
+	if (!SoundCueDebugMinimalCVar)
+	{
 	for (const FAudioStats::FStatSoundInfo& StatSoundInfo : AudioStats.StatSoundInfos)
 	{
 		for (const FAudioStats::FStatWaveInstanceInfo& WaveInstanceInfo : StatSoundInfo.WaveInstanceInfos)
@@ -753,24 +936,115 @@ int32 FAudioDebugger::RenderStatCues(UWorld* World, FViewport* Viewport, FCanvas
 			{
 				FColor Color = FColor::White;
 				FString MuteSoloReason;
-				
+
+					if (FSoundSource::FDebugInfo* DebugInfo = WaveInstanceInfo.DebugInfo.Get())
+					{
+						// Color code same as icons. Red (mute), Yellow (solo), White (normal).
+						FScopeLock Lock(&DebugInfo->CS);
+						Color = DebugInfo->bIsMuted ? FColor::Red : DebugInfo->bIsSoloed ? FColor::Yellow : FColor::White;
+						MuteSoloReason = !DebugInfo->MuteSoloReason.IsEmpty() ? FString::Printf(TEXT(" - %s"), *DebugInfo->MuteSoloReason) : TEXT("");
+					}
+
+					const FString TheString = FString::Printf(TEXT("%4i. %6.2f %s %s %s"), ActiveSoundCount++, WaveInstanceInfo.Volume, *StatSoundInfo.SoundName, *StatSoundInfo.SoundClassName.ToString(), *MuteSoloReason);
+					Canvas->DrawShadowedString(X, Y, *TheString, StatsFont, Color);
+					Y += FontHeight;
+					break;
+				}
+			}
+		}
+	}
+	else
+	{
+		TArray<TPair<FString, FString> > SplitNames;
+		FString SoundPath, SoundName;
+		int32 MaxNameLength = 0;
+		uint32 MaxClassLength = 0;
+
+		// Get spacing data
+		for (const FAudioStats::FStatSoundInfo& StatSoundInfo : AudioStats.StatSoundInfos)
+		{
+			for (const FAudioStats::FStatWaveInstanceInfo& WaveInstanceInfo : StatSoundInfo.WaveInstanceInfos)
+			{
+				if (WaveInstanceInfo.Volume >= MinDisplayVolume)
+				{
+					if (!StatSoundInfo.SoundName.Split(TEXT("."), &SoundPath, &SoundName))
+					{
+						if (!StatSoundInfo.SoundName.Split(SUBOBJECT_DELIMITER, &SoundPath, &SoundName))
+						{
+							SoundName.Reset();
+							SoundPath = StatSoundInfo.SoundName;
+						}
+					}
+					SplitNames.Emplace(SoundName, SoundPath);
+
+					if (SoundName.Len() > MaxNameLength)
+					{
+						MaxNameLength = SoundName.Len();
+					}
+
+					if (StatSoundInfo.SoundClassName.GetStringLength() > MaxClassLength)
+					{
+						MaxClassLength = StatSoundInfo.SoundClassName.GetStringLength();
+					}
+				}
+			}
+		}
+
+		const int32 TabSpacing = FMath::Clamp(SoundCueDebugTabSpacingCVar, 1, SoundCueDebugTabSpacingCVar);
+		const int32 CharSpacing = FMath::Clamp(SoundCueDebugCharSpacingCVar, 1, SoundCueDebugCharSpacingCVar);
+		const int32 NumberSpacing = 6 * CharSpacing;	// 6 character len for 2 decimal float + 2 spaces 'X.XX  '
+
+		// Tab out name and class length
+		MaxNameLength = (MaxNameLength / TabSpacing + 1) * TabSpacing;
+		MaxClassLength = (MaxClassLength / TabSpacing + 1) * TabSpacing;
+
+		for (const FAudioStats::FStatSoundInfo& StatSoundInfo : AudioStats.StatSoundInfos)
+		{
+			for (const FAudioStats::FStatWaveInstanceInfo& WaveInstanceInfo : StatSoundInfo.WaveInstanceInfos)
+			{
+				if (WaveInstanceInfo.Volume >= MinDisplayVolume)
+				{
+					FColor Color = FColor::White;
+					FString MuteSoloReason;
+					bool bMutedOrSoloed = false;
+
 				if (FSoundSource::FDebugInfo* DebugInfo = WaveInstanceInfo.DebugInfo.Get())
 				{
-					// Color code same as icons. Orange (mute), Solo (red), Normal (white).					
+						// Color code same as icons. Red (mute), Yellow (solo), White (normal).
 					FScopeLock Lock(&DebugInfo->CS);
-					Color = DebugInfo->bIsMuted ? FColor::Orange : DebugInfo->bIsSoloed ? FColor::Red : FColor::White;
+						Color = DebugInfo->bIsMuted ? FColor::Red : DebugInfo->bIsSoloed ? FColor::Yellow : FColor::White;
+						bMutedOrSoloed = DebugInfo->bIsMuted || DebugInfo->bIsSoloed;
 					MuteSoloReason = !DebugInfo->MuteSoloReason.IsEmpty() ? FString::Printf(TEXT(" - %s"), *DebugInfo->MuteSoloReason) : TEXT("");
 				}
 
-				const FString TheString = FString::Printf(TEXT("%4i. %s %s %s"), ActiveSoundCount++, *StatSoundInfo.SoundName, *StatSoundInfo.SoundClassName.ToString(), *MuteSoloReason );
-				Canvas->DrawShadowedString(X, Y, *TheString, GetStatsFont(), Color);
+					const int32 SoundNameIndex = ActiveSoundCount++;
+					const FString LeadingNumber = FString::Printf(TEXT("%4i. "), SoundNameIndex);
+					const FString Volume = FString::Printf(TEXT("%6.2f "), WaveInstanceInfo.Volume);
+					const FString PathAndMuting = FString::Printf(TEXT("Path: %s %s"), *SplitNames[SoundNameIndex].Value, *MuteSoloReason);
+
+					int32 CurrentX = X;
+					Canvas->DrawShadowedString(CurrentX, Y, *LeadingNumber, StatsFont, Color);
+					CurrentX += NumberSpacing;
+					Canvas->DrawShadowedString(CurrentX, Y, *Volume, StatsFont, bMutedOrSoloed ? Color : FColor::Orange);
+					CurrentX += NumberSpacing;
+					Canvas->DrawShadowedString(CurrentX, Y, *SplitNames[SoundNameIndex].Key, StatsFont, bMutedOrSoloed ? Color : FColor(0, 255, 255));
+					CurrentX += (MaxNameLength * CharSpacing);
+					Canvas->DrawShadowedString(CurrentX, Y, *StatSoundInfo.SoundClassName.ToString(), StatsFont, bMutedOrSoloed ? Color : FColor::Yellow);
+
+					if (SoundCueDebugShowPathCVar)
+					{
+						CurrentX += (MaxClassLength * CharSpacing);
+						Canvas->DrawShadowedString(CurrentX, Y, *PathAndMuting, StatsFont, Color);
+					}
+
 				Y += FontHeight;
 				break;
 			}
 		}
 	}
+	}
 
-	Canvas->DrawShadowedString(X, Y, *FString::Printf(TEXT("Total: %i"), ActiveSoundCount), GetStatsFont(), BodyColor);
+	Canvas->DrawShadowedString(X, Y, *FString::Printf(TEXT("Total: %i"), ActiveSoundCount), GetStatsFont(), GetBodyColor());
 	Y += FontHeight;
 
 	return Y;
@@ -799,16 +1073,16 @@ int32 FAudioDebugger::RenderStatMixes(UWorld* World, FViewport* Viewport, FCanva
 		{
 			const FString TheString = FString::Printf(TEXT("%s - Fade Proportion: %1.2f - Total Ref Count: %i"), *StatSoundMix.MixName, StatSoundMix.InterpValue, StatSoundMix.RefCount);
 
-			const FColor& TextColour = (StatSoundMix.bIsCurrentEQ ? FColor::Yellow : FColor::White);
+			const FColor& TextColor = (StatSoundMix.bIsCurrentEQ ? FColor::Yellow : GetBodyColor());
 
-			Canvas->DrawShadowedString(X + TabWidth, Y, *TheString, GetStatsFont(), TextColour);
+			Canvas->DrawShadowedString(X + TabWidth, Y, *TheString, GetStatsFont(), TextColor);
 			Y += FontHeight;
 		}
 	}
 
 	if (!bDisplayedSoundMixes)
 	{
-		Canvas->DrawShadowedString(X + TabWidth, Y, TEXT("None"), GetStatsFont(), FColor::White);
+		Canvas->DrawShadowedString(X + TabWidth, Y, TEXT("None"), GetStatsFont(), GetBodyColor());
 		Y += FontHeight;
 	}
 
@@ -838,7 +1112,7 @@ int32 FAudioDebugger::RenderStatModulators(UWorld* World, FViewport* Viewport, F
 
 	if (!bDisplayedSoundModulationInfo)
 	{
-		Canvas->DrawShadowedString(X + TabWidth, Y, TEXT("None"), GetStatsFont(), FColor::White);
+		Canvas->DrawShadowedString(X + TabWidth, Y, TEXT("None"), GetStatsFont(), GetBodyColor());
 		Y += FontHeight;
 	}
 
@@ -853,18 +1127,23 @@ int32 FAudioDebugger::RenderStatReverb(UWorld* World, FViewport* Viewport, FCanv
 		return Y;
 	}
 
+	check(IsInGameThread());
+
 	const int32 Height = static_cast<int32>(GetStatsFont()->GetMaxCharHeight() + 2);
 
 	FString TheString;
+	const FLinearColor LinearBodyColor = FLinearColor(GetBodyColor());
 	if (UReverbEffect* ReverbEffect = AudioDevice->GetCurrentReverbEffect())
 	{
 		TheString = FString::Printf(TEXT("Active Reverb Effect: %s"), *ReverbEffect->GetName());
-		Canvas->DrawShadowedString(X, Y, *TheString, GetStatsFont(), FLinearColor::White);
+		Canvas->DrawShadowedString(X, Y, *TheString, GetStatsFont(), LinearBodyColor);
 		Y += Height;
 
 		AAudioVolume* CurrentAudioVolume = nullptr;
-		for (const FTransform& Transform : AudioDevice->ListenerTransforms)
+		const int32 ProxyCount = AudioDevice->ListenerProxies.Num();
+		for (int i = 0; i < ProxyCount; ++i)
 		{
+			const FTransform& Transform = AudioDevice->ListenerProxies[i].Transform;
 			AAudioVolume* PlayerAudioVolume = World->GetAudioSettings(Transform.GetLocation(), nullptr, nullptr);
 			if (PlayerAudioVolume && ((CurrentAudioVolume == nullptr) || (PlayerAudioVolume->GetPriority() > CurrentAudioVolume->GetPriority())))
 			{
@@ -879,26 +1158,26 @@ int32 FAudioDebugger::RenderStatReverb(UWorld* World, FViewport* Viewport, FCanv
 		{
 			TheString = TEXT("  Audio Volume Reverb Effect: None");
 		}
-		Canvas->DrawShadowedString(X, Y, *TheString, GetStatsFont(), FLinearColor::White);
+		Canvas->DrawShadowedString(X, Y, *TheString, GetStatsFont(), LinearBodyColor);
 		Y += Height;
 
 		const TMap<FName, FActivatedReverb>& ActivatedReverbs = AudioDevice->GetActiveReverb();
 		if (ActivatedReverbs.Num() == 0)
 		{
 			TheString = TEXT("  Activated Reverb: None");
-			Canvas->DrawShadowedString(X, Y, *TheString, GetStatsFont(), FLinearColor::White);
+			Canvas->DrawShadowedString(X, Y, *TheString, GetStatsFont(), LinearBodyColor);
 			Y += Height;
 		}
 		else if (ActivatedReverbs.Num() == 1)
 		{
 			auto It = ActivatedReverbs.CreateConstIterator();
 			TheString = FString::Printf(TEXT("  Activated Reverb Effect: %s (Priority: %g Tag: '%s')"), *It.Value().ReverbSettings.ReverbEffect->GetName(), It.Value().Priority, *It.Key().ToString());
-			Canvas->DrawShadowedString(X, Y, *TheString, GetStatsFont(), FLinearColor::White);
+			Canvas->DrawShadowedString(X, Y, *TheString, GetStatsFont(), LinearBodyColor);
 			Y += Height;
 		}
 		else
 		{
-			Canvas->DrawShadowedString(X, Y, TEXT("  Activated Reverb Effects:"), GetStatsFont(), FLinearColor::White);
+			Canvas->DrawShadowedString(X, Y, TEXT("  Activated Reverb Effects:"), GetStatsFont(), LinearBodyColor);
 			Y += Height;
 			TMap<int32, FString> PrioritySortedActivatedReverbs;
 			for (auto It = ActivatedReverbs.CreateConstIterator(); It; ++It)
@@ -908,7 +1187,7 @@ int32 FAudioDebugger::RenderStatReverb(UWorld* World, FViewport* Viewport, FCanv
 			}
 			for (auto It = PrioritySortedActivatedReverbs.CreateConstIterator(); It; ++It)
 			{
-				Canvas->DrawShadowedString(X, Y, *It.Value(), GetStatsFont(), FLinearColor::White);
+				Canvas->DrawShadowedString(X, Y, *It.Value(), GetStatsFont(), LinearBodyColor);
 				Y += Height;
 			}
 		}
@@ -916,7 +1195,7 @@ int32 FAudioDebugger::RenderStatReverb(UWorld* World, FViewport* Viewport, FCanv
 	else
 	{
 		TheString = TEXT("Active Reverb Effect: None");
-		Canvas->DrawShadowedString(X, Y, *TheString, GetStatsFont(), FLinearColor::White);
+		Canvas->DrawShadowedString(X, Y, *TheString, GetStatsFont(), LinearBodyColor);
 		Y += Height;
 	}
 
@@ -938,66 +1217,165 @@ int32 FAudioDebugger::RenderStatSounds(UWorld* World, FViewport* Viewport, FCanv
 
 	const uint8 bDebug = AudioStats.DisplayFlags & static_cast<uint8>(FAudioStats::EDisplayFlags::Debug);
 
-	FString SortingName = TEXT("disabled");
+	UpdateDisplaySort(AudioStats);
 
 	// Sort the list.
-	if (AudioStats.DisplayFlags & static_cast<uint8>(FAudioStats::EDisplayFlags::Sort_Name))
+	FString SortingName;
+	switch (AudioStats.DisplaySort)
 	{
-		AudioStats.StatSoundInfos.Sort([](const FAudioStats::FStatSoundInfo& A, const FAudioStats::FStatSoundInfo& B) { return A.SoundName < B.SoundName; });
-		SortingName = TEXT("pathname");
+		case FAudioStats::EDisplaySort::Class:
+	{
+			AudioStats.StatSoundInfos.Sort([](const FAudioStats::FStatSoundInfo& A, const FAudioStats::FStatSoundInfo& B) { return A.SoundClassName.LexicalLess(B.SoundClassName); });
+			SortingName = TEXT("Class");
+			break;
 	}
-	else if (AudioStats.DisplayFlags & static_cast<uint8>(FAudioStats::EDisplayFlags::Sort_Distance))
+		case FAudioStats::EDisplaySort::Distance:
 	{
 		AudioStats.StatSoundInfos.Sort([](const FAudioStats::FStatSoundInfo& A, const FAudioStats::FStatSoundInfo& B) { return A.Distance < B.Distance; });
-		SortingName = TEXT("distance");
+			SortingName = TEXT("Distance");
+			break;
 	}
-	else if (AudioStats.DisplayFlags & static_cast<uint8>(FAudioStats::EDisplayFlags::Sort_Class))
+		case FAudioStats::EDisplaySort::PlaybackTime:
 	{
-		AudioStats.StatSoundInfos.Sort([](const FAudioStats::FStatSoundInfo& A, const FAudioStats::FStatSoundInfo& B) { return A.SoundClassName.LexicalLess(B.SoundClassName); });
-		SortingName = TEXT("class");
+			AudioStats.StatSoundInfos.Sort([](const FAudioStats::FStatSoundInfo& A, const FAudioStats::FStatSoundInfo& B) { return A.PlaybackTime > B.PlaybackTime; });
+			SortingName = TEXT("Time");
+			break;
+		}
+		case FAudioStats::EDisplaySort::Priority:
+		{
+			AudioStats.StatSoundInfos.Sort([](const FAudioStats::FStatSoundInfo& A, const FAudioStats::FStatSoundInfo& B) { return A.Priority > B.Priority; });
+			SortingName = TEXT("Priority");
+			break;
 	}
-	else if (AudioStats.DisplayFlags & static_cast<uint8>(FAudioStats::EDisplayFlags::Sort_WavesNum))
+		case FAudioStats::EDisplaySort::Waves:
 	{
 		AudioStats.StatSoundInfos.Sort([](const FAudioStats::FStatSoundInfo& A, const FAudioStats::FStatSoundInfo& B) { return A.WaveInstanceInfos.Num() > B.WaveInstanceInfos.Num(); });
-		SortingName = TEXT("waves' num");
+			SortingName = TEXT("Waves");
+			break;
+		}
+		case FAudioStats::EDisplaySort::Volume:
+		{
+			AudioStats.StatSoundInfos.Sort([](const FAudioStats::FStatSoundInfo& A, const FAudioStats::FStatSoundInfo& B) { return A.Volume > B.Volume; });
+			SortingName = TEXT("Volume");
+			break;
+		}
+		case FAudioStats::EDisplaySort::Name:
+		default:
+		{
+			AudioStats.StatSoundInfos.Sort([](const FAudioStats::FStatSoundInfo& A, const FAudioStats::FStatSoundInfo& B)
+			{
+				if (AudioDebugSoundShowPathCVar)
+				{
+					return A.SoundPath < B.SoundPath;
+				}
+				return A.SoundName < B.SoundName;
+			});
+			SortingName = TEXT("Name");
+			break;
+		}
 	}
 
 	Canvas->DrawShadowedString(X, Y, TEXT("Active Sounds:"), GetStatsFont(), HeaderColor);
 	Y += FontHeight;
 
-	const FString InfoText = FString::Printf(TEXT(" Sorting: %s, Debug: %s"), *SortingName, bDebug ? TEXT("enabled") : TEXT("disabled"));
+	const FString InfoText = FString::Printf(TEXT(" Sorting By: %s, Visualize Attenuation: %s"), *SortingName, bDebug ? TEXT("Enabled") : TEXT("Disabled"));
 	Canvas->DrawShadowedString(X, Y, *InfoText, GetStatsFont(), FColor(128, 255, 128));
 	Y += FontHeight;
 
-	Canvas->DrawShadowedString(X, Y, TEXT("Index Path (Class) Distance"), GetStatsFont(), BodyColor);
+	static int32 FieldLength = 40;
+	static int32 NameHeaderPad = static_cast<int32>(FieldLength * 1.25f);
+	if (AudioStats.DisplaySort == FAudioStats::EDisplaySort::Name || AudioStats.DisplaySort == FAudioStats::EDisplaySort::Distance)
+	{
+		const FString FieldName = FString(TEXT("Distance")).RightPad(NameHeaderPad).Left(NameHeaderPad);
+		Canvas->DrawShadowedString(X, Y, *FString::Printf(TEXT("Index %s Name"), *FieldName), GetStatsFont(), GetBodyColor());
+	}
+	else
+	{
+		const FString FieldName = SortingName.RightPad(FieldLength).Left(FieldLength);
+		Canvas->DrawShadowedString(X, Y, *FString::Printf(TEXT("Index %s Name"), *FieldName), GetStatsFont(), GetBodyColor());
+	}
 	Y += FontHeight;
 
 	int32 TotalSoundWavesNum = 0;
+	const FColor BodyColor = GetStatSoundBodyColor();
 	for (int32 SoundIndex = 0; SoundIndex < AudioStats.StatSoundInfos.Num(); ++SoundIndex)
 	{
 		const FAudioStats::FStatSoundInfo& StatSoundInfo = AudioStats.StatSoundInfos[SoundIndex];
 		const int32 WaveInstancesNum = StatSoundInfo.WaveInstanceInfos.Num();
-		if (WaveInstancesNum > 0)
+		if (WaveInstancesNum == 0)
 		{
+			continue;
+		}
+		TotalSoundWavesNum += WaveInstancesNum;
+
+		if (SoundIndex >= AudioDebugSoundMaxNumDisplayedCVar)
+		{
+			continue;
+		}
+
+		bool bDisplayWaves = false;
+		const FString DisplayName = AudioDebugSoundShowPathCVar ? StatSoundInfo.SoundPath : StatSoundInfo.SoundName;
+		FString DebugValue;
+		switch (AudioStats.DisplaySort)
+		{
+			case FAudioStats::EDisplaySort::Class:
 			{
-				const FString TheString = FString::Printf(TEXT("%4i. %s (%s) %6.2f"), SoundIndex, *StatSoundInfo.SoundName, *StatSoundInfo.SoundClassName.ToString(), StatSoundInfo.Distance);
-				Canvas->DrawShadowedString(X, Y, *TheString, GetStatsFont(), FColor::White);
-				Y += FontHeight;
+				DebugValue = *StatSoundInfo.SoundClassName.ToString();
+				break;
+			}
+			case FAudioStats::EDisplaySort::PlaybackTime:
+			{
+				if (FMath::IsNearlyEqual(StatSoundInfo.PlaybackTime, StatSoundInfo.PlaybackTimeNonVirtualized))
+				{
+					DebugValue = FString::Printf(TEXT("%08.2f"), StatSoundInfo.PlaybackTime);
+				}
+				else
+				{
+					DebugValue = FString::Printf(TEXT("%08.2f (%08.2f Non-Virt)"), StatSoundInfo.PlaybackTime, StatSoundInfo.PlaybackTimeNonVirtualized);
+				}
+				break;
+			}
+			case FAudioStats::EDisplaySort::Priority:
+			{
+				DebugValue = FString::Printf(TEXT("%06.2f"), StatSoundInfo.Priority);
+				break;
+			}
+			case FAudioStats::EDisplaySort::Volume:
+			{
+				DebugValue = FString::Printf(TEXT("%01.2f (%04.2f dB)"), StatSoundInfo.Volume, Audio::ConvertToDecibels(StatSoundInfo.Volume));
+				break;
+			}
+			case FAudioStats::EDisplaySort::Waves:
+		{
+				DebugValue = FString::Printf(TEXT("%03u"), StatSoundInfo.WaveInstanceInfos.Num());
+				bDisplayWaves = true;
+				break;
+			}
+			case FAudioStats::EDisplaySort::Name:
+			case FAudioStats::EDisplaySort::Distance:
+			default:
+			{
+				DebugValue = FString::Printf(TEXT("%08.2f"), StatSoundInfo.Distance);
+				break;
+			}
 			}
 
-			TotalSoundWavesNum += WaveInstancesNum;
+		const FString DebugStr = FString::Printf(TEXT("  %03i    %s %s"), SoundIndex, *DebugValue.RightPad(FieldLength - 4).Left(FieldLength - 4), *DisplayName);
+		Canvas->DrawShadowedString(X, Y, *DebugStr, GetStatsFont(), BodyColor);
+		Y += FontHeight;
 
-			// Get the active sound waves.
+		if (bDisplayWaves)
+		{
 			for (int32 WaveIndex = 0; WaveIndex < WaveInstancesNum; WaveIndex++)
 			{
-				const FString TheString = *FString::Printf(TEXT("    %4i. %s"), WaveIndex, *StatSoundInfo.WaveInstanceInfos[WaveIndex].Description);
-				Canvas->DrawShadowedString(X, Y, *TheString, GetStatsFont(), FColor(205, 205, 205));
+				const FString WaveStr = *FString::Printf(TEXT("    %02i    %s"), WaveIndex, *StatSoundInfo.WaveInstanceInfos[WaveIndex].Description);
+				Canvas->DrawShadowedString(X, Y, *WaveStr, GetStatsFont(), FColor(205, 205, 205));
 				Y += FontHeight;
 			}
 		}
 	}
 
-	Canvas->DrawShadowedString(X, Y, *FString::Printf(TEXT("Audio Device ID: %u"), AudioDevice->DeviceHandle), GetStatsFont(), HeaderColor);
+	Canvas->DrawShadowedString(X, Y, *FString::Printf(TEXT("Audio Device ID: %u, Max Sounds Displayed: %i"), AudioDevice->DeviceHandle, AudioDebugSoundMaxNumDisplayedCVar), GetStatsFont(), HeaderColor);
 	Y += FontHeight;
 
 	Canvas->DrawShadowedString(X, Y, *FString::Printf(TEXT("Total Sounds: %i, Sound Waves: %i"), AudioStats.StatSoundInfos.Num(), TotalSoundWavesNum), GetStatsFont(), HeaderColor);
@@ -1028,7 +1406,8 @@ int32 FAudioDebugger::RenderStatSounds(UWorld* World, FViewport* Viewport, FCanv
 
 			if (StatSoundInfo.ShapeDetailsMap.Num() > 0)
 			{
-				DrawDebugString(World, SoundTransform.GetTranslation(), StatSoundInfo.SoundName, NULL, FColor::White, 0.01f);
+				const FString DebugName = AudioDebugSoundShowPathCVar ? StatSoundInfo.SoundPath : StatSoundInfo.SoundName;
+				DrawDebugString(World, SoundTransform.GetTranslation(), *DebugName, nullptr, BodyColor, 0.01f);
 
 				for (auto ShapeDetailsIt = StatSoundInfo.ShapeDetailsMap.CreateConstIterator(); ShapeDetailsIt; ++ShapeDetailsIt)
 				{
@@ -1113,7 +1492,7 @@ int32 FAudioDebugger::RenderStatWaves(UWorld* World, FViewport* Viewport, FCanva
 	const int32 FontHeight = GetStatsFont()->GetMaxCharHeight() + 2;
 
 	FAudioStats& AudioStats = AudioDeviceStats.FindOrAdd(AudioDevice->DeviceHandle);
-	Canvas->DrawShadowedString(X, Y, TEXT("Active Sound Waves:"), GetStatsFont(), FLinearColor::White);
+	Canvas->DrawShadowedString(X, Y, TEXT("Active Sound Waves:"), GetStatsFont(), FLinearColor::Green);
 	Y += TabWidth;
 
 	using FWaveInstancePair = TPair<const FAudioStats::FStatWaveInstanceInfo*, const FAudioStats::FStatSoundInfo*>;
@@ -1131,6 +1510,7 @@ int32 FAudioDebugger::RenderStatWaves(UWorld* World, FViewport* Viewport, FCanva
 
 	WaveInstances.Sort([](const FWaveInstancePair& A, const FWaveInstancePair& B) { return A.Key->InstanceIndex < B.Key->InstanceIndex; });
 
+	const FColor BodyColor = GetBodyColor();
 	for (const FWaveInstancePair& WaveInstanceInfo : WaveInstances)
 	{
 		UAudioComponent* AudioComponent = UAudioComponent::GetAudioComponentFromID(WaveInstanceInfo.Value->AudioComponentID);
@@ -1142,7 +1522,7 @@ int32 FAudioDebugger::RenderStatWaves(UWorld* World, FViewport* Viewport, FCanva
 			*WaveInstanceInfo.Key->WaveInstanceName.ToString(),
 			SoundOwner ? *SoundOwner->GetName() : TEXT("None"),
 			*WaveInstanceInfo.Value->SoundClassName.ToString());
-		Canvas->DrawShadowedString(X, Y, *TheString, GetStatsFont(), WaveInstanceInfo.Key->bPlayWhenSilent == 0 ? FColor::White : FColor::Yellow);
+		Canvas->DrawShadowedString(X, Y, *TheString, GetStatsFont(), WaveInstanceInfo.Key->bPlayWhenSilent == 0 ? BodyColor : FColor::Yellow);
 		Y += FontHeight;
 	}
 
@@ -1291,23 +1671,23 @@ bool FAudioDebugger::ToggleStatSounds(UWorld* World, FCommonViewportClient* View
 	const bool bHelp = Stream ? FCString::Stristr(Stream, TEXT("?")) != nullptr : false;
 	if (bHelp)
 	{
-		GLog->Logf(TEXT("stat sounds description"));
-		GLog->Logf(TEXT("  stat sounds off - Disables drawing stat sounds"));
-		GLog->Logf(TEXT("  stat sounds sort=distance|class|name|waves|default"));
+		GLog->Logf(TEXT("Shows all active sounds. Displays value sorted by when sort is set"));
+		GLog->Logf(TEXT("  stat sounds sort=class|distance|name|priority|time|volume|waves"));
 		GLog->Logf(TEXT("      distance - sort list by distance to player"));
 		GLog->Logf(TEXT("      class - sort by sound class name"));
-		GLog->Logf(TEXT("      name - sort by cue pathname"));
+		GLog->Logf(TEXT("      name - sort by cue pathname (default)"));
+		GLog->Logf(TEXT("      time - sort by time played back"));
 		GLog->Logf(TEXT("      waves - sort by waves' num"));
-		GLog->Logf(TEXT("      default - sorting is disabled"));
-		GLog->Logf(TEXT("  stat sounds -debug - enables debugging mode like showing sound radius sphere and names, but only for cues with enabled property bDebug"));
-		GLog->Logf(TEXT("  stat sounds -smalltext - use large text in debug output (default)"));
-		GLog->Logf(TEXT("  stat sounds -largetext - use large text in debug output"));
+		GLog->Logf(TEXT("      priority - sort by playback priority"));
+		GLog->Logf(TEXT("      volume - sort by volume"));
+		GLog->Logf(TEXT("  stat sounds -debug - enables debugging mode like showing sound radius sphere and names, but only for sounds with enabled 'Debug' property"));
 		GLog->Logf(TEXT(""));
 		GLog->Logf(TEXT("Ex. stat sounds sort=class -debug"));
-		GLog->Logf(TEXT(" This will show only debug sounds sorted by sound class"));
+		GLog->Logf(TEXT(" This will show only sounds that have 'Debug' property set to true and will sort them by and display their sound class"));
 	}
 
 	uint8 ShowSounds = 0;
+	FAudioStats::EDisplaySort DisplaySort = FAudioStats::EDisplaySort::Name;
 	if (Stream)
 	{
 		const bool bHide = FParse::Command(&Stream, TEXT("off"));
@@ -1326,26 +1706,9 @@ bool FAudioDebugger::ToggleStatSounds(UWorld* World, FCommonViewportClient* View
 			}
 
 			FString SortStr;
-			FParse::Value(Stream, TEXT("sort="), SortStr);
-			if (SortStr == TEXT("distance"))
+			if (FParse::Value(Stream, TEXT("sort="), SortStr))
 			{
-				ShowSounds |= static_cast<uint8>(FAudioStats::EDisplayFlags::Sort_Distance);
-			}
-			else if (SortStr == TEXT("class"))
-			{
-				ShowSounds |= static_cast<uint8>(FAudioStats::EDisplayFlags::Sort_Class);
-			}
-			else if (SortStr == TEXT("name"))
-			{
-				ShowSounds |= static_cast<uint8>(FAudioStats::EDisplayFlags::Sort_Name);
-			}
-			else if (SortStr == TEXT("waves"))
-			{
-				ShowSounds |= static_cast<uint8>(FAudioStats::EDisplayFlags::Sort_WavesNum);
-			}
-			else
-			{
-				ShowSounds |= static_cast<uint8>(FAudioStats::EDisplayFlags::Sort_Disabled);
+				AudioDebugSoundSortCVarCVar = SortStr;
 			}
 		}
 	}
@@ -1354,6 +1717,7 @@ bool FAudioDebugger::ToggleStatSounds(UWorld* World, FCommonViewportClient* View
 	check(AudioDevice);
 	FAudioStats& Stats = AudioDeviceStats.FindOrAdd(AudioDevice->DeviceHandle);
 	Stats.DisplayFlags = ShowSounds;
+	Stats.DisplaySort = DisplaySort;
 
 	ResolveDesiredStats(ViewportClient);
 
@@ -1383,7 +1747,11 @@ void FAudioDebugger::SendUpdateResultsToGameThread(const FAudioDevice& AudioDevi
 	
 	const bool bDebug = (RequestedStats & ERequestedAudioStats::DebugSounds) != 0;
 
-	static const uint8 SoundMask = ERequestedAudioStats::Sounds | ERequestedAudioStats::SoundCues | ERequestedAudioStats::SoundWaves;
+	static const uint8 SoundMask =
+		ERequestedAudioStats::Sounds |
+		ERequestedAudioStats::SoundCues |
+		ERequestedAudioStats::SoundMixes |
+		ERequestedAudioStats::SoundWaves;
 	if (RequestedStats & SoundMask)
 	{
 		for (FActiveSound* ActiveSound : AudioDevice.GetActiveSounds())
@@ -1394,8 +1762,18 @@ void FAudioDebugger::SendUpdateResultsToGameThread(const FAudioDevice& AudioDevi
 				{
 					ActiveSoundToInfoIndex.Add(ActiveSound, StatSoundInfos.AddDefaulted());
 					FAudioStats::FStatSoundInfo& StatSoundInfo = StatSoundInfos.Last();
-					StatSoundInfo.SoundName = ActiveSound->GetSound()->GetPathName();
+					StatSoundInfo.SoundName = SoundBase->GetName();
+					StatSoundInfo.SoundPath = SoundBase->GetPathName();
 					StatSoundInfo.Distance = AudioDevice.GetDistanceToNearestListener(ActiveSound->Transform.GetTranslation());
+					StatSoundInfo.PlaybackTime = ActiveSound->PlaybackTime;
+					StatSoundInfo.Priority = ActiveSound->GetPriority();
+					StatSoundInfo.PlaybackTimeNonVirtualized = ActiveSound->PlaybackTimeNonVirtualized;
+					
+					StatSoundInfo.Volume = 0.0f;
+					for (const TPair<UPTRINT, FWaveInstance*>& Pair : ActiveSound->GetWaveInstances())
+					{
+						StatSoundInfo.Volume = FMath::Max(StatSoundInfo.Volume, Pair.Value->GetVolumeWithDistanceAttenuation() * Pair.Value->GetDynamicVolume());
+					}
 
 					if (USoundClass* SoundClass = ActiveSound->GetSoundClass())
 					{
@@ -1406,13 +1784,14 @@ void FAudioDebugger::SendUpdateResultsToGameThread(const FAudioDevice& AudioDevi
 					{
 						StatSoundInfo.SoundClassName = NAME_None;
 					}
+
 					StatSoundInfo.Transform = ActiveSound->Transform;
 					StatSoundInfo.AudioComponentID = ActiveSound->GetAudioComponentID();
-										
+
 					if (bDebug && ActiveSound->GetSound()->bDebug)
 					{
 						ActiveSound->CollectAttenuationShapesForVisualization(StatSoundInfo.ShapeDetailsMap);
-					}										
+					}
 				}
 			}
 		}

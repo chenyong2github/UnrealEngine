@@ -216,16 +216,13 @@ USoundControlBusMix* UAudioModulationStatics::CreateBusMix(const UObject* WorldC
 
 void UAudioModulationStatics::DeactivateBus(const UObject* WorldContextObject, USoundControlBusBase* Bus)
 {
-	if (!Bus)
+	if (Bus)
 	{
-		return;
-	}
-
-	UWorld* World = GetAudioWorld(WorldContextObject);
-	if (AudioModulation::FAudioModulationImpl* ModulationImpl = GetModulationImpl(World))
-	{
-		auto BusId = static_cast<const AudioModulation::FBusId>(Bus->GetUniqueID());
-		ModulationImpl->DeactivateBus(BusId);
+		UWorld* World = GetAudioWorld(WorldContextObject);
+		if (AudioModulation::FAudioModulationImpl* ModulationImpl = GetModulationImpl(World))
+		{
+			ModulationImpl->DeactivateBus(*Bus);
+		}
 	}
 }
 
@@ -236,8 +233,7 @@ void UAudioModulationStatics::DeactivateBusMix(const UObject* WorldContextObject
 		UWorld* World = GetAudioWorld(WorldContextObject);
 		if (AudioModulation::FAudioModulationImpl* ModulationImpl = GetModulationImpl(World))
 		{
-			auto BusMixId = static_cast<const AudioModulation::FBusMixId>(BusMix->GetUniqueID());
-			ModulationImpl->DeactivateBusMix(BusMixId);
+			ModulationImpl->DeactivateBusMix(*BusMix);
 		}
 	}
 }
@@ -249,8 +245,7 @@ void UAudioModulationStatics::DeactivateBusModulator(const UObject* WorldContext
 	{
 		if (USoundBusModulatorLFO* LFO = Cast<USoundBusModulatorLFO>(Modulator))
 		{
-			auto LFOId = static_cast<const AudioModulation::FLFOId>(Modulator->GetUniqueID());
-			ModulationImpl->DeactivateLFO(LFOId);
+			ModulationImpl->DeactivateLFO(*LFO);
 		}
 	}
 }

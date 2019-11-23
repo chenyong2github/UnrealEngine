@@ -268,19 +268,22 @@ bool FDisplayClusterClusterManager::IsCluster() const
 	return Controller ? Controller->IsCluster() : false;
 }
 
-void FDisplayClusterClusterManager::RegisterSyncObject(IDisplayClusterClusterSyncObject* pSyncObj, EDisplayClusterSyncGroup SyncGroup)
+void FDisplayClusterClusterManager::RegisterSyncObject(IDisplayClusterClusterSyncObject* SyncObj, EDisplayClusterSyncGroup SyncGroup)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterCluster);
 
 	{
 		FScopeLock lock(&ObjectsToSyncCritSec);
-		ObjectsToSync[SyncGroup].Add(pSyncObj);
-	}
 
-	UE_LOG(LogDisplayClusterCluster, Log, TEXT("Registered sync object: %s"), *pSyncObj->GetSyncId());
+		if (SyncObj)
+		{
+			ObjectsToSync[SyncGroup].Add(SyncObj);
+			UE_LOG(LogDisplayClusterCluster, Log, TEXT("Registered sync object: %s"), *SyncObj->GetSyncId());
+		}
+	}
 }
 
-void FDisplayClusterClusterManager::UnregisterSyncObject(IDisplayClusterClusterSyncObject* pSyncObj)
+void FDisplayClusterClusterManager::UnregisterSyncObject(IDisplayClusterClusterSyncObject* SyncObj)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterCluster);
 
@@ -289,11 +292,11 @@ void FDisplayClusterClusterManager::UnregisterSyncObject(IDisplayClusterClusterS
 
 		for (auto& GroupPair : ObjectsToSync)
 		{
-			GroupPair.Value.Remove(pSyncObj);
+			GroupPair.Value.Remove(SyncObj);
 		}
 	}
 
-	UE_LOG(LogDisplayClusterCluster, Log, TEXT("Unregistered sync object: %s"), *pSyncObj->GetSyncId());
+	UE_LOG(LogDisplayClusterCluster, Log, TEXT("Unregistered sync object: %s"), *SyncObj->GetSyncId());
 }
 
 void FDisplayClusterClusterManager::AddClusterEventListener(TScriptInterface<IDisplayClusterClusterEventListener> Listener)
@@ -395,13 +398,16 @@ void FDisplayClusterClusterManager::ExportSyncData(FDisplayClusterMessage::DataT
 
 		SyncData.Empty(SyncData.Num() | 0x7);
 
-		for (IDisplayClusterClusterSyncObject* Obj : ObjectsToSync[SyncGroup])
+		for (IDisplayClusterClusterSyncObject* SyncObj : ObjectsToSync[SyncGroup])
 		{
-			if (Obj && Obj->IsDirty())
+			if (SyncObj && SyncObj->IsActive())
 			{
-				UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Adding object to sync: %s"), *Obj->GetSyncId());
-				SyncData.Add(Obj->GetSyncId(), Obj->SerializeToString());
-				Obj->ClearDirty();
+				if (SyncObj->IsDirty())
+				{
+					UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Adding object to sync: %s"), *SyncObj->GetSyncId());
+					SyncData.Add(SyncObj->GetSyncId(), SyncObj->SerializeToString());
+					SyncObj->ClearDirty();
+				}
 			}
 		}
 	}
@@ -418,19 +424,22 @@ void FDisplayClusterClusterManager::ImportSyncData(const FDisplayClusterMessage:
 			UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("sync-data: %s=%s"), *it->Key, *it->Value);
 		}
 
-		for (auto obj : ObjectsToSync[SyncGroup])
+		for (auto SyncObj : ObjectsToSync[SyncGroup])
 		{
-			const FString syncId = obj->GetSyncId();
-			if (!SyncData.Contains(syncId))
+			if (SyncObj && SyncObj->IsActive())
 			{
-				UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("%s has nothing to update"), *syncId);
-				continue;
-			}
+				const FString SyncId = SyncObj->GetSyncId();
+				if (!SyncData.Contains(SyncId))
+				{
+					UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("%s has nothing to update"), *SyncId);
+					continue;
+				}
 
-			UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Found %s in sync data. Applying..."), *syncId);
-			if (!obj->DeserializeFromString(SyncData[syncId]))
-			{
-				UE_LOG(LogDisplayClusterCluster, Error, TEXT("Couldn't apply sync data for sync object %s"), *syncId);
+				UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Found %s in sync data. Applying..."), *SyncId);
+				if (!SyncObj->DeserializeFromString(SyncData[SyncId]))
+				{
+					UE_LOG(LogDisplayClusterCluster, Error, TEXT("Couldn't apply sync data for sync object %s"), *SyncId);
+				}
 			}
 		}
 	}

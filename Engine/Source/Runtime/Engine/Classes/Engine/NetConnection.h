@@ -400,10 +400,13 @@ public:
 	/** Average lag seen during the last StatPeriod */
 	float AvgLag;
 
-	//UE_DEPRECATED(4.24, "BestLag variable is deprecated. Use AvgLag instead");
+private:
+	// BestLag variable is deprecated. Use AvgLag instead
 	float			BestLag;
-	//UE_DEPRECATED(4.24, "BestLagAcc variable is deprecated. Use LagAcc instead");
+	// BestLagAcc variable is deprecated. Use LagAcc instead
 	double			BestLagAcc;
+
+public:
 
 	/** Total accumulated lag values during the current StatPeriod */
 	double			LagAcc;
@@ -443,19 +446,19 @@ public:
 
 	/** Percentage of packets lost during the last StatPeriod */
 	using FNetConnectionPacketLoss = TPacketLossData<3>;
-	const FNetConnectionPacketLoss& GetInLossPercentage() const { return InPacketsLossPercentage; }
+	const FNetConnectionPacketLoss& GetInLossPercentage() const  { return InPacketsLossPercentage; }
 	const FNetConnectionPacketLoss& GetOutLossPercentage() const { return OutPacketsLossPercentage;  }
 
 
 private:
+
 	FNetConnectionPacketLoss InPacketsLossPercentage;
 	FNetConnectionPacketLoss OutPacketsLossPercentage;
-
-public:
 
 	/** Counts the number of stat samples taken */
 	int32 StatPeriodCount;
 
+public:
 
 	/** Net Analytics */
 

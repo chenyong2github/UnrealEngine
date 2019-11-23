@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Chaos/PBDCollisionConstraintUtil.h"
+#include "Chaos/PBDCollisionConstraintsUtil.h"
 
 #include "Chaos/BoundingVolumeHierarchy.h"
 #include "Chaos/Defines.h"
@@ -11,11 +11,11 @@
 #include "ChaosLog.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "Chaos/ImplicitObjectUnion.h"
-#include "Chaos/PBDCollisionTypes.h"
+#include "Chaos/CollisionResolutionTypes.h"
 
 namespace Chaos
 {
-	void ComputeHashTable(const TArray<Chaos::TPBDCollisionConstraint<float, 3>::FRigidBodyContactConstraint>& ConstraintsArray,
+	void ComputeHashTable(const TArray<Chaos::TPBDCollisionConstraints<float, 3>::FPointContactConstraint>& ConstraintsArray,
 						  const FBox& BoundingBox, TMultiMap<int32, int32>& HashTableMap, const float SpatialHashRadius)
 	{
 		float CellSize = 2.f * SpatialHashRadius;
@@ -52,7 +52,7 @@ namespace Chaos
 		int32 NumberOfCellsXYZ = NumberOfCellsX * NumberOfCellsY * NumberOfCellsZ;
 		for (int32 IdxConstraint = 0; IdxConstraint < ConstraintsArray.Num(); ++IdxConstraint)
 		{
-			FVector Location = (FVector)ConstraintsArray[IdxConstraint].Location - BoundingBox.Min + FVector(0.5f * CellSize);
+			FVector Location = (FVector)ConstraintsArray[IdxConstraint].GetLocation() - BoundingBox.Min + FVector(0.5f * CellSize);
 			int32 HashTableIdx = (int32)(Location.X * CellSizeInv) +
 								 (int32)(Location.Y * CellSizeInv) * NumberOfCellsX +
 								 (int32)(Location.Z * CellSizeInv) * NumberOfCellsXY;

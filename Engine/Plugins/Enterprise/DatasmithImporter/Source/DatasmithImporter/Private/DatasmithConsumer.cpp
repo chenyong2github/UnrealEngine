@@ -31,11 +31,11 @@
 
 #include "Algo/Count.h"
 #include "AssetRegistryModule.h"
+#include "CineCameraActor.h"
+#include "CineCameraComponent.h"
 #include "ComponentReregisterContext.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
-#include "CineCameraActor.h"
-#include "CineCameraComponent.h"
 #include "EditorLevelUtils.h"
 #include "Engine/Level.h"
 #include "Engine/LevelStreamingDynamic.h"
@@ -58,11 +58,14 @@
 #include "Misc/SecureHash.h"
 #include "UObject/Package.h"
 #include "UObject/SoftObjectPtr.h"
+#include "UObject/UnrealType.h"
 
 #define LOCTEXT_NAMESPACE "DatasmithConsumer"
 
 const FText DatasmithConsumerLabel( LOCTEXT( "DatasmithConsumerLabel", "Datasmith writer" ) );
 const FText DatasmithConsumerDescription( LOCTEXT( "DatasmithConsumerDesc", "Writes data prep world's current level and assets to current level" ) );
+
+const TCHAR* DatasmithSceneSuffix = TEXT("_Scene");
 
 namespace DatasmithConsumerUtils
 {
@@ -88,41 +91,75 @@ bool UDatasmithConsumer::Initialize()
 
 	ProgressTaskPtr->ReportNextStep( LOCTEXT( "DatasmithImportFactory_Initialize", "Preparing world ...") );
 
-	MoveAssets();
+	UpdateScene();
 
 	MoveLevel();
 
 	UpdateLevel();
 
-	UPackage* ParentPackage = CreatePackage( nullptr, *TargetContentFolder );
+	UPackage* ParentPackage = CreatePackage( nullptr, *GetTargetPackagePath() );
 	ParentPackage->FullyLoad();
 
-	WorkingScenePtr.Reset( DatasmithScene.Get() );
-
-	// Check if the Datasmith scene is not already in memory
-	if ( !WorkingScenePtr.IsValid() )
+	// Re-create the DatasmithScene if it is invalid
+	if ( !DatasmithScene.IsValid() )
 	{
-		FName DatasmithSceneName = MakeUniqueObjectName( ParentPackage, UDatasmithScene::StaticClass(), *( GetName() + TEXT("_DS") ) );
 
-		UPackage* Package = CreatePackage( nullptr, *FPaths::Combine( ParentPackage->GetPathName(), DatasmithSceneName.ToString() ) );
+		FString DatasmithSceneName = GetOuter()->GetName() + DatasmithSceneSuffix;
+
+		UPackage* Package = CreatePackage( nullptr, *FPaths::Combine( ParentPackage->GetPathName(), DatasmithSceneName ) );
 		Package->FullyLoad();
 
-		DatasmithScene = NewObject< UDatasmithScene >( Package, DatasmithSceneName, GetFlags() | RF_Public | RF_Transactional );
+		if( UObject* ExistingObject = StaticFindObject( nullptr, Package, *DatasmithSceneName, true ) )
+		{
+			bool bDatasmithSceneFound = false;
+
+			// Check to see if existing scene is not from same Dataprep asset
+			if( UDatasmithScene* ExistingDatasmithScene = Cast<UDatasmithScene>( ExistingObject ) )
+			{
+				if ( ExistingDatasmithScene->GetClass()->ImplementsInterface( UInterface_AssetUserData::StaticClass() ) )
+				{
+					if ( IInterface_AssetUserData* AssetUserDataInterface = Cast< IInterface_AssetUserData >( ExistingDatasmithScene ) )
+					{
+						if( UDataprepAssetUserData* DataprepAssetUserData = AssetUserDataInterface->GetAssetUserData< UDataprepAssetUserData >() )
+						{
+							UDataprepAssetInterface* DataprepAssetInterface = Cast< UDataprepAssetInterface >( GetOuter() );
+							check( DataprepAssetInterface );
+
+							if( DataprepAssetUserData->DataprepAssetPtr == DataprepAssetInterface )
+							{
+								DatasmithScene.Reset();
+								DatasmithScene = ExistingDatasmithScene;
+								Package = nullptr;
+								bDatasmithSceneFound = true;
+							}
+						}
+					}
+				}
+			}
+
+			if( !bDatasmithSceneFound )
+			{
+				DatasmithSceneName = MakeUniqueObjectName( ParentPackage, UDatasmithScene::StaticClass(), *DatasmithSceneName ).ToString();
+				Package = CreatePackage( nullptr, *FPaths::Combine( ParentPackage->GetPathName(), DatasmithSceneName ) );
+				Package->FullyLoad();
+			}
+		}
+
+		if(Package != nullptr)
+		{
+			DatasmithScene = NewObject< UDatasmithScene >( Package, *DatasmithSceneName, GetFlags() | RF_Standalone | RF_Public | RF_Transactional );
+		}
 		check( DatasmithScene.IsValid() );
 
-		WorkingScenePtr.Reset( DatasmithScene.Get() );
+		DatasmithScene->MarkPackageDirty();
 
 		FAssetRegistryModule::AssetCreated( DatasmithScene.Get() );
-		WorkingScenePtr->MarkPackageDirty();
 
-		WorkingScenePtr->AssetImportData = NewObject< UDatasmithSceneImportData >( DatasmithScene.Get(), UDatasmithSceneImportData::StaticClass() );
-		check( WorkingScenePtr->AssetImportData );
+		DatasmithScene->AssetImportData = NewObject< UDatasmithSceneImportData >( DatasmithScene.Get(), UDatasmithSceneImportData::StaticClass() );
+		check( DatasmithScene->AssetImportData );
 
 		// Store a Dataprep asset pointer into the scene asset in order to be able to later re-execute the dataprep pipeline
-		UDataprepAssetInterface* DataprepAssetInterface = Cast< UDataprepAssetInterface >( GetOuter() );
-		check( DataprepAssetInterface );
-
-		if ( WorkingScenePtr->GetClass()->ImplementsInterface(UInterface_AssetUserData::StaticClass()) )
+		if ( DatasmithScene->GetClass()->ImplementsInterface(UInterface_AssetUserData::StaticClass()) )
 		{
 			if ( IInterface_AssetUserData* AssetUserDataInterface = Cast< IInterface_AssetUserData >( DatasmithScene.Get() ) )
 			{
@@ -134,6 +171,10 @@ bool UDatasmithConsumer::Initialize()
 					DataprepAssetUserData = NewObject< UDataprepAssetUserData >( DatasmithScene.Get(), NAME_None, Flags );
 					AssetUserDataInterface->AddAssetUserData( DataprepAssetUserData );
 				}
+
+				UDataprepAssetInterface* DataprepAssetInterface = Cast< UDataprepAssetInterface >( GetOuter() );
+				check( DataprepAssetInterface );
+
 				DataprepAssetUserData->DataprepAssetPtr = DataprepAssetInterface;
 			}
 		}
@@ -194,8 +235,7 @@ bool UDatasmithConsumer::Run()
 	ProgressTaskPtr->ReportNextStep( LOCTEXT( "DatasmithImportFactory_Finalize", "Finalizing commit ...") );
 	FDatasmithImporter::FinalizeImport( *ImportContextPtr, TSet<UObject*>() );
 
-	// Store package path and level name for subsequent call to Run
-	LastPackagePath = TargetContentFolder;
+	// Store the level name for subsequent call to Run
 	LastLevelName = LevelName;
 
 	return true;
@@ -206,7 +246,6 @@ void UDatasmithConsumer::Reset()
 	ImportContextPtr.Reset();
 	ProgressTaskPtr.Reset();
 	UDataprepContentConsumer::Reset();
-	WorkingScenePtr.Reset(nullptr);
 
 	// Restore previous current level
 	if( PreviousCurrentLevel != nullptr )
@@ -228,7 +267,7 @@ const FText& UDatasmithConsumer::GetDescription() const
 
 bool UDatasmithConsumer::BuildContexts( UWorld* ImportWorld )
 {
-	const FString FilePath = FPaths::Combine( FPaths::ProjectIntermediateDir(), ( WorkingScenePtr->GetName() + TEXT( ".udatasmith" ) ) );
+	const FString FilePath = FPaths::Combine( FPaths::ProjectIntermediateDir(), ( DatasmithScene->GetName() + TEXT( ".udatasmith" ) ) );
 
 	ImportContextPtr = MakeUnique< FDatasmithImportContext >( FilePath, false, TEXT("DatasmithImport"), LOCTEXT("DatasmithImportFactoryDescription", "Datasmith") );
 
@@ -236,7 +275,7 @@ bool UDatasmithConsumer::BuildContexts( UWorld* ImportWorld )
 	ImportContextPtr->Options->BaseOptions.SceneHandling = EDatasmithImportScene::CurrentLevel;
 	ImportContextPtr->SceneAsset = DatasmithScene.Get();
 	ImportContextPtr->ActorsContext.ImportWorld = ImportWorld;
-	ImportContextPtr->Scene = FDatasmithSceneFactory::CreateScene( *WorkingScenePtr->GetName() );
+	ImportContextPtr->Scene = FDatasmithSceneFactory::CreateScene( *DatasmithScene->GetName() );
 	ImportContextPtr->SceneName = ImportContextPtr->Scene->GetName();
 
 	// Convert all incoming Datasmith scene actors as regular actors
@@ -250,7 +289,7 @@ bool UDatasmithConsumer::BuildContexts( UWorld* ImportWorld )
 	FDatasmithImporterUtils::FillSceneElement( ImportContextPtr->Scene, RootActors );
 
 	// Initialize context
-	FString SceneOuterPath = WorkingScenePtr->GetOutermost()->GetName();
+	FString SceneOuterPath = DatasmithScene->GetOutermost()->GetName();
 	FString RootPath = FPackageName::GetLongPackagePath( SceneOuterPath );
 
 	if ( Algo::Count( RootPath, TEXT('/') ) > 1 )
@@ -372,11 +411,21 @@ bool UDatasmithConsumer::SetLevelName( const FString & InLevelName, FText& OutRe
 	return bValidLevelName;
 }
 
-void UDatasmithConsumer::MoveAssets()
+bool UDatasmithConsumer::SetTargetContentFolder(const FString& InTargetContentFolder, FText& OutReason)
 {
-	// Do nothing if this is the First call to Run, DatasmithScene is null and LastPackagePath is empty
-	// or the re-Run is using the same package path
-	if( ( !DatasmithScene.IsValid() && LastPackagePath.IsEmpty() ) || LastPackagePath == TargetContentFolder )
+	if ( Super::SetTargetContentFolder( InTargetContentFolder, OutReason ) )
+	{
+		UpdateScene();
+		return true;
+	}
+
+	return false;
+}
+
+void UDatasmithConsumer::UpdateScene()
+{
+	// Do nothing if this is the First call to Run, DatasmithScene is null
+	if( !DatasmithScene.IsValid() )
 	{
 		return;
 	}
@@ -384,16 +433,29 @@ void UDatasmithConsumer::MoveAssets()
 	const FText DialogTitle( LOCTEXT( "DatasmithConsumerDlgTitle", "Warning" ) );
 
 	// Warn user if related Datasmith scene is not in package path and force re-creation of Datasmith scene
-	if( DatasmithScene.IsValid() && !WorkingScenePtr->GetPathName().StartsWith( TargetContentFolder ) )
+	FString DatasmithScenePath = FPaths::GetPath( DatasmithScene->GetPathName() );
+	if( DatasmithScenePath != TargetContentFolder )
 	{
-		FText WarningMessage = FText::Format(LOCTEXT("DatasmithConsumer_NoSceneAsset", "Package path {0} different from path previously used, {1}.\nPrevious content will not be updated."), FText::FromString (TargetContentFolder ), FText::FromString ( LastPackagePath ) );
+		// Force re-creation of Datasmith scene
+		DatasmithScene.Reset();
+
+		FText WarningMessage = FText::Format(LOCTEXT("DatasmithConsumer_NoSceneAsset", "Package path {0} different from path previously used, {1}.\nPrevious content will not be updated."), FText::FromString (TargetContentFolder ), FText::FromString ( DatasmithScenePath ) );
 		FMessageDialog::Open(EAppMsgType::Ok, WarningMessage, &DialogTitle );
 
 		UE_LOG( LogDatasmithImport, Warning, TEXT("%s"), *WarningMessage.ToString() );
-
-		// Force re-creation of Datasmith scene
-		DatasmithScene.Reset();
 	}
+	// Check if name of owning Dataprep asset has not changed
+	else
+	{
+		const FString DatasmithSceneName = GetOuter()->GetName() + DatasmithSceneSuffix;
+
+		if( DatasmithScene->GetName() != DatasmithSceneName )
+		{
+			// Force re-creation of Datasmith scene
+			DatasmithScene.Reset();
+		}
+	}
+
 }
 
 void UDatasmithConsumer::MoveLevel()

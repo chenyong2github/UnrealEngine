@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved..
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved..
 
 /*=============================================================================
 	VulkanQueue.h: Private Vulkan RHI definitions.
@@ -27,6 +27,11 @@ public:
 	inline uint32 GetFamilyIndex() const
 	{
 		return FamilyIndex;
+	}
+
+	inline uint32 GetQueueIndex() const
+	{
+		return QueueIndex;
 	}
 
 	void Submit(FVulkanCmdBuffer* CmdBuffer, uint32 NumSignalSemaphores = 0, VkSemaphore* SignalSemaphores = nullptr);

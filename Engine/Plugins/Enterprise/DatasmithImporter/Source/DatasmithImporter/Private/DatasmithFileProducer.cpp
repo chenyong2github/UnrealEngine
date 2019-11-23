@@ -101,6 +101,13 @@ bool UDatasmithFileProducer::Initialize()
 		return false;
 	}
 
+	// Check file exists
+	if(!FPaths::FileExists( FilePath ))
+	{
+		LogError( FText::Format( LOCTEXT( "DatasmithFileProducer_NotFound", "File {0} does not exist." ), FText::FromString( FilePath ) ) );
+		return false;
+	}
+
 	UPackage* TransientPackage = NewObject< UPackage >( nullptr, *FPaths::Combine( Context.RootPackagePtr->GetPathName(), *GetName() ), RF_Transient );
 	TransientPackage->FullyLoad();
 
@@ -272,41 +279,58 @@ void UDatasmithFileProducer::SceneElementToWorld()
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(CommitMeshDescriptions);
 
+		UStaticMesh::FCommitMeshDescriptionParams Params;
+		Params.bMarkPackageDirty = false;
+		Params.bUseHashAsGuid = true;
+
 		ParallelFor(StaticMeshes.Num(),
 			[&](int32 StaticMeshIndex)
 			{
-				UStaticMesh::FCommitMeshDescriptionParams Params;
-				Params.bMarkPackageDirty = false;
-				Params.bUseHashAsGuid = true;
-
-				for (int32 Index = 0; Index < StaticMeshes[StaticMeshIndex]->GetNumSourceModels(); ++Index)
+				if(UStaticMesh* StaticMesh = StaticMeshes[StaticMeshIndex])
 				{
-					StaticMeshes[StaticMeshIndex]->CommitMeshDescription( Index, Params );
+					for (int32 Index = 0; Index < StaticMesh->GetNumSourceModels(); ++Index)
+					{
+						StaticMesh->CommitMeshDescription( Index, Params );
+					}
 				}
 			}
 		);
 	}
 
-	Assets.Append( StaticMeshes );
+	// Note: Some of the assets might be null (incomplete or failed import), only add non-null ones to Assets
+
+	for(UStaticMesh* StaticMesh : StaticMeshes)
+	{
+		if(StaticMesh)
+		{
+			Assets.Emplace( StaticMesh );
+		}
+	}
 
 	for ( TPair< TSharedRef< IDatasmithTextureElement >, UTexture* >& AssetPair : ImportContextPtr->ImportedTextures )
 	{
-		Assets.Emplace( AssetPair.Value );
+		if(AssetPair.Value)
+		{
+			Assets.Emplace( AssetPair.Value );
+		}
 	}
 
 	for ( TPair< TSharedRef< IDatasmithBaseMaterialElement >, UMaterialInterface* >& AssetPair : ImportContextPtr->ImportedMaterials )
 	{
-		Assets.Emplace( AssetPair.Value );
-
-		if (UMaterial* SourceMaterial = Cast< UMaterial >(AssetPair.Value))
+		if(AssetPair.Value)
 		{
-			SourceMaterial->RebuildExpressionTextureReferences();
+			Assets.Emplace( AssetPair.Value );
 
-			for (FMaterialFunctionInfo& MaterialFunctionInfo : SourceMaterial->MaterialFunctionInfos)
+			if (UMaterial* SourceMaterial = Cast< UMaterial >(AssetPair.Value))
 			{
-				if (MaterialFunctionInfo.Function && MaterialFunctionInfo.Function->GetOutermost() == SourceMaterial->GetOutermost())
+				SourceMaterial->RebuildExpressionTextureReferences();
+
+				for (FMaterialFunctionInfo& MaterialFunctionInfo : SourceMaterial->MaterialFunctionInfos)
 				{
-					Assets.Emplace( MaterialFunctionInfo.Function );
+					if (MaterialFunctionInfo.Function && MaterialFunctionInfo.Function->GetOutermost() == SourceMaterial->GetOutermost())
+					{
+						Assets.Emplace( MaterialFunctionInfo.Function );
+					}
 				}
 			}
 		}
@@ -314,22 +338,34 @@ void UDatasmithFileProducer::SceneElementToWorld()
 
 	for ( TPair< int32, UMaterialInterface* >& AssetPair : ImportContextPtr->ImportedParentMaterials )
 	{
-		Assets.Emplace( AssetPair.Value );
+		if(AssetPair.Value)
+		{
+			Assets.Emplace( AssetPair.Value );
+		}
 	}
 
 	for ( TPair< TSharedRef< IDatasmithBaseMaterialElement >, UMaterialFunction* >& AssetPair : ImportContextPtr->ImportedMaterialFunctions )
 	{
-		Assets.Emplace( AssetPair.Value );
+		if(AssetPair.Value)
+		{
+			Assets.Emplace( AssetPair.Value );
+		}
 	}
 
 	for ( TPair< TSharedRef< IDatasmithLevelSequenceElement >, ULevelSequence* >& AssetPair : ImportContextPtr->ImportedLevelSequences )
 	{
-		Assets.Emplace( AssetPair.Value );
+		if(AssetPair.Value)
+		{
+			Assets.Emplace( AssetPair.Value );
+		}
 	}
 
 	for ( TPair< TSharedRef< IDatasmithLevelVariantSetsElement >, ULevelVariantSets* >& AssetPair : ImportContextPtr->ImportedLevelVariantSets )
 	{
-		Assets.Emplace( AssetPair.Value );
+		if(AssetPair.Value)
+		{
+			Assets.Emplace( AssetPair.Value );
+		}
 	}
 }
 
@@ -703,11 +739,6 @@ bool UDatasmithDirProducer::Initialize()
 		return false;
 	}
 
-	UPackage* TransientPackage = NewObject< UPackage >( nullptr, *FPaths::Combine( Context.RootPackagePtr->GetPathName(), *GetName() ), RF_Transient );
-	TransientPackage->FullyLoad();
-
-	Context.SetRootPackage( TransientPackage );
-
 	FileProducer = TStrongObjectPtr< UDatasmithFileProducer >( NewObject< UDatasmithFileProducer >( GetTransientPackage(), NAME_None, RF_Transient ) );
 
 	return true;
@@ -723,6 +754,13 @@ bool UDatasmithDirProducer::Execute(TArray< TWeakObjectPtr< UObject > >& OutAsse
 
 	FDataprepWorkReporter Task( Context.ProgressReporterPtr, LOCTEXT( "DatasmithFileProducer_LoadingFromDirectory", "Loading files from directory ..." ), (float)FilesToProcess.Num(), 1.0f );
 
+	// Cache context's package
+	UPackage* CachedPackage = Context.RootPackagePtr.Get();
+
+	FString RootPath = FPaths::Combine( Context.RootPackagePtr->GetPathName(), *GetName() );
+	UPackage* RootTransientPackage = NewObject< UPackage >( nullptr, *RootPath, RF_Transient );
+	RootTransientPackage->FullyLoad();
+
 	for( const FString& FileName : FilesToProcess )
 	{
 		if ( IsCancelled() )
@@ -730,7 +768,21 @@ bool UDatasmithDirProducer::Execute(TArray< TWeakObjectPtr< UObject > >& OutAsse
 			break;
 		}
 
+		// Import content of file into the proper content folder to avoid name collision
+		UPackage* TransientPackage = RootTransientPackage;
+		FString FilePath = FPaths::GetPath( FileName );
+		if(FilePath != FolderPath)
+		{
+			FString SubFolder = FilePath.Right(FilePath.Len() - FolderPath.Len() - 1 /* Remove leading '/' */);
+			TransientPackage = NewObject< UPackage >( nullptr, *FPaths::Combine( RootPath, SubFolder ), RF_Transient );
+			TransientPackage->FullyLoad();
+		}
+
+		Context.SetRootPackage( TransientPackage );
+
+		// Update file producer's filename
 		FileProducer->FilePath =  FPaths::ConvertRelativePathToFull( FileName );
+		FileProducer->UpdateName();
 
 		Task.ReportNextStep( FText::Format( LOCTEXT( "DatasmithFileProducer_LoadingFile", "Loading {0} ..."), FText::FromString( FileName ) ) );
 
@@ -740,6 +792,9 @@ bool UDatasmithDirProducer::Execute(TArray< TWeakObjectPtr< UObject > >& OutAsse
 			LogError( ErrorReport );
 		}
 	}
+
+	// Restore context's package
+	Context.SetRootPackage( CachedPackage );
 
 	return !IsCancelled();
 }
@@ -1363,7 +1418,7 @@ FString FDatasmithFileProducerUtils::SelectFileToImport()
 	if ( bOpened && OpenedFiles.Num() > 0 )
 	{
 		const FString& OpenedFile = OpenedFiles[0];
-		FEditorDirectories::Get().SetLastDirectory( ELastDirectory::GENERIC_IMPORT, OpenedFile );
+		FEditorDirectories::Get().SetLastDirectory( ELastDirectory::GENERIC_IMPORT, FPaths::GetPath(OpenedFile) );
 
 		return FPaths::ConvertRelativePathToFull( OpenedFile );
 	}

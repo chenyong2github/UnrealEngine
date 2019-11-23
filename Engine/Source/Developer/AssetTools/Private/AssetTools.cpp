@@ -130,13 +130,13 @@
 #include "SAdvancedCopyReportDialog.h"
 #include "AssetToolsSettings.h"
 #include "AssetVtConversion.h"
+#include "Misc/ConfigCacheIni.h"
 #if WITH_EDITOR
 #include "Subsystems/AssetEditorSubsystem.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "AssetTools"
 
- 
 TScriptInterface<IAssetTools> UAssetToolsHelpers::GetAssetTools()
 {
 	return &UAssetToolsImpl::Get();
@@ -154,6 +154,14 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	, AssetFixUpRedirectors(MakeShareable(new FAssetFixUpRedirectors))
 	, NextUserCategoryBit(EAssetTypeCategories::FirstUser)
 {
+	TArray<FString> SupportedTypesArray;
+	GConfig->GetArray(TEXT("AssetTools"), TEXT("SupportedAssetTypes"), SupportedTypesArray, GEditorIni);
+
+	for (const FString& Type : SupportedTypesArray)
+	{
+		SupportedAssetTypes.Add(*Type);
+	}
+
 	// Register the built-in advanced categories
 	AllocatedCategoryBits.Add(TEXT("_BuiltIn_0"), FAdvancedAssetCategory(EAssetTypeCategories::Animation, LOCTEXT("AnimationAssetCategory", "Animation")));
 	AllocatedCategoryBits.Add(TEXT("_BuiltIn_1"), FAdvancedAssetCategory(EAssetTypeCategories::Blueprint, LOCTEXT("BlueprintAssetCategory", "Blueprints")));
@@ -236,7 +244,7 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Texture2D));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_TextureCube));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Texture2DArray));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_VolumeTexture) );
+	RegisterAssetTypeActions( MakeShareable(new FAssetTypeActions_VolumeTexture) );
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_TextureRenderTarget));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_TextureRenderTarget2D));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_TextureRenderTargetCube));
@@ -253,6 +261,23 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 
 void UAssetToolsImpl::RegisterAssetTypeActions(const TSharedRef<IAssetTypeActions>& NewActions)
 {
+	if (SupportedAssetTypes.Num() > 0)
+	{
+		const UClass* SupportedClass = NewActions->GetSupportedClass();
+		if (SupportedClass != nullptr)
+		{
+			const FName ClassName = SupportedClass->GetFName();
+			if (!SupportedAssetTypes.Contains(ClassName))
+			{
+				NewActions->SetSupported(false);
+			}
+		}
+		else
+		{
+			NewActions->SetSupported(false);
+		}
+	}
+
 	AssetTypeActionsList.Add(NewActions);
 }
 
@@ -269,7 +294,7 @@ void UAssetToolsImpl::GetAssetTypeActionsList( TArray<TWeakPtr<IAssetTypeActions
 	}
 }
 
-TWeakPtr<IAssetTypeActions> UAssetToolsImpl::GetAssetTypeActionsForClass( UClass* Class ) const
+TWeakPtr<IAssetTypeActions> UAssetToolsImpl::GetAssetTypeActionsForClass(const UClass* Class) const
 {
 	TSharedPtr<IAssetTypeActions> MostDerivedAssetTypeActions;
 
@@ -290,7 +315,7 @@ TWeakPtr<IAssetTypeActions> UAssetToolsImpl::GetAssetTypeActionsForClass( UClass
 	return MostDerivedAssetTypeActions;
 }
 
-TArray<TWeakPtr<IAssetTypeActions>> UAssetToolsImpl::GetAssetTypeActionsListForClass(UClass* Class) const
+TArray<TWeakPtr<IAssetTypeActions>> UAssetToolsImpl::GetAssetTypeActionsListForClass(const UClass* Class) const
 {
 	TArray<TWeakPtr<IAssetTypeActions>> ResultAssetTypeActionsList;
 
@@ -979,6 +1004,11 @@ void UAssetToolsImpl::RenameAssetsWithDialog(const TArray<FAssetRenameData>& Ass
 void UAssetToolsImpl::FindSoftReferencesToObject(FSoftObjectPath TargetObject, TArray<UObject*>& ReferencingObjects)
 {
 	AssetRenameManager->FindSoftReferencesToObject(TargetObject, ReferencingObjects);
+}
+
+void UAssetToolsImpl::FindSoftReferencesToObjects(const TArray<FSoftObjectPath>& TargetObjects, TMap<FSoftObjectPath, TArray<UObject*>>& ReferencingObjects)
+{
+	AssetRenameManager->FindSoftReferencesToObjects(TargetObjects, ReferencingObjects);
 }
 
 void UAssetToolsImpl::RenameReferencingSoftObjectPaths(const TArray<UPackage *> PackagesToCheck, const TMap<FSoftObjectPath, FSoftObjectPath>& AssetRedirectorMap)
@@ -2252,7 +2282,7 @@ void UAssetToolsImpl::ExportAssetsInternal(const TArray<UObject*>& ObjectsToExpo
 				if (PackageName.Left(1) == TEXT("/"))
 				{
 					// Trim the leading slash so the file manager doesn't get confused
-					PackageName = PackageName.Mid(1);
+					PackageName.MidInline(1, false);
 				}
 
 				FPaths::NormalizeFilename(PackageName);
@@ -2894,6 +2924,11 @@ void UAssetToolsImpl::FixupReferencers(const TArray<UObjectRedirector*>& Objects
 	AssetFixUpRedirectors->FixupReferencers(Objects);
 }
 
+bool UAssetToolsImpl::IsFixupReferencersInProgress() const
+{
+	return AssetFixUpRedirectors->IsFixupReferencersInProgress();
+}
+
 void UAssetToolsImpl::OpenEditorForAssets(const TArray<UObject*>& Assets)
 {
 #if WITH_EDITOR
@@ -3066,6 +3101,46 @@ void UAssetToolsImpl::AdvancedCopyPackages_ReportConfirmed(FAdvancedCopyParams C
 		}
 	}
 	AdvancedCopyPackages(CopyParams, DestinationMap);
+}
+
+bool UAssetToolsImpl::IsAssetClassSupported(const UClass* AssetClass) const
+{
+	TWeakPtr<IAssetTypeActions> AssetTypeActions = GetAssetTypeActionsForClass(AssetClass);
+	if (!AssetTypeActions.IsValid())
+	{
+		return false;
+	}
+
+	if (AssetTypeActions.Pin()->IsSupported() == false)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+TArray<UFactory*> UAssetToolsImpl::GetNewAssetFactories() const
+{
+	TArray<UFactory*> Factories;
+
+	for (TObjectIterator<UClass> It; It; ++It)
+	{
+		UClass* Class = *It;
+		if (Class->IsChildOf(UFactory::StaticClass()) &&
+			!Class->HasAnyClassFlags(CLASS_Abstract))
+		{
+			UFactory* Factory = Class->GetDefaultObject<UFactory>();
+
+			if (Factory->ShouldShowInNewMenu() &&
+				ensure(!Factory->GetDisplayName().IsEmpty()) &&
+				IsAssetClassSupported(Factory->GetSupportedClass()))
+			{
+				Factories.Add(Factory);
+			}
+		}
+	}
+
+	return MoveTemp(Factories);
 }
 
 #undef LOCTEXT_NAMESPACE

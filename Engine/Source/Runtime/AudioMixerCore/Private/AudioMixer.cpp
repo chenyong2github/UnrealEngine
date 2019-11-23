@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AudioMixer.h"
+#include "DSP/BufferVectorOperations.h"
 #include "HAL/RunnableThread.h"
 #include "Misc/ConfigCacheIni.h"
 #include "HAL/ThreadSafeCounter.h"
@@ -57,13 +58,20 @@ FAutoConsoleVariableRef CVarOverrunTimeout(
 	TEXT("Amount of time to wait for the render thread to time out before swapping to the null device. \n"),
 	ECVF_Default);
 
-static int32 UnderrunTimeoutCVar = 0;
+static int32 UnderrunTimeoutCVar = 5;
 FAutoConsoleVariableRef CVarUnderrunTimeout(
 	TEXT("au.UnderrunTimeoutMSec"),
 	UnderrunTimeoutCVar,
 	TEXT("Amount of time to wait for the render thread to generate the next buffer before submitting an underrun buffer. \n"),
 	ECVF_Default);
 
+static float LinearGainScalarForFinalOututCVar = 1.0f;
+FAutoConsoleVariableRef LinearGainScalarForFinalOutut(
+	TEXT("au.LinearGainScalarForFinalOutut"),
+	LinearGainScalarForFinalOututCVar,
+	TEXT("Linear gain scalar applied to the final float buffer to allow for hotfixable mitigation of clipping \n")
+	TEXT("Default is 1.0f \n"),
+	ECVF_Default);
 
 namespace Audio
 {
@@ -132,6 +140,7 @@ namespace Audio
 		}
 	}
 
+
 	void FOutputBuffer::Init(IAudioMixer* InAudioMixer, const int32 InNumSamples, const EAudioMixerStreamDataFormat::Type InDataFormat)
 	{
 		Buffer.SetNumZeroed(InNumSamples);
@@ -176,17 +185,28 @@ namespace Audio
 
 		switch (DataFormat)
 		{
-			// Doesn't do anything...
 		case EAudioMixerStreamDataFormat::Float:
-			break;
+		{
+			if (!FMath::IsNearlyEqual(LinearGainScalarForFinalOututCVar, 1.0f))
+			{
+				MultiplyBufferByConstantInPlace(Buffer, LinearGainScalarForFinalOututCVar);
+			}
+			BufferRangeClampFast(Buffer, -1.0f, 1.0f);
+		}
+		break;
 
 		case EAudioMixerStreamDataFormat::Int16:
 		{
 			int16* BufferInt16 = (int16*)FormattedBuffer.GetData();
 			const int32 NumSamples = Buffer.Num();
+
+			const float ConversionScalar = LinearGainScalarForFinalOututCVar * 32767.0f;
+			MultiplyBufferByConstantInPlace(Buffer, ConversionScalar);
+			BufferRangeClampFast(Buffer, -32767.0f, 32767.0f);
+
 			for (int32 i = 0; i < NumSamples; ++i)
 			{
-				BufferInt16[i] = (int16)(Buffer[i] * 32767.0f);
+				BufferInt16[i] = (int16)Buffer[i];
 			}
 		}
 		break;
@@ -240,6 +260,7 @@ namespace Audio
 		}
 	}
 
+
 	void FOutputBuffer::Reset(const int32 InNewNumSamples)
 	{
 		Buffer.Reset();
@@ -282,6 +303,7 @@ namespace Audio
 		, bIsDeviceInitialized(false)
 		, bMoveAudioStreamToNewAudioDevice(false)
 		, bIsUsingNullDevice(false)
+		, bIsGeneratingAudio(false)
 		, NullDeviceCallback(nullptr)
 	{
 		FadeParam.SetValue(0.0f);
@@ -320,6 +342,33 @@ namespace Audio
 		bIsDeviceInitialized = true;
 	}
 
+	int32 IAudioMixerPlatformInterface::GetIndexForDevice(const FString& InDeviceName)
+	{
+		uint32 TotalNumDevices = 0;
+
+		if (!GetNumOutputDevices(TotalNumDevices))
+		{
+			return INDEX_NONE;
+		}
+
+		// Iterate through every device and see if
+		for (uint32 DeviceIndex = 0; DeviceIndex < TotalNumDevices; DeviceIndex++)
+		{
+			FAudioPlatformDeviceInfo DeviceInfo;
+			if (GetOutputDeviceInfo(DeviceIndex, DeviceInfo))
+			{
+				// check if the device name matches the input device name:
+				if (DeviceInfo.Name.Contains(InDeviceName))
+				{
+					return DeviceIndex;
+				}
+			}
+		}
+
+		// If we've made it here, we weren't able to find a matching device.
+		return INDEX_NONE;
+	}
+
 	template<typename BufferType>
 	void IAudioMixerPlatformInterface::ApplyAttenuationInternal(BufferType* BufferDataPtr, const int32 NumFrames)
 	{
@@ -356,6 +405,7 @@ namespace Audio
 				OutputBuffers[Index].Reset(OpenStreamParams.NumFrames * AudioStreamInfo.DeviceInfo.NumChannels);
 			}
 
+//			UE_LOG(LogAudioMixer, Warning,TEXT("StartRunningNullDevice() Set CurrentBufferReadIndex = 0"))
 			CurrentBufferReadIndex = 0;
 			CurrentBufferWriteIndex = 1;
 
@@ -375,6 +425,11 @@ namespace Audio
 
 	void IAudioMixerPlatformInterface::StopRunningNullDevice()
 	{
+		if (bIsUsingNullDevice)
+		{
+			CurrentBufferReadIndex = INDEX_NONE;
+			CurrentBufferWriteIndex = INDEX_NONE;
+		}
 		if (NullDeviceCallback.IsValid())
 		{
 			NullDeviceCallback.Reset();
@@ -425,8 +480,12 @@ namespace Audio
 			return;
 		}
 
-		check(CurrentBufferReadIndex != INDEX_NONE);
-		check(CurrentBufferWriteIndex != INDEX_NONE);
+		// AudioRenderThread hasn't executed yet, return silence
+		if (CurrentBufferReadIndex == INDEX_NONE || CurrentBufferWriteIndex == INDEX_NONE)
+		{
+			SubmitBuffer(UnderrunBuffer.GetBufferData());
+			return;
+		}
 
 		// Reset the ready state of the buffer which was just finished playing
 		FOutputBuffer& CurrentReadBuffer = OutputBuffers[CurrentBufferReadIndex];
@@ -492,6 +551,15 @@ namespace Audio
 
 	void IAudioMixerPlatformInterface::BeginGeneratingAudio()
 	{
+		// early exit if we are already generating audio
+		if (bIsGeneratingAudio)
+		{
+			UE_LOG(LogAudioMixer, Warning, TEXT("Double call to BeginGeneratingAudio() without calling StopGeneratingAudio(), ignoring."));
+			return;
+		}
+
+		bIsGeneratingAudio = true;
+
 		// Setup the output buffers
 		const int32 NumOutputFrames = OpenStreamParams.NumFrames;
 		const int32 NumOutputChannels = AudioStreamInfo.DeviceInfo.NumChannels;
@@ -499,9 +567,6 @@ namespace Audio
 
 		// Set the number of buffers to be one more than the number to queue.
 		NumOutputBuffers = FMath::Max(OpenStreamParams.NumBuffers, 2);
-
-		CurrentBufferReadIndex = 0;
-		CurrentBufferWriteIndex = 1;
 
 		OutputBuffers.Reset();
 		OutputBuffers.AddDefaulted(NumOutputBuffers);
@@ -545,7 +610,7 @@ namespace Audio
 
 		if (AudioRenderThread != nullptr)
 		{
-			AudioRenderThread->WaitForCompletion();
+			AudioRenderThread->Kill();
 
 			// WaitForCompletion will complete right away when single threaded, and AudioStreamInfo.StreamState will never be set to stopped
 			if (FPlatformProcess::SupportsMultithreading())
@@ -572,6 +637,8 @@ namespace Audio
 			FPlatformProcess::ReturnSynchEventToPool(AudioFadeEvent);
 			AudioFadeEvent = nullptr;
 		}
+
+		bIsGeneratingAudio = false;
 	}
 
 	void IAudioMixerPlatformInterface::Tick()
@@ -604,12 +671,14 @@ namespace Audio
 		// Lets prime and submit the first buffer (which is going to be the buffer underrun buffer)
 		SubmitBuffer(UnderrunBuffer.GetBufferData());
 
-		OutputBuffers[CurrentBufferWriteIndex].MixNextBuffer();
-
-		check(CurrentBufferReadIndex == 0);
-		check(CurrentBufferWriteIndex == 1);
+		OutputBuffers[0].MixNextBuffer();
 
 		// Start immediately processing the next buffer
+//		checkf(CurrentBufferReadIndex == INDEX_NONE, TEXT("CurrentBufferReadIndex: %i, StreamState: %i"), CurrentBufferReadIndex.Load(), AudioStreamInfo.StreamState);
+//		checkf(CurrentBufferWriteIndex == INDEX_NONE, TEXT("CurrentBufferWriteIndex: %i, StreamState: %i"), CurrentBufferWriteIndex.Load(), AudioStreamInfo.StreamState);
+
+		CurrentBufferReadIndex = 0;
+		CurrentBufferWriteIndex = 1;
 
 		while (AudioStreamInfo.StreamState != EAudioOutputStreamState::Stopping)
 		{
@@ -637,6 +706,8 @@ namespace Audio
 			}
 		}
 
+		CurrentBufferReadIndex = INDEX_NONE;
+		CurrentBufferWriteIndex = INDEX_NONE;
 		OpenStreamParams.AudioMixer->OnAudioStreamShutdown();
 
 		AudioStreamInfo.StreamState = EAudioOutputStreamState::Stopped;
@@ -646,6 +717,8 @@ namespace Audio
 	uint32 IAudioMixerPlatformInterface::Run()
 	{	
 		LLM_SCOPE(ELLMTag::AudioMixer);
+
+//		checkf(AudioStreamInfo.StreamState == EAudioOutputStreamState::Stopped, TEXT("RunInternal() is being run with StreamState = : %i"), AudioStreamInfo.StreamState);
 
 		// Call different functions depending on if it's the "main" audio mixer instance. Helps debugging callstacks.
 		if (AudioStreamInfo.AudioMixer->IsMainAudioMixer())

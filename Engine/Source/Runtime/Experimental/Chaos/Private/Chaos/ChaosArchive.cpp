@@ -6,9 +6,9 @@
 namespace Chaos
 {
 
-void FChaosArchive::SerializeLegacy(TUniquePtr<TImplicitObject<float, 3>>& Obj)
+void FChaosArchive::SerializeLegacy(TUniquePtr<FImplicitObject>& Obj)
 {
-	TImplicitObject<float, 3>::SerializeLegacyHelper(InnerArchive, Obj);
+	FImplicitObject::SerializeLegacyHelper(InnerArchive, Obj);
 }
 
 #if CHAOS_MEMORY_TRACKING

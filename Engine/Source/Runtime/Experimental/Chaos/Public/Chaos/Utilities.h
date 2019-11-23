@@ -102,6 +102,21 @@ namespace Chaos
 				).GetTransposed();
 		}
 
+		inline PMatrix<float, 3, 3> MultiplyAB(const PMatrix<float, 3, 3>& LIn, const PMatrix<float, 3, 3>& RIn)
+		{
+			return Multiply(LIn, RIn);
+		}
+
+		inline PMatrix<float, 3, 3> MultiplyABt(const PMatrix<float, 3, 3>& LIn, const PMatrix<float, 3, 3>& RIn)
+		{
+			return Multiply(LIn, RIn.GetTransposed());
+		}
+
+		inline PMatrix<float, 3, 3> MultiplyAtB(const PMatrix<float, 3, 3>& LIn, const PMatrix<float, 3, 3>& RIn)
+		{
+			return Multiply(LIn.GetTransposed(), RIn);
+		}
+
 		/**
 		 * Multiple a vector by a matrix: C = L.R
 		 * If L is a rotation matrix, then this will return R rotated by that rotation.
@@ -128,6 +143,16 @@ namespace Chaos
 		inline TRigidTransform<float, 3> Multiply(const TRigidTransform<float, 3> L, const TRigidTransform<float, 3>& R)
 		{
 			return TRigidTransform<float, 3>(L.GetTranslation() + L.GetRotation().RotateVector(R.GetTranslation()), L.GetRotation() * R.GetRotation());
+		}
+
+		/**
+		 * Calculate the world-space inertia (or inverse inertia) for a body with rotation "Q" and local-space inertia/inverse-inertia "I".
+		 */
+		static FMatrix33 ComputeWorldSpaceInertia(const FRotation3& Q, const FMatrix33& I)
+		{
+			FMatrix33 QM = Q.ToMatrix();
+			//return QM * I * QM.GetTransposed();
+			return MultiplyAB(QM, MultiplyABt(I, QM));
 		}
 
 		/**

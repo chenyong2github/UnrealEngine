@@ -12,6 +12,7 @@ class UTemplateProjectDefs;
 class UTemplateCategories;
 struct FProjectDescriptor;
 enum class EClassDomain : uint8;
+struct FTemplateConfigValue;
 
 struct FProjectInformation
 {
@@ -153,6 +154,9 @@ public:
 	*/
 	static void GetProjectSourceDirectoryInfo(int32& OutNumFiles, int64& OutDirectorySize);
 
+	/** Returns the uproject template filename for the default project template. */
+	static FString GetDefaultProjectTemplateFilename();
+
 	/** Compiles a project while showing a progress bar, and offers to open the IDE if it fails. */
 	static bool BuildCodeProject(const FString& ProjectFilename);
 
@@ -160,6 +164,7 @@ public:
 	static bool GenerateCodeProjectFiles(const FString& ProjectFilename, FText& OutFailReason, FText& OutFailLog);
 
 	/** Returns true if there are starter content files available for instancing into new projects. */
+	static bool IsStarterContentAvailableForNewProjects();
 	static bool IsStarterContentAvailableForProject(const FProjectInformation& ProjectInfo);
 
 	/**
@@ -281,6 +286,7 @@ public:
 
 private:
 
+	static void AddHardwareConfigValues(const FProjectInformation& InProjectInfo, TArray<FTemplateConfigValue>& ConfigValues);
 	/** Get the name of the starter content pack to use for the given project. */
 	static FString GetStarterContentName(const FProjectInformation& InProjectInfo);
 

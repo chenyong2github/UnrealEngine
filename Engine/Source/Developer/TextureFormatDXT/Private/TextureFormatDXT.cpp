@@ -226,6 +226,7 @@ public:
 	/** Run the compressor. */
 	bool Compress()
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FNVTTCompressor::Compress);
 		return Compressor.process(InputOptions, CompressionOptions, OutputOptions) && ErrorHandler.bSuccess;
 	}
 };
@@ -438,6 +439,8 @@ class FTextureFormatDXT : public ITextureFormat
 		FCompressedImage2D& OutCompressedImage
 		) const override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FTextureFormatDXT::CompressImage);
+
 		FImage Image;
 		InImage.CopyTo(Image, ERawImageFormat::BGRA8, BuildSettings.GetGammaSpace());
 

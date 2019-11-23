@@ -131,32 +131,43 @@ struct FMockAuxState
 
 using TMockNetworkSimulationBufferTypes = TNetworkSimBufferTypes<FMockInputCmd, FMockSyncState, FMockAuxState>;
 
-static FName MockSimulationGroupName("Mock");
-
 class FMockNetworkSimulation
 {
 public:
 
 	/** Main update function */
-	void SimulationTick(const TNetSimTimeStep& TimeStep, const TNetSimInput<TMockNetworkSimulationBufferTypes>& Input, const TNetSimOutput<TMockNetworkSimulationBufferTypes>& Output);
+	void SimulationTick(const FNetSimTimeStep& TimeStep, const TNetSimInput<TMockNetworkSimulationBufferTypes>& Input, const TNetSimOutput<TMockNetworkSimulationBufferTypes>& Output);
+};
+
+class FMockNetworkModelDef : public FNetSimModelDefBase
+{
+public:
+
+	using Simulation = FMockNetworkSimulation;
+	using BufferTypes = TMockNetworkSimulationBufferTypes;
 
 	/** Tick group the simulation maps to */
 	static const FName GroupName;
+
+	/** Predicted error testing */
+	static bool ShouldReconcile(const FMockSyncState& AuthoritySync, const FMockAuxState& AuthorityAux, const FMockSyncState& PredictedSync, const FMockAuxState& PredictedAux)
+	{
+		return FMath::Abs<float>(AuthoritySync.Total - PredictedSync.Total) > SMALL_NUMBER;
+	}
+
+	static void Interpolate(const TInterpolatorParameters<FMockSyncState, FMockAuxState>& Params)
+	{
+		Params.Out.Sync.Total = Params.From.Sync.Total + ((Params.To.Sync.Total - Params.From.Sync.Total) * Params.InterpolationPCT);
+		Params.Out.Aux = Params.To.Aux;
+	}
 };
-
-// Actual definition of our network simulation.
-using FMockNetworkModel = TNetworkedSimulationModel<FMockNetworkSimulation, TMockNetworkSimulationBufferTypes>;
-
-// Needed to trick UHT into letting UMockNetworkSimulationComponent implement. UHT cannot parse the ::
-// Also needed for forward declaring. Can't just be a typedef/using =
-class IMockSystemDriver : public TNetworkedSimulationModelDriver<TMockNetworkSimulationBufferTypes> { };
 
 // -------------------------------------------------------------------------------------------------------------------------------
 // ActorComponent for running a MockNetworkSimulation
 // -------------------------------------------------------------------------------------------------------------------------------
 
 UCLASS(BlueprintType, meta=(BlueprintSpawnableComponent))
-class NETWORKPREDICTIONEXTRAS_API UMockNetworkSimulationComponent : public UNetworkPredictionComponent, public IMockSystemDriver
+class NETWORKPREDICTIONEXTRAS_API UMockNetworkSimulationComponent : public UNetworkPredictionComponent, public TNetworkedSimulationModelDriver<TMockNetworkSimulationBufferTypes>
 {
 	GENERATED_BODY()
 
@@ -166,7 +177,7 @@ public:
 
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	
-	virtual INetworkSimulationModel* InstantiateNetworkSimulation() override;
+	virtual INetworkedSimulationModel* InstantiateNetworkedSimulation() override;
 	
 public:
 
@@ -180,5 +191,5 @@ public:
 	// Mock representation of "syncing' to the sync state in the network sim.
 	float MockValue = 1000.f;
 
-	TUniquePtr<FMockNetworkSimulation> MockNetworkSimulation;
+	FMockNetworkSimulation* MockNetworkSimulation = nullptr;
 };

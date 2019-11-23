@@ -2939,7 +2939,7 @@ void SSCS_RowWidget::OnMakeNewRootDropAction(FSCSEditorTreeNodePtrType DroppedNo
 		check(bWasDefaultSceneRoot || SceneRootNodePtr->CanReparent());
 
 		// Remove the current scene root node from the SCS context
-		Blueprint->SimpleConstructionScript->RemoveNode(SceneRootNodePtr->GetSCSNode());
+		Blueprint->SimpleConstructionScript->RemoveNode(SceneRootNodePtr->GetSCSNode(), /*bValidateSceneRootNodes=*/false);
 
 		// Save old root node
 		OldSceneRootNodePtr = SceneRootNodePtr;
@@ -5942,6 +5942,22 @@ void SSCSEditor::RemoveComponentNode(FSCSEditorTreeNodePtrType InNodePtr)
 				SCS_Node->ComponentTemplate->Modify();
 				SCS_Node->ComponentTemplate->Rename(*RemovedName, /*NewOuter =*/nullptr, REN_DontCreateRedirectors);
 
+				TArray<UObject*> ArchetypeInstances;
+				auto DestroyArchetypeInstances = [&ArchetypeInstances, &RemovedName](UActorComponent* ComponentTemplate)
+				{
+					ComponentTemplate->GetArchetypeInstances(ArchetypeInstances);
+					for (UObject* ArchetypeInstance : ArchetypeInstances)
+					{
+						if (!ArchetypeInstance->HasAllFlags(RF_ArchetypeObject | RF_InheritableComponentTemplate))
+						{
+							CastChecked<UActorComponent>(ArchetypeInstance)->DestroyComponent();
+							ArchetypeInstance->Rename(*RemovedName, nullptr, REN_DontCreateRedirectors);
+						}
+					}
+				};
+
+				DestroyArchetypeInstances(SCS_Node->ComponentTemplate);
+				
 				if (Blueprint)
 				{
 					// Children need to have their inherited component template instance of the component renamed out of the way as well
@@ -5956,6 +5972,8 @@ void SSCSEditor::RemoveComponentNode(FSCSEditorTreeNodePtrType InNodePtr)
 						{
 							Component->Modify();
 							Component->Rename(*RemovedName, /*NewOuter =*/nullptr, REN_DontCreateRedirectors);
+
+							DestroyArchetypeInstances(Component);
 						}
 					}
 				}
@@ -6295,24 +6313,31 @@ bool SSCSEditor::CanRenameComponent() const
 	return IsEditingAllowed() && SCSTreeWidget->GetSelectedItems().Num() == 1 && SCSTreeWidget->GetSelectedItems()[0]->CanRename();
 }
 
-void SSCSEditor::GetCollapsedNodes(const FSCSEditorTreeNodePtrType& InNodePtr, TSet<FSCSEditorTreeNodePtrType>& OutCollapsedNodes) const
+void SSCSEditor::DepthFirstTraversal(const FSCSEditorTreeNodePtrType& InNodePtr, TSet<FSCSEditorTreeNodePtrType>& OutVisitedNodes, const TFunctionRef<void(const FSCSEditorTreeNodePtrType&)> InFunction) const
 {
-	if(InNodePtr.IsValid())
+	if (InNodePtr.IsValid()
+		&& ensureMsgf(!OutVisitedNodes.Contains(InNodePtr), TEXT("Already visited node: %s (Parent: %s)"), *InNodePtr->GetDisplayString(), InNodePtr->GetParent().IsValid() ? *InNodePtr->GetParent()->GetDisplayString() : TEXT("NULL")))
 	{
-		const TArray<FSCSEditorTreeNodePtrType>& Children = InNodePtr->GetChildren();
-		if(Children.Num() > 0)
-		{
-			if(!SCSTreeWidget->IsItemExpanded(InNodePtr))
-			{
-				OutCollapsedNodes.Add(InNodePtr);
-			}
+		InFunction(InNodePtr);
+		OutVisitedNodes.Add(InNodePtr);
 
-			for(int32 i = 0; i < Children.Num(); ++i)
-			{
-				GetCollapsedNodes(Children[i], OutCollapsedNodes);
-			}
+		for (const FSCSEditorTreeNodePtrType& Child : InNodePtr->GetChildren())
+		{
+			DepthFirstTraversal(Child, OutVisitedNodes, InFunction);
 		}
 	}
+}
+
+void SSCSEditor::GetCollapsedNodes(const FSCSEditorTreeNodePtrType& InNodePtr, TSet<FSCSEditorTreeNodePtrType>& OutCollapsedNodes) const
+{
+	TSet<FSCSEditorTreeNodePtrType> VisitedNodes;
+	DepthFirstTraversal(InNodePtr, VisitedNodes, [SCSTreeWidget = this->SCSTreeWidget, &OutCollapsedNodes](const FSCSEditorTreeNodePtrType& InNodePtr)
+	{
+		if (InNodePtr->GetChildren().Num() > 0 && !SCSTreeWidget->IsItemExpanded(InNodePtr))
+		{
+			OutCollapsedNodes.Add(InNodePtr);
+		}
+	});
 }
 
 EVisibility SSCSEditor::GetPromoteToBlueprintButtonVisibility() const

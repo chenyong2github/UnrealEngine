@@ -79,8 +79,19 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=AgentStatus)
 	uint32 bProjectedLocationValid : 1;
 
+	/** if set, start the search from this actor, else start the search from the other actor */
 	UPROPERTY(EditAnywhere, Category=Pathfinding)
 	uint32 bSearchStart : 1;
+
+	/** this multiplier is used to compute a max node cost allowed to the open list
+	 *	(cost limit = CostLimitFacotr*InitialHeuristicEstimate) */
+	UPROPERTY(EditAnywhere, Category=Pathfinding, meta = (ClampMin = "0", UIMin = "0"))
+	float CostLimitFactor;
+
+	/** minimum cost limit clamping value (in cost units)
+	 *	used to allow large deviation in short paths */
+	UPROPERTY(EditAnywhere, Category = Pathfinding, meta = (ClampMin = "0", UIMin = "0"))
+	float MinimumCostLimit;
 
 	/** Instead of regular pathfinding from source to target location do
 	 *	a 'backwards' search that searches from the source, but as if the allowed

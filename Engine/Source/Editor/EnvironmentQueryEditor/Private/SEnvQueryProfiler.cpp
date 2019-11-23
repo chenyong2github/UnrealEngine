@@ -201,7 +201,7 @@ static UObject* FindQueryObjectByName(FName StatName)
 	int32 SepIdx = INDEX_NONE;
 	if (AssetPathName.FindLastChar(TEXT('_'), SepIdx))
 	{
-		AssetPathName = AssetPathName.Left(SepIdx);
+		AssetPathName.LeftInline(SepIdx);
 	}
 
 	UObject* QueryOb = FindObject<UObject>(ANY_PACKAGE, *AssetPathName);

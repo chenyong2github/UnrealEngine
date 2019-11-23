@@ -1045,12 +1045,19 @@ namespace DatasmithRevitExporter
 				IOActor.AddTag($"Revit.Element.Id.{CurrentElement.Id.IntegerValue}");
 				IOActor.AddTag($"Revit.Element.UniqueId.{CurrentElement.UniqueId}");
 
-				// For an hosted Revit family instance, add the host ID and Unique ID tags to the Datasmith actor.
+				// For an hosted Revit family instance, add the host ID, Unique ID and Mirrored/Flipped flags as tags to the Datasmith actor.
 				FamilyInstance CurrentFamilyInstance = CurrentElement as FamilyInstance;
-				if (CurrentFamilyInstance?.Host != null)
+				if (CurrentFamilyInstance != null)
 				{
-					IOActor.AddTag($"Revit.Host.Id.{CurrentFamilyInstance.Host.Id.IntegerValue}");
-					IOActor.AddTag($"Revit.Host.UniqueId.{CurrentFamilyInstance.Host.UniqueId}");
+					IOActor.AddTag($"Revit.DB.FamiliyInstance.Mirrored.{CurrentFamilyInstance.Mirrored}");
+					IOActor.AddTag($"Revit.DB.FamiliyInstance.HandFlipped.{CurrentFamilyInstance.HandFlipped}");
+					IOActor.AddTag($"Revit.DB.FamiliyInstance.FaceFlipped.{CurrentFamilyInstance.FacingFlipped}");
+
+					if (CurrentFamilyInstance.Host != null)
+					{
+						IOActor.AddTag($"Revit.Host.Id.{CurrentFamilyInstance.Host.Id.IntegerValue}");
+						IOActor.AddTag($"Revit.Host.UniqueId.{CurrentFamilyInstance.Host.UniqueId}");
+					}
 				}
 
 				// Add the Revit element category name metadata to the Datasmith actor.

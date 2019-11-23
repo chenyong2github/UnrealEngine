@@ -6,6 +6,7 @@
 void FHairStrandsInterpolationDatas::SetNum(const uint32 NumCurves)
 {
 	PointsSimCurvesVertexWeights.SetNum(NumCurves);
+	PointsSimCurvesVertexLerp.SetNum(NumCurves);
 	PointsSimCurvesVertexIndex.SetNum(NumCurves);
 	PointsSimCurvesIndex.SetNum(NumCurves);
 }
@@ -30,6 +31,7 @@ void FHairStrandsPoints::SetNum(const uint32 NumPoints)
 void FHairStrandsInterpolationDatas::Reset()
 {
 	PointsSimCurvesVertexWeights.Reset();
+	PointsSimCurvesVertexLerp.Reset();
 	PointsSimCurvesVertexIndex.Reset();
 	PointsSimCurvesIndex.Reset();
 }
@@ -123,10 +125,37 @@ FArchive& operator<<(FArchive& Ar, FHairInterpolation0Vertex& Vertex)
 
 FArchive& operator<<(FArchive& Ar, FHairInterpolation1Vertex& Vertex)
 {
-	Ar << Vertex.VertexIndex0;
-	Ar << Vertex.VertexIndex1;
-	Ar << Vertex.VertexIndex2;
-	Ar << Vertex.Pad0;
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+
+	if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::GroomAssetVersion3)
+	{
+		Ar << Vertex.VertexIndex0;
+		Ar << Vertex.VertexIndex1;
+		Ar << Vertex.VertexIndex2;
+
+		Ar << Vertex.VertexLerp0;
+		Ar << Vertex.VertexLerp1;
+		Ar << Vertex.VertexLerp2;
+
+		Ar << Vertex.Pad0;
+		Ar << Vertex.Pad1;
+	}
+	else
+	{
+		Ar << Vertex.VertexIndex0;
+		Ar << Vertex.VertexIndex1;
+		Ar << Vertex.VertexIndex2;
+
+		uint8 Pad0 = 0;
+		Ar << Pad0;
+
+		if (Ar.IsLoading())
+		{
+			Vertex.VertexLerp0 = 0;
+			Vertex.VertexLerp1 = 0;
+			Vertex.VertexLerp2 = 0;
+		}
+	}
 
 	return Ar;
 }
@@ -139,9 +168,25 @@ void FHairStrandsInterpolationDatas::FRenderData::Serialize(FArchive& Ar)
 
 void FHairStrandsInterpolationDatas::Serialize(FArchive& Ar)
 {
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+
 	Ar << PointsSimCurvesVertexWeights;
 	Ar << PointsSimCurvesVertexIndex;
 	Ar << PointsSimCurvesIndex;
+
+	if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::GroomAssetVersion3)
+	{
+		Ar << PointsSimCurvesVertexLerp;
+	}
+	else if (Ar.IsLoading())
+	{
+		const uint32 ElmentCount = PointsSimCurvesVertexIndex.Num();
+		PointsSimCurvesVertexLerp.SetNum(ElmentCount);
+		for (FVector& S : PointsSimCurvesVertexLerp)
+		{
+			S = FVector::ZeroVector;
+		}
+	}
 
 	RenderData.Serialize(Ar);
 }

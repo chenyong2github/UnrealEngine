@@ -69,8 +69,7 @@ struct FQueryDebugParams {};
 
 namespace Chaos
 {
-	template<class T, int d>
-	class TImplicitObject;
+	class FImplicitObject;
 
 	template<class T>
 	class TCapsule;
@@ -80,6 +79,15 @@ namespace Chaos
 
 	template <typename T, int d>
 	class TPerShapeData;
+
+	class FPhysicalMaterial;
+
+	template<typename, uint32, uint32>
+	class THandle;
+
+	struct FMaterialHandle;
+
+	class FChaosPhysicsMaterial;
 }
 
 // Temporary dummy types until SQ implemented
@@ -106,9 +114,9 @@ using FPhysicsQueryHit = ChaosInterface::FQueryHit;
 using FPhysicsTransform = FTransform;
 
 using FPhysicsShape = Chaos::TPerShapeData<float, 3>;
-using FPhysicsGeometry = Chaos::TImplicitObject<float, 3>;
+using FPhysicsGeometry = Chaos::FImplicitObject;
 using FPhysicsCapsuleGeometry = Chaos::TCapsule<float>;
-using FPhysicsMaterial = FPhysTypeDummy;
+using FPhysicsMaterial = Chaos::FChaosPhysicsMaterial;
 using FPhysicsActor = Chaos::TGeometryParticle<float,3>;
 
 template <typename T>
@@ -207,7 +215,7 @@ typedef FPhysicsAggregateReference_Chaos	FPhysicsAggregateHandle;
 typedef FPhysInterface_Chaos				FPhysicsCommand;
 typedef FPhysicsShapeReference_Chaos		FPhysicsShapeHandle;
 typedef FPhysicsGeometryCollection_Chaos	FPhysicsGeometryCollection;
-typedef void*								FPhysicsMaterialHandle;
+typedef Chaos::FMaterialHandle				FPhysicsMaterialHandle;
 typedef FPhysicsShapeAdapter_Chaos			FPhysicsShapeAdapter;
 typedef FPhysicsUserData_Chaos				FPhysicsUserData;
 

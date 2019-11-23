@@ -31,6 +31,8 @@
 #include "TickableAttributeSetInterface.h"
 #include "GameplayTagResponseTable.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 #define LOCTEXT_NAMESPACE "AbilitySystemComponent"
 
@@ -481,6 +483,18 @@ void UAbilitySystemComponent::OnRemoveAbility(FGameplayAbilitySpec& Spec)
 			}
 		}
 	}
+
+	// Notify the ability that it has been removed.  It follows the same pattern as OnGiveAbility() and is only called on the primary instance of the ability or the CDO.
+	UGameplayAbility* PrimaryInstance = Spec.GetPrimaryInstance();
+	if (PrimaryInstance)
+	{
+		PrimaryInstance->OnRemoveAbility(AbilityActorInfo.Get(), Spec);
+	}
+	else
+	{
+		Spec.Ability->OnRemoveAbility(AbilityActorInfo.Get(), Spec);
+	}
+
 	Spec.ReplicatedInstances.Empty();
 	Spec.NonReplicatedInstances.Empty();
 }
@@ -1339,6 +1353,21 @@ bool UAbilitySystemComponent::InternalTryActivateAbility(FGameplayAbilitySpecHan
 	}
 	else if (Ability->GetNetExecutionPolicy() == EGameplayAbilityNetExecutionPolicy::LocalPredicted)
 	{
+		// Flush server moves that occurred before this ability activation so that the server receives the RPCs in the correct order
+		// Necessary to prevent abilities that trigger animation root motion or impact movement from causing network corrections
+		if (!ActorInfo->IsNetAuthority())
+		{
+			ACharacter* AvatarCharacter = Cast<ACharacter>(ActorInfo->AvatarActor.Get());
+			if (AvatarCharacter)
+			{
+				UCharacterMovementComponent* AvatarCharMoveComp = Cast<UCharacterMovementComponent>(AvatarCharacter->GetMovementComponent());
+				if (AvatarCharMoveComp)
+				{
+					AvatarCharMoveComp->FlushServerMoves();
+				}
+			}
+		}
+
 		// This execution is now officially EGameplayAbilityActivationMode:Predicting and has a PredictionKey
 		FScopedPredictionWindow ScopedPredictionWindow(this, true);
 
@@ -1951,6 +1980,8 @@ void UAbilitySystemComponent::RemoveGameplayEventTagContainerDelegate(const FGam
 
 void UAbilitySystemComponent::MonitoredTagChanged(const FGameplayTag Tag, int32 NewCount)
 {
+	ABILITYLIST_SCOPE_LOCK();
+
 	int32 TriggeredCount = 0;
 	if (OwnedTagTriggeredAbilities.Contains(Tag))
 	{
@@ -1965,29 +1996,33 @@ void UAbilitySystemComponent::MonitoredTagChanged(const FGameplayTag Tag, int32 
 				return;
 			}
 
-			for (const FAbilityTriggerData& TriggerData : Spec->Ability->AbilityTriggers)
+			if (Spec->Ability)
 			{
-				FGameplayTag EventTag = TriggerData.TriggerTag;
-
-				if (EventTag == Tag)
+				TArray<FAbilityTriggerData> AbilityTriggers = Spec->Ability->AbilityTriggers;
+				for (const FAbilityTriggerData& TriggerData : AbilityTriggers)
 				{
-					if (NewCount > 0)
-					{
-						// Populate event data so this will use the same blueprint node to activate as gameplay triggers
-						FGameplayEventData EventData;
-						EventData.EventMagnitude = NewCount;
-						EventData.EventTag = EventTag;
-						EventData.Instigator = OwnerActor;
-						EventData.Target = OwnerActor;
-						// Try to activate it
-						InternalTryActivateAbility(Spec->Handle, FPredictionKey(), nullptr, nullptr, &EventData);
+					FGameplayTag EventTag = TriggerData.TriggerTag;
 
-						// TODO: Check client/server type
-					}
-					else if (NewCount == 0 && TriggerData.TriggerSource == EGameplayAbilityTriggerSource::OwnedTagPresent)
+					if (EventTag == Tag)
 					{
-						// Try to cancel, but only if the type is right
-						CancelAbilitySpec(*Spec, nullptr);
+						if (NewCount > 0)
+						{
+							// Populate event data so this will use the same blueprint node to activate as gameplay triggers
+							FGameplayEventData EventData;
+							EventData.EventMagnitude = NewCount;
+							EventData.EventTag = EventTag;
+							EventData.Instigator = OwnerActor;
+							EventData.Target = OwnerActor;
+							// Try to activate it
+							InternalTryActivateAbility(Spec->Handle, FPredictionKey(), nullptr, nullptr, &EventData);
+
+							// TODO: Check client/server type
+						}
+						else if (NewCount == 0 && TriggerData.TriggerSource == EGameplayAbilityTriggerSource::OwnedTagPresent)
+						{
+							// Try to cancel, but only if the type is right
+							CancelAbilitySpec(*Spec, nullptr);
+						}
 					}
 				}
 			}
@@ -2715,7 +2750,7 @@ void UAbilitySystemComponent::ServerCurrentMontageSetNextSectionName_Implementat
 
 			int32 ClientSectionID = CurrentAnimMontage->GetSectionIndexFromPosition(ClientPosition);
 			FName ClientCurrentSectionName = CurrentAnimMontage->GetSectionName(ClientSectionID);
-			if ((CurrentSectionName != ClientCurrentSectionName) || (CurrentSectionName != SectionName) || (CurrentSectionName != NextSectionName))
+			if ((CurrentSectionName != ClientCurrentSectionName) || (CurrentSectionName != SectionName))
 			{
 				// We are in an invalid section, jump to client's position.
 				AnimInstance->Montage_SetPosition(CurrentAnimMontage, ClientPosition);

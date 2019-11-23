@@ -37,6 +37,66 @@
 #include "Tests/TestExternalUIInterface.h"
 #include "Tests/TestPresenceInterface.h"
 
+
+static FAutoConsoleCommand GSendRemoteTalkersToEndpointCommand(
+	TEXT("voice.sendRemoteTalkersToEndpoint"),
+	TEXT("This will send audio output for all incoming voip audio to the named endpoint. if given no arguments, this will route voice output through the game engine."),
+	FConsoleCommandWithArgsDelegate::CreateStatic(
+		[](const TArray< FString >& Args)
+{
+	IOnlineSubsystem* PlatformSubsystem = IOnlineSubsystem::Get();
+	IOnlineVoicePtr PlatformVoiceInterface = PlatformSubsystem ? PlatformSubsystem->GetVoiceInterface() : nullptr;
+
+	check(PlatformVoiceInterface.IsValid());
+
+	if (Args.Num() == 0)
+	{
+		PlatformVoiceInterface->DisconnectAllEndpoints();
+	}
+	else
+	{
+		FString DeviceName;
+		for (int32 Index = 0; Index < Args.Num(); Index++)
+		{
+			DeviceName.Append(Args[Index]);
+			DeviceName.Append(TEXT(" "), 1);
+		}
+
+		PlatformVoiceInterface->PatchRemoteTalkerOutputToEndpoint(DeviceName);
+	}
+})
+);
+
+static FAutoConsoleCommand GSendLocalTalkersToEndpointCommand(
+	TEXT("voice.sendLocalTalkersToEndpoint"),
+	TEXT("This will send audio output for all outgoing voip audio to the named endpoint. if given no arguments, this will disconnect all external endpoints."),
+	FConsoleCommandWithArgsDelegate::CreateStatic(
+		[](const TArray< FString >& Args)
+{
+	IOnlineSubsystem* PlatformSubsystem = IOnlineSubsystem::Get();
+	IOnlineVoicePtr PlatformVoiceInterface = PlatformSubsystem ? PlatformSubsystem->GetVoiceInterface() : nullptr;
+
+	check(PlatformVoiceInterface.IsValid());
+
+
+	if (Args.Num() == 0)
+	{
+		PlatformVoiceInterface->DisconnectAllEndpoints();
+	}
+	else
+	{
+		FString DeviceName;
+		for (int32 Index = 0; Index < Args.Num(); Index++)
+		{
+			DeviceName.Append(Args[Index]);
+			DeviceName.Append(TEXT(" "), 1);
+		}
+
+		PlatformVoiceInterface->PatchLocalTalkerOutputToEndpoint(DeviceName);
+	}
+})
+);
+
 static int32 CvarAlwaysPlayVoipComponent = 1;
 FAutoConsoleVariableRef CVarAlwaysPlayVoipComponent(
 	TEXT("au.voip.AlwaysPlayVoiceComponent"),
@@ -118,6 +178,42 @@ UVoipListenerSynthComponent* CreateVoiceSynthComponent(uint32 SampleRate)
 		else
 		{
 			UE_LOG(LogVoiceDecode, Warning, TEXT("Unable to create voice synth component!"));
+		}
+	}
+
+	return SynthComponentPtr;
+}
+
+
+UVoipListenerSynthComponent* CreateVoiceSynthComponent(UWorld* World, uint32 SampleRate)
+{
+	UVoipListenerSynthComponent* SynthComponentPtr = nullptr;
+
+	if (World)
+	{
+		if (FAudioDevice* AudioDevice = World->GetAudioDevice())
+		{
+			SynthComponentPtr = NewObject<UVoipListenerSynthComponent>();
+			if (SynthComponentPtr)
+			{
+				const FSoftObjectPath VoiPSoundClassName = GetDefault<UAudioSettings>()->VoiPSoundClass;
+				if (VoiPSoundClassName.IsValid())
+				{
+					SynthComponentPtr->SoundClass = LoadObject<USoundClass>(nullptr, *VoiPSoundClassName.ToString());
+				}
+
+				if (CvarAlwaysPlayVoipComponent)
+				{
+					SynthComponentPtr->bAlwaysPlay = true;
+				}
+
+				SynthComponentPtr->RegisterComponentWithWorld(World);
+				SynthComponentPtr->Initialize(SampleRate);
+			}
+			else
+			{
+				UE_LOG(LogVoiceDecode, Warning, TEXT("Unable to create voice synth component!"));
+			}
 		}
 	}
 

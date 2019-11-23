@@ -47,6 +47,16 @@ struct FPlatformOpenGLContext;
 #define GL_RGBA16F    0x881A
 #endif
 
+
+// for platform extensions: from OpenGLShaders.h
+extern "C" struct FOpenGLShaderDeviceCapabilities;
+
+// for platform extensions: from OpenGLResources.h
+typedef TArray<ANSICHAR> FAnsiCharArray;
+
+// for platform extensions: from OpenGLDrvPrivate.h
+extern "C" struct FOpenGLTextureFormat;
+
 // Base static class
 class FOpenGLBase
 {
@@ -396,6 +406,11 @@ public:
 		}
 		return PreferredPixelFormat;
 	}
+
+	// for platform extensions
+	static void PE_GetCurrentOpenGLShaderDeviceCapabilities(FOpenGLShaderDeviceCapabilities& Capabilities);
+	static bool PE_GLSLToDeviceCompatibleGLSL(FAnsiCharArray& GlslCodeOriginal, const FString& ShaderName, GLenum TypeEnum, const FOpenGLShaderDeviceCapabilities& Capabilities, FAnsiCharArray& GlslCode) UGL_OPTIONAL(false)
+	static void PE_SetupTextureFormat(void(*SetupTextureFormat)(EPixelFormat, const FOpenGLTextureFormat&)) UGL_OPTIONAL_VOID
 
 protected:
 	static GLint MaxTextureImageUnits;

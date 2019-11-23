@@ -66,6 +66,7 @@ protected:
 	TSharedPtr<SWidget> GenerateRow(int32 InLayerIndex);
 
 	// Drag/Drop handling
+	int32 SlotIndexToLayerIndex(int32 SlotIndex);
 	FReply HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, int32 SlotIndex, SVerticalBox::FSlot* Slot);
 	TOptional<SDragAndDropVerticalBox::EItemDropZone> HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, SDragAndDropVerticalBox::EItemDropZone DropZone, SVerticalBox::FSlot* Slot);
 	FReply HandleAcceptDrop(FDragDropEvent const& DragDropEvent, SDragAndDropVerticalBox::EItemDropZone DropZone, int32 SlotIndex, SVerticalBox::FSlot* Slot);
@@ -78,6 +79,8 @@ protected:
 	void ClearLayer(int32 InLayerIndex, ELandscapeClearMode InClearMode);
 	void RenameLayer(int32 InLayerIndex);
 	void DeleteLayer(int32 InLayerIndex);
+	bool CanCollapseLayer(int32 InLayerIndex, FText& OutReason) const;
+	void CollapseLayer(int32 InLayerIndex);
 	void ShowOnlySelectedLayer(int32 InLayerIndex);
 	void ShowAllLayers();
 	bool CanRenameLayerTo(const FText& NewText, FText& OutErrorMessage, int32 InLayerIndex);

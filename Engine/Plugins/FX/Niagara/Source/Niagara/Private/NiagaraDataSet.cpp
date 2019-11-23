@@ -66,11 +66,11 @@ static FAutoConsoleVariableRef CVarNiagaraRenderBufferShrinkFactor(
 	ECVF_Default
 );
 
-static float GNiagaraGPUDataBufferBufferSlack = 1.5;
+static float GNiagaraGPUDataBufferBufferSlack = 1.1;
 static FAutoConsoleVariableRef CVarNiagaraGPUDataBufferBufferSlack(
 	TEXT("fx.NiagaraGPUDataBufferBufferSlack"),
 	GNiagaraGPUDataBufferBufferSlack,
-	TEXT("Niagara GPU data buffer size threshold for resizing. <= 1 to disable shrinking. (Default=1.5) \n"),
+	TEXT("Niagara GPU data buffer size threshold for resizing. <= 1 to disable shrinking. (Default=1.1) \n"),
 	ECVF_Default
 );
 

@@ -40,6 +40,7 @@
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraParameterMapHistory.h"
 #include "ScopedTransaction.h"
+#include "NiagaraStackEditorData.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraEditorUtilities"
 
@@ -269,8 +270,9 @@ void FNiagaraEditorUtilities::FixUpPastedNodes(UEdGraph* Graph, TSet<UEdGraphNod
 				FName FunctionCallName = *PastedFunctionCallNode->GetFunctionName();
 				FName UniqueFunctionCallName = FNiagaraUtilities::GetUniqueName(FunctionCallName, ExistingNames);
 				PastedFunctionCallNode->SuggestName(UniqueFunctionCallName.ToString());
-				ExistingNames.Add(UniqueFunctionCallName);
-				OldFunctionToNewFunctionNameMap.Add(FunctionCallName, UniqueFunctionCallName);
+				FName ActualPastedFunctionCallName = *PastedFunctionCallNode->GetFunctionName();
+				ExistingNames.Add(ActualPastedFunctionCallName);
+				OldFunctionToNewFunctionNameMap.Add(FunctionCallName, ActualPastedFunctionCallName);
 			}
 		}
 	}
@@ -1235,6 +1237,30 @@ bool FNiagaraEditorUtilities::VerifyNameChangeForInputOrOutputNode(const UNiagar
 	}
 
 	return true;
+}
+
+bool FNiagaraEditorUtilities::AddParameter(FNiagaraVariable& NewParameterVariable, FNiagaraParameterStore& TargetParameterStore, UObject& ParameterStoreOwner, UNiagaraStackEditorData& StackEditorData)
+{
+	FScopedTransaction AddTransaction(LOCTEXT("AddParameter", "Add Parameter"));
+	ParameterStoreOwner.Modify();
+
+	TSet<FName> ExistingParameterStoreNames;
+	TArray<FNiagaraVariable> ParameterStoreVariables;
+	TargetParameterStore.GetParameters(ParameterStoreVariables);
+	for (const FNiagaraVariable& Var : ParameterStoreVariables)
+	{
+		ExistingParameterStoreNames.Add(Var.GetName());
+	}
+
+	FNiagaraEditorUtilities::ResetVariableToDefaultValue(NewParameterVariable);
+	NewParameterVariable.SetName(FNiagaraUtilities::GetUniqueName(NewParameterVariable.GetName(), ExistingParameterStoreNames));
+
+	bool bSuccess = TargetParameterStore.AddParameter(NewParameterVariable);
+	if (bSuccess)
+	{
+		StackEditorData.SetModuleInputIsRenamePending(NewParameterVariable.GetName().ToString(), true);
+	}
+	return bSuccess;
 }
 
 #undef LOCTEXT_NAMESPACE

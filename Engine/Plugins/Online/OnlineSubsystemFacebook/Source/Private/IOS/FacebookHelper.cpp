@@ -16,7 +16,7 @@
 	NSOperationQueue* mainQueue = [NSOperationQueue mainQueue];
 
 	[center addObserver:self selector:@selector(tokenChangeCallback:) name: FBSDKAccessTokenDidChangeNotification object:nil];
-	[center addObserver:self selector:@selector(userIdChangeCallback:) name: FBSDKAccessTokenDidChangeUserID object:nil];
+	[center addObserver:self selector:@selector(userIdChangeCallback:) name: FBSDKAccessTokenDidChangeUserIDKey object:nil];
 
 	[FBSDKProfile enableUpdatesOnAccessTokenChange:YES];
 	[center addObserver:self selector:@selector(profileChangeCallback:) name: FBSDKProfileDidChangeNotification object:nil];

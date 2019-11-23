@@ -12,6 +12,10 @@
 	"Modules":
 	[
 		{
+			"Name": "GLTFCore",
+			"Type": "Runtime"
+		},
+		{
 			"Name": "GLTFImporter",
 			"Type": "Editor"
 		}

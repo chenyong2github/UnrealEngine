@@ -392,11 +392,10 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// See CVarMobileForceDepthResolve use in ConditionalResolveSceneDepth.
 	const bool bForceDepthResolve = CVarMobileForceDepthResolve.GetValueOnRenderThread() == 1;
 	const bool bSeparateTranslucencyActive = IsMobileSeparateTranslucencyActive(View);
-	bool bKeepDepthContent = bRenderToSceneColor &&
-		(bForceDepthResolve ||
-		 bSeparateTranslucencyActive ||
+	bool bKeepDepthContent = bForceDepthResolve || (bRenderToSceneColor &&
+		(bSeparateTranslucencyActive ||
 		 View.bIsReflectionCapture ||
-		 (View.bIsSceneCapture && (ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorHDR || ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorSceneDepth)));
+		 (View.bIsSceneCapture && (ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorHDR || ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorSceneDepth))));
 
 	// Whether to submit cmdbuffer with offscreen rendering before doing post-processing
 	bool bSubmitOffscreenRendering = !bGammaSpace || bRenderToSceneColor;
@@ -532,7 +531,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	FRHITexture* FoveationTexture = nullptr;
 	
-	if (SceneContext.IsFoveationTextureAllocated())
+	if (SceneContext.IsFoveationTextureAllocated()	&& !View.bIsSceneCapture && !View.bIsReflectionCapture)
 	{
 		FoveationTexture = SceneContext.GetFoveationTexture();
 	}
@@ -687,6 +686,20 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	
 	// End of scene color rendering
 	RHICmdList.EndRenderPass();
+
+	if (Scene->FXSystem && Views.IsValidIndex(0))
+	{
+		check(RHICmdList.IsOutsideRenderPass());
+
+		Scene->FXSystem->PostRenderOpaque(
+			RHICmdList,
+			Views[0].ViewUniformBuffer,
+			nullptr,
+			nullptr,
+			Views[0].AllowGPUParticleUpdate()
+		);
+		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+	}
 
 	// Flush / submit cmdbuffer
 	if (bSubmitOffscreenRendering)

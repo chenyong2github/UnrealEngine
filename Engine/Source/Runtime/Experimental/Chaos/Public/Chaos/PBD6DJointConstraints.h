@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 
+#include "Chaos/Core.h"
 #include "Chaos/Array.h"
 #include "Chaos/Transform.h"
 #include "Chaos/Vector.h"
@@ -13,33 +14,30 @@
 
 namespace Chaos
 {
-	template<class T, int d>
-	class TPBD6DJointConstraints;
+	class FPBD6DJointConstraints;
 
-	template<class T, int d>
-	class TPBD6DJointConstraintHandle : public TContainerConstraintHandle<TPBD6DJointConstraints<T, d>>
+	class CHAOS_API FPBD6DJointConstraintHandle : public TContainerConstraintHandle<FPBD6DJointConstraints>
 	{
 	public:
-		using Base = TContainerConstraintHandle<TPBD6DJointConstraints<T, d>>;
-		using FConstraintContainer = TPBD6DJointConstraints<T, d>;
+		using Base = TContainerConstraintHandle<FPBD6DJointConstraints>;
+		using FConstraintContainer = FPBD6DJointConstraints;
 
-		CHAOS_API TPBD6DJointConstraintHandle();
-		CHAOS_API TPBD6DJointConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex);
+		FPBD6DJointConstraintHandle();
+		FPBD6DJointConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex);
 
-		CHAOS_API void CalculateConstraintSpace(TVector<T, d>& OutXa, PMatrix<T, d, d>& OutRa, TVector<T, d>& OutXb, PMatrix<T, d, d>& OutRb, TVector<T, d>& OutCR) const;
-		CHAOS_API void SetParticleLevels(const TVector<int32, 2>& ParticleLevels);
-		CHAOS_API int32 GetConstraintLevel() const;
-
+		void CalculateConstraintSpace(FVec3& OutXa, FMatrix33& OutRa, FVec3& OutXb, FMatrix33& OutRb, FVec3& OutCR) const;
+		void SetParticleLevels(const TVector<int32, 2>& ParticleLevels);
+		int32 GetConstraintLevel() const;
+		TVector<TGeometryParticleHandle<float,3>*, 2> GetConstrainedParticles() const;
+		
 	protected:
 		using Base::ConstraintIndex;
 		using Base::ConstraintContainer;
 	};
 
-	template<typename T, int d>
-	using TD6JointPostApplyCallback = TFunction<void(const T Dt, const TArray<TPBD6DJointConstraintHandle<T, d>*>& InConstraintHandles)>;
+	using FD6JointPostApplyCallback = TFunction<void(const FReal Dt, const TArray<FPBD6DJointConstraintHandle*>& InConstraintHandles)>;
 
-	template<typename T, int d>
-	using TD6JointPreApplyCallback = TFunction<void(const T Dt, const TArray<TPBD6DJointConstraintHandle<T, d>*>& InConstraintHandles)>;
+	using FD6JointPreApplyCallback = TFunction<void(const FReal Dt, const TArray<FPBD6DJointConstraintHandle*>& InConstraintHandles)>;
 
 	enum class E6DJointMotionType : int32
 	{
@@ -76,104 +74,99 @@ namespace Chaos
 	};
 
 
-	template<class T, int d>
-	struct T6DJointConstants
+	struct F6DJointConstants
 	{
 		/** The constraint-space twist axis (X Axis) */
-		static const TVector<T, d> TwistAxis() { return TVector<T, d>(1, 0, 0); }
+		static const FVec3 TwistAxis() { return FVec3(1, 0, 0); }
 
 		/** The constraint-space Swing1 axis (Z Axis) */
-		static const TVector<T, d> Swing1Axis() { return TVector<T, d>(0, 0, 1); }
+		static const FVec3 Swing1Axis() { return FVec3(0, 0, 1); }
 
 		/** The constraint-space Swing2 axis (Y Axis) */
-		static const TVector<T, d> Swing2Axis() { return TVector<T, d>(0, 1, 0); }
+		static const FVec3 Swing2Axis() { return FVec3(0, 1, 0); }
 	};
 
-	template<class T, int d>
-	class CHAOS_API TPBD6DJointMotionSettings
+	class CHAOS_API FPBD6DJointMotionSettings
 	{
 	public:
-		TPBD6DJointMotionSettings();
-		TPBD6DJointMotionSettings(const TVector<E6DJointMotionType, d>& InLinearMotionTypes, const TVector<E6DJointMotionType, d>& InAngularMotionTypes);
+		FPBD6DJointMotionSettings();
+		FPBD6DJointMotionSettings(const TVector<E6DJointMotionType, 3>& InLinearMotionTypes, const TVector<E6DJointMotionType, 3>& InAngularMotionTypes);
 
-		T Stiffness;
+		FReal Stiffness;
 
-		TVector<E6DJointMotionType, d> LinearMotionTypes;
-		TVector<T, d> LinearLimits;
+		TVector<E6DJointMotionType, 3> LinearMotionTypes;
+		FVec3 LinearLimits;
 
-		TVector<E6DJointMotionType, d> AngularMotionTypes;
-		TVector<T, d> AngularLimits;
+		TVector<E6DJointMotionType, 3> AngularMotionTypes;
+		FVec3 AngularLimits;
 
 		// @todo(ccaulfield): remove one of these
-		TRotation<T, d> AngularDriveTarget;
-		TVector<T, d> AngularDriveTargetAngles;
+		FRotation3 AngularDriveTarget;
+		FVec3 AngularDriveTargetAngles;
 
 		bool bAngularSLerpDriveEnabled;
 		bool bAngularTwistDriveEnabled;
 		bool bAngularSwingDriveEnabled;
 
-		T AngularDriveStiffness;
-		T AngularDriveDamping;
+		FReal AngularDriveStiffness;
+		FReal AngularDriveDamping;
 	};
 
 
-	template<class T, int d>
-	class CHAOS_API TPBD6DJointSettings
+	class CHAOS_API FPBD6DJointSettings
 	{
 	public:
-		using FTransformPair = TVector<TRigidTransform<T, d>, 2>;
+		using FTransformPair = TVector<FRigidTransform3, 2>;
 
-		TPBD6DJointSettings();
+		FPBD6DJointSettings();
 
 		// Particle-relative joint axes and positions
 		FTransformPair ConstraintFrames;
 
 		// How the constraint is allowed to move
-		TPBD6DJointMotionSettings<T, d> Motion;
+		FPBD6DJointMotionSettings Motion;
 	};
 
-	template<class T, int d>
-	class CHAOS_API TPBD6DJointState
+	class CHAOS_API FPBD6DJointState
 	{
 	public:
-		TPBD6DJointState();
+		FPBD6DJointState();
 
 		// XPBD state lambda (See XPBD paper for info)
 		// This needs to be initialized each frame before we start iterating, but we only know
 		// some of the values during the iteration, hence the initialize flag.
-		TVector<T, d> LambdaXa;
-		TVector<T, d> LambdaRa;
-		TVector<T, d> LambdaXb;
-		TVector<T, d> LambdaRb;
-		TVector<T, d> PrevTickCX;
-		TVector<T, d> PrevTickCR;
-		TVector<T, d> PrevItCX;
-		TVector<T, d> PrevItCR;
+		FVec3 LambdaXa;
+		FVec3 LambdaRa;
+		FVec3 LambdaXb;
+		FVec3 LambdaRb;
+		FVec3 PrevTickCX;
+		FVec3 PrevTickCR;
+		FVec3 PrevItCX;
+		FVec3 PrevItCR;
 
 		// Priorities used for ordering, mass conditioning, projection, and freezing
 		int32 Level;
 		TVector<int32, 2> ParticleLevels;
 	};
 
-	template<class T, int d>
-	class CHAOS_API TPBD6DJointSolverSettings
+	class CHAOS_API FPBD6DJointSolverSettings
 	{
 	public:
-		TPBD6DJointSolverSettings();
+		FPBD6DJointSolverSettings();
 
 		// Tolerances
-		T SolveTolerance;
-		T InvertedAxisTolerance;
-		T SwingTwistAngleTolerance;
+		FReal SolveTolerance;
+		FReal InvertedAxisTolerance;
+		FReal SwingTwistAngleTolerance;
 
 		// Stability control
 		bool bApplyProjection;
 		int32 MaxIterations;
 		int32 MaxPreIterations;
 		int32 MaxDriveIterations;
-		T MaxRotComponent;
-		T PBDMinParentMassRatio;
-		T PBDMaxInertiaRatio;
+		FReal MaxRotComponent;
+		FReal PBDMinParentMassRatio;
+		FReal PBDMaxInertiaRatio;
 		int32 FreezeIterations;
 		int32 FrozenIterations;
 
@@ -182,12 +175,12 @@ namespace Chaos
 		bool bEnableTwistLimits;
 		bool bEnableSwingLimits;
 		bool bEnableDrives;
-		T XPBDAlphaX;
-		T XPBDAlphaR;
-		T XPBDBetaX;
-		T XPBDBetaR;
-		T PBDStiffness;
-		T PBDDriveStiffness;
+		FReal XPBDAlphaX;
+		FReal XPBDAlphaR;
+		FReal XPBDBetaX;
+		FReal XPBDBetaR;
+		FReal PBDStiffness;
+		FReal PBDDriveStiffness;
 
 		bool bFastSolve;
 	};
@@ -195,27 +188,23 @@ namespace Chaos
 	/**
 	 * A joint restricting up to 6 degrees of freedom, with linear and angular limits.
 	 */
-	template<class T, int d>
-	class TPBD6DJointConstraints : public TPBDConstraintContainer<T, d>
+	class CHAOS_API FPBD6DJointConstraints : public FPBDConstraintContainer
 	{
 	public:
-		using Base = TPBDConstraintContainer<T, d>;
-		using FReal = T;
-		static const int Dimensions = d;
-		using FConstraintHandle = TPBD6DJointConstraintHandle<FReal, Dimensions>;
-		using FConstraintHandleAllocator = TConstraintHandleAllocator<TPBD6DJointConstraints<FReal, Dimensions>>;
-		using FParticlePair = TVector<TGeometryParticleHandle<T, d>*, 2>;
-		using FVectorPair = TVector<TVector<T, d>, 2>;
-		using FTransformPair = TVector<TRigidTransform<T, d>, 2>;
-		using FJointSettings = TPBD6DJointSettings<T, d>;
-		using FJointState = TPBD6DJointState<T, d>;
+		using Base = FPBDConstraintContainer;
+		using FConstraintContainerHandle = FPBD6DJointConstraintHandle;
+		using FConstraintHandleAllocator = TConstraintHandleAllocator<FPBD6DJointConstraints>;
+		using FParticlePair = TVector<TGeometryParticleHandle<FReal, 3>*, 2>;
+		using FVectorPair = TVector<FVec3, 2>;
+		using FTransformPair = TVector<FRigidTransform3, 2>;
+		using FHandles = TArray<FConstraintContainerHandle*>;
 
-		CHAOS_API TPBD6DJointConstraints(const TPBD6DJointSolverSettings<T, d>& InSettings);
+		FPBD6DJointConstraints(const FPBD6DJointSolverSettings& InSettings);
 
-		virtual ~TPBD6DJointConstraints();
+		virtual ~FPBD6DJointConstraints();
 
-		CHAOS_API const TPBD6DJointSolverSettings<T, d>& GetSettings() const;
-		CHAOS_API void SetSettings(const TPBD6DJointSolverSettings<T, d>& InSettings);
+		const FPBD6DJointSolverSettings& GetSettings() const;
+		void SetSettings(const FPBD6DJointSolverSettings& InSettings);
 
 		//
 		// Constraint Container API
@@ -224,39 +213,48 @@ namespace Chaos
 		/**
 		 * Get the number of constraints.
 		 */
-		CHAOS_API int32 NumConstraints() const;
+		int32 NumConstraints() const;
 
 		/** 
 		 * Add a constraint with particle-space constraint offsets. 
 		 */
-		CHAOS_API FConstraintHandle* AddConstraint(const FParticlePair& InConstrainedParticles, const FTransformPair& ConstraintFrames);
-		CHAOS_API FConstraintHandle* AddConstraint(const FParticlePair& InConstrainedParticles, const TPBD6DJointSettings<T, d>& InConstraintSettings);
+		FConstraintContainerHandle* AddConstraint(const FParticlePair& InConstrainedParticles, const FTransformPair& ConstraintFrames);
+		FConstraintContainerHandle* AddConstraint(const FParticlePair& InConstrainedParticles, const FPBD6DJointSettings& InConstraintSettings);
 
 		/**
 		 * Remove the specified constraint.
 		 */
-		CHAOS_API void RemoveConstraint(int ConstraintIndex);
+		void RemoveConstraint(int ConstraintIndex);
 
 		// @todo(ccaulfield): rename/remove  this
-		CHAOS_API void RemoveConstraints(const TSet<TGeometryParticleHandle<T, d>*>& RemovedParticles);
+		void RemoveConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles);
 
-		CHAOS_API void SetPreApplyCallback(const TD6JointPostApplyCallback<T, d>& Callback);
-		CHAOS_API void ClearPreApplyCallback();
+		void SetPreApplyCallback(const FD6JointPostApplyCallback& Callback);
+		void ClearPreApplyCallback();
 
-		CHAOS_API void SetPostApplyCallback(const TD6JointPostApplyCallback<T, d>& Callback);
-		CHAOS_API void ClearPostApplyCallback();
+		void SetPostApplyCallback(const FD6JointPostApplyCallback& Callback);
+		void ClearPostApplyCallback();
 
 		//
 		// Constraint API
 		//
+		FHandles& GetConstraintHandles()
+		{
+			return Handles;
+		}
+		const FHandles& GetConstConstraintHandles() const
+		{
+			return Handles;
+		}
 
-		CHAOS_API const FConstraintHandle* GetConstraintHandle(int32 ConstraintIndex) const;
-		CHAOS_API FConstraintHandle* GetConstraintHandle(int32 ConstraintIndex);
+		const FConstraintContainerHandle* GetConstraintHandle(int32 ConstraintIndex) const;
+		FConstraintContainerHandle* GetConstraintHandle(int32 ConstraintIndex);
+
 
 		/**
 		 * Get the particles that are affected by the specified constraint.
 		 */
-		CHAOS_API const FParticlePair& GetConstrainedParticles(int32 ConstraintIndex) const;
+		const FParticlePair& GetConstrainedParticles(int32 ConstraintIndex) const;
 
 		int32 GetConstraintLevel(int32 ConstraintIndex) const;
 		void SetParticleLevels(int32 ConstraintIndex, const TVector<int32, 2>& ParticleLevels);
@@ -265,195 +263,193 @@ namespace Chaos
 		// Island Rule API
 		//
 
-		CHAOS_API void UpdatePositionBasedState(const T Dt);
+		void UpdatePositionBasedState(const FReal Dt);
 
-		CHAOS_API void Apply(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
+		void Apply(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
 
-		// @todo(ccaulfield): remove  this
-		CHAOS_API void ApplyPushOut(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles);
+		bool ApplyPushOut(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
 
 	protected:
 		using Base::GetConstraintIndex;
 		using Base::SetConstraintIndex;
 
 	private:
-		friend class TPBD6DJointConstraintHandle<T, d>;
+		friend class FPBD6DJointConstraintHandle;
 
-		CHAOS_API void CalculateConstraintSpace(int32 ConstraintIndex, TVector<T, d>& OutXa, PMatrix<T, d, d>& OutRa, TVector<T, d>& OutXb, PMatrix<T, d, d>& OutRb, TVector<T, d>& OutCR) const;
+		void CalculateConstraintSpace(int32 ConstraintIndex, FVec3& OutXa, FMatrix33& OutRa, FVec3& OutXb, FMatrix33& OutRb, FVec3& OutCR) const;
 
-		CHAOS_API void ApplySingle(const T Dt, const int32 ConstraintIndex, const T FreezeScale);
-		CHAOS_API void ApplyDynamicStatic(const T Dt, const int32 ConstraintIndex, const int32 PBDRigid0Index, const int32 Static1Index);
-		CHAOS_API void ApplyDynamicDynamic(const T Dt, const int32 ConstraintIndex, const int32 PBDRigid0Index, const int32 PBDRigid1Index, const T FreezeScale);
+		void ApplySingle(const FReal Dt, const int32 ConstraintIndex, const FReal FreezeScale);
+		void ApplyDynamicStatic(const FReal Dt, const int32 ConstraintIndex, const int32 PBDRigid0Index, const int32 Static1Index);
+		void ApplyDynamicDynamic(const FReal Dt, const int32 ConstraintIndex, const int32 PBDRigid0Index, const int32 PBDRigid1Index, const FReal FreezeScale);
 
-		CHAOS_API void ApplyPushOutSingle(const T Dt, const int32 ConstraintIndex);
+		void ApplyPushOutSingle(const FReal Dt, const int32 ConstraintIndex);
 
-		CHAOS_API void ApplySingleFast(const T Dt, const int32 ConstraintIndex, const int32 It, const int32 NumIts);
+		void ApplySingleFast(const FReal Dt, const int32 ConstraintIndex, const int32 It, const int32 NumIts);
 
-		TPBD6DJointSolverSettings<T, d> Settings;
+		FPBD6DJointSolverSettings Settings;
 
-		TArray<FJointSettings> ConstraintSettings;
+		TArray<FPBD6DJointSettings> ConstraintSettings;
 		TArray<FParticlePair> ConstraintParticles;
-		TArray<FJointState> ConstraintStates;
+		TArray<FPBD6DJointState> ConstraintStates;
 
-		TArray<FConstraintHandle*> Handles;
+		FHandles Handles;
 		FConstraintHandleAllocator HandleAllocator;
 
-		TD6JointPreApplyCallback<T, d> PreApplyCallback;
-		TD6JointPostApplyCallback<T, d> PostApplyCallback;
+		FD6JointPreApplyCallback PreApplyCallback;
+		FD6JointPostApplyCallback PostApplyCallback;
 	};
 
-	template<class T, int d>
-	class CHAOS_API TPBD6DJointConstraintUtilities
+	class CHAOS_API FPBD6DJointConstraintUtilities
 	{
 	public:
-		static void BlockwiseInverse(const PMatrix<T, d, d>& A, const PMatrix<T, d, d>& B, const PMatrix<T, d, d>& C, const PMatrix<T, d, d>& D, PMatrix<T, d, d>& AI, PMatrix<T, d, d>& BI, PMatrix<T, d, d>& CI, PMatrix<T, d, d>& DI);
-		static void BlockwiseInverse2(const PMatrix<T, d, d>& A, const PMatrix<T, d, d>& B, const PMatrix<T, d, d>& C, const PMatrix<T, d, d>& D, PMatrix<T, d, d>& AI, PMatrix<T, d, d>& BI, PMatrix<T, d, d>& CI, PMatrix<T, d, d>& DI);
+		static void BlockwiseInverse(const FMatrix33& A, const FMatrix33& B, const FMatrix33& C, const FMatrix33& D, FMatrix33& AI, FMatrix33& BI, FMatrix33& CI, FMatrix33& DI);
+		static void BlockwiseInverse2(const FMatrix33& A, const FMatrix33& B, const FMatrix33& C, const FMatrix33& D, FMatrix33& AI, FMatrix33& BI, FMatrix33& CI, FMatrix33& DI);
 		
-		static void ComputeJointFactorMatrix(const PMatrix<T, d, d>& XR, const PMatrix<T, d, d>& RR, float MInv, const PMatrix<T, d, d>& IInv, PMatrix<T, d, d>& M00, PMatrix<T, d, d>& M01, PMatrix<T, d, d>& M10, PMatrix<T, d, d>& M11);
+		static void ComputeJointFactorMatrix(const FMatrix33& XR, const FMatrix33& RR, float MInv, const FMatrix33& IInv, FMatrix33& M00, FMatrix33& M01, FMatrix33& M10, FMatrix33& M11);
 
-		static TVector<T, d> Calculate6dConstraintAngles(
-			const TPBD6DJointSolverSettings<T, d>& SolverSettings,
-			const TRotation<T, d>& Ra,
-			const TRotation<T, d>& Rb, 
-			const TPBD6DJointMotionSettings<T, d>& MotionSettings);
+		static FVec3 Calculate6dConstraintAngles(
+			const FPBD6DJointSolverSettings& SolverSettings,
+			const FRotation3& Ra,
+			const FRotation3& Rb, 
+			const FPBD6DJointMotionSettings& MotionSettings);
 		
 		static bool Calculate6dConstraintRotation(
-			const TPBD6DJointSolverSettings<T, d>& SolverSettings,
-			const TRotation<T, d>& Ra,
-			const TRotation<T, d>& Rb, 
-			const TPBD6DJointMotionSettings<T, d>& MotionSettings,
-			TVector<T, d>& CR, 
-			PMatrix<T, d, d>& RRa, 
-			PMatrix<T, d, d>& RRb);
+			const FPBD6DJointSolverSettings& SolverSettings,
+			const FRotation3& Ra,
+			const FRotation3& Rb, 
+			const FPBD6DJointMotionSettings& MotionSettings,
+			FVec3& CR, 
+			FMatrix33& RRa, 
+			FMatrix33& RRb);
 		
 		static void Calculate6dConstraintRotationLimits(
-			const TPBD6DJointSolverSettings<T, d>& SolverSettings,
-			const TRotation<T, d>& Ra,
-			const TRotation<T, d>& Rb, 
-			const TPBD6DJointMotionSettings<T, d>& MotionSettings,
-			TVector<T, d>& SR,
-			TVector<T, d>& CR,
-			PMatrix<T, d, d>& RRa, 
-			PMatrix<T, d, d>& RRb, 
-			TVector<T, d>& LRMin, 
-			TVector<T, d>& LRMax);
+			const FPBD6DJointSolverSettings& SolverSettings,
+			const FRotation3& Ra,
+			const FRotation3& Rb, 
+			const FPBD6DJointMotionSettings& MotionSettings,
+			FVec3& SR,
+			FVec3& CR,
+			FMatrix33& RRa, 
+			FMatrix33& RRb, 
+			FVec3& LRMin, 
+			FVec3& LRMax);
 
 		static bool Calculate6dConstraintRotation_SwingCone(
-			const TPBD6DJointSolverSettings<T, d>& SolverSettings,
-			const TRotation<T, d>& Ra,
-			const TRotation<T, d>& Rb, 
-			const TPBD6DJointMotionSettings<T, d>& MotionSettings,
-			TVector<T, d>& CR, 
-			PMatrix<T, d, d>& RRa, 
-			PMatrix<T, d, d>& RRb);
+			const FPBD6DJointSolverSettings& SolverSettings,
+			const FRotation3& Ra,
+			const FRotation3& Rb, 
+			const FPBD6DJointMotionSettings& MotionSettings,
+			FVec3& CR, 
+			FMatrix33& RRa, 
+			FMatrix33& RRb);
 
 		static void Calculate6dConstraintRotationLimits_SwingCone(
-			const TPBD6DJointSolverSettings<T, d>& SolverSettings,
-			const TRotation<T, d>& Ra,
-			const TRotation<T, d>& Rb, 
-			const TPBD6DJointMotionSettings<T, d>& MotionSettings,
-			TVector<T, d>& SR,
-			TVector<T, d>& CR,
-			PMatrix<T, d, d>& RRa,
-			PMatrix<T, d, d>& RRb, 
-			TVector<T, d>& LRMin, 
-			TVector<T, d>& LRMax);
+			const FPBD6DJointSolverSettings& SolverSettings,
+			const FRotation3& Ra,
+			const FRotation3& Rb, 
+			const FPBD6DJointMotionSettings& MotionSettings,
+			FVec3& SR,
+			FVec3& CR,
+			FMatrix33& RRa,
+			FMatrix33& RRb, 
+			FVec3& LRMin, 
+			FVec3& LRMax);
 
 		static bool Calculate6dConstraintRotation_SwingFixed(
-			const TPBD6DJointSolverSettings<T, d>& SolverSettings,
-			const TRotation<T, d>& Ra,
-			const TRotation<T, d>& Rb, 
-			const TPBD6DJointMotionSettings<T, d>& MotionSettings,
-			TVector<T, d>& CR, 
-			PMatrix<T, d, d>& RRa, 
-			PMatrix<T, d, d>& RRb);
+			const FPBD6DJointSolverSettings& SolverSettings,
+			const FRotation3& Ra,
+			const FRotation3& Rb, 
+			const FPBD6DJointMotionSettings& MotionSettings,
+			FVec3& CR, 
+			FMatrix33& RRa, 
+			FMatrix33& RRb);
 
 		static void Calculate6dConstraintRotationLimits_SwingFixed(
-			const TPBD6DJointSolverSettings<T, d>& SolverSettings,
-			const TRotation<T, d>& Ra,
-			const TRotation<T, d>& Rb, 
-			const TPBD6DJointMotionSettings<T, d>& MotionSettings,
-			TVector<T, d>& SR,
-			TVector<T, d>& CR,
-			PMatrix<T, d, d>& RRa, 
-			PMatrix<T, d, d>& RRb, 
-			TVector<T, d>& LRMin, 
-			TVector<T, d>& LRMax);
+			const FPBD6DJointSolverSettings& SolverSettings,
+			const FRotation3& Ra,
+			const FRotation3& Rb, 
+			const FPBD6DJointMotionSettings& MotionSettings,
+			FVec3& SR,
+			FVec3& CR,
+			FMatrix33& RRa, 
+			FMatrix33& RRb, 
+			FVec3& LRMin, 
+			FVec3& LRMax);
 
 		static bool Calculate6dDelta(
-			const TPBD6DJointSolverSettings<T, d>& SolverSettings,
-			const T Dt,
-			const TVector<T, d>& Pa,
-			const TRotation<T, d>& Qa,
+			const FPBD6DJointSolverSettings& SolverSettings,
+			const FReal Dt,
+			const FVec3& Pa,
+			const FRotation3& Qa,
 			float MaInv,
-			const PMatrix<T, d, d>& IaInv,
-			const TVector<T, d>& Pb,
-			const TRotation<T, d>& Qb,
+			const FMatrix33& IaInv,
+			const FVec3& Pb,
+			const FRotation3& Qb,
 			float MbInv,
-			const PMatrix<T, d, d>& IbInv,
-			const TVector<T, d>& Xa,
-			const TRotation<T, d>& Ra,
-			const TVector<T, d>& Xb,
-			const TRotation<T, d>& Rb,
-			const TPBD6DJointMotionSettings<T, d>& MotionSettings,
-			TPBD6DJointState<T, d>& State,
-			TVector<T, d>& DPa,
-			TRotation<T, d>& DQa,
-			TVector<T, d>& DPb,
-			TRotation<T, d>& DQb);
+			const FMatrix33& IbInv,
+			const FVec3& Xa,
+			const FRotation3& Ra,
+			const FVec3& Xb,
+			const FRotation3& Rb,
+			const FPBD6DJointMotionSettings& MotionSettings,
+			FPBD6DJointState& State,
+			FVec3& DPa,
+			FRotation3& DQa,
+			FVec3& DPb,
+			FRotation3& DQb);
 
 		static int Solve6dConstraint(
-			const TPBD6DJointSolverSettings<T, d>& SolverSettings,
-			const T Dt,
-			TVector<T, d>& Pa,
-			TRotation<T, d>& Qa,
-			T MaInv,
-			const PMatrix<T, d, d>& ILaInv,
-			const TVector<T, d>& XLa,
-			const TRotation<T, d>& RLa,
-			TVector<T, d>& Pb,
-			TRotation<T, d>& Qb,
-			T MbInv,
-			const PMatrix<T, d, d>& ILbInv,
-			const TVector<T, d>& XLb,
-			const TRotation<T, d>& RLb,
-			const TPBD6DJointMotionSettings<T, d>& MotionSettings,
-			TPBD6DJointState<T, d>& State);
+			const FPBD6DJointSolverSettings& SolverSettings,
+			const FReal Dt,
+			FVec3& Pa,
+			FRotation3& Qa,
+			FReal MaInv,
+			const FMatrix33& ILaInv,
+			const FVec3& XLa,
+			const FRotation3& RLa,
+			FVec3& Pb,
+			FRotation3& Qb,
+			FReal MbInv,
+			const FMatrix33& ILbInv,
+			const FVec3& XLb,
+			const FRotation3& RLb,
+			const FPBD6DJointMotionSettings& MotionSettings,
+			FPBD6DJointState& State);
 
 
 		static void Calculate3dDelta(
-			const TPBD6DJointSolverSettings<T, d>& SolverSettings,
-			const TVector<T, d>& Pa,
-			const TRotation<T, d>& Qa,
-			float MaInv,
-			const PMatrix<T, d, d>& IaInv,
-			const TVector<T, d>& Pb,
-			const TRotation<T, d>& Qb,
-			float MbInv,
-			const PMatrix<T, d, d>& IbInv,
-			const TVector<T, d>& Xa,
-			const TVector<T, d>& Xb,
-			const TPBD6DJointMotionSettings<T, d>& XSettings,
-			TVector<T, d>& DPa,
-			TRotation<T, d>& DQa,
-			TVector<T, d>& DPb,
-			TRotation<T, d>& DQb);
+			const FPBD6DJointSolverSettings& SolverSettings,
+			const FVec3& Pa,
+			const FRotation3& Qa,
+			FReal MaInv,
+			const FMatrix33& IaInv,
+			const FVec3& Pb,
+			const FRotation3& Qb,
+			FReal MbInv,
+			const FMatrix33& IbInv,
+			const FVec3& Xa,
+			const FVec3& Xb,
+			const FPBD6DJointMotionSettings& XSettings,
+			FVec3& DPa,
+			FRotation3& DQa,
+			FVec3& DPb,
+			FRotation3& DQb);
 
 		static void Solve3dConstraint(
-			const TPBD6DJointSolverSettings<T, d>& SolverSettings,
-			TVector<T, d>& Pa,
-			TRotation<T, d>& Qa,
-			T MaInv,
-			const PMatrix<T, d, d>& ILaInv,
-			const TVector<T, d>& XLa,
-			const TRotation<T, d>& RLa,
-			TVector<T, d>& Pb,
-			TRotation<T, d>& Qb,
-			T MbInv,
-			const PMatrix<T, d, d>& ILbInv,
-			const TVector<T, d>& XLb,
-			const TRotation<T, d>& RLb,
-			const TPBD6DJointMotionSettings<T, d>& MotionSettings);
+			const FPBD6DJointSolverSettings& SolverSettings,
+			FVec3& Pa,
+			FRotation3& Qa,
+			FReal MaInv,
+			const FMatrix33& ILaInv,
+			const FVec3& XLa,
+			const FRotation3& RLa,
+			FVec3& Pb,
+			FRotation3& Qb,
+			FReal MbInv,
+			const FMatrix33& ILbInv,
+			const FVec3& XLb,
+			const FRotation3& RLb,
+			const FPBD6DJointMotionSettings& MotionSettings);
 	};
 
 }

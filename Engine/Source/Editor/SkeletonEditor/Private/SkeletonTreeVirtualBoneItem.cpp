@@ -60,7 +60,7 @@ void FSkeletonTreeVirtualBoneItem::GenerateWidgetForNameColumn(TSharedPtr< SHori
 						.HighlightText(FilterText)
 						.Font(this, &FSkeletonTreeVirtualBoneItem::GetBoneTextFont)
 						.ToolTipText(ToolTip)
-						.OnBeginTextEdit(this, &FSkeletonTreeVirtualBoneItem::OnVirtualBoneNameEditing)
+						.OnEnterEditingMode(this, &FSkeletonTreeVirtualBoneItem::OnVirtualBoneNameEditing)
 						.OnVerifyTextChanged(this, &FSkeletonTreeVirtualBoneItem::OnVerifyBoneNameChanged)
 						.OnTextCommitted(this, &FSkeletonTreeVirtualBoneItem::OnCommitVirtualBoneName)
 						.IsSelected(InIsSelected);
@@ -128,10 +128,10 @@ void FSkeletonTreeVirtualBoneItem::RequestRename()
 	OnRenameRequested.ExecuteIfBound();
 }
 
-void FSkeletonTreeVirtualBoneItem::OnVirtualBoneNameEditing(const FText& OriginalText)
+void FSkeletonTreeVirtualBoneItem::OnVirtualBoneNameEditing()
 {
 	CachedBoneNameForRename = BoneName;
-	BoneName = VirtualBoneNameHelpers::RemoveVirtualBonePrefix(OriginalText.ToString());
+	BoneName = VirtualBoneNameHelpers::RemoveVirtualBonePrefix(BoneName.ToString());
 }
 
 bool FSkeletonTreeVirtualBoneItem::OnVerifyBoneNameChanged(const FText& InText, FText& OutErrorMessage)

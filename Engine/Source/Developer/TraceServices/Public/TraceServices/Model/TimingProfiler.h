@@ -24,9 +24,19 @@ struct FTimingProfilerEvent
 };
 
 struct FTimingProfilerAggregatedStats
-	: public FAggregatedTimingStats
 {
 	const FTimingProfilerTimer* Timer = nullptr;
+	uint64 InstanceCount = 0;
+	double TotalInclusiveTime = 0.0;
+	double MinInclusiveTime = DBL_MAX;
+	double MaxInclusiveTime = -DBL_MAX;
+	double AverageInclusiveTime = 0.0;
+	double MedianInclusiveTime = 0.0;
+	double TotalExclusiveTime = 0.0;
+	double MinExclusiveTime = DBL_MAX;
+	double MaxExclusiveTime = -DBL_MAX;
+	double AverageExclusiveTime = 0.0;
+	double MedianExclusiveTime = 0.0;
 };
 
 struct FTimingProfilerButterflyNode

@@ -321,6 +321,8 @@ FReply SSlider::OnTouchStarted(const FGeometry& MyGeometry, const FPointerEvent&
 		ResetControllerState();
 
 		PressedScreenSpaceTouchDownPosition = InTouchEvent.GetScreenSpacePosition();
+
+		return FReply::Handled();
 	}
 
 	return FReply::Unhandled();

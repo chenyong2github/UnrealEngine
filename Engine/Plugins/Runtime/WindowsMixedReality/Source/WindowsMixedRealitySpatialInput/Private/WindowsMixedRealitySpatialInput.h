@@ -69,7 +69,7 @@ namespace WindowsMixedReality
 
 #if WITH_WINDOWS_MIXED_REALITY
 #if SUPPORTS_WINDOWS_MIXED_REALITY_GESTURES
-		TUniquePtr<GestureRecognizerInterop> gestureRecognizer;
+		TUniquePtr<GestureRecognizerInterop> GestureRecognizer;
 		uint32 CapturingSet = 0;
 #endif
 		bool UpdateGestureCallbacks(FString& errorMsg);
@@ -111,6 +111,8 @@ namespace WindowsMixedReality
 
 		bool isLeftTouchpadTouched = false;
 		bool isRightTouchpadTouched = false;
+		FKey ThumbstickDirection[2] = { EKeys::Invalid, EKeys::Invalid };
+		FKey TouchpadDirection[2] = { EKeys::Invalid, EKeys::Invalid };
 
 		FThreadSafeBool IsInitialized = false;
 

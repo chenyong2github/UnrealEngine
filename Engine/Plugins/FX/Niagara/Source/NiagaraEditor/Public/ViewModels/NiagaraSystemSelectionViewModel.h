@@ -15,15 +15,17 @@ UCLASS()
 class NIAGARAEDITOR_API UNiagaraSystemSelectionViewModel : public UObject
 {
 public:
-	enum class ESelectionChangeSource
-	{
-		EntrySelection,
-		TopObjectLevelSelection,
-		Refresh,
-		Clear
-	};
+	DECLARE_MULTICAST_DELEGATE(FOnSelectionChanged);
 
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSelectionChanged, ESelectionChangeSource);
+private:
+	struct FSelectionEntry
+	{
+		explicit FSelectionEntry(UNiagaraStackEntry* SelectedEntry);
+
+		const TWeakObjectPtr<UNiagaraStackEntry> Entry;
+		const FGuid EmitterGuid;
+		const FString EditorDataKey;
+	};
 
 public:
 	GENERATED_BODY()
@@ -32,17 +34,19 @@ public:
 
 	void Finalize();
 
-	const TArray<UNiagaraStackEntry*> GetSelectedEntries() const;
+	bool ContainsEntry(UNiagaraStackEntry* StackEntry) const;
+
+	void GetSelectedEntries(TArray<UNiagaraStackEntry*>& OutSelectedEntries) const;
 
 	bool GetSystemIsSelected() const;
 
 	const TArray<FGuid>& GetSelectedEmitterHandleIds() const;
 
-	void UpdateSelectionFromEntries(const TArray<UNiagaraStackEntry*> InSelectedEntries, const TArray<UNiagaraStackEntry*> InDeselectedEntries, bool bClearCurrentSelection);
-
-	void UpdateSelectionFromTopLevelObjects(bool bInSystemIsSelected, const TArray<FGuid> InSelectedEmitterHandleIds, bool bClearCurrentSelection);
+	void UpdateSelectedEntries(const TArray<UNiagaraStackEntry*> InSelectedEntries, const TArray<UNiagaraStackEntry*> InDeselectedEntries, bool bClearCurrentSelection);
 
 	UNiagaraStackViewModel* GetSelectionStackViewModel();
+
+	void EmptySelection();
 
 	void RemoveEntryFromSelectionByDisplayedObject(const UObject* InObject);
 
@@ -50,11 +54,15 @@ public:
 
 	void AddEntryToSelectionByDisplayedObjectDeferred(const UObject* InObjects);
 
-	void Refresh();
+	bool Refresh();
 
 	void RefreshDeferred();
 
-	FOnSelectionChanged& OnSelectionChanged();
+	FOnSelectionChanged& OnEntrySelectionChanged();
+
+	FOnSelectionChanged& OnEmitterHandleIdSelectionChanged();
+
+	FOnSelectionChanged& OnSystemIsSelectedChanged();
 
 	void Tick();
 
@@ -63,12 +71,12 @@ private:
 
 	void RemoveEntryFromSelectionInternal(UNiagaraStackEntry* DeselectedEntry);
 
-	void UpdateStackSelectionEntry();
+	void UpdateExternalSelectionState();
 
 private:
 	TWeakPtr<FNiagaraSystemViewModel> SystemViewModelWeak;
 
-	TArray<UNiagaraStackEntry*> SelectedEntries;
+	TArray<FSelectionEntry> SelectionEntries;
 
 	bool bSystemIsSelected;
 
@@ -80,7 +88,11 @@ private:
 	UPROPERTY()
 	UNiagaraStackViewModel* SelectionStackViewModel;
 
-	FOnSelectionChanged OnSelectionChangedDelegate;
+	FOnSelectionChanged OnEntrySelectionChangedDelegate;
+
+	FOnSelectionChanged OnEmitterHandleIdSelectionChangedDelegate;
+
+	FOnSelectionChanged OnSystemIsSelectedChangedDelegate;
 
 	TArray<FObjectKey> DeferredDisplayedObjectKeysToAddToSelection;
 

@@ -24,8 +24,6 @@
 
 #include "AnimCompressionTypes.generated.h"
 
-CSV_DECLARE_CATEGORY_EXTERN(Animation);
-
 /**
  * Indicates animation data key format.
  */

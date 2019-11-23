@@ -70,9 +70,12 @@ private:
 	float TimeCodesPerSecond;
 
 	UPROPERTY(VisibleAnywhere, Category = "USD", Transient)
-	TWeakObjectPtr< ULevelSequence > LevelSequence;
+	ULevelSequence* LevelSequence;
 
 public:
+	DECLARE_EVENT_OneParam( AUsdStageActor, FOnActorLoaded, AUsdStageActor* );
+	USDSTAGE_API static FOnActorLoaded OnActorLoaded;
+
 	DECLARE_EVENT( AUsdStageActor, FOnStageChanged );
 	FOnStageChanged OnStageChanged;
 
@@ -84,12 +87,14 @@ public:
 
 public:
 	AUsdStageActor();
+	virtual ~AUsdStageActor();
 
 	void Refresh() const;
 
 public:
 	virtual void PostEditChangeProperty( FPropertyChangedEvent& PropertyChangedEvent ) override;
 	virtual void PostRegisterAllComponents() override;
+	virtual void PostLoad() override;
 
 private:
 	void Clear();

@@ -1780,6 +1780,8 @@ public:
 	 */
 	void DoWork()
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(CompressImage);
+
 		bCompressionResults = TextureFormat.CompressImageEx(
 			SourceImages,
 			NumImages,
@@ -1831,6 +1833,8 @@ static bool CompressMipChain(
 	uint32& OutNumMipsInTail,
 	uint32& OutExtData)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(CompressMipChain)
+
 	// now call the Ex version now that we have the proper MipChain
 	const FTextureFormatCompressorCaps CompressorCaps = TextureFormat->GetFormatCapabilitiesEx(Settings, MipChain.Num(), MipChain[0]);
 	OutNumMipsInTail = CompressorCaps.NumMipsInTail;
@@ -2331,7 +2335,14 @@ private:
 		if( RoughnessSourceMips[RoughnessSourceMips.Num() - MinLevel].SizeX != NormalSourceMips[NormalSourceMips.Num() - MinLevel].SizeX || 
 			RoughnessSourceMips[RoughnessSourceMips.Num() - MinLevel].SizeY != NormalSourceMips[NormalSourceMips.Num() - MinLevel].SizeY )
 		{
-			//incomplete mip chain or mismatched dimensions so bail
+			UE_LOG(LogTextureCompressor, Warning, TEXT("Couldn't apply composite texture as RoughnessSourceMips (mip %d, %d x %d) doesn't match NormalSourceMips (mip %d, %d x %d); mipchain might be mismatched/incomplete"),
+				RoughnessSourceMips.Num() - MinLevel,
+				RoughnessSourceMips[RoughnessSourceMips.Num() - MinLevel].SizeX,
+				RoughnessSourceMips[RoughnessSourceMips.Num() - MinLevel].SizeY,
+				NormalSourceMips.Num() - MinLevel,
+				NormalSourceMips[NormalSourceMips.Num() - MinLevel].SizeX,
+				NormalSourceMips[NormalSourceMips.Num() - MinLevel].SizeY
+				);
 			return false;
 		}
 

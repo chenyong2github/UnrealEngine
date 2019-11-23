@@ -1889,6 +1889,38 @@ void FShaderPipeline::CookPipeline(FShaderPipeline* Pipeline)
 #endif
 }
 
+void FShaderPipeline::SaveShaderStableKeys(EShaderPlatform TargetShaderPlatform, const struct FStableShaderKeyAndValue& InSaveKeyVal)
+{
+	// the higher level code can pass SP_NumPlatforms, in which case play it safe and use a platform that we know can remove inteprolators
+	const EShaderPlatform ShaderPlatformThatSupportsRemovingInterpolators = SP_PCD3D_SM5;
+	checkf(RHISupportsShaderPipelines(ShaderPlatformThatSupportsRemovingInterpolators), TEXT("We assumed that shader platform %d supports shaderpipelines while it doesn't"), static_cast<int32>(ShaderPlatformThatSupportsRemovingInterpolators));
+
+	bool bCanHaveUniqueShaders = (TargetShaderPlatform != SP_NumPlatforms) ? PipelineType->ShouldOptimizeUnusedOutputs(TargetShaderPlatform) : PipelineType->ShouldOptimizeUnusedOutputs(ShaderPlatformThatSupportsRemovingInterpolators);
+	if (bCanHaveUniqueShaders)
+	{
+		FStableShaderKeyAndValue SaveKeyVal(InSaveKeyVal);
+		SaveKeyVal.SetPipelineHash(this); // could use PipelineType->GetSourceHash(), but each pipeline instance even of the same type can have unique shaders
+
+		// Using GetShaders() would be more future-proof but would result in more dynamic allocation churn.
+		// Instead, mirroring the logic here
+		VertexShader->SaveShaderStableKeys(TargetShaderPlatform, SaveKeyVal);
+
+		if (PixelShader)
+		{
+			PixelShader->SaveShaderStableKeys(TargetShaderPlatform, SaveKeyVal);
+		}
+		if (GeometryShader)
+		{
+			GeometryShader->SaveShaderStableKeys(TargetShaderPlatform, SaveKeyVal);
+		}
+		if (HullShader)
+		{
+			HullShader->SaveShaderStableKeys(TargetShaderPlatform, SaveKeyVal);
+			DomainShader->SaveShaderStableKeys(TargetShaderPlatform, SaveKeyVal);
+		}
+	}
+}
+
 void DumpShaderStats(EShaderPlatform Platform, EShaderFrequency Frequency)
 {
 #if ALLOW_DEBUG_FILES

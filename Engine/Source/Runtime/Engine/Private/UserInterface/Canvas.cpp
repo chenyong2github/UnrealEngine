@@ -1388,7 +1388,7 @@ void UCanvas::UpdateSafeZoneData()
 	else if(FSlateApplication::IsInitialized())
 	{
 		FDisplayMetrics DisplayMetrics;
-		FSlateApplication::Get().GetCachedDisplayMetrics(DisplayMetrics);
+		FSlateApplication::Get().GetDisplayMetrics(DisplayMetrics);
  		CachedDisplayWidth = DisplayMetrics.PrimaryDisplayWidth;
  		CachedDisplayHeight = DisplayMetrics.PrimaryDisplayHeight;
 
@@ -1920,7 +1920,7 @@ void UCanvas::SetView(FSceneView* InView)
 	SceneView = InView;
 	if (InView)
 	{
-		if (GEngine->StereoRenderingDevice.IsValid() && InView->StereoPass != eSSP_FULL)
+		if (GEngine->StereoRenderingDevice.IsValid() && IStereoRendering::IsStereoEyeView(*InView))
 		{
 			GEngine->StereoRenderingDevice->InitCanvasFromView(InView, this);
 		}

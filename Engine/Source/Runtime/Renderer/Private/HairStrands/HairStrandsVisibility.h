@@ -22,6 +22,7 @@ struct FHairStrandsVisibilityData
 	TRefCountPtr<IPooledRenderTarget> AttributeTexture;
 	TRefCountPtr<IPooledRenderTarget> VelocityTexture;
 	TRefCountPtr<IPooledRenderTarget> CategorizationTexture;
+	TRefCountPtr<IPooledRenderTarget> ViewHairCountTexture;
 
 	TRefCountPtr<IPooledRenderTarget> PPLLNodeCounterTexture;
 	TRefCountPtr<IPooledRenderTarget> PPLLNodeIndexTexture;
@@ -53,4 +54,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 
 void SetUpViewHairRenderInfo(const FViewInfo& ViewInfo, bool bEnableMSAA, FVector4& OutHairRenderInfo);
 
-uint32 GetMaxNodePerPixel(FIntPoint Resolution);
+
+uint32 GetPPLLMeanListElementCountPerPixel();
+uint32 GetPPLLMaxTotalListElementCount(FIntPoint Resolution);
+

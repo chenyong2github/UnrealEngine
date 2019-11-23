@@ -33,6 +33,13 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 
 #include "Editor/EditorEngine.h"
+
+#if PLATFORM_WINDOWS
+#include "Windows/AllowWindowsPlatformTypes.h"
+	#include <psapi.h>
+#include "Windows/HideWindowsPlatformTypes.h"
+#endif
+
 extern UNREALED_API UEditorEngine* GEditor;
 
 #define LOCTEXT_NAMESPACE "DatasmithImportFactory"
@@ -50,14 +57,17 @@ namespace DatasmithImportFactoryImpl
 				// This factory handles both UDatasmithSceneImportData and UDatasmithTranslatedSceneImportData but not other children of UDatasmithSceneImportData
 				UDatasmithSceneImportData* SceneAssetImportData = Cast< UDatasmithScene >(Obj)->AssetImportData;
 
-				if ( SceneAssetImportData->GetClass() == UDatasmithSceneImportData::StaticClass() )
+				if ( SceneAssetImportData )
 				{
-					return SceneAssetImportData;
-				}
-				else
-				{
-					// UDatasmithTranslatedSceneImportData are associated with scenes imported through Translators system
-					return ExactCast<UDatasmithTranslatedSceneImportData>(SceneAssetImportData);
+					if ( SceneAssetImportData->GetClass() == UDatasmithSceneImportData::StaticClass() )
+					{
+						return SceneAssetImportData;
+					}
+					else
+					{
+						// UDatasmithTranslatedSceneImportData are associated with scenes imported through Translators system
+						return ExactCast<UDatasmithTranslatedSceneImportData>(SceneAssetImportData);
+					}
 				}
 			}
 			if (Class == UDatasmithSceneImportData::StaticClass())
@@ -300,9 +310,23 @@ namespace DatasmithImportFactoryImpl
 
 		DatasmithImportFactoryImpl::SendAnalytics(ImportContext, FMath::RoundToInt(ElapsedSeconds), true);
 
+		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+
+		FString MemoryStats;
+#if PLATFORM_WINDOWS
+		PROCESS_MEMORY_COUNTERS_EX MemoryInfo;
+		GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&MemoryInfo, sizeof(MemoryInfo));
+
+		double PrivateBytesGB   = double(MemoryInfo.PrivateUsage) / (1024*1024*1024);
+		double WorkingSetGB     = double(MemoryInfo.WorkingSetSize) / (1024*1024*1024);
+		double PeakWorkingSetFB = double(MemoryInfo.PeakWorkingSetSize) / (1024*1024*1024);
+
+		MemoryStats = FString::Printf(TEXT(" [Private Bytes: %.02f GB, Working Set %.02f GB, Peak Working Set %.02f GB]"), PrivateBytesGB, WorkingSetGB, PeakWorkingSetFB);
+#endif
+
 		int ElapsedMin = int(ElapsedSeconds / 60.0);
 		ElapsedSeconds -= 60.0 * (double)ElapsedMin;
-		UE_LOG(LogDatasmithImport, Log, TEXT("%s %s in [%d min %.3f s]"), ImportContext.bIsAReimport ? TEXT("Reimported") : TEXT("Imported"), ImportContext.Scene->GetName(), ElapsedMin, ElapsedSeconds);
+		UE_LOG(LogDatasmithImport, Log, TEXT("%s %s in [%d min %.3f s]%s"), ImportContext.bIsAReimport ? TEXT("Reimported") : TEXT("Imported"), ImportContext.Scene->GetName(), ElapsedMin, ElapsedSeconds, *MemoryStats);
 	}
 
 } // ns DatasmithImportFactoryImpl

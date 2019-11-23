@@ -76,16 +76,16 @@ struct FVertexFactoryInterpolantsVSToPS
 	float4	TangentToWorld2	: TANGENTTOWORLD2;
 	
 #if (DYNAMIC_PARAMETERS_MASK & 1)
-	float4 DynamicParameter	: PARTICLE_DYNAMIC_PARAM0;
+	nointerpolation float4 DynamicParameter	: PARTICLE_DYNAMIC_PARAM0;
 #endif
 #if (DYNAMIC_PARAMETERS_MASK & 2)
-	float4 DynamicParameter1	: PARTICLE_DYNAMIC_PARAM1;
+	nointerpolation float4 DynamicParameter1 : PARTICLE_DYNAMIC_PARAM1;
 #endif
 #if (DYNAMIC_PARAMETERS_MASK & 4)
-	float4 DynamicParameter2	: PARTICLE_DYNAMIC_PARAM2;
+	nointerpolation float4 DynamicParameter2 : PARTICLE_DYNAMIC_PARAM2;
 #endif
 #if (DYNAMIC_PARAMETERS_MASK & 8)
-	float4 DynamicParameter3	: PARTICLE_DYNAMIC_PARAM3;
+	nointerpolation float4 DynamicParameter3 : PARTICLE_DYNAMIC_PARAM3;
 #endif
 
 #if NEEDS_PARTICLE_COLOR

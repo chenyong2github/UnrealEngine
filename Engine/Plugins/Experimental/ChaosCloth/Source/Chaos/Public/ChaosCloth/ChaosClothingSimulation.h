@@ -34,6 +34,11 @@ namespace Chaos
 		ClothingSimulation();
 		virtual ~ClothingSimulation();
 
+		// Set the animation drive stiffness for all actors
+		void SetAnimDriveSpringStiffness(float InStiffness);
+		void SetGravityOverride(const TVector<float, 3>& InGravityOverride);
+		void DisableGravityOverride();
+
 #if WITH_EDITOR
 		// FGCObject interface
 		void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -48,7 +53,6 @@ namespace Chaos
 		CHAOSCLOTH_API void DebugDrawCollision(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
 		CHAOSCLOTH_API void DebugDrawBackstops(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
 		CHAOSCLOTH_API void DebugDrawMaxDistances(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
-		CHAOSCLOTH_API void DebugDrawSelfCollision(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
 		CHAOSCLOTH_API void DebugDrawAnimDrive(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
 #endif  // #if WITH_EDITOR
 
@@ -94,6 +98,11 @@ namespace Chaos
 		TArray<UClothingAssetCommon*> Assets;
 		UChaosClothSharedSimConfig* ClothSharedSimConfig;
 
+		// Cloth Interaction Parameters
+		// These simulation parameters can be changed through blueprints
+		// They will only be updated when the simulation is not running (so are safe to use on any cloth thread)
+		TArray<float> AnimDriveSpringStiffness; // One for every Asset
+
 		// Collision Data
 		FClothCollisionData ExtractedCollisions;  // Collisions extracted from the referenced physics asset
 		FClothCollisionData ExternalCollisions;  // External collisions
@@ -126,6 +135,7 @@ namespace Chaos
 #if WITH_EDITOR
 		// Visualization material
 		UMaterial* DebugClothMaterial;
+		UMaterial* DebugClothMaterialVertex;
 #endif  // #if WITH_EDITOR
 	};
 } // namespace Chaos

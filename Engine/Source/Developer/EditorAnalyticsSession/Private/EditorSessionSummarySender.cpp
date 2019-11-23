@@ -15,7 +15,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogEditorSessionSummary, Verbose, All);
 namespace EditorSessionSenderDefs
 {
 	static const FTimespan SessionExpiration = FTimespan::FromDays(30.0);
-	static const int HeartbeatPeriodSeconds = 60;
+	static const float HeartbeatPeriodSeconds = 60;
 
 	// shutdown types
 	static const FString RunningSessionToken(TEXT("Running"));
@@ -42,7 +42,7 @@ void FEditorSessionSummarySender::Tick(float DeltaTime)
 {
 	HeartbeatTimeElapsed += DeltaTime;
 
-	if (HeartbeatTimeElapsed > (float) EditorSessionSenderDefs::HeartbeatPeriodSeconds)
+	if (HeartbeatTimeElapsed > EditorSessionSenderDefs::HeartbeatPeriodSeconds)
 	{
 		HeartbeatTimeElapsed = 0.0f;
 
@@ -175,17 +175,15 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	AnalyticsAttributes.Emplace(TEXT("SessionId"), SessionIdString);
 	AnalyticsAttributes.Emplace(TEXT("EngineVersion"), Session.EngineVersion);
 	AnalyticsAttributes.Emplace(TEXT("ShutdownType"), ShutdownTypeString);
-	AnalyticsAttributes.Emplace(TEXT("Timestamp"), Session.Timestamp.ToIso8601());
-	AnalyticsAttributes.Emplace(TEXT("CurrentUserActivity"), Session.CurrentUserActivity);
 	AnalyticsAttributes.Emplace(TEXT("StartupTimestamp"), Session.StartupTimestamp.ToIso8601());
-	AnalyticsAttributes.Emplace(TEXT("AverageFPS"), Session.AverageFPS);
-
-	double SessionDuration = (Session.Timestamp - Session.StartupTimestamp).GetTotalSeconds();
-	AnalyticsAttributes.Emplace(TEXT("SessionDuration"), SessionDuration);
-
+	AnalyticsAttributes.Emplace(TEXT("Timestamp"), Session.Timestamp.ToIso8601());
+	AnalyticsAttributes.Emplace(TEXT("SessionDuration"), Session.SessionDuration);
 	AnalyticsAttributes.Emplace(TEXT("1MinIdle"), Session.Idle1Min);
 	AnalyticsAttributes.Emplace(TEXT("5MinIdle"), Session.Idle5Min);
 	AnalyticsAttributes.Emplace(TEXT("30MinIdle"), Session.Idle30Min);
+	AnalyticsAttributes.Emplace(TEXT("CurrentUserActivity"), Session.CurrentUserActivity);
+	AnalyticsAttributes.Emplace(TEXT("AverageFPS"), Session.AverageFPS);
+	AnalyticsAttributes.Emplace(TEXT("Plugins"), PluginsString);
 	AnalyticsAttributes.Emplace(TEXT("DesktopGPUAdapter"), Session.DesktopGPUAdapter);
 	AnalyticsAttributes.Emplace(TEXT("RenderingGPUAdapter"), Session.RenderingGPUAdapter);
 	AnalyticsAttributes.Emplace(TEXT("GPUVendorID"), Session.GPUVendorID);
@@ -202,7 +200,6 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	AnalyticsAttributes.Emplace(TEXT("OSMinor"), Session.OSMinor);
 	AnalyticsAttributes.Emplace(TEXT("OSVersion"), Session.OSVersion);
 	AnalyticsAttributes.Emplace(TEXT("Is64BitOS"), Session.bIs64BitOS);
-
 	AnalyticsAttributes.Emplace(TEXT("GPUCrash"), Session.bGPUCrashed);
 	AnalyticsAttributes.Emplace(TEXT("WasDebugged"), Session.bWasEverDebugger);
 	AnalyticsAttributes.Emplace(TEXT("IsVanilla"), Session.bIsVanilla);

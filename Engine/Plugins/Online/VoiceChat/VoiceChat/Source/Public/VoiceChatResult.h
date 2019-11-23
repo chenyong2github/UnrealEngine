@@ -11,6 +11,8 @@ enum class EVoiceChatResult
 	NotInitialized,
 	NotConnected,
 	NotLoggedIn,
+	NotPermitted,
+	Throttled,
 
 	// Common argument errors
 	InvalidArgument,
@@ -29,7 +31,7 @@ enum class EVoiceChatResult
 
 struct FVoiceChatResult
 {
-	/** Whether or not we succeeded */
+	/** Success, or an error category */
 	EVoiceChatResult ResultCode;
 	/** If we failed, the code for the error */
 	FString ErrorCode;

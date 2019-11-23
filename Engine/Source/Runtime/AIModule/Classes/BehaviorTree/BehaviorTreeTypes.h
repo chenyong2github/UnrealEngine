@@ -369,6 +369,7 @@ struct FBTNodeIndex
 	bool IsSet() const { return InstanceIndex < MAX_uint16; }
 
 	FORCEINLINE bool operator==(const FBTNodeIndex& Other) const { return Other.ExecutionIndex == ExecutionIndex && Other.InstanceIndex == InstanceIndex; }
+	FORCEINLINE bool operator!=(const FBTNodeIndex& Other) const { return !operator==(Other); }
 	FORCEINLINE friend uint32 GetTypeHash(const FBTNodeIndex& Other) { return Other.ExecutionIndex ^ Other.InstanceIndex; }
 
 	FORCEINLINE FString Describe() const { return FString::Printf(TEXT("[%d:%d]"), InstanceIndex, ExecutionIndex); }
@@ -419,6 +420,9 @@ struct FBehaviorTreeSearchData
 	/** notifies for tree instances */
 	TArray<FBehaviorTreeSearchUpdateNotify> PendingNotifies;
 
+	/** node under which the search was performed */
+	FBTNodeIndex SearchRootNode;
+
 	/** first node allowed in search */
 	FBTNodeIndex SearchStart;
 
@@ -430,6 +434,15 @@ struct FBehaviorTreeSearchData
 
 	/** active instance index to rollback to */
 	int32 RollbackInstanceIdx;
+
+	/** start index of the deactivated branch */
+	uint16 DeactivatedBranchStartIndex;
+
+	/** end index of the deactivated branch */
+	uint16 DeactivatedBranchEndIndex;
+
+	/** if set, execution request from node in the deactivated branch will be skipped */
+	uint32 bFilterOutRequestFromDeactivatedBranch : 1;
 
 	/** if set, current search will be restarted in next tick */
 	uint32 bPostponeSearch : 1;
@@ -450,8 +463,16 @@ struct FBehaviorTreeSearchData
 	void Reset();
 
 	FBehaviorTreeSearchData(UBehaviorTreeComponent& InOwnerComp) 
-		: OwnerComp(InOwnerComp), RollbackInstanceIdx(INDEX_NONE), bPostponeSearch(false), bSearchInProgress(false), bPreserveActiveNodeMemoryOnRollback(false)
+		: OwnerComp(InOwnerComp), RollbackInstanceIdx(INDEX_NONE)
+		, DeactivatedBranchStartIndex(INDEX_NONE)
+		, DeactivatedBranchEndIndex(INDEX_NONE)
+		, bFilterOutRequestFromDeactivatedBranch(false)
+		, bPostponeSearch(false)
+		, bSearchInProgress(false)
+		, bPreserveActiveNodeMemoryOnRollback(false)
 	{}
+
+	FBehaviorTreeSearchData() = delete;
 
 private:
 

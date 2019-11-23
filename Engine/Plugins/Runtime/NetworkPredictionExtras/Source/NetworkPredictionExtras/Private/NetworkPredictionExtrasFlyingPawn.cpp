@@ -210,7 +210,7 @@ void ANetworkPredictionExtrasFlyingPawn::PrintDebug()
 
 float ANetworkPredictionExtrasFlyingPawn::GetMaxMoveSpeed() const
 {
-	if (const FlyingMovement::FAuxState* AuxState = GetAuxStateRead())
+	if (const FFlyingMovementAuxState* AuxState = GetAuxStateRead())
 	{
 		return AuxState->MaxSpeed;
 	}
@@ -219,7 +219,7 @@ float ANetworkPredictionExtrasFlyingPawn::GetMaxMoveSpeed() const
 
 void ANetworkPredictionExtrasFlyingPawn::SetMaxMoveSpeed(float NewMaxMoveSpeed)
 {
-	if (FlyingMovement::FAuxState* AuxState = GetAuxStateWrite())
+	if (FFlyingMovementAuxState* AuxState = GetAuxStateWrite())
 	{
 		AuxState->MaxSpeed = NewMaxMoveSpeed;
 	}
@@ -227,14 +227,14 @@ void ANetworkPredictionExtrasFlyingPawn::SetMaxMoveSpeed(float NewMaxMoveSpeed)
 
 void ANetworkPredictionExtrasFlyingPawn::AddMaxMoveSpeed(float AdditiveMaxMoveSpeed)
 {
-	if (FlyingMovement::FAuxState* AuxState = GetAuxStateWrite())
+	if (FFlyingMovementAuxState* AuxState = GetAuxStateWrite())
 	{
 		//UE_LOG(LogTemp, Warning, TEXT("MaxSpeed: %.2f += %.2f"), AuxState->MaxSpeed, AdditiveMaxMoveSpeed);
 		AuxState->MaxSpeed += AdditiveMaxMoveSpeed;
 	}
 }
 
-const FlyingMovement::FAuxState* ANetworkPredictionExtrasFlyingPawn::GetAuxStateRead() const
+const FFlyingMovementAuxState* ANetworkPredictionExtrasFlyingPawn::GetAuxStateRead() const
 {
 	if (ensure(FlyingMovementComponent))
 	{
@@ -243,7 +243,7 @@ const FlyingMovement::FAuxState* ANetworkPredictionExtrasFlyingPawn::GetAuxState
 	return nullptr;
 }
 
-FlyingMovement::FAuxState* ANetworkPredictionExtrasFlyingPawn::GetAuxStateWrite()
+FFlyingMovementAuxState* ANetworkPredictionExtrasFlyingPawn::GetAuxStateWrite()
 {
 	if (ensure(FlyingMovementComponent))
 	{
@@ -264,7 +264,7 @@ int32 ANetworkPredictionExtrasFlyingPawn::GetPendingFrame() const
 	return 0;
 }
 
-void ANetworkPredictionExtrasFlyingPawn::ProduceInput(const FNetworkSimTime SimTime, FlyingMovement::FInputCmd& Cmd)
+void ANetworkPredictionExtrasFlyingPawn::ProduceInput(const FNetworkSimTime SimTime, FFlyingMovementInputCmd& Cmd)
 {
 	// Generate user commands. Called right before the flying movement simulation will tick (for a locally controlled pawn)
 	// This isn't meant to be the best way of doing a camera system. It is just meant to show a couple of ways it may be done
@@ -474,9 +474,30 @@ const UMockFlyingAbilityComponent* ANetworkPredictionExtrasFlyingPawn_MockAbilit
 void ANetworkPredictionExtrasFlyingPawn_MockAbility::ProduceInput(const FNetworkSimTime SimTime, FMockAbilityInputCmd& Cmd)
 {
 	Super::ProduceInput(SimTime, Cmd);
-	Cmd.bSprintPressed = bSprintPressed;
-	Cmd.bDashPressed = bDashPressed;
-	Cmd.bBlinkPressed = bBlinkPressed;
+
+	switch(AbilityInputPreset)
+	{
+	case ENetworkPredictionExtrasMockAbilityInputPreset::None:
+		Cmd.bSprintPressed = bSprintPressed;
+		Cmd.bDashPressed = bDashPressed;
+		Cmd.bBlinkPressed = bBlinkPressed;
+		break;
+	case ENetworkPredictionExtrasMockAbilityInputPreset::Sprint:
+		Cmd.bSprintPressed = true;
+		Cmd.bDashPressed = false;
+		Cmd.bBlinkPressed = false;
+		break;
+	case ENetworkPredictionExtrasMockAbilityInputPreset::Dash:
+		Cmd.bSprintPressed = false;
+		Cmd.bDashPressed = true;
+		Cmd.bBlinkPressed = false;
+		break;
+	case ENetworkPredictionExtrasMockAbilityInputPreset::Blink:
+		Cmd.bSprintPressed = false;
+		Cmd.bDashPressed = false;
+		Cmd.bBlinkPressed = true;
+		break;
+	};
 }
 
 void ANetworkPredictionExtrasFlyingPawn_MockAbility::BeginPlay()
@@ -496,7 +517,7 @@ float ANetworkPredictionExtrasFlyingPawn_MockAbility::GetStamina() const
 {
 	if (const UMockFlyingAbilityComponent* FlyingAbilityComponent = GetMockFlyingAbilityComponent())
 	{
-		if (const FMockAbilitySyncState* SyncState = FlyingAbilityComponent->MovementSyncState.GetStateRead())
+		if (const FMockAbilitySyncState* SyncState = FlyingAbilityComponent->AbilitySyncState.GetStateRead())
 		{
 			return SyncState->Stamina;
 		}
@@ -508,7 +529,7 @@ float ANetworkPredictionExtrasFlyingPawn_MockAbility::GetMaxStamina() const
 {
 	if (const UMockFlyingAbilityComponent* FlyingAbilityComponent = GetMockFlyingAbilityComponent())
 	{
-		if (const FMockAbilityAuxstate* AuxState = FlyingAbilityComponent->MovementAuxState.GetStateRead())
+		if (const FMockAbilityAuxState* AuxState = FlyingAbilityComponent->AbilityAuxState.GetStateRead())
 		{
 			return AuxState->MaxStamina;
 		}

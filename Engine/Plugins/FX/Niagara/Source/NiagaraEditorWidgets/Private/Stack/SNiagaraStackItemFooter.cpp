@@ -55,6 +55,12 @@ const FSlateBrush* SNiagaraStackItemFooter::GetButtonBrush() const
 
 FText SNiagaraStackItemFooter::GetToolTipText() const
 {
+	// The engine ticks tooltips before widgets so it's possible for the footer to be finalized when
+	// the widgets haven't been recreated.
+	if (ItemFooter->IsFinalized())
+	{
+		return FText();
+	}
 	return ItemFooter->GetShowAdvanced() ? ExpandedToolTipText : CollapsedToolTipText;
 }
 

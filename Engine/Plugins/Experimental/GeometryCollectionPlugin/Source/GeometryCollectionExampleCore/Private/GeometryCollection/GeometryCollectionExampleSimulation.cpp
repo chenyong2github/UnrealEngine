@@ -29,36 +29,59 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodiesFallingUnderGravity()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
-		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
-		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
 
 		//
 		//  Rigid Body Setup
 		//
-		InitCollectionsParameters InitParams = { FTransform::Identity, FVector(1.0), nullptr, (int32)EObjectStateTypeEnum::Chaos_Object_Kinematic };
-		InitCollections(PhysicalMaterial, RestCollection, DynamicCollection, InitParams);
 
-		FGeometryCollectionPhysicsProxy* PhysObject = RigidBodySetup(PhysicalMaterial, RestCollection, DynamicCollection);
+		InitCollectionsParameters InitParams = 
+		{ 
+			FTransform::Identity,	// RestCenter
+			FVector(1.0),			// RestScale
+			nullptr,				// RestInitFunc
+			(int32)EObjectStateTypeEnum::Chaos_Object_Kinematic // DynamicStateDefault
+		};
+
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = nullptr; // Allocated and zero'ed
+		TSharedPtr<FGeometryCollection> RestCollection = nullptr;				// GeometryCollection::MakeCubeElement(InitParams)
+		TSharedPtr<FGeometryDynamicCollection> GTDynamicCollection = nullptr;		// New'ed w/copy of RestCollection Transform, Parent, Children, SimulationType, and StatusFlags attrs.
+		InitCollections(PhysicalMaterial, RestCollection, GTDynamicCollection, InitParams);
+
+		//
+		// Sim Initialization
+		//
+		
+		// Creates FGeometryCollectionPhysicsProxy with GTDynamicCollection, and 
+		// an InitFunc that sets FSimulationParametes's RestCollection and 
+		// DynamicCollection pointers.  Calls FGeometryCollectionPhysicsProx::Initialize().
+		FGeometryCollectionPhysicsProxy* PhysObject = RigidBodySetup(PhysicalMaterial, RestCollection, GTDynamicCollection);
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
-#if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
-#endif
 		Solver->SetHasFloor(false);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
+		Solver->AddDirtyProxy(PhysObject); // why?
+		Solver->PushPhysicsState(Module->GetDispatcher());
+
 		Solver->AdvanceSolverBy(1 / 24.);
 
-		FinalizeSolver(*Solver);
+		// Calls BufferPhysicsResults(), FlipBuffer(), and PullFromPhysicsState() on each proxy.
+		//FinalizeSolver(*Solver);
+
+		Solver->BufferPhysicsResults();
+		Solver->FlipBuffers();
+		Solver->UpdateGameThreadStructures();
 
 		// never touched
 		TManagedArray<FTransform>& RestTransform = RestCollection->Transform;
 		EXPECT_LT(FMath::Abs(RestTransform[0].GetTranslation().Z), SMALL_THRESHOLD);
 
 		// simulated
-		TManagedArray<FTransform>& Transform = DynamicCollection->Transform;
+		TManagedArray<FTransform>& Transform = GTDynamicCollection->Transform;
 		EXPECT_EQ(Transform.Num(), 1);
 		EXPECT_LT(Transform[0].GetTranslation().Z, 0);
 		
@@ -73,7 +96,7 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodiesCollidingWithSolverFloor()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
 
@@ -123,7 +146,7 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodiesSingleSphereCollidingWithSolverFloor()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
 
@@ -183,7 +206,7 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodiesSingleSphereIntersectingWithSolverFloor()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
 
@@ -236,7 +259,7 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodiesKinematic()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
 
@@ -281,7 +304,7 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodiesSleepingActivation()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
 
@@ -339,7 +362,7 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_CollisionGroup()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
 
@@ -444,11 +467,11 @@ namespace GeometryCollectionExample
 		Object->PhysicsProxy->Initialize();
 
 		// check implicit domain
-		typedef TUniquePtr<Chaos::TImplicitObject<float, 3>> FImplicitPointer;
+		typedef TUniquePtr<Chaos::FImplicitObject> FImplicitPointer;
 		const TManagedArray<FImplicitPointer> & Implicits = Object->RestCollection->template GetAttribute<FImplicitPointer>("Implicits", FTransformCollection::TransformGroup);
 		EXPECT_EQ(Implicits.Num(), 1);
 
-		const Chaos::TImplicitObject<float, 3> & Implicit = *Implicits[0];
+		const Chaos::FImplicitObject & Implicit = *Implicits[0];
 		for (float x = -1.05; x < 1.0; x += 0.1)
 		{
 			Vec Normal;

@@ -3,11 +3,14 @@
 #include "DisplayClusterEditorEngine.h"
 #include "DisplayClusterEditorLog.h"
 
-#include "DisplayClusterRootComponent.h"
+#include "DisplayClusterRootActor.h"
 
 #include "DisplayCluster/Private/IPDisplayCluster.h"
 
+#include "Engine/LevelStreaming.h"
+
 #include "Editor.h"
+
 
 void UDisplayClusterEditorEngine::Init(IEngineLoop* InEngineLoop)
 {
@@ -45,39 +48,65 @@ void UDisplayClusterEditorEngine::PreExit()
 	Super::PreExit();
 }
 
+ADisplayClusterRootActor* UDisplayClusterEditorEngine::FindDisplayClusterRootActor(UWorld* InWorld)
+{
+	for (AActor* const Actor : InWorld->PersistentLevel->Actors)
+	{
+		if (Actor && !Actor->IsPendingKill())
+		{
+			ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(Actor);
+			if (RootActor)
+			{
+				UE_LOG(LogDisplayClusterEditorEngine, Log, TEXT("Found root actor - %s"), *RootActor->GetName());
+				return RootActor;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 void UDisplayClusterEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InRequestParams)
 {
 	UE_LOG(LogDisplayClusterEditorEngine, VeryVerbose, TEXT("UDisplayClusterEditorEngine::StartPlayInEditorSession"));
 
 	UWorld* EditorWorldPreDup = GetEditorWorldContext().World();
 
-	// Find nDisplay root
-	UDisplayClusterRootComponent* RootComponent = nullptr;
-	for (AActor* Actor : EditorWorldPreDup->PersistentLevel->Actors)
-	{
-		if (Actor && !Actor->IsPendingKill())
-		{
-			RootComponent = Actor->FindComponentByClass<UDisplayClusterRootComponent>();
-			if (RootComponent && !RootComponent->IsPendingKill())
-			{
-				UE_LOG(LogDisplayClusterEditorEngine, Log, TEXT("Found root component - %s"), *RootComponent->GetName());
-				break;
-			}
-			else
-			{
-				RootComponent = nullptr;
-			}
-		}
-	}
-
 	if (DisplayClusterModule)
 	{
-		// If we found a root component, start DisplayCluster PIE session
-		if (RootComponent)
+		// Find nDisplay root actor
+		ADisplayClusterRootActor* RootActor = FindDisplayClusterRootActor(EditorWorldPreDup);
+		if (!RootActor)
+		{
+			// Also search inside streamed levels
+			const TArray<ULevelStreaming*>& StreamingLevels = EditorWorld->GetStreamingLevels();
+			for (ULevelStreaming* StreamingLevel : StreamingLevels)
+			{
+				switch (StreamingLevel->GetCurrentState())
+				{
+					case ULevelStreaming::ECurrentState::LoadedVisible:
+					{
+						// Look for the actor in those sub-levels that have been loaded already
+						const TSoftObjectPtr<UWorld>& SubWorldAsset = StreamingLevel->GetWorldAsset();
+						RootActor = FindDisplayClusterRootActor(SubWorldAsset.Get());
+						if (RootActor)
+						{
+							break;
+						}
+					}
+
+					default:
+						break;
+				}
+			}
+		}
+
+		// If we found a root actor, start DisplayCluster PIE session
+		if (RootActor)
 		{
 			bIsNDisplayPIE = true;
 
-			if (!DisplayClusterModule->StartSession(RootComponent->GetEditorConfigPath(), RootComponent->GetEditorNodeId()))
+			if (!DisplayClusterModule->StartSession(RootActor->GetEditorConfigPath(), RootActor->GetEditorNodeId()))
 			{
 				UE_LOG(LogDisplayClusterEditorEngine, Error, TEXT("Couldn't start DisplayCluster session"));
 

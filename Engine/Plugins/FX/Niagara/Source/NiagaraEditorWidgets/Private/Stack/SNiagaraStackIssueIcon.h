@@ -33,5 +33,5 @@ private:
 	mutable TOptional<FText> IconToolTipCache;
 
 	UNiagaraStackViewModel* StackViewModel;
-	UNiagaraStackEntry* StackEntry;
+	TWeakObjectPtr<UNiagaraStackEntry> StackEntry;
 };

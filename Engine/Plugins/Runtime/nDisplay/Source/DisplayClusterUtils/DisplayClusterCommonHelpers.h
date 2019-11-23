@@ -47,21 +47,29 @@ namespace DisplayClusterHelpers
 		// Parses string items separated by specified separator into array
 		// Example: item1, item2,item3  ,  item4 => {item1, item2, item3, item4}
 		template<typename T>
-		static TArray<T> StrToArray(const FString& InData, const FString& InSeparator)
+		static TArray<T> StrToArray(const FString& InData, const FString& InSeparator, bool bCullEmpty = true)
 		{
 			TArray<T> OutData;
+			TArray<FString> TempData;
+			
+			InData.ParseIntoArray(TempData, *InSeparator, bCullEmpty);
 
-			FString TmpR = InData;
-			FString TmpL;
-
-			while (TmpR.Split(InSeparator, &TmpL, &TmpR, ESearchCase::IgnoreCase, ESearchDir::FromStart))
+			for (FString& Item : TempData)
 			{
-				TrimStringValue(TmpL, false);
-				OutData.Add(FDisplayClusterTypesConverter::template FromString<T>(TmpL));
+				TrimStringValue(Item, false);
 			}
 
-			TrimStringValue(TmpR, false);
-			OutData.Add(FDisplayClusterTypesConverter::template FromString<T>(TmpR));
+			for (const FString& Item : TempData)
+			{
+				if (!bCullEmpty && Item.IsEmpty())
+				{
+					OutData.Add(T());
+				}
+				else
+				{
+					OutData.Add(FDisplayClusterTypesConverter::template FromString<T>(Item));
+				}
+			}
 
 			return OutData;
 		}

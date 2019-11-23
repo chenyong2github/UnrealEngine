@@ -102,8 +102,8 @@ public:
 	void Initialize(AttribValueType InitialValue = (AttribValueType)0)
 	{
 		check(ParentMesh != nullptr);
-		AttribValues.Resize(0);
-		AttribValues.Resize( ParentMesh->MaxTriangleID() * AttribDimension, InitialValue );
+		AttribValues.Resize(ParentMesh->MaxTriangleID() * AttribDimension);
+		AttribValues.Fill(InitialValue);
 	}
 
 	void SetNewValue(int NewTriangleID, const AttribValueType* Data)

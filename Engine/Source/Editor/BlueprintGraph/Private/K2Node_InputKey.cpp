@@ -237,6 +237,10 @@ void UK2Node_InputKey::ValidateNodeDuringCompilation(class FCompilerResultsLog& 
 	{
 		MessageLog.Warning(*FText::Format(NSLOCTEXT("KismetCompiler", "Axis_InputKey_Warning", "InputKey Event specifies axis FKey'{0}' for @@"), FText::FromString(InputKey.ToString())).ToString(), this);
 	}
+	else if (InputKey.IsDeprecated())
+	{
+		MessageLog.Warning(*FText::Format(NSLOCTEXT("KismetCompiler", "Deprecated_InputKey_Warning", "InputKey Event specifies FKey'{0}' which has been deprecated for @@"), FText::FromString(InputKey.ToString())).ToString(), this);
+	}
 	else if (!InputKey.IsBindableInBlueprints())
 	{
 		MessageLog.Warning( *FText::Format( NSLOCTEXT("KismetCompiler", "NotBindanble_InputKey_Warning", "InputKey Event specifies FKey'{0}' that is not blueprint bindable for @@"), FText::FromString(InputKey.ToString())).ToString(), this);

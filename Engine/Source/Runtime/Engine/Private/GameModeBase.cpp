@@ -640,6 +640,12 @@ void AGameModeBase::PreLogin(const FString& Options, const FString& Address, con
 
 APlayerController* AGameModeBase::Login(UPlayer* NewPlayer, ENetRole InRemoteRole, const FString& Portal, const FString& Options, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage)
 {
+	if (GameSession == nullptr)
+	{
+		ErrorMessage = TEXT("Failed to spawn player controller, GameSession is null");
+		return nullptr;
+	}
+
 	ErrorMessage = GameSession->ApproveLogin(Options);
 	if (!ErrorMessage.IsEmpty())
 	{

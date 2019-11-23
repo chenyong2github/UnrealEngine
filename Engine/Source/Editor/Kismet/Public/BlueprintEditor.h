@@ -45,6 +45,8 @@ class UUserDefinedEnum;
 class UUserDefinedStruct;
 class UBlueprintEditorOptions;
 struct Rect;
+class UToolMenu;
+struct FToolMenuContext;
 class UK2Node_FunctionEntry;
 class UK2Node_Event;
 class UToolMenu;

@@ -64,28 +64,7 @@ struct FLODCluster
 	/** Cached cluster cost, FMath::Pow(Bound.W, 3) / FillingFactor */
 	float ClusterCost;
 
-	/**
-	* if criteria matches, build new LODActor and replace current Actors with that. We don't need
-	* this clears previous actors and sets to this new actor
-	* this is required when new LOD is created from these actors, this will be replaced
-	* to save memory and to reduce memory increase during this process, we discard previous actors and replace with this actor
-	*
-	* @param InLevel - Level for which currently the HLODs are being build
-	* @param LODIdx - LOD index to build
-	* @param bCreateMeshes - Whether or not the new StaticMeshes should be created
-	* @return ALODActor*
-	*/
-	ALODActor* BuildActor(ULevel* InLevel, const int32 LODIdx, const bool bCreateMeshes);
-
-	/**
-	* Recursively retrieves StaticMeshComponents from a LODActor and its child LODActors 
-	*
-	* @param Actor - LODActor instance
-	* @param InOutComponents - Will hold the StaticMeshComponents	
-	*/
-	void ExtractStaticMeshComponentsFromLODActor(AActor* Actor, TArray<UStaticMeshComponent*>& InOutComponents);
-
-private:	
+private:
 	/**
 	* Merges this cluster with Other by combining the actor arrays and updating the bounds, filling factor and cluster cost
 	*

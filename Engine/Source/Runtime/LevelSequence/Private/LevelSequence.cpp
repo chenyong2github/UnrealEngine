@@ -430,12 +430,18 @@ void ULevelSequence::SetDirectorBlueprint(UBlueprint* NewDirectorBlueprint)
 	{
 		DirectorClass = nullptr;
 	}
+
+	MarkAsChanged();
+	PrecompiledEvaluationTemplate = FMovieSceneEvaluationTemplate();
 }
 
 void ULevelSequence::OnDirectorRecompiled(UBlueprint* InCompiledBlueprint)
 {
 	ensure(InCompiledBlueprint == DirectorBlueprint);
 	DirectorClass = DirectorBlueprint->GeneratedClass.Get();
+
+	MarkAsChanged();
+	PrecompiledEvaluationTemplate = FMovieSceneEvaluationTemplate();
 }
 
 FGuid ULevelSequence::FindOrAddBinding(UObject* InObject)

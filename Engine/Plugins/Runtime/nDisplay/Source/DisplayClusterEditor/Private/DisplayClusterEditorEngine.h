@@ -7,6 +7,7 @@
 #include "DisplayClusterEditorEngine.generated.h"
 
 class IPDisplayCluster;
+class ADisplayClusterRootActor;
 
 
 /**
@@ -23,6 +24,9 @@ public:
 	virtual void PreExit() override;
 	virtual void StartPlayInEditorSession(FRequestPlaySessionParams& InRequestParams) override;
 	virtual void Tick(float DeltaSeconds, bool bIdleMode) override;
+
+private:
+	ADisplayClusterRootActor* FindDisplayClusterRootActor(UWorld* InWorld);
 
 private:
 	IPDisplayCluster* DisplayClusterModule = nullptr;

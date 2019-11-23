@@ -221,7 +221,7 @@ public:
 	virtual int32 GetProxyDirtyCount(EReplicationProxyTarget Target) = 0;
 };
 
-class INetworkSimulationModel : public IReplicationProxy
+class INetworkedSimulationModel : public IReplicationProxy
 {
 public:
 
@@ -239,11 +239,11 @@ public:
 	// ----------------------------------------------------------------------
 	
 	// Main function to call on simulated proxy sim
-	virtual void SetParentSimulation(INetworkSimulationModel* Simulation) = 0;
-	virtual INetworkSimulationModel* GetParentSimulation() const = 0;
+	virtual void SetParentSimulation(INetworkedSimulationModel* Simulation) = 0;
+	virtual INetworkedSimulationModel* GetParentSimulation() const = 0;
 	
-	virtual void AddDependentSimulation(INetworkSimulationModel* Simulation) = 0;
-	virtual void RemoveDependentSimulation(INetworkSimulationModel* Simulation) = 0;
+	virtual void AddDependentSimulation(INetworkedSimulationModel* Simulation) = 0;
+	virtual void RemoveDependentSimulation(INetworkedSimulationModel* Simulation) = 0;
 	
 	// Tell parent sim that a dependent sim needs to reconcile (parent sim drives this)
 	virtual void NotifyDependentSimNeedsReconcile() = 0;
@@ -251,6 +251,11 @@ public:
 	// Called by parent sim on the dependent sim as it reconciles
 	virtual void BeginRollback(const struct FNetworkSimTime& RollbackDeltaTime, const int32 ParentFrame) = 0;
 	virtual void StepRollback(const struct FNetworkSimTime& Step, const int32 ParentFrame, const bool FinalStep) = 0;
+
+	void ProcessPendingNetSimCues() { ProcessPendingNetSimCuesFunc(); }
+
+protected:
+	TFunction<void()> ProcessPendingNetSimCuesFunc;
 };
 
 // -------------------------------------------------------------------------------------------------------------------------------

@@ -444,7 +444,7 @@ void FVoiceCaptureWindows::ProcessData()
 				{
 					if (bMicReleased)
 					{
-						ReleaseBuffer.PushSample(Temp);
+						ReleaseBuffer.PushFrame(&InputBuffer[FrameIndex], NumInputChannels);
 
 						if (!bSampleStartCached)
 						{
@@ -454,8 +454,8 @@ void FVoiceCaptureWindows::ProcessData()
 					}
 					else
 					{
-						AudioBuffer[FrameIndex] = Temp;
-						SamplesPushedToUncompressedAudioBuffer++;
+						FMemory::Memcpy(&AudioBuffer[FrameIndex], &InputBuffer[FrameIndex], sizeof(int16) * NumInputChannels);
+						SamplesPushedToUncompressedAudioBuffer += NumInputChannels;
 					}
 				}
 				else
@@ -488,7 +488,7 @@ void FVoiceCaptureWindows::ProcessData()
 				{
 					if (bMicReleased)
 					{
-						ReleaseBuffer.PushSample(Temp);
+						ReleaseBuffer.PushFrame(&InputBuffer[FrameIndex], NumInputChannels);
 
 						if (!bSampleStartCached)
 						{
@@ -498,8 +498,8 @@ void FVoiceCaptureWindows::ProcessData()
 					}
 					else
 					{
-						AudioBuffer[FrameIndex] = Temp;
-						SamplesPushedToUncompressedAudioBuffer++;
+						FMemory::Memcpy(&AudioBuffer[FrameIndex], &InputBuffer[FrameIndex], sizeof(int16) * NumInputChannels);
+						SamplesPushedToUncompressedAudioBuffer += NumInputChannels;
 					}
 				}
 				else
@@ -572,6 +572,25 @@ EVoiceCaptureState::Type FVoiceCaptureWindows::GetVoiceData(uint8* OutVoiceBuffe
 		{
 			NewMicState = EVoiceCaptureState::BufferTooSmall;
 		}
+	}
+
+	// If we have any sends for this microphones output, push to them here.
+	if (MicrophoneOutput.Num() > 0)
+	{
+		// Convert our buffer from int16 to float:
+		int16* OutputData = reinterpret_cast<int16*>(OutVoiceBuffer);
+		uint32 NumSamples = OutBytesWritten / sizeof(int16);
+		ConversionBuffer.Reset();
+		// Note: Sample rate is unused for this operation.
+		ConversionBuffer.Append(OutputData, NumSamples, NumInputChannels, 16000);
+		
+		if (NumInputChannels > 1)
+		{
+			// For consistency, mixdown to mono.
+			ConversionBuffer.MixBufferToChannels(1);
+		}
+
+		MicrophoneOutput.PushAudio(ConversionBuffer.GetData(), ConversionBuffer.GetNumSamples());
 	}
 
 	return NewMicState;
@@ -659,6 +678,11 @@ bool FVoiceCaptureWindows::Tick(float DeltaTime)
 	}
 
 	return true;
+}
+
+float FVoiceCaptureWindows::GetCurrentAmplitude() const
+{
+	return MicLevelDetector.GetCurrentValue();
 }
 
 void FVoiceCaptureWindows::DumpState() const

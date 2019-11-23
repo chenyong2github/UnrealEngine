@@ -1,33 +1,29 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/Core.h"
 #include "Chaos/Declares.h"
 #include "Chaos/Vector.h"
 
 namespace Chaos
 {
-	template<class T, int d>
-	class TPBDConstraintContainer;
+	class FPBDConstraintContainer;
 
 	/**
 	 * Base class for constraint handles.
-	 * @todo(ccaulfield): Add checked down-casting to specific constraint-type handle
 	 */
-	template<class T, int d>
-	class CHAOS_API TConstraintHandle
+	class CHAOS_API FConstraintHandle
 	{
 	public:
-		using FReal = T;
-		static const int Dimensions = d;
-		using FGeometryParticleHandle = TGeometryParticleHandle<FReal, Dimensions>;
+		using FGeometryParticleHandle = TGeometryParticleHandle<FReal, 3>;
 
-		TConstraintHandle() : ConstraintIndex(INDEX_NONE) {}
-		TConstraintHandle(int32 InConstraintIndex) : ConstraintIndex(InConstraintIndex) {}
-		~TConstraintHandle() {}
+		FConstraintHandle() : ConstraintIndex(INDEX_NONE) { }
+		FConstraintHandle(int32 InConstraintIndex): ConstraintIndex(InConstraintIndex) {}
+		~FConstraintHandle() {}
 
 		bool IsValid() const
 		{
-			return (ConstraintIndex != INDEX_NONE);
+			return (ConstraintIndex != INDEX_NONE );
 		}
 
 		int32 GetConstraintIndex() const
@@ -35,8 +31,11 @@ namespace Chaos
 			return ConstraintIndex;
 		}
 
+		// @todo(ccaulfield): Add checked down - casting to specific constraint - type handle
+		template<typename T>  T* As() { return static_cast<T*>(this); }
+
 	protected:
-		friend class TPBDConstraintContainer<T, d>;
+		friend class FPBDConstraintContainer;
 
 		int32 ConstraintIndex;
 	};
@@ -46,21 +45,18 @@ namespace Chaos
 	 * Utility base class for ConstraintHandles. Provides basic functionality common to most constraint containers.
 	 */
 	template<typename T_CONTAINER>
-	class CHAOS_API TContainerConstraintHandle : public TConstraintHandle<typename T_CONTAINER::FReal, T_CONTAINER::Dimensions>
+	class CHAOS_API TContainerConstraintHandle : public FConstraintHandle
 	{
 	public:
-		using Base = TConstraintHandle<typename T_CONTAINER::FReal, T_CONTAINER::Dimensions>;
-		using FReal = typename Base::FReal;
-		static const int Dimensions = Base::Dimensions;
+		using Base = FConstraintHandle;
 		using FGeometryParticleHandle = typename Base::FGeometryParticleHandle;
 		using FConstraintContainer = T_CONTAINER;
 
 		TContainerConstraintHandle() : ConstraintContainer(nullptr) {}
-		TContainerConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) : TConstraintHandle<FReal, Dimensions>(InConstraintIndex), ConstraintContainer(InConstraintContainer) {}
+		TContainerConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) 
+			: FConstraintHandle(InConstraintIndex), ConstraintContainer(InConstraintContainer) {}
 
 		void RemoveConstraint() { ConstraintContainer->RemoveConstraint(ConstraintIndex); }
-
-		TVector<FGeometryParticleHandle*, 2> GetConstrainedParticles() const { return ConstraintContainer->GetConstrainedParticles(ConstraintIndex); }
 
 	protected:
 		using Base::ConstraintIndex;
@@ -78,9 +74,11 @@ namespace Chaos
 	{
 	public:
 		using FConstraintContainer = T_CONTAINER;
-		using FConstraintHandle = typename FConstraintContainer::FConstraintHandle;
+		using FConstraintContainerHandle = typename FConstraintContainer::FConstraintContainerHandle;
 
-		FConstraintHandle* AllocHandle(FConstraintContainer* ConstraintContainer, int32 ConstraintIndex) { return new FConstraintHandle(ConstraintContainer, ConstraintIndex); }
-		void FreeHandle(FConstraintHandle* Handle) { delete Handle; }
+		FConstraintContainerHandle* AllocHandle(FConstraintContainer* ConstraintContainer, int32 ConstraintIndex) { return new FConstraintContainerHandle(ConstraintContainer, ConstraintIndex); }
+		template<class TYPE>
+		FConstraintContainerHandle* AllocHandle(FConstraintContainer* ConstraintContainer, int32 ConstraintIndex) { return new FConstraintContainerHandle(ConstraintContainer, ConstraintIndex, TYPE::StaticType()); }
+		void FreeHandle(FConstraintContainerHandle* Handle) { delete Handle; }
 	};
 }

@@ -192,7 +192,7 @@ void FDisplayClusterProjectionSimplePolicy::InitializeMeshData()
 	}
 
 	// Get our VR root
-	UDisplayClusterRootComponent* Root = GameMgr->GetRoot();
+	UDisplayClusterRootComponent* Root = GameMgr->GetRootComponent();
 	if (!Root)
 	{
 		UE_LOG(LogDisplayClusterProjectionSimple, Error, TEXT("Couldn't get a VR root object"));

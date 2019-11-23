@@ -38,6 +38,8 @@ static FAutoConsoleVariableRef CVarRequestMispredict(TEXT("fp.RequestMispredict"
 	RequestMispredict, TEXT("Causes a misprediction by inserting random value into stream on authority side"), ECVF_Default);
 }
 
+float UFlyingMovementComponent::GetDefaultMaxSpeed() { return FlyingMovementCVars::MaxSpeed; }
+
 // ----------------------------------------------------------------------------------------------------------
 //	UFlyingMovementComponent setup/init
 // ----------------------------------------------------------------------------------------------------------
@@ -51,29 +53,17 @@ UFlyingMovementComponent::UFlyingMovementComponent()
 //	Core Network Prediction functions
 // ----------------------------------------------------------------------------------------------------------
 
-INetworkSimulationModel* UFlyingMovementComponent::InstantiateNetworkSimulation()
+INetworkedSimulationModel* UFlyingMovementComponent::InstantiateNetworkedSimulation()
 {
-	check(UpdatedComponent);
+	// The Simulation
+	FFlyingMovementSyncState InitialSyncState;
+	FFlyingMovementAuxState InitialAuxState;
 
-	// Create the simulation
-	MovementSimulation.Reset(new FlyingMovement::FMovementSimulation());
-	MovementSimulation->UpdatedComponent = UpdatedComponent;
-	MovementSimulation->UpdatedPrimitive = UpdatedPrimitive;
-	
-	// Initial states
-	FlyingMovement::FMoveState InitialSyncState;
-	InitialSyncState.Location = UpdatedComponent->GetComponentLocation();
-	InitialSyncState.Rotation = UpdatedComponent->GetComponentQuat().Rotator();	
+	InitFlyingMovementSimulation(new FFlyingMovementSimulation(), InitialSyncState, InitialAuxState);
 
-	FlyingMovement::FAuxState InitialAuxState;
-	InitialAuxState.MaxSpeed = FlyingMovementCVars::MaxSpeed;
-
-	// The NetworkModel
-	auto NewModel = new FlyingMovement::FMovementSystem<0>(MovementSimulation.Get(), this, InitialSyncState, InitialAuxState);
-
-	// Accessors to the latest sync/aux state
-	MovementSyncState.Init(NewModel);
-	MovementAuxState.Init(NewModel);
+	// The Model
+	auto* NewModel = new TNetworkedSimulationModel<FFlyingMovementNetSimModelDef>(this->MovementSimulation, this, InitialSyncState, InitialAuxState);
+	InitFlyingMovementNetSimModel(NewModel);
 	return NewModel;
 }
 
@@ -99,7 +89,7 @@ void UFlyingMovementComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 	// Check if we should trip a mispredict. (Note how its not possible to do this inside the Update function!)
 	if (OwnerRole == ROLE_Authority && FlyingMovementCVars::RequestMispredict)
 	{
-		FlyingMovement::FMovementSimulation::ForceMispredict = true;
+		FFlyingMovementSimulation::ForceMispredict = true;
 		FlyingMovementCVars::RequestMispredict = 0;
 	}
 
@@ -109,7 +99,7 @@ void UFlyingMovementComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 	{
 		if (MovementAuxState->Get()->MaxSpeed != FlyingMovementCVars::MaxSpeed)
 		{
-			MovementAuxState->Modify([](FlyingMovement::FAuxState& Aux)
+			MovementAuxState->Modify([](FFlyingMovementAuxState& Aux)
 			{
 				Aux.MaxSpeed = FlyingMovementCVars::MaxSpeed;
 			});
@@ -128,16 +118,16 @@ void UFlyingMovementComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 //
 // ----------------------------------------------------------------------------------------------------------
 
-void UFlyingMovementComponent::ProduceInput(const FNetworkSimTime SimTime, FlyingMovement::FInputCmd& Cmd)
+void UFlyingMovementComponent::ProduceInput(const FNetworkSimTime SimTime, FFlyingMovementInputCmd& Cmd)
 {
 	// This isn't ideal. It probably makes sense for the component to do all the input binding rather.
 	ProduceInputDelegate.ExecuteIfBound(SimTime, Cmd);
 }
 
-void UFlyingMovementComponent::FinalizeFrame(const FlyingMovement::FMoveState& SyncState, const FlyingMovement::FAuxState& AuxState)
+void UFlyingMovementComponent::FinalizeFrame(const FFlyingMovementSyncState& SyncState, const FFlyingMovementAuxState& AuxState)
 {
 	// Does checking equality make any sense here? This is unfortunate
-	if (UpdatedComponent->GetComponentLocation().Equals(SyncState.Location) == false || UpdatedComponent->GetComponentQuat().Rotator().Equals(SyncState.Rotation, FlyingMovement::ROTATOR_TOLERANCE) == false)
+	if (UpdatedComponent->GetComponentLocation().Equals(SyncState.Location) == false || UpdatedComponent->GetComponentQuat().Rotator().Equals(SyncState.Rotation, FFlyingMovementNetSimModelDef::ROTATOR_TOLERANCE) == false)
 	{
 		FTransform Transform(SyncState.Rotation.Quaternion(), SyncState.Location, UpdatedComponent->GetComponentTransform().GetScale3D() );
 		UpdatedComponent->SetWorldTransform(Transform, false, nullptr, ETeleportType::TeleportPhysics);
@@ -148,7 +138,7 @@ void UFlyingMovementComponent::FinalizeFrame(const FlyingMovement::FMoveState& S
 
 FString UFlyingMovementComponent::GetDebugName() const
 {
-	return FString::Printf(TEXT("FlyingMovement. %s. %s"), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwnerRole()), *GetName());
+	return FString::Printf(TEXT("FlyingMovement. %s. %s"), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwnerRole()), *GetPathName());
 }
 
 const AActor* UFlyingMovementComponent::GetVLogOwner() const
@@ -156,7 +146,7 @@ const AActor* UFlyingMovementComponent::GetVLogOwner() const
 	return GetOwner();
 }
 
-void UFlyingMovementComponent::VisualLog(const FlyingMovement::FInputCmd* Input, const FlyingMovement::FMoveState* Sync, const FlyingMovement::FAuxState* Aux, const FVisualLoggingParameters& SystemParameters) const
+void UFlyingMovementComponent::VisualLog(const FFlyingMovementInputCmd* Input, const FFlyingMovementSyncState* Sync, const FFlyingMovementAuxState* Aux, const FVisualLoggingParameters& SystemParameters) const
 {
 	FTransform Transform(Sync->Rotation, Sync->Location);
 	FVisualLoggingHelpers::VisualLogActor(GetOwner(), Transform, SystemParameters);	

@@ -214,7 +214,8 @@ void FixupUnsanitizedNames(const FString& Src, TArray<FString>& OutFields)
 		}
 		OutFields.Empty();
 		NewSrc.TrimStartAndEnd().ParseIntoArray(OutFields, TEXT(","), false);
-		check(OutFields.Num() == 11);
+		// allow formats both with and without pipeline hash
+		check(OutFields.Num() == 11 || OutFields.Num() == 12);
 	}
 }
 
@@ -233,19 +234,24 @@ void FStableShaderKeyAndValue::ComputeKeyHash()
 
 	KeyHash = HashCombine(KeyHash, GetTypeHash(VFType));
 	KeyHash = HashCombine(KeyHash, GetTypeHash(PermutationId));
+	KeyHash = HashCombine(KeyHash, GetTypeHash(PipelineHash));
 }
 
 void FStableShaderKeyAndValue::ParseFromString(const FString& Src)
 {
 	TArray<FString> Fields;
 	Src.TrimStartAndEnd().ParseIntoArray(Fields, TEXT(","), false);
-	if (Fields.Num() > 11)
+
+	/* disabled, should not be happening since 1H 2018
+	if (Fields.Num() > 12)
 	{
 		// hack fix for unsanitized names, should not occur anymore.
 		FixupUnsanitizedNames(Src, Fields);
 	}
+	*/
 
-	check(Fields.Num() == 11);
+	// for a while, accept old .scl.csv without pipelinehash
+	check(Fields.Num() == 11 || Fields.Num() == 12);
 
 	int32 Index = 0;
 	ClassNameAndObjectPath.ParseFromString(Fields[Index++]);
@@ -266,6 +272,15 @@ void FStableShaderKeyAndValue::ParseFromString(const FString& Src)
 
 	check(Index == 11);
 
+	if (Fields.Num() == 12)
+	{
+		PipelineHash.FromString(Fields[Index++]);
+	}
+	else
+	{
+		PipelineHash = FSHAHash();
+	}
+
 	ComputeKeyHash();
 }
 
@@ -275,13 +290,16 @@ void FStableShaderKeyAndValue::ParseFromStringCached(const FString& Src, TMap<ui
 	TArray<FString> Fields;
 	Src.TrimStartAndEnd().ParseIntoArray(Fields, TEXT(","), false);
 
+	/* disabled, should not be happening since 1H 2018
 	if (Fields.Num() > 11)
 	{
 		// hack fix for unsanitized names, should not occur anymore.
 		FixupUnsanitizedNames(Src, Fields);
 	}
+	*/
 	
-	check(Fields.Num() == 11);
+	// for a while, accept old .scl.csv without pipelinehash
+	check(Fields.Num() == 11 || Fields.Num() == 12);
 
 	int32 Index = 0;
 	ClassNameAndObjectPath.ParseFromString(Fields[Index++]);
@@ -303,6 +321,15 @@ void FStableShaderKeyAndValue::ParseFromStringCached(const FString& Src, TMap<ui
 	OutputHash.FromString(Fields[Index++]);
 
 	check(Index == 11);
+
+	if (Fields.Num() == 12)
+	{
+		PipelineHash.FromString(Fields[Index++]);
+	}
+	else
+	{
+		PipelineHash = FSHAHash();
+	}
 
 	ComputeKeyHash();
 }
@@ -345,6 +372,9 @@ void FStableShaderKeyAndValue::ToString(FString& OutResult) const
 	OutResult += Delim;
 
 	OutResult += OutputHash.ToString();
+	OutResult += Delim;
+
+	OutResult += PipelineHash.ToString();
 }
 
 FString FStableShaderKeyAndValue::HeaderLine()
@@ -378,10 +408,66 @@ FString FStableShaderKeyAndValue::HeaderLine()
 	Result += Delim;
 
 	Result += TEXT("OutputHash");
+	Result += Delim;
+
+	Result += TEXT("PipelineHash");
 
 	return Result;
 }
 
+void FStableShaderKeyAndValue::SetPipelineHash(FShaderPipeline* Pipeline)
+{
+	if (LIKELY(Pipeline))
+	{
+		// cache this?
+		FShaderCodeLibraryPipeline LibraryPipeline;
+		LibraryPipeline.Initialize(Pipeline);
+		LibraryPipeline.GetPipelineHash(PipelineHash); 
+	}
+	else
+	{
+		PipelineHash = FSHAHash();
+	}
+}
+
+void FShaderCodeLibraryPipeline::Initialize(FShaderPipeline* Pipeline)
+{
+	check(Pipeline != nullptr);
+
+	if (IsValidRef(Pipeline->VertexShader))
+	{
+		VertexShader = Pipeline->VertexShader->GetOutputHash();
+	}
+	if (IsValidRef(Pipeline->GeometryShader))
+	{
+		GeometryShader = Pipeline->GeometryShader->GetOutputHash();
+	}
+	if (IsValidRef(Pipeline->HullShader))
+	{
+		HullShader = Pipeline->HullShader->GetOutputHash();
+	}
+	if (IsValidRef(Pipeline->DomainShader))
+	{
+		DomainShader = Pipeline->DomainShader->GetOutputHash();
+	}
+	if (IsValidRef(Pipeline->PixelShader))
+	{
+		PixelShader = Pipeline->PixelShader->GetOutputHash();
+	}
+}
+
+void FShaderCodeLibraryPipeline::GetPipelineHash(FSHAHash& Output)
+{
+	FSHA1 Hasher;
+	Hasher.Update(&VertexShader.Hash[0], sizeof(VertexShader.Hash));
+	Hasher.Update(&PixelShader.Hash[0], sizeof(PixelShader.Hash));
+	Hasher.Update(&GeometryShader.Hash[0], sizeof(GeometryShader.Hash));
+	Hasher.Update(&HullShader.Hash[0], sizeof(HullShader.Hash));
+	Hasher.Update(&DomainShader.Hash[0], sizeof(DomainShader.Hash));
+
+	Hasher.Final();
+	Hasher.GetHash(&Output.Hash[0]);
+}
 
 struct FShaderCodeEntry
 {
@@ -990,26 +1076,7 @@ struct FEditorShaderCodeArchive
 		EShaderPlatform ShaderPlatform = ShaderFormatToLegacyShaderPlatform(FormatName);
 
 		FShaderCodeLibraryPipeline LibraryPipeline;
-		if (IsValidRef(Pipeline->VertexShader))
-		{
-			LibraryPipeline.VertexShader = Pipeline->VertexShader->GetOutputHash();
-		}
-		if (IsValidRef(Pipeline->GeometryShader))
-		{
-			LibraryPipeline.GeometryShader = Pipeline->GeometryShader->GetOutputHash();
-		}
-		if (IsValidRef(Pipeline->HullShader))
-		{
-			LibraryPipeline.HullShader = Pipeline->HullShader->GetOutputHash();
-		}
-		if (IsValidRef(Pipeline->DomainShader))
-		{
-			LibraryPipeline.DomainShader = Pipeline->DomainShader->GetOutputHash();
-		}
-		if (IsValidRef(Pipeline->PixelShader))
-		{
-			LibraryPipeline.PixelShader = Pipeline->PixelShader->GetOutputHash();
-		}
+		LibraryPipeline.Initialize(Pipeline);
 		if (!Pipelines.Contains(LibraryPipeline))
 		{
 			Pipelines.Add(LibraryPipeline);

@@ -9,6 +9,7 @@
 #include "DSP/EnvelopeFollower.h"
 #include "Containers/Ticker.h"
 #include "Windows/WindowsHWrapper.h"
+#include "SampleBuffer.h"
 
 typedef struct IDirectSound8 *LPDIRECTSOUND8;
 
@@ -120,10 +121,11 @@ public:
 	virtual EVoiceCaptureState::Type GetVoiceData(uint8* OutVoiceBuffer, uint32 InVoiceBufferSize, uint32& OutAvailableVoiceData, uint64& OutSampleCounter) override;
 	virtual int32 GetBufferSize() const override;
 	virtual void DumpState() const override;
+	virtual float GetCurrentAmplitude() const override;
 
 	// FTickerObjectBase
 	virtual bool Tick(float DeltaTime) override;
-
+	
 private:
 
 	/** All windows related variables to hide windows includes */
@@ -146,6 +148,9 @@ private:
 
 	/** Number of channels. */
 	int32 NumInputChannels;
+
+	/** This is used to convert audio from int16 to float to push to any potential connected patch outputs on IVoiceCapture::MicrophoneOutput */
+	Audio::TSampleBuffer<float> ConversionBuffer;
 
 	/**
 	* This buffer is used so that we can detect when the player is speaking

@@ -8,6 +8,7 @@ Notes:
 =============================================================================*/
 
 #include "IpConnection.h"
+#include "IpNetDriver.h"
 #include "SocketSubsystem.h"
 #include "Engine/Engine.h"
 
@@ -17,6 +18,7 @@ Notes:
 #include "Net/DataChannel.h"
 
 #include "Net/Core/Misc/PacketAudit.h"
+#include "Misc/ScopeExit.h"
 
 /*-----------------------------------------------------------------------------
 	Declarations.
@@ -170,6 +172,30 @@ void UIpConnection::WaitForSendTasks()
 void UIpConnection::LowLevelSend(void* Data, int32 CountBits, FOutPacketTraits& Traits)
 {
 	const uint8* DataToSend = reinterpret_cast<uint8*>(Data);
+
+#if !UE_BUILD_SHIPPING
+	TSharedPtr<FInternetAddr> OrigAddr;
+
+	if (GCurrentDuplicateIP.IsValid() && RemoteAddr->CompareEndpoints(*GCurrentDuplicateIP))
+	{
+		OrigAddr = RemoteAddr;
+
+		TSharedRef<FInternetAddr> NewAddr = OrigAddr->Clone();
+		int32 NewPort = NewAddr->GetPort() - 9876;
+
+		NewAddr->SetPort(NewPort >= 0 ? NewPort : (65536 + NewPort));
+
+		RemoteAddr = NewAddr;
+	}
+
+	ON_SCOPE_EXIT
+	{
+		if (OrigAddr.IsValid())
+		{
+			RemoteAddr = OrigAddr;
+		}
+	};
+#endif
 
 	if( ResolveInfo )
 	{

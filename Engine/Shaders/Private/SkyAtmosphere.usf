@@ -749,7 +749,7 @@ void RenderSkyAtmosphereRayMarchingPS(
 		float2 UV;
 
 		// The referencial used to build the Sky View lut
-		float3x3 LocalReferencial = GetSkyViewLutReferential(WorldPos, View.ViewForward);
+		float3x3 LocalReferencial = GetSkyViewLutReferential(WorldPos, View.ViewForward, View.ViewRight);
 
 		// Input vectors expressed in this referencial: Up is always Z. Also note that ViewHeight is unchanged in this referencial.
 		float3 WorldPosLocal = float3(0.0, 0.0, ViewHeight);
@@ -1032,7 +1032,7 @@ void RenderSkyViewLutCS(uint3 ThreadId : SV_DispatchThreadID)
 	// into a referential with UP being perpendicular to the ground. And with origin at the planet center.
 
 	// This is the local referencial
-	float3x3 LocalReferencial = GetSkyViewLutReferential(WorldPos, View.ViewForward);
+	float3x3 LocalReferencial = GetSkyViewLutReferential(WorldPos, View.ViewForward, View.ViewRight);
 
 	// This is the LUT camera height and position in the local referential
 	float ViewHeight = length(WorldPos);

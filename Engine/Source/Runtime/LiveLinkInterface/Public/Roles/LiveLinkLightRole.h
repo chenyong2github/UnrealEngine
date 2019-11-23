@@ -8,7 +8,7 @@
 /**
  * Role associated for Light data.
  */
-UCLASS(BlueprintType)
+UCLASS(BlueprintType, meta = (DisplayName = "Light Role"))
 class LIVELINKINTERFACE_API ULiveLinkLightRole : public ULiveLinkTransformRole
 {
 	GENERATED_BODY()

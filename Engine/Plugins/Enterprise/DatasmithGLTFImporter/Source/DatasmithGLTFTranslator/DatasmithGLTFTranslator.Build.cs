@@ -19,15 +19,11 @@ namespace UnrealBuildTool.Rules
                     "DatasmithCore",
                     "Engine",
                     "Json",
-                    "MainFrame",
-                    "MeshUtilities",
                     "MeshDescription",
                     "MessageLog",
                     "RawMesh",
                     "Slate",
                     "SlateCore",
-                    "UnrealEd",
-                    "MaterialEditor",
                 }
             );
 
@@ -36,7 +32,7 @@ namespace UnrealBuildTool.Rules
                 {
                     "DatasmithContent",
                     "DatasmithImporter",
-                    "GLTFImporter",
+                    "GLTFCore",
                 }
             );
         }

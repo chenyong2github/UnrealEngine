@@ -435,9 +435,6 @@ private:
 	/** Returns true if the specified asset data item passes all applied frontend (non asset registry) filters */
 	bool PassesCurrentFrontendFilter(const FAssetData& Item) const;
 
-	/** Returns true if the specified asset data item passes all applied backend (asset registry) filters */
-	bool PassesCurrentBackendFilter(const FAssetData& Item) const;
-
 	/** Removes asset data items from the given array that don't pass all applied backend (asset registry) filters */
 	void RunAssetsThroughBackendFilter(TArray<FAssetData>& InOutAssetDataList) const;
 
@@ -790,8 +787,12 @@ private:
 
 	/** Creates the row header context menu allowing for hiding individually clicked columns*/
 	TSharedRef<SWidget> CreateRowHeaderMenuContent(const FString ColumnName);
+
 	/** Will compute the max row size from all its children for the specified column id*/
 	FVector2D GetMaxRowSizeForColumn(const FName& ColumnId);
+
+	/** Append the current effective backend filter (intersection of BackendFilter and SupportedFilter) to the given filter. */
+	void AppendBackendFilter(FARFilter& FilterToAppendTo) const;
 
 public:
 	/** Delegate that handles if any folder paths changed as a result of a move, rename, etc. in the asset view*/
@@ -828,6 +829,7 @@ private:
 	/** The current base source filter for the view */
 	FSourcesData SourcesData;
 	FARFilter BackendFilter;
+	FARFilter SupportedFilter;
 	TSharedPtr<FAssetFilterCollectionType> FrontendFilters;
 
 	/** If true, the source items will be refreshed next frame. Very slow. */

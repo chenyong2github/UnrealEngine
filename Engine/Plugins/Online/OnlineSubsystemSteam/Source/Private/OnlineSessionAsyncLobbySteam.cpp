@@ -154,6 +154,7 @@ static void GetLobbyKeyValuePairsFromSessionSettings(const FOnlineSessionSetting
  */
 static void GetLobbyKeyValuePairsFromSessionInfo(const FOnlineSessionInfoSteam& SessionInfo, FSteamSessionKeyValuePairs& KeyValuePairs)
 {
+	// This should pretty much always be false.
 	if (SessionInfo.HostAddr.IsValid())
 	{
 		uint32 HostAddr;
@@ -162,11 +163,13 @@ static void GetLobbyKeyValuePairsFromSessionInfo(const FOnlineSessionInfoSteam& 
 		KeyValuePairs.Add(STEAMKEY_HOSTPORT, FString::FromInt(SessionInfo.HostAddr->GetPort()));
 	}
 
+	// Lobbies are exclusively P2P.
+	KeyValuePairs.Add(STEAMKEY_CONNECTIONMETHOD, FString::Printf(TEXT("%s"), *LexToString(FSteamConnectionMethod::P2P)));
+
 	if (SessionInfo.SteamP2PAddr.IsValid())
 	{
-		TSharedPtr<FInternetAddrSteam> SteamAddr = StaticCastSharedPtr<FInternetAddrSteam>(SessionInfo.SteamP2PAddr);
-		KeyValuePairs.Add(STEAMKEY_P2PADDR, SteamAddr->ToString(false));
-		KeyValuePairs.Add(STEAMKEY_P2PPORT, FString::FromInt(SteamAddr->GetPort()));
+		KeyValuePairs.Add(STEAMKEY_P2PADDR, SessionInfo.SteamP2PAddr->ToString(false));
+		KeyValuePairs.Add(STEAMKEY_P2PPORT, FString::FromInt(SessionInfo.SteamP2PAddr->GetPort()));
 	}
 }
 
@@ -342,9 +345,18 @@ bool FillSessionFromLobbyData(FOnlineSubsystemSteam* SteamSubsystem, FUniqueNetI
 				HostKeysFound++;
 			}
 		}
+		else if (FCStringAnsi::Stricmp(Key, STEAMKEY_CONNECTIONMETHOD) == 0)
+		{
+			SessionInfo->ConnectionMethod = ToConnectionMethod(ANSI_TO_TCHAR(Value));
+			++KeysFound;
+		}
 		else if (FCStringAnsi::Stricmp(Key, STEAMKEY_P2PADDR) == 0)
 		{
-			uint64 SteamAddr = FCString::Atoi64(ANSI_TO_TCHAR(Value));
+			FString KeyValue = ANSI_TO_TCHAR(Value);
+			// Remove any protocol flags from the start.
+			KeyValue.RemoveFromStart(STEAM_URL_PREFIX);
+
+			uint64 SteamAddr = FCString::Atoi64(*KeyValue);
 			if (SteamAddr != 0)
 			{
 				SteamP2PAddr->SteamId.UniqueNetId = SteamAddr;

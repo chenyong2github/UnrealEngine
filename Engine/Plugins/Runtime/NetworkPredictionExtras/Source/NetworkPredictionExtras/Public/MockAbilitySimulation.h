@@ -39,7 +39,11 @@
 //
 // -------------------------------------------------------------------------------------------------------------------------------
 
-struct FMockAbilityInputCmd : public FlyingMovement::FInputCmd
+// -------------------------------------------------------
+// MockAbility Data structures
+// -------------------------------------------------------
+
+struct FMockAbilityInputCmd : public FFlyingMovementInputCmd
 {
 	bool bSprintPressed = false;
 	bool bDashPressed = false;
@@ -50,12 +54,12 @@ struct FMockAbilityInputCmd : public FlyingMovement::FInputCmd
 		P.Ar << bSprintPressed;
 		P.Ar << bDashPressed;
 		P.Ar << bBlinkPressed;
-		FlyingMovement::FInputCmd::NetSerialize(P);
+		FFlyingMovementInputCmd::NetSerialize(P);
 	}
 
 	void Log(FStandardLoggingParameters& P) const
 	{
-		FlyingMovement::FInputCmd::Log(P);
+		FFlyingMovementInputCmd::Log(P);
 		if (P.Context == EStandardLoggingContext::Full)
 		{
 			P.Ar->Logf(TEXT("bSprintPressed: %d"), bSprintPressed);
@@ -65,19 +69,19 @@ struct FMockAbilityInputCmd : public FlyingMovement::FInputCmd
 	}
 };
 
-struct FMockAbilitySyncState : public FlyingMovement::FMoveState
+struct FMockAbilitySyncState : public FFlyingMovementSyncState
 {
 	float Stamina = 0.f;
 	
 	void NetSerialize(const FNetSerializeParams& P)
 	{
 		P.Ar << Stamina;
-		FlyingMovement::FMoveState::NetSerialize(P);
+		FFlyingMovementSyncState::NetSerialize(P);
 	}
 
 	void Log(FStandardLoggingParameters& P) const
 	{
-		FlyingMovement::FMoveState::Log(P);
+		FFlyingMovementSyncState::Log(P);
 		if (P.Context == EStandardLoggingContext::Full)
 		{
 			P.Ar->Logf(TEXT("Stamina: %.2f"), Stamina);
@@ -85,7 +89,7 @@ struct FMockAbilitySyncState : public FlyingMovement::FMoveState
 	}
 };
 
-struct FMockAbilityAuxstate : public FlyingMovement::FAuxState
+struct FMockAbilityAuxState : public FFlyingMovementAuxState
 {
 	float MaxStamina = 100.f;
 	float StaminaRegenRate = 20.f;
@@ -100,12 +104,12 @@ struct FMockAbilityAuxstate : public FlyingMovement::FAuxState
 		P.Ar << DashTimeLeft;
 		P.Ar << BlinkWarmupLeft;
 		P.Ar << bIsSprinting;
-		FlyingMovement::FAuxState::NetSerialize(P);
+		FFlyingMovementAuxState::NetSerialize(P);
 	}
 
 	void Log(FStandardLoggingParameters& P) const
 	{
-		FlyingMovement::FAuxState::Log(P);
+		FFlyingMovementAuxState::Log(P);
 		if (P.Context == EStandardLoggingContext::Full)
 		{
 			P.Ar->Logf(TEXT("MaxStamina: %.2f"), MaxStamina);
@@ -117,43 +121,97 @@ struct FMockAbilityAuxstate : public FlyingMovement::FAuxState
 	}
 };
 
-using TMockAbilityBufferTypes = TNetworkSimBufferTypes<FMockAbilityInputCmd, FMockAbilitySyncState, FMockAbilityAuxstate>;
+// -------------------------------------------------------
+// MockAbility NetSimCues - events emitted by the sim
+// -------------------------------------------------------
 
-// A very hard coded event handling interface for events that are emitted in FMockAbilitySimulation::SimulationTick.
-// These events are for cosmetic, client side work. E.g, we are not implementing sprint/dash/blink here, we are doing
-// visual/audio effects based on those states changing within the core simulation update. These are effectively skipped on the server (in implementation).
-class IMockAbilityEventHandler
+// Cue for blink activation.
+struct FMockAbilityBlinkCue
 {
-public:
-	virtual void NotifySprint(bool bIsSprinting) = 0;
-	virtual void NotifyDash(bool bIsDashing) = 0;
-	virtual void NotifyBlinkStartup() = 0;
-	virtual void NotifyBlinkFinished() = 0;
+	NETSIMCUE_BODY();
+
+	FVector_NetQuantize10 StartLocation;
+	FVector_NetQuantize10 StopLocation;
+
+	void NetSerialize(FArchive& Ar)
+	{
+		bool b = false;
+		StartLocation.NetSerialize(Ar, nullptr, b);
+		StopLocation.NetSerialize(Ar, nullptr, b);
+	}
+
+	static bool Unique(const FMockAbilityBlinkCue& A, const FMockAbilityBlinkCue& B)
+	{
+		const float ErrorTolerance = 1.f;
+		return !A.StartLocation.Equals(B.StartLocation, ErrorTolerance) || !A.StopLocation.Equals(B.StopLocation, ErrorTolerance);
+	}
 };
 
-class FMockAbilitySimulation : public FlyingMovement::FMovementSimulation
+template<>
+struct TCueHandlerTraits<FMockAbilityBlinkCue> : public TNetSimCueTraits_ReplicatedNonPredicted { };
+
+// The set of Cues the MockAbility simulation will invoke
+struct FMockAbilityCueSet
+{
+	template<typename TDispatchTable>
+	static void RegisterNetSimCueTypes(TDispatchTable& DispatchTable)
+	{
+		DispatchTable.template RegisterType<FMockAbilityBlinkCue>();
+	}
+};
+
+
+// -------------------------------------------------------
+// MockAbilitySimulation definition
+// -------------------------------------------------------
+
+using TMockAbilityBufferTypes = TNetworkSimBufferTypes<FMockAbilityInputCmd, FMockAbilitySyncState, FMockAbilityAuxState>;
+
+class FMockAbilitySimulation : public FFlyingMovementSimulation
 {
 public:
-	/** Tick group the simulation maps to */
-	static const FName GroupName;
 
 	/** Main update function */
-	void SimulationTick(const TNetSimTimeStep& TimeStep, const TNetSimInput<TMockAbilityBufferTypes>& Input, const TNetSimOutput<TMockAbilityBufferTypes>& Output);
-
-	IMockAbilityEventHandler* EventHandler = nullptr;
+	void SimulationTick(const FNetSimTimeStep& TimeStep, const TNetSimInput<TMockAbilityBufferTypes>& Input, const TNetSimOutput<TMockAbilityBufferTypes>& Output);
 };
 
-template<int32 InFixedStepMS=0>
-using FMockAbilitySystem = TNetworkedSimulationModel<FMockAbilitySimulation, TMockAbilityBufferTypes, TNetworkSimTickSettings<InFixedStepMS>>;
+class FMockAbilityNetSimModelDef : public FNetSimModelDefBase
+{
+public:
 
-class IMockFlyingAbilitySystemDriver : public TNetworkedSimulationModelDriver<TMockAbilityBufferTypes> { };
+	using Simulation = FMockAbilitySimulation;
+	using BufferTypes = TMockAbilityBufferTypes;
+
+	static const FName GroupName;
+
+	// Compare this state with AuthorityState. return true if a reconcile (correction) should happen
+	static bool ShouldReconcile(const FMockAbilitySyncState& AuthoritySync, const FMockAbilityAuxState& AuthorityAux, const FMockAbilitySyncState& PredictedSync, const FMockAbilityAuxState& PredictedAux)
+	{
+		return FFlyingMovementNetSimModelDef::ShouldReconcile(AuthoritySync, AuthorityAux, PredictedSync, PredictedAux);
+	}
+
+	static void Interpolate(const TInterpolatorParameters<FMockAbilitySyncState, FMockAbilityAuxState>& Params)
+	{
+		Params.Out.Sync = Params.To.Sync;
+		Params.Out.Aux = Params.To.Aux;
+
+		FFlyingMovementNetSimModelDef::Interpolate(Params.Cast<FFlyingMovementSyncState, FFlyingMovementAuxState>());
+	}
+};
+
+/** Additional specialized types of the Parametric Movement NetSimModel */
+class FMockAbilityNetSimModelDef_Fixed30hz : public FMockAbilityNetSimModelDef
+{ 
+public:
+	using TickSettings = TNetworkSimTickSettings<33>;
+};
 
 // -------------------------------------------------------------------------------------------------------------------------------
 // ActorComponent for running Mock Ability Simulation 
 // -------------------------------------------------------------------------------------------------------------------------------
 
 UCLASS(BlueprintType, meta=(BlueprintSpawnableComponent))
-class NETWORKPREDICTIONEXTRAS_API UMockFlyingAbilityComponent : public UFlyingMovementComponent, public IMockFlyingAbilitySystemDriver, public IMockAbilityEventHandler
+class NETWORKPREDICTIONEXTRAS_API UMockFlyingAbilityComponent : public UFlyingMovementComponent, public TNetworkedSimulationModelDriver<TMockAbilityBufferTypes>
 {
 	GENERATED_BODY()
 
@@ -164,31 +222,90 @@ public:
 	DECLARE_DELEGATE_TwoParams(FProduceMockAbilityInput, const FNetworkSimTime /*SimTime*/, FMockAbilityInputCmd& /*Cmd*/)
 	FProduceMockAbilityInput ProduceInputDelegate;
 
-	TNetworkSimStateAccessor<FMockAbilitySyncState> MovementSyncState;
-	TNetworkSimStateAccessor<FMockAbilityAuxstate> MovementAuxState;
+	TNetSimStateAccessor<FMockAbilitySyncState> AbilitySyncState;
+	TNetSimStateAccessor<FMockAbilityAuxState> AbilityAuxState;
 
 	// IMockFlyingAbilitySystemDriver
 	FString GetDebugName() const override;
 	const AActor* GetVLogOwner() const override;
-	void VisualLog(const FMockAbilityInputCmd* Input, const FMockAbilitySyncState* Sync, const FMockAbilityAuxstate* Aux, const FVisualLoggingParameters& SystemParameters) const override;
+	void VisualLog(const FMockAbilityInputCmd* Input, const FMockAbilitySyncState* Sync, const FMockAbilityAuxState* Aux, const FVisualLoggingParameters& SystemParameters) const override;
 
 	void ProduceInput(const FNetworkSimTime SimTime, FMockAbilityInputCmd& Cmd) override;
-	void FinalizeFrame(const FMockAbilitySyncState& SyncState, const FMockAbilityAuxstate& AuxState) override;
+	void FinalizeFrame(const FMockAbilitySyncState& SyncState, const FMockAbilityAuxState& AuxState) override;
 
 	// Required to supress -Woverloaded-virtual warning. We are effectively hiding UFlyingMovementComponent's methods
 	using UFlyingMovementComponent::VisualLog;
 	using UFlyingMovementComponent::ProduceInput;
 	using UFlyingMovementComponent::FinalizeFrame;
 
-	// IMockAbilityEventHandler
-	virtual void NotifySprint(bool bIsSprinting) override;
-	virtual void NotifyDash(bool bIsDashing) override;
-	virtual void NotifyBlinkStartup() override;
-	virtual void NotifyBlinkFinished() override;
+	// NetSimCues
+	void HandleCue(FMockAbilityBlinkCue& BlinkCue, const FNetworkSimTime& ElapsedTime);
+
+	// -------------------------------------------------------------------------------------
+	//	Ability State and Notifications
+	//		-This allows user code/blueprints to respond to state changes.
+	//		-These values always reflect the latest simulation state
+	//		-StateChange events are just that: when the state changes. They are not emitted from the sim themselves.
+	//			-This means they "work" for interpolated simulations and are resilient to packet loss and crazy network conditions
+	//			-That said, its "latest" only. There is NO guarantee that you will receive every state transition
+	//
+	// -------------------------------------------------------------------------------------
+
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMockAbilityNotifyStateChange, bool, bNewStateValue);
+
+	// Notifies when Sprint state changes
+	UPROPERTY(BlueprintAssignable, Category="Mock AbilitySystem")
+	FMockAbilityNotifyStateChange OnSprintStateChange;
+
+	// Notifies when Dash state changes
+	UPROPERTY(BlueprintAssignable, Category="Mock AbilitySystem")
+	FMockAbilityNotifyStateChange OnDashStateChange;
+
+	// Notifies when Blink Changes
+	UPROPERTY(BlueprintAssignable, Category="Mock AbilitySystem")
+	FMockAbilityNotifyStateChange OnBlinkStateChange;
+
+	// Are we currently in the sprinting state
+	UFUNCTION(BlueprintCallable, Category="Mock AbilitySystem")
+	bool IsSprinting() const { return bIsSprinting; }
+
+	// Are we currently in the dashing state
+	UFUNCTION(BlueprintCallable, Category="Mock AbilitySystem")
+	bool IsDashing() const { return bIsDashing; }
+
+	// Are we currently in the blinking (startup) state
+	UFUNCTION(BlueprintCallable, Category="Mock AbilitySystem")
+	bool IsBlinking() const { return bIsBlinking; }
+
+private:
+	
+	// Local cached values for detecting state changes from the sim in ::FinalizeFrame
+	// Its tempting to think ::FinalizeFrame could pass in the previous frames values but this could
+	// not be reliable if buffer sizes are small and network conditions etc - you may not always know
+	// what was the "last finalized frame" or even have it in the buffers anymore.
+	bool bIsSprinting = false;
+	bool bIsDashing = false;
+	bool bIsBlinking = false;
 
 protected:
 
 	// Network Prediction
-	virtual INetworkSimulationModel* InstantiateNetworkSimulation() override;
-	TUniquePtr<FMockAbilitySimulation> MockAbilitySimulation;
+	virtual INetworkedSimulationModel* InstantiateNetworkedSimulation() override;
+	FMockAbilitySimulation* MockAbilitySimulation = nullptr;
+
+	template<typename TSimulation>
+	void InitMockAbilitySimulation(TSimulation* Simulation, FMockAbilitySyncState& InitialSyncState, FMockAbilityAuxState& InitialAuxState)
+	{
+		check(MockAbilitySimulation == nullptr);
+		MockAbilitySimulation = Simulation;	
+		InitFlyingMovementSimulation(Simulation, InitialSyncState, InitialAuxState);
+	}
+
+	template<typename TNetSimModel>
+	void InitMockAbilityNetSimModel(TNetSimModel* Model)
+	{
+		AbilitySyncState.Bind(Model);
+		MovementAuxState.Bind(Model);
+		InitFlyingMovementNetSimModel(Model);
+	}
 };

@@ -733,12 +733,80 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 	BarrierBatcher.SetNameForTemporalEffect(NameForTemporalEffect);
 #endif
 
-	// NOTE: When generating mips, we don't perform any transitions on textures. They are done implicitly by the RHI.
-	const bool bGeneratingMips = Pass->IsGenerateMips();
-
 	FRDGPassParameterStruct ParameterStruct = Pass->GetParameters();
 
 	const uint32 ParameterCount = ParameterStruct.GetParameterCount();
+
+	// List all RDG texture being read and modified by the pass.
+	TSet<FRDGTextureRef, DefaultKeyFuncs<FRDGTextureRef>, SceneRenderingSetAllocator> ReadTextures;
+	TSet<FRDGTextureRef, DefaultKeyFuncs<FRDGTextureRef>, SceneRenderingSetAllocator> ModifiedTextures;
+	for (uint32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
+	{
+		FRDGPassParameter Parameter = ParameterStruct.GetParameter(ParameterIndex);
+
+		switch (Parameter.GetType())
+		{
+		case UBMT_RDG_TEXTURE:
+		{
+			if (FRDGTextureRef Texture = Parameter.GetAsTexture())
+			{
+				ReadTextures.Add(Texture);
+			}
+		}
+		break;
+		case UBMT_RDG_TEXTURE_SRV:
+		{
+			if (FRDGTextureSRVRef SRV = Parameter.GetAsTextureSRV())
+			{
+				ReadTextures.Add(SRV->GetParent());
+			}
+		}
+		break;
+		case UBMT_RDG_TEXTURE_UAV:
+		{
+			if (FRDGTextureUAVRef UAV = Parameter.GetAsTextureUAV())
+			{
+				ModifiedTextures.Add(UAV->GetParent());
+			}
+		}
+		break;
+		case UBMT_RDG_TEXTURE_COPY_DEST:
+		{
+			if (FRDGTextureRef Texture = Parameter.GetAsTexture())
+			{
+				ModifiedTextures.Add(Texture);
+			}
+		}
+		break;
+		case UBMT_RENDER_TARGET_BINDING_SLOTS:
+		{
+			const FRenderTargetBindingSlots& RenderTargetBindingSlots = Parameter.GetAsRenderTargetBindingSlots();
+			const auto& RenderTargets = RenderTargetBindingSlots.Output;
+			const uint32 RenderTargetCount = RenderTargets.Num();
+
+			for (uint32 RenderTargetIndex = 0; RenderTargetIndex < RenderTargetCount; RenderTargetIndex++)
+			{
+				if (FRDGTextureRef Texture = RenderTargets[RenderTargetIndex].GetTexture())
+				{
+					ModifiedTextures.Add(Texture);
+				}
+				else
+				{
+					break;
+				}
+			}
+
+			if (FRDGTextureRef Texture = RenderTargetBindingSlots.DepthStencil.GetTexture())
+			{
+				if (RenderTargetBindingSlots.DepthStencil.GetDepthStencilAccess().IsAnyWrite())
+					ModifiedTextures.Add(Texture);
+			}
+		}
+		break;
+		default:
+			break;
+		}
+	}
 
 	for (uint32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
 	{
@@ -753,6 +821,7 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 				check(Texture->PooledRenderTarget);
 				check(Texture->ResourceRHI);
 
+				check(!ModifiedTextures.Contains(Texture));
 				BarrierBatcher.QueueTransitionTexture(Texture, FRDGResourceState::EAccess::Read);
 			}
 		}
@@ -765,7 +834,15 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 
 				AllocateRHITextureSRVIfNeeded(SRV);
 
-				BarrierBatcher.QueueTransitionTexture(Texture, FRDGResourceState::EAccess::Read);
+				if (ModifiedTextures.Contains(Texture))
+				{
+					// If it is bound to a RT, no need for ERWSubResBarrier.
+					// If it is bound as a UAV, the UAV is going to issue the ERWSubResBarrier.
+				}
+				else
+				{
+					BarrierBatcher.QueueTransitionTexture(Texture, FRDGResourceState::EAccess::Read);
+				}
 			}
 		}
 		break;
@@ -774,7 +851,7 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 			if (FRDGTextureUAVRef UAV = Parameter.GetAsTextureUAV())
 			{
 				FRDGTextureRef Texture = UAV->Desc.Texture;
-	
+
 				AllocateRHITextureUAVIfNeeded(UAV);
 
 				FRHIUnorderedAccessView* UAVRHI = UAV->GetRHI();
@@ -784,7 +861,9 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 					OutRPInfo->UAVs[OutRPInfo->NumUAVs++] = UAVRHI;	// Bind UAVs in declaration order
 				}
 
-				BarrierBatcher.QueueTransitionUAV(UAVRHI, Texture, FRDGResourceState::EAccess::Write);
+				bool bGeneratingMips = ReadTextures.Contains(Texture);
+
+				BarrierBatcher.QueueTransitionUAV(UAVRHI, Texture, FRDGResourceState::EAccess::Write, bGeneratingMips);
 			}
 		}
 		break;
@@ -794,6 +873,7 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 			{
 				AllocateRHITextureIfNeeded(Texture);
 
+				check(!ReadTextures.Contains(Texture));
 				BarrierBatcher.QueueTransitionTexture(Texture, FRDGResourceState::EAccess::Write);
 			}
 		}
@@ -959,7 +1039,7 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 		}
 	}
 
-	OutRPInfo->bGeneratingMips = bGeneratingMips;
+	OutRPInfo->bGeneratingMips = Pass->IsGenerateMips();
 }
 
 void FRDGBuilder::ReleaseRHITextureIfUnreferenced(FRDGTexture* Texture)
@@ -1113,7 +1193,7 @@ void FRDGBuilder::ProcessDeferredInternalResourceQueries()
 
 		for (TMap<FRDGBufferUAVDesc, FUnorderedAccessViewRHIRef, FDefaultSetAllocator, TMapRDGBufferUAVFuncs<FRDGBufferUAVDesc, FUnorderedAccessViewRHIRef>>::TIterator It(Query.Buffer->PooledBuffer->UAVs); It; ++It)
 		{
-			BarrierBatcher.QueueTransitionUAV(It.Value(), Query.Buffer, Query.DestinationAccess, Query.DestinationPipeline);
+			BarrierBatcher.QueueTransitionUAV(It.Value(), Query.Buffer, Query.DestinationAccess, /* bGeneratingMips = */ false, Query.DestinationPipeline);
 		}
 
 		*Query.OutBufferPtr = AllocatedBuffers.FindChecked(Query.Buffer);

@@ -2,6 +2,12 @@
 
 #pragma once
 
+#define RENDER_MODE_MSAA 0
+#define RENDER_MODE_TRANSMITTANCE 1
+#define RENDER_MODE_PPLL 2
+#define RENDER_MODE_MSAA_VISIBILITY 3
+#define RENDER_MODE_TRANSMITTANCE_AND_HAIRCOUNT 4
+
 struct FVisibilityData
 {
 	float3 Tangent;		// 24 bits
@@ -10,10 +16,19 @@ struct FVisibilityData
 	uint   ClusterId;	//  4 bits
 };
 
+struct FNodeVis // 128 bit aligments. TODO: Move the coverage computation into the material evaluation for saving 64 bits? 
+{
+	float Depth;		// 32 bits
+	uint  PrimitiveId;	// 32 bits
+	uint  MaterialId;	//  8 bits : this could be packed into a the 3 high bits of PrimitiveId: up to 8 material on screen
+	uint  Coverage8bit;	//  8 bits
+};
+
 // Footprint: 128bits | 16bytes
 // Option to reduce the footprint: 
 // * we don't use PrimitiveID at the moment which is encoded on 3bytes
 // * Deferred the evaluation of Coverage & material properties into some other pass?
+
 struct FNodeData
 {
 	float Depth;
@@ -295,7 +310,7 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
  //////////
  // PPLL
 
-// Footprint: 192bits | 20bytes
+// Footprint: 224bits | 28bytes
  struct FPPLLNodeData
  {
 	 // (backloged)TODO try f16(depth) f16(Specular) and make sure depth does not lead to artefact
@@ -305,20 +320,32 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 	 uint Tangent_Coverage8bit;
 	 uint BaseColor_Roughness;
 	 uint NextNodeIndex;
+	 uint PackedVelocity;
  };
 
- FPPLLNodeData ConvertToPPLLNodeData(float Depth, FVisibilityData VisibilityData, float3 BaseColor, float Roughness, float Specular, uint NextNodeIndex)
+ uint PackVelocity(float2 EncodedVelocity)
+ {
+	 return f32tof16(EncodedVelocity.x) << 16 | f32tof16(EncodedVelocity.y);
+ }
+
+ float2 UnpackVelocity(uint PackedVelocity)
+ {
+	 return float2(f16tof32(PackedVelocity >> 16), f16tof32(PackedVelocity));
+ }
+
+ FPPLLNodeData ConvertToPPLLNodeData(float Depth, FVisibilityData VisibilityData, float3 BaseColor, float Roughness, float Specular, float2 Velocity, uint NextNodeIndex)
  {
 	 // 4x16bits
 	 const uint4 EncodedVisibilityData = EncodeVisibilityData(VisibilityData);
 
 	 FPPLLNodeData Out;
-	 Out.Depth = Depth;																								// 32bits float
-	 Out.Tangent_Coverage8bit = (0xFFFF & EncodedVisibilityData.x) | ((0xFFFF & EncodedVisibilityData.y) << 16);	// 32bits uint
-	 Out.PrimitiveID_ClusterID = (0xFFFF & EncodedVisibilityData.z) | ((0xFFFF & EncodedVisibilityData.w) << 16);	// 32bits uint
-	 Out.BaseColor_Roughness = float4ToUint(float4(sqrt(BaseColor), Roughness));									// 32bits uint
-	 Out.Specular = Specular;																						// 32 bits float
-	 Out.NextNodeIndex = NextNodeIndex;																				// 32bits next node
+	 Out.Depth = Depth;
+	 Out.Tangent_Coverage8bit = (0xFFFF & EncodedVisibilityData.x) | ((0xFFFF & EncodedVisibilityData.y) << 16);
+	 Out.PrimitiveID_ClusterID = (0xFFFF & EncodedVisibilityData.z) | ((0xFFFF & EncodedVisibilityData.w) << 16);
+	 Out.BaseColor_Roughness = float4ToUint(float4(sqrt(BaseColor), Roughness));
+	 Out.Specular = Specular;
+	 Out.NextNodeIndex = NextNodeIndex;
+	 Out.PackedVelocity = PackVelocity(Velocity);
 
 	 return Out;
  }
@@ -334,3 +361,50 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 	 return Out;
  }
 
+ uint Uint16ToUint32(uint2 In)
+ {
+	 return (In.x & 0xFFFF) | ((In.y & 0xFFFF) << 16);
+ }
+
+ uint2 Uint32ToUint16(uint In)
+ {
+	 uint2 A;
+	 A.x = In & 0xFFFF;
+	 A.y = (In >> 16) & 0xFFFF;
+	 return A;
+ }
+
+ uint Float16ToUint32(float2 In)
+ {
+	 return Uint16ToUint32(f32tof16(In));
+ }
+
+ float2 Uint32ToFloat16(uint In)
+ {
+	return f16tof32(Uint32ToUint16(In));
+ }
+
+ struct FVisSample
+ {
+	 uint PrimitiveId;
+	 uint MaterialId;
+ };
+
+ uint GetInvalidHairPrimitiveId()
+ {
+	return 0xFFFFFFFF;
+ }
+
+ uint EncodeVisSample(uint PrimitiveId, uint MaterialId)
+ {
+	 return (PrimitiveId & 0x0FFFFFFF) | ((MaterialId & 0xF) << 28);
+ }
+
+ FVisSample DecodeVisSample(uint RawVis)
+ {
+	 FVisSample Out;
+	 Out.PrimitiveId = RawVis & 0x0FFFFFFF;
+	 Out.MaterialId = (RawVis >> 28) & 0xF;
+	 return Out;
+ }
+ 

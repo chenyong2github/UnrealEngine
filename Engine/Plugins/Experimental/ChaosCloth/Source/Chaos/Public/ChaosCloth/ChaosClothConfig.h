@@ -2,7 +2,7 @@
 #pragma once
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
-#include "ClothConfig.h"
+#include "ClothConfigBase.h"
 #include "CoreMinimal.h"
 #include "ChaosClothConfig.generated.h"
 

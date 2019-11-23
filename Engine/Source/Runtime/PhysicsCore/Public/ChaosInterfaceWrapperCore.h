@@ -14,8 +14,7 @@ class UPhysicalMaterial;
 
 namespace Chaos
 {
-	template <class T, int d>
-	class TImplicitObject;
+	class FImplicitObject;
 
 	template <class T>
 	class TCapsule;
@@ -97,9 +96,9 @@ extern PHYSICSCORE_API FCollisionFilterData GetQueryFilterData(const Chaos::TPer
 extern PHYSICSCORE_API FCollisionFilterData GetSimulationFilterData(const Chaos::TPerShapeData<float, 3>& Shape);
 
 
-PHYSICSCORE_API ECollisionShapeType GetImplicitType(const Chaos::TImplicitObject<float, 3>& InGeometry);
+PHYSICSCORE_API ECollisionShapeType GetImplicitType(const Chaos::FImplicitObject& InGeometry);
 
-FORCEINLINE ECollisionShapeType GetType(const Chaos::TImplicitObject<float, 3>& InGeometry)
+FORCEINLINE ECollisionShapeType GetType(const Chaos::FImplicitObject& InGeometry)
 {
 	return GetImplicitType(InGeometry);
 }
@@ -137,11 +136,6 @@ inline FVector GetPosition(const FLocationHit& Hit)
 inline FVector GetNormal(const FLocationHit& Hit)
 {
 	return Hit.WorldNormal;
-}
-
-inline FDummyPhysType* GetMaterialFromInternalFaceIndex(const FDummyPhysType& Shape, uint32 InternalFaceIndex)
-{
-	return nullptr;
 }
 
 inline FHitFlags GetFlags(const FLocationHit& Hit)
@@ -185,7 +179,7 @@ inline uint32 GetNumShapes(const FDummyPhysActor& RigidActor)
 	return 0;
 }
 
-inline void GetShapes(const FDummyPhysActor& RigidActor, Chaos::TImplicitObject<float, 3>** ShapesBuffer, uint32 NumShapes)
+inline void GetShapes(const FDummyPhysActor& RigidActor, Chaos::FImplicitObject** ShapesBuffer, uint32 NumShapes)
 {
 
 }
@@ -195,7 +189,7 @@ inline void SetActor(FDummyPhysType& Hit, FDummyPhysActor* Actor)
 
 }
 
-inline void SetShape(FDummyPhysType& Hit, Chaos::TImplicitObject<float, 3>* Shape)
+inline void SetShape(FDummyPhysType& Hit, Chaos::FImplicitObject* Shape)
 {
 
 }

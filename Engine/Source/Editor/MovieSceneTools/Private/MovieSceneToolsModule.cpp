@@ -155,15 +155,14 @@ void FMovieSceneToolsModule::StartupModule()
 		));
 	}
 
-	GenerateEventEntryPointsHandle = UMovieSceneEventSectionBase::GenerateEventEntryPointsEvent.AddStatic(HandleGenerateEventEntryPoints);
 	FixupPayloadParameterNameHandle = UMovieSceneEventSectionBase::FixupPayloadParameterNameEvent.AddStatic(FixupPayloadParameterNameForSection);
-	UpgradeLegacyEventEndpointHandle = UMovieSceneEventSectionBase::UpgradeLegacyEventEndpoint.AddStatic(UpgradeLegacyEventEndpointForSection);
+	UMovieSceneEventSectionBase::UpgradeLegacyEventEndpoint.BindStatic(UpgradeLegacyEventEndpointForSection);
 }
 
 void FMovieSceneToolsModule::ShutdownModule()
 {
-	UMovieSceneEventSectionBase::GenerateEventEntryPointsEvent.Remove(GenerateEventEntryPointsHandle);
 	UMovieSceneEventSectionBase::FixupPayloadParameterNameEvent.Remove(FixupPayloadParameterNameHandle);
+	UMovieSceneEventSectionBase::UpgradeLegacyEventEndpoint = UMovieSceneEventSectionBase::FUpgradeLegacyEventEndpoint();
 
 	if (ICurveEditorModule* CurveEditorModule = FModuleManager::GetModulePtr<ICurveEditorModule>("CurveEditor"))
 	{
@@ -228,10 +227,28 @@ void FMovieSceneToolsModule::ShutdownModule()
 	}
 }
 
-void FMovieSceneToolsModule::UpgradeLegacyEventEndpointForSection(UMovieSceneEventSectionBase* Section, UBlueprint* Blueprint)
+bool FMovieSceneToolsModule::UpgradeLegacyEventEndpointForSection(UMovieSceneEventSectionBase* Section, UBlueprint* Blueprint)
 {
+	// Always bind the event section onto the blueprint to ensure that we get another chance to upgrade when the BP compiles if this try wasn't successful
+	FMovieSceneEventUtils::BindEventSectionToBlueprint(Section, Blueprint);
+
+	// We can't do this upgrade if we any of the function graphs are RF_NeedLoad
+	for (UEdGraph* EdGraph : Blueprint->FunctionGraphs)
+	{
+		if (EdGraph->HasAnyFlags(RF_NeedLoad))
+		{
+			return false;
+		}
+	}
+
+	// All the function graphs have been loaded, which means this is a good time to perform legacy data upgrade
 	for (FMovieSceneEvent& EntryPoint : Section->GetAllEntryPoints())
 	{
+		if (UK2Node_FunctionEntry* LegacyFunctionEntry = Cast<UK2Node_FunctionEntry>(EntryPoint.FunctionEntry_DEPRECATED.Get()))
+		{
+			EntryPoint.GraphGuid = LegacyFunctionEntry->GetGraph()->GraphGuid;
+		}
+
 		UK2Node* Endpoint = FMovieSceneEventUtils::FindEndpoint(&EntryPoint, Section, Blueprint);
 		if (!Endpoint)
 		{
@@ -251,6 +268,8 @@ void FMovieSceneToolsModule::UpgradeLegacyEventEndpointForSection(UMovieSceneEve
 		// Set the compiled function name so that any immediate PostCompile steps find the correct function name
 		EntryPoint.CompiledFunctionName = Endpoint->GetGraph()->GetFName();
 	}
+
+	return true;
 }
 
 void FMovieSceneToolsModule::FixupPayloadParameterNameForSection(UMovieSceneEventSectionBase* Section, UK2Node* InNode, FName OldPinName, FName NewPinName)
@@ -284,46 +303,6 @@ void FMovieSceneToolsModule::FixupPayloadParameterNameForSection(UMovieSceneEven
 			EntryPoint.PayloadVariables.Remove(OldPinName);
 		}
 	}
-}
-
-void FMovieSceneToolsModule::HandleGenerateEventEntryPoints(UMovieSceneEventSectionBase* EventSection, const FGenerateBlueprintFunctionParams& Params)
-{
-	if (EventSection->HasAnyFlags(RF_NeedLoad))
-	{
-		FLinkerLoad* Linker = EventSection->GetLinker();
-		Linker->Preload(EventSection);
-	}
-
-	EventSection->AttemptUpgrade();
-
-	for (FMovieSceneEvent& EntryPoint : EventSection->GetAllEntryPoints())
-	{
-		UEdGraphNode* Endpoint = FMovieSceneEventUtils::FindEndpoint(&EntryPoint, EventSection, Params.CompilerContext->Blueprint);
-		if (Endpoint)
-		{
-			UK2Node_FunctionEntry* FunctionEntry = FMovieSceneEventUtils::GenerateEntryPoint(EventSection, &EntryPoint, Params.CompilerContext, Endpoint);
-			if (FunctionEntry)
-			{
-				EntryPoint.CompiledFunctionName = FunctionEntry->GetGraph()->GetFName();
-			}
-			else
-			{
-				EntryPoint.CompiledFunctionName = NAME_None;
-			}
-		}
-	}
-
-
-	auto OnFunctionListGenerated = [WeakEventSection = MakeWeakObjectPtr(EventSection)](FKismetCompilerContext* CompilerContext)
-	{
-		UMovieSceneEventSectionBase* PinnedSection = WeakEventSection.Get();
-		if (ensureMsgf(PinnedSection, TEXT("Event section has been collected during blueprint compilation.")))
-		{
-			PinnedSection->OnPostCompile(CompilerContext->Blueprint);
-		}
-	};
-
-	Params.CompilerContext->OnFunctionListCompiled().AddLambda(OnFunctionListGenerated);
 }
 
 void FMovieSceneToolsModule::RegisterClipboardConversions()

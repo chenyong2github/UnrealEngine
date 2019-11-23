@@ -3,7 +3,8 @@
 
 #include "Chaos/PBDRigidClusteredParticles.h"
 #include "Chaos/Transform.h"
-#include "Chaos/PBDCollisionTypes.h"
+#include "Chaos/CollisionResolutionTypes.h"
+#include "Chaos/ExternalCollisionData.h"
 #include "Chaos/TriangleMesh.h"
 #include "Chaos/ClusterCreationParameters.h"
 #include "Framework/BufferedData.h"
@@ -24,7 +25,7 @@ public:
 
 	FClusterChildrenMap MChildren;
 	FClusterTransformMap ClusterParentTransforms;
-	TArray<Chaos::TSerializablePtr<TImplicitObject<T, d>>> GeometryPtrs;
+	TArray<Chaos::TSerializablePtr<FImplicitObject>> GeometryPtrs;
 };
 
 /* 
@@ -33,10 +34,11 @@ public:
 template<class FPBDRigidEvolution, class FPBDCollisionConstraint, class T, int d>
 class CHAOS_API TPBDRigidClustering
 {
-	typedef typename FPBDCollisionConstraint::FRigidBodyContactConstraint FRigidBodyContactConstraint;
+	typedef typename FPBDCollisionConstraint::FPointContactConstraint FPointContactConstraint;
 
 public:
-	typedef TMap<TGeometryParticleHandle<T,d>*, TArray<uint32> > FClusterMap;
+	typedef TMap<const TGeometryParticleHandle<T,d>*, TArray<uint32> > FClusterMap;
+	using FCollisionConstraintHandle = TPBDCollisionConstraintHandle<T, d>;
 
 	TPBDRigidClustering(FPBDRigidEvolution& InEvolution, TPBDRigidClusteredParticles<T, d>& InParticles);
 	~TPBDRigidClustering();
@@ -53,7 +55,7 @@ public:
 	*    ForceMassOrientation : Inertial alignment into mass space.
 	*/
 	int32 CreateClusterParticle(int32 ClusterGroupIndex, TArray<uint32>&& Children,
-		TSerializablePtr<TImplicitObject<T, d>> ProxyGeometry = TSerializablePtr<TImplicitObject<T, 3>>(),
+		TSerializablePtr<FImplicitObject> ProxyGeometry = TSerializablePtr<FImplicitObject>(),
 		const TRigidTransform<T, d>* ForceMassOrientation = nullptr, const FClusterCreationParameters<T>& Parameters = FClusterCreationParameters<T>());
 
 	/*
@@ -264,7 +266,7 @@ public:
  protected:
 
 	void UpdateMassProperties(const TArray<uint32>& Children, const uint32 NewIndex, const TRigidTransform<T, d>* ForceMassOrientation);
-	void UpdateGeometry(const TArray<uint32>& Children, const uint32 NewIndex, TSerializablePtr<TImplicitObject<T, d>> ProxyGeometry, const FClusterCreationParameters<T>& Parameters);
+	void UpdateGeometry(const TArray<uint32>& Children, const uint32 NewIndex, TSerializablePtr<FImplicitObject> ProxyGeometry, const FClusterCreationParameters<T>& Parameters);
 	void ComputeStrainFromCollision(const FPBDCollisionConstraint& CollisionRule);
 	void ResetCollisionImpulseArray();
 	void DisableCluster(TPBDRigidClusteredParticleHandle<T, d>* ClusteredParticle);

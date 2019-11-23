@@ -22,7 +22,7 @@
 #include "RenderTargetTemp.h"
 #include "CanvasTypes.h"
 #include "ShaderPrintParameters.h"
-#include "PixelShaderUtils.h"
+#include "RenderGraphUtils.h"
 
 static int32 GDeepShadowDebugIndex = 0;
 static float GDeepShadowDebugScale = 20;
@@ -47,6 +47,9 @@ static FAutoConsoleVariableRef CVarHairStrandsDebugBSDFAbsorption(TEXT("r.HairSt
 
 static float GHairStrandsDebugPlotBsdfExposure = 1.1f;
 static FAutoConsoleVariableRef CVarHairStrandsDebugBSDFExposure(TEXT("r.HairStrands.PlotBsdf.Exposure"), GHairStrandsDebugPlotBsdfExposure, TEXT("Change the exposure of the plot."));
+
+static int GHairStrandsDebugSampleIndex = -1;
+static FAutoConsoleVariableRef CVarHairStrandsDebugMaterialSampleIndex(TEXT("r.HairStrands.DebugMode.SampleIndex"), GHairStrandsDebugSampleIndex, TEXT("Debug value for a given sample index (default:-1, i.e., average sample information)."));
 
 static int32 GHairDebugMeshProjection_SkinCacheMesh = 0;
 
@@ -79,6 +82,23 @@ static FAutoConsoleVariableRef CVarHairStrandsDebugPPLL(									TEXT("r.HairStr
 void GetGroomInterpolationData(const EWorldType::Type WorldType, FHairStrandsProjectionMeshData& OutGeometries);
 void GetGroomInterpolationData(const EWorldType::Type WorldType, const bool bRenderData, FHairStrandsProjectionHairData& OutHairData, TArray<int32>& OutLODIndices);
 
+static int32 GHairStrandsCull = 0;
+static int32 GHairStrandsCullIndex = -1;
+static int32 GHairStrandsUpdateCullIndex = 0;
+static float GHairStrandsCullNormalizedIndex = -1;
+static FAutoConsoleVariableRef CVarHairStrandsCull			(TEXT("r.HairStrands.Cull"), GHairStrandsCull, TEXT("Cull hair strands (0:disabled, 1: render cull, 2: sim cull)."));
+static FAutoConsoleVariableRef CVarHairStrandsCullIndex		(TEXT("r.HairStrands.Cull.Index"), GHairStrandsCullIndex, TEXT("Hair strands index to be kept. Other will be culled."));
+static FAutoConsoleVariableRef CVarHairStrandsUpdateCullIndex(TEXT("r.HairStrands.Cull.Update"), GHairStrandsUpdateCullIndex, TEXT("Update the guide index to be kept using mouse position for fast selection."));
+
+FHairCullInfo GetHairStrandsCullInfo()
+{
+	FHairCullInfo Out;
+	Out.CullMode		= GHairStrandsCull == 1 ? EHairCullMode::Render : (GHairStrandsCull == 2 ? EHairCullMode::Sim : EHairCullMode::None);
+	Out.ExplicitIndex	= GHairStrandsCullIndex >= 0 ? GHairStrandsCullIndex : -1;
+	Out.NormalizedIndex = GHairStrandsCullNormalizedIndex;
+	return Out;
+}
+
 enum class EHairDebugMode : uint8
 {
 	None,
@@ -94,7 +114,12 @@ enum class EHairDebugMode : uint8
 	VoxelsBaseColor,
 	VoxelsRoughness,
 	MeshProjection,
-	Coverage
+	Coverage,
+	MaterialDepth,
+	MaterialBaseColor,
+	MaterialRoughness,
+	MaterialSpecular,
+	MaterialTangent
 };
 
 static EHairDebugMode GetHairDebugMode()
@@ -115,6 +140,11 @@ static EHairDebugMode GetHairDebugMode()
 	case 11: return EHairDebugMode::VoxelsRoughness;
 	case 12: return EHairDebugMode::MeshProjection;
 	case 13: return EHairDebugMode::Coverage;
+	case 14: return EHairDebugMode::MaterialDepth;
+	case 15: return EHairDebugMode::MaterialBaseColor;
+	case 16: return EHairDebugMode::MaterialRoughness;
+	case 17: return EHairDebugMode::MaterialSpecular;
+	case 18: return EHairDebugMode::MaterialTangent;
 	default: return EHairDebugMode::None;
 	};
 }
@@ -137,6 +167,11 @@ static const TCHAR* ToString(EHairDebugMode DebugMode)
 	case EHairDebugMode::VoxelsRoughness: return TEXT("Hair roughness volume");
 	case EHairDebugMode::MeshProjection: return TEXT("Hair mesh projection");
 	case EHairDebugMode::Coverage: return TEXT("Hair coverage");
+	case EHairDebugMode::MaterialDepth: return TEXT("Hair material depth");
+	case EHairDebugMode::MaterialBaseColor: return TEXT("Hair material base color");
+	case EHairDebugMode::MaterialRoughness: return TEXT("Hair material roughness");
+	case EHairDebugMode::MaterialSpecular: return TEXT("Hair material specular");
+	case EHairDebugMode::MaterialTangent: return TEXT("Hair material tangent");
 	default: return TEXT("None");
 	};
 }
@@ -256,13 +291,14 @@ class FHairDebugPS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FHairDebugPS);
 	SHADER_USE_PARAMETER_STRUCT(FHairDebugPS, FGlobalShader);
 
-	class FDebugMode : SHADER_PERMUTATION_INT("PERMUTATION_DEBUG_MODE", 4);
-	using FPermutationDomain = TShaderPermutationDomain<FDebugMode>;
-
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FVector2D, OutputResolution)
 		SHADER_PARAMETER(uint32, FastResolveMask)
+		SHADER_PARAMETER(uint32, DebugMode)
+		SHADER_PARAMETER(int32, SampleIndex)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CategorizationTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, NodeIndex)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, NodeData)
 		SHADER_PARAMETER_SRV(Texture2D, DepthStencilTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, LinearSampler)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
@@ -280,40 +316,61 @@ static void AddDebugHairPass(
 	const FViewInfo* View,
 	const EHairDebugMode InDebugMode,
 	const TRefCountPtr<IPooledRenderTarget>& InCategorizationTexture,
+	const TRefCountPtr<IPooledRenderTarget>& InNodeIndex,
+	const TRefCountPtr<FPooledRDGBuffer>& InNodeData,
 	const FShaderResourceViewRHIRef& InDepthStencilTexture,
 	FRDGTextureRef& OutTarget)
 {
 	check(OutTarget);
-	check(InDebugMode == EHairDebugMode::TAAResolveType || InDebugMode == EHairDebugMode::SamplePerPixel || InDebugMode == EHairDebugMode::CoverageType || InDebugMode == EHairDebugMode::Coverage);
+	check(InDebugMode == EHairDebugMode::TAAResolveType || 
+		InDebugMode == EHairDebugMode::SamplePerPixel || 
+		InDebugMode == EHairDebugMode::CoverageType || 
+		InDebugMode == EHairDebugMode::Coverage ||
+		InDebugMode == EHairDebugMode::MaterialDepth ||
+		InDebugMode == EHairDebugMode::MaterialBaseColor ||
+		InDebugMode == EHairDebugMode::MaterialRoughness ||
+		InDebugMode == EHairDebugMode::MaterialSpecular ||
+		InDebugMode == EHairDebugMode::MaterialTangent);
 
-	if (!InCategorizationTexture) return;
+	if (!InCategorizationTexture || !InNodeIndex || !InNodeData) return;
 	if (InDebugMode == EHairDebugMode::TAAResolveType && !InDepthStencilTexture) return;
 
 	FRDGTextureRef CategorizationTexture = InCategorizationTexture ? GraphBuilder.RegisterExternalTexture(InCategorizationTexture, TEXT("CategorizationTexture")) : nullptr;
+	FRDGTextureRef NodeIndex = InNodeIndex ? GraphBuilder.RegisterExternalTexture(InNodeIndex, TEXT("NodeIndex")) : nullptr;
+	FRDGBufferRef  NodeData = InNodeData ? GraphBuilder.RegisterExternalBuffer(InNodeData, TEXT("NodeData")) : nullptr;
 
 	const FIntRect Viewport = View->ViewRect;
 	const FIntPoint Resolution(Viewport.Width(), Viewport.Height());
 
+	uint32 InternalDebugMode = 0;
+	switch (InDebugMode)
+	{
+		case EHairDebugMode::SamplePerPixel:	InternalDebugMode = 0; break;
+		case EHairDebugMode::CoverageType:		InternalDebugMode = 1; break;
+		case EHairDebugMode::TAAResolveType:	InternalDebugMode = 2; break;
+		case EHairDebugMode::Coverage:			InternalDebugMode = 3; break;
+		case EHairDebugMode::MaterialDepth:		InternalDebugMode = 4; break;
+		case EHairDebugMode::MaterialBaseColor:	InternalDebugMode = 5; break;
+		case EHairDebugMode::MaterialRoughness:	InternalDebugMode = 6; break;
+		case EHairDebugMode::MaterialSpecular:	InternalDebugMode = 7; break;
+		case EHairDebugMode::MaterialTangent:	InternalDebugMode = 8; break;
+	};
+
 	FHairDebugPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairDebugPS::FParameters>();
+	Parameters->ViewUniformBuffer = View->ViewUniformBuffer;
 	Parameters->OutputResolution = Resolution;
 	Parameters->FastResolveMask = STENCIL_TEMPORAL_RESPONSIVE_AA_MASK;
 	Parameters->CategorizationTexture = CategorizationTexture;
+	Parameters->NodeIndex = NodeIndex;
+	Parameters->NodeData = GraphBuilder.CreateSRV(NodeData);
 	Parameters->DepthStencilTexture = InDepthStencilTexture;
 	Parameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	Parameters->DebugMode = InternalDebugMode;
+	Parameters->SampleIndex = GHairStrandsDebugSampleIndex;
 	Parameters->RenderTargets[0] = FRenderTargetBinding(OutTarget, ERenderTargetLoadAction::ELoad, 0);
 	TShaderMapRef<FPostProcessVS> VertexShader(View->ShaderMap);
 
-	FHairDebugPS::FPermutationDomain PermutationVector;
-	uint32 DebugPermutation = 0;
-	switch (InDebugMode)
-	{
-		case EHairDebugMode::SamplePerPixel:	DebugPermutation = 0; break;
-		case EHairDebugMode::CoverageType:		DebugPermutation = 1; break;
-		case EHairDebugMode::TAAResolveType:	DebugPermutation = 2; break;
-		case EHairDebugMode::Coverage:			DebugPermutation = 3; break;
-	};
-	PermutationVector.Set<FHairDebugPS::FDebugMode>(DebugPermutation);
-	TShaderMapRef<FHairDebugPS> PixelShader(View->ShaderMap, PermutationVector);
+	TShaderMapRef<FHairDebugPS> PixelShader(View->ShaderMap);
 
 	ClearUnusedGraphResources(*PixelShader, Parameters);
 
@@ -1019,20 +1076,22 @@ const TCHAR* ToString(EWorldType::Type Type)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FHairVisibilityDebugPPLLPS : public FGlobalShader
+class FHairVisibilityDebugPPLLCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FHairVisibilityDebugPPLLPS);
-	SHADER_USE_PARAMETER_STRUCT(FHairVisibilityDebugPPLLPS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FHairVisibilityDebugPPLLCS);
+	SHADER_USE_PARAMETER_STRUCT(FHairVisibilityDebugPPLLCS, FGlobalShader);
 
 	using FPermutationDomain = TShaderPermutationDomain<>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		SHADER_PARAMETER(uint32, MaxPPLLNodeCount)
+		SHADER_PARAMETER(float, PPLLMeanListElementCountPerPixel)
+		SHADER_PARAMETER(float, PPLLMaxTotalListElementCount)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PPLLCounter)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PPLLNodeIndex)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, PPLLNodeData)
-		RENDER_TARGET_BINDING_SLOTS()
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(Texture2D, SceneColorTextureUAV)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
 		static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
@@ -1051,7 +1110,7 @@ class FHairVisibilityDebugPPLLPS : public FGlobalShader
 		OutEnvironment.SetDefine(TEXT("DEBUG_PPLL_PS"), 1);
 	}
 };
-IMPLEMENT_GLOBAL_SHADER(FHairVisibilityDebugPPLLPS, "/Engine/Private/HairStrands/HairStrandsVisibilityPPLLDebug.usf", "VisibilityDebugPPLLPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FHairVisibilityDebugPPLLCS, "/Engine/Private/HairStrands/HairStrandsVisibilityPPLLDebug.usf", "VisibilityDebugPPLLCS", SF_Compute);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1062,6 +1121,14 @@ void RenderHairStrandsDebugInfo(FRHICommandListImmediate& RHICmdList, TArray<FVi
 
 	if (Views.Num() == 0)
 		return;
+
+	if (GHairStrandsUpdateCullIndex)
+	{
+		const FViewInfo& View = Views[0];
+		const float TotalPixelCount = View.ViewRect.Width() * View.ViewRect.Height();
+		const float Index = View.CursorPos.X + View.CursorPos.Y * View.ViewRect.Width();
+		GHairStrandsCullNormalizedIndex = Index / TotalPixelCount;
+	}
 
 	// Only render debug information for the main view
 	const uint32 ViewIndex = 0;
@@ -1261,14 +1328,24 @@ void RenderHairStrandsDebugInfo(FRHICommandListImmediate& RHICmdList, TArray<FVi
 		}
 	}
 
-	if (HairDebugMode == EHairDebugMode::TAAResolveType || HairDebugMode == EHairDebugMode::SamplePerPixel || HairDebugMode == EHairDebugMode::CoverageType || HairDebugMode == EHairDebugMode::Coverage)
+	const bool bRunDebugPass =
+		HairDebugMode == EHairDebugMode::TAAResolveType ||
+		HairDebugMode == EHairDebugMode::SamplePerPixel ||
+		HairDebugMode == EHairDebugMode::CoverageType ||
+		HairDebugMode == EHairDebugMode::Coverage ||
+		HairDebugMode == EHairDebugMode::MaterialDepth ||
+		HairDebugMode == EHairDebugMode::MaterialBaseColor ||
+		HairDebugMode == EHairDebugMode::MaterialRoughness ||
+		HairDebugMode == EHairDebugMode::MaterialSpecular ||
+		HairDebugMode == EHairDebugMode::MaterialTangent;
+	if (bRunDebugPass)
 	{
 		FRDGBuilder GraphBuilder(RHICmdList);
 		FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneTargets.GetSceneColor(), TEXT("SceneColorTexture"));
 		if (ViewIndex < uint32(HairDatas->HairVisibilityViews.HairDatas.Num()))
 		{
 			const FHairStrandsVisibilityData& VisibilityData = HairDatas->HairVisibilityViews.HairDatas[ViewIndex];
-			AddDebugHairPass(GraphBuilder, &View, HairDebugMode, VisibilityData.CategorizationTexture, SceneTargets.SceneStencilSRV, SceneColorTexture);
+			AddDebugHairPass(GraphBuilder, &View, HairDebugMode, VisibilityData.CategorizationTexture, VisibilityData.NodeIndex, VisibilityData.NodeData, SceneTargets.SceneStencilSRV, SceneColorTexture);
 			AddDebugHairPrintPass(GraphBuilder, &View, HairDebugMode, VisibilityData,  SceneTargets.SceneStencilSRV);
 		}
 
@@ -1390,7 +1467,7 @@ void RenderHairStrandsDebugInfo(FRHICommandListImmediate& RHICmdList, TArray<FVi
 	if (ViewIndex < uint32(HairDatas->HairVisibilityViews.HairDatas.Num()))
 	{
 		const FHairStrandsVisibilityData& VisibilityData = HairDatas->HairVisibilityViews.HairDatas[ViewIndex];
-		if (GHairStrandsDebugPPLL && VisibilityData.PPLLNodeCounterTexture) // Check if PPLL rendering is used and its debuig view is enabled.
+		if (GHairStrandsDebugPPLL && VisibilityData.PPLLNodeCounterTexture) // Check if PPLL rendering is used and its debug view is enabled.
 		{
 			FRDGBuilder GraphBuilder(RHICmdList);
 			FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneTargets.GetSceneColor(), TEXT("SceneColorTexture"));
@@ -1398,23 +1475,21 @@ void RenderHairStrandsDebugInfo(FRHICommandListImmediate& RHICmdList, TArray<FVi
 			FRDGTextureRef PPLLNodeIndexTexture = GraphBuilder.RegisterExternalTexture(VisibilityData.PPLLNodeIndexTexture, TEXT("PPLLNodeIndexTexture"));
 			FRDGBufferRef  PPLLNodeDataBuffer = GraphBuilder.RegisterExternalBuffer(VisibilityData.PPLLNodeDataBuffer, TEXT("PPLLNodeDataBuffer"));
 
-			FRHIBlendState* PreMultipliedColorTransmittanceBlend = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_SourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI();
-			FRHIDepthStencilState* DepthStencilStateWrite = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-			FRHISamplerState* SamplerLinearClamp = TStaticSamplerState<SF_Trilinear>::GetRHI();
-
-			FHairVisibilityDebugPPLLPS::FPermutationDomain PermutationVector;
-			TShaderMapRef<FHairVisibilityDebugPPLLPS> PixelShader(View.ShaderMap, PermutationVector);
-
-			FHairVisibilityDebugPPLLPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairVisibilityDebugPPLLPS::FParameters>();
-			PassParameters->MaxPPLLNodeCount = GetMaxNodePerPixel(VisibilityData.PPLLNodeCounterTexture->GetDesc().Extent);
+			FHairVisibilityDebugPPLLCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairVisibilityDebugPPLLCS::FParameters>();
+			PassParameters->PPLLMeanListElementCountPerPixel = float(GetPPLLMeanListElementCountPerPixel());
+			PassParameters->PPLLMaxTotalListElementCount = float(GetPPLLMaxTotalListElementCount(VisibilityData.PPLLNodeIndexTexture->GetDesc().Extent));
 			PassParameters->PPLLCounter = PPLLNodeCounterTexture;
 			PassParameters->PPLLNodeIndex = PPLLNodeIndexTexture;
 			PassParameters->PPLLNodeData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(PPLLNodeDataBuffer));
 			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
+			PassParameters->SceneColorTextureUAV = GraphBuilder.CreateUAV(SceneColorTexture);
+			ShaderPrint::SetParameters(View, PassParameters->ShaderPrintParameters);
 
-			FPixelShaderUtils::AddFullscreenPass<FHairVisibilityDebugPPLLPS>(GraphBuilder, View.ShaderMap, RDG_EVENT_NAME("HairPPLLDebug"), *PixelShader, PassParameters,
-				View.ViewRect, PreMultipliedColorTransmittanceBlend, nullptr, DepthStencilStateWrite);
+			FHairVisibilityDebugPPLLCS::FPermutationDomain PermutationVector;
+			TShaderMapRef<FHairVisibilityDebugPPLLCS> ComputeShader(View.ShaderMap, PermutationVector);
+			FIntVector TextureSize = SceneColorTexture->Desc.GetSize(); TextureSize.Z = 1;
+			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairPPLLDebug"), *ComputeShader, PassParameters,
+				FIntVector::DivideAndRoundUp(TextureSize, FIntVector(8, 8, 1)));
 			GraphBuilder.Execute();
 		}
 	}

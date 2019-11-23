@@ -51,6 +51,20 @@ public:
 		return nullptr;
 	}
 
+	template <typename TContextType>
+	TContextType* Find() const
+	{
+		for (UObject* Object : ContextObjects)
+		{
+			if (TContextType* Result = Cast<TContextType>(Object))
+			{
+				return Result;
+			}
+		}
+
+		return nullptr;
+	}
+
 	UObject* FindByClass(UClass* InClass) const;
 
 	void AppendCommandList(const TSharedRef<FUICommandList>& InCommandList);

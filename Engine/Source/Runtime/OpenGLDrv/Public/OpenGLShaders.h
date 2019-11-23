@@ -14,7 +14,6 @@ enum EOpenGLShaderTargetPlatform
 	OGLSTP_Unknown,
 	OGLSTP_Desktop,
 	OGLSTP_Android,
-	OGLSTP_HTML5,
 	OGLSTP_iOS,
 };
 
@@ -62,3 +61,9 @@ void OPENGLDRV_API GetCurrentOpenGLShaderDeviceCapabilities(FOpenGLShaderDeviceC
   * @param GlslCode - [out] Compilable GLSL
   */
 void OPENGLDRV_API GLSLToDeviceCompatibleGLSL(FAnsiCharArray& GlslCodeOriginal, const FString& ShaderName, GLenum TypeEnum, const FOpenGLShaderDeviceCapabilities& Capabilities, FAnsiCharArray& GlslCode);
+
+
+// make some anon ns functions available to platform extensions
+extern "C" void PE_AppendCString(TArray<ANSICHAR> & Dest, const ANSICHAR * Source);
+extern "C" void PE_ReplaceCString(TArray<ANSICHAR> & Dest, const ANSICHAR * Source, const ANSICHAR * Replacement);
+

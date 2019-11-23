@@ -136,6 +136,7 @@ void FAnimGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 	}
 
 	IDetailCategoryBuilder& InputsCategory = DetailLayout.EditCategory("Inputs", LOCTEXT("LinkedInputPoseInputsCategory", "Inputs"));
+	InputsCategory.RestoreExpansionState(true);
 
 	DetailLayoutBuilder = &DetailLayout;
 
@@ -201,9 +202,11 @@ void FAnimGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 
 			TArray<UObject*> ExternalObjects;
 			ExternalObjects.Add(LinkedInputPoseNode);
-			if(IDetailPropertyRow* LinkedInputPoseRow = InputsCategory.AddExternalObjects(ExternalObjects))
+			FAddPropertyParams AddPropertyParams;
+			AddPropertyParams.UniqueId(LinkedInputPoseNode->GetFName());
+
+			if(IDetailPropertyRow* LinkedInputPoseRow = InputsCategory.AddExternalObjects(ExternalObjects, EPropertyLocation::Default, AddPropertyParams))
 			{
-				LinkedInputPoseRow->ShouldAutoExpand(true);
 				LinkedInputPoseRow->CustomWidget()
 				.NameContent()
 				[
