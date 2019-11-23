@@ -132,80 +132,6 @@ void FMetalDynamicRHI::UnlockIndexBuffer_BottomOfPipe(FRHICommandListImmediate& 
 	}
 }
 
->>>> ORIGINAL //Fortnite/Dev-EngineMerge/Engine/Source/Runtime/Apple/MetalRHI/Private/MetalIndexBuffer.cpp#6
-struct FMetalRHICommandInitialiseIndexBuffer : public FRHICommand<FMetalRHICommandInitialiseIndexBuffer>
-{
-	TRefCountPtr<FMetalIndexBuffer> Buffer;
-	
-	FORCEINLINE_DEBUGGABLE FMetalRHICommandInitialiseIndexBuffer(FMetalIndexBuffer* InBuffer)
-	: Buffer(InBuffer)
-	{
-	}
-	
-	virtual ~FMetalRHICommandInitialiseIndexBuffer()
-	{
-	}
-	
-	void Execute(FRHICommandListBase& CmdList)
-	{
-		if (Buffer->CPUBuffer)
-		{
-			GetMetalDeviceContext().AsyncCopyFromBufferToBuffer(Buffer->CPUBuffer, 0, Buffer->Buffer, 0, Buffer->Buffer.GetLength());
-			if (Buffer->UsePrivateMemory())
-			{
-				SafeReleaseMetalBuffer(Buffer->CPUBuffer);
-				Buffer->CPUBuffer = nil;
-			}
-			else
-			{
-				Buffer->LastUpdate = GFrameNumberRenderThread;
-			}
-		}
-		else if (GMetalBufferZeroFill && !FMetalCommandQueue::SupportsFeature(EMetalFeaturesFences))
-		{
-			GetMetalDeviceContext().FillBuffer(Buffer->Buffer, ns::Range(0, Buffer->Buffer.GetLength()), 0);
-		}
-	}
-};
-
-==== THEIRS //Fortnite/Dev-EngineMerge/Engine/Source/Runtime/Apple/MetalRHI/Private/MetalIndexBuffer.cpp#7
-struct FMetalRHICommandInitialiseIndexBuffer : public FRHICommand<FMetalRHICommandInitialiseIndexBuffer>
-{
-	TRefCountPtr<FMetalIndexBuffer> Buffer;
-	
-	FORCEINLINE_DEBUGGABLE FMetalRHICommandInitialiseIndexBuffer(FMetalIndexBuffer* InBuffer)
-	: Buffer(InBuffer)
-	{
-	}
-	
-	virtual ~FMetalRHICommandInitialiseIndexBuffer()
-	{
-	}
-	
-	void Execute(FRHICommandListBase& CmdList)
-	{
-		if (Buffer->CPUBuffer)
-		{
-			GetMetalDeviceContext().AsyncCopyFromBufferToBuffer(Buffer->CPUBuffer, 0, Buffer->Buffer, 0, FMath::Min(Buffer->CPUBuffer.GetLength(), Buffer->Buffer.GetLength()));
-			if (Buffer->UsePrivateMemory())
-			{
-				SafeReleaseMetalBuffer(Buffer->CPUBuffer);
-				Buffer->CPUBuffer = nil;
-			}
-			else
-			{
-				Buffer->LastUpdate = GFrameNumberRenderThread;
-			}
-		}
-		else if (GMetalBufferZeroFill && !FMetalCommandQueue::SupportsFeature(EMetalFeaturesFences))
-		{
-			GetMetalDeviceContext().FillBuffer(Buffer->Buffer, ns::Range(0, Buffer->Buffer.GetLength()), 0);
-		}
-	}
-};
-
-==== YOURS //Marc.Audy_UE4_Main/Engine/Source/Runtime/Apple/MetalRHI/Private/MetalIndexBuffer.cpp
-<<<<
 FIndexBufferRHIRef FMetalDynamicRHI::CreateIndexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
 	@autoreleasepool {
@@ -222,4 +148,3 @@ FIndexBufferRHIRef FMetalDynamicRHI::CreateIndexBuffer_RenderThread(class FRHICo
 		return IndexBuffer.GetReference();
 	}
 }
-
