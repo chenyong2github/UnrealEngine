@@ -236,6 +236,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
 	virtual void FindSoftReferencesToObject(FSoftObjectPath TargetObject, TArray<UObject*>& ReferencingObjects) = 0;
 
+	/** Returns list of objects that soft reference the given soft object paths. This will load assets into memory to verify */
+	virtual void FindSoftReferencesToObjects(const TArray<FSoftObjectPath>& TargetObjects, TMap<FSoftObjectPath, TArray<UObject*>>& ReferencingObjects) = 0;
+
 	/**
 	 * Function that renames all FSoftObjectPath object with the old asset path to the new one.
 	 *

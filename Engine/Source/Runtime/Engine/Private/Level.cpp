@@ -1984,6 +1984,32 @@ void ULevel::BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatfo
 	}
 }
 
+bool ULevel::CanEditChange(const UProperty* PropertyThatWillChange) const
+{
+	static FName NAME_LevelPartition = GET_MEMBER_NAME_CHECKED(ULevel, LevelPartition);
+	if (PropertyThatWillChange->GetFName() == NAME_LevelPartition)
+	{
+		// Can't set a partition on the persistent level
+		if (IsPersistentLevel())
+		{
+			return false;
+		}
+
+		// Can't set a partition on partition sublevels
+		if (IsPartitionSubLevel())
+		{
+			return false;
+		}
+
+		// Can't set a partition if using world composition
+		if (WorldSettings && WorldSettings->bEnableWorldComposition)
+		{
+			return false;
+		}
+	}
+	return Super::CanEditChange(PropertyThatWillChange);
+}
+
 void ULevel::FixupForPIE(int32 PIEInstanceID)
 {
 	FTemporaryPlayInEditorIDOverride SetPlayInEditorID(PIEInstanceID);
@@ -2225,4 +2251,39 @@ bool ULevel::HasVisibilityChangeRequestPending() const
 	return (OwningWorld && ( this == OwningWorld->GetCurrentLevelPendingVisibility() || this == OwningWorld->GetCurrentLevelPendingInvisibility() ) );
 }
 
+#if WITH_EDITORONLY_DATA
 
+bool ULevel::IsPartitionedLevel() const
+{
+	return LevelPartition != nullptr;
+}
+
+bool ULevel::IsPartitionSubLevel() const
+{
+	return OwnerLevelPartition.IsValid() && LevelPartition == nullptr;
+}
+
+void ULevel::SetLevelPartition(ILevelPartitionInterface* InLevelPartition)
+{
+	UObject* PartitionObject = Cast<UObject>(InLevelPartition);
+	LevelPartition = PartitionObject;
+	OwnerLevelPartition = PartitionObject;
+}
+
+ILevelPartitionInterface* ULevel::GetLevelPartition()
+{
+	return Cast<ILevelPartitionInterface>(OwnerLevelPartition.Get());
+}
+
+const ILevelPartitionInterface* ULevel::GetLevelPartition() const
+{
+	return Cast<ILevelPartitionInterface>(OwnerLevelPartition.Get());
+}
+
+void ULevel::SetPartitionSubLevel(ULevel* SubLevel)
+{
+	check(LevelPartition);
+	SubLevel->OwnerLevelPartition = Cast<UObject>(&*LevelPartition);
+}
+
+#endif // #if WITH_EDITORONLY_DATA

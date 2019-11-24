@@ -941,6 +941,9 @@ bool AActor::Rename( const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags 
 		}
 	}
 
+#if WITH_EDITOR
+	UObject* OldOuter = GetOuter();
+#endif
 	const bool bSuccess = Super::Rename( InName, NewOuter, Flags );
 
 	if (!bRenameTest && bChangingOuters)
@@ -957,6 +960,13 @@ bool AActor::Rename( const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags 
 			}
 			RegisterAllActorTickFunctions(true, true); // register all tick functions
 		}
+
+#if WITH_EDITOR
+		if (GEngine && OldOuter != GetOuter())
+		{
+			GEngine->BroadcastLevelActorOuterChanged(this, OldOuter);
+		}
+#endif
 	}
 	return bSuccess;
 }
