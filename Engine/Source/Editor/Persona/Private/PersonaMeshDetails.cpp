@@ -5156,7 +5156,7 @@ TSharedRef<SUniformGridPanel> FPersonaMeshDetails::MakeClothingDetailsWidget(int
 
 		if (UClothingAssetCommon* Asset = Cast<UClothingAssetCommon>(ClothingAsset))
 		{
-			UClothLODDataBase* LodData = Asset->ClothLodData[LODIndex];
+			UClothLODDataCommon* LodData = Asset->ClothLodData[LODIndex];
 			check(LodData->PhysicalMeshData);
 			UClothPhysicalMeshDataBase& PhysMeshData = *LodData->PhysicalMeshData;
 			FClothCollisionData& CollisionData = LodData->CollisionData;
