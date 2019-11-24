@@ -37,12 +37,13 @@ inline int32 MakeRelative( int32 Value, int32 Reference, int32 Max )
 }
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPreActorDestroyReplayScrub, AActor*);
-
 DECLARE_MULTICAST_DELEGATE_OneParam(FPreReplayScrub, UWorld*);
-
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnWriteGameSpecificDemoHeader, TArray<FString>& /*GameSpecificData*/);
-
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnProcessGameSpecificDemoHeader, const TArray<FString>& /*GameSpecificData*/, FString& /*Error*/);
+
+typedef TMap<FString, TArray<uint8>> FDemoFrameDataMap;
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnWriteGameSpecificFrameData, UWorld* /*World*/, float /*FrameTime*/, FDemoFrameDataMap& /*Data*/);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnProcessGameSpecificFrameData, UWorld* /*World*/, float /*FrameTime*/, const FDemoFrameDataMap& /*Data*/);
 
 struct ENGINE_API FNetworkReplayDelegates
 {
@@ -52,6 +53,10 @@ struct ENGINE_API FNetworkReplayDelegates
 	/** Game specific demo headers */
 	static FOnWriteGameSpecificDemoHeader OnWriteGameSpecificDemoHeader;
 	static FOnProcessGameSpecificDemoHeader OnProcessGameSpecificDemoHeader;
+
+	/** Game specific per frame data */
+	static FOnWriteGameSpecificFrameData OnWriteGameSpecificFrameData;
+	static FOnProcessGameSpecificFrameData OnProcessGameSpecificFrameData;
 };
 
 /**
