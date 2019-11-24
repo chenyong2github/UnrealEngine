@@ -23,6 +23,8 @@ NiagaraRenderer.h: Base class for Niagara render modules
 #include "NiagaraBoundsCalculator.h"
 
 class FNiagaraDataSet;
+class FNiagaraSceneProxy;
+class FNiagaraGPURendererCount;
 
 /** Struct used to pass dynamic data from game thread to render thread */
 struct FNiagaraDynamicDataBase
@@ -74,14 +76,6 @@ struct FNiagaraRendererVariableInfo
 	int32 GPUBufferOffset;
 	int32 NumComponents;
 	bool bUpload;
-};
-
-// The number of GPU renderers registered in the instance count manager.
-// Shared between the manager and the renderers.
-class FNiagaraGPURendererCount : public FRefCountedObject
-{
-public:
-	int32 Value = 0;
 };
 
 /**
