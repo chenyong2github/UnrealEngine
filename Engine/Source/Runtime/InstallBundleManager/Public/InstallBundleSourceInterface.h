@@ -3,6 +3,7 @@
 #pragma once
 
 #include "InstallBundleTypes.h"
+#include "InstallBundleUtils.h"
 
 class IInstallBundleSource;
 class IAnalyticsProviderET;
@@ -34,6 +35,7 @@ public:
 	// Called once by bundle manager after constructing the bundle source
 	virtual void Init(
 		TSharedRef<FConfigFile> InstallBundleConfig, 
+		TSharedRef<InstallBundleUtil::FContentRequestStatsMap> InRequestStats,
 		TSharedPtr<IAnalyticsProviderET> AnalyticsProvider) = 0;
 	// Bundle manager will not call AsyncInit again until the bundle source calls back that it is complete
 	// It will be retried indefinitely until init is successful.  
@@ -52,9 +54,16 @@ public:
 	// BundleNames contains all dependencies and has been deduped
 	virtual void GetContentState(TArrayView<FName> BundleNames, EInstallBundleGetContentStateFlags Flags, FInstallBundleGetContentStateDelegate Callback) = 0;
 
+	struct RequestUpdateContentBundleContext
+	{
+		FName BundleName;
+		EInstallBundleRequestFlags Flags = EInstallBundleRequestFlags::None;
+		FInstallBundleCompleteDelegate Callback;
+	};
+
 	// Updates content on disk if necessary
-	// BundleNames contains all dependencies and has been deduped
-	virtual void RequestUpdateContent(FName BundleName, EInstallBundleRequestFlags Flags, FInstallBundleCompleteDelegate Callback) = 0;
+	// BundleContexts contains all dependencies and has been deduped
+	virtual void RequestUpdateContent(TArrayView<RequestUpdateContentBundleContext> BundleContexts) = 0;
 
 	// Returns true if content is scheduled to be removed the next time the source is initialized
 	// BundleNames contains all dependencies and has been deduped
