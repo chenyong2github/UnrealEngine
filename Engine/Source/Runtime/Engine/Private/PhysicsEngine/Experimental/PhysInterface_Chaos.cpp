@@ -1413,21 +1413,45 @@ void CalculateMassPropertiesOfImplicitType(
 	// WIP
 	// @todo : Support center of mass offsets.
 	// @todo : Support Mass space alignment. 
+	
+	using namespace Chaos;
 
 	if (ImplicitObject)
 	{
-		const Chaos::TMassProperties<float, 3> MassProps = Chaos::CastHelper(*ImplicitObject, [&TotalMass, InDensityKGPerCM](const auto& Object)
+		// Hack to handle Transformed until CastHelper can properly support transformed
+		Chaos::FRigidTransform3 Transform(FMatrix::Identity);
+		if (ImplicitObject->GetType(true) & Chaos::ImplicitObjectType::Transformed)
 		{
-			Chaos::TMassProperties<float, 3> MassProperties;
-			MassProperties.Volume = Object.GetVolume();
-			const float Mass = MassProperties.Volume * InDensityKGPerCM;
+			// TODO:  This all very wrong, but is wrong in the same way as scaled. Rotation/Translation are ignored though. The three methods on Transformed no implemented.
+			// Only adding this to hack around CastHelper, as TransformedImplicit is very not supported in that path.
+			const Chaos::TImplicitObjectTransformed<FReal, 3>& Object = ImplicitObject->template GetObjectChecked<Chaos::TImplicitObjectTransformed<FReal, 3>>();
+
+
+			Chaos::TMassProperties<float, 3> MassProps;
+			MassProps.Volume = Object.GetVolume();
+			const float Mass = MassProps.Volume * InDensityKGPerCM;
 			TotalMass += Mass;
-			MassProperties.InertiaTensor = Object.GetInertiaTensor(Mass);
-			MassProperties.CenterOfMass = Object.GetCenterOfMass();
-			MassProperties.RotationOfMass = Chaos::TRotation<float, 3>::FromIdentity();
-			return MassProperties;
-		});
-		MassProperties.Add(MassProps);
+			MassProps.InertiaTensor = Object.GetInertiaTensor(Mass);
+			MassProps.CenterOfMass = Object.GetCenterOfMass();
+			MassProps.RotationOfMass = Chaos::TRotation<float, 3>::FromIdentity();
+
+			MassProperties.Add(MassProps);
+		}
+		else
+		{
+			const Chaos::TMassProperties<float, 3> MassProps = Chaos::CastHelper(*ImplicitObject, [&TotalMass, InDensityKGPerCM](const auto& Object)
+				{
+					Chaos::TMassProperties<float, 3> MassProperties;
+					MassProperties.Volume = Object.GetVolume();
+					const float Mass = MassProperties.Volume * InDensityKGPerCM;
+					TotalMass += Mass;
+					MassProperties.InertiaTensor = Object.GetInertiaTensor(Mass);
+					MassProperties.CenterOfMass = Object.GetCenterOfMass();
+					MassProperties.RotationOfMass = Chaos::TRotation<float, 3>::FromIdentity();
+					return MassProperties;
+				});
+			MassProperties.Add(MassProps);
+		}
 	}
 }
 
