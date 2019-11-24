@@ -8,6 +8,7 @@
 #include "CameraShakeSourceComponent.generated.h"
 
 class UCameraShake;
+class UTexture2D;
 
 UENUM(BlueprintType)
 enum class ECameraShakeAttenuation : uint8
