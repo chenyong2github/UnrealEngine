@@ -52,7 +52,7 @@ namespace Chaos
 		/**
 		 * The number of rows in the matrix.
 		 */
-		int32 NumRows() const
+		FORCEINLINE int32 NumRows() const
 		{
 			return NRows;
 		}
@@ -60,7 +60,7 @@ namespace Chaos
 		/**
 		 * The number of columns in the matrix.
 		 */
-		int32 NumColumns() const
+		FORCEINLINE int32 NumColumns() const
 		{
 			return NCols;
 		}
@@ -68,7 +68,7 @@ namespace Chaos
 		/**
 		 * The number of elements in the matrix.
 		 */
-		int32 NumElements() const
+		FORCEINLINE int32 NumElements() const
 		{
 			return NRows * NCols;
 		}
@@ -76,40 +76,46 @@ namespace Chaos
 		/**
 		 * Set the dimensions of the matrix, but do not initialize any values.
 		 */
-		void SetDimensions(const int32 InNumRows, const int32 InNumColumns)
+		FORCEINLINE void SetDimensions(const int32 InNumRows, const int32 InNumColumns)
 		{
 			check(InNumRows * InNumColumns <= MaxElements);
 			NRows = InNumRows;
 			NCols = InNumColumns;
 		}
 
-		FORCEINLINE int32 ElementIndex(const int32 RowIndex, const int32 ColumnIndex) const
-		{
-			checkSlow(RowIndex < NumRows());
-			checkSlow(ColumnIndex < NumColumns());
-			return RowIndex * NCols + ColumnIndex;
-		}
-
 		/**
 		 * Return a writable reference to the element at the specified row and column.
 		 */
-		FReal& At(const int32 RowIndex, const int32 ColumnIndex)
+		FORCEINLINE FReal& At(const int32 RowIndex, const int32 ColumnIndex)
 		{
+			checkSlow(RowIndex < NumRows());
+			checkSlow(ColumnIndex < NumColumns());
 			return M[ElementIndex(RowIndex, ColumnIndex)];
 		}
 
 		/**
 		 * Return a read-only reference to the element at the specified row and column.
 		 */
-		const FReal& At(const int32 RowIndex, const int32 ColumnIndex) const
+		FORCEINLINE const FReal& At(const int32 RowIndex, const int32 ColumnIndex) const
 		{
+			checkSlow(RowIndex < NumRows());
+			checkSlow(ColumnIndex < NumColumns());
 			return M[ElementIndex(RowIndex, ColumnIndex)];
+		}
+
+		/**
+		 * Set the dimensions and initial values of the matrix.
+		 */
+		void Init(const int32 InNRows, const int32 InNCols, FReal V)
+		{
+			SetDimensions(InNRows, InNCols);
+			Set(V);
 		}
 
 		/**
 		 * Set all elements to 'V'.
 		 */
-		void SetAll(FReal V)
+		void Set(FReal V)
 		{
 			for (int32 II = 0; II < NumElements(); ++II)
 			{
@@ -123,13 +129,103 @@ namespace Chaos
 		 */
 		void SetDiagonal(FReal V)
 		{
-			int32 Num = FMath::Min(NRows, NCols);
-			for (int32 II = 0; II < Num; ++II)
+			check(NumRows() == NumColumns());
+			for (int32 II = 0; II < NRows; ++II)
 			{
 				M[ElementIndex(II, II)] = V;
 			}
 		}
 
+		/**
+		 * Set the "Num" diagonal elements starting from ("Start", "Start") to "V". Does not set off-diagonal elements.
+		 */
+		void SetDiagonalAt(int32 Start, int32 Num, FReal V)
+		{
+			check(Start + Num <= NumRows());
+			check(Start + Num <= NumColumns());
+			for (int32 II = 0; II < Num; ++II)
+			{
+				int32 JJ = Start + II;
+				M[ElementIndex(JJ, JJ)] = V;
+			}
+		}
+
+		/**
+		 * Starting from element ("RowIndex", "ColumnIndex"), set the next "NumV" elements in the row to the values in "V".
+		 */
+		void SetRowAt(const int32 RowIndex, const int32 ColumnIndex, const FReal* V, const int32 NumV)
+		{
+			check(RowIndex + NumV < NumRows());
+			check(ColumnIndex < NumColumns());
+			for (int32 II = 0; II < NumV; ++II)
+			{
+				M[ElementIndex(RowIndex, ColumnIndex + II)] = V[II];
+			}
+		}
+
+		void SetRowAt(const int32 RowIndex, const int32 ColumnIndex, const FVec3& V)
+		{
+			check(RowIndex + 1 <= NumRows());
+			check(ColumnIndex + 3 <= NumColumns());
+			M[ElementIndex(RowIndex, ColumnIndex + 0)] = V[0];
+			M[ElementIndex(RowIndex, ColumnIndex + 1)] = V[1];
+			M[ElementIndex(RowIndex, ColumnIndex + 2)] = V[2];
+		}
+
+		/**
+		 * Starting from element ("RowIndex", "ColumnIndex"), set the next "NumV" elements in the column to the values in "V".
+		 */
+		void SetColumnAt(const int32 RowIndex, const int32 ColumnIndex, const FReal* V, const int32 NumV)
+		{
+			check(RowIndex + NumV <= NumRows());
+			check(ColumnIndex + 1 <= NumColumns());
+			for (int32 II = 0; II < NumV; ++II)
+			{
+				M[ElementIndex(RowIndex + II, ColumnIndex)] = V[II];
+			}
+		}
+
+		void SetColumnAt(const int32 RowIndex, const int32 ColumnIndex, const FVec3& V)
+		{
+			check(RowIndex + 3 <= NumRows());
+			check(ColumnIndex + 1 <= NumColumns());
+			M[ElementIndex(RowIndex + 0, ColumnIndex)] = V[0];
+			M[ElementIndex(RowIndex + 1, ColumnIndex)] = V[1];
+			M[ElementIndex(RowIndex + 2, ColumnIndex)] = V[2];
+		}
+
+		/**
+		 * Set the block starting at ("RowOffset", "ColumnOffset") from the specified matrix "V"
+		 */
+		template<int32 T_EA>
+		void SetBlockAt(const int32 RowOffset, const int32 ColumnOffset, const TDenseMatrix<T_EA>& V)
+		{
+			check(RowOffset + V.NumRows() <= NumRows());
+			check(ColumnOffset + V.NumColumns() <= NumColumns());
+			for (int32 II = 0; II < V.NumRows(); ++II)
+			{
+				for (int32 JJ = 0; JJ < V.NumColumns(); ++JJ)
+				{
+					M[ElementIndex(II + RowOffset, JJ + ColumnOffset)] = V.At(II, JJ);
+				}
+			}
+		}
+
+		/**
+		 * Set the 3x3 block starting at ("RowOffset", "ColumnOffset") from the specified 3x3 matrix "V" (note: assumes the input UE matrix is column-major order)
+		 */
+		void SetBlockAt(const int32 RowOffset, const int32 ColumnOffset, const FMatrix33& V)
+		{
+			check(RowOffset + 3 <= NumRows());
+			check(ColumnOffset + 3 <= NumColumns());
+			for (int32 II = 0; II < 3; ++II)
+			{
+				for (int32 JJ = 0; JJ < 3; ++JJ)
+				{
+					M[ElementIndex(II + RowOffset, JJ + ColumnOffset)] = V.M[JJ][II];
+				}
+			}
+		}
 
 		//
 		// Factory methods
@@ -143,6 +239,13 @@ namespace Chaos
 			return TDenseMatrix<MaxElements>(InNumRows, InNumCols);
 		}
 
+		/**
+		 * Create a matrix with the specified dimensions, and initialize all elements with "V".
+		 */
+		static TDenseMatrix<MaxElements> Make(const int32 InNumRows, const int32 InNumCols, const FReal V)
+		{
+			return TDenseMatrix<MaxElements>(InNumRows, InNumCols, V);
+		}
 
 		/**
 		 * Create a matrix with the specified elements supplied as an array in row-major order 
@@ -371,9 +474,20 @@ namespace Chaos
 		}
 
 		/**
-		 * Return C = A x V, where A is an MxN matrix, and V a real number.
+		 * Return C = A x B x Transpose(A).
 		 */
 		template<int32 T_EA, int32 T_EB>
+		static TDenseMatrix<MaxElements> MultiplyABAt(const TDenseMatrix<T_EA>& A, const TDenseMatrix<T_EB>& B)
+		{
+			// @todo(ccaulfield): optimize
+			return TDenseMatrix<MaxElements>::Multiply(A, TDenseMatrix<MaxElements>::MultiplyABt(B, A));
+		}
+
+
+		/**
+		 * Return C = A x V, where A is an MxN matrix, and V a real number.
+		 */
+		template<int32 T_EA>
 		static TDenseMatrix<MaxElements> Multiply(const TDenseMatrix<T_EA>& A, const FReal V)
 		{
 			// @todo(ccaulfield): optimize
@@ -382,7 +496,7 @@ namespace Chaos
 			{
 				for (int32 ICol = 0; ICol < Result.NumColumns(); ++ICol)
 				{
-					Result.At(IRow, ICol) = Result.At(IRow, ICol) / V;
+					Result.At(IRow, ICol) = A.At(IRow, ICol) * V;
 				}
 			}
 			return Result;
@@ -391,7 +505,7 @@ namespace Chaos
 		/**
 		 * Return C = A x V, where A is an MxN matrix, and V a real number.
 		 */
-		template<int32 T_EA, int32 T_EB>
+		template<int32 T_EA>
 		static TDenseMatrix<MaxElements> Multiply(const FReal V, const TDenseMatrix<T_EA>& A)
 		{
 			return Multiply(A, V);
@@ -400,7 +514,7 @@ namespace Chaos
 		/**
 		 * Return C = A / V, where A is an MxN matrix, and V a real number.
 		 */
-		template<int32 T_EA, int32 T_EB>
+		template<int32 T_EA>
 		static TDenseMatrix<MaxElements> Divide(const TDenseMatrix<T_EA>& A, const FReal V)
 		{
 			// @todo(ccaulfield): optimize
@@ -409,7 +523,7 @@ namespace Chaos
 			{
 				for (int32 ICol = 0; ICol < Result.NumColumns(); ++ICol)
 				{
-					Result.At(IRow, ICol) = Result.At(IRow, ICol) / V;
+					Result.At(IRow, ICol) = A.At(IRow, ICol) / V;
 				}
 			}
 			return Result;
@@ -425,6 +539,16 @@ namespace Chaos
 		}
 
 	private:
+		TDenseMatrix(const int32 InNRows, const int32 InNCols, const FReal V)
+			: NRows(InNRows)
+			, NCols(InNCols)
+		{
+			for (int32 I = 0; I < NumElements(); ++I)
+			{
+				M[I] = V;
+			}
+		}
+
 		TDenseMatrix(const int32 InNRows, const int32 InNCols, const FReal* V, const int32 N)
 			: NRows(InNRows)
 			, NCols(InNCols)
@@ -434,6 +558,11 @@ namespace Chaos
 			{
 				M[I] = V[I];
 			}
+		}
+
+		FORCEINLINE int32 ElementIndex(const int32 RowIndex, const int32 ColumnIndex) const
+		{
+			return RowIndex * NCols + ColumnIndex;
 		}
 
 		FReal M[MaxElements];

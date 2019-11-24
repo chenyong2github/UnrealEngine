@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/PBDRigidDynamicSpringConstraints.h"
+#include "Chaos/Utilities.h"
 
 using namespace Chaos;
 
@@ -129,8 +130,8 @@ void TPBDRigidDynamicSpringConstraints<T, d>::ApplySingle(const T Dt, int32 Cons
 	TVector<T, d>& P1 = PBDRigid1 ? PBDRigid1->P() : Static1->X();
 
 	const int32 NumSprings = SpringDistances[ConstraintIndex].Num();
-	const PMatrix<T, d, d> WorldSpaceInvI1 = PBDRigid0? (Q0 * FMatrix::Identity) * PBDRigid0->InvI() * (Q0 * FMatrix::Identity).GetTransposed() : PMatrix<T, d, d>(0);
-	const PMatrix<T, d, d> WorldSpaceInvI2 = PBDRigid1 ? (Q1 * FMatrix::Identity) * PBDRigid1->InvI() * (Q1 * FMatrix::Identity).GetTransposed() : PMatrix<T, d, d>(0);;
+	const PMatrix<T, d, d> WorldSpaceInvI1 = PBDRigid0? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) : PMatrix<T, d, d>(0);
+	const PMatrix<T, d, d> WorldSpaceInvI2 = PBDRigid1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) : PMatrix<T, d, d>(0);;
 	for (int32 SpringIndex = 0; SpringIndex < NumSprings; ++SpringIndex)
 	{
 		const TVector<T, d>& Distance0 = Distances[ConstraintIndex][SpringIndex][0];
