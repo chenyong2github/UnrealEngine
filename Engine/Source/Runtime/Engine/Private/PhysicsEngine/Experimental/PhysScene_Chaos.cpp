@@ -688,7 +688,7 @@ void FPhysScene_Chaos::RemoveObject(FGeometryCollectionPhysicsProxy* InObject)
 
 void FPhysScene_Chaos::RemoveObject(FFieldSystemPhysicsProxy* InObject)
 {
-	check(false);
+	ensure(false);
 #if 0
 	if(!InObject)
 	{
