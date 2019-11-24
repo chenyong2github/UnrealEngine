@@ -1088,7 +1088,7 @@ FString FPackageName::GetDelegateResolvedPackagePath(const FString& InSourcePack
 		if (PathName.FindChar('.', DotIndex))
 		{
 			ObjectName = PathName.Mid(DotIndex + 1);
-			PathName = PathName.Left(DotIndex);
+			PathName.LeftInline(DotIndex, false);
 		}
 
 		for (auto Delegate : FCoreDelegates::PackageNameResolvers)
@@ -1310,7 +1310,7 @@ bool FPackageName::ParseExportTextPath(const FString& InExportTextPath, FString*
 			FString& OutObjectPathRef = *OutObjectPath;
 			if ( OutObjectPathRef.EndsWith(TEXT("'"), ESearchCase::CaseSensitive) )
 			{
-				OutObjectPathRef = OutObjectPathRef.LeftChop(1);
+				OutObjectPathRef.LeftChopInline(1, false);
 			}
 		}
 

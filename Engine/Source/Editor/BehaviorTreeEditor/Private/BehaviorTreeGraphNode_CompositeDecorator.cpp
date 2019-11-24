@@ -296,7 +296,7 @@ void UpdateLogicOpStack(TArray<FLogicDesc>& OpStack, FString& Description, FStri
 		if (OpStack[LastIdx].NumLeft <= 0)
 		{
 			OpStack.RemoveAt(LastIdx);
-			Indent = Indent.LeftChop(2);
+			Indent.LeftChopInline(2, false);
 
 			UpdateLogicOpStack(OpStack, Description, Indent);
 		}

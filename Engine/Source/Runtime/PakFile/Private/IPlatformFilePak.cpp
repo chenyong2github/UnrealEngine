@@ -4958,11 +4958,11 @@ void FPakFile::LoadIndex(FArchive* Reader)
 				// add the parent directories up to the mount point
 				while (MountPoint != Path)
 				{
-					Path = Path.Left(Path.Len() - 1);
+					Path.LeftInline(Path.Len() - 1, false);
 					int32 Offset = 0;
 					if (Path.FindLastChar('/', Offset))
 					{
-						Path = Path.Left(Offset);
+						Path.LeftInline(Offset, false);
 						MakeDirectoryFromPath(Path);
 						if (Index.Find(Path) == NULL)
 						{
@@ -6789,11 +6789,11 @@ void FPakFile::AddSpecialFile(FPakEntry Entry, const FString& Filename)
 		// add the parent directories up to the mount point
 		while (MountPoint != Path)
 		{
-			Path = Path.Left(Path.Len() - 1);
+			Path.LeftInline(Path.Len() - 1, false);
 			int32 Offset = 0;
 			if (Path.FindLastChar('/', Offset))
 			{
-				Path = Path.Left(Offset);
+				Path.LeftInline(Offset, false);
 				MakeDirectoryFromPath(Path);
 				if (Index.Find(Path) == NULL)
 				{

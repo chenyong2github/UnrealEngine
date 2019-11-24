@@ -75,7 +75,7 @@ private:
 	void DropIndent()
 	{
 		// Blah, this is awful
-		Indents = Indents.Left(Indents.Len() - 2);
+		Indents.LeftInline(Indents.Len() - 2);
 	}
 
 	template <typename T>

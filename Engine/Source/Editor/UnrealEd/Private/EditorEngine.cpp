@@ -7158,7 +7158,7 @@ bool FActorLabelUtilities::SplitActorLabel(FString& InOutLabel, int32& OutIdx)
 			FString Idx = InOutLabel.RightChop(CharIdx);
 			if (Idx.Len() > 0)
 			{
-				InOutLabel = InOutLabel.Left(CharIdx);
+				InOutLabel.LeftInline(CharIdx);
 				OutIdx = FCString::Atoi(*Idx);
 				return true;
 			}

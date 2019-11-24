@@ -580,7 +580,7 @@ FString FFileManagerGeneric::DefaultConvertToRelativePath( const TCHAR* Filename
 			//move up a directory and on an extra .. TEXT("/")
 			// the +1 from "InStr" moves to include the "\" at the end of the directory name
 			NumberOfDirectoriesToGoUp++;
-			RootDirectory = RootDirectory.Left( PositionOfNextSlash + 1 );
+			RootDirectory.LeftInline( PositionOfNextSlash + 1, false );
 		}
 		else
 		{

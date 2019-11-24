@@ -371,7 +371,7 @@ FLinearColor FTimeMarkerTrackBuilder::GetColorByCategory(const TCHAR* const Cate
 	FString CategoryStr(Category);
 	if (CategoryStr.StartsWith(TEXT("Log")))
 	{
-		CategoryStr = CategoryStr.RightChop(3);
+		CategoryStr.RightChopInline(3, false);
 	}
 
 	uint32 Hash = 0;
@@ -444,7 +444,7 @@ void FTimeMarkerTrackBuilder::Flush(float AvailableTextW)
 			FString CategoryStr(LastCategory);
 			if (CategoryStr.StartsWith(TEXT("Log")))
 			{
-				CategoryStr = CategoryStr.RightChop(3);
+				CategoryStr.RightChopInline(3, fase);
 			}
 
 			const int32 LastWholeCharacterIndexCategory = FontMeasureService->FindLastWholeCharacterIndexBeforeOffset(CategoryStr, Font, FMath::RoundToInt(AvailableTextW - 2.0f));

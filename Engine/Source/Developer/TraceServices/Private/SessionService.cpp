@@ -253,7 +253,7 @@ bool FSessionService::ConnectSession(const TCHAR* ControlClientAddress)
 	{
 		FString PortString = AddressString.RightChop(LastColonIndex + 1);
 		Port = FCString::Atoi(*PortString);
-		AddressString = AddressString.Left(LastColonIndex);
+		AddressString.LeftInline(LastColonIndex);
 	}
 	
 	TSharedPtr<FInternetAddr> ClientAddr = Sockets->GetAddressFromString(AddressString);

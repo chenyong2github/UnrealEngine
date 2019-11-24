@@ -154,7 +154,7 @@ FReply FDirectoryPathStructCustomization::OnPickDirectory(TSharedRef<IPropertyHa
 
 					if (bRelativeToGameContentDir)
 					{
-						Directory = Directory.RightChop(AbsoluteGameContentDir.Len());
+						Directory.RightChopInline(AbsoluteGameContentDir.Len(), false);
 					}
 					else if (bUseRelativePath)
 					{

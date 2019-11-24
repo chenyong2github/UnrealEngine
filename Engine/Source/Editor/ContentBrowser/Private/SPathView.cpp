@@ -1073,13 +1073,13 @@ void SPathView::Populate()
 			// Strip off any leading or trailing forward slashes.  We just want a root path name that
 			// we can display, and we'll add the path separators back later on
 			FString CleanRootPathName = *RootPathIt;
-			while( CleanRootPathName.StartsWith( TEXT( "/" ) ) )
+			while( CleanRootPathName.StartsWith( TEXT( "/" ), ESearchCase::CaseSensitive ) )
 			{
-				CleanRootPathName = CleanRootPathName.Mid( 1 );
+				CleanRootPathName.MidInline( 1, MAX_int32, false);
 			}
-			while( CleanRootPathName.EndsWith( TEXT( "/" ) ) )
+			while( CleanRootPathName.EndsWith( TEXT( "/" ), ESearchCase::CaseSensitive) )
 			{
-				CleanRootPathName = CleanRootPathName.Mid( 0, CleanRootPathName.Len() - 1 );
+				CleanRootPathName.MidInline( 0, CleanRootPathName.Len() - 1, false );
 			}
 
 			// Templates can mount "root" items which are actually sub-items under a root (see FUnrealEdMisc::MountTemplateSharedPaths)
@@ -1167,14 +1167,14 @@ void SPathView::SortRootItems()
 		const bool bOneIsClass = OneModuleName.StartsWith(ClassesPrefix);
 		if(bOneIsClass)
 		{
-			OneModuleName = OneModuleName.Mid(ClassesPrefix.Len());
+			OneModuleName.MidInline(ClassesPrefix.Len(), MAX_int32, false);
 		}
 
 		FString TwoModuleName = Two->FolderName;
 		const bool bTwoIsClass = TwoModuleName.StartsWith(ClassesPrefix);
 		if(bTwoIsClass)
 		{
-			TwoModuleName = TwoModuleName.Mid(ClassesPrefix.Len());
+			TwoModuleName.MidInline(ClassesPrefix.Len(), MAX_int32, false);
 		}
 
 		// We want to sort content before classes if both items belong to the same module

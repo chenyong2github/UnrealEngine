@@ -656,7 +656,8 @@ bool ParseResolution(const TCHAR* InResolution, uint32& OutX, uint32& OutY, int3
 					StringTripLen = 1;
 				}
 
-				YString = YString.Left(YString.Len() - StringTripLen).TrimStartAndEnd();
+				YString.LeftInline(YString.Len() - StringTripLen, false);
+				YString.TrimStartAndEndInline();
 			}
 
 			if (YString.IsNumeric())
@@ -6516,7 +6517,7 @@ bool UEngine::HandleMergeMeshCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorl
 		const TCHAR* LocalCmd = *CmdCopy;
 		FString Token = FParse::Token( LocalCmd, true );
 		Tokens.Add( Token );
-		CmdCopy = CmdCopy.Right( CmdCopy.Len() - Token.Len() - 1 );
+		CmdCopy.RightInline( CmdCopy.Len() - Token.Len() - 1, false);
 	}
 
 	// array of source meshes that will be merged
@@ -9609,11 +9610,11 @@ static void DrawProperty(UCanvas* CanvasObject, UObject* Obj, const FDebugDispla
 	do
 	{
 		FString Str = ValueText;
-		CommaIdx = ValueText.Find( TEXT(",") );
+		CommaIdx = ValueText.Find( TEXT(","), ESearchCase::CaseSensitive);
 		if( CommaIdx >= 0 )
 		{
 			Str = ValueText.Left(CommaIdx);
-			ValueText = ValueText.Mid( CommaIdx+1 );
+			ValueText.MidInline( CommaIdx+1, MAX_int32, false );
 		}
 
 		int32 XL, YL;

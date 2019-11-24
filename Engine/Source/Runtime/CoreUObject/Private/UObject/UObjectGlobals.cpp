@@ -649,7 +649,7 @@ FString ResolveIniObjectsReference(const FString& ObjectReference, const FString
 	if (i != -1)
 	{
 		Key = Section.Mid(i + 1);
-		Section = Section.Left(i);
+		Section.LeftInline(i, false);
 	}
 
 	FString Output;
@@ -3258,7 +3258,7 @@ void ConstructorHelpers::StripObjectClass( FString& PathName, bool bAssertOnBadP
 		PathName.FindLastChar( TCHAR('\''), NameEndIndex );
 		if(NameEndIndex > NameStartIndex)
 		{
-			PathName = PathName.Mid( NameStartIndex+1, NameEndIndex-NameStartIndex-1 );
+			PathName.MidInline( NameStartIndex+1, NameEndIndex-NameStartIndex-1, false );
 		}
 		else
 		{

@@ -917,13 +917,13 @@ void ParseQuoteComma(const FString& InLine, TArray<FString>& OutParts)
 		{
 			break;
 		}
-		Line = Line.RightChop(QuoteLoc + 1);
+		Line.RightChopInline(QuoteLoc + 1, false);
 		if (!Line.FindChar(TCHAR('\"'), QuoteLoc))
 		{
 			break;
 		}
 		OutParts.Add(Line.Left(QuoteLoc));
-		Line = Line.RightChop(QuoteLoc + 1);
+		Line.RightChopInline(QuoteLoc + 1, false);
 	}
 }
 

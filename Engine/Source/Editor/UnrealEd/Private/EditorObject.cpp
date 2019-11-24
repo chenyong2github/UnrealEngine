@@ -267,7 +267,7 @@ static const TCHAR* ImportProperties(
 			}
 			if (Length != StrLine.Len())
 			{
-				StrLine = StrLine.Left(Length);
+				StrLine.LeftInline(Length, false);
 			}
 		}
 
