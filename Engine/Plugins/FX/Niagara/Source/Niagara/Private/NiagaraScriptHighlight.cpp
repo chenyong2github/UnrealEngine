@@ -6,6 +6,7 @@
 #include "JsonObjectConverter.h"
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
+#include "Policies/CondensedJsonPrintPolicy.h"
 #endif
 
 FNiagaraScriptHighlight::FNiagaraScriptHighlight()
