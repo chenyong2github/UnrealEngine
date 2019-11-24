@@ -85,6 +85,10 @@ public:
 	TArray<uint8> UncompressedDataQueue;
 	/** Per remote talker voice decoding state */
 	TSharedPtr<IVoiceDecoder> VoiceDecoder;
+	/** Patch splitter to expose incoming audio to multiple outputs. */
+	Audio::FPatchSplitter RemoteVoiceOutput;
+	/** Loudness of the incoming audio, computed on the remote machine using the microphonei input audio and serialized into the packet. */
+	float MicrophoneAmplitude;
 };
 
 /**
@@ -330,6 +334,9 @@ public:
 
 	virtual Audio::FPatchOutputStrongPtr GetMicrophoneOutput() override;
 	virtual Audio::FPatchOutputStrongPtr GetRemoteTalkerOutput() override;
+	virtual float GetMicrophoneAmplitude(int32 LocalUserNum) override;
+	virtual float GetIncomingAudioAmplitude(const FUniqueNetIdWrapper& RemoteUserId) override;
+	virtual uint32 SetRemoteVoiceAmplitude(const FUniqueNetIdWrapper& RemoteTalkerId, float InAmplitude) override;
 
 
 	virtual bool PatchRemoteTalkerOutputToEndpoint(const FString& InDeviceName, bool bMuteInGameOutput = true) override;
