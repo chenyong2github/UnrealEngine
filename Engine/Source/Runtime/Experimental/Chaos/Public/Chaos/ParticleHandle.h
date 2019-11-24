@@ -394,6 +394,11 @@ public:
 
 	void SetHashResultLowLevel(uint32 Value) { GeometryParticles->HashResultLowLevel(ParticleIdx) = Value; }
 	uint32 GetHashResultLowLevel() const { return GeometryParticles->HashResultLowLevel(ParticleIdx); }
+
+#if CHAOS_CHECKED
+	const FName& DebugName() const { return GeometryParticles->DebugName(ParticleIdx); }
+	void SetDebugName(const FName& InDebugName) { GeometryParticles->DebugName(ParticleIdx) = InDebugName; }
+#endif
 	
 	EObjectStateType ObjectState() const;
 
@@ -1129,6 +1134,15 @@ public:
 		this->MUserData = InUserData;
 	}
 
+#if CHAOS_CHECKED
+	const FName& DebugName() const { return this->MDebugName; }
+	void SetDebugName(const FName& InDebugName)
+	{
+		this->MarkDirty(EParticleFlags::DebugName);
+		this->MDebugName = InDebugName;
+	}
+#endif
+
 	void SetHashResultLowLevel(uint32 Value)
 	{
 		MarkDirty(EParticleFlags::HashResult);
@@ -1226,6 +1240,10 @@ private:
 		return MGeometry;
 	}
 
+#if CHAOS_CHECKED
+	FName MDebugName;
+#endif
+
 protected:
 	EParticleType Type;
 	FParticleDirtyFlags MDirtyFlags;
@@ -1258,6 +1276,9 @@ public:
 		, SpatialIdx(FSpatialAccelerationIdx{ 0,0 })
 		, HashResult(0)
 		, DirtyFlags()
+#if CHAOS_CHECKED
+		, DebugName(NAME_None)
+#endif
 	{}
 
 	TGeometryParticleData(const TGeometryParticle<T, d>& InParticle)
@@ -1268,6 +1289,9 @@ public:
 		, SpatialIdx(InParticle.SpatialIdx())
 		, HashResult(InParticle.GetHashResultLowLevel())
 		, DirtyFlags(InParticle.DirtyFlags())
+#if CHAOS_CHECKED
+		, DebugName(InParticle.DebugName())
+#endif
 	{}
 
 	void Reset() 
@@ -1279,6 +1303,9 @@ public:
 		SpatialIdx = FSpatialAccelerationIdx{ 0,0 };
 		HashResult = 0;
 		DirtyFlags.Clear();
+#if CHAOS_CHECKED
+		DebugName = NAME_None;
+#endif
 	}
 
 	TVector<T, d> X;
@@ -1287,6 +1314,9 @@ public:
 	FSpatialAccelerationIdx SpatialIdx;
 	uint32 HashResult;
 	FParticleDirtyFlags DirtyFlags;
+#if CHAOS_CHECKED
+	FName DebugName;
+#endif
 };
 
 
