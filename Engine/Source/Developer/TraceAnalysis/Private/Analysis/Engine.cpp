@@ -833,7 +833,6 @@ int32 FAnalysisEngine::OnDataProtocol1(FStreamReader& Reader)
 		{
 			break;
 		}
-		++NextLogSerial;
 
 		uint32 BlockSize = Header->Size + sizeof(Protocol1::FEventHeader);
 		if (Reader.GetPointer(BlockSize) == nullptr)
@@ -852,6 +851,8 @@ int32 FAnalysisEngine::OnDataProtocol1(FStreamReader& Reader)
 		{
 			return -1;
 		}
+
+		++NextLogSerial;
 
 		FEventDataInfo EventDataInfo = { *Dispatch, Header->EventData, Header->Size };
 		const FEventData& EventData = (FEventData&)EventDataInfo;
