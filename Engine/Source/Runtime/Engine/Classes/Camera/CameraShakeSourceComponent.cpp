@@ -2,11 +2,16 @@
 
 #include "CameraShakeSourceComponent.h"
 #include "CameraShake.h"
+#include "Camera/CameraModifier_CameraShake.h"
 #include "CinematicCameraModule.h"
+#include "Components/BillboardComponent.h"
 #include "Engine/Engine.h"
+#include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
+#include "LevelEditorViewport.h"
 #include "Modules/ModuleManager.h"
+#include "UObject/ConstructorHelpers.h"
 
 
 UCameraShakeSourceComponent::UCameraShakeSourceComponent(const FObjectInitializer& ObjectInitializer)
@@ -14,17 +19,68 @@ UCameraShakeSourceComponent::UCameraShakeSourceComponent(const FObjectInitialize
 	, Attenuation(ECameraShakeAttenuation::Quadratic)
 	, InnerAttenuationRadius(100.f)
 	, OuterAttenuationRadius(1000.f)
+	, bAutoPlay(false)
 {
+#if WITH_EDITORONLY_DATA
+	bVisualizeComponent = true;
+
+	if (!IsRunningCommandlet())
+	{
+		static ConstructorHelpers::FObjectFinder<UTexture2D> StaticTexture(TEXT("/Engine/EditorResources/S_CameraShakeSource"));
+
+		EditorSpriteTexture = StaticTexture.Object;
+		EditorSpriteTextureScale = .5f;
+	}
+#endif
 }
 
-void UCameraShakeSourceComponent::PlayCameraShake(TSubclassOf<UCameraShake> CameraShake)
+#if WITH_EDITOR
+void UCameraShakeSourceComponent::OnRegister()
+{
+	Super::OnRegister();
+	UpdateEditorSpriteTexture();
+}
+
+void UCameraShakeSourceComponent::UpdateEditorSpriteTexture()
+{
+	if (SpriteComponent != nullptr)
+	{
+		SpriteComponent->SetSprite(EditorSpriteTexture);
+		SpriteComponent->SetRelativeScale3D(FVector(EditorSpriteTextureScale));
+	}
+}
+#endif
+
+void UCameraShakeSourceComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (bAutoPlay)
+	{
+		Play();
+	}
+}
+
+void UCameraShakeSourceComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	StopAllCameraShakes();
+
+	Super::EndPlay(EndPlayReason);
+}
+
+void UCameraShakeSourceComponent::Play()
+{
+	PlayCameraShake(CameraShake);
+}
+
+void UCameraShakeSourceComponent::PlayCameraShake(TSubclassOf<UCameraShake> InCameraShake)
 {
 	for (FConstPlayerControllerIterator Iterator = GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator)
 	{
 		APlayerController* PlayerController = Iterator->Get();
 		if (PlayerController != nullptr && PlayerController->PlayerCameraManager != nullptr)
 		{
-			PlayerController->ClientPlayCameraShakeFromSource(CameraShake, this);
+			PlayerController->ClientPlayCameraShakeFromSource(InCameraShake, this);
 		}
 	}
 }
