@@ -59,6 +59,9 @@ private:
 	static int32 ReceiveBufferSize;
 
 	void					CloseWithError(const TCHAR* Error, FSocket* InSocket=nullptr);
+	
+	/* Attempts to set the specified buffer size on our socket, will drop by 50% each time until success */
+	void					SetSocketBufferSizes(FSocket* NewSocket, int32 DesiredSendSize, int32 DesiredReceiveSize);
 
 	FThreadSafeBool			IsAttemptingConnection;
 	FCriticalSection		SocketMutex;
