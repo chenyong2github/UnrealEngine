@@ -9,7 +9,7 @@ class IAnalyticsProviderET;
 
 DECLARE_DELEGATE_ThreeParams(FInstallBundleSourceInitDelegate, TSharedRef<IInstallBundleSource> /*Source*/, EInstallBundleManagerInitResult /*Result*/, bool /*bShouldUseFallbackSource*/)
 
-DECLARE_DELEGATE_TwoParams(FInstallBundleCompleteDelegate, TSharedRef<IInstallBundleSource> /*Source*/, FInstallBundleSourceRequestResultInfo /*Result*/);
+DECLARE_DELEGATE_OneParam(FInstallBundleCompleteDelegate, FInstallBundleSourceRequestResultInfo /*Result*/);
 
 class IInstallBundleSource : public TSharedFromThis<IInstallBundleSource>
 {
@@ -54,7 +54,7 @@ public:
 
 	// Updates content on disk if necessary
 	// BundleNames contains all dependencies and has been deduped
-	//virtual FInstallBundleRequestInfo RequestUpdateContent(TArrayView<FName> BundleNames, EInstallBundleRequestFlags Flags, FInstallBundleCompleteDelegate Callbck) = 0;
+	virtual void RequestUpdateContent(FName BundleName, EInstallBundleRequestFlags Flags, FInstallBundleCompleteDelegate Callback) = 0;
 
 	// Returns true if content is scheduled to be removed the next time the source is initialized
 	// BundleNames contains all dependencies and has been deduped
