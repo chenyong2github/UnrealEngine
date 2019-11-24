@@ -19,6 +19,7 @@
 #include "NiagaraEditorCommon.h"
 
 #include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -145,11 +146,11 @@ private:
 	{
 		if (IssueIconVisibility.Get() == EVisibility::Visible)
 		{
-			return FMargin(6, 0, 1, 0);
+			return FMargin(5, 0, 1, 0);
 		}
 		else
 		{
-			return FMargin(6, 0, 5, 0);
+			return FMargin(5, 0, 5, 0);
 		}
 	}
 
@@ -378,11 +379,98 @@ void SNiagaraOverviewStack::EntryStructureChanged()
 
 TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStackEntry* Item, const TSharedRef<STableViewBase>& OwnerTable)
 {
+	FVector2D IconSize = FNiagaraEditorWidgetsStyle::Get().GetVector("NiagaraEditor.Stack.IconSize");
 	TSharedPtr<SWidget> Content;
 	if (Item->IsA<UNiagaraStackItem>())
 	{
 		UNiagaraStackItem* StackItem = CastChecked<UNiagaraStackItem>(Item);
+		TSharedPtr<SWidget> IndentContent;
+		if (StackItem->SupportsHighlights())
+		{
+			TArray<FNiagaraScriptHighlight> ScriptHighlights = StackItem->GetHighlights();
+			Algo::Sort(ScriptHighlights, [](const FNiagaraScriptHighlight& A, const FNiagaraScriptHighlight& B)
+			{
+				return A.DisplayName.CompareTo(B.DisplayName);
+			});
+
+			FText HighlightToolTip;
+			if (ScriptHighlights.Num() > 0)
+			{
+				TArray<FText> DisplayNames;
+				for (const FNiagaraScriptHighlight& ScriptHighlight : ScriptHighlights)
+				{
+					if (ScriptHighlight.IsValid())
+					{
+						DisplayNames.Add(ScriptHighlight.DisplayName);
+					}
+				}
+				HighlightToolTip = FText::Join(LOCTEXT("HighlightDelimiter", ", "), DisplayNames);
+			}
+
+			TSharedRef<SBox> IndentBox = SNew(SBox)
+				.ToolTipText(HighlightToolTip)
+				.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
+				.Visibility(EVisibility::Visible)
+				.WidthOverride(IconSize.X)
+				.HeightOverride(IconSize.Y);
+			
+			if (ScriptHighlights.Num() > 0)
+			{
+				TSharedPtr<SGridPanel> HighlightsGrid;
+				IndentBox->SetContent(SAssignNew(HighlightsGrid, SGridPanel)
+					.FillRow(0, .5f)
+					.FillRow(1, .5f)
+					.FillColumn(0, .5f)
+					.FillColumn(1, .5f));
+				int32 HighlightsAdded = 0;
+				for (int32 HighlightIndex = 0; HighlightIndex < ScriptHighlights.Num() && HighlightsAdded < 4; HighlightIndex++)
+				{
+					if (ScriptHighlights[HighlightIndex].IsValid())
+					{
+						int32 Column = HighlightIndex / 2;
+						int32 Row = HighlightIndex % 2;
+						HighlightsGrid->AddSlot(Column, Row)
+							.Padding(Column, Row, 1 - Column, 1 - Row)
+							[
+								SNew(SImage)
+								.Image(FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.Stack.ModuleHighlight"))
+								.ColorAndOpacity(ScriptHighlights[HighlightIndex].Color)
+							];
+						HighlightsAdded++;
+					}
+				}
+			}
+			IndentContent = IndentBox;
+		}
+		else if (StackItem->SupportsIcon())
+		{
+			IndentContent = SNew(SBox)
+				.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
+				.WidthOverride(IconSize.X)
+				.HeightOverride(IconSize.Y)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				[
+					SNew(SImage)
+					.Image(StackItem->GetIconBrush())
+				];
+		}
+		else
+		{
+			IndentContent = SNew(SBox)
+				.WidthOverride(IconSize.X)
+				.HeightOverride(IconSize.Y);
+		}
+
 		Content = SNew(SHorizontalBox)
+			// Indent content
+			+ SHorizontalBox::Slot()
+			.Padding(0, 1, 2, 1)
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				IndentContent.ToSharedRef()
+			]
 			// Name
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
@@ -416,10 +504,17 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 			.VAlign(VAlign_Center)
 			.AutoWidth()
 			[
-				SNew(SImage)
-				.Image(FNiagaraEditorWidgetsStyle::Get().GetBrush(FNiagaraStackEditorWidgetsUtilities::GetIconNameForExecutionSubcategory(Item->GetExecutionSubcategoryName(), true)))
-				.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForExecutionCategory(Item->GetExecutionCategoryName())))
-				.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
+				SNew(SBox)
+				.WidthOverride(IconSize.X)
+				.HeightOverride(IconSize.Y)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				[
+					SNew(SImage)
+					.Image(FNiagaraEditorWidgetsStyle::Get().GetBrush(FNiagaraStackEditorWidgetsUtilities::GetIconNameForExecutionSubcategory(Item->GetExecutionSubcategoryName(), true)))
+					.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForExecutionCategory(Item->GetExecutionCategoryName())))
+					.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
+				]
 			]
 			// Name
 			+ SHorizontalBox::Slot()
