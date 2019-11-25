@@ -3323,13 +3323,13 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 					if (AsteriskPos != INDEX_NONE && (QuestionPos == INDEX_NONE || QuestionPos > AsteriskPos))
 					{
 						new(WildcardPieces) FListPropsWildcardPiece(PropWildcard.Left(AsteriskPos), true);
-						PropWildcard = PropWildcard.Right(PropWildcard.Len() - AsteriskPos - 1);
+						PropWildcard.RightInline(PropWildcard.Len() - AsteriskPos - 1, false);
 						bFound = true;
 					}
 					else if (QuestionPos != INDEX_NONE)
 					{
 						new(WildcardPieces) FListPropsWildcardPiece(PropWildcard.Left(QuestionPos), false);
-						PropWildcard = PropWildcard.Right(PropWildcard.Len() - QuestionPos - 1);
+						PropWildcard.RightInline(PropWildcard.Len() - QuestionPos - 1, false);
 						bFound = true;
 					}
 				}
@@ -3373,7 +3373,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 							break;
 						}
 
-						Match = Match.Right(Match.Len() - Pos - WildcardPieces[i].Str.Len());
+						Match.RightInline(Match.Len() - Pos - WildcardPieces[i].Str.Len(), false);
 					}
 				}
 				if (bResult)

@@ -203,7 +203,7 @@ FString FGenericPlatformHttp::GetUrlDomain(const FString& Url)
 	const int32 Idx = Domain.GetCharArray().IndexOfByPredicate([](TCHAR Character) { return Character == TEXT('/') || Character == TEXT('?') || Character == TEXT(':'); });
 	if (Idx != INDEX_NONE)
 	{
-		Domain = Domain.Left(Idx);
+		Domain.LeftInline(Idx, false);
 	}
 	return Domain;
 }

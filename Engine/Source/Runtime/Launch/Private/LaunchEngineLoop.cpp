@@ -569,7 +569,7 @@ bool LaunchSetGameName(const TCHAR *InCmdLine, FString& OutGameProjectFilePathUn
 			int32 FirstCharToRemove = INDEX_NONE;
 			if (LocalGameName.FindChar(TCHAR('-'), FirstCharToRemove))
 			{
-				LocalGameName = LocalGameName.Left(FirstCharToRemove);
+				LocalGameName.LeftInline(FirstCharToRemove, false);
 			}
 			FApp::SetProjectName(*LocalGameName);
 
@@ -1588,7 +1588,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 #endif
 			if (Token.StartsWith(TEXT("run=")))
 			{
-				Token = Token.RightChop(4);
+				Token.RightChopInline(4, false);
 				if (!Token.EndsWith(TEXT("Commandlet")))
 				{
 					Token += TEXT("Commandlet");
@@ -1647,7 +1647,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 #endif
 		if (Token.StartsWith(TEXT("run=")))
 		{
-			Token = Token.RightChop(4);
+			Token.RightChopInline(4, false);
 			if (!Token.EndsWith(TEXT("Commandlet")))
 			{
 				Token += TEXT("Commandlet");
@@ -2062,7 +2062,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		{
 			if (Token.StartsWith(TEXT("run=")))
 			{
-				Token = Token.RightChop(4);
+				Token.RightChopInline(4, false);
 				bDefinitelyCommandlet = true;
 				if (!Token.EndsWith(TEXT("Commandlet")))
 				{

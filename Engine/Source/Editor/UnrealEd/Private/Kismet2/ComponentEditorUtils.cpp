@@ -238,14 +238,14 @@ FString FComponentEditorUtils::GenerateValidVariableName(TSubclassOf<UActorCompo
 	FString SuffixToStrip( TEXT( "Component" ) );
 	if( ComponentTypeName.EndsWith( SuffixToStrip ) )
 	{
-		ComponentTypeName = ComponentTypeName.Left( ComponentTypeName.Len() - SuffixToStrip.Len() );
+		ComponentTypeName.LeftInline( ComponentTypeName.Len() - SuffixToStrip.Len(), false );
 	}
 
 	// Strip off 'Actor' if the class ends with that so as not to confuse actors with components
 	SuffixToStrip = TEXT( "Actor" );
 	if( ComponentTypeName.EndsWith( SuffixToStrip ) )
 	{
-		ComponentTypeName = ComponentTypeName.Left( ComponentTypeName.Len() - SuffixToStrip.Len() );
+		ComponentTypeName.LeftInline( ComponentTypeName.Len() - SuffixToStrip.Len(), false );
 	}
 
 	// Try to create a name without any numerical suffix first

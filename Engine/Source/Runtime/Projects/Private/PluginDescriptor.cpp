@@ -105,9 +105,9 @@ bool FPluginDescriptor::Read(const FJsonObject& Object, FText& OutFailReason)
         
 	// Due to a difference in command line parsing between Windows and Mac, we shipped a few Mac samples containing
 	// a category name with escaped quotes. Remove them here to make sure we can list them in the right category.
-	if (Category.Len() >= 2 && Category.StartsWith(TEXT("\"")) && Category.EndsWith(TEXT("\"")))
+	if (Category.Len() >= 2 && Category.StartsWith(TEXT("\""), ESearchCase::CaseSensitive) && Category.EndsWith(TEXT("\""), ESearchCase::CaseSensitive))
 	{
-		Category = Category.Mid(1, Category.Len() - 2);
+		Category.MidInline(1, Category.Len() - 2, false);
 	}
 
 	Object.TryGetStringField(TEXT("CreatedBy"), CreatedBy);
