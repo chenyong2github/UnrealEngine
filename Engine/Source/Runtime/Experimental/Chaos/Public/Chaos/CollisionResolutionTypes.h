@@ -46,7 +46,6 @@ namespace Chaos
 	class CHAOS_API TCollisionConstraintBase
 	{
 	public:
-		using FGeometryParticleHandle = TGeometryParticleHandle<T, d>;
 
 		enum class FType
 		{
@@ -61,8 +60,6 @@ namespace Chaos
 
 		template<class AS_T> AS_T * As() { return static_cast<AS_T*>(this); }
 		template<class AS_T> const AS_T * As() const { return static_cast<AS_T*>(this); }
-
-		FGeometryParticleHandle* Particle[2]; // { Point, Volume } 
 
 	private:
 		FType Type;
@@ -141,6 +138,7 @@ namespace Chaos
 
 
 		FManifold Manifold;
+		FGeometryParticleHandle* Particle[2]; // { Point, Volume } 
 		TVector<T, d> AccumulatedImpulse;
 
 	};
@@ -203,6 +201,7 @@ namespace Chaos
 
 
 		FManifold Manifold;
+		FGeometryParticleHandle* Particle[2]; // { Point, Volume } 
 		TVector<T, d> AccumulatedImpulse;
 
 	};
