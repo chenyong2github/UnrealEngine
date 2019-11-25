@@ -54,7 +54,7 @@ private:
 	physx::PxConvexMesh*   ConvexMeshNegX;
 
 #if WITH_CHAOS
-	TUniquePtr<Chaos::TConvex<float,3>> ChaosConvex;
+	TUniquePtr<Chaos::FConvex> ChaosConvex;
 #endif
 
 public:
@@ -106,9 +106,9 @@ public:
 	ENGINE_API void SetMirroredConvexMesh(physx::PxConvexMesh* InMesh);
 
 #if WITH_CHAOS
-	ENGINE_API const TUniquePtr<Chaos::TConvex<float, 3>>& GetChaosConvexMesh() const;
+	ENGINE_API const TUniquePtr<Chaos::FConvex>& GetChaosConvexMesh() const;
 
-	ENGINE_API void SetChaosConvexMesh(TUniquePtr<Chaos::TConvex<float, 3>>&& InChaosConvex);
+	ENGINE_API void SetChaosConvexMesh(TUniquePtr<Chaos::FConvex>&& InChaosConvex);
 
 	ENGINE_API void ResetChaosConvexMesh();
 #endif

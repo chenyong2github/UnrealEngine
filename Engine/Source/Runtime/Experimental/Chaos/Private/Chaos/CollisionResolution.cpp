@@ -537,18 +537,18 @@ namespace Chaos
 
 			if (ensure(GetInnerType(A.GetType()) == ImplicitObjectType::Convex && GetInnerType(B.GetType()) == ImplicitObjectType::Convex))
 			{
-				const TConvex<T, d>* AObject = nullptr;
-				const TConvex<T, d>* BObject = nullptr;
+				const FConvex* AObject = nullptr;
+				const FConvex* BObject = nullptr;
 
 				if (IsScaled(A.GetType()) && IsScaled(B.GetType()))
 				{
-					AObject = static_cast<const TConvex<T, d>*>(static_cast<const TImplicitObjectScaled<TConvex<T, d>>&>(A).Object().Get());
-					BObject = static_cast<const TConvex<T, d>*>(static_cast<const TImplicitObjectScaled<TConvex<T, d>>&>(B).Object().Get());
+					AObject = static_cast<const FConvex*>(static_cast<const TImplicitObjectScaled<FConvex>&>(A).Object().Get());
+					BObject = static_cast<const FConvex*>(static_cast<const TImplicitObjectScaled<FConvex>&>(B).Object().Get());
 				}
 				else if (A.GetType() == ImplicitObjectType::Transformed && B.GetType() == ImplicitObjectType::Transformed)
 				{
-					AObject = static_cast<const TConvex<T, d>*>(static_cast<const TImplicitObjectTransformed<T, d>&>(A).Object().Get());
-					BObject = static_cast<const TConvex<T, d>*>(static_cast<const TImplicitObjectTransformed<T, d>&>(B).Object().Get());
+					AObject = static_cast<const FConvex*>(static_cast<const TImplicitObjectTransformed<T, d>&>(A).Object().Get());
+					BObject = static_cast<const FConvex*>(static_cast<const TImplicitObjectTransformed<T, d>&>(B).Object().Get());
 				}
 
 				if (AObject && BObject)
