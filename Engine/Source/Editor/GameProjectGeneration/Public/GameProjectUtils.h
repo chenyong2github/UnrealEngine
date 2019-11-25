@@ -285,16 +285,12 @@ public:
 	static const TCHAR* GetDefaultBuildSettingsVersion();
 
 private:
-
+	
+	/** Add hardware-specific config values such as the target platform and RHI. */
 	static void AddHardwareConfigValues(const FProjectInformation& InProjectInfo, TArray<FTemplateConfigValue>& ConfigValues);
+	
 	/** Get the name of the starter content pack to use for the given project. */
 	static FString GetStarterContentName(const FProjectInformation& InProjectInfo);
-
-	/** Get the config string for the hardware target for the given project. */
-	static FString GetHardwareConfigString(const FProjectInformation& InProjectInfo);
-
-	/** Get the config string to add for the default maps for the given project. */
-	static FString GetDefaultMapConfigString(const FProjectInformation& InProjectInfo);
 
 	/** Generates a new project without using a template project */
 	static bool GenerateProjectFromScratch(const FProjectInformation& InProjectInfo, FText& OutFailReason, FText& OutFailLog);

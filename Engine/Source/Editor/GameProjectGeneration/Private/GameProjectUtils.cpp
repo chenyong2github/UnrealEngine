@@ -851,26 +851,6 @@ bool GameProjectUtils::IsStarterContentAvailableForProject(const FProjectInforma
 	return IFileManager::Get().FileExists(*StarterContentPackFilename);
 }
 
-FString GameProjectUtils::GetDefaultMapConfigString(const FProjectInformation& InProjectInfo)
-{
-	FString DefaultMapConfig;
-
-	if (InProjectInfo.bIsBlankTemplate &&
-		InProjectInfo.bCopyStarterContent &&
-		GameProjectUtils::IsStarterContentAvailableForProject(InProjectInfo))
-	{
-		const FString StarterContentName = GameProjectUtils::GetStarterContentName(InProjectInfo);
-
-		DefaultMapConfig += LINE_TERMINATOR;
-		DefaultMapConfig += TEXT("[/Script/EngineSettings.GameMapsSettings]") LINE_TERMINATOR;
-
-		DefaultMapConfig += FString::Printf(TEXT("EditorStartupMap=/Game/%s/Maps/Minimal_Default") LINE_TERMINATOR, *StarterContentName);
-		DefaultMapConfig += FString::Printf(TEXT("GameDefaultMap=/Game/%s/Maps/Minimal_Default") LINE_TERMINATOR, *StarterContentName);
-	}
-
-	return MoveTemp(DefaultMapConfig);
-}
-
 bool GameProjectUtils::CreateProject(const FProjectInformation& InProjectInfo, FText& OutFailReason, FText& OutFailLog, TArray<FString>* OutCreatedFiles)
 {
 	if ( !IsValidProjectFileForCreation(InProjectInfo.ProjectFilename, OutFailReason) )
@@ -2092,8 +2072,6 @@ bool GameProjectUtils::GenerateConfigFiles(const FProjectInformation& InProjectI
 
 		if (InProjectInfo.bCopyStarterContent)
 		{
-			FileContents += GetDefaultMapConfigString(InProjectInfo);
-
 			if (GameProjectUtils::IsStarterContentAvailableForNewProjects())
 			{
 				if (InProjectInfo.TargetedHardware == EHardwareClass::Mobile)
