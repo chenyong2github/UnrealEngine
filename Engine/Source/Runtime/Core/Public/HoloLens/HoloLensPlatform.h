@@ -91,9 +91,6 @@ typedef FHoloLensTypes FPlatformTypes;
 #define FORCEINLINE		__forceinline			/* Force code to be inline */
 #define FORCENOINLINE	__declspec(noinline)	/* Force code to NOT be inline */
 
-// Hints compiler that expression is true; generally restricted to comparisons against constants
-#define ASSUME(expr)	__assume(expr)
-
 #define DECLARE_UINT64(x)	x
 
 // Optimization macros (uses __pragma to enable inside a #define).

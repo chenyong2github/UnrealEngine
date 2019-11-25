@@ -3,19 +3,36 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Math/UnrealMathUtility.h"
 #include "Misc/CString.h"
-#include "Containers/UnrealString.h"
+#include "Templates/AndOrNot.h"
+#include "Templates/EnableIf.h"
+#include "Templates/RemoveCV.h"
+#include "Templates/UnrealTemplate.h"
+#include "Traits/IsContiguousContainer.h"
+
+namespace StringViewPrivate
+{
+	/**
+	 * Trait testing whether a range type is compatible with the view type
+	 */
+	template <typename RangeType, typename ElementType>
+	struct TIsCompatibleRangeType : TIsSame<ElementType, typename TRemoveCV<typename TRemovePointer<decltype(GetData(DeclVal<RangeType&>()))>::Type>::Type>
+	{
+	};
+}
 
 /** String View
 
-	* A string view is implicitly constructible from FString and const char* style strings
+	* A string view is implicitly constructible from const char* style strings and
+	  from character ranges such as FString.
 
 	* A string view does not own any data nor does it attempt to control any lifetimes, it 
 	  merely points at a subrange of characters in some other string. It's up to the user
 	  to ensure the underlying string stays valid for the lifetime of the string view.
 
 	* A string view does not represent a NUL terminated string and therefore you should
-	  never pass in the pointer returned by Data() into a C-string API accepting only a
+	  never pass in the pointer returned by GetData() into a C-string API accepting only a
 	  pointer. You must either use a string builder to make a properly terminated string,
 	  or the ToString() function below if you absolutely must, and can live with the
 	  knowledge that you just added yet one more memory allocation even though memory
@@ -48,32 +65,45 @@
 
   */
 
-template<typename C>
+template <typename CharType, typename DerivedViewType>
 class TStringViewImpl
 {
 public:
-	typedef int32 SizeType;
+	using ElementType = CharType;
+	using SizeType = int32;
+	using ViewType = DerivedViewType;
 
-	inline TStringViewImpl(const C* InData)
-	:	DataPtr(InData)
-	,	Size(TCString<C>::Strlen(InData))
+	template <typename RangeType>
+	using TIsCompatibleRangeType = TAnd<TIsContiguousContainer<RangeType>, StringViewPrivate::TIsCompatibleRangeType<RangeType, ElementType>>;
+
+	template <typename RangeType>
+	using TEnableIfCompatibleRangeType = typename TEnableIf<TIsCompatibleRangeType<RangeType>::Value>::Type;
+
+	TStringViewImpl() = default;
+
+	TStringViewImpl(const CharType* InData)
+		: DataPtr(InData)
+		, Size(TCString<CharType>::Strlen(InData))
 	{
 	}
 
-	inline TStringViewImpl(const C* InData, SizeType InSize)
-	:	DataPtr(InData)
-	,	Size(InSize)
+	TStringViewImpl(const CharType* InData, SizeType InSize)
+		: DataPtr(InData)
+		, Size(InSize)
 	{
 	}
 
-	inline const C& operator[](SizeType Pos) const	{ return DataPtr[Pos]; }
+	inline const CharType& operator[](SizeType Pos) const { return DataPtr[Pos]; }
 
-	inline const C* Data() const					{ return DataPtr; }
+	inline const CharType* GetData() const { return DataPtr; }
+
+	UE_DEPRECATED(4.25, "'Data' is deprecated. Please use 'GetData' instead!")
+	inline const CharType* Data() const { return DataPtr; }
 
 	// Capacity
 
-	inline SizeType	Len() const						{ return Size; }
-	inline bool		IsEmpty() const					{ return Size == 0; }
+	inline SizeType Len() const { return Size; }
+	inline bool IsEmpty() const { return Size == 0; }
 
 	// Modifiers
 
@@ -82,142 +112,73 @@ public:
 
 	// Operations
 
-	inline SIZE_T			CopyString(C* Dest, SizeType CharCount, SizeType Position = 0)	{ memcpy(Dest, DataPtr + Position, FMath::Min(Size - Position, CharCount)); }
-	inline TStringViewImpl& SubStr(SizeType Position, SizeType CharCount)					{ return TStringViewImpl(DataPtr + Position, FMath::Min(Size - Position, CharCount)); }
+	inline SizeType CopyString(CharType* Dest, SizeType CharCount, SizeType Position = 0) const;
+	inline ViewType SubStr(SizeType Position, SizeType CharCount) const						{ check(Position <= Len()); return ViewType(DataPtr + Position, FMath::Min(Size - Position, CharCount)); }
+
+	// Maintain compatibility with FString 
+	inline ViewType Left(SizeType CharCount) const											{ return ViewType(GetData(), FMath::Clamp(CharCount, 0, Len())); }
+	inline ViewType LeftChop(SizeType CharCount) const										{ return ViewType(GetData(), FMath::Clamp(Len() - CharCount, 0, Len())); }
+	inline ViewType Right(SizeType CharCount) const											{ return ViewType(GetData() + Len() - FMath::Clamp(CharCount, 0, Len())); }
+	inline ViewType RightChop(SizeType CharCount) const										{ return ViewType(GetData() + Len() - FMath::Clamp(Len() - CharCount, 0, Len())); }
+	inline ViewType Mid(SizeType Position, SizeType CharCount) const						{ return SubStr(Position, CharCount); /*This is just a wrapper around SubStr to keep compatibility with the FString interface*/} 
 
 	// Comparison
+	inline bool				Equals(const TStringViewImpl& Other, ESearchCase::Type SearchCase) const { return Len() == Other.Len() && Compare(Other, SearchCase) == 0; }
+	CORE_API int32			Compare(const TStringViewImpl& Other, ESearchCase::Type SearchCase) const;
 
-	// Compare
+	inline bool StartsWith(CharType Prefix) const										{ return Size >= 1 && DataPtr[0] == Prefix; }
+	inline bool StartsWith(const TStringViewImpl& Prefix) const							{ return Len() >= Prefix.Len() && TCString<CharType>::Strnicmp(GetData(), Prefix.GetData(), Prefix.Len()) == 0; }
 
-	inline bool				StartsWith(const TStringViewImpl& Prefix) const				{ return 0 == TCString<C>::Strnicmp(Prefix.Data(), this->Data(), Prefix.Len()); }
-	inline bool				StartsWith(C Prefix) const									{ return Size >= 1 && DataPtr[0] == Prefix; }
+	inline bool EndsWith(CharType Suffix) const											{ return Size >= 1 && DataPtr[Size-1] == Suffix; }
+	inline bool EndsWith(const TStringViewImpl& Suffix) const							{ return Len() >= Suffix.Len() && TCString<CharType>::Strnicmp(GetData() + Len() - Suffix.Len(), Suffix.GetData(), Suffix.Len()) == 0; }
 
-	// EndsWith
+	// Searching/Finding
+	CORE_API bool FindChar(CharType InChar, SizeType& OutIndex) const;
+	CORE_API bool FindLastChar(CharType InChar, SizeType& OutIndex) const;
 
-	inline bool				EndsWith(const TStringViewImpl& Suffix) const 
-	{ 
-		const SIZE_T SuffixLen = Suffix.Len();
-		if (SuffixLen > this->Len())
-		{
-			return false;
-		}
-
-		return 0 == TCString<C>::Strnicmp(Suffix.Data(), this->Data() + this->Len() - SuffixLen, SuffixLen);
-	}
-
-	inline bool FindChar(C InChar, int32& OutIndex) const
-	{
-		for (SizeType i = 0; i < Size; ++i)
-		{
-			if (DataPtr[i] == InChar)
-			{
-				OutIndex = (int32) i;
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	inline bool FindLastChar(C InChar, int32& OutIndex) const
-	{
-		if (Size == 0)
-		{
-			return false;
-		}
-
-		for (SizeType i = Size - 1; i >= 0; --i)
-		{
-			if (DataPtr[i] == InChar)
-			{
-				OutIndex = (int32)i;
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	// FindLastOf
-	// FindFirstNotOf
-	// FindLastNotOf
-
-	inline const C* begin() const					{ return DataPtr; }
-	inline const C* end() const						{ return DataPtr + Size; }
+public:
+	/**
+	 * DO NOT USE DIRECTLY
+	 * STL-like iterators to enable range-based for loop support.
+	 */
+	inline const CharType* begin() const { return DataPtr; }
+	inline const CharType* end() const { return DataPtr + Size; }
 
 protected:
-	const C*	DataPtr;
-	SizeType	Size;
+	const CharType* DataPtr = nullptr;
+	SizeType Size = 0;
 };
 
-// Case-insensitive comparison operators
-
-template<typename C>
-inline bool operator==(const TStringViewImpl<C>& lhs, const TStringViewImpl<C>& rhs)
+template <typename CharType, typename ViewType>
+struct TIsContiguousContainer<TStringViewImpl<CharType, ViewType>>
 {
-	if (rhs.Len() != lhs.Len())
-	{
-		return false;
-	}
+	enum { Value = true };
+};
 
-	return lhs.StartsWith(rhs);
-}
-
-template<typename C>
-inline bool operator!=(const TStringViewImpl<C>& lhs, const TStringViewImpl<C>& rhs)
+template <typename CharType, typename ViewType>
+inline SIZE_T GetNum(const TStringViewImpl<CharType, ViewType>& String)
 {
-	return !operator==(lhs, rhs);
+	return String.Len();
 }
 
 //////////////////////////////////////////////////////////////////////////
 
-class FAnsiStringView : public TStringViewImpl<ANSICHAR>
+class FStringView : public TStringViewImpl<TCHAR, FStringView>
 {
 public:
-	FAnsiStringView(const ANSICHAR* InString, SizeType InStrlen)
-	:	TStringViewImpl<ANSICHAR>(InString, InStrlen)
-	{
-	}
-
-	FAnsiStringView(const ANSICHAR* InString)
-	:	TStringViewImpl<ANSICHAR>(InString)
-	{
-	}
+	using TStringViewImpl<ElementType, FStringView>::TStringViewImpl;
 };
 
-class FStringView : public TStringViewImpl<TCHAR>
+class FAnsiStringView : public TStringViewImpl<ANSICHAR, FAnsiStringView>
 {
 public:
-	FStringView(const FString& InString)
-	:	TStringViewImpl<TCHAR>(*InString, InString.Len())
-	{
-	}
-
-	FStringView(const TCHAR* InString)
-	:	TStringViewImpl<TCHAR>(InString)
-	{
-	}
-
-	FStringView(const TCHAR* InString, SizeType InStrlen)
-	:	TStringViewImpl<TCHAR>(InString, InStrlen)
-	{
-	}
-
-	/** Convert to a dynamic string
-
-		Remember that a string view is not necessarily
-		NUL terminated so whenever you end up passing a
-		string into an API which accepts a plain C string
-		then you will need to ensure it's NUL terminated
-		first. This is one way of doing that, involving
-		a memory allocation as well as a string copy,
-		along with a memory deallocation when the string
-		goes away.
-
-		I would encourage you to use a TStringBuilder<>
-		instead since this avoids hitting the heap, and
-		the heap is always more expensive even if it
-		seems seductively convenient.
-	  */
-	CORE_API FString ToString() const;
+	using TStringViewImpl<ElementType, FAnsiStringView>::TStringViewImpl;
 };
+
+class FWideStringView : public TStringViewImpl<WIDECHAR, FWideStringView>
+{
+public:
+	using TStringViewImpl<ElementType, FWideStringView>::TStringViewImpl;
+};
+
+#include "StringView.inl"

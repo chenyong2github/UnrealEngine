@@ -70,6 +70,8 @@ static FCriticalSection InitializeCoreClassesCritSec;
 
 static void SaveThumbnails(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FSlot Slot);
 static void SaveAssetRegistryData(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FSlot Slot);
+static void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Filename, const ITargetPlatform* TargetPlatform,
+						 FSavePackageContext* SavePackageContext, const bool bTextFormat, const bool bDiffing, FMD5* CookedPackageHash, int64 TotalPackageSizeUncompressed);
 static void SaveWorldLevelInfo(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FRecord Record);
 static EObjectMark GetExcludedObjectMarksForTargetPlatform(const class ITargetPlatform* TargetPlatform, const bool bIsCooking);
 
@@ -435,138 +437,137 @@ static void AsyncWriteFileWithSplitExports(FLargeMemoryPtr Data, const int64 Dat
 	(new FAutoDeleteAsyncTask<FAsyncWriteWorkerWithSplitExports>(Filename, MoveTemp(Data), DataSize, HeaderSize))->StartBackgroundTask();
 }
 
-void FSinglePackageNameMapSaver::MarkNameAsReferenced(FNameEntryId Name)
+class FPackageNameMapSaver
 {
-	ReferencedNames.Add(Name);
-}
-
-int32 FSinglePackageNameMapSaver::MapName(FName Name) const
-{
-	const FNameEntryId Id = Name.GetDisplayIndex();
-	const int32* Index = NameIndices.Find(Id);
-	return Index ? *Index : INDEX_NONE;
-}
-
-bool FSinglePackageNameMapSaver::NameExistsInCurrentPackage(FNameEntryId ComparisonId) const
-{
-	for (FNameEntryId DisplayId : ReferencedNames)
+public:
+	void MarkNameAsReferenced(FName Name)
 	{
-		if (FName::GetComparisonIdFromDisplayId(DisplayId) == ComparisonId)
-		{
-			return true;
-		}
+		ReferencedNames.Add(Name.GetDisplayIndex());
 	}
-	return false;
-}
 
-void FSinglePackageNameMapSaver::MarkNameAsReferenced(FName Name)
-{
-	ReferencedNames.Add(Name.GetDisplayIndex());
-}
-
-
-FPackageStoreNameMapSaver::FPackageStoreNameMapSaver(const TCHAR* InFilename)
-: Filename(InFilename) {}
-
-void FPackageStoreNameMapSaver::BeginPackage()
-{
-	PackageReferencedNames.Reset();
-}
-
-void FPackageStoreNameMapSaver::MarkNameAsReferenced(FName Name)
-{
-	const FNameEntryId Id = Name.GetDisplayIndex();
-	int32& Index = NameIndices.FindOrAdd(Id);
-	if (Index == 0)
+	void MarkNameAsReferenced(FNameEntryId Name)
 	{
-		Index = NameIndices.Num();
-		NameMap.Add(Id);
+		ReferencedNames.Add(Name);
 	}
-	PackageReferencedNames.Add(Id);
-}
 
-int32 FPackageStoreNameMapSaver::MapName(FName Name) const
-{
-	const FNameEntryId Id = Name.GetDisplayIndex();
-	// debug counts
+	bool NameExists(FNameEntryId ComparisonId) const
 	{
-		const int32 Number = Name.GetNumber();
-		TTuple<int32,int32,int32>& Counts = DebugNameCounts.FindOrAdd(Id);
-
-		if (Number == 0)
+		for (FNameEntryId DisplayId : ReferencedNames)
 		{
-			++Counts.Get<0>();
-		}
-		else
-		{
-			++Counts.Get<1>();
-			if (Number > Counts.Get<2>())
+			if (FName::GetComparisonIdFromDisplayId(DisplayId) == ComparisonId)
 			{
-				Counts.Get<2>() = Number;
+				return true;
 			}
 		}
 
+		return false;
 	}
 
-	const int32* Index = NameIndices.Find(Id);
-	return Index ? *Index - 1 : INDEX_NONE;
+	void UpdateLinker(FLinkerSave& Linker, FLinkerLoad* Conform, FArchive* BinarySaver);
+
+private:
+	TSet<FNameEntryId> ReferencedNames;
+};
+
+void FPackageStoreBulkDataManifest::PackageDesc::AddData(uint64 InChunkId, uint64 InOffset, uint64 InSize)
+{
+#if 0 // DIsable until optional data is working again
+	// The ChunkId is supposed to be unique
+	auto func = [=](const BulkDataDesc& Entry) { return Entry.ChunkId == InChunkId; };
+	check(Data.FindByPredicate(func) == nullptr);
+#endif 
+
+	BulkDataDesc& Entry = Data.Emplace_GetRef();
+
+	Entry.ChunkId = InChunkId;
+	Entry.Offset = InOffset;
+	Entry.Size = InSize;
 }
 
-bool FPackageStoreNameMapSaver::NameExistsInCurrentPackage(FNameEntryId ComparisonId) const
+FPackageStoreBulkDataManifest::FPackageStoreBulkDataManifest(const FString& ProjectPath)
 {
-	for (FNameEntryId DisplayId : PackageReferencedNames)
-	{
-		if (FName::GetComparisonIdFromDisplayId(DisplayId) == ComparisonId)
-		{
-			return true;
-		}
-	}
-	return false;
+	Filename = ProjectPath / TEXT("Metadata/BulkDataInfo.ubulkmanifest");
 }
 
-void FPackageStoreNameMapSaver::End()
+FArchive& operator<<(FArchive& Ar, FPackageStoreBulkDataManifest::PackageDesc::BulkDataDesc& Entry)
 {
-	// real megafile.unamemap
+	Ar << Entry.ChunkId;
+	Ar << Entry.Offset;
+	Ar << Entry.Size; 
+
+	return Ar;
+}
+
+FArchive& operator<<(FArchive& Ar, FPackageStoreBulkDataManifest::PackageDesc& Entry)
+{
+	Ar << Entry.Data;
+
+	return Ar;
+}
+
+FPackageStoreBulkDataManifest::~FPackageStoreBulkDataManifest()
+{
+}
+
+bool FPackageStoreBulkDataManifest::Load()
+{
+	Data.Empty();
+
+	TUniquePtr<FArchive> BinArchive(IFileManager::Get().CreateFileReader(*Filename));
+	if (BinArchive != nullptr)
 	{
-		TUniquePtr<FArchive> BinArchive(IFileManager::Get().CreateFileWriter(*Filename));
-		int32 NameCount = NameMap.Num();
-		*BinArchive << NameCount;
-		for (int32 I = 0; I < NameCount; ++I)
-		{
-			FName::GetEntry(NameMap[I])->Write(*BinArchive);
-		}
+		*BinArchive << Data;
+		return true;
 	}
-	// debug megafile.unamemap.csv
+	else
 	{
-		FString CsvFilePath = Filename;
-		CsvFilePath.Append(TEXT(".csv"));
-		TUniquePtr<FArchive> CsvArchive(IFileManager::Get().CreateFileWriter(*CsvFilePath));
-		if (CsvArchive)
-		{
-			TCHAR Name[FName::StringBufferSize];
-			ANSICHAR Line[MAX_SPRINTF + FName::StringBufferSize];
-			ANSICHAR Header[] = "Length\tMaxNumber\tNumberCount\tBaseCount\tTotalCount\tFName\n";
-			CsvArchive->Serialize(Header, sizeof(Header) - 1);
-			for (auto& Counts : DebugNameCounts)
-			{
-				const int32 NameLen = FName::CreateFromDisplayId(Counts.Key, 0).ToString(Name);
-				FCStringAnsi::Sprintf(Line, "%d\t%d\t%d\t%d\t%d\t",
-					NameLen, Counts.Value.Get<2>(), Counts.Value.Get<1>(), Counts.Value.Get<0>(), Counts.Value.Get<0>() + Counts.Value.Get<1>());
-				ANSICHAR* L = Line + FCStringAnsi::Strlen(Line);
-				const TCHAR* N = Name;
-				while (*N)
-				{
-					*L++ = CharCast<ANSICHAR,TCHAR>(*N++);
-				}
-				*L++ = '\n';
-				CsvArchive.Get()->Serialize(Line, L - Line);
-			}
-		}
+		return false;
 	}
+}
+
+void FPackageStoreBulkDataManifest::Save()
+{
+	TUniquePtr<FArchive> BinArchive(IFileManager::Get().CreateFileWriter(*Filename));
+	*BinArchive << Data;
+}
+
+const FPackageStoreBulkDataManifest::PackageDesc* FPackageStoreBulkDataManifest::Find(const FString& PackageFilename) const
+{
+	const  FString NormalizedFilename = FixFilename(PackageFilename);
+	return Data.Find(NormalizedFilename);
+}
+
+void FPackageStoreBulkDataManifest::AddFileAccess(const FString& PackageFilename, uint64 InChunkId, uint64 InOffset, uint64 InSize)
+{
+	const FString NormalizedFilename = FixFilename(PackageFilename);
+	
+	PackageDesc& Entry = GetOrCreateFileAccess(NormalizedFilename);
+	Entry.AddData(InChunkId, InOffset, InSize);
+}
+
+FPackageStoreBulkDataManifest::PackageDesc& FPackageStoreBulkDataManifest::GetOrCreateFileAccess(const FString& PackageFilename)
+{
+	if (PackageDesc* Entry = Data.Find(PackageFilename))
+	{
+		return *Entry;
+	}
+	else
+	{
+		return Data.Add(PackageFilename);
+	}
+}
+
+FString FPackageStoreBulkDataManifest::FixFilename(const FString& InFilename) const
+{
+	FString OutFilename = InFilename;
+	FPaths::NormalizeFilename(OutFilename);
+	FPaths::MakePathRelativeTo(OutFilename, *RootPath);
+
+	return OutFilename;
 }
 
 #if WITH_EDITOR
-static void AddReplacementsNames(INameMapSaver& NameMapSaver, UObject* Obj, const ITargetPlatform* TargetPlatform)
+static void AddReplacementsNames(FPackageNameMapSaver& NameMapSaver, UObject* Obj, const ITargetPlatform* TargetPlatform)
 {
 	if (TargetPlatform)
 	{
@@ -1015,7 +1016,7 @@ class FArchiveSaveTagImports : public FArchiveUObject
 {
 public:
 	FLinkerSave* Linker;
-	INameMapSaver& NameMapSaver;
+	FPackageNameMapSaver& NameMapSaver;
 	TArray<UObject*> Dependencies;
 	TArray<UObject*> NativeDependencies;
 	TArray<UObject*> OtherImports;
@@ -1040,7 +1041,7 @@ public:
 		}
 	};
 
-	FArchiveSaveTagImports(FLinkerSave* InLinker, INameMapSaver& InNameMapSaver)
+	FArchiveSaveTagImports(FLinkerSave* InLinker, FPackageNameMapSaver& InNameMapSaver)
 		: Linker(InLinker)
 		, NameMapSaver(InNameMapSaver)
 		, bIgnoreDependencies(false)
@@ -1356,7 +1357,7 @@ public:
 	 * @param	Linker				linker containing the names that need to be sorted
 	 * @param	LinkerToConformTo	optional linker to conform against.
 	 */
-	void SortNames( FLinkerSave* Linker, FLinkerLoad* LinkerToConformTo, FSinglePackageNameMapSaver& NameMapSaver)
+	void SortNames( FLinkerSave* Linker, FLinkerLoad* LinkerToConformTo, FPackageNameMapSaver& NameMapSaver)
 	{
 		int32 SortStartPosition = 0;
 
@@ -1388,7 +1389,7 @@ public:
 	}
 };
 
-void FSinglePackageNameMapSaver::EndPackage(FLinkerSave& Linker, FLinkerLoad* Conform, FArchive* BinarySaver)
+void FPackageNameMapSaver::UpdateLinker(FLinkerSave& Linker, FLinkerLoad* Conform, FArchive* BinarySaver)
 {
 	// Add names
 	Linker.NameMap.Reserve(Linker.NameMap.Num() + ReferencedNames.Num());
@@ -1408,7 +1409,7 @@ void FSinglePackageNameMapSaver::EndPackage(FLinkerSave& Linker, FLinkerLoad* Co
 		for (int32 i = 0; i < Linker.NameMap.Num(); i++)
 		{
 			FName::GetEntry(Linker.NameMap[i])->Write(Linker);
-			NameIndices.Add(Linker.NameMap[i], i);
+			Linker.NameIndices.Add(Linker.NameMap[i], i);
 		}
 	}
 }
@@ -3652,11 +3653,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 		int32 PackageSize = INDEX_NONE;
 		{
 			// TODO: Require a SavePackageContext and move to EditorEngine
-			FSinglePackageNameMapSaver SinglePackageNameMapSaver;
-			FPackageHeaderSaver LocalSaver(SinglePackageNameMapSaver);
-			FPackageHeaderSaver& PackageHeaderSaver = SavePackageContext ? SavePackageContext->HeaderSaver : LocalSaver;
-			INameMapSaver& NameMapSaver = PackageHeaderSaver.NameMapSaver;
-			NameMapSaver.BeginPackage();
+			FPackageNameMapSaver NameMapSaver;
 
 			uint32 ComparisonFlags = PPF_DeepCompareInstances;
 
@@ -3810,13 +3807,13 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					// The entire package will be serialized to memory and then compared against package on disk.
 					// Each difference will be log with its Serialize call stack trace
 					FArchive* Saver = new FArchiveStackTrace(FindAssetInPackage(InOuter), *InOuter->FileName.ToString(), true, InOutDiffMap);
-					Linker = TUniquePtr<FLinkerSave>(new FLinkerSave(PackageHeaderSaver, InOuter, Saver, bForceByteSwapping, bSaveUnversioned));
+					Linker = TUniquePtr<FLinkerSave>(new FLinkerSave(InOuter, Saver, bForceByteSwapping, bSaveUnversioned));
 				}
 				else if (TargetPlatform != nullptr && (SaveFlags & SAVE_DiffOnly))
 				{
 					// The entire package will be serialized to memory and then compared against package on disk
 					FArchive* Saver = new FArchiveStackTrace(FindAssetInPackage(InOuter), *InOuter->FileName.ToString(), false);
-					Linker = TUniquePtr<FLinkerSave>(new FLinkerSave(PackageHeaderSaver, InOuter, Saver, bForceByteSwapping, bSaveUnversioned));
+					Linker = TUniquePtr<FLinkerSave>(new FLinkerSave(InOuter, Saver, bForceByteSwapping, bSaveUnversioned));
 				}
 				else if ((!!TargetPlatform) && FParse::Value(FCommandLine::Get(), TEXT("DiffCookedPackages="), DiffCookedPackagesPath))
 				{
@@ -3829,19 +3826,19 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					
 					FArchive* TestArchive = IFileManager::Get().CreateFileReader(*TestArchiveFilename); 
 					FArchive* Saver = new FDiffSerializeArchive(*InOuter->FileName.ToString(), TestArchive);
-					Linker = TUniquePtr<FLinkerSave>(new FLinkerSave(PackageHeaderSaver, InOuter, Saver, bForceByteSwapping));
+					Linker = TUniquePtr<FLinkerSave>(new FLinkerSave(InOuter, Saver, bForceByteSwapping));
 				}
 				else 
 #endif
 				if (bSaveAsync)
 				{
 					// Allocate the linker with a memory writer, forcing byte swapping if wanted.
-					Linker = TUniquePtr<FLinkerSave>(new FLinkerSave(PackageHeaderSaver, InOuter, bForceByteSwapping, bSaveUnversioned));
+					Linker = TUniquePtr<FLinkerSave>(new FLinkerSave(InOuter, bForceByteSwapping, bSaveUnversioned));
 				}
 				else
 				{
 					// Allocate the linker, forcing byte swapping if wanted.
-					Linker = TUniquePtr<FLinkerSave>(new FLinkerSave(PackageHeaderSaver, InOuter, *TempFilename, bForceByteSwapping, bSaveUnversioned));
+					Linker = TUniquePtr<FLinkerSave>(new FLinkerSave(InOuter, *TempFilename, bForceByteSwapping, bSaveUnversioned));
 				}
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
@@ -4414,7 +4411,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				{
 					// check the name list for uniqueobjectnamefor cooking
 					static FNameEntryId NAME_UniqueObjectNameForCooking = FName("UniqueObjectNameForCooking").GetComparisonIndex();
-					if (NameMapSaver.NameExistsInCurrentPackage(NAME_UniqueObjectNameForCooking))
+					if (NameMapSaver.NameExists(NAME_UniqueObjectNameForCooking))
 					{
 						UE_LOG(LogSavePackage, Warning, TEXT("Saving object into cooked package %s which was created at cook time"), Filename);
 					}
@@ -4428,7 +4425,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					FArchive::FScopeSetDebugSerializationFlags S(*Linker, DSF_IgnoreDiff, true);
 					FArchiveStackTraceIgnoreScope IgnoreSummaryDiffsScope(DiffSettings.bIgnoreHeaderDiffs);
 #endif
-					NameMapSaver.EndPackage(*Linker.Get(), Conform, bTextFormat ? nullptr : Linker->Saver);
+					NameMapSaver.UpdateLinker(*Linker.Get(), Conform, bTextFormat ? nullptr : Linker->Saver);
 				}
 				if ( EndSavingIfCancelled( Linker.Get(), TempFilename ) )
 				{ 
@@ -5430,231 +5427,11 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				{ 
 					return ESavePackageResult::Canceled;
 				}
+
 				SlowTask.EnterProgressFrame(1, NSLOCTEXT("Core", "SerializingBulkData", "Serializing bulk data"));
 
-				// now we write all the bulkdata that is supposed to be at the end of the package
-				// and fix up the offset
-				const int64 StartOfBulkDataArea = Linker->Tell();
-				Linker->Summary.BulkDataStartOffset = StartOfBulkDataArea;
-
-				check(!bTextFormat || Linker->BulkDataToAppend.Num() == 0);
-
-				if (!bTextFormat && Linker->BulkDataToAppend.Num() > 0)
-				{
-					COOK_STAT(FScopedDurationTimer SaveTimer(SavePackageStats::SerializeBulkDataTimeSec));
-
-					FScopedSlowTask BulkDataFeedback(Linker->BulkDataToAppend.Num());
-
-					TUniquePtr<FLargeMemoryWriter> BulkArchive;
-					TUniquePtr<FLargeMemoryWriter> OptionalBulkArchive;
-					TUniquePtr<FLargeMemoryWriter> MappedBulkArchive;
-
-					uint32 ExtraBulkDataFlags = 0;
-
-					static const struct FUseSeparateBulkDataFiles
-					{
-						bool bEnable = false;
-
-						FUseSeparateBulkDataFiles()
-						{
-							GConfig->GetBool(TEXT("Core.System"), TEXT("UseSeperateBulkDataFiles"), /* out */ bEnable, GEngineIni);
-
-							if (IsEventDrivenLoaderEnabledInCookedBuilds())
-							{
-								// Always split bulk data when splitting cooked files
-								bEnable = true;
-							}
-						}
-					} ShouldUseSeparateBulkDataFiles;
-
-					const bool bShouldUseSeparateBulkFile = ShouldUseSeparateBulkDataFiles.bEnable && Linker->IsCooking();
-
-					if (bShouldUseSeparateBulkFile)
-					{
-						ExtraBulkDataFlags	= BULKDATA_PayloadInSeperateFile;
-
-						BulkArchive.Reset(new FLargeMemoryWriter(0, /* IsPersistent */ true));
-						OptionalBulkArchive.Reset(new FLargeMemoryWriter(0, /* IsPersistent */ true));
-						MappedBulkArchive.Reset(new FLargeMemoryWriter(0, /* IsPersistent */ true));
-					}
-
-					bool bAlignBulkData = false;
-					int64 BulkDataAlignment = 0;
-
-					if (TargetPlatform)
-					{
-						bAlignBulkData = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MemoryMappedFiles);
-						BulkDataAlignment = TargetPlatform->GetMemoryMappingAlignment();
-					}
-
-					for (FLinkerSave::FBulkDataStorageInfo& BulkDataStorageInfo : Linker->BulkDataToAppend)
-					{
-						BulkDataFeedback.EnterProgressFrame();
-
-						// Set bulk data flags to what they were during initial serialization (they might have changed after that)
-						const uint32 OldBulkDataFlags = BulkDataStorageInfo.BulkData->GetBulkDataFlags();
-						uint32 ModifiedBulkDataFlags = BulkDataStorageInfo.BulkDataFlags | ExtraBulkDataFlags;
-						const bool bBulkItemIsOptional = (ModifiedBulkDataFlags & BULKDATA_OptionalPayload) != 0;
-						bool bBulkItemIsMapped = bAlignBulkData && ((ModifiedBulkDataFlags & BULKDATA_MemoryMappedPayload) != 0);
-
-						if (bBulkItemIsMapped && bBulkItemIsOptional)
-						{
-							UE_LOG(LogSavePackage, Warning, TEXT("%s has bulk data that is both mapped and optional. This is not currently supported. Will not be mapped."), Filename);
-							ModifiedBulkDataFlags &= ~BULKDATA_MemoryMappedPayload;
-							bBulkItemIsMapped = false;
-						}
-
-						BulkDataStorageInfo.BulkData->ClearBulkDataFlags(0xFFFFFFFF);
-						BulkDataStorageInfo.BulkData->SetBulkDataFlags(ModifiedBulkDataFlags);
-
-						FArchive* TargetArchive = Linker.Get();
-
-						if (bShouldUseSeparateBulkFile)
-						{
-							check(MappedBulkArchive && OptionalBulkArchive && BulkArchive);
-
-							if (bBulkItemIsOptional)
-							{
-								TargetArchive = OptionalBulkArchive.Get();
-							}
-							else if (bBulkItemIsMapped)
-							{
-								TargetArchive = MappedBulkArchive.Get();
-							}
-							else
-							{
-								TargetArchive = BulkArchive.Get();
-							}
-						}
-
-						// Pad archive for proper alignment for memory mapping
-
-						if (bBulkItemIsMapped && BulkDataAlignment > 0)
-						{
-							const int64 BulkStartOffset = TargetArchive->Tell();
-
-							if (!IsAligned(BulkStartOffset, BulkDataAlignment))
-							{
-								const int64 AlignedOffset = Align(BulkStartOffset, BulkDataAlignment);
-
-								int64 Padding = AlignedOffset - BulkStartOffset;
-								check(Padding > 0);
-
-								uint64 Zero64 = 0;
-								while(Padding >= 8)
-								{
-									*TargetArchive << Zero64;
-									Padding -= 8;
-								}
-
-								uint8 Zero8 = 0;
-								while(Padding > 0)
-								{
-									*TargetArchive << Zero8;
-									Padding--;
-								}
-
-								check(TargetArchive->Tell() == AlignedOffset);
-							}
-						}
-
-						const int64 BulkStartOffset = TargetArchive->Tell();
-
-						int64 StoredBulkStartOffset = BulkStartOffset - StartOfBulkDataArea;
-
-						BulkDataStorageInfo.BulkData->SerializeBulkData(*TargetArchive, BulkDataStorageInfo.BulkData->Lock(LOCK_READ_ONLY));
-
-						int64 BulkEndOffset = TargetArchive->Tell();
-						const int64 LinkerEndOffset = Linker->Tell();
-
-						int64 SizeOnDisk = BulkEndOffset - BulkStartOffset;
-				
-						Linker->Seek(BulkDataStorageInfo.BulkDataFlagsPos);
-						*Linker << ModifiedBulkDataFlags;
-
-						Linker->Seek(BulkDataStorageInfo.BulkDataOffsetInFilePos);
-						*Linker << StoredBulkStartOffset;
-
-						Linker->Seek(BulkDataStorageInfo.BulkDataSizeOnDiskPos);
-						if (ModifiedBulkDataFlags & BULKDATA_Size64Bit)
-						{
-							*Linker << SizeOnDisk;
-						}
-						else
-						{
-							check(SizeOnDisk < (1LL << 31));
-							int32 SizeOnDiskAsInt32 = SizeOnDisk;
-							*Linker << SizeOnDiskAsInt32;
-						}
-
-						Linker->Seek(LinkerEndOffset);
-
-						// Restore BulkData flags to before serialization started
-						BulkDataStorageInfo.BulkData->ClearBulkDataFlags(0xFFFFFFFF);
-						BulkDataStorageInfo.BulkData->SetBulkDataFlags(OldBulkDataFlags);
-						BulkDataStorageInfo.BulkData->Unlock();
-					}
-
-					if (BulkArchive)
-					{
-						check(OptionalBulkArchive);
-						check(MappedBulkArchive);
-
-						const bool bWriteBulkToDisk = !bDiffing;
-
-						if (SavePackageContext && bWriteBulkToDisk)
-						{
-							auto ToIoBuffer = [](FLargeMemoryWriter* Writer)
-							{
-								const int64 TotalSize = Writer->TotalSize();
-								return FIoBuffer(FIoBuffer::AssumeOwnership, Writer->ReleaseOwnership(), TotalSize);
-							};
-
-							FPackageStoreWriter::FBulkDataInfo BulkInfo;
-							BulkInfo.PackageName = InOuter->GetFName();
-							BulkInfo.LooseFilePath = Filename;
-							BulkInfo.BulkdataType = FPackageStoreWriter::FBulkDataInfo::Standard;
-
-							SavePackageContext->PackageStoreWriter.WriteBulkdata(BulkInfo, ToIoBuffer(BulkArchive.Get()));
-
-							BulkInfo.BulkdataType = FPackageStoreWriter::FBulkDataInfo::Optional;
-							SavePackageContext->PackageStoreWriter.WriteBulkdata(BulkInfo, ToIoBuffer(OptionalBulkArchive.Get()));
-
-							BulkInfo.BulkdataType = FPackageStoreWriter::FBulkDataInfo::Mmap;
-							SavePackageContext->PackageStoreWriter.WriteBulkdata(BulkInfo, ToIoBuffer(MappedBulkArchive.Get()));
-						}
-						else
-						{
-							auto WriteBulkData = [&](FLargeMemoryWriter* Archive, const TCHAR* BulkFileExtension)
-								{
-									if (const int64 DataSize = Archive->TotalSize())
-									{
-										if (bComputeHash)
-										{
-											CookedPackageHash.Update(Archive->GetData(), DataSize);
-										}
-
-										TotalPackageSizeUncompressed += DataSize;
-
-										if (bWriteBulkToDisk)
-										{
-											FLargeMemoryPtr DataPtr(Archive->ReleaseOwnership());
-
-											const FString ArchiveFilename = FPaths::ChangeExtension(Filename, BulkFileExtension);
-
-											AsyncWriteFile(MoveTemp(DataPtr), DataSize, *ArchiveFilename);
-										}
-									}
-								};
-
-							WriteBulkData(BulkArchive.Get(),			TEXT(".ubulk"));		// Regular separate bulk data file
-							WriteBulkData(OptionalBulkArchive.Get(),	TEXT(".uptnl"));		// Optional bulk data
-							WriteBulkData(MappedBulkArchive.Get(),		TEXT(".m.ubulk"));		// Memory-mapped bulk data
-						}
-					}
-				}
-
-				Linker->BulkDataToAppend.Empty();
+				SaveBulkData(Linker.Get(), InOuter, Filename, TargetPlatform, SavePackageContext, bTextFormat, bDiffing,
+							 bComputeHash ? &CookedPackageHash : nullptr, TotalPackageSizeUncompressed );
 
 #if WITH_EDITOR
 				if (bIsCooking && AdditionalFilesFromExports.Num() > 0)
@@ -5940,7 +5717,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 							if (IsEventDrivenLoaderEnabledInCookedBuilds() && Linker->IsCooking())
 							{
-								if (SavePackageContext)
+								if (SavePackageContext != nullptr && SavePackageContext->PackageStoreWriter != nullptr)
 								{
 									FIoBuffer IoBuffer(FIoBuffer::AssumeOwnership, Writer->ReleaseOwnership(), DataSize);
 
@@ -5950,7 +5727,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 									HeaderInfo.PackageName		= InOuter->GetFName();
 									HeaderInfo.LooseFilePath	= Filename;
 
-									SavePackageContext->PackageStoreWriter.WriteHeader(HeaderInfo, FIoBuffer(IoBuffer.Data(), HeaderSize, IoBuffer));
+									SavePackageContext->PackageStoreWriter->WriteHeader(HeaderInfo, FIoBuffer(IoBuffer.Data(), HeaderSize, IoBuffer));
 
 									FPackageStoreWriter::ExportsInfo ExportsInfo;
 									ExportsInfo.LooseFilePath	= Filename;
@@ -5966,7 +5743,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 										ExportsInfo.Exports.Add(FIoBuffer(IoBuffer.Data() + Export.SerialOffset, Export.SerialSize, IoBuffer));
 									}
 
-									SavePackageContext->PackageStoreWriter.WriteExports(ExportsInfo, FIoBuffer(ExportsData, DataSize - HeaderSize, IoBuffer));
+									SavePackageContext->PackageStoreWriter->WriteExports(ExportsInfo, FIoBuffer(ExportsData, DataSize - HeaderSize, IoBuffer));
 								}
 								else
 								{
@@ -6346,6 +6123,240 @@ static void SaveAssetRegistryData(UPackage* InOuter, FLinkerSave* Linker, FStruc
 			TagMap.EnterElement(Key) << Value;
 		}
 	}
+}
+
+void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Filename, const ITargetPlatform* TargetPlatform,
+				  FSavePackageContext* SavePackageContext, const bool bTextFormat, const bool bDiffing, FMD5* CookedPackageHash, int64 TotalPackageSizeUncompressed)
+{
+	// Now we write all the bulkdata that is supposed to be at the end of the package
+	// and fix up the offset
+	const int64 StartOfBulkDataArea = Linker->Tell();
+	Linker->Summary.BulkDataStartOffset = StartOfBulkDataArea;
+
+	check(!bTextFormat || Linker->BulkDataToAppend.Num() == 0);
+
+	if (!bTextFormat && Linker->BulkDataToAppend.Num() > 0)
+	{
+		COOK_STAT(FScopedDurationTimer SaveTimer(SavePackageStats::SerializeBulkDataTimeSec));
+
+		FScopedSlowTask BulkDataFeedback(Linker->BulkDataToAppend.Num());
+
+		TUniquePtr<FLargeMemoryWriter> BulkArchive;
+		TUniquePtr<FLargeMemoryWriter> OptionalBulkArchive;
+		TUniquePtr<FLargeMemoryWriter> MappedBulkArchive;
+
+		uint32 ExtraBulkDataFlags = 0;
+
+		static const struct FUseSeparateBulkDataFiles
+		{
+			bool bEnable = false;
+
+			FUseSeparateBulkDataFiles()
+			{
+				GConfig->GetBool(TEXT("Core.System"), TEXT("UseSeperateBulkDataFiles"), /* out */ bEnable, GEngineIni);
+
+				if (IsEventDrivenLoaderEnabledInCookedBuilds())
+				{
+					// Always split bulk data when splitting cooked files
+					bEnable = true;
+				}
+			}
+		} ShouldUseSeparateBulkDataFiles;
+
+		const bool bShouldUseSeparateBulkFile = ShouldUseSeparateBulkDataFiles.bEnable && Linker->IsCooking();
+
+		if (bShouldUseSeparateBulkFile)
+		{
+			ExtraBulkDataFlags = BULKDATA_PayloadInSeperateFile;
+
+			BulkArchive.Reset(new FLargeMemoryWriter(0, /* IsPersistent */ true));
+			OptionalBulkArchive.Reset(new FLargeMemoryWriter(0, /* IsPersistent */ true));
+			MappedBulkArchive.Reset(new FLargeMemoryWriter(0, /* IsPersistent */ true));
+		}
+
+		bool bAlignBulkData = false;
+		int64 BulkDataAlignment = 0;
+
+		if (TargetPlatform)
+		{
+			bAlignBulkData = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MemoryMappedFiles);
+			BulkDataAlignment = TargetPlatform->GetMemoryMappingAlignment();
+		}
+
+		uint16 BulkDataIndex = 1;
+		for (FLinkerSave::FBulkDataStorageInfo& BulkDataStorageInfo : Linker->BulkDataToAppend)
+		{
+			BulkDataFeedback.EnterProgressFrame();
+
+			// Set bulk data flags to what they were during initial serialization (they might have changed after that)
+			const uint32 OldBulkDataFlags = BulkDataStorageInfo.BulkData->GetBulkDataFlags();
+			uint32 ModifiedBulkDataFlags = BulkDataStorageInfo.BulkDataFlags | ExtraBulkDataFlags;
+			const bool bBulkItemIsOptional = (ModifiedBulkDataFlags & BULKDATA_OptionalPayload) != 0;
+			bool bBulkItemIsMapped = bAlignBulkData && ((ModifiedBulkDataFlags & BULKDATA_MemoryMappedPayload) != 0);
+
+			if (bBulkItemIsMapped && bBulkItemIsOptional)
+			{
+				UE_LOG(LogSavePackage, Warning, TEXT("%s has bulk data that is both mapped and optional. This is not currently supported. Will not be mapped."), Filename);
+				ModifiedBulkDataFlags &= ~BULKDATA_MemoryMappedPayload;
+				bBulkItemIsMapped = false;
+			}
+
+			BulkDataStorageInfo.BulkData->ClearBulkDataFlags(0xFFFFFFFF);
+			BulkDataStorageInfo.BulkData->SetBulkDataFlags(ModifiedBulkDataFlags);
+
+			FArchive* TargetArchive = Linker;
+
+			if (bShouldUseSeparateBulkFile)
+			{
+				check(MappedBulkArchive && OptionalBulkArchive && BulkArchive);
+
+				if (bBulkItemIsOptional)
+				{
+					TargetArchive = OptionalBulkArchive.Get();
+				}
+				else if (bBulkItemIsMapped)
+				{
+					TargetArchive = MappedBulkArchive.Get();
+				}
+				else
+				{
+					TargetArchive = BulkArchive.Get();
+				}
+			}
+
+			// Pad archive for proper alignment for memory mapping
+			if (bBulkItemIsMapped && BulkDataAlignment > 0)
+			{
+				const int64 BulkStartOffset = TargetArchive->Tell();
+
+				if (!IsAligned(BulkStartOffset, BulkDataAlignment))
+				{
+					const int64 AlignedOffset = Align(BulkStartOffset, BulkDataAlignment);
+
+					int64 Padding = AlignedOffset - BulkStartOffset;
+					check(Padding > 0);
+
+					uint64 Zero64 = 0;
+					while (Padding >= 8)
+					{
+						*TargetArchive << Zero64;
+						Padding -= 8;
+					}
+
+					uint8 Zero8 = 0;
+					while (Padding > 0)
+					{
+						*TargetArchive << Zero8;
+						Padding--;
+					}
+
+					check(TargetArchive->Tell() == AlignedOffset);
+				}
+			}
+
+			const int64 BulkStartOffset = TargetArchive->Tell();
+
+			int64 StoredBulkStartOffset = BulkStartOffset - StartOfBulkDataArea;
+
+			BulkDataStorageInfo.BulkData->SerializeBulkData(*TargetArchive, BulkDataStorageInfo.BulkData->Lock(LOCK_READ_ONLY));
+
+			int64 BulkEndOffset = TargetArchive->Tell();
+			const int64 LinkerEndOffset = Linker->Tell();
+
+			int64 SizeOnDisk = BulkEndOffset - BulkStartOffset;
+
+			Linker->Seek(BulkDataStorageInfo.BulkDataFlagsPos);
+			*Linker << ModifiedBulkDataFlags;
+
+			Linker->Seek(BulkDataStorageInfo.BulkDataOffsetInFilePos);
+			*Linker << StoredBulkStartOffset;
+
+			Linker->Seek(BulkDataStorageInfo.BulkDataSizeOnDiskPos);
+			if (ModifiedBulkDataFlags & BULKDATA_Size64Bit)
+			{
+				*Linker << SizeOnDisk;
+			}
+			else
+			{
+				check(SizeOnDisk < (1LL << 31));
+				int32 SizeOnDiskAsInt32 = SizeOnDisk;
+				*Linker << SizeOnDiskAsInt32;
+			}
+
+			if (SavePackageContext != nullptr && SavePackageContext->BulkDataManifest != nullptr)
+			{
+				SavePackageContext->BulkDataManifest->AddFileAccess(Filename, StoredBulkStartOffset, BulkStartOffset, SizeOnDisk);
+			}
+			
+			Linker->Seek(LinkerEndOffset);
+
+			// Restore BulkData flags to before serialization started
+			BulkDataStorageInfo.BulkData->ClearBulkDataFlags(0xFFFFFFFF);
+			BulkDataStorageInfo.BulkData->SetBulkDataFlags(OldBulkDataFlags);
+			BulkDataStorageInfo.BulkData->Unlock();
+		}
+
+		if (BulkArchive)
+		{
+			check(OptionalBulkArchive);
+			check(MappedBulkArchive);
+
+			const bool bWriteBulkToDisk = !bDiffing;
+
+			if (SavePackageContext != nullptr && SavePackageContext->PackageStoreWriter != nullptr && bWriteBulkToDisk)
+			{
+				auto ToIoBuffer = [](FLargeMemoryWriter* Writer)
+				{
+					const int64 TotalSize = Writer->TotalSize();
+					return FIoBuffer(FIoBuffer::AssumeOwnership, Writer->ReleaseOwnership(), TotalSize);
+				};
+
+				FPackageStoreWriter::FBulkDataInfo BulkInfo;
+				BulkInfo.PackageName = InOuter->GetFName();
+				BulkInfo.LooseFilePath = Filename;
+				BulkInfo.BulkdataType = FPackageStoreWriter::FBulkDataInfo::Standard;
+
+				SavePackageContext->PackageStoreWriter->WriteBulkdata(BulkInfo, ToIoBuffer(BulkArchive.Get()));
+
+				BulkInfo.BulkdataType = FPackageStoreWriter::FBulkDataInfo::Optional;
+				SavePackageContext->PackageStoreWriter->WriteBulkdata(BulkInfo, ToIoBuffer(OptionalBulkArchive.Get()));
+
+				BulkInfo.BulkdataType = FPackageStoreWriter::FBulkDataInfo::Mmap;
+				SavePackageContext->PackageStoreWriter->WriteBulkdata(BulkInfo, ToIoBuffer(MappedBulkArchive.Get()));
+			}
+			else
+			{
+				auto WriteBulkData = [&](FLargeMemoryWriter* Archive, const TCHAR* BulkFileExtension)
+				{
+					if (const int64 DataSize = Archive->TotalSize())
+					{
+						if (CookedPackageHash != nullptr)
+						{
+							CookedPackageHash->Update(Archive->GetData(), DataSize);
+						}
+
+						TotalPackageSizeUncompressed += DataSize;
+
+						if (bWriteBulkToDisk)
+						{
+							FLargeMemoryPtr DataPtr(Archive->ReleaseOwnership());
+
+							const FString ArchiveFilename = FPaths::ChangeExtension(Filename, BulkFileExtension);
+
+							AsyncWriteFile(MoveTemp(DataPtr), DataSize, *ArchiveFilename);
+						}
+					}
+				};
+
+				WriteBulkData(BulkArchive.Get(), TEXT(".ubulk"));			// Regular separate bulk data file
+				WriteBulkData(OptionalBulkArchive.Get(), TEXT(".uptnl"));	// Optional bulk data
+				WriteBulkData(MappedBulkArchive.Get(), TEXT(".m.ubulk"));	// Memory-mapped bulk data
+				WriteBulkData(MappedBulkArchive.Get(), TEXT(".m.ubulk"));	// Memory-mapped bulk data
+			}
+		}
+	}
+
+	Linker->BulkDataToAppend.Empty();
 }
 
 static void SaveWorldLevelInfo(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FRecord Record)

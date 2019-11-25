@@ -16,6 +16,7 @@
 #include "Algo/HeapSort.h"
 #include "Algo/IsHeap.h"
 #include "Algo/Impl/BinaryHeap.h"
+#include "Templates/AndOrNot.h"
 #include "Templates/IdentityFunctor.h"
 #include "Templates/Less.h"
 #include "Templates/ChooseClass.h"
@@ -252,7 +253,7 @@ namespace UE4Array_Private
 		enum
 		{
 			Value =
-				TAreTypesEqual<FromAllocatorType, ToAllocatorType>::Value && // Allocators must be equal
+				TOr<TAreTypesEqual<FromAllocatorType, ToAllocatorType>, TCanMoveBetweenAllocators<FromAllocatorType, ToAllocatorType>>::Value && // Allocators must be equal or move-compatible
 				TContainerTraits<FromArrayType>::MoveWillEmptyContainer &&   // A move must be allowed to leave the source array empty
 				(
 					TAreTypesEqual         <ToElementType, FromElementType>::Value || // The element type of the container must be the same, or...
@@ -292,7 +293,7 @@ public:
 	 */
 	FORCEINLINE TArray()
 		: ArrayNum(0)
-		, ArrayMax(0)
+		, ArrayMax(AllocatorInstance.GetInitialCapacity())
 	{}
 
 	/**
@@ -402,6 +403,27 @@ public:
 	}
 
 private:
+#if !PLATFORM_COMPILER_HAS_IF_CONSTEXPR
+	template <
+		typename FromArrayType,
+		typename ToArrayType,
+		typename TEnableIf<TCanMoveBetweenAllocators<typename FromArrayType::Allocator, typename ToArrayType::Allocator>::Value>::Type* = nullptr
+	>
+	static FORCEINLINE void MoveAllocatorToEmpty(FromArrayType& FromArray, ToArrayType& ToArray)
+	{
+		ToArray.AllocatorInstance.template MoveToEmptyFromOtherAllocator<typename FromArrayType::Allocator>(FromArray.AllocatorInstance);
+	}
+
+	template <
+		typename FromArrayType,
+		typename ToArrayType,
+		typename TEnableIf<!TCanMoveBetweenAllocators<typename FromArrayType::Allocator, typename ToArrayType::Allocator>::Value>::Type* = nullptr
+	>
+	static FORCEINLINE void MoveAllocatorToEmpty(FromArrayType& FromArray, ToArrayType& ToArray)
+	{
+		ToArray.AllocatorInstance.MoveToEmpty(FromArray.AllocatorInstance);
+	}
+#endif
 
 	/**
 	 * Moves or copies array. Depends on the array type traits.
@@ -414,12 +436,30 @@ private:
 	template <typename FromArrayType, typename ToArrayType>
 	static FORCEINLINE typename TEnableIf<UE4Array_Private::TCanMoveTArrayPointersBetweenArrayTypes<FromArrayType, ToArrayType>::Value>::Type MoveOrCopy(ToArrayType& ToArray, FromArrayType& FromArray, SizeType PrevMax)
 	{
-		ToArray.AllocatorInstance.MoveToEmpty(FromArray.AllocatorInstance);
+		using FromAllocatorType = typename FromArrayType::Allocator;
+		using ToAllocatorType   = typename ToArrayType::Allocator;
+
+#if PLATFORM_COMPILER_HAS_IF_CONSTEXPR
+		if constexpr (TCanMoveBetweenAllocators<FromAllocatorType, ToAllocatorType>::Value)
+		{
+			ToArray.AllocatorInstance.template MoveToEmptyFromOtherAllocator<FromAllocatorType>(FromArray.AllocatorInstance);
+		}
+		else
+		{
+			ToArray.AllocatorInstance.MoveToEmpty(FromArray.AllocatorInstance);
+		}
+#else
+		MoveAllocatorToEmpty(FromArray, ToArray);
+#endif
 
 		ToArray  .ArrayNum = FromArray.ArrayNum;
 		ToArray  .ArrayMax = FromArray.ArrayMax;
+
+		// Ensure the destination container could hold the source range (when the allocator size types shrink)
+		checkf(ToArray.ArrayNum == FromArray.ArrayNum && ToArray.ArrayMax == FromArray.ArrayMax, TEXT("Data lost when moving to a container with a more constrained size type"));
+
 		FromArray.ArrayNum = 0;
-		FromArray.ArrayMax = 0;
+		FromArray.ArrayMax = FromArray.AllocatorInstance.GetInitialCapacity();
 	}
 
 	/**
@@ -2528,7 +2568,7 @@ private:
 		}
 		else
 		{
-			ArrayMax = 0;
+			ArrayMax = AllocatorInstance.GetInitialCapacity();
 		}
 	}
 

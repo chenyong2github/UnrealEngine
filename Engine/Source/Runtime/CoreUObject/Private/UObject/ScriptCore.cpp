@@ -1051,6 +1051,10 @@ void ProcessLocalFunction(UObject* Context, UFunction* Fn, FFrame& Stack, RESULT
 	}
 	else
 	{
+#if PER_FUNCTION_SCRIPT_STATS
+		const bool bShouldTrackFunction = Stats::IsThreadCollectingData();
+		FScopeCycleCounterUObject FunctionScope(bShouldTrackFunction ? Fn : nullptr);
+#endif // PER_FUNCTION_SCRIPT_STATS
 		ProcessScriptFunction(Context, Fn, Stack, RESULT_PARAM, ProcessLocalScriptFunction);
 	}
 }

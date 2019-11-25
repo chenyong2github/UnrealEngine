@@ -18,6 +18,7 @@ FPropertyTag::FPropertyTag( FArchive& InSaveAr, UProperty* Property, int32 InInd
 	, Name      (Property->GetFName())
 	, ArrayIndex(InIndex)
 {
+	check(!InSaveAr.GetArchiveState().UseUnversionedPropertySerialization());
 	if (Property)
 	{
 		// Handle structs.
@@ -80,28 +81,37 @@ FArchive& operator<<(FArchive& Ar, FPropertyTag& Tag)
 void operator<<(FStructuredArchive::FSlot Slot, FPropertyTag& Tag)
 {
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
-	FStructuredArchive::FRecord Record = Slot.EnterRecord();
+	bool bIsTextFormat = UnderlyingArchive.IsTextFormat();
+
 	int32 Version = UnderlyingArchive.UE4Ver();
 
+	check(!UnderlyingArchive.GetArchiveState().UseUnversionedPropertySerialization());
 	checkf(!UnderlyingArchive.IsSaving() || Tag.Prop, TEXT("FPropertyTag must be constructed with a valid property when used for saving data!"));
 
-	// Name.
-	Record << SA_VALUE(TEXT("Name"), Tag.Name);
-	if (Tag.Name.IsNone())
+	if (!bIsTextFormat)
 	{
-		return;
+		// Name.
+		Slot << SA_ATTRIBUTE(TEXT("Name"), Tag.Name);
+		if (Tag.Name.IsNone())
+		{
+			return;
+		}
 	}
 
-	Record << SA_VALUE(TEXT("Type"), Tag.Type);
+	Slot << SA_ATTRIBUTE(TEXT("Type"), Tag.Type);
+
 	if (UnderlyingArchive.IsSaving())
 	{
 		// remember the offset of the Size variable - UStruct::SerializeTaggedProperties will update it after the
 		// property has been serialized.
 		Tag.SizeOffset = UnderlyingArchive.Tell();
 	}
+
+	if (!bIsTextFormat)
 	{
 		FArchive::FScopeSetDebugSerializationFlags S(UnderlyingArchive, DSF_IgnoreDiff);
-		Record << SA_VALUE(TEXT("Size"), Tag.Size) << SA_VALUE(TEXT("ArrayIndex"), Tag.ArrayIndex);
+		Slot << SA_ATTRIBUTE(TEXT("Size"), Tag.Size);
+		Slot << SA_ATTRIBUTE(TEXT("ArrayIndex"), Tag.ArrayIndex);
 	}
 
 	if (Tag.Type.GetNumber() == 0)
@@ -111,10 +121,17 @@ void operator<<(FStructuredArchive::FSlot Slot, FPropertyTag& Tag)
 		// only need to serialize this for structs
 		if (TagType == NAME_StructProperty)
 		{
-			Record << SA_VALUE(TEXT("StructName"), Tag.StructName);
+			Slot << SA_ATTRIBUTE(TEXT("StructName"), Tag.StructName);
 			if (Version >= VER_UE4_STRUCT_GUID_IN_PROPERTY_TAG)
 			{
-				Record << SA_VALUE(TEXT("StructGuid"), Tag.StructGuid);
+				if (bIsTextFormat)
+				{
+					Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("StructGuid"), Tag.StructGuid, FGuid());
+				}
+				else
+				{
+					Slot << SA_ATTRIBUTE(TEXT("StructGuid"), Tag.StructGuid);
+				}
 			}
 		}
 		// only need to serialize this for bools
@@ -123,36 +140,47 @@ void operator<<(FStructuredArchive::FSlot Slot, FPropertyTag& Tag)
 			if (UnderlyingArchive.IsSaving())
 			{
 				FSerializedPropertyScope SerializedProperty(UnderlyingArchive, Tag.Prop);
-				Record << SA_VALUE(TEXT("BoolVal"), Tag.BoolVal);
+				Slot << SA_ATTRIBUTE(TEXT("BoolVal"), Tag.BoolVal);
 			}
 			else
 			{
-				Record << SA_VALUE(TEXT("BoolVal"), Tag.BoolVal);
+				Slot << SA_ATTRIBUTE(TEXT("BoolVal"), Tag.BoolVal);
 			}
 		}
 		// only need to serialize this for bytes/enums
-		else if (TagType == NAME_ByteProperty || TagType == NAME_EnumProperty)
+		else if (TagType == NAME_ByteProperty)
 		{
-			Record << SA_VALUE(TEXT("EnumName"), Tag.EnumName);
+			if (UnderlyingArchive.IsTextFormat())
+			{
+				Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("EnumName"), Tag.EnumName, NAME_None);
+			}
+			else
+			{
+				Slot << SA_ATTRIBUTE(TEXT("EnumName"), Tag.EnumName);
+			}
+		}
+		else if (TagType == NAME_EnumProperty)
+		{
+			Slot << SA_ATTRIBUTE(TEXT("EnumName"), Tag.EnumName);
 		}
 		// only need to serialize this for arrays
 		else if (TagType == NAME_ArrayProperty)
 		{
 			if (Version >= VAR_UE4_ARRAY_PROPERTY_INNER_TAGS)
 			{
-				Record << SA_VALUE(TEXT("InnerType"), Tag.InnerType);
+				Slot << SA_ATTRIBUTE(TEXT("InnerType"), Tag.InnerType);
 			}
 		}
 		else if (Version >= VER_UE4_PROPERTY_TAG_SET_MAP_SUPPORT)
 		{
 			if (TagType == NAME_SetProperty)
 			{
-				Record << SA_VALUE(TEXT("InnerType"), Tag.InnerType);
+				Slot << SA_ATTRIBUTE(TEXT("InnerType"), Tag.InnerType);
 			}
 			else if (TagType == NAME_MapProperty)
 			{
-				Record << SA_VALUE(TEXT("InnerType"), Tag.InnerType);
-				Record << SA_VALUE(TEXT("ValueType"), Tag.ValueType);
+				Slot << SA_ATTRIBUTE(TEXT("InnerType"), Tag.InnerType);
+				Slot << SA_ATTRIBUTE(TEXT("ValueType"), Tag.ValueType);
 			}
 		}
 	}
@@ -160,10 +188,18 @@ void operator<<(FStructuredArchive::FSlot Slot, FPropertyTag& Tag)
 	// Property tags to handle renamed blueprint properties effectively.
 	if (Version >= VER_UE4_PROPERTY_GUID_IN_PROPERTY_TAG)
 	{
-		Record << SA_VALUE(TEXT("HasPropertyGuid"), Tag.HasPropertyGuid);
-		if (Tag.HasPropertyGuid)
+		if (bIsTextFormat)
 		{
-			Record << SA_VALUE(TEXT("PropertyGuid"), Tag.PropertyGuid);
+			Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("PropertyGuid"), Tag.PropertyGuid, FGuid());
+			Tag.HasPropertyGuid = Tag.PropertyGuid.IsValid();
+		}
+		else
+		{
+			Slot << SA_ATTRIBUTE(TEXT("HasPropertyGuid"), Tag.HasPropertyGuid);
+			if (Tag.HasPropertyGuid)
+			{
+				Slot << SA_ATTRIBUTE(TEXT("PropertyGuid"), Tag.PropertyGuid);
+			}
 		}
 	}
 }

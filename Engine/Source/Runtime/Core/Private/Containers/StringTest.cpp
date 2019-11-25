@@ -3,6 +3,7 @@
 #include "CoreTypes.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/AssertionMacros.h"
+#include "Misc/StringView.h"
 #include "Containers/UnrealString.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
@@ -300,6 +301,48 @@ bool FStringSubstringTest::RunTest(const FString& Parameters)
 	SUBSTRINGTEST(MidNegativeStartBeyondEnd, *TestString, Mid, -1, 15);
 
 #undef SUBSTRINGTEST
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringFromStringViewTest, "System.Core.String.FromStringView", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+bool FStringFromStringViewTest::RunTest(const FString& Parameters)
+{
+	// Verify basic construction and assignment from a string view.
+	{
+		const TCHAR* Literal = TEXT("Literal");
+		TestEqual(TEXT("String(StringView)"), FString(FStringView(Literal)), Literal);
+		TestEqual(TEXT("String = StringView"), FString(TEXT("Temp")) = FStringView(Literal), Literal);
+
+		FStringView EmptyStringView;
+		FString EmptyString(EmptyStringView);
+		TestTrue(TEXT("String(EmptyStringView)"), EmptyString.IsEmpty());
+		TestTrue(TEXT("String(EmptyStringView) (No Allocation)"), EmptyString.GetAllocatedSize() == 0);
+
+		EmptyString = TEXT("Temp");
+		EmptyString = EmptyStringView;
+		TestTrue(TEXT("String = EmptyStringView"), EmptyString.IsEmpty());
+		TestTrue(TEXT("String = EmptyStringView (No Allocation)"), EmptyString.GetAllocatedSize() == 0);
+	}
+
+	// Verify assignment from a view of itself.
+	{
+		FString AssignEntireString(TEXT("AssignEntireString"));
+		AssignEntireString = FStringView(AssignEntireString);
+		TestEqual(TEXT("String = StringView(String)"), AssignEntireString, TEXT("AssignEntireString"));
+
+		FString AssignStartOfString(TEXT("AssignStartOfString"));
+		AssignStartOfString = FStringView(AssignStartOfString).Left(11);
+		TestEqual(TEXT("String = StringView(String).Left"), AssignStartOfString, TEXT("AssignStart"));
+
+		FString AssignEndOfString(TEXT("AssignEndOfString"));
+		AssignEndOfString = FStringView(AssignEndOfString).Right(11);
+		TestEqual(TEXT("String = StringView(String).Right"), AssignEndOfString, TEXT("EndOfString"));
+
+		FString AssignMiddleOfString(TEXT("AssignMiddleOfString"));
+		AssignMiddleOfString = FStringView(AssignMiddleOfString).Mid(6, 6);
+		TestEqual(TEXT("String = StringView(String).Mid"), AssignMiddleOfString, TEXT("Middle"));
+	}
 
 	return true;
 }

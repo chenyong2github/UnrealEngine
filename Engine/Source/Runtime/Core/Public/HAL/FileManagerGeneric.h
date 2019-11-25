@@ -266,10 +266,8 @@ protected:
 	int64 Size;
 	int64 Pos;
 	int64 BufferBase;
-	int64 BufferCount;
 	TUniquePtr<IFileHandle> Handle;
-	uint8* Buffer;
-	uint32 BufferSize;
+	TArray64<uint8> BufferArray;
 };
 
 
@@ -342,9 +340,7 @@ protected:
 	FString Filename;
 	uint32 Flags;
 	int64 Pos;
-	int64 BufferCount;
 	TUniquePtr<IFileHandle> Handle;
-	uint8* Buffer;
-	uint32 BufferSize;
+	TArray64<uint8> BufferArray;
 	bool bLoggingError;
 };

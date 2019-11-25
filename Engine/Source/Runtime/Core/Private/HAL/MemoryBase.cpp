@@ -91,3 +91,13 @@ void FMalloc::GetAllocatorStats( FGenericMemoryStats& out_Stats )
 	out_Stats.Add( TEXT("Total Allocator calls"), GetCurrentFrameCalls().AllocatorCalls );
 #endif // STATS
 }
+
+void* FMalloc::TryMalloc(SIZE_T Count, uint32 Alignment)
+{
+	return Malloc(Count, Alignment);
+}
+
+void* FMalloc::TryRealloc(void* Original, SIZE_T Count, uint32 Alignment)
+{
+	return Realloc(Original, Count, Alignment);
+}

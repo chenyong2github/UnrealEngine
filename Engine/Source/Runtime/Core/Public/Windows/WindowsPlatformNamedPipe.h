@@ -21,6 +21,9 @@ public:
 	FWindowsPlatformNamedPipe();
 	virtual ~FWindowsPlatformNamedPipe();
 
+	FWindowsPlatformNamedPipe(const FWindowsPlatformNamedPipe&) = delete;
+	FWindowsPlatformNamedPipe& operator=(const FWindowsPlatformNamedPipe&) = delete;
+
 public:
 
 	// FGenericPlatformNamedPipe overrides

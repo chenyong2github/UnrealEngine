@@ -1638,8 +1638,7 @@ void EndLoad(FUObjectSerializeContext* LoadContext)
 				}
 			}
 			// Create clusters after all objects have been loaded
-			extern int32 GCreateGCClusters;
-			if (FPlatformProperties::RequiresCookedData() && !GIsInitialLoad && GCreateGCClusters && !GUObjectArray.IsOpenForDisregardForGC())
+			if (FPlatformProperties::RequiresCookedData() && !GIsInitialLoad && GCreateGCClusters && GAssetClustreringEnabled && !GUObjectArray.IsOpenForDisregardForGC())
 			{
 				for (UObject* Obj : ObjLoaded)
 				{

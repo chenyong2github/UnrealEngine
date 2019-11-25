@@ -22,7 +22,6 @@ public class CrashDebugHelper : ModuleRules
             PublicDependencyModuleNames.AddRange(
                 new string[] {
                 "Core",
-                "SourceControl"
                 }
             );
         }

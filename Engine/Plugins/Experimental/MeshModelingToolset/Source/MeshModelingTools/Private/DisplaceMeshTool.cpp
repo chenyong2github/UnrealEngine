@@ -123,7 +123,7 @@ namespace {
 #endif
 			DisplacementMap->UpdateResource();
 
-			FormattedImageData = static_cast<const FColor*>(DisplacementMap->PlatformData->Mips[0].BulkData.LockReadOnly());
+			FormattedImageData = reinterpret_cast<const FColor*>(DisplacementMap->PlatformData->Mips[0].BulkData.LockReadOnly());
 		}
 		FTextureAccess(const FTextureAccess&) = delete;
 		FTextureAccess(FTextureAccess&&) = delete;

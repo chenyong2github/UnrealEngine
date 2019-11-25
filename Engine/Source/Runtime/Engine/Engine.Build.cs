@@ -108,7 +108,8 @@ public class Engine : ModuleRules
 				"AudioMixerCore",
 				"SignalProcessing",
 				"CrunchCompression",
-			}
+				"TraceLog",
+            }
 		);
 
 		// Cross platform Audio Codecs:

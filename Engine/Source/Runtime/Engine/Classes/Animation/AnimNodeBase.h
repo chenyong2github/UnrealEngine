@@ -12,6 +12,8 @@
 #include "BonePose.h"
 #include "Logging/TokenizedMessage.h"
 #include "Stats/StatsHierarchical.h"
+#include "Animation/AnimTrace.h"
+
 #include "AnimNodeBase.generated.h"
 
 #define DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Method) \
@@ -152,6 +154,21 @@ public:
 	ENGINE_API UAnimBlueprint* GetAnimBlueprint() const;
 #endif //WITH_EDITORONLY_DATA
 
+#if ANIM_TRACE_ENABLED
+	// Get the current node Id, set when we recurse into graph traversal functions from pose links
+	ENGINE_API int32 GetCurrentNodeId() const { return CurrentNodeId; }
+
+	// Get the previous node Id, set when we recurse into graph traversal functions from pose links
+	ENGINE_API int32 GetPreviousNodeId() const { return PreviousNodeId; }
+
+protected:
+	// The current node ID, set when we recurse into graph traversal functions from pose links
+	int32 CurrentNodeId;
+
+	// The previous node ID, set when we recurse into graph traversal functions from pose links
+	int32 PreviousNodeId;
+#endif
+
 protected:
 
 	/** Interface for node contexts to register log messages with the proxy */
@@ -270,6 +287,16 @@ public:
 
 		return Result;
 	}
+
+#if ANIM_TRACE_ENABLED
+	FAnimationUpdateContext WithNodeId(int32 InNodeId) const
+	{ 
+		FAnimationUpdateContext Result(*this);
+		Result.PreviousNodeId = CurrentNodeId;
+		Result.CurrentNodeId = InNodeId;
+		return Result; 
+	}
+#endif
 
 	// Add a node to the list of tracked ancestors
 	template<typename NodeType>

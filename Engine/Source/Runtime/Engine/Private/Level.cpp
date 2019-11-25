@@ -58,6 +58,7 @@ Level.cpp: Level-related functions
 #include "ComponentRecreateRenderStateContext.h"
 #include "Algo/Copy.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "ObjectTrace.h"
 
 DEFINE_LOG_CATEGORY(LogLevel);
 
@@ -626,7 +627,7 @@ void ULevel::CreateCluster()
 	// Also, we don't want the level to reference the actors that are clusters because that would
 	// make things work even slower (references to clustered objects are expensive). That's why
 	// we keep a separate array for referencing unclustered actors (ActorsForGC).
-	if (FPlatformProperties::RequiresCookedData() && GActorClusteringEnabled && !bActorClusterCreated)
+	if (FPlatformProperties::RequiresCookedData() && GCreateGCClusters && GActorClusteringEnabled && !bActorClusterCreated)
 	{
 		TArray<AActor*> ClusterActors;
 
@@ -1738,6 +1739,8 @@ void ULevel::ReleaseRenderingResources()
 
 void ULevel::RouteActorInitialize()
 {
+	TRACE_OBJECT_EVENT(this, RouteActorInitialize);
+
 	// Send PreInitializeComponents and collect volumes.
 	for( int32 Index = 0; Index < Actors.Num(); ++Index )
 	{
