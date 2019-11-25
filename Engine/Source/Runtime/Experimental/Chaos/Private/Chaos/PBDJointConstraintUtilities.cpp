@@ -1,13 +1,15 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "Chaos/PBDJointConstraintUtilities.h"
+#include "Chaos/DenseMatrix.h"
 #include "Chaos/ParticleHandle.h"
+#include "Chaos/PBDJointConstraintSolver.h"
 #include "Chaos/Utilities.h"
 
 //#pragma optimize("", off)
 
 namespace Chaos
 {
-	
+
 	FVec3 FPBDJointUtilities::ConditionInertia(const FVec3& InI, const FReal MaxRatio)
 	{
 		FReal IMin = InI.Min();
@@ -356,12 +358,19 @@ namespace Chaos
 		const int32 Index0,
 		const int32 Index1,
 		FVec3& P0,
+		FVec3& V0,
 		FVec3& P1,
+		FVec3& V1,
 		const FVec3& DP0,
 		const FVec3& DP1)
 	{
 		P0 = P0 + Stiffness * DP0;
 		P1 = P1 + Stiffness * DP1;
+		if (Dt > SMALL_NUMBER)
+		{
+			V0 = V0 + Stiffness * DP0 / Dt;
+			V1 = V1 + Stiffness * DP1 / Dt;
+		}
 	}
 
 	
@@ -381,8 +390,8 @@ namespace Chaos
 	{
 		V0 = V0 + Stiffness * DV0;
 		V1 = V1 + Stiffness * DV1;
-
-		ApplyPositionDelta(Dt, SolverSettings, JointSettings, Stiffness, Index0, Index1, P0, P1, DV0 * Dt, DV1 * Dt);
+		P0 = P0 + Stiffness * DV0 * Dt;
+		P1 = P1 + Stiffness * DV1 * Dt;
 	}
 
 	
@@ -394,7 +403,9 @@ namespace Chaos
 		const int32 Index0,
 		const int32 Index1,
 		FRotation3& Q0,
+		FVec3& W0,
 		FRotation3& Q1,
+		FVec3& W1,
 		const FVec3& DR0,
 		const FVec3& DR1)
 	{
@@ -403,6 +414,12 @@ namespace Chaos
 		Q0 = (Q0 + DQ0).GetNormalized();
 		Q1 = (Q1 + DQ1).GetNormalized();
 		Q1.EnforceShortestArcWith(Q0);
+		
+		if (Dt > SMALL_NUMBER)
+		{
+			W0 = W0 + Stiffness * DR0 / Dt;
+			W1 = W1 + Stiffness * DR1 / Dt;
+		}
 	}
 
 
@@ -424,7 +441,11 @@ namespace Chaos
 		W0 = W0 + Stiffness * DW0;
 		W1 = W1 + Stiffness * DW1;
 
-		ApplyRotationDelta(Dt, SolverSettings, JointSettings, Stiffness, Index0, Index1, Q0, Q1, DW0 * Dt, DW1 * Dt);
+		const FRotation3 DQ0 = (FRotation3::FromElements(Stiffness * DW0 * Dt, 0) * Q0) * (FReal)0.5;
+		const FRotation3 DQ1 = (FRotation3::FromElements(Stiffness * DW1 * Dt, 0) * Q1) * (FReal)0.5;
+		Q0 = (Q0 + DQ0).GetNormalized();
+		Q1 = (Q1 + DQ1).GetNormalized();
+		Q1.EnforceShortestArcWith(Q0);
 	}
 
 
@@ -448,8 +469,8 @@ namespace Chaos
 		const FVec3& Axis1,
 		const FReal WC)
 	{
-		const FMatrix33 InvI0 = Utilities::Multiply(Q0.ToMatrix(), Utilities::Multiply(InvIL0, Q0.ToMatrix().GetTransposed()));
-		const FMatrix33 InvI1 = Utilities::Multiply(Q1.ToMatrix(), Utilities::Multiply(InvIL1, Q1.ToMatrix().GetTransposed()));
+		const FMatrix33 InvI0 = Utilities::ComputeWorldSpaceInertia(Q0, InvIL0);
+		const FMatrix33 InvI1 = Utilities::ComputeWorldSpaceInertia(Q1, InvIL1);
 		//const FReal I0 = FVec3::DotProduct(Axis0, Utilities::Multiply(InvI0, Axis0));
 		//const FReal I1 = FVec3::DotProduct(Axis1, Utilities::Multiply(InvI1, Axis1));
 		//const FVec3 DW0 = Axis0 * WC * I0 / (I0 + I1);
@@ -469,10 +490,10 @@ namespace Chaos
 		const FReal Stiffness,
 		const int32 Index0,
 		const int32 Index1,
-		FVec3& P0,
 		FRotation3& Q0,
-		FVec3& P1,
+		FVec3& W0,
 		FRotation3& Q1,
+		FVec3& W1,
 		const FReal InvM0,
 		const FMatrix33& InvIL0,
 		const FReal InvM1,
@@ -482,8 +503,8 @@ namespace Chaos
 		const FVec3& Axis1,
 		const FReal Angle1)
 	{
-		const FMatrix33 InvI0 = Utilities::Multiply(Q0.ToMatrix(), Utilities::Multiply(InvIL0, Q0.ToMatrix().GetTransposed()));
-		const FMatrix33 InvI1 = Utilities::Multiply(Q1.ToMatrix(), Utilities::Multiply(InvIL1, Q1.ToMatrix().GetTransposed()));
+		const FMatrix33 InvI0 = Utilities::ComputeWorldSpaceInertia(Q0, InvIL0);
+		const FMatrix33 InvI1 = Utilities::ComputeWorldSpaceInertia(Q1, InvIL1);
 
 		//const FReal I0 = FVec3::DotProduct(Axis0, Utilities::Multiply(InvI0, Axis0));
 		//const FReal I1 = FVec3::DotProduct(Axis1, Utilities::Multiply(InvI1, Axis1));
@@ -493,7 +514,7 @@ namespace Chaos
 		const FVec3 DR0 = Utilities::Multiply(InvI0, Axis0) * L * Angle0;
 		const FVec3 DR1 = Utilities::Multiply(InvI1, Axis1) * L * Angle1;
 
-		ApplyRotationDelta(Dt, SolverSettings, JointSettings, Stiffness, Index0, Index1, Q0, Q1, DR0, DR1);
+		ApplyRotationDelta(Dt, SolverSettings, JointSettings, Stiffness, Index0, Index1, Q0, W0, Q1, W1, DR0, DR1);
 	}
 
 	
@@ -652,20 +673,25 @@ namespace Chaos
 		const int32 Index1,
 		FVec3& P0,
 		FRotation3& Q0,
+		FVec3& V0,
+		FVec3& W0,
 		FVec3& P1,
 		FRotation3& Q1,
+		FVec3& V1,
+		FVec3& W1,
 		FReal InvM0,
 		const FMatrix33& InvIL0,
 		FReal InvM1,
 		const FMatrix33& InvIL1)
 	{
+
 		const FRigidTransform3& XL0 = JointSettings.ConstraintFrames[Index0];
 		const FRigidTransform3& XL1 = JointSettings.ConstraintFrames[Index1];
 		const FVec3 X0 = P0 + Q0 * XL0.GetTranslation();
 		const FVec3 X1 = P1 + Q1 * XL1.GetTranslation();
 		const FRotation3 R0 = Q0 * XL0.GetRotation();
-		const FMatrix33 InvI0 = Utilities::Multiply(Q0.ToMatrix(), Utilities::Multiply(InvIL0, Q0.ToMatrix().GetTransposed()));
-		const FMatrix33 InvI1 = Utilities::Multiply(Q1.ToMatrix(), Utilities::Multiply(InvIL1, Q1.ToMatrix().GetTransposed()));
+		const FMatrix33 InvI0 = Utilities::ComputeWorldSpaceInertia(Q0, InvIL0);
+		const FMatrix33 InvI1 = Utilities::ComputeWorldSpaceInertia(Q1, InvIL1);
 
 		// Calculate constraint error
 		const FVec3 CX = GetLimitedPositionError(JointSettings, R0, X1 - X0);
@@ -689,8 +715,9 @@ namespace Chaos
 		const FVec3 DP1 = -InvM1 * DX;
 		const FVec3 DR0 = Utilities::Multiply(InvI0, FVec3::CrossProduct(X0 - P0, DX));
 		const FVec3 DR1 = Utilities::Multiply(InvI1, FVec3::CrossProduct(X1 - P1, -DX));
-		ApplyPositionDelta(Dt, SolverSettings, JointSettings, Stiffness, Index0, Index1, P0, P1, DP0, DP1);
-		ApplyRotationDelta(Dt, SolverSettings, JointSettings, Stiffness, Index0, Index1, Q0, Q1, DR0, DR1);
+
+		ApplyPositionDelta(Dt, SolverSettings, JointSettings, Stiffness, Index0, Index1, P0, V0, P1, V1, DP0, DP1);
+		ApplyRotationDelta(Dt, SolverSettings, JointSettings, Stiffness, Index0, Index1, Q0, W0, Q1, W1, DR0, DR1);
 	}
 
 	
@@ -719,8 +746,8 @@ namespace Chaos
 		const FVec3 XC0 = Q0 * XL0.GetTranslation();
 		const FVec3 XC1 = Q1 * XL1.GetTranslation();
 		const FRotation3 R0 = Q0 * XL0.GetRotation();
-		const FMatrix33 InvI0 = Utilities::Multiply(Q0.ToMatrix(), Utilities::Multiply(InvIL0, Q0.ToMatrix().GetTransposed()));
-		const FMatrix33 InvI1 = Utilities::Multiply(Q1.ToMatrix(), Utilities::Multiply(InvIL1, Q1.ToMatrix().GetTransposed()));
+		const FMatrix33 InvI0 = Utilities::ComputeWorldSpaceInertia(Q0, InvIL0);
+		const FMatrix33 InvI1 = Utilities::ComputeWorldSpaceInertia(Q1, InvIL1);
 
 		const FVec3 VC0 = V0 + FVec3::CrossProduct(W0, XC0);
 		const FVec3 VC1 = V1 + FVec3::CrossProduct(W1, XC1);
@@ -761,8 +788,12 @@ namespace Chaos
 		const int32 Index1,
 		FVec3& P0,
 		FRotation3& Q0,
+		FVec3& V0,
+		FVec3& W0,
 		FVec3& P1,
 		FRotation3& Q1,
+		FVec3& V1,
+		FVec3& W1,
 		FReal InvM0,
 		const FMatrix33& InvIL0,
 		FReal InvM1,
@@ -822,7 +853,7 @@ namespace Chaos
 		const FReal DTwistAngle1 = -DTwistAngle;
 
 		// Apply twist correction
-		ApplyRotationDelta(Dt, SolverSettings, JointSettings, Stiffness, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1, TwistAxis0, DTwistAngle0, TwistAxis1, DTwistAngle1);
+		ApplyRotationDelta(Dt, SolverSettings, JointSettings, Stiffness, Index0, Index1, Q0, W0, Q1, W1, InvM0, InvIL0, InvM1, InvIL1, TwistAxis0, DTwistAngle0, TwistAxis1, DTwistAngle1);
 	}
 
 	
@@ -913,8 +944,12 @@ namespace Chaos
 		const int32 Index1,
 		FVec3& P0,
 		FRotation3& Q0,
+		FVec3& V0,
+		FVec3& W0,
 		FVec3& P1,
 		FRotation3& Q1,
+		FVec3& V1,
+		FVec3& W1,
 		FReal InvM0,
 		const FMatrix33& InvIL0,
 		FReal InvM1,
@@ -977,7 +1012,7 @@ namespace Chaos
 		FReal DSwingAngle1 = -DSwingAngle;
 
 		// Apply swing correction
-		ApplyRotationDelta(Dt, SolverSettings, JointSettings, Stiffness, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1, SwingAxis0, DSwingAngle0, SwingAxis1, DSwingAngle1);
+		ApplyRotationDelta(Dt, SolverSettings, JointSettings, Stiffness, Index0, Index1, Q0, W0, Q1, W1, InvM0, InvIL0, InvM1, InvIL1, SwingAxis0, DSwingAngle0, SwingAxis1, DSwingAngle1);
 	}
 
 	
@@ -1072,8 +1107,12 @@ namespace Chaos
 		const EJointAngularAxisIndex SwingAxisIndex,
 		FVec3& P0,
 		FRotation3& Q0,
+		FVec3& V0,
+		FVec3& W0,
 		FVec3& P1,
 		FRotation3& Q1,
+		FVec3& V1,
+		FVec3& W1,
 		FReal InvM0,
 		const FMatrix33& InvIL0,
 		FReal InvM1,
@@ -1152,7 +1191,7 @@ namespace Chaos
 			FReal DSwingAngle1 = -DSwingAngle;
 
 			// Apply swing correction
-			ApplyRotationDelta(Dt, SolverSettings, JointSettings, Stiffness, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1, SwingAxis0, DSwingAngle0, SwingAxis1, DSwingAngle1);
+			ApplyRotationDelta(Dt, SolverSettings, JointSettings, Stiffness, Index0, Index1, Q0, W0, Q1, W1, InvM0, InvIL0, InvM1, InvIL1, SwingAxis0, DSwingAngle0, SwingAxis1, DSwingAngle1);
 		}
 	}
 
@@ -1263,8 +1302,12 @@ namespace Chaos
 		const int32 Index1,
 		FVec3& P0,
 		FRotation3& Q0,
+		FVec3& V0,
+		FVec3& W0,
 		FVec3& P1,
 		FRotation3& Q1,
+		FVec3& V1,
+		FVec3& W1,
 		FReal InvM0,
 		const FMatrix33& InvIL0,
 		FReal InvM1,
@@ -1306,7 +1349,7 @@ namespace Chaos
 		const FReal DTwistAngle0 = DTwistAngle;
 		const FReal DTwistAngle1 = -DTwistAngle;
 
-		ApplyRotationDelta(Dt, SolverSettings, JointSettings, DriveStiffness, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1, TwistAxis0, DTwistAngle0, TwistAxis1, DTwistAngle1);
+		ApplyRotationDelta(Dt, SolverSettings, JointSettings, DriveStiffness, Index0, Index1, Q0, W0, Q1, W1, InvM0, InvIL0, InvM1, InvIL1, TwistAxis0, DTwistAngle0, TwistAxis1, DTwistAngle1);
 	}
 
 	
@@ -1318,8 +1361,12 @@ namespace Chaos
 		const int32 Index1,
 		FVec3& P0,
 		FRotation3& Q0,
+		FVec3& V0,
+		FVec3& W0,
 		FVec3& P1,
 		FRotation3& Q1,
+		FVec3& V1,
+		FVec3& W1,
 		FReal InvM0,
 		const FMatrix33& InvIL0,
 		FReal InvM1,
@@ -1363,7 +1410,7 @@ namespace Chaos
 		FReal DSwingAngle1 = -DSwingAngle;
 
 		// Apply swing correction
-		ApplyRotationDelta(Dt, SolverSettings, JointSettings, DriveStiffness, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1, SwingAxis0, DSwingAngle0, SwingAxis1, DSwingAngle1);
+		ApplyRotationDelta(Dt, SolverSettings, JointSettings, DriveStiffness, Index0, Index1, Q0, W0, Q1, W1, InvM0, InvIL0, InvM1, InvIL1, SwingAxis0, DSwingAngle0, SwingAxis1, DSwingAngle1);
 	}
 
 	
@@ -1375,8 +1422,12 @@ namespace Chaos
 		const int32 Index1,
 		FVec3& P0,
 		FRotation3& Q0,
+		FVec3& V0,
+		FVec3& W0,
 		FVec3& P1,
 		FRotation3& Q1,
+		FVec3& V1,
+		FVec3& W1,
 		FReal InvM0,
 		const FMatrix33& InvIL0,
 		FReal InvM1,
@@ -1403,8 +1454,8 @@ namespace Chaos
 		FReal SLerpAngle;
 		if (DR1.ToAxisAndAngleSafe(SLerpAxis, SLerpAngle, FVec3(1, 0, 0)))
 		{
-			const FMatrix33 InvI0 = Utilities::Multiply(Q0.ToMatrix(), Utilities::Multiply(InvIL0, Q0.ToMatrix().GetTransposed()));
-			const FMatrix33 InvI1 = Utilities::Multiply(Q1.ToMatrix(), Utilities::Multiply(InvIL1, Q1.ToMatrix().GetTransposed()));
+			const FMatrix33 InvI0 = Utilities::ComputeWorldSpaceInertia(Q0, InvIL0);
+			const FMatrix33 InvI1 = Utilities::ComputeWorldSpaceInertia(Q1, InvIL1);
 			const FReal I0 = FVec3::DotProduct(SLerpAxis, Utilities::Multiply(InvI0, SLerpAxis));
 			const FReal I1 = FVec3::DotProduct(SLerpAxis, Utilities::Multiply(InvI1, SLerpAxis));
 			const FReal F0 = DriveStiffness * I0 / (I0 + I1);
@@ -1464,7 +1515,11 @@ namespace Chaos
 		FReal InvM1,
 		const FMatrix33& InvIL1)
 	{
-		ApplyJointTwistConstraint(Dt, SolverSettings, JointSettings, Stiffness, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+		FVec3 V0(0, 0, 0);
+		FVec3 W0(0, 0, 0);
+		FVec3 V1(0, 0, 0);
+		FVec3 W1(0, 0, 0);
+		ApplyJointTwistConstraint(Dt, SolverSettings, JointSettings, Stiffness, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
 	}
 
 	
@@ -1484,7 +1539,11 @@ namespace Chaos
 		FReal InvM1,
 		const FMatrix33& InvIL1)
 	{
-		ApplyJointConeConstraint(Dt, SolverSettings, JointSettings, Stiffness, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+		FVec3 V0(0, 0, 0);
+		FVec3 W0(0, 0, 0);
+		FVec3 V1(0, 0, 0);
+		FVec3 W1(0, 0, 0);
+		ApplyJointConeConstraint(Dt, SolverSettings, JointSettings, Stiffness, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
 	}
 
 	
@@ -1506,6 +1565,13 @@ namespace Chaos
 		FReal InvM1,
 		const FMatrix33& InvIL1)
 	{
-		ApplyJointSwingConstraint(Dt, SolverSettings, JointSettings, Stiffness, Index0, Index1, SwingConstraintIndex, SwingAxisIndex, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+		FVec3 V0(0, 0, 0);
+		FVec3 W0(0, 0, 0);
+		FVec3 V1(0, 0, 0);
+		FVec3 W1(0, 0, 0);
+		ApplyJointSwingConstraint(Dt, SolverSettings, JointSettings, Stiffness, Index0, Index1, SwingConstraintIndex, SwingAxisIndex, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
 	}
+
+
+
 }

@@ -262,32 +262,40 @@ void FStaticMeshInstanceBuffer::UpdateFromCommandBuffer_RenderThread(FInstanceUp
 	int32 NumCommands = CmdBuffer.NumInlineCommands();
 	int32 NumAdds = CmdBuffer.NumAdds;
 	int32 AddIndex = INDEX_NONE;
+
 	if (NumAdds > 0)
 	{
 		AddIndex = InstanceData->GetNumInstances();
-		const int32 NewNumInstances = NumAdds + InstanceData->GetNumInstances();
+		int32 NewNumInstances = NumAdds + InstanceData->GetNumInstances();
 		InstanceData->AllocateInstances(NewNumInstances, GIsEditor ? EResizeBufferFlags::AllowSlackOnGrow | EResizeBufferFlags::AllowSlackOnReduce : EResizeBufferFlags::None, false); // In Editor always permit overallocation, to prevent too much realloc
 	}
 
 	for (int32 i = 0; i < NumCommands; ++i)
 	{
 		const auto& Cmd = CmdBuffer.Cmds[i];
+
+		int32 InstanceIndex = Cmd.Type != FInstanceUpdateCmdBuffer::Add ? Cmd.InstanceIndex : AddIndex++;
+		if (!ensure(InstanceData->IsValidIndex(InstanceIndex)))
+		{
+			continue;
+		}
+
 		switch (Cmd.Type)
 		{
 		case FInstanceUpdateCmdBuffer::Add:
-			InstanceData->SetInstance(AddIndex++, Cmd.XForm, 0);
+			InstanceData->SetInstance(InstanceIndex, Cmd.XForm, 0);
 			break;
 		case FInstanceUpdateCmdBuffer::Hide:
-			InstanceData->NullifyInstance(Cmd.InstanceIndex);
+			InstanceData->NullifyInstance(InstanceIndex);
 			break;
 		case FInstanceUpdateCmdBuffer::Update:
-			InstanceData->SetInstance(Cmd.InstanceIndex, Cmd.XForm, 0);
+			InstanceData->SetInstance(InstanceIndex, Cmd.XForm, 0);
 			break;
 		case FInstanceUpdateCmdBuffer::EditorData:
-			InstanceData->SetInstanceEditorData(Cmd.InstanceIndex, Cmd.HitProxyColor, Cmd.bSelected);
+			InstanceData->SetInstanceEditorData(InstanceIndex, Cmd.HitProxyColor, Cmd.bSelected);
 			break;
 		case FInstanceUpdateCmdBuffer::LightmapData:
-			InstanceData->SetInstanceLightMapData(Cmd.InstanceIndex, Cmd.LightmapUVBias, Cmd.ShadowmapUVBias);
+			InstanceData->SetInstanceLightMapData(InstanceIndex, Cmd.LightmapUVBias, Cmd.ShadowmapUVBias);
 			break;
 		default:
 			check(false);
@@ -434,7 +442,6 @@ void FStaticMeshInstanceBuffer::BindInstanceVertexBuffer(const class FVertexFact
 
 void FStaticMeshInstanceData::Serialize(FArchive& Ar)
 {
-	// HTML5 doesn't support half float so we need to convert at cook time.
 	const bool bCookConvertTransformsToFullFloat = Ar.IsCooking() && bUseHalfFloat && !Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::HalfFloatVertexFormat);
 
 	if (bCookConvertTransformsToFullFloat)

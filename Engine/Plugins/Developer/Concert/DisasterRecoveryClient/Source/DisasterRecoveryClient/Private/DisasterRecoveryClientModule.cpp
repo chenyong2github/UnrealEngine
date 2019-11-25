@@ -38,7 +38,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogDisasterRecovery, Log, All);
 
 
 /** Implement the Disaster Recovery module */
-class FDisasterRecoveryClientModule : public IDisasterRecoveryClientModule
+class FDisasterRecoveryClientModule : public IDisasterRecoveryClientModule, public IDisasterRecoverySessionManager
 {
 public:
 	virtual void StartupModule() override
@@ -170,35 +170,9 @@ private:
 		SetIgnoreOnRestoreState(!IsCompatibleWithOtherConcertSessions(/*SyncClientStartingSession*/nullptr, SyncClient));
 	}
 
-	FGuid GetDisasterRecoverySessionId() const
-	{
-		if (DisasterRecoveryClient)
-		{
-			if (TSharedPtr<IConcertClientSession> Session = DisasterRecoveryClient->GetConcertClient()->GetCurrentSession())
-			{
-				return Session->GetSessionInfo().SessionId;
-			}
-		}
-
-		return FGuid(); // Invalid.
-	}
-
-	/** Returns the folder where the disaster recovery service should keep the live session files (the working directory). */
-	FString GetDefaultServerWorkingDir() const
-	{
-		return FPaths::ProjectIntermediateDir() / Role / TEXT("Service");
-	}
-
-	/** Returns the folder where the disaster recovery service should keep the archived session files (the saved directory). */
-	FString GetDefaultServerArchiveDir() const
-	{
-		// Put the session data in the project dir.
-		return FPaths::ProjectSavedDir() / Role / TEXT("Service");
-	}
-
 	FString GetDisasterRecoverySessionInfoFilename() const
 	{
-		return FPaths::ProjectSavedDir() / Role / TEXT("SessionInfo.json");
+		return FPaths::ProjectSavedDir() / Role / TEXT("Sessions.json");
 	}
 
 	bool LoadDisasterRecoverySessionInfo(FDisasterRecoverySessionInfo& OutSessionInfo) const
@@ -263,27 +237,156 @@ private:
 		FDisasterRecoverySessionInfo RecoverySessionInfo;
 		LoadDisasterRecoverySessionInfo(RecoverySessionInfo);
 
-		// Is this a new session created by recovering from another one?
-		RecoverySessionInfo.Sessions.RemoveAll([](const FDisasterRecoverySession& Session)
+		auto SetAutoRestoreFlag = [](FDisasterRecoverySession& RecoverySession)
 		{
-			return Session.bAutoRestoreLastSession && Session.HostProcessId == FPlatformProcess::GetCurrentProcessId();
-		});
+			// Normally, bAutoRestoreLastSession is set true here and overwritten to false when the app exits normally, but when running under the debugger, auto-restore is disabled as
+			// programmers kill applications (stop the debugger) and this should not count as a crash (unless you want to simulate crash this way - see below).
+			RecoverySession.bAutoRestoreLastSession = !FPlatformMisc::IsDebuggerPresent();
+			//Session.bAutoRestoreLastSession = true; // <- MUST BE COMMENTED BEFORE SUBMITTING: For debugging purpose only. Simulate a crash by stopping the debugger during a session.
+		};
 
-		// Create a new session.
-		FDisasterRecoverySession& Session = RecoverySessionInfo.Sessions.AddDefaulted_GetRef();
-		Session.LastSessionName = InSession->GetSessionInfo().SessionName;
-		Session.HostProcessId = FPlatformProcess::GetCurrentProcessId();
-
-		// Normally, bAutoRestoreLastSession is set true here and overwritten to false when the app exits normally, but when running under the debugger, auto-restore is disabled as
-		// programmers kill applications (stop the debugger) and this should not count as a crash (unless you want to simulate crash this way - see below).
-		Session.bAutoRestoreLastSession = !FPlatformMisc::IsDebuggerPresent();
-		//Session.bAutoRestoreLastSession = true; // <- MUST BE COMMENTED BEFORE SUBMITTING: For debugging purpose only. Simulate a crash by stopping the debugger during a session.
+		// Is this a new session created by recovering from another one?
+		if (FDisasterRecoverySession* RestoredSession = RecoverySessionInfo.Sessions.FindByPredicate(
+			[&InSession, &SetAutoRestoreFlag](const FDisasterRecoverySession& Session) { return Session.bAutoRestoreLastSession && Session.HostProcessId == FPlatformProcess::GetCurrentProcessId(); })) // See TakeRecoverySessionOwnership().
+		{
+			RestoredSession->LastSessionName = InSession->GetSessionInfo().SessionName;
+			SetAutoRestoreFlag(*RestoredSession);
+		}
+		else // Create a new session.
+		{
+			FDisasterRecoverySession& RecoverySession = RecoverySessionInfo.Sessions.AddDefaulted_GetRef();
+			RecoverySession.RepositoryRootDir = GetSessionRepositoryRootDir();
+			RecoverySession.LastSessionName = InSession->GetSessionInfo().SessionName;
+			RecoverySession.HostProcessId = FPlatformProcess::GetCurrentProcessId();
+			RecoverySession.RepositoryId = GetSessionRepositoryId();
+			SetAutoRestoreFlag(RecoverySession);
+		}
 
 		// Save the file.
 		SaveDisasterRecoverySessionInfo(RecoverySessionInfo);
 	}
+	
+	/** Returns the number of session to keep around in the history for a given project. */
+	int32 GetMaxSessionHistorySize() const
+	{
+		return FMath::Max(0, GetDefault<UDisasterRecoverClientConfig>()->SessionHistorySize);
+	}
 
-	TPair<bool, const FConcertSessionInfo*> PinSessionToRestore(const TArray<FConcertSessionInfo>& ArchivedSessions)
+	/** Returns this client repository database root dir. */
+	virtual FString GetSessionRepositoryRootDir() const override
+	{
+		const FString& RootDir = GetDefault<UDisasterRecoverClientConfig>()->RecoverySessionDir.Path;
+		if (!RootDir.IsEmpty() && (IFileManager::Get().DirectoryExists(*RootDir) || IFileManager::Get().MakeDirectory(*RootDir, /*Tree*/true)))
+		{
+			return RootDir;
+		}
+
+		return FPaths::ProjectSavedDir() / Role / TEXT("Sessions"); // Returns the default.
+	}
+
+	/** Return the repository ID to use if a new session is created rather than recovered. */
+	virtual FGuid GetSessionRepositoryId() const override
+	{ 
+		static FGuid RepositoryId = FGuid::NewGuid();
+		return RepositoryId;
+	}
+
+	/** Among the tracked sessions, select which one is the best candidate for recovery. Concurrent Editors might be running/crashing/restoring at the same time. */
+	virtual TOptional<FDisasterRecoverySession> FindRecoverySessionCandidate(const TArray<FConcertSessionRepositoryInfo>& Repositories) override
+	{
+		// +------------------------+-----------------+-------------------+---------------+
+		// | AutoRestoreLastSession | HostProcessDead | RepositoryMounted | Deduced State |
+		// +------------------------+-----------------+-------------------+---------------+
+		// |          no            |        Any      |        Any        |  Normal Exit  | -> The session has exited properly (according to Disaster Recovery)
+		// |          yes           |        yes      |        no         |  Crashed      | -> The session is cold dead.
+		// |          yes           |        no       |        no         |  Crashing     | -> The session is crashing, but CrashReporterClientEditor detected it and shutted down DR service before the editor finished crashing.
+		// |          yes           |        Any      |        yes        |  Running      | -> The session is presumably running. Might be crashing or restoring, but as long as the repository is mounted, it is assumed running.
+		// +------------------------+-----------------+-------------------+---------------+
+	
+		// Ensure we get exclusive access to the recovery session info file.
+		FSystemWideCriticalSection SystemWideMutex(GetSystemMutexName());
+
+		// Load the session info file (if it exist)
+		FDisasterRecoverySessionInfo RecoverySessionInfo;
+		LoadDisasterRecoverySessionInfo(RecoverySessionInfo);
+
+		// Checks if two running process IDs are instances of the same executable.
+		auto IsSameExecutable = [](int32 LhsProcessId, int32 RhsProcessId)
+		{
+			return FPaths::GetPathLeaf(FPlatformProcess::GetApplicationName(LhsProcessId)) == FPaths::GetPathLeaf(FPlatformProcess::GetApplicationName(RhsProcessId));
+		};
+
+		// Returns true if the process hosting the session crashed. Note that CrashReporterClientEditor will shut down the server, archive the session and relaunch a new editor (and a new recovery client) before the
+		// previous editor finished crashing. The process hosting a session may still be alive, but not its server. In such case, the session repository will be unmounted and available for restoration unless another
+		// server instances is already restoring the session.
+		auto IsHostProcessDead = [&IsSameExecutable](const FDisasterRecoverySession& Session)
+		{
+			return Session.bAutoRestoreLastSession && (Session.HostProcessId == 0 || !FPlatformProcess::IsApplicationRunning(Session.HostProcessId) || !IsSameExecutable(Session.HostProcessId, FPlatformProcess::GetCurrentProcessId()));
+		};
+
+		// Returns true if the session repository is mounted by another client/server pair preventing this client/server instance from loading it.
+		auto IsRepositoryMounted = [](const TArray<FConcertSessionRepositoryInfo>& Repositories, const FGuid& SessionRepositoryId)
+		{
+			const FConcertSessionRepositoryInfo* Repository = Repositories.FindByPredicate([&SessionRepositoryId](const FConcertSessionRepositoryInfo& CandidateRepos) { return CandidateRepos.RepositoryId == SessionRepositoryId; });
+			return Repository ? Repository->bMounted : false; // Not found means not mounted -> this will likely prevent the session from being restored, but this will be gracefully handled by the FSM.
+		};
+
+		// Sort the candidates by 'hotness'.
+		TArray<FDisasterRecoverySession*> SortedCandidates;
+		for (FDisasterRecoverySession& Session : RecoverySessionInfo.Sessions)
+		{
+			if (Session.bAutoRestoreLastSession)
+			{
+				if (IsRepositoryMounted(Repositories, Session.RepositoryId))
+				{
+					continue; // Two editors on the same project. This client will not be able to mount the repository, it is already mounted by another instance (which might be crashing or running, but no way to know).
+				}
+				else if (IsHostProcessDead(Session))
+				{
+					SortedCandidates.Add(&Session); // The session is cold dead.
+				}
+				else // The session host process is likely crashing, but this was detected by the CRC and it unmounted the session repository.
+				{
+					SortedCandidates.Insert(&Session, 0); // Keep most recent session crash in front.
+				}
+
+				Session.HostProcessId = 0; // Host is dead or dying, clear it.
+			}
+		}
+
+		// If user ran concurrent instances of the Editor on the same project and more than one instance crashed, keep only one in front and discard the other(s). (Eventually... add code to ask the user to pick one)
+		while (SortedCandidates.Num() > 1)
+		{
+			SortedCandidates.Last()->bAutoRestoreLastSession = false;
+			SortedCandidates.Pop(/*bAllowShrinking*/false);
+		}
+
+		// Remove completed sessions (in case a session was flagged bAutoRestoreLastSession = false above)
+		RecoverySessionInfo.Sessions.RemoveAll([&RecoverySessionInfo](const FDisasterRecoverySession& Session)
+		{
+			if (!Session.bAutoRestoreLastSession) // Remove if the 'restore' flag is false.
+			{
+				RecoverySessionInfo.SessionHistory.Add(Session);
+				return true;
+			}
+			return false;
+		});
+
+		// Found a suitable candidate to restore?
+		TOptional<FDisasterRecoverySession> RestoreCandidate;
+		if (SortedCandidates.Num() == 1)
+		{
+			RestoreCandidate = *SortedCandidates[0];
+		}
+
+		// Save the recovery session info file.
+		SaveDisasterRecoverySessionInfo(RecoverySessionInfo);
+
+		return RestoreCandidate;
+	}
+
+	/** Mark this process as responsible to restore the specified session. Can take the session ownership only once the client workspace has been mounted on the server. */
+	virtual void TakeRecoverySessionOwnership(const FDisasterRecoverySession& TargetSession) override
 	{
 		// Ensure we get exclusive access to the recovery session info file.
 		FSystemWideCriticalSection SystemWideMutex(GetSystemMutexName());
@@ -292,65 +395,28 @@ private:
 		FDisasterRecoverySessionInfo RecoverySessionInfo;
 		LoadDisasterRecoverySessionInfo(RecoverySessionInfo);
 
-		// Checks if two running process ID are instances of same executable.
-		auto IsSameExecutable = [](int32 LhsProcessId, int32 RhsProcessId)
+		if (FDisasterRecoverySession* Session = RecoverySessionInfo.Sessions.FindByPredicate([&TargetSession](const FDisasterRecoverySession& Candidate) { return Candidate.RepositoryId == TargetSession.RepositoryId; }))
 		{
-			return FPaths::GetPathLeaf(FPlatformProcess::GetApplicationName(LhsProcessId)) == FPaths::GetPathLeaf(FPlatformProcess::GetApplicationName(RhsProcessId));
-		};
+			Session->HostProcessId = FPlatformProcess::GetCurrentProcessId(); // Mark this process as owner.
 
-		// Returns true if the process hosting the session crashed. Note that CrashReporterClientEditor will shut down the server, archive the session and relaunch a new editor (and a new recovery client) before the
-		// previous editor finished crashing. The process hosting a session may still be alive, but not its server. In such case, the session will be unlocked and available for restoration unless another server instances already exist.
-		auto IsHostProcessCrashed = [&IsSameExecutable](const FDisasterRecoverySession& Session)
-		{
-			return Session.bAutoRestoreLastSession && (!FPlatformProcess::IsApplicationRunning(Session.HostProcessId) || !IsSameExecutable(Session.HostProcessId, FPlatformProcess::GetCurrentProcessId()));
-		};
-
-		// Returns true if the session was listed as archived by the server. (Might not be visible to that server if other servers are running and use the same working/saved directories, the files are not sharable)
-		auto IsSessionArchived = [](const FDisasterRecoverySession& Session, const TArray<FConcertSessionInfo>& ArchivedSessions)
-		{
-			return ArchivedSessions.FindByPredicate([&Session](const FConcertSessionInfo& MatchCandidate) { return MatchCandidate.SessionName == Session.LastSessionName; });
-		};
-
-		// Check in the client file for session candidate to restoration.
-		TPair<bool, const FConcertSessionInfo*> RestoreCandidate = MakeTuple(false, static_cast<const FConcertSessionInfo*>(nullptr));
-		for (FDisasterRecoverySession& Session : RecoverySessionInfo.Sessions)
-		{
-			const FConcertSessionInfo* ArchivedSession = IsSessionArchived(Session, ArchivedSessions);
-			if (Session.bAutoRestoreLastSession && (ArchivedSession || IsHostProcessCrashed(Session)))
-			{
-				// Already pinned a session to restore?
-				if (RestoreCandidate.Key && RestoreCandidate.Value)
-				{
-					// User ran multiple instances of the Editor on the same project and more than one instance crashed. Arbitrary clear this one and restore the first one found only.
-					// The situation is unlikely to happen, but a future task would be to return a list of crashed sessions, pass it to the DisasterRecoveryFSM and prompt the user to select which one to recover.
-					Session.bAutoRestoreLastSession = false;
-				}
-				else
-				{
-					// A crashed session exist.
-					RestoreCandidate.Key = true;
-
-					// Can this session be restored (i.e. the server knowns it)?
-					if (ArchivedSession)
-					{
-						// Pin/take ownership of this session. (Will be cleared on DisasterRecoverySessionCreated() if recovery succeed)
-						RestoreCandidate.Value = ArchivedSession;
-						Session.HostProcessId = FPlatformProcess::GetCurrentProcessId();
-					}
-				}
-			}
+			// Save the recovery session info file.
+			SaveDisasterRecoverySessionInfo(RecoverySessionInfo);
 		}
+	}
 
-		// Remove completed sessions (in case a session was flagged bAutoRestoreLastSession = false above)
-		RecoverySessionInfo.Sessions.RemoveAll([](const FDisasterRecoverySession& Session)
-		{
-			return !Session.bAutoRestoreLastSession; // Remove if the 'restore' flag is false.
-		});
+	virtual void DiscardRecoverySession(const FDisasterRecoverySession& Session) override
+	{
+		// Ensure we get exclusive access to the recovery session info file.
+		FSystemWideCriticalSection SystemWideMutex(GetSystemMutexName());
+
+		// Load the session info file (if it exist)
+		FDisasterRecoverySessionInfo RecoverySessionInfo;
+		LoadDisasterRecoverySessionInfo(RecoverySessionInfo);
+
+		RecoverySessionInfo.Sessions.RemoveAll([Session](const FDisasterRecoverySession& Candidate) { return Session.RepositoryId == Candidate.RepositoryId; });
 
 		// Save the recovery session info file.
 		SaveDisasterRecoverySessionInfo(RecoverySessionInfo);
-
-		return RestoreCandidate;
 	}
 
 	bool HasCandidateSessionToRestore() const
@@ -373,10 +439,48 @@ private:
 
 		// Load the session info file (if it exist)
 		FDisasterRecoverySessionInfo RecoverySessionInfo;
+		LoadDisasterRecoverySessionInfo(RecoverySessionInfo);
+		RecoverySessionInfo.SessionHistory.Append(RecoverySessionInfo.Sessions);
+		RecoverySessionInfo.Sessions.Empty();
 		SaveDisasterRecoverySessionInfo(RecoverySessionInfo);
 	}
 
-	bool SpawnDisasterRecoveryServer(const FString& ServerName) // On Linux and Mac. On Windows, it is embedded in CrashReporterClient.
+	/** Return the list of expired client workspaces that can be deleted from the server. */
+	virtual TArray<FGuid> GetExpiredSessionRepositoryIds() const override
+	{
+		// Ensure we get exclusive access to the recovery session info file.
+		FSystemWideCriticalSection SystemWideMutex(GetSystemMutexName());
+
+		// Load the session info file (if it exist)
+		FDisasterRecoverySessionInfo RecoverySessionInfo;
+		LoadDisasterRecoverySessionInfo(RecoverySessionInfo);
+		TArray<FGuid> ExpiredWorkspaceIds;
+		int32 ExpiredCount = RecoverySessionInfo.SessionHistory.Num() - GetMaxSessionHistorySize();
+		for (int32 i = 0; i < ExpiredCount; ++i)
+		{
+			ExpiredWorkspaceIds.Add(RecoverySessionInfo.SessionHistory[i].RepositoryId);
+		}
+
+		return ExpiredWorkspaceIds;
+	}
+
+	/** Invoked when client workspace were purged from the server. */
+	virtual void OnSessionRepositoryDropped(const TArray<FGuid>& PurgedWorkspaceIds) override
+	{
+		// Ensure we get exclusive access to the recovery session info file.
+		FSystemWideCriticalSection SystemWideMutex(GetSystemMutexName());
+
+		// Load the session info file (if it exist)
+		FDisasterRecoverySessionInfo RecoverySessionInfo;
+		LoadDisasterRecoverySessionInfo(RecoverySessionInfo);
+		for (const FGuid& PurgedSessionWorkspaceId : PurgedWorkspaceIds)
+		{
+			RecoverySessionInfo.SessionHistory.RemoveAll([&PurgedSessionWorkspaceId](const FDisasterRecoverySession& Session){ return PurgedSessionWorkspaceId == Session.RepositoryId; });
+		}
+		SaveDisasterRecoverySessionInfo(RecoverySessionInfo);
+	}
+
+	bool SpawnDisasterRecoveryServer(const FString& ServerName) // For Linux and Mac. On Windows, it is embedded in CrashReporterClient.
 	{
 		// Find the service path that will host the sync server
 		const FString DisasterRecoveryServicePath = GetDisasterRecoveryServicePath();
@@ -389,8 +493,6 @@ private:
 		FString DisasterRecoveryServiceCommandLine;
 		DisasterRecoveryServiceCommandLine += FString::Printf(TEXT(" -ConcertServer=\"%s\""), *ServerName);
 		DisasterRecoveryServiceCommandLine += FString::Printf(TEXT(" -EditorPID=%d"), FPlatformProcess::GetCurrentProcessId());
-		DisasterRecoveryServiceCommandLine += FString::Printf(TEXT(" -ConcertWorkingDir=\"%s\""), *GetDefaultServerWorkingDir());
-		DisasterRecoveryServiceCommandLine += FString::Printf(TEXT(" -ConcertSavedDir=\"%s\""), *GetDefaultServerArchiveDir());
 
 		// Create the service process that will host the sync server
 		DisasterRecoveryServiceHandle = FPlatformProcess::CreateProc(*DisasterRecoveryServicePath, *DisasterRecoveryServiceCommandLine, true, true, true, nullptr, 0, nullptr, nullptr, nullptr);
@@ -417,8 +519,7 @@ private:
 
 		if (DisasterRecoveryClient)
 		{
-			DisasterRecoveryClient->Shutdown();
-			DisasterRecoveryClient.Reset();
+			StopDisasterRecoveryService();
 		}
 
 		const FString DisasterRecoveryServerName = RecoveryService::GetRecoveryServerName();
@@ -437,14 +538,11 @@ private:
 			ClearSessionInfoFile();
 		}
 
-		// Skip restoration if they are no candidates to restore.
-		bool bCandidateToRestore = HasCandidateSessionToRestore();
-
 		// Create and populate the client config object
 		UConcertClientConfig* ClientConfig = NewObject<UConcertClientConfig>();
 		ClientConfig->bIsHeadless = true;
 		ClientConfig->bInstallEditorToolbarButton = false;
-		ClientConfig->bAutoConnect = !bCandidateToRestore; // If there is a possible candidate to restore, don't auto connect yet, run the finite state machine to know more.
+		ClientConfig->bAutoConnect = false;
 		ClientConfig->DefaultServerURL = DisasterRecoveryServerName;
 		ClientConfig->DefaultSessionName = DisasterRecoverySessionName;
 		ClientConfig->DefaultSaveSessionAs = DisasterRecoverySessionName;
@@ -460,22 +558,14 @@ private:
 		SetIgnoreOnRestoreState(!IsCompatibleWithOtherConcertSessions(/*SyncClientStartingSession*/nullptr, /*SyncClientShuttingDownSession*/nullptr));
 
 		// If something might be recovered from a crash.
-		if (bCandidateToRestore)
+		if (HasCandidateSessionToRestore() && GUnrealEd)
 		{
-			if (GUnrealEd)
-			{
-				// Prevent the "Auto-Save" system from restoring the packages before Disaster Recovery plugin.
-				GUnrealEd->GetPackageAutoSaver().DisableRestorePromptAndDeclinePackageRecovery();
-			}
-
-			// The DisasterRecoveryFSM will call this function to select and take ownership of the session to recover.
-			auto PinSessionFn = [this](const TArray<FConcertSessionInfo>& ArchivedSessions)
-			{
-				return PinSessionToRestore(ArchivedSessions);
-			};
-
-			DisasterRecoveryUtil::StartRecovery(DisasterRecoveryClient.ToSharedRef(), PinSessionFn, /*bLiveDataOnly*/ false);
+			// Prevent the "Auto-Save" system from restoring the packages before Disaster Recovery plugin.
+			GUnrealEd->GetPackageAutoSaver().DisableRestorePromptAndDeclinePackageRecovery();
 		}
+
+		// The FSM will try to pin a session for recovery (and may fail with a toast), if no session is found, it will create a new one.
+		DisasterRecoveryUtil::StartRecovery(DisasterRecoveryClient.ToSharedRef(), *this, /*bLiveDataOnly*/ false);
 
 		return true;
 	}
@@ -494,9 +584,14 @@ private:
 
 			// Remove the current session from the list of sessions to track.
 			int32 ProcessId = FPlatformProcess::GetCurrentProcessId();
-			RecoverySessionInfo.Sessions.RemoveAll([ProcessId](const FDisasterRecoverySession& Session)
+			RecoverySessionInfo.Sessions.RemoveAll([ProcessId, &RecoverySessionInfo](const FDisasterRecoverySession& Session)
 			{
-				return Session.HostProcessId == ProcessId;
+				if (Session.HostProcessId == ProcessId)
+				{
+					RecoverySessionInfo.SessionHistory.Add_GetRef(Session).bAutoRestoreLastSession = false; // Push back the session in the history list.
+					return true;
+				}
+				return false;
 			});
 
 			// Write the file to disk.

@@ -81,10 +81,41 @@ bool UDataprepContentConsumer::SetTargetContentFolder(const FString& InTargetCon
 
 		TargetContentFolder = !InTargetContentFolder.IsEmpty() ? InTargetContentFolder : FPaths::GetPath( GetOutermost()->GetPathName() );
 
+		// Remove ending '/' if applicable
+		if(TargetContentFolder[TargetContentFolder.Len() - 1] == L'/')
+		{
+			TargetContentFolder.RemoveAt(TargetContentFolder.Len() - 1, 1);
+		}
+
 		OnChanged.Broadcast();
 	}
 
 	return bValidContentFolder;
+}
+
+FString UDataprepContentConsumer::GetTargetPackagePath() const
+{
+	FString TargetPackagePath(TargetContentFolder);
+
+	if( TargetPackagePath.IsEmpty() )
+	{
+		TargetPackagePath = TEXT("/Game/");
+	}
+	else if( TargetPackagePath.StartsWith( TEXT("/Content") ) )
+	{
+		TargetPackagePath = TargetPackagePath.Replace( TEXT("/Content"), TEXT("/Game") );
+	}
+
+	// If path is one level deep, make sure it ends with a '/'
+	int32 Index = -1;
+	TargetPackagePath.FindLastChar(L'/', Index);
+	check(Index >= 0);
+	if(Index == 0)
+	{
+		TargetPackagePath.Append( TEXT("/") );
+	}
+
+	return TargetPackagePath;
 }
 
 bool UDataprepContentConsumer::SetLevelName(const FString & InLevelName, FText& OutReason)

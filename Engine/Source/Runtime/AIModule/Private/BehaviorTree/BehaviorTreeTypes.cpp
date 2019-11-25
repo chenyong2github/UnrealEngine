@@ -479,10 +479,10 @@ FString UBehaviorTreeTypes::GetShortTypeName(const UObject* Ob)
 	}
 
 	FString TypeDesc = Ob->GetClass()->GetName();
-	const int32 ShortNameIdx = TypeDesc.Find(TEXT("_"));
+	const int32 ShortNameIdx = TypeDesc.Find(TEXT("_"), ESearchCase::CaseSensitive);
 	if (ShortNameIdx != INDEX_NONE)
 	{
-		TypeDesc = TypeDesc.Mid(ShortNameIdx + 1);
+		TypeDesc.MidInline(ShortNameIdx + 1, MAX_int32, false);
 	}
 
 	return TypeDesc;

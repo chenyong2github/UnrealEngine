@@ -44,6 +44,13 @@ namespace Chaos
 		Swing1 = 2,		// Swing1 Axis = Z
 	};
 
+	enum class EJointSolverPhase
+	{
+		None,
+		Apply,
+		ApplyPushOut,
+	};
+
 	struct FJointConstants
 	{
 		/** The constraint-space twist axis (X Axis) */
@@ -109,6 +116,10 @@ namespace Chaos
 	public:
 		FPBDJointSolverSettings();
 
+		// Iterations
+		int32 ApplyPairIterations;
+		int32 ApplyPushOutPairIterations;
+
 		// Tolerances
 		FReal SwingTwistAngleTolerance;
 
@@ -118,10 +129,11 @@ namespace Chaos
 
 		// @todo(ccaulfield): remove these TEMP overrides for testing
 		bool bEnableVelocitySolve;
-		bool bEnableLinearLimits;
 		bool bEnableTwistLimits;
 		bool bEnableSwingLimits;
 		bool bEnableDrives;
+		EJointSolverPhase DrivesPhase;
+		EJointSolverPhase ProjectionPhase;
 		FReal LinearProjection;
 		FReal AngularProjection;
 		FReal Stiffness;

@@ -232,6 +232,8 @@ public final class NetworkChangedManager implements NetworkConnectivityClient {
 					Log.error("Malformed URL, this should never happen. Please fix, url: " + HOST_RESOLUTION_ADDRESS);
 				} catch (IOException e) {
 					Log.verbose("Unable to connect to: " + HOST_RESOLUTION_ADDRESS);
+				} catch (Exception e) {
+					Log.verbose("Unable to connect to: " + HOST_RESOLUTION_ADDRESS + ", exception: " + e.toString());
 				} finally {
 					if (urlConnection != null) {
 						urlConnection.disconnect();
@@ -258,16 +260,9 @@ public final class NetworkChangedManager implements NetworkConnectivityClient {
 		if (networks.isEmpty() || connectivityManager == null) {
 			return ConnectivityState.NO_CONNECTION;
 		} else {
-			NetworkInfo activeNetwork = connectivityManager.getActiveNetworkInfo();
+			NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
 
-			boolean isConnected = (activeNetwork != null && activeNetwork.isAvailable() && activeNetwork.isConnected());
-			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-				if (activeNetwork != null
-						&& !connectivityManager.getNetworkCapabilities(connectivityManager.getActiveNetwork()).hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
-					isConnected = false;
-				}
-			}
-			if (isConnected) {
+			if (activeNetworkInfo != null && activeNetworkInfo.isAvailable() && activeNetworkInfo.isConnected()) {
 				return ConnectivityState.CONNECTION_AVAILABLE;
 			} else {
 				return ConnectivityState.NO_CONNECTION;

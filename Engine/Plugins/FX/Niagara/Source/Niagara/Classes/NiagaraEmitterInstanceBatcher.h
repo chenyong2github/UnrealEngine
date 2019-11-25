@@ -23,6 +23,21 @@ the same VectorVM byte code / compute shader code
 #include "NiagaraScriptExecutionContext.h"
 #include "NiagaraGPUInstanceCountManager.h"
 
+struct FNiagaraDeferredDeletionFence;
+
+struct FNiagaraInstanceBatcherDeferredDeletionFence
+{
+	FNiagaraDeferredDeletionFence* Fence;
+	FNiagaraInstanceBatcherDeferredDeletionFence(FNiagaraDeferredDeletionFence* InFence);
+	~FNiagaraInstanceBatcherDeferredDeletionFence();
+
+	FNiagaraInstanceBatcherDeferredDeletionFence(FNiagaraInstanceBatcherDeferredDeletionFence&& Other);
+	FNiagaraInstanceBatcherDeferredDeletionFence& operator=(FNiagaraInstanceBatcherDeferredDeletionFence&& Other);
+
+	FNiagaraInstanceBatcherDeferredDeletionFence(const FNiagaraInstanceBatcherDeferredDeletionFence& Other) = delete;
+	FNiagaraInstanceBatcherDeferredDeletionFence& operator=(const FNiagaraInstanceBatcherDeferredDeletionFence& Other) = delete;
+};
+
 class FNiagaraIndicesVertexBuffer : public FParticleIndicesVertexBuffer
 {
 public:
@@ -68,6 +83,8 @@ public:
 	{
 		DIProxyDeferredDeletes_RT.Add(MoveTemp(Proxy));
 	}
+
+	void AddFence_RenderThread(FNiagaraInstanceBatcherDeferredDeletionFence& Fence);
 
 #if WITH_EDITOR
 	virtual void Suspend() override {}
@@ -126,6 +143,7 @@ public:
 				FRHIUniformBuffer* ViewUniformBuffer, 
 				const FNiagaraGpuSpawnInfo& SpawnInfo,
 				bool bCopyBeforeStart = false,
+				uint32 DefaultShaderStageIndex = 0,
 				uint32 ShaderStageIndex = 0,
 				FNiagaraDataInterfaceProxy *IterationInterface = nullptr,
 				bool HasRunParticleStage = false
@@ -202,4 +220,6 @@ private:
 	TSet<FNiagaraDataSet*> DataSetsToDestroy_RT;
 
 	TSet<TSharedPtr<FNiagaraDataInterfaceProxy, ESPMode::ThreadSafe>> DIProxyDeferredDeletes_RT;
+
+	TArray<FNiagaraInstanceBatcherDeferredDeletionFence> Fences_RT;
 };

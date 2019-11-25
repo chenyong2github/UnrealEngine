@@ -91,7 +91,7 @@ void FInternetAddrBSDIPv6::SetIp(const TCHAR* InAddr, bool& bIsValid)
 		if (AddressString.Contains("]:") || (!bIsIPv6 && LastColonIndex != INDEX_NONE))
 		{
 			Port = AddressString.RightChop(LastColonIndex + 1);
-			AddressString = AddressString.Left(LastColonIndex);
+			AddressString.LeftInline(LastColonIndex, false);
 		}
 
 		AddressString.RemoveFromStart("[");

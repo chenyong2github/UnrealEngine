@@ -73,7 +73,31 @@ namespace SequencerNodeConstants
 		// For nodes of the same bias, sort by name
 		if (BiasA == BiasB)
 		{
-			return A->GetDisplayName().CompareToCaseIgnored(B->GetDisplayName()) < 0;
+			const int32 Compare = A->GetDisplayName().CompareToCaseIgnored(B->GetDisplayName());
+
+			if (Compare != 0)
+			{
+				return Compare < 0;
+			}
+
+			// If the nodes have the same name, try to maintain current sorting order
+			const int32 SortA = A->GetSortingOrder();
+			const int32 SortB = B->GetSortingOrder();
+
+			if (SortA >= 0 && SortB >= 0)
+			{
+				// Both nodes have persistent sort orders, use those
+				return SortA < SortB;
+			}
+			else if (SortA >= 0 || SortB >= 0)
+			{
+				// Only one nodes has a persistent sort order, list it first
+				return SortA > SortB;
+			}
+			
+			// If same name and neither has a persistent sort order, then report them as equal
+			return false;
+
 		}
 		return BiasA < BiasB;
 	}
@@ -399,7 +423,8 @@ FSequencerDisplayNode::FSequencerDisplayNode( FName InNodeName, FSequencerNodeTr
 	, ParentTree( InParentTree )
 	, NodeName( InNodeName )
 	, bExpanded( false )
-	, bPinned(false)
+	, bPinned( false )
+	, bInPinnedBranch( false )
 	, bHasBeenInitialized( false )
 {
 	SortType = EDisplayNodeSortType::Undefined;
@@ -1199,9 +1224,19 @@ FSequencerDisplayNode* FSequencerDisplayNode::GetBaseNode() const
 	return GetParentOrRoot()->GetBaseNode();
 }
 
+void FSequencerDisplayNode::UpdateCachedPinnedState(bool bParentIsPinned)
+{
+	bInPinnedBranch = bPinned || bParentIsPinned;
+
+	for (TSharedPtr<FSequencerDisplayNode> Child : ChildNodes)
+	{
+		Child->UpdateCachedPinnedState(bInPinnedBranch);
+	}
+}
+
 bool FSequencerDisplayNode::IsPinned() const
 {
-	return GetBaseNode()->bPinned;
+	return bInPinnedBranch;
 }
 
 void FSequencerDisplayNode::TogglePinned()

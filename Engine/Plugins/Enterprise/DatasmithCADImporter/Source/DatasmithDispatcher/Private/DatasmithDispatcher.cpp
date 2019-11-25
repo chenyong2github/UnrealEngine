@@ -118,7 +118,7 @@ void FDatasmithDispatcher::Process(bool bWithProcessor)
 					if (WorkerId < NumberOfWorkers + Config::MaxRestartAllowed)
 					{
 						Handler.~FDatasmithWorkerHandler();
-						new (&Handler) FDatasmithWorkerHandler(*this, ProcessCacheFolder, WorkerId);
+						new (&Handler) FDatasmithWorkerHandler(*this, ImportParameters, ProcessCacheFolder, WorkerId);
 						UE_LOG(LogDatasmithDispatcher, Warning, TEXT("Restarting worker (new worker: %d)"), WorkerId);
 					}
 					else if (bLogRestartError)
@@ -182,7 +182,7 @@ void FDatasmithDispatcher::SpawnHandlers()
 	WorkerHandlers.Reserve(NumberOfWorkers);
 	for (int32 Index = 0; Index < NumberOfWorkers; Index++)
 	{
-		WorkerHandlers.Emplace(*this, ProcessCacheFolder, GetNextWorkerId());
+		WorkerHandlers.Emplace(*this, ImportParameters, ProcessCacheFolder, GetNextWorkerId());
 	}
 }
 
@@ -203,11 +203,14 @@ void FDatasmithDispatcher::CloseHandlers()
 void FDatasmithDispatcher::ProcessLocal()
 {
 #ifdef CAD_INTERFACE
+	FString KernelIOPath = FPaths::Combine(FPaths::EnginePluginsDir(), TEXT(KERNEL_IO_PLUGINSPATH));
+	KernelIOPath = FPaths::ConvertRelativePathToFull(KernelIOPath);
+
 	while (TOptional<FTask> Task = GetNextTask())
 	{
 		FString FullPath = Task->FileName;
 
-		CADLibrary::FCoreTechFileParser FileParser(FullPath, ProcessCacheFolder, ImportParameters, true, true);
+		CADLibrary::FCoreTechFileParser FileParser(FullPath, ProcessCacheFolder, ImportParameters, *KernelIOPath);
 		ETaskState ProcessResult = FileParser.ProcessFile();
 
 		ETaskState TaskState = ProcessResult;
@@ -215,16 +218,15 @@ void FDatasmithDispatcher::ProcessLocal()
 
 		if (TaskState == ETaskState::ProcessOk)
 		{
-			FString CurrentPath = FPaths::GetPath(FullPath);
 			const TSet<FString>& ExternalRefSet = FileParser.GetExternalRefSet();
 			if (ExternalRefSet.Num() > 0)
 			{
 				for (const FString& ExternalFile : ExternalRefSet)
 				{
-					AddTask(FPaths::Combine(CurrentPath, ExternalFile));
+					AddTask(ExternalFile);
 				}
 			}
-			LinkCTFileToUnrealCacheFile(FileParser.GetFileName(), FileParser.GetSceneGraphFile(), FileParser.GetMeshFile());
+			LinkCTFileToUnrealCacheFile(FileParser.GetCADFileName(), FileParser.GetSceneGraphFile(), FileParser.GetMeshFileName());
 		}
 	}
 #endif // CAD_INTERFACE

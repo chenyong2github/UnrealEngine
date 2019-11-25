@@ -26,20 +26,8 @@ public:
 
 	MOVIESCENETRACKS_API void AttemptUpgrade();
 
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FGenerateEventEntryPointFunctionsEvent, UMovieSceneEventSectionBase*, const FGenerateBlueprintFunctionParams&);
 	DECLARE_MULTICAST_DELEGATE_FourParams(FFixupPayloadParameterNameEvent, UMovieSceneEventSectionBase*, UK2Node*, FName, FName);
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FUpgradeLegacyEventEndpoint, UMovieSceneEventSectionBase*, UBlueprint*);
-
-
-	/**
-	 * Event handler that should be bound to a sequence director's UBlueprint::GenerateFunctionGraphsEvent member in order to generate event entrypoints
-	 * This function is declared as a UFunction to ensure that it gets persistently serialized along with the UBlueprint
-	 */
-	UFUNCTION()
-	void HandleGenerateEntryPoints(const FGenerateBlueprintFunctionParams& Params)
-	{
-		GenerateEventEntryPointsEvent.Broadcast(this, Params);
-	}
+	DECLARE_DELEGATE_RetVal_TwoParams(bool, FUpgradeLegacyEventEndpoint, UMovieSceneEventSectionBase*, UBlueprint*);
 
 	/**
 	 * Handler should be invoked when an event endpoint that is referenced from this section has one of its pins renamed
@@ -57,17 +45,13 @@ public:
 
 
 	/**
-	 * Event that is broadcast when events need to be generated for a function. Implemented in this way so that editor-code can be kept within editor modules.
-	 */
-	MOVIESCENETRACKS_API static FGenerateEventEntryPointFunctionsEvent GenerateEventEntryPointsEvent;
-
-	/**
 	 * Event that is broadcast when event payloads may need fixing up due to a pin rename
 	 */
 	MOVIESCENETRACKS_API static FFixupPayloadParameterNameEvent FixupPayloadParameterNameEvent;
 
 	/**
-	 * Event that is broadcast when a legacy event section is found that needs fixing up against an already compile-on-loaded blueprint
+	 * Delegate that is used to upgrade legacy event sections that need fixing up against a blueprint. Called on serialization and on compilation if necessary until successful upgrade occurs.
+	 * Must return true on success or false on failure.
 	 */
 	MOVIESCENETRACKS_API static FUpgradeLegacyEventEndpoint UpgradeLegacyEventEndpoint;
 

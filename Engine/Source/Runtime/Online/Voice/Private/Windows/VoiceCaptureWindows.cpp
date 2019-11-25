@@ -444,7 +444,7 @@ void FVoiceCaptureWindows::ProcessData()
 				{
 					if (bMicReleased)
 					{
-						ReleaseBuffer.PushSample(Temp);
+						ReleaseBuffer.PushFrame(&InputBuffer[FrameIndex], NumInputChannels);
 
 						if (!bSampleStartCached)
 						{
@@ -454,8 +454,8 @@ void FVoiceCaptureWindows::ProcessData()
 					}
 					else
 					{
-						AudioBuffer[FrameIndex] = Temp;
-						SamplesPushedToUncompressedAudioBuffer++;
+						FMemory::Memcpy(&AudioBuffer[FrameIndex], &InputBuffer[FrameIndex], sizeof(int16) * NumInputChannels);
+						SamplesPushedToUncompressedAudioBuffer += NumInputChannels;
 					}
 				}
 				else
@@ -488,7 +488,7 @@ void FVoiceCaptureWindows::ProcessData()
 				{
 					if (bMicReleased)
 					{
-						ReleaseBuffer.PushSample(Temp);
+						ReleaseBuffer.PushFrame(&InputBuffer[FrameIndex], NumInputChannels);
 
 						if (!bSampleStartCached)
 						{
@@ -498,8 +498,8 @@ void FVoiceCaptureWindows::ProcessData()
 					}
 					else
 					{
-						AudioBuffer[FrameIndex] = Temp;
-						SamplesPushedToUncompressedAudioBuffer++;
+						FMemory::Memcpy(&AudioBuffer[FrameIndex], &InputBuffer[FrameIndex], sizeof(int16) * NumInputChannels);
+						SamplesPushedToUncompressedAudioBuffer += NumInputChannels;
 					}
 				}
 				else
@@ -678,6 +678,11 @@ bool FVoiceCaptureWindows::Tick(float DeltaTime)
 	}
 
 	return true;
+}
+
+float FVoiceCaptureWindows::GetCurrentAmplitude() const
+{
+	return MicLevelDetector.GetCurrentValue();
 }
 
 void FVoiceCaptureWindows::DumpState() const

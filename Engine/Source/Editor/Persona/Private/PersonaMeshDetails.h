@@ -489,17 +489,8 @@ private:
 	 */
 	bool CanDeleteMaterialElement(int32 LODIndex, int32 SectionIndex) const;
 
-	/**
-	 * Handler for deleting material elements
-	 * 
-	 * @Param SectionIndex - material section to remove
-	 */
-	FReply OnDeleteButtonClicked(int32 LODIndex, int32 SectionIndex);
-
 	/** Creates the UI for Current LOD panel */
 	void AddLODLevelCategories(IDetailLayoutBuilder& DetailLayout);
-
-	bool IsDuplicatedMaterialIndex(int32 LODIndex, int32 MaterialIndex);
 
 	/** Get a material index from LOD index and section index */
 	int32 GetMaterialIndex(int32 LODIndex, int32 SectionIndex) const;

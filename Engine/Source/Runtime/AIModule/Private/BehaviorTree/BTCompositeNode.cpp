@@ -411,7 +411,7 @@ static bool UpdateOperationStack(const UBehaviorTreeComponent& OwnerComp, FStrin
 		UE_VLOG(OwnerComp.GetOwner(), LogBehaviorTree, Verbose, TEXT("%s%s finished: %s"), *Indent,
 			*DescribeLogicOp(CurrentOp.Op),
 			bTestResult ? TEXT("allowed") : TEXT("forbidden"));
-		Indent = Indent.LeftChop(2);
+		Indent.LeftChopInline(2, false);
 
 		Stack.RemoveAt(Stack.Num() - 1);
 		return UpdateOperationStack(OwnerComp, Indent, Stack, bTestResult, FailedDecoratorIdx, NodeDecoratorIdx, bShouldStoreNodeIndex);

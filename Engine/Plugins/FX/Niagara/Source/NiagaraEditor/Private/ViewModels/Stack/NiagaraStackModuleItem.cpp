@@ -878,6 +878,16 @@ void UNiagaraStackModuleItem::DeleteInternal()
 	}
 }
 
+bool UNiagaraStackModuleItem::SupportsHighlights() const
+{
+	return FunctionCallNode != nullptr && FunctionCallNode->FunctionScript != nullptr;
+}
+
+const TArray<FNiagaraScriptHighlight>& UNiagaraStackModuleItem::GetHighlights() const
+{
+	return FunctionCallNode->FunctionScript->Highlights;
+}
+
 int32 UNiagaraStackModuleItem::GetModuleIndex() const
 {
 	TArray<FNiagaraStackGraphUtilities::FStackNodeGroup> StackGroups;

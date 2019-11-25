@@ -1,12 +1,12 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/ClusterCreationParameters.h"
-#include "Chaos/ExternalCollisionData.h"
 #include "Chaos/PBDRigidClusteredParticles.h"
-#include "Chaos/PBDCollisionTypes.h"
 #include "Chaos/Transform.h"
+#include "Chaos/CollisionResolutionTypes.h"
+#include "Chaos/ExternalCollisionData.h"
 #include "Chaos/TriangleMesh.h"
+#include "Chaos/ClusterCreationParameters.h"
 #include "Framework/BufferedData.h"
 
 #define TODO_CONVERT_GEOMETRY_COLLECTION_PARTICLE_INDICES_TO_PARTICLE_POINTERS 0
@@ -34,10 +34,11 @@ public:
 template<class FPBDRigidEvolution, class FPBDCollisionConstraint, class T, int d>
 class CHAOS_API TPBDRigidClustering
 {
-	typedef typename FPBDCollisionConstraint::FRigidBodyContactConstraint FRigidBodyContactConstraint;
+	typedef typename FPBDCollisionConstraint::FPointContactConstraint FPointContactConstraint;
 
 public:
-	typedef TMap<TGeometryParticleHandle<T,d>*, TArray<uint32> > FClusterMap;
+	typedef TMap<const TGeometryParticleHandle<T,d>*, TArray<uint32> > FClusterMap;
+	using FCollisionConstraintHandle = TPBDCollisionConstraintHandle<T, d>;
 
 	TPBDRigidClustering(FPBDRigidEvolution& InEvolution, TPBDRigidClusteredParticles<T, d>& InParticles);
 	~TPBDRigidClustering();

@@ -908,7 +908,7 @@ int32 FServiceConnection::FindOrAddStat(const FStatNameAndInfo& StatNameAndInfo,
 		StatDescription.Name = !Description.IsEmpty() ? Description : StatName.ToString();
 		if(StatDescription.Name.Contains(TEXT("STAT_")))
 		{
-			StatDescription.Name = StatDescription.Name.RightChop(FString(TEXT("STAT_")).Len());
+			StatDescription.Name.RightChopInline(FString(TEXT("STAT_")).Len(), false);
 		}
 		StatDescription.StatType = StatType;
 

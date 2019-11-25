@@ -51,6 +51,7 @@ ClothingSimulation::ClothingSimulation()
 {
 #if WITH_EDITOR
 	DebugClothMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorMaterials/Cloth/CameraLitDoubleSided.CameraLitDoubleSided"), nullptr, LOAD_None, nullptr);  // LOAD_EditorOnly
+	DebugClothMaterialVertex = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorMaterials/WidgetVertexColorMaterial"), nullptr, LOAD_None, nullptr);  // LOAD_EditorOnly
 #endif  // #if WITH_EDITOR
 }
 
@@ -168,7 +169,7 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 	AnimDriveSpringStiffness[InSimDataIndex] = ChaosClothSimConfig->AnimDriveSpringStiffness;
 
 	check(Asset->GetNumLods() == 1);
-	UClothLODDataBase* AssetLodData = Asset->ClothLodData[0];
+	UClothLODDataCommon* AssetLodData = Asset->ClothLodData[0];
 	check(AssetLodData->PhysicalMeshData);
 	UClothPhysicalMeshDataBase* PhysMesh = AssetLodData->PhysicalMeshData;
 
@@ -738,7 +739,7 @@ void ClothingSimulation::ExtractLegacyAssetCollisions(UClothingAssetCommon* Asse
 	UE_CLOG(Asset->GetNumLods() != 1,
 		LogChaosCloth, Warning, TEXT("More than one LOD with the current cloth asset. Only LOD 0 is supported with the current system."));
 
-	if (const UClothLODDataBase* const AssetLodData = Asset->ClothLodData[0])
+	if (const UClothLODDataCommon* const AssetLodData = Asset->ClothLodData[0])
 	{
 		const FClothCollisionData& LodCollData = AssetLodData->CollisionData;
 		if (LodCollData.Spheres.Num() || LodCollData.SphereConnections.Num() || LodCollData.Convexes.Num())
@@ -1039,7 +1040,7 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 		if (!Asset)
 			continue;
 
-		const UClothLODDataBase* AssetLodData = Asset->ClothLodData[0];
+		const UClothLODDataCommon* AssetLodData = Asset->ClothLodData[0];
 		check(AssetLodData->PhysicalMeshData);
 		const UClothPhysicalMeshDataBase* PhysMesh = AssetLodData->PhysicalMeshData;
 
@@ -1097,7 +1098,7 @@ void ClothingSimulation::GetSimulationData(
 		const TUniquePtr<Chaos::TTriangleMesh<float>>& Mesh = Meshes[i];
 		if (!Mesh)
 			continue;
-		Mesh->GetFaceNormals(FaceNormals[i], Evolution->Particles().X(), false);
+		Mesh->GetFaceNormals(FaceNormals[i], Evolution->Particles().X(), false);  // No need to add a point index offset here since that is baked into the triangles
 		Mesh->GetPointNormals(PointNormals[i], FaceNormals[i], /*bReturnEmptyOnError =*/ false, /*bFillAtStartIndex =*/ false);
 
 		FClothSimulData& Data = OutData.FindOrAdd(i);
@@ -1133,7 +1134,7 @@ void ClothingSimulation::GetSimulationData(
         {
 			const uint32 LocalIndex = j - VertexDomain[0];
             Data.Positions[LocalIndex] = Evolution->Particles().X(j);
-            Data.Normals[LocalIndex] = PointNormals[i][LocalIndex];
+            Data.Normals[LocalIndex] = -PointNormals[i][LocalIndex]; // Note the Normals are inverted due to how barycentric coordinates are calculated (see GetPointBaryAndDist in ClothingMeshUtils.cpp)
 		}
     }
 }
@@ -1170,7 +1171,7 @@ void ClothingSimulation::GetCollisions(FClothCollisionData& OutCollisions, bool 
 	// Add internal asset collisions
 	for (const UClothingAssetCommon* Asset : Assets)
 	{
-		if (const UClothLODDataBase* const ClothLodData = !Asset ? nullptr : Asset->ClothLodData[0])
+		if (const UClothLODDataCommon* const ClothLodData = !Asset ? nullptr : Asset->ClothLodData[0])
 		{
 			OutCollisions.Append(ClothLodData->CollisionData);
 		}
@@ -1262,7 +1263,7 @@ void ClothingSimulation::DebugDrawPhysMeshShaded(USkeletalMeshComponent* OwnerCo
 				const FVector& Pos1 = Particles.X(Element.Y);
 				const FVector& Pos2 = Particles.X(Element.Z);
 
-				const FVector& Normal = FVector::CrossProduct(Pos1 - Pos0, Pos2 - Pos0).GetSafeNormal();
+				const FVector& Normal = FVector::CrossProduct(Pos2 - Pos0, Pos1 - Pos0).GetSafeNormal();
 				const FVector Tangent = ((Pos1 + Pos2) * 0.5f - Pos0).GetSafeNormal();
 
 				MeshBuilder.AddVertex(FDynamicMeshVertex(Pos0, Tangent, Normal, FVector2D(0.f, 0.f), FColor::White));
@@ -1543,36 +1544,96 @@ void ClothingSimulation::DebugDrawCollision(USkeletalMeshComponent* OwnerCompone
 
 void ClothingSimulation::DebugDrawBackstops(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const
 {
-	// TODO: Add when GetCurrentSkinnedPositions is ever implemented
+	for (int32 i = 0; i < IndexToRangeMap.Num(); ++i)
+	{
+		const UClothingAssetCommon* const Asset = Assets[i];
+		if (Asset == nullptr)
+		{
+			continue;
+		}
+
+		// Get Backstop Distances
+		const UClothLODDataCommon* const AssetLodData = Asset->ClothLodData[0];
+		check(AssetLodData);
+		check(AssetLodData->PhysicalMeshData);
+		const UClothPhysicalMeshDataBase* const PhysMesh = AssetLodData->PhysicalMeshData;
+		const UEnum* const MeshTargets = PhysMesh->GetFloatArrayTargets();
+		const uint32 PhysMeshBackstopIndex = MeshTargets->GetValueByName(TEXT("BackstopDistance"));
+		if (PhysMesh->GetFloatArray(PhysMeshBackstopIndex)->Num() == 0)
+		{
+			continue;
+		}
+
+		const uint32 PhysMeshBackstopRadiusIndex = MeshTargets->GetValueByName(TEXT("BackstopRadius"));
+		if (PhysMesh->GetFloatArray(PhysMeshBackstopRadiusIndex)->Num() == 0)
+		{
+			continue;
+		}
+
+		for (uint32 ParticleIndex = IndexToRangeMap[i][0]; ParticleIndex < IndexToRangeMap[i][1]; ++ParticleIndex)
+		{
+			const float Radius = (*PhysMesh->GetFloatArray(PhysMeshBackstopRadiusIndex))[ParticleIndex - IndexToRangeMap[i][0]];
+			const float Distance = (*PhysMesh->GetFloatArray(PhysMeshBackstopIndex))[ParticleIndex - IndexToRangeMap[i][0]];
+			PDI->DrawLine(AnimationPositions[ParticleIndex], AnimationPositions[ParticleIndex] - AnimationNormals[ParticleIndex] * (Distance - Radius), FColor::White, SDPG_World, 0.0f, 0.001f);
+			if (Radius > 0.0f)
+			{
+				const FVector& Normal = AnimationNormals[ParticleIndex];
+				const FVector& Position = AnimationPositions[ParticleIndex];
+				auto DrawBackstop = [Radius, Distance, &Normal, &Position, PDI](const FVector& Axis, const FColor& Color)
+				{
+					const float ArcLength = 5.0f; // Arch length in cm
+					const float ArcAngle = ArcLength * 360.0f / (Radius * 2.0f * PI);
+					
+					const float MaxCosAngle = 0.99f;
+					if (FMath::Abs(FVector::DotProduct(Normal, Axis)) < MaxCosAngle)
+					{
+						DrawArc(PDI, Position - Normal * Distance, Normal, FVector::CrossProduct(Axis, Normal).GetSafeNormal(), -ArcAngle / 2.0f, ArcAngle / 2.0f, Radius, 10, Color, SDPG_World);
+					}
+				};
+				DrawBackstop(FVector::ForwardVector, FColor::Blue);
+				DrawBackstop(FVector::UpVector, FColor::Blue);
+				DrawBackstop(FVector::RightVector, FColor::Blue);
+			}
+		}
+	}
 }
 
 void ClothingSimulation::DebugDrawMaxDistances(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const
 {
-	// TODO: Add when GetCurrentSkinnedPositions is ever implemented
-}
-
-void ClothingSimulation::DebugDrawSelfCollision(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const
-{
 	const TPBDParticles<float, 3>& Particles = Evolution->Particles();
 	for (int32 i = 0; i < IndexToRangeMap.Num(); ++i)
 	{
-		if (const UClothingAssetCommon* const Asset = Assets[i])
+		const UClothingAssetCommon* const Asset = Assets[i];
+		if (Asset == nullptr)
 		{
-			const UChaosClothConfig* const ChaosClothSimConfig = Cast<UChaosClothConfig>(Asset->ChaosClothSimConfig);
-			if (ChaosClothSimConfig && ChaosClothSimConfig->bUseSelfCollisions)
-			{
-				const FTransform RootBoneTransform = OwnerComponent->GetComponentSpaceTransforms()[Asset->ReferenceBoneIndex];
+			continue;
+		}
 
-				const UClothLODDataBase* LodData = Asset->ClothLodData[0];
-				const UClothPhysicalMeshDataBase* PhysMesh = LodData->PhysicalMeshData;
-				const TArray<uint32>& SelfCollisionIndices = PhysMesh->SelfCollisionIndices;
-				for (int32 SelfColIdx = 0; SelfColIdx < SelfCollisionIndices.Num(); ++SelfColIdx)
-				{
-					const FVector ParticlePosition =
-						RootBoneTransform.TransformPosition(
-							Particles.X(PhysMesh->SelfCollisionIndices[SelfColIdx]));
-					DrawWireSphere(PDI, ParticlePosition, FColor::White, Evolution->GetSelfCollisionThickness(), 8, SDPG_World, 0.0f, 0.001f);
-				}
+		// Get Maximum Distances
+		const UClothLODDataCommon* const AssetLodData = Asset->ClothLodData[0];
+		check(AssetLodData);
+		check(AssetLodData->PhysicalMeshData);
+		UClothPhysicalMeshDataBase* PhysMesh = AssetLodData->PhysicalMeshData;
+		const UEnum* const MeshTargets = PhysMesh->GetFloatArrayTargets();
+		const uint32 PhysMeshMaxDistanceIndex = MeshTargets->GetValueByName(TEXT("MaxDistance"));
+		if (PhysMesh->GetFloatArray(PhysMeshMaxDistanceIndex)->Num() == 0)
+		{
+			continue;
+		}
+		
+		for (uint32 ParticleIndex = IndexToRangeMap[i][0]; ParticleIndex < IndexToRangeMap[i][1]; ++ParticleIndex)
+		{
+			const float Distance = (*PhysMesh->GetFloatArray(PhysMeshMaxDistanceIndex))[ParticleIndex - IndexToRangeMap[i][0]];
+			if (Particles.InvM(ParticleIndex) == 0.0f)
+			{
+				const FMatrix& ViewMatrix = PDI->View->ViewMatrices.GetViewMatrix();
+				const FVector& XAxis = ViewMatrix.GetColumn(0); // Just using transpose here (orthogonal transform assumed)
+				const FVector& YAxis = ViewMatrix.GetColumn(1);
+				DrawDisc(PDI, AnimationPositions[ParticleIndex], XAxis, YAxis, FColor::White, 0.2f, 10, DebugClothMaterialVertex->GetRenderProxy(), SDPG_World);
+			}
+			else
+			{
+				PDI->DrawLine(AnimationPositions[ParticleIndex], AnimationPositions[ParticleIndex] + AnimationNormals[ParticleIndex] * Distance, FColor::White, SDPG_World, 0.0f, 0.001f);
 			}
 		}
 	}
@@ -1580,6 +1641,32 @@ void ClothingSimulation::DebugDrawSelfCollision(USkeletalMeshComponent* OwnerCom
 
 void ClothingSimulation::DebugDrawAnimDrive(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const
 {
-	// TODO: Add when GetCurrentSkinnedPositions is ever implemented
+	const TPBDParticles<float, 3>& Particles = Evolution->Particles();
+	for (int32 i = 0; i < IndexToRangeMap.Num(); ++i)
+	{
+		const UClothingAssetCommon* const Asset = Assets[i];
+		if (Asset == nullptr)
+		{
+			continue;
+		}
+
+		// Get Animdrive Multiplier
+		const UClothLODDataCommon* const AssetLodData = Asset->ClothLodData[0];
+		check(AssetLodData);
+		check(AssetLodData->PhysicalMeshData);
+		const UClothPhysicalMeshDataBase* const PhysMesh = AssetLodData->PhysicalMeshData;
+		const UEnum* const MeshTargets = PhysMesh->GetFloatArrayTargets();
+		const uint32 PhysMeshAnimDriveIndex = MeshTargets->GetValueByName(TEXT("AnimDriveMultiplier"));
+		if (PhysMesh->GetFloatArray(PhysMeshAnimDriveIndex)->Num() == 0)
+		{
+			continue;
+		}
+
+		for (uint32 ParticleIndex = IndexToRangeMap[i][0]; ParticleIndex < IndexToRangeMap[i][1]; ++ParticleIndex)
+		{
+			const float Multiplier = (*PhysMesh->GetFloatArray(PhysMeshAnimDriveIndex))[ParticleIndex - IndexToRangeMap[i][0]];
+			PDI->DrawLine(AnimationPositions[ParticleIndex], Particles.X(ParticleIndex), Multiplier * AnimDriveSpringStiffness[i] * FColor::Cyan, SDPG_World, 0.0f, 0.001f);
+		}
+	}
 }
 #endif  // #if WITH_EDITOR

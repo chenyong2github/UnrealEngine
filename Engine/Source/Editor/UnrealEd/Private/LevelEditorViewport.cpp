@@ -1741,6 +1741,7 @@ FLevelEditorViewportClient::FLevelEditorViewportClient(const TSharedPtr<SLevelVi
 	, bLockedCameraView(true)
 	, bReceivedFocusRecently(false)
 	, bAlwaysShowModeWidgetAfterSelectionChanges(true)
+	, bShouldApplyViewModifiers(true)
 	, SpriteCategoryVisibility()
 	, World(nullptr)
 	, TrackingTransaction()
@@ -1836,8 +1837,6 @@ void FLevelEditorViewportClient::InitializeVisibilityFlags()
 FSceneView* FLevelEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, const EStereoscopicPass StereoPass)
 {
 	bWasControlledByOtherViewport = false;
-
-	UpdateViewForLockedActor();
 
 	// set all other matching viewports to my location, if the LOD locking is enabled,
 	// unless another viewport already set me this frame (otherwise they fight)
@@ -2291,7 +2290,37 @@ void FLevelEditorViewportClient::Tick(float DeltaTime)
 
 	UpdateViewForLockedActor(DeltaTime);
 
+	if (bShouldApplyViewModifiers)
+	{
+		FViewportCameraTransform& ViewTransform = GetViewTransform();
+		if (!ViewTransform.IsPlaying())
+		{
+			ApplyViewModifiers(DeltaTime);
+		}
+	}
+
 	UserIsControllingAtmosphericLightTimer = FMath::Max(UserIsControllingAtmosphericLightTimer - DeltaTime, 0.0f);
+}
+
+void FLevelEditorViewportClient::ApplyViewModifiers(float DeltaTime)
+{
+	if (ViewModifiers.IsBound())
+	{
+		FEditorViewportViewModifierParams Params;
+		Params.DeltaTime = DeltaTime;
+		Params.ViewportClient = this;
+
+		FMinimalViewInfo InOutPOV;
+		InOutPOV.Location = GetViewLocation();
+		InOutPOV.Rotation = GetViewRotation();
+		InOutPOV.FOV = ViewFOV;
+
+		ViewModifiers.Broadcast(Params, InOutPOV);
+
+		SetViewLocation(InOutPOV.Location);
+		SetViewRotation(InOutPOV.Rotation);
+		ViewFOV = InOutPOV.FOV;
+	}
 }
 
 void FLevelEditorViewportClient::UpdateViewForLockedActor(float DeltaTime)
@@ -3057,7 +3086,9 @@ void FLevelEditorViewportClient::TrackingStopped()
 		// Create post edit property change event
 		UProperty* TransformProperty = LevelEditorViewportClientHelper::GetEditTransformProperty(GetWidgetMode());
 		FPropertyChangedEvent PropertyChangedEvent(TransformProperty, EPropertyChangeType::ValueSet);
-		
+
+		TArray<AActor*> MovedActors;
+
 		for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It) 
 		{
 			AActor* Actor = static_cast<AActor*>( *It );
@@ -3133,10 +3164,14 @@ void FLevelEditorViewportClient::TrackingStopped()
 				// Broadcast Post Edit change notification, we can't call PostEditChangeProperty directly on Actor or ActorComponent from here since it wasn't pair with a proper PreEditChange
 				FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(Actor, PropertyChangedEvent);
 				Actor->PostEditMove(true);
+
+				MovedActors.Add(Actor);
 	
 				GEditor->BroadcastEndObjectMovement(*Actor);
 			}
 		}
+
+		GEditor->BroadcastActorsMoved(MovedActors);
 
 		if (!GUnrealEd->IsPivotMovedIndependently())
 		{

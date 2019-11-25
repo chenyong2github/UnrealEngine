@@ -256,6 +256,9 @@ namespace ContentBrowserUtils
 
 	/** Returns true if the specified path is available for object creation */
 	bool IsValidObjectPathForCreate(const FString& ObjectPath, FText& OutErrorMessage, bool bAllowExistingAsset = false);
+	
+	/** Returns true if the specified path is available for object creation */
+	bool IsValidObjectPathForCreate(const FString& ObjectPath, const UClass* ObjectClass, FText& OutErrorMessage, bool bAllowExistingAsset = false);
 
 	/** Returns true if the specified folder name in the specified path is available for folder creation */
 	bool IsValidFolderPathForCreate(const FString& FolderPath, const FString& NewFolderName, FText& OutErrorMessage);

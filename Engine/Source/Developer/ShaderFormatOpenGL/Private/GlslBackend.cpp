@@ -611,10 +611,7 @@ class ir_gen_glsl_visitor : public ir_visitor
 	bool bUsesES2TextureLODExtension;
 
 	/** Whether the shader being cross compiled needs GL_EXT_texture_buffer. */
-	bool bUsesTextureBuffer;
-
-	/** Whether the shader being cross compiled needs GL_OES_shader_image_atomic. */
-	bool bUseImageAtomic;
+	bool bUsesTexelFetch;
 
 	// Found dFdx or dFdy
 	bool bUsesDXDY;
@@ -1483,7 +1480,7 @@ class ir_gen_glsl_visitor : public ir_visitor
 
 		if (op == ir_txf)
 		{
-			bUsesTextureBuffer = true;
+			bUsesTexelFetch = true;
 		}
 
 		// Emit texture function and sampler.
@@ -1744,7 +1741,6 @@ class ir_gen_glsl_visitor : public ir_visitor
 			}
 			else
 			{
-				bUsesTextureBuffer = true;
 				if (src == NULL)
 				{
 					ralloc_asprintf_append(buffer, "imageLoad( ");
@@ -2295,7 +2291,7 @@ class ir_gen_glsl_visitor : public ir_visitor
 		ir_dereference_image* image = ir->memory_ref->as_dereference_image();
 
 		ir->lhs->accept(this);
-		bUseImageAtomic = image != NULL;
+
 		if (!image || (image->image->type && image->image->type->shader_storage_buffer))
 		{
 			ralloc_asprintf_append(buffer, " = %s(",
@@ -3168,10 +3164,6 @@ class ir_gen_glsl_visitor : public ir_visitor
 			ralloc_asprintf_append(buffer, "#extension GL_EXT_gpu_shader5 : enable\n");
 			ralloc_asprintf_append(buffer, "\n#endif\n");
 			
-			ralloc_asprintf_append(buffer, "\n#ifdef GL_OES_shader_image_atomic\n");
-			ralloc_asprintf_append(buffer, "#extension GL_OES_shader_image_atomic : enable\n");
-			ralloc_asprintf_append(buffer, "\n#endif\n");
-
 			ralloc_asprintf_append(buffer, "\n#ifdef GL_EXT_texture_buffer\n");
 			ralloc_asprintf_append(buffer, "#extension GL_EXT_texture_buffer : enable\n");
 			ralloc_asprintf_append(buffer, "\n#endif\n");
@@ -3194,24 +3186,14 @@ class ir_gen_glsl_visitor : public ir_visitor
 				ralloc_asprintf_append(buffer, "#extension GL_EXT_tessellation_shader : enable\n");
 			}
 		}
-		else if ((bIsES || bIsES31))
+		else if ((bIsES || bIsES31) && bUsesTexelFetch)
 		{
-			if (bUseImageAtomic)
-			{
-				ralloc_asprintf_append(buffer, "\n#ifdef GL_OES_shader_image_atomic\n");
-				ralloc_asprintf_append(buffer, "#extension GL_OES_shader_image_atomic : enable\n");
-				ralloc_asprintf_append(buffer, "\n#endif\n");
-			}
-
-			if (bUsesTextureBuffer)
-			{
-				// Not supported by ES2 and ES3.1 spec, but many phones support this extension
-				// GPU particles require this
-				// App shall not use a shader if this extension is not supported on device
-				ralloc_asprintf_append(buffer, "\n#ifdef GL_EXT_texture_buffer\n");
-				ralloc_asprintf_append(buffer, "#extension GL_EXT_texture_buffer : enable\n");
-				ralloc_asprintf_append(buffer, "\n#endif\n");
-			}
+			// Not supported by ES2 and ES3.1 spec, but many phones support this extension
+			// GPU particles require this
+			// App shall not use a shader if this extension is not supported on device
+			ralloc_asprintf_append(buffer, "\n#ifdef GL_EXT_texture_buffer\n");
+			ralloc_asprintf_append(buffer, "#extension GL_EXT_texture_buffer : enable\n");
+			ralloc_asprintf_append(buffer, "\n#endif\n");
 		}
 		ralloc_asprintf_append(buffer, "// end extensions\n");
 	}
@@ -3240,8 +3222,7 @@ public:
 		, should_print_uint_literals_as_ints(false)
 		, loop_count(0)
 		, bUsesES2TextureLODExtension(false)
-		, bUsesTextureBuffer(false)
-		, bUseImageAtomic(false)
+		, bUsesTexelFetch(false)
 		, bUsesDXDY(false)
 		, bUsesInstanceID(false)
 		, bNoGlobalUniforms(bInNoGlobalUniforms)

@@ -598,7 +598,7 @@ public:
 			int32 NewLinePos;
 			if (SingleLineDescription.FindChar(TCHAR('\n'), NewLinePos))
 			{
-				SingleLineDescription = SingleLineDescription.Left(NewLinePos);
+				SingleLineDescription.LeftInline(NewLinePos, false);
 			}
 
 			// Trim any trailing new-line characters from the description for the tooltip

@@ -171,14 +171,6 @@ namespace EAnimationMode
 }
 
 UENUM()
-enum class ELinkedAnimationUpdateOrder : uint8
-{
-	UpdateAnimationBeforeAnimScriptInstance,
-	UpdateAnimationAfterAnimScriptInstance,
-	DoNotUpdate
-};
-
-UENUM()
 namespace EPhysicsTransformUpdateMode
 {
 	enum Type
@@ -439,10 +431,6 @@ private:
 	uint8 bDisablePostProcessBlueprint:1;
 
 public:
-	/** The order in which linked animation is evaluated with respect to the component's animation */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Animation)
-	ELinkedAnimationUpdateOrder LinkedAnimationEvaluationOrder;
-
 	/** Indicates that simulation (if it's enabled) is entirely responsible for children transforms. This is only ok if you are not animating attachment points relative to the simulation */
 	uint8 bSimulationUpdatesChildTransforms:1;
 
@@ -1539,7 +1527,7 @@ public:
 	virtual bool IsAnyRigidBodyAwake() override;
 	virtual void SetEnableGravity(bool bGravityEnabled);
 	virtual bool IsGravityEnabled() const override;
-	virtual void OnComponentCollisionSettingsChanged(bool bDeferUpdateOverlaps = false) override;
+	virtual void OnComponentCollisionSettingsChanged(bool bUpdateOverlaps=true) override;
 	virtual void SetPhysMaterialOverride(UPhysicalMaterial* NewPhysMaterial) override;
 	virtual bool GetSquaredDistanceToCollision(const FVector& Point, float& OutSquaredDistance, FVector& OutClosestPointOnCollision) const override;
 
@@ -2027,6 +2015,9 @@ public:
 public:
 	bool IsAnimBlueprintInstanced() const;
 	void ClearAnimScriptInstance();
+
+	/** Clear cached animation data generated for URO during evaluation */
+	void ClearCachedAnimProperties();
 
 protected:
 	bool NeedToSpawnAnimScriptInstance() const;

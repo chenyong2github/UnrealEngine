@@ -1282,13 +1282,13 @@ bool ContentBrowserUtils::IsClassesFolder(const FString& InPath)
 	// Strip off any leading or trailing forward slashes
 	// We just want the name without any path separators
 	FString CleanFolderPath = InPath;
-	while ( CleanFolderPath.StartsWith(TEXT("/")) )
+	while ( CleanFolderPath.StartsWith(TEXT("/"), ESearchCase::CaseSensitive) )
 	{
-		CleanFolderPath = CleanFolderPath.Mid(1);
+		CleanFolderPath.MidInline(1, MAX_int32, false);
 	}
-	while ( CleanFolderPath.EndsWith(TEXT("/")) )
+	while ( CleanFolderPath.EndsWith(TEXT("/"), ESearchCase::CaseSensitive) )
 	{
-		CleanFolderPath = CleanFolderPath.Mid(0, CleanFolderPath.Len() - 1);
+		CleanFolderPath.MidInline(0, CleanFolderPath.Len() - 1, false);
 	}
 
 	static const FString ClassesPrefix = TEXT("Classes_");
@@ -1414,13 +1414,13 @@ FText ContentBrowserUtils::GetRootDirDisplayName(const FString& FolderPath)
 	// Strip off any leading or trailing forward slashes
 	// We just want the name without any path separators
 	FString CleanFolderPath = FolderPath;
-	while(CleanFolderPath.StartsWith(TEXT("/")))
+	while(CleanFolderPath.StartsWith(TEXT("/"), ESearchCase::CaseSensitive))
 	{
-		CleanFolderPath = CleanFolderPath.Mid(1);
+		CleanFolderPath.MidInline(1, MAX_int32, false);
 	}
-	while(CleanFolderPath.EndsWith(TEXT("/")))
+	while(CleanFolderPath.EndsWith(TEXT("/"), ESearchCase::CaseSensitive))
 	{
-		CleanFolderPath = CleanFolderPath.Mid(0, CleanFolderPath.Len() - 1);
+		CleanFolderPath.MidInline(0, CleanFolderPath.Len() - 1, false);
 	}
 
 	static const FString ClassesPrefix = TEXT("Classes_");
@@ -1429,7 +1429,7 @@ FText ContentBrowserUtils::GetRootDirDisplayName(const FString& FolderPath)
 	// Strip off the "Classes_" prefix
 	if(bIsClassDir)
 	{
-		CleanFolderPath = CleanFolderPath.Mid(ClassesPrefix.Len());
+		CleanFolderPath.MidInline(ClassesPrefix.Len(), MAX_int32, false);
 	}
 
 	// Also localize well known folder names, like "Engine" and "Game"
@@ -1728,6 +1728,11 @@ static const auto CVarMaxFullPathLength =
 
 bool ContentBrowserUtils::IsValidObjectPathForCreate(const FString& ObjectPath, FText& OutErrorMessage, bool bAllowExistingAsset)
 {
+	return IsValidObjectPathForCreate(ObjectPath, nullptr, OutErrorMessage, bAllowExistingAsset);
+}
+
+bool ContentBrowserUtils::IsValidObjectPathForCreate(const FString& ObjectPath, const UClass* ObjectClass, FText& OutErrorMessage, bool bAllowExistingAsset)
+{
 	const FString ObjectName = FPackageName::ObjectPathToObjectName(ObjectPath);
 
 	// Make sure the name is not already a class or otherwise invalid for saving
@@ -1773,14 +1778,22 @@ bool ContentBrowserUtils::IsValidObjectPathForCreate(const FString& ObjectPath, 
 		return false;
 	}
 
-	// Check for an existing asset, unless it we were asked not to.
-	if ( !bAllowExistingAsset )
+	// Check for an existing asset
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	FAssetData ExistingAsset = AssetRegistryModule.Get().GetAssetByObjectPath(FName(*ObjectPath));
+	if (ExistingAsset.IsValid())
 	{
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-		FAssetData ExistingAsset = AssetRegistryModule.Get().GetAssetByObjectPath(FName(*ObjectPath));
-		if (ExistingAsset.IsValid())
+		// An asset of a different type already exists at this location, inform the user and continue
+		if (ObjectClass && !ExistingAsset.GetClass()->IsChildOf(ObjectClass))
 		{
-			// This asset already exists at this location, inform the user and continue
+			OutErrorMessage = FText::Format(LOCTEXT("RenameAssetOtherTypeAlreadyExists", "An asset of type '{0}' already exists at this location with the name '{1}'."), FText::FromName(ExistingAsset.AssetClass), FText::FromString(ObjectName));
+			
+			// Return false to indicate that the user should enter a new name
+			return false;
+		}
+        // This asset already exists at this location, warn user if asked to.
+		else if (!bAllowExistingAsset)
+		{
 			OutErrorMessage = FText::Format( LOCTEXT("RenameAssetAlreadyExists", "An asset already exists at this location with the name '{0}'."), FText::FromString( ObjectName ) );
 
 			// Return false to indicate that the user should enter a new name
@@ -2162,7 +2175,7 @@ void ContentBrowserUtils::SyncPathsFromSourceControl(const TArray<FString>& Cont
 				if (PackagePath.Len() > 1 && PackagePath[PackagePath.Len() - 1] == TEXT('/'))
 				{
 					// The filter path can't end with a trailing slash
-					PackagePath = PackagePath.LeftChop(1);
+					PackagePath.LeftChopInline(1, false);
 				}
 				Filter.PackagePaths.Emplace(*PackagePath);
 			}

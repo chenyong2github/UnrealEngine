@@ -1610,8 +1610,7 @@ bool UCookOnTheFlyServer::StartNetworkFileServer( const bool BindAnyPort )
 		NetworkFileServers.Add(TcpFileServer);
 	}
 
-	// cookonthefly server for html5 -- NOTE: if this is crashing COTF servers, please ask for Nick.Shin (via Josh.Adams)
-#if 1
+#if 0 // cookonthefly server via http
 	INetworkFileServer *HttpFileServer = FModuleManager::LoadModuleChecked<INetworkFileSystemModule>("NetworkFileSystem")
 		.CreateNetworkFileServer(true, BindAnyPort ? 0 : -1, NetworkFileDelegateContainer, ENetworkFileServerProtocol::NFSP_Http);
 	if ( HttpFileServer )
@@ -3706,7 +3705,7 @@ private:
 		int32 ParamIndex = InOutParams.Find(InParamToRemove);
 		if (ParamIndex >= 0)
 		{
-			int32 NextParamIndex = InOutParams.Find(TEXT(" -"), ESearchCase::IgnoreCase, ESearchDir::FromStart, ParamIndex + 1);
+			int32 NextParamIndex = InOutParams.Find(TEXT(" -"), ESearchCase::CaseSensitive, ESearchDir::FromStart, ParamIndex + 1);
 			if (NextParamIndex < ParamIndex)
 			{
 				NextParamIndex = InOutParams.Len();

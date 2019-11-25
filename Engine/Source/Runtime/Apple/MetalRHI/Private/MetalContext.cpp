@@ -47,7 +47,7 @@ static FAutoConsoleVariableRef CVarMetalCommandQueueSize(
 	GMetalCommandQueueSize,
 	TEXT("The maximum number of command-buffers that can be allocated from each command-queue. (Default: 5120 Mac, 64 iOS/tvOS)"), ECVF_ReadOnly);
 
-int32 GMetalBufferZeroFill = 1; // Deliberately not static
+int32 GMetalBufferZeroFill = 0; // Deliberately not static
 static FAutoConsoleVariableRef CVarMetalBufferZeroFill(
 	TEXT("rhi.Metal.BufferZeroFill"),
 	GMetalBufferZeroFill,
@@ -349,6 +349,7 @@ FMetalDeviceContext::FMetalDeviceContext(mtlpp::Device MetalDevice, uint32 InDev
 , ActiveContexts(1)
 , ActiveParallelContexts(0)
 , PSOManager(0)
+, DeviceFrameIndex(0)
 {
 	CommandQueue.SetRuntimeDebuggingLevel(GMetalRuntimeDebugLevel);
 	
@@ -418,6 +419,9 @@ void FMetalDeviceContext::BeginFrame()
 	
 	// Wait for the frame semaphore on the immediate context.
 	dispatch_semaphore_wait(CommandBufferSemaphore, DISPATCH_TIME_FOREVER);
+	
+	// Bump the frame counter.
+	DeviceFrameIndex++;
 }
 
 #if METAL_DEBUG_OPTIONS

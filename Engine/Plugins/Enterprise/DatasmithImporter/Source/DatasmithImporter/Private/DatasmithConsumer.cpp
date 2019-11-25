@@ -97,7 +97,7 @@ bool UDatasmithConsumer::Initialize()
 
 	UpdateLevel();
 
-	UPackage* ParentPackage = CreatePackage( nullptr, *TargetContentFolder );
+	UPackage* ParentPackage = CreatePackage( nullptr, *GetTargetPackagePath() );
 	ParentPackage->FullyLoad();
 
 	// Re-create the DatasmithScene if it is invalid
@@ -411,6 +411,17 @@ bool UDatasmithConsumer::SetLevelName( const FString & InLevelName, FText& OutRe
 	return bValidLevelName;
 }
 
+bool UDatasmithConsumer::SetTargetContentFolder(const FString& InTargetContentFolder, FText& OutReason)
+{
+	if ( Super::SetTargetContentFolder( InTargetContentFolder, OutReason ) )
+	{
+		UpdateScene();
+		return true;
+	}
+
+	return false;
+}
+
 void UDatasmithConsumer::UpdateScene()
 {
 	// Do nothing if this is the First call to Run, DatasmithScene is null
@@ -422,15 +433,16 @@ void UDatasmithConsumer::UpdateScene()
 	const FText DialogTitle( LOCTEXT( "DatasmithConsumerDlgTitle", "Warning" ) );
 
 	// Warn user if related Datasmith scene is not in package path and force re-creation of Datasmith scene
-	if( DatasmithScene->GetOutermost()->GetPathName() != TargetContentFolder )
+	FString DatasmithScenePath = FPaths::GetPath( DatasmithScene->GetPathName() );
+	if( DatasmithScenePath != TargetContentFolder )
 	{
-		FText WarningMessage = FText::Format(LOCTEXT("DatasmithConsumer_NoSceneAsset", "Package path {0} different from path previously used, {1}.\nPrevious content will not be updated."), FText::FromString (TargetContentFolder ), FText::FromString ( DatasmithScene->GetOutermost()->GetPathName() ) );
+		// Force re-creation of Datasmith scene
+		DatasmithScene.Reset();
+
+		FText WarningMessage = FText::Format(LOCTEXT("DatasmithConsumer_NoSceneAsset", "Package path {0} different from path previously used, {1}.\nPrevious content will not be updated."), FText::FromString (TargetContentFolder ), FText::FromString ( DatasmithScenePath ) );
 		FMessageDialog::Open(EAppMsgType::Ok, WarningMessage, &DialogTitle );
 
 		UE_LOG( LogDatasmithImport, Warning, TEXT("%s"), *WarningMessage.ToString() );
-
-		// Force re-creation of Datasmith scene
-		DatasmithScene.Reset();
 	}
 	// Check if name of owning Dataprep asset has not changed
 	else

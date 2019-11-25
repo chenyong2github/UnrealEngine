@@ -10,7 +10,10 @@
 #include "Math/Vector.h"
 #include "Math/Vector2D.h"
 #include "Math/Box.h"
+#include "Chaos/ImplicitObject.h"
 #include "Chaos/BVHParticles.h"
+#include "Chaos/ParticleHandle.h"
+#include "Chaos/ParticleHandleFwd.h"
 
 inline FArchive& operator<<(FArchive& Ar, TArray<FVector>*& ValueIn)
 {
@@ -39,6 +42,14 @@ inline FArchive& operator<<(FArchive& Ar, Chaos::FImplicitObject*& ValueIn)
 	check(false);	//We don't serialize raw pointers to implicit objects. Use unique ptr
 	return Ar;
 }
+
+template <typename T, int d, bool bPersistent>
+inline FArchive& operator<<(FArchive& Ar, Chaos::TPBDRigidParticleHandleImp<T, d, bPersistent>*& Particle)
+{
+	verifyf(false, TEXT("TPBDRigidParticleHandleImp* should never be serialized!  Use unique ptr."));
+	return Ar;
+}
+
 // ---------------------------------------------------------
 //
 // General purpose EManagedArrayType definition. 

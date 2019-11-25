@@ -78,14 +78,12 @@ static TAutoConsoleVariable<float> CVarDistFieldResScale(
 static TAutoConsoleVariable<int32> CVarDistFieldAtlasResXY(
 	TEXT("r.DistanceFields.AtlasSizeXY"),
 	512,	
-	TEXT("Max size of the global mesh distance field atlas volume texture in X and Y."),
-	ECVF_ReadOnly);
+	TEXT("Max size of the global mesh distance field atlas volume texture in X and Y."));
 
 static TAutoConsoleVariable<int32> CVarDistFieldAtlasResZ(
 	TEXT("r.DistanceFields.AtlasSizeZ"),
 	1024,	
-	TEXT("Max size of the global mesh distance field atlas volume texture in Z."),
-	ECVF_ReadOnly);
+	TEXT("Max size of the global mesh distance field atlas volume texture in Z."));
 
 int32 GDistanceFieldForceAtlasRealloc = 0;
  
@@ -127,7 +125,13 @@ TGlobalResource<FDistanceFieldVolumeTextureAtlas> GDistanceFieldVolumeTextureAtl
 
 FDistanceFieldVolumeTextureAtlas::FDistanceFieldVolumeTextureAtlas() :
 	BlockAllocator(0, 0, 0, 0, 0, 0, false, false),
-	bInitialized(false)
+	bInitialized(false),
+	AllocatedPixels(0),
+	FailedAllocatedPixels(0),
+	MaxUsedAtlasX(0),
+	MaxUsedAtlasY(0),
+	MaxUsedAtlasZ(0)
+
 {
 	// Warning: can't access cvars here, this is called during global init
 	Generation = 0;
@@ -151,6 +155,10 @@ void FDistanceFieldVolumeTextureAtlas::InitializeIfNeeded()
 		const int32 AtlasZ = CVarZ->GetValueOnAnyThread();
 
 		BlockAllocator = FTextureLayout3d(0, 0, 0, AtlasXY, AtlasXY, AtlasZ, false, false);
+
+		MaxUsedAtlasX = 0;
+		MaxUsedAtlasY = 0;
+		MaxUsedAtlasZ = 0;
 	}
 }
 
@@ -255,7 +263,7 @@ void FDistanceFieldVolumeTextureAtlas::AddAllocation(FDistanceFieldVolumeTexture
 	{
 		Texture->bThrottled = true;
 	}
-	
+	const FIntVector Size = Texture->VolumeData.Size;
 }
 
 void FDistanceFieldVolumeTextureAtlas::RemoveAllocation(FDistanceFieldVolumeTexture* Texture)
@@ -263,12 +271,50 @@ void FDistanceFieldVolumeTextureAtlas::RemoveAllocation(FDistanceFieldVolumeText
 	InitializeIfNeeded();
 	PendingAllocations.Remove(Texture);
 
-	if (CurrentAllocations.Contains(Texture))
+	if (FailedAllocations.Remove(Texture) > 0)
 	{
-		const FIntVector Min = Texture->GetAllocationMin();
-		const FIntVector Size = Texture->VolumeData.Size;
-		verify(BlockAllocator.RemoveElement(Min.X, Min.Y, Min.Z, Size.X, Size.Y, Size.Z));
-		CurrentAllocations.Remove(Texture);
+		FailedAllocatedPixels -= Texture->VolumeData.Size.X * Texture->VolumeData.Size.Y * Texture->VolumeData.Size.Z;;
+	}
+
+	if (!CurrentAllocations.Contains(Texture))
+	{
+		return;
+	}
+
+	FIntVector Size = Texture->VolumeData.Size;
+	int PixelAreaSize = Size.X * Size.Y * Size.Z;
+
+	const FIntVector Min = Texture->GetAllocationMin();
+	verify(BlockAllocator.RemoveElement(Min.X, Min.Y, Min.Z, Size.X, Size.Y, Size.Z));
+	CurrentAllocations.Remove(Texture);
+	AllocatedPixels -= PixelAreaSize;
+
+	FIntVector RemainingSize = Size;
+	
+	// Check if there is room for a previous failed allocation
+	for (int32 Index = 0; Index < FailedAllocations.Num(); Index++)
+	{
+		FDistanceFieldVolumeTexture* PreviouslyFailedAllocatedTexture = FailedAllocations[Index];
+		Size = PreviouslyFailedAllocatedTexture->VolumeData.Size;
+		if (Size.X > RemainingSize.X || Size.Y > RemainingSize.Y || Size.Z > RemainingSize.Z)
+		{
+			continue;
+		}
+		// Room available. Add texture to pending list
+		PendingAllocations.Add(PreviouslyFailedAllocatedTexture);
+		FailedAllocations.RemoveAt(Index);
+		Index--;
+		FailedAllocatedPixels -= PixelAreaSize;
+
+		RemainingSize.X -= Size.X;
+		RemainingSize.Y -= Size.Y;
+		RemainingSize.Z -= Size.Z;
+		
+		// Continue iterating if remaining size can support another mesh DF
+		if (RemainingSize.X < 4 || RemainingSize.Y < 4 || RemainingSize.Z < 4)
+		{
+			break;
+		}
 	}
 }
 
@@ -282,6 +328,27 @@ struct FCompareVolumeAllocation
 
 void FDistanceFieldVolumeTextureAtlas::UpdateAllocations()
 {
+	{
+		uint32 TotalSurface = BlockAllocator.GetMaxSizeX() * BlockAllocator.GetMaxSizeY() * BlockAllocator.GetMaxSizeZ();
+		CSV_CUSTOM_STAT_GLOBAL(DFAtlasPercentageUsage, float((float(AllocatedPixels) / float(TotalSurface))*100.0f), ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT_GLOBAL(DFAtlasMaxX, float(MaxUsedAtlasX), ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT_GLOBAL(DFAtlasMaxY, float(MaxUsedAtlasY), ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT_GLOBAL(DFAtlasMaxZ, float(MaxUsedAtlasZ), ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT_GLOBAL(DFAtlasFailedAllocatedMagaPixels, (float(FailedAllocatedPixels)/1024)/1024, ECsvCustomStatOp::Set);
+	}
+
+	static const auto CVarXY = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DistanceFields.AtlasSizeXY"));
+	const int32 AtlasXY = CVarXY->GetValueOnAnyThread();
+
+	static const auto CVarZ = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DistanceFields.AtlasSizeZ"));
+	const int32 AtlasZ = CVarZ->GetValueOnAnyThread();
+
+	if (bInitialized && (BlockAllocator.GetMaxSizeX() != AtlasXY || BlockAllocator.GetMaxSizeZ() != AtlasZ))
+	{
+		// Atlas size has changed (most likely because of a hotfix). Reallocate everything
+		GDistanceFieldForceAtlasRealloc = 1;
+	}
+
 	if (PendingAllocations.Num() > 0 || GDistanceFieldForceAtlasRealloc != 0)
 	{
 		const double StartTime = FPlatformTime::Seconds();
@@ -301,6 +368,7 @@ void FDistanceFieldVolumeTextureAtlas::UpdateAllocations()
 
 		auto AllocateBlocks = [&]()
 		{
+			int32 FailedAllocationCount = FailedAllocations.Num();
 			for (int32 AllocationIndex = 0; AllocationIndex < LocalPendingAllocations->Num(); AllocationIndex++)
 			{
 				FDistanceFieldVolumeTexture* Texture = (*LocalPendingAllocations)[AllocationIndex];
@@ -309,10 +377,25 @@ void FDistanceFieldVolumeTextureAtlas::UpdateAllocations()
 
 				if (!BlockAllocator.AddElement((uint32&)Texture->AtlasAllocationMin.X, (uint32&)Texture->AtlasAllocationMin.Y, (uint32&)Texture->AtlasAllocationMin.Z, Size.X, Size.Y, Size.Z))
 				{
-					UE_LOG(LogStaticMesh, Error, TEXT("Failed to allocate %ux%ux%u in distance field atlas"), Size.X, Size.Y, Size.Z);
+					UE_LOG(LogStaticMesh, Warning, TEXT("Failed to allocate %ux%ux%u in distance field atlas. Moved mesh distance field to FailedAllocations list"), Size.X, Size.Y, Size.Z);
 					LocalPendingAllocations->RemoveAt(AllocationIndex);
+					FailedAllocations.Add(Texture);
+					FailedAllocatedPixels += Size.X * Size.Y * Size.Z;
 					AllocationIndex--;
 				}
+				else
+				{
+					MaxUsedAtlasX = FMath::Max<uint32>(MaxUsedAtlasX, Texture->AtlasAllocationMin.X + Size.X);
+					MaxUsedAtlasY = FMath::Max<uint32>(MaxUsedAtlasY, Texture->AtlasAllocationMin.Y + Size.Y);
+					MaxUsedAtlasZ = FMath::Max<uint32>(MaxUsedAtlasZ, Texture->AtlasAllocationMin.Z + Size.Z);
+					AllocatedPixels += Size.X * Size.Y * Size.Z;
+				}
+			}
+
+			if (FailedAllocations.Num() > FailedAllocationCount)
+			{
+				// Sort largest to smallest
+				FailedAllocations.Sort(FCompareVolumeAllocation());
 			}
 		};
 
@@ -348,16 +431,14 @@ void FDistanceFieldVolumeTextureAtlas::UpdateAllocations()
 		{
 			if (CurrentAllocations.Num() > 0)
 			{
-				static const auto CVarXY = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DistanceFields.AtlasSizeXY"));
-				const int32 AtlasXY = CVarXY->GetValueOnAnyThread();
-
-				static const auto CVarZ = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DistanceFields.AtlasSizeZ"));
-				const int32 AtlasZ = CVarZ->GetValueOnAnyThread();
-
 				// Remove all allocations from the layout so we have a clean slate
 				BlockAllocator = FTextureLayout3d(0, 0, 0, AtlasXY, AtlasXY, AtlasZ, false, false);
-				
+
 				Generation++;
+
+				MaxUsedAtlasX = 0;
+				MaxUsedAtlasY = 0;
+				MaxUsedAtlasZ = 0;
 
 				// Re-upload all textures since we had to reallocate
 				PendingAllocations.Append(CurrentAllocations);
@@ -384,7 +465,7 @@ void FDistanceFieldVolumeTextureAtlas::UpdateAllocations()
 				AllocateBlocks();
 			}
 
-			// Fully free the previous atlas memory before allocating a new one6
+			// Fully free the previous atlas memory before allocating a new one
 			{
 				// Remove last ref, add to deferred delete list
 				VolumeTextureRHI = NULL;

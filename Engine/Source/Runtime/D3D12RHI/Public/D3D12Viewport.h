@@ -165,6 +165,7 @@ private:
 	uint32 SizeX;
 	uint32 SizeY;
 	bool bIsFullscreen;
+	bool bFullscreenLost;
 	EPixelFormat PixelFormat;
 	bool bIsValid;
 	bool bAllowTearing;

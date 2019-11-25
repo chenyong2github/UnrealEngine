@@ -60,6 +60,19 @@ enum class EConcertSessionResponseCode : uint8
 	InvalidRequest,
 };
 
+/** Response code returned when trying to mount a session repository on the server. */
+UENUM()
+enum class EConcertSessionRepositoryMountResponseCode : uint8
+{
+	/** The repository was mounted on the invoked server. */
+	Mounted,
+	/** The repository is already mounted by another server instance. */
+	AlreadyMounted,
+	/** The repository ID could not be found in the server list. */
+	NotFound,
+};
+
+
 USTRUCT()
 struct FConcertAdmin_DiscoverServersEvent : public FConcertEndpointDiscoveryEvent
 {
@@ -92,6 +105,94 @@ struct FConcertAdmin_ServerDiscoveredEvent : public FConcertEndpointDiscoveryEve
 	EConcertServerFlags ServerFlags;
 };
 
+/** Contains information about a session repository. */
+USTRUCT()
+struct FConcertSessionRepositoryInfo
+{
+	GENERATED_BODY()
+
+	/** The repository ID.*/
+	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
+	FGuid RepositoryId;
+
+	/** The mounted state of this repository. */
+	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
+	bool bMounted = false;
+};
+
+/**
+ * Mount a session repository used to store session files.
+ */
+USTRUCT()
+struct FConcertAdmin_MountSessionRepositoryRequest : public FConcertRequestData
+{
+	GENERATED_BODY()
+
+	/** The repository unique Id. Must be valid. */
+	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
+	FGuid RepositoryId;
+
+	/** The repository root dir (absolute path) where the repository should be found/created. If empty, the server will use its default one. */
+	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
+	FString RepositoryRootDir;
+
+	/** Whether this repository is set as the default one used by server to store new sessions. */
+	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
+	bool bAsServerDefault = false;
+
+	/** Whether the repository should be created if it was not found. */
+	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
+	bool bCreateIfNotExist = false;
+};
+
+USTRUCT()
+struct FConcertAdmin_MountSessionRepositoryResponse : public FConcertResponseData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
+	EConcertSessionRepositoryMountResponseCode MountStatus;
+};
+
+/** Returns the list of repositories known of the server. */
+USTRUCT()
+struct FConcertAdmin_GetSessionRepositoriesRequest : public FConcertRequestData
+{
+	GENERATED_BODY()
+};
+
+USTRUCT()
+struct FConcertAdmin_GetSessionRepositoriesResponse : public FConcertResponseData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
+	TArray<FConcertSessionRepositoryInfo> SessionRepositories;
+};
+
+/**
+ * Drop one or more session repositories from the server, deleting all the contained files.
+ */
+USTRUCT()
+struct FConcertAdmin_DropSessionRepositoriesRequest : public FConcertRequestData
+{
+	GENERATED_BODY()
+
+	/** The list of repository IDs to drop. */
+	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
+	TArray<FGuid> RepositoryIds;
+};
+
+USTRUCT()
+struct FConcertAdmin_DropSessionRepositoriesResponse : public FConcertResponseData
+{
+	GENERATED_BODY()
+
+	/** The list of repository IDs successfully dropped (not found == dropped). */
+	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
+	TArray<FGuid> DroppedRepositoryIds;
+};
+
 USTRUCT()
 struct FConcertAdmin_GetAllSessionsRequest : public FConcertRequestData
 {
@@ -108,13 +209,6 @@ struct FConcertAdmin_GetAllSessionsResponse : public FConcertResponseData
 
 	UPROPERTY(VisibleAnywhere, Category="Concert Message")
 	TArray<FConcertSessionInfo> ArchivedSessions;
-
-	/**
-	 * True when the queried server sees the sessions created/archived during its life time and the sessions from previous (now dead) instances.
-	 * Concurrent servers instances will not see the same sessions because sessions files are not-sharable.
-	 */
-	UPROPERTY(VisibleAnywhere, Category="Concert Message")
-	bool bIncludesPreviousInstanceSessions = true;
 };
 
 USTRUCT()

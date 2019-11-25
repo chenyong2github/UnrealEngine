@@ -67,7 +67,7 @@ void FAutomationTestFramework::FAutomationTestFeedbackContext::Serialize( const 
 			if (LogString.StartsWith(*AnalyticsString))
 			{
 				//Remove "analytics" from the string
-				LogString = LogString.Right(LogString.Len() - (AnalyticsString.Len() + 1));
+				LogString.RightInline(LogString.Len() - (AnalyticsString.Len() + 1), false);
 
 				CurTest->AddAnalyticsItem(LogString);
 			}

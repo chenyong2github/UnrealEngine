@@ -31,7 +31,7 @@ bool FNiagaraMeshMaterialOverride::SerializeFromMismatchedTag(const struct FProp
 
 UNiagaraMeshRendererProperties::UNiagaraMeshRendererProperties()
 	: ParticleMesh(nullptr)
-	, SortMode(ENiagaraSortMode::ViewDistance)
+	, SortMode(ENiagaraSortMode::None)
 	, bSortOnlyWhenTranslucent(true)
 {
 }
@@ -75,6 +75,18 @@ void UNiagaraMeshRendererProperties::PostInitProperties()
 		}
 		InitBindings();
 	}
+}
+
+void UNiagaraMeshRendererProperties::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);
+	const int32 NiagaraVersion = Ar.CustomVer(FNiagaraCustomVersion::GUID);
+
+	if (Ar.IsLoading() && (NiagaraVersion < FNiagaraCustomVersion::DisableSortingByDefault))
+	{
+		SortMode = ENiagaraSortMode::ViewDistance;
+	}
+	Super::Serialize(Ar);
 }
 
 /** The bindings depend on variables that are created during the NiagaraModule startup. However, the CDO's are build prior to this being initialized, so we defer setting these values until later.*/

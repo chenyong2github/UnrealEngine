@@ -63,6 +63,18 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 		// Add an SOA which contains particles with full dynamic data but which are in the kinematic object state.
 		AddDynamicKinematicSOA,
 
+		// Added material manager to Chaos
+		AddedMaterialManager,
+
+		// Added material indices to trimesh collision data
+		AddTrimeshMaterialIndices,
+
+		// Add center of mass and volume cached calculations to TConvex
+		AddConvexCenterOfMassAndVolume,
+
+		// Add mass transform data to kinematic particle
+		KinematicCentersOfMass,
+		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -149,6 +149,15 @@ void ULandscapeComponent::UpdateNavigationRelevance()
 	}
 }
 
+void ULandscapeComponent::UpdateRejectNavmeshUnderneath()
+{
+	ALandscapeProxy* Proxy = GetLandscapeProxy();
+	if (CollisionComponent && Proxy)
+	{
+		CollisionComponent->bRejectNavmeshUnderneath = Proxy->bRejectNavmeshUnderLandscapeGeometry;
+	}
+}
+
 ULandscapeMaterialInstanceConstant* ALandscapeProxy::GetLayerThumbnailMIC(UMaterialInterface* LandscapeMaterial, FName LayerName, UTexture2D* ThumbnailWeightmap, UTexture2D* ThumbnailHeightmap, ALandscapeProxy* Proxy)
 {
 	if (!LandscapeMaterial)
@@ -1218,7 +1227,7 @@ void ULandscapeComponent::UpdateCollisionHeightBuffer(	int32 InComponentX1, int3
 	}
 }
 
-void ULandscapeComponent::UpdateDominantLayerBuffer(int32 InComponentX1, int32 InComponentY1, int32 InComponentX2, int32 InComponentY2, int32 InCollisionMipLevel, int32 InWeightmapSizeU, int32 InDataLayerIdx, const TArray<uint8*>& InCollisionDataPtrs, uint8* OutDominantLayerData)
+void ULandscapeComponent::UpdateDominantLayerBuffer(int32 InComponentX1, int32 InComponentY1, int32 InComponentX2, int32 InComponentY2, int32 InCollisionMipLevel, int32 InWeightmapSizeU, int32 InDataLayerIdx, const TArray<uint8*>& InCollisionDataPtrs, const TArray<ULandscapeLayerInfoObject*>& InLayerInfos, uint8* OutDominantLayerData)
 {
 	const int32 MipSizeU = InWeightmapSizeU >> InCollisionMipLevel;
 
@@ -1267,6 +1276,7 @@ void ULandscapeComponent::UpdateDominantLayerBuffer(int32 InComponentX1, int32 I
 					for (int32 LayerIdx = 0; LayerIdx < InCollisionDataPtrs.Num(); LayerIdx++)
 					{
 						const uint8 LayerWeight = InCollisionDataPtrs[LayerIdx][DataOffset];
+						const uint8 LayerMinimumWeight = InLayerInfos[LayerIdx] ? (uint8)(InLayerInfos[LayerIdx]->MinimumCollisionRelevanceWeight * 255) :  0;
 
 						if (LayerIdx == InDataLayerIdx) // Override value for hole
 						{
@@ -1276,7 +1286,7 @@ void ULandscapeComponent::UpdateDominantLayerBuffer(int32 InComponentX1, int32 I
 								DominantWeight = INT_MAX;
 							}
 						}
-						else if (LayerWeight > DominantWeight)
+						else if (LayerWeight > DominantWeight && LayerWeight >= LayerMinimumWeight)
 						{
 							DominantLayer = LayerIdx;
 							DominantWeight = LayerWeight;
@@ -1391,12 +1401,12 @@ void ULandscapeComponent::UpdateCollisionLayerData(const FColor* const* const We
 			const int32 WeightmapSizeU = ComponentWeightmapsTexture[0]->Source.GetSizeX();
 						
 			// gmartin: WeightmapScaleBias not handled?			
-			UpdateDominantLayerBuffer(ComponentX1, ComponentY1, ComponentX2, ComponentY2, CollisionMipLevel, WeightmapSizeU, DataLayerIdx, CandidateDataPtrs, DominantLayerData);
+			UpdateDominantLayerBuffer(ComponentX1, ComponentY1, ComponentX2, ComponentY2, CollisionMipLevel, WeightmapSizeU, DataLayerIdx, CandidateDataPtrs, CollisionComp->ComponentLayerInfos, DominantLayerData);
 
 			if (bUsingSimpleCollision)
 			{
 				uint8* const SimpleCollisionHeightData = DominantLayerData + CollisionSize.SizeVertsSquare;
-				UpdateDominantLayerBuffer(ComponentX1, ComponentY1, ComponentX2, ComponentY2, SimpleCollisionMipLevel, WeightmapSizeU, DataLayerIdx, SimpleCollisionDataPtrs, SimpleCollisionHeightData);
+				UpdateDominantLayerBuffer(ComponentX1, ComponentY1, ComponentX2, ComponentY2, SimpleCollisionMipLevel, WeightmapSizeU, DataLayerIdx, SimpleCollisionDataPtrs, CollisionComp->ComponentLayerInfos, SimpleCollisionHeightData);
 			}
 
 			CollisionComp->DominantLayerData.Unlock();
@@ -3747,6 +3757,7 @@ ULandscapeLayerInfoObject::ULandscapeLayerInfoObject(const FObjectInitializer& O
 {
 	Hardness = 0.5f;
 #if WITH_EDITORONLY_DATA
+	MinimumCollisionRelevanceWeight = 0.0f;
 	bNoWeightBlend = false;
 	SplineFalloffModulationTexture = nullptr;
 	SplineFalloffModulationColorMask = ESplineModulationColorMask::Red;
@@ -3768,9 +3779,10 @@ ULandscapeLayerInfoObject::ULandscapeLayerInfoObject(const FObjectInitializer& O
 #if WITH_EDITOR
 void ULandscapeLayerInfoObject::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	static const FName NAME_Hardness = FName(TEXT("Hardness"));
-	static const FName NAME_PhysMaterial = FName(TEXT("PhysMaterial"));
-	static const FName NAME_LayerUsageDebugColor = FName(TEXT("LayerUsageDebugColor"));
+	static const FName NAME_Hardness = GET_MEMBER_NAME_CHECKED(ULandscapeLayerInfoObject, Hardness);
+	static const FName NAME_PhysMaterial = GET_MEMBER_NAME_CHECKED(ULandscapeLayerInfoObject, PhysMaterial);
+	static const FName NAME_LayerUsageDebugColor = GET_MEMBER_NAME_CHECKED(ULandscapeLayerInfoObject, LayerUsageDebugColor);
+	static const FName NAME_MinimumCollisionRelevanceWeight = GET_MEMBER_NAME_CHECKED(ULandscapeLayerInfoObject, MinimumCollisionRelevanceWeight);
 	static const FName NAME_R = FName(TEXT("R"));
 	static const FName NAME_G = FName(TEXT("G"));
 	static const FName NAME_B = FName(TEXT("B"));
@@ -3786,7 +3798,7 @@ void ULandscapeLayerInfoObject::PostEditChangeProperty(FPropertyChangedEvent& Pr
 		{
 			Hardness = FMath::Clamp<float>(Hardness, 0.0f, 1.0f);
 		}
-		else if (PropertyName == NAME_PhysMaterial)
+		else if (PropertyName == NAME_PhysMaterial || PropertyName == NAME_MinimumCollisionRelevanceWeight)
 		{
 			for (TObjectIterator<ALandscapeProxy> It; It; ++It)
 			{
@@ -4702,6 +4714,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	bool bNeedsRecalcBoundingBox = false;
 	bool bChangedLighting = false;
 	bool bChangedNavRelevance = false;
+	bool bChangeRejectNavmeshUnder = false;
 	bool bPropagateToProxies = false;
 
 	ULandscapeInfo* Info = GetLandscapeInfo();
@@ -4847,6 +4860,10 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	{
 		bChangedNavRelevance = true;
 	}
+	else if (GIsEditor && PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bRejectNavmeshUnderLandscapeGeometry))
+	{
+		bChangeRejectNavmeshUnder = true;
+	}
 
 	// Must do this *after* clamping values
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -4872,7 +4889,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 			LandscapeEdit.RecalculateNormals();
 		}
 
-		if (bNeedsRecalcBoundingBox || ChangedMaterial || bChangedLighting || bChangedNavRelevance)
+		if (bNeedsRecalcBoundingBox || ChangedMaterial || bChangedLighting || bChangedNavRelevance || bChangeRejectNavmeshUnder)
 		{
 			// We cannot iterate the XYtoComponentMap directly because reregistering components modifies the array.
 			TArray<ULandscapeComponent*> AllComponents;
@@ -4897,6 +4914,11 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 					if (bChangedNavRelevance)
 					{
 						Comp->UpdateNavigationRelevance();
+					}
+
+					if (bChangeRejectNavmeshUnder)
+					{
+						Comp->UpdateRejectNavmeshUnderneath();
 					}
 				}
 			}
@@ -6045,7 +6067,7 @@ void ULandscapeComponent::GeneratePlatformPixelData()
 	MobileWeightmapTextures.Empty();
 
     UTexture2D* MobileWeightNormalmapTexture = GetLandscapeProxy()->CreateLandscapeTexture(WeightmapSize, WeightmapSize, TEXTUREGROUP_Terrain_Weightmap, TSF_BGRA8, nullptr, GMobileCompressLandscapeWeightMaps ? true : false );
-	CreateEmptyTextureMips(MobileWeightNormalmapTexture);
+	CreateEmptyTextureMips(MobileWeightNormalmapTexture, true);
 
 	{
 		FLandscapeTextureDataInterface LandscapeData;
@@ -6088,7 +6110,7 @@ void ULandscapeComponent::GeneratePlatformPixelData()
 					CurrentChannel = 0;
 					RemainingChannels = 4;
                     CurrentWeightmapTexture = GetLandscapeProxy()->CreateLandscapeTexture(WeightmapSize, WeightmapSize, TEXTUREGROUP_Terrain_Weightmap, TSF_BGRA8, nullptr, GMobileCompressLandscapeWeightMaps ? true : false);
-					CreateEmptyTextureMips(CurrentWeightmapTexture);
+					CreateEmptyTextureMips(CurrentWeightmapTexture, true);
 					MobileWeightmapTextures.Add(CurrentWeightmapTexture);
 				}
 
@@ -6105,7 +6127,23 @@ void ULandscapeComponent::GeneratePlatformPixelData()
 	GDisableAutomaticTextureMaterialUpdateDependencies = true;
 	for (int TextureIdx = 0; TextureIdx < MobileWeightmapTextures.Num(); TextureIdx++)
 	{
-		MobileWeightmapTextures[TextureIdx]->PostEditChange();
+		UTexture* Texture = MobileWeightmapTextures[TextureIdx];
+		Texture->PostEditChange();
+
+		// PostEditChange() will assign a random GUID to the texture, which leads to non-deterministic builds.
+		// Compute a 128-bit hash based on the texture name and use that as a GUID to fix this issue.
+		FTCHARToUTF8 Converted(*Texture->GetFullName());
+		FMD5 MD5Gen;
+		MD5Gen.Update((const uint8*)Converted.Get(), Converted.Length());
+		uint32 Digest[4];
+		MD5Gen.Final((uint8*)Digest);
+
+		// FGuid::NewGuid() creates a version 4 UUID (at least on Windows), which will have the top 4 bits of the
+		// second field set to 0100. We'll set the top bit to 1 in the GUID we create, to ensure that we can never
+		// have a collision with textures which use implicitly generated GUIDs.
+		Digest[1] |= 0x80000000;
+		FGuid TextureGUID(Digest[0], Digest[1], Digest[2], Digest[3]);
+		Texture->SetLightingGuid(TextureGUID);
 	}
 	GDisableAutomaticTextureMaterialUpdateDependencies = false;
 

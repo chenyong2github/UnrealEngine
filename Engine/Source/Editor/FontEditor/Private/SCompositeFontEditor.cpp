@@ -27,7 +27,9 @@
 #include "Misc/FileHelper.h"
 #include "IContentBrowserSingleton.h"
 #include "FileHelpers.h"
+#include "Subsystems/ImportSubsystem.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Factories/FontFileImportFactory.h"
 
 #define LOCTEXT_NAMESPACE "FontEditor"
 
@@ -1100,8 +1102,10 @@ UFontFace* STypefaceEntryEditor::SaveFontFaceAsAsset(const UFontFace* InFontFace
 	{
 		const FString NewFaceAssetName = FPackageName::GetLongPackageAssetName(NewPackageName);
 		UPackage* NewFaceAssetPackage = CreatePackage(nullptr, *NewPackageName);
-		UFontFace* NewFaceAsset = Cast<UFontFace>(StaticDuplicateObject(InFontFace, NewFaceAssetPackage, *NewFaceAssetName));
 
+		GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPreImport(GetMutableDefault<UFontFileImportFactory>(), UFontFace::StaticClass(), NewFaceAssetPackage, *NewFaceAssetName, *FPaths::GetExtension(InFontFace->GetFontFilename()));
+
+		UFontFace* NewFaceAsset = Cast<UFontFace>(StaticDuplicateObject(InFontFace, NewFaceAssetPackage, *NewFaceAssetName));
 		if (NewFaceAsset)
 		{
 			// Make sure the new object is flagged correctly
@@ -1110,6 +1114,8 @@ UFontFace* STypefaceEntryEditor::SaveFontFaceAsAsset(const UFontFace* InFontFace
 			NewFaceAsset->MarkPackageDirty();
 			FAssetRegistryModule::AssetCreated(NewFaceAsset);
 		}
+
+		GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(GetMutableDefault<UFontFileImportFactory>(), NewFaceAsset);
 
 		return NewFaceAsset;
 	}

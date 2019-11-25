@@ -15,7 +15,7 @@
 
 /** */
 UCLASS()
-class CLOTHINGSYSTEMRUNTIMENV_API UClothLODDataNv : public UClothLODDataBase
+class CLOTHINGSYSTEMRUNTIMENV_API UClothLODDataNv : public UClothLODDataCommon
 {
 	GENERATED_BODY()
 public:
@@ -65,7 +65,7 @@ struct CLOTHINGSYSTEMRUNTIMENV_API FClothLODData
 	}
 
 	// Migrate this legacy Nv struct to the new class format (called by UClothingAssetNv::Postload())
-	void MigrateTo(UClothLODDataNv* LodData) const;
+	void MigrateTo(UClothLODDataCommon* LodData) const;
 };
 
 template<>

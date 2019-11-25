@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "EditorFilterLibrary.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 
 #include "DataprepCoreLibrary.generated.h"

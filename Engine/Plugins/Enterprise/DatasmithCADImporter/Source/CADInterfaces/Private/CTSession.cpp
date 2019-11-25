@@ -31,11 +31,6 @@ namespace CADLibrary
 		return CTKIO_SaveFile(ObjectList, *FilePath, L"Ct");
 	}
 
-	CheckedCTError CTSession::CleanBRep()
-	{
-		return CTKIO_CleanBody(MainObjectId);
-	}
-
 	CheckedCTError CTSession::TopoFixes(double SewingToleranceFactor)
 	{
 		return CADLibrary::Repair(MainObjectId, ImportParams.StitchingTechnique, SewingToleranceFactor);

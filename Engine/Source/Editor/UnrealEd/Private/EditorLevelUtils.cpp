@@ -314,7 +314,10 @@ ULevel* UEditorLevelUtils::AddLevelsToWorld(UWorld* InWorld, TArray<FString> Pac
 	FEditorDelegates::RefreshLevelBrowser.Broadcast();
 
 	// Update volume actor visibility for each viewport since we loaded a level which could potentially contain volumes
-	GUnrealEd->UpdateVolumeActorVisibility(nullptr);
+	if (GUnrealEd)
+	{
+		GUnrealEd->UpdateVolumeActorVisibility(nullptr);
+	}
 
 	return NewLevel;
 }
@@ -362,7 +365,10 @@ ULevelStreaming* UEditorLevelUtils::AddLevelToWorld(UWorld* InWorld, const TCHAR
 	FEditorDelegates::RefreshLevelBrowser.Broadcast();
 
 	// Update volume actor visibility for each viewport since we loaded a level which could potentially contain volumes
-	GUnrealEd->UpdateVolumeActorVisibility(nullptr);
+	if (GUnrealEd)
+	{
+		GUnrealEd->UpdateVolumeActorVisibility(nullptr);
+	}
 
 	return NewStreamingLevel;
 }

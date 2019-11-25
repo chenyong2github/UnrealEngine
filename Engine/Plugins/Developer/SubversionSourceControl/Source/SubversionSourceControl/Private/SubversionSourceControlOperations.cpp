@@ -202,7 +202,7 @@ static void AddDirectoriesToCommit(const FSubversionSourceControlCommand& InComm
 			int32 ChopPoint = INDEX_NONE;
 			if(Directory.FindLastChar('/', ChopPoint))
 			{
-				Directory = Directory.Left(ChopPoint);
+				Directory.LeftInline(ChopPoint);
 			}
 			else
 			{

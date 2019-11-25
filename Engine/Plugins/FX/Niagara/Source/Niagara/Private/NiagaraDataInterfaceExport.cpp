@@ -138,7 +138,7 @@ void UNiagaraDataInterfaceExport::StoreData(FVectorVMContext& Context)
 		FBasicParticleData Data;
 		Data.Position = FVector(PositionParamX.GetAndAdvance(), PositionParamY.GetAndAdvance(), PositionParamZ.GetAndAdvance());
 		Data.Size = SizeParam.GetAndAdvance();
-		Data.Position = FVector(VelocityParamX.GetAndAdvance(), VelocityParamY.GetAndAdvance(), VelocityParamZ.GetAndAdvance());
+		Data.Velocity = FVector(VelocityParamX.GetAndAdvance(), VelocityParamY.GetAndAdvance(), VelocityParamZ.GetAndAdvance());
 
 		FNiagaraBool Valid;
 		if (ValidHandlerData && ShouldStore)

@@ -21,6 +21,7 @@ public:
 	UDataprepAssetFactory();
 
 	//~ Begin UFactory Interface
+	virtual bool ShouldShowInNewMenu() const override;
 	virtual UObject* FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
 	//~ Begin UFactory Interface	
 };

@@ -23,7 +23,7 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Layers/LayersSubsystem.h"
 #include "Editor.h"
-#include "Serialization/ArchiveHasReferences.h"
+#include "UObject/ReferencerFinder.h"
 
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
@@ -100,7 +100,7 @@ struct FReplaceReferenceHelper
 		{
 			BP_SCOPED_COMPILER_EVENT_STAT(EKismetReinstancerStats_FindReferencers);
 
-			Targets = FArchiveHasReferences::GetAllReferencers(SourceObjects, ObjectsThatShouldUseOldStuff);
+			Targets = FReferencerFinder::GetAllReferencers(SourceObjects, ObjectsThatShouldUseOldStuff);
 		}
 
 		{
@@ -856,6 +856,24 @@ void FBlueprintCompileReinstancer::UpdateBytecodeReferences()
 				UFunction* CurrentFunction = *FuncIter;
 				FArchiveReplaceObjectRef<UObject> ReplaceAr(CurrentFunction, FieldMappings, /*bNullPrivateRefs=*/ false, /*bIgnoreOuterRef=*/ true, /*bIgnoreArchetypeRef=*/ true);
 				bBPWasChanged |= (0 != ReplaceAr.GetCount());
+			}
+
+			// Update any refs in called functions array, as the bytecode was just similarly updated:
+			if(UBlueprintGeneratedClass* AsBPGC = Cast<UBlueprintGeneratedClass>(BPClass))
+			{
+				for(int32 Idx = 0; Idx < AsBPGC->CalledFunctions.Num(); ++Idx)
+				{
+					UObject** Val = FieldMappings.Find(AsBPGC->CalledFunctions[Idx]);
+					if(Val && *Val)
+					{
+						// This ::Cast should always succeed, but I'm uncomfortable making 
+						// rigid assumptions about the FieldMappings array:
+						if(UFunction* NewFn = Cast<UFunction>(*Val))
+						{
+							AsBPGC->CalledFunctions[Idx] = NewFn;
+						}
+					}
+				}
 			}
 
 			FArchiveReplaceObjectRef<UObject> ReplaceInBPAr(*DependentBP, FieldMappings, false, true, true);

@@ -1006,6 +1006,11 @@ void UAssetToolsImpl::FindSoftReferencesToObject(FSoftObjectPath TargetObject, T
 	AssetRenameManager->FindSoftReferencesToObject(TargetObject, ReferencingObjects);
 }
 
+void UAssetToolsImpl::FindSoftReferencesToObjects(const TArray<FSoftObjectPath>& TargetObjects, TMap<FSoftObjectPath, TArray<UObject*>>& ReferencingObjects)
+{
+	AssetRenameManager->FindSoftReferencesToObjects(TargetObjects, ReferencingObjects);
+}
+
 void UAssetToolsImpl::RenameReferencingSoftObjectPaths(const TArray<UPackage *> PackagesToCheck, const TMap<FSoftObjectPath, FSoftObjectPath>& AssetRedirectorMap)
 {
 	AssetRenameManager->RenameReferencingSoftObjectPaths(PackagesToCheck, AssetRedirectorMap);
@@ -2277,7 +2282,7 @@ void UAssetToolsImpl::ExportAssetsInternal(const TArray<UObject*>& ObjectsToExpo
 				if (PackageName.Left(1) == TEXT("/"))
 				{
 					// Trim the leading slash so the file manager doesn't get confused
-					PackageName = PackageName.Mid(1);
+					PackageName.MidInline(1, false);
 				}
 
 				FPaths::NormalizeFilename(PackageName);
@@ -2917,6 +2922,11 @@ void UAssetToolsImpl::RecursiveGetDependenciesAdvanced(const FName& PackageName,
 void UAssetToolsImpl::FixupReferencers(const TArray<UObjectRedirector*>& Objects) const
 {
 	AssetFixUpRedirectors->FixupReferencers(Objects);
+}
+
+bool UAssetToolsImpl::IsFixupReferencersInProgress() const
+{
+	return AssetFixUpRedirectors->IsFixupReferencersInProgress();
 }
 
 void UAssetToolsImpl::OpenEditorForAssets(const TArray<UObject*>& Assets)

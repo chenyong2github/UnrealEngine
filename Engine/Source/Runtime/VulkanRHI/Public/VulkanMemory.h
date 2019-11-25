@@ -18,7 +18,7 @@
 #define VULKAN_MEMORY_HIGHER_PRIORITY 0.75f
 #define VULKAN_MEMORY_HIGHEST_PRIORITY 1.f
 
-
+class FVulkanCommandListContext;
 class FVulkanQueue;
 class FVulkanCmdBuffer;
 
@@ -1290,6 +1290,9 @@ namespace VulkanRHI
 			// Offset into the locked area
 			uint32 CurrentOffset;
 
+			// Size of Allocation
+			uint32 Size;
+
 			// Simple counter used for the SRVs to know a new one is required
 			uint32 LockCounter;
 
@@ -1297,6 +1300,7 @@ namespace VulkanRHI
 				: Data(nullptr)
 				, BufferSuballocation(nullptr)
 				, CurrentOffset(0)
+				, Size(0)
 				, LockCounter(0)
 			{
 			}

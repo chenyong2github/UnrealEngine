@@ -116,7 +116,7 @@ namespace LandscapeCookStats
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.                                       
-#define LANDSCAPE_MOBILE_COOK_VERSION TEXT("A048A0D4A24644BA9948FB08068AE8D7")
+#define LANDSCAPE_MOBILE_COOK_VERSION TEXT("6862AA3DD9FB4368B9DDAF9EB7E9901F")
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
@@ -1048,6 +1048,7 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 	bCastStaticShadow = true;
 	bCastShadowAsTwoSided = false;
 	bUsedForNavigation = true;
+	bRejectNavmeshUnderLandscapeGeometry = false;
 	CollisionThickness = 16;
 	BodyInstance.SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
 	bGenerateOverlapEvents = false;
@@ -2002,6 +2003,14 @@ void ALandscape::PostLoad()
 			Brush.SetOwner(this);
 		}
 	}
+
+	for (ULandscapeComponent* Comp : LandscapeComponents)
+	{
+		if (Comp)
+		{
+			Comp->UpdateRejectNavmeshUnderneath();
+		}
+	}
 #endif
 
 	Super::PostLoad();
@@ -2506,6 +2515,11 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 		PositiveZBoundsExtension = Landscape->PositiveZBoundsExtension;
 		CollisionMipLevel = Landscape->CollisionMipLevel;
 		bBakeMaterialPositionOffsetIntoCollision = Landscape->bBakeMaterialPositionOffsetIntoCollision;
+		RuntimeVirtualTextures = Landscape->RuntimeVirtualTextures;
+		VirtualTextureLodBias = Landscape->VirtualTextureLodBias;
+		VirtualTextureNumLods = Landscape->VirtualTextureNumLods;
+		VirtualTextureRenderPassType = Landscape->VirtualTextureRenderPassType;
+
 		if (!LandscapeMaterial)
 		{
 			LandscapeMaterial = Landscape->LandscapeMaterial;

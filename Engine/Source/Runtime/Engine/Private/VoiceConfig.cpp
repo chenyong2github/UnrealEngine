@@ -21,6 +21,22 @@ static TAutoConsoleVariable<float> CVarVoiceSilenceDetectionThreshold(TEXT("voic
 	TEXT("Threshold to be set for the VOIP microphone's silence detection algorithm.\n"),	
 	ECVF_Default);
 
+static float JitterBufferDelayCvar = 0.3;
+FAutoConsoleVariableRef CVarJitterBufferDelay(
+	TEXT("voice.JitterBufferDelay"),
+	JitterBufferDelayCvar,
+	TEXT("The default amount of audio we buffer, in seconds, before we play back audio. Decreasing this value will decrease latency but increase the potential for underruns.\n")
+	TEXT("Value: Number of seconds of audio we buffer."),
+	ECVF_Default);
+
+static int32 NumVoiceChannelsCvar = 1;
+FAutoConsoleVariableRef CVarNumVoiceChannels(
+	TEXT("voice.NumChannels"),
+	NumVoiceChannelsCvar,
+	TEXT("Default number of channels to capture from mic input, encode to Opus, and output. Can be set to 1 or 2.\n")
+	TEXT("Value: Number of channels to use for VOIP input and output."),
+	ECVF_Default);
+
 int32 UVOIPStatics::GetVoiceSampleRate()
 {
 #if PLATFORM_UNIX
@@ -61,6 +77,11 @@ int32 UVOIPStatics::GetVoiceSampleRate()
 #endif
 }
 
+int32 UVOIPStatics::GetVoiceNumChannels()
+{
+	return FMath::Clamp<int32>(NumVoiceChannelsCvar, 1, 2);
+}
+
 uint32 UVOIPStatics::GetMaxVoiceDataSize()
 {
 	int32 SampleRate = GetVoiceSampleRate();
@@ -70,16 +91,16 @@ uint32 UVOIPStatics::GetMaxVoiceDataSize()
 	{
 		case 24000:
 		{
-			return 14 * 1024;
+			return 14 * 1024 * GetVoiceNumChannels();
 		}
 		case 48000:
 		{
-			return 32 * 1024;
+			return 32 * 1024 * GetVoiceNumChannels();
 		}
 		default:
 		case 16000:
 		{
-			return 8 * 1024;
+			return 8 * 1024 * GetVoiceNumChannels();
 		}
 	}
 }
@@ -90,7 +111,7 @@ uint32 UVOIPStatics::GetMaxUncompressedVoiceDataSizePerChannel()
 	// This amounts to approximates a second of audio for the minimum voice engine tick frequency.
 	// At 48 kHz, DirectSound will occasionally have to load up to 256 samples into the overflow buffer.
 	// This is the reason for the added 1024 bytes.
-	return GetVoiceSampleRate() * sizeof(uint16) + 1024;
+	return GetVoiceSampleRate() * sizeof(uint16) * GetVoiceNumChannels() + 1024 * GetVoiceNumChannels();
 }
 
 uint32 UVOIPStatics::GetMaxCompressedVoiceDataSize()
@@ -102,16 +123,16 @@ uint32 UVOIPStatics::GetMaxCompressedVoiceDataSize()
 	{
 		case 24000:
 		{
-			return 2 * 1024;
+			return 2 * 1024 * GetVoiceNumChannels();
 		}
 		case 48000:
 		{
-			return 4 * 1024;
+			return 4 * 1024 * GetVoiceNumChannels();
 		}
 		default:
 		case 16000:
 		{
-			return 1 * 1024;
+			return 1 * 1024 * GetVoiceNumChannels();
 		}
 	}
 }
@@ -129,18 +150,7 @@ EAudioEncodeHint UVOIPStatics::GetAudioEncodingHint()
 
 float UVOIPStatics::GetBufferingDelay()
 {
-	static bool bRetrievedBufferingDelay = false;
-	static float DesiredBufferDelay = 0.2f;
-	if (!bRetrievedBufferingDelay)
-	{
-		bRetrievedBufferingDelay = true;
-		float SettingsBufferDelay;
-		if (GConfig->GetFloat(TEXT("/Script/Engine.AudioSettings"), TEXT("VoipBufferingDelay"), SettingsBufferDelay, GEngineIni) && SettingsBufferDelay > 0.0f)
-		{
-			DesiredBufferDelay = SettingsBufferDelay;
-		}
-	}
-	return DesiredBufferDelay;
+	return JitterBufferDelayCvar;
 }
 
 int32 UVOIPStatics::GetNumBufferedPackets()

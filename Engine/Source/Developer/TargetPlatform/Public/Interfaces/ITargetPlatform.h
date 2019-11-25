@@ -389,13 +389,6 @@ public:
 	*/
 	virtual float GetDownSampleMeshDistanceFieldDivider() const = 0;
 
-	/**
-	* Gets whether the platforms requires the OptData member of FTexturePlatformData.
-	* On platforms where this returns false, the OptData will be initialized to zero at
-	* runtime, and not serialized in the asset data stream.
-	*/
-	virtual bool RequiresOptTextureData() const = 0;
-
 #if WITH_ENGINE
 	/**
 	 * Gets the format to use for a particular body setup.

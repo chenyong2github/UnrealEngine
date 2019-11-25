@@ -94,13 +94,21 @@ namespace Gauntlet
 		/// <summary>
 		/// Used to track how much of our log has been written out
 		/// </summary>
-		private int LastLogCount ;
+		private int LastLogCount;
 
 		private int CurrentPass;
 
 		private int NumPasses;
 
 		static protected DateTime SessionStartTime = DateTime.MinValue;
+
+		/// <summary>
+		/// Standard semantic versioning for tests. Should be overwritten within individual tests, and individual test maintainers
+		/// are responsible for updating their own versions. See https://semver.org/ for more info on maintaining semantic versions.
+		/// </summary>
+		/// 
+		protected Version TestVersion;
+		
 
 		/// <summary>
 		/// Path to the directory that logs and other artifacts are copied to after the test run.
@@ -141,6 +149,7 @@ namespace Gauntlet
 			LastLogCount = 0;
 			CurrentPass = 0;
 			NumPasses = 0;
+			TestVersion = new Version("1.0.0");
 			ArtifactPath = string.Empty;
 		}
 

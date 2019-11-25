@@ -34,7 +34,7 @@ namespace Chaos
 			{
 				for (auto& Shape : ShapesArray)
 				{
-					Shape->WorldSpaceInflatedShapeBounds = Geometry->BoundingBox().GetAABB().TransformedAABB(ActorTM);
+					Shape->UpdateShapeBounds(ActorTM);
 				}
 			}
 		}
@@ -61,6 +61,15 @@ namespace Chaos
 		return TUniquePtr<TPerShapeData<T, d>>(new TPerShapeData<T, d>());
 	}
 
+	template<typename T, int d>
+	void TPerShapeData<T, d>::UpdateShapeBounds(const TRigidTransform<T, d>& WorldTM)
+	{
+		if (Geometry && Geometry->HasBoundingBox())
+		{
+			WorldSpaceInflatedShapeBounds = Geometry->BoundingBox().GetAABB().TransformedAABB(WorldTM);
+		}
+	}
+
 	template <typename T, int d>
 	TPerShapeData<T, d>* TPerShapeData<T, d>::SerializationFactory(FChaosArchive& Ar, TPerShapeData<T, d>*)
 	{
@@ -84,6 +93,11 @@ namespace Chaos
 		{
 			// This should be set by particle serializing this TPerShapeData.
 			WorldSpaceInflatedShapeBounds = TAABB<FReal, 3>(FVec3(0.0f, 0.0f, 0.0f), FVec3(0.0f, 0.0f, 0.0f));
+		}
+
+		if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddedMaterialManager)
+		{
+			Ar << Materials;
 		}
 	}
 
@@ -110,7 +124,7 @@ namespace Chaos
 		{
 		case EParticleType::Static: return Ar.IsLoading() ? new TGeometryParticlesImp<T, d, SimType>() : nullptr;
 		case EParticleType::Kinematic: return Ar.IsLoading() ? new TKinematicGeometryParticlesImp<T, d, SimType>() : nullptr;
-		case EParticleType::Dynamic: return Ar.IsLoading() ? new TPBDRigidParticles<T, d>() : nullptr;
+		case EParticleType::Rigid: return Ar.IsLoading() ? new TPBDRigidParticles<T, d>() : nullptr;
 		case EParticleType::Clustered: return Ar.IsLoading() ? new TPBDRigidClusteredParticles<T, d>() : nullptr;
 		default:
 			check(false); return nullptr;

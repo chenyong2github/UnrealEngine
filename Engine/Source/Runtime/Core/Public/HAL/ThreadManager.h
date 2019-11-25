@@ -61,6 +61,12 @@ public:
 #endif
 
 	/**
+	 * Enumerate each thread.
+	 *
+	 */
+	void ForEachThread(TFunction<void(uint32, class FRunnableThread*)> Func);
+
+	/**
 	 * Access to the singleton object.
 	 *
 	 * @return Thread manager object.

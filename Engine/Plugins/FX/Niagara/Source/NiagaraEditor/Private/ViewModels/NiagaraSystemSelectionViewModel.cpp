@@ -139,6 +139,15 @@ UNiagaraStackViewModel* UNiagaraSystemSelectionViewModel::GetSelectionStackViewM
 	return SelectionStackViewModel;
 }
 
+void  UNiagaraSystemSelectionViewModel::EmptySelection()
+{
+	if (SelectionEntries.Num() > 0)
+	{
+		SelectionEntries.Empty();
+		UpdateExternalSelectionState();
+	}
+}
+
 void UNiagaraSystemSelectionViewModel::RemoveEntryFromSelectionByDisplayedObject(const UObject* InObject)
 {
 	bool bSelectionChanged = false;

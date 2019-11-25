@@ -3,13 +3,15 @@
 #pragma once
 
 #include "InstallBundleTypes.h"
+#include "InstallBundleUtils.h"
 
 class IInstallBundleSource;
 class IAnalyticsProviderET;
 
 DECLARE_DELEGATE_ThreeParams(FInstallBundleSourceInitDelegate, TSharedRef<IInstallBundleSource> /*Source*/, EInstallBundleManagerInitResult /*Result*/, bool /*bShouldUseFallbackSource*/)
 
-DECLARE_DELEGATE_TwoParams(FInstallBundleCompleteDelegate, TSharedRef<IInstallBundleSource> /*Source*/, FInstallBundleSourceRequestResultInfo /*Result*/);
+DECLARE_DELEGATE_OneParam(FInstallBundleCompleteDelegate, FInstallBundleSourceRequestResultInfo /*Result*/);
+DECLARE_DELEGATE_OneParam(FInstallBundlePausedDelegate, FInstallBundleSourcePauseInfo /*PauseInfo*/);
 
 class IInstallBundleSource : public TSharedFromThis<IInstallBundleSource>
 {
@@ -34,6 +36,7 @@ public:
 	// Called once by bundle manager after constructing the bundle source
 	virtual void Init(
 		TSharedRef<FConfigFile> InstallBundleConfig, 
+		TSharedRef<InstallBundleUtil::FContentRequestStatsMap> InRequestStats,
 		TSharedPtr<IAnalyticsProviderET> AnalyticsProvider) = 0;
 	// Bundle manager will not call AsyncInit again until the bundle source calls back that it is complete
 	// It will be retried indefinitely until init is successful.  
@@ -52,9 +55,17 @@ public:
 	// BundleNames contains all dependencies and has been deduped
 	virtual void GetContentState(TArrayView<FName> BundleNames, EInstallBundleGetContentStateFlags Flags, FInstallBundleGetContentStateDelegate Callback) = 0;
 
+	struct RequestUpdateContentBundleContext
+	{
+		FName BundleName;
+		EInstallBundleRequestFlags Flags = EInstallBundleRequestFlags::None;
+		FInstallBundlePausedDelegate PausedCallback;
+		FInstallBundleCompleteDelegate CompleteCallback;
+	};
+
 	// Updates content on disk if necessary
-	// BundleNames contains all dependencies and has been deduped
-	//virtual FInstallBundleRequestInfo RequestUpdateContent(TArrayView<FName> BundleNames, EInstallBundleRequestFlags Flags, FInstallBundleCompleteDelegate Callbck) = 0;
+	// BundleContexts contains all dependencies and has been deduped
+	virtual void RequestUpdateContent(TArrayView<RequestUpdateContentBundleContext> BundleContexts) = 0;
 
 	// Returns true if content is scheduled to be removed the next time the source is initialized
 	// BundleNames contains all dependencies and has been deduped

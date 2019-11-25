@@ -1808,6 +1808,12 @@ namespace VulkanRHI
 			Size = AlignArbitrary(Size, NonCoherentAtomSize);
 		}
 
+		// Add both source and dest flags
+		if ((InUsageFlags & (VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT)) != 0)
+		{
+			InUsageFlags |= (VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+		}
+
 		//#todo-rco: Better locking!
 		{
 			FScopeLock Lock(&GStagingLock);
@@ -2315,6 +2321,7 @@ namespace VulkanRHI
 			OutInfo.Data = AlignedData;
 			OutInfo.BufferSuballocation = BufferSuballocation;
 			OutInfo.CurrentOffset = (uint32)(AlignedData - MappedData);
+			OutInfo.Size = InSize;
 			CurrentData = AlignedData + InSize;
 			PeakUsed = FMath::Max(PeakUsed, (uint32)(CurrentData - MappedData));
 			return true;

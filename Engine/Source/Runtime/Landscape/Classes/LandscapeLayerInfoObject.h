@@ -35,6 +35,10 @@ class ULandscapeLayerInfoObject : public UObject
 	float Hardness;
 
 #if WITH_EDITORONLY_DATA
+	/* The minimum weight that needs to be painted for that layer to be picked up as the dominant physical layer */
+	UPROPERTY(EditAnywhere, Category=LandscapeLayerInfoObject, Meta = (ClampMin="0", ClampMax="1"))
+	float MinimumCollisionRelevanceWeight;
+
 	UPROPERTY(EditAnywhere, Category=LandscapeLayerInfoObject)
 	uint32 bNoWeightBlend:1;
 

@@ -661,6 +661,7 @@ class UStaticMesh : public UStreamableRenderAsset, public IInterface_CollisionDa
 	/**
 	 * If true, StaticMesh has been built at runtime
 	 */
+	UPROPERTY()
 	uint8 bIsBuiltAtRuntime : 1;
 
 protected:
@@ -1216,7 +1217,7 @@ public:
 	ENGINE_API void RemoveVertexColors();
 
 	/** Make sure the Lightmap UV point on a valid UVChannel */
-	ENGINE_API void EnforceLightmapRestrictions();
+	ENGINE_API void EnforceLightmapRestrictions(bool bUseRenderData = true);
 
 	/** Calculates the extended bounds */
 	ENGINE_API void CalculateExtendedBounds();

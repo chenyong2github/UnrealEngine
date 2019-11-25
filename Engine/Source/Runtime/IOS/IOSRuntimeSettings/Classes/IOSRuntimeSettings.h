@@ -395,6 +395,10 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = PowerUsage, meta = (ConfigHierarchyEditable))
 	EPowerUsageFrameRateLock FrameRateLock;
 
+	//Whether or not to allow taking the MaxRefreshRate from the device instead of a constant (60fps) in IOSPlatformFramePacer
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = PowerUsage, meta = (ConfigHierarchyEditable))
+	bool bEnableDynamicMaxFPS;
+
 	// Minimum iOS version this game supports
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = OSInfo, meta = (DisplayName = "Minimum iOS Version"))
 	EIOSVersion MinimumiOSVersion;
@@ -514,10 +518,6 @@ public:
 	/** Various overrides for how this platform should handle compression and decompression */
 	UPROPERTY(config, EditAnywhere, Category = "Audio")
 	FPlatformRuntimeAudioCompressionOverrides CompressionOverrides;
-
-	/** This determines how we split compressed audio into chunks for this platform. The smaller this value is the more granular our chunking is. */
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Audio|CookOverrides", meta = (DisplayName = "Max Size Per Streaming Chunk (KB)"))
-	int32 ChunkSizeKB;
 
 	/** When this is enabled, Actual compressed data will be separated from the USoundWave, and loaded into a cache. */
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Audio|CookOverrides", meta = (DisplayName = "Use Stream Caching (Experimental)"))

@@ -747,6 +747,9 @@ public:
 
 	virtual void PostRenderAllViewports() = 0;
 
+	/** Performs necessary per-frame cleanup. Only use when rendering through scene renderer (i.e. BeginRenderingViewFamily) is skipped */
+	virtual void PerFrameCleanupIfSkipRenderer() = 0;
+
 	virtual IAllocatedVirtualTexture* AllocateVirtualTexture(const FAllocatedVTDescription& Desc) = 0;
 	virtual void DestroyVirtualTexture(IAllocatedVirtualTexture* AllocatedVT) = 0;
 

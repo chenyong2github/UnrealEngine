@@ -1128,7 +1128,25 @@ namespace Gauntlet
 								{
 									Log.Error("File Copy failed with {0}.", ex.Message);
 								}
-								throw new Exception(string.Format("File Copy failed with {0}.", ex.Message));
+
+								// Warn with message if we're exceeding long path, otherwise throw an exception
+								const int MAX_PATH = 260;
+								bool LongPath = BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 && (SourcePath.Length >= MAX_PATH || DestFile.Length >= MAX_PATH);
+
+								if (!LongPath)
+								{
+									throw new Exception(string.Format("File Copy failed with {0}.", ex.Message));
+								}
+								else
+								{
+									string LongPathMessage = (Environment.OSVersion.Version.Major > 6) ?
+										"Long path detected, check that long paths are enabled." :
+										"Long path detected, OS version doesn't support long paths.";
+
+									// Break out of loop with warning
+									Copied = true;
+									Log.Warning("Long path file copy failed with {0}.  Please verify that this file is not required.", ex.Message, LongPathMessage);
+								}
 							}
 						}
 					} while (Copied == false);

@@ -3,6 +3,7 @@
 #include "Evaluation/MovieSceneTemplateCommon.h"
 #include "Components/SceneComponent.h"
 #include "GameFramework/Actor.h"
+#include "Misc/App.h"
 
 /** A movie scene pre-animated token that stores a pre-animated mobility */
 struct FMobilityPreAnimatedToken : IMovieScenePreAnimatedToken
@@ -34,8 +35,7 @@ IMovieScenePreAnimatedTokenPtr FMobilityTokenProducer::CacheExistingState(UObjec
 	return FMobilityPreAnimatedToken(*SceneComponent);
 }
 
-
-void F3DTransformTrackToken::Apply(USceneComponent& SceneComponent, float DeltaTime) const
+void F3DTransformTrackToken::Apply(USceneComponent& SceneComponent) const
 {
 	/* Cache initial absolute position */
 	FVector PreviousPosition = SceneComponent.GetComponentLocation();
@@ -53,7 +53,8 @@ void F3DTransformTrackToken::Apply(USceneComponent& SceneComponent, float DeltaT
 	SceneComponent.SetRelativeLocation_Direct(Translation);
 	SceneComponent.SetRelativeRotation_Direct(Rotation);
 
-	if (DeltaTime > 0.f)
+	double DeltaTime = FApp::GetDeltaTime();
+	if (DeltaTime > 0)
 	{
 		/* Get current absolute position and set component velocity */
 		FVector CurrentPosition = SceneComponent.GetComponentLocation();
