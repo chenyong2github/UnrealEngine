@@ -202,10 +202,10 @@ void FDatasmithDispatcher::CloseHandlers()
 
 void FDatasmithDispatcher::ProcessLocal()
 {
+#ifdef CAD_INTERFACE
 	FString KernelIOPath = FPaths::Combine(FPaths::EnginePluginsDir(), TEXT(KERNEL_IO_PLUGINSPATH));
 	KernelIOPath = FPaths::ConvertRelativePathToFull(KernelIOPath);
 
-#ifdef CAD_INTERFACE
 	while (TOptional<FTask> Task = GetNextTask())
 	{
 		FString FullPath = Task->FileName;
