@@ -1008,7 +1008,7 @@ public:
 			{
 				for (auto& Shape : MShapesArray)
 				{
-					Shape->WorldSpaceInflatedShapeBounds = Shape->Geometry->BoundingBox().GetAABB().TransformedAABB(FRigidTransform3(MX, MR));
+					Shape->UpdateShapeBounds(FRigidTransform3(MX, MR));
 				}
 			}
 		}
