@@ -403,6 +403,15 @@ void UMeshSelectionTool::UpdateFaceSelection(const FBrushStampData& Stamp, const
 			[Mesh](int t1, int t2) { return Mesh->GetTriangleGroup(t1) == Mesh->GetTriangleGroup(t2); } );
 		UseROI = &LocalROI;
 	}
+	else if (SelectionProps->SelectionMode == EMeshSelectionToolPrimaryMode::ByMaterial)
+	{
+		const FDynamicMeshMaterialAttribute* MaterialIDs = Mesh->Attributes()->GetMaterialID();
+		TArray<int32> StartROI;
+		StartROI.Add(Stamp.HitResult.FaceIndex);
+		FMeshConnectedComponents::GrowToConnectedTriangles(Mesh, StartROI, LocalROI, &TemporaryBuffer, &TemporarySet,
+			[Mesh, MaterialIDs](int t1, int t2) { return MaterialIDs->GetValue(t1) == MaterialIDs->GetValue(t2); });
+		UseROI = &LocalROI;
+	}
 	else if (SelectionProps->SelectionMode == EMeshSelectionToolPrimaryMode::AllWithinAngle)
 	{
 		TArray<int32> StartROI; 

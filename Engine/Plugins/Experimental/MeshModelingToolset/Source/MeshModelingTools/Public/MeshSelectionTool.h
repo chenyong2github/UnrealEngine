@@ -172,6 +172,9 @@ enum class EMeshSelectionToolPrimaryMode
 	/** Select all triangles in groups connected to any triangle inside the brush */
 	AllInGroup,
 
+	/** Select all triangles with same material as hit triangle */
+	ByMaterial,
+
 	/** Select all triangles with normal within angular tolerance of hit triangle */
 	AllWithinAngle
 };
