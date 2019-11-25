@@ -25,6 +25,7 @@ UScrollBox::UScrollBox(const FObjectInitializer& ObjectInitializer)
 	, AllowOverscroll(true)
 	, NavigationDestination(EDescendantScrollDestination::IntoView)
 	, NavigationScrollPadding(0.0f)
+	, ScrollWhenFocusChanges(EScrollWhenFocusChanges::NoScroll)
 {
 	bIsVariable = false;
 
@@ -98,6 +99,7 @@ TSharedRef<SWidget> UScrollBox::RebuildWidget()
 		.ConsumeMouseWheel(ConsumeMouseWheel)
 		.NavigationDestination(NavigationDestination)
 		.NavigationScrollPadding(NavigationScrollPadding)
+		.ScrollWhenFocusChanges(ScrollWhenFocusChanges)
 		.AnimateWheelScrolling(bAnimateWheelScrolling)
 		.WheelScrollMultiplier(WheelScrollMultiplier)
 		.OnUserScrolled(BIND_UOBJECT_DELEGATE(FOnUserScrolled, SlateHandleUserScrolled));
