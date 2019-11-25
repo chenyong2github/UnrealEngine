@@ -248,6 +248,11 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	UPROPERTY()
 	TMap<FName, FName> FunctionSpecifiers;
 
+	UPROPERTY()
+	bool bSupportsCPU = true;
+	UPROPERTY()
+	bool bSupportsGPU = true;
+
 	/** Localized description of this node. Note that this is *not* used during the operator == below since it may vary from culture to culture.*/
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
