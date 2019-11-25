@@ -196,10 +196,10 @@ namespace Chaos
 		return NewMP;
 	}
 
-	template CHAOS_API TMassProperties<float, 3> CalculateMassProperties(const TParticles<float, 3> & Vertices,
+	template CHAOS_API TMassProperties<float, 3> CalculateMassProperties(const TParticles<float, 3> & Vertices, 
 		const TArray<TVector<int32, 3>>& Surfaces, const float Mass);
 
-	template CHAOS_API TMassProperties<float, 3> CalculateMassProperties(const TParticles<float, 3> & Vertices,
+	template CHAOS_API TMassProperties<float, 3> CalculateMassProperties(const TParticles<float, 3> & Vertices, 
 		const TArray<TArray<int32>>& Surfaces, const float Mass);
 
 	template CHAOS_API void CalculateVolumeAndCenterOfMass(const TParticles<float, 3>& Vertices,
