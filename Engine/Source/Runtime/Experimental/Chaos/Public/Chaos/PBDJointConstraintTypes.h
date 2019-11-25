@@ -44,7 +44,7 @@ namespace Chaos
 		Swing1 = 2,		// Swing1 Axis = Z
 	};
 
-	enum class EJointProjectionPhase
+	enum class EJointSolverPhase
 	{
 		None,
 		Apply,
@@ -132,7 +132,8 @@ namespace Chaos
 		bool bEnableTwistLimits;
 		bool bEnableSwingLimits;
 		bool bEnableDrives;
-		EJointProjectionPhase ProjectionPhase;
+		EJointSolverPhase DrivesPhase;
+		EJointSolverPhase ProjectionPhase;
 		FReal LinearProjection;
 		FReal AngularProjection;
 		FReal Stiffness;
