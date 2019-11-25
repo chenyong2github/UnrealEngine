@@ -204,6 +204,12 @@ namespace VivoxClientApi {
        // ss << PREFIX << __FUNCTION__ << "(" << accountName.ToString() << "," << GetErrorString(status) << " (" << status << ")\r\n";
       //  WriteStatus(ss.str().c_str());
     }
+	
+	void DebugClientApiEventHandler::onSessionGroupCreated(const AccountName &accountName, const char *sessionGroup)
+	{
+		UNREFERENCED_PARAMETER(accountName);
+		UNREFERENCED_PARAMETER(sessionGroup);
+	}
 
     // Getting into/out of channel
     void DebugClientApiEventHandler::onChannelJoined(const AccountName &accountName, const Uri &channelUri)
@@ -386,7 +392,7 @@ namespace VivoxClientApi {
         ss << PREFIX << __FUNCTION__ << "(" << deviceId.GetAudioDeviceId() << ")\r\n";
         WriteStatus(ss.str().c_str()); */
     }
-    void DebugClientApiEventHandler::onSetApplicationChosenAudioInputDeviceCompleted(const AudioDeviceId &deviceId)
+    void DebugClientApiEventHandler::onSetApplicationChosenAudioInputDeviceCompleted(const AccountName &accountName, const AudioDeviceId &deviceId)
 	{
 		UNREFERENCED_PARAMETER(deviceId);
 		/*
@@ -394,7 +400,7 @@ namespace VivoxClientApi {
         ss << PREFIX << __FUNCTION__ << "(" << deviceId.GetAudioDeviceId() << ")\r\n";
         WriteStatus(ss.str().c_str()); */
     }
-    void DebugClientApiEventHandler::onSetApplicationChosenAudioInputDeviceFailed(const AudioDeviceId &deviceId, const VCSStatus &status)
+    void DebugClientApiEventHandler::onSetApplicationChosenAudioInputDeviceFailed(const AccountName &accountName, const AudioDeviceId &deviceId, const VCSStatus &status)
 	{
 		UNREFERENCED_PARAMETER(deviceId);
 		UNREFERENCED_PARAMETER(status);
@@ -412,7 +418,7 @@ namespace VivoxClientApi {
         ss << PREFIX << __FUNCTION__ << "(" << deviceId.GetAudioDeviceId() << ")\r\n";
         WriteStatus(ss.str().c_str()); */
     }
-    void DebugClientApiEventHandler::onSetApplicationChosenAudioOutputDeviceCompleted(const AudioDeviceId &deviceId)
+    void DebugClientApiEventHandler::onSetApplicationChosenAudioOutputDeviceCompleted(const AccountName &accountName, const AudioDeviceId &deviceId)
 	{
 		UNREFERENCED_PARAMETER(deviceId);
 		/*
@@ -420,7 +426,7 @@ namespace VivoxClientApi {
         ss << PREFIX << __FUNCTION__ << "(" << deviceId.GetAudioDeviceId() << ")\r\n";
         WriteStatus(ss.str().c_str()); */
     }
-    void DebugClientApiEventHandler::onSetApplicationChosenAudioOutputDeviceFailed(const AudioDeviceId &deviceId, const VCSStatus &status)
+    void DebugClientApiEventHandler::onSetApplicationChosenAudioOutputDeviceFailed(const AccountName &accountName, const AudioDeviceId &deviceId, const VCSStatus &status)
 	{
 		UNREFERENCED_PARAMETER(deviceId);
 		UNREFERENCED_PARAMETER(status);
@@ -586,24 +592,27 @@ namespace VivoxClientApi {
         WriteStatus(ss.str().c_str()); */
     }
 
-	void DebugClientApiEventHandler::onAudioUnitStarted(const Uri &initialTargetUri)
+	void DebugClientApiEventHandler::onAudioUnitStarted(const char *sessionGroupHandle, const Uri &initialTargetUri)
 	{
+		UNREFERENCED_PARAMETER(sessionGroupHandle);
 		UNREFERENCED_PARAMETER(initialTargetUri);
 		/*
         stringstream ss;
         ss << PREFIX << __FUNCTION__ << "(" << initialTargetUri.ToString() << ")\r\n";
         WriteStatus(ss.str().c_str()); */
 	}
-	void DebugClientApiEventHandler::onAudioUnitStopped(const Uri &initialTargetUri)
+	void DebugClientApiEventHandler::onAudioUnitStopped(const char *sessionGroupHandle, const Uri &initialTargetUri)
 	{
+		UNREFERENCED_PARAMETER(sessionGroupHandle);
 		UNREFERENCED_PARAMETER(initialTargetUri);
 		/*
 		stringstream ss;
 		ss << PREFIX << __FUNCTION__ << "(" << initialTargetUri.ToString() << ")\r\n";
 		WriteStatus(ss.str().c_str()); */
 	}
-	void DebugClientApiEventHandler::onAudioUnitAfterCaptureAudioRead(const Uri &initialTargetUri, short *pcmFrames, int pcmFrameCount, int audioFrameRate, int channelsPerFrame)
+	void DebugClientApiEventHandler::onAudioUnitAfterCaptureAudioRead(const char *sessionGroupHandle, const Uri &initialTargetUri, short *pcmFrames, int pcmFrameCount, int audioFrameRate, int channelsPerFrame)
 	{
+		UNREFERENCED_PARAMETER(sessionGroupHandle);
 		UNREFERENCED_PARAMETER(initialTargetUri);
 		UNREFERENCED_PARAMETER(pcmFrames);
 		UNREFERENCED_PARAMETER(pcmFrameCount);
@@ -614,8 +623,9 @@ namespace VivoxClientApi {
 		ss << PREFIX << __FUNCTION__ << "(" << initialTargetUri.ToString() << "," << pcmFrames << "," << pcmFrameCount << "," << audioFrameRate << "," << channelsPerFrame << ")\r\n";
 		WriteStatus(ss.str().c_str()); */
 	}
-	void DebugClientApiEventHandler::onAudioUnitBeforeCaptureAudioSent(const Uri &initialTargetUri, short *pcmFrames, int pcmFrameCount, int audioFrameRate, int channelsPerFrame, bool speaking)
+	void DebugClientApiEventHandler::onAudioUnitBeforeCaptureAudioSent(const char *sessionGroupHandle, const Uri &initialTargetUri, short *pcmFrames, int pcmFrameCount, int audioFrameRate, int channelsPerFrame, bool speaking)
 	{
+		UNREFERENCED_PARAMETER(sessionGroupHandle);
 		UNREFERENCED_PARAMETER(initialTargetUri);
 		UNREFERENCED_PARAMETER(pcmFrames);
 		UNREFERENCED_PARAMETER(pcmFrameCount);
@@ -627,8 +637,9 @@ namespace VivoxClientApi {
 		ss << PREFIX << __FUNCTION__ << "(" << initialTargetUri.ToString() << "," << pcmFrames << "," << pcmFrameCount << "," << audioFrameRate << "," << channelsPerFrame << "," << silence << ")\r\n";
 		WriteStatus(ss.str().c_str()); */
 	}
-	void DebugClientApiEventHandler::onAudioUnitBeforeRecvAudioRendered(const Uri &initialTargetUri, short *pcmFrames, int pcmFrameCount, int audioFrameRate, int channelsPerFrame, bool silence)
+	void DebugClientApiEventHandler::onAudioUnitBeforeRecvAudioRendered(const char *sessionGroupHandle, const Uri &initialTargetUri, short *pcmFrames, int pcmFrameCount, int audioFrameRate, int channelsPerFrame, bool silence)
 	{
+		UNREFERENCED_PARAMETER(sessionGroupHandle);
 		UNREFERENCED_PARAMETER(initialTargetUri);
 		UNREFERENCED_PARAMETER(pcmFrames);
 		UNREFERENCED_PARAMETER(pcmFrameCount);
