@@ -447,6 +447,9 @@ struct TRepController_Simulated : public TBase
 
 		if (GetSimulatedUpdateMode() == ESimulatedUpdateMode::Extrapolate && NetworkSimulationModelCVars::EnableSimulatedReconcile())
 		{
+			// This is effectively a rollback: we went back in time during NetSerialize and are now going to catch up ReconcileSimulationTime ms.
+			Buffers.CueDispatcher.NotifyRollback(Ticker.GetTotalProcessedSimulationTime());
+
 			// Simulated Reconcile requires the input buffer to be kept up to date with the Sync buffer
 			// Generate a new, fake, command since we just added a new sync state to head
 			while (Buffers.Input.HeadFrame() < Buffers.Sync.HeadFrame())
@@ -490,7 +493,7 @@ struct TRepController_Simulated : public TBase
 			const FNetworkSimTime InterpolationSimTime = FNetworkSimTime::FromRealTimeSeconds(InterpolationRealTime);
 
 			Buffers.CueDispatcher.SetMaxDispatchTime(InterpolationSimTime);
-			Buffers.CueDispatcher.SetPruneTime(InterpolationSimTime);
+			Buffers.CueDispatcher.SetConfirmedTime(InterpolationSimTime);
 		}
 		else
 		{
@@ -501,7 +504,7 @@ struct TRepController_Simulated : public TBase
 			}
 
 			Buffers.CueDispatcher.ClearMaxDispatchTime();
-			Buffers.CueDispatcher.SetPruneTime(LastSerializedSimulationTime);
+			Buffers.CueDispatcher.SetConfirmedTime(LastSerializedSimulationTime);
 		}
 	}
 	
@@ -520,6 +523,8 @@ struct TRepController_Simulated : public TBase
 		*Buffers.Input.WriteFrame(NewHeadFrame) = TInputCmd();
 
 		Driver->FinalizeFrame(LastSerializedSyncState, LastSerializedAuxState);
+
+		Buffers.CueDispatcher.NotifyRollback(LastSerializedSimulationTime);
 
 		if (NETSIM_MODEL_DEBUG)
 		{
@@ -733,6 +738,9 @@ struct TRepController_Autonomous: public TBase
 		{
 			DependentSim->BeginRollback(RollbackDeltaTime, SerializedFrame);
 		}
+
+		// Tell cue dispatch that we've rolledback as well
+		Buffers.CueDispatcher.NotifyRollback(SerializedTime);
 		
 		// Resimulate all user commands 
 		const int32 LastFrameToProcess = Ticker.MaxAllowedFrame;
@@ -821,7 +829,7 @@ struct TRepController_Autonomous: public TBase
 		TBase::PostSimTick(Driver, Buffers, Ticker, TickParameters);
 
 		Buffers.CueDispatcher.ClearMaxDispatchTime();
-		Buffers.CueDispatcher.SetPruneTime(SerializedTime);
+		Buffers.CueDispatcher.SetConfirmedTime(SerializedTime);
 	}
 	
 
