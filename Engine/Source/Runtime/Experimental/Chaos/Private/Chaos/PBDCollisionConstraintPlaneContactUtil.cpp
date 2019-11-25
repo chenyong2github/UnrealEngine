@@ -26,18 +26,18 @@ namespace Chaos
 
 
 		template<typename T, int d>
-		void Apply(TRigidBodyPlaneContactConstraint<T, d>& Constraint, T Thickness, TSingleContactIterationParameters<T> & IterationParameters, TPlainContactParticleParameters<T> & ParticleParameters)
+		void Apply(TRigidBodyPlaneContactConstraint<T, d>& Constraint, T Thickness, TPointContactIterationParameters<T> & IterationParameters, TPlainContactParticleParameters<T> & ParticleParameters)
 		{
 		}
-		template void Apply<float, 3>(TRigidBodyPlaneContactConstraint<float, 3>&, float, TSingleContactIterationParameters<float> &, TSingleContactParticleParameters<float> &);
+		template void Apply<float, 3>(TRigidBodyPlaneContactConstraint<float, 3>&, float, TPointContactIterationParameters<float> &, TPointContactParticleParameters<float> &);
 
 		template<typename T, int d>
 		void ApplyPushOut(TRigidBodyPointContactConstraint<T, d>& Constraint, T Thickness, const TSet<const TGeometryParticleHandle<T, d>*>& IsTemporarilyStatic,
-			TSingleContactIterationParameters<T> & IterationParameters, TSingleContactParticleParameters<T> & ParticleParameters)
+			TPointContactIterationParameters<T> & IterationParameters, TPointContactParticleParameters<T> & ParticleParameters)
 		{
 		}
 		template void ApplyPushOut<float, 3>(TRigidBodyPointContactConstraint<float,3>&, float , const TSet<const TGeometryParticleHandle<float,3>*>&,
-			TSingleContactIterationParameters<float> & IterationParameters, TSingleContactParticleParameters<float> & ParticleParameters);
+			TPointContactIterationParameters<float> & IterationParameters, TPointContactParticleParameters<float> & ParticleParameters);
 		*/
 	} // Collisions
 
