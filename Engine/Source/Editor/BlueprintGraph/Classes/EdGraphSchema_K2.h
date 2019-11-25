@@ -98,6 +98,9 @@ public:
 	/** Marks a UFUNCTION as latent execution */
 	static const FName MD_Latent;
 
+	/** Marks a UFUNCTION as accepting variadic arguments */
+	static const FName MD_Variadic;
+
 	/** Marks a UFUNCTION as unsafe for use in the UCS, which prevents it from being called from the UCS.  Useful for things that spawn actors, etc that should never happen in the UCS */
 	static const FName MD_UnsafeForConstructionScripts;
 
