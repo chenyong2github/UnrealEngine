@@ -23,13 +23,13 @@
  */
 
 #pragma once
-#define SDK_VERSION "4.10.0000.32327"
+#define SDK_VERSION "4.10.0000.32397"
 #define SDK_BRANCH "HEAD"
 
 #define VERSION_MAJOR 4
 #define VERSION_MINOR 10
 /* so VERSION_MICRO (.e.g. 0008) is not interpreted as octal */
 #define VERSION_MICRO (10000 - 10000)
-#define VERSION_BUILD 32327
+#define VERSION_BUILD 32397
 
-#define VERSION_HASH "5fc3fe7c"
+#define VERSION_HASH "548cf936"

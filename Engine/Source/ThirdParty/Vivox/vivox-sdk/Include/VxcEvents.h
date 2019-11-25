@@ -2036,6 +2036,11 @@ typedef struct vx_evt_audio_device_hot_swap {
      * the new active device
      */
     vx_device_t *relevant_device;
+    /**
+     * Account handle of the user whose device was changed as a result of the
+     * hot swap event.
+     */
+    VX_HANDLE account_handle;
 } vx_evt_audio_device_hot_swap_t;
 
 /**

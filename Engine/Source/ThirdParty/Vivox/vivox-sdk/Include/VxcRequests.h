@@ -849,12 +849,13 @@ typedef struct vx_req_sessiongroup_create {
     int loop_mode_duration_seconds;
 
     /**
-     * The device id for the capture device to use. NULL or empty to use last selected capture device.
+     * DEPRECATED: this field is ignored.
+     * @deprecated
      */
     char *capture_device_id;
-
     /**
-     * The device id for the render device to use. NULL or empty to use the last selected render device.
+     * DEPRECATED: this field is ignored.
+     * @deprecated
      */
     char *render_device_id;
 
@@ -1505,20 +1506,16 @@ typedef struct vx_req_session_media_connect {
     vx_media_type media;  // DEPRECATED
 
     /**
-     * DEPRECATED
+     * DEPRECATED: Use vx_req_aux_set_capture_device to set the capture device instead.
      * @deprecated
-     *
-     * Use the capture_device_id on the session group.
      *
      * The device id for the capture device to use. NULL or empty to use last selected capture device.
      */
     char *capture_device_id;
 
     /**
-     * DEPRECATED
+     * DEPRECATED: Use vx_req_aux_set_render_device to set the capture device instead.
      * @deprecated
-     *
-     * Use the render_device_id on the session group.
      *
      * The device id for the render device to use. NULL or empty to use the last selected render device.
      */
@@ -3413,6 +3410,15 @@ typedef struct vx_req_connector_mute_local_mic {
      * Mute Level, either 1 (mute) or 0 (unmute).
      */
     int mute_level;
+    /**
+    * Optional parameter specifying the account handle of the user whose
+    * microphone is to be muted or unmuted.  Must either be unset or be the
+    * account_handle passed into a vx_req_account_login,
+    * vx_req_account_authtoken_login, or vx_req_account_anonymous_login
+    * request that previously succeeded.  If unset, the default account_handle
+    * is used.
+    */
+    VX_HANDLE account_handle;
 } vx_req_connector_mute_local_mic_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
@@ -3446,6 +3452,15 @@ typedef struct vx_req_connector_mute_local_speaker {
      * Mute Level, either 1 (mute) or 0 (unmute).
      */
     int mute_level;
+    /**
+    * Optional parameter specifying the account handle of the user whose
+    * speaker is to be muted or unmuted.  Must either be unset or be the
+    * account_handle passed into a vx_req_account_login,
+    * vx_req_account_authtoken_login, or vx_req_account_anonymous_login
+    * request that previously succeeded.  If unset, the default account_handle
+    * is used.
+    */
+    VX_HANDLE account_handle;
 } vx_req_connector_mute_local_speaker_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
@@ -3484,6 +3499,16 @@ typedef struct vx_req_connector_set_local_mic_volume {
      * The level of the audio, a number between 0 and 100 where 50 represents 'normal' speaking volume
      */
     int volume;  // a number between 0 and 100 where 50 represents "normal" speaking volume
+
+    /**
+     * Optional parameter specifying the account handle of the user whose
+     * microphone volume is to be set.  Must either be unset or be the
+     * account_handle passed into a vx_req_account_login,
+     * vx_req_account_authtoken_login, or vx_req_account_anonymous_login
+     * request that previously succeeded.  If unset, the default account_handle
+     * is used.
+     */
+    VX_HANDLE account_handle;
 } vx_req_connector_set_local_mic_volume_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
@@ -3522,6 +3547,15 @@ typedef struct vx_req_connector_set_local_speaker_volume {
      * The level of the audio, a number between 0 and 100 where 50 represents 'normal' speaking volume
      */
     int volume; // a number between 0 and 100 where 50 represents "normal" speaking volume
+    /**
+    * Optional parameter specifying the account handle of the user whose
+    * speaker volume is to be set.  Must either be unset or be the
+    * account_handle passed into a vx_req_account_login,
+    * vx_req_account_authtoken_login, or vx_req_account_anonymous_login
+    * request that previously succeeded.  If unset, the default account_handle
+    * is used.
+    */
+    VX_HANDLE account_handle;
 } vx_req_connector_set_local_speaker_volume_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
@@ -3551,6 +3585,15 @@ typedef struct vx_req_connector_get_local_audio_info {
      * @deprecated
      */
     VX_HANDLE connector_handle;
+    /**
+    * Optional parameter specifying the account handle of the user whose
+    * local audio info is to be retrieved.  Must either be unset or be the
+    * account_handle passed into a vx_req_account_login,
+    * vx_req_account_authtoken_login, or vx_req_account_anonymous_login
+    * request that previously succeeded.  If unset, the default account_handle
+    * is used.
+    */
+    VX_HANDLE account_handle;
 } vx_req_connector_get_local_audio_info_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
@@ -4488,6 +4531,21 @@ typedef struct vx_req_aux_get_render_devices {
      * The common properties for all requests
      */
     vx_req_base_t base;
+
+    /**
+     * Optional parameter specifying the account handle of the user whose
+     * render devices are to be retrieved.  Must either be unset or be the
+     * account_handle passed into a vx_req_account_login,
+     * vx_req_account_authtoken_login, or vx_req_account_anonymous_login
+     * request that previously succeeded.  If unset, the default account_handle
+     * is used.
+     *
+     * The list of all render devices returned in the render_devices list of
+     * the response is user-agnostic, but the other fields indicating which
+     * devices are in use under their respective contexts do vary with the
+     * requested user.
+     */
+    VX_HANDLE account_handle;
 } vx_req_aux_get_render_devices_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
@@ -4511,6 +4569,21 @@ typedef struct vx_req_aux_get_capture_devices {
      * The common properties for all requests
      */
     vx_req_base_t base;
+
+    /**
+     * Optional parameter specifying the account handle of the user whose
+     * capture device is to be retrieved.  Must either be unset or be the
+     * account_handle passed into a vx_req_account_login,
+     * vx_req_account_authtoken_login, or vx_req_account_anonymous_login
+     * request that previously succeeded.  If unset, the default account_handle
+     * is used.
+     *
+     * The list of all capture devices returned in the capture_devices list of
+     * the response is user-agnostic, but the other fields indicating which
+     * devices are in use under their respective contexts do vary with the
+     * requested user.
+     */
+    VX_HANDLE account_handle;
 } vx_req_aux_get_capture_devices_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
@@ -4547,6 +4620,15 @@ typedef struct vx_req_aux_set_render_device {
      * On PS4, this can be the string representation of the user ID - e.g. "1", "2", "3" etc.
      */
     char *render_device_specifier;
+    /**
+    * Optional parameter specifying the account handle of the user whose
+    * render device is to be set.  Must either be unset or be the
+    * account_handle passed into a vx_req_account_login,
+    * vx_req_account_authtoken_login, or vx_req_account_anonymous_login
+    * request that previously succeeded.  If unset, the default account_handle
+    * is used.
+    */
+    VX_HANDLE account_handle;
 } vx_req_aux_set_render_device_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
@@ -4583,6 +4665,15 @@ typedef struct vx_req_aux_set_capture_device {
      * On PS4, this can be the string representation of the user ID.
      */
     char *capture_device_specifier;
+    /**
+    * Optional parameter specifying the account handle of the user whose
+    * capture device is to be set.  Must either be unset or be the
+    * account_handle passed into a vx_req_account_login,
+    * vx_req_account_authtoken_login, or vx_req_account_anonymous_login
+    * request that previously succeeded.  If unset, the default account_handle
+    * is used.
+    */
+    VX_HANDLE account_handle;
 } vx_req_aux_set_capture_device_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
@@ -4608,6 +4699,15 @@ typedef struct vx_req_aux_get_mic_level {
      * The common properties for all requests
      */
     vx_req_base_t base;
+    /**
+    * Optional parameter specifying the account handle of the user whose
+    * microphone level is to be retrieved.  Must either be unset or be the
+    * account_handle passed into a vx_req_account_login,
+    * vx_req_account_authtoken_login, or vx_req_account_anonymous_login
+    * request that previously succeeded.  If unset, the default account_handle
+    * is used.
+    */
+    VX_HANDLE account_handle;
 } vx_req_aux_get_mic_level_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
@@ -4633,6 +4733,15 @@ typedef struct vx_req_aux_get_speaker_level {
      * The common properties for all requests
      */
     vx_req_base_t base;
+    /**
+    * Optional parameter specifying the account handle of the user whose
+    * speaker level is to be retrieved.  Must either be unset or be the
+    * account_handle passed into a vx_req_account_login,
+    * vx_req_account_authtoken_login, or vx_req_account_anonymous_login
+    * request that previously succeeded.  If unset, the default account_handle
+    * is used.
+    */
+    VX_HANDLE account_handle;
 } vx_req_aux_get_speaker_level_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
@@ -4663,6 +4772,15 @@ typedef struct vx_req_aux_set_mic_level {
      * +20 increase represents a ten fold increase in energy. Default value is 50.
      */
     int level;
+    /**
+    * Optional parameter specifying the account handle of the user whose
+    * microphone level is to be set.  Must either be unset or be the
+    * account_handle passed into a vx_req_account_login,
+    * vx_req_account_authtoken_login, or vx_req_account_anonymous_login
+    * request that previously succeeded.  If unset, the default account_handle
+    * is used.
+    */
+    VX_HANDLE account_handle;
 } vx_req_aux_set_mic_level_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
@@ -4693,6 +4811,15 @@ typedef struct vx_req_aux_set_speaker_level {
      * +20 increase represents a ten fold increase in energy. Default value is 50.
      */
     int level;
+    /**
+    * Optional parameter specifying the account handle of the user whose
+    * speaker level is to be set.  Must either be unset or be the
+    * account_handle passed into a vx_req_account_login,
+    * vx_req_account_authtoken_login, or vx_req_account_anonymous_login
+    * request that previously succeeded.  If unset, the default account_handle
+    * is used.
+    */
+    VX_HANDLE account_handle;
 } vx_req_aux_set_speaker_level_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
@@ -4736,6 +4863,15 @@ typedef struct vx_req_aux_render_audio_start {
      * @deprecated
      */
     char *path;
+    /**
+    * Optional parameter specifying the account handle of the user whose
+    * render device is to be used.  Must either be unset or be the
+    * account_handle passed into a vx_req_account_login,
+    * vx_req_account_authtoken_login, or vx_req_account_anonymous_login
+    * request that previously succeeded.  If unset, the default account_handle
+    * is used.
+    */
+    VX_HANDLE account_handle;
 } vx_req_aux_render_audio_start_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
@@ -4761,6 +4897,15 @@ typedef struct vx_req_aux_render_audio_modify {
      * Leave null to play font without changes.
      */
     char *font_str;
+    /**
+    * Optional parameter specifying the account handle of the user whose
+    * audio font is to be modified.  Must either be unset or be the
+    * account_handle passed into a vx_req_account_login,
+    * vx_req_account_authtoken_login, or vx_req_account_anonymous_login
+    * request that previously succeeded.  If unset, the default account_handle
+    * is used.
+    */
+    VX_HANDLE account_handle;
 } vx_req_aux_render_audio_modify_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
@@ -4780,6 +4925,15 @@ typedef struct vx_req_aux_get_vad_properties {
      * The common properties for all requests.
      */
     vx_req_base_t base;
+    /**
+    * Optional parameter specifying the account handle of the user whose
+    * connector VAD properties are to be retrieved.  Must either be unset or be the
+    * account_handle passed into a vx_req_account_login,
+    * vx_req_account_authtoken_login, or vx_req_account_anonymous_login
+    * request that previously succeeded.  If unset, the default account_handle
+    * is used.
+    */
+    VX_HANDLE account_handle;
 } vx_req_aux_get_vad_properties_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
@@ -4829,6 +4983,15 @@ typedef struct vx_req_aux_set_vad_properties {
     * VAD Automatic Parameter Selection - If this mode is 1 (enabled), then vad_hangover, vad_sensitivity,
     * and vad_noise_floor will be ignored and the VAD will optimize parameters automatically.    */
     int vad_auto;
+    /**
+    * Optional parameter specifying the account handle of the user whose
+    * connector VAD properties are to be set.  Must either be unset or be the
+    * account_handle passed into a vx_req_account_login,
+    * vx_req_account_authtoken_login, or vx_req_account_anonymous_login
+    * request that previously succeeded.  If unset, the default account_handle
+    * is used.
+    */
+    VX_HANDLE account_handle;
 } vx_req_aux_set_vad_properties_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
@@ -4852,6 +5015,15 @@ typedef struct vx_req_aux_render_audio_stop {
      * The common properties for all requests.
      */
     vx_req_base_t base;
+    /**
+    * Optional parameter specifying the account handle of the user whose
+    * render device is to be stopped.  Must either be unset or be the
+    * account_handle passed into a vx_req_account_login,
+    * vx_req_account_authtoken_login, or vx_req_account_anonymous_login
+    * request that previously succeeded.  If unset, the default account_handle
+    * is used.
+    */
+    VX_HANDLE account_handle;
 } vx_req_aux_render_audio_stop_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
@@ -4888,6 +5060,15 @@ typedef struct vx_req_aux_capture_audio_start {
      * loop audio to currently selected render device as well - default 0, set to 1 to loop audio to speaker
      */
     int loop_to_render_device;
+    /**
+    * Optional parameter specifying the account handle of the user whose
+    * capture device will be used.  Must either be unset or be the
+    * account_handle passed into a vx_req_account_login,
+    * vx_req_account_authtoken_login, or vx_req_account_anonymous_login
+    * request that previously succeeded.  If unset, the default account_handle
+    * is used.
+    */
+    VX_HANDLE account_handle;
 } vx_req_aux_capture_audio_start_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
@@ -4911,6 +5092,15 @@ typedef struct vx_req_aux_capture_audio_stop {
      * The common properties for all requests
      */
     vx_req_base_t base;
+    /**
+    * Optional parameter specifying the account handle of the user whose
+    * capture device is to be stopped.  Must either be unset or be the
+    * account_handle passed into a vx_req_account_login,
+    * vx_req_account_authtoken_login, or vx_req_account_anonymous_login
+    * request that previously succeeded.  If unset, the default account_handle
+    * is used.
+    */
+    VX_HANDLE account_handle;
 } vx_req_aux_capture_audio_stop_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
@@ -4989,6 +5179,15 @@ typedef struct vx_req_aux_start_buffer_capture {
      * The common properties for all requests
      */
     vx_req_base_t base;
+    /**
+    * Optional parameter specifying the account handle of the user whose
+    * audio will be captured.  Must either be unset or be the
+    * account_handle passed into a vx_req_account_login,
+    * vx_req_account_authtoken_login, or vx_req_account_anonymous_login
+    * request that previously succeeded.  If unset, the default account_handle
+    * is used.
+    */
+    VX_HANDLE account_handle;
 } vx_req_aux_start_buffer_capture_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
