@@ -406,7 +406,10 @@ struct TRepController_Simulated : public TBase
 			InputCmd = Buffers.Input.WriteFrame(DestinationFrame);
 			SyncState = Buffers.Sync.WriteFrame(DestinationFrame);
 			AuxState = Buffers.Aux.WriteFrame(DestinationFrame);
-			Buffers.Input.WriteFrame(DestinationFrame);
+
+			ensure(Buffers.Input.HeadFrame() <= DestinationFrame);
+			ensure(Buffers.Sync.HeadFrame() <= DestinationFrame);
+			ensure(Buffers.Aux.HeadFrame() <= DestinationFrame);
 
 			// Update tick info
 			Ticker.SetTotalProcessedSimulationTime(LastSerializedSimulationTime, DestinationFrame);
@@ -529,7 +532,7 @@ struct TRepController_Simulated : public TBase
 		if (NETSIM_MODEL_DEBUG)
 		{
 			FVisualLoggingParameters VLogParams(EVisualLoggingContext::FirstMispredicted, ParentFrame, EVisualLoggingLifetime::Persistent, TEXT("DependentRollbackBegin"));
-			Driver->VisualLog(nullptr, &LastSerializedSyncState, &LastSerializedAuxState, VLogParams);
+			Driver->InvokeVisualLog(nullptr, &LastSerializedSyncState, &LastSerializedAuxState, VLogParams);
 		}
 	}
 		
@@ -545,7 +548,7 @@ struct TRepController_Simulated : public TBase
 		if (NETSIM_MODEL_DEBUG)
 		{
 			FVisualLoggingParameters VLogParams(bFinalStep ? EVisualLoggingContext::LastMispredicted : EVisualLoggingContext::OtherMispredicted, ParentFrame, EVisualLoggingLifetime::Persistent, TEXT("DependentRollbackStep"));
-			Driver->VisualLog(nullptr, SyncState, Buffers.Aux.HeadElement(), VLogParams);
+			Driver->InvokeVisualLog(nullptr, SyncState, Buffers.Aux.HeadElement(), VLogParams);
 		}
 	}
 
@@ -570,6 +573,12 @@ private:
 		TSyncState* NextSyncState = Buffers.Sync.WriteFrame(OutputFrame);
 		TAuxState* AuxState = Buffers.Aux[InputFrame];
 
+		if (NETSIM_MODEL_DEBUG)
+		{
+			FVisualLoggingParameters VLogParameters( EVisualLoggingContext::OtherPredicted, InputFrame, EVisualLoggingLifetime::Persistent, TEXT("Pre SimulationExtrapolation"));
+			Driver->InvokeVisualLog(NewCmd, PrevSyncState, AuxState, VLogParameters);
+		}
+
 		// Do the actual update
 		{
 			TScopedSimulationTick<Model> UpdateScope(Ticker, Buffers.CueDispatcher, ESimulationTickContext::Resimulate, OutputFrame, NewCmd->GetFrameDeltaTime());
@@ -577,6 +586,12 @@ private:
 				{ NewCmd->GetFrameDeltaTime(), Ticker },
 				{ *NewCmd, *PrevSyncState, *AuxState },
 				{ *NextSyncState, Buffers.Aux.LazyWriter(OutputFrame), Buffers.CueDispatcher } );
+		}
+
+		if (NETSIM_MODEL_DEBUG)
+		{
+			FVisualLoggingParameters VLogParameters( EVisualLoggingContext::OtherPredicted, InputFrame, EVisualLoggingLifetime::Persistent, TEXT("Post SimulationExtrapolation"));
+			Driver->InvokeVisualLog(NewCmd, NextSyncState, Buffers.Aux[OutputFrame], VLogParameters);
 		}
 
 		Ticker.MaxAllowedFrame = OutputFrame;
@@ -695,7 +710,7 @@ struct TRepController_Autonomous: public TBase
 		if (bDoVisualLog)
 		{
 			FVisualLoggingParameters VLogParameters(EVisualLoggingContext::LastConfirmed, SerializedFrame, EVisualLoggingLifetime::Persistent, TEXT("Serialized State"));
-			Driver->VisualLog(Buffers.Input[SerializedFrame], &SerializedSyncState, &SerializedAuxState, VLogParameters);
+			Driver->InvokeVisualLog(Buffers.Input[SerializedFrame], &SerializedSyncState, &SerializedAuxState, VLogParameters);
 		}
 
 		if (ClientSyncState)
@@ -704,7 +719,7 @@ struct TRepController_Autonomous: public TBase
 			if (bDoVisualLog)
 			{
 				FVisualLoggingParameters VLogParameters(EVisualLoggingContext::FirstMispredicted, SerializedFrame, EVisualLoggingLifetime::Persistent, TEXT("Mispredicted State"));
-				Driver->VisualLog(Buffers.Input[SerializedFrame], ClientSyncState, Buffers.Aux[SerializedFrame], VLogParameters);
+				Driver->InvokeVisualLog(Buffers.Input[SerializedFrame], ClientSyncState, Buffers.Aux[SerializedFrame], VLogParameters);
 			}
 		}
 		else
@@ -763,7 +778,7 @@ struct TRepController_Autonomous: public TBase
 			if (NETSIM_MODEL_DEBUG)
 			{
 				FVisualLoggingParameters VLogParameters(Frame == LastFrameToProcess ? EVisualLoggingContext::LastMispredicted : EVisualLoggingContext::OtherMispredicted, Frame, EVisualLoggingLifetime::Persistent, TEXT("Resimulate Step: mispredicted"));
-				Driver->VisualLog(Buffers.Input[OutputFrame], Buffers.Sync[OutputFrame], Buffers.Aux[OutputFrame], VLogParameters);
+				Driver->InvokeVisualLog(Buffers.Input[OutputFrame], Buffers.Sync[OutputFrame], Buffers.Aux[OutputFrame], VLogParameters);
 			}
 
 			// Do the actual update
@@ -779,7 +794,7 @@ struct TRepController_Autonomous: public TBase
 			if (NETSIM_MODEL_DEBUG)
 			{			
 				FVisualLoggingParameters VLogParameters(Frame == LastFrameToProcess ? EVisualLoggingContext::LastPredicted : EVisualLoggingContext::OtherPredicted, Frame, EVisualLoggingLifetime::Persistent, TEXT("Resimulate Step: repredicted"));
-				Driver->VisualLog(Buffers.Input[OutputFrame], Buffers.Sync[OutputFrame], Buffers.Aux[OutputFrame], VLogParameters);
+				Driver->InvokeVisualLog(Buffers.Input[OutputFrame], Buffers.Sync[OutputFrame], Buffers.Aux[OutputFrame], VLogParameters);
 			}
 
 			// Tell dependent simulations to advance

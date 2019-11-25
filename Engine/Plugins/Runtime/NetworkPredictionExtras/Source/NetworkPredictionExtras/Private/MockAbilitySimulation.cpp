@@ -99,8 +99,6 @@ void FMockAbilitySimulation::SimulationTick(const FNetSimTimeStep& TimeStep, con
 	const bool bBlinkActivate = (Input.Cmd.bBlinkPressed && Input.Sync.Stamina > BlinkCost && bAllowNewActivations);
 	if (bBlinkActivate)
 	{
-
-
 		LocalAux.BlinkWarmupLeft = BlinkWarmupMS;
 
 		// Invoke a cue to telegraph where the blink will land. This is making the assumption the handler wouldn't either want to or be able to derive the blink destination from the current state alone
@@ -146,10 +144,13 @@ void FMockAbilitySimulation::SimulationTick(const FNetSimTimeStep& TimeStep, con
 				// Invoke a NetCue for the blink. This is essentially capturing the start/end location so that all receivers of the event
 				// get the exact coordinates (maybe overkill in practice but key is that we have data that we want to pass out via an event)
 				
+				//UE_LOG(LogTemp, Warning, TEXT("Invoking FMockAbilityBlinkCue from sim. %s - %s (LocalSync.Location: %s) "), *Input.Sync.Location.ToString(), *DestLocation.ToString(), *LocalSync.Location.ToString());
+				//UE_VLOG(OwningActor, LogNetworkSim, Log, TEXT("Invoking FMockAbilityBlinkCue from sim. %s - %s (LocalSync.Location: %s) "), *Input.Sync.Location.ToString(), *DestLocation.ToString(), *LocalSync.Location.ToString());
+
 				switch(MockAbilityCVars::BlinkCueType()) // Only for dev/testing. Not a normal setup.
 				{
 				case 0:
-					// Skip o purpose
+					// Skip on purpose
 					break;
 				case 1:
 					Output.CueDispatch.Invoke<FMockAbilityBlinkCue_Weak>( Input.Sync.Location, DestLocation );
@@ -367,8 +368,7 @@ static FAutoConsoleVariableRef CVarBindAutomatically(TEXT("NetworkPredictionExtr
 
 void UMockFlyingAbilityComponent::HandleCue(const FMockAbilityBlinkCue& BlinkCue, const FNetSimCueSystemParamemters& SystemParameters)
 {
-	FString RoleStr = GetOwnerRole() == ROLE_Authority ? TEXT("Server") : TEXT("Client");
-
+	FString RoleStr = *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwnerRole());
 	FVector Delta = GetOwner()->GetActorLocation() - BlinkCue.StopLocation;
 
 	UE_LOG(LogTemp, Display, TEXT("[%s] BlinkCue! : <%f, %f, %f> - <%f, %f, %f>. ElapsedTime: %s. Delta: %.3f"), *RoleStr, BlinkCue.StartLocation.X, BlinkCue.StartLocation.Y, BlinkCue.StartLocation.Z,

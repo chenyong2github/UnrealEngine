@@ -665,7 +665,7 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 		{
 			FVisualLoggingParameters VLogParams(EVisualLoggingContext::LastPredicted, NetworkSim->Buffers.Sync.HeadFrame(), EVisualLoggingLifetime::Transient);
 			int32 SyncFrame = NetworkSim->Buffers.Sync.HeadFrame();
-			NetworkSim->Driver->VisualLog(NetworkSim->Buffers.Input[SyncFrame], LatestSync, NetworkSim->Buffers.Aux[SyncFrame], VLogParams);
+			NetworkSim->Driver->InvokeVisualLog(NetworkSim->Buffers.Input[SyncFrame], LatestSync, NetworkSim->Buffers.Aux[SyncFrame], VLogParams);
 		}
 
 		FStuff ServerPIEStuff = GetServerPIEStuff();
@@ -675,7 +675,7 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 			{
 				FVisualLoggingParameters VLogParams(EVisualLoggingContext::CurrentServerPIE, ServerPIEStuff.NetworkSim->Buffers.Sync.HeadFrame(), EVisualLoggingLifetime::Transient);
 				int32 SyncFrame = ServerPIEStuff.NetworkSim->Buffers.Sync.HeadFrame();
-				NetworkSim->Driver->VisualLog(ServerPIEStuff.NetworkSim->Buffers.Input[SyncFrame], ServerLatestSync, ServerPIEStuff.NetworkSim->Buffers.Aux[SyncFrame], VLogParams);
+				NetworkSim->Driver->InvokeVisualLog(ServerPIEStuff.NetworkSim->Buffers.Input[SyncFrame], ServerLatestSync, ServerPIEStuff.NetworkSim->Buffers.Aux[SyncFrame], VLogParams);
 			}
 		}
 
@@ -687,7 +687,7 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 				{
 					const EVisualLoggingContext Context = (Frame == NetworkSim->RepProxy_Autonomous.GetLastSerializedFrame()) ? EVisualLoggingContext::LastConfirmed : EVisualLoggingContext::OtherPredicted;
 					FVisualLoggingParameters VLogParams(Context, NetworkSim->Buffers.Sync.HeadFrame(), EVisualLoggingLifetime::Transient);
-					NetworkSim->Driver->VisualLog(NetworkSim->Buffers.Input[Frame], SyncState, NetworkSim->Buffers.Aux[Frame], VLogParams);
+					NetworkSim->Driver->InvokeVisualLog(NetworkSim->Buffers.Input[Frame], SyncState, NetworkSim->Buffers.Aux[Frame], VLogParams);
 				}
 			}
 		}
@@ -695,7 +695,7 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 		{
 			FVisualLoggingParameters VLogParams(EVisualLoggingContext::LastConfirmed, NetworkSim->Buffers.Sync.HeadFrame(), EVisualLoggingLifetime::Transient);
 			int32 HeadFrame = NetworkSim->Buffers.Sync.HeadFrame();
-			NetworkSim->Driver->VisualLog(NetworkSim->Buffers.Input[HeadFrame], NetworkSim->Buffers.Sync[HeadFrame], NetworkSim->Buffers.Aux[HeadFrame], VLogParams);
+			NetworkSim->Driver->InvokeVisualLog(NetworkSim->Buffers.Input[HeadFrame], NetworkSim->Buffers.Sync[HeadFrame], NetworkSim->Buffers.Aux[HeadFrame], VLogParams);
 			
 			if (NetworkSim->GetSimulatedUpdateMode() != ESimulatedUpdateMode::Interpolate)
 			{
@@ -704,7 +704,6 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 
 				FVector2D LocalSimulationTimeData(Owner->GetWorld()->GetTimeSeconds(), NetworkSim->Ticker.GetTotalProcessedSimulationTime().ToRealTimeMS());
 				UE_VLOG_HISTOGRAM(Owner, LogNetworkSimDebug, Log, "Simulated Time Graph", "Local Simulation Time", LocalSimulationTimeData);
-			
 			}
 		}
 	}
