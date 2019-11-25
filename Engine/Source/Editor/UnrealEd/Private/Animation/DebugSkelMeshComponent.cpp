@@ -741,7 +741,7 @@ void UDebugSkelMeshComponent::RebuildClothingSectionsFixedVerts()
 				if(BaseAsset)
 				{
 					UClothingAssetCommon* ConcreteAsset = Cast<UClothingAssetCommon>(BaseAsset);
-					UClothLODDataBase* LodData = ConcreteAsset->ClothLodData[Section.ClothingData.AssetLodIndex];
+					UClothLODDataCommon* LodData = ConcreteAsset->ClothLodData[Section.ClothingData.AssetLodIndex];
 
 					for(FMeshToMeshVertData& VertData : Section.ClothMappingData)
 					{
@@ -828,7 +828,7 @@ void UDebugSkelMeshComponent::RefreshSelectedClothingSkinnedPositions()
 				// Pass LOD0 to collect all bones
 				GetCurrentRefToLocalMatrices(RefToLocals, 0);
 
-				UClothLODDataBase* LodData = ConcreteAsset->ClothLodData[SelectedClothingLodForPainting];
+				UClothLODDataCommon* LodData = ConcreteAsset->ClothLodData[SelectedClothingLodForPainting];
 
 				ClothingMeshUtils::SkinPhysicsMesh(ConcreteAsset->UsedBoneIndices, *LodData->PhysicalMeshData, FTransform::Identity, RefToLocals.GetData(), RefToLocals.Num(), SkinnedSelectedClothingPositions, SkinnedSelectedClothingNormals);
 				RebuildCachedClothBounds();
@@ -1035,7 +1035,7 @@ FDebugSkelMeshDynamicData::FDebugSkelMeshDynamicData(UDebugSkelMeshComponent* In
 					{
 						if(ConcreteAsset->ClothLodData.IsValidIndex(InComponent->SelectedClothingLodForPainting))
 						{
-							UClothLODDataBase* LodData = ConcreteAsset->ClothLodData[InComponent->SelectedClothingLodForPainting];
+							UClothLODDataCommon* LodData = ConcreteAsset->ClothLodData[InComponent->SelectedClothingLodForPainting];
 
 							ClothingSimIndices = LodData->PhysicalMeshData->Indices;
 

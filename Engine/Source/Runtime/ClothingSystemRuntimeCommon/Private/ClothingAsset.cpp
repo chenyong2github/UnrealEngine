@@ -265,7 +265,7 @@ bool UClothingAssetCommon::BindToSkeletalMesh(
 	CalculateReferenceBoneIndex();
 
 	// Grab the clothing and skel lod data
-	UClothLODDataBase* LodData = ClothLodData[InAssetLodIndex];
+	UClothLODDataCommon* LodData = ClothLodData[InAssetLodIndex];
 	FSkeletalMeshLODModel& SkelLod = InSkelMesh->GetImportedModel()->LODModels[InMeshLodIndex];
 
 	FSkelMeshSection& OriginalSection = SkelLod.Sections[InSectionIndex];
@@ -505,7 +505,7 @@ void UClothingAssetCommon::ForEachInteractorUsingClothing(TFunction<void(UClothi
 
 void UClothingAssetCommon::ApplyParameterMasks()
 {
-	for(UClothLODDataBase* Lod : ClothLodData)
+	for(UClothLODDataCommon* Lod : ClothLodData)
 	{
 		Lod->PushWeightsToMesh();
 	}
@@ -520,12 +520,12 @@ void UClothingAssetCommon::BuildLodTransitionData()
 		const bool bHasPrevLod = LodIndex > 0;
 		const bool bHasNextLod = LodIndex < NumLods - 1;
 
-		UClothLODDataBase* CurrentLod = ClothLodData[LodIndex];
+		UClothLODDataCommon* CurrentLod = ClothLodData[LodIndex];
 		check(CurrentLod->PhysicalMeshData);
 		UClothPhysicalMeshDataBase& CurrentPhysMesh = *CurrentLod->PhysicalMeshData;
 
-		UClothLODDataBase* PrevLod = bHasPrevLod ? ClothLodData[LodIndex - 1] : nullptr;
-		UClothLODDataBase* NextLod = bHasNextLod ? ClothLodData[LodIndex + 1] : nullptr;
+		UClothLODDataCommon* PrevLod = bHasPrevLod ? ClothLodData[LodIndex - 1] : nullptr;
+		UClothLODDataCommon* NextLod = bHasNextLod ? ClothLodData[LodIndex + 1] : nullptr;
 
 		const int32 CurrentLodNumVerts = CurrentPhysMesh.Vertices.Num();
 
@@ -597,7 +597,7 @@ void UClothingAssetCommon::CalculateReferenceBoneIndex()
 		// List of actually weighted (not just used) bones
 		TArray<int32> WeightedBones;
 
-		for(UClothLODDataBase* CurLod : ClothLodData)
+		for(UClothLODDataCommon* CurLod : ClothLodData)
 		{
 			check(CurLod && CurLod->PhysicalMeshData);
 			UClothPhysicalMeshDataBase* MeshData = CurLod->PhysicalMeshData;
@@ -700,7 +700,7 @@ void UClothingAssetCommon::BuildSelfCollisionData()
 		// No self collision, can't generate data
 		return;
 	}
-	for(UClothLODDataBase* Lod : ClothLodData)
+	for(UClothLODDataCommon* Lod : ClothLodData)
 	{
 		check(Lod && Lod->PhysicalMeshData);
 		Lod->PhysicalMeshData->BuildSelfCollisionData(ClothSimConfig);
