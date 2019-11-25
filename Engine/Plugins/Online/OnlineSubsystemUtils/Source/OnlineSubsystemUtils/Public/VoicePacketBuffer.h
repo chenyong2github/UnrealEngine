@@ -7,6 +7,9 @@
 #include "AudioMixerTypes.h"
 #include "Net/VoiceDataCommon.h"
 
+// Set this to 1 to enforce a critical section between FVoicePacketBuffer::PopAudio and FVoicePacketBuffer::SubmitPacket.
+#define SCOPELOCK_VOICE_PACKET_BUFFER 0
+
 enum class EVoipStreamDataFormat : uint8
 {
 	Float,
@@ -138,10 +141,38 @@ public:
 	// Get whatever the most recent sample processed is for buffer-accurate timing.
 	uint64 GetCurrentSample() { return SampleCounter; }
 
+	// This will return the current amount of samples buffered here. 
+	int32 GetNumBufferedSamples();
+
+	// When called, will seek forward in the buffer by the requested number of samples, skipping and removing the audio we seek past.
+	// This will return the number of samples we were able to seek forward by.
+	uint32 DropOldestAudio(uint32 InNumSamples);
+
 	// Clears the buffer.
 	void Reset(int32 InStartSample);
 
 private:
+
+	static int32 SizeOfSample(EVoipStreamDataFormat InFormat)
+	{
+		switch (InFormat)
+		{
+			case EVoipStreamDataFormat::Float:
+			{
+				return sizeof(float);
+			}
+			case EVoipStreamDataFormat::Int16:
+			{
+				return sizeof(int16);
+			}
+			default:
+			{
+				checkNoEntry();
+				return 1;
+			}
+		}
+	}
+
 	// Default constructor. Hidden on purpose.
 	FVoicePacketBuffer();
 
@@ -165,4 +196,11 @@ private:
 
 	// After a packet is used, we push its index on the PacketBuffer so that we can Initialize it.
 	TQueue<int32> FreedIndicesQueue;
+
+	// The amount of samples of audio we currently have buffered.
+	FThreadSafeCounter NumBufferedSamples;
+
+#if SCOPELOCK_VOICE_PACKET_BUFFER
+	FCriticalSection ListHeadCriticalSection;
+#endif
 };
