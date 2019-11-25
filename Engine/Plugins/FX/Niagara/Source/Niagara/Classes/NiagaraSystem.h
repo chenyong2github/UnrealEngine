@@ -19,20 +19,6 @@
 class UNiagaraEditorDataBase;
 #endif
 
-struct FNiagaraDeferredDeletionFence
-{
-	FNiagaraDeferredDeletionFence();
-	~FNiagaraDeferredDeletionFence();
-	bool IsComplete();
-
-	/** Flag to signal that the instance batcher deferred deletion queues have been cleared. */
-	TAtomic<bool> bInstanceBatcherComplete;
-
-	/** Flag to signal that the world manager deferred deletion queues have been cleared. */
-	TAtomic<bool> bWorldManagerComplete;
-};
-
-
 USTRUCT()
 struct FNiagaraEmitterCompiledData
 {
@@ -145,7 +131,6 @@ public:
 	virtual void PostLoad() override; 
 	virtual void BeginDestroy() override;
 	virtual void PreSave(const class ITargetPlatform * TargetPlatform) override;
-	virtual bool IsReadyForFinishDestroy()override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override; 
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatform) override;
@@ -419,7 +404,4 @@ protected:
 	mutable TStatId StatID_RT;
 	mutable TStatId StatID_RT_CNC;
 #endif
-
-	//We submit one deletion fence for each world to ensure this System lives longer than any worlds deferred deletion queue.
-	TArray<FNiagaraDeferredDeletionFence> DeletionFences;
 };

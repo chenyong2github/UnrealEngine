@@ -313,7 +313,6 @@ void FNiagaraWorldManager::OnBatcherDestroyed_Internal(NiagaraEmitterInstanceBat
 		{
 			DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.Wait();
 			DeferredDeletionQueue[i].Queue.Empty();
-			DeferredDeletionQueue[i].DeletionFences.Empty();
 		}
 	}
 }
@@ -336,7 +335,6 @@ void FNiagaraWorldManager::OnWorldCleanup(bool bSessionEnded, bool bCleanupResou
 	{
 		DeferredDeletionQueue[i].Fence.Wait();
 		DeferredDeletionQueue[i].Queue.Empty();
-		DeferredDeletionQueue[i].DeletionFences.Empty();
 	}
 }
 
@@ -455,7 +453,6 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 			DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.Wait();
 		}
 		DeferredDeletionQueue[DeferredDeletionQueueIndex].Queue.Empty();
-		DeferredDeletionQueue[DeferredDeletionQueueIndex].DeletionFences.Empty();
 	}
 
 	// Update tick groups
@@ -568,43 +565,4 @@ void FNiagaraWorldManager::DumpDetails(FOutputDevice& Ar)
 UWorld* FNiagaraWorldManager::GetWorld()
 {
 	return World;
-}
-
-void FNiagaraWorldManager::EnqueueDeferredDeletionFences(TArray<FNiagaraDeferredDeletionFence>& OutFences)
-{
-	OutFences.Reserve(WorldManagers.Num());
-	for (auto& Pair : WorldManagers)
-	{
-		UWorld* World = Pair.Key;
-		FNiagaraWorldManager* Manager = Pair.Value;
-
-		if (World && Manager)
-		{
-			FNiagaraDeferredDeletionFence* Fence = &OutFences.AddDefaulted_GetRef();
-			//Add the fence to the deferred deletion queue.
-			Manager->DeferredDeletionQueue[Manager->DeferredDeletionQueueIndex].DeletionFences.Emplace(Fence);
-
-			//Add the fence to the instance batcher
-			if (World->Scene)
-			{
-				FFXSystemInterface*  FXSystemInterface = World->Scene->GetFXSystem();
-				if (FXSystemInterface)
-				{
-					if (NiagaraEmitterInstanceBatcher* Batcher = static_cast<NiagaraEmitterInstanceBatcher*>(FXSystemInterface->GetInterface(NiagaraEmitterInstanceBatcher::Name)))
-					{
-						FNiagaraInstanceBatcherDeferredDeletionFence BatcherFence(Fence);
-						ENQUEUE_RENDER_COMMAND(FDeletionFenceCommand)(
-							[Batcher, BatcherFence_RT = MoveTemp(BatcherFence)](FRHICommandListImmediate& RHICmdList) mutable
-						{
-							if (ensure(Batcher))
-							{
-								Batcher->AddFence_RenderThread(BatcherFence_RT);
-							}
-						}
-						);
-					}
-				}
-			}
-		}
-	}
 }
