@@ -129,6 +129,12 @@ public:
 	/** Have the manifest and bindings bindings regenerated. Used by a UI callback */
 	void OnActionMappingsChanged();
 
+	/** Add VR editor actions and bindings. Used by a UI callback */
+	void OnVREditingModeEnter();
+
+	/** Remove VR editor actions and bindings. Used by a UI callback */
+	void OnVREditingModeExit();
+
 	/** Reload the action manifest to the SteamVR system. Use if you changed the action manifest manually */
 	void ReloadActionManifest();
 #endif
