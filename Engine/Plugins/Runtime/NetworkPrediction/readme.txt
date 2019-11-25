@@ -76,9 +76,7 @@ High level focus:
 -We intend to support RootMotion (Animation) / RootMotionSources (non anim) in the new movement system.
 
 Road Map:
--Event System / "Game API"
--Ability System integration
--New Movement System
+-New Movement System / Ability System integration
  
  
 // ----------------------------------------------------------------------------------------------------------
@@ -107,6 +105,10 @@ Smoothing: Taking the output of the simulation and applying an additional layer 
 // ----------------------------------------------------------------------------------------------------------
 // Release notes
 // ----------------------------------------------------------------------------------------------------------
+
+Update (11-21-19)
+-Rewindable NetSimCue support added. This just about wraps up the initial implemention of NetSimCues and the "Game API / Event System".
+-Still some cleanup and debugging/logging stuff to do but will be transitioning into porting the legacy CMC movement system over soon.
 
 Update (11-15-19)
 -NetSimCues initial check in
