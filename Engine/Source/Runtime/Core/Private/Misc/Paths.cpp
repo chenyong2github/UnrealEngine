@@ -1443,12 +1443,9 @@ bool FPaths::IsSamePath(const FString& PathA, const FString& PathB)
 
 bool FPaths::IsUnderDirectory(const FString& InPath, const FString& InDirectory)
 {
-	FString Path = InPath;
-	MakeStandardFilename(Path);
+	FString Path = FPaths::ConvertRelativePathToFull(InPath);
 
-	FString Directory = InDirectory;
-	MakeStandardFilename(Directory);
-
+	FString Directory = FPaths::ConvertRelativePathToFull(InDirectory);
 	if (Directory.EndsWith(TEXT("/")))
 	{
 		Directory.RemoveAt(Directory.Len() - 1);
