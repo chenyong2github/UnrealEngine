@@ -184,6 +184,42 @@ UVoipListenerSynthComponent* CreateVoiceSynthComponent(uint32 SampleRate)
 	return SynthComponentPtr;
 }
 
+
+UVoipListenerSynthComponent* CreateVoiceSynthComponent(UWorld* World, uint32 SampleRate)
+{
+	UVoipListenerSynthComponent* SynthComponentPtr = nullptr;
+
+	if (World)
+	{
+		if (FAudioDevice* AudioDevice = World->GetAudioDevice())
+		{
+			SynthComponentPtr = NewObject<UVoipListenerSynthComponent>();
+			if (SynthComponentPtr)
+			{
+				const FSoftObjectPath VoiPSoundClassName = GetDefault<UAudioSettings>()->VoiPSoundClass;
+				if (VoiPSoundClassName.IsValid())
+				{
+					SynthComponentPtr->SoundClass = LoadObject<USoundClass>(nullptr, *VoiPSoundClassName.ToString());
+				}
+
+				if (CvarAlwaysPlayVoipComponent)
+				{
+					SynthComponentPtr->bAlwaysPlay = true;
+				}
+
+				SynthComponentPtr->RegisterComponentWithWorld(World);
+				SynthComponentPtr->Initialize(SampleRate);
+			}
+			else
+			{
+				UE_LOG(LogVoiceDecode, Warning, TEXT("Unable to create voice synth component!"));
+			}
+		}
+	}
+
+	return SynthComponentPtr;
+}
+
 void ApplyVoiceSettings(UVoipListenerSynthComponent* InSynthComponent, const FVoiceSettings& InSettings)
 {
 	InSynthComponent->CreateAudioComponent();
