@@ -149,6 +149,15 @@ void ULandscapeComponent::UpdateNavigationRelevance()
 	}
 }
 
+void ULandscapeComponent::UpdateRejectNavmeshUnderneath()
+{
+	ALandscapeProxy* Proxy = GetLandscapeProxy();
+	if (CollisionComponent && Proxy)
+	{
+		CollisionComponent->bRejectNavmeshUnderneath = Proxy->bRejectNavmeshUnderLandscapeGeometry;
+	}
+}
+
 ULandscapeMaterialInstanceConstant* ALandscapeProxy::GetLayerThumbnailMIC(UMaterialInterface* LandscapeMaterial, FName LayerName, UTexture2D* ThumbnailWeightmap, UTexture2D* ThumbnailHeightmap, ALandscapeProxy* Proxy)
 {
 	if (!LandscapeMaterial)
@@ -4705,6 +4714,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	bool bNeedsRecalcBoundingBox = false;
 	bool bChangedLighting = false;
 	bool bChangedNavRelevance = false;
+	bool bChangeRejectNavmeshUnder = false;
 	bool bPropagateToProxies = false;
 
 	ULandscapeInfo* Info = GetLandscapeInfo();
@@ -4850,6 +4860,10 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	{
 		bChangedNavRelevance = true;
 	}
+	else if (GIsEditor && PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bRejectNavmeshUnderLandscapeGeometry))
+	{
+		bChangeRejectNavmeshUnder = true;
+	}
 
 	// Must do this *after* clamping values
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -4875,7 +4889,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 			LandscapeEdit.RecalculateNormals();
 		}
 
-		if (bNeedsRecalcBoundingBox || ChangedMaterial || bChangedLighting || bChangedNavRelevance)
+		if (bNeedsRecalcBoundingBox || ChangedMaterial || bChangedLighting || bChangedNavRelevance || bChangeRejectNavmeshUnder)
 		{
 			// We cannot iterate the XYtoComponentMap directly because reregistering components modifies the array.
 			TArray<ULandscapeComponent*> AllComponents;
@@ -4900,6 +4914,11 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 					if (bChangedNavRelevance)
 					{
 						Comp->UpdateNavigationRelevance();
+					}
+
+					if (bChangeRejectNavmeshUnder)
+					{
+						Comp->UpdateRejectNavmeshUnderneath();
 					}
 				}
 			}

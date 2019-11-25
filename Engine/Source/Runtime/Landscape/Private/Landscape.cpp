@@ -1048,6 +1048,7 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 	bCastStaticShadow = true;
 	bCastShadowAsTwoSided = false;
 	bUsedForNavigation = true;
+	bRejectNavmeshUnderLandscapeGeometry = false;
 	CollisionThickness = 16;
 	BodyInstance.SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
 	bGenerateOverlapEvents = false;
@@ -2000,6 +2001,14 @@ void ALandscape::PostLoad()
 		for (FLandscapeLayerBrush& Brush : Layer.Brushes)
 		{
 			Brush.SetOwner(this);
+		}
+	}
+
+	for (ULandscapeComponent* Comp : LandscapeComponents)
+	{
+		if (Comp)
+		{
+			Comp->UpdateRejectNavmeshUnderneath();
 		}
 	}
 #endif
