@@ -47,7 +47,7 @@ static FAutoConsoleVariableRef CVarMetalCommandQueueSize(
 	GMetalCommandQueueSize,
 	TEXT("The maximum number of command-buffers that can be allocated from each command-queue. (Default: 5120 Mac, 64 iOS/tvOS)"), ECVF_ReadOnly);
 
-int32 GMetalBufferZeroFill = 1; // Deliberately not static
+int32 GMetalBufferZeroFill = 0; // Deliberately not static
 static FAutoConsoleVariableRef CVarMetalBufferZeroFill(
 	TEXT("rhi.Metal.BufferZeroFill"),
 	GMetalBufferZeroFill,
