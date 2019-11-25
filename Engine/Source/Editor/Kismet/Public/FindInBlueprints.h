@@ -227,11 +227,10 @@ public:
 	 *
 	 * @param InSearchString						String to search using
 	 * @param bInIsFindWithinBlueprint				TRUE if searching within the current Blueprint only
-	 * @param InSearchFilterForImaginaryDataReturn	If requesting a callback on search complete for the filtered imaginary data, this is the filter that the raw data will be passed through. By default nothing is collected
-	 * @param InMinimiumVersionRequirement			The minimum search requirement Blueprints must be to be searched or they will be reported as out-of-date.
+	 * @param InSearchOptions						Optional search parameters.
 	 * @param InOnSearchComplete					Callback when the search is complete, passing the filtered imaginary data (if any).
 	 */
-	void MakeSearchQuery(FString InSearchString, bool bInIsFindWithinBlueprint, enum ESearchQueryFilter InSearchFilterForImaginaryDataReturn = ESearchQueryFilter::AllFilter, EFiBVersion InMinimiumVersionRequirement = EFiBVersion::FIB_VER_LATEST, FOnSearchComplete InOnSearchComplete = FOnSearchComplete());
+	void MakeSearchQuery(FString InSearchString, bool bInIsFindWithinBlueprint, const FStreamSearchOptions& InSearchOptions = FStreamSearchOptions(), FOnSearchComplete InOnSearchComplete = FOnSearchComplete());
 
 	/** Called when caching Blueprints is started */
 	void OnCacheStarted(EFiBCacheOpType InOpType, EFiBCacheOpFlags InOpFlags);
@@ -290,8 +289,7 @@ private:
 	TSharedRef<ITableRow> OnGenerateRow(FSearchResult InItem, const TSharedRef<STableViewBase>& OwnerTable);
 	
 	/** Launches a thread for streaming more content into the results widget */
-	void LaunchStreamThread(const FString& InSearchValue);
-	void LaunchStreamThread(const FString& InSearchValue, enum ESearchQueryFilter InSearchFilterForRawDataReturn, EFiBVersion InMinimiumVersionRequirement, FOnSearchComplete InOnSearchComplete);
+	void LaunchStreamThread(const FString& InSearchValue, const FStreamSearchOptions& InSearchOptions = FStreamSearchOptions(), FOnSearchComplete InOnSearchComplete = FOnSearchComplete());
 
 	/** Returns the percent complete on the search for the progress bar */
 	TOptional<float> GetPercentCompleteSearch() const;
