@@ -121,10 +121,11 @@ public:
 	virtual EVoiceCaptureState::Type GetVoiceData(uint8* OutVoiceBuffer, uint32 InVoiceBufferSize, uint32& OutAvailableVoiceData, uint64& OutSampleCounter) override;
 	virtual int32 GetBufferSize() const override;
 	virtual void DumpState() const override;
+	virtual float GetCurrentAmplitude() const override;
 
 	// FTickerObjectBase
 	virtual bool Tick(float DeltaTime) override;
-
+	
 private:
 
 	/** All windows related variables to hide windows includes */

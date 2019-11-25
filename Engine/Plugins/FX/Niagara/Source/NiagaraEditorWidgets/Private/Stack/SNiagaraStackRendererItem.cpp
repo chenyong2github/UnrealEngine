@@ -12,7 +12,6 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Styling/SlateIconFinder.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
 #include "SNiagaraStackIssueIcon.h"
@@ -35,7 +34,7 @@ void SNiagaraStackRendererItem::Construct(const FArguments& InArgs, UNiagaraStac
 		.VAlign(VAlign_Center)
 		[
 			SNew(SImage)
-			.Image(FSlateIconFinder::FindIconBrushForClass(RendererItem->GetRendererProperties()->GetClass()))
+			.Image(RendererItem->GetIconBrush())
 		]
 		// Display name
 		+ SHorizontalBox::Slot()

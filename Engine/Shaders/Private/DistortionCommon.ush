@@ -6,7 +6,7 @@
 
 float2 ComputeBufferUVDistortion(
 	in FMaterialPixelParameters MaterialParameters, in FPixelMaterialInputs PixelMaterialInputs, in ViewState ResolvedView,
-	in half3 Normal, in float4 DistortionParameters, in float2 ScreenUV, in float2 RefractionIORAndBias, in bool TryToClip)
+	in half3 Normal, in float4 DistortionParameters, in float2 ScreenUV, in float2 RefractionIORAndBias, in bool TryToClip, in uint EyeIndex)
 {
 #if MATERIAL_TANGENTSPACENORMAL
 	half3 ViewNormal = normalize(TransformTangentVectorToView(MaterialParameters, Normal));
@@ -35,7 +35,7 @@ float2 ComputeBufferUVDistortion(
 
 	// When ISR is enabled we store two FOVs in the DistortionParameters and compute the aspect ratio here
 #if INSTANCED_STEREO
-	float InvTanHalfFov = DistortionParameters[Interpolants.EyeIndex];
+	float InvTanHalfFov = DistortionParameters[EyeIndex];
 	float Ratio = DistortionParameters.z / DistortionParameters.w;
 #else
 	float InvTanHalfFov = DistortionParameters.x;

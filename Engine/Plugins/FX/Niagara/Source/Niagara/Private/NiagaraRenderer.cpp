@@ -272,7 +272,7 @@ void FNiagaraRenderer::Initialize(const UNiagaraRendererProperties *InProps, con
 
 FNiagaraRenderer::~FNiagaraRenderer()
 {
-	ReleaseRenderThreadResources(nullptr);
+	ReleaseRenderThreadResources();
 	SetDynamicData_RenderThread(nullptr);
 }
 
@@ -280,15 +280,20 @@ void FNiagaraRenderer::CreateRenderThreadResources(NiagaraEmitterInstanceBatcher
 {
 	if (Batcher && SimTarget == ENiagaraSimTarget::GPUComputeSim)
 	{
-		Batcher->GetGPUInstanceCounterManager().IncrementMaxDrawIndirectCount();
+		NumRegisteredGPURenderers = Batcher->GetGPUInstanceCounterManager().GetGPURendererCount();
+		if (NumRegisteredGPURenderers)
+		{
+			NumRegisteredGPURenderers->Value += 1;
+		}
 	}
 }
 
-void FNiagaraRenderer::ReleaseRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher)
+void FNiagaraRenderer::ReleaseRenderThreadResources()
 {
-	if (Batcher && SimTarget == ENiagaraSimTarget::GPUComputeSim)
+	if (NumRegisteredGPURenderers)
 	{
-		Batcher->GetGPUInstanceCounterManager().DecrementMaxDrawIndirectCount();
+		NumRegisteredGPURenderers->Value -= 1;
+		NumRegisteredGPURenderers.SafeRelease();
 	}
 }
 

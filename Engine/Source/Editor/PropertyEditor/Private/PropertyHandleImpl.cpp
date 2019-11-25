@@ -25,6 +25,7 @@
 #include "IDetailPropertyRow.h"
 #include "ObjectEditorUtils.h"
 #include "PropertyEditorHelpers.h"
+#include "SResetToDefaultPropertyEditor.h"
 
 #define LOCTEXT_NAMESPACE "PropertyHandleImplementation"
 
@@ -874,21 +875,21 @@ FPropertyAccess::Result FPropertyValueImpl::SetValueAsString( const FString& InV
 		{
 			while ( true )
 			{
-				if ( Value.StartsWith( TEXT("_") ) )
+				if ( Value.StartsWith( TEXT("_"), ESearchCase::CaseSensitive ) )
 				{
 					// Strip leading underscores.
 					do
 					{
-						Value = Value.Right( Value.Len()-1 );
-					} while ( Value.StartsWith( TEXT("_") ) );
+						Value.RightInline( Value.Len()-1, false);
+					} while ( Value.StartsWith( TEXT("_"), ESearchCase::CaseSensitive ) );
 				}
-				else if ( Value.StartsWith( TEXT(" ") ) )
+				else if ( Value.StartsWith( TEXT(" "), ESearchCase::CaseSensitive) )
 				{
 					// Strip leading spaces.
 					do
 					{
-						Value = Value.Right( Value.Len()-1 );
-					} while ( Value.StartsWith( TEXT(" ") ) );
+						Value.RightInline( Value.Len()-1, false );
+					} while ( Value.StartsWith( TEXT(" "), ESearchCase::CaseSensitive) );
 				}
 				else
 				{
@@ -2331,6 +2332,60 @@ TSharedRef<SWidget> FPropertyHandleBase::CreatePropertyValueWidget( bool bDispla
 	return SNullWidget::NullWidget;
 }
 
+class SDefaultPropertyButtonWidgets : public SCompoundWidget
+{
+	SLATE_BEGIN_ARGS(SDefaultPropertyButtonWidgets)	{}
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, TSharedRef<FPropertyEditor> InPropertyEditor)
+	{
+		PropertyEditor = InPropertyEditor;
+		TSharedRef<SHorizontalBox> ButtonBox = SNew(SHorizontalBox);
+
+		TArray<TSharedRef<SWidget>> RequiredButtons;
+		PropertyEditorHelpers::MakeRequiredPropertyButtons(PropertyEditor.ToSharedRef(), RequiredButtons);
+		for (TSharedRef<SWidget> RequiredButton : RequiredButtons)
+		{
+			ButtonBox->AddSlot()
+			.AutoWidth()
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.Padding(2.0f, 1.0f)
+			[
+				RequiredButton
+			];
+		}
+
+		ButtonBox->AddSlot()
+		.AutoWidth()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.Padding(4.0f, 0.0f)
+		[
+			SNew(SResetToDefaultPropertyEditor, PropertyEditor->GetPropertyHandle())
+		];
+
+		ChildSlot
+		[
+			ButtonBox
+		];
+	}
+
+private:
+	TSharedPtr<FPropertyEditor> PropertyEditor;
+};
+
+TSharedRef<SWidget> FPropertyHandleBase::CreateDefaultPropertyButtonWidgets() const
+{
+	TArray<TSharedRef<SWidget>> DefaultButtons;
+	if (Implementation.IsValid() && Implementation->GetPropertyNode().IsValid())
+	{
+		TSharedRef<FPropertyEditor> PropertyEditor = FPropertyEditor::Create(Implementation->GetPropertyNode().ToSharedRef(), Implementation->GetPropertyUtilities().ToSharedRef());
+		return SNew(SDefaultPropertyButtonWidgets, PropertyEditor);
+	}
+	return SNullWidget::NullWidget;
+}
+
 bool FPropertyHandleBase::IsEditConst() const
 {
 	return Implementation->IsEditConst();
@@ -2851,6 +2906,10 @@ FPropertyAccess::Result FPropertyHandleBase::GetPerObjectValue( const int32 Obje
 bool FPropertyHandleBase::GeneratePossibleValues(TArray< TSharedPtr<FString> >& OutOptionStrings, TArray< FText >& OutToolTips, TArray<bool>& OutRestrictedItems)
 {
 	UProperty* Property = GetProperty();
+	if (Property == nullptr)
+	{
+		return false;
+	}
 
 	bool bUsesAlternateDisplayValues = false;
 
@@ -3148,12 +3207,16 @@ TArray<TSharedPtr<IPropertyHandle>> FPropertyHandleBase::AddChildStructure( TSha
 bool FPropertyHandleBase::CanResetToDefault() const
 {
 	UProperty* Property = GetProperty();
+	if (Property == nullptr)
+	{
+		return false;
+	}
 
 	// Should not be able to reset fixed size arrays
-	const bool bFixedSized = Property && Property->PropertyFlags & CPF_EditFixedSize;
-	const bool bCanResetToDefault = !(Property && Property->PropertyFlags & CPF_Config);
+	const bool bFixedSized = (Property->PropertyFlags & CPF_EditFixedSize) != 0;
+	const bool bCanResetToDefault = (Property->PropertyFlags & CPF_Config) == 0;
 
-	return Property && bCanResetToDefault && !bFixedSized && DiffersFromDefault();
+	return bCanResetToDefault && !bFixedSized && DiffersFromDefault();
 }
 
 void FPropertyHandleBase::ExecuteCustomResetToDefault(const FResetToDefaultOverride& InOnCustomResetToDefault)

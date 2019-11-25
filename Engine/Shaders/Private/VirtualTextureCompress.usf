@@ -19,8 +19,8 @@ SamplerState TextureSampler2;
 RWTexture2D<uint2> OutCompressTexture0_u2;
 RWTexture2D<uint4> OutCompressTexture0_u4;
 RWTexture2D<uint4> OutCompressTexture1;
-RWTexture2D<uint2> OutCompressTexture2;
-
+RWTexture2D<uint2> OutCompressTexture2_u2;
+RWTexture2D<uint4> OutCompressTexture2_u4;
 
 /** Trivial vertex shader for copy shaders. */
 void CopyVS(in uint VertexId : SV_VertexID, out float4 OutPosition : SV_POSITION, out float2 OutTexCoord : TEXCOORD0)
@@ -75,42 +75,86 @@ void ReadBlockRGB( Texture2D<float4> SourceTexture, SamplerState TextureSampler,
 }
 
 /** Read a 4x4 block of XY channels from a normal texture ready for BC5 compression. */
-void ReadBlockRG( Texture2D<float4> SourceTexture, SamplerState TextureSampler, float2 UV, float2 TexelUVSize, out float BlockR[16], out float BlockG[16] )
+void ReadBlockXY( Texture2D<float4> SourceTexture, SamplerState TextureSampler, float2 UV, float2 TexelUVSize, out float BlockX[16], out float BlockY[16] )
 {
 	{
 		float4 Red = SourceTexture.GatherRed(TextureSampler, UV);
 		float4 Green = SourceTexture.GatherGreen(TextureSampler, UV);
-		BlockR[0] = Red[3]; BlockG[0] = Green[3];
-		BlockR[1] = Red[2]; BlockG[1] = Green[2];
-		BlockR[4] = Red[0]; BlockG[4] = Green[0];
-		BlockR[5] = Red[1]; BlockG[5] = Green[1];
+		BlockX[0] = Red[3]; BlockY[0] = Green[3];
+		BlockX[1] = Red[2]; BlockY[1] = Green[2];
+		BlockX[4] = Red[0]; BlockY[4] = Green[0];
+		BlockX[5] = Red[1]; BlockY[5] = Green[1];
 	}
 	{
 		float2 UVOffset = UV + float2(2.f * TexelUVSize.x, 0);
 		float4 Red = SourceTexture.GatherRed(TextureSampler, UVOffset);
 		float4 Green = SourceTexture.GatherGreen(TextureSampler, UVOffset);
-		BlockR[2] = Red[3]; BlockG[2] = Green[3];
-		BlockR[3] = Red[2]; BlockG[3] = Green[2];
-		BlockR[6] = Red[0]; BlockG[6] = Green[0];
-		BlockR[7] = Red[1]; BlockG[7] = Green[1];
+		BlockX[2] = Red[3]; BlockY[2] = Green[3];
+		BlockX[3] = Red[2]; BlockY[3] = Green[2];
+		BlockX[6] = Red[0]; BlockY[6] = Green[0];
+		BlockX[7] = Red[1]; BlockY[7] = Green[1];
 	}
 	{
 		float2 UVOffset = UV + float2(0, 2.f * TexelUVSize.y);
 		float4 Red = SourceTexture.GatherRed(TextureSampler, UVOffset);
 		float4 Green = SourceTexture.GatherGreen(TextureSampler, UVOffset);
-		BlockR[8]  = Red[3]; BlockG[8]  = Green[3];
-		BlockR[9]  = Red[2]; BlockG[9]  = Green[2];
-		BlockR[12] = Red[0]; BlockG[12] = Green[0];
-		BlockR[13] = Red[1]; BlockG[13] = Green[1];
+		BlockX[8]  = Red[3]; BlockY[8]  = Green[3];
+		BlockX[9]  = Red[2]; BlockY[9]  = Green[2];
+		BlockX[12] = Red[0]; BlockY[12] = Green[0];
+		BlockX[13] = Red[1]; BlockY[13] = Green[1];
 	}
 	{
 		float2 UVOffset = UV + 2.f * TexelUVSize;
 		float4 Red = SourceTexture.GatherRed(TextureSampler, UVOffset);
 		float4 Green = SourceTexture.GatherGreen(TextureSampler, UVOffset);
-		BlockR[10] = Red[3]; BlockG[10] = Green[3];
-		BlockR[11] = Red[2]; BlockG[11] = Green[2];
-		BlockR[14] = Red[0]; BlockG[14] = Green[0];
-		BlockR[15] = Red[1]; BlockG[15] = Green[1];
+		BlockX[10] = Red[3]; BlockY[10] = Green[3];
+		BlockX[11] = Red[2]; BlockY[11] = Green[2];
+		BlockX[14] = Red[0]; BlockY[14] = Green[0];
+		BlockX[15] = Red[1]; BlockY[15] = Green[1];
+	}
+}
+
+/** Read a 4x4 block of XYA channels ready for BC4/BC5 compression. */
+void ReadBlockXYA( Texture2D<float4> SourceTexture, SamplerState TextureSampler, float2 UV, float2 TexelUVSize, out float BlockX[16], out float BlockY[16], out float BlockA[16] )
+{
+	{
+		float4 Red = SourceTexture.GatherRed(TextureSampler, UV);
+		float4 Green = SourceTexture.GatherGreen(TextureSampler, UV);
+		float4 Blue = SourceTexture.GatherBlue(TextureSampler, UV);
+		BlockX[0] = Red[3]; BlockY[0] = Green[3]; BlockA[0] = Blue[3];
+		BlockX[1] = Red[2]; BlockY[1] = Green[2]; BlockA[1] = Blue[2];
+		BlockX[4] = Red[0]; BlockY[4] = Green[0]; BlockA[4] = Blue[0];
+		BlockX[5] = Red[1]; BlockY[5] = Green[1]; BlockA[5] = Blue[1];
+	}
+	{
+		float2 UVOffset = UV + float2(2.f * TexelUVSize.x, 0);
+		float4 Red = SourceTexture.GatherRed(TextureSampler, UVOffset);
+		float4 Green = SourceTexture.GatherGreen(TextureSampler, UVOffset);
+		float4 Blue = SourceTexture.GatherBlue(TextureSampler, UV);
+		BlockX[2] = Red[3]; BlockY[2] = Green[3]; BlockA[2] = Blue[3];
+		BlockX[3] = Red[2]; BlockY[3] = Green[2]; BlockA[3] = Blue[2];
+		BlockX[6] = Red[0]; BlockY[6] = Green[0]; BlockA[6] = Blue[0];
+		BlockX[7] = Red[1]; BlockY[7] = Green[1]; BlockA[7] = Blue[1];
+	}
+	{
+		float2 UVOffset = UV + float2(0, 2.f * TexelUVSize.y);
+		float4 Red = SourceTexture.GatherRed(TextureSampler, UVOffset);
+		float4 Green = SourceTexture.GatherGreen(TextureSampler, UVOffset);
+		float4 Blue = SourceTexture.GatherBlue(TextureSampler, UV);
+		BlockX[8]  = Red[3]; BlockY[8]  = Green[3]; BlockA[8]  = Blue[3];
+		BlockX[9]  = Red[2]; BlockY[9]  = Green[2]; BlockA[9]  = Blue[2];
+		BlockX[12] = Red[0]; BlockY[12] = Green[0]; BlockA[12] = Blue[0];
+		BlockX[13] = Red[1]; BlockY[13] = Green[1]; BlockA[13] = Blue[1];
+	}
+	{
+		float2 UVOffset = UV + 2.f * TexelUVSize;
+		float4 Red = SourceTexture.GatherRed(TextureSampler, UVOffset);
+		float4 Green = SourceTexture.GatherGreen(TextureSampler, UVOffset);
+		float4 Blue = SourceTexture.GatherBlue(TextureSampler, UV);
+		BlockX[10] = Red[3]; BlockY[10] = Green[3]; BlockA[10] = Blue[3];
+		BlockX[11] = Red[2]; BlockY[11] = Green[2]; BlockA[11] = Blue[2];
+		BlockX[14] = Red[0]; BlockY[14] = Green[0]; BlockA[14] = Blue[0];
+		BlockX[15] = Red[1]; BlockY[15] = Green[1]; BlockA[15] = Blue[1];
 	}
 }
 
@@ -161,7 +205,7 @@ void CompressBaseColorNormalSpecularCS(
 
 	float BlockNormalX[16];
 	float BlockNormalY[16];
-	ReadBlockRG(RenderTexture1, TextureSampler1, SampleUV, TexelUVSize, BlockNormalX, BlockNormalY);
+	ReadBlockXY(RenderTexture1, TextureSampler1, SampleUV, TexelUVSize, BlockNormalX, BlockNormalY);
 
 	float3 BlockSpecular[16];
 	ReadBlockRGB(RenderTexture2, TextureSampler2, SampleUV, TexelUVSize, BlockSpecular);
@@ -175,8 +219,7 @@ void CompressBaseColorNormalSpecularCS(
 	OutCompressTexture1[ThreadId.xy + DestRect.xy] = CompressBC3Block(BlockSpecular, BlockNormalY);
 }
 
-/** Copy normal X and Y to the alpha channels of the final target textures (without compression)
-  * This path is used when we disable texture compression, because we need to keep the same final channel layout. */
+/** Copy path used when we disable texture compression, because we need to keep the same final channel layout. */
 void CopyBaseColorNormalSpecularPS(
 	in float4 InPosition : SV_POSITION, 
 	in noperspective float2 InTexCoord : TEXCOORD0, 
@@ -211,7 +254,7 @@ void CompressBaseColorNormalSpecularYCoCgCS(
 
 	float BlockNormalX[16];
 	float BlockNormalY[16];
-	ReadBlockRG(RenderTexture1, TextureSampler1, SampleUV, TexelUVSize, BlockNormalX, BlockNormalY);
+	ReadBlockXY(RenderTexture1, TextureSampler1, SampleUV, TexelUVSize, BlockNormalX, BlockNormalY);
 
 	float3 BlockSpecular[16];
 	ReadBlockRGB(RenderTexture2, TextureSampler2, SampleUV, TexelUVSize, BlockSpecular);
@@ -223,11 +266,10 @@ void CompressBaseColorNormalSpecularYCoCgCS(
 
 	OutCompressTexture0_u4[ThreadId.xy + DestRect.xy] = CompressBC3BlockYCoCg(BlockBaseColor);
 	OutCompressTexture1[ThreadId.xy + DestRect.xy] = CompressBC5Block(BlockNormalX, BlockNormalY);
-	OutCompressTexture2[ThreadId.xy + DestRect.xy] = CompressBC1Block(BlockSpecular);
+	OutCompressTexture2_u2[ThreadId.xy + DestRect.xy] = CompressBC1Block(BlockSpecular);
 }
 
-/** Copy normal X and Y to the alpha channels of the final target textures (without compression)
-  * This path is used when we disable texture compression, because we need to keep the same final channel layout. */
+/** Copy path used when we disable texture compression, because we need to keep the same final channel layout. */
 void CopyBaseColorNormalSpecularYCoCgPS(
 	in float4 InPosition : SV_POSITION, 
 	in noperspective float2 InTexCoord : TEXCOORD0, 
@@ -242,8 +284,61 @@ void CopyBaseColorNormalSpecularYCoCgPS(
 	RoughnessSpecularNormalZ.z = round(RoughnessSpecularNormalZ.z);
 	
 	OutColor0 = float4(YCoCg.yz, 0, YCoCg.x);
-	OutColor1 = float4(NormalXY.xy, 0, 1);
+	OutColor1 = float4(NormalXY, 0, 1);
 	OutColor2 = float4(RoughnessSpecularNormalZ, 1);
+}
+
+/** Compress base color, normal, roughness, specular and mask to BC3, BC5, BC3 target set. */
+[numthreads(8,8,1)]
+void CompressBaseColorNormalSpecularMaskYCoCgCS(
+	uint3 ThreadId : SV_DispatchThreadID 
+	)
+{
+	uint2 SamplePos = ThreadId.xy * 4;
+	if (any(SamplePos >= DestRect.zw))
+		return;
+
+	float2 TexelUVSize = 1.f / float2(DestRect.zw);
+	float2 SampleUV = (float2(SamplePos) + 0.5f) * TexelUVSize;
+
+	float3 BlockBaseColor[16];
+	ReadBlockRGB(RenderTexture0, TextureSampler0, SampleUV, TexelUVSize, BlockBaseColor);
+
+	float BlockNormalX[16];
+	float BlockNormalY[16];
+	float BlockMask[16];
+	ReadBlockXYA(RenderTexture1, TextureSampler1, SampleUV, TexelUVSize, BlockNormalX, BlockNormalY, BlockMask);
+
+	float3 BlockSpecular[16];
+	ReadBlockRGB(RenderTexture2, TextureSampler2, SampleUV, TexelUVSize, BlockSpecular);
+
+	for (int i=0; i<16; i++)
+	{
+		BlockSpecular[i].z = round(BlockSpecular[i].z);
+	}
+
+	OutCompressTexture0_u4[ThreadId.xy + DestRect.xy] = CompressBC3BlockYCoCg(BlockBaseColor);
+	OutCompressTexture1[ThreadId.xy + DestRect.xy] = CompressBC5Block(BlockNormalX, BlockNormalY);
+	OutCompressTexture2_u4[ThreadId.xy + DestRect.xy] = CompressBC3Block(BlockSpecular, BlockMask);
+}
+
+/** Copy path used when we disable texture compression, because we need to keep the same final channel layout. */
+void CopyBaseColorNormalSpecularMaskYCoCgPS(
+	in float4 InPosition : SV_POSITION, 
+	in noperspective float2 InTexCoord : TEXCOORD0, 
+	out float4 OutColor0 : SV_Target0,
+	out float4 OutColor1 : SV_Target1,
+	out float4 OutColor2 : SV_Target2)
+{
+	float3 YCoCg = RGB2YCoCg(RenderTexture0.SampleLevel(TextureSampler0, InTexCoord, 0).xyz);
+	float3 NormalXYMask = RenderTexture1.SampleLevel(TextureSampler1, InTexCoord, 0).xyz;
+	float3 RoughnessSpecularNormalZ = RenderTexture2.SampleLevel(TextureSampler2, InTexCoord, 0).xyz;
+	
+	RoughnessSpecularNormalZ.z = round(RoughnessSpecularNormalZ.z);
+	
+	OutColor0 = float4(YCoCg.yz, 0, YCoCg.x);
+	OutColor1 = float4(NormalXYMask.xy, 0, 1);
+	OutColor2 = float4(RoughnessSpecularNormalZ, NormalXYMask.z);
 }
 
 /** Copy world height (without compression)

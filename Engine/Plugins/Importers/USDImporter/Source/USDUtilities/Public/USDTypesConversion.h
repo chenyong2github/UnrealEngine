@@ -28,6 +28,13 @@ namespace UsdToUnreal
 		return FString( ANSI_TO_TCHAR( InString.c_str() ) );
 	}
 
+	static FString ConvertString( std::string&& InString )
+	{
+		TUsdStore< std::string > UsdString( MoveTemp( InString ) ); // Store the temporary so that it gets destroyed with the USD allocator
+
+		return FString( ANSI_TO_TCHAR( UsdString.Get().c_str() ) );
+	}
+
 	static FString ConvertString( const char* InString )
 	{
 		return FString( ANSI_TO_TCHAR( InString ) );
@@ -46,6 +53,13 @@ namespace UsdToUnreal
 	static FName ConvertName( const std::string& InString )
 	{
 		return FName( InString.c_str() );
+	}
+
+	static FName ConvertName( std::string&& InString )
+	{
+		TUsdStore< std::string > UsdString( MoveTemp( InString ) ); // Store the temporary so that it gets destroyed with the USD allocator
+
+		return FName( UsdString.Get().c_str() );
 	}
 
 	static FLinearColor ConvertColor( const pxr::GfVec3f& InValue )

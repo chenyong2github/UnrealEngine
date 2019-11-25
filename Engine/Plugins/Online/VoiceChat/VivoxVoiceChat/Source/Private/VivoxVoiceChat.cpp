@@ -348,16 +348,16 @@ void FVivoxVoiceChat::SetAudioInputVolume(float InVolume)
 {
 	UE_LOG(LogVivoxVoiceChat, Verbose, TEXT("SetAudioInputVolume %f"), InVolume);
 
-	VivoxClientConnection.SetAudioInputDeviceMuted(InVolume <= SMALL_NUMBER);
-	VivoxClientConnection.SetMasterAudioInputDeviceVolume(FMath::Lerp(VIVOX_MIN_VOL, VIVOX_MAX_VOL, InVolume));
+	AudioInputOptions.Volume = InVolume;
+	ApplyAudioInputOptions();
 }
 
 void FVivoxVoiceChat::SetAudioOutputVolume(float InVolume)
 {
 	UE_LOG(LogVivoxVoiceChat, Verbose, TEXT("SetAudioOutputVolume %f"), InVolume);
 
-	VivoxClientConnection.SetAudioOutputDeviceMuted(InVolume <= SMALL_NUMBER);
-	VivoxClientConnection.SetMasterAudioOutputDeviceVolume(FMath::Lerp(VIVOX_MIN_VOL, VIVOX_MAX_VOL, InVolume));
+	AudioOutputOptions.Volume = InVolume;
+	ApplyAudioOutputOptions();
 }
 
 float FVivoxVoiceChat::GetAudioInputVolume() const
@@ -374,14 +374,16 @@ void FVivoxVoiceChat::SetAudioInputDeviceMuted(bool bIsMuted)
 {
 	UE_LOG(LogVivoxVoiceChat, Verbose, TEXT("SetAudioInputDeviceMuted %s"), *LexToString(bIsMuted));
 
-	VivoxClientConnection.SetAudioInputDeviceMuted(bIsMuted);
+	AudioInputOptions.bMuted = bIsMuted;
+	ApplyAudioInputOptions();
 }
 
 void FVivoxVoiceChat::SetAudioOutputDeviceMuted(bool bIsMuted)
 {
 	UE_LOG(LogVivoxVoiceChat, Verbose, TEXT("SetAudioOutputDeviceMuted %s"), *LexToString(bIsMuted));
 
-	VivoxClientConnection.SetAudioOutputDeviceMuted(bIsMuted);
+	AudioOutputOptions.bMuted = bIsMuted;
+	ApplyAudioOutputOptions();
 }
 
 bool FVivoxVoiceChat::GetAudioInputDeviceMuted() const
@@ -552,7 +554,7 @@ void FVivoxVoiceChat::Connect(const FOnVoiceChatConnectCompleteDelegate& Delegat
 			if (VivoxServerUrl.IsEmpty() || VivoxDomain.IsEmpty() || VivoxNamespace.IsEmpty())
 			{
 				UE_LOG(LogVivoxVoiceChat, Warning, TEXT("[VoiceChat.Vivox] ServerUrl, Domain, or Issuer is not set. Vivox voice chat will not work"));
-				Result = VivoxVoiceChat::Errors::MissingConfig();
+				Result = VoiceChat::Errors::MissingConfig();
 				Result.ErrorDesc = FString::Printf(TEXT("ServerUrl=[%s] Domain=[%s] Namespace=[%s]"), *VivoxServerUrl, *VivoxDomain, *VivoxNamespace);
 			}
 			else
@@ -1825,7 +1827,7 @@ FString FVivoxVoiceChat::GetChannelNameFromUri(const VivoxClientApi::Uri& Channe
 		int32 Channel3dParametersIndex = Channel.Find(TEXT("!p-"));
 		if (Channel3dParametersIndex != INDEX_NONE)
 		{
-			Channel = Channel.Left(Channel3dParametersIndex);
+			Channel.LeftInline(Channel3dParametersIndex);
 		}
 		return Channel;
 	}
@@ -1933,6 +1935,22 @@ void FVivoxVoiceChat::ClearLoginSession()
 {
 	ClearChannelSessions();
 	LoginSession.State = FLoginSession::EState::LoggedOut;
+}
+
+void FVivoxVoiceChat::ApplyAudioInputOptions()
+{
+	VivoxClientConnection.SetMasterAudioInputDeviceVolume(FMath::Lerp(VIVOX_MIN_VOL, VIVOX_MAX_VOL, AudioInputOptions.Volume));
+
+	const bool bVolumeMuted = AudioInputOptions.Volume < SMALL_NUMBER;
+	VivoxClientConnection.SetAudioInputDeviceMuted(AudioInputOptions.bMuted || bVolumeMuted);
+}
+
+void FVivoxVoiceChat::ApplyAudioOutputOptions()
+{
+	VivoxClientConnection.SetMasterAudioOutputDeviceVolume(FMath::Lerp(VIVOX_MIN_VOL, VIVOX_MAX_VOL, AudioOutputOptions.Volume));
+
+	const bool bVolumeMuted = AudioOutputOptions.Volume < SMALL_NUMBER;
+	VivoxClientConnection.SetAudioOutputDeviceMuted(AudioOutputOptions.bMuted || bVolumeMuted);
 }
 
 bool FVivoxVoiceChat::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)

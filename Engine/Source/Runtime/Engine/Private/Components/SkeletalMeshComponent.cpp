@@ -233,16 +233,7 @@ USkeletalMeshComponent::USkeletalMeshComponent(const FObjectInitializer& ObjectI
 	CachedAnimCurveUidVersion = 0;
 	ResetRootBodyIndex();
 
-	TArray<IClothingSimulationFactoryClassProvider*> ClassProviders = IModularFeatures::Get().GetModularFeatureImplementations<IClothingSimulationFactoryClassProvider>(IClothingSimulationFactoryClassProvider::FeatureName);
-
-	ClothingSimulationFactory = nullptr;
-	for (int32 Index = ClassProviders.Num() - 1; Index >= 0 && !*ClothingSimulationFactory; --Index)  // We use the last provider in the list so plugins/modules can override ours
-	{
-		IClothingSimulationFactoryClassProvider* const Provider = ClassProviders[Index];
-		check(Provider);
-
-		ClothingSimulationFactory = Provider->GetDefaultSimulationFactoryClass();
-	}
+	ClothingSimulationFactory = UClothingSimulationFactory::GetDefaultClothingSimulationFactoryClass();
 
 	ClothingSimulation = nullptr;
 	ClothingSimulationContext = nullptr;
@@ -531,18 +522,10 @@ void USkeletalMeshComponent::OnRegister()
 	}
 
 #if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
-	
 	// If we don't have a valid simulation factory - check to see if we have an available default to use instead
-	if(*ClothingSimulationFactory == nullptr)
+	if (*ClothingSimulationFactory == nullptr)
 	{
-		TArray<IClothingSimulationFactoryClassProvider*> ClassProviders = IModularFeatures::Get().GetModularFeatureImplementations<IClothingSimulationFactoryClassProvider>(IClothingSimulationFactoryClassProvider::FeatureName);
-		for (int32 Index = ClassProviders.Num() - 1; Index >= 0 && !*ClothingSimulationFactory; --Index)  // We use the last provider in the list so plugins/modules can override ours
-		{
-			IClothingSimulationFactoryClassProvider* const Provider = ClassProviders[Index];
-			check(Provider);
-
-			ClothingSimulationFactory = Provider->GetDefaultSimulationFactoryClass();
-		}
+		ClothingSimulationFactory = UClothingSimulationFactory::GetDefaultClothingSimulationFactoryClass();
 	}
 
 	RecreateClothingActors();
@@ -823,8 +806,15 @@ void USkeletalMeshComponent::ClearAnimScriptInstance()
 	}
 	AnimScriptInstance = nullptr;
 	ResetLinkedAnimInstances();
+	ClearCachedAnimProperties();
 }
 
+void USkeletalMeshComponent::ClearCachedAnimProperties()
+{
+	CachedBoneSpaceTransforms.Empty();
+	CachedComponentSpaceTransforms.Empty();
+	CachedCurve.Empty();
+}
 
 void USkeletalMeshComponent::InitializeComponent()
 {
@@ -1014,13 +1004,10 @@ void USkeletalMeshComponent::TickAnimation(float DeltaTime, bool bNeedsValidRoot
 
 		// We update linked instances first incase we're using either root motion or non-threaded update.
 		// This ensures that we go through the pre update process and initialize the proxies correctly.
-		if (LinkedAnimationEvaluationOrder == ELinkedAnimationUpdateOrder::UpdateAnimationBeforeAnimScriptInstance)
+		for (UAnimInstance* LinkedInstance : LinkedInstances)
 		{
-			for (UAnimInstance* LinkedInstance : LinkedInstances)
-			{
-				// Sub anim instances are always forced to do a parallel update 
-				LinkedInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, false, UAnimInstance::EUpdateAnimationFlag::ForceParallelUpdate);
-			}
+			// Sub anim instances are always forced to do a parallel update 
+			LinkedInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, false, UAnimInstance::EUpdateAnimationFlag::ForceParallelUpdate);
 		}
 
 		if (AnimScriptInstance != nullptr)
@@ -1028,16 +1015,6 @@ void USkeletalMeshComponent::TickAnimation(float DeltaTime, bool bNeedsValidRoot
 			// Tick the animation
 			AnimScriptInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, bNeedsValidRootMotion);
 		}
-
-		if (LinkedAnimationEvaluationOrder == ELinkedAnimationUpdateOrder::UpdateAnimationAfterAnimScriptInstance)
-		{
-			for (UAnimInstance* LinkedInstance : LinkedInstances)
-			{
-				// Sub anim instances are always forced to do a parallel update 
-				LinkedInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, false, UAnimInstance::EUpdateAnimationFlag::ForceParallelUpdate);
-			}
-		}
-
 
 		if(ShouldUpdatePostProcessInstance())
 		{
@@ -1729,9 +1706,7 @@ void USkeletalMeshComponent::RecalcRequiredBones(int32 LODIndex)
 	bRequiredBonesUpToDate = true;
 
 	// Invalidate cached bones.
-	CachedBoneSpaceTransforms.Empty();
-	CachedComponentSpaceTransforms.Empty();
-	CachedCurve.Empty();
+	ClearCachedAnimProperties();
 }
 
 void USkeletalMeshComponent::MarkRequiredCurveUpToDate()

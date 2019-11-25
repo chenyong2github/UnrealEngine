@@ -36,7 +36,7 @@
 		{
 			"Name": "HairStrandsNiagara",
 			"Type": "RunTime",
-			"LoadingPhase": "Default",
+			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [
 				"Win64",
 				"Win32"

@@ -101,7 +101,7 @@ FMDLImporter::FMDLImporter(const FString& PluginPath)
 #if PLATFORM_WINDOWS
 	const FString Platform = TEXT("Win64");
 #elif PLATFORM_MAC
-	const FString Platform = TEXT("MacOSX");
+	const FString Platform = TEXT("Mac");
 #elif PLATFORM_LINUX
 	const FString Platform = TEXT("Linux");
 #else

@@ -47,15 +47,15 @@ void SGameplayTagGraphPin::ParseDefaultValueData()
 
 	FilterString = GameplayTagPinUtilities::ExtractTagFilterStringFromGraphPin(GraphPinObj);
 
-	if (TagString.StartsWith(TEXT("(")) && TagString.EndsWith(TEXT(")")))
+	if (TagString.StartsWith(TEXT("("), ESearchCase::CaseSensitive) && TagString.EndsWith(TEXT(")"), ESearchCase::CaseSensitive))
 	{
-		TagString = TagString.LeftChop(1);
-		TagString = TagString.RightChop(1);
-		TagString.Split("=", NULL, &TagString);
-		if (TagString.StartsWith(TEXT("\"")) && TagString.EndsWith(TEXT("\"")))
+		TagString.LeftChopInline(1, false);
+		TagString.RightChopInline(1, false);
+		TagString.Split(TEXT("="), nullptr, &TagString, ESearchCase::CaseSensitive);
+		if (TagString.StartsWith(TEXT("\""), ESearchCase::CaseSensitive) && TagString.EndsWith(TEXT("\""), ESearchCase::CaseSensitive))
 		{
-			TagString = TagString.LeftChop(1);
-			TagString = TagString.RightChop(1);
+			TagString.LeftChopInline(1, false);
+			TagString.RightChopInline(1, false);
 		}
 	}
 

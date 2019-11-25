@@ -28,6 +28,7 @@ FD3D12Viewport::FD3D12Viewport(class FD3D12Adapter* InParent, HWND InWindowHandl
 	SizeX(InSizeX),
 	SizeY(InSizeY),
 	bIsFullscreen(bInIsFullscreen),
+	bFullscreenLost(false),
 	PixelFormat(InPreferredPixelFormat),
 	bIsValid(true),
 	bHDRMetaDataSet(false),
@@ -228,22 +229,31 @@ void FD3D12Viewport::ConditionalResetSwapChain(bool bIgnoreFocus)
 {
 	if (!bIsValid)
 	{
-		// Check if the viewport's window is focused before resetting the swap chain's fullscreen state.
-		HWND FocusWindow = ::GetFocus();
-		const bool bIsFocused = FocusWindow == WindowHandle;
-		const bool bIsIconic = !!::IsIconic(WindowHandle);
-		if (bIgnoreFocus || (bIsFocused && !bIsIconic))
+		if (bFullscreenLost)
 		{
 			FlushRenderingCommands();
+			bFullscreenLost = false;
+			Resize(SizeX, SizeY, false, PixelFormat);
+		}
+		else
+		{
+			// Check if the viewport's window is focused before resetting the swap chain's fullscreen state.
+			HWND FocusWindow = ::GetFocus();
+			const bool bIsFocused = FocusWindow == WindowHandle;
+			const bool bIsIconic = !!::IsIconic(WindowHandle);
+			if (bIgnoreFocus || (bIsFocused && !bIsIconic))
+			{
+				FlushRenderingCommands();
 
-			HRESULT Result = SwapChain1->SetFullscreenState(bIsFullscreen, nullptr);
-			if (SUCCEEDED(Result))
-			{
-				bIsValid = true;
-			}
-			else if (Result != DXGI_ERROR_NOT_CURRENTLY_AVAILABLE && Result != DXGI_STATUS_MODE_CHANGE_IN_PROGRESS)
-			{
-				UE_LOG(LogD3D12RHI, Error, TEXT("IDXGISwapChain::SetFullscreenState returned %08x, unknown error status."), Result);
+				HRESULT Result = SwapChain1->SetFullscreenState(bIsFullscreen, nullptr);
+				if (SUCCEEDED(Result))
+				{
+					bIsValid = true;
+				}
+				else if (Result != DXGI_ERROR_NOT_CURRENTLY_AVAILABLE && Result != DXGI_STATUS_MODE_CHANGE_IN_PROGRESS)
+				{
+					UE_LOG(LogD3D12RHI, Error, TEXT("IDXGISwapChain::SetFullscreenState returned %08x, unknown error status."), Result);
+				}
 			}
 		}
 	}
@@ -306,7 +316,12 @@ void FD3D12Viewport::ResizeInternal()
 	{
 		if (SwapChain1)
 		{
-			VERIFYD3D12RESULT_EX(SwapChain1->ResizeBuffers(NumBackBuffers, SizeX, SizeY, GetRenderTargetFormat(PixelFormat), SwapChainFlags), Adapter->GetD3DDevice());
+			auto Lambda = [=]() -> FString
+			{
+				return FString::Printf(TEXT("Num=%d, Size=(%d,%d), PF=%d, DXGIFormat=0x%x, Flags=0x%x"), NumBackBuffers, SizeX, SizeY, (int32)PixelFormat, (int32)GetRenderTargetFormat(PixelFormat), SwapChainFlags);
+			};
+
+			VERIFYD3D12RESULT_LAMBDA(SwapChain1->ResizeBuffers(NumBackBuffers, SizeX, SizeY, GetRenderTargetFormat(PixelFormat), SwapChainFlags), Adapter->GetD3DDevice(), Lambda);
 		}
 
 		FD3D12Device* Device = Adapter->GetDevice(0);

@@ -82,10 +82,10 @@ public:
 
 protected:
 
-	const FlyingMovement::FAuxState* GetAuxStateRead() const;
-	FlyingMovement::FAuxState* GetAuxStateWrite();
+	const FFlyingMovementAuxState* GetAuxStateRead() const;
+	FFlyingMovementAuxState* GetAuxStateWrite();
 
-	void ProduceInput(const FNetworkSimTime SimTime, FlyingMovement::FInputCmd& Cmd);
+	void ProduceInput(const FNetworkSimTime SimTime, FFlyingMovementInputCmd& Cmd);
 
 	UPROPERTY(Category=Movement, VisibleAnywhere)
 	UFlyingMovementComponent* FlyingMovementComponent;
@@ -131,7 +131,9 @@ public:
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 	
+	UFUNCTION(BlueprintPure, Category="Ability")
 	UMockFlyingAbilityComponent* GetMockFlyingAbilityComponent();
+
 	const UMockFlyingAbilityComponent* GetMockFlyingAbilityComponent() const;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Automation")

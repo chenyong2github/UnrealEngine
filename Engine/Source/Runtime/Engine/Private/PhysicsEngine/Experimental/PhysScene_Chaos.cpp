@@ -337,7 +337,11 @@ struct FPhysScenePendingComponentTransform_Chaos
 	{}
 };
 
-FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor)
+FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
+#if CHAOS_CHECKED
+	, const FName& DebugName
+#endif
+)
 	: ChaosModule(nullptr)
 	, SceneSolver(nullptr)
 	, SolverActor(InSolverActor)
@@ -353,7 +357,11 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor)
 	ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
 	check(ChaosModule);
 
-	SceneSolver = ChaosModule->CreateSolver();
+	SceneSolver = ChaosModule->CreateSolver(false
+#if CHAOS_CHECKED
+	, DebugName
+#endif
+);
 	check(SceneSolver);
 
 	// If we're running the physics thread, hand over the solver to it - we are no longer
@@ -489,7 +497,7 @@ void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FSkeletalMeshPh
 {
 	AddToComponentMaps(Component, InObject);
 
-	check(false);
+	ensure(false);
 #if 0
 	Chaos::FPhysicsSolver* Solver = GetSolver();
 	Solver->RegisterObject(InObject);
@@ -502,7 +510,7 @@ void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FStaticMeshPhys
 {
 	AddToComponentMaps(Component, InObject);
 
-	check(false);
+	ensure(false);
 #if 0
 	Chaos::FPhysicsSolver* Solver = GetSolver();
 	Solver->RegisterObject(InObject);
@@ -515,7 +523,7 @@ void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FGeometryPartic
 {
 	AddToComponentMaps(Component, InObject);
 
-	check(false);
+	ensure(false);
 #if 0
 	Chaos::FPhysicsSolver* Solver = GetSolver();
 	Solver->RegisterObject(InObject);
@@ -528,20 +536,17 @@ void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FGeometryCollec
 {
 	AddToComponentMaps(Component, InObject);
 
-	check(false);
-#if 0
 	Chaos::FPhysicsSolver* Solver = GetSolver();
 	Solver->RegisterObject(InObject);
 
 	AddPhysicsProxy(InObject, Solver, GetDispatcher());
-#endif
 }
 
 void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FFieldSystemPhysicsProxy* InObject)
 {
 	AddToComponentMaps(Component, InObject);
 
-	check(false);
+	ensure(false);
 #if 0
 	Chaos::FPhysicsSolver* CurrSceneSolver = GetSolver();
 
@@ -616,7 +621,7 @@ void RemovePhysicsProxy(ObjectType* InObject, Chaos::FPhysicsSolver* InSolver, F
 
 void FPhysScene_Chaos::RemoveObject(FSkeletalMeshPhysicsProxy* InObject)
 {
-	check(false);
+	ensure(false);
 #if 0
 	Chaos::FPhysicsSolver* Solver = InObject->GetSolver();
 	const int32 NumRemoved = Solver->UnregisterObject(InObject);
@@ -634,7 +639,7 @@ void FPhysScene_Chaos::RemoveObject(FSkeletalMeshPhysicsProxy* InObject)
 
 void FPhysScene_Chaos::RemoveObject(FStaticMeshPhysicsProxy* InObject)
 {
-	check(false);
+	ensure(false);
 #if 0
 	Chaos::FPhysicsSolver* Solver = InObject->GetSolver();
 
@@ -653,7 +658,7 @@ void FPhysScene_Chaos::RemoveObject(FStaticMeshPhysicsProxy* InObject)
 
 void FPhysScene_Chaos::RemoveObject(FGeometryParticlePhysicsProxy* InObject)
 {
-	check(false);
+	ensure(false);
 #if 0
 	Chaos::FPhysicsSolver* Solver = InObject->GetSolver();
 
@@ -672,26 +677,18 @@ void FPhysScene_Chaos::RemoveObject(FGeometryParticlePhysicsProxy* InObject)
 
 void FPhysScene_Chaos::RemoveObject(FGeometryCollectionPhysicsProxy* InObject)
 {
-	check(false);
-#if 0
 	Chaos::FPhysicsSolver* Solver = InObject->GetSolver();
-
-	const int32 NumRemoved = Solver->UnregisterObject(InObject);
-
-	if(NumRemoved == 0)
+	if(Solver && !Solver->UnregisterObject(InObject))
 	{
 		UE_LOG(LogChaos, Warning, TEXT("Attempted to remove an object that wasn't found in its solver's gamethread storage - it's likely the solver has been mistakenly changed."));
 	}
-
 	RemoveFromComponentMaps(InObject);
-
 	RemovePhysicsProxy(InObject, Solver, ChaosModule);
-#endif
 }
 
 void FPhysScene_Chaos::RemoveObject(FFieldSystemPhysicsProxy* InObject)
 {
-	check(false);
+	ensure(false);
 #if 0
 	if(!InObject)
 	{
@@ -914,7 +911,15 @@ void FPhysScene_Chaos::RemoveFromComponentMaps(IPhysicsProxyBase* InObject)
 
 #if WITH_CHAOS
 
-FPhysScene_ChaosInterface::FPhysScene_ChaosInterface(const AWorldSettings* InSettings /*= nullptr*/)
+FPhysScene_ChaosInterface::FPhysScene_ChaosInterface(const AWorldSettings* InSettings /*= nullptr*/
+#if CHAOS_CHECKED
+	, const FName& DebugName
+#endif
+)	: Scene(nullptr
+#if CHAOS_CHECKED
+	, DebugName
+#endif
+)
 {
 	//Initialize unique ptrs that are just here to allow forward declare. This should be reworked todo(ocohen)
 #if TODO_FIX_REFERENCES_TO_ADDARRAY
@@ -1053,21 +1058,28 @@ void FPhysScene_ChaosInterface::AddCustomPhysics_AssumesLocked(FBodyInstance* Bo
 
 void FPhysScene_ChaosInterface::AddForce_AssumesLocked(FBodyInstance* BodyInstance, const FVector& Force, bool bAllowSubstepping, bool bAccelChange)
 {
+	using namespace Chaos;
+
 	FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
 	if (FPhysicsInterface::IsValid(Handle))
 	{
-		if (Chaos::TPBDRigidParticle<float, 3>* Rigid = Handle->AsDynamic())
+		Chaos::TPBDRigidParticle<float, 3>* Rigid = Handle->CastToRigidParticle();
+		if(Rigid)
 		{
-			const Chaos::TVector<float, 3> CurrentForce = Rigid->ExternalForce();
-			if (bAccelChange)
+			EObjectStateType ObjectState = Rigid->ObjectState();
+			if (CHAOS_ENSURE(ObjectState == EObjectStateType::Dynamic || ObjectState == EObjectStateType::Sleeping))
 			{
-				const float Mass = Rigid->M();
-				const Chaos::TVector<float, 3> TotalAcceleration = CurrentForce + (Force * Mass);
-				Rigid->SetExternalForce(TotalAcceleration);
-			}
-			else
-			{
-				Rigid->SetExternalForce(CurrentForce + Force);
+				const Chaos::TVector<float, 3> CurrentForce = Rigid->ExternalForce();
+				if (bAccelChange)
+				{
+					const float Mass = Rigid->M();
+					const Chaos::TVector<float, 3> TotalAcceleration = CurrentForce + (Force * Mass);
+					Rigid->SetExternalForce(TotalAcceleration);
+				}
+				else
+				{
+					Rigid->SetExternalForce(CurrentForce + Force);
+				}
 			}
 		}
 	}
@@ -1075,31 +1087,37 @@ void FPhysScene_ChaosInterface::AddForce_AssumesLocked(FBodyInstance* BodyInstan
 
 void FPhysScene_ChaosInterface::AddForceAtPosition_AssumesLocked(FBodyInstance* BodyInstance, const FVector& Force, const FVector& Position, bool bAllowSubstepping, bool bIsLocalForce /*= false*/)
 {
+	using namespace Chaos;
+
 	FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
 	if (ensure(FPhysicsInterface::IsValid(Handle)))
 	{
-		Chaos::TPBDRigidParticle<float, 3>* Rigid = Handle->AsDynamic();
+		Chaos::TPBDRigidParticle<float, 3>* Rigid = Handle->CastToRigidParticle();
+		
 		if (ensure(Rigid))
 		{
-			const Chaos::FVec3& CurrentForce = Rigid->ExternalForce();
-			const Chaos::FVec3& CurrentTorque = Rigid->ExternalTorque();
-			const Chaos::FVec3& CurrentPosition = Rigid->X();
-			const Chaos::FVec3& CurrentCOM = CurrentPosition; // TODO: Remember to fix this once we add COM to particles!
-			const Chaos::FVec3 Torque = Chaos::FVec3::CrossProduct(Position - CurrentCOM, Force);
-			if (!bIsLocalForce)
+			EObjectStateType ObjectState = Rigid->ObjectState();
+			if (CHAOS_ENSURE(ObjectState == EObjectStateType::Dynamic || ObjectState == EObjectStateType::Sleeping))
 			{
-				Rigid->SetExternalForce(CurrentForce + Force);
-				Rigid->SetExternalTorque(CurrentTorque + Torque);
-			}
-			else
-			{
-				const Chaos::FRotation3& CurrentRotation = Rigid->R();
-				const Chaos::FRigidTransform3 CurrentTransform(CurrentPosition, CurrentRotation);
-				const Chaos::FVec3 WorldPosition = CurrentTransform.TransformPosition(Position);
-				const Chaos::FVec3 WorldForce = CurrentRotation.RotateVector(Force);
-				const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(WorldPosition - CurrentCOM, WorldForce);
-				Rigid->SetExternalForce(CurrentForce + WorldForce);
-				Rigid->SetExternalTorque(CurrentTorque + WorldTorque);
+				const Chaos::FVec3& CurrentForce = Rigid->ExternalForce();
+				const Chaos::FVec3& CurrentTorque = Rigid->ExternalTorque();
+				const Chaos::FVec3& CurrentPosition = Rigid->X();
+				const Chaos::FVec3 WorldCOM = Rigid->X(); // TODO: Remember to fix this once we add COM to particles!
+				if (bIsLocalForce)
+				{
+					const Chaos::FRigidTransform3 CurrentTransform(Rigid->X(), Rigid->R());
+					const Chaos::FVec3 WorldPosition = CurrentTransform.TransformPosition(Position);
+					const Chaos::FVec3 WorldForce = CurrentTransform.TransformVector(Force);
+					const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(WorldPosition - WorldCOM, WorldForce);
+					Rigid->SetExternalForce(CurrentForce + WorldForce);
+					Rigid->SetExternalTorque(CurrentTorque + WorldTorque);
+				}
+				else
+				{
+					const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(Position - WorldCOM, Force);
+					Rigid->SetExternalForce(CurrentForce + Force);
+					Rigid->SetExternalTorque(CurrentTorque + WorldTorque);
+				}
 			}
 		}
 	}
@@ -1142,8 +1160,30 @@ void FPhysScene_ChaosInterface::ClearForces_AssumesLocked(FBodyInstance* BodyIns
 
 void FPhysScene_ChaosInterface::AddTorque_AssumesLocked(FBodyInstance* BodyInstance, const FVector& Torque, bool bAllowSubstepping, bool bAccelChange)
 {
-	// #todo : Implement
-	// AddTorque(Torque, BodyInstance->ActorHandle.GetId());
+	using namespace Chaos;
+
+	FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
+	if (ensure(FPhysicsInterface::IsValid(Handle)))
+	{
+		Chaos::TPBDRigidParticle<float, 3>* Rigid = Handle->CastToRigidParticle();
+		
+		if (ensure(Rigid))
+		{
+			EObjectStateType ObjectState = Rigid->ObjectState();
+			if (CHAOS_ENSURE(ObjectState == EObjectStateType::Dynamic || ObjectState == EObjectStateType::Sleeping))
+			{
+				const Chaos::TVector<float, 3> CurrentTorque = Rigid->ExternalTorque();
+				if (bAccelChange)
+				{
+					Rigid->SetExternalTorque(CurrentTorque + (Rigid->I() * Torque));
+				}
+				else
+				{
+					Rigid->SetExternalTorque(CurrentTorque + Torque);
+				}
+			}
+		}
+	}
 }
 
 void FPhysScene_ChaosInterface::ClearTorques_AssumesLocked(FBodyInstance* BodyInstance, bool bAllowSubstepping)
@@ -1212,7 +1252,7 @@ void FPhysScene_ChaosInterface::ApplyWorldOffset(FVector InOffset)
 void FPhysScene_ChaosInterface::SetUpForFrame(const FVector* NewGrav, float InDeltaSeconds /*= 0.0f*/, float InMaxPhysicsDeltaTime /*= 0.0f*/)
 {
 	SetGravity(*NewGrav);
-	MDeltaTime = InDeltaSeconds;
+	MDeltaTime = InDeltaSeconds < InMaxPhysicsDeltaTime ? InDeltaSeconds : InMaxPhysicsDeltaTime;
 }
 
 void FPhysScene_ChaosInterface::StartFrame()
@@ -1338,6 +1378,11 @@ void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 			{
 				SyncBodies(Solver);
 				Solver->SyncEvents_GameThread();
+
+				{
+					SCOPE_CYCLE_COUNTER(STAT_SqUpdateMaterials);
+					Solver->SyncQueryMaterials();
+				}
 			}
 		}
 
@@ -1462,6 +1507,11 @@ void FPhysScene_ChaosInterface::SyncBodies(Chaos::FPhysicsSolver* Solver)
 						}
 					}
 				}
+			}
+			else if(ProxyBase->GetType() == EPhysicsProxyType::GeometryCollectionType)
+			{
+				FGeometryCollectionPhysicsProxy* Proxy = static_cast<FGeometryCollectionPhysicsProxy*>(ProxyBase);
+				Proxy->PullFromPhysicsState();
 			}
 		}
 	}

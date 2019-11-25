@@ -16,6 +16,7 @@
 #include "SConcertSessionRecovery.h"
 #include "ConcertActivityStream.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
+#include "DisasterRecoverySessionInfo.h"
 
 #define LOCTEXT_NAMESPACE "DisasterRecoveryFSM"
 
@@ -30,7 +31,7 @@ public:
 	static constexpr int64 MaxActivityPerRequest = 1024;
 
 public:
-	FDisasterRecoveryFSM(TSharedRef<IConcertSyncClient> InSyncClient, const DisasterRecoveryUtil::PinSessionToRestoreFunc& PinSessionToRestoreFn, bool bInLiveDataOnly);
+	FDisasterRecoveryFSM(TSharedRef<IConcertSyncClient> InSyncClient, IDisasterRecoverySessionManager& RecoverySessionManager, bool bInLiveDataOnly);
 	~FDisasterRecoveryFSM();
 
 	bool IsDone() const
@@ -58,6 +59,15 @@ private:
 
 	/** Poll the list of servers and lookup the recovery service and transit to the next state (finding the session to recover) once the recovery service is found. */
 	void LookupRecoveryServer();
+	
+	/** Tell the recovery server to drop old repositories. */
+	void DropExpiredSessionRepositories();
+
+	/** Try to find a session to recover. */
+	void SelectRecoverySession();
+
+	/** Tell the recovery server where to find this client sessions. */
+	void MountSessionRepository();
 
 	/** Poll the list of sessions from the recovery server, look up for the recovery session and transit to the next state (fetching activities) once the recovery session is found. */
 	void LookupRecoverySession();
@@ -102,12 +112,13 @@ private:
 
 private:
 	TSharedRef<IConcertSyncClient> SyncClient;
+	IDisasterRecoverySessionManager& RecoverySessionManager;
 	IConcertClientRef Client;
 	FDelegateHandle TickerHandle;
 
 	// Shared state variables.
 	FGuid RecoveryServerAdminEndpointId;
-	FString RecoverySessionName;
+	TOptional<FDisasterRecoverySession> RecoverySession;
 	FGuid RecoverySessionId;
 	TSharedPtr<FConcertActivityStream> ActivityStream;
 	TArray<TSharedPtr<FConcertClientSessionActivity>> Activities;
@@ -121,6 +132,9 @@ private:
 	// States.
 	FState EnterState;                 // State to start from.
 	FState LookupRecoveryServerState;  // Poll to find the recovery servers.
+	FState DropSessionRepositoriesState;// Delete a set of old repository (and contained sessions) from this client.
+	FState SelectRecoverySessionState; // Try to find a suitable session to recover.
+	FState MountSessionRepositoryState;// Tell the server where to discover/load/process sessions used by this client.
 	FState LookupRecoverySessionState; // Poll to find the recovery session.
 	FState FetchActivitiesState;       // Fetch all recovery session activities.
 	FState DisplayRecoveryUIState;     // Let the user view and select the recovery point.
@@ -132,20 +146,18 @@ private:
 	FState ExitState;                  // State to exit the FSM.
 	FState* CurrentState = nullptr;    // The current state.
 	FState* NextStatePending = nullptr;// State to transit to at the next Tick().
-
-	DisasterRecoveryUtil::PinSessionToRestoreFunc PinSessionToRestoreFn;
 };
 
 static TSharedPtr<FDisasterRecoveryFSM> RecoveryFSM;
 
 
-FDisasterRecoveryFSM::FDisasterRecoveryFSM(TSharedRef<IConcertSyncClient> InSyncClient, const DisasterRecoveryUtil::PinSessionToRestoreFunc& InPinSessionToRestoreFn, bool bInLiveDataOnly)
+FDisasterRecoveryFSM::FDisasterRecoveryFSM(TSharedRef<IConcertSyncClient> InSyncClient, IDisasterRecoverySessionManager& InRecoverySessionManager, bool bInLiveDataOnly)
 	: SyncClient(InSyncClient)
+	, RecoverySessionManager(InRecoverySessionManager)
 	, Client(InSyncClient->GetConcertClient())
 	, bLiveDataOnly(bInLiveDataOnly)
 	, ExitMessage(TEXT("Disaster recovery process completed successfully."))
 	, CurrentState(&EnterState)
-	, PinSessionToRestoreFn(InPinSessionToRestoreFn)
 {
 	FutureExecutionToken = MakeShared<uint8>(0); // Token use to prevent execution of async continuation if this object instance is destructed before then continuation is executed.
 
@@ -164,24 +176,27 @@ FDisasterRecoveryFSM::FDisasterRecoveryFSM(TSharedRef<IConcertSyncClient> InSync
 	};
 
 	// Implement the states, pretty much in execution order.
-	EnterState.OnExit                  = [=]()    { Statup(); };
-	LookupRecoveryServerState.OnEnter  = [this]() { Client->StartDiscovery(); };
-	LookupRecoveryServerState.OnTick   = [this]() { LookupRecoveryServer(); };
-	LookupRecoveryServerState.OnExit   = [this]() { Client->StopDiscovery(); };
-	LookupRecoverySessionState.OnEnter = [this]() { LookupRecoverySession(); };
-	FetchActivitiesState.OnEnter       = [this]() { ActivityStream = MakeShared<FConcertActivityStream>(Client, RecoveryServerAdminEndpointId, RecoverySessionId, ShouldDisplayActivityDetails()); };
-	FetchActivitiesState.OnTick        = [this]() { FetchActivities(); };
-	DisplayRecoveryUIState.OnEnter     = [this]() { DisplayRecoveryUI(); };
-	CreateAndJoinSessionState.OnEnter  = [this]() { Client->OnSessionConnectionChanged().AddRaw(this, &FDisasterRecoveryFSM::OnSessionConnectionChanged); CreateAndJoinSession(); };
-	CreateAndJoinSessionState.OnExit   = [this]() { Client->OnSessionConnectionChanged().RemoveAll(this); };
-	RestoreAndJoinSessionState.OnEnter = [this]() { Client->OnSessionConnectionChanged().AddRaw(this, &FDisasterRecoveryFSM::OnSessionConnectionChanged); RestoreAndJoinSession(); };
-	RestoreAndJoinSessionState.OnExit  = [this]() { Client->OnSessionConnectionChanged().RemoveAll(this); };
-	SynchronizeState.OnEnter           = [this]() { IDisasterRecoveryClientModule::Get().GetClient()->GetWorkspace()->OnWorkspaceSynchronized().AddRaw(this, &FDisasterRecoveryFSM::OnWorkspaceSynchronized); };
-	SynchronizeState.OnExit            = [this]() { IDisasterRecoveryClientModule::Get().GetClient()->GetWorkspace()->OnWorkspaceSynchronized().RemoveAll(this); };
-	PersistChangesState.OnEnter        = [this]() { WaitedFrameCount = 0; };
-	PersistChangesState.OnTick         = [this]() { PersistRecoveredChanges(); };
-	ErrorState.OnEnter                 = [this]() { NextStatePending = nullptr; DisplayError(); };
-	ExitState.OnEnter                  = [=]()    { Terminate(); };
+	EnterState.OnExit                    = [=]()    { Statup(); };
+	LookupRecoveryServerState.OnEnter    = [this]() { Client->StartDiscovery(); };
+	LookupRecoveryServerState.OnTick     = [this]() { LookupRecoveryServer(); };
+	LookupRecoveryServerState.OnExit     = [this]() { Client->StopDiscovery(); };
+	DropSessionRepositoriesState.OnEnter = [this]() { DropExpiredSessionRepositories(); };
+	SelectRecoverySessionState.OnEnter   = [this]() { SelectRecoverySession(); };
+	MountSessionRepositoryState.OnEnter  = [this]() { MountSessionRepository(); };
+	LookupRecoverySessionState.OnEnter   = [this]() { LookupRecoverySession(); };
+	FetchActivitiesState.OnEnter         = [this]() { ActivityStream = MakeShared<FConcertActivityStream>(Client, RecoveryServerAdminEndpointId, RecoverySessionId, ShouldDisplayActivityDetails()); };
+	FetchActivitiesState.OnTick          = [this]() { FetchActivities(); };
+	DisplayRecoveryUIState.OnEnter       = [this]() { DisplayRecoveryUI(); };
+	CreateAndJoinSessionState.OnEnter    = [this]() { Client->OnSessionConnectionChanged().AddRaw(this, &FDisasterRecoveryFSM::OnSessionConnectionChanged); CreateAndJoinSession(); };
+	CreateAndJoinSessionState.OnExit     = [this]() { Client->OnSessionConnectionChanged().RemoveAll(this); };
+	RestoreAndJoinSessionState.OnEnter   = [this]() { Client->OnSessionConnectionChanged().AddRaw(this, &FDisasterRecoveryFSM::OnSessionConnectionChanged); RestoreAndJoinSession(); };
+	RestoreAndJoinSessionState.OnExit    = [this]() { Client->OnSessionConnectionChanged().RemoveAll(this); };
+	SynchronizeState.OnEnter             = [this]() { IDisasterRecoveryClientModule::Get().GetClient()->GetWorkspace()->OnWorkspaceSynchronized().AddRaw(this, &FDisasterRecoveryFSM::OnWorkspaceSynchronized); };
+	SynchronizeState.OnExit              = [this]() { IDisasterRecoveryClientModule::Get().GetClient()->GetWorkspace()->OnWorkspaceSynchronized().RemoveAll(this); };
+	PersistChangesState.OnEnter          = [this]() { WaitedFrameCount = 0; };
+	PersistChangesState.OnTick           = [this]() { PersistRecoveredChanges(); };
+	ErrorState.OnEnter                   = [this]() { NextStatePending = nullptr; DisplayError(); };
+	ExitState.OnEnter                    = [=]()    { Terminate(); };
 
 	// Starts the finite state machine, transiting from 'EnterState' to 'LookupRecoveryServerState'.
 	TransitTo(LookupRecoveryServerState);
@@ -225,14 +240,124 @@ void FDisasterRecoveryFSM::LookupRecoveryServer()
 		if (ServerInfo.ServerName == Client->GetConfiguration()->DefaultServerURL)
 		{
 			RecoveryServerAdminEndpointId = ServerInfo.AdminEndpointId;
-			TransitTo(LookupRecoverySessionState);
+			TransitTo(DropSessionRepositoriesState);
+			return;
 		}
 	}
+}
+
+void FDisasterRecoveryFSM::DropExpiredSessionRepositories()
+{
+	TArray<FGuid> ExpiredRepositoryIds = RecoverySessionManager.GetExpiredSessionRepositoryIds();
+	if (!ExpiredRepositoryIds.Num())
+	{
+		TransitTo(SelectRecoverySessionState);
+		return;
+	}
+	
+	// Ask the server to drop the expired client repositories.
+	TWeakPtr<uint8> ExecutionToken = FutureExecutionToken;
+	Client->DropSessionRepositories(RecoveryServerAdminEndpointId, ExpiredRepositoryIds).Next([this, ExecutionToken](const FConcertAdmin_DropSessionRepositoriesResponse& Response)
+	{
+		if (!ExecutionToken.IsValid())
+		{
+			return; // The 'this' object captured has been destructed, don't run the continuation.
+		}
+
+		// Don't care if the function fails or not, this is non-essential cleaning that can be done next time. Notify the list of dropped repositories if any.
+		if (Response.DroppedRepositoryIds.Num())
+		{
+			RecoverySessionManager.OnSessionRepositoryDropped(Response.DroppedRepositoryIds);
+		}
+
+		RequestTransitTo(SelectRecoverySessionState);
+	});
+}
+
+void FDisasterRecoveryFSM::SelectRecoverySession()
+{
+	TWeakPtr<uint8> ExecutionToken = FutureExecutionToken;
+	Client->GetSessionRepositories(RecoveryServerAdminEndpointId).Next([this, ExecutionToken](const FConcertAdmin_GetSessionRepositoriesResponse& Response)
+	{
+		if (!ExecutionToken.IsValid())
+		{
+			return; // The 'this' object captured has been destructed, don't run the continuation.
+		}
+
+		if (Response.ResponseCode == EConcertResponseCode::Success)
+		{
+			// Select which session should be restored (if any). Can only recover if the session repository is not mounted by another server instance.
+			RecoverySession = RecoverySessionManager.FindRecoverySessionCandidate(Response.SessionRepositories);
+			RequestTransitTo(MountSessionRepositoryState);
+		}
+		else
+		{
+			ErrorMessage = LOCTEXT("RepositoryQueryFailed", "Failed to retrieve repositories from the server. Recovery service will be disabled for this session.");
+			RequestTransitTo(ErrorState);
+		}
+	});
+}
+
+void FDisasterRecoveryFSM::MountSessionRepository()
+{
+	// Check if an existing repository needs to be loaded or if a new one must be created.
+	const bool bCreateIfNotExist = !RecoverySession.IsSet();
+	const FGuid RepositoryId = RecoverySession.IsSet() ? RecoverySession->RepositoryId : RecoverySessionManager.GetSessionRepositoryId();
+	const FString RepositoryRootDir = RecoverySession.IsSet() ? RecoverySession->RepositoryRootDir : RecoverySessionManager.GetSessionRepositoryRootDir(); // On restore, use the original root dir, if the user changed the root dir setting, he will likely not moves the existing sessions.
+
+	// Try to mount the repository.
+	TWeakPtr<uint8> ExecutionToken = FutureExecutionToken;
+	Client->MountSessionRepository(RecoveryServerAdminEndpointId, RepositoryRootDir, RepositoryId, bCreateIfNotExist, /*bAsDefault*/true).Next([this, ExecutionToken](const FConcertAdmin_MountSessionRepositoryResponse& Response)
+	{
+		if (!ExecutionToken.IsValid())
+		{
+			return; // The 'this' object captured has been destructed, don't run the continuation.
+		}
+
+		if (Response.ResponseCode == EConcertResponseCode::Success)
+		{
+			if (RecoverySession.IsSet())
+			{
+				if (Response.MountStatus == EConcertSessionRepositoryMountResponseCode::Mounted)
+				{
+					RecoverySessionManager.TakeRecoverySessionOwnership(RecoverySession.GetValue()); // That client mounted the session repository first, take ownership of recovering the session.
+					RequestTransitTo(LookupRecoverySessionState); // Find the session in the mounted repository and restore it.
+				}
+				else if (Response.MountStatus == EConcertSessionRepositoryMountResponseCode::AlreadyMounted)
+				{
+					// The session repository wasn't mounted when the session was selected as candidate, but now it is mounted. This means another instance is restoring the session from that repository.
+					RequestTransitTo(SelectRecoverySessionState); // Try to select another session.
+				}
+				else
+				{
+					check(Response.MountStatus == EConcertSessionRepositoryMountResponseCode::NotFound);
+					UE_LOG(LogConcert, Error, TEXT("Failed to recover previous session. The session files were likely moved or deleted. A new session will be created."));
+					RecoverySessionManager.DiscardRecoverySession(RecoverySession.GetValue());
+					RequestTransitTo(CreateAndJoinSessionState);
+				}
+			}
+			else if (Response.MountStatus == EConcertSessionRepositoryMountResponseCode::Mounted)
+			{
+				RequestTransitTo(CreateAndJoinSessionState); // No candidate to recover. Create a new session in the new repository (set 'as default' when created).
+			}
+			else // NotFound/AlreadyMounted are not expected. A new repository should have been created.
+			{
+				ErrorMessage = LOCTEXT("RepositoryMountUnexpected", "Unexpected error while mounting session repository. Recovery service will be disabled for this session.");
+				RequestTransitTo(ErrorState);
+			}
+		}
+		else
+		{
+			ErrorMessage = LOCTEXT("RepositoryMountFailed", "Failed to mount session repository on the server. Recovery service will be disabled for this session.");
+			RequestTransitTo(ErrorState);
+		}
+	});
 }
 
 void FDisasterRecoveryFSM::LookupRecoverySession()
 {
 	check(RecoveryServerAdminEndpointId.IsValid());
+	check(RecoverySession.IsSet());
 
 	TWeakPtr<uint8> ExecutionToken = FutureExecutionToken;
 	Client->GetServerSessions(RecoveryServerAdminEndpointId).Next([this, ExecutionToken](const FConcertAdmin_GetAllSessionsResponse& Response)
@@ -244,27 +369,16 @@ void FDisasterRecoveryFSM::LookupRecoverySession()
 
 		if (Response.ResponseCode == EConcertResponseCode::Success)
 		{
-			// Compare the archived sessions received from the server with the candidate sessions known by the client and select/pin a session to recover.
-			TPair<bool, const FConcertSessionInfo*> SessionToRecover = PinSessionToRestoreFn(Response.ArchivedSessions);
-			if (SessionToRecover.Value) // Took ownership of a session to restore?
+			if (const FConcertSessionInfo* SessionToRestore = Response.ArchivedSessions.FindByPredicate([this](const FConcertSessionInfo& ArchivedSession){ return ArchivedSession.SessionName == RecoverySession->LastSessionName; }))
 			{
-				RecoverySessionName = SessionToRecover.Value->SessionName;
-				RecoverySessionId = SessionToRecover.Value->SessionId;
+				RecoverySessionId = SessionToRestore->SessionId;
 				RequestTransitTo(FetchActivitiesState);
-			}
-			else if (SessionToRecover.Key && !Response.bIncludesPreviousInstanceSessions) // The client has a candidate to restore, but the server did not report it.
-			{
-				ErrorMessage = FText::Format(LOCTEXT("RecoveryFileLocked", "Failed to recover previous session. The session is likely locked by another instance of '{0}'. Exit all Editors then relaunch to recover. Recovery service will be disabled for this session."), FText::AsCultureInvariant(DisasterRecoveryUtil::GetDisasterRecoveryServiceExeName()));
-				RequestTransitTo(ErrorState);
-			}
-			else if (SessionToRecover.Key && Response.bIncludesPreviousInstanceSessions)
-			{
-				UE_LOG(LogConcert, Error, TEXT("Failed to recover previous session. The session was likely moved or deleted. A new session will be created."));
-				RequestTransitTo(CreateAndJoinSessionState); // No candidate to recover. Create a new session.
 			}
 			else
 			{
-				RequestTransitTo(CreateAndJoinSessionState); // No candidate to recover. Create a new session.
+				UE_LOG(LogConcert, Error, TEXT("Failed to recover previous session. The session was likely moved or deleted. A new session will be created."));
+				RecoverySessionManager.DiscardRecoverySession(RecoverySession.GetValue());
+				RequestTransitTo(CreateAndJoinSessionState);
 			}
 		}
 		else
@@ -375,6 +489,7 @@ void FDisasterRecoveryFSM::CreateAndJoinSession()
 void FDisasterRecoveryFSM::RestoreAndJoinSession()
 {
 	check(SelectedRecoveryActivity.IsValid());
+	check(RecoverySession.IsSet());
 
 	const UConcertClientConfig* ClientConfig = Client->GetConfiguration();
 
@@ -398,7 +513,8 @@ void FDisasterRecoveryFSM::RestoreAndJoinSession()
 
 		if (Response != EConcertResponseCode::Success)
 		{
-			UE_LOG(LogConcert, Error, TEXT("Disaster recovery service failed to restore session '%s (%s)'. A new session will be created."), *RecoverySessionName, *RecoverySessionId.ToString());
+			UE_LOG(LogConcert, Error, TEXT("Disaster recovery service failed to restore session '%s (%s)'. A new session will be created."), *RecoverySession->LastSessionName, *RecoverySessionId.ToString());
+			RecoverySessionManager.DiscardRecoverySession(RecoverySession.GetValue()); // If it failed once, it has no reason to succeed later.
 			RequestTransitTo(CreateAndJoinSessionState); // Still need to have a session at the end.
 		}
 		// else -> On success callback OnSessionConnectionChanged() will transit to synchronize state.
@@ -451,11 +567,11 @@ bool FDisasterRecoveryFSM::Tick(float)
 	return true;
 }
 
-void DisasterRecoveryUtil::StartRecovery(TSharedRef<IConcertSyncClient> SyncClient, const DisasterRecoveryUtil::PinSessionToRestoreFunc& PinSessionToRestoreFn, bool bLiveDataOnly)
+void DisasterRecoveryUtil::StartRecovery(TSharedRef<IConcertSyncClient> SyncClient, IDisasterRecoverySessionManager& InRecoveryManager, bool bLiveDataOnly)
 {
 	if (!RecoveryFSM)
 	{
-		RecoveryFSM = MakeShared<FDisasterRecoveryFSM>(SyncClient, PinSessionToRestoreFn, bLiveDataOnly);
+		RecoveryFSM = MakeShared<FDisasterRecoveryFSM>(SyncClient, InRecoveryManager, bLiveDataOnly);
 	}
 }
 

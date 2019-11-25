@@ -366,18 +366,26 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 	FVector2D RT_WorldBBoxSize = WorldBBoxSize;
 
 	// If we are setting the grid from the voxel size, then recompute NumVoxels and change bbox	
-	if (SetGridFromCellSize)
+	if (SetGridFromMaxAxis)
 	{
+		float CellSize = FMath::Max(WorldBBoxSize.X, WorldBBoxSize.Y) / NumCellsMaxAxis;
+
 		RT_NumCellsX = WorldBBoxSize.X / CellSize;
 		RT_NumCellsY = WorldBBoxSize.Y / CellSize;
 
 		// Pad grid by 1 voxel if our computed bounding box is too small
-		if (!FMath::IsNearlyEqual(CellSize * RT_NumCellsX, WorldBBoxSize.X))
+		if (WorldBBoxSize.X > WorldBBoxSize.Y && !FMath::IsNearlyEqual(CellSize * RT_NumCellsY, WorldBBoxSize.Y))
 		{
-			RT_NumCellsX = NumCellsX + 1;
-			RT_NumCellsY = NumCellsY + 1;
-			RT_WorldBBoxSize = FVector2D(RT_NumCellsX, RT_NumCellsY) * CellSize;
+			RT_NumCellsY++;
 		}
+		else if (WorldBBoxSize.X < WorldBBoxSize.Y && !FMath::IsNearlyEqual(CellSize * RT_NumCellsX, WorldBBoxSize.X))
+		{
+			RT_NumCellsX++;
+		}		
+		
+		RT_WorldBBoxSize = FVector2D(RT_NumCellsX, RT_NumCellsY) * CellSize;
+		NumCellsX = RT_NumCellsX;
+		NumCellsY = RT_NumCellsY;
 	}	
 
 	TSet<int> RT_OutputShaderStages = OutputShaderStages;
@@ -692,9 +700,17 @@ void FNiagaraDataInterfaceProxyGrid2DCollection::ResetData(FRHICommandList& RHIC
 {	
 	Grid2DCollectionRWInstanceData* ProxyData = SystemInstancesToProxyData.Find(Context.SystemInstance);
 
+	if (!ProxyData)
+	{
+		return;
+	}
+
 	for (Grid2DBuffer* Buffer : ProxyData->Buffers)
 	{
-		ClearUAV(RHICmdList, Buffer->GridBuffer, FLinearColor(0, 0, 0, 0));
+		if (Buffer)
+		{
+			ClearUAV(RHICmdList, Buffer->GridBuffer, FLinearColor(0, 0, 0, 0));
+		}		
 	}	
 }
 #undef LOCTEXT_NAMESPACE

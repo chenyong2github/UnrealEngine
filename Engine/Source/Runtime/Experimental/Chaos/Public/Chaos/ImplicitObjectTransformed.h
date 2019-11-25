@@ -186,6 +186,25 @@ public:
 
 	virtual const TBox<T, d>& BoundingBox() const override { return MLocalBoundingBox; }
 
+	const FReal GetVolume() const
+	{
+		// TODO: More precise volume!
+		return BoundingBox().GetVolume();
+	}
+
+	const FMatrix33 GetInertiaTensor(const FReal Mass) const
+	{
+		// TODO: More precise inertia!
+		return BoundingBox().GetInertiaTensor(Mass);
+	}
+
+	const FVec3 GetCenterOfMass() const
+	{
+		// TODO: Actually compute this!
+		return FVec3(0.f);
+	}
+
+
 	const ObjectType Object() const { return MObject; }
 	
 	virtual void Serialize(FChaosArchive& Ar) override
@@ -204,6 +223,11 @@ public:
 		return HashCombine(MObject->GetTypeHash(), ::GetTypeHash(MTransform));
 	}
 
+	virtual uint16 GetMaterialIndex(uint32 HintIndex) const override
+	{
+		return MObject->GetMaterialIndex(HintIndex);
+	}
+
 private:
 	ObjectType MObject;
 	TUniquePtr<Chaos::FImplicitObject> MObjectOwner;
@@ -212,6 +236,7 @@ private:
 
 	//needed for serialization
 	TImplicitObjectTransformed() : FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::Transformed) {}
+
 	friend FImplicitObject;	//needed for serialization
 };
 

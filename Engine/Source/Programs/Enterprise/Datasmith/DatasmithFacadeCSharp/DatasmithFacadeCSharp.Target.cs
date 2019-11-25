@@ -10,7 +10,7 @@ public class DatasmithFacadeCSharpTarget : TargetRules
 		: base(Target)
 	{
 		Type = TargetType.Program;
-		SolutionDirectory = "Programs/Enterprise";
+		SolutionDirectory = "Programs/Datasmith";
 
 		LaunchModuleName = "DatasmithFacadeCSharp";
 		ExeBinariesSubFolder = "DatasmithFacadeCSharp";

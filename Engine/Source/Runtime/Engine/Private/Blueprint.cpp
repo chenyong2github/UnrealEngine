@@ -40,6 +40,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "UObject/MetaData.h"
 #include "BlueprintAssetHandler.h"
+#include "Blueprint/BlueprintExtension.h"
 #endif
 #include "Engine/InheritableComponentHandler.h"
 
@@ -623,7 +624,13 @@ UClass* UBlueprint::RegenerateClass(UClass* ClassToRegenerate, UObject* Previous
 		UBlueprint::ForceLoadMembers(GeneratedClassResolved->ClassDefaultObject);
 	}
 	UBlueprint::ForceLoadMembers(this);
-		
+
+	for (UBlueprintExtension* Extension : Extensions)
+	{
+		ForceLoad(Extension);
+		Extension->PreloadObjectsForCompilation(this);
+	}
+
 	FBlueprintEditorUtils::PreloadConstructionScript( this );
 
 	FBlueprintEditorUtils::LinkExternalDependencies( this );
@@ -2031,4 +2038,5 @@ void UBlueprint::LoadModulesRequiredForCompilation()
 	FModuleManager::Get().LoadModule(MovieSceneToolsModuleName);
 }
 #endif //WITH_EDITORONLY_DATA
+
 

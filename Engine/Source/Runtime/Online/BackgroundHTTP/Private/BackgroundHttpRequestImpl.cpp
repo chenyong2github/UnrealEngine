@@ -13,6 +13,7 @@ FBackgroundHttpRequestImpl::FBackgroundHttpRequestImpl()
 	, URLList()
 	, RequestID()
 	, NumberOfTotalRetries(0)
+	, RequestPriority(EBackgroundHTTPPriority::Normal)
 	, HttpRequestCompleteDelegate()
 	, HttpProgressUpdateDelegate()
 {
@@ -137,4 +138,14 @@ bool FBackgroundHttpRequestImpl::HandleDelayedProcess()
 	//By default we don't provide an implementation for this. If this is called, it should be overriden by the platform specific
 	//BackgroundHttpRequest if the platform expects to make use of this.
 	return ensureAlwaysMsgf(false, TEXT("Platform expects an implementation of HandleDelayedProcess on the BackgroundHttpRequest, but none found!"));
+}
+
+EBackgroundHTTPPriority FBackgroundHttpRequestImpl::GetRequestPriority() const
+{
+	return RequestPriority;
+}
+
+void FBackgroundHttpRequestImpl::SetRequestPriority(EBackgroundHTTPPriority NewPriority)
+{
+	RequestPriority = NewPriority;
 }

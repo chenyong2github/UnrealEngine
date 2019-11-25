@@ -808,6 +808,9 @@ public:
 	TArray<FResourceParameter> GraphUAVs;
 	TArray<FParameterStructReference> ParameterReferences;
 
+	// Hash of the shader parameter structure when doing the binding.
+	uint32 StructureLayoutHash = 0;
+
 	// Buffer index of FShaderParametersMetadata::kRootUniformBufferBindingName
 	uint16 RootParameterBufferIndex = FShaderParameterBindings::kInvalidBufferIndex;
 
@@ -822,6 +825,7 @@ public:
 		Ar << ParametersBindingData.GraphSRVs;
 		Ar << ParametersBindingData.GraphUAVs;
 		Ar << ParametersBindingData.ParameterReferences;
+		Ar << ParametersBindingData.StructureLayoutHash;
 		Ar << ParametersBindingData.RootParameterBufferIndex;
 		return Ar;
 	}
@@ -2026,6 +2030,10 @@ public:
 				OutShaders.Add(ShaderIt.Value()->GetType()->GetFName(), ShaderIt.Value());
 			}
 		}
+	}
+	uint32 GetShaderNum() const
+	{
+		return Shaders.Num();
 	}
 
 	/** Builds a list of the shader pipelines in a shader map. */

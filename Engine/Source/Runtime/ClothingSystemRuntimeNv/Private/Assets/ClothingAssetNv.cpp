@@ -73,7 +73,7 @@ UClothingAssetNv::UClothingAssetNv(const FObjectInitializer& ObjectInitializer)
 	{
 		IClothingSimulationFactoryClassProvider* const Provider = ClassProviders[Index];
 		check(Provider);
-		ClothingSimulationFactory = Provider->GetDefaultSimulationFactoryClass();
+		ClothingSimulationFactory = Provider->GetClothingSimulationFactoryClass();
 
 		UClass* SimFactoryClass = *ClothingSimulationFactory;
 		if (SimFactoryClass)
@@ -97,11 +97,11 @@ void UClothingAssetNv::PostLoad()
 	{
 		// Remap struct FClothConfig to class UClothConfigNv
 		ClothConfig_DEPRECATED.MigrateTo(Cast<UClothConfigNv>(ClothSimConfig));
-		// Remap struct FClothLODData to class UClothLODDataNv
+		// Remap struct FClothLODData to class UClothLODDataCommon
 		for (FClothLODData &FLod : LodData_DEPRECATED)
 		{
 			const int32 Idx = AddNewLod();
-			FLod.MigrateTo(Cast<UClothLODDataNv>(ClothLodData[Idx]));
+			FLod.MigrateTo(ClothLodData[Idx]);
 		}
 		LodData_DEPRECATED.Empty();
 	}
@@ -109,10 +109,10 @@ void UClothingAssetNv::PostLoad()
 	{
 #if WITH_EDITORONLY_DATA
 		// Convert current parameters to masks
-		for(UClothLODDataBase* LodPtr : ClothLodData)
+		for(UClothLODDataCommon* LodPtr : ClothLodData)
 		{
 			check(LodPtr);
-			UClothLODDataNv& Lod = *Cast<UClothLODDataNv>(LodPtr);
+			UClothLODDataCommon& Lod = *LodPtr;
 			check(Lod.PhysicalMeshData);
 			UClothPhysicalMeshDataBase& PhysMesh = *Lod.PhysicalMeshData;
 
@@ -155,7 +155,7 @@ void UClothingAssetNv::PostLoad()
 	// Fix content imported before we kept vertex colors
 	if(ClothingCustomVersion < FClothingAssetCustomVersion::AddVertexColorsToPhysicalMesh)
 	{
-		for (UClothLODDataBase* Lod : ClothLodData)
+		for (UClothLODDataCommon* Lod : ClothLodData)
 		{
 			const int32 NumVerts = Lod->PhysicalMeshData->Vertices.Num(); // number of verts
 
@@ -195,10 +195,10 @@ void UClothingAssetNv::Serialize(FArchive& Ar)
 
 void UClothingAssetNv::InvalidateCachedData()
 {
-	for(UClothLODDataBase* CurrentLodDataPtr : ClothLodData)
+	for(UClothLODDataCommon* CurrentLodDataPtr : ClothLodData)
 	{
 		check(CurrentLodDataPtr);
-		UClothLODDataNv& CurrentLodData = *Cast<UClothLODDataNv>(CurrentLodDataPtr);
+		UClothLODDataCommon& CurrentLodData = *CurrentLodDataPtr;
 		// Recalculate inverse masses for the physical mesh particles
 		check(CurrentLodData.PhysicalMeshData);
 		UClothPhysicalMeshDataBase& PhysMesh = *CurrentLodData.PhysicalMeshData;

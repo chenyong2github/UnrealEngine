@@ -396,9 +396,9 @@ namespace Audio
 		/**
 		 * Can be used to look up the current index for a given device name.
 		 * On most platforms, this index may be invalidated if any devices are added or removed.
-		 * Returns INDEX_NONE if 
+		 * Returns INDEX_NONE if no mapping is found
 		 */
-		virtual int32 GetIndexForDevice(const FString& InDeviceName) { return INDEX_NONE; }
+		virtual int32 GetIndexForDevice(const FString& InDeviceName);
 
 		/** Gets the platform specific audio settings. */
 		virtual FAudioPlatformSettings GetPlatformSettings() const = 0;
@@ -606,6 +606,7 @@ namespace Audio
 
 		FThreadSafeBool bMoveAudioStreamToNewAudioDevice;
 		FThreadSafeBool bIsUsingNullDevice;
+		FThreadSafeBool bIsGeneratingAudio;
 
 	private:
 		TUniquePtr<FMixerNullCallback> NullDeviceCallback;

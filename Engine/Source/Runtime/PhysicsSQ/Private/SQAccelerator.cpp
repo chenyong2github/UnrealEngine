@@ -14,7 +14,7 @@
 
 #include "ChaosInterfaceWrapperCore.h"
 #include "Chaos/ISpatialAcceleration.h"
-#include "Chaos/PBDCollisionConstraint.h"
+#include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/GeometryQueries.h"
 #include "Chaos/DebugDrawQueue.h"
 
@@ -180,7 +180,8 @@ private:
 		TGeometryParticle<float, 3>* GeometryParticle = Payload.GetExternalGeometryParticle_ExternalThread();
 		const TShapesArray<float,3>& Shapes = GeometryParticle->ShapesArray();
 
-		const bool bTestShapeBounds = Shapes.Num() > 1;
+		const bool bTestShapeBounds =  Shapes.Num() > 1;
+
 		const TRigidTransform<float, 3> ActorTM(GeometryParticle->X(), GeometryParticle->R());
 
 		for (const auto& Shape : Shapes)
@@ -282,7 +283,7 @@ private:
 
 						if (bBlocker)
 						{
-							CurData->SetLength(Distance);
+							CurData->SetLength(FMath::Max(0.f, Distance));	//Max is needed for MTD which returns negative distance
 							if (CurData->CurrentLength == 0 && (SQ == ESQType::Raycast || HitBuffer.WantsSingleResult()))	//raycasts always fail with distance 0, sweeps only matter if we want multi overlaps
 							{
 								return false;	//initial overlap so nothing will be better than this

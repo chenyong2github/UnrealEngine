@@ -67,7 +67,7 @@ namespace GeometryCollectionExample {
 			: Parameters(InParameters)
 			, RestCollection(InRestCollection)
 			, DynamicCollection(InDynamicCollection)
-			, PhysicalMaterial(InPhysicalMaterial)
+			, PhysicalMaterial(MoveTemp(InPhysicalMaterial))
 			, PhysicsProxy(new FGeometryCollectionPhysicsProxy(nullptr, DynamicCollection.Get(), [&](FSimulationParameters& P) {Init(P); }, nullptr, nullptr))
 		{
 		}

@@ -3,6 +3,7 @@
 
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/Box.h"
+#include "Chaos/MassProperties.h"
 #include "CollisionConvexMesh.h"
 #include "ChaosArchive.h"
 #include "GJK.h"
@@ -17,6 +18,8 @@ namespace Chaos
 
 		TConvex()
 		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
+			, Volume(0.f)
+			, CenterOfMass(FVec3(0.f))
 		{}
 		TConvex(const TConvex&) = delete;
 		TConvex(TConvex&& Other)
@@ -24,7 +27,13 @@ namespace Chaos
 			, Planes(MoveTemp(Other.Planes))
 		    , SurfaceParticles(MoveTemp(Other.SurfaceParticles))
 		    , LocalBoundingBox(MoveTemp(Other.LocalBoundingBox))
+			, Volume(MoveTemp(Other.MoveTemp))
+			, CenterOfMass(MoveTemp(Other.CenterOfMass))
 		{}
+
+		// NOTE: This constructor will result in approximate COM and volume calculations, since it does
+		// not have face indices for surface particles.
+		// TODO: Keep track of invalid state and ensure on volume or COM access?
 		TConvex(TArray<TPlane<T, d>>&& InPlanes, TParticles<T, d>&& InSurfaceParticles)
 		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
 			, Planes(MoveTemp(InPlanes))
@@ -35,7 +44,12 @@ namespace Chaos
 			{
 				LocalBoundingBox.GrowToInclude(SurfaceParticles.X(ParticleIndex));
 			}
+
+			// For now we approximate COM and volume with the bounding box
+			CenterOfMass = LocalBoundingBox.GetCenterOfMass();
+			Volume = LocalBoundingBox.GetVolume();
 		}
+
 		TConvex(const TParticles<T, 3>& InParticles)
 		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
 		{
@@ -45,7 +59,10 @@ namespace Chaos
 				return;
 			}
 
-			TConvexBuilder<T>::Build(InParticles, Planes, SurfaceParticles, LocalBoundingBox);
+			TArray<TArray<int32>> FaceIndices;
+			TConvexBuilder<T>::Build(InParticles, Planes, FaceIndices, SurfaceParticles, LocalBoundingBox);
+			CHAOS_ENSURE(Planes.Num() == FaceIndices.Num());
+			CalculateVolumeAndCenterOfMass(SurfaceParticles, FaceIndices, Volume, CenterOfMass);
 		}
 
 		static constexpr EImplicitObjectType StaticType()
@@ -200,6 +217,22 @@ namespace Chaos
 			return Planes;
 		}
 
+		const FReal GetVolume() const
+		{
+			return Volume;
+		}
+
+		const FMatrix33 GetInertiaTensor(const FReal Mass) const
+		{
+			// TODO: More precise inertia!
+			return LocalBoundingBox.GetInertiaTensor(Mass);
+		}
+
+		const FVec3 GetCenterOfMass() const
+		{
+			return CenterOfMass;
+		}
+
 		virtual uint32 GetTypeHash() const override
 		{
 			uint32 Result = LocalBoundingBox.GetTypeHash();
@@ -218,6 +251,22 @@ namespace Chaos
 		{
 			FImplicitObject::SerializeImp(Ar);
 			Ar << Planes << SurfaceParticles << LocalBoundingBox;
+
+			Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddConvexCenterOfMassAndVolume)
+			{
+				Ar << Volume;
+				Ar << CenterOfMass;
+			}
+			else if (Ar.IsLoading())
+			{
+				// Rebuild convex in order to extract face indices.
+				// TODO: Make it so it can take SurfaceParticles as both input and output without breaking...
+				TArray<TArray<int32>> FaceIndices;
+				TParticles<T, d> TempSurfaceParticles;
+				TConvexBuilder<T>::Build(SurfaceParticles, Planes, FaceIndices, TempSurfaceParticles, LocalBoundingBox);
+				CalculateVolumeAndCenterOfMass(SurfaceParticles, FaceIndices, Volume, CenterOfMass);
+			}
 		}
 
 		virtual void Serialize(FChaosArchive& Ar) override
@@ -256,7 +305,8 @@ namespace Chaos
 
 		void SimplifyGeometry()
 		{
-			TConvexBuilder<T>::Simplify(Planes, SurfaceParticles, LocalBoundingBox);
+			TArray<TArray<int32>> FaceIndices;
+			TConvexBuilder<T>::Simplify(Planes, FaceIndices, SurfaceParticles, LocalBoundingBox);
 		}
 
 		TVector<T,d> GetCenter() const
@@ -268,5 +318,7 @@ namespace Chaos
 		TArray<TPlane<T, d>> Planes;
 		TParticles<T, d> SurfaceParticles;	//copy of the vertices that are just on the convex hull boundary
 		TBox<T, d> LocalBoundingBox;
+		float Volume;
+		FVec3 CenterOfMass;
 	};
 }

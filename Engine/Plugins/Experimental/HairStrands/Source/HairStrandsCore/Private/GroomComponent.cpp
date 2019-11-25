@@ -991,11 +991,7 @@ void UGroomComponent::PostLoad()
 	}
 
 	UpdateHairGroupsDesc(GroomAsset, GroomGroupsDesc);
-	if (!IsTemplate())
-	{
-		InitResources();
-	}
-
+	InitResources();
 
 #if WITH_EDITOR
 	if (GroomAsset && !bIsGroomAssetCallbackRegistered)
@@ -1018,6 +1014,12 @@ void UGroomComponent::Invalidate()
 void UGroomComponent::OnRegister()
 {
 	Super::OnRegister();
+
+	if (!InitializedResources)
+	{
+		UpdateHairGroupsDesc(GroomAsset, GroomGroupsDesc);
+		InitResources();
+	}
 
 	// Insure the ticking of the Groom component always happens after the skeletalMeshComponent.
 	USkeletalMeshComponent* SkeletalMeshComponent = GetAttachParent() ? Cast<USkeletalMeshComponent>(GetAttachParent()) : nullptr;
@@ -1346,15 +1348,39 @@ void UGroomComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials
 }
 
 #if WITH_EDITOR
+void UGroomComponent::PreEditChange(UProperty* PropertyAboutToChange)
+{
+	Super::PreEditChange(PropertyAboutToChange);
+
+	const FName PropertyName = PropertyAboutToChange ? PropertyAboutToChange->GetFName() : NAME_None;
+	const bool bAssetAboutToChanged = PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, GroomAsset);
+	if (bAssetAboutToChanged)
+	{
+		// Remove the callback on the GroomAsset about to be replaced
+		if (bIsGroomAssetCallbackRegistered && GroomAsset)
+		{
+			GroomAsset->GetOnGroomAssetChanged().RemoveAll(this);
+		}
+		bIsGroomAssetCallbackRegistered = false;
+	}
+}
+
 void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) 
 {
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
 	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	const FName PropertyName = PropertyThatChanged ? PropertyThatChanged->GetFName() : NAME_None;
 
 	//  Init/release resources when setting the GroomAsset (or undoing)
 	const bool bAssetChanged = PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, GroomAsset);
+	if (bAssetChanged)
+	{
+		// Release the resources before Super::PostEditChangeProperty so that they get
+		// re-initialized in OnRegister
+		ReleaseResources();
+	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
 	const bool bRecreateResources =
 		(PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, GroomAsset) || PropertyThatChanged == nullptr) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, bBindGroomToSkeletalMesh);
@@ -1368,14 +1394,9 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 #if WITH_EDITOR
 	if (bAssetChanged)
 	{
-		if (bIsGroomAssetCallbackRegistered && GroomAsset)
-		{
-			GroomAsset->GetOnGroomAssetChanged().RemoveAll(this);
-		}
-		bIsGroomAssetCallbackRegistered = false;
-
 		if (GroomAsset)
 		{
+			// Set the callback on the new GroomAsset being assigned
 			GroomAsset->GetOnGroomAssetChanged().AddUObject(this, &UGroomComponent::Invalidate);
 			bIsGroomAssetCallbackRegistered = true;
 		}
@@ -1384,7 +1405,7 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 
 	if (bRecreateResources)
 	{
-		if (GroomAsset != InitializedResources)
+		//if (GroomAsset != InitializedResources)
 		{
 			if (GroomAsset)
 			{

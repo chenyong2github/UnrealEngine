@@ -122,7 +122,8 @@ enum class ENiagaraScriptCompileStatus : uint8
 
 FORCEINLINE bool NiagaraSupportsComputeShaders(EShaderPlatform ShaderPlatform)
 {
-	return RHISupportsComputeShaders(ShaderPlatform);
+	// Change to RHISupportsComputeShaders(ShaderPlatform) to support ES3_1
+	return IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::SM5);
 }
 
 USTRUCT()
@@ -246,6 +247,11 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	/** Function specifiers verified at bind time. */
 	UPROPERTY()
 	TMap<FName, FName> FunctionSpecifiers;
+
+	UPROPERTY()
+	bool bSupportsCPU = true;
+	UPROPERTY()
+	bool bSupportsGPU = true;
 
 	/** Localized description of this node. Note that this is *not* used during the operator == below since it may vary from culture to culture.*/
 #if WITH_EDITORONLY_DATA

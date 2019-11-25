@@ -25,6 +25,7 @@ public:
 		FRHIUnorderedAccessView* UAV,
 		FRDGParentResource* ParentResource,
 		FRDGResourceState::EAccess AccessAfter,
+		bool bGeneratingMips = false,
 		FRDGResourceState::EPipeline PipelineAfter = FRDGResourceState::EPipeline::MAX);
 
 #if WITH_MGPU
@@ -87,9 +88,8 @@ private:
 	void LogTransition(const FRDGParentResource* Resource, FTransitionParameters Parameters) const;
 
 	EResourceTransitionAccess GetResourceTransitionAccess(FRDGResourceState::EAccess AccessAfter) const;
-	EResourceTransitionAccess GetResourceTransitionAccessForUAV(FRDGResourceState::EAccess AccessBefore, FRDGResourceState::EAccess AccessAfter) const;
+	EResourceTransitionAccess GetResourceTransitionAccessForUAV(FRDGResourceState::EAccess AccessBefore, FRDGResourceState::EAccess AccessAfter, bool bIsGeneratingMips) const;
 
 	const FRDGPass* Pass = nullptr;
 	FRDGResourceState::EPipeline Pipeline = FRDGResourceState::EPipeline::Graphics;
-	bool bIsGeneratingMips = false;
 };

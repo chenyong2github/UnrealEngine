@@ -111,6 +111,7 @@ PARTY_SCOPE:
 
 	void NotifyPartyInitialized(USocialParty& Party);
 	USocialToolkit* GetSocialToolkit(int32 LocalPlayerNum) const;
+	USocialToolkit* GetSocialToolkit(FUniqueNetIdRepl LocalUserId) const;
 
 protected:
 	struct PARTY_API FRejoinableParty : public TSharedFromThis<FRejoinableParty>

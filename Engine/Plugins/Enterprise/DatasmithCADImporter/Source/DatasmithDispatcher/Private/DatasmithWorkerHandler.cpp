@@ -38,7 +38,7 @@ static FString GetWorkerExecutablePath()
 	return ProcessorPath;
 }
 
-FDatasmithWorkerHandler::FDatasmithWorkerHandler(FDatasmithDispatcher& InDispatcher, const FString& InCachePath, uint32 Id)
+FDatasmithWorkerHandler::FDatasmithWorkerHandler(FDatasmithDispatcher& InDispatcher, const CADLibrary::FImportParameters& InImportParameters, FString& InCachePath, uint32 Id)
 	: Dispatcher(InDispatcher)
 	, WorkerState(EWorkerState::Uninitialized)
 	, ErrorState(EWorkerErrorState::Ok)
@@ -47,6 +47,7 @@ FDatasmithWorkerHandler::FDatasmithWorkerHandler(FDatasmithDispatcher& InDispatc
 {
 	ThreadName = FString(TEXT("DatasmithWorkerHandler_")) + FString::FromInt(Id);
 	IOThread = FThread(*ThreadName, [this]() { Run(); } );
+	ImportParametersCommand.ImportParameters = InImportParameters;
 }
 
 FDatasmithWorkerHandler::~FDatasmithWorkerHandler()
@@ -56,6 +57,12 @@ FDatasmithWorkerHandler::~FDatasmithWorkerHandler()
 
 void FDatasmithWorkerHandler::StartWorkerProcess()
 {
+	FString KernelIOPath;
+#ifdef CAD_INTERFACE
+	KernelIOPath = FPaths::Combine(FPaths::EnginePluginsDir(), TEXT(KERNEL_IO_PLUGINSPATH));
+	KernelIOPath = FPaths::ConvertRelativePathToFull(KernelIOPath);
+#endif
+
 	ensure(ErrorState == EWorkerErrorState::Ok);
 	FString ProcessorPath = GetWorkerExecutablePath();
 	if (FPaths::FileExists(ProcessorPath))
@@ -71,6 +78,7 @@ void FDatasmithWorkerHandler::StartWorkerProcess()
 		CommandToProcess += TEXT(" -ServerPID ") + FString::FromInt(FPlatformProcess::GetCurrentProcessId());
 		CommandToProcess += TEXT(" -ServerPort ") + FString::FromInt(ListenPort);
 		CommandToProcess += TEXT(" -CacheDir \"") + CachePath + TEXT('"');
+		CommandToProcess += TEXT(" -KernelIOPath \"") + KernelIOPath + TEXT('"');
 		UE_LOG(LogDatasmithDispatcher, Verbose, TEXT("CommandToProcess: %s"), *CommandToProcess);
 
 		uint32 WorkerProcessId = 0;
@@ -141,6 +149,11 @@ void FDatasmithWorkerHandler::RunInternal()
 				{
 					WorkerState = EWorkerState::Closing;
 					break;
+				}
+
+				if (CommandIO.SendCommand(ImportParametersCommand, Config::SendCommandTimeout_s))
+				{
+					UE_LOG(LogDatasmithDispatcher, Verbose, TEXT("Import Parameters sent"));
 				}
 
 				WorkerState = EWorkerState::Idle;
@@ -317,10 +330,9 @@ void FDatasmithWorkerHandler::ProcessCommand(FCompletedTaskCommand& CompletedTas
 		return;
 	}
 
-	FString CurrentPath = FPaths::GetPath(CurrentTask->FileName);
 	for (const FString& ExternalReferenceFile : CompletedTaskCommand.ExternalReferences)
 	{
-		Dispatcher.AddTask(FPaths::Combine(CurrentPath, ExternalReferenceFile));
+		Dispatcher.AddTask(ExternalReferenceFile);
 	}
 	FString CurrentFileName = FPaths::GetCleanFilename(CurrentTask->FileName);
 	Dispatcher.SetTaskState(CurrentTask->Index, CompletedTaskCommand.ProcessResult);

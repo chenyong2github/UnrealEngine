@@ -5,6 +5,7 @@
 
 #include "CADData.h"
 #include "CADOptions.h"
+#include "CADSceneGraph.h"
 #include "Containers/Map.h"
 #include "Containers/Queue.h"
 #include "Misc/Paths.h"
@@ -18,6 +19,7 @@
 #include "kernel_io/attribute_io/attribute_enum.h"
 #include "kernel_io/ct_types.h"
 #include "kernel_io/kernel_io_type.h"
+#include "kernel_io/material_io/material_io.h"
 #endif // CAD_INTERFACE
 
 
@@ -38,76 +40,79 @@ enum class ECoretechParsingResult
 
 #ifdef CAD_INTERFACE
 
-CADINTERFACES_API void GetColor(uint32 ColorHash, FColor& OutMaterial);
+CADINTERFACES_API bool GetColor(uint32 ColorHash, FColor& OutColor);
 CADINTERFACES_API bool GetMaterial(uint32 MaterialID, FCADMaterial& OutMaterial);
 
-CADINTERFACES_API int32 BuildColorHash(uint32 ColorHId);
-CADINTERFACES_API int32 BuildMaterialHash(uint32 MaterialId);
-
-CADINTERFACES_API uint32 GetFaceTessellation(CT_OBJECT_ID FaceID, TArray<FTessellationData>& FaceTessellationSet, int32& OutRawDataSize, const float ScaleFactor);
-CADINTERFACES_API uint32 GetBodiesTessellations(TArray<CT_OBJECT_ID>& BodySet, TArray<FTessellationData>& FaceTessellations, TMap<uint32, uint32>& MaterialIdToMaterialHashMap, int32& OutRawDataSize, const FImportParameters&);
 CADINTERFACES_API uint32 GetBodiesFaceSetNum(TArray<CT_OBJECT_ID>& BodySet);
 CADINTERFACES_API void GetCTObjectDisplayDataIds(CT_OBJECT_ID ObjectID, FObjectDisplayDataId& Material);
-CADINTERFACES_API void GetBodiesMaterials(TArray<CT_OBJECT_ID>& BodySet, TMap<uint32, uint32>& MaterialIdToHash, bool bPreferPartData);
 
-uint32 GetFileHash(const FString& FileName, const FFileStatData& FileStatData, const FString& Config);
 uint32 GetGeomFileHash(const uint32 InSGHash, CADLibrary::FImportParameters& ImportParam);
 
-/**
- * According to the preference (bPreferPartData), select the best material to use
- */
-CADINTERFACES_API void SetFaceMainMaterial(FObjectDisplayDataId& InFaceMaterial, FObjectDisplayDataId& InBodyMaterial, TMap<uint32, uint32>& MaterialIdToMaterialHashMap, FTessellationData& OutFaceTessellations);
-
 uint32 GetSize(CT_TESS_DATA_TYPE type);
-
 
 class CADINTERFACES_API FCoreTechFileParser
 {
 public:
 	using EProcessResult = ECoretechParsingResult;
 
-	FCoreTechFileParser(const FString& InCTFullPath, const FString& InCachePath, const FImportParameters& ImportParams, bool bPreferBodyData, bool bScaleUVMap);
+	/**
+	 * @param InCTFullPath Full path of the CAD file to parse
+	 * @param InCachePath Full path of the cache in which the data will be saved
+	 * @param ImportParams Parameters that setting import data like mesh SAG...
+	 * @param KernelIOPath Full Path of KernelIO libraries (oda_translator.exe, ...). Mandatory to import DWG, or DGN files
+	 */
+	FCoreTechFileParser(const FString& InCTFullPath, const FString& InCachePath, const FImportParameters& ImportParams, const TCHAR* KernelIOPath = TEXT(""));
 
 	double GetMetricUnit() const { return 0.01; }
 
 	EProcessResult ProcessFile();
+	void GetBodyTessellation(CT_OBJECT_ID BodyId, FBodyMesh& OutBodyMesh, const FImportParameters& ImportParams, uint32 ParentMaterialHash);
+
 
 	const TSet<FString>& GetExternalRefSet()
 	{
-		return ExternalRefSet;
+		return MockUpDescription.ExternalRefSet;
 	}
 
 	const FString& GetSceneGraphFile()
 	{
-		return SceneGraphFile;
+		return MockUpDescription.SceneGraphArchive;
 	}
-	const FString& GetMeshFile()
+	const FString& GetMeshFileName()
 	{
-		return MeshFile;
+		return MeshArchiveFile;
 	}
-	const FString& GetFileName()
+	const FString& GetCADFileName()
 	{
 		return CADFile;
 	}
 
 private:
 	EProcessResult ReadFileWithKernelIO();
-	bool ReadNode(CT_OBJECT_ID NodeId);
-	bool ReadInstance(CT_OBJECT_ID NodeId);
-	bool ReadComponent(CT_OBJECT_ID NodeId);
+	bool ReadNode(CT_OBJECT_ID NodeId, uint32 ParentMaterialHash);
+	bool ReadInstance(CT_OBJECT_ID NodeId, uint32 ParentMaterialHash);
+	bool ReadComponent(CT_OBJECT_ID NodeId, uint32 ParentMaterialHash);
 	bool ReadUnloadedComponent(CT_OBJECT_ID NodeId);
-	bool ReadBody(CT_OBJECT_ID NodeId);
+	bool ReadBody(CT_OBJECT_ID NodeId, uint32 ParentMaterialHash);
+
+	void LoadSceneGraphArchive(const FString& SceneGraphFilePath);
 
 	uint32 GetMaterialNum();
-	void ReadColor();
-	void ReadMaterial();
+	void ReadMaterials();
 
-	void ReadNodeMetaDatas(CT_OBJECT_ID NodeId);
+	uint32 GetObjectMaterial(ICADArchiveObject& Object);
+	FArchiveColor& FindOrAddColor(uint32 ColorHId);
+	FArchiveMaterial& FindOrAddMaterial(CT_MATERIAL_ID MaterialId);
+	void SetFaceMainMaterial(FObjectDisplayDataId& InFaceMaterial, FObjectDisplayDataId& InBodyMaterial, FBodyMesh& BodyMesh, int32 FaceIndex);
+
+	void ReadNodeMetaData(CT_OBJECT_ID NodeId, TMap<FString, FString>& OutMetaData);
+	void GetStringMetaDataValue(CT_OBJECT_ID NodeId, const TCHAR* InMetaDataName, FString& OutMetaDataValue);
 
 	CT_FLAGS SetCoreTechImportOption(const FString& MainFileExt);
 	void GetAttributeValue(CT_ATTRIB_TYPE attrib_type, int ith_field, FString& value);
 
-	void ExportFileSceneGraph();
+	void ExportSceneGraphFile();
+	void ExportMeshArchiveFile();
 
 protected:
 	const FString& CachePath;
@@ -118,20 +123,13 @@ protected:
 	FString FileConfiguration;
 	FString NodeConfiguration;
 
-	FString SceneGraphFile;
-	FString RawDataGeom;
-	FString MeshFile;
+	FArchiveMockUp MockUpDescription;
 
-	TSet<FString> ExternalRefSet;
-
-	TArray<FString> SceneGraphDescription;
-	TMap<uint32, uint32> CTIdToRawLineMap;
-
-	TMap<uint32, uint32> MaterialIdToMaterialHashMap;
+	FString MeshArchiveFilePath;
+	FString MeshArchiveFile;
+	TArray<FBodyMesh> BodyMeshes;
 
 	bool bNeedSaveCTFile;
-	bool bPreferBodyData;
-	bool bScaleUVMap;
 
 	const FImportParameters& ImportParameters;
 };

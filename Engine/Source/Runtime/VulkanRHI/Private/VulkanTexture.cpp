@@ -608,7 +608,6 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, VkImageViewType Resource
 	, FullAspectMask(0)
 	, PartialAspectMask(0)
 {
-	VULKAN_SET_DEBUG_NAME(InDevice, VK_OBJECT_TYPE_IMAGE, Image, TEXT("(FVulkanSurface*)0x%p"), this);
 	StorageFormat = UEToVkTextureFormat(PixelFormat, false);
 
 	checkf(PixelFormat == PF_Unknown || StorageFormat != VK_FORMAT_UNDEFINED, TEXT("PixelFormat %d, is not supported for images"), (int32)PixelFormat);
@@ -633,6 +632,7 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, VkImageViewType Resource
 			&StorageFormat, &ViewFormat);
 		FWrapLayer::CreateImage(VK_SUCCESS, InDevice.GetInstanceHandle(), &ImageCreateInfo, &Image);
 #endif
+		VULKAN_SET_DEBUG_NAME(InDevice, VK_OBJECT_TYPE_IMAGE, Image, TEXT("(FVulkanSurface*)0x%p"), this);
 
 		if (UEFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable))
 		{
@@ -1869,7 +1869,7 @@ FVulkanTexture2D::FVulkanTexture2D(const FVulkanTexture2D* SrcTexture)
 
 FVulkanTexture2D::~FVulkanTexture2D()
 {
-	if ((Surface.UEFlags & (TexCreate_DepthStencilTargetable | TexCreate_RenderTargetable)) != 0)
+	if ((Surface.UEFlags & (TexCreate_DepthStencilTargetable | TexCreate_RenderTargetable | TexCreate_ResolveTargetable)) != 0)
 	{
 		Surface.Device->NotifyDeletedRenderTarget(Surface.Image);
 	}
@@ -1921,7 +1921,7 @@ FVulkanTextureCube::FVulkanTextureCube(const FVulkanTextureCube* SrcTexture)
 
 FVulkanTextureCube::~FVulkanTextureCube()
 {
-	if ((GetFlags() & (TexCreate_DepthStencilTargetable | TexCreate_RenderTargetable)) != 0)
+	if ((GetFlags() & (TexCreate_DepthStencilTargetable | TexCreate_RenderTargetable | TexCreate_ResolveTargetable)) != 0) 
 	{
 		Surface.Device->NotifyDeletedRenderTarget(Surface.Image);
 	}
@@ -1936,7 +1936,7 @@ FVulkanTexture3D::FVulkanTexture3D(FVulkanDevice& Device, EPixelFormat Format, u
 
 FVulkanTexture3D::~FVulkanTexture3D()
 {
-	if ((GetFlags() & (TexCreate_DepthStencilTargetable | TexCreate_RenderTargetable)) != 0)
+	if ((GetFlags() & (TexCreate_DepthStencilTargetable | TexCreate_RenderTargetable | TexCreate_ResolveTargetable)) != 0) 
 	{
 		Surface.Device->NotifyDeletedRenderTarget(Surface.Image);
 	}

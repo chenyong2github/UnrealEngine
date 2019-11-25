@@ -182,6 +182,9 @@ public:
 	// Returns the managed object for the passed-in object, if any. Otherwise returns nullptr
 	USignificanceManager::FManagedObjectInfo* GetManagedObject(UObject* Object) const;
 
+	// Returns the managed object for the passed-in object, if any. Otherwise returns nullptr
+	const USignificanceManager::FManagedObjectInfo* GetManagedObject(const UObject* Object) const;
+
 	// Returns the significance value for a given object, returns 0 if object is not managed
 	float GetSignificance(const UObject* Object) const;
 

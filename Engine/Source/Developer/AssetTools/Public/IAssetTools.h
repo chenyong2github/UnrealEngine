@@ -236,6 +236,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
 	virtual void FindSoftReferencesToObject(FSoftObjectPath TargetObject, TArray<UObject*>& ReferencingObjects) = 0;
 
+	/** Returns list of objects that soft reference the given soft object paths. This will load assets into memory to verify */
+	virtual void FindSoftReferencesToObjects(const TArray<FSoftObjectPath>& TargetObjects, TMap<FSoftObjectPath, TArray<UObject*>>& ReferencingObjects) = 0;
+
 	/**
 	 * Function that renames all FSoftObjectPath object with the old asset path to the new one.
 	 *
@@ -363,6 +366,9 @@ public:
 
 	/** Fix up references to the specified redirectors */
 	virtual void FixupReferencers(const TArray<UObjectRedirector*>& Objects) const = 0;
+
+	/** Returns whether redirectors are being fixed up. */
+	virtual bool IsFixupReferencersInProgress() const = 0;
 
 	/** Expands any folders found in the files list, and returns a flattened list of destination paths and files.  Mirrors directory structure. */
 	virtual void ExpandDirectories(const TArray<FString>& Files, const FString& DestinationPath, TArray<TPair<FString, FString>>& FilesAndDestinations) const = 0;

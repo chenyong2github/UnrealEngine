@@ -5,6 +5,7 @@
 #include "Chaos/Capsule.h"
 #include "Chaos/Box.h"
 #include "Chaos/Sphere.h"
+#include "Chaos/EPA.h"
 
 namespace Chaos
 {
@@ -19,10 +20,14 @@ namespace Chaos
 	 @return True if the geometries overlap, False otherwise */
 
 	template <typename T, typename TGeometryA, typename TGeometryB>
-	bool GJKIntersection(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, const T ThicknessA = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T ThicknessB = 0)
+	bool GJKIntersection(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, const T InThicknessA = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T InThicknessB = 0)
 	{
-		check(A.IsConvex() && B.IsConvex());
 		TVector<T, 3> V = -InitialDir;
+		if (V.SafeNormalize() == 0)
+		{
+			V = TVec3<T>(-1, 0, 0);
+		}
+
 		FSimplex SimplexIDs;
 		TVector<T, 3> Simplex[4];
 		T Barycentric[4] = { -1,-1,-1,-1 };	//not needed, but compiler warns
@@ -31,6 +36,10 @@ namespace Chaos
 		bool bNearZero = false;
 		int NumIterations = 0;
 		T PrevDist2 = FLT_MAX;
+		const T ThicknessA = A.GetMargin() + InThicknessA;
+		const T ThicknessB = B.GetMargin() + InThicknessB;
+		const T Inflation = ThicknessA + ThicknessB + 1e-3;
+		const T Inflation2 = Inflation * Inflation;
 		do
 		{
 			if (!ensure(NumIterations++ < 32))	//todo: take this out
@@ -38,13 +47,13 @@ namespace Chaos
 				break;	//if taking too long just stop. This should never happen
 			}
 			const TVector<T, 3> NegV = -V;
-			const TVector<T, 3> SupportA = A.Support(NegV, ThicknessA);	//todo: add thickness to quadratic geometry to avoid quadratic vs quadratic when possible
+			const TVector<T, 3> SupportA = A.Support2(NegV);
 			const TVector<T, 3> VInB = AToBRotation * V;
-			const TVector<T, 3> SupportBLocal = B.Support(VInB, ThicknessB);
+			const TVector<T, 3> SupportBLocal = B.Support2(VInB);
 			const TVector<T, 3> SupportB = BToATM.TransformPositionNoScale(SupportBLocal);
 			const TVector<T, 3> W = SupportA - SupportB;
 
-			if (TVector<T, 3>::DotProduct(V, W) > 0)
+			if (TVector<T, 3>::DotProduct(V, W) > Inflation)
 			{
 				return false;
 			}
@@ -55,7 +64,7 @@ namespace Chaos
 			V = SimplexFindClosestToOrigin(Simplex, SimplexIDs, Barycentric);
 
 			T NewDist2 = V.SizeSquared();
-			bNearZero = NewDist2 < 1e-6;
+			bNearZero = NewDist2 < Inflation2;
 
 			//as simplices become degenerate we will stop making progress. This is a side-effect of precision, in that case take V as the current best approximation
 			//question: should we take previous v in case it's better?
@@ -64,9 +73,162 @@ namespace Chaos
 
 			PrevDist2 = NewDist2;
 
+			if (!bTerminate)
+			{
+				V /= FMath::Sqrt(NewDist2);
+			}
+
 		} while (!bTerminate);
 
 		return bNearZero;
+	}
+
+	template <typename T, typename TGeometryA, typename TGeometryB>
+	bool GJKPenetration(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormal, const T InThicknessA = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T InThicknessB = 0)
+	{
+		auto SupportAFunc = [&A](const TVec3<T>& V)
+		{
+			return A.Support2(V);
+		};
+
+		const TRotation<T, 3> AToBRotation = BToATM.GetRotation().Inverse();
+
+
+		auto SupportBFunc = [&B, &BToATM, &AToBRotation](const TVec3<T>& V)
+		{
+			const TVector<T, 3> VInB = AToBRotation * V;
+			const TVector<T, 3> SupportBLocal = B.Support2(VInB);
+			return BToATM.TransformPositionNoScale(SupportBLocal);
+		};
+
+		//todo: refactor all of these similar functions
+		TVector<T, 3> V = -InitialDir;
+		if (V.SafeNormalize() == 0)
+		{
+			V = TVec3<T>(-1, 0, 0);
+		}
+
+		TVec3<T> As[4];
+		TVec3<T> Bs[4];
+
+		FSimplex SimplexIDs;
+		TVector<T, 3> Simplex[4];
+		T Barycentric[4] = { -1,-1,-1,-1 };	//not needed, but compiler warns
+		bool bTerminate;
+		bool bNearZero = false;
+		int NumIterations = 0;
+		T PrevDist2 = FLT_MAX;
+		const T ThicknessA = A.GetMargin() + InThicknessA;
+		const T ThicknessB = B.GetMargin() + InThicknessB;
+		const T Inflation = ThicknessA + ThicknessB + 1e-3;
+		const T Inflation2 = Inflation * Inflation;
+		const T Eps2 = 1e-6;
+		do
+		{
+			if (!ensure(NumIterations++ < 32))	//todo: take this out
+			{
+				break;	//if taking too long just stop. This should never happen
+			}
+			const TVector<T, 3> NegV = -V;
+			const TVector<T, 3> SupportA = SupportAFunc(NegV);
+			const TVector<T, 3> SupportB = SupportBFunc(V);
+			const TVector<T, 3> W = SupportA - SupportB;
+
+			if (TVector<T, 3>::DotProduct(V, W) > Inflation)
+			{
+				return false;
+			}
+
+			SimplexIDs[SimplexIDs.NumVerts] = SimplexIDs.NumVerts;
+			As[SimplexIDs.NumVerts] = SupportA;
+			Bs[SimplexIDs.NumVerts] = SupportB;
+			Simplex[SimplexIDs.NumVerts++] = W;
+
+			V = SimplexFindClosestToOrigin(Simplex, SimplexIDs, Barycentric, As, Bs);
+
+			T NewDist2 = V.SizeSquared();
+			bNearZero = NewDist2 < Eps2;	//want to get the closest point for MTD
+
+			//as simplices become degenerate we will stop making progress. This is a side-effect of precision, in that case take V as the current best approximation
+			//question: should we take previous v in case it's better?
+			const bool bMadeProgress = NewDist2 < PrevDist2;
+			bTerminate = bNearZero || !bMadeProgress;
+
+			PrevDist2 = NewDist2;
+
+			if (!bTerminate)
+			{
+				V /= FMath::Sqrt(NewDist2);
+			}
+
+		} while (!bTerminate);
+
+		if (PrevDist2 > Eps2)
+		{
+			//generally this happens when shapes are inflated.
+			TVector<T, 3> ClosestA(0);
+			TVector<T, 3> ClosestBInA(0);
+
+			for (int i = 0; i < SimplexIDs.NumVerts; ++i)
+			{
+				ClosestA += As[i] * Barycentric[i];
+				ClosestBInA += Bs[i] * Barycentric[i];
+			}
+
+			
+			const T PreDist = FMath::Sqrt(PrevDist2);
+			OutNormal = (ClosestBInA - ClosestA).GetUnsafeNormal();	//question: should we just use PreDist2?
+			const T Penetration = ThicknessA + ThicknessB - PreDist;
+			OutPenetration = Penetration;
+			OutClosestA = ClosestA + OutNormal * ThicknessA;
+			OutClosestB = ClosestBInA - OutNormal * ThicknessB;
+
+		}
+		else
+		{
+			TArray<TVec3<T>> VertsA;
+			TArray<TVec3<T>> VertsB;
+
+			VertsA.Reserve(8);
+			VertsB.Reserve(8);
+
+			for (int i = 0; i < SimplexIDs.NumVerts; ++i)
+			{
+				VertsA.Add(As[i]);
+				VertsB.Add(Bs[i]);
+			}
+
+			T Penetration;
+			TVec3<T> MTD, ClosestA, ClosestBInA;
+			if (EPA(VertsA, VertsB, SupportAFunc, SupportBFunc, Penetration, MTD, ClosestA, ClosestBInA) != EPAResult::BadInitialSimplex)
+			{
+				OutNormal = MTD;
+				OutPenetration = Penetration + Inflation;
+				OutClosestA = ClosestA + OutNormal * ThicknessA;
+				OutClosestB = ClosestBInA - OutNormal * ThicknessB;
+			}
+			else
+			{
+				//assume touching hit
+
+				ClosestA = TVec3<T>(0);
+				ClosestBInA = TVec3<T>(0);
+
+				for (int i = 0; i < SimplexIDs.NumVerts; ++i)
+				{
+					ClosestA += As[i] * Barycentric[i];
+					ClosestBInA += Bs[i] * Barycentric[i];
+				}
+
+				OutPenetration = Inflation;
+				OutNormal = { 0,0,1 };
+				OutClosestA = ClosestA + OutNormal * ThicknessA;
+				OutClosestB = ClosestBInA - OutNormal * ThicknessB;
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 
@@ -247,12 +409,23 @@ namespace Chaos
 		FSimplex SimplexIDs;
 		const TRotation<T, 3> BToARotation = StartTM.GetRotation();
 		const TRotation<T, 3> AToBRotation = BToARotation.Inverse();
-		TVector<T, 3> SupportA = A.Support2(InitialDir);
+
+		auto SupportAFunc = [&A](const TVec3<T>& V)
+		{
+			return A.Support2(V);
+		};
+
+		auto SupportBFunc = [&B, &AToBRotation, &BToARotation](const TVec3<T>& V)
+		{
+			const TVector<T, 3> VInB = AToBRotation * V;
+			const TVector<T, 3> SupportBLocal = B.Support2(VInB);
+			return BToARotation * SupportBLocal;
+		};
+
+		TVector<T, 3> SupportA = SupportAFunc(InitialDir);
 		As[0] = SupportA;
 
-		const TVector<T, 3> InitialDirInB = AToBRotation * (-InitialDir);
-		const TVector<T, 3> InitialSupportBLocal = B.Support2(InitialDirInB);
-		TVector<T, 3> SupportB = BToARotation * InitialSupportBLocal;
+		TVector<T, 3> SupportB = SupportBFunc(-InitialDir);
 		Bs[0] = SupportB;
 
 		T Lambda = 0;
@@ -260,9 +433,13 @@ namespace Chaos
 		TVector<T, 3> V = X - (SupportA - SupportB);
 		TVector<T, 3> Normal(0,0,1);
 
-		bool bCloseEnough = V.SizeSquared() < Inflation2;
+		const T InitialPreDist2 = V.SizeSquared();
+		constexpr T Eps2 = 1e-6;
+		//mtd needs to find closest point even in inflation region, so can only skip if we found the closest points
+		bool bCloseEnough = InitialPreDist2 < Inflation2 && (!bComputeMTD || InitialPreDist2 < Eps2);
 		bool bDegenerate = false;
 		bool bTerminate = bCloseEnough;
+		bool bInflatedCloseEnough = bCloseEnough;
 		int NumIterations = 0;
 		T InGJKPreDist2 = TNumericLimits<T>::Max();
 		while (!bTerminate)
@@ -273,10 +450,8 @@ namespace Chaos
 				break;	//if taking too long just stop. This should never happen
 			}
 
-			SupportA = A.Support2(V);	//todo: add thickness to quadratic geometry to avoid quadratic vs quadratic when possible
-			const TVector<T, 3> VInB = AToBRotation * (-V);
-			const TVector<T, 3> SupportBLocal = B.Support2(VInB);
-			SupportB = BToARotation * SupportBLocal;
+			SupportA = SupportAFunc(V);
+			SupportB = SupportBFunc(-V);
 			const TVector<T, 3> P = SupportA - SupportB;
 			const TVector<T, 3> W = X - P;
 			SimplexIDs[SimplexIDs.NumVerts] = SimplexIDs.NumVerts;	//is this needed?
@@ -286,6 +461,7 @@ namespace Chaos
 			V = V.GetUnsafeNormal();
 
 			const T VDotW = TVector<T, 3>::DotProduct(V, W);
+
 			if (VDotW > Inflation)
 			{
 				const T VDotRayDir = TVector<T, 3>::DotProduct(V, RayDir);
@@ -316,6 +492,7 @@ namespace Chaos
 					Simplex[SimplexIDs.NumVerts++] = X - P;
 
 					InGJKPreDist2 = TNumericLimits<T>::Max();	//translated origin so restart gjk search
+					bInflatedCloseEnough = false;
 				}
 			}
 			else
@@ -323,12 +500,34 @@ namespace Chaos
 				Simplex[SimplexIDs.NumVerts++] = W;	//this is really X - P which is what we need for simplex computation
 			}
 
-			V = SimplexFindClosestToOrigin(Simplex, SimplexIDs, Barycentric, As, Bs);
+			if (bInflatedCloseEnough && VDotW >= 0)
+			{
+				//Inflated shapes are close enough, but we want MTD so we need to find closest point on core shape
+				const T VDotW2 = VDotW * VDotW;
+				bCloseEnough = InGJKPreDist2 <= Eps2 + VDotW2;	//todo: relative error
+			}
 
-			T NewDist2 = V.SizeSquared();	//todo: relative error
-			bCloseEnough = NewDist2 < Inflation2;
-			bDegenerate = NewDist2 >= InGJKPreDist2;
-			InGJKPreDist2 = NewDist2;
+			if (!bCloseEnough)
+			{
+				V = SimplexFindClosestToOrigin(Simplex, SimplexIDs, Barycentric, As, Bs);
+				T NewDist2 = V.SizeSquared();	//todo: relative error
+				bCloseEnough = NewDist2 < Inflation2;
+				bDegenerate = NewDist2 >= InGJKPreDist2;
+				InGJKPreDist2 = NewDist2;
+
+
+				if (bComputeMTD && bCloseEnough && Lambda == 0 && Inflation2 > 0 && SimplexIDs.NumVerts < 4)
+				{
+					//For mtd of inflated shapes we have to find the closest point, so we have to keep going
+					bCloseEnough = false;
+					bInflatedCloseEnough = true;
+				}
+			}
+			else
+			{
+				//It must be that we want MTD and we can terminate. However, we must make one final call to fixup the simplex
+				V = SimplexFindClosestToOrigin(Simplex, SimplexIDs, Barycentric, As, Bs);
+			}
 			bTerminate = bCloseEnough || bDegenerate;
 		}
 
@@ -349,31 +548,85 @@ namespace Chaos
 		}
 		else if (bComputeMTD)
 		{
-			if (InGJKPreDist2)
+			if (InGJKPreDist2 > 1e-6 && InGJKPreDist2 < TNumericLimits<T>::Max())
 			{
 				OutNormal = Normal;
 				TVector<T, 3> ClosestA(0);
 				TVector<T, 3> ClosestB(0);
 
-				for (int i = 0; i < SimplexIDs.NumVerts; ++i)
+				if (NumIterations)
 				{
-					ClosestA += As[i] * Barycentric[i];
-					ClosestB += Bs[i] * Barycentric[i];
+					for (int i = 0; i < SimplexIDs.NumVerts; ++i)
+					{
+						ClosestA += As[i] * Barycentric[i];
+						ClosestB += Bs[i] * Barycentric[i];
+					}
 				}
-
+				else
+				{
+					//didn't even go into gjk loop
+					ClosestA = As[0];
+					ClosestB = Bs[0];
+				}
+				
+				const TVec3<T> ClosestBInA = StartTM.TransformPosition(ClosestB);
 				const T InGJKPreDist = FMath::Sqrt(InGJKPreDist2);
-				OutNormal = (ClosestA - ClosestB).GetUnsafeNormal();	//question: should we just use InGJKPreDist2?
+				OutNormal = (ClosestBInA - ClosestA).GetUnsafeNormal();	//question: should we just use InGJKPreDist2?
+				const T Penetration = ThicknessA + ThicknessB - InGJKPreDist;
 				const TVector<T, 3> ClosestLocal = ClosestB - OutNormal * ThicknessB;
 
-				OutPosition = StartPoint + ClosestLocal;
-				OutTime = InGJKPreDist - ThicknessA - ThicknessB;
+				OutPosition = StartPoint + ClosestLocal + OutNormal * Penetration;
+				OutTime = -Penetration;
 			}
 			else
 			{
-				ensure(false);	//todo: use EPA
-				OutTime = 0;
-				OutPosition = TVector<T, 3>(0);
-				OutNormal = { 0,0,1 };
+				//todo: use EPA
+				TArray<TVec3<T>> VertsA;
+				TArray<TVec3<T>> VertsB;
+
+				VertsA.Reserve(8);
+				VertsB.Reserve(8);
+
+				if (NumIterations)
+				{
+					for (int i = 0; i < SimplexIDs.NumVerts; ++i)
+					{
+						VertsA.Add(As[i]);
+						const TVec3<T> BAtOrigin = Bs[i] + X;
+						VertsB.Add(BAtOrigin);
+					}
+
+
+					auto SupportBAtOriginFunc = [&](const TVec3<T>& Dir)
+					{
+						const TVector<T, 3> DirInB = AToBRotation * Dir;
+						const TVector<T, 3> SupportBLocal = B.Support2(DirInB);
+						return StartTM.TransformPositionNoScale(SupportBLocal);
+					};
+
+					T Penetration;
+					TVec3<T> MTD, ClosestA, ClosestBInA;
+					if (EPA(VertsA, VertsB, SupportAFunc, SupportBAtOriginFunc, Penetration, MTD, ClosestA, ClosestBInA) != EPAResult::BadInitialSimplex)
+					{
+						OutNormal = MTD;
+						OutTime = -Penetration - Inflation;
+						OutPosition = ClosestA;
+					}
+					else
+					{
+						//assume touching hit
+						OutTime = -Inflation;
+						OutNormal = { 0,0,1 };
+						OutPosition = As[0] + OutNormal * ThicknessA;
+					}
+				}
+				else
+				{
+					//didn't even go into gjk loop, touching hit
+					OutTime = -Inflation;
+					OutNormal = { 0,0,1 };
+					OutPosition = As[0] + OutNormal * ThicknessA;
+				}
 			}
 		}
 

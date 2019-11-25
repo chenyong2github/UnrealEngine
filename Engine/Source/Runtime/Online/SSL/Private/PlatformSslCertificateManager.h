@@ -10,26 +10,11 @@
 
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsPlatformSslCertificateManager.h"
-#elif PLATFORM_PS4
-#include "SslCertificateManager.h"
-using FPlatformSslCertificateManager = FSslCertificateManager;
-#elif PLATFORM_XBOXONE
-#include "SslCertificateManager.h"
-using FPlatformSslCertificateManager = FSslCertificateManager;
-#elif PLATFORM_MAC
-#include "SslCertificateManager.h"
-using FPlatformSslCertificateManager = FSslCertificateManager;
-#elif PLATFORM_IOS
-#include "SslCertificateManager.h"
-using FPlatformSslCertificateManager = FSslCertificateManager;
 #elif PLATFORM_ANDROID
 #include "Android/AndroidPlatformSslCertificateManager.h"
-#elif defined(__EMSCRIPTEN__)
-#include "SslCertificateManager.h"
-using FPlatformSslCertificateManager = FSslCertificateManager;
 #elif PLATFORM_UNIX
 #include "Unix/UnixPlatformSslCertificateManager.h"
-#elif PLATFORM_SWITCH
+#elif PLATFORM_MAC || PLATFORM_PS4 || PLATFORM_XBOXONE || PLATFORM_IOS || PLATFORM_SWITCH || defined(USE_DEFAULT_SSLCERT)
 #include "SslCertificateManager.h"
 using FPlatformSslCertificateManager = FSslCertificateManager;
 #else

@@ -6,6 +6,7 @@
 
 #include "GameFramework/PlayerInput.h"
 #include "Misc/CommandLine.h"
+#include "Components/InputComponent.h"
 #include "Misc/App.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
@@ -32,6 +33,48 @@ const TArray<FInputAxisKeyMapping> UPlayerInput::NoAxisMappings;
 TArray<FInputActionKeyMapping> UPlayerInput::EngineDefinedActionMappings;
 TArray<FInputAxisKeyMapping> UPlayerInput::EngineDefinedAxisMappings;
 
+/** Runtime struct that gathers up the different kinds of delegates that might be issued */
+struct FDelegateDispatchDetails
+{
+	uint32 EventIndex;
+	uint32 FoundIndex;
+
+	FInputActionUnifiedDelegate ActionDelegate;
+	const FInputActionBinding* SourceAction;
+	FInputChord Chord;
+	TEnumAsByte<EInputEvent> KeyEvent;
+
+	FInputTouchUnifiedDelegate TouchDelegate;
+	FVector TouchLocation;
+	ETouchIndex::Type FingerIndex;
+
+	FInputGestureUnifiedDelegate GestureDelegate;
+	float GestureValue;
+
+	FDelegateDispatchDetails(const uint32 InEventIndex, const uint32 InFoundIndex, const FInputChord& InChord, FInputActionUnifiedDelegate InDelegate, const EInputEvent InKeyEvent, const FInputActionBinding* InSourceAction = NULL)
+		: EventIndex(InEventIndex)
+		, FoundIndex(InFoundIndex)
+		, ActionDelegate(MoveTemp(InDelegate))
+		, SourceAction(InSourceAction)
+		, Chord(InChord)
+		, KeyEvent(InKeyEvent)
+	{}
+
+	FDelegateDispatchDetails(const uint32 InEventIndex, const uint32 InFoundIndex, FInputTouchUnifiedDelegate InDelegate, const FVector InLocation, const ETouchIndex::Type InFingerIndex)
+		: EventIndex(InEventIndex)
+		, FoundIndex(InFoundIndex)
+		, TouchDelegate(MoveTemp(InDelegate))
+		, TouchLocation(InLocation)
+		, FingerIndex(InFingerIndex)
+	{}
+
+	FDelegateDispatchDetails(const uint32 InEventIndex, const uint32 InFoundIndex, FInputGestureUnifiedDelegate InDelegate, const float InValue)
+		: EventIndex(InEventIndex)
+		, FoundIndex(InFoundIndex)
+		, GestureDelegate(MoveTemp(InDelegate))
+		, GestureValue(InValue)
+	{}
+};
 
 UPlayerInput::UPlayerInput()
 	: Super()
@@ -461,7 +504,7 @@ void UPlayerInput::InvertAxis(const FName AxisName)
 		}
 		if (bInverted)
 		{
-			InvertedAxis.Add(AxisName);
+			InvertedAxis.AddUnique(AxisName);
 		}
 		else
 		{
@@ -944,6 +987,31 @@ void UPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputCompon
 {
 	ConditionalBuildKeyMappings();
 
+	// We collect axis contributions by delegate, so we can sum up 
+	// contributions from multiple bindings.
+	struct FAxisDelegateDetails
+	{
+		FInputAxisUnifiedDelegate Delegate;
+		float Value;
+
+		FAxisDelegateDetails(FInputAxisUnifiedDelegate InDelegate, const float InValue)
+			: Delegate(MoveTemp(InDelegate))
+			, Value(InValue)
+		{
+		}
+	};
+	struct FVectorAxisDelegateDetails
+	{
+		FInputVectorAxisUnifiedDelegate Delegate;
+		FVector Value;
+
+		FVectorAxisDelegateDetails(FInputVectorAxisUnifiedDelegate InDelegate, const FVector InValue)
+			: Delegate(MoveTemp(InDelegate))
+			, Value(InValue)
+		{
+		}
+	};
+
 	static TArray<FAxisDelegateDetails> AxisDelegates;
 	static TArray<FVectorAxisDelegateDetails> VectorAxisDelegates;
 	static TArray<FDelegateDispatchDetails> NonAxisDelegates;
@@ -1250,9 +1318,6 @@ void UPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputCompon
 
 	// Dispatch the delegates in the order they occurred
 	NonAxisDelegates.Sort(FDelegateDispatchDetailsSorter());
-
-	ProcessDelegatesFilter(InputComponentStack, AxisDelegates, VectorAxisDelegates, NonAxisDelegates);
-
 	for (const FDelegateDispatchDetails& Details : NonAxisDelegates)
 	{
 		if (Details.ActionDelegate.IsBound())
@@ -2033,7 +2098,7 @@ void UPlayerInput::SetBind(FName BindName, const FString& Command)
 		FString CommandMod = Command;
 		if ( CommandMod.Left(1) == TEXT("\"") && CommandMod.Right(1) == ("\"") )
 		{
-			CommandMod = CommandMod.Mid(1, CommandMod.Len() - 2);
+			CommandMod.MidInline(1, CommandMod.Len() - 2, false);
 		}
 
 		for(int32 BindIndex = DebugExecBindings.Num()-1;BindIndex >= 0;BindIndex--)

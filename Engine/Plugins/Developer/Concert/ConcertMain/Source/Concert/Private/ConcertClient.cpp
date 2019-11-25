@@ -972,6 +972,29 @@ TSharedPtr<IConcertClientSession> FConcertClient::GetCurrentSession() const
 	return ClientSession;
 }
 
+TFuture<FConcertAdmin_MountSessionRepositoryResponse> FConcertClient::MountSessionRepository(const FGuid& ServerAdminEndpointId, const FString& RepositoryRootDir, const FGuid& RepositoryId, bool bCreateIfNotExist, bool bAsDefault) const
+{
+	FConcertAdmin_MountSessionRepositoryRequest MountRepositoryRequest;
+	MountRepositoryRequest.RepositoryId = RepositoryId;
+	MountRepositoryRequest.RepositoryRootDir = RepositoryRootDir;
+	MountRepositoryRequest.bCreateIfNotExist = bCreateIfNotExist;
+	MountRepositoryRequest.bAsServerDefault = bAsDefault;
+	return ClientAdminEndpoint->SendRequest<FConcertAdmin_MountSessionRepositoryRequest, FConcertAdmin_MountSessionRepositoryResponse>(MountRepositoryRequest, ServerAdminEndpointId);
+}
+
+TFuture<FConcertAdmin_GetSessionRepositoriesResponse> FConcertClient::GetSessionRepositories(const FGuid& ServerAdminEndpointId) const
+{
+	FConcertAdmin_GetSessionRepositoriesRequest GetRepositoryRequest;
+	return ClientAdminEndpoint->SendRequest<FConcertAdmin_GetSessionRepositoriesRequest, FConcertAdmin_GetSessionRepositoriesResponse>(GetRepositoryRequest, ServerAdminEndpointId);
+}
+
+TFuture<FConcertAdmin_DropSessionRepositoriesResponse> FConcertClient::DropSessionRepositories(const FGuid& ServerAdminEndpointId, const TArray<FGuid>& RepositoryIds) const
+{
+	FConcertAdmin_DropSessionRepositoriesRequest DropRepositoryRequest;
+	DropRepositoryRequest.RepositoryIds = RepositoryIds;
+	return ClientAdminEndpoint->SendRequest<FConcertAdmin_DropSessionRepositoriesRequest, FConcertAdmin_DropSessionRepositoriesResponse>(DropRepositoryRequest, ServerAdminEndpointId);
+}
+
 TFuture<FConcertAdmin_GetAllSessionsResponse> FConcertClient::GetServerSessions(const FGuid& ServerAdminEndpointId) const
 {
 	FConcertAdmin_GetAllSessionsRequest GetSessionsRequest = FConcertAdmin_GetAllSessionsRequest();

@@ -184,12 +184,9 @@ void FLocalVertexFactoryShaderParameters::GetElementShaderBindings(
 bool FLocalVertexFactory::ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType)
 {
 	// Only compile this permutation inside the editor - it's not applicable in games, but occasionally the editor needs it.
-	if (!GIsEditor)
+	if (Material->GetMaterialDomain() == MD_UI)
 	{
-		if (Material->GetMaterialDomain() == MD_UI)
-		{
-			return false;
-		}
+		return !!WITH_EDITOR;
 	}
 
 	return true; 

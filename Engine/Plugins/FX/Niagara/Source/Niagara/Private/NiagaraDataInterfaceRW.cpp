@@ -305,9 +305,9 @@ UNiagaraDataInterfaceGrid2D::UNiagaraDataInterfaceGrid2D(FObjectInitializer cons
 	: Super(ObjectInitializer)
 	, NumCellsX(3)
 	, NumCellsY(3)
-	, CellSize(1.)
+	, NumCellsMaxAxis(3)
 	, NumAttributes(1)
-	, SetGridFromCellSize(false)
+	, SetGridFromMaxAxis(false)
 	, WorldBBoxMin(0., 0., 0.)
 	, WorldBBoxSize(100., 100.)
 {
@@ -485,7 +485,7 @@ bool UNiagaraDataInterfaceGrid2D::Equals(const UNiagaraDataInterface* Other) con
 		OtherTyped->NumCellsX == NumCellsX &&
 		OtherTyped->NumCellsY == NumCellsY &&
 		OtherTyped->NumAttributes == NumAttributes &&
-		FMath::IsNearlyEqual(OtherTyped->CellSize, CellSize) &&
+		OtherTyped->NumCellsMaxAxis == NumCellsMaxAxis &&
 		OtherTyped->WorldBBoxMin.Equals(WorldBBoxMin) &&
 		OtherTyped->WorldBBoxSize.Equals(WorldBBoxSize);
 }
@@ -529,7 +529,7 @@ bool UNiagaraDataInterfaceGrid2D::GetFunctionHLSL(const FName& DefinitionFunctio
 	else if (DefinitionFunctionName == WorldToUnitFunctionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
-			void {FunctionName}(float3 In_World, out float2 Out_Unit)
+			void {FunctionName}(float3 In_World, out float3 Out_Unit)
 			{
 				Out_Unit = (In_World - {WorldBBoxMinName}) / float3({WorldBBoxSizeName}, 1);
 			}
@@ -690,8 +690,8 @@ bool UNiagaraDataInterfaceGrid2D::CopyToInternal(UNiagaraDataInterface* Destinat
 	OtherTyped->NumCellsX = NumCellsX;
 	OtherTyped->NumCellsY = NumCellsY;
 	OtherTyped->NumAttributes = NumAttributes;
-	OtherTyped->CellSize = CellSize;
-	OtherTyped->SetGridFromCellSize = SetGridFromCellSize;
+	OtherTyped->NumCellsMaxAxis = NumCellsMaxAxis;
+	OtherTyped->SetGridFromMaxAxis = SetGridFromMaxAxis;
 	OtherTyped->WorldBBoxMin = WorldBBoxMin;
 	OtherTyped->WorldBBoxSize = WorldBBoxSize;
 

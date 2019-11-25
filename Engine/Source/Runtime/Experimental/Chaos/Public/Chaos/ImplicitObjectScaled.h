@@ -291,7 +291,7 @@ public:
 
 	/** This is a low level function and assumes the internal object has a SweepGeom function. Should not be called directly. See GeometryQueries.h : SweepQuery */
 	template <typename QueryGeomType>
-	bool LowLevelSweepGeom(const QueryGeomType& B, const TRigidTransform<T, d>& BToATM, const TVector<T, d>& LocalDir, const T Length, T& OutTime, TVector<T, d>& LocalPosition, TVector<T, d>& LocalNormal, int32& OutFaceIndex, T Thickness = 0) const
+	bool LowLevelSweepGeom(const QueryGeomType& B, const TRigidTransform<T, d>& BToATM, const TVector<T, d>& LocalDir, const T Length, T& OutTime, TVector<T, d>& LocalPosition, TVector<T, d>& LocalNormal, int32& OutFaceIndex, T Thickness = 0, bool bComputeMTD = false) const
 	{
 		ensure(Length > 0);
 		ensure(FMath::IsNearlyEqual(LocalDir.SizeSquared(), 1, KINDA_SMALL_NUMBER));
@@ -313,7 +313,7 @@ public:
 
 			TRigidTransform<T, d> BToATMNoScale(BToATM.GetLocation() * MInvScale, BToATM.GetRotation());
 			
-			if (MObject->SweepGeom(ScaledB, BToATMNoScale, UnscaledDir, UnscaledLength, UnscaledTime, UnscaledPosition, UnscaledNormal, OutFaceIndex, MInternalThickness + Thickness))
+			if (MObject->SweepGeom(ScaledB, BToATMNoScale, UnscaledDir, UnscaledLength, UnscaledTime, UnscaledPosition, UnscaledNormal, OutFaceIndex, MInternalThickness + Thickness, bComputeMTD))
 			{
 				OutTime = LengthScaleInv * UnscaledTime;
 				LocalPosition = MScale * UnscaledPosition;
@@ -414,9 +414,19 @@ public:
 		return MObject->Support2(Direction * MScale) * MScale;
 	}
 
-	FORCEINLINE T GetMargin() const { return MObject->GetMargin(); }
+	FORCEINLINE T GetMargin() const
+	{
+		if (T UnscaledMargin = MObject->GetMargin())
+		{
+			ensure(MScale[0] == MScale[1] && MScale[1] == MScale[2]);
+			return UnscaledMargin * FMath::Abs(MScale[0]);
+		}
+
+		return 0;
+	}
 
 	const TVector<T, d>& GetScale() const { return MScale; }
+	const TVector<T, d>& GetInvScale() const { return MInvScale; }
 	void SetScale(const TVector<T, d>& Scale)
 	{
 		constexpr T MinMagnitude = 1e-4;
@@ -438,6 +448,24 @@ public:
 
 	virtual const TBox<T, d>& BoundingBox() const override { return MLocalBoundingBox; }
 
+	const FReal GetVolume() const
+	{
+		// TODO: More precise volume!
+		return BoundingBox().GetVolume();
+	}
+
+	const FMatrix33 GetInertiaTensor(const FReal Mass) const
+	{
+		// TODO: More precise inertia!
+		return BoundingBox().GetInertiaTensor(Mass);
+	}
+
+	const FVec3 GetCenterOfMass() const
+	{
+		// TODO: Actually compute this!
+		return FVec3(0.f);
+	}
+
 	const ObjectType Object() const { return MObject; }
 	
 	virtual void Serialize(FChaosArchive& Ar) override
@@ -457,6 +485,11 @@ public:
 	virtual uint32 GetTypeHash() const override
 	{
 		return HashCombine(MObject->GetTypeHash(), ::GetTypeHash(MScale));
+	}
+
+	virtual uint16 GetMaterialIndex(uint32 HintIndex) const override
+	{
+		return MObject->GetMaterialIndex(HintIndex);
 	}
 
 #if 0
@@ -516,6 +549,7 @@ private:
 		TImplicitObjectScaled<QueryGeomType> ScaledB(B.Object(), InvScale * B.GetScale());
 		return ScaledB;
 	}
+
 };
 
 template <typename TConcrete>

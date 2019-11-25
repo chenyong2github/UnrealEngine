@@ -188,7 +188,7 @@ FFeaturePackContentSource::FFeaturePackContentSource(FString InFeaturePackPath)
 		if( ThisTemplateRoot.EndsWith(TemplatesFolder) == true )
 		{
 			int32 Index = ThisTemplateRoot.Find(TemplatesFolder);
-			ThisTemplateRoot = ThisTemplateRoot.Left(Index);
+			ThisTemplateRoot.LeftInline(Index);
 		}
 		MountPoint = ThisTemplateRoot;
 		FFileHelper::LoadFileToString( ManifestString, *FeaturePackPath);

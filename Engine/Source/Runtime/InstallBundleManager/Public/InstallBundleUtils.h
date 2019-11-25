@@ -55,6 +55,39 @@ namespace InstallBundleUtil
 			: FEmbeddedKeepAwake(bNeedsRendering ? TagWithRendering : Tag, bNeedsRendering) {}
 	};
 
+	class INSTALLBUNDLEMANAGER_API FInstallBundleManagerScreenSaverControl
+	{
+		static bool bDidDisableScreensaver;
+		static int DisableCount;
+
+		static void IncDisable();
+		static void DecDisable();
+
+	public:
+		FInstallBundleManagerScreenSaverControl()
+		{
+			IncDisable();
+		}
+
+		~FInstallBundleManagerScreenSaverControl()
+		{
+			DecDisable();
+		}
+
+		FInstallBundleManagerScreenSaverControl(const FInstallBundleManagerScreenSaverControl& Other)
+		{
+			IncDisable();
+		}
+		FInstallBundleManagerScreenSaverControl(FInstallBundleManagerScreenSaverControl&& Other) = default;
+
+		FInstallBundleManagerScreenSaverControl& operator=(const FInstallBundleManagerScreenSaverControl& Other) = default;
+		FInstallBundleManagerScreenSaverControl& operator=(FInstallBundleManagerScreenSaverControl&& Other)
+		{
+			DecDisable();
+			return *this;
+		}
+	};
+
 	class INSTALLBUNDLEMANAGER_API FInstallBundleWork : public FNonAbandonableTask
 	{
 	public:
@@ -98,4 +131,44 @@ namespace InstallBundleUtil
 	INSTALLBUNDLEMANAGER_API void FinishInstallBundleAsyncIOTasks(TArray<TUniquePtr<FInstallBundleTask>>& Tasks);
 
 	INSTALLBUNDLEMANAGER_API void CleanupInstallBundleAsyncIOTasks(TArray<TUniquePtr<FInstallBundleTask>>& Tasks);
+
+	struct INSTALLBUNDLEMANAGER_API FContentRequestStateStats
+	{
+		double StartTime = 0.0;
+		double EndTime = 0.0;
+		uint64 DataSize = 0;
+		bool bOpen = true;
+
+		double GetElapsedTime() const
+		{
+			return (EndTime > StartTime) ? (EndTime - StartTime) : 0.0;
+		}
+	};
+
+	struct INSTALLBUNDLEMANAGER_API FContentRequestStats
+	{
+		double StartTime = 0.0;
+		double EndTime = 0.0;
+		bool bOpen = true;
+		TMap<FString, FContentRequestStateStats> StateStats;
+
+		double GetElapsedTime() const
+		{
+			return (EndTime > StartTime) ? (EndTime - StartTime) : 0.0;
+		}
+	};
+
+	class INSTALLBUNDLEMANAGER_API FContentRequestStatsMap
+	{
+	private:
+		TMap<FName, InstallBundleUtil::FContentRequestStats> StatsMap;
+
+	public:
+		void StatsBegin(FName BundleName);
+		void StatsEnd(FName BundleName);
+		void StatsBegin(FName BundleName, const TCHAR* State);
+		void StatsEnd(FName BundleName, const TCHAR* State, uint64 DataSize = 0);
+
+		const TMap<FName, InstallBundleUtil::FContentRequestStats>& GetMap() { return StatsMap; }
+	};
 }

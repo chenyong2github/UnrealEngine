@@ -71,7 +71,12 @@ void FMfMediaPlayer::Close()
 	PresentationDescriptor.Reset();
 	RateControl.Reset();
 	RateSupport.Reset();
-	SourceReader.Reset();
+
+	if (SourceReader)
+	{
+		SourceReader->Flush(MF_SOURCE_READER_ALL_STREAMS);
+		SourceReader.Reset();
+	}
 	SourceReaderCallback.Reset();
 
 	Characteristics = 0;

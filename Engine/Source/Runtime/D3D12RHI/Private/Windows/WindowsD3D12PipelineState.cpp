@@ -114,10 +114,44 @@ D3D12_COMPUTE_PIPELINE_STATE_DESC FD3D12_COMPUTE_PIPELINE_STATE_DESC::ComputeDes
 	return D;
 }
 
+void SaveByteCode(D3D12_SHADER_BYTECODE& ByteCode)
+{
+	if (ByteCode.pShaderBytecode)
+	{
+		void* NewBytes = FMemory::Malloc(ByteCode.BytecodeLength);
+		FMemory::Memcpy(NewBytes, ByteCode.pShaderBytecode, ByteCode.BytecodeLength);
+		ByteCode.pShaderBytecode = NewBytes;
+	}
+}
+
+void ComputePipelineCreationArgs_POD::Destroy()
+{
+	FMemory::Free((void*)Desc.Desc.CS.pShaderBytecode);
+}
+
+void GraphicsPipelineCreationArgs_POD::Destroy()
+{
+	FMemory::Free((void*)Desc.Desc.VS.pShaderBytecode);
+	FMemory::Free((void*)Desc.Desc.PS.pShaderBytecode);
+	FMemory::Free((void*)Desc.Desc.GS.pShaderBytecode);
+	FMemory::Free((void*)Desc.Desc.HS.pShaderBytecode);
+	FMemory::Free((void*)Desc.Desc.DS.pShaderBytecode);
+}
+
 void FD3D12PipelineStateCache::OnPSOCreated(FD3D12PipelineState* PipelineState, const FD3D12LowLevelGraphicsPipelineStateDesc& Desc)
 {
+	const bool bAsync = !Desc.bFromPSOFileCache;
+
 	// Actually create the PSO.
-	PipelineState->CreateAsync(GraphicsPipelineCreationArgs(&Desc, PipelineLibrary.GetReference()));
+	GraphicsPipelineCreationArgs Args(&Desc, PipelineLibrary.GetReference());
+	if (bAsync)
+	{
+		PipelineState->CreateAsync(Args);
+	}
+	else
+	{
+		PipelineState->Create(Args);
+	}
 
 	// Save this PSO to disk cache.
 	if (!DiskCaches[PSO_CACHE_GRAPHICS].IsInErrorState())
@@ -129,8 +163,18 @@ void FD3D12PipelineStateCache::OnPSOCreated(FD3D12PipelineState* PipelineState, 
 
 void FD3D12PipelineStateCache::OnPSOCreated(FD3D12PipelineState* PipelineState, const FD3D12ComputePipelineStateDesc& Desc)
 {
+	const bool bAsync = false;
+
 	// Actually create the PSO.
-	PipelineState->CreateAsync(ComputePipelineCreationArgs(&Desc, PipelineLibrary.GetReference()));
+	ComputePipelineCreationArgs Args(&Desc, PipelineLibrary.GetReference());
+	if (bAsync)
+	{
+		PipelineState->CreateAsync(Args);
+	}
+	else
+	{
+		PipelineState->Create(Args);
+	}
 
 	// Save this PSO to disk cache.
 	if (!DiskCaches[PSO_CACHE_COMPUTE].IsInErrorState())
@@ -845,11 +889,13 @@ void FD3D12PipelineStateWorker::DoWork()
 	if (bIsGraphics)
 	{
 		CreateGraphicsPipelineState(PSO.GetInitReference(), GetParentAdapter(), CreationArgs.GraphicsArgs);
+		CreationArgs.GraphicsArgs->Destroy();
 		delete CreationArgs.GraphicsArgs;
 	}
 	else
 	{
 		CreateComputePipelineState(PSO.GetInitReference(), GetParentAdapter(), CreationArgs.ComputeArgs);
+		CreationArgs.ComputeArgs->Destroy();
 		delete CreationArgs.ComputeArgs;
 	}
 }

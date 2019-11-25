@@ -12,12 +12,12 @@
 
 /** */
 UCLASS()
-class CLOTHINGSYSTEMRUNTIMECOMMON_API UClothLODDataBase : public UObject
+class CLOTHINGSYSTEMRUNTIMECOMMON_API UClothLODDataCommon : public UObject
 {
 	GENERATED_BODY()
 public:
-	UClothLODDataBase(const FObjectInitializer& Init);
-	virtual ~UClothLODDataBase();
+	UClothLODDataCommon(const FObjectInitializer& Init);
+	virtual ~UClothLODDataCommon();
 
 	// Raw phys mesh data
 	UPROPERTY(EditAnywhere, Category = SimMesh)

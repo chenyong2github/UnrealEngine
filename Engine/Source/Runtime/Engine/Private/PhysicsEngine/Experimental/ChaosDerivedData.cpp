@@ -21,7 +21,7 @@ const TCHAR* FChaosDerivedDataCooker::GetPluginName() const
 
 const TCHAR* FChaosDerivedDataCooker::GetVersionString() const
 {
-	return TEXT("40C102F05B01482DB74F98FE0F6C4166");
+	return TEXT("DB9F6EB601DA4E709F5927C32485080D");
 }
 
 FString FChaosDerivedDataCooker::GetPluginSpecificCacheKeySuffix() const
@@ -105,7 +105,8 @@ void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::TTria
 		FinalIndices.Add(Tri.v2);
 	}
 
-	Chaos::CleanTrimesh(FinalVerts, FinalIndices, nullptr);
+	TArray<int32> Remap;
+	Chaos::CleanTrimesh(FinalVerts, FinalIndices, &Remap);
 
 	// Build particle list #BG Maybe allow TParticles to copy vectors?
 	Chaos::TParticles<Precision, 3> TriMeshParticles;
@@ -119,8 +120,15 @@ void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::TTria
 
 	// Build chaos triangle list. #BGTODO Just make the clean function take these types instead of double copying
 	const int32 NumTriangles = FinalIndices.Num() / 3;
+	bool bHasMaterials = InParams.TriangleMeshDesc.MaterialIndices.Num() > 0;
 	TArray<Chaos::TVector<int32, 3>> Triangles;
+	TArray<uint16> MaterialIndices;
 	Triangles.Reserve(NumTriangles);
+
+	if(bHasMaterials)
+	{
+		MaterialIndices.Reserve(NumTriangles);
+	}
 
 	for(int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
 	{
@@ -136,10 +144,33 @@ void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::TTria
 		if (bIsValidTriangle)
 		{
 			Triangles.Add(Chaos::TVector<int32, 3>(FinalIndices[BaseIndex], FinalIndices[BaseIndex + 1], FinalIndices[BaseIndex + 2]));
+
+			if(bHasMaterials)
+			{
+				if(!ensure(Remap.IsValidIndex(TriangleIndex)))
+				{
+					MaterialIndices.Empty();
+					bHasMaterials = false;
+				}
+				else
+				{
+					const int32 OriginalIndex = Remap[TriangleIndex];
+
+					if(ensure(InParams.TriangleMeshDesc.MaterialIndices.IsValidIndex(OriginalIndex)))
+					{
+						MaterialIndices.Add(InParams.TriangleMeshDesc.MaterialIndices[OriginalIndex]);
+					}
+					else
+					{
+						MaterialIndices.Empty();
+						bHasMaterials = false;
+					}
+				}
+			}
 		}
 	}
 
-	OutTriangleMeshes.Emplace(new Chaos::TTriangleMeshImplicitObject<Precision>(MoveTemp(TriMeshParticles), MoveTemp(Triangles)));
+	OutTriangleMeshes.Emplace(new Chaos::TTriangleMeshImplicitObject<Precision>(MoveTemp(TriMeshParticles), MoveTemp(Triangles), MoveTemp(MaterialIndices)));
 }
 
 template void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::TTriangleMeshImplicitObject<float>>>& OutTriangleMeshes, const FCookBodySetupInfo& InParams);

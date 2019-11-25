@@ -23,12 +23,15 @@ PACKAGE_SCOPE:
 	/** The current amount of space used in the buffer for this packet */
 	uint16 Length;
 	uint64 SampleCount; // this is a "sample accurate" representation of the audio data, used for interleaving silent buffers, etc.
+	/** Current loudness of the given microphone, in Q15. */
+	int16 MicrophoneAmplitude;
 
 public:
 	/** Zeros members and validates the assumptions */
 	FVoicePacketImpl() :
 		Sender(NULL),
-		Length(0)
+		Length(0),
+		MicrophoneAmplitude(0)
 	{
 		Buffer.Empty(UVOIPStatics::GetMaxVoiceDataSize());
 		Buffer.AddUninitialized(UVOIPStatics::GetMaxVoiceDataSize());
@@ -45,6 +48,8 @@ public:
 	 * @param Other packet to copy
 	 */
 	FVoicePacketImpl(const FVoicePacketImpl& Other);
+
+	virtual void ResetData();
 
 	//~ Begin FVoicePacket interface
 	virtual uint16 GetTotalPacketSize() override;

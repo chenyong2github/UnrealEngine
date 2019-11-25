@@ -55,6 +55,8 @@ struct GraphicsPipelineCreationArgs_POD;
 
 #include "D3D12PipelineState.h"
 
+void SaveByteCode(D3D12_SHADER_BYTECODE& ByteCode);
+
 struct ComputePipelineCreationArgs_POD
 {
 	FD3D12ComputePipelineStateDesc Desc;
@@ -64,7 +66,11 @@ struct ComputePipelineCreationArgs_POD
 	{
 		Desc = InArgs.Desc;
 		Library = InArgs.Library;
+
+		SaveByteCode(Desc.Desc.CS);
 	}
+
+	void Destroy();
 };
 
 struct GraphicsPipelineCreationArgs_POD
@@ -76,7 +82,15 @@ struct GraphicsPipelineCreationArgs_POD
 	{
 		Desc = InArgs.Desc;
 		Library = InArgs.Library;
+
+		SaveByteCode(Desc.Desc.VS);
+		SaveByteCode(Desc.Desc.PS);
+		SaveByteCode(Desc.Desc.GS);
+		SaveByteCode(Desc.Desc.HS);
+		SaveByteCode(Desc.Desc.DS);
 	}
+
+	void Destroy();
 };
 
 struct ComputePipelineCreationArgs

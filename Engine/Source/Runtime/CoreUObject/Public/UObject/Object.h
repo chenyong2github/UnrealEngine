@@ -1455,6 +1455,10 @@ private:
 	* @param	bTransient					true if the component is being assigned to a transient property
 	*/
 	UObject* CreateEditorOnlyDefaultSubobjectImpl(FName SubobjectName, UClass* ReturnType, bool bTransient = false);
+
+public:
+
+	virtual void ValidateGeneratedRepEnums(const TArray<struct FRepRecord>& ClassReps) const {}
 };
 
 /**

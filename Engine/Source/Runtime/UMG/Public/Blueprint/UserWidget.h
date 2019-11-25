@@ -1403,6 +1403,9 @@ protected:
 	 * UserWidget of state transitions.
 	 */
 	friend UUMGSequencePlayer;
+
+	/** The compiler is a friend so that it can disable initialization from the widget tree */
+	friend class FWidgetBlueprintCompilerContext;
 };
 
 #define LOCTEXT_NAMESPACE "UMG"

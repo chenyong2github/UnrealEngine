@@ -1,4 +1,32 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+/*
+Copyright 2019 Valve Corporation under https://opensource.org/licenses/BSD-3-Clause
+This code includes modifications by Epic Games.  Modifications (c) 2019 Epic Games, Inc.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its contributors
+   may be used to endorse or promote products derived from this software
+   without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+*/
 
 #pragma once
 #include "InputCoreTypes.h"
@@ -11,44 +39,11 @@ namespace GenericKeys
 
 namespace IndexControllerKeys
 {
-	// Thumbstick Directions
-	const FKey ValveIndex_Left_Thumbstick_Up("ValveIndex_Left_Thumbstick_Up");
-	const FKey ValveIndex_Left_Thumbstick_Down("ValveIndex_Left_Thumbstick_Down");
-	const FKey ValveIndex_Left_Thumbstick_Left("ValveIndex_Left_Thumbstick_Left");
-	const FKey ValveIndex_Left_Thumbstick_Right("ValveIndex_Left_Thumbstick_Right");
-	const FKey ValveIndex_Right_Thumbstick_Up("ValveIndex_Right_Thumbstick_Up");
-	const FKey ValveIndex_Right_Thumbstick_Down("ValveIndex_Right_Thumbstick_Down");
-	const FKey ValveIndex_Right_Thumbstick_Left("ValveIndex_Right_Thumbstick_Left");
-	const FKey ValveIndex_Right_Thumbstick_Right("ValveIndex_Right_Thumbstick_Right");
-
-	// Trackpad Directions
-	const FKey ValveIndex_Left_Trackpad_Up("ValveIndex_Left_Trackpad_Up");
-	const FKey ValveIndex_Left_Trackpad_Down("ValveIndex_Left_Trackpad_Down");
-	const FKey ValveIndex_Left_Trackpad_Left("ValveIndex_Left_Trackpad_Left");
-	const FKey ValveIndex_Left_Trackpad_Right("ValveIndex_Left_Trackpad_Right");
-	const FKey ValveIndex_Right_Trackpad_Up("ValveIndex_Right_Trackpad_Up");
-	const FKey ValveIndex_Right_Trackpad_Down("ValveIndex_Right_Trackpad_Down");
-	const FKey ValveIndex_Right_Trackpad_Left("ValveIndex_Right_Trackpad_Left");
-	const FKey ValveIndex_Right_Trackpad_Right("ValveIndex_Right_Trackpad_Right");
-
 	// Special
 	const FKey ValveIndex_Left_Grip_Grab("ValveIndex_Left_Grip_Grab");
 	const FKey ValveIndex_Left_Pinch_Grab("ValveIndex_Left_Pinch_Grab");
 	const FKey ValveIndex_Right_Grip_Grab("ValveIndex_Right_Grip_Grab");
 	const FKey ValveIndex_Right_Pinch_Grab("ValveIndex_Right_Pinch_Grab");
-}
-
-namespace ViveControllerKeys
-{
-	// Trackpad Directions
-	const FKey Vive_Left_Trackpad_Up("Vive_Left_Trackpad_Up");
-	const FKey Vive_Left_Trackpad_Down("Vive_Left_Trackpad_Down");
-	const FKey Vive_Left_Trackpad_Left("Vive_Left_Trackpad_Left");
-	const FKey Vive_Left_Trackpad_Right("Vive_Left_Trackpad_Right");
-	const FKey Vive_Right_Trackpad_Up("Vive_Right_Trackpad_Up");
-	const FKey Vive_Right_Trackpad_Down("Vive_Right_Trackpad_Down");
-	const FKey Vive_Right_Trackpad_Left("Vive_Right_Trackpad_Left");
-	const FKey Vive_Right_Trackpad_Right("Vive_Right_Trackpad_Right");
 }
 
 namespace CosmosKeys
@@ -98,28 +93,3 @@ namespace CosmosKeys
 	const FKey Cosmos_Right_Thumbstick_Right("Cosmos_Right_Thumbstick_Right");
 }
 
-namespace OculusTouchKeys
-{
-	// Thumbstick Directions
-	const FKey OculusTouch_Left_Thumbstick_Up("OculusTouch_Left_Thumbstick_Up");
-	const FKey OculusTouch_Left_Thumbstick_Down("OculusTouch_Left_Thumbstick_Down");
-	const FKey OculusTouch_Left_Thumbstick_Left("OculusTouch_Left_Thumbstick_Left");
-	const FKey OculusTouch_Left_Thumbstick_Right("OculusTouch_Left_Thumbstick_Right");
-	const FKey OculusTouch_Right_Thumbstick_Up("OculusTouch_Right_Thumbstick_Up");
-	const FKey OculusTouch_Right_Thumbstick_Down("OculusTouch_Right_Thumbstick_Down");
-	const FKey OculusTouch_Right_Thumbstick_Left("OculusTouch_Right_Thumbstick_Left");
-	const FKey OculusTouch_Right_Thumbstick_Right("OculusTouch_Right_Thumbstick_Right");
-}
-
-namespace WindowsMRKeys
-{
-	// Trackpad Directions
-	const FKey MixedReality_Left_Trackpad_Up("MixedReality_Left_Trackpad_Up");
-	const FKey MixedReality_Left_Trackpad_Down("MixedReality_Left_Trackpad_Down");
-	const FKey MixedReality_Left_Trackpad_Left("MixedReality_Left_Trackpad_Left");
-	const FKey MixedReality_Left_Trackpad_Right("MixedReality_Left_Trackpad_Right");
-	const FKey MixedReality_Right_Trackpad_Up("MixedReality_Right_Trackpad_Up");
-	const FKey MixedReality_Right_Trackpad_Down("MixedReality_Right_Trackpad_Down");
-	const FKey MixedReality_Right_Trackpad_Left("MixedReality_Right_Trackpad_Left");
-	const FKey MixedReality_Right_Trackpad_Right("MixedReality_Right_Trackpad_Right");
-}

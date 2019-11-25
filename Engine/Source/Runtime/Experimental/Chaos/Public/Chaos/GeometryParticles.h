@@ -9,6 +9,7 @@
 #include "Chaos/GeometryParticlesfwd.h"
 #include "Chaos/CollisionFilterData.h"
 #include "Chaos/Box.h"
+#include "Chaos/PhysicalMaterials.h"
 #include "UObject/PhysicsObjectVersion.h"
 #include "UObject/ExternalPhysicsCustomObjectVersion.h"
 
@@ -33,7 +34,9 @@ namespace Chaos
 		void* UserData;
 		TSerializablePtr<FImplicitObject> Geometry;
 		TAABB<FReal, 3> WorldSpaceInflatedShapeBounds;
-		
+		TArray<FMaterialHandle> Materials;
+
+		void UpdateShapeBounds(const TRigidTransform<T, d>& WorldTM);
 
 		static TPerShapeData<T, d>* SerializationFactory(FChaosArchive& Ar, TPerShapeData<T, d>*);
 		void Serialize(FChaosArchive& Ar);
@@ -66,7 +69,7 @@ namespace Chaos
 	{
 		Static,
 		Kinematic,
-		Dynamic,
+		Rigid,
 		Clustered,	//only applicable on physics thread side
 		StaticMesh,
 		SkeletalMesh,
@@ -99,6 +102,9 @@ namespace Chaos
 			TArrayCollection::AddArray(&MHasBounds);
 			TArrayCollection::AddArray(&MSpatialIdx);
 			TArrayCollection::AddArray(&MHashResult);
+#if CHAOS_CHECKED
+			TArrayCollection::AddArray(&MDebugName);
+#endif
 
 			if (IsRigidBodySim())
 			{
@@ -140,6 +146,9 @@ namespace Chaos
 #if CHAOS_DETERMINISTIC
 			TArrayCollection::AddArray(&MParticleIDs);
 #endif
+#if CHAOS_CHECKED
+			TArrayCollection::AddArray(&MDebugName);
+#endif
 
 			if (IsRigidBodySim())
 			{
@@ -166,6 +175,9 @@ namespace Chaos
 			TArrayCollection::AddArray(&MHashResult);
 #if CHAOS_DETERMINISTIC
 			TArrayCollection::AddArray(&MParticleIDs);
+#endif
+#if CHAOS_CHECKED
+			TArrayCollection::AddArray(&MDebugName);
 #endif
 
 			if (IsRigidBodySim())
@@ -248,15 +260,27 @@ namespace Chaos
 			return MSpatialIdx[Index];
 		}
 
-		uint32 HashResultLowLevel(const int32 Index) const
+		CHAOS_API uint32 HashResultLowLevel(const int32 Index) const
 		{
 			return MHashResult[Index];
 		}
 
-		uint32& HashResultLowLevel(const int32 Index)
+		CHAOS_API uint32& HashResultLowLevel(const int32 Index)
 		{
 			return MHashResult[Index];
 		}
+
+#if CHAOS_CHECKED
+		const FName& DebugName(const int32 Index) const
+		{
+			return MDebugName[Index];
+		}
+
+		FName& DebugName(const int32 Index)
+		{
+			return MDebugName[Index];
+		}
+#endif
 
 		CHAOS_API const TBox<T, d>& WorldSpaceInflatedBounds(const int32 Index) const
 		{
@@ -273,8 +297,7 @@ namespace Chaos
 				if (Shape->Geometry->HasBoundingBox())
 				{
 					const TRigidTransform<FReal, 3> ActorTM(X(Index), R(Index));
-					TAABB<FReal, 3> Bound = Shape->Geometry->BoundingBox().GetAABB().TransformedAABB(ActorTM);
-					Shape->WorldSpaceInflatedShapeBounds = Bound;
+					Shape->UpdateShapeBounds(ActorTM);
 				}
 			}
 		}
@@ -406,7 +429,9 @@ namespace Chaos
 #if CHAOS_DETERMINISTIC
 		TArrayCollectionArray<FParticleID> MParticleIDs;
 #endif
-
+#if CHAOS_CHECKED
+		TArrayCollectionArray<FName> MDebugName;
+#endif
 	};
 
 	template <typename T, int d, EGeometryParticlesSimType SimType>

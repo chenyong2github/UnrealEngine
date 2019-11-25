@@ -61,6 +61,9 @@ void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PushToPhys
 		}
 		RigidHandle->SetSpatialIdx(Data->SpatialIdx);	//todo: this needs to only happen once during initialization
 		RigidHandle->SetHashResultLowLevel(Data->HashResult);
+#if CHAOS_CHECKED
+		RigidHandle->SetDebugName(Data->DebugName);
+#endif
 	}
 }
 
@@ -116,9 +119,13 @@ void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::P
 		RigidHandle->SetSharedGeometry(Data->Geometry);
 		RigidHandle->SetV(Data->MV);
 		RigidHandle->SetW(Data->MW);
-
+		RigidHandle->SetCenterOfMass(Data->MCenterOfMass);
+		RigidHandle->SetRotationOfMass(Data->MRotationOfMass);
 		RigidHandle->SetSpatialIdx(Data->SpatialIdx);	//todo: this needs to only happen once during initialization
 		RigidHandle->SetHashResultLowLevel(Data->HashResult);	//todo: this needs to only happen once during initialization
+#if CHAOS_CHECKED
+		RigidHandle->SetDebugName(Data->DebugName);
+#endif
 		
 		if (Data->Geometry && Data->Geometry->HasBoundingBox())
 		{
@@ -187,6 +194,9 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 		// This should be moved to initialization.
 		RigidHandle->SetSpatialIdx(Data->SpatialIdx);	//todo: this needs to only happen once during initialization
 		RigidHandle->SetHashResultLowLevel(Data->HashResult);	//todo: this needs to only happen once during initialization
+#if CHAOS_CHECKED
+		RigidHandle->SetDebugName(Data->DebugName);
+#endif
 
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::X))
 		{
@@ -210,22 +220,14 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 		{
 			RigidHandle->SetW(Data->MW);
 		}
-		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::M))
-		{
-			RigidHandle->SetM(Data->MM);
-		}
-		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::InvM))
-		{
-			RigidHandle->SetInvM(Data->MInvM);
-		}
-		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::I))
-		{
-			RigidHandle->SetI(Data->MI);
-		}
-		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::InvI))
-		{
-			RigidHandle->SetInvI(Data->MInvI);
-		}
+
+		RigidHandle->SetCenterOfMass(Data->MCenterOfMass);
+		RigidHandle->SetRotationOfMass(Data->MRotationOfMass);
+		RigidHandle->SetM(Data->MM);
+		RigidHandle->SetInvM(Data->MInvM);
+		RigidHandle->SetI(Data->MI);
+		RigidHandle->SetInvI(Data->MInvI);
+
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::ExternalForce))
 		{
 			RigidHandle->SetExternalForce(Data->MExternalForce);

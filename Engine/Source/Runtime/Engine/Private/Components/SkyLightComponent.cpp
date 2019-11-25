@@ -240,7 +240,7 @@ USkyLightComponent::USkyLightComponent(const FObjectInitializer& ObjectInitializ
 	bCastRaytracedShadow = false;
 	bAffectReflection = true;
 	bAffectGlobalIllumination = true;
-	SamplesPerPixel = 1;
+	SamplesPerPixel = 4;
 }
 
 #if RHI_RAYTRACING

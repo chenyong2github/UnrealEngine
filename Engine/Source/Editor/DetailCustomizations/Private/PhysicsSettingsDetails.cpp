@@ -163,7 +163,6 @@ public:
 		PhysicalSurfaceList.Sort(FComparePhysicalSurface());
 
 		PhysicsSettings->LoadSurfaceType();
-		PhysicsSettings->UpdateDefaultConfigFile();
 
 		RegenerateChildren.ExecuteIfBound();
 	}

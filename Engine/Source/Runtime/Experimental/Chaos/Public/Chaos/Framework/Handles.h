@@ -65,11 +65,6 @@ namespace Chaos
 			Generation = InUint & ((1 << IndexWidth) - 1);
 		}
 
-		bool operator==(const THandleData<IndexWidth, GenerationWidth>& InOther) const
-		{
-			return Generation == InOther.Generation && Index == InOther.Index;
-		}
-
 		friend FArchive& operator <<(FArchive& Ar, THandleData<IndexWidth, GenerationWidth>& InHandle)
 		{
 			uint32 Packed = InHandle.AsUint();
@@ -102,6 +97,11 @@ namespace Chaos
 
 		}
 
+		friend bool operator ==(const THandle<ElementType, IndexWidth, GenerationWidth>& A, const THandle<ElementType, IndexWidth, GenerationWidth>& B)
+		{
+			return A.AsUint() == B.AsUint();
+		}
+
 		friend FArchive& operator <<(FArchive& Ar, THandle<ElementType, IndexWidth, GenerationWidth>& InHandle)
 		{
 			Ar << *((THandleData<IndexWidth, GenerationWidth>*)&InHandle);
@@ -127,6 +127,11 @@ namespace Chaos
 			: THandleData<IndexWidth, GenerationWidth>(InNonConstHandle.Index, InNonConstHandle.Generation)
 		{
 
+		}
+
+		friend bool operator ==(const TConstHandle<ElementType, IndexWidth, GenerationWidth>& A, const TConstHandle<ElementType, IndexWidth, GenerationWidth>& B)
+		{
+			return A.AsUint() == B.AsUint();
 		}
 
 		friend FArchive& operator <<(FArchive& Ar, TConstHandle<ElementType, IndexWidth, GenerationWidth>& InHandle)
@@ -166,11 +171,13 @@ namespace Chaos
 		THandleArray& operator =(const THandleArray<ElementType, IndexWidth, GenerationWidth>& Other)
 		{
 			CopyFrom(Other);
+			return *this;
 		}
 
 		THandleArray& operator =(THandleArray<ElementType, IndexWidth, GenerationWidth>&& Other)
 		{
 			MoveFrom(Other);
+			return *this;
 		}
 
 		THandleArray()
@@ -217,22 +224,42 @@ namespace Chaos
 			}
 		}
 
-		ElementType* Get(FHandle InHandle)
+		ElementType* Get(FHandle InHandle) const
 		{
-			if(InHandle.IsValid() && Validity[InHandle.Index])
+			if(InHandle.IsValid())
 			{
-				FHandleEntry& Entry = HandleEntries[InHandle.Index];
-				return Entry.Generation == InHandle.Generation ? &(Data[InHandle.Index]) : nullptr;
+				if(Validity.IsValidIndex(InHandle.Index))
+				{
+					if(Validity[InHandle.Index])
+					{
+						const FHandleEntry& Entry = HandleEntries[InHandle.Index];
+						return Entry.Generation == InHandle.Generation ? &(Data[InHandle.Index]) : nullptr;
+					}
+				}
+				else
+				{
+					ensureMsgf(false, TEXT("Failed to access handle (%u, %u). NumEntries = %d, NumFlags = %d"), InHandle.Index, InHandle.Generation, HandleEntries.Num(), Validity.Num());
+				}
 			}
 			return nullptr;
 		}
 
 		const ElementType* Get(FConstHandle InHandle) const
 		{
-			if(InHandle.IsValid() && Validity[InHandle.Index])
+			if (InHandle.IsValid())
 			{
-				const FHandleEntry& Entry = HandleEntries[InHandle.Index];
-				return Entry.Generation == InHandle.Generation ? &(Data[InHandle.Index]) : nullptr;
+				if (Validity.IsValidIndex(InHandle.Index))
+				{
+					if (Validity[InHandle.Index])
+					{
+						const FHandleEntry& Entry = HandleEntries[InHandle.Index];
+						return Entry.Generation == InHandle.Generation ? &(Data[InHandle.Index]) : nullptr;
+					}
+				}
+				else
+				{
+					ensureMsgf(false, TEXT("Failed to access handle (%u, %u). NumEntries = %d, NumFlags = %d"), InHandle.Index, InHandle.Generation, HandleEntries.Num(), Validity.Num());
+				}
 			}
 			return nullptr;
 		}

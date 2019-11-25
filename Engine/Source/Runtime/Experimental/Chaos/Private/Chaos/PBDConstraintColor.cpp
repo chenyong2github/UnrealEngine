@@ -11,6 +11,7 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "ChaosStats.h"
 #include "Containers/Queue.h"
+#include "ChaosLog.h"
 
 #include <memory>
 #include <queue>
@@ -47,7 +48,8 @@ void FPBDConstraintColor::ComputeIslandColoring(const int32 Island, const FPBDCo
 
 		const int32 ParticleNodeIndex = ConstraintGraph.ParticleToNodeIndex[Particle];
 
-		if (ProcessedNodes.Contains(ParticleNodeIndex) || Particle->AsDynamic() == nullptr)
+		const bool bIsParticleDynamic = Particle->CastToRigidParticle() && Particle->ObjectState() == EObjectStateType::Dynamic;
+		if (ProcessedNodes.Contains(ParticleNodeIndex) || bIsParticleDynamic == false)
 		{
 			continue;
 		}
@@ -102,7 +104,10 @@ void FPBDConstraintColor::ComputeIslandColoring(const int32 Island, const FPBDCo
 				if (OtherNodeIndex != INDEX_NONE)
 				{
 					FGraphNodeColor& OtherColorNode = Nodes[OtherNodeIndex];
-					if (ConstraintGraph.Nodes[OtherNodeIndex].Particle->AsDynamic() != nullptr)
+
+					const typename FPBDConstraintGraph::FGraphNode& OtherGraphNode = ConstraintGraph.Nodes[OtherNodeIndex];
+					const bool bIsOtherGraphNodeDynamic = OtherGraphNode.Particle->CastToRigidParticle() && OtherGraphNode.Particle->ObjectState() == EObjectStateType::Dynamic;
+					if (bIsOtherGraphNodeDynamic)
 					{
 						while (OtherColorNode.UsedColors.Contains(ColorToUse) || ColorNode.UsedColors.Contains(ColorToUse))
 						{
@@ -117,7 +122,7 @@ void FPBDConstraintColor::ComputeIslandColoring(const int32 Island, const FPBDCo
 				ColorEdge.Color = ColorToUse;
 
 				// Bump color to use next time, but only if we weren't forced to use a different color by the other node
-				if ((ColorToUse == ColorNode.NextColor) && Particle->AsDynamic() != nullptr)
+				if ((ColorToUse == ColorNode.NextColor) && bIsParticleDynamic == true)
 				{
 					ColorNode.NextColor++;
 				}
@@ -144,12 +149,13 @@ void FPBDConstraintColor::ComputeIslandColoring(const int32 Island, const FPBDCo
 				if (OtherNodeIndex != INDEX_NONE)
 				{
 					const typename FPBDConstraintGraph::FGraphNode& OtherGraphNode = ConstraintGraph.Nodes[OtherNodeIndex];
-					if (OtherGraphNode.Particle->AsDynamic() != nullptr)
+					const bool bIsOtherGraphNodeDynamic = OtherGraphNode.Particle->CastToRigidParticle() && OtherGraphNode.Particle->ObjectState() == EObjectStateType::Dynamic;
+					if (bIsOtherGraphNodeDynamic)
 					{
 						FGraphNodeColor& OtherColorNode = Nodes[OtherNodeIndex];
 
 						// Mark other node as not allowing use of this color
-						if (Particle->AsDynamic() != nullptr)
+						if (bIsParticleDynamic)
 						{
 							OtherColorNode.UsedColors.Add(ColorEdge.Color);
 						}
@@ -180,7 +186,8 @@ void FPBDConstraintColor::ComputeContactGraph(const int32 Island, const FPBDCons
 	for (const TGeometryParticleHandle<FReal, 3>* Particle : ConstraintGraph.GetIslandParticles(Island))
 	{
 		const int32* NodeIndexPtr = ConstraintGraph.ParticleToNodeIndex.Find(Particle);
-		if (Particle->AsDynamic() == nullptr && NodeIndexPtr)
+		const bool bIsParticleDynamic = Particle->CastToRigidParticle() && Particle->ObjectState() == EObjectStateType::Dynamic;
+		if (bIsParticleDynamic == false && NodeIndexPtr)
 		{
 			const int32 NodeIndex = *NodeIndexPtr;
 			QueueToProcess.push(std::make_pair(0, NodeIndex));

@@ -487,6 +487,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Physics)
 	uint8 bReplicatePhysicsToAutonomousProxy : 1;
 
+	// Navigation
+
+	/** If set, navmesh will not be generated under the surface of the geometry */
+	UPROPERTY(EditAnywhere, Category = Navigation)
+	uint8 bRejectNavmeshUnderneath:1;
+
 	// General flags.
 	
 	/** If this is True, this component must always be loaded on clients, even if Hidden and CollisionEnabled is NoCollision. */
@@ -1483,7 +1489,7 @@ public:
 	 * @param InCollisionProfileName : New Profile Name
 	 */
 	UFUNCTION(BlueprintCallable, Category="Collision")	
-	virtual void SetCollisionProfileName(FName InCollisionProfileName);
+	virtual void SetCollisionProfileName(FName InCollisionProfileName, bool bUpdateOverlaps=true);
 
 	/** Get the collision profile name */
 	UFUNCTION(BlueprintPure, Category="Collision")
@@ -1568,7 +1574,7 @@ public:
 
 private:
 	/** LOD parent primitive to draw instead of this one (multiple UPrim's will point to the same LODParent ) */
-	UPROPERTY(duplicatetransient)
+	UPROPERTY(NonPIEDuplicateTransient)
 	class UPrimitiveComponent* LODParentPrimitive;
 
 public:
@@ -2191,7 +2197,7 @@ public:
 	
 protected:
 	/** Called when the BodyInstance ResponseToChannels, CollisionEnabled or bNotifyRigidBodyCollision changes, in case subclasses want to use that information. */
-	virtual void OnComponentCollisionSettingsChanged(bool bDeferUpdateOverlaps = false);
+	virtual void OnComponentCollisionSettingsChanged(bool bUpdateOverlaps=true);
 
 	/** Ends all current component overlaps. Generally used when destroying this component or when it can no longer generate overlaps. */
 	void ClearComponentOverlaps(bool bDoNotifies, bool bSkipNotifySelf);
@@ -2327,6 +2333,7 @@ public:
 	virtual bool CanCharacterStepUp(class APawn* Pawn) const;
 
 	//~ Begin INavRelevantInterface Interface
+	virtual void GetNavigationData(FNavigationRelevantData& OutData) const override;
 	virtual FBox GetNavigationBounds() const override;
 	virtual bool IsNavigationRelevant() const override;
 	//~ End INavRelevantInterface Interface

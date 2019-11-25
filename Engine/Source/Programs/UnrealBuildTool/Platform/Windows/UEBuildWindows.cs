@@ -1041,7 +1041,7 @@ namespace UnrealBuildTool
 							    foreach(DirectoryReference ToolChainDir in DirectoryReference.EnumerateDirectories(ToolChainBaseDir))
 							    {
 								    VersionNumber Version;
-								    if(VersionNumber.TryParse(ToolChainDir.GetDirectoryName(), out Version) && IsValidToolChainDir2017or2019(ToolChainDir))
+								    if(IsValidToolChainDir2017or2019(ToolChainDir, out Version))
 									{
 										Log.TraceLog("Found Visual Studio toolchain: {0} (Version={1})", ToolChainDir, Version);
 										if(!ToolChainVersionToDir.ContainsKey(Version))
@@ -1063,7 +1063,7 @@ namespace UnrealBuildTool
 								foreach(DirectoryReference ToolChainDir in DirectoryReference.EnumerateDirectories(ToolChainBaseDir))
 								{
 									VersionNumber Version;
-									if(VersionNumber.TryParse(ToolChainDir.GetDirectoryName(), out Version) && IsValidToolChainDir2017or2019(ToolChainDir))
+									if(IsValidToolChainDir2017or2019(ToolChainDir, out Version))
 									{
 										Log.TraceLog("Found Visual Studio toolchain: {0} (Version={1})", ToolChainDir, Version);
 										if (!ToolChainVersionToDir.ContainsKey(Version))
@@ -1106,15 +1106,33 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Checks if the given directory contains a valid Visual Studio 2017 toolchain
+		/// Determines if the given path is a valid Visual C++ version number
 		/// </summary>
-		/// <param name="ToolChainDir">Directory to check</param>
-		/// <returns>True if the given directory is valid</returns>
-		static bool IsValidToolChainDir2017or2019(DirectoryReference ToolChainDir)
+		/// <param name="ToolChainDir">The toolchain directory</param>
+		/// <param name="Version">The version number for the toolchain</param>
+		/// <returns>True if the path is a valid version</returns>
+		static bool IsValidToolChainDir2017or2019(DirectoryReference ToolChainDir, out VersionNumber Version)
 		{
-			return FileReference.Exists(FileReference.Combine(ToolChainDir, "bin", "Hostx86", "x64", "cl.exe")) || FileReference.Exists(FileReference.Combine(ToolChainDir, "bin", "Hostx64", "x64", "cl.exe"));
-		}
+			FileReference CompilerExe = FileReference.Combine(ToolChainDir, "bin", "Hostx86", "x64", "cl.exe");
+			if(!FileReference.Exists(CompilerExe))
+			{
+				CompilerExe = FileReference.Combine(ToolChainDir, "bin", "Hostx64", "x64", "cl.exe");
+				if(!FileReference.Exists(CompilerExe))
+				{
+					Version = null;
+					return false;
+				}
+			}
 
+			FileVersionInfo VersionInfo = FileVersionInfo.GetVersionInfo(CompilerExe.FullName);
+			if (VersionInfo.ProductMajorPart != 0)
+			{
+				Version = new VersionNumber(VersionInfo.ProductMajorPart, VersionInfo.ProductMinorPart, VersionInfo.ProductBuildPart);
+				return true;
+			}
+
+			return VersionNumber.TryParse(ToolChainDir.GetDirectoryName(), out Version);
+		}
 
 		/// <summary>
 		/// Checks if the given directory contains a 64-bit toolchain. Used to prefer regular Visual Studio versions over express editions.
@@ -1165,7 +1183,7 @@ namespace UnrealBuildTool
 		/// <returns>True if the toolchain is compatible with UE4</returns>
 		static bool IsCompatibleVisualCppToolChain(VersionNumber Version, out string Message)
 		{
-			if (Version >= new VersionNumber(14, 23) && Version < new VersionNumber(14, 24))
+			if (Version >= new VersionNumber(14, 23, 0) && Version < new VersionNumber(14, 23, 28107))
 			{
 				Message = String.Format("The Visual C++ 14.23 toolchain is known to have code-generation issues with UE4. Please install an earlier or later toolchain from the Visual Studio installer. See here for more information: https://developercommunity.visualstudio.com/content/problem/734585/msvc-142328019-compilation-bug.html");
 				return false;
@@ -1252,6 +1270,13 @@ namespace UnrealBuildTool
 			return false;
 		}
 
+		static readonly KeyValuePair<RegistryKey, string>[] InstallDirRoots = {
+			new KeyValuePair<RegistryKey, string>(Registry.CurrentUser, "SOFTWARE\\"),
+			new KeyValuePair<RegistryKey, string>(Registry.LocalMachine, "SOFTWARE\\"),
+			new KeyValuePair<RegistryKey, string>(Registry.CurrentUser, "SOFTWARE\\Wow6432Node\\"),
+			new KeyValuePair<RegistryKey, string>(Registry.LocalMachine, "SOFTWARE\\Wow6432Node\\")
+		};
+
 		/// <summary>
 		/// Reads an install directory for a 32-bit program from a registry key. This checks for per-user and machine wide settings, and under the Wow64 virtual keys (HKCU\SOFTWARE, HKLM\SOFTWARE, HKCU\SOFTWARE\Wow6432Node, HKLM\SOFTWARE\Wow6432Node).
 		/// </summary>
@@ -1261,23 +1286,45 @@ namespace UnrealBuildTool
 		/// <returns>True if the key was read, false otherwise.</returns>
 		static bool TryReadInstallDirRegistryKey32(string KeySuffix, string ValueName, out DirectoryReference InstallDir)
 		{
-			if (TryReadDirRegistryKey("HKEY_CURRENT_USER\\SOFTWARE\\" + KeySuffix, ValueName, out InstallDir))
+			foreach (KeyValuePair<RegistryKey, string> InstallRoot in InstallDirRoots)
 			{
-				return true;
+				using (RegistryKey Key = InstallRoot.Key.OpenSubKey(InstallRoot.Value + KeySuffix))
+				{
+					if (Key != null && TryReadDirRegistryKey(Key.Name, ValueName, out InstallDir))
+					{
+						return true;
+					}
+				}
 			}
-			if (TryReadDirRegistryKey("HKEY_LOCAL_MACHINE\\SOFTWARE\\" + KeySuffix, ValueName, out InstallDir))
-			{
-				return true;
-			}
-			if (TryReadDirRegistryKey("HKEY_CURRENT_USER\\SOFTWARE\\Wow6432Node\\" + KeySuffix, ValueName, out InstallDir))
-			{
-				return true;
-			}
-			if (TryReadDirRegistryKey("HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\" + KeySuffix, ValueName, out InstallDir))
-			{
-				return true;
-			}
+			InstallDir = null;
 			return false;
+		}
+
+		/// <summary>
+		/// For each root location relevant to install dirs, look for the given key and add its subkeys to the set of subkeys to return.
+		/// This checks for per-user and machine wide settings, and under the Wow64 virtual keys (HKCU\SOFTWARE, HKLM\SOFTWARE, HKCU\SOFTWARE\Wow6432Node, HKLM\SOFTWARE\Wow6432Node).
+		/// </summary>
+		/// <param name="KeyName">The subkey to look for under each root location</param>
+		/// <returns>A list of unique subkeys found under any of the existing subkeys</returns>
+		static string[] ReadInstallDirSubKeys32(string KeyName)
+		{
+			HashSet<string> AllSubKeys = new HashSet<string>(StringComparer.Ordinal);
+			foreach (KeyValuePair<RegistryKey, string> Root in InstallDirRoots)
+			{
+				using (RegistryKey Key = Root.Key.OpenSubKey(Root.Value + KeyName))
+				{
+					if (Key == null)
+					{
+						continue;
+					}
+
+					foreach (string SubKey in Key.GetSubKeyNames())
+					{
+						AllSubKeys.Add(SubKey);
+					}
+				}
+			}
+			return AllSubKeys.ToArray();
 		}
 
 		/// <summary>
@@ -1665,9 +1712,40 @@ namespace UnrealBuildTool
 				}
 			}
 
-			return TryReadInstallDirRegistryKey32("Microsoft\\Microsoft SDKs\\NETFXSDK\\4.6", "KitsInstallationFolder", out OutInstallDir) ||
-			       TryReadInstallDirRegistryKey32("Microsoft\\Microsoft SDKs\\NETFXSDK\\4.6.1", "KitsInstallationFolder", out OutInstallDir) ||
-				   TryReadInstallDirRegistryKey32("Microsoft\\Microsoft SDKs\\NETFXSDK\\4.6.2", "KitsInstallationFolder", out OutInstallDir);
+			string NetFxSDKKeyName = "Microsoft\\Microsoft SDKs\\NETFXSDK";
+			string[] PreferredVersions = new string[] { "4.6.2", "4.6.1", "4.6" };
+			foreach (string PreferredVersion in PreferredVersions)
+			{
+				if (TryReadInstallDirRegistryKey32(NetFxSDKKeyName + "\\" + PreferredVersion, "KitsInstallationFolder", out OutInstallDir))
+				{
+					return true;
+				}
+			}
+
+			// If we didn't find one of our preferred versions for NetFXSDK, use the max version present on the system
+			Version MaxVersion = null;
+			string MaxVersionString = null;
+			foreach (string ExistingVersionString in ReadInstallDirSubKeys32(NetFxSDKKeyName))
+			{
+				Version ExistingVersion;
+				if (!Version.TryParse(ExistingVersionString, out ExistingVersion))
+				{
+					continue;
+				}
+				if (MaxVersion == null || ExistingVersion.CompareTo(MaxVersion) > 0)
+				{
+					MaxVersion = ExistingVersion;
+					MaxVersionString = ExistingVersionString;
+				}
+			}
+
+			if (MaxVersionString != null)
+			{
+				return TryReadInstallDirRegistryKey32(NetFxSDKKeyName + "\\" + MaxVersionString, "KitsInstallationFolder", out OutInstallDir);
+			}
+
+			OutInstallDir = null;
+			return false;
 		}
 
 		/// <summary>

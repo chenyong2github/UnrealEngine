@@ -42,7 +42,7 @@ void FDisplayClusterProjectionPolicyBase::InitializeOriginComponent(const FStrin
 	if(PolicyOriginComp == nullptr)
 	{
 		UE_LOG(LogDisplayClusterProjection, Log, TEXT("No custom origin set or component '%s' not found for viewport '%s'. VR root will be used."), *OriginCompId, *PolicyViewportId);
-		PolicyOriginComp = GameMgr->GetRoot();
+		PolicyOriginComp = GameMgr->GetRootComponent();
 	}
 
 	if (!PolicyOriginComp)

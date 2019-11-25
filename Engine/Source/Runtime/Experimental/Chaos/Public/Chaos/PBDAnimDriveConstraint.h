@@ -36,7 +36,7 @@ class TPBDAnimDriveConstraint : public TParticleRule<T, d>
 	inline void ApplyAnimDriveConstraint(TPBDParticles<T, d>& InParticles, const T Dt, const int32 Index) const
 	{
 		
-		if (InParticles.InvM(Index) == 0)
+		if (InParticles.InvM(Index + ParticleIndexOffset) == 0.0f)
 		{
 			return;
 		}

@@ -3451,7 +3451,6 @@ void FConfigFile::AddStaticLayersToHierarchy(const TCHAR* InBaseIniName, const T
 				bool bSkipExpansion = false;
 				FString ExpansionPath = GetExpansionPath(Expansion, LayerPath, bHasPlatformTag);
 
-				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("  Expansion: %s\n"), *ExpansionPath);
 				// skip this expansion if we didn't want it
 				if (ExpansionPath.Len() == 0)
 				{
@@ -3981,9 +3980,9 @@ private:
 	void ClearTrailingWhitespace(FString& InStr)
 	{
 		const FString Endl(LINE_TERMINATOR);
-		while (InStr.EndsWith(LINE_TERMINATOR))
+		while (InStr.EndsWith(LINE_TERMINATOR, ESearchCase::CaseSensitive))
 		{
-			InStr = InStr.LeftChop(Endl.Len());
+			InStr.LeftChopInline(Endl.Len(), false);
 		}
 	}
 	

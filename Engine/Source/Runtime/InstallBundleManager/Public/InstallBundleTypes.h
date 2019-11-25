@@ -136,6 +136,8 @@ struct FInstallBundleSourceRequestResultInfo
 	// Currently, these just forward BPT Error info
 	FText OptionalErrorText;
 	FString OptionalErrorCode;
+
+	TArray<FString> ContentPaths;
 };
 
 enum class EInstallBundleCancelFlags : int32
@@ -158,5 +160,7 @@ struct FInstallBundleSourcePauseInfo
 {
 	FName BundleName;
 	EInstallBundlePauseFlags PauseFlags = EInstallBundlePauseFlags::None;
+	// True if the bundle actually transitioned to/from paused,
+	// which is different than the flags changing
 	bool bDidPauseChange = false;
 };

@@ -39,6 +39,7 @@ import java.util.HashMap;
 import java.util.ArrayList;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
+import java.text.BreakIterator;
 import java.util.zip.Inflater;
 import java.util.Stack;
 import java.util.Timer;
@@ -1591,6 +1592,12 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			bIsARM64 = true;
 			bHasNEON = true;
 		}
+
+        String abilist = getProp("ro.product.cpu.abilist");
+        if (abilist.contains("arm64-v8a"))
+        {
+            bIsARM64 = true;
+        }
 
 		// check each processor featureset
 		for (int id=0; id < processorCount; id++)
@@ -5565,13 +5572,23 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				{ 
 					//insert
 					text.insert(selStart, newString);
-				} 
+				}
 				else if(selStart > 0) 
-				{ 
-					//delete last character
-					selStart--;
-					text.replace(selStart, selStart + 1, "");
-				} 
+				{
+					// selection start and end are the same, but in the middle of the string
+					// this means we want a single "delete character to left of selection" (backspace)
+
+					// using BreakIterator to ensure we capture proper emoji / Unicode grapheme boundaries
+					BreakIterator finder = BreakIterator.getCharacterInstance();
+					finder.setText(owner.getText().toString());
+
+					selStart = finder.preceding(selStart);
+					if (selStart == BreakIterator.DONE)
+					{
+						selStart = 0;
+					}
+					text.replace(selStart, selEnd, "");
+				}
 
 				if(newString.length() == 0)
 				{
