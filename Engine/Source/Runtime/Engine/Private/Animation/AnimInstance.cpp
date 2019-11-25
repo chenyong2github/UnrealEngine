@@ -1891,6 +1891,18 @@ void UAnimInstance::Montage_Stop(float InBlendOutTime, const UAnimMontage* Monta
 	}
 }
 
+void UAnimInstance::Montage_StopGroupByName(float InBlendOutTime, FName GroupName)
+{
+	for (int32 InstanceIndex = 0; InstanceIndex < MontageInstances.Num(); InstanceIndex++)
+	{
+		FAnimMontageInstance* MontageInstance = MontageInstances[InstanceIndex];
+		if (MontageInstance && MontageInstance->Montage && MontageInstance->IsActive() && (MontageInstance->Montage->GetGroupName() == GroupName))
+		{
+			MontageInstances[InstanceIndex]->Stop(FAlphaBlend(MontageInstance->Montage->BlendOut, InBlendOutTime));
+		}
+	}
+}
+
 void UAnimInstance::Montage_Pause(const UAnimMontage* Montage)
 {
 	if (Montage)
