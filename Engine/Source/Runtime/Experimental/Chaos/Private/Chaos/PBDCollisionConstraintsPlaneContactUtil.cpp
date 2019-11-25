@@ -8,29 +8,30 @@ namespace Chaos
 {
 	namespace Collisions
 	{
-		/*
 		template<ECollisionUpdateType UpdateType, typename T, int d>
 		void Update(const T Thickness, TRigidBodyPlaneContactConstraint<T, d>& Constraint)
 		{
 		}
+
+
+		template<typename T, int d>
+		void Apply(TRigidBodyPlaneContactConstraint<T, d>& Constraint, T Thickness, TPlaneContactIterationParameters<T> & IterationParameters, TPlaneContactParticleParameters<T> & ParticleParameters)
+		{
+		}
+
+		template<typename T, int d>
+		void ApplyPushOut(TRigidBodyPlaneContactConstraint<T, d>& Constraint, T Thickness, const TSet<const TGeometryParticleHandle<T, d>*>& IsTemporarilyStatic,
+			TPlaneContactIterationParameters<T> & IterationParameters, TPlaneContactParticleParameters<T> & ParticleParameters)
+		{
+		}
+
+
 		template void Update<ECollisionUpdateType::Any, float, 3>(const float, TRigidBodyPlaneContactConstraint<float, 3>&);
 		template void Update<ECollisionUpdateType::Deepest, float, 3>(const float, TRigidBodyPlaneContactConstraint<float, 3>&);
+		template void Apply<float, 3>(TRigidBodyPlaneContactConstraint<float, 3>&, float, TPlaneContactIterationParameters<float> &, TPlaneContactParticleParameters<float> &);
+		template void ApplyPushOut<float, 3>(TRigidBodyPlaneContactConstraint<float,3>&, float , const TSet<const TGeometryParticleHandle<float,3>*>&,
+			TPlaneContactIterationParameters<float> & IterationParameters, TPlaneContactParticleParameters<float> & ParticleParameters);
 
-
-		template<typename T, int d>
-		void Apply(TRigidBodyPlaneContactConstraint<T, d>& Constraint, T Thickness, TPointContactIterationParameters<T> & IterationParameters, TPlainContactParticleParameters<T> & ParticleParameters)
-		{
-		}
-		template void Apply<float, 3>(TRigidBodyPlaneContactConstraint<float, 3>&, float, TPointContactIterationParameters<float> &, TPointContactParticleParameters<float> &);
-
-		template<typename T, int d>
-		void ApplyPushOut(TRigidBodyPointContactConstraint<T, d>& Constraint, T Thickness, const TSet<const TGeometryParticleHandle<T, d>*>& IsTemporarilyStatic,
-			TPointContactIterationParameters<T> & IterationParameters, TPointContactParticleParameters<T> & ParticleParameters)
-		{
-		}
-		template void ApplyPushOut<float, 3>(TRigidBodyPointContactConstraint<float,3>&, float , const TSet<const TGeometryParticleHandle<float,3>*>&,
-			TPointContactIterationParameters<float> & IterationParameters, TPointContactParticleParameters<float> & ParticleParameters);
-	*/
 	} // Collisions
 
 }// Chaos
