@@ -4,7 +4,7 @@
 #include "NetworkPredictionTypes.h"
 #include "NetworkedSimulationModelBuffer.h"
 #include "NetworkedSimulationModelTypes.h"
-#include "NetworkedSimulationModelReplicators.h"
+#include "NetworkedSimulationModelRepControllers.h"
 #include "NetworkedSimulationModelDebugger.h"
 #include "NetworkedSimulationModelTraits.h"
 
