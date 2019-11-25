@@ -138,7 +138,7 @@ public:
 	TArray<FArchiveBody> BodySet;
 	TArray<FArchiveComponent> ComponentSet;
 	TArray<FArchiveUnloadedComponent> UnloadedComponentSet;
-	TArray<FArchiveInstance> InstanceSet;
+	TArray<FArchiveInstance> Instances;
 
 	TMap<CadId, int32> CADIdToBodyIndex;
 	TMap<CadId, int32> CADIdToComponentIndex;

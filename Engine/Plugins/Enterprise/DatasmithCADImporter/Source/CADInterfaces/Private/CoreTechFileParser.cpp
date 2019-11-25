@@ -628,7 +628,7 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ReadFileWithKernelIO()
 	MockUpDescription.BodySet.Reserve(NbElements[CT_BODY_INDEX]);
 	MockUpDescription.ComponentSet.Reserve(NbElements[CT_ASSEMBLY_INDEX] + NbElements[CT_PART_INDEX] + NbElements[CT_COMPONENT_INDEX]);
 	MockUpDescription.UnloadedComponentSet.Reserve(NbElements[CT_UNLOADED_COMPONENT_INDEX] + NbElements[CT_UNLOADED_ASSEMBLY_INDEX] + NbElements[CT_UNLOADED_PART_INDEX]);
-	MockUpDescription.InstanceSet.Reserve(NbElements[CT_INSTANCE_INDEX]);
+	MockUpDescription.Instances.Reserve(NbElements[CT_INSTANCE_INDEX]);
 
 	MockUpDescription.CADIdToBodyIndex.Reserve(NbElements[CT_BODY_INDEX]);
 	MockUpDescription.CADIdToComponentIndex.Reserve(NbElements[CT_ASSEMBLY_INDEX] + NbElements[CT_PART_INDEX] + NbElements[CT_COMPONENT_INDEX]);
@@ -808,11 +808,11 @@ bool FCoreTechFileParser::ReadInstance(CT_OBJECT_ID InstanceNodeId, uint32 Defau
 {
 	NodeConfiguration.Empty();
 
-	int32 Index = MockUpDescription.InstanceSet.Emplace(InstanceNodeId);
+	int32 Index = MockUpDescription.Instances.Emplace(InstanceNodeId);
 	MockUpDescription.CADIdToInstanceIndex.Add(InstanceNodeId, Index);
-	ReadNodeMetaData(InstanceNodeId, MockUpDescription.InstanceSet[Index].MetaData);
+	ReadNodeMetaData(InstanceNodeId, MockUpDescription.Instances[Index].MetaData);
 
-	if (uint32 MaterialHash = GetObjectMaterial(MockUpDescription.InstanceSet[Index]))
+	if (uint32 MaterialHash = GetObjectMaterial(MockUpDescription.Instances[Index]))
 	{
 		DefaultMaterialHash = MaterialHash;
 	}
@@ -821,7 +821,7 @@ bool FCoreTechFileParser::ReadInstance(CT_OBJECT_ID InstanceNodeId, uint32 Defau
 	double Matrix[16];
 	if (CT_INSTANCE_IO::AskTransformation(InstanceNodeId, Matrix) == IO_OK)
 	{
-		float* MatrixFloats = (float*)MockUpDescription.InstanceSet[Index].TransformMatrix.M;
+		float* MatrixFloats = (float*)MockUpDescription.Instances[Index].TransformMatrix.M;
 		for (int32 index = 0; index < 16; index++)
 		{
 			MatrixFloats[index] = (float) Matrix[index];
@@ -833,27 +833,29 @@ bool FCoreTechFileParser::ReadInstance(CT_OBJECT_ID InstanceNodeId, uint32 Defau
 	CT_IO_ERROR CTReturn = CT_INSTANCE_IO::AskChild(InstanceNodeId, ReferenceNodeId);
 	if (CTReturn != CT_IO_ERROR::IO_OK)
 		return false;
-	MockUpDescription.InstanceSet[Index].ReferenceNodeId = ReferenceNodeId;
+	MockUpDescription.Instances[Index].ReferenceNodeId = ReferenceNodeId;
 
 	CT_OBJECT_TYPE type;
 	CT_OBJECT_IO::AskType(ReferenceNodeId, type);
 	if (type == CT_UNLOADED_PART_TYPE || type == CT_UNLOADED_COMPONENT_TYPE || type == CT_UNLOADED_ASSEMBLY_TYPE)
 	{
-		MockUpDescription.InstanceSet[Index].bIsExternalRef = true;
+		MockUpDescription.Instances[Index].bIsExternalRef = true;
 
 		CT_STR ComponentFile, FileType;
 		CT_COMPONENT_IO::AskExternalDefinition(ReferenceNodeId, ComponentFile, FileType);
-		MockUpDescription.InstanceSet[Index].ExternalRef = FPaths::GetCleanFilename(ComponentFile.toUnicode());
+		FString ExternalRefFullPath = ComponentFile.toUnicode();
+
+		MockUpDescription.Instances[Index].ExternalRef = FPaths::GetCleanFilename(ExternalRefFullPath);
 		if(!NodeConfiguration.IsEmpty())
 		{
-			MockUpDescription.InstanceSet[Index].ExternalRef += TEXT("|") + NodeConfiguration;
+			MockUpDescription.Instances[Index].ExternalRef += TEXT("|") + NodeConfiguration;
 		}
 
-		MockUpDescription.ExternalRefSet.Add(MockUpDescription.InstanceSet[Index].ExternalRef);
+		MockUpDescription.ExternalRefSet.Add(ExternalRefFullPath);
 	}
 	else
 	{
-		MockUpDescription.InstanceSet[Index].bIsExternalRef = false;
+		MockUpDescription.Instances[Index].bIsExternalRef = false;
 	}
 
 	return ReadNode(ReferenceNodeId, DefaultMaterialHash);

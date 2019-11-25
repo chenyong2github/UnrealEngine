@@ -330,10 +330,9 @@ void FDatasmithWorkerHandler::ProcessCommand(FCompletedTaskCommand& CompletedTas
 		return;
 	}
 
-	FString CurrentPath = FPaths::GetPath(CurrentTask->FileName);
 	for (const FString& ExternalReferenceFile : CompletedTaskCommand.ExternalReferences)
 	{
-		Dispatcher.AddTask(FPaths::Combine(CurrentPath, ExternalReferenceFile));
+		Dispatcher.AddTask(ExternalReferenceFile);
 	}
 	FString CurrentFileName = FPaths::GetCleanFilename(CurrentTask->FileName);
 	Dispatcher.SetTaskState(CurrentTask->Index, CompletedTaskCommand.ProcessResult);
