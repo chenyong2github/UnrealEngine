@@ -40,6 +40,12 @@ private:
 	FVector InertiaTensor;
 };
 
+/**
+ * \p PARTICLE_TYPE is one of:
+ *		\c Chaos::TGeometryParticle<float,3>
+ *		\c Chaos::TKinematicGeometryParticle<float,3>
+ *		\c Chaos::TPBDRigidParticle<float,3>
+ */
 template<class PARTICLE_TYPE>
 class FSingleParticlePhysicsProxy : public TPhysicsProxy<FSingleParticlePhysicsProxy<PARTICLE_TYPE>, typename PARTICLE_TYPE::FData>
 {
@@ -99,7 +105,10 @@ public:
 		return Chaos::TRigidTransform<float, 3>(Handle->X(), Handle->R());
 	}
 
-	/**/
+	/** 
+	 * Creates a copy of sim state and returns it as \c TGeometryParticleData, 
+	 * \c TKinemticGeometr yParticleData, or \c TPBDRigidParticleData. 
+	 */
 	Chaos::FParticleData* NewData()
 	{
 		if (Particle)
