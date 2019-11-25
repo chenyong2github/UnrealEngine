@@ -253,7 +253,7 @@ namespace BuildAgent.Run.Listeners
 							{
 								Message.AppendLine(Line);
 							}
-							Writer.WriteElementString("message", Message.ToString());
+							 Writer.WriteElementString("message", SanitizeString(Message.ToString()));
 
 							Writer.WriteEndElement();
 						}
@@ -270,6 +270,26 @@ namespace BuildAgent.Run.Listeners
 				Stream.Write(XmlData, 0, XmlData.Length);
 				Stream.SetLength(Stream.Position);
 			}
+		}
+
+		/// <summary>
+		/// Removes invalid characters from the string. Some characters are invalid even when encoded into entities.
+		/// </summary>
+		/// <param name="Line">Line to sanitize</param>
+		/// <returns></returns>
+		static string SanitizeString(string Line)
+		{
+			// Don't expect many (if any) hits here, so just operate on whole string objects
+			for (int Idx = 0; Idx < Line.Length; Idx++)
+			{
+				int Character = Line[Idx];
+				if(Character < 0x20 && (Character != 0x09 && Character != 0x0a && Character != 0x0d))
+				{
+					Line = Line.Remove(Idx, 1);
+					Idx--;
+				}
+			}
+			return Line;
 		}
 	}
 }
