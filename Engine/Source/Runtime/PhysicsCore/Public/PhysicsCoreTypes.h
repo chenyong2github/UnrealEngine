@@ -18,7 +18,7 @@ enum class EChaosSolverTickMode : uint8
 UENUM()
 enum class EChaosThreadingMode : uint8
 {
-	DedicatedThread,
+	DedicatedThread UMETA(Hidden),
 	TaskGraph,
 	SingleThread,
 	Num UMETA(Hidden),
