@@ -26,7 +26,7 @@ namespace LinearColors
 
 #define ColorConstant(ColorName, R, G, B) \
 	template <typename VectorType> VectorType ColorName##3f() { return MakeColor3f<VectorType>(R, G, B); } \
-	FColor ColorName##3b() { return MakeColor3f<FLinearColor>(R, G, B).ToFColor(false); }
+	inline FColor ColorName##3b() { return MakeColor3f<FLinearColor>(R, G, B).ToFColor(false); }
 
 	ColorConstant(Black, 0.0f, 0.0f, 0.0f);
 	ColorConstant(White, 1.0f, 1.0f, 1.0f);
@@ -221,18 +221,6 @@ namespace LinearColors
 	 * @param Index arbitrary integer
 	 * @return Color selected from a fixed set, or White if Index < 0
 	 */
-	FColor SelectFColor(int32 Index)
-	{
-		static const FColor ColorMap[] = {
-			SpringGreen3b(), Plum3b(), Khaki3b(),
-			PaleGreen3b(), LightSteelBlue3b(), Aquamarine3b(),
-			Salmon3b(), Goldenrod3b(), LightSeaGreen3b(),
-			IndianRed3b(), DarkSalmon3b(), Coral3b(),
-			Burlywood3b(), GreenYellow3b(), Lavender3b(),
-			MediumAquamarine3b(), Thistle3b(), Wheat3b(),
-			LightSkyBlue3b(), LightPink3b(), MediumSpringGreen3b()
-		};
-		return (Index < 0) ? FColor::White : ColorMap[Index % (7*3)];
-	}
+	GEOMETRICOBJECTS_API FColor SelectFColor(int32 Index);
 
 }

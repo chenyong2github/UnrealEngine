@@ -163,6 +163,8 @@ void USimpleDynamicMeshComponent::NotifyMeshUpdated()
 
 void USimpleDynamicMeshComponent::FastNotifyColorsUpdated()
 {
+	MarkRenderStateDirty();
+
 	if (CurrentProxy != nullptr)
 	{
 		CurrentProxy->FastUpdateVertices(false, false, true);
@@ -177,6 +179,9 @@ void USimpleDynamicMeshComponent::FastNotifyColorsUpdated()
 
 void USimpleDynamicMeshComponent::FastNotifyPositionsUpdated()
 {
+	MarkRenderStateDirty();
+	UpdateBounds();
+
 	if (CurrentProxy != nullptr)
 	{
 		CurrentProxy->FastUpdateVertices(true, false, false);
@@ -238,11 +243,8 @@ FColor USimpleDynamicMeshComponent::GetTriangleColor(const FDynamicMesh3* MeshIn
 FBoxSphereBounds USimpleDynamicMeshComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
 	// Bounds are tighter if the box is generated from pre-transformed vertices.
-	FBox BoundingBox(ForceInit);
-	for ( FVector3d Vertex : Mesh->VerticesItr() ) 
-	{
-		BoundingBox += LocalToWorld.TransformPosition(Vertex);
-	}
+	FAxisAlignedBox3d MeshAABB = Mesh->GetCachedBounds();
+	FBox BoundingBox = (FBox)MeshAABB;
 
 	FBoxSphereBounds NewBounds;
 	NewBounds.BoxExtent = BoundingBox.GetExtent();
