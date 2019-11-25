@@ -3047,6 +3047,7 @@ public:
 	 * Also happens after blueprint compiliation.
 	 */
 	void SetUpRuntimeReplicationData();
+	void SetUpUhtReplicationData(UClass** OutSuperClassWithReplicatedData);
 
 	/**
 	 * Helper function for determining if the given class is compatible with structured archive serialization

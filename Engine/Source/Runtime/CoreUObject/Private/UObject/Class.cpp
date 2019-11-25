@@ -3452,13 +3452,50 @@ void UClass::Link(FArchive& Ar, bool bRelinkExistingProperties)
 	Super::Link(Ar, bRelinkExistingProperties);
 }
 
-#if (UE_BUILD_SHIPPING || HACK_HEADER_GENERATOR)
+#if (UE_BUILD_SHIPPING)
 static int32 GValidateReplicatedProperties = 0;
 #else 
 static int32 GValidateReplicatedProperties = 1;
 #endif
 
 static FAutoConsoleVariable CVarValidateReplicatedPropertyRegistration(TEXT("net.ValidateReplicatedPropertyRegistration"), GValidateReplicatedProperties, TEXT("Warns if replicated properties were not registered in GetLifetimeReplicatedProps."));
+
+void UClass::SetUpUhtReplicationData(UClass** OutSuperClassWithReplicatedData)
+{
+#if HACK_HEADER_GENERATOR
+	if (!HasAnyClassFlags(CLASS_ReplicationDataIsSetUp) && PropertyLink != NULL)
+	{
+		NetFields.Empty();
+        ClassReps.Empty();
+		if (UClass* SuperClass = GetSuperClass())
+		{
+			SuperClass->SetUpUhtReplicationData(nullptr);
+			ClassReps = SuperClass->ClassReps;
+		}
+
+		for (TFieldIterator<UProperty> It(this, EFieldIteratorFlags::ExcludeSuper); It; ++It)
+		{
+			if (It->PropertyFlags & CPF_Net)
+			{
+				It->RepIndex = ClassReps.Num();
+				NetFields.Add(*It);
+				new (ClassReps) FRepRecord(*It, 0);
+			}
+		}
+
+		ClassFlags |= CLASS_ReplicationDataIsSetUp;
+		ClassReps.Shrink();
+		NetFields.Shrink();
+	}
+
+	if (OutSuperClassWithReplicatedData)
+	{
+		UClass* SuperClass = GetSuperClass();
+		for (; SuperClass != nullptr && SuperClass->NetFields.Num() == 0; SuperClass = SuperClass->GetSuperClass()) {}
+		*OutSuperClassWithReplicatedData = SuperClass;
+	}
+#endif
+}
 
 void UClass::SetUpRuntimeReplicationData()
 {
@@ -3505,22 +3542,26 @@ void UClass::SetUpRuntimeReplicationData()
 			}
 		}
 
-		// Sort NetProperties so that their ClassReps are sorted by memory offset
-		struct FCompareUFieldOffsets
+		const bool bIsNativeClass = HasAnyClassFlags(CLASS_Native);
+		if (!bIsNativeClass)
 		{
-			FORCEINLINE bool operator()( UProperty & A, UProperty & B ) const
+			// Sort NetProperties so that their ClassReps are sorted by memory offset
+			struct FCompareUFieldOffsets
 			{
-				// Ensure stable sort
-				if ( A.GetOffset_ForGC() == B.GetOffset_ForGC() )
+				FORCEINLINE bool operator()(UProperty& A, UProperty& B) const
 				{
-					return A.GetName() < B.GetName();
+					// Ensure stable sort
+					if (A.GetOffset_ForGC() == B.GetOffset_ForGC())
+					{
+						return A.GetName() < B.GetName();
+					}
+
+					return A.GetOffset_ForGC() < B.GetOffset_ForGC();
 				}
+			};
 
-				return A.GetOffset_ForGC() < B.GetOffset_ForGC();
-			}
-		};
-
-		Sort(NetProperties.GetData(), NetProperties.Num(), FCompareUFieldOffsets());
+			Sort(NetProperties.GetData(), NetProperties.Num(), FCompareUFieldOffsets());
+		}
 
 		for ( int32 i = 0; i < NetProperties.Num(); i++ )
 		{
@@ -3529,6 +3570,11 @@ void UClass::SetUpRuntimeReplicationData()
 			{
 				new( ClassReps )FRepRecord( NetProperties[i], j );
 			}
+		}
+
+		if (bIsNativeClass && GValidateReplicatedProperties)
+		{
+			GetDefaultObject()->ValidateGeneratedRepEnums(ClassReps);
 		}
 
 		NetFields.Shrink();
