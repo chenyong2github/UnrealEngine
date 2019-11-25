@@ -15,7 +15,7 @@ typedef TDynamicMeshVectorOverlay<float, 2, FVector2f> FDynamicMeshUVOverlay;
 typedef TDynamicMeshVectorOverlay<float, 3, FVector3f> FDynamicMeshNormalOverlay;
 
 /** Standard per-triangle integer material ID */
-typedef TDynamicMeshTriangleAttribute<int32, 1> FDynamicMeshMaterialAttribute;
+typedef TDynamicMeshScalarTriangleAttribute<int32> FDynamicMeshMaterialAttribute;
 
 /**
  * FDynamicMeshAttributeSet manages a set of extended attributes for a FDynamicMesh3.

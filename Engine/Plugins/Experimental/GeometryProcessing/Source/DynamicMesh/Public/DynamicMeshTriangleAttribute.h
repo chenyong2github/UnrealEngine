@@ -287,3 +287,41 @@ bool FDynamicMeshTriangleAttributeChange<AttribValueType, AttribDimension>::Appl
 	return true;
 }
 
+
+
+/**
+ * TDynamicMeshScalarTriangleAttribute is an extension of TDynamicMeshTriangleAttribute for scalar-valued attributes.
+ * Adds some convenience functions to simplify get/set code.
+ */
+template<typename RealType>
+class TDynamicMeshScalarTriangleAttribute : public TDynamicMeshTriangleAttribute<RealType, 1>
+{
+public:
+	using BaseType = TDynamicMeshTriangleAttribute<RealType, 1>;
+	using BaseType::SetNewValue;
+	using BaseType::GetValue;
+	using BaseType::SetValue;
+
+	TDynamicMeshScalarTriangleAttribute() : BaseType()
+	{
+	}
+
+	TDynamicMeshScalarTriangleAttribute(FDynamicMesh3* ParentMeshIn) : BaseType(ParentMeshIn)
+	{
+	}
+
+	inline void SetNewValue(int NewTriangleID, RealType Value)
+	{
+		AttribValues.InsertAt(Value, NewTriangleID);
+	}
+
+	inline RealType GetValue(int TriangleID) const
+	{
+		return AttribValues[TriangleID];
+	}
+
+	inline void SetValue(int TriangleID, RealType Value)
+	{
+		AttribValues[TriangleID] = Value;
+	}
+};
