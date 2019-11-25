@@ -1209,7 +1209,7 @@ public:
 	 * 
 	 * @param InProperty Pointer to the property that is currently being serialized
 	 */
-	FORCEINLINE void SetSerializedProperty(UProperty* InProperty)
+	FORCEINLINE virtual void SetSerializedProperty(UProperty* InProperty)
 	{
 		SerializedProperty = InProperty;
 	}
@@ -1242,7 +1242,7 @@ public:
 	/**
 	 * Set the raw serialized property chain for this archive, optionally overriding the serialized property too (or null to use the head of the property chain)
 	 */
-	void SetSerializedPropertyChain(const FArchiveSerializedPropertyChain* InSerializedPropertyChain, class UProperty* InSerializedPropertyOverride = nullptr);
+	virtual void SetSerializedPropertyChain(const FArchiveSerializedPropertyChain* InSerializedPropertyChain, class UProperty* InSerializedPropertyOverride = nullptr);
 
 	/**
 	 * Push a property that is currently being serialized onto the property stack
