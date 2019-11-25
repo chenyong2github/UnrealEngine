@@ -2163,6 +2163,7 @@ TSharedRef< SWidget > FLevelEditorToolBar::GenerateOpenBlueprintMenuContent( TSh
 	MenuContext.AddObject(LevelEditorMenuContext);
 
 	return UToolMenus::Get()->GenerateWidget("LevelEditor.LevelEditorToolBar.OpenBlueprint", MenuContext);
+#undef LOCTEXT_NAMESPACE
 }
 
 void FLevelEditorToolBar::RegisterOpenBlueprintMenu()
