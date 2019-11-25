@@ -161,8 +161,10 @@ TBox<T, d> ComputeWorldSpaceBoundingBox(const TPBDRigidParticles<T, d>& Objects,
 template<typename THandle, typename T, int d, bool bPersistent>
 TBox<T, d> ComputeWorldSpaceBoundingBoxForHandle(const THandle& Handle)
 {
-	const auto PBDRigid = Handle.AsDynamic();
-	TRigidTransform<T, d> LocalToWorld = PBDRigid ? TRigidTransform<T, d>(PBDRigid->P(), PBDRigid->Q()) : TRigidTransform<T, d>(Handle.X(), Handle.R());
+	const auto PBDRigid = Handle.CastToRigidParticle();
+	const bool bIsRigidDynamic = PBDRigid && PBDRigid->ObjectState() == EObjectStateType::Dynamic;
+
+	TRigidTransform<T, d> LocalToWorld = bIsRigidDynamic ? TRigidTransform<T, d>(PBDRigid->P(), PBDRigid->Q()) : TRigidTransform<T, d>(Handle.X(), Handle.R());
 	if(Handle.Geometry())
 	{
 		const auto& LocalBoundingBox = Handle.Geometry()->BoundingBox();

@@ -69,7 +69,7 @@ namespace Chaos
 	{
 		Static,
 		Kinematic,
-		Dynamic,
+		Rigid,
 		Clustered,	//only applicable on physics thread side
 		StaticMesh,
 		SkeletalMesh,
