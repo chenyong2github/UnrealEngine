@@ -249,7 +249,7 @@ protected:
 
 struct ENGINE_API FCompositeNavModifier : public FNavigationModifier
 {
-	FCompositeNavModifier() : bHasPotentialLinks(false), bAdjustHeight(false), bHasLowAreaModifiers(false), bIsPerInstanceModifier(false) {}
+	FCompositeNavModifier() : bHasPotentialLinks(false), bAdjustHeight(false), bHasLowAreaModifiers(false), bIsPerInstanceModifier(false), bModifierRejectNavmeshUnderneath(false) {}
 
 	void Shrink();
 	void Reset();
@@ -288,6 +288,7 @@ struct ENGINE_API FCompositeNavModifier : public FNavigationModifier
 		bHasMetaAreas |= Modifiers.bHasMetaAreas; 
 		bAdjustHeight |= Modifiers.HasAgentHeightAdjust();
 		bHasLowAreaModifiers |= Modifiers.HasLowAreaModifiers();
+		bModifierRejectNavmeshUnderneath |= Modifiers.GetRejectNavmeshUnderneath();
 	}
 
 	void CreateAreaModifiers(const UPrimitiveComponent* PrimComp, const TSubclassOf<UNavAreaBase> AreaClass);
@@ -301,7 +302,9 @@ struct ENGINE_API FCompositeNavModifier : public FNavigationModifier
 	FORCEINLINE bool HasAgentHeightAdjust() const { return bAdjustHeight; }
 	FORCEINLINE bool HasAreas() const { return Areas.Num() > 0; }
 	FORCEINLINE bool HasLowAreaModifiers() const { return bHasLowAreaModifiers; }
-    FORCEINLINE bool IsPerInstanceModifier() const { return bIsPerInstanceModifier; }
+	FORCEINLINE bool IsPerInstanceModifier() const { return bIsPerInstanceModifier; }
+	FORCEINLINE bool GetRejectNavmeshUnderneath() const { return bModifierRejectNavmeshUnderneath; }
+	FORCEINLINE void SetRejectNavmeshUnderneath(bool bInRejectNavmeshUnderneath) { bModifierRejectNavmeshUnderneath = bInRejectNavmeshUnderneath; }
 
 	FORCEINLINE void ReserveForAdditionalAreas(int32 AdditionalElementsCount) { Areas.Reserve(Areas.Num() + AdditionalElementsCount); }
 
@@ -333,4 +336,5 @@ private:
 	uint32 bAdjustHeight : 1;
 	uint32 bHasLowAreaModifiers : 1;
     uint32 bIsPerInstanceModifier : 1;
+	uint32 bModifierRejectNavmeshUnderneath : 1;
 };
