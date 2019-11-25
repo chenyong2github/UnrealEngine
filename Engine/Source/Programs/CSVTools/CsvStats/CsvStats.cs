@@ -372,21 +372,39 @@ namespace CSVStats
             Stats = new Dictionary<string, StatSamples>();
             Events = new List<CsvEvent>();
         }
-		public CsvStats(CsvStats source)
+		public CsvStats(CsvStats sourceCsvStats, string [] statNamesToFilter=null)
 		{
 			Stats = new Dictionary<string, StatSamples>();
 			Events = new List<CsvEvent>();
-			foreach (StatSamples sourceStat in source.Stats.Values)
+			if (statNamesToFilter != null)
 			{
-				AddStat(new StatSamples(sourceStat));
+				foreach (string statName in statNamesToFilter)
+				{
+					List<StatSamples> stats = sourceCsvStats.GetStatsMatchingString(statName);
+					foreach (StatSamples sourceStat in stats)
+					{
+						string key = sourceStat.Name.ToLower();
+						if (!Stats.ContainsKey(key))
+						{
+							Stats.Add(key,new StatSamples(sourceStat));
+						}
+					}
+				}
 			}
-			foreach (CsvEvent ev in source.Events)
+			else
+			{
+				foreach (StatSamples sourceStat in sourceCsvStats.Stats.Values)
+				{
+					AddStat(new StatSamples(sourceStat));
+				}
+			}
+			foreach (CsvEvent ev in sourceCsvStats.Events)
 			{
 				Events.Add(new CsvEvent(ev));
 			}
-			if (source.metaData != null)
+			if (sourceCsvStats.metaData != null)
 			{
-				metaData = new CsvMetadata(source.metaData);
+				metaData = new CsvMetadata(sourceCsvStats.metaData);
 			}
 		}
 		public StatSamples GetStat(string name)
@@ -398,7 +416,7 @@ namespace CSVStats
             }
             return null;
         }
-        public void AddStat(StatSamples stat)
+		public void AddStat(StatSamples stat)
         {           
             Stats.Add(stat.Name.ToLower(), stat);
         }
