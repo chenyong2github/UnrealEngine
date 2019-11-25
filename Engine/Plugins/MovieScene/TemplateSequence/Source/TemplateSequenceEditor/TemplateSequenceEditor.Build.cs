@@ -10,6 +10,7 @@ public class TemplateSequenceEditor : ModuleRules
 			new string[] {
 				"TemplateSequence",
 				"BlueprintGraph",
+				"CinematicCamera",
 				"Core",
 				"CoreUObject",
 				"Engine",

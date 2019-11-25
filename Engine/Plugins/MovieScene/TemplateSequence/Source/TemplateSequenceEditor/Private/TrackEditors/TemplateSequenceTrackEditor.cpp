@@ -3,11 +3,14 @@
 #include "TrackEditors/TemplateSequenceTrackEditor.h"
 #include "AssetData.h"
 #include "AssetRegistryModule.h"
+#include "Camera/CameraComponent.h"
+#include "CameraAnimationSequence.h"
 #include "CommonMovieSceneTools.h"
 #include "ContentBrowserModule.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IContentBrowserSingleton.h"
+#include "MovieSceneCommonHelpers.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Sections/TemplateSequenceSection.h"
 #include "SequencerSectionPainter.h"
@@ -38,6 +41,18 @@ void FTemplateSequenceTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& Men
 		LOCTEXT("AddTemplateSequence", "Template Sequence"), NSLOCTEXT("Sequencer", "AddTemplateSequenceTooltip", "Adds a track that can play a template sequence asset using the parent binding."),
 		FNewMenuDelegate::CreateRaw(this, &FTemplateSequenceTrackEditor::AddTemplateSequenceSubMenu, ObjectBindings)
 	);
+
+	if (ObjectBindings.Num() > 0)
+	{
+		UCameraComponent const* const CameraComponent = AcquireCameraComponentFromObjectGuid(ObjectBindings[0]);
+		if (CameraComponent != nullptr)
+		{
+			MenuBuilder.AddSubMenu(
+				LOCTEXT("AddCameraAnimationSequence", "Camera Animation"), NSLOCTEXT("Sequencer", "AddCameraAnimationSequenceTooltip", "Adds a camera animation template sequence on the parent binding."),
+				FNewMenuDelegate::CreateRaw(this, &FTemplateSequenceTrackEditor::AddCameraAnimationSequenceSubMenu, ObjectBindings)
+			);
+		}
+	}
 }
 
 TSharedRef<ISequencerSection> FTemplateSequenceTrackEditor::MakeSectionInterface(UMovieSceneSection& SectionObject, UMovieSceneTrack& Track, FGuid ObjectBinding)
@@ -49,13 +64,26 @@ TSharedRef<ISequencerSection> FTemplateSequenceTrackEditor::MakeSectionInterface
 
 void FTemplateSequenceTrackEditor::AddTemplateSequenceSubMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings)
 {
+	AddTemplateSequenceAssetSubMenu(MenuBuilder, ObjectBindings, UTemplateSequence::StaticClass());
+}
+
+void FTemplateSequenceTrackEditor::AddCameraAnimationSequenceSubMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings)
+{
+	AddTemplateSequenceAssetSubMenu(MenuBuilder, ObjectBindings, UCameraAnimationSequence::StaticClass());
+}
+
+void FTemplateSequenceTrackEditor::AddTemplateSequenceAssetSubMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings, const UClass* TemplateSequenceClass, bool bRecursiveClasses)
+{
+	ensure(TemplateSequenceClass != nullptr && TemplateSequenceClass->IsChildOf<UTemplateSequence>());
+
 	FAssetPickerConfig AssetPickerConfig;
 	{
 		AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateRaw(this, &FTemplateSequenceTrackEditor::OnTemplateSequenceAssetSelected, ObjectBindings);
 		AssetPickerConfig.OnAssetEnterPressed = FOnAssetEnterPressed::CreateRaw(this, &FTemplateSequenceTrackEditor::OnTemplateSequenceAssetEnterPressed, ObjectBindings);
 		AssetPickerConfig.bAllowNullSelection = false;
 		AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
-		AssetPickerConfig.Filter.ClassNames.Add(UTemplateSequence::StaticClass()->GetFName());
+		AssetPickerConfig.Filter.ClassNames.Add(TemplateSequenceClass->GetFName());
+		AssetPickerConfig.Filter.bRecursiveClasses = bRecursiveClasses;
 	}
 
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
@@ -130,6 +158,33 @@ FKeyPropertyResult FTemplateSequenceTrackEditor::AddKeyInternal(FFrameNumber Key
 	}
 
 	return KeyPropertyResult;
+}
+
+UCameraComponent* FTemplateSequenceTrackEditor::AcquireCameraComponentFromObjectGuid(const FGuid& Guid)
+{
+	USkeleton* Skeleton = nullptr;
+	for (TWeakObjectPtr<> WeakObject : GetSequencer()->FindObjectsInCurrentSequence(Guid))
+	{
+		UObject* const Obj = WeakObject.Get();
+	
+		if (AActor* const Actor = Cast<AActor>(Obj))
+		{
+			UCameraComponent* const CameraComp = MovieSceneHelpers::CameraComponentFromActor(Actor);
+			if (CameraComp)
+			{
+				return CameraComp;
+			}
+		}
+		else if (UCameraComponent* const CameraComp = Cast<UCameraComponent>(Obj))
+		{
+			if (CameraComp->IsActive())
+			{
+				return CameraComp;
+			}
+		}
+	}
+
+	return nullptr;
 }
 
 FTemplateSequenceSection::FTemplateSequenceSection(TSharedPtr<ISequencer> InSequencer, UTemplateSequenceSection& InSection)

@@ -9,6 +9,7 @@
 
 struct FAssetData;
 class FMenuBuilder;
+class UCameraComponent;
 class UTemplateSequence;
 class UTemplateSequenceSection;
 
@@ -27,10 +28,15 @@ public:
 
 private:
 	void AddTemplateSequenceSubMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings);
+	void AddCameraAnimationSequenceSubMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings);
+	void AddTemplateSequenceAssetSubMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings, const UClass* TemplateSequenceClass, bool bRecursiveClasses = false);
+
 	void OnTemplateSequenceAssetSelected(const FAssetData& AssetData, TArray<FGuid> ObjectBindings);
 	void OnTemplateSequenceAssetEnterPressed(const TArray<FAssetData>& AssetData, TArray<FGuid> ObjectBindings);
 
 	FKeyPropertyResult AddKeyInternal(FFrameNumber KeyTime, TArray<FGuid> ObjectBindings, UTemplateSequence* TemplateSequence);
+
+	UCameraComponent* AcquireCameraComponentFromObjectGuid(const FGuid& Guid);
 };
 
 class FTemplateSequenceSection
