@@ -584,13 +584,12 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesGT()
 //				{
 //					check(false); // continue?
 //				}
-
+				FTransform ParticleTransform = Transform[Idx] * Parameters.WorldTransform;
 				if (GTParticle->ObjectState() == Chaos::EObjectStateType::Dynamic)
 				{
-					GTParticle->SetX(Transform[Idx].GetTranslation());
-					GTParticle->SetR(Transform[Idx].GetRotation());
-					//...
-					GTParticle->Proxy = this; // I feel dirty.
+					GTParticle->SetX(ParticleTransform.GetTranslation());
+					GTParticle->SetR(ParticleTransform.GetRotation());
+					GTParticle->Proxy = this;
 				}
 			}
 		}
@@ -3850,10 +3849,19 @@ void FGeometryCollectionPhysicsProxy::PushToPhysicsState(const Chaos::FParticleD
 		if (Chaos::TPBDRigidParticleHandle<float, 3>* Handle = SolverParticleHandles[HandleIdx])
 		{
 			const int32 Idx = GState->BaseIndex + HandleIdx;
-			Handle->SetX(GState->Transforms[Idx].GetTranslation());
-			Handle->SetR(GState->Transforms[Idx].GetRotation());
+
+			FTransform ParticleTransform = GState->Transforms[Idx] * Parameters.WorldTransform;
+			Handle->SetX(ParticleTransform.GetTranslation());
+			Handle->SetR(ParticleTransform.GetRotation());
 			Handle->SetDisabled(GState->DisabledStates[Idx]);
 			//...
+
+			if(Handle->Geometry() && Handle->Geometry()->HasBoundingBox())
+			{
+				Handle->SetHasBounds(true);
+				Handle->SetLocalBounds(Handle->Geometry()->BoundingBox());
+				Handle->SetWorldSpaceInflatedBounds(Handle->Geometry()->BoundingBox().TransformedBox(Chaos::TRigidTransform<float, 3>(ParticleTransform)));
+			}
 		}
 	}
 }
@@ -4064,13 +4072,17 @@ void FGeometryCollectionPhysicsProxy::PullFromPhysicsState()
 /**/
 	// We should never be changing the number of entries, this would break other 
 	// attributes in the transform group.
-	if (ensure(GTDynamicCollection->Transform.Num() == TR.Transforms.Num()))	
+	const int32 NumTransforms = GTDynamicCollection->Transform.Num();
+	if (ensure(NumTransforms == TR.Transforms.Num()))	
 	{
-		GTDynamicCollection->Transform.ExchangeArrays(TR.Transforms);
-//		GTDynamicCollection->Parent.ExchangeArrays(TR.Parent);
-//		GTDynamicCollection->Children.ExchangeArrays(TR.Children);
-//		GTDynamicCollection->SimulationType.ExchangeArrays(TR.SimulationType);
-//		GTDynamicCollection->StatusFlags.ExchangeArrays(TR.StatusFlags);
+		for(int32 TmIndex = 0; TmIndex < NumTransforms; ++TmIndex)
+		{
+			if(!TR.DisabledStates[TmIndex])
+			{
+				GTDynamicCollection->Transform[TmIndex] = TR.Transforms[TmIndex].GetRelativeTransform(Parameters.WorldTransform);
+				GTDynamicCollection->Transform[TmIndex].NormalizeRotation();
+			}
+		}
 
 		//question: why do we need this? Sleeping objects will always have to update GPU
 		GTDynamicCollection->MakeDirty();

@@ -1279,7 +1279,7 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 					if (CacheParameters.TargetCache)
 					{
 						// Queue this up to be dirtied after PIE ends
-						TSharedPtr<FPhysScene_Chaos> Scene = GetPhysicsScene();
+						FPhysScene_Chaos* Scene = GetPhysicsScene();
 
 						CacheParameters.TargetCache->PreEditChange(nullptr);
 						CacheParameters.TargetCache->Modify();
@@ -1341,7 +1341,7 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 			// end temporary 
 
 			PhysicsProxy = new FGeometryCollectionPhysicsProxy(this, DynamicCollection.Get(), InitFunc, CacheSyncFunc, FinalSyncFunc);
-			TSharedPtr<FPhysScene_Chaos> Scene = GetPhysicsScene();
+			FPhysScene_Chaos* Scene = GetPhysicsScene();
 			Scene->AddObject(this, PhysicsProxy);
 
 			RegisterForEvents();
@@ -1373,7 +1373,7 @@ void UGeometryCollectionComponent::OnDestroyPhysicsState()
 
 	if(PhysicsProxy)
 	{
-		TSharedPtr<FPhysScene_Chaos> Scene = GetPhysicsScene();
+		FPhysScene_Chaos* Scene = GetPhysicsScene();
 		Scene->RemoveObject(PhysicsProxy);
 		InitializationState = ESimulationInitializationState::Unintialized;
 
@@ -1933,21 +1933,22 @@ void UGeometryCollectionComponent::GetInitializationCommands(TArray<FFieldSystem
 }
 
 
-const TSharedPtr<FPhysScene_Chaos> UGeometryCollectionComponent::GetPhysicsScene() const
+FPhysScene_Chaos* UGeometryCollectionComponent::GetPhysicsScene() const
 {
 	if (ChaosSolverActor)
 	{
-		return ChaosSolverActor->GetPhysicsScene();
+		return ChaosSolverActor->GetPhysicsScene().Get();
 	}
 	else
 	{
 #if INCLUDE_CHAOS
 		if (ensure(GetOwner()) && ensure(GetOwner()->GetWorld()))
 		{
-			return GetOwner()->GetWorld()->PhysicsScene_Chaos;
+			FPhysScene_ChaosInterface* WorldPhysScene = GetOwner()->GetWorld()->GetPhysicsScene();
+			return &WorldPhysScene->GetScene();
 		}
 		check(GWorld);
-		return GWorld->PhysicsScene_Chaos;
+		return &GWorld->GetPhysicsScene()->GetScene();
 #else
 		return nullptr;
 #endif
@@ -1962,7 +1963,7 @@ AChaosSolverActor* UGeometryCollectionComponent::GetPhysicsSolverActor() const
 	}
 	else
 	{
-		FPhysScene_Chaos const* const Scene = GetPhysicsScene().Get();
+		FPhysScene_Chaos const* const Scene = GetPhysicsScene();
 		return Scene ? Cast<AChaosSolverActor>(Scene->GetSolverActor()) : nullptr;
 	}
 
