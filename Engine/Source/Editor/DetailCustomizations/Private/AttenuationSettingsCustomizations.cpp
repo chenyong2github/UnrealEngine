@@ -119,9 +119,14 @@ void FBaseAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IProper
 		.Visibility(TAttribute<EVisibility>(this, &FBaseAttenuationSettingsCustomization::IsCustomCurveSelected))
 		.EditCondition(GetIsAttenuationEnabledAttribute(), nullptr);
 
-	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FBaseAttenuationSettings, dBAttenuationAtMax)))
+	DbAttenuationAtMaxHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FBaseAttenuationSettings, dBAttenuationAtMax));
+	LayoutBuilder.AddPropertyToCategory(DbAttenuationAtMaxHandle)
 		.Visibility(TAttribute<EVisibility>(this, &FBaseAttenuationSettingsCustomization::IsNaturalSoundSelected))
 		.EditCondition(GetIsAttenuationEnabledAttribute(), nullptr);
+
+	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FBaseAttenuationSettings, FalloffMode)))
+		.Visibility(TAttribute<EVisibility>(this, &FBaseAttenuationSettingsCustomization::IsNaturalSoundSelected))
+		.EditCondition(GetIsFalloffModeEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(AttenuationShapeHandle)
 		.EditCondition(GetIsAttenuationEnabledAttribute(), nullptr);
@@ -263,6 +268,33 @@ TAttribute<bool> FBaseAttenuationSettingsCustomization::GetIsAttenuationEnabledA
 
 		bool Value = GetValue(bOverrideAttenuationPropertyWeakHandle);
 		Value &= GetValue(bIsAttenuatedPropertyWeakHandle);
+		return Value;
+	};
+
+	return TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda(Lambda));
+}
+
+TAttribute<bool> FBaseAttenuationSettingsCustomization::GetIsFalloffModeEnabledAttribute() const
+{
+	TWeakPtr<IPropertyHandle> bOverrideAttenuationPropertyWeakPtr = bOverrideAttenuationHandle;
+	TWeakPtr<IPropertyHandle> bIsAttenuatedPropertyWeakPtr = bIsAttenuatedHandle;
+	TWeakPtr<IPropertyHandle> DbAttenuationAtMaxHandleWeakPtr = DbAttenuationAtMaxHandle;
+
+	auto Lambda = [bOverrideAttenuationPropertyWeakPtr, bIsAttenuatedPropertyWeakPtr, DbAttenuationAtMaxHandleWeakPtr]()
+	{
+		TSharedPtr<IPropertyHandle> bOverrideAttenuationPropertyPtr = bOverrideAttenuationPropertyWeakPtr.Pin();
+		TSharedPtr<IPropertyHandle> bIsAttenuatedPropertyPtr = bIsAttenuatedPropertyWeakPtr.Pin();
+		TSharedPtr<IPropertyHandle> DbAttenuationAtMaxHandlePtr = DbAttenuationAtMaxHandleWeakPtr.Pin();
+
+		float AttenuationValue = -60.f;
+		if (DbAttenuationAtMaxHandlePtr.IsValid())
+		{
+			DbAttenuationAtMaxHandlePtr->GetValue(AttenuationValue);
+		}
+
+		bool Value = GetValue(bOverrideAttenuationPropertyPtr);
+		Value &= GetValue(bIsAttenuatedPropertyPtr);
+		Value &= AttenuationValue > -60.f;
 		return Value;
 	};
 
@@ -496,7 +528,7 @@ void FSoundAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IPrope
 			.EditCondition(IsAttenuationOverriddenAttribute(), nullptr);
 	}
 
-	if (PropertyHandles.Num() != 60)
+	if (PropertyHandles.Num() != 61)
 	{
 		FString PropertyList;
 		for (auto It(PropertyHandles.CreateConstIterator()); It; ++It)
