@@ -541,9 +541,6 @@ public:
 	/** Return a one line description of an object for viewing in the thumbnail view of the generic browser */
 	virtual FString GetDesc() { return TEXT( "" ); }
 
-	/** Allocates the sidecar data structure that stores data that is constant for all instances of this class. */
-	virtual void* CreateSparseClassData();
-
 	/** Return the UStruct corresponding to the sidecar data structure that stores data that is constant for all instances of this class. */
 	virtual UScriptStruct* GetSparseClassDataStruct() const;
 

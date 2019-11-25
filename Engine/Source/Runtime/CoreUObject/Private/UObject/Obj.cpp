@@ -1145,11 +1145,6 @@ void UObject::PostLoadSubobjects( FObjectInstancingGraph* OuterInstanceGraph/*=N
 	}
 }
 
-void* UObject::CreateSparseClassData()
-{
-	return nullptr;
-}
-
 UScriptStruct* UObject::GetSparseClassDataStruct() const
 {
 	UClass* Class = GetClass();
