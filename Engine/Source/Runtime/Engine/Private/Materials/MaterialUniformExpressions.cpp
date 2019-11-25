@@ -848,10 +848,10 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			else
 			{
 				// Don't have valid resources to bind for this VT, so make sure something is bound
-				*ResourceTablePageTexture0Ptr = GWhiteTexture->TextureRHI;
+				*ResourceTablePageTexture0Ptr = GBlackUintTexture->TextureRHI;
 				if (ResourceTablePageTexture1Ptr != nullptr)
 				{
-					*ResourceTablePageTexture1Ptr = GWhiteTexture->TextureRHI;
+					*ResourceTablePageTexture1Ptr = GBlackUintTexture->TextureRHI;
 				}
 			}
 		}
