@@ -510,7 +510,7 @@ void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FStaticMeshPhys
 {
 	AddToComponentMaps(Component, InObject);
 
-	check(false);
+	ensure(false);
 #if 0
 	Chaos::FPhysicsSolver* Solver = GetSolver();
 	Solver->RegisterObject(InObject);
