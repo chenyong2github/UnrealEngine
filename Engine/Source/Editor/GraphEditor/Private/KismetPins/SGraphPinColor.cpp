@@ -75,6 +75,11 @@ FLinearColor SGraphPinColor::GetColor() const
 
 void SGraphPinColor::OnColorCommitted(FLinearColor InColor)
 {
+	if(GraphPinObj->IsPendingKill())
+	{
+		return;
+	}
+
 	// Update pin object
 	FString ColorString = InColor.ToString();
 
