@@ -3,7 +3,7 @@
 
 #include "Chaos/PBDRigidClusteredParticles.h"
 #include "Chaos/Transform.h"
-#include "Chaos/PBDCollisionTypes.h"
+#include "Chaos/CollisionResolutionTypes.h"
 #include "Chaos/ExternalCollisionData.h"
 #include "Chaos/TriangleMesh.h"
 #include "Chaos/ClusterCreationParameters.h"
