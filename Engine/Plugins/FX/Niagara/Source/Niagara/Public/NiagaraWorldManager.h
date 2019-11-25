@@ -24,6 +24,14 @@ class UNiagaraParameterCollection;
 class UNiagaraParameterCollectionInstance;
 class UNiagaraComponentPool;
 
+struct FNiagaraDeferredDeletionFence;
+
+struct FNiagaraWorldManagerDeferredDeletionFence
+{
+	FNiagaraDeferredDeletionFence* Fence;
+	FNiagaraWorldManagerDeferredDeletionFence(FNiagaraDeferredDeletionFence* InFence);
+	~FNiagaraWorldManagerDeferredDeletionFence();
+};
 
 class FNiagaraViewDataMgr : public FRenderResource
 {
@@ -132,6 +140,9 @@ public:
 	// Dump details about what's inside the world manager
 	void DumpDetails(FOutputDevice& Ar);
 
+	//Creates fences for deferred deletion for each world.
+	static void EnqueueDeferredDeletionFences(TArray<FNiagaraDeferredDeletionFence>& OutFence);
+
 	UWorld* World;
 
 private:
@@ -184,6 +195,9 @@ private:
 	{
 		FRenderCommandFence							Fence;
 		TArray<TUniquePtr<FNiagaraSystemInstance>>	Queue;
+
+		/** Fences to signal to other Niagara code when this queue has been cleared. */
+		TArray<FNiagaraWorldManagerDeferredDeletionFence>		DeletionFences;
 	};
 
 	static constexpr int NumDeferredQueues = 3;

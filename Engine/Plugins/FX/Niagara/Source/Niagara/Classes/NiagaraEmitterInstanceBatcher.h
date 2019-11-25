@@ -23,6 +23,15 @@ the same VectorVM byte code / compute shader code
 #include "NiagaraScriptExecutionContext.h"
 #include "NiagaraGPUInstanceCountManager.h"
 
+struct FNiagaraDeferredDeletionFence;
+
+struct FNiagaraInstanceBatcherDeferredDeletionFence
+{
+	FNiagaraDeferredDeletionFence* Fence;
+	FNiagaraInstanceBatcherDeferredDeletionFence(FNiagaraDeferredDeletionFence* InFence);
+	~FNiagaraInstanceBatcherDeferredDeletionFence();
+};
+
 class FNiagaraIndicesVertexBuffer : public FParticleIndicesVertexBuffer
 {
 public:
@@ -68,6 +77,8 @@ public:
 	{
 		DIProxyDeferredDeletes_RT.Add(MoveTemp(Proxy));
 	}
+
+	void AddFence_RenderThread(FNiagaraDeferredDeletionFence* Fence);
 
 #if WITH_EDITOR
 	virtual void Suspend() override {}
@@ -203,4 +214,6 @@ private:
 	TSet<FNiagaraDataSet*> DataSetsToDestroy_RT;
 
 	TSet<TSharedPtr<FNiagaraDataInterfaceProxy, ESPMode::ThreadSafe>> DIProxyDeferredDeletes_RT;
+
+	TArray<FNiagaraInstanceBatcherDeferredDeletionFence> Fences_RT;
 };

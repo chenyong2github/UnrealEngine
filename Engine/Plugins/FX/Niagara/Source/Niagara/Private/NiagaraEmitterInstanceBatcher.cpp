@@ -131,6 +131,12 @@ void NiagaraEmitterInstanceBatcher::GiveDataSetToDestroy_RenderThread(FNiagaraDa
 	DataSetsToDestroy_RT.Add(DataSet);
 }
 
+void NiagaraEmitterInstanceBatcher::AddFence_RenderThread(FNiagaraDeferredDeletionFence* Fence)
+{
+	LLM_SCOPE(ELLMTag::Niagara);
+	Fences_RT.Emplace(Fence);
+}
+
 void NiagaraEmitterInstanceBatcher::FinishDispatches()
 {
 	ReleaseTicks();
@@ -159,6 +165,8 @@ void NiagaraEmitterInstanceBatcher::FinishDispatches()
 	}
 
 	DIProxyDeferredDeletes_RT.Empty();
+
+	Fences_RT.Empty();
 }
 
 void NiagaraEmitterInstanceBatcher::ReleaseTicks()
