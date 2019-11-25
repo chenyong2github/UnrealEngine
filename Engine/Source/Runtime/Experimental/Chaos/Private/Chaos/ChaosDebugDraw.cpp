@@ -112,10 +112,10 @@ namespace Chaos
 
 		void DrawParticleShapesImpl(const FRigidTransform3& SpaceTransform, const TGeometryParticleHandle<FReal, 3>* Particle, FReal ColorScale)
 		{
-			FColor ShapeColor = Particle->AsDynamic() ? FColor::Yellow : FColor::Orange;
+			FColor ShapeColor = Particle->ObjectState() == EObjectStateType::Dynamic ? FColor::Yellow : FColor::Orange;
 			FColor Color = (((FReal)0.5 * ColorScale) * ShapeColor).ToFColor(false);
-			FVec3 P = SpaceTransform.TransformPosition(Particle->AsDynamic() ? Particle->AsDynamic()->P() : Particle->X());
-			FRotation3 Q = SpaceTransform.GetRotation() * (Particle->AsDynamic() ? Particle->AsDynamic()->Q() : Particle->R());
+			FVec3 P = SpaceTransform.TransformPosition(Particle->ObjectState() == EObjectStateType::Dynamic ? Particle->CastToRigidParticle()->P() : Particle->X());
+			FRotation3 Q = SpaceTransform.GetRotation() * (Particle->ObjectState() == EObjectStateType::Dynamic ? Particle->CastToRigidParticle()->Q() : Particle->R());
 
 			DrawShapesImpl(FRigidTransform3(P, Q), Particle->Geometry().Get(), Color);
 		}
@@ -126,8 +126,8 @@ namespace Chaos
 			FColor G = (ColorScale * FColor::Green).ToFColor(false);
 			FColor B = (ColorScale * FColor::Blue).ToFColor(false);
 
-			FVec3 P = SpaceTransform.TransformPosition((Particle->AsDynamic()) ? Particle->AsDynamic()->P() : Particle->X());
-			FRotation3 Q = SpaceTransform.GetRotation() * ((Particle->AsDynamic()) ? Particle->AsDynamic()->Q() : Particle->R());
+			FVec3 P = SpaceTransform.TransformPosition((Particle->ObjectState() == EObjectStateType::Dynamic) ? Particle->CastToRigidParticle()->P() : Particle->X());
+			FRotation3 Q = SpaceTransform.GetRotation() * ((Particle->ObjectState() == EObjectStateType::Dynamic) ? Particle->CastToRigidParticle()->Q() : Particle->R());
 			FMatrix33 Qm = Q.ToMatrix();
 			FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(P, P + DrawScale * BodyAxisLen * Qm.GetAxis(0), DrawScale * ArrowSize, R, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
 			FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(P, P + DrawScale * BodyAxisLen * Qm.GetAxis(1), DrawScale * ArrowSize, G, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
@@ -209,7 +209,9 @@ namespace Chaos
 		void DrawJointConstraintImpl(const FRigidTransform3& SpaceTransform, const FPBDJointConstraintHandle* ConstraintHandle, FReal ColorScale, uint32 FeatureMask)
 		{
 			TVector<TGeometryParticleHandle<FReal, 3>*, 2> ConstrainedParticles = ConstraintHandle->GetConstrainedParticles();
-			if (ConstrainedParticles[0]->AsDynamic() || ConstrainedParticles[1]->AsDynamic())
+			auto RigidParticle0 = ConstrainedParticles[0]->CastToRigidParticle();
+			auto RigidParticle1 = ConstrainedParticles[1]->CastToRigidParticle();
+			if ((RigidParticle0 && RigidParticle0->ObjectState() == EObjectStateType::Dynamic) || (RigidParticle1 && RigidParticle1->ObjectState() == EObjectStateType::Dynamic))
 			{
 				FVec3 Pa = TGenericParticleHandle<FReal, 3>(ConstraintHandle->GetConstrainedParticles()[1])->P();
 				FVec3 Pb = TGenericParticleHandle<FReal, 3>(ConstraintHandle->GetConstrainedParticles()[0])->P();
@@ -229,7 +231,7 @@ namespace Chaos
 			{
 				for (auto& Particle : ParticlesView)
 				{
-					if ((bDrawKinemtatic && !Particle.AsDynamic()) || (bDrawDynamic && Particle.AsDynamic()))
+					if ((bDrawKinemtatic && Particle.ObjectState() != EObjectStateType::Dynamic) || (bDrawDynamic && Particle.ObjectState() == EObjectStateType::Dynamic))
 					{
 						DrawParticleShapesImpl(SpaceTransform, GetHandleHelper(&Particle), ColorScale);
 					}
@@ -245,7 +247,7 @@ namespace Chaos
 			{
 				for (auto& Particle : Particles)
 				{
-					if ((bDrawKinemtatic && !Particle->AsDynamic()) || (bDrawDynamic && Particle->AsDynamic()))
+					if ((bDrawKinemtatic && Particle->ObjectState() != EObjectStateType::Dynamic) || (bDrawDynamic && Particle->ObjectState() == EObjectStateType::Dynamic))
 					{
 						DrawParticleShapesImpl(SpaceTransform, Particle, ColorScale);
 					}
@@ -261,7 +263,7 @@ namespace Chaos
 			{
 				for (auto& Particle : ParticlesView)
 				{
-					if ((bDrawKinemtatic && !Particle.AsDynamic()) || (bDrawDynamic && Particle.AsDynamic()))
+					if ((bDrawKinemtatic && Particle.ObjectState() != EObjectStateType::Dynamic) || (bDrawDynamic && Particle.ObjectState() == EObjectStateType::Dynamic))
 					{
 						DrawParticleTransformImpl(SpaceTransform, GetHandleHelper(&Particle), ColorScale);
 					}
@@ -277,7 +279,7 @@ namespace Chaos
 			{
 				for (auto& Particle : Particles)
 				{
-					if ((bDrawKinemtatic && !Particle->AsDynamic()) || (bDrawDynamic && Particle->AsDynamic()))
+					if ((bDrawKinemtatic && Particle->ObjectState() != EObjectStateType::Dynamic) || (bDrawDynamic && Particle->ObjectState() == EObjectStateType::Dynamic))
 					{
 						DrawParticleTransformImpl(SpaceTransform, Particle, ColorScale);
 					}

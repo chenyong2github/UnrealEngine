@@ -41,8 +41,10 @@ namespace Chaos
 		{
 			TGenericParticleHandle<T, d> Particle0 = TGenericParticleHandle<T, d>(Constraint.Particle[0]);
 			TGenericParticleHandle<T, d> Particle1 = TGenericParticleHandle<T, d>(Constraint.Particle[1]);
-			TPBDRigidParticleHandle<T, d>* PBDRigid0 = Particle0->AsDynamic();
-			TPBDRigidParticleHandle<T, d>* PBDRigid1 = Particle1->AsDynamic();
+			TPBDRigidParticleHandle<T, d>* PBDRigid0 = Particle0->CastToRigidParticle();
+			TPBDRigidParticleHandle<T, d>* PBDRigid1 = Particle1->CastToRigidParticle();
+			bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
+			bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
 
 			for (int32 PairIt = 0; PairIt < IterationParameters.NumPairIterations; ++PairIt)
 			{
@@ -88,11 +90,11 @@ namespace Chaos
 
 				if (RelativeNormalVelocity < 0) // ignore separating constraints
 				{
-					PMatrix<T, d, d> WorldSpaceInvI1 = PBDRigid0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) : PMatrix<T, d, d>(0);
-					PMatrix<T, d, d> WorldSpaceInvI2 = PBDRigid1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) : PMatrix<T, d, d>(0);
+					PMatrix<T, d, d> WorldSpaceInvI1 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) : PMatrix<T, d, d>(0);
+					PMatrix<T, d, d> WorldSpaceInvI2 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) : PMatrix<T, d, d>(0);
 					PMatrix<T, d, d> Factor =
-						(PBDRigid0 ? ComputeFactorMatrix3(VectorToPoint1, WorldSpaceInvI1, PBDRigid0->InvM()) : PMatrix<T, d, d>(0)) +
-						(PBDRigid1 ? ComputeFactorMatrix3(VectorToPoint2, WorldSpaceInvI2, PBDRigid1->InvM()) : PMatrix<T, d, d>(0));
+						(bIsRigidDynamic0 ? ComputeFactorMatrix3(VectorToPoint1, WorldSpaceInvI1, PBDRigid0->InvM()) : PMatrix<T, d, d>(0)) +
+						(bIsRigidDynamic1 ? ComputeFactorMatrix3(VectorToPoint2, WorldSpaceInvI2, PBDRigid1->InvM()) : PMatrix<T, d, d>(0));
 					TVector<T, d> Impulse;
 					TVector<T, d> AngularImpulse(0);
 
@@ -158,21 +160,21 @@ namespace Chaos
 								TVector<T, d> AngularTangent = RelativeAngularVelocity - AngularNormal * Contact.Normal;
 								TVector<T, d> FinalAngularVelocity = FMath::Sign(AngularNormal) * FMath::Max((T)0, FMath::Abs(AngularNormal) - AngularFriction * NormalVelocityChange) * Contact.Normal + FMath::Max((T)0, AngularTangent.Size() - AngularFriction * NormalVelocityChange) * AngularTangent.GetSafeNormal();
 								TVector<T, d> Delta = FinalAngularVelocity - RelativeAngularVelocity;
-								if (!PBDRigid0 && PBDRigid1)
+								if (!bIsRigidDynamic0 && bIsRigidDynamic1)
 								{
 									PMatrix<T, d, d> WorldSpaceI2 = (Q1 * FMatrix::Identity) * PBDRigid1->I() * (Q1 * FMatrix::Identity).GetTransposed();
 									TVector<T, d> ImpulseDelta = PBDRigid1->M() * TVector<T, d>::CrossProduct(VectorToPoint2, Delta);
 									Impulse += ImpulseDelta;
 									AngularImpulse += WorldSpaceI2 * Delta - TVector<T, d>::CrossProduct(VectorToPoint2, ImpulseDelta);
 								}
-								else if (PBDRigid0 && !PBDRigid1)
+								else if (bIsRigidDynamic0 && !bIsRigidDynamic1)
 								{
 									PMatrix<T, d, d> WorldSpaceI1 = (Q0 * FMatrix::Identity) * PBDRigid0->I() * (Q0 * FMatrix::Identity).GetTransposed();
 									TVector<T, d> ImpulseDelta = PBDRigid0->M() * TVector<T, d>::CrossProduct(VectorToPoint1, Delta);
 									Impulse += ImpulseDelta;
 									AngularImpulse += WorldSpaceI1 * Delta - TVector<T, d>::CrossProduct(VectorToPoint1, ImpulseDelta);
 								}
-								else if (PBDRigid0 && PBDRigid1)
+								else if (bIsRigidDynamic0 && bIsRigidDynamic1)
 								{
 									PMatrix<T, d, d> Cross1(0, VectorToPoint1.Z, -VectorToPoint1.Y, -VectorToPoint1.Z, 0, VectorToPoint1.X, VectorToPoint1.Y, -VectorToPoint1.X, 0);
 									PMatrix<T, d, d> Cross2(0, VectorToPoint2.Z, -VectorToPoint2.Y, -VectorToPoint2.Z, 0, VectorToPoint2.X, VectorToPoint2.Y, -VectorToPoint2.X, 0);
@@ -226,7 +228,7 @@ namespace Chaos
 					}
 					Impulse = GetEnergyClampedImpulse(Constraint, Impulse, VectorToPoint1, VectorToPoint2, Body1Velocity, Body2Velocity);
 					Constraint.AccumulatedImpulse += Impulse;
-					if (PBDRigid0)
+					if (bIsRigidDynamic0)
 					{
 						// Velocity update for next step
 						FVec3 NetAngularImpulse = FVec3::CrossProduct(VectorToPoint1, Impulse) + AngularImpulse;
@@ -239,7 +241,7 @@ namespace Chaos
 						PBDRigid0->Q() += FRotation3::FromElements(DW, 0.f) * Q0 * IterationParameters.Dt * T(0.5);
 						PBDRigid0->Q().Normalize();
 					}
-					if (PBDRigid1)
+					if (bIsRigidDynamic1)
 					{
 						// Velocity update for next step
 						FVec3 NetAngularImpulse = FVec3::CrossProduct(VectorToPoint2, -Impulse) - AngularImpulse;
@@ -262,18 +264,20 @@ namespace Chaos
 		{
 			TGeometryParticleHandle<T, d>* Particle0 = Constraint.Particle[0];
 			TGeometryParticleHandle<T, d>* Particle1 = Constraint.Particle[1];
-			TPBDRigidParticleHandle<T, d>* PBDRigid0 = Particle0->AsDynamic();
-			TPBDRigidParticleHandle<T, d>* PBDRigid1 = Particle1->AsDynamic();
+			TPBDRigidParticleHandle<T, d>* PBDRigid0 = Particle0->CastToRigidParticle();
+			TPBDRigidParticleHandle<T, d>* PBDRigid1 = Particle1->CastToRigidParticle();
+			const bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
+			const bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
 
 			const TVector<T, d> ZeroVector = TVector<T, d>(0);
-			const TRotation<T, d>& Q0 = PBDRigid0 ? PBDRigid0->Q() : Particle0->R();
-			const TRotation<T, d>& Q1 = PBDRigid1 ? PBDRigid1->Q() : Particle1->R();
-			const TVector<T, d>& P0 = PBDRigid0 ? PBDRigid0->P() : Particle0->X();
-			const TVector<T, d>& P1 = PBDRigid1 ? PBDRigid1->P() : Particle1->X();
-			const TVector<T, d>& V0 = PBDRigid0 ? PBDRigid0->V() : ZeroVector;
-			const TVector<T, d>& V1 = PBDRigid1 ? PBDRigid1->V() : ZeroVector;
-			const TVector<T, d>& W0 = PBDRigid0 ? PBDRigid0->W() : ZeroVector;
-			const TVector<T, d>& W1 = PBDRigid1 ? PBDRigid1->W() : ZeroVector;
+			const TRotation<T, d>& Q0 = bIsRigidDynamic0 ? PBDRigid0->Q() : Particle0->R();
+			const TRotation<T, d>& Q1 = bIsRigidDynamic1 ? PBDRigid1->Q() : Particle1->R();
+			const TVector<T, d>& P0 = bIsRigidDynamic0 ? PBDRigid0->P() : Particle0->X();
+			const TVector<T, d>& P1 = bIsRigidDynamic1 ? PBDRigid1->P() : Particle1->X();
+			const TVector<T, d>& V0 = bIsRigidDynamic0 ? PBDRigid0->V() : ZeroVector;
+			const TVector<T, d>& V1 = bIsRigidDynamic1 ? PBDRigid1->V() : ZeroVector;
+			const TVector<T, d>& W0 = bIsRigidDynamic0 ? PBDRigid0->W() : ZeroVector;
+			const TVector<T, d>& W1 = bIsRigidDynamic1 ? PBDRigid1->W() : ZeroVector;
 			const bool IsTemporarilyStatic0 = IsTemporarilyStatic.Contains(Particle0);
 			const bool IsTemporarilyStatic1 = IsTemporarilyStatic.Contains(Particle1);
 	
@@ -295,19 +299,19 @@ namespace Chaos
 					break;
 				}
 
-				if ((!PBDRigid0 || IsTemporarilyStatic0) && (!PBDRigid1 || IsTemporarilyStatic1))
-				{
+				if ((!bIsRigidDynamic0 || IsTemporarilyStatic0) && (!bIsRigidDynamic1 || IsTemporarilyStatic1))
+				{	
 					break;
 				}
 
 				*IterationParameters.NeedsAnotherIteration = true;
-				PMatrix<T, d, d> WorldSpaceInvI1 = PBDRigid0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) : PMatrix<T, d, d>(0);
-				PMatrix<T, d, d> WorldSpaceInvI2 = PBDRigid1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) : PMatrix<T, d, d>(0);
+				PMatrix<T, d, d> WorldSpaceInvI1 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) : PMatrix<T, d, d>(0);
+				PMatrix<T, d, d> WorldSpaceInvI2 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) : PMatrix<T, d, d>(0);
 				TVector<T, d> VectorToPoint1 = Contact.Location - P0;
 				TVector<T, d> VectorToPoint2 = Contact.Location - P1;
 				PMatrix<T, d, d> Factor =
-					(PBDRigid0 ? ComputeFactorMatrix3(VectorToPoint1, WorldSpaceInvI1, PBDRigid0->InvM()) : PMatrix<T, d, d>(0)) +
-					(PBDRigid1 ? ComputeFactorMatrix3(VectorToPoint2, WorldSpaceInvI2, PBDRigid1->InvM()) : PMatrix<T, d, d>(0));
+					(bIsRigidDynamic0 ? ComputeFactorMatrix3(VectorToPoint1, WorldSpaceInvI1, PBDRigid0->InvM()) : PMatrix<T, d, d>(0)) +
+					(bIsRigidDynamic1 ? ComputeFactorMatrix3(VectorToPoint2, WorldSpaceInvI2, PBDRigid1->InvM()) : PMatrix<T, d, d>(0));
 				T Numerator = FMath::Min((T)(IterationParameters.Iteration + 2), (T)IterationParameters.NumIterations);
 				T ScalingFactor = Numerator / (T)IterationParameters.NumIterations;
 
@@ -332,7 +336,7 @@ namespace Chaos
 					TVector<T, d> VelocityFixImpulse = ImpulseNumerator / ImpulseDenominator;
 					VelocityFixImpulse = GetEnergyClampedImpulse(Constraint, VelocityFixImpulse, VectorToPoint1, VectorToPoint2, Body1Velocity, Body2Velocity);
 					Constraint.AccumulatedImpulse += VelocityFixImpulse;	//question: should we track this?
-					if (!IsTemporarilyStatic0 && PBDRigid0)
+					if (!IsTemporarilyStatic0 && bIsRigidDynamic0)
 					{
 						TVector<T, d> AngularImpulse = TVector<T, d>::CrossProduct(VectorToPoint1, VelocityFixImpulse);
 						PBDRigid0->V() += PBDRigid0->InvM() * VelocityFixImpulse;
@@ -340,8 +344,8 @@ namespace Chaos
 
 					}
 
-					if (!IsTemporarilyStatic1 && PBDRigid1)
-					{
+					if (!IsTemporarilyStatic1 && bIsRigidDynamic1)
+					{	
 						TVector<T, d> AngularImpulse = TVector<T, d>::CrossProduct(VectorToPoint2, -VelocityFixImpulse);
 						PBDRigid1->V() -= PBDRigid1->InvM() * VelocityFixImpulse;
 						PBDRigid1->W() += WorldSpaceInvI2 * AngularImpulse;
@@ -353,13 +357,13 @@ namespace Chaos
 				TVector<T, d> Impulse = PMatrix<T, d, d>(Factor.Inverse()) * ((-Contact.Phi + Thickness) * ScalingFactor * Contact.Normal);
 				TVector<T, d> AngularImpulse1 = TVector<T, d>::CrossProduct(VectorToPoint1, Impulse);
 				TVector<T, d> AngularImpulse2 = TVector<T, d>::CrossProduct(VectorToPoint2, -Impulse);
-				if (!IsTemporarilyStatic0 && PBDRigid0)
+				if (!IsTemporarilyStatic0 && bIsRigidDynamic0)
 				{
 					PBDRigid0->P() += PBDRigid0->InvM() * Impulse;
 					PBDRigid0->Q() = TRotation<T, d>::FromVector(WorldSpaceInvI1 * AngularImpulse1) * Q0;
 					PBDRigid0->Q().Normalize();
 				}
-				if (!IsTemporarilyStatic1 && PBDRigid1)
+				if (!IsTemporarilyStatic1 && bIsRigidDynamic1)
 				{
 					PBDRigid1->P() -= PBDRigid1->InvM() * Impulse;
 					PBDRigid1->Q() = TRotation<T, d>::FromVector(WorldSpaceInvI2 * AngularImpulse2) * Q1;

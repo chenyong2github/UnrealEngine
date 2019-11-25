@@ -239,13 +239,14 @@ namespace ImmediatePhysics_Chaos
 
 				ParticleHandle->SetGeometry(MakeSerializable(Geometry));
 
-				if (auto* Kinematic = ParticleHandle->AsKinematic())
+				if (auto* Kinematic = ParticleHandle->CastToKinematicParticle())
 				{
 					Kinematic->SetV(FVector::ZeroVector);
 					Kinematic->SetW(FVector::ZeroVector);
 				}
 
-				if (auto* Dynamic = ParticleHandle->AsDynamic())
+				auto* Dynamic = ParticleHandle->CastToRigidParticle();
+				if (Dynamic && Dynamic->ObjectState() == EObjectStateType::Dynamic)
 				{
 					float MassInv = (Mass > 0.0f) ? 1.0f / Mass : 0.0f;
 					FVector InertiaInv = (Mass > 0.0f) ? Inertia.Reciprocal() : FVector::ZeroVector;
@@ -286,7 +287,8 @@ namespace ImmediatePhysics_Chaos
 
 	void FActorHandle::SetEnabled(bool bEnabled)
 	{
-		if (auto* Dynamic = ParticleHandle->AsDynamic())
+		auto* Dynamic = ParticleHandle->CastToRigidParticle();
+		if(Dynamic && Dynamic->ObjectState() == Chaos::EObjectStateType::Dynamic)
 		{
 			Dynamic->Disabled() = !bEnabled;
 		}
@@ -299,7 +301,8 @@ namespace ImmediatePhysics_Chaos
 		ParticleHandle->SetX(ParticleTransform.GetTranslation());
 		ParticleHandle->SetR(ParticleTransform.GetRotation());
 
-		if (auto* Dynamic = ParticleHandle->AsDynamic())
+		auto* Dynamic = ParticleHandle->CastToRigidParticle();
+		if(Dynamic && Dynamic->ObjectState() == Chaos::EObjectStateType::Dynamic)
 		{
 			Dynamic->SetP(Dynamic->X());
 			Dynamic->SetQ(Dynamic->R());
@@ -320,14 +323,14 @@ namespace ImmediatePhysics_Chaos
 
 	const FKinematicTarget& FActorHandle::GetKinematicTarget() const
 	{
-		check(ParticleHandle->AsKinematic());
-		return ParticleHandle->AsKinematic()->KinematicTarget();
+		check(ParticleHandle->CastToKinematicParticle());
+		return ParticleHandle->CastToKinematicParticle()->KinematicTarget();
 	}
 
 	FKinematicTarget& FActorHandle::GetKinematicTarget()
 	{
-		check(ParticleHandle->AsKinematic());
-		return ParticleHandle->AsKinematic()->KinematicTarget();
+		check(ParticleHandle->CastToKinematicParticle());
+		return ParticleHandle->CastToKinematicParticle()->KinematicTarget();
 	}
 
 	void FActorHandle::SetKinematicTarget(const FTransform& WorldTM)
@@ -351,7 +354,7 @@ namespace ImmediatePhysics_Chaos
 
 	bool FActorHandle::IsSimulated() const
 	{
-		return ParticleHandle->AsDynamic() != nullptr;
+		return ParticleHandle->CastToRigidParticle() != nullptr && ParticleHandle->ObjectState() == Chaos::EObjectStateType::Dynamic;
 	}
 
 	FTransform FActorHandle::GetWorldTransform() const
@@ -364,7 +367,7 @@ namespace ImmediatePhysics_Chaos
 	{
 		using namespace Chaos;
 
-		if (TKinematicGeometryParticleHandle<FReal, Dimensions>* KinematicParticleHandle = ParticleHandle->AsKinematic())
+		if (TKinematicGeometryParticleHandle<FReal, Dimensions>* KinematicParticleHandle = ParticleHandle->CastToKinematicParticle())
 		{
 			KinematicParticleHandle->SetV(NewLinearVelocity);
 		}
@@ -379,7 +382,7 @@ namespace ImmediatePhysics_Chaos
 	{
 		using namespace Chaos;
 
-		if (TKinematicGeometryParticleHandle<FReal, Dimensions>* KinematicParticleHandle = ParticleHandle->AsKinematic())
+		if (TKinematicGeometryParticleHandle<FReal, Dimensions>* KinematicParticleHandle = ParticleHandle->CastToKinematicParticle())
 		{
 			KinematicParticleHandle->SetW(NewAngularVelocity);
 		}
@@ -458,7 +461,8 @@ namespace ImmediatePhysics_Chaos
 	{
 		using namespace Chaos;
 
-		if (TPBDRigidParticleHandle<FReal, Dimensions>* Dynamic = ParticleHandle->AsDynamic())
+		TPBDRigidParticleHandle<FReal, Dimensions>* Dynamic = ParticleHandle->CastToRigidParticle();
+		if(Dynamic && Dynamic->ObjectState() == EObjectStateType::Dynamic)
 		{
 			float NewMass = (NewInverseMass > SMALL_NUMBER) ? 1.0f / NewInverseMass : 0.0f;
 			Dynamic->SetM(NewMass);
@@ -475,7 +479,8 @@ namespace ImmediatePhysics_Chaos
 	{
 		using namespace Chaos;
 
-		if (TPBDRigidParticleHandle<FReal, Dimensions>* Dynamic = ParticleHandle->AsDynamic())
+		TPBDRigidParticleHandle<FReal, Dimensions>* Dynamic = ParticleHandle->CastToRigidParticle();
+		if(Dynamic && Dynamic->ObjectState() == EObjectStateType::Dynamic)
 		{
 			FVector NewInertia = FVector::ZeroVector;
 			if ((NewInverseInertia.X > SMALL_NUMBER) && (NewInverseInertia.Y > SMALL_NUMBER) && (NewInverseInertia.Z > SMALL_NUMBER))
