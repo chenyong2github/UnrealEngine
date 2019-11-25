@@ -40,7 +40,7 @@ public:
 	uint32 OutRate;
 
 	/** @see Network stats counters in EngineStats.h */
-	UPROPERTY(Replicated)
+	UE_DEPRECATED(4.25, TEXT("Saturation is not calculated anymore and is now deprecated."))
 	uint32 OutSaturation;
 
 	/** @see Network stats counters in EngineStats.h */
