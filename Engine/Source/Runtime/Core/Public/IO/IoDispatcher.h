@@ -688,7 +688,6 @@ public:
 	CORE_API FIoStatus						Status() const;
 	CORE_API const FIoChunkId&				GetChunkId() const;
 	CORE_API TIoStatusOr<FIoBuffer>			GetResult() const;
-	CORE_API uint64							GetUserData() const;
 
 private:
 	FIoRequestImpl* Impl = nullptr;
@@ -715,7 +714,7 @@ class FIoBatch
 	FIoBatch(FIoDispatcherImpl* InDispatcher, FIoBatchImpl* InImpl);
 
 public:
-	CORE_API FIoRequest Read(const FIoChunkId& Chunk, FIoReadOptions Options, uint64 UserData = 0);
+	CORE_API FIoRequest Read(const FIoChunkId& Chunk, FIoReadOptions Options);
 
 	CORE_API void ForEachRequest(TFunction<bool(FIoRequest&)>&& Callback);
 
@@ -748,9 +747,6 @@ public:
 	// Polling methods
 	CORE_API bool					DoesChunkExist(const FIoChunkId& ChunkId) const;
 	CORE_API TIoStatusOr<uint64>	GetSizeForChunk(const FIoChunkId& ChunkId) const;
-
-	CORE_API TIoStatusOr<FIoChunkId>	OpenFileChunk(FStringView Filename);
-	CORE_API FIoStatus					CloseFileChunk(const FIoChunkId& FileChunkId);
 
 	FIoDispatcher(const FIoDispatcher&) = default;
 	FIoDispatcher& operator=(const FIoDispatcher&) = delete;
