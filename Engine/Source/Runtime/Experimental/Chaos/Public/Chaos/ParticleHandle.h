@@ -58,6 +58,8 @@ void KinematicGeometryParticleDefaultConstruct(FConcrete& Concrete, const TKinem
 {
 	Concrete.SetV(TVector<T, d>(0));
 	Concrete.SetW(TVector<T, d>(0));
+	Concrete.SetCenterOfMass(TVector<T, d>(0));
+	Concrete.SetRotationOfMass(TRotation<T, d>(FQuat(EForceInit::ForceInit)));
 }
 
 template <typename T, int d, bool bPersistent>
@@ -541,6 +543,12 @@ public:
 
 	const TKinematicTarget<T, d>& KinematicTarget() const { return KinematicGeometryParticles->KinematicTarget(ParticleIdx); }
 	TKinematicTarget<T, d>& KinematicTarget() { return KinematicGeometryParticles->KinematicTarget(ParticleIdx); }
+
+	const TVector<T, d>& CenterOfMass() const { return KinematicGeometryParticles->CenterOfMass(ParticleIdx); }
+	void SetCenterOfMass(const TVector<T, d>& InCenterOfMass) { KinematicGeometryParticles->CenterOfMass(ParticleIdx) = InCenterOfMass; }
+	
+	const TRotation<T, d>& RotationOfMass() const { return KinematicGeometryParticles->RotationOfMass(ParticleIdx); }
+	void SetRotationOfMass(const TRotation<T, d>& InRotationOfMass) { KinematicGeometryParticles->RotationOfMass(ParticleIdx) = InRotationOfMass; }
 
 	//Really only useful when using a transient handle
 	const TKinematicGeometryParticleHandleImp<T, d, true>* Handle() const { return KinematicGeometryParticles->Handle(ParticleIdx); }
@@ -1514,6 +1522,20 @@ public:
 		this->MW = InW;
 	}
 
+	const TVector<T, d>& CenterOfMass() const { return MCenterOfMass; }
+	void SetCenterOfMass(const TVector<T, d>& InCenterOfMass, bool bInvalidate = true)
+	{
+		this->MarkDirty(EParticleFlags::CenterOfMass, bInvalidate);
+		this->MCenterOfMass = InCenterOfMass;
+	}
+	
+	const TRotation<T, d>& RotationOfMass() const { return MRotationOfMass; }
+	void SetRotationOfMass(const TRotation<T, d>& InRotationOfMass, bool bInvalidate = true)
+	{
+		this->MarkDirty(EParticleFlags::RotationOfMass, bInvalidate);
+		this->MRotationOfMass = InRotationOfMass;
+	}
+
 	EObjectStateType ObjectState() const;
 
 	FParticleData* NewData() const
@@ -1524,6 +1546,8 @@ public:
 private:
 	TVector<T, d> MV;
 	TVector<T, d> MW;
+	TVector<T, d> MCenterOfMass;
+	TRotation<T, d> MRotationOfMass;
 };
 
 template <typename T, int d>
@@ -1537,12 +1561,16 @@ public:
 	TKinematicGeometryParticleData(EParticleType InType = EParticleType::Kinematic)
 		: Base(InType)
 		, MV(TVector<T, d>(0))
-		, MW(TVector<T, d>(0)) {}
+		, MW(TVector<T, d>(0))
+		, MCenterOfMass(TVector<T, d>(0))
+		, MRotationOfMass(TRotation<T, d>(FQuat(EForceInit::ForceInit))) {}
 
 	TKinematicGeometryParticleData(const TKinematicGeometryParticle<T, d>& InParticle)
 		: Base(InParticle)
 		, MV(InParticle.V())
 		, MW(InParticle.W()) 
+		, MCenterOfMass(InParticle.CenterOfMass()) 
+		, MRotationOfMass(InParticle.RotationOfMass()) 
 	{
 		Type = EParticleType::Kinematic;
 	}
@@ -1551,11 +1579,16 @@ public:
 	void Reset() {
 		TGeometryParticleData<T, d>::Reset();
 		Type = EParticleType::Kinematic;
-		MV = TVector<T, d>(0); MW = TVector<T, d>();
+		MV = TVector<T, d>(0);
+		MW = TVector<T, d>(0);
+		MCenterOfMass = TVector<T, d>(0);
+		MRotationOfMass = TRotation<T, d>(FQuat(EForceInit::ForceInit));
 	}
 
 	TVector<T, d> MV;
 	TVector<T, d> MW;
+	TVector<T, d> MCenterOfMass;
+	TRotation<T, d> MRotationOfMass;
 };
 
 
