@@ -30,6 +30,12 @@ struct FNiagaraInstanceBatcherDeferredDeletionFence
 	FNiagaraDeferredDeletionFence* Fence;
 	FNiagaraInstanceBatcherDeferredDeletionFence(FNiagaraDeferredDeletionFence* InFence);
 	~FNiagaraInstanceBatcherDeferredDeletionFence();
+
+	FNiagaraInstanceBatcherDeferredDeletionFence(FNiagaraInstanceBatcherDeferredDeletionFence&& Other);
+	FNiagaraInstanceBatcherDeferredDeletionFence& operator=(FNiagaraInstanceBatcherDeferredDeletionFence&& Other);
+
+	FNiagaraInstanceBatcherDeferredDeletionFence(const FNiagaraInstanceBatcherDeferredDeletionFence& Other) = delete;
+	FNiagaraInstanceBatcherDeferredDeletionFence& operator=(const FNiagaraInstanceBatcherDeferredDeletionFence& Other) = delete;
 };
 
 class FNiagaraIndicesVertexBuffer : public FParticleIndicesVertexBuffer
@@ -78,7 +84,7 @@ public:
 		DIProxyDeferredDeletes_RT.Add(MoveTemp(Proxy));
 	}
 
-	void AddFence_RenderThread(FNiagaraDeferredDeletionFence* Fence);
+	void AddFence_RenderThread(FNiagaraInstanceBatcherDeferredDeletionFence& Fence);
 
 #if WITH_EDITOR
 	virtual void Suspend() override {}
