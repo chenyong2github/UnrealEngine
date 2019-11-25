@@ -24,7 +24,7 @@ struct CONCERTSYNCCORE_API FTransactionClassFilter
 	TArray<FSoftClassPath> ObjectClasses;
 };
 
-UCLASS(config=Engine)
+UCLASS(config=ConcertSyncCore)
 class CONCERTSYNCCORE_API UConcertSyncConfig : public UObject
 {
 	GENERATED_BODY()
