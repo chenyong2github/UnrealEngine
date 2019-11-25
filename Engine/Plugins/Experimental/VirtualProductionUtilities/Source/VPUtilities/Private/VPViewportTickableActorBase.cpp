@@ -2,6 +2,8 @@
 
 #include "VPViewportTickableActorBase.h"
 
+#include "Engine/World.h"
+
 
 AVPViewportTickableActorBase::AVPViewportTickableActorBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
