@@ -1009,13 +1009,10 @@ void USkeletalMeshComponent::TickAnimation(float DeltaTime, bool bNeedsValidRoot
 
 		// We update linked instances first incase we're using either root motion or non-threaded update.
 		// This ensures that we go through the pre update process and initialize the proxies correctly.
-		if (LinkedAnimationEvaluationOrder == ELinkedAnimationUpdateOrder::UpdateAnimationBeforeAnimScriptInstance)
+		for (UAnimInstance* LinkedInstance : LinkedInstances)
 		{
-			for (UAnimInstance* LinkedInstance : LinkedInstances)
-			{
-				// Sub anim instances are always forced to do a parallel update 
-				LinkedInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, false, UAnimInstance::EUpdateAnimationFlag::ForceParallelUpdate);
-			}
+			// Sub anim instances are always forced to do a parallel update 
+			LinkedInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, false, UAnimInstance::EUpdateAnimationFlag::ForceParallelUpdate);
 		}
 
 		if (AnimScriptInstance != nullptr)
@@ -1023,16 +1020,6 @@ void USkeletalMeshComponent::TickAnimation(float DeltaTime, bool bNeedsValidRoot
 			// Tick the animation
 			AnimScriptInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, bNeedsValidRootMotion);
 		}
-
-		if (LinkedAnimationEvaluationOrder == ELinkedAnimationUpdateOrder::UpdateAnimationAfterAnimScriptInstance)
-		{
-			for (UAnimInstance* LinkedInstance : LinkedInstances)
-			{
-				// Sub anim instances are always forced to do a parallel update 
-				LinkedInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, false, UAnimInstance::EUpdateAnimationFlag::ForceParallelUpdate);
-			}
-		}
-
 
 		if(ShouldUpdatePostProcessInstance())
 		{

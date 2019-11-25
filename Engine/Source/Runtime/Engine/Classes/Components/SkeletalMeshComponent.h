@@ -173,14 +173,6 @@ namespace EAnimationMode
 }
 
 UENUM()
-enum class ELinkedAnimationUpdateOrder : uint8
-{
-	UpdateAnimationBeforeAnimScriptInstance,
-	UpdateAnimationAfterAnimScriptInstance,
-	DoNotUpdate
-};
-
-UENUM()
 namespace EPhysicsTransformUpdateMode
 {
 	enum Type
@@ -441,10 +433,6 @@ private:
 	uint8 bDisablePostProcessBlueprint:1;
 
 public:
-	/** The order in which linked animation is evaluated with respect to the component's animation */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Animation)
-	ELinkedAnimationUpdateOrder LinkedAnimationEvaluationOrder;
-
 	/** Indicates that simulation (if it's enabled) is entirely responsible for children transforms. This is only ok if you are not animating attachment points relative to the simulation */
 	uint8 bSimulationUpdatesChildTransforms:1;
 
