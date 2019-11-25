@@ -428,6 +428,10 @@ void UNiagaraComponent::SetActorParameter(FName ParameterName, class AActor* Par
 	SetVariableActor(ParameterName, Param);
 }
 
+UFXSystemAsset* UNiagaraComponent::GetFXSystemAsset() const
+{
+	return Asset;
+}
 
 void UNiagaraComponent::SetEmitterEnable(FName EmitterName, bool bNewEnableState)
 {
