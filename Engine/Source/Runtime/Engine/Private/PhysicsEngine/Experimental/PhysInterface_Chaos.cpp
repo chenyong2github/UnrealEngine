@@ -247,6 +247,23 @@ void FPhysInterface_Chaos::SetUserData(FPhysicsMaterialHandle& InHandle, void* I
 	Chaos::FPhysicalMaterialManager::Get().UpdateMaterial(InHandle);
 }
 
+void FPhysInterface_Chaos::SetUserData(const FPhysicsShapeHandle& InShape, void* InUserData)
+{
+	if (CHAOS_ENSURE(InShape.Shape))
+	{
+		InShape.Shape->UserData = InUserData;
+	}
+}
+
+void* FPhysInterface_Chaos::GetUserData(const FPhysicsShapeHandle& InShape)
+{
+	if (ensure(InShape.Shape))
+	{
+		return InShape.Shape->UserData;
+	}
+	return nullptr;
+}
+
 int32 FPhysInterface_Chaos::GetNumShapes(const FPhysicsActorHandle& InHandle)
 {
 	// #todo : Implement
@@ -263,11 +280,13 @@ void FPhysInterface_Chaos::ReleaseShape(const FPhysicsShapeHandle& InShape)
 void FPhysInterface_Chaos::AttachShape(const FPhysicsActorHandle& InActor, const FPhysicsShapeHandle& InNewShape)
 {
 	// #todo : Implement
+	CHAOS_ENSURE(false);
 }
 
 void FPhysInterface_Chaos::DetachShape(const FPhysicsActorHandle& InActor, FPhysicsShapeHandle& InShape, bool bWakeTouching)
 {
 	// #todo : Implement
+	CHAOS_ENSURE(false);
 }
 
 void FPhysInterface_Chaos::SetActorUserData_AssumesLocked(FPhysicsActorHandle& InActorReference, FPhysicsUserData* InUserData)
@@ -546,7 +565,12 @@ FTransform FPhysInterface_Chaos::GetComTransform_AssumesLocked(const FPhysicsAct
 	// NOTE: This might need to change after we add separate COM transforms.
 	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
 	{
-		return FTransform(InActorReference->R(), InActorReference->X());
+		if (Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->CastToKinematicParticle())
+		{
+			const FTransform WorldTransform(Kinematic->R(), Kinematic->X());
+			const FTransform COMTransform = FTransform(Kinematic->RotationOfMass(), Kinematic->CenterOfMass());
+			return WorldTransform * COMTransform;
+		}
 	}
 	return FTransform();
 }
@@ -554,6 +578,13 @@ FTransform FPhysInterface_Chaos::GetComTransform_AssumesLocked(const FPhysicsAct
 FTransform FPhysInterface_Chaos::GetComTransformLocal_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
 	// #todo : Implement
+	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
+	{
+		if (Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->CastToKinematicParticle())
+		{
+			return FTransform(Kinematic->RotationOfMass(), Kinematic->CenterOfMass());
+		}
+	}
 	return FTransform();
 }
 
@@ -686,6 +717,12 @@ void FPhysInterface_Chaos::SetMassSpaceInertiaTensor_AssumesLocked(FPhysicsActor
 void FPhysInterface_Chaos::SetComLocalPose_AssumesLocked(const FPhysicsActorHandle& InHandle, const FTransform& InComLocalPose)
 {
     //@todo(mlentine): What is InComLocalPose? If the center of an object is not the local pose then many things break including the three vector represtnation of inertia.
+
+	if (Chaos::TKinematicGeometryParticle<float, 3>* KinematicParticle = InHandle->CastToKinematicParticle())
+	{
+		KinematicParticle->SetCenterOfMass(InComLocalPose.GetLocation());
+		KinematicParticle->SetRotationOfMass(InComLocalPose.GetRotation());
+	}
 }
 
 float FPhysInterface_Chaos::GetStabilizationEnergyThreshold_AssumesLocked(const FPhysicsActorHandle& InHandle)
