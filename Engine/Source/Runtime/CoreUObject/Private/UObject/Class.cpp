@@ -3906,15 +3906,7 @@ void UClass::SetSuperStruct(UStruct* NewSuperStruct)
 	UnhashObject(this);
 	ClearFunctionMapsCaches();
 	Super::SetSuperStruct(NewSuperStruct);
-
-	if (!GetSparseClassDataStruct())
-	{
-		if (UScriptStruct* SparseClassDataStructArchetype = GetSparseClassDataArchetypeStruct())
-		{
-			SetSparseClassDataStruct(SparseClassDataStructArchetype);
-		}
-	}
-
+	SetSparseClassDataStruct(GetSparseClassDataArchetypeStruct());
 	HashObject(this);
 }
 
@@ -4511,17 +4503,7 @@ UScriptStruct* UClass::GetSparseClassDataStruct() const
 
 void UClass::SetSparseClassDataStruct(UScriptStruct* InSparseClassDataStruct)
 { 
-	if (SparseClassDataStruct != InSparseClassDataStruct)
-	{
-		SparseClassDataStruct = InSparseClassDataStruct;
-
-		// the old type and new type may not match when we do a hot reload
-		if (SparseClassData != nullptr)
-		{
-			delete SparseClassData;
-			SparseClassData = nullptr;
-		}
-	}
+	SparseClassDataStruct = InSparseClassDataStruct; 
 }
 
 #if WITH_HOT_RELOAD
