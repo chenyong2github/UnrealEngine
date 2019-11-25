@@ -428,7 +428,6 @@ void FVulkanCommandBufferManager::FlushResetQueryPools()
 		}
 		PoolResetCommandBuffer->End();
 		Queue->Submit(PoolResetCommandBuffer);
-		check(PoolResetCommandBuffer->State == FVulkanCmdBuffer::EState::Submitted);
 		PoolResets.Empty();
 	}
 }
