@@ -1058,8 +1058,8 @@ static void CompareRoleProperties(
 {
 	if (RepState && EnumHasAnyFlags(SharedParams.Flags, ERepLayoutFlags::IsActor))
 	{
-		CompareRoleProperty(SharedParams, Data, NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole, RepState->SavedRemoteRole, Changed);
-		CompareRoleProperty(SharedParams, Data, NetworkingPrivate::Net_AActor::NETFIELD_Role, RepState->SavedRole, Changed);
+		CompareRoleProperty(SharedParams, Data, (int32)AActor::ENetFields_Private::RemoteRole, RepState->SavedRemoteRole, Changed);
+		CompareRoleProperty(SharedParams, Data, (int32)AActor::ENetFields_Private::Role, RepState->SavedRole, Changed);
 	}
 }
 
@@ -1098,14 +1098,14 @@ static void CompareParentProperties(
 
 		if (bCheckForRole)
 		{
-			if (UNLIKELY(ParentIndex == NetworkingPrivate::Net_AActor::NETFIELD_Role))
+			if (UNLIKELY(ParentIndex == (int32)AActor::ENetFields_Private::Role))
 			{
-				CompareRoleProperty(SharedParams, Data, NetworkingPrivate::Net_AActor::NETFIELD_Role, RepState->SavedRole, Changed);
+				CompareRoleProperty(SharedParams, Data, (int32)AActor::ENetFields_Private::Role, RepState->SavedRole, Changed);
 				continue;
 			}
-			else if (UNLIKELY(ParentIndex == NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole))
+			else if (UNLIKELY(ParentIndex == (int32)AActor::ENetFields_Private::RemoteRole))
 			{
-				CompareRoleProperty(SharedParams, Data, NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole, RepState->SavedRemoteRole, Changed);
+				CompareRoleProperty(SharedParams, Data, (int32)AActor::ENetFields_Private::RemoteRole, RepState->SavedRemoteRole, Changed);
 				continue;
 			}
 		}
@@ -2576,13 +2576,13 @@ static bool ReceivePropertyHelper(
 		if (!bSkipSwapRoles)
 		{
 			// Swap Role to RemoteRole, and vice-versa. Leave everything else the same.
-			if (UNLIKELY(NetworkingPrivate::Net_AActor::NETFIELD_Role == Cmd.ParentIndex))
+			if (UNLIKELY((int32)AActor::ENetFields_Private::RemoteRole == Cmd.ParentIndex))
 			{
-				return Cmds[Parents[NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole].CmdStart];
+				return Cmds[Parents[(int32)AActor::ENetFields_Private::Role].CmdStart];
 			}
-			else if (UNLIKELY(NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole == Cmd.ParentIndex))
+			else if (UNLIKELY((int32)AActor::ENetFields_Private::Role == Cmd.ParentIndex))
 			{
-				return Cmds[Parents[NetworkingPrivate::Net_AActor::NETFIELD_Role].CmdStart];
+				return Cmds[Parents[(int32)AActor::ENetFields_Private::RemoteRole].CmdStart];
 			}
 		}
 
@@ -5101,13 +5101,13 @@ void FRepLayout::InitFromClass(
 	}
 
 	// Make sure RemoteRole has a lower RepIndex than Role, otherwise assumptions RepLayout may break.
-	static_assert(NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole < NetworkingPrivate::Net_AActor::NETFIELD_Role, "Role and RemoteRole have been rearranged in AActor. This will break assumptions in RepLayout.");
+	static_assert((int32)AActor::ENetFields_Private::RemoteRole < (int32)AActor::ENetFields_Private::Role, "Role and RemoteRole have been rearranged in AActor. This will break assumptions in RepLayout.");
 
 	// Make sure that our RemoteRole property actually points to RemoteRole.
-	check(!bIsObjectActor || Parents[NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole].Property->GetFName() == NAME_RemoteRole);
+	check(!bIsObjectActor || Parents[(int32)AActor::ENetFields_Private::RemoteRole].Property->GetFName() == NAME_RemoteRole);
 
 	// Make sure that our Role property actually points to Role.
-	check(!bIsObjectActor || Parents[NetworkingPrivate::Net_AActor::NETFIELD_Role].Property->GetFName() == NAME_Role);
+	check(!bIsObjectActor || Parents[(int32)AActor::ENetFields_Private::Role].Property->GetFName() == NAME_Role);
 
 	AddReturnCmd(Cmds);
 
@@ -5245,7 +5245,7 @@ void FRepLayout::InitFromClass(
 	{
 		// We handle remote role specially, since it can change between connections when downgraded
 		// So we force it on the conditional list
-		FRepParentCmd& RemoteRoleParent = Parents[NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole];
+		FRepParentCmd& RemoteRoleParent = Parents[(int32)AActor::ENetFields_Private::RemoteRole];
 		if (RemoteRoleParent.Condition != COND_Never)
 		{
 			if (COND_None != RemoteRoleParent.Condition)
@@ -5253,8 +5253,8 @@ void FRepLayout::InitFromClass(
 				UE_LOG(LogRep, Warning, TEXT("FRepLayout::InitFromClass: Forcing replication of RemoteRole. Owner=%s"), *InObjectClass->GetPathName());
 			}
 
-			Parents[NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole].Flags |= ERepParentFlags::IsConditional;
-			Parents[NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole].Condition = COND_None;
+			Parents[(int32)AActor::ENetFields_Private::RemoteRole].Flags |= ERepParentFlags::IsConditional;
+			Parents[(int32)AActor::ENetFields_Private::RemoteRole].Condition = COND_None;
 		}
 	}
 
