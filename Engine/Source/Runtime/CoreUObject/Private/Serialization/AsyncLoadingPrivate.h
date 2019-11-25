@@ -20,7 +20,7 @@ public:
 		ProcessingExports,
 	};
 
-	FAsyncArchive(const TCHAR* InFileName, TFunction<void()>&& InSummaryReadyCallback);
+	FAsyncArchive(const TCHAR* InFileName, FLinkerLoad* InOwner, TFunction<void()>&& InSummaryReadyCallback);
 	virtual ~FAsyncArchive ();
 
 	/** Archive overrides */
@@ -126,4 +126,5 @@ private:
 	TFunction<void()> SummaryReadyCallback;
 	FAsyncFileCallBack ReadCallbackFunctionForLinkerLoad;
 
+	FLinkerLoad* OwnerLinker;
 };
