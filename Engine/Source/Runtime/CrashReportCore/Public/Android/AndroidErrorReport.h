@@ -42,13 +42,8 @@ public:
 	static void ShutDown();
 
 	/**
-	 * Do nothing - shouldn't be called on Android
-	 * @return Dummy text
 	 */
-	FText DiagnoseReport() const	
-	{
-		return FText::FromString("No local diagnosis on Android");
-	}
+	FText DiagnoseReport() const;
 
 	/**
 	 * Do nothing - shouldn't be called on Android

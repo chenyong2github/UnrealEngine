@@ -19,14 +19,14 @@ enum
     DEFAULT_DS_COMMANDER_PORT = 41000, // default port to use when issuing DeploymentServer commands
 };
 
-FTcpDSCommander::FTcpDSCommander(const uint8* Data, int32 Count, void* WPipe)
+FTcpDSCommander::FTcpDSCommander(const uint8* Data, int32 Count, TQueue<FString>& InOutputQueue)
 : bStopping(false)
 , bStopped(true)
 , bIsSuccess(false)
 , bIsSystemError(false)
 , DSSocket(nullptr)
 , Thread(nullptr)
-, WritePipe(WPipe)
+, OutputQueue(InOutputQueue)
 , DSCommand(nullptr)
 , DSCommandLen(Count + 1)
 , LastActivity(0.0)
@@ -133,9 +133,11 @@ uint32 FTcpDSCommander::Run()
     }
     bStopped = false;
     
-    static const SIZE_T CommandSize = 1024;
-    uint8 RecvBuffer[CommandSize];
-    
+    static const SIZE_T BufferSize = 1025;
+	TArray<ANSICHAR> RecvBuffer;
+	RecvBuffer.Empty(BufferSize);
+	RecvBuffer.AddZeroed(BufferSize);
+
     while (!bStopping)
     {
         uint32 Pending = 0;
@@ -144,48 +146,73 @@ uint32 FTcpDSCommander::Run()
             //UE_LOG(LogTemp, Log, TEXT("Socket connection error."));
             return 1;
         }
-        if (DSSocket->HasPendingData(Pending))
+
+		int32 BytesRead = 0;
+		// Receive into the last BufferSize bytes of the buffer.
+		// We only receive at max BufferSize-1 bytes to preserve the last byte for a null terminator
+		if (DSSocket->Recv((uint8*)RecvBuffer.GetData() + RecvBuffer.Num() - BufferSize, BufferSize - 1, BytesRead) == false)
+		{
+			// Recv returns false on graceful socket disconnection
+			return 1;
+		}
+
+		if (BytesRead > 0)
         {
-            NSent = 0;
-            FMemory::Memset(RecvBuffer, 0, CommandSize);
-            LastActivity = FPlatformTime::Seconds();
-            if (DSSocket->Recv(RecvBuffer, CommandSize, NSent))
-            {
-                FString Result = UTF8_TO_TCHAR(RecvBuffer);
-                TArray<FString> TagArray;
-                Result.ParseIntoArray(TagArray, TEXT("\n"), false);
-                int i;
-                for (i = 0; i < TagArray.Num() - 1; i++)
-                {
-                    if (TagArray[i].EndsWith(TEXT("CMDOK\r")))
-                    {
-                        bIsSuccess = true;
-                        //UE_LOG(LogTemp, Log, TEXT("Socket command completed."));
-                        return 0;
-                    }
-                    else if (TagArray[i].StartsWith(TEXT("[DSDIR]")))
-                    {
-                        // just ignore the folder check
-                    }
-                    else if (TagArray[i].EndsWith(TEXT("CMDFAIL\r")))
-                    {
-                        //UE_LOG(LogTemp, Display, TEXT("Socket command failed."));
-                        return 1;
-                    }
-                    else
-                    {
-                        FPlatformProcess::WritePipe(WritePipe, *TagArray[i]);
-                    }
-                }
-            }
-        }
-        double CurrentTime = FPlatformTime::Seconds();
-        if (CurrentTime - LastActivity > 120.0)
-        {
-			//UE_LOG(LogTemp, Display, TEXT("Socket command timeouted."));
-            return 0;
-        }
-        FPlatformProcess::Sleep(0.01f);
+			LastActivity = FPlatformTime::Seconds();
+
+			ANSICHAR* LineStart = RecvBuffer.GetData();
+			ANSICHAR* LineEnd = nullptr;
+
+			while ((LineEnd = FCStringAnsi::Strchr(LineStart, '\n')) != nullptr)
+			{				
+				*LineEnd = '\0';
+				FString DataLine = UTF8_TO_TCHAR(LineStart);
+				LineStart = LineEnd + 1;
+
+				if (DataLine.EndsWith(TEXT("CMDOK\r")))
+				{
+					bIsSuccess = true;
+					return 0;
+				}
+				else if (DataLine.StartsWith(TEXT("[DSDIR]")))
+				{
+					// just ignore the folder check
+				}
+				else if (DataLine.EndsWith(TEXT("CMDFAIL\r")))
+				{
+					//UE_LOG(LogTemp, Display, TEXT("Socket command failed."));
+					return 1;
+				}
+				else
+				{
+					OutputQueue.Enqueue(DataLine);
+				}
+			}
+
+			if (*LineStart == '\0')
+			{
+				// no trailing data, reset buffer
+				RecvBuffer.Empty(BufferSize);
+				RecvBuffer.AddZeroed(BufferSize);
+			}
+			else
+			{
+				// There is trailing data, leave at the front of the buffer and add space for the next recv call.
+				RecvBuffer.RemoveAt(0, LineStart - RecvBuffer.GetData(), false);
+				// New buffer needs to have BufferSize free after the remaining string.
+				RecvBuffer.AddZeroed(BufferSize + FCStringAnsi::Strlen(RecvBuffer.GetData()) - RecvBuffer.Num());
+			}
+		}
+		else
+		{
+			double CurrentTime = FPlatformTime::Seconds();
+			if (CurrentTime - LastActivity > 120.0)
+			{
+				//UE_LOG(LogTemp, Display, TEXT("Socket command timeouted."));
+				return 0;
+			}
+			FPlatformProcess::Sleep(0.05f);
+		}
     }
     
     return 0;
@@ -462,30 +489,29 @@ inline ITargetDeviceOutputPtr FIOSTargetDevice::CreateDeviceOutputRouter(FOutput
 
 int FIOSTargetDeviceOutput::ExecuteDSCommand(const char *CommandLine, FString* OutStdOut)
 {
-	void* WritePipe;
-	void* ReadPipe;
-	FPlatformProcess::CreatePipe(ReadPipe, WritePipe);
-	FTcpDSCommander DSCommander((uint8*)CommandLine, strlen(CommandLine), WritePipe);
+	TQueue<FString>	OutputQueue;
+	FTcpDSCommander DSCommander((uint8*)CommandLine, strlen(CommandLine), OutputQueue);
 	while (DSCommander.IsValid() && !DSCommander.IsStopped())
 	{
-		FString NewLine = FPlatformProcess::ReadPipe(ReadPipe);
-		if (NewLine.Len() > 0)
+		FString NewLine;
+		if (OutputQueue.Dequeue(NewLine))
 		{
 			// process the string to break it up in to lines
 			*OutStdOut += NewLine;
 		}
-
-		FPlatformProcess::Sleep(0.25);
+		else
+		{
+			FPlatformProcess::Sleep(0.05f);
+		}
 	}
-	FString NewLine = FPlatformProcess::ReadPipe(ReadPipe);
-	if (NewLine.Len() > 0)
+	FString NewLine;
+	if (OutputQueue.Dequeue(NewLine))
 	{
 		// process the string to break it up in to lines
 		*OutStdOut += NewLine;
 	}
 
-	FPlatformProcess::Sleep(0.25);
-	FPlatformProcess::ClosePipe(ReadPipe, WritePipe);
+	FPlatformProcess::Sleep(0.05f);
 
 	if (DSCommander.IsSystemError())
 	{

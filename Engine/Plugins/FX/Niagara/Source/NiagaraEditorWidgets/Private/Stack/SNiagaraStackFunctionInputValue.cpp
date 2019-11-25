@@ -132,6 +132,7 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 						SNew(STextBlock)
 						.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
 						.Text(this, &SNiagaraStackFunctionInputValue::GetDynamicValueText)
+						.ToolTipText(this, &SNiagaraStackFunctionInputValue::GetDynamicValueToolTip)
 						.OnDoubleClicked(this, &SNiagaraStackFunctionInputValue::DynamicInputTextDoubleClicked)
 					]
 				]
@@ -370,6 +371,18 @@ FText SNiagaraStackFunctionInputValue::GetDynamicValueText() const
 	if (FunctionInput->GetDynamicInputNode() != nullptr)
 	{
 		return FText::FromString(FName::NameToDisplayString(FunctionInput->GetDynamicInputNode()->GetFunctionName(), false));
+	}
+	else
+	{
+		return LOCTEXT("InvalidDynamicDisplayName", "(Invalid)");
+	}
+}
+
+FText SNiagaraStackFunctionInputValue::GetDynamicValueToolTip() const
+{
+	if (FunctionInput->GetDynamicInputNode() != nullptr)
+	{
+		return FunctionInput->GetDynamicInputNode()->GetTooltipText();
 	}
 	else
 	{
