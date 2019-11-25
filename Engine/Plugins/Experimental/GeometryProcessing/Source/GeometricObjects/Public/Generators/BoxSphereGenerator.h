@@ -44,9 +44,9 @@ public:
 				double y = V.Dot(AxY) / Box.Extents.Y;
 				double z = V.Dot(AxZ) / Box.Extents.Z;
 				double x2 = x * x, y2 = y * y, z2 = z * z;
-				double sx = x * FMath::Sqrt(1.0 - y2*0.5 - z2*0.5 + y2*z2/3.0);
-				double sy = y * FMath::Sqrt(1.0 - x2*0.5 - z2*0.5 + x2*z2/3.0);
-				double sz = z * FMath::Sqrt(1.0 - x2*0.5 - y2*0.5 + x2*y2/3.0);
+				double sx = x * FMathd::Sqrt(1.0 - y2*0.5 - z2*0.5 + y2*z2/3.0);
+				double sy = y * FMathd::Sqrt(1.0 - x2*0.5 - z2*0.5 + x2*z2/3.0);
+				double sz = z * FMathd::Sqrt(1.0 - x2*0.5 - y2*0.5 + x2*y2/3.0);
 				V = sx*AxX + sy*AxY + sz*AxZ;
 			}
 			V.Normalize();

@@ -2,6 +2,23 @@
 
 #include "MeshAdapterUtil.h"
 
+FPointSetAdapterd MeshAdapterUtil::MakePointsAdapter(const FDynamicPointSet3d* PointSet)
+{
+	FPointSetAdapterd Adapter;
+	Adapter.MaxPointID = [PointSet]() { return PointSet->MaxVertexID(); };
+	Adapter.PointCount = [PointSet]() { return PointSet->VertexCount(); };
+	Adapter.IsPoint = [PointSet](int Idx) { return PointSet->IsVertex(Idx); };
+	Adapter.GetPoint = [PointSet](int Idx) { return PointSet->GetVertex(Idx); };
+	Adapter.Timestamp = [PointSet] { return PointSet->GetTimestamp(); };
+
+	Adapter.HasNormals = [PointSet] { return false; };
+	Adapter.GetPointNormal = [PointSet](int Idx) {return FVector3d(0,0,1); };
+
+	return Adapter;
+}
+
+
+
 FPointSetAdapterd MeshAdapterUtil::MakeVerticesAdapter(const FDynamicMesh3* Mesh)
 {
 	FPointSetAdapterd Adapter;

@@ -19,7 +19,7 @@ class TMeshAABBTree3 : public IMeshSpatial
 	friend class TFastWindingTree<TriangleMeshType>;
 
 protected:
-	TriangleMeshType* Mesh;
+	const TriangleMeshType* Mesh;
 	int MeshTimestamp = -1;
 	int TopDownLeafMaxTriCount = 4;
 
@@ -36,12 +36,12 @@ public:
 		Mesh = nullptr;
 	}
 
-	TMeshAABBTree3(TriangleMeshType* SourceMesh, bool bAutoBuild = true)
+	TMeshAABBTree3(const TriangleMeshType* SourceMesh, bool bAutoBuild = true)
 	{
 		SetMesh(SourceMesh, bAutoBuild);
 	}
 
-	void SetMesh(TriangleMeshType* SourceMesh, bool bAutoBuild = true)
+	void SetMesh(const TriangleMeshType* SourceMesh, bool bAutoBuild = true)
 	{
 		Mesh = SourceMesh;
 		MeshTimestamp = -1;

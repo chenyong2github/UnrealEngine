@@ -166,11 +166,12 @@ namespace FastTriWinding
 	}
 } // namespace FastTriWinding
 
+
+
 /**
- *  Fast Mesh Winding Number computation
- *
- *  TODO: this is tightly coupled to the internal guts of TMeshAABBTree3 (because it is ported from code where it *was* the guts of the AABBTree)
- *			we should probably at least try to decouple it some
+ * Fast Mesh Winding Number extension to a TMeshAABBTree3.
+ * This class is an "add-on" to the AABBTree, that can compute the Fast Mesh Winding Number.
+ * This calculation requires a precomputation pass where information is cached at each tree node.
  */
 template <class TriangleMeshType>
 class TFastWindingTree
@@ -228,7 +229,10 @@ public:
 	}
 
 	/**
-	 *  Fast approximation of winding number using far-field approximations
+	 * Fast approximation of winding number using far-field approximations.
+	 * On a closed mesh the winding number will be 1 or more inside (depending on number of "winds").
+	 * Outside a closed mesh the winding number will be zero.
+	 * On an open mesh, the above holds near the mesh but in the "hole" areas the value will smoothly blend from 1 to 0 over a band of width dependent on the hole extent
 	 */
 	double FastWindingNumber(const FVector3d& P)
 	{
