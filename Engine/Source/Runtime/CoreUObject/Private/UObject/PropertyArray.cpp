@@ -64,7 +64,7 @@ void UArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
 	TOptional<FPropertyTag> MaybeInnerTag;
 
-	if (UnderlyingArchive.IsTextFormat() && !UnderlyingArchive.UseUnversionedPropertySerialization()
+	if (UnderlyingArchive.IsTextFormat() && !Slot.GetArchiveState().UseUnversionedPropertySerialization()
 		&& Inner && Inner->IsA<UStructProperty>())
 	{
 		MaybeInnerTag.Emplace(UnderlyingArchive, Inner, 0, (uint8*)Value, (uint8*)Defaults);	
@@ -103,7 +103,7 @@ void UArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 	ArrayHelper.CountBytes( UnderlyingArchive );
 
 	// Serialize a PropertyTag for the inner property of this array, allows us to validate the inner struct to see if it has changed
-	if (!UnderlyingArchive.UseUnversionedPropertySerialization() && 
+	if (!Slot.GetArchiveState().UseUnversionedPropertySerialization() && 
 		UnderlyingArchive.UE4Ver() >= VER_UE4_INNER_ARRAY_TAG_INFO &&
 		Inner && Inner->IsA<UStructProperty>())
 	{

@@ -1113,7 +1113,7 @@ void UStruct::LoadTaggedPropertiesFromText(FStructuredArchive::FSlot Slot, uint8
 
 void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct, uint8* Defaults, const UObject* BreakRecursionIfFullyLoad) const
 {
-	if (Slot.GetUnderlyingArchive().UseUnversionedPropertySerialization())
+	if (Slot.GetArchiveState().UseUnversionedPropertySerialization())
 	{
 		SerializeUnversionedProperties(this, Slot, Data, DefaultsStruct, Defaults);
 	}

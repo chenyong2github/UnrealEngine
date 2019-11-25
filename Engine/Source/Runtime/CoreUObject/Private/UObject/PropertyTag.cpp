@@ -18,7 +18,7 @@ FPropertyTag::FPropertyTag( FArchive& InSaveAr, UProperty* Property, int32 InInd
 	, Name      (Property->GetFName())
 	, ArrayIndex(InIndex)
 {
-	check(!InSaveAr.UseUnversionedPropertySerialization());
+	check(!InSaveAr.GetArchiveState().UseUnversionedPropertySerialization());
 	if (Property)
 	{
 		// Handle structs.
@@ -85,7 +85,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPropertyTag& Tag)
 
 	int32 Version = UnderlyingArchive.UE4Ver();
 
-	check(!UnderlyingArchive.UseUnversionedPropertySerialization());
+	check(!UnderlyingArchive.GetArchiveState().UseUnversionedPropertySerialization());
 	checkf(!UnderlyingArchive.IsSaving() || Tag.Prop, TEXT("FPropertyTag must be constructed with a valid property when used for saving data!"));
 
 	if (!bIsTextFormat)
