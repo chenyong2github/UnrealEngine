@@ -3232,7 +3232,7 @@ bool UDemoNetDriver::ReadDemoFrameIntoPlaybackPackets(FArchive& Ar, TArray<FPlay
 	{
 		Ar << SkipGameSpecificOffset;
 
-		if (!bForLevelFastForward)
+		if ((SkipGameSpecificOffset > 0) && !bForLevelFastForward)
 		{
 			FDemoFrameDataMap Data;
 			Ar << Data;
