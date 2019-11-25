@@ -7,6 +7,10 @@
 
 #if WITH_DEV_AUTOMATION_TESTS 
 
+static_assert(TIsContiguousContainer<FStringView>::Value, "FStringView must be a contiguous container.");
+static_assert(TIsContiguousContainer<FAnsiStringView>::Value, "FAnsiStringView must be a contiguous container.");
+static_assert(TIsContiguousContainer<FWideStringView>::Value, "FWideStringView must be a contiguous container.");
+
 #define TEST_NAME_ROOT "System.Core.Misc.StringView"
 constexpr const uint32 TestFlags = EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter;
 
@@ -162,8 +166,10 @@ bool FStringViewTestEquality::RunTest(const FString& Parameters)
 
 	FStringView IdenticalView(WideStringLiteralSrc);
 
-	TestTrue(TEXT("Equality(40)"), WideView == IdenticalView);
-	TestTrue(TEXT("Equality(41)"), IdenticalView == WideView);
+	TestTrue(TEXT("Equality(40a)"), WideView == IdenticalView);
+	TestFalse(TEXT("Equality(40b)"), WideView != IdenticalView);
+	TestTrue(TEXT("Equality(41a)"), IdenticalView == WideView);
+	TestFalse(TEXT("Equality(41b)"), IdenticalView != WideView);
 
 	// Views without null termination
 
@@ -480,7 +486,7 @@ bool FStringViewTestLeft::RunTest(const FString& Parameters)
 	}
 	
 	{
-		FStringView View(TEXT("A test string"));
+		FStringView View(TEXT("A test string padded"), 13); // "A test string" without null termination
 		FStringView Result = View.Left(8);
 
 		TestTrue(TEXT("FStringView::Left"), FCString::Strncmp(Result.GetData(), TEXT("A test s"), Result.Len()) == 0);
@@ -505,7 +511,7 @@ bool FStringViewTestLeftChop::RunTest(const FString& Parameters)
 	}
 
 	{
-		FStringView View(TEXT("A test string"));
+		FStringView View(TEXT("A test string padded"), 13); // "A test string" without null termination
 		FStringView Result = View.LeftChop(5);
 
 		TestTrue(TEXT("FStringView::LeftChop"), FCString::Strncmp(Result.GetData(), TEXT("A test s"), Result.Len()) == 0);
@@ -530,7 +536,7 @@ bool FStringViewTestRight::RunTest(const FString& Parameters)
 	}
 
 	{
-		FStringView View(TEXT("A test string"));
+		FStringView View(TEXT("A test string padded"), 13); // "A test string" without null termination
 		FStringView Result = View.Right(8);
 
 		TestTrue(TEXT("FStringView::Right"), FCString::Strncmp(Result.GetData(), TEXT("t string"), Result.Len()) == 0);
@@ -555,7 +561,7 @@ bool FStringViewTestRightChop::RunTest(const FString& Parameters)
 	}
 
 	{
-		FStringView View(TEXT("A test string"));
+		FStringView View(TEXT("A test string padded"), 13); // "A test string" without null termination
 		FStringView Result = View.RightChop(3);
 
 		TestTrue(TEXT("FStringView::RightChop"), FCString::Strncmp(Result.GetData(), TEXT("est string"), Result.Len()) == 0);
@@ -595,6 +601,7 @@ bool FStringViewTestMid::RunTest(const FString& Parameters)
 		TestTrue(TEXT("FStringView::Mid(4)"), FCString::Strncmp(Word2.GetData(), TEXT("string"), Word2.Len()) == 0);
 		TestTrue(TEXT("FStringView::Mid(5)"), NullTerminatorResult.IsEmpty());
 		TestTrue(TEXT("FStringView::Mid(6)"), View == OutofBoundsResult);
+		TestTrue(TEXT("FStringView::Mid(7)"), View.Mid(512, 1024).IsEmpty());
 	}
 
 	return true;
