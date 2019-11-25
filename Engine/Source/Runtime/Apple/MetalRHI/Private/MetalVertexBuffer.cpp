@@ -531,7 +531,7 @@ void FMetalRHIBuffer::Unlock()
 		if (LockSize && CPUBuffer)
 		{
 			// Synchronise the buffer with the GPU
-			GetMetalDeviceContext().AsyncCopyFromBufferToBuffer(CPUBuffer, 0, Buffer, 0, Buffer.GetLength());
+			GetMetalDeviceContext().AsyncCopyFromBufferToBuffer(CPUBuffer, 0, Buffer, 0, FMath::Min(CPUBuffer.GetLength(), Buffer.GetLength()));
 			
 			ConditionalSetUniformBufferPreviousOffset();
 			
