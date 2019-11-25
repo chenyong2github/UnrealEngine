@@ -224,7 +224,7 @@ private:
 	void AddCollisionToCollisionData(
 		FRecordedFrame* ExistingFrame, 
 		const FParticlesType& Particles, 
-		const Chaos::TPBDCollisionConstraint<float, 3>::FPointContactConstraint& Constraint);
+		const Chaos::TPBDCollisionConstraints<float, 3>::FPointContactConstraint& Constraint);
 
 	void UpdateCollisionData(
 		const FParticlesType& Particles, 
