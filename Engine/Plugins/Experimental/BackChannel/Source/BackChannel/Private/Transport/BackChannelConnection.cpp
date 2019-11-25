@@ -177,12 +177,13 @@ void FBackChannelConnection::SetSocketBufferSizes(FSocket* NewSocket, int32 Desi
 
 	int32 RequestedSendSize = DesiredSendSize;
 	int32 RequestedReceiveSize = DesiredReceiveSize;
+	bool bWasSet = false;
 	
 	// Send Buffer
-	while (AllocatedSendSize != RequestedSendSize)
+	while (AllocatedSendSize != RequestedSendSize && !bWasSet)
 	{
-		NewSocket->SetSendBufferSize(RequestedSendSize, AllocatedSendSize);
-		
+		bWasSet = NewSocket->SetSendBufferSize(RequestedSendSize, AllocatedSendSize);
+
 		if (AllocatedSendSize != RequestedSendSize)
 		{
 			RequestedSendSize = RequestedSendSize / 2;
@@ -194,10 +195,12 @@ void FBackChannelConnection::SetSocketBufferSizes(FSocket* NewSocket, int32 Desi
 		UE_LOG(LogBackChannel, Warning, TEXT("Wanted send buffer of %d but OS only allowed %d"), DesiredSendSize, AllocatedSendSize);
 	}
 	
+	bWasSet = false;
+
 	// Set Receive buffer
-	while (AllocatedReceiveSize != RequestedReceiveSize)
+	while (AllocatedReceiveSize != RequestedReceiveSize && !bWasSet)
 	{
-		NewSocket->SetReceiveBufferSize(RequestedReceiveSize, AllocatedReceiveSize);
+		bWasSet = NewSocket->SetReceiveBufferSize(RequestedReceiveSize, AllocatedReceiveSize);
 		
 		if (AllocatedReceiveSize != RequestedReceiveSize)
 		{
