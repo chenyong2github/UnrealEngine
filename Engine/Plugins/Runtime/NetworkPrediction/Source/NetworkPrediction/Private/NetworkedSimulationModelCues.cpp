@@ -111,7 +111,7 @@ public:
 		DispatchTable.template RegisterType<FMockImpactCue>();
 	}
 
-	void HandleCue(FMockImpactCue& ImpactCue, const FNetSimCueSystemParamemters& SystemParameters)
+	void HandleCue(const FMockImpactCue& ImpactCue, const FNetSimCueSystemParamemters& SystemParameters)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Impact!"));
 	}
@@ -131,12 +131,12 @@ public:
 
 	using TestHandlerBase::HandleCue; // Required for us to "use" the HandleCue methods in our parent class
 
-	void HandleCue(FMockDamageCue& DamageCue, const FNetSimCueSystemParamemters& SystemParameters)
+	void HandleCue(const FMockDamageCue& DamageCue, const FNetSimCueSystemParamemters& SystemParameters)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("HandleCue: Damage. SourceID: %d DamageType: %d HitLocation: %s"), DamageCue.SourceID, DamageCue.DamageType, *DamageCue.HitLocation.ToString());
 	}
 
-	void HandleCue(FMockHealingCue& HealingCue, const FNetSimCueSystemParamemters& SystemParameters)
+	void HandleCue(const FMockHealingCue& HealingCue, const FNetSimCueSystemParamemters& SystemParameters)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("HandleCue: Healing. SourceID: %d Healing Amount: %d"), HealingCue.SourceID, HealingCue.HealingAmount);
 	}
