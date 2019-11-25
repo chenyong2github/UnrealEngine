@@ -6,8 +6,7 @@
 #include "VectorVM.h"
 #include "StaticMeshResources.h"
 #include "Curves/RichCurve.h"
-#include "NiagaraDataInterface.h"
-
+#include "NiagaraDataInterfaceCurveBase.h"
 #include "NiagaraDataInterfaceVector2DCurve.generated.h"
 
 
@@ -27,16 +26,15 @@ public:
 	enum
 	{
 		CurveLUTNumElems = 2,
-		CurveLUTMax = (CurveLUTWidth * CurveLUTNumElems) - 1,
 	};
-
-	void UpdateLUT();
 
 	//UObject Interface
 	virtual void PostInitProperties() override;
-	virtual void PostLoad() override;
-
+	virtual void Serialize(FArchive& Ar) override;
 	//UObject Interface End
+	
+	virtual void UpdateTimeRanges() override;
+	virtual TArray<float> BuildLUT(int32 NumEntries) const override;
 
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 
