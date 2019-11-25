@@ -20,6 +20,8 @@ namespace Chaos
 	template<typename T, int d>
 	class TRigidBodyPointContactConstraint;
 
+
+
 	/** Specifies the type of work we should do*/
 	enum class CHAOS_API ECollisionUpdateType
 	{
@@ -40,7 +42,7 @@ namespace Chaos
 	/*
 	*
 	*/
-	template<class T, int d>
+	template<class T=float, int d=3>
 	class CHAOS_API TCollisionConstraintBase
 	{
 	public:
@@ -56,12 +58,14 @@ namespace Chaos
 		TCollisionConstraintBase(FType InType) : Type(InType) {}
 		FType GetType() const { return Type; }
 
-		template<class AS_T> AS_T * As() { return static_cast<AS_T>(this); }
-		template<class AS_T> const AS_T * As() const { return static_cast<AS_T>(this); }
+		template<class AS_T> AS_T * As() { return static_cast<AS_T*>(this); }
+		template<class AS_T> const AS_T * As() const { return static_cast<AS_T*>(this); }
 
 	private:
 		FType Type;
 	};
+	typedef TCollisionConstraintBase<float, 3> FCollisionConstraintBase;
+	typedef TArray<TCollisionConstraintBase<float, 3>*> FCollisionConstraintsArray;
 
 
 	/*
@@ -98,7 +102,7 @@ namespace Chaos
 		using FGeometryParticleHandle = TGeometryParticleHandle<T, d>;
 		using FManifold = TPointContactManifold<T, d>;
 
-		TRigidBodyPointContactConstraint() : AccumulatedImpulse(0) {}
+		TRigidBodyPointContactConstraint() : TCollisionConstraintBase(Base::FType::SinglePoint), AccumulatedImpulse(0) {}
 		static typename Base::FType StaticType() { return Base::FType::SinglePoint; };
 
 
@@ -137,6 +141,7 @@ namespace Chaos
 		TVector<T, d> AccumulatedImpulse;
 
 	};
+	typedef TRigidBodyPointContactConstraint<float, 3> FRigidBodyPointContactConstraint;
 
 
 	/*
@@ -178,7 +183,7 @@ namespace Chaos
 		using FGeometryParticleHandle = TGeometryParticleHandle<T, d>;
 		using FManifold = TPlaneContactManifold<T, d>;
 
-		TRigidBodyPlaneContactConstraint() : AccumulatedImpulse(0) {}
+		TRigidBodyPlaneContactConstraint() : TCollisionConstraintBase(Base::FType::Plane), AccumulatedImpulse(0) {}
 		static typename Base::FType StaticType() { return Base::FType::Plane; };
 
 	
@@ -197,7 +202,7 @@ namespace Chaos
 		TVector<T, d> AccumulatedImpulse;
 
 	};
-
+	typedef TRigidBodyPlaneContactConstraint<float, 3> FRigidBodyPlaneContactConstraint;
 
 
 	template<class T, int d>
