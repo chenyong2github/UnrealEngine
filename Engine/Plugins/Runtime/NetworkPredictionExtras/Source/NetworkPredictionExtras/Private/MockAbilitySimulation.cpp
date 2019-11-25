@@ -296,8 +296,12 @@ static FAutoConsoleVariableRef CVarBindAutomatically(TEXT("NetworkPredictionExtr
 
 void UMockFlyingAbilityComponent::HandleCue(FMockAbilityBlinkCue& BlinkCue, const FNetworkSimTime& ElapsedTime)
 {
-	UE_LOG(LogTemp, Display, TEXT("BlinkCue! : <%f, %f, %f> - <%f, %f, %f>. ElapsedTime: %s"), BlinkCue.StartLocation.X, BlinkCue.StartLocation.Y, BlinkCue.StartLocation.Z,
-		BlinkCue.StopLocation.X, BlinkCue.StopLocation.Y, BlinkCue.StopLocation.Z, *ElapsedTime.ToString()); //*BlinkCue.StartLocation.ToString(), *BlinkCue.StopLocation.ToString());
+	FString RoleStr = GetOwnerRole() == ROLE_Authority ? TEXT("Server") : TEXT("Client");
+
+	FVector Delta = GetOwner()->GetActorLocation() - BlinkCue.StopLocation;
+
+	UE_LOG(LogTemp, Display, TEXT("[%s] BlinkCue! : <%f, %f, %f> - <%f, %f, %f>. ElapsedTime: %s. Delta: %.3f"), *RoleStr, BlinkCue.StartLocation.X, BlinkCue.StartLocation.Y, BlinkCue.StartLocation.Z,
+		BlinkCue.StopLocation.X, BlinkCue.StopLocation.Y, BlinkCue.StopLocation.Z, *ElapsedTime.ToString(), Delta.Size()); //*BlinkCue.StartLocation.ToString(), *BlinkCue.StopLocation.ToString());
 
 	// Crude compensation for cue firing in the past (note this is not necessary! Some cues not care and need to see the "full" effect regardless of when it happened)
 	float Duration = BlinkCueDuration - ElapsedTime.ToRealTimeSeconds();
