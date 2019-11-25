@@ -321,6 +321,16 @@ public:
 		// Override in child class if needed.
 	}
 
+	enum class FeatureFlag {
+		AllowShutdownOnClose = 0,	//!< Allow player to be shutdown right after 'close' event is received from it
+	};
+	
+	virtual bool GetPlayerFeatureFlag(FeatureFlag /*flag*/) const
+	{
+		// Override in child class if needed.
+		return false;
+	}
+
 public:
 
 	/** Virtual destructor. */

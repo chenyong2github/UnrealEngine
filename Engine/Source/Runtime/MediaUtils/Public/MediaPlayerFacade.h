@@ -50,6 +50,7 @@ class MEDIAUTILS_API FMediaPlayerFacade
 	: public IMediaClockSink
 	, public IMediaTickable
 	, protected IMediaEventSink
+	, public TSharedFromThis<FMediaPlayerFacade, ESPMode::ThreadSafe>
 {
 public:
 

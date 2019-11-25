@@ -53,7 +53,7 @@ UMediaPlayer::UMediaPlayer(const FObjectInitializer& ObjectInitializer)
 {
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
-		PlayerFacade = MakeShared<FMediaPlayerFacade, ESPMode::ThreadSafe>();
+		PlayerFacade = MakeShareable(new FMediaPlayerFacade());
 		PlayerFacade->OnMediaEvent().AddUObject(this, &UMediaPlayer::HandlePlayerMediaEvent);
 		Playlist = NewObject<UMediaPlaylist>(GetTransientPackage(), NAME_None, RF_Transactional | RF_Transient);
 	}
@@ -804,8 +804,8 @@ void UMediaPlayer::RegisterWithMediaModule()
 
 	if (MediaModule != nullptr)
 	{
+		// Make sure the PlayerFacade instance gets regular tick calls from various spots in the gameloop
 		MediaModule->GetClock().AddSink(PlayerFacade.ToSharedRef());
-		MediaModule->GetTicker().AddTickable(PlayerFacade.ToSharedRef());
 		RegisteredWithMediaModule = true;
 	}
 	else
