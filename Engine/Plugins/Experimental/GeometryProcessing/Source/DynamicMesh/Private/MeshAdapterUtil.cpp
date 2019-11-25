@@ -12,7 +12,7 @@ FPointSetAdapterd MeshAdapterUtil::MakePointsAdapter(const FDynamicPointSet3d* P
 	Adapter.Timestamp = [PointSet] { return PointSet->GetTimestamp(); };
 
 	Adapter.HasNormals = [PointSet] { return false; };
-	Adapter.GetPointNormal = [PointSet](int Idx) {return FVector3d(0,0,1); };
+	Adapter.GetPointNormal = [PointSet](int Idx) {return FVector3f(0,0,1); };
 
 	return Adapter;
 }
