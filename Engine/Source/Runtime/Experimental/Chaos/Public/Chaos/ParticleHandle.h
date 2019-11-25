@@ -58,7 +58,6 @@ void KinematicGeometryParticleDefaultConstruct(FConcrete& Concrete, const TKinem
 {
 	Concrete.SetV(TVector<T, d>(0));
 	Concrete.SetW(TVector<T, d>(0));
-	Concrete.SetCenterOfMass(TVector<T, d>(0));
 }
 
 template <typename T, int d, bool bPersistent>
@@ -542,9 +541,6 @@ public:
 
 	const TKinematicTarget<T, d>& KinematicTarget() const { return KinematicGeometryParticles->KinematicTarget(ParticleIdx); }
 	TKinematicTarget<T, d>& KinematicTarget() { return KinematicGeometryParticles->KinematicTarget(ParticleIdx); }
-
-	const TVector<T, d>& CenterOfMass() const { return KinematicGeometryParticles->CenterOfMass(ParticleIdx); }
-	void SetCenterOfMass(const TVector<T, d>& InCenterOfMass) { KinematicGeometryParticles->CenterOfMass(ParticleIdx) = InCenterOfMass; }
 
 	//Really only useful when using a transient handle
 	const TKinematicGeometryParticleHandleImp<T, d, true>* Handle() const { return KinematicGeometryParticles->Handle(ParticleIdx); }
@@ -1518,13 +1514,6 @@ public:
 		this->MW = InW;
 	}
 
-	const TVector<T, d>& CenterOfMass() const { return MCenterOfMass; }
-	void SetCenterOfMass(const TVector<T, d>& InCenterOfMass, bool bInvalidate = true)
-	{
-		this->MarkDirty(EParticleFlags::CenterOfMass, bInvalidate);
-		this->MCenterOfMass = InCenterOfMass;
-	}
-
 	EObjectStateType ObjectState() const;
 
 	FParticleData* NewData() const
@@ -1535,7 +1524,6 @@ public:
 private:
 	TVector<T, d> MV;
 	TVector<T, d> MW;
-	TVector<T, d> MCenterOfMass;
 };
 
 template <typename T, int d>
@@ -1549,14 +1537,12 @@ public:
 	TKinematicGeometryParticleData(EParticleType InType = EParticleType::Kinematic)
 		: Base(InType)
 		, MV(TVector<T, d>(0))
-		, MW(TVector<T, d>(0))
-		, MCenterOfMass(TVector<T, d>(0)) {}
+		, MW(TVector<T, d>(0)) {}
 
 	TKinematicGeometryParticleData(const TKinematicGeometryParticle<T, d>& InParticle)
 		: Base(InParticle)
 		, MV(InParticle.V())
 		, MW(InParticle.W()) 
-		, MCenterOfMass(InParticle.CenterOfMass()) 
 	{
 		Type = EParticleType::Kinematic;
 	}
@@ -1565,14 +1551,11 @@ public:
 	void Reset() {
 		TGeometryParticleData<T, d>::Reset();
 		Type = EParticleType::Kinematic;
-		MV = TVector<T, d>(0);
-		MW = TVector<T, d>(0);
-		MCenterOfMass = TVector<T, d>(0);
+		MV = TVector<T, d>(0); MW = TVector<T, d>();
 	}
 
 	TVector<T, d> MV;
 	TVector<T, d> MW;
-	TVector<T, d> MCenterOfMass;
 };
 
 
