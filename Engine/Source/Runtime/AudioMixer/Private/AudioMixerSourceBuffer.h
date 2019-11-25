@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "AudioMixerBuffer.h"
 #include "AudioMixerSourceManager.h"
+#include "Sound/SoundWave.h"
 
 namespace Audio
 {
