@@ -46,6 +46,7 @@ namespace UnrealBuildTool.Rules
 						"UnrealEd",
 						"EditorSubsystem",
 						"BlueprintGraph",
+						"KismetCompiler",
 					}
 				);
 			}

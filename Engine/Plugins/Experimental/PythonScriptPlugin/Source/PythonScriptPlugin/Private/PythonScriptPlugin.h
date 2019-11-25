@@ -143,6 +143,11 @@ public:
 
 	/** Run a Python file */
 	bool RunFile(const TCHAR* InFile, const TCHAR* InArgs, FPythonCommandEx& InOutPythonCommand);
+
+	PyObject* GetDefaultGlobalDict() { return PyDefaultGlobalDict.Get(); }
+	PyObject* GetDefaultLocalDict()  { return PyDefaultLocalDict.Get();  }
+	PyObject* GetConsoleGlobalDict() { return PyConsoleGlobalDict.Get(); }
+	PyObject* GetConsoleLocalDict()  { return PyConsoleLocalDict.Get();  }
 #endif	// WITH_PYTHON
 
 private:
