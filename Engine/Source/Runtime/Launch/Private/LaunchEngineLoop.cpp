@@ -1431,6 +1431,11 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		}
 	}
 
+	// 
+#if PLATFORM_DESKTOP && !IS_MONOLITHIC
+	FModuleManager::Get().AddExtraBinarySearchPaths();
+#endif
+
 	// Initialize file manager
 	{
 		SCOPED_BOOT_TIMING("IFileManager::Get().ProcessCommandLineOptions");
