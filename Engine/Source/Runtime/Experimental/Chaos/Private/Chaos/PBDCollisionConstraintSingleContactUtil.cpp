@@ -32,7 +32,7 @@ namespace Chaos
 		}
 
 		template<typename T, int d>
-		TVector<T, d> GetEnergyClampedImpulse(const TRigidBodySingleContactConstraint<T, d>& Constraint, const TVector<T, d>& Impulse, const TVector<T, d>& VectorToPoint1, const TVector<T, d>& VectorToPoint2, const TVector<T, d>& Velocity1, const TVector<T, d>& Velocity2)
+		TVector<T, d> GetEnergyClampedImpulse(const TRigidBodyPointContactConstraint<T, d>& Constraint, const TVector<T, d>& Impulse, const TVector<T, d>& VectorToPoint1, const TVector<T, d>& VectorToPoint2, const TVector<T, d>& Velocity1, const TVector<T, d>& Velocity2)
 		{
 			TPBDRigidParticleHandle<T, d>* PBDRigid0 = Constraint.Particle[0]->AsDynamic();
 			TPBDRigidParticleHandle<T, d>* PBDRigid1 = Constraint.Particle[1]->AsDynamic();
@@ -67,7 +67,7 @@ namespace Chaos
 
 
 		template<ECollisionUpdateType UpdateType, typename T, int d>
-		void Update(const T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
+		void Update(const T Thickness, TRigidBodyPointContactConstraint<T, d>& Constraint)
 		{
 			Constraint.ResetPhi(Thickness);
 			const TRigidTransform<T, d> ParticleTM = GetTransform(Constraint.Particle[0]);
@@ -92,12 +92,12 @@ namespace Chaos
 				UpdateConstraintImp<UpdateType>(*Constraint.Particle[0]->Geometry(), ParticleTM, *Constraint.Particle[1]->Geometry(), LevelsetTM, Thickness, Constraint);
 			}
 		}
-		template void Update<ECollisionUpdateType::Any, float, 3>(const float, TRigidBodySingleContactConstraint<float, 3>&);
-		template void Update<ECollisionUpdateType::Deepest, float, 3>(const float, TRigidBodySingleContactConstraint<float, 3>&);
+		template void Update<ECollisionUpdateType::Any, float, 3>(const float, TRigidBodyPointContactConstraint<float, 3>&);
+		template void Update<ECollisionUpdateType::Deepest, float, 3>(const float, TRigidBodyPointContactConstraint<float, 3>&);
 
 
 		template<ECollisionUpdateType UpdateType, typename T, int d>
-		void UpdateConstraint(const T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
+		void UpdateConstraint(const T Thickness, TRigidBodyPointContactConstraint<T, d>& Constraint)
 		{
 			Constraint.ResetPhi(Thickness);
 			const TRigidTransform<T, d> ParticleTM = GetTransform(Constraint.Particle[0]);
@@ -122,12 +122,12 @@ namespace Chaos
 				UpdateConstraintImp<UpdateType>(*Constraint.Particle[0]->Geometry(), ParticleTM, *Constraint.Particle[1]->Geometry(), LevelsetTM, Thickness, Constraint);
 			}
 		}
-		template void UpdateConstraint<ECollisionUpdateType::Any, float, 3>(const float, TRigidBodySingleContactConstraint<float,3>&);
-		template void UpdateConstraint<ECollisionUpdateType::Deepest, float, 3>(const float, TRigidBodySingleContactConstraint<float,3>&);
+		template void UpdateConstraint<ECollisionUpdateType::Any, float, 3>(const float, TRigidBodyPointContactConstraint<float,3>&);
+		template void UpdateConstraint<ECollisionUpdateType::Deepest, float, 3>(const float, TRigidBodyPointContactConstraint<float,3>&);
 
 
 		template<typename T, int d>
-		void Apply(TRigidBodySingleContactConstraint<T, d>& Constraint, T Thickness, TSingleContactIterationParameters<T> & IterationParameters, TSingleContParticleParameters<T> & ParticleParameters)
+		void Apply(TRigidBodyPointContactConstraint<T, d>& Constraint, T Thickness, TSingleContactIterationParameters<T> & IterationParameters, TSingleContactParticleParameters<T> & ParticleParameters)
 		{
 			TGenericParticleHandle<T, d> Particle0 = TGenericParticleHandle<T, d>(Constraint.Particle[0]);
 			TGenericParticleHandle<T, d> Particle1 = TGenericParticleHandle<T, d>(Constraint.Particle[1]);
@@ -167,7 +167,7 @@ namespace Chaos
 				const TVector<T, d>& W0 = Particle0->W();
 				const TVector<T, d>& W1 = Particle1->W();
 
-				typename TRigidBodySingleContactConstraint<T, d>::FManifold & Contact = Constraint.Manifold;
+				typename TRigidBodyPointContactConstraint<T, d>::FManifold & Contact = Constraint.Manifold;
 
 				TVector<T, d> VectorToPoint1 = Contact.Location - P0;
 				TVector<T, d> VectorToPoint2 = Contact.Location - P1;
@@ -345,11 +345,11 @@ namespace Chaos
 				}
 			}
 		}
-		template void Apply<float, 3>(TRigidBodySingleContactConstraint<float, 3>&, float, TSingleContactIterationParameters<float> &, TSingleContParticleParameters<float> &);
+		template void Apply<float, 3>(TRigidBodyPointContactConstraint<float, 3>&, float, TSingleContactIterationParameters<float> &, TSingleContactParticleParameters<float> &);
 
 		template<typename T, int d>
-		void ApplyPushOut(TRigidBodySingleContactConstraint<T, d>& Constraint, T Thickness, const TSet<const TGeometryParticleHandle<T, d>*>& IsTemporarilyStatic,
-			TSingleContactIterationParameters<T> & IterationParameters, TSingleContParticleParameters<T> & ParticleParameters)
+		void ApplyPushOut(TRigidBodyPointContactConstraint<T, d>& Constraint, T Thickness, const TSet<const TGeometryParticleHandle<T, d>*>& IsTemporarilyStatic,
+			TSingleContactIterationParameters<T> & IterationParameters, TSingleContactParticleParameters<T> & ParticleParameters)
 		{
 			TGeometryParticleHandle<T, d>* Particle0 = Constraint.Particle[0];
 			TGeometryParticleHandle<T, d>* Particle1 = Constraint.Particle[1];
@@ -379,7 +379,7 @@ namespace Chaos
 			{
 				UpdateConstraint<ECollisionUpdateType::Deepest>(Thickness, Constraint);
 
-				const typename TRigidBodySingleContactConstraint<T, d>::FManifold & Contact = Constraint.Manifold;
+				const typename TRigidBodyPointContactConstraint<T, d>::FManifold & Contact = Constraint.Manifold;
 
 				if (Contact.Phi >= Thickness)
 				{
@@ -458,8 +458,8 @@ namespace Chaos
 				}
 			}
 		}
-		template void ApplyPushOut<float, 3>(TRigidBodySingleContactConstraint<float,3>&, float , const TSet<const TGeometryParticleHandle<float,3>*>&,
-			TSingleContactIterationParameters<float> & IterationParameters, TSingleContParticleParameters<float> & ParticleParameters);
+		template void ApplyPushOut<float, 3>(TRigidBodyPointContactConstraint<float,3>&, float , const TSet<const TGeometryParticleHandle<float,3>*>&,
+			TSingleContactIterationParameters<float> & IterationParameters, TSingleContactParticleParameters<float> & ParticleParameters);
 
 	} // Collisions
 
