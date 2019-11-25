@@ -15,9 +15,17 @@ namespace MockAbilityCVars
 
 	NETSIM_DEVCVAR_SHIPCONST_FLOAT(DashMaxSpeed, 7500.f, "mockability.DashMaxSpeed", "Max Speed when dashing.");
 	NETSIM_DEVCVAR_SHIPCONST_FLOAT(DashAcceleration, 100000.f, "mockability.DashAcceleration", "Acceleration when dashing.");
+
+
+	NETSIM_DEVCVAR_SHIPCONST_INT(BlinkCueType, 0, "mockability.BlinkCueType", "0=default. 1=weak. 2=");
 }
 
 NETSIMCUE_REGISTER(FMockAbilityBlinkCue, TEXT("MockAbilityBlink"));
+NETSIMCUE_REGISTER(FMockAbilityBlinkCue_Weak, TEXT("MockAbilityBlink_Weak"));
+NETSIMCUE_REGISTER(FMockAbilityBlinkCue_ReplicatedNonPredicted, TEXT("MockAbilityBlink_RepNonPredicted"));
+NETSIMCUE_REGISTER(FMockAbilityBlinkCue_ReplicatedXOrPredicted, TEXT("MockAbilityBlink_RepXOrPredicted"));
+NETSIMCUE_REGISTER(FMockAbilityBlinkCue_Strong, TEXT("MockAbilityBlink_Strong"));
+
 NETSIMCUESET_REGISTER(UMockFlyingAbilityComponent, FMockAbilityCueSet);
 
 // -------------------------------------------------------------------------------------------------------------
@@ -119,7 +127,29 @@ void FMockAbilitySimulation::SimulationTick(const FNetSimTimeStep& TimeStep, con
 
 				// Invoke a NetCue for the blink. This is essentially capturing the start/end location so that all receivers of the event
 				// get the exact coordinates (maybe overkill in practice but key is that we have data that we want to pass out via an event)
-				Output.CueDispatch.Invoke<FMockAbilityBlinkCue>({Input.Sync.Location, DestLocation});
+
+				UE_LOG(LogTemp, Warning, TEXT("INVOKING CUE EMPLACE"));
+				switch(MockAbilityCVars::BlinkCueType()) // Only for dev/testing. Not a normal setup.
+				{
+				case 0:
+					Output.CueDispatch.Invoke<FMockAbilityBlinkCue>( Input.Sync.Location, DestLocation );
+					break;
+				case 1:
+					Output.CueDispatch.Invoke<FMockAbilityBlinkCue_Weak>( Input.Sync.Location, DestLocation );
+					break;
+				case 2:
+					Output.CueDispatch.Invoke<FMockAbilityBlinkCue_ReplicatedNonPredicted>( Input.Sync.Location, DestLocation );
+					break;
+
+				case 3:
+					Output.CueDispatch.Invoke<FMockAbilityBlinkCue_ReplicatedXOrPredicted>( Input.Sync.Location, DestLocation );
+					break;
+
+				case 4:
+					Output.CueDispatch.Invoke<FMockAbilityBlinkCue_Strong>( Input.Sync.Location, DestLocation );
+					break;
+
+				};
 			}
 		}
 	}
@@ -294,16 +324,33 @@ static float BlinkCueDuration = 1.f;
 static FAutoConsoleVariableRef CVarBindAutomatically(TEXT("NetworkPredictionExtras.FlyingPawn.BlinkCueDuration"),
 	BlinkCueDuration, TEXT("Duration of BlinkCue"), ECVF_Default);
 
-void UMockFlyingAbilityComponent::HandleCue(FMockAbilityBlinkCue& BlinkCue, const FNetworkSimTime& ElapsedTime)
+void UMockFlyingAbilityComponent::HandleCue(FMockAbilityBlinkCue& BlinkCue, const FNetSimCueSystemParamemters& SystemParameters)
 {
 	FString RoleStr = GetOwnerRole() == ROLE_Authority ? TEXT("Server") : TEXT("Client");
 
 	FVector Delta = GetOwner()->GetActorLocation() - BlinkCue.StopLocation;
 
 	UE_LOG(LogTemp, Display, TEXT("[%s] BlinkCue! : <%f, %f, %f> - <%f, %f, %f>. ElapsedTime: %s. Delta: %.3f"), *RoleStr, BlinkCue.StartLocation.X, BlinkCue.StartLocation.Y, BlinkCue.StartLocation.Z,
-		BlinkCue.StopLocation.X, BlinkCue.StopLocation.Y, BlinkCue.StopLocation.Z, *ElapsedTime.ToString(), Delta.Size()); //*BlinkCue.StartLocation.ToString(), *BlinkCue.StopLocation.ToString());
+		BlinkCue.StopLocation.X, BlinkCue.StopLocation.Y, BlinkCue.StopLocation.Z, *SystemParameters.TimeSinceInvocation.ToString(), Delta.Size()); //*BlinkCue.StartLocation.ToString(), *BlinkCue.StopLocation.ToString());
 
 	// Crude compensation for cue firing in the past (note this is not necessary! Some cues not care and need to see the "full" effect regardless of when it happened)
-	float Duration = BlinkCueDuration - ElapsedTime.ToRealTimeSeconds();
+	float Duration = FMath::Max<float>(0.1f, BlinkCueDuration - SystemParameters.TimeSinceInvocation.ToRealTimeSeconds());
 	DrawDebugLine(GetWorld(), BlinkCue.StartLocation, BlinkCue.StopLocation, FColor::Red, false, Duration);
+
+
+	if (SystemParameters.Callbacks)
+	{
+		UE_LOG(LogTemp, Display, TEXT("  System Callbacks available!"));
+
+		SystemParameters.Callbacks->OnRollback.AddLambda([RoleStr]()
+		{
+			UE_LOG(LogTemp, Display, TEXT("  %s BlinkCue Rollback!"), *RoleStr);
+		});
+
+		SystemParameters.Callbacks->OnConfirmed.AddLambda([RoleStr]()
+		{
+			UE_LOG(LogTemp, Display, TEXT("  %s BlinkCue Confirmed!"), *RoleStr);
+		});
+
+	}
 }
