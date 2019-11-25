@@ -85,6 +85,14 @@ void FRichTextLayoutMarshaller::GetText(FString& TargetString, const FTextLayout
 	Writer->Write(WriterLines, TargetString);
 }
 
+void FRichTextLayoutMarshaller::SetFontSizeMultiplier(const float NewFontSizeMultiplier)
+{
+	if (ensure(NewFontSizeMultiplier != 0.0f))
+	{
+		FontSizeMultiplier = NewFontSizeMultiplier;
+	}
+}
+
 FRichTextLayoutMarshaller::FRichTextLayoutMarshaller(TArray< TSharedRef< ITextDecorator > > InDecorators, const ISlateStyle* const InDecoratorStyleSet)
 	: Parser(FDefaultRichTextMarkupParser::GetStaticInstance())
 	, Writer(FDefaultRichTextMarkupWriter::Create())
@@ -170,7 +178,14 @@ void FRichTextLayoutMarshaller::AppendRunsForText(
 		ModelRange.EndIndex = InOutModelText->Len();
 
 		// Create run.
-		Run = FSlateTextRun::Create(RunInfo, InOutModelText, *TextBlockStyle, ModelRange);
+		TSharedPtr< FSlateTextRun > SlateTextRun = FSlateTextRun::Create(RunInfo, InOutModelText, *TextBlockStyle, ModelRange);
+
+		if (SlateTextRun)
+		{
+			// Apply the FontSizeMultiplier at the style use by the IRun
+			SlateTextRun->ApplyFontSizeMultiplierOnTextStyle(FontSizeMultiplier);
+		}
+		Run = SlateTextRun;
 
 		if (!TextBlockStyle->UnderlineBrush.GetResourceName().IsNone())
 		{
