@@ -160,5 +160,7 @@ struct FInstallBundleSourcePauseInfo
 {
 	FName BundleName;
 	EInstallBundlePauseFlags PauseFlags = EInstallBundlePauseFlags::None;
+	// True if the bundle actually transitioned to/from paused,
+	// which is different than the flags changing
 	bool bDidPauseChange = false;
 };
