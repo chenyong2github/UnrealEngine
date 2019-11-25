@@ -21,7 +21,7 @@ namespace Chaos
 			return Cross.Size() > 1e-4;
 		}
 
-		static void Build(const TParticles<T, 3>& InParticles, TArray <TPlane<T, 3>>& OutPlanes, TParticles<T, 3>& OutSurfaceParticles, TBox<T, 3>& OutLocalBounds)
+		static void Build(const TParticles<T, 3>& InParticles, TArray <TPlane<T, 3>>& OutPlanes, TArray<TArray<int32>>& OutFaceIndices, TParticles<T, 3>& OutSurfaceParticles, TBox<T, 3>& OutLocalBounds)
 		{
 			OutPlanes.Reset();
 			OutSurfaceParticles.Resize(0);
@@ -44,23 +44,36 @@ namespace Chaos
 				TArray<TVector<int32, 3>> Indices;
 				BuildConvexHull(InParticles, Indices);
 				OutPlanes.Reserve(Indices.Num());
-				TSet<int32> AllIndices;
+				TMap<int32, int32> IndexMap; // maps original particle indices to output particle indices
+				int32 NewIdx = 0;
+
+				const auto AddIndex = [&IndexMap, &NewIdx](const int32 OriginalIdx)
+				{
+					if (int32* Idx = IndexMap.Find(OriginalIdx))
+					{
+						return *Idx;
+					}
+					IndexMap.Add(OriginalIdx, NewIdx);
+					return NewIdx++;
+				};
 
 				for(const TVector<int32, 3>& Idx : Indices)
 				{
 					TVector<T, 3> Vs[3] = {InParticles.X(Idx[0]), InParticles.X(Idx[1]), InParticles.X(Idx[2])};
 					const TVector<T, 3> Normal = TVector<T, 3>::CrossProduct(Vs[1] - Vs[0], Vs[2] - Vs[0]).GetUnsafeNormal();
 					OutPlanes.Add(TPlane<T, 3>(Vs[0], Normal));
-					AllIndices.Add(Idx[0]);
-					AllIndices.Add(Idx[1]);
-					AllIndices.Add(Idx[2]);
+					TArray<int32> FaceIndices;
+					FaceIndices.SetNum(3);
+					FaceIndices[0] = AddIndex(Idx[0]);
+					FaceIndices[1] = AddIndex(Idx[1]);
+					FaceIndices[2] = AddIndex(Idx[2]);
+					OutFaceIndices.Add(FaceIndices);
 				}
 
-				OutSurfaceParticles.AddParticles(AllIndices.Num());
-				int32 NewIdx = 0;
-				for(int32 Idx : AllIndices)
+				OutSurfaceParticles.AddParticles(IndexMap.Num());
+				for(const auto& Elem : IndexMap)
 				{
-					OutSurfaceParticles.X(NewIdx++) = InParticles.X(Idx);
+					OutSurfaceParticles.X(Elem.Value) = InParticles.X(Elem.Key);
 				}
 			}
 			else if(NumParticles == 3)
@@ -77,6 +90,13 @@ namespace Chaos
 					OutSurfaceParticles.X(0) = InParticles.X(0);
 					OutSurfaceParticles.X(1) = InParticles.X(1);
 					OutSurfaceParticles.X(2) = InParticles.X(2);
+
+					TArray<int32> FaceIndices;
+					FaceIndices.SetNum(3);
+					FaceIndices[0] = 0; 
+					FaceIndices[1] = 1;
+					FaceIndices[2] = 2;
+					OutFaceIndices.Add(FaceIndices);
 				}
 			}
 		}
@@ -142,7 +162,7 @@ namespace Chaos
 			return FString::Printf(TEXT("Planes %d, SurfaceParticles %d"), NumPlanes, NumParticles);
 		}
 
-		static CHAOS_API void Simplify(TArray <TPlane<T, 3>>& InOutPlanes, TParticles<T, 3>& InOutParticles, TBox<T, 3>& InOutLocalBounds)
+		static CHAOS_API void Simplify(TArray <TPlane<T, 3>>& InOutPlanes, TArray<TArray<int32>>& InOutFaces, TParticles<T, 3>& InOutParticles, TBox<T, 3>& InOutLocalBounds)
 		{
 			struct TPair
 			{
@@ -215,7 +235,7 @@ namespace Chaos
 				}
 			}
 
-			Build(TmpParticles, InOutPlanes, InOutParticles, InOutLocalBounds);
+			Build(TmpParticles, InOutPlanes, InOutFaces, InOutParticles, InOutLocalBounds);
 			check(InOutParticles.Size() > 3);
 		}
 
