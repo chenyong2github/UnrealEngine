@@ -231,9 +231,14 @@ public:
 	{
 		const EObjectStateType State = Particle->ObjectState();
 
-		if (State != EObjectStateType::Dynamic)
+
+		if (Particle->ObjectState() != EObjectStateType::Dynamic)
 		{
 			RemoveFromMapAndArray(Particle->AsDynamic(), ActiveParticlesToIndex, ActiveParticlesArray);
+		}
+		else
+		{
+			InsertToMapAndArray(Particle->AsDynamic(), ActiveParticlesToIndex, ActiveParticlesArray);
 		}
 
 		// Move to appropriate dynamic SOA
