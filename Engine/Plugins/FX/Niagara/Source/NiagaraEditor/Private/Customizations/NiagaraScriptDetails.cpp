@@ -30,6 +30,7 @@
 #include "NiagaraMetaDataCustomNodeBuilder.h"
 #include "SItemSelector.h"
 #include "PropertyCustomizationHelpers.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraScriptDetails"
 
@@ -844,8 +845,6 @@ private:
 
 void FNiagaraScriptHighlightDetails::CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
-	//HeaderRow.ValueContent()
-
 	HeaderRow.WholeRowContent()
 		[
 			SNew(SNiagaraScriptHighlightPicker, PropertyHandle)
