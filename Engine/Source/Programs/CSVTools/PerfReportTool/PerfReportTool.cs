@@ -19,7 +19,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "3.92";
+        private static string VersionString = "3.93";
 
         public static string Get() { return VersionString; }
     };
@@ -437,7 +437,7 @@ namespace PerfReportTool
 				{
 					if (bBulkMode)
 					{
-						Console.Out.WriteLine(e.Message);
+						Console.Out.WriteLine("[ERROR] : "+ e.Message);
 					}
 					else
 					{
