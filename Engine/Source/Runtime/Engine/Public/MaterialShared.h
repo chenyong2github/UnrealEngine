@@ -2037,12 +2037,16 @@ public:
 		return DeferredUniformExpressionCacheRequests.Num() > 0;
 	}
 
+	int32 GetExpressionCacheSerialNumber() const { return UniformExpressionCacheSerialNumber; }
 private:
 	IAllocatedVirtualTexture* GetPreallocatedVTStack(const FMaterialRenderContext& Context, const FUniformExpressionSet& UniformExpressionSet, const FMaterialVirtualTextureStack& VTStack) const;
 	IAllocatedVirtualTexture* AllocateVTStack(const FMaterialRenderContext& Context, const FUniformExpressionSet& UniformExpressionSet, const FMaterialVirtualTextureStack& VTStack) const;
 
 	/** 0 if not set, game thread pointer, do not dereference, only for comparison */
 	const USubsurfaceProfile* SubsurfaceProfileRT;
+
+	/** Incremented each time UniformExpressionCache is modified */
+	mutable int32 UniformExpressionCacheSerialNumber = 0;
 
 	/** For tracking down a bug accessing a deleted proxy. */
 	mutable int8 MarkedForGarbageCollection : 1;
