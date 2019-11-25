@@ -761,8 +761,8 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConfigRestartRequired = true))
 		uint32 bSupportReversedIndexBuffers : 1;
 
-	UPROPERTY(config, EditAnywhere, Category = Experimental, meta = (
-		ConsoleVariable = "r.SupportMaterialLayers", Tooltip = "Support new material layering system. Disabling it reduces some overhead in place to support the experimental feature",
+	UPROPERTY(config, EditAnywhere, Category = Materials, meta = (
+		ConsoleVariable = "r.SupportMaterialLayers", Tooltip = "Support new material layering system.",
 		ConfigRestartRequired = true))
 		uint32 bSupportMaterialLayers : 1;
 
