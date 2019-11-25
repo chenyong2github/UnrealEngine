@@ -928,7 +928,8 @@ void ClothingSimulation::AddCollisions(const FClothCollisionData& ClothCollision
 					}
 
 					// Setup the collision particle geometry
-					CollisionParticles.SetDynamicGeometry(i, MakeUnique<Chaos::TConvex<float, 3>>(MoveTemp(Planes), MoveTemp(SurfaceParticles)));
+					const TArray<TArray<int32>> FaceIndices;  // TODO(Kriss.Gossart): This is broken. Find a way to pass the face indices.
+					CollisionParticles.SetDynamicGeometry(i, MakeUnique<Chaos::TConvex<float, 3>>(MoveTemp(Planes), MoveTemp(SurfaceParticles), FaceIndices));
 				}
 			}
 
