@@ -346,19 +346,13 @@ FColor UOctreeDynamicMeshComponent::GetTriangleColor(int TriangleID)
 
 FBoxSphereBounds UOctreeDynamicMeshComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
-	// Bounds are tighter if the box is generated from pre-transformed vertices.
+	// Bounds are tighter if the box is generated from transformed vertices.
 	FBox BoundingBox(ForceInit);
 	for ( FVector3d Vertex : Mesh->VerticesItr() ) 
 	{
 		BoundingBox += LocalToWorld.TransformPosition(Vertex);
 	}
-
-	FBoxSphereBounds NewBounds;
-	NewBounds.BoxExtent = BoundingBox.GetExtent();
-	NewBounds.Origin = BoundingBox.GetCenter();
-	NewBounds.SphereRadius = NewBounds.BoxExtent.Size();
-
-	return NewBounds;
+	return FBoxSphereBounds(BoundingBox);
 }
 
 

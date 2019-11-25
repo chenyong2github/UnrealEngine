@@ -242,16 +242,13 @@ FColor USimpleDynamicMeshComponent::GetTriangleColor(const FDynamicMesh3* MeshIn
 
 FBoxSphereBounds USimpleDynamicMeshComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
-	// Bounds are tighter if the box is generated from pre-transformed vertices.
-	FAxisAlignedBox3d MeshAABB = Mesh->GetCachedBounds();
-	FBox BoundingBox = (FBox)MeshAABB;
-
-	FBoxSphereBounds NewBounds;
-	NewBounds.BoxExtent = BoundingBox.GetExtent();
-	NewBounds.Origin = BoundingBox.GetCenter();
-	NewBounds.SphereRadius = NewBounds.BoxExtent.Size();
-
-	return NewBounds;
+	// Bounds are tighter if the box is generated from transformed vertices.
+	FBox BoundingBox(ForceInit);
+	for ( FVector3d Vertex : Mesh->VerticesItr() )
+	{
+		BoundingBox += LocalToWorld.TransformPosition(Vertex);
+	}
+	return FBoxSphereBounds(BoundingBox);
 }
 
 
