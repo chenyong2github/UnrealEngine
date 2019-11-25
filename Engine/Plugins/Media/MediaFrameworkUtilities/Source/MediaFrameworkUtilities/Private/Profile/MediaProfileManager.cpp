@@ -19,12 +19,50 @@ IMediaProfileManager& IMediaProfileManager::Get()
 FMediaProfileManager::FMediaProfileManager()
 	: CurrentMediaProfile(nullptr)
 {
+	if (UObjectInitialized())
+	{
+		MediaSourceProxies = GetDefault<UMediaProfileSettings>()->LoadMediaSourceProxies();
+		MediaOutputProxies = GetDefault<UMediaProfileSettings>()->LoadMediaOutputProxies();
+#if WITH_EDITOR
+		GetMutableDefault<UMediaProfileSettings>()->OnMediaProxiesChanged.AddRaw(this, &FMediaProfileManager::OnMediaProxiesChanged);
+#endif
+	}
+}
+
+
+FMediaProfileManager::~FMediaProfileManager()
+{
+#if WITH_EDITOR
+	if (UObjectInitialized())
+	{
+		GetMutableDefault<UMediaProfileSettings>()->OnMediaProxiesChanged.RemoveAll(this);
+	}
+#endif
+}
+
+
+void FMediaProfileManager::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObject(CurrentMediaProfile);
+	Collector.AddReferencedObjects(MediaSourceProxies);
+	Collector.AddReferencedObjects(MediaOutputProxies);
 }
 
 
 UMediaProfile* FMediaProfileManager::GetCurrentMediaProfile() const
 {
-	return CurrentMediaProfile.Get();
+	return CurrentMediaProfile;
+}
+
+TArray<UProxyMediaSource*> FMediaProfileManager::GetAllMediaSourceProxy() const
+{
+	return MediaSourceProxies;
+}
+
+
+TArray<UProxyMediaOutput*> FMediaProfileManager::GetAllMediaOutputProxy() const
+{
+	return MediaOutputProxies;
 }
 
 
@@ -32,7 +70,7 @@ void FMediaProfileManager::SetCurrentMediaProfile(UMediaProfile* InMediaProfile)
 {
 	bool bRemoveDelegate = false;
 	bool bAddDelegate = false;
-	UMediaProfile* Previous = CurrentMediaProfile.Get();
+	UMediaProfile* Previous = CurrentMediaProfile;
 	if (InMediaProfile != Previous)
 	{
 		if (Previous)
@@ -47,23 +85,9 @@ void FMediaProfileManager::SetCurrentMediaProfile(UMediaProfile* InMediaProfile)
 			bAddDelegate = true;
 		}
 
-		CurrentMediaProfile.Reset(InMediaProfile);
+		CurrentMediaProfile = InMediaProfile;
 		MediaProfileChangedDelegate.Broadcast(Previous, InMediaProfile);
 	}
-
-#if WITH_EDITOR
-	if (UObjectInitialized())
-	{
-		if (bAddDelegate && !bRemoveDelegate)
-		{
-			GetMutableDefault<UMediaProfileSettings>()->OnMediaProxiesChanged.AddRaw(this, &FMediaProfileManager::OnMediaProxiesChanged);
-		}
-		else if (bRemoveDelegate && !bAddDelegate)
-		{
-			GetMutableDefault<UMediaProfileSettings>()->OnMediaProxiesChanged.RemoveAll(this);
-		}
-	}
-#endif
 }
 
 
@@ -75,11 +99,13 @@ FMediaProfileManager::FOnMediaProfileChanged& FMediaProfileManager::OnMediaProfi
 #if WITH_EDITOR
 void FMediaProfileManager::OnMediaProxiesChanged()
 {
-	UMediaProfile* CurrentMediaProfilePtr = CurrentMediaProfile.Get();
-	if (CurrentMediaProfilePtr)
+	MediaSourceProxies = GetDefault<UMediaProfileSettings>()->LoadMediaSourceProxies();
+	MediaOutputProxies = GetDefault<UMediaProfileSettings>()->LoadMediaOutputProxies();
+
+	if (CurrentMediaProfile)
 	{
-		CurrentMediaProfilePtr->Reset();
-		CurrentMediaProfilePtr->Apply();
+		CurrentMediaProfile->Reset();
+		CurrentMediaProfile->Apply();
 	}
 }
 #endif
