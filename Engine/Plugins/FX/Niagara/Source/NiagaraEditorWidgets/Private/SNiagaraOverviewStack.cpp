@@ -390,7 +390,7 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 			TArray<FNiagaraScriptHighlight> ScriptHighlights = StackItem->GetHighlights();
 			Algo::Sort(ScriptHighlights, [](const FNiagaraScriptHighlight& A, const FNiagaraScriptHighlight& B)
 			{
-				return A.DisplayName.CompareTo(B.DisplayName);
+				return A.DisplayName.CompareTo(B.DisplayName) < 0;
 			});
 
 			FText HighlightToolTip;
