@@ -13,7 +13,6 @@ class FPaperTileMapRenderSceneProxy;
 class FPrimitiveSceneProxy;
 class UPaperTileMap;
 class UTexture;
-struct FPaperSpriteVertex;
 struct FSpriteRenderSection;
 
 /**
