@@ -32,11 +32,6 @@ FPaperTileMapRenderSceneProxy::FPaperTileMapRenderSceneProxy(const UPaperTileMap
 
 	SetWireframeColor(InComponent->GetWireframeColor());
 	TileMap = InComponent->TileMap;
-	Material = InComponent->GetMaterial(0);
-	if (Material == nullptr)
-	{
-		Material = UMaterial::GetDefaultMaterial(MD_Surface);
-	}
 	MaterialRelevance = InComponent->GetMaterialRelevance(GetScene().GetFeatureLevel());
 
 #if WITH_EDITORONLY_DATA
