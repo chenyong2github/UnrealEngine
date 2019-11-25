@@ -1568,7 +1568,7 @@ public:
 
 private:
 	/** LOD parent primitive to draw instead of this one (multiple UPrim's will point to the same LODParent ) */
-	UPROPERTY(duplicatetransient)
+	UPROPERTY(NonPIEDuplicateTransient)
 	class UPrimitiveComponent* LODParentPrimitive;
 
 public:
