@@ -381,6 +381,10 @@ const TCHAR* ToString(const ECreatePartyCompletionResult Value)
 	{
 		return TEXT("LoggedOut");
 	}
+	case ECreatePartyCompletionResult::NotPrimaryUser:
+	{
+		return TEXT("NotPrimaryUser");
+	}
 	case ECreatePartyCompletionResult::UnknownInternalFailure:
 	{
 		return TEXT("UnknownInternalFailure");
