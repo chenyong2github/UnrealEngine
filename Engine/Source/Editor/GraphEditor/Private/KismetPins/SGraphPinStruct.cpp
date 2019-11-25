@@ -108,6 +108,11 @@ FOnClicked SGraphPinStruct::GetOnUseButtonDelegate()
 
 void SGraphPinStruct::OnPickedNewStruct(const UScriptStruct* ChosenStruct)
 {
+	if(GraphPinObj->IsPendingKill())
+	{
+		return;
+	}
+
 	FString NewPath;
 	if (ChosenStruct)
 	{
