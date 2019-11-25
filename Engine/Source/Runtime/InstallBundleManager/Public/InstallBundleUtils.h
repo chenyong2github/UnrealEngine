@@ -55,6 +55,39 @@ namespace InstallBundleUtil
 			: FEmbeddedKeepAwake(bNeedsRendering ? TagWithRendering : Tag, bNeedsRendering) {}
 	};
 
+	class INSTALLBUNDLEMANAGER_API FInstallBundleManagerScreenSaverControl
+	{
+		static bool bDidDisableScreensaver;
+		static int DisableCount;
+
+		static void IncDisable();
+		static void DecDisable();
+
+	public:
+		FInstallBundleManagerScreenSaverControl()
+		{
+			IncDisable();
+		}
+
+		~FInstallBundleManagerScreenSaverControl()
+		{
+			DecDisable();
+		}
+
+		FInstallBundleManagerScreenSaverControl(const FInstallBundleManagerScreenSaverControl& Other)
+		{
+			IncDisable();
+		}
+		FInstallBundleManagerScreenSaverControl(FInstallBundleManagerScreenSaverControl&& Other) = default;
+
+		FInstallBundleManagerScreenSaverControl& operator=(const FInstallBundleManagerScreenSaverControl& Other) = default;
+		FInstallBundleManagerScreenSaverControl& operator=(FInstallBundleManagerScreenSaverControl&& Other)
+		{
+			DecDisable();
+			return *this;
+		}
+	};
+
 	class INSTALLBUNDLEMANAGER_API FInstallBundleWork : public FNonAbandonableTask
 	{
 	public:
