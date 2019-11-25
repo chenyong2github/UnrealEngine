@@ -13,7 +13,8 @@ enum class EVPViewportTickableFlags : uint8
 {
 	Editor,
 	Game,
-	Preview,
+	EditorPreview,
+	GamePreview,
 };
 ENUM_CLASS_FLAGS(EVPViewportTickableFlags)
 
