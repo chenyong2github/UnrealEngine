@@ -186,7 +186,9 @@ public:
 private:
 	/** Package Flags */
 	uint32	PackageFlagsPrivate;
-
+	
+	/** Globally unique id used to address I/O chunks within the package */
+	uint32 GlobalPackageId = ~uint32(0); 
 public:
 
 	/** Editor only: PIE instance ID this package belongs to, INDEX_NONE otherwise */
@@ -510,6 +512,18 @@ public:
 	FORCEINLINE void SetChunkIDs(const TArray<int32>& InChunkIDs)
 	{
 		ChunkIDs = InChunkIDs;
+	}
+
+	/** returns the globally unique package id */
+	FORCEINLINE uint32 GetGlobalPackageId() const
+	{
+		return GlobalPackageId;
+	}
+
+	/** sets the globally unique package id */
+	FORCEINLINE void SetGlobalPackageId(uint32 InGlobalPackageId)
+	{
+		GlobalPackageId = InGlobalPackageId;
 	}
 
 	////////////////////////////////////////////////////////

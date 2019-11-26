@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "GraphTrack.h"
+#include "Insights/ViewModels/GraphTrack.h"
 
 #include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -12,113 +12,21 @@
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/ViewModels/DrawHelpers.h"
+#include "Insights/ViewModels/GraphSeries.h"
+#include "Insights/ViewModels/GraphTrackBuilder.h"
+#include "Insights/ViewModels/GraphTrackEvent.h"
+#include "Insights/ViewModels/TimingEvent.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
+#include "Insights/ViewModels/TooltipDrawState.h"
 
 #define LOCTEXT_NAMESPACE "GraphTrack"
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// FGraphSeries
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FGraphSeries::FGraphSeries()
-	: Name()
-	, Description()
-	, bIsVisible(true)
-	, bIsDirty(false)
-	, bAutoZoom(false)
-	, TargetAutoZoomLowValue(0.0)
-	, TargetAutoZoomHighValue(1.0)
-	, AutoZoomLowValue(0.0)
-	, AutoZoomHighValue(1.0)
-	, BaselineY(0.0)
-	, ScaleY(1.0)
-	, Color(0.0f, 0.5f, 1.0f, 1.0f)
-	, BorderColor(0.3f, 0.8f, 1.0f, 1.0f)
-	//, Events()
-	//, Points()
-	//, LinePoints()
-	//, Boxes()
-{
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FGraphSeries::~FGraphSeries()
-{
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-const FGraphSeries::FEvent* FGraphSeries::GetEvent(const float X, const float Y, const FTimingTrackViewport& Viewport, bool bCheckLine, bool bCheckBox) const
-{
-	const float LocalBaselineY = static_cast<float>(GetBaselineY());
-
-	for (const FGraphSeries::FEvent& Event : Events)
-	{
-		const float EventX1 = Viewport.TimeToSlateUnitsRounded(Event.Time);
-		const float EventX2 = Viewport.TimeToSlateUnitsRounded(Event.Time + Event.Duration);
-
-		const float EventY = GetRoundedYForValue(Event.Value);
-
-		// Check bounding box of the visual point.
-		constexpr float PointTolerance = 5.0f;
-		if (X >= EventX1 - PointTolerance && X <= EventX1 + PointTolerance &&
-			Y >= EventY - PointTolerance && Y <= EventY + PointTolerance)
-		{
-			return &Event;
-		}
-
-		if (bCheckLine)
-		{
-			// Check bounding box of the horizontal line.
-			constexpr float LineTolerance = 2.0f;
-			if (X >= EventX1 - LineTolerance && X <= EventX2 + LineTolerance &&
-				Y >= EventY - LineTolerance && Y <= EventY + LineTolerance)
-			{
-				return &Event;
-			}
-		}
-
-		if (bCheckBox)
-		{
-			// Check bounding box of the visual box.
-			constexpr float BoxTolerance = 1.0f;
-			if (X >= EventX1 - BoxTolerance && X <= EventX2 + BoxTolerance)
-			{
-				if (EventY < LocalBaselineY)
-				{
-					if (Y >= EventY - BoxTolerance && Y <= LocalBaselineY + BoxTolerance)
-					{
-						return &Event;
-					}
-				}
-				else
-				{
-					if (Y >= LocalBaselineY - BoxTolerance && Y <= EventY + BoxTolerance)
-					{
-						return &Event;
-					}
-				}
-			}
-		}
-	}
-
-	return nullptr;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FString FGraphSeries::FormatValue(double Value) const
-{
-	return FString::Printf(TEXT("%g"), Value);
-}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FGraphTrack
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FGraphTrack::FGraphTrack(uint64 InTrackId)
-	: FBaseTimingTrack(InTrackId)
+FGraphTrack::FGraphTrack(const FName& InSubType)
+	: FBaseTimingTrack(FName(TEXT("Graph")), InSubType)
 	//, AllSeries()
 	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
 	, PointBrush(FEditorStyle::GetBrush("Graph.ExecutionBubble"))
@@ -130,9 +38,6 @@ FGraphTrack::FGraphTrack(uint64 InTrackId)
 	, bDrawPolygon(true)
 	, bUseEventDuration(true)
 	, bDrawBoxes(true)
-	, HoveredGraphEvent()
-	, Tooltip()
-	, TooltipMousePosition(0.0f, 0.0f)
 	, NumAddedEvents(0)
 	, NumDrawPoints(0)
 	, NumDrawLines(0)
@@ -150,55 +55,27 @@ FGraphTrack::~FGraphTrack()
 
 void FGraphTrack::Reset()
 {
-	HoveredGraphEvent.Reset();
-	Tooltip.Reset();
-	TooltipMousePosition.Set(0.0f, 0.0f);
-
 	AllSeries.Reset();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FGraphTrack::UpdateHoveredState(float MouseX, float MouseY, const FTimingTrackViewport& Viewport)
+void FGraphTrack::PostUpdate(const ITimingTrackUpdateContext& Context)
 {
 	constexpr float HeaderWidth = 100.0f;
 	constexpr float HeaderHeight = 14.0f;
 
-	HoveredGraphEvent.Reset();
+	const float MouseX = Context.GetMousePosition().X;
+	const float MouseY = Context.GetMousePosition().Y;
 
 	if (MouseY >= GetPosY() && MouseY < GetPosY() + GetHeight())
 	{
 		SetHoveredState(true);
 		SetHeaderHoveredState(MouseX < HeaderWidth && MouseY < GetPosY() + HeaderHeight);
-
-		GetEvent(MouseX, MouseY, Viewport, HoveredGraphEvent);
 	}
 	else
 	{
 		SetHoveredState(false);
-	}
-
-	if (HoveredGraphEvent.IsValid())
-	{
-		InitTooltip();
-		Tooltip.SetDesiredOpacity(1.0f);
-	}
-	else
-	{
-		Tooltip.SetDesiredOpacity(0.0f);
-	}
-	TooltipMousePosition.Set(MouseX, MouseY);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FGraphTrack::Update(const FTimingTrackViewport& Viewport)
-{
-	Tooltip.Update();
-
-	if (!TooltipMousePosition.IsZero())
-	{
-		Tooltip.SetPosition(TooltipMousePosition, 0.0f, Viewport.GetWidth(), 0.0f, Viewport.GetHeight());
 	}
 }
 
@@ -223,24 +100,21 @@ void FGraphTrack::UpdateStats()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FGraphTrack::DrawBackground(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const
+void FGraphTrack::Draw(const ITimingTrackDrawContext& Context) const
 {
+	FDrawContext& DrawContext = Context.GetDrawContext();
+	const FTimingTrackViewport& Viewport = Context.GetViewport();
+
 	FDrawHelpers::DrawBackground(DrawContext, WhiteBrush, Viewport, GetPosY(), GetHeight());
-}
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FGraphTrack::Draw(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport, const FVector2D& MousePosition) const
-{
-	DrawBackground(DrawContext, Viewport);
-
+	// Set clipping area.
 	{
-		FVector2D AbsPos = DrawContext.Geometry.GetAbsolutePosition();
+		const FVector2D AbsPos = DrawContext.Geometry.GetAbsolutePosition();
 		const float L = AbsPos.X;
 		const float R = AbsPos.X + Viewport.GetWidth();
 		const float T = AbsPos.Y + GetPosY();
 		const float B = AbsPos.Y + GetPosY() + GetHeight();
-		FSlateClippingZone ClipZone(FVector2D(L, T), FVector2D(R, T), FVector2D(L, B), FVector2D(R, B));
+		const FSlateClippingZone ClipZone(FVector2D(L, T), FVector2D(R, T), FVector2D(L, B), FVector2D(R, B));
 		DrawContext.ElementList.PushClip(ClipZone);
 	}
 
@@ -267,19 +141,8 @@ void FGraphTrack::Draw(FDrawContext& DrawContext, const FTimingTrackViewport& Vi
 		}
 	}
 
-	if (HoveredGraphEvent.IsValid())
-	{
-		DrawHighlightedEvent(DrawContext, Viewport, HoveredGraphEvent);
-	}
-
+	// Restore clipping.
 	DrawContext.ElementList.PopClip();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FGraphTrack::PostDraw(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport, const FVector2D& MousePosition) const
-{
-	Tooltip.Draw(DrawContext);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -510,14 +373,21 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FGraphTrack::DrawHighlightedEvent(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport, const FGraphTrack::FEvent& GraphEvent) const
+void FGraphTrack::DrawEvent(const ITimingTrackDrawContext& Context, const ITimingEvent& InTimingEvent, EDrawEventMode InDrawMode) const
 {
-	ensure(GraphEvent.IsValid());
+	ensure(InTimingEvent.CheckTrack(this));
+	ensure(FGraphTrackEvent::CheckTypeName(InTimingEvent));
 
-	const float EventX1 = Viewport.TimeToSlateUnitsRounded(GraphEvent.SeriesEvent.Time);
-	const float EventX2 = Viewport.TimeToSlateUnitsRounded(GraphEvent.SeriesEvent.Time + GraphEvent.SeriesEvent.Duration);
+	const FGraphTrackEvent& GraphEvent = static_cast<const FGraphTrackEvent&>(InTimingEvent);
+	const TSharedPtr<const FGraphSeries> Series = GraphEvent.GetSeries();
 
-	const float EventY1 = GetPosY() + GraphEvent.Series->GetRoundedYForValue(GraphEvent.SeriesEvent.Value);
+	const FTimingTrackViewport& Viewport = Context.GetViewport();
+	FDrawContext& DrawContext = Context.GetDrawContext();
+
+	const float EventX1 = Viewport.TimeToSlateUnitsRounded(GraphEvent.GetStartTime());
+	const float EventX2 = Viewport.TimeToSlateUnitsRounded(GraphEvent.GetEndTime());
+
+	const float EventY1 = GetPosY() + Series->GetRoundedYForValue(GraphEvent.GetValue());
 
 	const FLinearColor HighlightColor(1.0f, 1.0f, 0.0f, 1.0f);
 
@@ -533,14 +403,14 @@ void FGraphTrack::DrawHighlightedEvent(FDrawContext& DrawContext, const FTimingT
 			W = 1.0f;
 		}
 
-		const float EventY2 = GetPosY() + static_cast<float>(GraphEvent.Series->GetBaselineY());
+		const float EventY2 = GetPosY() + static_cast<float>(Series->GetBaselineY());
 
 		const float Y1 = FMath::Min(EventY1, EventY2);
 		const float DY = FMath::Abs(EventY2 - EventY1);
 
 		DrawContext.DrawBox(EventX1 - 1.0f, Y1 - 1.0f, W + 2.0f, DY + 3.0f, WhiteBrush, HighlightColor);
 		DrawContext.LayerId++;
-		DrawContext.DrawBox(EventX1, Y1, W, DY + 1.0f, WhiteBrush, GraphEvent.Series->Color);
+		DrawContext.DrawBox(EventX1, Y1, W, DY + 1.0f, WhiteBrush, Series->Color);
 		DrawContext.LayerId++;
 	}
 
@@ -558,35 +428,41 @@ void FGraphTrack::DrawHighlightedEvent(FDrawContext& DrawContext, const FTimingT
 
 		DrawContext.DrawBox(EventX1 - 1.0f, EventY1 - 1.0f, W + 2.0f, 3.0f, WhiteBrush, HighlightColor);
 		DrawContext.LayerId++;
-		DrawContext.DrawBox(EventX1, EventY1, W, 1.0f, WhiteBrush, GraphEvent.Series->Color);
+		DrawContext.DrawBox(EventX1, EventY1, W, 1.0f, WhiteBrush, Series->Color);
 		DrawContext.LayerId++;
 	}
 
 	// Draw highlighted point.
 	DrawContext.DrawBox(EventX1 - PointVisualSize / 2.0f - 1.5f, EventY1 - PointVisualSize / 2.0f - 1.5f, PointVisualSize + 4.0f, PointVisualSize + 4.0f, PointBrush, HighlightColor);
 	DrawContext.LayerId++;
-	DrawContext.DrawBox(EventX1 - PointVisualSize / 2.0f + 0.5f, EventY1 - PointVisualSize / 2.0f + 0.5f, PointVisualSize, PointVisualSize, PointBrush, GraphEvent.Series->Color);
+	DrawContext.DrawBox(EventX1 - PointVisualSize / 2.0f + 0.5f, EventY1 - PointVisualSize / 2.0f + 0.5f, PointVisualSize, PointVisualSize, PointBrush, Series->Color);
 	DrawContext.LayerId++;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FGraphTrack::InitTooltip()
+void FGraphTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITimingEvent& InTooltipEvent) const
 {
-	Tooltip.ResetContent();
-	Tooltip.AddTitle(HoveredGraphEvent.Series->GetName().ToString(), HoveredGraphEvent.Series->GetColor());
-	Tooltip.AddNameValueTextLine(TEXT("Time:"), TimeUtils::FormatTimeAuto(HoveredGraphEvent.SeriesEvent.Time));
-	Tooltip.AddNameValueTextLine(TEXT("Duration:"), TimeUtils::FormatTimeAuto(HoveredGraphEvent.SeriesEvent.Duration));
-	Tooltip.AddNameValueTextLine(TEXT("Value:"), HoveredGraphEvent.Series->FormatValue(HoveredGraphEvent.SeriesEvent.Value));
-	Tooltip.UpdateLayout();
+	if (InTooltipEvent.CheckTrack(this) && FGraphTrackEvent::CheckTypeName(InTooltipEvent))
+	{
+		const FGraphTrackEvent& TooltipEvent = static_cast<const FGraphTrackEvent&>(InTooltipEvent);
+		const TSharedRef<const FGraphSeries> Series = TooltipEvent.GetSeries();
+
+		InOutTooltip.ResetContent();
+		InOutTooltip.AddTitle(Series->GetName().ToString(), Series->GetColor());
+		InOutTooltip.AddNameValueTextLine(TEXT("Time:"), TimeUtils::FormatTimeAuto(TooltipEvent.GetStartTime()));
+		InOutTooltip.AddNameValueTextLine(TEXT("Duration:"), TimeUtils::FormatTimeAuto(TooltipEvent.GetDuration()));
+		InOutTooltip.AddNameValueTextLine(TEXT("Value:"), Series->FormatValue(TooltipEvent.GetValue()));
+		InOutTooltip.UpdateLayout();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const bool FGraphTrack::GetEvent(const float MouseX, const float MouseY, const FTimingTrackViewport& Viewport, FGraphTrack::FEvent& OutEvent) const
+const TSharedPtr<const ITimingEvent> FGraphTrack::GetEvent(float InPosX, float InPosY, const FTimingTrackViewport& Viewport) const
 {
-	const float LocalPosX = MouseX;
-	const float LocalPosY = MouseY - GetPosY();
+	const float LocalPosX = InPosX;
+	const float LocalPosY = InPosY - GetPosY();
 
 	const bool bCheckLine = bUseEventDuration && (bDrawLines || bDrawPolygon);
 
@@ -596,17 +472,15 @@ const bool FGraphTrack::GetEvent(const float MouseX, const float MouseY, const F
 		const TSharedPtr<FGraphSeries>& Series = AllSeries[SeriesIndex];
 		if (Series->IsVisible())
 		{
-			const FGraphSeries::FEvent* Event = Series->GetEvent(LocalPosX, LocalPosY, Viewport, bCheckLine, bDrawBoxes);
+			const FGraphSeriesEvent* Event = Series->GetEvent(LocalPosX, LocalPosY, Viewport, bCheckLine, bDrawBoxes);
 			if (Event != nullptr)
 			{
-				OutEvent.Series = Series;
-				OutEvent.SeriesEvent = *Event;
-				return true;
+				return MakeShared<FGraphTrackEvent>(SharedThis(this), Series.ToSharedRef(), *Event);
 			}
 		}
 	}
 
-	return false;
+	return nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -895,8 +769,8 @@ bool FGraphTrack::ContextMenu_ShowSeries_IsChecked(FGraphSeries* Series)
 // FRandomGraphTrack
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FRandomGraphTrack::FRandomGraphTrack(uint64 InTrackId)
-	: FGraphTrack(InTrackId)
+FRandomGraphTrack::FRandomGraphTrack()
+	: FGraphTrack(FName(TEXT("Random")))
 {
 	bDrawPoints = true;
 	bDrawPointsWithBorder = true;
@@ -910,21 +784,21 @@ FRandomGraphTrack::FRandomGraphTrack(uint64 InTrackId)
 
 void FRandomGraphTrack::AddDefaultSeries()
 {
-	TSharedPtr<FGraphSeries> Series0 = MakeShareable(new FGraphSeries());
+	TSharedRef<FGraphSeries> Series0 = MakeShared<FGraphSeries>();
 	Series0->SetName(TEXT("Random Blue"));
 	Series0->SetDescription(TEXT("Random series; for debuging purposes"));
 	Series0->SetColor(FLinearColor(0.1f, 0.5f, 1.0f, 1.0f), FLinearColor(0.4f, 0.8f, 1.0f, 1.0f));
 	Series0->SetVisibility(true);
 	AllSeries.Add(Series0);
 
-	TSharedPtr<FGraphSeries> Series1 = MakeShareable(new FGraphSeries());
+	TSharedRef<FGraphSeries> Series1 = MakeShared<FGraphSeries>();
 	Series1->SetName(TEXT("Random Yellow"));
 	Series1->SetDescription(TEXT("Random series; for debuging purposes"));
 	Series1->SetColor(FLinearColor(0.9f, 0.9f, 0.1f, 1.0f), FLinearColor(1.0f, 1.0f, 0.4f, 1.0f));
 	Series1->SetVisibility(false);
 	AllSeries.Add(Series1);
 
-	TSharedPtr<FGraphSeries> Series2 = MakeShareable(new FGraphSeries());
+	TSharedRef<FGraphSeries> Series2 = MakeShared<FGraphSeries>();
 	Series2->SetName(TEXT("Random Red"));
 	Series2->SetDescription(TEXT("Random series; for debuging purposes"));
 	Series2->SetColor(FLinearColor(1.0f, 0.1f, 0.2f, 1.0f), FLinearColor(1.0f, 0.4f, 0.5f, 1.0f));
@@ -940,15 +814,17 @@ FRandomGraphTrack::~FRandomGraphTrack()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FRandomGraphTrack::Update(const FTimingTrackViewport& Viewport)
+void FRandomGraphTrack::Update(const ITimingTrackUpdateContext& Context)
 {
-	FGraphTrack::Update(Viewport);
+	FGraphTrack::Update(Context);
 
 	if (IsDirty())
 	{
 		ClearDirtyFlag();
 
 		NumAddedEvents = 0;
+
+		const FTimingTrackViewport& Viewport = Context.GetViewport();
 
 		int32 Seed = 0;
 		for (TSharedPtr<FGraphSeries>& Series : AllSeries)
@@ -1026,341 +902,6 @@ void FRandomGraphTrack::GenerateSeries(FGraphSeries& Series, const FTimingTrackV
 			++Index;
 		}
 	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// FGraphTrackBuilder
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FGraphTrackBuilder::FGraphTrackBuilder(FGraphTrack& InTrack, FGraphSeries& InSeries, const FTimingTrackViewport& InViewport)
-	: Track(InTrack)
-	, Series(InSeries)
-	, Viewport(InViewport)
-{
-	Series.Events.Reset();
-	BeginPoints();
-	BeginConnectedLines();
-	BeginBoxes();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FGraphTrackBuilder::~FGraphTrackBuilder()
-{
-	EndPoints();
-	EndConnectedLines();
-	EndBoxes();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FGraphTrackBuilder::AddEvent(double Time, double Duration, double Value)
-{
-	Track.NumAddedEvents++;
-
-	bool bKeepEvent = (Viewport.GetViewportDXForDuration(Duration) > 1.0f); // always keep the events wider than 1px
-
-	//if (Track.bDrawPoints)
-	{
-		bKeepEvent |= AddPoint(Time, Value);
-	}
-
-	if (Track.bDrawLines || Track.bDrawPolygon)
-	{
-		AddConnectedLine(Time, Value);
-
-		if (Track.bUseEventDuration && Duration != 0.0)
-		{
-			AddConnectedLine(Time + Duration, Value);
-		}
-	}
-
-	if (Track.bDrawBoxes)
-	{
-		AddBox(Time, Duration, Value);
-	}
-
-	if (bKeepEvent)
-	{
-		Series.Events.Add({ Time, Duration, Value });
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// FGraphTrackBuilder - Points
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FGraphTrackBuilder::BeginPoints()
-{
-	Series.Points.Reset();
-
-	PointsCurrentX = -DBL_MAX;
-
-	PointsAtCurrentX.Reset();
-	int32 MaxPointsPerLineScan = FMath::CeilToInt(Track.GetHeight() / FGraphTrack::PointSizeY) + 1;
-	if (MaxPointsPerLineScan > 0)
-	{
-		PointsAtCurrentX.AddDefaulted(MaxPointsPerLineScan);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool FGraphTrackBuilder::AddPoint(double Time, double Value)
-{
-	const float X = Viewport.TimeToSlateUnitsRounded(Time);
-	if (X < -FGraphTrack::PointVisualSize / 2.0f || X >= Viewport.GetWidth() + FGraphTrack::PointVisualSize / 2.0f)
-	{
-		return false;
-	}
-
-	// Align the X with a grid of GraphTrackPointDX pixels in size, in the global space (i.e. scroll independent).
-	const double AlignedX = FMath::RoundToDouble(Time * Viewport.GetScaleX() / FGraphTrack::PointSizeX) * FGraphTrack::PointSizeX;
-
-	if (AlignedX > PointsCurrentX + FGraphTrack::PointSizeX - 0.5)
-	{
-		FlushPoints();
-		PointsCurrentX = AlignedX;
-	}
-
-	const float Y = Series.GetRoundedYForValue(Value);
-
-	bool bIsNewVisiblePoint = false;
-
-	int32 Index = FMath::RoundToInt(Y / FGraphTrack::PointSizeY);
-	if (Index >= 0 && Index < PointsAtCurrentX.Num())
-	{
-		FPointInfo& Pt = PointsAtCurrentX[Index];
-		bIsNewVisiblePoint = !Pt.bValid;
-		Pt.bValid = true;
-		Pt.X = X;
-		Pt.Y = Y;
-	}
-
-	return bIsNewVisiblePoint;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FGraphTrackBuilder::FlushPoints()
-{
-	for (int32 Index = 0; Index < PointsAtCurrentX.Num(); ++Index)
-	{
-		FPointInfo& Pt = PointsAtCurrentX[Index];
-		if (Pt.bValid)
-		{
-			Pt.bValid = false;
-			Series.Points.Add(FVector2D(Pt.X, Pt.Y));
-		}
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FGraphTrackBuilder::EndPoints()
-{
-	FlushPoints();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// FGraphTrackBuilder - Connected Lines
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FGraphTrackBuilder::BeginConnectedLines()
-{
-	Series.LinePoints.Reset();
-
-	LinesCurrentX = -FLT_MAX;
-	LinesMinY = FLT_MAX;
-	LinesMaxY = -FLT_MAX;
-	LinesFirstY = FLT_MAX;
-	LinesLastY = FLT_MAX;
-	bIsLastLineAdded = false;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FGraphTrackBuilder::AddConnectedLine(double Time, double Value)
-{
-	if (bIsLastLineAdded)
-	{
-		return;
-	}
-
-	const float X = Viewport.TimeToSlateUnitsRounded(Viewport.RestrictEndTime(Time));
-	const float Y = Series.GetRoundedYForValue(Value);
-
-	ensure(X >= LinesCurrentX); // we are assuming events are already sorted by Time
-
-	if (X < 0)
-	{
-		LinesCurrentX = X;
-		LinesLastY = Y;
-		return;
-	}
-
-	if (X >= Viewport.GetWidth())
-	{
-		if (!bIsLastLineAdded)
-		{
-			bIsLastLineAdded = true;
-
-			if (LinesLastY != FLT_MAX)
-			{
-				FlushConnectedLine();
-
-				Series.LinePoints.Add(FVector2D(LinesCurrentX, LinesLastY));
-				Series.LinePoints.Add(FVector2D(X, Y));
-			}
-
-			// Reset the "reduction line" so last FlushConnectedLine() call will do nothing.
-			LinesMinY = Y;
-			LinesMaxY = Y;
-		}
-		return;
-	}
-
-	if (X > LinesCurrentX)
-	{
-		if (LinesLastY != FLT_MAX)
-		{
-			FlushConnectedLine();
-
-			Series.LinePoints.Add(FVector2D(LinesCurrentX, LinesLastY));
-			Series.LinePoints.Add(FVector2D(X, Y));
-		}
-
-		// Advance the "reduction line".
-		LinesCurrentX = X;
-		LinesMinY = Y;
-		LinesMaxY = Y;
-		LinesFirstY = Y;
-		LinesLastY = Y;
-	}
-	else
-	{
-		// Merge current line with the "reduction line".
-		if (Y < LinesMinY)
-		{
-			LinesMinY = Y;
-		}
-		if (Y > LinesMaxY)
-		{
-			LinesMaxY = Y;
-		}
-		LinesLastY = Y;
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FGraphTrackBuilder::FlushConnectedLine()
-{
-	if (LinesCurrentX >= 0.0f && LinesMinY != LinesMaxY)
-	{
-		Series.LinePoints.Add(FVector2D(LinesCurrentX, LinesMaxY));
-		Series.LinePoints.Add(FVector2D(LinesCurrentX, LinesMinY));
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FGraphTrackBuilder::EndConnectedLines()
-{
-	FlushConnectedLine();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// FGraphTrackBuilder - Boxes
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FGraphTrackBuilder::BeginBoxes()
-{
-	Series.Boxes.Reset();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FGraphTrackBuilder::AddBox(double Time, double Duration, double Value)
-{
-	float X1 = Viewport.TimeToSlateUnitsRounded(Time);
-	if (X1 > Viewport.GetWidth())
-	{
-		return;
-	}
-
-	double EndTime = Viewport.RestrictEndTime(Time + Duration);
-	float X2 = Viewport.TimeToSlateUnitsRounded(EndTime);
-	if (X2 < 0)
-	{
-		return;
-	}
-
-	float W = X2 - X1;
-	ensure(W >= 0); // we expect events to be sorted
-
-	// Timing events are displayed with minimum 1px (including empty ones).
-	if (W == 0)
-	{
-		W = 1.0f;
-	}
-
-	const float Y = Series.GetRoundedYForValue(Value);
-
-	// simple reduction
-	if (W == 1.0f && Series.Boxes.Num() > 0)
-	{
-		FGraphSeries::FBox& LastBox = Series.Boxes.Last();
-		if (LastBox.W == 1.0f && LastBox.X == X1)
-		{
-			const float RoundedBaselineY = FMath::RoundToFloat(Series.GetBaselineY());
-
-			if (LastBox.Y < RoundedBaselineY)
-			{
-				if (Y < RoundedBaselineY)
-				{
-					// Merge current box with previous one.
-					if (Y < LastBox.Y)
-					{
-						LastBox.Y = Y;
-					}
-					return;
-				}
-			}
-			else
-			{
-				if (Y >= RoundedBaselineY)
-				{
-					// Merge current box with previous one.
-					if (Y > LastBox.Y)
-					{
-						LastBox.Y = Y;
-					}
-					return;
-				}
-			}
-		}
-	}
-
-	FGraphSeries::FBox Box;
-	Box.X = X1;
-	Box.W = W;
-	Box.Y = Y;
-	Series.Boxes.Add(Box);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FGraphTrackBuilder::FlushBox()
-{
-	// TODO: reduction algorithm
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FGraphTrackBuilder::EndBoxes()
-{
-	FlushBox();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

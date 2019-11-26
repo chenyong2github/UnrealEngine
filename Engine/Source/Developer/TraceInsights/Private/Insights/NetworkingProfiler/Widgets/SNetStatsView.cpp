@@ -30,7 +30,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 SNetStatsView::SNetStatsView()
-	: Table(MakeShareable(new Insights::FTable()))
+	: Table(MakeShared<Insights::FTable>())
 	, bExpansionSaved(false)
 	, bFilterOutZeroCountEvents(false)
 	, GroupingMode(ENetEventGroupingMode::Flat)
@@ -248,8 +248,8 @@ void SNetStatsView::Construct(const FArguments& InArgs)
 	//BindCommands();
 
 	// Create the search filters: text based, type based etc.
-	TextFilter = MakeShareable(new FNetEventNodeTextFilter(FNetEventNodeTextFilter::FItemToStringArray::CreateSP(this, &SNetStatsView::HandleItemToStringArray)));
-	Filters = MakeShareable(new FNetEventNodeFilterCollection());
+	TextFilter = MakeShared<FNetEventNodeTextFilter>(FNetEventNodeTextFilter::FItemToStringArray::CreateSP(this, &SNetStatsView::HandleItemToStringArray));
+	Filters = MakeShared<FNetEventNodeFilterCollection>();
 	Filters->Add(TextFilter);
 
 	CreateGroupByOptionsSources();
@@ -424,9 +424,9 @@ void SNetStatsView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 
 	MenuBuilder.BeginSection("ColumnName", LOCTEXT("ContextMenu_Header_Misc_ColumnName", "Column Name"));
 
-	for (const TSharedPtr<Insights::FTableColumn>& ColumnPtr : Table->GetColumns())
+	for (const TSharedRef<Insights::FTableColumn>& ColumnRef : Table->GetColumns())
 	{
-		const Insights::FTableColumn& Column = *ColumnPtr;
+		const Insights::FTableColumn& Column = *ColumnRef;
 
 		if (Column.IsVisible() && Column.CanBeSorted())
 		{
@@ -486,9 +486,9 @@ void SNetStatsView::TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder)
 {
 	MenuBuilder.BeginSection("ViewColumn", LOCTEXT("ContextMenu_Header_Columns_View", "View Column"));
 
-	for (const TSharedPtr<Insights::FTableColumn>& ColumnPtr : Table->GetColumns())
+	for (const TSharedRef<Insights::FTableColumn>& ColumnRef : Table->GetColumns())
 	{
-		const Insights::FTableColumn& Column = *ColumnPtr;
+		const Insights::FTableColumn& Column = *ColumnRef;
 
 		FUIAction Action_ToggleColumn
 		(
@@ -512,16 +512,16 @@ void SNetStatsView::TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder)
 void SNetStatsView::InitializeAndShowHeaderColumns()
 {
 	// Create columns.
-	TArray<TSharedPtr<Insights::FTableColumn>> Columns;
+	TArray<TSharedRef<Insights::FTableColumn>> Columns;
 	FNetStatsViewColumnFactory::CreateNetStatsViewColumns(Columns);
 	Table->SetColumns(Columns);
 
 	// Show columns.
-	for (const TSharedPtr<Insights::FTableColumn>& ColumnPtr : Table->GetColumns())
+	for (const TSharedRef<Insights::FTableColumn>& ColumnRef : Table->GetColumns())
 	{
-		if (ColumnPtr->ShouldBeVisible())
+		if (ColumnRef->ShouldBeVisible())
 		{
-			ShowColumn(ColumnPtr->GetId());
+			ShowColumn(ColumnRef->GetId());
 		}
 	}
 }
@@ -950,7 +950,7 @@ void SNetStatsView::CreateGroups()
 		FNetEventNodePtr* GroupPtr = GroupNodeSet.Find(GroupName);
 		if (!GroupPtr)
 		{
-			GroupPtr = &GroupNodeSet.Add(GroupName, MakeShareable(new FNetEventNode(GroupName)));
+			GroupPtr = &GroupNodeSet.Add(GroupName, MakeShared<FNetEventNode>(GroupName));
 		}
 
 		for (const FNetEventNodePtr& NetEventNodePtr : NetEventNodes)
@@ -970,7 +970,7 @@ void SNetStatsView::CreateGroups()
 			FNetEventNodePtr* GroupPtr = GroupNodeSet.Find(GroupName);
 			if (!GroupPtr)
 			{
-				GroupPtr = &GroupNodeSet.Add(GroupName, MakeShareable(new FNetEventNode(GroupName)));
+				GroupPtr = &GroupNodeSet.Add(GroupName, MakeShared<FNetEventNode>(GroupName));
 			}
 
 			(*GroupPtr)->AddChildAndSetGroupPtr(NetEventNodePtr);
@@ -986,7 +986,7 @@ void SNetStatsView::CreateGroups()
 			FNetEventNodePtr* GroupPtr = GroupNodeSet.Find(GroupName);
 			if (!GroupPtr)
 			{
-				GroupPtr = &GroupNodeSet.Add(GroupName, MakeShareable(new FNetEventNode(GroupName)));
+				GroupPtr = &GroupNodeSet.Add(GroupName, MakeShared<FNetEventNode>(GroupName));
 			}
 
 			(*GroupPtr)->AddChildAndSetGroupPtr(NetEventNodePtr);
@@ -1003,7 +1003,7 @@ void SNetStatsView::CreateGroups()
 			FNetEventNodePtr* GroupPtr = GroupNodeSet.Find(GroupName);
 			if (!GroupPtr)
 			{
-				GroupPtr = &GroupNodeSet.Add(GroupName, MakeShareable(new FNetEventNode(GroupName)));
+				GroupPtr = &GroupNodeSet.Add(GroupName, MakeShared<FNetEventNode>(GroupName));
 			}
 
 			(*GroupPtr)->AddChildAndSetGroupPtr(NetEventNodePtr);
@@ -1021,10 +1021,10 @@ void SNetStatsView::CreateGroupByOptionsSources()
 	GroupByOptionsSource.Reset(3);
 
 	// Must be added in order of elements in the ENetEventGroupingMode.
-	GroupByOptionsSource.Add(MakeShareable(new ENetEventGroupingMode(ENetEventGroupingMode::Flat)));
-	GroupByOptionsSource.Add(MakeShareable(new ENetEventGroupingMode(ENetEventGroupingMode::ByName)));
-	//GroupByOptionsSource.Add(MakeShareable(new ENetEventGroupingMode(ENetEventGroupingMode::ByType)));
-	GroupByOptionsSource.Add(MakeShareable(new ENetEventGroupingMode(ENetEventGroupingMode::ByLevel)));
+	GroupByOptionsSource.Add(MakeShared<ENetEventGroupingMode>(ENetEventGroupingMode::Flat));
+	GroupByOptionsSource.Add(MakeShared<ENetEventGroupingMode>(ENetEventGroupingMode::ByName));
+	//GroupByOptionsSource.Add(MakeShared<ENetEventGroupingMode>(ENetEventGroupingMode::ByType));
+	GroupByOptionsSource.Add(MakeShared<ENetEventGroupingMode>(ENetEventGroupingMode::ByLevel));
 
 	ENetEventGroupingModePtr* GroupingModePtrPtr = GroupByOptionsSource.FindByPredicate([&](const ENetEventGroupingModePtr InGroupingModePtr) { return *InGroupingModePtr == GroupingMode; });
 	if (GroupingModePtrPtr != nullptr)
@@ -1095,11 +1095,11 @@ void SNetStatsView::CreateSortings()
 	AvailableSorters.Reset();
 	CurrentSorter = nullptr;
 
-	for (const TSharedPtr<Insights::FTableColumn> ColumnPtr : Table->GetColumns())
+	for (const TSharedRef<Insights::FTableColumn> ColumnRef : Table->GetColumns())
 	{
-		if (ColumnPtr->CanBeSorted())
+		if (ColumnRef->CanBeSorted())
 		{
-			TSharedPtr<Insights::ITableCellValueSorter> SorterPtr = ColumnPtr->GetValueSorter();
+			TSharedPtr<Insights::ITableCellValueSorter> SorterPtr = ColumnRef->GetValueSorter();
 			if (ensure(SorterPtr.IsValid()))
 			{
 				AvailableSorters.Add(SorterPtr);
@@ -1389,9 +1389,9 @@ void SNetStatsView::ContextMenu_ShowAllColumns_Execute()
 	ColumnSortMode = GetDefaultColumnSortMode();
 	ColumnBeingSorted = GetDefaultColumnBeingSorted();
 
-	for (const TSharedPtr<Insights::FTableColumn>& ColumnPtr : Table->GetColumns())
+	for (const TSharedRef<Insights::FTableColumn>& ColumnRef : Table->GetColumns())
 	{
-		const Insights::FTableColumn& Column = *ColumnPtr;
+		const Insights::FTableColumn& Column = *ColumnRef;
 
 		if (!Column.IsVisible())
 		{
@@ -1433,9 +1433,9 @@ void SNetStatsView::ContextMenu_ShowMinMaxMedColumns_Execute()
 	ColumnSortMode = EColumnSortMode::Descending;
 	UpdateCurrentSortingByColumn();
 
-	for (const TSharedPtr<Insights::FTableColumn>& ColumnPtr : Table->GetColumns())
+	for (const TSharedRef<Insights::FTableColumn>& ColumnRef : Table->GetColumns())
 	{
-		const Insights::FTableColumn& Column = *ColumnPtr;
+		const Insights::FTableColumn& Column = *ColumnRef;
 
 		const bool bShouldBeVisible = Preset.Contains(Column.GetId());
 
@@ -1467,9 +1467,9 @@ void SNetStatsView::ContextMenu_ResetColumns_Execute()
 	ColumnSortMode = GetDefaultColumnSortMode();
 	UpdateCurrentSortingByColumn();
 
-	for (const TSharedPtr<Insights::FTableColumn>& ColumnPtr : Table->GetColumns())
+	for (const TSharedRef<Insights::FTableColumn>& ColumnRef : Table->GetColumns())
 	{
-		const Insights::FTableColumn& Column = *ColumnPtr;
+		const Insights::FTableColumn& Column = *ColumnRef;
 
 		if (Column.ShouldBeVisible() && !Column.IsVisible())
 		{
@@ -1549,7 +1549,7 @@ void SNetStatsView::RebuildTree(bool bResync)
 					});
 					const FName Name(NamePtr);
 					const ENetEventNodeType Type = ENetEventNodeType::NetEvent;
-					FNetEventNodePtr NetEventNodePtr = MakeShareable(new FNetEventNode(Id, Name, Type, NetEvent.Level));
+					FNetEventNodePtr NetEventNodePtr = MakeShared<FNetEventNode>(Id, Name, Type, NetEvent.Level);
 					NetEventNodes.Add(NetEventNodePtr);
 					NetEventNodesIdMap.Add(Id, NetEventNodePtr);
 				}

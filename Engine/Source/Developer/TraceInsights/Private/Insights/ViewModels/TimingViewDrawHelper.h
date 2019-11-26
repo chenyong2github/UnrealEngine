@@ -6,40 +6,88 @@
 #include "Fonts/SlateFontInfo.h"
 #include "Math/Color.h"
 
+// Insights
+#include "Insights/ViewModels/TimingEventsTrack.h"
+#include "Insights/ViewModels/ITimingViewDrawHelper.h"
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct FSlateBrush;
 struct FDrawContext;
 
+class ITimingTrackDrawContext;
 class FTimingEventsTrack;
-struct FTimingEventsTrackLayout;
 class FTimingTrackViewport;
+
+enum class EDrawEventMode : uint32;
+
+struct FTimingViewLayout;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FTimingViewDrawHelper
+struct FTimingEventsTrackDrawState
 {
-public:
-	enum class EHighlightMode : uint32
+	struct FBoxPrimitive
 	{
-		Hovered = 1,
-		Selected = 2,
-		SelectedAndHovered = 3
+		int32 Depth;
+		float X;
+		float W;
+		FLinearColor Color;
 	};
 
+	struct FTextPrimitive
+	{
+		int32 Depth;
+		float X;
+		FString Text;
+		bool bWhite;
+	};
+
+	FTimingEventsTrackDrawState()
+		: Boxes()
+		, InsideBoxes()
+		, Borders()
+		, Texts()
+		, NumLanes(0)
+		, NumEvents(0)
+		, NumMergedBoxes(0)
+	{
+	}
+
+	void Reset()
+	{
+		Boxes.Reset();
+		InsideBoxes.Reset();
+		Borders.Reset();
+		Texts.Reset();
+		NumLanes = 0;
+		NumEvents = 0;
+		NumMergedBoxes = 0;
+	}
+
+	int32 GetNumLanes() const { return NumLanes; }
+
+	int32 GetNumEvents() const { return NumEvents; }
+	int32 GetNumMergedBoxes() const { return NumMergedBoxes; }
+	int32 GetTotalNumBoxes() const { return Boxes.Num() + InsideBoxes.Num(); }
+
+	TArray<FBoxPrimitive> Boxes;
+	TArray<FBoxPrimitive> InsideBoxes;
+	TArray<FBoxPrimitive> Borders;
+	TArray<FTextPrimitive> Texts;
+
+	int32 NumLanes;
+
+	// Debug stats.
+	int32 NumEvents;
+	int32 NumMergedBoxes;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FTimingEventsTrackDrawStateBuilder : public ITimingEventsTrackDrawStateBuilder
+{
 private:
-	enum class EDrawLayer : int32
-	{
-		EventBorder,
-		EventFill,
-		EventText,
-		TimelineHeader,
-		TimelineText,
-
-		Count,
-	};
-	static int32 ToInt32(EDrawLayer Layer) { return static_cast<int32>(Layer); }
-
 	struct FBoxData
 	{
 		float X1;
@@ -51,41 +99,59 @@ private:
 		void Reset() { X1 = 0.0f; X2 = 0.0f; Color = 0; }
 	};
 
-	//struct FEventBoxInfo
-	//{
-	//	float X1;
-	//	float X2;
-	//	int32 Depth;
-	//	uint32 Color;
-	//}
+public:
+	explicit FTimingEventsTrackDrawStateBuilder(FTimingEventsTrackDrawState& InState, const FTimingTrackViewport& InViewport);
+	virtual ~FTimingEventsTrackDrawStateBuilder() {}
 
-	//struct FEventTextInfo
-	//{
-	//	float X;
-	//	float Y;
-	//	FString Text;
-	//	bool bUseDarkTextColor; // true if text needs to be displayed in Black, otherwise will be displayed in White
-	//};
+	/**
+	 * Non-copyable
+	 */
+	FTimingEventsTrackDrawStateBuilder(const FTimingEventsTrackDrawStateBuilder&) = delete;
+	FTimingEventsTrackDrawStateBuilder& operator=(const FTimingEventsTrackDrawStateBuilder&) = delete;
 
-	struct FStats
+	const FTimingTrackViewport& GetViewport() const { return Viewport; }
+
+	virtual void AddEvent(double InEventStartTime, double InEventEndTime, uint32 InEventDepth, const TCHAR* InEventName, uint64 InEventType = 0, uint32 InEventColor = 0) override;
+	void Flush();
+
+	int32 GetMaxDepth() const { return MaxDepth; }
+
+private:
+	void FlushBox(const FBoxData& Box, const int32 Depth);
+
+private:
+	FTimingEventsTrackDrawState& DrawState; // cached draw state to build
+
+	const FTimingTrackViewport& Viewport;
+
+	int32 MaxDepth;
+
+	TArray<float> LastEventX2; // X2 value for last event on each depth
+	TArray<FBoxData> LastBox;
+
+	const FSlateFontInfo EventFont;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FTimingViewDrawHelper final : public ITimingViewDrawHelper
+{
+private:
+	enum class EDrawLayer : int32
 	{
-		int32 NumEvents;
-		int32 NumDrawBoxes;
-		int32 NumMergedBoxes;
-		int32 NumDrawBorders;
-		int32 NumDrawTexts;
+		EventBorder,
+		EventFill,
+		EventText,
+		EventHighlight,
+		HeaderBackground,
+		HeaderText,
 
-		FStats()
-			: NumEvents(0)
-			, NumDrawBoxes(0)
-			, NumMergedBoxes(0)
-			, NumDrawBorders(0)
-			, NumDrawTexts(0)
-		{}
+		Count,
 	};
+	static int32 ToInt32(EDrawLayer Layer) { return static_cast<int32>(Layer); }
 
 public:
-	explicit FTimingViewDrawHelper(const FDrawContext& InDrawContext, const FTimingTrackViewport& InViewport, const FTimingEventsTrackLayout& InLayout);
+	explicit FTimingViewDrawHelper(const FDrawContext& InDrawContext, const FTimingTrackViewport& InViewport);
 	~FTimingViewDrawHelper();
 
 	/**
@@ -94,36 +160,38 @@ public:
 	FTimingViewDrawHelper(const FTimingViewDrawHelper&) = delete;
 	FTimingViewDrawHelper& operator=(const FTimingViewDrawHelper&) = delete;
 
+	// ITimingViewDrawHelper interface
+	virtual const FSlateBrush* GetWhiteBrush() const override { return WhiteBrush; }
+	virtual const FSlateFontInfo& GetEventFont() const override { return EventFont; }
+	virtual FLinearColor GetEdgeColor() const override { return EdgeColor; }
+	virtual FLinearColor GetTrackNameTextColor(const FTimingEventsTrack& Track) const override;
+	virtual int32 GetHeaderBackgroundLayerId() const override { return ReservedLayerId + ToInt32(EDrawLayer::HeaderBackground); }
+	virtual int32 GetHeaderTextLayerId() const override { return ReservedLayerId + ToInt32(EDrawLayer::HeaderText); }
+
 	const FDrawContext& GetDrawContext() const { return DrawContext; }
 	const FTimingTrackViewport& GetViewport() const { return Viewport; }
-	const FTimingEventsTrackLayout& GetLayout() const { return Layout; }
-
-	const FSlateBrush* GetWhiteBrush() const { return WhiteBrush; }
-	const FSlateFontInfo& GetEventFont() const { return EventFont; }
-
-	int32 GetNumEvents() const      { return Stats.NumEvents; }
-	int32 GetNumDrawBoxes() const   { return Stats.NumDrawBoxes; }
-	int32 GetNumMergedBoxes() const { return Stats.NumMergedBoxes; }
-	int32 GetNumDrawBorders() const { return Stats.NumDrawBorders; }
-	int32 GetNumDrawTexts() const   { return Stats.NumDrawTexts; }
 
 	void DrawBackground() const;
-	void DrawTimingEventHighlight(double StartTime, double EndTime, float Y, EHighlightMode Mode);
 
-	//TODO: move the following in a Builder class
-	void BeginTimelines();
-	bool BeginTimeline(FTimingEventsTrack& Track);
-	void AddEvent(double StartTime, double EndTime, uint32 Depth, const TCHAR* EventName, uint32 Color = 0);
-	void EndTimeline(FTimingEventsTrack& Track);
-	void EndTimelines();
+	void BeginDrawTracks() const;
+	// OffsetY = 1.0f is for the top horizontal line (which separates the timelines) added by DrawTrackHeader.
+	void DrawEvents(const FTimingEventsTrackDrawState& DrawState, const FTimingEventsTrack& Track, const float OffsetY = 1.0f) const;
+	void DrawTrackHeader(const FTimingEventsTrack& Track) const;
+	void EndDrawTracks() const;
 
-private:
-	void DrawBox(const FBoxData& Box, const float EventY, const float EventH);
+	void DrawTimingEventHighlight(double StartTime, double EndTime, float Y, EDrawEventMode Mode) const;
+
+	void SetHighlightedEventTypeId(uint64 InHighlightedEventTypeId) { HighlightedEventTypeId = InHighlightedEventTypeId; }
+
+	int32 GetNumEvents() const { return NumEvents; }
+	int32 GetNumMergedBoxes() const { return NumMergedBoxes; }
+	int32 GetNumDrawBoxes() const { return NumDrawBoxes; }
+	int32 GetNumDrawBorders() const { return NumDrawBorders; }
+	int32 GetNumDrawTexts() const { return NumDrawTexts; }
 
 private:
 	const FDrawContext& DrawContext;
 	const FTimingTrackViewport& Viewport;
-	const FTimingEventsTrackLayout& Layout;
 
 	const FSlateBrush* WhiteBrush;
 	const FSlateBrush* EventBorderBrush;
@@ -135,24 +203,18 @@ private:
 	const FLinearColor EdgeColor;
 	const FSlateFontInfo EventFont;
 
+	mutable int32 ReservedLayerId;
+
 	mutable float ValidAreaX;
 	mutable float ValidAreaW;
 
-	//////////////////////////////////////////////////
-	// Builder state
+	uint64 HighlightedEventTypeId;
 
-	float TimelineTopY;
-	float TimelineY;
-	int32 MaxDepth;
-	int32 TimelineIndex;
-
-	TArray<float> LastEventX2; // X2 value for last event on each depth, for current timeline
-	TArray<FBoxData> LastBox;
-
-	//////////////////////////////////////////////////
-
-	/** Debug stats */
-	mutable FStats Stats;
+	mutable int32 NumEvents;
+	mutable int32 NumMergedBoxes;
+	mutable int32 NumDrawBoxes;
+	mutable int32 NumDrawBorders;
+	mutable int32 NumDrawTexts;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

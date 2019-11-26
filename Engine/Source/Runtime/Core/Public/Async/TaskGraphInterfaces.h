@@ -732,7 +732,7 @@ public:
  *	Embeds a user defined task, as exemplified above, for doing the work and provides the functionality for setting up and handling prerequisites and subsequents
  **/
 template<typename TTask>
-class TGraphTask : public FBaseGraphTask
+class TGraphTask final : public FBaseGraphTask
 {
 public:
 	/** 
@@ -828,7 +828,7 @@ private:
 	 *	Dispatches the subsequents.
 	 *	Destroys myself.
 	 **/
-	virtual void ExecuteTask(TArray<FBaseGraphTask*>& NewTasks, ENamedThreads::Type CurrentThread) final override
+	void ExecuteTask(TArray<FBaseGraphTask*>& NewTasks, ENamedThreads::Type CurrentThread) override
 	{
 		checkThreadGraph(TaskConstructed);
 
@@ -885,7 +885,7 @@ private:
 	/** 
 	 *	Private destructor, just checks that the task appears to be completed
 	**/
-	virtual ~TGraphTask() final override
+	~TGraphTask() override
 	{
 		checkThreadGraph(!TaskConstructed);
 	}

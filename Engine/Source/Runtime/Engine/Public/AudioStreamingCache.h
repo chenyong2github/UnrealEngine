@@ -161,7 +161,7 @@ private:
 #endif
 
 		// Handle to our async read request operation.
-		TUniquePtr<FBulkDataIORequest> ReadRequest;
+		TUniquePtr<IBulkDataIORequest> ReadRequest;
 
 #if DEBUG_STREAM_CACHE
 		FCacheElementDebugInfo DebugInfo;

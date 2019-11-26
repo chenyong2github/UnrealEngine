@@ -71,7 +71,7 @@ public:
 	/** Virtual destructor. */
 	virtual ~SStatsView();
 
-	SLATE_BEGIN_ARGS(SStatsView){}
+	SLATE_BEGIN_ARGS(SStatsView) {}
 	SLATE_END_ARGS()
 
 	/**

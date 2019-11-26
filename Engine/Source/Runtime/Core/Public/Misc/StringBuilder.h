@@ -93,7 +93,7 @@ public:
 
 	inline TStringBuilderImpl& AppendAnsi(const FAnsiStringView& AnsiString)
 	{
-		return AppendAnsi(AnsiString.Data(), AnsiString.Len());
+		return AppendAnsi(AnsiString.GetData(), AnsiString.Len());
 	}
 
 	inline TStringBuilderImpl& AppendAnsi(const ANSICHAR* NulTerminatedString, const int32 Length)
@@ -285,7 +285,7 @@ public:
 		EnsureCapacity(StringLength);
 		TCHAR* RESTRICT Dest = CurPos;
 
-		FMemory::Memcpy(CurPos, StringView.Data(), StringLength * sizeof(TCHAR));
+		FMemory::Memcpy(CurPos, StringView.GetData(), StringLength * sizeof(TCHAR));
 
 		CurPos += StringLength;
 
@@ -354,4 +354,4 @@ inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, const ANS
 
 #endif
 
-inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, const FStringView& Str)					{ Builder.Append(Str.Data(), Str.Len()); return Builder; }
+inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, const FStringView& Str)					{ Builder.Append(Str.GetData(), Str.Len()); return Builder; }

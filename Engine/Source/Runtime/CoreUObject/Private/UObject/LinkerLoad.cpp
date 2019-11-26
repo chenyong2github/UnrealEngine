@@ -35,6 +35,7 @@
 #include "Serialization/Formatters/BinaryArchiveFormatter.h"
 #include "Serialization/Formatters/JsonArchiveInputFormatter.h"
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
+#include "Serialization/UnversionedPropertySerialization.h"
 #include "Serialization/LoadTimeTracePrivate.h"
 #include "HAL/FileManager.h"
 #include "UObject/CoreRedirects.h"
@@ -867,12 +868,10 @@ FLinkerLoad::FLinkerLoad(UPackage* InParent, const TCHAR* InFilename, uint32 InL
 #endif
 
 	OwnerThread = FPlatformTLS::GetCurrentThreadId();
-	TRACE_LOADTIME_NEW_LINKER(this);
 }
 
 FLinkerLoad::~FLinkerLoad()
 {
-	TRACE_LOADTIME_DESTROY_LINKER(this);
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	FLinkerManager::Get().RemoveLiveLinker(this);
 #endif
@@ -1164,8 +1163,6 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummary()
 		// Read summary from file.
 		StructuredArchiveRootRecord.GetValue() << SA_VALUE(TEXT("Summary"), Summary);
 
-		TRACE_LOADTIME_PACKAGE_SUMMARY(this, Summary.TotalHeaderSize, Summary.NameCount, Summary.ImportCount, Summary.ExportCount);
-
 		// Check tag.
 		if( Summary.Tag != PACKAGE_FILE_TAG )
 		{
@@ -1185,7 +1182,13 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummary()
 			UE_LOG(LogLinker, Warning, TEXT("Asset '%s' has been saved with engine version newer than current and therefore can't be loaded. CurrEngineVersion: %s AssetEngineVersion: %s"), *Filename, *FEngineVersion::Current().ToString(), *Summary.CompatibleWithEngineVersion.ToString());
 			return LINKER_Failed;
 		}
-		else if (!FPlatformProperties::RequiresCookedData() && !Summary.SavedByEngineVersion.HasChangelist() && FEngineVersion::Current().HasChangelist())
+		
+		// Set desired property tag format
+		bool bUseUnversionedProperties = Summary.bUnversioned && CanUseUnversionedPropertySerialization();
+		SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
+		Loader->SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
+		
+		if (!FPlatformProperties::RequiresCookedData() && !Summary.SavedByEngineVersion.HasChangelist() && FEngineVersion::Current().HasChangelist())
 		{
 			// This warning can be disabled in ini with [Core.System] ZeroEngineVersionWarning=False
 			static struct FInitZeroEngineVersionWarning
@@ -3696,7 +3699,6 @@ void FLinkerLoad::Preload( UObject* Object )
 				Object->ClearFlags ( RF_NeedLoad );
 
 				{
-					TRACE_LOADTIME_OBJECT_SCOPE(Export.Object, LoadTimeProfilerObjectEventType_Serialize);
 					SCOPE_CYCLE_COUNTER(STAT_LinkerSerialize);
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 					// communicate with FLinkerPlaceholderBase, what object is currently serializing in
@@ -4017,8 +4019,6 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 	// Check whether we already loaded the object and if not whether the context flags allow loading it.
 	if( !Export.Object && !FilterExport(Export) ) // for some acceptable position, it was not "not for" 
 	{
-		TRACE_LOADTIME_CREATE_EXPORT_SCOPE(this, &Export.Object, Export.SerialOffset, Export.SerialSize, Export.bIsAsset);
-
 		FUObjectSerializeContext* CurrentLoadContext = GetSerializeContext();
 		check(!GEventDrivenLoaderEnabled || !bLockoutLegacyOperations || !EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME);
 		check(Export.ObjectName!=NAME_None || !(Export.ObjectFlags&RF_Public));
@@ -5016,27 +5016,14 @@ FArchive& FLinkerLoad::operator<<( UObject*& Object )
 		{
 			Object = nullptr;
 		}
+		else if (Index.IsExport())
+		{
+			Object = Exp(Index).Object;
+		}
 		else
 		{
-			if (Index.IsExport())
-			{
-				Object = Exp(Index).Object;
-			}
-			else // Index.IsImport()
-			{
-				if (LocalImportIndices)
-				{
-					check(GlobalImportObjects);
-					Object = GlobalImportObjects[LocalImportIndices[Index.ToImport()]];
-				}
-				else
-				{
-					Object = Imp(Index).XObject;
-				}
-			}
+			Object = Imp(Index).XObject;
 		}
-
-		//Object = ((FAsyncPackage*)AsyncRoot)->EventDrivenIndexToObject(Index, false);
 
 		return *this;
 	}

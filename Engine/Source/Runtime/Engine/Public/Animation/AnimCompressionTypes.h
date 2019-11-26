@@ -560,6 +560,11 @@ public:
 			return !!Data;
 		}
 
+		SizeType GetInitialCapacity() const
+		{
+			return 0;
+		}
+
 		void AcceptFileMapping(IMappedFileHandle* InMappedHandle, IMappedFileRegion* InMappedRegion, void *MallocPtr)
 		{
 			check(!MappedHandle && !Data); // we could support stuff like this, but that usually isn't what we want for streamlined loading

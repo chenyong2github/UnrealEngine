@@ -1,0 +1,22 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "Insights/ViewModels/GraphTrackEvent.h"
+
+#include "Insights/ViewModels/GraphTrack.h"
+
+#define LOCTEXT_NAMESPACE "GraphTrack"
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const FName FGraphTrackEvent::TypeName = FName(TEXT("FGraphTrackEvent"));
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const TSharedRef<const FBaseTimingTrack> FGraphTrackEvent::GetTrack() const
+{
+	return StaticCastSharedRef<const FBaseTimingTrack, const FGraphTrack>(Track);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#undef LOCTEXT_NAMESPACE

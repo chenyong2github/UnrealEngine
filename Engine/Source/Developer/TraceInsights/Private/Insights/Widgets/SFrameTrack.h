@@ -129,7 +129,7 @@ public:
 	virtual FCursorReply OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const override;
 
 protected:
-	TSharedPtr<FFrameTrackSeries> FindOrAddSeries(int32 FrameType);
+	TSharedRef<FFrameTrackSeries> FindOrAddSeries(int32 FrameType);
 	TSharedPtr<FFrameTrackSeries> FindSeries(int32 FrameType) const;
 	void UpdateState();
 

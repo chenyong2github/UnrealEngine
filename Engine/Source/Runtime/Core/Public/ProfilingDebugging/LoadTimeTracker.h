@@ -11,7 +11,7 @@
 #include "Containers/Map.h"
 #include "UObject/NameTypes.h"
 #include "ProfilingDebugging/ScopedTimers.h"
-#include "Trace/Trace.h"
+#include "Trace/Config.h"
 
 #ifndef ENABLE_LOADTIME_TRACKING
 	#define ENABLE_LOADTIME_TRACKING 0

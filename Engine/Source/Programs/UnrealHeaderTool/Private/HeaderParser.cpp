@@ -8670,7 +8670,7 @@ bool ShouldKeepBlockContents(EBlockDirectiveType DirectiveType)
 	}
 
 	check(false);
-	ASSUME(false);
+	UE_ASSUME(false);
 }
 
 bool ShouldKeepDirective(EBlockDirectiveType DirectiveType)
@@ -8691,7 +8691,7 @@ bool ShouldKeepDirective(EBlockDirectiveType DirectiveType)
 	}
 
 	check(false);
-	ASSUME(false);
+	UE_ASSUME(false);
 }
 
 EBlockDirectiveType ParseCommandToBlockDirectiveType(const TCHAR** Str)
@@ -8749,7 +8749,7 @@ const TCHAR* GetBlockDirectiveTypeString(EBlockDirectiveType DirectiveType)
 	}
 
 	check(false);
-	ASSUME(false);
+	UE_ASSUME(false);
 }
 
 // Performs a preliminary parse of the text in the specified buffer, pulling out useful information for the header generation process

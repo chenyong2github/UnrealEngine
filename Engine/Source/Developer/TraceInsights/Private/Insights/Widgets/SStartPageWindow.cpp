@@ -480,6 +480,14 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 				.Expose(OverlaySettingsSlot)
 		];
 
+#if WITH_EDITOR
+	// In the editor, attempt to connect to ourselves so we can choose our own session.
+	TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
+	SessionService->ConnectSession(TEXT("127.0.0.1"));
+#endif
+
+	RefreshTraceSessionList();
+
 	FSlateApplication::Get().SetKeyboardFocus(TraceSessionsListView);
 	FSlateApplication::Get().SetUserFocus(0, TraceSessionsListView);
 }
@@ -762,8 +770,6 @@ TSharedRef<SWidget> SStartPageWindow::ConstructRecorderPanel()
 		]
 
 	;
-
-	RefreshTraceSessionList();
 
 	return Widget;
 }
@@ -1257,15 +1263,15 @@ TSharedRef<SWidget> SStartPageWindow::MakeSessionListMenu()
 			Trace::FSessionInfo  SessionInfo;
 		};
 
-		TArray<TSharedPtr<FSessionInfoEx>> SortedAvailableSessions;
+		TArray<TSharedRef<FSessionInfoEx>> SortedAvailableSessions;
 		SortedAvailableSessions.Reserve(AvailableSessions.Num());
 
 		for (Trace::FSessionHandle SessionHandle : AvailableSessions)
 		{
-			FSessionInfoEx* SessionInfoExPtr = new FSessionInfoEx;
-			SessionInfoExPtr->SessionHandle = SessionHandle;
-			SessionService->GetSessionInfo(SessionHandle, SessionInfoExPtr->SessionInfo);
-			SortedAvailableSessions.Add(MakeShareable(SessionInfoExPtr));
+			TSharedRef<FSessionInfoEx> SessionInfoEx = MakeShared<FSessionInfoEx>();
+			SessionInfoEx->SessionHandle = SessionHandle;
+			SessionService->GetSessionInfo(SessionHandle, SessionInfoEx->SessionInfo);
+			SortedAvailableSessions.Add(SessionInfoEx);
 		}
 
 		Algo::SortBy(SortedAvailableSessions, &FSessionInfoEx::GetTimeStamp);

@@ -615,12 +615,21 @@
 	#define FUNCTION_CHECK_RETURN(...) DEPRECATED_MACRO(4.12, "FUNCTION_CHECK_RETURN has been deprecated and should be replaced with FUNCTION_CHECK_RETURN_START and FUNCTION_CHECK_RETURN_END.") FUNCTION_CHECK_RETURN_START __VA_ARGS__ FUNCTION_CHECK_RETURN_END
 #endif
 
-#ifndef ASSUME										/* Hints compiler that expression is true; generally restricted to comparisons against constants */
-	#define ASSUME(...)
+/** Promise expression is true. Compiler can optimize accordingly with undefined behavior if wrong. Static analyzers understand this.  */
+#ifndef UE_ASSUME
+	#if defined(__clang__)
+		#define UE_ASSUME(x) __builtin_assume(x)
+	#elif defined(_MSC_VER)
+		#define UE_ASSUME(x) __assume(x)
+	#else
+		#define UE_ASSUME(x)
+	#endif
 #endif
 
+#define ASSUME(x) UE_ASSUME(x) DEPRECATED_MACRO(4.25, "Please use UE_ASSUME instead.")
+
 /** Branch prediction hints */
-#ifndef LIKELY						/* Hints compiler that expression is likely to be true, much softer than ASSUME - allows (penalized by worse performance) expression to be false */
+#ifndef LIKELY						/* Hints compiler that expression is likely to be true, much softer than UE_ASSUME - allows (penalized by worse performance) expression to be false */
 	#if ( defined(__clang__) || defined(__GNUC__) ) && (PLATFORM_UNIX)	// effect of these on non-Linux platform has not been analyzed as of 2016-03-21
 		#define LIKELY(x)			__builtin_expect(!!(x), 1)
 	#else

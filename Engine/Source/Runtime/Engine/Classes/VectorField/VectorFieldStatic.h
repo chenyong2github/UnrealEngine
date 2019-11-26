@@ -78,8 +78,13 @@ public:
 	 */
 	ENGINE_API void InitResource();
 
-	/** Takes a local copy of the source bulk data so that it is readable at runtime on the CPU. */
-	ENGINE_API void UpdateCPUData();
+	/** Takes a local copy of the source bulk data so that it is readable at runtime on the CPU. 
+	* @param bDiscardData If the internal loaded data should be discarded after calling this or not.
+	*/
+	ENGINE_API void UpdateCPUData(bool bDiscardData);
+
+	UE_DEPRECATED(4.25, "Please call UpdateCPUData(bool bDiscardData) instead and choose if the internal data should be discarded or not")
+	ENGINE_API void UpdateCPUData() { UpdateCPUData(true); }
 
 #if WITH_EDITOR
 	/** Sets the bAllowCPUAccess flag and calls UpdateCPUData(). */

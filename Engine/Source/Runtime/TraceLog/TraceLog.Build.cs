@@ -10,10 +10,5 @@ public class TraceLog : ModuleRules
 	{
 		bRequiresImplementModule = false;
 		PublicIncludePathModuleNames.Add("Core");
-
-        if (Target.Platform == UnrealTargetPlatform.PS4)
-        {
-            PublicSystemLibraries.Add("SceNet_stub_weak");
-        }
     }
 }
