@@ -85,9 +85,16 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 			this->AddSleepData(Particle);
 		}
 
+		// Dynamic -> Sleeping or Sleeping -> Dynamic
 		if (this->ObjectState(Index) == EObjectStateType::Dynamic || this->ObjectState(Index) == EObjectStateType::Sleeping)
 		{
 			this->ObjectState(Index) = bSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic;
+		}
+
+		// Possible for code to set a Dynamic to Kinematic State then to Sleeping State
+		if (this->ObjectState(Index) == EObjectStateType::Kinematic && bSleeping)
+		{
+			this->ObjectState(Index) =  EObjectStateType::Sleeping;
 		}
 
 		if (bSleeping)
