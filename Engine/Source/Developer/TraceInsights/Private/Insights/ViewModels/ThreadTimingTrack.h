@@ -20,6 +20,10 @@ struct FSlateBrush;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 class FThreadTimingSharedState : public Insights::ITimingViewExtender, public TSharedFromThis<FThreadTimingSharedState>
 {
 private:
@@ -108,6 +112,7 @@ public:
 	//void SetThreadId(uint32 InThreadId) { ThreadId = InThreadId; }
 
 	virtual void BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;
+	virtual void BuildFilteredDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;
 
 	virtual void PostDraw(const ITimingTrackDrawContext& Context) const override;
 

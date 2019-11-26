@@ -205,7 +205,7 @@ void FTimingGraphTrack::Update(const ITimingTrackUpdateContext& Context)
 		{
 			if (Series->IsVisible() && (bIsEntireGraphTrackDirty || Series->IsDirty()))
 			{
-				// Clear the flag before updating, becasue the update itself may furter need to set the series as dirty.
+				// Clear the flag before updating, becasue the update itself may further need to set the series as dirty.
 				Series->ClearDirtyFlag();
 
 				TSharedPtr<FTimingGraphSeries> TimingSeries = StaticCastSharedPtr<FTimingGraphSeries>(Series);

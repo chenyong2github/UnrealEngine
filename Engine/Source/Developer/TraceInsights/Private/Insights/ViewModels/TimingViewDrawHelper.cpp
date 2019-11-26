@@ -182,11 +182,6 @@ void FTimingEventsTrackDrawStateBuilder::AddEvent(double EventStartTime, double 
 	//constexpr float BorderColorFactor = 0.75f; // darker border
 	constexpr float BorderColorFactor = 1.25f; // brighter border
 
-	//TODO if (HighlightedEventTypeId != FTimingEvent::InvalidTypeId && TypeId != HighlightedEventTypeId)
-	//{
-	//	EventColorFill.A = 0.1f;
-	//}
-
 	//////////////////////////////////////////////////
 
 	// Save X2, for current depth.
@@ -323,7 +318,6 @@ FTimingViewDrawHelper::FTimingViewDrawHelper(const FDrawContext& InDrawContext, 
 	, EventFont(FCoreStyle::GetDefaultFontStyle("Regular", 8))
 	, ValidAreaX(0.0f)
 	, ValidAreaW(0.0f)
-	, HighlightedEventTypeId(uint64(-1))
 	, NumEvents(0)
 	, NumMergedBoxes(0)
 	, NumDrawBoxes(0)
@@ -412,6 +406,80 @@ void FTimingViewDrawHelper::DrawEvents(const FTimingEventsTrackDrawState& DrawSt
 			{
 				const float Y = TopLaneY + (Layout.EventH + Layout.EventDY) * Text.Depth + 1.0f;
 				DrawContext.DrawText(EventTextLayerId, Text.X, Y, Text.Text, EventFont, Text.bWhite ? FLinearColor::White : FLinearColor::Black);
+			}
+			NumDrawTexts += DrawState.Texts.Num();
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingViewDrawHelper::DrawFadedEvents(const FTimingEventsTrackDrawState& DrawState, const FTimingEventsTrack& Track, const float OffsetY, const float Opacity) const
+{
+	const float TrackY = Track.GetPosY();
+	const float TrackH = Track.GetHeight();
+
+	if (TrackH > 0.0f &&
+		TrackY + TrackH > Viewport.GetTopOffset() &&
+		TrackY < Viewport.GetHeight() - Viewport.GetBottomOffset())
+	{
+		const FTimingViewLayout& Layout = Viewport.GetLayout();
+
+		NumEvents += DrawState.GetNumEvents();
+		NumMergedBoxes += DrawState.GetNumMergedBoxes();
+
+		const float TopLaneY = TrackY + OffsetY + Layout.TimelineDY;
+
+		// Draw filled boxes (merged borders).
+		//if (Layout.EventH > 0.0f)
+		{
+			const int32 EventFillLayerId = ReservedLayerId + ToInt32(EDrawLayer::EventFill);
+			const float EventFillH = Layout.EventH;
+			for (const FTimingEventsTrackDrawState::FBoxPrimitive& Box : DrawState.Boxes)
+			{
+				const float Y = TopLaneY + (Layout.EventH + Layout.EventDY) * Box.Depth;
+				DrawContext.DrawBox(EventFillLayerId, Box.X, Y, Box.W, EventFillH, WhiteBrush, Box.Color.CopyWithNewOpacity(Opacity));
+			}
+			NumDrawBoxes += DrawState.Boxes.Num();
+		}
+
+		// Draw filled boxes (event inside area).
+		if (Layout.EventH > 2.0f)
+		{
+			const int32 EventFillLayerId = ReservedLayerId + ToInt32(EDrawLayer::EventFill);
+			const float EventFillH = Layout.EventH - 2.0f;
+			for (const FTimingEventsTrackDrawState::FBoxPrimitive& Box : DrawState.InsideBoxes)
+			{
+				const float Y = TopLaneY + (Layout.EventH + Layout.EventDY) * Box.Depth + 1.0f;
+				DrawContext.DrawBox(EventFillLayerId, Box.X, Y, Box.W, EventFillH, WhiteBrush, Box.Color.CopyWithNewOpacity(Opacity));
+			}
+			NumDrawBoxes += DrawState.InsideBoxes.Num();
+		}
+
+		// Draw borders.
+		//if (Layout.EventH > 0.0f)
+		{
+			const int32 EventBorderLayerId = ReservedLayerId + ToInt32(EDrawLayer::EventBorder);
+			const float EventBorderH = Layout.EventH;
+			for (const FTimingEventsTrackDrawState::FBoxPrimitive& Box : DrawState.Borders)
+			{
+				const float Y = TopLaneY + (Layout.EventH + Layout.EventDY) * Box.Depth;
+				DrawContext.DrawBox(EventBorderLayerId, Box.X, Y, Box.W, EventBorderH, EventBorderBrush, Box.Color.CopyWithNewOpacity(Opacity));
+			}
+			NumDrawBorders += DrawState.Borders.Num();
+		}
+
+		// Draw texts.
+		if (Layout.EventH > 10.0f)
+		{
+			const FLinearColor WhiteColor(1.0f, 1.0f, 1.0f, Opacity);
+			const FLinearColor BlackColor(0.0f, 0.0f, 0.0f, Opacity);
+
+			const int32 EventTextLayerId = ReservedLayerId + ToInt32(EDrawLayer::EventText);
+			for (const FTimingEventsTrackDrawState::FTextPrimitive& Text : DrawState.Texts)
+			{
+				const float Y = TopLaneY + (Layout.EventH + Layout.EventDY) * Text.Depth + 1.0f;
+				DrawContext.DrawText(EventTextLayerId, Text.X, Y, Text.Text, EventFont, Text.bWhite ? WhiteColor : BlackColor);
 			}
 			NumDrawTexts += DrawState.Texts.Num();
 		}

@@ -173,15 +173,22 @@ public:
 
 	void DrawBackground() const;
 
+	//////////////////////////////////////////////////
+
 	void BeginDrawTracks() const;
+
 	// OffsetY = 1.0f is for the top horizontal line (which separates the timelines) added by DrawTrackHeader.
 	void DrawEvents(const FTimingEventsTrackDrawState& DrawState, const FTimingEventsTrack& Track, const float OffsetY = 1.0f) const;
+
+	void DrawFadedEvents(const FTimingEventsTrackDrawState& DrawState, const FTimingEventsTrack& Track, const float OffsetY = 1.0f, const float Opacity = 0.1f) const;
+
 	void DrawTrackHeader(const FTimingEventsTrack& Track) const;
+
 	void EndDrawTracks() const;
 
-	void DrawTimingEventHighlight(double StartTime, double EndTime, float Y, EDrawEventMode Mode) const;
+	//////////////////////////////////////////////////
 
-	void SetHighlightedEventTypeId(uint64 InHighlightedEventTypeId) { HighlightedEventTypeId = InHighlightedEventTypeId; }
+	void DrawTimingEventHighlight(double StartTime, double EndTime, float Y, EDrawEventMode Mode) const;
 
 	int32 GetNumEvents() const { return NumEvents; }
 	int32 GetNumMergedBoxes() const { return NumMergedBoxes; }
@@ -207,8 +214,6 @@ private:
 
 	mutable float ValidAreaX;
 	mutable float ValidAreaW;
-
-	uint64 HighlightedEventTypeId;
 
 	mutable int32 NumEvents;
 	mutable int32 NumMergedBoxes;

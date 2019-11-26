@@ -267,6 +267,7 @@ void STimingView::Reset()
 		HoveredEvent.Reset();
 		OnHoveredEventChangedDelegate.Broadcast(HoveredEvent);
 	}
+
 	if (SelectedTrack.IsValid())
 	{
 		SelectedTrack.Reset();
@@ -278,6 +279,11 @@ void STimingView::Reset()
 		OnSelectedEventChangedDelegate.Broadcast(SelectedEvent);
 	}
 
+	if (TimingEventFilter.IsValid())
+	{
+		TimingEventFilter.Reset();
+	}
+
 	bPreventThrottling = false;
 
 	Tooltip.Reset();
@@ -286,8 +292,6 @@ void STimingView::Reset()
 
 	TimeMarker = std::numeric_limits<double>::infinity();
 	bIsScrubbing = false;
-
-	HighlightedEventTypeId = uint64(-1);
 
 	//ThisGeometry
 
@@ -428,6 +432,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		virtual const FVector2D& GetMousePosition() const override { return TimingView->GetMousePosition(); }
 		virtual const TSharedPtr<const ITimingEvent> GetHoveredEvent() const override { return TimingView->GetHoveredEvent(); }
 		virtual const TSharedPtr<const ITimingEvent> GetSelectedEvent() const override { return TimingView->GetSelectedEvent(); }
+		virtual const TSharedPtr<ITimingEventFilter> GetEventFilter() const override { return TimingView->GetEventFilter(); }
 		virtual double GetCurrentTime() const override { return CurrentTime; }
 		virtual float GetDeltaTime() const override { return DeltaTime; }
 
@@ -544,16 +549,26 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	const float InitialScrollPosY = Viewport.GetScrollPosY();
-	const float InitialPinnedTrackPosY = SelectedTrack.IsValid() ? SelectedTrack->GetPosY() : 0.0f;
+
+	TSharedPtr<FBaseTimingTrack> SelectedScrollableTrack;
+	if (SelectedTrack.IsValid() && SelectedTrack->IsVisible())
+	{
+		if (ScrollableTracks.Contains(SelectedTrack))
+		{
+			SelectedScrollableTrack = SelectedTrack;
+		}
+	}
+
+	const float InitialPinnedTrackPosY = SelectedScrollableTrack.IsValid() ? SelectedScrollableTrack->GetPosY() : 0.0f;
 
 	// Update the Y position for visible scrollable tracks.
 	UpdatePositionForScrollableTracks();
 
 	// The selected track will be pinned (keeps Y pos fixed unless user scrolls vertically).
-	if (SelectedTrack.IsValid())
+	if (SelectedScrollableTrack.IsValid())
 	{
 		const float ScrollingDY = LastScrollPosY - InitialScrollPosY;
-		const float PinnedTrackPosY = SelectedTrack->GetPosY();
+		const float PinnedTrackPosY = SelectedScrollableTrack->GetPosY();
 		const float AdjustmentDY = InitialPinnedTrackPosY - PinnedTrackPosY + ScrollingDY;
 
 		if (!FMath::IsNearlyZero(AdjustmentDY, 0.5f))
@@ -848,6 +863,7 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		virtual const FVector2D& GetMousePosition() const override { return TimingView->GetMousePosition(); }
 		virtual const TSharedPtr<const ITimingEvent> GetHoveredEvent() const override { return TimingView->GetHoveredEvent(); }
 		virtual const TSharedPtr<const ITimingEvent> GetSelectedEvent() const override { return TimingView->GetSelectedEvent(); }
+		virtual const TSharedPtr<ITimingEventFilter> GetEventFilter() const override { return TimingView->GetEventFilter(); }
 		virtual FDrawContext& GetDrawContext() const override { return DrawContext; }
 		virtual const ITimingViewDrawHelper& GetHelper() const override { return Helper; }
 
@@ -861,8 +877,6 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 	FTimingTrackDrawContext TimingDrawContext(this, DrawContext, Helper);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	Helper.SetHighlightedEventTypeId(HighlightedEventTypeId);
 
 	// Draw background.
 	Helper.DrawBackground();
@@ -1375,12 +1389,12 @@ FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 		Reply = FReply::Handled().CaptureMouse(SharedThis(this));
 	}
 
-	if(bPreventThrottling)
+	if (bPreventThrottling)
 	{
 		Reply.PreventThrottling();
 	}
 
-	if(bStartScrubbing)
+	if (bStartScrubbing)
 	{
 		bIsPanning = false;
 		bIsDragging = false;
@@ -1541,7 +1555,15 @@ FReply STimingView::OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const 
 			}
 			else
 			{
-				//TODO: HighlightedEventTypeId = HoveredTimingEvent.TypeId;
+				SetEventFilter(HoveredEvent->GetTrack()->GetFilterByEvent(HoveredEvent));
+			}
+		}
+		else
+		{
+			if (TimingEventFilter.IsValid())
+			{
+				TimingEventFilter.Reset();
+				Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
 			}
 		}
 
@@ -2316,6 +2338,7 @@ void STimingView::SetTimeMarkersVisible(bool bIsMarkersTrackVisible)
 		{
 			if (Viewport.GetScrollPosY() != 0.0f)
 			{
+				UE_LOG(TimingProfiler, Log, TEXT("SetTimeMarkersVisible!!!"));
 				Viewport.SetScrollPosY(Viewport.GetScrollPosY() + MarkersTrack->GetHeight());
 			}
 
@@ -2323,6 +2346,7 @@ void STimingView::SetTimeMarkersVisible(bool bIsMarkersTrackVisible)
 		}
 		else
 		{
+			UE_LOG(TimingProfiler, Log, TEXT("SetTimeMarkersVisible!!!"));
 			Viewport.SetScrollPosY(Viewport.GetScrollPosY() - MarkersTrack->GetHeight());
 		}
 	}
@@ -2341,6 +2365,7 @@ void STimingView::SetDrawOnlyBookmarks(bool bIsBookmarksTrack)
 		{
 			if (Viewport.GetScrollPosY() != 0.0f)
 			{
+				UE_LOG(TimingProfiler, Log, TEXT("SetDrawOnlyBookmarks!!!"));
 				Viewport.SetScrollPosY(Viewport.GetScrollPosY() + MarkersTrack->GetHeight() - PrevHeight);
 			}
 
@@ -2466,11 +2491,6 @@ void STimingView::OnSelectedTimingEventChanged()
 			SelectedEvent->GetTrack()->UpdateEventStats(const_cast<ITimingEvent&>(*SelectedEvent));
 			SelectedEvent->GetTrack()->OnEventSelected(*SelectedEvent);
 		}
-	}
-
-	if (!SelectedEvent.IsValid())
-	{
-		HighlightedEventTypeId = uint64(-1);
 	}
 
 	OnSelectedEventChangedDelegate.Broadcast(SelectedEvent);
@@ -2699,6 +2719,14 @@ void STimingView::FrameSelection()
 			UpdateHorizontalScrollBar();
 		}
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::SetEventFilter(const TSharedPtr<ITimingEventFilter> InEventFilter)
+{
+	TimingEventFilter = InEventFilter;
+	Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

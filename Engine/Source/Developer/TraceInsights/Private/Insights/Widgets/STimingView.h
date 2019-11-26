@@ -278,13 +278,14 @@ public:
 
 	TSharedPtr<FTimingGraphTrack> GetMainTimingGraphTrack() { return GraphTrack; }
 
-	uint64 GetHighlightedEventTypeId() const { return HighlightedEventTypeId; }
-	void SetHighlightedEventTypeId(uint64 InHighlightedEventTypeId) { HighlightedEventTypeId = InHighlightedEventTypeId; }
-
 	const TSharedPtr<FBaseTimingTrack> GetHoveredTrack() const { return HoveredTrack; }
 	const TSharedPtr<const ITimingEvent> GetHoveredEvent() const { return HoveredEvent; }
+
 	const TSharedPtr<FBaseTimingTrack> GetSelectedTrack() const { return SelectedTrack; }
 	const TSharedPtr<const ITimingEvent> GetSelectedEvent() const { return SelectedEvent; }
+
+	const TSharedPtr<ITimingEventFilter> GetEventFilter() const { return TimingEventFilter; }
+	void SetEventFilter(const TSharedPtr<ITimingEventFilter> InEventFilter);
 
 	const TSharedPtr<FBaseTimingTrack> GetTrackAt(float InPosX, float InPosY) const;
 
@@ -469,8 +470,11 @@ protected:
 
 	TSharedPtr<FBaseTimingTrack> HoveredTrack;
 	TSharedPtr<const ITimingEvent> HoveredEvent;
+
 	TSharedPtr<FBaseTimingTrack> SelectedTrack;
 	TSharedPtr<const ITimingEvent> SelectedEvent;
+
+	TSharedPtr<ITimingEventFilter> TimingEventFilter;
 
 	FTooltipDrawState Tooltip;
 
@@ -489,8 +493,6 @@ protected:
 
 	/** True of the user is currently dragging the time marker */
 	bool bIsScrubbing;
-
-	uint64 HighlightedEventTypeId;
 
 	////////////////////////////////////////////////////////////
 	// Misc
@@ -522,4 +524,5 @@ protected:
 	Insights::FHoveredEventChangedDelegate OnHoveredEventChangedDelegate;
 	Insights::FSelectedTrackChangedDelegate OnSelectedTrackChangedDelegate;
 	Insights::FSelectedEventChangedDelegate OnSelectedEventChangedDelegate;
+	//Insights::FFilteredEventChangedDelegate OnFilteredEventChangedDelegate;
 };
