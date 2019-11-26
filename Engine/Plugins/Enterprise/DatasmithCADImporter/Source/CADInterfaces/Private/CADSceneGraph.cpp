@@ -74,7 +74,7 @@ FArchive& operator<<(FArchive& Ar, FArchiveMockUp& MockUp)
 	Ar << MockUp.ColorHIdToColor;
 	Ar << MockUp.MaterialHIdToMaterial;
 
-	Ar << MockUp.InstanceSet;
+	Ar << MockUp.Instances;
 	Ar << MockUp.ComponentSet;
 	Ar << MockUp.UnloadedComponentSet;
 	Ar << MockUp.BodySet;
