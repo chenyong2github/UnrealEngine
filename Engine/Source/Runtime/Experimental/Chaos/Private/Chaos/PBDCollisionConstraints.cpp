@@ -15,6 +15,8 @@
 #include "Chaos/ISpatialAccelerationCollection.h"
 #include "Chaos/Levelset.h"
 #include "Chaos/Pair.h"
+#include "Chaos/PBDCollisionConstraintsPointContactUtil.h"
+#include "Chaos/PBDCollisionConstraintsPlaneContactUtil.h"
 #include "Chaos/PBDRigidsSOAs.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/Transform.h"
@@ -22,7 +24,6 @@
 #include "ChaosStats.h"
 #include "Containers/Queue.h"
 #include "ProfilingDebugging/ScopedTimers.h"
-#include "Chaos/PBDCollisionConstraintsPointContactUtil.h"
 
 #if INTEL_ISPC
 #include "PBDCollisionConstraints.ispc.generated.h"
@@ -275,20 +276,6 @@ namespace Chaos
 		// Clustering uses update constraints to force a re-evaluation. 
 	}
 
-	DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraints::UpdateConstraint"), STAT_UpdateConstraint, STATGROUP_ChaosWide);
-	template<typename T, int d>
-	template<ECollisionUpdateType UpdateType>
-	void TPBDCollisionConstraints<T, d>::UpdateConstraint(const T Thickness, TRigidBodyPointContactConstraint<T, d> & Constraint)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_UpdateConstraint);
-		//if (ConstraintHandle->GetType() == FPointContactConstraint::StaticType())
-		{
-			Collisions::Update<UpdateType>(Thickness, Constraint);
-		}
-	}
-
-
-
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraints::Apply"), STAT_Apply, STATGROUP_Chaos);
 	template<typename T, int d>
@@ -309,7 +296,9 @@ namespace Chaos
 				}
 				else if (ConstraintHandle->GetType() == FPlaneContactConstraint::StaticType())
 				{
-
+					Collisions::TPlaneContactParticleParameters<T> ParticleParameters = { &MCollided, &MPhysicsMaterials, CollisionFrictionOverride, MAngularFriction };
+					Collisions::TPlaneContactIterationParameters<T> IterationParameters = { Dt, Iterations, NumIterations, MApplyPairIterations, nullptr };
+					Collisions::Apply(ConstraintHandle->GetPlaneContact(), MThickness, IterationParameters, ParticleParameters);
 				}
 				else
 				{
@@ -348,7 +337,9 @@ namespace Chaos
 				}
 				else if (ConstraintHandle->GetType() == FPlaneContactConstraint::StaticType())
 				{
-
+					Collisions::TPlaneContactParticleParameters<T> ParticleParameters = { &MCollided, &MPhysicsMaterials, CollisionFrictionOverride, MAngularFriction };
+					Collisions::TPlaneContactIterationParameters<T> IterationParameters = { Dt, Iteration, NumIterations, MApplyPushOutPairIterations, &NeedsAnotherIteration };
+					Collisions::ApplyPushOut(ConstraintHandle->GetPlaneContact(), MThickness, IsTemporarilyStatic, IterationParameters, ParticleParameters);
 				}
 				else
 				{
@@ -370,8 +361,6 @@ namespace Chaos
 
 	template class TAccelerationStructureHandle<float, 3>;
 	template class CHAOS_API TPBDCollisionConstraints<float, 3>;
-	template void TPBDCollisionConstraints<float, 3>::UpdateConstraint<ECollisionUpdateType::Any>(const float Thickness, TRigidBodyPointContactConstraint<float,3> & Constraint);
-	template void TPBDCollisionConstraints<float, 3>::UpdateConstraint<ECollisionUpdateType::Deepest>(const float Thickness, TRigidBodyPointContactConstraint<float,3> & Constraint);
 	template void TPBDCollisionConstraints<float, 3>::ComputeConstraints<false>(const TPBDCollisionConstraints<float, 3>::FAccelerationStructure&, float Dt);
 	template void TPBDCollisionConstraints<float, 3>::ComputeConstraints<true>(const TPBDCollisionConstraints<float, 3>::FAccelerationStructure&, float Dt);
 }
