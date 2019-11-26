@@ -140,31 +140,32 @@ namespace ChaosInterface
 		TArray<TUniquePtr<Chaos::FImplicitObject>>& Geoms = OutGeoms;
 		Chaos::TShapesArray<float, 3>& Shapes = OutShapes;
 
-		auto NewShapeHelper = [&InParams](Chaos::TSerializablePtr<Chaos::FImplicitObject> InGeom, bool bComplexShape = false)
+		auto NewShapeHelper = [&InParams](Chaos::TSerializablePtr<Chaos::FImplicitObject> InGeom, void* UserData, bool bComplexShape = false)
 		{
 			auto NewShape = Chaos::TPerShapeData<float, 3>::CreatePerShapeData();
 			NewShape->Geometry = InGeom;
 			NewShape->QueryData = bComplexShape ? InParams.CollisionData.CollisionFilterData.QueryComplexFilter : InParams.CollisionData.CollisionFilterData.QuerySimpleFilter;
 			NewShape->SimData = InParams.CollisionData.CollisionFilterData.SimFilter;
 			NewShape->UpdateShapeBounds(InParams.WorldTransform);
-
+			NewShape->UserData = UserData;
 			return NewShape;
 		};
 
 		for (uint32 i = 0; i < static_cast<uint32>(InParams.Geometry->SphereElems.Num()); ++i)
 		{
-			const FKSphereElem ScaledSphereElem = InParams.Geometry->SphereElems[i].GetFinalScaled(Scale, InParams.LocalTransform);
+			const FKSphereElem& SphereElem = InParams.Geometry->SphereElems[i];
+			const FKSphereElem ScaledSphereElem = SphereElem.GetFinalScaled(Scale, InParams.LocalTransform);
 			const float UseRadius = FMath::Max(ScaledSphereElem.Radius, KINDA_SMALL_NUMBER);
-
 			auto ImplicitSphere = MakeUnique<Chaos::TSphere<float, 3>>(ScaledSphereElem.Center, UseRadius);
-			auto NewShape = NewShapeHelper(MakeSerializable(ImplicitSphere));
+			auto NewShape = NewShapeHelper(MakeSerializable(ImplicitSphere), (void*)SphereElem.GetUserData());
 			Shapes.Emplace(MoveTemp(NewShape));
 			Geoms.Add(MoveTemp(ImplicitSphere));
-
 		}
+
 		for (uint32 i = 0; i < static_cast<uint32>(InParams.Geometry->BoxElems.Num()); ++i)
 		{
-			const FKBoxElem ScaledBoxElem = InParams.Geometry->BoxElems[i].GetFinalScaled(Scale, InParams.LocalTransform);
+			const FKBoxElem& BoxElem = InParams.Geometry->BoxElems[i];
+			const FKBoxElem ScaledBoxElem = BoxElem.GetFinalScaled(Scale, InParams.LocalTransform);
 			const FTransform& BoxTransform = ScaledBoxElem.GetTransform();
 			Chaos::TVector<float, 3> HalfExtents = Chaos::TVector<float, 3>(ScaledBoxElem.X * 0.5f, ScaledBoxElem.Y * 0.5f, ScaledBoxElem.Z * 0.5f);
 
@@ -184,14 +185,13 @@ namespace ChaosInterface
 				Implicit = MakeUnique<Chaos::TBox<float, 3>>(BoxTransform.GetTranslation() - HalfExtents, BoxTransform.GetTranslation() + HalfExtents);
 			}
 
-			auto NewShape = NewShapeHelper(MakeSerializable(Implicit));
+			auto NewShape = NewShapeHelper(MakeSerializable(Implicit), (void*)BoxElem.GetUserData());
 			Shapes.Emplace(MoveTemp(NewShape));
 			Geoms.Add(MoveTemp(Implicit));
 		}
 		for (uint32 i = 0; i < static_cast<uint32>(InParams.Geometry->SphylElems.Num()); ++i)
 		{
 			const FKSphylElem& UnscaledSphyl = InParams.Geometry->SphylElems[i];
-
 			const FKSphylElem ScaledSphylElem = UnscaledSphyl.GetFinalScaled(Scale, InParams.LocalTransform);
 			float HalfHeight = FMath::Max(ScaledSphylElem.Length * 0.5f, KINDA_SMALL_NUMBER);
 			const float Radius = FMath::Max(ScaledSphylElem.Radius, KINDA_SMALL_NUMBER);
@@ -200,7 +200,7 @@ namespace ChaosInterface
 			{
 				//not a capsule just use a sphere
 				auto ImplicitSphere = MakeUnique<Chaos::TSphere<float, 3>>(ScaledSphylElem.Center, Radius);
-				auto NewShape = NewShapeHelper(MakeSerializable(ImplicitSphere));
+				auto NewShape = NewShapeHelper(MakeSerializable(ImplicitSphere), (void*)UnscaledSphyl.GetUserData());
 				Shapes.Emplace(MoveTemp(NewShape));
 				Geoms.Add(MoveTemp(ImplicitSphere));
 
@@ -210,7 +210,7 @@ namespace ChaosInterface
 				Chaos::TVector<float, 3> HalfExtents = ScaledSphylElem.Rotation.RotateVector(Chaos::TVector<float, 3>(0, 0, HalfHeight));
 
 				auto ImplicitCapsule = MakeUnique<Chaos::TCapsule<float>>(ScaledSphylElem.Center - HalfExtents, ScaledSphylElem.Center + HalfExtents, Radius);
-				auto NewShape = NewShapeHelper(MakeSerializable(ImplicitCapsule));
+				auto NewShape = NewShapeHelper(MakeSerializable(ImplicitCapsule), (void*)UnscaledSphyl.GetUserData());
 				Shapes.Emplace(MoveTemp(NewShape));
 				Geoms.Add(MoveTemp(ImplicitCapsule));
 			}
@@ -261,7 +261,7 @@ namespace ChaosInterface
 				//else
 				{
 					auto Implicit = MakeUnique<Chaos::TImplicitObjectScaled<Chaos::TConvex<float, 3>>>(MakeSerializable(ConvexImplicit), Scale);
-					auto NewShape = NewShapeHelper(MakeSerializable(Implicit));
+					auto NewShape = NewShapeHelper(MakeSerializable(Implicit), (void*)CollisionBody.GetUserData());
 					Shapes.Emplace(MoveTemp(NewShape));
 					Geoms.Add(MoveTemp(Implicit));
 				}
@@ -271,7 +271,7 @@ namespace ChaosInterface
 		for (const auto& ChaosTriMesh : InParams.ChaosTriMeshes)
 		{
 			auto Implicit = MakeUnique<Chaos::TImplicitObjectScaled<Chaos::TTriangleMeshImplicitObject<float>>>(MakeSerializable(ChaosTriMesh), Scale);
-			auto NewShape = NewShapeHelper(MakeSerializable(Implicit), true);
+			auto NewShape = NewShapeHelper(MakeSerializable(Implicit), nullptr, true);
 			Shapes.Emplace(MoveTemp(NewShape));
 			Geoms.Add(MoveTemp(Implicit));
 		}
