@@ -10,10 +10,8 @@
 
 struct CameraDataInterface_InstanceData
 {
-	TWeakObjectPtr<APlayerCameraManager> CameraObject = nullptr;
-
-	/** A binding to the user ptr we're reading the camera from. */
-	//FNiagaraParameterDirectBinding<UObject*> UserParamBinding;
+	FVector CameraLocation;
+	float CameraFOV;
 };
 
 UCLASS(EditInlineNew, Category = "Camera", meta = (DisplayName = "Camera Query"))
@@ -22,9 +20,9 @@ class NIAGARA_API UNiagaraDataInterfaceCamera : public UNiagaraDataInterface
 	GENERATED_UCLASS_BODY()
 
 public:
-	/** Reference to a user parameter that should receive the particle data after the simulation tick. The supplied parameter object needs to implement the INiagaraParticleCallbackHandler interface. */
-	//UPROPERTY(EditAnywhere, Category = "Camera")
-	//FNiagaraUserParameterBinding CameraParameter;
+	/** This is used to determine which camera position to query for cpu emitters. If no valid index is supplied, the first controller is used as camera reference. */
+	UPROPERTY(EditAnywhere, Category = "Camera")
+	int32 PlayerControllerIndex = 0;
 
 	//UObject Interface
 	virtual void PostInitProperties() override;
@@ -42,6 +40,7 @@ public:
 	//UNiagaraDataInterface Interface
 
 	void QueryOcclusionFactorGPU(FVectorVMContext& Context);
+	void QueryOcclusionFactorCircleGPU(FVectorVMContext& Context);
 	void GetCameraFOV(FVectorVMContext& Context);
 	void GetCameraPosition(FVectorVMContext& Context);
 	void GetViewPropertiesGPU(FVectorVMContext& Context);
@@ -49,7 +48,8 @@ public:
 	void GetViewSpaceTransformsGPU(FVectorVMContext& Context);
 	
 private:
-	static const FName GetCameraOcclusionName;
+	static const FName GetCameraOcclusionRectangleName;
+	static const FName GetCameraOcclusionCircleName;
 	static const FName GetViewPropertiesName;
 	static const FName GetClipSpaceTransformsName;
 	static const FName GetViewSpaceTransformsName;

@@ -146,10 +146,10 @@ public:
 	// Dump details about what's inside the world manager
 	void DumpDetails(FOutputDevice& Ar);
 
+	UWorld* GetWorld();
+
 	//Creates fences for deferred deletion for each world.
 	static void EnqueueDeferredDeletionFences(TArray<FNiagaraDeferredDeletionFence>& OutFence);
-
-	UWorld* World;
 
 private:
 
@@ -178,6 +178,8 @@ private:
 	static FDelegateHandle TickWorldHandle;
 
 	static TMap<class UWorld*, class FNiagaraWorldManager*> WorldManagers;
+
+	UWorld* World;
 
 	FNiagaraWorldManagerTickFunction TickFunctions[NiagaraNumTickGroups];
 

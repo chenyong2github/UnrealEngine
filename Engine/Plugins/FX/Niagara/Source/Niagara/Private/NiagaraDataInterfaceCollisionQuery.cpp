@@ -79,6 +79,7 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 	Sig.Name = TEXT("SubmitQuery");
 	Sig.bMemberFunction = true;
 	Sig.bRequiresContext = false;
+	Sig.bSupportsGPU = false;
 	Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
 	Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("ParticlePosition")));
 	Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("ParticleVelocity")));
@@ -90,6 +91,7 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 	Sig2.Name = TEXT("ReadQuery");
 	Sig2.bMemberFunction = true;
 	Sig2.bRequiresContext = false;
+	Sig2.bSupportsGPU = false;
 	Sig2.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
 	Sig2.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("CollisionID")));
 	Sig2.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("CollisionValid")));
@@ -102,6 +104,7 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 	SigGpu.Name = TEXT("PerformCollisionQueryGPUShader");
 	SigGpu.bMemberFunction = true;
 	SigGpu.bRequiresContext = false;
+	SigGpu.bSupportsCPU = false;
 	SigGpu.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
 	SigGpu.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("DepthSamplePosWorld")));
 	SigGpu.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("TraceEndWorld")));
@@ -117,6 +120,7 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 	SigDepth.Name = TEXT("QuerySceneDepthGPU");
 	SigDepth.bMemberFunction = true;
 	SigDepth.bRequiresContext = false;
+	SigDepth.bSupportsCPU = false;
 	SigDepth.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
 	SigDepth.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("DepthSamplePosWorld")));
 	SigDepth.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("SceneDepth")));
@@ -130,6 +134,7 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 	SigMeshField.Name = TEXT("QueryMeshDistanceFieldGPU");
 	SigMeshField.bMemberFunction = true;
 	SigMeshField.bRequiresContext = false;
+	SigMeshField.bSupportsCPU = false;
 	SigMeshField.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
 	SigMeshField.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("FieldSamplePosWorld")));
 	SigMeshField.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("DistanceToNearestSurface")));
@@ -140,6 +145,7 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 	SigCpuSync.Name = TEXT("PerformCollisionQuerySyncCPU");
 	SigCpuSync.bMemberFunction = true;
 	SigCpuSync.bRequiresContext = false;
+	SigCpuSync.bSupportsGPU = false;
 	SigCpuSync.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
 	SigCpuSync.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("TraceStartWorld")));
 	SigCpuSync.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("TraceEndWorld")));
@@ -156,6 +162,7 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 	SigCpuAsync.Name = TEXT("PerformCollisionQueryAsyncCPU");
 	SigCpuAsync.bMemberFunction = true;
 	SigCpuAsync.bRequiresContext = false;
+	SigCpuAsync.bSupportsGPU = false;
 	SigCpuAsync.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
 	SigCpuAsync.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("PreviousFrameQueryID")));
 	SigCpuAsync.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("TraceStartWorld")));
