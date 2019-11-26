@@ -40,6 +40,7 @@ enum EGCReferenceType
 {
 	GCRT_None			= 0,
 	GCRT_Object,
+	GCRT_Class,
 	GCRT_PersistentObject,
 	GCRT_ArrayObject,
 	GCRT_ArrayStruct,
@@ -50,6 +51,8 @@ enum EGCReferenceType
 	GCRT_AddTSetReferencedObjects,
 	GCRT_EndOfPointer,
 	GCRT_EndOfStream,
+	GCRT_NoopPersistentObject,
+	GCRT_NoopClass,
 };
 
 /** 
@@ -322,9 +325,9 @@ struct FGCReferenceTokenStream
 	uint32 EmitReturn();
 
 	/**
-	 * Helper function to quickly replace or add ARO call.
+	 * Helper function to perform post parent token stream prepend fixup
 	 */
-	void ReplaceOrAddAddReferencedObjectsCall(void (*AddReferencedObjectsPtr)(UObject*, class FReferenceCollector&));
+	void Fixup(void (*AddReferencedObjectsPtr)(UObject*, class FReferenceCollector&), bool bKeepOuterToken, bool bKeepClassToken);
 
 	/**
 	 * Reads count and advances stream.

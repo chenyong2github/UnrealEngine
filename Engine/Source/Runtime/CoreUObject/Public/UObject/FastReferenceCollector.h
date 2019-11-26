@@ -262,7 +262,7 @@ private:
 		 void ReturnToPool(FGCArrayStruct* ArrayStruct);
 	 };
  */
-template <bool bParallel, typename ReferenceProcessorType, typename CollectorType, typename ArrayPoolType, bool bAutoGenerateTokenStream = false>
+template <bool bParallel, typename ReferenceProcessorType, typename CollectorType, typename ArrayPoolType, bool bAutoGenerateTokenStream = false, bool bIgnoreNoopTokens = false>
 class TFastReferenceCollector
 {
 private:
@@ -699,8 +699,9 @@ private:
 					switch(ReferenceInfo.Type)
 					{
 					case GCRT_Object:
+					case GCRT_Class:
 					{
-						// We're dealing with an object reference.
+						// We're dealing with an object reference (this code should be identical to GCRT_NoopClass if !bIgnoreNoopTokens)
 						UObject**	ObjectPtr = (UObject**)(StackEntryData + ReferenceInfo.Offset);
 						UObject*&	Object = *ObjectPtr;
 						TokenReturnCount = ReferenceInfo.ReturnCount;
@@ -747,7 +748,7 @@ private:
 					break;
 					case GCRT_PersistentObject:
 					{
-						// We're dealing with an object reference.
+						// We're dealing with an object reference (this code should be identical to GCRT_NoopPersistentObject if !bIgnoreNoopTokens)
 						UObject**	ObjectPtr = (UObject**)(StackEntryData + ReferenceInfo.Offset);
 						UObject*&	Object = *ObjectPtr;
 						TokenReturnCount = ReferenceInfo.ReturnCount;
@@ -803,6 +804,38 @@ private:
 					case GCRT_EndOfPointer:
 					{
 						TokenReturnCount = ReferenceInfo.ReturnCount;
+					}
+					break;
+					case GCRT_NoopPersistentObject:
+					{
+						if (!bIgnoreNoopTokens)
+						{
+							// We're dealing with an object reference (this code should be identical to GCRT_PersistentObject)
+							UObject**	ObjectPtr = (UObject**)(StackEntryData + ReferenceInfo.Offset);
+							UObject*&	Object = *ObjectPtr;
+							TokenReturnCount = ReferenceInfo.ReturnCount;
+							ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, Object, ReferenceTokenStreamIndex, false);
+						}
+						else
+						{
+							TokenReturnCount = ReferenceInfo.ReturnCount;
+						}
+					}
+					break;
+					case GCRT_NoopClass:
+					{
+						if (!bIgnoreNoopTokens)
+						{
+							// We're dealing with an object reference (this code should be identical to GCRT_Object and GCRT_Class)
+							UObject**	ObjectPtr = (UObject**)(StackEntryData + ReferenceInfo.Offset);
+							UObject*&	Object = *ObjectPtr;
+							TokenReturnCount = ReferenceInfo.ReturnCount;
+							ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, Object, ReferenceTokenStreamIndex, true);
+						}
+						else
+						{
+							TokenReturnCount = ReferenceInfo.ReturnCount;
+						}
 					}
 					break;
 					case GCRT_EndOfStream:
