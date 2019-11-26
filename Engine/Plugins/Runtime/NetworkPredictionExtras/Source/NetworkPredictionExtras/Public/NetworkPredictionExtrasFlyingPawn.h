@@ -131,7 +131,9 @@ public:
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 	
+	UFUNCTION(BlueprintPure, Category="Ability")
 	UMockFlyingAbilityComponent* GetMockFlyingAbilityComponent();
+
 	const UMockFlyingAbilityComponent* GetMockFlyingAbilityComponent() const;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Automation")

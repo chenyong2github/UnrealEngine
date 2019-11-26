@@ -19,6 +19,9 @@ enum class ESimulationTickContext : uint8
 	Predict			= 1 << 1,
 	Resimulate		= 1 << 2,
 
+	AuthorityPredict	= Authority | Predict,
+	PredictResimulate	= Predict | Resimulate,
+
 	All				= (Authority | Predict | Resimulate),
 };
 
@@ -40,9 +43,6 @@ struct TNetSimCueTraitsBase
 
 	// Does the cue replicate? (from authority). This will also determine if the cue needs to be saved locally for NetUnique tests (to avoid double playing)
 	static constexpr ENetSimCueReplicationTarget ReplicationTarget { ENetSimCueReplicationTarget::All };
-
-	// Does the cue support rollback callbacks (in contexts where applicable. e.g, when we might get rolled back (!Authority))
-	static constexpr bool Rollbackable { true };
 };
 
 // Preset: non replicated cue that only plays during "latest" simulate. Will not be played during rewind/resimulate.
@@ -51,7 +51,6 @@ struct TNetSimCueTraits_Weak
 {
 	static constexpr uint8 InvokeMask { (uint8)ESimulationTickContext::Authority | (uint8)ESimulationTickContext::Predict };
 	static constexpr ENetSimCueReplicationTarget ReplicationTarget { ENetSimCueReplicationTarget::None };
-	static constexpr bool Rollbackable { false };
 };
 
 // Preset: Replicated, non predicted. Only invoked on authority and will replicate to everyone else.
@@ -60,7 +59,6 @@ struct TNetSimCueTraits_ReplicatedNonPredicted
 {
 	static constexpr uint8 InvokeMask { (uint8)ESimulationTickContext::Authority };
 	static constexpr ENetSimCueReplicationTarget ReplicationTarget { ENetSimCueReplicationTarget::All };
-	static constexpr bool Rollbackable { false };
 };
 
 // Preset: Replicated to interpolating proxies, predicted by autonomous proxy
@@ -69,7 +67,6 @@ struct TNetSimCueTraits_ReplicatedXOrPredicted
 {
 	static constexpr uint8 InvokeMask { (uint8)ESimulationTickContext::Authority | (uint8)ESimulationTickContext::Predict };
 	static constexpr ENetSimCueReplicationTarget ReplicationTarget { ENetSimCueReplicationTarget::Interpolators };
-	static constexpr bool Rollbackable { false };
 };
 
 // Preset: Invoked and replicated to all. Uniqueness testing to avoid double playing, rollbackable so that it can (re)play during resimulates
@@ -78,7 +75,6 @@ struct TNetSimCueTraits_Strong
 {
 	static constexpr uint8 InvokeMask { (uint8)ESimulationTickContext::All };
 	static constexpr ENetSimCueReplicationTarget ReplicationTarget { ENetSimCueReplicationTarget::All };
-	static constexpr bool Rollbackable { true };
 };
 
 // Actual trait struct that we use to look up traits. User cues must specialize this
@@ -108,7 +104,6 @@ struct FNetSimCueWrapperBase
 	virtual bool NetUnique(const void* OtherCueData) const = 0;
 	virtual void* CueData() const = 0;
 	virtual ENetSimCueReplicationTarget GetReplicationTarget() const = 0;
-	virtual bool Rollbackable() const = 0;
 };
 
 template<typename TCue>
@@ -140,11 +135,6 @@ struct TNetSimCueWrapper : FNetSimCueWrapperBase
 	ENetSimCueReplicationTarget GetReplicationTarget() const override final
 	{
 		return TCueHandlerTraits<TCue>::ReplicationTarget;
-	}
-
-	bool Rollbackable() const override final
-	{
-		return TCueHandlerTraits<TCue>::Rollbackable;
 	}
 
 	TCue Instance;
