@@ -36,7 +36,7 @@ public:
 
 protected:
 	virtual bool IsValidOnShots() const override { return true; }
-	virtual bool IsValidOnMaster() const override { return false; }
+	virtual bool IsValidOnMaster() const override { return true; }
 protected:
 	virtual void GetRequiredEnginePassesImpl(TSet<FMoviePipelinePassIdentifier>& RequiredEnginePasses) {}
 

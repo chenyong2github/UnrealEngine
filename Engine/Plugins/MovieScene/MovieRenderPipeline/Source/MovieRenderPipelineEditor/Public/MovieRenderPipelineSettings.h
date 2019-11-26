@@ -3,6 +3,8 @@
 
 #include "UObject/Object.h"
 #include "Templates/SubclassOf.h"
+#include "MoviePipelineExecutor.h"
+#include "MoviePipeline.h"
 #include "MovieRenderPipelineSettings.generated.h"
 
 class UMoviePipelineExecutorBase;

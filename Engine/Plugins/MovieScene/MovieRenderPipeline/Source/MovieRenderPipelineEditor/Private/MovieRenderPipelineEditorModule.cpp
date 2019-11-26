@@ -5,7 +5,8 @@
 #include "MoviePipelineExecutor.h"
 #include "WorkspaceMenuStructureModule.h"
 #include "WorkspaceMenuStructure.h"
-#include "Widgets/SMoviePipelineTabContent.h"
+#include "Widgets/SMoviePipelineConfigTabContent.h"
+#include "Widgets/SMoviePipelineQueueTabContent.h"
 #include "ISettingsModule.h"
 #include "MovieRenderPipelineSettings.h"
 #include "HAL/IConsoleManager.h"
@@ -20,8 +21,10 @@
 
 #define LOCTEXT_NAMESPACE "FMovieRenderPipelineEditorModule"
 
-FName IMovieRenderPipelineEditorModule::MovieRenderPipelineTabName = "MovieRenderPipeline";
-FText IMovieRenderPipelineEditorModule::MovieRenderPipelineTabLabel = LOCTEXT("MovieRenderPipelineTab_Label", "Movie Render Pipeline");
+FName IMovieRenderPipelineEditorModule::MoviePipelineQueueTabName = "MoviePipelineQueue";
+FText IMovieRenderPipelineEditorModule::MoviePipelineQueueTabLabel = LOCTEXT("MovieRenderQueueTab_Label", "Movie Render Queue");
+FName IMovieRenderPipelineEditorModule::MoviePipelineConfigEditorTabName = "MovieRenderPipeline";
+FText IMovieRenderPipelineEditorModule::MoviePipelineConfigEditorTabLabel = LOCTEXT("MovieRenderPipelineTab_Label", "Movie Render Pipeline");
 										 
 namespace
 {
@@ -30,7 +33,18 @@ namespace
 		TSharedRef<SDockTab> NewTab = SNew(SDockTab)
 			.TabRole(ETabRole::NomadTab)
 			[
-				SNew(SMoviePipelineTabContent)
+				SNew(SMoviePipelineConfigTabContent)
+			];
+		
+		return NewTab;
+	}
+
+	static TSharedRef<SDockTab> SpawnMoviePipelineQueueTab(const FSpawnTabArgs& InSpawnTabArgs)
+	{
+		TSharedRef<SDockTab> NewTab = SNew(SDockTab)
+			.TabRole(ETabRole::MajorTab)
+			[
+				SNew(SMoviePipelineQueueTabContent)
 			];
 
 		return NewTab;
@@ -38,12 +52,20 @@ namespace
 
 	static void RegisterTabImpl()
 	{
-		FTabSpawnerEntry& MRPTabSpawner = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(IMovieRenderPipelineEditorModule::MovieRenderPipelineTabName, FOnSpawnTab::CreateStatic(SpawnMovieRenderPipelineTab));
+		FTabSpawnerEntry& MRPConfigTabSpawner = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(IMovieRenderPipelineEditorModule::MoviePipelineConfigEditorTabName, FOnSpawnTab::CreateStatic(SpawnMovieRenderPipelineTab));
 
-		MRPTabSpawner
+		MRPConfigTabSpawner
 			.SetGroup(WorkspaceMenu::GetMenuStructure().GetLevelEditorCinematicsCategory())
-			.SetDisplayName(IMovieRenderPipelineEditorModule::MovieRenderPipelineTabLabel)
-			.SetTooltipText(LOCTEXT("MovieRenderPipelineTab_Tooltip", "Open the Movie Render Pipeline UI"))
+			.SetDisplayName(IMovieRenderPipelineEditorModule::MoviePipelineConfigEditorTabLabel)
+			.SetTooltipText(LOCTEXT("MovieRenderPipelineConfigTab_Tooltip", "Open the Movie Render Config UI for creating and editing presets."))
+			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.TabIcon"));
+
+		FTabSpawnerEntry& MRPQueueTabSpawner = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(IMovieRenderPipelineEditorModule::MoviePipelineQueueTabName, FOnSpawnTab::CreateStatic(SpawnMoviePipelineQueueTab));
+
+		MRPQueueTabSpawner
+			.SetGroup(WorkspaceMenu::GetMenuStructure().GetLevelEditorCinematicsCategory())
+			.SetDisplayName(IMovieRenderPipelineEditorModule::MoviePipelineQueueTabLabel)
+			.SetTooltipText(LOCTEXT("MovieRenderPipelineQueueTab_Tooltip", "Open the Movie Render Queue to render Sequences to disk at a higher quality than realtime allows."))
 			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.TabIcon"));
 	}
 }
@@ -68,10 +90,10 @@ void FMovieRenderPipelineEditorModule::PerformTestPipelineRender(const TArray<FS
 
 	TArray<UMoviePipelineMasterConfig*> Pipelines = GenerateTestPipelineConfigs();
 
-	TArray<FMoviePipelineExecutorJob> Jobs;
+	TArray<FMoviePipelineExecutorJobPrev> Jobs;
 	for(UMoviePipelineMasterConfig* Pipeline : Pipelines)
 	{
-		Jobs.Add(FMoviePipelineExecutorJob(SequencePath, Pipeline));
+		Jobs.Add(FMoviePipelineExecutorJobPrev(SequencePath, Pipeline));
 	}
 
 	Executor->Execute(Jobs);

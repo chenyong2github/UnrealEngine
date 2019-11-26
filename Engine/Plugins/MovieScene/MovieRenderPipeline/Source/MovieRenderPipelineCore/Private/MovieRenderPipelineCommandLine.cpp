@@ -63,8 +63,8 @@ void FMovieRenderPipelineCoreModule::InitializeCommandLineMovieRender()
 	ExecutorBase->OnExecutorErrored().AddRaw(this, &FMovieRenderPipelineCoreModule::OnCommandLineMovieRenderErrored);
 	ExecutorBase->SetMoviePipelineClass(PipelineClass);
 
-	TArray<FMoviePipelineExecutorJob> Jobs;
-	Jobs.Add(FMoviePipelineExecutorJob(SequenceAssetValue, MasterConfig));
+	TArray<FMoviePipelineExecutorJobPrev> Jobs;
+	Jobs.Add(FMoviePipelineExecutorJobPrev(SequenceAssetValue, MasterConfig));
 
 	ExecutorBase->Execute(Jobs);
 }

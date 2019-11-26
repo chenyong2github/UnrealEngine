@@ -211,10 +211,41 @@ TSharedRef<SWidget> SMoviePipelineEditor::OnGenerateSettingsMenu()
 
 		for (UClass* Class : SourceClasses)
 		{
-			TSubclassOf<UMoviePipelineSetting> SubclassOf = Class;
+			// Get a display name for the setting from the CDO.
+			const UMoviePipelineSetting* SettingDefaultObject = GetDefault<UMoviePipelineSetting>(Class);
+			
+			// Depending on the type of config we're editing, some settings may not be eligible. If this is the case, we omit them from the list.
+			bool bCanSettingBeAdded = CachedMoviePipeline->CanSettingBeAdded(SettingDefaultObject);
+			if (!bCanSettingBeAdded)
+			{
+				continue;
+			}
 
+			// If the setting already exists and it only allows a single instance, we omit them from the list.
+			bool bAllowDuplicates = true;
+			for (UMoviePipelineSetting* ExistingSetting : CachedMoviePipeline->GetSettings())
+			{
+				// If we found a setting with the same class as ours, ask the CDO if multiple are valid.
+				if (ExistingSetting->GetClass() == Class)
+				{
+					bAllowDuplicates = !SettingDefaultObject->IsSolo();
+					break;
+				}
+			}
+			if (!bAllowDuplicates)
+			{
+				continue;
+			}
+
+			FText SettingDisplayName;
+			if (SettingDefaultObject)
+			{
+				SettingDisplayName = SettingDefaultObject->GetDisplayText();
+			}
+
+			TSubclassOf<UMoviePipelineSetting> SubclassOf = Class;
 			MenuBuilder.AddMenuEntry(
-				FText::FromString(Class->GetMetaData(TEXT("MovieRenderPipelineDisplayName"))),
+				SettingDisplayName,
 				Class->GetToolTipText(true),
 				FSlateIconFinder::FindIconForClass(Class),
 				FUIAction(

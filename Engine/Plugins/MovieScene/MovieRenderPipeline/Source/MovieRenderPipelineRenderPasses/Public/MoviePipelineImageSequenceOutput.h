@@ -37,10 +37,14 @@ private:
 	FString OutputDirectory;
 };
 
-UCLASS(meta = (DisplayName = "Image Sequence (.bmp [8bpp])"))
+UCLASS()
 class MOVIERENDERPIPELINERENDERPASSES_API UMoviePipelineImageSequenceOutput_BMP : public UMoviePipelineImageSequenceOutputBase
 {
 	GENERATED_BODY()
+public:
+#if WITH_EDITOR
+	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "ImgSequenceBMPSettingDisplayName", "Image Sequence (.bmp [8bpp])"); }
+#endif
 public:
 	UMoviePipelineImageSequenceOutput_BMP()
 	{
@@ -48,10 +52,14 @@ public:
 	}
 };
 
-UCLASS(meta = (DisplayName = "Image Sequence (.png [8bpp])"))
+UCLASS()
 class MOVIERENDERPIPELINERENDERPASSES_API UMoviePipelineImageSequenceOutput_PNG : public UMoviePipelineImageSequenceOutputBase
 {
 	GENERATED_BODY()
+public:
+#if WITH_EDITOR
+	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "ImgSequencePNGSettingDisplayName", "Image Sequence (.png [8bpp])"); }
+#endif
 public:
 	UMoviePipelineImageSequenceOutput_PNG()
 	{
@@ -59,10 +67,14 @@ public:
 	}
 };
 
-UCLASS(meta = (DisplayName = "Image Sequence (.jpg [8bpp])"))
+UCLASS()
 class MOVIERENDERPIPELINERENDERPASSES_API UMoviePipelineImageSequenceOutput_JPG : public UMoviePipelineImageSequenceOutputBase
 {
 	GENERATED_BODY()
+public:
+#if WITH_EDITOR
+	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "ImgSequenceJPGSettingDisplayName", "Image Sequence (.jpg [8bpp])"); }
+#endif
 public:
 	UMoviePipelineImageSequenceOutput_JPG()
 	{
@@ -70,10 +82,14 @@ public:
 	}
 };
 
-UCLASS(meta = (DisplayName = "Image Sequence (.exr [32bpp])"))
+UCLASS()
 class MOVIERENDERPIPELINERENDERPASSES_API UMoviePipelineImageSequenceOutput_EXR : public UMoviePipelineImageSequenceOutputBase
 {
 	GENERATED_BODY()
+public:
+#if WITH_EDITOR
+	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "ImgSequenceEXRSettingDisplayName", "Image Sequence (.exr [32bpp])"); }
+#endif
 public:
 	UMoviePipelineImageSequenceOutput_EXR()
 	{

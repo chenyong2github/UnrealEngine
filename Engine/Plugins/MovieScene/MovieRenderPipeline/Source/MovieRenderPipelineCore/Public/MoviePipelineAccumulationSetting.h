@@ -19,9 +19,13 @@ public:
 	{
 	}
 
+public:
+#if WITH_EDITOR
+	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "AccumulationSettingDisplayName", "Subsample Accumulation"); }
+#endif
 protected:
 	virtual bool IsValidOnShots() const override { return true; }
-	virtual bool IsValidOnMaster() const override { return false; }
+	virtual bool IsValidOnMaster() const override { return true; }
 	
 public:
 

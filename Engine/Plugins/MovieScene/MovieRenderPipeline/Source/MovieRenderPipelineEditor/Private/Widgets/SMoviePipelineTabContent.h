@@ -6,7 +6,7 @@
 #include "Widgets/SCompoundWidget.h"
 
 class UMoviePipelineConfigBase;
-class SMoviePipelinePanel;
+class SMoviePipelineConfigPanel;
 
 class SMoviePipelineTabContent : public SCompoundWidget
 {
@@ -24,5 +24,5 @@ private:
 	EActiveTimerReturnType OnActiveTimer(double InCurrentTime, float InDeltaTime);
 
 private:
-	TWeakPtr<SMoviePipelinePanel> WeakPanel;
+	TWeakPtr<SMoviePipelineConfigPanel> WeakPanel;
 };

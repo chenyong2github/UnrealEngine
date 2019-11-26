@@ -4,7 +4,7 @@
 #include "Engine/World.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipelineInProcessExecutor"
-void UMoviePipelineInProcessExecutor::Start(const FMoviePipelineExecutorJob& InJob)
+void UMoviePipelineInProcessExecutor::Start(const FMoviePipelineExecutorJobPrev& InJob)
 {
 	FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this, &UMoviePipelineInProcessExecutor::OnMapLoadFinished);
 }
@@ -20,7 +20,7 @@ void UMoviePipelineInProcessExecutor::OnMapLoadFinished(UWorld* NewWorld)
 	// Stop listening for map load until we're done and know we want to start the next config.
 	FCoreUObjectDelegates::PostLoadMapWithWorld.RemoveAll(this);
 	
-	FMoviePipelineExecutorJob& CurrentJob = ExecutorJobs[CurrentPipelineIndex];
+	FMoviePipelineExecutorJobPrev& CurrentJob = ExecutorJobs[CurrentPipelineIndex];
 
 	ActiveMoviePipeline = NewObject<UMoviePipeline>(NewWorld, TargetPipelineClass);
 	ActiveMoviePipeline->Initialize(CurrentJob);

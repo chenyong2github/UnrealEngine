@@ -39,7 +39,7 @@ public:
 	UMoviePipelineShotConfig* GetConfigForShot(const FString& ShotName) const;
 
 protected:
-	virtual bool CanSettingBeAdded(UMoviePipelineSetting* InSetting) override
+	virtual bool CanSettingBeAdded(const UMoviePipelineSetting* InSetting) const override
 	{
 		check(InSetting);
 		return InSetting->IsValidOnMaster();

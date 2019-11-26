@@ -15,7 +15,12 @@ class MOVIERENDERPIPELINECORE_API UMoviePipelineOutputSetting : public UMoviePip
 	GENERATED_BODY()
 public:
 	UMoviePipelineOutputSetting();
-	
+public:
+#if WITH_EDITOR
+	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "OutputSettingDisplayName", "Output"); }
+#endif
+	virtual bool IsValidOnShots() const override { return false; }
+	virtual bool IsValidOnMaster() const override { return true; }
 public:
 	/** What directory should all of our output files be relative to. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movie Render Pipeline")

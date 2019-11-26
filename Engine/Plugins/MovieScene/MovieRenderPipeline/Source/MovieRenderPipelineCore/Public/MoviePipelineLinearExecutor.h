@@ -27,10 +27,10 @@ public:
 	}
 
 protected:
-	virtual void ExecuteImpl(const TArray<FMoviePipelineExecutorJob>& InPipelines) override;
+	virtual void ExecuteImpl(const TArray<FMoviePipelineExecutorJobPrev>& InPipelines) override;
 
 	virtual void StartPipelineByIndex(int32 InPipelineIndex);
-	virtual void Start(const FMoviePipelineExecutorJob& InJob) {}
+	virtual void Start(const FMoviePipelineExecutorJobPrev& InJob) {}
 
 public:
 	virtual void OnIndividualPipelineFinished(UMoviePipeline* /* FinishedPipeline */);
@@ -40,7 +40,7 @@ protected:
 	
 	/** List of Pipeline Configs we've been asked to execute. */
 	UPROPERTY(Transient)
-	TArray<FMoviePipelineExecutorJob> ExecutorJobs;
+	TArray<FMoviePipelineExecutorJobPrev> ExecutorJobs;
 
 	/** A Movie Pipeline that has been spawned and is running (if any) */
 	UPROPERTY(Transient)

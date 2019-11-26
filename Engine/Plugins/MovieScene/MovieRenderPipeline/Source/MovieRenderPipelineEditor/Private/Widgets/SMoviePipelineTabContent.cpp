@@ -1,8 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SMoviePipelineTabContent.h"
-#include "Widgets/SMoviePipelinePanel.h"
-
+#include "SMoviePipelineConfigPanel.h"
 
 // Analytics
 #include "EngineAnalytics.h"
@@ -34,13 +33,13 @@ void SMoviePipelineTabContent::SetupForPipeline(UMoviePipelineConfigBase* BasePr
 	// Null out the tab content to ensure that all references have been cleaned up before constructing the new one
 	ChildSlot [ SNullWidget::NullWidget ];
 
-	ChildSlot
-	.HAlign(HAlign_Fill)
-	.VAlign(VAlign_Fill)
-	[
-		SAssignNew(WeakPanel, SMoviePipelinePanel)
-		.BasePreset(BasePreset)
-	];
+	// ChildSlot
+	// .HAlign(HAlign_Fill)
+	// .VAlign(VAlign_Fill)
+	// [
+	// 	SAssignNew(WeakPanel, SMoviePipelineConfigPanel, BasePreset->GetClass())
+	// 	.BasePreset(BasePreset)
+	// ];
 
 	if (FEngineAnalytics::IsAvailable())
 	{

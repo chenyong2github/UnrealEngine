@@ -18,9 +18,14 @@ public:
 		, bManualExposure(true)
 		, ExposureCompensation(8.0)
 	{}
+
+public:
+#if WITH_EDITOR
+	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "CameraSettingDisplayName", "Camera"); }
+#endif
 protected:
 	virtual bool IsValidOnShots() const override { return true; }
-	virtual bool IsValidOnMaster() const override { return false; }
+	virtual bool IsValidOnMaster() const override { return true; }
 
 public:
 

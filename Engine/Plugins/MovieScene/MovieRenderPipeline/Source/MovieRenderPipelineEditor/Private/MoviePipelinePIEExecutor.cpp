@@ -25,7 +25,7 @@ FText UMoviePipelinePIEExecutor::GetWindowTitle(const int32 InConfigIndex, const
 	return WindowTitle;
 }
 
-void UMoviePipelinePIEExecutor::Start(const FMoviePipelineExecutorJob& InJob)
+void UMoviePipelinePIEExecutor::Start(const FMoviePipelineExecutorJobPrev& InJob)
 {
 	Super::Start(InJob);
 

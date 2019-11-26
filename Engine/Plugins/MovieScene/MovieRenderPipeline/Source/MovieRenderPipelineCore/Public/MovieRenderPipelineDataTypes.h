@@ -865,17 +865,17 @@ struct FImagePixelDataPayload : IImagePixelDataPayload, public TSharedFromThis<F
 * Describes an individual job executed by a Movie Pipeline Executor.
 */
 USTRUCT(BlueprintType)
-struct FMoviePipelineExecutorJob
+struct FMoviePipelineExecutorJobPrev
 {
 	GENERATED_BODY()
 public:
-	FMoviePipelineExecutorJob()
+	FMoviePipelineExecutorJobPrev()
 		: Sequence()
 		, Configuration(nullptr)
 	{
 	}
 
-	FMoviePipelineExecutorJob(const FSoftObjectPath& InSequenceAsset, UMoviePipelineMasterConfig* InConfig)
+	FMoviePipelineExecutorJobPrev(const FSoftObjectPath& InSequenceAsset, UMoviePipelineMasterConfig* InConfig)
 		: Sequence(InSequenceAsset)
 		, Configuration(InConfig)
 	{

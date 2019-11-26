@@ -27,9 +27,13 @@ public:
 
 		return InTileSize + FIntPoint(2 * OverlappedPadX, 2 * OverlappedPadY);
 	}
-protected:
+
+public:
+#if WITH_EDITOR
+	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "HighResSettingDisplayName", "High Resolution"); }
+#endif
 	virtual bool IsValidOnShots() const override { return true; }
-	virtual bool IsValidOnMaster() const override { return false; }
+	virtual bool IsValidOnMaster() const override { return true; }
 
 public:
 	/**

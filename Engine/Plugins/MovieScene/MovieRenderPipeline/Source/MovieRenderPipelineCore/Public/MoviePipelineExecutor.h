@@ -41,7 +41,7 @@ public:
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
-	virtual void Execute(const TArray<FMoviePipelineExecutorJob>& InPipelines)
+	virtual void Execute(const TArray<FMoviePipelineExecutorJobPrev>& InPipelines)
 	{
 		ExecuteImpl(InPipelines);
 	}
@@ -89,7 +89,7 @@ protected:
 		OnExecutorFinishedDelegate.Broadcast(this, bFatal);
 	}
 
-	virtual void ExecuteImpl(const TArray<FMoviePipelineExecutorJob>& InPipelines) PURE_VIRTUAL(UMoviePipelineExecutorBase::ExecuteImpl, );
+	virtual void ExecuteImpl(const TArray<FMoviePipelineExecutorJobPrev>& InPipelines) PURE_VIRTUAL(UMoviePipelineExecutorBase::ExecuteImpl, );
 
 private:
 	/** 

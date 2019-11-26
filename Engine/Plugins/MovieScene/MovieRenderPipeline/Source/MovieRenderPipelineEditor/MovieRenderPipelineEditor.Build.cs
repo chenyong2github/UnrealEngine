@@ -29,7 +29,11 @@ public class MovieRenderPipelineEditor : ModuleRules
 				"MovieRenderPipelineCore",
                 "MovieRenderPipelineRenderPasses",
                 "MovieRenderPipelineSettings",
-				"Settings"
+				"Settings",
+				"ContentBrowser",
+				"PropertyEditor",
+				"EditorWidgets",
+				"EditorSubsystem",
             }
         );
 

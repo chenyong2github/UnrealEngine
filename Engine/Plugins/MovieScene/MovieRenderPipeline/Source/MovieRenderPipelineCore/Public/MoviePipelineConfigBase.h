@@ -23,7 +23,7 @@ public:
 	* Removes the specific instance from our Setting list.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
-		void RemoveSetting(UMoviePipelineSetting* InSetting);
+	void RemoveSetting(UMoviePipelineSetting* InSetting);
 
 	int32 GetSettingsSerialNumber() const { return SettingsSerialNumber; }
 
@@ -112,8 +112,8 @@ public:
 		return Found;
 	}
 
-protected:
-	virtual bool CanSettingBeAdded(UMoviePipelineSetting* InSetting) PURE_VIRTUAL( UMoviePipelineConfigBase::CanSettingBeAdded, return false; );
+public:
+	virtual bool CanSettingBeAdded(const UMoviePipelineSetting* InSetting) const PURE_VIRTUAL( UMoviePipelineConfigBase::CanSettingBeAdded, return false; );
 
 protected:
 	/** Array of settings classes that affect various parts of the output pipeline. */

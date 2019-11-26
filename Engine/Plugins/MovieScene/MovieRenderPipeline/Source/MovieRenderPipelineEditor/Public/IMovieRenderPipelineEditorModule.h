@@ -11,9 +11,15 @@
 class IMovieRenderPipelineEditorModule : public IModuleInterface
 {
 public:
-	/** The tab name for the movie render pipeline tab */
-	static FName MovieRenderPipelineTabName;
+	/** The tab name for the movie render queue editor tab */
+	static FName MoviePipelineQueueTabName;
 
-	/** The default label for the movie render pipeline tab. */
-	static FText MovieRenderPipelineTabLabel;
+	/** The default label for the movie render queue editor tab. */
+	static FText MoviePipelineQueueTabLabel;
+
+	/** The tab name for the movie render config editor tab */
+	static FName MoviePipelineConfigEditorTabName;
+
+	/** The default label for the movie render config editor tab. */
+	static FText MoviePipelineConfigEditorTabLabel;
 };

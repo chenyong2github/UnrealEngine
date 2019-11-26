@@ -40,7 +40,7 @@ public:
 	
 	* @param InJob	- This contains settings and sequence to render this Movie Pipeline with.
 	*/
-	void Initialize(const FMoviePipelineExecutorJob& InJob);
+	void Initialize(const FMoviePipelineExecutorJobPrev& InJob);
 
 	/** 
 	* Call to shut down the pipeline. This flushes any outstanding file writes and unregisters all delegates.
@@ -269,7 +269,7 @@ public:
 private:
 	/** Keep track of which job we're working on. This holds our Configuration + which shots we're supposed to render from it. */
 	UPROPERTY(Transient)
-	FMoviePipelineExecutorJob CurrentJob;
+	FMoviePipelineExecutorJobPrev CurrentJob;
 };
 
 UCLASS()

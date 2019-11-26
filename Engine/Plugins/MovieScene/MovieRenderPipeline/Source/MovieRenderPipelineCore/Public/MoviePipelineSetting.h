@@ -40,6 +40,7 @@ protected:
 	
 public:
 #if WITH_EDITOR
+	/** Warning: This gets called on the CDO of the object */
 	virtual FText GetDisplayText() const { return this->GetClass()->GetDisplayNameText(); }
 #endif
 	/** Can this configuration setting be added to shots? If not, it will throw an error when trying to add it to a shot config. */

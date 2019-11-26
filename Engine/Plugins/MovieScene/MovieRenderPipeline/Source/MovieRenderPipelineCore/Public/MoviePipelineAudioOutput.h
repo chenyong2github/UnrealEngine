@@ -4,7 +4,7 @@
 #include "MoviePipelineOutputBase.h"
 #include "MoviePipelineAudioOutput.generated.h"
 
-UCLASS(BlueprintType, meta=(MovieRenderPipelineDisplayName="Audio"))
+UCLASS(BlueprintType)
 class MOVIERENDERPIPELINECORE_API UMoviePipelineAudioOutput : public UMoviePipelineOutputBase
 {
 	GENERATED_BODY()

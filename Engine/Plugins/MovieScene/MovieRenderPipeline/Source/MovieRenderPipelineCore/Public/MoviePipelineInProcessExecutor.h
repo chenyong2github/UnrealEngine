@@ -23,7 +23,7 @@ public:
 	}
 
 protected:
-	virtual void Start(const FMoviePipelineExecutorJob& InJob) override;
+	virtual void Start(const FMoviePipelineExecutorJobPrev& InJob) override;
 
 private:
 	void OnMapLoadFinished(UWorld* NewWorld);

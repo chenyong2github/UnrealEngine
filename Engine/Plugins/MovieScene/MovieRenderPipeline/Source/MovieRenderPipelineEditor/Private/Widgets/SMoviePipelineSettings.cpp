@@ -101,22 +101,6 @@ struct FMoviePipelineSettingTreeItem : IMoviePipelineSettingTreeItem
 			]
 
 			+ SHorizontalBox::Slot()
-			.Padding(8, 4, 8, 4)
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Center)
-			[
-				SNew(SBox)
-				.WidthOverride(32)
-				.HeightOverride(32)
-				[
-					SNew(SImage)
-					.Image(this, &FMoviePipelineSettingTreeItem::GetIcon)
-					.ColorAndOpacity(this, &FMoviePipelineSettingTreeItem::GetImageColorAndOpacity)
-				]
-			]
-
-			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.VAlign(VAlign_Center)
 			.Padding(8, 0)
@@ -163,7 +147,7 @@ struct FMoviePipelineSettingTreeItem : IMoviePipelineSettingTreeItem
 			[
 				SNew(SColorBlock)
 				.Size(FVector2D(6.0, 38.0))
-				.Color(FLinearColor::White) 
+				.Color(FLinearColor::Yellow) 
 			]
 
 		];
@@ -171,12 +155,6 @@ struct FMoviePipelineSettingTreeItem : IMoviePipelineSettingTreeItem
 	}
 
 private:
-
-	const FSlateBrush* GetIcon() const
-	{
-		UMoviePipelineSetting* Setting = WeakSetting.Get();
-		return Setting ? Setting->GetDisplayIcon() : nullptr;
-	}
 
 	FText GetDescription() const
 	{

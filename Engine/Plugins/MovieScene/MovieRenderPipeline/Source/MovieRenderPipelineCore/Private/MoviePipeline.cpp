@@ -74,7 +74,7 @@ void ValidateSequence(ULevelSequence* InSequence)
 
 }
 
-void UMoviePipeline::Initialize(const FMoviePipelineExecutorJob& InJob)
+void UMoviePipeline::Initialize(const FMoviePipelineExecutorJobPrev& InJob)
 {
 	// This function is called after the PIE world has finished initializing, but before
 	// the PIE world is ticked for the first time. We'll end up waiting for the next tick

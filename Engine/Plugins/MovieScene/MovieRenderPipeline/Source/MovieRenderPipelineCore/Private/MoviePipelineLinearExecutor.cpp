@@ -4,7 +4,7 @@
 
 #define LOCTEXT_NAMESPACE "MoviePipelineLinearExecutorBase"
 
-void UMoviePipelineLinearExecutorBase::ExecuteImpl(const TArray<FMoviePipelineExecutorJob>& InPipelines)
+void UMoviePipelineLinearExecutorBase::ExecuteImpl(const TArray<FMoviePipelineExecutorJobPrev>& InPipelines)
 {
 	if (InPipelines.Num() == 0)
 	{

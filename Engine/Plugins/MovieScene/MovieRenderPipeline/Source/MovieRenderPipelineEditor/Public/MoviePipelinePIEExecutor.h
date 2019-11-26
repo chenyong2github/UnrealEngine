@@ -24,7 +24,7 @@ public:
 	}
 
 protected:
-	virtual void Start(const FMoviePipelineExecutorJob& InJob) override;
+	virtual void Start(const FMoviePipelineExecutorJobPrev& InJob) override;
 
 private:
 	/** Called when PIE finishes booting up and it is safe for us to spawn an object into that world. */

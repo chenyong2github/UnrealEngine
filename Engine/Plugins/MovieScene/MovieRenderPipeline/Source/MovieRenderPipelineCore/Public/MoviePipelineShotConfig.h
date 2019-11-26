@@ -2,16 +2,12 @@
 #pragma once
 
 #include "MoviePipelineConfigBase.h"
-#include "MoviePipelineRenderPass.h"
 
 #include "MoviePipelineShotConfig.generated.h"
 
 
 // Forward Declares
-class ULevelSequence;
-class UMoviePipelineSetting;
 class UMoviePipelineRenderPass;
-class UMoviePipelineOutputBase;
 
 UCLASS(Blueprintable)
 class MOVIERENDERPIPELINECORE_API UMoviePipelineShotConfig : public UMoviePipelineConfigBase
@@ -26,7 +22,7 @@ public:
 	TArray<UMoviePipelineRenderPass*> GetRenderPasses() const;
 
 protected:
-	virtual bool CanSettingBeAdded(UMoviePipelineSetting* InSetting) override
+	virtual bool CanSettingBeAdded(const UMoviePipelineSetting* InSetting) const override
 	{
 		check(InSetting);
 		return InSetting->IsValidOnShots();
