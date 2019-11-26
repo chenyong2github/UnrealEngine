@@ -70,6 +70,9 @@ public:
 	/** Setup the map - only called at initial construction */
 	void SetMap(const UWorld* InMap);
 
+    /** Get the owner map for this HLOD proxy */
+	TSoftObjectPtr<UWorld> GetMap() const;
+
 	/** Adds a static mesh and the key used to generate it */
 	void AddMesh(ALODActor* InLODActor, UStaticMesh* InStaticMesh, const FName& InKey);
 
