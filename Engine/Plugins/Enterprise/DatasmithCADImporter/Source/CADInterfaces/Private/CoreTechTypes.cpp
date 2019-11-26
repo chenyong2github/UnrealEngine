@@ -60,20 +60,6 @@ namespace CADLibrary
 		return CT_KERNEL_IO::LoadFile(FileName, MainObject, LoadFlags, Lod, StringOption);
 	}
 
-	CT_IO_ERROR CTKIO_CleanBody(CT_OBJECT_ID MainObjectId)
-	{
-		CT_STR format = "Ct";          
-		CT_STR system = "Evolution";
-
-		CT_IO_ERROR result = CT_CONVERT_IO::SetConvertConfiguration(system, format);
-		if (result == IO_OK)
-		{
-			result = CT_CONVERT_IO::Convert(MainObjectId);
-		}
-		return result;
-	}
-
-
 	CT_IO_ERROR CTKIO_SaveFile(CT_LIST_IO& objects_list_to_save, const TCHAR* file_name, const TCHAR* format, const CT_OBJECT_ID coordsystem)
 	{
 		return CT_KERNEL_IO::SaveFile(objects_list_to_save, file_name, format, coordsystem);
