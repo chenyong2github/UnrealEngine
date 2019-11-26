@@ -68,6 +68,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 
 		// Added material indices to trimesh collision data
 		AddTrimeshMaterialIndices,
+
+		// Add center of mass and volume cached calculations to TConvex
+		AddConvexCenterOfMassAndVolume,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
