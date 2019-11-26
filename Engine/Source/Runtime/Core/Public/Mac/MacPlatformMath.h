@@ -16,39 +16,62 @@ struct FMacPlatformMath : public FClangPlatformMath
 {
 	static FORCEINLINE int32 TruncToInt(float F)
 	{
-		return _mm_cvtt_ss2si(_mm_set_ss(F));
+		return UnrealPlatformMathSSE::TruncToInt(F);
 	}
 
 	static FORCEINLINE float TruncToFloat(float F)
 	{
-		return (float)TruncToInt(F); // same as generic implementation, but this will call the faster trunc
+		return UnrealPlatformMathSSE::TruncToFloat(F);
+	}
+
+	static FORCEINLINE double TruncToDouble(double F)
+	{
+		return UnrealPlatformMathSSE::TruncToDouble(F);
 	}
 
 	static FORCEINLINE int32 RoundToInt(float F)
 	{
-		// Note: the x2 is to workaround the rounding-to-nearest-even-number issue when the fraction is .5
-		return _mm_cvt_ss2si(_mm_set_ss(F + F + 0.5f)) >> 1;
+		return UnrealPlatformMathSSE::RoundToInt(F);
 	}
 
 	static FORCEINLINE float RoundToFloat(float F)
 	{
-		return (float)RoundToInt(F);
+		return UnrealPlatformMathSSE::RoundToFloat(F);
+	}
+
+	static FORCEINLINE double RoundToDouble(double F)
+	{
+		return UnrealPlatformMathSSE::RoundToDouble(F);
 	}
 
 	static FORCEINLINE int32 FloorToInt(float F)
 	{
-		return _mm_cvt_ss2si(_mm_set_ss(F + F - 0.5f)) >> 1;
+		return UnrealPlatformMathSSE::FloorToInt(F);
 	}
 
 	static FORCEINLINE float FloorToFloat(float F)
 	{
-		return (float)FloorToInt(F);
+		return UnrealPlatformMathSSE::FloorToFloat(F);
+	}
+
+	static FORCEINLINE double FloorToDouble(double F)
+	{
+		return UnrealPlatformMathSSE::FloorToDouble(F);
 	}
 
 	static FORCEINLINE int32 CeilToInt(float F)
 	{
-		// Note: the x2 is to workaround the rounding-to-nearest-even-number issue when the fraction is .5
-		return -(_mm_cvt_ss2si(_mm_set_ss(-0.5f - (F + F))) >> 1);
+		return UnrealPlatformMathSSE::CeilToInt(F);
+	}
+
+	static FORCEINLINE float CeilToFloat(float F)
+	{
+		return UnrealPlatformMathSSE::CeilToFloat(F);
+	}
+
+	static FORCEINLINE double CeilToDouble(double F)
+	{
+		return UnrealPlatformMathSSE::CeilToDouble(F);
 	}
 
 #if PLATFORM_ENABLE_POPCNT_INTRINSIC
@@ -60,11 +83,6 @@ struct FMacPlatformMath : public FClangPlatformMath
 		return __builtin_popcountll(Bits);
 	}
 #endif
-
-	static FORCEINLINE float CeilToFloat(float F)
-	{
-		return (float)CeilToInt(F);
-	}
 
 	static FORCEINLINE bool IsNaN( float A ) { return isnan(A) != 0; }
 	static FORCEINLINE bool IsFinite( float A ) { return isfinite(A); }
