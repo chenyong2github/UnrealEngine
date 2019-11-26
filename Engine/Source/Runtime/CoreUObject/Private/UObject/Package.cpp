@@ -111,19 +111,6 @@ void UPackage::Serialize( FArchive& Ar )
 	}
 }
 
-void UPackage::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
-{	
-	UPackage* This = CastChecked<UPackage>(InThis);
-#if WITH_EDITOR
-	if( GIsEditor )
-	{
-		// Required by the unified GC when running in the editor
-		Collector.AddReferencedObject(This->MetaData, This);
-	}
-#endif
-	Super::AddReferencedObjects(This, Collector);
-}
-
 #if WITH_EDITORONLY_DATA
 bool UPackage::IsOwned() const
 {
@@ -284,14 +271,12 @@ void UPackage::SetLoadedByEditorPropertiesOnly(bool bIsEditorOnly, bool bRecursi
 #if WITH_EDITORONLY_DATA
 IMPLEMENT_CORE_INTRINSIC_CLASS(UPackage, UObject,
 	{
-		Class->ClassAddReferencedObjects = &UPackage::AddReferencedObjects;
 		Class->EmitObjectReference(STRUCT_OFFSET(UPackage, MetaData), TEXT("MetaData"));
 	}
 );
 #else
 IMPLEMENT_CORE_INTRINSIC_CLASS(UPackage, UObject,
 	{
-		Class->ClassAddReferencedObjects = &UPackage::AddReferencedObjects;
 	}
 );
 #endif
