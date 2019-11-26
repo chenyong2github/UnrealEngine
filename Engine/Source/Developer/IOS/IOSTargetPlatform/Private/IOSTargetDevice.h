@@ -32,7 +32,7 @@ public:
      * Creates and initializes a new instance.
      *
      */
-    FTcpDSCommander(const uint8* Data, int32 Count, void* WPipe);
+    FTcpDSCommander(const uint8* Data, int32 Count, TQueue<FString>& InOutputQueue);
     
     /** Virtual destructor. */
     virtual ~FTcpDSCommander();
@@ -82,7 +82,7 @@ private:
     /** Holds the thread object. */
     FRunnableThread* Thread;
     
-    void* WritePipe;
+	TQueue<FString>& OutputQueue;
     uint8* DSCommand;
     int32 DSCommandLen;
     double LastActivity;

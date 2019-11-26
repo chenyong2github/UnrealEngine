@@ -17,8 +17,6 @@ inline FIOSDeviceOutputReaderRunnable::FIOSDeviceOutputReaderRunnable(const FTar
 	: StopTaskCounter(0)
 	, DeviceId(InDeviceId)
 	, Output(InOutput)
-	, DSReadPipe(nullptr)
-	, DSWritePipe(nullptr)
 	, DSCommander(nullptr)
 {
 }
@@ -34,13 +32,12 @@ inline bool FIOSDeviceOutputReaderRunnable::StartDSCommander()
 	Output->Serialize(*DeviceId.GetDeviceName(), ELogVerbosity::Log, NAME_None);
 	FString Command = FString::Printf(TEXT("listentodevice -device %s"), *DeviceId.GetDeviceName());
 	uint8* DSCommand = (uint8*)TCHAR_TO_UTF8(*Command);
-	DSCommander = new FTcpDSCommander(DSCommand, strlen((const char*)DSCommand), DSWritePipe);
+	DSCommander = new FTcpDSCommander(DSCommand, strlen((const char*)DSCommand), OutputQueue);
 	return DSCommander->IsValid();
 }
 
 inline bool FIOSDeviceOutputReaderRunnable::Init(void) 
 { 
-	FPlatformProcess::CreatePipe(DSReadPipe, DSWritePipe);
 	return StartDSCommander();
 }
 
@@ -53,12 +50,6 @@ inline void FIOSDeviceOutputReaderRunnable::Exit(void)
 		delete DSCommander;
 		DSCommander = nullptr;
 	}
-	if (DSReadPipe && DSWritePipe)
-	{
-		FPlatformProcess::ClosePipe(DSReadPipe, DSWritePipe);
-		DSReadPipe = nullptr;
-		DSWritePipe = nullptr;
-	}
 }
 
 inline void FIOSDeviceOutputReaderRunnable::Stop(void)
@@ -68,7 +59,6 @@ inline void FIOSDeviceOutputReaderRunnable::Stop(void)
 
 inline uint32 FIOSDeviceOutputReaderRunnable::Run(void)
 {
-	FString DSOutput;
 	Output->Serialize(TEXT("Starting Output"), ELogVerbosity::Log, NAME_None);
 	while (StopTaskCounter.GetValue() == 0 && DSCommander->IsValid())
 	{
@@ -88,34 +78,18 @@ inline uint32 FIOSDeviceOutputReaderRunnable::Run(void)
 		}
 		else
 		{
-			DSOutput.Append(FPlatformProcess::ReadPipe(DSReadPipe));
-
-			if (DSOutput.Len() > 0)
+			FString Text;
+			if (OutputQueue.Dequeue(Text))
 			{
-				TArray<FString> OutputLines;
-				DSOutput.ParseIntoArray(OutputLines, TEXT("\n"), false);
-
-				if (!DSOutput.EndsWith(TEXT("\n")))
+				if (Text.Contains(TEXT("[UE4]"), ESearchCase::CaseSensitive))
 				{
-					// partial line at the end, do not serialize it until we receive remainder
-					DSOutput = OutputLines.Last();
-					OutputLines.RemoveAt(OutputLines.Num() - 1);
-				}
-				else
-				{
-					DSOutput.Reset();
-				}
-
-				for (int32 i = 0; i < OutputLines.Num(); ++i)
-				{
-					if (OutputLines[i].Contains(TEXT("[UE4]"), ESearchCase::CaseSensitive))
-					{
-						Output->Serialize(*OutputLines[i], ELogVerbosity::Log, NAME_None);
-					}
+					Output->Serialize(*Text, ELogVerbosity::Log, NAME_None);
 				}
 			}
-			
-			FPlatformProcess::Sleep(0.1f);
+			else
+			{
+				FPlatformProcess::Sleep(0.1f);
+			}
 		}
 	}
 
