@@ -45,7 +45,78 @@ enum EStereoLayerShape
 	SLSH_MAX,
 };
 
-/** Additional properties for equirect layers */
+UCLASS(EditInlineNew, Abstract, BlueprintType, CollapseCategories, Within = StereoLayerComponent)
+class UStereoLayerShape : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	virtual void ApplyShape(IStereoLayers::FLayerDesc& LayerDesc);
+#if WITH_EDITOR
+	virtual void DrawShapeVisualization(const class FSceneView* View, class FPrimitiveDrawInterface* PDI);
+#endif
+
+protected:
+	void MarkStereoLayerDirty();
+};
+
+UCLASS(meta = (DisplayName = "Quad Layer"))
+class UStereoLayerShapeQuad : public UStereoLayerShape
+{
+	GENERATED_BODY()
+public:
+	virtual void ApplyShape(IStereoLayers::FLayerDesc& LayerDesc) override;
+#if WITH_EDITOR
+	virtual void DrawShapeVisualization(const class FSceneView* View, class FPrimitiveDrawInterface* PDI) override;
+#endif
+};
+
+UCLASS(meta = (DisplayName = "Cylinder Layer"))
+class UStereoLayerShapeCylinder : public UStereoLayerShape
+{
+	GENERATED_BODY()
+
+public:
+	UStereoLayerShapeCylinder()
+		: Radius(100)
+		, OverlayArc(100)
+		, Height(50)
+	{}
+
+	/** Radial size of the rendered stereo layer cylinder **/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "Cylinder Properties")
+	float Radius;
+
+	/** Arc angle for the stereo layer cylinder **/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "Cylinder Properties")
+	float OverlayArc;
+
+	/** Height of the stereo layer cylinder **/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "Cylinder Properties")
+	int Height;
+
+	UFUNCTION(BlueprintCallable, Category = "Components|Stereo Layer")
+	void SetRadius(float InRadius);
+	UFUNCTION(BlueprintCallable, Category = "Components|Stereo Layer")
+	void SetOverlayArc(float InOverlayArc);
+	UFUNCTION(BlueprintCallable, Category = "Components|Stereo Layer")
+	void SetHeight(int InHeight);
+
+	virtual void ApplyShape(IStereoLayers::FLayerDesc& LayerDesc) override;
+#if WITH_EDITOR
+	virtual void DrawShapeVisualization(const class FSceneView* View, class FPrimitiveDrawInterface* PDI) override;
+#endif
+};
+
+UCLASS(meta = (DisplayName = "Cubemap Layer"))
+class UStereoLayerShapeCubemap : public UStereoLayerShape
+{
+	GENERATED_BODY()
+public:
+	virtual void ApplyShape(IStereoLayers::FLayerDesc& LayerDesc) override;
+};
+
+/** Properties for equirect layers */
 USTRUCT(BlueprintType)
 struct FEquirectProps
 {
@@ -53,28 +124,28 @@ struct FEquirectProps
 public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
-		/** Left source texture UVRect, specifying portion of input texture corresponding to left eye. */
-		FBox2D LeftUVRect;
+	/** Left source texture UVRect, specifying portion of input texture corresponding to left eye. */
+	FBox2D LeftUVRect;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
-		/** Right source texture UVRect, specifying portion of input texture corresponding to right eye. */
-		FBox2D RightUVRect;
+	/** Right source texture UVRect, specifying portion of input texture corresponding to right eye. */
+	FBox2D RightUVRect;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
-		/** Left eye's texture coordinate scale after mapping to 2D. */
-		FVector2D LeftScale;
+	/** Left eye's texture coordinate scale after mapping to 2D. */
+	FVector2D LeftScale;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
-		/** Right eye's texture coordinate scale after mapping to 2D. */
-		FVector2D RightScale;
+	/** Right eye's texture coordinate scale after mapping to 2D. */
+	FVector2D RightScale;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
-		/** Left eye's texture coordinate bias after mapping to 2D. */
-		FVector2D LeftBias;
+	/** Left eye's texture coordinate bias after mapping to 2D. */
+	FVector2D LeftBias;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
-		/** Right eye's texture coordinate bias after mapping to 2D. */
-		FVector2D RightBias;
+	/** Right eye's texture coordinate bias after mapping to 2D. */
+	FVector2D RightBias;
 
 public:
 
@@ -102,10 +173,68 @@ public:
 	 * @param Other The other FEquirectProps to compare with.
 	 * @return true if the are equal, false otherwise.
 	 */
-	bool operator==(const FEquirectProps& Other) const
-	{
-		return (LeftUVRect == Other.LeftUVRect) && (RightUVRect == Other.RightUVRect) && (LeftScale == Other.LeftScale) && (RightScale == Other.RightScale) && (LeftBias == Other.LeftBias) && (RightBias == Other.RightBias);
-	}
+	bool operator==(const FEquirectProps& Other) const;
+
+	/**
+	 * Compares FEquirectProps with an UStereoLayerShapeEquirect
+	 *
+	 * @param Other The UStereoLayerShapeEquirect to compare with.
+	 * @return true if the are equal, false otherwise.
+	 */
+	bool operator==(const class UStereoLayerShapeEquirect& Other) const;
+};
+
+
+UCLASS(meta = (DisplayName = "Equirect Layer"))
+class UStereoLayerShapeEquirect : public UStereoLayerShape
+{
+	GENERATED_BODY()
+
+public:
+	UStereoLayerShapeEquirect()
+		: LeftUVRect(FBox2D(FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f)))
+		, RightUVRect(FBox2D(FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f)))
+		, LeftScale(FVector2D(1.0f, 1.0f))
+		, RightScale(FVector2D(1.0f, 1.0f))
+		, LeftBias(FVector2D(0.0f, 0.0f))
+		, RightBias(FVector2D(0.0f, 0.0f))
+	{}
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equirect Properties")
+	/** Left source texture UVRect, specifying portion of input texture corresponding to left eye. */
+	FBox2D LeftUVRect;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equirect Properties")
+	/** Right source texture UVRect, specifying portion of input texture corresponding to right eye. */
+	FBox2D RightUVRect;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equirect Properties")
+	/** Left eye's texture coordinate scale after mapping to 2D. */
+	FVector2D LeftScale;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equirect Properties")
+	/** Right eye's texture coordinate scale after mapping to 2D. */
+	FVector2D RightScale;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equirect Properties")
+	/** Left eye's texture coordinate bias after mapping to 2D. */
+	FVector2D LeftBias;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equirect Properties")
+	/** Right eye's texture coordinate bias after mapping to 2D. */
+	FVector2D RightBias;
+
+	/**
+	 * Set Equirect layer properties: UVRect, Scale, and Bias
+	 * @param	LeftScale: Scale for left eye
+	 * @param	LeftBias: Bias for left eye
+	 * @param	RightScale: Scale for right eye
+	 * @param	RightBias: Bias for right eye
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Components|Stereo Layer")
+	void SetEquirectProps(FEquirectProps InScaleBiases);
+
+	virtual void ApplyShape(IStereoLayers::FLayerDesc& LayerDesc) override;
 };
 
 /** 
@@ -121,10 +250,14 @@ public:
 
 	//~ Begin UObject Interface
 	void BeginDestroy() override;
+	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostLoad() override;
+	//~ End UObject Interface
 
 	//~ Begin UActorComponent Interface
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
-	
+	//~ End UActorComponent Interface
+
 	/** 
 	 * Change the texture displayed on the stereo layer. 
 	 *
@@ -178,7 +311,7 @@ public:
 	 * @param	RightScale: Scale for right eye
 	 * @param	RightBias: Bias for right eye
 	 */
-	UFUNCTION(BlueprintCallable, Category="Components|Stereo Layer")
+	UFUNCTION(BlueprintCallable, Category = "Components|Stereo Layer", meta = (DeprecatedFunction, DeprecationMessage = "Use UStereoLayerShapeEquirect::SetEquirectProps() instead."))
 	void SetEquirectProps(FEquirectProps InScaleBiases);
 
 	/** 
@@ -208,13 +341,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category= "StereoLayer")
 	uint32 bNoAlphaChannel:1;
 
+	void MarkStereoLayerDirty();
 protected:
 	/** Texture displayed on the stereo layer (is stereocopic textures are supported on the platfrom and more than one texture is provided, this will be the right eye) **/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category= "StereoLayer")
 	class UTexture* Texture;
 
-	/** Texture displayed on the stereo layer for left eye, if stereoscopic textures are supported on the platform **/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "StereoLayer | Cubemap Overlay Properties")
+	/** Texture displayed on the stereo layer for left eye, if stereoscopic textures are supported on the platform and by the layer shape **/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stereoscopic Properties")
 	class UTexture* LeftTexture;
 
 public:
@@ -224,36 +358,41 @@ public:
 
 protected:
 	/** Size of the rendered stereo layer quad **/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category="StereoLayer | Quad Overlay Properties")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category="StereoLayer")
 	FVector2D QuadSize;
 
 	/** UV coordinates mapped to the quad face **/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category="StereoLayer | Quad Overlay Properties")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category="StereoLayer")
 	FBox2D UVRect;
 
-	/** Radial size of the rendered stereo layer cylinder **/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Cylinder Overlay Properties")
-	float CylinderRadius;
+	UE_DEPRECATED(4.25, "float CylinderRadius is deprecated. Use the corresponding property of the UStereoLayerShapeCylinder subobject instead.")
+	UPROPERTY()
+	float CylinderRadius_DEPRECATED;
 
-	/** Arc angle for the stereo layer cylinder **/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Cylinder Overlay Properties")
-	float CylinderOverlayArc;
+	UE_DEPRECATED(4.25, "float CylinderOverlayArc is deprecated. Use the corresponding property of the UStereoLayerShapeCylinder subobject instead.")
+	UPROPERTY()
+	float CylinderOverlayArc_DEPRECATED;
 
-	/** Height of the stereo layer cylinder **/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Cylinder Overlay Properties")
-	int CylinderHeight;
+	UE_DEPRECATED(4.25, "int CylinderHeight is deprecated. Use the corresponding property of the UStereoLayerShapeCylinder subobject instead.")
+	UPROPERTY()
+	int CylinderHeight_DEPRECATED;
 
-	/** UVRects, scale, and biases per eye for equirect layers. UVRects are for input texture UVs per eye, and the latter 2 control scale and bias of texture coordinates after mapping to 2D.  **/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
-	FEquirectProps EquirectProps;
+	UE_DEPRECATED(4.25, "FEquirectProps EquirectProps is deprecated. Use the corresponding properties of the UStereoLayerShapeEquirect subobject instead.")
+	UPROPERTY()
+	FEquirectProps EquirectProps_DEPRECATED;
 
 	/** Specifies how and where the quad is rendered to the screen **/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category="StereoLayer")
     TEnumAsByte<enum EStereoLayerType> StereoLayerType;
 
-	/** Specifies which type of layer it is.  Note that some shapes will be supported only on certain platforms! **/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer")
-	TEnumAsByte<enum EStereoLayerShape> StereoLayerShape;
+	UE_DEPRECATED(4.25, "TEnumAsByte<enum EStereoLayerShape> StereoLayerShape is deprecated. Use Shape instead.")
+	UPROPERTY()
+	TEnumAsByte<enum EStereoLayerShape> StereoLayerShape_DEPRECATED;
+
+	/** Specifies which shape of layer it is.  Note that some shapes will be supported only on certain platforms! **/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, NoClear, Instanced, Category = "StereoLayer", DisplayName="Stereo Layer Shape")
+	UStereoLayerShape* Shape;
+
 
 	/** Render priority among all stereo layers, higher priority render on top of lower priority **/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category= "StereoLayer")
@@ -274,5 +413,8 @@ private:
 
 	/** Last frames visiblity state **/
 	bool bLastVisible;
+
+	/** Set if the component was loaded from an old version */
+	bool bNeedsPostLoadFixup;
 };
 
