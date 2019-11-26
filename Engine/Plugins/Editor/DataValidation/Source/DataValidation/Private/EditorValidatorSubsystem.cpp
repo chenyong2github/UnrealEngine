@@ -355,6 +355,8 @@ bool UEditorValidatorSubsystem::IsPathExcludedFromValidation(const FString& Path
 
 void UEditorValidatorSubsystem::ValidateAllSavedPackages()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UEditorValidatorSubsystem::ValidateAllSavedPackages);
+
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 

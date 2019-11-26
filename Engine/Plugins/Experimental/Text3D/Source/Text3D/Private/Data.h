@@ -21,7 +21,7 @@ public:
 	 * @param FontInverseScaleIn - Documented in Bevel.h.
 	 * @param ScaleIn - Documented in Bevel.h.
 	 */
-	FData(TSharedPtr<TText3DMeshList> MeshesIn, const float ExpandTotalIn, const float FontInverseScaleIn, const FVector& ScaleIn);
+	FData(TSharedRef<TText3DMeshList> MeshesIn, const float ExpandTotalIn, const float FontInverseScaleIn, const FVector& ScaleIn);
 
 
 	void SetHorizontalOffset(const float HorizontalOffsetIn);
@@ -63,7 +63,7 @@ public:
 	void SetCurrentMesh(EText3DMeshType Type);
 
 private:
-	TSharedPtr<TText3DMeshList> Meshes;
+	TSharedRef<TText3DMeshList> Meshes;
 	FText3DDynamicData* CurrentMesh;
 
 	const float ExpandTotal;

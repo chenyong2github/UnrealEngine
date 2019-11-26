@@ -166,9 +166,6 @@ void FTContour::SetParity(int parity)
 FTContour::FTContour(FT_Vector* contour, char* tags, unsigned int n)
 {
     FTPoint prev, cur(contour[(n - 1) % n]), next(contour[0]);
-    FTPoint a, b = next - cur;
-    double olddir, dir = atan2((next - cur).Y(), (next - cur).X());
-    double angle = 0.0;
 
     // See http://freetype.sourceforge.net/freetype2/docs/glyphs/glyphs-6.html
     // for a full description of FreeType tags.
@@ -177,14 +174,6 @@ FTContour::FTContour(FT_Vector* contour, char* tags, unsigned int n)
         prev = cur;
         cur = next;
         next = FTPoint(contour[(i + 1) % n]);
-        olddir = dir;
-        dir = atan2((next - cur).Y(), (next - cur).X());
-
-        // Compute our path's new direction.
-        double t = dir - olddir;
-        if(t < -M_PI) t += 2 * M_PI;
-        if(t > M_PI) t -= 2 * M_PI;
-        angle += t;
 
         // Only process point tags we know.
         if(n < 2 || FT_CURVE_TAG(tags[i]) == FT_Curve_Tag_On)
@@ -220,9 +209,21 @@ FTContour::FTContour(FT_Vector* contour, char* tags, unsigned int n)
         }
     }
 
-    // If final angle is positive (+2PI), it's an anti-clockwise contour,
-    // otherwise (-2PI) it's clockwise.
-    clockwise = (angle < 0.0);
+
+    const size_t pointCount = PointCount();
+    float area = 0.0f;
+    const FTPoint first = Point(0);
+    next = Point(1) - first;
+
+    for (size_t i = 1; i < pointCount - 1; i++)
+    {
+        cur = next;
+        next = Point((i + 1) % pointCount) - first;
+
+        area += (cur ^ next).Zf();
+    }
+
+    clockwise = area < 0.0f;
 }
 
 

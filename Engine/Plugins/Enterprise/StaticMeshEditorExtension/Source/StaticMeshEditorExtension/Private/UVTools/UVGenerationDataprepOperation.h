@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "DataPrepOperation.h"
+#include "DataprepOperation.h"
 
 #include "UVGenerationDataprepOperation.generated.h"
 

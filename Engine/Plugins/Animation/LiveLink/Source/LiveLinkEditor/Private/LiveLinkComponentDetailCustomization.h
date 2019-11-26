@@ -5,7 +5,9 @@
 #include "IDetailCustomization.h"
 
 #include "CoreMinimal.h"
+#include "LiveLinkRole.h"
 #include "Styling/SlateColor.h"
+#include "Templates/SubclassOf.h"
 
 #include "LiveLinkComponentController.h"
 

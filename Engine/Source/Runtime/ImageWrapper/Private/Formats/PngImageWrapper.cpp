@@ -120,6 +120,8 @@ FPngImageWrapper::FPngImageWrapper()
 
 void FPngImageWrapper::Compress(int32 Quality)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPngImageWrapper::Compress)
+
 	if (!CompressedData.Num())
 	{
 		//Preserve old single thread code on some platform in relation to a type incompatibility at compile time.

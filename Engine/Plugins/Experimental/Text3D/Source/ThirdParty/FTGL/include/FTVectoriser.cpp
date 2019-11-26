@@ -30,6 +30,9 @@
 #include "FTInternals.h"
 #include "FTVectoriser.h"
 
+#include <vector>
+#include <cmath>
+
 #ifndef CALLBACK
 #define CALLBACK
 #endif
@@ -155,6 +158,18 @@ FTVectoriser::~FTVectoriser()
 }
 
 
+struct FTVectoriser::ContourNode
+{
+    FTVectoriser::ContourNode()
+    {
+        contour = NULL;
+    }
+
+    FTContour* contour;
+    std::vector<ContourNode*> nodes;
+};
+
+
 void FTVectoriser::ProcessContours()
 {
     short contourLength = 0;
@@ -178,69 +193,114 @@ void FTVectoriser::ProcessContours()
         startIndex = endIndex + 1;
     }
 
-    // Compute each contour's parity. FIXME: see if FT_Outline_Get_Orientation
-    // can do it for us.
-    for(int i = 0; i < ftContourCount; i++)
+
+    ContourNode root;
+
+    for(short i = 0; i < ftContourCount; i++)
     {
-        FTContour *c1 = contourList[i];
+        ContourNode* node = new ContourNode;
+        node->contour = contourList[i];
+        Insert(node, &root);
+    }
 
-        // 1. Find the leftmost point.
-        FTPoint leftmost(65536.0, 0.0);
+    SetParity(&root, false);
+}
 
-        for(size_t n = 0; n < c1->PointCount(); n++)
+
+void FTVectoriser::Insert(ContourNode* nodeA, ContourNode* nodeB)
+{
+    std::vector<ContourNode*>& bNodes = nodeB->nodes;
+    const FTContour* contourA = nodeA->contour;
+
+    for(size_t i = 0; i < bNodes.size(); i++)
+    {
+        ContourNode*& nodeC = bNodes[i];
+        const FTContour* contourC = nodeC->contour;
+
+        if (Inside(contourA, contourC))
         {
-            FTPoint p = c1->Point(n);
-            if(p.X() < leftmost.X())
-            {
-                leftmost = p;
-            }
+            Insert(nodeA, nodeC);
+            return;
         }
 
-        // 2. Count how many other contours we cross when going further to
-        // the left.
-        int parity = 0;
-
-        for(int j = 0; j < ftContourCount; j++)
+        if (Inside(contourC, contourA))
         {
-            if(j == i)
+            // add contourC to list of contours that are inside contourA
+            std::vector<ContourNode*>& aNodes = nodeA->nodes;
+            aNodes.push_back(nodeC);
+            // replace contourC with contourA in list it was before
+            nodeC = nodeA;
+
+            // check if other contours in that list are inside contourA
+            for (std::vector<ContourNode*>::iterator j = bNodes.end() - 1; j != bNodes.begin() + i; j--)
             {
-                continue;
+                if (Inside((*j)->contour, contourA))
+                {
+                    aNodes.push_back(*j);
+                    j = bNodes.erase(j);
+                }
             }
 
-            FTContour *c2 = contourList[j];
-
-            for(size_t n = 0; n < c2->PointCount(); n++)
-            {
-                FTPoint p1 = c2->Point(n);
-                FTPoint p2 = c2->Point((n + 1) % c2->PointCount());
-
-                /* FIXME: combinations of >= > <= and < do not seem stable */
-                if((p1.Y() < leftmost.Y() && p2.Y() < leftmost.Y())
-                    || (p1.Y() >= leftmost.Y() && p2.Y() >= leftmost.Y())
-                    || (p1.X() > leftmost.X() && p2.X() > leftmost.X()))
-                {
-                    continue;
-                }
-                else if(p1.X() < leftmost.X() && p2.X() < leftmost.X())
-                {
-                    parity++;
-                }
-                else
-                {
-                    FTPoint a = p1 - leftmost;
-                    FTPoint b = p2 - leftmost;
-                    if(b.X() * a.Y() > b.Y() * a.X())
-                    {
-                        parity++;
-                    }
-                }
-            }
+            return;
         }
+    }
 
-        // 3. Make sure the glyph has the proper parity.
-        c1->SetParity(parity);
+    bNodes.push_back(nodeA);
+};
+
+
+void FTVectoriser::SetParity(ContourNode* nodeA, const bool clockwise)
+{
+    for (ContourNode* nodeB : nodeA->nodes)
+    {
+        SetParity(nodeB, !clockwise);
+        nodeB->contour->SetParity(clockwise);
+        delete nodeB;
     }
 }
+
+
+bool FTVectoriser::Inside(const FTContour* contourA, const FTContour* contourB)
+{
+    const size_t bPointCount = contourB->PointCount();
+    // compute angle to which vector "b(i) - a(0)" is rotated when "i" iterates over all points of contourB
+    float angleTotal = 0;
+
+    float anglePrev;
+    float angleCurr;
+
+    auto ComputeAngleCurr = [contourB, bPointCount, contourA, &angleCurr](const int endPoint)
+    {
+        // use counterclockwise version of contour if it's clockwise
+        const FTPoint delta = contourB->Point(contourB->Clockwise() ? bPointCount - 1 - endPoint : endPoint) - contourA->Point(0);
+        angleCurr = atan2(delta.Yf(), delta.Xf());
+    };
+
+    ComputeAngleCurr(0);
+
+    for (size_t i = 0; i < bPointCount; i++)
+    {
+        anglePrev = angleCurr;
+        ComputeAngleCurr((i + 1) % bPointCount);
+
+        float deltaAngle = angleCurr - anglePrev;
+
+        if(deltaAngle < -M_PI)
+        {
+            deltaAngle += 2 * M_PI;
+        }
+
+        if(deltaAngle > M_PI)
+        {
+            deltaAngle -= 2 * M_PI;
+        }
+
+        angleTotal += deltaAngle;
+    }
+
+    // if contourA is inside contourB, angle is 2pi, else it's 0
+    return angleTotal > 3;
+};
 
 
 size_t FTVectoriser::PointCount()

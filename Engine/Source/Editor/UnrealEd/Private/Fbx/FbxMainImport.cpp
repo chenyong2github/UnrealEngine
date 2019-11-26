@@ -978,6 +978,8 @@ bool FFbxImporter::OpenFile(FString Filename)
 		return false;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(FFbxImporter::OpenFile);
+
 	GWarn->BeginSlowTask( LOCTEXT("OpeningFile", "Reading File"), true);
 	GWarn->StatusForceUpdate(20, 100, LOCTEXT("OpeningFile", "Reading File"));
 
@@ -1272,6 +1274,8 @@ bool FFbxImporter::ImportFile(FString Filename, bool bPreventMaterialNameClash /
 
 void FFbxImporter::ConvertScene()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FFbxImporter::ConvertScene);
+
 	//Merge the anim stack before the conversion since the above 0 layer will not be converted
 	int32 AnimStackCount = Scene->GetSrcObjectCount<FbxAnimStack>();
 	//Merge the animation stack layer before converting the scene

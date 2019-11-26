@@ -30,6 +30,9 @@
 #include "ISourceControlProvider.h"
 #include "SourceControlOperations.h"
 
+#include "MessageLogModule.h"
+#include "Logging/MessageLog.h"
+
 #include "Framework/Commands/Commands.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/Docking/TabManager.h"
@@ -39,7 +42,6 @@
 #include "EditorStyleSet.h"
 #include "Delegates/IDelegateInstance.h"
 #include "Interfaces/IEditorStyleModule.h"
-#include "MessageLogModule.h"
 #include "IDetailCustomization.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
@@ -199,8 +201,15 @@ private:
 
 		if (DirtyPackages.Num() > 0)
 		{
+			// Print which package are dirty to the message log
+			FMessageLog MessageLog("Concert");
+			for (UPackage* Package : DirtyPackages)
+			{
+				MessageLog.Warning(FText::Format(LOCTEXT("ValidatingWorkspace_InMemoryChanges_Log", "Workspace validation failed: '{0}' contains in-memory changes before joining a multi-user session."), FText::FromName(Package->GetFName())));
+			}
+
 			InSharedState->Result = EConcertResponseCode::Failed;
-			InSharedState->ErrorText = LOCTEXT("ValidatingWorkspace_InMemoryChanges", "This workspace has in-memory changes. Please save or discard these changes before attempting to connect.");
+			InSharedState->ErrorText = LOCTEXT("ValidatingWorkspace_InMemoryChanges", "This workspace has in-memory changes. Please save or discard these changes before attempting to connect. See Muti-User message log for details.");
 		}
 		else
 		{
@@ -220,9 +229,10 @@ private:
 			if (ensure(SourceControlProvider.IsEnabled() && SourceControlProvider.IsAvailable()))
 			{
 				bool bHasLocalChanges = false;
+				FMessageLog MessageLog("Concert");
 				for (const FString& ContentPath : InSharedState->ContentPaths)
 				{
-					IFileManager::Get().IterateDirectoryRecursively(*ContentPath, [&bHasLocalChanges, &SourceControlProvider](const TCHAR* InFilename, bool InIsDirectory) -> bool
+					IFileManager::Get().IterateDirectoryRecursively(*ContentPath, [&bHasLocalChanges, &SourceControlProvider, &MessageLog](const TCHAR* InFilename, bool InIsDirectory) -> bool
 					{
 						const FString FilenameStr = InFilename;
 						if (!InIsDirectory && FPackageName::IsPackageFilename(FilenameStr))
@@ -231,7 +241,7 @@ private:
 							if (FileState.IsValid() && (FileState->IsAdded() || FileState->IsDeleted() || FileState->IsModified() || (SourceControlProvider.UsesCheckout() && FileState->IsCheckedOut()))) // TODO: Include unversioned files?
 							{
 								bHasLocalChanges = true;
-								UE_LOG(LogConcert, Warning, TEXT("%s has local changes before joining a multi-user session."), *FileState->GetFilename());
+								MessageLog.Warning(FText::Format(LOCTEXT("ValidatingWorkspace_LocalChanges_Log", "Workspace validation failed: '{0}' contains local changes before joining a multi-user session."), FText::FromString(FileState->GetFilename())));
 								return false; // end iteration
 							}
 						}
@@ -246,7 +256,7 @@ private:
 				if (bHasLocalChanges)
 				{
 					InSharedState->Result = EConcertResponseCode::Failed;
-					InSharedState->ErrorText = LOCTEXT("ValidatingWorkspace_LocalChanges", "This workspace has local changes. Please submit or revert these changes before attempting to connect. See output log for details.");
+					InSharedState->ErrorText = LOCTEXT("ValidatingWorkspace_LocalChanges", "This workspace has local changes. Please submit or revert these changes before attempting to connect. See Muti-User message log for details.");
 				}
 				else
 				{

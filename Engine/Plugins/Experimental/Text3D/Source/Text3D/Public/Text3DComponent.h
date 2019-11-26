@@ -259,7 +259,7 @@ private:
 	bool PendingBuild;
 	bool FreezeBuild;
 
-	TSharedPtr<TText3DMeshList> Meshes;
+	TSharedRef<TText3DMeshList> Meshes;
 	FTransform CharacterTransform;
 
 	friend class FText3DSceneProxy;

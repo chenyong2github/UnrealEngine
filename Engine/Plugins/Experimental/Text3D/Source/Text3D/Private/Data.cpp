@@ -5,7 +5,7 @@
 #include "Bevel/Part.h"
 
 
-FData::FData(TSharedPtr<TText3DMeshList> MeshesIn, const float ExpandTotalIn, const float FontInverseScaleIn, const FVector& ScaleIn)
+FData::FData(TSharedRef<TText3DMeshList> MeshesIn, const float ExpandTotalIn, const float FontInverseScaleIn, const FVector& ScaleIn)
 	: Meshes(MeshesIn)
 
 	, ExpandTotal(ExpandTotalIn / FontInverseScaleIn)
@@ -13,7 +13,6 @@ FData::FData(TSharedPtr<TText3DMeshList> MeshesIn, const float ExpandTotalIn, co
 	, FontInverseScale(FontInverseScaleIn)
 	, Scale(ScaleIn)
 {
-	check(Meshes.Get());
 	CurrentMesh = nullptr;
 	Extrude = 0.0f;
 	Expand = 0.0f;
@@ -163,7 +162,7 @@ FVector FData::ComputeTangentZ(const FPart* const Edge, const float DoneExpand)
 
 void FData::SetCurrentMesh(EText3DMeshType Type)
 {
-	CurrentMesh = &((*Meshes.Get())[static_cast<int32>(Type)]);
+	CurrentMesh = &(Meshes.Get()[static_cast<int32>(Type)]);
 
 	check(CurrentMesh);
 	CurrentMesh->GlyphStartVertices.Add(CurrentMesh->Vertices.Num());
