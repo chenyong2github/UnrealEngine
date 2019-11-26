@@ -11,8 +11,7 @@ namespace Chaos
 	template <typename T>
 	class TTriangleMeshImplicitObject;
 
-	template <typename T, int d>
-	class TConvex;
+	class FConvex;
 }
 
 struct FUntypedBulkData;
