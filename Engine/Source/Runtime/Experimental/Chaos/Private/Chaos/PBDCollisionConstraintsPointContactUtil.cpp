@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/PBDCollisionConstraintsPointContactUtil.h"
-#include "Chaos/CollisionResolutionAlgo.h"
+#include "Chaos/CollisionResolution.h"
 #include "Chaos/Defines.h"
 #include "Chaos/Utilities.h"
 
@@ -9,64 +9,6 @@ namespace Chaos
 {
 	namespace Collisions
 	{
-		template<typename T=float, int d=3>
-		TRigidTransform<T, d> GetTransform(const TGeometryParticleHandle<T, d>* Particle)
-		{
-			TGenericParticleHandle<T, d> Generic = const_cast<TGeometryParticleHandle<T, d>*>(Particle);
-			return TRigidTransform<T, d>(Generic->P(), Generic->Q());
-		}
-
-		// @todo(ccaulfield): This is duplicated in JointConstraints - move to a utility file
-		template<typename T>
-		PMatrix<T, 3, 3> ComputeFactorMatrix3(const TVector<T, 3>& V, const PMatrix<T, 3, 3>& M, const T& Im)
-		{
-			// Rigid objects rotational contribution to the impulse.
-			// Vx*M*VxT+Im
-			check(Im > FLT_MIN)
-				return PMatrix<T, 3, 3>(
-					-V[2] * (-V[2] * M.M[1][1] + V[1] * M.M[2][1]) + V[1] * (-V[2] * M.M[2][1] + V[1] * M.M[2][2]) + Im,
-					V[2] * (-V[2] * M.M[1][0] + V[1] * M.M[2][0]) - V[0] * (-V[2] * M.M[2][1] + V[1] * M.M[2][2]),
-					-V[1] * (-V[2] * M.M[1][0] + V[1] * M.M[2][0]) + V[0] * (-V[2] * M.M[1][1] + V[1] * M.M[2][1]),
-					V[2] * (V[2] * M.M[0][0] - V[0] * M.M[2][0]) - V[0] * (V[2] * M.M[2][0] - V[0] * M.M[2][2]) + Im,
-					-V[1] * (V[2] * M.M[0][0] - V[0] * M.M[2][0]) + V[0] * (V[2] * M.M[1][0] - V[0] * M.M[2][1]),
-					-V[1] * (-V[1] * M.M[0][0] + V[0] * M.M[1][0]) + V[0] * (-V[1] * M.M[1][0] + V[0] * M.M[1][1]) + Im);
-		}
-
-		template<typename T, int d>
-		TVector<T, d> GetEnergyClampedImpulse(const TRigidBodyPointContactConstraint<T, d>& Constraint, const TVector<T, d>& Impulse, const TVector<T, d>& VectorToPoint1, const TVector<T, d>& VectorToPoint2, const TVector<T, d>& Velocity1, const TVector<T, d>& Velocity2)
-		{
-			TPBDRigidParticleHandle<T, d>* PBDRigid0 = Constraint.Particle[0]->AsDynamic();
-			TPBDRigidParticleHandle<T, d>* PBDRigid1 = Constraint.Particle[1]->AsDynamic();
-
-			TVector<T, d> Jr0, Jr1, IInvJr0, IInvJr1;
-			T ImpulseRatioNumerator0 = 0, ImpulseRatioNumerator1 = 0, ImpulseRatioDenom0 = 0, ImpulseRatioDenom1 = 0;
-			T ImpulseSize = Impulse.SizeSquared();
-			TVector<T, d> KinematicVelocity = !PBDRigid0 ? Velocity1 : !PBDRigid1 ? Velocity2 : TVector<T, d>(0);
-			if (PBDRigid0)
-			{
-				Jr0 = TVector<T, d>::CrossProduct(VectorToPoint1, Impulse);
-				IInvJr0 = PBDRigid0->Q().RotateVector(PBDRigid0->InvI() * PBDRigid0->Q().UnrotateVector(Jr0));
-				ImpulseRatioNumerator0 = TVector<T, d>::DotProduct(Impulse, PBDRigid0->V() - KinematicVelocity) + TVector<T, d>::DotProduct(IInvJr0, PBDRigid0->W());
-				ImpulseRatioDenom0 = ImpulseSize / PBDRigid0->M() + TVector<T, d>::DotProduct(Jr0, IInvJr0);
-			}
-			if (PBDRigid1)
-			{
-				Jr1 = TVector<T, d>::CrossProduct(VectorToPoint2, Impulse);
-				IInvJr1 = PBDRigid1->Q().RotateVector(PBDRigid1->InvI() * PBDRigid1->Q().UnrotateVector(Jr1));
-				ImpulseRatioNumerator1 = TVector<T, d>::DotProduct(Impulse, PBDRigid1->V() - KinematicVelocity) + TVector<T, d>::DotProduct(IInvJr1, PBDRigid1->W());
-				ImpulseRatioDenom1 = ImpulseSize / PBDRigid1->M() + TVector<T, d>::DotProduct(Jr1, IInvJr1);
-			}
-			T Numerator = -2 * (ImpulseRatioNumerator0 - ImpulseRatioNumerator1);
-			if (Numerator < 0)
-			{
-				return TVector<T, d>(0);
-			}
-			check(Numerator >= 0);
-			T Denominator = ImpulseRatioDenom0 + ImpulseRatioDenom1;
-			return Numerator < Denominator ? (Impulse * Numerator / Denominator) : Impulse;
-		}
-
-
 		template<ECollisionUpdateType UpdateType, typename T, int d>
 		void Update(const T Thickness, TRigidBodyPointContactConstraint<T, d>& Constraint)
 		{
@@ -80,7 +22,7 @@ namespace Chaos
 				{
 					if (!Constraint.Particle[1]->Geometry()->IsUnderlyingUnion())
 					{
-						UpdateLevelsetConstraint<UpdateType>(Thickness, Constraint);
+						UpdateLevelsetLevelsetConstraint<UpdateType>(Thickness, Constraint);
 					}
 					else
 					{
@@ -93,39 +35,6 @@ namespace Chaos
 				UpdateConstraintImp<UpdateType>(*Constraint.Particle[0]->Geometry(), ParticleTM, *Constraint.Particle[1]->Geometry(), LevelsetTM, Thickness, Constraint);
 			}
 		}
-		template void Update<ECollisionUpdateType::Any, float, 3>(const float, TRigidBodyPointContactConstraint<float, 3>&);
-		template void Update<ECollisionUpdateType::Deepest, float, 3>(const float, TRigidBodyPointContactConstraint<float, 3>&);
-
-
-		template<ECollisionUpdateType UpdateType, typename T, int d>
-		void UpdateConstraint(const T Thickness, TRigidBodyPointContactConstraint<T, d>& Constraint)
-		{
-			Constraint.ResetPhi(Thickness);
-			const TRigidTransform<T, d> ParticleTM = GetTransform(Constraint.Particle[0]);
-			const TRigidTransform<T, d> LevelsetTM = GetTransform(Constraint.Particle[1]);
-
-			if (!Constraint.Particle[0]->Geometry())
-			{
-				if (Constraint.Particle[1]->Geometry())
-				{
-					if (!Constraint.Particle[1]->Geometry()->IsUnderlyingUnion())
-					{
-						UpdateLevelsetConstraint<UpdateType>(Thickness, Constraint);
-					}
-					else
-					{
-						UpdateUnionLevelsetConstraint<UpdateType>(Thickness, Constraint);
-					}
-				}
-			}
-			else
-			{
-				UpdateConstraintImp<UpdateType>(*Constraint.Particle[0]->Geometry(), ParticleTM, *Constraint.Particle[1]->Geometry(), LevelsetTM, Thickness, Constraint);
-			}
-		}
-		template void UpdateConstraint<ECollisionUpdateType::Any, float, 3>(const float, TRigidBodyPointContactConstraint<float,3>&);
-		template void UpdateConstraint<ECollisionUpdateType::Deepest, float, 3>(const float, TRigidBodyPointContactConstraint<float,3>&);
-
 
 		template<typename T, int d>
 		void Apply(TRigidBodyPointContactConstraint<T, d>& Constraint, T Thickness, TPointContactIterationParameters<T> & IterationParameters, TPointContactParticleParameters<T> & ParticleParameters)
@@ -137,7 +46,7 @@ namespace Chaos
 
 			for (int32 PairIt = 0; PairIt < IterationParameters.NumPairIterations; ++PairIt)
 			{
-				Collisions::UpdateConstraint<ECollisionUpdateType::Deepest>(Thickness, Constraint);
+				Collisions::Update<ECollisionUpdateType::Deepest>(Thickness, Constraint);
 				if (Constraint.GetPhi() >= Thickness)
 				{
 					return;
@@ -346,7 +255,6 @@ namespace Chaos
 				}
 			}
 		}
-		template void Apply<float, 3>(TRigidBodyPointContactConstraint<float, 3>&, float, TPointContactIterationParameters<float> &, TPointContactParticleParameters<float> &);
 
 		template<typename T, int d>
 		void ApplyPushOut(TRigidBodyPointContactConstraint<T, d>& Constraint, T Thickness, const TSet<const TGeometryParticleHandle<T, d>*>& IsTemporarilyStatic,
@@ -378,7 +286,7 @@ namespace Chaos
 
 			for (int32 PairIteration = 0; PairIteration < IterationParameters.NumPairIterations; ++PairIteration)
 			{
-				UpdateConstraint<ECollisionUpdateType::Deepest>(Thickness, Constraint);
+				Update<ECollisionUpdateType::Deepest>(Thickness, Constraint);
 
 				const typename TRigidBodyPointContactConstraint<T, d>::FManifold & Contact = Constraint.Manifold;
 
@@ -459,6 +367,10 @@ namespace Chaos
 				}
 			}
 		}
+
+		template void Update<ECollisionUpdateType::Any, float, 3>(const float, TRigidBodyPointContactConstraint<float, 3>&);
+		template void Update<ECollisionUpdateType::Deepest, float, 3>(const float, TRigidBodyPointContactConstraint<float, 3>&);
+		template void Apply<float, 3>(TRigidBodyPointContactConstraint<float, 3>&, float, TPointContactIterationParameters<float> &, TPointContactParticleParameters<float> &);
 		template void ApplyPushOut<float, 3>(TRigidBodyPointContactConstraint<float,3>&, float , const TSet<const TGeometryParticleHandle<float,3>*>&,
 			TPointContactIterationParameters<float> & IterationParameters, TPointContactParticleParameters<float> & ParticleParameters);
 
