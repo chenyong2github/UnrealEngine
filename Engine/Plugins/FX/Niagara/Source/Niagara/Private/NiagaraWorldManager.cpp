@@ -567,6 +567,7 @@ void FNiagaraWorldManager::DumpDetails(FOutputDevice& Ar)
 
 void FNiagaraWorldManager::EnqueueDeferredDeletionFences(TArray<FNiagaraDeferredDeletionFence>& OutFences)
 {
+	OutFences.Reserve(WorldManagers.Num());
 	for (auto& Pair : WorldManagers)
 	{
 		UWorld* World = Pair.Key;
@@ -586,12 +587,13 @@ void FNiagaraWorldManager::EnqueueDeferredDeletionFences(TArray<FNiagaraDeferred
 				{
 					if (NiagaraEmitterInstanceBatcher* Batcher = static_cast<NiagaraEmitterInstanceBatcher*>(FXSystemInterface->GetInterface(NiagaraEmitterInstanceBatcher::Name)))
 					{
+						FNiagaraInstanceBatcherDeferredDeletionFence BatcherFence(Fence);
 						ENQUEUE_RENDER_COMMAND(FDeletionFenceCommand)(
-							[Batcher, Fence](FRHICommandListImmediate& RHICmdList)
+							[Batcher, BatcherFence_RT = MoveTemp(BatcherFence)](FRHICommandListImmediate& RHICmdList) mutable
 						{
 							if (ensure(Batcher))
 							{
-								Batcher->AddFence_RenderThread(Fence);
+								Batcher->AddFence_RenderThread(BatcherFence_RT);
 							}
 						}
 						);
