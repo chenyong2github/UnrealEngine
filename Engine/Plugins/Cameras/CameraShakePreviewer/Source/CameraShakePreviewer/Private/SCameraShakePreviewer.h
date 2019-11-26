@@ -12,6 +12,7 @@
 
 class AActor;
 class FCameraShakePreviewerLevelEditorViewportClient;
+class FCameraShakePreviewerModule;
 class FLevelEditorViewportClient;
 class FSceneView;
 class ITableRow;
