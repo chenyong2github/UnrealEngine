@@ -79,6 +79,16 @@ public:
 	FTimespan GetDuration() const;
 
 	/**
+	 * Gets the Process Handle. The instance can be invalid if the process was not created.
+	 *
+	 * @return The Process Handle
+	 */
+	FProcHandle GetProcessHandle() const
+	{
+		return ProcessHandle;
+	}
+
+	/**
 	 * Checks whether the process is still running.
 	 *
 	 * @return true if the process is running, false otherwise.

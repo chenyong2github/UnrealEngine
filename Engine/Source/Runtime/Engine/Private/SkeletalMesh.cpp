@@ -4093,9 +4093,15 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 		,	bForceWireframe(Component->bForceWireframe)
 		,	bCanHighlightSelectedSections(Component->bCanHighlightSelectedSections)
 		,	bRenderStatic(Component->bRenderStatic)
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		,	bDrawDebugSkeleton(Component->ShouldDrawDebugSkeleton())
+#endif
 		,	FeatureLevel(GetScene().GetFeatureLevel())
 		,	bMaterialsNeedMorphUsage_GameThread(false)
 		,	MaterialRelevance(Component->GetMaterialRelevance(GetScene().GetFeatureLevel()))
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		,	DebugDrawColor(Component->GetDebugDrawColor())
+#endif
 #if WITH_EDITORONLY_DATA
 		,	StreamingDistanceMultiplier(FMath::Max(0.0f, Component->StreamingDistanceMultiplier))
 #endif
@@ -4593,7 +4599,7 @@ void FSkeletalMeshSceneProxy::GetMeshElementsConditionallySelectable(const TArra
 				RenderBounds(Collector.GetPDI(ViewIndex), ViewFamily.EngineShowFlags, GetBounds(), IsSelected());
 			}
 
-			if (ViewFamily.EngineShowFlags.Bones)
+			if (ViewFamily.EngineShowFlags.Bones || bDrawDebugSkeleton)
 			{
 				DebugDrawSkeleton(ViewIndex, Collector, ViewFamily.EngineShowFlags);
 			}
@@ -5002,6 +5008,7 @@ void FSkeletalMeshSceneProxy::DebugDrawPhysicsAsset(int32 ViewIndex, FMeshElemen
 
 void FSkeletalMeshSceneProxy::DebugDrawSkeleton(int32 ViewIndex, FMeshElementCollector& Collector, const FEngineShowFlags& EngineShowFlags) const
 {
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	FMatrix ProxyLocalToWorld, WorldToLocal;
 	if (!GetWorldMatrices(ProxyLocalToWorld, WorldToLocal))
 	{
@@ -5025,7 +5032,7 @@ void FSkeletalMeshSceneProxy::DebugDrawSkeleton(int32 ViewIndex, FMeshElementCol
 		const int32 ParentIndex = SkeletalMeshForDebug->RefSkeleton.GetParentIndex(Index);
 		FVector Start, End;
 		
-		FLinearColor LineColor = MakeRandomColorForSkeleton(GetPrimitiveComponentId().PrimIDValue);
+		FLinearColor LineColor = DebugDrawColor.Get(MakeRandomColorForSkeleton(GetPrimitiveComponentId().PrimIDValue));
 		const FTransform Transform = ComponentSpaceTransforms[Index] * LocalToWorldTransform;
 
 		if (ParentIndex >= 0)
@@ -5039,7 +5046,7 @@ void FSkeletalMeshSceneProxy::DebugDrawSkeleton(int32 ViewIndex, FMeshElementCol
 			End = Transform.GetLocation();
 		}
 
-		if(EngineShowFlags.Bones)
+		if(EngineShowFlags.Bones || bDrawDebugSkeleton)
 		{
 			if(CVarDebugDrawSimpleBones.GetValueOnRenderThread() != 0)
 			{
@@ -5056,6 +5063,7 @@ void FSkeletalMeshSceneProxy::DebugDrawSkeleton(int32 ViewIndex, FMeshElementCol
 			}
 		}
 	}
+#endif
 }
 
 /**

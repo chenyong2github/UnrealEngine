@@ -34,6 +34,7 @@
 #if WITH_EDITOR
 #include "Kismet2/ComponentEditorUtils.h"
 #endif
+#include "ObjectTrace.h"
 
 #define LOCTEXT_NAMESPACE "ActorComponent"
 
@@ -855,6 +856,8 @@ void UActorComponent::UninitializeComponent()
 
 void UActorComponent::BeginPlay()
 {
+	TRACE_OBJECT_EVENT(this, BeginPlay);
+
 	check(bRegistered);
 	check(!bHasBegunPlay);
 	checkSlow(bTickFunctionsRegistered); // If this fails, someone called BeginPlay() without first calling RegisterAllComponentTickFunctions().
@@ -869,6 +872,8 @@ void UActorComponent::BeginPlay()
 
 void UActorComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	TRACE_OBJECT_EVENT(this, EndPlay);
+
 	check(bHasBegunPlay);
 
 	// If we're in the process of being garbage collected it is unsafe to call out to blueprints

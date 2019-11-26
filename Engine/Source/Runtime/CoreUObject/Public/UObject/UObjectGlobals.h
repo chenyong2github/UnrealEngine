@@ -424,11 +424,6 @@ COREUOBJECT_API bool IsEventDrivenLoaderEnabled();
 COREUOBJECT_API float GetAsyncLoadPercentage( const FName& PackageName );
 
 /**
-* Whether we are inside garbage collection
-*/
-COREUOBJECT_API bool IsGarbageCollecting();
-
-/**
 * Whether we are running on the Garbage Collector Thread
 */
 COREUOBJECT_API bool IsInGarbageCollectorThread();
@@ -2126,6 +2121,12 @@ struct COREUOBJECT_API FCoreUObjectDelegates
 
 /** Allows release builds to override not verifying GC assumptions. Useful for profiling as it's hitchy. */
 extern COREUOBJECT_API bool GShouldVerifyGCAssumptions;
+
+/** If non-zero, the engine will create Garbage Collector clusters to speed up Garbage Collection */
+extern COREUOBJECT_API int32 GCreateGCClusters;
+
+/** If non-zero, the engine will attempt to create clusters from asset files */
+extern COREUOBJECT_API int32 GAssetClustreringEnabled;
 
 /** A struct used as stub for deleted ones. */
 COREUOBJECT_API UScriptStruct* GetFallbackStruct();

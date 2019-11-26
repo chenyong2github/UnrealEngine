@@ -44,7 +44,7 @@ class FMarkersTimingTrack : public FBaseTimingTrack
 	friend class FTimeMarkerTrackBuilder;
 
 public:
-	explicit FMarkersTimingTrack(uint64 InTrackId);
+	FMarkersTimingTrack();
 	virtual ~FMarkersTimingTrack();
 
 	virtual void Reset() override;
@@ -64,11 +64,11 @@ public:
 	int32 GetNumBoxes() const { return TimeMarkerBoxes.Num(); }
 	int32 GetNumTexts() const { return TimeMarkerTexts.Num(); }
 
-	virtual void UpdateHoveredState(float MouseX, float MouseY, const FTimingTrackViewport& Viewport) override;
-	virtual void Tick(const double CurrentTime, const float DeltaTime) override;
-	virtual void Update(const FTimingTrackViewport& Viewport) override;
-
-	void Draw(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const;
+	// FBaseTimingTrack
+	virtual void Update(const ITimingTrackUpdateContext& Context) override;
+	virtual void PostUpdate(const ITimingTrackUpdateContext& Context) override;
+	virtual void Draw(const ITimingTrackDrawContext& Context) const override;
+	virtual void PostDraw(const ITimingTrackDrawContext& Context) const override;
 
 private:
 	void ResetCache()
@@ -78,6 +78,7 @@ private:
 	}
 
 	void UpdateHeight();
+	void UpdateDrawState(const FTimingTrackViewport& Viewport);
 
 	void DrawHeader(FDrawContext& DrawContext, bool bFirstDraw) const;
 

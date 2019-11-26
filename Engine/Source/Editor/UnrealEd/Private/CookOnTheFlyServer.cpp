@@ -4031,7 +4031,7 @@ void UCookOnTheFlyServer::SaveCookedPackage(UPackage* Package, uint32 SaveFlags,
 						}
 						else
 						{
-							FSavePackageContext* const SavePackageContext = IsUsingPackageStore() ? SavePackageContexts[PlatformIndex] : nullptr;
+							FSavePackageContext* const SavePackageContext = SavePackageContexts.Num() > 0 ? SavePackageContexts[PlatformIndex] : nullptr;
 
 							Result = GEditor->Save(	Package, World, FlagsToCook, *PlatFilename, 
 													GError, nullptr, bSwap, false, SaveFlags, Target, 
@@ -5071,6 +5071,9 @@ FName UCookOnTheFlyServer::ConvertCookedPathToUncookedPath(
 		FString FullCookedFilename = FPaths::ConvertRelativePathToFull(CookedPath);
 		BuildUncookedPath(FullCookedFilename, SandboxRootDir, RelativeRootDir);
 	}
+
+	// Convert to a standard filename as required by FPackageNameCache where this path is used.
+	FPaths::MakeStandardFilename(OutUncookedPath);
 
 	return FName(*OutUncookedPath);
 }
@@ -6708,49 +6711,43 @@ void UCookOnTheFlyServer::InitializeSandbox()
 
 void UCookOnTheFlyServer::InitializePackageStore(const TArray<FName>& TargetPlatformNames)
 {
-	// TODO: should ideally support all cook modes
-	if (!IsUsingPackageStore())
-	{
-		return;
-	}
+	const FString RootPath = FPaths::RootDir();
+	const FString RootPathSandbox = ConvertToFullSandboxPath(*RootPath, true);
 
-	const FString NameMapFilename = FPaths::RootDir() / TEXT("megafile.unamemap");
-	const FString NameMapSandboxFilename = ConvertToFullSandboxPath(*NameMapFilename, true);
+	const FString ProjectPath = FPaths::ProjectDir();
+	const FString ProjectPathSandbox = ConvertToFullSandboxPath(*ProjectPath, true);
 
-	FString NameMapCookedSandboxFilename;
 	SavePackageContexts.Reserve(TargetPlatformNames.Num());
 
 	for (const FName PlatformName : TargetPlatformNames)
 	{
-		NameMapCookedSandboxFilename = NameMapSandboxFilename.Replace(TEXT("[Platform]"), *PlatformName.ToString());
+		const FString PlatformString = PlatformName.ToString();
+
+		const FString ResolvedRootPath = RootPathSandbox.Replace(TEXT("[Platform]"), *PlatformString);
+		const FString ResolvedProjectPath = ProjectPathSandbox.Replace(TEXT("[Platform]"), *PlatformString);
 
 		// just leak all memory for now
-		FPackageStoreNameMapSaver* NameMapSaver = new FPackageStoreNameMapSaver(*NameMapCookedSandboxFilename);
-		FPackageHeaderSaver* PackageHeaderSaver = new FPackageHeaderSaver(*NameMapSaver);
-		FLooseFileWriter* LooseFileWriter		= new FLooseFileWriter();
-		FSavePackageContext* SavePackageContext = new FSavePackageContext(*PackageHeaderSaver, *LooseFileWriter);
+		FPackageStoreBulkDataManifest* BulkDataManifest	= new FPackageStoreBulkDataManifest(ResolvedProjectPath);
+		FLooseFileWriter* LooseFileWriter				= IsUsingPackageStore() ? new FLooseFileWriter() : nullptr;
 
+		FSavePackageContext* SavePackageContext			= new FSavePackageContext(LooseFileWriter, BulkDataManifest);
 		SavePackageContexts.Add(SavePackageContext);
 	}
 }
 
 void UCookOnTheFlyServer::FinalizePackageStore()
 {
-	if (!IsUsingPackageStore())
-	{
-		return;
-	}
-
 	SCOPE_TIMER(FinalizePackageStore);
 
-	UE_LOG(LogCook, Display, TEXT("Saving name map(s)..."));
-	const TArray<ITargetPlatform*>& TargetPlatforms = GetCookingTargetPlatforms();
-	for (int32 PlatformIndex = 0; PlatformIndex < TargetPlatforms.Num(); ++PlatformIndex)
+	UE_LOG(LogCook, Display, TEXT("Saving BulkData manifest(s)..."));
+	for (FSavePackageContext* PackageContext : SavePackageContexts)
 	{
-		INameMapSaver& NameMapSaver = SavePackageContexts[PlatformIndex]->HeaderSaver.NameMapSaver;
-		NameMapSaver.End();
+		if (PackageContext != nullptr && PackageContext->BulkDataManifest != nullptr)
+		{
+			PackageContext->BulkDataManifest->Save();
+		}
 	}
-	UE_LOG(LogCook, Display, TEXT("Done saving name map(s)"));
+	UE_LOG(LogCook, Display, TEXT("Done saving BulkData manifest(s)"));
 }
 
 void UCookOnTheFlyServer::InitializeTargetPlatforms()

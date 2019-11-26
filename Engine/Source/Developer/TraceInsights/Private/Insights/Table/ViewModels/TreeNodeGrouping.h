@@ -43,7 +43,7 @@ struct FTreeNodeGroupInfo
 class FTreeNodeGrouping : public ITreeNodeGrouping
 {
 public:
-	FTreeNodeGrouping(FText InShortName, FText InTitleName, FText InDescription, FName InBrushName,  FSlateBrush* InIcon);
+	FTreeNodeGrouping(const FText& InShortName, const FText& InTitleName, const FText& InDescription, const FName InBrushName, const FSlateBrush* InIcon);
 	virtual ~FTreeNodeGrouping() {}
 
 	virtual FText GetShortName() const override { return ShortName; }

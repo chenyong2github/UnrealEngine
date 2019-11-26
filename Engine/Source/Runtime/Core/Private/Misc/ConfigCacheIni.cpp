@@ -352,6 +352,21 @@ static void ExtractPropertyValue(const FString& FullStructValue, const FString& 
 
 void FConfigSection::HandleAddCommand(FName Key, FString&& Value, bool bAppendValueIfNotArrayOfStructsKeyUsed)
 {
+	if (!HandleArrayOfKeyedStructsCommand(Key, Forward<FString&&>(Value)))
+	{
+		if (bAppendValueIfNotArrayOfStructsKeyUsed)
+		{
+			Add(Key, MoveTemp(Value));
+		}
+		else
+		{
+			AddUnique(Key, MoveTemp(Value));
+		}
+	}
+}
+
+bool FConfigSection::HandleArrayOfKeyedStructsCommand(FName Key, FString&& Value)
+{
 	FString* StructKey = ArrayOfStructKeys.Find(Key);
 	bool bHandledWithKey = false;
 	if (StructKey)
@@ -389,17 +404,7 @@ void FConfigSection::HandleAddCommand(FName Key, FString&& Value, bool bAppendVa
 		}
 	}
 
-	if (!bHandledWithKey)
-	{
-		if (bAppendValueIfNotArrayOfStructsKeyUsed)
-		{
-			Add(Key, MoveTemp(Value));
-		}
-		else
-		{
-			AddUnique(Key, MoveTemp(Value));
-		}
-	}
+	return bHandledWithKey;
 }
 
 // Look through the file's per object config ArrayOfStruct keys and see if this section matches
@@ -841,15 +846,19 @@ void FConfigFile::CombineFromBuffer(const FString& Buffer)
 				}
 				else
 				{
-					// Add if not present and replace if present.
-					FConfigValue* ConfigValue = CurrentSection->Find( Start );
-					if( !ConfigValue )
+					// First see if this can be processed as an array of keyed structs command
+					if (!CurrentSection->HandleArrayOfKeyedStructsCommand(Start, MoveTemp(ProcessedValue)))
 					{
-						CurrentSection->Add( Start, MoveTemp(ProcessedValue) );
-					}
-					else
-					{
-						*ConfigValue = FConfigValue(MoveTemp(ProcessedValue));
+						// Add if not present and replace if present.
+						FConfigValue* ConfigValue = CurrentSection->Find(Start);
+						if (!ConfigValue)
+						{
+							CurrentSection->Add(Start, MoveTemp(ProcessedValue));
+						}
+						else
+						{
+							*ConfigValue = FConfigValue(MoveTemp(ProcessedValue));
+						}
 					}
 				}
 

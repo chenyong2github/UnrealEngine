@@ -185,16 +185,45 @@ public:
 	template<typename,typename>
 	friend class TConstDualSetBitIterator;
 
+	TBitArray()
+	:	NumBits(0)
+	,	MaxBits(AllocatorInstance.GetInitialCapacity() * NumBitsPerDWORD)
+	{}
+
 	/**
 	 * Minimal initialization constructor.
 	 * @param Value - The value to initial the bits to.
 	 * @param InNumBits - The initial number of bits in the array.
 	 */
-	explicit TBitArray( const bool Value = false, const int32 InNumBits = 0 )
-	:	NumBits(0)
-	,	MaxBits(0)
+	explicit TBitArray(bool bValue, int32 InNumBits)
+	:	NumBits(InNumBits)
+	,	MaxBits(AllocatorInstance.GetInitialCapacity() * NumBitsPerDWORD)
 	{
-		Init(Value,InNumBits);
+		if (NumBits > 0)
+		{
+			const int32 Words = FMath::DivideAndRoundUp(NumBits, NumBitsPerDWORD);
+
+			if (Words > FMath::DivideAndRoundUp(MaxBits, NumBitsPerDWORD))
+			{
+				AllocatorInstance.ResizeAllocation(0, Words, sizeof(uint32));
+				MaxBits = Words * NumBitsPerDWORD;
+			}
+			
+			if (Words > 8)
+			{
+				FMemory::Memset(GetData(), bValue ? 0xff : 0, Words * sizeof(uint32));
+			}
+			else
+			{
+				uint32 Word = bValue ? ~0u : 0;
+				int32 WordIdx = 0;
+				do
+				{
+					GetData()[WordIdx] = Word;
+				}
+				while (++WordIdx < Words);
+			}
+		}
 	}
 
 	/**
@@ -431,6 +460,24 @@ public:
 		}
 	}
 
+	/** Sets number of bits without initializing new bits. */
+	void SetNumUninitialized(int32 InNumBits)
+	{
+		int32 PreviousNumBits = NumBits;
+		NumBits = InNumBits;
+
+		if (InNumBits > MaxBits)
+		{
+			const int32 PreviousNumDWORDs = FMath::DivideAndRoundUp(PreviousNumBits, NumBitsPerDWORD);
+			const uint32 MaxDWORDs = AllocatorInstance.CalculateSlackReserve(
+				FMath::DivideAndRoundUp(InNumBits, NumBitsPerDWORD), sizeof(uint32));
+			
+			AllocatorInstance.ResizeAllocation(PreviousNumDWORDs, MaxDWORDs, sizeof(uint32));	
+
+			MaxBits = MaxDWORDs * NumBitsPerDWORD;
+		}
+	}
+
 	/**
 	 * Sets or unsets a range of bits within the array.
 	 * @param  Index  The index of the first bit to set.
@@ -596,7 +643,7 @@ public:
 		{
 			// If we're looking for a false, then we flip the bits - then we only need to find the first one bit
 			const uint32 Bits = bValue ? (DwordArray[DwordIndex]) : ~(DwordArray[DwordIndex]);
-			ASSUME(Bits != 0);
+			UE_ASSUME(Bits != 0);
 			const int32 LowestBitIndex = FMath::CountTrailingZeros(Bits) + (DwordIndex << NumBitsPerDWORDLogTwo);
 			if (LowestBitIndex < LocalNumBits)
 			{
@@ -639,7 +686,7 @@ public:
 
 		// Flip the bits, then we only need to find the first one bit -- easy.
 		const uint32 Bits = (bValue ? DwordArray[DwordIndex] : ~DwordArray[DwordIndex]) & Mask;
-		ASSUME(Bits != 0);
+		UE_ASSUME(Bits != 0);
 
 		uint32 BitIndex = (NumBitsPerDWORD - 1) - FMath::CountLeadingZeros(Bits);
 
@@ -672,7 +719,7 @@ public:
 		{
 			// Flip the bits, then we only need to find the first one bit -- easy.
 			const uint32 Bits = ~(DwordArray[DwordIndex]);
-			ASSUME(Bits != 0);
+			UE_ASSUME(Bits != 0);
 			const uint32 LowestBit = (Bits) & (-(int32)Bits);
 			const int32 LowestBitIndex = FMath::CountTrailingZeros(Bits) + (DwordIndex << NumBitsPerDWORDLogTwo);
 			if (LowestBitIndex < LocalNumBits)
@@ -716,7 +763,7 @@ public:
 
 		// Flip the bits, then we only need to find the first one bit -- easy.
 		const uint32 Bits = ~DwordArray[DwordIndex] & Mask;
-		ASSUME(Bits != 0);
+		UE_ASSUME(Bits != 0);
 
 		uint32 BitIndex = (NumBitsPerDWORD - 1) - FMath::CountLeadingZeros(Bits);
 		DwordArray[DwordIndex] |= 1u << BitIndex;
