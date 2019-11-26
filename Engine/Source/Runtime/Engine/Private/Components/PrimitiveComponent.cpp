@@ -324,6 +324,7 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	bCastVolumetricTranslucentShadow = false;
 	IndirectLightingCacheQuality = ILCQ_Point;
 	bSelectable = true;
+	bRejectNavmeshUnderneath = false;
 	AlwaysLoadOnClient = true;
 	AlwaysLoadOnServer = true;
 	SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
@@ -2376,6 +2377,15 @@ void UPrimitiveComponent::DispatchWakeEvents(ESleepEvent WakeEvent, FName BoneNa
 	}
 }
 
+void UPrimitiveComponent::GetNavigationData(FNavigationRelevantData& OutData) const
+{
+	if (bRejectNavmeshUnderneath)
+	{
+		FCompositeNavModifier CompositeNavModifier;
+		CompositeNavModifier.SetRejectNavmeshUnderneath(bRejectNavmeshUnderneath);
+		OutData.Modifiers.Add(CompositeNavModifier);
+	}
+}
 
 bool UPrimitiveComponent::IsNavigationRelevant() const 
 { 
