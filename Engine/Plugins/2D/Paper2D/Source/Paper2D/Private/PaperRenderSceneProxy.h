@@ -18,6 +18,7 @@ class FMeshElementCollector;
 class UBodySetup;
 class UPrimitiveComponent;
 class FSpriteTextureOverrideRenderProxy;
+class UMeshComponent;
 
 #if WITH_EDITOR
 typedef TMap<const UTexture*, const UTexture*> FPaperRenderSceneProxyTextureOverrideMap;
