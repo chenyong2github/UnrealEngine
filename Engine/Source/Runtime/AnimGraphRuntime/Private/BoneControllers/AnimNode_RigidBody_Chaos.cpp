@@ -81,6 +81,21 @@ void FAnimNode_RigidBody_Chaos::GatherDebugData(FNodeDebugData& DebugData)
 	}
 }
 
+FTransform SpaceToWorldTransformChaos(ESimulationSpace Space, const FTransform& ComponentToWorld, const FTransform& BaseBoneTM)
+{
+	switch (Space)
+	{
+	case ESimulationSpace::ComponentSpace:
+		return ComponentToWorld;
+	case ESimulationSpace::WorldSpace:
+		return FTransform::Identity;
+	case ESimulationSpace::BaseBoneSpace:
+		return BaseBoneTM * ComponentToWorld;
+	default:
+		return FTransform::Identity;
+	}
+}
+
 FVector WorldVectorToSpaceNoScaleChaos(ESimulationSpace Space, const FVector& WorldDir, const FTransform& ComponentToWorld, const FTransform& BaseBoneTM)
 {
 	switch(Space)
@@ -246,6 +261,11 @@ void FAnimNode_RigidBody_Chaos::EvaluateSkeletalControl_AnyThread(FComponentSpac
 			PreviousCompWorldSpaceTM = CompWorldSpaceTM;
 		}
 		const FTransform BaseBoneTM = Output.Pose.GetComponentSpaceTransform(BaseBoneRef.GetCompactPoseIndex(BoneContainer));
+
+#if !UE_BUILD_SHIPPING
+		// Only used for debug draw...
+		PhysicsSimulation->SetSimulationSpaceTransform(SpaceToWorldTransformChaos(SimulationSpace, CompWorldSpaceTM, BaseBoneTM));
+#endif
 
 		// Initialize potential new bodies because of LOD change.
 		if (ResetSimulatedTeleportType == ETeleportType::None && bCheckForBodyTransformInit)

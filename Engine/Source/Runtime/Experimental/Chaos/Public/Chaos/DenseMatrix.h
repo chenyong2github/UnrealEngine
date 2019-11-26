@@ -784,7 +784,7 @@ namespace Chaos
 				X.At(I, 0) = Sum / G.At(I, I);
 			}
 
-			// Solve LtX = Y (Lt is upper-triangular)
+			// Solve LtX = Y (Gt is upper-triangular)
 			for (int32 I = N - 1; I >= 0; --I)
 			{
 				FReal Sum = X.At(I, 0);
