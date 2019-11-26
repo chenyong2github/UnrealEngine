@@ -708,6 +708,7 @@ bool FPluginManager::ConfigureEnabledPlugins()
 					GConfig->Remove(PluginConfigFilename);
 				}
 
+				//@note: This function is called too early for `GIsEditor` to be true and hence not go through this scope
 				if (!GIsEditor)
 				{
 					// override config cache entries with plugin configs (Engine.ini, Game.ini, etc in <PluginDir>\Config\)
