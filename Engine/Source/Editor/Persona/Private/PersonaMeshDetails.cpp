@@ -1421,11 +1421,189 @@ void FSkeletalMeshBuildSettingsLayout::GenerateChildContent(IDetailChildrenBuild
 		];
 	}
 
+	{
+		FDetailWidgetRow& PositionThreshold = AddFloatRow(ChildrenBuilder,
+			LOCTEXT("PositionThreshold_Row", "ThresholdPositionRow"),
+			LOCTEXT("PositionThreshold", "Threshold Position"),
+			LOCTEXT("PositionThreshold_ToolTip", "Threshold to compare vertex position equality."),
+			0.0f,
+			10000.0f,
+			FGetFloatDelegate::CreateRaw(this, &FSkeletalMeshBuildSettingsLayout::GetThresholdPosition),
+			FSetFloatDelegate::CreateRaw(this, &FSkeletalMeshBuildSettingsLayout::SetThresholdPosition));
+	}
+
+	{
+		FDetailWidgetRow& TangentNormalThreshold = AddFloatRow(ChildrenBuilder,
+			LOCTEXT("TangentNormalThreshold_Row", "ThresholdTangentNormalRow"),
+			LOCTEXT("TangentNormalThreshold", "Threshold Tangent and Normal"),
+			LOCTEXT("TangentNormalThreshold_ToolTip", "Threshold to compare normal, tangent or bi-normal equality."),
+			0.0f,
+			1.0f,
+			FGetFloatDelegate::CreateRaw(this, &FSkeletalMeshBuildSettingsLayout::GetThresholdTangentNormal),
+			FSetFloatDelegate::CreateRaw(this, &FSkeletalMeshBuildSettingsLayout::SetThresholdTangentNormal));
+	}
+
+	{
+		FDetailWidgetRow& UVThreshold = AddFloatRow(ChildrenBuilder,
+			LOCTEXT("UVThreshold_Row", "ThresholdUVRow"),
+			LOCTEXT("UVThreshold", "Threshold UV"),
+			LOCTEXT("UVThreshold_ToolTip", "Threshold to compare vertex UV equality."),
+			0.0f,
+			1.0f,
+			FGetFloatDelegate::CreateRaw(this, &FSkeletalMeshBuildSettingsLayout::GetThresholdUV),
+			FSetFloatDelegate::CreateRaw(this, &FSkeletalMeshBuildSettingsLayout::SetThresholdUV));
+	}
+
+	{
+		FDetailWidgetRow& MorphPositionThreshold = AddFloatRow(ChildrenBuilder,
+			LOCTEXT("MorphPositionThreshold_Row", "MorphThresholdPositionRow"),
+			LOCTEXT("MorphPositionThreshold", "Morph Threshold Position"),
+			LOCTEXT("MorphPositionThreshold_ToolTip", "Threshold to compare vertex position equality when computing morph target deltas."),
+			0.0f,
+			1.0f,
+			FGetFloatDelegate::CreateRaw(this, &FSkeletalMeshBuildSettingsLayout::GetMorphThresholdPosition),
+			FSetFloatDelegate::CreateRaw(this, &FSkeletalMeshBuildSettingsLayout::SetMorphThresholdPosition));
+	}
 }
 
 bool FSkeletalMeshBuildSettingsLayout::IsBuildEnabled() const
 {
 	return IsBuildSettingsEnabledDelegate.Execute(LODIndex);
+}
+
+FDetailWidgetRow& FSkeletalMeshBuildSettingsLayout::AddFloatRow(IDetailChildrenBuilder& ChildrenBuilder, const FText RowTitleText, const FText RowNameContentText, const FText RowNameContentTootlipText, const float MinSliderValue, const float MaxSliderValue, FGetFloatDelegate GetterDelegate, FSetFloatDelegate SetterDelegate)
+{
+	int32 SliderDataIndex = SliderStateDataArray.Num();
+	FSliderStateData& SliderData = SliderStateDataArray.AddDefaulted_GetRef();
+	SliderData.bSliderActiveMode = false;
+
+	auto BeginSliderMovementHelperFunc = [GetterDelegate, SliderDataIndex, this]()
+	{
+		check(SliderStateDataArray.IsValidIndex(SliderDataIndex));
+		SliderStateDataArray[SliderDataIndex].bSliderActiveMode = true;
+		SliderStateDataArray[SliderDataIndex].MovementValueFloat = GetterDelegate.IsBound() ? GetterDelegate.Execute() : 0.0f;
+	};
+
+	auto EndSliderMovementHelperFunc = [SetterDelegate, SliderDataIndex, this](float Value)
+	{
+		check(SliderStateDataArray.IsValidIndex(SliderDataIndex));
+		SliderStateDataArray[SliderDataIndex].bSliderActiveMode = false;
+		SliderStateDataArray[SliderDataIndex].MovementValueFloat = 0.0f;
+		SetterDelegate.ExecuteIfBound(Value);
+	};
+
+	auto SetValueHelperFunc = [SetterDelegate, SliderDataIndex, this](float Value)
+	{
+		check(SliderStateDataArray.IsValidIndex(SliderDataIndex));
+		if (SliderStateDataArray[SliderDataIndex].bSliderActiveMode)
+		{
+			SliderStateDataArray[SliderDataIndex].MovementValueFloat = Value;
+		}
+		else
+		{
+			SetterDelegate.ExecuteIfBound(Value);
+		}
+	};
+
+	auto GetValueHelperFunc = [GetterDelegate, SliderDataIndex, this]()
+	{
+		check(SliderStateDataArray.IsValidIndex(SliderDataIndex));
+		if (SliderStateDataArray[SliderDataIndex].bSliderActiveMode)
+		{
+			return SliderStateDataArray[SliderDataIndex].MovementValueFloat;
+		}
+		return GetterDelegate.IsBound() ? GetterDelegate.Execute() : 0.0f;
+	};
+
+	FDetailWidgetRow& Row = ChildrenBuilder.AddCustomRow(RowTitleText)
+	.NameContent()
+	[
+		SNew(STextBlock)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.Text(RowNameContentText)
+		.ToolTipText(RowNameContentTootlipText)
+	]
+	.ValueContent()
+	[
+		SNew(SSpinBox<float>)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.MinValue(MinSliderValue)
+		.MaxValue(MaxSliderValue)
+		.Value_Lambda(GetValueHelperFunc)
+		.OnValueChanged_Lambda(SetValueHelperFunc)
+		.OnBeginSliderMovement_Lambda(BeginSliderMovementHelperFunc)
+		.OnEndSliderMovement_Lambda(EndSliderMovementHelperFunc)
+		.IsEnabled(this, &FSkeletalMeshBuildSettingsLayout::IsBuildEnabled)
+	];
+	return Row;
+}
+
+float FSkeletalMeshBuildSettingsLayout::GetThresholdPosition() const
+{
+	return BuildSettings.ThresholdPosition;
+}
+
+void FSkeletalMeshBuildSettingsLayout::SetThresholdPosition(float Value)
+{
+	if (BuildSettings.ThresholdPosition != Value)
+	{
+		FText TransactionText = FText::Format(LOCTEXT("PersonaSetThresholdPositionLOD", "LOD{0} build settings: threshold for position changed"), LODIndex);
+		FScopedTransaction Transaction(TransactionText);
+		ModifyMeshLODSettingsDelegate.ExecuteIfBound(LODIndex);
+
+		BuildSettings.ThresholdPosition = Value;
+	}
+}
+
+float FSkeletalMeshBuildSettingsLayout::GetThresholdTangentNormal() const
+{
+	return BuildSettings.ThresholdTangentNormal;
+}
+
+void FSkeletalMeshBuildSettingsLayout::SetThresholdTangentNormal(float Value)
+{
+	if (BuildSettings.ThresholdTangentNormal != Value)
+	{
+		FText TransactionText = FText::Format(LOCTEXT("PersonaSetThresholdTangentNormalLOD", "LOD{0} build settings: threshold for tangent and normal changed"), LODIndex);
+		FScopedTransaction Transaction(TransactionText);
+		ModifyMeshLODSettingsDelegate.ExecuteIfBound(LODIndex);
+
+		BuildSettings.ThresholdTangentNormal = Value;
+	}
+}
+
+float FSkeletalMeshBuildSettingsLayout::GetThresholdUV() const
+{
+	return BuildSettings.ThresholdUV;
+}
+
+void FSkeletalMeshBuildSettingsLayout::SetThresholdUV(float Value)
+{
+	if (BuildSettings.ThresholdUV != Value)
+	{
+		FText TransactionText = FText::Format(LOCTEXT("PersonaSetThresholdUVLOD", "LOD{0} build settings: threshold for UVs changed"), LODIndex);
+		FScopedTransaction Transaction(TransactionText);
+		ModifyMeshLODSettingsDelegate.ExecuteIfBound(LODIndex);
+
+		BuildSettings.ThresholdUV = Value;
+	}
+}
+
+float FSkeletalMeshBuildSettingsLayout::GetMorphThresholdPosition() const
+{
+	return BuildSettings.MorphThresholdPosition;
+}
+
+void FSkeletalMeshBuildSettingsLayout::SetMorphThresholdPosition(float Value)
+{
+	if (BuildSettings.MorphThresholdPosition != Value)
+	{
+		FText TransactionText = FText::Format(LOCTEXT("PersonaSetMorphThresholdPositionLOD", "LOD{0} build settings: threshold for morph position changed"), LODIndex);
+		FScopedTransaction Transaction(TransactionText);
+		ModifyMeshLODSettingsDelegate.ExecuteIfBound(LODIndex);
+
+		BuildSettings.MorphThresholdPosition = Value;
+	}
 }
 
 ECheckBoxState FSkeletalMeshBuildSettingsLayout::ShouldRecomputeNormals() const
@@ -2962,6 +3140,10 @@ FReply FPersonaMeshDetails::ApplyLODChanges(int32 LODIndex)
 							SKImportData->NormalGenerationMethod = LODInfo->BuildSettings.bUseMikkTSpace ? EFBXNormalGenerationMethod::MikkTSpace : EFBXNormalGenerationMethod::BuiltIn;
 						}
 						SKImportData->bComputeWeightedNormals = LODInfo->BuildSettings.bComputeWeightedNormals;
+						SKImportData->ThresholdPosition = LODInfo->BuildSettings.ThresholdPosition;
+						SKImportData->ThresholdTangentNormal = LODInfo->BuildSettings.ThresholdTangentNormal;
+						SKImportData->ThresholdUV = LODInfo->BuildSettings.ThresholdUV;
+						SKImportData->MorphThresholdPosition = LODInfo->BuildSettings.MorphThresholdPosition;
 					}
 				}
 			}
@@ -2975,6 +3157,11 @@ FReply FPersonaMeshDetails::ApplyLODChanges(int32 LODIndex)
 		SkelMesh->MarkPackageDirty();
 	}
 	MeshDetailLayout->ForceRefreshDetails();
+	if (SkelMesh->MorphTargets.Num() > 0)
+	{
+		GetPersonaToolkit()->GetPreviewScene()->BroadcastOnMorphTargetsChanged();
+	}
+	
 	return FReply::Handled();
 }
 
@@ -3226,6 +3413,12 @@ void FPersonaMeshDetails::ApplyChanges()
 
 		//PostEditChange will be call when going out of scope
 	}
+	//Update the morph target list since we have rebuild the asset
+	if (SkelMesh->MorphTargets.Num() > 0)
+	{
+		GetPersonaToolkit()->GetPreviewScene()->BroadcastOnMorphTargetsChanged();
+	}
+
 	MeshDetailLayout->ForceRefreshDetails();
 }
 

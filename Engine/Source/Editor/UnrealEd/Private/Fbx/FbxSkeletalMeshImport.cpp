@@ -1609,7 +1609,7 @@ bool UnFbx::FFbxImporter::GatherPointsForMorphTarget(FSkeletalMeshImportData* Ou
 	{
 		int32 OriginalPointIdx = OutData->PointToRawMap[ PointIdx ];
 
-		if ( ( NewImportData.Points[ OriginalPointIdx ] - OutData->Points[ PointIdx ] ).SizeSquared() > FMath::Square( THRESH_VECTORS_ARE_NEAR ) ) // THRESH_POINTS_ARE_NEAR is too big, we might not be recomputing some normals that can have changed significantly
+		if ( ( NewImportData.Points[ OriginalPointIdx ] - OutData->Points[ PointIdx ] ).SizeSquared() > FMath::Square(THRESH_POINTS_ARE_SAME) )
 		{
 			ModifiedPoints.Add( PointIdx );
 		}
@@ -1812,9 +1812,32 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 		return nullptr;
 	}
 
+	FSkeletalMeshBuildSettings BuildOptions;
+	//Make sure the build option change in the re-import ui is reconduct
+	BuildOptions.bBuildAdjacencyBuffer = true;
+	BuildOptions.bRecomputeNormals = !ImportOptions->ShouldImportNormals() || !SkelMeshImportDataPtr->bHasNormals;
+	BuildOptions.bRecomputeTangents = !ImportOptions->ShouldImportTangents() || !SkelMeshImportDataPtr->bHasTangents;
+	BuildOptions.bUseMikkTSpace = (ImportOptions->NormalGenerationMethod == EFBXNormalGenerationMethod::MikkTSpace) && (!ImportOptions->ShouldImportNormals() || !ImportOptions->ShouldImportTangents());
+	BuildOptions.bComputeWeightedNormals = ImportOptions->bComputeWeightedNormals;
+	BuildOptions.bRemoveDegenerates = ImportOptions->bRemoveDegenerates;
+	BuildOptions.ThresholdPosition = ImportOptions->OverlappingThresholds.ThresholdPosition;
+	BuildOptions.ThresholdTangentNormal = ImportOptions->OverlappingThresholds.ThresholdTangentNormal;
+	BuildOptions.ThresholdUV = ImportOptions->OverlappingThresholds.ThresholdUV;
+	BuildOptions.MorphThresholdPosition = ImportOptions->OverlappingThresholds.MorphThresholdPosition;
+	
 	if (ExistingSkelMesh)
 	{
 		ExistingSkelMesh->PreEditChange(NULL);
+		//We update the build settings before saving the asset data we want to restore after the re-import
+		int32 SafeReimportLODIndex = ImportSkeletalMeshArgs.LodIndex < 0 ? 0 : ImportSkeletalMeshArgs.LodIndex;
+		FSkeletalMeshLODInfo* LODInfoPtr = ExistingSkelMesh->GetLODInfo(SafeReimportLODIndex);
+		if (LODInfoPtr)
+		{
+			//Adjacency buffer cannot be change in the re-import options, it must be backup before and restored after the copy.
+			bool bBuildAdjacencyBuffer = LODInfoPtr->BuildSettings.bBuildAdjacencyBuffer;
+			LODInfoPtr->BuildSettings = BuildOptions;
+			LODInfoPtr->BuildSettings.bBuildAdjacencyBuffer = bBuildAdjacencyBuffer;
+		}
 		//The backup of the skeletal mesh data empty the LOD array in the ImportedResource of the skeletal mesh
 		//If the import fail after this step the editor can crash when updating the bone later since the LODModel will not exist anymore
 		ExistSkelMeshDataPtr = SaveExistingSkelMeshData(ExistingSkelMesh, !ImportOptions->bImportMaterials, ImportSkeletalMeshArgs.LodIndex);
@@ -1903,17 +1926,6 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 		TArray<SkeletalMeshImportData::FVertInfluence> LODInfluences;
 		TArray<int32> LODPointToRawMap;
 		SkelMeshImportDataPtr->CopyLODImportData(LODPoints,LODWedges,LODFaces,LODInfluences,LODPointToRawMap);
-
-		FSkeletalMeshBuildSettings BuildOptions;
-		BuildOptions.bBuildAdjacencyBuffer = true;
-		BuildOptions.bRecomputeNormals = !ImportOptions->ShouldImportNormals() || !SkelMeshImportDataPtr->bHasNormals;
-		BuildOptions.bRecomputeTangents = !ImportOptions->ShouldImportTangents() || !SkelMeshImportDataPtr->bHasTangents;
-		BuildOptions.bUseMikkTSpace = (ImportOptions->NormalGenerationMethod == EFBXNormalGenerationMethod::MikkTSpace) && (!ImportOptions->ShouldImportNormals() || !ImportOptions->ShouldImportTangents());
-		BuildOptions.bComputeWeightedNormals = ImportOptions->bComputeWeightedNormals;
-		BuildOptions.bRemoveDegenerates = ImportOptions->bRemoveDegenerates;
-		BuildOptions.ThresholdPosition = ImportOptions->OverlappingThresholds.ThresholdPosition;
-		BuildOptions.ThresholdTangentNormal = ImportOptions->OverlappingThresholds.ThresholdTangentNormal;
-		BuildOptions.ThresholdUV = ImportOptions->OverlappingThresholds.ThresholdUV;
 
 		bool bUseLegacyMeshUtilities = false;
 		bool bBuildSuccess = false;
@@ -4325,7 +4337,9 @@ void UnFbx::FFbxImporter::ImportMorphTargetsInternal( TArray<FbxNode*>& SkelMesh
 				LODIndex,
 				ImportOptions->ShouldImportNormals(),
 				ImportOptions->ShouldImportTangents(),
-				(ImportOptions->NormalGenerationMethod == EFBXNormalGenerationMethod::MikkTSpace));
+				(ImportOptions->NormalGenerationMethod == EFBXNormalGenerationMethod::MikkTSpace),
+				ImportOptions->OverlappingThresholds
+				);
 		}
 	}
 

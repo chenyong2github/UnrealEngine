@@ -352,38 +352,54 @@ FBXImportOptions* GetImportOptions( UnFbx::FFbxImporter* FbxImporter, UFbxImport
 void ApplyImportUIToImportOptions(UFbxImportUI* ImportUI, FBXImportOptions& InOutImportOptions)
 {
 	check(ImportUI);
-	InOutImportOptions.bImportMaterials = ImportUI->bImportMaterials;
-	InOutImportOptions.bInvertNormalMap = ImportUI->TextureImportData->bInvertNormalMaps;
-	InOutImportOptions.MaterialSearchLocation = ImportUI->TextureImportData->MaterialSearchLocation;
-	UMaterialInterface* BaseMaterialInterface = Cast<UMaterialInterface>(ImportUI->TextureImportData->BaseMaterialName.TryLoad());
-	if (BaseMaterialInterface) {
-		InOutImportOptions.BaseMaterial = BaseMaterialInterface;
-		InOutImportOptions.BaseColorName = ImportUI->TextureImportData->BaseColorName;
-		InOutImportOptions.BaseDiffuseTextureName = ImportUI->TextureImportData->BaseDiffuseTextureName;
-		InOutImportOptions.BaseNormalTextureName = ImportUI->TextureImportData->BaseNormalTextureName;
-		InOutImportOptions.BaseEmmisiveTextureName = ImportUI->TextureImportData->BaseEmmisiveTextureName;
-		InOutImportOptions.BaseSpecularTextureName = ImportUI->TextureImportData->BaseSpecularTextureName;
-		InOutImportOptions.BaseEmissiveColorName = ImportUI->TextureImportData->BaseEmissiveColorName;
+
+	//General options
+	{
+		InOutImportOptions.bUsedAsFullName			= ImportUI->bOverrideFullName;
+		InOutImportOptions.ImportType				= ImportUI->MeshTypeToImport;
+
+		InOutImportOptions.bAutoComputeLodDistances	= ImportUI->bAutoComputeLodDistances;
+		InOutImportOptions.LodDistances.Empty(8);
+		InOutImportOptions.LodDistances.Add(ImportUI->LodDistance0);
+		InOutImportOptions.LodDistances.Add(ImportUI->LodDistance1);
+		InOutImportOptions.LodDistances.Add(ImportUI->LodDistance2);
+		InOutImportOptions.LodDistances.Add(ImportUI->LodDistance3);
+		InOutImportOptions.LodDistances.Add(ImportUI->LodDistance4);
+		InOutImportOptions.LodDistances.Add(ImportUI->LodDistance5);
+		InOutImportOptions.LodDistances.Add(ImportUI->LodDistance6);
+		InOutImportOptions.LodDistances.Add(ImportUI->LodDistance7);
+		InOutImportOptions.LodNumber				= ImportUI->LodNumber;
+		InOutImportOptions.MinimumLodNumber			= ImportUI->MinimumLodNumber;
 	}
-	InOutImportOptions.bImportTextures = ImportUI->bImportTextures;
-	InOutImportOptions.bUsedAsFullName = ImportUI->bOverrideFullName;
-	InOutImportOptions.bImportAnimations = ImportUI->bImportAnimations;
-	InOutImportOptions.SkeletonForAnimation = ImportUI->Skeleton;
-	InOutImportOptions.ImportType = ImportUI->MeshTypeToImport;
 
-	InOutImportOptions.bAutoComputeLodDistances = ImportUI->bAutoComputeLodDistances;
-	InOutImportOptions.LodDistances.Empty(8);
-	InOutImportOptions.LodDistances.Add(ImportUI->LodDistance0);
-	InOutImportOptions.LodDistances.Add(ImportUI->LodDistance1);
-	InOutImportOptions.LodDistances.Add(ImportUI->LodDistance2);
-	InOutImportOptions.LodDistances.Add(ImportUI->LodDistance3);
-	InOutImportOptions.LodDistances.Add(ImportUI->LodDistance4);
-	InOutImportOptions.LodDistances.Add(ImportUI->LodDistance5);
-	InOutImportOptions.LodDistances.Add(ImportUI->LodDistance6);
-	InOutImportOptions.LodDistances.Add(ImportUI->LodDistance7);
-	InOutImportOptions.LodNumber = ImportUI->LodNumber;
-	InOutImportOptions.MinimumLodNumber = ImportUI->MinimumLodNumber;
+	//Animation and skeletal mesh options
+	{
+		InOutImportOptions.bImportAnimations		= ImportUI->bImportAnimations;
+		InOutImportOptions.SkeletonForAnimation		= ImportUI->Skeleton;
+		InOutImportOptions.bCreatePhysicsAsset		= ImportUI->bCreatePhysicsAsset;
+		InOutImportOptions.PhysicsAsset				= ImportUI->PhysicsAsset;
+		InOutImportOptions.AnimationName			= ImportUI->OverrideAnimationName;
+	}
 
+	//Material options
+	{
+		InOutImportOptions.bImportMaterials			= ImportUI->bImportMaterials;
+		InOutImportOptions.bInvertNormalMap			= ImportUI->TextureImportData->bInvertNormalMaps;
+		InOutImportOptions.MaterialSearchLocation	= ImportUI->TextureImportData->MaterialSearchLocation;
+		UMaterialInterface* BaseMaterialInterface	= Cast<UMaterialInterface>(ImportUI->TextureImportData->BaseMaterialName.TryLoad());
+		if (BaseMaterialInterface) {
+			InOutImportOptions.BaseMaterial			= BaseMaterialInterface;
+			InOutImportOptions.BaseColorName		= ImportUI->TextureImportData->BaseColorName;
+			InOutImportOptions.BaseDiffuseTextureName = ImportUI->TextureImportData->BaseDiffuseTextureName;
+			InOutImportOptions.BaseNormalTextureName = ImportUI->TextureImportData->BaseNormalTextureName;
+			InOutImportOptions.BaseEmmisiveTextureName = ImportUI->TextureImportData->BaseEmmisiveTextureName;
+			InOutImportOptions.BaseSpecularTextureName = ImportUI->TextureImportData->BaseSpecularTextureName;
+			InOutImportOptions.BaseEmissiveColorName = ImportUI->TextureImportData->BaseEmissiveColorName;
+		}
+		InOutImportOptions.bImportTextures			= ImportUI->bImportTextures;
+	}
+
+	//Some options are overlap between static mesh, skeletal mesh and anim sequence. We must set them according to the import type to set them only once
 	if ( ImportUI->MeshTypeToImport == FBXIT_StaticMesh )
 	{
 		UFbxStaticMeshImportData* StaticMeshData	= ImportUI->StaticMeshImportData;
@@ -406,8 +422,6 @@ void ApplyImportUIToImportOptions(UFbxImportUI* ImportUI, FBXImportOptions& InOu
 	else if ( ImportUI->MeshTypeToImport == FBXIT_SkeletalMesh )
 	{
 		UFbxSkeletalMeshImportData* SkeletalMeshData	= ImportUI->SkeletalMeshImportData;
-		InOutImportOptions.bImportAsSkeletalGeometry    = SkeletalMeshData->ImportContentType == EFBXImportContentType::FBXICT_Geometry;
-		InOutImportOptions.bImportAsSkeletalSkinning	= SkeletalMeshData->ImportContentType == EFBXImportContentType::FBXICT_SkinningWeights;
 		InOutImportOptions.NormalImportMethod			= SkeletalMeshData->NormalImportMethod;
 		InOutImportOptions.NormalGenerationMethod		= SkeletalMeshData->NormalGenerationMethod;
 		InOutImportOptions.bComputeWeightedNormals		= SkeletalMeshData->bComputeWeightedNormals;
@@ -439,7 +453,7 @@ void ApplyImportUIToImportOptions(UFbxImportUI* ImportUI, FBXImportOptions& InOu
 	else
 	{
 		UFbxAnimSequenceImportData* AnimData	= ImportUI->AnimSequenceImportData;
-		InOutImportOptions.NormalImportMethod = FBXNIM_ComputeNormals;
+		InOutImportOptions.NormalImportMethod	= FBXNIM_ComputeNormals;
 		InOutImportOptions.bComputeWeightedNormals = true;
 		InOutImportOptions.ImportTranslation	= AnimData->ImportTranslation;
 		InOutImportOptions.ImportRotation		= AnimData->ImportRotation;
@@ -449,43 +463,53 @@ void ApplyImportUIToImportOptions(UFbxImportUI* ImportUI, FBXImportOptions& InOu
 		InOutImportOptions.bConvertSceneUnit	= AnimData->bConvertSceneUnit;
 	}
 
-	InOutImportOptions.bImportMorph = ImportUI->SkeletalMeshImportData->bImportMorphTargets;
-	InOutImportOptions.bUpdateSkeletonReferencePose = ImportUI->SkeletalMeshImportData->bUpdateSkeletonReferencePose;
-	InOutImportOptions.bImportRigidMesh = ImportUI->OriginalImportType == FBXIT_StaticMesh && ImportUI->MeshTypeToImport == FBXIT_SkeletalMesh;
-	InOutImportOptions.bUseT0AsRefPose = ImportUI->SkeletalMeshImportData->bUseT0AsRefPose;
-	InOutImportOptions.bPreserveSmoothingGroups = ImportUI->SkeletalMeshImportData->bPreserveSmoothingGroups;
-	InOutImportOptions.OverlappingThresholds.ThresholdPosition = ImportUI->SkeletalMeshImportData->ThresholdPosition;
-	InOutImportOptions.OverlappingThresholds.ThresholdTangentNormal = ImportUI->SkeletalMeshImportData->ThresholdTangentNormal;
-	InOutImportOptions.OverlappingThresholds.ThresholdUV = ImportUI->SkeletalMeshImportData->ThresholdUV;
-	InOutImportOptions.bCombineToSingle = ImportUI->StaticMeshImportData->bCombineMeshes;
+	//Skeletal mesh unshared options
+	{
+		InOutImportOptions.bImportAsSkeletalGeometry	= ImportUI->SkeletalMeshImportData->ImportContentType == EFBXImportContentType::FBXICT_Geometry;
+		InOutImportOptions.bImportAsSkeletalSkinning	= ImportUI->SkeletalMeshImportData->ImportContentType == EFBXImportContentType::FBXICT_SkinningWeights;
+		InOutImportOptions.bImportMorph					= ImportUI->SkeletalMeshImportData->bImportMorphTargets;
+		InOutImportOptions.bUpdateSkeletonReferencePose = ImportUI->SkeletalMeshImportData->bUpdateSkeletonReferencePose;
+		InOutImportOptions.bImportRigidMesh				= ImportUI->OriginalImportType == FBXIT_StaticMesh && ImportUI->MeshTypeToImport == FBXIT_SkeletalMesh;
+		InOutImportOptions.bUseT0AsRefPose				= ImportUI->SkeletalMeshImportData->bUseT0AsRefPose;
+		InOutImportOptions.bPreserveSmoothingGroups		= ImportUI->SkeletalMeshImportData->bPreserveSmoothingGroups;
+		InOutImportOptions.OverlappingThresholds.ThresholdPosition = ImportUI->SkeletalMeshImportData->ThresholdPosition;
+		InOutImportOptions.OverlappingThresholds.ThresholdTangentNormal = ImportUI->SkeletalMeshImportData->ThresholdTangentNormal;
+		InOutImportOptions.OverlappingThresholds.ThresholdUV = ImportUI->SkeletalMeshImportData->ThresholdUV;
+		InOutImportOptions.OverlappingThresholds.MorphThresholdPosition = ImportUI->SkeletalMeshImportData->MorphThresholdPosition;
+		InOutImportOptions.bImportMeshesInBoneHierarchy = ImportUI->SkeletalMeshImportData->bImportMeshesInBoneHierarchy;
+	}
+
+	//Static mesh unshared options
+	{
+		InOutImportOptions.bCombineToSingle				= ImportUI->StaticMeshImportData->bCombineMeshes;
+		InOutImportOptions.bRemoveDegenerates			= ImportUI->StaticMeshImportData->bRemoveDegenerates;
+		InOutImportOptions.bBuildAdjacencyBuffer		= ImportUI->StaticMeshImportData->bBuildAdjacencyBuffer;
+		InOutImportOptions.bBuildReversedIndexBuffer	= ImportUI->StaticMeshImportData->bBuildReversedIndexBuffer;
+		InOutImportOptions.bGenerateLightmapUVs			= ImportUI->StaticMeshImportData->bGenerateLightmapUVs;
+		InOutImportOptions.bOneConvexHullPerUCX			= ImportUI->StaticMeshImportData->bOneConvexHullPerUCX;
+		InOutImportOptions.bAutoGenerateCollision		= ImportUI->StaticMeshImportData->bAutoGenerateCollision;
+		InOutImportOptions.StaticMeshLODGroup			= ImportUI->StaticMeshImportData->StaticMeshLODGroup;
+	}
 	
-	InOutImportOptions.bRemoveDegenerates = ImportUI->StaticMeshImportData->bRemoveDegenerates;
-	InOutImportOptions.bBuildAdjacencyBuffer = ImportUI->StaticMeshImportData->bBuildAdjacencyBuffer;
-	InOutImportOptions.bBuildReversedIndexBuffer = ImportUI->StaticMeshImportData->bBuildReversedIndexBuffer;
-	InOutImportOptions.bGenerateLightmapUVs = ImportUI->StaticMeshImportData->bGenerateLightmapUVs;
-	InOutImportOptions.bOneConvexHullPerUCX = ImportUI->StaticMeshImportData->bOneConvexHullPerUCX;
-	InOutImportOptions.bAutoGenerateCollision = ImportUI->StaticMeshImportData->bAutoGenerateCollision;
-	InOutImportOptions.StaticMeshLODGroup = ImportUI->StaticMeshImportData->StaticMeshLODGroup;
-	InOutImportOptions.bImportMeshesInBoneHierarchy = ImportUI->SkeletalMeshImportData->bImportMeshesInBoneHierarchy;
-	InOutImportOptions.bCreatePhysicsAsset = ImportUI->bCreatePhysicsAsset;
-	InOutImportOptions.PhysicsAsset = ImportUI->PhysicsAsset;
-	// animation options
-	InOutImportOptions.AnimationLengthImportType = ImportUI->AnimSequenceImportData->AnimationLength;
-	InOutImportOptions.AnimationRange.X = ImportUI->AnimSequenceImportData->FrameImportRange.Min;
-	InOutImportOptions.AnimationRange.Y = ImportUI->AnimSequenceImportData->FrameImportRange.Max;
-	InOutImportOptions.AnimationName = ImportUI->OverrideAnimationName;
-	// only re-sample if they don't want to use default sample rate
-	InOutImportOptions.bResample = !ImportUI->AnimSequenceImportData->bUseDefaultSampleRate;
-	InOutImportOptions.ResampleRate = ImportUI->AnimSequenceImportData->CustomSampleRate;
-	InOutImportOptions.bPreserveLocalTransform = ImportUI->AnimSequenceImportData->bPreserveLocalTransform;
-	InOutImportOptions.bDeleteExistingMorphTargetCurves = ImportUI->AnimSequenceImportData->bDeleteExistingMorphTargetCurves;
-	InOutImportOptions.bRemoveRedundantKeys = ImportUI->AnimSequenceImportData->bRemoveRedundantKeys;
-	InOutImportOptions.bDoNotImportCurveWithZero = ImportUI->AnimSequenceImportData->bDoNotImportCurveWithZero;
-	InOutImportOptions.bImportCustomAttribute = ImportUI->AnimSequenceImportData->bImportCustomAttribute;
-	InOutImportOptions.bDeleteExistingCustomAttributeCurves = ImportUI->AnimSequenceImportData->bDeleteExistingCustomAttributeCurves;
-	InOutImportOptions.bImportBoneTracks = ImportUI->AnimSequenceImportData->bImportBoneTracks;
-	InOutImportOptions.bSetMaterialDriveParameterOnCustomAttribute = ImportUI->AnimSequenceImportData->bSetMaterialDriveParameterOnCustomAttribute;
-	InOutImportOptions.MaterialCurveSuffixes = ImportUI->AnimSequenceImportData->MaterialCurveSuffixes;
+	// animation unshared options
+	{
+		
+		InOutImportOptions.AnimationLengthImportType	= ImportUI->AnimSequenceImportData->AnimationLength;
+		InOutImportOptions.AnimationRange.X				= ImportUI->AnimSequenceImportData->FrameImportRange.Min;
+		InOutImportOptions.AnimationRange.Y				= ImportUI->AnimSequenceImportData->FrameImportRange.Max;
+		// only re-sample if they don't want to use default sample rate
+		InOutImportOptions.bResample					= !ImportUI->AnimSequenceImportData->bUseDefaultSampleRate;
+		InOutImportOptions.ResampleRate					= ImportUI->AnimSequenceImportData->CustomSampleRate;
+		InOutImportOptions.bPreserveLocalTransform		= ImportUI->AnimSequenceImportData->bPreserveLocalTransform;
+		InOutImportOptions.bDeleteExistingMorphTargetCurves = ImportUI->AnimSequenceImportData->bDeleteExistingMorphTargetCurves;
+		InOutImportOptions.bRemoveRedundantKeys			= ImportUI->AnimSequenceImportData->bRemoveRedundantKeys;
+		InOutImportOptions.bDoNotImportCurveWithZero	= ImportUI->AnimSequenceImportData->bDoNotImportCurveWithZero;
+		InOutImportOptions.bImportCustomAttribute		= ImportUI->AnimSequenceImportData->bImportCustomAttribute;
+		InOutImportOptions.bDeleteExistingCustomAttributeCurves = ImportUI->AnimSequenceImportData->bDeleteExistingCustomAttributeCurves;
+		InOutImportOptions.bImportBoneTracks			= ImportUI->AnimSequenceImportData->bImportBoneTracks;
+		InOutImportOptions.bSetMaterialDriveParameterOnCustomAttribute = ImportUI->AnimSequenceImportData->bSetMaterialDriveParameterOnCustomAttribute;
+		InOutImportOptions.MaterialCurveSuffixes		= ImportUI->AnimSequenceImportData->MaterialCurveSuffixes;
+	}
 }
 
 void FImportedMaterialData::AddImportedMaterial( FbxSurfaceMaterial& FbxMaterial, UMaterialInterface& UnrealMaterial )
@@ -1456,6 +1480,7 @@ bool FFbxImporter::ImportFromFile(const FString& Filename, const FString& Type, 
 				  * @EventParam ThresholdPosition float Returns the threshold delta to weld vertices
 				  * @EventParam ThresholdTangentNormal float Returns the threshold delta to weld tangents and normals
 				  * @EventParam ThresholdUV float Returns the threshold delta to weld UVs
+				  * @EventParam MorphThresholdPosition float Returns the morph target threshold delta to compute deltas
 				  * @EventParam AutoComputeLodDistances boolean Returns whether the importer should set the auto compute LOD distance
 				  * @EventParam LodNumber integer Returns the LOD number we should have after the import
 				  * @EventParam BuildAdjacencyBuffer boolean Returns whether the importer should fill the adjacency buffer when building the static mesh
@@ -1553,6 +1578,7 @@ bool FFbxImporter::ImportFromFile(const FString& Filename, const FString& Type, 
 							Attribs.Add(FAnalyticsEventAttribute(TEXT("SkeletalMeshOpt OverlappingThresholds.ThresholdPosition"), CaptureImportOptions->OverlappingThresholds.ThresholdPosition));
 							Attribs.Add(FAnalyticsEventAttribute(TEXT("SkeletalMeshOpt OverlappingThresholds.ThresholdTangentNormal"), CaptureImportOptions->OverlappingThresholds.ThresholdTangentNormal));
 							Attribs.Add(FAnalyticsEventAttribute(TEXT("SkeletalMeshOpt OverlappingThresholds.ThresholdUV"), CaptureImportOptions->OverlappingThresholds.ThresholdUV));
+							Attribs.Add(FAnalyticsEventAttribute(TEXT("SkeletalMeshOpt OverlappingThresholds.MorphThresholdPosition"), CaptureImportOptions->OverlappingThresholds.MorphThresholdPosition));
 						};
 
 						auto AddSMAnalytic = [&Attribs, &CaptureImportOptions]()

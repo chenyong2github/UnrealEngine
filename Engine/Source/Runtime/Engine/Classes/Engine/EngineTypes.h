@@ -2727,6 +2727,10 @@ struct FSkeletalMeshBuildSettings
 	UPROPERTY(EditAnywhere, Category = BuildSettings)
 	float ThresholdUV;
 
+	/** Threshold to compare vertex position equality when computing morph target deltas. */
+	UPROPERTY(EditAnywhere, Category = BuildSettings)
+	float MorphThresholdPosition;
+
 	/** Default settings. */
 	FSkeletalMeshBuildSettings()
 		: bRecomputeNormals(true)
@@ -2740,6 +2744,7 @@ struct FSkeletalMeshBuildSettings
 		, ThresholdPosition(0.00002)
 		, ThresholdTangentNormal(0.00002)
 		, ThresholdUV(0.0009765625)
+		, MorphThresholdPosition(0.015f)
 	{}
 
 	/** Equality operator. */
@@ -2755,7 +2760,8 @@ struct FSkeletalMeshBuildSettings
 			&& bBuildAdjacencyBuffer == Other.bBuildAdjacencyBuffer
 			&& ThresholdPosition == Other.ThresholdPosition
 			&& ThresholdTangentNormal == Other.ThresholdTangentNormal
-			&& ThresholdUV == Other.ThresholdUV;
+			&& ThresholdUV == Other.ThresholdUV
+			&& MorphThresholdPosition == Other.MorphThresholdPosition;
 	}
 
 	/** Inequality. */

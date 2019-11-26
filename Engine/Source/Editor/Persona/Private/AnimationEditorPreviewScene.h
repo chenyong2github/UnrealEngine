@@ -76,6 +76,24 @@ public:
 		OnLODChanged.RemoveAll(Thing);
 	}
 
+	virtual void RegisterOnMorphTargetsChanged(const FSimpleDelegate& Delegate) override
+	{
+		OnMorphTargetsChanged.Add(Delegate);
+	}
+
+	virtual void UnregisterOnMorphTargetsChanged(void* Thing) override
+	{
+		OnMorphTargetsChanged.RemoveAll(Thing);
+	}
+
+	virtual void BroadcastOnMorphTargetsChanged() override
+	{
+		if (OnMorphTargetsChanged.IsBound())
+		{
+			OnMorphTargetsChanged.Broadcast();
+		}
+	}
+
 	virtual void RegisterOnInvalidateViews(const FSimpleDelegate& Delegate) override
 	{
 		OnInvalidateViews.Add(Delegate);
@@ -382,6 +400,9 @@ private:
 
 	/** LOD changed delegate */
 	FSimpleMulticastDelegate OnLODChanged;
+
+	/** Morph target changed delegate */
+	FSimpleMulticastDelegate OnMorphTargetsChanged;
 
 	/** View invalidation delegate */
 	FSimpleMulticastDelegate OnInvalidateViews;
