@@ -3154,7 +3154,7 @@ void FSlateApplication::ProcessReply( const FWidgetPath& CurrentEventPath, const
 
 	// Set focus if requested.
 	TSharedPtr<SWidget> RequestedFocusRecepient = TheReply.GetUserFocusRecepient();
-	if (TheReply.ShouldSetUserFocus() || RequestedFocusRecepient.IsValid())
+	if (TheReply.ShouldSetUserFocus() && RequestedFocusRecepient.IsValid())
 	{
 		if (TheReply.AffectsAllUsers())
 		{
