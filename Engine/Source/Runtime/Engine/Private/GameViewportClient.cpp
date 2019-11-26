@@ -223,7 +223,6 @@ UGameViewportClient::UGameViewportClient(const FObjectInitializer& ObjectInitial
 	SplitscreenInfo[ESplitScreenType::FourPlayer_Horizontal].PlayerData.Add(FPerPlayerSplitscreenData(1.f, 0.25f, 0.0f, 0.5f));
 	SplitscreenInfo[ESplitScreenType::FourPlayer_Horizontal].PlayerData.Add(FPerPlayerSplitscreenData(1.f, 0.25f, 0.0f, 0.75f));
 
-	MaxSplitscreenPlayers = 4;
 	bSuppressTransitionMessage = true;
 
 	if (HasAnyFlags(RF_ClassDefaultObject) == false)
