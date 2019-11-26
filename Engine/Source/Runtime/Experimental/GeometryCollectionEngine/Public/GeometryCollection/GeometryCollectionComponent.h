@@ -488,7 +488,7 @@ public:
 	FORCEINLINE const TArray<int32>& GetHighlightedBones() const { return HighlightedBones; }
 #endif
 
-	const TSharedPtr<FPhysScene_Chaos> GetPhysicsScene() const;
+	FPhysScene_Chaos* GetPhysicsScene() const;
 	AChaosSolverActor* GetPhysicsSolverActor() const;
 	const FGeometryCollectionPhysicsProxy* GetPhysicsProxy() const { return PhysicsProxy; }
 
