@@ -26,9 +26,7 @@ public:
 	void EndEdit();
 
 private:
-	FCriticalSection CriticalSection;
-	uint32 OwnerThread = 0;
-	bool IsReadOnly = false;
+	FRWLock RWLock;
 };
 
 class FAnalysisSession
