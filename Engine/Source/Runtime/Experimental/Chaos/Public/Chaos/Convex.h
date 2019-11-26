@@ -30,7 +30,11 @@ namespace Chaos
 			, Volume(MoveTemp(Other.MoveTemp))
 			, CenterOfMass(MoveTemp(Other.CenterOfMass))
 		{}
-		TConvex(TArray<TPlane<T, d>>&& InPlanes, TParticles<T, d>&& InSurfaceParticles, const TArray<TArray<int32>>& InFaceIndices)
+
+		// NOTE: This constructor will result in approximate COM and volume calculations, since it does
+		// not have face indices for surface particles.
+		// TODO: Keep track of invalid state and ensure on volume or COM access?
+		TConvex(TArray<TPlane<T, d>>&& InPlanes, TParticles<T, d>&& InSurfaceParticles)
 		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
 			, Planes(MoveTemp(InPlanes))
 		    , SurfaceParticles(MoveTemp(InSurfaceParticles))
@@ -41,8 +45,11 @@ namespace Chaos
 				LocalBoundingBox.GrowToInclude(SurfaceParticles.X(ParticleIndex));
 			}
 
-			CalculateVolumeAndCenterOfMass(SurfaceParticles, InFaceIndices, Volume, CenterOfMass);
+			// For now we approximate COM and volume with the bounding box
+			CenterOfMass = LocalBoundingBox.GetCenterOfMass();
+			Volume = LocalBoundingBox.GetVolume();
 		}
+
 		TConvex(const TParticles<T, 3>& InParticles)
 		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
 		{
