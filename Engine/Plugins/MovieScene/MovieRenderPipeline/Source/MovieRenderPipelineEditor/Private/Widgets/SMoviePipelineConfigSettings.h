@@ -25,11 +25,11 @@ DECLARE_DELEGATE_TwoParams(
 )
 
 /** Main widget for the Movie Render Shot Config panel */
-class SMoviePipelineSettings : public SCompoundWidget
+class SMoviePipelineConfigSettings : public SCompoundWidget
 {
 public:
 
-	SLATE_BEGIN_ARGS(SMoviePipelineSettings){}
+	SLATE_BEGIN_ARGS(SMoviePipelineConfigSettings){}
 		SLATE_EVENT(FOnSettingSelectionChanged, OnSelectionChanged)
 	SLATE_END_ARGS()
 

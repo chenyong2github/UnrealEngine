@@ -11,7 +11,7 @@ struct FAssetData;
 struct IMoviePipelineSettingTreeItem;
 
 class SScrollBox;
-class SMoviePipelineSettings;
+class SMoviePipelineConfigSettings;
 class UMoviePipelineConfigBase;
 class IDetailsView;
 class UMoviePipelineSetting;
@@ -21,11 +21,11 @@ template<class> class TSubclassOf;
 /**
  * Widget used to edit a Movie Render Pipeline Shot Config.
  */
-class SMoviePipelineEditor : public SCompoundWidget
+class SMoviePipelineConfigEditor : public SCompoundWidget
 {
 public:
 
-	SLATE_BEGIN_ARGS(SMoviePipelineEditor)
+	SLATE_BEGIN_ARGS(SMoviePipelineConfigEditor)
 		: _MoviePipeline(nullptr)
 		{}
 
@@ -71,7 +71,7 @@ private:
 	TAttribute<UMoviePipelineConfigBase*> MoviePipelineAttribute;
 	TWeakObjectPtr<UMoviePipelineConfigBase> CachedMoviePipeline;
     
-	TSharedPtr<SMoviePipelineSettings> SettingsWidget;
+	TSharedPtr<SMoviePipelineConfigSettings> SettingsWidget;
 	TSharedPtr<SScrollBox> DetailsBox;
 	TMap<FObjectKey, TSharedPtr<IDetailsView>> ClassToDetailsView;
 };

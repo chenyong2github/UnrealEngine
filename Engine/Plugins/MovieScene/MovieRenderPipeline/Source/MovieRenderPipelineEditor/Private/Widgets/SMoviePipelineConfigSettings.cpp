@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Widgets/SMoviePipelineSettings.h"
+#include "Widgets/SMoviePipelineConfigSettings.h"
 #include "MoviePipelineShotConfig.h"
 #include "MoviePipelineSetting.h"
 
@@ -29,7 +29,7 @@
 // UnrealEd includes
 #include "ScopedTransaction.h"
 
-#define LOCTEXT_NAMESPACE "SMoviePipelineSettings"
+#define LOCTEXT_NAMESPACE "SMoviePipelineConfigSettings"
 
 struct FMoviePipelineSettingCategory;
 struct FMoviePipelineSettingTreeItem;
@@ -43,7 +43,7 @@ struct IMoviePipelineSettingTreeItem : TSharedFromThis<IMoviePipelineSettingTree
 	virtual TSharedPtr<FMoviePipelineSettingCategory> AsCategory() { return nullptr; }
 	virtual TSharedPtr<FMoviePipelineSettingTreeItem> AsSetting()   { return nullptr; }
 
-	virtual TSharedRef<SWidget> ConstructWidget(TWeakPtr<SMoviePipelineSettings> SettingsWidget) = 0;
+	virtual TSharedRef<SWidget> ConstructWidget(TWeakPtr<SMoviePipelineConfigSettings> SettingsWidget) = 0;
 };
 
 struct FMoviePipelineSettingTreeItem : IMoviePipelineSettingTreeItem
@@ -75,7 +75,7 @@ struct FMoviePipelineSettingTreeItem : IMoviePipelineSettingTreeItem
 		return SharedThis(this);
 	}
 
-	virtual TSharedRef<SWidget> ConstructWidget(TWeakPtr<SMoviePipelineSettings> SettingsWidget) override
+	virtual TSharedRef<SWidget> ConstructWidget(TWeakPtr<SMoviePipelineConfigSettings> SettingsWidget) override
 	{
 		return SNew(SOverlay)
 
@@ -168,11 +168,11 @@ private:
 		return Setting && Setting->bEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 	}
 
-	void SetCheckState(const ECheckBoxState NewState, TWeakPtr<SMoviePipelineSettings> WeakSettingsWidget)
+	void SetCheckState(const ECheckBoxState NewState, TWeakPtr<SMoviePipelineConfigSettings> WeakSettingsWidget)
 	{
 		const bool bEnable = NewState == ECheckBoxState::Checked;
 
-		TSharedPtr<SMoviePipelineSettings>		SettingsWidget = WeakSettingsWidget.Pin();
+		TSharedPtr<SMoviePipelineConfigSettings>		SettingsWidget = WeakSettingsWidget.Pin();
 		UMoviePipelineSetting*            ThisSetting    = WeakSetting.Get();
 
 		if (ThisSetting && SettingsWidget.IsValid())
@@ -242,7 +242,7 @@ struct FMoviePipelineSettingCategory : IMoviePipelineSettingTreeItem
 		return SharedThis(this);
 	}
 
-	virtual TSharedRef<SWidget> ConstructWidget(TWeakPtr<SMoviePipelineSettings> SettingsWidget) override
+	virtual TSharedRef<SWidget> ConstructWidget(TWeakPtr<SMoviePipelineConfigSettings> SettingsWidget) override
 	{
 		return SNew(SHorizontalBox)
 
@@ -266,20 +266,20 @@ private:
 };
 
 
-void SMoviePipelineSettings::Construct(const FArguments& InArgs)
+void SMoviePipelineConfigSettings::Construct(const FArguments& InArgs)
 {
 	CachedSettingsSerialNumber = uint32(-1);
 
 	TreeView = SNew(STreeView<TSharedPtr<IMoviePipelineSettingTreeItem>>)
 		.TreeItemsSource(&RootNodes)
 		.OnSelectionChanged(InArgs._OnSelectionChanged)
-		.OnGenerateRow(this, &SMoviePipelineSettings::OnGenerateRow)
-		.OnGetChildren(this, &SMoviePipelineSettings::OnGetChildren);
+		.OnGenerateRow(this, &SMoviePipelineConfigSettings::OnGenerateRow)
+		.OnGetChildren(this, &SMoviePipelineConfigSettings::OnGetChildren);
 
 	CommandList = MakeShared<FUICommandList>();
 	CommandList->MapAction(
 		FGenericCommands::Get().Delete,
-		FExecuteAction::CreateSP(this, &SMoviePipelineSettings::OnDeleteSelected),
+		FExecuteAction::CreateSP(this, &SMoviePipelineConfigSettings::OnDeleteSelected),
 		FCanExecuteAction()
 	);
 
@@ -289,7 +289,7 @@ void SMoviePipelineSettings::Construct(const FArguments& InArgs)
 	];
 }
 
-void SMoviePipelineSettings::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+void SMoviePipelineConfigSettings::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	UMoviePipelineConfigBase* ShotConfig = WeakShotConfig.Get();
 
@@ -308,7 +308,7 @@ void SMoviePipelineSettings::Tick(const FGeometry& AllottedGeometry, const doubl
 	}
 }
 
-FReply SMoviePipelineSettings::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+FReply SMoviePipelineConfigSettings::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
 	if (CommandList->ProcessCommandBindings(InKeyEvent))
 	{
@@ -318,7 +318,7 @@ FReply SMoviePipelineSettings::OnKeyDown(const FGeometry& MyGeometry, const FKey
 	return FReply::Unhandled();
 }
 
-void SMoviePipelineSettings::GetSelectedSettings(TArray<UMoviePipelineSetting*>& OutSettings) const
+void SMoviePipelineConfigSettings::GetSelectedSettings(TArray<UMoviePipelineSetting*>& OutSettings) const
 {
 	TArray<TSharedPtr<IMoviePipelineSettingTreeItem>> SelectedItems;
 
@@ -334,13 +334,13 @@ void SMoviePipelineSettings::GetSelectedSettings(TArray<UMoviePipelineSetting*>&
 	}
 }
 
-void SMoviePipelineSettings::SetShotConfigObject(UMoviePipelineConfigBase* InShotConfig)
+void SMoviePipelineConfigSettings::SetShotConfigObject(UMoviePipelineConfigBase* InShotConfig)
 {
 	WeakShotConfig = InShotConfig;
 	ReconstructTree();
 }
 
-void SMoviePipelineSettings::ReconstructTree()
+void SMoviePipelineConfigSettings::ReconstructTree()
 {
 	UMoviePipelineConfigBase* ShotConfig = WeakShotConfig.Get();
 	if (!ShotConfig)
@@ -459,7 +459,7 @@ void SMoviePipelineSettings::ReconstructTree()
 	TreeView->RequestTreeRefresh();
 }
 
-TSharedRef<ITableRow> SMoviePipelineSettings::OnGenerateRow(TSharedPtr<IMoviePipelineSettingTreeItem> Item, const TSharedRef<STableViewBase>& Tree)
+TSharedRef<ITableRow> SMoviePipelineConfigSettings::OnGenerateRow(TSharedPtr<IMoviePipelineSettingTreeItem> Item, const TSharedRef<STableViewBase>& Tree)
 {
 	return
 		SNew(STableRow<TSharedPtr<IMoviePipelineSettingTreeItem>>, Tree)
@@ -468,7 +468,7 @@ TSharedRef<ITableRow> SMoviePipelineSettings::OnGenerateRow(TSharedPtr<IMoviePip
 		];
 }
 
-void SMoviePipelineSettings::OnGetChildren(TSharedPtr<IMoviePipelineSettingTreeItem> Item, TArray<TSharedPtr<IMoviePipelineSettingTreeItem>>& OutChildItems)
+void SMoviePipelineConfigSettings::OnGetChildren(TSharedPtr<IMoviePipelineSettingTreeItem> Item, TArray<TSharedPtr<IMoviePipelineSettingTreeItem>>& OutChildItems)
 {
 	TSharedPtr<FMoviePipelineSettingCategory> Category = Item->AsCategory();
 	if (Category.IsValid())
@@ -477,7 +477,7 @@ void SMoviePipelineSettings::OnGetChildren(TSharedPtr<IMoviePipelineSettingTreeI
 	}
 }
 
-void SMoviePipelineSettings::OnDeleteSelected()
+void SMoviePipelineConfigSettings::OnDeleteSelected()
 {
 	UMoviePipelineConfigBase* ShotConfig = WeakShotConfig.Get();
 	if (ShotConfig)

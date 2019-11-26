@@ -1,7 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Widgets/SMoviePipelineEditor.h"
+#include "Widgets/SMoviePipelineConfigEditor.h"
 #include "Widgets/MoviePipelineWidgetConstants.h"
+#include "Widgets/SMoviePipelineConfigSettings.h"
 
 #include "MoviePipelineShotConfig.h"
 #include "MoviePipelineSetting.h"
@@ -39,7 +40,6 @@
 #include "ScopedTransaction.h"
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"
-#include "SMoviePipelineSettings.h"
 
 #define LOCTEXT_NAMESPACE "SMoviePipelineEditor"
 
@@ -80,7 +80,7 @@ TArray<UClass*> FindMoviePipelineSettingClasses()
 }
 
 PRAGMA_DISABLE_OPTIMIZATION
-void SMoviePipelineEditor::Construct(const FArguments& InArgs)
+void SMoviePipelineConfigEditor::Construct(const FArguments& InArgs)
 {
 	bRequestDetailsRefresh = true;
 	MoviePipelineAttribute = InArgs._MoviePipeline;
@@ -88,8 +88,8 @@ void SMoviePipelineEditor::Construct(const FArguments& InArgs)
 	DetailsBox = SNew(SScrollBox);
 	DetailsBox->SetScrollBarRightClickDragAllowed(true);
      
-	SettingsWidget = SNew(SMoviePipelineSettings)
-	.OnSelectionChanged(this, &SMoviePipelineEditor::OnSettingsSelectionChanged);
+	SettingsWidget = SNew(SMoviePipelineConfigSettings)
+	.OnSelectionChanged(this, &SMoviePipelineConfigEditor::OnSettingsSelectionChanged);
     
 	CheckForNewMoviePipeline();
      
@@ -117,12 +117,12 @@ void SMoviePipelineEditor::Construct(const FArguments& InArgs)
 	];
 }
 
-TSharedRef<SWidget> SMoviePipelineEditor::MakeAddSettingButton()
+TSharedRef<SWidget> SMoviePipelineConfigEditor::MakeAddSettingButton()
 {
 	return SNew(SComboButton)
 		.ContentPadding(MoviePipeline::ButtonPadding)
 		// .ButtonStyle(FTakeRecorderStyle::Get(), "FlatButton.Success")
-		.OnGetMenuContent(this, &SMoviePipelineEditor::OnGenerateSettingsMenu)
+		.OnGetMenuContent(this, &SMoviePipelineConfigEditor::OnGenerateSettingsMenu)
 		.ForegroundColor(FSlateColor::UseForeground())
 		.HasDownArrow(false)
 		.ButtonContent()
@@ -166,7 +166,7 @@ TSharedRef<SWidget> SMoviePipelineEditor::MakeAddSettingButton()
 }
 PRAGMA_ENABLE_OPTIMIZATION
 
-void SMoviePipelineEditor::CheckForNewMoviePipeline()
+void SMoviePipelineConfigEditor::CheckForNewMoviePipeline()
 {
 	UMoviePipelineConfigBase* NewMoviePipeline = MoviePipelineAttribute.Get();
 	if (CachedMoviePipeline != NewMoviePipeline)
@@ -178,7 +178,7 @@ void SMoviePipelineEditor::CheckForNewMoviePipeline()
 	}
 }
 
-void SMoviePipelineEditor::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+void SMoviePipelineConfigEditor::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	CheckForNewMoviePipeline();
 	if (bRequestDetailsRefresh)
@@ -188,7 +188,7 @@ void SMoviePipelineEditor::Tick(const FGeometry& AllottedGeometry, const double 
 	}
 }
 
-TSharedRef<SWidget> SMoviePipelineEditor::OnGenerateSettingsMenu()
+TSharedRef<SWidget> SMoviePipelineConfigEditor::OnGenerateSettingsMenu()
 {
 	TSharedRef<FExtender> Extender = MakeShared<FExtender>();
 	{
@@ -249,8 +249,8 @@ TSharedRef<SWidget> SMoviePipelineEditor::OnGenerateSettingsMenu()
 				Class->GetToolTipText(true),
 				FSlateIconFinder::FindIconForClass(Class),
 				FUIAction(
-					FExecuteAction::CreateSP(this, &SMoviePipelineEditor::AddSettingFromClass, SubclassOf),
-					FCanExecuteAction::CreateSP(this, &SMoviePipelineEditor::CanAddSettingFromClass, SubclassOf)
+					FExecuteAction::CreateSP(this, &SMoviePipelineConfigEditor::AddSettingFromClass, SubclassOf),
+					FCanExecuteAction::CreateSP(this, &SMoviePipelineConfigEditor::CanAddSettingFromClass, SubclassOf)
 				)
 			);
 		}
@@ -260,7 +260,7 @@ TSharedRef<SWidget> SMoviePipelineEditor::OnGenerateSettingsMenu()
 	return MenuBuilder.MakeWidget();
 }
 
-void SMoviePipelineEditor::UpdateDetails()
+void SMoviePipelineConfigEditor::UpdateDetails()
 {
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	FDetailsViewArgs DetailsViewArgs(false, false, false, FDetailsViewArgs::HideNameArea, true);
@@ -310,7 +310,7 @@ void SMoviePipelineEditor::UpdateDetails()
 	}
 }
 
-void SMoviePipelineEditor::AddSettingFromClass(TSubclassOf<UMoviePipelineSetting> SettingClass)
+void SMoviePipelineConfigEditor::AddSettingFromClass(TSubclassOf<UMoviePipelineSetting> SettingClass)
 {
 	UMoviePipelineConfigBase* Pipeline = MoviePipelineAttribute.Get();
 
@@ -321,7 +321,7 @@ void SMoviePipelineEditor::AddSettingFromClass(TSubclassOf<UMoviePipelineSetting
 	}
 }
 
-bool SMoviePipelineEditor::CanAddSettingFromClass(TSubclassOf<UMoviePipelineSetting> SettingClass)
+bool SMoviePipelineConfigEditor::CanAddSettingFromClass(TSubclassOf<UMoviePipelineSetting> SettingClass)
 {
 	return true;
 }

@@ -318,14 +318,17 @@ void UMoviePipeline::RenderFrame()
 
 				{
 					BackbufferResolution = FIntPoint(
-						FMath::CeilToInt(BackbufferResolution.X / HighResSettings->TileCount),
-						FMath::CeilToInt(BackbufferResolution.Y / HighResSettings->TileCount));
+						FMath::CeilToInt(BackbufferResolution.X / TileCount.X),
+						FMath::CeilToInt(BackbufferResolution.Y / TileCount.Y));
 
 					// Cache tile resolution before we add padding.
 					TileResolution = BackbufferResolution;
 
 					// Apply size padding.
-					BackbufferResolution = HighResSettings->CalculatePaddedBackbufferSize(BackbufferResolution);
+					if (HighResSettings)
+					{
+						BackbufferResolution = HighResSettings->CalculatePaddedBackbufferSize(BackbufferResolution);
+					}
 				}
 
 				// We take all of the information needed to render a single sample and package it into a struct.

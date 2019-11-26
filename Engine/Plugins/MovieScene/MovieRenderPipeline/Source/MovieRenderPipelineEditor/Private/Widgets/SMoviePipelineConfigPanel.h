@@ -7,7 +7,7 @@
 #include "UObject/GCObject.h"
 
 class UMoviePipelineConfigBase;
-class SMoviePipelineEditor;
+class SMoviePipelineConfigEditor;
 
 /**
  * Outermost widget that is used for setting up a new movie render pipeline config. Operates on a transient UMovieRenderShotConfig that is internally owned and maintained 
@@ -53,5 +53,5 @@ private:
 	UMoviePipelineConfigBase* TransientPreset;
 
 	/** The main movie pipeline editor widget */
-	TSharedPtr<SMoviePipelineEditor> MoviePipelineEditorWidget;
+	TSharedPtr<SMoviePipelineConfigEditor> MoviePipelineEditorWidget;
 };

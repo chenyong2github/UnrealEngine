@@ -39,7 +39,7 @@ public:
 	* @return An instance of this class if it already exists as a setting on this config, otherwise null.
 	*/
 	UFUNCTION(BlueprintPure, meta = (DeterminesOutputType = "InClass"), Category = "Movie Render Pipeline")
-		UMoviePipelineSetting* FindSettingByClass(TSubclassOf<UMoviePipelineSetting> InClass) const
+	UMoviePipelineSetting* FindSettingByClass(TSubclassOf<UMoviePipelineSetting> InClass) const
 	{
 		UMoviePipelineSetting* const* Found = Settings.FindByPredicate([InClass](UMoviePipelineSetting* In) { return In && In->GetClass() == InClass; });
 		return Found ? CastChecked<UMoviePipelineSetting>(*Found) : nullptr;
@@ -51,7 +51,7 @@ public:
 	* @return An instance of this class as a setting on this config.
 	*/
 	UFUNCTION(BlueprintCallable, meta = (DeterminesOutputType = "InClass"), Category = "Movie Render Pipeline")
-		UMoviePipelineSetting* FindOrAddSettingByClass(TSubclassOf<UMoviePipelineSetting> InClass)
+	UMoviePipelineSetting* FindOrAddSettingByClass(TSubclassOf<UMoviePipelineSetting> InClass)
 	{
 		UMoviePipelineSetting* Found = FindSettingByClass(InClass);
 		if (!Found)

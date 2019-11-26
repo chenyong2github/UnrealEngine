@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SMoviePipelineConfigPanel.h"
-#include "Widgets/SMoviePipelineEditor.h"
+#include "Widgets/SMoviePipelineConfigEditor.h"
 #include "Widgets/MoviePipelineWidgetConstants.h"
 #include "Misc/MessageDialog.h"
 #include "MoviePipelineShotConfig.h"
@@ -47,7 +47,7 @@ void SMoviePipelineConfigPanel::Construct(const FArguments& InArgs, TSubclassOf<
 	}
 
 	// Create the child widgets that need to know about our pipeline
-	MoviePipelineEditorWidget = SNew(SMoviePipelineEditor)
+	MoviePipelineEditorWidget = SNew(SMoviePipelineConfigEditor)
 	.MoviePipeline(this, &SMoviePipelineConfigPanel::GetMoviePipeline);
 
 	ChildSlot
