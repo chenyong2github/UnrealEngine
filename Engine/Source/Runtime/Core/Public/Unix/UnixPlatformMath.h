@@ -24,6 +24,7 @@ struct FLinuxPlatformMath : public FClangPlatformMath
 		return UnrealPlatformMathSSE::TruncToInt(F);
 	}
 
+#if !defined(__clang__) // Clang does not yet support _mm_round_ps/_mm_round_pd
 	static FORCEINLINE float TruncToFloat(float F)
 	{
 		return UnrealPlatformMathSSE::TruncToFloat(F);
@@ -33,12 +34,14 @@ struct FLinuxPlatformMath : public FClangPlatformMath
 	{
 		return UnrealPlatformMathSSE::TruncToDouble(F);
 	}
+#endif
 
 	static FORCEINLINE int32 RoundToInt(float F)
 	{
 		return UnrealPlatformMathSSE::RoundToInt(F);
 	}
 
+#if !defined(__clang__) // Clang does not yet support _mm_floor_ps/_mm_floor_pd
 	static FORCEINLINE float RoundToFloat(float F)
 	{
 		return UnrealPlatformMathSSE::RoundToFloat(F);
@@ -48,12 +51,14 @@ struct FLinuxPlatformMath : public FClangPlatformMath
 	{
 		return UnrealPlatformMathSSE::RoundToDouble(F);
 	}
+#endif
 
 	static FORCEINLINE int32 FloorToInt(float F)
 	{
 		return UnrealPlatformMathSSE::FloorToInt(F);
 	}
 
+#if !defined(__clang__) // Clang does not yet support _mm_floor_ps/_mm_floor_pd
 	static FORCEINLINE float FloorToFloat(float F)
 	{
 		return UnrealPlatformMathSSE::FloorToFloat(F);
@@ -63,12 +68,14 @@ struct FLinuxPlatformMath : public FClangPlatformMath
 	{
 		return UnrealPlatformMathSSE::FloorToDouble(F);
 	}
+#endif
 
 	static FORCEINLINE int32 CeilToInt(float F)
 	{
 		return UnrealPlatformMathSSE::CeilToInt(F);
 	}
 
+#if !defined(__clang__) // Clang does not yet support _mm_ceil_ps/_mm_ceil_pd
 	static FORCEINLINE float CeilToFloat(float F)
 	{
 		return UnrealPlatformMathSSE::CeilToFloat(F);
@@ -78,6 +85,7 @@ struct FLinuxPlatformMath : public FClangPlatformMath
 	{
 		return UnrealPlatformMathSSE::CeilToDouble(F);
 	}
+#endif
 
 	static FORCEINLINE bool IsNaN( float A ) { return isnan(A) != 0; }
 	static FORCEINLINE bool IsFinite( float A ) { return isfinite(A); }
