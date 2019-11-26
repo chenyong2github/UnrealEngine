@@ -1108,6 +1108,11 @@ public:
 #endif // WITH_EDITORONLY_DATA
 	}
 
+	void SetLightingGuid(const FGuid& Guid)
+	{
+		LightingGuid = Guid;
+	}
+
 	/**
 	 * Retrieves the pixel format enum for enum <-> string conversions.
 	 */
