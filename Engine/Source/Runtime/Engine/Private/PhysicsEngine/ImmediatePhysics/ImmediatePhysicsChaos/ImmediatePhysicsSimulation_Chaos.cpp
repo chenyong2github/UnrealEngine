@@ -357,8 +357,8 @@ namespace ImmediatePhysics_Chaos
 
 		for (FActorHandle* ActorHandle : InIgnoreCollisionActors)
 		{
-			TPBDRigidParticleHandle<FReal, Dimensions>* Particle = ActorHandle->GetParticle()->AsDynamic();
-			if (Particle != nullptr)
+			TPBDRigidParticleHandle<FReal, Dimensions>* Particle = ActorHandle->GetParticle()->CastToRigidParticle();
+			if (Particle != nullptr && Particle->ObjectState() == EObjectStateType::Dynamic)
 			{
 				Particle->SetCollisionGroup(INDEX_NONE);
 			}
@@ -382,7 +382,7 @@ namespace ImmediatePhysics_Chaos
 			ActorHandle->SetLevel(INDEX_NONE);
 			ActorJoints.Emplace(ActorHandle);
 
-			if (!ActorHandle->GetParticle()->AsDynamic())
+			if (ActorHandle->GetParticle()->ObjectState() != EObjectStateType::Dynamic)
 			{
 				ActorHandle->SetLevel(0);
 				ActorQueue.Add(ActorHandle);
