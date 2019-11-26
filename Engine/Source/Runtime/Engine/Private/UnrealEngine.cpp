@@ -1953,6 +1953,7 @@ void UEngine::UpdateTimeAndHandleMaxTickRate()
 
 															// Figure out whether we want to use real or fixed time step.
 	const bool bUseFixedTimeStep = FApp::IsBenchmarking() || FApp::UseFixedTimeStep();
+	static bool bPreviousUseFixedTimeStep = bUseFixedTimeStep;
 
 	// Updates logical last time to match logical current time from last tick
 	FApp::UpdateLastTime();
@@ -1975,11 +1976,11 @@ void UEngine::UpdateTimeAndHandleMaxTickRate()
 
 		// Did we just switch from a fixed time step to real-time?  If so, then we'll update our
 		// cached 'last time' so our current interval isn't huge (or negative!)
-		if( bTimeWasManipulated )
+		if (bUseFixedTimeStep != bPreviousUseFixedTimeStep)
 		{
-			if ( bUseFixedFrameRate )
+			if (bUseFixedFrameRate)
 			{
-				LastRealTime = CurrentRealTime - (1.0/FixedFrameRate);
+				LastRealTime = CurrentRealTime - (1.0 / FixedFrameRate);
 			}
 			else
 			{
@@ -2131,6 +2132,8 @@ void UEngine::UpdateTimeAndHandleMaxTickRate()
 			}
 		}
 	}
+
+	bPreviousUseFixedTimeStep = bUseFixedTimeStep;
 
 #if !UE_BUILD_SHIPPING
 	{
