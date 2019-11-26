@@ -4,6 +4,7 @@
 #include "UObject/Object.h"
 #include "MovieRenderPipelineDataTypes.h"
 #include "LevelSequence.h"
+#include "MoviePipelineMasterConfig.h"
 
 #include "MoviePipelineQueue.generated.h"
 
