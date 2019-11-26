@@ -8,30 +8,27 @@
 #include "Profile/MediaProfile.h"
 
 
-TArray<UProxyMediaSource*> UMediaProfileSettings::GetAllMediaSourceProxy() const
+TArray<UProxyMediaSource*> UMediaProfileSettings::LoadMediaSourceProxies() const
 {
-	if (MediaSourceProxyPtr.Num() != MediaSourceProxy.Num())
+	TArray<UProxyMediaSource*> MediaSourceProxyPtr;
+	MediaSourceProxyPtr.Reset(MediaSourceProxy.Num());
+
+	for (const TSoftObjectPtr<UProxyMediaSource>& Proxy : MediaSourceProxy)
 	{
-		MediaSourceProxyPtr.Reset(MediaSourceProxy.Num());
-		for (const TSoftObjectPtr<UProxyMediaSource>& Proxy : MediaSourceProxy)
-		{
-			MediaSourceProxyPtr.Add(Proxy.LoadSynchronous());
-		}
+		MediaSourceProxyPtr.Add(Proxy.LoadSynchronous());
 	}
 	return MediaSourceProxyPtr;
 }
 
 
-TArray<UProxyMediaOutput*> UMediaProfileSettings::GetAllMediaOutputProxy() const
+TArray<UProxyMediaOutput*> UMediaProfileSettings::LoadMediaOutputProxies() const
 {
-	if (MediaOutputProxyPtr.Num() != MediaOutputProxy.Num())
-	{
-		MediaOutputProxyPtr.Reset(MediaOutputProxy.Num());
+	TArray<UProxyMediaOutput*> MediaOutputProxyPtr;
+	MediaOutputProxyPtr.Reset(MediaOutputProxy.Num());
 
-		for (const TSoftObjectPtr<UProxyMediaOutput>& Proxy : MediaOutputProxy)
-		{
-			MediaOutputProxyPtr.Add(Proxy.LoadSynchronous());
-		}
+	for (const TSoftObjectPtr<UProxyMediaOutput>& Proxy : MediaOutputProxy)
+	{
+		MediaOutputProxyPtr.Add(Proxy.LoadSynchronous());
 	}
 	return MediaOutputProxyPtr;
 }
@@ -47,7 +44,6 @@ UMediaProfile* UMediaProfileSettings::GetStartupMediaProfile() const
 void UMediaProfileSettings::SetMediaSourceProxy(const TArray<UProxyMediaSource*>& InProxies)
 {
 	MediaSourceProxy.Reset();
-	MediaSourceProxyPtr = InProxies;
 	for (UProxyMediaSource* Proxy : InProxies)
 	{
 		MediaSourceProxy.Add(Proxy);
@@ -59,7 +55,6 @@ void UMediaProfileSettings::SetMediaSourceProxy(const TArray<UProxyMediaSource*>
 void UMediaProfileSettings::SetMediaOutputProxy(const TArray<UProxyMediaOutput*>& InProxies)
 {
 	MediaOutputProxy.Reset();
-	MediaOutputProxyPtr = InProxies;
 	for (UProxyMediaOutput* Proxy : InProxies)
 	{
 		MediaOutputProxy.Add(Proxy);
@@ -74,11 +69,6 @@ void UMediaProfileSettings::PostEditChangeProperty(struct FPropertyChangedEvent&
 		|| GET_MEMBER_NAME_CHECKED(ThisClass, MediaSourceProxy) == InPropertyChangedEvent.GetPropertyName())
 	{
 		// Recache the proxies ptr
-		MediaSourceProxyPtr.Reset(MediaSourceProxy.Num());
-		MediaOutputProxyPtr.Reset(MediaOutputProxy.Num());
-		GetAllMediaSourceProxy();
-		GetAllMediaOutputProxy();
-
 		OnMediaProxiesChanged.Broadcast();
 	}
 
