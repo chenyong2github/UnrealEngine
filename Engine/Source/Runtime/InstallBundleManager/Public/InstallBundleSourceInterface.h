@@ -8,7 +8,7 @@
 class IInstallBundleSource;
 class IAnalyticsProviderET;
 
-DECLARE_DELEGATE_ThreeParams(FInstallBundleSourceInitDelegate, TSharedRef<IInstallBundleSource> /*Source*/, EInstallBundleManagerInitResult /*Result*/, bool /*bShouldUseFallbackSource*/)
+DECLARE_DELEGATE_TwoParams(FInstallBundleSourceInitDelegate, TSharedRef<IInstallBundleSource> /*Source*/, FInstallBundleSourceInitInfo /*InitInfo*/);
 
 DECLARE_DELEGATE_OneParam(FInstallBundleCompleteDelegate, FInstallBundleSourceRequestResultInfo /*Result*/);
 DECLARE_DELEGATE_OneParam(FInstallBundlePausedDelegate, FInstallBundleSourcePauseInfo /*PauseInfo*/);
@@ -44,9 +44,6 @@ public:
 
 	// Whether this source has been initialized or not
 	virtual EInstallBundleManagerInitState GetInitState() const = 0;
-	// Only valid after AsyncInit completes
-	// Returns the result of the last initialization attempt
-	virtual EInstallBundleManagerInitResult GetLastInitResult() const = 0;
 
 	// Returns content version in a "<BuildVersion>-<Platform>" format
 	virtual FString GetContentVersion() const = 0;
@@ -55,17 +52,18 @@ public:
 	// BundleNames contains all dependencies and has been deduped
 	virtual void GetContentState(TArrayView<FName> BundleNames, EInstallBundleGetContentStateFlags Flags, FInstallBundleGetContentStateDelegate Callback) = 0;
 
-	struct RequestUpdateContentBundleContext
+	struct FRequestUpdateContentBundleContext
 	{
 		FName BundleName;
 		EInstallBundleRequestFlags Flags = EInstallBundleRequestFlags::None;
 		FInstallBundlePausedDelegate PausedCallback;
 		FInstallBundleCompleteDelegate CompleteCallback;
+		TSharedPtr<InstallBundleUtil::FContentRequestSharedContext> RequestSharedContext;
 	};
 
 	// Updates content on disk if necessary
 	// BundleContexts contains all dependencies and has been deduped
-	virtual void RequestUpdateContent(TArrayView<RequestUpdateContentBundleContext> BundleContexts) = 0;
+	virtual void RequestUpdateContent(FRequestUpdateContentBundleContext BundleContext) = 0;
 
 	// Returns true if content is scheduled to be removed the next time the source is initialized
 	// BundleNames contains all dependencies and has been deduped
