@@ -210,6 +210,11 @@ FString SGraphPinVector::GetValue( ETextBoxIndex Index ) const
 
 void SGraphPinVector::OnChangedValueTextBox_0(float NewValue, ETextCommit::Type CommitInfo)
 {
+	if(GraphPinObj->IsPendingKill())
+	{
+		return;
+	}
+
 	const FString ValueStr = FString::Printf( TEXT("%f"), NewValue );
 
 	FString DefaultValue;
@@ -236,6 +241,11 @@ void SGraphPinVector::OnChangedValueTextBox_0(float NewValue, ETextCommit::Type 
 
 void SGraphPinVector::OnChangedValueTextBox_1(float NewValue, ETextCommit::Type CommitInfo)
 {
+	if(GraphPinObj->IsPendingKill())
+	{
+		return;
+	}
+
 	const FString ValueStr = FString::Printf( TEXT("%f"), NewValue );
 
 	FString DefaultValue;
@@ -262,6 +272,11 @@ void SGraphPinVector::OnChangedValueTextBox_1(float NewValue, ETextCommit::Type 
 
 void SGraphPinVector::OnChangedValueTextBox_2(float NewValue, ETextCommit::Type CommitInfo)
 {
+	if(GraphPinObj->IsPendingKill())
+	{
+		return;
+	}
+
 	const FString ValueStr = FString::Printf( TEXT("%f"), NewValue );
 
 	FString DefaultValue;
