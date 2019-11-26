@@ -84,7 +84,6 @@ DEFINE_STAT(STAT_Channels);
 DEFINE_STAT(STAT_MaxPacketOverhead);
 DEFINE_STAT(STAT_InRate);
 DEFINE_STAT(STAT_OutRate);
-DEFINE_STAT(STAT_OutSaturation);
 DEFINE_STAT(STAT_InRateClientMax);
 DEFINE_STAT(STAT_InRateClientMin);
 DEFINE_STAT(STAT_InRateClientAvg);
@@ -616,7 +615,6 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 			int32 ClientOutPacketsAvg = 0;
 			int NumClients = 0;
 			int32 MaxPacketOverhead = 0;
-			float RemoteSaturationMax = 0.0f;
 
 			// these need to be updated even if we are not collecting stats, since they get reported to analytics/QoS
 			for (UNetConnection * Client : ClientConnections)
@@ -698,13 +696,11 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 				if (ServerConnection != NULL)
 				{
 					NumOpenChannels = ServerConnection->OpenChannels.Num();
-					RemoteSaturationMax = FMath::Max(RemoteSaturationMax, ServerConnection->RemoteSaturation);
 				}
 
 				for (int32 i = 0; i < ClientConnections.Num(); i++)
 				{
 					NumOpenChannels += ClientConnections[i]->OpenChannels.Num();
-					RemoteSaturationMax = FMath::Max(RemoteSaturationMax, ClientConnections[i]->RemoteSaturation);
 				}
 
 				// Use the elapsed time to keep things scaled to one measured unit
@@ -767,7 +763,6 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 				SET_DWORD_STAT(STAT_InLoss, InPacketsLost);
 				SET_DWORD_STAT(STAT_InRate, InBytes);
 				SET_DWORD_STAT(STAT_OutRate, OutBytes);
-				SET_DWORD_STAT(STAT_OutSaturation, RemoteSaturationMax);
 				SET_DWORD_STAT(STAT_InRateClientMax, ClientInBytesMax);
 				SET_DWORD_STAT(STAT_InRateClientMin, ClientInBytesMin);
 				SET_DWORD_STAT(STAT_InRateClientAvg, ClientInBytesAvg);
@@ -819,7 +814,6 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 					GMBase->ServerStatReplicator->InLoss = InPacketsLost;
 					GMBase->ServerStatReplicator->InRate = InBytes;
 					GMBase->ServerStatReplicator->OutRate = OutBytes;
-					GMBase->ServerStatReplicator->OutSaturation = RemoteSaturationMax;
 					GMBase->ServerStatReplicator->InRateClientMax = ClientInBytesMax;
 					GMBase->ServerStatReplicator->InRateClientMin = ClientInBytesMin;
 					GMBase->ServerStatReplicator->InRateClientAvg = ClientInBytesAvg;
@@ -959,8 +953,6 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 				PerfCounters->Set(TEXT("OutPackets"), OutPackets);
 				PerfCounters->Set(TEXT("InBunches"), InBunches);
 				PerfCounters->Set(TEXT("OutBunches"), OutBunches);
-
-				PerfCounters->Set(TEXT("OutSaturationMax"), RemoteSaturationMax);
 			}
 #endif // USE_SERVER_PERF_COUNTERS
 
@@ -3361,6 +3353,8 @@ void FPacketSimulationSettings::LoadConfig(const TCHAR* OptionalQualifier)
 	ConfigHelperInt(TEXT("PktIncomingLagMax"), PktIncomingLagMax, OptionalQualifier);
 	ConfigHelperInt(TEXT("PktIncomingLoss"), PktIncomingLoss, OptionalQualifier);
 
+	ConfigHelperInt(TEXT("PktJitter"), PktJitter, OptionalQualifier);
+
 	ValidateSettings();
 }
 
@@ -3540,6 +3534,11 @@ bool FPacketSimulationSettings::ParseSettings(const TCHAR* Cmd, const TCHAR* Opt
 	{
 		bParsed = true;
 		UE_LOG(LogNet, Log, TEXT("PktIncomingLoss set to %d"), PktIncomingLoss);
+	}
+	if (ParseHelper(Cmd, TEXT("PktJitter="), PktJitter, OptionalQualifier))
+	{
+		bParsed = true;
+		UE_LOG(LogNet, Log, TEXT("PktJitter set to %d"), PktJitter);
 	}
 
 	ValidateSettings();
@@ -5723,6 +5722,7 @@ BUILD_NETEMULATION_CONSOLE_COMMAND(PktLagMax, "Sets maximum outgoing packet late
 BUILD_NETEMULATION_CONSOLE_COMMAND(PktIncomingLagMin, "Sets minimum incoming packet latency");
 BUILD_NETEMULATION_CONSOLE_COMMAND(PktIncomingLagMax, "Sets maximum incoming packet latency");
 BUILD_NETEMULATION_CONSOLE_COMMAND(PktIncomingLoss, "Simulates incoming packet loss");
+BUILD_NETEMULATION_CONSOLE_COMMAND(PktJitter, "Simulates outgoing packet jitter");
 
 #endif //#if DO_ENABLE_NET_TEST
 
