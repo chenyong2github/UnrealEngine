@@ -71,6 +71,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 
 		// Add center of mass and volume cached calculations to TConvex
 		AddConvexCenterOfMassAndVolume,
+
+		// Add center of mass data to kinematic particle
+		KinematicCentersOfMass,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
