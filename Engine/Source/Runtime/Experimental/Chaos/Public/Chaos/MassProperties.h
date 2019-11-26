@@ -20,11 +20,13 @@ namespace Chaos
 	struct TMassProperties
 	{
 		TMassProperties()
-		    : Volume(0)
+		    : Mass(0)
+			, Volume(0)
 		    , CenterOfMass(0)
 		    , RotationOfMass(TRotation<T, d>::FromElements(TVector<T, d>(0), 1))
 		    , InertiaTensor(0)
 		{}
+		T Mass;
 		T Volume;
 		TVector<T, d> CenterOfMass;
 		TRotation<T, d> RotationOfMass;
