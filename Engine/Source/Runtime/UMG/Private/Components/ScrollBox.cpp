@@ -190,7 +190,7 @@ void UScrollBox::ScrollToEnd()
 	}
 }
 
-void UScrollBox::ScrollWidgetIntoView(UWidget* WidgetToFind, bool AnimateScroll, EDescendantScrollDestination InScrollDestination)
+void UScrollBox::ScrollWidgetIntoView(UWidget* WidgetToFind, bool AnimateScroll, EDescendantScrollDestination InScrollDestination, float Padding)
 {
 	TSharedPtr<SWidget> SlateWidgetToFind;
 	if (WidgetToFind)
@@ -202,7 +202,7 @@ void UScrollBox::ScrollWidgetIntoView(UWidget* WidgetToFind, bool AnimateScroll,
 	{
 		// NOTE: Pass even if null! This, in effect, cancels a request to scroll which is necessary to avoid warnings/ensures 
 		//       when we request to scroll to a widget and later remove that widget!
-		MyScrollBox->ScrollDescendantIntoView(SlateWidgetToFind, AnimateScroll, InScrollDestination);
+		MyScrollBox->ScrollDescendantIntoView(SlateWidgetToFind, AnimateScroll, InScrollDestination, Padding);
 	}
 }
 
