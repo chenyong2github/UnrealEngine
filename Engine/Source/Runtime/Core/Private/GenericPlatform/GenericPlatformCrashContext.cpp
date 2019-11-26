@@ -1039,7 +1039,7 @@ void FGenericCrashContext::SetPortableCallStack(const uint64* StackFrames, int32
 	GetPortableCallStack(StackFrames, NumStackFrames, CallStack);
 }
 
-void FGenericCrashContext::GetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames, TArray<FCrashStackFrame>& OutCallStack)
+void FGenericCrashContext::GetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames, TArray<FCrashStackFrame>& OutCallStack) const
 {
 	// Get all the modules in the current process
 	uint32 NumModules = (uint32)FPlatformStackWalk::GetProcessModuleCount();

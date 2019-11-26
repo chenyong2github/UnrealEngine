@@ -45,6 +45,8 @@
 #include "Templates/AlignmentTemplates.h"
 #include "GenericPlatform/GenericPlatformOutputDevices.h"
 
+#include "Android/AndroidPlatformStackWalk.h"
+
 #if USE_ANDROID_JNI
 extern AAssetManager * AndroidThunkCpp_GetAssetManager();
 extern int32 GAndroidPackageVersion;
@@ -891,7 +893,7 @@ void DefaultCrashHandler(const FAndroidCrashContext& Context)
 /** Global pointer to crash handler */
 void (* GCrashHandlerPointer)(const FGenericCrashContext& Context) = NULL;
 
-const int32 TargetSignals[] =
+static constexpr int32 TargetSignals[] =
 {
 	SIGQUIT, // SIGQUIT is a user-initiated "crash".
 	SIGILL,
@@ -901,54 +903,262 @@ const int32 TargetSignals[] =
 	SIGSYS
 };
 
-const int32 NumTargetSignals = UE_ARRAY_COUNT(TargetSignals);
+static constexpr int32 NumTargetSignals = UE_ARRAY_COUNT(TargetSignals);
 
-struct sigaction PrevActions[NumTargetSignals];
-static bool PreviousSignalHandlersValid = false;
-
-const int32 GAndroidFakeSignalStackSize = 256 * 1024; // Desired stack size
-const uint32 GAndroidFakeSignalStackAllocationSize = GAndroidFakeSignalStackSize + PAGE_SIZE + PAGE_SIZE; // Total stack allocation (including guard page bookends)
-const uint32 GAndroidFakeSignalStackLocation = GAndroidFakeSignalStackAllocationSize - PAGE_SIZE; // Beginning of the desired stack.
-uint8* GAndroidFakeSignalStack = nullptr;
-
-void AllocateFakeSignalStack()
+PRAGMA_DISABLE_OPTIMIZATION
+struct FAndroidSignalParams
 {
-	check(GAndroidFakeSignalStack == nullptr);
-
-	uint8* BaseStackAllocation = (uint8*)mmap(nullptr, GAndroidFakeSignalStackAllocationSize, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-	// protect top of the stack to catch overruns.
-	if (mprotect(BaseStackAllocation, PAGE_SIZE, PROT_NONE) != 0)
+	int Signal;
+	siginfo* Info;
+	void* Context;
+};
+template<uint32 SignalStackSize, typename Derived>
+class FSignalSubstituteStack
+{
+public:
+	static void Init()
 	{
-		UE_LOG(LogAndroid, Fatal, TEXT("Failed to set alt stack protection"));
-	}
-	if (mprotect(BaseStackAllocation + GAndroidFakeSignalStackSize + PAGE_SIZE, PAGE_SIZE, PROT_NONE) != 0)
-	{
-		UE_LOG(LogAndroid, Fatal, TEXT("Failed to set alt stack protection"));
+		AllocateSignalStack();
 	}
 
-	GAndroidFakeSignalStack = BaseStackAllocation;
-
-	check(IsAligned(&GAndroidFakeSignalStack[GAndroidFakeSignalStackLocation], 16));
-}
-
-void ReleaseFakeSignalStack()
-{
-	check(GAndroidFakeSignalStack);
-	munmap(GAndroidFakeSignalStack, GAndroidFakeSignalStackAllocationSize);
-	GAndroidFakeSignalStack = nullptr;
-}
-
-static void RestorePreviousSignalHandlers()
-{
-	if (PreviousSignalHandlersValid)
+	static void Release()
 	{
+		if (FakeSignalStack)
+		{
+			ReleaseSignalStack();
+		}
+	}
+
+protected:
+#if PLATFORM_ANDROID_ARM64
+	template< void(*ActualHandlerFun)()>
+	static void CallActualHandler()
+	{
+		// Arm64, save current stack frame, swap in new stack and call our signal handler.
+		__asm__("mov x8, %0" : : "r"(&FakeSignalStack[SignalStackLocation]));					// Put the fake stack addr into x8
+		__asm__("stp x29, x30, [x8, -32]" : : );						// push the existing frame and lr on to fake stack
+		__asm__("mov x9, sp" : : );										// copy existing stack ptr to x9
+		__asm__("str x9, [x8, -16]" : : );								// push the existing stack on to fake stack.
+
+		__asm__("sub sp, x8, 32" : : );									// set stack ptr to new stack addr, after our pushed regs
+		__asm__("sub fp, x8, 32" : : );									// set frame ptr to new stack addr, after our pushed regs
+
+		__asm__("bl %0" : : "i"(ActualHandlerFun));						// Call our actual crash handler.
+
+		__asm__("ldp x29,x30,[sp]" : : );								// restore the original frame and lr.
+		__asm__("ldr x8, [sp, 16]" : : );								// restore the previously pushed stack pointer into x8
+		__asm__("mov sp, x8" : : );										// restore the original stack pointer
+	}
+#else
+	template< void(*ActualHandlerFunc)()>
+	static void CallActualHandler()
+	{
+		ActualHandlerFunc();
+	}
+#endif
+
+	static void AllocateSignalStack()
+	{
+		check(FakeSignalStack == nullptr);
+
+		uint8* BaseStackAllocation = (uint8*)mmap(nullptr, SignalStackAllocationSize, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+		// protect top of the stack to catch overruns.
+		if (mprotect(BaseStackAllocation, PAGE_SIZE, PROT_NONE) != 0)
+		{
+			UE_LOG(LogAndroid, Fatal, TEXT("Failed to set alt stack protection"));
+		}
+		if (mprotect(BaseStackAllocation + SignalStackSize + PAGE_SIZE, PAGE_SIZE, PROT_NONE) != 0)
+		{
+			UE_LOG(LogAndroid, Fatal, TEXT("Failed to set alt stack protection"));
+		}
+
+		FakeSignalStack = BaseStackAllocation;
+
+		check(IsAligned(&FakeSignalStack[SignalStackLocation], 16));
+	}
+
+	static void ReleaseSignalStack()
+	{
+		check(FakeSignalStack);
+		munmap(FakeSignalStack, SignalStackAllocationSize);
+		FakeSignalStack = nullptr;
+	}
+
+	static const uint32 SignalStackAllocationSize = SignalStackSize + PAGE_SIZE + PAGE_SIZE;
+	static const uint32 SignalStackLocation = SignalStackAllocationSize - PAGE_SIZE;
+
+	static uint8* FakeSignalStack;
+};
+
+template<uint32 SignalStackSize, typename Derived >
+uint8* FSignalSubstituteStack<SignalStackSize, Derived>::FakeSignalStack = nullptr;
+#if ANDROID_HAS_THREADBACKTRACE
+class FThreadCallstackSignalSubstituteStack : public FSignalSubstituteStack<256 * 1024, FThreadCallstackSignalSubstituteStack >
+{
+public:
+	static void Init()
+	{
+		FSignalSubstituteStack<256 * 1024, FThreadCallstackSignalSubstituteStack >::Init();
+		struct sigaction ActionForThread;
+		FMemory::Memzero(ActionForThread);
+		sigfillset(&ActionForThread.sa_mask);
+		ActionForThread.sa_flags = SA_SIGINFO | SA_RESTART | SA_ONSTACK;
+		ActionForThread.sa_sigaction = &OnSignal;
+		sigaction(THREAD_CALLSTACK_GENERATOR, &ActionForThread, nullptr);
+	}
+private:
+	static void OnSignal(int Signal, siginfo* Info, void* Context)
+	{
+		while (FPlatformAtomics::InterlockedCompareExchange(&handling_signal, 1, 0) != 0)
+		{
+			FPlatformProcess::Sleep(0.0f);
+		}
+
+		// prepare our signal parameters:
+		StackWalkSignalParams.Signal = Signal;
+		StackWalkSignalParams.Info = Info;
+		StackWalkSignalParams.Context = Context;
+
+		ThreadStackData = static_cast<ThreadStackUserData*>(Info->si_value.sival_ptr);
+
+		FSignalSubstituteStack::CallActualHandler< &ThreadStackWalk >();
+
+		FPlatformAtomics::AtomicStore(&handling_signal, 0);
+	}
+
+	static void ThreadStackWalk()
+	{
+		if (ThreadStackData)
+		{
+			ThreadStackData->BackTraceCount = FPlatformStackWalk::CaptureStackBackTrace(ThreadStackData->BackTrace, ThreadStackData->CallStackSize, StackWalkSignalParams.Context);
+			ThreadStackData->bDone = true;
+		}
+	}
+	static FAndroidSignalParams StackWalkSignalParams;
+	static volatile sig_atomic_t handling_signal;
+	static ThreadStackUserData* ThreadStackData;
+};
+volatile sig_atomic_t FThreadCallstackSignalSubstituteStack::handling_signal = 0;
+ThreadStackUserData* FThreadCallstackSignalSubstituteStack::ThreadStackData = nullptr;
+FAndroidSignalParams FThreadCallstackSignalSubstituteStack::StackWalkSignalParams;
+#else
+	// per thread backtrace unavailable
+	class FThreadCallstackSignalSubstituteStack
+	{
+	public:
+		static void Init() {};
+		static void Release() {};
+	};
+#endif
+
+class FFatalSignalHandler : protected FSignalSubstituteStack<256 * 1024, FFatalSignalHandler>
+{
+public:
+	static void Init()
+	{
+		FSignalSubstituteStack<256 * 1024, FFatalSignalHandler>::Init();
+		HookSignals();
+	}
+
+	static void Release()
+	{
+		RestorePreviousSignalHandlers();
+		FSignalSubstituteStack<256 * 1024, FFatalSignalHandler>::Release();
+	}
+
+	static bool IsInFatalSignalHandler()
+	{
+		return FPlatformAtomics::AtomicRead(&handling_fatal_signal) > 0;
+	}
+
+	// EnterFatalCrash, called before a crash is reported
+	// Only the first occurrence succeeds.
+	static void EnterFatalCrash()
+	{
+		// we are a fatal signal, we *can* only handle one at a time. So avoid allow multiple fatal signals going through
+		if (FPlatformAtomics::InterlockedIncrement(&handling_fatal_signal) != 1)
+		{
+			FPlatformProcess::Sleep(60.0f);
+			exit(0);
+		}
+	}
+
+private:
+	static void OnHandleSignal(int Signal, siginfo* Info, void* Context)
+	{
+		EnterFatalCrash();
+
+		// prepare our signal parameters:
+		FatalSignalParams.Signal = Signal;
+		FatalSignalParams.Info = Info;
+		FatalSignalParams.Context = Context;
+
+		FFatalSignalHandler::CallActualHandler< &FatalSignalHandler >();
+
+		// Restore system handlers so Android could catch this signal after we are done with crashreport
+		RestorePreviousSignalHandlers();
+	}
+
+	static void FatalSignalHandler()
+	{
+		// Switch to malloc crash.
+		FPlatformMallocCrash::Get().SetAsGMalloc();
+
+		FAndroidCrashContext CrashContext(ECrashContextType::Crash, TEXT("Caught signal"));
+		CrashContext.InitFromSignal(FatalSignalParams.Signal, FatalSignalParams.Info, FatalSignalParams.Context);
+		CrashContext.CaptureCrashInfo();
+		if (GCrashHandlerPointer)
+		{
+			GCrashHandlerPointer(CrashContext);
+		}
+		else
+		{
+			// call default one
+			DefaultCrashHandler(CrashContext);
+		}
+	}
+
+	static void HookSignals()
+	{
+		// hook our signals and record current set.
+		struct sigaction Action;
+		FMemory::Memzero(&Action, sizeof(struct sigaction));
+		Action.sa_sigaction = &OnHandleSignal;
+		// sigfillset will block all other signals whilst the signal handler is processing.
+		sigfillset(&Action.sa_mask);
+		Action.sa_flags = SA_SIGINFO | SA_RESTART | SA_ONSTACK;
+
 		for (int32 i = 0; i < NumTargetSignals; ++i)
 		{
-			sigaction(TargetSignals[i], &PrevActions[i], NULL);
+			sigaction(TargetSignals[i], &Action, &PrevActions[i]);
 		}
-		PreviousSignalHandlersValid = false;
+		PreviousSignalHandlersValid = true;
 	}
-}
+
+	static void RestorePreviousSignalHandlers()
+	{
+		if (PreviousSignalHandlersValid)
+		{
+			for (int32 i = 0; i < NumTargetSignals; ++i)
+			{
+				sigaction(TargetSignals[i], &PrevActions[i], NULL);
+			}
+			PreviousSignalHandlersValid = false;
+		}
+	}
+
+	// params to pass from FFatalSignalHandler::OnHandleSignal to FatalSignalHandler.
+	static FAndroidSignalParams FatalSignalParams;
+	static volatile sig_atomic_t handling_fatal_signal;
+	static struct sigaction PrevActions[NumTargetSignals];
+	static bool PreviousSignalHandlersValid;
+};
+FAndroidSignalParams FFatalSignalHandler::FatalSignalParams;
+volatile sig_atomic_t FFatalSignalHandler::handling_fatal_signal = 0;
+struct sigaction FFatalSignalHandler::PrevActions[NumTargetSignals];
+bool FFatalSignalHandler::PreviousSignalHandlersValid = false;
+
+PRAGMA_ENABLE_OPTIMIZATION
 
 static void SetDefaultSignalHandlers()
 {
@@ -963,38 +1173,9 @@ static void SetDefaultSignalHandlers()
 	}
 }
 
-void AndroidCrashHandlerSubstituteStack(int Signal, siginfo* Info, void* Context);
-
-void HookSignals()
-{
-	// hook our signals and record current set.
-	struct sigaction Action;
-	FMemory::Memzero(&Action, sizeof(struct sigaction));
-	Action.sa_sigaction = AndroidCrashHandlerSubstituteStack;
-	// sigfillset will block all other signals whilst the signal handler is processing.
-	sigfillset(&Action.sa_mask);
-	Action.sa_flags = SA_SIGINFO | SA_RESTART | SA_ONSTACK;
-
-	for (int32 i = 0; i < NumTargetSignals; ++i)
-	{
-		sigaction(TargetSignals[i], &Action, &PrevActions[i]);
-	}
-	PreviousSignalHandlersValid = true;
-}
-
-// params to pass from AndroidCrashHandlerSubstituteStack to PlatformCrashHandler.
-struct FAndroidSignalParams
-{
-	int Signal;
-	siginfo* Info;
-	void* Context;
-};
-static FAndroidSignalParams GAndroidSignalParams;
-static volatile sig_atomic_t handling_fatal_signal = 0;
-
 bool FAndroidMisc::IsInSignalHandler()
 {
-	return FPlatformAtomics::AtomicRead(&handling_fatal_signal) > 0;
+	return FFatalSignalHandler::IsInFatalSignalHandler();
 }
 
 void FAndroidMisc::TriggerNonFatalCrashHandler(ECrashContextType InType, const FString& Message)
@@ -1017,12 +1198,7 @@ void FAndroidMisc::TriggerNonFatalCrashHandler(ECrashContextType InType, const F
 
 void FAndroidMisc::TriggerCrashHandler(const TCHAR* InErrorMessage, const TMap<FString, FString>& AdditionalProperties)
 {
-	// we are a fatal signal, we *can* only handle one at a time. So avoid allow multiple fatal signals going through
-	if (FPlatformAtomics::InterlockedIncrement(&handling_fatal_signal) != 1)
-	{
-		FPlatformProcess::Sleep(60.0f);
-		exit(0);
-	}
+	FFatalSignalHandler::EnterFatalCrash();
 
 	FAndroidCrashContext CrashContext(ECrashContextType::Crash, InErrorMessage);
 	CrashContext.CaptureCrashInfo();
@@ -1042,73 +1218,6 @@ void FAndroidMisc::TriggerCrashHandler(const TCHAR* InErrorMessage, const TMap<F
 	}
 }
 
-
-void PlatformCrashHandler()
-{
-	// Switch to malloc crash.
-	FPlatformMallocCrash::Get().SetAsGMalloc();
-
-	FAndroidCrashContext CrashContext(ECrashContextType::Crash, TEXT("Caught signal"));
-	CrashContext.InitFromSignal(GAndroidSignalParams.Signal, GAndroidSignalParams.Info, GAndroidSignalParams.Context);
-	CrashContext.CaptureCrashInfo();
-	if (GCrashHandlerPointer)
-	{
-		GCrashHandlerPointer(CrashContext);
-	}
-	else
-	{
-		// call default one
-		DefaultCrashHandler(CrashContext);
-	}
-}
-
-PRAGMA_DISABLE_OPTIMIZATION
-#if PLATFORM_ANDROID_ARM64
-/** True system-specific crash handler that replaces stack pointer,  */
-void AndroidCrashHandlerSubstituteStack(int Signal, siginfo* Info, void* Context)
-{
-	// we are a fatal signal, we *can* only handle one at a time. So avoid allow multiple fatal signals going through
-	if (FPlatformAtomics::InterlockedIncrement(&handling_fatal_signal) != 1)
-	{
-		FPlatformProcess::Sleep(60.0f);
-		exit(0);
-	}
-
-	// prepare our signal parameters:
-	GAndroidSignalParams.Signal = Signal;
-	GAndroidSignalParams.Info = Info;
-	GAndroidSignalParams.Context = Context;
-
-	// Arm64, save current stack frame, swap in new stack and call our signal handler.
-	uint8* FakeStackBase = &GAndroidFakeSignalStack[GAndroidFakeSignalStackLocation];	
-	__asm__("mov x8, %0" : : "r"(FakeStackBase));					// Put the fake stack addr into x8
-	__asm__("stp x29, x30, [x8, -32]" : : );						// push the existing frame and lr on to fake stack
-	__asm__("mov x9, sp" : : );										// copy existing stack ptr to x9
-	__asm__("str x9, [x8, -16]" : : );								// push the existing stack on to fake stack.
-
-	__asm__("sub sp, x8, 32" : : );									// set stack ptr to new stack addr, after our pushed regs
-	__asm__("sub fp, x8, 32" : : );									// set frame ptr to new stack addr, after our pushed regs
-
-    __asm__("bl %0" : : "i"(PlatformCrashHandler));					// Call our actual crash handler.
-
-	__asm__("ldp x29,x30,[sp]" : : );								// restore the original frame and lr.
-	__asm__("ldr x8, [sp, 16]" : : );								// restore the previously pushed stack pointer into x8
-	__asm__("mov sp, x8" : : );										// restore the original stack pointer
-
-	// Restore system handlers so Android could catch this signal after we are done with crashreport
-	RestorePreviousSignalHandlers();
-
-	FPlatformAtomics::InterlockedDecrement(&handling_fatal_signal);
-}
-#else
-// TODO
-void AndroidCrashHandlerSubstituteStack(int Signal, siginfo* Info, void* Context)
-{	
-	PlatformCrashHandler();
-}
-#endif 
-PRAGMA_ENABLE_OPTIMIZATION
-
 void FAndroidMisc::SetCrashHandler(void(*CrashHandler)(const FGenericCrashContext& Context))
 {
 #if PLATFORM_ANDROID_ARM64
@@ -1116,23 +1225,16 @@ void FAndroidMisc::SetCrashHandler(void(*CrashHandler)(const FGenericCrashContex
 
 	GCrashHandlerPointer = CrashHandler;
 
-	RestorePreviousSignalHandlers();
-	FMemory::Memzero(&PrevActions, sizeof(PrevActions));
-	if(GAndroidFakeSignalStack)
-	{
-		ReleaseFakeSignalStack();
-	}
-
+	FFatalSignalHandler::Release();
+	FThreadCallstackSignalSubstituteStack::Release();
 	// Passing -1 will leave these restored and won't trap them
 	if ((PTRINT)CrashHandler == -1)
 	{
 		return;
 	}
 
-	AllocateFakeSignalStack();
-
-	HookSignals();
-
+	FFatalSignalHandler::Init();
+	FThreadCallstackSignalSubstituteStack::Init();
 #endif //PLATFORM_ANDROID_ARM64
 }
 
