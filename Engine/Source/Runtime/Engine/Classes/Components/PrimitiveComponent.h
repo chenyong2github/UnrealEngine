@@ -1483,7 +1483,7 @@ public:
 	 * @param InCollisionProfileName : New Profile Name
 	 */
 	UFUNCTION(BlueprintCallable, Category="Collision")	
-	virtual void SetCollisionProfileName(FName InCollisionProfileName);
+	virtual void SetCollisionProfileName(FName InCollisionProfileName, bool bUpdateOverlaps=true);
 
 	/** Get the collision profile name */
 	UFUNCTION(BlueprintPure, Category="Collision")
@@ -2191,7 +2191,7 @@ public:
 	
 protected:
 	/** Called when the BodyInstance ResponseToChannels, CollisionEnabled or bNotifyRigidBodyCollision changes, in case subclasses want to use that information. */
-	virtual void OnComponentCollisionSettingsChanged(bool bDeferUpdateOverlaps = false);
+	virtual void OnComponentCollisionSettingsChanged(bool bUpdateOverlaps=true);
 
 	/** Ends all current component overlaps. Generally used when destroying this component or when it can no longer generate overlaps. */
 	void ClearComponentOverlaps(bool bDoNotifies, bool bSkipNotifySelf);
