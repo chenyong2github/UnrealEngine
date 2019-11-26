@@ -29,9 +29,10 @@ bool AVPViewportTickableActorBase::ShouldTickIfViewportsOnly() const
 			return static_cast<uint8>(ViewportTickType & EVPViewportTickableFlags::Game) != 0;
 		case EWorldType::Editor:
 			return static_cast<uint8>(ViewportTickType & EVPViewportTickableFlags::Editor) != 0;
-		case EWorldType::Preview:
+		case EWorldType::EditorPreview:
+			return static_cast<uint8>(ViewportTickType & EVPViewportTickableFlags::EditorPreview) != 0;
 		case EWorldType::GamePreview:
-			return static_cast<uint8>(ViewportTickType & EVPViewportTickableFlags::Preview) != 0;
+			return static_cast<uint8>(ViewportTickType & EVPViewportTickableFlags::GamePreview) != 0;
 		}
 	}
 	return false;
