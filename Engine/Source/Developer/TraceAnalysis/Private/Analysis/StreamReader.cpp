@@ -38,12 +38,6 @@ bool FStreamReader::IsEmpty() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool FStreamReader::IsEof() const
-{
-	return bEof;
-}
-
-////////////////////////////////////////////////////////////////////////////////
 struct FMark* FStreamReader::SaveMark() const
 {
 	return (FMark*)(UPTRINT(Cursor));
@@ -106,12 +100,6 @@ void FStreamBuffer::Consolidate()
 	}
 
 	DemandHint = 0;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void FStreamBuffer::SetEof()
-{
-	bEof = true;
 }
 
 } // namespace Trace

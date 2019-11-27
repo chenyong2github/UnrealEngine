@@ -45,17 +45,12 @@ uint32 FAnalysisProcessor::FImpl::Run()
 			return DataStream.Read(Out, Size);
 		});
 
-		if (BytesRead < 0)
+		if (BytesRead <= 0)
 		{
 			break;
 		}
 
 		if (!AnalysisEngine.OnData(Buffer))
-		{
-			break;
-		}
-
-		if (Buffer.IsEof())
 		{
 			break;
 		}
