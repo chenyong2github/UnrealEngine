@@ -11,7 +11,7 @@ class FNDisplayLiveLinkSubjectReplicator;
 
 
 /**
- * Entry point for LiveLinkOverNDisplay functionnality. 
+ * Entry point for LiveLinkOverNDisplay functionality. 
  */
 class FLiveLinkOverNDisplayModule : public ILiveLinkOverNDisplayModule, public TSharedFromThis<FLiveLinkOverNDisplayModule>
 {
@@ -31,9 +31,6 @@ private:
 	void OnEngineLoopInitComplete();
 
 private:
-
-	/** Cluster event listener delegate */
-	FDelegateHandle OnEngineLoopInitCompleteDelegate;
 
 	/** Replicator SyncObject used to transfer data across all cluster machines */
 	TUniquePtr<FNDisplayLiveLinkSubjectReplicator> LiveLinkReplicator;

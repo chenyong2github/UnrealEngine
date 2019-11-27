@@ -33,7 +33,7 @@ FLiveLinkOverNDisplayModule::FLiveLinkOverNDisplayModule()
 void FLiveLinkOverNDisplayModule::StartupModule()
 {
 	// Register Engine callbacks
-	OnEngineLoopInitCompleteDelegate = FCoreDelegates::OnFEngineLoopInitComplete.AddRaw(this, &FLiveLinkOverNDisplayModule::OnEngineLoopInitComplete);
+	FCoreDelegates::OnFEngineLoopInitComplete.AddRaw(this, &FLiveLinkOverNDisplayModule::OnEngineLoopInitComplete);
 
 #if WITH_EDITOR
 	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
@@ -67,14 +67,11 @@ FNDisplayLiveLinkSubjectReplicator& FLiveLinkOverNDisplayModule::GetSubjectRepli
 
 void FLiveLinkOverNDisplayModule::OnEngineLoopInitComplete()
 {
-	if (UDisplayClusterGameEngine* DisplayClusterEngine = Cast<UDisplayClusterGameEngine>(GEngine))
+	if (IDisplayCluster::IsAvailable() && IDisplayCluster::Get().GetOperationMode() == EDisplayClusterOperationMode::Cluster) 
 	{
-		if (EDisplayClusterOperationMode::Cluster == DisplayClusterEngine->GetOperationMode())
+		if (GetDefault<ULiveLinkOverNDisplaySettings>()->IsLiveLinkOverNDisplayEnabled())
 		{
-			if (GetDefault<ULiveLinkOverNDisplaySettings>()->IsLiveLinkOverNDisplayEnabled())
-			{
-				LiveLinkReplicator->Activate();
-			}
+			LiveLinkReplicator->Activate();
 		}
 	}
 }

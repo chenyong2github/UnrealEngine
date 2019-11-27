@@ -9,7 +9,13 @@
 #include "Cluster/IDisplayClusterClusterManager.h"
 
 
-DEFINE_LOG_CATEGORY_STATIC(LogDisplayClusterInterception, Log, All);
+DEFINE_LOG_CATEGORY(LogDisplayClusterInterception);
+
+
+namespace DisplayClusterMessageInterceptorUtils
+{
+	static const FInterceptedMessageDescriptor MultiUserInterception(TArray<FName>({ TEXT("ConcertSession_CustomEvent") }), TEXT("ConcertMessageId"));
+}
 
 FDisplayClusterMessageInterceptor::FDisplayClusterMessageInterceptor()
 	: bIsIntercepting(false)
@@ -18,10 +24,16 @@ FDisplayClusterMessageInterceptor::FDisplayClusterMessageInterceptor()
 	, ClusterManager(nullptr)
 {}
 
-void FDisplayClusterMessageInterceptor::Setup(IDisplayClusterClusterManager* InClusterManager, TSharedPtr<IMessageBus, ESPMode::ThreadSafe> InBus)
+void FDisplayClusterMessageInterceptor::Setup(IDisplayClusterClusterManager* InClusterManager, const FMessageInterceptionSettings& InInterceptionSettings)
 {
 	ClusterManager = InClusterManager;
-	InterceptedBus = InBus;
+	InterceptionSettings = InInterceptionSettings;
+
+	//Setup desired messages to be intercepted
+	if (InterceptionSettings.bInterceptMultiUserMessages)
+	{
+		InterceptedMessages.Emplace(DisplayClusterMessageInterceptorUtils::MultiUserInterception);
+	}
 }
 
 void FDisplayClusterMessageInterceptor::Purge()
@@ -44,20 +56,25 @@ void FDisplayClusterMessageInterceptor::Purge()
 	}
 }
 
-void FDisplayClusterMessageInterceptor::Start()
+void FDisplayClusterMessageInterceptor::Start(TSharedPtr<IMessageBus, ESPMode::ThreadSafe> InBus)
 {
-	const UDisplayClusterMessageInterceptionSettings* InterceptionSettings = GetDefault<UDisplayClusterMessageInterceptionSettings>();
-	if (!bIsIntercepting && InterceptionSettings->bIsEnabled && InterceptedBus)
+	InterceptedBus = InBus;
+
+	if (!bIsIntercepting && InterceptionSettings.bIsEnabled && InterceptedBus)
 	{
-		InterceptedAnnotation = InterceptionSettings->Annotation;
-		FString DisplayString = InterceptedAnnotation.ToString();
-		UE_LOG(LogDisplayClusterInterception, Display, TEXT("Starting interception of bus messages with annotation: %s"), *DisplayString);
-		for (const FName& MessageType : InterceptionSettings->MessageTypes)
+		UE_LOG(LogDisplayClusterInterception, Display, TEXT("Starting interception of bus messages"));
+
+		for (const FInterceptedMessageDescriptor& Descriptor : InterceptedMessages)
 		{
-			InterceptedBus->Intercept(AsShared(), MessageType);
-			DisplayString = MessageType.ToString();
-			UE_LOG(LogDisplayClusterInterception, Display, TEXT("Intercepted message type: %s"), *DisplayString);
+			const FString AnnotationString = Descriptor.Annotation.ToString();
+			for (const FName& MessageType : Descriptor.MessageTypes)
+			{
+				InterceptedBus->Intercept(AsShared(), MessageType);
+				UE_LOG(LogDisplayClusterInterception, Display, TEXT("Intercepting message type: '%s' with annotation '%s'"), *MessageType.ToString(), *AnnotationString);
+			}
+
 		}
+
 		bIsIntercepting = true;
 	}
 }
@@ -71,6 +88,8 @@ void FDisplayClusterMessageInterceptor::Stop()
 		Purge();
 		UE_LOG(LogDisplayClusterInterception, Display, TEXT("Stopping interception of bus messages."));
 	}
+
+	InterceptedBus.Reset();
 }
 
 void FDisplayClusterMessageInterceptor::SyncMessages()
@@ -88,31 +107,33 @@ void FDisplayClusterMessageInterceptor::SyncMessages()
 		for (const FString& MessageId : MessageIds)
 		{
 			SyncMessagesEvent.Type = MessageId;					// the actually message id we received
-			ClusterManager->EmitClusterEvent(SyncMessagesEvent, false);
+			const bool bMasterOnly = false; //All nodes are broadcasting events to synchronize them across cluster
+			ClusterManager->EmitClusterEvent(SyncMessagesEvent, bMasterOnly);
 			UE_LOG(LogDisplayClusterInterception, VeryVerbose, TEXT("Emitting cluster event for message %s on frame %d"), *MessageId, GFrameCounter);
 		}
 	}
 
 	// remove out of date messages that are not marked reliable
-	const FTimespan MessageTimeoutSpan = FTimespan(0, 0, 1);
-	FDateTime UtcNow = FDateTime::UtcNow();
+	const FTimespan MessageTimeoutSpan = FTimespan::FromSeconds(InterceptionSettings.TimeoutSeconds);
+	const FDateTime UtcNow = FDateTime::UtcNow();
 
 	TArray<TSharedPtr<IMessageContext, ESPMode::ThreadSafe>> ContextToForward;
 	{
 		FScopeLock Lock(&ContextQueueCS);
 		for (auto It = ContextMap.CreateIterator(); It; ++It)
 		{
-			if (It.Value().ContextPtr->GetTimeSent() + MessageTimeoutSpan <= UtcNow)
+			if (It.Value().ContextPtr->GetTimeForwarded() + MessageTimeoutSpan <= UtcNow)
 			{
 				if (!EnumHasAnyFlags(It.Value().ContextPtr->GetFlags(), EMessageFlags::Reliable))
 				{
-					UE_LOG(LogDisplayClusterInterception, VeryVerbose, TEXT("discarding unreliable message %s left intercepted for more than 1s"), *It.Key());
+					UE_LOG(LogDisplayClusterInterception, VeryVerbose, TEXT("Discarding unreliable message '%s' left intercepted for more than %0.1f seconds"), *It.Key(), InterceptionSettings.TimeoutSeconds);
 					It.RemoveCurrent();
 				}
 				else
 				{
-					UE_LOG(LogDisplayClusterInterception, Warning, TEXT("Forcing dispatching of reliable message %s left intercepted for more than 1s"), *It.Key());
-					// Force treatment if not synced after a second and the message is reliable
+					UE_LOG(LogDisplayClusterInterception, Warning, TEXT("Forcing dispatching of reliable message '%s' left intercepted for more than %0.1f seconds"), *It.Key(), InterceptionSettings.TimeoutSeconds);
+
+					// Force treatment if not synced after a certain amount of time and the message is reliable
 					ContextToForward.Add(It.Value().ContextPtr);
 				}
 			}
@@ -163,7 +184,6 @@ const FGuid& FDisplayClusterMessageInterceptor::GetInterceptorId() const
 	return InterceptorId;
 }
 
-
 bool FDisplayClusterMessageInterceptor::InterceptMessage(const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
 	// we do not intercept forwarded message, they will be either coming off of the network or being forwarded by ourselves
@@ -172,15 +192,24 @@ bool FDisplayClusterMessageInterceptor::InterceptMessage(const TSharedRef<IMessa
 		return false;
 	}
 
-	const FString* MessageId = Context->GetAnnotations().Find(InterceptedAnnotation);
-	if (Context->GetForwarder() != Address && MessageId)
+	if (Context->GetForwarder() != Address)
 	{
-		UE_LOG(LogDisplayClusterInterception, VeryVerbose, TEXT("Intercepting message %s"), **MessageId);
+		const FName MessageType = Context->GetMessageType();
+		const FInterceptedMessageDescriptor* Descriptor = InterceptedMessages.FindByPredicate([MessageType](const FInterceptedMessageDescriptor& Other) { return Other.MessageTypes.Contains(MessageType); });
+		if (Descriptor)
+		{
+			const FString* MessageId = Context->GetAnnotations().Find(Descriptor->Annotation);
+			if (MessageId)
+			{
+				UE_LOG(LogDisplayClusterInterception, VeryVerbose, TEXT("Intercepted message '%s'"), **MessageId);
 
-		FScopeLock Lock(&ContextQueueCS);
-		ContextMap.Add(*MessageId, FContextSync(Context));
-		return true;
+				FScopeLock Lock(&ContextQueueCS);
+				ContextMap.Add(*MessageId, FContextSync(Context));
+				return true;
+			}
+		}
 	}
+
 	return false;
 }
 
