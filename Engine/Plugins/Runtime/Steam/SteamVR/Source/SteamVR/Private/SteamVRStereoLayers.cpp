@@ -2,10 +2,13 @@
 //
 #include "CoreMinimal.h"
 #include "SteamVRPrivate.h"
+#include "SteamVRStereoLayers.h"
 #include "StereoLayerManager.h"
 #include "SteamVRHMD.h"
 #include "Misc/ScopeLock.h"
 #include "DefaultXRCamera.h"
+
+const FName FSteamVRHQLayer::ShapeName = FName("SteamVRHQLayer");
 
 #if STEAMVR_SUPPORTED_PLATFORMS
 
@@ -95,9 +98,33 @@ void FSteamVRHMD::UpdateLayer(struct FSteamVRLayer& Layer, uint32 LayerId, bool 
 	{
 		UE_LOG(LogHMD, Warning, TEXT("Unsupported StereoLayer flag. SteamVR StereoLayers do not support disabling alpha renderding. Make the texture opaque instead."));
 	}
-	if (!Layer.LayerDesc.HasShape<FQuadLayer>())
+
+	const float WorldToMeterScale = GetWorldToMetersScale();
+	check(WorldToMeterScale > 0.f);
+
+	if (Layer.LayerDesc.HasShape<FSteamVRHQLayer>())
 	{
-		UE_LOG(LogHMD, Warning, TEXT("Unsupported StereoLayer shape. SteamVR StereoLayers can only be Quads."));
+		vr::VROverlayHandle_t ExistingHQLayer = VROverlay->GetHighQualityOverlay();
+		if (ExistingHQLayer != vr::k_ulOverlayHandleInvalid && ExistingHQLayer != Layer.OverlayHandle)
+		{
+			UE_LOG(LogHMD, Warning, TEXT("There can only be one high-quality stereo layer active at a time. Please disable or change one or more layers to non-high-quality."));
+		}
+		else
+		{
+			VROverlay->SetHighQualityOverlay(Layer.OverlayHandle);
+
+			const auto& HQSettings = Layer.LayerDesc.GetShape<FSteamVRHQLayer>();
+			VROverlay->SetOverlayFlag(Layer.OverlayHandle, vr::VROverlayFlags_Curved, HQSettings.bCurved);
+			VROverlay->SetOverlayFlag(Layer.OverlayHandle, vr::VROverlayFlags_RGSS4X, HQSettings.bAntiAlias);
+			if (HQSettings.bCurved)
+			{
+				VROverlay->SetOverlayAutoCurveDistanceRangeInMeters(Layer.OverlayHandle, HQSettings.AutoCurveMinDistance / WorldToMeterScale, HQSettings.AutoCurveMaxDistance / WorldToMeterScale);
+			}
+		}
+	}
+	else if (!Layer.LayerDesc.HasShape<FQuadLayer>())
+	{
+		UE_LOG(LogHMD, Warning, TEXT("Unsupported StereoLayer shape. SteamVR StereoLayers can only be Quads or High Quality Quads."));
 	}
 
 	// UVs
@@ -107,8 +134,6 @@ void FSteamVRHMD::UpdateLayer(struct FSteamVRLayer& Layer, uint32 LayerId, bool 
     TextureBounds.vMin = Layer.LayerDesc.UVRect.Min.Y;
     TextureBounds.vMax = Layer.LayerDesc.UVRect.Max.Y;
 	OVR_VERIFY(VROverlay->SetOverlayTextureBounds(Layer.OverlayHandle, &TextureBounds));
-	const float WorldToMeterScale = GetWorldToMetersScale();
-	check(WorldToMeterScale > 0.f);
 	OVR_VERIFY(VROverlay->SetOverlayWidthInMeters(Layer.OverlayHandle, Layer.LayerDesc.QuadSize.X / WorldToMeterScale));
 	
 	float TexelAspect = 1.0f;

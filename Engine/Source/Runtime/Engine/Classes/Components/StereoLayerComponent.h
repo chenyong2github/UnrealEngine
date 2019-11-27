@@ -46,7 +46,7 @@ enum EStereoLayerShape
 };
 
 UCLASS(EditInlineNew, Abstract, BlueprintType, CollapseCategories, Within = StereoLayerComponent)
-class UStereoLayerShape : public UObject
+class ENGINE_API UStereoLayerShape : public UObject
 {
 	GENERATED_BODY()
 
@@ -61,7 +61,7 @@ protected:
 };
 
 UCLASS(meta = (DisplayName = "Quad Layer"))
-class UStereoLayerShapeQuad : public UStereoLayerShape
+class ENGINE_API UStereoLayerShapeQuad : public UStereoLayerShape
 {
 	GENERATED_BODY()
 public:
@@ -72,7 +72,7 @@ public:
 };
 
 UCLASS(meta = (DisplayName = "Cylinder Layer"))
-class UStereoLayerShapeCylinder : public UStereoLayerShape
+class ENGINE_API UStereoLayerShapeCylinder : public UStereoLayerShape
 {
 	GENERATED_BODY()
 
@@ -109,7 +109,7 @@ public:
 };
 
 UCLASS(meta = (DisplayName = "Cubemap Layer"))
-class UStereoLayerShapeCubemap : public UStereoLayerShape
+class ENGINE_API UStereoLayerShapeCubemap : public UStereoLayerShape
 {
 	GENERATED_BODY()
 public:
@@ -186,7 +186,7 @@ public:
 
 
 UCLASS(meta = (DisplayName = "Equirect Layer"))
-class UStereoLayerShapeEquirect : public UStereoLayerShape
+class ENGINE_API UStereoLayerShapeEquirect : public UStereoLayerShape
 {
 	GENERATED_BODY()
 
