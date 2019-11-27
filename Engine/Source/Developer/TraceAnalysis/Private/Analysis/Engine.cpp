@@ -92,10 +92,6 @@ FAnalysisEngine::FDispatch* FAnalysisEngine::FDispatchBuilder::Finalize()
 	memcpy(Dispatch, Buffer.GetData(), Buffer.Num());
 	memcpy(Dispatch->Fields + Dispatch->FieldCount, NameBuffer.GetData(), NameBuffer.Num());
 
-	// Sort by hash so we can binary search when looking up.
-	TArrayView<FDispatch::FField> Fields(Dispatch->Fields, Dispatch->FieldCount);
-	Algo::SortBy(Fields, [] (const auto& Field) { return Field.Hash; });
-
 	// Fix up name offsets
 	for (int i = 0, n = Dispatch->FieldCount; i < n; ++i)
 	{
