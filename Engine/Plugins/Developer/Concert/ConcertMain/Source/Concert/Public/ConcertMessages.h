@@ -85,6 +85,10 @@ struct FConcertAdmin_DiscoverServersEvent : public FConcertEndpointDiscoveryEven
 	/** The required version of the server (eg, 4.22, 4.23, etc) */
 	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
 	FString RequiredVersion;
+
+	/** If a server was configured to restrict access to specific client(s), it will search for this key in its list of authorized keys.*/
+	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
+	FString ClientAuthenticationKey;
 };
 
 USTRUCT()
