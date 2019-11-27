@@ -851,6 +851,60 @@ static void BuildBundles(FExportGraph& ExportGraph, TMap<FName, FPackage*>& Pack
 	}
 }
 
+static bool WriteBulkData(	const FString& Filename, EIoChunkType Type, const FPackage& Package, const FPackageStoreBulkDataManifest& BulkDataManifest,
+							FIoStoreWriter* IoStoreWriter, uint64& OutBulkChunkCount, uint64& OutBulkPartialChunkCount)
+{
+	TUniquePtr<FArchive> BulkAr(IFileManager::Get().CreateFileReader(*Filename));
+	if (BulkAr != nullptr)
+	{
+		const FIoChunkId BulkDataChunkId = CreateChunkIdForBulkData(Package.GlobalPackageId, INDEX_NONE, Type, *Package.FileName);
+#if !SKIP_WRITE_CONTAINER
+		uint8* BulkBuffer = static_cast<uint8*>(FMemory::Malloc(BulkAr->TotalSize()));
+		BulkAr->Serialize(BulkBuffer, BulkAr->TotalSize());
+		FIoBuffer IoBuffer(FIoBuffer::AssumeOwnership, BulkBuffer, BulkAr->TotalSize());
+		const FIoStatus AppendResult = IoStoreWriter->Append(BulkDataChunkId, IoBuffer);
+		if (!AppendResult.IsOk())
+		{
+			UE_LOG(LogIoStore, Error, TEXT("Failed to append bulkdata for '%s' due to: %s"), *Package.FileName, *AppendResult.ToString());
+			return false;
+		}
+
+		BulkAr->Close();
+#endif
+		++OutBulkChunkCount;
+
+		// Create additional mapping chunks as needed
+		const FPackageStoreBulkDataManifest::PackageDesc* PackageDesc = BulkDataManifest.Find(Package.FileName);
+		if (PackageDesc != nullptr)
+		{
+			for (const FPackageStoreBulkDataManifest::PackageDesc::BulkDataDesc& BulkDataDesc : PackageDesc->GetDataArray())
+			{
+				if (BulkDataDesc.Type == Type)
+				{
+#if !SKIP_WRITE_CONTAINER
+					const FIoChunkId AccessChunkId = CreateChunkIdForBulkData(Package.GlobalPackageId, BulkDataDesc.ChunkId, Type, *Package.FileName);
+					const FIoStatus PartialResult = IoStoreWriter->MapPartialRange(BulkDataChunkId, BulkDataDesc.Offset, BulkDataDesc.Size, AccessChunkId);
+					if (!PartialResult.IsOk())
+					{
+						UE_LOG(LogIoStore, Error, TEXT("Failed to map partial range for '%s' due to: %s"), *Package.FileName, *PartialResult.ToString());
+						return false;
+					}
+#endif
+				}
+				
+				++OutBulkPartialChunkCount;
+			}
+		}
+		else
+		{
+			UE_LOG(LogIoStore, Error, TEXT("Unable to find an entry in the bulkdata manifest for '%s' the file might be out of date!"), *Package.FileName);
+			return false;
+		}
+	}
+
+	return true;
+}
+
 struct FImportData
 {
 	int32 GlobalIndex = -1;
@@ -1660,54 +1714,20 @@ int32 CreateTarget(const FContainerTarget& Target)
 			// Bulk chunks
 			if (bWithBulkDataManifest)
 			{
-				FString UBulkFileName = FPaths::ChangeExtension(Package.FileName, TEXT(".ubulk"));
-				FPaths::NormalizeFilename(UBulkFileName);
+				FString BulkFileName = FPaths::ChangeExtension(Package.FileName, TEXT(".ubulk"));
+				FPaths::NormalizeFilename(BulkFileName);
 
-				TUniquePtr<FArchive> BulkAr(IFileManager::Get().CreateFileReader(*UBulkFileName));
-				if (BulkAr != nullptr)
+				if (!WriteBulkData(BulkFileName, EIoChunkType::BulkData, Package, BulkDataManifest, IoStoreWriter.Get(), BulkChunkCount, BulkPartialChunkCount))
 				{
-					const FIoChunkId BulkDataChunkId = CreateChunkIdForBulkData(Package.GlobalPackageId, INDEX_NONE, EIoChunkType::BulkData, *Package.FileName);
-#if !SKIP_WRITE_CONTAINER
-					uint8* BulkBuffer = static_cast<uint8*>(FMemory::Malloc(BulkAr->TotalSize()));
-					BulkAr->Serialize(BulkBuffer, BulkAr->TotalSize());
-					FIoBuffer IoBuffer(FIoBuffer::AssumeOwnership, BulkBuffer, BulkAr->TotalSize());
-					const FIoStatus AppendResult = IoStoreWriter->Append(BulkDataChunkId, IoBuffer);
-					if (!AppendResult.IsOk())
-					{
-						UE_LOG(LogIoStore, Error, TEXT("Failed to append bulkdata for '%s' due to: %s"), *Package.FileName, *AppendResult.ToString());
-						RequestEngineExit(TEXT("ZenCreator failed"));
-						return 1;
-					}
+					return 1;
+				}
 
-					BulkAr->Close();
-#endif
-					++BulkChunkCount;
+				FString OptionalBulkFileName = FPaths::ChangeExtension(Package.FileName, TEXT(".uptnl"));
+				FPaths::NormalizeFilename(OptionalBulkFileName);
 
-					// Create additional mapping chunks as needed
-					FString BulkDataFileName = Package.FileName;
-					FPaths::MakePathRelativeTo(BulkDataFileName, *OutputDir);
-					const FPackageStoreBulkDataManifest::PackageDesc* PackageDesc = BulkDataManifest.Find(Package.FileName);
-					if (PackageDesc != nullptr)
-					{
-						for (const FPackageStoreBulkDataManifest::PackageDesc::BulkDataDesc& BulkDataDesc : PackageDesc->GetDataArray())
-						{
-#if !SKIP_WRITE_CONTAINER
-							const FIoChunkId AccessChunkId = CreateChunkIdForBulkData(Package.GlobalPackageId, BulkDataDesc.ChunkId, EIoChunkType::BulkData, *Package.FileName);
-							const FIoStatus PartialResult = IoStoreWriter->MapPartialRange(BulkDataChunkId, BulkDataDesc.Offset, BulkDataDesc.Size, AccessChunkId);
-							if (!PartialResult.IsOk())
-							{
-								UE_LOG(LogIoStore, Error, TEXT("Failed to map partial range for '%s' due to: %s"), *Package.FileName, *PartialResult.ToString());
-								RequestEngineExit(TEXT("ZenCreator failed"));
-								return 1;
-							}
-#endif
-							++BulkPartialChunkCount;
-						}
-					}
-					else
-					{
-						UE_LOG(LogIoStore, Error, TEXT("Unable to find an entry in the bulkdata manifest for '%s' the file might be out of date!"), *Package.FileName);
-					}
+				if (!WriteBulkData(OptionalBulkFileName, EIoChunkType::OptionalBulkData, Package, BulkDataManifest, IoStoreWriter.Get(), BulkChunkCount, BulkPartialChunkCount))
+				{
+					return 1;
 				}
 			}
 #endif

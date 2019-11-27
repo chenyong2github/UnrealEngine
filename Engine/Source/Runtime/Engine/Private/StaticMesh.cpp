@@ -5373,6 +5373,18 @@ bool UStaticMesh::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataF
 	return true;
 }
 
+bool UStaticMesh::DoesMipDataExist(const int32 MipIndex) const
+{
+	check(MipIndex < MinLOD.Default);
+
+#if !USE_BULKDATA_STREAMING_TOKEN	
+	return RenderData->LODResources[MipIndex].StreamingBulkData.DoesExist();
+#else
+	checkf(false, TEXT("Should not be possible to reach this path, if USE_NEW_BULKDATA is enabled then USE_BULKDATA_STREAMING_TOKEN should be disabled!"));
+	return false;
+#endif
+}
+
 bool UStaticMesh::IsReadyForStreaming() const
 {
 	return RenderData && RenderData->bReadyForStreaming;

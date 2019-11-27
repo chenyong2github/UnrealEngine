@@ -469,19 +469,18 @@ private:
 	TSet<FNameEntryId> ReferencedNames;
 };
 
-void FPackageStoreBulkDataManifest::PackageDesc::AddData(uint64 InChunkId, uint64 InOffset, uint64 InSize)
+void FPackageStoreBulkDataManifest::PackageDesc::AddData(EIoChunkType InType, uint64 InChunkId, uint64 InOffset, uint64 InSize)
 {
-#if 0 // DIsable until optional data is working again
-	// The ChunkId is supposed to be unique
-	auto func = [=](const BulkDataDesc& Entry) { return Entry.ChunkId == InChunkId; };
+	// The ChunkId is supposed to be unique for each type
+	auto func = [=](const BulkDataDesc& Entry) { return Entry.ChunkId == InChunkId && Entry.Type == InType; };
 	check(Data.FindByPredicate(func) == nullptr);
-#endif 
 
 	BulkDataDesc& Entry = Data.Emplace_GetRef();
 
 	Entry.ChunkId = InChunkId;
 	Entry.Offset = InOffset;
 	Entry.Size = InSize;
+	Entry.Type = InType;
 }
 
 FPackageStoreBulkDataManifest::FPackageStoreBulkDataManifest(const FString& ProjectPath)
@@ -494,6 +493,7 @@ FArchive& operator<<(FArchive& Ar, FPackageStoreBulkDataManifest::PackageDesc::B
 	Ar << Entry.ChunkId;
 	Ar << Entry.Offset;
 	Ar << Entry.Size; 
+	Ar << Entry.Type;
 
 	return Ar;
 }
@@ -537,12 +537,12 @@ const FPackageStoreBulkDataManifest::PackageDesc* FPackageStoreBulkDataManifest:
 	return Data.Find(NormalizedFilename);
 }
 
-void FPackageStoreBulkDataManifest::AddFileAccess(const FString& PackageFilename, uint64 InChunkId, uint64 InOffset, uint64 InSize)
+void FPackageStoreBulkDataManifest::AddFileAccess(const FString& PackageFilename, EIoChunkType InType, uint64 InChunkId, uint64 InOffset, uint64 InSize)
 {
 	const FString NormalizedFilename = FixFilename(PackageFilename);
 	
 	PackageDesc& Entry = GetOrCreateFileAccess(NormalizedFilename);
-	Entry.AddData(InChunkId, InOffset, InSize);
+	Entry.AddData(InType, InChunkId, InOffset, InSize);
 }
 
 FPackageStoreBulkDataManifest::PackageDesc& FPackageStoreBulkDataManifest::GetOrCreateFileAccess(const FString& PackageFilename)
@@ -6285,7 +6285,10 @@ void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Fil
 
 			if (SavePackageContext != nullptr && SavePackageContext->BulkDataManifest != nullptr)
 			{
-				SavePackageContext->BulkDataManifest->AddFileAccess(Filename, StoredBulkStartOffset, BulkStartOffset, SizeOnDisk);
+				const bool bIsOptional = (BulkDataStorageInfo.BulkDataFlags & BULKDATA_OptionalPayload) != 0;
+				const EIoChunkType Type = bIsOptional ? EIoChunkType::OptionalBulkData : EIoChunkType::BulkData;
+
+				SavePackageContext->BulkDataManifest->AddFileAccess(Filename, Type, StoredBulkStartOffset, BulkStartOffset, SizeOnDisk);
 			}
 			
 			Linker->Seek(LinkerEndOffset);

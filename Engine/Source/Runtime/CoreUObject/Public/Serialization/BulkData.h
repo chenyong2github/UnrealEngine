@@ -11,7 +11,7 @@
 #include "BulkData2.h"
 
 #if WITH_EDITOR == 0 && WITH_EDITORONLY_DATA == 0 //Runtime
-	#define USE_NEW_BULKDATA 0 // Set to 1 to enable 
+	#define USE_NEW_BULKDATA 1 // Set to 1 to enable 
 #else
 	#define USE_NEW_BULKDATA 0
 #endif
@@ -444,6 +444,11 @@ public:
 	 * Returns true if the data can be loaded from disk.
 	 */
 	bool CanLoadFromDisk() const;
+	
+	/**
+	 * Returns true if the data references a file that currently exists and can be referenced by the file system.
+	 */
+	bool DoesExist() const;
 
 	/**
 	 * Returns flags usable to decompress the bulk data

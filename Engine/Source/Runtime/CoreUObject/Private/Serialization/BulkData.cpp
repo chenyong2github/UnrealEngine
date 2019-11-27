@@ -413,6 +413,11 @@ bool FUntypedBulkData::CanLoadFromDisk() const
 #endif // WITH_EDITOR
 }
 
+bool FUntypedBulkData::DoesExist() const
+{
+	return IFileManager::Get().FileExists(*Filename);
+}
+
 /**
  * Returns flags usable to decompress the bulk data
  * 

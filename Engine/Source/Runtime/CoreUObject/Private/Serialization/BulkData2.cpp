@@ -18,6 +18,9 @@ DEFINE_LOG_CATEGORY_STATIC(LogBulkDataRuntime, Log, All);
 // If set to 0 then the loose file fallback will be used even if the -ZenLoader command line flag is present.
 #define ENABLE_IO_DISPATCHER 1
 
+// If set to 0 then we will pretend that optional data does not exist, useful for testing.
+#define ALLOW_OPTIONAL_DATA 1
+
 namespace
 {
 	// TODO: Maybe expose this and start using everywhere?
@@ -566,8 +569,6 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			Ar << DummyValue;
 		}
 
-		check((BulkDataFlags & BULKDATA_UsesIoDispatcher) == 0);
-
 		// Assuming that Owner/Package/Linker are all valid, the old BulkData system would
 		// generally fail if any of these were nullptr but had plenty of inconsistent checks
 		// scattered throughout.
@@ -577,7 +578,8 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 
 		if (!IsInlined() && bUseZenLoader)
 		{		
-			ChunkID = CreateBulkdataChunkId(Package->GetGlobalPackageId(), BulkDataOffsetInFile, EIoChunkType::BulkData);
+			EIoChunkType Type = IsOptional() ? EIoChunkType::OptionalBulkData : EIoChunkType::BulkData;
+			ChunkID = CreateBulkdataChunkId(Package->GetGlobalPackageId(), BulkDataOffsetInFile, Type);
 
 			BulkDataFlags |= BULKDATA_UsesIoDispatcher;
 		}
@@ -605,7 +607,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			Filename = Linker->Filename;
 			PackageName = Package->FileName;
 		}
-	
+
 		FArchive* CacheableArchive = Ar.GetCacheableArchive();
 		if (Ar.IsAllowingLazyLoading() && CacheableArchive != nullptr)
 		{
@@ -619,15 +621,35 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			{
 				if (IsDuplicateNonOptional())
 				{
-					if (IFileManager::Get().FileExists(*Filename))
+					auto DoesOptionalDataExist = [this](const FString& PackageFilename)->bool
+					{
+#if ALLOW_OPTIONAL_DATA
+						if (!IsUsingIODispatcher())
+						{
+							FString OptionalDataFilename = ConvertFilenameFromFlags(PackageFilename);
+							return IFileManager::Get().FileExists(*OptionalDataFilename);
+						}
+						else
+						{
+							return IoDispatcher->DoesChunkExist(ChunkID);
+						}
+#else
+						return false;
+#endif
+					};
+
+					if (DoesOptionalDataExist(Filename))
 					{
 						SerializeDuplicateData(Ar, Linker, BulkDataFlags, BulkDataSizeOnDisk, BulkDataOffsetInFile);
 
 						// Update the fallback data again if needed
-						if (!bUseZenLoader || ChunkID == FIoChunkId::InvalidChunkId)
+						if (!IsInlined() && bUseZenLoader)
 						{
-							// Remove the flag if we are not going to use it
-							BulkDataFlags &= ~BULKDATA_UsesIoDispatcher;
+							ChunkID = CreateBulkdataChunkId(Package->GetGlobalPackageId(), BulkDataOffsetInFile, EIoChunkType::OptionalBulkData);
+							BulkDataFlags |= BULKDATA_UsesIoDispatcher;
+						}
+						else
+						{
 							Fallback.Token = InvalidToken;
 							Fallback.BulkDataSize = BulkDataSize;
 						}
@@ -647,6 +669,8 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			{
 				Fallback.Token = FileTokenSystem::RegisterFileToken( PackageName, Filename, BulkDataOffsetInFile);
 			}
+
+		//	DebugFilename = ConvertFilenameFromFlags(Filename);
 		}
 		else
 		{
@@ -795,6 +819,25 @@ int64 FBulkDataBase::GetBulkDataSize() const
 	{
 		return Fallback.BulkDataSize;
 	}	
+}
+
+bool FBulkDataBase::DoesExist() const
+{
+#if ALLOW_OPTIONAL_DATA
+	if (!IsUsingIODispatcher())
+	{
+		FString Filename = FileTokenSystem::GetFilename(Fallback.Token);
+		Filename = ConvertFilenameFromFlags(Filename);
+
+		return IFileManager::Get().FileExists(*Filename);
+	}
+	else
+	{
+		return IoDispatcher->DoesChunkExist(ChunkID);
+	}
+#else
+	return false;
+#endif
 }
 
 bool FBulkDataBase::IsStoredCompressedOnDisk() const
@@ -1112,13 +1155,16 @@ void FBulkDataBase::FreeData()
 
 FString FBulkDataBase::ConvertFilenameFromFlags(const FString& Filename) const
 {
-	if (IsInlined())
+	if (IsOptional())
+	{
+		// Optional data should be tested for first as we in theory can have data that would
+		// be marked as inline, also marked as optional and in this case we should treat it as
+		// optional data first.
+		return FPaths::ChangeExtension(Filename, OptionalExt);
+	}
+	else if (IsInlined())
 	{
 		return FPaths::ChangeExtension(Filename, InlinedExt);
-	}
-	else if (IsOptional())
-	{
-		return FPaths::ChangeExtension(Filename, OptionalExt);
 	}
 	else if (IsMemoryMapped())
 	{

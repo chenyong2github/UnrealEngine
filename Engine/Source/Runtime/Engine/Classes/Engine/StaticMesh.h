@@ -979,6 +979,7 @@ public:
 	virtual int32 CalcNumOptionalMips() const final override;
 	virtual int32 CalcCumulativeLODSize(int32 NumLODs) const final override;
 	virtual bool GetMipDataFilename(const int32 MipIndex, FString& BulkDataFilename) const final override;
+	virtual bool DoesMipDataExist(const int32 MipIndex) const final override;
 	virtual bool IsReadyForStreaming() const final override;
 	virtual int32 GetNumResidentMips() const final override;
 	virtual int32 GetNumRequestedMips() const final override;

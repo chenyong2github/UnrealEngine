@@ -984,6 +984,18 @@ bool USkeletalMesh::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDat
 #endif
 }
 
+bool USkeletalMesh::DoesMipDataExist(const int32 MipIndex) const
+{
+	check(MipIndex < CalcNumOptionalMips());
+
+#if !USE_BULKDATA_STREAMING_TOKEN	
+	return SkeletalMeshRenderData->LODRenderData[MipIndex].StreamingBulkData.DoesExist();
+#else
+	checkf(false, TEXT("Should not be possible to reach this path, if USE_NEW_BULKDATA is enabled then USE_BULKDATA_STREAMING_TOKEN should be disabled!"));
+	return false;
+#endif
+}
+
 bool USkeletalMesh::IsReadyForStreaming() const
 {
 	return SkeletalMeshRenderData && SkeletalMeshRenderData->bReadyForStreaming;

@@ -92,6 +92,11 @@ public:
 	uint32 GetBulkDataFlags() const { return BulkDataFlags; }
 
 	bool CanLoadFromDisk() const { return IsUsingIODispatcher() || Fallback.Token != InvalidToken; }
+	
+	/**
+	 * Returns true if the data references a file that currently exists and can be referenced by the file system.
+	 */
+	bool DoesExist() const;
 
 	bool IsStoredCompressedOnDisk() const;
 	FName GetDecompressionFormat() const;
