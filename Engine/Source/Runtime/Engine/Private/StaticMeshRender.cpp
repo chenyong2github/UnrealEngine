@@ -1730,7 +1730,7 @@ void FStaticMeshSceneProxy::GetDistancefieldAtlasData(FBox& LocalVolumeBounds, F
 		LocalVolumeBounds = DistanceFieldData->LocalBoundingBox;
 		OutDistanceMinMax = DistanceFieldData->DistanceMinMax;
 		OutBlockMin = DistanceFieldData->VolumeTexture.GetAllocationMin();
-		OutBlockSize = DistanceFieldData->VolumeTexture.GetAllocationSize();
+		OutBlockSize = DistanceFieldData->VolumeTexture.GetAllocationSizeInAtlas();
 		bOutBuiltAsIfTwoSided = DistanceFieldData->bBuiltAsIfTwoSided;
 		bMeshWasPlane = DistanceFieldData->bMeshWasPlane;
 		ObjectLocalToWorldTransforms.Add(GetLocalToWorld());
