@@ -1039,6 +1039,15 @@ namespace Chaos
 		template<typename T, int d>
 		void ConstructPairConstraintImpl(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform0, const TRigidTransform<T, d>& Transform1, const T Thickness, FCollisionConstraintsArray& NewConstraints)
 		{
+			const TPerShapeData<T, d>* Shape0 = Particle0->GetImplicitShape(Implicit0);
+			const TPerShapeData<T, d>* Shape1 = Particle1->GetImplicitShape(Implicit1);
+
+			// If either shape is disabled for collision bail without constructing a constraint
+			if((Shape0 && Shape0->bDisable) || (Shape1 && Shape1->bDisable))
+			{
+				return;
+			}
+
 			// See if we already have a constraint for this shape pair
 			// todo(brice) : Not sure this actually prevents duplicate constraints.
 			for (int32 i = 0; i < NewConstraints.Num(); i++)
