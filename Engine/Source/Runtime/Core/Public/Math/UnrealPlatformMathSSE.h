@@ -74,7 +74,7 @@ namespace UnrealPlatformMathSSE
 		return _mm_cvtt_ss2si(_mm_set_ss(F));
 	}
 
-#if !defined(__clang__) // Clang does not yet support _mm_round_ps/_mm_round_pd
+#if !PLATFORM_LINUX // Linux Clang does not yet support _mm_round_ps/_mm_round_pd
 	static FORCEINLINE float TruncToFloat(float F)
 	{
 		return _mm_cvtss_f32(_mm_round_ps(_mm_set_ss(F), 3));
@@ -93,7 +93,7 @@ namespace UnrealPlatformMathSSE
 		return _mm_cvt_ss2si(_mm_set_ss(F + F - 0.5f)) >> 1;
 	}
 
-#if !defined(__clang__) // Clang does not yet support _mm_floor_ps/_mm_floor_pd
+#if !PLATFORM_LINUX // Linux Clang does not yet support _mm_round_ps/_mm_round_pd
 	static FORCEINLINE float FloorToFloat(float F)
 	{
 		return _mm_cvtss_f32(_mm_floor_ps(_mm_set_ss(F)));
@@ -115,7 +115,7 @@ namespace UnrealPlatformMathSSE
 		return _mm_cvt_ss2si(_mm_set_ss(F + F + 0.5f)) >> 1;
 	}
 
-#if !defined(__clang__) // Clang does not yet support _mm_floor_ps/_mm_floor_pd
+#if !PLATFORM_LINUX // Linux Clang does not yet support _mm_round_ps/_mm_round_pd
 	static FORCEINLINE float RoundToFloat(float F)
 	{
 		return FloorToFloat(F + 0.5f);
@@ -133,7 +133,7 @@ namespace UnrealPlatformMathSSE
 		return -(_mm_cvt_ss2si(_mm_set_ss(-0.5f - (F + F))) >> 1);
 	}
 
-#if !defined(__clang__) // Clang does not yet support _mm_ceil_ps/_mm_ceil_pd
+#if !PLATFORM_LINUX // Linux Clang does not yet support _mm_round_ps/_mm_round_pd
 	static FORCEINLINE float CeilToFloat(float F)
 	{
 		return _mm_cvtss_f32(_mm_ceil_ps(_mm_set_ss(F)));

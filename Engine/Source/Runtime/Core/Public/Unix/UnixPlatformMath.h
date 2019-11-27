@@ -24,7 +24,7 @@ struct FLinuxPlatformMath : public FClangPlatformMath
 		return UnrealPlatformMathSSE::TruncToInt(F);
 	}
 
-#if !defined(__clang__) // Clang does not yet support _mm_round_ps/_mm_round_pd
+#if !PLATFORM_LINUX // Linux Clang does not yet support _mm_round_ps/_mm_round_pd
 	static FORCEINLINE float TruncToFloat(float F)
 	{
 		return UnrealPlatformMathSSE::TruncToFloat(F);
@@ -41,7 +41,7 @@ struct FLinuxPlatformMath : public FClangPlatformMath
 		return UnrealPlatformMathSSE::RoundToInt(F);
 	}
 
-#if !defined(__clang__) // Clang does not yet support _mm_floor_ps/_mm_floor_pd
+#if !PLATFORM_LINUX // Linux Clang does not yet support _mm_round_ps/_mm_round_pd
 	static FORCEINLINE float RoundToFloat(float F)
 	{
 		return UnrealPlatformMathSSE::RoundToFloat(F);
@@ -58,7 +58,7 @@ struct FLinuxPlatformMath : public FClangPlatformMath
 		return UnrealPlatformMathSSE::FloorToInt(F);
 	}
 
-#if !defined(__clang__) // Clang does not yet support _mm_floor_ps/_mm_floor_pd
+#if !PLATFORM_LINUX // Linux Clang does not yet support _mm_round_ps/_mm_round_pd
 	static FORCEINLINE float FloorToFloat(float F)
 	{
 		return UnrealPlatformMathSSE::FloorToFloat(F);
@@ -75,7 +75,7 @@ struct FLinuxPlatformMath : public FClangPlatformMath
 		return UnrealPlatformMathSSE::CeilToInt(F);
 	}
 
-#if !defined(__clang__) // Clang does not yet support _mm_ceil_ps/_mm_ceil_pd
+#if !PLATFORM_LINUX // Linux Clang does not yet support _mm_round_ps/_mm_round_pd
 	static FORCEINLINE float CeilToFloat(float F)
 	{
 		return UnrealPlatformMathSSE::CeilToFloat(F);
