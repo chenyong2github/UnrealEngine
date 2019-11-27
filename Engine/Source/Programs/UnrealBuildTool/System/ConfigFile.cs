@@ -165,7 +165,7 @@ namespace UnrealBuildTool
 						{
 							// Find the last non-whitespace character. If it's an escaped newline, merge the following line with it.
 							int EndIdx = Line.Length;
-							for(; EndIdx > StartIdx; EndIdx--)
+							while (EndIdx > StartIdx)
 							{
 								if(Line[EndIdx - 1] == '\\')
 								{
@@ -176,11 +176,14 @@ namespace UnrealBuildTool
 									}
 									Line += NextLine;
 									EndIdx = Line.Length;
+									continue;
 								}
 								if(Line[EndIdx - 1] != ' ' && Line[EndIdx - 1] != '\t')
 								{
 									break;
 								}
+
+								EndIdx--;
 							}
 
 							// Break out if we've got a comment
