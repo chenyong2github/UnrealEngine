@@ -78,7 +78,11 @@ FTidPacketTransport::FThreadStream& FTidPacketTransport::FindOrAddThread(uint32 
 void FTidPacketTransport::Update()
 {
 	while (ReadPacket());
-	Threads.RemoveAllSwap([] (const FThreadStream& Thread) { return Thread.Buffer.IsEmpty(); });
+
+	Threads.RemoveAllSwap([] (const FThreadStream& Thread)
+	{
+		return Thread.Buffer.IsEmpty();
+	});
 }
 
 ////////////////////////////////////////////////////////////////////////////////
