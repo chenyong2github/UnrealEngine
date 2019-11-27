@@ -2967,7 +2967,14 @@ void UCookOnTheFlyServer::SaveCookedPackages(
 							{
 								FAssetPackageData* PackageData = Generator->GetAssetPackageData(Package->GetFName());
 								PackageData->DiskSize = SavePackageResult.TotalFileSize;
-								PackageData->CookedHash = SavePackageResult.CookedHash;
+								SavePackageResult.CookedHash.Next([PackageData](const FMD5Hash& CookedHash)
+								{
+									// Store the cooked hash in the Asset Registry when it is done computing in another thread.
+									// NOTE: For this to work, we rely on:
+									// 1) UPackage::WaitForAsyncFileWrites to have been called before any use of the CookedHash - it is called in CookByTheBookFinished before the registry does any work with the registries
+									// 2) PackageData must continue to be a valid pointer - the asset registry allocates the FAssetPackageData individually and doesn't relocate or delete them until pruning, which happens after WaitForAsyncFileWrites
+									PackageData->CookedHash = CookedHash;
+								});
 							}
 						}
 
@@ -7995,7 +8002,14 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 							{
 								FAssetPackageData* PackageData = Generator->GetAssetPackageData(Package->GetFName());
 								PackageData->DiskSize = SaveResult.TotalFileSize;
-								PackageData->CookedHash = SaveResult.CookedHash;
+								SaveResult.CookedHash.Next([PackageData](const FMD5Hash& CookedHash)
+								{
+									// Store the cooked hash in the Asset Registry when it is done computing in another thread.
+									// NOTE: For this to work, we rely on:
+									// 1) UPackage::WaitForAsyncFileWrites to have been called before any use of the CookedHash - it is called in CookByTheBookFinished before the registry does any work with the registries
+									// 2) PackageData must continue to be a valid pointer - the asset registry allocates the FAssetPackageData individually and doesn't relocate or delete them until pruning, which happens after WaitForAsyncFileWrites
+									PackageData->CookedHash = CookedHash;
+								});
 							}
 
 							FPlatformAtomics::InterlockedIncrement(&ParallelSavedPackages);

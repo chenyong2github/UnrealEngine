@@ -13,6 +13,7 @@
 #include "Serialization/CustomVersion.h"
 #include "Templates/UniquePtr.h"
 #include "Misc/SecureHash.h"
+#include "Async/Future.h"
 
 class Error;
 
@@ -58,13 +59,13 @@ struct FSavePackageResultStruct
 	int64 TotalFileSize;
 
 	/** MD5 hash of the cooked data */
-	FMD5Hash CookedHash;
+	TFuture<FMD5Hash> CookedHash;
 
 	/** Constructors, it will implicitly construct from the result enum */
 	FSavePackageResultStruct() : Result(ESavePackageResult::Error), TotalFileSize(0) {}
 	FSavePackageResultStruct(ESavePackageResult InResult) : Result(InResult), TotalFileSize(0) {}
 	FSavePackageResultStruct(ESavePackageResult InResult, int64 InTotalFileSize) : Result(InResult), TotalFileSize(InTotalFileSize) {}
-	FSavePackageResultStruct(ESavePackageResult InResult, int64 InTotalFileSize, FMD5Hash InHash) : Result(InResult), TotalFileSize(InTotalFileSize), CookedHash(InHash) {}
+	FSavePackageResultStruct(ESavePackageResult InResult, int64 InTotalFileSize, TFuture<FMD5Hash>&& InHash) : Result(InResult), TotalFileSize(InTotalFileSize), CookedHash(MoveTemp(InHash)) {}
 
 	bool operator==(const FSavePackageResultStruct& Other) const
 	{

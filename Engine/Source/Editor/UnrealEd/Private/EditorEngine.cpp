@@ -4440,7 +4440,7 @@ FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase
 	SlowTask.EnterProgressFrame(70);
 
 	UPackage::PreSavePackageEvent.Broadcast(InOuter);
-	const FSavePackageResultStruct Result = UPackage::Save(InOuter, Base, TopLevelFlags, Filename, Error, Conform, bForceByteSwapping, bWarnOfLongFilename, SaveFlags, TargetPlatform, FinalTimeStamp, bSlowTask, InOutDiffMap, SavePackageContext);
+	FSavePackageResultStruct Result = UPackage::Save(InOuter, Base, TopLevelFlags, Filename, Error, Conform, bForceByteSwapping, bWarnOfLongFilename, SaveFlags, TargetPlatform, FinalTimeStamp, bSlowTask, InOutDiffMap, SavePackageContext);
 
 	SlowTask.EnterProgressFrame(10);
 
