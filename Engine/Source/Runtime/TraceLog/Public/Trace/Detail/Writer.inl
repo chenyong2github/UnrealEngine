@@ -77,7 +77,7 @@ inline FLogInstance Writer_BeginLog(uint16 EventUid, uint16 Size, bool bMaybeHas
 	FWriteBuffer* Buffer = Writer_GetBuffer();
 	uint32 AllocSize = Size + sizeof(FEventHeader) + int(bMaybeHasAux);
 	Buffer->Cursor += AllocSize;
-	if (UNLIKELY(UPTRINT(Buffer->Cursor) > UPTRINT(Buffer)))
+	if (UNLIKELY(Buffer->Cursor > (uint8*)Buffer))
 	{
 		Buffer = Writer_NextBuffer(AllocSize);
 	}
