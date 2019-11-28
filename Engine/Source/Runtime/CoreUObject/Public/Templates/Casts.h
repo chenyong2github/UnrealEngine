@@ -6,6 +6,8 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "UObject/Class.h"
+#include "Templates/LosesQualifiersFromTo.h"
+#include "Traits/IsVoidType.h"
 
 class AActor;
 class APawn;

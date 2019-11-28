@@ -21,6 +21,7 @@
 #include "UObject/GCObject.h"
 #include "Containers/StaticBitArray.h"
 #include "Net/GuidReferences.h"
+#include "Templates/CopyQualifiersFromTo.h"
 
 class FGuidReferences;
 class FNetFieldExportGroup;

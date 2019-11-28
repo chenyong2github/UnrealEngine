@@ -7,6 +7,7 @@
 #include "Templates/PointerIsConvertibleFromTo.h"
 #include "Templates/AreTypesEqual.h"
 #include "Templates/AndOrNot.h"
+#include "Templates/LosesQualifiersFromTo.h"
 #include "Containers/Map.h"
 
 /**
