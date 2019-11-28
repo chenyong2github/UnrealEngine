@@ -11,7 +11,7 @@
 #include "Interfaces/IDMXProtocolUniverse.h"
 
 #include "DMXProtocolTypes.h"
-#include "Json.h"
+#include "Dom/JsonObject.h"
 
 #include "HAL/IConsoleManager.h"
 #include "Logging/LogMacros.h"

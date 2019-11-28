@@ -3,7 +3,7 @@
 #include "DMXProtocolArtNetModule.h"
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
-#include "Json.h"
+#include "Dom/JsonObject.h"
 
 #include "DMXProtocolArtNet.h"
 #include "DMXProtocolTypes.h"
@@ -11,7 +11,7 @@
 
 IMPLEMENT_MODULE(FDMXProtocolArtNetModule, DMXProtocolArtNet);
 
-const FName FDMXProtocolArtNetModule::NAME_Artnet = FName(TEXT("ARTNET"));
+const FName FDMXProtocolArtNetModule::NAME_Artnet = FName(TEXT("Art-Net"));
 
 FAutoConsoleCommand FDMXProtocolArtNetModule::SendDMXCommand(
 	TEXT("DMX.ArtNet.SendDMX"),

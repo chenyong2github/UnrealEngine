@@ -6,6 +6,8 @@
 #include "DMXProtocolTypes.h"
 #include "DMXProtocolSACNConstants.h"
 
+#include "Serialization/ArrayReader.h"
+
 namespace SACN
 {
 	static uint32 GetRootPacketType(const FArrayReaderPtr& Buffer)

@@ -2,7 +2,7 @@
 #include "Interfaces/IDMXProtocol.h"
 #include "Interfaces/IDMXProtocolUniverse.h"
 
-#include "Json.h"
+#include "Dom/JsonObject.h"
 
 //~ Artnet specific port constants
 static const uint8 HIGH_NIBBLE = 0xF0;

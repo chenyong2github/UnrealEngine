@@ -1,5 +1,5 @@
 #include "DMXProtocolUniverseArtNet.h"
-#include "Json.h"
+#include "Dom/JsonObject.h"
 
 #include "Interfaces/IDMXProtocol.h"
 #include "Interfaces/IDMXProtocolPort.h"

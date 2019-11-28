@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Interfaces/IDMXProtocolDevice.h"
-#include "Json.h"
+#include "Dom/JsonObject.h"
 
 class DMXPROTOCOLARTNET_API FDMXProtocolDeviceArtNet
 	: public IDMXProtocolDevice

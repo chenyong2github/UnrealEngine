@@ -105,6 +105,11 @@ IDMXProtocol* FDMXProtocolModule::GetProtocol(const FName InProtocolName)
 	return (DMXProtocolPtr == nullptr) ? nullptr : (*DMXProtocolPtr).Get();
 }
 
+const TMap<FName, IDMXProtocolFactory*>& FDMXProtocolModule::GetProtocolFactories() const
+{
+	return DMXFactories;
+}
+
 void FDMXProtocolModule::ShutdownDMXProtocol(const FName& ProtocolName)
 {
 	if (!ProtocolName.IsNone())

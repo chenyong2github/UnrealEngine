@@ -57,6 +57,13 @@ public:
 		return static_cast<TProtocol*>(DMXProtocolModule.GetProtocol(ProtocolName));
 	}
 
+	static const TMap<FName, IDMXProtocolFactory*>& GetProtocolFactories()
+	{
+		static const FName DMXProtocolModuleName = TEXT("DMXProtocol");
+		FDMXProtocolModule& DMXProtocolModule = FModuleManager::GetModuleChecked<FDMXProtocolModule>(DMXProtocolModuleName);
+		return DMXProtocolModule.GetProtocolFactories();
+	}
+
 	/**
 	 * If protocol exists return the pointer otherwise it create a new protocol first and then return the pointer.
 	 * @param  InProtocolName Name of the requested protocol

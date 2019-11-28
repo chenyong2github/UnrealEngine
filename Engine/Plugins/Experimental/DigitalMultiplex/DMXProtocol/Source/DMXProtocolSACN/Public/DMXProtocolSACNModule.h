@@ -17,7 +17,7 @@ public:
 
 /**
  */
-class FDMXProtocolSACNModule : public IModuleInterface
+class DMXPROTOCOLSACN_API FDMXProtocolSACNModule : public IModuleInterface
 {
 private:
 

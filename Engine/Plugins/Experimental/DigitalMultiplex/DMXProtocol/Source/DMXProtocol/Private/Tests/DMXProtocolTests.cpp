@@ -4,7 +4,7 @@
 #include "Misc/AutomationTest.h"
 #include "Interfaces/IDMXProtocolFactory.h"
 #include "DMXProtocolCommon.h"
-#include "Json.h"
+#include "Dom/JsonObject.h"
 
 #include "DMXProtocol.h"
 

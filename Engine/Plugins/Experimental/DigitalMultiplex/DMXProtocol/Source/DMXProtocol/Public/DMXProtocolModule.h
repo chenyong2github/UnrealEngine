@@ -22,6 +22,8 @@ public:
 	 * @return Return the pointer to protocol.
 	 */
 	virtual IDMXProtocol* GetProtocol(const FName InProtocolName = NAME_None);
+	
+	const TMap<FName, IDMXProtocolFactory*>& GetProtocolFactories() const;
 
 	//~ Begin IModuleInterface implementation
 	virtual void ShutdownModule() override;

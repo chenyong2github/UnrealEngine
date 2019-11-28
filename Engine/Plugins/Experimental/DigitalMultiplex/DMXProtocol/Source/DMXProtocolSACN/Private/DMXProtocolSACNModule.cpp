@@ -7,7 +7,7 @@
 #include "Interfaces/IDMXProtocol.h"
 #include "DMXProtocolSACN.h"
 #include "DMXProtocolTypes.h"
-#include "Json.h"
+#include "Dom/JsonObject.h"
 
 #include "Managers/DMXProtocolDeviceManager.h"
 #include "Managers/DMXProtocolInterfaceManager.h"
@@ -22,7 +22,7 @@
 
 IMPLEMENT_MODULE(FDMXProtocolSACNModule, DMXProtocolSACN);
 
-const FName FDMXProtocolSACNModule::NAME_SACN = FName(TEXT("SACN"));
+const FName FDMXProtocolSACNModule::NAME_SACN = FName(TEXT("sACN"));
 
 FAutoConsoleCommand FDMXProtocolSACNModule::SendDMXCommand(
 	TEXT("DMX.SACN.SendDMX"),

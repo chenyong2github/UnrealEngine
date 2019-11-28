@@ -3,7 +3,7 @@
 #include "Interfaces/IDMXProtocolInterface.h"
 #include "Interfaces/IDMXProtocolPort.h"
 #include "DMXProtocolTypes.h"
-#include "Json.h"
+#include "Dom/JsonObject.h"
 
 FDMXProtocolDeviceSACN::FDMXProtocolDeviceSACN(IDMXProtocol* InDMXProtocol, TSharedPtr<IDMXProtocolInterface> InProtocolInterface, FJsonObject& InSettings, uint32 InDeviceID)
 	: DMXProtocol(InDMXProtocol)

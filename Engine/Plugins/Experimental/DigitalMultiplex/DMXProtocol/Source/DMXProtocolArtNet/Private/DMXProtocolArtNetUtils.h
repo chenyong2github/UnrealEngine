@@ -6,6 +6,8 @@
 #include "DMXProtocolTypes.h"
 #include "DMXProtocolArtNetConstants.h"
 
+#include "Serialization/ArrayReader.h"
+
 namespace ArtNet
 {
 	static uint16 GetPacketType(const FArrayReaderPtr& Buffer)

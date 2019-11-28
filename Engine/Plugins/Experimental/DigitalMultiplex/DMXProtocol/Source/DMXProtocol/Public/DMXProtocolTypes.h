@@ -5,7 +5,7 @@
 #include "Interfaces/IDMXProtocol.h"
 #include "DMXProtocolCommon.h"
 #include "DMXProtocolConstants.h"
-#include "Json.h"
+#include "Dom/JsonObject.h"
 
 struct DMXPROTOCOL_API FDMXBuffer
 {

@@ -4,7 +4,7 @@
 #include "Interfaces/IDMXProtocolPort.h"
 #include "Managers/DMXProtocolPortManager.h"
 #include "DMXProtocolTypes.h"
-#include "Json.h"
+#include "Dom/JsonObject.h"
 
 FDMXProtocolDeviceArtNet::FDMXProtocolDeviceArtNet(IDMXProtocol* InDMXProtocol, TSharedPtr<IDMXProtocolInterface> InProtocolInterface, FJsonObject& InSettings, uint32 InDeviceID)
 	: DMXProtocol(InDMXProtocol)
