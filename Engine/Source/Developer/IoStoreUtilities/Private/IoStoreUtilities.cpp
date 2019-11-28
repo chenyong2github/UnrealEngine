@@ -222,15 +222,13 @@ enum EPreloadDependencyType
 
 enum EEventLoadNode2 : uint8
 {
-	Package_ProcessSummary,
 	Package_ExportsSerialized,
 	Package_StartPostLoad,
 	Package_Tick,
 	Package_Delete,
 	Package_NumPhases,
 
-	ExportBundle_StartIo = 0,
-	ExportBundle_Process,
+	ExportBundle_Process = 0,
 	ExportBundle_NumPhases,
 };
 
@@ -261,6 +259,7 @@ struct FExportGraphNode;
 struct FExportBundle
 {
 	TArray<FExportGraphNode*> Nodes;
+	uint32 LoadOrder;
 };
 
 struct FPackage;
@@ -419,7 +418,6 @@ struct FPackage
 	TArray<FExportGraphNode*> CreateExportNodes;
 	TArray<FExportGraphNode*> SerializeExportNodes;
 
-	uint64 LoadOrder = uint64(-1);
 	TArray<FExportGraphNode*> NodesWithNoIncomingEdges;
 	FPackageGraphNode* Node = nullptr;
 };
@@ -641,25 +639,17 @@ static void AddExportsDoneArc(FPackage& FromPackage, FPackage& ToPackage)
 	ExternalArcs.Add({ EEventLoadNode2::Package_ExportsSerialized, EEventLoadNode2::Package_StartPostLoad });
 }
 
-static void AddInternalBundleArc(FPackage& Package, uint32 FromBundleIndex, uint32 ToBundleIndex)
-{
-	uint32 FromNodeIndex = EEventLoadNode2::Package_NumPhases + FromBundleIndex * EEventLoadNode2::ExportBundle_NumPhases + EEventLoadNode2::ExportBundle_Process;
-	uint32 ToNodeIndex = EEventLoadNode2::Package_NumPhases + ToBundleIndex * EEventLoadNode2::ExportBundle_NumPhases + EEventLoadNode2::ExportBundle_StartIo;
-	check(!Package.InternalArcs.Contains(FArc({FromNodeIndex, ToNodeIndex})));
-	Package.InternalArcs.Add({ FromNodeIndex, ToNodeIndex });
-}
-
 static void AddUniqueExternalBundleArc(FPackage& FromPackage, uint32 FromBundleIndex, FPackage& ToPackage, uint32 ToBundleIndex)
 {
 	uint32 FromNodeIndex = EEventLoadNode2::Package_NumPhases + FromBundleIndex * EEventLoadNode2::ExportBundle_NumPhases + EEventLoadNode2::ExportBundle_Process;
-	uint32 ToNodeIndex = EEventLoadNode2::Package_NumPhases + ToBundleIndex * EEventLoadNode2::ExportBundle_NumPhases + EEventLoadNode2::ExportBundle_StartIo;
+	uint32 ToNodeIndex = EEventLoadNode2::Package_NumPhases + ToBundleIndex * EEventLoadNode2::ExportBundle_NumPhases + EEventLoadNode2::ExportBundle_Process;
 	TArray<FArc>& ExternalArcs = ToPackage.ExternalArcs.FindOrAdd(FromPackage.Name);
 	ExternalArcs.AddUnique({ FromNodeIndex, ToNodeIndex });
 }
 
 static void AddUniqueScriptBundleArc(FPackage& Package, uint32 GlobalImportIndex, uint32 BundleIndex)
 {
-	uint32 NodeIndex = EEventLoadNode2::Package_NumPhases + BundleIndex * EEventLoadNode2::ExportBundle_NumPhases + EEventLoadNode2::ExportBundle_StartIo;
+	uint32 NodeIndex = EEventLoadNode2::Package_NumPhases + BundleIndex * EEventLoadNode2::ExportBundle_NumPhases + EEventLoadNode2::ExportBundle_Process;
 	Package.ScriptArcs.AddUnique({ GlobalImportIndex, NodeIndex });
 }
 
@@ -820,36 +810,43 @@ static void AddPostLoadDependencies(
 
 static void BuildBundles(FExportGraph& ExportGraph, TMap<FName, FPackage*>& PackageMap)
 {
+
 	TArray<FExportGraphNode*> ExportLoadOrder = ExportGraph.ComputeLoadOrder(PackageMap);
 	FPackage* LastPackage = nullptr;
+	uint32 BundleLoadOrder = 0;
 	for (FExportGraphNode* Node : ExportLoadOrder)
 	{
 		FPackage* Package = Node->Package;
 		check(Package);
 
+		uint32 BundleIndex;
+		FExportBundle* Bundle;
 		if (Package != LastPackage)
 		{
-			Package->ExportBundles.AddDefaulted();
-			if (Package->ExportBundles.Num() > 1)
-			{
-				AddInternalBundleArc(*Package, Package->ExportBundles.Num() - 2, Package->ExportBundles.Num() - 1);
-			}
+			BundleIndex = Package->ExportBundles.Num();
+			Bundle = &Package->ExportBundles.AddDefaulted_GetRef();
+			Bundle->LoadOrder = BundleLoadOrder++;
+			LastPackage = Package;
 		}
-		LastPackage = Package;
-
-		uint32 BundleIndex = Package->ExportBundles.Num() - 1;
+		else
+		{
+			BundleIndex = Package->ExportBundles.Num() - 1;
+			Bundle = &Package->ExportBundles[BundleIndex];
+		}
 		for (FExportGraphNode* ExternalDependency : Node->ExternalDependencies)
 		{
 			uint32* FindDependentBundleIndex = ExternalDependency->Package->ExportBundleMap.Find(ExternalDependency);
 			check(FindDependentBundleIndex);
-			AddUniqueExternalBundleArc(*ExternalDependency->Package, *FindDependentBundleIndex, *Package, BundleIndex);
+			if (BundleIndex > 0)
+			{
+				AddUniqueExternalBundleArc(*ExternalDependency->Package, *FindDependentBundleIndex, *Package, BundleIndex);
+			}
 		}
 		for (uint32 ScriptDependencyGlobalImportIndex : Node->ScriptDependencies)
 		{
 			AddUniqueScriptBundleArc(*Package, ScriptDependencyGlobalImportIndex, BundleIndex);
 		}
-
-		Package->ExportBundles[BundleIndex].Nodes.Add(Node);
+		Bundle->Nodes.Add(Node);
 		Package->ExportBundleMap.Add(Node, BundleIndex);
 	}
 }
@@ -1027,6 +1024,7 @@ static void FindExport(TArray<FExportData>& GlobalExports, TMap<FString, int32>&
 {
 	const FObjectExport* Export = ExportMap + LocalExportIndex;
 	FString& FullName = TempFullNames[LocalExportIndex];
+
 	if (FullName.Len() == 0)
 	{
 		if (Export->OuterIndex.IsNull())
@@ -1628,6 +1626,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 #endif
 
 	UE_LOG(LogIoStore, Display, TEXT("Serializing..."));
+	TArray<uint32> ExportBundleOrderEntries;
 	for (auto& PackageKV : PackageMap)
 	{
 		FPackage& Package = *PackageKV.Value;
@@ -1708,6 +1707,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 		}
 		for (FExportBundle& ExportBundle : Package.ExportBundles)
 		{
+			ExportBundleOrderEntries.Add(ExportBundle.LoadOrder);
 			for (FExportGraphNode* ExportNode : ExportBundle.Nodes)
 			{
 				uint32 CommandType = uint32(ExportNode->BundleEntry.CommandType);
@@ -1725,18 +1725,18 @@ int32 CreateTarget(const FContainerTarget& Target)
 
 		ensure(Package.GlobalPackageId == PackageIndex++);
 		{
-			int32 Pad = 0;
 			int32 ExportBundleCount = Package.ExportBundles.Num();
 
 			NameMapBuilder.SerializeName(*StoreTocArchive, Package.Name);
 			NameMapBuilder.SerializeName(*StoreTocArchive, RelativeFileName);
 			*StoreTocArchive << Package.ExportCount;
 			*StoreTocArchive << ExportBundleCount;
+			int32 FirstExportBundleIndex = ExportBundleOrderEntries.Num() - ExportBundleCount;
+			*StoreTocArchive << FirstExportBundleIndex;
 			*StoreTocArchive << Package.FirstGlobalImport;
 			*StoreTocArchive << Package.GlobalImportCount;
 			*StoreTocArchive << Package.ImportedPackagesCount;
 			*StoreTocArchive << Package.ImportedPackagesOffset;
-			*StoreTocArchive << Pad;
 		}
 
 		Package.NameMapSize = Package.NameIndices.Num() * Package.NameIndices.GetTypeSize();
@@ -1796,32 +1796,23 @@ int32 CreateTarget(const FContainerTarget& Target)
 				ZenAr.Serialize(ZenGraphArchive.GetWriterData(), ZenGraphArchive.Tell());
 			}
 
-			// Package summary chunk
+			// Export bundle chunks
 			{
-				FIoBuffer IoBuffer(FIoBuffer::AssumeOwnership, ZenSummaryBuffer, ZenSummarySize);
-#if !SKIP_WRITE_CONTAINER
-				IoStoreWriter->Append(CreateChunkId(Package.GlobalPackageId, 0, EIoChunkType::PackageSummary, TEXT("PackageSummary")), IoBuffer);
-#endif
-				++SummaryChunkCount;
-			}
+				check(Package.ExportBundles.Num());
 
-			// Export chunks
-			if (Package.ExportCount)
-			{
 				FString UExpFileName = FPaths::ChangeExtension(Package.FileName, TEXT(".uexp"));
 				TUniquePtr<FArchive> ExpAr(IFileManager::Get().CreateFileReader(*UExpFileName));
-				const int64 TotalExportsSize = ExpAr->TotalSize();
+				Package.UExpSize = ExpAr->TotalSize();
 #if !SKIP_WRITE_CONTAINER
-				uint8* ExportsBuffer = static_cast<uint8*>(FMemory::Malloc(TotalExportsSize));
-				ExpAr->Serialize(ExportsBuffer, TotalExportsSize);
+				uint8* ExportsBuffer = static_cast<uint8*>(FMemory::Malloc(ExpAr->TotalSize()));
+				ExpAr->Serialize(ExportsBuffer, ExpAr->TotalSize());
 #endif
-				Package.UExpSize = TotalExportsSize;
+				ExpAr->Close();
 
+				uint64 BundleBufferSize = ZenSummarySize;
 				for (int32 I = 0; I < Package.ExportBundles.Num(); ++I)
 				{
-					check(I < UINT16_MAX);
 					FExportBundle& ExportBundle = Package.ExportBundles[I];
-					uint64 BundleBufferSize = 0;
 					for (FExportGraphNode* Node : ExportBundle.Nodes)
 					{
 						if (Node->BundleEntry.CommandType == FExportBundleEntry::ExportCommandType_Serialize)
@@ -1830,32 +1821,37 @@ int32 CreateTarget(const FContainerTarget& Target)
 							BundleBufferSize += ObjectExport.SerialSize;
 						}
 					}
-					uint8* BundleBuffer = static_cast<uint8*>(FMemory::Malloc(BundleBufferSize));
-					uint64 BundleBufferOffset = 0;
+				}
+
+#if !SKIP_WRITE_CONTAINER
+				uint8* BundleBuffer = static_cast<uint8*>(FMemory::Malloc(BundleBufferSize));
+				FMemory::Memcpy(BundleBuffer, ZenSummaryBuffer, ZenSummarySize);
+#endif
+				FMemory::Free(ZenSummaryBuffer);
+				uint64 BundleBufferOffset = ZenSummarySize;
+				for (FExportBundle& ExportBundle : Package.ExportBundles)
+				{
 					for (FExportGraphNode* Node : ExportBundle.Nodes)
 					{
 						if (Node->BundleEntry.CommandType == FExportBundleEntry::ExportCommandType_Serialize)
 						{
 							FObjectExport& ObjectExport = Exports[Package.ExportIndexOffset + Node->BundleEntry.LocalExportIndex];
 							const int64 Offset = ObjectExport.SerialOffset - Package.UAssetSize;
+#if !SKIP_WRITE_CONTAINER
 							FMemory::Memcpy(BundleBuffer + BundleBufferOffset, ExportsBuffer + Offset, ObjectExport.SerialSize);
+#endif
 							BundleBufferOffset += ObjectExport.SerialSize;
 						}
 					}
-#if !SKIP_WRITE_CONTAINER
-					FObjectExport& ObjectExport = Exports[Package.ExportIndexOffset + I];
-					const int64 Offset = ObjectExport.SerialOffset - Package.UAssetSize;
-					FIoBuffer IoBuffer(FIoBuffer::Wrap, BundleBuffer, BundleBufferSize);
-					IoStoreWriter->Append(CreateChunkId(Package.GlobalPackageId, I, EIoChunkType::ExportBundleData, *Package.FileName), IoBuffer);
-#endif
-					++ExportChunkCount;
-					FMemory::Free(BundleBuffer);
 				}
 
 #if !SKIP_WRITE_CONTAINER
+				FIoBuffer IoBuffer(FIoBuffer::Wrap, BundleBuffer, BundleBufferSize);
+				IoStoreWriter->Append(CreateChunkId(Package.GlobalPackageId, 0, EIoChunkType::ExportBundleData, *Package.FileName), IoBuffer);
+				FMemory::Free(BundleBuffer);
 				FMemory::Free(ExportsBuffer);
-				ExpAr->Close();
 #endif
+				++ExportChunkCount;
 			}
 
 #if !SKIP_BULKDATA
@@ -1903,6 +1899,10 @@ int32 CreateTarget(const FContainerTarget& Target)
 		int32 GlobalImportNamesByteCount = GlobalImportNamesArchive->TotalSize();
 		GlobalMetaArchive << GlobalImportNamesByteCount;
 		GlobalMetaArchive.Serialize(GlobalImportNamesArchive->GetData(), GlobalImportNamesByteCount);
+
+		int32 ExportBundleOrderByteCount = ExportBundleOrderEntries.Num() * sizeof(uint32);
+		GlobalMetaArchive << ExportBundleOrderByteCount;
+		GlobalMetaArchive.Serialize(ExportBundleOrderEntries.GetData(), ExportBundleOrderByteCount);
 
 		const FIoStatus Status = AppendToContainer(*IoStoreWriter, GlobalMetaArchive, CreateIoChunkId(0, 0, EIoChunkType::LoaderGlobalMeta));
 		if (!Status.IsOk())
