@@ -981,6 +981,9 @@ namespace PyGenUtil
 	/** Should the given function be exported to Python? */
 	bool ShouldExportFunction(const UFunction* InFunc);
 
+	/** Check that the given name will be valid for Python () */
+	bool IsValidName(const FString& InName, FText* OutError = nullptr);
+
 	/** Given a CamelCase name, convert it to snake_case */
 	FString PythonizeName(const FString& InName, const EPythonizeNameCase InNameCase);
 

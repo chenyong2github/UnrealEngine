@@ -217,21 +217,10 @@ void UK2Node_ExecutePythonScript::EarlyValidation(FCompilerResultsLog& MessageLo
 			}
 			else
 			{
-				// Pythonized names must be a valid symbol name (alnum or _ and doesn't start with a digit)
-				const TCHAR* InvalidChar = PythonizedPinName.GetCharArray().FindByPredicate(
-					[](const TCHAR InChar)
-					{
-						return !FChar::IsAlnum(InChar) && InChar != TEXT('_') && InChar != 0;
-					});
-
-				if (InvalidChar)
+				FText NameValidationError;
+				if (!PyGenUtil::IsValidName(PythonizedPinName, &NameValidationError))
 				{
-					MessageLog.Error(*FText::Format(LOCTEXT("InvalidPinName_RestrictedCharacter", "Pin '{0}' ({1}) on @@ contains '{2}' which is invalid for Python."), FText::AsCultureInvariant(PinName.ToString()), FText::AsCultureInvariant(PythonizedPinName), FText::AsCultureInvariant(FString(1, InvalidChar))).ToString(), this);
-				}
-
-				if (FChar::IsDigit(PythonizedPinName[0]))
-				{
-					MessageLog.Error(*FText::Format(LOCTEXT("InvalidPinName_LeadingDigit", "Pin '{0}' ({1}) on @@ starts with a digit which is invalid for Python."), FText::AsCultureInvariant(PinName.ToString()), FText::AsCultureInvariant(PythonizedPinName)).ToString(), this);
+					MessageLog.Error(*FText::Format(LOCTEXT("InvalidPinName_GenValidationError", "Pin '{0}' ({1}) on @@ failed name validation: {2}."), FText::AsCultureInvariant(PinName.ToString()), FText::AsCultureInvariant(PythonizedPinName), NameValidationError).ToString(), this);
 				}
 
 				bool bAlreadyUsed = false;
