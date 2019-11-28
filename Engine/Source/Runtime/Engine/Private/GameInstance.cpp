@@ -821,7 +821,12 @@ int32 UGameInstance::GetNumLocalPlayers() const
 
 ULocalPlayer* UGameInstance::GetLocalPlayerByIndex(const int32 Index) const
 {
-	return LocalPlayers[Index];
+	if (LocalPlayers.IsValidIndex(Index))
+	{
+		return LocalPlayers[Index];
+	}
+
+	return nullptr;
 }
 
 APlayerController* UGameInstance::GetFirstLocalPlayerController(UWorld* World) const
