@@ -204,11 +204,13 @@ struct FZenPackageSummary
 {
 	uint32 PackageFlags;
 	int32 NameMapOffset;
+	int32 ImportMapOffset;
 	int32 ExportMapOffset;
 	int32 ExportBundlesOffset;
 	int32 GraphDataOffset;
 	int32 GraphDataSize;
 	int32 BulkDataStartOffset;
+	int32 GlobalImportIndex;
 	int32 Pad;
 };
 
@@ -220,7 +222,6 @@ enum EPreloadDependencyType
 
 enum EEventLoadNode2 : uint8
 {
-	Package_CreateLinker,
 	Package_ProcessSummary,
 	Package_ExportsSerialized,
 	Package_StartPostLoad,
@@ -377,11 +378,11 @@ struct FPackage
 	int32 NameCount = 0;
 	int32 ImportCount = 0;
 	int32 ImportOffset = 0;
-	int32 ScriptArcsCount = 0;
-	int32 ScriptArcsOffset = 0;
-	int32 SlimportCount = 0;
-	int32 SlimportOffset = -1;
+	int32 ImportedPackagesCount = 0;
+	int32 ImportedPackagesOffset = -1;
 	int32 ExportCount = 0;
+	int32 FirstGlobalImport;
+	int32 GlobalImportCount;
 	int32 ExportIndexOffset = -1;
 	int32 PreloadIndexOffset = -1;
 	int64 BulkDataStartOffset = -1;
@@ -390,13 +391,15 @@ struct FPackage
 	int64 SummarySize = 0;
 	int64 UGraphSize = 0;
 	int64 NameMapSize = 0;
+	int64 ImportMapSize = 0;
 	int64 ExportMapSize = 0;
 	int64 ExportBundlesSize = 0;
 
 	bool bHasCircularImportDependencies = false;
 	bool bHasCircularPostLoadDependencies = false;
 
-	TSet<FName> ImportedPackageNames;
+	TArray<FString> ImportedFullNames;
+
 	TArray<FPackage*> ImportedPackages;
 	TSet<FPackage*> AllReachablePackages;
 	TSet<FPackage*> ImportedPreloadPackages;
@@ -910,11 +913,30 @@ struct FImportData
 	int32 GlobalIndex = -1;
 	int32 OuterIndex = -1;
 	int32 OutermostIndex = -1;
+	int32 GlobalExportIndex = -1;
 	int32 RefCount = 0;
 	FName ObjectName;
 	bool bIsPackage = false;
 	bool bIsScript = false;
 	FString FullName;
+	FPackage* Package = nullptr;
+
+	bool operator<(const FImportData& Other) const
+	{
+		if (bIsScript != Other.bIsScript)
+		{
+			return bIsScript;
+		}
+		if (OutermostIndex != Other.OutermostIndex)
+		{
+			return OutermostIndex < Other.OutermostIndex;
+		}
+		if (bIsPackage != Other.bIsPackage)
+		{
+			return bIsPackage;
+		}
+		return FullName < Other.FullName;
+	}
 };
 
 struct FExportData
@@ -924,6 +946,10 @@ struct FExportData
 	FName ObjectName;
 	int32 SourceIndex = -1;
 	int32 GlobalImportIndex = -1;
+	FPackageIndex OuterIndex;
+	FPackageIndex ClassIndex;
+	FPackageIndex SuperIndex;
+	FPackageIndex TemplateIndex;
 	FString FullName;
 
 	FExportGraphNode* CreateNode = nullptr;
@@ -1069,7 +1095,6 @@ int32 CreateTarget(const FContainerTarget& Target)
 	TMap<FString, int32> GlobalExportsByFullName;
 	TArray<FString> TempFullNames;
 	TArray<FPackageIndex> PreloadDependencies;
-	uint64 UniqueImportPackages = 0;
 	uint64 UPackageImports = 0;
 	TArray<FPackageFileSummary> Summaries;
 	TArray<int32> ImportPreloadCounts;
@@ -1081,9 +1106,9 @@ int32 CreateTarget(const FContainerTarget& Target)
 	uint64 ExportPreloadCount = 0;
 
 	TUniquePtr<FLargeMemoryWriter> StoreTocArchive = MakeUnique<FLargeMemoryWriter>(0, true);
-	TUniquePtr<FLargeMemoryWriter> GlimportArchive = MakeUnique<FLargeMemoryWriter>(0, true);
-	TUniquePtr<FLargeMemoryWriter> SlimportArchive = MakeUnique<FLargeMemoryWriter>(0, true);
-	TUniquePtr<FLargeMemoryWriter> ScriptArcsArchive = MakeUnique<FLargeMemoryWriter>(0, true);
+	TUniquePtr<FLargeMemoryWriter> ImportedPackagesArchive = MakeUnique<FLargeMemoryWriter>(0, true);
+	TUniquePtr<FLargeMemoryWriter> GlobalImportNamesArchive = MakeUnique<FLargeMemoryWriter>(0, true);
+	TUniquePtr<FLargeMemoryWriter> InitialLoadArchive = MakeUnique<FLargeMemoryWriter>(0, true);
 
 	FIoStoreEnvironment IoStoreEnv;
 #if !SKIP_WRITE_CONTAINER
@@ -1200,22 +1225,10 @@ int32 CreateTarget(const FContainerTarget& Target)
 
 			UPackageImports += NumPackages;
 
-			Package.SlimportCount = Summary.ImportCount;
-			Package.SlimportOffset = SlimportArchive->Tell();
-			TempFullNames.Reset();
-			TempFullNames.SetNum(Summary.ImportCount, false);
+			Package.ImportedFullNames.SetNum(Summary.ImportCount);
 			for (int32 I = 0; I < Summary.ImportCount; ++I)
 			{
-				FindImport(GlobalImports, GlobalImportsByFullName, TempFullNames, Imports.GetData() + BaseIndex, I);
-
-				FImportData& ImportData = GlobalImports[*GlobalImportsByFullName.Find(TempFullNames[I])];
-				*SlimportArchive << ImportData.GlobalIndex;
-
-				if (ImportData.bIsPackage)
-				{
-					Package.ImportedPackageNames.Add(ImportData.ObjectName);
-				}
-				Package.Imports.Add(ImportData.GlobalIndex);
+				FindImport(GlobalImports, GlobalImportsByFullName, Package.ImportedFullNames, Imports.GetData() + BaseIndex, I);
 			}
 		}
 
@@ -1296,13 +1309,67 @@ int32 CreateTarget(const FContainerTarget& Target)
 		Ar->Close();
 	}
 
+	int32 NumScriptImports = 0;
+	{
+		// Sort imports by script objects first
+		GlobalImports.Sort();
+
+		// build remap from old global import index to new sorted global import index
+		TMap<int32, int32> Remap;
+		Remap.Reserve(GlobalImports.Num() + 1);
+		Remap.Add(-1, -1);
+		for (int32 I = 0; I < GlobalImports.Num(); ++I)
+		{
+			FImportData& Import = GlobalImports[I];
+			Remap.Add(Import.GlobalIndex, I);
+		}
+
+		// remap all global import indices and lookup package pointers and export indices
+		FPackage* LastPackage = nullptr; 
+		for (int32 I = 0; I < GlobalImports.Num(); ++I)
+		{
+			FImportData& GlobalImport = GlobalImports[I];
+
+			GlobalImport.GlobalIndex = Remap[GlobalImport.GlobalIndex];
+			GlobalImport.OuterIndex = Remap[GlobalImport.OuterIndex];
+			GlobalImport.OutermostIndex = Remap[GlobalImport.OutermostIndex];
+
+			if (!GlobalImport.bIsScript)
+			{
+				if (NumScriptImports == 0)
+				{
+					NumScriptImports = I;
+				}
+
+				if (GlobalImport.bIsPackage)
+				{
+					if (LastPackage)
+					{
+						LastPackage->GlobalImportCount = I - LastPackage->FirstGlobalImport;
+					}
+					FPackage* FindPackage = PackageMap.FindRef(GlobalImport.ObjectName);
+					check(FindPackage);
+					FindPackage->FirstGlobalImport = I;
+					GlobalImport.Package = FindPackage;
+					LastPackage = FindPackage;
+				}
+				else
+				{
+					int32* FindGlobalExport = GlobalExportsByFullName.Find(GlobalImport.FullName);
+					check(FindGlobalExport);
+					GlobalImport.GlobalExportIndex = *FindGlobalExport;
+				}
+			}
+
+			GlobalImportsByFullName[GlobalImport.FullName] = I;
+		}
+		LastPackage->GlobalImportCount = GlobalImports.Num() - LastPackage->FirstGlobalImport;
+	}
+
 	for (FExportData& GlobalExport : GlobalExports)
 	{
 		int32* FindGlobalImport = GlobalImportsByFullName.Find(GlobalExport.FullName);
-		if (FindGlobalImport)
-		{
-			GlobalExport.GlobalImportIndex = *FindGlobalImport;
-		}
+		GlobalExport.GlobalImportIndex = FindGlobalImport ? *FindGlobalImport : -1;
 	}
 
 	uint64 ImportSize = Imports.Num() * 28;
@@ -1310,8 +1377,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 	uint64 PreloadDependenciesSize = PreloadDependencies.Num() * 4;
 
 #if OUTPUT_NAMEMAP_CSV
-	FString CsvFilePath = SlimportArchive->GetArchiveName();
-	CsvFilePath.Append(TEXT(".csv"));
+	FString CsvFilePath = OutputDir / TEXT("AllImports.csv");
 	TUniquePtr<FArchive> CsvArchive(IFileManager::Get().CreateFileWriter(*CsvFilePath));
 	if (CsvArchive)
 	{
@@ -1334,25 +1400,6 @@ int32 CreateTarget(const FContainerTarget& Target)
 	}
 #endif
 
-	if (GlimportArchive)
-	{
-		int32 Pad = 0;
-		for (const FImportData& ImportData : GlobalImports)
-		{
-			UniqueImportPackages += (ImportData.OuterIndex == 0);
-			NameMapBuilder.SerializeName(*GlimportArchive, ImportData.ObjectName);
-			FPackageIndex Index;
-			Index = FPackageIndex::FromImport(ImportData.GlobalIndex);
-			*GlimportArchive << Index;
-			Index = ImportData.OuterIndex >= 0 ? FPackageIndex::FromImport(ImportData.OuterIndex) :
-				FPackageIndex();
-			*GlimportArchive << Index;
-			Index = FPackageIndex::FromImport(ImportData.OutermostIndex);
-			*GlimportArchive << Index;
-			*GlimportArchive << Pad;
-		}
-	}
-
 	uint64 SummaryChunkCount = 0;
 	uint64 ExportChunkCount = 0;
 	uint64 BulkChunkCount = 0;
@@ -1363,23 +1410,53 @@ int32 CreateTarget(const FContainerTarget& Target)
 	TSet<FCircularImportChain> CircularChains;
 	int32 PackageIndex = 0;
 
-	// Lookup package pointers for all imports before running postload code
+	// Lookup global indices and package pointers for all imports before adding preload and postload arcs
 	UE_LOG(LogIoStore, Display, TEXT("Looking up import packages..."));
 	for (auto& PackageKV : PackageMap)
 	{
 		FPackage& Package = *PackageKV.Value;
 
-		Package.ImportedPackages.Reserve(Package.ImportedPackageNames.Num());
-		for (const FName& ImportedPackageName : Package.ImportedPackageNames)
+		Package.ImportedPackages.Reserve(Package.ImportCount);
+		for (int32 I = 0; I < Package.ImportCount; ++I)
 		{
-			FPackage* FindPackage = PackageMap.FindRef(ImportedPackageName);
-			if (FindPackage)
+			int32 GlobalImportIndex = *GlobalImportsByFullName.Find(Package.ImportedFullNames[I]);
+
+			FImportData& ImportData = GlobalImports[GlobalImportIndex];
+			Package.Imports.Add(ImportData.GlobalIndex);
+			if (ImportData.Package)
 			{
-				Package.ImportedPackages.Add(FindPackage);
+				Package.ImportedPackages.Add(ImportData.Package);
 			}
 		}
 	}
 
+	UE_LOG(LogIoStore, Display, TEXT("Converting export map import indices..."));
+	for (auto& PackageKV : PackageMap)
+	{
+		FPackage& Package = *PackageKV.Value;
+		for (int32 I = 0; I < Package.ExportCount; ++I)
+		{
+			FObjectExport& ObjectExport = Exports[Package.ExportIndexOffset + I];
+			FExportData& ExportData = GlobalExports[Package.Exports[I]];
+
+			check(!ObjectExport.OuterIndex.IsImport());
+			ExportData.OuterIndex = ObjectExport.OuterIndex;
+			ExportData.ClassIndex =
+				ObjectExport.ClassIndex.IsImport() ?
+				FPackageIndex::FromImport(Package.Imports[ObjectExport.ClassIndex.ToImport()]) :
+				ObjectExport.ClassIndex;
+			ExportData.SuperIndex =
+				ObjectExport.SuperIndex.IsImport() ?
+				FPackageIndex::FromImport(Package.Imports[ObjectExport.SuperIndex.ToImport()]) :
+				ObjectExport.SuperIndex;
+			ExportData.TemplateIndex =
+				ObjectExport.TemplateIndex.IsImport() ?
+				FPackageIndex::FromImport(Package.Imports[ObjectExport.TemplateIndex.ToImport()]) :
+				ObjectExport.TemplateIndex;
+		}
+	}
+
+#if 0
 	UE_LOG(LogIoStore, Display, TEXT("Simulating postload dependencies for stats..."));
 	for (auto& PackageKV : PackageMap)
 	{
@@ -1405,6 +1482,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 		// 		Package.AllReachablePackages.Num());
 		// }
 	}
+#endif
 
 	UE_LOG(LogIoStore, Display, TEXT("Adding optimized postload dependencies..."));
 	for (auto& PackageKV : PackageMap)
@@ -1439,21 +1517,21 @@ int32 CreateTarget(const FContainerTarget& Target)
 				else
 				{
 					FImportData& Import = GlobalImports[Package.Imports[Dep.ToImport()]];
-					ensure(!Import.bIsPackage);
-					int32* FindGlobalExport = GlobalExportsByFullName.Find(Import.FullName);
-					if (FindGlobalExport)
+					check(!Import.bIsPackage);
+					if (Import.bIsScript)
 					{
-						FExportData& Export = GlobalExports[*FindGlobalExport];
+						// Add script arc with null package and global import index as node index
+						AddScriptArc(Package, Import.GlobalIndex, I, PhaseTo);
+					}
+					else
+					{
+						check(Import.GlobalExportIndex != - 1);
+						FExportData& Export = GlobalExports[Import.GlobalExportIndex];
 						FPackage* SourcePackage = PackageMap.FindRef(Export.SourcePackageName);
 						check(SourcePackage);
 						FPackageIndex SourceDep = FPackageIndex::FromExport(Export.SourceIndex);
 						AddExternalExportArc(ExportGraph, *SourcePackage, Export.SourceIndex, PhaseFrom, Package, I, PhaseTo);
 						Package.ImportedPreloadPackages.Add(SourcePackage);
-					}
-					else
-					{
-						// Add script arc with null package and global import index as node index
-						AddScriptArc(Package, Import.GlobalIndex, I, PhaseTo);
 					}
 				}
 			};
@@ -1496,21 +1574,79 @@ int32 CreateTarget(const FContainerTarget& Target)
 	UE_LOG(LogIoStore, Display, TEXT("Building bundles..."));
 	BuildBundles(ExportGraph, PackageMap);
 
+
+	UE_LOG(LogIoStore, Display, TEXT("Serializing global import names..."));
+	if (GlobalImportNamesArchive)
+	{
+		for (const FImportData& ImportData : GlobalImports)
+		{
+			NameMapBuilder.SerializeName(*GlobalImportNamesArchive, ImportData.ObjectName);
+		}
+	}
+
+	UE_LOG(LogIoStore, Display, TEXT("Serializing initial load..."));
+#if 1
+	// Separate file for script arcs that are only required during initial loading
+	if (InitialLoadArchive)
+	{
+		int32 PackageCount = PackageMap.Num();
+		*InitialLoadArchive << PackageCount;
+		*InitialLoadArchive << NumScriptImports;
+
+		FBufferWriter ScriptArcsArchive(nullptr, 0, EBufferWriterFlags::AllowResize | EBufferWriterFlags::TakeOwnership);
+
+		for (auto& PackageKV : PackageMap)
+		{
+			FPackage& Package = *PackageKV.Value;
+
+			int32 ScriptArcsOffset = ScriptArcsArchive.Tell();
+			int32 ScriptArcsCount = Package.ScriptArcs.Num();
+
+			*InitialLoadArchive << ScriptArcsOffset;
+			*InitialLoadArchive << ScriptArcsCount;
+
+			for (FArc& ScriptArc : Package.ScriptArcs)
+			{
+				ScriptArcsArchive << ScriptArc.FromNodeIndex;
+				ScriptArcsArchive << ScriptArc.ToNodeIndex;
+			}
+		}
+
+		for (int32 I = 0; I < NumScriptImports; ++I)
+		{
+			FImportData& ImportData = GlobalImports[I];
+			FPackageIndex OuterIndex = 
+				ImportData.OuterIndex >= 0 ?
+				FPackageIndex::FromImport(ImportData.OuterIndex) :
+				FPackageIndex();
+
+			*InitialLoadArchive << OuterIndex;
+		}
+
+		InitialLoadArchive->Serialize(ScriptArcsArchive.GetWriterData(), ScriptArcsArchive.Tell());
+	}
+#endif
+
 	UE_LOG(LogIoStore, Display, TEXT("Serializing..."));
 	for (auto& PackageKV : PackageMap)
 	{
 		FPackage& Package = *PackageKV.Value;
 
-		// Separate file for script arcs that are only required during initial loading
+		// ImportedPackages
+		Package.ImportedPackagesCount = Package.ImportedPackages.Num();
+		Package.ImportedPackagesOffset = ImportedPackagesArchive->Tell();
+		for (FPackage* ImportedPackage : Package.ImportedPackages)
 		{
-			Package.ScriptArcsOffset = ScriptArcsArchive->Tell();
-			Package.ScriptArcsCount = Package.ScriptArcs.Num();
-			for (FArc& ScriptArc : Package.ScriptArcs)
-			{
-				*ScriptArcsArchive << ScriptArc.FromNodeIndex;
-				*ScriptArcsArchive << ScriptArc.ToNodeIndex;
-			}
+			*ImportedPackagesArchive << ImportedPackage->GlobalPackageId;
 		}
+
+		// Temporary Archive for serializing ImportMap
+		FBufferWriter ImportMapArchive(nullptr, 0, EBufferWriterFlags::AllowResize | EBufferWriterFlags::TakeOwnership );
+		for (int32 GlobalImportIndex : Package.Imports)
+		{
+			ImportMapArchive << GlobalImportIndex;
+		}
+		Package.ImportMapSize = ImportMapArchive.Tell();
 
 		// Temporary Archive for serializing EDL graph data
 		FBufferWriter ZenGraphArchive(nullptr, 0, EBufferWriterFlags::AllowResize | EBufferWriterFlags::TakeOwnership );
@@ -1551,10 +1687,10 @@ int32 CreateTarget(const FContainerTarget& Target)
 
 			ZenExportMapArchive << ObjectExport.SerialSize;
 			NameMapBuilder.SerializeName(ZenExportMapArchive, ObjectExport.ObjectName);
-			ZenExportMapArchive << ObjectExport.OuterIndex;
-			ZenExportMapArchive << ObjectExport.ClassIndex;
-			ZenExportMapArchive << ObjectExport.SuperIndex;
-			ZenExportMapArchive << ObjectExport.TemplateIndex;
+			ZenExportMapArchive << ExportData.OuterIndex;
+			ZenExportMapArchive << ExportData.ClassIndex;
+			ZenExportMapArchive << ExportData.SuperIndex;
+			ZenExportMapArchive << ExportData.TemplateIndex;
 			ZenExportMapArchive << ExportData.GlobalImportIndex;
 			ZenExportMapArchive << (uint32&)ObjectExport.ObjectFlags;
 		}
@@ -1589,16 +1725,18 @@ int32 CreateTarget(const FContainerTarget& Target)
 
 		ensure(Package.GlobalPackageId == PackageIndex++);
 		{
+			int32 Pad = 0;
+			int32 ExportBundleCount = Package.ExportBundles.Num();
+
 			NameMapBuilder.SerializeName(*StoreTocArchive, Package.Name);
 			NameMapBuilder.SerializeName(*StoreTocArchive, RelativeFileName);
-			*StoreTocArchive << Package.ImportCount;
-			*StoreTocArchive << Package.SlimportCount;
-			*StoreTocArchive << Package.SlimportOffset;
 			*StoreTocArchive << Package.ExportCount;
-			int32 ExportBundleCount = Package.ExportBundles.Num();
 			*StoreTocArchive << ExportBundleCount;
-			*StoreTocArchive << Package.ScriptArcsOffset;
-			*StoreTocArchive << Package.ScriptArcsCount;
+			*StoreTocArchive << Package.FirstGlobalImport;
+			*StoreTocArchive << Package.GlobalImportCount;
+			*StoreTocArchive << Package.ImportedPackagesCount;
+			*StoreTocArchive << Package.ImportedPackagesOffset;
+			*StoreTocArchive << Pad;
 		}
 
 		Package.NameMapSize = Package.NameIndices.Num() * Package.NameIndices.GetTypeSize();
@@ -1607,6 +1745,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 			const uint64 ZenSummarySize = 
 						sizeof(FZenPackageSummary)
 						+ Package.NameMapSize
+						+ Package.ImportMapSize
 						+ Package.ExportMapSize
 						+ Package.ExportBundlesSize
 						+ Package.UGraphSize;
@@ -1617,6 +1756,8 @@ int32 CreateTarget(const FContainerTarget& Target)
 			ZenSummary->PackageFlags = Package.PackageFlags;
 			ZenSummary->GraphDataSize = Package.UGraphSize;
 			ZenSummary->BulkDataStartOffset = Package.BulkDataStartOffset;
+			int32* FindGlobalImportIndexForPackage = GlobalImportsByFullName.Find(Package.Name.ToString());
+			ZenSummary->GlobalImportIndex = FindGlobalImportIndexForPackage ? *FindGlobalImportIndexForPackage : -1;
 
 			FBufferWriter ZenAr(ZenSummaryBuffer, ZenSummarySize); 
 			ZenAr.Seek(sizeof(FZenPackageSummary));
@@ -1625,6 +1766,13 @@ int32 CreateTarget(const FContainerTarget& Target)
 			{
 				ZenSummary->NameMapOffset = ZenAr.Tell();
 				ZenAr.Serialize(Package.NameIndices.GetData(), Package.NameMapSize);
+			}
+
+			// ImportMap data
+			{
+				check(ImportMapArchive.Tell() == Package.ImportMapSize);	
+				ZenSummary->ImportMapOffset = ZenAr.Tell();
+				ZenAr.Serialize(ImportMapArchive.GetWriterData(), ImportMapArchive.Tell());
 			}
 
 			// ExportMap data
@@ -1748,13 +1896,13 @@ int32 CreateTarget(const FContainerTarget& Target)
 		GlobalMetaArchive << StoreTocByteCount;
 		GlobalMetaArchive.Serialize(StoreTocArchive->GetData(), StoreTocByteCount);
 
-		int32 SlimportsByteCount = SlimportArchive->TotalSize();
-		GlobalMetaArchive << SlimportsByteCount;
-		GlobalMetaArchive.Serialize(SlimportArchive->GetData(), SlimportsByteCount);
+		int32 ImportedPackagesByteCount = ImportedPackagesArchive->TotalSize();
+		GlobalMetaArchive << ImportedPackagesByteCount;
+		GlobalMetaArchive.Serialize(ImportedPackagesArchive->GetData(), ImportedPackagesByteCount);
 
-		int32 GlimportsByteCount = GlimportArchive->TotalSize();
-		GlobalMetaArchive << GlimportsByteCount;
-		GlobalMetaArchive.Serialize(GlimportArchive->GetData(), GlimportsByteCount);
+		int32 GlobalImportNamesByteCount = GlobalImportNamesArchive->TotalSize();
+		GlobalMetaArchive << GlobalImportNamesByteCount;
+		GlobalMetaArchive.Serialize(GlobalImportNamesArchive->GetData(), GlobalImportNamesByteCount);
 
 		const FIoStatus Status = AppendToContainer(*IoStoreWriter, GlobalMetaArchive, CreateIoChunkId(0, 0, EIoChunkType::LoaderGlobalMeta));
 		if (!Status.IsOk())
@@ -1765,7 +1913,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 
 	{
 		UE_LOG(LogIoStore, Display, TEXT("Saving initial load meta data to container file"));
-		const FIoStatus Status = AppendToContainer(*IoStoreWriter, *ScriptArcsArchive, CreateIoChunkId(0, 0, EIoChunkType::LoaderInitialLoadMeta));
+		const FIoStatus Status = AppendToContainer(*IoStoreWriter, *InitialLoadArchive, CreateIoChunkId(0, 0, EIoChunkType::LoaderInitialLoadMeta));
 		if (!Status.IsOk())
 		{
 			UE_LOG(LogIoStore, Error, TEXT("Failed to save initial load meta data to container file"));
@@ -1789,14 +1937,16 @@ int32 CreateTarget(const FContainerTarget& Target)
 	uint64 UAssetSize = 0;
 	uint64 SummarySize = 0;
 	uint64 UGraphSize = 0;
+	uint64 ImportMapSize = 0;
 	uint64 ExportMapSize = 0;
 	uint64 NameMapSize = 0;
 	uint64 NameMapCount = 0;
 	uint64 ZenPackageSummarySize = FileNames.Num() * sizeof(FZenPackageSummary);
 	uint64 StoreTocSize = StoreTocArchive->Tell();
-	uint64 GlimportSize = GlimportArchive->Tell();
-	uint64 SlimportSize = SlimportArchive->Tell();
-	uint64 ScriptArcsSize = ScriptArcsArchive->Tell();
+	uint64 GlobalImportNamesSize = GlobalImportNamesArchive->Tell();
+	uint64 PackageImportSize = ImportedPackagesArchive->Tell();
+	uint64 ImportedPackagesCount = 0;
+	uint64 InitialLoadSize = InitialLoadArchive->Tell();
 	uint64 ScriptArcsCount = 0;
 	uint64 CircularPackagesCount = 0;
 	uint64 TotalInternalArcCount = 0;
@@ -1809,6 +1959,14 @@ int32 CreateTarget(const FContainerTarget& Target)
 	uint64 BundleCount = 0;
 	uint64 BundleEntryCount = 0;
 
+	uint64 ZenPackageHeaderSize = 0;
+
+	uint64 UniqueImportPackages = 0;
+	for (const FImportData& ImportData : GlobalImports)
+	{
+		UniqueImportPackages += (ImportData.OuterIndex == 0);
+	}
+
 	for (auto& PackageKV : PackageMap)
 	{
 		FPackage& Package = *PackageKV.Value;
@@ -1817,12 +1975,14 @@ int32 CreateTarget(const FContainerTarget& Target)
 		UAssetSize += Package.UAssetSize;
 		SummarySize += Package.SummarySize;
 		UGraphSize += Package.UGraphSize;
+		ImportMapSize += Package.ImportMapSize;
 		ExportMapSize += Package.ExportMapSize;
 		NameMapSize += Package.NameMapSize;
 		NameMapCount += Package.NameIndices.Num();
-		ScriptArcsCount += Package.ScriptArcsCount;
+		ScriptArcsCount += Package.ScriptArcs.Num();
 		CircularPackagesCount += Package.bHasCircularImportDependencies;
 		TotalInternalArcCount += Package.InternalArcs.Num();
+		ImportedPackagesCount += Package.ImportedPackages.Num();
 		NameCount += Package.NameMap.Num();
 		PackagesWithCircularDependenciesCount += Package.bHasCircularPostLoadDependencies;
 		PackagesWithoutPreloadDependenciesCount += Package.ImportedPreloadPackages.Num() == 0;
@@ -1841,6 +2001,8 @@ int32 CreateTarget(const FContainerTarget& Target)
 		}
 	}
 
+	ZenPackageHeaderSize = ZenPackageSummarySize + NameMapSize + ImportMapSize + ExportMapSize + UGraphSize;
+
 	UE_LOG(LogIoStore, Display, TEXT("-------------------- IoStore Summary: %s --------------------"), *Target.TargetPlatform->PlatformName());
 	UE_LOG(LogIoStore, Display, TEXT("Packages: %8d total, %d circular dependencies, %d no preload dependencies, %d no import dependencies"),
 		PackageMap.Num(), PackagesWithCircularDependenciesCount, PackagesWithoutPreloadDependenciesCount, PackagesWithoutImportDependenciesCount);
@@ -1856,17 +2018,19 @@ int32 CreateTarget(const FContainerTarget& Target)
 	UE_LOG(LogIoStore, Display, TEXT("Pak: %12.2f MB PreloadDependencies, %d imports + %d exports = %d"),
 		(double)PreloadDependenciesSize / 1024.0 / 1024.0, ImportPreloadCount, ExportPreloadCount, PreloadDependencies.Num());
 
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalToc"), (double)StoreTocSize / 1024.0 / 1024.0);
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalNameMap, %d unique names"), (double)GlobalNameMapSize / 1024.0 / 1024.0, NameMapBuilder.Num());
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalImportMap, %d unique imports, %d unique import packages"),
-		(double)GlimportSize / 1024.0 / 1024.0, GlobalImportsByFullName.Num(), UniqueImportPackages);
+	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalPackageData"), (double)StoreTocSize / 1024.0 / 1024.0);
+	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalImportedPackages, %d imported packages"), (double)PackageImportSize / 1024.0 / 1024.0, ImportedPackagesCount);
+	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalImportNames, %d total imports, %d script imports, %d UPackage imports"),
+		(double)GlobalImportNamesSize / 1024.0 / 1024.0, GlobalImportsByFullName.Num(), NumScriptImports, UniqueImportPackages);
+	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB InitialLoadData, %d script arcs, %d script outers, %d packages"), (double)InitialLoadSize / 1024.0 / 1024.0, ScriptArcsCount, NumScriptImports, FileNames.Num());
+	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageHeader, %d packages"), (double)ZenPackageHeaderSize / 1024.0 / 1024.0, FileNames.Num());
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageSummary"), (double)ZenPackageSummarySize / 1024.0 / 1024.0);
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageNameMap, %d indices"), (double)NameMapSize / 1024.0 / 1024.0, NameMapCount);
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageImportMap"), (double)SlimportSize / 1024.0 / 1024.0);
+	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageImportMap"), (double)ImportMapSize / 1024.0 / 1024.0);
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageExportMap"), (double)ExportMapSize / 1024.0 / 1024.0);
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB SerializedArcs, %d internal arcs, %d external arcs, %d circular packages (%d chains)"),
+	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageArcs, %d internal arcs, %d external arcs, %d circular packages (%d chains)"),
 		(double)UGraphSize / 1024.0 / 1024.0, TotalInternalArcCount, TotalExternalArcCount, CircularPackagesCount, CircularChains.Num());
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB ScriptArcs, %d arcs"), (double)ScriptArcsSize / 1024.0 / 1024.0, ScriptArcsCount);
 
 	return 0;
 }
