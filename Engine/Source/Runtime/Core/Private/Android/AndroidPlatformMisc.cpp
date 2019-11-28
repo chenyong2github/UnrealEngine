@@ -902,8 +902,28 @@ static constexpr int32 TargetSignals[] =
 	SIGSEGV,
 	SIGSYS
 };
-
 static constexpr int32 NumTargetSignals = UE_ARRAY_COUNT(TargetSignals);
+
+static const char* SignalToString(int32 Signal)
+{
+	switch (Signal)
+	{
+		case SIGQUIT:
+			return "SIGQUIT";
+		case SIGILL:
+			return "SIGILL";
+		case SIGFPE:
+			return "SIGFPE";
+		case SIGBUS:
+			return "SIGBUS";
+		case SIGSEGV:
+			return "SIGSEGV";
+		case SIGSYS:
+			return "SIGSYS";
+		default:
+			return FAndroidCrashContext::ItoANSI(Signal,16, 16);
+	}
+}
 
 PRAGMA_DISABLE_OPTIMIZATION
 struct FAndroidSignalParams
@@ -1099,12 +1119,101 @@ private:
 		RestorePreviousSignalHandlers();
 	}
 
+	static const ANSICHAR* CodeToString(int Signal, int si_code)
+	{
+		switch (Signal)
+		{
+			case SIGILL:
+			{
+				switch (si_code)
+				{
+					// SIGILL
+					case ILL_ILLOPC: return "ILL_ILLOPC";
+					case ILL_ILLOPN: return "ILL_ILLOPN";
+					case ILL_ILLADR: return "ILL_ILLADR";
+					case ILL_ILLTRP: return "ILL_ILLTRP";
+					case ILL_PRVOPC: return "ILL_PRVOPC";
+					case ILL_PRVREG: return "ILL_PRVREG";
+					case ILL_COPROC: return "ILL_COPROC";
+					case ILL_BADSTK: return "ILL_BADSTK";
+				}
+			}
+			break;
+			case SIGFPE:
+			{
+				switch (si_code)
+				{
+					// SIGFPE
+					case FPE_INTDIV: return "FPE_INTDIV";
+					case FPE_INTOVF: return "FPE_INTOVF";
+					case FPE_FLTDIV: return "FPE_FLTDIV";
+					case FPE_FLTOVF: return "FPE_FLTOVF";
+					case FPE_FLTUND: return "FPE_FLTUND";
+					case FPE_FLTRES: return "FPE_FLTRES";
+					case FPE_FLTINV: return "FPE_FLTINV";
+					case FPE_FLTSUB: return "FPE_FLTSUB";
+				}
+			}
+			break;
+			case SIGBUS:
+			{
+				switch (si_code)
+				{
+					// SIGBUS
+					case BUS_ADRALN: return "BUS_ADRALN";
+					case BUS_ADRERR: return "BUS_ADRERR";
+					case BUS_OBJERR: return "BUS_OBJERR";
+				}
+			}
+			break;
+			case SIGSEGV:
+			{
+				switch (si_code)
+				{
+					// SIGSEGV
+					case SEGV_MAPERR: return "SEGV_MAPERR";
+					case SEGV_ACCERR: return "SEGV_ACCERR";
+				}
+			}
+			break;
+		}
+		return FAndroidCrashContext::ItoANSI(si_code, 10, 0);
+	}
+
+	static FString GetFatalSignalMessage(int Signal, siginfo* Info)
+	{
+		const int MessageSize = 255;
+		char AnsiMessage[MessageSize];
+		FCStringAnsi::Strncpy(AnsiMessage, "Caught signal : ", MessageSize);
+		FCStringAnsi::Strcat(AnsiMessage, SignalToString(Signal));
+		FCStringAnsi::Strcat(AnsiMessage, " (");
+		FCStringAnsi::Strcat(AnsiMessage, CodeToString(Signal, Info->si_code));
+		FCStringAnsi::Strcat(AnsiMessage, ")");
+		switch (Signal)
+		{
+			case SIGILL:
+			case SIGFPE:
+			case SIGSEGV:
+			case SIGBUS:
+			case SIGTRAP:
+			{
+				FCStringAnsi::Strcat(AnsiMessage, " fault address 0x");
+				FCStringAnsi::Strcat(AnsiMessage, FAndroidCrashContext::ItoANSI((uintptr_t)Info->si_addr, 16, 16));
+				break;
+			}
+		}
+
+		return ANSI_TO_TCHAR(AnsiMessage);
+	}
+
 	static void FatalSignalHandler()
 	{
 		// Switch to malloc crash.
 		FPlatformMallocCrash::Get().SetAsGMalloc();
 
-		FAndroidCrashContext CrashContext(ECrashContextType::Crash, TEXT("Caught signal"));
+		FString Message = GetFatalSignalMessage(FatalSignalParams.Signal, FatalSignalParams.Info);	
+		FAndroidCrashContext CrashContext(ECrashContextType::Crash, *Message);
+
 		CrashContext.InitFromSignal(FatalSignalParams.Signal, FatalSignalParams.Info, FatalSignalParams.Context);
 		CrashContext.CaptureCrashInfo();
 		if (GCrashHandlerPointer)
