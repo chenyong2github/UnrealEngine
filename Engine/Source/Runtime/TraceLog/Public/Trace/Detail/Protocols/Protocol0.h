@@ -21,6 +21,7 @@ enum : uint8
 	Field_CategoryMask	= 0300,
 	Field_Integer		= 0000, 
 	Field_Float			= 0100,
+	Field_Array			= 0200,
 
 	/* Size */
 	Field_Pow2SizeMask	= 0003,
@@ -46,6 +47,7 @@ enum class EFieldType : uint8
 	Pointer	= Field_Integer | Field_Ptr,
 	Float32	= Field_Float   | Field_32,
 	Float64	= Field_Float   | Field_64,
+	Array	= Field_Array,
 };
 
 ////////////////////////////////////////////////////////////////////////////////

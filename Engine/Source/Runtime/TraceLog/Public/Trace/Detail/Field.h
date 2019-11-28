@@ -8,6 +8,7 @@
 
 #include "Protocol.h"
 #include "Templates/UnrealTemplate.h"
+#include "Writer.inl"
 
 namespace Trace
 {
@@ -27,6 +28,16 @@ template <> struct TFieldType<uint64>		{ enum { Tid = int(EFieldType::Int64),	Si
 template <> struct TFieldType<float>		{ enum { Tid = int(EFieldType::Float32),Size = sizeof(float) }; };
 template <> struct TFieldType<double>		{ enum { Tid = int(EFieldType::Float64),Size = sizeof(double) }; };
 template <class T> struct TFieldType<T*>	{ enum { Tid = int(EFieldType::Pointer),Size = sizeof(void*) }; };
+
+template <typename T>
+struct TFieldType<T[]>
+{
+	enum
+	{
+		Tid  = int(TFieldType<T>::Tid)|int(EFieldType::Array),
+		Size = 0,
+	};
+};
 
 
 
@@ -94,27 +105,68 @@ enum class EIndexPack
 		}
 
 ////////////////////////////////////////////////////////////////////////////////
-template <int Index, int Offset, typename Type> struct TField;
-
-
-
-#if 0
-////////////////////////////////////////////////////////////////////////////////
-template <typename Type>
-struct TField<Type[]>
-	: public TFieldBase<sizeof(uint32)>
+template <int InIndex, int InOffset, typename Type>
+struct TField<InIndex, InOffset, Type[]>
 {
-	TField(const ANSICHAR (Name)[]) : TFieldBase<sizeof(uint32)>(Name) {}
-};
+	TRACE_PRIVATE_FIELD(InIndex|int(EIndexPack::MaybeHasAux), InOffset, Type[]);
 
-////////////////////////////////////////////////////////////////////////////////
-template <int Offset, typename Type, int Count>
-struct TField<Offset, Type[Count]>
-	: public TFieldBase<Offset, Type>
-{
-	TField(const ANSICHAR (Name)[]) : TFieldBase<Offset, Type[Count]>(Name) {}
+	static_assert(sizeof(Private::FWriteBuffer::Overflow) >= sizeof(FAuxHeader), "FWriteBuffer::Overflow is not large enough");
+
+	struct FActionable
+	{
+		void Write(uint8* __restrict) const {}
+	};
+
+	const FActionable operator () (Type const* Data, int Count) const
+	{
+		using namespace Private;
+
+		// Header
+		const int bMaybeHasAux = true;
+		FWriteBuffer* Buffer = Writer_GetBuffer();
+		Buffer->Cursor += sizeof(FAuxHeader) - bMaybeHasAux;
+
+		int32 Size = ((sizeof(Type) * Count) & 0x00ffffff);
+
+		auto* Header = (FAuxHeader*)(Buffer->Cursor - sizeof(FAuxHeader));
+		Header->Size = Size << 8;
+		Header->FieldIndex = uint8(0x80 | (Index & int(EIndexPack::FieldCountMask)));
+
+		// Array data
+		const uint8* ReadCursor = (uint8*)Data;
+		bool bCommit = (UPTRINT(Header) == UPTRINT(Buffer->Committed));
+		while (true)
+		{
+			if (Buffer->Cursor >= (uint8*)Buffer)
+			{
+				Buffer = Writer_NextBuffer(0);
+				bCommit = true;
+			}
+
+			int32 Remaining = int32((uint8*)Buffer - Buffer->Cursor);
+			int32 SegmentSize = (Remaining < Size) ? Remaining : Size;
+			memcpy(Buffer->Cursor, ReadCursor, SegmentSize);
+			Buffer->Cursor += SegmentSize;
+
+			if (bCommit)
+			{
+				AtomicStoreRelease<uint8* __restrict>(&(Buffer->Committed), Buffer->Cursor);
+			}
+
+			Size -= SegmentSize;
+			if (Size <= 0)
+			{
+				break;
+			}
+
+			ReadCursor += SegmentSize;
+		}
+
+		Buffer->Cursor[0] = 0;
+		Buffer->Cursor++;
+		return {};
+	}
 };
-#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 template <int InIndex, int InOffset, typename Type>

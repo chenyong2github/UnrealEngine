@@ -40,6 +40,7 @@ struct FAuxData
 	const uint8*	Data;
 	uint32			DataSize;
 	uint16			FieldIndex;
+	int16			FieldSizeAndType;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -66,6 +67,7 @@ struct FAnalysisEngine::FDispatch
 		uint16		Size;
 		uint16		NameOffset;			// From FField ptr
 		int16		SizeAndType;		// value == byte_size, sign == float < 0 < int
+		bool		bIsArray;
 	};
 
 	uint32			GetFieldIndex(const ANSICHAR* Name) const;
@@ -315,12 +317,46 @@ IAnalyzer::FEventFieldInfo::EType IAnalyzer::FEventFieldInfo::GetType() const
 	return EType::None;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+bool IAnalyzer::FEventFieldInfo::IsArray() const
+{
+	const auto* Inner = (const FAnalysisEngine::FDispatch::FField*)this;
+	return Inner->bIsArray;
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 IAnalyzer::FArrayReader::Num() const
+{
+	const auto* Inner = (const FAuxData*)this;
+	int32 SizeAndType = Inner->FieldSizeAndType;
+	SizeAndType = (SizeAndType < 0) ? -SizeAndType : SizeAndType;
+	return Inner->DataSize / SizeAndType;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const void* IAnalyzer::FArrayReader::GetImpl(uint32 Index, int16& SizeAndType) const
+{
+	const auto* Inner = (const FAuxData*)this;
+	SizeAndType = Inner->FieldSizeAndType;
+	uint32 Count = Num();
+	if (Index >= Count)
+	{
+		return nullptr;
+	}
+
+	SizeAndType = (SizeAndType < 0) ? -SizeAndType : SizeAndType;
+	return Inner->Data + (Index * SizeAndType);
+}
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
 struct FAnalysisEngine::FEventDataInfo
 {
 	const FDispatch&	Dispatch;
+	FAuxDataCollector*	AuxCollector;
 	const uint8*		Ptr;
 	uint16				Size;
 };
@@ -330,6 +366,34 @@ const IAnalyzer::FEventTypeInfo& IAnalyzer::FEventData::GetTypeInfo() const
 {
 	const auto* Info = (const FAnalysisEngine::FEventDataInfo*)this;
 	return (const FEventTypeInfo&)(Info->Dispatch);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const IAnalyzer::FArrayReader* IAnalyzer::FEventData::GetArrayImpl(const ANSICHAR* FieldName) const
+{
+	static const FAuxData EmptyAuxData = {};
+
+	const auto* Info = (const FAnalysisEngine::FEventDataInfo*)this;
+	if (Info->AuxCollector == nullptr)
+	{
+		return (IAnalyzer::FArrayReader*)&EmptyAuxData;
+	}
+
+	uint32 Index = Info->Dispatch.GetFieldIndex(FieldName);
+	if (Index >= Info->Dispatch.FieldCount)
+	{
+		return (IAnalyzer::FArrayReader*)&EmptyAuxData;
+	}
+	for (FAuxData& Data : *(Info->AuxCollector))
+	{
+		if (Data.FieldIndex == Index)
+		{
+			Data.FieldSizeAndType = Info->Dispatch.Fields[Index].SizeAndType;
+			return (IAnalyzer::FArrayReader*)&Data;
+		}
+	}
+
+	return (IAnalyzer::FArrayReader*)&EmptyAuxData;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -671,6 +735,7 @@ void FAnalysisEngine::OnNewEventProtocol0(FDispatchBuilder& Builder, const void*
 		auto& OutField = Builder.AddField(NameCursor, Field.NameSize, Field.Size);
 		OutField.Offset = Field.Offset;
 		OutField.SizeAndType = TypeSize;
+		OutField.bIsArray = (Field.TypeInfo & Protocol0::Field_Array) != 0;
 
 		NameCursor += Field.NameSize;
 	}
@@ -828,7 +893,12 @@ bool FAnalysisEngine::OnDataProtocol0()
 			return false;
 		}
 
-		FEventDataInfo EventDataInfo = { *Dispatch, Header->EventData, Header->Size };
+		FEventDataInfo EventDataInfo = {
+			*Dispatch,
+			nullptr,
+			Header->EventData,
+			Header->Size
+		};
 		const FEventData& EventData = (FEventData&)EventDataInfo;
 
 		ForEachRoute(Dispatch, [&] (IAnalyzer* Analyzer, uint16 RouteId)
@@ -929,7 +999,12 @@ int32 FAnalysisEngine::OnDataProtocol1(FStreamReader& Reader)
 
 		++NextLogSerial;
 
-		FEventDataInfo EventDataInfo = { *Dispatch, Header->EventData, Header->Size };
+		FEventDataInfo EventDataInfo = {
+			*Dispatch,
+			&AuxCollector,
+			Header->EventData,
+			Header->Size
+		};
 		const FEventData& EventData = (FEventData&)EventDataInfo;
 
 		ForEachRoute(Dispatch, [&] (IAnalyzer* Analyzer, uint16 RouteId)
