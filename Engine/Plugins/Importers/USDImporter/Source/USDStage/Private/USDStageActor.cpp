@@ -1058,6 +1058,7 @@ void AUsdStageActor::OnPrimObjectPropertyChanged( UObject* ObjectBeingModified, 
 #endif // #if USE_USD_SDK
 }
 
+#if USE_USD_SDK
 namespace UsdStageActorImpl
 {
 	void PreBuildStaticMesh( const pxr::UsdGeomMesh& UsdMesh, UStaticMesh& StaticMesh, TMap< FString, UMaterial* >& MaterialsCache, float Time )
@@ -1251,5 +1252,6 @@ TMap< FString, UStaticMesh* > AUsdStageActor::LoadStaticMeshes( const pxr::UsdPr
 
 	return PrimPathsToStaticMeshes;
 }
+#endif // #if USE_USD_SDK
 
 #undef LOCTEXT_NAMESPACE
