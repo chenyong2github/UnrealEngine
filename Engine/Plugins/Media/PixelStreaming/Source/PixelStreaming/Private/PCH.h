@@ -7,10 +7,6 @@
 #include "Utils.h"
 #include "WebRtcLogging.h"
 
-THIRD_PARTY_INCLUDES_START
-#include "NvEncoder/nvEncodeAPI.h"
-THIRD_PARTY_INCLUDES_END
-
 // Engine
 
 #include "Logging/LogMacros.h"
