@@ -1341,9 +1341,9 @@ void FOnlineSessionOculus::OnRoomInviteAccepted(ovrMessageHandle Message, bool b
 		if (!OnSessionUserInviteAcceptedDelegates.IsBound())
 		{
 			// No delegates are bound, just save this for later
-			TSharedRef<FOnlineSessionSearchResult> SearchResult = MakeShareable(new FOnlineSessionSearchResult());
-			SearchResult->Session = Session.Get();
-			PendingInviteAcceptedSessions.Add(SearchResult);
+			TSharedRef<FOnlineSessionSearchResult> SearchResultPtr = MakeShareable(new FOnlineSessionSearchResult());
+			SearchResultPtr->Session = Session.Get();
+			PendingInviteAcceptedSessions.Add(SearchResultPtr);
 			return;
 		}
 
