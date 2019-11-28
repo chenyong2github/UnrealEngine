@@ -65,6 +65,31 @@ TStringBuilderImpl<C>::FreeBuffer(void* Buffer, int32 ByteCount)
 	FMemory::Free(Buffer);
 }
 
+template<typename C>
+void
+TStringBuilderImpl<C>::AppendfImpl(TStringBuilderImpl& Self, const C* Fmt, ...)
+{
+	for (;;)
+	{
+		va_list ArgPack;
+		va_start(ArgPack, Fmt);
+		const int32 RemainingSize = Self.End - Self.CurPos;
+		const int32 Result = TCString<C>::GetVarArgs(Self.CurPos, RemainingSize, Fmt, ArgPack);
+		va_end(ArgPack);
+
+		if (Result >= 0 && Result < RemainingSize)
+		{
+			Self.CurPos += Result;
+			return;
+		}
+		else
+		{
+			// Total size will be rounded up to the next power of two. Start with at least 64.
+			Self.Extend(64);
+		}
+	}
+}
+
 // Instantiate templates once
 
 template class TStringBuilderImpl<ANSICHAR>;

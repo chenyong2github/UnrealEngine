@@ -5,6 +5,10 @@
 #include "CoreTypes.h"
 #include "Misc/CString.h"
 #include "Misc/StringView.h"
+#include "Templates/AndOrNot.h"
+#include "Templates/EnableIf.h"
+#include "Templates/IsArrayOrRefOfType.h"
+#include "Templates/IsValidVariadicFunctionArg.h"
 
 #define USE_STRING_LITERAL_PATH 1
 
@@ -60,6 +64,14 @@ public:
 	inline const C* operator*() const	{ EnsureNulTerminated(); return Base; }
 
 	inline const C	LastChar() const	{ return *(CurPos - 1); }
+
+	/**
+	 * Empties the string builder, but doesn't change memory allocation.
+	 */
+	inline void Reset()
+	{
+		CurPos = Base;
+	}
 
 	inline TStringBuilderImpl& Append(C Char)
 	{
@@ -180,7 +192,22 @@ public:
 	}
 #endif
 
+	/**
+	 * Appends to the string builder similarly to how classic sprintf works.
+	 *
+	 * @param Format A format string that specifies how to format the additional arguments. Refer to standard printf format.
+	 */
+	template <typename FmtType, typename... Types>
+	typename TEnableIf<TIsArrayOrRefOfType<FmtType, C>::Value>::Type Appendf(const FmtType& Fmt, Types... Args)
+	{
+		static_assert(TIsArrayOrRefOfType<FmtType, C>::Value, "Formatting string must be a character array.");
+		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to Appendf.");
+		AppendfImpl(*this, Fmt, Forward<Types>(Args)...);
+	}
+
 protected:
+	CORE_API static void VARARGS AppendfImpl(TStringBuilderImpl& Self, const C* Fmt, ...);
+
 	inline void Initialize(C* InBase, int32 InCapacity)
 	{
 		Base	= InBase;
@@ -355,3 +382,15 @@ inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, const ANS
 #endif
 
 inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, const FStringView& Str)					{ Builder.Append(Str.GetData(), Str.Len()); return Builder; }
+
+inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, int32 Value)							{ Builder.Appendf(TEXT("%d"), Value); return Builder; }
+inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, uint32 Value)							{ Builder.Appendf(TEXT("%u"), Value); return Builder; }
+
+inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, int64 Value)							{ Builder.Appendf(TEXT(INT64_FMT), Value); return Builder; }
+inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, uint64 Value)							{ Builder.Appendf(TEXT(UINT64_FMT), Value); return Builder; }
+
+inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, int8 Value)								{ return Builder << int32(Value); }
+inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, uint8 Value)							{ return Builder << uint32(Value); }
+
+inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, int16 Value)							{ return Builder << int32(Value); }
+inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, uint16 Value)							{ return Builder << uint32(Value); }
