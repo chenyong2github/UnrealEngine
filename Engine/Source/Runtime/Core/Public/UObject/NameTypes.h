@@ -19,7 +19,7 @@
 
 /** 
  * Do we want to support case-variants for FName?
- * This will add an extra NAME_INunrealDEX variable to FName, but means that ToString() will return you the exact same 
+ * This will add an extra NAME_INDEX variable to FName, but means that ToString() will return you the exact same 
  * string that FName::Init was called with (which is useful if your FNames are shown to the end user)
  * Currently this is enabled for the Editor and any Programs (such as UHT), but not the Runtime
  */
@@ -27,6 +27,7 @@
 	#define WITH_CASE_PRESERVING_NAME WITH_EDITORONLY_DATA
 #endif
 
+class FStringBuilderBase;
 class FText;
 
 /** Maximum size of name. */
@@ -223,11 +224,20 @@ public:
 	/** Copy name to a dynamically allocated FString. */
 	CORE_API FString GetPlainNameString() const;
 
+	/** Copy name to a FStringBuilderBase. */
+	CORE_API void GetPlainNameString(FStringBuilderBase& OutString) const;
+
 	/** Appends name to string. May allocate. */
 	CORE_API void AppendNameToString(FString& OutString) const;
 
+	/** Appends name to string builder. */
+	CORE_API void AppendNameToString(FStringBuilderBase& OutString) const;
+
 	/** Appends name to string with path separator using FString::PathAppend(). */
 	CORE_API void AppendNameToPathString(FString& OutString) const;
+
+	/** Appends name to string builder with path separator. */
+	CORE_API void AppendNameToPathString(FStringBuilderBase& OutString) const;
 
 
 	/**
@@ -438,6 +448,13 @@ public:
 	void ToString(FString& Out) const;
 
 	/**
+	 * Converts an FName to a readable format, in place
+	 * 
+	 * @param Out StringBuilder to fill with the string representation of the name
+	 */
+	void ToString(FStringBuilderBase& Out) const;
+
+	/**
 	 * Get the number of characters, excluding null-terminator, that ToString() would yield
 	 */
 	uint32 GetStringLength() const;
@@ -468,6 +485,13 @@ public:
 	 * @param Out String to append with the string representation of the name
 	 */
 	void AppendString(FString& Out) const;
+
+	/**
+	 * Converts an FName to a readable format, in place, appending to an existing string (ala GetFullName)
+	 * 
+	 * @param Out StringBuilder to append with the string representation of the name
+	 */
+	void AppendString(FStringBuilderBase& Out) const;
 
 	/**
 	 * Check to see if this FName matches the other FName, potentially also checking for any case variations

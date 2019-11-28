@@ -9,6 +9,7 @@
 #include "Templates/UnrealTemplate.h"
 #include "Misc/CString.h"
 #include "Misc/Crc.h"
+#include "Misc/StringBuilder.h"
 #include "Containers/UnrealString.h"
 #include "UObject/NameTypes.h"
 #include "Logging/LogMacros.h"
@@ -1161,7 +1162,14 @@ static const TCHAR* EntryToCString(const FNameEntry& Entry, FNameBuffer& Temp)
 FString FNameEntry::GetPlainNameString() const
 {
 	FNameBuffer Temp;
-	return FString(EntryToCString(*this, Temp));
+	if (Header.bIsWide)
+	{
+		return FString(Header.Len, GetUnterminatedName(Temp.WideName));
+	}
+	else
+	{
+		return FString(Header.Len, GetUnterminatedName(Temp.AnsiName));
+	}
 }
 
 void FNameEntry::AppendNameToString(FString& Out) const
@@ -1170,10 +1178,37 @@ void FNameEntry::AppendNameToString(FString& Out) const
 	Out.Append(EntryToCString(*this, Temp), Header.Len);
 }
 
+void FNameEntry::AppendNameToString(FStringBuilderBase& Out) const
+{
+	FNameBuffer Temp;
+	if (Header.bIsWide)
+	{
+		Out.Append(GetUnterminatedName(Temp.WideName), Header.Len);
+	}
+	else
+	{
+		Out.AppendAnsi(GetUnterminatedName(Temp.AnsiName), Header.Len);
+	}
+}
+
 void FNameEntry::AppendNameToPathString(FString& Out) const
 {
 	FNameBuffer Temp;
 	Out.PathAppend(EntryToCString(*this, Temp), Header.Len);
+}
+
+void FNameEntry::AppendNameToPathString(FStringBuilderBase& Out) const
+{
+	if (Out.Len() > 0)
+	{
+		const TCHAR LastChar = Out.LastChar();
+		if (LastChar != TEXT('/') && LastChar != TEXT('\\'))
+		{
+			Out.Append(TEXT('/'));
+		}
+	}
+
+	AppendNameToString(Out);
 }
 
 int32 FNameEntry::GetSize(const TCHAR* Name)
@@ -1808,6 +1843,12 @@ void FName::ToString(FString& Out) const
 	}
 }
 
+void FName::ToString(FStringBuilderBase& Out) const
+{
+	Out.Reset();
+	AppendString(Out);
+}
+
 uint32 FName::GetStringLength() const
 {
 	const FNameEntry& Entry = *GetDisplayNameEntry();
@@ -1860,6 +1901,17 @@ void FName::AppendString(FString& Out) const
 	{
 		Out += TEXT('_');
 		Out.AppendInt(NAME_INTERNAL_TO_EXTERNAL(GetNumber()));
+	}
+}
+
+void FName::AppendString(FStringBuilderBase& Out) const
+{
+	GetDisplayNameEntry()->AppendNameToString(Out);
+
+	const int32 InternalNumber = GetNumber();
+	if (InternalNumber != NAME_NO_NUMBER_INTERNAL)
+	{
+		Out << TEXT('_') << NAME_INTERNAL_TO_EXTERNAL(InternalNumber);
 	}
 }
 
