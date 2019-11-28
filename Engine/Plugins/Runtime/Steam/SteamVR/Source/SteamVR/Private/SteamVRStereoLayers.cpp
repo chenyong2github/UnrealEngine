@@ -1,8 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 //
+#include "SteamVRStereoLayers.h"
 #include "CoreMinimal.h"
 #include "SteamVRPrivate.h"
-#include "SteamVRStereoLayers.h"
 #include "StereoLayerManager.h"
 #include "SteamVRHMD.h"
 #include "Misc/ScopeLock.h"
