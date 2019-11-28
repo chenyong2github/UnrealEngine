@@ -154,13 +154,6 @@ T_ALIGN static FWriteBuffer* volatile	GNextBufferList;	// = nullptr;
 #undef T_ALIGN
 
 ////////////////////////////////////////////////////////////////////////////////
-uint32 Writer_GetMaxEventSize()
-{
-	// The bais is to allow for some overhead. Its value was chosen arbitrarily.
-	return GPoolBlockSize - 512;
-}
-
-////////////////////////////////////////////////////////////////////////////////
 #if !IS_MONOLITHIC
 TRACELOG_API FWriteBuffer* Writer_GetBuffer()
 {
