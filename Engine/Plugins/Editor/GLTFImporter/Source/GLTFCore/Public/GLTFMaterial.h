@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/SecureHash.h"
 
 namespace GLTF
 {
@@ -15,6 +16,16 @@ namespace GLTF
 		    : TextureIndex(INDEX_NONE)
 		    , TexCoord(0)
 		{
+		}
+
+		FMD5Hash GetHash() const
+		{
+			FMD5 MD5;
+			MD5.Update(reinterpret_cast<const uint8*>(&TextureIndex), sizeof(TextureIndex));
+			MD5.Update(&TexCoord, sizeof(TexCoord));
+			FMD5Hash Hash;
+			Hash.Set(MD5);
+			return Hash;
 		}
 	};
 
@@ -87,8 +98,8 @@ namespace GLTF
 		FString Name;
 
 		// PBR properties
-		FTextureMap         BaseColor;
-		FVector4            BaseColorFactor;
+		FTextureMap         BaseColor;		 // Used for DiffuseColor on Specular-Glossiness mode
+		FVector4            BaseColorFactor; // Used for DiffuseFactor on Specular-Glossiness mode
 		EShadingModel       ShadingModel;
 		FMetallicRoughness  MetallicRoughness;
 		FSpecularGlossiness SpecularGlossiness;
@@ -128,5 +139,8 @@ namespace GLTF
 		{
 			return AlphaMode == EAlphaMode::Opaque;
 		}
+
+		FMD5Hash GetHash() const;
 	};
 }  // namespace GLTF
+

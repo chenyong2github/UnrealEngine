@@ -60,7 +60,9 @@ namespace GLTF
 
 		FMaterialExpressionTexture* TexExpression = CreateTextureMap(Map, CoordinateIndex, TEXT("Normal Map"), ETextureMode::Normal);
 		if (!TexExpression)
+		{
 			return;
+		}
 
 		FMaterialExpressionScalar* ScalarExpression = CurrentMaterialElement->AddMaterialExpression<FMaterialExpressionScalar>();
 		ScalarExpression->SetName(TEXT("Normal Scale"));
@@ -113,12 +115,6 @@ namespace GLTF
 		return CreateMap<FMaterialExpressionColor>(Map, CoordinateIndex, Color, MapName, ValueName, TextureMode, MaterialInput);
 	}
 
-	FMaterialExpression* FPBRMapFactory::CreateScalarMap(const GLTF::FTexture& Map, int CoordinateIndex, float Value, const TCHAR* MapName,
-	                                                     const TCHAR* ValueName, ETextureMode TextureMode, FMaterialExpressionInput& MaterialInput)
-	{
-		return CreateMap<FMaterialExpressionScalar>(Map, CoordinateIndex, Value, MapName, ValueName, TextureMode, MaterialInput);
-	}
-
 	void FPBRMapFactory::CreateMultiMap(const GLTF::FTexture& Map, int CoordinateIndex, const TCHAR* MapName, const FMapChannel* MapChannels,
 	                                    uint32 MapChannelsCount, ETextureMode TextureMode)
 	{
@@ -132,18 +128,20 @@ namespace GLTF
 			{
 				case EChannel::RG:
 				case EChannel::RGB:
+				case EChannel::All:
 				{
-					ValueExpression                           = CurrentMaterialElement->AddMaterialExpression<FMaterialExpressionColor>();
+					ValueExpression = CurrentMaterialElement->AddMaterialExpression<FMaterialExpressionColor>();
 					FMaterialExpressionColor* ColorExpression = static_cast<FMaterialExpressionColor*>(ValueExpression);
 					SetExpresisonValue(*reinterpret_cast<const FVector*>(MapChannel.VecValue), ColorExpression);
 					ColorExpression->SetGroupName(*GroupName);
 					break;
 				}
 				default:
-					ValueExpression                             = CurrentMaterialElement->AddMaterialExpression<FMaterialExpressionScalar>();
+					ValueExpression = CurrentMaterialElement->AddMaterialExpression<FMaterialExpressionScalar>();
 					FMaterialExpressionScalar* ScalarExpression = static_cast<FMaterialExpressionScalar*>(ValueExpression);
 					SetExpresisonValue(MapChannel.Value, ScalarExpression);
 					ScalarExpression->SetGroupName(*GroupName);
+					break;
 			}
 
 			ValueExpression->SetName(MapChannel.ValueName);
@@ -169,21 +167,17 @@ namespace GLTF
 					MakeFloat2->SetFunctionPathName(TEXT("/Engine/Functions/Engine_MaterialFunctions02/Utility/MakeFloat2.MakeFloat2"));
 
 					TexExpression->ConnectExpression(*MakeFloat2->GetInput(0), (int32)EChannel::Red);
-					TexExpression->ConnectExpression(*MakeFloat2->GetInput(1), (int32)EChannel::Greeen);
+					TexExpression->ConnectExpression(*MakeFloat2->GetInput(1), (int32)EChannel::Green);
 					MakeFloat2->ConnectExpression(*MultiplyExpression->GetInput(0), 0);
 					break;
 				}
+				// RGB is the top channel now
 				case EChannel::RGB:
-				{
-					FMaterialExpressionFunctionCall* MakeFloat3 = CurrentMaterialElement->AddMaterialExpression<FMaterialExpressionFunctionCall>();
-					MakeFloat3->SetFunctionPathName(TEXT("/Engine/Functions/Engine_MaterialFunctions02/Utility/MakeFloat3.MakeFloat3"));
-
-					TexExpression->ConnectExpression(*MakeFloat3->GetInput(0), (int32)EChannel::Red);
-					TexExpression->ConnectExpression(*MakeFloat3->GetInput(1), (int32)EChannel::Greeen);
-					TexExpression->ConnectExpression(*MakeFloat3->GetInput(2), (int32)EChannel::Blue);
-					MakeFloat3->ConnectExpression(*MultiplyExpression->GetInput(0), 0);
+					TexExpression->ConnectExpression(*MultiplyExpression->GetInput(0), 0);
 					break;
-				}
+				case EChannel::All:
+					TexExpression->ConnectExpression(*MultiplyExpression->GetInput(0), 5);
+					break;
 				default:
 					// single channel connection
 					TexExpression->ConnectExpression(*MultiplyExpression->GetInput(0), (int32)MapChannel.Channel);
@@ -197,7 +191,9 @@ namespace GLTF
 					MapChannel.OutputExpression->ConnectExpression(*MapChannel.MaterialInput, 0);
 				}
 				else
+				{
 					MultiplyExpression->ConnectExpression(*MapChannel.MaterialInput, 0);
+				}
 			}
 		}
 		else
@@ -213,12 +209,12 @@ namespace GLTF
 					MapChannel.OutputExpression->ConnectExpression(*MapChannel.MaterialInput, 0);
 				}
 				else
+				{
 					ValueExpressions[Index]->ConnectExpression(*MapChannel.MaterialInput, 0);
+				}
 			}
 		}
 	}
-
-	
 
 	FMaterialExpressionTexture* FPBRMapFactory::CreateTextureMap(const GLTF::FTexture& Map, int CoordinateIndex, const TCHAR* MapName,
 	                                                             ETextureMode TextureMode)

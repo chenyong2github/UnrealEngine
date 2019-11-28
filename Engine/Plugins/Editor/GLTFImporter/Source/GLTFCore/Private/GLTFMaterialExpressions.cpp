@@ -165,6 +165,16 @@ namespace GLTF
 		}
 	}
 
+    FMD5Hash FMaterialElement::GetGLTFMaterialHash() const
+	{
+		return GLTFMaterialHash;
+	}
+
+	void FMaterialElement::SetGLTFMaterialHash(FMD5Hash Hash)
+	{
+		GLTFMaterialHash = Hash;
+	}
+
 	int32 FMaterialElement::GetExpressionsCount() const
 	{
 		return Expressions.Num();

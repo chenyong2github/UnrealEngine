@@ -142,6 +142,18 @@ public:
 	FOnPropertyApplied& GetOnPropertyApplied();
 	FOnPropertyRecorded& GetOnPropertyRecorded();
 
+#if WITH_EDITORONLY_DATA
+	/**
+	 * Get the order with which the VariantManager should display this in a property list. Lower values will be shown higher up
+	 */
+	uint32 GetDisplayOrder() const;
+
+	/**
+	 * Set the order with which the VariantManager should display this in a property list. Lower values will be shown higher up
+	 */
+	void SetDisplayOrder(uint32 InDisplayOrder);
+#endif //WITH_EDITORONLY_DATA
+
 private:
 
 	void SetRecordedDataInternal(const uint8* NewDataBytes, int32 NumBytes, int32 Offset = 0);
@@ -208,6 +220,11 @@ protected:
 	FName TempName;
 	FString TempStr;
 	FText TempText;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	uint32 DisplayOrder;
+#endif //WITH_EDITORONLY_DATA
 };
 
 // Deprecated: Only here for backwards compatibility with 4.21

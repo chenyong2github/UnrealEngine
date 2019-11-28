@@ -204,7 +204,7 @@ FDatasmithPostProcessVolumeElementImpl::FDatasmithPostProcessVolumeElementImpl(c
 	, bEnabled( true )
 	, bUnbound( true )
 {
-	
+
 }
 
 FDatasmithCameraActorElementImpl::FDatasmithCameraActorElementImpl(const TCHAR* InName)
@@ -439,9 +439,10 @@ FDatasmithTextureElementImpl::FDatasmithTextureElementImpl(const TCHAR* InName)
 	TextureAddressY = EDatasmithTextureAddress::Wrap;
 	bAllowResize = true; // only disabled for environment maps
 	RGBCurve = -1.0;
+	ColorSpace = EDatasmithColorSpace::Default;
 
 	Data = nullptr;
-	DataSize = 0; 
+	DataSize = 0;
 }
 
 FMD5Hash FDatasmithTextureElementImpl::CalculateElementHash(bool bForce)
@@ -476,7 +477,7 @@ EDatasmithTextureMode FDatasmithTextureElementImpl::GetTextureMode() const
 	return TextureMode;
 }
 
-void FDatasmithTextureElementImpl::SetData(const uint8* InData, uint32 InDataSize, EDatasmithTextureFormat InFormat) 
+void FDatasmithTextureElementImpl::SetData(const uint8* InData, uint32 InDataSize, EDatasmithTextureFormat InFormat)
 {
 	Data = InData;
 	DataSize = InDataSize;
@@ -543,6 +544,16 @@ float FDatasmithTextureElementImpl::GetRGBCurve() const
 void FDatasmithTextureElementImpl::SetRGBCurve(float InRGBCurve)
 {
 	RGBCurve = InRGBCurve;
+}
+
+EDatasmithColorSpace FDatasmithTextureElementImpl::GetSRGB() const
+{
+	return ColorSpace;
+}
+
+void FDatasmithTextureElementImpl::SetSRGB(EDatasmithColorSpace Option)
+{
+	ColorSpace = Option;
 }
 
 FDatasmithShaderElementImpl::FDatasmithShaderElementImpl(const TCHAR* InName)

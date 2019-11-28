@@ -6,6 +6,8 @@
 
 #include "CoreMinimal.h"
 
+struct FMD5Hash;
+
 namespace GLTF
 {
 	// for storing triangle indices as a unit
@@ -57,6 +59,7 @@ namespace GLTF
 		           const FAccessor& InJoints0, const FAccessor& InWeights0);
 
 		bool IsValid() const;
+		FMD5Hash GetHash() const;
 
 		void GetPositions(TArray<FVector>& Buffer) const;
 		bool HasNormals() const;
@@ -104,6 +107,7 @@ namespace GLTF
 		bool HasJointWeights() const;
 
 		bool IsValid() const;
+		FMD5Hash GetHash() const;
 	};
 
 	//

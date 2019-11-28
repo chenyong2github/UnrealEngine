@@ -29,8 +29,9 @@
 #include "Misc/PackageName.h"
 #include "Misc/ScopedSlowTask.h"
 #include "PackageTools.h"
-#include "Subsystems/ImportSubsystem.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Subsystems/ImportSubsystem.h"
+#include "Templates/UniquePtr.h"
 
 #include "Editor/EditorEngine.h"
 
@@ -175,15 +176,24 @@ namespace DatasmithImportFactoryImpl
 			return false;
 		}
 
-		FScopedSlowTask Progress(100.0f, LOCTEXT("StartWork", "Unreal Datasmith ..."), true, *InContext.Warn);
-		Progress.MakeDialog(true);
+		TUniquePtr<FScopedSlowTask> ProgressPtr;
+		FScopedSlowTask* Progress = nullptr;
+		if ( InContext.FeedbackContext )
+		{
+			ProgressPtr = MakeUnique<FScopedSlowTask>(100.0f, LOCTEXT("StartWork", "Unreal Datasmith ..."), true, *InContext.FeedbackContext);
+			Progress = ProgressPtr.Get();
+			Progress->MakeDialog(true);
+		}
 
 		// Filter element that need to be imported depending on dirty state (or eventually depending on options)
 		FDatasmithImporter::FilterElementsToImport(InContext);
 
 		// TEXTURES
 		// We need the textures before the materials
-		Progress.EnterProgressFrame( 20.f );
+		if ( Progress )
+		{
+			Progress->EnterProgressFrame( 20.f );
+		}
 		FDatasmithImporter::ImportTextures(InContext);
 
 		if ( InContext.bUserCancelled )
@@ -194,7 +204,10 @@ namespace DatasmithImportFactoryImpl
 
 		// MATERIALS
 		// We need to import the materials before the static meshes to know about the meshes build requirements that are driven by the materials
-		Progress.EnterProgressFrame( 5.f );
+		if ( Progress )
+		{ 
+			Progress->EnterProgressFrame( 5.f );
+		}
 		FDatasmithImporter::ImportMaterials(InContext);
 
 		if ( InContext.bUserCancelled )
@@ -210,7 +223,10 @@ namespace DatasmithImportFactoryImpl
 		}
 
 		// STATIC MESHES
-		Progress.EnterProgressFrame( 25.f );
+		if ( Progress )
+		{
+			Progress->EnterProgressFrame( 25.f );
+		}
 		FDatasmithImporter::ImportStaticMeshes( InContext );
 
 		if ( InContext.bUserCancelled )
@@ -219,7 +235,10 @@ namespace DatasmithImportFactoryImpl
 			return false;
 		}
 
-		Progress.EnterProgressFrame( 10.f );
+		if ( Progress )
+		{
+			Progress->EnterProgressFrame( 10.f );
+		}
 		FDatasmithStaticMeshImporter::PreBuildStaticMeshes(InContext);
 
 		if ( InContext.bUserCancelled )
@@ -231,7 +250,10 @@ namespace DatasmithImportFactoryImpl
 		// ACTORS
 		if( InContext.ShouldImportActors() )
 		{
-			Progress.EnterProgressFrame( 10.f );
+			if ( Progress )
+			{
+				Progress->EnterProgressFrame( 10.f );
+			}
 
 			FDatasmithImporter::ImportActors( InContext );
 
@@ -254,7 +276,10 @@ namespace DatasmithImportFactoryImpl
 			return false;
 		}
 
-		Progress.EnterProgressFrame( 30.f );
+		if ( Progress )
+		{
+			Progress->EnterProgressFrame( 30.f );
+		}
 		FDatasmithImporter::FinalizeImport(InContext, TSet<UObject*>());
 
 		// THUMBNAIL

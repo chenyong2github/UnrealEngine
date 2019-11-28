@@ -916,6 +916,18 @@ void UDatasmithTextureElement::SetRGBCurve(float InValue)
 	return Element->SetRGBCurve(InValue);
 }
 
+EDatasmithColorSpace UDatasmithTextureElement::GetColorSpace() const
+{
+	DATASMITHOBJECTELEMENT_GETSHARED_AND_EARLYRETURN(IDatasmithTextureElement, TextureElemement, EDatasmithColorSpace::Default);
+	return Element->GetSRGB();
+}
+
+void UDatasmithTextureElement::SetColorSpace(EDatasmithColorSpace Option)
+{
+	DATASMITHOBJECTELEMENT_GETSHARED_AND_EARLYRETURN(IDatasmithTextureElement, TextureElemement, );
+	return Element->SetSRGB(Option);
+}
+
 bool UDatasmithTextureElement::IsElementValid() const
 {
 	DATASMITHOBJECTELEMENT_ISELEMENTVALID(TextureElemement);

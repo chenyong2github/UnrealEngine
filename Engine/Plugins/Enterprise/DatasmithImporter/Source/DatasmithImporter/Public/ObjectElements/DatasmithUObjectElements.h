@@ -714,6 +714,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Datasmith | Element")
 	void SetRGBCurve(float InRGBCurve);
 
+	/** Gets the color space of the texture */
+	UFUNCTION(BlueprintCallable, Category="Datasmith | Element")
+	EDatasmithColorSpace GetColorSpace() const;
+
+	/** Sets the color space of the texture */
+	UFUNCTION(BlueprintCallable, Category="Datasmith | Element")
+	void SetColorSpace(EDatasmithColorSpace Option);
+
 public:
 	TWeakPtr<IDatasmithTextureElement> GetDatasmithTextureElement() const { return TextureElemement; }
 	void SetDatasmithTextureElement(const TSharedPtr<IDatasmithTextureElement>& InElement) { TextureElemement = InElement; }

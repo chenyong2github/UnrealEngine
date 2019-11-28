@@ -13,10 +13,12 @@
 #include "MaterialBakingStructures.h"
 #include "Framework/Application/SlateApplication.h"
 #include "MaterialBakingHelpers.h"
+#include "Async/Async.h"
 #include "Async/ParallelFor.h"
 #include "Materials/MaterialInstance.h"
 #include "RenderingThread.h"
-
+#include "Misc/ScopedSlowTask.h"
+#include "MeshDescription.h"
 #if WITH_EDITOR
 #include "Misc/FileHelper.h"
 #endif
@@ -41,6 +43,76 @@ static TAutoConsoleVariable<int32> CVarSaveIntermediateTextures(
 	TEXT("0: Turned Off\n")
 	TEXT("1: Turned On"),
 	ECVF_Default);
+
+namespace FMaterialBakingModuleImpl
+{
+	// Custom dynamic mesh allocator specifically tailored for Material Baking.
+	// This will always reuse the same couple buffers, so searching linearly is not a problem.
+	class FMaterialBakingDynamicMeshBufferAllocator : public FDynamicMeshBufferAllocator
+	{
+		TArray<FIndexBufferRHIRef>  IndexBuffers;
+		TArray<FVertexBufferRHIRef> VertexBuffers;
+
+		template <typename RefType>
+		RefType GetSmallestFit(int32 SizeInBytes, TArray<RefType>& Array)
+		{
+			int32 SmallestFitIndex = -1;
+			int32 SmallestFitSize  = -1;
+			for (int32 Index = 0; Index < Array.Num(); ++Index)
+			{
+				int32 Size = Array[Index]->GetSize();
+				if (Size >= SizeInBytes && (SmallestFitIndex == -1 || Size < SmallestFitSize))
+				{
+					SmallestFitIndex = Index;
+					SmallestFitSize  = Size;
+				}
+			}
+
+			RefType Ref;
+			if (SmallestFitIndex != -1)
+			{
+				Ref = Array[SmallestFitIndex];
+				Array.RemoveAtSwap(SmallestFitIndex);
+			}
+
+			return Ref;
+		}
+
+		virtual FIndexBufferRHIRef AllocIndexBuffer(uint32 NumElements) override
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(AllocIndexBuffer)
+			FIndexBufferRHIRef Ref = GetSmallestFit(GetIndexBufferSize(NumElements), IndexBuffers);
+			if (Ref.IsValid())
+			{
+				return Ref;
+			}
+
+			return FDynamicMeshBufferAllocator::AllocIndexBuffer(NumElements);
+		}
+
+		virtual void ReleaseIndexBuffer(FIndexBufferRHIRef& IndexBufferRHI) override
+		{
+			IndexBuffers.Add(MoveTemp(IndexBufferRHI));
+		}
+
+		virtual FVertexBufferRHIRef AllocVertexBuffer(uint32 Stride, uint32 NumElements) override
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(AllocVertexBuffer)
+			FVertexBufferRHIRef Ref = GetSmallestFit(GetVertexBufferSize(Stride, NumElements), VertexBuffers);
+			if (Ref.IsValid())
+			{
+				return Ref;
+			}
+
+			return FDynamicMeshBufferAllocator::AllocVertexBuffer(Stride, NumElements);
+		}
+
+		virtual void ReleaseVertexBuffer(FVertexBufferRHIRef& VertexBufferRHI) override
+		{
+			VertexBuffers.Add(MoveTemp(VertexBufferRHI));
+		}
+	};
+}
 
 void FMaterialBakingModule::StartupModule()
 {
@@ -73,7 +145,7 @@ void FMaterialBakingModule::StartupModule()
 
 void FMaterialBakingModule::ShutdownModule()
 {
-	// Urnegister customization and callback
+	// Unregister customization and callback
 	FPropertyEditorModule* PropertyEditorModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor");
 
 	if (PropertyEditorModule)
@@ -84,78 +156,145 @@ void FMaterialBakingModule::ShutdownModule()
 }
 
 void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& MaterialSettings, const TArray<FMeshData*>& MeshSettings, TArray<FBakeOutput>& Output)
-{	
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialBakingModule::BakeMaterials)
+
 	checkf(MaterialSettings.Num() == MeshSettings.Num(), TEXT("Number of material settings does not match that of MeshSettings"));
 	const int32 NumMaterials = MaterialSettings.Num();
 	const bool bSaveIntermediateTextures = CVarSaveIntermediateTextures.GetValueOnAnyThread() == 1;
 
-	for (int32 MaterialIndex = 0; MaterialIndex < NumMaterials; ++MaterialIndex)
+	FMaterialBakingModuleImpl::FMaterialBakingDynamicMeshBufferAllocator MaterialBakingDynamicMeshBufferAllocator;
+
+	FScopedSlowTask Progress(NumMaterials, LOCTEXT("BakeMaterials", "Baking Materials..."), true );
+	Progress.MakeDialog(true);
+
+	TArray<uint32> ProcessingOrder;
+	ProcessingOrder.Reserve(MeshSettings.Num());
+	for (int32 Index = 0; Index < MeshSettings.Num(); ++Index)
 	{
+		ProcessingOrder.Add(Index);
+	}
+
+	// Start with the biggest mesh first so we can always reuse the same vertex/index buffers.
+	// This will decrease the number of allocations backed by newly allocated memory from the OS,
+	// which will reduce soft page faults while copying into that memory.
+	// Soft page faults are now incredibly expensive on Windows 10.
+	Algo::SortBy(
+		ProcessingOrder,
+		[&MeshSettings](const uint32 Index){ return MeshSettings[Index]->RawMeshDescription ? MeshSettings[Index]->RawMeshDescription->Vertices().Num() : 0; },
+		TGreater<>()
+	);
+
+	TAtomic<uint32> NumTasks(0);
+	Output.SetNum(NumMaterials);
+
+	// Create all material proxies right away to start compiling shaders asynchronously and avoid stalling the baking process as much as possible
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(CreateMaterialProxies)
+
+		for (int32 Index = 0; Index < NumMaterials; ++Index)
+		{
+			int32 MaterialIndex = ProcessingOrder[Index];
+			const FMaterialData* CurrentMaterialSettings = MaterialSettings[MaterialIndex];
+
+			TArray<UTexture*> MaterialTextures;
+			CurrentMaterialSettings->Material->GetUsedTextures(MaterialTextures, EMaterialQualityLevel::Num, true, GMaxRHIFeatureLevel, true);
+
+			// Force load materials used by the current material
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(LoadTexturesForMaterial)
+
+				for (UTexture* Texture : MaterialTextures)
+				{
+					if (Texture != NULL)
+					{
+						UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
+						if (Texture2D)
+						{
+							Texture2D->SetForceMipLevelsToBeResident(30.0f);
+							Texture2D->WaitForStreaming();
+						}
+					}
+				}
+			}
+
+			for (TMap<EMaterialProperty, FIntPoint>::TConstIterator PropertySizeIterator = CurrentMaterialSettings->PropertySizes.CreateConstIterator(); PropertySizeIterator; ++PropertySizeIterator)
+			{
+				// They will be stored in the pool and compiled asynchronously
+				CreateMaterialProxy(CurrentMaterialSettings->Material, PropertySizeIterator.Key());
+			}
+		}
+	}
+
+	for (int32 Index = 0; Index < NumMaterials; ++Index)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(BakeOneMaterial)
+
+		Progress.EnterProgressFrame();
+
+		int32 MaterialIndex = ProcessingOrder[Index];
 		const FMaterialData* CurrentMaterialSettings = MaterialSettings[MaterialIndex];
 		const FMeshData* CurrentMeshSettings = MeshSettings[MaterialIndex];
-		FBakeOutput& CurrentOutput = [&Output]() -> FBakeOutput&
-		{
-			Output.AddDefaulted(1);
-			return Output.Last();
-		}();
+		FBakeOutput& CurrentOutput = Output[MaterialIndex];
 
 		// Canvas per size / special property?
 		TArray<TPair<UTextureRenderTarget2D*, FSceneViewFamily>> TargetsViewFamilyPairs;
 		TArray<FExportMaterialProxy*> MaterialRenderProxies;
 		TArray<EMaterialProperty> MaterialPropertiesToBakeOut;
 
-		TArray<UTexture*> MaterialTextures;
-		CurrentMaterialSettings->Material->GetUsedTextures(MaterialTextures, EMaterialQualityLevel::Num, true, GMaxRHIFeatureLevel, true);
-
-		// Force load materials used by the current material
-		for (UTexture* Texture : MaterialTextures)
 		{
-			if (Texture != NULL)
+			TRACE_CPUPROFILER_EVENT_SCOPE(CreateMaterialProxies)
+
+			for (TMap<EMaterialProperty, FIntPoint>::TConstIterator PropertySizeIterator = CurrentMaterialSettings->PropertySizes.CreateConstIterator(); PropertySizeIterator; ++PropertySizeIterator)
 			{
-				UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
-				if (Texture2D)
-				{
-					Texture2D->SetForceMipLevelsToBeResident(30.0f);
-					Texture2D->WaitForStreaming();
-				}
+				const EMaterialProperty& Property = PropertySizeIterator.Key();
+				UTextureRenderTarget2D* RenderTarget = CreateRenderTarget(PerPropertyGamma[Property], PerPropertyFormat[Property], PropertySizeIterator.Value());
+				FExportMaterialProxy* Proxy = CreateMaterialProxy(CurrentMaterialSettings->Material, Property);
+
+				FSceneViewFamily ViewFamily(FSceneViewFamily::ConstructionValues(RenderTarget->GameThread_GetRenderTargetResource(), nullptr,
+					FEngineShowFlags(ESFIM_Game))
+					.SetWorldTimes(0.0f, 0.0f, 0.0f)
+					.SetGammaCorrection(RenderTarget->GameThread_GetRenderTargetResource()->GetDisplayGamma()));
+
+				TargetsViewFamilyPairs.Add(TPair<UTextureRenderTarget2D*, FSceneViewFamily>(RenderTarget, Forward<FSceneViewFamily>(ViewFamily)));
+				MaterialRenderProxies.Add(Proxy);
+				MaterialPropertiesToBakeOut.Add(Property);
 			}
-		}
-		
-		// Generate view family, material proxy and render targets for each material property being baked out
-		for (TMap<EMaterialProperty, FIntPoint>::TConstIterator PropertySizeIterator = CurrentMaterialSettings->PropertySizes.CreateConstIterator(); PropertySizeIterator; ++PropertySizeIterator)
-		{
-			const EMaterialProperty& Property = PropertySizeIterator.Key();
-			UTextureRenderTarget2D* RenderTarget = CreateRenderTarget(PerPropertyGamma[Property], PerPropertyFormat[Property], PropertySizeIterator.Value());
-			FExportMaterialProxy* Proxy = CreateMaterialProxy(CurrentMaterialSettings->Material, Property);
-
-			FSceneViewFamily ViewFamily(FSceneViewFamily::ConstructionValues(RenderTarget->GameThread_GetRenderTargetResource(), nullptr,
-				FEngineShowFlags(ESFIM_Game))
-				.SetWorldTimes(0.0f, 0.0f, 0.0f)
-				.SetGammaCorrection(RenderTarget->GameThread_GetRenderTargetResource()->GetDisplayGamma()));
-
-			TargetsViewFamilyPairs.Add(TPair<UTextureRenderTarget2D*, FSceneViewFamily>(RenderTarget, Forward<FSceneViewFamily>(ViewFamily)));
-			MaterialRenderProxies.Add(Proxy);
-			MaterialPropertiesToBakeOut.Add(Property);
 		}
 
 		const int32 NumPropertiesToRender = CurrentMaterialSettings->PropertySizes.Num();
 		if (NumPropertiesToRender > 0)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(RenderOneMaterial)
+
+			// Ensure data in memory will not change place while adding to avoid race conditions
+			CurrentOutput.PropertyData.Reserve(NumPropertiesToRender);
+			CurrentOutput.PropertySizes.Reserve(NumPropertiesToRender);
+
 			FCanvas Canvas(TargetsViewFamilyPairs[0].Key->GameThread_GetRenderTargetResource(), nullptr, FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime, GMaxRHIFeatureLevel);
 			Canvas.SetAllowedModes(FCanvas::Allow_Flush);
 
 			UTextureRenderTarget2D* PreviousRenderTarget = nullptr;
 			FTextureRenderTargetResource* RenderTargetResource = nullptr;
 
-			FMeshMaterialRenderItem RenderItem(CurrentMaterialSettings, CurrentMeshSettings, MaterialPropertiesToBakeOut[0]);
+			// The RenderItem will use our custom allocator for vertex/index buffers.
+			FMeshMaterialRenderItem RenderItem(CurrentMaterialSettings, CurrentMeshSettings, MaterialPropertiesToBakeOut[0], &MaterialBakingDynamicMeshBufferAllocator);
 			FCanvas::FCanvasSortElement& SortElement = Canvas.GetSortElement(Canvas.TopDepthSortKey());
 			
 			for (int32 PropertyIndex = 0; PropertyIndex < NumPropertiesToRender; ++PropertyIndex)
 			{
 				const EMaterialProperty Property = MaterialPropertiesToBakeOut[PropertyIndex];
+				FExportMaterialProxy* ExportMaterialProxy = MaterialRenderProxies[PropertyIndex];
+
+				if (!ExportMaterialProxy->IsCompilationFinished())
+				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(WaitForMaterialProxyCompilation)
+					ExportMaterialProxy->FinishCompilation();
+				}
+
 				// Update render item
 				RenderItem.MaterialProperty = Property;
-				RenderItem.MaterialRenderProxy = MaterialRenderProxies[PropertyIndex];
+				RenderItem.MaterialRenderProxy = ExportMaterialProxy;
 
 				UTextureRenderTarget2D* RenderTarget = TargetsViewFamilyPairs[PropertyIndex].Key;
 				if (RenderTarget != nullptr)
@@ -198,32 +337,61 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& Material
 
 					// Do rendering
 					Canvas.Flush_GameThread();
-					FlushRenderingCommands();
 
 					SortElement.RenderBatchArray.Empty();
-						ReadTextureOutput(RenderTargetResource, Property, CurrentOutput);
-						
-						if (CurrentMaterialSettings->bPerformBorderSmear)
-						{
-							FMaterialBakingHelpers::PerformUVBorderSmear(CurrentOutput.PropertyData[Property], RenderTarget->GetSurfaceWidth(), RenderTarget->GetSurfaceHeight());
-						}
-#if WITH_EDITOR
-					// If saving intermediates is turned on
-					if (bSaveIntermediateTextures)
-					{
-						const UEnum* PropertyEnum = StaticEnum<EMaterialProperty>();
-						FName PropertyName = PropertyEnum->GetNameByValue(Property);
-						FString TrimmedPropertyName = PropertyName.ToString();
-						TrimmedPropertyName.RemoveFromStart(TEXT("MP_"));
 
-						const FString DirectoryPath = FPaths::ConvertRelativePathToFull(FPaths::ProjectIntermediateDir() + TEXT("MaterialBaking/"));
-						FString FilenameString = FString::Printf(TEXT("%s%s-%d-%s.bmp"), *DirectoryPath, *CurrentMaterialSettings->Material->GetName(), MaterialIndex, *TrimmedPropertyName);
-						FFileHelper::CreateBitmap(*FilenameString, CurrentOutput.PropertySizes[Property].X, CurrentOutput.PropertySizes[Property].Y, CurrentOutput.PropertyData[Property].GetData());
+					// Reading texture does an implicit FlushRenderingCommands()
+					ReadTextureOutput(RenderTargetResource, Property, CurrentOutput);
+
+					// Schedule final processing for another thread
+					NumTasks++;
+					auto FinalProcessing =
+						[&NumTasks, bSaveIntermediateTextures, CurrentMaterialSettings, MaterialIndex, &Output, Property]()
+						{
+							FBakeOutput& CurrentOutput = Output[MaterialIndex];
+
+							if (CurrentMaterialSettings->bPerformBorderSmear)
+							{
+								// This will resize the output to a single pixel if the result is monochrome.
+								FMaterialBakingHelpers::PerformUVBorderSmearAndShrink(
+									CurrentOutput.PropertyData[Property],
+									CurrentOutput.PropertySizes[Property].X,
+									CurrentOutput.PropertySizes[Property].Y
+								);
+							}
+#if WITH_EDITOR
+							// If saving intermediates is turned on
+							if (bSaveIntermediateTextures)
+							{
+								const UEnum* PropertyEnum = StaticEnum<EMaterialProperty>();
+								FName PropertyName = PropertyEnum->GetNameByValue(Property);
+								FString TrimmedPropertyName = PropertyName.ToString();
+								TrimmedPropertyName.RemoveFromStart(TEXT("MP_"));
+
+								const FString DirectoryPath = FPaths::ConvertRelativePathToFull(FPaths::ProjectIntermediateDir() + TEXT("MaterialBaking/"));
+								FString FilenameString = FString::Printf(TEXT("%s%s-%d-%s.bmp"), *DirectoryPath, *CurrentMaterialSettings->Material->GetName(), MaterialIndex, *TrimmedPropertyName);
+								FFileHelper::CreateBitmap(*FilenameString, CurrentOutput.PropertySizes[Property].X, CurrentOutput.PropertySizes[Property].Y, CurrentOutput.PropertyData[Property].GetData());
+							}
+#endif // WITH_EDITOR
+							NumTasks--;
+						};
+
+					if (FPlatformProcess::SupportsMultithreading())
+					{
+						Async(EAsyncExecution::ThreadPool, MoveTemp(FinalProcessing));
+					}
+					else
+					{
+						FinalProcessing();
 					}
 				}
-#endif // WITH_EDITOR
 			}
 		}
+	}
+
+	while (NumTasks.Load(EMemoryOrder::Relaxed) > 0)
+	{
+		FPlatformProcess::Sleep(0.1f);
 	}
 
 	if (!CVarUseMaterialProxyCaching.GetValueOnAnyThread())
@@ -271,6 +439,8 @@ void FMaterialBakingModule::CleanupMaterialProxies()
 
 UTextureRenderTarget2D* FMaterialBakingModule::CreateRenderTarget(bool bInForceLinearGamma, EPixelFormat InPixelFormat, const FIntPoint& InTargetSize)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialBakingModule::CreateRenderTarget)
+
 	UTextureRenderTarget2D* RenderTarget = nullptr;
 	const int32 MaxTextureSize = 1 << (MAX_TEXTURE_MIP_COUNT - 1); // Don't use GetMax2DTextureDimension() as this is for the RHI only.
 	const FIntPoint ClampedTargetSize(FMath::Clamp(InTargetSize.X, 1, MaxTextureSize), FMath::Clamp(InTargetSize.Y, 1, MaxTextureSize));
@@ -288,6 +458,8 @@ UTextureRenderTarget2D* FMaterialBakingModule::CreateRenderTarget(bool bInForceL
 	}
 	else
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(CreateNewRenderTarget)
+
 		// Not found - create a new one.
 		RenderTarget = NewObject<UTextureRenderTarget2D>();
 		check(RenderTarget);
@@ -306,6 +478,8 @@ UTextureRenderTarget2D* FMaterialBakingModule::CreateRenderTarget(bool bInForceL
 
 FExportMaterialProxy* FMaterialBakingModule::CreateMaterialProxy(UMaterialInterface* Material, const EMaterialProperty Property)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialBakingModule::CreateMaterialProxy)
+
 	FExportMaterialProxy* Proxy = nullptr;
 
 	// Find all pooled material proxy matching this material
@@ -325,7 +499,7 @@ FExportMaterialProxy* FMaterialBakingModule::CreateMaterialProxy(UMaterialInterf
 	// Not found, create a new entry
 	if (Proxy == nullptr)
 	{
-		Proxy = new FExportMaterialProxy(Material, Property);
+		Proxy = new FExportMaterialProxy(Material, Property, false /* bInSynchronousCompilation */);
 		MaterialProxyPool.Add(Material, FMaterialPoolValue(Property, Proxy));
 	}
 
@@ -333,7 +507,9 @@ FExportMaterialProxy* FMaterialBakingModule::CreateMaterialProxy(UMaterialInterf
 }
 
 void FMaterialBakingModule::ReadTextureOutput(FTextureRenderTargetResource* RenderTargetResource, EMaterialProperty Property, FBakeOutput& Output)
-{	
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialBakingModule::ReadTextureOutput)
+
 	checkf(!Output.PropertyData.Contains(Property) && !Output.PropertySizes.Contains(Property), TEXT("Should not be reading same property data twice"));
 
 	TArray<FColor>& OutputColor = Output.PropertyData.Add(Property);
@@ -444,6 +620,8 @@ void FMaterialBakingModule::ReadTextureOutput(FTextureRenderTargetResource* Rend
 
 void FMaterialBakingModule::OnObjectModified(UObject* Object)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialBakingModule::OnObjectModified)
+
 	if (CVarUseMaterialProxyCaching.GetValueOnAnyThread())
 	{
 		if (Object && Object->IsA<UMaterialInterface>())

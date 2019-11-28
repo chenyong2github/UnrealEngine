@@ -6,10 +6,6 @@
 
 #include "DatasmithC4DTranslator.h"
 #include "DatasmithC4DImporterMaterialSelector.h"
-#include "DatasmithImporterEditorSettings.h"
-#include "DatasmithImporterHelper.h"
-#include "DatasmithImporterModule.h"
-#include "UI/DatasmithUIManager.h"
 
 #include "MasterMaterials/DatasmithMasterMaterialManager.h"
 

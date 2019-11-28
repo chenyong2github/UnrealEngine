@@ -3,6 +3,7 @@
 #include "GLTFAccessor.h"
 
 #include "ConversionUtilities.h"
+#include "Misc/SecureHash.h"
 
 namespace GLTF
 {
@@ -200,14 +201,51 @@ namespace GLTF
 	    : FAccessor(InCount, InType, InCompType, InNormalized)
 	    , BufferView(InBufferView)
 	    , ByteOffset(InOffset)
-	    // if zero then tightly packed
-	    , ElementSize(BufferView.ByteStride == 0 ? GetElementSize(Type, ComponentType) : BufferView.ByteStride)
+	    , ElementSize(GetElementSize(Type, ComponentType))
+		// BufferView.ByteStride zero means elements are tightly packed
+		, ByteStride(InBufferView.ByteStride ? InBufferView.ByteStride : ElementSize)
 	{
 	}
 
 	bool FValidAccessor::IsValid() const
 	{
 		return true;
+	}
+
+	FMD5Hash FValidAccessor::GetHash() const
+	{
+		if (!IsValid())
+		{
+			return FMD5Hash();
+		}
+
+		FMD5 MD5;
+
+		// Contigous view into a buffer: Can hash all at once
+		if (ByteStride == ElementSize)
+		{
+			MD5.Update(DataAt(0), Count * ElementSize);
+		}
+		// Shared buffer: Have to hash in strides
+		else
+		{
+			for (uint32 Index = 0; Index < Count; ++Index)
+			{
+				MD5.Update(DataAt(Index), ElementSize);
+			}
+		}
+
+		uint8 TypeInt = static_cast<uint8>(Type);
+		uint8 ComponentInt = static_cast<uint8>(ComponentType);
+		uint8 NormalizedInt = static_cast<uint8>(Normalized);
+
+		MD5.Update(&TypeInt, sizeof(TypeInt));
+		MD5.Update(&ComponentInt, sizeof(ComponentInt));
+		MD5.Update(&NormalizedInt, sizeof(NormalizedInt));
+
+		FMD5Hash Hash;
+		Hash.Set(MD5);
+		return Hash;
 	}
 
 	uint32 FValidAccessor::GetUnsignedInt(uint32 Index) const
@@ -523,8 +561,7 @@ namespace GLTF
 
 	inline const uint8* FValidAccessor::DataAt(uint32 Index) const
 	{
-		check(ElementSize);
-		const uint32 Offset = Index * ElementSize;
+		const uint32 Offset = Index * ByteStride;
 		return BufferView.DataAt(Offset + ByteOffset);
 	}
 
@@ -535,4 +572,8 @@ namespace GLTF
 		return false;
 	}
 
+	FMD5Hash FVoidAccessor::GetHash() const
+	{
+		return FMD5Hash();
+	}
 }  // namespace GLTF

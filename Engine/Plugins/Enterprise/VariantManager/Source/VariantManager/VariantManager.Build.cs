@@ -22,16 +22,17 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"PropertyEditor",  // For functions that create the property widgets
-					"SlateCore",
-					"Slate",
-					"EditorStyle", // For standard styles on most of UI
-					"InputCore", // For ListView keyboard control
-					"GraphEditor", // For DragDropOp, might be removed later
                     "BlueprintGraph", // For function director
-					"WorkspaceMenuStructure",
+					"EditorStyle", // For standard styles on most of UI
+					"GraphEditor", // For DragDropOp, might be removed later
+					"InputCore", // For ListView keyboard control
+					"PropertyEditor",  // For functions that create the property widgets
+					"SceneOutliner",
+					"Slate",
+					"SlateCore",
 					"ToolMenus",
 					"VariantManagerContentEditor",
+					"WorkspaceMenuStructure",
 				}
 			);
         }

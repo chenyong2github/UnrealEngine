@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+struct FMD5Hash;
+
 namespace GLTF
 {
 	struct GLTFCORE_API FBuffer
@@ -26,8 +28,8 @@ namespace GLTF
 	struct GLTFCORE_API FBufferView
 	{
 		const FBuffer& Buffer;
-		const uint32   ByteOffset;
-		const uint32   ByteLength;
+		const uint32 ByteOffset;
+		const uint32 ByteLength;
 		// if zero then accessor elements are tightly packed, i.e., effective stride equals the size of the element
 		const uint32 ByteStride;  // range 4..252
 
@@ -83,6 +85,7 @@ namespace GLTF
 		FAccessor(uint32 InCount, EType InType, EComponentType InComponentType, bool InNormalized);
 
 		virtual bool IsValid() const = 0;
+		virtual FMD5Hash GetHash() const = 0;
 
 		virtual uint32 GetUnsignedInt(uint32 Index) const;
 		virtual void   GetUnsignedInt16x4(uint32 Index, uint16 Values[4]) const;
@@ -118,6 +121,7 @@ namespace GLTF
 		FValidAccessor(FBufferView& InBufferView, uint32 InOffset, uint32 InCount, EType InType, EComponentType InCompType, bool InNormalized);
 
 		bool IsValid() const override;
+		FMD5Hash GetHash() const override;
 
 		uint32 GetUnsignedInt(uint32 Index) const override;
 		void   GetUnsignedInt16x4(uint32 Index, uint16 Values[4]) const override;
@@ -140,6 +144,7 @@ namespace GLTF
 		const FBufferView& BufferView;
 		const uint32       ByteOffset;
 		const uint32       ElementSize;
+		const uint32	   ByteStride;
 
 		const uint8* DataAt(uint32 Index) const;
 	};
@@ -152,6 +157,7 @@ namespace GLTF
 		}
 
 		bool IsValid() const override;
+		FMD5Hash GetHash() const override;
 	};
 
 	//

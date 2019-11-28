@@ -724,7 +724,7 @@ TArray<UVariantObjectBinding*> FVariantManager::CreateObjectBindings(const TArra
 			if (UnboundActors.Contains(SelectedActor))
 			{
 				UVariantObjectBinding* NewBinding = NewObject<UVariantObjectBinding>(GetTransientPackage(), NAME_None, RF_Public|RF_Transactional);
-				NewBinding->Init(SelectedActor);
+				NewBinding->SetObject(SelectedActor);
 
 				VarBindingsToTheseActors.Add(NewBinding);
 				NewBindings.Add(NewBinding);
@@ -794,7 +794,7 @@ TArray<UVariantObjectBinding*> FVariantManager::CreateObjectBindingsAndCaptures(
 			if (UnboundActors.Contains(SelectedActor))
 			{
 				UVariantObjectBinding* NewBinding = NewObject<UVariantObjectBinding>(GetTransientPackage(), NAME_None, RF_Public|RF_Transactional);
-				NewBinding->Init(SelectedActor);
+				NewBinding->SetObject(SelectedActor);
 
 				VarBindingsToTheseActors.Add(NewBinding);
 				NewBindings.Add(NewBinding);

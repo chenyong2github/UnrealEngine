@@ -3,6 +3,7 @@
 #include "GLTFMesh.h"
 
 #include "ConversionUtilities.h"
+#include "Misc/SecureHash.h"
 
 namespace GLTF
 {
@@ -284,4 +285,92 @@ namespace GLTF
 		return true;
 	}
 
+	FMD5Hash FPrimitive::GetHash() const
+	{
+		if (!IsValid())
+		{
+			return FMD5Hash();
+		}
+
+		auto HashAccessor = [](FMD5& MD5, const FAccessor& Accessor)
+		{
+			if (!Accessor.IsValid())
+			{
+				return;
+			}
+
+			FMD5Hash MD5Hash = Accessor.GetHash();
+			if (MD5Hash.IsValid())
+			{
+				MD5.Update(MD5Hash.GetBytes(), MD5Hash.GetSize());
+			}
+		};
+
+		FMD5 MD5;
+
+		uint8 ModeInt = static_cast<uint8>(Mode);
+		MD5.Update(&ModeInt, sizeof(ModeInt));
+		MD5.Update(reinterpret_cast<const uint8*>(&MaterialIndex), sizeof(MaterialIndex));
+
+		HashAccessor(MD5, Indices);
+		HashAccessor(MD5, Position);
+
+		if (HasNormals())
+		{
+			HashAccessor(MD5, Normal);
+		}
+
+		if (HasTangents())
+		{
+			HashAccessor(MD5, Tangent);
+		}
+
+		if (HasTexCoords(0))
+		{
+			HashAccessor(MD5, TexCoord0);
+		}
+
+		if (HasTexCoords(1))
+		{
+			HashAccessor(MD5, TexCoord1);
+		}
+
+		if (HasColors())
+		{
+			HashAccessor(MD5, Color0);
+		}
+
+		if (HasJointWeights())
+		{
+			HashAccessor(MD5, Joints0);
+			HashAccessor(MD5, Weights0);
+		}
+
+		FMD5Hash Hash;
+		Hash.Set(MD5);
+		return Hash;
+	}
+
+	FMD5Hash FMesh::GetHash() const
+	{
+		if (!IsValid())
+		{
+			return FMD5Hash();
+		}
+
+		FMD5 MD5;
+
+		for (const GLTF::FPrimitive& Primitive : Primitives)
+		{
+			FMD5Hash PrimitiveHash = Primitive.GetHash();
+			if (PrimitiveHash.IsValid())
+			{
+				MD5.Update(PrimitiveHash.GetBytes(), PrimitiveHash.GetSize());
+			}
+		}
+
+		FMD5Hash Hash;
+		Hash.Set(MD5);
+		return Hash;
+	}
 }  // namespace GLTF

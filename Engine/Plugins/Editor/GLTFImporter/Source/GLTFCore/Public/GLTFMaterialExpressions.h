@@ -3,6 +3,7 @@
 #pragma once
 
 #include "UObject/StrongObjectPtr.h"
+#include "Misc/SecureHash.h"
 
 namespace GLTF
 {
@@ -316,6 +317,9 @@ namespace GLTF
 
 		virtual void Finalize() = 0;
 
+		FMD5Hash GetGLTFMaterialHash() const;
+		void SetGLTFMaterialHash(FMD5Hash Hash);
+
 		const FString& GetName() const;
 
 		FMaterialExpressionInput& GetBaseColor();
@@ -352,6 +356,8 @@ namespace GLTF
 		TArray<FMaterialExpression*> Expressions;
 
 		bool bIsFinal;
+
+        FMD5Hash GLTFMaterialHash;
 	};
 
 	inline const FString& FMaterialElement::GetName() const

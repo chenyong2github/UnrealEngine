@@ -18,7 +18,7 @@ namespace GLTF
 		{
 			All,
 			Red,
-			Greeen,
+			Green,
 			Blue,
 			Alpha,
 			RG,
@@ -43,10 +43,10 @@ namespace GLTF
 				Value = InValue;
 			}
 
-			FMapChannel(float InVecValue[3], const TCHAR* InValueName, EChannel InChannel, FMaterialExpressionInput* InMaterialInput, FMaterialExpression* InOutputExpression)
+			FMapChannel(const FVector& InVecValue, const TCHAR* InValueName, EChannel InChannel, FMaterialExpressionInput* InMaterialInput, FMaterialExpression* InOutputExpression)
 				: FMapChannel(InValueName, InChannel, InMaterialInput, InOutputExpression)
 			{
-				SetValue( FVector(InVecValue[0], InVecValue[1], InVecValue[2]) );
+				SetValue(InVecValue);
 			}
 
 			void SetValue(const FVector& Vec)
@@ -79,9 +79,6 @@ namespace GLTF
 
 		FMaterialExpression* CreateColorMap(const GLTF::FTexture& Map, int CoordinateIndex, const FVector4& Color, const TCHAR* MapName,
 		                                    const TCHAR* ValueName, ETextureMode TextureMode, FMaterialExpressionInput& MaterialInput);
-
-		FMaterialExpression* CreateScalarMap(const GLTF::FTexture& Map, int CoordinateIndex, float Value, const TCHAR* MapName,
-		                                     const TCHAR* ValueName, ETextureMode TextureMode, FMaterialExpressionInput& MaterialInput);
 
 		FMaterialExpressionTexture* CreateTextureMap(const GLTF::FTexture& Map, int CoordinateIndex, const TCHAR* MapName, ETextureMode TextureMode);
 

@@ -165,6 +165,6 @@ FString MelangeParameterValueToString(melange::BaseList2D* Object, melange::Int3
 /**
  * Returns the full melange ID for the BaseList2D argument as an FString, which will include AppId
  */
-FString GetMelangeBaseList2dID(melange::BaseList2D* BaseList);
+TOptional<FString> GetMelangeBaseList2dID(melange::BaseList2D* BaseList);
 
 #endif

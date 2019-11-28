@@ -213,7 +213,7 @@ struct FNodeMarkHelper
 void FDatasmithFBXSceneProcessor::FindPersistentNodes()
 {
 	FNodeMarkHelper Helper;
-	Helper.SwitchMaterialObjectNames.Append(Scene->SwitchObjects);
+	Helper.SwitchObjectNames.Append(Scene->SwitchObjects);
 	Helper.AnimatedObjectNames.Append(Scene->AnimatedObjects);
 	Helper.SwitchMaterialObjectNames.Append(Scene->SwitchMaterialObjects);
 	Helper.TransformVariantObjectNames.Append(Scene->TransformVariantObjects);
