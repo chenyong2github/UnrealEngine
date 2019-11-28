@@ -51,9 +51,9 @@ enum class EFieldType : uint8
 ////////////////////////////////////////////////////////////////////////////////
 struct FNewEventEvent
 {
-
 	uint16		EventUid;
-	uint16		FieldCount;
+	uint8		FieldCount;
+	uint8		Flags;
 	uint8		LoggerNameSize;
 	uint8		EventNameSize;
 	struct

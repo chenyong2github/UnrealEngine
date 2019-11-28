@@ -37,6 +37,11 @@ private:
 ////////////////////////////////////////////////////////////////////////////////
 struct FAnalysisEngine::FDispatch
 {
+	enum
+	{
+		Flag_Important		= 1 << 0,
+	};
+
 	struct FField
 	{
 		uint32		Hash;
@@ -50,7 +55,8 @@ struct FAnalysisEngine::FDispatch
 	uint32			Hash				= 0;
 	uint16			Uid					= 0;
 	uint16			FirstRoute			= ~uint16(0);
-	uint16			FieldCount			= 0;
+	uint8			FieldCount			= 0;
+	uint8			Flags				= 0;
 	uint16			EventSize			= 0;
 	uint16			LoggerNameOffset	= 0;	// From FDispatch ptr
 	uint16			EventNameOffset		= 0;	// From FDispatch ptr
@@ -84,6 +90,7 @@ public:
 	void				SetUid(uint16 Uid);
 	void				SetLoggerName(const ANSICHAR* Name, int32 NameSize=-1);
 	void				SetEventName(const ANSICHAR* Name, int32 NameSize=-1);
+	void				SetImportant();
 	FDispatch::FField&	AddField(const ANSICHAR* Name, int32 NameSize, uint16 Size);
 	FDispatch*			Finalize();
 
@@ -151,6 +158,13 @@ void FAnalysisEngine::FDispatchBuilder::SetEventName(const ANSICHAR* Name, int32
 {
 	auto* Dispatch = (FDispatch*)(Buffer.GetData());
 	Dispatch->EventNameOffset = AppendName(Name, NameSize);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::FDispatchBuilder::SetImportant()
+{
+	auto* Dispatch = (FDispatch*)(Buffer.GetData());
+	Dispatch->Flags |= FDispatch::Flag_Important;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -640,7 +654,14 @@ void FAnalysisEngine::OnNewEventProtocol0(FDispatchBuilder& Builder, const void*
 ////////////////////////////////////////////////////////////////////////////////
 void FAnalysisEngine::OnNewEventProtocol1(FDispatchBuilder& Builder, const void* EventData)
 {
-	return OnNewEventProtocol0(Builder, EventData);
+	OnNewEventProtocol0(Builder, EventData);
+
+	const auto& NewEvent = *(Protocol1::FNewEventEvent*)(EventData);
+
+	if (NewEvent.Flags & int(Protocol1::EEventFlags::Important))
+	{
+		Builder.SetImportant();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -845,7 +866,7 @@ int32 FAnalysisEngine::OnDataProtocol1(FStreamReader& Reader)
 			break;
 		}
 
-		uint16 Uid = Header->Uid & uint16(Protocol1::EKnownEventUids::UidMask);
+		uint16 Uid = Header->Uid;
 		if (Uid >= Dispatches.Num())
 		{
 			return -1;

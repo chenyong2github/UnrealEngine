@@ -1146,11 +1146,6 @@ void Writer_EventCreate(
 		return;
 	}
 
-	if (Flags & FEventDef::Flag_Important)
-	{
-		Uid |= uint16(EKnownEventUids::Flag_Important);
-	}
-
 	uint32 LoggerHash = Writer_EventGetHash(LoggerName.Ptr);
 	uint32 NameHash = Writer_EventGetHash(EventName.Ptr);
 
@@ -1170,7 +1165,7 @@ void Writer_EventCreate(
 	}
 
 	// Allocate the new event event in the log stream.
-	uint16 EventUid = uint16(EKnownEventUids::NewEvent)|uint16(EKnownEventUids::Flag_Important);
+	uint16 EventUid = uint16(EKnownEventUids::NewEvent);
 	uint16 EventSize = sizeof(FNewEventEvent);
 	EventSize += sizeof(FNewEventEvent::Fields[0]) * FieldCount;
 	EventSize += NamesSize;
@@ -1179,12 +1174,18 @@ void Writer_EventCreate(
 	auto& Event = *(FNewEventEvent*)(LogInstance.Ptr);
 
 	// Write event's main properties.
-	Event.EventUid = uint16(Uid) & uint16(EKnownEventUids::UidMask);
+	Event.EventUid = uint16(Uid);
 	Event.LoggerNameSize = LoggerName.Length;
 	Event.EventNameSize = EventName.Length;
+	Event.Flags = 0;
+
+	if (Flags & FEventDef::Flag_Important)
+	{
+		Event.Flags |= uint8(EEventFlags::Important);
+	}
 
 	// Write details about event's fields
-	Event.FieldCount = FieldCount;
+	Event.FieldCount = uint8(FieldCount);
 	for (uint32 i = 0; i < FieldCount; ++i)
 	{
 		const FFieldDesc& FieldDesc = FieldDescs[i];
