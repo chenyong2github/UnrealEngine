@@ -697,7 +697,7 @@ public:
 
 	/** Set to true to prevent navmesh generation under the terrain geometry */
 	UPROPERTY(EditAnywhere, Category = Landscape)
-	uint32 bRejectNavmeshUnderLandscapeGeometry:1;
+	uint32 bFillCollisionUnderLandscapeForNavmesh:1;
 
 	/** When set to true it will generate MaterialInstanceDynamic for each components, so material can be changed at runtime */
 	UPROPERTY(EditAnywhere, Category = Landscape)
