@@ -65,16 +65,22 @@ struct FFieldDesc
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-template <int InIndex, int InOffset, int InSize>
-struct TFieldBase
-{
-	enum : uint16
-	{
-		Index	= InIndex,
-		Offset	= InOffset,
-		Size	= InSize,
-	};
-};
+#define TRACE_PRIVATE_FIELD(InIndex, InOffset, Type) \
+		enum \
+		{ \
+			Index	= InIndex, \
+			Offset	= InOffset, \
+			Tid		= TFieldType<Type>::Tid, \
+			Size	= TFieldType<Type>::Size, \
+		}; \
+		static_assert(Index <= 127, "Trace events may only have up to a maximum of 127 fields"); \
+	private: \
+		FFieldDesc FieldDesc; \
+	public: \
+		TField(const FLiteralName& Name) \
+		: FieldDesc(Name, Tid, Offset, Size) \
+		{ \
+		}
 
 ////////////////////////////////////////////////////////////////////////////////
 template <int Index, int Offset, typename Type> struct TField;
@@ -147,22 +153,17 @@ struct TField<Offset, Type[Count]>
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
-template <int Index, int Offset, typename Type>
+template <int InIndex, int InOffset, typename Type>
 struct TField
-	: public TFieldBase<Index, Offset, TFieldType<Type>::Size>
-	, public FFieldDesc
 {
-	TField(const FLiteralName& Name)
-	: FFieldDesc(Name, TFieldType<Type>::Tid, Offset, TFieldType<Type>::Size)
-	{
-	}
+	TRACE_PRIVATE_FIELD(InIndex, InOffset, Type);
 
 	struct FActionable
 	{
 		Type Value;
 		void Write(uint8* __restrict Ptr) const
 		{
-			::memcpy(Ptr + Offset, &Value, TFieldType<Type>::Size);
+			::memcpy(Ptr + Offset, &Value, Size);
 		}
 	};
 
@@ -171,6 +172,8 @@ struct TField
 		return { Value };
 	}
 };
+
+#undef TRACE_PRIVATE_FIELD
 
 } // namespace Trace
 
