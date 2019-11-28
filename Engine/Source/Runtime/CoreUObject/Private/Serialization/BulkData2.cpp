@@ -219,7 +219,7 @@ public:
 	using ChunkIdArray = TArray<FIoChunkId, TInlineAllocator<8>>;
 
 public:
-	FBulkDataIoDispatcherRequest(const FIoChunkId& InChunkID, int64 InOffsetInBulkData, int64 InBytesToRead, FAsyncFileCallBack* InCompleteCallback, uint8* InUserSuppliedMemory)
+	FBulkDataIoDispatcherRequest(const FIoChunkId& InChunkID, int64 InOffsetInBulkData, int64 InBytesToRead, FBulkDataIORequestCallBack* InCompleteCallback, uint8* InUserSuppliedMemory)
 		: UserSuppliedMemory(InUserSuppliedMemory)
 	{
 		RequestArray.Push({ InChunkID, (uint64)InOffsetInBulkData , (uint64)InBytesToRead });
@@ -230,7 +230,7 @@ public:
 		}
 	}
 
-	FBulkDataIoDispatcherRequest(const ChunkIdArray& ChunkIDs, FAsyncFileCallBack* InCompleteCallback)
+	FBulkDataIoDispatcherRequest(const ChunkIdArray& ChunkIDs, FBulkDataIORequestCallBack* InCompleteCallback)
 		: UserSuppliedMemory(nullptr)
 	{
 		for (const FIoChunkId& ChunkId : ChunkIDs)
@@ -390,7 +390,7 @@ private:
 
 		if (CompleteCallback)
 		{
-			CompleteCallback(bIsCanceled, nullptr);
+			CompleteCallback(bIsCanceled, this);
 		}
 
 		FPlatformMisc::MemoryBarrier();
@@ -454,7 +454,7 @@ private:
 
 	TArray<Request, TInlineAllocator<8>> RequestArray;
 
-	FAsyncFileCallBack CompleteCallback;
+	FBulkDataIORequestCallBack CompleteCallback;
 	uint8* UserSuppliedMemory = nullptr;
 
 	uint8* DataResult = nullptr;
@@ -890,14 +890,14 @@ bool FBulkDataBase::IsUsingIODispatcher() const
 	return (BulkDataFlags & BULKDATA_UsesIoDispatcher) != 0;
 }
 
-IBulkDataIORequest* FBulkDataBase::CreateStreamingRequest(EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
+IBulkDataIORequest* FBulkDataBase::CreateStreamingRequest(EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
 {
 	const int64 DataSize = GetBulkDataSize();
 
 	return CreateStreamingRequest(0, DataSize, Priority, CompleteCallback, UserSuppliedMemory);
 }
 
-IBulkDataIORequest* FBulkDataBase::CreateStreamingRequest(int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
+IBulkDataIORequest* FBulkDataBase::CreateStreamingRequest(int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
 {
 	if (IsUsingIODispatcher())
 	{
@@ -927,20 +927,21 @@ IBulkDataIORequest* FBulkDataBase::CreateStreamingRequest(int64 OffsetInBulkData
 
 		const int64 OffsetInFile = FileData.BulkDataOffsetInFile + OffsetInBulkData;
 
-		IAsyncReadRequest* ReadRequest = IORequestHandle->ReadRequest(OffsetInFile, BytesToRead, Priority, CompleteCallback, UserSuppliedMemory);
-		if (ReadRequest != nullptr)
+		FBulkDataIORequest* IORequest = new FBulkDataIORequest(IORequestHandle);
+
+		if (IORequest->MakeReadRequest(OffsetInFile, BytesToRead, Priority, CompleteCallback, UserSuppliedMemory))
 		{
-			return new FBulkDataIORequest(IORequestHandle, ReadRequest, BytesToRead);
+			return IORequest;
 		}
 		else
 		{
-			delete IORequestHandle;
+			delete IORequest;
 			return nullptr;
 		}
 	}
 }
 
-IBulkDataIORequest* FBulkDataBase::CreateStreamingRequestForRange(const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback)
+IBulkDataIORequest* FBulkDataBase::CreateStreamingRequestForRange(const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback)
 {
 	check(RangeArray.Num() > 0);
 

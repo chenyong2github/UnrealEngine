@@ -280,7 +280,7 @@ struct FLegacyAudioStreamingManager : public IAudioStreamingManager
 	// End IAudioStreamingManager interface
 
 	/** Called when an async callback is made on an async loading audio chunk request. */
-	void OnAsyncFileCallback(FStreamingWaveData* StreamingWaveData, int32 LoadedAudioChunkIndex, IAsyncReadRequest* ReadRequest);
+	void OnAsyncFileCallback(FStreamingWaveData* StreamingWaveData, int32 LoadedAudioChunkIndex, IBulkDataIORequest* ReadRequest);
 
 	/** Processes pending async file IO results. */
 	void ProcessPendingAsyncFileResults();
