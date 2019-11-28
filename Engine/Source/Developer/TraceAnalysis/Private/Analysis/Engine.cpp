@@ -692,7 +692,7 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader& Reader)
 		ProtocolHandler = &FAnalysisEngine::OnDataProtocol0;
 		{
 			FDispatchBuilder Builder;
-			Builder.SetUid(uint16(Protocol0::FNewEventEvent::Uid));
+			Builder.SetUid(uint16(Protocol0::EKnownEventUids::NewEvent));
 			AddDispatch(Builder.Finalize());
 		}
 		break;
@@ -701,7 +701,7 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader& Reader)
 		ProtocolHandler = &FAnalysisEngine::OnDataProtocol1;
 		{
 			FDispatchBuilder Builder;
-			Builder.SetUid(uint16(Protocol0::FNewEventEvent::Uid));
+			Builder.SetUid(uint16(Protocol0::EKnownEventUids::NewEvent));
 			AddDispatch(Builder.Finalize());
 		}
 		break;
@@ -765,7 +765,7 @@ bool FAnalysisEngine::OnDataProtocol0()
 			break;
 		}
 
-		uint16 Uid = uint16(Header->Uid & ((1 << 14) - 1));
+		uint16 Uid = uint16(Header->Uid) & uint16(Protocol0::EKnownEventUids::UidMask);
 		if (Uid >= Dispatches.Num())
 		{
 			return false;
@@ -845,7 +845,7 @@ int32 FAnalysisEngine::OnDataProtocol1(FStreamReader& Reader)
 			break;
 		}
 
-		uint16 Uid = uint16(Header->Uid & 0x3fff);
+		uint16 Uid = Header->Uid & uint16(Protocol1::EKnownEventUids::UidMask);
 		if (Uid >= Dispatches.Num())
 		{
 			return -1;

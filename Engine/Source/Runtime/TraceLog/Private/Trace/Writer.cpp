@@ -1094,18 +1094,6 @@ static UPTRINT volatile		GEventUidCounter;	// = 0;
 static FEventDef* volatile	GHeadEvent;			// = nullptr;
 
 ////////////////////////////////////////////////////////////////////////////////
-enum class EKnownEventUids : uint16
-{
-	NewEvent		= FNewEventEvent::Uid,
-	User,
-	Max				= (1 << 14) - 1, // ...leaves two MSB bits for other uses.
-	UidMask			= Max,
-	Invalid			= Max,
-	Flag_Unused		= 1 << 14,
-	Flag_Important	= 1 << 15,
-};
-
-////////////////////////////////////////////////////////////////////////////////
 template <typename ElementType>
 static uint32 Writer_EventGetHash(const ElementType* Input, int32 Length=-1)
 {

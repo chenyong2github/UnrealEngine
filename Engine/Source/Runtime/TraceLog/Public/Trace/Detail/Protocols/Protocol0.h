@@ -51,7 +51,6 @@ enum class EFieldType : uint8
 ////////////////////////////////////////////////////////////////////////////////
 struct FNewEventEvent
 {
-	enum : uint16 { Uid = 0 };
 
 	uint16		EventUid;
 	uint16		FieldCount;
@@ -65,6 +64,18 @@ struct FNewEventEvent
 		uint8	NameSize;
 	}			Fields[];
 	/*uint8		NameData[]*/
+};
+
+////////////////////////////////////////////////////////////////////////////////
+enum class EKnownEventUids : uint16
+{
+	NewEvent,
+	User,
+	Max				= (1 << 14) - 1, // ...leaves two MSB bits for other uses.
+	UidMask			= Max,
+	Invalid			= Max,
+	Flag_Important	= 1 << 14,
+	Flag_Unused		= 1 << 15,
 };
 
 ////////////////////////////////////////////////////////////////////////////////
