@@ -22,6 +22,7 @@ struct FWriteBuffer
 	uint8* __restrict			Cursor;
 	uint8* __restrict volatile	Committed;
 	uint8* __restrict			Reaped;
+	UPTRINT volatile			EtxOffset;
 };
 
 
