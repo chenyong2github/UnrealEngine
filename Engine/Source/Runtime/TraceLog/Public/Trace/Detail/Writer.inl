@@ -70,19 +70,24 @@ struct FLogInstance
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-inline FLogInstance Writer_BeginLog(uint16 EventUid, uint16 Size)
+inline FLogInstance Writer_BeginLog(uint16 EventUid, uint16 Size, bool bMaybeHasAux)
 {
 	using namespace Private;
 
 	FWriteBuffer* Buffer = Writer_GetBuffer();
-	uint32 AllocSize = Size + sizeof(FEventHeader);
+	uint32 AllocSize = Size + sizeof(FEventHeader) + int(bMaybeHasAux);
 	Buffer->Cursor += AllocSize;
 	if (UNLIKELY(UPTRINT(Buffer->Cursor) > UPTRINT(Buffer)))
 	{
 		Buffer = Writer_NextBuffer(AllocSize);
 	}
 
-	uint8* Cursor = Buffer->Cursor - Size;
+	if (bMaybeHasAux)
+	{
+		Buffer->Cursor[-1] = 0;
+	}
+
+	uint8* Cursor = Buffer->Cursor - Size - int(bMaybeHasAux);
 
 	auto* Header = (uint16*)(Cursor); // FEventHeader
 	Header[-1] = uint16(AtomicIncrementRelaxed(&GLogSerial));

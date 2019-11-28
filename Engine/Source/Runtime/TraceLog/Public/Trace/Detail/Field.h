@@ -64,6 +64,17 @@ struct FFieldDesc
 	uint8			TypeInfo;
 };
 
+
+
+////////////////////////////////////////////////////////////////////////////////
+template <int InIndex, int InOffset, typename Type> struct TField;
+
+enum class EIndexPack
+{
+	FieldCountMask	= 0xff,
+	MaybeHasAux		= 0x100,
+};
+
 ////////////////////////////////////////////////////////////////////////////////
 #define TRACE_PRIVATE_FIELD(InIndex, InOffset, Type) \
 		enum \
@@ -73,7 +84,7 @@ struct FFieldDesc
 			Tid		= TFieldType<Type>::Tid, \
 			Size	= TFieldType<Type>::Size, \
 		}; \
-		static_assert(Index <= 127, "Trace events may only have up to a maximum of 127 fields"); \
+		static_assert((Index & int(EIndexPack::FieldCountMask)) <= 127, "Trace events may only have up to a maximum of 127 fields"); \
 	private: \
 		FFieldDesc FieldDesc; \
 	public: \
@@ -132,11 +143,16 @@ struct TField
 
 ////////////////////////////////////////////////////////////////////////////////
 // Used to terminate the field list and determine an event's size.
-enum EndOfFields {};
-template <int InFieldCount, int Size>
-struct TField<InFieldCount, Size, EndOfFields>
+enum EventProps {};
+template <int InFieldCount, int InSize>
+struct TField<InFieldCount, InSize, EventProps>
 {
-	enum : uint16 { FieldCount = InFieldCount, Value = Size };
+	enum : uint16
+	{
+		FieldCount	= (InFieldCount & int(EIndexPack::FieldCountMask)),
+		Size		= InSize,
+		MaybeHasAux	= !!(InFieldCount & int(EIndexPack::MaybeHasAux)),
+	};
 };
 
 ////////////////////////////////////////////////////////////////////////////////

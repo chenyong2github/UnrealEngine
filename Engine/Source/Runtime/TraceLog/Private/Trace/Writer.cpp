@@ -1170,7 +1170,7 @@ void Writer_EventCreate(
 	EventSize += sizeof(FNewEventEvent::Fields[0]) * FieldCount;
 	EventSize += NamesSize;
 
-	FLogInstance LogInstance = Writer_BeginLog(EventUid, EventSize);
+	FLogInstance LogInstance = Writer_BeginLog(EventUid, EventSize, false);
 	auto& Event = *(FNewEventEvent*)(LogInstance.Ptr);
 
 	// Write event's main properties.
@@ -1182,6 +1182,11 @@ void Writer_EventCreate(
 	if (Flags & FEventDef::Flag_Important)
 	{
 		Event.Flags |= uint8(EEventFlags::Important);
+	}
+
+	if (Flags & FEventDef::Flag_MaybeHasAux)
+	{
+		Event.Flags |= uint8(EEventFlags::MaybeHasAux);
 	}
 
 	// Write details about event's fields

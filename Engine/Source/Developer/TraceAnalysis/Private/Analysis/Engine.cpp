@@ -35,11 +35,28 @@ private:
 
 
 ////////////////////////////////////////////////////////////////////////////////
+struct FAuxData
+{
+	const uint8*	Data;
+	uint32			DataSize;
+	uint16			FieldIndex;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+struct FAnalysisEngine::FAuxDataCollector
+	: public TArray<FAuxData>
+{
+};
+
+
+
+////////////////////////////////////////////////////////////////////////////////
 struct FAnalysisEngine::FDispatch
 {
 	enum
 	{
 		Flag_Important		= 1 << 0,
+		Flag_MaybeHasAux	= 1 << 1,
 	};
 
 	struct FField
@@ -91,6 +108,7 @@ public:
 	void				SetLoggerName(const ANSICHAR* Name, int32 NameSize=-1);
 	void				SetEventName(const ANSICHAR* Name, int32 NameSize=-1);
 	void				SetImportant();
+	void				SetMaybeHasAux();
 	FDispatch::FField&	AddField(const ANSICHAR* Name, int32 NameSize, uint16 Size);
 	FDispatch*			Finalize();
 
@@ -165,6 +183,13 @@ void FAnalysisEngine::FDispatchBuilder::SetImportant()
 {
 	auto* Dispatch = (FDispatch*)(Buffer.GetData());
 	Dispatch->Flags |= FDispatch::Flag_Important;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::FDispatchBuilder::SetMaybeHasAux()
+{
+	auto* Dispatch = (FDispatch*)(Buffer.GetData());
+	Dispatch->Flags |= FDispatch::Flag_MaybeHasAux;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -662,6 +687,11 @@ void FAnalysisEngine::OnNewEventProtocol1(FDispatchBuilder& Builder, const void*
 	{
 		Builder.SetImportant();
 	}
+
+	if (NewEvent.Flags & int(Protocol1::EEventFlags::MaybeHasAux))
+	{
+		Builder.SetMaybeHasAux();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -848,6 +878,8 @@ int32 FAnalysisEngine::OnDataProtocol1(FStreamReader& Reader)
 	int32 EventCount = 0;
 	while (!Reader.IsEmpty())
 	{
+		auto Mark = Reader.SaveMark();
+
 		const auto* Header = Reader.GetPointer<Protocol1::FEventHeader>();
 		if (Header == nullptr)
 		{
@@ -878,6 +910,23 @@ int32 FAnalysisEngine::OnDataProtocol1(FStreamReader& Reader)
 			return -1;
 		}
 
+		Reader.Advance(BlockSize);
+
+		FAuxDataCollector AuxCollector;
+		if (Dispatch->Flags & FDispatch::Flag_MaybeHasAux)
+		{
+			int AuxStatus = OnDataProtocol1Aux(Reader, AuxCollector);
+			if (AuxStatus == 0)
+			{
+				Reader.RestoreMark(Mark);
+				break;
+			}
+			else if (AuxStatus < 0)
+			{
+				return -1;
+			}
+		}
+
 		++NextLogSerial;
 
 		FEventDataInfo EventDataInfo = { *Dispatch, Header->EventData, Header->Size };
@@ -891,11 +940,54 @@ int32 FAnalysisEngine::OnDataProtocol1(FStreamReader& Reader)
 			}
 		});
 
-		Reader.Advance(BlockSize);
 		++EventCount;
 	}
 
 	return EventCount;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+int32 FAnalysisEngine::OnDataProtocol1Aux(FStreamReader& Reader, FAuxDataCollector& Collector)
+{
+	while (true)
+	{
+		const uint8* NextByte = Reader.GetPointer<uint8>();
+		if (NextByte == nullptr)
+		{
+			return 0;
+		}
+
+		// Is the following sequence a blob of auxilary data or the null
+		// terminator byte?
+		if (NextByte[0] == 0)
+		{
+			Reader.Advance(1);
+			return 1;
+		}
+
+		// Get header and the auxilary blob's size
+		const auto* Header = Reader.GetPointer<Protocol1::FAuxHeader>();
+		if (Header == nullptr)
+		{
+			return 0;
+		}
+
+		// Check it exists
+		uint32 BlockSize = (Header->Size >> 8) + sizeof(*Header);
+		if (Reader.GetPointer(BlockSize) == nullptr)
+		{
+			return 0;
+		}
+
+		// Attach to event
+		FAuxData AuxData;
+		AuxData.Data = Header->Data;
+		AuxData.DataSize = uint32(BlockSize - sizeof(*Header));
+		AuxData.FieldIndex = uint16(Header->FieldIndex & Protocol1::FAuxHeader::FieldMask);
+		Collector.Push(AuxData);
+
+		Reader.Advance(BlockSize);
+	}
 }
 
 } // namespace Trace

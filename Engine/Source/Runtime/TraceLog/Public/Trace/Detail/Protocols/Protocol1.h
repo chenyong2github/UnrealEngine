@@ -22,6 +22,7 @@ using Protocol0::FNewEventEvent;
 enum class EEventFlags : uint8
 {
 	Important		= 1 << 0,
+	MaybeHasAux		= 1 << 1,
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -41,6 +42,23 @@ struct FEventHeader
 	uint16		Size;
 	uint16		Serial;
 	uint8		EventData[];
+};
+
+////////////////////////////////////////////////////////////////////////////////
+struct FAuxHeader
+{
+	enum : uint8
+	{
+		AuxDataBit	= 0x80,
+		FieldMask	= 0x7f,
+	};
+
+	union
+	{
+		uint8	FieldIndex;	// 7 bits max (MSB is used to indicate aux data)
+		uint32	Size;		// encoded as (Size & 0x00ffffff) << 8
+	};
+	uint8		Data[];
 };
 
 } // namespace Protocol1
