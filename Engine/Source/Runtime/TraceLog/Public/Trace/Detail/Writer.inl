@@ -16,11 +16,12 @@ namespace Private
 ////////////////////////////////////////////////////////////////////////////////
 struct FWriteBuffer
 {
+	uint32						Overflow;
+	uint32						ThreadId;
 	FWriteBuffer* __restrict	Next;
 	uint8* __restrict			Cursor;
 	uint8* __restrict volatile	Committed;
 	uint8* __restrict			Reaped;
-	uint32						ThreadId;
 };
 
 
