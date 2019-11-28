@@ -128,10 +128,10 @@ public:
 	CORE_API int32 Compare(const TStringViewImpl& Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const;
 
 	inline bool StartsWith(CharType Prefix) const { return Size >= 1 && DataPtr[0] == Prefix; }
-	inline bool StartsWith(const TStringViewImpl& Prefix) const;
+	inline bool StartsWith(const TStringViewImpl& Prefix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
 
 	inline bool EndsWith(CharType Suffix) const { return Size >= 1 && DataPtr[Size-1] == Suffix; }
-	inline bool EndsWith(const TStringViewImpl& Suffix) const;
+	inline bool EndsWith(const TStringViewImpl& Suffix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
 
 	// Searching/Finding
 	CORE_API bool FindChar(CharType InChar, SizeType& OutIndex) const;

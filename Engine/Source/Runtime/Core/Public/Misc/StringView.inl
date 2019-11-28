@@ -64,15 +64,15 @@ inline bool TStringViewImpl<CharType, ViewType>::Equals(const TStringViewImpl& O
 }
 
 template <typename CharType, typename ViewType>
-inline bool TStringViewImpl<CharType, ViewType>::StartsWith(const TStringViewImpl& Prefix) const
+inline bool TStringViewImpl<CharType, ViewType>::StartsWith(const TStringViewImpl& Prefix, ESearchCase::Type SearchCase) const
 {
-	return Size >= Prefix.Size && TCString<CharType>::Strnicmp(DataPtr, Prefix.DataPtr, Prefix.Size) == 0;
+	return Prefix.Equals(Left(Prefix.Len()), SearchCase);
 }
 
 template <typename CharType, typename ViewType>
-inline bool TStringViewImpl<CharType, ViewType>::EndsWith(const TStringViewImpl& Suffix) const
+inline bool TStringViewImpl<CharType, ViewType>::EndsWith(const TStringViewImpl& Suffix, ESearchCase::Type SearchCase) const
 {
-	return Size >= Suffix.Size && TCString<CharType>::Strnicmp(DataPtr + Size - Suffix.Size, Suffix.DataPtr, Suffix.Size) == 0;
+	return Suffix.Equals(Right(Suffix.Len()), SearchCase);
 }
 
 // Case-insensitive comparison operators
