@@ -28,14 +28,14 @@ public:
 	}
 
 	/** Copy Constructor, will only compile if types are compatible */
-	template <class TClassA, class = typename TEnableIf<TPointerIsConvertibleFromTo<TClassA, TClass>::Value>::Type>
+	template <class TClassA, class = decltype(ImplicitConv<TClass*>((TClassA*)nullptr))>
 	FORCEINLINE TSubclassOf(const TSubclassOf<TClassA>& From) :
 		Class(*From)
 	{
 	}
 
 	/** Assignment operator, will only compile if types are compatible */
-	template <class TClassA, class = typename TEnableIf<TPointerIsConvertibleFromTo<TClassA, TClass>::Value>::Type>
+	template <class TClassA, class = decltype(ImplicitConv<TClass*>((TClassA*)nullptr))>
 	FORCEINLINE TSubclassOf& operator=(const TSubclassOf<TClassA>& From)
 	{
 		Class = *From;
