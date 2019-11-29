@@ -42,6 +42,7 @@ bool TStringViewImpl<CharType, ViewType>::FindChar(CharType InChar, SizeType& Ou
 		}
 	}
 
+	OutIndex = INDEX_NONE;
 	return false;
 }
 
@@ -50,6 +51,7 @@ bool TStringViewImpl<CharType, ViewType>::FindLastChar(CharType InChar, SizeType
 {
 	if (Size == 0)
 	{
+		OutIndex = INDEX_NONE;
 		return false;
 	}
 
@@ -62,6 +64,7 @@ bool TStringViewImpl<CharType, ViewType>::FindLastChar(CharType InChar, SizeType
 		}
 	}
 
+	OutIndex = INDEX_NONE;
 	return false;
 }
 
