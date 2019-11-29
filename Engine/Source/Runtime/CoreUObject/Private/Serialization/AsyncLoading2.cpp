@@ -2030,11 +2030,18 @@ void FAsyncLoadingThread2Impl::StartBundleIoRequests()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(StartBundleIoRequests);
 	const uint32 MaxPendingRequestsCount = 1024;
+	FAsyncPackage2* PreviousPackage = nullptr;
 	while (WaitingIoRequests.Num() && PendingBundleIoRequestsCount < MaxPendingRequestsCount)
 	{
 		FBundleIoRequest BundleIoRequest;
 		WaitingIoRequests.HeapPop(BundleIoRequest, false);
 		FAsyncPackage2* Package = BundleIoRequest.Package;
+
+		if (GIsInitialLoad && PreviousPackage)
+		{
+			Package->GetExportBundleNode(ExportBundle_Process, 0)->DependsOn(PreviousPackage->GetExportBundleNode(ExportBundle_Process, 0));
+		}
+		PreviousPackage = Package;
 
 		FIoReadOptions ReadOptions;
 		IoDispatcher.ReadWithCallback(CreateIoChunkId(Package->GlobalPackageId.Id, 0, EIoChunkType::ExportBundleData),

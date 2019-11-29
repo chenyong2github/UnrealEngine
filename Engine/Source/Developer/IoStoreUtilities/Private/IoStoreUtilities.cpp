@@ -818,6 +818,10 @@ static void BuildBundles(FExportGraph& ExportGraph, TMap<FName, FPackage*>& Pack
 	{
 		FPackage* Package = Node->Package;
 		check(Package);
+		if (!Package)
+		{
+			continue;
+		}
 
 		uint32 BundleIndex;
 		FExportBundle* Bundle;
