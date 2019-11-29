@@ -20,12 +20,13 @@ void ResetIndicesArray(TArray<int32> & IndicesArray, int32 Size)
 	}
 }
 
+//==============================================================================
+// FFieldSystemPhysicsProxy
+//==============================================================================
 
 FFieldSystemPhysicsProxy::FFieldSystemPhysicsProxy(UObject* InOwner)
 	: Base(InOwner)
-{
-
-}
+{}
 
 FFieldSystemPhysicsProxy::~FFieldSystemPhysicsProxy()
 {
@@ -38,12 +39,22 @@ FFieldSystemPhysicsProxy::~FFieldSystemPhysicsProxy()
 	Commands.Reset();
 }
 
+void FFieldSystemPhysicsProxy::Initialize()
+{}
+
 bool FFieldSystemPhysicsProxy::IsSimulating() const
 {
 	return true; // #todo Actually start gating this?
 }
 
-void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPhysicsSolver* InSolver, FParticlesType& Particles, Chaos::TArrayCollectionArray<float>& Strains, Chaos::TPBDPositionConstraints<float, 3>& PositionTarget, TMap<int32, int32>& PositionTargetedParticles, const TArray<FKinematicProxy>& AnimatedPosition, const float InTime)
+void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
+	Chaos::FPhysicsSolver* InSolver, 
+	FParticlesType& Particles, 
+	Chaos::TArrayCollectionArray<float>& Strains, 
+	Chaos::TPBDPositionConstraints<float, 3>& PositionTarget, 
+	TMap<int32, int32>& PositionTargetedParticles, 
+	//const TArray<FKinematicProxy>& AnimatedPosition, 
+	const float InTime)
 {
 	using namespace Chaos;
 	SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_Object);
@@ -54,68 +65,76 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPhysicsSolve
 	{
 #if TODO_REIMPLEMENT_RIGID_CLUSTERING
 		const Chaos::TArrayCollectionArray<Chaos::ClusterId> & ClusterIDs = CurrentSolver->GetRigidClustering().GetClusterIdsArray();
-#endif
-
-		// @todo: This seems like a waste if we just want to get everything
-		TArray<ContextIndex> IndicesArray;
+#endif // TODO_REIMPLEMENT_RIGID_CLUSTERING
 
 		TArray<FFieldSystemCommand>* CommandListPtr = GetSolverCommandList(InSolver);
-		
 		if(!CommandListPtr)
 		{
 			// No command list present for this solver, bail out
 			return;
 		}
-
 		const int32 NumCommands = CommandListPtr->Num();
-
 		TArray<int32> CommandsToRemove;
+		CommandsToRemove.Reserve(NumCommands);
+
+		// @todo: This seems like a waste if we just want to get everything
+		//TArray<ContextIndex> IndicesArray;
+		TArray<Chaos::TGeometryParticleHandle<float,3>*> Handles;
+		TArray<FVector> SamplePoints;
+		TArray<ContextIndex> SampleIndices;
+		TArray<ContextIndex>& IndicesArray = SampleIndices; // Do away with!
+		EFieldResolutionType PrevResolutionType = static_cast<EFieldResolutionType>(0); // none
 		for (int32 CommandIndex = 0; CommandIndex < NumCommands; CommandIndex++)
 		{
 			const FFieldSystemCommand& Command = (*CommandListPtr)[CommandIndex];
-			EFieldResolutionType ResolutionType = EFieldResolutionType::Field_Resolution_Minimal;
-			if (Command.MetaData.Contains(FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution))
+			const EFieldResolutionType ResolutionType = 
+				Command.HasMetaData(FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution) ?
+					Command.GetMetaDataAs<FFieldSystemMetaDataProcessingResolution>(
+						FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution)->ProcessingResolution :
+					EFieldResolutionType::Field_Resolution_Minimal;
+			if (PrevResolutionType != ResolutionType || Handles.Num() == 0)
 			{
-				check(Command.MetaData[FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution] != nullptr);
-				ResolutionType = static_cast<FFieldSystemMetaDataProcessingResolution*>(Command.MetaData[FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution].Get())->ProcessingResolution;
+				FFieldSystemPhysicsProxy::GetParticleHandles(Handles, CurrentSolver, ResolutionType);
+				PrevResolutionType = ResolutionType;
+
+				SamplePoints.AddUninitialized(Handles.Num());
+				SampleIndices.AddUninitialized(Handles.Num());
+				for (int32 Idx = 0; Idx < Handles.Num(); ++Idx)
+				{
+					SamplePoints[Idx] = Handles[Idx]->X();
+					SampleIndices[Idx] = ContextIndex(Idx, Idx);
+				}
 			}
 
 			if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_DynamicState))
 			{
 				SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_DynamicState);
 
-				FFieldSystemPhysicsProxy::ContiguousIndices(IndicesArray, CurrentSolver, ResolutionType, IndicesArray.Num() != Particles.Size());
-				if (IndicesArray.Num())
+				if (Handles.Num())
 				{
-					TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+					TArrayView<Chaos::TGeometryParticleHandle<float,3>*> HandlesView(&(Handles[0]), Handles.Num());
+					TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
+					TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
 
-					FVector * tptr = &(Particles.X(0));
-					TArrayView<FVector> SamplesView(tptr, int32(Particles.Size()));
-
-					FFieldContext Context{
-						IndexView, // @todo(brice) important: an empty index array should evaluate everything
-						SamplesView,
-						Command.MetaData
-					};
+					FFieldContext Context(
+						SampleIndicesView, // @todo(brice) important: an empty index array should evaluate everything
+						SamplePointsView,
+						Command.MetaData);
 
 					//
 					//  Sample the dynamic state array in the field
 					//
-					TArray<int32> DynamicState;
-					DynamicState.AddUninitialized(Particles.Size());
-					for(const ContextIndex& Index : IndicesArray)
+					TArray<int32> DynamicState; // TODO: 32 bits seems rather excessive!!!
+					DynamicState.AddUninitialized(Handles.Num());					
+					int32 i = 0;
+					for(Chaos::TGeometryParticleHandle<float,3>* Handle : Handles)
 					{
-						DynamicState[Index.Sample] = 0;	//is this needed?
-					}
-					
-					for (const ContextIndex& Index : IndicesArray)
-					{
-						const int32 i = Index.Sample;
-						if (Particles.ObjectState(i) == Chaos::EObjectStateType::Kinematic)
+						const Chaos::EObjectStateType CurrState = Handle->ObjectState();
+						if(CurrState == Chaos::EObjectStateType::Kinematic)
 						{
 							DynamicState[i] = (int)EObjectStateTypeEnum::Chaos_Object_Kinematic;
 						}
-						else if (Particles.ObjectState(i) == Chaos::EObjectStateType::Static)
+						else if (CurrState == Chaos::EObjectStateType::Static)
 						{
 							DynamicState[i] = (int)EObjectStateTypeEnum::Chaos_Object_Static;
 						}
@@ -123,66 +142,88 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPhysicsSolve
 						{
 							DynamicState[i] = (int)EObjectStateTypeEnum::Chaos_Object_Dynamic;
 						}
+						++i;
 					}
-					TArrayView<int32> DynamicStateView(&(DynamicState[0]), DynamicState.Num());
 
+					TArrayView<int32> DynamicStateView(&(DynamicState[0]), DynamicState.Num());
 					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<int32>::StaticType(),
 						TEXT("Field based evaluation of the simulations 'ObjectType' parameter expects int32 field inputs.")))
 					{
-						static_cast<const FFieldNode<int32> *>(Command.RootNode.Get())->Evaluate(Context, DynamicStateView);
+						static_cast<const FFieldNode<int32>*>(
+							Command.RootNode.Get())->Evaluate(Context, DynamicStateView);
 					}
 
-#if TODO_REIMPLEMENT_GETFLOORINDEX
-					// transfer results to rigid system.
-					int32 FloorIndex = CurrentSolver->GetFloorIndex();
-					int32 NumSamples = Context.SampleIndices.Num();
-					for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
+					bool StateChanged = false;
+					i = 0;
+					for (Chaos::TGeometryParticleHandle<float, 3>* Handle : Handles)
 					{
-						int32 RigidBodyIndex = Context.SampleIndices[SampleIndex].Result;
-						if (RigidBodyIndex != FloorIndex) // ignore the floor
-						{ 
-							if (DynamicStateView[RigidBodyIndex] == (int32)EObjectStateTypeEnum::Chaos_Object_Dynamic
-								&& Particles.ObjectState(RigidBodyIndex) == Chaos::EObjectStateType::Static
-								&& FLT_EPSILON < Particles.M(RigidBodyIndex))
+						// Lower level particle handles, like TGeometryParticleHandle and 
+						// TKinematicParticleHandle, infer their dynamic state by whether or not
+						// promotion to a derived c++ handle type succeeds or fails.
+						//
+						// THAT IS NOT WHAT WE WANT.
+						//
+						// PBDRigidParticles has an array of EObjectStateType, and the associated
+						// handle has a getter and a setter for that data.  So, at least for now,
+						// we're just going to ignore non-dynamic particles.  This has the added
+						// benefit of not needing to deal with the floor, as it's pretty likely to
+						// not be dynamic.  Har.
+
+						if (Chaos::TPBDRigidParticleHandleImp<float, 3, true>* DynHandle = Handle->AsDynamic())
+						{
+							const int32 FieldState = DynamicStateView[i];
+							const EObjectStateType HandleState = DynHandle->ObjectState();
+							if (FieldState == (int32)EObjectStateTypeEnum::Chaos_Object_Dynamic)
 							{
-								Particles.SetObjectState(RigidBodyIndex, Chaos::EObjectStateType::Dynamic);
+								if ((HandleState == Chaos::EObjectStateType::Static ||
+									 HandleState == Chaos::EObjectStateType::Kinematic) &&
+									DynHandle->M() > FLT_EPSILON)
+								{
+									DynHandle->SetObjectState(Chaos::EObjectStateType::Dynamic);
+									StateChanged = true;
+								}
+								else if (HandleState == Chaos::EObjectStateType::Sleeping)
+								{
+									DynHandle->SetObjectState(Chaos::EObjectStateType::Dynamic);
+									StateChanged = true;
+								}
 							}
-							// todo: This breaks shooting kinematic characters as dynamics takes over but enables cache interaction
-							else if (DynamicStateView[RigidBodyIndex] == (int32)EObjectStateTypeEnum::Chaos_Object_Dynamic
-								&& Particles.ObjectState(RigidBodyIndex) == Chaos::EObjectStateType::Kinematic
-								&& FLT_EPSILON < Particles.M(RigidBodyIndex))
+							else if (FieldState == (int32)EObjectStateTypeEnum::Chaos_Object_Kinematic)
 							{
-								Particles.SetObjectState(RigidBodyIndex, Chaos::EObjectStateType::Dynamic);
+								if (HandleState == Chaos::EObjectStateType::Dynamic)
+								{
+									DynHandle->SetObjectState(Chaos::EObjectStateType::Kinematic);
+									DynHandle->SetV(Chaos::TVector<float, 3>(0));
+									DynHandle->SetW(Chaos::TVector<float, 3>(0));
+									StateChanged = true;
+								}
 							}
-							else if ((DynamicStateView[RigidBodyIndex] == (int32)EObjectStateTypeEnum::Chaos_Object_Kinematic)
-								&& Particles.ObjectState(RigidBodyIndex) == Chaos::EObjectStateType::Dynamic)
+							else if (FieldState == (int32)EObjectStateTypeEnum::Chaos_Object_Static)
 							{
-								Particles.SetObjectState(RigidBodyIndex, Chaos::EObjectStateType::Kinematic);
-								Particles.V(RigidBodyIndex) = Chaos::TVector<float, 3>(0);
-								Particles.W(RigidBodyIndex) = Chaos::TVector<float, 3>(0);
+								if (HandleState == Chaos::EObjectStateType::Dynamic)
+								{
+									DynHandle->SetObjectState(Chaos::EObjectStateType::Static);
+									DynHandle->SetV(Chaos::TVector<float, 3>(0));
+									DynHandle->SetW(Chaos::TVector<float, 3>(0));
+									StateChanged = true;
+								}
 							}
-							else if ((DynamicStateView[RigidBodyIndex] == (int32)EObjectStateTypeEnum::Chaos_Object_Static)
-								&& Particles.ObjectState(RigidBodyIndex) == Chaos::EObjectStateType::Dynamic)
+							else if (FieldState == (int32)EObjectStateTypeEnum::Chaos_Object_Sleeping)
 							{
-								Particles.SetObjectState(RigidBodyIndex, Chaos::EObjectStateType::Static);
-								Particles.V(RigidBodyIndex) = Chaos::TVector<float, 3>(0);
-								Particles.W(RigidBodyIndex) = Chaos::TVector<float, 3>(0);
+								if (HandleState == Chaos::EObjectStateType::Dynamic)
+								{
+									DynHandle->SetObjectState(Chaos::EObjectStateType::Sleeping);
+									StateChanged = true;
+								}
 							}
-							else if ((DynamicStateView[RigidBodyIndex] == (int32)EObjectStateTypeEnum::Chaos_Object_Dynamic)
-								&& Particles.ObjectState(RigidBodyIndex) == Chaos::EObjectStateType::Sleeping)
-							{
-								Particles.SetObjectState(RigidBodyIndex, Chaos::EObjectStateType::Dynamic);
-								CurrentSolver->ActiveIndices().Add(RigidBodyIndex);
-							}
-							else if ((DynamicStateView[RigidBodyIndex] == (int32)EObjectStateTypeEnum::Chaos_Object_Sleeping)
-								&& Particles.ObjectState(RigidBodyIndex) == Chaos::EObjectStateType::Dynamic)
-							{
-								Particles.SetObjectState(RigidBodyIndex, Chaos::EObjectStateType::Sleeping);
-								CurrentSolver->ActiveIndices().Remove(RigidBodyIndex);
-							}
-						}
+						} // handle is dynamic
+						++i;
+					} // end for all handles
+					if (StateChanged)
+					{
+						// regenerate views
+						CurrentSolver->GetParticles().UpdateGeometryCollectionViews();
 					}
-#endif
 
 #if TODO_REIMPLEMENT_RIGID_CLUSTERING
 					//  Update all cluster bodies based on the changes in the kinematic state.
@@ -194,7 +235,7 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPhysicsSolve
 							CurrentSolver->GetRigidClustering().UpdateKinematicProperties(ActiveParticleIndex);
 						}
 					}
-#endif
+#endif // TODO_REIMPLEMENT_RIGID_CLUSTERING
 
 				}
 				CommandsToRemove.Add(CommandIndex);
@@ -892,8 +933,12 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPhysicsSolve
 	}
 }
 
-void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(Chaos::FPhysicsSolver* InSolver, FParticlesType& Particles, Chaos::TArrayCollectionArray<FVector> & Force,
-	Chaos::TArrayCollectionArray<FVector> & Torque, const float Time)
+void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(
+	Chaos::FPhysicsSolver* InSolver, 
+	FParticlesType& Particles, 
+	Chaos::TArrayCollectionArray<FVector> & Force, 
+	Chaos::TArrayCollectionArray<FVector> & Torque, 
+	const float Time)
 {
 	if (Commands.Num() && InSolver)
 	{
@@ -901,7 +946,6 @@ void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(Chaos::FPhysicsSolver* 
 		TArray<ContextIndex> IndicesArray;
 
 		TArray<FFieldSystemCommand>* CommandListPtr = GetSolverCommandList(InSolver);
-
 		if(!CommandListPtr)
 		{
 			return;
@@ -912,34 +956,55 @@ void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(Chaos::FPhysicsSolver* 
 		for(int32 CommandIndex = 0; CommandIndex < NumCommands; CommandIndex++)
 		{
 			const FFieldSystemCommand & Command = (*CommandListPtr)[CommandIndex];
-			EFieldResolutionType ResolutionType = EFieldResolutionType::Field_Resolution_Minimal;
-			if (Command.MetaData.Contains(FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution))
-			{
-				check(Command.MetaData[FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution] != nullptr);
-				ResolutionType = static_cast<FFieldSystemMetaDataProcessingResolution*>(Command.MetaData[FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution].Get())->ProcessingResolution;
-			}
+			const EFieldResolutionType ResolutionType = 
+				Command.HasMetaData(FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution) ?
+					Command.GetMetaDataAs<FFieldSystemMetaDataProcessingResolution>(
+						FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution)->ProcessingResolution :
+					EFieldResolutionType::Field_Resolution_Minimal;
 
 			if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_LinearForce))
 			{
 				if (ensureMsgf(Command.RootNode->Type() == FFieldNode<FVector>::StaticType(),
 					TEXT("Field based evaluation of the simulations 'Force' parameter expects FVector field inputs.")))
 				{
-					FFieldSystemPhysicsProxy::ContiguousIndices(IndicesArray, CurrentSolver, ResolutionType, IndicesArray.Num() != Particles.Size());
-					if (IndicesArray.Num())
+					TArray<Chaos::TGeometryParticleHandle<float,3>*> Handles;
+					FFieldSystemPhysicsProxy::GetParticleHandles(Handles, CurrentSolver, ResolutionType);
+					if (Handles.Num())
 					{
-						TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+						TArray<FVector> SamplePoints;
+						TArray<ContextIndex> SampleIndices;
+						SamplePoints.AddUninitialized(Handles.Num());
+						SampleIndices.AddUninitialized(Handles.Num());
+						for (int32 Idx = 0; Idx < Handles.Num(); ++Idx)
+						{
+							SamplePoints[Idx] = Handles[Idx]->X();
+							SampleIndices[Idx] = ContextIndex(Idx, Idx);
+						}
 
-						FVector * tptr = &(Particles.X(0));
-						TArrayView<FVector> SamplesView(tptr, int32(Particles.Size()));
+						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
+						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
 
-						FFieldContext Context{
-							IndexView,
-							SamplesView,
-							Command.MetaData
-						};
-						TArrayView<FVector> ForceView(&(Force[0]), Force.Num());
+						FFieldContext Context(
+							SampleIndicesView,
+							SamplePointsView,
+							Command.MetaData);
+
+						TArray<FVector> LocalForce;
+						LocalForce.AddUninitialized(Handles.Num());					
+						TArrayView<FVector> ForceView(&(LocalForce[0]), LocalForce.Num());
 						static_cast<const FFieldNode<FVector> *>(Command.RootNode.Get())->Evaluate(Context, ForceView);
+		
+						int32 i = 0;
+						for (Chaos::TGeometryParticleHandle<float, 3>* Handle : Handles)
+						{
+							if (Chaos::TPBDRigidParticleHandleImp<float, 3, true>* DynHandle = Handle->AsDynamic())
+							{
+								DynHandle->ExternalForce() += ForceView[i];
+							}
+							++i;
+						}
 
+#if TODO_REIMPLEMENT_WAKE_ISLANDS
 						// @todo(ccaulfield): encapsulation: add WakeParticles (and therefore islands) functionality to Evolution
 						TSet<int32> IslandsToActivate;
 						for (const ContextIndex& CIndex : IndicesArray)
@@ -950,7 +1015,6 @@ void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(Chaos::FPhysicsSolver* 
 								IslandsToActivate.Add(Particles.Island(i));
 							}
 						}
-#if TODO_REIMPLEMENT_WAKE_ISLANDS
 						InSolver->WakeIslands(IslandsToActivate);
 #endif
 					}
@@ -962,22 +1026,44 @@ void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(Chaos::FPhysicsSolver* 
 				if (ensureMsgf(Command.RootNode->Type() == FFieldNode<FVector>::StaticType(),
 					TEXT("Field based evaluation of the simulations 'Torque' parameter expects FVector field inputs.")))
 				{
-					FFieldSystemPhysicsProxy::ContiguousIndices(IndicesArray, CurrentSolver, ResolutionType, IndicesArray.Num() != Particles.Size());
-					if (IndicesArray.Num())
+					TArray<Chaos::TGeometryParticleHandle<float,3>*> Handles;
+					FFieldSystemPhysicsProxy::GetParticleHandles(Handles, CurrentSolver, ResolutionType);
+					if (Handles.Num())
 					{
-						TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+						TArray<FVector> SamplePoints;
+						TArray<ContextIndex> SampleIndices;
+						SamplePoints.AddUninitialized(Handles.Num());
+						SampleIndices.AddUninitialized(Handles.Num());
+						for (int32 Idx = 0; Idx < Handles.Num(); ++Idx)
+						{
+							SamplePoints[Idx] = Handles[Idx]->X();
+							SampleIndices[Idx] = ContextIndex(Idx, Idx);
+						}
 
-						FVector * tptr = &(Particles.X(0));
-						TArrayView<FVector> SamplesView(tptr, int32(Particles.Size()));
+						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
+						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
 
-						FFieldContext Context{
-							IndexView,
-							SamplesView,
-							Command.MetaData
-						};
-						TArrayView<FVector> TorqueView(&(Torque[0]), Torque.Num());
+						FFieldContext Context(
+							SampleIndicesView,
+							SamplePointsView,
+							Command.MetaData);
+
+						TArray<FVector> LocalTorque;
+						LocalTorque.AddUninitialized(Handles.Num());					
+						TArrayView<FVector> TorqueView(&(LocalTorque[0]), LocalTorque.Num());
 						static_cast<const FFieldNode<FVector> *>(Command.RootNode.Get())->Evaluate(Context, TorqueView);
+		
+						int32 i = 0;
+						for (Chaos::TGeometryParticleHandle<float, 3>* Handle : Handles)
+						{
+							if (Chaos::TPBDRigidParticleHandleImp<float, 3, true>* DynHandle = Handle->AsDynamic())
+							{
+								DynHandle->ExternalTorque() += TorqueView[i];
+							}
+							++i;
+						}
 
+#if TODO_REIMPLEMENT_WAKE_ISLANDS
 						// @todo(ccaulfield): encapsulation: add WakeParticles (and therefore islands) functionality to Evolution
 						TSet<int32> IslandsToActivate;
 						for (const ContextIndex& CIndex : IndicesArray)
@@ -988,7 +1074,6 @@ void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(Chaos::FPhysicsSolver* 
 								IslandsToActivate.Add(Particles.Island(i));
 							}
 						}
-#if TODO_REIMPLEMENT_WAKE_ISLANDS
 						InSolver->WakeIslands(IslandsToActivate);
 #endif
 					}
@@ -1003,87 +1088,140 @@ void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(Chaos::FPhysicsSolver* 
 	}
 }
 
-void FFieldSystemPhysicsProxy::EndFrameCallback(const float InDt)
-{
-}
-
 void FFieldSystemPhysicsProxy::BufferCommand(Chaos::FPhysicsSolver* InSolver, const FFieldSystemCommand& InCommand)
 {
+	// TODO: Consider inspecting InCommand and bucketing according to which evaluation 
+	// path it requires; FieldParameterUpdateCallback() or FieldForcesUpdateCallback().
+	// TODO: Consider using a lock free triple buffer.
+
 	TArray<FFieldSystemCommand>** ExistingList = nullptr;
 	{
 		FScopeLock Lock(&CommandLock);
 		ExistingList = Commands.Find(InSolver);
-
 		if(!ExistingList)
 		{
-			Commands.Add(InSolver);
-			ExistingList = Commands.Find(InSolver);
+			ExistingList = &Commands.Add(InSolver);
+			//Commands.Add(InSolver);
+			//ExistingList = Commands.Find(InSolver);
 			check(ExistingList);
-
 			(*ExistingList) = new TArray<FFieldSystemCommand>();
 		}
 	}
-
 	(*ExistingList)->Add(InCommand);
 }
 
-void FFieldSystemPhysicsProxy::ContiguousIndices(TArray<ContextIndex>& Array, const Chaos::FPhysicsSolver* RigidSolver, EFieldResolutionType ResolutionType, bool bForce = true)
+void FFieldSystemPhysicsProxy::GetParticleHandles(
+	TArray<Chaos::TGeometryParticleHandle<float,3>*>& Handles,
+	const Chaos::FPhysicsSolver* RigidSolver,
+	const EFieldResolutionType ResolutionType,
+	const bool bForce)
+{
+	Handles.SetNum(0, false);
+	if (!bForce)
+		return;
+
+	const Chaos::TPBDRigidsSOAs<float, 3>& SolverParticles = RigidSolver->GetParticles(); // const?
+
+	if (ResolutionType == EFieldResolutionType::Field_Resolution_Maximum)
+	{
+		// const TParticleView<TGeometryParticles<T, d>>& TPBDRigidSOAs<T,d>::GetAllParticlesView()
+		const Chaos::TParticleView<Chaos::TGeometryParticles<float, 3>> &ParticleView = 
+			SolverParticles.GetAllParticlesView();
+		Handles.Reserve(ParticleView.Num());
+
+		// TParticleIterator<TSOA> Begin() const, TSOA = TGeometryParticles<T, d>
+		for (Chaos::TParticleIterator<Chaos::TGeometryParticles<float, 3>> It = ParticleView.Begin(), ItEnd = ParticleView.End();
+			It != ItEnd; ++It)
+		{
+			const Chaos::TTransientGeometryParticleHandle<float,3> *Handle = &(*It);
+			// PBDRigidsSOAs.h only has a const version of GetAllParticlesView() - is that wrong?
+			Handles.Add(GetHandleHelper(const_cast<Chaos::TTransientGeometryParticleHandle<float,3>*>(Handle)));
+		}
+	}
+	else if (ResolutionType == EFieldResolutionType::Field_Resolution_Minimal)
+	{
+		const Chaos::TParticleView<Chaos::TGeometryParticles<float, 3>> &ParticleView = SolverParticles.GetNonDisabledView();
+		Handles.Reserve(ParticleView.Num());
+		for (Chaos::TParticleIterator<Chaos::TGeometryParticles<float, 3>> It = ParticleView.Begin(), ItEnd = ParticleView.End();
+			It != ItEnd; ++It)
+		{
+			const Chaos::TTransientGeometryParticleHandle<float,3> *Handle = &(*It);
+			Handles.Add(GetHandleHelper(const_cast<Chaos::TTransientGeometryParticleHandle<float,3>*>(Handle)));
+
+		}
+	}
+	else if (ResolutionType == EFieldResolutionType::Field_Resolution_DisabledParents)
+	{
+		check(false); // unimplemented
+	}
+}
+
+void FFieldSystemPhysicsProxy::ContiguousIndices(
+	TArray<ContextIndex>& Array, 
+	const Chaos::FPhysicsSolver* RigidSolver, 
+	const EFieldResolutionType ResolutionType, 
+	const bool bForce)
 {
 #if TODO_REIMPLEMENT_RIGID_CLUSTERING
-	if (bForce)
+	if (!bForce)
+	{
+		return;
+	}
+
+	if (ResolutionType == EFieldResolutionType::Field_Resolution_Minimal)
+	{
+		Array.SetNum(0, false);
+
+		int32 IndexCount = 0;
+		int32 FloorIndex = RigidSolver->GetFloorIndex();
+
+#if TODO_REIMPLEMENT_RIGID_CLUSTERING
+		const Chaos::FPhysicsSolver::FClusteringType& Clustering = RigidSolver->GetRigidClustering();
+		const Chaos::TArrayCollectionArray<Chaos::ClusterId>& ClusterIdArray = Clustering.GetClusterIdsArray();
+		const Chaos::FPhysicsSolver::FClusteringType::FClusterMap &  ClusterMap = Clustering.GetChildrenMap();
+#endif // TODO_REIMPLEMENT_RIGID_CLUSTERING
+
+		for (int32 ActiveParticleIndex : RigidSolver->NonDisabledIndices())
+		{
+			if (ClusterIdArray[ActiveParticleIndex].NumChildren)
+			{
+				for (uint32 ClusterChild : *ClusterMap[ActiveParticleIndex])
+				{
+					Array.Add(ContextIndex(ClusterChild, ClusterChild));
+				}
+			}
+
+			if( ActiveParticleIndex != FloorIndex )
+			{
+				Array.Add(ContextIndex(ActiveParticleIndex, ActiveParticleIndex));
+			}
+		}
+	}
+	else if (ResolutionType == EFieldResolutionType::Field_Resolution_DisabledParents)
+	{
+		Array.SetNum(0, false);
+
+		int32 IndexCount = 0;
+		int32 FloorIndex = RigidSolver->GetFloorIndex();
+		const Chaos::FPhysicsSolver::FClusteringType& Clustering = RigidSolver->GetRigidClustering();
+		const Chaos::TArrayCollectionArray<Chaos::ClusterId>& ClusterIdArray = Clustering.GetClusterIdsArray();
+
+		for (int32 TopLevelParent : Clustering.GetTopLevelClusterParents())
+		{
+			if( TopLevelParent != FloorIndex )
+			{
+				Array.Add(ContextIndex(TopLevelParent, TopLevelParent));
+			}
+		}
+	}
+	else if (ResolutionType == EFieldResolutionType::Field_Resolution_Maximum)
 	{
 		const Chaos::FPhysicsSolver::FParticlesType & Particles = RigidSolver->GetRigidParticles();
-		if (ResolutionType == EFieldResolutionType::Field_Resolution_Minimal)
+		Array.SetNum(Particles.Size());
+		for (int32 i = 0; i < Array.Num(); ++i)
 		{
-			Array.SetNum(0, false);
-
-			int32 IndexCount = 0;
-			int32 FloorIndex = RigidSolver->GetFloorIndex();
-			const Chaos::FPhysicsSolver::FClusteringType& Clustering = RigidSolver->GetRigidClustering();
-			const Chaos::TArrayCollectionArray<Chaos::ClusterId>& ClusterIdArray = Clustering.GetClusterIdsArray();
-			const Chaos::FPhysicsSolver::FClusteringType::FClusterMap &  ClusterMap = Clustering.GetChildrenMap();
-
-			for (int32 ActiveParticleIndex : RigidSolver->NonDisabledIndices())
-			{
-				if (ClusterIdArray[ActiveParticleIndex].NumChildren)
-				{
-					for (uint32 ClusterChild : *ClusterMap[ActiveParticleIndex])
-					{
-						Array.Add(ContextIndex(ClusterChild, ClusterChild));
-					}
-				}
-
-				if( ActiveParticleIndex != FloorIndex )
-				{
-					Array.Add(ContextIndex(ActiveParticleIndex, ActiveParticleIndex));
-				}
-			}
-		}
-		if (ResolutionType == EFieldResolutionType::Field_Resolution_DisabledParents)
-		{
-			Array.SetNum(0, false);
-
-			int32 IndexCount = 0;
-			int32 FloorIndex = RigidSolver->GetFloorIndex();
-			const Chaos::FPhysicsSolver::FClusteringType& Clustering = RigidSolver->GetRigidClustering();
-			const Chaos::TArrayCollectionArray<Chaos::ClusterId>& ClusterIdArray = Clustering.GetClusterIdsArray();
-
-			for (int32 TopLevelParent : Clustering.GetTopLevelClusterParents())
-			{
-				if( TopLevelParent != FloorIndex )
-				{
-					Array.Add(ContextIndex(TopLevelParent, TopLevelParent));
-				}
-			}
-		}
-		else if (ResolutionType == EFieldResolutionType::Field_Resolution_Maximum)
-		{
-			Array.SetNum(Particles.Size());
-			for (int32 i = 0; i < Array.Num(); ++i)
-			{
-				Array[i].Result = i;
-				Array[i].Sample = i;
-			}
+			Array[i].Sample = i;
+			Array[i].Result = i;
 		}
 	}
 #endif
