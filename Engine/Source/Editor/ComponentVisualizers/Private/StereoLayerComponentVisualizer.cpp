@@ -9,9 +9,8 @@
 void FStereoLayerComponentVisualizer::DrawVisualization( const UActorComponent* Component, const FSceneView* View, FPrimitiveDrawInterface* PDI )
 {
 	const UStereoLayerComponent* StereoLayerComp = Cast<const UStereoLayerComponent>(Component);
-	if(StereoLayerComp != nullptr)
+	if(StereoLayerComp != nullptr && StereoLayerComp->Shape != nullptr)
 	{
-		check(StereoLayerComp->Shape != nullptr);
 		StereoLayerComp->Shape->DrawShapeVisualization(View, PDI);
     }
 }
