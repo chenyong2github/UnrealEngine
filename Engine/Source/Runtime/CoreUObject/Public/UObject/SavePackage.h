@@ -37,7 +37,7 @@ public:
 			EIoChunkType Type;
 		};
 
-		void AddData(EIoChunkType InType, uint64 InChunkId, uint64 InOffset, uint64 InSize);
+		void AddData(EIoChunkType InType, uint64 InChunkId, uint64 InOffset, uint64 InSize, const FString& DebugFilename);
 		const TArray<BulkDataDesc>& GetDataArray() const { return Data; }
 	private:
 		friend FArchive& operator<<(FArchive& Ar, PackageDesc& Entry);

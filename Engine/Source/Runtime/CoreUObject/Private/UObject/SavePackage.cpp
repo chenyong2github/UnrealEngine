@@ -447,18 +447,34 @@ private:
 	TSet<FNameEntryId> ReferencedNames;
 };
 
-void FPackageStoreBulkDataManifest::PackageDesc::AddData(EIoChunkType InType, uint64 InChunkId, uint64 InOffset, uint64 InSize)
+void FPackageStoreBulkDataManifest::PackageDesc::AddData(EIoChunkType InType, uint64 InChunkId, uint64 InOffset, uint64 InSize, const FString& DebugFilename)
 {
 	// The ChunkId is supposed to be unique for each type
 	auto func = [=](const BulkDataDesc& Entry) { return Entry.ChunkId == InChunkId && Entry.Type == InType; };
-	check(Data.FindByPredicate(func) == nullptr);
+	if (Data.FindByPredicate(func) != nullptr)
+	{
+		FString Message;
+		for (int i = 0; i < Data.Num(); ++i)
+		{
+			const BulkDataDesc& Entry = Data[i];
+			Message.Appendf(TEXT("[%3d] ID: %20llu Offset: %8llu Size: %8llu Type: %d\n"),
+								 i, Entry.ChunkId, Entry.Offset, Entry.Size, Entry.Type);
+		}
 
-	BulkDataDesc& Entry = Data.Emplace_GetRef();
+		Message.Appendf(TEXT(	"[New] ID: %20llu Offset: %8llu Size: %8llu Type: %d\n"),
+								InChunkId, InOffset, InSize, InType);
 
-	Entry.ChunkId = InChunkId;
-	Entry.Offset = InOffset;
-	Entry.Size = InSize;
-	Entry.Type = InType;
+		UE_LOG(	LogSavePackage, Warning, TEXT("Duplicate BulkData description found in Package '%s', this will cause issues trying to run IoStore!\n%s"),*DebugFilename , *Message);
+	}
+	else
+	{
+		BulkDataDesc& Entry = Data.Emplace_GetRef();
+
+		Entry.ChunkId = InChunkId;
+		Entry.Offset = InOffset;
+		Entry.Size = InSize;
+		Entry.Type = InType;
+	}
 }
 
 FPackageStoreBulkDataManifest::FPackageStoreBulkDataManifest(const FString& ProjectPath)
@@ -520,7 +536,7 @@ void FPackageStoreBulkDataManifest::AddFileAccess(const FString& PackageFilename
 	const FString NormalizedFilename = FixFilename(PackageFilename);
 	
 	PackageDesc& Entry = GetOrCreateFileAccess(NormalizedFilename);
-	Entry.AddData(InType, InChunkId, InOffset, InSize);
+	Entry.AddData(InType, InChunkId, InOffset, InSize, NormalizedFilename);
 }
 
 FPackageStoreBulkDataManifest::PackageDesc& FPackageStoreBulkDataManifest::GetOrCreateFileAccess(const FString& PackageFilename)
