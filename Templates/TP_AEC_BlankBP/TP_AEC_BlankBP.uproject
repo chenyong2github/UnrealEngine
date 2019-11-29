@@ -18,13 +18,6 @@
 			"Enabled": true
 		},
 		{
-			"Name": "DatasmithCADImporter",
-			"Enabled": true,
-			"SupportedTargetPlatforms": [
-				"Win64"
-			]
-		},
-		{
 			"Name": "VariantManager",
 			"Enabled": true
 		},
@@ -40,9 +33,34 @@
 			"Name": "SequencerScripting",
 			"Enabled": false
 		},
-				{
+		{
+			"Name": "DatasmithCADImporter",
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win64"
+			]
+		},
+		{
+			"Name": "DatasmithIFCImporter",
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win64"
+			]
+		},
+		{
 			"Name": "StaticMeshEditorExtension",
 			"Enabled": true
+		},
+		{
+			"Name": "DatasmithGLTFImporter",
+			"Enabled": true
+		},
+		{
+			"Name": "AxFImporter",
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win64"
+			]
 		}
 	]
 }
