@@ -624,6 +624,10 @@ namespace UnrealBuildTool
 			{
 				return Enum.Parse(FieldType, TrimmedText);
 			}
+			else if (FieldType == typeof(FileReference))
+			{
+				return FileReference.FromString(Text);
+			}
 			else
 			{
 				throw new Exception(String.Format("Unsupported config type '{0}'", FieldType.Name));

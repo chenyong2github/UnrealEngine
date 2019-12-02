@@ -210,6 +210,10 @@ namespace Tools.DotNETCommon
 				bool? NullableValue = (bool?)Value;
 				Writer.Write(NullableValue.HasValue? NullableValue.Value? 1 : 0 : -1);
 			}
+			else if (FieldType == typeof(FileReference))
+			{
+				Writer.Write((FileReference)Value);
+			}
 			else
 			{
 				throw new Exception(String.Format("Unsupported type '{0}' for binary serialization", FieldType.Name));
