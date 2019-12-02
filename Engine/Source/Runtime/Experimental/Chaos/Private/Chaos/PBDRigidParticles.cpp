@@ -4,7 +4,8 @@
 
 void Chaos::EnsureSleepingObjectState(EObjectStateType ObjectState)
 {
-	ensure(ObjectState != EObjectStateType::Kinematic);
+	// feasible for game to set a dynamic body to kinematic state then to sleeping state
+	//ensure(ObjectState != EObjectStateType::Kinematic);
 	ensure(ObjectState != EObjectStateType::Static);
 }
 
