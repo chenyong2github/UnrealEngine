@@ -28,7 +28,7 @@ void FNetProfilerModule::OnAnalysisBegin(IAnalysisSession& InSession)
 
 void FNetProfilerModule::GetLoggers(TArray<const TCHAR *>& OutLoggers)
 {
-	OutLoggers.Add(TEXT("NetProfiler"));
+	//OutLoggers.Add(TEXT("NetProfiler"));
 }
 
 }

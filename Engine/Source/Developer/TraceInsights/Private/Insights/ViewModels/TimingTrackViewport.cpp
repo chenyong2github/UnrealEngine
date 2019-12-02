@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "TimingTrackViewport.h"
+#include "Insights/ViewModels/TimingTrackViewport.h"
 
 #include "Widgets/Layout/SScrollBar.h"
 
@@ -10,14 +10,21 @@
 
 bool FTimingTrackViewport::UpdateSize(const float InWidth, const float InHeight)
 {
-	if (Width != InWidth || Height != InHeight)
+	bool bSizeChanged = false;
+	if (Width != InWidth)
 	{
 		Width = InWidth;
-		Height = InHeight;
 		EndTime = SlateUnitsToTime(Width);
-		return true;
+		AddDirtyFlags(ETimingTrackViewportDirtyFlags::HSizeChanged);
+		bSizeChanged = true;
 	}
-	return false;
+	if (Height != InHeight)
+	{
+		Height = InHeight;
+		AddDirtyFlags(ETimingTrackViewportDirtyFlags::VSizeChanged);
+		bSizeChanged = true;
+	}
+	return bSizeChanged;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -29,6 +36,7 @@ bool FTimingTrackViewport::ScrollAtTime(const double Time)
 	{
 		StartTime = NewStartTime;
 		EndTime = SlateUnitsToTime(Width);
+		AddDirtyFlags(ETimingTrackViewportDirtyFlags::HPositionChanged);
 		return true;
 	}
 	return false;
@@ -64,6 +72,7 @@ bool FTimingTrackViewport::ZoomOnTimeInterval(const double Time, const double Du
 		StartTime = NewStartTime;
 		ScaleX = NewScaleX;
 		EndTime = SlateUnitsToTime(Width);
+		AddDirtyFlags(ETimingTrackViewportDirtyFlags::HPositionChanged | ETimingTrackViewportDirtyFlags::HScaleChanged);
 		return true;
 	}
 	return false;
@@ -102,6 +111,7 @@ bool FTimingTrackViewport::ZoomWithFixedX(const double NewScaleX, const float X)
 		StartTime += static_cast<double>(X) * (1.0 / ScaleX - 1.0 / LocalNewScaleX);
 		ScaleX = LocalNewScaleX;
 		EndTime = SlateUnitsToTime(Width);
+		AddDirtyFlags(ETimingTrackViewportDirtyFlags::HPositionChanged | ETimingTrackViewportDirtyFlags::HScaleChanged);
 		return true;
 	}
 	return false;
@@ -186,11 +196,21 @@ bool FTimingTrackViewport::EnforceHorizontalScrollLimits(const double U)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FTimingTrackViewport::UpdateLayout()
+{
+	if (Layout.Update())
+	{
+		AddDirtyFlags(ETimingTrackViewportDirtyFlags::VLayoutChanged);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 bool FTimingTrackViewport::OnUserScrolled(TSharedPtr<SScrollBar> ScrollBar, float ScrollOffset)
 {
 	const double S = 1.0 / (MaxValidTime - MinValidTime);
-	const double D = EndTime - StartTime;
-	const float ThumbSizeFraction = FMath::Clamp<float>(D * S, 0.0f, 1.0f);
+	const double Page = EndTime - StartTime;
+	const float ThumbSizeFraction = FMath::Clamp<float>(Page * S, 0.0f, 1.0f);
 	const float OffsetFraction = FMath::Clamp<float>(ScrollOffset, 0.0f, 1.0f - ThumbSizeFraction);
 
 	ScrollBar->SetState(OffsetFraction, ThumbSizeFraction);
@@ -210,8 +230,8 @@ bool FTimingTrackViewport::OnUserScrolled(TSharedPtr<SScrollBar> ScrollBar, floa
 void FTimingTrackViewport::UpdateScrollBar(TSharedPtr<SScrollBar> ScrollBar) const
 {
 	const double S = 1.0 / (MaxValidTime - MinValidTime);
-	const double D = EndTime - StartTime;
-	const float ThumbSizeFraction = FMath::Clamp<float>(D * S, 0.0f, 1.0f);
+	const double Page = EndTime - StartTime;
+	const float ThumbSizeFraction = FMath::Clamp<float>(Page * S, 0.0f, 1.0f);
 	const float ScrollOffset = static_cast<float>((StartTime - MinValidTime) * S);
 	const float OffsetFraction = FMath::Clamp<float>(ScrollOffset, 0.0f, 1.0f - ThumbSizeFraction);
 
@@ -222,9 +242,9 @@ void FTimingTrackViewport::UpdateScrollBar(TSharedPtr<SScrollBar> ScrollBar) con
 
 bool FTimingTrackViewport::OnUserScrolledY(TSharedPtr<SScrollBar> ScrollBar, float ScrollOffset)
 {
-	const float S = 1.0 / ScrollHeight;
-	const float D = Height - TopOffset;
-	const float ThumbSizeFraction = FMath::Clamp<float>(D * S, 0.0f, 1.0f);
+	const float S = 1.0f / ScrollHeight;
+	const float Page = Height - TopOffset - BottomOffset;
+	const float ThumbSizeFraction = FMath::Clamp<float>(Page * S, 0.0f, 1.0f);
 	const float OffsetFraction = FMath::Clamp<float>(ScrollOffset, 0.0f, 1.0f - ThumbSizeFraction);
 
 	ScrollBar->SetState(OffsetFraction, ThumbSizeFraction);
@@ -233,6 +253,7 @@ bool FTimingTrackViewport::OnUserScrolledY(TSharedPtr<SScrollBar> ScrollBar, flo
 	if (NewScrollPosY != ScrollPosY)
 	{
 		ScrollPosY = NewScrollPosY;
+		AddDirtyFlags(ETimingTrackViewportDirtyFlags::VPositionChanged);
 		return true;
 	}
 
@@ -243,9 +264,9 @@ bool FTimingTrackViewport::OnUserScrolledY(TSharedPtr<SScrollBar> ScrollBar, flo
 
 void FTimingTrackViewport::UpdateScrollBarY(TSharedPtr<SScrollBar> ScrollBar) const
 {
-	const float S = 1.0 / ScrollHeight;
-	const float D = Height - TopOffset;
-	const float ThumbSizeFraction = FMath::Clamp<float>(D * S, 0.0f, 1.0f);
+	const float S = 1.0f / ScrollHeight;
+	const float Page = Height - TopOffset - BottomOffset;
+	const float ThumbSizeFraction = FMath::Clamp<float>(Page * S, 0.0f, 1.0f);
 	const float ScrollOffset = ScrollPosY * S;
 	const float OffsetFraction = FMath::Clamp<float>(ScrollOffset, 0.0f, 1.0f - ThumbSizeFraction);
 

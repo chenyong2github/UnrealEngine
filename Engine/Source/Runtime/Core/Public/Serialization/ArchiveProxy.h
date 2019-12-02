@@ -278,6 +278,11 @@ public:
 		return InnerArchive.GetCacheableArchive();
 	}
 
+	virtual void SetArchiveState(const ::FArchiveState& InState) override
+	{
+		return InnerArchive.SetArchiveState(InState);
+	}
+
 protected:
 
 	/** Holds the archive that this archive is a proxy to. */

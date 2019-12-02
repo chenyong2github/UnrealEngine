@@ -6,12 +6,22 @@
 #include "Detail/Field.h"
 
 ////////////////////////////////////////////////////////////////////////////////
+#if UE_TRACE_ENABLED
+#	define UE_TRACE_IMPL(...)
+#	define UE_TRACE_API			TRACELOG_API
+#else
+#	define UE_TRACE_IMPL(...)	{ return __VA_ARGS__; }
+#	define UE_TRACE_API			inline
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
 namespace Trace
 {
 
+UE_TRACE_API uint32	GetMaxEventSize() UE_TRACE_IMPL(0);
 UE_TRACE_API bool	SendTo(const TCHAR* Host) UE_TRACE_IMPL(false);
 UE_TRACE_API bool	WriteTo(const TCHAR* Path) UE_TRACE_IMPL(false);
-UE_TRACE_API uint32 ToggleEvent(const TCHAR* Wildcard, bool bState) UE_TRACE_IMPL(false);
+UE_TRACE_API uint32 ToggleEvent(const TCHAR* Wildcard, bool bState) UE_TRACE_IMPL(0);
 
 } // namespace Trace
 

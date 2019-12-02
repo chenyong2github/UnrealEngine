@@ -840,7 +840,7 @@ public:
 	}
 };
 
-class FD3D11StagingBuffer : public FRHIStagingBuffer
+class FD3D11StagingBuffer final : public FRHIStagingBuffer
 {
 	friend class FD3D11DynamicRHI;
 public:
@@ -848,10 +848,10 @@ public:
 		: FRHIStagingBuffer()
 	{}
 
-	virtual ~FD3D11StagingBuffer() final override;
+	~FD3D11StagingBuffer() override;
 
-	virtual void* Lock(uint32 Offset, uint32 NumBytes) final override;
-	virtual void Unlock() final override;
+	void* Lock(uint32 Offset, uint32 NumBytes) override;
+	void Unlock() override;
 
 private:
 	FD3D11DeviceContext* Context;

@@ -59,6 +59,7 @@
 
 #if !(IS_PROGRAM || WITH_EDITOR)
 #include "IPlatformFilePak.h"
+#include "IO/IoDispatcher.h"
 #endif
 
 #if WITH_COREUOBJECT
@@ -647,7 +648,7 @@ void LaunchFixGameNameCase()
 	// correct the case of the game name, if possible (unless we're running a program and the game name is already set)
 	if (FPaths::IsProjectFilePathSet())
 	{
-		const FString GameName(FPaths::GetBaseFilename(IFileManager::Get().GetFilenameOnDisk(*FPaths::GetProjectFilePath())));
+		const FString GameName(FPaths::GetBaseFilename(FPaths::GetProjectFilePath()));
 
 		const bool bGameNameMatchesProjectCaseSensitive = (FCString::Strcmp(*GameName, FApp::GetProjectName()) == 0);
 		if (!bGameNameMatchesProjectCaseSensitive && (FApp::IsProjectNameEmpty() || GIsGameAgnosticExe || (GameName.Len() > 0 && GIsGameAgnosticExe)))
@@ -1177,6 +1178,11 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 	SCOPED_BOOT_TIMING("FEngineLoop::PreInit");
 
+	// Set the flag for whether we've build DebugGame instead of Development. The engine does not know this (whereas the launch module does) because it is always built in development.
+#if UE_BUILD_DEVELOPMENT && defined(UE_BUILD_DEVELOPMENT_WITH_DEBUGGAME) && UE_BUILD_DEVELOPMENT_WITH_DEBUGGAME
+	FApp::SetDebugGame(true);
+#endif
+
 	// Trace out information about this session
 	{
 		uint8 Payload[1024];
@@ -1228,11 +1234,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 #endif
 
 	FMemory::SetupTLSCachesOnCurrentThread();
-
-	// Set the flag for whether we've build DebugGame instead of Development. The engine does not know this (whereas the launch module does) because it is always built in development.
-#if UE_BUILD_DEVELOPMENT && defined(UE_BUILD_DEVELOPMENT_WITH_DEBUGGAME) && UE_BUILD_DEVELOPMENT_WITH_DEBUGGAME
-	FApp::SetDebugGame(true);
-#endif
 
 	// disable/enable LLM based on commandline
 	{
@@ -1441,6 +1442,14 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		SCOPED_BOOT_TIMING("IFileManager::Get().ProcessCommandLineOptions");
 		IFileManager::Get().ProcessCommandLineOptions();
 	}
+
+#if !(IS_PROGRAM || WITH_EDITOR)
+	// Initialize I/O dispatcher when using the new package loader
+	if (FParse::Param(FCommandLine::Get(), TEXT("zenloader")))
+	{
+		FIoDispatcher::Initialize(FPaths::ProjectDir());
+	}
+#endif
 
 	if (GIsGameAgnosticExe)
 	{
@@ -1735,6 +1744,12 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	}
 
 #if !IS_PROGRAM
+	// Fix the project file path case before we attempt to fix the game name
+	if (FPaths::IsProjectFilePathSet())
+	{
+		FPaths::SetProjectFilePath(IFileManager::Get().GetFilenameOnDisk(*FPaths::GetProjectFilePath()));
+	}
+
 	if (FApp::HasProjectName())
 	{
 		// Tell the module manager what the game binaries folder is
@@ -2124,6 +2139,23 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		InitializeStdOutDevice();
 	}
 
+	bool bIsCook = bHasCommandletToken && (Token == TEXT("cookcommandlet"));
+#if WITH_EDITOR
+	{
+		if (bIsCook)
+		{
+			// Target platform manager can only be initialized successfully after 
+			ITargetPlatformManagerModule* TargetPlatformManager = GetTargetPlatformManager(false);
+			FString InitErrors;
+			if (TargetPlatformManager && TargetPlatformManager->HasInitErrors(&InitErrors))
+			{
+				RequestEngineExit(InitErrors);
+				return 1;
+			}
+		}
+	}
+#endif
+
 	{
 		SCOPED_BOOT_TIMING("IPlatformFeaturesModule::Get()");
 		// allow the platform to start up any features it may need
@@ -2309,8 +2341,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	}
 
 
-	FString Commandline = FCommandLine::Get();
-	bool bEnableShaderCompile = !FParse::Param(*Commandline, TEXT("NoShaderCompile"));
+	bool bEnableShaderCompile = !FParse::Param(FCommandLine::Get(), TEXT("NoShaderCompile"));
 
 	if (bEnableShaderCompile && !FPlatformProperties::RequiresCookedData())
 	{
@@ -2348,8 +2379,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		// hack: don't load global shaders if we are cooking we will load the shaders for the correct platform later
 		if (bEnableShaderCompile &&
 			!IsRunningDedicatedServer() &&
-			Commandline.Contains(TEXT("cookcommandlet")) == false &&
-			Commandline.Contains(TEXT("run=cook")) == false)
+			!bIsCook)
 			// if (FParse::Param(FCommandLine::Get(), TEXT("Multiprocess")) == false)
 		{
 			LLM_SCOPE(ELLMTag::Shaders);
@@ -5094,7 +5124,7 @@ bool FEngineLoop::AppInit( )
 		// Find the editor target
 		FString EditorTargetFileName;
 		for (const FTargetInfo& Target : FDesktopPlatformModule::Get()->GetTargetsForProject(FPaths::GetProjectFilePath()))
-	{
+		{
 			if (Target.Type == EBuildTargetType::Editor)
 			{
 				if(FPaths::IsUnderDirectory(Target.Path, FPlatformMisc::ProjectDir()))

@@ -490,8 +490,8 @@ public:
 		const UClass* ThisClass = GetClass();
 
 		// Stop the compiler doing some unnecessary branching for nullptr checks
-		ASSUME(SomeBaseClass);
-		ASSUME(ThisClass);
+		UE_ASSUME(SomeBaseClass);
+		UE_ASSUME(ThisClass);
 
 		return IsChildOfWorkaround(ThisClass, SomeBaseClass);
 	}

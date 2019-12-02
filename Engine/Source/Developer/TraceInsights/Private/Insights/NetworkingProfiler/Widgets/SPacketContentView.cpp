@@ -26,7 +26,7 @@
 
 SPacketContentView::SPacketContentView()
 	: ProfilerWindow()
-	, DrawState(MakeShareable(new FPacketContentViewDrawState()))
+	, DrawState(MakeShared<FPacketContentViewDrawState>())
 {
 	Reset();
 }

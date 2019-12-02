@@ -39,7 +39,7 @@ namespace Insights
 struct FNetStatsViewColumnFactory
 {
 public:
-	static void CreateNetStatsViewColumns(TArray<TSharedPtr<Insights::FTableColumn>>& Columns);
+	static void CreateNetStatsViewColumns(TArray<TSharedRef<Insights::FTableColumn>>& Columns);
 
 	static TSharedRef<Insights::FTableColumn> CreateNameColumn();
 	static TSharedRef<Insights::FTableColumn> CreateTypeColumn();
