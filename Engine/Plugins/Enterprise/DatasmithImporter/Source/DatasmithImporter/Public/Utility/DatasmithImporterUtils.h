@@ -158,6 +158,23 @@ public:
 		int32 CurrentIndex;
 		TArray<TSharedPtr<IDatasmithBaseMaterialElement>> SortedMaterials;
 	};
+
+	/**
+	 * Convenience function duplicating an object specifically optimized for datasmith use cases
+	 *
+	 * @param SourceObject the object being copied
+	 * @param Outer the outer to use for the object
+	 * @param Name the optional name of the object
+	 *
+	 * @return the copied object or null if it failed for some reason
+	 */
+	static UObject* StaticDuplicateObject(UObject* SourceObject, UObject* Outer, const FName Name = NAME_None);
+
+	template< class T >
+	static T* DuplicateObject(T* SourceObject, UObject* Outer, const FName Name = NAME_None)
+	{
+		return (T*)FDatasmithImporterUtils::StaticDuplicateObject(SourceObject, Outer, Name);
+	}
 };
 
 template< typename ObjectType >

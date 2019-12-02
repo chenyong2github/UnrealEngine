@@ -6,7 +6,7 @@
 #include "CoreTechHelper.h"
 #include "CoreTechMeshLoader.h"
 #endif
-#include "CoreTechParametricSurfaceExtension.h"
+#include "CoreTechRetessellateAction.h"
 #include "DatasmithAdditionalData.h"
 #include "DatasmithStaticMeshImporter.h" // Call to BuildStaticMesh
 #include "DatasmithUtils.h"

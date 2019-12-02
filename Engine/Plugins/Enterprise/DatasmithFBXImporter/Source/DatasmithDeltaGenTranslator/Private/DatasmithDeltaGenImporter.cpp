@@ -731,7 +731,7 @@ TSharedPtr<IDatasmithBaseMaterialElement> FDatasmithDeltaGenImporter::ConvertMat
 	return MaterialElement;
 }
 
-void PopulateTransformAnimation(IDatasmithTransformAnimationElement& TransformAnimation, const FDeltaGenTmlDataAnimationTrack& Track)
+void PopulateTransformAnimation(IDatasmithTransformAnimationElement& TransformAnimation, const FDeltaGenTmlDataAnimationTrack& Track, float Framerate)
 {
 	if (Track.Zeroed)
 	{
@@ -797,7 +797,7 @@ void PopulateTransformAnimation(IDatasmithTransformAnimationElement& TransformAn
 		Curves[2].AddKey(Key, Value.Z, bUnwindRotation);
 	}
 
-	FFrameRate FrameRate = FFrameRate(30, 1);
+	FFrameRate FrameRate = FFrameRate(static_cast<uint32>(Framerate + 0.5f), 1);
 	FFrameNumber StartFrame = FrameRate.AsFrameNumber(MinKey);
 
 	// If we use AsFrameNumber it will floor, and we might lose the very end of the animation
@@ -849,7 +849,7 @@ TSharedPtr<IDatasmithLevelSequenceElement> FDatasmithDeltaGenImporter::ConvertAn
 
 		for (const FDeltaGenTmlDataAnimationTrack& Track : Animation.Tracks)
 		{
-			PopulateTransformAnimation(TransformAnimation.Get(), Track);
+			PopulateTransformAnimation(TransformAnimation.Get(), Track, TmlTimeline.Framerate);
 		}
 
 		if (TransformAnimation->GetFramesCount(EDatasmithTransformType::Translation) > 0 ||
@@ -857,6 +857,7 @@ TSharedPtr<IDatasmithLevelSequenceElement> FDatasmithDeltaGenImporter::ConvertAn
 			TransformAnimation->GetFramesCount(EDatasmithTransformType::Scale) > 0)
 		{
 			SequenceElement->AddAnimation(TransformAnimation);
+			SequenceElement->SetFrameRate(TmlTimeline.Framerate);
 		}
 	}
 

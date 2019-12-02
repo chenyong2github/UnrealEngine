@@ -7,19 +7,17 @@
 #include "IFC/IFCStaticMeshFactory.h"
 
 #include "DatasmithAssetImportData.h"
-#include "DatasmithImportContext.h"
 #include "DatasmithImportOptions.h"
 #include "DatasmithMeshHelper.h"
 #include "DatasmithSceneFactory.h"
+#include "DatasmithUtils.h"
 #include "IDatasmithSceneElements.h"
 #include "ObjectTemplates/DatasmithStaticMeshTemplate.h"
-#include "Utility/DatasmithImporterUtils.h"
 
 #include "AnalyticsEventAttribute.h"
 #include "AssetRegistryModule.h"
 #include "Engine/StaticMesh.h"
 #include "Misc/Paths.h"
-#include "ObjectTools.h"
 
 DEFINE_LOG_CATEGORY(LogDatasmithIFCImport);
 
@@ -64,7 +62,7 @@ bool FDatasmithIFCImporter::OpenFile(const FString& InFileName)
 
 FString FDatasmithIFCImporter::GetFilteredName(const FString& Name)
 {
-	return ObjectTools::SanitizeObjectName(Name);
+	return FDatasmithUtils::SanitizeObjectName(Name);
 }
 
 FString FDatasmithIFCImporter::GetUniqueName(const FString& Name)

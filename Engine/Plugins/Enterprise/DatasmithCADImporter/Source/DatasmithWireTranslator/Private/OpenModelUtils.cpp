@@ -6,6 +6,7 @@
 #include "CADOptions.h"
 #include "DatasmithUtils.h"
 #include "Translators/DatasmithTranslator.h"
+#include "IDatasmithSceneElements.h"
 
 #include "AlDagNode.h"
 #include "AlMesh.h"

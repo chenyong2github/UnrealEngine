@@ -12,12 +12,12 @@ FVariantManagerSelection::FVariantManagerSelection()
 {
 }
 
-const TSet<TSharedRef<FVariantManagerDisplayNode>>& FVariantManagerSelection::GetSelectedOutlinerNodes() const
+TSet<TSharedRef<FVariantManagerDisplayNode>>& FVariantManagerSelection::GetSelectedOutlinerNodes()
 {
 	return SelectedOutlinerNodes;
 }
 
-const TSet<TSharedRef<FVariantManagerActorNode>>& FVariantManagerSelection::GetSelectedActorNodes() const
+TSet<TSharedRef<FVariantManagerActorNode>>& FVariantManagerSelection::GetSelectedActorNodes()
 {
 	return SelectedActorNodes;
 }

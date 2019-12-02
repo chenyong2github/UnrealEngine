@@ -10,8 +10,17 @@
 
 #define SHOW_WIREFRAME_MESH 0
 
-FMeshMaterialRenderItem::FMeshMaterialRenderItem(const FMaterialData* InMaterialSettings, const FMeshData* InMeshSettings, EMaterialProperty InMaterialProperty)
-	: MeshSettings(InMeshSettings), MaterialSettings(InMaterialSettings), MaterialProperty(InMaterialProperty), MaterialRenderProxy(nullptr), ViewFamily(nullptr)
+FMeshMaterialRenderItem::FMeshMaterialRenderItem(
+	const FMaterialData* InMaterialSettings,
+	const FMeshData* InMeshSettings,
+	EMaterialProperty InMaterialProperty,
+	FDynamicMeshBufferAllocator* InDynamicMeshBufferAllocator)
+	: MeshSettings(InMeshSettings)
+	, MaterialSettings(InMaterialSettings)
+	, MaterialProperty(InMaterialProperty)
+	, MaterialRenderProxy(nullptr)
+	, ViewFamily(nullptr)
+	, DynamicMeshBufferAllocator(InDynamicMeshBufferAllocator)
 {
 	GenerateRenderData();
 	LCI = new FMeshRenderInfo(InMeshSettings->LightMap, nullptr, nullptr, InMeshSettings->LightmapResourceCluster);
@@ -101,7 +110,9 @@ void FMeshMaterialRenderItem::GenerateRenderData()
 
 void FMeshMaterialRenderItem::QueueMaterial(FRHICommandListImmediate& RHICmdList, FMeshPassProcessorRenderState& DrawRenderState, const FSceneView* View)
 {
-	FDynamicMeshBuilder DynamicMeshBuilder(View->GetFeatureLevel(), MAX_STATIC_TEXCOORDS, MeshSettings->LightMapIndex);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMaterialRenderItem::QueueMaterial)
+
+	FDynamicMeshBuilder DynamicMeshBuilder(View->GetFeatureLevel(), MAX_STATIC_TEXCOORDS, MeshSettings->LightMapIndex, false, DynamicMeshBufferAllocator);
 	DynamicMeshBuilder.AddVertices(Vertices);
 	DynamicMeshBuilder.AddTriangles(Indices);
 

@@ -1086,6 +1086,52 @@ const TSharedPtr<IDatasmithBaseMaterialElement>& FDatasmithImporterUtils::FDatas
 	}
 }
 
+UObject* FDatasmithImporterUtils::StaticDuplicateObject(UObject* SourceObject, UObject* Outer, const FName Name)
+{
+	UStaticMesh* SourceMesh = Cast< UStaticMesh >( SourceObject );
+
+	TArray<FStaticMeshSourceModel> SourceModels;
+	if (SourceMesh)
+	{
+		// Since static mesh can be quite heavy, remove source models for cloning to
+		// reduce useless work. Will be reinserted on the new duplicated asset.
+		SourceModels = MoveTemp(SourceMesh->GetSourceModels());
+
+		// Temporary flag to skip Postload during DuplicateObject
+		SourceMesh->SetFlags(RF_ArchetypeObject);
+	}
+
+	// Duplicate is used only to move our object from its temporary package into its final package replacing any asset
+	// already at that location. This function also takes care of fixing internal dependencies among the object's children.
+	// Since Duplicate has some rather heavy consequence, like calling PostLoad and doing all kind of stuff on an object
+	// that is not even fully initialized yet, we might want to find an alternative way of moving our objects in future 
+	// releases but keep it for the current release cycle.
+	UObject* Duplicate = ::DuplicateObject< UObject >( SourceObject, Outer, Name );
+
+	if ( SourceMesh )
+	{
+		UStaticMesh* DuplicateMesh = Cast< UStaticMesh >( Duplicate );
+
+		// Get rid of our temporary flag
+		SourceMesh->ClearFlags(RF_ArchetypeObject);
+		DuplicateMesh->ClearFlags(RF_ArchetypeObject);
+
+		for (FStaticMeshSourceModel& SourceModel : SourceModels)
+		{
+			// Fixup the new SourceModels owner
+			SourceModel.StaticMeshOwner = DuplicateMesh;
+
+			// Restore settings to the SourceMesh since they are used for diffing templates
+			SourceMesh->AddSourceModel().BuildSettings = SourceModel.BuildSettings;
+		}
+
+		// Apply source models to the duplicated mesh
+		DuplicateMesh->GetSourceModels() = MoveTemp(SourceModels);
+	}
+
+	return Duplicate;
+}
+
 FScopedLogger::FScopedLogger(FName LogTitle, const FText& LogLabel)
 	: Title(LogTitle)
 	, MessageLogModule(FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog"))

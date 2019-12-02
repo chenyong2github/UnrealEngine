@@ -159,6 +159,9 @@ struct FDeltaGenTmlDataTimelineAnimation
 struct FDeltaGenTmlDataTimeline : public FTableRowBase
 {
 	FString Name;
+	float Framerate;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=DeltaGen)
 	TArray<FDeltaGenTmlDataTimelineAnimation> Animations;
 };
 

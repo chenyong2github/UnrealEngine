@@ -865,6 +865,8 @@ void UPropertyValue::SetRecordedDataFromEnumIndex(int32 Index)
 
 	ensure(NewValueBytes.Num() == Size);
 
+	Modify();
+
 	SetRecordedDataInternal(NewValueBytes.GetData(), Size);
 }
 
@@ -1076,6 +1078,25 @@ void UPropertyValue::SetRecordedData(const uint8* NewDataBytes, int32 NumBytes, 
 		}
 	}
 }
+
+#if WITH_EDITORONLY_DATA
+uint32 UPropertyValue::GetDisplayOrder() const
+{
+	return DisplayOrder;
+}
+
+void UPropertyValue::SetDisplayOrder(uint32 InDisplayOrder)
+{
+	if (InDisplayOrder == DisplayOrder)
+	{
+		return;
+	}
+
+	Modify();
+
+	DisplayOrder = InDisplayOrder;
+}
+#endif
 
 void UPropertyValue::SetRecordedDataInternal(const uint8* NewDataBytes, int32 NumBytes, int32 Offset)
 {

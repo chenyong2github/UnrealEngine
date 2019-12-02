@@ -21,17 +21,14 @@ namespace UnrealBuildTool.Rules
 					"DatasmithExporter",
 					"Engine",
 					"Json",
-					"MainFrame",
 					"MeshDescription",
 					"MeshDescriptionOperations",
-					"MeshUtilities",
 					"MessageLog",
 					"Slate",
 					"SlateCore",
 					"StaticMeshDescription",
 					"UEOpenExr",
-					"UnrealEd",
-				}
+                }
 			);
 
 			PublicDependencyModuleNames.AddRange(

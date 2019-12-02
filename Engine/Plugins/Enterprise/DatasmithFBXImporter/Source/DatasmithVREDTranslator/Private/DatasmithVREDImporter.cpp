@@ -1320,7 +1320,7 @@ TSharedPtr<IDatasmithBaseMaterialElement> FDatasmithVREDImporter::ConvertMateria
 	return MaterialElement;
 }
 
-void PopulateTransformAnimation(IDatasmithTransformAnimationElement& TransformAnimation, EDatasmithTransformType AnimationType, const FDatasmithFBXSceneAnimCurve* CurveX, const FDatasmithFBXSceneAnimCurve* CurveY, const FDatasmithFBXSceneAnimCurve* CurveZ, double ScaleFactor)
+void PopulateTransformAnimation(IDatasmithTransformAnimationElement& TransformAnimation, EDatasmithTransformType AnimationType, const FDatasmithFBXSceneAnimCurve* CurveX, const FDatasmithFBXSceneAnimCurve* CurveY, const FDatasmithFBXSceneAnimCurve* CurveZ, double ScaleFactor, float Framerate)
 {
 	if (!CurveX && !CurveY && !CurveZ)
 	{
@@ -1425,7 +1425,7 @@ void PopulateTransformAnimation(IDatasmithTransformAnimationElement& TransformAn
 
 	TransformAnimation.SetEnabledTransformChannels(Channels | FDatasmithAnimationUtils::SetChannelTypeComponents(Components, AnimationType));
 
-	FFrameRate FrameRate = FFrameRate(30, 1); // The default for LevelSequenceElements
+	FFrameRate FrameRate = FFrameRate(static_cast<uint32>(Framerate + 0.5f), 1);
 	FFrameNumber StartFrame = FrameRate.AsFrameNumber(MinKey);
 	FFrameNumber EndFrame = FrameRate.AsFrameTime(MaxKey).CeilToFrame();
 
@@ -1464,7 +1464,7 @@ void PopulateTransformAnimation(IDatasmithTransformAnimationElement& TransformAn
 	}
 }
 
-void PopulateVisibilityAnimation(IDatasmithVisibilityAnimationElement& VisibilityAnimation, const FDatasmithFBXSceneAnimCurve* Curve)
+void PopulateVisibilityAnimation(IDatasmithVisibilityAnimationElement& VisibilityAnimation, const FDatasmithFBXSceneAnimCurve* Curve, float Framerate)
 {
 	if (Curve == nullptr || Curve->Points.Num() == 0)
 	{
@@ -1491,7 +1491,7 @@ void PopulateVisibilityAnimation(IDatasmithVisibilityAnimationElement& Visibilit
 		MaxKey = FMath::Max(MaxKey, CurvePoint->Time);
 	}
 
-	FFrameRate FrameRate = FFrameRate(30, 1);
+	FFrameRate FrameRate = FFrameRate(static_cast<uint32>(Framerate + 0.5f), 1);
 	FFrameNumber StartFrame = FrameRate.AsFrameNumber(MinKey);
 	FFrameNumber EndFrame = FrameRate.AsFrameTime(MaxKey).CeilToFrame();
 
@@ -1552,6 +1552,7 @@ TSharedPtr<IDatasmithLevelSequenceElement> FDatasmithVREDImporter::ConvertAnimBl
 	FString BlockName = CombinedBlock.NodeNameToBlock.CreateConstIterator().Value()->Name;
 
 	TSharedRef<IDatasmithLevelSequenceElement> SequenceElement = FDatasmithSceneFactory::CreateLevelSequence(*BlockName);
+	SequenceElement->SetFrameRate(IntermediateScene->BaseTime);
 
 	for (const auto& Pair : CombinedBlock.NodeNameToBlock)
 	{
@@ -1586,7 +1587,7 @@ TSharedPtr<IDatasmithLevelSequenceElement> FDatasmithVREDImporter::ConvertAnimBl
 
 				if (TransformAnimation.IsValid())
 				{
-					PopulateTransformAnimation(TransformAnimation.ToSharedRef().Get(), EDatasmithTransformType::Translation, CurveX, CurveY, CurveZ, IntermediateScene->ScaleFactor);
+					PopulateTransformAnimation(TransformAnimation.ToSharedRef().Get(), EDatasmithTransformType::Translation, CurveX, CurveY, CurveZ, IntermediateScene->ScaleFactor, IntermediateScene->BaseTime);
 				}
 			}
 		}
@@ -1608,7 +1609,7 @@ TSharedPtr<IDatasmithLevelSequenceElement> FDatasmithVREDImporter::ConvertAnimBl
 
 				if (TransformAnimation.IsValid())
 				{
-					PopulateTransformAnimation(TransformAnimation.ToSharedRef().Get(), EDatasmithTransformType::Scale, CurveX, CurveY, CurveZ, IntermediateScene->ScaleFactor);
+					PopulateTransformAnimation(TransformAnimation.ToSharedRef().Get(), EDatasmithTransformType::Scale, CurveX, CurveY, CurveZ, IntermediateScene->ScaleFactor, IntermediateScene->BaseTime);
 				}
 			}
 		}
@@ -1630,7 +1631,7 @@ TSharedPtr<IDatasmithLevelSequenceElement> FDatasmithVREDImporter::ConvertAnimBl
 
 				if (TransformAnimation.IsValid())
 				{
-					PopulateTransformAnimation(TransformAnimation.ToSharedRef().Get(), EDatasmithTransformType::Rotation, CurveX, CurveY, CurveZ, IntermediateScene->ScaleFactor);
+					PopulateTransformAnimation(TransformAnimation.ToSharedRef().Get(), EDatasmithTransformType::Rotation, CurveX, CurveY, CurveZ, IntermediateScene->ScaleFactor, IntermediateScene->BaseTime);
 				}
 			}
 		}
@@ -1653,7 +1654,7 @@ TSharedPtr<IDatasmithLevelSequenceElement> FDatasmithVREDImporter::ConvertAnimBl
 				if (VisibilityAnimation.IsValid())
 				{
 					VisibilityAnimation->SetPropagateToChildren(true);
-					PopulateVisibilityAnimation(VisibilityAnimation.ToSharedRef().Get(), Curves[0]);
+					PopulateVisibilityAnimation(VisibilityAnimation.ToSharedRef().Get(), Curves[0], IntermediateScene->BaseTime);
 				}
 			}
 		}
@@ -1674,7 +1675,7 @@ TSharedPtr<IDatasmithLevelSequenceElement> FDatasmithVREDImporter::ConvertAnimBl
 	return SequenceElement;
 }
 
-void ConvertAnimClips(TArray<FDatasmithFBXSceneAnimClip>& AnimClips, TMap<FString, FImportedAnim>& ImportedAnims, TArray<TSharedPtr<IDatasmithLevelSequenceElement>>& OutCreatedClips)
+void ConvertAnimClips(TArray<FDatasmithFBXSceneAnimClip>& AnimClips, TMap<FString, FImportedAnim>& ImportedAnims, TArray<TSharedPtr<IDatasmithLevelSequenceElement>>& OutCreatedClips, float Framerate)
 {
 	TArray<FDatasmithFBXSceneAnimClip> ClipsRemaining = AnimClips;
 
@@ -1717,8 +1718,9 @@ void ConvertAnimClips(TArray<FDatasmithFBXSceneAnimClip>& AnimClips, TMap<FStrin
 
 			// Create a IDatasmithLevelSequenceElement and populate it with pointers to the target subsequence elements
 			TSharedPtr<IDatasmithLevelSequenceElement> SequenceElement = FDatasmithSceneFactory::CreateLevelSequence(*Clip.Name);
+			SequenceElement->SetFrameRate(Framerate);
 
-			FFrameRate FrameRate = FFrameRate(FMath::RoundToInt(SequenceElement->GetFrameRate()), 1);
+			FFrameRate FrameRate = FFrameRate(static_cast<uint32>(Framerate + 0.5f), 1);
 
 			float MinStartTime = FLT_MAX;
 			float MaxEndTime = -FLT_MAX;
@@ -1964,7 +1966,7 @@ bool FDatasmithVREDImporter::SendSceneToDatasmith()
 		}
 
 		TArray<TSharedPtr<IDatasmithLevelSequenceElement>> CreatedClips;
-		ConvertAnimClips(ParsedAnimClips, ImportedAnimElements, CreatedClips);
+		ConvertAnimClips(ParsedAnimClips, ImportedAnimElements, CreatedClips, IntermediateScene->BaseTime);
 
 		for (const TSharedPtr<IDatasmithLevelSequenceElement>& CreatedClip : CreatedClips)
 		{

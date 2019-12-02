@@ -34,13 +34,12 @@ namespace GLTF
 		const TArray<FMaterialElement*>& CreateMaterials(const GLTF::FAsset& Asset, UObject* ParentPackage, EObjectFlags Flags);
 
 	private:
-		void HandleOcclusion(const TArray<GLTF::FTexture>& Texture, const GLTF::FMaterial& GLTFMaterial, FPBRMapFactory& MapFactory,
-		                     FMaterialElement& MaterialElement);
-
-		void HandleGGX(const TArray<GLTF::FTexture>& Texture, const GLTF::FMaterial& GLTFMaterial, FPBRMapFactory& MapFactory,
-		               FMaterialElement& MaterialElement);
-
 		void HandleOpacity(const TArray<GLTF::FTexture>& Texture, const GLTF::FMaterial& GLTFMaterial, FMaterialElement& MaterialElement);
+		void HandleShadingModel(const TArray<GLTF::FTexture>& Texture, const GLTF::FMaterial& GLTFMaterial, FPBRMapFactory& MapFactory, FMaterialElement& MaterialElement);
+		void HandleOcclusion(const TArray<GLTF::FTexture>& Texture, const GLTF::FMaterial& GLTFMaterial, FPBRMapFactory& MapFactory, FMaterialElement& MaterialElement);
+		void HandleEmissive(const TArray<GLTF::FTexture>& Textures, const GLTF::FMaterial& GLTFMaterial, FPBRMapFactory& MapFactory, FMaterialElement& MaterialElement);
+		void HandleNormal(const TArray<GLTF::FTexture>& Textures, const GLTF::FMaterial& GLTFMaterial, FPBRMapFactory& MapFactory, FMaterialElement& MaterialElement);
+
 
 	private:
 		TUniquePtr<IMaterialElementFactory> MaterialElementFactory;
@@ -112,38 +111,177 @@ namespace GLTF
 
 			MapFactory.CurrentMaterialElement = MaterialElement;
 
-			MapFactory.GroupName = TEXT("Base Color");
-			MapFactory.CreateColorMap(GetTexture(GLTFMaterial.BaseColor, Asset.Textures), GLTFMaterial.BaseColor.TexCoord,
-			                          GLTFMaterial.BaseColorFactor, TEXT("BaseColor"), nullptr, ETextureMode::Color, MaterialElement->GetBaseColor());
-
-			MapFactory.GroupName = TEXT("Normal");
-			MapFactory.CreateNormalMap(GetTexture(GLTFMaterial.Normal, Asset.Textures), GLTFMaterial.Normal.TexCoord, GLTFMaterial.NormalScale);
-			if (GLTFMaterial.Emissive.TextureIndex != INDEX_NONE && !GLTFMaterial.EmissiveFactor.IsNearlyZero())
-			{
-				MapFactory.GroupName = TEXT("Emission");
-				MapFactory.CreateColorMap(GetTexture(GLTFMaterial.Emissive, Asset.Textures), GLTFMaterial.Emissive.TexCoord,
-				                          GLTFMaterial.EmissiveFactor, TEXT("Emissive"), TEXT("Color"), ETextureMode::Color,
-				                          MaterialElement->GetEmissiveColor());  // emissive map is in sRGB space
-			}
-
-			HandleOcclusion(Asset.Textures, GLTFMaterial, MapFactory, *MaterialElement);
-			HandleGGX(Asset.Textures, GLTFMaterial, MapFactory, *MaterialElement);
+			HandleShadingModel(Asset.Textures, GLTFMaterial, MapFactory, *MaterialElement);
 			HandleOpacity(Asset.Textures, GLTFMaterial, *MaterialElement);
 
-			MaterialElement->Finalize();
+			// Additional maps
+			HandleOcclusion(Asset.Textures, GLTFMaterial, MapFactory, *MaterialElement);
+			HandleEmissive(Asset.Textures, GLTFMaterial, MapFactory, *MaterialElement);
+			HandleNormal(Asset.Textures, GLTFMaterial, MapFactory, *MaterialElement);
+
+			MaterialElement->SetGLTFMaterialHash(GLTFMaterial.GetHash());
+            MaterialElement->Finalize();
 			Materials.Add(MaterialElement);
 		}
 
 		return Materials;
 	}
 
-	void FMaterialFactoryImpl::HandleOcclusion(const TArray<GLTF::FTexture>& Textures, const GLTF::FMaterial& GLTFMaterial,
-	                                           FPBRMapFactory& MapFactory, FMaterialElement& MaterialElement)
+	void FMaterialFactoryImpl::HandleOpacity(const TArray<GLTF::FTexture>& Textures, const GLTF::FMaterial& GLTFMaterial, FMaterialElement& MaterialElement)
+	{
+		if (GLTFMaterial.IsOpaque())
+		{
+			return;
+		}
+
+		const TCHAR* GroupName = TEXT("Opacity");
+
+		FMaterialExpressionTexture* BaseColorMap = FindExpression<FMaterialExpressionTexture>(TEXT("BaseColor Map"), MaterialElement);
+		switch (GLTFMaterial.AlphaMode)
+		{
+		case FMaterial::EAlphaMode::Mask:
+		{
+			FMaterialExpressionColor* BaseColorFactor = FindExpression<FMaterialExpressionColor>(TEXT("BaseColor"), MaterialElement);
+
+			FMaterialExpressionGeneric* MultiplyExpression = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
+			MultiplyExpression->SetExpressionName(TEXT("Multiply"));
+			BaseColorFactor->ConnectExpression(*MultiplyExpression->GetInput(1), (int)FPBRMapFactory::EChannel::Alpha);
+			BaseColorMap->ConnectExpression(*MultiplyExpression->GetInput(0), (int)FPBRMapFactory::EChannel::Alpha);
+
+			FMaterialExpressionFunctionCall* CuttofExpression = MaterialElement.AddMaterialExpression<FMaterialExpressionFunctionCall>();
+			CuttofExpression->SetFunctionPathName(TEXT("/Engine/Functions/Engine_MaterialFunctions02/SmoothStep.SmoothStep"));
+
+			FMaterialExpressionScalar* ValueExpression = MaterialElement.AddMaterialExpression<FMaterialExpressionScalar>();
+			ValueExpression->SetName(TEXT("Alpha Cuttof"));
+			ValueExpression->SetGroupName(GroupName);
+			ValueExpression->GetScalar() = GLTFMaterial.AlphaCutoff;
+
+			MultiplyExpression->ConnectExpression(*CuttofExpression->GetInput(0), 0);
+			ValueExpression->ConnectExpression(*CuttofExpression->GetInput(1), 0);
+			ValueExpression->ConnectExpression(*CuttofExpression->GetInput(2), 0);
+
+			CuttofExpression->ConnectExpression(MaterialElement.GetOpacity(), 0);
+			break;
+		}
+		case FMaterial::EAlphaMode::Blend:
+		{
+			FMaterialExpressionScalar* ValueExpression = MaterialElement.AddMaterialExpression<FMaterialExpressionScalar>();
+			ValueExpression->SetName(TEXT("IOR"));
+			ValueExpression->SetGroupName(GroupName);
+			ValueExpression->GetScalar() = 1.f;
+			ValueExpression->ConnectExpression(MaterialElement.GetRefraction(), 0);
+
+			FMaterialExpressionColor* BaseColorFactor = FindExpression<FMaterialExpressionColor>(TEXT("BaseColor"), MaterialElement);
+			if (BaseColorMap)
+			{
+				FMaterialExpressionGeneric* MultiplyExpression = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
+				MultiplyExpression->SetExpressionName(TEXT("Multiply"));
+				BaseColorFactor->ConnectExpression(*MultiplyExpression->GetInput(1), (int)FPBRMapFactory::EChannel::Alpha);
+				BaseColorMap->ConnectExpression(*MultiplyExpression->GetInput(0), (int)FPBRMapFactory::EChannel::Alpha);
+				MultiplyExpression->ConnectExpression(MaterialElement.GetOpacity(), 0);
+			}
+			else
+			{
+				BaseColorFactor->ConnectExpression(MaterialElement.GetOpacity(), (int)FPBRMapFactory::EChannel::Alpha);
+			}
+			break;
+		}
+		default:
+			check(false);
+			break;
+		}
+	}
+
+	void FMaterialFactoryImpl::HandleShadingModel(const TArray<GLTF::FTexture>& Textures, const GLTF::FMaterial& GLTFMaterial, FPBRMapFactory& MapFactory, FMaterialElement& MaterialElement)
+	{
+		MapFactory.GroupName = TEXT("GGX");
+
+		TArray<FPBRMapFactory::FMapChannel, TFixedAllocator<4>> Maps;
+		if (GLTFMaterial.ShadingModel == FMaterial::EShadingModel::MetallicRoughness)
+		{
+			// Base Color
+			MapFactory.GroupName = TEXT("Base Color");
+			MapFactory.CreateColorMap(GetTexture(GLTFMaterial.BaseColor, Textures),
+									  GLTFMaterial.BaseColor.TexCoord,
+									  GLTFMaterial.BaseColorFactor,
+									  TEXT("BaseColor"),
+									  nullptr,
+									  ETextureMode::Color,
+									  MaterialElement.GetBaseColor());
+
+			// Metallic
+			Maps.Emplace(GLTFMaterial.MetallicRoughness.MetallicFactor,
+						 TEXT("Metallic Factor"),
+						 FPBRMapFactory::EChannel::Blue,
+						 &MaterialElement.GetMetallic(),
+						 nullptr);
+
+			// Roughness
+			Maps.Emplace(GLTFMaterial.MetallicRoughness.RoughnessFactor,
+						 TEXT("Roughness Factor"),
+						 FPBRMapFactory::EChannel::Green,
+						 &MaterialElement.GetRoughness(),
+						 nullptr);
+
+			MapFactory.CreateMultiMap(GetTexture(GLTFMaterial.MetallicRoughness.Map, Textures),
+									  GLTFMaterial.MetallicRoughness.Map.TexCoord,
+				                      TEXT("MetallicRoughness"),
+									  Maps.GetData(),
+									  Maps.Num(),
+									  ETextureMode::Grayscale);
+		}
+		else if (GLTFMaterial.ShadingModel == FMaterial::EShadingModel::SpecularGlossiness)
+		{
+			// We'll actually just convert it into MetalRoughness in the material graph
+			FMaterialExpressionFunctionCall* SpecGlossToMetalRough = MaterialElement.AddMaterialExpression<FMaterialExpressionFunctionCall>();
+			SpecGlossToMetalRough->SetFunctionPathName(TEXT("/GLTFImporter/SpecGlossToMetalRoughness.SpecGlossToMetalRoughness"));
+			SpecGlossToMetalRough->ConnectExpression(MaterialElement.GetBaseColor(), 0);
+			SpecGlossToMetalRough->ConnectExpression(MaterialElement.GetMetallic(), 1);
+
+			FMaterialExpressionGeneric* GlossToRoughness = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
+			GlossToRoughness->SetExpressionName(TEXT("OneMinus"));
+			GlossToRoughness->ConnectExpression(MaterialElement.GetRoughness(), 0);
+
+			// Diffuse Color (BaseColor/BaseColorFactor are used to store the Diffuse alternatives for Spec/Gloss)
+			MapFactory.GroupName = TEXT("Diffuse Color");
+			FMaterialExpression* Diffuse = MapFactory.CreateColorMap(GetTexture(GLTFMaterial.BaseColor, Textures),
+																	 GLTFMaterial.BaseColor.TexCoord,
+																	 GLTFMaterial.BaseColorFactor,
+																	 TEXT("Diffuse"),
+																	 TEXT("Color"),
+																	 ETextureMode::Color,
+																	 *SpecGlossToMetalRough->GetInput(1));
+
+			// Specular (goes into SpecGlossToMetalRough conversion)
+			Maps.Emplace(GLTFMaterial.SpecularGlossiness.SpecularFactor,
+						 TEXT("Specular Factor"),
+						 FPBRMapFactory::EChannel::RGB,
+						 SpecGlossToMetalRough->GetInput(0),
+						 nullptr);
+
+			// Glossiness (converted to Roughness)
+			Maps.Emplace(GLTFMaterial.SpecularGlossiness.GlossinessFactor,
+						 TEXT("Glossiness Factor"),
+				         FPBRMapFactory::EChannel::Alpha,
+						 GlossToRoughness->GetInput(0),
+						 nullptr);
+
+			// Creates the multimap for Specular and Glossiness
+			MapFactory.CreateMultiMap(GetTexture(GLTFMaterial.SpecularGlossiness.Map, Textures),
+									  GLTFMaterial.SpecularGlossiness.Map.TexCoord,
+				                      TEXT("SpecularGlossiness"),
+									  Maps.GetData(),
+									  Maps.Num(),
+				                      ETextureMode::Color);
+		}
+	}
+
+	void FMaterialFactoryImpl::HandleOcclusion(const TArray<GLTF::FTexture>& Textures, const GLTF::FMaterial& GLTFMaterial, FPBRMapFactory& MapFactory, FMaterialElement& MaterialElement)
 	{
 		MapFactory.GroupName = TEXT("Occlusion");
 
 		FMaterialExpressionTexture* TexExpression = MapFactory.CreateTextureMap(
-		    GetTexture(GLTFMaterial.Occlusion, Textures), GLTFMaterial.Occlusion.TexCoord, TEXT("Occlusion"), ETextureMode::Grayscale);
+			GetTexture(GLTFMaterial.Occlusion, Textures), GLTFMaterial.Occlusion.TexCoord, TEXT("Occlusion"), ETextureMode::Grayscale);
 
 		if (!TexExpression)
 			return;
@@ -166,167 +304,30 @@ namespace GLTF
 		LerpExpression->ConnectExpression(MaterialElement.GetAmbientOcclusion(), 0);
 	}
 
-	void FMaterialFactoryImpl::HandleGGX(const TArray<GLTF::FTexture>& Textures, const GLTF::FMaterial& GLTFMaterial, FPBRMapFactory& MapFactory,
-	                                     FMaterialElement& MaterialElement)
+	void FMaterialFactoryImpl::HandleEmissive(const TArray<GLTF::FTexture>& Textures, const GLTF::FMaterial& GLTFMaterial, FPBRMapFactory& MapFactory, FMaterialElement& MaterialElement)
 	{
-		MapFactory.GroupName = TEXT("GGX");
-
-		// will need to correct the roughness which is GGX
-		FMaterialExpressionGeneric* SqrtExpression = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
-		SqrtExpression->SetExpressionName(TEXT("SquareRoot"));
-
-		TArray<FPBRMapFactory::FMapChannel, TFixedAllocator<4> > Maps;
-		switch (GLTFMaterial.ShadingModel)
+		if (GLTFMaterial.Emissive.TextureIndex == INDEX_NONE || GLTFMaterial.EmissiveFactor.IsNearlyZero())
 		{
-			case FMaterial::EShadingModel::MetallicRoughness:
-			{
-				// according to the GLTF specs:
-				// cdiff = lerp(baseColor.rgb * (1 - dielectricSpecular.r), black, metallic)
-				// F0 = lerp(dieletricSpecular, baseColor.rgb, metallic)
-				// alpha = roughness ^ 2
-
-				Maps.Emplace(GLTFMaterial.MetallicRoughness.MetallicFactor, TEXT("Metallic Factor"),
-				                                      FPBRMapFactory::EChannel::Blue, &MaterialElement.GetMetallic(), nullptr);
-				Maps.Emplace(GLTFMaterial.MetallicRoughness.RoughnessFactor, TEXT("Roughness Factor"),
-				                                      FPBRMapFactory::EChannel::Greeen, &MaterialElement.GetRoughness(), SqrtExpression);
-
-				MapFactory.CreateMultiMap(GetTexture(GLTFMaterial.MetallicRoughness.Map, Textures), GLTFMaterial.MetallicRoughness.Map.TexCoord,
-				                          TEXT("MetallicRoughness Map"), Maps.GetData(), Maps.Num(), ETextureMode::Grayscale);
-
-				// GLTF specifies that the dielectricSpecular is, 0.04 while for UE4 it's 0.08 * Specular, so correct it
-				FMaterialExpressionScalar* ValueExpression = MaterialElement.AddMaterialExpression<FMaterialExpressionScalar>();
-				ValueExpression->GetScalar()               = 0.5f;
-				ValueExpression->ConnectExpression(MaterialElement.GetSpecular(), 0);
-
-				break;
-			}
-			case FMaterial::EShadingModel::SpecularGlossiness:
-			{
-				// according to the GLTF specs:
-				// cdiff = diffuse.rgb * (1 - max(specular.r, specular.g, specular.b))
-				// F0 = specular
-				// alpha = (1 - glossiness) ^ 2
-
-				// convert glossiness to roughness
-				{
-					FMaterialExpressionGeneric* NegExpression = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
-					NegExpression->SetExpressionName(TEXT("OneMinus"));
-					NegExpression->ConnectExpression(*SqrtExpression->GetInput(0), 0);
-				}
-
-				// create the multi map expressions
-				Maps.Emplace(0.f, TEXT("Specular Factor"), FPBRMapFactory::EChannel::RGB, &MaterialElement.GetSpecular(),
-				                                      nullptr);
-				Maps[0].SetValue(GLTFMaterial.SpecularGlossiness.SpecularFactor);
-				Maps.Emplace(GLTFMaterial.SpecularGlossiness.GlossinessFactor, TEXT("Glossiness Factor"),
-				                                      FPBRMapFactory::EChannel::Alpha, &MaterialElement.GetRoughness(), SqrtExpression);
-
-				MapFactory.CreateMultiMap(GetTexture(GLTFMaterial.SpecularGlossiness.Map, Textures), GLTFMaterial.SpecularGlossiness.Map.TexCoord,
-				                          TEXT("SpecularGlossiness Map"), Maps.GetData(), Maps.Num(),
-				                          ETextureMode::Color);  // specular map is in sRGB space
-
-				// adjust diffuse with specular
-				{
-					FMaterialExpressionColor* BaseColorFactor = FindExpression<FMaterialExpressionColor>(TEXT("BaseColor"), MaterialElement);
-					check(BaseColorFactor);
-					const float SpecValue = 1.0 - GLTFMaterial.SpecularGlossiness.SpecularFactor.GetMax();
-					BaseColorFactor->GetColor().R *= SpecValue;
-					BaseColorFactor->GetColor().G *= SpecValue;
-					BaseColorFactor->GetColor().B *= SpecValue;
-				}
-
-				FMaterialExpression* BaseColor = MaterialElement.GetBaseColor().GetExpression();
-				// convert specular to diffuse term
-				{
-					FMaterialExpression*        Specular      = MaterialElement.GetSpecular().GetExpression();
-					FMaterialExpressionGeneric* AddExpression = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
-					AddExpression->SetExpressionName(TEXT("Add"));
-
-					BaseColor->ConnectExpression(*AddExpression->GetInput(0), 0);
-					Specular->ConnectExpression(*AddExpression->GetInput(1), 0);
-					AddExpression->ConnectExpression(MaterialElement.GetBaseColor(), 0);
-				}
-				// convert diffuse to metallic, i.e. when diffuse zero material is metallic
-				{
-					FMaterialExpressionGeneric* NegExpression =
-					    MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();  // invert glossiness
-					NegExpression->SetExpressionName(TEXT("OneMinus"));
-					BaseColor->ConnectExpression(*NegExpression->GetInput(0), 0);
-					NegExpression->ConnectExpression(MaterialElement.GetMetallic(), 0);
-				}
-
-				break;
-			}
-			default:
-				check(false);
-				break;
-		}
-	}
-
-	void FMaterialFactoryImpl::HandleOpacity(const TArray<GLTF::FTexture>& Textures, const GLTF::FMaterial& GLTFMaterial,
-	                                         FMaterialElement& MaterialElement)
-	{
-		if (GLTFMaterial.IsOpaque())
 			return;
-
-		const TCHAR* GroupName = TEXT("Opacity");
-
-		FMaterialExpressionTexture* BaseColorMap = FindExpression<FMaterialExpressionTexture>(TEXT("BaseColor Map"), MaterialElement);
-		switch (GLTFMaterial.AlphaMode)
-		{
-			case FMaterial::EAlphaMode::Mask:
-			{
-				FMaterialExpressionColor* BaseColorFactor = FindExpression<FMaterialExpressionColor>(TEXT("BaseColor"), MaterialElement);
-
-				FMaterialExpressionGeneric* MultiplyExpression = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
-				MultiplyExpression->SetExpressionName(TEXT("Multiply"));
-				BaseColorFactor->ConnectExpression(*MultiplyExpression->GetInput(1), (int)FPBRMapFactory::EChannel::Alpha);
-				BaseColorMap->ConnectExpression(*MultiplyExpression->GetInput(0), (int)FPBRMapFactory::EChannel::Alpha);
-
-				FMaterialExpressionFunctionCall* CuttofExpression = MaterialElement.AddMaterialExpression<FMaterialExpressionFunctionCall>();
-				CuttofExpression->SetFunctionPathName(TEXT("/Engine/Functions/Engine_MaterialFunctions02/SmoothStep.SmoothStep"));
-
-				FMaterialExpressionScalar* ValueExpression = MaterialElement.AddMaterialExpression<FMaterialExpressionScalar>();
-				ValueExpression->SetName(TEXT("Alpha Cuttof"));
-				ValueExpression->SetGroupName(GroupName);
-				ValueExpression->GetScalar() = GLTFMaterial.AlphaCutoff;
-
-				MultiplyExpression->ConnectExpression(*CuttofExpression->GetInput(0), 0);
-				ValueExpression->ConnectExpression(*CuttofExpression->GetInput(1), 0);
-				ValueExpression->ConnectExpression(*CuttofExpression->GetInput(2), 0);
-
-				CuttofExpression->ConnectExpression(MaterialElement.GetOpacity(), 0);
-				break;
-			}
-			case FMaterial::EAlphaMode::Blend:
-			{
-				FMaterialExpressionScalar* ValueExpression = MaterialElement.AddMaterialExpression<FMaterialExpressionScalar>();
-				ValueExpression->SetName(TEXT("IOR"));
-				ValueExpression->SetGroupName(GroupName);
-				ValueExpression->GetScalar() = 1.f;
-				ValueExpression->ConnectExpression(MaterialElement.GetRefraction(), 0);
-
-				FMaterialExpressionColor* BaseColorFactor = FindExpression<FMaterialExpressionColor>(TEXT("BaseColor"), MaterialElement);
-				if (BaseColorMap)
-				{
-					FMaterialExpressionGeneric* MultiplyExpression = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
-					MultiplyExpression->SetExpressionName(TEXT("Multiply"));
-					BaseColorFactor->ConnectExpression(*MultiplyExpression->GetInput(1), (int)FPBRMapFactory::EChannel::Alpha);
-					BaseColorMap->ConnectExpression(*MultiplyExpression->GetInput(0), (int)FPBRMapFactory::EChannel::Alpha);
-					MultiplyExpression->ConnectExpression(MaterialElement.GetOpacity(), 0);
-				}
-				else
-					BaseColorFactor->ConnectExpression(MaterialElement.GetOpacity(), (int)FPBRMapFactory::EChannel::Alpha);
-
-				break;
-			}
-			default:
-				check(false);
-				break;
 		}
+
+		MapFactory.GroupName = TEXT("Emission");
+		MapFactory.CreateColorMap(GetTexture(GLTFMaterial.Emissive, Textures),
+								  GLTFMaterial.Emissive.TexCoord,
+								  GLTFMaterial.EmissiveFactor,
+								  TEXT("Emissive"),
+								  TEXT("Color"),
+								  ETextureMode::Color, // emissive map is in sRGB space
+								  MaterialElement.GetEmissiveColor());
 	}
 
-	//
+	void FMaterialFactoryImpl::HandleNormal(const TArray<GLTF::FTexture>& Textures, const GLTF::FMaterial& GLTFMaterial, FPBRMapFactory& MapFactory, FMaterialElement& MaterialElement)
+	{
+		MapFactory.GroupName = TEXT("Normal");
+		MapFactory.CreateNormalMap(GetTexture(GLTFMaterial.Normal, Textures),
+								   GLTFMaterial.Normal.TexCoord,
+								   GLTFMaterial.NormalScale);
+	}
 
 	FMaterialFactory::FMaterialFactory(IMaterialElementFactory* MaterialElementFactory, ITextureFactory* TextureFactory)
 	    : Impl(new FMaterialFactoryImpl(MaterialElementFactory, TextureFactory))

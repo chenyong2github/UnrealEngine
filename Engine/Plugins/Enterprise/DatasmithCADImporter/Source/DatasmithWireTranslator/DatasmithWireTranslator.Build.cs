@@ -23,7 +23,7 @@ public class DatasmithWireTranslator : ModuleRules
                 "CADTools",
                 "DatasmithContent",
 				"DatasmithCore",
-				"DatasmithCoreTechExtension",
+				"DatasmithCoreTechParametricSurfaceData",
 				"DatasmithImporter",
 				"Engine",
 				"MeshDescription",

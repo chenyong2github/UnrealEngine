@@ -192,29 +192,38 @@ void FDatasmithSceneXmlReader::ParseTextureElement(FXmlNode* InNode, TSharedPtr<
 {
 	ParseElement( InNode, OutElement.ToSharedRef() );
 
-	FString GammaAttribute = InNode->GetAttribute(TEXT("rgbcurve"));
-	if (GammaAttribute.IsEmpty() == false)
+	FString StrValue = InNode->GetAttribute(TEXT("rgbcurve"));
+	if (!StrValue.IsEmpty())
 	{
-		OutElement->SetRGBCurve(FCString::Atod(*GammaAttribute));
+		OutElement->SetRGBCurve(FCString::Atod(*StrValue));
 	}
 
-	FString StrValue = InNode->GetAttribute(TEXT("texturemode"));
-	if (StrValue != TEXT(""))
+	StrValue = InNode->GetAttribute(TEXT("srgb"));
+	if (!StrValue.IsEmpty())
+	{
+		OutElement->SetSRGB((EDatasmithColorSpace)FCString::Atoi(*StrValue));
+	}
+
+	StrValue = InNode->GetAttribute(TEXT("texturemode"));
+	if (!StrValue.IsEmpty())
 	{
 		OutElement->SetTextureMode((EDatasmithTextureMode)FCString::Atoi(*StrValue));
 	}
+
 	StrValue = InNode->GetAttribute(TEXT("texturefilter"));
-	if (StrValue != TEXT(""))
+	if (!StrValue.IsEmpty())
 	{
 		OutElement->SetTextureFilter((EDatasmithTextureFilter)FCString::Atoi(*StrValue));
 	}
+
 	StrValue = InNode->GetAttribute(TEXT("textureaddressx"));
-	if (StrValue != TEXT(""))
+	if (!StrValue.IsEmpty())
 	{
 		OutElement->SetTextureAddressX((EDatasmithTextureAddress)FCString::Atoi(*StrValue));
 	}
+
 	StrValue = InNode->GetAttribute(TEXT("textureaddressy"));
-	if (StrValue != TEXT(""))
+	if (!StrValue.IsEmpty())
 	{
 		OutElement->SetTextureAddressY((EDatasmithTextureAddress)FCString::Atoi(*StrValue));
 	}

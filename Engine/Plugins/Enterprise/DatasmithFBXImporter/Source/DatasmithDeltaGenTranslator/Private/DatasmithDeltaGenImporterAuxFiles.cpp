@@ -874,8 +874,20 @@ bool LoadTMLFile(const TCHAR* InFilePath, FDatasmithDeltaGenImportTmlResult& Out
 		return false;
 	}
 
+	// Default framerate
+	float FileFramerate = 30.0f;
+
 	for(const FXmlNode* Node: FXmlNodeChildren(AnimationsNode))
 	{
+		if (TEXT("FPS") == Node->GetTag())
+		{
+			float Framerate = FCString::Atof(*Node->GetContent());
+			if (!FMath::IsNearlyZero(Framerate))
+			{
+				FileFramerate = Framerate;
+			}
+		}
+
 		if ("Timeline" != Node->GetTag())
 		{
 			continue;
@@ -899,6 +911,7 @@ bool LoadTMLFile(const TCHAR* InFilePath, FDatasmithDeltaGenImportTmlResult& Out
 		FDeltaGenTmlDataTimeline& Timeline = *(new(OutResult.Timelines) FDeltaGenTmlDataTimeline);
 
 		Timeline.Name = TimelineName;
+		Timeline.Framerate = FileFramerate;
 
 		for(const FXmlNode* AnimationNode: FXmlNodeChildren(AnimationGroupNode))
 		{
@@ -975,151 +988,201 @@ bool LoadTMLFile(const TCHAR* InFilePath, FDatasmithDeltaGenImportTmlResult& Out
 					continue;
 				}
 
+				EDeltaGenTmlDataAnimationTrackType AnimationType = EDeltaGenTmlDataAnimationTrackType::Unsupported;
+				if (TEXT("SceneObjectTranslationAnimation") == ObjectAnimationNode->GetAttribute(TEXT("Type")))
 				{
-					EDeltaGenTmlDataAnimationTrackType AnimationType = EDeltaGenTmlDataAnimationTrackType::Unsupported;
-					{
-						if (TEXT("SceneObjectTranslationAnimation") == ObjectAnimationNode->GetAttribute(TEXT("Type")))
-						{
-							AnimationType = EDeltaGenTmlDataAnimationTrackType::Translation;
-						}
-						else if (TEXT("SceneObjectRotationAnimation") == ObjectAnimationNode->GetAttribute(TEXT("Type"))) // quaternion
-						{
-							AnimationType = EDeltaGenTmlDataAnimationTrackType::Rotation;
-						}
-						else if (TEXT("SceneObjectEulerAnimation") == ObjectAnimationNode->GetAttribute(TEXT("Type")))  // degrees
-						{
-							AnimationType = EDeltaGenTmlDataAnimationTrackType::RotationDeltaGenEuler;
-						}
-						else if (TEXT("SceneObjectScaleAnimation") == ObjectAnimationNode->GetAttribute(TEXT("Type")))
-						{
-							AnimationType = EDeltaGenTmlDataAnimationTrackType::Scale;
-						}
-						else if (TEXT("SceneObjectCenterAnimation") == ObjectAnimationNode->GetAttribute(TEXT("Type")))
-						{
-							AnimationType = EDeltaGenTmlDataAnimationTrackType::Center;
-						}
-
-					}
-
-					//FDeltaGenTmlDataAnimationTrack& AnimationTrack = TimelineAnimation.Tracks.Add(AnimationType);
-					FDeltaGenTmlDataAnimationTrack& AnimationTrack = *(new(TimelineAnimation.Tracks) FDeltaGenTmlDataAnimationTrack);
-					AnimationTrack.Type = AnimationType;
-
-					const FXmlNode* AnimationFunctionNodes = ObjectAnimationNode->FindChildNode("AnimationFunction");
-					for (const FXmlNode* AnimationFunctionNode: FXmlNodeChildren(AnimationFunctionNodes))
-					{
-						if (TEXT("Sequence") == AnimationFunctionNode->GetTag())
-						{
-								if (TEXT("Base") == AnimationFunctionNode->GetAttribute("Role"))
-								{
-									const FXmlNode* KeyframesNode = AnimationFunctionNode->FindChildNode("Keyframes");
-									if (!KeyframesNode)
-									{
-										continue;
-									}
-
-									const FXmlNode* KeysNode = KeyframesNode->FindChildNode("Keys");
-									if (!KeysNode)
-									{
-										continue;
-									}
-
-									const FXmlNode* ValuesNode = KeyframesNode->FindChildNode("Values");
-									if (!ValuesNode)
-									{
-										continue;
-									}
-
-									const FString& ValuesText = ValuesNode->GetContent();
-									TArray<FString> ValuesStrings;
-									TArray<FVector4> Values;
-									if (1 < ValuesText.ParseIntoArray(ValuesStrings, TEXT(";")))
-									{
-										for(const FString& ValueString: ValuesStrings)
-										{
-											TArray<FString> ValueTokens;
-
-											ValueString.ParseIntoArrayWS(ValueTokens);
-
-											TArray<float> ValueFloat;
-											for (int i = 0; i < ValueTokens.Num(); ++i)
-											{
-												ValueFloat.Add(FCString::Atof(*ValueTokens[i]));
-											}
-
-											int TockensLacking = 4-ValueTokens.Num();
-											if (0 < TockensLacking)
-											{
-												ValueFloat.AddZeroed(TockensLacking);
-											}
-
-											FVector4 ValueResult(ValueFloat[0], ValueFloat[1], ValueFloat[2], ValueFloat[3]);
-											switch(AnimationType)
-											{
-
-											// We export euler angles as is - because converting to quat looses information
-											// E.g. 0 vs. 360 degree euler rotation is same in quaternion representation. But for animation it makes difference.
-											// For example, take animation of [(0, 0, 0), (360, 0, 0)] in euler angles, this is full circle rotation
-											// this can't be encoded in quats as quats define orientation
-											case EDeltaGenTmlDataAnimationTrackType::RotationDeltaGenEuler:
-											{
-												FVector Euler(ValueFloat[0], ValueFloat[1], ValueFloat[2]);
-												ValueResult = FVector4(Euler, 0.0f);
-											}
-											break;
-											case EDeltaGenTmlDataAnimationTrackType::Rotation:
-												{
-													// taked from FFbxDataConverter::ConvertRotToQuat
-													FQuat Quat(ValueFloat[0], -ValueFloat[1], ValueFloat[2], -ValueFloat[3]);
-													auto Rotator = Quat.Rotator();
-													ValueResult = FVector4(Rotator.Euler(), 0.0f);
-												}
-												break;
-											};
-
-											Values.Add(ValueResult);
-										}
-									}
-
-									const FString& KeysText = KeysNode->GetContent();
-
-									TArray<FString> KeysStrings;
-									TArray<float> Keys;
-									if (1 < KeysText.ParseIntoArray(KeysStrings, TEXT(";")))
-									{
-										for(const FString& KeyString: KeysStrings)
-										{
-											Keys.Add(FCString::Atof(*KeyString));
-										}
-									}
-
-									if (Keys.Num() == Values.Num())
-									{
-										for (int i=0;i!=Values.Num();++i)
-										{
-											AnimationTrack.Keys.Add(Keys[i]);
-											AnimationTrack.Values.Add(Values[i]);
-										}
-									}
-								}
-								else if ("TimeAdjustment" == AnimationFunctionNode->GetAttribute("Role"))
-								{
-								}
-						}
-					}
-
-					// all zeroes seems to be the same as absent animation
-					bool AllZeroes = true;
-					for(auto Value: AnimationTrack.Values)
-					{
-						if (Value != FVector4(0.0f, 0.0f, 0.0f, 0.0f))
-						{
-							AllZeroes = false;
-							break;
-						}
-					}
-					AnimationTrack.Zeroed = AllZeroes;
+					AnimationType = EDeltaGenTmlDataAnimationTrackType::Translation;
 				}
+				else if (TEXT("SceneObjectRotationAnimation") == ObjectAnimationNode->GetAttribute(TEXT("Type"))) // quaternion
+				{
+					AnimationType = EDeltaGenTmlDataAnimationTrackType::Rotation;
+				}
+				else if (TEXT("SceneObjectEulerAnimation") == ObjectAnimationNode->GetAttribute(TEXT("Type")))  // degrees
+				{
+					AnimationType = EDeltaGenTmlDataAnimationTrackType::RotationDeltaGenEuler;
+				}
+				else if (TEXT("SceneObjectScaleAnimation") == ObjectAnimationNode->GetAttribute(TEXT("Type")))
+				{
+					AnimationType = EDeltaGenTmlDataAnimationTrackType::Scale;
+				}
+				else if (TEXT("SceneObjectCenterAnimation") == ObjectAnimationNode->GetAttribute(TEXT("Type")))
+				{
+					AnimationType = EDeltaGenTmlDataAnimationTrackType::Center;
+				}
+
+				//FDeltaGenTmlDataAnimationTrack& AnimationTrack = TimelineAnimation.Tracks.Add(AnimationType);
+				FDeltaGenTmlDataAnimationTrack& AnimationTrack = *(new(TimelineAnimation.Tracks) FDeltaGenTmlDataAnimationTrack);
+				AnimationTrack.Type = AnimationType;
+
+				const FXmlNode* AnimationFunctionNodes = ObjectAnimationNode->FindChildNode("AnimationFunction");
+				for (const FXmlNode* AnimationFunctionNode: FXmlNodeChildren(AnimationFunctionNodes))
+				{
+					if (TEXT("Sequence") == AnimationFunctionNode->GetTag())
+					{
+						if (TEXT("Base") == AnimationFunctionNode->GetAttribute("Role"))
+						{
+							const FXmlNode* KeyframesNode = AnimationFunctionNode->FindChildNode("Keyframes");
+							if (!KeyframesNode)
+							{
+								continue;
+							}
+
+							const FXmlNode* KeysNode = KeyframesNode->FindChildNode("Keys");
+							if (!KeysNode)
+							{
+								continue;
+							}
+
+							const FXmlNode* ValuesNode = KeyframesNode->FindChildNode("Values");
+							if (!ValuesNode)
+							{
+								continue;
+							}
+
+							const FString& ValuesText = ValuesNode->GetContent();
+							TArray<FString> ValuesStrings;
+							TArray<FVector4> Values;
+							if (1 < ValuesText.ParseIntoArray(ValuesStrings, TEXT(";")))
+							{
+								for(const FString& ValueString: ValuesStrings)
+								{
+									TArray<FString> ValueTokens;
+
+									ValueString.ParseIntoArrayWS(ValueTokens);
+
+									TArray<float> ValueFloat;
+									for (int i = 0; i < ValueTokens.Num(); ++i)
+									{
+										ValueFloat.Add(FCString::Atof(*ValueTokens[i]));
+									}
+
+									int TockensLacking = 4-ValueTokens.Num();
+									if (0 < TockensLacking)
+									{
+										ValueFloat.AddZeroed(TockensLacking);
+									}
+
+									FVector4 ValueResult(ValueFloat[0], ValueFloat[1], ValueFloat[2], ValueFloat[3]);
+									switch(AnimationType)
+									{
+
+									// We export euler angles as is - because converting to quat looses information
+									// E.g. 0 vs. 360 degree euler rotation is same in quaternion representation. But for animation it makes difference.
+									// For example, take animation of [(0, 0, 0), (360, 0, 0)] in euler angles, this is full circle rotation
+									// this can't be encoded in quats as quats define orientation
+									case EDeltaGenTmlDataAnimationTrackType::RotationDeltaGenEuler:
+									{
+										FVector Euler(ValueFloat[0], ValueFloat[1], ValueFloat[2]);
+										ValueResult = FVector4(Euler, 0.0f);
+									}
+									break;
+									case EDeltaGenTmlDataAnimationTrackType::Rotation:
+										{
+											// taked from FFbxDataConverter::ConvertRotToQuat
+											FQuat Quat(ValueFloat[0], -ValueFloat[1], ValueFloat[2], -ValueFloat[3]);
+											auto Rotator = Quat.Rotator();
+											ValueResult = FVector4(Rotator.Euler(), 0.0f);
+										}
+										break;
+									};
+
+									Values.Add(ValueResult);
+								}
+							}
+
+							const FString& KeysText = KeysNode->GetContent();
+
+							TArray<FString> KeysStrings;
+							TArray<float> Keys;
+							if (1 < KeysText.ParseIntoArray(KeysStrings, TEXT(";")))
+							{
+								for(const FString& KeyString: KeysStrings)
+								{
+									Keys.Add(FCString::Atof(*KeyString));
+								}
+							}
+
+							if (Keys.Num() == Values.Num())
+							{
+								for (int i=0;i!=Values.Num();++i)
+								{
+									AnimationTrack.Keys.Add(Keys[i]);
+									AnimationTrack.Values.Add(Values[i]);
+								}
+							}
+						}
+					}
+
+					// This is a strange behavior from DeltaGen: If the animation was originally 25fps and it was later
+					// converted to 50fps, the .tml file will still contain '25' for the FPS, but the animations will have
+					// a "TimeAdjustment" Interpolator with control vertices that have an extra multiplier in the x dimension.
+					// Example: In this case, the Interpolator's ControlVertices xml element would look like this:
+					//						<Positions>
+					//							0.00000000 0.00000000 0.00000000;
+					//							6.66666651 3.33333325 0.00000000;
+					//							13.33333302 6.66666651 0.00000000;
+					//							20.00000000 10.00000000 0.00000000
+					//						</Positions>
+					// Notice how x * 2 = y: This means that 2 is our factor, so the animation framerate is 25 * 2 = 50fps
+					// I have no idea why this is done, or if it actually works like this every time, but that's as much info
+					// as we have
+					else if (TEXT("Interpolator") == AnimationFunctionNode->GetTag())
+					{
+						if (TEXT("TimeAdjustment") == AnimationFunctionNode->GetAttribute(TEXT("Role")))
+						{
+							const FXmlNode* InterpolationCurveNode = AnimationFunctionNode->FindChildNode(TEXT("InterpolationCurve"));
+							if (!InterpolationCurveNode)
+							{
+								continue;
+							}
+
+							const FXmlNode* ControlVerticesNode = InterpolationCurveNode->FindChildNode(TEXT("ControlVertices"));
+							if (!ControlVerticesNode)
+							{
+								continue;
+							}
+
+							const FXmlNode* PositionsNode = ControlVerticesNode->FindChildNode(TEXT("Positions"));
+							if (!PositionsNode)
+							{
+								continue;
+							}
+
+							const FString& PositionsText = PositionsNode->GetContent();
+							TArray<FString> VectorStrings;
+							if (1 < PositionsText.ParseIntoArray(VectorStrings, TEXT(";")))
+							{
+								for (const FString& VectorString : VectorStrings)
+								{
+									TArray<FString> ValueStrings;
+									if (2 <= VectorString.ParseIntoArray(ValueStrings, TEXT(" ")))
+									{
+										float X = FCString::Atof(*ValueStrings[0]);
+										float Y = FCString::Atof(*ValueStrings[1]);
+
+										if(!FMath::IsNearlyZero(Y))
+										{
+											Timeline.Framerate = FMath::Max(Timeline.Framerate, FileFramerate * X / Y);
+											break;
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+
+				// all zeroes seems to be the same as absent animation
+				bool AllZeroes = true;
+				for(auto Value: AnimationTrack.Values)
+				{
+					if (Value != FVector4(0.0f, 0.0f, 0.0f, 0.0f))
+					{
+						AllZeroes = false;
+						break;
+					}
+				}
+				AnimationTrack.Zeroed = AllZeroes;
 			}
 		}
 	}

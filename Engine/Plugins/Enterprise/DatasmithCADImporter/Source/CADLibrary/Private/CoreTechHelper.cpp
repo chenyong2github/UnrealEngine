@@ -657,36 +657,6 @@ TSharedPtr<IDatasmithUEPbrMaterialElement> CreateUEPbrMaterialFromMaterial(FCADM
 	return MaterialElement;
 }
 
-uint32 GetSize(CT_TESS_DATA_TYPE type)
-{
-	switch (type)
-	{
-	case CT_TESS_USE_DEFAULT:
-		return sizeof(uint32);
-	case CT_TESS_UBYTE:
-		return sizeof(uint8_t);
-	case CT_TESS_BYTE:
-		return sizeof(int8_t);
-	case CT_TESS_USHORT:
-		return sizeof(int16_t);
-	case CT_TESS_SHORT:
-		return sizeof(uint16_t);
-	case CT_TESS_UINT:
-		return sizeof(uint32);
-	case CT_TESS_INT:
-		return sizeof(int32);
-	case CT_TESS_ULONG:
-		return sizeof(uint64);
-	case CT_TESS_LONG:
-		return sizeof(int64);
-	case CT_TESS_FLOAT:
-		return sizeof(float);
-	case CT_TESS_DOUBLE:
-		return sizeof(double);
-	}
-	return 0;
-}
-
 CT_IO_ERROR Tessellate(CT_OBJECT_ID MainObjectId, const FImportParameters& ImportParams, FMeshDescription& MeshDesc, FMeshParameters& MeshParameters)
 {
 	CheckedCTError Result;

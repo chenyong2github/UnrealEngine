@@ -10,6 +10,7 @@
 #include "GLTFAsset.h"
 #include "GLTFMaterialFactory.h"
 #include "GLTFReader.h"
+#include "GLTFMesh.h"
 #include "GLTFMeshFactory.h"
 
 #include "DatasmithAssetImportData.h"
@@ -22,6 +23,7 @@
 #include "AssetRegistryModule.h"
 #include "Engine/StaticMesh.h"
 #include "Misc/Paths.h"
+#include "Misc/SecureHash.h"
 
 DEFINE_LOG_CATEGORY(LogDatasmithGLTFImport);
 
@@ -188,13 +190,23 @@ TSharedPtr<IDatasmithMeshActorElement> FDatasmithGLTFImporter::CreateStaticMeshA
 	{
 		ImportedMeshes.Add(MeshIndex);
 
-		TSharedRef<IDatasmithMeshElement> MeshElement = FDatasmithSceneFactory::CreateMesh(*GLTFAsset->Meshes[MeshIndex].Name);
+		const GLTF::FMesh& Mesh = GLTFAsset->Meshes[MeshIndex];
+
+		TSharedRef<IDatasmithMeshElement> MeshElement = FDatasmithSceneFactory::CreateMesh(*Mesh.Name);
+
+		FMD5 MD5;
+
+		FMD5Hash MeshHash = Mesh.GetHash();
+		MD5.Update(MeshHash.GetBytes(), MeshHash.GetSize());
 
 		const TArray<GLTF::FMaterialElement*>& Materials = MaterialFactory->GetMaterials();
 		for (int32 MaterialID = 0; MaterialID < Materials.Num(); ++MaterialID)
 		{
 			GLTF::FMaterialElement* Material = Materials[MaterialID];
 			MeshElement->SetMaterial(*Material->GetName(), MaterialID);
+
+			FMD5Hash MaterialHash = Material->GetGLTFMaterialHash();
+			MD5.Update(MaterialHash.GetBytes(), MaterialHash.GetSize());
 		}
 
 		if (ImportOptions->bGenerateLightmapUVs)
@@ -206,6 +218,13 @@ TSharedPtr<IDatasmithMeshActorElement> FDatasmithGLTFImporter::CreateStaticMeshA
 		{
 			MeshElement->SetLightmapCoordinateIndex(0);
 		}
+
+		uint8 GenerateLightmapUVs = static_cast<uint8>(ImportOptions->bGenerateLightmapUVs);
+		MD5.Update(&GenerateLightmapUVs, 1);
+
+		FMD5Hash Result;
+		Result.Set(MD5);
+		MeshElement->SetFileHash(Result);
 
 		MeshElementToGLTFMeshIndex.Add(&MeshElement.Get(), MeshIndex);
 		GLTFMeshIndexToMeshElement.Add(MeshIndex, MeshElement);

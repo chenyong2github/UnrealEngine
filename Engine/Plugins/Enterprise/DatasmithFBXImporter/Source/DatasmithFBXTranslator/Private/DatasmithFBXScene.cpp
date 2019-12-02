@@ -148,7 +148,10 @@ void FDatasmithFBXSceneNode::MarkSwitchNode()
 	NodeType |= ENodeType::Switch;
 	bShouldKeepThisNode = true;
 
-	// For switch, we should also keep all its children persistent because they are representing variants
+	// Prevent the targets of SwitchObjects from being removed. This shouldn't be necessary,
+	// but some scenes seem to have all mesh nodes named exactly the same (e.g shell_0).
+	// In those cases, when we convert them to Switch variants, we will search for actors named
+	// 'shell_0' for our switch options and likely end up picking the wrong actor
 	for (int32 NodeIndex = 0; NodeIndex < Children.Num(); NodeIndex++)
 	{
 		Children[NodeIndex]->bShouldKeepThisNode = true;

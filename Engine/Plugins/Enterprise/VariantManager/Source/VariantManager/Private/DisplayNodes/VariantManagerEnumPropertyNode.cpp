@@ -2,18 +2,19 @@
 
 #include "DisplayNodes/VariantManagerEnumPropertyNode.h"
 
-#include "GameFramework/Actor.h"
-#include "PropertyValue.h"
 #include "PropertyTemplateObject.h"
-#include "PropertyEditorModule.h"
-#include "Modules/ModuleManager.h"
-#include "Widgets/Input/SNumericEntryBox.h"
-#include "Widgets/Input/SComboBox.h"
-#include "ScopedTransaction.h"
-#include "IDocumentation.h"
+#include "PropertyValue.h"
 #include "SVariantManager.h"
 #include "VariantManagerLog.h"
 #include "VariantObjectBinding.h"
+
+#include "GameFramework/Actor.h"
+#include "IDocumentation.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
+#include "ScopedTransaction.h"
+#include "Widgets/Input/SComboBox.h"
+#include "Widgets/Input/SNumericEntryBox.h"
 
 #define LOCTEXT_NAMESPACE "FVariantManagerEnumPropertyNode"
 
@@ -108,17 +109,8 @@ TSharedPtr<SWidget> FVariantManagerEnumPropertyNode::GetPropertyValueWidget()
 
 	UpdateComboboxStrings();
 
-	int32 EnumIndex = FirstPropertyValue->GetRecordedDataAsEnumIndex();
-	int32 ComboboxItemIndex = EnumIndices.Find(EnumIndex);
-	if (ComboboxItemIndex == INDEX_NONE)
-	{
-		UE_LOG(LogVariantManager, Warning, TEXT("For captured property '%s', did not find an UEnum item with index %d"), *FirstPropertyValue->GetPropertyName().ToString(), EnumIndex);
-		ComboboxItemIndex = 0;
-	}
-
 	SAssignNew(Combobox, SComboBox<TSharedPtr<FString>>)
 	.OptionsSource(&EnumDisplayTexts)
-	.InitiallySelectedItem(EnumDisplayTexts[ComboboxItemIndex])
 	.OnGenerateWidget_Lambda([bSameValue](TSharedPtr<FString> Item)
 	{
 		return SNew(STextBlock).Text(FText::FromString(*Item));
@@ -126,7 +118,7 @@ TSharedPtr<SWidget> FVariantManagerEnumPropertyNode::GetPropertyValueWidget()
 	.Content()
 	[
 		SNew(STextBlock)
-		.Text(this, &FVariantManagerEnumPropertyNode::ComboboxGetText, bSameValue)
+		.Text(this, &FVariantManagerEnumPropertyNode::GetRecordedEnumDisplayText, bSameValue)
 	]
 	.OnSelectionChanged(this, &FVariantManagerEnumPropertyNode::OnComboboxSelectionChanged); // Widget updates recorded data
 
@@ -179,22 +171,31 @@ void FVariantManagerEnumPropertyNode::OnComboboxSelectionChanged(TSharedPtr<FStr
 	GetVariantManager().Pin()->GetVariantManagerWidget()->RefreshPropertyList();
 }
 
-FText FVariantManagerEnumPropertyNode::ComboboxGetText(bool bSameValue) const
+FText FVariantManagerEnumPropertyNode::GetRecordedEnumDisplayText(bool bSameValue) const
 {
-	if (Combobox.IsValid())
+	if (!bSameValue)
 	{
-		if (!bSameValue)
-		{
-			return LOCTEXT("MultipleValuesLabel", "Multiple Values");
-		}
+		return LOCTEXT("MultipleValuesLabel", "Multiple Values");
+	}
 
-		TSharedPtr<FString> SelectedText = Combobox->GetSelectedItem();
-		if (SelectedText.IsValid())
-		{
-			return FText::FromString(*SelectedText);
-		}
+	// We don't just use Combobox->GetSelectedItem() here because the Combobox watches
+	// EnumDisplayTexts, and that list only contains the valid and non-hidden options for the Enum.
+	// The user can only choose between those, but the PropertyValue may have a hidden or 'invalid'
+	// option recorded already (e.g. _MAX), and with this we will display it as it actually is,
+	// which is also how the Details panel behaves
+	if (PropertyValues.Num() >= 1)
+	{
+		UPropertyValue* FirstPropertyValue = PropertyValues[0].Get();
 
-		return LOCTEXT("InvalidLabel", "(INVALID)");
+		if (UEnum* Enum = FirstPropertyValue->GetEnumPropertyEnum())
+		{
+			int32 EnumIndex = FirstPropertyValue->GetRecordedDataAsEnumIndex();
+			FText EnumDisplayNameText = Enum->GetDisplayNameTextByIndex(EnumIndex);
+			if(!EnumDisplayNameText.IsEmpty())
+			{
+				return EnumDisplayNameText;
+			}
+		}
 	}
 
 	return FText();

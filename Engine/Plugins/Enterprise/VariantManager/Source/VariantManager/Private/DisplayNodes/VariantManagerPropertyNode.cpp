@@ -2,29 +2,33 @@
 
 #include "DisplayNodes/VariantManagerPropertyNode.h"
 
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "GameFramework/Actor.h"
-#include "EditorStyleSet.h"
-#include "PropertyEditorModule.h"
-#include "Modules/ModuleManager.h"
+#include "PropertyTemplateObject.h"
+#include "PropertyValue.h"
+#include "SVariantManager.h"
 #include "VariantManager.h"
+#include "VariantManagerDragDropOp.h"
+#include "VariantManagerEditorCommands.h"
 #include "VariantManagerLog.h"
 #include "VariantObjectBinding.h"
-#include "ISinglePropertyView.h"
-#include "PropertyValue.h"
-#include "PropertyHandle.h"
-#include "PropertyTemplateObject.h"
-#include "VariantManagerEditorCommands.h"
-#include "PropertyCustomizationHelpers.h"
-#include "SVariantManager.h"
-#include "ScopedTransaction.h"
-#include "Widgets/Input/SButton.h"
-#include "Input/Reply.h"
-#include "Widgets/Images/SImage.h"
+
 #include "EditorFontGlyphs.h"
+#include "EditorStyleSet.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "GameFramework/Actor.h"
+#include "ISinglePropertyView.h"
+#include "Input/Reply.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyCustomizationHelpers.h"
+#include "PropertyEditorModule.h"
+#include "PropertyHandle.h"
+#include "ScopedTransaction.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
 
 #define LOCTEXT_NAMESPACE "FVariantManagerPropertyNode"
+
+using FDisplayNodeRef = TSharedRef<FVariantManagerDisplayNode>;
 
 FVariantManagerPropertyNode::FVariantManagerPropertyNode(TArray<UPropertyValue*> InPropertyValues, TWeakPtr<FVariantManager> InVariantManager)
 	: FVariantManagerDisplayNode(nullptr, nullptr)
@@ -97,6 +101,79 @@ void FVariantManagerPropertyNode::SetDisplayName(const FText& NewDisplayName)
 bool FVariantManagerPropertyNode::IsSelectable() const
 {
 	return true;
+}
+
+TOptional<EItemDropZone> FVariantManagerPropertyNode::CanDrop(const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone) const
+{
+	TSharedPtr<FVariantManagerDragDropOp> VarManDragDrop = DragDropEvent.GetOperationAs<FVariantManagerDragDropOp>();
+	if (!VarManDragDrop.IsValid())
+	{
+		return TOptional<EItemDropZone>();
+	}
+
+	TSharedPtr<FVariantManager> VarMan = GetVariantManager().Pin();
+	if (!VarMan.IsValid())
+	{
+		return TOptional<EItemDropZone>();
+	}
+
+	TArray<FDisplayNodeRef> PropOrFuncNodes;
+	for (const TSharedRef<FVariantManagerDisplayNode>& DraggedNode : VarManDragDrop->GetDraggedNodes())
+	{
+		if ((DraggedNode->GetType() == EVariantManagerNodeType::Property ||
+			 DraggedNode->GetType() == EVariantManagerNodeType::Function ) &&
+			DraggedNode != SharedThis(this)) // No point in reordering the node ondo itself
+		{
+			PropOrFuncNodes.Add(DraggedNode);
+		}
+	}
+
+	if (PropOrFuncNodes.Num() > 0)
+	{
+		FText NewHoverText = FText::Format( LOCTEXT("CanDrop_Captures", "Reorder '{0}'"), PropOrFuncNodes[0]->GetDisplayName());
+
+		const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
+
+		VarManDragDrop->SetToolTip(NewHoverText, NewHoverIcon);
+
+		return ItemDropZone == EItemDropZone::AboveItem ? ItemDropZone : EItemDropZone::BelowItem;
+	}
+
+	if (VarManDragDrop.IsValid())
+	{
+		VarManDragDrop->ResetToDefaultToolTip();
+	}
+
+	return TOptional<EItemDropZone>();
+}
+
+void FVariantManagerPropertyNode::Drop(const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone)
+{
+	TSharedPtr<FVariantManager> VarMan = GetVariantManager().Pin();
+	if (!VarMan.IsValid())
+	{
+		return;
+	}
+
+	TSharedPtr<SVariantManager> VarManWidget = VarMan->GetVariantManagerWidget();
+	if (!VarManWidget.IsValid())
+	{
+		return;
+	}
+
+	TSharedPtr<FVariantManagerDragDropOp> VarManDragDrop = DragDropEvent.GetOperationAs<FVariantManagerDragDropOp>();
+	if (!VarManDragDrop.IsValid())
+	{
+		return;
+	}
+
+	TArray<TSharedPtr<FVariantManagerPropertyNode>> DraggedPropertyNodes;
+	for (const TSharedRef<FVariantManagerDisplayNode>& DraggedNode : VarManDragDrop->GetDraggedNodes())
+	{
+		DraggedPropertyNodes.Add(StaticCastSharedRef<FVariantManagerPropertyNode>(DraggedNode));
+	}
+
+	VarManWidget->ReorderPropertyNodes(DraggedPropertyNodes, SharedThis(this), ItemDropZone);
 }
 
 // Without this, SImages (used for example for the browse and useselected buttons next to
@@ -424,6 +501,31 @@ TSharedRef<SWidget> FVariantManagerPropertyNode::GetCustomOutlinerContent(TShare
 			]
 		]
 	];
+}
+
+uint32 FVariantManagerPropertyNode::GetDisplayOrder() const
+{
+	uint32 DisplayOrder = UINT32_MAX;
+	for (const TWeakObjectPtr<UPropertyValue>& PropertyValue : PropertyValues)
+	{
+		if (PropertyValue.IsValid())
+		{
+			DisplayOrder = FMath::Min(DisplayOrder, PropertyValue->GetDisplayOrder());
+		}
+	}
+
+	return DisplayOrder;
+}
+
+void FVariantManagerPropertyNode::SetDisplayOrder(uint32 InDisplayOrder)
+{
+	for (const TWeakObjectPtr<UPropertyValue>& PropertyValue : PropertyValues)
+	{
+		if (PropertyValue.IsValid())
+		{
+			PropertyValue->SetDisplayOrder(InDisplayOrder);
+		}
+	}
 }
 
 void FVariantManagerPropertyNode::UpdateRecordedDataFromSinglePropView(TSharedPtr<ISinglePropertyView> SinglePropView)

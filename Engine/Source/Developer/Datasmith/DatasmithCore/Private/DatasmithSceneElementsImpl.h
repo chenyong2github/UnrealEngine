@@ -861,10 +861,14 @@ public:
 	virtual float GetRGBCurve() const override;
 	virtual void SetRGBCurve(float InRGBCurve) override;
 
+	virtual EDatasmithColorSpace GetSRGB() const override;
+	virtual void SetSRGB(EDatasmithColorSpace Option) override;
+
 private:
 	FString File;
 	FMD5Hash FileHash;
 	float RGBCurve;
+	EDatasmithColorSpace ColorSpace;
 	EDatasmithTextureMode TextureMode;
 	EDatasmithTextureFilter TextureFilter;
 	EDatasmithTextureAddress TextureAddressX;
