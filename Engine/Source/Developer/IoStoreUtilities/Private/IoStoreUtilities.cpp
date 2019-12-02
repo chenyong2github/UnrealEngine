@@ -1067,7 +1067,6 @@ int32 CreateTarget(const FContainerTarget& Target)
 
 	const FString CookedDir = Target.CookedDirectory;
 	const FString OutputDir = Target.OutputDirectory;
-	const FString RelativePrefixForLegacyFilename = TEXT("../../../");
 	
 	FPackageStoreBulkDataManifest BulkDataManifest(Target.CookedProjectDirectory);
 	const bool bWithBulkDataManifest = BulkDataManifest.Load();
@@ -1159,6 +1158,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 		FPackage& Package = *NewPackage;
 		Package.Name = PackageFName;
 		Package.FileName = FileName;
+		Package.RelativeFileName = MoveTemp(RelativeFileName);
 		Package.GlobalPackageId = FileIndex;
 		Package.UAssetSize = Ar->TotalSize();
 		Package.SummarySize = Ar->Tell() - SummaryStartPos;
@@ -1167,9 +1167,6 @@ int32 CreateTarget(const FContainerTarget& Target)
 		Package.ExportCount = Summary.ExportCount;
 		Package.PackageFlags = Summary.PackageFlags;
 		Package.BulkDataStartOffset = Summary.BulkDataStartOffset;
-
-		Package.RelativeFileName = RelativePrefixForLegacyFilename;
-		Package.RelativeFileName.Append(*FileName + CookedDir.Len());
 
 		if (Summary.NameCount > 0)
 		{
@@ -1296,7 +1293,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 			TempFullNames.SetNum(Summary.ExportCount, false);
 			for (int32 I = 0; I < Summary.ExportCount; ++I)
 			{
-				FindExport(GlobalExports, GlobalExportsByFullName, TempFullNames, Exports.GetData() + BaseIndex, I, PackageFName);
+				FindExport(GlobalExports, GlobalExportsByFullName, TempFullNames, Exports.GetData() + BaseIndex, I, Package.Name);
 
 				FExportData& ExportData = GlobalExports[*GlobalExportsByFullName.Find(TempFullNames[I])];
 				Package.Exports.Add(ExportData.GlobalIndex);
@@ -1721,21 +1718,17 @@ int32 CreateTarget(const FContainerTarget& Target)
 		}
 		Package.ExportBundlesSize = ZenExportBundlesArchive.Tell();
 
-		FName RelativeFileName(*Package.RelativeFileName);
-		NameMapBuilder.MarkNameAsReferenced(Package.Name);
-		int32 PackageNameIndex = NameMapBuilder.MapName(Package.Name);
-		int32 PackageNameNumber = Package.Name.GetNumber();
-		NameMapBuilder.MarkNameAsReferenced(RelativeFileName);
 
 		ensure(Package.GlobalPackageId == PackageIndex++);
 		{
 			int32 ExportBundleCount = Package.ExportBundles.Num();
+			int32 FirstExportBundleIndex = ExportBundleOrderEntries.Num() - ExportBundleCount;
+
+			NameMapBuilder.MarkNameAsReferenced(Package.Name);
 
 			NameMapBuilder.SerializeName(*StoreTocArchive, Package.Name);
-			NameMapBuilder.SerializeName(*StoreTocArchive, RelativeFileName);
 			*StoreTocArchive << Package.ExportCount;
 			*StoreTocArchive << ExportBundleCount;
-			int32 FirstExportBundleIndex = ExportBundleOrderEntries.Num() - ExportBundleCount;
 			*StoreTocArchive << FirstExportBundleIndex;
 			*StoreTocArchive << Package.FirstGlobalImport;
 			*StoreTocArchive << Package.GlobalImportCount;
@@ -1888,23 +1881,23 @@ int32 CreateTarget(const FContainerTarget& Target)
 		return IoWriter.Append(ChunkId, IoBuffer);
 	};
 
+	int32 StoreTocByteCount = StoreTocArchive->TotalSize();
+	int32 ImportedPackagesByteCount = ImportedPackagesArchive->TotalSize();
+	int32 GlobalImportNamesByteCount = GlobalImportNamesArchive->TotalSize();
+	int32 ExportBundleOrderByteCount = ExportBundleOrderEntries.Num() * sizeof(uint32);
 	{
 		UE_LOG(LogIoStore, Display, TEXT("Saving global meta data to container file"));
 		FLargeMemoryWriter GlobalMetaArchive(0, true);
 
-		int32 StoreTocByteCount = StoreTocArchive->TotalSize();
 		GlobalMetaArchive << StoreTocByteCount;
 		GlobalMetaArchive.Serialize(StoreTocArchive->GetData(), StoreTocByteCount);
 
-		int32 ImportedPackagesByteCount = ImportedPackagesArchive->TotalSize();
 		GlobalMetaArchive << ImportedPackagesByteCount;
 		GlobalMetaArchive.Serialize(ImportedPackagesArchive->GetData(), ImportedPackagesByteCount);
 
-		int32 GlobalImportNamesByteCount = GlobalImportNamesArchive->TotalSize();
 		GlobalMetaArchive << GlobalImportNamesByteCount;
 		GlobalMetaArchive.Serialize(GlobalImportNamesArchive->GetData(), GlobalImportNamesByteCount);
 
-		int32 ExportBundleOrderByteCount = ExportBundleOrderEntries.Num() * sizeof(uint32);
 		GlobalMetaArchive << ExportBundleOrderByteCount;
 		GlobalMetaArchive.Serialize(ExportBundleOrderEntries.GetData(), ExportBundleOrderByteCount);
 
@@ -1946,9 +1939,6 @@ int32 CreateTarget(const FContainerTarget& Target)
 	uint64 NameMapSize = 0;
 	uint64 NameMapCount = 0;
 	uint64 ZenPackageSummarySize = FileNames.Num() * sizeof(FZenPackageSummary);
-	uint64 StoreTocSize = StoreTocArchive->Tell();
-	uint64 GlobalImportNamesSize = GlobalImportNamesArchive->Tell();
-	uint64 PackageImportSize = ImportedPackagesArchive->Tell();
 	uint64 ImportedPackagesCount = 0;
 	uint64 InitialLoadSize = InitialLoadArchive->Tell();
 	uint64 ScriptArcsCount = 0;
@@ -2023,10 +2013,11 @@ int32 CreateTarget(const FContainerTarget& Target)
 		(double)PreloadDependenciesSize / 1024.0 / 1024.0, ImportPreloadCount, ExportPreloadCount, PreloadDependencies.Num());
 
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalNameMap, %d unique names"), (double)GlobalNameMapSize / 1024.0 / 1024.0, NameMapBuilder.Num());
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalPackageData"), (double)StoreTocSize / 1024.0 / 1024.0);
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalImportedPackages, %d imported packages"), (double)PackageImportSize / 1024.0 / 1024.0, ImportedPackagesCount);
+	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalPackageData"), (double)StoreTocByteCount / 1024.0 / 1024.0);
+	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalImportedPackages, %d imported packages"), (double)ImportedPackagesByteCount / 1024.0 / 1024.0, ImportedPackagesCount);
+	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalBundleOrders, %d bundles"), (double)ExportBundleOrderByteCount / 1024.0 / 1024.0, ExportBundleOrderEntries.Num());
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalImportNames, %d total imports, %d script imports, %d UPackage imports"),
-		(double)GlobalImportNamesSize / 1024.0 / 1024.0, GlobalImportsByFullName.Num(), NumScriptImports, UniqueImportPackages);
+		(double)GlobalImportNamesByteCount / 1024.0 / 1024.0, GlobalImportsByFullName.Num(), NumScriptImports, UniqueImportPackages);
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB InitialLoadData, %d script arcs, %d script outers, %d packages"), (double)InitialLoadSize / 1024.0 / 1024.0, ScriptArcsCount, NumScriptImports, FileNames.Num());
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageHeader, %d packages"), (double)ZenPackageHeaderSize / 1024.0 / 1024.0, FileNames.Num());
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageSummary"), (double)ZenPackageSummarySize / 1024.0 / 1024.0);
