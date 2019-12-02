@@ -40,6 +40,14 @@
 			]
 		},
 		{
+			"Name": "USDSchemas",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
+		},
+		{
 			"Name": "USDStage",
 			"Type": "Editor",
 			"LoadingPhase": "Default",

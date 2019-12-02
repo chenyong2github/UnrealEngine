@@ -5,11 +5,18 @@ using System.IO;
 
 namespace UnrealBuildTool.Rules
 {
-	public class USDStage : ModuleRules
+	public class USDSchemas : ModuleRules
 	{
-		public USDStage(ReadOnlyTargetRules Target) : base(Target)
+		public USDSchemas(ReadOnlyTargetRules Target) : base(Target)
 		{
 			bUseRTTI = true;
+
+			PublicDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"ModelingComponents",
+				}
+				);
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
@@ -19,35 +26,18 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"EditorStyle",
 					"Engine",
-					"GeometryCache",
-					"InputCore",
-					"JsonUtilities",
-					"LevelSequence",
 					"MaterialEditor",
 					"MeshDescription",
 					"MeshDescriptionOperations",
 					"MeshUtilities",
 					"MessageLog",
-					"MovieScene",
-					"MovieSceneTracks",
 					"PropertyEditor",
-					"PythonScriptPlugin",
-					"RHI",
-					"RenderCore",
-					"Slate",
-					"SlateCore",
 					"StaticMeshDescription",
-					"USDImporter",
-					"USDSchemas",
+					"UnrealUSDWrapper",
 					"USDUtilities",
 					"UnrealEd",
 				}
 				);
-
-			if (Target.Platform == UnrealTargetPlatform.Win64)
-			{
-				PrivateDependencyModuleNames.Add("UnrealUSDWrapper");
-			}
 		}
 	}
 }

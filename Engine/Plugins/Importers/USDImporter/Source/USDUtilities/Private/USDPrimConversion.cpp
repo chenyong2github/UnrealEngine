@@ -47,6 +47,9 @@ bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr:
 	FTransform Transform = UsdToUnreal::ConvertMatrix( UpAxis, UsdMatrix ) * FTransform( AdditionalRotation );
 	SceneComponent.SetRelativeTransform( Transform );
 
+	const bool bIsHidden = ( Xformable.ComputeVisibility( EvalTime ) == pxr::UsdGeomTokens->invisible );
+	SceneComponent.SetVisibility( !bIsHidden );
+
 	return true;
 }
 

@@ -345,6 +345,8 @@ public:
 			{
 				UsdGeomImageable.MakeVisible();
 			}
+
+			TreeItem->RefreshData( false );
 		}
 
 		return FReply::Handled();
