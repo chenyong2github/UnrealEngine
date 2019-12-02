@@ -2,17 +2,9 @@
 
 #include "CoreTypes.h"
 
-////////////////////////////////////////////////////////////////////////////////
-#if defined(_MSC_VER)
-#	pragma warning(push)
-#	pragma warning(disable : 6239)
-#endif
-
+THIRD_PARTY_INCLUDES_START
 #include "ThirdParty/LZ4/lz4.c.h"
-
-#if defined(_MSC_VER)
-#	pragma warning(pop)
-#endif
+THIRD_PARTY_INCLUDES_END
 
 namespace Trace {
 namespace Private {
