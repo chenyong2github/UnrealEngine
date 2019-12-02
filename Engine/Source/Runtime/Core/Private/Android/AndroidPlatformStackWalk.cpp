@@ -23,6 +23,8 @@
 #include "HAL/PlatformTime.h"
 #endif
 #include "HAL/IConsoleManager.h"
+#include "HAL/PlatformProcess.h"
+#include "Misc/ScopeExit.h"
 
 void FAndroidPlatformStackWalk::ProgramCounterToSymbolInfo(uint64 ProgramCounter, FProgramCounterSymbolInfo& out_SymbolInfo)
 {
@@ -258,35 +260,86 @@ bool FAndroidPlatformStackWalk::SymbolInfoToHumanReadableString(const FProgramCo
 	return false;
 }
 
+
+static float GThreadCallStackRequestMaxWait = 0.5f;
+static FAutoConsoleVariableRef CVarAndroidPlatformThreadCallStackRequestMaxWait(
+	TEXT("AndroidPlatformThreadStackWalk.RequestMaxWait"),
+	GThreadCallStackRequestMaxWait,
+	TEXT("The number of seconds to spin before an individual back trace has timed out."));
+
+static float GThreadCallStackMaxWait = 5.0f;
 static TAutoConsoleVariable<float> CVarAndroidPlatformThreadCallStackMaxWait(
 	TEXT("AndroidPlatformThreadStackWalk.MaxWait"),
-	5.0f,
-	TEXT("The number of seconds allowed to spin before killing the process, with the assumption the signal handler has hung."));
+	GThreadCallStackMaxWait,
+	TEXT("The number of seconds allowed to spin before killing the process, with the assumption the back trace handler has hung."));
 
 #if ANDROID_HAS_THREADBACKTRACE
+
+int32 ThreadStackBackTraceStatus = 0;
+static const int32 ThreadStackBackTraceCurrentStatus_RUNNING = -2;
+static const int32 ThreadStackBackTraceCurrentStatus_DONE = -3;
+
+static ThreadStackUserData SignalThreadStackUserData;
+
+// the callback when THREAD_CALLSTACK_GENERATOR is being processed.
+void FAndroidPlatformStackWalk::HandleBackTraceSignal(siginfo* Info, void* Context)
+{
+	if (FPlatformAtomics::InterlockedCompareExchange(&ThreadStackBackTraceStatus, ThreadStackBackTraceCurrentStatus_RUNNING, Info->si_value.sival_int) == Info->si_value.sival_int)
+	{
+		SignalThreadStackUserData.BackTraceCount = FPlatformStackWalk::CaptureStackBackTrace(SignalThreadStackUserData.BackTrace, SignalThreadStackUserData.CallStackSize, Context);
+		FPlatformAtomics::AtomicStore(&ThreadStackBackTraceStatus, ThreadStackBackTraceCurrentStatus_DONE);
+	}
+}
+
+// Sends a signal to ThreadId, wait AndroidPlatformThreadStackWalk.RequestMaxWait seconds for result or time out and return 0.
+// if callstack capture begins, but takes > AndroidPlatformThreadStackWalk.MaxWait the process will be killed.
+// Is not thread safe, returns 0 if a CaptureThreadStackBackTrace is occurring on another thread.
 uint32 FAndroidPlatformStackWalk::CaptureThreadStackBackTrace(uint64 ThreadId, uint64* BackTrace, uint32 MaxDepth)
 {
-	auto GatherCallstackFromThread = [](ThreadStackUserData& ThreadStack, uint64 TargetThreadId)
+	static TAtomic<bool> bHasReentered(false);
+	bool bExpected = false;
+	if (!bHasReentered.CompareExchange(bExpected, true))
 	{
-		auto WaitForSignalHandlerToFinishOrCrash = [](ThreadStackUserData& WaitThreadStack)
-		{
-			float EndWaitTimestamp = FPlatformTime::Seconds() + CVarAndroidPlatformThreadCallStackMaxWait.AsVariable()->GetFloat();
-			float CurrentTimestamp = FPlatformTime::Seconds();
+		return 0;
+	}
+	ON_SCOPE_EXIT
+	{
+		bHasReentered = false;
+	};
 
-			while (!WaitThreadStack.bDone)
+	auto GatherCallstackFromThread = [](uint64 TargetThreadId)
+	{
+		static int32 ThreadStackBackTraceNextRequest = 0;
+		int32 CurrentThreadStackBackTrace = ThreadStackBackTraceNextRequest++;
+
+		auto WaitForSignalHandlerToFinishOrCrash = [CurrentThreadStackBackTrace]()
+		{
+			const float PollTime = 0.001f;
+
+			for (float CurrentTime = 0; CurrentTime <= GThreadCallStackMaxWait; CurrentTime += PollTime)
 			{
-				if (CurrentTimestamp > EndWaitTimestamp)
+				if (FPlatformAtomics::InterlockedCompareExchange(&ThreadStackBackTraceStatus, ThreadStackBackTraceNextRequest, ThreadStackBackTraceCurrentStatus_DONE) == ThreadStackBackTraceCurrentStatus_DONE)
 				{
-					// We have waited for as long as we should for the signal handler to finish. Assume it has hang and we need to kill our selfs
-					*(int*)0x10 = 0x0;
+					// success 
+					return SignalThreadStackUserData.BackTraceCount;
 				}
 
-				CurrentTimestamp = FPlatformTime::Seconds();
+				// signal timed out
+				if (CurrentTime > GThreadCallStackRequestMaxWait && FPlatformAtomics::InterlockedCompareExchange(&ThreadStackBackTraceStatus, ThreadStackBackTraceNextRequest, CurrentThreadStackBackTrace) == CurrentThreadStackBackTrace)
+				{
+					// request not yet started, skip it.
+					return 0;
+				}
+				FPlatformProcess::Sleep(PollTime);
 			}
+
+			// We have waited for as long as we should for the signal handler to finish. Assume it has hang and we need to kill our selfs
+			*(int*)0x10 = 0x0;
+			return 0;
 		};
 
 		sigval UserData;
-		UserData.sival_ptr = &ThreadStack;
+		UserData.sival_int = CurrentThreadStackBackTrace;
 
 		siginfo_t info;
 		memset(&info, 0, sizeof(siginfo_t));
@@ -300,20 +353,16 @@ uint32 FAndroidPlatformStackWalk::CaptureThreadStackBackTrace(uint64 ThreadId, u
 		// sigqueue will try a different thread signal handler and report the wrong callstack
 		if (syscall(SYS_rt_tgsigqueueinfo, info.si_pid, TargetThreadId, THREAD_CALLSTACK_GENERATOR, &info) == 0)
 		{
-			WaitForSignalHandlerToFinishOrCrash(ThreadStack);
+			return WaitForSignalHandlerToFinishOrCrash();
 		}
+		return 0;
 	};
 
-	ThreadStackUserData ThreadBackTrace;
-	ThreadBackTrace.CallStackSize = MaxDepth;
-	ThreadBackTrace.BackTrace = BackTrace;
-	ThreadBackTrace.BackTraceCount = 0;
-	ThreadBackTrace.bDone = false;
+	SignalThreadStackUserData.CallStackSize = MaxDepth;
+	SignalThreadStackUserData.BackTrace = BackTrace;
+	SignalThreadStackUserData.BackTraceCount = 0;
 
-	GatherCallstackFromThread(ThreadBackTrace, ThreadId);
-
-	// The signal handler will set this value, we just have to make sure we wait for the signal handler we raised to finish
-	return ThreadBackTrace.BackTraceCount;
+	return GatherCallstackFromThread(ThreadId);
 }
 #else
 uint32 FAndroidPlatformStackWalk::CaptureThreadStackBackTrace(uint64 ThreadId, uint64* BackTrace, uint32 MaxDepth)
