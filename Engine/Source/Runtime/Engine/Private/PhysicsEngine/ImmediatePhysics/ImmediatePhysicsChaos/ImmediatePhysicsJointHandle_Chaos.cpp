@@ -3,6 +3,7 @@
 #include "Physics/ImmediatePhysics/ImmediatePhysicsChaos/ImmediatePhysicsJointHandle_Chaos.h"
 #include "Physics/ImmediatePhysics/ImmediatePhysicsChaos/ImmediatePhysicsActorHandle_Chaos.h"
 
+#include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/PBDJointConstraints.h"
 
 #include "PhysicsEngine/ConstraintInstance.h"
@@ -98,8 +99,8 @@ namespace ImmediatePhysics_Chaos
 		FPBDJointSettings ConstraintSettings;
 		ConstraintSettings.ConstraintFrames = 
 		{ 
-			ConstraintFrame1.GetRelativeTransform(Actor1->GetLocalCoMTransform()),
-			ConstraintFrame2.GetRelativeTransform(Actor2->GetLocalCoMTransform())
+			FParticleUtilities::ActorLocalToParticleLocal(TGenericParticleHandle<FReal, 3>(Actor1->GetParticle()), ConstraintFrame1),
+			FParticleUtilities::ActorLocalToParticleLocal(TGenericParticleHandle<FReal, 3>(Actor2->GetParticle()), ConstraintFrame2),
 		};
 		ConstraintSettings.Motion.Stiffness = ChaosImmediate_JointStiffness;
 		ConstraintSettings.Motion.LinearMotionTypes = 
