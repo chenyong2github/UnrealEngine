@@ -393,7 +393,7 @@ public:
 	virtual void SetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames);
 
 	/** Gets the portable callstack to a specified stack and puts it into OutCallStack */
-	virtual void GetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames, TArray<FCrashStackFrame>& OutCallStack);
+	virtual void GetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames, TArray<FCrashStackFrame>& OutCallStack) const;
 
 	/** Adds a portable callstack for a thread */
 	virtual void AddPortableThreadCallStack(uint32 ThreadId, const TCHAR* ThreadName, const uint64* StackFrames, int32 NumStackFrames);

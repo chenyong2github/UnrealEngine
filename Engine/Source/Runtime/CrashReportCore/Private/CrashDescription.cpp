@@ -93,6 +93,20 @@ int64 FCrashProperty::AsInt64() const
 	return Value;
 }
 
+FCrashPropertyXmlNode::FCrashPropertyXmlNode(const FString& InMainCategory, const FString& InSecondCategory, FPrimaryCrashProperties* InOwner)
+	: Owner(InOwner)
+	, MainCategory(InMainCategory)
+	, SecondCategory(InSecondCategory)
+	, bSet(false)
+{ }
+
+FCrashPropertyXmlNode& FCrashPropertyXmlNode::operator=(const FXmlNode* Node)
+{
+	bSet = true;
+	Owner->SetCrashProperty(MainCategory, SecondCategory, Node);
+	return *this;
+}
+
 /*-----------------------------------------------------------------------------
 	FPrimaryCrashProperties
 -----------------------------------------------------------------------------*/
@@ -122,6 +136,7 @@ FPrimaryCrashProperties::FPrimaryCrashProperties()
 	, PlatformCallbackResult(FGenericCrashContext::PlatformPropertiesTag, TEXT("PlatformCallbackResult"), this)
 	, CrashReportClientVersion(FGenericCrashContext::RuntimePropertiesTag, TEXT("CrashReportClientVersion"), this)
 	, CPUBrand(FGenericCrashContext::RuntimePropertiesTag, TEXT("CPUBrand"), this)
+	, Threads(FGenericCrashContext::RuntimePropertiesTag, TEXT("Threads"), this)	
 	, bIsOOM(false)
 	, bLowMemoryWarning(false)
 	, bInBackground(false)
