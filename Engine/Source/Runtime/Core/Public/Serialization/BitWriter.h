@@ -213,6 +213,12 @@ public:
 		Overflowed = Writer.ArIsError;
 	}
 
+	void Reset()
+	{
+		Overflowed = false;
+		Num = 0;		
+	}
+
 	void Pop( FBitWriter& Writer );
 	void Copy( FBitWriter& Writer, TArray<uint8> &Buffer );
 
