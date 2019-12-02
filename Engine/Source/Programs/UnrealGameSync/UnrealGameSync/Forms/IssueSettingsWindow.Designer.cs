@@ -88,7 +88,6 @@ namespace UnrealGameSync
             this.groupBox2.TabIndex = 6;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Optional Notifications";
-            this.groupBox2.Enter += new System.EventHandler(this.groupBox2_Enter);
             // 
             // tableLayoutPanel1
             // 
@@ -223,10 +222,11 @@ namespace UnrealGameSync
             this.NotifyUnacknowledgedCheckBox.TabIndex = 4;
             this.NotifyUnacknowledgedCheckBox.Text = "Alert on unacknowledged issues after";
             this.NotifyUnacknowledgedCheckBox.UseVisualStyleBackColor = true;
-            // 
-            // NotifyUnacknowledgedTextBox
-            // 
-            this.NotifyUnacknowledgedTextBox.Anchor = System.Windows.Forms.AnchorStyles.Left;
+			this.NotifyUnacknowledgedCheckBox.CheckedChanged += new System.EventHandler(this.NotifyUnacknowledgedCheckBox_CheckedChanged);
+			// 
+			// NotifyUnacknowledgedTextBox
+			// 
+			this.NotifyUnacknowledgedTextBox.Anchor = System.Windows.Forms.AnchorStyles.Left;
             this.NotifyUnacknowledgedTextBox.Location = new System.Drawing.Point(232, 3);
             this.NotifyUnacknowledgedTextBox.Name = "NotifyUnacknowledgedTextBox";
             this.NotifyUnacknowledgedTextBox.Size = new System.Drawing.Size(84, 23);

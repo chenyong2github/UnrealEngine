@@ -70,6 +70,11 @@ namespace UnrealGameSync
 			UpdateEnabledTextBoxes();
 		}
 
+		private void NotifyUnacknowledgedCheckBox_CheckedChanged(object sender, EventArgs e)
+		{
+			UpdateEnabledTextBoxes();
+		}
+
 		private void NotifyUnresolvedCheckBox_CheckedChanged(object sender, EventArgs e)
 		{
 			UpdateEnabledTextBoxes();
@@ -126,11 +131,6 @@ namespace UnrealGameSync
 		{
 			DialogResult = DialogResult.Cancel;
 			Close();
-		}
-
-		private void groupBox2_Enter(object sender, EventArgs e)
-		{
-
 		}
 	}
 }
