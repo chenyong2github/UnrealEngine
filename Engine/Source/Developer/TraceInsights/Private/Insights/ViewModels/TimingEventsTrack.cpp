@@ -109,11 +109,7 @@ void FTimingEventsTrack::PreUpdate(const ITimingTrackUpdateContext& Context)
 				{
 					FilteredDrawStateInfo.ViewportStartTime = Context.GetViewport().GetStartTime();
 					FilteredDrawStateInfo.ViewportScaleX = Context.GetViewport().GetScaleX();
-
-					if (FilteredDrawStateInfo.Counter >= 0)
-					{
-						FilteredDrawStateInfo.Counter = 1; // wait
-					}
+					FilteredDrawStateInfo.Counter = 1; // wait
 				}
 			}
 
