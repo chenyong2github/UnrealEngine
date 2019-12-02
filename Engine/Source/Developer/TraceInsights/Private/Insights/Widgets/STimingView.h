@@ -36,18 +36,6 @@ namespace Insights { class ITimingViewExtender; }
 /** A custom widget used to display timing events. */
 class STimingView : public SCompoundWidget, public Insights::ITimingViewSession
 {
-protected:
-	struct FAssetLoadingEventAggregationRow
-	{
-		FString Name;
-		int32 Count;
-		double Total;
-		double Min;
-		double Max;
-		double Avg;
-		double Med;
-	};
-
 public:
 	/** Default constructor. */
 	STimingView();
@@ -306,6 +294,9 @@ protected:
 
 	void UpdatePositionForScrollableTracks();
 
+	double EnforceHorizontalScrollLimits(const double InStartTime);
+	float EnforceVerticalScrollLimits(const float InScrollPosY);
+
 	/**
 	 * Called when the user scrolls the horizontal scrollbar.
 	 *
@@ -459,6 +450,11 @@ protected:
 	};
 	EPanningMode PanningMode;
 
+	float OverscrollLeft;
+	float OverscrollRight;
+	float OverscrollTop;
+	float OverscrollBottom;
+
 	////////////////////////////////////////////////////////////
 	// Selection
 
@@ -524,5 +520,4 @@ protected:
 	Insights::FHoveredEventChangedDelegate OnHoveredEventChangedDelegate;
 	Insights::FSelectedTrackChangedDelegate OnSelectedTrackChangedDelegate;
 	Insights::FSelectedEventChangedDelegate OnSelectedEventChangedDelegate;
-	//Insights::FFilteredEventChangedDelegate OnFilteredEventChangedDelegate;
 };
