@@ -152,6 +152,7 @@ void SActorDetails::Construct(const FArguments& InArgs, const FName TabIdentifie
 		+SVerticalBox::Slot()
 		[
 			SAssignNew(DetailsSplitter, SSplitter)
+			.MinimumSlotHeight(80.0f)
 			.Orientation(Orient_Vertical)
 			.Style(FEditorStyle::Get(), "SplitterDark")
 			.PhysicalSplitterHandleSize(2.0f)
