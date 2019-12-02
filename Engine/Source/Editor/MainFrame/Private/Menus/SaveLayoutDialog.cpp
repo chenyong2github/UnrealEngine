@@ -268,6 +268,7 @@ void SSaveLayoutDialog::Construct(const FArguments& InArgs, const TSharedRef<FSa
 			[
 				SNew(STextBlock)
 				.Text( this, &SSaveLayoutDialog::GetNameErrorLabelText )
+				.ToolTipText(this, &SSaveLayoutDialog::GetNameErrorLabelText)
 				.TextStyle( FEditorStyle::Get(), "AssetDialog.ErrorLabelFont" )
 			]
 		]
