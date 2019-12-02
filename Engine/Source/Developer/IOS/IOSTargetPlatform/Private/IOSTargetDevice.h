@@ -7,6 +7,7 @@
 #include "Interfaces/ITargetDevice.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
+#include "Containers/Queue.h"
 
 class FMessageEndpoint;
 class ITargetPlatform;
