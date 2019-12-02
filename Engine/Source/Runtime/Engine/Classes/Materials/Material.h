@@ -1244,28 +1244,24 @@ public:
 	{
 		for (class UMaterialExpression* Expression : Expressions)
 		{
-			const ExpressionType* ParameterExpression = Cast<const ExpressionType>(Expression);
-			const UMaterialExpressionMaterialFunctionCall* FunctionExpression = Cast<const UMaterialExpressionMaterialFunctionCall>(Expression);
-			const UMaterialExpressionMaterialAttributeLayers* LayersExpression = Cast<const UMaterialExpressionMaterialAttributeLayers>(Expression);
-
 			FMaterialParameterInfo BaseParameterInfo;
 			BaseParameterInfo.Association = EMaterialParameterAssociation::GlobalParameter;
 			BaseParameterInfo.Index = INDEX_NONE;
 
 			// Note: Intentionally checking the requested type first as this catches MaterialLayers
 			// which are a top-level only parameter without having to deal with the below recursion
-			if (ParameterExpression)
+			if (const ExpressionType* ParameterExpression = Cast<const ExpressionType>(Expression))
 			{
 				ParameterExpression->GetAllParameterInfo(OutParameterInfo, OutParameterIds, BaseParameterInfo);
 			}
-			else if (FunctionExpression)
+			else if (const UMaterialExpressionMaterialFunctionCall* FunctionExpression = Cast<const UMaterialExpressionMaterialFunctionCall>(Expression))
 			{
 				if (FunctionExpression->MaterialFunction)
 				{
 					FunctionExpression->MaterialFunction->GetAllParameterInfo<ExpressionType>(OutParameterInfo, OutParameterIds, BaseParameterInfo);
 				}
 			}
-			else if (LayersExpression)
+			else if (const UMaterialExpressionMaterialAttributeLayers* LayersExpression = Cast<const UMaterialExpressionMaterialAttributeLayers>(Expression))
 			{
 				const TArray<UMaterialFunctionInterface*>* Layers = &LayersExpression->GetLayers();
 				const TArray<UMaterialFunctionInterface*>* Blends = &LayersExpression->GetBlends();
@@ -1337,6 +1333,7 @@ public:
 	ENGINE_API virtual void GetAllStaticSwitchParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const override;
 	ENGINE_API virtual void GetAllStaticComponentMaskParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const override;
 
+	ENGINE_API virtual bool IterateDependentFunctions(TFunctionRef<bool(UMaterialFunctionInterface*)> Predicate) const override;
 	ENGINE_API virtual void GetDependentFunctions(TArray<class UMaterialFunctionInterface*>& DependentFunctions) const override;
 
 	ENGINE_API virtual bool GetScalarParameterDefaultValue(const FMaterialParameterInfo& ParameterInfo, float& OutValue, bool bOveriddenOnly = false, bool bCheckOwnedGlobalOverrides = false) const override;

@@ -6545,7 +6545,7 @@ bool UMaterialExpressionMaterialAttributeLayers::ValidateLayerConfiguration(FMat
 #undef COMPILER_OR_LOG_ERROR
 }
 
-void UMaterialExpressionMaterialAttributeLayers::GetDependentFunctions(TArray<UMaterialFunctionInterface*>& DependentFunctions) const
+bool UMaterialExpressionMaterialAttributeLayers::IterateDependentFunctions(TFunctionRef<bool(UMaterialFunctionInterface*)> Predicate) const
 {
 	const TArray<UMaterialFunctionInterface*>& Layers = GetLayers();
 	const TArray<UMaterialFunctionInterface*>& Blends = GetBlends();
@@ -6554,8 +6554,14 @@ void UMaterialExpressionMaterialAttributeLayers::GetDependentFunctions(TArray<UM
 	{
 		if (Layer)
 		{		
-			Layer->GetDependentFunctions(DependentFunctions);
-			DependentFunctions.AddUnique(Layer);
+			if (!Layer->IterateDependentFunctions(Predicate))
+			{
+				return false;
+			}
+			if (!Predicate(Layer))
+			{
+				return false;
+			}
 		}
 	}
 
@@ -6563,10 +6569,26 @@ void UMaterialExpressionMaterialAttributeLayers::GetDependentFunctions(TArray<UM
 	{
 		if (Blend)
 		{
-			Blend->GetDependentFunctions(DependentFunctions);
-			DependentFunctions.AddUnique(Blend);
+			if (!Blend->IterateDependentFunctions(Predicate))
+			{
+				return false;
+			}
+			if (!Predicate(Blend))
+			{
+				return false;
+			}
 		}
 	}
+	return true;
+}
+
+void UMaterialExpressionMaterialAttributeLayers::GetDependentFunctions(TArray<UMaterialFunctionInterface*>& DependentFunctions) const
+{
+	IterateDependentFunctions([&DependentFunctions](UMaterialFunctionInterface* MaterialFunction) -> bool
+	{
+		DependentFunctions.AddUnique(MaterialFunction);
+		return true;
+	});
 }
 
 UMaterialFunctionInterface* UMaterialExpressionMaterialAttributeLayers::GetParameterAssociatedFunction(const FMaterialParameterInfo& ParameterInfo) const
@@ -7157,16 +7179,18 @@ void UMaterialExpressionParameter::GetAllParameterInfo(TArray<FMaterialParameter
 	FMaterialParameterInfo NewParameter(ParameterName, InBaseParameterInfo.Association, InBaseParameterInfo.Index);
 
 #if WITH_EDITOR
-	NewParameter.ParameterLocation = Material;
 	if (Function != nullptr)
 	{
 		NewParameter.ParameterLocation = Function;
 	}
-
+	else
+	{
+		NewParameter.ParameterLocation = Material;
+	}
 	if (HasConnectedOutputs())
 #endif
 	{
-		OutParameterInfo.AddUnique(NewParameter);
+		OutParameterInfo.AddUnique(MoveTemp(NewParameter));
 		if (CurrentSize != OutParameterInfo.Num())
 		{
 			OutParameterIds.Add(ExpressionGUID);
@@ -11218,13 +11242,26 @@ void UMaterialFunction::UpdateInputOutputTypes()
 		}
 	}
 }
-#endif
 
 #if WITH_EDITOR
+void UMaterialFunction::UpdateDependentFunctionCandidates()
+{
+	DependentFunctionExpressionCandidates.Reset();
+	for (UMaterialExpression* CurrentExpression : FunctionExpressions)
+	{
+		if (UMaterialExpressionMaterialFunctionCall* MaterialFunctionExpression = Cast<UMaterialExpressionMaterialFunctionCall>(CurrentExpression))
+		{
+			DependentFunctionExpressionCandidates.Add(MaterialFunctionExpression);
+		}
+	}
+}
+#endif
+
 void UMaterialFunction::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 #if WITH_EDITORONLY_DATA
 	UpdateInputOutputTypes();
+	UpdateDependentFunctionCandidates();
 #endif
 
 	//@todo - recreate guid only when needed, not when a comment changes
@@ -11297,6 +11334,7 @@ void UMaterialFunction::PostLoad()
 	{
 		UpdateInputOutputTypes();
 	}
+	UpdateDependentFunctionCandidates();
 
 	if (GIsEditor)
 	{
@@ -11699,15 +11737,39 @@ bool UMaterialFunction::IsDependent(UMaterialFunctionInterface* OtherFunction)
 	return bIsDependent;
 }
 
-void UMaterialFunction::GetDependentFunctions(TArray<UMaterialFunctionInterface*>& DependentFunctions) const
+bool UMaterialFunction::IterateDependentFunctions(TFunctionRef<bool(UMaterialFunctionInterface*)> Predicate) const
 {
+#if WITH_EDITOR
+	check(!HasAnyFlags(RF_NeedPostLoad));
+	for (UMaterialExpressionMaterialFunctionCall* MaterialFunctionExpression : DependentFunctionExpressionCandidates)
+	{
+		if(!MaterialFunctionExpression->IterateDependentFunctions(Predicate))
+		{
+			return false;
+		}
+	}
+#else
 	for (UMaterialExpression* CurrentExpression : FunctionExpressions)
 	{
 		if (UMaterialExpressionMaterialFunctionCall* MaterialFunctionExpression = Cast<UMaterialExpressionMaterialFunctionCall>(CurrentExpression))
 		{
-			MaterialFunctionExpression->GetDependentFunctions(DependentFunctions);
+			if (!MaterialFunctionExpression->IterateDependentFunctions(Predicate))
+			{
+				return false;
+			}
 		}
 	}
+#endif
+	return true;
+}
+
+void UMaterialFunction::GetDependentFunctions(TArray<UMaterialFunctionInterface*>& DependentFunctions) const
+{
+	IterateDependentFunctions([&DependentFunctions](UMaterialFunctionInterface* MaterialFunction) -> bool
+	{
+		DependentFunctions.AddUnique(MaterialFunction);
+		return true;
+	});
 }
 
 void UMaterialFunction::AppendReferencedTextures(TArray<UObject*>& InOutTextures) const
@@ -12241,13 +12303,29 @@ bool UMaterialFunctionInstance::IsDependent(UMaterialFunctionInterface* OtherFun
 	return Parent ? Parent->IsDependent(OtherFunction) : false;
 }
 
-void UMaterialFunctionInstance::GetDependentFunctions(TArray<UMaterialFunctionInterface*>& DependentFunctions) const
+bool UMaterialFunctionInstance::IterateDependentFunctions(TFunctionRef<bool(UMaterialFunctionInterface*)> Predicate) const
 {
 	if (Parent)
 	{
-		Parent->GetDependentFunctions(DependentFunctions);
-		DependentFunctions.AddUnique(Parent);
+		if (!Parent->IterateDependentFunctions(Predicate))
+		{
+			return false;
+		}
+		if (!Predicate(Parent))
+		{
+			return false;
+		}
 	}
+	return true;
+}
+
+void UMaterialFunctionInstance::GetDependentFunctions(TArray<UMaterialFunctionInterface*>& DependentFunctions) const
+{
+	IterateDependentFunctions([&DependentFunctions](UMaterialFunctionInterface* MaterialFunction) -> bool
+	{
+		DependentFunctions.AddUnique(MaterialFunction);
+		return true;
+	});
 }
 
 void UMaterialFunctionInstance::AppendReferencedTextures(TArray<UObject*>& InOutTextures) const
@@ -12575,13 +12653,30 @@ bool UMaterialExpressionMaterialFunctionCall::NeedsLoadForClient() const
 	return true;
 }
 
-void UMaterialExpressionMaterialFunctionCall::GetDependentFunctions(TArray<UMaterialFunctionInterface*>& DependentFunctions) const
+
+bool UMaterialExpressionMaterialFunctionCall::IterateDependentFunctions(TFunctionRef<bool(UMaterialFunctionInterface*)> Predicate) const
 {
 	if (MaterialFunction)
 	{
-		MaterialFunction->GetDependentFunctions(DependentFunctions);
-		DependentFunctions.AddUnique(MaterialFunction);
+		if (!MaterialFunction->IterateDependentFunctions(Predicate))
+		{
+			return false;
+		}
+		if (!Predicate(MaterialFunction))
+		{
+			return false;
+		}
 	}
+	return true;
+}
+
+void UMaterialExpressionMaterialFunctionCall::GetDependentFunctions(TArray<UMaterialFunctionInterface*>& DependentFunctions) const
+{
+	IterateDependentFunctions([&DependentFunctions](UMaterialFunctionInterface* InMaterialFunction) -> bool
+	{
+		DependentFunctions.AddUnique(InMaterialFunction);
+		return true;
+	});
 }
 
 #if WITH_EDITOR
@@ -12926,13 +13021,12 @@ bool UMaterialExpressionMaterialFunctionCall::SetMaterialFunctionEx(
 
 void UMaterialExpressionMaterialFunctionCall::UpdateFromFunctionResource(bool bRecreateAndLinkNode)
 {
-	TArray<FFunctionExpressionInput> OriginalInputs = FunctionInputs;
-	TArray<FFunctionExpressionOutput> OriginalOutputs = FunctionOutputs;
-	TArray<FExpressionOutput> OriginalGraphOutputs = Outputs;
+	TArray<FFunctionExpressionInput> OriginalInputs = MoveTemp(FunctionInputs);
+	TArray<FFunctionExpressionOutput> OriginalOutputs = MoveTemp(FunctionOutputs);
 
-	FunctionInputs.Empty();
-	FunctionOutputs.Empty();
-	Outputs.Empty();
+	FunctionInputs.Reserve(OriginalInputs.Num());
+	FunctionOutputs.Reserve(OriginalOutputs.Num());
+	Outputs.Reset();
 
 	if (MaterialFunction)
 	{
