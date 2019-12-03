@@ -4,7 +4,7 @@
 
 THIRD_PARTY_INCLUDES_START
 #define LZ4_NAMESPACE Trace
-#include "ThirdParty/LZ4/lz4.c.h"
+#include "LZ4/lz4.c.inl"
 #undef LZ4_NAMESPACE
 THIRD_PARTY_INCLUDES_END
 
