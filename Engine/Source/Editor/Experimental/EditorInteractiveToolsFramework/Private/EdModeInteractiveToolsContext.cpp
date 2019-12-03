@@ -562,6 +562,12 @@ public:
 
 void UEdModeInteractiveToolsContext::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
+	// tools framework cannot use HitProxy so skip these calls
+	if (PDI->IsHitTesting())
+	{
+		return;
+	}
+
 	TempRenderContext RenderContext;
 	RenderContext.PDI = PDI;
 	ToolManager->Render(&RenderContext);
@@ -942,21 +948,26 @@ void UEdModeInteractiveToolsContext::DeactivateAllActiveTools()
 
 
 
-
 void UEdModeInteractiveToolsContext::SaveEditorStateAndSetForTool()
 {
 	check(bHaveSavedEditorState == false);
-	bSavedAntiAliasingState = GCurrentLevelEditingViewportClient->EngineShowFlags.AntiAliasing;
+	SavedViewportClient = GCurrentLevelEditingViewportClient;
 	bHaveSavedEditorState = true;
 
-	GCurrentLevelEditingViewportClient->EngineShowFlags.SetAntiAliasing(false);
+	GCurrentLevelEditingViewportClient->EnableOverrideEngineShowFlags([](FEngineShowFlags& Flags)
+	{
+		Flags.SetTemporalAA(false);
+		Flags.SetMotionBlur(false);
+		Flags.SetEyeAdaptation(false);
+	});
 }
+
 
 void UEdModeInteractiveToolsContext::RestoreEditorState()
 {
-	if (bHaveSavedEditorState && !IsEngineExitRequested())
+	if (bHaveSavedEditorState)
 	{
-		GCurrentLevelEditingViewportClient->EngineShowFlags.SetAntiAliasing(bSavedAntiAliasingState);
+		SavedViewportClient->DisableOverrideEngineShowFlags();
 		bHaveSavedEditorState = false;
 	}
 }

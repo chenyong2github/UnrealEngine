@@ -117,7 +117,7 @@ protected:
 	// editor UI state that we set before starting tool and when exiting tool
 	// Currently disabling anti-aliasing during active Tools because it causes PDI flickering
 	bool bHaveSavedEditorState = false;
-	bool bSavedAntiAliasingState = false;
+	FLevelEditorViewportClient* SavedViewportClient;
 	void SaveEditorStateAndSetForTool();
 	void RestoreEditorState();
 
