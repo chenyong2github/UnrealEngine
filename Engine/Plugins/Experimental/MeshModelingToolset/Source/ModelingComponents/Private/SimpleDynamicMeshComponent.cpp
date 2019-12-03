@@ -278,3 +278,12 @@ void USimpleDynamicMeshComponent::ApplyChange(const FMeshChange* Change, bool bR
 	NotifyMeshUpdated();
 	OnMeshChanged.Broadcast();
 }
+
+
+void USimpleDynamicMeshComponent::ApplyChange(const FMeshReplacementChange* Change, bool bRevert)
+{
+	Mesh->Copy(*Change->GetMesh(bRevert));
+
+	NotifyMeshUpdated();
+	OnMeshChanged.Broadcast();
+}

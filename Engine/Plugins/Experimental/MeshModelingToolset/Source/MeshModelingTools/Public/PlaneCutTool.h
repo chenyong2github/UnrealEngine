@@ -9,6 +9,7 @@
 #include "InteractiveToolBuilder.h"
 #include "MeshOpPreviewHelpers.h"
 #include "DynamicMesh3.h"
+#include "Changes/DynamicMeshChangeTarget.h"
 #include "BaseTools/SingleClickTool.h"
 #include "PlaneCutTool.generated.h"
 
@@ -53,10 +54,6 @@ class MESHMODELINGTOOLS_API UPlaneCutToolProperties : public UInteractiveToolPro
 public:
 	UPlaneCutToolProperties();
 
-	/** If true, UVs and Normals are discarded  */
-	UPROPERTY(EditAnywhere, Category = Options)
-	bool bDiscardAttributes;
-
 	/** If true, both halves of the cut are computed */
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bKeepBothHalves;
@@ -90,9 +87,6 @@ public:
 
 	UPROPERTY()
 	UPlaneCutTool *CutTool;
-
-	UPROPERTY()
-	bool bCutBackSide = false;
 
 	int ComponentIndex;
 };
@@ -130,6 +124,7 @@ public:
 
 	virtual void OnPropertyModified(UObject* PropertySet, UProperty* Property) override;
 
+
 protected:
 
 	UPROPERTY()
@@ -146,9 +141,19 @@ protected:
 	UPROPERTY()
 	TArray<UMeshOpPreviewWithBackgroundCompute*> Previews;
 
+	/** Do the plane cut without exiting the tool, useful for doing a lot of cuts quickly */
+	UFUNCTION(CallInEditor, Category = Options, meta = (DisplayName = "Cut"))
+	void DoCut();
 
 protected:
-	TArray<TSharedPtr<FDynamicMesh3>> OriginalDynamicMeshes;
+
+	UPROPERTY()
+	TArray<UDynamicMeshReplacementChangeTarget*> MeshesToCut;
+
+	// for each mesh in MeshesToCut, the index of the attached generic triangle attribute tracking the object index
+	TArray<int> MeshSubObjectAttribIndices;
+	// UV Scale factor is cached based on the bounding box of the mesh before any cuts are performed, so you don't get inconsistent UVs if you multi-cut the object to smaller sizes
+	TArray<float> MeshUVScaleFactor;
 
 	UWorld* TargetWorld;
 	IToolsContextAssetAPI* AssetAPI;
@@ -162,8 +167,9 @@ protected:
 	UTransformProxy* PlaneTransformProxy;
 
 	void TransformChanged(UTransformProxy* Proxy, FTransform Transform);
+	void MeshChanged();
 
-	void UpdateNumPreviews();
+	void SetupPreviews();
 
 	IClickBehaviorTarget* SetPointInWorldConnector = nullptr;
 

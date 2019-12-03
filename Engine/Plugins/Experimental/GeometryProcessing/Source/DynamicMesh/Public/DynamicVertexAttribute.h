@@ -77,6 +77,12 @@ public:
 private:
 	void Reparent(ParentType* NewParent) override { Parent = NewParent;  }
 public:
+	virtual TDynamicAttributeBase<ParentType>* MakeNew(ParentType* ParentIn) const override
+	{
+		TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>* Matching = new TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>(ParentIn);
+		Matching->Initialize();
+		return Matching;
+	}
 	virtual TDynamicAttributeBase<ParentType>* MakeCopy(ParentType* ParentIn) const override
 	{
 		TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>* ToFill = new TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>(ParentIn);

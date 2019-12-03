@@ -1004,6 +1004,7 @@ void UMeshSelectionTool::SeparateSelectedTriangles()
 	// extract copy of triangles
 	FDynamicMesh3 SeparatedMesh;
 	SeparatedMesh.EnableAttributes();
+	SeparatedMesh.Attributes()->EnableMatchingAttributes(*SourceMesh->Attributes());
 	FDynamicMeshEditor Editor(&SeparatedMesh);
 	FMeshIndexMappings Mappings; FDynamicMeshEditResult EditResult;
 	Editor.AppendTriangles(SourceMesh, SelectedFaces, Mappings, EditResult);

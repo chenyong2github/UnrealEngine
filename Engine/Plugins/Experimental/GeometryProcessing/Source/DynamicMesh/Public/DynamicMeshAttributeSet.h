@@ -54,6 +54,10 @@ public:
 			EnableMaterialID();
 			MaterialIDAttrib->Copy(*(Copy.MaterialIDAttrib));
 		}
+		else
+		{
+			DisableMaterialID();
+		}
 
 		GenericAttributes.Reset();
 		ResetRegisteredAttributes();
@@ -64,6 +68,36 @@ public:
 		}
 
 		// parent mesh is *not* copied!
+	}
+
+	/**
+	 * Enable the matching attributes and overlay layers as the reference Copy set, but do not copy any data across
+	 */
+	void EnableMatchingAttributes(const FDynamicMeshAttributeSet& ToMatch)
+	{
+		SetNumUVLayers(ToMatch.NumUVLayers());
+		for (int UVIdx = 0; UVIdx < NumUVLayers(); UVIdx++)
+		{
+			UVLayers[UVIdx].ClearElements();
+		}
+		Normals0.ClearElements();
+
+		if (ToMatch.MaterialIDAttrib)
+		{
+			EnableMaterialID();
+		}
+		else
+		{
+			DisableMaterialID();
+		}
+
+		GenericAttributes.Reset();
+		ResetRegisteredAttributes();
+		for (int Idx = 0; Idx < ToMatch.GenericAttributes.Num(); Idx++)
+		{
+			const FDynamicMeshAttributeBase* SourceAttrib = ToMatch.GenericAttributes[Idx].Get();
+			AttachAttribute(SourceAttrib->MakeNew(ParentMesh));
+		}
 	}
 
 	/** @return the parent mesh for this overlay */
@@ -207,6 +241,8 @@ public:
 
 
 	void EnableMaterialID();
+
+	void DisableMaterialID();
 
 	FDynamicMeshMaterialAttribute* GetMaterialID()
 	{

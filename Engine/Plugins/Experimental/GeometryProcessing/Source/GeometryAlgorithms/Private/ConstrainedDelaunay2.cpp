@@ -195,6 +195,8 @@ bool TConstrainedDelaunay2<RealType>::Triangulate()
 		return false;
 	}
 
+	const std::vector<int>& Duplicates = Delaunay.GetDuplicates();
+
 	std::vector<int> OutEdges;
 	bool InsertConstraintFailure = false;
 	TMap<TPair<int, int>, bool> BoundaryMap, HoleMap; // tracks all the boundary edges as they are added, so we can later flood fill across them for inside/outside decisions
@@ -208,7 +210,9 @@ bool TConstrainedDelaunay2<RealType>::Triangulate()
 		TMap<TPair<int, int>, bool>& InputMap = *EdgeAndHoleMaps[EdgeOrHole];
 		for (const FIndex2i& Edge : Input)
 		{
-			if (!Delaunay.Insert({{Edge.A, Edge.B}}, OutEdges))
+			int A = Duplicates[Edge.A];
+			int B = Duplicates[Edge.B];
+			if (!Delaunay.Insert({{A, B}}, OutEdges))
 			{
 				// Note the failed edge; we will try to proceed anyway, just without this edge.  Hopefully the CDT is robust and this never happens!
 				ensureMsgf(false, TEXT("CDT edge insertion failed"));

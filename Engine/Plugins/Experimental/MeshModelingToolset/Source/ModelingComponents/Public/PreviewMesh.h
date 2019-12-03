@@ -53,7 +53,7 @@ public:
  * 
  */
 UCLASS(Transient)
-class MODELINGCOMPONENTS_API UPreviewMesh : public UObject, public IMeshVertexCommandChangeTarget, public IMeshCommandChangeTarget
+class MODELINGCOMPONENTS_API UPreviewMesh : public UObject, public IMeshVertexCommandChangeTarget, public IMeshCommandChangeTarget, public IMeshReplacementCommandChangeTarget
 {
 	GENERATED_BODY()
 
@@ -274,6 +274,11 @@ public:
 	 * Apply/Revert a general mesh change to the internal mesh   (implements IMeshCommandChangeTarget)
 	 */
 	virtual void ApplyChange(const FMeshChange* Change, bool bRevert) override;
+
+	/**
+	* Apply/Revert a general mesh change to the internal mesh   (implements IMeshReplacementCommandChangeTarget)
+	*/
+	virtual void ApplyChange(const FMeshReplacementChange* Change, bool bRevert) override;
 
 	/** @return delegate that is broadcast whenever the internal mesh component is changed */
 	FSimpleMulticastDelegate& GetOnMeshChanged();

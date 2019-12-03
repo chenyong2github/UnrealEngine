@@ -409,3 +409,18 @@ void UOctreeDynamicMeshComponent::ApplyChange(const FMeshChange* Change, bool bR
 
 	OnMeshChanged.Broadcast();
 }
+
+
+void UOctreeDynamicMeshComponent::ApplyChange(const FMeshReplacementChange* Change, bool bRevert)
+{
+	// full clear and reset
+	Mesh->Clear();
+	Mesh->Copy(*Change->GetMesh(bRevert));
+	Octree = MakeUnique<FDynamicMeshOctree3>();
+	Octree->Initialize(GetMesh());
+	OctreeCut = MakeUnique<FDynamicMeshOctree3::FTreeCutSet>();
+
+	//NotifyMeshUpdated();
+
+	OnMeshChanged.Broadcast();
+}

@@ -321,6 +321,15 @@ void UPreviewMesh::ApplyChange(const FMeshChange* Change, bool bRevert)
 		MeshAABBTree.SetMesh(DynamicMeshComponent->GetMesh(), true);
 	}
 }
+void UPreviewMesh::ApplyChange(const FMeshReplacementChange* Change, bool bRevert)
+{
+	check(DynamicMeshComponent != nullptr);
+	DynamicMeshComponent->ApplyChange(Change, bRevert);
+	if (bBuildSpatialDataStructure)
+	{
+		MeshAABBTree.SetMesh(DynamicMeshComponent->GetMesh(), true);
+	}
+}
 
 FSimpleMulticastDelegate& UPreviewMesh::GetOnMeshChanged()
 {

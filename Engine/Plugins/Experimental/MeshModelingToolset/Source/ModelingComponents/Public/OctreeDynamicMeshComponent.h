@@ -98,6 +98,11 @@ public:
 	 */
 	virtual void ApplyChange(const FMeshChange* Change, bool bRevert) override;
 
+	/**
+	* Apply a general mesh replacement change to the internal mesh
+	*/
+	virtual void ApplyChange(const FMeshReplacementChange* Change, bool bRevert) override;
+
 
 	/**
 	 * This delegate fires when a FCommandChange is applied to this component, so that

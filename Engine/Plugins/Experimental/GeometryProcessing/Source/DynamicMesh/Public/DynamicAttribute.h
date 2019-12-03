@@ -61,6 +61,9 @@ public:
 
 	/** Allocate a new copy of the attribute layer, optionally with a different parent mesh */
 	virtual TDynamicAttributeBase* MakeCopy(ParentType* ParentIn) const = 0;
+	/** Allocate a new empty instance of the same type of attribute layer */
+	virtual TDynamicAttributeBase* MakeNew(ParentType* ParentIn) const = 0;
+	
 	virtual void Reparent(ParentType* NewParent) = 0;
 
 	virtual void OnNewVertex(int VertexID, bool bInserted)

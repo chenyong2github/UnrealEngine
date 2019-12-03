@@ -14,6 +14,11 @@ void FDynamicMeshAttributeSet::EnableMaterialID()
 	}
 }
 
+void FDynamicMeshAttributeSet::DisableMaterialID()
+{
+	MaterialIDAttrib.Reset();
+}
+
 
 
 bool FDynamicMeshAttributeSet::IsSeamEdge(int eid) const

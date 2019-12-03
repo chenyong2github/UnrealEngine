@@ -85,6 +85,13 @@ public:
 	/** @return the parent mesh for this overlay */
 	FDynamicMesh3* GetParentMesh() { return ParentMesh; }
 
+	virtual FDynamicMeshAttributeBase* MakeNew(FDynamicMesh3* ParentMeshIn) const override
+	{
+		TDynamicMeshTriangleAttribute<AttribValueType, AttribDimension>* Matching = new TDynamicMeshTriangleAttribute<AttribValueType, AttribDimension>(ParentMeshIn);
+		Matching->Initialize();
+		return Matching;
+	}
+
 	virtual FDynamicMeshAttributeBase* MakeCopy(FDynamicMesh3* ParentMeshIn) const override
 	{
 		TDynamicMeshTriangleAttribute<AttribValueType, AttribDimension>* ToFill = new TDynamicMeshTriangleAttribute<AttribValueType, AttribDimension>(ParentMeshIn);
@@ -245,6 +252,25 @@ public:
 	void OnSplitVertex(const DynamicMeshInfo::FVertexSplitInfo& SplitInfo, const TArrayView<const int>& TrianglesToUpdate) override
 	{
 		// nothing to do here because triangles did not change
+	}
+
+	virtual AttribValueType GetDefaultAttributeValue()
+	{
+		return (AttribValueType)0;
+	}
+
+	inline void ResizeAttribStoreIfNeeded(int TriangleID)
+	{
+		int k = TriangleID * AttribDimension;
+		if (k+AttribDimension > AttribValues.Num())
+		{
+			AttribValues.Resize(k + AttribDimension, GetDefaultAttributeValue());
+		}
+	}
+
+	virtual void OnNewTriangle(int TriangleID, bool bInserted) override
+	{
+		ResizeAttribStoreIfNeeded(TriangleID);
 	}
 
 

@@ -426,6 +426,16 @@ public:
 	 */
 	void AppendTriangles(const FDynamicMesh3* SourceMesh, const TArray<int>& SourceTriangles, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult& ResultOut);
 
+	/**
+	 * Create multiple meshes out of the source mesh by splitting triangles out.
+	 * Static because it creates multiple output meshes, so doesn't quite fit in the FDynamicMeshEditor model of operating on a single mesh
+	 *
+	 * @param SourceMesh
+	 * @param SplitMeshes
+	 * @param TriIDToMeshID
+	 * @return true if needed split, false if there were not multiple mesh ids so no split was needed
+	 */
+	static bool SplitMesh(const FDynamicMesh3* SourceMesh, TArray<FDynamicMesh3>& SplitMeshes, TFunctionRef<int(int)> TriIDToMeshID, int DeleteMeshID = -1);
 
 };
 

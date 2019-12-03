@@ -8,6 +8,7 @@
 #include "InteractiveToolObjects.h"
 #include "Changes/MeshVertexChange.h"
 #include "Changes/MeshChange.h"
+#include "Changes/MeshReplacementChange.h"
 
 #include "DynamicMesh3.h"
 
@@ -41,7 +42,7 @@ enum class EDynamicMeshTangentCalcType : uint8
  * Currently no functionality lives here, only some interface functions are defined that various subclasses implement.
  */
 UCLASS(hidecategories = (LOD, Physics, Collision), editinlinenew, ClassGroup = Rendering)
-class MODELINGCOMPONENTS_API UBaseDynamicMeshComponent : public UMeshComponent, public IToolFrameworkComponent, public IMeshVertexCommandChangeTarget, public IMeshCommandChangeTarget
+class MODELINGCOMPONENTS_API UBaseDynamicMeshComponent : public UMeshComponent, public IToolFrameworkComponent, public IMeshVertexCommandChangeTarget, public IMeshCommandChangeTarget, public IMeshReplacementCommandChangeTarget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -68,6 +69,14 @@ public:
 	 * Apply a general mesh change to the internal mesh  (implements IMeshCommandChangeTarget)
 	 */
 	virtual void ApplyChange(const FMeshChange* Change, bool bRevert) override
+	{
+		unimplemented();
+	}
+
+	/**
+	* Apply a full mesh replacement change to the internal mesh  (implements IMeshReplacementCommandChangeTarget)
+	*/
+	virtual void ApplyChange(const FMeshReplacementChange* Change, bool bRevert) override
 	{
 		unimplemented();
 	}
