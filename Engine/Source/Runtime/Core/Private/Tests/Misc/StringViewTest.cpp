@@ -615,37 +615,37 @@ bool FStringViewTestFindChar::RunTest(const FString& Parameters)
 
 	{
 		int32 Index = INDEX_NONE;
-		TestFalse(TEXT("FStringView::FindChar-Return(0)"), EmptyView.FindChar('a', Index));
+		TestFalse(TEXT("FStringView::FindChar-Return(0)"), EmptyView.FindChar(TEXT('a'), Index));
 		TestEqual(TEXT("FStringView::FindChar-Index(0)"), Index, INDEX_NONE);
 	}
 
 	{
 		int32 Index = INDEX_NONE;
-		TestTrue(TEXT("FStringView::FindChar-Return(1)"), View.FindChar('a', Index));
+		TestTrue(TEXT("FStringView::FindChar-Return(1)"), View.FindChar(TEXT('a'), Index));
 		TestEqual(TEXT("FStringView::FindChar-Index(1)"), Index, 0);
 	}
 
 	{
 		int32 Index = INDEX_NONE;
-		TestTrue(TEXT("FStringView::FindChar-Return(2)"), View.FindChar('F', Index));
+		TestTrue(TEXT("FStringView::FindChar-Return(2)"), View.FindChar(TEXT('F'), Index));
 		TestEqual(TEXT("FStringView::FindChar-Index(2)"), Index, 5);
 	}
 
 	{
 		int32 Index = INDEX_NONE;
-		TestFalse(TEXT("FStringView::FindChar-Return(3)"), View.FindChar('A', Index));
+		TestFalse(TEXT("FStringView::FindChar-Return(3)"), View.FindChar(TEXT('A'), Index));
 		TestEqual(TEXT("FStringView::FindChar-Index(3)"), Index, INDEX_NONE);
 	}
 
 	{
 		int32 Index = INDEX_NONE;
-		TestFalse(TEXT("FStringView::FindChar-Return(4)"), View.FindChar('d', Index));
+		TestFalse(TEXT("FStringView::FindChar-Return(4)"), View.FindChar(TEXT('d'), Index));
 		TestEqual(TEXT("FStringView::FindChar-Index(4)"), Index, INDEX_NONE);
 	}
 
 	{
 		int32 Index = INDEX_NONE;
-		TestTrue(TEXT("FStringView::FindChar-Return(5)"), View.FindChar(' ', Index));
+		TestTrue(TEXT("FStringView::FindChar-Return(5)"), View.FindChar(TEXT(' '), Index));
 		TestEqual(TEXT("FStringView::FindChar-Index(5)"), Index, 4);
 	}
 
@@ -660,37 +660,37 @@ bool FStringViewTestFindLastChar::RunTest(const FString& Parameters)
 
 	{
 		int32 Index = INDEX_NONE;
-		TestFalse(TEXT("FStringView::FindChar-Return(0)"), EmptyView.FindLastChar('a', Index));
+		TestFalse(TEXT("FStringView::FindChar-Return(0)"), EmptyView.FindLastChar(TEXT('a'), Index));
 		TestEqual(TEXT("FStringView::FindChar-Index(0)"), Index, INDEX_NONE);
 	}
 
 	{
 		int32 Index = INDEX_NONE;
-		TestTrue(TEXT("FStringView::FindChar-Return(1)"), View.FindLastChar('a', Index));
+		TestTrue(TEXT("FStringView::FindChar-Return(1)"), View.FindLastChar(TEXT('a'), Index));
 		TestEqual(TEXT("FStringView::FindChar-Index(1)"), Index, 7);
 	}
 
 	{
 		int32 Index = INDEX_NONE;
-		TestTrue(TEXT("FStringView::FindChar-Return(2)"), View.FindLastChar('B', Index));
+		TestTrue(TEXT("FStringView::FindChar-Return(2)"), View.FindLastChar(TEXT('B'), Index));
 		TestEqual(TEXT("FStringView::FindChar-Index(2)"), Index, 1);
 	}
 
 	{
 		int32 Index = INDEX_NONE;
-		TestFalse(TEXT("FStringView::FindChar-Return(3)"), View.FindLastChar('A', Index));
+		TestFalse(TEXT("FStringView::FindChar-Return(3)"), View.FindLastChar(TEXT('A'), Index));
 		TestEqual(TEXT("FStringView::FindChar-Index(3)"), Index, INDEX_NONE);
 	}
 
 	{
 		int32 Index = INDEX_NONE;
-		TestFalse(TEXT("FStringView::FindChar-Return(4)"), View.FindLastChar('d', Index));
+		TestFalse(TEXT("FStringView::FindChar-Return(4)"), View.FindLastChar(TEXT('d'), Index));
 		TestEqual(TEXT("FStringView::FindChar-Index(4)"), Index, INDEX_NONE);
 	}
 
 	{
 		int32 Index = INDEX_NONE;
-		TestTrue(TEXT("FStringView::FindChar-Return(5)"), View.FindLastChar(' ', Index));
+		TestTrue(TEXT("FStringView::FindChar-Return(5)"), View.FindLastChar(TEXT(' '), Index));
 		TestEqual(TEXT("FStringView::FindChar-Index(5)"), Index, 4);
 	}
 

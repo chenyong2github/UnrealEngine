@@ -173,7 +173,7 @@ public:
 	 *
 	 * @param SearchCase Whether the comparison should ignore case.
 	 */
-	bool Equals(const TStringViewImpl& Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const;
+	inline bool Equals(const ViewType& Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const;
 
 	/**
 	 * Compare this view lexicographically with another view.
@@ -182,17 +182,17 @@ public:
 	 *
 	 * @return 0 is equal, negative if this view is less, positive if this view is greater.
 	 */
-	CORE_API int32 Compare(const TStringViewImpl& Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const;
+	inline int32 Compare(const ViewType& Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const;
 
 	/** Returns whether this view starts with the prefix character compared case-sensitively. */
 	inline bool StartsWith(CharType Prefix) const { return Size >= 1 && DataPtr[0] == Prefix; }
 	/** Returns whether this view starts with the prefix with optional case sensitivity. */
-	inline bool StartsWith(const TStringViewImpl& Prefix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
+	inline bool StartsWith(const ViewType& Prefix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
 
 	/** Returns whether this view ends with the suffix character compared case-sensitively. */
 	inline bool EndsWith(CharType Suffix) const { return Size >= 1 && DataPtr[Size-1] == Suffix; }
 	/** Returns whether this view ends with the suffix with optional case sensitivity. */
-	inline bool EndsWith(const TStringViewImpl& Suffix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
+	inline bool EndsWith(const ViewType& Suffix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
 
 	// Searching/Finding
 
@@ -204,7 +204,7 @@ public:
 	 *
 	 * @return Whether the character was found in the view.
 	 */
-	CORE_API bool FindChar(CharType InChar, SizeType& OutIndex) const;
+	inline bool FindChar(CharType InChar, SizeType& OutIndex) const;
 
 	/**
 	 * Search the view for the last occurrence of a character.
@@ -214,7 +214,7 @@ public:
 	 *
 	 * @return Whether the character was found in the view.
 	 */
-	CORE_API bool FindLastChar(CharType InChar, SizeType& OutIndex) const;
+	inline bool FindLastChar(CharType InChar, SizeType& OutIndex) const;
 
 public:
 	/**

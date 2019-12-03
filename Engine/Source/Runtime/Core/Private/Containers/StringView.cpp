@@ -2,38 +2,46 @@
 
 #include "Misc/StringView.h"
 
-#include "Containers/UnrealString.h"
-#include "HAL/PlatformString.h"
+template class TStringViewImpl<TCHAR, FStringView>;
+template class TStringViewImpl<ANSICHAR, FAnsiStringView>;
+template class TStringViewImpl<WIDECHAR, FWideStringView>;
 
-template<typename CharType, typename ViewType>
-int32 TStringViewImpl<CharType, ViewType>::Compare(const TStringViewImpl& Other, ESearchCase::Type SearchCase) const
+template <typename ViewType>
+int32 StringViewPrivate::Compare(const ViewType& Lhs, const ViewType& Rhs, ESearchCase::Type SearchCase)
 {
-	const SizeType SelfLen = Len();
-	const SizeType OtherLen = Other.Len();
-	const SizeType ShortestLength = FMath::Min(SelfLen, OtherLen);
+	const typename ViewType::SizeType LhsLen = Lhs.Len();
+	const typename ViewType::SizeType RhsLen = Rhs.Len();
+	const typename ViewType::SizeType MinLen = FMath::Min(LhsLen, RhsLen);
 
 	int Result;
 	if (SearchCase == ESearchCase::CaseSensitive)
 	{
-		Result = FPlatformString::Strncmp(GetData(), Other.GetData(), ShortestLength);
+		Result = TCString<typename ViewType::ElementType>::Strncmp(Lhs.GetData(), Rhs.GetData(), MinLen);
 	}
 	else
 	{
-		Result = FPlatformString::Strnicmp(GetData(), Other.GetData(), ShortestLength);
+		Result = TCString<typename ViewType::ElementType>::Strnicmp(Lhs.GetData(), Rhs.GetData(), MinLen);
 	}
 
-	if (Result != 0 || SelfLen == OtherLen)
+	if (Result != 0 || LhsLen == RhsLen)
 	{
 		return Result;
 	}
 
-	return SelfLen < OtherLen ? -1 : 1;
+	return LhsLen < RhsLen ? -1 : 1;
 }
 
-template<typename CharType, typename ViewType>
-bool TStringViewImpl<CharType, ViewType>::FindChar(CharType InChar, SizeType& OutIndex) const
+template int32 CORE_API StringViewPrivate::Compare(const FStringView& Lhs, const FStringView& Rhs, ESearchCase::Type SearchCase);
+template int32 CORE_API StringViewPrivate::Compare(const FAnsiStringView& Lhs, const FAnsiStringView& Rhs, ESearchCase::Type SearchCase);
+template int32 CORE_API StringViewPrivate::Compare(const FWideStringView& Lhs, const FWideStringView& Rhs, ESearchCase::Type SearchCase);
+
+template <typename ViewType>
+bool StringViewPrivate::FindChar(const ViewType& InView, typename ViewType::ElementType InChar, typename ViewType::SizeType& OutIndex)
 {
-	for (SizeType i = 0; i < Size; ++i)
+	const typename ViewType::ElementType* DataPtr = InView.GetData();
+	const typename ViewType::SizeType Size = InView.Len();
+
+	for (typename ViewType::SizeType i = 0; i < Size; ++i)
 	{
 		if (DataPtr[i] == InChar)
 		{
@@ -46,16 +54,23 @@ bool TStringViewImpl<CharType, ViewType>::FindChar(CharType InChar, SizeType& Ou
 	return false;
 }
 
-template<typename CharType, typename ViewType>
-bool TStringViewImpl<CharType, ViewType>::FindLastChar(CharType InChar, SizeType& OutIndex) const
+template bool CORE_API StringViewPrivate::FindChar(const FStringView& InView, TCHAR InChar, typename FStringView::SizeType& OutIndex);
+template bool CORE_API StringViewPrivate::FindChar(const FAnsiStringView& InView, ANSICHAR InChar, typename FAnsiStringView::SizeType& OutIndex);
+template bool CORE_API StringViewPrivate::FindChar(const FWideStringView& InView, WIDECHAR InChar, typename FWideStringView::SizeType& OutIndex);
+
+template <typename ViewType>
+bool StringViewPrivate::FindLastChar(const ViewType& InView, typename ViewType::ElementType InChar, typename ViewType::SizeType& OutIndex)
 {
+	const typename ViewType::ElementType* DataPtr = InView.GetData();
+	const typename ViewType::SizeType Size = InView.Len();
+
 	if (Size == 0)
 	{
 		OutIndex = INDEX_NONE;
 		return false;
 	}
 
-	for (SizeType i = Size - 1; i >= 0; --i)
+	for (typename ViewType::SizeType i = Size - 1; i >= 0; --i)
 	{
 		if (DataPtr[i] == InChar)
 		{
@@ -68,6 +83,6 @@ bool TStringViewImpl<CharType, ViewType>::FindLastChar(CharType InChar, SizeType
 	return false;
 }
 
-template class TStringViewImpl<TCHAR, FStringView>;
-template class TStringViewImpl<ANSICHAR, FAnsiStringView>;
-template class TStringViewImpl<WIDECHAR, FWideStringView>;
+template bool CORE_API StringViewPrivate::FindLastChar(const FStringView& InView, TCHAR InChar, typename FStringView::SizeType& OutIndex);
+template bool CORE_API StringViewPrivate::FindLastChar(const FAnsiStringView& InView, ANSICHAR InChar, typename FAnsiStringView::SizeType& OutIndex);
+template bool CORE_API StringViewPrivate::FindLastChar(const FWideStringView& InView, WIDECHAR InChar, typename FWideStringView::SizeType& OutIndex);
