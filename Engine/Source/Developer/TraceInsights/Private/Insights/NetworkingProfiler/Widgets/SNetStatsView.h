@@ -90,8 +90,6 @@ public:
 
 	void SelectNetEventNode(uint64 Id);
 
-	//const TSet<FNetEventNodePtr>& GetNetEventNodes() const { return NetEventNodes; }
-	//const TMap<uint64, FNetEventNodePtr> GetNetEventNodesIdMap() const { return NetEventNodesIdMap; }
 	const FNetEventNodePtr* GetNetEventNode(uint64 Id) const { return NetEventNodesIdMap.Find(Id); }
 
 protected:

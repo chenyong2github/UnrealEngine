@@ -141,6 +141,8 @@ public:
 	void ExtendRightSideOfSelectedInterval();
 	void ShrinkRightSideOfSelectedInterval();
 
+	void InvalidateState() { bIsStateDirty = true; }
+
 private:
 	void UpdateSelectedSample();
 

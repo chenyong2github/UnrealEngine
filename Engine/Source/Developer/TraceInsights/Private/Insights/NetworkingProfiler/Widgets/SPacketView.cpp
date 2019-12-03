@@ -16,7 +16,6 @@
 #include "Insights/Common/PaintUtils.h"
 #include "Insights/Common/Stopwatch.h"
 #include "Insights/Common/TimeUtils.h"
-#include "Insights/TimingProfilerCommon.h" // for UE_LOG
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/NetworkingProfiler/NetworkingProfilerManager.h"
@@ -248,6 +247,33 @@ void SPacketView::UpdateState()
 	FStopwatch Stopwatch;
 	Stopwatch.Start();
 
+	//////////////////////////////////////////////////
+
+	struct FPacketFilter
+	{
+		bool bByNetId = false;
+		uint32 NetId = 0;
+		bool bByEventType = false;
+		uint32 EventTypeIndex = 0;
+	};
+
+	FPacketFilter Filter;
+
+	if (ProfilerWindow)
+	{
+		TSharedPtr<SPacketContentView> PacketContentView = ProfilerWindow->GetPacketContentView();
+		if (PacketContentView)
+		{
+			Filter.bByNetId = PacketContentView->IsFilterByNetIdEnabled();
+			Filter.NetId = PacketContentView->GetFilterNetId();
+
+			Filter.bByEventType = PacketContentView->IsFilterByEventTypeEnabled();
+			Filter.EventTypeIndex = PacketContentView->GetFilterEventTypeIndex();
+		}
+	}
+
+	//////////////////////////////////////////////////
+
 	// Reset stats.
 	PacketSeries->NumAggregatedPackets = 0;
 	NumUpdatedPackets = 0;
@@ -280,9 +306,60 @@ void SPacketView::UpdateState()
 				if (PacketStartIndex <= PacketEndIndex)
 				{
 					int32 PacketIndex = PacketStartIndex;
-					NetProfilerProvider.EnumeratePackets(ConnectionIndex, ConnectionMode, PacketStartIndex, PacketEndIndex, [&Builder, &PacketIndex](const Trace::FNetProfilerPacket& Packet)
+					NetProfilerProvider.EnumeratePackets(ConnectionIndex, ConnectionMode, PacketStartIndex, PacketEndIndex, [this, &Builder, &PacketIndex, &Filter, &NetProfilerProvider](const Trace::FNetProfilerPacket& Packet)
 					{
-						Builder.AddPacket(PacketIndex++, Packet);
+						FNetworkPacketAggregatedSample* SamplePtr = Builder.AddPacket(PacketIndex++, Packet);
+
+						if (SamplePtr)
+						{
+							if (SamplePtr->NumPackets == 1)
+							{
+								SamplePtr->bAtLeastOnePacketMatchesFilter = !Filter.bByNetId && !Filter.bByEventType;
+							}
+
+							if (!SamplePtr->bAtLeastOnePacketMatchesFilter && (Filter.bByNetId || Filter.bByEventType))
+							{
+								bool bFilterMatch = false;
+
+								const uint32 StartPos = 0;
+								const uint32 EndPos = Packet.ContentSizeInBits;
+								NetProfilerProvider.EnumeratePacketContentEventsByPosition(ConnectionIndex, ConnectionMode, PacketIndex - 1, StartPos, EndPos, [this, &bFilterMatch, &Filter, &NetProfilerProvider](const Trace::FNetProfilerContentEvent& Event)
+								{
+									if (!bFilterMatch)
+									{
+										bool bEventMatchesFilter = true;
+										if (Filter.bByEventType && Filter.EventTypeIndex != Event.EventTypeIndex)
+										{
+											bEventMatchesFilter = false;
+										}
+										if (bEventMatchesFilter && Filter.bByNetId)
+										{
+											uint32 NetId = uint32(-1);
+											if (Event.ObjectInstanceIndex != 0)
+											{
+												NetProfilerProvider.ReadObject(GameInstanceIndex, Event.ObjectInstanceIndex, [&NetId](const Trace::FNetProfilerObjectInstance& ObjectInstance)
+												{
+													NetId = ObjectInstance.NetId;
+												});
+											}
+											if (Filter.NetId != NetId)
+											{
+												bEventMatchesFilter = false;
+											}
+										}
+										if (bEventMatchesFilter)
+										{
+											bFilterMatch = true;
+										}
+									}
+								});
+
+								if (bFilterMatch)
+								{
+									SamplePtr->bAtLeastOnePacketMatchesFilter = true;
+								}
+							}
+						}
 					});
 				}
 			}

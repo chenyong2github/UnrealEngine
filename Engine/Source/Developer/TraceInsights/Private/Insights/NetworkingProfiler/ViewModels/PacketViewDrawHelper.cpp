@@ -81,7 +81,7 @@ FNetworkPacketSeriesBuilder::FNetworkPacketSeriesBuilder(FNetworkPacketSeries& I
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FNetworkPacketSeriesBuilder::AddPacket(const int32 PacketIndex, const Trace::FNetProfilerPacket& Packet)
+FNetworkPacketAggregatedSample* FNetworkPacketSeriesBuilder::AddPacket(const int32 PacketIndex, const Trace::FNetProfilerPacket& Packet)
 {
 	NumAddedPackets++;
 
@@ -91,7 +91,10 @@ void FNetworkPacketSeriesBuilder::AddPacket(const int32 PacketIndex, const Trace
 		FNetworkPacketAggregatedSample& Sample = Series.Samples[SampleIndex];
 		Sample.AddPacket(PacketIndex, Packet);
 		Series.NumAggregatedPackets++;
+		return &Sample;
 	}
+
+	return nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -186,8 +189,12 @@ void FPacketViewDrawHelper::DrawCached(const FNetworkPacketSeries& Series) const
 		const float H = ValueY - BaselineY;
 		const float Y = ViewHeight - H;
 
-		const FLinearColor ColorFill = GetColorByStatus(Sample.AggregatedStatus);
-		const FLinearColor ColorBorder(ColorFill.R * 0.75f, ColorFill.G * 0.75f, ColorFill.B * 0.75f, 1.0);
+		FLinearColor ColorFill = GetColorByStatus(Sample.AggregatedStatus);
+		if (!Sample.bAtLeastOnePacketMatchesFilter)
+		{
+			ColorFill.A = 0.1f;
+		}
+		const FLinearColor ColorBorder(ColorFill.R * 0.75f, ColorFill.G * 0.75f, ColorFill.B * 0.75f, ColorFill.A);
 
 		if (SampleW > 2.0f)
 		{

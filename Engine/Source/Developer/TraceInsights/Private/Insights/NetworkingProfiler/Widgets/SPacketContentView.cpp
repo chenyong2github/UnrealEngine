@@ -511,6 +511,12 @@ void SPacketContentView::FilterByNetId_OnCheckStateChanged(ECheckBoxState NewSta
 {
 	bFilterByNetId = (NewState == ECheckBoxState::Checked);
 	bIsStateDirty = true;
+
+	TSharedPtr<SPacketView> PacketView = ProfilerWindow ? ProfilerWindow->GetPacketView() : nullptr;
+	if (PacketView.IsValid())
+	{
+		PacketView->InvalidateState();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -545,6 +551,12 @@ void SPacketContentView::FilterByEventType_OnCheckStateChanged(ECheckBoxState Ne
 {
 	bFilterByEventType = (NewState == ECheckBoxState::Checked);
 	bIsStateDirty = true;
+
+	TSharedPtr<SPacketView> PacketView = ProfilerWindow ? ProfilerWindow->GetPacketView() : nullptr;
+	if (PacketView.IsValid())
+	{
+		PacketView->InvalidateState();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -656,6 +668,12 @@ void SPacketContentView::SetFilterNetId(const uint32 InNetId)
 	if (bFilterByNetId)
 	{
 		bIsStateDirty = true;
+
+		TSharedPtr<SPacketView> PacketView = ProfilerWindow ? ProfilerWindow->GetPacketView() : nullptr;
+		if (PacketView.IsValid())
+		{
+			PacketView->InvalidateState();
+		}
 	}
 }
 
@@ -669,6 +687,12 @@ void SPacketContentView::SetFilterEventType(const uint32 InEventTypeIndex, const
 	if (bFilterByEventType)
 	{
 		bIsStateDirty = true;
+
+		TSharedPtr<SPacketView> PacketView = ProfilerWindow ? ProfilerWindow->GetPacketView() : nullptr;
+		if (PacketView.IsValid())
+		{
+			PacketView->InvalidateState();
+		}
 	}
 }
 
@@ -852,8 +876,7 @@ void SPacketContentView::OnSelectedEventChanged()
 	if (SelectedEvent.IsValid() && ProfilerWindow.IsValid())
 	{
 		// Select the node coresponding to net event type of selected net event instance.
-		const uint64 EventTypeId = static_cast<uint64>(SelectedEvent.Event.EventTypeIndex);
-		ProfilerWindow->SetSelectedEventType(EventTypeId);
+		ProfilerWindow->SetSelectedEventTypeIndex(SelectedEvent.Event.EventTypeIndex);
 	}
 }
 

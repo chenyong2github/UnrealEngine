@@ -953,17 +953,18 @@ void SNetworkingProfilerWindow::SetSelectedBitRange(uint32 StartPos, uint32 EndP
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SNetworkingProfilerWindow::SetSelectedEventType(const uint64 InEventTypeId)
+void SNetworkingProfilerWindow::SetSelectedEventTypeIndex(const uint32 InEventTypeIndex)
 {
-	if (InEventTypeId != SelectedEventTypeId)
+	if (InEventTypeIndex != SelectedEventTypeIndex)
 	{
-		SelectedEventTypeId = InEventTypeId;
+		SelectedEventTypeIndex = InEventTypeIndex;
 
-		if (SelectedEventTypeId != InvalidEventTypeId)
+		if (SelectedEventTypeIndex != InvalidEventTypeIndex)
 		{
 			if (NetStatsView)
 			{
-				NetStatsView->SelectNetEventNode(SelectedEventTypeId);
+				const uint64 NodeId = static_cast<uint64>(SelectedEventTypeIndex);
+				NetStatsView->SelectNetEventNode(NodeId);
 			}
 		}
 	}
