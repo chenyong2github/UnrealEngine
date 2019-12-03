@@ -58,7 +58,7 @@ ENUM_CLASS_FLAGS(EMakeMeshShapeType);
 UENUM()
 enum class EMakeMeshPlacementType : uint8
 {
-	OnPlane = 0,
+	GroundPlane = 0,
 	OnScene = 1
 };
 

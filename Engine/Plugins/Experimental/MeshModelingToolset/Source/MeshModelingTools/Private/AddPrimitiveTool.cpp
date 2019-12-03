@@ -229,7 +229,7 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 	// hit position (temp)
 	bool bHit = false;
 
-	if (ShapeSettings->PlaceMode == EMakeMeshPlacementType::OnPlane)
+	if (ShapeSettings->PlaceMode == EMakeMeshPlacementType::GroundPlane)
 	{
 		FPlane DrawPlane(FVector::ZeroVector, FVector(0, 0, 1));
 		FVector DrawPlanePos = FMath::RayPlaneIntersection(ClickPosWorldRay.Origin, ClickPosWorldRay.Direction, DrawPlane);
