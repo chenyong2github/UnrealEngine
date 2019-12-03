@@ -3657,16 +3657,22 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 	Canvas->SetScaledToRenderTarget(bStereoRendering);
 	Canvas->SetStereoRendering(bStereoRendering);
 
+	FEngineShowFlags UseEngineShowFlags = EngineShowFlags;
+	if (OverrideShowFlagsFunc)
+	{
+		OverrideShowFlagsFunc(UseEngineShowFlags);
+	}
+
 	// Setup a FSceneViewFamily/FSceneView for the viewport.
 	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
 		Canvas->GetRenderTarget(),
 		GetScene(),
-		EngineShowFlags)
+		UseEngineShowFlags)
 		.SetWorldTimes( TimeSeconds, DeltaTimeSeconds, RealTimeSeconds )
 		.SetRealtimeUpdate( IsRealtime() && FSlateThrottleManager::Get().IsAllowingExpensiveTasks() )
 		.SetViewModeParam( ViewModeParam, ViewModeParamName ) );
 
-	ViewFamily.EngineShowFlags = EngineShowFlags;
+	ViewFamily.EngineShowFlags = UseEngineShowFlags;
 
 	ViewFamily.bIsHDR = Viewport->IsHDRViewport();
 
@@ -3674,7 +3680,7 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 
 	if( ModeTools->GetActiveMode( FBuiltinEditorModes::EM_InterpEdit ) == 0 || !AllowsCinematicControl() )
 	{
-		if( !EngineShowFlags.Game )
+		if( !UseEngineShowFlags.Game )
 		{
 			// in the editor, disable camera motion blur and other rendering features that rely on the former frame
 			// unless the view port is Matinee controlled
@@ -5874,6 +5880,16 @@ FMatrix FEditorViewportClient::CalcViewRotationMatrix(const FRotator& InViewRota
 		// Create the view matrix
 		return FInverseRotationMatrix(InViewRotation);
 	}
+}
+
+void FEditorViewportClient::EnableOverrideEngineShowFlags(TUniqueFunction<void(FEngineShowFlags&)> OverrideFunc)
+{
+	OverrideShowFlagsFunc = MoveTemp(OverrideFunc);
+}
+
+void FEditorViewportClient::DisableOverrideEngineShowFlags()
+{
+	OverrideShowFlagsFunc = nullptr;
 }
 
 ////////////////
