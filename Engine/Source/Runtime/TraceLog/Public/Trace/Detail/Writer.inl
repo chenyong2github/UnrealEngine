@@ -84,6 +84,7 @@ inline FLogInstance Writer_BeginLog(uint16 EventUid, uint16 Size, bool bMaybeHas
 		Buffer = Writer_NextBuffer(AllocSize);
 	}
 
+	// The auxilary data null terminator.
 	if (bMaybeHasAux)
 	{
 		Buffer->Cursor[-1] = 0;

@@ -171,6 +171,7 @@ private:
 			Data += SegmentSize;
 		}
 
+		// The auxilary data null terminator.
 		Buffer->Cursor[0] = 0;
 		Buffer->Cursor++;
 	}
