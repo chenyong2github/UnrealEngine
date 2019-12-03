@@ -117,7 +117,7 @@ private:
 	void OnUsdPrimTwinDestroyed( const FUsdPrimTwin& UsdPrimTwin );
 
 	void OnPrimObjectPropertyChanged( UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent );
-	bool HasAutorithyOverStage() const { return !GetWorld() || !GetWorld()->IsGameWorld(); }
+	bool HasAutorithyOverStage() const;
 
 private:
 	FUsdPrimTwin RootUsdTwin;

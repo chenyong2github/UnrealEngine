@@ -625,6 +625,11 @@ void AUsdStageActor::OnPrimObjectPropertyChanged( UObject* ObjectBeingModified, 
 #endif // #if USE_USD_SDK
 }
 
+bool AUsdStageActor::HasAutorithyOverStage() const
+{
+	return !GetWorld() || !GetWorld()->IsGameWorld();
+}
+
 #if USE_USD_SDK
 void AUsdStageActor::LoadAssets( FUsdSchemaTranslationContext& TranslationContext, const pxr::UsdPrim& StartPrim )
 {
