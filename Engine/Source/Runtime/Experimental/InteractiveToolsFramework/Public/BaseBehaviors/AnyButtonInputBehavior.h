@@ -51,20 +51,25 @@ public:
 	/** @return last-active supported Device */
 	EInputDevices GetActiveDevice() const;
 
-protected:
 
-	/** 
-	 * Button number on target device. Button 0 is "default" button on all devices.
-	 * Mouse: Left=0, Middle=1, Right=2
-	 */
-	UPROPERTY()
-	int ButtonNumber;
+public:
+	/** Configure the target Mouse button to be the left button */
+	virtual void SetUseLeftMouseButton();
+	/** Configure the target Mouse button to be the middle button */
+	virtual void SetUseMiddleMouseButton();
+	/** Configure the target Mouse button to be the right button */
+	virtual void SetUseRightMouseButton();
+	/** Configure a custom target mouse button */
+	virtual void SetUseCustomMouseButton(TUniqueFunction<FDeviceButtonState(const FInputDeviceState& Input)>);
 
 
 protected:
 	/** Which device is currently active */
 	EInputDevices ActiveDevice;
 
-	/** @return mouse button state for Target Button */
-	virtual FDeviceButtonState GetMouseButtonState(const FInputDeviceState& input);
+	/** Returns FDeviceButtonState for target mouse button */
+	TUniqueFunction<FDeviceButtonState(const FInputDeviceState& Input)> GetMouseButtonStateFunc;
+
+	/** Returns FDeviceButtonState for target active device button */
+	FDeviceButtonState GetButtonStateFunc(const FInputDeviceState& Input);
 };

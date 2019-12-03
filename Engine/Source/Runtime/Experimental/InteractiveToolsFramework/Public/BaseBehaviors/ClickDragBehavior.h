@@ -61,16 +61,84 @@ protected:
 	/**
 	 * Internal function that forwards click evens to Target::OnClickPress, you can customize behavior here
 	 */
-	virtual void OnClickPress(const FInputDeviceState& Input, EInputCaptureSide Side);
+	virtual void OnClickPressInternal(const FInputDeviceState& Input, EInputCaptureSide Side);
 
 	/**
 	 * Internal function that forwards click evens to Target::OnClickDrag, you can customize behavior here
 	 */
-	virtual void OnClickDrag(const FInputDeviceState& Input, const FInputCaptureData& Data);
+	virtual void OnClickDragInternal(const FInputDeviceState& Input, const FInputCaptureData& Data);
 
 	/**
 	 * Internal function that forwards click evens to Target::OnClickRelease, you can customize behavior here
 	 */
-	virtual void OnClickRelease(const FInputDeviceState& Input, const FInputCaptureData& Data);
+	virtual void OnClickReleaseInternal(const FInputDeviceState& Input, const FInputCaptureData& Data);
 };
 
+
+
+
+
+/**
+ * ULocalClickDragInputBehavior is an implementation of UClickDragInputBehavior that also implements IClickDragBehaviorTarget directly,
+ * via a set of local lambda functions. To use/customize this class the client replaces the lambda functions with their own.
+ * This avoids having to create a second IClickDragBehaviorTarget implementation for trivial use-cases.
+ */
+UCLASS()
+class INTERACTIVETOOLSFRAMEWORK_API ULocalClickDragInputBehavior : public UClickDragInputBehavior, public IClickDragBehaviorTarget
+{
+	GENERATED_BODY()
+protected:
+	using UClickDragInputBehavior::Initialize;
+
+public:
+	/** Call this to initialize the class */
+	virtual void Initialize()
+	{
+		this->Initialize(this);
+	}
+
+	/** lambda implementation of CanBeginClickDragSequence */
+	TUniqueFunction<FInputRayHit(const FInputDeviceRay& PressPos)> CanBeginClickDragFunc = [](const FInputDeviceRay&) { return FInputRayHit(); };
+
+	/** lambda implementation of OnClickPress */
+	TUniqueFunction<void(const FInputDeviceRay& PressPos)> OnClickPressFunc = [](const FInputDeviceRay&) {};
+
+	/** lambda implementation of OnClickDrag */
+	TUniqueFunction<void(const FInputDeviceRay& PressPos)> OnClickDragFunc = [](const FInputDeviceRay&) {};
+
+	/** lambda implementation of OnClickRelease */
+	TUniqueFunction<void(const FInputDeviceRay& ReleasePos)> OnClickReleaseFunc = [](const FInputDeviceRay&) {};
+
+	/** lambda implementation of OnTerminateDragSequence */
+	TUniqueFunction<void()> OnTerminateFunc = []() {};
+
+
+public:
+	//
+	// IClickDragBehaviorTarget implementation
+	//
+	virtual FInputRayHit CanBeginClickDragSequence(const FInputDeviceRay& PressPos) override
+	{
+		return CanBeginClickDragFunc(PressPos);
+	}
+
+	virtual void OnClickPress(const FInputDeviceRay& PressPos) override
+	{
+		OnClickPressFunc(PressPos);
+	}
+
+	virtual void OnClickDrag(const FInputDeviceRay& DragPos) override
+	{
+		OnClickDragFunc(DragPos);
+	}
+
+	virtual void OnClickRelease(const FInputDeviceRay& ReleasePos) override
+	{
+		OnClickReleaseFunc(ReleasePos);
+	}
+
+	virtual void OnTerminateDragSequence() override
+	{
+		OnTerminateFunc();
+	}
+};

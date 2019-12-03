@@ -6,7 +6,7 @@
 
 UAnyButtonInputBehavior::UAnyButtonInputBehavior()
 {
-	ButtonNumber = 0;
+	SetUseLeftMouseButton();
 }
 
 
@@ -21,7 +21,7 @@ bool UAnyButtonInputBehavior::IsPressed(const FInputDeviceState& input)
 	if (input.IsFromDevice(EInputDevices::Mouse)) 
 	{
 		ActiveDevice = EInputDevices::Mouse;
-		return GetMouseButtonState(input).bPressed;
+		return GetButtonStateFunc(input).bPressed;
 	} 
 	else if (input.IsFromDevice(EInputDevices::TabletFingers))
 	{
@@ -37,7 +37,7 @@ bool UAnyButtonInputBehavior::IsDown(const FInputDeviceState& input)
 	if (input.IsFromDevice(EInputDevices::Mouse))
 	{
 		ActiveDevice = EInputDevices::Mouse;
-		return GetMouseButtonState(input).bDown;
+		return GetButtonStateFunc(input).bDown;
 	}
 	return false;
 }
@@ -47,7 +47,7 @@ bool UAnyButtonInputBehavior::IsReleased(const FInputDeviceState& input)
 	if (input.IsFromDevice(EInputDevices::Mouse))
 	{
 		ActiveDevice = EInputDevices::Mouse;
-		return GetMouseButtonState(input).bReleased;
+		return GetButtonStateFunc(input).bReleased;
 	}
 	return false;
 }
@@ -94,19 +94,42 @@ EInputDevices UAnyButtonInputBehavior::GetActiveDevice() const
 
 
 
-
-FDeviceButtonState UAnyButtonInputBehavior::GetMouseButtonState(const FInputDeviceState& input)
+void UAnyButtonInputBehavior::SetUseLeftMouseButton()
 {
-	if (ButtonNumber == 2)
-	{
-		return input.Mouse.Right;
-	}
-	else if (ButtonNumber == 1)
-	{
-		return input.Mouse.Middle;
-	}
-	else
+	GetMouseButtonStateFunc = [](const FInputDeviceState& input)
 	{
 		return input.Mouse.Left;
+	};
+}
+
+void UAnyButtonInputBehavior::SetUseMiddleMouseButton()
+{
+	GetMouseButtonStateFunc = [](const FInputDeviceState& input)
+	{
+		return input.Mouse.Middle;
+	};
+}
+
+void UAnyButtonInputBehavior::SetUseRightMouseButton()
+{
+	GetMouseButtonStateFunc = [](const FInputDeviceState& input)
+	{
+		return input.Mouse.Right;
+	};
+}
+
+void UAnyButtonInputBehavior::SetUseCustomMouseButton(TUniqueFunction<FDeviceButtonState(const FInputDeviceState& Input)> ButtonFunc)
+{
+	GetMouseButtonStateFunc = MoveTemp(ButtonFunc);
+}
+
+
+
+FDeviceButtonState UAnyButtonInputBehavior::GetButtonStateFunc(const FInputDeviceState& Input)
+{
+	if (ActiveDevice == EInputDevices::Mouse)
+	{
+		return GetMouseButtonStateFunc(Input);
 	}
+	return FDeviceButtonState();
 }
