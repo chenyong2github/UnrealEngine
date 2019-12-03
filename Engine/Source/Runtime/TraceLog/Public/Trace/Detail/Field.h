@@ -119,7 +119,8 @@ struct TField<InIndex, InOffset, Type[]>
 
 	const FActionable operator () (Type const* Data, int Count) const
 	{
-		Impl((const uint8*)Data, Count * sizeof(Type));
+		int32 Size = (Count * sizeof(Type)) & (FAuxHeader::SizeLimit - 1) & ~(sizeof(Type) - 1);
+		Impl((const uint8*)Data, Size);
 		return {};
 	}
 

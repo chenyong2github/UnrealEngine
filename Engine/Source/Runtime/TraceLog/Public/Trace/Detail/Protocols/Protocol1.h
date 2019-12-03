@@ -47,10 +47,11 @@ struct FEventHeader
 ////////////////////////////////////////////////////////////////////////////////
 struct FAuxHeader
 {
-	enum : uint8
+	enum : uint32
 	{
 		AuxDataBit	= 0x80,
 		FieldMask	= 0x7f,
+		SizeLimit	= 1 << 24,
 	};
 
 	union
