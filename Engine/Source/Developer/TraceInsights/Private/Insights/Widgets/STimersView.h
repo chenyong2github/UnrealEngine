@@ -56,7 +56,7 @@ public:
 	/** Virtual destructor. */
 	virtual ~STimersView();
 
-	SLATE_BEGIN_ARGS(STimersView){}
+	SLATE_BEGIN_ARGS(STimersView) {}
 	SLATE_END_ARGS()
 
 	/**

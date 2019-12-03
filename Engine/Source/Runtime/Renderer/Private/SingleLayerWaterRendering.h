@@ -20,7 +20,7 @@ struct FSingleLayerWaterPassData
 
 	struct FSingleLayerWaterPassViewData
 	{
-		FVector2D SceneWithoutSingleLayerWaterMaxUV;
+		FVector4 SceneWithoutSingleLayerWaterMinMaxUV;
 	};
 
 	TArray<FSingleLayerWaterPassViewData> ViewData;

@@ -97,6 +97,7 @@ namespace Chaos
 		TArray<FGraphEdgeColor> Edges;
 		TArray<FIslandColor> IslandData;
 		FLevelToColorToConstraintListMap EmptyLevelToColorToConstraintListMap;
+		TArray<int32> UpdatedNodes;
 	};
 
 }

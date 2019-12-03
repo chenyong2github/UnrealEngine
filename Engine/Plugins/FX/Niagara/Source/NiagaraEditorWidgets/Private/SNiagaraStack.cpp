@@ -269,6 +269,7 @@ void SNiagaraStack::Construct(const FArguments& InArgs, UNiagaraStackViewModel* 
 				.OnTreeViewScrolled(this, &SNiagaraStack::StackTreeScrolled)
 				.SelectionMode(ESelectionMode::Single)
 				.OnItemToString_Debug_Static(&FNiagaraStackEditorWidgetsUtilities::StackEntryToStringForListDebug)
+				.OnMouseButtonClick(this, &SNiagaraStack::OnStackItemClicked)
 			]
 		]
 	];
@@ -1043,11 +1044,20 @@ void SNiagaraStack::StackStructureChanged()
 	SynchronizeTreeExpansion();
 	StackTree->RequestTreeRefresh();
 	HeaderList->RequestListRefresh();
+	// Keep the stack search focused by default
+	FSlateApplication::Get().SetKeyboardFocus(SearchBox, EFocusCause::OtherWidgetLostFocus);
 }
 
 EVisibility SNiagaraStack::GetIssueIconVisibility() const
 {
 	return StackViewModel->HasIssues() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+void SNiagaraStack::OnStackItemClicked(UNiagaraStackEntry* Item)
+{
+	// Focus the stack search if we are just clicking on an item
+	// This won't be hit by a bubbling-up click if a widget with text entry is clicked
+	FSlateApplication::Get().SetKeyboardFocus(SearchBox, EFocusCause::OtherWidgetLostFocus);
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -124,6 +124,7 @@
 #include "Engine/HLODProxy.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Interfaces/Interface_PostProcessVolume.h"
+#include "ObjectTrace.h"
 
 #if INCLUDE_CHAOS
 #include "ChaosSolversModule.h"
@@ -3924,6 +3925,8 @@ bool UWorld::SetGameMode(const FURL& InURL)
 
 void UWorld::InitializeActorsForPlay(const FURL& InURL, bool bResetTime)
 {
+	TRACE_OBJECT_EVENT(this, InitializeActorsForPlay);
+
 	check(bIsWorldInitialized);
 	SCOPED_BOOT_TIMING("UWorld::InitializeActorsForPlay");
 	double StartTime = FPlatformTime::Seconds();

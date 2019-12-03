@@ -203,19 +203,19 @@ void SFrameTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<FFrameTrackSeries> SFrameTrack::FindOrAddSeries(int32 FrameType)
+TSharedRef<FFrameTrackSeries> SFrameTrack::FindOrAddSeries(int32 FrameType)
 {
 	TSharedPtr<FFrameTrackSeries>* SeriesPtrPtr = SeriesMap.Find(FrameType);
 	if (SeriesPtrPtr)
 	{
 		ensure((**SeriesPtrPtr).FrameType == FrameType);
-		return *SeriesPtrPtr;
+		return (*SeriesPtrPtr).ToSharedRef();
 	}
 	else
 	{
-		TSharedPtr<FFrameTrackSeries> SeriesPtr = MakeShareable(new FFrameTrackSeries(FrameType));
-		SeriesMap.Add(FrameType, SeriesPtr);
-		return SeriesPtr;
+		TSharedRef<FFrameTrackSeries> SeriesRef = MakeShared<FFrameTrackSeries>(FrameType);
+		SeriesMap.Add(FrameType, SeriesRef);
+		return SeriesRef;
 	}
 }
 
@@ -333,7 +333,7 @@ FFrameTrackSampleRef SFrameTrack::GetSampleAtMousePosition(float X, float Y)
 
 							if (Y >= TopY && Y < BottomY)
 							{
-								return FFrameTrackSampleRef(SeriesPtr, MakeShareable(new FFrameTrackSample(Sample)));
+								return FFrameTrackSampleRef(SeriesPtr, MakeShared<FFrameTrackSample>(Sample));
 							}
 						}
 					}

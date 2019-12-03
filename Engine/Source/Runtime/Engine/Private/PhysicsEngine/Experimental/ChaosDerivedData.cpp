@@ -134,7 +134,7 @@ void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::TTria
 	{
 		// Only add this triangle if it is valid
 		const int32 BaseIndex = TriangleIndex * 3;
-		const bool bIsValidTriangle = Chaos::TConvexBuilder<Precision>::IsValidTriangle(
+		const bool bIsValidTriangle = Chaos::FConvexBuilder::IsValidTriangle(
 			FinalVerts[FinalIndices[BaseIndex]],
 			FinalVerts[FinalIndices[BaseIndex + 1]],
 			FinalVerts[FinalIndices[BaseIndex + 2]]);
@@ -195,7 +195,7 @@ void FChaosDerivedDataCooker::BuildConvexMeshes(TArray<TUniquePtr<Chaos::FImplic
 				ConvexParticles.X(VertIndex) = FVector(bMirrored ? -HullVert.X : HullVert.X, HullVert.Y, HullVert.Z);
 			}
 
-			OutConvexes.Emplace(new Chaos::TConvex<Chaos::FReal, 3>(ConvexParticles));
+			OutConvexes.Emplace(new Chaos::FConvex(ConvexParticles));
 		}
 	};
 

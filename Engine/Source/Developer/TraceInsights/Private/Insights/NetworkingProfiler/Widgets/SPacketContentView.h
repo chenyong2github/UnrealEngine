@@ -169,7 +169,7 @@ private:
 	int64 PacketBitSize; // total number of bits; [bit]
 
 	/** Cached draw state of the packet content (i.e. all it needs to render). */
-	TSharedPtr<FPacketContentViewDrawState> DrawState;
+	TSharedRef<FPacketContentViewDrawState> DrawState;
 	bool bIsStateDirty;
 	//////////////////////////////////////////////////
 

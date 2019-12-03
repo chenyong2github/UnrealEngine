@@ -154,7 +154,7 @@ void ULandscapeComponent::UpdateRejectNavmeshUnderneath()
 	ALandscapeProxy* Proxy = GetLandscapeProxy();
 	if (CollisionComponent && Proxy)
 	{
-		CollisionComponent->bRejectNavmeshUnderneath = Proxy->bRejectNavmeshUnderLandscapeGeometry;
+		CollisionComponent->bFillCollisionUnderneathForNavmesh = Proxy->bFillCollisionUnderLandscapeForNavmesh;
 	}
 }
 
@@ -4860,7 +4860,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	{
 		bChangedNavRelevance = true;
 	}
-	else if (GIsEditor && PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bRejectNavmeshUnderLandscapeGeometry))
+	else if (GIsEditor && PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bFillCollisionUnderLandscapeForNavmesh))
 	{
 		bChangeRejectNavmeshUnder = true;
 	}

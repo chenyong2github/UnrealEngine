@@ -15,7 +15,7 @@ namespace Insights
 
 TSharedRef<ITableCellValueGetter> FTableColumn::GetDefaultValueGetter()
 {
-	return MakeShareable(new FTableCellValueGetter());
+	return MakeShared<FTableCellValueGetter>();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -29,7 +29,7 @@ const TOptional<FTableCellValue> FTableColumn::GetValue(const FBaseTreeNode& InN
 
 TSharedRef<ITableCellValueFormatter> FTableColumn::GetDefaultValueFormatter()
 {
-	return MakeShareable(new FTableCellValueFormatter());
+	return MakeShared<FTableCellValueFormatter>();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

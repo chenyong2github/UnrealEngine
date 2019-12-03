@@ -16,12 +16,68 @@
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/Transform.h"
-
+#include "Chaos/GeometryQueries.h"
 
 namespace Chaos
 {
 	namespace Collisions
 	{
+		template <typename T>
+		struct TContactPoint
+		{
+			TVec3<T> Normal;
+			TVec3<T> Location;
+			T Phi;
+
+			TContactPoint() : Phi(TNumericLimits<T>::Max()) {}
+		};
+
+		template <typename T>
+		void UpdateContactPoint(TPointContactManifold<T, 3>& Manifold, const TContactPoint<T>& NewContactPoint)
+		{
+			//for now just override
+			if (NewContactPoint.Phi < Manifold.Phi)
+			{
+				Manifold.Normal = NewContactPoint.Normal;
+				Manifold.Location = NewContactPoint.Location;
+				Manifold.Phi = NewContactPoint.Phi;
+			}
+		}
+
+		template <typename T, int d, typename GeometryA, typename GeometryB>
+		TContactPoint<T> GJKContactPoint(const GeometryA& A, const TRigidTransform<T, d>& ATM, const GeometryB& B, const TRigidTransform<T, d>& BTM, const T Thickness)
+		{
+			TContactPoint<T> Contact;
+			const TRigidTransform<T, d> BToATM = BTM.GetRelativeTransform(ATM);
+
+			T Penetration;
+			TVec3<T> ClosestA, ClosestB, Normal;
+			if (GJKPenetration(A, B, BToATM, Penetration, ClosestA, ClosestB, Normal, (T)0))
+			{
+				Contact.Location = ATM.TransformPosition(ClosestA);
+				Contact.Normal = -ATM.TransformVector(Normal);
+				Contact.Phi = -Penetration;
+			}
+			else if(ensure(GJKDistance(A, B, BToATM, Penetration, ClosestA, ClosestB)))
+			{
+				//todo: make GJKPenetration support no penetration case
+				TVector<T, d> NearPointAWorld = ATM.TransformPosition(ClosestA);
+				TVector<T, d> NearPointBWorld = BTM.TransformPosition(ClosestB);
+				TVector<T, d> NearPointBtoAWorld = NearPointAWorld - NearPointBWorld;
+				Contact.Phi = Penetration;
+				Contact.Normal = NearPointBtoAWorld.GetSafeNormal();
+				Contact.Location = NearPointAWorld;
+			}
+
+			return Contact;
+		}
+
+
+		template <typename T, int d>
+		TContactPoint<T> BoxBoxContactPoint(const TBox<T, d>& Box1, const TRigidTransform<T, d>& ATM, const TBox<T, d>& Box2, const TRigidTransform<T, d>& BTM, const T Thickness)
+		{
+			return GJKContactPoint(Box1, ATM, Box2, BTM, Thickness);
+		}
 		//
 		// Box - Box
 		//
@@ -29,53 +85,7 @@ namespace Chaos
 		template <typename T, int d>
 		void UpdateBoxBoxConstraint(const TBox<T, d>& Box1, const TRigidTransform<T, d>& Box1Transform, const TBox<T, d>& Box2, const TRigidTransform<T, d>& Box2Transform, const T Thickness, TRigidBodyPointContactConstraint<T, d>& Constraint)
 		{
-			TPointContactManifold<T, d> & Contact = Constraint.Manifold;
-
-			TBox<T, d> Box2SpaceBox1 = Box1.TransformedBox(Box1Transform * Box2Transform.Inverse());
-			TBox<T, d> Box1SpaceBox2 = Box2.TransformedBox(Box2Transform * Box1Transform.Inverse());
-			Box2SpaceBox1.Thicken(Thickness);
-			Box1SpaceBox2.Thicken(Thickness);
-			if (Box1SpaceBox2.Intersects(Box1) && Box2SpaceBox1.Intersects(Box2))
-			{
-				const TVector<T, d> Box1Center = (Box1Transform * Box2Transform.Inverse()).TransformPosition(Box1.Center());
-				bool bDeepOverlap = false;
-				if (Box2.SignedDistance(Box1Center) < 0)
-				{
-					//If Box1 is overlapping Box2 by this much the signed distance approach will fail (box1 gets sucked into box2). In this case just use two spheres
-					TSphere<T, d> Sphere1(Box1Transform.TransformPosition(Box1.Center()), Box1.Extents().Min() / 2);
-					TSphere<T, d> Sphere2(Box2Transform.TransformPosition(Box2.Center()), Box2.Extents().Min() / 2);
-					const TVector<T, d> Direction = Sphere1.GetCenter() - Sphere2.GetCenter();
-					T Size = Direction.Size();
-					if (Size < (Sphere1.GetRadius() + Sphere2.GetRadius()))
-					{
-						const T NewPhi = Size - (Sphere1.GetRadius() + Sphere2.GetRadius());;
-						if (NewPhi < Contact.Phi)
-						{
-							bDeepOverlap = true;
-							Contact.Normal = Size > SMALL_NUMBER ? Direction / Size : TVector<T, d>(0, 0, 1);
-							Contact.Phi = NewPhi;
-							Contact.Location = Sphere1.GetCenter() - Sphere1.GetRadius() * Contact.Normal;
-						}
-					}
-				}
-				if (!bDeepOverlap || Contact.Phi >= 0)
-				{
-					//if we didn't have deep penetration use signed distance per particle. If we did have deep penetration but the spheres did not overlap use signed distance per particle
-
-					//UpdateLevelsetConstraintGJK(InParticles, Thickness, Constraint);
-					//check(Contact.Phi < MThickness);
-					// For now revert to doing all points vs lsv check until we can figure out a good way to get the deepest point without needing this
-					{
-						const TArray<TVector<T, d>> SampleParticles = Box1.ComputeSamplePoints();
-						const TRigidTransform<T, d> Box1ToBox2Transform = Box1Transform.GetRelativeTransform(Box2Transform);
-						int32 NumParticles = SampleParticles.Num();
-						for (int32 i = 0; i < NumParticles; ++i)
-						{
-							SampleObjectHelper(Box2, Box2Transform, Box1ToBox2Transform, SampleParticles[i], Thickness, Constraint);
-						}
-					}
-				}
-			}
+			UpdateContactPoint(Constraint.Manifold, BoxBoxContactPoint(Box1, Box1Transform, Box2, Box2Transform, Thickness));
 		}
 
 
@@ -201,22 +211,28 @@ namespace Chaos
 		//
 		// Sphere - Sphere
 		//
+
 		template <typename T, int d>
-		void UpdateSphereSphereConstraint(const TSphere<T, d>& Sphere1, const TRigidTransform<T, d>& Sphere1Transform, const TSphere<T, d>& Sphere2, const TRigidTransform<T, d>& Sphere2Transform, const T Thickness, TRigidBodyPointContactConstraint<T, d>& Constraint)
+		TContactPoint<T> SphereSphereContactPoint(const TSphere<T, d>& Sphere1, const TRigidTransform<T, d>& Sphere1Transform, const TSphere<T, d>& Sphere2, const TRigidTransform<T, d>& Sphere2Transform, const T Thickness)
 		{
-			TPointContactManifold<T, d> & Contact = Constraint.Manifold;
+			TContactPoint<T> Result;
 
 			const TVector<T, d> Center1 = Sphere1Transform.TransformPosition(Sphere1.GetCenter());
 			const TVector<T, d> Center2 = Sphere2Transform.TransformPosition(Sphere2.GetCenter());
 			const TVector<T, d> Direction = Center1 - Center2;
 			const T Size = Direction.Size();
 			const T NewPhi = Size - (Sphere1.GetRadius() + Sphere2.GetRadius());
-			if (NewPhi < Contact.Phi)
-			{
-				Contact.Normal = Size > SMALL_NUMBER ? Direction / Size : TVector<T, d>(0, 0, 1);
-				Contact.Phi = NewPhi;
-				Contact.Location = Center1 - Sphere1.GetRadius() * Contact.Normal;
-			}
+			Result.Phi = NewPhi;
+			Result.Normal = Size > SMALL_NUMBER ? Direction / Size : TVector<T, d>(0, 0, 1);
+			Result.Location = Center1 - Sphere1.GetRadius() * Result.Normal;
+
+			return Result;
+		}
+
+		template <typename T, int d>
+		void UpdateSphereSphereConstraint(const TSphere<T, d>& Sphere1, const TRigidTransform<T, d>& Sphere1Transform, const TSphere<T, d>& Sphere2, const TRigidTransform<T, d>& Sphere2Transform, const T Thickness, TRigidBodyPointContactConstraint<T, d>& Constraint)
+		{
+			UpdateContactPoint(Constraint.Manifold, SphereSphereContactPoint(Sphere1, Sphere1Transform, Sphere2, Sphere2Transform, Thickness));
 		}
 
 		template<typename T, int d>
@@ -301,23 +317,27 @@ namespace Chaos
 		//
 
 		template <typename T, int d>
-		void UpdateSphereBoxConstraint(const TSphere<T, d>& Sphere, const TRigidTransform<T, d>& SphereTransform, const TBox<T, d>& Box, const TRigidTransform<T, d>& BoxTransform, const T Thickness, TRigidBodyPointContactConstraint<T, d>& Constraint)
+		TContactPoint<T> SphereBoxContactPoint(const TSphere<T, d>& Sphere, const TRigidTransform<T, d>& SphereTransform, const TBox<T, d>& Box, const TRigidTransform<T, d>& BoxTransform, const T Thickness)
 		{
-			TPointContactManifold<T, d> & Contact = Constraint.Manifold;
+			TContactPoint<T> Result;
 
-			const TRigidTransform<T, d> SphereToBoxTransform(SphereTransform * BoxTransform.Inverse());
+			const TRigidTransform<T, d> SphereToBoxTransform(SphereTransform * BoxTransform.Inverse());	//todo: this should use GetRelative
 			const TVector<T, d> SphereCenterInBox = SphereToBoxTransform.TransformPosition(Sphere.GetCenter());
 
 			TVector<T, d> NewNormal;
 			T NewPhi = Box.PhiWithNormal(SphereCenterInBox, NewNormal);
 			NewPhi -= Sphere.GetRadius();
 
-			if (NewPhi < Contact.Phi)
-			{
-				Contact.Phi = NewPhi;
-				Contact.Normal = BoxTransform.TransformVectorNoScale(NewNormal);
-				Contact.Location = SphereTransform.TransformPosition(Sphere.GetCenter()) - Contact.Normal * Sphere.GetRadius();
-			}
+			Result.Phi = NewPhi;
+			Result.Normal = BoxTransform.TransformVectorNoScale(NewNormal);
+			Result.Location = SphereTransform.TransformPosition(Sphere.GetCenter()) - Result.Normal * Sphere.GetRadius();
+			return Result;
+		}
+
+		template <typename T, int d>
+		void UpdateSphereBoxConstraint(const TSphere<T, d>& Sphere, const TRigidTransform<T, d>& SphereTransform, const TBox<T, d>& Box, const TRigidTransform<T, d>& BoxTransform, const T Thickness, TRigidBodyPointContactConstraint<T, d>& Constraint)
+		{
+			UpdateContactPoint(Constraint.Manifold, SphereBoxContactPoint(Sphere, SphereTransform, Box, BoxTransform, Thickness));
 		}
 
 		template<typename T, int d>
@@ -348,13 +368,73 @@ namespace Chaos
 
 
 		//
+		// Sphere - Capsule
+		//
+
+		template <typename T, int d>
+		TContactPoint<T> SphereCapsuleContactPoint(const TSphere<T, d>& A, const TRigidTransform<T, d>& ATransform, const TCapsule<T>& B, const TRigidTransform<T, d>& BTransform, const T Thickness)
+		{
+			TContactPoint<T> Result;
+
+			FVector A1 = ATransform.TransformPosition(A.GetCenter());
+			FVector B1 = BTransform.TransformPosition(B.GetX1());
+			FVector B2 = BTransform.TransformPosition(B.GetX2());
+			FVector P2 = FMath::ClosestPointOnSegment(A1, B1, B2);
+
+			TVector<T, d> Delta = P2 - A1;
+			T DeltaLen = Delta.Size();
+			if (DeltaLen > KINDA_SMALL_NUMBER)
+			{
+				T NewPhi = DeltaLen - (A.GetRadius() + B.GetRadius());
+				TVector<T, d> Dir = Delta / DeltaLen;
+				Result.Phi = NewPhi;
+				Result.Normal = -Dir;
+				Result.Location = A1 + Dir * A.GetRadius();
+			}
+
+			return Result;
+		}
+
+		template <typename T, int d>
+		void UpdateSphereCapsuleConstraint(const TSphere<T, d>& A, const TRigidTransform<T, d>& ATransform, const TCapsule<T>& B, const TRigidTransform<T, d>& BTransform, const T Thickness, TRigidBodyPointContactConstraint<T, d>& Constraint)
+		{
+			UpdateContactPoint(Constraint.Manifold, SphereCapsuleContactPoint(A, ATransform, B, BTransform, Thickness));
+		}
+
+		template<typename T, int d>
+		void ConstructSphereCapsuleConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform0, const TRigidTransform<T, d>& Transform1, const T Thickness, FCollisionConstraintsArray& NewConstraints)
+		{
+			const TSphere<T, d>* Object0 = Implicit0->template GetObject<const TSphere<T, d> >();
+			const TCapsule<T>* Object1 = Implicit1->template GetObject<const TCapsule<T> >();
+			if (ensure(Object0 && Object1))
+			{
+				FRigidBodyPointContactConstraint* Constraint = new FRigidBodyPointContactConstraint;
+				Constraint->Particle[0] = Particle0;
+				Constraint->Particle[1] = Particle1;
+				Constraint->AddManifold(Implicit0, Implicit1);
+
+				UpdateSphereCapsuleConstraint(*Object0, Transform0, *Object1, Transform1, Thickness, *Constraint);
+
+				if (Constraint->GetPhi() < Thickness)
+				{
+					NewConstraints.Add(Constraint);
+				}
+				else
+				{
+					delete Constraint;
+				}
+			}
+		}
+
+
+		//
 		// Capsule-Capsule
 		//
 
 		template <typename T, int d>
-		void UpdateCapsuleCapsuleConstraint(const TCapsule<T>& A, const TRigidTransform<T, d>& ATransform, const TCapsule<T>& B, const TRigidTransform<T, d>& BTransform, const T Thickness, TRigidBodyPointContactConstraint<T, d>& Constraint)
+		TContactPoint<T> CapsuleCapsuleContactPoint(const TCapsule<T>& A, const TRigidTransform<T, d>& ATransform, const TCapsule<T>& B, const TRigidTransform<T, d>& BTransform, const T Thickness)
 		{
-			TPointContactManifold<T, d> & Contact = Constraint.Manifold;
+			TContactPoint<T> Result;
 
 			FVector A1 = ATransform.TransformPosition(A.GetX1());
 			FVector A2 = ATransform.TransformPosition(A.GetX2());
@@ -368,14 +448,19 @@ namespace Chaos
 			if (DeltaLen > KINDA_SMALL_NUMBER)
 			{
 				T NewPhi = DeltaLen - (A.GetRadius() + B.GetRadius());
-				if (NewPhi < Contact.Phi)
-				{
-					TVector<T, d> Dir = Delta / DeltaLen;
-					Contact.Phi = NewPhi;
-					Contact.Normal = -Dir;
-					Contact.Location = P1 + Dir * A.GetRadius();
-				}
+				TVector<T, d> Dir = Delta / DeltaLen;
+				Result.Phi = NewPhi;
+				Result.Normal = -Dir;
+				Result.Location = P1 + Dir * A.GetRadius();
 			}
+
+			return Result;
+		}
+
+		template <typename T, int d>
+		void UpdateCapsuleCapsuleConstraint(const TCapsule<T>& A, const TRigidTransform<T, d>& ATransform, const TCapsule<T>& B, const TRigidTransform<T, d>& BTransform, const T Thickness, TRigidBodyPointContactConstraint<T, d>& Constraint)
+		{
+			UpdateContactPoint(Constraint.Manifold, CapsuleCapsuleContactPoint(A, ATransform, B, BTransform, Thickness));
 		}
 
 		template<typename T, int d>
@@ -409,40 +494,15 @@ namespace Chaos
 		//
 
 		template <typename T, int d>
+		TContactPoint<T> CapsuleBoxContactPoint(const TCapsule<T>& A, const TRigidTransform<T, d>& ATransform, const TBox<T, d>& B, const TRigidTransform<T, d>& BTransform, const T Thickness)
+		{
+			return GJKContactPoint(A, ATransform, B, BTransform, Thickness);
+		}
+
+		template <typename T, int d>
 		void UpdateCapsuleBoxConstraint(const TCapsule<T>& A, const TRigidTransform<T, d>& ATransform, const TBox<T, d>& B, const TRigidTransform<T, d>& BTransform, const T Thickness, TRigidBodyPointContactConstraint<T, d>& Constraint)
 		{
-			// @todo(ccaulfield): Add custom capsule-box collision
-			TPointContactManifold<T, d> & Contact = Constraint.Manifold;
-
-			TRigidTransform<T, d> BToATransform = BTransform.GetRelativeTransform(ATransform);
-
-			// Use GJK to track closest points (not strictly necessary yet)
-			TVector<T, d> NearPointALocal, NearPointBLocal;
-			T NearPointDistance;
-			if (GJKDistance<T>(A, B, BToATransform, NearPointDistance, NearPointALocal, NearPointBLocal))
-			{
-				TVector<T, d> NearPointAWorld = ATransform.TransformPosition(NearPointALocal);
-				TVector<T, d> NearPointBWorld = BTransform.TransformPosition(NearPointBLocal);
-				TVector<T, d> NearPointBtoAWorld = NearPointAWorld - NearPointBWorld;
-				Contact.Phi = NearPointDistance;
-				Contact.Normal = NearPointBtoAWorld.GetSafeNormal();
-				Contact.Location = NearPointAWorld;
-			}
-			else
-			{
-				// Use box particle samples against the implicit capsule
-				const TArray<TVector<T, d>> BParticles = B.ComputeSamplePoints();
-				const int32 NumParticles = BParticles.Num();
-				for (int32 ParticleIndex = 0; ParticleIndex < NumParticles; ++ParticleIndex)
-				{
-					if (SampleObjectHelper(A, ATransform, BToATransform, BParticles[ParticleIndex], Thickness, Constraint))
-					{
-						// SampleObjectHelper expects A to be the box, so reverse the results
-						Contact.Normal = -Contact.Normal;
-					}
-				}
-			}
-
+			UpdateContactPoint(Constraint.Manifold, CapsuleBoxContactPoint(A, ATransform, B, BTransform, Thickness));
 		}
 
 		template<typename T, int d>
@@ -476,78 +536,41 @@ namespace Chaos
 		//
 
 		template<class T, int d>
+		TContactPoint<T> ConvexConvexContactPoint(const FImplicitObject& A, const TRigidTransform<T, d>& ATM, const FImplicitObject& B, const TRigidTransform<T, d>& BTM, const T Thickness)
+		{
+			return CastHelper(A, [&](const auto& ADowncast)
+			{
+				return CastHelper(B, [&](const auto& BDowncast)
+				{
+					return GJKContactPoint(ADowncast, ATM, BDowncast, BTM, Thickness);
+				});
+			});
+		}
+
+		template<class T, int d>
 		void UpdateConvexConvexConstraint(const FImplicitObject& A, const TRigidTransform<T, d>& ATM, const FImplicitObject& B, const TRigidTransform<T, d>& BTM, const T Thickness, TRigidBodyPointContactConstraint<T, d>& Constraint)
 		{
-			TRigidTransform<T, d> BToATM = BTM.GetRelativeTransform(ATM);
-
-			if (ensure(GetInnerType(A.GetType()) == ImplicitObjectType::Convex && GetInnerType(B.GetType()) == ImplicitObjectType::Convex))
-			{
-				const TConvex<T, d>* AObject = nullptr;
-				const TConvex<T, d>* BObject = nullptr;
-
-				if (IsScaled(A.GetType()) && IsScaled(B.GetType()))
-				{
-					AObject = static_cast<const TConvex<T, d>*>(static_cast<const TImplicitObjectScaled<TConvex<T, d>>&>(A).Object().Get());
-					BObject = static_cast<const TConvex<T, d>*>(static_cast<const TImplicitObjectScaled<TConvex<T, d>>&>(B).Object().Get());
-				}
-				else if (A.GetType() == ImplicitObjectType::Transformed && B.GetType() == ImplicitObjectType::Transformed)
-				{
-					AObject = static_cast<const TConvex<T, d>*>(static_cast<const TImplicitObjectTransformed<T, d>&>(A).Object().Get());
-					BObject = static_cast<const TConvex<T, d>*>(static_cast<const TImplicitObjectTransformed<T, d>&>(B).Object().Get());
-				}
-
-				if (AObject && BObject)
-				{
-					const TParticles<T, d>& SurfaceParticles = AObject->GetSurfaceParticles();
-
-					Constraint.SetDisabled(true);
-
-					if (GJKIntersection(*AObject, *BObject, BToATM, Thickness))
-					{
-						TRigidTransform<T, d> AToBTM = ATM.GetRelativeTransform(BTM);
-
-						T Phi;
-						TVector<T, d> Normal;
-						for (int32 Idx = 0; Idx < (int32)SurfaceParticles.Size(); Idx++)
-						{
-							Phi = BObject->PhiWithNormal(AToBTM.TransformPosition(SurfaceParticles.X(Idx)), Normal);
-							if (Phi < Constraint.GetPhi())
-							{
-								Constraint.SetPhi(Phi);
-								Constraint.SetLocation(ATM.TransformPosition(SurfaceParticles.X(Idx)));
-								Constraint.SetNormal(BTM.TransformVector(Normal));
-							}
-						}
-						return;
-					}
-					return;
-				}
-			}
-
-			ensureMsgf(false, TEXT("Unsupported convex to convex constraint."));
+			UpdateContactPoint(Constraint.Manifold, ConvexConvexContactPoint(A, ATM, B, BTM, Thickness));
 		}
 
 		template<class T, int d>
 		void ConstructConvexConvexConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform0, const TRigidTransform<T, d>& Transform1, const T Thickness, FCollisionConstraintsArray& NewConstraints)
 		{
-			if (ensure(GetInnerType(Implicit0->GetType()) == ImplicitObjectType::Convex && GetInnerType(Implicit1->GetType()) == ImplicitObjectType::Convex))
+			FRigidBodyPointContactConstraint* Constraint = new FRigidBodyPointContactConstraint;
+
+			Constraint->Particle[0] = Particle0;
+			Constraint->Particle[1] = Particle1;
+			Constraint->AddManifold(Implicit0, Implicit1);
+
+			UpdateConvexConvexConstraint(*Implicit0, Transform0, *Implicit1, Transform1, Thickness, *Constraint);
+
+			if (Constraint->GetPhi() < Thickness)
 			{
-				FRigidBodyPointContactConstraint* Constraint = new FRigidBodyPointContactConstraint;
-
-				Constraint->Particle[0] = Particle0;
-				Constraint->Particle[1] = Particle1;
-				Constraint->AddManifold(Implicit0, Implicit1);
-
-				UpdateConvexConvexConstraint(*Implicit0, Transform0, *Implicit1, Transform1, Thickness, *Constraint);
-
-				if (Constraint->GetPhi() < Thickness)
-				{
-					NewConstraints.Add(Constraint);
-				}
-				else
-				{
-					delete Constraint;
-				}
+				NewConstraints.Add(Constraint);
+			}
+			else
+			{
+				delete Constraint;
 			}
 		}
 
@@ -884,6 +907,10 @@ namespace Chaos
 			{
 				UpdateSphereBoxConstraint(*Implicit0.template GetObject<TSphere<T, d>>(), Transform0, *Implicit1.template GetObject<TBox<T, d>>(), Transform1, Thickness, *ConstraintBase.template As<TRigidBodyPointContactConstraint<T,d>>());
 			}
+			else if (Implicit0Type == TSphere<T, d>::StaticType() && Implicit1Type == TCapsule<T>::StaticType())
+			{
+				UpdateSphereCapsuleConstraint(*Implicit0.template GetObject<TSphere<T, d>>(), Transform0, *Implicit1.template GetObject<TCapsule<T>>(), Transform1, Thickness, *ConstraintBase.template As<TRigidBodyPointContactConstraint<T, d>>());
+			}
 			else if (Implicit0Type == TCapsule<T>::StaticType() && Implicit1Type == TCapsule<T>::StaticType())
 			{
 				UpdateCapsuleCapsuleConstraint(*Implicit0.template GetObject<TCapsule<T>>(), Transform0, *Implicit1.template GetObject<TCapsule<T>>(), Transform1, Thickness, *ConstraintBase.template As<TRigidBodyPointContactConstraint<T,d>>());
@@ -936,6 +963,17 @@ namespace Chaos
 					Constraint.SetNormal(-Constraint.GetNormal());
 				}
 			}
+			else if (Implicit0Type == TCapsule<T>::StaticType() && Implicit1Type == TSphere<T, d>::StaticType())
+			{
+				TRigidBodyPointContactConstraint<T, d>& Constraint = *ConstraintBase.template As<TRigidBodyPointContactConstraint<T, d> >();
+				TRigidBodyPointContactConstraint<T, d> TmpConstraint = Constraint;
+				UpdateSphereCapsuleConstraint(*Implicit1.template GetObject<TSphere<T, d>>(), Transform1, *Implicit0.template GetObject<TCapsule<T>>(), Transform0, Thickness, TmpConstraint);
+				if (TmpConstraint.GetPhi() < Constraint.GetPhi())
+				{
+					Constraint = TmpConstraint;
+					Constraint.SetNormal(-Constraint.GetNormal());
+				}
+			}
 			else if (Implicit0Type < TImplicitObjectUnion<T, d>::StaticType() && Implicit1Type == TImplicitObjectUnion<T, d>::StaticType())
 			{
 				return UpdateSingleUnionConstraint<UpdateType>(Implicit0, Transform0, Implicit1, Transform1, Thickness, ConstraintBase);
@@ -948,7 +986,7 @@ namespace Chaos
 			{
 				return UpdateUnionUnionConstraint<UpdateType>(Implicit0, Transform0, Implicit1, Transform1, Thickness, ConstraintBase);
 			}
-			else if (Implicit0.IsConvex() && Implicit1.IsConvex())
+			else if(Implicit0.IsConvex() && Implicit1.IsConvex())
 			{
 				UpdateConvexConvexConstraint(Implicit0, Transform0, Implicit1, Transform1, Thickness, *ConstraintBase.template As<TRigidBodyPointContactConstraint<T, d>>());
 			}
@@ -969,6 +1007,15 @@ namespace Chaos
 		template<typename T, int d>
 		void ConstructPairConstraintImpl(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform0, const TRigidTransform<T, d>& Transform1, const T Thickness, FCollisionConstraintsArray& NewConstraints)
 		{
+			const TPerShapeData<T, d>* Shape0 = Particle0->GetImplicitShape(Implicit0);
+			const TPerShapeData<T, d>* Shape1 = Particle1->GetImplicitShape(Implicit1);
+
+			// If either shape is disabled for collision bail without constructing a constraint
+			if((Shape0 && Shape0->bDisable) || (Shape1 && Shape1->bDisable))
+			{
+				return;
+			}
+
 			// See if we already have a constraint for this shape pair
 			// todo(brice) : Not sure this actually prevents duplicate constraints.
 			for (int32 i = 0; i < NewConstraints.Num(); i++)
@@ -1041,6 +1088,14 @@ namespace Chaos
 			{
 				ConstructSphereBoxConstraints(Particle1, Particle0, Implicit1, Implicit0, Transform1, Transform0, Thickness, NewConstraints);
 			}
+			else if (Implicit0Type == TSphere<T, d>::StaticType() && Implicit1Type == TCapsule<T>::StaticType())
+			{
+				ConstructSphereCapsuleConstraints(Particle0, Particle1, Implicit0, Implicit1, Transform0, Transform1, Thickness, NewConstraints);
+			}
+			else if (Implicit0Type == TCapsule<T>::StaticType() && Implicit1Type == TSphere<T, d>::StaticType())
+			{
+				ConstructSphereCapsuleConstraints(Particle1, Particle0, Implicit1, Implicit0, Transform1, Transform0, Thickness, NewConstraints);
+			}
 			else if (Implicit0Type == TCapsule<T>::StaticType() && Implicit1Type == TCapsule<T>::StaticType())
 			{
 				ConstructCapsuleCapsuleConstraints(Particle0, Particle1, Implicit0, Implicit1, Transform1, Transform0, Thickness, NewConstraints);
@@ -1110,6 +1165,9 @@ namespace Chaos
 
 		template void UpdateSphereBoxConstraint<float, 3>(const TSphere<float, 3>& Sphere, const TRigidTransform<float, 3>& SphereTransform, const TBox<float, 3>& Box, const TRigidTransform<float, 3>& BoxTransform, const float Thickness, TRigidBodyPointContactConstraint<float, 3>& Constraint);
 		template void ConstructSphereBoxConstraints<float, 3>(TGeometryParticleHandle<float, 3>* Particle0, TGeometryParticleHandle<float, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const TRigidTransform<float, 3>& Transform0, const TRigidTransform<float, 3>& Transform1, const float Thickness, FCollisionConstraintsArray& NewConstraints);
+
+		template void UpdateSphereCapsuleConstraint<float, 3>(const TSphere<float, 3>& Sphere, const TRigidTransform<float, 3>& SphereTransform, const TCapsule<float>& Box, const TRigidTransform<float, 3>& BoxTransform, const float Thickness, TRigidBodyPointContactConstraint<float, 3>& Constraint);
+		template void ConstructSphereCapsuleConstraints<float, 3>(TGeometryParticleHandle<float, 3>* Particle0, TGeometryParticleHandle<float, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const TRigidTransform<float, 3>& Transform0, const TRigidTransform<float, 3>& Transform1, const float Thickness, FCollisionConstraintsArray& NewConstraints);
 
 		template void UpdateCapsuleCapsuleConstraint<float, 3>(const TCapsule<float>& A, const TRigidTransform<float, 3>& ATransform, const TCapsule<float>& B, const TRigidTransform<float, 3>& BTransform, const float Thickness, TRigidBodyPointContactConstraint<float, 3>& Constraint);
 		template void ConstructCapsuleCapsuleConstraints(TGeometryParticleHandle<float, 3>* Particle0, TGeometryParticleHandle<float, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const TRigidTransform<float, 3>& Transform0, const TRigidTransform<float, 3>& Transform1, const float Thickness, FCollisionConstraintsArray& NewConstraints);

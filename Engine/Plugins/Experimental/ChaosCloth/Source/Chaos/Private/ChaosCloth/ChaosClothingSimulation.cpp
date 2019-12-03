@@ -699,7 +699,7 @@ void ClothingSimulation::ExtractPhysicsAssetCollisions(UClothingAssetCommon* Ass
 
 #elif WITH_CHAOS  // #if WITH_PHYSX
 				const Chaos::FImplicitObject& ChaosConvexMesh = *ConvexElem.GetChaosConvexMesh();
-				const Chaos::TConvex<float, 3>& ChaosConvex = ChaosConvexMesh.GetObjectChecked<Chaos::TConvex<float, 3>>();
+				const Chaos::FConvex& ChaosConvex = ChaosConvexMesh.GetObjectChecked<Chaos::FConvex>();
 
 				// Copy planes
 				const TArray<TPlane<float, 3>>& Planes = ChaosConvex.GetFaces();
@@ -928,7 +928,7 @@ void ClothingSimulation::AddCollisions(const FClothCollisionData& ClothCollision
 					}
 
 					// Setup the collision particle geometry
-					CollisionParticles.SetDynamicGeometry(i, MakeUnique<Chaos::TConvex<float, 3>>(MoveTemp(Planes), MoveTemp(SurfaceParticles)));
+					CollisionParticles.SetDynamicGeometry(i, MakeUnique<Chaos::FConvex>(MoveTemp(Planes), MoveTemp(SurfaceParticles)));
 				}
 			}
 
@@ -1199,14 +1199,15 @@ void ClothingSimulation::SetAnimDriveSpringStiffness(float InStiffness)
 	}
 }
 
-void ClothingSimulation::SetGravityOverride(const TVector<float, 3>& InGravityOverride) 
+void ClothingSimulation::SetGravityOverride(const FVector& InGravityOverride) 
 {
 	Evolution->GetGravityForces().SetAcceleration(InGravityOverride);
 }
 
 void ClothingSimulation::DisableGravityOverride()
 {
-	Evolution->GetGravityForces().SetAcceleration(ClothSharedSimConfig->Gravity);
+	static const FVector DefaultGravity(0.f, 0.f, -980.665f);
+	Evolution->GetGravityForces().SetAcceleration(!ClothSharedSimConfig ? DefaultGravity : ClothSharedSimConfig->Gravity);
 }
 
 #if WITH_EDITOR
@@ -1442,7 +1443,7 @@ void ClothingSimulation::DebugDrawCollision(USkeletalMeshComponent* OwnerCompone
 		}
 	};
 
-	auto DrawConvex = [&PDI](const Chaos::TConvex<float, 3>& Convex, const TRotation<float, 3>& Rotation, const Chaos::TVector<float, 3>& Position, const FLinearColor& Color)
+	auto DrawConvex = [&PDI](const Chaos::FConvex& Convex, const TRotation<float, 3>& Rotation, const Chaos::TVector<float, 3>& Position, const FLinearColor& Color)
 	{
 		const TArray<Chaos::TPlane<float, 3>>& Planes = Convex.GetFaces();
 		for (int32 PlaneIndex1 = 0; PlaneIndex1 < Planes.Num(); ++PlaneIndex1)
@@ -1531,7 +1532,7 @@ void ClothingSimulation::DebugDrawCollision(USkeletalMeshComponent* OwnerCompone
 				break;
 	
 			case Chaos::ImplicitObjectType::Convex:
-				DrawConvex(Object->GetObjectChecked<Chaos::TConvex<float, 3>>(), Rotation, Position, Color);
+				DrawConvex(Object->GetObjectChecked<Chaos::FConvex>(), Rotation, Position, Color);
 				break;
 
 			default:

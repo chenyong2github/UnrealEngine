@@ -28,6 +28,7 @@
 #include "NiagaraParameterCollection.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "NiagaraSystem.h"
+#include "SNiagaraGraphActionWidget.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackFunctionInputValue"
@@ -132,6 +133,7 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 						SNew(STextBlock)
 						.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
 						.Text(this, &SNiagaraStackFunctionInputValue::GetDynamicValueText)
+						.ToolTipText(this, &SNiagaraStackFunctionInputValue::GetDynamicValueToolTip)
 						.OnDoubleClicked(this, &SNiagaraStackFunctionInputValue::DynamicInputTextDoubleClicked)
 					]
 				]
@@ -377,6 +379,18 @@ FText SNiagaraStackFunctionInputValue::GetDynamicValueText() const
 	}
 }
 
+FText SNiagaraStackFunctionInputValue::GetDynamicValueToolTip() const
+{
+	if (FunctionInput->GetDynamicInputNode() != nullptr)
+	{
+		return FunctionInput->GetDynamicInputNode()->GetTooltipText();
+	}
+	else
+	{
+		return LOCTEXT("InvalidDynamicDisplayName", "(Invalid)");
+	}
+}
+
 FText SNiagaraStackFunctionInputValue::GetExpressionValueText() const
 {
 	if (FunctionInput->GetExpressionNode() != nullptr)
@@ -517,6 +531,10 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::OnGetAvailableHandleMenu()
 				.AutoExpandActionMenu(false)
 				.ShowFilterTextBox(true)
 				.OnCreateCustomRowExpander_Static(&CreateCustomNiagaraFunctionInputActionExpander)
+				.OnCreateWidgetForAction_Lambda([](const FCreateWidgetForActionData* InData)
+				{
+					return SNew(SNiagaraGraphActionWidget, InData);
+				})
 			]
 		]
 	];
@@ -572,6 +590,8 @@ void SNiagaraStackFunctionInputValue::CollectAllActions(FGraphActionListBuilderB
 			const FText Tooltip = FNiagaraEditorUtilities::FormatScriptAssetDescription(DynamicInputScript->Description, *(DynamicInputScript->GetPathName() + (DynamicInputScript->bExposeToLibrary ? "" : "\n*Not exposed to library")));
 			TSharedPtr<FNiagaraMenuAction> DynamicInputAction(new FNiagaraMenuAction(CategoryName, DynamicInputText, Tooltip, 0, DynamicInputScript->Keywords,
 				FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraStackFunctionInputValue::DynamicInputScriptSelected, DynamicInputScript)));
+
+			DynamicInputAction->IsExperimental = DynamicInputScript->bExperimental;
 			OutAllActions.AddAction(DynamicInputAction);
 		}
 	}

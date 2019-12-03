@@ -869,7 +869,13 @@ public:
 	/**
 	* Returns the distance from location to the appropriate listener representation, depending on calling thread
 	*/
+	UE_DEPRECATED(4.25, "Use GetSquaredDistanceToListener instead")
 	float GetDistanceSquaredToListener(const FVector& Location, int32 ListenerIndex) const;
+
+	/**
+	* Returns the distance from location to the appropriate listener representation, depending on calling thread
+	*/
+	bool GetSquaredDistanceToListener(const FVector& Location, int32 ListenerIndex, float& OutSqDistance) const;
 
 	/**
 	* Returns a position from the appropriate listener representation, depending on calling thread.

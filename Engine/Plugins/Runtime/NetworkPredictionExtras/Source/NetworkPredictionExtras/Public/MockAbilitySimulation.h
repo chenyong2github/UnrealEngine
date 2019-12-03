@@ -137,6 +137,8 @@ struct FMockAbilityBlinkActivateCue
 	FVector_NetQuantize10 Destination;
 	uint8 RandomType; // Random value used to color code the effect. This is the test/prove out mispredictions
 
+	using Traits = NetSimCueTraits::Strong;
+	
 	void NetSerialize(FArchive& Ar)
 	{
 		bool b = false;
@@ -144,20 +146,23 @@ struct FMockAbilityBlinkActivateCue
 		Ar << RandomType;
 	}
 	
-	bool NetUnique(const FMockAbilityBlinkActivateCue& Other) const
+	bool NetIdentical(const FMockAbilityBlinkActivateCue& Other) const
 	{
 		const float ErrorTolerance = 1.f;
-		return !Destination.Equals(Other.Destination, ErrorTolerance) || RandomType != Other.RandomType;
+		return Destination.Equals(Other.Destination, ErrorTolerance) && RandomType == Other.RandomType;
 	}
 };
 
-template<>
-struct TCueHandlerTraits<FMockAbilityBlinkActivateCue> : public TNetSimCueTraits_Strong { };
+// This way works too but is less concise:
+//template<>
+//struct TNetSimCueTraits<FMockAbilityBlinkActivateCue> : public TNetSimCueTraits_Strong { };
+
+static_assert( TNetSimCueTraits<FMockAbilityBlinkActivateCue>::ReplicationTarget == NetSimCueTraits::Strong::ReplicationTarget, "Traits error" );
 
 // ----------------------------------------------------------------------------------------------
 
 
-#define LOG_BLINK_CUE 1 // During development, its useful to sanity check that we aren't doing more construction or moves than we expect
+#define LOG_BLINK_CUE 0 // During development, its useful to sanity check that we aren't doing more construction or moves than we expect
 
 // Cue for blink (the moment the teleport happens)
 struct FMockAbilityBlinkCue
@@ -198,6 +203,8 @@ struct FMockAbilityBlinkCue
 
 	FVector_NetQuantize10 StartLocation;
 	FVector_NetQuantize10 StopLocation;
+
+	using Traits = NetSimCueTraits::Strong;
 	
 	void NetSerialize(FArchive& Ar)
 	{
@@ -206,15 +213,13 @@ struct FMockAbilityBlinkCue
 		StopLocation.NetSerialize(Ar, nullptr, b);
 	}
 	
-	bool NetUnique(const FMockAbilityBlinkCue& Other) const
+	
+	bool NetIdentical(const FMockAbilityBlinkCue& Other) const
 	{
 		const float ErrorTolerance = 1.f;
-		return !StartLocation.Equals(Other.StartLocation, ErrorTolerance) || !StopLocation.Equals(Other.StopLocation, ErrorTolerance);
+		return StartLocation.Equals(Other.StartLocation, ErrorTolerance) && StopLocation.Equals(Other.StopLocation, ErrorTolerance);
 	}
 };
-
-template<>
-struct TCueHandlerTraits<FMockAbilityBlinkCue> : public TNetSimCueTraits_Strong { };
 
 // -----------------------------------------------------------------------------------------------------
 // Subtypes of the BlinkCue - this is not an expected setup! This is done for testing/debugging so we can 
@@ -223,13 +228,16 @@ struct TCueHandlerTraits<FMockAbilityBlinkCue> : public TNetSimCueTraits_Strong 
 #define DECLARE_BLINKCUE_SUBTYPE(TYPE, TRAITS) \
  struct TYPE : public FMockAbilityBlinkCue { \
  template <typename... ArgsType> TYPE(ArgsType&&... Args) : FMockAbilityBlinkCue(Forward<ArgsType>(Args)...) { } \
- NETSIMCUE_BODY(); }; \
- template<> struct TCueHandlerTraits<TYPE> : public TRAITS { };
+ using Traits = TRAITS; \
+ void NetSerialize(FArchive& Ar) { FMockAbilityBlinkCue::NetSerialize(Ar); } \
+ bool NetIdentical(const TYPE& Other) const { return FMockAbilityBlinkCue::NetIdentical(Other); } \
+ NETSIMCUE_BODY(); };
+ 
 
-DECLARE_BLINKCUE_SUBTYPE(FMockAbilityBlinkCue_Weak, TNetSimCueTraits_Weak);
-DECLARE_BLINKCUE_SUBTYPE(FMockAbilityBlinkCue_ReplicatedNonPredicted, TNetSimCueTraits_ReplicatedNonPredicted);
-DECLARE_BLINKCUE_SUBTYPE(FMockAbilityBlinkCue_ReplicatedXOrPredicted, TNetSimCueTraits_ReplicatedXOrPredicted);
-DECLARE_BLINKCUE_SUBTYPE(FMockAbilityBlinkCue_Strong, TNetSimCueTraits_Strong);
+DECLARE_BLINKCUE_SUBTYPE(FMockAbilityBlinkCue_Weak, NetSimCueTraits::Weak);
+DECLARE_BLINKCUE_SUBTYPE(FMockAbilityBlinkCue_ReplicatedNonPredicted, NetSimCueTraits::ReplicatedNonPredicted);
+DECLARE_BLINKCUE_SUBTYPE(FMockAbilityBlinkCue_ReplicatedXOrPredicted, NetSimCueTraits::ReplicatedXOrPredicted);
+DECLARE_BLINKCUE_SUBTYPE(FMockAbilityBlinkCue_Strong, NetSimCueTraits::Strong);
 
 // The set of Cues the MockAbility simulation will invoke
 struct FMockAbilityCueSet

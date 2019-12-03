@@ -24,7 +24,7 @@ public:
 	bool IsMultithreaded() override;
 	bool IsInAsyncLoadThread() override;
 	void NotifyConstructedDuringAsyncLoading(UObject* Object, bool bSubObject) override;
-	void FireCompletedCompiledInImport(FGCObject* AsyncPackage, FPackageIndex Import) override;
+	void FireCompletedCompiledInImport(void* AsyncPackage, FPackageIndex Import) override;
 	int32 LoadPackage(const FString& InPackageName, const FGuid* InGuid, const TCHAR* InPackageToLoadFrom, FLoadPackageAsyncDelegate InCompletionDelegate, EPackageFlags InPackageFlags, int32 InPIEInstanceID, int32 InPackagePriority) override;
 	EAsyncPackageState::Type ProcessLoading(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit) override;
 	EAsyncPackageState::Type ProcessLoadingUntilComplete(TFunctionRef<bool()> CompletionPredicate, float TimeLimit) override;

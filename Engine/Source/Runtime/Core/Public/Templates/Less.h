@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "UnrealTemplate.h"
 
 /**
  * Binary predicate class for sorting elements in order.  Assumes < operator is defined for the template type.
@@ -22,9 +23,9 @@ struct TLess
 template <>
 struct TLess<void>
 {
-	template <typename T>
-	FORCEINLINE bool operator()(const T& A, const T& B) const
+	template <typename T, typename U>
+	FORCEINLINE bool operator()(T&& A, U&& B) const
 	{
-		return A < B;
+		return Forward<T>(A) < Forward<U>(B);
 	}
 };

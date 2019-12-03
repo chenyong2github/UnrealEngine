@@ -64,6 +64,8 @@ enum class EAnimCurveType : uint8
 	MaxAnimCurveType UMETA(Hidden)
 };
 
+ENUM_RANGE_BY_COUNT(EAnimCurveType, EAnimCurveType::MaxAnimCurveType);
+
 UENUM()
 enum class EClothMassMode : uint8
 {

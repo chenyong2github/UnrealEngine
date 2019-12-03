@@ -399,8 +399,8 @@ static bool GetBestShadowTransform(const FVector& ZAxis,const FBoundingBoxVertex
 	const int32 NumEdges = Edges.Num();
 
 	// We're always dealing with box geometry here, so we can hint the compiler
-	ASSUME( NumPoints == 8 );
-	ASSUME( NumEdges == 12 );
+	UE_ASSUME( NumPoints == 8 );
+	UE_ASSUME( NumEdges == 12 );
 
 	for(int32 EdgeIndex = 0;EdgeIndex < NumEdges; ++EdgeIndex)
 	{

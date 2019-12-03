@@ -21,11 +21,53 @@ public:
 	FFieldSystemPhysicsProxy(UObject* InOwner);
 	virtual ~FFieldSystemPhysicsProxy();
 
+	// Called by FPBDRigidsSolver::RegisterObject(FFieldSystemPhysicsProxy*)
+	void Initialize();
+
 	// Callbacks
 	bool IsSimulating() const;
-	void FieldParameterUpdateCallback(Chaos::FPhysicsSolver* InSolver, FParticlesType& InParticles, Chaos::TArrayCollectionArray<float>& Strains, Chaos::TPBDPositionConstraints<float, 3>& PositionTarget, TMap<int32, int32>& PositionTargetedParticles, const TArray<FKinematicProxy>& AnimatedPositions, const float InTime);
-	void FieldForcesUpdateCallback(Chaos::FPhysicsSolver* InSolver, FParticlesType& Particles, Chaos::TArrayCollectionArray<FVector> & Force, Chaos::TArrayCollectionArray<FVector> & Torque, const float Time);
-	void EndFrameCallback(const float InDt);
+	/**
+	 * Services queued \c FFieldSystemCommand commands.
+	 *
+	 * Supported fields:
+	 *	* EFieldPhysicsType::Field_DynamicState
+	 *	* EFieldPhysicsType::Field_ActivateDisabled
+	 *	* EFieldPhysicsType::Field_ExternalClusterStrain (clustering)
+	 *	* EFieldPhysicsType::Field_Kill
+	 *	* EFieldPhysicsType::Field_LinearVelocity
+	 *	* EFieldPhysicsType::Field_AngularVelociy
+	 *	* EFieldPhysicsType::Field_SleepingThreshold
+	 *	* EFieldPhysicsType::Field_DisableThreshold
+	 *	* EFieldPhysicsType::Field_InternalClusterStrain (clustering)
+	 *	* EFieldPhysicsType::Field_CollisionGroup
+	 *	* EFieldPhysicsType::Field_PositionStatic
+	 *	* EFieldPhysicsType::Field_PositionTarget
+	 *	* EFieldPhysicsType::Field_PositionAnimated
+	 *	* EFieldPhysicsType::Field_DynamicConstraint
+	 */
+	void FieldParameterUpdateCallback(
+		Chaos::FPhysicsSolver* InSolver, 
+		FParticlesType& InParticles, 
+		Chaos::TArrayCollectionArray<float>& Strains, 
+		Chaos::TPBDPositionConstraints<float, 3>& PositionTarget, 
+		TMap<int32, int32>& PositionTargetedParticles, 
+		//const TArray<FKinematicProxy>& AnimatedPositions, 
+		const float InTime);
+
+	/**
+	 * Services queued \c FFieldSystemCommand commands.
+	 *
+	 * Supported fields:
+	 *	* EFieldPhysicsType::Field_LinearForce
+	 *	* EFieldPhysicsType::Field_AngularTorque
+	 */
+	void FieldForcesUpdateCallback(
+		Chaos::FPhysicsSolver* InSolver, 
+		FParticlesType& Particles, 
+		Chaos::TArrayCollectionArray<FVector> & Force, 
+		Chaos::TArrayCollectionArray<FVector> & Torque, 
+		const float Time);
+
 	void BufferCommand(Chaos::FPhysicsSolver* InSolver, const FFieldSystemCommand& InCommand);
 
 	// Inactive Callbacks
@@ -36,25 +78,44 @@ public:
 	void CreateRigidBodyCallback(FParticlesType& InOutParticles){}
 	void DisableCollisionsCallback(TSet<TTuple<int32, int32>>& InPairs){}
 	void AddForceCallback(FParticlesType& InParticles, const float InDt, const int32 InIndex){}
+	void EndFrameCallback(const float InDt) { check(false); } // never called
 
+	// Called by FPBDRigidsSolver::PushPhysicsState() on game thread.
 	Chaos::FParticleData* NewData() { return nullptr; }
+	// Called by FPBDRigidsSolver::PushPhysicsState() on physics thread.
+	void PushToPhysicsState(const Chaos::FParticleData*) {};
+	// Called by FPBDRigidsSolver::PushPhysicsState() on game thread.
+	void ClearAccumulatedData() {}
+
+	void BufferPhysicsResults(){}	// Not called
+	void FlipBuffer(){}				// Not called
+	void PullFromPhysicsState(){}	// Not called
+
+	bool IsDirty() { return false; }
 	void SyncBeforeDestroy(){}
 	void OnRemoveFromScene();
-	void PushToPhysicsState(const Chaos::FParticleData*) {};
-	void ClearAccumulatedData() {}
-	void BufferPhysicsResults(){}
-	void FlipBuffer(){}
-	void PullFromPhysicsState(){}
-	bool IsDirty() { return false; }
+
 	EPhysicsProxyType ConcreteType() {return EPhysicsProxyType::FieldType;}
 
-	/*
-	* ContiguousIndices
-	*   Generates a mapping between the Position array and the results array. When EFieldResolutionType is set to Maximum the complete
-	*   particle mapping is provided from the Particles.X to Particles.Attribute, when Minimum is set only the ActiveIndices and the
-	*   direct children of the active clusters are set in the IndicesArray.
-	*/
-	static void ContiguousIndices(TArray<ContextIndex>& IndicesArray, const Chaos::FPhysicsSolver* RigidSolver, EFieldResolutionType ResolutionType, bool bForce);
+	/**
+	 * Generates a mapping between the Position array and the results array. 
+	 *
+	 * When \p ResolutionType is set to \c Maximum the complete particle mapping 
+	 * is provided from the \c Particles.X to \c Particles.Attribute. 
+	 * When \c Minimum is set only the ActiveIndices and the direct children of 
+	 * the active clusters are set in the \p IndicesArray.
+	 */
+	static void ContiguousIndices(
+		TArray<ContextIndex>& IndicesArray, 
+		const Chaos::FPhysicsSolver* RigidSolver, 
+		const EFieldResolutionType ResolutionType, 
+		const bool bForce = true);
+
+	static void GetParticleHandles(
+		TArray<Chaos::TGeometryParticleHandle<float,3>*>& Handles,
+		const Chaos::FPhysicsSolver* RigidSolver,
+		const EFieldResolutionType ResolutionType,
+		const bool bForce = true);
 
 private:
 

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Trace/Detail/Trace.h"
+#include "Trace/Config.h"
 
 #if UE_TRACE_ENABLED
 

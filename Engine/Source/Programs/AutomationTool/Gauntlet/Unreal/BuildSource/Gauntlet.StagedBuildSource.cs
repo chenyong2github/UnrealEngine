@@ -253,55 +253,58 @@ namespace Gauntlet
 		{
 			List<DirectoryInfo> AllDirs = new List<DirectoryInfo>();
 
+			List<IBuild> Builds = new List<IBuild>();
+
 			// c:\path\to\build
 			DirectoryInfo PathDI = new DirectoryInfo(InPath);
 
-			// If the path is directly to a platform folder, add us
-			if (PathDI.Name.IndexOf(PlatformFolderPrefix, StringComparison.OrdinalIgnoreCase) >= 0)
+			if (PathDI.Exists)
 			{
-				AllDirs.Add(PathDI);
-			}
-
-			// Assume it's a folder of all build types so find all sub directories that begin with the foldername for this platform
-			IEnumerable<DirectoryInfo> MatchingDirs = PathDI.GetDirectories("*", SearchOption.TopDirectoryOnly);
-
-			MatchingDirs = MatchingDirs.Where(D => D.Name.StartsWith(PlatformFolderPrefix, StringComparison.OrdinalIgnoreCase)).ToArray();
-
-			AllDirs.AddRange(MatchingDirs);
-
-			List<DirectoryInfo> DirsToRecurse = AllDirs;
-
-			// now get subdirs
-			while (MaxRecursion-- > 0)
-			{
-				List<DirectoryInfo> DiscoveredDirs = new List<DirectoryInfo>();
-
-				DirsToRecurse.ToList().ForEach((D) =>
+				// If the path is directly to a platform folder, add us
+				if (PathDI.Name.IndexOf(PlatformFolderPrefix, StringComparison.OrdinalIgnoreCase) >= 0)
 				{
-					DiscoveredDirs.AddRange(D.GetDirectories("*", SearchOption.TopDirectoryOnly));
-				});
+					AllDirs.Add(PathDI);
+				}
 
-				AllDirs.AddRange(DiscoveredDirs);
-				DirsToRecurse = DiscoveredDirs;
-			}
+				// Assume it's a folder of all build types so find all sub directories that begin with the foldername for this platform
+				IEnumerable<DirectoryInfo> MatchingDirs = PathDI.GetDirectories("*", SearchOption.TopDirectoryOnly);
 
-			// every directory that contains a valid build should have at least a ProjectName folder
-			AllDirs = AllDirs.Where(D =>
-			{
-				var SubDirs = D.GetDirectories();
-				return SubDirs.Any(SD => SD.Name.Equals(InProjectName, StringComparison.OrdinalIgnoreCase));
+				MatchingDirs = MatchingDirs.Where(D => D.Name.StartsWith(PlatformFolderPrefix, StringComparison.OrdinalIgnoreCase)).ToArray();
 
-			}).ToList();
+				AllDirs.AddRange(MatchingDirs);
 
-			List<IBuild> Builds = new List<IBuild>();
+				List<DirectoryInfo> DirsToRecurse = AllDirs;
 
-			foreach (DirectoryInfo Di in AllDirs)
-			{
-				IEnumerable<IBuild> FoundBuilds = StagedBuild.CreateFromPath<T>(Platform, InProjectName, Di.FullName, ExecutableExtension);
-
-				if (FoundBuilds != null)
+				// now get subdirs
+				while (MaxRecursion-- > 0)
 				{
-					Builds.AddRange(FoundBuilds);
+					List<DirectoryInfo> DiscoveredDirs = new List<DirectoryInfo>();
+
+					DirsToRecurse.ToList().ForEach((D) =>
+					{
+						DiscoveredDirs.AddRange(D.GetDirectories("*", SearchOption.TopDirectoryOnly));
+					});
+
+					AllDirs.AddRange(DiscoveredDirs);
+					DirsToRecurse = DiscoveredDirs;
+				}
+
+				// every directory that contains a valid build should have at least a ProjectName folder
+				AllDirs = AllDirs.Where(D =>
+				{
+					var SubDirs = D.GetDirectories();
+					return SubDirs.Any(SD => SD.Name.Equals(InProjectName, StringComparison.OrdinalIgnoreCase));
+
+				}).ToList();
+
+				foreach (DirectoryInfo Di in AllDirs)
+				{
+					IEnumerable<IBuild> FoundBuilds = StagedBuild.CreateFromPath<T>(Platform, InProjectName, Di.FullName, ExecutableExtension);
+
+					if (FoundBuilds != null)
+					{
+						Builds.AddRange(FoundBuilds);
+					}
 				}
 			}
 

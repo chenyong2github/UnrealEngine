@@ -228,6 +228,8 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 
 #include "Particles/ParticleSystemManager.h"
 #include "Components/SkinnedMeshComponent.h"
+#include "ObjectTrace.h"
+#include "Animation/AnimTrace.h"
 
 DEFINE_LOG_CATEGORY(LogEngine);
 IMPLEMENT_MODULE( FEngineModule, Engine );
@@ -263,6 +265,14 @@ void FEngineModule::StartupModule()
 
 #if WITH_EDITOR
 	USkinnedMeshComponent::BindWorldDelegates();
+#endif
+
+#if OBJECT_TRACE_ENABLED
+	FObjectTrace::Init();
+#endif
+
+#if ANIM_TRACE_ENABLED
+	FAnimTrace::Init();
 #endif
 }
 
@@ -1708,6 +1718,10 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 
 	// Record the analytics for any attached HMD devices
 	RecordHMDAnalytics();
+
+#if !UE_BUILD_SHIPPING
+	UE_CLOG(FPlatformMemory::IsExtraDevelopmentMemoryAvailable(), LogInit, Warning, TEXT("Running with %dMB of extra development memory!"),FPlatformMemory::GetExtraDevelopmentMemorySize()/1024ull/1024ull);
+#endif
 }
 
 void UEngine::Start()
@@ -7830,6 +7844,12 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 	{
 		const bool bShowHashBucketCollisionInfo = FParse::Param(Cmd, TEXT("SHOWBUCKETCOLLISIONS"));
 		LogHashOuterStatistics(Ar, bShowHashBucketCollisionInfo);
+		return true;
+	}
+	else if (FParse::Command(&Cmd, TEXT("OVERHEAD")))
+	{
+		const bool bShowIndividualStats = FParse::Param(Cmd, TEXT("DETAILED"));
+		LogHashMemoryOverheadStatistics(Ar, bShowIndividualStats);
 		return true;
 	}
 #endif

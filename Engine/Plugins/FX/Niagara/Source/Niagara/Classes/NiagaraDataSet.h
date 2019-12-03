@@ -107,7 +107,6 @@ public:
 	void SwapInstances(uint32 OldIndex, uint32 NewIndex);
 	void KillInstance(uint32 InstanceIdx);
 	void CopyTo(FNiagaraDataBuffer& DestBuffer, int32 SrcStartIdx, int32 DestStartIdx, int32 NumInstances)const;
-	void CopyTo(FNiagaraDataBuffer& DestBuffer)const;
 	void GPUCopyFrom(float* GPUReadBackFloat, int* GPUReadBackInt, int32 StartIdx, int32 NumInstances, uint32 InSrcFloatStride, uint32 InSrcIntStride);
 	void Dump(int32 StartIndex, int32 NumInstances, const FString& Label)const;
 
@@ -269,8 +268,10 @@ public:
 
 	FORCEINLINE void Init(const FNiagaraDataSetCompiledData* InDataSetCompiledData)
 	{
-		CompiledData = InDataSetCompiledData != nullptr ? InDataSetCompiledData : &FNiagaraDataSetCompiledData::DummyCompiledData;
-	
+		//CompiledData = InDataSetCompiledData != nullptr ? InDataSetCompiledData : &FNiagaraDataSetCompiledData::DummyCompiledData;
+		//Temporarily taking a copy of the compiled data to avoid lifetime issues in some cases.
+		CompiledData = InDataSetCompiledData != nullptr ? *InDataSetCompiledData : FNiagaraDataSetCompiledData::DummyCompiledData;
+		bInitialized = true;
 		Reset();
 	}
 
@@ -289,10 +290,10 @@ public:
 	/** Returns size in bytes for all data buffers currently allocated by this dataset. */
 	uint32 GetSizeBytes()const;
 
-	FORCEINLINE bool IsInitialized()const { return CompiledData != nullptr; }
-	FORCEINLINE ENiagaraSimTarget GetSimTarget()const { return CompiledData->SimTarget; }
-	FORCEINLINE FNiagaraDataSetID GetID()const { return CompiledData->ID; }	
-	FORCEINLINE bool GetNeedsPersistentIDs()const { return CompiledData->bNeedsPersistentIDs; }
+	FORCEINLINE bool IsInitialized()const { return bInitialized; }
+	FORCEINLINE ENiagaraSimTarget GetSimTarget()const { return CompiledData.SimTarget; }
+	FORCEINLINE FNiagaraDataSetID GetID()const { return CompiledData.ID; }	
+	FORCEINLINE bool GetNeedsPersistentIDs()const { return CompiledData.bNeedsPersistentIDs; }
 
 	FORCEINLINE TArray<int32>& GetFreeIDTable() { return FreeIDsTable; }
 	FORCEINLINE int32& GetNumFreeIDs() { return NumFreeIDs; }
@@ -300,13 +301,13 @@ public:
 	FORCEINLINE int32& GetIDAcquireTag() { return IDAcquireTag; }
 	FORCEINLINE void SetIDAcquireTag(int32 InTag) { IDAcquireTag = InTag; }
 
-	FORCEINLINE const TArray<FNiagaraVariable>& GetVariables()const { return CompiledData->Variables; }
-	FORCEINLINE uint32 GetNumVariables()const { return CompiledData->Variables.Num(); }
-	FORCEINLINE bool HasVariable(const FNiagaraVariable& Var)const { return CompiledData->Variables.Contains(Var); }
-	FORCEINLINE uint32 GetNumFloatComponents()const { return CompiledData->TotalFloatComponents; }
-	FORCEINLINE uint32 GetNumInt32Components()const { return CompiledData->TotalInt32Components; }
+	FORCEINLINE const TArray<FNiagaraVariable>& GetVariables()const { return CompiledData.Variables; }
+	FORCEINLINE uint32 GetNumVariables()const { return CompiledData.Variables.Num(); }
+	FORCEINLINE bool HasVariable(const FNiagaraVariable& Var)const { return CompiledData.Variables.Contains(Var); }
+	FORCEINLINE uint32 GetNumFloatComponents()const { return CompiledData.TotalFloatComponents; }
+	FORCEINLINE uint32 GetNumInt32Components()const { return CompiledData.TotalInt32Components; }
 
-	const TArray<FNiagaraVariableLayoutInfo>& GetVariableLayouts()const { return CompiledData->VariableLayouts; }
+	const TArray<FNiagaraVariableLayoutInfo>& GetVariableLayouts()const { return CompiledData.VariableLayouts; }
 	const FNiagaraVariableLayoutInfo* GetVariableLayout(const FNiagaraVariable& Var)const;
 	bool GetVariableComponentOffsets(const FNiagaraVariable& Var, int32 &FloatStart, int32 &IntStart) const;
 
@@ -358,8 +359,9 @@ private:
 #endif
 	}
 
-	const FNiagaraDataSetCompiledData* CompiledData;
-
+	//const FNiagaraDataSetCompiledData* CompiledData;
+	//For safety we're temporarily taking a copy of the compiled data. In certain cases the lifetime of the CompiledData ptr cannot be guaranteed. 
+	FNiagaraDataSetCompiledData CompiledData;
 
 	/** Table of free IDs available to allocate next tick. */
 	TArray<int32> FreeIDsTable;
@@ -387,6 +389,8 @@ private:
 	Additional buffers may be in here if they are currently being used by the render thread.
 	*/
 	TArray<FNiagaraDataBuffer*, TInlineAllocator<2>> Data;
+
+	bool bInitialized;
 };
 
 /**
@@ -1494,7 +1498,14 @@ class NIAGARA_API FScopedNiagaraDataSetGPUReadback
 {
 public:
 	FScopedNiagaraDataSetGPUReadback() {}
-	~FScopedNiagaraDataSetGPUReadback();
+	FORCEINLINE ~FScopedNiagaraDataSetGPUReadback()
+	{
+		if (DataBuffer != nullptr)
+		{
+			DataBuffer->FloatData.Empty();
+			DataBuffer->Int32Data.Empty();
+		}
+	}
 
 	void ReadbackData(class NiagaraEmitterInstanceBatcher* Batcher, FNiagaraDataSet* InDataSet);
 	uint32 GetNumInstances() const { check(DataSet != nullptr); return NumInstances; }

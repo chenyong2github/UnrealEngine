@@ -49,14 +49,6 @@ public:
 	virtual bool RetractQueuedWork( IQueuedWork* InQueuedWork ) = 0;
 
 	/**
-	 * Places a thread back into the available pool
-	 *
-	 * @param InQueuedThread The thread that is ready to be pooled
-	 * @return next job or null if there is no job available now
-	 */
-	virtual IQueuedWork* ReturnToPoolOrGetNextJob( class FQueuedThread* InQueuedThread ) = 0;
-
-	/**
 	 * Get the number of queued threads
 	 */
 	virtual int32 GetNumThreads() const = 0;

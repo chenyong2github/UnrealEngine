@@ -24,6 +24,7 @@
 #include "Animation/AnimMTStats.h"
 #include "Animation/AnimNode_Root.h"
 #include "Animation/AnimNode_LinkedAnimLayer.h"
+#include "Animation/AnimTrace.h"
 #undef DO_ANIMSTAT_PROCESSING
 
 #define LOCTEXT_NAMESPACE "AnimInstance"
@@ -521,6 +522,8 @@ void FAnimInstanceProxy::PostUpdate(UAnimInstance* InAnimInstance) const
 void FAnimInstanceProxy::PostEvaluate(UAnimInstance* InAnimInstance)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	TRACE_ANIM_TICK_RECORDS(*this, SkeletalMeshComponent);
 
 	ClearObjects();
 

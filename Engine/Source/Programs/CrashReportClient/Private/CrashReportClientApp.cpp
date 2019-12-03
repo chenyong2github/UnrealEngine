@@ -24,7 +24,9 @@
 	#include "SCrashReportClient.h"
 	#include "CrashReportClient.h"
 	#include "CrashReportClientStyle.h"
+#if !UE_BUILD_SHIPPING
 	#include "ISlateReflectorModule.h"
+#endif
 	#include "Framework/Application/SlateApplication.h"
 #endif // !CRASH_REPORT_UNATTENDED_ONLY
 
@@ -308,11 +310,13 @@ SubmitCrashReportResult RunWithUI(FPlatformErrorReport ErrorReport)
 	// Setting focus seems to have to happen after the Window has been added
 	FSlateApplication::Get().ClearKeyboardFocus(EFocusCause::Cleared);
 
+#if !UE_BUILD_SHIPPING
 	// Debugging code
 	if (RunWidgetReflector)
 	{
 		FModuleManager::LoadModuleChecked<ISlateReflectorModule>("SlateReflector").DisplayWidgetReflector();
 	}
+#endif
 
 	// Bring the window to the foreground as it may be behind the crashed process
 	Window->HACK_ForceToFront();

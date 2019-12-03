@@ -459,11 +459,6 @@ void FGenericPlatformMisc::MemoryBarrier()
 {
 }
 
-void FGenericPlatformMisc::HandleIOFailure( const TCHAR* Filename )
-{
-	UE_LOG(LogGenericPlatformMisc, Fatal,TEXT("I/O failure operating on '%s'"), Filename ? Filename : TEXT("Unknown file"));
-}
-
 void FGenericPlatformMisc::RaiseException(uint32 ExceptionCode)
 {
 	/** This is the last place to gather memory stats before exception. */

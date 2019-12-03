@@ -510,7 +510,7 @@ void SNetworkingProfilerWindow::UpdateAvailableGameInstances()
 		const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
 		NetProfilerProvider.ReadGameInstances([this](const Trace::FNetProfilerGameInstance& GameInstance)
 		{
-			AvailableGameInstances.Add(MakeShareable(new FGameInstanceItem(GameInstance)));
+			AvailableGameInstances.Add(MakeShared<FGameInstanceItem>(GameInstance));
 		});
 	}
 
@@ -535,7 +535,7 @@ void SNetworkingProfilerWindow::UpdateAvailableConnections()
 		const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
 		NetProfilerProvider.ReadConnections(SelectedGameInstance->GetIndex(), [this](const Trace::FNetProfilerConnection& Connection)
 		{
-			AvailableConnections.Add(MakeShareable(new FConnectionItem(Connection)));
+			AvailableConnections.Add(MakeShared<FConnectionItem>(Connection));
 		});
 	}
 
@@ -557,11 +557,11 @@ void SNetworkingProfilerWindow::UpdateAvailableConnectionModes()
 	{
 		if (SelectedConnection->Connection.bHasIncomingData)
 		{
-			AvailableConnectionModes.Add(MakeShareable(new FConnectionModeItem(Trace::ENetProfilerConnectionMode::Incoming)));
+			AvailableConnectionModes.Add(MakeShared<FConnectionModeItem>(Trace::ENetProfilerConnectionMode::Incoming));
 		}
 		if (SelectedConnection->Connection.bHasOutgoingData)
 		{
-			AvailableConnectionModes.Add(MakeShareable(new FConnectionModeItem(Trace::ENetProfilerConnectionMode::Outgoing)));
+			AvailableConnectionModes.Add(MakeShared<FConnectionModeItem>(Trace::ENetProfilerConnectionMode::Outgoing));
 		}
 	}
 

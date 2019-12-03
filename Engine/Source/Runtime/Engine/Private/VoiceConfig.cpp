@@ -21,12 +21,52 @@ static TAutoConsoleVariable<float> CVarVoiceSilenceDetectionThreshold(TEXT("voic
 	TEXT("Threshold to be set for the VOIP microphone's silence detection algorithm.\n"),	
 	ECVF_Default);
 
-static float JitterBufferDelayCvar = 0.3;
+static float MicInputGainCvar = 1.0f;
+FAutoConsoleVariableRef CVarMicInputGain(
+	TEXT("voice.MicInputGain"),
+	MicInputGainCvar,
+	TEXT("The default gain amount in linear amplitude.\n")
+	TEXT("Value: Gain multiplier."),
+	ECVF_Default);
+
+static float MicStereoBiasCvar = 0.0f;
+FAutoConsoleVariableRef CVarMicStereoBias(
+	TEXT("voice.MicStereoBias"),
+	MicStereoBiasCvar,
+	TEXT("This will attenuate the left or right channel.\n")
+	TEXT("0.0: Centered. 1.0: right channel only. -1.0: Left channel only."),
+	ECVF_Default);
+
+static float JitterBufferDelayCvar = 0.3f;
 FAutoConsoleVariableRef CVarJitterBufferDelay(
 	TEXT("voice.JitterBufferDelay"),
 	JitterBufferDelayCvar,
 	TEXT("The default amount of audio we buffer, in seconds, before we play back audio. Decreasing this value will decrease latency but increase the potential for underruns.\n")
 	TEXT("Value: Number of seconds of audio we buffer."),
+	ECVF_Default);
+
+static float MicNoiseGateThresholdCvar = 0.08f;
+FAutoConsoleVariableRef CVarMicNoiseGateThreshold(
+	TEXT("voice.MicNoiseGateThreshold"),
+	JitterBufferDelayCvar,
+	TEXT("Our threshold, in linear amplitude, for  our noise gate on input. Similar to voice.SilenceDetectionThreshold, except that audio quieter than our noise gate threshold will still output silence.\n")
+	TEXT("Value: Number of seconds of audio we buffer."),
+	ECVF_Default);
+
+static float MicNoiseGateAttackTimeCvar = 0.05f;
+FAutoConsoleVariableRef CVarMicNoiseGateAttackTime(
+	TEXT("voice.MicNoiseAttackTime"),
+	MicNoiseGateAttackTimeCvar,
+	TEXT("Sets the fade-in time for our noise gate.\n")
+	TEXT("Value: Number of seconds we fade in over."),
+	ECVF_Default);
+
+static float MicNoiseGateReleaseTimeCvar = 0.30f;
+FAutoConsoleVariableRef CVarMicNoiseGateReleaseTime(
+	TEXT("voice.MicNoiseReleaseTime"),
+	MicNoiseGateReleaseTimeCvar,
+	TEXT("Sets the fade out time for our noise gate.\n")
+	TEXT("Value: Number of seconds we fade out over."),
 	ECVF_Default);
 
 static int32 NumVoiceChannelsCvar = 1;
@@ -151,6 +191,11 @@ EAudioEncodeHint UVOIPStatics::GetAudioEncodingHint()
 float UVOIPStatics::GetBufferingDelay()
 {
 	return JitterBufferDelayCvar;
+}
+
+float UVOIPStatics::GetVoiceNoiseGateLevel()
+{
+	return MicNoiseGateThresholdCvar;
 }
 
 int32 UVOIPStatics::GetNumBufferedPackets()

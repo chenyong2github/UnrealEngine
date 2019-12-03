@@ -117,7 +117,7 @@ static bool CanCreateAsVirtualTexture(uint32 TexCreateFlags)
 	const uint32 iRequiredFlags =
 		TexCreate_OfflineProcessed;
 
-	return ((TexCreateFlags & (iDisableFlags | iRequiredFlags)) == iRequiredFlags) && CVarVirtualTextureEnabled.GetValueOnRenderThread();
+	return ((TexCreateFlags & (iDisableFlags | iRequiredFlags)) == iRequiredFlags) && CVarVirtualTextureEnabled.GetValueOnAnyThread();
 	
 #else
 	return false;
@@ -348,9 +348,18 @@ void FTexture2DMipMap::FCompactByteBulkData::GetCopy(void** Dest, bool bDiscardI
 	}
 }
 
-FBulkDataIORequest* FTexture2DMipMap::FCompactByteBulkData::CreateStreamingRequest(const FString& Filename, int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
+IBulkDataIORequest* FTexture2DMipMap::FCompactByteBulkData::CreateStreamingRequest(FString Filename, int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
 {
 	check(Filename.IsEmpty() == false);
+
+	// Fix up the Filename/Offset to work with streaming if we are loading from a .uexp file
+	if (Filename.EndsWith(TEXT(".uasset")) || Filename.EndsWith(TEXT(".umap")))
+	{
+		OffsetInBulkData -= IFileManager::Get().FileSize(*Filename);
+
+		Filename = FPaths::GetBaseFilename(Filename, false) + TEXT(".uexp");
+		UE_LOG(LogTexture, Error, TEXT("Streaming from the .uexp file '%s' this MUST be in a ubulk instead for best performance."), *Filename);
+	}
 
 	UE_CLOG(IsStoredCompressedOnDisk(), LogSerialization, Fatal, TEXT("Package level compression is no longer supported (%s)."), *Filename);
 	UE_CLOG(GetBulkDataSize() <= 0, LogSerialization, Error, TEXT("(%s) has invalid bulk data size."), *Filename);
@@ -509,8 +518,12 @@ bool UTexture2D::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFi
 			OutBulkDataFilename = PlatformData->Mips[MipIndex].BulkData.GetFilename();
 #else
 			OutBulkDataFilename = PlatformData->CachedPackageFileName;
-			const bool UseOptionalBulkDataFileName = PlatformData->Mips[MipIndex].BulkData.IsOptional();
-			OutBulkDataFilename = FPaths::ChangeExtension(OutBulkDataFilename, UseOptionalBulkDataFileName ? TEXT(".uptnl") : TEXT(".ubulk"));
+
+			if (PlatformData->Mips[MipIndex].BulkData.InSeperateFile())
+			{	
+				const bool UseOptionalBulkDataFileName = PlatformData->Mips[MipIndex].BulkData.IsOptional();
+				OutBulkDataFilename = FPaths::ChangeExtension(OutBulkDataFilename, UseOptionalBulkDataFileName ? TEXT(".uptnl") : TEXT(".ubulk"));
+			}
 #endif
 			return true;
 		}
@@ -936,18 +949,30 @@ int32 UTexture2D::CalcTextureMemorySize( int32 MipCount ) const
 	int32 Size = 0;
 	if (PlatformData)
 	{
-		int32 SizeX = GetSizeX();
-		int32 SizeY = GetSizeY();
-		int32 NumMips = GetNumMips();
-		EPixelFormat Format = GetPixelFormat();
+		static TConsoleVariableData<int32>* CVarReducedMode = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextureReducedMemory"));
+		check(CVarReducedMode);
 
-		// Figure out what the first mip to use is.
-		int32 FirstMip	= FMath::Max( 0, NumMips - MipCount );		
-		FIntPoint MipExtents = CalcMipMapExtent(SizeX, SizeY, Format, FirstMip);
+		uint32 TexCreateFlags = (SRGB ? TexCreate_SRGB : 0) | (bNoTiling ? TexCreate_NoTiling : 0) | TexCreate_OfflineProcessed | TexCreate_Streamable;
+		const bool bCanBeVirtual = CanCreateAsVirtualTexture(TexCreateFlags);
 
-		uint32 TextureAlign = 0;
-		uint64 TextureSize = RHICalcTexture2DPlatformSize(MipExtents.X, MipExtents.Y, Format, MipCount, 1, 0, FRHIResourceCreateInfo(PlatformData->GetExtData()), TextureAlign);
-		Size = (int32)TextureSize;
+		const int32 SizeX = GetSizeX();
+		const int32 SizeY = GetSizeY();
+		const int32 NumMips = GetNumMips();
+		const int32 FirstMip = FMath::Max(0, NumMips - MipCount);
+		const EPixelFormat Format = GetPixelFormat();
+		uint32 TextureAlign;
+
+		// Must be consistent with the logic in FTexture2DResource::InitRHI
+		if (bIsStreamable && bCanBeVirtual && (!CVarReducedMode->GetValueOnAnyThread() || MipCount > UTexture2D::GetMinTextureResidentMipCount()))
+		{
+			TexCreateFlags |= TexCreate_Virtual;
+			Size = (int32)RHICalcVMTexture2DPlatformSize(SizeX, SizeY, Format, NumMips, FirstMip, 1, TexCreateFlags, TextureAlign);
+		}
+		else
+		{
+			const FIntPoint MipExtents = CalcMipMapExtent(SizeX, SizeY, Format, FirstMip);
+			Size = (int32)RHICalcTexture2DPlatformSize(MipExtents.X, MipExtents.Y, Format, MipCount, 1, TexCreateFlags, FRHIResourceCreateInfo(PlatformData->GetExtData()), TextureAlign);
+		}
 	}
 	return Size;
 }

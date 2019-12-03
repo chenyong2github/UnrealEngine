@@ -17,25 +17,35 @@ class FTimingTrackViewport;
 class FTimeRulerTrack : public FBaseTimingTrack
 {
 public:
-	explicit FTimeRulerTrack(uint64 InTrackId);
+	FTimeRulerTrack();
 	virtual ~FTimeRulerTrack();
 
 	virtual void Reset() override;
-	virtual void UpdateHoveredState(float MouseX, float MouseY, const FTimingTrackViewport& Viewport);
 
-	void Draw(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport,
-				const FVector2D& MousePosition = FVector2D(0.0f, 0.0f),
-				const bool bIsSelecting = false,
-				const double SelectionStartTime = 0.0,
-				const double SelectionEndTime = 0.0) const;
+	void SetSelection(const bool bInIsSelecting, const double InSelectionStartTime, const double InSelectionEndTime);
+	void SetTimeMarker(const bool bInIsDragging, const double InTimeMarker);
 
-private:
-	void DrawBackground(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const;
+	virtual void PostUpdate(const ITimingTrackUpdateContext& Context) override;
+	void Draw(const ITimingTrackDrawContext& Context) const override;
+	void PostDraw(const ITimingTrackDrawContext& Context) const override;
 
 public:
 	// Slate resources
 	const FSlateBrush* WhiteBrush;
 	const FSlateFontInfo Font;
+
+	// Smoothed mouse pos text width to avoid flickering
+	mutable float CrtMousePosTextWidth;
+
+	// Smoothed time marker text width to avoid flickering
+	mutable float CrtTimeMarkerTextWidth;
+
+private:
+	bool bIsSelecting;
+	double SelectionStartTime;
+	double SelectionEndTime;
+	bool bIsDragging;
+	double TimeMarker;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

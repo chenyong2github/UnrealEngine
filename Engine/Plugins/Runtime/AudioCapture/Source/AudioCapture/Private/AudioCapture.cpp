@@ -92,6 +92,18 @@ UAudioCapture* UAudioCaptureFunctionLibrary::CreateAudioCapture()
 
 void FAudioCaptureModule::StartupModule()
 {
+	// Load platform specific implementations for audio capture:
+#if PLATFORM_WINDOWS || PLATFORM_MAC || PLATFORM_XBOXONE
+	FModuleManager::Get().LoadModule(TEXT("AudioCaptureRtAudio"));
+#elif PLATFORM_IOS
+	FModuleManager::Get().LoadModule(TEXT("AudioCaptureAudioUnit"));
+#elif PLATFORM_PS4
+	FModuleManager::Get().LoadModule(TEXT("AudioCapturePS4Voice"));
+#elif PLATFORM_ANDROID
+	FModuleManager::Get().LoadModule(TEXT("AudioCaptureAndroid"));
+#elif PLATFORM_SWITCH
+	FModuleManager::Get().LoadModule(TEXT("AudioCaptureSwitch"));
+#endif
 }
 
 void FAudioCaptureModule::ShutdownModule()

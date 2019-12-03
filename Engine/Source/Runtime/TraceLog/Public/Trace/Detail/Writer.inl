@@ -5,6 +5,7 @@
 #if UE_TRACE_ENABLED
 
 #include "Atomic.h"
+#include "Protocol.h"
 
 namespace Trace
 {
@@ -13,79 +14,90 @@ namespace Private
 {
 
 ////////////////////////////////////////////////////////////////////////////////
-#if defined(_MSC_VER)
-	#pragma warning(push)
-	#pragma warning(disable : 4200) // non-standard zero-sized array
-#endif
-
-////////////////////////////////////////////////////////////////////////////////
 struct FWriteBuffer
 {
-	union
-	{
-		uint8*			Cursor;
-		FWriteBuffer*	Next;
-	};
-	uint32				ThreadId;
-	uint8				Data[];
+	FWriteBuffer* __restrict	Next;
+	uint8* __restrict			Cursor;
+	uint8* __restrict volatile	Committed;
+	uint8* __restrict			Reaped;
+	uint32						ThreadId;
 };
 
-#if defined(_MSC_VER)
-	#pragma warning(pop)
-#endif
+
 
 ////////////////////////////////////////////////////////////////////////////////
-extern UE_TRACE_API void* volatile	GLastEvent;
-UE_TRACE_API uint8*					Writer_NextBuffer(uint16);
-UE_TRACE_API FWriteBuffer*			Writer_GetBuffer();
+struct FWriteTlsContext
+{
+							FWriteTlsContext();
+							~FWriteTlsContext();
+	bool					HasValidBuffer() const;
+	void					SetBuffer(FWriteBuffer*);
+	uint32					GetThreadId() const;
+	FWriteBuffer*			GetBuffer() const { return Buffer; }
 
+private:
+	FWriteBuffer*			Buffer;
+	uint32					ThreadId;
+	static uint8			DefaultBuffer[sizeof(FWriteBuffer)];
+	static UPTRINT volatile	ThreadIdCounter;
+};
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+extern TRACELOG_API uint32 volatile	GLogSerial;
+TRACELOG_API FWriteBuffer*			Writer_NextBuffer(uint16);
+TRACELOG_API FWriteBuffer*			Writer_GetBuffer();
+
+////////////////////////////////////////////////////////////////////////////////
 #if IS_MONOLITHIC
-extern thread_local FWriteBuffer* GWriteBuffer;
+extern thread_local FWriteTlsContext TlsContext;
 inline FWriteBuffer* Writer_GetBuffer()
 {
-	return GWriteBuffer;
+	return TlsContext.GetBuffer();
 }
-#endif
+#endif // IS_MONOLITHIC
 
 } // Private
 
+
+
 ////////////////////////////////////////////////////////////////////////////////
-inline uint8* Writer_BeginLog(uint16 EventUid, uint16 Size)
+struct FLogInstance
+{
+	uint8*					Ptr;
+	Private::FWriteBuffer*	Internal;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+inline FLogInstance Writer_BeginLog(uint16 EventUid, uint16 Size)
 {
 	using namespace Private;
 
-	static const uint32 HeaderSize = sizeof(void*) + sizeof(uint32);
-	uint32 AllocSize = ((Size + HeaderSize) + 7) & ~7;
-
 	FWriteBuffer* Buffer = Writer_GetBuffer();
-	uint8* Cursor = (Buffer->Cursor -= AllocSize);
-	if (UNLIKELY(PTRINT(Cursor) < PTRINT(Buffer->Data)))
+	uint32 AllocSize = Size + sizeof(FEventHeader);
+	Buffer->Cursor += AllocSize;
+	if (UNLIKELY(UPTRINT(Buffer->Cursor) > UPTRINT(Buffer)))
 	{
-		Cursor = Writer_NextBuffer(AllocSize);
+		Buffer = Writer_NextBuffer(AllocSize);
 	}
 
-	uint32* Out = (uint32*)(Cursor + sizeof(void*));
-	Out[0] = (uint32(Size) << 16)|uint32(EventUid);
-	return (uint8*)(Out + 1);
+	uint8* Cursor = Buffer->Cursor - Size;
+
+	auto* Header = (uint16*)(Cursor); // FEventHeader
+	Header[-1] = uint16(AtomicIncrementRelaxed(&GLogSerial));
+	Header[-2] = Size;
+	Header[-3] = EventUid;
+
+	return {Cursor, Buffer};
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-inline void Writer_EndLog(uint8* EventData)
+inline void Writer_EndLog(FLogInstance Instance)
 {
 	using namespace Private;
-
-	EventData -= sizeof(void*) + sizeof(uint32);
-
-	// Add the event into the master linked list of events.
-	while (true)
-	{
-		void* Expected = AtomicLoadRelaxed(&GLastEvent);
-		*(void**)EventData = Expected;
-		if (AtomicCompareExchangeRelease(&GLastEvent, (void*)EventData, Expected))
-		{
-			break;
-		}
-	}
+	FWriteBuffer* Buffer = Instance.Internal;
+	Private::AtomicStoreRelease<uint8* __restrict>(&(Buffer->Committed), Buffer->Cursor);
 }
 
 } // namespace Trace

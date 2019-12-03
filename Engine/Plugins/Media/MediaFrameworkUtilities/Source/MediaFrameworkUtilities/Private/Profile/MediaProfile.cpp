@@ -12,7 +12,7 @@
 #include "MediaAssets/ProxyMediaSource.h"
 #include "MediaOutput.h"
 #include "MediaSource.h"
-#include "Profile/MediaProfileSettings.h"
+#include "Profile/IMediaProfileManager.h"
 
 
 UMediaSource* UMediaProfile::GetMediaSource(int32 Index) const
@@ -75,7 +75,7 @@ void UMediaProfile::Apply()
 	FixNumSourcesAndOutputs();
 
 	{
-		TArray<UProxyMediaSource*> SourceProxies = GetDefault<UMediaProfileSettings>()->GetAllMediaSourceProxy();
+		TArray<UProxyMediaSource*> SourceProxies = IMediaProfileManager::Get().GetAllMediaSourceProxy();
 		check(SourceProxies.Num() == MediaSources.Num());
 		for (int32 Index = 0; Index < MediaSources.Num(); ++Index)
 		{
@@ -88,7 +88,7 @@ void UMediaProfile::Apply()
 	}
 
 	{
-		TArray<UProxyMediaOutput*> OutputProxies = GetDefault<UMediaProfileSettings>()->GetAllMediaOutputProxy();
+		TArray<UProxyMediaOutput*> OutputProxies = IMediaProfileManager::Get().GetAllMediaOutputProxy();
 		check(OutputProxies.Num() == MediaOutputs.Num());
 		for (int32 Index = 0; Index < MediaOutputs.Num(); ++Index)
 		{
@@ -144,7 +144,7 @@ void UMediaProfile::Reset()
 
 	{
 		// Reset the source proxies
-		TArray<UProxyMediaSource*> SourceProxies = GetDefault<UMediaProfileSettings>()->GetAllMediaSourceProxy();
+		TArray<UProxyMediaSource*> SourceProxies = IMediaProfileManager::Get().GetAllMediaSourceProxy();
 		for (UProxyMediaSource* Proxy : SourceProxies)
 		{
 			if (Proxy)
@@ -156,7 +156,7 @@ void UMediaProfile::Reset()
 
 	{
 		// Reset the output proxies
-		TArray<UProxyMediaOutput*> OutputProxies = GetDefault<UMediaProfileSettings>()->GetAllMediaOutputProxy();
+		TArray<UProxyMediaOutput*> OutputProxies = IMediaProfileManager::Get().GetAllMediaOutputProxy();
 		for (UProxyMediaOutput* Proxy : OutputProxies)
 		{
 			if (Proxy)
@@ -193,14 +193,14 @@ void UMediaProfile::Reset()
 
 void UMediaProfile::FixNumSourcesAndOutputs()
 {
-	const int32 NumSourceProxies = GetDefault<UMediaProfileSettings>()->GetAllMediaSourceProxy().Num();
+	const int32 NumSourceProxies = IMediaProfileManager::Get().GetAllMediaSourceProxy().Num();
 	if (MediaSources.Num() != NumSourceProxies)
 	{
 		MediaSources.SetNumZeroed(NumSourceProxies);
 		Modify();
 	}
 
-	const int32 NumOutputProxies = GetDefault<UMediaProfileSettings>()->GetAllMediaOutputProxy().Num();
+	const int32 NumOutputProxies = IMediaProfileManager::Get().GetAllMediaOutputProxy().Num();
 	if (MediaOutputs.Num() != NumOutputProxies)
 	{
 		Modify();

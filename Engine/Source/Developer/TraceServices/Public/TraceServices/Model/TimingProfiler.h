@@ -12,15 +12,15 @@ namespace Trace
 
 struct FTimingProfilerTimer
 {
-	const TCHAR* Name;
-	uint32 Id;
-	uint32 NameHash;
-	bool IsGpuTimer;
+	const TCHAR* Name = nullptr;
+	uint32 Id = 0;
+	uint32 NameHash = 0;
+	bool IsGpuTimer = false;
 };
 
 struct FTimingProfilerEvent
 {
-	uint32 TimerIndex;
+	uint32 TimerIndex = uint32(-1);
 };
 
 struct FTimingProfilerAggregatedStats

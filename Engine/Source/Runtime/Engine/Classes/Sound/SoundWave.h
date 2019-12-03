@@ -14,6 +14,7 @@
 #include "Sound/SoundBase.h"
 #include "Sound/SoundClass.h"
 #include "Serialization/BulkData.h"
+#include "Serialization/BulkDataBuffer.h"
 #include "Sound/SoundGroups.h"
 #include "AudioMixerTypes.h"
 #include "AudioCompressionSettings.h"
@@ -625,7 +626,7 @@ public:
 	const uint8* ResourceData;
 
 	/** Zeroth Chunk of audio for sources that use Load On Demand. */
-	TArray<uint8> ZerothChunkData;
+	FBulkDataBuffer<uint8> ZerothChunkData;
 
 	/** Uncompressed wav data 16 bit in mono or stereo - stereo not allowed for multichannel data */
 	FByteBulkData RawData;

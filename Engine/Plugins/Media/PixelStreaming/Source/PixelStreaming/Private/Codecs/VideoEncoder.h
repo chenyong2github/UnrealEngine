@@ -6,20 +6,32 @@
 
 #include "HAL/ThreadSafeBool.h"
 
-class FPixelStreamingBaseVideoEncoder;
 class FPlayerSession;
 
-class FVideoEncoder : public webrtc::VideoEncoder
+class FVideoEncoder : public webrtc::VideoEncoder, public AVEncoder::IVideoEncoderListener
 {
 public:
-	FVideoEncoder(FPixelStreamingBaseVideoEncoder& HWEncoder, FPlayerSession& OwnerSession);
+
+	struct FEncoderCookie : AVEncoder::FEncoderVideoFrameCookie
+	{
+		virtual ~FEncoderCookie() {}
+		webrtc::EncodedImage EncodedImage;
+		// buffer to hold last encoded frame bitstream, because `webrtc::EncodedImage` doesn't take ownership of
+		// the memory
+		TArray<uint8> EncodedFrameBuffer;
+	};
+
+	FVideoEncoder(FHWEncoderDetails& InHWEncoderDetails, FPlayerSession& OwnerSession);
 	~FVideoEncoder() override;
 
 	bool IsQualityController() const
 	{ return bControlsQuality; }
 	void SetQualityController(bool bControlsQuality);
 
-	void OnEncodedFrame(const webrtc::EncodedImage& EncodedImage);
+	//
+	// AVEncoder::IVideoEncoderListener
+	//
+	void OnEncodedVideoFrame(const AVEncoder::FAVPacket& Packet, AVEncoder::FEncoderVideoFrameCookie* Cookie) override;
 
 	//
 	// webrtc::VideoEncoder interface
@@ -36,7 +48,7 @@ public:
 
 private:
 	// Player session that this encoder instance belongs to
-	FPixelStreamingBaseVideoEncoder& HWEncoder;
+	FHWEncoderDetails& HWEncoderDetails;
 	FPlayerSession* PlayerSession = nullptr;
 	webrtc::EncodedImageCallback* Callback = nullptr;
 	webrtc::CodecSpecificInfo CodecSpecific;
@@ -50,7 +62,7 @@ private:
 class FVideoEncoderFactory : public webrtc::VideoEncoderFactory
 {
 public:
-	explicit FVideoEncoderFactory(FPixelStreamingBaseVideoEncoder& HWEncoder);
+	explicit FVideoEncoderFactory(FHWEncoderDetails& HWEncoderDetails);
 
 	/**
 	* This is used from the FPlayerSession::OnSucess to let the factory know
@@ -67,7 +79,7 @@ public:
 	std::unique_ptr<webrtc::VideoEncoder> CreateVideoEncoder(const webrtc::SdpVideoFormat& Format) override;
 
 private:
-	FPixelStreamingBaseVideoEncoder& HWEncoder;
+	FHWEncoderDetails& HWEncoderDetails;
 	TQueue<FPlayerSession*> PendingPlayerSessions;
 };
 

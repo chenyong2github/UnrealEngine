@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "DataStream.h"
+#include "Analysis/StreamReader.h"
 
 namespace Trace
 {
@@ -12,7 +12,7 @@ class FTransport
 {
 public:
 	virtual					~FTransport() {}
-	void					SetSource(FStreamReader::FData& InSource);
+	void					SetReader(FStreamReader& InReader);
 	template <typename RetType>
 	RetType const*			GetPointer();
 	template <typename RetType>
@@ -21,13 +21,13 @@ public:
 
 protected:
 	virtual const uint8*	GetPointerImpl(uint32 BlockSize);
-	FStreamReader::FData*	Source;
+	FStreamReader*			Reader;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-inline void FTransport::SetSource(FStreamReader::FData& InSource)
+inline void FTransport::SetReader(FStreamReader& InReader)
 {
-	Source = &InSource;
+	Reader = &InReader;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -47,13 +47,13 @@ inline RetType const* FTransport::GetPointer(uint32 BlockSize)
 ////////////////////////////////////////////////////////////////////////////////
 inline void FTransport::Advance(uint32 BlockSize)
 {
-	Source->Advance(BlockSize);
+	Reader->Advance(BlockSize);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 inline const uint8* FTransport::GetPointerImpl(uint32 BlockSize)
 {
-	return Source->GetPointer(BlockSize);
+	return Reader->GetPointer(BlockSize);
 }
 
 } // namespace Trace

@@ -178,6 +178,7 @@ static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 		return;
 	}
 
+#if WITH_EDITOR
 	if (FPlatformMisc::MacOSXVersionCompare(10,13,6) < 0)
 	{
 		const FString BaseName = FApp::HasProjectName() ? FApp::GetProjectName() : TEXT("");
@@ -186,6 +187,26 @@ static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 									 *NSLOCTEXT("MessageDialog", "UpdateMacOSX_Body", "Please update to the latest version of macOS for best performance and stability.").ToString(),
 									 *NSLOCTEXT("MessageDialog", "UpdateMacOSX_Title", "Update macOS").ToString());
 	}
+#else
+	if (FPlatformMisc::MacOSXVersionCompare(10,14,6) < 0)
+	{
+		const FString BaseName = FApp::HasProjectName() ? FApp::GetProjectName() : TEXT("");
+		if (BaseName == TEXT("FortniteGame"))
+		{
+			// this message can be suppressed with r.WarnOfBadDrivers=0
+			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok,
+										 *NSLOCTEXT("MessageDialog", "UpdateMacOSX_FNS12_Body", "Starting with Chapter 2 Season 2, macOS versions older than 10.14.6 will no longer be supported. Please update to macOS version 10.14.6 or newer before the Season begins.").ToString(),
+										 *NSLOCTEXT("MessageDialog", "UpdateMacOSX_Title", "Update macOS").ToString());
+		}
+		else
+		{
+			// this message can be suppressed with r.WarnOfBadDrivers=0
+			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok,
+										 *NSLOCTEXT("MessageDialog", "UpdateMacOSX_Body", "Please update to the latest version of macOS for best performance and stability.").ToString(),
+										 *NSLOCTEXT("MessageDialog", "UpdateMacOSX_Title", "Update macOS").ToString());
+		}
+	}
+#endif
 }
 #endif // PLATFORM_WINDOWS
 
@@ -363,6 +384,12 @@ void FDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIV
 void FDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIIndexBuffer* IndexBuffer)
 {
 	UE_LOG(LogRHI, Fatal, TEXT("RHIUpdateShaderResourceView isn't implemented for the current RHI"));
+}
+
+uint64 FDynamicRHI::RHICalcVMTexture2DPlatformSize(uint32 Mip0Width, uint32 Mip0Height, uint8 Format, uint32 NumMips, uint32 FirstMipIdx, uint32 NumSamples, uint32 Flags, uint32& OutAlign)
+{
+	UE_LOG(LogRHI, Fatal, TEXT("RHICalcVMTexture2DPlatformSize isn't implemented for the current RHI"));
+	return -1;
 }
 
 FDefaultRHIRenderQueryPool::FDefaultRHIRenderQueryPool(ERenderQueryType InQueryType, FDynamicRHI* InDynamicRHI, uint32 InNumQueries)
