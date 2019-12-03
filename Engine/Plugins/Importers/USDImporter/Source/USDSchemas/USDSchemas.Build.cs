@@ -11,13 +11,6 @@ namespace UnrealBuildTool.Rules
 		{
 			bUseRTTI = true;
 
-			PublicDependencyModuleNames.AddRange(
-				new string[]
-				{
-					"ModelingComponents",
-				}
-				);
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
