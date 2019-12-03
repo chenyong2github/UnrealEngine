@@ -697,7 +697,18 @@ public:
 	uint32 CrcLastCompiledSignature;
 
 	bool bCachedDependenciesUpToDate;
+	/**
+	 * Set of blueprints that we reference - i.e. blueprints that we have
+	 * some kind of reference to (variable of that blueprints type or function 
+	 * call
+	 */
 	TSet<TWeakObjectPtr<UBlueprint>> CachedDependencies;
+
+	/** 
+	 * Transient cache of dependent blueprints - i.e. blueprints that call
+	 * functions declared in this blueprint. Used to speed up compilation checks 
+	 */
+	TSet<TWeakObjectPtr<UBlueprint>> CachedDependents;
 
 	// User Defined Structures, the blueprint depends on
 	TSet<TWeakObjectPtr<UStruct>> CachedUDSDependencies;

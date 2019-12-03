@@ -117,6 +117,9 @@ public:
 
 	/** @return true if the graph in question contains only an entry node or only an entry node and a call to its parent if the graph is an override */
 	static bool IsIntermediateFunctionGraphTrivial(FName FunctionName, const UEdGraph* FunctionGraph);
+
+	/** Add this BP to any BPs that it in*/
+	static void UpdateDependentBlueprints(UBlueprint* BP);
 };
 
 //////////////////////////////////////////////////////////////////////////
