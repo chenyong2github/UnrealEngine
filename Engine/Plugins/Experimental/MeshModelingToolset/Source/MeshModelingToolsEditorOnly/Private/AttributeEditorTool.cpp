@@ -11,6 +11,8 @@
 #include "StaticMeshAttributes.h"
 #include "MeshDescriptionOperations.h"
 
+#include "Components/PrimitiveComponent.h"
+
 
 #define LOCTEXT_NAMESPACE "UAttributeEditorTool"
 

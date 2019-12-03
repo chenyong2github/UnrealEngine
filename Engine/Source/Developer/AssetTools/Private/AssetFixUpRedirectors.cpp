@@ -22,6 +22,7 @@
 #include "ObjectTools.h"
 #include "Logging/MessageLog.h"
 #include "AssetTools.h"
+#include "Engine/Blueprint.h"
 
 #define LOCTEXT_NAMESPACE "AssetFixUpRedirectors"
 

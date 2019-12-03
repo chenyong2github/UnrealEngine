@@ -41,6 +41,7 @@
 #include "UObject/MetaData.h"
 #include "BlueprintAssetHandler.h"
 #include "Blueprint/BlueprintExtension.h"
+#include "UObject/TextProperty.h"
 #endif
 #include "Engine/InheritableComponentHandler.h"
 
