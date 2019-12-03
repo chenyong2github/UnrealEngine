@@ -204,10 +204,14 @@ public:
 
 	inline void ResizeAttribStoreIfNeeded(int VertexID)
 	{
-		int k = VertexID * AttribDimension;
-		if (k+AttribDimension > AttribValues.Num())
+		if (!ensure(VertexID >= 0))
 		{
-			AttribValues.Resize(k + AttribDimension, GetDefaultAttributeValue());
+			return;
+		}
+		size_t NeededSize = size_t((VertexID+1) * AttribDimension);
+		if (NeededSize > AttribValues.Num())
+		{
+			AttribValues.Resize(NeededSize, GetDefaultAttributeValue());
 		}
 	}
 

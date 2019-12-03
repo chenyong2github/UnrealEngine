@@ -261,10 +261,14 @@ public:
 
 	inline void ResizeAttribStoreIfNeeded(int TriangleID)
 	{
-		int k = TriangleID * AttribDimension;
-		if (k+AttribDimension > AttribValues.Num())
+		if (!ensure(TriangleID >= 0))
 		{
-			AttribValues.Resize(k + AttribDimension, GetDefaultAttributeValue());
+			return;
+		}
+		size_t NeededSize = size_t((TriangleID+1) * AttribDimension);
+		if (NeededSize > AttribValues.Num())
+		{
+			AttribValues.Resize(NeededSize, GetDefaultAttributeValue());
 		}
 	}
 
