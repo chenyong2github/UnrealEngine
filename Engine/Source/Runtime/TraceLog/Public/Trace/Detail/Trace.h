@@ -64,11 +64,12 @@
 #define TRACE_PRIVATE_LOG(LoggerName, EventName, ...) \
 	if (TRACE_PRIVATE_EVENT_IS_ENABLED(LoggerName, EventName)) \
 		if (const auto& __restrict EventName = (F##LoggerName##EventName##Fields&)LoggerName##EventName##Event) \
-			Trace::FEventDef::FLogScope( \
+			if (auto LogScope = Trace::FEventDef::FLogScope( \
 				LoggerName##EventName##Event.Uid, \
 				TRACE_PRIVATE_EVENT_SIZE(LoggerName, EventName), \
 				bool(decltype(F##LoggerName##EventName##Fields::EventProps_Private)::MaybeHasAux), \
-				##__VA_ARGS__)
+				##__VA_ARGS__)) \
+					LogScope
 
 #else
 

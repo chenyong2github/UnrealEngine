@@ -32,6 +32,7 @@ public:
 								FLogScope(uint16 EventUid, uint16 Size, bool bMaybeHasAux, uint16 ExtraBytes);
 								~FLogScope();
 		FLogInstance			Instance;
+		constexpr explicit		operator bool () const { return true; }
 	};
 
 	void*						Handle;
