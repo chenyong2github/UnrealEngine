@@ -19,13 +19,19 @@ struct FStructuredArchiveFromArchive::FImpl
 };
 
 FStructuredArchiveFromArchive::FStructuredArchiveFromArchive(FArchive& Ar)
-	: Pimpl(Ar)
 {
+	static_assert(FStructuredArchiveFromArchive::ImplSize >= sizeof(FStructuredArchiveFromArchive::FImpl), "FStructuredArchiveFromArchive::ImplSize must fit in the size of FStructuredArchiveFromArchive::Impl");
+	static_assert(FStructuredArchiveFromArchive::ImplAlignment >= alignof(FStructuredArchiveFromArchive::FImpl), "FStructuredArchiveFromArchive::ImplAlignment must be compatible with the alignment of FStructuredArchiveFromArchive::Impl");
+
+	new (ImplStorage) FImpl(Ar);
 }
 
-FStructuredArchiveFromArchive::~FStructuredArchiveFromArchive() = default;
+FStructuredArchiveFromArchive::~FStructuredArchiveFromArchive()
+{
+	DestructItem((FImpl*)ImplStorage);
+}
 
 FStructuredArchive::FSlot FStructuredArchiveFromArchive::GetSlot()
 {
-	return Pimpl->Slot;
+	return ((FImpl*)ImplStorage)->Slot;
 }
