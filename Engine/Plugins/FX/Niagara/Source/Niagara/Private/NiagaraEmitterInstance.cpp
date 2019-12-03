@@ -239,9 +239,20 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 	CachedEmitter = EmitterHandle.GetInstance();
 	CachedIDName = EmitterHandle.GetIdName();
 
-	if (CachedEmitter == nullptr || !IsAllowedToExecute())
+	MaxAllocationCount = 0;
+	ReallocationCount = 0;
+	MinOverallocation = -1;
+
+	if (CachedEmitter == nullptr)
 	{
 		//@todo(message manager) Error bubbling here
+		ExecutionState = ENiagaraExecutionState::Disabled;
+		return;
+	}
+
+	MaxAllocationCount = CachedEmitter->GetMaxParticleCountEstimate();
+	if (!IsAllowedToExecute())
+	{
 		ExecutionState = ENiagaraExecutionState::Disabled;
 		return;
 	}
@@ -255,9 +266,6 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 	}
 
 	CachedEmitterCompiledData = EmitterCompiledData[EmitterIdx];
-	MaxAllocationCount = CachedEmitter->GetMaxParticleCountEstimate();
-	ReallocationCount = 0;
-	MinOverallocation = -1;
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST 
 	CheckForErrors();
