@@ -1451,8 +1451,9 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 
 		if (!UnderlyingArchive.IsTextFormat())
 		{
-			static FName Temp(NAME_None);
-			UnderlyingArchive << Temp;
+			// Add an empty FName that serves as a null-terminator
+			FName NoneTerminator;
+			UnderlyingArchive << NoneTerminator;
 		}
 	}
 }

@@ -502,12 +502,16 @@ public:
 			&& (!bCompareNumber || GetNumber() == Other.GetNumber());
 	}
 
-	FORCEINLINE bool operator==(const FName& Other) const
+	FORCEINLINE bool operator==(FName Other) const
 	{
+#if PLATFORM_64BITS && !WITH_CASE_PRESERVING_NAME
+		return ToComparableInt() == Other.ToComparableInt();
+#else
 		return (ComparisonIndex == Other.ComparisonIndex) & (GetNumber() == Other.GetNumber());
+#endif
 	}
 
-	FORCEINLINE bool operator!=(const FName& Other) const
+	FORCEINLINE bool operator!=(FName Other) const
 	{
 		return !(*this == Other);
 	}
@@ -550,7 +554,11 @@ public:
 	/** True for FName(), FName(NAME_None) and FName("None") */
 	FORCEINLINE bool IsNone() const
 	{
+#if PLATFORM_64BITS && !WITH_CASE_PRESERVING_NAME
+		return ToComparableInt() == 0;
+#else
 		return !ComparisonIndex && GetNumber() == NAME_NO_NUMBER_INTERNAL;
+#endif
 	}
 
 	/**
@@ -868,6 +876,15 @@ private:
 	/** Number portion of the string/number pair (stored internally as 1 more than actual, so zero'd memory will be the default, no-instance case) */
 	uint32			Number;
 
+#if PLATFORM_64BITS && !WITH_CASE_PRESERVING_NAME
+	FORCEINLINE uint64 ToComparableInt() const
+	{
+		static_assert(sizeof(*this) == sizeof(uint64), "");
+		alignas(uint64) FName AlignedCopy = *this;
+		return reinterpret_cast<uint64&>(AlignedCopy);
+	}
+#endif
+
 	friend const TCHAR* DebugFName(int32);
 	friend const TCHAR* DebugFName(int32, int32);
 	friend const TCHAR* DebugFName(FName&);
@@ -880,6 +897,10 @@ private:
 		return ComparisonIndex;
 #endif
 	}
+
+
+
+
 
 	static bool IsWithinBounds(FNameEntryId Id);
 };
