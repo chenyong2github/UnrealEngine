@@ -571,7 +571,7 @@ bool UBlueprint::Rename( const TCHAR* InName, UObject* NewOuter, ERenameFlags Fl
 	{
 		// Gather all blueprints that currently depend on this one.
 		TArray<UBlueprint*> Dependents;
-		FBlueprintEditorUtils::GetDependentBlueprints(this, Dependents);
+		FBlueprintEditorUtils::FindDependentBlueprints(this, Dependents);
 
 		FKismetEditorUtilities::CompileBlueprint(this);
 
