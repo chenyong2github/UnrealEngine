@@ -102,7 +102,7 @@ void UUSDPrimResolverKind::FindActorsToSpawn_Recursive(FUSDSceneImportContext& I
 		UE_LOG(LogUSDImport, Log, TEXT("Adding %s Group Actor to spawn"), *PrimName.ToString());
 	}
 
-	for (pxr::UsdPrim Child : Prim.Get().GetChildren())
+	for (pxr::UsdPrim Child : Prim.Get().GetFilteredChildren( pxr::UsdTraverseInstanceProxies() ))
 	{
 		FindActorsToSpawn_Recursive(ImportContext, Child, GroupParent, OutSpawnDatas);
 	}
