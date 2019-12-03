@@ -19,6 +19,7 @@
 #include "Tools/EditorToolAssetAPI.h"
 #include "Tools/EditorComponentSourceFactory.h"
 #include "InteractiveToolObjects.h"
+#include "BaseBehaviors/ClickDragBehavior.h"
 
 //#include "PhysicsEngine/BodySetup.h"
 //#include "Interfaces/Interface_CollisionDataProvider.h"
@@ -386,7 +387,6 @@ public:
 
 
 
-
 UEdModeInteractiveToolsContext::UEdModeInteractiveToolsContext()
 {
 	EditorMode = nullptr;
@@ -424,6 +424,20 @@ void UEdModeInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* Queries
 		RestoreEditorState();
 	});
 
+
+	// If user right-press-drags, this enables "fly mode" in the main viewport, and in that mode the QEWASD keys should
+	// be used for flying control. However the EdMode InputKey/etc system doesn't enforce any of this, we can still also
+	// get that mouse input and hotkeys. So we register a dummy behavior that captures all right-mouse dragging, and 
+	// in that mode we set bInFlyMode=true, so that Modes based on this Context will know to skip hotkey processing
+	ULocalClickDragInputBehavior* RightMouseBehavior = NewObject<ULocalClickDragInputBehavior>(this);
+	RightMouseBehavior->CanBeginClickDragFunc = [](const FInputDeviceRay& PressPos) { return  FInputRayHit(0); };
+	RightMouseBehavior->OnClickPressFunc = [this](const FInputDeviceRay&) { bInFlyMode = true; };
+	RightMouseBehavior->OnClickReleaseFunc = [this](const FInputDeviceRay&) { bInFlyMode = false; };
+	RightMouseBehavior->OnTerminateFunc = [this]() { bInFlyMode = false; };
+	RightMouseBehavior->SetDefaultPriority(FInputCapturePriority(0));
+	RightMouseBehavior->SetUseRightMouseButton();
+	RightMouseBehavior->Initialize();
+	InputRouter->RegisterBehavior(RightMouseBehavior, this);
 
 	bInvalidationPending = false;
 }
@@ -700,7 +714,7 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 
 				InputRouter->PostInputEvent(InputState);
 
-				if (InputRouter->HasActiveMouseCapture())
+				if (InputRouter->HasActiveMouseCapture() && bInFlyMode == false)
 				{
 					// what is this about? MeshPaintMode has it...
 					ViewportClient->bLockFlightCamera = true;

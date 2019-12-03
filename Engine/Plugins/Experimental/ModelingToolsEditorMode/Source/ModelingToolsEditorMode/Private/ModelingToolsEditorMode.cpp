@@ -154,9 +154,12 @@ bool FModelingToolsEditorMode::InputKey(FEditorViewportClient* ViewportClient, F
 	// try hotkeys
 	if (Event != IE_Released)
 	{
-		if (UICommandList->ProcessCommandBindings(Key, FSlateApplication::Get().GetModifierKeys(), false/*Event == IE_Repeat*/))
+		if (ToolsContext->ShouldIgnoreHotkeys() == false)		// allow the context to capture keyboard input if necessary
 		{
-			return true;
+			if (UICommandList->ProcessCommandBindings(Key, FSlateApplication::Get().GetModifierKeys(), false/*Event == IE_Repeat*/))
+			{
+				return true;
+			}
 		}
 	}
 

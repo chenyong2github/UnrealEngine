@@ -72,6 +72,8 @@ public:
 	virtual void StartTool(const FString& ToolTypeIdentifier);
 	virtual void EndTool(EToolShutdownType ShutdownType);
 
+	virtual bool ShouldIgnoreHotkeys() const { return bInFlyMode; }
+
 protected:
 	// we hide these 
 	virtual void Initialize(IToolsContextQueriesAPI* QueriesAPI, IToolsContextTransactionsAPI* TransactionsAPI) override;
@@ -109,6 +111,8 @@ protected:
 	// Copy-pasted from other Editor code, seems kind of expensive?
 	static FRay GetRayFromMousePos(FEditorViewportClient* ViewportClient, FViewport* Viewport, int MouseX, int MouseY);
 
+	/** This will be set to true if user is in right-mouse "fly mode", which requires special handling to intercept hotkeys/etc */
+	bool bInFlyMode = false;
 
 	// editor UI state that we set before starting tool and when exiting tool
 	// Currently disabling anti-aliasing during active Tools because it causes PDI flickering
