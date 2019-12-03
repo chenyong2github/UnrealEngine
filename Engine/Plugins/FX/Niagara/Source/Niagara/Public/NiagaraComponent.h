@@ -146,7 +146,10 @@ public:
 	virtual void Deactivate()override;
 	void DeactivateImmediate();
 
-	FORCEINLINE ENiagaraExecutionState GetRequestedExecutionState() { return SystemInstance ? SystemInstance->GetRequestedExecutionState() : ENiagaraExecutionState::Complete; }
+	FORCEINLINE ENiagaraExecutionState GetRequestedExecutionState()const { return SystemInstance ? SystemInstance->GetRequestedExecutionState() : ENiagaraExecutionState::Complete; }
+	FORCEINLINE ENiagaraExecutionState GetExecutionState()const { return SystemInstance ? SystemInstance->GetActualExecutionState() : ENiagaraExecutionState::Complete; }
+
+	FORCEINLINE bool IsComplete()const { return SystemInstance ? SystemInstance->IsComplete() : true; }
 
 	FORCEINLINE float GetSafeTimeSinceRendered(float WorldTime)const;
 	private:
@@ -505,14 +508,14 @@ public:
 	uint32 bWaitForCompilationOnActivate : 1;
 #endif
 
-	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "LOD scalability"))
-	void SetOwnerLOD(int32 InOwnerLOD);
+	virtual void SetOwnerLOD(int32 InOwnerLOD);
 
-	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "LOD scalability"))
+	UFUNCTION(BlueprintCallable, Category = Scalability, meta = (Keywords = "LOD scalability"))
 	FORCEINLINE int32 GetOwnerLOD()const { return OwnerLOD; }
 
 	/** Set whether this component is allowed to perform scalability checks and potentially be culled etc. Occasionally it is useful to disable this for specific components. E.g. Effects on the local player. */
-	FORCEINLINE void SetAllowScalability(bool bAllow) { bAllowScalability = bAllow; }
+	UFUNCTION(BlueprintCallable, Category = Scalability, meta = (Keywords = "LOD scalability"))
+	void SetAllowScalability(bool bAllow);
 
 private:
 	/** Did we try and activate but fail due to the asset being not yet ready. Keep looping.*/
@@ -549,7 +552,6 @@ private:
 	*/
 	int32 OwnerLOD;
 };
-
 
 #if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
 FORCEINLINE bool UNiagaraComponent::GetPreviewDetailLevelEnabled()const { return bEnablePreviewDetailLevel; }
