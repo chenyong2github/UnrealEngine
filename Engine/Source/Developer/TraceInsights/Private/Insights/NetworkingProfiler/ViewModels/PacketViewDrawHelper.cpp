@@ -15,6 +15,52 @@
 #include <limits>
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+// FNetworkPacketAggregatedSample
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FNetworkPacketAggregatedSample::AddPacket(const int32 PacketIndex, const Trace::FNetProfilerPacket& Packet)
+{
+	NumPackets++;
+
+	const double TimeStamp = static_cast<double>(Packet.TimeStamp);
+	if (TimeStamp < StartTime)
+	{
+		StartTime = TimeStamp;
+	}
+	if (TimeStamp > EndTime)
+	{
+		EndTime = TimeStamp;
+	}
+
+	if (Packet.TotalPacketSizeInBytes > LargestPacket.TotalSizeInBytes)
+	{
+		LargestPacket.Index = PacketIndex;
+		LargestPacket.SequenceNumber = Packet.SequenceNumber;
+		LargestPacket.ContentSizeInBits = Packet.ContentSizeInBits;
+		LargestPacket.TotalSizeInBytes = Packet.TotalPacketSizeInBytes;
+		LargestPacket.TimeStamp = TimeStamp;
+		LargestPacket.Status = Packet.DeliveryStatus;
+	}
+
+	switch (AggregatedStatus)
+	{
+	case Trace::ENetProfilerDeliveryStatus::Unknown:
+		AggregatedStatus = Packet.DeliveryStatus;
+		break;
+
+	case Trace::ENetProfilerDeliveryStatus::Dropped:
+		break;
+
+	case Trace::ENetProfilerDeliveryStatus::Delivered:
+		if (Packet.DeliveryStatus == Trace::ENetProfilerDeliveryStatus::Dropped)
+		{
+			AggregatedStatus = Trace::ENetProfilerDeliveryStatus::Dropped;
+		}
+		break;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // FNetworkPacketSeriesBuilder
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -35,7 +81,7 @@ FNetworkPacketSeriesBuilder::FNetworkPacketSeriesBuilder(FNetworkPacketSeries& I
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FNetworkPacketSeriesBuilder::AddPacket(int32 PacketIndex, const Trace::FNetProfilerPacket& Packet)
+void FNetworkPacketSeriesBuilder::AddPacket(const int32 PacketIndex, const Trace::FNetProfilerPacket& Packet)
 {
 	NumAddedPackets++;
 
@@ -43,45 +89,7 @@ void FNetworkPacketSeriesBuilder::AddPacket(int32 PacketIndex, const Trace::FNet
 	if (SampleIndex >= 0 && SampleIndex < NumSamples)
 	{
 		FNetworkPacketAggregatedSample& Sample = Series.Samples[SampleIndex];
-		Sample.NumPackets++;
-
-		const double TimeStamp = static_cast<double>(Packet.TimeStamp);
-		if (TimeStamp < Sample.StartTime)
-		{
-			Sample.StartTime = TimeStamp;
-		}
-		if (TimeStamp > Sample.EndTime)
-		{
-			Sample.EndTime = TimeStamp;
-		}
-
-		if (Packet.TotalPacketSizeInBytes > Sample.LargestPacket.TotalSizeInBytes)
-		{
-			Sample.LargestPacket.Index = PacketIndex;
-			Sample.LargestPacket.SequenceNumber = Packet.SequenceNumber;
-			Sample.LargestPacket.ContentSizeInBits = Packet.ContentSizeInBits;
-			Sample.LargestPacket.TotalSizeInBytes = Packet.TotalPacketSizeInBytes;
-			Sample.LargestPacket.TimeStamp = TimeStamp;
-			Sample.LargestPacket.Status = Packet.DeliveryStatus;
-		}
-
-		switch (Sample.AggregatedStatus)
-		{
-			case Trace::ENetProfilerDeliveryStatus::Unknown:
-				Sample.AggregatedStatus = Packet.DeliveryStatus;
-				break;
-
-			case Trace::ENetProfilerDeliveryStatus::Dropped:
-				break;
-
-			case Trace::ENetProfilerDeliveryStatus::Delivered:
-				if (Packet.DeliveryStatus == Trace::ENetProfilerDeliveryStatus::Dropped)
-				{
-					Sample.AggregatedStatus = Trace::ENetProfilerDeliveryStatus::Dropped;
-				}
-				break;
-		}
-
+		Sample.AddPacket(PacketIndex, Packet);
 		Series.NumAggregatedPackets++;
 	}
 }

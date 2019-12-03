@@ -179,7 +179,7 @@ TSharedRef<SDockTab> SNetworkingProfilerWindow::SpawnTab_NetStatsView(const FSpa
 		.ShouldAutosize(false)
 		.TabRole(ETabRole::PanelTab)
 		[
-			SAssignNew(NetStatsView, SNetStatsView)
+			SAssignNew(NetStatsView, SNetStatsView, SharedThis(this))
 		];
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SNetworkingProfilerWindow::OnNetStatsViewTabClosed));
@@ -747,13 +747,21 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void SNetworkingProfilerWindow::GameInstance_OnSelectionChanged(TSharedPtr<FGameInstanceItem> NewGameInstance, ESelectInfo::Type SelectInfo)
 {
+	const bool bSameValue = (!SelectedGameInstance.IsValid() && !NewGameInstance.IsValid()) ||
+							(SelectedGameInstance.IsValid() && NewGameInstance.IsValid() &&
+								SelectedGameInstance->GetIndex() == NewGameInstance->GetIndex());
+
 	SelectedGameInstance = NewGameInstance;
-	UpdateAvailableConnections();
-	if (PacketView.IsValid())
+
+	if (!bSameValue)
 	{
-		PacketView->SetConnection(GetSelectedGameInstanceIndex(), GetSelectedConnectionIndex(), GetSelectedConnectionMode());
+		UpdateAvailableConnections();
+		if (PacketView.IsValid())
+		{
+			PacketView->SetConnection(GetSelectedGameInstanceIndex(), GetSelectedConnectionIndex(), GetSelectedConnectionMode());
+		}
+		UpdateAggregatedNetStats();
 	}
-	UpdateAggregatedNetStats();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -804,13 +812,21 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void SNetworkingProfilerWindow::Connection_OnSelectionChanged(TSharedPtr<FConnectionItem> NewConnection, ESelectInfo::Type SelectInfo)
 {
+	const bool bSameValue = (!SelectedConnection.IsValid() && !NewConnection.IsValid()) ||
+							(SelectedConnection.IsValid() && NewConnection.IsValid() &&
+								SelectedConnection->GetIndex() == NewConnection->GetIndex());
+
 	SelectedConnection = NewConnection;
-	UpdateAvailableConnectionModes();
-	if (PacketView.IsValid())
+
+	if (!bSameValue)
 	{
-		PacketView->SetConnection(GetSelectedGameInstanceIndex(), GetSelectedConnectionIndex(), GetSelectedConnectionMode());
+		UpdateAvailableConnectionModes();
+		if (PacketView.IsValid())
+		{
+			PacketView->SetConnection(GetSelectedGameInstanceIndex(), GetSelectedConnectionIndex(), GetSelectedConnectionMode());
+		}
+		UpdateAggregatedNetStats();
 	}
-	UpdateAggregatedNetStats();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -861,12 +877,20 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void SNetworkingProfilerWindow::ConnectionMode_OnSelectionChanged(TSharedPtr<FConnectionModeItem> NewConnectionMode, ESelectInfo::Type SelectInfo)
 {
+	const bool bSameValue = (!SelectedConnectionMode.IsValid() && !NewConnectionMode.IsValid()) ||
+							(SelectedConnectionMode.IsValid() && NewConnectionMode.IsValid() &&
+								SelectedConnectionMode->Mode == NewConnectionMode->Mode);
+
 	SelectedConnectionMode = NewConnectionMode;
-	if (PacketView.IsValid())
+
+	if (!bSameValue)
 	{
-		PacketView->SetConnection(GetSelectedGameInstanceIndex(), GetSelectedConnectionIndex(), GetSelectedConnectionMode());
+		if (PacketView.IsValid())
+		{
+			PacketView->SetConnection(GetSelectedGameInstanceIndex(), GetSelectedConnectionIndex(), GetSelectedConnectionMode());
+		}
+		UpdateAggregatedNetStats();
 	}
-	UpdateAggregatedNetStats();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

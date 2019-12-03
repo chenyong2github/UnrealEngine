@@ -93,6 +93,8 @@ struct FNetworkPacketAggregatedSample
 	FNetworkPacketAggregatedSample(FNetworkPacketAggregatedSample&&) = default;
 	FNetworkPacketAggregatedSample& operator=(FNetworkPacketAggregatedSample&&) = default;
 
+	void AddPacket(const int32 PacketIndex, const Trace::FNetProfilerPacket& Packet);
+
 	bool Equals(const FNetworkPacketAggregatedSample& Other) const
 	{
 		return NumPackets == Other.NumPackets
