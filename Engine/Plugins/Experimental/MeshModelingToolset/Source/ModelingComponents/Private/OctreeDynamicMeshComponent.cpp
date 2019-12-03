@@ -105,7 +105,7 @@ void UOctreeDynamicMeshComponent::ApplyTransform(const FTransform3d& Transform, 
 		MeshTransforms::ApplyTransform(*GetMesh(), Transform);
 	}
 
-	if (CurrentProxy != nullptr)
+	if (GetCurrentSceneProxy() != nullptr)
 	{
 		Octree->ModifiedBounds = FAxisAlignedBox3d(
 			-TNumericLimits<float>::Max()*FVector3d::One(),
@@ -144,7 +144,7 @@ void UOctreeDynamicMeshComponent::Bake(FMeshDescription* MeshDescription, bool b
 
 void UOctreeDynamicMeshComponent::NotifyMeshUpdated()
 {
-	if (CurrentProxy != nullptr)
+	if (GetCurrentSceneProxy() != nullptr)
 	{
 		FAxisAlignedBox3d DirtyBox = Octree->ModifiedBounds;
 		Octree->ResetModifiedBounds();
@@ -227,14 +227,10 @@ void UOctreeDynamicMeshComponent::NotifyMeshUpdated()
 		//UE_LOG(LogTemp, Warning, TEXT("Updating %d of %d decomposition sets, %d tris total, spillcount %d"), SetsToUpdate.Num(), CutCellSetMap.Num(), TotalTriangleCount, SpillTriangleCount);
 		{
 			SCOPE_CYCLE_COUNTER(STAT_SculptToolOctree_UpdateFromDecomp);
-			CurrentProxy->UpdateFromDecomposition(TriangleDecomposition, SetsToUpdate);
+			GetCurrentSceneProxy()->UpdateFromDecomposition(TriangleDecomposition, SetsToUpdate);
 		}
 
 	}
-
-	//MarkRenderStateDirty();
-	//UpdateBounds();
-	//CurrentProxy = nullptr;
 }
 
 
@@ -267,15 +263,17 @@ static void InitializeOctreeCutSet(const FDynamicMesh3& Mesh, const FDynamicMesh
 
 FPrimitiveSceneProxy* UOctreeDynamicMeshComponent::CreateSceneProxy()
 {
-	CurrentProxy = nullptr;
+	check(GetCurrentSceneProxy() == nullptr);
+
+	FOctreeDynamicMeshSceneProxy* NewProxy = nullptr;
 	if (Mesh->TriangleCount() > 0)
 	{
-		CurrentProxy = new FOctreeDynamicMeshSceneProxy(this);
+		NewProxy = new FOctreeDynamicMeshSceneProxy(this);
 
 		if (TriangleColorFunc != nullptr)
 		{
-			CurrentProxy->bUsePerTriangleColor = true;
-			CurrentProxy->PerTriangleColorFunc = [this](const FDynamicMesh3* Mesh, int TriangleID) { return GetTriangleColor(TriangleID); };
+			NewProxy->bUsePerTriangleColor = true;
+			NewProxy->PerTriangleColorFunc = [this](const FDynamicMesh3* Mesh, int TriangleID) { return GetTriangleColor(TriangleID); };
 		}
 
 
@@ -312,18 +310,18 @@ FPrimitiveSceneProxy* UOctreeDynamicMeshComponent::CreateSceneProxy()
 			});
 		}
 
-		CurrentProxy->InitializeFromDecomposition(TriangleDecomposition);
+		NewProxy->InitializeFromDecomposition(TriangleDecomposition);
 	}
-	return CurrentProxy;
+	return NewProxy;
 }
 
 
 
 void UOctreeDynamicMeshComponent::NotifyMaterialSetUpdated()
 {
-	if (CurrentProxy != nullptr)
+	if (GetCurrentSceneProxy() != nullptr)
 	{
-		CurrentProxy->UpdatedReferencedMaterials();
+		GetCurrentSceneProxy()->UpdatedReferencedMaterials();
 	}
 }
 

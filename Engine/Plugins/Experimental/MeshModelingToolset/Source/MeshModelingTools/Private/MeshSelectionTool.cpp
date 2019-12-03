@@ -525,7 +525,7 @@ void UMeshSelectionTool::UpdateVisualization()
 			{
 				return SelectedTriangles[TriangleID] ? LinearColors::VideoRed3b() : LinearColors::SelectFColor(Mesh->GetTriangleGroup(TriangleID));
 
-			}, UPreviewMesh::ERenderUpdateMode::FullUpdate);
+			}, UPreviewMesh::ERenderUpdateMode::FastUpdate);
 		}
 		else
 		{
@@ -533,12 +533,12 @@ void UMeshSelectionTool::UpdateVisualization()
 			{
 				return SelectedTriangles[TriangleID] ? LinearColors::VideoRed3b() : LinearColors::VideoWhite3b();
 
-			}, UPreviewMesh::ERenderUpdateMode::FullUpdate);
+			}, UPreviewMesh::ERenderUpdateMode::FastUpdate);
 		}
 	}
 	else
 	{
-		PreviewMesh->ClearTriangleColorFunction(UPreviewMesh::ERenderUpdateMode::FullUpdate);
+		PreviewMesh->ClearTriangleColorFunction(UPreviewMesh::ERenderUpdateMode::FastUpdate);
 	}
 }
 

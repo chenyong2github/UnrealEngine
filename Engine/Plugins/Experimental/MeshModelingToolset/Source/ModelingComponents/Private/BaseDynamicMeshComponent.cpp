@@ -13,14 +13,20 @@ UBaseDynamicMeshComponent::UBaseDynamicMeshComponent(const FObjectInitializer& O
 
 void UBaseDynamicMeshComponent::SetOverrideRenderMaterial(UMaterialInterface* Material)
 {
-	OverrideRenderMaterial = Material;
-	NotifyMaterialSetUpdated();
+	if (OverrideRenderMaterial != Material)
+	{
+		OverrideRenderMaterial = Material;
+		NotifyMaterialSetUpdated();
+	}
 }
 
 void UBaseDynamicMeshComponent::ClearOverrideRenderMaterial()
 {
-	OverrideRenderMaterial = nullptr;
-	NotifyMaterialSetUpdated();
+	if (OverrideRenderMaterial != nullptr)
+	{
+		OverrideRenderMaterial = nullptr;
+		NotifyMaterialSetUpdated();
+	}
 }
 
 

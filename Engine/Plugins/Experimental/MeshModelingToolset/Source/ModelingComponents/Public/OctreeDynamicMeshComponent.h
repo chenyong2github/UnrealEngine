@@ -135,7 +135,7 @@ protected:
 
 private:
 
-	FOctreeDynamicMeshSceneProxy* CurrentProxy = nullptr;
+	FOctreeDynamicMeshSceneProxy* GetCurrentSceneProxy() { return (FOctreeDynamicMeshSceneProxy*)SceneProxy; }
 
 	//~ Begin UPrimitiveComponent Interface.
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;

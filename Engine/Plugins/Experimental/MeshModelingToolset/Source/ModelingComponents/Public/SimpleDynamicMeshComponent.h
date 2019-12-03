@@ -163,7 +163,7 @@ protected:
 
 private:
 
-	FSimpleDynamicMeshSceneProxy* CurrentProxy = nullptr;
+	FSimpleDynamicMeshSceneProxy* GetCurrentSceneProxy() { return (FSimpleDynamicMeshSceneProxy*)SceneProxy; }
 
 	//~ Begin UPrimitiveComponent Interface.
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;

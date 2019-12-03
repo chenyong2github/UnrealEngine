@@ -152,7 +152,6 @@ void USimpleDynamicMeshComponent::NotifyMeshUpdated()
 	// Need to recreate scene proxy to send it over
 	MarkRenderStateDirty();
 	UpdateBounds();
-	CurrentProxy = nullptr;
 
 	if (TangentsType != EDynamicMeshTangentCalcType::ExternallyCalculated)
 	{
@@ -163,11 +162,22 @@ void USimpleDynamicMeshComponent::NotifyMeshUpdated()
 
 void USimpleDynamicMeshComponent::FastNotifyColorsUpdated()
 {
-	MarkRenderStateDirty();
-
-	if (CurrentProxy != nullptr)
+	FSimpleDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy();
+	if (Proxy != nullptr)
 	{
-		CurrentProxy->FastUpdateVertices(false, false, true);
+		if (TriangleColorFunc != nullptr &&  Proxy->bUsePerTriangleColor == false )
+		{
+			Proxy->bUsePerTriangleColor = true;
+			Proxy->PerTriangleColorFunc = [this](const FDynamicMesh3* MeshIn, int TriangleID) { return GetTriangleColor(MeshIn, TriangleID); };
+		} 
+		else if (TriangleColorFunc == nullptr && Proxy->bUsePerTriangleColor == true)
+		{
+			Proxy->bUsePerTriangleColor = false;
+			Proxy->PerTriangleColorFunc = nullptr;
+		}
+
+		Proxy->FastUpdateVertices(false, false, true);
+		MarkRenderDynamicDataDirty();
 	}
 	else
 	{
@@ -179,12 +189,11 @@ void USimpleDynamicMeshComponent::FastNotifyColorsUpdated()
 
 void USimpleDynamicMeshComponent::FastNotifyPositionsUpdated()
 {
-	MarkRenderStateDirty();
-	UpdateBounds();
-
-	if (CurrentProxy != nullptr)
+	if (GetCurrentSceneProxy() != nullptr)
 	{
-		CurrentProxy->FastUpdateVertices(true, false, false);
+		GetCurrentSceneProxy()->FastUpdateVertices(true, false, false);
+		MarkRenderDynamicDataDirty();
+		UpdateBounds();
 	}
 	else
 	{
@@ -198,28 +207,30 @@ void USimpleDynamicMeshComponent::FastNotifyPositionsUpdated()
 
 FPrimitiveSceneProxy* USimpleDynamicMeshComponent::CreateSceneProxy()
 {
-	CurrentProxy = nullptr;
+	check(GetCurrentSceneProxy() == nullptr);
+
+	FSimpleDynamicMeshSceneProxy* NewProxy = nullptr;
 	if (Mesh->TriangleCount() > 0)
 	{
-		CurrentProxy = new FSimpleDynamicMeshSceneProxy(this);
+		NewProxy = new FSimpleDynamicMeshSceneProxy(this);
 
 		if (TriangleColorFunc)
 		{
-			CurrentProxy->bUsePerTriangleColor = true;
-			CurrentProxy->PerTriangleColorFunc = [this](const FDynamicMesh3* MeshIn, int TriangleID) { return GetTriangleColor(MeshIn, TriangleID); };
+			NewProxy->bUsePerTriangleColor = true;
+			NewProxy->PerTriangleColorFunc = [this](const FDynamicMesh3* MeshIn, int TriangleID) { return GetTriangleColor(MeshIn, TriangleID); };
 		}
 
-		CurrentProxy->Initialize();
+		NewProxy->Initialize();
 	}
-	return CurrentProxy;
+	return NewProxy;
 }
 
 
 void USimpleDynamicMeshComponent::NotifyMaterialSetUpdated()
 {
-	if (CurrentProxy != nullptr)
+	if (GetCurrentSceneProxy() != nullptr)
 	{
-		CurrentProxy->UpdatedReferencedMaterials();
+		GetCurrentSceneProxy()->UpdatedReferencedMaterials();
 	}
 }
 
