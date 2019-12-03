@@ -89,6 +89,7 @@
 #include "BlueprintFunctionNodeSpawner.h"
 #include "SBlueprintEditorToolbar.h"
 #include "FindInBlueprints.h"
+#include "ImaginaryBlueprintData.h"
 #include "SGraphTitleBar.h"
 #include "Kismet2/Kismet2NameValidators.h"
 #include "Kismet2/DebuggerCommands.h"
@@ -2711,6 +2712,14 @@ void FBlueprintEditor::CreateDefaultCommands()
 		FExecuteAction::CreateSP(this, &FBlueprintEditor::OpenNativeCodeGenerationTool),
 		FCanExecuteAction::CreateSP(this, &FBlueprintEditor::CanGenerateNativeCode));
 
+	ToolkitCommands->MapAction(FBlueprintEditorCommands::Get().GenerateSearchIndex,
+		FExecuteAction::CreateSP(this, &FBlueprintEditor::OnGenerateSearchIndexForDebugging),
+		FCanExecuteAction());
+
+	ToolkitCommands->MapAction(FBlueprintEditorCommands::Get().DumpCachedIndexData,
+		FExecuteAction::CreateSP(this, &FBlueprintEditor::OnDumpCachedIndexDataForBlueprint),
+		FCanExecuteAction());
+
 	ToolkitCommands->MapAction(FBlueprintEditorCommands::Get().ShowActionMenuItemSignatures,
 		FExecuteAction::CreateLambda([]()
 			{ 
@@ -2765,6 +2774,54 @@ bool FBlueprintEditor::CanGenerateNativeCode() const
 {
 	UBlueprint* Blueprint = GetBlueprintObj();
 	return Blueprint && FNativeCodeGenerationTool::CanGenerate(*Blueprint);
+}
+
+void FBlueprintEditor::OnGenerateSearchIndexForDebugging()
+{
+	UBlueprint* Blueprint = GetBlueprintObj();
+	if (Blueprint)
+	{
+		FString FileLocation = FPaths::ConvertRelativePathToFull(FPaths::ProjectIntermediateDir() + TEXT("BlueprintSearchTools"));
+		FString FullPath = FString::Printf(TEXT("%s/%s.index.xml"), *FileLocation, *Blueprint->GetName());
+
+		FArchive* DumpFile = IFileManager::Get().CreateFileWriter(*FullPath);
+		if (DumpFile)
+		{
+			FString JsonOutput = FFindInBlueprintSearchManager::Get().GenerateSearchIndexForDebugging(Blueprint);
+			DumpFile->Serialize(TCHAR_TO_ANSI(*JsonOutput), JsonOutput.Len());
+
+			DumpFile->Close();
+			delete DumpFile;
+
+			UE_LOG(LogFindInBlueprint, Log, TEXT("Wrote search index to %s"), *FullPath);
+		}
+	}
+}
+
+void FBlueprintEditor::OnDumpCachedIndexDataForBlueprint()
+{
+	UBlueprint* Blueprint = GetBlueprintObj();
+	if (Blueprint)
+	{
+		FString FileLocation = FPaths::ConvertRelativePathToFull(FPaths::ProjectIntermediateDir() + TEXT("BlueprintSearchTools"));
+		FString FullPath = FString::Printf(TEXT("%s/%s.cache.csv"), *FileLocation, *Blueprint->GetName());
+
+		FArchive* DumpFile = IFileManager::Get().CreateFileWriter(*FullPath);
+		if (DumpFile)
+		{
+			const FName AssetPath = *Blueprint->GetPathName();
+			FSearchData SearchData = FFindInBlueprintSearchManager::Get().GetSearchDataForAssetPath(AssetPath);
+			if (SearchData.IsValid() && SearchData.ImaginaryBlueprint.IsValid())
+			{
+				SearchData.ImaginaryBlueprint->DumpParsedObject(*DumpFile);
+			}
+
+			DumpFile->Close();
+			delete DumpFile;
+
+			UE_LOG(LogFindInBlueprint, Log, TEXT("Wrote cached index data to %s"), *FullPath);
+		}
+	}
 }
 
 void FBlueprintEditor::FindInBlueprint_Clicked()

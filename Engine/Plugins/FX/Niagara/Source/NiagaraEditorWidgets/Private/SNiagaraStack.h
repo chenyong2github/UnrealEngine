@@ -106,6 +106,7 @@ private:
 
 	EVisibility GetIssueIconVisibility() const;
 
+	void OnStackItemClicked(UNiagaraStackEntry* Item);
 private:
 	UNiagaraStackViewModel* StackViewModel;
 

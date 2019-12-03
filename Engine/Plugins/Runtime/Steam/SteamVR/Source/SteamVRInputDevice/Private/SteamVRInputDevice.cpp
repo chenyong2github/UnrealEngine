@@ -1241,6 +1241,84 @@ void FSteamVRInputDevice::OnActionMappingsChanged()
 	this->GenerateActionManifest(true, true, true, true);
 }
 
+void FSteamVRInputDevice::OnVREditingModeEnter()
+{
+	// Set Input Settings
+	auto InputSettings = GetMutableDefault<UInputSettings>();
+
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_WorldMovementL", EKeys::MotionController_Left_Grip1), false);
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TouchL", EKeys::Vive_Left_Trackpad_Touch), false);
+	InputSettings->AddAxisMapping(FInputAxisKeyMapping("VREditor_TriggerAxisL", EKeys::MotionController_Left_TriggerAxis), false);
+	InputSettings->AddAxisMapping(FInputAxisKeyMapping("VREditor_TrackpadPositionL_X", EKeys::MotionController_Left_Thumbstick_X), false);
+	InputSettings->AddAxisMapping(FInputAxisKeyMapping("VREditor_TrackpadPositionL_Y", EKeys::MotionController_Left_Thumbstick_Y), false);
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_ConfirmRadialSelectionL", EKeys::MotionController_Left_Thumbstick), false);
+
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_ModifierL", EKeys::Vive_Left_Menu_Click), false);
+
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TrackpadDownL", EKeys::Vive_Left_Trackpad_Down), false); // down
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TrackpadLeftL", EKeys::Vive_Left_Trackpad_Left), false);
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TrackpadRightL", EKeys::Vive_Left_Trackpad_Right), false);
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TrackpadUpL", EKeys::Vive_Left_Trackpad_Up), false);
+
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_WorldMovementR", EKeys::MotionController_Right_Grip1), false);
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TouchR", EKeys::Vive_Right_Trackpad_Touch), false);
+	InputSettings->AddAxisMapping(FInputAxisKeyMapping("VREditor_TriggerAxisR", EKeys::MotionController_Right_TriggerAxis), false);
+	InputSettings->AddAxisMapping(FInputAxisKeyMapping("VREditor_TrackpadPositionR_X", EKeys::MotionController_Right_Thumbstick_X), false);
+	InputSettings->AddAxisMapping(FInputAxisKeyMapping("VREditor_TrackpadPositionR_Y", EKeys::MotionController_Right_Thumbstick_Y), false);
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_ConfirmRadialSelectionR", EKeys::MotionController_Right_Thumbstick), false);
+
+
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_ModifierR", EKeys::Vive_Right_Menu_Click), false);
+
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TrackpadDownR", EKeys::Vive_Right_Trackpad_Down), false); // down
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TrackpadLeftR", EKeys::Vive_Right_Trackpad_Left), false);
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TrackpadRightR", EKeys::Vive_Right_Trackpad_Right), false);
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TrackpadUpR", EKeys::Vive_Right_Trackpad_Up), false);
+
+	InputSettings->ForceRebuildKeymaps();
+
+	this->GenerateActionManifest(true, true, true, true);
+}
+
+void FSteamVRInputDevice::OnVREditingModeExit()
+{
+	// Set Input Settings
+	auto InputSettings = GetMutableDefault<UInputSettings>();
+
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_WorldMovementL", EKeys::MotionController_Left_Grip1), false);
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TouchL", EKeys::Vive_Left_Trackpad_Touch), false);
+	InputSettings->RemoveAxisMapping(FInputAxisKeyMapping("VREditor_TriggerAxisL", EKeys::MotionController_Left_TriggerAxis), false);
+	InputSettings->RemoveAxisMapping(FInputAxisKeyMapping("VREditor_TrackpadPositionL_X", EKeys::MotionController_Left_Thumbstick_X), false);
+	InputSettings->RemoveAxisMapping(FInputAxisKeyMapping("VREditor_TrackpadPositionL_Y", EKeys::MotionController_Left_Thumbstick_Y), false);
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_ConfirmRadialSelectionL", EKeys::MotionController_Left_Thumbstick), false);
+
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_ModifierL", EKeys::Vive_Left_Menu_Click), false);
+
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TrackpadDownL", EKeys::Vive_Left_Trackpad_Down), false); // down
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TrackpadLeftL", EKeys::Vive_Left_Trackpad_Left), false);
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TrackpadRightL", EKeys::Vive_Left_Trackpad_Right), false);
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TrackpadUpL", EKeys::Vive_Left_Trackpad_Up), false);
+
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_WorldMovementR", EKeys::MotionController_Right_Grip1), false);
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TouchR", EKeys::Vive_Right_Trackpad_Touch), false);
+	InputSettings->RemoveAxisMapping(FInputAxisKeyMapping("VREditor_TriggerAxisR", EKeys::MotionController_Right_TriggerAxis), false);
+	InputSettings->RemoveAxisMapping(FInputAxisKeyMapping("VREditor_TrackpadPositionR_X", EKeys::MotionController_Right_Thumbstick_X), false);
+	InputSettings->RemoveAxisMapping(FInputAxisKeyMapping("VREditor_TrackpadPositionR_Y", EKeys::MotionController_Right_Thumbstick_Y), false);
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_ConfirmRadialSelectionR", EKeys::MotionController_Right_Thumbstick), false);
+
+
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_ModifierR", EKeys::Vive_Right_Menu_Click), false);
+
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TrackpadDownR", EKeys::Vive_Right_Trackpad_Down), false); // down
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TrackpadLeftR", EKeys::Vive_Right_Trackpad_Left), false);
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TrackpadRightR", EKeys::Vive_Right_Trackpad_Right), false);
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TrackpadUpR", EKeys::Vive_Right_Trackpad_Up), false);
+
+	InputSettings->ForceRebuildKeymaps();
+
+	this->GenerateActionManifest(true, true, true, true);
+}
+
 bool FSteamVRInputDevice::GenerateAppManifest(FString ManifestPath, FString ProjectName, FString& OutAppKey, FString& OutAppManifestPath)
 {
 	// Set SteamVR AppKey
@@ -1740,6 +1818,13 @@ void FSteamVRInputDevice::GenerateActionBindings(TArray<FInputMapping> &InInputM
 					InputState.bIsGripGrab = false;
 				}
 
+				// Handle Vive controllers not having a thumbstick
+				if (InputState.bIsThumbstick && Controller.Description.Contains(TEXT("Vive")))
+				{
+					InputState.bIsTrackpad = true;
+					InputState.bIsThumbstick = false;
+				}
+
 				// Set Cache Mode
 				CacheMode = InputState.bIsTrigger || InputState.bIsGrip ? FName(TEXT("trigger")) : FName(TEXT("button"));
 				CacheMode = InputState.bIsPress ? FName(TEXT("button")) : CacheMode;
@@ -2077,6 +2162,13 @@ void FSteamVRInputDevice::GenerateActionBindings(TArray<FInputMapping> &InInputM
 						{
 							InputState.bIsPinchGrab = false;
 							InputState.bIsGripGrab = false;
+						}
+
+						// Handle Vive controllers not having a thumbstick
+						if (InputState.bIsThumbstick && Controller.Description.Contains(TEXT("Vive")))
+						{
+							InputState.bIsTrackpad = true;
+							InputState.bIsThumbstick = false;
 						}
 	
 						// Set Cache Mode
@@ -2655,7 +2747,7 @@ void FSteamVRInputDevice::GenerateActionManifest(bool GenerateActions, bool Gene
 						YesNoToAll = FMessageDialog::Open(EAppMsgType::YesNoYesAllNoAll, FText::Format(LOCTEXT("BindingFileAlreadyExists", "Your binding file ({0}) was last edited by {1} do you want to overwrite the changes? You will lose any changes you made outside of the editor!"), FText::FromString(BindingFile), FText::FromString(LastEdited)));
 					}
 
-					if (YesNoToAll == EAppReturnType::No || YesNoToAll == EAppReturnType::NoAll)
+					if (YesNoToAll != EAppReturnType::Yes && YesNoToAll != EAppReturnType::YesAll)
 					{
 						// Prevent this binding from being regenerated
 						bIsGenerated = true;
@@ -3545,8 +3637,16 @@ void FSteamVRInputDevice::ProcessActionEvents(FSteamVRInputActionSet SteamVRInpu
 				{
 					// Test what we're receiving from SteamVR
 					//UE_LOG(LogTemp, Warning, TEXT("Handle %s KeyY %s Y-Value {%f}"), *Action.Path, *FoundKeyY.GetFName().ToString(), AnalogData.y);
-
-					Action.Value.Y = AnalogData.y;
+					
+					FString KeyString = Action.KeyY.ToString();
+					if (KeyString.Contains(TEXT("MotionController")) && KeyString.Contains(TEXT("_Y")))
+					{
+						Action.Value.Y = -AnalogData.y;
+					}
+					else
+					{
+						Action.Value.Y = AnalogData.y;
+					}
 					MessageHandler->OnControllerAnalog(Action.KeyY, 0, Action.Value.Y);
 				}
 			}

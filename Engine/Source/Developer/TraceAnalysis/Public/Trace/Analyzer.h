@@ -27,6 +27,7 @@ public:
 	{
 		uint64 StartCycle;
 		uint64 CycleFrequency;
+		uint16 Version;
 
 		double TimestampFromCycle(uint64 Cycle) const
 		{

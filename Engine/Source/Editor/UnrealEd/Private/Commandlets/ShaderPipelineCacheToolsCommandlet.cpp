@@ -1106,7 +1106,7 @@ int32 BuildPSOSC(const TArray<FString>& Tokens)
 
 				if (!Count)
 				{
-					UE_LOG(LogShaderPipelineCacheTools, Log, TEXT("Stable PSO not found, rejecting %s"), *Shader.ToString());
+					UE_LOG(LogShaderPipelineCacheTools, Verbose, TEXT("Stable PSO not found, rejecting %s"), *Shader.ToString());
 					bValid = false;
 					break;
 				}

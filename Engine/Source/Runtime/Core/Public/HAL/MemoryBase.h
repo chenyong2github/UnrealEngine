@@ -81,10 +81,23 @@ public:
 	 */
 	virtual void* Malloc( SIZE_T Count, uint32 Alignment=DEFAULT_ALIGNMENT ) = 0;
 
+	/**
+	 * TryMalloc - like Malloc(), but may return a nullptr result if the allocation
+	 *             request cannot be satisfied.
+	 */
+	virtual void* TryMalloc( SIZE_T Count, uint32 Alignment=DEFAULT_ALIGNMENT );
+
 	/** 
 	 * Realloc
 	 */
 	virtual void* Realloc( void* Original, SIZE_T Count, uint32 Alignment=DEFAULT_ALIGNMENT ) = 0;
+
+	/** 
+	 * TryRealloc - like Realloc(), but may return a nullptr if the allocation
+	 *              request cannot be satisfied. Note that in this case the memory
+	 *              pointed to by Original will still be valid
+	 */
+	virtual void* TryRealloc(void* Original, SIZE_T Count, uint32 Alignment=DEFAULT_ALIGNMENT);
 
 	/** 
 	 * Free

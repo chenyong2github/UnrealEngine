@@ -158,8 +158,8 @@ namespace Chaos
 			GeomData->GetPointsScaled(FullIndex, Points);
 
 			// Test both triangles that are in this cell, as we could hit both in any order
-			TestTriangle(Payload * 2, Points[0], Points[1], Points[2]);
-			TestTriangle(Payload * 2 + 1, Points[2], Points[1], Points[3]);
+			TestTriangle(Payload * 2, Points[0], Points[1], Points[3]);
+			TestTriangle(Payload * 2 + 1, Points[0], Points[3], Points[2]);
 
 			return OutTime > 0;
 		}
@@ -247,10 +247,10 @@ namespace Chaos
 			TVector<T, 3> Points[4];
 			HfData->GetPointsScaled(FullIndex, Points);
 
-			bool bContinue = TestTriangle(Payload * 2, Points[0], Points[1], Points[2]);
+			bool bContinue = TestTriangle(Payload * 2, Points[0], Points[1], Points[3]);
 			if (bContinue)
 			{
-				TestTriangle(Payload * 2 + 1, Points[2], Points[1], Points[3]);
+				TestTriangle(Payload * 2 + 1, Points[0], Points[3], Points[2]);
 			}
 
 			return OutTime > 0;
@@ -1051,14 +1051,14 @@ namespace Chaos
 		for(const TVector<int32, 2>& Cell : Intersections)
 		{
 			const int32 SingleIndex = Cell[1] * (GeomData.NumCols - 1) + Cell[0];
-			GeomData.GetPoints(SingleIndex, Points);
+			GeomData.GetPointsScaled(SingleIndex, Points);
 
-			if(OverlapTriangle(Points[0], Points[1], Points[2]))
+			if(OverlapTriangle(Points[0], Points[1], Points[3]))
 			{
 				return true;
 			}
 
-			if(OverlapTriangle(Points[2], Points[1], Points[3]))
+			if(OverlapTriangle(Points[0], Points[3], Points[2]))
 			{
 				return true;
 			}
@@ -1102,14 +1102,14 @@ namespace Chaos
 		for(const TVector<int32, 2>& Cell : Intersections)
 		{
 			const int32 SingleIndex = Cell[1] * (GeomData.NumCols - 1) + Cell[0];
-			GeomData.GetPoints(SingleIndex, Points);
+			GeomData.GetPointsScaled(SingleIndex, Points);
 
-			if(OverlapTriangle(Points[0], Points[1], Points[2]))
+			if(OverlapTriangle(Points[0], Points[1], Points[3]))
 			{
 				return true;
 			}
 
-			if(OverlapTriangle(Points[2], Points[1], Points[3]))
+			if(OverlapTriangle(Points[0], Points[3], Points[2]))
 			{
 				return true;
 			}
@@ -1137,7 +1137,7 @@ namespace Chaos
 	}
 
 	template <typename T>
-	bool THeightField<T>::OverlapGeom(const TConvex<T, 3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+	bool THeightField<T>::OverlapGeom(const FConvex& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
 	{
 		return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
 	}
@@ -1161,7 +1161,7 @@ namespace Chaos
 	}
 
 	template <typename T>
-	bool THeightField<T>::OverlapGeom(const TImplicitObjectScaled<TConvex<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+	bool THeightField<T>::OverlapGeom(const TImplicitObjectScaled<FConvex>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
 	{
 		return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
 	}
@@ -1209,7 +1209,7 @@ namespace Chaos
 	}
 
 	template <typename T>
-	bool THeightField<T>::SweepGeom(const TConvex<T, 3>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness, bool bComputeMTD) const
+	bool THeightField<T>::SweepGeom(const FConvex& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness, bool bComputeMTD) const
 	{
 		return SweepGeomImp(QueryGeom, StartTM, Dir, Length, OutTime, OutPosition, OutNormal, OutFaceIndex, Thickness, bComputeMTD);
 	}
@@ -1233,7 +1233,7 @@ namespace Chaos
 	}
 
 	template <typename T>
-	bool THeightField<T>::SweepGeom(const TImplicitObjectScaled<TConvex<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness, bool bComputeMTD) const
+	bool THeightField<T>::SweepGeom(const TImplicitObjectScaled<FConvex>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness, bool bComputeMTD) const
 	{
 		return SweepGeomImp(QueryGeom, StartTM, Dir, Length, OutTime, OutPosition, OutNormal, OutFaceIndex, Thickness, bComputeMTD);
 	}
@@ -1277,6 +1277,7 @@ namespace Chaos
 			}
 		};
 
+		ensure(PotentialIntersections.Num());
 		for(const TVector<int32, 2>& CellCoord : PotentialIntersections)
 		{
 			const int32 CellIndex = CellCoord[1] * (GeomData.NumCols - 1) + CellCoord[0];
@@ -1287,10 +1288,10 @@ namespace Chaos
 
 			TVector<T, 3> Points[4];
 
-			GeomData.GetPoints(FullIndex, Points);
+			GeomData.GetPointsScaled(FullIndex, Points);
 
-			CheckTriangle(FullIndex * 2, Points[0], Points[1], Points[2]);
-			CheckTriangle(FullIndex * 2 + 1, Points[2], Points[1], Points[3]);
+			CheckTriangle(CellIndex * 2, Points[0], Points[1], Points[3]);
+			CheckTriangle(CellIndex * 2 + 1, Points[0], Points[3], Points[2]);
 		}
 
 		return MostOpposingFace;
@@ -1316,15 +1317,15 @@ namespace Chaos
 
 			if(bSecondFace)
 			{
-				A = Points[2];
-				B = Points[1];
-				C = Points[3];
+				A = Points[0];
+				B = Points[3];
+				C = Points[2];
 			}
 			else
 			{
 				A = Points[0];
 				B = Points[1];
-				C = Points[2];
+				C = Points[3];
 			}
 
 			const TVector<T, 3> AB = B - A;

@@ -514,7 +514,7 @@ FPostProcessSettings::FPostProcessSettings()
 	IndirectLightingColor = FLinearColor(1.0f, 1.0f, 1.0f);
 	IndirectLightingIntensity = 1.0f;
 	ColorGradingIntensity = 1.0f;
-	RayTracingGI = 0;
+	RayTracingGIType = ERayTracingGlobalIlluminationType::Disabled;
 	RayTracingGIMaxBounces = 1;
 	RayTracingGISamplesPerPixel = 4;
 
@@ -876,7 +876,7 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, RayTracingAOSamplesPerPixel(Settings.RayTracingAOSamplesPerPixel)
 	, IndirectLightingColor(Settings.IndirectLightingColor)
 	, IndirectLightingIntensity(Settings.IndirectLightingIntensity)
-	, RayTracingGI(Settings.RayTracingGI)
+	, RayTracingGIType(Settings.RayTracingGIType)
 	, RayTracingGIMaxBounces(Settings.RayTracingGIMaxBounces)
 	, RayTracingGISamplesPerPixel(Settings.RayTracingGISamplesPerPixel)
 	, ColorGradingIntensity(Settings.ColorGradingIntensity)

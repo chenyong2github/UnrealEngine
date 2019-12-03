@@ -24,6 +24,7 @@ public class GameplayMediaEncoder : ModuleRules
 			"Slate",
 			"HTTP",
 			"Json",
+			"AVEncoder",
 			//"IBMRTMPIngest"
         });
 
@@ -40,6 +41,7 @@ public class GameplayMediaEncoder : ModuleRules
 
 			PublicSystemLibraries.Add("d3d11.lib");
 		}
+
 	}
 }
 

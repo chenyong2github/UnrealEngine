@@ -25,34 +25,20 @@
 #include "Templates/TypeHash.h"
 #include "Templates/IsFloatingPoint.h"
 
+class FString;
+class FStringView;
 struct FStringFormatArg;
 template<typename KeyType,typename ValueType,typename SetAllocator ,typename KeyFuncs > class TMap;
 
-/** Determines case sensitivity options for string comparisons. */
-namespace ESearchCase
+template <>
+struct TIsContiguousContainer<FString>
 {
-	enum Type
-	{
-		/** Case sensitive. Upper/lower casing must match for strings to be considered equal. */
-		CaseSensitive,
-
-		/** Ignore case. Upper/lower casing does not matter when making a comparison. */
-		IgnoreCase,
-	};
+	enum { Value = true };
 };
 
-/** Determines search direction for string operations. */
-namespace ESearchDir
-{
-	enum Type
-	{
-		/** Search from the start, moving forward through the string. */
-		FromStart,
-
-		/** Search from the end, moving backward through the string. */
-		FromEnd,
-	};
-}
+TCHAR* GetData(FString& String);
+const TCHAR* GetData(const FString& String);
+SIZE_T GetNum(const FString& String);
 
 /**
  * A dynamically sizeable string.
@@ -146,6 +132,8 @@ public:
 		}
 	}
 
+	explicit FString(const FStringView& Other);
+
 #ifdef __OBJC__
 	/** Convert Objective-C NSString* to FString */
 	FORCEINLINE FString(const NSString* In)
@@ -194,6 +182,16 @@ public:
 		}
 		return *this;
 	}
+
+	/**
+	 * Copy assignment from a string view
+	 */
+	FString& operator=(const FStringView& Other);
+
+	/**
+	 * Implicit conversion to a string view
+	 */
+	operator FStringView() const;
 
 	/**
 	 * Return specific character from this string
@@ -1146,9 +1144,15 @@ public:
 	}
 
 	/** Returns the left most given number of characters */
-	FORCEINLINE FString Left( int32 Count ) const
+	FORCEINLINE FString Left( int32 Count ) const &
 	{
 		return FString( FMath::Clamp(Count,0,Len()), **this );
+	}
+
+	FORCEINLINE FString Left(int32 Count) &&
+	{
+		LeftInline(Count, false);
+		return MoveTemp(*this);
 	}
 
 	/** Modifies the string such that it is now the left most given number of characters */
@@ -1160,10 +1164,16 @@ public:
 	}
 
 	/** Returns the left most characters from the string chopping the given number of characters from the end */
-	FORCEINLINE FString LeftChop( int32 Count ) const
+	FORCEINLINE FString LeftChop( int32 Count ) const &
 	{
 		const int32 Length = Len();
 		return FString( FMath::Clamp(Length-Count,0, Length), **this );
+	}
+
+	FORCEINLINE FString LeftChop(int32 Count)&&
+	{
+		LeftChopInline(Count, false);
+		return MoveTemp(*this);
 	}
 
 	/** Modifies the string such that it is now the left most characters chopping the given number of characters from the end */
@@ -1174,10 +1184,16 @@ public:
 	}
 
 	/** Returns the string to the right of the specified location, counting back from the right (end of the word). */
-	FORCEINLINE FString Right( int32 Count ) const
+	FORCEINLINE FString Right( int32 Count ) const &
 	{
 		const int32 Length = Len();
 		return FString( **this + Length-FMath::Clamp(Count,0,Length) );
+	}
+
+	FORCEINLINE FString Right(int32 Count) &&
+	{
+		RightInline(Count, false);
+		return MoveTemp(*this);
 	}
 
 	/** Modifies the string such that it is now the right most given number of characters */
@@ -1188,10 +1204,16 @@ public:
 	}
 
 	/** Returns the string to the right of the specified location, counting forward from the left (from the beginning of the word). */
-	FORCEINLINE FString RightChop( int32 Count ) const
+	FORCEINLINE FString RightChop( int32 Count ) const &
 	{
 		const int32 Length = Len();
 		return FString( **this + Length-FMath::Clamp(Length-Count,0, Length) );
+	}
+
+	FORCEINLINE FString RightChop(int32 Count) &&
+	{
+		RightChopInline(Count, false);
+		return MoveTemp(*this);
 	}
 
 	/** Modifies the string such that it is now the string to the right of the specified location, counting forward from the left (from the beginning of the word). */
@@ -1201,7 +1223,7 @@ public:
 	}
 
 	/** Returns the substring from Start position for Count characters. */
-	FORCEINLINE FString Mid( int32 Start, int32 Count=MAX_int32 ) const
+	FORCEINLINE FString Mid( int32 Start, int32 Count=MAX_int32 ) const &
 	{
 		FString Result;
 		if (Count >= 0)
@@ -1213,6 +1235,12 @@ public:
 			Result = FString(End-Start, **this + Start);
 		}
 		return Result;
+	}
+
+	FORCEINLINE FString Mid(int32 Start, int32 Count = MAX_int32) &&
+	{
+		MidInline(Start, Count, false);
+		return MoveTemp(*this);
 	}
 
 	/** Modifies the string such that it is now the substring from Start position for Count characters. */
@@ -1638,10 +1666,21 @@ public:
 	 */
 	void TrimToNullTerminator();
 
+
+	/**
+	 * Trims wrapping quotation marks from this string.
+	 */
+	void TrimQuotesInline(bool* bQuotesRemoved = nullptr);
+
 	/**
 	 * Returns a copy of this string with wrapping quotation marks removed.
 	 */
-	FString TrimQuotes( bool* bQuotesRemoved = nullptr ) const;
+	FString TrimQuotes( bool* bQuotesRemoved = nullptr ) const &;
+
+	/**
+	 * Returns this string with wrapping quotation marks removed.
+	 */
+	FString TrimQuotes(bool* bQuotesRemoved = nullptr) &&;
 
 	/**
 	 * Breaks up a delimited string into elements of a string array.
@@ -1960,12 +1999,6 @@ struct TContainerTraits<FString> : public TContainerTraitsBase<FString>
 
 template<> struct TIsZeroConstructType<FString> { enum { Value = true }; };
 Expose_TNameOf(FString)
-
-template <>
-struct TIsContiguousContainer<FString>
-{
-	enum { Value = true };
-};
 
 inline TCHAR* GetData(FString& String)
 {

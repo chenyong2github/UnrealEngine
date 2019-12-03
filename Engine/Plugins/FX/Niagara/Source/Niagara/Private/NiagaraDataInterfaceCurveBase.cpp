@@ -29,6 +29,7 @@ void UNiagaraDataInterfaceCurveBase::PostLoad()
 {
 	Super::PostLoad();
 
+#if WITH_EDITORONLY_DATA
 	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
 
 	if (NiagaraVer < FNiagaraCustomVersion::LatestVersion)
@@ -47,6 +48,29 @@ void UNiagaraDataInterfaceCurveBase::PostLoad()
 			}
 		}
 	}
+#endif
+}
+
+void UNiagaraDataInterfaceCurveBase::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	// Push to render thread if loading
+	if (Ar.IsLoading())
+	{
+#if WITH_EDITORONLY_DATA
+		// Sometimes curves are out of date which needs to be tracked down
+		// Temporarily we will make sure they are up to date in editor builds
+		if (GetClass() != UNiagaraDataInterfaceCurveBase::StaticClass())
+		{
+			UpdateLUT();
+		}
+		else
+#endif
+		{
+			PushToRenderThread();
+		}
+	}
 }
 
 bool UNiagaraDataInterfaceCurveBase::CopyToInternal(UNiagaraDataInterface* Destination) const
@@ -58,9 +82,12 @@ bool UNiagaraDataInterfaceCurveBase::CopyToInternal(UNiagaraDataInterface* Desti
 
 	UNiagaraDataInterfaceCurveBase* DestinationTyped = CastChecked<UNiagaraDataInterfaceCurveBase>(Destination);
 	DestinationTyped->bUseLUT = bUseLUT;
+	DestinationTyped->ShaderLUT = ShaderLUT;
+#if WITH_EDITORONLY_DATA
 	DestinationTyped->bOptimizeLUT = bOptimizeLUT;
 	DestinationTyped->bOverrideOptimizeThreshold = bOverrideOptimizeThreshold;
 	DestinationTyped->OptimizeThreshold = OptimizeThreshold;
+#endif
 
 	return true;
 }
@@ -89,6 +116,14 @@ bool UNiagaraDataInterfaceCurveBase::CompareLUTS(const TArray<float>& OtherLUT) 
 	}
 }
 
+void UNiagaraDataInterfaceCurveBase::SetDefaultLUT()
+{
+	ShaderLUT.Empty(GetCurveNumElems());
+	ShaderLUT.AddDefaulted(GetCurveNumElems());
+	LUTNumSamplesMinusOne = 0;
+}
+
+#if WITH_EDITORONLY_DATA
 void UNiagaraDataInterfaceCurveBase::UpdateLUT()
 {
 	UpdateTimeRanges();
@@ -101,9 +136,7 @@ void UNiagaraDataInterfaceCurveBase::UpdateLUT()
 
 	if (!bUseLUT || (ShaderLUT.Num() == 0))
 	{
-		ShaderLUT.Empty(GetCurveNumElems());
-		ShaderLUT.AddDefaulted(GetCurveNumElems());
-		LUTNumSamplesMinusOne = 0;
+		SetDefaultLUT();
 	}
 
 	PushToRenderThread();
@@ -171,6 +204,7 @@ void UNiagaraDataInterfaceCurveBase::OptimizeLUT()
 		}
 	}
 }
+#endif
 
 bool UNiagaraDataInterfaceCurveBase::Equals(const UNiagaraDataInterface* Other) const
 {
@@ -181,11 +215,17 @@ bool UNiagaraDataInterfaceCurveBase::Equals(const UNiagaraDataInterface* Other) 
 
 	const UNiagaraDataInterfaceCurveBase* OtherTyped = CastChecked<UNiagaraDataInterfaceCurveBase>(Other);
 	bool bEqual = OtherTyped->bUseLUT == bUseLUT;
+#if WITH_EDITORONLY_DATA
 	bEqual &= OtherTyped->bOptimizeLUT == bOptimizeLUT;
 	bEqual &= OtherTyped->bOverrideOptimizeThreshold == bOverrideOptimizeThreshold;
 	if (bOverrideOptimizeThreshold)
 	{
 		bEqual &= OtherTyped->OptimizeThreshold == OptimizeThreshold;
+	}
+#endif
+	if ( bEqual && bUseLUT )
+	{
+		bEqual &= OtherTyped->ShaderLUT == ShaderLUT;
 	}
 
 	return bEqual;
@@ -257,6 +297,8 @@ void UNiagaraDataInterfaceCurveBase::PushToRenderThread()
 		RT_Proxy->CurveLUTNumMinusOne = rtCurveLUTNumMinusOne;
 
 		RT_Proxy->CurveLUT.Release();
+
+		check(rtShaderLUT.Num());
 		RT_Proxy->CurveLUT.Initialize(sizeof(float), rtShaderLUT.Num(), EPixelFormat::PF_R32_FLOAT, BUF_Static);
 		uint32 BufferSize = rtShaderLUT.Num() * sizeof(float);
 		int32 *BufferData = static_cast<int32*>(RHILockVertexBuffer(RT_Proxy->CurveLUT.Buffer, 0, BufferSize, EResourceLockMode::RLM_WriteOnly));

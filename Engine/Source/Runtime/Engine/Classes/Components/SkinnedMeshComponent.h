@@ -334,6 +334,11 @@ public:
 	FColor WireframeColor_DEPRECATED;
 #endif
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	/** Debug draw color */
+	TOptional<FLinearColor> DebugDrawColor;
+#endif
+
 protected:
 	/** Information for current ref pose override, if present */
 	FSkelMeshRefPoseOverride* RefPoseOverride;
@@ -349,6 +354,20 @@ public:
 	 * @param	InLODIndex		The LOD we want to export
 	 */
 	void GetCPUSkinnedVertices(TArray<struct FFinalSkinVertex>& OutVertices, int32 InLODIndex);
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	/** Get whether to draw this mesh's debug skeleton */
+	bool ShouldDrawDebugSkeleton() const { return bDrawDebugSkeleton; }
+
+	/** Set whether to draw this mesh's debug skeleton */
+	void SetDrawDebugSkeleton(bool bInDraw) { bDrawDebugSkeleton = bInDraw; }
+
+	/** Get debug draw color */
+	const TOptional<FLinearColor>& GetDebugDrawColor() const { return DebugDrawColor; }
+
+	/** Set debug draw color */
+	void SetDebugDrawColor(const FLinearColor& InColor) { DebugDrawColor = InColor; }
+#endif
 
 	/** Array indicating all active morph targets. This array is updated inside RefreshBoneTransforms based on the Anim Blueprint. */
 	TArray<FActiveMorphTarget> ActiveMorphTargets;
@@ -593,6 +612,12 @@ protected:
 
 	/** External flag indicating that we may not be evaluated every frame */
 	uint8 bExternalEvaluationRateLimited:1;
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+private:
+	/** Whether to draw this mesh's debug skeleton (regardless of showflags) */
+	uint8 bDrawDebugSkeleton:1;
+#endif
 
 public:
 	/** Set whether we have our tick rate externally controlled non-URO-based interpolation */

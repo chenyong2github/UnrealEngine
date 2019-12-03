@@ -201,7 +201,7 @@ public:
 	const FVec3 GetCenterOfMass() const
 	{
 		// TODO: Actually compute this!
-		return FVec3(0.f);
+		return BoundingBox().GetCenterOfMass();
 	}
 
 

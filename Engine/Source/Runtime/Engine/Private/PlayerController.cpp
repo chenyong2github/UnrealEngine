@@ -2685,7 +2685,7 @@ void APlayerController::SpawnPlayerCameraManager()
 	}
 }
 
-void APlayerController::GetAudioListenerPosition(FVector& OutLocation, FVector& OutFrontDir, FVector& OutRightDir)
+void APlayerController::GetAudioListenerPosition(FVector& OutLocation, FVector& OutFrontDir, FVector& OutRightDir) const
 {
 	FVector ViewLocation;
 	FRotator ViewRotation;
@@ -2716,7 +2716,7 @@ void APlayerController::GetAudioListenerPosition(FVector& OutLocation, FVector& 
 	OutRightDir = ViewRotationMatrix.GetUnitAxis( EAxis::Y );
 }
 
-bool APlayerController::GetAudioListenerAttenuationOverridePosition(FVector& OutLocation)
+bool APlayerController::GetAudioListenerAttenuationOverridePosition(FVector& OutLocation) const
 {
 	if (bOverrideAudioAttenuationListener)
 	{

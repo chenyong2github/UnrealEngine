@@ -23,6 +23,12 @@
 
 namespace Chaos
 {
+#if !UE_BUILD_SHIPPING
+	CHAOS_API bool bPendingHierarchyDump = false;
+#else
+	const bool bPendingHierarchyDump = false;
+#endif
+
 float HackMaxAngularVelocity = 1000.f;
 FAutoConsoleVariableRef CVarHackMaxAngularVelocity(TEXT("p.HackMaxAngularVelocity"), HackMaxAngularVelocity, TEXT("Max cap on angular velocity: rad/s. This is only a temp solution and should not be relied on as a feature. -1.f to disable"));
 
@@ -39,18 +45,24 @@ FAutoConsoleVariableRef CVarHackAngularDrag(TEXT("p.HackAngularDrag2"), HackAngu
 int DisableThreshold = 5;
 FAutoConsoleVariableRef CVarDisableThreshold(TEXT("p.DisableThreshold2"), DisableThreshold, TEXT("Disable threshold frames to transition to sleeping"));
 
+float BoundsThickness = 0;
+float BoundsThicknessVelocityMultiplier = 2.0f;
+FAutoConsoleVariableRef CVarBoundsThickness(TEXT("p.CollisionBoundsThickness"), BoundsThickness, TEXT("Collision inflation for speculative contact generation.[def:0.0]"));
+FAutoConsoleVariableRef CVarBoundsThicknessVelocityMultiplier(TEXT("p.CollisionBoundsVelocityInflation"), BoundsThicknessVelocityMultiplier, TEXT("Collision velocity inflation for speculatibe contact generation.[def:2.0]"));
 
-DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::AdvanceOneTimeStep"), STAT_Evo_AdvanceOneTimeStep, STATGROUP_Chaos);
-DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::Integrate"), STAT_Evo_Integrate, STATGROUP_Chaos);
-DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::KinematicTargets"), STAT_Evo_KinematicTargets, STATGROUP_Chaos);
-DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::ApplyConstraints"), STAT_Evo_ApplyConstraints, STATGROUP_Chaos);
-DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::UpdateVelocities"), STAT_Evo_UpdateVelocites, STATGROUP_Chaos);
-DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::ApplyPushOut"), STAT_Evo_ApplyPushOut, STATGROUP_Chaos);
-DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::UpdateConstraintPositionBasedState"), STAT_Evo_UpdateConstraintPositionBasedState, STATGROUP_Chaos);
-DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::CreateConstraintGraph"), STAT_Evo_CreateConstraintGraph, STATGROUP_Chaos);
-DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::CreateIslands"), STAT_Evo_CreateIslands, STATGROUP_Chaos);
-DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::ParallelSolve"), STAT_Evo_ParallelSolve, STATGROUP_Chaos);
-DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::DeactivateSleep"), STAT_Evo_DeactivateSleep, STATGROUP_Chaos);
+
+DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::AdvanceOneTimeStep"), STAT_Evolution_AdvanceOneTimeStep, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::Integrate"), STAT_Evolution_Integrate, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::KinematicTargets"), STAT_Evolution_KinematicTargets, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::ApplyConstraints"), STAT_Evolution_ApplyConstraints, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::UpdateVelocities"), STAT_Evolution_UpdateVelocites, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::ApplyPushOut"), STAT_Evolution_ApplyPushOut, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::DetectCollisions"), STAT_Evolution_DetectCollisions, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::UpdateConstraintPositionBasedState"), STAT_Evolution_UpdateConstraintPositionBasedState, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::CreateConstraintGraph"), STAT_Evolution_CreateConstraintGraph, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::CreateIslands"), STAT_Evolution_CreateIslands, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::ParallelSolve"), STAT_Evolution_ParallelSolve, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::DeactivateSleep"), STAT_Evolution_DeactivateSleep, STATGROUP_Chaos);
 
 int32 SerializeEvolution = 0;
 FAutoConsoleVariableRef CVarSerializeEvolution(TEXT("p.SerializeEvolution"), SerializeEvolution, TEXT(""));
@@ -108,6 +120,8 @@ void TPBDRigidsEvolutionGBF<T, d>::Advance(const T Dt, const T MaxStepDt, const 
 			// E.g., for 4 steps this will be: 1/4, 1/3, 1/2, 1
 			const float StepFraction = (T)1 / (T)(NumSteps - Step);
 		
+			UE_LOG(LogChaos, Verbose, TEXT("Advance dt = %f [%d/%d]"), StepDt, Step + 1, NumSteps);
+
 			AdvanceOneTimeStep(StepDt, StepFraction);
 		}
 	}
@@ -116,7 +130,7 @@ void TPBDRigidsEvolutionGBF<T, d>::Advance(const T Dt, const T MaxStepDt, const 
 template <typename T, int d>
 void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(const T Dt, const T StepFraction)
 {
-	SCOPE_CYCLE_COUNTER(STAT_Evo_AdvanceOneTimeStep);
+	SCOPE_CYCLE_COUNTER(STAT_Evolution_AdvanceOneTimeStep);
 
 #if !UE_BUILD_SHIPPING
 	if (SerializeEvolution)
@@ -126,12 +140,12 @@ void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(const T Dt, const T StepFr
 #endif
 
 	{
-		SCOPE_CYCLE_COUNTER(STAT_Evo_Integrate);
+		SCOPE_CYCLE_COUNTER(STAT_Evolution_Integrate);
 		Integrate(Particles.GetNonDisabledDynamicView(), Dt);	//Question: should we use an awake view?
 	}
 
 	{
-		SCOPE_CYCLE_COUNTER(STAT_Evo_KinematicTargets);
+		SCOPE_CYCLE_COUNTER(STAT_Evolution_KinematicTargets);
 		ApplyKinematicTargets(Dt, StepFraction);
 	}
 
@@ -140,21 +154,37 @@ void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(const T Dt, const T StepFr
 		PostIntegrateCallback();
 	}
 
+	// @todo(ccaulfield): When we have persistent constraints we will want to run collision detection before
+	// UpdateConstraintPositionBasedState. For now it is after because we just delete all collisions there right now.
 	{
-		Base::ComputeIntermediateSpatialAcceleration();
-		CollisionConstraints.SetSpatialAcceleration(InternalAcceleration.Get());
-	}
-
-	{
-		SCOPE_CYCLE_COUNTER(STAT_Evo_UpdateConstraintPositionBasedState);
+		SCOPE_CYCLE_COUNTER(STAT_Evolution_UpdateConstraintPositionBasedState);
 		UpdateConstraintPositionBasedState(Dt);
 	}
 	{
-		SCOPE_CYCLE_COUNTER(STAT_Evo_CreateConstraintGraph);
+		Base::ComputeIntermediateSpatialAcceleration();
+	}
+	{
+		SCOPE_CYCLE_COUNTER(STAT_Evolution_DetectCollisions);
+		CollisionDetector.GetBroadPhase().SetSpatialAcceleration(InternalAcceleration.Get());
+
+		CollisionStats::FStatData StatData(bPendingHierarchyDump);
+
+		CollisionDetector.DetectCollisions(Dt, StatData);
+
+		CHAOS_COLLISION_STAT(StatData.Print());
+	}
+
+	if (PostDetectCollisionsCallback != nullptr)
+	{
+		PostDetectCollisionsCallback();
+	}
+
+	{
+		SCOPE_CYCLE_COUNTER(STAT_Evolution_CreateConstraintGraph);
 		CreateConstraintGraph();
 	}
 	{
-		SCOPE_CYCLE_COUNTER(STAT_Evo_CreateIslands);
+		SCOPE_CYCLE_COUNTER(STAT_Evolution_CreateIslands);
 		CreateIslands();
 	}
 
@@ -170,12 +200,12 @@ void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(const T Dt, const T StepFr
 	SleepedIslands.SetNum(GetConstraintGraph().NumIslands());
 	if(Dt > 0)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_Evo_ParallelSolve);
+		SCOPE_CYCLE_COUNTER(STAT_Evolution_ParallelSolve);
 		PhysicsParallelFor(GetConstraintGraph().NumIslands(), [&](int32 Island) {
 			const TArray<TGeometryParticleHandle<T, d>*>& IslandParticles = GetConstraintGraph().GetIslandParticles(Island);
 
 			{
-				SCOPE_CYCLE_COUNTER(STAT_Evo_ApplyConstraints);
+				SCOPE_CYCLE_COUNTER(STAT_Evolution_ApplyConstraints);
 				ApplyConstraints(Dt, Island);
 			}
 
@@ -185,12 +215,12 @@ void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(const T Dt, const T StepFr
 			}
 
 			{
-				SCOPE_CYCLE_COUNTER(STAT_Evo_UpdateVelocites);
+				SCOPE_CYCLE_COUNTER(STAT_Evolution_UpdateVelocites);
 				UpdateVelocities(Dt, Island);
 			}
 
 			{
-				SCOPE_CYCLE_COUNTER(STAT_Evo_ApplyPushOut);
+				SCOPE_CYCLE_COUNTER(STAT_Evolution_ApplyPushOut);
 				ApplyPushOut(Dt, Island);
 			}
 
@@ -237,7 +267,7 @@ void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(const T Dt, const T StepFr
 		});
 	}
 	{
-		SCOPE_CYCLE_COUNTER(STAT_Evo_DeactivateSleep);
+		SCOPE_CYCLE_COUNTER(STAT_Evolution_DeactivateSleep);
 		for (int32 Island = 0; Island < GetConstraintGraph().NumIslands(); ++Island)
 		{
 			if (SleepedIslands[Island])
@@ -259,8 +289,10 @@ void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(const T Dt, const T StepFr
 template <typename T, int d>
 TPBDRigidsEvolutionGBF<T, d>::TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<T, d>& InParticles, int32 InNumIterations, bool InIsSingleThreaded)
 	: Base(InParticles, InNumIterations, 1, InIsSingleThreaded)
-	, CollisionConstraints(InParticles, Collided, PhysicsMaterials, DefaultNumPushOutPairIterations)
+	, CollisionConstraints(InParticles, Collided, PhysicsMaterials, DefaultNumPairIterations, DefaultNumPushOutPairIterations)
 	, CollisionRule(CollisionConstraints, DefaultNumPushOutIterations)
+	, BroadPhase(InParticles, BoundsThickness, BoundsThicknessVelocityMultiplier)
+	, CollisionDetector(BroadPhase, CollisionConstraints)
 	, PostIntegrateCallback(nullptr)
 	, PreApplyCallback(nullptr)
 	, PostApplyCallback(nullptr)

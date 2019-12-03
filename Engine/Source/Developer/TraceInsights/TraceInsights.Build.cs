@@ -26,6 +26,7 @@ public class TraceInsights : ModuleRules
 				"TraceLog",
 				"TraceServices",
 				"DesktopPlatform",
+				"WorkspaceMenuStructure",
 			}
 		);
 

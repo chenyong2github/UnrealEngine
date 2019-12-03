@@ -195,11 +195,29 @@ FAnalysisService::~FAnalysisService()
 	}
 }
 
-TSharedPtr<const IAnalysisSession> FAnalysisService::Analyze(const TCHAR* SessionName, TUniquePtr<Trace::IInDataStream>&& InDataStream)
+TSharedPtr<const IAnalysisSession> FAnalysisService::Analyze(const TCHAR* SessionUri)
 {
-	TSharedRef<FAnalysisSession> AnalysisSession = MakeShared<FAnalysisSession>(SessionName);
-	TUniquePtr<Trace::IInDataStream> DataStream = MoveTemp(InDataStream);
-	AnalyzeInternal(AnalysisSession, DataStream.Release());
+	IInDataStream* DataStream = Trace::DataStream_ReadFile(SessionUri);
+	if (!DataStream)
+	{
+		return nullptr;
+	}
+	TSharedRef<FAnalysisSession> AnalysisSession = MakeShared<FAnalysisSession>(SessionUri);
+	AnalyzeInternal(AnalysisSession, DataStream);
+	return AnalysisSession;
+}
+
+TSharedPtr<const IAnalysisSession> FAnalysisService::StartAnalysis(const TCHAR* SessionUri)
+{
+	TUniquePtr<IInDataStream> DataStream(Trace::DataStream_ReadFile(SessionUri));
+	if (!DataStream)
+	{
+		return nullptr;
+	}
+	TSharedRef<FAnalysisSession> AnalysisSession = MakeShared<FAnalysisSession>(SessionUri);
+	TSharedPtr<FAsyncTask<FAnalysisWorker>> Task = MakeShared<FAsyncTask<FAnalysisWorker>>(*this, MoveTemp(DataStream), AnalysisSession);
+	Tasks.Add(Task);
+	Task->StartBackgroundTask();
 	return AnalysisSession;
 }
 

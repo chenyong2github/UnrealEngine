@@ -1456,7 +1456,7 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 
 		if (Src.bOverride_RayTracingGI)
 		{
-			Dest.RayTracingGI = Src.RayTracingGI;
+			Dest.RayTracingGIType = Src.RayTracingGIType;
 		}
 
 		if (Src.bOverride_RayTracingGIMaxBounces)

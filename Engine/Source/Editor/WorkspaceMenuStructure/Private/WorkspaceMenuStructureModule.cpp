@@ -61,6 +61,11 @@ public:
 		return DeveloperToolsLogCategory.ToSharedRef();
 	}
 
+	virtual TSharedRef<FWorkspaceItem> GetDeveloperToolsProfilingCategory() const override
+	{
+		return DeveloperToolsProfilingCategory.ToSharedRef();
+	}
+
 	virtual TSharedRef<FWorkspaceItem> GetDeveloperToolsMiscCategory() const override
 	{
 		return DeveloperToolsMiscCategory.ToSharedRef();
@@ -95,6 +100,7 @@ public:
 		// Developer tools sections
 		DeveloperToolsDebugCategory = DeveloperToolsCategory->AddGroup(LOCTEXT("WorkspaceMenu_DeveloperToolsDebugCategory", "Debug"), FSlateIcon(), true);
 		DeveloperToolsLogCategory = DeveloperToolsCategory->AddGroup(LOCTEXT("WorkspaceMenu_DeveloperToolsLogCategory", "Log"), FSlateIcon(), true);
+		DeveloperToolsProfilingCategory = DeveloperToolsCategory->AddGroup(LOCTEXT("WorkspaceMenu_DeveloperToolsProfilingCategory", "Profiling"), FSlateIcon(), true);
 		DeveloperToolsMiscCategory = DeveloperToolsCategory->AddGroup(LOCTEXT("WorkspaceMenu_DeveloperToolsMiscCategory", "Miscellaneous"), FSlateIcon(), true);
 		
 		// Automation tools sub menu
@@ -127,6 +133,7 @@ private:
 	TSharedPtr<FWorkspaceItem> DeveloperToolsCategory;
 	TSharedPtr<FWorkspaceItem> DeveloperToolsDebugCategory;
 	TSharedPtr<FWorkspaceItem> DeveloperToolsLogCategory;
+	TSharedPtr<FWorkspaceItem> DeveloperToolsProfilingCategory;
 	TSharedPtr<FWorkspaceItem> DeveloperToolsMiscCategory;
 	
 	TSharedPtr<FWorkspaceItem> AutomationToolsCategory;

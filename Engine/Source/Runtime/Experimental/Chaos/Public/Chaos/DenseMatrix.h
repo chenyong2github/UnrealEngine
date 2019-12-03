@@ -22,10 +22,9 @@ namespace Chaos
 		
 		const FReal& I(int32 RowIndex, int32 ColIndex) const
 		{
-			// Symmetric - could reduce element count at increased indexing cost...
 			checkSlow(RowIndex < 3);
 			checkSlow(ColIndex < 3);
-			return Inertia[RowIndex * 3 + ColIndex];
+			return Inertia.M[RowIndex][ColIndex];
 		}
 
 		static FMassMatrix Make(const FReal InM, const FMatrix33& InI)
@@ -33,24 +32,26 @@ namespace Chaos
 			return FMassMatrix(InM, InI);
 		}
 
+		static FMassMatrix Make(const FReal InM, FMatrix33&& InI)
+		{
+			return FMassMatrix(InM, MoveTemp(InI));
+		}
+
 	private:
 		FMassMatrix(const FReal InM, const FMatrix33& InI)
+			: Mass(InM)
+			, Inertia(InI)
 		{
-			Mass = InM;
+		}
 
-			Inertia[0] = InI.M[0][0];
-			Inertia[1] = InI.M[0][1];
-			Inertia[2] = InI.M[0][2];
-			Inertia[3] = InI.M[1][0];
-			Inertia[4] = InI.M[1][1];
-			Inertia[5] = InI.M[1][2];
-			Inertia[6] = InI.M[2][0];
-			Inertia[7] = InI.M[2][1];
-			Inertia[8] = InI.M[2][2];
+		FMassMatrix(const FReal InM, FMatrix33&& InI)
+			: Mass(InM)
+			, Inertia(MoveTemp(InI))
+		{
 		}
 
 		FReal Mass;
-		FReal Inertia[9];
+		FMatrix33 Inertia;
 	};
 
 	/**
@@ -120,12 +121,26 @@ namespace Chaos
 
 		/**
 		 * Set the dimensions of the matrix, but do not initialize any values.
+		 * This will invalidate any existing data.
 		 */
 		FORCEINLINE void SetDimensions(const int32 InNumRows, const int32 InNumColumns)
 		{
 			check(InNumRows * InNumColumns <= MaxElements);
 			NRows = InNumRows;
 			NCols = InNumColumns;
+		}
+
+		/**
+		 * Add uninitialized rows to the matrix. This will not invalidate data in any previously added rows,
+		 * so it can be used to build NxM matrices where M is known, but N is calculated later.
+		 * /return the index of the first new row.
+		 */
+		FORCEINLINE int32 AddRows(const int32 InNumRows)
+		{
+			check((NumRows() + InNumRows) * NumColumns() <= MaxElements);
+			const int32 NewRowIndex = NRows;
+			NRows = NRows + InNumRows;
+			return NewRowIndex;
 		}
 
 		/**
@@ -155,6 +170,14 @@ namespace Chaos
 		{
 			SetDimensions(InNRows, InNCols);
 			Set(V);
+		}
+
+		/**
+		 * Set the element
+		 */
+		FORCEINLINE void SetAt(const int32 RowIndex, const int32 ColumnIndex, const FReal V)
+		{
+			At(RowIndex, ColumnIndex) = V;
 		}
 
 		/**
@@ -573,6 +596,44 @@ namespace Chaos
 			return Result;
 		}
 
+
+		/**
+		 * Return C = A x B, where B is an 6xN matrix, and A is a 6x6 mass matrix (Mass in upper left 3x3 diagonals, Inertia in lower right 3x3).
+		 * C = |M 0| * |B0| = |M.B0|
+		 *     |0 I|   |B1|   |I.B1|
+		 */
+		template<int32 T_EB>
+		static TDenseMatrix<MaxElements> MultiplyAB(const FMassMatrix& A, const TDenseMatrix<T_EB>& B)
+		{
+			check(B.NumRows() == 6);
+
+			TDenseMatrix<T_MAXELEMENTS> Result = TDenseMatrix<T_MAXELEMENTS>::Make(6, B.NumColumns());
+
+			// Calculate rows 0-2
+			for (int32 IRow = 0; IRow < 3; ++IRow)
+			{
+				for (int32 ICol = 0; ICol < B.NumColumns(); ++ICol)
+				{
+					Result.At(IRow, ICol) = A.M() * B.At(IRow, ICol);
+				}
+			}
+
+			// Calculate rows 3-5
+			for (int32 IRow = 3; IRow < 6; ++IRow)
+			{
+				for (int32 ICol = 0; ICol < B.NumColumns(); ++ICol)
+				{
+					FReal V = 0;
+					for (int32 KK = 3; KK < 6; ++KK)
+					{
+						V += A.I(IRow - 3, KK - 3) * B.At(KK, ICol);
+					}
+					Result.At(IRow, ICol) = V;
+				}
+			}
+
+			return Result;
+		}
 
 		/**
 		 * Return C = A x Transpose(B), where B is an Nx6 matrix, and A is a 6x6 mass matrix (Mass in upper left 3x3 diagonals, Inertia in lower right 3x3).

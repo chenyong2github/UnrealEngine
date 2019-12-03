@@ -2126,10 +2126,9 @@ public:
 
 			CD3DX12_TEXTURE_COPY_LOCATION DestCopyLocation(TextureLink->GetResource()->GetResource(), MipIdx);
 
-			FScopeResourceBarrier ScopeResourceBarrierDest(
+			FConditionalScopeResourceBarrier ScopeResourceBarrierDest(
 				NativeCmdList,
 				TextureLink->GetResource(),
-				TextureLink->GetResource()->GetDefaultResourceState(),
 				D3D12_RESOURCE_STATE_COPY_DEST,
 				DestCopyLocation.SubresourceIndex);
 

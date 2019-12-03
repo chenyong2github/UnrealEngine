@@ -42,12 +42,6 @@ private:
 	UPROPERTY(AdvancedDisplay, Config, EditAnywhere, Category="MediaProfile")
 	TArray<TSoftObjectPtr<UProxyMediaOutput>> MediaOutputProxy;
 
-	UPROPERTY(Transient)
-	mutable TArray<UProxyMediaSource*> MediaSourceProxyPtr;
-
-	UPROPERTY(Transient)
-	mutable TArray<UProxyMediaOutput*> MediaOutputProxyPtr;
-
 	/**
 	 * The media profile to use at startup.
 	 * @note The media profile can be overridden in the editor by user.
@@ -62,14 +56,14 @@ public:
 	 *
 	 * @return The an array of the media source proxy.
 	 */
-	TArray<UProxyMediaSource*> GetAllMediaSourceProxy() const;
+	TArray<UProxyMediaSource*> LoadMediaSourceProxies() const;
 
 	/**
 	 * Get all the media output proxy.
 	 *
 	 * @return The an array of the media output proxy.
 	 */
-	TArray<UProxyMediaOutput*> GetAllMediaOutputProxy() const;
+	TArray<UProxyMediaOutput*> LoadMediaOutputProxies() const;
 
 	/**
 	 * Get the media profile used by the engine.

@@ -45,6 +45,16 @@ public:
 	*/
 	FInteractiveProcess(const FString& InURL, const FString& InParams, bool InHidden, bool LongTime = false);
 
+	/**
+	* Creates a new interactive process.
+	*
+	* @param InURL The URL of the executable to launch.
+	* @param InParams The command line parameters.
+	* @param InWorkingDir The URL of the working dir where the executable should launch.
+	* @param InHidden Whether the window of the process should be hidden.
+	*/
+	FInteractiveProcess(const FString& InURL, const FString& InParams, const FString& InWorkingDir, bool InHidden, bool LongTime = false);
+
 	/** Destructor. */
 	~FInteractiveProcess();
 
@@ -54,6 +64,16 @@ public:
 	* @return Time duration.
 	*/
 	FTimespan GetDuration() const;
+
+	/**
+	* Gets the Process Handle. The instance can be invalid if the process was not created.
+	*
+	* @return The Process Handle
+	*/
+	FProcHandle GetProcessHandle() const
+	{
+		return ProcessHandle;
+	}
 
 	/**
 	* Checks whether the process is still running.
@@ -186,6 +206,9 @@ private:
 
 	// Holds the command line parameters. */
 	FString Params;
+
+	// Holds the URL of the working dir for the process. */
+	FString WorkingDir;
 
 	// Holds the handle to the process. */
 	FProcHandle ProcessHandle;

@@ -152,6 +152,11 @@ void FRemoteTalkerDataImpl::Reset()
 
 		bIsActive = false;
 		
+		if (VoipSynthComponent->IsRegistered())
+		{
+			VoipSynthComponent->UnregisterComponent();
+		}
+
 		VoipSynthComponent = nullptr;
 	}
 

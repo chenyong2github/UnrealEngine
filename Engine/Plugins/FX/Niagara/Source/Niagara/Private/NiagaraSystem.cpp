@@ -18,6 +18,8 @@
 #include "INiagaraEditorOnlyDataUtlities.h"
 #include "NiagaraWorldManager.h"
 #include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraSettings.h"
+
 
 #if WITH_EDITOR
 #include "NiagaraScriptDerivedData.h"
@@ -28,10 +30,9 @@ DECLARE_CYCLE_STAT(TEXT("Niagara - System - Precompile"), STAT_Niagara_System_Pr
 DECLARE_CYCLE_STAT(TEXT("Niagara - System - CompileScript"), STAT_Niagara_System_CompileScript, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Niagara - System - CompileScript_ResetAfter"), STAT_Niagara_System_CompileScriptResetAfter, STATGROUP_Niagara);
 
-// UNiagaraSystemCategory::UNiagaraSystemCategory(const FObjectInitializer& ObjectInitializer)
-// 	: Super(ObjectInitializer)
-// {
-// }
+//Disable for now until we can spend more time on a good method of applying the data gathered.
+int32 GEnableNiagaraRuntimeCycleCounts = 0;
+static FAutoConsoleVariableRef CVarEnableNiagaraRuntimeCycleCounts(TEXT("fx.EnableNiagaraRuntimeCycleCounts"), GEnableNiagaraRuntimeCycleCounts, TEXT("Toggle for runtime cylce counts tracking Niagara's frame time. \n"), ECVF_ReadOnly);
 
 static int GNiagaraForceSystemsToCookOutRapidIterationOnLoad = 0;
 static FAutoConsoleVariableRef CVarNiagaraForceSystemsToCookOutRapidIterationOnLoad(
@@ -61,12 +62,14 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 	MaxPoolSize = 32;
 }
 
+UNiagaraSystem::UNiagaraSystem(FVTableHelper& Helper)
+	: Super(Helper)
+{
+}
+
 void UNiagaraSystem::BeginDestroy()
 {
 	Super::BeginDestroy();
-
-	DeletionFences.Reset();
-	FNiagaraWorldManager::EnqueueDeferredDeletionFences(DeletionFences);
 
 #if WITH_EDITORONLY_DATA
 	while (ActiveCompilations.Num() > 0)
@@ -74,20 +77,9 @@ void UNiagaraSystem::BeginDestroy()
 		QueryCompileComplete(true, false, true);
 	}
 #endif
-}
 
-bool UNiagaraSystem::IsReadyForFinishDestroy()
-{
- 	bool bAllComplete = true;
-	
-	//We have to wait until the existing items in the deferred deletion queue are cleared as they have direct refs to the layout info in our System and Emitter compiled data.
-	//We have to do this for each world.
-	for (FNiagaraDeferredDeletionFence& Fence : DeletionFences)
-	{
-		bAllComplete &= Fence.IsComplete();
-	}
-	
-	return Super::IsReadyForFinishDestroy() && bAllComplete;
+	//Should we just destroy all system sims here to simplify cleanup?
+	//FNiagaraWorldManager::DestroyAllSystemSimulations(this);
 }
 
 void UNiagaraSystem::PreSave(const class ITargetPlatform * TargetPlatform)
@@ -240,6 +232,22 @@ void UNiagaraSystem::Serialize(FArchive& Ar)
 }
 
 #if WITH_EDITOR
+
+void UNiagaraSystem::PreEditChange(UProperty* PropertyThatWillChange)
+{
+	Super::PreEditChange(PropertyThatWillChange);
+
+	if (PropertyThatWillChange && PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraSystem, EffectType))
+	{
+		FNiagaraSystemUpdateContext UpdateContext;
+		UpdateContext.SetDestroyOnAdd(true);
+		UpdateContext.Add(this, false);
+		
+		//We have to clear this here and reset so that we unregister properly from the scalability manager.
+		EffectType = nullptr;
+	}
+}
+
 void UNiagaraSystem::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -267,6 +275,8 @@ void UNiagaraSystem::PostEditChangeProperty(struct FPropertyChangedEvent& Proper
 			}
 		}
 	}
+
+	ResolveScalabilityOverrides();
 }
 #endif 
 
@@ -479,6 +489,8 @@ void UNiagaraSystem::PostLoad()
 	{
 		bIsReadyToRunCached = IsReadyToRunInternal();
 	}
+
+	ResolveScalabilityOverrides();
 }
 
 #if WITH_EDITORONLY_DATA
@@ -1329,6 +1341,110 @@ void UNiagaraSystem::GenerateStatID()const
 #endif
 }
 
+UNiagaraEffectType* UNiagaraSystem::GetEffectType()const
+{
+	if (EffectType)
+	{
+		return EffectType;
+	}
+	
+	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+	check(Settings);
+	return Settings->GetDefaultEffectType();
+}
+
+const FNiagaraScalabilitySettings& UNiagaraSystem::GetScalabilitySettings(int32 DetailLevel)
+{
+#if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
+	int32 UseDetailLevel = DetailLevel == INDEX_NONE ? INiagaraModule::GetDetailLevel() : DetailLevel;
+
+	int32 SettingsIndex = ResolvedScalabilitySettings.IsValidIndex(UseDetailLevel) ? UseDetailLevel : ResolvedScalabilitySettings.Num() - 1;
+	check(SettingsIndex != INDEX_NONE);//We should always have at least one entry in our settings array.
+	return ResolvedScalabilitySettings[SettingsIndex];
+#else
+	return CurrentScalabilitySettings;
+#endif
+}
+
+void UNiagaraSystem::ResolveScalabilityOverrides()
+{
+	ResolvedScalabilitySettings.Empty();
+
+	UNiagaraEffectType* ActualEffectType = GetEffectType();
+	int32 NumEffectTypeSettings = ActualEffectType ? ActualEffectType->GetScalabilitySettings().Num() : 0;
+	int32 NumOverrides = ScalabilityOverrides.Num();
+
+	int32 ResolvedCount = FMath::Max(NumEffectTypeSettings, NumOverrides);
+	if (ResolvedCount == 0)
+	{
+		//Just add a single defaulted entry to make other calling code simpler.
+		ResolvedScalabilitySettings.AddDefaulted();
+	}
+	else
+	{
+
+		ResolvedScalabilitySettings.Reserve(ResolvedCount);
+		for (int32 i = 0; i < ResolvedCount; ++i)
+		{
+			int32 NewIdx = ResolvedScalabilitySettings.AddDefaulted();
+			FNiagaraScalabilitySettings& NewSettings = ResolvedScalabilitySettings[NewIdx];
+			if (ActualEffectType)
+			{
+				const TArray<FNiagaraScalabilitySettings>& EffectTypeSettings = ActualEffectType->GetScalabilitySettings();
+				int32 LastIndex = EffectTypeSettings.Num() - 1;
+				if (LastIndex >= 0)
+				{
+					NewSettings = EffectTypeSettings[FMath::Min(i, LastIndex)];
+				}
+			}
+
+			if (ScalabilityOverrides.IsValidIndex(i) && bOverrideScalabilitySettings)
+			{
+				const FNiagaraScalabilityOverrides& Overrides = ScalabilityOverrides[i];
+
+				if (Overrides.bOverrideDistanceSettings)
+				{
+					NewSettings.bCullByDistance = Overrides.bCullByDistance;
+					NewSettings.MaxDistance = Overrides.MaxDistance;
+				}
+
+				if (Overrides.bOverrideOwnerLODSettings)
+				{
+					NewSettings.bCullByMaxOwnerLOD = Overrides.bCullByMaxOwnerLOD;
+					NewSettings.MaxOwnerLOD = Overrides.MaxOwnerLOD;
+				}
+
+				if (Overrides.bOverrideInstanceCountSettings)
+				{
+					NewSettings.bCullMaxInstanceCount = Overrides.bCullMaxInstanceCount;
+					NewSettings.MaxInstances = Overrides.MaxInstances;
+				}
+
+				if (Overrides.bOverrideTimeSinceRendererSettings)
+				{
+					NewSettings.bCullByMaxTimeWithoutRender = Overrides.bCullByMaxTimeWithoutRender;
+					NewSettings.MaxTimeWithoutRender = Overrides.MaxTimeWithoutRender;
+				}
+
+// 				if (Overrides.bOverrideSpawnCountScale)
+// 				{
+// 					NewSettings.SpawnCountScale = Overrides.SpawnCountScale;
+// 				}
+			}
+		}
+	}
+
+	OnDetailLevelChanges(INiagaraModule::GetDetailLevel());
+}
+
+void UNiagaraSystem::OnDetailLevelChanges(int32 DetailLevel)
+{
+	int32 SettingsIndex = ResolvedScalabilitySettings.IsValidIndex(DetailLevel) ? DetailLevel : ResolvedScalabilitySettings.Num() - 1;
+	check(SettingsIndex != INDEX_NONE);//We should always have at least one entry in our settings array.
+	CurrentScalabilitySettings = ResolvedScalabilitySettings[SettingsIndex];
+}
+
+
 FNiagaraEmitterCompiledData::FNiagaraEmitterCompiledData()
 {
 	EmitterSpawnIntervalVar = SYS_PARAM_EMITTER_SPAWN_INTERVAL;
@@ -1338,103 +1454,3 @@ FNiagaraEmitterCompiledData::FNiagaraEmitterCompiledData()
 	EmitterRandomSeedVar = SYS_PARAM_EMITTER_RANDOM_SEED;
 	EmitterTotalSpawnedParticlesVar = SYS_PARAM_ENGINE_EMITTER_TOTAL_SPAWNED_PARTICLES;
 }
-
-
-//////////////////////////////////////////////////////////////////////////
-
-FNiagaraDeferredDeletionFence::FNiagaraDeferredDeletionFence()
-{
-	bInstanceBatcherComplete = true;
-	bWorldManagerComplete = true;
-}
-
-FNiagaraDeferredDeletionFence::~FNiagaraDeferredDeletionFence()
-{
-	check(IsComplete());
-}
-
-bool FNiagaraDeferredDeletionFence::IsComplete()
-{
-	return bInstanceBatcherComplete.Load() && bWorldManagerComplete.Load();
-}
-
-FNiagaraWorldManagerDeferredDeletionFence::FNiagaraWorldManagerDeferredDeletionFence(FNiagaraDeferredDeletionFence* InFence)
-	: Fence(InFence)
-{
-	if (Fence)
-	{
-		//UE_LOG(LogNiagara, Display, TEXT("%0xP - Create WorldManFence"), Fence);
-		check(Fence->bWorldManagerComplete == true);
-		Fence->bWorldManagerComplete = false;
-	}
-}
-
-FNiagaraWorldManagerDeferredDeletionFence::~FNiagaraWorldManagerDeferredDeletionFence()
-{
-	if (Fence)
-	{
-		//UE_LOG(LogNiagara, Display, TEXT("%0xP - Destroy WorldManFence"), Fence);
-		check(Fence->bWorldManagerComplete == false);
-		Fence->bWorldManagerComplete = true;
-	}
-}
-
-FNiagaraWorldManagerDeferredDeletionFence::FNiagaraWorldManagerDeferredDeletionFence(FNiagaraWorldManagerDeferredDeletionFence&& Other)
-	: Fence(Other.Fence)
-{
-	check(Fence->bWorldManagerComplete == false);
-	Other.Fence = nullptr;
-	//UE_LOG(LogNiagara, Display, TEXT("%0xP - MoveCtor WorldManFence"), Fence);
-}
-
-FNiagaraWorldManagerDeferredDeletionFence& FNiagaraWorldManagerDeferredDeletionFence::operator=(FNiagaraWorldManagerDeferredDeletionFence&& Other)
-{
-	check(Fence->bWorldManagerComplete == false);
-	Fence = Other.Fence;
-	Other.Fence = nullptr;
-	//UE_LOG(LogNiagara, Display, TEXT("%0xP - Move WorldManFence"), Fence);
-	return *this;
-}
-
-
-FNiagaraInstanceBatcherDeferredDeletionFence::FNiagaraInstanceBatcherDeferredDeletionFence(FNiagaraDeferredDeletionFence* InFence)
-	: Fence(InFence)
-{
-	if (Fence)
-	{
-		UE_LOG(LogNiagara, Display, TEXT("%0xP - Create BatcherFence"), Fence);
-		check(Fence->bInstanceBatcherComplete == true);
-		Fence->bInstanceBatcherComplete = false;
-	}
-}
-
-FNiagaraInstanceBatcherDeferredDeletionFence::~FNiagaraInstanceBatcherDeferredDeletionFence()
-{
-	if (Fence)
-	{
-		UE_LOG(LogNiagara, Display, TEXT("%0xP - Destroy BatcherFence"), Fence);
-		check(Fence->bInstanceBatcherComplete == false);
-		Fence->bInstanceBatcherComplete = true;
-	}
-}
-
-FNiagaraInstanceBatcherDeferredDeletionFence::FNiagaraInstanceBatcherDeferredDeletionFence(FNiagaraInstanceBatcherDeferredDeletionFence&& Other)
-	: Fence(Other.Fence)
-{
-	check(Fence->bInstanceBatcherComplete == false);
-	Other.Fence = nullptr;
-	UE_LOG(LogNiagara, Display, TEXT("%0xP - MoveCTor BatcherFence"), Fence);
-}
-
-FNiagaraInstanceBatcherDeferredDeletionFence& FNiagaraInstanceBatcherDeferredDeletionFence::operator=(FNiagaraInstanceBatcherDeferredDeletionFence&& Other)
-{
-	check(Fence->bInstanceBatcherComplete == false);
-	Fence = Other.Fence;
-	Other.Fence = nullptr;
-	UE_LOG(LogNiagara, Display, TEXT("%0xP - Move BatcherFence"), Fence);
-	return *this;
-}
-
-
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////

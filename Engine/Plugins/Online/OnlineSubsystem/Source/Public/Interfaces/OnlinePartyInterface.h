@@ -1791,6 +1791,7 @@ enum class ECreatePartyCompletionResult : int8
 	FailedToCreateMucRoom,
 	NoResponse,
 	LoggedOut,
+	NotPrimaryUser,
 	UnknownInternalFailure = 0,
 	Succeeded = 1
 };

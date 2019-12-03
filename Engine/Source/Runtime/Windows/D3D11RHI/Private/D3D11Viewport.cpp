@@ -539,7 +539,6 @@ bool FD3D11Viewport::Present(bool bLockToVsync)
 		// Can't compare BOOL with bool...
 		if ( (!!bSwapChainFullscreenState)  != bIsFullscreen )
 		{
-			bFullscreenLost = true;
 			bIsValid = false;
 		}
 	}

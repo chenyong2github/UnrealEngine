@@ -49,8 +49,7 @@ namespace Chaos
 	template <typename T, int>
 	class TPBDSpringConstraints;
 
-	template <typename T, int>
-	class TConvex;
+	class FConvex;
 
 	template <typename T>
 	class TCapsule;
@@ -147,7 +146,7 @@ struct ENGINE_API FPhysicsGeometryCollection_Chaos
 	const Chaos::TBox<float, 3>& GetBoxGeometry() const;
 	const Chaos::TSphere<float, 3>&  GetSphereGeometry() const;
 	const Chaos::TCapsule<float>&  GetCapsuleGeometry() const;
-	const Chaos::TConvex<float, 3>& GetConvexGeometry() const;
+	const Chaos::FConvex& GetConvexGeometry() const;
 	const Chaos::TTriangleMeshImplicitObject<float>& GetTriMeshGeometry() const;
 
 private:

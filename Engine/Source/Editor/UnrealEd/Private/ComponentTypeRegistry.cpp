@@ -44,6 +44,10 @@ struct FComponentTypeRegistryData
 	
 	/** Implementation of FGCObject */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return "FComponentTypeRegistryData";
+	}
 	
 	// Request a refresh of the components list next frame
 	void Invalidate()

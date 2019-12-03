@@ -28,11 +28,11 @@ namespace Chaos
 		case ImplicitObjectType::Sphere: return Func(Geom.template GetObjectChecked<TSphere<FReal, 3>>());
 		case ImplicitObjectType::Box: return Func(Geom.template GetObjectChecked<TBox<FReal, 3>>());
 		case ImplicitObjectType::Capsule: return Func(Geom.template GetObjectChecked<TCapsule<FReal>>());
-		case ImplicitObjectType::Convex: return Func(Geom.template GetObjectChecked<TConvex<FReal, 3>>());
+		case ImplicitObjectType::Convex: return Func(Geom.template GetObjectChecked<FConvex>());
 		case ImplicitObjectType::IsScaled | ImplicitObjectType::Sphere: return Func(Geom.template GetObjectChecked<TImplicitObjectScaled<TSphere<FReal, 3>>>());
 		case ImplicitObjectType::IsScaled | ImplicitObjectType::Box: return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<TBox<FReal, 3>>>());
 		case ImplicitObjectType::IsScaled | ImplicitObjectType::Capsule: return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<TCapsule<FReal>>>());
-		case ImplicitObjectType::IsScaled | ImplicitObjectType::Convex: return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<TConvex<FReal, 3>>>());
+		case ImplicitObjectType::IsScaled | ImplicitObjectType::Convex: return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<FConvex>>());
 		case ImplicitObjectType::Transformed:
 			ensure(false); // We are drilling down to concrete implicit inside transformed, this is disregarding transform data. Caller must specially handle transform.
 			// TODO: Refactor Transformed implicit to use same structure as scaled.
@@ -160,7 +160,7 @@ namespace Chaos
 			auto IsValidConvex = [](const FImplicitObject& InObject) -> bool
 			{
 				//todo: move this out of here
-				if (const auto Convex = TImplicitObjectScaled<TConvex<FReal,3>>::AsScaled(InObject))
+				if (const auto Convex = TImplicitObjectScaled<FConvex>::AsScaled(InObject))
 				{
 					return Convex->GetUnscaledObject()->GetSurfaceParticles().Size() > 0;
 				}				

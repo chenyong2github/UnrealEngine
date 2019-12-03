@@ -171,6 +171,11 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraParameterCollection* Collect
 
 void FNiagaraSystemUpdateContext::AddInternal(UNiagaraComponent* Comp, bool bReInit)
 {
+	if (bDestroyOnAdd)
+	{
+		Comp->DeactivateImmediate();
+	}
+
 	if (bReInit)
 	{
 		ComponentsToReInit.AddUnique(Comp);

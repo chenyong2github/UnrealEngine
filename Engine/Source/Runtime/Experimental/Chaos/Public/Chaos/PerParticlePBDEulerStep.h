@@ -1,11 +1,15 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/PerParticleRule.h"
+#include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/ParticleHandle.h"
+#include "Chaos/PerParticleRule.h"
 
 namespace Chaos
 {
+/**
+ * Update position and rotation based on velocity and angular velocity.
+ */
 template<class T, int d>
 class TPerParticlePBDEulerStep : public TPerParticleRule<T, d>
 {
@@ -26,16 +30,24 @@ class TPerParticlePBDEulerStep : public TPerParticleRule<T, d>
 
 	inline void Apply(TPBDRigidParticles<T, d>& InParticles, const T Dt, const int32 Index) const override //-V762
 	{
-		ApplyHelper(InParticles, Dt, Index);
-		InParticles.Q(Index) = InParticles.R(Index) + TRotation<T, d>::FromElements(InParticles.W(Index), 0.f) * InParticles.R(Index) * Dt * T(0.5);
-		InParticles.Q(Index).Normalize();
+		FVec3 PCoM = FParticleUtilities::GetCoMWorldPosition(InParticles, Index);
+		FRotation3 QCoM = FParticleUtilities::GetCoMWorldRotation(InParticles, Index);
+
+		PCoM = PCoM + InParticles.V(Index) * Dt;
+		QCoM = FRotation3::IntegrateRotationWithAngularVelocity(QCoM, InParticles.W(Index), Dt);
+
+		FParticleUtilities::SetCoMWorldTransform(InParticles, Index, PCoM, QCoM);
 	}
 
 	inline void Apply(TTransientPBDRigidParticleHandle<T, d>& Particle, const T Dt) const override
 	{
-		Particle.P() = Particle.X() + Particle.V() * Dt;
-		Particle.Q() = Particle.R() + TRotation<T, d>::FromElements(Particle.W(), 0.f) * Particle.R() * Dt * T(0.5);
-		Particle.Q().Normalize();
+		FVec3 PCoM = FParticleUtilities::GetCoMWorldPosition(&Particle);
+		FRotation3 QCoM = FParticleUtilities::GetCoMWorldRotation(&Particle);
+
+		PCoM = PCoM + Particle.V() * Dt;
+		QCoM = FRotation3::IntegrateRotationWithAngularVelocity(QCoM, Particle.W(), Dt);
+
+		FParticleUtilities::SetCoMWorldTransform(&Particle, PCoM, QCoM);
 	}
 };
 }

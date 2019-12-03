@@ -129,6 +129,12 @@ public:
 		return CreatedKeyType;
 	}
 
+#if WITH_EDITOR
+	/** A delegate called on PostEditChangeProperty. Can be used in editor to react to asset changes. */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FBlackboardDataChanged, UBlackboardData* /*Asset*/);
+	static FBlackboardDataChanged OnBlackboardDataChanged;
+#endif
+
 	/** delegate called for every loaded blackboard asset
 	 *  meant for adding game specific persistent keys */
 	static FKeyUpdate OnUpdateKeys;

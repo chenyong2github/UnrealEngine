@@ -32,7 +32,7 @@
 
 SPacketView::SPacketView()
 	: ProfilerWindow()
-	, PacketSeries(MakeShareable(new FNetworkPacketSeries()))
+	, PacketSeries(MakeShared<FNetworkPacketSeries>())
 {
 	Reset();
 }
@@ -354,7 +354,7 @@ FNetworkPacketSampleRef SPacketView::GetSampleAtMousePosition(float X, float Y)
 
 					if (Y >= TopY && Y < BottomY)
 					{
-						return FNetworkPacketSampleRef(PacketSeries, MakeShareable(new FNetworkPacketAggregatedSample(Sample)));
+						return FNetworkPacketSampleRef(PacketSeries, MakeShared<FNetworkPacketAggregatedSample>(Sample));
 					}
 				}
 			}

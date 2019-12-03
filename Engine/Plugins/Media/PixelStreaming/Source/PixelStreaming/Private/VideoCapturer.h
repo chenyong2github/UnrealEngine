@@ -5,12 +5,10 @@
 #include "PixelStreamingPrivate.h"
 #include "RHIResources.h"
 
-class FPixelStreamingBaseVideoEncoder;
-
 class FVideoCapturer : public cricket::VideoCapturer
 {
 public:
-	explicit FVideoCapturer(FPixelStreamingBaseVideoEncoder& InHWEncoder);
+	explicit FVideoCapturer(FHWEncoderDetails& InHWEncoderDetails);
 
 	void OnFrameReady(const FTexture2DRHIRef& FrameBuffer);
 
@@ -35,7 +33,8 @@ private:
 	}
 	//////////////////////////////////////////////////////////////////////////
 
-	FPixelStreamingBaseVideoEncoder& HWEncoder;
+	FHWEncoderDetails& HWEncoderDetails;
+	int64 LastTimestampUs = 0;
 
 	int32 Width = 1920;
 	int32 Height = 1080;

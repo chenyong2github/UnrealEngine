@@ -21,8 +21,7 @@ public:
 	/** Virtual destructor. */
 	virtual ~STimingProfilerToolbar();
 
-	SLATE_BEGIN_ARGS( STimingProfilerToolbar )
-		{}
+	SLATE_BEGIN_ARGS(STimingProfilerToolbar) {}
 	SLATE_END_ARGS()
 
 	/**

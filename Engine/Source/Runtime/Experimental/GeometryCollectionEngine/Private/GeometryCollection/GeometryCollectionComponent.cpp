@@ -1155,6 +1155,7 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 				InParams.InitialLinearVelocity = InitialLinearVelocity;
 				InParams.InitialAngularVelocity = InitialAngularVelocity;
 				InParams.bClearCache = true;
+				InParams.ObjectType = ObjectType;
 				InParams.PhysicalMaterial = MakeSerializable(ChaosMaterial);
 				InParams.CacheType = CacheParameters.CacheMode;
 				InParams.ReverseCacheBeginTime = CacheParameters.ReverseCacheBeginTime;

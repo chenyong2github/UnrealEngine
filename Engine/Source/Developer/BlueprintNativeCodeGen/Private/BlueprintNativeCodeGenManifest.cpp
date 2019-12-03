@@ -236,7 +236,7 @@ static bool BlueprintNativeCodeGenManifestImpl::GatherModuleDependencies(const U
 			}
 
 			// we want only native packages, ones that are not editor-only
-			if ((DependentPackage->GetPackageFlags() & (PKG_CompiledIn | PKG_EditorOnly | PKG_Developer)) == PKG_CompiledIn)
+			if ((DependentPackage->HasAnyPackageFlags(PKG_CompiledIn)) && !DependentPackage->HasAnyPackageFlags(PKG_EditorOnly | PKG_Developer) && !DependentPackage->IsLoadedByEditorPropertiesOnly())
 			{
 				DependenciesOut.AddUnique(DependentPackage);// PkgImport.ObjectName.ToString());
 			}

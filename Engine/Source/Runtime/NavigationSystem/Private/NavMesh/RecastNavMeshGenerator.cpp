@@ -2130,7 +2130,7 @@ void FRecastTileGenerator::PrepareVoxelCache(const TNavStatArray<uint8>& RawColl
 
 	// To prevent navmesh generation under the triangles, set the RC_PROJECT_TO_BOTTOM flag to true.
 	// This rasterize triangles as filled columns down to the HF lower bound.
-	const rcRasterizationFlags Flags = InModifier.GetRejectNavmeshUnderneath() ? RC_PROJECT_TO_BOTTOM : rcRasterizationFlags(0);
+	const rcRasterizationFlags Flags = InModifier.GetFillCollisionUnderneathForNavmesh() ? RC_PROJECT_TO_BOTTOM : rcRasterizationFlags(0);
 
 	rcRasterizeTriangles(0, CachedCollisions.Verts, CachedCollisions.Header.NumVerts,
 		CachedCollisions.Indices, TriAreas.GetData(), CachedCollisions.Header.NumFaces,
@@ -2241,7 +2241,7 @@ void FRecastTileGenerator::AppendGeometry(const TNavStatArray<uint8>& RawCollisi
 
 	// To prevent navmesh generation under the geometry, set the RC_PROJECT_TO_BOTTOM flag to true.
 	// This rasterize triangles as filled columns down to the HF lower bound.
-	GeometryElement.RasterizationFlags = InModifier.GetRejectNavmeshUnderneath() ? RC_PROJECT_TO_BOTTOM : rcRasterizationFlags(0);
+	GeometryElement.RasterizationFlags = InModifier.GetFillCollisionUnderneathForNavmesh() ? RC_PROJECT_TO_BOTTOM : rcRasterizationFlags(0);
 
 	FRecastGeometryCache CollisionCache(RawCollisionCache.GetData());
 	

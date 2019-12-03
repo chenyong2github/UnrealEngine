@@ -260,7 +260,7 @@ namespace ChaosInterface
 				//}
 				//else
 				{
-					auto Implicit = MakeUnique<Chaos::TImplicitObjectScaled<Chaos::TConvex<float, 3>>>(MakeSerializable(ConvexImplicit), Scale);
+					auto Implicit = MakeUnique<Chaos::TImplicitObjectScaled<Chaos::FConvex>>(MakeSerializable(ConvexImplicit), Scale);
 					auto NewShape = NewShapeHelper(MakeSerializable(Implicit), (void*)CollisionBody.GetUserData());
 					Shapes.Emplace(MoveTemp(NewShape));
 					Geoms.Add(MoveTemp(Implicit));
