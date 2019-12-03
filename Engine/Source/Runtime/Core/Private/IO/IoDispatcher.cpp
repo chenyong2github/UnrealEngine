@@ -676,8 +676,14 @@ FIoBatch::Issue()
 void 
 FIoBatch::Wait()
 {
-	//TODO: Create synchronization event here when it's actually needed
-	unimplemented();
+	// Temporary spinning implementation
+	for (FIoRequestImpl* Request = Impl->FirstRequest; Request; Request = Request->NextRequest)
+	{
+		if (!Request->Result.Status().IsCompleted())
+		{
+			FPlatformProcess::Sleep(0);
+		}
+	}
 }
 
 void 

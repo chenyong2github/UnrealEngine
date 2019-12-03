@@ -20,6 +20,7 @@
 #include "Misc/PackageName.h"
 #include "UObject/ObjectResource.h"
 #include "UObject/SoftObjectPath.h"
+#include "UObject/NameBatchSerialization.h"
 #include "Serialization/DeferredMessageLog.h"
 #include "UObject/UObjectThreadContext.h"
 #include "Misc/Paths.h"
@@ -271,33 +272,29 @@ class FGlobalNameMap
 public:
 	void Load(FIoDispatcher& IoDispatcher)
 	{
-		FEvent* Event = FPlatformProcess::GetSynchEventFromPool();
-		FIoBuffer IoBuffer;
+		check(NameEntries.Num() == 0);
 
-		IoDispatcher.ReadWithCallback(
-			CreateIoChunkId(0, 0, EIoChunkType::LoaderGlobalNameMap),
-			FIoReadOptions(),
-			[Event, &IoBuffer](TIoStatusOr<FIoBuffer> Result)
-			{
-				IoBuffer = Result.ConsumeValueOrDie();
-				Event->Trigger();
-			});
+		FIoChunkId NamesId = CreateIoChunkId(0, 0, EIoChunkType::LoaderGlobalNames);
+		FIoChunkId HashesId = CreateIoChunkId(0, 0, EIoChunkType::LoaderGlobalNameHashes);
 
-		Event->Wait();
-		FPlatformProcess::ReturnSynchEventToPool(Event);
+		FIoBatch Batch = IoDispatcher.NewBatch();
+		FIoRequest NameRequest = Batch.Read(NamesId, FIoReadOptions());
+		FIoRequest HashRequest = Batch.Read(HashesId, FIoReadOptions());
+		Batch.Issue();
 
-		FLargeMemoryReader Ar(IoBuffer.Data(), IoBuffer.DataSize());
+		ReserveNameBatch(	IoDispatcher.GetSizeForChunk(NamesId).ValueOrDie(),
+							IoDispatcher.GetSizeForChunk(HashesId).ValueOrDie());
 
-		int32 NameCount;
-		Ar << NameCount;
-		NameEntries.Reserve(NameCount);
-		FNameEntrySerialized SerializedNameEntry(ENAME_LinkerConstructor);
+		Batch.Wait();
 
-		for (int32 I = 0; I < NameCount; ++I)
-		{
-			Ar << SerializedNameEntry;
-			NameEntries.Emplace(FName(SerializedNameEntry).GetDisplayIndex());
-		}
+		FIoBuffer NameBuffer = NameRequest.GetResult().ConsumeValueOrDie();
+		FIoBuffer HashBuffer = HashRequest.GetResult().ConsumeValueOrDie();
+
+		LoadNameBatch(/* Out */ NameEntries, 
+						MakeArrayView(NameBuffer.Data(), NameBuffer.DataSize()),
+						MakeArrayView(HashBuffer.Data(), HashBuffer.DataSize()));
+
+		IoDispatcher.FreeBatch(Batch);
 	}
 
 	FName GetName(const uint32 NameIndex, const uint32 NameNumber) const

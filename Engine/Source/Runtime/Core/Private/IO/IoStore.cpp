@@ -8,6 +8,7 @@
 //////////////////////////////////////////////////////////////////////////
 
 constexpr char FIoStoreTocHeader::TocMagicImg[];
+constexpr uint32 IoChunkAlignment = 16;
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -88,13 +89,22 @@ public:
 
 		FIoStoreTocEntry TocEntry;
 
+		check(ContainerFileHandle->Tell() % IoChunkAlignment == 0);
+
 		TocEntry.SetOffset(ContainerFileHandle->Tell());
 		TocEntry.SetLength(Chunk.DataSize());
 		TocEntry.ChunkId = ChunkId;
 
 		IsMetadataDirty = true;
 
-		const bool Success = ContainerFileHandle->Write(Chunk.Data(), Chunk.DataSize());
+		bool Success = ContainerFileHandle->Write(Chunk.Data(), Chunk.DataSize());
+
+		if (uint32 UnpaddedBytes = Chunk.DataSize() % IoChunkAlignment)
+		{
+			static constexpr uint8 Zeroes[IoChunkAlignment] = {};
+			uint32 Padding = (IoChunkAlignment - UnpaddedBytes) % IoChunkAlignment;
+			Success &= ContainerFileHandle->Write(Zeroes, Padding);
+		}
 
 		if (Success)
 		{

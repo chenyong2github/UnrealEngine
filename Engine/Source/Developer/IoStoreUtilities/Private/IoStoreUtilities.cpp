@@ -19,6 +19,7 @@
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/BufferWriter.h"
 #include "Serialization/LargeMemoryWriter.h"
+#include "UObject/NameBatchSerialization.h"
 #include "UObject/PackageFileSummary.h"
 #include "UObject/ObjectResource.h"
 #include "UObject/Package.h"
@@ -92,24 +93,14 @@ public:
 		A << NameIndex << NameNumber;
 	}
 
-	int32 Num()
+
+	const TArray<FNameEntryId>& GetNameMap() const
 	{
-		return NameIndices.Num();
+		return NameMap;
 	}
 
-	int32 Save(FArchive& Ar, const FString& CsvFilePath)
-	{
-		int32 TotalSize = 0;
-		{
-			int32 NameCount = NameMap.Num();
-			Ar << NameCount;
-			for (int32 I = 0; I < NameCount; ++I)
-			{
-				FName::GetEntry(NameMap[I])->Write(Ar);
-			}
-			TotalSize = Ar.TotalSize();
-		}
 #if OUTPUT_NAMEMAP_CSV
+	void SaveCsv(const FString& CsvFilePath)
 		{
 			TUniquePtr<FArchive> CsvArchive(IFileManager::Get().CreateFileWriter(*CsvFilePath));
 			if (CsvArchive)
@@ -134,9 +125,8 @@ public:
 				}
 			}
 		}
-#endif
-		return TotalSize;
 	}
+#endif
 
 private:
 	TMap<FNameEntryId, int32> NameIndices;
@@ -1916,17 +1906,32 @@ int32 CreateTarget(const FContainerTarget& Target)
 			UE_LOG(LogIoStore, Error, TEXT("Failed to save initial load meta data to container file"));
 		}
 	}
-	
-	uint64 GlobalNameMapSize = 0;
+
+	uint64 GlobalNamesMB = 0;
+	uint64 GlobalNameHashesMB = 0;
 	{
 		UE_LOG(LogIoStore, Display, TEXT("Saving global name map to container file"));
-		FLargeMemoryWriter GlobalNameMapArchive(0, true);
-		GlobalNameMapSize = NameMapBuilder.Save(GlobalNameMapArchive, OutputDir / TEXT("Container.namemap.csv"));
-		const FIoStatus Status = AppendToContainer(*IoStoreWriter, GlobalNameMapArchive, CreateIoChunkId(0, 0, EIoChunkType::LoaderGlobalNameMap));
-		if (!Status.IsOk())
+
+		TArray<uint8> Names;
+		TArray<uint8> Hashes;
+		SaveNameBatch(NameMapBuilder.GetNameMap(), /* out */ Names, /* out */ Hashes);
+
+		GlobalNamesMB = Names.Num() >> 20;
+		GlobalNameHashesMB = Hashes.Num() >> 20;
+
+		FIoStatus NameStatus = IoStoreWriter->Append(CreateIoChunkId(0, 0, EIoChunkType::LoaderGlobalNames), 
+													 FIoBuffer(FIoBuffer::Wrap, Names.GetData(), Names.Num()));
+		FIoStatus HashStatus = IoStoreWriter->Append(CreateIoChunkId(0, 0, EIoChunkType::LoaderGlobalNameHashes),
+													 FIoBuffer(FIoBuffer::Wrap, Hashes.GetData(), Hashes.Num()));
+		
+		if (!NameStatus.IsOk() || !HashStatus.IsOk())
 		{
 			UE_LOG(LogIoStore, Error, TEXT("Failed to save global name map to container file"));
 		}
+
+#if OUTPUT_NAMEMAP_CSV
+		NameMapBuilder.SaveCsv(OutputDir / TEXT("Container.namemap.csv"));
+#endif
 	}
 
 	UE_LOG(LogIoStore, Display, TEXT("Calculating stats..."));
@@ -2012,7 +2017,8 @@ int32 CreateTarget(const FContainerTarget& Target)
 	UE_LOG(LogIoStore, Display, TEXT("Pak: %12.2f MB PreloadDependencies, %d imports + %d exports = %d"),
 		(double)PreloadDependenciesSize / 1024.0 / 1024.0, ImportPreloadCount, ExportPreloadCount, PreloadDependencies.Num());
 
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalNameMap, %d unique names"), (double)GlobalNameMapSize / 1024.0 / 1024.0, NameMapBuilder.Num());
+	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalNames, %d unique names"), (double)GlobalNamesMB, NameMapBuilder.GetNameMap().Num());
+	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalNameHashes"), (double)GlobalNameHashesMB);
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalPackageData"), (double)StoreTocByteCount / 1024.0 / 1024.0);
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalImportedPackages, %d imported packages"), (double)ImportedPackagesByteCount / 1024.0 / 1024.0, ImportedPackagesCount);
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalBundleOrders, %d bundles"), (double)ExportBundleOrderByteCount / 1024.0 / 1024.0, ExportBundleOrderEntries.Num());

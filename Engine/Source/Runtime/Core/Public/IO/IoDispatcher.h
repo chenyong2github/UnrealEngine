@@ -584,7 +584,8 @@ enum class EIoChunkType : uint8
 	OptionalBulkData,
 	LoaderGlobalMeta,
 	LoaderInitialLoadMeta,
-	LoaderGlobalNameMap
+	LoaderGlobalNames,
+	LoaderGlobalNameHashes
 };
 
 /**
