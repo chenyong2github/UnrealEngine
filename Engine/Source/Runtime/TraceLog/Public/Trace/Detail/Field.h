@@ -134,8 +134,6 @@ private:
 		FWriteBuffer* Buffer = Writer_GetBuffer();
 		Buffer->Cursor += sizeof(FAuxHeader) - bMaybeHasAux;
 
-		Size &= 0x00ffffff;
-
 		auto* Header = (FAuxHeader*)(Buffer->Cursor - sizeof(FAuxHeader));
 		Header->Size = Size << 8;
 		Header->FieldIndex = uint8(0x80 | (Index & int(EIndexPack::FieldCountMask)));
