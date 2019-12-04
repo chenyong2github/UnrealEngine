@@ -4555,9 +4555,6 @@ namespace UE4CodeGen_Private
 		{
 			check((NewClass->ClassFlags & CLASS_TokenStreamAssembled) != CLASS_TokenStreamAssembled);
 			NewClass->ReferenceTokenStream.Empty();
-#if ENABLE_GC_OBJECT_CHECKS
-			NewClass->DebugTokenMap.Empty();
-#endif
 		}
 		NewClass->CreateLinkAndAddChildFunctionsToMap(Params.FunctionLinkArray, Params.NumFunctions);
 
