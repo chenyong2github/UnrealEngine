@@ -9,6 +9,7 @@
 #include "Templates/EnableIf.h"
 #include "Templates/IsArrayOrRefOfType.h"
 #include "Templates/IsValidVariadicFunctionArg.h"
+#include "Traits/IsContiguousContainer.h"
 
 #define USE_STRING_LITERAL_PATH 1
 
@@ -60,6 +61,8 @@ public:
 	const TStringBuilderImpl& operator=(TStringBuilderImpl&&) = delete;
 
 	inline int32	Len() const			{ return int32(CurPos - Base); }
+	inline C* GetData()					{ return Base; }
+	inline const C* GetData() const		{ return Base; }
 	inline const C* ToString() const	{ EnsureNulTerminated(); return Base; }
 	inline const C* operator*() const	{ EnsureNulTerminated(); return Base; }
 
@@ -71,6 +74,30 @@ public:
 	inline void Reset()
 	{
 		CurPos = Base;
+	}
+
+	/**
+	 * Adds a given number of uninitialized characters into the string builder.
+	 *
+	 * @param InCount The number of uninitialized characters to add.
+	 *
+	 * @return The number of characters in the string builder before adding new characters.
+	 */
+	inline int32 AddUninitialized(int32 InCount)
+	{
+		EnsureCapacity(InCount);
+		const int32 OldCount = Len();
+		CurPos += InCount;
+		return OldCount;
+	}
+
+	/**
+	 * Modifies the string builder to remove the given number of characters from the end.
+	 */
+	inline void RemoveSuffix(int32 InCount)
+	{
+		check(InCount <= Len());
+		CurPos -= InCount;
 	}
 
 	inline TStringBuilderImpl& Append(C Char)
@@ -88,6 +115,11 @@ public:
 	inline TStringBuilderImpl& AppendAnsi(const ANSICHAR* NulTerminatedString)
 #endif
 	{
+		if (!NulTerminatedString)
+		{
+			return *this;
+		}
+
 		const int32 Length = TCString<ANSICHAR>::Strlen(NulTerminatedString);
 
 		EnsureCapacity(Length);
@@ -129,6 +161,11 @@ public:
 	inline TStringBuilderImpl& Append(const C* NulTerminatedString)
 #endif
 	{
+		if (!NulTerminatedString)
+		{
+			return *this;
+		}
+
 		const int32 Length = TCString<C>::Strlen(NulTerminatedString);
 
 		EnsureCapacity(Length);
@@ -245,6 +282,15 @@ protected:
 	bool		bIsExtendable = false;
 };
 
+template <typename CharType>
+struct TIsContiguousContainer<TStringBuilderImpl<CharType>> { enum { Value = true }; };
+
+template <typename CharType>
+constexpr inline SIZE_T GetNum(const TStringBuilderImpl<CharType>& Builder)
+{
+	return Builder.Len();
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 extern template class TStringBuilderImpl<ANSICHAR>;
@@ -263,6 +309,9 @@ protected:
 	~FAnsiStringBuilderBase() = default;
 };
 
+template <>
+struct TIsContiguousContainer<FAnsiStringBuilderBase> { enum { Value = true }; };
+
 template<int32 N>
 class TFixedAnsiStringBuilder : public FAnsiStringBuilderBase
 {
@@ -277,6 +326,9 @@ public:
 private:
 	ANSICHAR	StringBuffer[N];
 };
+
+template <int32 N>
+struct TIsContiguousContainer<TFixedAnsiStringBuilder<N>> { enum { Value = true }; };
 
 template<int32 N>
 class TAnsiStringBuilder : public FAnsiStringBuilderBase
@@ -293,6 +345,9 @@ public:
 private:
 	ANSICHAR	StringBuffer[N];
 };
+
+template <int32 N>
+struct TIsContiguousContainer<TAnsiStringBuilder<N>> { enum { Value = true }; };
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -328,6 +383,9 @@ protected:
 	~FStringBuilderBase() = default;
 };
 
+template <>
+struct TIsContiguousContainer<FStringBuilderBase> { enum { Value = true }; };
+
 template<int32 N>
 class TFixedStringBuilder : public FStringBuilderBase
 {
@@ -342,6 +400,9 @@ public:
 private:
 	TCHAR	StringBuffer[N];
 };
+
+template <int32 N>
+struct TIsContiguousContainer<TFixedStringBuilder<N>> { enum { Value = true }; };
 
 template<int32 N>
 class TStringBuilder : public FStringBuilderBase
@@ -358,6 +419,9 @@ public:
 private:
 	TCHAR	StringBuffer[N];
 };
+
+template <int32 N>
+struct TIsContiguousContainer<TStringBuilder<N>> { enum { Value = true }; };
 
 // Append operator implementations
 
@@ -394,3 +458,33 @@ inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, uint8 Val
 
 inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, int16 Value)							{ return Builder << int32(Value); }
 inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, uint16 Value)							{ return Builder << uint32(Value); }
+
+// Append operator implementations for FAnsiStringBuilderBase
+
+inline FAnsiStringBuilderBase&				operator<<(FAnsiStringBuilderBase& Builder, const ANSICHAR Char)				{ Builder.Append(Char); return Builder; }
+
+#if USE_STRING_LITERAL_PATH
+
+inline FAnsiStringBuilderBase&				operator<<(FAnsiStringBuilderBase& Builder, const ANSICHAR*& NulTerminatedString)	{ Builder.Append(NulTerminatedString); return Builder; }
+template<int32 N> FAnsiStringBuilderBase&	operator<<(FAnsiStringBuilderBase& Builder, const ANSICHAR (&StringLiteral)[N])		{ Builder.Append(StringLiteral); return Builder; }
+template<int32 N> FAnsiStringBuilderBase&	operator<<(FAnsiStringBuilderBase& Builder, ANSICHAR (&NulTerminatedString)[N])		{ Builder.Append(&NulTerminatedString[0], TCString<ANSICHAR>::Strlen(NulTerminatedString)); return Builder; }
+
+#else
+
+inline FAnsiStringBuilderBase&				operator<<(FAnsiStringBuilderBase& Builder, const ANSICHAR* NulTerminatedString)	{ Builder.Append(NulTerminatedString); return Builder; }
+
+#endif
+
+inline FAnsiStringBuilderBase&				operator<<(FAnsiStringBuilderBase& Builder, const FAnsiStringView& Str)				{ Builder.Append(Str.GetData(), Str.Len()); return Builder; }
+
+inline FAnsiStringBuilderBase&				operator<<(FAnsiStringBuilderBase& Builder, int32 Value)							{ Builder.Appendf("%d", Value); return Builder; }
+inline FAnsiStringBuilderBase&				operator<<(FAnsiStringBuilderBase& Builder, uint32 Value)							{ Builder.Appendf("%u", Value); return Builder; }
+
+inline FAnsiStringBuilderBase&				operator<<(FAnsiStringBuilderBase& Builder, int64 Value)							{ Builder.Appendf(INT64_FMT, Value); return Builder; }
+inline FAnsiStringBuilderBase&				operator<<(FAnsiStringBuilderBase& Builder, uint64 Value)							{ Builder.Appendf(UINT64_FMT, Value); return Builder; }
+
+inline FAnsiStringBuilderBase&				operator<<(FAnsiStringBuilderBase& Builder, int8 Value)								{ return Builder << int32(Value); }
+inline FAnsiStringBuilderBase&				operator<<(FAnsiStringBuilderBase& Builder, uint8 Value)							{ return Builder << uint32(Value); }
+
+inline FAnsiStringBuilderBase&				operator<<(FAnsiStringBuilderBase& Builder, int16 Value)							{ return Builder << int32(Value); }
+inline FAnsiStringBuilderBase&				operator<<(FAnsiStringBuilderBase& Builder, uint16 Value)							{ return Builder << uint32(Value); }
