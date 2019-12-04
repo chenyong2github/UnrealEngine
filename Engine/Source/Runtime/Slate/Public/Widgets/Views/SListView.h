@@ -840,6 +840,11 @@ public:
 		return false;	
 	}
 
+	virtual bool Private_IsItemSelectableOrNavigable(const ItemType& TheItem) const override
+	{
+		return OnIsSelectableOrNavigable.IsBound() ? OnIsSelectableOrNavigable.Execute(TheItem) : true;
+	}
+
 	virtual void Private_SetItemExpansion( ItemType TheItem, bool bShouldBeExpanded ) override
 	{
 		// Do nothing; you cannot expand an item in a list!
