@@ -616,12 +616,13 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			{
 				if (IsDuplicateNonOptional())
 				{
-					auto DoesOptionalDataExist = [this](const FString& PackageFilename)->bool
+					auto DoesOptionalDataExist = [this](const FString* PackageFilename)->bool
 					{
 #if ALLOW_OPTIONAL_DATA
 						if (!IsUsingIODispatcher())
 						{
-							FString OptionalDataFilename = ConvertFilenameFromFlags(PackageFilename);
+							check(PackageFilename != nullptr);
+							FString OptionalDataFilename = ConvertFilenameFromFlags(*PackageFilename);
 							return IFileManager::Get().FileExists(*OptionalDataFilename);
 						}
 						else
@@ -633,7 +634,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 #endif
 					};
 
-					if (DoesOptionalDataExist(*Filename))
+					if (DoesOptionalDataExist(Filename))
 					{
 						SerializeDuplicateData(Ar, BulkDataFlags, BulkDataSizeOnDisk, BulkDataOffsetInFile);
 
