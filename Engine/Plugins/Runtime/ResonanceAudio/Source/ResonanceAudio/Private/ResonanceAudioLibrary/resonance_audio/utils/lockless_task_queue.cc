@@ -46,6 +46,7 @@ LocklessTaskQueue::LocklessTaskQueue(size_t max_tasks) : max_tasks_(max_tasks) {
 LocklessTaskQueue::~LocklessTaskQueue() { Clear(); }
 
 void LocklessTaskQueue::Post(Task&& task) {
+  std::lock_guard<std::mutex> scope_lock(tasks_mutex_);
   Node* const free_node = PopNodeFromList(&free_list_head_);
   if (free_node == nullptr) {
     LOG(WARNING) << "Queue capacity reached - dropping task";
@@ -97,7 +98,7 @@ LocklessTaskQueue::Node* LocklessTaskQueue::PopNodeFromList(
 }
 
 void LocklessTaskQueue::ProcessTaskList(Node* list_head, bool execute) {
-  std::lock_guard<std::mutex> scope_lock(temp_tasks_mutex_);
+  std::lock_guard<std::mutex> scope_lock(tasks_mutex_);
 
   Node* node_itr = list_head;
   while (node_itr != nullptr) {
@@ -108,7 +109,7 @@ void LocklessTaskQueue::ProcessTaskList(Node* list_head, bool execute) {
       LOG(WARNING) << "temp_tasks_ vector size is larger than max_tasks_, dropping all remaining tasks";
     }
 
-    node_itr->task = nullptr;
+    node_itr->task = Task();
     PushNodeToList(&free_list_head_, node_itr);
     node_itr = next_node_ptr;
   }
@@ -131,7 +132,7 @@ void LocklessTaskQueue::ProcessTaskList(Node* list_head, bool execute) {
 }
 
 void LocklessTaskQueue::Init(size_t num_nodes) {
-  std::lock_guard<std::mutex> scope_lock(temp_tasks_mutex_);
+  std::lock_guard<std::mutex> scope_lock(tasks_mutex_);
   nodes_.resize(num_nodes);
   temp_tasks_.reserve(num_nodes);
 

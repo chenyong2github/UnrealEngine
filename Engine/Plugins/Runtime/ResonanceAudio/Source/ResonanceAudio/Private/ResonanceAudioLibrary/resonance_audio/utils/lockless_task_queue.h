@@ -120,7 +120,7 @@ class LocklessTaskQueue {
   std::vector<Task> temp_tasks_;
 
   // this mutex guarantees that temp_tasks_ is not mutated while being iterated on.
-  std::mutex temp_tasks_mutex_;
+  std::mutex tasks_mutex_;
   size_t max_tasks_;
 };
 
