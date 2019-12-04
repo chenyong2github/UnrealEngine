@@ -101,6 +101,7 @@ public:
 
 #if OUTPUT_NAMEMAP_CSV
 	void SaveCsv(const FString& CsvFilePath)
+	{
 		{
 			TUniquePtr<FArchive> CsvArchive(IFileManager::Get().CreateFileWriter(*CsvFilePath));
 			if (CsvArchive)
