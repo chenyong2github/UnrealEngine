@@ -97,6 +97,7 @@ FCookBodySetupInfo::FCookBodySetupInfo() :
 	bConvexDeformableMesh(false),
 	bCookTriMesh(false),
 	bSupportUVFromHitResults(false),
+	bSupportFaceRemap(false),
 	bTriMeshError(false)
 {
 }
@@ -350,6 +351,14 @@ void UBodySetup::GetCookInfo(FCookBodySetupInfo& OutCookInfo, EPhysXMeshCookFlag
 			}
 
 			OutCookInfo.TriMeshCookFlags = CookFlags;
+
+			// If outer is a static mesh with physical material mask enabled, set retain UV and face remap table to true
+			/*
+			if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(CDPObj))
+			{
+				OutCookInfo.bSupportFaceRemap = StaticMesh->GetEnablePhysicalMaterialMask();
+			}
+			*/
 		}
 		else
 		{
@@ -357,7 +366,7 @@ void UBodySetup::GetCookInfo(FCookBodySetupInfo& OutCookInfo, EPhysXMeshCookFlag
 		}
 	}
 
-	OutCookInfo.bSupportUVFromHitResults = UPhysicsSettings::Get()->bSupportUVFromHitResults;
+	OutCookInfo.bSupportUVFromHitResults = UPhysicsSettings::Get()->bSupportUVFromHitResults || OutCookInfo.bSupportFaceRemap;
 
 #endif // WITH_PHYSX
 }
@@ -723,6 +732,8 @@ void UBodySetup::FinishCreatingPhysicsMeshes_Chaos(FChaosDerivedDataReader<float
 	}
 
 	ChaosTriMeshes = MoveTemp(InReader.TrimeshImplicitObjects);
+	UVInfo = MoveTemp(InReader.UVInfo);
+	FaceRemap = MoveTemp(InReader.FaceRemap);
 
 	// Clear the cooked data
 	if (!GIsEditor && !bSharedCookedData)
