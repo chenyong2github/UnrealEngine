@@ -399,6 +399,10 @@ namespace Audio
 
 	void FMixerPlatformNonRealtime::OnHardwareUpdate()
 	{
+#if WITH_XMA2
+		FXMAAudioInfo::Tick();
+#endif //WITH_XMA2
+
 		if (RenderEveryTickCvar)
 		{
 			RenderAudio(TickDelta);
