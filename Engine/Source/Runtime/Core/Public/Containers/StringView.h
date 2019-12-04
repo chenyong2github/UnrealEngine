@@ -88,7 +88,7 @@ public:
 	 */
 	inline TStringViewImpl(const CharType* InData)
 		: DataPtr(InData)
-		, Size(TCString<CharType>::Strlen(InData))
+		, Size(InData ? TCString<CharType>::Strlen(InData) : 0)
 	{
 	}
 
