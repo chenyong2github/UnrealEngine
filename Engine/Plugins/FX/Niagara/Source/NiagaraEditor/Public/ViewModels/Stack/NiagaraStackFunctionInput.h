@@ -19,6 +19,8 @@ class UNiagaraScript;
 class UEdGraphPin;
 class UNiagaraDataInterface;
 enum class EStackParameterBehavior;
+class UNiagaraClipboardFunctionInput;
+class UNiagaraClipboardFunction;
 
 /** Represents a single module input in the module stack view model. */
 UCLASS()
@@ -85,8 +87,16 @@ public:
 	virtual FText GetDisplayName() const override;
 	virtual FText GetTooltipText() const override;
 	virtual bool GetIsEnabled() const override;
-	
-	UObject* GetExternalAsset() const override;
+	virtual UObject* GetExternalAsset() const override;
+	virtual bool SupportsCut() const override { return true; }
+	virtual bool TestCanCutWithMessage(FText& OutMessage) const override;
+	virtual void Cut() override;
+	virtual bool SupportsCopy() const override { return true; }
+	virtual bool TestCanCopyWithMessage(FText& OutMessage) const override;
+	virtual void Copy() const override;
+	virtual bool SupportsPaste() const override { return true; }
+	virtual bool TestCanPasteWithMessage(FText& OutMessage) const override;
+	virtual void Paste() override;
 
 	FText GetTooltipText(EValueMode InValueMode) const;
 
@@ -108,17 +118,17 @@ public:
 	/** Gets the dynamic input node providing the value for this input, if one is available. */
 	UNiagaraNodeFunctionCall* GetDynamicInputNode() const;
 
-	/** Gets the expression input node providing the value for this input, if one is available. */
-	UNiagaraNodeCustomHlsl* GetExpressionNode() const;
-
 	/** Gets the dynamic inputs available for this input. */
 	void GetAvailableDynamicInputs(TArray<UNiagaraScript*>& AvailableDynamicInputs, bool bIncludeNonLibraryInputs = false);
 
 	/** Sets the dynamic input script for this input. */
 	void SetDynamicInput(UNiagaraScript* DynamicInput);
 
+	/** Gets the expression providing the value for this input, if one is available. */
+	FText GetCustomExpressionText() const;
+
 	/** Sets the dynamic custom expression script for this input. */
-	void SetCustomExpression(const FString& InputText);
+	void SetCustomExpression(const FString& InCustomExpression);
 
 	/** Gets the current struct value of this input is there is one. */
 	TSharedPtr<FStructOnScope> GetLocalValueStruct();
@@ -215,6 +225,10 @@ public:
 
 	/** Gets whether or not this input is filtered from search results and appearing in stack due to visibility metadata*/
 	bool GetShouldPassFilterForVisibleCondition() const;
+
+	const UNiagaraClipboardFunctionInput* ToClipboardFunctionInput(UObject* InOuter) const;
+
+	void SetValueFromClipboardFunctionInput(const UNiagaraClipboardFunctionInput& ClipboardFunctionInput);
 
 public:
 	//~ UNiagaraStackEntry interface
@@ -365,6 +379,8 @@ private:
 	bool IsRapidIterationCandidate() const;
 
 	FNiagaraVariable CreateRapidIterationVariable(const FName& InName);
+
+	void PrepareFunctionInputForNewValue();
 
 private:
 	/** The module function call which owns this input entry. NOTE: This input might not be an input to the module function
