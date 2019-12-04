@@ -10,10 +10,10 @@
 #include "DatasmithMaterialElements.h"
 #include "DatasmithMaterialsUtils.h"
 #include "DatasmithMesh.h"
-#include "DatasmithMeshHelper.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithSceneSource.h"
 #include "DatasmithUtils.h"
+#include "Utility/DatasmithMeshHelper.h"
 
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"

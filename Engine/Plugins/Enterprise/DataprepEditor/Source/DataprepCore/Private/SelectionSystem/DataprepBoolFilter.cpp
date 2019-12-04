@@ -19,7 +19,6 @@ TArray<UObject*> UDataprepBoolFilter::FilterObjects(const TArray<UObject *>& Obj
 		return DataprepSelectionSystemUtils::FilterObjects< UDataprepBoolFilter, UDataprepBoolFetcher, bool >( *this, * BoolFetcher, Objects );
 	}
 
-	ensure( false );
 	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepBoolFilter::FilterObjects: There was no Fetcher") );
 	return {};
 }

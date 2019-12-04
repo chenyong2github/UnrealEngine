@@ -4,7 +4,7 @@
 
 #include "DatasmithFBXHashUtils.h"
 #include "DatasmithFBXImporterLog.h"
-#include "DatasmithMeshHelper.h"
+#include "Utility/DatasmithMeshHelper.h"
 
 #include "FbxImporter.h"
 #include "FileHelpers.h"

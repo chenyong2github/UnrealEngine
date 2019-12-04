@@ -5,8 +5,8 @@
 #include "DatasmithFBXImportOptions.h"
 #include "DatasmithFBXScene.h"
 #include "DatasmithImportOptions.h"
-#include "DatasmithMeshHelper.h"
 #include "DatasmithUtils.h"
+#include "Utility/DatasmithMeshHelper.h"
 
 #include "Async/Async.h"
 #include "Curves/RichCurve.h"

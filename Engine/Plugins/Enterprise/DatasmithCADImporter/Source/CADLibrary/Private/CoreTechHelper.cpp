@@ -668,16 +668,14 @@ CT_IO_ERROR Tessellate(CT_OBJECT_ID MainObjectId, const FImportParameters& Impor
 
 	SetCoreTechTessellationState(ImportParams);
 
-	FString FullPath;
-	FString CachePath;
-	FCoreTechFileParser Parser = FCoreTechFileParser(FullPath, CachePath, ImportParams);
+	FCoreTechFileParser Parser = FCoreTechFileParser(ImportParams);
 
 	FBodyMesh BodyMesh;
 	BodyMesh.BodyID = 1;
 
 	while (CT_OBJECT_ID BodyId = Objects.IteratorIter())
 	{
-		Parser.GetBodyTessellation(BodyId, BodyMesh, ImportParams, 0);
+		Parser.GetBodyTessellation(BodyId, BodyMesh, 0);
 	}
 
 	bool bTessellated = ConvertCTBodySetToMeshDescription(ImportParams, MeshParameters, BodyMesh, MeshDesc);

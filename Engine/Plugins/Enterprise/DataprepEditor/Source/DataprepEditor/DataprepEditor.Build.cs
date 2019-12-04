@@ -40,8 +40,8 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 					"StatsViewer",
 					"UnrealEd",
-                }
-            );
-        }
-    }
+				}
+			);
+		}
+	}
 }

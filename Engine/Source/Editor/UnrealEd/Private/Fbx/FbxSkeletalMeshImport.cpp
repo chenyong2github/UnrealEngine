@@ -3881,6 +3881,12 @@ void UnFbx::FFbxImporter::InsertNewLODToBaseSkeletalMesh(USkeletalMesh* InSkelet
 		if (LODMatIndex == INDEX_NONE && InSkeletalMesh->Materials[MatIdx].MaterialInterface != NULL)
 		{
 			LODMatIndex = BaseSkeletalMesh->Materials.Find(InSkeletalMesh->Materials[MatIdx]);
+			
+			//If the material does not exist in the base skeletal mesh but is used in other LODs, add it.
+			if (LODMatIndex == INDEX_NONE)
+			{
+				LODMatIndex = BaseSkeletalMesh->Materials.Add(InSkeletalMesh->Materials[MatIdx]);
+			}
 		}
 
 		// If we didn't just use the index - but make sure its within range of the Materials array.

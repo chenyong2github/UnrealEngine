@@ -15,7 +15,7 @@ const float FontInverseScale = 1.0f / FontSize;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogText3D, Log, All);
 
-class FText3DModule : public IModuleInterface
+class FText3DModule final : public IModuleInterface
 {
 public:
 	FText3DModule();

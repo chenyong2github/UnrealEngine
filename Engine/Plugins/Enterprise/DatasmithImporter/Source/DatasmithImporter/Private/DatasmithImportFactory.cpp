@@ -10,10 +10,10 @@
 #include "DatasmithSceneActor.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithStaticMeshImporter.h"
+#include "DatasmithTranslatableSource.h"
+#include "DatasmithTranslatorManager.h"
 #include "IDatasmithSceneElements.h"
 #include "LayoutUV.h"
-#include "Translators/DatasmithTranslatableSource.h"
-#include "Translators/DatasmithTranslatorManager.h"
 #include "Utility/DatasmithImporterUtils.h"
 #include "Utility/DatasmithImportFactoryHelper.h"
 

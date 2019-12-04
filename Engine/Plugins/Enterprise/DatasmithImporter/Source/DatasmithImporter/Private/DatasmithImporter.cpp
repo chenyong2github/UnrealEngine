@@ -12,18 +12,18 @@
 #include "DatasmithLevelVariantSetsImporter.h"
 #include "DatasmithLightImporter.h"
 #include "DatasmithMaterialImporter.h"
+#include "DatasmithPayload.h"
 #include "DatasmithPostProcessImporter.h"
 #include "DatasmithScene.h"
 #include "DatasmithSceneActor.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithStaticMeshImporter.h"
+#include "DatasmithTranslator.h"
 #include "DatasmithTextureImporter.h"
 #include "IDatasmithSceneElements.h"
 #include "DatasmithAnimationElements.h"
 #include "LevelVariantSets.h"
 #include "ObjectTemplates/DatasmithObjectTemplate.h"
-#include "Translators/DatasmithPayload.h"
-#include "Translators/DatasmithTranslator.h"
 #include "Utility/DatasmithImporterUtils.h"
 #include "Utility/DatasmithTextureResize.h"
 
@@ -1354,7 +1354,7 @@ UMaterialInterface* FDatasmithImporter::ImportMaterial( FDatasmithImportContext&
 	return ImportedMaterial;
 }
 
-UObject* FDatasmithImporter::FinalizeMaterial( UObject* SourceMaterial, const TCHAR* MaterialsFolderPath, UMaterialInterface* ExistingMaterial, TMap< UObject*, UObject* >* ReferencesToRemap )
+UObject* FDatasmithImporter::FinalizeMaterial( UObject* SourceMaterial, const TCHAR* MaterialsFolderPath, UMaterialInterface* ExistingMaterial, TMap< UObject*, UObject* >* ReferencesToRemap)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithImporter::FinalizeMaterial);
 
@@ -1372,18 +1372,22 @@ UObject* FDatasmithImporter::FinalizeMaterial( UObject* SourceMaterial, const TC
 	{
 		if ( UMaterialInterface* SourceMaterialParent = SourceMaterialInstance->Parent )
 		{
-			FString SourceMaterialPath = SourceMaterialInstance->GetOutermost()->GetName();
-			FString SourceParentPath = SourceMaterialParent->GetOutermost()->GetName();
-
-			if ( SourceParentPath.StartsWith( SourceMaterialPath ) )
+			// Do not finalize parent material more than once by verifying it is not already in ReferencesToRemap
+			if (!ReferencesToRemap->Contains(SourceMaterialParent))
 			{
-				// Simply finalize the source parent material.
-				// Note that the parent material will be overridden on the existing material instance
-				FString DestinationParentPath = SourceParentPath;
-				DestinationParentPath.RemoveFromStart( SourceMaterialPath );
-				DestinationParentPath = MaterialsFolderPath / DestinationParentPath;
+				FString SourceMaterialPath = SourceMaterialInstance->GetOutermost()->GetName();
+				FString SourceParentPath = SourceMaterialParent->GetOutermost()->GetName();
 
-				FinalizeMaterial( SourceMaterialParent, *DestinationParentPath, nullptr, ReferencesToRemap );
+				if (SourceParentPath.StartsWith( SourceMaterialPath ) )
+				{
+					// Simply finalize the source parent material.
+					// Note that the parent material will be overridden on the existing material instance
+					FString DestinationParentPath = SourceParentPath;
+					DestinationParentPath.RemoveFromStart( SourceMaterialPath );
+					DestinationParentPath = MaterialsFolderPath / DestinationParentPath;
+
+					FinalizeMaterial( SourceMaterialParent, *DestinationParentPath, nullptr, ReferencesToRemap );
+				}
 			}
 		}
 	}

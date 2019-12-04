@@ -2,27 +2,31 @@
 
 #include "DataprepCoreUtils.h"
 
-#include "DataprepAssetInterface.h"
-
 #ifdef NEW_DATASMITHSCENE_WORKFLOW
 #include "DataprepAssetUserData.h"
 #endif
 
 #include "DataprepAsset.h"
+#include "DataprepAssetInterface.h"
+#include "DataprepContentConsumer.h"
+#include "DataprepContentProducer.h"
 #include "DataprepCoreLogCategory.h"
 #include "DataprepCorePrivateUtils.h"
 #include "IDataprepProgressReporter.h"
 
 #include "Engine/StaticMesh.h"
+#include "Engine/World.h"
 #include "GameFramework/Actor.h"
+#include "HAL/FileManager.h"
 #include "LevelSequence.h"
-#include "Materials/MaterialFunction.h"
-#include "Materials/MaterialInstance.h"
-#include "Materials/Material.h"
 #include "MaterialGraph/MaterialGraph.h"
 #include "MaterialShared.h"
+#include "Materials/Material.h"
+#include "Materials/MaterialFunction.h"
+#include "Materials/MaterialInstance.h"
 #include "Misc/ScopedSlowTask.h"
 #include "RenderingThread.h"
+#include "UObject/StrongObjectPtr.h"
 #include "UObject/UObjectHash.h"
 
 #if WITH_EDITOR
@@ -158,6 +162,161 @@ bool FDataprepCoreUtils::IsAsset(UObject* Object)
 	return true;
 }
 
+bool FDataprepCoreUtils::ExecuteDataprep(UDataprepAssetInterface* DataprepAssetInterface, const TSharedPtr<IDataprepLogger>& Logger, const TSharedPtr<IDataprepProgressReporter>& Reporter)
+{
+	if ( DataprepAssetInterface != nullptr )
+	{
+		// The temporary folders are used for the whole session of the Unreal Editor
+		static FString RelativeTempFolder = FString::FromInt( FPlatformProcess::GetCurrentProcessId() ) / FGuid::NewGuid().ToString();
+		static FString TransientContentFolder = DataprepCorePrivateUtils::GetRootPackagePath() / RelativeTempFolder;
+
+		// Create transient world to host data from producer
+		FName UniqueWorldName = MakeUniqueObjectName( GetTransientPackage(), UWorld::StaticClass(), FName( *( LOCTEXT("TransientWorld", "Preview").ToString() ) ) );
+		TStrongObjectPtr<UWorld> TransientWorld = TStrongObjectPtr<UWorld>( NewObject<UWorld>( GetTransientPackage(), UniqueWorldName ) );
+		TransientWorld->WorldType = EWorldType::EditorPreview;
+
+		FWorldContext& WorldContext = GEngine->CreateNewWorldContext( TransientWorld->WorldType );
+		WorldContext.SetCurrentWorld( TransientWorld.Get() );
+
+		TransientWorld->InitializeNewWorld( UWorld::InitializationValues()
+			.AllowAudioPlayback( false )
+			.CreatePhysicsScene( false )
+			.RequiresHitProxies( false )
+			.CreateNavigation( false )
+			.CreateAISystem( false )
+			.ShouldSimulatePhysics( false )
+			.SetTransactional( false )
+			);
+
+		TArray<TWeakObjectPtr<UObject>> Assets;
+
+		FText DataprepAssetTextName = FText::FromString( DataprepAssetInterface->GetName() );
+		FText TaskDescription = FText::Format( LOCTEXT("ExecutingDataprepAsset", "Executing Dataprep Asset \"{0}\" ..."), DataprepAssetTextName );
+		FDataprepWorkReporter ProgressTask( Reporter, TaskDescription, 3.0f, 1.0f );
+
+		bool bSuccessfulExecute = true;
+
+		// Run the producers
+		{
+			// Create package to pass to the producers
+			UPackage* TransientPackage = NewObject<UPackage>( nullptr, *TransientContentFolder, RF_Transient );
+			TransientPackage->FullyLoad();
+
+			TSharedPtr<FDataprepCoreUtils::FDataprepFeedbackContext> FeedbackContext = MakeShared<FDataprepCoreUtils::FDataprepFeedbackContext>();
+
+			FDataprepProducerContext Context;
+			Context.SetWorld( TransientWorld.Get() )
+				.SetRootPackage( TransientPackage )
+				.SetLogger( Logger )
+				.SetProgressReporter( Reporter );
+
+			FText Message = FText::Format( LOCTEXT("Running_Producers", "Running \"{0}\'s Producers ..."), DataprepAssetTextName );
+			ProgressTask.ReportNextStep( Message );
+			Assets = DataprepAssetInterface->GetProducers()->Produce( Context );
+		}
+
+		// Trigger execution of data preparation operations on world attached to recipe
+		TSet<TWeakObjectPtr<UObject>> CachedAssets;
+		{
+			DataprepActionAsset::FCanExecuteNextStepFunc CanExecuteNextStepFunc = [](UDataprepActionAsset* ActionAsset, UDataprepOperation* Operation, UDataprepFilter* Filter) -> bool
+			{
+				return true;
+			};
+
+
+			TSharedPtr<FDataprepActionContext> ActionsContext = MakeShared<FDataprepActionContext>();
+
+			ActionsContext->SetTransientContentFolder( TransientContentFolder / TEXT("Pipeline") )
+				.SetLogger( Logger )
+				.SetProgressReporter( Reporter )
+				.SetCanExecuteNextStep( CanExecuteNextStepFunc )
+				.SetWorld( TransientWorld.Get() )
+				.SetAssets( Assets );
+
+			FText Message = FText::Format( LOCTEXT("Executing_Recipe", "Executing \"{0}\'s Recipe ..."), DataprepAssetTextName );
+			ProgressTask.ReportNextStep( Message );
+			DataprepAssetInterface->ExecuteRecipe( ActionsContext );
+
+			// Update list of assets with latest ones
+			Assets = ActionsContext->Assets.Array();
+
+			for ( TWeakObjectPtr<UObject>& Asset : Assets )
+			{
+				if ( Asset.IsValid() )
+				{
+					CachedAssets.Add( Asset );
+				}
+			}
+
+		}
+
+		// Run consumer to output result of recipe
+		{
+			FDataprepConsumerContext Context;
+			Context.SetWorld( TransientWorld.Get() )
+				.SetAssets( Assets )
+				.SetTransientContentFolder( TransientContentFolder )
+				.SetLogger( Logger )
+				.SetProgressReporter( Reporter );
+
+			FText Message = FText::Format( LOCTEXT("Running_Consumer", "Running \"{0}\'s Consumer ..."), DataprepAssetTextName );
+			ProgressTask.ReportNextStep( Message );
+
+			bSuccessfulExecute = DataprepAssetInterface->RunConsumer( Context );
+		}
+
+		// Clean all temporary data created by the Dataprep asset
+		{
+			// Delete all actors of the transient world
+			TArray<AActor*> TransientActors;
+			DataprepCorePrivateUtils::GetActorsFromWorld( TransientWorld.Get(), TransientActors );
+			for ( AActor* Actor : TransientActors )
+			{
+				if ( Actor && !Actor->IsPendingKill() )
+				{
+					TransientWorld->EditorDestroyActor( Actor, true );
+
+					// Since deletion can be delayed, rename to avoid future name collision
+					// Call UObject::Rename directly on actor to avoid AActor::Rename which unnecessarily sunregister and re-register components
+					Actor->UObject::Rename( nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders );
+				}
+			}
+
+			// Delete assets which are still in the transient content folder
+			TArray<UObject*> ObjectsToDelete;
+			for ( TWeakObjectPtr<UObject>& Asset : CachedAssets )
+			{
+				if ( UObject* ObjectToDelete = Asset.Get() )
+				{
+					FString PackagePath = ObjectToDelete->GetOutermost()->GetName();
+					if ( PackagePath.StartsWith( TransientContentFolder ) )
+					{
+						FDataprepCoreUtils::MoveToTransientPackage( ObjectToDelete );
+						ObjectsToDelete.Add( ObjectToDelete );
+					}
+				}
+			}
+
+			// Disable warnings from LogStaticMesh because FDataprepCoreUtils::PurgeObjects is pretty verbose on harmless warnings
+			ELogVerbosity::Type PrevLogStaticMeshVerbosity = LogStaticMesh.GetVerbosity();
+			LogStaticMesh.SetVerbosity( ELogVerbosity::Error );
+
+			FDataprepCoreUtils::PurgeObjects( MoveTemp( ObjectsToDelete ) );
+
+			// Restore LogStaticMesh verbosity
+			LogStaticMesh.SetVerbosity( PrevLogStaticMeshVerbosity );
+
+			// Erase all temporary files created by the Dataprep asset
+			static FString AbsolutePath = FPaths::ConvertRelativePathToFull( DataprepCorePrivateUtils::GetRootTemporaryDir() / RelativeTempFolder );
+			IFileManager::Get().DeleteDirectory( *AbsolutePath, false, true );
+		}
+
+		return bSuccessfulExecute;
+	}
+
+	return false;
+}
+
 FDataprepWorkReporter::FDataprepWorkReporter(const TSharedPtr<IDataprepProgressReporter>& InReporter, const FText& InDescription, float InAmountOfWork, float InIncrementOfWork, bool bInterruptible )
 	: Reporter( InReporter )
 	, DefaultIncrementOfWork( InIncrementOfWork )
@@ -170,7 +329,7 @@ FDataprepWorkReporter::FDataprepWorkReporter(const TSharedPtr<IDataprepProgressR
 
 FDataprepWorkReporter::~FDataprepWorkReporter()
 {
-	if( Reporter.IsValid())
+	if( Reporter.IsValid() )
 	{
 		Reporter->EndWork();
 	}
@@ -178,7 +337,7 @@ FDataprepWorkReporter::~FDataprepWorkReporter()
 
 void FDataprepWorkReporter::ReportNextStep(const FText & InMessage, float InIncrementOfWork )
 {
-	if( Reporter.IsValid())
+	if( Reporter.IsValid() )
 	{
 		Reporter->ReportProgress( InIncrementOfWork, InMessage );
 	}

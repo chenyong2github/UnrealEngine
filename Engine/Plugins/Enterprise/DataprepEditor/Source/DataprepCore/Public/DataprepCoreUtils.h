@@ -15,6 +15,7 @@
 #include "UObject/Package.h"
 
 class UDataprepAsset;
+class UDataprepAssetInterface;
 
 struct FScopedSlowTask;
 
@@ -70,12 +71,20 @@ public:
 	}
 
 	/**
+	 * Execute a dataprep asset (import, execute and commit)
+	 * @param DataprepAssetInterface The dataprep asset to execute
+	 * @param Logger A optional log manager for the dataprep producers, operations and consumer
+	 * @param Reporter A optional progress reporter for the dataprep producers, operations and consumer
+	 */
+	static bool ExecuteDataprep(UDataprepAssetInterface* DataprepAssetInterface, const TSharedPtr<IDataprepLogger>& Logger, const TSharedPtr<IDataprepProgressReporter>& Reporter);
+
+	/**
 	 * Helper function to build assets for use in the Dataprep pipeline
 
 	 * @param	Assets					Array of weak pointer on the assets to be build
 	 * @param	ProgressReporterPtr		Pointer to a IDataprepProgressReporter interface. This pointer can be invalid.
 	 */
-	static void BuildAssets(const TArray< TWeakObjectPtr<UObject> >& Assets, const TSharedPtr< IDataprepProgressReporter >& ProgressReporterPtr );
+	static void BuildAssets(const TArray< TWeakObjectPtr<UObject> >& Assets, const TSharedPtr<IDataprepProgressReporter>& ProgressReporterPtr );
 
 	class DATAPREPCORE_API FDataprepLogger : public IDataprepLogger
 	{

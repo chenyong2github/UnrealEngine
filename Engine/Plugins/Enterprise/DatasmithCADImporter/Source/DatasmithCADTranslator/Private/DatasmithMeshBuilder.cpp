@@ -6,8 +6,8 @@
 #endif // CAD_INTERFACE
 
 #include "CoreTechFileParser.h"
-#include "DatasmithMeshHelper.h"
 #include "IDatasmithSceneElements.h"
+#include "Utility/DatasmithMeshHelper.h"
 
 #include "HAL/FileManager.h"
 #include "MeshDescription.h"

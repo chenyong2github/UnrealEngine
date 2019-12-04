@@ -2,15 +2,15 @@
 
 #include "AssetTypeActions_Dataprep.h"
 
+#include "DataprepEditorModule.h"
 #include "DataprepRecipe.h"
-#include "DataprepCoreModule.h"
 
 /* FAssetTypeActions_Base interface
 *****************************************************************************/
 
 uint32 FAssetTypeActions_Dataprep::GetCategories()
 {
-	return IDataprepCoreModule::DataprepCategoryBit;
+	return IDataprepEditorModule::DataprepCategoryBit;
 }
 
 
