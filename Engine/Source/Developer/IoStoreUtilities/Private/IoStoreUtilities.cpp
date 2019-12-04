@@ -399,7 +399,7 @@ struct FPackage
 	TArray<int32> Imports;
 	TArray<int32> Exports;
 	TArray<FArc> InternalArcs;
-	TMap<FName, TArray<FArc>> ExternalArcs;
+	TMap<FPackage*, TArray<FArc>> ExternalArcs;
 	TArray<FArc> ScriptArcs;
 	
 	TArray<FExportBundle> ExportBundles;
@@ -615,7 +615,7 @@ static void AddPostLoadArc(FPackage& FromPackage, FPackage& ToPackage)
 
 static void AddStartPostLoadArc(FPackage& FromPackage, FPackage& ToPackage)
 {
-	TArray<FArc>& ExternalArcs = ToPackage.ExternalArcs.FindOrAdd(FromPackage.Name);
+	TArray<FArc>& ExternalArcs = ToPackage.ExternalArcs.FindOrAdd(&FromPackage);
 	check(!ExternalArcs.Contains(FArc({EEventLoadNode2::Package_ExportsSerialized, EEventLoadNode2::Package_StartPostLoad})));
 	check(!ExternalArcs.Contains(FArc({EEventLoadNode2::Package_StartPostLoad, EEventLoadNode2::Package_StartPostLoad})));
 	ExternalArcs.Add({ EEventLoadNode2::Package_StartPostLoad, EEventLoadNode2::Package_StartPostLoad });
@@ -623,7 +623,7 @@ static void AddStartPostLoadArc(FPackage& FromPackage, FPackage& ToPackage)
 
 static void AddExportsDoneArc(FPackage& FromPackage, FPackage& ToPackage)
 {
-	TArray<FArc>& ExternalArcs = ToPackage.ExternalArcs.FindOrAdd(FromPackage.Name);
+	TArray<FArc>& ExternalArcs = ToPackage.ExternalArcs.FindOrAdd(&FromPackage);
 	check(!ExternalArcs.Contains(FArc({EEventLoadNode2::Package_ExportsSerialized, EEventLoadNode2::Package_StartPostLoad})));
 	check(!ExternalArcs.Contains(FArc({EEventLoadNode2::Package_StartPostLoad, EEventLoadNode2::Package_StartPostLoad})));
 	ExternalArcs.Add({ EEventLoadNode2::Package_ExportsSerialized, EEventLoadNode2::Package_StartPostLoad });
@@ -633,7 +633,7 @@ static void AddUniqueExternalBundleArc(FPackage& FromPackage, uint32 FromBundleI
 {
 	uint32 FromNodeIndex = EEventLoadNode2::Package_NumPhases + FromBundleIndex * EEventLoadNode2::ExportBundle_NumPhases + EEventLoadNode2::ExportBundle_Process;
 	uint32 ToNodeIndex = EEventLoadNode2::Package_NumPhases + ToBundleIndex * EEventLoadNode2::ExportBundle_NumPhases + EEventLoadNode2::ExportBundle_Process;
-	TArray<FArc>& ExternalArcs = ToPackage.ExternalArcs.FindOrAdd(FromPackage.Name);
+	TArray<FArc>& ExternalArcs = ToPackage.ExternalArcs.FindOrAdd(&FromPackage);
 	ExternalArcs.AddUnique({ FromNodeIndex, ToNodeIndex });
 }
 
@@ -1352,7 +1352,10 @@ int32 CreateTarget(const FContainerTarget& Target)
 
 			GlobalImportsByFullName[GlobalImport.FullName] = I;
 		}
-		LastPackage->GlobalImportCount = GlobalImports.Num() - LastPackage->FirstGlobalImport;
+		if (LastPackage)
+		{
+			LastPackage->GlobalImportCount = GlobalImports.Num() - LastPackage->FirstGlobalImport;
+		}
 	}
 
 	for (FExportData& GlobalExport : GlobalExports)
@@ -1653,12 +1656,11 @@ int32 CreateTarget(const FContainerTarget& Target)
 		ZenGraphArchive << ImportedPackagesCount;
 		for (auto& KV : Package.ExternalArcs)
 		{
-			const FName& ImportedPackageName = KV.Key;
-			NameMapBuilder.SerializeName(ZenGraphArchive, ImportedPackageName);
-
+			FPackage* ImportedPackage = KV.Key;
 			TArray<FArc>& Arcs = KV.Value;
-
 			int32 ExternalArcCount = Arcs.Num();
+
+			ZenGraphArchive << ImportedPackage->GlobalPackageId;
 			ZenGraphArchive << ExternalArcCount;
 			for (FArc& ExternalArc : Arcs)
 			{

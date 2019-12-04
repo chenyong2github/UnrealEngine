@@ -579,7 +579,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 		if (!IsInlined() && bUseZenLoader)
 		{
 			const EIoChunkType Type = IsOptional() ? EIoChunkType::OptionalBulkData : EIoChunkType::BulkData;
-			ChunkID = CreateBulkdataChunkId(Package->GetGlobalPackageId(), BulkDataOffsetInFile, Type);
+			ChunkID = CreateBulkdataChunkId(Package->GetPackageId().ToIndex(), BulkDataOffsetInFile, Type);
 
 			BulkDataFlags |= BULKDATA_UsesIoDispatcher; // Indicates that this BulkData should use the FIoChunkId rather than a filename
 		}
@@ -640,7 +640,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 						if (!IsInlined() && bUseZenLoader)
 						{
 							// Regenerate the FIoChunkId to find the optional BulkData instead!
-							ChunkID = CreateBulkdataChunkId(Package->GetGlobalPackageId(), BulkDataOffsetInFile, EIoChunkType::OptionalBulkData);
+							ChunkID = CreateBulkdataChunkId(Package->GetPackageId().ToIndex(), BulkDataOffsetInFile, EIoChunkType::OptionalBulkData);
 							BulkDataFlags |= BULKDATA_UsesIoDispatcher; // Indicates that this BulkData should use the FIoChunkId rather than a filename
 						}
 						else

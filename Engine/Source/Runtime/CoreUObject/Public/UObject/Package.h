@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
+#include "UObject/PackageId.h"
 #include "Misc/Guid.h"
 #include "Misc/WorldCompositionUtility.h"
 #include "Misc/OutputDeviceError.h"
@@ -189,7 +190,7 @@ private:
 	uint32	PackageFlagsPrivate;
 	
 	/** Globally unique id used to address I/O chunks within the package */
-	uint32 GlobalPackageId = ~uint32(0); 
+	FPackageId PackageId;
 public:
 
 	/** Editor only: PIE instance ID this package belongs to, INDEX_NONE otherwise */
@@ -513,16 +514,16 @@ public:
 		ChunkIDs = InChunkIDs;
 	}
 
-	/** returns the globally unique package id */
-	FORCEINLINE uint32 GetGlobalPackageId() const
+	/** returns the unique package id */
+	FORCEINLINE FPackageId GetPackageId() const
 	{
-		return GlobalPackageId;
+		return PackageId;
 	}
 
-	/** sets the globally unique package id */
-	FORCEINLINE void SetGlobalPackageId(uint32 InGlobalPackageId)
+	/** sets the unique package id */
+	FORCEINLINE void SetPackageId(FPackageId InPackageId)
 	{
-		GlobalPackageId = InGlobalPackageId;
+		PackageId = InPackageId;
 	}
 
 	////////////////////////////////////////////////////////
