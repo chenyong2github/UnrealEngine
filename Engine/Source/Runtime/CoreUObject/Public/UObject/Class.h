@@ -2570,22 +2570,10 @@ public:
 	 */
 	TArray<FImplementedInterface> Interfaces;
 
-	/**
-	 * Prepends reference token stream with super class's stream.
-	 *
-	 * @param SuperClass Super class to prepend stream with.
-	 */
-	void PrependStreamWithSuperClass(UClass& SuperClass);
-
 	/** Reference token stream used by realtime garbage collector, finalized in AssembleReferenceTokenStream */
 	FGCReferenceTokenStream ReferenceTokenStream;
 	/** CS for the token stream. Token stream can assemble code can sometimes be called from two threads throuh a web of async loading calls. */
 	FCriticalSection ReferenceTokenStreamCritical;
-
-#if ENABLE_GC_OBJECT_CHECKS
-	/** TokenIndex map to look-up token stream index origin. */
-	FGCDebugReferenceTokenMap DebugTokenMap;
-#endif
 
 	/** This class's native functions. */
 	TArray<FNativeFunctionLookup> NativeFunctionLookupTable;

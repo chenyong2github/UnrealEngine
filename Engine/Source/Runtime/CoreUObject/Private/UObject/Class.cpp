@@ -4912,14 +4912,6 @@ bool UClass::IsClassGroupName(const TCHAR* InGroupName) const
 
 #endif // WITH_EDITOR || HACK_HEADER_GENERATOR
 
-void UClass::PrependStreamWithSuperClass(UClass& SuperClass)
-{
-	ReferenceTokenStream.PrependStream(SuperClass.ReferenceTokenStream);
-
-#if ENABLE_GC_OBJECT_CHECKS
-	DebugTokenMap.PrependWithSuperClass(SuperClass);
-#endif
-}
 
 IMPLEMENT_CORE_INTRINSIC_CLASS(UClass, UStruct,
 	{

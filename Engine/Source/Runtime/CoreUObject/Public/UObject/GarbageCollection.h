@@ -167,54 +167,6 @@ struct FTokenInfo
 	FName Name;
 };
 
-/**
- * Stores info about GC token stream debug map.
- */
-class FGCDebugReferenceTokenMap
-{
-public:
-	/**
-	 * Maps token.
-	 *
-	 * @param DebugName Field name.
-	 * @param Offset Field offset.
-	 * @param TokenIndex Token index.
-	 */
-	void MapToken(const FName& DebugName, int32 Offset, int32 TokenIndex);
-
-	/**
-	 * Prepends this token map with its super class token map.
-	 *
-	 * @param SuperClass Super class to obtain its token map.
-	 */
-	void PrependWithSuperClass(const UClass& SuperClass);
-
-	/**
-	 * Returns pointer to token info object at given index.
-	 *
-	 * @param TokenIndex Index of the token.
-	 *
-	 * @returns FTokenInfo object.
-	 */
-	const FTokenInfo& GetTokenInfo(int32 TokenIndex) const;
-
-	/**
-	 * Empties the map.
-	 */
-	void Empty()
-	{
-		TokenMap.Empty();
-	}
-
-	FORCEINLINE int32 GetTokenMapSize() const
-	{
-		return TokenMap.Num();
-	}
-
-private:
-	/* Token map. */
-	TArray<FTokenInfo> TokenMap;
-};
 #endif // ENABLE_GC_OBJECT_CHECKS
 
 /**
@@ -237,12 +189,18 @@ struct FGCReferenceTokenStream
 	void Shrink()
 	{
 		Tokens.Shrink();
+#if ENABLE_GC_OBJECT_CHECKS
+		TokenDebugInfo.Shrink();
+#endif // ENABLE_GC_OBJECT_CHECKS
 	}
 
 	/** Empties the token stream entirely */
 	void Empty()
 	{
 		Tokens.Empty();
+#if ENABLE_GC_OBJECT_CHECKS
+		TokenDebugInfo.Empty();
+#endif // ENABLE_GC_OBJECT_CHECKS
 	}
 
 	/**
@@ -277,7 +235,7 @@ struct FGCReferenceTokenStream
 	 *
 	 * @return Index of the reference info in the token stream.
 	 */
-	int32 EmitReferenceInfo(FGCReferenceInfo ReferenceInfo);
+	int32 EmitReferenceInfo(FGCReferenceInfo ReferenceInfo, const FName& DebugName);
 
 	/**
 	 * Emit placeholder for aray skip index, updated in UpdateSkipIndexPlaceholder
@@ -301,21 +259,21 @@ struct FGCReferenceTokenStream
 	 *
 	 * @param Count count to emit
 	 */
-	void EmitCount( uint32 Count );
+	int32 EmitCount( uint32 Count );
 
 	/**
 	 * Emit a pointer
 	 *
 	 * @param Ptr pointer to emit
 	 */
-	void EmitPointer( void const* Ptr );
+	int32 EmitPointer( void const* Ptr );
 
 	/**
 	 * Emit stride
 	 *
 	 * @param Stride stride to emit
 	 */
-	void EmitStride( uint32 Stride );
+	int32 EmitStride( uint32 Stride );
 
 	/**
 	 * Increase return count on last token.
@@ -423,6 +381,10 @@ struct FGCReferenceTokenStream
 		return CurrentIndex >= (uint32)Tokens.Num();
 	}
 
+#if ENABLE_GC_OBJECT_CHECKS
+	FTokenInfo GetTokenInfo(int32 TokenIndex) const;
+#endif
+
 private:
 
 	/**
@@ -444,7 +406,14 @@ private:
 	}
 
 	/** Token array */
-	TArray<uint32>	Tokens;
+	TArray<uint32> Tokens;
+#if ENABLE_GC_OBJECT_CHECKS
+	/** 
+	 * Name of the proprty that emitted the associated token or token type (pointer etc).
+	 * We want to keep it in a separate array for performance reasons
+	 */
+	TArray<FName> TokenDebugInfo;
+#endif // ENABLE_GC_OBJECT_CHECKS
 };
 
 /** Prevent GC from running in the current scope */
