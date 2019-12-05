@@ -186,10 +186,6 @@ namespace Sc
 
 PX_FORCE_INLINE void Sc::ShapeInteraction::sendLostTouchReport(bool shapeVolumeRemoved, const PxU32 ccdPass, PxsContactManagerOutputIterator& outputs)
 {
-	if (!hasTouch() || !isReportPair())
-	{
-		return;
-	}
 	PX_ASSERT(hasTouch());
 	PX_ASSERT(isReportPair());
 
@@ -302,10 +298,6 @@ PX_INLINE bool Sc::ShapeInteraction::updateManager(void* contactManager)
 
 PX_INLINE void Sc::ShapeInteraction::destroyManager()
 {
-	if (mManager == NULL)
-	{
-		return;
-	}
 	PX_ASSERT(mManager);
 
 	Scene& scene = getScene();
@@ -327,11 +319,6 @@ PX_FORCE_INLINE bool Sc::ShapeInteraction::activeManagerAllowed() const
 	
 	const BodySim* bodySim0 = getShape0().getBodySim();
 	const BodySim* bodySim1 = getShape1().getBodySim();
-
-	if (bodySim0 == NULL)
-	{
-		return false;
-	}
 	PX_ASSERT(bodySim0);  // the first shape always belongs to a dynamic body
 
 	const IG::IslandSim& islandSim = getScene().getSimpleIslandManager()->getSpeculativeIslandSim();
@@ -363,10 +350,6 @@ PX_FORCE_INLINE void Sc::ShapeInteraction::sendCCDRetouch(const PxU32 ccdPass, P
 
 PX_FORCE_INLINE void Sc::ShapeInteraction::adjustCountersOnLostTouch(BodySim* body0, BodySim* body1, bool useAdaptiveForce)
 {
-	if (body0 == NULL)
-	{
-		return;
-	}
 	PX_ASSERT(body0);  // the first shape always belongs to a dynamic body
 
 	PX_ASSERT(mActorPair->getTouchCount());
@@ -386,11 +369,6 @@ PX_FORCE_INLINE void Sc::ShapeInteraction::adjustCountersOnNewTouch(bool useAdap
 {
 	BodySim* body0 = getShape0().getBodySim();
 	BodySim* body1 = getShape1().getBodySim();
-
-	if (body0 == NULL)
-	{
-		return;
-	}
 	PX_ASSERT(body0);  // the first shape always belongs to a dynamic body
 
 	mActorPair->incTouchCount();
