@@ -4,6 +4,7 @@
 
 #include "Chaos/Box.h"
 #include "Chaos/Capsule.h"
+#include "Chaos/Evolution/PBDMinEvolution.h"
 #include "Chaos/MassProperties.h"
 #include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/ParticleHandle.h"
@@ -211,28 +212,28 @@ namespace ImmediatePhysics_Chaos
 	// Actor Handle
 	//
 
-	FActorHandle::FActorHandle(Chaos::TPBDRigidsEvolutionGBF<FReal, Dimensions>* InEvolution, EActorType ActorType, FBodyInstance* BodyInstance, const FTransform& Transform)
-		: Evolution(InEvolution)
+	FActorHandle::FActorHandle(Chaos::TPBDRigidsSOAs<FReal, 3>& InParticles, EActorType ActorType, FBodyInstance* BodyInstance, const FTransform& Transform)
+		: Particles(InParticles)
 		, ParticleHandle(nullptr)
 	{
 		using namespace Chaos;
 
 		// @todo(ccaulfield): Scale
 		float Mass = 0;
-		TVector<float, 3> Inertia = TVector<float, 3>::OneVector;
-		TRigidTransform<float, 3> CoMTransform = TRigidTransform<float, 3>::Identity;
+		FVec3 Inertia = FVec3::OneVector;
+		FRigidTransform3 CoMTransform = FRigidTransform3::Identity;
 		if (CreateGeometry(BodyInstance, FVector::OneVector, Mass, Inertia, CoMTransform, Geometry, Shapes))
 		{
 			switch (ActorType)
 			{
 			case EActorType::StaticActor:
-				ParticleHandle = Evolution->CreateStaticParticles(1, TGeometryParticleParameters<FReal, Dimensions>())[0];
+				ParticleHandle = Particles.CreateStaticParticles(1, TGeometryParticleParameters<FReal, Dimensions>())[0];
 				break;
 			case EActorType::KinematicActor:
-				ParticleHandle = Evolution->CreateKinematicParticles(1, TKinematicGeometryParticleParameters<FReal, Dimensions>())[0];
+				ParticleHandle = Particles.CreateKinematicParticles(1, TKinematicGeometryParticleParameters<FReal, Dimensions>())[0];
 				break;
 			case EActorType::DynamicActor:
-				ParticleHandle = Evolution->CreateDynamicParticles(1, TPBDRigidParticleParameters<FReal, Dimensions>())[0];
+				ParticleHandle = Particles.CreateDynamicParticles(1, TPBDRigidParticleParameters<FReal, Dimensions>())[0];
 				break;
 			}
 
@@ -241,6 +242,13 @@ namespace ImmediatePhysics_Chaos
 				SetWorldTransform(Transform);
 
 				ParticleHandle->SetGeometry(MakeSerializable(Geometry));
+
+				if (Geometry && Geometry->HasBoundingBox())
+				{
+					ParticleHandle->SetHasBounds(true);
+					ParticleHandle->SetLocalBounds(Geometry->BoundingBox());
+					ParticleHandle->SetWorldSpaceInflatedBounds(Geometry->BoundingBox().TransformedBox(TRigidTransform<float, 3>(ParticleHandle->X(), ParticleHandle->R())));
+				}
 
 				if (auto* Kinematic = ParticleHandle->CastToKinematicParticle())
 				{
@@ -269,7 +277,7 @@ namespace ImmediatePhysics_Chaos
 	{
 		if (ParticleHandle != nullptr)
 		{
-			Evolution->DestroyParticle(ParticleHandle);
+			Particles.DestroyParticle(ParticleHandle);
 			ParticleHandle = nullptr;
 			Geometry = nullptr;
 		}
