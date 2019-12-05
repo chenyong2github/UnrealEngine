@@ -119,6 +119,16 @@ void FLocalizationResourceTextSource::LoadLocalizedResources(const ELocalization
 	static const FString PlatformName = ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName());
 	auto LoadLocalizationResourcesForCulture = [](FTextLocalizationResource& InOutLocRes, const FString& InLocalizationPath, const FString& InCulture, const FString& InLocResFilename, const int32 InLocResPriority)
 	{
+		const TArray<FString>& DisabledLocalizationTargets = TextLocalizationResourceUtil::GetDisabledLocalizationTargets();
+		if (DisabledLocalizationTargets.Num() > 0)
+		{
+			const FString LocalizationTargetName = FPaths::GetBaseFilename(InLocResFilename);
+			if (DisabledLocalizationTargets.Contains(LocalizationTargetName))
+			{
+				return;
+			}
+		}
+
 		const FString PlatformAgnosticLocResFilename = InLocalizationPath / InCulture / InLocResFilename;
 		InOutLocRes.LoadFromFile(PlatformAgnosticLocResFilename, InLocResPriority);
 
