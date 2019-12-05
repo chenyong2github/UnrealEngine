@@ -18,9 +18,7 @@ const FName UNiagaraDataInterfaceColorCurve::SampleCurveName(TEXT("SampleColorCu
 UNiagaraDataInterfaceColorCurve::UNiagaraDataInterfaceColorCurve(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-#if WITH_EDITORONLY_DATA
-	UpdateLUT();
-#endif
+	SetDefaultLUT();
 }
 
 void UNiagaraDataInterfaceColorCurve::PostInitProperties()
@@ -65,7 +63,6 @@ void UNiagaraDataInterfaceColorCurve::Serialize(FArchive& Ar)
 #endif
 	{
 		Super::Serialize(Ar);
-		PushToRenderThread();
 	}
 }
 
