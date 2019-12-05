@@ -1876,12 +1876,10 @@ void FAsyncLoadingThread2Impl::InitializeLoading()
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(InitIoDispatcher);
 
-		TUniquePtr<FIoStoreReader> IoStoreReader = MakeUnique<FIoStoreReader>(FIoDispatcher::GetEnvironment());
-		FIoStatus ReaderStatus = IoStoreReader->Initialize(TEXT("PackageLoader"));
-
-		UE_CLOG(!ReaderStatus.IsOk(), LogStreaming, Error, TEXT("Failed to initialize I/O dispatcher: '%s'"), *ReaderStatus.ToString());
-
-		IoDispatcher.Mount(IoStoreReader.Release());
+		FIoStoreEnvironment IoStoreEnvironment;
+		IoStoreEnvironment.InitializeFileEnvironment(FPaths::ProjectDir());
+		FIoStatus ReaderStatus = IoDispatcher.Mount(IoStoreEnvironment);
+		UE_CLOG(!ReaderStatus.IsOk(), LogStreaming, Fatal, TEXT("Failed to initialize I/O dispatcher: '%s'"), *ReaderStatus.ToString());
 
 #if USE_NEW_BULKDATA
 		FBulkDataBase::SetIODispatcher(&IoDispatcher);

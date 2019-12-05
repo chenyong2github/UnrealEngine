@@ -270,7 +270,7 @@ public:
 		if (FPlatformProcess::SupportsMultithreading())
 		{
 			Task = new FAsyncTask<FBulkDataIoDispatcherRequestWorker>(*this);
-			Task->StartBackgroundTask(GIOThreadPool);
+			Task->StartBackgroundTask(GBackgroundPriorityThreadPool);
 		}
 		else
 		{

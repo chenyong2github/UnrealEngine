@@ -22,13 +22,12 @@
 
 class FIoRequest;
 class FIoDispatcher;
-class FIoStoreReader;
 class FIoStoreWriter;
+class FIoStoreEnvironment;
 
 class FIoRequestImpl;
 class FIoBatchImpl;
 class FIoDispatcherImpl;
-class FIoStoreReaderImpl;
 class FIoStoreWriterImpl;
 
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogIoDispatcher, Log, All);
@@ -629,27 +628,22 @@ class FIoReadOptions
 public:
 	FIoReadOptions() = default;
 
-	FIoReadOptions(uint64 InOffset, uint32 InSize)
+	FIoReadOptions(uint64 InOffset, uint64 InSize)
 		: RequestedOffset(InOffset)
 		, RequestedSize(InSize)
 	{ }
 
 	~FIoReadOptions() = default;
 
-	void SetRange(uint64 Offset, uint32 Size)
+	void SetRange(uint64 Offset, uint64 Size)
 	{
 		RequestedOffset = Offset;
 		RequestedSize	= Size;
 	}
 
-	void SetTargetVa(uint64 VaTargetAddress)
+	void SetTargetVa(void* InTargetVa)
 	{
-		TargetVa = VaTargetAddress;
-	}
-
-	void ForGPU()
-	{
-		Flags |= EFlags::GPUMemory;
+		TargetVa = InTargetVa;
 	}
 
 	uint64 GetOffset() const
@@ -662,16 +656,16 @@ public:
 		return RequestedSize;
 	}
 
-private:
-	uint64	TargetVa		= 0;
-	uint64	RequestedOffset = 0;
-	uint32	RequestedSize	= ~uint32(0);
-	uint32	Flags			= 0;
-
-	enum EFlags
+	void* GetTargetVa() const
 	{
-		GPUMemory = 1 << 0,
-	};
+		return TargetVa;
+	}
+
+private:
+	uint64	RequestedOffset = 0;
+	uint64	RequestedSize = ~uint64(0);
+	void* TargetVa = nullptr;
+	uint32	Flags = 0;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -738,8 +732,7 @@ public:
 	CORE_API						FIoDispatcher();
 	CORE_API virtual				~FIoDispatcher();
 
-	CORE_API void					Mount(FIoStoreReader* IoStore);
-	CORE_API void					Unmount(FIoStoreReader* IoStore);
+	CORE_API FIoStatus				Mount(FIoStoreEnvironment& Environment);
 
 	CORE_API FIoBatch				NewBatch();
 	CORE_API void					FreeBatch(FIoBatch Batch);
@@ -754,10 +747,9 @@ public:
 	FIoDispatcher& operator=(const FIoDispatcher&) = delete;
 
 	static CORE_API bool IsInitialized();
-	static CORE_API FIoStatus Initialize(const FString& Directory);
+	static CORE_API FIoStatus Initialize();
 	static CORE_API void Shutdown();
 	static CORE_API FIoDispatcher& Get();
-	static CORE_API class FIoStoreEnvironment& GetEnvironment();
 
 private:
 	FIoDispatcherImpl* Impl = nullptr;
@@ -783,26 +775,6 @@ public:
 
 private:
 	FString			RootPath;
-};
-
-class FIoStoreReader : public FRefCountBase
-{
-public:
-	CORE_API FIoStoreReader(FIoStoreEnvironment& Environment);
-	CORE_API ~FIoStoreReader();
-
-	/** This will parse the manifests in the environment and
-		populate the table of contents. To be useful the IO dispatcher
-		needs to have access to the information, which is what
-		the I/O dispatcher Mount()/Unmount() calls are for.
-	  */
-	CORE_API FIoStatus Initialize(FStringView UniqueId);
-
-private:
-	FIoStoreReaderImpl* Impl;
-
-	friend class FIoDispatcherImpl;
-	friend class FIoStoreImpl;
 };
 
 //////////////////////////////////////////////////////////////////////////

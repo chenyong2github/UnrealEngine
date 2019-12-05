@@ -1447,7 +1447,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	// Initialize I/O dispatcher when using the new package loader
 	if (FParse::Param(FCommandLine::Get(), TEXT("zenloader")))
 	{
-		FIoDispatcher::Initialize(FPaths::ProjectDir());
+		FIoDispatcher::Initialize();
 	}
 #endif
 
