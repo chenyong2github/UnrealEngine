@@ -5,11 +5,11 @@
 #include "CommonRenderResources.h"
 
 THIRD_PARTY_INCLUDES_START
-	#include "AmdAmf/core/Result.h"
-	#include "AmdAmf/core/Factory.h"
-	#include "AmdAmf/components/VideoEncoderVCE.h"
-	#include "AmdAmf/core/Compute.h"
-	#include "AmdAmf/core/Plane.h"
+	#include "ThirdParty/AmdAmf/core/Result.h"
+	#include "ThirdParty/AmdAmf/core/Factory.h"
+	#include "ThirdParty/AmdAmf/components/VideoEncoderVCE.h"
+	#include "ThirdParty/AmdAmf/core/Compute.h"
+	#include "ThirdParty/AmdAmf/core/Plane.h"
 THIRD_PARTY_INCLUDES_END
 
 DECLARE_STATS_GROUP(TEXT("AmfVideoEncoder"), STATGROUP_AmfVideoEncoder, STATCAT_Advanced);
