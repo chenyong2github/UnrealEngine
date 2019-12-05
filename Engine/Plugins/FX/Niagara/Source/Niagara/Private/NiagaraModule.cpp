@@ -111,6 +111,7 @@ FNiagaraVariable INiagaraModule::Engine_Owner_SystemWorldToLocalNoScale;
 
 FNiagaraVariable INiagaraModule::Engine_Owner_TimeSinceRendered;
 FNiagaraVariable INiagaraModule::Engine_Owner_LODDistance;
+FNiagaraVariable INiagaraModule::Engine_Owner_LODDistanceFraction;
 
 FNiagaraVariable INiagaraModule::Engine_Owner_ExecutionState;
 
@@ -216,6 +217,7 @@ void INiagaraModule::StartupModule()
 
 	Engine_Owner_TimeSinceRendered = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Engine.Owner.TimeSinceRendered"));
 	Engine_Owner_LODDistance = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Engine.Owner.LODDistance"));
+	Engine_Owner_LODDistanceFraction = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Engine.Owner.LODDistanceFraction"));
 
 	Engine_Owner_ExecutionState = FNiagaraVariable(FNiagaraTypeDefinition::GetExecutionStateEnum(), TEXT("Engine.Owner.ExecutionState"));
 	
@@ -454,6 +456,7 @@ void INiagaraModule::InitFixedSystemInstanceParameterStore()
 	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_TIME_SINCE_RENDERED, true, false);
 	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_EXECUTION_STATE, true, false);
 	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_LOD_DISTANCE, true, false);
+	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_LOD_DISTANCE_FRACTION, true, false);
 	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS, true, false);
 	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS_ALIVE, true, false);
 	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_SYSTEM_AGE);
@@ -463,12 +466,17 @@ void INiagaraModule::InitFixedSystemInstanceParameterStore()
 
 void INiagaraModule::OnChangeDetailLevel(class IConsoleVariable* CVar)
 {
-	//Can only change the detail level at runtime on when not cooked.
-#if WITH_EDITORONLY_DATA
 	int32 NewDetailLevel = CVar->GetInt();
 	if (EngineDetailLevel != NewDetailLevel)
 	{
 		EngineDetailLevel = NewDetailLevel;
+
+		for (TObjectIterator<UNiagaraSystem> It; It; ++It)
+		{
+			UNiagaraSystem* System = *It;
+			check(System);
+			System->OnDetailLevelChanges(NewDetailLevel);
+		}
 
 		// If the detail level has changed we have to reset all systems,
 		// and only activate ones that were previously active
@@ -485,7 +493,6 @@ void INiagaraModule::OnChangeDetailLevel(class IConsoleVariable* CVar)
 			}
 		}
 	}
-#endif
 }
 
 //////////////////////////////////////////////////////////////////////////
