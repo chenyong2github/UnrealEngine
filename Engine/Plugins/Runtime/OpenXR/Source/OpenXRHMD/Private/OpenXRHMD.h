@@ -232,6 +232,8 @@ private:
 
 	FXRSwapChainPtr			Swapchain;
 	FXRSwapChainPtr			DepthSwapchain;
+	uint8					LastRequestedSwapchainFormat;
+	uint8					LastRequestedDepthSwapchainFormat;
 
 	TArray<FHMDViewMesh>	HiddenAreaMeshes;
 	TArray<FHMDViewMesh>	VisibleAreaMeshes;
