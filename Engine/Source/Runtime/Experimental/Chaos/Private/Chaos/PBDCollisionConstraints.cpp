@@ -106,8 +106,7 @@ namespace Chaos
 		{
 			TRigidBodyPointContactConstraint<T, d>* PointConstraint = ConstraintBase->template As< TRigidBodyPointContactConstraint<T, d> >();
 
-			int32 Idx = PointConstraints.AddUninitialized(1);
-			PointConstraints[Idx] = *PointConstraint;
+			int32 Idx = PointConstraints.Add(*PointConstraint);
 			Handles.Add(HandleAllocator.template AllocHandle< TRigidBodyPointContactConstraint<T, d> >(this, Idx));
 
 			delete PointConstraint;
@@ -116,8 +115,7 @@ namespace Chaos
 		{
 			TRigidBodyPlaneContactConstraint<T, d>* PlaneConstraint = ConstraintBase->template As< TRigidBodyPlaneContactConstraint<T, d> >();
 
-			int32 Idx = PlaneConstraints.AddUninitialized(1);
-			PlaneConstraints[Idx] = *PlaneConstraint;
+			int32 Idx = PlaneConstraints.Add(*PlaneConstraint);
 			Handles.Add(HandleAllocator.template AllocHandle< TRigidBodyPlaneContactConstraint<T, d> >(this, Idx));
 
 			delete PlaneConstraint;
@@ -191,16 +189,33 @@ namespace Chaos
 	void TPBDCollisionConstraints<T, d>::RemoveConstraint(FConstraintContainerHandle* Handle)
 	{
 		int32 Idx = Handle->GetConstraintIndex();
-		typename TCollisionConstraintBase<T, d>::FType ConstraintType = Handle->GetType();
+		typename FCollisionConstraintBase::FType ConstraintType = Handle->GetType();
 
 		Handles.RemoveAtSwap(Idx);
-		PointConstraints.RemoveAtSwap(Idx);
-		if (Idx < PointConstraints.Num())
-		{
-			Handles[Idx]->SetConstraintIndex(Idx, ConstraintType);
-		}
 
-		ensure(Handles.Num() == PointConstraints.Num());
+		if (ConstraintType == FCollisionConstraintBase::FType::SinglePoint)
+		{
+			PointConstraints.RemoveAtSwap(Idx);
+			if (Idx < PointConstraints.Num())
+			{
+				Handles[Idx]->SetConstraintIndex(Idx, ConstraintType);
+			}
+		}
+		else if (ConstraintType == FCollisionConstraintBase::FType::Plane)
+		{
+			PlaneConstraints.RemoveAtSwap(Idx);
+			if (Idx < PlaneConstraints.Num())
+			{
+				Handles[Idx]->SetConstraintIndex(Idx, ConstraintType);
+			}
+		}
+		else 
+		{
+			check(false);
+		}
+		
+		ensure(Handles.Num() == PointConstraints.Num() + PlaneConstraints.Num());
+
 		HandleAllocator.FreeHandle(Handle);
 	}
 
