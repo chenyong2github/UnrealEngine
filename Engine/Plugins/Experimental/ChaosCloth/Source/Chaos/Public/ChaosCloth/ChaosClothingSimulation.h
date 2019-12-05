@@ -36,7 +36,7 @@ namespace Chaos
 
 		// Set the animation drive stiffness for all actors
 		void SetAnimDriveSpringStiffness(float InStiffness);
-		void SetGravityOverride(const TVector<float, 3>& InGravityOverride);
+		void SetGravityOverride(const FVector& InGravityOverride);
 		void DisableGravityOverride();
 
 #if WITH_EDITOR
