@@ -95,37 +95,10 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnVoiceChatAfterCaptureAudioReadDelegate
 DECLARE_MULTICAST_DELEGATE_FourParams(FOnVoiceChatBeforeCaptureAudioSentDelegate, TArrayView<const int16> /* PcmSamples */, int /* SampleRate */, int /* Channels */, bool /* bIsSpeaking */);
 DECLARE_MULTICAST_DELEGATE_FourParams(FOnVoiceChatBeforeRecvAudioRenderedDelegate, TArrayView<int16> /* PcmSamples */, int /* SampleRate */, int /* Channels */, bool /* bIsSilence */);
 
-class IVoiceChat : public IModularFeature
+class IVoiceChatUser
 {
 public:
-	/**
-	 * Get the IVoiceChat modular feature instance
-	 */
-	static IVoiceChat* Get()
-	{
-		if (IModularFeatures::Get().IsModularFeatureAvailable(GetModularFeatureName()))
-		{
-			return &IModularFeatures::Get().GetModularFeature<IVoiceChat>(GetModularFeatureName());
-		}
-		return nullptr;
-	}
-
-	/**
-	 * Initialize VoiceChat
-	 */
-	virtual bool Initialize() = 0;
-
-	/**
-	 * Uninitialize VoiceChat
-	 */
-	virtual bool Uninitialize() = 0;
-
-	/**
-	 * Is voice chat initialized?
-	 *
-	 * @return true if voice chat is initialized
-	 */
-	virtual bool IsInitialized() const = 0;
+	virtual ~IVoiceChatUser() {}
 
 	/**
 	 * Set an implementation specific setting
@@ -556,6 +529,47 @@ public:
 	 */
 	virtual FString InsecureGetLoginToken(const FString& PlayerName) = 0;
 	virtual FString InsecureGetJoinToken(const FString& ChannelName, EVoiceChatChannelType ChannelType, TOptional<FVoiceChatChannel3dProperties> Channel3dProperties = TOptional<FVoiceChatChannel3dProperties>()) = 0;
+
+};
+
+class IVoiceChat : public IVoiceChatUser, public IModularFeature
+{
+public:
+	/**
+	 * Get the IVoiceChat modular feature instance
+	 */
+	static IVoiceChat* Get()
+	{
+		if (IModularFeatures::Get().IsModularFeatureAvailable(GetModularFeatureName()))
+		{
+			return &IModularFeatures::Get().GetModularFeature<IVoiceChat>(GetModularFeatureName());
+		}
+		return nullptr;
+	}
+
+	/**
+	 * Initialize VoiceChat
+	 */
+	virtual bool Initialize() = 0;
+
+	/**
+	 * Uninitialize VoiceChat
+	 */
+	virtual bool Uninitialize() = 0;
+
+	/**
+	 * Is voice chat initialized?
+	 *
+	 * @return true if voice chat is initialized
+	 */
+	virtual bool IsInitialized() const = 0;
+
+	/**
+	 * Allocate an interface for an additional user // TODO: document limitations
+	 *
+	 * @return new instance of IVoiceChatUser, or nullptr if implementation does not support multiple users
+	 */
+	virtual IVoiceChatUser* CreateUser() = 0;
 
 private:
 	static FName GetModularFeatureName()
