@@ -13,6 +13,7 @@
 #include "LightGridCommon.ush"
 
 // Scale for encoding depth into SceneDepthWithoutSingleLayerWaterTexture
+// Must match FDeferredShadingSceneRenderer::RenderUnderWaterFog
 #define SINGLE_LAYER_WATER_DEPTH_SCALE 100.0f
 
 #define ENABLE_SKY_LIGHT 1
