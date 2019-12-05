@@ -2,6 +2,7 @@
 #include "Chaos/PBDJointConstraints.h"
 #include "Chaos/ChaosDebugDraw.h"
 #include "Chaos/DebugDrawQueue.h"
+#include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDJointConstraintSolver.h"
 #include "Chaos/PBDJointConstraintUtilities.h"
@@ -370,21 +371,23 @@ namespace Chaos
 		const int32 Index1 = 0;
 		TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index0]);
 		TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index1]);
-		FVec3 P0 = Particle0->P();
-		FRotation3 Q0 = Particle0->Q();
-		FVec3 P1 = Particle1->P();
-		FRotation3 Q1 = Particle1->Q();
+		const FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
+		const FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
+		const FVec3 P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
+		const FRotation3 Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
 
 		const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
+		const FRigidTransform3 XL0 = FParticleUtilities::ParticleLocalToCoMLocal(Particle0, JointSettings.ConstraintFrames[Index0]);
+		const FRigidTransform3 XL1 = FParticleUtilities::ParticleLocalToCoMLocal(Particle1, JointSettings.ConstraintFrames[Index1]);
 		EJointMotionType Swing1Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1];
 		EJointMotionType Swing2Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2];
 		if ((Swing1Motion == EJointMotionType::Limited) && (Swing2Motion == EJointMotionType::Limited))
 		{
-			FPBDJointUtilities::CalculateConeConstraintSpace(Settings, ConstraintSettings[ConstraintIndex], Index0, Index1, P0, Q0, P1, Q1, OutX0, OutR0, OutX1, OutR1, OutCR);
+			FPBDJointUtilities::CalculateConeConstraintSpace(Settings, ConstraintSettings[ConstraintIndex], XL0, XL1, P0, Q0, P1, Q1, OutX0, OutR0, OutX1, OutR1, OutCR);
 		}
 		else
 		{
-			FPBDJointUtilities::CalculateSwingConstraintSpace(Settings, ConstraintSettings[ConstraintIndex], Index0, Index1, P0, Q0, P1, Q1, OutX0, OutR0, OutX1, OutR1, OutCR);
+			FPBDJointUtilities::CalculateSwingConstraintSpace(Settings, ConstraintSettings[ConstraintIndex], XL0, XL1, P0, Q0, P1, Q1, OutX0, OutR0, OutX1, OutR1, OutCR);
 		}
 	}
 
@@ -534,13 +537,14 @@ namespace Chaos
 		{
 			if (bUpdateVelocity && (Dt > SMALL_NUMBER))
 			{
-				FVec3 DV = FVec3::CalculateVelocity(Rigid->P(), P, Dt);
-				FVec3 DW = FRotation3::CalculateAngularVelocity(Rigid->Q(), Q, Dt);
+				FVec3 PCoM = FParticleUtilities::GetCoMWorldPosition(Rigid);
+				FRotation3 QCoM = FParticleUtilities::GetCoMWorldRotation(Rigid);
+				FVec3 DV = FVec3::CalculateVelocity(PCoM, P, Dt);
+				FVec3 DW = FRotation3::CalculateAngularVelocity(QCoM, Q, Dt);
 				Rigid->SetV(Rigid->V() + DV);
 				Rigid->SetW(Rigid->W() + DW);
 			}
-			Rigid->SetP(P);
-			Rigid->SetQ(Q);
+			FParticleUtilities::SetCoMWorldTransform(Rigid, P, Q);
 		}
 	}
 
@@ -554,14 +558,16 @@ namespace Chaos
 		TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index0]);
 		TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index1]);
 
-		FVec3 P0 = Particle0->P();
-		FRotation3 Q0 = Particle0->Q();
+		FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
+		FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
+		FVec3 P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
+		FRotation3 Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
 		FVec3 V0 = Particle0->V();
 		FVec3 W0 = Particle0->W();
-		FVec3 P1 = Particle1->P();
-		FRotation3 Q1 = Particle1->Q();
 		FVec3 V1 = Particle1->V();
 		FVec3 W1 = Particle1->W();
+		const FRigidTransform3 XL0 = FParticleUtilities::ParticleLocalToCoMLocal(Particle0, JointSettings.ConstraintFrames[Index0]);
+		const FRigidTransform3 XL1 = FParticleUtilities::ParticleLocalToCoMLocal(Particle1, JointSettings.ConstraintFrames[Index1]);
 		float InvM0 = Particle0->InvM();
 		float InvM1 = Particle1->InvM();
 		FMatrix33 InvIL0 = Particle0->InvI();
@@ -581,25 +587,25 @@ namespace Chaos
 			// No SLerp drive if we have a locked rotation (it will be grayed out in the editor in this case, but could still have been set before the rotation was locked)
 			if (JointSettings.Motion.bAngularSLerpDriveEnabled && !bTwistLocked && !bSwing1Locked && !bSwing2Locked)
 			{
-				FPBDJointUtilities::ApplyJointSLerpDrive(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+				FPBDJointUtilities::ApplyJointSLerpDrive(Dt, Settings, JointSettings, XL0, XL1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
 			}
 
 			if (JointSettings.Motion.bAngularTwistDriveEnabled && !bTwistLocked)
 			{
-				FPBDJointUtilities::ApplyJointTwistDrive(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+				FPBDJointUtilities::ApplyJointTwistDrive(Dt, Settings, JointSettings, XL0, XL1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
 			}
 
 			if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing1Locked && !bSwing2Locked)
 			{
-				FPBDJointUtilities::ApplyJointConeDrive(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+				FPBDJointUtilities::ApplyJointConeDrive(Dt, Settings, JointSettings, XL0, XL1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
 			}
 			else if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing1Locked)
 			{
-				//FPBDJointUtilities::ApplyJointSwingDrive(Dt, Settings, JointSettings, Index0, Index1, EJointAngularConstraintIndex::Swing1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+				//FPBDJointUtilities::ApplyJointSwingDrive(Dt, Settings, JointSettings, XL0, XL1, EJointAngularConstraintIndex::Swing1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
 			}
 			else if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing2Locked)
 			{
-				//FPBDJointUtilities::ApplyJointSwingDrive(Dt, Settings, JointSettings, Index0, Index1, EJointAngularConstraintIndex::Swing2, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+				//FPBDJointUtilities::ApplyJointSwingDrive(Dt, Settings, JointSettings, XL0, XL1, EJointAngularConstraintIndex::Swing2, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
 			}
 		}
 
@@ -637,21 +643,28 @@ namespace Chaos
 		TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index0]);
 		TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index1]);
 
+		const FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
+		const FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
+		const FVec3 P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
+		const FRotation3 Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
+		const FRigidTransform3 XL0 = FParticleUtilities::ParticleLocalToCoMLocal(Particle0, JointSettings.ConstraintFrames[Index0]);
+		const FRigidTransform3 XL1 = FParticleUtilities::ParticleLocalToCoMLocal(Particle1, JointSettings.ConstraintFrames[Index1]);
+
 		FJointConstraintSolver Solver;
 		Solver.InitConstraints(
 			Dt, 
 			Settings, 
 			JointSettings, 
-			Particle0->P(), 
-			Particle0->Q(), 
-			Particle1->P(), 
-			Particle1->Q(), 
+			P0,
+			Q0,
+			P1,
+			Q1,
 			Particle0->InvM(), 
 			Particle0->InvI(), 
 			Particle1->InvM(), 
 			Particle1->InvI(), 
-			JointSettings.ConstraintFrames[Index0], 
-			JointSettings.ConstraintFrames[Index1]);
+			XL0,
+			XL1);
 		
 		for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
 		{
@@ -678,14 +691,16 @@ namespace Chaos
 		TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index0]);
 		TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index1]);
 
-		FVec3 P0 = Particle0->P();
-		FRotation3 Q0 = Particle0->Q();
+		FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
+		FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
+		FVec3 P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
+		FRotation3 Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
 		FVec3 V0 = Particle0->V();
 		FVec3 W0 = Particle0->W();
-		FVec3 P1 = Particle1->P();
-		FRotation3 Q1 = Particle1->Q();
 		FVec3 V1 = Particle1->V();
 		FVec3 W1 = Particle1->W();
+		const FRigidTransform3 XL0 = FParticleUtilities::ParticleLocalToCoMLocal(Particle0, JointSettings.ConstraintFrames[Index0]);
+		const FRigidTransform3 XL1 = FParticleUtilities::ParticleLocalToCoMLocal(Particle1, JointSettings.ConstraintFrames[Index1]);
 		float InvM0 = Particle0->InvM();
 		float InvM1 = Particle1->InvM();
 		FMatrix33 InvIL0 = Particle0->InvI();
@@ -725,7 +740,7 @@ namespace Chaos
 			{
 				if (TwistMotion != EJointMotionType::Free)
 				{
-					FPBDJointUtilities::ApplyJointTwistConstraint(Dt, Settings, JointSettings, TwistStiffness, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+					FPBDJointUtilities::ApplyJointTwistConstraint(Dt, Settings, JointSettings, TwistStiffness, XL0, XL1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
 				}
 			}
 
@@ -735,19 +750,19 @@ namespace Chaos
 				if ((Swing1Motion == EJointMotionType::Limited) && (Swing2Motion == EJointMotionType::Limited))
 				{
 					// Swing Cone
-					FPBDJointUtilities::ApplyJointConeConstraint(Dt, Settings, JointSettings, SwingStiffness, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+					FPBDJointUtilities::ApplyJointConeConstraint(Dt, Settings, JointSettings, SwingStiffness, XL0, XL1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
 				}
 				else
 				{
 					if (Swing1Motion != EJointMotionType::Free)
 					{
 						// Swing Arc/Lock
-						FPBDJointUtilities::ApplyJointSwingConstraint(Dt, Settings, JointSettings, SwingStiffness, Index0, Index1, EJointAngularConstraintIndex::Swing1, EJointAngularAxisIndex::Swing1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+						FPBDJointUtilities::ApplyJointSwingConstraint(Dt, Settings, JointSettings, SwingStiffness, XL0, XL1, EJointAngularConstraintIndex::Swing1, EJointAngularAxisIndex::Swing1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
 					}
 					if (Swing2Motion != EJointMotionType::Free)
 					{
 						// Swing Arc/Lock
-						FPBDJointUtilities::ApplyJointSwingConstraint(Dt, Settings, JointSettings, SwingStiffness, Index0, Index1, EJointAngularConstraintIndex::Swing2, EJointAngularAxisIndex::Swing2, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+						FPBDJointUtilities::ApplyJointSwingConstraint(Dt, Settings, JointSettings, SwingStiffness, XL0, XL1, EJointAngularConstraintIndex::Swing2, EJointAngularAxisIndex::Swing2, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
 					}
 				}
 			}
@@ -755,7 +770,7 @@ namespace Chaos
 			// Apply linear constraints
 			if ((LinearMotion[0] != EJointMotionType::Free) || (LinearMotion[1] != EJointMotionType::Free) || (LinearMotion[2] != EJointMotionType::Free))
 			{
-				FPBDJointUtilities::ApplyJointPositionConstraint(Dt, Settings, JointSettings, LinearStiffness, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+				FPBDJointUtilities::ApplyJointPositionConstraint(Dt, Settings, JointSettings, LinearStiffness, XL0, XL1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
 			}
 		}
 
@@ -778,14 +793,16 @@ namespace Chaos
 		TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index0]);
 		TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index1]);
 
-		FVec3 P0 = Particle0->P();
-		FRotation3 Q0 = Particle0->Q();
+		FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
+		FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
+		FVec3 P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
+		FRotation3 Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
 		FVec3 V0 = Particle0->V();
 		FVec3 W0 = Particle0->W();
-		FVec3 P1 = Particle1->P();
-		FRotation3 Q1 = Particle1->Q();
 		FVec3 V1 = Particle1->V();
 		FVec3 W1 = Particle1->W();
+		const FRigidTransform3 XL0 = FParticleUtilities::ParticleLocalToCoMLocal(Particle0, JointSettings.ConstraintFrames[Index0]);
+		const FRigidTransform3 XL1 = FParticleUtilities::ParticleLocalToCoMLocal(Particle1, JointSettings.ConstraintFrames[Index1]);
 		float InvM0 = Particle0->InvM();
 		float InvM1 = Particle1->InvM();
 		FMatrix33 InvIL0 = Particle0->InvI();
@@ -825,7 +842,7 @@ namespace Chaos
 			{
 				if (TwistMotion != EJointMotionType::Free)
 				{
-					FPBDJointUtilities::ApplyJointTwistVelocityConstraint(Dt, Settings, JointSettings, TwistStiffness, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+					FPBDJointUtilities::ApplyJointTwistVelocityConstraint(Dt, Settings, JointSettings, TwistStiffness, XL0, XL1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
 				}
 			}
 
@@ -835,19 +852,19 @@ namespace Chaos
 				if ((Swing1Motion == EJointMotionType::Limited) && (Swing2Motion == EJointMotionType::Limited))
 				{
 					// Swing Cone
-					FPBDJointUtilities::ApplyJointConeVelocityConstraint(Dt, Settings, JointSettings, SwingStiffness, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+					FPBDJointUtilities::ApplyJointConeVelocityConstraint(Dt, Settings, JointSettings, SwingStiffness, XL0, XL1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
 				}
 				else
 				{
 					if (Swing1Motion != EJointMotionType::Free)
 					{
 						// Swing Arc/Lock
-						FPBDJointUtilities::ApplyJointSwingVelocityConstraint(Dt, Settings, JointSettings, SwingStiffness, Index0, Index1, EJointAngularConstraintIndex::Swing1, EJointAngularAxisIndex::Swing1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+						FPBDJointUtilities::ApplyJointSwingVelocityConstraint(Dt, Settings, JointSettings, SwingStiffness, XL0, XL1, EJointAngularConstraintIndex::Swing1, EJointAngularAxisIndex::Swing1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
 					}
 					if (Swing2Motion != EJointMotionType::Free)
 					{
 						// Swing Arc/Lock
-						FPBDJointUtilities::ApplyJointSwingVelocityConstraint(Dt, Settings, JointSettings, SwingStiffness, Index0, Index1, EJointAngularConstraintIndex::Swing2, EJointAngularAxisIndex::Swing2, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+						FPBDJointUtilities::ApplyJointSwingVelocityConstraint(Dt, Settings, JointSettings, SwingStiffness, XL0, XL1, EJointAngularConstraintIndex::Swing2, EJointAngularAxisIndex::Swing2, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
 					}
 				}
 			}
@@ -855,7 +872,7 @@ namespace Chaos
 			// Apply linear velocity  constraints
 			if ((LinearMotion[0] != EJointMotionType::Free) || (LinearMotion[1] != EJointMotionType::Free) || (LinearMotion[2] != EJointMotionType::Free))
 			{
-				FPBDJointUtilities::ApplyJointVelocityConstraint(Dt, Settings, JointSettings, LinearStiffness, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+				FPBDJointUtilities::ApplyJointVelocityConstraint(Dt, Settings, JointSettings, LinearStiffness, XL0, XL1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
 			}
 		}
 
@@ -886,10 +903,12 @@ namespace Chaos
 		TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index0]);
 		TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index1]);
 
-		FVec3 P0 = Particle0->P();
-		FRotation3 Q0 = Particle0->Q();
-		FVec3 P1 = Particle1->P();
-		FRotation3 Q1 = Particle1->Q();
+		FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
+		FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
+		FVec3 P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
+		FRotation3 Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
+		const FRigidTransform3 XL0 = FParticleUtilities::ParticleLocalToCoMLocal(Particle0, JointSettings.ConstraintFrames[Index0]);
+		const FRigidTransform3 XL1 = FParticleUtilities::ParticleLocalToCoMLocal(Particle1, JointSettings.ConstraintFrames[Index1]);
 		float InvM0 = Particle0->InvM();
 		float InvM1 = Particle1->InvM();
 		FMatrix33 InvIL0 = Particle0->InvI();
@@ -919,7 +938,7 @@ namespace Chaos
 			if (Settings.bEnableTwistLimits)
 			{
 				// Remove Twist Error
-				FPBDJointUtilities::ApplyJointTwistProjection(Dt, Settings, JointSettings, AngularProjectionFactor, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+				FPBDJointUtilities::ApplyJointTwistProjection(Dt, Settings, JointSettings, AngularProjectionFactor, XL0, XL1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
 			}
 
 			if (Settings.bEnableSwingLimits)
@@ -927,17 +946,17 @@ namespace Chaos
 				// Remove Swing Error
 				if ((Swing1Motion == EJointMotionType::Limited) && (Swing2Motion == EJointMotionType::Limited))
 				{
-					FPBDJointUtilities::ApplyJointConeProjection(Dt, Settings, JointSettings, AngularProjectionFactor, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+					FPBDJointUtilities::ApplyJointConeProjection(Dt, Settings, JointSettings, AngularProjectionFactor, XL0, XL1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
 				}
 				else
 				{
 					if (Swing1Motion != EJointMotionType::Free)
 					{
-						FPBDJointUtilities::ApplyJointSwingProjection(Dt, Settings, JointSettings, AngularProjectionFactor, Index0, Index1, EJointAngularConstraintIndex::Swing1, EJointAngularAxisIndex::Swing1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+						FPBDJointUtilities::ApplyJointSwingProjection(Dt, Settings, JointSettings, AngularProjectionFactor, XL0, XL1, EJointAngularConstraintIndex::Swing1, EJointAngularAxisIndex::Swing1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
 					}
 					if (Swing2Motion != EJointMotionType::Free)
 					{
-						FPBDJointUtilities::ApplyJointSwingProjection(Dt, Settings, JointSettings, AngularProjectionFactor, Index0, Index1, EJointAngularConstraintIndex::Swing2, EJointAngularAxisIndex::Swing2, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+						FPBDJointUtilities::ApplyJointSwingProjection(Dt, Settings, JointSettings, AngularProjectionFactor, XL0, XL1, EJointAngularConstraintIndex::Swing2, EJointAngularAxisIndex::Swing2, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
 					}
 				}
 			}
@@ -948,7 +967,7 @@ namespace Chaos
 		{
 			if ((LinearMotion[0] != EJointMotionType::Free) || (LinearMotion[1] != EJointMotionType::Free) || (LinearMotion[2] != EJointMotionType::Free))
 			{
-				FPBDJointUtilities::ApplyJointPositionProjection(Dt, Settings, JointSettings, LinearProjectionFactor, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+				FPBDJointUtilities::ApplyJointPositionProjection(Dt, Settings, JointSettings, LinearProjectionFactor, XL0, XL1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
 			}
 		}
 
