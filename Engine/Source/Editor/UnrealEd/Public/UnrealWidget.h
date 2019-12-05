@@ -192,6 +192,10 @@ public:
 	 * @param Ar	FArchive to serialize with
 	 */
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override
+	{
+		return "FWidget";
+	}
 
 	/**
 	 * Gets the axis to draw based on the current widget mode

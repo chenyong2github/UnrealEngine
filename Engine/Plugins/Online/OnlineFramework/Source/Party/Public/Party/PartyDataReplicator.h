@@ -36,6 +36,11 @@ public:
 		Collector.AddReferencedObject(RepDataType);
 	}
 
+	virtual FString GetReferencerName() const override
+	{
+		return "TPartyDataReplicator";
+	}
+
 	bool IsValid() const { return RepDataType && RepDataPtr && RepDataCopy; }
 	
 	template <typename ChildRepDataT>
