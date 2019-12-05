@@ -427,8 +427,8 @@ FString UCurveTable::GetTableAsJSON() const
 	return Result;
 }
 
-template<class T>
-void WriteTableAsJSON_Internal(const TMap<FName, T*>& RowMap, const TSharedRef< TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR> > >& JsonWriter, bool bAsArray)
+template<typename CharType, class T>
+void WriteTableAsJSON_Internal(const TMap<FName, T*>& RowMap, const TSharedRef< TJsonWriter<CharType, TPrettyJsonPrintPolicy<CharType> > >& JsonWriter, bool bAsArray)
 {
 	TArray<FName> Names;
 	TArray<T*> Curves;
@@ -481,7 +481,8 @@ void WriteTableAsJSON_Internal(const TMap<FName, T*>& RowMap, const TSharedRef< 
 	}
 }
 
-bool UCurveTable::WriteTableAsJSON(const TSharedRef< TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR> > >& JsonWriter, bool bAsArray) const
+template <typename CharType>
+bool UCurveTable::WriteTableAsJSON(const TSharedRef< TJsonWriter<CharType, TPrettyJsonPrintPolicy<CharType> > >& JsonWriter, bool bAsArray) const
 {
 	if (RowMap.Num() <= 0)
 	{
@@ -490,15 +491,18 @@ bool UCurveTable::WriteTableAsJSON(const TSharedRef< TJsonWriter<TCHAR, TPrettyJ
 
 	if (CurveTableMode == ECurveTableMode::SimpleCurves)
 	{
-		WriteTableAsJSON_Internal<FSimpleCurve>(*reinterpret_cast<const TMap<FName, FSimpleCurve*>*>(&RowMap), JsonWriter, bAsArray);
+		WriteTableAsJSON_Internal<CharType, FSimpleCurve>(*reinterpret_cast<const TMap<FName, FSimpleCurve*>*>(&RowMap), JsonWriter, bAsArray);
 	}
 	else
 	{
-		WriteTableAsJSON_Internal<FRichCurve>(*reinterpret_cast<const TMap<FName, FRichCurve*>*>(&RowMap), JsonWriter, bAsArray);
+		WriteTableAsJSON_Internal<CharType, FRichCurve>(*reinterpret_cast<const TMap<FName, FRichCurve*>*>(&RowMap), JsonWriter, bAsArray);
 	}
 
 	return true;
 }
+
+template ENGINE_API bool UCurveTable::WriteTableAsJSON<TCHAR>(const TSharedRef< TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR> > >& JsonWriter, bool bAsArray) const;
+template ENGINE_API bool UCurveTable::WriteTableAsJSON<ANSICHAR>(const TSharedRef< TJsonWriter<ANSICHAR, TPrettyJsonPrintPolicy<ANSICHAR> > >& JsonWriter, bool bAsArray) const;
 
 void UCurveTable::EmptyTable()
 {

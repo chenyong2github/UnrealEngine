@@ -36,7 +36,8 @@ namespace
 	}
 #if WITH_EDITOR
 
-	void WriteJSONObjectStartWithOptionalIdentifier(FDataTableExporterJSON::FDataTableJsonWriter& InJsonWriter, const FString* InIdentifier)
+	template <typename CharType>
+	void WriteJSONObjectStartWithOptionalIdentifier(typename TDataTableExporterJSON<CharType>::FDataTableJsonWriter& InJsonWriter, const FString* InIdentifier)
 	{
 		if (InIdentifier)
 		{
@@ -48,8 +49,8 @@ namespace
 		}
 	}
 
-	template <typename ValueType>
-	void WriteJSONValueWithOptionalIdentifier(FDataTableExporterJSON::FDataTableJsonWriter& InJsonWriter, const FString* InIdentifier, const ValueType InValue)
+	template <typename CharType, typename ValueType>
+	void WriteJSONValueWithOptionalIdentifier(typename TDataTableExporterJSON<CharType>::FDataTableJsonWriter& InJsonWriter, const FString* InIdentifier, const ValueType InValue)
 	{
 		if (InIdentifier)
 		{
@@ -82,20 +83,21 @@ FString DataTableJSONUtils::GetKeyFieldName(const UDataTable& InDataTable)
 #if WITH_EDITOR
 
 FDataTableExporterJSON::FDataTableExporterJSON(const EDataTableExportFlags InDTExportFlags, FString& OutExportText)
-	: DTExportFlags(InDTExportFlags)
-	, JsonWriter(TJsonWriterFactory<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>::Create(&OutExportText))
-	, bJsonWriterNeedsClose(true)
+	: TDataTableExporterJSON<TCHAR>(InDTExportFlags, TJsonWriterFactory<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>::Create(&OutExportText))
 {
+	bJsonWriterNeedsClose = true;
 }
 
-FDataTableExporterJSON::FDataTableExporterJSON(const EDataTableExportFlags InDTExportFlags, TSharedRef<FDataTableJsonWriter> InJsonWriter)
+template<typename CharType>
+TDataTableExporterJSON<CharType>::TDataTableExporterJSON(const EDataTableExportFlags InDTExportFlags, TSharedRef<FDataTableJsonWriter> InJsonWriter)
 	: DTExportFlags(InDTExportFlags)
 	, JsonWriter(InJsonWriter)
 	, bJsonWriterNeedsClose(false)
 {
 }
 
-FDataTableExporterJSON::~FDataTableExporterJSON()
+template<typename CharType>
+TDataTableExporterJSON<CharType>::~TDataTableExporterJSON()
 {
 	if (bJsonWriterNeedsClose)
 	{
@@ -103,7 +105,8 @@ FDataTableExporterJSON::~FDataTableExporterJSON()
 	}
 }
 
-bool FDataTableExporterJSON::WriteTable(const UDataTable& InDataTable)
+template<typename CharType>
+bool TDataTableExporterJSON<CharType>::WriteTable(const UDataTable& InDataTable)
 {
 	if (!InDataTable.RowStruct)
 	{
@@ -134,7 +137,8 @@ bool FDataTableExporterJSON::WriteTable(const UDataTable& InDataTable)
 	return true;
 }
 
-bool FDataTableExporterJSON::WriteTableAsObject(const UDataTable& InDataTable)
+template<typename CharType>
+bool TDataTableExporterJSON<CharType>::WriteTableAsObject(const UDataTable& InDataTable)
 {
 	if (!InDataTable.RowStruct)
 	{
@@ -161,7 +165,8 @@ bool FDataTableExporterJSON::WriteTableAsObject(const UDataTable& InDataTable)
 	return true;
 }
 
-bool FDataTableExporterJSON::WriteRow(const UScriptStruct* InRowStruct, const void* InRowData, const FString* FieldToSkip)
+template<typename CharType>
+bool TDataTableExporterJSON<CharType>::WriteRow(const UScriptStruct* InRowStruct, const void* InRowData, const FString* FieldToSkip)
 {
 	if (!InRowStruct)
 	{
@@ -171,7 +176,8 @@ bool FDataTableExporterJSON::WriteRow(const UScriptStruct* InRowStruct, const vo
 	return WriteStruct(InRowStruct, InRowData, FieldToSkip);
 }
 
-bool FDataTableExporterJSON::WriteStruct(const UScriptStruct* InStruct, const void* InStructData, const FString* FieldToSkip)
+template<typename CharType>
+bool TDataTableExporterJSON<CharType>::WriteStruct(const UScriptStruct* InStruct, const void* InStructData, const FString* FieldToSkip)
 {
 	for (TFieldIterator<const UProperty> It(InStruct); It; ++It)
 	{
@@ -207,7 +213,8 @@ bool FDataTableExporterJSON::WriteStruct(const UScriptStruct* InStruct, const vo
 	return true;
 }
 
-bool FDataTableExporterJSON::WriteStructEntry(const void* InRowData, const UProperty* InProperty, const void* InPropertyData)
+template<typename CharType>
+bool TDataTableExporterJSON<CharType>::WriteStructEntry(const void* InRowData, const UProperty* InProperty, const void* InPropertyData)
 {
 	const FString Identifier = DataTableUtils::GetPropertyExportName(InProperty, DTExportFlags);
 
@@ -311,48 +318,49 @@ bool FDataTableExporterJSON::WriteStructEntry(const void* InRowData, const UProp
 	return true;
 }
 
-bool FDataTableExporterJSON::WriteContainerEntry(const UProperty* InProperty, const void* InPropertyData, const FString* InIdentifier)
+template<typename CharType>
+bool TDataTableExporterJSON<CharType>::WriteContainerEntry(const UProperty* InProperty, const void* InPropertyData, const FString* InIdentifier)
 {
 	if (const UEnumProperty* EnumProp = Cast<const UEnumProperty>(InProperty))
 	{
 		const FString PropertyValue = DataTableUtils::GetPropertyValueAsStringDirect(InProperty, (uint8*)InPropertyData, DTExportFlags);
-		WriteJSONValueWithOptionalIdentifier(*JsonWriter, InIdentifier, PropertyValue);
+		WriteJSONValueWithOptionalIdentifier<CharType>(*JsonWriter, InIdentifier, PropertyValue);
 	}
 	else if (const UNumericProperty *NumProp = Cast<const UNumericProperty>(InProperty))
 	{
 		if (NumProp->IsEnum())
 		{
 			const FString PropertyValue = DataTableUtils::GetPropertyValueAsStringDirect(InProperty, (uint8*)InPropertyData, DTExportFlags);
-			WriteJSONValueWithOptionalIdentifier(*JsonWriter, InIdentifier, PropertyValue);
+			WriteJSONValueWithOptionalIdentifier<CharType>(*JsonWriter, InIdentifier, PropertyValue);
 		}
 		else if (NumProp->IsInteger())
 		{
 			const int64 PropertyValue = NumProp->GetSignedIntPropertyValue(InPropertyData);
-			WriteJSONValueWithOptionalIdentifier(*JsonWriter, InIdentifier, PropertyValue);
+			WriteJSONValueWithOptionalIdentifier<CharType>(*JsonWriter, InIdentifier, PropertyValue);
 		}
 		else
 		{
 			const double PropertyValue = NumProp->GetFloatingPointPropertyValue(InPropertyData);
-			WriteJSONValueWithOptionalIdentifier(*JsonWriter, InIdentifier, PropertyValue);
+			WriteJSONValueWithOptionalIdentifier<CharType>(*JsonWriter, InIdentifier, PropertyValue);
 		}
 	}
 	else if (const UBoolProperty* BoolProp = Cast<const UBoolProperty>(InProperty))
 	{
 		const bool PropertyValue = BoolProp->GetPropertyValue(InPropertyData);
-		WriteJSONValueWithOptionalIdentifier(*JsonWriter, InIdentifier, PropertyValue);
+		WriteJSONValueWithOptionalIdentifier<CharType>(*JsonWriter, InIdentifier, PropertyValue);
 	}
 	else if (const UStructProperty* StructProp = Cast<const UStructProperty>(InProperty))
 	{
 		if (!!(DTExportFlags & EDataTableExportFlags::UseJsonObjectsForStructs))
 		{
-			WriteJSONObjectStartWithOptionalIdentifier(*JsonWriter, InIdentifier);
+			WriteJSONObjectStartWithOptionalIdentifier<CharType>(*JsonWriter, InIdentifier);
 			WriteStruct(StructProp->Struct, InPropertyData);
 			JsonWriter->WriteObjectEnd();
 		}
 		else
 		{
 			const FString PropertyValue = DataTableUtils::GetPropertyValueAsStringDirect(InProperty, (uint8*)InPropertyData, DTExportFlags);
-			WriteJSONValueWithOptionalIdentifier(*JsonWriter, InIdentifier, PropertyValue);
+			WriteJSONValueWithOptionalIdentifier<CharType>(*JsonWriter, InIdentifier, PropertyValue);
 		}
 	}
 	else if (const UArrayProperty* ArrayProp = Cast<const UArrayProperty>(InProperty))
@@ -373,11 +381,14 @@ bool FDataTableExporterJSON::WriteContainerEntry(const UProperty* InProperty, co
 	else
 	{
 		const FString PropertyValue = DataTableUtils::GetPropertyValueAsStringDirect(InProperty, (uint8*)InPropertyData, DTExportFlags);
-		WriteJSONValueWithOptionalIdentifier(*JsonWriter, InIdentifier, PropertyValue);
+		WriteJSONValueWithOptionalIdentifier<CharType>(*JsonWriter, InIdentifier, PropertyValue);
 	}
 
 	return true;
 }
+
+template class TDataTableExporterJSON<TCHAR>;
+template class TDataTableExporterJSON<ANSICHAR>;
 
 #endif // WITH_EDITOR
 

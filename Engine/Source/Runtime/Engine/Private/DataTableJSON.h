@@ -26,16 +26,18 @@ namespace DataTableJSONUtils
 
 #if WITH_EDITOR
 
-class FDataTableExporterJSON
+/** 
+ * Class to serialize a DataTable to a TJsonWriter.
+ */
+template<typename CharType = TCHAR>
+class TDataTableExporterJSON
 {
 public:
-	typedef TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR>> FDataTableJsonWriter;
+	typedef TJsonWriter<CharType, TPrettyJsonPrintPolicy<CharType>> FDataTableJsonWriter;
 
-	FDataTableExporterJSON(const EDataTableExportFlags InDTExportFlags, FString& OutExportText);
+	TDataTableExporterJSON(const EDataTableExportFlags InDTExportFlags, TSharedRef<FDataTableJsonWriter> InJsonWriter);
 
-	FDataTableExporterJSON(const EDataTableExportFlags InDTExportFlags, TSharedRef<FDataTableJsonWriter> InJsonWriter);
-
-	~FDataTableExporterJSON();
+	~TDataTableExporterJSON();
 
 	/** Writes the data table out as an array of objects */
 	bool WriteTable(const UDataTable& InDataTable);
@@ -49,7 +51,7 @@ public:
 	/** Writes the contents of a single row */
 	bool WriteStruct(const UScriptStruct* InStruct, const void* InStructData, const FString* FieldToSkip = nullptr);
 
-private:
+protected:
 	bool WriteStructEntry(const void* InRowData, const UProperty* InProperty, const void* InPropertyData);
 
 	bool WriteContainerEntry(const UProperty* InProperty, const void* InPropertyData, const FString* InIdentifier = nullptr);
@@ -57,6 +59,17 @@ private:
 	EDataTableExportFlags DTExportFlags;
 	TSharedRef<FDataTableJsonWriter> JsonWriter;
 	bool bJsonWriterNeedsClose;
+};
+
+/**
+ * TCHAR-specific instantiation of TDataTableExporterJSON that has a convenience constructor to write output to an FString instead of an external TJsonWriter
+ */
+class FDataTableExporterJSON : public TDataTableExporterJSON<TCHAR>
+{
+public:
+	using TDataTableExporterJSON<TCHAR>::TDataTableExporterJSON;
+// 
+	FDataTableExporterJSON(const EDataTableExportFlags InDTExportFlags, FString& OutExportText);
 };
 
 #endif // WITH_EDITOR
