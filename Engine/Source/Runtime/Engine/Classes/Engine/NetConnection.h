@@ -380,6 +380,9 @@ private:
 	FPacketTimestamp	LastOSReceiveTime;		// Last time a packet was received at the OS/NIC layer
 	bool				bIsOSReceiveTimeLocal;	// Whether LastOSReceiveTime uses the same clock as the game, or needs translating
 
+	/** Did we write the dummy PacketInfo in the current SendBuffer */
+	bool bSendBufferHasDummyPacketInfo = false;
+
 	/** Stores the bit number where we wrote the dummy packet info in the packet header */
 	FBitWriterMark HeaderMarkForPacketInfo;
 
@@ -1365,10 +1368,9 @@ private:
 	bool bFlushingPacketOrderCache;
 
 	/** 
-	* Set to true after the first packet is sent on a Tick. 
-	* Subsequent packets sent on the same frame will not contain the PacketInfo payload
+	* Set to true after a packet is flushed (sent) and reset at the end of the connection's Tick. 
 	*/
-	bool bSentPacketInfoThisFrame = false;
+	bool bFlushedNetThisFrame = false;
 };
 
 /** Help structs for temporarily setting network settings */
