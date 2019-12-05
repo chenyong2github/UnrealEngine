@@ -71,7 +71,7 @@ void FTexture2DStreamIn::DoLockNewMips(const FContext& Context)
 	{
 		// With virtual textures, all mips exist although they might not be allocated.
 		const FTexture2DRHIRef Texture2DRHI = Context.Resource->GetTexture2DRHI();
-		const bool bIsVirtualTexture = (Texture2DRHI->GetFlags() & TexCreate_Virtual) == TexCreate_Virtual;
+		const bool bIsVirtualTexture = (IntermediateTextureRHI->GetFlags() & TexCreate_Virtual) == TexCreate_Virtual;
 		const int32 MipOffset = bIsVirtualTexture ? 0 : PendingFirstMip;
 
 		const int32 CurrentFirstMip = Context.Resource->GetCurrentFirstMip();
@@ -93,7 +93,7 @@ void FTexture2DStreamIn::DoUnlockNewMips(const FContext& Context)
 	{
 		// With virtual textures, all mips exist although they might not be allocated.
 		const FTexture2DRHIRef Texture2DRHI = Context.Resource->GetTexture2DRHI();
-		const bool bIsVirtualTexture = (Texture2DRHI->GetFlags() & TexCreate_Virtual) == TexCreate_Virtual;
+		const bool bIsVirtualTexture = (IntermediateTextureRHI->GetFlags() & TexCreate_Virtual) == TexCreate_Virtual;
 		const int32 MipOffset = bIsVirtualTexture ? 0 : PendingFirstMip;
 
 		const int32 CurrentFirstMip = Context.Resource->GetCurrentFirstMip();
