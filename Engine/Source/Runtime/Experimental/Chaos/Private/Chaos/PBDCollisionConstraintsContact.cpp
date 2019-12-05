@@ -53,11 +53,8 @@ namespace Chaos
 				const TRigidTransform<T, d> Transform0 = GetTransform(Constraint.Particle[0]);
 				const TRigidTransform<T, d> Transform1 = GetTransform(Constraint.Particle[1]);
 
-				const FImplicitObject& Implicit0 = *Constraint.Particle[0]->Geometry();
-				const FImplicitObject& Implicit1 = *Constraint.Particle[1]->Geometry();
-
-				EImplicitObjectType Implicit0Type = GetInnerType(Implicit0.GetType());
-				EImplicitObjectType Implicit1Type = GetInnerType(Implicit1.GetType());
+				const FImplicitObject& Implicit0 = *Constraint.Manifold.Implicit[0];
+				const FImplicitObject& Implicit1 = *Constraint.Manifold.Implicit[1];
 
 				if (Implicit0.IsConvex() && Implicit1.IsConvex())
 				{
