@@ -1959,6 +1959,12 @@ void UMaterialInstance::GetStaticParameterValues(FStaticParameterSet& OutStaticP
 {
 	check(IsInGameThread());
 
+	if ((AllowCachingStaticParameterValuesCounter > 0) && CachedStaticParameterValues.IsSet())
+	{
+		OutStaticParameters = CachedStaticParameterValues.GetValue();
+		return;
+	}
+
 	if (Parent)
 	{
 		UMaterial* ParentMaterial = Parent->GetMaterial();
@@ -2063,6 +2069,11 @@ void UMaterialInstance::GetStaticParameterValues(FStaticParameterSet& OutStaticP
 
 	// Custom parameters.
 	CustomStaticParametersGetters.Broadcast(OutStaticParameters, this);
+
+	if (AllowCachingStaticParameterValuesCounter > 0)
+	{
+		CachedStaticParameterValues = OutStaticParameters;
+	}
 }
 
 void UMaterialInstance::GetAllScalarParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
@@ -4727,6 +4738,23 @@ void UMaterialInstance::SaveShaderStableKeysInner(const class ITargetPlatform* T
 	}
 #endif
 }
+
+#if WITH_EDITOR
+void UMaterialInstance::BeginAllowCachingStaticParameterValues()
+{
+	++AllowCachingStaticParameterValuesCounter;
+}
+
+void UMaterialInstance::EndAllowCachingStaticParameterValues()
+{
+	check(AllowCachingStaticParameterValuesCounter > 0);
+	--AllowCachingStaticParameterValuesCounter;
+	if (AllowCachingStaticParameterValuesCounter == 0)
+	{
+		CachedStaticParameterValues.Reset();
+	}
+}
+#endif // WITH_EDITOR
 
 void UMaterialInstance::CopyMaterialUniformParametersInternal(UMaterialInterface* Source)
 {

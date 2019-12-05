@@ -242,6 +242,24 @@ void FMaterialResource::GatherExpressionsForCustomInterpolators(TArray<UMaterial
 	Material->GetAllExpressionsForCustomInterpolators(OutExpressions);
 }
 
+#if WITH_EDITOR
+void FMaterialResource::BeginAllowCachingStaticParameterValues()
+{
+	if (MaterialInstance)
+	{
+		MaterialInstance->BeginAllowCachingStaticParameterValues();
+	}
+}
+
+void FMaterialResource::EndAllowCachingStaticParameterValues()
+{
+	if (MaterialInstance)
+	{
+		MaterialInstance->EndAllowCachingStaticParameterValues();
+	}
+}
+#endif // WITH_EDITOR
+
 void FMaterialResource::GetShaderMapId(EShaderPlatform Platform, FMaterialShaderMapId& OutId) const
 {
 	FMaterial::GetShaderMapId(Platform, OutId);

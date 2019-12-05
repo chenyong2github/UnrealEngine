@@ -429,6 +429,11 @@ private:
 	UPROPERTY()
 	FStaticParameterSet StaticParameters;
 
+#ifdef WITH_EDITOR
+	mutable TOptional<FStaticParameterSet> CachedStaticParameterValues;
+	mutable uint8 AllowCachingStaticParameterValuesCounter = 0;
+#endif // WITH_EDITOR
+
 	/** Inline material resources serialized from disk. To be processed on game thread in PostLoad. */
 	TArray<FMaterialResource> LoadedMaterialResources;
 
@@ -665,6 +670,10 @@ public:
 	void SaveShaderStableKeys(const class ITargetPlatform* TP);
 	ENGINE_API virtual void SaveShaderStableKeysInner(const class ITargetPlatform* TP, const struct FStableShaderKeyAndValue& SaveKeyVal) override;
 
+#if WITH_EDITOR
+	void BeginAllowCachingStaticParameterValues();
+	void EndAllowCachingStaticParameterValues();
+#endif // WITH_EDITOR
 
 protected:
 
