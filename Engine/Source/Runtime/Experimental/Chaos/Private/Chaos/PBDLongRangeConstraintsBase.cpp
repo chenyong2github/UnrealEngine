@@ -316,39 +316,4 @@ void TPBDLongRangeConstraintsBase<T, d>::ComputeGeodesicConstraints(
 	MConstraints = NewConstraints;
 }
 
-template<class T, int d>
-TVector<T, d> TPBDLongRangeConstraintsBase<T, d>::GetDelta(const TPBDParticles<T, d>& InParticles, const int32 i) const
-{
-	const TArray<uint32>& Constraint = MConstraints[i];
-	check(Constraint.Num() > 1);
-	const uint32 i1 = Constraint[0];
-	const uint32 i2 = Constraint[Constraint.Num() - 1];
-	const uint32 i2m1 = Constraint[Constraint.Num() - 2];
-	check(InParticles.InvM(i1) == 0);
-	check(InParticles.InvM(i2) > 0);
-	const T Distance = ComputeGeodesicDistance(InParticles, Constraint);
-	if (Distance < MDists[i])
-		return TVector<T, d>(0);
-
-	//const TVector<T, d> Direction = (InParticles.P(i2m1) - InParticles.P(i2)).GetSafeNormal();
-	TVector<T, d> Direction = InParticles.P(i2m1) - InParticles.P(i2);
-	const T DirLen = Direction.SafeNormalize();
-
-	const T Offset = Distance - MDists[i];
-	const TVector<T, d> Delta = MStiffness * Offset * Direction;
-
-	/*  // ryan - this currently fails:
-
-	const T NewDirLen = (InParticles.P(i2) + Delta - InParticles.P(i2m1)).Size();
-	//T Correction = (InParticles.P(i2) - InParticles.P(i2m1)).Size() - (InParticles.P(i2) + Delta - InParticles.P(i2m1)).Size();
-	const T Correction = DirLen - NewDirLen;
-	check(Correction >= 0);
-
-	//T NewDist = (Distance - (InParticles.P(i2) - InParticles.P(i2m1)).Size() + (InParticles.P(i2) + Delta - InParticles.P(i2m1)).Size());
-	const T NewDist = Distance - DirLen + NewDirLen;
-	check(FGenericPlatformMath::Abs(NewDist - MDists[i]) < 1e-4);
-*/
-	return Delta;
-}
-
 template class Chaos::TPBDLongRangeConstraintsBase<float, 3>;
