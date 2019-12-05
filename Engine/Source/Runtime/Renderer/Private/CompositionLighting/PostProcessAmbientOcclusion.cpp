@@ -109,6 +109,30 @@ static TAutoConsoleVariable<int32> CVarGTAOUseNormals(
 	TEXT("1: On (default)\n "),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
+static TAutoConsoleVariable<float> CVarGTAOThicknessBlend(
+	TEXT("r.GTAO.ThicknessBlend"),
+	0.1f,
+	TEXT("A heuristic to bias occlusion for thin or thick objects. \n ")
+	TEXT("0  : Off \n ")
+	TEXT(">0 : On - Bigger values lead to reduced occlusion \n ")
+	TEXT("0.1: On (default)\n "),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
+
+static TAutoConsoleVariable<float> CVarGTAOFalloffEnd(
+	TEXT("r.GTAO.FalloffEnd"),
+	200.0f,
+	TEXT("Distance at when the occlusion completes the fall off.  \n "),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
+
+static TAutoConsoleVariable<float> CVarGTAOFalloffStartRatio(
+	TEXT("r.GTAO.FalloffStartRatio"),
+	0.5f,
+	TEXT("Ratio of the r.GTAO.FalloffEnd value at which it starts to fall off. \n ")
+	TEXT("Must be Between 0 and 1. \n "),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
+
+
+
 float FSSAOHelper::GetAmbientOcclusionQualityRT(const FSceneView& View)
 {
 	float CVarValue = CVarAmbientOcclusionMaxQuality.GetValueOnRenderThread();
@@ -1252,7 +1276,7 @@ public:
 			Frame = ViewState->GetFrameIndex();
 		}
 			
-		const int ArraySize = 3;
+		const int ArraySize = 4;
 		FVector4 GTAOParam[ArraySize];
 
 		const float Rots[6]		= { 60.0f, 300.0f, 180.0f, 240.0f, 120.0f, 0.0f };
@@ -1260,16 +1284,29 @@ public:
 
 		float TemporalAngle = Rots[TemporalFrame % 6] * (PI / 360.0f);
 
+		// Angles of rotation that are set per frame
 		GTAOParam[0] = FVector4(cos(TemporalAngle), sin(TemporalAngle), Offsets[(TemporalFrame / 6) % 4], Offsets[TemporalFrame % 4]);
 
+		// Frame X = number , Y = Thickness param, 
+		float ThicknessBlend = CVarGTAOThicknessBlend.GetValueOnRenderThread();
+		GTAOParam[1] = FVector4(Frame, ThicknessBlend, 0.0f, 0.0f);
 
-		FIntPoint RandomizationSize = GSystemTextures.GTAORandomization->GetDesc().Extent;
-
-		GTAOParam[1] = FVector4(Frame, 0.0f, 0.0f, 0.0f);
-
+		// Destination buffer Size and InvSize
 		float Fx = float(DestSize.X);
 		float Fy = float(DestSize.Y);
 		GTAOParam[2] = FVector4(Fx, Fy, 1.0f / Fx, 1.0f / Fy);
+
+		// Fall Off Params
+		float FallOffEnd		= CVarGTAOFalloffEnd.GetValueOnRenderThread();
+		float FallOffStartRatio	= FMath::Clamp(CVarGTAOFalloffStartRatio.GetValueOnRenderThread(), 0.0f, 0.999f);
+		float FallOffStart		= FallOffEnd * FallOffStartRatio;
+		float FallOffStartSq	= FallOffStart * FallOffStart;
+		float FallOffEndSq		= FallOffEnd * FallOffEnd;
+
+		float FallOffScale		= 1.0f / (FallOffEndSq - FallOffStartSq);
+		float FallOffBias		= -FallOffStartSq * FallOffScale;
+
+		GTAOParam[3] = FVector4(FallOffStart, FallOffEnd, FallOffScale, FallOffBias);
 
 		SetShaderValueArray(RHICmdList, ShaderRHI, GTAOParams, GTAOParam, ArraySize);
 	}
@@ -2336,19 +2373,19 @@ public:
 		if (InputHistory.IsValid())
 		{
 			SetTextureParameter(RHICmdList, ShaderRHI, HistoryTexture, HistoryTextureSampler,
-				TStaticSamplerState<SF_Bilinear, AM_Border, AM_Border, AM_Border, 0, 0, 0xffffffff >::GetRHI(),
+				TStaticSamplerState<SF_Point, AM_Border, AM_Border, AM_Border, 0, 0, 0xffffffff >::GetRHI(),
 				InputHistory.RT[0]->GetRenderTargetItem().TargetableTexture);
 
 
 			SetTextureParameter(RHICmdList, ShaderRHI, DepthHistoryTexture, DepthHistoryTextureSampler,
-				TStaticSamplerState<SF_Bilinear>::GetRHI(),
+				TStaticSamplerState<SF_Point>::GetRHI(),
 				InputHistory.Depth[0]->GetRenderTargetItem().TargetableTexture);
 		}
 		else
 		{
 			// Need to bind a white dummy
 			SetTextureParameter(RHICmdList, ShaderRHI, HistoryTexture, HistoryTextureSampler,
-				TStaticSamplerState<SF_Bilinear>::GetRHI(),
+				TStaticSamplerState<SF_Point>::GetRHI(),
 				GSystemTextures.WhiteDummy->GetRenderTargetItem().ShaderResourceTexture);
 
 		}
@@ -2390,19 +2427,19 @@ public:
 		if (InputHistory.IsValid())
 		{
 			SetTextureParameter(Context.RHICmdList, ShaderRHI, HistoryTexture, HistoryTextureSampler,
-				TStaticSamplerState<SF_Bilinear,AM_Border, AM_Border, AM_Border, 0,0, 0xffffffff >::GetRHI(),
+				TStaticSamplerState<SF_Point,AM_Border, AM_Border, AM_Border, 0,0, 0xffffffff >::GetRHI(),
 				InputHistory.RT[0]->GetRenderTargetItem().TargetableTexture);
 
 
 			SetTextureParameter(Context.RHICmdList, ShaderRHI, DepthHistoryTexture, DepthHistoryTextureSampler,
-				TStaticSamplerState<SF_Bilinear>::GetRHI(),
+				TStaticSamplerState<SF_Point>::GetRHI(),
 				InputHistory.Depth[0]->GetRenderTargetItem().TargetableTexture);
 		}
 		else
 		{
 			// Need to bind a white dummy
 			SetTextureParameter(Context.RHICmdList, ShaderRHI, HistoryTexture, HistoryTextureSampler,
-				TStaticSamplerState<SF_Bilinear>::GetRHI(),
+				TStaticSamplerState<SF_Point>::GetRHI(),
 				GSystemTextures.WhiteDummy->GetRenderTargetItem().ShaderResourceTexture);
 
 		}
