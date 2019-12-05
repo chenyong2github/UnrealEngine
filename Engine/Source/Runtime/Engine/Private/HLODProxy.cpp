@@ -24,6 +24,11 @@ void UHLODProxy::SetMap(const UWorld* InMap)
 	OwningMap = InMap;
 }
 
+TSoftObjectPtr<UWorld> UHLODProxy::GetMap() const
+{
+	return OwningMap;
+}
+
 void UHLODProxy::AddMesh(ALODActor* InLODActor, UStaticMesh* InStaticMesh, const FName& InKey)
 {
 	InLODActor->Proxy = this;
