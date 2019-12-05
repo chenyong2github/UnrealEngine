@@ -1872,7 +1872,7 @@ int32 GetAllShapesInternal_AssumedLocked(const FPhysicsActorHandle& InActorHandl
 	OutShapes.Reset();
 	const Chaos::TShapesArray<float, 3>& ShapesArray = InActorHandle->ShapesArray();
 	//todo: can we avoid this construction?
-	for (const auto& Shape : ShapesArray)
+	for (const TUniquePtr<Chaos::TPerShapeData<float, 3>>& Shape : ShapesArray)
 	{
 		OutShapes.Add(FPhysicsShapeReference_Chaos(Shape.Get(), true, true, InActorHandle));
 	}

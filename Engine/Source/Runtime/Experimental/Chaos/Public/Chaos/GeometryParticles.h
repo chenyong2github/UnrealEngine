@@ -35,6 +35,7 @@ namespace Chaos
 		TSerializablePtr<FImplicitObject> Geometry;
 		TAABB<FReal, 3> WorldSpaceInflatedShapeBounds;
 		TArray<FMaterialHandle> Materials;
+		bool bDisable;
 
 		void UpdateShapeBounds(const TRigidTransform<T, d>& WorldTM);
 
@@ -97,6 +98,7 @@ namespace Chaos
 			TArrayCollection::AddArray(&MDynamicGeometry);
 			TArrayCollection::AddArray(&MParticleIDs);
 			TArrayCollection::AddArray(&MShapesArray);
+			TArrayCollection::AddArray(&ImplicitShapeMap);
 			TArrayCollection::AddArray(&MLocalBounds);
 			TArrayCollection::AddArray(&MWorldSpaceInflatedBounds);
 			TArrayCollection::AddArray(&MHasBounds);
@@ -123,6 +125,7 @@ namespace Chaos
 			, MGeometryParticleHandle(MoveTemp(Other.MGeometryParticleHandle))
 			, MGeometryParticle(MoveTemp(Other.MGeometryParticle))
 			, MShapesArray(MoveTemp(Other.MShapesArray))
+			, ImplicitShapeMap(MoveTemp(Other.ImplicitShapeMap))
 			, MLocalBounds(MoveTemp(Other.MLocalBounds))
 			, MWorldSpaceInflatedBounds(MoveTemp(Other.MWorldSpaceInflatedBounds))
 			, MHasBounds(MoveTemp(Other.MHasBounds))
@@ -138,6 +141,7 @@ namespace Chaos
 			TArrayCollection::AddArray(&MSharedGeometry);
 			TArrayCollection::AddArray(&MDynamicGeometry);
 			TArrayCollection::AddArray(&MShapesArray);
+			TArrayCollection::AddArray(&ImplicitShapeMap);
 			TArrayCollection::AddArray(&MLocalBounds);
 			TArrayCollection::AddArray(&MWorldSpaceInflatedBounds);
 			TArrayCollection::AddArray(&MHasBounds);
@@ -168,6 +172,7 @@ namespace Chaos
 			TArrayCollection::AddArray(&MSharedGeometry);
 			TArrayCollection::AddArray(&MDynamicGeometry);
 			TArrayCollection::AddArray(&MShapesArray);
+			TArrayCollection::AddArray(&ImplicitShapeMap);
 			TArrayCollection::AddArray(&MLocalBounds);
 			TArrayCollection::AddArray(&MWorldSpaceInflatedBounds);
 			TArrayCollection::AddArray(&MHasBounds);
@@ -212,6 +217,7 @@ namespace Chaos
 			MGeometry[Index] = MakeSerializable(InUnique);
 			MDynamicGeometry[Index] = MoveTemp(InUnique);
 			UpdateShapesArray(Index);
+			MapImplicitShapes(Index);
 		}
 
 		CHAOS_API void SetSharedGeometry(const int32 Index, TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> InShared)
@@ -220,6 +226,7 @@ namespace Chaos
 			MGeometry[Index] = MakeSerializable(InShared);
 			MSharedGeometry[Index] = InShared;
 			UpdateShapesArray(Index);
+			MapImplicitShapes(Index);
 		}
 		
 		CHAOS_API void SetGeometry(const int32 Index, TSerializablePtr<FImplicitObject> InGeometry)
@@ -228,6 +235,7 @@ namespace Chaos
 			check(!SharedGeometry(Index));
 			MGeometry[Index] = InGeometry;
 			UpdateShapesArray(Index);
+			MapImplicitShapes(Index);
 		}
 
 		CHAOS_API const TBox<T,d>& LocalBounds(const int32 Index) const
@@ -326,6 +334,11 @@ namespace Chaos
 			if (Ar.CustomVer(FPhysicsObjectVersion::GUID) >= FPhysicsObjectVersion::PerShapeData)
 			{
 				Ar << MShapesArray;
+
+				if(Ar.IsLoading())
+				{
+					MapImplicitShapes();
+				}
 			}
 
 			if (Ar.CustomVer(FPhysicsObjectVersion::GUID) >= FPhysicsObjectVersion::SerializeGTGeometryParticles)
@@ -387,6 +400,21 @@ namespace Chaos
 
 		CHAOS_API EParticleType ParticleType() const { return MParticleType; }
 
+		const TPerShapeData<T, d>* GetImplicitShape(int32 Index, const FImplicitObject* InObject)
+		{
+			checkSlow(Index >= 0 && Index < ImplicitShapeMap.Num());
+			TMap<const FImplicitObject*, int32>& Mapping = ImplicitShapeMap[Index];
+			TShapesArray<T, d>& ShapeArray = MShapesArray[Index];
+			int32* ShapeIndex = Mapping.Find(InObject);
+
+			if(ShapeIndex && ShapeArray.IsValidIndex(*ShapeIndex))
+			{
+				return ShapeArray[*ShapeIndex].Get();
+			}
+
+			return nullptr;
+		}
+
 	protected:
 		EParticleType MParticleType;
 
@@ -404,6 +432,7 @@ namespace Chaos
 		TArrayCollectionArray<TSerializablePtr<TGeometryParticleHandle<T, d>>> MGeometryParticleHandle;
 		TArrayCollectionArray<TGeometryParticle<T, d>*> MGeometryParticle;
 		TArrayCollectionArray<TShapesArray<T,d>> MShapesArray;
+		TArrayCollectionArray<TMap<const FImplicitObject*, int32>> ImplicitShapeMap;
 		TArrayCollectionArray<TBox<T,d>> MLocalBounds;
 		TArrayCollectionArray<TBox<T, d>> MWorldSpaceInflatedBounds;
 		TArrayCollectionArray<bool> MHasBounds;
@@ -413,6 +442,32 @@ namespace Chaos
 		void UpdateShapesArray(const int32 Index)
 		{
 			UpdateShapesArrayFromGeometry(MShapesArray[Index], MGeometry[Index], FRigidTransform3(X(Index), R(Index)));
+			MapImplicitShapes(Index);
+		}
+
+		void MapImplicitShapes()
+		{
+			int32 NumShapeArrays = MShapesArray.Num();
+			ImplicitShapeMap.Resize(NumShapeArrays);
+			for(int32 Index = 0; Index < NumShapeArrays; ++Index)
+			{
+				MapImplicitShapes(Index);
+			}
+		}
+
+		void MapImplicitShapes(int32 Index)
+		{
+			checkSlow(Index >= 0 && Index < ImplicitShapeMap.Num());
+
+			TMap<const FImplicitObject*, int32>& Mapping = ImplicitShapeMap[Index];
+			TShapesArray<T, d>& ShapeArray = MShapesArray[Index];
+			Mapping.Reset();
+
+			int32 ShapeIndex = 0;
+			for(TUniquePtr<TPerShapeData<T, d>>& Shape : ShapeArray)
+			{
+				Mapping.Add(Shape->Geometry.Get(), ShapeIndex++);
+			}
 		}
 
 		template <typename T2, int d2, EGeometryParticlesSimType SimType2>
