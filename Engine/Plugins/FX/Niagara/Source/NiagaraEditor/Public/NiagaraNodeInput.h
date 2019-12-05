@@ -112,6 +112,7 @@ public:
 
 private:
 	void DataInterfaceChanged();
+	void ValidateDataInterface();
 
 private:
 	UPROPERTY()
