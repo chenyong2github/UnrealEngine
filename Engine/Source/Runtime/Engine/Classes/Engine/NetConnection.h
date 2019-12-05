@@ -962,7 +962,7 @@ public:
 	/**
 	 * Returns true if encryption is enabled for this connection.
 	 */
-	ENGINE_API bool IsEncryptionEnabled() const;
+	ENGINE_API virtual bool IsEncryptionEnabled() const;
 
 	/** 
 	* Gets a unique ID for the connection, this ID depends on the underlying connection
