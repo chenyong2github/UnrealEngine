@@ -2944,40 +2944,14 @@ void FBlueprintEditorUtils::EnsureCachedDependenciesUpToDate(UBlueprint* Bluepri
 	}
 }
 
-void FBlueprintEditorUtils::GetDependentBlueprints(UBlueprint* Blueprint, TArray<UBlueprint*>& DependentBlueprints, bool bRemoveSelf)
+void FBlueprintEditorUtils::GetDependentBlueprints(UBlueprint* Blueprint, TArray<UBlueprint*>& DependentBlueprints)
 {
-	TArray<UObject*> AllBlueprints;
-	bool const bIncludeDerivedClasses = true;
-	GetObjectsOfClass(UBlueprint::StaticClass(), AllBlueprints, bIncludeDerivedClasses );
-
-	for (UObject* Obj : AllBlueprints)
+	for( TWeakObjectPtr<UBlueprint> DependentBPWeak : Blueprint->CachedDependents )
 	{
-		// we know the class is correct so a fast cast is ok here
-		UBlueprint* TestBP = static_cast<UBlueprint*>(Obj);
-		if (TestBP && !TestBP->IsPendingKill())
+		if(UBlueprint* DependentBP = DependentBPWeak.Get())
 		{
-			EnsureCachedDependenciesUpToDate(TestBP);
-
-			if (TestBP->CachedDependencies.Contains(Blueprint))
-			{
-				if (!DependentBlueprints.Contains(TestBP))
-				{
-					DependentBlueprints.Add(TestBP);
-
-					// When a Macro Library depends on this Blueprint, then any Blueprint that 
-					// depends on it must also depend on this Blueprint for re-compiling (bytecode, skeleton, full) purposes
-					if (TestBP->BlueprintType == BPTYPE_MacroLibrary)
-					{
-						GetDependentBlueprints(TestBP, DependentBlueprints, false);
-					}
-				}
-			}
+			DependentBlueprints.Add(DependentBP);
 		}
-	}
-
-	if (bRemoveSelf)
-	{
-		DependentBlueprints.RemoveSwap(Blueprint);
 	}
 }
 

@@ -1612,6 +1612,40 @@ bool FKismetCompilerUtilities::IsIntermediateFunctionGraphTrivial(FName Function
 	return false;
 }
 
+void FKismetCompilerUtilities::UpdateDependentBlueprints(UBlueprint* ForBP)
+{
+	for(TWeakObjectPtr<UBlueprint> Dependency : ForBP->CachedDependencies)
+	{
+		if(UBlueprint* BP = Dependency.Get())
+		{
+			if(BP != ForBP) // avoid tautology
+			{
+				BP->CachedDependents.Add(ForBP);
+			}
+		}
+	}
+
+	// CachedDependencies may not include all function calls, e.g. because we're 
+	// calling a blueprint function library function via a macro (such a dependency
+	// cannot be detected until after graph expansion):
+	if(UBlueprintGeneratedClass* BPGC = Cast<UBlueprintGeneratedClass>(ForBP->GeneratedClass))
+	{
+		for(UFunction* Fn : BPGC->CalledFunctions)
+		{
+			if(UBlueprintGeneratedClass* OwningBPGC = Cast<UBlueprintGeneratedClass>(Fn->GetOwnerClass()))
+			{
+				if(UBlueprint* OwningBP = Cast<UBlueprint>(OwningBPGC->ClassGeneratedBy))
+				{
+					if(OwningBP != ForBP) // avoid tautology
+					{
+						OwningBP->CachedDependents.Add(ForBP);
+					}
+				}
+			}
+		}
+	}
+}
+
 //////////////////////////////////////////////////////////////////////////
 // FNodeHandlingFunctor
 

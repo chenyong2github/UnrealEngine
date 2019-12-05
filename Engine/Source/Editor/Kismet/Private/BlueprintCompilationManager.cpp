@@ -515,17 +515,33 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 		for(const FBPCompileRequestInternal& CompileJob : QueuedRequests)
 		{
 			if ((CompileJob.UserData.CompileOptions & 
-				(	EBlueprintCompileOptions::RegenerateSkeletonOnly|
-					EBlueprintCompileOptions::IsRegeneratingOnLoad)
+				(	EBlueprintCompileOptions::RegenerateSkeletonOnly)
+				) != EBlueprintCompileOptions::None)
+			{
+				continue;
+			}
+
+			UBlueprint* BP = CompileJob.UserData.BPToCompile;
+
+			if(!BP->bHasBeenRegenerated && BP->GetLinker())
+			{
+				// we may have cached dependencies before being fully loaded:
+				BP->bCachedDependenciesUpToDate = false;
+			}
+
+			FBlueprintEditorUtils::EnsureCachedDependenciesUpToDate(BP);
+
+			if ((CompileJob.UserData.CompileOptions & 
+				(	EBlueprintCompileOptions::IsRegeneratingOnLoad)
 				) != EBlueprintCompileOptions::None)
 			{
 				continue;
 			}
 			
-			if(CompileJob.UserData.BPToCompile->BlueprintType == BPTYPE_MacroLibrary)
+			if(BP->BlueprintType == BPTYPE_MacroLibrary)
 			{
 				TArray<UBlueprint*> DependentBlueprints;
-				FBlueprintEditorUtils::GetDependentBlueprints(CompileJob.UserData.BPToCompile, DependentBlueprints);
+				FBlueprintEditorUtils::GetDependentBlueprints(BP, DependentBlueprints);
 				for(UBlueprint* DependentBlueprint : DependentBlueprints)
 				{
 					if(!IsQueuedForCompilation(DependentBlueprint))
@@ -751,11 +767,6 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 			BP->bBeingCompiled = true;
 			BP->CurrentMessageLog = CompilerData.ActiveResultsLog;
 			BP->bIsRegeneratingOnLoad = !BP->bHasBeenRegenerated && BP->GetLinker();
-			if(BP->bIsRegeneratingOnLoad)
-			{
-				// we may have cached dependencies before being fully loaded:
-				BP->bCachedDependenciesUpToDate = false;
-			}
 
 			if(CompilerData.ShouldResetErrorState())
 			{
@@ -1267,6 +1278,8 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 				BPGC->ClassFlags &= ~CLASS_ReplicationDataIsSetUp;
 				BPGC->SetUpRuntimeReplicationData();
 			}
+			
+			FKismetCompilerUtilities::UpdateDependentBlueprints(BP);
 
 			ensure(BPGC == nullptr || BPGC->ClassDefaultObject->GetClass() == BPGC);
 		}
