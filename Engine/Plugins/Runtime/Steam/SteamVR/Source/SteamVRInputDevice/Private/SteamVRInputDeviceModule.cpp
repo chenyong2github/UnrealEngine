@@ -38,6 +38,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #if WITH_EDITOR
 #include "Editor/EditorEngine.h"
 #include "Editor.h"
+#include "IVREditorModule.h"
 #endif
 
 class FSteamVRInputDeviceModule : public ISteamVRInputDeviceModule
@@ -51,6 +52,12 @@ class FSteamVRInputDeviceModule : public ISteamVRInputDeviceModule
 			TSharedPtr<class FSteamVRInputDevice> Device(new FSteamVRInputDevice(InMessageHandler));
 #if WITH_EDITOR
 			FEditorDelegates::OnActionAxisMappingsChanged.AddSP(Device.ToSharedRef(), &FSteamVRInputDevice::OnActionMappingsChanged);
+
+			if (IVREditorModule::IsAvailable())
+			{
+				IVREditorModule::Get().OnVREditingModeEnter().AddSP(Device.ToSharedRef(), &FSteamVRInputDevice::OnVREditingModeEnter);
+				IVREditorModule::Get().OnVREditingModeExit().AddSP(Device.ToSharedRef(), &FSteamVRInputDevice::OnVREditingModeExit);
+			}
 #endif
 			return Device;
 		}
