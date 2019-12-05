@@ -57,7 +57,7 @@ public:
 	using FConstraintContainerHandle = TPBDCollisionConstraintHandle<T, d>;
 	using FConstraintBase = TCollisionConstraintBase<T, d>;
  	using FPointContactConstraint = TRigidBodyPointContactConstraint<T, d>;
-	using FPlaneContactConstraint = TRigidBodyIterativeContactConstraint<T, d>;
+	using FIterativeContactConstraint = TRigidBodyIterativeContactConstraint<T, d>;
 	using FConstraintHandleAllocator = TConstraintHandleAllocator<TPBDCollisionConstraints<T, d>>;
 	using FConstraintContainerHandleKey = typename TPBDCollisionConstraintHandle<T, d>::FHandleKey;
 
@@ -221,7 +221,7 @@ private:
 	const TPBDRigidsSOAs<T,d>& Particles;
 
 	TArray<FPointContactConstraint> PointConstraints;
-	TArray<FPlaneContactConstraint> PlaneConstraints;
+	TArray<FIterativeContactConstraint> IterativeConstraints;
 
 	TMap< FConstraintContainerHandleKey, FConstraintContainerHandle* > Manifolds;
 	TArray<FConstraintContainerHandle*> Handles;
