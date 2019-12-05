@@ -10,8 +10,6 @@
 #include "Serialization/JsonSerializer.h"
 #include "GameFramework/GameUserSettings.h"
 
-//extern TAutoConsoleVariable<float> CVarStreamerBitrateReduction;
-
 UPixelStreamerInputComponent::UPixelStreamerInputComponent()
 	: PixelStreamingModule(FModuleManager::Get().GetModulePtr<IPixelStreamingModule>("PixelStreaming"))
 {

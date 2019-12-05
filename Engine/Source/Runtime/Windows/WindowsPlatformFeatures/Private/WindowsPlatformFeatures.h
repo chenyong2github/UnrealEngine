@@ -16,10 +16,7 @@ public:
 	virtual IVideoRecordingSystem* GetVideoRecordingSystem() override;
 
 private:
-	/**
-	 * Load global/generic modules, and perform any initialization
-	 */
-	bool StartupModules();
+	void StartupModule() override;
 
 };
 
