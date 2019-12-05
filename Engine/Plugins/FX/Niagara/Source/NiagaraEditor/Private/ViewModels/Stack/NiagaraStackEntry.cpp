@@ -224,10 +224,27 @@ bool UNiagaraStackEntry::GetIsExpanded() const
 
 void UNiagaraStackEntry::SetIsExpanded(bool bInExpanded)
 {
-	if (StackEditorData)
+	if (StackEditorData && GetCanExpand())
 	{
 		StackEditorData->SetStackEntryIsExpanded(GetStackEditorDataKey(), bInExpanded);
 	}
+	bIsExpandedCache.Reset();
+}
+
+void UNiagaraStackEntry::SetIsExpanded_Recursive(bool bInExpanded)
+{
+	if (StackEditorData && GetCanExpand())
+	{
+		StackEditorData->SetStackEntryIsExpanded(GetStackEditorDataKey(), bInExpanded);
+	}
+
+	TArray<UNiagaraStackEntry*> UnfilteredChildren;
+	GetUnfilteredChildren(UnfilteredChildren);
+	for (UNiagaraStackEntry* Child : UnfilteredChildren)
+	{
+		Child->SetIsExpanded_Recursive(bInExpanded);
+	}
+
 	bIsExpandedCache.Reset();
 }
 
