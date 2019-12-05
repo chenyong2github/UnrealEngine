@@ -87,7 +87,7 @@ namespace Chaos
 			TVector<T, d> LocalNormal;
 			T LocalPhi = Object.PhiWithNormal(LocalPoint, LocalNormal);
 
-			TPointContactManifold<T, d> & Contact = Constraint.Manifold;
+			TCollisionContact<T, d> & Contact = Constraint.Manifold;
 			if (LocalPhi < Contact.Phi)
 			{
 				Contact.Phi = LocalPhi;
@@ -105,7 +105,7 @@ namespace Chaos
 			TVector<T, d> LocalNormal;
 			T LocalPhi = Object.PhiWithNormal(LocalPoint, LocalNormal);
 
-			TPointContactManifold<T, d> & Contact = Constraint.Manifold;
+			TCollisionContact<T, d> & Contact = Constraint.Manifold;
 			if (LocalPhi < Contact.Phi)
 			{
 				Contact.Phi = LocalPhi;
@@ -122,7 +122,7 @@ namespace Chaos
 			T LocalPhi = Object.PhiWithNormal(LocalPoint, LocalNormal);
 			T LocalThickness = LocalPhi - Thickness;
 
-			TPointContactManifold<T, d> & Contact = Constraint.Manifold;
+			TCollisionContact<T, d> & Contact = Constraint.Manifold;
 			if (LocalThickness < -KINDA_SMALL_NUMBER)
 			{
 				Contact.Location += LocalPoint * LocalThickness;
@@ -153,8 +153,8 @@ namespace Chaos
 			SCOPE_CYCLE_COUNTER(STAT_SampleObject);
 			TRigidBodyPointContactConstraint<float, 3> AvgConstraint = Constraint;
 
-			TPointContactManifold<float, 3> & Contact = Constraint.Manifold;
-			TPointContactManifold<float, 3> & AvgContact = AvgConstraint.Manifold;
+			TCollisionContact<float, 3> & Contact = Constraint.Manifold;
+			TCollisionContact<float, 3> & AvgContact = AvgConstraint.Manifold;
 
 			AvgConstraint.Particle[0] = Constraint.Particle[0];
 			AvgConstraint.Particle[1] = Constraint.Particle[1];
@@ -460,8 +460,8 @@ namespace Chaos
 			SCOPE_CYCLE_COUNTER(STAT_SampleObject);
 			TRigidBodyPointContactConstraint<float, 3> AvgConstraint = Constraint;
 
-			TPointContactManifold<float, 3> & Contact = Constraint.Manifold;
-			TPointContactManifold<float, 3> & AvgContact = AvgConstraint.Manifold;
+			TCollisionContact<float, 3> & Contact = Constraint.Manifold;
+			TCollisionContact<float, 3> & AvgContact = AvgConstraint.Manifold;
 
 			AvgConstraint.Particle[0] = Constraint.Particle[0];
 			AvgConstraint.Particle[1] = Constraint.Particle[1];
