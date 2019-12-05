@@ -3907,7 +3907,15 @@ void UClass::SetSuperStruct(UStruct* NewSuperStruct)
 	UnhashObject(this);
 	ClearFunctionMapsCaches();
 	Super::SetSuperStruct(NewSuperStruct);
-	SetSparseClassDataStruct(GetSparseClassDataArchetypeStruct());
+
+	if (!GetSparseClassDataStruct())
+	{
+		if (UScriptStruct* SparseClassDataStructArchetype = GetSparseClassDataArchetypeStruct())
+		{
+			SetSparseClassDataStruct(SparseClassDataStructArchetype);
+		}
+	}
+
 	HashObject(this);
 }
 
@@ -4476,8 +4484,11 @@ void* UClass::CreateSparseClassData()
 {
 	check(SparseClassData == nullptr);
 
-	SparseClassData = GetDefaultObject()->CreateSparseClassData();
-
+	if (SparseClassDataStruct)
+	{
+		SparseClassData = FMemory::Malloc(SparseClassDataStruct->GetStructureSize(), SparseClassDataStruct->GetMinAlignment());
+		SparseClassDataStruct->GetCppStructOps()->Construct(SparseClassData);
+	}
 	if (SparseClassData)
 	{
 		// initialize per class data from the archetype if we have one
@@ -4496,6 +4507,16 @@ void* UClass::CreateSparseClassData()
 	return SparseClassData;
 }
 
+void UClass::CleanupSparseClassData()
+{
+	if (SparseClassData)
+	{
+		SparseClassDataStruct->GetCppStructOps()->Destruct(SparseClassData);
+		FMemory::Free(SparseClassData);
+		SparseClassData = nullptr;
+	}
+}
+
 UScriptStruct* UClass::GetSparseClassDataStruct() const
 {
 	// this info is specified on the object via code generation so we use it instead of looking at the UClass
@@ -4504,7 +4525,13 @@ UScriptStruct* UClass::GetSparseClassDataStruct() const
 
 void UClass::SetSparseClassDataStruct(UScriptStruct* InSparseClassDataStruct)
 { 
-	SparseClassDataStruct = InSparseClassDataStruct; 
+	if (SparseClassDataStruct != InSparseClassDataStruct)
+	{
+		SparseClassDataStruct = InSparseClassDataStruct;
+
+		// the old type and new type may not match when we do a hot reload so get rid of the old data
+		CleanupSparseClassData();
+	}
 }
 
 #if WITH_HOT_RELOAD
