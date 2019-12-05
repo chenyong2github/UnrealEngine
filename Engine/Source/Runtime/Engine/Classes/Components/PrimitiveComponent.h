@@ -491,7 +491,7 @@ public:
 
 	/** If set, navmesh will not be generated under the surface of the geometry */
 	UPROPERTY(EditAnywhere, Category = Navigation)
-	uint8 bRejectNavmeshUnderneath:1;
+	uint8 bFillCollisionUnderneathForNavmesh:1;
 
 	// General flags.
 	
