@@ -71,6 +71,8 @@ public:
 	// Development commands
 	TSharedPtr< FUICommandInfo > SaveIntermediateBuildProducts;
 	TSharedPtr< FUICommandInfo > GenerateNativeCode;
+	TSharedPtr< FUICommandInfo > GenerateSearchIndex;
+	TSharedPtr< FUICommandInfo > DumpCachedIndexData;
 	TSharedPtr< FUICommandInfo > ShowActionMenuItemSignatures;
 
 	// SSC commands
