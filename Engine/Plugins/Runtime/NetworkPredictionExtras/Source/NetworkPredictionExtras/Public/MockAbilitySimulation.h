@@ -144,10 +144,10 @@ struct FMockAbilityBlinkActivateCue
 		Ar << RandomType;
 	}
 	
-	bool NetUnique(const FMockAbilityBlinkActivateCue& Other) const
+	bool NetIdentical(const FMockAbilityBlinkActivateCue& Other) const
 	{
 		const float ErrorTolerance = 1.f;
-		return !Destination.Equals(Other.Destination, ErrorTolerance) || RandomType != Other.RandomType;
+		return Destination.Equals(Other.Destination, ErrorTolerance) && RandomType == Other.RandomType;
 	}
 };
 
@@ -206,10 +206,10 @@ struct FMockAbilityBlinkCue
 		StopLocation.NetSerialize(Ar, nullptr, b);
 	}
 	
-	bool NetUnique(const FMockAbilityBlinkCue& Other) const
+	bool NetIdentical(const FMockAbilityBlinkCue& Other) const
 	{
 		const float ErrorTolerance = 1.f;
-		return !StartLocation.Equals(Other.StartLocation, ErrorTolerance) || !StopLocation.Equals(Other.StopLocation, ErrorTolerance);
+		return StartLocation.Equals(Other.StartLocation, ErrorTolerance) && StopLocation.Equals(Other.StopLocation, ErrorTolerance);
 	}
 };
 

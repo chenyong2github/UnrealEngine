@@ -34,10 +34,10 @@ struct FMockImpactCue
 		Ar << ImpactLocation;
 	}
 
-	bool NetUnique(const FMockImpactCue& Other) const
+	bool NetIdentical(const FMockImpactCue& Other) const
 	{
 		const float ErrorTolerance = 1.f;
-		return !ImpactLocation.Equals(Other.ImpactLocation, ErrorTolerance);
+		return ImpactLocation.Equals(Other.ImpactLocation, ErrorTolerance);
 	}
 
 };
@@ -64,10 +64,10 @@ struct FMockDamageCue
 		Ar << HitLocation;
 	}
 
-	bool NetUnique(const FMockDamageCue& Other) const
+	bool NetIdentical(const FMockDamageCue& Other) const
 	{
 		const float ErrorTolerance = 1.f;
-		return SourceID != Other.SourceID || DamageType != Other.DamageType || !HitLocation.Equals(Other.HitLocation, ErrorTolerance);
+		return SourceID == Other.SourceID && DamageType && Other.DamageType && HitLocation.Equals(Other.HitLocation, ErrorTolerance);
 	}
 };
 NETSIMCUE_REGISTER(FMockDamageCue, TEXT("Damage"));
@@ -89,10 +89,10 @@ struct FMockHealingCue
 		Ar << HealingAmount;
 	}
 
-	bool NetUnique(const FMockHealingCue& Other) const
+	bool NetIdentical(const FMockHealingCue& Other) const
 	{
 		const float ErrorTolerance = 1.f;
-		return SourceID != Other.SourceID || HealingAmount != Other.HealingAmount;
+		return SourceID == Other.SourceID && HealingAmount == Other.HealingAmount;
 	}
 };
 NETSIMCUE_REGISTER(FMockHealingCue, TEXT("Healing"));
