@@ -15,7 +15,9 @@ const FName UNiagaraDataInterfaceCurve::SampleCurveName(TEXT("SampleCurve"));
 UNiagaraDataInterfaceCurve::UNiagaraDataInterfaceCurve(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+#if WITH_EDITORONLY_DATA
 	UpdateLUT();
+#endif
 }
 
 void UNiagaraDataInterfaceCurve::PostInitProperties()
@@ -27,7 +29,9 @@ void UNiagaraDataInterfaceCurve::PostInitProperties()
 		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(GetClass()), true, false, false);
 	}
 
+#if WITH_EDITORONLY_DATA
 	UpdateLUT();
+#endif
 }
 
 void UNiagaraDataInterfaceCurve::Serialize(FArchive& Ar)
@@ -48,6 +52,7 @@ void UNiagaraDataInterfaceCurve::Serialize(FArchive& Ar)
 #endif
 	{
 		Super::Serialize(Ar);
+		PushToRenderThread();
 	}
 }
 
@@ -58,11 +63,13 @@ bool UNiagaraDataInterfaceCurve::CopyToInternal(UNiagaraDataInterface* Destinati
 		return false;
 	}
 	CastChecked<UNiagaraDataInterfaceCurve>(Destination)->Curve = Curve;
+#if WITH_EDITORONLY_DATA
 	CastChecked<UNiagaraDataInterfaceCurve>(Destination)->UpdateLUT();
 	if (!CompareLUTS(CastChecked<UNiagaraDataInterfaceCurve>(Destination)->ShaderLUT))
 	{
 		UE_LOG(LogNiagara, Log, TEXT("Post CopyToInternal LUT generation is out of sync. Please investigate. %s"), *GetPathName());
 	}
+#endif
 	return true;
 }
 
