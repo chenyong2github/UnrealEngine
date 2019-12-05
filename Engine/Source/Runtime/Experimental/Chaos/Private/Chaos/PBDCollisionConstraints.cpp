@@ -14,8 +14,7 @@
 #include "Chaos/SpatialAccelerationCollection.h"
 #include "Chaos/Levelset.h"
 #include "Chaos/Pair.h"
-#include "Chaos/PBDCollisionConstraintsPointContactUtil.h"
-#include "Chaos/PBDCollisionConstraintsPlaneContactUtil.h"
+#include "Chaos/PBDCollisionConstraintsContact.h"
 #include "Chaos/PBDRigidsSOAs.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/Transform.h"
@@ -224,22 +223,9 @@ namespace Chaos
 				FConstraintContainerHandle* ConstraintHandle = InConstraintHandles[ConstraintHandleIndex];
 				check(ConstraintHandle != nullptr);
 
-				if (ConstraintHandle->GetType() == FPointContactConstraint::StaticType())
-				{
-					Collisions::TPointContactParticleParameters<T> ParticleParameters = { &MCollided, &MPhysicsMaterials, CollisionFrictionOverride, MAngularFriction };
-					Collisions::TPointContactIterationParameters<T> IterationParameters = { Dt, Iterations, NumIterations, MApplyPairIterations, nullptr };
-					Collisions::Apply(ConstraintHandle->GetPointContact(), MThickness, IterationParameters, ParticleParameters);
-				}
-				else if (ConstraintHandle->GetType() == FPlaneContactConstraint::StaticType())
-				{
-					Collisions::TPlaneContactParticleParameters<T> ParticleParameters = { &MCollided, &MPhysicsMaterials, CollisionFrictionOverride, MAngularFriction };
-					Collisions::TPlaneContactIterationParameters<T> IterationParameters = { Dt, Iterations, NumIterations, MApplyPairIterations, nullptr };
-					Collisions::Apply(ConstraintHandle->GetPlaneContact(), MThickness, IterationParameters, ParticleParameters);
-				}
-				else
-				{
-					ensureMsgf(false, TEXT("Invalid constraint type"));
-				}
+				Collisions::TContactParticleParameters<T> ParticleParameters = { &MCollided, &MPhysicsMaterials, CollisionFrictionOverride, MAngularFriction };
+				Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iterations, NumIterations, MApplyPairIterations, nullptr };
+				Collisions::Apply(ConstraintHandle->GetContact(), MThickness, IterationParameters, ParticleParameters);
 
 			}, bDisableCollisionParallelFor);
 		}
@@ -265,23 +251,9 @@ namespace Chaos
 				FConstraintContainerHandle* ConstraintHandle = InConstraintHandles[ConstraintHandleIndex];
 				check(ConstraintHandle != nullptr);
 
-				if (ConstraintHandle->GetType() == FPointContactConstraint::StaticType())
-				{
-					Collisions::TPointContactParticleParameters<T> ParticleParameters = { &MCollided, &MPhysicsMaterials, CollisionFrictionOverride, MAngularFriction };
-					Collisions::TPointContactIterationParameters<T> IterationParameters = { Dt, Iteration, NumIterations, MApplyPushOutPairIterations, &NeedsAnotherIteration };
-					Collisions::ApplyPushOut(ConstraintHandle->GetPointContact(), MThickness, IsTemporarilyStatic, IterationParameters, ParticleParameters);
-				}
-				else if (ConstraintHandle->GetType() == FPlaneContactConstraint::StaticType())
-				{
-					Collisions::TPlaneContactParticleParameters<T> ParticleParameters = { &MCollided, &MPhysicsMaterials, CollisionFrictionOverride, MAngularFriction };
-					Collisions::TPlaneContactIterationParameters<T> IterationParameters = { Dt, Iteration, NumIterations, MApplyPushOutPairIterations, &NeedsAnotherIteration };
-					Collisions::ApplyPushOut(ConstraintHandle->GetPlaneContact(), MThickness, IsTemporarilyStatic, IterationParameters, ParticleParameters);
-				}
-				else
-				{
-					ensureMsgf(false, TEXT("Invalid constraint type"));
-				}
-
+				Collisions::TContactParticleParameters<T> ParticleParameters = { &MCollided, &MPhysicsMaterials, CollisionFrictionOverride, MAngularFriction };
+				Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iteration, NumIterations, MApplyPushOutPairIterations, &NeedsAnotherIteration };
+				Collisions::ApplyPushOut(ConstraintHandle->GetContact(), MThickness, IsTemporarilyStatic, IterationParameters, ParticleParameters);
 
 			}, bDisableCollisionParallelFor);
 		}
