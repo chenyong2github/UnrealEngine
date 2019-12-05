@@ -14,6 +14,7 @@ struct FNiagaraEmitterHandle;
 class FNiagaraEmitterInstance;
 class FNiagaraEmitterViewModel;
 class UNiagaraStackViewModel;
+enum class ENiagaraSystemViewModelEditMode;
 
 /** The view model for the FNiagaraEmitterEditorWidget. */
 class FNiagaraEmitterHandleViewModel : public TSharedFromThis<FNiagaraEmitterHandleViewModel>, public FGCObject
@@ -81,6 +82,9 @@ public:
 	/** Gets whether or not the emitter for this handle has been isolated in the UI. */
 	NIAGARAEDITOR_API bool GetIsIsolated() const;
 
+	/** Sets whether or not this emitter is isolated. May affect other emitters in the system. */
+	NIAGARAEDITOR_API void SetIsIsolated(bool InIsIsolated);
+
 	/** Gets the check state for the is enabled check box. */
 	NIAGARAEDITOR_API ECheckBoxState GetIsEnabledCheckState() const;
 
@@ -95,6 +99,9 @@ public:
 
 	/** Gets the stack view model which represents the emitter pointed to by this handle. */
 	NIAGARAEDITOR_API UNiagaraStackViewModel* GetEmitterStackViewModel();
+
+	/** Gets the current edit mode of the emitter's owning system. */
+	NIAGARAEDITOR_API ENiagaraSystemViewModelEditMode GetOwningSystemEditMode() const;
 
 	/** Gets whether or not this emitter handle has a rename pending. */
 	NIAGARAEDITOR_API bool GetIsRenamePending() const;
