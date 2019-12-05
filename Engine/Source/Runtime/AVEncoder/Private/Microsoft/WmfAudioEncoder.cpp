@@ -1,8 +1,12 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Microsoft/WmfAudioEncoder.h"
+
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+
 #include "Microsoft/AVEncoderIMFSampleWrapper.h"
 #include "Microsoft/AVEncoderMicrosoftCommon.h"
+
 
 namespace AVEncoder
 {
@@ -399,6 +403,7 @@ TUniquePtr<FAudioEncoder> FWmfAudioEncoderFactory::CreateEncoder(const FString& 
 	}
 }
 
-
 }
+
+#endif
 
