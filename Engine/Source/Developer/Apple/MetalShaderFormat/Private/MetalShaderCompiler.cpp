@@ -2835,19 +2835,8 @@ bool FinalizeLibrary_Metal(FName const& Format, FString const& WorkingDir, FStri
 					FGuid Guid = FGuid::NewGuid();
 					RemoteLibPath = OriginalRemoteLibPath + FString::Printf(TEXT(".%x%x%x%x"), Guid.A, Guid.B, Guid.C, Guid.D);
 				}
-
-				uint64 XcodeBuildVers = 0;
-				uint16 XcodeVers = GetXcodeVersion(XcodeBuildVers);
-				uint16 XcodeMajorVers = ((XcodeVers >> 8) & 0xff);
-
-				if (XcodeMajorVers >= 11)
-				{
-					Params = FString::Printf(TEXT("-o \"%s\" \"%s\""), *RemoteLibPath, *ArchivePath);
-				}
-				else
-				{
-					Params = FString::Printf(TEXT("-o=\"%s\" \"%s\""), *RemoteLibPath, *ArchivePath);
-				}
+			
+				Params = FString::Printf(TEXT("-o \"%s\" \"%s\""), *RemoteLibPath, *ArchivePath);
 				ReturnCode = 0;
 				Results = TEXT("");
 				Errors = TEXT("");
