@@ -123,7 +123,7 @@ UObject* USoundSurroundFactory::FactoryCreateBinary
 		Sound->AssetImportData->Update(CurrentFilename);
 
 		// Compressed data is now out of date.
-		Sound->InvalidateCompressedData();
+		Sound->InvalidateCompressedData(false, false);
 
 		// Delete the old version of the wave from the bulk data
 		uint8* RawWaveData[SPEAKER_Count] = { nullptr };
