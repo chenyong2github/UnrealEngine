@@ -39,17 +39,6 @@ enum class EInstallBundleManagerInitResult : int
 };
 INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleManagerInitResult Result);
 
-// TODO: Needs to be renamed to EInstallBundleState
-enum class EBundleState : int
-{
-	NotInstalled,
-	NeedsUpdate,
-	NeedsMount,
-	Mounted,
-	Count,
-};
-INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EBundleState Val);
-
 enum class EInstallBundleContentState : int
 {
 	InitializationError,
@@ -127,6 +116,14 @@ struct FInstallBundleRequestInfo
 	TArray<FName> BundlesQueuedForInstall;
 };
 
+struct FInstallBundleSourceInitInfo
+{
+	EInstallBundleManagerInitResult Result = EInstallBundleManagerInitResult::OK;
+	bool bShouldUseFallbackSource = false;
+
+	TMap<FName, bool> BundleUpToDate;
+};
+
 struct FInstallBundleSourceRequestResultInfo
 {
 	FName BundleName;
@@ -138,6 +135,10 @@ struct FInstallBundleSourceRequestResultInfo
 	FString OptionalErrorCode;
 
 	TArray<FString> ContentPaths;
+	// Support platforms that need shaderlibs in the physical FS
+	TSet<FString> NonUFSShaderLibPaths;
+
+	bool bContentWasInstalled = false;
 };
 
 enum class EInstallBundleCancelFlags : int32
