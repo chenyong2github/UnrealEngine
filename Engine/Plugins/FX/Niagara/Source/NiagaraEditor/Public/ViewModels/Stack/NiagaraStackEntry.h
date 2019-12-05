@@ -241,6 +241,8 @@ public:
 	// expanded state with the tree which is done to prevent items being expanded on tick.
 	void SetIsExpanded(bool bInExpanded);
 
+	void SetIsExpanded_Recursive(bool bInExpanded);
+
 	virtual bool GetIsEnabled() const;
 
 	bool GetOwnerIsEnabled() const;
